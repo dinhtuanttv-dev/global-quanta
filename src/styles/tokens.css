@@ -1,0 +1,35 @@
+:root{
+  --bg-base:#0A0E17;
+  --bg-surface:#0F1420;
+  --bg-surface-2:#161D2C;
+  --bg-radar:#080B12;
+  --border:rgba(255,255,255,0.07);
+  --border-strong:rgba(255,255,255,0.15);
+  --text-primary:#F2F4F8;
+  --text-secondary:#8A93A8;
+  --text-tertiary:#586178;
+  --gold:#E8B84B;
+  --gold-bright:#F5CE72;
+  --positive:#34D399;
+  --negative:#F87171;
+  --warning:#FBBF24;
+  --similar-purple:#B78CF0;
+  --core-glow:rgba(232,184,75,0.30);
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'Inter',sans-serif;
+  --font-mono:'IBM Plex Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  background:var(--bg-base);
+  color:var(--text-primary);
+  font-family:var(--font-body);
+  font-size:13px;
+  -webkit-font-smoothing:antialiased;
+}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+.up{color:var(--positive);}
+.down{color:var(--negative);}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:#242D42;border-radius:3px;}
+::-webkit-scrollbar-track{background:transparent;}
