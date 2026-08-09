@@ -6,7 +6,7 @@ const fetcher = (url: string) => fetch(url).then((r) => {
 });
 
 export function usePatternScan() {
-  const { data, error, isLoading, mutate } = useSWR("/api/pattern-scan", fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/pattern-scan`, fetcher, {
     refreshInterval: 15 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 10 * 60 * 1000,

@@ -8,7 +8,7 @@ const fetcher = (url: string) => fetch(url).then((r) => {
 });
 
 export function useGoldenFilter() {
-  const { data, error, isLoading, mutate } = useSWR("/api/golden-filter", fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(`${import.meta.env.VITE_API_BASE_URL ?? ""}/api/golden-filter`, fetcher, {
     refreshInterval: 20 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 10 * 60 * 1000,
