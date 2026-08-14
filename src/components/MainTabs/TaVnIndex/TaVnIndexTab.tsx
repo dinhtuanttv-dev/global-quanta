@@ -3,12 +3,12 @@ import { useAppStore } from "../../../store/useAppStore";
 import TickerSelector from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
 import GoldenFilterPanel from "./GoldenFilterPanel";
+import TAConsensusPanel from "./TAConsensusPanel";
 
 export default function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
   const [ticker, setTicker] = useState(globalSelectedTicker ?? "VNM");
 
-  // Dong bo khi nguoi dung click 1 ma o Sidebar/Radar noi khac trong app
   useEffect(() => {
     if (globalSelectedTicker) setTicker(globalSelectedTicker);
   }, [globalSelectedTicker]);
@@ -19,6 +19,9 @@ export default function TaVnIndexTab() {
       <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} />
       <div style={{ marginTop: 16 }}>
         <GoldenFilterPanel onSelectTicker={setTicker} />
+      </div>
+      <div style={{ marginTop: 16 }}>
+        <TAConsensusPanel onSelectTicker={setTicker} />
       </div>
     </div>
   );
