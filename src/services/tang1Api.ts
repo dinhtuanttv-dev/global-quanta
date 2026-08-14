@@ -1,6 +1,6 @@
 ﻿import type { Tang1ApiResponse, Scenario } from "../types/tang1";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const API_BASE = "https://tuan-quant-scanner-9lwpafmq-dinhtuanttv-devs-projects.vercel.app";
 
 export async function fetchTang1(scenario: Scenario): Promise<Tang1ApiResponse> {
   const res = await fetch(`${API_BASE}/api/tang1?scenario=${scenario}`);

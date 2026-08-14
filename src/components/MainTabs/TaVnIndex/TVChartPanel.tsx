@@ -9,7 +9,9 @@ import LayerToggleBar from "./LayerToggleBar";
 import AISignalLogPanel from "./AISignalLogPanel";
 import TimeframeSelector from "./TimeframeSelector";
 import PatternList from "./PatternList";
-import { SMCPanel, VSAPanel, ElliottWavePanelPlaceholder, WyckoffPanelPlaceholder } from "./MethodPanels";
+import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
+import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
+import { classifyWyckoffPhase } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/types";
 import type { DrawingToolType, DrawnPrimitive } from "../../../lib/ta-command-center/DrawingManager";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
@@ -107,6 +109,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     markers.sort((a, b) => a.time.localeCompare(b.time));
     tvManagerRef.current.setMarkers(markers);
   }, [smc, vsa, layerState]);
+
+  const wyckoffResult = useMemo(() => classifyWyckoffPhase(currentBars), [currentBars]);
 
   const handleTimeframeChange = (tf: Timeframe) => {
     controllerRef.current?.setTimeframe(tf);
@@ -277,11 +281,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} />
         <VSAPanel signals={vsa} />
+        <WyckoffPanel result={wyckoffResult} />
         <ElliottWavePanelPlaceholder />
-        <WyckoffPanelPlaceholder />
       </div>
 
       <PatternList onSelectPattern={handleSelectPattern} />
+      <ConvergenceFilterPanel onSelectTicker={(t) => onRequestTickerChange?.(t)} />
       <AISignalLogPanel log={log} />
     </div>
   );
