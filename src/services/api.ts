@@ -1,14 +1,31 @@
-import mockData from '../mocks/mock-data.json';
+﻿import mockData from '../mocks/mock-data.json';
 import type {
   WatchlistStock, AddableStock, RadarCoreNode, RadarRingNode,
   RadarDigest, ConcentrationRisk, NewsItem, VnIndexData, MacroTickerData, LiquidityData,
 } from '../types';
 
-// === LỚP GIẢ LẬP BACKEND ===
-// Khi có backend thật, chỉ cần thay nội dung bên trong mỗi hàm bằng fetch('/api/...'),
-// KHÔNG cần đổi chữ ký hàm — toàn bộ component gọi qua service này, không gọi mock trực tiếp.
-
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
+
+const WATCHLIST_STORAGE_KEY = 'gq_watchlist_v1';
+
+function loadWatchlistFromStorage(): WatchlistStock[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(WATCHLIST_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as WatchlistStock[];
+  } catch {
+    return null;
+  }
+}
+
+function saveWatchlistToStorage(list: WatchlistStock[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(list));
+  } catch {
+  }
+}
 
 export async function login(username: string, password: string): Promise<boolean> {
   await delay(400);
@@ -50,7 +67,13 @@ let _watchlistCache: WatchlistStock[] | null = null;
 export async function fetchWatchlist(): Promise<WatchlistStock[]> {
   await delay(300);
   if (!_watchlistCache) {
-    _watchlistCache = JSON.parse(JSON.stringify(mockData['GET /watchlist']));
+    const stored = loadWatchlistFromStorage();
+    if (stored) {
+      _watchlistCache = stored;
+    } else {
+      _watchlistCache = JSON.parse(JSON.stringify(mockData['GET /watchlist']));
+      saveWatchlistToStorage(_watchlistCache!);
+    }
   }
   return _watchlistCache!;
 }
@@ -66,16 +89,18 @@ export async function addToWatchlist(stock: AddableStock): Promise<WatchlistStoc
   await delay(250);
   const newStock: WatchlistStock = {
     ticker: stock.ticker, sector: stock.sector, price: 0, changePct: 0,
-    tag: 'none', convScore: 0, groups: [], pinned: false, reason: 'Mới thêm thủ công',
+    tag: 'none', convScore: 0, groups: [], pinned: false, reason: 'Moi them thu cong',
     addedAt: new Date().toISOString().slice(0, 10), addedPerfPct: 0, unread: false, similarTo: null,
   };
   _watchlistCache = [...(_watchlistCache ?? []), newStock];
+  saveWatchlistToStorage(_watchlistCache);
   return newStock;
 }
 
 export async function removeFromWatchlist(ticker: string): Promise<void> {
   await delay(200);
   _watchlistCache = (_watchlistCache ?? []).filter((s) => s.ticker !== ticker);
+  saveWatchlistToStorage(_watchlistCache);
 }
 
 export async function restoreToWatchlist(stock: WatchlistStock, index: number): Promise<void> {
@@ -83,11 +108,13 @@ export async function restoreToWatchlist(stock: WatchlistStock, index: number): 
   const list = [..._watchlistCache ?? []];
   list.splice(index, 0, stock);
   _watchlistCache = list;
+  saveWatchlistToStorage(_watchlistCache);
 }
 
 export async function patchWatchlistStock(ticker: string, patch: Partial<WatchlistStock>): Promise<void> {
   await delay(150);
   _watchlistCache = (_watchlistCache ?? []).map((s) => (s.ticker === ticker ? { ...s, ...patch } : s));
+  saveWatchlistToStorage(_watchlistCache);
 }
 
 export async function fetchRadarCore(): Promise<RadarCoreNode[]> {
@@ -117,10 +144,10 @@ export async function fetchNewsFeed(): Promise<NewsItem[]> {
 
 export async function placeOrderIntent(ticker: string, side: 'buy' | 'sell'): Promise<void> {
   await delay(200);
-  // eslint-disable-next-line no-console
-  console.log(`[demo] Đặt ý định lệnh ${side.toUpperCase()} cho ${ticker}`);
+  console.log(`[demo] Dat y dinh lenh ${side.toUpperCase()} cho ${ticker}`);
 }
 
 export async function createAlert(ticker: string): Promise<void> {
   await delay(200);
 }
+
