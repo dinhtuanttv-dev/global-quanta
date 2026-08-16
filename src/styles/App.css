@@ -402,3 +402,36 @@ body{
 .ta-ticker-suggest-item{padding:8px 12px;font-size:12px;cursor:pointer;color:var(--text-primary);}
 .ta-ticker-suggest-item:hover{background:var(--bg-surface-2);}
 .ta-ticker-suggest-sector{color:var(--text-tertiary);font-size:10px;margin-left:6px;}
+
+/* ===== RESPONSIVE MOBILE (chi ap dung duoi 768px, khong dung gi o tren) ===== */
+@media (max-width: 768px) {
+  .app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px auto auto auto;
+    height: auto;
+    min-height: 100vh;
+    overflow-y: visible;
+  }
+
+  /* Thu tu hien thi: TopBar (row1, khong doi) -> Main -> Sidebar -> Insight */
+  .main { grid-column: 1; grid-row: 2; overflow-y: visible; padding: 14px; }
+  .sidebar { grid-column: 1; grid-row: 3; overflow-y: auto; max-height: 320px; }
+  .insight { grid-column: 1; grid-row: 4; overflow-y: visible; }
+
+  .main-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .m-tab { flex-shrink: 0; }
+
+  .radar-canvas-wrap svg { max-height: 320px; }
+
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 8px 10px;
+    row-gap: 6px;
+  }
+}
+
+@media (max-width: 420px) {
+  .sidebar { max-height: 260px; }
+  .panel-title { font-size: 11px; }
+}
