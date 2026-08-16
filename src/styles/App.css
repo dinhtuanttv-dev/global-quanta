@@ -1,4 +1,4 @@
-*{box-sizing:border-box;margin:0;padding:0;}
+﻿*{box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg-base);
   color:var(--text-primary);
@@ -425,6 +425,7 @@ body{
 
   .topbar {
     flex-wrap: wrap;
+    grid-column: 1;
     height: auto;
     padding: 8px 10px;
     row-gap: 6px;
@@ -435,3 +436,4 @@ body{
   .sidebar { max-height: 260px; }
   .panel-title { font-size: 11px; }
 }
+
