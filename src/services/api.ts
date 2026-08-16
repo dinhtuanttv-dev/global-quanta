@@ -4,6 +4,7 @@ import type {
   RadarDigest, ConcentrationRisk, NewsItem, VnIndexData, MacroTickerData, LiquidityData,
 } from '../types';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
 
 const WATCHLIST_STORAGE_KEY = 'gq_watchlist_v1';
@@ -78,9 +79,26 @@ export async function fetchWatchlist(): Promise<WatchlistStock[]> {
   return _watchlistCache!;
 }
 
+// Cache danh sach toan bo VN30+VN100 lay tu /api/universe - chi fetch 1 lan
+// cho ca phien lam viec, tranh goi mang lien tuc moi lan go phim.
+let _universeCache: AddableStock[] | null = null;
+
+async function loadUniverse(): Promise<AddableStock[]> {
+  if (_universeCache) return _universeCache;
+  try {
+    const res = await fetch(`${API_BASE}/api/universe`);
+    if (!res.ok) throw new Error(`Universe API loi: ${res.status}`);
+    const json = await res.json();
+    _universeCache = (json.tickers ?? []) as AddableStock[];
+  } catch (err) {
+    console.error('[searchAddableStocks] Khong lay duoc universe that, dung mock du phong:', err);
+    _universeCache = mockData['GET /stocks/search?q= (kho mã có thể thêm, chưa có trong watchlist)'] as AddableStock[];
+  }
+  return _universeCache;
+}
+
 export async function searchAddableStocks(query: string): Promise<AddableStock[]> {
-  await delay(150);
-  const pool = mockData['GET /stocks/search?q= (kho mã có thể thêm, chưa có trong watchlist)'] as AddableStock[];
+  const pool = await loadUniverse();
   const q = query.toUpperCase();
   return pool.filter((s) => s.ticker.includes(q) && !_watchlistCache?.some((w) => w.ticker === s.ticker));
 }
@@ -150,4 +168,3 @@ export async function placeOrderIntent(ticker: string, side: 'buy' | 'sell'): Pr
 export async function createAlert(ticker: string): Promise<void> {
   await delay(200);
 }
-
