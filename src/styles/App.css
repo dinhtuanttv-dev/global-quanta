@@ -437,3 +437,10 @@ body{
   .panel-title { font-size: 11px; }
 }
 
+
+@media (max-width: 768px) {
+  html, body, #root, .app { overflow-x: hidden; max-width: 100vw; }
+  .main, .sidebar, .insight, .topbar { overflow-x: hidden; max-width: 100vw; }
+  .radar-canvas-wrap { overflow: hidden; width: 100%; }
+  .radar-canvas-wrap svg { max-width: 100%; height: auto; }
+}
