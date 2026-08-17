@@ -444,3 +444,16 @@ body{
   .radar-canvas-wrap { overflow: hidden; width: 100%; }
   .radar-canvas-wrap svg { max-width: 100%; height: auto; }
 }
+
+/* ===== FIX RADAR: khoa dung ty le theo viewBox 400x340, khong phu thuoc trinh duyet doan sai ===== */
+.radar-canvas-wrap svg { aspect-ratio: 400 / 340; }
+
+@media (max-width: 480px) {
+  /* Uu tien thong tin cot loi: VN-Index + trang thai thi truong.
+     An bot chi so phu (do rong, thanh khoan 10:30) - dung pattern
+     progressive disclosure cua cac terminal tai chinh chuyen nghiep. */
+  .breadth, .liq-check { display: none; }
+
+  .regime-badge, .vn-hero { flex-shrink: 0; }
+  .tickers { gap: 12px; }
+}
