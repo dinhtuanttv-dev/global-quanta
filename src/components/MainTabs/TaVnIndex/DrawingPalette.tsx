@@ -1,15 +1,21 @@
 ﻿"use client";
-import { TrendingUp, Square, Activity } from "lucide-react";
+import { TrendingUp, Square, Activity, Waves } from "lucide-react";
 import type { DrawingToolType } from "../../../lib/ta-command-center/DrawingManager";
 
-interface Props { activeTool: DrawingToolType | null; onSelectTool: (tool: DrawingToolType | null) => void; }
+interface Props {
+  activeTool: DrawingToolType | null;
+  onSelectTool: (tool: DrawingToolType | null) => void;
+  elliottEnabled: boolean;
+}
 
-export default function DrawingPalette({ activeTool, onSelectTool }: Props) {
+export default function DrawingPalette({ activeTool, onSelectTool, elliottEnabled }: Props) {
   const tools: { id: DrawingToolType; icon: typeof Square; label: string }[] = [
     { id: "trendline", icon: TrendingUp, label: "Trendline" },
     { id: "rectangle", icon: Square, label: "Zone" },
     { id: "fibonacci", icon: Activity, label: "Fibonacci" },
+    ...(elliottEnabled ? [{ id: "elliott" as const, icon: Waves, label: "Elliott Wave (6 diem)" }] : []),
   ];
+
   return (
     <div style={{ background: "rgba(14,22,38,0.9)", border: "1px solid rgba(148,163,184,0.15)" }}
       className="absolute top-3 left-3 z-10 flex flex-col gap-1 p-1.5 rounded-lg">
