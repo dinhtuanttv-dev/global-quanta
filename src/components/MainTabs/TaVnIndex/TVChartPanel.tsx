@@ -160,6 +160,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     if (!point) return;
 
     if (activeTool === "elliott") {
+      console.log("[DEBUG] Elliott click - point:", point);
       controllerRef.current.drawing.addElliottPoint(point);
       if (controllerRef.current.drawing.getElliottDraft().length === 0) {
         setActiveTool(null);
@@ -263,6 +264,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   }, [tv, wyckoffResult, layerState, currentBars]);
 
   const elliottDraftPixels = useMemo(() => {
+    console.log("[DEBUG] elliottDraft raw:", elliottDraft, "tv ton tai:", !!tv);
     if (!tv) return [];
     return elliottDraft
       .map((pt) => {
@@ -425,4 +427,5 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     </div>
   );
 }
+
 
