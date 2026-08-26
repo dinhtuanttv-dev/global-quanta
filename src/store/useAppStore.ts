@@ -33,6 +33,12 @@ interface AppState {
   selectedTicker: string | null;
   selectTicker: (ticker: string) => void;
 
+  // ===== SECTOR FILTER (tab Loc nganh) =====
+  selectedSectorKey: string | null;
+  setSelectedSectorKey: (key: string | null) => void;
+  selectedQuadrant: "Leading" | "Improving" | "Weakening" | "Lagging" | null;
+  setSelectedQuadrant: (q: "Leading" | "Improving" | "Weakening" | "Lagging" | null) => void;
+
   // ===== RADAR =====
   radarCore: RadarCoreNode[];
   radarRing: RadarRingNode[];
@@ -108,6 +114,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ selectedTicker: ticker });
     get().markRead(ticker);
   },
+
+  selectedSectorKey: null,
+  setSelectedSectorKey: (key) => set({ selectedSectorKey: key }),
+  selectedQuadrant: null,
+  setSelectedQuadrant: (q) => set({ selectedQuadrant: q }),
 
   radarCore: [],
   radarRing: [],
