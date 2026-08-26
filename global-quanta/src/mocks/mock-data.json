@@ -1,0 +1,119 @@
+{
+  "_ghiChu": "Dữ liệu mẫu để dev code Frontend độc lập, không cần chờ backend. Khớp 1:1 với những gì đang hiển thị trong global-quanta-demo.html. Cấu trúc theo đúng endpoint đã liệt kê ở Mục 6 của Global-Quanta-Dev-Handoff-Spec.md.",
+
+  "GET /market/regime": {
+    "state": "RISK_ON"
+  },
+
+  "GET /market/vnindex": {
+    "value": 1284.5,
+    "changeAbs": 10.8,
+    "changePct": 0.86,
+    "sparkline": [1273.5, 1276.0, 1275.2, 1279.8, 1278.1, 1282.3, 1280.6, 1284.9, 1283.2, 1284.5],
+    "volumeShares": "842tr CP",
+    "valueVND": "19,400 tỷ",
+    "compare": [
+      { "index": "VN30", "value": 1342.1, "changePct": 0.92 },
+      { "index": "HNX-Index", "value": 238.6, "changePct": -0.14 },
+      { "index": "UPCOM", "value": 98.4, "changePct": 0.31 }
+    ],
+    "compareNote": "VN30 tăng mạnh hơn VN-Index — dòng tiền đang tập trung vào nhóm vốn hoá lớn, độ rộng thị trường chưa lan toả đều."
+  },
+
+  "GET /market/macro-tickers": [
+    { "name": "DXY", "value": 104.2, "changePct": -0.21, "sparkline": [104.6,104.5,104.7,104.3,104.4,104.1,104.3,104.2] },
+    { "name": "US 10Y", "value": "4.28%", "changeAbs": -0.03, "sparkline": [4.31,4.30,4.32,4.29,4.27,4.28,4.26,4.28] },
+    { "name": "GOLD", "value": 2412, "changePct": 0.44, "sparkline": [2402,2405,2408,2406,2410,2409,2413,2412] }
+  ],
+
+  "GET /market/breadth": {
+    "advancers": 312,
+    "decliners": 145
+  },
+
+  "GET /market/liquidity-1030": {
+    "todayValueAt1030Ty": 8420,
+    "last5SessionsAt1030Ty": [6100, 7300, 6650, 7100, 6950],
+    "avg5Ty": 6820,
+    "deviationPct": 23.5,
+    "alertThresholdPct": 20,
+    "status": "hot_alert"
+  },
+
+  "GET /market/sessions": {
+    "VN": "open",
+    "HK": "open",
+    "US": "closed"
+  },
+
+  "GET /watchlist": [
+    { "ticker": "VNM", "sector": "Tiêu dùng", "price": 68400, "changePct": 1.2, "tag": "core", "convScore": 6, "groups": ["core"], "pinned": true, "reason": "Core ổn định — nắm giữ dài hạn", "addedAt": "2026-06-05", "addedPerfPct": 8.4, "unread": false, "similarTo": null },
+    { "ticker": "FPT", "sector": "Công nghệ", "price": 134200, "changePct": 3.8, "tag": "core", "convScore": 6, "groups": ["core"], "pinned": false, "reason": "Vừa breakout — chờ xác nhận", "addedAt": "2026-05-20", "addedPerfPct": 15.2, "unread": true, "similarTo": null },
+    { "ticker": "HPG", "sector": "Thép", "price": 28900, "changePct": -0.4, "tag": "core", "convScore": 6, "groups": ["core", "highRisk"], "pinned": true, "reason": "Cảnh báo sớm — theo dõi sát", "addedAt": "2026-04-18", "addedPerfPct": -2.1, "unread": true, "similarTo": null },
+    { "ticker": "VCB", "sector": "Ngân hàng", "price": 92100, "changePct": 0.6, "tag": "ring", "convScore": 5, "groups": ["ring", "highDividend"], "pinned": false, "reason": "Gần vào Core (5/6)", "addedAt": "2026-03-11", "addedPerfPct": 3.0, "unread": false, "similarTo": null },
+    { "ticker": "TCB", "sector": "Ngân hàng", "price": 38200, "changePct": 0.5, "tag": "ring", "convScore": 4, "groups": ["ring"], "pinned": false, "reason": null, "addedAt": "2026-05-02", "addedPerfPct": 1.4, "unread": false, "similarTo": { "core": "HPG", "coeff": 0.76 } },
+    { "ticker": "SSI", "sector": "Chứng khoán", "price": 34500, "changePct": 2.1, "tag": "ring", "convScore": 4, "groups": ["ring", "highRisk"], "pinned": false, "reason": null, "addedAt": "2026-05-14", "addedPerfPct": 6.7, "unread": false, "similarTo": null },
+    { "ticker": "MWG", "sector": "Bán lẻ", "price": 61800, "changePct": -0.8, "tag": "ring", "convScore": 4, "groups": ["ring"], "pinned": false, "reason": null, "addedAt": "2026-04-29", "addedPerfPct": -1.5, "unread": false, "similarTo": { "core": "VNM", "coeff": 0.81 } },
+    { "ticker": "DGC", "sector": "Hoá chất", "price": 112000, "changePct": 0.3, "tag": "ring", "convScore": 3, "groups": ["ring", "highDividend"], "pinned": false, "reason": null, "addedAt": "2026-03-30", "addedPerfPct": 4.1, "unread": false, "similarTo": { "core": "FPT", "coeff": 0.79 } },
+    { "ticker": "PVC", "sector": "Dầu khí", "price": 21300, "changePct": -1.1, "tag": "ring", "convScore": 3, "groups": ["ring", "highDividend"], "pinned": false, "reason": null, "addedAt": "2026-06-01", "addedPerfPct": -0.8, "unread": false, "similarTo": null },
+    { "ticker": "SVG", "sector": "Vận tải biển", "price": 44700, "changePct": 1.9, "tag": "ring", "convScore": 3, "groups": ["ring", "highRisk"], "pinned": false, "reason": null, "addedAt": "2026-05-25", "addedPerfPct": 9.3, "unread": false, "similarTo": null },
+    { "ticker": "REE", "sector": "Điện", "price": 58000, "changePct": -0.2, "tag": "ring", "convScore": 2, "groups": ["ring", "highDividend"], "pinned": false, "reason": null, "addedAt": "2026-02-14", "addedPerfPct": 2.0, "unread": false, "similarTo": null },
+    { "ticker": "PVD", "sector": "Dầu khí", "price": 26400, "changePct": 0.9, "tag": "ring", "convScore": 2, "groups": ["ring", "highRisk"], "pinned": false, "reason": null, "addedAt": "2026-06-08", "addedPerfPct": -3.4, "unread": false, "similarTo": null },
+    { "ticker": "STB", "sector": "Ngân hàng", "price": 31200, "changePct": 0.4, "tag": "none", "convScore": 0, "groups": [], "pinned": false, "reason": null, "addedAt": "2026-06-20", "addedPerfPct": 0.9, "unread": false, "similarTo": { "core": "HPG", "coeff": 0.73 } },
+    { "ticker": "VIC", "sector": "Bất động sản", "price": 44900, "changePct": -0.6, "tag": "none", "convScore": 0, "groups": ["highRisk"], "pinned": false, "reason": null, "addedAt": "2026-05-09", "addedPerfPct": -4.2, "unread": false, "similarTo": null }
+  ],
+
+  "GET /stocks/search?q= (kho mã có thể thêm, chưa có trong watchlist)": [
+    { "ticker": "ACB", "sector": "Ngân hàng" },
+    { "ticker": "BID", "sector": "Ngân hàng" },
+    { "ticker": "CTG", "sector": "Ngân hàng" },
+    { "ticker": "GEX", "sector": "Công nghiệp" },
+    { "ticker": "NVL", "sector": "Bất động sản" },
+    { "ticker": "PNJ", "sector": "Bán lẻ" },
+    { "ticker": "SAB", "sector": "Tiêu dùng" },
+    { "ticker": "VHM", "sector": "Bất động sản" },
+    { "ticker": "DPM", "sector": "Hoá chất" },
+    { "ticker": "BVH", "sector": "Bảo hiểm" }
+  ],
+
+  "GET /radar/core": [
+    { "ticker": "VNM", "name": "Vinamilk", "sector": "Tiêu dùng", "state": "stable", "stateLabel": "STABLE · Core 8 phiên", "price": 68400, "changePct": 1.2, "holdSuggestion": "Trung–dài hạn (3–6 tháng)", "convergence": [1,1,1,1,1,1], "trendWarning": null },
+    { "ticker": "FPT", "name": "FPT Corp", "sector": "Công nghệ", "state": "breakout", "stateLabel": "BREAKOUT · Vừa vào Core", "price": 134200, "changePct": 3.8, "holdSuggestion": "Ngắn hạn, theo dõi sát (1–4 tuần)", "convergence": [1,1,1,1,1,1], "trendWarning": null },
+    { "ticker": "HPG", "name": "Hòa Phát", "sector": "Thép", "state": "caution", "stateLabel": "6/6 · Điểm Chất xúc tác đang giảm nhẹ", "price": 28900, "changePct": -0.4, "holdSuggestion": "Trung hạn, theo dõi điểm hội tụ", "convergence": [1,1,1,1,1,1], "trendWarning": "Chất xúc tác" }
+  ],
+
+  "GET /radar/ring": [
+    { "ticker": "VCB", "score": 5, "sector": "Ngân hàng", "price": 92100, "changePct": 0.6 },
+    { "ticker": "TCB", "score": 4, "sector": "Ngân hàng", "price": 38200, "changePct": 0.5 },
+    { "ticker": "SSI", "score": 4, "sector": "Chứng khoán", "price": 34500, "changePct": 2.1 },
+    { "ticker": "MWG", "score": 4, "sector": "Bán lẻ", "price": 61800, "changePct": -0.8 },
+    { "ticker": "DGC", "score": 3, "sector": "Hoá chất", "price": 112000, "changePct": 0.3 },
+    { "ticker": "PVC", "score": 3, "sector": "Dầu khí", "price": 21300, "changePct": -1.1 },
+    { "ticker": "SVG", "score": 3, "sector": "Vận tải biển", "price": 44700, "changePct": 1.9 },
+    { "ticker": "REE", "score": 2, "sector": "Điện", "price": 58000, "changePct": -0.2 },
+    { "ticker": "PVD", "score": 2, "sector": "Dầu khí", "price": 26400, "changePct": 0.9 }
+  ],
+
+  "GET /radar/digest": {
+    "text": "HPG vừa thay VHM trong Core hôm nay, đạt 6/6 nhờ điểm Chất xúc tác tăng +12. VCB đang tiến gần Core nhất (5/6).",
+    "date": "2026-07-12"
+  },
+
+  "GET /radar/concentration-risk": {
+    "level": "low",
+    "note": "3 mã Core trải đều 3 nhóm ngành khác nhau (Tiêu dùng · Công nghệ · Thép)."
+  },
+
+  "GET /news/feed": [
+    { "id": "n1", "ticker": "HPG", "title": "Sản lượng thép tháng 6 vượt kỳ vọng, biên lợi nhuận cải thiện quý thứ 3 liên tiếp.", "relevance": "core", "timeAgo": "2 phút trước" },
+    { "id": "n2", "ticker": "FPT", "title": "Mảng công nghệ nước ngoài ký thêm hợp đồng lớn tại thị trường Nhật Bản.", "relevance": "core", "timeAgo": "14 phút trước" },
+    { "id": "n3", "ticker": "VCB", "title": "Tăng trưởng tín dụng quý 2 vượt trung bình ngành, NIM giữ ổn định.", "relevance": "ring", "timeAgo": "32 phút trước" }
+  ],
+
+  "GET /alerts (ví dụ dữ liệu đã đặt)": [],
+
+  "GET /session/last-login (tham khảo Nhóm H, chưa triển khai UI)": {
+    "lastLoginAt": "2026-07-12T14:02:00+07:00",
+    "device": "Chrome trên Windows"
+  }
+}
