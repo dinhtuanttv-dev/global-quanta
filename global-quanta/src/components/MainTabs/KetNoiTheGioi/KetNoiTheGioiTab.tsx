@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, Sparkles, CheckCircle2 } from "lucide-react";
+import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, Sparkles, CheckCircle2, LineChart, Package } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useGlobalStream } from "../../../hooks/useGlobalStream";
 import { useMacroAnalysis } from "../../../hooks/useMacroAnalysis";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
+import CommodityPulseSubTab from "./CommodityPulseSubTab";
+import StockImpactTable from "./StockImpactTable";
 
 // Mau theo bien token cua du an (muc 3.1 guide) - KHONG hardcode hex moi.
 // Doc qua inline style thay vi Tailwind, vi tab nay khong lien quan
@@ -51,6 +53,9 @@ export default function KetNoiTheGioiTab() {
   const { data, connected } = useGlobalStream();
   const { result: aiResult, isLoading: aiLoading, error: aiError, analyze } = useMacroAnalysis();
   const [showAllMarkets, setShowAllMarkets] = useState(false);
+  // PHASE (Sub-tab): "market" = Nhip Dap Thi Truong (noi dung cu, giu
+  // nguyen), "commodity" = Nhip Dap Hang Hoa (MOI).
+  const [activeSubTab, setActiveSubTab] = useState<"market" | "commodity">("market");
 
   const macro = data?.macro ?? null;
   const markets = data?.markets ?? [];
@@ -80,6 +85,22 @@ export default function KetNoiTheGioiTab() {
         sau mỗi ~55 giây, cập nhật mỗi 5 giây khi đang kết nối.
       </p>
 
+      {/* Thanh Sub-tab (MOI) */}
+      <div className="flex gap-2 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
+        <button onClick={() => setActiveSubTab("market")}
+          className="text-[10px] font-bold uppercase px-3 py-2 flex items-center gap-1.5"
+          style={{ color: activeSubTab === "market" ? T.gold : T.textTertiary, borderBottom: activeSubTab === "market" ? `2px solid ${T.gold}` : "2px solid transparent" }}>
+          <LineChart className="w-3.5 h-3.5" /> Nhịp Đập Thị Trường
+        </button>
+        <button onClick={() => setActiveSubTab("commodity")}
+          className="text-[10px] font-bold uppercase px-3 py-2 flex items-center gap-1.5"
+          style={{ color: activeSubTab === "commodity" ? T.gold : T.textTertiary, borderBottom: activeSubTab === "commodity" ? `2px solid ${T.gold}` : "2px solid transparent" }}>
+          <Package className="w-3.5 h-3.5" /> Nhịp Đập Hàng Hóa
+        </button>
+      </div>
+
+      {activeSubTab === "market" && (
+      <>
       {!data && (
         <div className="flex items-center gap-2 text-xs py-10 justify-center" style={{ color: T.textSecondary }}>
           <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
@@ -252,8 +273,14 @@ export default function KetNoiTheGioiTab() {
               {aiResult?.disclaimer ?? "Thông tin mang tính tham khảo, không phải khuyến nghị đầu tư."}
             </p>
           </div>
+
+          <StockImpactTable />
         </>
       )}
+      </>
+      )}
+
+      {activeSubTab === "commodity" && <CommodityPulseSubTab macro={macro} />}
     </div>
   );
 }

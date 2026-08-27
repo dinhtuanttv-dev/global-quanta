@@ -11,6 +11,8 @@ export interface MacroTrendRow {
   oil_brent: number | null;
   oil_wti: number | null;
   baltic_dry_index: number | null;
+  robusta_coffee: number | null;
+  iron_ore_proxy_change_percent: number | null;
   risk_on_score: number;
   risk_status: "RISK_ON" | "NEUTRAL" | "RISK_OFF";
   breakdown: { dxyScore: number; vixScore: number; treasuryScore: number };
