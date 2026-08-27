@@ -1,18 +1,21 @@
 ﻿"use client";
-import { TrendingUp, Square, Activity, Waves } from "lucide-react";
+import { TrendingUp, Square, Activity, Waves, Clock3 } from "lucide-react";
 import type { DrawingToolType } from "../../../lib/ta-command-center/DrawingManager";
 
 interface Props {
   activeTool: DrawingToolType | null;
   onSelectTool: (tool: DrawingToolType | null) => void;
   elliottEnabled: boolean;
+  fibExtensionMode: boolean;
+  onToggleFibExtension: () => void;
 }
 
-export default function DrawingPalette({ activeTool, onSelectTool, elliottEnabled }: Props) {
+export default function DrawingPalette({ activeTool, onSelectTool, elliottEnabled, fibExtensionMode, onToggleFibExtension }: Props) {
   const tools: { id: DrawingToolType; icon: typeof Square; label: string }[] = [
     { id: "trendline", icon: TrendingUp, label: "Trendline" },
     { id: "rectangle", icon: Square, label: "Zone" },
-    { id: "fibonacci", icon: Activity, label: "Fibonacci" },
+    { id: "fibonacci", icon: Activity, label: fibExtensionMode ? "Fibonacci (co Extension)" : "Fibonacci" },
+    { id: "fibTimeZone", icon: Clock3, label: "Fibonacci Time Zones (1 click)" },
     ...(elliottEnabled ? [{ id: "elliott" as const, icon: Waves, label: "Elliott Wave (6 diem)" }] : []),
   ];
 
@@ -30,6 +33,14 @@ export default function DrawingPalette({ activeTool, onSelectTool, elliottEnable
           </button>
         );
       })}
+      <div style={{ height: 1, background: "rgba(148,163,184,0.15)" }} className="my-0.5" />
+      <button
+        title={fibExtensionMode ? "Fib Extension: BAT (127.2/161.8/261.8%)" : "Fib Extension: TAT"}
+        onClick={onToggleFibExtension}
+        style={fibExtensionMode ? { background: "rgba(167,139,250,0.2)", color: "#a78bfa" } : { color: "#64748b" }}
+        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition text-[9px] font-bold">
+        Ext
+      </button>
     </div>
   );
 }
