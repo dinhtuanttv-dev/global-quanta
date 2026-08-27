@@ -1,6 +1,8 @@
+type Quadrant = "Leading" | "Improving" | "Weakening" | "Lagging";
+
 interface Props {
-  selectedQuadrant: string | null;
-  onSelectQuadrant: (q: string | null) => void;
+  selectedQuadrant: Quadrant | null;
+  onSelectQuadrant: (q: Quadrant | null) => void;
   minRsScore: number;
   onChangeMinRs: (v: number) => void;
   minVolumeScore: number;
@@ -8,7 +10,7 @@ interface Props {
   onReset: () => void;
 }
 
-const QUADRANTS = ["Leading", "Improving", "Weakening", "Lagging"];
+const QUADRANTS: Quadrant[] = ["Leading", "Improving", "Weakening", "Lagging"];
 
 export default function CycleScreenerPanel({
   selectedQuadrant, onSelectQuadrant, minRsScore, onChangeMinRs,
