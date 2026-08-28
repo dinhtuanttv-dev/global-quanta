@@ -19,6 +19,7 @@ const T = {
 interface ImpactEvent {
   id: string;
   title: string;
+  source_category: "market_index" | "commodity" | "sector_rotation";
   sector_key: string;
   direction: "positive" | "negative" | "mixed";
   impact_score: number;
@@ -72,7 +73,18 @@ export default function StockImpactTable() {
               <div className="flex items-start gap-2">
                 <DirectionIcon direction={e.direction} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px]" style={{ color: "#f1f5f9" }}>{e.title}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-[10px]" style={{ color: "#f1f5f9" }}>{e.title}</p>
+                    {/* MOI (Muc 1): badge nguon tin hieu - chuan bi san cho Muc 2
+                        (source_category se co gia tri "commodity" sau nay) */}
+                    <span className="text-[8px] font-bold px-1 py-0.5 rounded shrink-0"
+                      style={{
+                        background: e.source_category === "commodity" ? "rgba(245,158,11,0.15)" : e.source_category === "sector_rotation" ? "rgba(139,92,246,0.15)" : "rgba(59,130,246,0.15)",
+                        color: e.source_category === "commodity" ? T.gold : e.source_category === "sector_rotation" ? "#a78bfa" : "#60a5fa",
+                      }}>
+                      {e.source_category === "commodity" ? "Hàng hóa" : e.source_category === "sector_rotation" ? "Xoay vòng ngành" : "Chứng khoán"}
+                    </span>
+                  </div>
                   <p className="text-[9px] mt-0.5" style={{ color: T.textTertiary }}>
                     Điểm tác động: <b style={{ color: "#f1f5f9" }}>{e.impact_score}/100</b> · {new Date(e.created_at).toLocaleString("vi-VN")}
                   </p>

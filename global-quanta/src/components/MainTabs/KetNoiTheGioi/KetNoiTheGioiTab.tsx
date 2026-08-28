@@ -5,6 +5,7 @@ import { useGlobalStream } from "../../../hooks/useGlobalStream";
 import { useMacroAnalysis } from "../../../hooks/useMacroAnalysis";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
 import CommodityPulseSubTab from "./CommodityPulseSubTab";
+import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
 
 // Mau theo bien token cua du an (muc 3.1 guide) - KHONG hardcode hex moi.
@@ -189,6 +190,8 @@ export default function KetNoiTheGioiTab() {
               </>
             )}
           </div>
+
+          <TopSectorsPanel />
 
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
