@@ -11,14 +11,16 @@ import TimeframeSelector from "./TimeframeSelector";
 import PatternList from "./PatternList";
 import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
 import OscillatorPanel from "./OscillatorPanel";
+import SmartNotePanel from "./SmartNotePanel";
 import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
 import { classifyWyckoffPhase } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/types";
 import type {
   DrawingToolType, DrawnPrimitive, DomainPoint,
-  RectangleZone, Trendline, FibonacciRetracement, ElliottWaveMarking,
+  RectangleZone, Trendline, FibonacciRetracement, ElliottWaveMarking, FibTimeZoneMarking,
 } from "../../../lib/ta-command-center/DrawingManager";
+import { FIB_TIME_SEQUENCE } from "../../../lib/ta-command-center/DrawingManager";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import type { OrderBlock, FairValueGap, BreakOfStructure } from "../../../lib/ta-command-center/detectors/smcDetector";
@@ -32,7 +34,7 @@ interface Props {
 }
 
 function isTwoPointPrimitive(p: DrawnPrimitive): p is RectangleZone | Trendline | FibonacciRetracement {
-  return p.toolType !== "elliott";
+  return p.toolType === "rectangle" || p.toolType === "trendline" || p.toolType === "fibonacci";
 }
 
 export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Props) {
@@ -51,6 +53,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   const [currentBars, setCurrentBars] = useState<OhlcvBar[]>(bars);
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null);
   const [elliottDraft, setElliottDraft] = useState<DomainPoint[]>([]);
+  const [fibExtensionMode, setFibExtensionMode] = useState(false);
   const [, forceTick] = useState(0);
 
   useEffect(() => {
@@ -80,6 +83,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       tvManagerRef.current?.setData(newBars);
     });
     const unsubElliottDraft = controller.drawing.on("elliott:draft-updated", setElliottDraft);
+    const unsubFibExt = controller.drawing.on("fibExtension:changed", setFibExtensionMode);
     const unsubRange = tvManagerRef.current?.onVisibleRangeChange(() => forceTick((t) => t + 1)) ?? (() => {});
 
     setPrimitives(controller.drawing.getPrimitives());
@@ -89,8 +93,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     setLayerState(controller.getLayerState());
     setTimeframeState(controller.getCurrentTimeframe());
     setElliottDraft(controller.drawing.getElliottDraft());
+    setFibExtensionMode(controller.drawing.getFibExtensionMode());
 
-    return () => { unsubPrim(); unsubLog(); unsubSmc(); unsubVsa(); unsubLayers(); unsubTf(); unsubElliottDraft(); unsubRange(); };
+    return () => { unsubPrim(); unsubLog(); unsubSmc(); unsubVsa(); unsubLayers(); unsubTf(); unsubElliottDraft(); unsubFibExt(); unsubRange(); };
   }, [bars]);
 
   useEffect(() => {
@@ -131,6 +136,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     controllerRef.current?.setTimeframe(tf);
   };
 
+  const handleToggleFibExtension = () => {
+    controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
+  };
+
   const handleSelectPattern = (pattern: PatternMatch) => {
     if (pattern.ticker !== ticker && onRequestTickerChange) {
       onRequestTickerChange(pattern.ticker);
@@ -160,11 +169,17 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     if (!point) return;
 
     if (activeTool === "elliott") {
-      console.log("[DEBUG] Elliott click - point:", point);
       controllerRef.current.drawing.addElliottPoint(point);
       if (controllerRef.current.drawing.getElliottDraft().length === 0) {
         setActiveTool(null);
       }
+      forceTick((t) => t + 1);
+      return;
+    }
+
+    if (activeTool === "fibTimeZone") {
+      controllerRef.current.drawing.addFibTimeZone(point);
+      setActiveTool(null);
       forceTick((t) => t + 1);
       return;
     }
@@ -217,6 +232,28 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     return primitives.filter((p): p is ElliottWaveMarking => p.toolType === "elliott");
   }, [primitives, layerState]);
 
+  const fibTimeZoneMarkings = useMemo(() => {
+    return primitives.filter((p): p is FibTimeZoneMarking => p.toolType === "fibTimeZone");
+  }, [primitives]);
+
+  const fibTimeZoneLines = useMemo(() => {
+    if (!tv || currentBars.length === 0) return [];
+    const lines: { key: string; x: number; label: string }[] = [];
+    fibTimeZoneMarkings.forEach((marking) => {
+      const anchorIdx = currentBars.findIndex((b) => b.date === marking.anchor.date);
+      if (anchorIdx === -1) return;
+      FIB_TIME_SEQUENCE.forEach((seq) => {
+        const targetIdx = anchorIdx + seq;
+        if (targetIdx >= currentBars.length) return;
+        const targetDate = currentBars[targetIdx].date;
+        const x = tv.timeToPixel(targetDate);
+        if (x === null) return;
+        lines.push({ key: `${marking.id}-${seq}`, x, label: String(seq) });
+      });
+    });
+    return lines;
+  }, [tv, fibTimeZoneMarkings, currentBars]);
+
   const smcOverlayRects = useMemo(() => {
     if (!tv || !layerState?.smc) return [];
     const rects: { key: string; x1: number; x2: number; y1: number; y2: number; color: string; label: string }[] = [];
@@ -264,7 +301,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   }, [tv, wyckoffResult, layerState, currentBars]);
 
   const elliottDraftPixels = useMemo(() => {
-    console.log("[DEBUG] elliottDraft raw:", elliottDraft, "tv ton tai:", !!tv);
     if (!tv) return [];
     return elliottDraft
       .map((pt) => {
@@ -294,8 +330,23 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       )}
 
       <div className="relative" style={{ minHeight: 400 }}>
-        <DrawingPalette activeTool={activeTool} onSelectTool={setActiveTool} elliottEnabled={!!layerState?.elliott} />
-        <div className="absolute top-3 right-3 z-10 flex items-center gap-2">
+        <DrawingPalette
+          activeTool={activeTool}
+          onSelectTool={setActiveTool}
+          elliottEnabled={!!layerState?.elliott}
+          fibExtensionMode={fibExtensionMode}
+          onToggleFibExtension={handleToggleFibExtension}
+        />
+        <SmartNotePanel
+          ticker={ticker}
+          wyckoff={wyckoffResult}
+          smc={smc}
+          vsa={vsa}
+          rsi={rsiResult}
+          macd={macdResult}
+          adx={adxResult}
+        />
+        <div className="absolute top-3 z-10 flex items-center gap-2" style={{ left: 44 }}>
           {elliottDraft.length > 0 && (
             <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
               className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
@@ -348,6 +399,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
             </g>
           )}
 
+          {fibTimeZoneLines.map((l) => (
+            <g key={l.key}>
+              <line x1={l.x} y1={10} x2={l.x} y2={350} stroke="#f472b6" strokeWidth={1} strokeDasharray="3,3" opacity={0.6} />
+              <text x={l.x + 2} y={20} fontSize="8" fill="#f472b6">{l.label}</text>
+            </g>
+          ))}
+
           {visiblePrimitives.map((p) => {
             const px = renderPrimitivePixels(p);
             if (!px) return null;
@@ -364,7 +422,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
                 {p.levels.map((lvl, i) => {
                   const y = tv?.priceToPixel(lvl.price);
                   if (y === null || y === undefined) return null;
-                  return <line key={i} x1={Math.min(px.x1, px.x2)} y1={y} x2={Math.max(px.x1, px.x2)} y2={y} stroke="rgba(167,139,250,0.5)" strokeWidth={1} strokeDasharray="2,2" />;
+                  const isExtension = lvl.ratio > 1;
+                  return (
+                    <g key={i}>
+                      <line x1={Math.min(px.x1, px.x2)} y1={y} x2={Math.max(px.x1, px.x2)} y2={y}
+                        stroke={isExtension ? "rgba(244,114,182,0.5)" : "rgba(167,139,250,0.5)"} strokeWidth={1} strokeDasharray="2,2" />
+                      <text x={Math.max(px.x1, px.x2) + 2} y={y + 3} fontSize="8" fill={isExtension ? "#f472b6" : "#a78bfa"}>{(lvl.ratio * 100).toFixed(1)}%</text>
+                    </g>
+                  );
                 })}
               </g>
             );
@@ -393,7 +458,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
                 ))}
                 {hasViolation && pts.length > 0 && (
                   <text x={pts[pts.length - 1].x + 12} y={pts[pts.length - 1].y} fontSize="9" fill="#f87171" fontWeight="bold">
-                    ⚠ Vi pham {marking.violations.length} quy tac
+                    Vi pham {marking.violations.length} quy tac
                   </text>
                 )}
               </g>
@@ -427,5 +492,3 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     </div>
   );
 }
-
-

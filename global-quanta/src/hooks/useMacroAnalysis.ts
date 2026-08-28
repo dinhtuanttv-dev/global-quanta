@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { mutate } from "swr";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -8,6 +9,10 @@ interface AnalysisResult {
   evidence: { verified: boolean; discrepancies: string[]; finalConfidence: number };
   finalConfidence: number;
   disclaimer: string;
+  // MUC 4: minh bach cho biet day la ket qua cache (khong ton phi Gemini
+  // lan nay) hay moi goi that.
+  cached?: boolean;
+  cacheAgeMinutes?: number;
 }
 
 // KHONG dung SWR/auto-refresh o day - AI Multi-Agent (Gemini) TON PHI THAT
@@ -34,6 +39,11 @@ export function useMacroAnalysis() {
       }
       const json = await res.json();
       setResult(json);
+      // FIX (2026-08-27): kich hoat StockImpactTable tu tai lai ngay sau
+      // khi phan tich xong - truoc day 2 SWR/fetch doc lap khong dong bo,
+      // bang tac dong co phieu chi lam moi khi doi cua so (revalidateOnFocus),
+      // khong phai ngay sau khi bam nut trong cung trang.
+      mutate(`${API_BASE}/api/global/impact-table`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lỗi không xác định khi phân tích AI");
     } finally {
