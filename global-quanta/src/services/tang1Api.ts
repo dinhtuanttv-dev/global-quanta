@@ -54,4 +54,4 @@ const MOCK_TANG1_DATA: Tang1ApiResponse = {
 export async function fetchTang1(scenario: Scenario): Promise<Tang1ApiResponse> {
   console.log("[tang1Api] USING MOCK DATA for scenario:", scenario);
   return { ...MOCK_TANG1_DATA, scenario };
-}
+}// CORS-FIX: v11.0 - Force mock data for production
