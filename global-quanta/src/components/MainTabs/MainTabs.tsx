@@ -3,6 +3,7 @@ import SieuQuetAiTab from "./SieuQuetAI/SieuQuetAiTab";
 import TaVnIndexTab from "./TaVnIndex/TaVnIndexTab";
 import CotucTab from "./CoTuc/CotucTab";
 import KetNoiTheGioiTab from "./KetNoiTheGioi/KetNoiTheGioiTab";
+import { TaVnIndexTab as Elite10Tab } from "../elite10/TaVnIndexTab";
 const TABS = ["Sieu quet AI", "Ket noi the gioi", "Loc nganh", "TA VN-Index", "Chat xuc tac", "Co tuc", "Elite 10"];
 export default function MainTabs() {
   const [activeTab, setActiveTab] = useState(TABS[0]);
@@ -23,7 +24,8 @@ export default function MainTabs() {
       {activeTab === "TA VN-Index" && <TaVnIndexTab />}
       {activeTab === "Co tuc" && <CotucTab />}
       {activeTab === "Ket noi the gioi" && <KetNoiTheGioiTab />}
-      {activeTab !== "Sieu quet AI" && activeTab !== "TA VN-Index" && activeTab !== "Co tuc" && activeTab !== "Ket noi the gioi" && (
+      {activeTab === "Elite 10" && <Elite10Tab />}
+      {activeTab !== "Sieu quet AI" && activeTab !== "TA VN-Index" && activeTab !== "Co tuc" && activeTab !== "Ket noi the gioi" && activeTab !== "Elite 10" && (
         <div className="main-placeholder">
           <b>Noi dung tab "{activeTab}" - chua component hoa</b>
           Se trien khai o cac buoc tiep theo, theo dung thu tu uu tienda thong nhat.
