@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Elite 10 Tab - Direct API</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #e2e8f0; padding: 20px; }
+    .test { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin: 12px 0; }
+    .ok { color: #4ade80; font-weight: bold; }
+    .err { color: #f87171; font-weight: bold; }
+    pre { background: #020617; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; max-height: 400px; }
+    h1 { color: #22d3ee; }
+    h2 { color: #94a3b8; font-size: 14px; margin-top: 0; }
+    button { background: #22d3ee; color: #0f172a; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin: 4px; font-weight: bold; }
+    button:hover { background: #06b6d4; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Test trực tiếp Tab Elite 10 - TA VN-Index</h1>
+  <p>Trang này test các API mà tab "Elite 10" của bạn cần, qua Vite proxy tại <code>http://localhost:5173</code>.</p>
+  <p><strong>Quan trọng:</strong> Tab "Elite 10" trong app của bạn dùng 2 API này. Nếu cả 2 OK, tab sẽ không lỗi nữa.</p>
+
+  <button onclick="testAll()">▶ Chạy tất cả test</button>
+  <button onclick="testWatchlist()">Test watchlist</button>
+  <button onclick="testTA()">Test ta-vn-index</button>
+
+  <div id="results"></div>
+
+  <script>
+    const out = document.getElementById('results');
+    function log(title, ok, data, error) {
+      const div = document.createElement('div');
+      div.className = 'test';
+      const status = ok ? '<span class="ok">✅ OK</span>' : '<span class="err">❌ FAIL</span>';
+      div.innerHTML = `<h2>${status} ${title}</h2>` +
+        (error ? `<p class="err">${error}</p>` : '') +
+        `<pre>${typeof data === 'string' ? data : JSON.stringify(data, null, 2)}</pre>`;
+      out.prepend(div);
+    }
+    async function callApi(path) {
+      const r = await fetch(path);
+      const text = await r.text();
+      let data;
+      try { data = JSON.parse(text); } catch { data = text; }
+      return { ok: r.ok, status: r.status, data, size: text.length };
+    }
+    async function testWatchlist() {
+      try {
+        const r = await callApi('/api/elite-score/watchlist?filter=all');
+        log('GET /api/elite-score/watchlist?filter=all', r.ok && r.status === 200, r.data,
+          r.ok ? null : `HTTP ${r.status}`);
+      } catch (e) { log('GET /api/elite-score/watchlist?filter=all', false, null, e.message); }
+    }
+    async function testTA() {
+      try {
+        const r = await callApi('/api/ta-vn-index/analyze?ticker=VNM&tf=W');
+        log('GET /api/ta-vn-index/analyze?ticker=VNM&tf=W', r.ok && r.status === 200, r.data,
+          r.ok ? null : `HTTP ${r.status}`);
+      } catch (e) { log('GET /api/ta-vn-index/analyze?ticker=VNM&tf=W', false, null, e.message); }
+    }
+    async function testAll() {
+      out.innerHTML = '';
+      await testWatchlist();
+      await testTA();
+    }
+    // Auto run on load
+    window.addEventListener('load', () => setTimeout(testAll, 500));
+  </script>
+</body>
+</html>
