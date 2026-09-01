@@ -1,4 +1,4 @@
-﻿*{box-sizing:border-box;margin:0;padding:0;}
+*{box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg-base);
   color:var(--text-primary);
@@ -457,3 +457,111 @@ body{
   .regime-badge, .vn-hero { flex-shrink: 0; }
   .tickers { gap: 12px; }
 }
+
+/* ===== SIEU QUET AI V11.0 ===== */
+.sieu-quet-ai-tab{padding:16px;min-height:100%;}
+
+/* V11 Toggle Buttons */
+.t1-toolbar-actions{display:flex;gap:8px;align-items:center;}
+.t1-v11-toggle,.t1-live-toggle{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg-surface-2);color:var(--text-secondary);cursor:pointer;transition:all 0.2s;}
+.t1-v11-toggle.active,.t1-live-toggle.active{background:rgba(107,203,119,0.15);border-color:var(--positive);color:var(--positive);}
+.t1-live-toggle.active{background:rgba(232,184,75,0.15);border-color:var(--gold-bright);color:var(--gold-bright);}
+
+/* Market Status Panel */
+.market-status-panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;}
+.status-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.status-title{font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.05em;}
+.status-time{font-size:9px;color:var(--text-tertiary);}
+.status-main{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:10px;}
+.status-emoji-large{font-size:20px;}
+.status-label-large{font-size:14px;font-weight:700;}
+.status-metrics{display:flex;flex-direction:column;gap:6px;}
+.metric-row{display:flex;align-items:center;gap:8px;font-size:11px;}
+.metric-label{color:var(--text-tertiary);min-width:60px;}
+.metric-value{font-family:var(--font-mono);color:var(--text-primary);}
+.metric-change{font-family:var(--font-mono);font-size:10px;}
+.metric-change.up{color:var(--positive);}
+.metric-change.down{color:var(--negative);}
+.metric-bar{flex:1;height:6px;background:var(--bg-surface-2);border-radius:3px;overflow:hidden;}
+.metric-bar-fill{height:100%;background:var(--gold-bright);border-radius:3px;}
+
+/* Confluence Score */
+.confluence-panel{background:var(--bg-surface-2);border-radius:8px;padding:10px;}
+.confluence-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.confluence-title{font-size:10px;color:var(--text-tertiary);font-weight:600;}
+.confluence-total{display:flex;align-items:center;gap:6px;}
+.total-score{font-family:var(--font-mono);font-size:16px;font-weight:700;}
+.conf-badge{font-size:9px;font-weight:600;}
+.confluence-breakdown{display:flex;flex-direction:column;gap:6px;}
+.layer-row{display:flex;align-items:center;gap:8px;font-size:10px;}
+.layer-label{color:var(--text-tertiary);min-width:55px;}
+.layer-bar{flex:1;height:6px;background:var(--bg-base);border-radius:3px;overflow:hidden;}
+.layer-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+.layer-score{font-family:var(--font-mono);min-width:18px;text-align:right;color:var(--text-secondary);}
+.confluence-signals{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+.signal-badge{font-size:9px;padding:2px 6px;background:var(--bg-base);border-radius:4px;color:var(--text-secondary);}
+.confluence-compact{display:flex;align-items:center;gap:4px;}
+.confluence-score-circle{width:24px;height:24px;border-radius:50%;border:2px solid;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700;}
+.confluence-conf-badge{font-size:10px;}
+
+/* Pattern Badge */
+.pattern-badge{padding:3px 6px;border-radius:4px;font-size:9px;font-weight:600;display:inline-block;}
+.pattern-badge.bull{background:rgba(107,203,119,0.2);color:var(--positive);}
+.pattern-badge.bear{background:rgba(255,107,107,0.2);color:var(--negative);}
+.pattern-cell{text-align:center;}
+.pattern-none{color:var(--text-tertiary);font-size:10px;}
+
+/* RS Rating */
+.rs-cell{text-align:right;}
+.rs-badge-compact{padding:2px 5px;border-radius:3px;font-family:var(--font-mono);font-size:10px;font-weight:600;}
+.rs-badge-compact.elite{background:rgba(107,203,119,0.2);}
+.elite-star{margin-right:2px;}
+
+/* Live Price */
+.t1-price-loading{color:var(--text-tertiary);font-size:10px;}
+.t1-pct{font-family:var(--font-mono);font-size:9px;margin-left:4px;}
+.t1-pct.up{color:var(--positive);}
+.t1-pct.down{color:var(--negative);}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease-out;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.stock-detail-modal{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;width:90%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease-out;}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border);}
+.modal-title-group{display:flex;align-items:center;gap:10px;}
+.modal-ticker{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--gold-bright);}
+.modal-sector{font-size:11px;color:var(--text-tertiary);background:var(--bg-surface-2);padding:3px 8px;border-radius:4px;}
+.modal-close{background:none;border:none;font-size:20px;color:var(--text-tertiary);cursor:pointer;padding:4px;line-height:1;}
+.modal-close:hover{color:var(--text-primary);}
+.modal-content{padding:16px;display:flex;flex-direction:column;gap:16px;}
+.detail-section{background:var(--bg-surface-2);border-radius:8px;padding:12px;}
+.section-title{font-size:11px;font-weight:700;color:var(--text-tertiary);margin-bottom:10px;letter-spacing:0.03em;}
+.price-display{display:flex;align-items:center;gap:12px;}
+.current-price{font-family:var(--font-mono);font-size:22px;font-weight:700;}
+.price-change{font-family:var(--font-mono);font-size:14px;}
+.price-change.up{color:var(--positive);}
+.price-change.down{color:var(--negative);}
+.conf-layers{display:flex;flex-direction:column;gap:6px;}
+.layer{display:flex;justify-content:space-between;font-size:11px;}
+.layer span:first-child{color:var(--text-tertiary);}
+.layer span:last-child{font-family:var(--font-mono);font-weight:600;}
+.golden-info{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.golden-info span{font-size:11px;color:var(--text-secondary);}
+.golden-badge{padding:4px 10px;border-radius:4px;font-size:10px;font-weight:700;}
+.golden-badge.passed{background:rgba(107,203,119,0.2);color:var(--positive);}
+.trade-plan{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.trade-plan div{display:flex;flex-direction:column;gap:2px;}
+.trade-plan span:first-child{font-size:9px;color:var(--text-tertiary);}
+.trade-plan span:last-child{font-family:var(--font-mono);font-size:13px;font-weight:600;}
+
+
+/* DEBUG: Ensure Command Center is visible */
+.command-center-bar{ display:flex !important; visibility:visible !important; opacity:1 !important; }
+.ccb-label{ display:inline-block !important; visibility:visible !important; }
+.scenario-switcher{ display:flex !important; visibility:visible !important; }
+.scenario-btn{ display:inline-block !important; visibility:visible !important; }
+
+/* Force Command Center to be visible */
+.sieu-quet-ai-tab .command-center-bar { width: 100% !important; min-width: 300px !important; background: #1a2030 !important; }
+.sieu-quet-ai-tab { display: block !important; }
