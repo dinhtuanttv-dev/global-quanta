@@ -14,9 +14,20 @@ export function useCatalystData(pollMs = 60_000) {
     async function load() {
       try {
         const res = await fetch(`${API_BASE}/api/catalysts/latest`);
-        if (!res.ok) throw new Error("Chua co du lieu catalyst");
-        const json = await res.json();
-        if (!cancelled) { setData(json); setError(null); }
+
+        // The backend returns 404 while the cron cache is still cold
+        // ("Chua co du lieu - cho lan quet cron dau tien"). Treat that as
+        // "no data yet" instead of an error so the macro tab never breaks.
+        if (res.status === 404) {
+          if (!cancelled) {
+            setData(null);
+            setError(null);
+          }
+        } else {
+          if (!res.ok) throw new Error(`Catalyst API loi: ${res.status}`);
+          const json = await res.json();
+          if (!cancelled) { setData(json); setError(null); }
+        }
       } catch (err) {
         if (!cancelled) setError(String(err));
       } finally {

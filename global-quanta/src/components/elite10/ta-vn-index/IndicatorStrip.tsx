@@ -1,4 +1,4 @@
-import type { VsaData, RsiData, MacdData, SmcData } from '../../../types/taVnIndex';
+﻿import type { VsaData, RsiData, MacdData, SmcData } from '../../../types/taVnIndex';
 import { SourceBadge } from './SourceBadge';
 
 /** Dải chỉ báo gọn: SMC tóm tắt + VSA + RSI + MACD. */
@@ -20,19 +20,20 @@ export function IndicatorStrip({ smc, vsa, rsi, macd }: { smc: SmcData; vsa: Vsa
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">RSI (14)</div>
         <div className="text-[13px] font-bold text-slate-100">
-          {rsi.value.value.toFixed(1)}
-          <SourceBadge source={rsi.value.source} />
+          {(rsi.value?.value ?? 0).toFixed(1)}
+          <SourceBadge source={rsi.value?.source} />
         </div>
         <p className="mt-0.5 text-[10px] text-slate-500">{rsi.label}</p>
       </div>
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">MACD (12,26,9)</div>
         <div className="text-[13px] font-bold text-slate-100">
-          {macd.macd.value.toFixed(2)}
-          <SourceBadge source={macd.macd.source} />
+          {(macd.macd?.value ?? 0).toFixed(2)}
+          <SourceBadge source={macd.macd?.source} />
         </div>
         <p className="mt-0.5 text-[10px] text-slate-500">{macd.label}</p>
       </div>
     </div>
   );
 }
+

@@ -1,4 +1,4 @@
-import type { AdxData } from '../../../types/taVnIndex';
+﻿import type { AdxData } from '../../../types/taVnIndex';
 import { SourceBadge } from './SourceBadge';
 
 const DOMINANT_LABEL: Record<AdxData['dominant'], string> = {
@@ -24,16 +24,16 @@ export function AdxPanel({ adx }: { adx: AdxData }) {
         </span>
       </div>
       <div className="text-base font-bold text-slate-100">
-        {adx.adx.value.toFixed(1)}{' '}
+        {(adx.adx?.value ?? 0).toFixed(1)}{' '}
         <span className="text-[11px] font-normal text-slate-400">— {DOMINANT_LABEL[adx.dominant]}</span>
-        <SourceBadge source={adx.adx.source} />
+        <SourceBadge source={adx.adx?.source} />
       </div>
       <div className="mt-1.5 flex gap-3 text-[11px]">
         <span className={dominantIsMinus ? 'font-bold text-rose-400' : 'text-rose-400'}>
-          ▼ -DI: {adx.minusDi.value.toFixed(1)} {dominantIsMinus && '(chiếm ưu thế)'}
+          ▼ -DI: {(adx.minusDi?.value ?? 0).toFixed(1)} {dominantIsMinus && '(chiếm ưu thế)'}
         </span>
         <span className={dominantIsPlus ? 'font-bold text-emerald-400' : 'text-emerald-400'}>
-          ▲ +DI: {adx.plusDi.value.toFixed(1)} {dominantIsPlus && '(chiếm ưu thế)'}
+          ▲ +DI: {(adx.plusDi?.value ?? 0).toFixed(1)} {dominantIsPlus && '(chiếm ưu thế)'}
         </span>
       </div>
       {dominantIsMinus && (
@@ -45,3 +45,4 @@ export function AdxPanel({ adx }: { adx: AdxData }) {
     </div>
   );
 }
+
