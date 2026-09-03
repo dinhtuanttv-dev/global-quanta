@@ -105,10 +105,14 @@ export const useAppStore = create<AppState>((set, get) => ({
     void watchlistSvc.patchWatchlistStock(ticker, { pinned: !stock.pinned });
   },
   setReason: (ticker, reason) => {
-    set((s) => ({
-      watchlist: s.watchlist.map((x) => (x.ticker === ticker ? { ...x, reason } : x)),
-    }));
-    api.patchWatchlistStock(ticker, { reason });
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 3) ──
+    // Trước: set() trực tiếp + gọi api.patchWatchlistStock() riêng
+    //       → Nếu API fail: state đã update nhưng server không biết (BUG)
+    // Sau: watchlistSvc.patchWatchlistStock() xử lý TẤT CẢ:
+    //      - Optimistic update (UI phản hồi ngay)
+    //      - Gọi API (gửi lên server)
+    //      - Rollback tự động nếu API throw
+    void watchlistSvc.patchWatchlistStock(ticker, { reason });
   },
   markRead: (ticker) => {
     // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 1) ──
