@@ -6,6 +6,7 @@ import SortToggleButton from './SortToggleButton';
 import GroupChipList from './GroupChipList';
 import ContextMenu from './ContextMenu';
 import type { WatchlistStock } from '../../types';
+import { startLivePricePolling, stopLivePricePolling } from '../../services/livePriceService';
 
 export default function Sidebar() {
   const {
@@ -17,6 +18,18 @@ export default function Sidebar() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stock: WatchlistStock } | null>(null);
 
   useEffect(() => { loadWatchlist(); }, [loadWatchlist]);
+
+  // Bắt đầu polling giá thật từ Yahoo Finance khi Sidebar mount.
+  // livePriceService tự lấy danh sách ticker từ priceTickEngine.getActiveTickers()
+  // → chỉ fetch những ticker có WatchlistRow mounted (subscribe qua usePriceTick).
+  useEffect(() => {
+    // Delay 1 frame để chờ WatchlistRow mount + register ticker
+    const t = setTimeout(() => startLivePricePolling(), 100);
+    return () => {
+      clearTimeout(t);
+      stopLivePricePolling();
+    };
+  }, []);
 
   const filteredSorted = useMemo(() => {
     let list = watchlist.filter((s) => {

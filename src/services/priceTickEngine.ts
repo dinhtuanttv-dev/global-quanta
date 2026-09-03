@@ -46,6 +46,11 @@ class PriceTickEngine {
   private tickers = new Map<string, TickerState>();
   private scanHandle: ReturnType<typeof setInterval> | null = null;
   private paused = false;
+  /**
+   * Nếu true (mặc định): random jitter khi không có giá từ external source.
+   * Set false khi livePriceService đang chạy (giá thật từ Yahoo Finance).
+   */
+  private enableJitter = true;
 
   constructor() {
     if (typeof document !== 'undefined') {
@@ -83,11 +88,18 @@ class PriceTickEngine {
     const now = Date.now();
     this.tickers.forEach((state, ticker) => {
       if (now < state.nextUpdateAt) return;
-      const jitter = (Math.random() - 0.5) * state.basePrice * JITTER_RATIO;
-      state.currentPrice = Math.max(0, state.currentPrice + jitter);
+      if (this.enableJitter) {
+        const jitter = (Math.random() - 0.5) * state.basePrice * JITTER_RATIO;
+        state.currentPrice = Math.max(0, state.currentPrice + jitter);
+      }
       state.nextUpdateAt = now + TICK_INTERVAL_MS;
       state.listeners.forEach((cb) => cb(state.currentPrice));
     });
+  }
+
+  /** Tắt random jitter (khi dùng livePriceService với giá thật). */
+  setJitterEnabled(enabled: boolean): void {
+    this.enableJitter = enabled;
   }
 
   /** Gọi khi backend/WebSocket thật đẩy giá xuống — bỏ qua random jitter */
@@ -153,6 +165,11 @@ class PriceTickEngine {
 
   getPrice(ticker: string): number | undefined {
     return this.tickers.get(ticker)?.currentPrice;
+  }
+
+  /** Lấy danh sách ticker đang được register (cho livePriceService polling). */
+  getActiveTickers(): string[] {
+    return Array.from(this.tickers.keys());
   }
 }
 
