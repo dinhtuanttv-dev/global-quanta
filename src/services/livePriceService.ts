@@ -145,12 +145,15 @@ export function startLivePricePolling(): void {
 
 /**
  * Dừng polling. Gọi khi Sidebar unmount hoặc watchlist rỗng.
+ * Bật lại random jitter để giá vẫn dao động khi không có polling.
  */
 export function stopLivePricePolling(): void {
   if (pollHandle !== null) {
     clearInterval(pollHandle);
     pollHandle = null;
   }
+  // Bật lại jitter để engine không bị đóng băng
+  priceTickEngine.setJitterEnabled(true);
 }
 
 async function pollOnce(): Promise<void> {
@@ -167,6 +170,10 @@ async function pollOnce(): Promise<void> {
       // applyExternalPrice tự notify listeners → usePriceTick re-render
       priceTickEngine.applyExternalPrice(ticker, price);
     });
+
+    if (prices.size > 0) {
+      console.log(`[livePriceService] Updated ${prices.size}/${tickers.length} prices from Yahoo`);
+    }
   } catch (err) {
     console.warn('[livePriceService] Polling failed:', err);
   } finally {

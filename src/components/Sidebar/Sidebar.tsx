@@ -23,8 +23,9 @@ export default function Sidebar() {
   // livePriceService tự lấy danh sách ticker từ priceTickEngine.getActiveTickers()
   // → chỉ fetch những ticker có WatchlistRow mounted (subscribe qua usePriceTick).
   useEffect(() => {
-    // Delay 1 frame để chờ WatchlistRow mount + register ticker
-    const t = setTimeout(() => startLivePricePolling(), 100);
+    // Delay đủ lâu để WatchlistRow mount + register ticker
+    // + một chút buffer cho React render
+    const t = setTimeout(() => startLivePricePolling(), 500);
     return () => {
       clearTimeout(t);
       stopLivePricePolling();
