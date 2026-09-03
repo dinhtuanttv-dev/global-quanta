@@ -73,9 +73,25 @@ export const useAppStore = create<AppState>((set, get) => ({
     await watchlistSvc.fetchWatchlist();
   },
   addStock: async (ticker, sector) => {
-    const newStock = await api.addToWatchlist({ ticker, sector });
-    set((s) => ({ watchlist: [...s.watchlist, newStock] }));
-    get().showToast(`Đã thêm ${ticker} vào danh sách theo dõi`);
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 4) ──
+    // Trước: await api.addToWatchlist() → set() trực tiếp
+    //       → UI phải đợi API xong mới hiện (CHẬM)
+    //       → KHÔNG validate (chặn trùng, sai format)
+    //       → KHÔNG rollback khi API fail
+    // Sau: watchlistSvc.addToWatchlist() xử lý TẤT CẢ:
+    //      - Validate (isValidTickerFormat, buildTickerSet check trùng)
+    //      - Optimistic update (UI hiện ngay với isSaving: true)
+    //      - Gọi API (gửi lên server)
+    //      - Rollback tự động nếu validate fail hoặc API throw
+    //      - Toast từ useAppStore giữ nguyên để đồng bộ UX
+    try {
+      await watchlistSvc.addToWatchlist({ ticker, sector });
+      get().showToast(`Đã thêm ${ticker} vào danh sách theo dõi`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `Lỗi khi thêm ${ticker}`;
+      get().showToast(`❌ ${msg}`);
+      throw err;
+    }
   },
   removeStock: async (ticker) => {
     const idx = get().watchlist.findIndex((s) => s.ticker === ticker);
