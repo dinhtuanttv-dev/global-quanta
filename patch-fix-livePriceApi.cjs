@@ -1,4 +1,7 @@
-/**
+﻿const fs = require("fs");
+const path = "./global-quanta/src/components/MainTabs/SieuQuetAI/livePriceApi.ts";
+
+const newContent = `/**
  * livePriceApi.ts
  * Service Live Price cho SieuQuetAI. Uu tien goi qua backend proxy
  * (tranh CORS tu Yahoo Finance khi goi thang tu browser). Neu proxy
@@ -21,7 +24,7 @@ export interface LivePriceResponse {
 
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
 const PROXY_BASE = import.meta.env.VITE_API_BASE_URL
-  ? `${import.meta.env.VITE_API_BASE_URL}/api/proxy/yahoo`
+  ? \`\${import.meta.env.VITE_API_BASE_URL}/api/proxy/yahoo\`
   : "";
 
 interface ProxyQuote {
@@ -35,7 +38,7 @@ interface ProxyQuote {
 async function fetchViaProxy(tickers: string[]): Promise<LivePriceResponse | null> {
   if (!PROXY_BASE || tickers.length === 0) return null;
   try {
-    const url = `${PROXY_BASE}?symbols=${tickers.join(",")}`;
+    const url = \`\${PROXY_BASE}?symbols=\${tickers.join(",")}\`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return null;
 
@@ -80,15 +83,15 @@ async function fetchViaProxy(tickers: string[]): Promise<LivePriceResponse | nul
  */
 export async function fetchLivePrice(ticker: string): Promise<LivePrice> {
   try {
-    const yahooSymbol = `${ticker}.VN`;
-    const url = `${YAHOO_BASE}/${yahooSymbol}?interval=1d&range=1d`;
+    const yahooSymbol = \`\${ticker}.VN\`;
+    const url = \`\${YAHOO_BASE}/\${yahooSymbol}?interval=1d&range=1d\`;
 
     const res = await fetch(url, {
       headers: { Accept: "application/json" },
     });
 
     if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+      throw new Error(\`HTTP \${res.status}\`);
     }
 
     const data = await res.json();
@@ -116,7 +119,7 @@ export async function fetchLivePrice(ticker: string): Promise<LivePrice> {
       timestamp: new Date(meta.regularMarketTime * 1000),
     };
   } catch (err) {
-    console.warn(`[livePriceApi] Failed to fetch ${ticker}:`, err);
+    console.warn(\`[livePriceApi] Failed to fetch \${ticker}:\`, err);
     return {
       ticker,
       price: null,
@@ -177,3 +180,7 @@ export async function fetchLivePrices(tickers: string[]): Promise<LivePriceRespo
 
   return results;
 }
+`;
+
+fs.writeFileSync(path, newContent, "utf8");
+console.log("DA VA XONG livePriceApi.ts - them proxy-first fetching.");

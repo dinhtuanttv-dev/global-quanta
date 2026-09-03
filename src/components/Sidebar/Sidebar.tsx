@@ -25,7 +25,7 @@ export default function Sidebar() {
   useEffect(() => {
     // Delay đủ lâu để WatchlistRow mount + register ticker
     // + một chút buffer cho React render
-    const t = setTimeout(() => startLivePricePolling(), 500);
+    const t = setTimeout(() => startLivePricePolling(), 1000);
     return () => {
       clearTimeout(t);
       stopLivePricePolling();

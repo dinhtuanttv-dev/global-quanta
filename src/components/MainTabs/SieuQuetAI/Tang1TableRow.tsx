@@ -5,13 +5,15 @@ interface Props {
   stock: Tang1Stock | Tang1ScenarioStock;
   rank: number;
   showScenarioScore: boolean;
+  livePrice?: number | null;
+  showLivePrice?: boolean;
 }
 
 function hasScenarioScore(s: Tang1Stock | Tang1ScenarioStock): s is Tang1ScenarioStock {
   return "scenarioScore" in s;
 }
 
-function Tang1TableRow({ stock, rank, showScenarioScore }: Props) {
+function Tang1TableRow({ stock, rank, showScenarioScore, livePrice = null, showLivePrice = false }: Props) {
   const epsUp = stock.epsGrowth >= 0;
   const scenarioScore = hasScenarioScore(stock) ? stock.scenarioScore : null;
 
@@ -22,6 +24,15 @@ function Tang1TableRow({ stock, rank, showScenarioScore }: Props) {
         <span className="t1-ticker-code">{stock.ticker}</span>
         <span className="t1-sector">{stock.sector}</span>
       </td>
+      {showLivePrice && (
+        <td className="t1-num t1-live-price">
+          {livePrice !== null ? (
+            <span className="t1-price-value">{livePrice.toLocaleString("vi-VN")}</span>
+          ) : (
+            <span className="t1-price-loading">--</span>
+          )}
+        </td>
+      )}
       <td className={`t1-num ${epsUp ? "up" : "down"}`}>
         {epsUp ? "+" : ""}{stock.epsGrowth.toFixed(1)}%
       </td>
@@ -41,4 +52,10 @@ function Tang1TableRow({ stock, rank, showScenarioScore }: Props) {
   );
 }
 
-export default memo(Tang1TableRow);
+// FIX: Include livePrice and showLivePrice in memo comparison
+export default memo(Tang1TableRow, (prev, next) =>
+  prev.stock === next.stock &&
+  prev.livePrice === next.livePrice &&
+  prev.showLivePrice === next.showLivePrice &&
+  prev.showScenarioScore === next.showScenarioScore
+);

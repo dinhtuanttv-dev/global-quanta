@@ -522,6 +522,12 @@ body{
 .t1-pct{font-family:var(--font-mono);font-size:9px;margin-left:4px;}
 .t1-pct.up{color:var(--positive);}
 .t1-pct.down{color:var(--negative);}
+/* Live Price Indicator */
+.t1-live-indicator{font-size:10px;padding:2px 8px;background:rgba(59,130,246,0.1);border-radius:4px;color:#3B82F6;margin-left:8px;animation:pulse 1.5s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.t1-live-price{position:relative;}
+.t1-live-price .t1-price-value{font-weight:600;color:var(--text-primary);}
+.t1-price-loading{color:var(--text-tertiary);font-size:10px;font-style:italic;}
 
 /* Modal */
 .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease-out;}
