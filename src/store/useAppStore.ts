@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { WatchlistStock, RadarCoreNode, RadarRingNode } from '../types';
 import * as api from '../services/api';
+import * as watchlistSvc from '../services/watchlist';
 
 interface ToastState {
   message: string;
@@ -65,8 +66,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   watchlist: [],
   loadWatchlist: async () => {
-    const data = await api.fetchWatchlist();
-    set({ watchlist: data });
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 1) ──
+    // Trước: await api.fetchWatchlist() → set() trực tiếp
+    // Sau: watchlistSvc.fetchWatchlist() → update cache → pub/sub trigger
+    //      → useAppStore.subscribe (bên dưới) tự cập nhật state
+    await watchlistSvc.fetchWatchlist();
   },
   addStock: async (ticker, sector) => {
     const newStock = await api.addToWatchlist({ ticker, sector });
@@ -102,9 +106,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     api.patchWatchlistStock(ticker, { reason });
   },
   markRead: (ticker) => {
-    set((s) => ({
-      watchlist: s.watchlist.map((x) => (x.ticker === ticker ? { ...x, unread: false } : x)),
-    }));
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 1) ──
+    // Trước: set() trực tiếp → KHÔNG đồng bộ với Radar/Action Center
+    // Sau: gọi watchlistSvc.patchWatchlistStock() → update cache → pub/sub trigger
+    //      → useAppStore tự động cập nhật state (subscribe ở dưới)
+    void watchlistSvc.patchWatchlistStock(ticker, { unread: false });
   },
 
   sortByConvergence: false,
@@ -147,3 +153,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   clearToast: () => set({ toast: null }),
 }));
+
+// ── SUBSCRIBE watchlist.ts pub/sub (Lộ trình B - Bước 1) ──
+// Mỗi khi watchlist.ts update cache (qua add/remove/patch/restore) →
+// pub/sub trigger → useAppStore tự động cập nhật `watchlist` state.
+// Điều này đồng bộ Sidebar ↔ Radar ↔ Action Center mà không cần
+// component nào phải tự fetch lại.
+watchlistSvc.subscribeWatchlist((next) => {
+  useAppStore.setState({ watchlist: next });
+});
