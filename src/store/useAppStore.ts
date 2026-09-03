@@ -94,19 +94,30 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   removeStock: async (ticker) => {
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 5 - cuối) ──
+    // Trước: set() trực tiếp + await api.removeFromWatchlist() + onUndo restore
+    //       → Nếu API fail sau khi set(): KHÔNG rollback (state lệch server)
+    //       → onUndo gọi api.restoreToWatchlist() trực tiếp (không qua facade)
+    // Sau: watchlistSvc.removeFromWatchlist() xử lý TẤT CẢ:
+    //      - Optimistic update (row biến mất ngay)
+    //      - Gọi API (xóa trên server)
+    //      - Rollback tự động nếu API throw
+    //      - onUndo dùng watchlistSvc.restoreToWatchlist() để đồng bộ
+    //      - Toast với undo giữ nguyên (UX không đổi)
     const idx = get().watchlist.findIndex((s) => s.ticker === ticker);
     const removed = get().watchlist[idx];
     if (!removed) return;
-    set((s) => ({ watchlist: s.watchlist.filter((x) => x.ticker !== ticker) }));
-    await api.removeFromWatchlist(ticker);
-    get().showToast(`Đã xoá ${ticker} khỏi danh sách`, () => {
-      set((s) => {
-        const list = [...s.watchlist];
-        list.splice(idx, 0, removed);
-        return { watchlist: list };
+
+    try {
+      await watchlistSvc.removeFromWatchlist(ticker);
+      get().showToast(`Đã xoá ${ticker} khỏi danh sách`, () => {
+        void watchlistSvc.restoreToWatchlist(removed, idx);
       });
-      api.restoreToWatchlist(removed, idx);
-    });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : `Lỗi khi xoá ${ticker}`;
+      get().showToast(`❌ ${msg}`);
+      throw err;
+    }
   },
   togglePin: (ticker) => {
     // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 2) ──
