@@ -20,6 +20,7 @@ interface AppState {
   togglePin: (ticker: string) => void;
   setReason: (ticker: string, reason: string | null) => void;
   markRead: (ticker: string) => void;
+  updateLivePrices: (prices: Record<string, { price: number; changePct: number | null }>) => void;
 
   // ===== UI FILTERS (Sidebar) =====
   sortByConvergence: boolean;
@@ -104,6 +105,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   markRead: (ticker) => {
     set((s) => ({
       watchlist: s.watchlist.map((x) => (x.ticker === ticker ? { ...x, unread: false } : x)),
+    }));
+  },
+  updateLivePrices: (prices) => {
+    set((s) => ({
+      watchlist: s.watchlist.map((x) => {
+        const p = prices[x.ticker];
+        if (!p || p.price === null) return x;
+        return { ...x, price: p.price, changePct: p.changePct ?? x.changePct };
+      }),
     }));
   },
 

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
+import { fetchLivePrices } from '../MainTabs/SieuQuetAI/livePriceApi';
 import WatchlistRow from './WatchlistRow';
 import SidebarSearchInput from './SidebarSearchInput';
 import SortToggleButton from './SortToggleButton';
@@ -12,11 +13,39 @@ export default function Sidebar() {
     watchlist, loadWatchlist, addStock, removeStock, togglePin, setReason,
     sortByConvergence, toggleSortByConvergence, activeGroup, setActiveGroup,
     searchText, setSearchText, selectedTicker, selectTicker, showToast,
+    updateLivePrices,
   } = useAppStore();
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stock: WatchlistStock } | null>(null);
 
   useEffect(() => { loadWatchlist(); }, [loadWatchlist]);
+
+  const watchlistRef = useRef(watchlist);
+  useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
+
+  const pollLivePrices = useCallback(async () => {
+    const tickers = watchlistRef.current.map((s) => s.ticker);
+    if (tickers.length === 0) return;
+    try {
+      const prices = await fetchLivePrices(tickers);
+      const priceMap: Record<string, { price: number; changePct: number | null }> = {};
+      for (const [ticker, info] of Object.entries(prices)) {
+        if (info.price !== null) {
+          priceMap[ticker] = { price: info.price, changePct: info.changePct };
+        }
+      }
+      updateLivePrices(priceMap);
+    } catch (err) {
+      console.warn('[Sidebar] Failed to fetch live prices:', err);
+    }
+  }, [updateLivePrices]);
+
+  useEffect(() => {
+    if (watchlist.length === 0) return;
+    pollLivePrices();
+    const interval = setInterval(pollLivePrices, 60_000);
+    return () => clearInterval(interval);
+  }, [watchlist.length, pollLivePrices]);
 
   const filteredSorted = useMemo(() => {
     let list = watchlist.filter((s) => {
