@@ -93,11 +93,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
   togglePin: (ticker) => {
-    set((s) => ({
-      watchlist: s.watchlist.map((x) => (x.ticker === ticker ? { ...x, pinned: !x.pinned } : x)),
-    }));
+    // ── MIGRATED to watchlist.ts (Lộ trình B - Bước 2) ──
+    // Trước: set() trực tiếp + gọi api.patchWatchlistStock() riêng
+    //       → Nếu API fail: state đã update nhưng server không biết (BUG)
+    // Sau: watchlistSvc.patchWatchlistStock() xử lý TẤT CẢ:
+    //      - Optimistic update qua setCache (UI phản hồi ngay)
+    //      - Gọi api.patchWatchlistStock() (gửi lên server)
+    //      - Rollback tự động nếu API throw (đã có sẵn trong watchlist.ts)
     const stock = get().watchlist.find((x) => x.ticker === ticker);
-    if (stock) api.patchWatchlistStock(ticker, { pinned: stock.pinned });
+    if (!stock) return;
+    void watchlistSvc.patchWatchlistStock(ticker, { pinned: !stock.pinned });
   },
   setReason: (ticker, reason) => {
     set((s) => ({
