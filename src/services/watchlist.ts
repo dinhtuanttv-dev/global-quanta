@@ -12,6 +12,13 @@
  * `WatchlistStock.isSaving?` (sẽ patch ở giai đoạn sau). File này
  * dùng type mở rộng local để KHÔNG phải sửa types.ts ngay bây giờ,
  * giữ tương thích ngược với code hiện tại.
+ *
+ * ⚠️ TRẠNG THÁI: ĐÃ COMMIT nhưng CHƯA ĐƯỢC TÍCH HỢP.
+ *    - useAppStore vẫn gọi api.ts trực tiếp (chưa migrate).
+ *    - File này hiện tại là "DEAD CODE" — Vite tree-shake loại khỏi bundle.
+ *    - Tác động runtime: 0. Tác động bundle: 0 KB.
+ *    - TODO: Migrate useAppStore trong round tiếp theo (Lộ trình B).
+ *    - LÝ DO GIỮ: Tránh mất công sức viết + git history rõ ràng.
  */
 import * as api from './api';
 import { normalizeTicker, isValidTickerFormat, buildTickerSet } from '../utils/normalizeTicker';
