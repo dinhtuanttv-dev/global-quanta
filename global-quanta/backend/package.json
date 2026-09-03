@@ -1,0 +1,17 @@
+{
+  "name": "ai-chart-vision-backend",
+  "version": "1.0.0",
+  "description": "Backend pipeline cho tab AI Chart Vision - Vision Capture, Feature Extraction, Bayesian Scoring, Risk Filter, AI Synthesis",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "zod": "^3.23.8"
+  }
+}

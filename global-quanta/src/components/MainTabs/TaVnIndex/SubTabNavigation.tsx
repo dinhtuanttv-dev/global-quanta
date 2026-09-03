@@ -1,6 +1,6 @@
-import { Search, GitMerge, Star } from "lucide-react";
+import { Search, GitMerge, Star, Cpu } from "lucide-react";
 
-export type SubTabKey = "pattern" | "convergence" | "golden";
+export type SubTabKey = "pattern" | "convergence" | "golden" | "aichart";
 
 interface SubTabNavigationProps {
   activeTab: SubTabKey;
@@ -11,6 +11,7 @@ const TABS: { key: SubTabKey; label: string; icon: React.ReactNode }[] = [
   { key: "pattern", label: "Pattern Scanner", icon: <Search className="w-3.5 h-3.5" /> },
   { key: "convergence", label: "Bộ lọc Hợp lưu Nâng Cao", icon: <GitMerge className="w-3.5 h-3.5" /> },
   { key: "golden", label: "Golden Filter x Top 20", icon: <Star className="w-3.5 h-3.5" /> },
+  { key: "aichart", label: "AI Chart Vision", icon: <Cpu className="w-3.5 h-3.5" /> },
 ];
 
 export default function SubTabNavigation({ activeTab, onTabChange }: SubTabNavigationProps) {

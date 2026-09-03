@@ -1,0 +1,134 @@
+/**
+ * CSS variables and styles for AI Chart Vision module
+ * Prefixed with --aicv- to avoid conflicts with global styles
+ */
+
+/* ============================================================
+   LIGHT THEME
+   ============================================================ */
+:root {
+  --aicv-surface-0: #f7f6f2;
+  --aicv-surface-1: #ffffff;
+  --aicv-surface-2: #ffffff;
+  --aicv-text-primary: #1a1a18;
+  --aicv-text-secondary: #5f5e5a;
+  --aicv-text-muted: #888780;
+  --aicv-border: #e3e1d8;
+  --aicv-border-strong: #cfccc0;
+  --aicv-accent: #185fa5;
+  --aicv-accent-bg: #e6f1fb;
+  --aicv-success: #3b6d11;
+  --aicv-success-bg: #eaf3de;
+  --aicv-danger: #a32d2d;
+  --aicv-danger-bg: #fcebeb;
+  --aicv-warning: #b8860b;
+  --aicv-warning-bg: #fdf4dc;
+  --aicv-radius: 8px;
+}
+
+/* ============================================================
+   DARK THEME
+   ============================================================ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --aicv-surface-0: #171614;
+    --aicv-surface-1: #201f1c;
+    --aicv-surface-2: #262521;
+    --aicv-text-primary: #f1efe8;
+    --aicv-text-secondary: #b4b2a9;
+    --aicv-text-muted: #888780;
+    --aicv-border: #3a3934;
+    --aicv-border-strong: #4c4a44;
+    --aicv-accent: #85b7eb;
+    --aicv-accent-bg: #0c447c;
+    --aicv-success: #97c459;
+    --aicv-success-bg: #27500a;
+    --aicv-danger: #f09595;
+    --aicv-danger-bg: #791f1f;
+    --aicv-warning: #e6c66e;
+    --aicv-warning-bg: #5c4a0a;
+  }
+}
+
+/* ============================================================
+   COMPONENT CLASSES
+   ============================================================ */
+
+.aicv-card {
+  background: var(--aicv-surface-2);
+  border: 0.5px solid var(--aicv-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 16px;
+}
+
+.aicv-button {
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--aicv-radius);
+  border: 0.5px solid var(--aicv-border-strong);
+  background: var(--aicv-surface-2);
+  color: var(--aicv-text-primary);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  transition: background 0.15s ease;
+}
+
+.aicv-button:hover { background: var(--aicv-surface-1); }
+.aicv-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.aicv-button-accent {
+  background: var(--aicv-accent-bg);
+  color: var(--aicv-accent);
+  border-color: var(--aicv-accent);
+  font-weight: 500;
+}
+
+.aicv-input, .aicv-select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: var(--aicv-radius);
+  border: 0.5px solid var(--aicv-border-strong);
+  background: var(--aicv-surface-2);
+  color: var(--aicv-text-primary);
+  width: 100%;
+}
+
+.aicv-input:focus, .aicv-select:focus {
+  outline: none;
+  border-color: var(--aicv-accent);
+}
+
+.aicv-label {
+  font-size: 13px;
+  color: var(--aicv-text-secondary);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.aicv-success {
+  background: var(--aicv-success-bg);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.aicv-success-text { color: var(--aicv-success); }
+
+.aicv-danger {
+  background: var(--aicv-danger-bg);
+  color: var(--aicv-danger);
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+
+.aicv-warning {
+  background: var(--aicv-warning-bg);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.aicv-warning-text { color: var(--aicv-warning); }

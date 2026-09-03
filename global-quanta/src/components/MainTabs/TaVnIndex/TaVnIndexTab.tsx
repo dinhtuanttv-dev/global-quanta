@@ -8,6 +8,8 @@ import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
 import PatternList from "./PatternList";
 import SubTabNavigation, { SubTabKey } from "./SubTabNavigation";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
+import AIChartVisionTab from "../../TaVNIndex/AIChartVisionTab";
+import "../../TaVNIndex/AIChartVisionTab/styles.css";
 
 export default function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
@@ -38,6 +40,7 @@ export default function TaVnIndexTab() {
             </div>
           </>
         )}
+        {activeSubTab === "aichart" && <AIChartVisionTab />}
       </div>
     </div>
   );
