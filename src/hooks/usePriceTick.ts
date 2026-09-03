@@ -90,6 +90,8 @@ export function usePriceTick(
     if (ticker) {
       // ── DÙNG ENGINE (tối ưu cho nhiều mã) ────────────────────────
       const normalized = normalizeTicker(ticker);
+      // Register TRƯỚC với basePrice để engine biết giá khởi điểm
+      priceTickEngine.register(normalized, basePrice);
       const initialPrice = priceTickEngine.getPrice(normalized);
       if (initialPrice !== undefined) {
         setPrice(initialPrice);
@@ -97,12 +99,15 @@ export function usePriceTick(
         baseRef.current = basePrice;
       }
 
-      // Register với engine
+      // Subscribe tới updates
       const unsubscribe = priceTickEngine.subscribe(normalized, (newPrice) => {
         setPrice(newPrice);
       });
 
-      return unsubscribe;
+      return () => {
+        unsubscribe();
+        priceTickEngine.unregister(normalized);
+      };
     } else {
       // ── FALLBACK: interval local (trước khi migrate hết caller) ───
       const id = setInterval(() => {
