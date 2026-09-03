@@ -9,7 +9,7 @@ export default function ActionCenter() {
   const core = radarCore.find((n) => n.ticker === selectedTicker);
   const ring = radarRing.find((n) => n.ticker === selectedTicker);
 
-  const livePrice = usePriceTick(core?.price ?? ring?.price ?? 0, !!(core || ring));
+  const livePrice = usePriceTick(selectedTicker, core?.price ?? ring?.price ?? 0);
 
   const handleOrder = (side: 'buy' | 'sell') => {
     if (!selectedTicker) return;

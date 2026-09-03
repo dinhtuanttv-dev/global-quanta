@@ -19,7 +19,7 @@ interface Props {
 }
 
 function WatchlistRow({ stock, isActive, onSelect, onTogglePin, onEditReason, onDelete, onContextMenu }: Props) {
-  const livePrice = usePriceTick(stock.price);
+  const livePrice = usePriceTick(stock.ticker, stock.price);
   const up = stock.changePct >= 0;
   const rowClass = [
     'sb-row',

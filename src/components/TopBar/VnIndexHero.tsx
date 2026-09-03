@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function VnIndexHero({ data }: Props) {
-  const livePrice = usePriceTick(data.value);
+  const livePrice = usePriceTick(null, data.value);
   const up = data.changePct >= 0;
 
   return (

@@ -1,0 +1,63 @@
+/* sidebar-scroll.css
+ * ────────────────────────────────────────────────────────────────
+ * Phần CSS MỚI bổ sung cho Sidebar (tương thích với App.css hiện có).
+ *
+ * Lưu ý: App.css đã định nghĩa .sidebar (grid-column, overflow-y)
+ * và .sb-list (display:flex, flex-direction:column, gap:2px).
+ * File này KHÔNG ghi đè các thuộc tính đó — chỉ thêm class mới
+ * cho Giai đoạn 5 (trạng thái saving, error inline, fallback height).
+ *
+ * Nếu cần dùng phương án flex tự co giãn cho .sb-list (ghi đè
+ * overflow-y thành auto), thêm class "sb-list--flex" vào <div
+ * className="sb-list"> trong Sidebar.tsx. Hiện tại KHÔNG bật mặc
+ * định để tránh xung đột layout với App.css.
+ */
+
+/* ── Trạng thái "đang lưu" cho row optimistic (Giai đoạn 5) ──────── */
+.sb-row--saving {
+  opacity: 0.55;
+  pointer-events: none; /* chặn double-click trong lúc chờ xác nhận */
+}
+
+.sb-row-saving-badge {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--sb-muted-color, rgba(255, 255, 255, 0.5));
+  font-style: italic;
+}
+
+.sb-search-error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--sb-error-color, #ef4444);
+}
+
+/* ── Phương án dự phòng: chiều cao cố định qua CSS var ──────────
+   Dùng khi không áp dụng được flex tự co giãn. Thêm class
+   "sb-list--fixed-height" vào <div className="sb-list"> nếu cần. */
+.sb-list--fixed-height {
+  max-height: var(--sb-list-max-height, 560px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-gutter: stable;
+}
+
+/* ── Scrollbar mảnh đồng bộ theme tối (chỉ áp dụng khi list có class bổ sung) ── */
+.sb-list--scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+.sb-list--scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sb-list--scrollable::-webkit-scrollbar-thumb {
+  background: var(--sb-scrollbar-color, rgba(255, 255, 255, 0.15));
+  border-radius: 3px;
+}
+.sb-list--scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--sb-scrollbar-color-hover, rgba(255, 255, 255, 0.28));
+}
+.sb-list--scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-scrollbar-color, rgba(255, 255, 255, 0.15)) transparent;
+}

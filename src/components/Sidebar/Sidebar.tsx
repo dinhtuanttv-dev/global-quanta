@@ -9,7 +9,7 @@ import type { WatchlistStock } from '../../types';
 
 export default function Sidebar() {
   const {
-    watchlist, loadWatchlist, addStock, removeStock, togglePin, setReason,
+    watchlist, loadWatchlist, addStock, removeStock, togglePin, setReason, markRead,
     sortByConvergence, toggleSortByConvergence, activeGroup, setActiveGroup,
     searchText, setSearchText, selectedTicker, selectTicker, showToast,
   } = useAppStore();
@@ -83,14 +83,19 @@ export default function Sidebar() {
           y={ctxMenu.y}
           stock={ctxMenu.stock}
           onClose={() => setCtxMenu(null)}
-          onAlert={(t) => showToast(`Đã đặt cảnh báo giá cho ${t} (demo).`)}
-          onEditNote={(t) => handleEditReason(t, ctxMenu.stock.reason)}
-          onViewOnRadar={(t) => {
-            selectTicker(t);
-            document.querySelector('.radar-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          handlers={{
+            onSelect: (ticker) => selectTicker(ticker),
+            onTogglePin: togglePin,
+            onDelete: (ticker) => removeStock(ticker),
+            onMarkRead: (ticker) => markRead(ticker),
+            onCopyTicker: (ticker) => navigator.clipboard.writeText(ticker),
+            onAlert: (ticker) => showToast(`Đã đặt cảnh báo giá cho ${ticker} (demo).`),
+            onEditNote: (ticker) => handleEditReason(ticker, ctxMenu.stock.reason),
+            onViewOnRadar: (ticker) => {
+              selectTicker(ticker);
+              document.querySelector('.radar-block')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
           }}
-          onTogglePin={togglePin}
-          onDelete={handleDelete}
         />
       )}
     </div>

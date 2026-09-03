@@ -82,17 +82,73 @@ body{
 .vn-hero-caret{font-size:8px;color:var(--text-tertiary);margin-left:2px;}
 
 .vn-hero-dropdown{
-  position:absolute;top:calc(100% + 10px);left:0;width:250px;
-  background:#161D2C;border:1px solid var(--border-strong);border-radius:10px;
-  padding:12px;box-shadow:0 14px 34px rgba(0,0,0,0.5);display:none;z-index:80;
+  position:relative;
 }
-.vn-hero:hover .vn-hero-dropdown{display:block;}
 .vhd-title{font-size:9px;color:var(--text-tertiary);font-weight:700;letter-spacing:0.05em;margin-bottom:8px;}
 .vhd-row{display:grid;grid-template-columns:1fr 60px 55px;align-items:center;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border);}
 .vhd-row:last-of-type{border-bottom:none;}
 .vhd-row .num{text-align:right;}
+.vhd-pct{display:inline-flex;align-items:center;gap:3px;}
+.vhd-arrow{font-size:9px;line-height:1;}
 .vhd-note{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:9.5px;color:var(--text-tertiary);line-height:1.5;}
 .vhd-note b{color:var(--gold-bright);font-weight:600;}
+
+/* ===== TOP BAR nâng cấp (Phase 1+2) ===== */
+
+/* VN-INDEX button + caret xoay khi mở */
+.vn-hero-main{
+  background:transparent;border:none;cursor:pointer;padding:0;
+  font:inherit;color:inherit;text-align:left;
+  display:flex;flex-direction:column;line-height:1.2;
+}
+.vn-hero-main:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px;}
+.vn-hero-caret{font-size:8px;color:var(--text-tertiary);margin-left:2px;display:inline-block;transition:transform .18s ease;}
+.vn-hero-caret.is-open{transform:rotate(180deg);}
+.vn-hero-chg .chg-arrow{font-size:9px;line-height:1;margin-right:2px;}
+
+/* Popover: viền + fade-down animation */
+.vn-hero-popover{
+  position:absolute;top:calc(100% + 10px);left:0;width:250px;
+  background:#161D2C;border:1px solid var(--border-strong);border-radius:10px;
+  padding:12px;box-shadow:0 14px 34px rgba(0,0,0,0.5);z-index:80;
+}
+@keyframes animate-fade-down{
+  from{opacity:0;transform:translateY(-6px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+.animate-fade-down{animation:animate-fade-down .18s ease-out both;}
+@media (prefers-reduced-motion: reduce){
+  .animate-fade-down{animation:none;}
+  .vn-hero-caret{transition:none;}
+}
+
+/* Skeleton shimmer */
+.tb-skeleton{
+  display:inline-block;
+  background:linear-gradient(90deg,#1B2336 0%,#28314A 50%,#1B2336 100%);
+  background-size:200% 100%;
+  border-radius:4px;
+  animation:tb-shimmer 1.4s ease-in-out infinite;
+  vertical-align:middle;
+}
+@keyframes tb-shimmer{
+  0%  {background-position:200% 0;}
+  100%{background-position:-200% 0;}
+}
+@media (prefers-reduced-motion: reduce){
+  .tb-skeleton{animation:none;background:#1B2336;}
+}
+
+/* Last-updated stamp (góc phải) */
+.topbar-stamp{
+  margin-left:auto;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-tertiary);
+  font-size:9.5px;font-family:var(--font-mono);
+  padding:3px 7px;border-radius:6px;cursor:pointer;
+  transition:color .15s,border-color .15s;
+}
+.topbar-stamp:hover{color:var(--text-secondary);border-color:var(--border-strong);}
 
 .ticker-item{display:flex;align-items:center;gap:7px;white-space:nowrap;padding-right:20px;border-right:1px solid var(--border);}
 
@@ -169,11 +225,40 @@ body{
 
 .top-right{display:flex;align-items:center;gap:14px;margin-left:auto;padding-left:14px;}
 .search-box{
+  position:relative;
   display:flex;align-items:center;gap:6px;
   background:var(--bg-surface-2);border:1px solid var(--border);
   border-radius:6px;padding:6px 10px;color:var(--text-tertiary);font-size:11px;width:170px;
+  transition:border-color .15s, box-shadow .15s, background .15s;
 }
-.search-box kbd{margin-left:auto;font-family:var(--font-mono);font-size:9px;background:#232C40;padding:1px 5px;border-radius:3px;color:var(--text-secondary);}
+.search-box:hover{border-color:var(--border-strong);}
+.search-box.is-focused{
+  border-color:var(--gold);
+  box-shadow:0 0 0 2px rgba(232,184,75,0.18);
+  background:var(--bg-base);
+  color:var(--text-secondary);
+}
+.search-box .search-placeholder{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  pointer-events:none;color:var(--text-tertiary);
+  font-size:11px;line-height:1;
+}
+.search-box .search-input{
+  flex:1;min-width:0;
+  background:transparent;border:none;outline:none;
+  color:var(--text-primary);font:inherit;font-size:11px;
+  padding:0;margin:0;
+}
+.search-box .search-input::placeholder{color:var(--text-tertiary);}
+.search-box .search-clear{
+  background:transparent;border:none;cursor:pointer;padding:0;
+  color:var(--text-tertiary);font-size:10px;line-height:1;
+  width:14px;height:14px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:color .12s, background .12s;
+}
+.search-box .search-clear:hover{color:var(--text-primary);background:var(--bg-surface);}
+.search-box .search-kbd{margin-left:auto;font-family:var(--font-mono);font-size:9px;background:#232C40;padding:1px 5px;border-radius:3px;color:var(--text-secondary);}
 .icon-btn{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);position:relative;cursor:pointer;}
 .icon-btn:hover{background:var(--bg-surface-2);color:var(--text-primary);}
 .badge-dot{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--negative);}
@@ -457,3 +542,8 @@ body{
   .regime-badge, .vn-hero { flex-shrink: 0; }
   .tickers { gap: 12px; }
 }
+
+/* ===== SIDEBAR UPGRADE (GIAI ĐOẠN 5) =====
+   Import từ components/Sidebar/sidebar-scroll.css — chỉ thêm class mới,
+   KHÔNG ghi đè .sidebar / .sb-list đã định nghĩa ở trên. */
+@import url('./../components/Sidebar/sidebar-scroll.css');

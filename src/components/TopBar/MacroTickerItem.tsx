@@ -10,7 +10,7 @@ interface Props {
 
 function MacroTickerItem({ data }: Props) {
   const isNumeric = typeof data.value === 'number';
-  const livePrice = usePriceTick(isNumeric ? (data.value as number) : 0, isNumeric);
+  const livePrice = usePriceTick(null, isNumeric ? (data.value as number) : 0);
   const up = (data.changePct ?? 0) >= 0;
 
   return (
