@@ -9,9 +9,10 @@ import type { VnIndexData } from '../../types';
 
 interface Props {
   data: VnIndexData;
+  valueMethodology?: string | null;
 }
 
-export default function VnIndexHero({ data }: Props) {
+export default function VnIndexHero({ data, valueMethodology }: Props) {
   const livePrice = usePriceTick(data.value);
   const flash = usePriceFlash(Math.round(livePrice * 10));
   const up = data.changePct >= 0;
@@ -32,7 +33,12 @@ export default function VnIndexHero({ data }: Props) {
       <Sparkline data={data.sparkline} width={76} height={28} color={up ? 'positive' : 'negative'} />
       <div className="vn-hero-meta">
         <span>KL <b>{data.volumeShares}</b></span>
-        <span>GT <b>{data.valueVND}</b></span>
+        <span
+          className={valueMethodology ? "vn-hero-gt-estimated" : undefined}
+          title={valueMethodology ?? undefined}
+        >
+          GT <b>{data.valueVND}</b>{valueMethodology && <span className="vn-hero-info-icon">ⓘ</span>}
+        </span>
       </div>
       <IndexCompareDropdown compare={compare} note={note} loading={compare.length === 0} />
     </div>

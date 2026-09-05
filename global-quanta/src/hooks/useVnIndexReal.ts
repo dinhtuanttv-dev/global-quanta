@@ -8,6 +8,8 @@ export interface VnIndexRealData {
   changePct: number;
   sparkline: number[];
   volumeShares: string;
+  estimatedValueBillionVnd: number | null;
+  valueMethodology: string | null;
 }
 
 export function useVnIndexReal(refreshMs = 60_000) {
@@ -18,9 +20,13 @@ export function useVnIndexReal(refreshMs = 60_000) {
 
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/api/ohlcv?ticker=VNINDEX&range=1mo&limit=30`, { cache: "no-store" });
-        if (!res.ok) return;
-        const json = await res.json();
+        const [ohlcvRes, valueRes] = await Promise.all([
+          fetch(`${API_BASE}/api/ohlcv?ticker=VNINDEX&range=1mo&limit=30`, { cache: "no-store" }),
+          fetch(`${API_BASE}/api/market-data/vnindex-value-estimate`, { cache: "no-store" }).catch(() => null),
+        ]);
+
+        if (!ohlcvRes.ok || cancelled) return;
+        const json = await ohlcvRes.json();
         const bars = json?.bars ?? [];
         if (bars.length < 2 || cancelled) return;
 
@@ -33,7 +39,17 @@ export function useVnIndexReal(refreshMs = 60_000) {
           ? `${(last.volume / 1_000_000).toFixed(0)}tr CP`
           : "--";
 
-        setData({ value: last.close, changeAbs, changePct, sparkline, volumeShares });
+        let estimatedValueBillionVnd: number | null = null;
+        let valueMethodology: string | null = null;
+        if (valueRes && valueRes.ok) {
+          const valueJson = await valueRes.json();
+          estimatedValueBillionVnd = valueJson?.estimatedValueBillionVnd ?? null;
+          valueMethodology = valueJson?.methodology ?? null;
+        }
+
+        if (!cancelled) {
+          setData({ value: last.close, changeAbs, changePct, sparkline, volumeShares, estimatedValueBillionVnd, valueMethodology });
+        }
       } catch (err) {
         console.warn("[useVnIndexReal] Failed to fetch:", err);
       }

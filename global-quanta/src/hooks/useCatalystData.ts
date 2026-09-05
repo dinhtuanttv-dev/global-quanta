@@ -14,10 +14,15 @@ export function useCatalystData() {
 
   const hasError = data && "error" in data;
   const snapshot = data && !hasError ? (data as CatalystSnapshot) : null;
+  const errorBody = hasError ? (data as CatalystErrorResponse) : null;
+  // "transient" = loi Redis tam thoi (503) - nen khuyen khich thu lai.
+  // Khac voi "chua co du lieu" (binh thuong, chi can doi lan quet dau tien).
+  const isTransientError = !!(errorBody && (errorBody as any).transient === true);
 
   return {
     snapshot,
-    noDataYet: hasError ? (data as CatalystErrorResponse).error : null,
+    noDataYet: !isTransientError ? errorBody?.error ?? null : null,
+    transientError: isTransientError ? errorBody?.error ?? null : null,
     isLoading, error, refresh: mutate,
   };
 }

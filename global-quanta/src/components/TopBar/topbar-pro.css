@@ -316,3 +316,7 @@
 @media (max-width: 480px) {
   .liq-panel { width: 280px; right: -20px; }
 }
+
+
+.vn-hero-gt-estimated { cursor: help; border-bottom: 1px dashed rgba(232,193,112,0.4); }
+.vn-hero-info-icon { font-size: 8px; color: var(--gold-bright, #E8C170); margin-left: 3px; }
