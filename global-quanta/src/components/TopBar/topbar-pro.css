@@ -216,3 +216,103 @@
   gap: 6px;
 }
 .vhd-note-icon { color: var(--gold-bright, #E8C170); flex-shrink: 0; font-size: 8px; margin-top: 2px; }
+
+
+/* ============================================================
+   LIQUIDITY 10:30 — Panel truot phan tich chuyen sau
+   ============================================================ */
+.liq-check-clickable { cursor: pointer; position: relative; }
+
+.liq-skel { min-width: 140px; }
+.liq-skel-bar {
+  height: 14px; width: 100px; border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+  animation: vhd-shimmer 1.4s ease-in-out infinite;
+}
+
+.liq-panel-portal {
+  position: fixed;
+  width: 320px;
+  z-index: 9999;
+}
+.liq-panel {
+  width: 320px;
+  background: linear-gradient(165deg, rgba(20,26,40,0.98), rgba(12,16,26,0.98));
+  border: 1px solid rgba(212,166,76,0.2);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 70;
+  animation: vhd-fade-in 0.2s ease forwards;
+  cursor: default;
+}
+
+.liq-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.liq-panel-close {
+  background: none; border: none; color: var(--text-tertiary);
+  font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px;
+  border-radius: 4px; transition: background 0.15s ease, color 0.15s ease;
+}
+.liq-panel-close:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); }
+
+.liq-panel-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 90px;
+  padding: 0 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.liq-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 6px; }
+.liq-bar-track { width: 100%; height: 68px; display: flex; align-items: flex-end; }
+.liq-bar-fill {
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  transition: height 0.4s ease;
+  min-height: 3px;
+}
+.liq-bar-history { background: rgba(148,163,184,0.35); }
+.liq-bar-up { background: var(--positive); box-shadow: 0 0 8px rgba(52,211,153,0.4); }
+.liq-bar-down { background: var(--negative); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
+.liq-bar-today .liq-bar-track { border-left: 1px dashed rgba(212,166,76,0.3); padding-left: 4px; }
+.liq-bar-label { font-size: 8.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.liq-bar-label-today { color: var(--gold-bright, #E8C170); font-weight: 700; }
+
+.liq-panel-stats { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.liq-stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; padding: 4px 6px; border-radius: 6px;
+}
+.liq-stat-row span:first-child { color: var(--text-secondary); }
+.liq-stat-highlight { background: rgba(212,166,76,0.06); border: 1px solid rgba(212,166,76,0.15); }
+.liq-stat-highlight span:first-child { color: var(--gold-bright, #E8C170); font-weight: 600; }
+
+.liq-panel-signal {
+  text-align: center; font-size: 10.5px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 6px; border-radius: 8px; margin-bottom: 12px;
+}
+.liq-signal-normal { background: rgba(148,163,184,0.1); color: var(--text-secondary); }
+.liq-signal-elevated { background: rgba(251,191,36,0.12); color: #FBBF24; }
+.liq-signal-extreme { background: rgba(248,113,113,0.14); color: var(--negative); animation: liq-pulse 1.6s ease-in-out infinite; }
+
+.liq-panel-note {
+  font-size: 9.5px; color: var(--text-tertiary); line-height: 1.6;
+  padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+@media (max-width: 480px) {
+  .liq-panel { width: 280px; right: -20px; }
+}

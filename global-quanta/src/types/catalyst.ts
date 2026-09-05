@@ -72,3 +72,5 @@ export interface CatalystSnapshot {
 export interface CatalystErrorResponse {
   error: string;
 }
+export interface UnmappedSectorItem { rawKey: string; count: number; }
+export interface UnmappedSectorsResponse { items: UnmappedSectorItem[]; totalUnique: number; }

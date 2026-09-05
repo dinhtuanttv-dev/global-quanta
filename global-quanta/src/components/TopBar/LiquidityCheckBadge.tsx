@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+﻿import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useLiquidity1030Real } from "../../hooks/useLiquidity1030Real";
 
 function formatVolume(v: number): string {
@@ -14,6 +15,30 @@ const SIGNAL_LABEL: Record<string, string> = {
 export default function LiquidityCheckBadge() {
   const { data, loading } = useLiquidity1030Real();
   const [open, setOpen] = useState(false);
+  const anchorRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open || !anchorRef.current) return;
+    const rect = anchorRef.current.getBoundingClientRect();
+    setPos({ top: rect.bottom + 10, left: rect.right - 320 });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [open]);
 
   if (loading && !data) {
     return <div className="liq-check liq-skel"><div className="liq-skel-bar" /></div>;
@@ -27,15 +52,19 @@ export default function LiquidityCheckBadge() {
   const maxVol = Math.max(today.cumulativeVolumeAt1030, ...history.map((h) => h.cumulativeVolumeAt1030));
 
   return (
-    <div className="liq-check liq-check-clickable" onClick={() => setOpen((v) => !v)}>
+    <div className="liq-check liq-check-clickable" ref={anchorRef} onClick={() => setOpen((v) => !v)}>
       <span className="liq-label">TK 10:30</span>
       <span className="liq-val num">{formatVolume(today.cumulativeVolumeAt1030)}</span>
       <span className={cls}>
         {arrow} {stats.deviationPct >= 0 ? "+" : ""}{stats.deviationPct.toFixed(0)}% so TB5P
       </span>
 
-      {open && (
-        <div className="liq-panel" onClick={(e) => e.stopPropagation()}>
+      {open && createPortal(
+        <div
+          className="liq-panel liq-panel-portal"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="liq-panel-title">
             PHÂN TÍCH THANH KHOẢN LŨY KẾ 10:30
             <button className="liq-panel-close" onClick={() => setOpen(false)}>×</button>
@@ -92,7 +121,8 @@ export default function LiquidityCheckBadge() {
             trung bình và độ lệch chuẩn của 5 phiên liền trước (Z-score thống kê). |Z| &gt; 2:
             bất thường mạnh, |Z| &gt; 1: tăng/giảm đáng chú ý.
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
