@@ -1,10 +1,17 @@
 ﻿"use client";
 import { useCatalystData } from "../../../hooks/useCatalystData";
+import { useCatalystSearch } from "../../../hooks/useCatalystSearch";
+import { useLiveFreshness } from "../../../hooks/useLiveFreshness";
 import SectorCard from "./SectorCard";
 import MoversList from "./MoversList";
+import UnmappedSectorsPanel from "./UnmappedSectorsPanel";
 
 export default function ChatXucTacTab() {
   const { snapshot, noDataYet, isLoading, error } = useCatalystData();
+  const { query, setQuery, filteredSectors, filteredEmerging } = useCatalystSearch(
+    snapshot?.sectors ?? [], snapshot?.emerging ?? []
+  );
+  const freshnessLabel = useLiveFreshness(snapshot?.scannedAt);
 
   return (
     <div className="t1-toolbar" style={{ flexDirection: "column", alignItems: "stretch", gap: 0 }}>
@@ -27,24 +34,38 @@ export default function ChatXucTacTab() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--text-secondary)", marginBottom: 12 }}>
+          <input
+            type="text"
+            placeholder="Tim theo ma co phieu hoac ten nganh..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              width: "100%", padding: "7px 10px", marginBottom: 12, fontSize: 11.5,
+              background: "var(--bg-surface)", border: "1px solid var(--border)",
+              borderRadius: 8, color: "var(--text-primary)", outline: "none",
+            }}
+          />
+
+          <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--text-secondary)", marginBottom: 12, flexWrap: "wrap" }}>
             <span>Tich cuc: <b style={{ color: "var(--positive)" }}>{snapshot.totalBenefitCount}</b></span>
             <span>Tieu cuc: <b style={{ color: "var(--negative)" }}>{snapshot.totalHarmCount}</b></span>
-            <span>Cap nhat: {new Date(snapshot.scannedAt).toLocaleString("vi-VN")}</span>
+            <span>Cap nhat: {freshnessLabel}</span>
           </div>
 
           <MoversList upMovers={snapshot.upMovers} downMovers={snapshot.downMovers} />
 
           <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "16px 0 8px" }}>THEO NGANH</p>
-          {snapshot.sectors.length === 0 && <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Chua co du lieu nganh.</p>}
-          {snapshot.sectors.map((s) => <SectorCard key={s.sector} sector={s} />)}
+          {filteredSectors.length === 0 && <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Khong tim thay ket qua phu hop.</p>}
+          {filteredSectors.map((s) => <SectorCard key={s.sector} sector={s} />)}
 
-          {snapshot.emerging.length > 0 && (
+          {filteredEmerging.length > 0 && (
             <>
               <p style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-bright)", margin: "16px 0 8px" }}>NGANH MOI NOI</p>
-              {snapshot.emerging.map((s) => <SectorCard key={s.sector} sector={s} />)}
+              {filteredEmerging.map((s) => <SectorCard key={s.sector} sector={s} />)}
             </>
           )}
+
+          <UnmappedSectorsPanel />
         </div>
       )}
     </div>
