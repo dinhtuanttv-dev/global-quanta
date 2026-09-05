@@ -35,7 +35,7 @@ function WatchlistRow({ stock, isActive, onSelect, onTogglePin, onEditReason, on
         <BadgeDot tag={stock.tag} />
         <span className="sb-ticker">{stock.ticker}</span>
         {stock.unread && <span className="unread-dot" title="Có tin mới" />}
-        <span className="sb-price num">{livePrice.toLocaleString('vi-VN')}</span>
+        <span className="sb-price num">{Math.round(livePrice).toLocaleString('vi-VN')}</span>
         <span className={`sb-chg num ${up ? 'up' : 'down'}`}>{formatPct(stock.changePct)}</span>
         <DeleteButton onDelete={() => onDelete(stock.ticker)} />
       </div>

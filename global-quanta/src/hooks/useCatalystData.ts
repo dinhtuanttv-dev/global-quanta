@@ -1,44 +1,23 @@
-﻿import { useEffect, useState } from "react";
-import type { CatalystSnapshot } from "../types/catalyst";
+﻿import useSWR from "swr";
+import type { CatalystSnapshot, CatalystErrorResponse } from "../types/catalyst";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-export function useCatalystData(pollMs = 60_000) {
-  const [data, setData] = useState<CatalystSnapshot | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
-  useEffect(() => {
-    let cancelled = false;
+export function useCatalystData() {
+  const { data, error, isLoading, mutate } = useSWR<CatalystSnapshot | CatalystErrorResponse>(
+    `${API_BASE}/api/catalysts/latest`,
+    fetcher,
+    { refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 60 * 1000 }
+  );
 
-    async function load() {
-      try {
-        const res = await fetch(`${API_BASE}/api/catalysts/latest`);
+  const hasError = data && "error" in data;
+  const snapshot = data && !hasError ? (data as CatalystSnapshot) : null;
 
-        // The backend returns 404 while the cron cache is still cold
-        // ("Chua co du lieu - cho lan quet cron dau tien"). Treat that as
-        // "no data yet" instead of an error so the macro tab never breaks.
-        if (res.status === 404) {
-          if (!cancelled) {
-            setData(null);
-            setError(null);
-          }
-        } else {
-          if (!res.ok) throw new Error(`Catalyst API loi: ${res.status}`);
-          const json = await res.json();
-          if (!cancelled) { setData(json); setError(null); }
-        }
-      } catch (err) {
-        if (!cancelled) setError(String(err));
-      } finally {
-        if (!cancelled) setIsLoading(false);
-      }
-    }
-
-    load();
-    const interval = setInterval(load, pollMs);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [pollMs]);
-
-  return { data, error, isLoading };
+  return {
+    snapshot,
+    noDataYet: hasError ? (data as CatalystErrorResponse).error : null,
+    isLoading, error, refresh: mutate,
+  };
 }
