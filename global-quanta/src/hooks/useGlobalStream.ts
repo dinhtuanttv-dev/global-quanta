@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -38,6 +38,8 @@ interface StreamPayload {
 export function useGlobalStream() {
   const [data, setData] = useState<StreamPayload | null>(null);
   const [connected, setConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [reconnectKey, setReconnectKey] = useState(0);
 
   useEffect(() => {
     // FIX (tich hop Project B, 2026-08-26): ban goc trong zip dung path
@@ -48,7 +50,12 @@ export function useGlobalStream() {
     // URL tuyet doi khac origin binh thuong; CORS wildcard "*" da co san o
     // Project A (next.config.ts) nen khong can cau hinh them.
     const es = new EventSource(`${API_BASE}/api/global/stream`);
-    es.onopen = () => setConnected(true);
+    setConnected(false);
+    setConnectionError(null);
+    es.onopen = () => {
+      setConnected(true);
+      setConnectionError(null);
+    };
     es.onmessage = (e) => {
       try {
         setData(JSON.parse(e.data));
@@ -57,9 +64,18 @@ export function useGlobalStream() {
         // tiep theo sau 5s thay vi crash toan bo stream.
       }
     };
-    es.onerror = () => setConnected(false);
+    es.onerror = () => {
+      setConnected(false);
+      setConnectionError(
+        "Không thể kết nối tới dòng dữ liệu macro. Vui lòng kiểm tra kết nối mạng hoặc nhấn \"Thử lại\"."
+      );
+    };
     return () => es.close();
+  }, [reconnectKey]);
+
+  const reconnect = useCallback(() => {
+    setReconnectKey((prev) => prev + 1);
   }, []);
 
-  return { data, connected };
+  return { data, connected, connectionError, reconnect };
 }

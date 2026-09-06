@@ -61,7 +61,7 @@ body{
 .regime-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--positive);box-shadow:0 0 8px var(--positive);animation:pulse-dot 2s infinite;}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:0.4;}}
 
-.tickers{display:flex;align-items:center;gap:20px;overflow-x:auto;flex:1;}
+.tickers{display:flex;align-items:center;gap:20px;overflow-x:auto;flex:1;width:100%;min-width:0;}
 .vn-hero{
   position:relative;display:flex;align-items:center;gap:11px;
   padding:6px 14px;border-radius:9px;cursor:default;
@@ -150,7 +150,7 @@ body{
 }
 .topbar-stamp:hover{color:var(--text-secondary);border-color:var(--border-strong);}
 
-.ticker-item{display:flex;align-items:center;gap:7px;white-space:nowrap;padding-right:20px;border-right:1px solid var(--border);}
+.ticker-item{display:flex;align-items:center;gap:7px;white-space:nowrap;padding-right:20px;border-right:1px solid var(--border);flex-shrink:0;flex-grow:0;}
 
 /* ===== LOGIN SCREEN ===== */
 #loginScreen{
@@ -547,3 +547,4 @@ body{
    Import từ components/Sidebar/sidebar-scroll.css — chỉ thêm class mới,
    KHÔNG ghi đè .sidebar / .sb-list đã định nghĩa ở trên. */
 @import url('./../components/Sidebar/sidebar-scroll.css');
+
