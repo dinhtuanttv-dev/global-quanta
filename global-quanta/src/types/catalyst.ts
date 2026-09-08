@@ -94,3 +94,21 @@ export interface CatalystErrorResponse {
 
 export interface UnmappedSectorItem { rawKey: string; count: number; }
 export interface UnmappedSectorsResponse { items: UnmappedSectorItem[]; totalUnique: number; }
+export interface DomesticEventStage {
+  label: string;
+  date: string | null;
+}
+
+export interface DomesticEvent {
+  id: string;
+  tag: "NANG_HANG_THI_TRUONG" | "KY_REVIEW_CHI_SO" | "ROOM_NGOAI" | "IPO_NIEM_YET" | "CHINH_SACH";
+  title: string;
+  stages: DomesticEventStage[];
+  activeStageIndex: number;
+  effectiveDate: string;
+  sourceUrl: string;
+  sourceName: string;
+  note: string;
+  daysUntil: number;
+  isPast: boolean;
+}

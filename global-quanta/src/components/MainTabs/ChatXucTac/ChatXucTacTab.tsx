@@ -11,6 +11,8 @@ import CatalystHeatmap from "./CatalystHeatmap";
 import { useCatalystHeatmap } from "../../../hooks/useCatalystHeatmap";
 import TopBeneficiariesPanel from "./TopBeneficiariesPanel";
 import { useTopBeneficiaries } from "../../../hooks/useTopBeneficiaries";
+import DomesticEventsPanel from "./DomesticEventsPanel";
+import { useDomesticEvents } from "../../../hooks/useDomesticEvents";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
@@ -23,11 +25,11 @@ export default function ChatXucTacTab() {
   const freshnessLabel = useLiveFreshness(snapshot?.scannedAt);
   const heatmapCells = useCatalystHeatmap(snapshot?.sectors ?? []);
   const topBeneficiaries = useTopBeneficiaries(snapshot?.tickerImpacts, snapshot?.sectors ?? []);
+  const { events: domesticEvents } = useDomesticEvents();
 
   return (
     <div className="t1-toolbar" style={{ flexDirection: "column", alignItems: "stretch", gap: 0 }}>
       <span className="t1-toolbar-title">CHAT XUC TAC - CATALYST ENGINE</span>
-
       {isLoading && !snapshot && <CatalystSkeleton />}
 
       {error && (
@@ -81,6 +83,7 @@ export default function ChatXucTacTab() {
             <MoversList upMovers={snapshot.upMovers} downMovers={snapshot.downMovers} />
             <CatalystHeatmap cells={heatmapCells} />
             <TopBeneficiariesPanel rows={topBeneficiaries} />
+            <DomesticEventsPanel events={domesticEvents} />
 
             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "16px 0 8px" }}>THEO NGANH</p>
             {filteredSectors.length === 0 && <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Khong tim thay ket qua phu hop.</p>}
