@@ -3,6 +3,7 @@ import { useCatalystData } from "../../../hooks/useCatalystData";
 import { useCatalystSearch } from "../../../hooks/useCatalystSearch";
 import { useLiveFreshness } from "../../../hooks/useLiveFreshness";
 import SectorCard from "./SectorCard";
+import EmergingSourceRow from "./EmergingSourceRow";
 import MoversList from "./MoversList";
 import UnmappedSectorsPanel from "./UnmappedSectorsPanel";
 import MacroCalendarPanel from "./MacroCalendarPanel";
@@ -80,7 +81,7 @@ export default function ChatXucTacTab() {
             {filteredEmerging.length > 0 && (
               <>
                 <p style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-bright)", margin: "16px 0 8px" }}>NGANH MOI NOI</p>
-                {filteredEmerging.map((s) => <SectorCard key={s.sector} sector={s} />)}
+                {filteredEmerging.map((s) => <EmergingSourceRow key={s.sourceId} source={s} />)}
               </>
             )}
 
@@ -92,4 +93,5 @@ export default function ChatXucTacTab() {
     </div>
   );
 }
+
 

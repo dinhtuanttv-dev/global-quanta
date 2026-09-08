@@ -40,6 +40,16 @@ export interface CatalystSector {
   cascadeCards: CatalystCard[];
 }
 
+// Hinh dang THAT cua tung phan tu "emerging" - la nguon tin MOI phat hien,
+// KHONG PHAI ket qua tong hop cap nganh (khac han CatalystSector).
+export interface EmergingSourceSummary {
+  sourceId: string;
+  title: string;
+  category: string;
+  corroborationCount: number;
+  affectedTargetCount: number;
+}
+
 export interface MoverItem {
   rank: number;
   prevRank: number;
@@ -54,10 +64,19 @@ export interface TickerImpactResult {
   compositeScore: number;
 }
 
+export interface MacroCalendarEvent {
+  sourceId: string;
+  title: string;
+  executionDate: string;
+  daysRemaining: number;
+  direction: "benefit" | "harm";
+  category: string;
+}
+
 export interface CatalystSnapshot {
   scannedAt: string;
   sectors: CatalystSector[];
-  emerging: CatalystSector[];
+  emerging: EmergingSourceSummary[];
   upMovers: MoverItem[];
   downMovers: MoverItem[];
   totalBenefitCount: number;
@@ -72,14 +91,6 @@ export interface CatalystSnapshot {
 export interface CatalystErrorResponse {
   error: string;
 }
+
 export interface UnmappedSectorItem { rawKey: string; count: number; }
 export interface UnmappedSectorsResponse { items: UnmappedSectorItem[]; totalUnique: number; }
-export interface MacroCalendarEvent {
-  sourceId: string;
-  title: string;
-  executionDate: string;
-  daysRemaining: number;
-  direction: "benefit" | "harm";
-  category: string;
-}
-
