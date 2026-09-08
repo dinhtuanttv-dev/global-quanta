@@ -13,6 +13,7 @@ import TopBeneficiariesPanel from "./TopBeneficiariesPanel";
 import { useTopBeneficiaries } from "../../../hooks/useTopBeneficiaries";
 import DomesticEventsPanel from "./DomesticEventsPanel";
 import { useDomesticEvents } from "../../../hooks/useDomesticEvents";
+import Vn30ReviewWatchPanel from "./Vn30ReviewWatchPanel";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
@@ -84,6 +85,7 @@ export default function ChatXucTacTab() {
             <CatalystHeatmap cells={heatmapCells} />
             <TopBeneficiariesPanel rows={topBeneficiaries} />
             <DomesticEventsPanel events={domesticEvents} />
+            <Vn30ReviewWatchPanel />
 
             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "16px 0 8px" }}>THEO NGANH</p>
             {filteredSectors.length === 0 && <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Khong tim thay ket qua phu hop.</p>}

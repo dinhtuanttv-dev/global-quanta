@@ -112,3 +112,11 @@ export interface DomesticEvent {
   daysUntil: number;
   isPast: boolean;
 }
+export interface Vn30ReviewFinding {
+  found: boolean;
+  announcementDate: string | null;
+  effectiveDate: string | null;
+  sourceUrl: string | null;
+  sourceName: string | null;
+  checkedAt: string;
+}
