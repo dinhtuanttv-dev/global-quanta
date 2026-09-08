@@ -120,3 +120,12 @@ export interface Vn30ReviewFinding {
   sourceName: string | null;
   checkedAt: string;
 }
+export interface MarketAnnouncementFinding {
+  kind: "vn30" | "msci" | "sbv";
+  found: boolean;
+  announcementDate: string | null;
+  effectiveDate: string | null;
+  sourceUrl: string | null;
+  sourceName: string | null;
+  checkedAt: string;
+}
