@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ Đồ Kiến Trúc - Tab Lọc Ngành</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0a0f1a; color: #e2e8f0; padding: 20px; }
+        h1 { color: #fbbf24; text-align: center; margin-bottom: 30px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .layer { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .layer-title { font-size: 14px; font-weight: 600; margin-bottom: 15px; }
+        .components { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .component { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 15px; }
+        .component-name { font-weight: 600; color: #fbbf24; margin-bottom: 8px; font-size: 13px; }
+        .component-desc { font-size: 11px; color: #94a3b8; line-height: 1.5; }
+        .component.highlight { border-color: #ef4444; background: rgba(239,68,68,0.1); }
+        .component.highlight .component-name { color: #ef4444; }
+        .arrow { text-align: center; color: #64748b; font-size: 20px; padding: 10px 0; }
+        .arrow::before { content: "▼"; }
+        .issue { background: #1e293b; border-left: 3px solid #ef4444; padding: 15px; margin-bottom: 10px; }
+        .issue-title { color: #ef4444; font-weight: 600; margin-bottom: 5px; }
+        .solution { background: #1e293b; border-left: 3px solid #22c55e; padding: 15px; margin-bottom: 10px; }
+        .solution-title { color: #22c55e; font-weight: 600; margin-bottom: 5px; }
+        code { background: #0f172a; padding: 2px 6px; border-radius: 4px; color: #fbbf24; }
+    </style>
+</head>
+<body>
+<div class="container">
+<h1>📊 Sơ Đồ Kiến Trúc - Tab "Lọc Ngành"</h1>
+
+<!-- FRONTEND -->
+<div class="layer frontend-layer">
+<div class="layer-title">🎨 FRONTEND (global-quanta-react_1) - Port 5173</div>
+<div class="components">
+    <div class="component">
+        <div class="component-name">LocNganhTab.tsx</div>
+        <div class="component-desc">Main container - fetch data từ hooks</div>
+    </div>
+    <div class="component highlight">
+        <div class="component-name">⚠️ CycleScreenerPanel</div>
+        <div class="component-desc">Bộ Lọc Đa Tầng Chu Kỳ</div>
+    </div>
+    <div class="component">
+        <div class="component-name">LocNganhPanel.tsx</div>
+        <div class="component-desc">Ma trận RRG + Top 20 table</div>
+    </div>
+    <div class="component">
+        <div class="component-name">useAppStore (Zustand)</div>
+        <div class="component-desc">Filter state management</div>
+    </div>
+</div>
+</div>
+
+<div class="arrow"></div>
+
+<!-- HOOKS -->
+<div class="layer">
+<div class="layer-title">🪝 DATA LAYER - Hooks</div>
+<div class="components">
+    <div class="component">
+        <div class="component-name">useSectorRRG()</div>
+        <div class="component-desc">Fetch từ /api/sector-filter/rrg<br>SWR caching + fallback</div>
+    </div>
+    <div class="component">
+        <div class="component-name">useTop20Radar()</div>
+        <div class="component-desc">Fetch từ /api/sector-filter/top20<br>Filter theo sectorKey</div>
+    </div>
+</div>
+</div>
+
+<div class="arrow"></div>
+
+<!-- BACKEND -->
+<div class="layer">
+<div class="layer-title">⚙️ BACKEND (quant-macro-scanner) - Port 3000</div>
+<div class="components">
+    <div class="component">
+        <div class="component-name">/api/sector-filter/rrg</div>
+        <div class="component-desc">Tính RS Ratio, Momentum, Quadrant</div>
+    </div>
+    <div class="component">
+        <div class="component-name">/api/sector-filter/top20</div>
+        <div class="component-desc">Rank Top 20 confluence stocks</div>
+    </div>
+    <div class="component">
+        <div class="component-name">Yahoo Finance Adapter</div>
+        <div class="component-desc">Fetch OHLCV 6 tháng</div>
+    </div>
+</div>
+</div>
+
+<!-- ISSUES -->
+<div style="margin-top:30px;">
+<h2 style="color:#fbbf24;margin-bottom:20px;">🔍 Issues & Solutions</h2>
+
+<div class="issue">
+<div class="issue-title">🔴 Issue 1: Backend Timeout (maxDuration = 10s)</div>
+<div class="issue-desc">Yahoo Finance API fetch 9 tickers trong 10s → 502 error → SWR fallback mock data</div>
+</div>
+<div class="solution">
+<div class="solution-title">✅ Fix: Tăng maxDuration = 30</div>
+<div class="solution-desc"><code>export const maxDuration = 30;</code> trong rrg/route.ts</div>
+</div>
+
+<div class="issue">
+<div class="issue-title">🔴 Issue 2: Sector Key Mismatch</div>
+<div class="issue-desc">Backend: "BANKING", "TECH" (uppercase)<br>Frontend: "banking", "technology" (lowercase)</div>
+</div>
+<div class="solution">
+<div class="solution-title">✅ Fix: Standardize keys</div>
+<div class="solution-desc">Tạo constants.ts với lowercase keys</div>
+</div>
+
+<div class="issue">
+<div class="issue-title">🟡 Issue 3: CSS Container Missing</div>
+<div class="issue-desc">.loc-nganh-tab không có CSS → layout issues</div>
+</div>
+<div class="solution">
+<div class="solution-title">✅ Fix: Add CSS</div>
+<div class="solution-desc"><code>.loc-nganh-tab { padding:16px; display:flex; flex-direction:column; gap:16px; }</code></div>
+</div>
+</div>
+
+</div>
+</body>
+</html>
