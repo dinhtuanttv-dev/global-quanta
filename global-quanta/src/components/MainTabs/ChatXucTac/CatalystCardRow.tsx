@@ -6,8 +6,18 @@ const PRICE_IN_LABEL: Record<string, string> = {
   not_reflected: "Chua phan anh vao gia", partially_reflected: "Da phan anh 1 phan", reflected: "Da phan anh du",
 };
 
+// Nguong 55% lay theo TAI-LIEU-NANG-CAP-CHAT-XUC-TAC.md - duoi nguong nay
+// ty le thang gan bang tung dong xu (50%), can canh bao ro rang thay vi
+// chim trong text phu.
+function winRateColor(winRate: number): { bg: string; text: string } {
+  if (winRate < 55) return { bg: "rgba(251,191,36,0.15)", text: "#fbbf24" };
+  return { bg: "rgba(148,163,184,0.12)", text: "var(--text-secondary)" };
+}
+
 export default function CatalystCardRow({ card }: { card: CatalystCardType }) {
   const isBenefit = card.direction === "benefit";
+  const wr = winRateColor(card.historicalWinRate);
+
   return (
     <div style={{
       display: "flex", flexDirection: "column", gap: 3, padding: "8px 10px",
@@ -26,11 +36,15 @@ export default function CatalystCardRow({ card }: { card: CatalystCardType }) {
         <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700 }}>{card.compositeScore}</span>
       </div>
       <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>{card.sourceTitle}</p>
-      <div style={{ display: "flex", gap: 10, fontSize: 9.5, color: "var(--text-tertiary)", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 8, fontSize: 9.5, color: "var(--text-tertiary)", flexWrap: "wrap", alignItems: "center" }}>
         <span>{HORIZON_LABEL[card.horizon] ?? card.horizon}</span>
         <span>{PRICE_IN_LABEL[card.priceInStatus] ?? card.priceInStatus}</span>
         <span>Xac nhan cheo: {card.corroborationCount} nguon</span>
-        <span>Ty le thang lich su: {card.historicalWinRate}%</span>
+        <span style={{
+          background: wr.bg, color: wr.text, fontWeight: 700, padding: "1px 6px", borderRadius: 8,
+        }}>
+          Ty le thang: {card.historicalWinRate}%
+        </span>
       </div>
     </div>
   );

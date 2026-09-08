@@ -1,4 +1,5 @@
 ﻿import CatalystCardRow from "./CatalystCardRow";
+import CascadeGroupList from "./CascadeGroupList";
 import type { CatalystSector } from "../../../types/catalyst";
 
 export default function SectorCard({ sector }: { sector: CatalystSector }) {
@@ -13,15 +14,8 @@ export default function SectorCard({ sector }: { sector: CatalystSector }) {
         </span>
         <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{sector.tickerCount} ma</span>
       </div>
-
       {sector.primaryCards.map((c) => <CatalystCardRow key={c.sourceId + c.ticker} card={c} />)}
-
-      {sector.cascadeCards.length > 0 && (
-        <>
-          <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "6px 0 4px" }}>Tac dong lan toa (gian tiep)</p>
-          {sector.cascadeCards.map((c) => <CatalystCardRow key={c.sourceId + c.ticker} card={c} />)}
-        </>
-      )}
+      <CascadeGroupList cards={sector.cascadeCards} />
     </div>
   );
 }
