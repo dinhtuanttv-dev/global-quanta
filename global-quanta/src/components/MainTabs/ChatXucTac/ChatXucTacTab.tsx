@@ -7,6 +7,8 @@ import EmergingSourceRow from "./EmergingSourceRow";
 import MoversList from "./MoversList";
 import UnmappedSectorsPanel from "./UnmappedSectorsPanel";
 import MacroCalendarPanel from "./MacroCalendarPanel";
+import CatalystHeatmap from "./CatalystHeatmap";
+import { useCatalystHeatmap } from "../../../hooks/useCatalystHeatmap";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
@@ -17,6 +19,7 @@ export default function ChatXucTacTab() {
     snapshot?.sectors ?? [], snapshot?.emerging ?? []
   );
   const freshnessLabel = useLiveFreshness(snapshot?.scannedAt);
+  const heatmapCells = useCatalystHeatmap(snapshot?.sectors ?? []);
 
   return (
     <div className="t1-toolbar" style={{ flexDirection: "column", alignItems: "stretch", gap: 0 }}>
@@ -73,6 +76,7 @@ export default function ChatXucTacTab() {
             </div>
 
             <MoversList upMovers={snapshot.upMovers} downMovers={snapshot.downMovers} />
+            <CatalystHeatmap cells={heatmapCells} />
 
             <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "16px 0 8px" }}>THEO NGANH</p>
             {filteredSectors.length === 0 && <p style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Khong tim thay ket qua phu hop.</p>}
@@ -93,5 +97,6 @@ export default function ChatXucTacTab() {
     </div>
   );
 }
+
 
 
