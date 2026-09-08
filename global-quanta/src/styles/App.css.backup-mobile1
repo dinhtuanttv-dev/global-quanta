@@ -570,22 +570,5 @@ body{
 
 /* Force Command Center to be visible */
 .sieu-quet-ai-tab .command-center-bar { width: 100% !important; min-width: 300px !important; background: #1a2030 !important; }
-.sieu-quet-ai-tab { display: block !important; }           /* ===== MOBILE TOUCH FIX (Buoc 1): nut xoa/ghi chu vo hinh tren cam ung =====
-   Ly do: .sb-del-btn va .sb-add-reason von opacity:0, chi hien khi
-   .sb-row:hover — thiet bi cam ung khong co trang thai hover nen
-   2 nut nay vo hinh, nguoi dung khong biet de bam.
-   (hover:none) phat hien dung thiet bi cam ung that. */
-@media (hover: none) {
-  .sb-del-btn {
-    opacity: 0.55;
-    width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .sb-add-reason {
-    opacity: 0.7;
-  }
-}                                                                                                                                 
+.sieu-quet-ai-tab { display: block !important; }
 

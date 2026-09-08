@@ -5,6 +5,7 @@ import { useLiveFreshness } from "../../../hooks/useLiveFreshness";
 import SectorCard from "./SectorCard";
 import MoversList from "./MoversList";
 import UnmappedSectorsPanel from "./UnmappedSectorsPanel";
+import MacroCalendarPanel from "./MacroCalendarPanel";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
@@ -83,6 +84,7 @@ export default function ChatXucTacTab() {
               </>
             )}
 
+            <MacroCalendarPanel events={snapshot.upcomingEvents} />
             <UnmappedSectorsPanel />
           </div>
         </CatalystErrorBoundary>
@@ -90,3 +92,4 @@ export default function ChatXucTacTab() {
     </div>
   );
 }
+

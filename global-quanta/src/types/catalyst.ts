@@ -63,7 +63,7 @@ export interface CatalystSnapshot {
   totalBenefitCount: number;
   totalHarmCount: number;
   activeAlerts: unknown[];
-  upcomingEvents: unknown[];
+  upcomingEvents: MacroCalendarEvent[];
   tickerImpacts: Record<string, TickerImpactResult>;
   isStale: boolean;
   ageMinutes: number;
@@ -74,3 +74,12 @@ export interface CatalystErrorResponse {
 }
 export interface UnmappedSectorItem { rawKey: string; count: number; }
 export interface UnmappedSectorsResponse { items: UnmappedSectorItem[]; totalUnique: number; }
+export interface MacroCalendarEvent {
+  sourceId: string;
+  title: string;
+  executionDate: string;
+  daysRemaining: number;
+  direction: "benefit" | "harm";
+  category: string;
+}
+
