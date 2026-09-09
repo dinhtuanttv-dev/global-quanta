@@ -2,7 +2,10 @@ import { DrawingManager, type DrawnPrimitive } from "./DrawingManager";
 import { LayerManager, type LayerState } from "./LayerManager";
 import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
-import { detectOrderBlocks, detectFVG, detectBOS, type OrderBlock, type FairValueGap, type BreakOfStructure } from "./detectors/smcDetector";
+import {
+  detectOrderBlocks, detectFVG, detectBOS, detectCHoCH, detectLiquidityPools, computePremiumDiscountZone,
+  type OrderBlock, type FairValueGap, type BreakOfStructure, type LiquidityPool, type PremiumDiscountZone,
+} from "./detectors/smcDetector";
 import { detectVSASignals, type VSASignal } from "./detectors/vsaDetector";
 // ĐÃ THÊM: đưa tính toán Wyckoff vào AnalysisController, cùng kiến trúc
 // cache/event với SMC/VSA — trước đây Wyckoff được tính RIÊNG, TÁCH RỜI
@@ -18,7 +21,10 @@ import type { OhlcvBar } from "./types";
 interface ControllerEvents extends Record<string, unknown> {
   "log:updated": SignalLogEntry[];
   "primitives:updated": DrawnPrimitive[];
-  "smc:updated": { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] };
+  "smc:updated": {
+    obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[];
+    choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null;
+  };
   "vsa:updated": VSASignal[];
   "wyckoff:updated": WyckoffResult;
   "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
@@ -33,7 +39,10 @@ export class AnalysisController {
 
   private bars: OhlcvBar[] = [];
   private log: SignalLogEntry[] = [];
-  private smcCache = { obs: [] as OrderBlock[], fvgs: [] as FairValueGap[], bos: [] as BreakOfStructure[] };
+  private smcCache = {
+    obs: [] as OrderBlock[], fvgs: [] as FairValueGap[], bos: [] as BreakOfStructure[],
+    choch: [] as BreakOfStructure[], liquidity: [] as LiquidityPool[], premiumDiscount: null as PremiumDiscountZone | null,
+  };
   private vsaCache: VSASignal[] = [];
   private wyckoffCache: WyckoffResult = classifyWyckoffPhase([]);
   private unsubscribers: (() => void)[] = [];
@@ -47,7 +56,10 @@ export class AnalysisController {
       this.emitter.emit("primitives:updated", this.drawing.getPrimitives());
       if (!this.layers.getState().aiDetectionMaster) return;
       const currentPrice = this.bars.length > 0 ? this.bars[this.bars.length - 1].close : 0;
-      const newEntries = this.ai.analyzeAndCrossReference(primitive, this.smcCache, this.vsaCache, currentPrice, this.wyckoffCache);
+      // ĐÃ SỬA: truyền thêm this.bars — cần để tính số lần "test" lại
+      // Demand/Supply Zone (countZoneTests trong smcDetector.ts), giảm
+      // độ tin cậy theo số lần bị test — đúng nguyên lý SMC/ICT chuẩn.
+      const newEntries = this.ai.analyzeAndCrossReference(primitive, this.smcCache, this.vsaCache, currentPrice, this.wyckoffCache, this.bars);
       this.log = [...newEntries, ...this.log].slice(0, 30);
       this.emitter.emit("log:updated", this.log);
     });
@@ -87,7 +99,10 @@ export class AnalysisController {
   }
 
   private recomputeDetectors(): void {
-    this.smcCache = { obs: detectOrderBlocks(this.bars), fvgs: detectFVG(this.bars), bos: detectBOS(this.bars) };
+    this.smcCache = {
+      obs: detectOrderBlocks(this.bars), fvgs: detectFVG(this.bars), bos: detectBOS(this.bars),
+      choch: detectCHoCH(this.bars), liquidity: detectLiquidityPools(this.bars), premiumDiscount: computePremiumDiscountZone(this.bars),
+    };
     this.vsaCache = detectVSASignals(this.bars);
     this.wyckoffCache = classifyWyckoffPhase(this.bars);
     this.emitter.emit("smc:updated", this.smcCache);
@@ -103,7 +118,7 @@ export class AnalysisController {
 
   onLogUpdated(h: (log: SignalLogEntry[]) => void) { return this.emitter.on("log:updated", h); }
   onPrimitivesUpdated(h: (p: DrawnPrimitive[]) => void) { return this.emitter.on("primitives:updated", h); }
-  onSmcUpdated(h: (s: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] }) => void) { return this.emitter.on("smc:updated", h); }
+  onSmcUpdated(h: (s: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[]; choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null }) => void) { return this.emitter.on("smc:updated", h); }
   onVsaUpdated(h: (v: VSASignal[]) => void) { return this.emitter.on("vsa:updated", h); }
   onWyckoffUpdated(h: (w: WyckoffResult) => void) { return this.emitter.on("wyckoff:updated", h); }
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }

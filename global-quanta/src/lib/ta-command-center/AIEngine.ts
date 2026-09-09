@@ -1,8 +1,9 @@
 import type { DrawnPrimitive, RectangleZone, Trendline } from "./DrawingManager";
 import type { OrderBlock, FairValueGap, BreakOfStructure } from "./detectors/smcDetector";
+import { countZoneTests } from "./detectors/smcDetector";
 import type { VSASignal } from "./detectors/vsaDetector";
 import type { WyckoffResult } from "./detectors/wyckoffDetector";
-import type { PatternMatch } from "./types";
+import type { PatternMatch, OhlcvBar } from "./types";
 
 export interface SignalLogEntry {
   id: string; message: string; confidence: number | null;
@@ -25,8 +26,10 @@ export class AIEngine {
     smc: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] },
     vsa: VSASignal[],
     currentPrice: number,
-    // ĐÃ THÊM — optional để không phá vỡ nơi gọi cũ chưa truyền tham số này
-    wyckoff?: WyckoffResult
+    wyckoff?: WyckoffResult,
+    // ĐÃ THÊM — optional: cần để tính số lần Demand/Supply Zone bị "test"
+    // lại (countZoneTests), giảm độ tin cậy theo số lần test.
+    bars?: OhlcvBar[]
   ): SignalLogEntry[] {
     const entries: SignalLogEntry[] = [];
 
@@ -38,6 +41,11 @@ export class AIEngine {
 
       const matchedOB = smc.obs.find((ob) => overlaps(top, bottom, ob.top, ob.bottom));
       const matchedVSA = vsa.find((v) => v.date >= zone.p1.date && v.date <= zone.p2.date);
+      // ĐÃ THÊM: đếm số lần vùng đã bị test lại — giảm độ tin cậy theo số
+      // lần test (mỗi lần test thêm sau lần đầu trừ 8 điểm, tối đa trừ 24).
+      const testCount = bars ? countZoneTests(bars, top, bottom, zone.p1.date) : 0;
+      const testPenalty = Math.min(24, Math.max(0, testCount - 1) * 8);
+
       // ĐÃ THÊM: đối chiếu với vùng tích lũy/phân phối Wyckoff — trước đây
       // WyckoffResult.rangeHigh/rangeLow đã tính sẵn nhưng chưa từng được
       // dùng ở đây, dù về bản chất Demand/Supply Zone (vẽ tay) và vùng
@@ -59,7 +67,8 @@ export class AIEngine {
         const label = wyckoff!.phase === "distribution" || wyckoff!.phase === "decline" ? "phân phối" : "tích lũy";
         reasons.push(`trùng vùng ${label} Wyckoff`);
       }
-      confidence = Math.min(99, confidence);
+      confidence = Math.max(10, Math.min(99, confidence - testPenalty));
+      if (testCount >= 2) reasons.push(`đã bị test lại ${testCount} lần (độ tin cậy giảm ${testPenalty} điểm)`);
 
       const message = reasons.length > 0
         ? `Demand/Supply Zone (User) -> AI xac nhan (${confidence}%) - ${reasons.join(", ")}.`

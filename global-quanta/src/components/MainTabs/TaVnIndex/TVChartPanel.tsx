@@ -27,7 +27,9 @@ import type {
 import { FIB_TIME_SEQUENCE, buildFibLevels } from "../../../lib/ta-command-center/DrawingManager";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
-import type { OrderBlock, FairValueGap, BreakOfStructure } from "../../../lib/ta-command-center/detectors/smcDetector";
+import type { OrderBlock, FairValueGap, BreakOfStructure, LiquidityPool, PremiumDiscountZone } from "../../../lib/ta-command-center/detectors/smcDetector";
+import { countZoneTests } from "../../../lib/ta-command-center/detectors/smcDetector";
+import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
 import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 
@@ -51,7 +53,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   const [primitives, setPrimitives] = useState<DrawnPrimitive[]>([]);
   const [layerState, setLayerState] = useState<LayerState | null>(null);
   const [log, setLog] = useState<SignalLogEntry[]>([]);
-  const [smc, setSmc] = useState<{ obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] }>({ obs: [], fvgs: [], bos: [] });
+  const [smc, setSmc] = useState<{
+    obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[];
+    choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null;
+  }>({ obs: [], fvgs: [], bos: [], choch: [], liquidity: [], premiumDiscount: null });
   const [vsa, setVsa] = useState<VSASignal[]>([]);
   const [wyckoffResult, setWyckoffResult] = useState<WyckoffResult | null>(null);
   // ĐÃ THÊM: lưu hình đang vẽ dở (draft) để hiển thị preview theo thời gian
@@ -134,6 +139,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     if (layerState.smc) {
       smc.obs.forEach((ob) => markers.push({ time: ob.date, position: ob.type === "bullish" ? "belowBar" : "aboveBar", color: ob.type === "bullish" ? "#34d399" : "#f87171", shape: "circle", text: `OB${ob.type === "bullish" ? "+" : "-"}` }));
       smc.bos.forEach((b) => markers.push({ time: b.date, position: b.type === "bullish" ? "belowBar" : "aboveBar", color: b.type === "bullish" ? "#38bdf8" : "#fb923c", shape: b.type === "bullish" ? "arrowUp" : "arrowDown", text: "BOS" }));
+      // ĐÃ THÊM — CHoCH (Change of Character): tín hiệu đảo chiều, khác
+      // hẳn màu/nhãn với BOS (tiếp diễn) để không gây nhầm lẫn khi nhìn
+      // nhanh trên biểu đồ.
+      smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: "#fbbf24", shape: "circle", text: "CHoCH" }));
     }
     if (layerState.vsa) {
       vsa.forEach((v) => markers.push({ time: v.date, position: "aboveBar", color: v.type === "Stopping Volume" ? "#a78bfa" : v.type === "Climax" ? "#fbbf24" : "#64748b", shape: "circle", text: v.type.slice(0, 4) }));
@@ -152,6 +161,23 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
 
   const handleToggleFibExtension = () => {
     controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
+  };
+
+  // ĐÃ THÊM — Nâng cấp Elliott: gợi ý 6 điểm bằng Zigzag pivot thật, tạo
+  // ngay 1 bản Elliott Wave nháp mà không bắt người dùng tự click 6 lần.
+  // Người dùng có thể xóa (nút "Xóa") nếu không đồng ý và vẽ lại tay.
+  const handleSuggestElliott = () => {
+    if (!controllerRef.current) return;
+    const points = suggestElliottPoints(currentBars);
+    if (!points) {
+      window.alert("Chưa đủ dữ liệu đỉnh/đáy rõ ràng để gợi ý sóng Elliott cho mã này.");
+      return;
+    }
+    controllerRef.current.drawing.createElliottFromPoints(points);
+    if (layerState && !layerState.elliott) {
+      controllerRef.current.layers.toggle("elliott");
+    }
+    forceTick((t) => t + 1);
   };
 
   const handleSelectPattern = (pattern: PatternMatch) => {
@@ -356,6 +382,45 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     return { x1, x2, yTop, yBottom, markers };
   }, [tv, wyckoffResult, layerState, currentBars]);
 
+  // ĐÃ THÊM — Liquidity Sweep / EQH-EQL: vẽ đường ngang nét đứt tại mức
+  // giá có 2+ đỉnh/đáy gần bằng nhau — nơi thanh khoản (lệnh dừng lỗ) dồn
+  // cụm, mục tiêu "quét thanh khoản" kinh điển trong SMC/ICT hiện đại.
+  const liquidityLines = useMemo(() => {
+    if (!tv || !layerState?.smc || currentBars.length === 0) return [];
+    const lastBar = currentBars[currentBars.length - 1];
+    const xEnd = tv.timeToPixel(lastBar.date);
+    if (xEnd === null) return [];
+    return smc.liquidity
+      .map((pool) => {
+        const y = tv.priceToPixel(pool.price);
+        const xStart = tv.timeToPixel(pool.date);
+        if (y === null || xStart === null) return null;
+        return { key: `${pool.type}-${pool.date}`, xStart, xEnd, y, type: pool.type, touches: pool.touches };
+      })
+      .filter((l): l is { key: string; xStart: number; xEnd: number; y: number; type: "EQH" | "EQL"; touches: number } => l !== null);
+  }, [tv, smc, layerState, currentBars]);
+
+  // ĐÃ THÊM — Premium/Discount Zone + OTE: chia nền biểu đồ thành 2 nửa
+  // theo swing gần nhất — nửa trên (premium, tô đỏ nhạt) là vùng cân nhắc
+  // bán, nửa dưới (discount, tô xanh nhạt) là vùng cân nhắc mua; dải OTE
+  // (62-79% hồi lại) tô đậm hơn — công cụ ra quyết định vào lệnh phổ biến
+  // nhất trong ICT/SMC hiện đại.
+  const premiumDiscountOverlay = useMemo(() => {
+    if (!tv || !layerState?.smc || !smc.premiumDiscount || currentBars.length === 0) return null;
+    const pd = smc.premiumDiscount;
+    const firstBar = currentBars[Math.max(0, currentBars.length - 50)];
+    const lastBar = currentBars[currentBars.length - 1];
+    const x1 = tv.timeToPixel(firstBar.date);
+    const x2 = tv.timeToPixel(lastBar.date);
+    const yHigh = tv.priceToPixel(pd.swingHigh);
+    const yMid = tv.priceToPixel(pd.midpoint);
+    const yLow = tv.priceToPixel(pd.swingLow);
+    const yOteLow = tv.priceToPixel(pd.oteLow);
+    const yOteHigh = tv.priceToPixel(pd.oteHigh);
+    if ([x1, x2, yHigh, yMid, yLow, yOteLow, yOteHigh].some((v) => v === null)) return null;
+    return { x1: x1!, x2: x2!, yHigh: yHigh!, yMid: yMid!, yLow: yLow!, yOteLow: yOteLow!, yOteHigh: yOteHigh!, zone: pd.currentZone };
+  }, [tv, smc, layerState, currentBars]);
+
   const elliottDraftPixels = useMemo(() => {
     if (!tv) return [];
     return elliottDraft
@@ -392,6 +457,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           elliottEnabled={!!layerState?.elliott}
           fibExtensionMode={fibExtensionMode}
           onToggleFibExtension={handleToggleFibExtension}
+          onSuggestElliott={handleSuggestElliott}
         />
         {wyckoffResult && (
           <SmartNotePanel
@@ -425,6 +491,26 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
           onMouseLeave={() => { if (isDrawingRef.current) { controllerRef.current?.drawing.cancelDraw(); isDrawingRef.current = false; } }}>
 
+          {premiumDiscountOverlay && (
+            <g opacity={0.5}>
+              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={premiumDiscountOverlay.yHigh}
+                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.max(0, premiumDiscountOverlay.yMid - premiumDiscountOverlay.yHigh)}
+                fill="rgba(248,113,113,0.05)" stroke="none" />
+              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={premiumDiscountOverlay.yMid}
+                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.max(0, premiumDiscountOverlay.yLow - premiumDiscountOverlay.yMid)}
+                fill="rgba(52,211,153,0.05)" stroke="none" />
+              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={Math.min(premiumDiscountOverlay.yOteLow, premiumDiscountOverlay.yOteHigh)}
+                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.abs(premiumDiscountOverlay.yOteLow - premiumDiscountOverlay.yOteHigh)}
+                fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" strokeWidth={1} strokeDasharray="2,2" />
+              <line x1={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y1={premiumDiscountOverlay.yMid}
+                x2={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y2={premiumDiscountOverlay.yMid}
+                stroke="rgba(148,163,184,0.4)" strokeWidth={1} strokeDasharray="2,2" />
+              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 60} y={premiumDiscountOverlay.yHigh + 12} fontSize="8" fill="#f87171">Premium</text>
+              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 60} y={premiumDiscountOverlay.yLow - 4} fontSize="8" fill="#34d399">Discount</text>
+              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 30} y={Math.min(premiumDiscountOverlay.yOteLow, premiumDiscountOverlay.yOteHigh) + 10} fontSize="8" fill="#38bdf8">OTE</text>
+            </g>
+          )}
+
           {patternHighlightPixels && (
             <rect x={Math.min(patternHighlightPixels.x1, patternHighlightPixels.x2)} y={10}
               width={Math.abs(patternHighlightPixels.x2 - patternHighlightPixels.x1)} height={340}
@@ -437,6 +523,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
                 width={Math.abs(r.x2 - r.x1)} height={Math.max(2, Math.abs(r.y2 - r.y1))}
                 fill={r.color} stroke="none" />
               <text x={Math.min(r.x1, r.x2) + 2} y={Math.min(r.y1, r.y2) - 2} fontSize="8" fill="#94a3b8">{r.label}</text>
+            </g>
+          ))}
+
+          {liquidityLines.map((l) => (
+            <g key={l.key}>
+              <line x1={l.xStart} y1={l.y} x2={l.xEnd} y2={l.y}
+                stroke={l.type === "EQH" ? "rgba(248,113,113,0.5)" : "rgba(52,211,153,0.5)"} strokeWidth={1} strokeDasharray="3,2" />
+              <text x={l.xEnd - 40} y={l.y - 3} fontSize="8" fill={l.type === "EQH" ? "#f87171" : "#34d399"}>{l.type} ({l.touches})</text>
             </g>
           ))}
 
@@ -504,11 +598,28 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           {visiblePrimitives.map((p) => {
             const px = renderPrimitivePixels(p);
             if (!px) return null;
-            if (p.toolType === "rectangle") return (
-              <rect key={p.id} x={Math.min(px.x1, px.x2)} y={Math.min(px.y1, px.y2)}
-                width={Math.abs(px.x2 - px.x1)} height={Math.abs(px.y2 - px.y1)}
-                fill="rgba(245,158,11,0.12)" stroke="rgba(245,158,11,0.5)" strokeWidth={1} strokeDasharray="4,2" />
-            );
+            if (p.toolType === "rectangle") {
+              const zone = p as RectangleZone;
+              const top = Math.max(zone.p1.price, zone.p2.price);
+              const bottom = Math.min(zone.p1.price, zone.p2.price);
+              // ĐÃ THÊM: mờ dần theo số lần đã bị test lại — đúng nguyên
+              // lý SMC/ICT: vùng bị "cày" nhiều lần thì lệnh chờ tại đó
+              // đã cạn dần, không còn nguyên vẹn như lúc mới hình thành.
+              const testCount = countZoneTests(currentBars, top, bottom, zone.p1.date);
+              const alpha = Math.max(0.03, 0.12 - testCount * 0.025);
+              return (
+                <g key={p.id}>
+                  <rect x={Math.min(px.x1, px.x2)} y={Math.min(px.y1, px.y2)}
+                    width={Math.abs(px.x2 - px.x1)} height={Math.abs(px.y2 - px.y1)}
+                    fill={`rgba(245,158,11,${alpha})`} stroke="rgba(245,158,11,0.5)" strokeWidth={1} strokeDasharray="4,2" />
+                  {testCount > 0 && (
+                    <text x={Math.min(px.x1, px.x2) + 2} y={Math.min(px.y1, px.y2) - 2} fontSize="8" fill="#fbbf24">
+                      Đã test {testCount} lần
+                    </text>
+                  )}
+                </g>
+              );
+            }
             if (p.toolType === "trendline") return (
               <line key={p.id} x1={px.x1} y1={px.y1} x2={px.x2} y2={px.y2} stroke="#38bdf8" strokeWidth={1.5} />
             );

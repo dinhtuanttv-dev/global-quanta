@@ -158,6 +158,19 @@ export class DrawingManager {
   cancelElliottDraft(): void { this.elliottDraft = []; this.emitter.emit("elliott:draft-updated", []); }
   getElliottDraft(): DomainPoint[] { return this.elliottDraft; }
 
+  /** ĐÃ THÊM — tạo ngay 1 ElliottWaveMarking từ 6 điểm cho sẵn (ví dụ từ
+   * gợi ý Zigzag), không cần người dùng click từng điểm. Dùng chung logic
+   * validate quy tắc Elliott với addElliottPoint() để không lệch hành vi. */
+  createElliottFromPoints(points: DomainPoint[]): ElliottWaveMarking | null {
+    if (points.length !== ELLIOTT_POINT_COUNT) return null;
+    const id = `prim-${++this.idCounter}-${Date.now()}`;
+    const violations = validateElliottRules(points);
+    const marking: ElliottWaveMarking = { id, toolType: "elliott", points, labels: ELLIOTT_LABELS, violations, createdAt: Date.now() };
+    this.primitives = [...this.primitives, marking];
+    this.emitter.emit("primitive:created", marking);
+    return marking;
+  }
+
   addFibTimeZone(point: DomainPoint): void {
     const id = `prim-${++this.idCounter}-${Date.now()}`;
     const marking: FibTimeZoneMarking = { id, toolType: "fibTimeZone", anchor: point, createdAt: Date.now() };
