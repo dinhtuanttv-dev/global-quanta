@@ -1,19 +1,42 @@
 /**
  * ControlPanel - Input form for AI Chart Vision scan
+ *
+ * ĐÃ SỬA — Tái cấu trúc TA VN-Index:
+ * 1. `symbol` khởi tạo từ `initialSymbol` (mã đang xem ở tab Biểu đồ kỹ
+ *    thuật) thay vì hardcode "VNINDEX".
+ * 2. Đồng bộ khi `initialSymbol` đổi từ bên ngoài (đổi ở TickerSelector,
+ *    hoặc Auto Drill-Down từ tab sàng lọc).
+ * 3. Khi trader tự sửa Symbol tại đây, CHỈ đồng bộ ngược lên khi rời ô
+ *    (blur) hoặc bấm Enter — KHÔNG đồng bộ mỗi keystroke, để tránh tải
+ *    lại dữ liệu giá thật của biểu đồ liên tục khi đang gõ dở (ví dụ gõ
+ *    "VNM" sẽ không kích hoạt 3 lần tải lại cho "V", "VN", "VNM").
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ControlPanelProps, AiModel } from "../types";
 
 const TIMEFRAMES = ["15m", "1h", "4h", "1d", "1w", "1M"];
 
-export default function ControlPanel({ onRun, isRunning }: ControlPanelProps) {
-  const [symbol, setSymbol] = useState("VNINDEX");
+export default function ControlPanel({ onRun, isRunning, initialSymbol, onSymbolChange }: ControlPanelProps) {
+  const [symbol, setSymbol] = useState(initialSymbol || "VNINDEX");
   const [selectedTfs, setSelectedTfs] = useState<Set<string>>(
     new Set(["1h", "4h", "1d"])
   );
   const [aiModel, setAiModel] = useState<AiModel>("gemini-2.5-flash");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (initialSymbol && initialSymbol !== symbol) {
+      setSymbol(initialSymbol);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSymbol]);
+
+  const syncSymbolUp = () => {
+    if (symbol.trim() && symbol.trim() !== initialSymbol) {
+      onSymbolChange?.(symbol.trim());
+    }
+  };
 
   const toggleTf = (tf: string) => {
     const next = new Set(selectedTfs);
@@ -32,6 +55,7 @@ export default function ControlPanel({ onRun, isRunning }: ControlPanelProps) {
       return;
     }
     setError("");
+    syncSymbolUp();
     onRun({ symbol: symbol.trim(), timeframes: Array.from(selectedTfs), aiModel });
   };
 
@@ -50,6 +74,10 @@ export default function ControlPanel({ onRun, isRunning }: ControlPanelProps) {
         className="aicv-input"
         value={symbol}
         onChange={(e) => setSymbol(e.target.value)}
+        onBlur={syncSymbolUp}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") syncSymbolUp();
+        }}
         style={{ marginBottom: 16 }}
         placeholder="VD: VNINDEX, BTCUSD, VNM..."
       />

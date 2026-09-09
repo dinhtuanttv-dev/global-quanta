@@ -2,15 +2,8 @@
  * TypeScript type definitions for AI Chart Vision module
  * Schema khớp với api/scan.js (chế độ "structured" — mặc định, duy nhất
  * được deploy công khai).
- *
- * ĐÃ VIẾT LẠI: bản cũ khớp schema chế độ "vision" (macro_layer/
- * tactical_layer 4 khung thời gian/quant_layer) — gây crash thật
- * ("Cannot read properties of undefined (reading '1h')") vì response thật
- * của chế độ structured không có các field đó.
  */
 
-/** Giữ lại cho ControlPanel — chế độ structured không dùng ai_model, nhưng
- * dropdown UI vẫn có thể hiển thị (không ảnh hưởng kết quả quét). */
 export type AiModel = "gemini-2.5-flash" | "claude-sonnet-4-6";
 
 export interface ScanParams {
@@ -19,9 +12,6 @@ export interface ScanParams {
   aiModel?: AiModel;
 }
 
-/**
- * TECHNICAL LAYER — RSI/MACD/ADX tính thật (không qua ảnh)
- */
 export interface MacdBlock {
   value: number;
   signal: number;
@@ -40,9 +30,6 @@ export interface TechnicalLayer {
   adx: AdxBlock | null;
 }
 
-/**
- * PATTERN LAYER — backtest mẫu hình thật, mảng theo từng loại mẫu hình
- */
 export interface PatternStat {
   patternType: string;
   sampleSize: number;
@@ -53,9 +40,6 @@ export interface PatternStat {
   lowSampleWarning: boolean;
 }
 
-/**
- * CONSENSUS VERDICT
- */
 export type ConfidenceTier = "Thấp" | "Trung bình" | "Cao";
 
 export interface ConsensusVerdict {
@@ -70,17 +54,11 @@ export interface ConsensusVerdict {
   invalidation_level: number | null;
 }
 
-/**
- * RISK MANAGEMENT
- */
 export interface RiskManagement {
   suggested_position_size_pct: number;
   regime: string;
 }
 
-/**
- * AI SYNTHESIS
- */
 export interface ChecklistItem {
   label: string;
   passed: boolean;
@@ -96,9 +74,6 @@ export interface AiSynthesis {
   checklist: ChecklistItem[];
 }
 
-/**
- * FULL SCAN RESULT (Output) — khớp đúng api/scan.js
- */
 export interface ScanResult {
   mode: "structured";
   scan_timestamp: string;
@@ -121,6 +96,12 @@ export interface ScanResult {
 export interface ControlPanelProps {
   onRun: (params: ScanParams) => void;
   isRunning: boolean;
+  /** ĐÃ THÊM — Tái cấu trúc TA VN-Index: mã đang xem ở tab Biểu đồ kỹ
+   * thuật, dùng để điền sẵn Symbol khi chuyển sang AI Chart Vision. */
+  initialSymbol?: string;
+  /** ĐÃ THÊM — gọi khi trader tự sửa Symbol tại đây (blur/Enter), để đồng
+   * bộ ngược lại mã đang xem ở tab Biểu đồ kỹ thuật. */
+  onSymbolChange?: (symbol: string) => void;
 }
 
 export interface PreviewPanelProps {
@@ -133,5 +114,8 @@ export interface ReportPanelProps {
 }
 
 export interface AIChartVisionPanelProps {
-  // This component doesn't need external props for now
+  /** ĐÃ THÊM — xem ControlPanelProps.initialSymbol */
+  ticker?: string;
+  /** ĐÃ THÊM — xem ControlPanelProps.onSymbolChange */
+  onRequestTickerChange?: (ticker: string) => void;
 }
