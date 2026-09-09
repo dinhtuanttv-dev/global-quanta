@@ -8,8 +8,8 @@ import DrawingPalette from "./DrawingPalette";
 import LayerToggleBar from "./LayerToggleBar";
 import AISignalLogPanel from "./AISignalLogPanel";
 import TimeframeSelector from "./TimeframeSelector";
-import PatternList from "./PatternList";
-import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
+// ĐÃ XÓA import PatternList/ConvergenceFilterPanel — không còn dùng
+// trực tiếp trong file này (tránh nhân bản, xem giải thích ở cuối file).
 import OscillatorPanel from "./OscillatorPanel";
 import SmartNotePanel from "./SmartNotePanel";
 import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
@@ -38,13 +38,17 @@ interface Props {
   bars: OhlcvBar[];
   ticker: string;
   onRequestTickerChange?: (ticker: string) => void;
+  // ĐÃ THÊM — thay cho <PatternList> gắn sẵn (nay đã bỏ, tránh nhân bản
+  // với PatternList ở TaVnIndexTab.tsx): tầng cha truyền pattern vừa chọn
+  // xuống đây để vẫn khoanh vùng ngày trên biểu đồ, không mất tính năng.
+  highlightPattern?: PatternMatch | null;
 }
 
 function isTwoPointPrimitive(p: DrawnPrimitive): p is RectangleZone | Trendline | FibonacciRetracement {
   return p.toolType === "rectangle" || p.toolType === "trendline" || p.toolType === "fibonacci";
 }
 
-export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Props) {
+export default function TVChartPanel({ bars, ticker, onRequestTickerChange, highlightPattern }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tvManagerRef = useRef<TVChartManager | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
@@ -125,9 +129,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
+    // ĐÃ SỬA: theo dõi CẢ chiều cao (contentRect.height), không chỉ chiều
+    // rộng như trước — trước đây chart luôn cố định 360px bất kể CSS
+    // height của khung chứa thay đổi thế nào (VD "70vh"). Giờ mỗi khi
+    // khung chứa đổi kích thước (kể cả do resize cửa sổ hay layout đổi),
+    // chart tự co giãn đúng theo cả 2 chiều.
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
-      if (w && tvManagerRef.current) tvManagerRef.current.resize(w);
+      const h = entries[0]?.contentRect.height;
+      if (w && h && tvManagerRef.current) tvManagerRef.current.resize(w, h);
     });
     observer.observe(chartContainerRef.current);
     return () => observer.disconnect();
@@ -204,13 +214,17 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     forceTick((t) => t + 1);
   };
 
-  const handleSelectPattern = (pattern: PatternMatch) => {
-    if (pattern.ticker !== ticker && onRequestTickerChange) {
-      onRequestTickerChange(pattern.ticker);
-    }
-    setHighlightRange({ start: pattern.dateRangeStart, end: pattern.dateRangeEnd });
-    controllerRef.current?.logPatternConfluence(pattern);
-  };
+  // ĐÃ SỬA — thay handleSelectPattern (trước đây được <PatternList> gắn
+  // sẵn gọi trực tiếp) bằng useEffect lắng nghe prop `highlightPattern` từ
+  // tầng cha. Việc đổi mã (onRequestTickerChange) nay do CHÍNH tầng cha
+  // xử lý (đã có sẵn qua handleCandidateSelect ở TaVnIndexTab.tsx) — ở
+  // đây chỉ còn giữ đúng phần khoanh vùng ngày + log confluence, tránh
+  // gọi đổi mã 2 lần từ 2 nơi.
+  useEffect(() => {
+    if (!highlightPattern) return;
+    setHighlightRange({ start: highlightPattern.dateRangeStart, end: highlightPattern.dateRangeEnd });
+    controllerRef.current?.logPatternConfluence(highlightPattern);
+  }, [highlightPattern]);
 
   const getSvgCoords = useCallback((e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -474,7 +488,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           onToggleMaster={(on) => controllerRef.current?.layers.setMaster(on)} />
       )}
 
-      <div className="relative" style={{ minHeight: 400 }}>
+      {/* ĐÃ SỬA — theo đúng yêu cầu: khung Chart biểu đồ chính chiếm ~70%
+          chiều cao màn hình. Trước đây "minHeight: 400" chỉ là SÀN tối
+          thiểu, không ép chart thật to hơn — giờ đặt "height: 70vh" thật,
+          kết hợp sửa TVChartManager.ts (đọc đúng clientHeight thay vì
+          hardcode 360px) để chart thật sự lấp đầy đúng khung này. Các
+          panel SMC/VSA/Wyckoff/Backtest bên dưới KHÔNG bị ảnh hưởng — vẫn
+          nằm ở luồng bình thường, giữ nguyên chiều cao tự nhiên. */}
+      <div className="relative" style={{ height: "70vh" }}>
         <DrawingPalette
           activeTool={activeTool}
           onSelectTool={setActiveTool}
@@ -509,7 +530,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           )}
         </div>
         <div ref={chartContainerRef}
-          style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", minHeight: 400 }}
+          style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%" }}
           className="rounded-xl overflow-hidden relative w-full" />
         <svg className="absolute inset-0 w-full h-full" style={{ cursor: activeTool ? "crosshair" : "default", zIndex: 5, pointerEvents: activeTool ? "auto" : "none" }}
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
@@ -750,8 +771,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
 
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 
-      <PatternList onSelectPattern={handleSelectPattern} />
-      <ConvergenceFilterPanel onSelectTicker={(t) => onRequestTickerChange?.(t)} />
+      {/* ĐÃ SỬA — LỖI NHÂN BẢN: 2 dòng <PatternList>/<ConvergenceFilterPanel>
+          trước đây gắn CỐ ĐỊNH ở đây, TRONG KHI TaVnIndexTab.tsx (file cha)
+          CŨNG render chính 2 component này qua SubTabNavigation (tab
+          "pattern"/"convergence") — gây hiện 2 lần trên màn hình, bóp
+          nghẹt khung biểu đồ chính. Không mất tính năng gì: cả 2 component
+          vẫn truy cập đầy đủ qua đúng sub-tab tương ứng ở tầng cha. */}
       <AISignalLogPanel log={log} />
     </div>
   );

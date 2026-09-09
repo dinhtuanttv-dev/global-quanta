@@ -41,9 +41,17 @@ export class TVChartManager {
   private currentBars: OhlcvBar[] = [];
 
   constructor(container: HTMLElement, bars: OhlcvBar[], options?: TVChartManagerOptions) {
+    // ĐÃ SỬA — LỖI CŨ: chiều cao chart luôn CỐ ĐỊNH 360px, hoàn toàn không
+    // liên quan tới CSS height thật của khung chứa (container). Việc chỉnh
+    // CSS height cho div bọc ngoài (VD "70vh" để chiếm 70% màn hình) trước
+    // đây KHÔNG có tác dụng gì lên chart thật — chart vẫn luôn chỉ cao
+    // 360px. Giờ lấy đúng container.clientHeight thật tại thời điểm khởi
+    // tạo (dự phòng 360 chỉ khi container chưa có kích thước, ví dụ đang
+    // ẩn/chưa layout xong).
+    const initialHeight = container.clientHeight > 0 ? container.clientHeight : 360;
     this.chart = createChart(container, {
       width: container.clientWidth,
-      height: 360,
+      height: initialHeight,
       layout: { background: { color: "transparent" }, textColor: "#94a3b8", fontSize: 10 },
       grid: { vertLines: { color: "rgba(148,163,184,0.06)" }, horzLines: { color: "rgba(148,163,184,0.06)" } },
       rightPriceScale: { borderColor: "rgba(148,163,184,0.15)" },
@@ -87,7 +95,10 @@ export class TVChartManager {
     this.candleSeries.setMarkers(seriesMarkers);
   }
 
-  resize(width: number, height: number = 360): void {
+  // ĐÃ SỬA: bỏ giá trị mặc định height=360 — bắt buộc bên gọi truyền đúng
+  // chiều cao thật của container (xem TVChartPanel.tsx: ResizeObserver giờ
+  // theo dõi cả chiều cao, không chỉ chiều rộng như trước).
+  resize(width: number, height: number): void {
     this.chart.resize(width, height);
   }
 

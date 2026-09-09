@@ -15,14 +15,12 @@ export default function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
   const [ticker, setTicker] = useState(globalSelectedTicker ?? "VNM");
   const [activeSubTab, setActiveSubTab] = useState<SubTabKey>("pattern");
-  // ĐÃ SỬA — thay "Auto Drill-Down" (tự động ép chuyển tab) bằng "Suggested
-  // Drill-Down": chọn mã ở tab sàng lọc chỉ cập nhật biểu đồ + hiện banner
-  // gợi ý, KHÔNG tự chuyển tab. Người dùng chủ động bấm nếu muốn xem AI.
-  // Lý do đổi: Auto Drill-Down khiến activeSubTab bị "kẹt" ở AI Chart
-  // Vision sau lần drill-down đầu tiên — mọi lần đổi mã sau đó (kể cả từ
-  // sidebar toàn cục) đều hiển thị trên nền AI Chart Vision, gây cảm giác
-  // "cứ bấm mã nào cũng nhảy sang AI", mất kiểm soát.
   const [suggestedTicker, setSuggestedTicker] = useState<string | null>(null);
+  // ĐÃ THÊM — thay cho <PatternList> từng gắn sẵn TRÙNG LẶP bên trong
+  // TVChartPanel.tsx (đã bỏ): lưu pattern vừa chọn, truyền xuống
+  // TaCommandCenterTab -> TVChartPanel để vẫn khoanh vùng ngày trên biểu
+  // đồ — giữ nguyên đúng hành vi cũ, chỉ đổi đường truyền dữ liệu.
+  const [patternHighlight, setPatternHighlight] = useState<PatternMatch | null>(null);
 
   useEffect(() => {
     if (globalSelectedTicker) setTicker(globalSelectedTicker);
@@ -35,6 +33,7 @@ export default function TaVnIndexTab() {
 
   const handleSelectPattern = (pattern: PatternMatch) => {
     if (pattern.ticker) handleCandidateSelect(pattern.ticker);
+    setPatternHighlight(pattern);
   };
 
   const handleTabChange = (tab: SubTabKey) => {
@@ -48,9 +47,18 @@ export default function TaVnIndexTab() {
     <div className="ta-vnindex-tab">
       <TickerSelector ticker={ticker} onChange={setTicker} />
 
+      {/* ĐÃ SỬA: bỏ khung cuộn 70vh từng bọc ở đây (bọc nhầm cả khối lớn
+          gồm chart + SMC/VSA/Wyckoff/Backtest) — chiều cao 70% màn hình
+          giờ áp dụng ĐÚNG vào khung chart nến bên trong TVChartPanel.tsx,
+          không phải toàn bộ khối này. Quay về luồng cuộn trang bình
+          thường, tự nhiên hơn. */}
       <div style={{ display: activeSubTab === "aichart" ? "none" : undefined }}>
-        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} />
+        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} highlightPattern={patternHighlight} />
       </div>
+
+      {activeSubTab === "aichart" && (
+        <AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} />
+      )}
 
       {showSuggestionBanner && (
         <div
@@ -102,23 +110,26 @@ export default function TaVnIndexTab() {
         </div>
       )}
 
-      <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
-
-      <div className="mt-2">
-        {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
-        {activeSubTab === "convergence" && <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />}
-        {activeSubTab === "golden" && (
-          <>
-            <GoldenFilterPanel onSelectTicker={handleCandidateSelect} />
-            <div style={{ marginTop: 16 }}>
-              <TAConsensusPanel onSelectTicker={handleCandidateSelect} />
-            </div>
-          </>
-        )}
-        {activeSubTab === "aichart" && (
-          <AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} />
-        )}
-      </div>
+      {activeSubTab !== "aichart" && (
+        <>
+          <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
+          {/* ĐÃ SỬA — LỖI NHÂN BẢN: đây vẫn là nơi DUY NHẤT render
+              PatternList/ConvergenceFilterPanel — TVChartPanel.tsx không
+              còn tự gắn thêm bản sao thứ 2 của 2 component này nữa. */}
+          <div className="mt-2">
+            {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
+            {activeSubTab === "convergence" && <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />}
+            {activeSubTab === "golden" && (
+              <>
+                <GoldenFilterPanel onSelectTicker={handleCandidateSelect} />
+                <div style={{ marginTop: 16 }}>
+                  <TAConsensusPanel onSelectTicker={handleCandidateSelect} />
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

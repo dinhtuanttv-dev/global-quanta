@@ -1,11 +1,20 @@
-﻿"use client";
+"use client";
 import { RefreshCw, AlertCircle } from "lucide-react";
 import { useOhlcvData } from "../../../hooks/useOhlcvData";
 import TVChartPanel from "./TVChartPanel";
+import type { PatternMatch } from "../../../lib/ta-command-center/types";
 
-interface Props { ticker: string; onRequestTickerChange?: (ticker: string) => void; }
+interface Props {
+  ticker: string;
+  onRequestTickerChange?: (ticker: string) => void;
+  // ĐÃ THÊM — truyền xuyên qua tới TVChartPanel, để tầng cha
+  // (TaVnIndexTab.tsx) có thể ra lệnh khoanh vùng ngày trên biểu đồ khi
+  // người dùng chọn 1 pattern ở Pattern Scanner (nay chỉ còn 1 instance
+  // duy nhất, không còn nhân bản).
+  highlightPattern?: PatternMatch | null;
+}
 
-export default function TaCommandCenterTab({ ticker, onRequestTickerChange }: Props) {
+export default function TaCommandCenterTab({ ticker, onRequestTickerChange, highlightPattern }: Props) {
   const { bars, isLoading, error } = useOhlcvData(ticker, "1y", 250);
 
   if (isLoading) return (
@@ -19,5 +28,5 @@ export default function TaCommandCenterTab({ ticker, onRequestTickerChange }: Pr
     </div>
   );
 
-  return <TVChartPanel bars={bars} ticker={ticker} onRequestTickerChange={onRequestTickerChange} />;
+  return <TVChartPanel bars={bars} ticker={ticker} onRequestTickerChange={onRequestTickerChange} highlightPattern={highlightPattern} />;
 }
