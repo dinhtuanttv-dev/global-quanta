@@ -1,12 +1,21 @@
-﻿// TVChartManager - boc TradingView Lightweight Charts v4.x
+// TVChartManager - boc TradingView Lightweight Charts v4.x
 import {
   createChart, IChartApi, ISeriesApi,
   CandlestickData, HistogramData, UTCTimestamp, SeriesMarker, Time
 } from "lightweight-charts";
 import type { OhlcvBar } from "./types";
 
+// ĐÃ SỬA — LỖI CŨ: luôn nối "T00:00:00Z" bất kể dateStr đã có giờ:phút hay
+// chưa. Với nến khung H4/M1 (dateStr dạng "2026-09-09T14:00:00"), nối
+// thêm tạo chuỗi KHÔNG HỢP LỆ ("2026-09-09T14:00:00T00:00:00Z") -> Date
+// trả về Invalid Date -> getTime() trả về NaN -> toàn bộ nến khung
+// intraday không hiển thị được hoặc hiển thị sai vị trí. Giờ kiểm tra: đã
+// có "T" (đã có giờ) thì dùng trực tiếp, chỉ thêm hậu tố "Z" nếu thiếu;
+// chỉ có ngày mới nối "T00:00:00Z" như hành vi cũ.
 function toTime(dateStr: string): UTCTimestamp {
-  return (new Date(dateStr + "T00:00:00Z").getTime() / 1000) as UTCTimestamp;
+  const hasTime = dateStr.includes("T");
+  const isoStr = hasTime ? (dateStr.endsWith("Z") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z`;
+  return (new Date(isoStr).getTime() / 1000) as UTCTimestamp;
 }
 
 export interface ChartMarkerInput {
@@ -17,20 +26,28 @@ export interface ChartMarkerInput {
   text: string;
 }
 
+export interface TVChartManagerOptions {
+  // ĐÃ THÊM: cho phép TVChartPanel truyền timeframe hiện tại để bật hiển
+  // thị giờ:phút trên trục thời gian khi xem khung intraday (H4/M1) —
+  // trước đây "timeVisible: false" cố định, khiến các nến trong cùng 1
+  // ngày không phân biệt được theo giờ trên trục X.
+  timeVisible?: boolean;
+}
+
 export class TVChartManager {
   private chart: IChartApi;
   private candleSeries: ISeriesApi<"Candlestick">;
   private volumeSeries: ISeriesApi<"Histogram">;
   private currentBars: OhlcvBar[] = [];
 
-  constructor(container: HTMLElement, bars: OhlcvBar[]) {
+  constructor(container: HTMLElement, bars: OhlcvBar[], options?: TVChartManagerOptions) {
     this.chart = createChart(container, {
       width: container.clientWidth,
       height: 360,
       layout: { background: { color: "transparent" }, textColor: "#94a3b8", fontSize: 10 },
       grid: { vertLines: { color: "rgba(148,163,184,0.06)" }, horzLines: { color: "rgba(148,163,184,0.06)" } },
       rightPriceScale: { borderColor: "rgba(148,163,184,0.15)" },
-      timeScale: { borderColor: "rgba(148,163,184,0.15)", timeVisible: false },
+      timeScale: { borderColor: "rgba(148,163,184,0.15)", timeVisible: options?.timeVisible ?? false },
     });
 
     this.candleSeries = this.chart.addCandlestickSeries({
@@ -87,10 +104,10 @@ export class TVChartManager {
     if (direct !== null) return direct;
 
     if (this.currentBars.length === 0) return null;
-    const targetTime = new Date(dateStr + "T00:00:00Z").getTime();
+    const targetTime = (toTime(dateStr) as number) * 1000;
     let nearestBar: OhlcvBar | null = null;
     for (const bar of this.currentBars) {
-      const barTime = new Date(bar.date + "T00:00:00Z").getTime();
+      const barTime = (toTime(bar.date) as number) * 1000;
       if (barTime <= targetTime) nearestBar = bar;
       else break;
     }

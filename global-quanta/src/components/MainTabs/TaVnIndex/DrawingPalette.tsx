@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { TrendingUp, Square, Activity, Waves, Clock3 } from "lucide-react";
 import type { DrawingToolType } from "../../../lib/ta-command-center/DrawingManager";
 
@@ -10,13 +10,24 @@ interface Props {
   onToggleFibExtension: () => void;
 }
 
-export default function DrawingPalette({ activeTool, onSelectTool, elliottEnabled, fibExtensionMode, onToggleFibExtension }: Props) {
+// ĐÃ SỬA — LỖI CŨ: nút vẽ Elliott Wave trước đây CHỈ xuất hiện trong DOM
+// khi `elliottEnabled` (= layerState.elliott, toggle HIỂN THỊ trên
+// LayerToggleBar) bật — mà toggle này mặc định TẮT (DEFAULT_STATE.elliott:
+// false). Người dùng bấm vào vị trí nút Elliott lẽ ra phải có nhưng nút
+// không hề tồn tại -> "bấm không thấy hoạt động". Đây là lỗi thiết kế
+// không nhất quán: Trendline/Rectangle luôn hiện sẵn công cụ vẽ bất kể
+// toggle hiển thị đang bật/tắt (toggle chỉ ẩn/hiện hình ĐÃ vẽ xong, không
+// khóa công cụ vẽ). Giờ Elliott áp dụng đúng quy tắc y hệt — luôn hiện
+// công cụ vẽ; `elliottEnabled` không còn dùng để gate hiển thị nút nữa
+// (tham số này được giữ trong Props để không phá interface, nhưng không
+// còn ảnh hưởng tới việc nút có hiện hay không).
+export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionMode, onToggleFibExtension }: Props) {
   const tools: { id: DrawingToolType; icon: typeof Square; label: string }[] = [
     { id: "trendline", icon: TrendingUp, label: "Trendline" },
     { id: "rectangle", icon: Square, label: "Zone" },
     { id: "fibonacci", icon: Activity, label: fibExtensionMode ? "Fibonacci (co Extension)" : "Fibonacci" },
     { id: "fibTimeZone", icon: Clock3, label: "Fibonacci Time Zones (1 click)" },
-    ...(elliottEnabled ? [{ id: "elliott" as const, icon: Waves, label: "Elliott Wave (6 diem)" }] : []),
+    { id: "elliott", icon: Waves, label: "Elliott Wave (6 diem)" },
   ];
 
   return (

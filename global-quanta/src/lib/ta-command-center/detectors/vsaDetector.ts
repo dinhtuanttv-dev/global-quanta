@@ -1,10 +1,22 @@
-﻿import type { OhlcvBar } from "../types";
+import type { OhlcvBar } from "../types";
 
 export type VSASignalType = "Stopping Volume" | "Climax" | "No Demand" | "No Supply";
 export interface VSASignal { date: string; type: VSASignalType; volumeRatio: number; spreadRatio: number; }
 
+// ĐÃ THÊM: dùng SMA(5) để xác định xu hướng nền thay vì so sánh đúng 1
+// nến trước đó — 1 nến bất thường không đại diện cho xu hướng thật, dễ
+// khiến tín hiệu VSA bị nhiễu/sai bối cảnh.
+const TREND_SMA_PERIOD = 5;
+
+function smaAt(bars: OhlcvBar[], endIndexExclusive: number, period: number): number | null {
+  const start = endIndexExclusive - period;
+  if (start < 0) return null;
+  const slice = bars.slice(start, endIndexExclusive);
+  return slice.reduce((s, b) => s + b.close, 0) / slice.length;
+}
+
 export function detectVSASignals(bars: OhlcvBar[], lookback: number = 20): VSASignal[] {
-  if (bars.length < lookback + 1) return [];
+  if (bars.length < lookback + TREND_SMA_PERIOD + 1) return [];
   const signals: VSASignal[] = [];
 
   for (let i = lookback; i < bars.length; i++) {
@@ -18,8 +30,10 @@ export function detectVSASignals(bars: OhlcvBar[], lookback: number = 20): VSASi
     const spreadRatio = avgSpread > 0 ? Math.round((spread / avgSpread) * 100) / 100 : 0;
     const closePosition = spread > 0 ? (bar.close - bar.low) / spread : 0.5;
 
-    const wasDowntrend = bars[i - 1].close < window[0].close;
-    const wasUptrend = bars[i - 1].close > window[0].close;
+    const smaNow = smaAt(bars, i, TREND_SMA_PERIOD);
+    const smaPrior = smaAt(bars, i - TREND_SMA_PERIOD, TREND_SMA_PERIOD);
+    const wasDowntrend = smaNow !== null && smaPrior !== null && smaNow < smaPrior;
+    const wasUptrend = smaNow !== null && smaPrior !== null && smaNow > smaPrior;
 
     if (volumeRatio >= 1.5 && spreadRatio <= 0.8 && closePosition >= 0.6 && wasDowntrend) {
       signals.push({ date: bar.date, type: "Stopping Volume", volumeRatio, spreadRatio });

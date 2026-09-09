@@ -1,9 +1,16 @@
-﻿import { DrawingManager, type DrawnPrimitive } from "./DrawingManager";
+import { DrawingManager, type DrawnPrimitive } from "./DrawingManager";
 import { LayerManager, type LayerState } from "./LayerManager";
 import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
 import { detectOrderBlocks, detectFVG, detectBOS, type OrderBlock, type FairValueGap, type BreakOfStructure } from "./detectors/smcDetector";
 import { detectVSASignals, type VSASignal } from "./detectors/vsaDetector";
+// ĐÃ THÊM: đưa tính toán Wyckoff vào AnalysisController, cùng kiến trúc
+// cache/event với SMC/VSA — trước đây Wyckoff được tính RIÊNG, TÁCH RỜI
+// trong TVChartPanel.tsx, khiến AIEngine (chạy trong controller này)
+// không có cách nào truy cập kết quả Wyckoff để đối chiếu chéo. Đây chính
+// là nguyên nhân gốc khiến toggle "Wyckoff" trước đây không ảnh hưởng gì
+// tới confidence AI dù logic tính điểm đã viết sẵn.
+import { classifyWyckoffPhase, type WyckoffResult } from "./detectors/wyckoffDetector";
 import type { PatternMatch } from "./types";
 import { EventEmitter } from "./EventEmitter";
 import type { OhlcvBar } from "./types";
@@ -13,6 +20,7 @@ interface ControllerEvents extends Record<string, unknown> {
   "primitives:updated": DrawnPrimitive[];
   "smc:updated": { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] };
   "vsa:updated": VSASignal[];
+  "wyckoff:updated": WyckoffResult;
   "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
 }
 
@@ -27,6 +35,7 @@ export class AnalysisController {
   private log: SignalLogEntry[] = [];
   private smcCache = { obs: [] as OrderBlock[], fvgs: [] as FairValueGap[], bos: [] as BreakOfStructure[] };
   private vsaCache: VSASignal[] = [];
+  private wyckoffCache: WyckoffResult = classifyWyckoffPhase([]);
   private unsubscribers: (() => void)[] = [];
 
   constructor(dailyBars: OhlcvBar[]) {
@@ -38,7 +47,7 @@ export class AnalysisController {
       this.emitter.emit("primitives:updated", this.drawing.getPrimitives());
       if (!this.layers.getState().aiDetectionMaster) return;
       const currentPrice = this.bars.length > 0 ? this.bars[this.bars.length - 1].close : 0;
-      const newEntries = this.ai.analyzeAndCrossReference(primitive, this.smcCache, this.vsaCache, currentPrice);
+      const newEntries = this.ai.analyzeAndCrossReference(primitive, this.smcCache, this.vsaCache, currentPrice, this.wyckoffCache);
       this.log = [...newEntries, ...this.log].slice(0, 30);
       this.emitter.emit("log:updated", this.log);
     });
@@ -68,9 +77,11 @@ export class AnalysisController {
 
   logPatternConfluence(pattern: PatternMatch): void {
     const layerState = this.layers.getState();
-    const entry = this.ai.analyzePatternConfluence(pattern, this.smcCache, this.vsaCache, {
-      smc: layerState.smc, vsa: layerState.vsa, wyckoff: layerState.wyckoff, elliott: layerState.elliott,
-    });
+    const entry = this.ai.analyzePatternConfluence(
+      pattern, this.smcCache, this.vsaCache,
+      { smc: layerState.smc, vsa: layerState.vsa, wyckoff: layerState.wyckoff, elliott: layerState.elliott },
+      this.wyckoffCache
+    );
     this.log = [entry, ...this.log].slice(0, 30);
     this.emitter.emit("log:updated", this.log);
   }
@@ -78,12 +89,15 @@ export class AnalysisController {
   private recomputeDetectors(): void {
     this.smcCache = { obs: detectOrderBlocks(this.bars), fvgs: detectFVG(this.bars), bos: detectBOS(this.bars) };
     this.vsaCache = detectVSASignals(this.bars);
+    this.wyckoffCache = classifyWyckoffPhase(this.bars);
     this.emitter.emit("smc:updated", this.smcCache);
     this.emitter.emit("vsa:updated", this.vsaCache);
+    this.emitter.emit("wyckoff:updated", this.wyckoffCache);
   }
 
   getSmc() { return this.smcCache; }
   getVsa(): VSASignal[] { return this.vsaCache; }
+  getWyckoff(): WyckoffResult { return this.wyckoffCache; }
   getLog(): SignalLogEntry[] { return this.log; }
   getLayerState(): LayerState { return this.layers.getState(); }
 
@@ -91,6 +105,7 @@ export class AnalysisController {
   onPrimitivesUpdated(h: (p: DrawnPrimitive[]) => void) { return this.emitter.on("primitives:updated", h); }
   onSmcUpdated(h: (s: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] }) => void) { return this.emitter.on("smc:updated", h); }
   onVsaUpdated(h: (v: VSASignal[]) => void) { return this.emitter.on("vsa:updated", h); }
+  onWyckoffUpdated(h: (w: WyckoffResult) => void) { return this.emitter.on("wyckoff:updated", h); }
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }
   onTimeframeChanged(h: (payload: { timeframe: Timeframe; bars: OhlcvBar[] }) => void) { return this.emitter.on("timeframe:changed", h); }
 

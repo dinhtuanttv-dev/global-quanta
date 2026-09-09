@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Trash2, XCircle } from "lucide-react";
@@ -13,14 +13,18 @@ import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
 import OscillatorPanel from "./OscillatorPanel";
 import SmartNotePanel from "./SmartNotePanel";
 import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
-import { classifyWyckoffPhase } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
+// ĐÃ SỬA: bỏ import classifyWyckoffPhase — Wyckoff giờ tính trong
+// AnalysisController (cùng kiến trúc cache/event với SMC/VSA), không tính
+// rời trực tiếp trong component nữa. Giữ lại type WyckoffResult để khai
+// báo state.
+import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/types";
 import type {
   DrawingToolType, DrawnPrimitive, DomainPoint,
   RectangleZone, Trendline, FibonacciRetracement, ElliottWaveMarking, FibTimeZoneMarking,
 } from "../../../lib/ta-command-center/DrawingManager";
-import { FIB_TIME_SEQUENCE } from "../../../lib/ta-command-center/DrawingManager";
+import { FIB_TIME_SEQUENCE, buildFibLevels } from "../../../lib/ta-command-center/DrawingManager";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import type { OrderBlock, FairValueGap, BreakOfStructure } from "../../../lib/ta-command-center/detectors/smcDetector";
@@ -49,6 +53,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   const [log, setLog] = useState<SignalLogEntry[]>([]);
   const [smc, setSmc] = useState<{ obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] }>({ obs: [], fvgs: [], bos: [] });
   const [vsa, setVsa] = useState<VSASignal[]>([]);
+  const [wyckoffResult, setWyckoffResult] = useState<WyckoffResult | null>(null);
+  // ĐÃ THÊM: lưu hình đang vẽ dở (draft) để hiển thị preview theo thời gian
+  // thực khi rê chuột — trước đây KHÔNG hề subscribe sự kiện
+  // "primitive:draft-updated" dù DrawingManager đã phát ra sự kiện này mỗi
+  // lần updateDraw() chạy, khiến người dùng không thấy gì cho tới khi thả
+  // chuột ("chưa ghim vào di chuyển của chuột").
+  const [draftPrimitive, setDraftPrimitive] = useState<{ toolType: DrawingToolType; p1: DomainPoint; p2: DomainPoint } | null>(null);
   const [timeframe, setTimeframeState] = useState<Timeframe>("D");
   const [currentBars, setCurrentBars] = useState<OhlcvBar[]>(bars);
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null);
@@ -76,6 +87,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     const unsubLog = controller.onLogUpdated(setLog);
     const unsubSmc = controller.onSmcUpdated(setSmc);
     const unsubVsa = controller.onVsaUpdated(setVsa);
+    const unsubWyckoff = controller.onWyckoffUpdated(setWyckoffResult);
     const unsubLayers = controller.onLayersChanged(setLayerState);
     const unsubTf = controller.onTimeframeChanged(({ timeframe: tf, bars: newBars }: { timeframe: Timeframe; bars: OhlcvBar[] }) => {
       setTimeframeState(tf);
@@ -84,18 +96,21 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     });
     const unsubElliottDraft = controller.drawing.on("elliott:draft-updated", setElliottDraft);
     const unsubFibExt = controller.drawing.on("fibExtension:changed", setFibExtensionMode);
+    // ĐÃ THÊM: subscribe draft preview cho Trendline/Rectangle/Fibonacci
+    const unsubDraft = controller.drawing.on("primitive:draft-updated", setDraftPrimitive);
     const unsubRange = tvManagerRef.current?.onVisibleRangeChange(() => forceTick((t) => t + 1)) ?? (() => {});
 
     setPrimitives(controller.drawing.getPrimitives());
     setLog(controller.getLog());
     setSmc(controller.getSmc());
     setVsa(controller.getVsa());
+    setWyckoffResult(controller.getWyckoff());
     setLayerState(controller.getLayerState());
     setTimeframeState(controller.getCurrentTimeframe());
     setElliottDraft(controller.drawing.getElliottDraft());
     setFibExtensionMode(controller.drawing.getFibExtensionMode());
 
-    return () => { unsubPrim(); unsubLog(); unsubSmc(); unsubVsa(); unsubLayers(); unsubTf(); unsubElliottDraft(); unsubFibExt(); unsubRange(); };
+    return () => { unsubPrim(); unsubLog(); unsubSmc(); unsubVsa(); unsubWyckoff(); unsubLayers(); unsubTf(); unsubElliottDraft(); unsubFibExt(); unsubDraft(); unsubRange(); };
   }, [bars]);
 
   useEffect(() => {
@@ -127,7 +142,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     tvManagerRef.current.setMarkers(markers);
   }, [smc, vsa, layerState]);
 
-  const wyckoffResult = useMemo(() => classifyWyckoffPhase(currentBars), [currentBars]);
   const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
   const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
   const adxResult = useMemo(() => calculateADX(currentBars), [currentBars]);
@@ -172,6 +186,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       controllerRef.current.drawing.addElliottPoint(point);
       if (controllerRef.current.drawing.getElliottDraft().length === 0) {
         setActiveTool(null);
+        // ĐÃ THÊM: vừa vẽ xong Elliott Wave (đủ 6 điểm) — tự bật toggle
+        // "Elliott" trên LayerToggleBar nếu đang tắt, để hình vừa vẽ hiện
+        // ra ngay lập tức thay vì người dùng phải tự đi tìm nút bật riêng
+        // (nếu không, elliottMarkings vẫn lọc ẩn hình dù đã vẽ xong).
+        if (layerState && !layerState.elliott) {
+          controllerRef.current.layers.toggle("elliott");
+        }
       }
       forceTick((t) => t + 1);
       return;
@@ -218,6 +239,20 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     return { x1, y1, x2, y2 };
   };
 
+  // ĐÃ THÊM: tính tọa độ pixel cho hình đang vẽ dở (draft) — hiển thị
+  // LUÔN LUÔN bất kể trạng thái toggle layer (người đang chủ động vẽ cần
+  // thấy phản hồi ngay lập tức, không phụ thuộc Trendline/Demand Zone
+  // đang bật hay tắt).
+  const draftPixels = useMemo(() => {
+    if (!tv || !draftPrimitive) return null;
+    const x1 = tv.timeToPixel(draftPrimitive.p1.date);
+    const y1 = tv.priceToPixel(draftPrimitive.p1.price);
+    const x2 = tv.timeToPixel(draftPrimitive.p2.date);
+    const y2 = tv.priceToPixel(draftPrimitive.p2.price);
+    if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
+    return { toolType: draftPrimitive.toolType, x1, y1, x2, y2 };
+  }, [tv, draftPrimitive]);
+
   const visiblePrimitives = useMemo(() => {
     if (!layerState) return [];
     return primitives.filter(isTwoPointPrimitive).filter((p) => {
@@ -256,25 +291,42 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
 
   const smcOverlayRects = useMemo(() => {
     if (!tv || !layerState?.smc) return [];
+    const lastBar = currentBars[currentBars.length - 1];
     const rects: { key: string; x1: number; x2: number; y1: number; y2: number; color: string; label: string }[] = [];
+
     smc.obs.forEach((ob, i) => {
-      const x1 = tv.timeToPixel(ob.date); if (x1 === null) return;
-      const y1 = tv.priceToPixel(ob.top); const y2 = tv.priceToPixel(ob.bottom);
+      const x1 = tv.timeToPixel(ob.date);
+      if (x1 === null) return;
+      const endDate = ob.mitigatedAt ?? lastBar?.date;
+      const x2 = endDate ? tv.timeToPixel(endDate) : x1 + 40;
+      if (x2 === null) return;
+      const y1 = tv.priceToPixel(ob.top);
+      const y2 = tv.priceToPixel(ob.bottom);
       if (y1 === null || y2 === null) return;
-      rects.push({ key: `ob-${i}`, x1, x2: x1 + 40, y1, y2, color: ob.type === "bullish" ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)", label: `OB ${ob.type === "bullish" ? "up" : "down"}` });
+      const baseAlpha = ob.mitigated ? 0.06 : 0.15;
+      const color = ob.type === "bullish" ? `rgba(52,211,153,${baseAlpha})` : `rgba(248,113,113,${baseAlpha})`;
+      const label = `OB ${ob.type === "bullish" ? "up" : "down"}${ob.mitigated ? " (đã test)" : ""}`;
+      rects.push({ key: `ob-${i}`, x1, x2, y1, y2, color, label });
     });
+
     smc.fvgs.forEach((fvg, i) => {
-      const x1 = tv.timeToPixel(fvg.startDate); const x2 = tv.timeToPixel(fvg.endDate);
+      const x1 = tv.timeToPixel(fvg.startDate);
+      const endDate = fvg.filledAt ?? fvg.endDate;
+      const x2 = endDate ? tv.timeToPixel(endDate) : null;
       if (x1 === null || x2 === null) return;
-      const y1 = tv.priceToPixel(fvg.top); const y2 = tv.priceToPixel(fvg.bottom);
+      const y1 = tv.priceToPixel(fvg.top);
+      const y2 = tv.priceToPixel(fvg.bottom);
       if (y1 === null || y2 === null) return;
-      rects.push({ key: `fvg-${i}`, x1, x2, y1, y2, color: fvg.type === "bullish" ? "rgba(56,189,248,0.12)" : "rgba(251,146,60,0.12)", label: "FVG" });
+      const baseAlpha = fvg.filled ? 0.05 : 0.12;
+      const color = fvg.type === "bullish" ? `rgba(56,189,248,${baseAlpha})` : `rgba(251,146,60,${baseAlpha})`;
+      rects.push({ key: `fvg-${i}`, x1, x2, y1, y2, color, label: fvg.filled ? "FVG (đã lấp)" : "FVG" });
     });
+
     return rects;
-  }, [tv, smc, layerState]);
+  }, [tv, smc, layerState, currentBars]);
 
   const wyckoffOverlay = useMemo(() => {
-    if (!tv || !layerState?.wyckoff) return null;
+    if (!tv || !layerState?.wyckoff || !wyckoffResult) return null;
     if (wyckoffResult.rangeHigh === null || wyckoffResult.rangeLow === null || !wyckoffResult.rangeStartDate) return null;
     const x1 = tv.timeToPixel(wyckoffResult.rangeStartDate);
     const lastBar = currentBars[currentBars.length - 1];
@@ -295,6 +347,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     if (wyckoffResult.markupDate) {
       const x = tv.timeToPixel(wyckoffResult.markupDate);
       if (x !== null) markers.push({ x, label: "Markup", color: "#34d399" });
+    }
+    if (wyckoffResult.declineDate) {
+      const x = tv.timeToPixel(wyckoffResult.declineDate);
+      if (x !== null) markers.push({ x, label: "Decline", color: "#f87171" });
     }
 
     return { x1, x2, yTop, yBottom, markers };
@@ -337,15 +393,17 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
           fibExtensionMode={fibExtensionMode}
           onToggleFibExtension={handleToggleFibExtension}
         />
-        <SmartNotePanel
-          ticker={ticker}
-          wyckoff={wyckoffResult}
-          smc={smc}
-          vsa={vsa}
-          rsi={rsiResult}
-          macd={macdResult}
-          adx={adxResult}
-        />
+        {wyckoffResult && (
+          <SmartNotePanel
+            ticker={ticker}
+            wyckoff={wyckoffResult}
+            smc={smc}
+            vsa={vsa}
+            rsi={rsiResult}
+            macd={macdResult}
+            adx={adxResult}
+          />
+        )}
         <div className="absolute top-3 z-10 flex items-center gap-2" style={{ left: 44 }}>
           {elliottDraft.length > 0 && (
             <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
@@ -363,7 +421,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
         <div ref={chartContainerRef}
           style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", minHeight: 400 }}
           className="rounded-xl overflow-hidden relative w-full" />
-        <svg className="absolute inset-0 w-full h-full" style={{ cursor: activeTool ? "crosshair" : "default" }}
+        <svg className="absolute inset-0 w-full h-full" style={{ cursor: activeTool ? "crosshair" : "default", zIndex: 5, pointerEvents: activeTool ? "auto" : "none" }}
           onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
           onMouseLeave={() => { if (isDrawingRef.current) { controllerRef.current?.drawing.cancelDraw(); isDrawingRef.current = false; } }}>
 
@@ -405,6 +463,43 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
               <text x={l.x + 2} y={20} fontSize="8" fill="#f472b6">{l.label}</text>
             </g>
           ))}
+
+          {draftPixels && draftPixels.toolType === "rectangle" && (
+            <rect x={Math.min(draftPixels.x1, draftPixels.x2)} y={Math.min(draftPixels.y1, draftPixels.y2)}
+              width={Math.abs(draftPixels.x2 - draftPixels.x1)} height={Math.abs(draftPixels.y2 - draftPixels.y1)}
+              fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.7)" strokeWidth={1} strokeDasharray="3,3" />
+          )}
+          {draftPixels && draftPixels.toolType === "trendline" && (
+            <line x1={draftPixels.x1} y1={draftPixels.y1} x2={draftPixels.x2} y2={draftPixels.y2}
+              stroke="#38bdf8" strokeWidth={1.5} strokeDasharray="4,3" opacity={0.8} />
+          )}
+          {/* ĐÃ SỬA: vẽ đúng lưới % Fibonacci thật khi đang kéo (dùng lại
+              buildFibLevels() — cùng công thức với lúc thả chuột hoàn tất),
+              thay vì chỉ 1 đường thẳng đơn giản như bản vá trước — người
+              dùng cần thấy TRƯỚC khi thả chuột các mức % sẽ nằm ở đâu. */}
+          {draftPixels && draftPrimitive && draftPrimitive.toolType === "fibonacci" && tv && (() => {
+            const levels = buildFibLevels(draftPrimitive.p1, draftPrimitive.p2, fibExtensionMode);
+            return (
+              <g opacity={0.7}>
+                <line x1={draftPixels.x1} y1={draftPixels.y1} x2={draftPixels.x2} y2={draftPixels.y2}
+                  stroke="#a78bfa" strokeWidth={1} strokeDasharray="2,2" />
+                {levels.map((lvl, i) => {
+                  const y = tv.priceToPixel(lvl.price);
+                  if (y === null) return null;
+                  const isExtension = lvl.ratio > 1;
+                  return (
+                    <g key={i}>
+                      <line x1={Math.min(draftPixels.x1, draftPixels.x2)} y1={y} x2={Math.max(draftPixels.x1, draftPixels.x2)} y2={y}
+                        stroke={isExtension ? "rgba(244,114,182,0.6)" : "rgba(167,139,250,0.6)"} strokeWidth={1} strokeDasharray="2,2" />
+                      <text x={Math.max(draftPixels.x1, draftPixels.x2) + 2} y={y + 3} fontSize="8" fill={isExtension ? "#f472b6" : "#a78bfa"}>
+                        {(lvl.ratio * 100).toFixed(1)}%
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            );
+          })()}
 
           {visiblePrimitives.map((p) => {
             const px = renderPrimitivePixels(p);
@@ -480,7 +575,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} />
         <VSAPanel signals={vsa} />
-        <WyckoffPanel result={wyckoffResult} />
+        {wyckoffResult && <WyckoffPanel result={wyckoffResult} />}
         <ElliottWavePanelPlaceholder />
       </div>
 

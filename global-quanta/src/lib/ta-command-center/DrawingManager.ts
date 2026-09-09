@@ -1,4 +1,4 @@
-﻿import { EventEmitter } from "./EventEmitter";
+import { EventEmitter } from "./EventEmitter";
 
 export interface DomainPoint { date: string; price: number; }
 export type DrawingToolType = "rectangle" | "trendline" | "fibonacci" | "elliott" | "fibTimeZone";
@@ -18,15 +18,17 @@ export interface FibTimeZoneMarking {
 }
 export type DrawnPrimitive = RectangleZone | Trendline | FibonacciRetracement | ElliottWaveMarking | FibTimeZoneMarking;
 
-const FIB_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
-const FIB_EXTENSION_RATIOS = [1.272, 1.618, 2.618];
+// ĐÃ SỬA: export 2 hằng số này để TVChartPanel.tsx dùng lại đúng công
+// thức khi vẽ preview lưới Fibonacci lúc đang kéo chuột — tránh viết
+// trùng lặp 1 bộ số khác có thể lệch với bản chính thức khi finishDraw().
+export const FIB_RATIOS = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1];
+export const FIB_EXTENSION_RATIOS = [1.272, 1.618, 2.618];
 const ELLIOTT_POINT_COUNT = 6;
 const ELLIOTT_LABELS = ["0", "1", "2", "3", "4", "5"];
 
-// Day so Fibonacci dung cho Time Zones - tinh theo SO PHIEN, khong phai gia.
 export const FIB_TIME_SEQUENCE = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
 
-function buildFibLevels(p1: DomainPoint, p2: DomainPoint, includeExtension: boolean) {
+export function buildFibLevels(p1: DomainPoint, p2: DomainPoint, includeExtension: boolean) {
   const high = Math.max(p1.price, p2.price);
   const low = Math.min(p1.price, p2.price);
   const ratios = includeExtension ? [...FIB_RATIOS, ...FIB_EXTENSION_RATIOS] : FIB_RATIOS;
@@ -121,7 +123,13 @@ export class DrawingManager {
       return null;
     }
 
-    this.primitives.push(primitive);
+    // ĐÃ SỬA — LỖI GỐC RỄ: .push() sửa trực tiếp mảng cũ, không tạo tham
+    // chiếu mới. React (bên TVChartPanel.tsx) so sánh setPrimitives(...)
+    // bằng tham chiếu — nhận "giống hệt trước" nên bỏ qua render, dù dữ
+    // liệu thật đã đổi. Đây là nguyên nhân khiến hình vẽ mới (Rectangle/
+    // Trendline/Fibonacci) không hiện ra cho tới khi 1 state KHÁC (như
+    // toggle "AI Detection") vô tình kích hoạt render lại.
+    this.primitives = [...this.primitives, primitive];
     this.draftStart = null; this.draftTool = null;
     this.emitter.emit("primitive:draft-updated", null);
     this.emitter.emit("primitive:created", primitive);
@@ -139,7 +147,8 @@ export class DrawingManager {
       const points = this.elliottDraft.slice(0, ELLIOTT_POINT_COUNT);
       const violations = validateElliottRules(points);
       const marking: ElliottWaveMarking = { id, toolType: "elliott", points, labels: ELLIOTT_LABELS, violations, createdAt: Date.now() };
-      this.primitives.push(marking);
+      // ĐÃ SỬA — cùng lỗi gốc rễ như finishDraw() ở trên.
+      this.primitives = [...this.primitives, marking];
       this.elliottDraft = [];
       this.emitter.emit("elliott:draft-updated", []);
       this.emitter.emit("primitive:created", marking);
@@ -149,11 +158,11 @@ export class DrawingManager {
   cancelElliottDraft(): void { this.elliottDraft = []; this.emitter.emit("elliott:draft-updated", []); }
   getElliottDraft(): DomainPoint[] { return this.elliottDraft; }
 
-  // Fibonacci Time Zone: 1 click duy nhat -> tao ngay marking (khong can drag/2 diem)
   addFibTimeZone(point: DomainPoint): void {
     const id = `prim-${++this.idCounter}-${Date.now()}`;
     const marking: FibTimeZoneMarking = { id, toolType: "fibTimeZone", anchor: point, createdAt: Date.now() };
-    this.primitives.push(marking);
+    // ĐÃ SỬA — cùng lỗi gốc rễ như finishDraw()/addElliottPoint() ở trên.
+    this.primitives = [...this.primitives, marking];
     this.emitter.emit("primitive:created", marking);
   }
 

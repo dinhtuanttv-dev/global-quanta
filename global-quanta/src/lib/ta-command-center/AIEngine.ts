@@ -1,6 +1,7 @@
-﻿import type { DrawnPrimitive, RectangleZone, Trendline } from "./DrawingManager";
+import type { DrawnPrimitive, RectangleZone, Trendline } from "./DrawingManager";
 import type { OrderBlock, FairValueGap, BreakOfStructure } from "./detectors/smcDetector";
 import type { VSASignal } from "./detectors/vsaDetector";
+import type { WyckoffResult } from "./detectors/wyckoffDetector";
 import type { PatternMatch } from "./types";
 
 export interface SignalLogEntry {
@@ -23,7 +24,9 @@ export class AIEngine {
     primitive: DrawnPrimitive,
     smc: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] },
     vsa: VSASignal[],
-    currentPrice: number
+    currentPrice: number,
+    // ĐÃ THÊM — optional để không phá vỡ nơi gọi cũ chưa truyền tham số này
+    wyckoff?: WyckoffResult
   ): SignalLogEntry[] {
     const entries: SignalLogEntry[] = [];
 
@@ -35,17 +38,32 @@ export class AIEngine {
 
       const matchedOB = smc.obs.find((ob) => overlaps(top, bottom, ob.top, ob.bottom));
       const matchedVSA = vsa.find((v) => v.date >= zone.p1.date && v.date <= zone.p2.date);
+      // ĐÃ THÊM: đối chiếu với vùng tích lũy/phân phối Wyckoff — trước đây
+      // WyckoffResult.rangeHigh/rangeLow đã tính sẵn nhưng chưa từng được
+      // dùng ở đây, dù về bản chất Demand/Supply Zone (vẽ tay) và vùng
+      // tích lũy/phân phối Wyckoff là 2 cách nhìn cùng 1 hiện tượng thị
+      // trường, nên đối chiếu chéo là hợp lý.
+      const matchedWyckoff =
+        wyckoff && wyckoff.rangeHigh !== null && wyckoff.rangeLow !== null &&
+        overlaps(top, bottom, wyckoff.rangeHigh, wyckoff.rangeLow);
 
       let confidence = 40;
       const reasons: string[] = [];
-      if (matchedOB) { confidence += 30; reasons.push(`trung Order Block ${matchedOB.type}`); }
-      if (matchedVSA) { confidence += 20; reasons.push(`VSA xac nhan (${matchedVSA.type})`); }
+      if (matchedOB) {
+        confidence += 30;
+        reasons.push(`trùng Order Block ${matchedOB.type}${matchedOB.mitigated ? " (đã mitigated — độ tin cậy thấp hơn)" : ""}`);
+      }
+      if (matchedVSA) { confidence += 20; reasons.push(`VSA xác nhận (${matchedVSA.type})`); }
+      if (matchedWyckoff) {
+        confidence += 15;
+        const label = wyckoff!.phase === "distribution" || wyckoff!.phase === "decline" ? "phân phối" : "tích lũy";
+        reasons.push(`trùng vùng ${label} Wyckoff`);
+      }
       confidence = Math.min(99, confidence);
 
       const message = reasons.length > 0
         ? `Demand/Supply Zone (User) -> AI xac nhan (${confidence}%) - ${reasons.join(", ")}.`
-        : `Vung ${classification} (User) - chua co xac nhan cheo tu SMC/VSA (${confidence}%).`;
-
+        : `Vung ${classification} (User) - chua co xac nhan cheo tu SMC/VSA/Wyckoff (${confidence}%).`;
       entries.push({ id: `log-${++this.idCounter}-${Date.now()}`, message, confidence, source: "user", dataQuality: "HARD_DATA", createdAt: Date.now() });
     }
 
@@ -73,7 +91,9 @@ export class AIEngine {
     pattern: PatternMatch,
     smc: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[] },
     vsa: VSASignal[],
-    activeLayers: ActiveLayers
+    activeLayers: ActiveLayers,
+    // ĐÃ THÊM
+    wyckoff?: WyckoffResult
   ): SignalLogEntry {
     const reasons: string[] = [];
     let confidence = pattern.confidenceScore;
@@ -86,6 +106,23 @@ export class AIEngine {
       const matchedVSA = vsa.find((v) => v.date >= pattern.dateRangeStart && v.date <= pattern.dateRangeEnd);
       if (matchedVSA) { confidence = Math.min(99, confidence + 8); reasons.push(`VSA ${matchedVSA.type} xac nhan`); }
     }
+    // ĐÃ SỬA — LỖI CŨ: interface ActiveLayers khai báo field "wyckoff"
+    // nhưng KHÔNG NƠI NÀO trong file này từng dùng tới — bật/tắt toggle
+    // "Wyckoff" trên UI trước đây hoàn toàn không ảnh hưởng tới confidence.
+    if (activeLayers.wyckoff && wyckoff) {
+      const phaseInRange =
+        wyckoff.rangeStartDate && wyckoff.rangeEndDate &&
+        pattern.dateRangeStart <= wyckoff.rangeEndDate && pattern.dateRangeEnd >= wyckoff.rangeStartDate;
+      if (phaseInRange && wyckoff.phase !== "undetermined") {
+        confidence = Math.min(99, confidence + 7);
+        reasons.push(`Wyckoff dang o pha ${wyckoff.phase}`);
+      }
+    }
+    // Ghi chú: activeLayers.elliott CHỦ ĐÍCH không tham gia tính confidence
+    // ở đây — Elliott là công cụ VẼ TAY (xem DrawingManager.ts), không có
+    // "kết quả tự động phát hiện" để đối chiếu như SMC/VSA/Wyckoff. Giữ
+    // nguyên field trong interface để UI toggle không lỗi kiểu, nhưng nêu
+    // rõ lý do bằng comment thay vì âm thầm bỏ qua như code cũ.
 
     const message = reasons.length > 0
       ? `User: ${pattern.patternLabel} phat hien (${pattern.ticker}) -> AI: Confluence xac nhan voi ${reasons.join(", ")} (${confidence}%).`
