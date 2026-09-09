@@ -88,16 +88,33 @@ export default function PreviewPanel({ scanResult }: PreviewPanelProps) {
               {pattern_layer.map((p) => (
                 <tr key={p.patternType} style={{ borderBottom: "0.5px solid var(--aicv-border)" }}>
                   <td style={{ padding: "4px 6px" }}>{p.patternType}</td>
-                  <td style={{ padding: "4px 6px" }}>
+                  <td style={{ padding: "4px 6px", color: "var(--aicv-text-primary)" }}>
                     {p.sampleSize}
                     {p.lowSampleWarning && (
-                      <span style={{ color: "var(--aicv-warning-text)", marginLeft: 4 }} title="Mẫu nhỏ, độ tin cậy thấp">
+                      <span style={{ color: "var(--aicv-warning)", marginLeft: 4 }} title="Mẫu nhỏ, độ tin cậy thấp">
                         ⚠️
                       </span>
                     )}
                   </td>
-                  <td style={{ padding: "4px 6px" }}>{p.successRatePct === null ? "—" : `${p.successRatePct}%`}</td>
-                  <td style={{ padding: "4px 6px" }}>{p.avgReturnPct === null ? "—" : `${p.avgReturnPct > 0 ? "+" : ""}${p.avgReturnPct}%`}</td>
+                  <td style={{ padding: "4px 6px", color: "var(--aicv-text-primary)" }}>
+                    {p.successRatePct === null ? "—" : `${p.successRatePct}%`}
+                  </td>
+                  <td
+                    style={{
+                      padding: "4px 6px",
+                      color:
+                        p.avgReturnPct === null
+                          ? "var(--aicv-text-primary)"
+                          : p.avgReturnPct > 0
+                          ? "var(--aicv-success)"
+                          : p.avgReturnPct < 0
+                          ? "var(--aicv-danger)"
+                          : "var(--aicv-text-primary)",
+                      fontWeight: 500,
+                    }}
+                  >
+                    {p.avgReturnPct === null ? "—" : `${p.avgReturnPct > 0 ? "+" : ""}${p.avgReturnPct}%`}
+                  </td>
                 </tr>
               ))}
             </tbody>

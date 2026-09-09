@@ -56,10 +56,10 @@ export default function ReportPanel({ scanResult }: ReportPanelProps) {
         </div>
 
         <div className="aicv-success" style={{ marginBottom: 16 }}>
-          <p style={{ fontSize: 12, color: "var(--aicv-success-text)", margin: "0 0 4px", fontWeight: 500 }}>
+          <p style={{ fontSize: 12, color: "var(--aicv-success)", margin: "0 0 4px", fontWeight: 500 }}>
             CONSENSUS VERDICT
           </p>
-          <p style={{ fontSize: 15, color: "var(--aicv-success-text)", margin: "0 0 8px", fontWeight: 500 }}>
+          <p style={{ fontSize: 15, color: "var(--aicv-success)", margin: "0 0 8px", fontWeight: 500 }}>
             {v.final_bias}
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
@@ -117,7 +117,7 @@ export default function ReportPanel({ scanResult }: ReportPanelProps) {
             <div style={{ marginBottom: 12 }}>
               {scanResult.ai_synthesis.checklist.map((item, i) => (
                 <div key={i} style={{ display: "flex", gap: 6, alignItems: "flex-start", marginBottom: 6 }}>
-                  <span style={{ fontSize: 13, color: item.passed ? "var(--aicv-success-text)" : "var(--aicv-warning-text)" }}>
+                  <span style={{ fontSize: 13, color: item.passed ? "var(--aicv-success)" : "var(--aicv-warning)" }}>
                     {item.passed ? "✓" : "✕"}
                   </span>
                   <div>
@@ -156,7 +156,7 @@ export default function ReportPanel({ scanResult }: ReportPanelProps) {
       </div>
 
       {copied && (
-        <p style={{ fontSize: 12, color: "var(--aicv-success-text)", textAlign: "center", marginTop: 12 }}>
+        <p style={{ fontSize: 12, color: "var(--aicv-success)", textAlign: "center", marginTop: 12 }}>
           Đã sao chép JSON
         </p>
       )}

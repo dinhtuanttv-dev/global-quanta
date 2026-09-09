@@ -60,6 +60,11 @@
   border-radius: 12px;
   padding: 1.25rem;
   margin-bottom: 16px;
+  /* ĐÃ THÊM: trước đây không set màu chữ mặc định, khiến chữ bên trong
+     kế thừa màu từ theme tối của toàn trang (chữ sáng trên nền tối) — khi
+     đặt trên card nền sáng của module này, chữ gần như vô hình. Đây là
+     nguyên nhân gốc của lỗi "chữ mờ/mất chữ" trong AI Chart Vision. */
+  color: var(--aicv-text-primary);
 }
 
 .aicv-button {
@@ -112,6 +117,9 @@
   background: var(--aicv-success-bg);
   border-radius: 8px;
   padding: 12px;
+  /* ĐÃ THÊM: màu chữ mặc định đọc được trên nền xanh nhạt, không phụ
+     thuộc việc từng đoạn JSX có tự set color hay không (an toàn hơn). */
+  color: var(--aicv-success);
 }
 
 .aicv-success-text { color: var(--aicv-success); }
@@ -129,6 +137,8 @@
   background: var(--aicv-warning-bg);
   border-radius: 8px;
   padding: 12px;
+  /* ĐÃ THÊM: tương tự .aicv-success ở trên. */
+  color: var(--aicv-warning);
 }
 
 .aicv-warning-text { color: var(--aicv-warning); }
