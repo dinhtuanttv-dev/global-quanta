@@ -1,95 +1,77 @@
 /**
  * TypeScript type definitions for AI Chart Vision module
- * Schema khớp với backend/src/schema/scanOutputSchema.js (Zod)
+ * Schema khớp với api/scan.js (chế độ "structured" — mặc định, duy nhất
+ * được deploy công khai).
+ *
+ * ĐÃ VIẾT LẠI: bản cũ khớp schema chế độ "vision" (macro_layer/
+ * tactical_layer 4 khung thời gian/quant_layer) — gây crash thật
+ * ("Cannot read properties of undefined (reading '1h')") vì response thật
+ * của chế độ structured không có các field đó.
  */
 
-/**
- * AI model options for the vision layer
- */
+/** Giữ lại cho ControlPanel — chế độ structured không dùng ai_model, nhưng
+ * dropdown UI vẫn có thể hiển thị (không ảnh hưởng kết quả quét). */
 export type AiModel = "gemini-2.5-flash" | "claude-sonnet-4-6";
 
-/**
- * Input parameters for running a scan
- */
 export interface ScanParams {
   symbol: string;
   timeframes: string[];
-  aiModel: AiModel;
+  aiModel?: AiModel;
 }
 
 /**
- * MACRO LAYER
- * ===========
+ * TECHNICAL LAYER — RSI/MACD/ADX tính thật (không qua ảnh)
  */
-export interface MonthlyLayer {
-  market_cycle_phase: string;
-  major_structure: string;
-  key_monthly_level: { support: number; resistance: number };
-  cycle_position_pct: number;
+export interface MacdBlock {
+  value: number;
+  signal: number;
+  histogram: number;
+  label: string;
 }
 
-export interface WeeklyLayer {
-  structural_bias: string;
-  distribution_accumulation_zone: [number, number];
-  weekly_momentum: string;
-  volume_profile_poc: number;
-}
-
-export interface MacroLayer {
-  monthly: MonthlyLayer;
-  weekly: WeeklyLayer;
-}
-
-/**
- * TACTICAL LAYER
- * ==============
- */
-export interface TimeframeBlock {
-  trend: string;
-  support: number;
-  resistance: number;
+export interface AdxBlock {
+  value: number;
   signal: string;
 }
 
-export interface TacticalLayer {
-  daily: TimeframeBlock;
-  "4h": TimeframeBlock;
-  "1h": TimeframeBlock;
-  "15m": TimeframeBlock;
+export interface TechnicalLayer {
+  rsi: number | null;
+  macd: MacdBlock | null;
+  adx: AdxBlock | null;
 }
 
 /**
- * QUANT LAYER
- * ===========
+ * PATTERN LAYER — backtest mẫu hình thật, mảng theo từng loại mẫu hình
  */
-export interface QuantLayer {
-  order_flow_bias: string;
-  liquidity_pools: number[];
-  correlation_flag: string;
+export interface PatternStat {
+  patternType: string;
+  sampleSize: number;
+  timeoutCount: number;
+  successRatePct: number | null;
+  avgBarsToOutcome: number | null;
+  avgReturnPct: number | null;
+  lowSampleWarning: boolean;
 }
 
 /**
  * CONSENSUS VERDICT
- * =================
  */
 export type ConfidenceTier = "Thấp" | "Trung bình" | "Cao";
-export type PriorSource = "market_baseline" | "internal_backtest";
 
 export interface ConsensusVerdict {
   macro_aligned: boolean;
   final_bias: string;
-  confidence_ceiling: number;
   confidence_score_bayesian: number;
   confidence_tier: ConfidenceTier;
-  prior_source: PriorSource;
+  prior_source: string;
   ensemble_agreement: number;
+  ensemble_agreement_is_real: boolean;
   synthesis_disagreement: boolean;
-  invalidation_level: number;
+  invalidation_level: number | null;
 }
 
 /**
  * RISK MANAGEMENT
- * ===============
  */
 export interface RiskManagement {
   suggested_position_size_pct: number;
@@ -98,37 +80,43 @@ export interface RiskManagement {
 
 /**
  * AI SYNTHESIS
- * ============
  */
+export interface ChecklistItem {
+  label: string;
+  passed: boolean;
+  detail: string;
+}
+
 export interface AiSynthesis {
   models_used: string[];
   main_thesis: string;
   supporting_evidence_fields: string[];
   conflicting_factors: string[];
   conditional_conclusion: string;
-  ai_synthesis_narrative: string;
+  checklist: ChecklistItem[];
 }
 
 /**
- * FULL SCAN RESULT (Output)
- * =========================
+ * FULL SCAN RESULT (Output) — khớp đúng api/scan.js
  */
 export interface ScanResult {
+  mode: "structured";
   scan_timestamp: string;
   target: string;
-  data_completeness_flag: "FULL" | "DEGRADED_MODE";
-  macro_layer: MacroLayer;
-  tactical_layer: TacticalLayer;
-  quant_layer: QuantLayer;
+  timeframe: string;
+  is_historical_data_mock: boolean;
+  historical_data_source: string;
+  technical_layer: TechnicalLayer;
+  pattern_layer: PatternStat[];
   consensus_verdict: ConsensusVerdict;
   risk_management: RiskManagement;
   ai_synthesis: AiSynthesis;
   actionable_insight: string;
+  served_from_cache?: boolean;
 }
 
 /**
  * COMPONENT PROPS
- * ===============
  */
 export interface ControlPanelProps {
   onRun: (params: ScanParams) => void;
@@ -137,7 +125,7 @@ export interface ControlPanelProps {
 
 export interface PreviewPanelProps {
   scanResult: ScanResult | null;
-  timeframes: string[];
+  timeframes?: string[];
 }
 
 export interface ReportPanelProps {

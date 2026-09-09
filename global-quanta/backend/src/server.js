@@ -9,13 +9,20 @@ const PORT = process.env.PORT || 4000;
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || "http://localhost:5173" }));
 app.use(express.json({ limit: "15mb" })); // ảnh base64 cần payload lớn hơn mặc định
 
-app.get("/health", (req, res) => {
+function healthHandler(req, res) {
   res.json({
     status: "ok",
     mock_mode: process.env.USE_MOCK_DATA !== "false",
     time: new Date().toISOString(),
   });
-});
+}
+
+app.get("/health", healthHandler);
+// ĐÃ THÊM: alias /api/health — khớp với route trên bản Vercel
+// (api/health.js) để frontend (checkHealth() trong api.ts) gọi đúng cùng
+// 1 đường dẫn dù đang chạy local hay đã deploy, không cần code rẽ nhánh
+// theo môi trường cho riêng health check.
+app.get("/api/health", healthHandler);
 
 app.use("/api", scanRouter);
 

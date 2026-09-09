@@ -10,17 +10,21 @@ export { default } from "./AIChartVisionPanel";
 
 /**
  * Export types for external use
+ * ĐÃ SỬA: cập nhật theo types.ts mới (khớp response chế độ "structured") —
+ * bỏ TacticalLayer/TimeframeBlock/MacroLayer/QuantLayer (chế độ vision cũ,
+ * không còn dùng), thêm TechnicalLayer/PatternStat/ChecklistItem.
  */
 export type {
   ScanParams,
   ScanResult,
-  TacticalLayer,
-  TimeframeBlock,
-  MacroLayer,
-  QuantLayer,
+  TechnicalLayer,
+  MacdBlock,
+  AdxBlock,
+  PatternStat,
   ConsensusVerdict,
   RiskManagement,
   AiSynthesis,
+  ChecklistItem,
   ControlPanelProps,
   PreviewPanelProps,
   ReportPanelProps,
