@@ -1,16 +1,24 @@
 /**
  * API client for AI Chart Vision
- * Endpoint: POST /api/scan -> backend/src/routes/scan.js
+ * Endpoint: POST /api/scan -> api/scan.js (Vercel Serverless Function,
+ * cùng project/domain với frontend — KHÔNG cần CORS)
+ *
+ * ĐÃ SỬA: trước đây hardcode "http://localhost:4000" — chỉ hoạt động khi
+ * chạy local, hoàn toàn không kết nối được khi trang đã deploy công khai
+ * (đã tự gặp lỗi thật: "Failed to fetch" + CORS error trên
+ * global-quanta.vercel.app). Giờ dùng đường dẫn tương đối ("" = same-origin)
+ * — hoạt động đúng cả khi chạy local (Vite dev server proxy, nếu có cấu
+ * hình) lẫn khi đã deploy (cùng domain thật).
  */
 
 import type { ScanParams, ScanResult } from "./types";
 
-const API_BASE = "http://localhost:4000";
+const API_BASE = ""; // same-origin — không hardcode domain nào cả
 
 /**
- * Run scan on multiple timeframes using AI vision model
- * Returns full ScanResult with macro_layer, tactical_layer, quant_layer,
- * consensus_verdict, risk_management, ai_synthesis
+ * Run scan (chế độ structured — mặc định, nhanh, dữ liệu số thật).
+ * Chế độ "vision" (Playwright) KHÔNG được deploy công khai — chỉ chạy được
+ * ở backend cục bộ (global-quanta/backend), không gọi được từ bản đã deploy.
  */
 export async function runScan(params: ScanParams): Promise<ScanResult> {
   const res = await fetch(`${API_BASE}/api/scan`, {
@@ -19,7 +27,7 @@ export async function runScan(params: ScanParams): Promise<ScanResult> {
     body: JSON.stringify({
       symbol: params.symbol,
       timeframes: params.timeframes,
-      ai_model: params.aiModel,
+      mode: "structured", // cố định — vision mode không khả dụng trên bản deploy
     }),
   });
 
@@ -39,7 +47,7 @@ export async function checkHealth(): Promise<{
   mock_mode: boolean;
   time: string;
 }> {
-  const res = await fetch(`${API_BASE}/health`);
+  const res = await fetch(`${API_BASE}/api/health`);
   if (!res.ok) throw new Error(`Health check failed: ${res.status}`);
   return res.json();
 }

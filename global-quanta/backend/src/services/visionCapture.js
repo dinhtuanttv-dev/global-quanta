@@ -6,11 +6,38 @@
 //   2) đặt USE_MOCK_DATA=false trong .env
 //   3) cung cấp targetUrl hợp lệ (vd: trang biểu đồ TradingView/DNSE)
 //
-// Công thức tối ưu khung hình (Mục 2.1):
-//   - Dynamic Bounding Box qua DOM Selector của vùng canvas biểu đồ
-//   - Device Pixel Ratio ép 2x để nét chữ chỉ báo không bị vỡ khi nén ảnh
+// ĐÃ SỬA: trước đây dùng `({ chromium } = await import("playwright"))`
+// (dynamic import) — với package CommonJS như `playwright`, cách này có
+// thể trả về `chromium: undefined` do cơ chế tương thích CJS/ESM của Node
+// đôi khi không "phẳng hóa" đúng named export qua dynamic import(), dù
+// package đã cài đúng (đã tự gặp lỗi thật: "Cannot read properties of
+// undefined (reading 'launch')"). Chuyển sang static import ở đầu file —
+// Node xử lý tương thích CJS/ESM cho named import đáng tin cậy hơn nhiều.
+//
+// Đánh đổi: nếu `playwright` CHƯA được cài, static import sẽ làm cả file
+// (và cả server) lỗi ngay khi khởi động, thay vì lỗi runtime gọn gàng lúc
+// gọi API như trước. Bọc try/catch quanh việc load module bằng
+// createRequire để vẫn giữ được thông báo lỗi thân thiện khi chưa cài.
+
+import { createRequire } from "module";
 
 const USE_MOCK = process.env.USE_MOCK_DATA !== "false";
+
+function loadChromium() {
+  try {
+    // eslint-disable-next-line no-undef
+    const require = createRequire(import.meta.url);
+    const playwright = require("playwright");
+    if (!playwright?.chromium) {
+      throw new Error("Module 'playwright' đã cài nhưng không thấy export 'chromium'.");
+    }
+    return playwright.chromium;
+  } catch (err) {
+    throw new Error(
+      `Chưa cài đặt Playwright hoặc cài lỗi (${err.message}). Chạy: npm install playwright && npx playwright install chromium`
+    );
+  }
+}
 
 export async function captureCharts(symbol, timeframes) {
   if (USE_MOCK) {
@@ -23,7 +50,6 @@ function mockCapture(symbol, timeframes) {
   return timeframes.map((tf) => ({
     timeframe: tf,
     symbol,
-    // ảnh thật sẽ là base64 PNG; ở mock mode chỉ trả về placeholder
     imageBase64: null,
     capturedAt: new Date().toISOString(),
     source: "mock",
@@ -31,30 +57,19 @@ function mockCapture(symbol, timeframes) {
 }
 
 async function realCapture(symbol, timeframes) {
-  let chromium;
-  try {
-    ({ chromium } = await import("playwright"));
-  } catch (err) {
-    throw new Error(
-      "Chưa cài đặt Playwright. Chạy: npm install playwright && npx playwright install chromium"
-    );
-  }
-
+  const chromium = loadChromium();
   const browser = await chromium.launch({ headless: true });
   const results = [];
 
   try {
     for (const tf of timeframes) {
-      const page = await browser.newPage({ deviceScaleFactor: 2 }); // Pixel Density 2x
+      const page = await browser.newPage({ deviceScaleFactor: 2 });
       const targetUrl = buildChartUrl(symbol, tf);
       await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 30000 });
 
-      // Dynamic Bounding Box — chỉnh selector này theo nền tảng biểu đồ thực tế
       const chartSelector = process.env.CHART_CANVAS_SELECTOR || "canvas";
       const el = await page.$(chartSelector);
-      const buffer = el
-        ? await el.screenshot({ type: "png" })
-        : await page.screenshot({ type: "png" });
+      const buffer = el ? await el.screenshot({ type: "png" }) : await page.screenshot({ type: "png" });
 
       results.push({
         timeframe: tf,
@@ -73,6 +88,5 @@ async function realCapture(symbol, timeframes) {
 }
 
 function buildChartUrl(symbol, timeframe) {
-  // Tùy biến theo nền tảng biểu đồ đang dùng (TradingView, DNSE, v.v.)
   return `https://www.tradingview.com/chart/?symbol=${encodeURIComponent(symbol)}&interval=${timeframe}`;
 }
