@@ -4,8 +4,14 @@ import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
 import {
   detectOrderBlocks, detectFVG, detectBOS, detectCHoCH, detectLiquidityPools, computePremiumDiscountZone,
+  computeStructureEventsFull,
   type OrderBlock, type FairValueGap, type BreakOfStructure, type LiquidityPool, type PremiumDiscountZone,
 } from "./detectors/smcDetector";
+// ĐÃ THÊM — tái dùng nguyên lý Pattern Backtest Engine cho tín hiệu CHoCH
+// (xem signalBacktest.ts để hiểu vì sao chỉ áp dụng cho CHoCH — tín hiệu
+// duy nhất trong nhóm này có hướng kỳ vọng tăng/giảm RÕ RÀNG, không mơ hồ
+// như VSA Climax).
+import { backtestSignalDates, type SignalBacktestResult } from "./detectors/signalBacktest";
 import { detectVSASignals, type VSASignal } from "./detectors/vsaDetector";
 // ĐÃ THÊM: đưa tính toán Wyckoff vào AnalysisController, cùng kiến trúc
 // cache/event với SMC/VSA — trước đây Wyckoff được tính RIÊNG, TÁCH RỜI
@@ -45,6 +51,9 @@ export class AnalysisController {
   };
   private vsaCache: VSASignal[] = [];
   private wyckoffCache: WyckoffResult = classifyWyckoffPhase([]);
+  // ĐÃ THÊM — kết quả backtest CHoCH (bullish/bearish riêng), tính lại
+  // mỗi khi dữ liệu nến/khung thời gian đổi.
+  private chochBacktestCache: { bullish: SignalBacktestResult; bearish: SignalBacktestResult } | null = null;
   private unsubscribers: (() => void)[] = [];
 
   constructor(dailyBars: OhlcvBar[]) {
@@ -105,11 +114,21 @@ export class AnalysisController {
     };
     this.vsaCache = detectVSASignals(this.bars);
     this.wyckoffCache = classifyWyckoffPhase(this.bars);
+    // ĐÃ THÊM: backtest CHoCH trên TOÀN BỘ lịch sử (không dùng bản đã cắt
+    // bớt cho UI) — dùng computeStructureEventsFull thay vì smcCache.choch.
+    const fullChoch = computeStructureEventsFull(this.bars).choch;
+    const bullishDates = fullChoch.filter((c) => c.type === "bullish").map((c) => c.date);
+    const bearishDates = fullChoch.filter((c) => c.type === "bearish").map((c) => c.date);
+    this.chochBacktestCache = {
+      bullish: backtestSignalDates(this.bars, bullishDates, "bullish", "CHoCH tăng"),
+      bearish: backtestSignalDates(this.bars, bearishDates, "bearish", "CHoCH giảm"),
+    };
     this.emitter.emit("smc:updated", this.smcCache);
     this.emitter.emit("vsa:updated", this.vsaCache);
     this.emitter.emit("wyckoff:updated", this.wyckoffCache);
   }
 
+  getChochBacktest() { return this.chochBacktestCache; }
   getSmc() { return this.smcCache; }
   getVsa(): VSASignal[] { return this.vsaCache; }
   getWyckoff(): WyckoffResult { return this.wyckoffCache; }

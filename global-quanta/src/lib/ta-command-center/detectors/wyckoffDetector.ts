@@ -21,6 +21,11 @@ export interface WyckoffEventDetail {
 
 export interface WyckoffResult {
   phase: WyckoffPhase;
+  // ĐÃ THÊM — điểm tin cậy % (0-100) dựa trên tỷ lệ sự kiện đã xác nhận
+  // đúng thứ tự so với mẫu chuẩn của pha đã kết luận. Trước đây hệ thống
+  // chỉ trả về 1 nhãn nhị phân (VD "markup") mà không cho biết mức độ
+  // chắc chắn — dễ khiến người dùng hiểu nhầm là kết luận tuyệt đối.
+  confidenceScore: number;
   rangeHigh: number | null;
   rangeLow: number | null;
   rangeStartDate: string | null;
@@ -29,7 +34,7 @@ export interface WyckoffResult {
   springDate: string | null;
   testDate: string | null;
   markupDate: string | null;
-  declineDate: string | null; // ĐÃ THÊM
+  declineDate: string | null;
   dataQuality: "ESTIMATED";
   phaseA?: string;
   phaseB?: string;
@@ -88,7 +93,7 @@ function isLow(volume: number, avg: number): boolean { return volume < avg * 0.6
 
 export function classifyWyckoffPhase(bars: OhlcvBar[]): WyckoffResult {
   const base: WyckoffResult = {
-    phase: "undetermined",
+    phase: "undetermined", confidenceScore: 0,
     rangeHigh: null, rangeLow: null, rangeStartDate: null, rangeEndDate: null,
     events: [], springDate: null, testDate: null, markupDate: null, declineDate: null,
     dataQuality: "ESTIMATED",
@@ -181,33 +186,40 @@ export function classifyWyckoffPhase(bars: OhlcvBar[]): WyckoffResult {
   // ============== Quyết định pha cuối cùng ==============
   const accumScore = [idxPS, idxSC, idxSpring, idxST, idxSOS, idxLPS].filter((x) => x >= 0).length;
   const distScore = [idxPSY, idxBC, idxUT, idxSOW, idxLPSY].filter((x) => x >= 0).length;
+  // ĐÃ THÊM: điểm tin cậy = tỷ lệ sự kiện đã xác nhận / tổng sự kiện của
+  // mẫu chuẩn (6 sự kiện nhánh tích lũy, 5 sự kiện nhánh phân phối) — CỐ
+  // Ý dùng mẫu số CỐ ĐỊNH (không đổi theo pha đang ở giai đoạn nào) để
+  // không "thổi phồng" độ tin cậy cho các pha sớm (VD "test" chỉ mới có
+  // 2-3/6 sự kiện thì không nên báo tin cậy cao).
+  const accumConfidence = Math.round((accumScore / 6) * 100);
+  const distConfidence = Math.round((distScore / 5) * 100);
 
   if (idxSOS !== -1 && idxLPS !== -1) {
-    base.phase = "markup";
+    base.phase = "markup"; base.confidenceScore = accumConfidence;
     base.phaseA = "PS/SC/AR"; base.phaseB = "Spring/ST"; base.phaseD = "SOS/LPS";
   } else if (idxSOW !== -1 && idxLPSY !== -1) {
-    base.phase = "decline";
+    base.phase = "decline"; base.confidenceScore = distConfidence;
     base.phaseA = "PSY/BC/AR"; base.phaseB = "UT"; base.phaseD = "SOW/LPSY";
   } else if (idxSOS !== -1) {
-    base.phase = "markup";
+    base.phase = "markup"; base.confidenceScore = accumConfidence;
     base.phaseA = "Accumulation"; base.phaseD = "SOS breakout";
   } else if (idxSOW !== -1) {
-    base.phase = "decline";
+    base.phase = "decline"; base.confidenceScore = distConfidence;
     base.phaseA = "Distribution"; base.phaseD = "SOW breakdown";
   } else if (idxSpring !== -1 && idxST !== -1) {
-    base.phase = "test";
+    base.phase = "test"; base.confidenceScore = accumConfidence;
     base.phaseA = "Accumulation"; base.phaseC = "Spring/ST completed";
   } else if (idxSpring !== -1) {
-    base.phase = "spring";
+    base.phase = "spring"; base.confidenceScore = accumConfidence;
     base.phaseC = "Spring detected";
   } else if (distScore > accumScore && distScore >= 2) {
-    base.phase = "distribution";
+    base.phase = "distribution"; base.confidenceScore = distConfidence;
     base.phaseA = "PSY/BC detected";
   } else if (idxSC !== -1) {
-    base.phase = "accumulation";
+    base.phase = "accumulation"; base.confidenceScore = accumConfidence;
     base.phaseA = "PS/SC completed"; base.phaseB = "AR in progress";
   } else {
-    base.phase = "undetermined";
+    base.phase = "undetermined"; base.confidenceScore = 0;
   }
 
   base.events = events;

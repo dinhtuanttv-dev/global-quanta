@@ -30,6 +30,7 @@ import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import type { OrderBlock, FairValueGap, BreakOfStructure, LiquidityPool, PremiumDiscountZone } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { countZoneTests } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
+import type { SignalBacktestResult } from "../../../lib/ta-command-center/detectors/signalBacktest";
 import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 
@@ -59,6 +60,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
   }>({ obs: [], fvgs: [], bos: [], choch: [], liquidity: [], premiumDiscount: null });
   const [vsa, setVsa] = useState<VSASignal[]>([]);
   const [wyckoffResult, setWyckoffResult] = useState<WyckoffResult | null>(null);
+  // ĐÃ THÊM — kết quả backtest CHoCH thật (tỷ lệ thắng trên chính lịch sử
+  // giá của mã đang xem), đồng bộ cùng lúc với `smc` vì cả 2 được tính
+  // chung trong recomputeDetectors() của AnalysisController.
+  const [chochBacktest, setChochBacktest] = useState<{ bullish: SignalBacktestResult; bearish: SignalBacktestResult } | null>(null);
   // ĐÃ THÊM: lưu hình đang vẽ dở (draft) để hiển thị preview theo thời gian
   // thực khi rê chuột — trước đây KHÔNG hề subscribe sự kiện
   // "primitive:draft-updated" dù DrawingManager đã phát ra sự kiện này mỗi
@@ -133,6 +138,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
     controllerRef.current?.destroy(); controllerRef.current = null;
   }, []);
 
+  // ĐÃ THÊM: đồng bộ kết quả backtest CHoCH mỗi khi `smc` đổi (cả 2 được
+  // tính cùng lúc trong recomputeDetectors() của AnalysisController).
+  useEffect(() => {
+    setChochBacktest(controllerRef.current?.getChochBacktest() ?? null);
+  }, [smc]);
+
   useEffect(() => {
     if (!tvManagerRef.current || !layerState) return;
     const markers: { time: string; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown" | "circle"; text: string }[] = [];
@@ -145,7 +156,20 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
       smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: "#fbbf24", shape: "circle", text: "CHoCH" }));
     }
     if (layerState.vsa) {
-      vsa.forEach((v) => markers.push({ time: v.date, position: "aboveBar", color: v.type === "Stopping Volume" ? "#a78bfa" : v.type === "Climax" ? "#fbbf24" : "#64748b", shape: "circle", text: v.type.slice(0, 4) }));
+      // ĐÃ SỬA: thêm màu riêng cho 3 tín hiệu VSA mới (Upthrust/Shakeout/
+      // Two-Bar Reversal) — trước đây rơi vào màu xám mặc định, không
+      // phân biệt được trên biểu đồ.
+      vsa.forEach((v) => {
+        const colorMap: Record<string, string> = {
+          "Stopping Volume": "#a78bfa", "Climax": "#fbbf24",
+          "Upthrust": "#f87171", "Shakeout": "#34d399", "Two-Bar Reversal": "#38bdf8",
+        };
+        const labelMap: Record<string, string> = {
+          "Stopping Volume": "Stop", "Climax": "Clim", "No Demand": "NoDe", "No Supply": "NoSu",
+          "Upthrust": "Up-T", "Shakeout": "Shk", "Two-Bar Reversal": "2BR",
+        };
+        markers.push({ time: v.date, position: "aboveBar", color: colorMap[v.type] || "#64748b", shape: "circle", text: labelMap[v.type] || v.type.slice(0, 4) });
+      });
     }
     markers.sort((a, b) => a.time.localeCompare(b.time));
     tvManagerRef.current.setMarkers(markers);
@@ -540,7 +564,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
                 width={Math.abs(wyckoffOverlay.x2 - wyckoffOverlay.x1)} height={Math.abs(wyckoffOverlay.yBottom - wyckoffOverlay.yTop)}
                 fill="rgba(167,139,250,0.06)" stroke="#a78bfa" strokeWidth={1} strokeDasharray="4,3" />
               <text x={Math.min(wyckoffOverlay.x1, wyckoffOverlay.x2) + 4} y={Math.min(wyckoffOverlay.yTop, wyckoffOverlay.yBottom) + 12}
-                fontSize="9" fill="#a78bfa" fontWeight="bold">Wyckoff Range (ESTIMATED)</text>
+                fontSize="9" fill="#a78bfa" fontWeight="bold">Wyckoff Range ({wyckoffResult?.confidenceScore ?? 0}% tin cậy)</text>
               {wyckoffOverlay.markers.map((m, i) => (
                 <g key={i}>
                   <line x1={m.x} y1={Math.min(wyckoffOverlay.yTop, wyckoffOverlay.yBottom)} x2={m.x} y2={Math.max(wyckoffOverlay.yTop, wyckoffOverlay.yBottom) + 15}
@@ -689,6 +713,40 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange }: Pr
         {wyckoffResult && <WyckoffPanel result={wyckoffResult} />}
         <ElliottWavePanelPlaceholder />
       </div>
+
+      {/* ĐÃ THÊM — Backtest CHoCH thật trên chính lịch sử giá mã đang xem
+          (tái dùng nguyên lý Pattern Backtest Engine) + điểm tin cậy %
+          của Wyckoff — thay "cảm tính" bằng bằng chứng thống kê thật. */}
+      {chochBacktest && (
+        <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3 mt-2">
+          <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Backtest tín hiệu thật (trên chính mã đang xem)</p>
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-lg p-2">
+              <p className="text-slate-400">CHoCH tăng {chochBacktest.bullish.lowSampleWarning && <span className="text-amber-400">(mẫu nhỏ)</span>}</p>
+              <p className="text-sm font-black text-sky-400">
+                {chochBacktest.bullish.sampleSize} lần
+                {chochBacktest.bullish.successRatePct !== null && ` · ${chochBacktest.bullish.successRatePct}% thắng`}
+              </p>
+              {chochBacktest.bullish.avgReturnPct !== null && (
+                <p className="text-slate-500">LN TB {chochBacktest.bullish.avgReturnPct > 0 ? "+" : ""}{chochBacktest.bullish.avgReturnPct}%</p>
+              )}
+            </div>
+            <div style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }} className="rounded-lg p-2">
+              <p className="text-slate-400">CHoCH giảm {chochBacktest.bearish.lowSampleWarning && <span className="text-amber-400">(mẫu nhỏ)</span>}</p>
+              <p className="text-sm font-black text-red-400">
+                {chochBacktest.bearish.sampleSize} lần
+                {chochBacktest.bearish.successRatePct !== null && ` · ${chochBacktest.bearish.successRatePct}% thắng`}
+              </p>
+              {chochBacktest.bearish.avgReturnPct !== null && (
+                <p className="text-slate-500">LN TB {chochBacktest.bearish.avgReturnPct > 0 ? "+" : ""}{chochBacktest.bearish.avgReturnPct}%</p>
+              )}
+            </div>
+          </div>
+          <p className="text-[8px] text-slate-600 mt-2">
+            Đo lợi nhuận 10 phiên sau mỗi lần CHoCH xảy ra trong lịch sử — mẫu &lt; 5 lần không đủ tin cậy thống kê.
+          </p>
+        </div>
+      )}
 
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 

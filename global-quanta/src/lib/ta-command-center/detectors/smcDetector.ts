@@ -155,17 +155,25 @@ function computeStructureEvents(bars: OhlcvBar[]): { bos: BreakOfStructure[]; ch
       }
     }
   }
-  return { bos: bos.slice(-6), choch: choch.slice(-4) };
+  // ĐÃ SỬA: KHÔNG cắt bớt ở đây nữa — trả về TOÀN BỘ lịch sử, để dùng
+  // được cho backtest (cần mọi lần xuất hiện trong quá khứ). Việc cắt bớt
+  // cho gọn hiển thị UI chuyển sang detectBOS()/detectCHoCH() bên dưới.
+  return { bos, choch };
+}
+
+/** ĐÃ THÊM — bản KHÔNG cắt bớt, dùng cho backtest (xem signalBacktest.ts). */
+export function computeStructureEventsFull(bars: OhlcvBar[]): { bos: BreakOfStructure[]; choch: BreakOfStructure[] } {
+  return computeStructureEvents(bars);
 }
 
 export function detectBOS(bars: OhlcvBar[]): BreakOfStructure[] {
-  return computeStructureEvents(bars).bos;
+  return computeStructureEvents(bars).bos.slice(-6);
 }
 
 /** ĐÃ THÊM — CHoCH (Change of Character): tín hiệu đảo chiều sớm, phân
  * biệt rõ với BOS (tiếp diễn xu hướng). */
 export function detectCHoCH(bars: OhlcvBar[]): BreakOfStructure[] {
-  return computeStructureEvents(bars).choch;
+  return computeStructureEvents(bars).choch.slice(-4);
 }
 
 /** ĐÃ THÊM — Liquidity Sweep / Equal Highs-Equal Lows (EQH/EQL): vùng

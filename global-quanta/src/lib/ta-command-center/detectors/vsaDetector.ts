@@ -1,12 +1,20 @@
 import type { OhlcvBar } from "../types";
 
-export type VSASignalType = "Stopping Volume" | "Climax" | "No Demand" | "No Supply";
+// ĐÃ THÊM 3 tín hiệu VSA kinh điển của Tom Williams còn thiếu:
+// - Upthrust: giá chọc thủng đỉnh gần nhất rồi tụt lại, khối lượng cao —
+//   bẫy tăng giá giả, tín hiệu GIẢM.
+// - Shakeout: giá chọc thủng đáy gần nhất rồi bật lại, khối lượng cao —
+//   "rũ hàng" trước khi tăng, tín hiệu TĂNG.
+// - Two-Bar Reversal: 2 nến liên tiếp đảo ngược hoàn toàn nhau, khối
+//   lượng nến sau lớn hơn nến trước — đảo chiều gấp.
+export type VSASignalType =
+  | "Stopping Volume" | "Climax" | "No Demand" | "No Supply"
+  | "Upthrust" | "Shakeout" | "Two-Bar Reversal";
+
 export interface VSASignal { date: string; type: VSASignalType; volumeRatio: number; spreadRatio: number; }
 
-// ĐÃ THÊM: dùng SMA(5) để xác định xu hướng nền thay vì so sánh đúng 1
-// nến trước đó — 1 nến bất thường không đại diện cho xu hướng thật, dễ
-// khiến tín hiệu VSA bị nhiễu/sai bối cảnh.
 const TREND_SMA_PERIOD = 5;
+const STRUCTURE_LOOKBACK = 10; // cửa sổ tìm đỉnh/đáy gần nhất cho Upthrust/Shakeout
 
 function smaAt(bars: OhlcvBar[], endIndexExclusive: number, period: number): number | null {
   const start = endIndexExclusive - period;
@@ -15,7 +23,11 @@ function smaAt(bars: OhlcvBar[], endIndexExclusive: number, period: number): num
   return slice.reduce((s, b) => s + b.close, 0) / slice.length;
 }
 
-export function detectVSASignals(bars: OhlcvBar[], lookback: number = 20): VSASignal[] {
+/** ĐÃ THÊM — bản KHÔNG cắt bớt lịch sử, dùng cho backtest (cần toàn bộ
+ * lần xuất hiện trong quá khứ để tính tỷ lệ thắng thật, không chỉ vài lần
+ * gần nhất). Bản hiển thị UI (detectVSASignals) gọi hàm này rồi mới cắt
+ * bớt cho gọn giao diện. */
+export function detectVSASignalsFull(bars: OhlcvBar[], lookback: number = 20): VSASignal[] {
   if (bars.length < lookback + TREND_SMA_PERIOD + 1) return [];
   const signals: VSASignal[] = [];
 
@@ -37,13 +49,52 @@ export function detectVSASignals(bars: OhlcvBar[], lookback: number = 20): VSASi
 
     if (volumeRatio >= 1.5 && spreadRatio <= 0.8 && closePosition >= 0.6 && wasDowntrend) {
       signals.push({ date: bar.date, type: "Stopping Volume", volumeRatio, spreadRatio });
-    } else if (volumeRatio >= 2 && spreadRatio >= 1.3) {
+      continue;
+    }
+    if (volumeRatio >= 2 && spreadRatio >= 1.3) {
       signals.push({ date: bar.date, type: "Climax", volumeRatio, spreadRatio });
-    } else if (volumeRatio <= 0.6 && spreadRatio <= 0.7 && bar.close > bar.open && wasUptrend) {
+      continue;
+    }
+    if (volumeRatio <= 0.6 && spreadRatio <= 0.7 && bar.close > bar.open && wasUptrend) {
       signals.push({ date: bar.date, type: "No Demand", volumeRatio, spreadRatio });
-    } else if (volumeRatio <= 0.6 && spreadRatio <= 0.7 && bar.close < bar.open && wasDowntrend) {
+      continue;
+    }
+    if (volumeRatio <= 0.6 && spreadRatio <= 0.7 && bar.close < bar.open && wasDowntrend) {
       signals.push({ date: bar.date, type: "No Supply", volumeRatio, spreadRatio });
+      continue;
+    }
+
+    // --- ĐÃ THÊM ---
+    if (i >= STRUCTURE_LOOKBACK) {
+      const structWindow = bars.slice(i - STRUCTURE_LOOKBACK, i);
+      const recentHigh = Math.max(...structWindow.map((b) => b.high));
+      const recentLow = Math.min(...structWindow.map((b) => b.low));
+
+      if (bar.high > recentHigh && bar.close < recentHigh && volumeRatio >= 1.3) {
+        signals.push({ date: bar.date, type: "Upthrust", volumeRatio, spreadRatio });
+        continue;
+      }
+      if (bar.low < recentLow && bar.close > recentLow && volumeRatio >= 1.3) {
+        signals.push({ date: bar.date, type: "Shakeout", volumeRatio, spreadRatio });
+        continue;
+      }
+    }
+
+    if (i >= 1) {
+      const prev = bars[i - 1];
+      const prevSpread = prev.high - prev.low;
+      const prevIsBearish = prev.close < prev.open && prevSpread > 0;
+      const prevIsBullish = prev.close > prev.open && prevSpread > 0;
+      const bullishReversal = prevIsBearish && bar.close > bar.open && bar.close > prev.open && bar.volume > prev.volume * 1.2;
+      const bearishReversal = prevIsBullish && bar.close < bar.open && bar.close < prev.open && bar.volume > prev.volume * 1.2;
+      if (bullishReversal || bearishReversal) {
+        signals.push({ date: bar.date, type: "Two-Bar Reversal", volumeRatio, spreadRatio });
+      }
     }
   }
-  return signals.slice(-8);
+  return signals;
+}
+
+export function detectVSASignals(bars: OhlcvBar[], lookback: number = 20): VSASignal[] {
+  return detectVSASignalsFull(bars, lookback).slice(-8);
 }
