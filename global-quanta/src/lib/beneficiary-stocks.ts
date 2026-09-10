@@ -11,6 +11,7 @@ import type { MacroTrendRow, MacroCommodityDeltas } from "../hooks/useGlobalStre
 
 export interface BeneficiarySignal {
   ticker: string;
+  sectorKey: string;
   sectorLabelVi: string;
   direction: "positive" | "negative";
   magnitude: number; // tong |%| cua tat ca tin hieu dong thuan tren ma nay - dung de sap xep
@@ -21,8 +22,17 @@ export interface BeneficiarySignal {
 // bang (tranh nhieu tin hieu "gia" tu bien dong nho, khong co y nghia).
 const NOISE_THRESHOLD_PERCENT = 0.5;
 
+// MOI (2026-09-10): gioi han so ma toi da hien thi cho MOI NGANH trong bang
+// nay - tranh 1 nganh co nhieu vnTickers (VD Cong nghiep co 7 ma) chiem het
+// cho, day ra nganh khac co tin hieu that su manh hon nhung it ma hon (VD
+// Tien ich chi co... nhieu ma nhung xep sau do do it "tong magnitude" hon).
+// Khong anh huong panel "Top Nganh Thi Truong" phia tren - chi ap dung rieng
+// cho bang tong hop nay.
+const MAX_TICKERS_PER_SECTOR = 2;
+
 interface RawSignal {
   ticker: string;
+  sectorKey: string;
   sectorLabelVi: string;
   direction: "positive" | "negative";
   magnitude: number;
@@ -41,6 +51,7 @@ function fromSectorKeyChange(
   const sourceLabel = `${sourceLabelPrefix} ${changePercent >= 0 ? "+" : ""}${changePercent.toFixed(2)}%`;
   return mapping.vnTickers.map((ticker) => ({
     ticker,
+    sectorKey,
     sectorLabelVi: mapping.sectorLabelVi,
     direction,
     magnitude: Math.abs(changePercent),
@@ -111,15 +122,32 @@ export function computeBeneficiaryStocks(inputs: BeneficiaryInputs): Beneficiary
   for (const s of raw) {
     const existing = merged.get(s.ticker);
     if (!existing) {
-      merged.set(s.ticker, { ticker: s.ticker, sectorLabelVi: s.sectorLabelVi, direction: s.direction, magnitude: s.magnitude, sources: [s.sourceLabel] });
+      merged.set(s.ticker, { ticker: s.ticker, sectorKey: s.sectorKey, sectorLabelVi: s.sectorLabelVi, direction: s.direction, magnitude: s.magnitude, sources: [s.sourceLabel] });
     } else if (existing.direction === s.direction) {
       existing.magnitude += s.magnitude;
       existing.sources.push(s.sourceLabel);
     } else if (s.magnitude > existing.magnitude) {
-      merged.set(s.ticker, { ticker: s.ticker, sectorLabelVi: s.sectorLabelVi, direction: s.direction, magnitude: s.magnitude, sources: [s.sourceLabel] });
+      merged.set(s.ticker, { ticker: s.ticker, sectorKey: s.sectorKey, sectorLabelVi: s.sectorLabelVi, direction: s.direction, magnitude: s.magnitude, sources: [s.sourceLabel] });
     }
     // Neu tin hieu ngoai chieu yeu hon tin hieu da co - bo qua, giu nguyen ban ghi manh hon.
   }
 
-  return [...merged.values()].sort((a, b) => b.magnitude - a.magnitude);
+  // MOI (2026-09-10): gioi han so ma toi da MOI NGANH (theo sectorKey,
+  // rieng cho tung chieu positive/negative) truoc khi sap xep tong the -
+  // tranh 1 nganh nhieu vnTickers (VD Cong nghiep 7 ma) chiem het bang,
+  // day nganh khac (VD Tien ich) ra ngoai du tin hieu cung manh khong kem.
+  const bySectorDirection = new Map<string, BeneficiarySignal[]>();
+  for (const sig of merged.values()) {
+    const key = `${sig.sectorKey}__${sig.direction}`;
+    if (!bySectorDirection.has(key)) bySectorDirection.set(key, []);
+    bySectorDirection.get(key)!.push(sig);
+  }
+
+  const capped: BeneficiarySignal[] = [];
+  for (const group of bySectorDirection.values()) {
+    group.sort((a, b) => b.magnitude - a.magnitude);
+    capped.push(...group.slice(0, MAX_TICKERS_PER_SECTOR));
+  }
+
+  return capped.sort((a, b) => b.magnitude - a.magnitude);
 }
