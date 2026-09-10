@@ -18,13 +18,25 @@ export interface MacroTrendRow {
   // khong pha vo hop dong du lieu cu khi backend chua bo sung.
   rubber_price: number | null; // USD/kg, nguon World Bank Pink Sheet
   rubber_change_percent: number | null; // % so voi ky bao cao thang truoc
+  // MOI (2026-09-10): staleness + xu huong - danh cho du lieu tan suat
+  // THANG (khac han real-time). optional vi backend co the chua ho tro.
+  rubber_price_updated_at?: string | null; // ISO date - ky bao cao gan nhat
+  rubber_price_history?: number[] | null; // toi da ~6 diem gan nhat, cu (theo thoi gian)
   fertilizer_urea_price: number | null; // USD/tan, nguon World Bank Pink Sheet
   fertilizer_urea_change_percent: number | null;
+  fertilizer_urea_price_updated_at?: string | null;
+  fertilizer_urea_price_history?: number[] | null;
   // MOI (2026-09-10): Cuoc container - PROXY (trung binh % thay doi ro co
   // phieu hang tau container lon: ZIM, Maersk B, COSCO Shipping Holdings),
   // KHONG PHAI gia cuoc container that (khac voi baltic_dry_index von la
   // chi so hang roi/dry bulk, khong dai dien cho container).
   container_freight_proxy_change_percent: number | null;
+  // MOI (2026-09-10): "excess return" - % thay doi co phieu hang tau DA TRU
+  // di % thay doi index thi truong tuong ung (market-neutral proxy) - phan
+  // anh yeu to nganh thuan tuy hon so voi container_freight_proxy_change_percent
+  // (von con lan ca bien dong thi truong chung). Optional, uu tien dung
+  // truong nay khi co, fallback ve truong tren khi backend chua ho tro.
+  container_freight_proxy_excess_return_percent?: number | null;
   risk_on_score: number;
   risk_status: "RISK_ON" | "NEUTRAL" | "RISK_OFF";
   breakdown: { dxyScore: number; vixScore: number; treasuryScore: number };

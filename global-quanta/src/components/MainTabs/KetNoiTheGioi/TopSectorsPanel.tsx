@@ -2,10 +2,12 @@ import { TrendingUp, TrendingDown, Flame, Info } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useSectorPulse, type SectorQuote } from "../../../hooks/useSectorPulse";
 import { useSectorPulseRegion } from "../../../hooks/useSectorPulseRegion";
+import { useSectorConfidence } from "../../../hooks/useSectorConfidence";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
 import { SECTOR_ETF_TO_SECTOR_KEY } from "../../../lib/sector-etf-to-sectorkey";
 import { EU_SECTOR_INSTRUMENTS, ASIA_SECTOR_PROXY_BASKETS } from "../../../lib/region-sector-sources";
 import { computeSectorConsensus, type MarketSectorEntry } from "../../../lib/sector-consensus";
+import ConfidenceBadge from "./ConfidenceBadge";
 import { useState } from "react";
 
 const T = {
@@ -21,7 +23,7 @@ type Region = "us" | "eu" | "asia";
 const REGION_ORDER: Region[] = ["us", "eu", "asia"];
 const REGION_LABELS: Record<Region, string> = { us: "Mỹ", eu: "Châu Âu", asia: "Châu Á" };
 
-function SectorRow({ sector, isGainer, resolveSectorKey }: { sector: SectorQuote; isGainer: boolean; resolveSectorKey: (etf: string) => string | undefined }) {
+function SectorRow({ sector, isGainer, resolveSectorKey, confidence }: { sector: SectorQuote; isGainer: boolean; resolveSectorKey: (etf: string) => string | undefined; confidence: ReturnType<typeof useSectorConfidence>["confidenceByKey"] }) {
   const selectTicker = useAppStore((s) => s.selectTicker);
   const sectorKey = resolveSectorKey(sector.etfSymbol);
   const mapping = sectorKey ? lookupSectorMapping(sectorKey) : null;
@@ -39,13 +41,14 @@ function SectorRow({ sector, isGainer, resolveSectorKey }: { sector: SectorQuote
         </p>
       </div>
       {mapping && mapping.vnTickers.length > 0 ? (
-        <div className="flex flex-wrap gap-1 mt-1.5 pl-4">
+        <div className="flex flex-wrap items-center gap-1 mt-1.5 pl-4">
           {mapping.vnTickers.map((ticker) => (
             <button key={ticker} onClick={() => selectTicker(ticker)}
               className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: T.gold }}>
               {ticker}
             </button>
           ))}
+          {sectorKey && <ConfidenceBadge confidence={confidence.get(sectorKey)} />}
         </div>
       ) : (
         <p className="text-[8px] pl-4 mt-1 italic" style={{ color: T.textTertiary }}>Chưa có ánh xạ mã VN cho ngành này</p>
@@ -54,19 +57,19 @@ function SectorRow({ sector, isGainer, resolveSectorKey }: { sector: SectorQuote
   );
 }
 
-function SectorGrid({ gainers, losers, resolveSectorKey }: { gainers: SectorQuote[]; losers: SectorQuote[]; resolveSectorKey: (etf: string) => string | undefined }) {
+function SectorGrid({ gainers, losers, resolveSectorKey, confidence }: { gainers: SectorQuote[]; losers: SectorQuote[]; resolveSectorKey: (etf: string) => string | undefined; confidence: ReturnType<typeof useSectorConfidence>["confidenceByKey"] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <p className="text-[9px] font-bold uppercase mb-1.5" style={{ color: T.positive }}>Tăng mạnh nhất</p>
         <div className="space-y-1.5">
-          {gainers.map((s) => <SectorRow key={s.etfSymbol} sector={s} isGainer resolveSectorKey={resolveSectorKey} />)}
+          {gainers.map((s) => <SectorRow key={s.etfSymbol} sector={s} isGainer resolveSectorKey={resolveSectorKey} confidence={confidence} />)}
         </div>
       </div>
       <div>
         <p className="text-[9px] font-bold uppercase mb-1.5" style={{ color: T.negative }}>Giảm mạnh nhất</p>
         <div className="space-y-1.5">
-          {losers.map((s) => <SectorRow key={s.etfSymbol} sector={s} isGainer={false} resolveSectorKey={resolveSectorKey} />)}
+          {losers.map((s) => <SectorRow key={s.etfSymbol} sector={s} isGainer={false} resolveSectorKey={resolveSectorKey} confidence={confidence} />)}
         </div>
       </div>
     </div>
@@ -87,7 +90,8 @@ function PendingBackendPanel({ region }: { region: "eu" | "asia" }) {
         <div className="p-2.5 rounded-lg w-full flex items-start gap-2">
           <Info className="w-4 h-4 shrink-0 mt-0.5" style={{ color: T.gold }} />
           <p className="text-[10px]" style={{ color: T.gold }}>
-            Backend chưa hỗ trợ khu vực này (endpoint <code>/api/global/sector-pulse?region={region}</code> chưa triển khai).
+            Backend chưa hỗ trợ khu vực này (endpoint <code>/api/global/sector-pulse?region={region}</code> chưa xử lý tham số region —
+            có thể trả về dữ liệu mặc định của Mỹ, đã được lọc bỏ để tránh hiển thị nhầm).
             Danh sách nguồn dữ liệu đã nghiên cứu — {verifiedCount}/{items.length} đã xác minh ticker — hiển thị bên dưới để tham khảo.
           </p>
         </div>
@@ -143,6 +147,17 @@ function resolveAsiaSectorKey(basketId: string): string | undefined {
   return ASIA_SECTOR_PROXY_BASKETS.find((b) => b.sectorKey === basketId || b.tickers.includes(basketId))?.sectorKey;
 }
 
+// FIX (2026-09-10): phat hien bug thuc te - backend co the KHONG kiem tra
+// tham so "region" va tra ve nguyen du lieu My mac dinh (200 OK, khong
+// loi). Neu chi dua vao "khong loi + co du lieu" (backendReady cu) se hien
+// nham du lieu My duoi ten Chau Au/Chau A. Ham nay xac thuc CHEO: chi coi
+// la du lieu that cua khu vuc khi it nhat 1 etfSymbol tra ve khop voi
+// resolveSectorKey rieng cua khu vuc do (VD: "BNK.PA" cho EU, khong phai
+// "XLE" cua My).
+function isGenuineRegionData(quotes: SectorQuote[], resolveSectorKey: (etf: string) => string | undefined): boolean {
+  return quotes.length > 0 && quotes.some((s) => resolveSectorKey(s.etfSymbol) !== undefined);
+}
+
 function pushEntries(
   bySectorKey: Record<string, MarketSectorEntry[]>,
   market: string,
@@ -162,12 +177,16 @@ export default function TopSectorsPanel() {
   const us = useSectorPulse();
   const eu = useSectorPulseRegion("eu");
   const asia = useSectorPulseRegion("asia");
+  const { confidenceByKey } = useSectorConfidence();
   const [region, setRegion] = useState<Region>("us");
+
+  const euGenuine = isGenuineRegionData([...eu.topGainers, ...eu.topLosers], resolveEuSectorKey);
+  const asiaGenuine = isGenuineRegionData([...asia.topGainers, ...asia.topLosers], resolveAsiaSectorKey);
 
   const bySectorKey: Record<string, MarketSectorEntry[]> = {};
   pushEntries(bySectorKey, "Mỹ", [...us.topGainers, ...us.topLosers], (etf) => SECTOR_ETF_TO_SECTOR_KEY[etf]);
-  if (eu.backendReady) pushEntries(bySectorKey, "Châu Âu", [...eu.topGainers, ...eu.topLosers], resolveEuSectorKey);
-  if (asia.backendReady) pushEntries(bySectorKey, "Châu Á", [...asia.topGainers, ...asia.topLosers], resolveAsiaSectorKey);
+  if (euGenuine) pushEntries(bySectorKey, "Châu Âu", [...eu.topGainers, ...eu.topLosers], resolveEuSectorKey);
+  if (asiaGenuine) pushEntries(bySectorKey, "Châu Á", [...asia.topGainers, ...asia.topLosers], resolveAsiaSectorKey);
   const consensusSignals = computeSectorConsensus(bySectorKey);
 
   return (
@@ -188,7 +207,7 @@ export default function TopSectorsPanel() {
           {us.isLoading && <p className="text-xs italic py-3 text-center" style={{ color: T.textTertiary }}>Đang tải...</p>}
           {us.error && <p className="text-xs" style={{ color: T.negative }}>Không tải được: {String(us.error)}</p>}
           {!us.isLoading && !us.error && us.topGainers.length > 0 && (
-            <SectorGrid gainers={us.topGainers} losers={us.topLosers} resolveSectorKey={(etf) => SECTOR_ETF_TO_SECTOR_KEY[etf]} />
+            <SectorGrid gainers={us.topGainers} losers={us.topLosers} resolveSectorKey={(etf) => SECTOR_ETF_TO_SECTOR_KEY[etf]} confidence={confidenceByKey} />
           )}
           <p className="text-[8px] italic mt-2.5" style={{ color: T.textTertiary }}>
             11 Sector ETF SPDR chuẩn — dữ liệu trực tiếp, cập nhật mỗi 5 phút.
@@ -199,20 +218,20 @@ export default function TopSectorsPanel() {
       {region === "eu" && (
         <>
           {eu.isLoading && <p className="text-xs italic py-3 text-center" style={{ color: T.textTertiary }}>Đang tải...</p>}
-          {eu.backendReady && eu.topGainers.length > 0 && (
-            <SectorGrid gainers={eu.topGainers} losers={eu.topLosers} resolveSectorKey={resolveEuSectorKey} />
+          {!eu.isLoading && euGenuine && (
+            <SectorGrid gainers={eu.topGainers} losers={eu.topLosers} resolveSectorKey={resolveEuSectorKey} confidence={confidenceByKey} />
           )}
-          {!eu.isLoading && !eu.backendReady && <PendingBackendPanel region="eu" />}
+          {!eu.isLoading && !euGenuine && <PendingBackendPanel region="eu" />}
         </>
       )}
 
       {region === "asia" && (
         <>
           {asia.isLoading && <p className="text-xs italic py-3 text-center" style={{ color: T.textTertiary }}>Đang tải...</p>}
-          {asia.backendReady && asia.topGainers.length > 0 && (
-            <SectorGrid gainers={asia.topGainers} losers={asia.topLosers} resolveSectorKey={resolveAsiaSectorKey} />
+          {!asia.isLoading && asiaGenuine && (
+            <SectorGrid gainers={asia.topGainers} losers={asia.topLosers} resolveSectorKey={resolveAsiaSectorKey} confidence={confidenceByKey} />
           )}
-          {!asia.isLoading && !asia.backendReady && <PendingBackendPanel region="asia" />}
+          {!asia.isLoading && !asiaGenuine && <PendingBackendPanel region="asia" />}
         </>
       )}
 

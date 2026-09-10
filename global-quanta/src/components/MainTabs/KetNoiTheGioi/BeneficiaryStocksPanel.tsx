@@ -5,6 +5,7 @@ import { useSectorPulse } from "../../../hooks/useSectorPulse";
 import { useSectorPulseRegion } from "../../../hooks/useSectorPulseRegion";
 import { computeBeneficiaryStocks } from "../../../lib/beneficiary-stocks";
 import type { MacroTrendRow, MacroCommodityDeltas } from "../../../hooks/useGlobalStream";
+import WinRateBadge from "./WinRateBadge";
 
 const T = {
   positive: "var(--positive, #34d399)",
@@ -52,6 +53,9 @@ function BeneficiaryStocksPanel({ macro, commodityDeltas }: Props) {
           className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>
           HARD_DATA
         </span>
+      </div>
+      <div className="mb-2">
+        <WinRateBadge />
       </div>
       <p className="text-[8px] italic mb-3" style={{ color: T.textTertiary }}>
         Kết hợp Nhịp Đập Thị Trường (ngành Mỹ/Âu/Á) + Nhịp Đập Hàng Hóa (vàng, dầu, cao su, phân bón, cước tàu...) — khác với bảng "Phân Tích AI" (ESTIMATED) bên dưới, bảng này không dùng AI.
