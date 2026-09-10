@@ -7,6 +7,7 @@ import { lookupSectorMapping } from "../../../lib/macro-mapping";
 import CommodityPulseSubTab from "./CommodityPulseSubTab";
 import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
+import BeneficiaryStocksPanel from "./BeneficiaryStocksPanel";
 
 // Mau theo bien token cua du an (muc 3.1 guide) - KHONG hardcode hex moi.
 // Doc qua inline style thay vi Tailwind, vi tab nay khong lien quan
@@ -51,7 +52,7 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
 
 export default function KetNoiTheGioiTab() {
   const selectTicker = useAppStore((s) => s.selectTicker);
-  const { data, connected } = useGlobalStream();
+  const { data, connected, commodityDeltas } = useGlobalStream();
   const { result: aiResult, isLoading: aiLoading, error: aiError, analyze } = useMacroAnalysis();
   const [showAllMarkets, setShowAllMarkets] = useState(false);
   // PHASE (Sub-tab): "market" = Nhip Dap Thi Truong (noi dung cu, giu
@@ -192,6 +193,8 @@ export default function KetNoiTheGioiTab() {
           </div>
 
           <TopSectorsPanel />
+
+          <BeneficiaryStocksPanel macro={macro} commodityDeltas={commodityDeltas} />
 
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
