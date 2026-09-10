@@ -1,4 +1,10 @@
-﻿*{box-sizing:border-box;margin:0;padding:0;}
+﻿/* FIX (2026-09-10): DA XOA @import nay - file 'components/Sidebar/
+   sidebar-scroll.css' khong ton tai tren may local (ENOENT khi build),
+   du co tren GitHub. Xoa de build khong bi chan; neu can lai style Sidebar
+   Giai doan 5, phai dam bao file do that su co mat truoc khi them lai
+   @import. */
+
+*{box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg-base);
   color:var(--text-primary);
@@ -81,6 +87,75 @@ body{
 .vn-hero-meta b{color:var(--text-primary);font-weight:600;font-family:var(--font-mono);}
 .vn-hero-caret{font-size:8px;color:var(--text-tertiary);margin-left:2px;}
 
+.vn-hero-dropdown{
+  position:relative;
+}
+.vhd-title{font-size:9px;color:var(--text-tertiary);font-weight:700;letter-spacing:0.05em;margin-bottom:8px;}
+.vhd-row{display:grid;grid-template-columns:1fr 60px 55px;align-items:center;font-size:11px;padding:5px 0;border-bottom:1px solid var(--border);}
+.vhd-row:last-of-type{border-bottom:none;}
+.vhd-row .num{text-align:right;}
+.vhd-pct{display:inline-flex;align-items:center;gap:3px;}
+.vhd-arrow{font-size:9px;line-height:1;}
+.vhd-note{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:9.5px;color:var(--text-tertiary);line-height:1.5;}
+.vhd-note b{color:var(--gold-bright);font-weight:600;}
+
+/* ===== TOP BAR nâng cấp (Phase 1+2) ===== */
+
+/* VN-INDEX button + caret xoay khi mở */
+.vn-hero-main{
+  background:transparent;border:none;cursor:pointer;padding:0;
+  font:inherit;color:inherit;text-align:left;
+  display:flex;flex-direction:column;line-height:1.2;
+}
+.vn-hero-main:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:4px;}
+.vn-hero-caret{font-size:8px;color:var(--text-tertiary);margin-left:2px;display:inline-block;transition:transform .18s ease;}
+.vn-hero-caret.is-open{transform:rotate(180deg);}
+.vn-hero-chg .chg-arrow{font-size:9px;line-height:1;margin-right:2px;}
+
+/* Popover: viền + fade-down animation */
+.vn-hero-popover{
+  position:absolute;top:calc(100% + 10px);left:0;width:250px;
+  background:#161D2C;border:1px solid var(--border-strong);border-radius:10px;
+  padding:12px;box-shadow:0 14px 34px rgba(0,0,0,0.5);z-index:80;
+}
+@keyframes animate-fade-down{
+  from{opacity:0;transform:translateY(-6px);}
+  to  {opacity:1;transform:translateY(0);}
+}
+.animate-fade-down{animation:animate-fade-down .18s ease-out both;}
+@media (prefers-reduced-motion: reduce){
+  .animate-fade-down{animation:none;}
+  .vn-hero-caret{transition:none;}
+}
+
+/* Skeleton shimmer */
+.tb-skeleton{
+  display:inline-block;
+  background:linear-gradient(90deg,#1B2336 0%,#28314A 50%,#1B2336 100%);
+  background-size:200% 100%;
+  border-radius:4px;
+  animation:tb-shimmer 1.4s ease-in-out infinite;
+  vertical-align:middle;
+}
+@keyframes tb-shimmer{
+  0%  {background-position:200% 0;}
+  100%{background-position:-200% 0;}
+}
+@media (prefers-reduced-motion: reduce){
+  .tb-skeleton{animation:none;background:#1B2336;}
+}
+
+/* Last-updated stamp (góc phải) */
+.topbar-stamp{
+  margin-left:auto;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text-tertiary);
+  font-size:9.5px;font-family:var(--font-mono);
+  padding:3px 7px;border-radius:6px;cursor:pointer;
+  transition:color .15s,border-color .15s;
+}
+.topbar-stamp:hover{color:var(--text-secondary);border-color:var(--border-strong);}
+
 .ticker-item{display:flex;align-items:center;gap:7px;white-space:nowrap;padding-right:20px;border-right:1px solid var(--border);flex-shrink:0;flex-grow:0;}
 
 /* ===== LOGIN SCREEN ===== */
@@ -156,11 +231,40 @@ body{
 
 .top-right{display:flex;align-items:center;gap:14px;margin-left:auto;padding-left:14px;}
 .search-box{
+  position:relative;
   display:flex;align-items:center;gap:6px;
   background:var(--bg-surface-2);border:1px solid var(--border);
   border-radius:6px;padding:6px 10px;color:var(--text-tertiary);font-size:11px;width:170px;
+  transition:border-color .15s, box-shadow .15s, background .15s;
 }
-.search-box kbd{margin-left:auto;font-family:var(--font-mono);font-size:9px;background:#232C40;padding:1px 5px;border-radius:3px;color:var(--text-secondary);}
+.search-box:hover{border-color:var(--border-strong);}
+.search-box.is-focused{
+  border-color:var(--gold);
+  box-shadow:0 0 0 2px rgba(232,184,75,0.18);
+  background:var(--bg-base);
+  color:var(--text-secondary);
+}
+.search-box .search-placeholder{
+  position:absolute;left:10px;top:50%;transform:translateY(-50%);
+  pointer-events:none;color:var(--text-tertiary);
+  font-size:11px;line-height:1;
+}
+.search-box .search-input{
+  flex:1;min-width:0;
+  background:transparent;border:none;outline:none;
+  color:var(--text-primary);font:inherit;font-size:11px;
+  padding:0;margin:0;
+}
+.search-box .search-input::placeholder{color:var(--text-tertiary);}
+.search-box .search-clear{
+  background:transparent;border:none;cursor:pointer;padding:0;
+  color:var(--text-tertiary);font-size:10px;line-height:1;
+  width:14px;height:14px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  transition:color .12s, background .12s;
+}
+.search-box .search-clear:hover{color:var(--text-primary);background:var(--bg-surface);}
+.search-box .search-kbd{margin-left:auto;font-family:var(--font-mono);font-size:9px;background:#232C40;padding:1px 5px;border-radius:3px;color:var(--text-secondary);}
 .icon-btn{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);position:relative;cursor:pointer;}
 .icon-btn:hover{background:var(--bg-surface-2);color:var(--text-primary);}
 .badge-dot{position:absolute;top:5px;right:5px;width:6px;height:6px;border-radius:50%;background:var(--negative);}
@@ -253,7 +357,7 @@ body{
 
 /* ===== MAIN (placeholder, out of scope) ===== */
 .main{background:var(--bg-base);padding:24px;}
-.main-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;position:relative;z-index:100;}
+.main-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:18px;}
 .m-tab{padding:10px 16px;font-size:12.5px;color:var(--text-secondary);border-bottom:2px solid transparent;cursor:pointer;font-weight:600;}
 .m-tab.active{color:var(--gold-bright);border-bottom-color:var(--gold);}
 .main-placeholder{
@@ -445,134 +549,7 @@ body{
   .tickers { gap: 12px; }
 }
 
-/* ===== SIEU QUET AI V11.0 ===== */
-.sieu-quet-ai-tab{padding:16px;min-height:100%;}
-
-/* V11 Toggle Buttons */
-.t1-toolbar-actions{display:flex;gap:8px;align-items:center;}
-.t1-v11-toggle,.t1-live-toggle{padding:6px 12px;border-radius:6px;font-size:11px;font-weight:600;border:1px solid var(--border);background:var(--bg-surface-2);color:var(--text-secondary);cursor:pointer;transition:all 0.2s;}
-.t1-v11-toggle.active,.t1-live-toggle.active{background:rgba(107,203,119,0.15);border-color:var(--positive);color:var(--positive);}
-.t1-live-toggle.active{background:rgba(232,184,75,0.15);border-color:var(--gold-bright);color:var(--gold-bright);}
-
-/* Market Status Panel */
-.market-status-panel{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:16px;}
-.status-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.status-title{font-size:10px;font-weight:700;color:var(--text-tertiary);letter-spacing:0.05em;}
-.status-time{font-size:9px;color:var(--text-tertiary);}
-.status-main{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;margin-bottom:10px;}
-.status-emoji-large{font-size:20px;}
-.status-label-large{font-size:14px;font-weight:700;}
-.status-metrics{display:flex;flex-direction:column;gap:6px;}
-.metric-row{display:flex;align-items:center;gap:8px;font-size:11px;}
-.metric-label{color:var(--text-tertiary);min-width:60px;}
-.metric-value{font-family:var(--font-mono);color:var(--text-primary);}
-.metric-change{font-family:var(--font-mono);font-size:10px;}
-.metric-change.up{color:var(--positive);}
-.metric-change.down{color:var(--negative);}
-.metric-bar{flex:1;height:6px;background:var(--bg-surface-2);border-radius:3px;overflow:hidden;}
-.metric-bar-fill{height:100%;background:var(--gold-bright);border-radius:3px;}
-
-/* Confluence Score */
-.confluence-panel{background:var(--bg-surface-2);border-radius:8px;padding:10px;}
-.confluence-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
-.confluence-title{font-size:10px;color:var(--text-tertiary);font-weight:600;}
-.confluence-total{display:flex;align-items:center;gap:6px;}
-.total-score{font-family:var(--font-mono);font-size:16px;font-weight:700;}
-.conf-badge{font-size:9px;font-weight:600;}
-.confluence-breakdown{display:flex;flex-direction:column;gap:6px;}
-.layer-row{display:flex;align-items:center;gap:8px;font-size:10px;}
-.layer-label{color:var(--text-tertiary);min-width:55px;}
-.layer-bar{flex:1;height:6px;background:var(--bg-base);border-radius:3px;overflow:hidden;}
-.layer-fill{height:100%;border-radius:3px;transition:width 0.3s;}
-.layer-score{font-family:var(--font-mono);min-width:18px;text-align:right;color:var(--text-secondary);}
-.confluence-signals{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
-.signal-badge{font-size:9px;padding:2px 6px;background:var(--bg-base);border-radius:4px;color:var(--text-secondary);}
-.confluence-compact{display:flex;align-items:center;gap:4px;}
-.confluence-score-circle{width:24px;height:24px;border-radius:50%;border:2px solid;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700;}
-.confluence-conf-badge{font-size:10px;}
-
-/* Pattern Badge */
-.pattern-badge{padding:3px 6px;border-radius:4px;font-size:9px;font-weight:600;display:inline-block;}
-.pattern-badge.bull{background:rgba(107,203,119,0.2);color:var(--positive);}
-.pattern-badge.bear{background:rgba(255,107,107,0.2);color:var(--negative);}
-.pattern-cell{text-align:center;}
-.pattern-none{color:var(--text-tertiary);font-size:10px;}
-
-/* RS Rating */
-.rs-cell{text-align:right;}
-.rs-badge-compact{padding:2px 5px;border-radius:3px;font-family:var(--font-mono);font-size:10px;font-weight:600;}
-.rs-badge-compact.elite{background:rgba(107,203,119,0.2);}
-.elite-star{margin-right:2px;}
-
-/* Live Price */
-.t1-price-loading{color:var(--text-tertiary);font-size:10px;}
-.t1-pct{font-family:var(--font-mono);font-size:9px;margin-left:4px;}
-.t1-pct.up{color:var(--positive);}
-.t1-pct.down{color:var(--negative);}
-/* Live Price Indicator */
-.t1-live-indicator{font-size:10px;padding:2px 8px;background:rgba(59,130,246,0.1);border-radius:4px;color:#3B82F6;margin-left:8px;animation:pulse 1.5s ease-in-out infinite;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
-.t1-live-price{position:relative;}
-.t1-live-price .t1-price-value{font-weight:600;color:var(--text-primary);}
-.t1-price-loading{color:var(--text-tertiary);font-size:10px;font-style:italic;}
-
-/* Modal */
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s ease-out;}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-.stock-detail-modal{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;width:90%;max-width:500px;max-height:85vh;overflow-y:auto;animation:slideUp 0.3s ease-out;}
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid var(--border);}
-.modal-title-group{display:flex;align-items:center;gap:10px;}
-.modal-ticker{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--gold-bright);}
-.modal-sector{font-size:11px;color:var(--text-tertiary);background:var(--bg-surface-2);padding:3px 8px;border-radius:4px;}
-.modal-close{background:none;border:none;font-size:20px;color:var(--text-tertiary);cursor:pointer;padding:4px;line-height:1;}
-.modal-close:hover{color:var(--text-primary);}
-.modal-content{padding:16px;display:flex;flex-direction:column;gap:16px;}
-.detail-section{background:var(--bg-surface-2);border-radius:8px;padding:12px;}
-.section-title{font-size:11px;font-weight:700;color:var(--text-tertiary);margin-bottom:10px;letter-spacing:0.03em;}
-.price-display{display:flex;align-items:center;gap:12px;}
-.current-price{font-family:var(--font-mono);font-size:22px;font-weight:700;}
-.price-change{font-family:var(--font-mono);font-size:14px;}
-.price-change.up{color:var(--positive);}
-.price-change.down{color:var(--negative);}
-.conf-layers{display:flex;flex-direction:column;gap:6px;}
-.layer{display:flex;justify-content:space-between;font-size:11px;}
-.layer span:first-child{color:var(--text-tertiary);}
-.layer span:last-child{font-family:var(--font-mono);font-weight:600;}
-.golden-info{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
-.golden-info span{font-size:11px;color:var(--text-secondary);}
-.golden-badge{padding:4px 10px;border-radius:4px;font-size:10px;font-weight:700;}
-.golden-badge.passed{background:rgba(107,203,119,0.2);color:var(--positive);}
-.trade-plan{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.trade-plan div{display:flex;flex-direction:column;gap:2px;}
-.trade-plan span:first-child{font-size:9px;color:var(--text-tertiary);}
-.trade-plan span:last-child{font-family:var(--font-mono);font-size:13px;font-weight:600;}
-
-
-/* DEBUG: Ensure Command Center is visible */
-.command-center-bar{ display:flex !important; visibility:visible !important; opacity:1 !important; }
-.ccb-label{ display:inline-block !important; visibility:visible !important; }
-.scenario-switcher{ display:flex !important; visibility:visible !important; }
-.scenario-btn{ display:inline-block !important; visibility:visible !important; }
-
-/* Force Command Center to be visible */
-.sieu-quet-ai-tab .command-center-bar { width: 100% !important; min-width: 300px !important; background: #1a2030 !important; }
-.sieu-quet-ai-tab { display: block !important; }           /* ===== MOBILE TOUCH FIX (Buoc 1): nut xoa/ghi chu vo hinh tren cam ung =====
-   Ly do: .sb-del-btn va .sb-add-reason von opacity:0, chi hien khi
-   .sb-row:hover — thiet bi cam ung khong co trang thai hover nen
-   2 nut nay vo hinh, nguoi dung khong biet de bam.
-   (hover:none) phat hien dung thiet bi cam ung that. */
-@media (hover: none) {
-  .sb-del-btn {
-    opacity: 0.55;
-    width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .sb-add-reason {
-    opacity: 0.7;
-  }
-}                                                                                                                                 
+/* ===== SIDEBAR UPGRADE (GIAI ĐOẠN 5) =====
+   Import từ components/Sidebar/sidebar-scroll.css — chỉ thêm class mới,
+   KHÔNG ghi đè .sidebar / .sb-list đã định nghĩa ở trên. */
 
