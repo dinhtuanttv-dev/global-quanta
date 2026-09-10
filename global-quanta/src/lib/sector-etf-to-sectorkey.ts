@@ -2,8 +2,9 @@
 // trong macro-mapping.ts. KHONG tao he thong Smart Mapping moi - tai dung
 // toan bo logic/vnTickers da co san, tranh trung lap.
 //
-// LUU Y: 11/11 ETF SPDR Sector da co mapping (truoc chi 6/11, con lai da
-// duoc bo sung vao macro-mapping.ts).
+// LUU Y: XLV, XLC van CHUA co sectorKey tuong ung trong macro-mapping.ts
+// (se tra ve null, KHONG bia) - XLI/XLY/XLU da bo sung ngay 2026-09-10,
+// vnTickers xac nhan tu ban production da trien khai.
 export const SECTOR_ETF_TO_SECTOR_KEY: Record<string, string> = {
   XLK: "SEMICONDUCTOR_TECH",
   XLE: "ENERGY_OIL_GAS",
@@ -11,12 +12,7 @@ export const SECTOR_ETF_TO_SECTOR_KEY: Record<string, string> = {
   XLF: "BANKING_FINANCE",
   XLRE: "REAL_ESTATE",
   XLP: "AGRICULTURE_COFFEE",
-
-  // --- THEM MOI 5 ETF CON THIEU ---
-  // Dung cho TopSectorsPanel + CommodityPulseSubTab (macro breakdown).
-  XLI: "INDUSTRIALS",                 // Công nghiệp / Xây dựng / Cơ khí
-  XLY: "CONSUMER_DISCRETIONARY",      // Tiêu dùng phi thiết yếu (bán lẻ, du lịch, hàng không)
-  XLV: "HEALTHCARE",                  // Y tế / Dược phẩm / Bệnh viện
-  XLU: "UTILITIES_POWER",             // Điện lực / Năng lượng / Tiện ích
-  XLC: "TELECOM_MEDIA",               // Viễn thông / Truyền thông / Media
+  XLI: "INDUSTRIALS",
+  XLY: "CONSUMER_DISCRETIONARY",
+  XLU: "UTILITIES",
 };

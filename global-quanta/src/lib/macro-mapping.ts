@@ -29,6 +29,33 @@ export const MACRO_MAPPING: SectorMapping[] = [
   // co chu dich - CAN xac nhan danh sach ma CP dai dien chuan xac truoc khi
   // dien, tranh bia thong tin tai chinh sai lech.
   { sectorKey: "AGRICULTURE_COFFEE", sectorLabelVi: "Nông sản / Cà phê", representativeMarket: "Robusta Coffee (RC=F, ICE)", vnTickers: [], transmissionNote: "Giá cà phê Robusta thế giới tác động trực tiếp đến biên lợi nhuận doanh nghiệp xuất khẩu cà phê VN. (TODO: bổ sung vnTickers sau khi xác nhận danh sách mã CP đại diện chuẩn.)" },
+  // MOI (2026-09-10): Cao su - LUU Y 2 CHIEU tac dong nguoc nhau tren cung
+  // 1 gia: vnTickers o day la doanh nghiep TRONG/KHAI THAC cao su (huong
+  // loi khi gia tang). Doanh nghiep SAN XUAT LOP XE (DRC, CSM, SRC) chiu
+  // tac dong NGUOC LAI (cao su la nguyen lieu dau vao, gia tang = chi phi
+  // tang) - KHONG dua chung vao vnTickers de tranh sai lech chieu tin hieu.
+  {
+    sectorKey: "RUBBER_NATURAL",
+    sectorLabelVi: "Cao su tự nhiên",
+    representativeMarket: "World Bank Pink Sheet - Rubber RSS3 (theo tháng)",
+    vnTickers: ["PHR", "DPR", "TRC"],
+    transmissionNote: "Giá cao su thế giới tăng có lợi cho doanh nghiệp trồng/khai thác (PHR, DPR, TRC) nhưng BẤT LỢI cho doanh nghiệp sản xuất lốp xe (DRC, CSM, SRC) vì cao su là nguyên liệu đầu vào - 2 chiều tác động ngược nhau trên cùng 1 chỉ số giá.",
+  },
+  {
+    sectorKey: "FERTILIZER",
+    sectorLabelVi: "Phân bón",
+    representativeMarket: "World Bank Pink Sheet - Urea/DAP (theo tháng)",
+    vnTickers: ["DPM", "DCM", "BFC", "LAS"],
+    transmissionNote: "Giá Urea/DAP thế giới tăng thường có lợi cho biên lợi nhuận doanh nghiệp sản xuất phân bón VN (giá bán trong nước thường neo theo giá thế giới).",
+  },
+  // MOI (2026-09-10): 3 nganh con thieu, khien cot "Chiu ap luc" trong Bang
+  // Co Phieu Huong Loi bi rong. Danh sach vnTickers lay lai CHINH XAC tu
+  // ban production da trien khai (anh chup man hinh nguoi dung xac nhan
+  // ngay 2026-09-10) - KHONG phai tu chon, vi day la du lieu team da tu
+  // xac nhan va chay that truoc do.
+  { sectorKey: "INDUSTRIALS", sectorLabelVi: "Công nghiệp", representativeMarket: "XLI (Industrial Select Sector SPDR)", vnTickers: ["BCM", "REE", "GEX", "DIG", "KBC", "CTD", "HBC"], transmissionNote: "Chu kỳ đầu tư công nghiệp và xây dựng hạ tầng toàn cầu tác động đến nhóm doanh nghiệp bất động sản KCN, xây dựng và cơ điện VN." },
+  { sectorKey: "CONSUMER_DISCRETIONARY", sectorLabelVi: "Tiêu dùng không thiết yếu", representativeMarket: "XLY (Consumer Discretionary Select Sector SPDR)", vnTickers: ["MWG", "FRT", "HVN", "VJC", "ASM", "DGW"], transmissionNote: "Sức mua tiêu dùng và du lịch hàng không thế giới tác động đến nhóm bán lẻ, hàng không VN." },
+  { sectorKey: "UTILITIES", sectorLabelVi: "Tiện ích", representativeMarket: "XLU (Utilities Select Sector SPDR)", vnTickers: ["GEG", "PPC", "PC1", "NT2", "SBA", "HDG"], transmissionNote: "Xu hướng lãi suất và chi phí vốn ảnh hưởng đến định giá nhóm điện/tiện ích VN (dòng tiền ổn định, nhạy với lãi suất)." },
 ];
 
 export function lookupSectorMapping(sectorKey: string): SectorMapping | null {
