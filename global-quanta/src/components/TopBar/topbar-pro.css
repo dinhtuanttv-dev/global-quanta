@@ -148,7 +148,14 @@
 
 /* ============================================================
    INDEX COMPARE DROPDOWN — nang cap UX cao cap
+   FIX (2026-09-10): doi tu ":hover" sang bam-de-mo (React dieu khien viec
+   render/an bang state "open", KHONG con dua vao CSS ":hover" nua - tranh
+   bi kich hoat ngoai y muon khi chuot dung gan thanh dia chi trinh duyet).
    ============================================================ */
+.vn-hero-trigger {
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
+  font: inherit; color: inherit; text-align: left; display: block;
+}
 .vn-hero-dropdown {
   position: absolute;
   top: calc(100% + 8px);
@@ -161,20 +168,20 @@
   box-shadow: 0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  display: none;
-  opacity: 0;
-  transform: translateY(-6px);
-  transition: opacity 0.18s ease, transform 0.18s ease;
   z-index: 60;
-}
-.vn-hero:hover .vn-hero-dropdown {
-  display: block;
   animation: vhd-fade-in 0.18s ease forwards;
 }
 @keyframes vhd-fade-in {
   from { opacity: 0; transform: translateY(-6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+.vhd-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.vhd-close-btn {
+  background: none; border: none; cursor: pointer; color: var(--text-tertiary, #7d8590);
+  font-size: 12px; padding: 2px 6px; border-radius: 4px; line-height: 1;
+}
+.vhd-close-btn:hover { background: rgba(255,255,255,0.08); color: var(--text-primary, #fff); }
 
 .vhd-rows { display: flex; flex-direction: column; }
 .vhd-row {

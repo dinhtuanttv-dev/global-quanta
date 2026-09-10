@@ -6,12 +6,20 @@ interface Props {
   compare: IndexCompareItem[];
   note: string;
   loading: boolean;
+  onClose: () => void;
 }
 
-function IndexCompareDropdown({ compare, note, loading }: Props) {
+// FIX (2026-09-10): doi tu ":hover" (de bi kich hoat ngoai y muon khi chuot
+// vo tinh dung gan VN-INDEX, VD sau khi go URL o thanh dia chi ngay phia
+// tren) sang bam-de-mo/dong co chu dich, co nut dong ro rang - nguoi dung
+// hoan toan kiem soat duoc, khong con bi "che mat thanh tab" ngoai y muon.
+function IndexCompareDropdown({ compare, note, loading, onClose }: Props) {
   return (
-    <div className="vn-hero-dropdown">
-      <div className="vhd-title">SO SÁNH CHỈ SỐ</div>
+    <div className="vn-hero-dropdown vn-hero-dropdown--open" onClick={(e) => e.stopPropagation()}>
+      <div className="vhd-header">
+        <div className="vhd-title">SO SÁNH CHỈ SỐ</div>
+        <button type="button" className="vhd-close-btn" onClick={onClose} aria-label="Đóng">✕</button>
+      </div>
 
       {loading && compare.length === 0 && (
         <div className="vhd-skeleton">
