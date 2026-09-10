@@ -1,4 +1,4 @@
-import { Coins, Fuel, Ship, Coffee, Mountain, Home } from "lucide-react";
+import { Coins, Fuel, Ship, Coffee, Mountain, Home, Trees, Sprout, AlertTriangle } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useHousingPrices } from "../../../hooks/useHousingPrices";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
@@ -19,10 +19,12 @@ interface CommodityCardProps {
   unit: string;
   sectorKey: string;
   isEstimateOrProxy?: boolean;
+  proxyTooltip?: string;
   changeSignal?: number | null; // >0 xanh, <0 do, null xam
+  twoWayCaution?: string; // MOI: canh bao khi 1 gia tac dong 2 chieu nguoc nhau len 2 nhom CP khac nhau
 }
 
-function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy, changeSignal }: CommodityCardProps) {
+function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy, proxyTooltip, changeSignal, twoWayCaution }: CommodityCardProps) {
   const selectTicker = useAppStore((s) => s.selectTicker);
   const mapping = lookupSectorMapping(sectorKey);
 
@@ -34,7 +36,7 @@ function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy
           <p className="text-[10px] font-bold" style={{ color: T.textSecondary }}>{nameVi}</p>
         </div>
         {isEstimateOrProxy && (
-          <span title="Không phải giá giao dịch trực tiếp - xem chi tiết nguồn dữ liệu"
+          <span title={proxyTooltip ?? "Không phải giá giao dịch trực tiếp - xem chi tiết nguồn dữ liệu"}
             className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.1)", color: T.gold }}>
             PROXY
           </span>
@@ -52,7 +54,7 @@ function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy
           {changeSignal >= 0 ? "+" : ""}{changeSignal}% (xu hướng nhóm liên quan)
         </p>
       )}
-      {mapping && (
+      {mapping && mapping.vnTickers.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
           {mapping.vnTickers.map((ticker) => (
             <button key={ticker} onClick={() => selectTicker(ticker)}
@@ -60,6 +62,12 @@ function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy
               {ticker}
             </button>
           ))}
+        </div>
+      )}
+      {twoWayCaution && (
+        <div className="flex items-start gap-1 mt-2 pt-2 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
+          <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.gold }} />
+          <p className="text-[8px] italic" style={{ color: T.textTertiary }}>{twoWayCaution}</p>
         </div>
       )}
     </div>
@@ -97,16 +105,30 @@ export default function CommodityPulseSubTab({ macro }: CommodityPulseSubTabProp
               value={macro.oil_brent !== null ? macro.oil_brent.toFixed(1) : null} unit="USD/thùng" sectorKey="ENERGY_OIL_GAS" />
             <CommodityCard icon={<Fuel className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Dầu WTI"
               value={macro.oil_wti !== null ? macro.oil_wti.toFixed(1) : null} unit="USD/thùng" sectorKey="ENERGY_OIL_GAS" />
-            <CommodityCard icon={<Ship className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cước vận tải biển (BDI)"
-              value={macro.baltic_dry_index !== null ? String(macro.baltic_dry_index) : null} unit="điểm" sectorKey="SHIPPING_LOGISTICS" />
+            <CommodityCard icon={<Ship className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cước tàu hàng rời (BDI)"
+              value={macro.baltic_dry_index !== null ? String(macro.baltic_dry_index) : null} unit="điểm" sectorKey="SHIPPING_LOGISTICS"
+              isEstimateOrProxy proxyTooltip="Baltic Dry Index đo cước tàu HÀNG RỜI (quặng sắt, than, ngũ cốc) - KHÔNG đại diện cho cước tàu container. Xem thẻ 'Cước container' riêng bên cạnh." />
+            <CommodityCard icon={<Ship className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cước container (Proxy)"
+              value={typeof macro.container_freight_proxy_change_percent === "number" ? "ZIM/MAERSK-B/COSCO" : null} unit=""
+              changeSignal={macro.container_freight_proxy_change_percent ?? null} sectorKey="SHIPPING_LOGISTICS" isEstimateOrProxy
+              proxyTooltip="Không có chỉ số cước container miễn phí đủ tin cậy - dùng % thay đổi trung bình cổ phiếu 3 hãng tàu container lớn (ZIM, Maersk B, COSCO Shipping Holdings) làm tín hiệu gián tiếp." />
             <CommodityCard icon={<Coffee className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cà phê Robusta"
               value={macro.robusta_coffee !== null ? macro.robusta_coffee.toFixed(1) : null} unit="chỉ số NASDAQ" sectorKey="AGRICULTURE_COFFEE" />
             <CommodityCard icon={<Mountain className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Quặng sắt (Proxy)"
               value={macro.iron_ore_proxy_change_percent !== null ? "RIO/VALE/BHP" : null} unit=""
-              changeSignal={macro.iron_ore_proxy_change_percent} sectorKey="STEEL_MATERIALS" isEstimateOrProxy />
+              changeSignal={macro.iron_ore_proxy_change_percent} sectorKey="STEEL_MATERIALS" isEstimateOrProxy
+              proxyTooltip="Không có ticker Yahoo Finance đáng tin cậy cho quặng sắt - dùng % thay đổi trung bình 3 cổ phiếu khai khoáng lớn nhất thế giới (RIO/VALE/BHP) làm tín hiệu gián tiếp." />
+            <CommodityCard icon={<Trees className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cao su tự nhiên"
+              value={typeof macro.rubber_price === "number" ? macro.rubber_price.toFixed(2) : null} unit="USD/kg"
+              changeSignal={macro.rubber_change_percent ?? null} sectorKey="RUBBER_NATURAL"
+              twoWayCaution="Giá tăng có lợi cho DN trồng/khai thác (PHR, DPR, TRC) nhưng BẤT LỢI cho DN sản xuất lốp xe (DRC, CSM, SRC) vì đây là nguyên liệu đầu vào của họ." />
+            <CommodityCard icon={<Sprout className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Phân bón (Urea)"
+              value={typeof macro.fertilizer_urea_price === "number" ? macro.fertilizer_urea_price.toFixed(0) : null} unit="USD/tấn"
+              changeSignal={macro.fertilizer_urea_change_percent ?? null} sectorKey="FERTILIZER" />
           </div>
           <p className="text-[9px] italic mt-2" style={{ color: T.textTertiary }}>
-            Quặng sắt: không có ticker Yahoo Finance đáng tin cậy — dùng % thay đổi trung bình 3 cổ phiếu khai khoáng lớn nhất thế giới (RIO/VALE/BHP) làm tín hiệu gián tiếp, không phải giá quặng sắt thật.
+            Quặng sắt &amp; Cước container: không có giá/chỉ số Yahoo Finance đáng tin cậy — dùng % thay đổi trung bình rổ cổ phiếu đại diện làm tín hiệu gián tiếp, không phải giá/cước thật.
+            Cao su &amp; Phân bón: nguồn World Bank Pink Sheet, cập nhật theo tháng (không phải real-time như DXY/VIX).
           </p>
         </div>
       )}
