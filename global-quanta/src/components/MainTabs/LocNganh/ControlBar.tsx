@@ -18,6 +18,16 @@ const TIMEFRAME_OPTIONS: { value: Timeframe; labelKey: 'controlBar.timeframe.dai
   { value: 'monthly', labelKey: 'controlBar.timeframe.monthly' },
 ];
 
+// NHOM 2: don vi cua "cua so phan tich" phai doi theo khung thoi gian -
+// "30 phien" (Ngay) va "30 phien" hien thi giong het "30 THANG" (Thang) se
+// gay hieu lam nghiem trong ve do dai thuc te dang phan tich (30 thang ~
+// 2.5 nam, khac han 30 ngay). Khong dung chung 1 nhan "phien" nua.
+const PERIOD_UNIT_LABEL: Record<Timeframe, string> = {
+  daily: 'phiên (ngày)',
+  weekly: 'tuần',
+  monthly: 'tháng',
+};
+
 export function ControlBar({
   windowSize, onWindowSizeChange, timeframe, onTimeframeChange, useAtrAxis, onUseAtrAxisChange,
 }: ControlBarProps) {
@@ -35,7 +45,7 @@ export function ControlBar({
               aria-pressed={windowSize === opt}
               onClick={() => onWindowSizeChange(opt)}
             >
-              {opt} {t('controlBar.sessions')}
+              {opt} {PERIOD_UNIT_LABEL[timeframe]}
             </button>
           ))}
         </div>
