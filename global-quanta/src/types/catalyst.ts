@@ -3,7 +3,7 @@ export type PropagationDistance = "direct" | "downstream";
 export type Horizon = "short" | "medium" | "long";
 export type PriceInStatus = "not_reflected" | "partially_reflected" | "reflected";
 export type VolumeFlag = "none" | "confirmed" | "diverging";
-export type ForeignFlowDirection = "none" | "buying" | "selling";
+export type ForeignFlowDirection = "none" | "buy" | "sell"; // FIX (2026-09-11): khop dung wording that tu backend CatalystEngine.ts (truoc day frontend khai "buying"/"selling" sai voi du lieu API that gui ve "buy"/"sell")
 
 export interface CatalystCard {
   ticker: string;

@@ -33,6 +33,15 @@ export default function CatalystCardRow({ card }: { card: CatalystCardType }) {
         {card.isConflicted && (
           <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700 }}>⚠ Mau thuan tin hieu</span>
         )}
+        {/* MOI (2026-09-11): chi hien khi that su "buy" - du lieu that tu ban
+            tin HOSE hang ngay (Top 5 CP mua rong). KHONG hien badge "sell"
+            vi ban tin HOSE khong cong bo danh sach ban rong tuong ung -
+            "none" nghia la KHONG CO TIN HIEU RO RANG, khong phai "dang ban". */}
+        {card.foreignFlowDirection === "buy" && (
+          <span style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, background: "rgba(96,165,250,0.12)", padding: "1px 6px", borderRadius: 8 }}>
+            🌐 Khối ngoại mua ròng
+          </span>
+        )}
         <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700 }}>{card.compositeScore}</span>
       </div>
       <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>{card.sourceTitle}</p>
