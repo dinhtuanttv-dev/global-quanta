@@ -165,6 +165,21 @@ export interface AtrPoint {
   atr: QuantValue;
 }
 
+// NHOM 2 (Cluster Panel): du lieu dau vao de FRONTEND tu goi endpoint
+// Python /api/cluster - tach biet HOAN TOAN voi luong du lieu chinh,
+// KHONG anh huong den bat ky panel nao da co (giong FanChartPanel).
+export interface ClusterInputCandidate {
+  ticker: string;
+  matchStartDate: string;
+  matchEndDate: string;
+  returnD30: QuantValue;
+}
+
+export interface ClusterInput {
+  distanceMatrix: number[][];
+  candidates: ClusterInputCandidate[];
+}
+
 // ---------------------------------------------------------------
 // Response tổng hợp từ API backend (quant-macro-scanner)
 // ---------------------------------------------------------------
@@ -194,4 +209,5 @@ export interface CycleFingerprintResponse {
   crossMarket?: CrossMarketComparison[];
   multiSignal?: MultiSignalConfirmation;
   monteCarlo?: MonteCarloSimulation;
+  clusterInput?: ClusterInput;
 }

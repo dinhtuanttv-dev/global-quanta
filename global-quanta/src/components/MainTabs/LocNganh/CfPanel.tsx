@@ -9,6 +9,7 @@ import { QualityScoreBadge } from './QualityScoreBadge';
 import { WarningBanner } from './WarningBanner';
 import { SummaryTable } from './SummaryTable';
 import { FanChartPanel } from './FanChartPanel';
+import { ClusterPanel } from './ClusterPanel';
 import { ExplainabilityPanel } from './ExplainabilityPanel';
 import { TimingForecastPanel } from './TimingForecastPanel';
 import { PersonalizationSettings } from './PersonalizationSettings';
@@ -114,6 +115,7 @@ export function CycleFingerprintPanel({
 
       {/* Nhom 1 - tat ca deu la panel RIENG, khong dung chung canvas voi MainChart */}
       {data.fanChart && data.fanChart.length > 0 && <FanChartPanel fanChart={data.fanChart} />}
+      <ClusterPanel clusterInput={data.clusterInput} />
       {data.explainability && <ExplainabilityPanel explainability={data.explainability} />}
       {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} />}
 
