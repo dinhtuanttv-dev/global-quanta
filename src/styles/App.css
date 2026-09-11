@@ -546,5 +546,4 @@ body{
 /* ===== SIDEBAR UPGRADE (GIAI ĐOẠN 5) =====
    Import từ components/Sidebar/sidebar-scroll.css — chỉ thêm class mới,
    KHÔNG ghi đè .sidebar / .sb-list đã định nghĩa ở trên. */
-@import url('./../components/Sidebar/sidebar-scroll.css');
 
