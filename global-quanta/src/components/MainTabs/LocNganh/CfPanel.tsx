@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CycleFingerprintResponse, Timeframe } from '../../../types/cycleFingerprint';
+import type { CycleFingerprintResponse, PersonalizationSettings as Settings, Timeframe } from '../../../types/cycleFingerprint';
 import type { ApiError } from '../../../hooks/useCycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 import { ControlBar } from './ControlBar';
@@ -8,6 +8,9 @@ import { TopKList } from './TopKList';
 import { QualityScoreBadge } from './QualityScoreBadge';
 import { WarningBanner } from './WarningBanner';
 import { SummaryTable } from './SummaryTable';
+import { ExplainabilityPanel } from './ExplainabilityPanel';
+import { TimingForecastPanel } from './TimingForecastPanel';
+import { PersonalizationSettings } from './PersonalizationSettings';
 
 interface CycleFingerprintPanelProps {
   data: CycleFingerprintResponse | undefined;
@@ -22,18 +25,20 @@ interface CycleFingerprintPanelProps {
   onTimeframeChange: (tf: Timeframe) => void;
   useAtrAxis: boolean;
   onUseAtrAxisChange: (v: boolean) => void;
+  personalization: Settings;
+  onPersonalizationChange: (next: Settings) => void;
 }
 
-// GIAI DOAN 1: chi lap rap 6 panel da co du lieu that tu backend (Control
-// Bar, MainChart, TopKList, QualityScoreBadge, WarningBanner, SummaryTable).
-// KHONG dung ClusterPanel (chua co HDBSCAN -> cluster luon null),
-// MultiSignalPanel/MonteCarloPanel/CrossMarketPanel/ExplainabilityPanel/
-// TimingForecastPanel (chua co field tuong ung trong response that),
-// PersonalizationSettings/ExportButton/FeedbackWidget/AlertToastStack/
-// LanguageThemeToggle (ngoai pham vi Giai doan 1 da thong nhat).
+// NHOM 1 (2026-09-11): mo rong them Fan Chart (da co du lieu that trong
+// MainChart), ExplainabilityPanel, TimingForecastPanel, Personalization -
+// ca 4 deu dung du lieu THAT tu backend (khong con field rong []/undefined
+// nhu Giai doan 1 ban dau). Van CHUA co: ClusterPanel (can HDBSCAN),
+// MultiSignalPanel/MonteCarloPanel/CrossMarketPanel (chua co du lieu),
+// ExportButton/FeedbackWidget/AlertToastStack/LanguageThemeToggle.
 export function CycleFingerprintPanel({
   data, isLoading, isError, error, isEmpty, onRetry,
   windowSize, onWindowSizeChange, timeframe, onTimeframeChange, useAtrAxis, onUseAtrAxisChange,
+  personalization, onPersonalizationChange,
 }: CycleFingerprintPanelProps) {
   const { t } = useCfI18n();
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
@@ -82,10 +87,20 @@ export function CycleFingerprintPanel({
     );
   }
 
+  // GIAI DOAN 1 - LUU Y (ghi ro, khong che giau): personalization.qualityScoreThreshold
+  // hien CHI doi nguong hien thi CANH BAO o Frontend (WarningBanner), CHUA
+  // gui nguoc ve backend de doi cach TINH Quality Score (van dung trong so
+  // co dinh 40/20/20/20). Doi trong so tinh diem that can them tham so
+  // query moi o backend - ngoai pham vi Nhom 1 da thong nhat.
+  const qualityScoreWithPersonalThreshold = {
+    ...data.qualityScore,
+    warningThreshold: personalization.qualityScoreThreshold,
+  };
+
   return (
     <div className="cf-tab">
       {topBar}
-      <WarningBanner score={data.qualityScore} />
+      <WarningBanner score={qualityScoreWithPersonalThreshold} />
 
       <div className="cf-tab__main-row">
         <MainChart
@@ -102,6 +117,11 @@ export function CycleFingerprintPanel({
       <SummaryTable summary={data.summary} />
 
       <TopKList matches={data.topMatches} highlightedTicker={highlightedTicker} onHighlight={setHighlightedTicker} />
+
+      {data.explainability && <ExplainabilityPanel explainability={data.explainability} />}
+      {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} />}
+
+      <PersonalizationSettings settings={personalization} onChange={onPersonalizationChange} />
     </div>
   );
 }
