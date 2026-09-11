@@ -4,6 +4,7 @@ import type { ApiError } from '../../../hooks/useCycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 import { ControlBar } from './ControlBar';
 import { MainChart } from './MainChart';
+import { FanChartPanel } from './FanChartPanel';
 import { TopKList } from './TopKList';
 import { QualityScoreBadge } from './QualityScoreBadge';
 import { WarningBanner } from './WarningBanner';
@@ -106,7 +107,6 @@ export function CycleFingerprintPanel({
         <MainChart
           priceSeries={data.priceSeries}
           topMatches={data.topMatches}
-          fanChart={data.fanChart ?? []}
           atrSeries={data.atrSeries}
           useAtrAxis={useAtrAxis}
           highlightedTicker={highlightedTicker}
@@ -118,6 +118,7 @@ export function CycleFingerprintPanel({
 
       <TopKList matches={data.topMatches} highlightedTicker={highlightedTicker} onHighlight={setHighlightedTicker} />
 
+      {data.fanChart && data.fanChart.length > 0 && <FanChartPanel fanChart={data.fanChart} />}
       {data.explainability && <ExplainabilityPanel explainability={data.explainability} />}
       {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} />}
 
