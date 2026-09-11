@@ -85,6 +85,7 @@ export default function LocNganhTab() {
                 rrgPoints={rrgData?.points ?? []}
                 top20={filteredTop20}
                 totalAnalyzed={top20Data?.totalAnalyzed ?? 0}
+                riskOnScore={top20Data?.riskOnScore ?? null}
                 selectedSectorKey={selectedSectorKey}
                 onSelectSector={(key) => setSelectedSectorKey(key === selectedSectorKey ? null : key)}
                 onSelectTicker={selectTicker}
