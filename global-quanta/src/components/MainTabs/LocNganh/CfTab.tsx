@@ -3,16 +3,12 @@ import { useCycleFingerprint } from '../../../hooks/useCycleFingerprint';
 import { CycleFingerprintPanel } from './CfPanel';
 import { CfI18nProvider, useCfI18n } from '../../../i18n/CfI18nProvider';
 import { useAppStore } from '../../../store/useAppStore';
-import type { PersonalizationSettings, Timeframe } from '../../../types/cycleFingerprint';
+import type { Timeframe } from '../../../types/cycleFingerprint';
 import './cycle-fingerprint.css';
 
 const DEFAULT_WINDOW_SIZE = 30;
 const DEFAULT_TIMEFRAME: Timeframe = 'daily';
 const DEFAULT_USE_ATR_AXIS = false;
-const DEFAULT_PERSONALIZATION: PersonalizationSettings = {
-  qualityScoreThreshold: 0.4,
-  weights: { similarity: 0.4, liquidity: 0.2, regime: 0.2, sampleSize: 0.2 },
-};
 
 function CfTabInner() {
   const { t } = useCfI18n();
@@ -21,7 +17,6 @@ function CfTabInner() {
   const [windowSize, setWindowSize] = useState(DEFAULT_WINDOW_SIZE);
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [useAtrAxis, setUseAtrAxis] = useState(DEFAULT_USE_ATR_AXIS);
-  const [personalization, setPersonalization] = useState<PersonalizationSettings>(DEFAULT_PERSONALIZATION);
 
   const { data, isLoading, isError, error, isEmpty, refresh } = useCycleFingerprint(
     selectedTicker, windowSize, timeframe,
@@ -37,7 +32,6 @@ function CfTabInner() {
       windowSize={windowSize} onWindowSizeChange={setWindowSize}
       timeframe={timeframe} onTimeframeChange={setTimeframe}
       useAtrAxis={useAtrAxis} onUseAtrAxisChange={setUseAtrAxis}
-      personalization={personalization} onPersonalizationChange={setPersonalization}
     />
   );
 }
