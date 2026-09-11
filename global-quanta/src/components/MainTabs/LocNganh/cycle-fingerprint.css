@@ -61,3 +61,22 @@
 .cf-topk-table { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text-primary); }
 .cf-topk-table th, .cf-topk-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
 .cf-topk-row--highlighted { background: rgba(232,184,75,0.1); }
+
+/* ---- Fan Chart (rieng biet hoan toan, khong chung truc voi MainChart) ---- */
+.cf-fanchart-panel { display: flex; flex-direction: column; gap: 6px; }
+.cf-fanchart-panel svg { width: 100%; height: auto; max-width: 480px; }
+.cf-fanchart-caption { font-size: 11px; opacity: 0.65; color: var(--text-secondary); margin: 0; }
+
+/* ---- Explainability ---- */
+.cf-explainability-panel ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.cf-explain-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-primary); }
+.cf-explain-bar-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 4px 0; }
+.cf-explain-bar-fill { height: 100%; background: var(--gold); }
+.cf-explain-desc { font-size: 11px; opacity: 0.7; margin: 0; color: var(--text-secondary); }
+
+/* ---- Timing forecast ---- */
+.cf-timing-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: var(--text-primary); }
+
+/* ---- Personalization ---- */
+.cf-settings-row { display: grid; grid-template-columns: 140px 1fr 40px; align-items: center; gap: 8px; font-size: 12px; margin-bottom: 6px; color: var(--text-primary); }
+.cf-settings-subtitle { font-size: 12px; opacity: 0.7; margin: 12px 0 4px; color: var(--text-secondary); }

@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
-import type { AtrPoint, CycleMatch, FanChartBand, PricePoint } from '../../../types/cycleFingerprint';
+import type { AtrPoint, CycleMatch, PricePoint } from '../../../types/cycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 
 interface MainChartProps {
   priceSeries: PricePoint[];
   topMatches: CycleMatch[];
-  fanChart: FanChartBand[];
   atrSeries: AtrPoint[];
   useAtrAxis: boolean;
   highlightedTicker: string | null;
@@ -39,13 +38,20 @@ function buildOffsetPositionMap(
   return positions;
 }
 
-/** Biểu đồ SVG thuần, không phụ thuộc thư viện chart ngoài. */
-export function MainChart({ priceSeries, topMatches, fanChart, atrSeries, useAtrAxis, highlightedTicker }: MainChartProps) {
+/**
+ * Biểu đồ SVG thuần - CHỈ vẽ giá lịch sử + overlay Top-3 chu kỳ (đúng
+ * Giai đoạn 1). KHÔNG nhận/vẽ Fan Chart hay bất kỳ dữ liệu Nhóm 1 nào -
+ * cố tình bỏ hẳn tham số đó khỏi kiểu dữ liệu (không phải "không dùng"
+ * mà là "không thể truyền vào") để tránh lặp lại lỗi trục biểu đồ bị
+ * biến dạng do gộp domain với dữ liệu dự báo tương lai. Fan Chart hiển
+ * thị ở <FanChartPanel /> riêng biệt, xem CfPanel.tsx.
+ */
+export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, highlightedTicker }: MainChartProps) {
   const { t } = useCfI18n();
 
-  const { pricePath, matchPaths, fanBandPath, ready } = useMemo(() => {
+  const { pricePath, matchPaths, ready } = useMemo(() => {
     if (priceSeries.length === 0) {
-      return { pricePath: '', matchPaths: [] as { ticker: string; d: string }[], fanBandPath: '', ready: false };
+      return { pricePath: '', matchPaths: [] as { ticker: string; d: string }[], ready: false };
     }
 
     const baseIdx = priceSeries.length - 1;
@@ -53,8 +59,7 @@ export function MainChart({ priceSeries, topMatches, fanChart, atrSeries, useAtr
 
     const priceOffsets = priceSeries.map((_, i) => i - baseIdx);
     const matchOffsets = topMatches.slice(0, 3).flatMap((m) => m.alignedSeries.map((pt) => pt.sessionOffset));
-    const fanOffsets = fanChart.map((b) => b.sessionOffset);
-    const domainOffsets = [...priceOffsets, ...matchOffsets, ...fanOffsets];
+    const domainOffsets = [...priceOffsets, ...matchOffsets];
 
     const posMap = buildOffsetPositionMap(domainOffsets, atrByOffset, useAtrAxis);
     const xScaleFn = (offset: number) => {
@@ -63,9 +68,8 @@ export function MainChart({ priceSeries, topMatches, fanChart, atrSeries, useAtr
     };
 
     const closes = priceSeries.map((p) => p.close.value);
-    const allFanValues = fanChart.flatMap((b) => [b.p10.value, b.p90.value]);
-    const yMin = Math.min(...closes, ...allFanValues);
-    const yMax = Math.max(...closes, ...allFanValues);
+    const yMin = Math.min(...closes);
+    const yMax = Math.max(...closes);
     const yScaleFn = (v: number) =>
       HEIGHT - PADDING - ((v - yMin) / Math.max(yMax - yMin, 1e-6)) * (HEIGHT - PADDING * 2);
 
@@ -84,20 +88,14 @@ export function MainChart({ priceSeries, topMatches, fanChart, atrSeries, useAtr
       return { ticker: m.ticker, d };
     });
 
-    const toPrice = (pctBase100: number) => (pctBase100 / 100) * basePrice;
-    const upper = fanChart.map((b, i) => `${i === 0 ? 'M' : 'L'} ${xScaleFn(b.sessionOffset)} ${yScaleFn(toPrice(b.p90.value))}`);
-    const lower = [...fanChart].reverse().map((b) => `L ${xScaleFn(b.sessionOffset)} ${yScaleFn(toPrice(b.p10.value))}`);
-    const fanPathD = [...upper, ...lower, 'Z'].join(' ');
-
-    return { pricePath: pricePathD, matchPaths: matchPathsD, fanBandPath: fanPathD, ready: true };
-  }, [priceSeries, topMatches, fanChart, atrSeries, useAtrAxis]);
+    return { pricePath: pricePathD, matchPaths: matchPathsD, ready: true };
+  }, [priceSeries, topMatches, atrSeries, useAtrAxis]);
 
   if (!ready) return null;
 
   return (
     <div className="cf-main-chart">
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={t('chart.legend.price')}>
-        {fanChart.length > 0 && <path d={fanBandPath} fill="var(--gold)" opacity={0.12} stroke="none" />}
         <path d={pricePath} fill="none" stroke="var(--positive)" strokeWidth={2} />
         {matchPaths.map((m) => (
           <path
@@ -111,7 +109,6 @@ export function MainChart({ priceSeries, topMatches, fanChart, atrSeries, useAtr
       <p className="cf-chart-legend">
         <span className="cf-legend-dot cf-legend-dot--price" /> {t('chart.legend.price')}
         <span className="cf-legend-dot cf-legend-dot--match" /> {t('chart.legend.match')}
-        {fanChart.length > 0 && <><span className="cf-legend-dot cf-legend-dot--fan" /> {t('chart.legend.fan')}</>}
       </p>
     </div>
   );

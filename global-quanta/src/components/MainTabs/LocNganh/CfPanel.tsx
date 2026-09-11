@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CycleFingerprintResponse, Timeframe } from '../../../types/cycleFingerprint';
+import type { CycleFingerprintResponse, PersonalizationSettings as Settings, Timeframe } from '../../../types/cycleFingerprint';
 import type { ApiError } from '../../../hooks/useCycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 import { ControlBar } from './ControlBar';
@@ -8,6 +8,10 @@ import { TopKList } from './TopKList';
 import { QualityScoreBadge } from './QualityScoreBadge';
 import { WarningBanner } from './WarningBanner';
 import { SummaryTable } from './SummaryTable';
+import { FanChartPanel } from './FanChartPanel';
+import { ExplainabilityPanel } from './ExplainabilityPanel';
+import { TimingForecastPanel } from './TimingForecastPanel';
+import { PersonalizationSettings } from './PersonalizationSettings';
 
 interface CycleFingerprintPanelProps {
   data: CycleFingerprintResponse | undefined;
@@ -22,13 +26,18 @@ interface CycleFingerprintPanelProps {
   onTimeframeChange: (tf: Timeframe) => void;
   useAtrAxis: boolean;
   onUseAtrAxisChange: (v: boolean) => void;
+  personalization: Settings;
+  onPersonalizationChange: (next: Settings) => void;
 }
 
-// GIAI DOAN 1: chi lap rap 6 panel da co du lieu that tu backend (Control
-// Bar, MainChart, TopKList, QualityScoreBadge, WarningBanner, SummaryTable).
+// QUAN TRONG: <MainChart /> duoc goi Y HET Giai doan 1 (khong co prop
+// fanChart - kieu du lieu cua component da bo han truong nay, khong the
+// vo tinh truyen vao duoc nua). Fan Chart hien o <FanChartPanel /> RIENG,
+// dat SAU TopKList, KHONG chung canvas/truc voi bieu do gia.
 export function CycleFingerprintPanel({
   data, isLoading, isError, error, isEmpty, onRetry,
   windowSize, onWindowSizeChange, timeframe, onTimeframeChange, useAtrAxis, onUseAtrAxisChange,
+  personalization, onPersonalizationChange,
 }: CycleFingerprintPanelProps) {
   const { t } = useCfI18n();
   const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
@@ -77,16 +86,21 @@ export function CycleFingerprintPanel({
     );
   }
 
+  const qualityScoreWithPersonalThreshold = {
+    ...data.qualityScore,
+    warningThreshold: personalization.qualityScoreThreshold,
+  };
+
   return (
     <div className="cf-tab">
       {topBar}
-      <WarningBanner score={data.qualityScore} />
+      <WarningBanner score={qualityScoreWithPersonalThreshold} />
 
+      {/* Bieu do gia chinh - Y HET Giai doan 1, khong dinh dang lieu Nhom 1 nao */}
       <div className="cf-tab__main-row">
         <MainChart
           priceSeries={data.priceSeries}
           topMatches={data.topMatches}
-          fanChart={data.fanChart ?? []}
           atrSeries={data.atrSeries}
           useAtrAxis={useAtrAxis}
           highlightedTicker={highlightedTicker}
@@ -97,6 +111,13 @@ export function CycleFingerprintPanel({
       <SummaryTable summary={data.summary} />
 
       <TopKList matches={data.topMatches} highlightedTicker={highlightedTicker} onHighlight={setHighlightedTicker} />
+
+      {/* Nhom 1 - tat ca deu la panel RIENG, khong dung chung canvas voi MainChart */}
+      {data.fanChart && data.fanChart.length > 0 && <FanChartPanel fanChart={data.fanChart} />}
+      {data.explainability && <ExplainabilityPanel explainability={data.explainability} />}
+      {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} />}
+
+      <PersonalizationSettings settings={personalization} onChange={onPersonalizationChange} />
     </div>
   );
 }
