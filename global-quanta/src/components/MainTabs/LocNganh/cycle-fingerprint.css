@@ -1,0 +1,67 @@
+/* Styles cho Cycle Fingerprint - chi dung bien CSS THAT co trong tokens.css
+   (da doi chieu: --text-muted->--text-tertiary co fallback an toan, giu
+   nguyen; --surface->doi thang sang --bg-surface-2 vi la lop noi that su
+   ton tai trong tokens.css, khong dung fallback --bg-base nua vi se lam
+   modal khong noi bat so voi nen trang). */
+
+.cf-tab { display: flex; flex-direction: column; gap: 16px; color: var(--text-primary); }
+
+.cf-tab__top-bar { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.cf-atr-toggle { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; color: var(--text-secondary); }
+
+.cf-control-bar { display: flex; gap: 24px; flex-wrap: wrap; }
+.cf-control-group { display: flex; flex-direction: column; gap: 6px; }
+.cf-control-label { font-size: 12px; opacity: 0.7; color: var(--text-secondary); }
+.cf-chip {
+  border: 1px solid var(--text-tertiary, currentColor);
+  background: transparent; color: var(--text-secondary); border-radius: 6px;
+  padding: 4px 10px; margin-right: 6px; cursor: pointer; font-size: 12px;
+}
+.cf-chip--active { border-color: var(--gold); color: var(--gold); }
+
+.cf-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; text-align: center; gap: 8px; color: var(--text-secondary); }
+.cf-spinner {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: 3px solid var(--text-tertiary, currentColor); border-top-color: var(--gold);
+  animation: cf-spin 0.8s linear infinite;
+}
+@keyframes cf-spin { to { transform: rotate(360deg); } }
+.cf-retry-btn { border: 1px solid var(--negative); color: var(--negative); background: transparent; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
+
+.cf-source-badge { font-size: 10px; margin-left: 4px; padding: 1px 5px; border-radius: 4px; opacity: 0.85; }
+.cf-source-badge[data-source='ESTIMATED'] { color: var(--gold); border: 1px solid var(--gold); }
+.cf-source-badge[data-source='HARD_DATA'] { color: var(--positive); border: 1px solid var(--positive); }
+
+.cf-warning-banner {
+  background: rgba(248,113,113,0.12); border: 1px solid var(--negative); color: var(--negative);
+  border-radius: 6px; padding: 10px 14px; font-size: 13px;
+}
+
+.cf-tab__main-row { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.cf-main-chart { flex: 1; min-width: 320px; }
+.cf-chart-legend { font-size: 11px; opacity: 0.75; display: flex; gap: 12px; align-items: center; color: var(--text-secondary); }
+.cf-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.cf-legend-dot--price { background: var(--positive); }
+.cf-legend-dot--match { background: var(--gold); }
+.cf-legend-dot--fan { background: var(--gold); opacity: 0.3; }
+
+.cf-quality-badge { border: 1px solid var(--text-tertiary, currentColor); border-radius: 8px; padding: 12px 16px; min-width: 200px; color: var(--text-primary); }
+.cf-quality-badge--high { border-color: var(--positive); }
+.cf-quality-badge--medium { border-color: var(--gold); }
+.cf-quality-badge--low { border-color: var(--negative); }
+.cf-quality-badge__overall { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
+.cf-quality-badge__value { font-size: 24px; font-weight: 700; }
+.cf-quality-badge__breakdown { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; font-size: 12px; margin: 0; }
+.cf-quality-badge__breakdown dt { opacity: 0.7; color: var(--text-secondary); }
+.cf-quality-badge__breakdown dd { margin: 0; font-weight: 600; }
+
+.cf-summary-table { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.cf-summary-cell { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.cf-summary-label { font-size: 11px; opacity: 0.65; color: var(--text-secondary); }
+
+.cf-tab__two-col { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+@media (max-width: 720px) { .cf-tab__two-col { grid-template-columns: 1fr; } }
+
+.cf-topk-table { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text-primary); }
+.cf-topk-table th, .cf-topk-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+.cf-topk-row--highlighted { background: rgba(232,184,75,0.1); }

@@ -4,7 +4,7 @@ import { useSectorRRG } from "../../../hooks/useSectorRRG";
 import { useTop20Radar } from "../../../hooks/useTop20Radar";
 import LocNganhPanel from "./LocNganhPanel";
 import CycleScreenerPanel from "./CycleScreenerPanel";
-import CycleFingerprintPlaceholder from "./CycleFingerprintPlaceholder";
+import { CycleFingerprintTab } from "./CfTab";
 
 type SubTab = "rrg" | "fingerprint";
 
@@ -98,7 +98,7 @@ export default function LocNganhTab() {
         </>
       )}
 
-      {subTab === "fingerprint" && <CycleFingerprintPlaceholder />}
+      {subTab === "fingerprint" && <CycleFingerprintTab />}
     </div>
   );
 }
