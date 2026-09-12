@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
 } from "lucide-react";
 import {
-  DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcRealDividendQualityScore, calcCatalystScore,
+  DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcRealDividendQualityScore, isQualityScoreReal, calcCatalystScore,
   detectRiskFlags, calcDCF, filterAndSortStocks, getDaysUntil,
   fmtVND, fmtPct, DEFAULT_FILTER,
   type DividendFilter, type DividendStock,
@@ -30,13 +30,18 @@ import { useAppStore } from "../../../store/useAppStore";
 // BADGE COMPONENTS
 // ============================================================
 
-function ScoreBadge({ score }: { score: number }) {
+function ScoreBadge({ score, isReal = true }: { score: number; isReal?: boolean }) {
   const color = score >= 80
     ? "bg-emerald-950 text-cf-positive border-emerald-700"
     : score >= 60
     ? "bg-amber-950 text-cf-gold-bright border-amber-700"
     : "bg-cf-base text-cf-secondary border-cf-border-strong";
-  return <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${color}`}>{score}/100</span>;
+  return (
+    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${color}`}
+      title={isReal ? "Dividend Quality Score - dữ liệu thời gian thực" : "Đang tải dữ liệu thật... (số tạm thời, sẽ tự cập nhật)"}>
+      {score}/100{!isReal && <span className="ml-1 opacity-60">⏳</span>}
+    </span>
+  );
 }
 
 function PhaseBadge({ s }: { s: DividendStock }) {
@@ -137,7 +142,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
               <p className="text-xs font-bold text-cf-primary">{s.name}</p>
               <p className="text-[10px] text-cf-tertiary">{s.sector} · {s.marketCap}-Cap</p>
             </div>
-            <ScoreBadge score={score} />
+            <ScoreBadge score={score} isReal={isQualityScoreReal(s)} />
           </div>
           <button ref={closeButtonRef} onClick={onClose} aria-label="Đóng cửa sổ chi tiết"
             className="text-cf-tertiary hover:text-cf-primary text-xs px-3 py-1.5 rounded-lg border border-cf-border-strong focus:outline-none focus:ring-2 focus:ring-amber-500">
@@ -628,7 +633,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                         <span className="text-cf-positive font-black">{fmtPct(s.dividendYield)}</span>
                         <span className="text-[9px] text-cf-tertiary block">{fmtVND(s.dividendAmount)}/cp</span>
                       </td>
-                      <td className="py-3 text-right"><ScoreBadge score={calcRealDividendQualityScore(s, rs, detectRiskFlags(s).length)} /></td>
+                      <td className="py-3 text-right"><ScoreBadge score={calcRealDividendQualityScore(s, rs, detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} /></td>
                       <td className="py-3 text-center"><RsBadge rs={rs} isLoading={isRealRsLoading} /></td>
                       <td className="py-3"><PhaseBadge s={s} /></td>
                       <td className="py-3">
@@ -668,7 +673,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     <span>💵 <b className="text-cf-positive">{fmtVND(s.dividendAmount)}/cp</b></span>
                   </div>
                 </div>
-                <ScoreBadge score={calcRealDividendQualityScore(s, realRsMap[s.ticker], detectRiskFlags(s).length)} />
+                <ScoreBadge score={calcRealDividendQualityScore(s, realRsMap[s.ticker], detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} />
               </div>
             );
           })}

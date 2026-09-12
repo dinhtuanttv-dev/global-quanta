@@ -147,6 +147,17 @@ function calcTier4Real(rs3m: number | null | undefined, redFlagCount: number): n
  * calcDividendScore() cu (mau) de khong hien "0" gay hoang loan UI
  * trong luc cho tai xong.
  */
+/** Kiem tra Tier 1-3 da merge that chua (khong phai dang fallback ve mau
+ * do dang tai/loi API) - dung de hien thi ro rang tren UI, tranh nguoi
+ * dung nham lan so mau tam thoi voi so that (da gap that truong hop nay:
+ * cung 1 ma nhung 2 noi hien thi khac nhau vi 1 noi doc luc dang tai,
+ * 1 noi doc sau khi tai xong). */
+export function isQualityScoreReal(s: DividendStock): boolean {
+  return s.qsTier1 !== null && s.qsTier1 !== undefined
+    && s.qsTier2 !== null && s.qsTier2 !== undefined
+    && s.qsTier3 !== null && s.qsTier3 !== undefined;
+}
+
 export function calcRealDividendQualityScore(
   s: DividendStock,
   realRs: number | null | undefined,
