@@ -29,6 +29,8 @@ export interface UniverseEntryRaw {
   debtEquity: number | null;
   rsi14: number | null;
   dividendYieldPct: number | null;
+  payoutRatioPct: number | null;
+  profitGrowthYoY: number | null;
 }
 
 function isoToVn(iso: string | null): string {
@@ -55,9 +57,9 @@ export function mapUniverseEntryToStock(e: UniverseEntryRaw): DividendStock {
     pe: e.pe ?? 0,
     roe: e.roe ?? 0,
     dividendYield: e.dividendYieldPct ?? 0,
-    payoutRatio: 0, // Chua luu rieng trong Database - KHONG suy dien
+    payoutRatio: e.payoutRatioPct ?? 0, // DA CO THAT (Cron Job 2 tinh + luu)
     debtEquity: e.debtEquity ?? 0,
-    growth: 0, // Chua luu rieng - KHONG suy dien
+    growth: e.profitGrowthYoY ?? 0, // DA CO THAT (Cron Job 2 tinh + luu)
     marketCap: "Mid",
     eps: 0,
     fscore: 0, // Khong tinh F-Score cho Universe
