@@ -26,6 +26,13 @@ export interface DividendStock {
   qsTier1?: number | null;
   qsTier2?: number | null;
   qsTier3?: number | null;
+  // Bo Loc toan thi truong: danh dau ma nay den tu Universe VN30+VN100
+  // (KHONG PHAI 1 trong 17 ma theo doi goc) - cac truong F-Score/DCF/
+  // pros/cons/insider/macroCatalyst... KHONG CO DU LIEU THAT, da dien
+  // gia tri trung tinh (0/rong) CHI DE TRANH CRASH, KHONG duoc dung de
+  // hien thi nhu la du lieu that (UI phai kiem tra co nay va an/thay
+  // the bang thong bao ro rang).
+  isUniverseOnly?: boolean;
 }
 
 // ============================================================
@@ -163,14 +170,25 @@ export function calcRealDividendQualityScore(
   realRs: number | null | undefined,
   riskFlagCount: number
 ): number {
-  if (s.qsTier1 === null || s.qsTier1 === undefined || s.qsTier2 === null || s.qsTier2 === undefined || s.qsTier3 === null || s.qsTier3 === undefined) {
-    return calcDividendScore(s); // fallback mau trong luc cho/loi
+  const missingTiers = s.qsTier1 === null || s.qsTier1 === undefined || s.qsTier2 === null || s.qsTier2 === undefined || s.qsTier3 === null || s.qsTier3 === undefined;
+  if (missingTiers) {
+    // FIX QUAN TRONG: neu la ma Universe (khong phai 1 trong 17 ma
+    // theo doi goc), TUYET DOI KHONG fallback ve calcDividendScore (cong
+    // thuc do danh cho DU LIEU MAU HOP LY cua 17 ma - dung payoutRatio/
+    // growth/fscore=0 GIA se tinh RA SO SAI/VO NGHIA, khong phai "diem
+    // thap that"). Tra ve 0 kem co isReal=false (UI da xu ly san) de
+    // hien "dang cho xu ly", KHONG hien nham thanh diem so that.
+    if (s.isUniverseOnly) return 0;
+    return calcDividendScore(s); // fallback mau CHI danh cho 17 ma goc, dang cho API tai xong
   }
   const tier4 = calcTier4Real(realRs, riskFlagCount);
+  const tier1: number = s.qsTier1 as number;
+  const tier2: number = s.qsTier2 as number;
+  const tier3: number = s.qsTier3 as number;
   const weights: { value: number; weight: number }[] = [
-    { value: s.qsTier1, weight: 30 },
-    { value: s.qsTier2, weight: 30 },
-    { value: s.qsTier3, weight: 25 },
+    { value: tier1, weight: 30 },
+    { value: tier2, weight: 30 },
+    { value: tier3, weight: 25 },
     { value: tier4, weight: 15 },
   ];
   const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
@@ -217,12 +235,17 @@ export interface DividendFilter {
   minYield: number; minRoe: number; maxPe: number; maxDebt: number; minFscore: number;
   trend: "All" | TechnicalTrend; phase: "All" | TradePhase;
   upcomingGDKHQ: boolean; upcomingAGM: boolean; hideRiskFlags: boolean; searchQ: string;
+  // Theo yeu cau: mac dinh AN ma chi co dot GDKHQ CU (>60 ngay, chua co
+  // lich moi duoc VCI cong bo) - tranh bang chinh bi "chiem cho" boi cac
+  // ma khong con thoi su. Van co the TAT filter nay de xem lai TOAN BO
+  // watchlist khi can (khong mat thong tin, chi an mac dinh).
+  hideStaleEvents: boolean;
 }
 
 export const DEFAULT_FILTER: DividendFilter = {
   minYield:0, minRoe:0, maxPe:25, maxDebt:1.5, minFscore:0,
   trend:"All", phase:"All", upcomingGDKHQ:false, upcomingAGM:false,
-  hideRiskFlags:false, searchQ:"",
+  hideRiskFlags:false, searchQ:"", hideStaleEvents:true,
 };
 
 export function filterAndSortStocks(
@@ -243,6 +266,10 @@ export function filterAndSortStocks(
       if (filter.trend !== "All" && s.technicalTrend !== filter.trend) return false;
       if (filter.phase !== "All" && getTradePhase(s).status !== filter.phase) return false;
       const gdkhqDays = getDaysUntil(s.exDividendDate);
+      // FIX theo yeu cau: mac dinh AN ma chi co dot GDKHQ da qua QUA LAU
+      // (>60 ngay, chua co dot moi duoc VCI cong bo) - tranh bang chinh
+      // bi "chiem cho" boi cac ma khong con thoi su.
+      if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return false;
       if (filter.upcomingGDKHQ && !(gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 45)) return false;
       const agmDays = getDaysUntil(s.agmDate);
       if (filter.upcomingAGM && !(agmDays !== null && agmDays >= 0 && agmDays <= 30)) return false;

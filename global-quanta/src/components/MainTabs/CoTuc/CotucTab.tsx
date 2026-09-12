@@ -19,6 +19,7 @@ import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
+import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
@@ -71,14 +72,19 @@ function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
   if (d === null) return null;
   const past = d < 0;
   const urgent = d >= 0 && d <= 7;
+  // Cai tien: phan biet "da qua GAN DAY" (binh thuong, dang cho tien ve/
+  // ke tiep) voi "DOT CU" (da qua QUA LAU >60 ngay - nghia la CHUA CO dot
+  // moi duoc VCI cong bo, khong phai loi he thong khong cap nhat).
+  const isStale = past && Math.abs(d) > 60;
   return (
     <div className={`text-center px-2 py-1 rounded-lg border text-[10px] ${
       past ? "border-cf-border-strong text-cf-tertiary"
       : urgent ? "border-rose-700 bg-rose-950 text-rose-400"
-      : "border-cf-border-strong text-cf-secondary"}`}>
+      : "border-cf-border-strong text-cf-secondary"}`}
+      title={isStale ? "Đã qua hơn 60 ngày - chưa có đợt mới được công bố (không phải lỗi hệ thống)" : undefined}>
       <span className="block font-bold">{label}</span>
       <span className={`font-black ${urgent ? "animate-pulse" : ""}`}>
-        {past ? "Đã qua" : d === 0 ? "Hôm nay!" : `${d}n`}
+        {isStale ? "Đợt cũ" : past ? "Đã qua" : d === 0 ? "Hôm nay!" : `${d}n`}
       </span>
     </div>
   );
@@ -93,6 +99,13 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   lifecycleEvents?: DividendLifecycleEvent[];
 }) {
   const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline">("overview");
+  // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
+  // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
+  // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
+  // du nut bam da an.
+  useEffect(() => {
+    if (s.isUniverseOnly && modalTab === "dcf") setModalTab("overview");
+  }, [s.ticker, s.isUniverseOnly, modalTab]);
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -150,6 +163,15 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
           </button>
         </div>
 
+        {s.isUniverseOnly && (
+          <div style={{ background: "rgba(56,189,248,0.06)", borderBottom: "1px solid rgba(56,189,248,0.2)" }} className="px-5 py-2 flex items-start gap-2">
+            <Info className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-sky-300">
+              Mã thuộc <b>Universe mở rộng</b> (VN30+VN100, quét tự động) — Dividend Quality Score, P/E, Nợ/VCSH, RSI là dữ liệu thời gian thực. Chưa có F-Score/DCF/phân tích định tính chi tiết như 17 mã theo dõi chính.
+            </p>
+          </div>
+        )}
+
         <div className="flex gap-2 p-4 border-b border-cf-border/60 flex-wrap">
           <DaysChip dateStr={s.agmDate} label="ĐHCĐ" />
           <DaysChip dateStr={s.exDividendDate} label="GDKHQ" />
@@ -167,7 +189,9 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags","timeline"] as const).map((t) => (
+          {(["overview","dcf","flags","timeline"] as const)
+            .filter((t) => !(t === "dcf" && s.isUniverseOnly)) // DCF dung EPS - vo nghia voi ma Universe (eps=0, khong co du lieu that)
+            .map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
@@ -181,10 +205,11 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
             <>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  ["P/E", s.pe.toFixed(1) + "x", true], ["ROE", fmtPct(s.roe), true],
+                  ["P/E", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.pe.toFixed(1) + "x", true],
+                  ["ROE", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : fmtPct(s.roe), true],
                   ["Tăng trưởng EPS", (s.growth > 0 ? "+" : "") + s.growth + "%", true],
                   ["F-Score", s.fscore + "/9", true], ["Payout Ratio", fmtPct(s.payoutRatio), true],
-                  ["Debt/Equity", s.debtEquity.toFixed(2) + "x", true], ["RSI", s.rsi.toFixed(1), true],
+                  ["Debt/Equity", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.debtEquity.toFixed(2) + "x", true], ["RSI", s.isUniverseOnly ? "N/A" : s.rsi.toFixed(1), true],
                   ["Catalyst", catalyst + "/10", true],
                   // RS 3T se het "MAU" khi Phuong an C noi xong realRs that (khong con undefined)
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : "Đang tải...", realRs === null || realRs === undefined],
@@ -200,20 +225,28 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
                   </div>
                 ))}
               </div>
-              <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-3">
-                <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
-                <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-lg p-2.5">
-                  <p className="text-[9px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
-                  {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
+              {s.agmAgenda && (
+                <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-3">
+                  <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
+                  <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
                 </div>
-                <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" }} className="rounded-lg p-2.5">
-                  <p className="text-[9px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
-                  {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
+              )}
+              {(s.pros.length > 0 || s.cons.length > 0) ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-lg p-2.5">
+                    <p className="text-[9px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
+                    {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
+                  </div>
+                  <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" }} className="rounded-lg p-2.5">
+                    <p className="text-[9px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
+                    {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
+                  </div>
                 </div>
-              </div>
+              ) : s.isUniverseOnly ? (
+                <div style={{ background:"rgba(148,163,184,0.05)", border:"1px solid rgba(148,163,184,0.15)" }} className="rounded-lg p-2.5 text-center">
+                  <p className="text-[10px] text-cf-tertiary italic">Mã thuộc Universe mở rộng — chưa có phân tích định tính (ưu/nhược điểm) như 17 mã theo dõi chính.</p>
+                </div>
+              ) : null}
             </>
           )}
 
@@ -327,6 +360,19 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
   const { fundamentalsMap, isLoading: fundamentalsLoading } = useFundamentalsData();
   const { qualityScoreMap, isLoading: qualityScoreLoading } = useQualityScore();
+  const { universeStocks, entries: universeEntries } = useUniverseScores();
+  // FIX: tab Timeline can DividendLifecycleEvent[] day du - lifecycleEventsMap
+  // (tu useDividendEvents) CHI CO 17 ma theo doi goc, ma Universe se
+  // undefined neu dung nham nguon do. Tao map RIENG tu universeEntries
+  // (chua bi rut gon qua mapUniverseEntryToStock).
+  const universeLifecycleMap = useMemo(() => {
+    const map: Record<string, DividendLifecycleEvent[]> = {};
+    universeEntries.forEach((e) => {
+      const event = mapUniverseEntryToLifecycleEvent(e);
+      if (event) map[e.ticker] = [event];
+    });
+    return map;
+  }, [universeEntries]);
 
   // Merge du lieu tinh voi ngay THAT tu VCI Events (neu co) - uu tien du lieu that
   const mergedStocks = useMemo(() => {
@@ -364,45 +410,57 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     });
   }, [realDatesMap, fundamentalsMap, qualityScoreMap]);
 
-  // FIX: derive "selected" TU mergedStocks moi nhat (khong luu snapshot
-  // tinh) - Modal luon hien dung du lieu that ngay khi fetch xong, ke ca
-  // neu nguoi dung bam vao ma TRUOC KHI fundamentals kip tra ve.
+  // "Gop chung 1 bang" theo yeu cau: them ma tu Universe (VN30+VN100,
+  // 71 ma da loc su kien) VAO CUNG danh sach voi 17 ma theo doi goc.
+  // UU TIEN GIU 17 MA GOC (day du F-Score/DCF/pros-cons that) - CHI
+  // THEM ma Universe KHONG TRUNG voi 17 ma da co, tranh ghi de du lieu
+  // day du bang du lieu rut gon.
+  const allStocksWithUniverse = useMemo(() => {
+    const existingTickerSet = new Set(mergedStocks.map((s) => s.ticker));
+    const newFromUniverse = universeStocks.filter((s) => !existingTickerSet.has(s.ticker));
+    return [...mergedStocks, ...newFromUniverse];
+  }, [mergedStocks, universeStocks]);
+
+  // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
+  // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
+  // xong, ke ca neu nguoi dung bam vao ma TRUOC KHI fundamentals kip tra
+  // ve. Bao gom ca ma tu Universe (goi chung 1 bang theo yeu cau).
   const selected = useMemo(
-    () => (selectedTicker ? mergedStocks.find((s) => s.ticker === selectedTicker) ?? null : null),
-    [selectedTicker, mergedStocks]
+    () => (selectedTicker ? allStocksWithUniverse.find((s) => s.ticker === selectedTicker) ?? null : null),
+    [selectedTicker, allStocksWithUniverse]
   );
 
   const filtered = useMemo(() =>
     filterAndSortStocks(
-      mergedStocks, effectiveFilter,
+      allStocksWithUniverse, effectiveFilter,
       sortField as keyof DividendStock | "score" | "catalyst",
       sortAsc, realRsMap
-    ), [mergedStocks, effectiveFilter, sortField, sortAsc, realRsMap]
+    ), [allStocksWithUniverse, effectiveFilter, sortField, sortAsc, realRsMap]
   );
 
   // Danh sach da ghim luon hien dau, khong phu thuoc bo loc
-  const pinnedStocks = useMemo(() => mergedStocks.filter((s) => pinned.includes(s.ticker)), [mergedStocks, pinned]);
+  const pinnedStocks = useMemo(() => allStocksWithUniverse.filter((s) => pinned.includes(s.ticker)), [allStocksWithUniverse, pinned]);
 
   const stats = useMemo(() => {
-    const yieldAvg = mergedStocks.reduce((s, x) => s + x.dividendYield, 0) / mergedStocks.length;
-    const highYield = mergedStocks.filter((x) => x.dividendYield >= 5).length;
-    const upcoming = mergedStocks.filter((x) => {
+    const yieldAvg = allStocksWithUniverse.reduce((s, x) => s + x.dividendYield, 0) / allStocksWithUniverse.length;
+    const highYield = allStocksWithUniverse.filter((x) => x.dividendYield >= 5).length;
+    const upcoming = allStocksWithUniverse.filter((x) => {
       const d = getDaysUntil(x.exDividendDate);
       return d !== null && d >= 0 && d <= 30;
     }).length;
-    const upcomingAGM = mergedStocks.filter((x) => {
+    const upcomingAGM = allStocksWithUniverse.filter((x) => {
       const d = getDaysUntil(x.agmDate);
       return d !== null && d >= 0 && d <= 14;
     });
     return { yieldAvg, highYield, upcoming, upcomingAGM };
-  }, [mergedStocks]);
+  }, [allStocksWithUniverse]);
 
   const calendarList = useMemo(() =>
-    [...mergedStocks].sort((a, b) => {
+    [...allStocksWithUniverse].sort((a, b) => {
       const da = getDaysUntil(a.exDividendDate) ?? 9999;
       const db = getDaysUntil(b.exDividendDate) ?? 9999;
       return da - db;
-    }), [mergedStocks]
+    }), [allStocksWithUniverse]
   );
 
   const handleSort = (field: string) => {
@@ -583,6 +641,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                       {preset.label}
                     </button>
                   ))}
+                  <label className="flex items-center gap-1 text-[10px] text-cf-secondary cursor-pointer">
+                    <input type="checkbox" checked={!filter.hideStaleEvents}
+                      onChange={(e) => setFilter({ ...filter, hideStaleEvents: !e.target.checked })}
+                      className="accent-amber-500" />
+                    🕓 Hiện cả mã chưa có lịch cổ tức mới
+                  </label>
                   <label className="flex items-center gap-1 text-[10px] text-cf-secondary cursor-pointer ml-auto">
                     <input type="checkbox" checked={filter.hideRiskFlags}
                       onChange={(e) => setFilter({ ...filter, hideRiskFlags:e.target.checked })}
@@ -639,6 +703,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                       <td className="py-3">
                         <span className={`text-[10px] font-mono ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-cf-secondary"}`}>{s.exDividendDate}</span>
                         {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-cf-tertiary block">còn {gdkhqDays}n</span>}
+                        {gdkhqDays !== null && gdkhqDays < -60 && (
+                          <span className="text-[9px] text-cf-tertiary block italic" title="Đã qua hơn 60 ngày - chưa có đợt mới được công bố (không phải lỗi hệ thống)">Đợt cũ, chưa có lịch mới</span>
+                        )}
                       </td>
                       <td className="py-3">
                         <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
@@ -686,7 +753,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={lifecycleEventsMap[selected.ticker]} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? universeLifecycleMap[selected.ticker] : lifecycleEventsMap[selected.ticker]} />}
     </div>
   );
 }
