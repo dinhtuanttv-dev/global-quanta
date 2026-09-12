@@ -268,7 +268,13 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
-  const [selected, setSelected] = useState<DividendStock | null>(null);
+  // FIX (2026-09-12): truoc day luu SNAPSHOT object vao state -> neu bam
+  // vao 1 ma TRUOC KHI /api/cotuc/fundamentals kip tra ve (mat vai giay),
+  // Modal "dong bang" mai theo du lieu mau cu, KHONG tu cap nhat lai du
+  // mergedStocks sau do da co du lieu that (da xac nhan qua debug that:
+  // backend tra dung so, nhung Modal van hien so mau). Sua: chi luu
+  // TICKER (string), Modal LUON tu tinh lai tu mergedStocks moi nhat.
+  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
   const [showFilter, setShowFilter] = useState(true);
 
   // PHUONG AN B: noi vao useAppStore de lien ket cheo Sidebar/Radar, dung
@@ -280,7 +286,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
   const selectTickerGlobal = useAppStore((s) => s.selectTicker);
   const handleSelect = useCallback((s: DividendStock) => {
-    setSelected(s);
+    setSelectedTicker(s.ticker);
     selectTickerGlobal(s.ticker);
   }, [selectTickerGlobal]);
 
@@ -339,6 +345,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       return merged;
     });
   }, [realDatesMap, fundamentalsMap]);
+
+  // FIX: derive "selected" TU mergedStocks moi nhat (khong luu snapshot
+  // tinh) - Modal luon hien dung du lieu that ngay khi fetch xong, ke ca
+  // neu nguoi dung bam vao ma TRUOC KHI fundamentals kip tra ve.
+  const selected = useMemo(
+    () => (selectedTicker ? mergedStocks.find((s) => s.ticker === selectedTicker) ?? null : null),
+    [selectedTicker, mergedStocks]
+  );
 
   const filtered = useMemo(() =>
     filterAndSortStocks(
@@ -654,7 +668,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelected(null)} realRs={realRsMap[selected.ticker]} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} />}
     </div>
   );
 }
