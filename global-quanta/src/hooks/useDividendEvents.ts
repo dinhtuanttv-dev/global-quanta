@@ -6,6 +6,21 @@ const fetcher = (url: string) => fetch(url).then((r) => {
   return r.json();
 });
 
+export type DividendEventType = "CASH" | "STOCK_DIVIDEND" | "BONUS_ISSUE" | "ESOP";
+
+export interface DividendLifecycleEvent {
+  ticker: string;
+  eventType: DividendEventType;
+  eventTitleVi: string;
+  publicDate: string | null;
+  agmDate: string | null;
+  exrightDate: string | null;
+  recordDate: string | null;
+  settlementDate: string | null;
+  valuePerShare: number | null;
+  exerciseRatio: number | null;
+}
+
 export function useDividendEvents() {
   const { data, error, isLoading, mutate } = useSWR(`${API_BASE}/api/cotuc/events`, fetcher, {
     refreshInterval: 30 * 60 * 1000,
@@ -15,6 +30,10 @@ export function useDividendEvents() {
 
   // Tra ve map { ticker: { exDate, agmDate } } de CotucTab de merge voi data tinh
   const realDatesMap: Record<string, { exDate: string | null; agmDate: string | null }> = {};
+  // P1 (UI Timeline): map moi { ticker: DividendLifecycleEvent[] } - 5
+  // moc thuc te da chuan hoa + phan loai, dung cho panel "Vong doi co
+  // tuc" trong Modal chi tiet.
+  const lifecycleEventsMap: Record<string, DividendLifecycleEvent[]> = {};
   if (data?.results) {
     data.results.forEach((r: any) => {
       if (!r.available) return;
@@ -24,8 +43,9 @@ export function useDividendEvents() {
         exDate: exEvent?.exerciseDate ?? null,
         agmDate: agmEvent?.exerciseDate ?? null,
       };
+      lifecycleEventsMap[r.ticker] = r.lifecycleEvents ?? [];
     });
   }
 
-  return { eventsData: data, realDatesMap, isLoading, error, refresh: mutate };
+  return { eventsData: data, realDatesMap, lifecycleEventsMap, isLoading, error, refresh: mutate };
 }

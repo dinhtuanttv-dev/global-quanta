@@ -15,6 +15,8 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useDividendFilterUrl } from "../../../hooks/useDividendFilterUrl";
 import { usePinnedStocks } from "../../../hooks/usePinnedStocks";
 import { useDividendEvents } from "../../../hooks/useDividendEvents";
+import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
+import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
@@ -80,10 +82,11 @@ function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
 // STOCK DETAIL MODAL - VA LO HONG #3: Focus Trap + ESC to close
 // ============================================================
 
-function StockModal({ s, onClose, realRs }: {
+function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   s: DividendStock; onClose: () => void; realRs?: number | null;
+  lifecycleEvents?: DividendLifecycleEvent[];
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags">("overview");
+  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline">("overview");
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -158,11 +161,11 @@ function StockModal({ s, onClose, realRs }: {
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags"] as const).map((t) => (
+          {(["overview","dcf","flags","timeline"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : "⚠️ Rủi Ro"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : "📅 Vòng Đời Cổ Tức"}
             </button>
           ))}
         </div>
@@ -248,6 +251,8 @@ function StockModal({ s, onClose, realRs }: {
               ))}
             </div>
           )}
+
+          {modalTab === "timeline" && <DividendTimelinePanel events={lifecycleEvents} />}
         </div>
       </div>
     </div>
@@ -313,7 +318,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const effectiveFilter = useMemo(() => ({ ...filter, searchQ: debouncedSearchQ }), [filter, debouncedSearchQ]);
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
-  const { realDatesMap, isLoading: eventsLoading } = useDividendEvents();
+  const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
   const { fundamentalsMap, isLoading: fundamentalsLoading } = useFundamentalsData();
 
   // Merge du lieu tinh voi ngay THAT tu VCI Events (neu co) - uu tien du lieu that
@@ -668,7 +673,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={lifecycleEventsMap[selected.ticker]} />}
     </div>
   );
 }
