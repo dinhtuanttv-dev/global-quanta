@@ -172,10 +172,10 @@ function StockModal({ s, onClose, realRs }: {
             <>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  ["P/E", s.pe + "x", true], ["ROE", fmtPct(s.roe), true],
+                  ["P/E", s.pe.toFixed(1) + "x", true], ["ROE", fmtPct(s.roe), true],
                   ["Tăng trưởng EPS", (s.growth > 0 ? "+" : "") + s.growth + "%", true],
                   ["F-Score", s.fscore + "/9", true], ["Payout Ratio", fmtPct(s.payoutRatio), true],
-                  ["Debt/Equity", s.debtEquity + "x", true], ["RSI", String(s.rsi), true],
+                  ["Debt/Equity", s.debtEquity.toFixed(2) + "x", true], ["RSI", s.rsi.toFixed(1), true],
                   ["Catalyst", catalyst + "/10", true],
                   // RS 3T se het "MAU" khi Phuong an C noi xong realRs that (khong con undefined)
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : "Đang tải...", realRs === null || realRs === undefined],
