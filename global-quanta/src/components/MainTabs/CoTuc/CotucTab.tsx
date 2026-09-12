@@ -1,5 +1,6 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import "./cotuc-theme.css";
 import {
   Coins, TrendingUp, TrendingDown, Search, RefreshCw,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
@@ -27,10 +28,10 @@ import { useAppStore } from "../../../store/useAppStore";
 
 function ScoreBadge({ score }: { score: number }) {
   const color = score >= 80
-    ? "bg-emerald-950 text-emerald-300 border-emerald-700"
+    ? "bg-emerald-950 text-cf-positive border-emerald-700"
     : score >= 60
-    ? "bg-amber-950 text-amber-300 border-amber-700"
-    : "bg-slate-900 text-slate-400 border-slate-700";
+    ? "bg-amber-950 text-cf-gold-bright border-amber-700"
+    : "bg-cf-base text-cf-secondary border-cf-border-strong";
   return <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${color}`}>{score}/100</span>;
 }
 
@@ -46,10 +47,10 @@ function PhaseBadge({ s }: { s: DividendStock }) {
 // VA LO HONG #6: phan biet ro "dang tai" (...) vs "khong co du lieu" (-)
 // thay vi ca 2 truong hop deu hien "-" giong het nhau nhu ban truoc.
 function RsBadge({ rs, isLoading }: { rs: number | null | undefined; isLoading?: boolean }) {
-  if (isLoading) return <span className="text-slate-500 text-[9px] animate-pulse">...</span>;
-  if (rs === null || rs === undefined) return <span className="text-slate-600 text-[9px]">-</span>;
+  if (isLoading) return <span className="text-cf-tertiary text-[9px] animate-pulse">...</span>;
+  if (rs === null || rs === undefined) return <span className="text-cf-tertiary text-[9px]">-</span>;
   return (
-    <span className={`text-[9px] font-bold flex items-center gap-0.5 ${rs >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+    <span className={`text-[9px] font-bold flex items-center gap-0.5 ${rs >= 0 ? "text-cf-positive" : "text-cf-negative"}`}>
       {rs >= 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
       {rs >= 0 ? "+" : ""}{rs}%
     </span>
@@ -63,9 +64,9 @@ function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
   const urgent = d >= 0 && d <= 7;
   return (
     <div className={`text-center px-2 py-1 rounded-lg border text-[10px] ${
-      past ? "border-slate-700 text-slate-600"
+      past ? "border-cf-border-strong text-cf-tertiary"
       : urgent ? "border-rose-700 bg-rose-950 text-rose-400"
-      : "border-slate-700 text-slate-400"}`}>
+      : "border-cf-border-strong text-cf-secondary"}`}>
       <span className="block font-bold">{label}</span>
       <span className={`font-black ${urgent ? "animate-pulse" : ""}`}>
         {past ? "Đã qua" : d === 0 ? "Hôm nay!" : `${d}n`}
@@ -118,35 +119,35 @@ function StockModal({ s, onClose, realRs }: {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/90 flex items-center justify-center p-4 overflow-y-auto"
+    <div className="fixed inset-0 z-50 bg-cf-base/90 flex items-center justify-center p-4 overflow-y-auto"
       role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="stock-modal-title"
         style={{ background:"linear-gradient(165deg,#0e1626 0%,#0a1020 100%)", border:"1px solid rgba(148,163,184,0.15)" }}
         className="w-full max-w-2xl rounded-2xl shadow-2xl my-4">
 
-        <div className="flex items-center justify-between p-5 border-b border-slate-800/60">
+        <div className="flex items-center justify-between p-5 border-b border-cf-border/60">
           <div className="flex items-center gap-3">
-            <span id="stock-modal-title" className="text-2xl font-black text-amber-400">{s.ticker}</span>
+            <span id="stock-modal-title" className="text-2xl font-black text-cf-gold">{s.ticker}</span>
             <div>
-              <p className="text-xs font-bold text-slate-200">{s.name}</p>
-              <p className="text-[10px] text-slate-500">{s.sector} · {s.marketCap}-Cap</p>
+              <p className="text-xs font-bold text-cf-primary">{s.name}</p>
+              <p className="text-[10px] text-cf-tertiary">{s.sector} · {s.marketCap}-Cap</p>
             </div>
             <ScoreBadge score={score} />
           </div>
           <button ref={closeButtonRef} onClick={onClose} aria-label="Đóng cửa sổ chi tiết"
-            className="text-slate-500 hover:text-slate-200 text-xs px-3 py-1.5 rounded-lg border border-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500">
+            className="text-cf-tertiary hover:text-cf-primary text-xs px-3 py-1.5 rounded-lg border border-cf-border-strong focus:outline-none focus:ring-2 focus:ring-amber-500">
             ✕ Đóng
           </button>
         </div>
 
-        <div className="flex gap-2 p-4 border-b border-slate-800/60 flex-wrap">
+        <div className="flex gap-2 p-4 border-b border-cf-border/60 flex-wrap">
           <DaysChip dateStr={s.agmDate} label="ĐHCĐ" />
           <DaysChip dateStr={s.exDividendDate} label="GDKHQ" />
           <DaysChip dateStr={s.paymentDate} label="Nhận tiền" />
-          <div className="flex-1 min-w-[140px] bg-slate-900/60 rounded-lg p-2 border border-slate-700">
-            <p className="text-[9px] text-slate-500 font-bold uppercase">Cổ tức / CP</p>
-            <p className="text-sm font-black text-emerald-400">{fmtVND(s.dividendAmount)}</p>
-            <p className="text-[9px] text-slate-400">Yield: {fmtPct(s.dividendYield)}</p>
+          <div className="flex-1 min-w-[140px] bg-cf-base/60 rounded-lg p-2 border border-cf-border-strong">
+            <p className="text-[9px] text-cf-tertiary font-bold uppercase">Cổ tức / CP</p>
+            <p className="text-sm font-black text-cf-positive">{fmtVND(s.dividendAmount)}</p>
+            <p className="text-[9px] text-cf-secondary">Yield: {fmtPct(s.dividendYield)}</p>
           </div>
           <div style={{ border:"1px solid rgba(148,163,184,0.1)" }} className={`flex-1 min-w-[140px] rounded-lg p-2 ${phase.color}`}>
             <p className="text-[9px] font-bold uppercase opacity-70">Vị thế</p>
@@ -155,11 +156,11 @@ function StockModal({ s, onClose, realRs }: {
           </div>
         </div>
 
-        <div className="flex border-b border-slate-800/60 px-4" role="tablist">
+        <div className="flex border-b border-cf-border/60 px-4" role="tablist">
           {(["overview","dcf","flags"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
-                ${modalTab === t ? "border-amber-500 text-amber-400" : "border-transparent text-slate-400 hover:text-slate-200"}`}>
+                ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
               {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : "⚠️ Rủi Ro"}
             </button>
           ))}
@@ -180,27 +181,27 @@ function StockModal({ s, onClose, realRs }: {
                   ["Institutional", s.institutionalHold + "%", true],
                 ].map(([label, val, isMock]) => (
                   <div key={label as string} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-2.5">
-                    <p className="text-[9px] text-slate-500 font-bold uppercase flex items-center gap-1">
+                    <p className="text-[9px] text-cf-tertiary font-bold uppercase flex items-center gap-1">
                       {label}
                       {/* PHUONG AN A: cham vang nho danh dau field du lieu mau, khong phai loi */}
                       {isMock && <span title="Dữ liệu mẫu, chưa cập nhật thời gian thực" className="w-1 h-1 rounded-full bg-amber-500 inline-block" />}
                     </p>
-                    <p className="text-xs font-black text-slate-200 mt-0.5">{val}</p>
+                    <p className="text-xs font-black text-cf-primary mt-0.5">{val}</p>
                   </div>
                 ))}
               </div>
               <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-3">
-                <p className="text-[9px] text-slate-500 font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
-                <p className="text-xs text-slate-300">{s.agmAgenda}</p>
+                <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
+                <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-lg p-2.5">
-                  <p className="text-[9px] text-emerald-400 font-bold uppercase mb-1">✅ Ưu điểm</p>
-                  {s.pros.map((p, i) => <p key={i} className="text-[10px] text-slate-300">• {p}</p>)}
+                  <p className="text-[9px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
+                  {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
                 </div>
                 <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" }} className="rounded-lg p-2.5">
-                  <p className="text-[9px] text-red-400 font-bold uppercase mb-1">❌ Nhược điểm</p>
-                  {s.cons.map((c, i) => <p key={i} className="text-[10px] text-slate-300">• {c}</p>)}
+                  <p className="text-[9px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
+                  {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
                 </div>
               </div>
             </>
@@ -210,8 +211,8 @@ function StockModal({ s, onClose, realRs }: {
             <div className="space-y-3">
               {/* VA LO HONG #4: banner canh bao DCF dung EPS proxy, khong phai FCF that */}
               <div style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.3)" }} className="rounded-xl p-3 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-amber-300"><b>Lưu ý quan trọng:</b> DCF này dùng EPS làm proxy thay cho Free Cash Flow thật — kết quả chỉ mang tính tham khảo ước lượng nhanh, KHÔNG phải định giá chính xác. Với mã có Capex cao, sai lệch có thể đáng kể. <b>Giá thị trường dùng để so sánh (% vs thị giá) cũng là số liệu mẫu tĩnh</b>, không phải giá khớp lệnh hiện tại — chênh lệch % dưới đây chỉ mang tính minh họa.</p>
+                <AlertCircle className="w-4 h-4 text-cf-gold shrink-0 mt-0.5" />
+                <p className="text-[10px] text-cf-gold-bright"><b>Lưu ý quan trọng:</b> DCF này dùng EPS làm proxy thay cho Free Cash Flow thật — kết quả chỉ mang tính tham khảo ước lượng nhanh, KHÔNG phải định giá chính xác. Với mã có Capex cao, sai lệch có thể đáng kể. <b>Giá thị trường dùng để so sánh (% vs thị giá) cũng là số liệu mẫu tĩnh</b>, không phải giá khớp lệnh hiện tại — chênh lệch % dưới đây chỉ mang tính minh họa.</p>
               </div>
               {([["bear","🐻 Xấu",dcfBear],["base","⚖️ Cơ Sở",dcfBase],["bull","🐂 Tốt",dcfBull]] as const).map(([sc, label, val]) => {
                 const pct = ((val - s.price) / s.price * 100);
@@ -219,12 +220,12 @@ function StockModal({ s, onClose, realRs }: {
                 return (
                   <div key={sc} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4 flex items-center justify-between">
                     <div>
-                      <p className="text-xs font-black text-slate-200">{label}</p>
-                      <p className="text-[9px] text-slate-500 mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
+                      <p className="text-xs font-black text-cf-primary">{label}</p>
+                      <p className="text-[9px] text-cf-tertiary mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-sm font-black ${sc === "bull" ? "text-emerald-400" : sc === "base" ? "text-amber-400" : "text-red-400"}`}>{fmtVND(val)}</p>
-                      <p className={`text-[10px] font-bold ${pct > 0 ? "text-emerald-400" : "text-red-400"}`}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}% vs thị giá</p>
+                      <p className={`text-sm font-black ${sc === "bull" ? "text-cf-positive" : sc === "base" ? "text-cf-gold" : "text-cf-negative"}`}>{fmtVND(val)}</p>
+                      <p className={`text-[10px] font-bold ${pct > 0 ? "text-cf-positive" : "text-cf-negative"}`}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}% vs thị giá</p>
                     </div>
                   </div>
                 );
@@ -235,13 +236,13 @@ function StockModal({ s, onClose, realRs }: {
           {modalTab === "flags" && (
             <div className="space-y-3">
               {flags.length === 0 ? (
-                <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-xl p-4 flex items-center gap-2 text-emerald-400">
+                <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-xl p-4 flex items-center gap-2 text-cf-positive">
                   <CheckCircle2 className="w-4 h-4" /><span className="text-xs font-bold">Sạch rủi ro tài chính!</span>
                 </div>
               ) : flags.map((f, i) => (
                 <div key={i} style={{ background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.25)" }} className="rounded-xl p-3 flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-300">{f}</p>
+                  <AlertCircle className="w-4 h-4 text-cf-gold shrink-0 mt-0.5" />
+                  <p className="text-xs text-cf-gold-bright">{f}</p>
                 </div>
               ))}
             </div>
@@ -367,16 +368,16 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     <div style={{ background:"linear-gradient(165deg,#0e1626 0%,#0a1020 100%)", border:"1px solid rgba(148,163,184,0.1)" }}
       className="rounded-2xl p-5 shadow-xl space-y-4">
 
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-slate-800/60">
-        <h3 className="text-sm font-bold uppercase text-slate-100 flex items-center gap-1.5">
-          <Coins className="w-4 h-4 text-amber-400" /> Phân Tích Cổ Tức & ĐHCĐ
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-cf-border/60">
+        <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5">
+          <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cổ Tức & ĐHCĐ
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
           {Object.keys(realDatesMap).length > 0
-            ? <span className="flex items-center gap-1 text-[10px] text-emerald-400"><CheckCircle2 className="w-3 h-3" />GDKHQ/ĐHCĐ: Thực (VCI)</span>
+            ? <span className="flex items-center gap-1 text-[10px] text-cf-positive"><CheckCircle2 className="w-3 h-3" />GDKHQ/ĐHCĐ: Thực (VCI)</span>
             : eventsLoading
-            ? <span className="text-[10px] text-slate-500 animate-pulse">Đang tải sự kiện thực...</span>
-            : <span className="text-[10px] text-amber-400 italic">Dùng data mẫu (VCI tạm lỗi)</span>}
+            ? <span className="text-[10px] text-cf-tertiary animate-pulse">Đang tải sự kiện thực...</span>
+            : <span className="text-[10px] text-cf-gold italic">Dùng data mẫu (VCI tạm lỗi)</span>}
         </div>
       </div>
 
@@ -387,9 +388,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           nguoi dung hieu nham Score/DCF la tinh tren gia/chi so hien tai. */}
       <div style={{ background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.15)" }}
         className="rounded-xl p-2.5 flex items-start gap-2">
-        <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
-        <p className="text-[9px] text-slate-400 leading-relaxed">
-          <b className="text-slate-300">Về dữ liệu:</b> Chỉ <b>ngày GDKHQ/ĐHCĐ</b> là dữ liệu thời gian thực (VCI).
+        <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
+        <p className="text-[9px] text-cf-secondary leading-relaxed">
+          <b className="text-cf-primary">Về dữ liệu:</b> Chỉ <b>ngày GDKHQ/ĐHCĐ</b> là dữ liệu thời gian thực (VCI).
           Các trường còn lại — <b>giá, P/E, ROE, RSI, tăng trưởng, Score, DCF, ưu/nhược điểm</b> — là số liệu mẫu
           cố định, dùng để minh họa cách xếp hạng/lọc, <b>không đại diện cho giá trị thị trường hiện tại</b>. Tab
           "Quý gần nhất" (KQKD) mới là số liệu BCTC thật.
@@ -402,35 +403,35 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           Score/DCF chinh vi thieu du lieu day du. */}
       <div style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3 space-y-2">
         <div className="flex items-center gap-2">
-          <Search className="w-3.5 h-3.5 text-slate-500" />
+          <Search className="w-3.5 h-3.5 text-cf-tertiary" />
           <input
             value={expandQuery}
             onChange={(e) => setExpandQuery(e.target.value)}
             placeholder="Tìm mã khác trong VN30+VN100 để yêu cầu bổ sung dữ liệu cổ tức..."
-            className="flex-1 bg-transparent text-[10px] text-slate-200 placeholder:text-slate-600 outline-none"
+            className="flex-1 bg-transparent text-[10px] text-cf-primary placeholder:text-cf-tertiary outline-none"
           />
-          {universeLoading && <RefreshCw className="w-3 h-3 text-slate-600 animate-spin" />}
+          {universeLoading && <RefreshCw className="w-3 h-3 text-cf-tertiary animate-spin" />}
         </div>
         {expandResults.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {expandResults.map((u) => (
               <button key={u.ticker} onClick={() => { addRequested(u.ticker); setExpandQuery(""); }}
-                className="text-[10px] font-bold text-slate-300 bg-slate-900/60 hover:bg-slate-800 px-2 py-1 rounded-lg border border-slate-700 flex items-center gap-1">
-                + {u.ticker}{u.sector ? <span className="text-slate-500 font-normal">· {u.sector}</span> : null}
+                className="text-[10px] font-bold text-cf-primary bg-cf-base/60 hover:bg-cf-surface-2 px-2 py-1 rounded-lg border border-cf-border-strong flex items-center gap-1">
+                + {u.ticker}{u.sector ? <span className="text-cf-tertiary font-normal">· {u.sector}</span> : null}
               </button>
             ))}
           </div>
         )}
         {requested.length > 0 && (
-          <div className="pt-1 border-t border-slate-800/60">
-            <p className="text-[9px] text-slate-500 mb-1.5">
+          <div className="pt-1 border-t border-cf-border/60">
+            <p className="text-[9px] text-cf-tertiary mb-1.5">
               📋 Đã yêu cầu bổ sung ({requested.length}) — <i>chưa có dữ liệu P/E/ROE/DCF, chỉ là danh sách theo dõi</i>
             </p>
             <div className="flex flex-wrap gap-1.5">
               {requested.map((t) => (
-                <span key={t} className="text-[10px] font-bold text-amber-400/80 bg-amber-950/20 px-2 py-1 rounded-lg border border-amber-800/30 flex items-center gap-1.5">
+                <span key={t} className="text-[10px] font-bold text-cf-gold/80 bg-amber-950/20 px-2 py-1 rounded-lg border border-amber-800/30 flex items-center gap-1.5">
                   {t}
-                  <button onClick={() => removeRequested(t)} aria-label={`Bỏ yêu cầu ${t}`} className="text-slate-500 hover:text-red-400">✕</button>
+                  <button onClick={() => removeRequested(t)} aria-label={`Bỏ yêu cầu ${t}`} className="text-cf-tertiary hover:text-cf-negative">✕</button>
                 </span>
               ))}
             </div>
@@ -439,11 +440,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       </div>
       {pinnedStocks.length > 0 && (
         <div style={{ background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.15)" }} className="rounded-xl p-3">
-          <p className="text-[9px] font-bold text-amber-400 uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
+          <p className="text-[9px] font-bold text-cf-gold uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
           <div className="flex flex-wrap gap-2">
             {pinnedStocks.map((s) => (
               <button key={s.ticker} onClick={() => handleSelect(s)}
-                className="text-[10px] font-black text-amber-400 bg-slate-900/60 px-2.5 py-1 rounded-lg border border-amber-800/40">
+                className="text-[10px] font-black text-cf-gold bg-cf-base/60 px-2.5 py-1 rounded-lg border border-amber-800/40">
                 {s.ticker}
               </button>
             ))}
@@ -453,15 +454,15 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-emerald-400", sub:`${mergedStocks.length} mã theo dõi` },
-          { label:"Yield > 5%", value:String(stats.highYield), color:"text-amber-400", sub:"mã trong universe" },
+          { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-cf-positive", sub:`${mergedStocks.length} mã theo dõi` },
+          { label:"Yield > 5%", value:String(stats.highYield), color:"text-cf-gold", sub:"mã trong universe" },
           { label:"Sắp GDKHQ (30n)", value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
-          { label:"Sắp ĐHCĐ (14n)", value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-slate-400", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
+          { label:"Sắp ĐHCĐ (14n)", value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
         ].map((item) => (
           <div key={item.label} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3">
-            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">{item.label}</p>
+            <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">{item.label}</p>
             <p className={`text-xl font-black ${item.color}`}>{item.value}</p>
-            <p className="text-[9px] text-slate-500 mt-0.5">{item.sub}</p>
+            <p className="text-[9px] text-cf-tertiary mt-0.5">{item.sub}</p>
           </div>
         ))}
       </div>
@@ -475,8 +476,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           <button key={t.id} onClick={() => setSubTab(t.id)}
             style={subTab === t.id ? { background:"linear-gradient(135deg,#fbbf24,#f59e0b)" } : {}}
             className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black transition-all
-              ${subTab === t.id ? "text-slate-950" : "text-slate-400 hover:text-slate-200"}`}>
-            {t.label}{t.count !== null && <span className={`ml-1 ${subTab === t.id ? "text-slate-800" : "text-amber-400"}`}>({t.count})</span>}
+              ${subTab === t.id ? "text-cf-primary" : "text-cf-secondary hover:text-cf-primary"}`}>
+            {t.label}{t.count !== null && <span className={`ml-1 ${subTab === t.id ? "text-cf-tertiary" : "text-cf-gold"}`}>({t.count})</span>}
           </button>
         ))}
       </div>
@@ -486,13 +487,13 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3">
             <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
               <div className="relative flex-1 max-w-xs">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-cf-tertiary" />
                 <input value={filter.searchQ} onChange={(e) => setFilter({ ...filter, searchQ:e.target.value })}
                   placeholder="Tìm mã hoặc tên..."
                   style={{ background:"rgba(2,6,15,0.7)", border:"1px solid rgba(148,163,184,0.15)" }}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-amber-500" />
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs text-cf-primary focus:outline-none focus:border-amber-500" />
               </div>
-              <button onClick={() => setShowFilter(!showFilter)} className="text-[10px] text-slate-400 hover:text-slate-200 flex items-center gap-1">
+              <button onClick={() => setShowFilter(!showFilter)} className="text-[10px] text-cf-secondary hover:text-cf-primary flex items-center gap-1">
                 {showFilter ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} Bộ lọc
               </button>
             </div>
@@ -507,7 +508,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     { label:`F-Score ≥ ${filter.minFscore}/9`, key:"minFscore", min:0, max:9, step:1, val:filter.minFscore },
                   ].map((f) => (
                     <div key={f.key}>
-                      <label className="text-[9px] text-slate-400 font-bold block mb-1">{f.label}</label>
+                      <label className="text-[9px] text-cf-secondary font-bold block mb-1">{f.label}</label>
                       <input type="range" min={f.min} max={f.max} step={f.step} value={f.val}
                         onChange={(e) => setFilter({ ...filter, [f.key]:parseFloat(e.target.value) })}
                         className="w-full h-1.5 accent-amber-500" />
@@ -524,11 +525,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   ].map((preset) => (
                     <button key={preset.label} onClick={() => setFilter({ ...DEFAULT_FILTER, ...preset.f })}
                       style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)" }}
-                      className="text-[10px] font-bold text-amber-400 px-2 py-1 rounded-lg hover:brightness-110 transition">
+                      className="text-[10px] font-bold text-cf-gold px-2 py-1 rounded-lg hover:brightness-110 transition">
                       {preset.label}
                     </button>
                   ))}
-                  <label className="flex items-center gap-1 text-[10px] text-slate-400 cursor-pointer ml-auto">
+                  <label className="flex items-center gap-1 text-[10px] text-cf-secondary cursor-pointer ml-auto">
                     <input type="checkbox" checked={filter.hideRiskFlags}
                       onChange={(e) => setFilter({ ...filter, hideRiskFlags:e.target.checked })}
                       className="accent-amber-500" />
@@ -542,11 +543,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="border-b border-slate-800/60 text-slate-400 text-[10px] uppercase">
+                <tr className="border-b border-cf-border/60 text-cf-secondary text-[10px] uppercase">
                   <th className="pb-2 w-6"></th>
-                  <th className="pb-2 cursor-pointer hover:text-slate-200" onClick={() => handleSort("ticker")}>Mã <SortIcon field="ticker" /></th>
-                  <th className="pb-2 cursor-pointer hover:text-amber-400" onClick={() => handleSort("dividendYield")}>Yield <SortIcon field="dividendYield" /></th>
-                  <th className="pb-2 text-right cursor-pointer hover:text-slate-200" onClick={() => handleSort("score")} title="Tính trên dữ liệu mẫu (P/E, ROE, growth...), không phải chỉ số thời gian thực">Score <SortIcon field="score" /></th>
+                  <th className="pb-2 cursor-pointer hover:text-cf-primary" onClick={() => handleSort("ticker")}>Mã <SortIcon field="ticker" /></th>
+                  <th className="pb-2 cursor-pointer hover:text-cf-gold" onClick={() => handleSort("dividendYield")}>Yield <SortIcon field="dividendYield" /></th>
+                  <th className="pb-2 text-right cursor-pointer hover:text-cf-primary" onClick={() => handleSort("score")} title="Tính trên dữ liệu mẫu (P/E, ROE, growth...), không phải chỉ số thời gian thực">Score <SortIcon field="score" /></th>
                   <th className="pb-2 text-center">RS 3T</th>
                   <th className="pb-2">Vị Thế</th>
                   <th className="pb-2">GDKHQ</th>
@@ -555,7 +556,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               </thead>
               <tbody className="divide-y divide-slate-800/30">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="py-8 text-center text-slate-500 text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
+                  <tr><td colSpan={8} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
                 )}
                 {filtered.map((s) => {
                   const gdkhqDays = getDaysUntil(s.exDividendDate);
@@ -563,30 +564,30 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   const rs = realRsMap[s.ticker];
                   return (
                     <tr key={s.ticker}
-                      className={`hover:bg-slate-800/30 transition ${s.ticker === globalSelectedTicker ? "bg-amber-950/20 ring-1 ring-inset ring-amber-700/40" : ""}`}>
+                      className={`hover:bg-cf-surface-2/30 transition ${s.ticker === globalSelectedTicker ? "bg-amber-950/20 ring-1 ring-inset ring-amber-700/40" : ""}`}>
                       <td className="py-3">
                         <button onClick={(e) => { e.stopPropagation(); togglePin(s.ticker); }}
-                          className={isPinned(s.ticker) ? "text-amber-400" : "text-slate-700 hover:text-slate-500"}>
+                          className={isPinned(s.ticker) ? "text-cf-gold" : "text-cf-tertiary hover:text-cf-tertiary"}>
                           <Star className="w-3.5 h-3.5" fill={isPinned(s.ticker) ? "currentColor" : "none"} />
                         </button>
                       </td>
                       <td onClick={() => handleSelect(s)} className="py-3 cursor-pointer">
-                        <span className="font-black text-amber-400">{s.ticker}</span>
-                        <span className="text-[9px] text-slate-500 block">{s.sector}</span>
+                        <span className="font-black text-cf-gold">{s.ticker}</span>
+                        <span className="text-[9px] text-cf-tertiary block">{s.sector}</span>
                       </td>
                       <td onClick={() => handleSelect(s)} className="py-3 cursor-pointer">
-                        <span className="text-emerald-400 font-black">{fmtPct(s.dividendYield)}</span>
-                        <span className="text-[9px] text-slate-500 block">{fmtVND(s.dividendAmount)}/cp</span>
+                        <span className="text-cf-positive font-black">{fmtPct(s.dividendYield)}</span>
+                        <span className="text-[9px] text-cf-tertiary block">{fmtVND(s.dividendAmount)}/cp</span>
                       </td>
                       <td className="py-3 text-right"><ScoreBadge score={calcDividendScore(s)} /></td>
                       <td className="py-3 text-center"><RsBadge rs={rs} isLoading={isRealRsLoading} /></td>
                       <td className="py-3"><PhaseBadge s={s} /></td>
                       <td className="py-3">
-                        <span className={`text-[10px] font-mono ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-slate-400"}`}>{s.exDividendDate}</span>
-                        {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-slate-500 block">còn {gdkhqDays}n</span>}
+                        <span className={`text-[10px] font-mono ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-cf-secondary"}`}>{s.exDividendDate}</span>
+                        {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-cf-tertiary block">còn {gdkhqDays}n</span>}
                       </td>
                       <td className="py-3">
-                        <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-slate-500"}`}>{s.agmDate}</span>
+                        <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
                       </td>
                     </tr>
                   );
@@ -607,15 +608,15 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               <div key={s.ticker} onClick={() => handleSelect(s)}
                 style={urgent ? { background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" } : past ? { background:"rgba(2,6,15,0.3)", opacity:0.6 } : { background:"rgba(2,6,15,0.5)", border:"1px solid rgba(148,163,184,0.08)" }}
                 className="rounded-xl p-3.5 flex items-center gap-3 cursor-pointer hover:brightness-110 transition">
-                <div className={`w-14 text-center shrink-0 p-2 rounded-xl border ${urgent ? "border-rose-700 bg-rose-950" : "border-slate-700 bg-slate-900/60"}`}>
-                  {past ? <span className="text-xs text-slate-500 font-bold">Đã qua</span> : <span className={`text-lg font-black block ${urgent ? "text-rose-400 animate-pulse" : "text-amber-400"}`}>{gdkhqDays}</span>}
+                <div className={`w-14 text-center shrink-0 p-2 rounded-xl border ${urgent ? "border-rose-700 bg-rose-950" : "border-cf-border-strong bg-cf-base/60"}`}>
+                  {past ? <span className="text-xs text-cf-tertiary font-bold">Đã qua</span> : <span className={`text-lg font-black block ${urgent ? "text-rose-400 animate-pulse" : "text-cf-gold"}`}>{gdkhqDays}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className="font-black text-amber-400">{s.ticker}</span>
-                  <span className="text-[10px] text-slate-400 ml-2">{s.name}</span>
-                  <div className="flex flex-wrap gap-3 text-[10px] text-slate-400 mt-1">
-                    <span>📅 GDKHQ: <b className="text-amber-400">{s.exDividendDate}</b></span>
-                    <span>💵 <b className="text-emerald-400">{fmtVND(s.dividendAmount)}/cp</b></span>
+                  <span className="font-black text-cf-gold">{s.ticker}</span>
+                  <span className="text-[10px] text-cf-secondary ml-2">{s.name}</span>
+                  <div className="flex flex-wrap gap-3 text-[10px] text-cf-secondary mt-1">
+                    <span>📅 GDKHQ: <b className="text-cf-gold">{s.exDividendDate}</b></span>
+                    <span>💵 <b className="text-cf-positive">{fmtVND(s.dividendAmount)}/cp</b></span>
                   </div>
                 </div>
                 <ScoreBadge score={calcDividendScore(s)} />

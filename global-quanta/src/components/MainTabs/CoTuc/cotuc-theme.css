@@ -1,0 +1,20 @@
+/* cotuc-theme.css — anh xa class Tailwind cung (slate/amber/emerald/red)
+   sang DUNG token he thong (tokens.css) da dung nhat quan o LocNganh,
+   KetNoiTheGioi, ChatXucTac. KHONG doi cau truc JSX cua CotucTab.tsx/
+   EarningsQuarterPanel.tsx - chi doi TEN class, giu nguyen moi thu khac. */
+
+.text-cf-primary { color: var(--text-primary); }
+.text-cf-secondary { color: var(--text-secondary); }
+.text-cf-tertiary { color: var(--text-tertiary); }
+.text-cf-gold { color: var(--gold); }
+.text-cf-gold-bright { color: var(--gold-bright); }
+.text-cf-positive { color: var(--positive); }
+.text-cf-negative { color: var(--negative); }
+.text-cf-warning { color: var(--warning); }
+
+.bg-cf-base { background-color: var(--bg-base); }
+.bg-cf-surface { background-color: var(--bg-surface); }
+.bg-cf-surface-2 { background-color: var(--bg-surface-2); }
+
+.border-cf-border { border-color: var(--border); }
+.border-cf-border-strong { border-color: var(--border-strong); }
