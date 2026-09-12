@@ -15,6 +15,7 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useDividendFilterUrl } from "../../../hooks/useDividendFilterUrl";
 import { usePinnedStocks } from "../../../hooks/usePinnedStocks";
 import { useDividendEvents } from "../../../hooks/useDividendEvents";
+import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
@@ -307,19 +308,37 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
   const { realDatesMap, isLoading: eventsLoading } = useDividendEvents();
+  const { fundamentalsMap, isLoading: fundamentalsLoading } = useFundamentalsData();
 
   // Merge du lieu tinh voi ngay THAT tu VCI Events (neu co) - uu tien du lieu that
   const mergedStocks = useMemo(() => {
     return DIVIDEND_STOCKS.map((s) => {
       const real = realDatesMap[s.ticker];
-      if (!real) return s;
-      return {
-        ...s,
-        exDividendDate: real.exDate ? isoToVnDate(real.exDate) : s.exDividendDate,
-        agmDate: real.agmDate ? isoToVnDate(real.agmDate) : s.agmDate,
-      };
+      const fund = fundamentalsMap[s.ticker];
+      let merged = s;
+      if (real) {
+        merged = {
+          ...merged,
+          exDividendDate: real.exDate ? isoToVnDate(real.exDate) : merged.exDividendDate,
+          agmDate: real.agmDate ? isoToVnDate(real.agmDate) : merged.agmDate,
+        };
+      }
+      // P0: thay du lieu mau tinh (gia/P-E/ROE/No-VCSH/RSI) bang du lieu
+      // THAT tu VCI + Yahoo Finance - CHI GHI DE khi co gia tri that (!=
+      // null), giu nguyen du lieu mau neu 1 ma nao do chua lay duoc.
+      if (fund) {
+        merged = {
+          ...merged,
+          price: fund.price ?? merged.price,
+          pe: fund.peRatio ?? merged.pe,
+          roe: fund.roe ?? merged.roe,
+          debtEquity: fund.debtEquity ?? merged.debtEquity,
+          rsi: fund.rsi14 ?? merged.rsi,
+        };
+      }
+      return merged;
     });
-  }, [realDatesMap]);
+  }, [realDatesMap, fundamentalsMap]);
 
   const filtered = useMemo(() =>
     filterAndSortStocks(
@@ -381,19 +400,22 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </div>
       </div>
 
-      {/* PHUONG AN A - nhan minh bach nguon goc du lieu (muc 3.4 guide):
-          GDKHQ/DHCD la du lieu THAT tu VCI (badge rieng o tren), nhung
-          P/E, ROE, RSI, gia, DCF, Score... deu la du lieu MAU tinh, chua
-          co co che cap nhat. Banner nay lam ro dieu do ngay tu dau, tranh
-          nguoi dung hieu nham Score/DCF la tinh tren gia/chi so hien tai. */}
+      {/* P0 (2026-09-12): cap nhat banner dung thuc trang moi - gia/P-E/
+          ROE/No-VCSH/RSI GIO DA la du lieu THAT (VCI + Yahoo Finance),
+          KHONG con la du lieu mau nhu truoc. Chi con F-Score, DCF,
+          growth (dung rieng cho Score), payoutRatio, grossMargin,
+          institutionalHold, uu/nhuoc diem VAN la du lieu mau - se lam
+          o cac buoc sau (P1-P2). Banner phai liet ke DUNG, khong danh
+          lua nguoi dung theo chieu nguoc lai. */}
       <div style={{ background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.15)" }}
         className="rounded-xl p-2.5 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
         <p className="text-[9px] text-cf-secondary leading-relaxed">
-          <b className="text-cf-primary">Về dữ liệu:</b> Chỉ <b>ngày GDKHQ/ĐHCĐ</b> là dữ liệu thời gian thực (VCI).
-          Các trường còn lại — <b>giá, P/E, ROE, RSI, tăng trưởng, Score, DCF, ưu/nhược điểm</b> — là số liệu mẫu
-          cố định, dùng để minh họa cách xếp hạng/lọc, <b>không đại diện cho giá trị thị trường hiện tại</b>. Tab
-          "Quý gần nhất" (KQKD) mới là số liệu BCTC thật.
+          <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>, và
+          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI</b> hiện là dữ liệu thời gian thực (VCI + Yahoo Finance).
+          Riêng <b>F-Score, DCF, tăng trưởng dài hạn, tỷ lệ chi trả, biên lợi nhuận gộp, tỷ lệ sở hữu tổ chức,
+          ưu/nhược điểm</b> vẫn là số liệu mẫu cố định, dùng để minh họa cách xếp hạng/lọc — sẽ được thay bằng
+          dữ liệu thật ở các bước tiếp theo.
         </p>
       </div>
 
