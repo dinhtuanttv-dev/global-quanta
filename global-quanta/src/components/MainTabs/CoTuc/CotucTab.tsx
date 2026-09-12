@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
 } from "lucide-react";
 import {
-  DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcCatalystScore,
+  DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcRealDividendQualityScore, calcCatalystScore,
   detectRiskFlags, calcDCF, filterAndSortStocks, getDaysUntil,
   fmtVND, fmtPct, DEFAULT_FILTER,
   type DividendFilter, type DividendStock,
@@ -18,6 +18,7 @@ import { useDividendEvents } from "../../../hooks/useDividendEvents";
 import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
+import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
@@ -91,9 +92,9 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const phase = getTradePhase(s);
-  const score = calcDividendScore(s);
-  const catalyst = calcCatalystScore(s);
   const flags = detectRiskFlags(s);
+  const score = calcRealDividendQualityScore(s, realRs, flags.length);
+  const catalyst = calcCatalystScore(s);
   const dcfBear = calcDCF(s, "bear");
   const dcfBase = calcDCF(s, "base");
   const dcfBull = calcDCF(s, "bull");
@@ -320,12 +321,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const { pinned, togglePin, isPinned } = usePinnedStocks();
   const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
   const { fundamentalsMap, isLoading: fundamentalsLoading } = useFundamentalsData();
+  const { qualityScoreMap, isLoading: qualityScoreLoading } = useQualityScore();
 
   // Merge du lieu tinh voi ngay THAT tu VCI Events (neu co) - uu tien du lieu that
   const mergedStocks = useMemo(() => {
     return DIVIDEND_STOCKS.map((s) => {
       const real = realDatesMap[s.ticker];
       const fund = fundamentalsMap[s.ticker];
+      const qs = qualityScoreMap[s.ticker];
       let merged = s;
       if (real) {
         merged = {
@@ -347,9 +350,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           rsi: fund.rsi14 ?? merged.rsi,
         };
       }
+      // P2: merge Tier 1-3 cua Dividend Quality Score (Tang 4 tinh rieng
+      // luc dung Score, xem calcRealDividendQualityScore).
+      if (qs) {
+        merged = { ...merged, qsTier1: qs.tier1, qsTier2: qs.tier2, qsTier3: qs.tier3 };
+      }
       return merged;
     });
-  }, [realDatesMap, fundamentalsMap]);
+  }, [realDatesMap, fundamentalsMap, qualityScoreMap]);
 
   // FIX: derive "selected" TU mergedStocks moi nhat (khong luu snapshot
   // tinh) - Modal luon hien dung du lieu that ngay khi fetch xong, ke ca
@@ -419,22 +427,22 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </div>
       </div>
 
-      {/* P0 (2026-09-12): cap nhat banner dung thuc trang moi - gia/P-E/
-          ROE/No-VCSH/RSI GIO DA la du lieu THAT (VCI + Yahoo Finance),
-          KHONG con la du lieu mau nhu truoc. Chi con F-Score, DCF,
-          growth (dung rieng cho Score), payoutRatio, grossMargin,
-          institutionalHold, uu/nhuoc diem VAN la du lieu mau - se lam
-          o cac buoc sau (P1-P2). Banner phai liet ke DUNG, khong danh
-          lua nguoi dung theo chieu nguoc lai. */}
+      {/* P2 (2026-09-12): Dividend Quality Score (hien thi dau moi the/
+          trong Modal) GIO DA la du lieu THAT (4 tang: Chat luong co tuc/
+          Tang truong/Dinh gia/Ky thuat) khi API co du du lieu, fallback
+          ve mau chi khi dang tai/loi. LUU Y: field payoutRatio/growth/
+          fscore RIENG LE hien thi trong tab "Tong Quan" cua Modal (khac
+          voi Score tong hop) VAN la mau - se lam o buoc sau. */}
       <div style={{ background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.15)" }}
         className="rounded-xl p-2.5 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
         <p className="text-[9px] text-cf-secondary leading-relaxed">
-          <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>, và
-          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI</b> hiện là dữ liệu thời gian thực (VCI + Yahoo Finance).
-          Riêng <b>F-Score, DCF, tăng trưởng dài hạn, tỷ lệ chi trả, biên lợi nhuận gộp, tỷ lệ sở hữu tổ chức,
-          ưu/nhược điểm</b> vẫn là số liệu mẫu cố định, dùng để minh họa cách xếp hạng/lọc — sẽ được thay bằng
-          dữ liệu thật ở các bước tiếp theo.
+          <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
+          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI</b>, và <b>Dividend Quality Score</b> (4 tầng) hiện là
+          dữ liệu thời gian thực (VCI + Yahoo Finance). Riêng các chỉ số hiển thị riêng lẻ trong tab
+          "Tổng Quan" — <b>F-Score, DCF, tăng trưởng dài hạn, tỷ lệ chi trả, biên lợi nhuận gộp, tỷ lệ sở
+          hữu tổ chức, ưu/nhược điểm</b> — vẫn là số liệu mẫu cố định, sẽ được thay bằng dữ liệu thật ở
+          các bước tiếp theo.
         </p>
       </div>
 
@@ -588,7 +596,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   <th className="pb-2 w-6"></th>
                   <th className="pb-2 cursor-pointer hover:text-cf-primary" onClick={() => handleSort("ticker")}>Mã <SortIcon field="ticker" /></th>
                   <th className="pb-2 cursor-pointer hover:text-cf-gold" onClick={() => handleSort("dividendYield")}>Yield <SortIcon field="dividendYield" /></th>
-                  <th className="pb-2 text-right cursor-pointer hover:text-cf-primary" onClick={() => handleSort("score")} title="Tính trên dữ liệu mẫu (P/E, ROE, growth...), không phải chỉ số thời gian thực">Score <SortIcon field="score" /></th>
+                  <th className="pb-2 text-right cursor-pointer hover:text-cf-primary" onClick={() => handleSort("score")} title="Dividend Quality Score - 4 tầng (Chất lượng cổ tức/Tăng trưởng/Định giá/Kỹ thuật), dữ liệu thời gian thực khi có đủ">Score <SortIcon field="score" /></th>
                   <th className="pb-2 text-center">RS 3T</th>
                   <th className="pb-2">Vị Thế</th>
                   <th className="pb-2">GDKHQ</th>
@@ -620,7 +628,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                         <span className="text-cf-positive font-black">{fmtPct(s.dividendYield)}</span>
                         <span className="text-[9px] text-cf-tertiary block">{fmtVND(s.dividendAmount)}/cp</span>
                       </td>
-                      <td className="py-3 text-right"><ScoreBadge score={calcDividendScore(s)} /></td>
+                      <td className="py-3 text-right"><ScoreBadge score={calcRealDividendQualityScore(s, rs, detectRiskFlags(s).length)} /></td>
                       <td className="py-3 text-center"><RsBadge rs={rs} isLoading={isRealRsLoading} /></td>
                       <td className="py-3"><PhaseBadge s={s} /></td>
                       <td className="py-3">
@@ -660,7 +668,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     <span>💵 <b className="text-cf-positive">{fmtVND(s.dividendAmount)}/cp</b></span>
                   </div>
                 </div>
-                <ScoreBadge score={calcDividendScore(s)} />
+                <ScoreBadge score={calcRealDividendQualityScore(s, realRsMap[s.ticker], detectRiskFlags(s).length)} />
               </div>
             );
           })}

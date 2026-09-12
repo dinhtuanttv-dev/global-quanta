@@ -20,6 +20,12 @@ export interface DividendStock {
   sectorWaveScore: number; agmDate: string; agmAgenda: string;
   insiderStatus: string; macroCatalyst: string;
   globalIndicator: string; globalTrend: string;
+  // P2: Tier 1-3 cua Dividend Quality Score, merge tu /api/cotuc/quality-score
+  // (Tier 4 = RS+RedFlag tinh rieng luc dung, vi can realRsMap theo tung
+  // luot goi ham, khong luu san trong object).
+  qsTier1?: number | null;
+  qsTier2?: number | null;
+  qsTier3?: number | null;
 }
 
 // ============================================================
@@ -112,6 +118,55 @@ export function calcDividendScore(s: DividendStock): number {
   return Math.min(100, Math.round(score));
 }
 
+// ============================================================
+// P2: DIVIDEND QUALITY SCORE THAT - 4 tang, theo dung cong thuc tai
+// lieu (30% Tang1 + 30% Tang2 + 25% Tang3 + 15% Tang4). Tang 1-3 lay tu
+// /api/cotuc/quality-score (backend, da test 24/24). Tang 4 (RS 3 thang
+// + Red Flag) tinh TAI DAY vi RS chi co san o frontend (khong the tinh
+// o backend theo dung kien truc da thong nhat).
+// ============================================================
+
+function scoreRs3mReal(rs3m: number): number {
+  return Math.max(0, Math.min(100, 50 + rs3m * 2));
+}
+
+function scoreRedFlagCountReal(flagCount: number): number {
+  return Math.max(0, 100 - flagCount * 25);
+}
+
+function calcTier4Real(rs3m: number | null | undefined, redFlagCount: number): number {
+  const parts: number[] = [];
+  if (rs3m !== null && rs3m !== undefined) parts.push(scoreRs3mReal(rs3m));
+  parts.push(scoreRedFlagCountReal(redFlagCount));
+  return parts.reduce((a, b) => a + b, 0) / parts.length;
+}
+
+/**
+ * Diem Dividend Quality Score THAT (P2) - dung khi da co du Tier 1-3
+ * (merge tu API). Neu CHUA CO (dang tai, hoac API loi), FALLBACK ve
+ * calcDividendScore() cu (mau) de khong hien "0" gay hoang loan UI
+ * trong luc cho tai xong.
+ */
+export function calcRealDividendQualityScore(
+  s: DividendStock,
+  realRs: number | null | undefined,
+  riskFlagCount: number
+): number {
+  if (s.qsTier1 === null || s.qsTier1 === undefined || s.qsTier2 === null || s.qsTier2 === undefined || s.qsTier3 === null || s.qsTier3 === undefined) {
+    return calcDividendScore(s); // fallback mau trong luc cho/loi
+  }
+  const tier4 = calcTier4Real(realRs, riskFlagCount);
+  const weights: { value: number; weight: number }[] = [
+    { value: s.qsTier1, weight: 30 },
+    { value: s.qsTier2, weight: 30 },
+    { value: s.qsTier3, weight: 25 },
+    { value: tier4, weight: 15 },
+  ];
+  const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
+  const overall = weights.reduce((sum, w) => sum + w.value * (w.weight / totalWeight), 0);
+  return Math.round(overall);
+}
+
 export function calcCatalystScore(s: DividendStock): number {
   let sc = s.catalystScore || 5;
   if (s.technicalTrend === "Bullish") sc += 1.5;
@@ -185,7 +240,10 @@ export function filterAndSortStocks(
     })
     .sort((a, b) => {
       let va: number, vb: number;
-      if (sortField === "score") { va = calcDividendScore(a); vb = calcDividendScore(b); }
+      if (sortField === "score") {
+        va = calcRealDividendQualityScore(a, realRsMap?.[a.ticker], detectRiskFlags(a).length);
+        vb = calcRealDividendQualityScore(b, realRsMap?.[b.ticker], detectRiskFlags(b).length);
+      }
       else if (sortField === "catalyst") { va = calcCatalystScore(a); vb = calcCatalystScore(b); }
       else {
         const rawA = a[sortField as keyof DividendStock];
