@@ -12,10 +12,10 @@ const DEFAULT_OVERLAYS: Record<string, boolean> = {
   vsa: false,
   wyckoff: false,
   elliott: false,
-  // GIAI DOAN 1: SMA20/EMA12/26 tinh THAT tu vnstock - mac dinh BAT de
-  // nguoi dung thay ngay gia tri moi. Bollinger mac dinh TAT (de tranh
-  // roi mat), nguoi dung tu bat neu can.
-  sma20: true,
+  // GIAI DOAN 1 (da doi theo yeu cau nguoi dung): SMA200/EMA21/50/100
+  // tinh THAT tu vnstock - mac dinh BAT de nguoi dung thay ngay gia tri
+  // moi. Bollinger mac dinh TAT (de tranh roi mat), nguoi dung tu bat.
+  sma200: true,
   ema: true,
   bollinger: false,
 };

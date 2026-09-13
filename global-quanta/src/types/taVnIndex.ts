@@ -241,13 +241,18 @@ export interface TaVnIndexResponse {
 }
 
 /** Chi so ky thuat THAT (tinh tu vnstock qua api/stock.py) - SMA20/EMA12/
- * EMA26/RSI14/Bollinger Bands. Khac voi field `rsi`/`macd` o tren (van la
- * mock cho toi khi Giai doan 1 hoan tat noi du lieu that). */
+ * EMA26/RSI14/Bollinger Bands + SMA200/EMA100/EMA50/EMA21 (bo overlay
+ * chinh tren chart). sma20/ema12/ema26 van giu (can cho MACD Giai doan
+ * 2), khong con dung lam overlay chinh tren chart nua. */
 export interface ComputedIndicatorBar {
   time: string;
   sma20: number | null;
   ema12: number | null;
   ema26: number | null;
+  sma200: number | null;
+  ema100: number | null;
+  ema50: number | null;
+  ema21: number | null;
   rsi14: number | null;
   bbUpper: number | null;
   bbMid: number | null;

@@ -113,7 +113,7 @@ export function TaVnIndexPanel({
           showTrendline={overlays.trendline}
           showDemandZone={overlays.demandZone}
           computedIndicators={data.computedIndicators}
-          showSma20={overlays.sma20}
+          showSma200={overlays.sma200}
           showEma={overlays.ema}
           showBollinger={overlays.bollinger}
         />

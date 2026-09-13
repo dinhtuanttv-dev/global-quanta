@@ -17,12 +17,12 @@ interface MainChartProps {
   events: ChartEvent[];
   showTrendline: boolean;
   showDemandZone: boolean;
-  // GIAI DOAN 1: SMA20/EMA12/26/Bollinger tinh THAT tu vnstock (qua
-  // api/stock.py) - overlay THAT dau tien tren chart, khac hoan toan
-  // voi smc/wyckoff/elliott van la mock.
+  // Bo overlay chinh (theo yeu cau nguoi dung): SMA200 + EMA100/50/21 -
+  // thay the SMA20/EMA12/26 cu (van giu o backend cho MACD, khong con
+  // dung lam overlay chinh).
   computedIndicators?: ComputedIndicatorBar[] | null;
-  showSma20?: boolean;
-  showEma?: boolean;
+  showSma200?: boolean;
+  showEma?: boolean; // BAT/TAT chung ca 3 duong EMA100/50/21
   showBollinger?: boolean;
 }
 
@@ -52,15 +52,16 @@ function fmtLegend(bar: OhlcBar): string {
  */
 export function MainChart({
   priceSeries, zones, trendline, events, showTrendline, showDemandZone,
-  computedIndicators, showSma20, showEma, showBollinger,
+  computedIndicators, showSma200, showEma, showBollinger,
 }: MainChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const trendSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const sma20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const ema12SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const ema26SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const sma200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema100SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema21SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const zoneElsRef = useRef<HTMLDivElement[]>([]);
@@ -98,20 +99,22 @@ export function MainChart({
       priceLineVisible: false,
     });
 
-    // GIAI DOAN 1: overlay chi bao THAT (SMA20/EMA12/26/Bollinger) - mau
-    // sac phan biet ro voi trendline (mock) va cac zone khac.
-    const sma20Series = chart.addLineSeries({ color: '#ffb020', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
-    const ema12Series = chart.addLineSeries({ color: '#1fe08a', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
-    const ema26Series = chart.addLineSeries({ color: '#ff4d5e', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    // Bo overlay chinh moi (theo yeu cau nguoi dung): do dam=SMA200,
+    // tim=EMA100, vang=EMA50, xanh la=EMA21.
+    const sma200Series = chart.addLineSeries({ color: '#b71c1c', lineWidth: 2, lastValueVisible: false, priceLineVisible: false });
+    const ema100Series = chart.addLineSeries({ color: '#9b59b6', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    const ema50Series = chart.addLineSeries({ color: '#ffd60a', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    const ema21Series = chart.addLineSeries({ color: '#1fe08a', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
     const bbUpperSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
     const bbLowerSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
 
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     trendSeriesRef.current = trendSeries;
-    sma20SeriesRef.current = sma20Series;
-    ema12SeriesRef.current = ema12Series;
-    ema26SeriesRef.current = ema26Series;
+    sma200SeriesRef.current = sma200Series;
+    ema100SeriesRef.current = ema100Series;
+    ema50SeriesRef.current = ema50Series;
+    ema21SeriesRef.current = ema21Series;
     bbUpperSeriesRef.current = bbUpperSeries;
     bbLowerSeriesRef.current = bbLowerSeries;
 
@@ -129,9 +132,10 @@ export function MainChart({
       chartRef.current = null;
       candleSeriesRef.current = null;
       trendSeriesRef.current = null;
-      sma20SeriesRef.current = null;
-      ema12SeriesRef.current = null;
-      ema26SeriesRef.current = null;
+      sma200SeriesRef.current = null;
+      ema100SeriesRef.current = null;
+      ema50SeriesRef.current = null;
+      ema21SeriesRef.current = null;
       bbUpperSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
     };
@@ -182,24 +186,26 @@ export function MainChart({
     trendSeries.setData(showTrendline ? trendline : []);
   }, [trendline, showTrendline]);
 
-  // GIAI DOAN 1: SMA20/EMA12/26/Bollinger - du lieu THAT tu computedIndicators
-  // (tinh boi api/stock.py qua vnstock). Loc bo diem null (vd 19 nen dau
-  // chua du de tinh SMA20/RSI14) - lightweight-charts khong chap nhan null.
+  // Bo overlay chinh moi (theo yeu cau nguoi dung): SMA200/EMA100/50/21
+  // - du lieu THAT tu computedIndicators (tinh boi api/stock.py qua
+  // vnstock). Loc bo diem null - lightweight-charts khong chap nhan null.
   useEffect(() => {
-    const sma20Series = sma20SeriesRef.current;
-    const ema12Series = ema12SeriesRef.current;
-    const ema26Series = ema26SeriesRef.current;
+    const sma200Series = sma200SeriesRef.current;
+    const ema100Series = ema100SeriesRef.current;
+    const ema50Series = ema50SeriesRef.current;
+    const ema21Series = ema21SeriesRef.current;
     const bbUpperSeries = bbUpperSeriesRef.current;
     const bbLowerSeries = bbLowerSeriesRef.current;
-    if (!sma20Series || !ema12Series || !ema26Series || !bbUpperSeries || !bbLowerSeries) return;
+    if (!sma200Series || !ema100Series || !ema50Series || !ema21Series || !bbUpperSeries || !bbLowerSeries) return;
 
     const rows = computedIndicators ?? [];
-    sma20Series.setData(showSma20 ? rows.filter((r) => r.sma20 !== null).map((r) => ({ time: r.time, value: r.sma20 as number })) : []);
-    ema12Series.setData(showEma ? rows.filter((r) => r.ema12 !== null).map((r) => ({ time: r.time, value: r.ema12 as number })) : []);
-    ema26Series.setData(showEma ? rows.filter((r) => r.ema26 !== null).map((r) => ({ time: r.time, value: r.ema26 as number })) : []);
+    sma200Series.setData(showSma200 ? rows.filter((r) => r.sma200 !== null).map((r) => ({ time: r.time, value: r.sma200 as number })) : []);
+    ema100Series.setData(showEma ? rows.filter((r) => r.ema100 !== null).map((r) => ({ time: r.time, value: r.ema100 as number })) : []);
+    ema50Series.setData(showEma ? rows.filter((r) => r.ema50 !== null).map((r) => ({ time: r.time, value: r.ema50 as number })) : []);
+    ema21Series.setData(showEma ? rows.filter((r) => r.ema21 !== null).map((r) => ({ time: r.time, value: r.ema21 as number })) : []);
     bbUpperSeries.setData(showBollinger ? rows.filter((r) => r.bbUpper !== null).map((r) => ({ time: r.time, value: r.bbUpper as number })) : []);
     bbLowerSeries.setData(showBollinger ? rows.filter((r) => r.bbLower !== null).map((r) => ({ time: r.time, value: r.bbLower as number })) : []);
-  }, [computedIndicators, showSma20, showEma, showBollinger]);
+  }, [computedIndicators, showSma200, showEma, showBollinger]);
 
   // Vẽ zone (Demand Zone / Order Block) bằng div overlay quy đổi toạ độ thật
   useEffect(() => {
