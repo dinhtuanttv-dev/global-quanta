@@ -112,13 +112,17 @@ export function TaVnIndexPanel({
           events={data.events}
           showTrendline={overlays.trendline}
           showDemandZone={overlays.demandZone}
+          computedIndicators={data.computedIndicators}
+          showSma20={overlays.sma20}
+          showEma={overlays.ema}
+          showBollinger={overlays.bollinger}
         />
         <EventVolatilityTable priceSeries={data.priceSeries} events={data.events} demandZone={demandZone} />
       </div>
 
       <AdxPanel adx={data.adx} />
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
-      <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} />
+      <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} />
       <PatternScannerPanel entries={data.patternScanner} />
 
       {watchlist}

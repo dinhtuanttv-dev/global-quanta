@@ -7,7 +7,7 @@ import {
   type ISeriesApi,
   type MouseEventParams,
 } from 'lightweight-charts';
-import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent } from '../../../types/taVnIndex';
+import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent, ComputedIndicatorBar } from '../../../types/taVnIndex';
 import { buildTimeIndex } from '../../../lib/taMath';
 
 interface MainChartProps {
@@ -17,6 +17,13 @@ interface MainChartProps {
   events: ChartEvent[];
   showTrendline: boolean;
   showDemandZone: boolean;
+  // GIAI DOAN 1: SMA20/EMA12/26/Bollinger tinh THAT tu vnstock (qua
+  // api/stock.py) - overlay THAT dau tien tren chart, khac hoan toan
+  // voi smc/wyckoff/elliott van la mock.
+  computedIndicators?: ComputedIndicatorBar[] | null;
+  showSma20?: boolean;
+  showEma?: boolean;
+  showBollinger?: boolean;
 }
 
 const ZONE_COLORS: Record<PriceZone['kind'], { bg: string; border: string }> = {
@@ -43,11 +50,19 @@ function fmtLegend(bar: OhlcBar): string {
  * sự kiện T/C ghim vào nến (setMarkers). KHÔNG dùng thư viện chart khác —
  * nếu Project B đã có chuẩn chart riêng, cân nhắc thay thế để đồng bộ UI.
  */
-export function MainChart({ priceSeries, zones, trendline, events, showTrendline, showDemandZone }: MainChartProps) {
+export function MainChart({
+  priceSeries, zones, trendline, events, showTrendline, showDemandZone,
+  computedIndicators, showSma20, showEma, showBollinger,
+}: MainChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
   const trendSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const sma20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema12SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const ema26SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const zoneElsRef = useRef<HTMLDivElement[]>([]);
   const [legendHtml, setLegendHtml] = useState('');
 
@@ -83,9 +98,22 @@ export function MainChart({ priceSeries, zones, trendline, events, showTrendline
       priceLineVisible: false,
     });
 
+    // GIAI DOAN 1: overlay chi bao THAT (SMA20/EMA12/26/Bollinger) - mau
+    // sac phan biet ro voi trendline (mock) va cac zone khac.
+    const sma20Series = chart.addLineSeries({ color: '#ffb020', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    const ema12Series = chart.addLineSeries({ color: '#1fe08a', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    const ema26Series = chart.addLineSeries({ color: '#ff4d5e', lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+    const bbUpperSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
+    const bbLowerSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
+
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     trendSeriesRef.current = trendSeries;
+    sma20SeriesRef.current = sma20Series;
+    ema12SeriesRef.current = ema12Series;
+    ema26SeriesRef.current = ema26Series;
+    bbUpperSeriesRef.current = bbUpperSeries;
+    bbLowerSeriesRef.current = bbLowerSeries;
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -101,6 +129,11 @@ export function MainChart({ priceSeries, zones, trendline, events, showTrendline
       chartRef.current = null;
       candleSeriesRef.current = null;
       trendSeriesRef.current = null;
+      sma20SeriesRef.current = null;
+      ema12SeriesRef.current = null;
+      ema26SeriesRef.current = null;
+      bbUpperSeriesRef.current = null;
+      bbLowerSeriesRef.current = null;
     };
   }, []);
 
@@ -148,6 +181,25 @@ export function MainChart({ priceSeries, zones, trendline, events, showTrendline
     if (!trendSeries) return;
     trendSeries.setData(showTrendline ? trendline : []);
   }, [trendline, showTrendline]);
+
+  // GIAI DOAN 1: SMA20/EMA12/26/Bollinger - du lieu THAT tu computedIndicators
+  // (tinh boi api/stock.py qua vnstock). Loc bo diem null (vd 19 nen dau
+  // chua du de tinh SMA20/RSI14) - lightweight-charts khong chap nhan null.
+  useEffect(() => {
+    const sma20Series = sma20SeriesRef.current;
+    const ema12Series = ema12SeriesRef.current;
+    const ema26Series = ema26SeriesRef.current;
+    const bbUpperSeries = bbUpperSeriesRef.current;
+    const bbLowerSeries = bbLowerSeriesRef.current;
+    if (!sma20Series || !ema12Series || !ema26Series || !bbUpperSeries || !bbLowerSeries) return;
+
+    const rows = computedIndicators ?? [];
+    sma20Series.setData(showSma20 ? rows.filter((r) => r.sma20 !== null).map((r) => ({ time: r.time, value: r.sma20 as number })) : []);
+    ema12Series.setData(showEma ? rows.filter((r) => r.ema12 !== null).map((r) => ({ time: r.time, value: r.ema12 as number })) : []);
+    ema26Series.setData(showEma ? rows.filter((r) => r.ema26 !== null).map((r) => ({ time: r.time, value: r.ema26 as number })) : []);
+    bbUpperSeries.setData(showBollinger ? rows.filter((r) => r.bbUpper !== null).map((r) => ({ time: r.time, value: r.bbUpper as number })) : []);
+    bbLowerSeries.setData(showBollinger ? rows.filter((r) => r.bbLower !== null).map((r) => ({ time: r.time, value: r.bbLower as number })) : []);
+  }, [computedIndicators, showSma20, showEma, showBollinger]);
 
   // Vẽ zone (Demand Zone / Order Block) bằng div overlay quy đổi toạ độ thật
   useEffect(() => {

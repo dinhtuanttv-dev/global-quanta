@@ -1,8 +1,22 @@
-﻿import type { VsaData, RsiData, MacdData, SmcData } from '../../../types/taVnIndex';
+﻿import type { VsaData, RsiData, MacdData, SmcData, ComputedIndicatorBar } from '../../../types/taVnIndex';
 import { SourceBadge } from './SourceBadge';
 
-/** Dải chỉ báo gọn: SMC tóm tắt + VSA + RSI + MACD. */
-export function IndicatorStrip({ smc, vsa, rsi, macd }: { smc: SmcData; vsa: VsaData; rsi: RsiData; macd: MacdData }) {
+/** Dải chỉ báo gọn: SMC tóm tắt + VSA + RSI + MACD.
+ * GIAI DOAN 1: RSI gio uu tien lay tu computedIndicators (tinh THAT tu
+ * vnstock qua api/stock.py) - fallback ve field mock cu neu chua co du
+ * lieu that (vd loi mang, chua tich hop xong). MACD VAN LA MOCK (can
+ * tinh them Signal Line tu EMA12/EMA26 - de danh cho Giai doan 2). */
+export function IndicatorStrip({
+  smc, vsa, rsi, macd, computedIndicators,
+}: { smc: SmcData; vsa: VsaData; rsi: RsiData; macd: MacdData; computedIndicators?: ComputedIndicatorBar[] | null }) {
+  const latest = computedIndicators && computedIndicators.length > 0 ? computedIndicators[computedIndicators.length - 1] : null;
+  const realRsi = latest?.rsi14 ?? null;
+  const rsiValue = realRsi !== null ? realRsi : (rsi.value?.value ?? 0);
+  const rsiIsReal = realRsi !== null;
+  const rsiLabel = rsiIsReal
+    ? (realRsi >= 70 ? 'Quá mua' : realRsi <= 30 ? 'Quá bán' : 'Trung tính')
+    : rsi.label;
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
@@ -20,10 +34,10 @@ export function IndicatorStrip({ smc, vsa, rsi, macd }: { smc: SmcData; vsa: Vsa
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">RSI (14)</div>
         <div className="text-[13px] font-bold text-slate-100">
-          {(rsi.value?.value ?? 0).toFixed(1)}
-          <SourceBadge source={rsi.value?.source} />
+          {rsiValue.toFixed(1)}
+          <SourceBadge source={rsiIsReal ? 'HARD_DATA' : (rsi.value?.source ?? 'ESTIMATED')} />
         </div>
-        <p className="mt-0.5 text-[10px] text-slate-500">{rsi.label}</p>
+        <p className="mt-0.5 text-[10px] text-slate-500">{rsiLabel}</p>
       </div>
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">MACD (12,26,9)</div>

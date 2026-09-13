@@ -11,6 +11,9 @@ const TIMEFRAMES: Timeframe[] = ['D', 'W', 'H4', 'M1'];
 const OVERLAY_KEYS: { key: string; label: string }[] = [
   { key: 'trendline', label: 'Trendline' },
   { key: 'demandZone', label: 'Demand Zone' },
+  { key: 'sma20', label: 'SMA20' },
+  { key: 'ema', label: 'EMA12/26' },
+  { key: 'bollinger', label: 'Bollinger' },
   { key: 'smc', label: 'SMC' },
   { key: 'vsa', label: 'VSA' },
   { key: 'wyckoff', label: 'Wyckoff' },
