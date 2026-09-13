@@ -18,6 +18,7 @@ import { useDividendEvents } from "../../../hooks/useDividendEvents";
 import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { CycleTimingPanel } from "./CycleTimingPanel";
+import { CycleRankingPanel } from "./CycleRankingPanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -311,7 +312,7 @@ interface CotucTabProps {
 }
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
-  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings">("screener");
+  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing">("screener");
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
@@ -615,6 +616,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           { id:"screener" as const, label:"📋 Bộ Lọc Cổ Phiếu", count:filtered.length },
           { id:"calendar" as const, label:"📅 Lịch GDKHQ & ĐHCĐ", count:calendarList.length },
           { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
+          { id:"timing" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
         ].map((t) => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             style={subTab === t.id ? { background:"linear-gradient(135deg,#fbbf24,#f59e0b)" } : {}}
@@ -781,6 +783,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       {subTab === "earnings" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được bảng KQKD">
           <EarningsQuarterPanel onSelectTicker={(t) => { const s = mergedStocks.find((x) => x.ticker === t); if (s) handleSelect(s); }} />
+        </ErrorBoundary>
+      )}
+
+      {subTab === "timing" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được bảng xếp hạng xác suất">
+          <CycleRankingPanel onSelectTicker={(t) => { const s = mergedStocks.find((x) => x.ticker === t) ?? universeStocks.find((x) => x.ticker === t); if (s) handleSelect(s); }} />
         </ErrorBoundary>
       )}
 

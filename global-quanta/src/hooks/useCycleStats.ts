@@ -41,3 +41,20 @@ export function useCycleStats(ticker?: string) {
 
   return { cycleData: data, isLoading, error };
 }
+
+export interface CycleRankingRow {
+  ticker: string;
+  nCycles: number;
+  best: CycleWindowStat;
+}
+
+// "Quet toan bo danh muc" (Tab C, phan 2) - xep hang MOI MA theo cua so
+// TOT NHAT cua chinh no, giong ham scanAllTickers() trong cong cu HTML goc.
+export function useCycleRanking() {
+  const { data, error, isLoading } = useSWR<{ generatedAt: string; ranking: CycleRankingRow[] }>(
+    `${API_BASE}/api/cotuc/cycle-stats?mode=rankAll`, fetcher,
+    { refreshInterval: 60 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 30 * 60 * 1000 }
+  );
+
+  return { ranking: data?.ranking ?? [], isLoading, error };
+}
