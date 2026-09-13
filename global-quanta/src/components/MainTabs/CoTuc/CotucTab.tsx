@@ -17,6 +17,7 @@ import { usePinnedStocks } from "../../../hooks/usePinnedStocks";
 import { useDividendEvents } from "../../../hooks/useDividendEvents";
 import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
+import { CycleTimingPanel } from "./CycleTimingPanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -99,7 +100,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   s: DividendStock; onClose: () => void; realRs?: number | null;
   lifecycleEvents?: DividendLifecycleEvent[];
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline">("overview");
+  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing">("overview");
   // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
   // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
   // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
@@ -190,13 +191,13 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags","timeline"] as const)
+          {(["overview","dcf","flags","timeline","timing"] as const)
             .filter((t) => !(t === "dcf" && s.isUniverseOnly)) // DCF dung EPS - vo nghia voi ma Universe (eps=0, khong co du lieu that)
             .map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : "📅 Vòng Đời Cổ Tức"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : "🎯 Xác Suất Giải Ngân"}
             </button>
           ))}
         </div>
@@ -293,6 +294,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
           )}
 
           {modalTab === "timeline" && <DividendTimelinePanel events={lifecycleEvents} />}
+          {modalTab === "timing" && <CycleTimingPanel ticker={s.ticker} />}
         </div>
       </div>
     </div>
