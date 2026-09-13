@@ -217,6 +217,14 @@ export interface TaVnIndexResponse {
   timeframe: Timeframe;
   asOfDate: string;
   priceSeries: OhlcBar[];
+  computedIndicators?: ComputedIndicatorBar[] | null;
+  // true khi TOAN BO khoi phan tich (smc/vsa/wyckoff/elliott/adx/rsi/macd/
+  // patternScanner/confluence) la MOCK - doc lap voi priceSeries (co the
+  // priceSeries da that trong khi analysisIsMock van true). PHAI hien thi
+  // canh bao ro rang cho nguoi dung khi true - xem <MockDataBanner />.
+  analysisIsMock?: boolean;
+  isMock?: boolean; // rieng cho priceSeries
+  fallbackReason?: string;
   trendline: TrendlinePoint[];
   events: ChartEvent[];
   smc: SmcData;
@@ -230,4 +238,18 @@ export interface TaVnIndexResponse {
   conflicts: ConflictWarning[];
   formationCounters: FormationCounter[];
   confluence: EliteScoreBreakdown;
+}
+
+/** Chi so ky thuat THAT (tinh tu vnstock qua api/stock.py) - SMA20/EMA12/
+ * EMA26/RSI14/Bollinger Bands. Khac voi field `rsi`/`macd` o tren (van la
+ * mock cho toi khi Giai doan 1 hoan tat noi du lieu that). */
+export interface ComputedIndicatorBar {
+  time: string;
+  sma20: number | null;
+  ema12: number | null;
+  ema26: number | null;
+  rsi14: number | null;
+  bbUpper: number | null;
+  bbMid: number | null;
+  bbLower: number | null;
 }

@@ -3,6 +3,7 @@ import type { ApiError } from '../../hooks/ta-vn-index/useTaVnIndex';
 import { ControlBar } from './ta-vn-index/ControlBar';
 import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
 import { ConflictBanner } from './ta-vn-index/ConflictBanner';
+import { MockDataBanner } from './ta-vn-index/MockDataBanner';
 import { MainChart } from './ta-vn-index/MainChart';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
@@ -99,6 +100,7 @@ export function TaVnIndexPanel({
       </div>
 
       {controlBar}
+      <MockDataBanner isMock={data.analysisIsMock ?? false} fallbackReason={data.fallbackReason} />
       <ConflictBanner conflicts={data.conflicts} />
 
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
