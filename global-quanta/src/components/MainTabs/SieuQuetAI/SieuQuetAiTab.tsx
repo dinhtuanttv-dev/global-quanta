@@ -145,9 +145,9 @@ export default function SieuQuetAiTab() {
               {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[640px]">
             <table className="w-full text-[10px] font-mono">
-              <thead className="text-slate-500 border-b border-white/10">
+              <thead className="text-slate-500 border-b border-white/10 sticky top-0 z-10" style={{ background: "#0f1420" }}>
                 <tr>
                   <th className="text-left py-2 pr-3">Mã</th>
                   <th className="text-right pr-3">Giá</th>
