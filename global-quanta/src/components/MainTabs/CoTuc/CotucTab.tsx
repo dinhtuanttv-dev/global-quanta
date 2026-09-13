@@ -20,6 +20,7 @@ import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
+import { useAiAnalysis } from "../../../hooks/useAiAnalysis";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
@@ -428,11 +429,26 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   // UU TIEN GIU 17 MA GOC (day du F-Score/DCF/pros-cons that) - CHI
   // THEM ma Universe KHONG TRUNG voi 17 ma da co, tranh ghi de du lieu
   // day du bang du lieu rut gon.
+  const { aiAnalysisMap } = useAiAnalysis();
+
   const allStocksWithUniverse = useMemo(() => {
     const existingTickerSet = new Set(mergedStocks.map((s) => s.ticker));
     const newFromUniverse = universeStocks.filter((s) => !existingTickerSet.has(s.ticker));
-    return [...mergedStocks, ...newFromUniverse];
-  }, [mergedStocks, universeStocks]);
+    const combined = [...mergedStocks, ...newFromUniverse];
+    // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
+    // lieu dinh luong) cho CA 17 ma va Universe - CHI GHI DE khi da co
+    // ket qua AI (con lai giu mau/mac dinh trong luc cho vong xoay).
+    return combined.map((s) => {
+      const ai = aiAnalysisMap[s.ticker];
+      if (!ai) return s;
+      return {
+        ...s,
+        pros: ai.pros.length > 0 ? ai.pros : s.pros,
+        cons: ai.cons.length > 0 ? ai.cons : s.cons,
+        catalystScore: ai.catalystScore ?? s.catalystScore,
+      };
+    });
+  }, [mergedStocks, universeStocks, aiAnalysisMap]);
 
   // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
