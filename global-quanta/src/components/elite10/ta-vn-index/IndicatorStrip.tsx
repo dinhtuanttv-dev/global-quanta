@@ -17,6 +17,16 @@ export function IndicatorStrip({
     ? (realRsi >= 70 ? 'Quá mua' : realRsi <= 30 ? 'Quá bán' : 'Trung tính')
     : rsi.label;
 
+  // GIAI DOAN 2: MACD THAT (EMA12-EMA26, Signal=EMA9 cua MACD line) -
+  // fallback ve field mock cu neu chua co du lieu that.
+  const realMacd = latest?.macdLine ?? null;
+  const macdValue = realMacd !== null ? realMacd : (macd.macd?.value ?? 0);
+  const macdIsReal = realMacd !== null;
+  const macdHistogram = macdIsReal ? (latest!.macdHistogram ?? 0) : (macd.histogram?.value ?? 0);
+  const macdLabel = macdIsReal
+    ? (macdHistogram > 0 ? 'Bullish (MACD trên Signal)' : macdHistogram < 0 ? 'Bearish (MACD dưới Signal)' : 'Trung tính')
+    : macd.label;
+
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
@@ -42,10 +52,10 @@ export function IndicatorStrip({
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">MACD (12,26,9)</div>
         <div className="text-[13px] font-bold text-slate-100">
-          {(macd.macd?.value ?? 0).toFixed(2)}
-          <SourceBadge source={macd.macd?.source} />
+          {macdValue.toFixed(2)}
+          <SourceBadge source={macdIsReal ? 'HARD_DATA' : (macd.macd?.source ?? 'ESTIMATED')} />
         </div>
-        <p className="mt-0.5 text-[10px] text-slate-500">{macd.label}</p>
+        <p className="mt-0.5 text-[10px] text-slate-500">{macdLabel}</p>
       </div>
     </div>
   );

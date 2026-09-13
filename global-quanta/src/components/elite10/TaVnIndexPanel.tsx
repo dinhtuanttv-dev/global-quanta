@@ -120,7 +120,7 @@ export function TaVnIndexPanel({
         <EventVolatilityTable priceSeries={data.priceSeries} events={data.events} demandZone={demandZone} />
       </div>
 
-      <AdxPanel adx={data.adx} />
+      <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} />
       <PatternScannerPanel entries={data.patternScanner} />

@@ -1,4 +1,4 @@
-﻿import type { AdxData } from '../../../types/taVnIndex';
+﻿import type { AdxData, ComputedIndicatorBar } from '../../../types/taVnIndex';
 import { SourceBadge } from './SourceBadge';
 
 const DOMINANT_LABEL: Record<AdxData['dominant'], string> = {
@@ -10,10 +10,25 @@ const DOMINANT_LABEL: Record<AdxData['dominant'], string> = {
 /**
  * ADX(14) — PHẢI hiển thị tách +DI/-DI (fix Giai đoạn 8). ADX chỉ đo
  * cường độ, không có hướng; tuyệt đối không suy luận hướng chỉ từ adx.value.
+ *
+ * GIAI DOAN 2: uu tien computedIndicators (Wilder's DMI/ADX THAT tinh tu
+ * gia that qua api/stock.py) - fallback ve field mock cu neu chua co du
+ * lieu that.
  */
-export function AdxPanel({ adx }: { adx: AdxData }) {
-  const dominantIsMinus = adx.dominant === 'minus';
-  const dominantIsPlus = adx.dominant === 'plus';
+export function AdxPanel({ adx, computedIndicators }: { adx: AdxData; computedIndicators?: ComputedIndicatorBar[] | null }) {
+  const latest = computedIndicators && computedIndicators.length > 0 ? computedIndicators[computedIndicators.length - 1] : null;
+  const hasReal = latest?.adx !== null && latest?.adx !== undefined && latest?.plusDi !== null && latest?.minusDi !== null;
+
+  const adxValue = hasReal ? (latest!.adx as number) : (adx.adx?.value ?? 0);
+  const plusDiValue = hasReal ? (latest!.plusDi as number) : (adx.plusDi?.value ?? 0);
+  const minusDiValue = hasReal ? (latest!.minusDi as number) : (adx.minusDi?.value ?? 0);
+  // Dominant TU TINH tu +DI/-DI THAT (khong dung field mock adx.dominant khi da co du lieu that)
+  const dominant: AdxData['dominant'] = hasReal
+    ? (Math.abs(plusDiValue - minusDiValue) < 2 ? 'neutral' : plusDiValue > minusDiValue ? 'plus' : 'minus')
+    : adx.dominant;
+
+  const dominantIsMinus = dominant === 'minus';
+  const dominantIsPlus = dominant === 'plus';
 
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
@@ -24,16 +39,16 @@ export function AdxPanel({ adx }: { adx: AdxData }) {
         </span>
       </div>
       <div className="text-base font-bold text-slate-100">
-        {(adx.adx?.value ?? 0).toFixed(1)}{' '}
-        <span className="text-[11px] font-normal text-slate-400">— {DOMINANT_LABEL[adx.dominant]}</span>
-        <SourceBadge source={adx.adx?.source} />
+        {adxValue.toFixed(1)}{' '}
+        <span className="text-[11px] font-normal text-slate-400">— {DOMINANT_LABEL[dominant]}</span>
+        <SourceBadge source={hasReal ? 'HARD_DATA' : (adx.adx?.source ?? 'ESTIMATED')} />
       </div>
       <div className="mt-1.5 flex gap-3 text-[11px]">
         <span className={dominantIsMinus ? 'font-bold text-rose-400' : 'text-rose-400'}>
-          ▼ -DI: {(adx.minusDi?.value ?? 0).toFixed(1)} {dominantIsMinus && '(chiếm ưu thế)'}
+          ▼ -DI: {minusDiValue.toFixed(1)} {dominantIsMinus && '(chiếm ưu thế)'}
         </span>
         <span className={dominantIsPlus ? 'font-bold text-emerald-400' : 'text-emerald-400'}>
-          ▲ +DI: {(adx.plusDi?.value ?? 0).toFixed(1)} {dominantIsPlus && '(chiếm ưu thế)'}
+          ▲ +DI: {plusDiValue.toFixed(1)} {dominantIsPlus && '(chiếm ưu thế)'}
         </span>
       </div>
       {dominantIsMinus && (
