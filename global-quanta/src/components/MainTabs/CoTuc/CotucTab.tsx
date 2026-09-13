@@ -209,7 +209,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
                   ["ROE", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : fmtPct(s.roe), true],
                   ["Tăng trưởng EPS", !isQualityScoreReal(s) ? "Đang tải..." : (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%", false],
                   ["F-Score", s.fscore + "/9", true], ["Payout Ratio", !isQualityScoreReal(s) ? "Đang tải..." : fmtPct(s.payoutRatio), false],
-                  ["Debt/Equity", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.debtEquity.toFixed(2) + "x", true], ["RSI", s.isUniverseOnly ? "N/A" : s.rsi.toFixed(1), true],
+                  ["Debt/Equity", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.debtEquity.toFixed(2) + "x", true], ["RSI", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.rsi.toFixed(1), true],
                   ["Catalyst", catalyst + "/10", true],
                   // RS 3T se het "MAU" khi Phuong an C noi xong realRs that (khong con undefined)
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : "Đang tải...", realRs === null || realRs === undefined],
@@ -783,7 +783,11 @@ export default function CotucTab(props: CotucTabProps) {
   // dung chua mo tab Co tuc. Neu caller (MainTabs) da tu truyen realRsMap
   // rieng (VD tuong lai dung chung 1 nguon RS cho ca app), uu tien prop
   // truyen vao thay vi ghi de bang hook noi bo.
-  const { realRsMap: fetchedRsMap, isRealRsLoading: fetchedLoading } = useRealRsData();
+  // FIX: goi them useUniverseScores() O DAY (SWR tu dedupe voi lan goi o
+  // CotucTabInner, khong ton them request that) de lay danh sach ma
+  // Universe, mo rong RS tinh cho CA 71 ma nay (truoc chi tinh cho 17 ma).
+  const { universeStocks } = useUniverseScores();
+  const { realRsMap: fetchedRsMap, isRealRsLoading: fetchedLoading } = useRealRsData(universeStocks.map((s) => s.ticker));
   const realRsMap = props.realRsMap ?? fetchedRsMap;
   const isRealRsLoading = props.isRealRsLoading ?? fetchedLoading;
 

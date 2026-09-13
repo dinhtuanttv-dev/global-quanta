@@ -67,8 +67,8 @@ function calc3moReturn(bars: OhlcvBar[]): number | null {
   return ((last - first) / first) * 100;
 }
 
-async function fetchAllRs(): Promise<Record<string, number | null>> {
-  const tickers = DIVIDEND_STOCKS.map((s) => s.ticker);
+async function fetchAllRs(tickersKey: string): Promise<Record<string, number | null>> {
+  const tickers = tickersKey.split(",").filter(Boolean);
   const [benchmarkBars, ...tickerBars] = await Promise.all([
     fetchOhlcv(BENCHMARK_TICKER),
     ...tickers.map((t) => fetchOhlcv(t)),
@@ -89,11 +89,21 @@ async function fetchAllRs(): Promise<Record<string, number | null>> {
   return result;
 }
 
-export function useRealRsData() {
-  // dedupingInterval dai (60 phut) vi day la 18 lan goi /api/ohlcv moi lan
-  // refresh (17 ma + 1 benchmark) - tranh goi Yahoo qua nhieu lan, dung tinh
-  // than "nhe, tranh goi lien tuc" da neu trong guide cho /api/universe.
-  const { data, error, isLoading } = useSWR("cotuc-real-rs-3mo", fetchAllRs, {
+/**
+ * FIX (dong bo hoan toan voi Universe): truoc day CHI tinh RS cho 17 ma
+ * theo doi goc (hardcode DIVIDEND_STOCKS). Gio nhan them THAM SO
+ * extraTickers (VD 71 ma Universe) de tinh RS cho CA 2 loai ma, dam bao
+ * Tier 4 cua Universe co du du lieu nhu 17 ma.
+ *
+ * LUU Y: mo rong tu 18 len ~89 request /api/ohlcv moi gio (tang ~5 lan) -
+ * giu dedupingInterval dai (60 phut) de giam tai cho Project A/Yahoo.
+ */
+export function useRealRsData(extraTickers: string[] = []) {
+  const baseTickers = DIVIDEND_STOCKS.map((s) => s.ticker);
+  const allTickers = Array.from(new Set([...baseTickers, ...extraTickers])).sort();
+  const tickersKey = allTickers.join(",");
+
+  const { data, error, isLoading } = useSWR(["cotuc-real-rs-3mo", tickersKey], () => fetchAllRs(tickersKey), {
     refreshInterval: 60 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 60 * 60 * 1000,
