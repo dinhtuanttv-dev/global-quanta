@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
+import { EventPanel } from "./EventPanel";
 
 // Mau sac theo statusCode Confluence - dung DUNG bang mau da duyet trong
 // prototype HTML goc (frontend/index.html, bien CONF_COLOR).
@@ -123,10 +124,11 @@ export default function SieuQuetAiTab() {
           <h2 className="text-sm font-semibold text-blue-400 mb-3">Market Impulse Gauge</h2>
           {indexState && <ImpulseGauge score={indexState.impulseScore} />}
         </div>
+        <EventPanel />
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3">
           <p className="text-[9px] text-sky-300">
             Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.
-            Cột "Đồng Thuận Sự Kiện" (eventImpactScore) tạm trung lập — Cơ Chế Đa AI Đối Chứng Sự Kiện đang phát triển.
+            Sự kiện: AI Discovery (Gemini + Google Search, 3 lần/ngày) + nhập tay, chỉ sự kiện đã xác nhận mới ảnh hưởng Smart Score.
           </p>
         </div>
       </section>
