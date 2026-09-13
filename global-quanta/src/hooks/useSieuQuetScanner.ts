@@ -40,6 +40,7 @@ export interface SieuQuetStockItem {
   breakoutBoostBadge: boolean;
   piotroskiFScore: number | null;
   fScoreMax: number;
+  foreignNetBuyFlag: boolean;
   computedAt: string;
 }
 

@@ -86,6 +86,7 @@ function StockRow({ item }: { item: SieuQuetStockItem }) {
       <td className="pr-3">
         <span className={`px-1.5 py-0.5 rounded border text-[9px] ${confClass}`}>{item.confluenceStatusLabel ?? "—"}</span>
         {item.breakoutBoostBadge && <span className="ml-1 px-1 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700 text-[9px]">⚡Breakout</span>}
+        {item.foreignNetBuyFlag && <span className="ml-1 px-1 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-700 text-[9px]" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)">🌍NN mua ròng</span>}
       </td>
       <td className="pr-3 text-slate-300">{item.trendTag ?? "—"}</td>
       <td className="pr-3">
