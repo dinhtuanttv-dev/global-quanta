@@ -208,7 +208,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
                   ["P/E", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.pe.toFixed(1) + "x", true],
                   ["ROE", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : fmtPct(s.roe), true],
                   ["Tăng trưởng EPS", !isQualityScoreReal(s) ? "Đang tải..." : (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%", false],
-                  ["F-Score", s.fscore + "/9", true], ["Payout Ratio", !isQualityScoreReal(s) ? "Đang tải..." : fmtPct(s.payoutRatio), false],
+                  ["F-Score (6 tiêu chí)", !isQualityScoreReal(s) ? "Đang tải..." : s.fscore + "/6", false], ["Payout Ratio", !isQualityScoreReal(s) ? "Đang tải..." : fmtPct(s.payoutRatio), false],
                   ["Debt/Equity", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.debtEquity.toFixed(2) + "x", true], ["RSI", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.rsi.toFixed(1), true],
                   ["Catalyst", catalyst + "/10", true],
                   // RS 3T se het "MAU" khi Phuong an C noi xong realRs that (khong con undefined)
@@ -410,11 +410,13 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       if (qs) {
         const payoutRatioReal = typeof qs.details.payoutRatioPct === "number" ? qs.details.payoutRatioPct : null;
         const growthReal = typeof qs.details.profitGrowthYoY === "number" ? qs.details.profitGrowthYoY : null;
+        const fScoreReal = typeof qs.details.fScore === "number" ? qs.details.fScore : null;
         merged = {
           ...merged,
           qsTier1: qs.tier1, qsTier2: qs.tier2, qsTier3: qs.tier3,
           payoutRatio: payoutRatioReal ?? merged.payoutRatio,
           growth: growthReal ?? merged.growth,
+          fscore: fScoreReal ?? merged.fscore,
         };
       }
       return merged;
@@ -514,9 +516,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
           <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả (Payout Ratio), Tăng trưởng EPS</b>, và
           <b> Dividend Quality Score</b> (4 tầng) hiện là dữ liệu thời gian thực (VCI + Yahoo Finance).
-          Riêng các chỉ số hiển thị riêng lẻ trong tab "Tổng Quan" — <b>F-Score, DCF, biên lợi nhuận gộp,
-          tỷ lệ sở hữu tổ chức, ưu/nhược điểm</b> — vẫn là số liệu mẫu cố định, sẽ được thay bằng dữ liệu
-          thật ở các bước tiếp theo.
+          <b> F-Score</b> hiện tính được <b>6/9 tiêu chí Piotroski</b> (thiếu Dòng tiền HĐKD và Số cổ phiếu
+          lưu hành — chưa xác nhận đủ tin cậy). Riêng <b>DCF, biên lợi nhuận gộp, tỷ lệ sở hữu tổ chức,
+          ưu/nhược điểm</b> vẫn là số liệu mẫu cố định, sẽ được thay bằng dữ liệu thật ở các bước tiếp theo.
         </p>
       </div>
 

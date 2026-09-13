@@ -31,6 +31,7 @@ export interface UniverseEntryRaw {
   dividendYieldPct: number | null;
   payoutRatioPct: number | null;
   profitGrowthYoY: number | null;
+  fScore: number | null;
 }
 
 function isoToVn(iso: string | null): string {
@@ -62,7 +63,7 @@ export function mapUniverseEntryToStock(e: UniverseEntryRaw): DividendStock {
     growth: e.profitGrowthYoY ?? 0, // DA CO THAT (Cron Job 2 tinh + luu)
     marketCap: "Mid",
     eps: 0,
-    fscore: 0, // Khong tinh F-Score cho Universe
+    fscore: e.fScore ?? 0, // DA CO THAT (6/9 tieu chi, xem ghi chu dividend-quality-score.ts)
     grossMargin: 0,
     pros: [],
     cons: [],
