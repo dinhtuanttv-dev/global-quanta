@@ -5,16 +5,21 @@ import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
 import { ConflictBanner } from './ta-vn-index/ConflictBanner';
 import { MockDataBanner } from './ta-vn-index/MockDataBanner';
 import { MainChart } from './ta-vn-index/MainChart';
-import { CurrentWindowRibbon } from './ta-vn-index/CurrentWindowRibbon';
 import { useChartOverlay } from '../../hooks/elite10/useChartOverlay';
 import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
 import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
+import { useAiInsight } from '../../hooks/elite10/useAiInsight';
+import { useCycleDetail } from '../../hooks/elite10/useCycleDetail';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
 import { PatternScannerPanel } from './ta-vn-index/PatternScannerPanel';
 import { EventVolatilityTable } from './ta-vn-index/EventVolatilityTable';
 import { ConfluencePanel } from './ta-vn-index/ConfluencePanel';
+import { ConfluenceWaterfall } from './ta-vn-index/ConfluenceWaterfall';
+import { ConfluenceCaseMatrix } from './ta-vn-index/ConfluenceCaseMatrix';
+import { AiDeepInsightPanel } from './ta-vn-index/AiDeepInsightPanel';
+import { CycleEnginePanel } from './ta-vn-index/CycleEnginePanel';
 
 interface TaVnIndexPanelProps {
   ticker: string;
@@ -57,6 +62,8 @@ export function TaVnIndexPanel({
   const { overlay } = useChartOverlay(ticker);
   const { breakdown: confluenceBreakdown } = useConfluenceEngine(ticker);
   const { universeRank } = useUniverseRank(ticker);
+  const { insight } = useAiInsight(ticker);
+  const { cycleDetail } = useCycleDetail(ticker);
 
   // 1. Loading
   if (isLoading) {
@@ -116,7 +123,6 @@ export function TaVnIndexPanel({
 
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
         <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">INTEGRATED CHART &amp; EVENT TIMELINE</div>
-        <CurrentWindowRibbon currentWindow={overlay?.currentWindow ?? null} />
         <MainChart
           priceSeries={data.priceSeries}
           zones={data.smc.zones}
@@ -134,6 +140,9 @@ export function TaVnIndexPanel({
         <EventVolatilityTable priceSeries={data.priceSeries} events={resolvedEvents} demandZone={demandZone} />
       </div>
 
+      {/* Vung 2.5 - Chu Ky & Thoi Diem (Time Engine day du) */}
+      {cycleDetail && <CycleEnginePanel data={cycleDetail} />}
+
       <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} />
@@ -146,6 +155,19 @@ export function TaVnIndexPanel({
           (data.confluence, 7 nguon co dinh) CHI KHI chua load xong, de
           khong hien man hinh trong khi cho API. */}
       <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
+
+      {/* Vung 3 - Waterfall: giai thich diem so theo tung nguon */}
+      {confluenceBreakdown && (
+        <ConfluenceWaterfall sources={confluenceBreakdown.sources} score={confluenceBreakdown.overall.value} />
+      )}
+
+      {/* Vung 4 - Ma tran doi khang + Vung 5 - AI Deep Insight */}
+      {insight && (
+        <>
+          <ConfluenceCaseMatrix bullCase={insight.bullCase} bearCase={insight.bearCase} />
+          <AiDeepInsightPanel tradeScenario={insight.tradeScenario} riskFlags={insight.riskFlags} warnings={insight.warnings} />
+        </>
+      )}
     </div>
   );
 }
