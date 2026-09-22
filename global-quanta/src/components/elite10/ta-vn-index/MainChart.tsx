@@ -159,7 +159,7 @@ export function MainChart({
     );
 
     const timeIndex = buildTimeIndex(priceSeries);
-    const eventMarkers = events
+    const eventMarkers = (Array.isArray(events) ? events : [])
       .filter((ev) => timeIndex.has(ev.time))
       .map((ev) => ({
         time: ev.time,

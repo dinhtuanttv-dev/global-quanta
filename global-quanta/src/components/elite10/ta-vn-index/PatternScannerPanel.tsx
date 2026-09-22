@@ -13,7 +13,8 @@ import type { UniverseRankData } from '../../../hooks/elite10/useUniverseRank';
  * hinh that - xem MockDataBanner). 2 khai niem khac nhau hoan toan, khong
  * duoc gop lam mot de tranh gay hieu lam.
  */
-export function PatternScannerPanel({ entries, universeRank }: { entries: PatternScannerEntry[]; universeRank?: UniverseRankData | null }) {
+export function PatternScannerPanel({ entries, universeRank }: { entries?: PatternScannerEntry[] | null; universeRank?: UniverseRankData | null }) {
+  const safeEntries = entries ?? [];
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
       <div className="mb-2 flex items-center justify-between">
@@ -37,7 +38,7 @@ export function PatternScannerPanel({ entries, universeRank }: { entries: Patter
       </div>
 
       <div className="flex flex-col">
-        {entries.map((e) => (
+        {safeEntries.map((e) => (
           <div key={`${e.ticker}-${e.patternName}`} className="flex items-center justify-between border-b border-white/5 py-1.5 text-[11px] last:border-b-0">
             <span>
               {e.ticker} <span className="text-slate-500">·</span> {e.patternName}{' '}
@@ -45,16 +46,16 @@ export function PatternScannerPanel({ entries, universeRank }: { entries: Patter
             </span>
             <span className="text-right">
               <span className="text-slate-300">
-                {e.geometricMatchPct.value.toFixed(0)}% khớp hình học
-                <SourceBadge source={e.geometricMatchPct.source} />
+                {e.geometricMatchPct?.value !== undefined ? `${e.geometricMatchPct.value.toFixed(0)}% khớp hình học` : '—'}
+                {e.geometricMatchPct?.source && <SourceBadge source={e.geometricMatchPct.source} />}
               </span>
               <br />
               <span className="text-slate-500">
-                {e.historicalWinRatePct
+                {e.historicalWinRatePct?.value !== undefined
                   ? `Thắng lịch sử ${e.historicalWinRatePct.value.toFixed(0)}%`
                   : 'Chưa đủ mẫu lịch sử'}
               </span>
-              {e.isDampened && (
+              {e.isDampened && e.dampenedConfidencePct?.value !== undefined && (
                 <>
                   {' '}
                   <span className="text-amber-400">
@@ -65,10 +66,10 @@ export function PatternScannerPanel({ entries, universeRank }: { entries: Patter
             </span>
           </div>
         ))}
-        {entries.length === 0 && <p className="text-[11px] text-slate-500">Không có mẫu hình nào đủ điều kiện.</p>}
+        {safeEntries.length === 0 && <p className="text-[11px] text-slate-500">Không có mẫu hình nào đủ điều kiện.</p>}
       </div>
 
-      {entries.some((e) => e.isDampened) && (
+      {safeEntries.some((e) => e.isDampened) && (
         <p className="mt-2 text-[10px] text-slate-500">
           Các mã cùng ngành ra mẫu hình gần như cùng lúc được giảm trọng số hiển thị — nghi ngờ đây là 1 chuyển động
           ngành thay vì nhiều xác nhận độc lập.

@@ -12,8 +12,27 @@ const STATUS_DOT: Record<ConfluenceStatus, string> = {
  * đoạn 7 + 9). `overall`/`sources` do Project A tính (renormalize khi
  * thiếu nguồn — xem computeEliteScore trong lib/taMath.ts phía Backend
  * tương ứng); Frontend chỉ hiển thị đúng những gì API trả về.
+ *
+ * FIX (2026-09-18): production bao loi "Cannot read properties of
+ * undefined (reading 'value'/'map')" - breakdown co the la undefined
+ * (API loi/tra ve thieu field) truoc khi component kip render "dang
+ * tai". Them guard som + optional chaining o MOI diem doc du lieu long
+ * nhau, khong chi tin tuong prop luon day du.
  */
-export function ConfluencePanel({ breakdown, ticker }: { breakdown: EliteScoreBreakdown; ticker: string }) {
+export function ConfluencePanel({ breakdown, ticker }: { breakdown?: EliteScoreBreakdown | null; ticker: string }) {
+  if (!breakdown) {
+    return (
+      <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
+        <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">
+          GIẢI TRÌNH HỘI TỤ — {ticker} (7 NGUỒN)
+        </div>
+        <p className="py-4 text-center text-[11px] text-slate-500">Đang tải dữ liệu hội tụ…</p>
+      </div>
+    );
+  }
+
+  const sources = breakdown.sources ?? [];
+
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
       <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">
@@ -22,13 +41,13 @@ export function ConfluencePanel({ breakdown, ticker }: { breakdown: EliteScoreBr
 
       <div className="mb-2 flex items-center justify-between border-b border-white/10 pb-3">
         <div className="text-3xl font-bold text-amber-400">
-          {breakdown.overall.value.toFixed(1)}
+          {breakdown.overall?.value !== undefined && breakdown.overall?.value !== null ? breakdown.overall.value.toFixed(1) : '—'}
           <span className="text-sm font-normal text-slate-500">/5</span>
         </div>
         <div className="text-right text-[10px] text-slate-500">
           Elite Score
           <br />
-          {breakdown.sourcesWithData}/{breakdown.sourcesTotal} nguồn có dữ liệu
+          {breakdown.sourcesWithData ?? 0}/{breakdown.sourcesTotal ?? 6} nguồn có dữ liệu
           {!breakdown.weightsConfirmed && (
             <>
               <br />
@@ -38,17 +57,18 @@ export function ConfluencePanel({ breakdown, ticker }: { breakdown: EliteScoreBr
         </div>
       </div>
 
-      {breakdown.sources.map((s) => (
+      {sources.length === 0 && <p className="py-2 text-[11px] text-slate-500">Chưa có dữ liệu nguồn nào.</p>}
+      {sources.map((s) => (
         <div key={s.key} className="flex items-center justify-between border-b border-white/5 py-2 text-xs last:border-b-0">
           <span className={s.isCurrentTab ? 'flex items-center gap-1.5 font-bold text-cyan-300' : 'flex items-center gap-1.5'}>
-            <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[s.status]}`} />
+            <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT[s.status] ?? STATUS_DOT.no_data}`} />
             {s.name}
             {s.isCurrentTab && <span className="text-[9px] font-normal text-slate-500">(đang xem)</span>}
           </span>
           <span className="text-[11px] text-slate-400">
             {s.detail}
             <span className="ml-1.5 rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-slate-500">
-              {s.weightPct !== null ? `${s.weightPct}%` : '—'}
+              {s.weightPct !== null && s.weightPct !== undefined ? `${s.weightPct}%` : '—'}
             </span>
           </span>
         </div>
@@ -56,7 +76,7 @@ export function ConfluencePanel({ breakdown, ticker }: { breakdown: EliteScoreBr
 
       <div className="mt-2.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">
         <p>
-          <b className="text-slate-200">Rủi ro tập trung:</b> {breakdown.concentrationRiskNote}
+          <b className="text-slate-200">Rủi ro tập trung:</b> {breakdown.concentrationRiskNote ?? '—'}
         </p>
       </div>
     </div>

@@ -56,7 +56,9 @@ export function EventVolatilityTable({ priceSeries, events, demandZone }: EventV
                   className={
                     ev.type === 'T'
                       ? 'mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-cyan-400 text-[9px] font-bold text-cyan-400'
-                      : 'mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-400 text-[9px] font-bold text-amber-400'
+                      : ev.type === 'A'
+                        ? 'mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-purple-400 text-[9px] font-bold text-purple-400'
+                        : 'mr-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-amber-400 text-[9px] font-bold text-amber-400'
                   }
                 >
                   {ev.type}
@@ -64,10 +66,14 @@ export function EventVolatilityTable({ priceSeries, events, demandZone }: EventV
                 {ev.label}
               </td>
               <td className="px-1.5 py-1.5">{ev.time}</td>
-              <td className="px-1.5 py-1.5">{ev.priceAtEvent.value.toLocaleString()}</td>
-              <td className={ev.pctChangeToNow.value >= 0 ? 'px-1.5 py-1.5 text-emerald-400' : 'px-1.5 py-1.5 text-rose-400'}>
-                {ev.pctChangeToNow.value > 0 ? '+' : ''}
-                {ev.pctChangeToNow.value.toFixed(1)}% · {ev.barsSinceEvent} nến
+              <td className="px-1.5 py-1.5">{ev.priceAtEvent?.value !== undefined ? ev.priceAtEvent.value.toLocaleString() : '—'}</td>
+              <td className={(ev.pctChangeToNow?.value ?? 0) >= 0 ? 'px-1.5 py-1.5 text-emerald-400' : 'px-1.5 py-1.5 text-rose-400'}>
+                {ev.pctChangeToNow?.value !== undefined ? (
+                  <>
+                    {ev.pctChangeToNow.value > 0 ? '+' : ''}
+                    {ev.pctChangeToNow.value.toFixed(1)}% · {ev.barsSinceEvent ?? 0} nến
+                  </>
+                ) : '—'}
               </td>
             </tr>
           ))}

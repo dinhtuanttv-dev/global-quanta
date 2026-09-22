@@ -42,7 +42,7 @@ export function pctChange(fromClose: number, toClose: number): number {
  * cứu tuyến tính lặp lại.
  */
 export function computeEventStats(bars: OhlcBar[], events: ChartEvent[]): EventStat[] {
-  if (bars.length === 0) return [];
+  if (!Array.isArray(bars) || bars.length === 0 || !Array.isArray(events)) return [];
   const timeIndex = buildTimeIndex(bars);
   const lastBar = bars[bars.length - 1];
   const lastIdx = bars.length - 1;
@@ -54,6 +54,13 @@ export function computeEventStats(bars: OhlcBar[], events: ChartEvent[]): EventS
     const bar = bars[idx];
     stats.push({
       ...ev,
+      // FIX (2026-09-18): TU TINH priceAtEvent tu bar.close (da co san,
+      // HARD_DATA that) - KHONG PHU THUOC nguon events phai tu cung cap
+      // field nay. Truoc day: neu ev.priceAtEvent thieu (VD nguon events
+      // moi tu route chart-overlay chi co {time,type,label}), spread se
+      // de lai undefined, gay crash "Cannot read properties of undefined
+      // (reading 'value')" ngay ben ngoai component khi doc .value.
+      priceAtEvent: { value: bar.close, source: 'HARD_DATA' },
       barsSinceEvent: lastIdx - idx,
       pctChangeToNow: { value: pctChange(bar.close, lastBar.close), source: 'HARD_DATA' },
     });

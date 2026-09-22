@@ -18,18 +18,25 @@ const STATUS_MAP: Record<string, ConfluenceStatus> = { ok: "ok", warn: "warn", n
 /** MAP response Confluence Engine THAT (route /api/elite10/confluence)
  * sang dung format EliteScoreBreakdown ma ConfluencePanel.tsx da ky vong -
  * GIU NGUYEN UI component, chi THAY NGUON DU LIEU tu mock sang that
- * (ra soat 2026-09-17). */
+ * (ra soat 2026-09-17).
+ *
+ * FIX (2026-09-18): production bao loi ".map of undefined" - backend co
+ * the tra ve response THIEU field "sources" (loi/timeout khong catch
+ * dung o 1 nhanh code nao do). Guard AN TOAN o day, KHONG gia dinh
+ * response luon dung dinh dang du kien. */
 function mapToBreakdown(res: ConfluenceApiResponse): EliteScoreBreakdown {
-  const sources: ConfluenceSource[] = res.sources.map((s) => ({
-    key: s.key, name: s.name,
-    status: STATUS_MAP[s.status] ?? "no_data",
-    detail: s.detail, weightPct: s.weightPct, isCurrentTab: s.isCurrentTab,
-  }));
+  const sources: ConfluenceSource[] = Array.isArray(res?.sources)
+    ? res.sources.map((s) => ({
+        key: s.key, name: s.name,
+        status: STATUS_MAP[s.status] ?? "no_data",
+        detail: s.detail, weightPct: s.weightPct, isCurrentTab: s.isCurrentTab,
+      }))
+    : [];
   return {
-    overall: { value: res.score, source: "ESTIMATED" },
-    sourcesWithData: res.nAvailable, sourcesTotal: 6,
+    overall: { value: res?.score ?? 0, source: "ESTIMATED" },
+    sourcesWithData: res?.nAvailable ?? 0, sourcesTotal: 6,
     sources,
-    concentrationRiskNote: res.limitationsNote,
+    concentrationRiskNote: res?.limitationsNote ?? "Không có dữ liệu.",
     weightsConfirmed: false,
   };
 }
