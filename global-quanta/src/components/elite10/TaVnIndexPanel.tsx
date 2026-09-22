@@ -5,6 +5,10 @@ import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
 import { ConflictBanner } from './ta-vn-index/ConflictBanner';
 import { MockDataBanner } from './ta-vn-index/MockDataBanner';
 import { MainChart } from './ta-vn-index/MainChart';
+import { CurrentWindowRibbon } from './ta-vn-index/CurrentWindowRibbon';
+import { useChartOverlay } from '../../hooks/elite10/useChartOverlay';
+import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
+import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
@@ -50,6 +54,9 @@ export function TaVnIndexPanel({
     />
   );
   const watchlist = <TickerWatchlist selectedTicker={ticker} onSelectTicker={onSelectTicker} />;
+  const { overlay } = useChartOverlay(ticker);
+  const { breakdown: confluenceBreakdown } = useConfluenceEngine(ticker);
+  const { universeRank } = useUniverseRank(ticker);
 
   // 1. Loading
   if (isLoading) {
@@ -92,6 +99,10 @@ export function TaVnIndexPanel({
 
   // 4. Data thành công
   const demandZone = data.smc.zones.find((z) => z.kind === 'demand_zone');
+  // FIX (ra soat 2026-09-17): dung CHUNG 1 nguon events cho ca MainChart
+  // VA EventVolatilityTable - truoc day 2 noi dung mock/that khac nhau,
+  // gay khong nhat quan (Chart dung that, bang duoi van hien mock).
+  const resolvedEvents = overlay?.events && overlay.events.length > 0 ? overlay.events : data.events;
 
   return (
     <div className="flex flex-col gap-3 text-slate-200">
@@ -105,29 +116,36 @@ export function TaVnIndexPanel({
 
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
         <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">INTEGRATED CHART &amp; EVENT TIMELINE</div>
+        <CurrentWindowRibbon currentWindow={overlay?.currentWindow ?? null} />
         <MainChart
           priceSeries={data.priceSeries}
           zones={data.smc.zones}
           trendline={data.trendline}
-          events={data.events}
+          events={resolvedEvents}
           showTrendline={overlays.trendline}
           showDemandZone={overlays.demandZone}
           computedIndicators={data.computedIndicators}
           showSma200={overlays.sma200}
           showEma={overlays.ema}
           showBollinger={overlays.bollinger}
+          tradeScenario={overlay?.tradeScenario}
+          riskFlags={overlay?.riskFlags}
         />
-        <EventVolatilityTable priceSeries={data.priceSeries} events={data.events} demandZone={demandZone} />
+        <EventVolatilityTable priceSeries={data.priceSeries} events={resolvedEvents} demandZone={demandZone} />
       </div>
 
       <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} />
-      <PatternScannerPanel entries={data.patternScanner} />
+      <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
 
       {watchlist}
 
-      <ConfluencePanel breakdown={data.confluence} ticker={data.ticker} />
+      {/* FIX (ra soat 2026-09-17): uu tien Confluence Engine THAT (6
+          pillar da port + test khop 100% Python) - fallback ve mock cu
+          (data.confluence, 7 nguon co dinh) CHI KHI chua load xong, de
+          khong hien man hinh trong khi cho API. */}
+      <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
     </div>
   );
 }

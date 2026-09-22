@@ -1,19 +1,39 @@
 import type { PatternScannerEntry } from '../../../types/taVnIndex';
 import { SourceBadge } from './SourceBadge';
+import type { UniverseRankData } from '../../../hooks/elite10/useUniverseRank';
 
 /**
  * Pattern Scanner — 2 fix Giai đoạn 8:
  * 1. Tách "độ khớp hình học" và "tỷ lệ thắng lịch sử" thành 2 số riêng.
  * 2. Hiển thị rõ khi 1 mã bị giảm trọng số do decorrelation theo ngành.
+ *
+ * MOI (ra soat 2026-09-17, Viec 5): them badge "Top 200 Universe" THAT
+ * (thanh khoan + von hoa, TradingView Scanner) - BO SUNG chu KHONG THAY
+ * THE phan "do khop hinh hoc" (van la mock, chua co model nhan dien mau
+ * hinh that - xem MockDataBanner). 2 khai niem khac nhau hoan toan, khong
+ * duoc gop lam mot de tranh gay hieu lam.
  */
-export function PatternScannerPanel({ entries }: { entries: PatternScannerEntry[] }) {
+export function PatternScannerPanel({ entries, universeRank }: { entries: PatternScannerEntry[]; universeRank?: UniverseRankData | null }) {
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
-      <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">
-        PATTERN SCANNER{' '}
-        <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold text-emerald-400">
-          DECORRELATION NGÀNH
-        </span>
+      <div className="mb-2 flex items-center justify-between">
+        <div className="text-[11px] font-bold tracking-wide text-cyan-300">
+          PATTERN SCANNER{' '}
+          <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold text-emerald-400">
+            DECORRELATION NGÀNH
+          </span>
+        </div>
+        {universeRank && (
+          universeRank.inTop200 ? (
+            <span className="rounded border border-cyan-400/40 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] font-bold text-cyan-300" title={universeRank.note}>
+              Top 200 · #{universeRank.rank}/{universeRank.totalUniverseSize}
+            </span>
+          ) : (
+            <span className="text-[9px] text-slate-500" title={universeRank.note}>
+              Ngoài Top 200 thanh khoản
+            </span>
+          )
+        )}
       </div>
 
       <div className="flex flex-col">

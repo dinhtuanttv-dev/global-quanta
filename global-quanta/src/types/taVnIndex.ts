@@ -57,7 +57,7 @@ export interface TrendlinePoint {
  */
 export interface ChartEvent {
   time: string;
-  type: 'T' | 'C'; // T = catalyst, C = cổ tức (ex-dividend)
+  type: 'T' | 'C' | 'A'; // T = catalyst, C = cổ tức (ex-dividend), A = ĐHCĐ (THAT - Elite10 chart overlay)
   label: string;
   priceAtEvent: QuantValue; // HARD_DATA
 }
@@ -264,4 +264,27 @@ export interface ComputedIndicatorBar {
   macdLine: number | null;
   macdSignal: number | null;
   macdHistogram: number | null;
+}
+
+// Elite 10 - Tich hop Time Engine + Confluence Engine len Chart (2026-09-17).
+// Du lieu THAT tu /api/elite10/chart-overlay/{ticker} (backend qms-clean).
+export interface TradeScenario {
+  winRate: number; sampleSize: number;
+  buyZone: [number, number]; stopLoss: number; takeProfit: [number, number];
+  isEstimated: boolean;
+}
+
+export interface CurrentWindowInfo {
+  windowId: string; label: string; avgReturn: number; winRate: number;
+  sampleSize: number; isLowSample: boolean;
+}
+
+export interface ChartOverlayData {
+  ticker: string;
+  events: ChartEvent[];
+  tradeScenario: TradeScenario;
+  currentWindow: CurrentWindowInfo | null;
+  riskFlags: string[];
+  score: number;
+  starRating: number;
 }

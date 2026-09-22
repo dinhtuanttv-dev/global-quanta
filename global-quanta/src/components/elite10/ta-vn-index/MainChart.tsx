@@ -7,7 +7,7 @@ import {
   type ISeriesApi,
   type MouseEventParams,
 } from 'lightweight-charts';
-import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent, ComputedIndicatorBar } from '../../../types/taVnIndex';
+import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent, ComputedIndicatorBar, TradeScenario } from '../../../types/taVnIndex';
 import { buildTimeIndex } from '../../../lib/taMath';
 
 interface MainChartProps {
@@ -24,6 +24,11 @@ interface MainChartProps {
   showSma200?: boolean;
   showEma?: boolean; // BAT/TAT chung ca 3 duong EMA100/50/21
   showBollinger?: boolean;
+  // MOI (2026-09-17, tich hop Time Engine + Confluence Engine len chart):
+  // Trade Scenario (Buy Zone/Stop Loss/Take Profit) ve bang Price Lines,
+  // risk flags danh dau canh bao tai nen hien tai.
+  tradeScenario?: TradeScenario | null;
+  riskFlags?: string[];
 }
 
 const ZONE_COLORS: Record<PriceZone['kind'], { bg: string; border: string }> = {
@@ -53,6 +58,7 @@ function fmtLegend(bar: OhlcBar): string {
 export function MainChart({
   priceSeries, zones, trendline, events, showTrendline, showDemandZone,
   computedIndicators, showSma200, showEma, showBollinger,
+  tradeScenario, riskFlags,
 }: MainChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -65,6 +71,7 @@ export function MainChart({
   const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const zoneElsRef = useRef<HTMLDivElement[]>([]);
+  const priceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
   const [legendHtml, setLegendHtml] = useState('');
 
   // Khởi tạo chart 1 lần
@@ -152,16 +159,23 @@ export function MainChart({
     );
 
     const timeIndex = buildTimeIndex(priceSeries);
-    const markers = events
+    const eventMarkers = events
       .filter((ev) => timeIndex.has(ev.time))
       .map((ev) => ({
         time: ev.time,
         position: (ev.type === 'T' ? 'aboveBar' : 'belowBar') as 'aboveBar' | 'belowBar',
-        color: ev.type === 'T' ? '#22e8ff' : '#ffb020',
+        color: ev.type === 'T' ? '#22e8ff' : ev.type === 'A' ? '#a78bfa' : '#ffb020',
         shape: 'circle' as const,
         text: ev.type,
-      }))
-      .sort((a, b) => (a.time > b.time ? 1 : -1));
+      }));
+    // MOI: canh bao risk flag (VD bull_trap_warning) tai nen HIEN TAI
+    // (nen cuoi cung) - de nguoi dung thay ngay tren chart, khong can
+    // chuyen sang doc panel rieng.
+    const lastBarTime = priceSeries[priceSeries.length - 1]?.time;
+    const riskMarker = riskFlags && riskFlags.length > 0 && lastBarTime
+      ? [{ time: lastBarTime, position: 'aboveBar' as const, color: '#ff4d5e', shape: 'arrowDown' as const, text: '⚠' }]
+      : [];
+    const markers = [...eventMarkers, ...riskMarker].sort((a, b) => (a.time > b.time ? 1 : -1));
     candleSeries.setMarkers(markers);
 
     const lastBar = priceSeries[priceSeries.length - 1];
@@ -177,7 +191,7 @@ export function MainChart({
     };
     chart.subscribeCrosshairMove(handleCrosshair);
     return () => chart.unsubscribeCrosshairMove(handleCrosshair);
-  }, [priceSeries, events]);
+  }, [priceSeries, events, riskFlags]);
 
   // Trendline
   useEffect(() => {
@@ -185,6 +199,48 @@ export function MainChart({
     if (!trendSeries) return;
     trendSeries.setData(showTrendline ? trendline : []);
   }, [trendline, showTrendline]);
+
+  // MOI (2026-09-17): Trade Scenario (Buy Zone/Stop Loss/Take Profit) ve
+  // bang Price Lines ngay tren chart gia - nguoi dung thay TRUC TIEP vung
+  // mua/ban ma khong can chuyen sang doc so lieu o panel AI Insight rieng.
+  // Neu isEstimated=true (chua du du lieu that cho cua so hien tai), VAN
+  // VE nhung voi mau nhat hon + nhan "(tham chieu ky thuat)" de khong gay
+  // hieu lam day la khuyen nghi dua tren backtest that.
+  useEffect(() => {
+    const candleSeries = candleSeriesRef.current;
+    if (!candleSeries) return;
+
+    const lines = priceLinesRef.current;
+    lines.forEach((l) => candleSeries.removePriceLine(l));
+    lines.length = 0;
+
+    if (!tradeScenario) return;
+    const dim = tradeScenario.isEstimated;
+    const suffix = dim ? ' (tham chiếu)' : '';
+
+    lines.push(candleSeries.createPriceLine({
+      price: tradeScenario.buyZone[0], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+      lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua từ${suffix}`,
+    }));
+    lines.push(candleSeries.createPriceLine({
+      price: tradeScenario.buyZone[1], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+      lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua đến${suffix}`,
+    }));
+    lines.push(candleSeries.createPriceLine({
+      price: tradeScenario.stopLoss, color: dim ? 'rgba(255,77,94,0.4)' : '#ff4d5e',
+      lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: `Stop loss${suffix}`,
+    }));
+    lines.push(candleSeries.createPriceLine({
+      price: tradeScenario.takeProfit[0], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+      lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 1${suffix}`,
+    }));
+    lines.push(candleSeries.createPriceLine({
+      price: tradeScenario.takeProfit[1], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+      lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 2${suffix}`,
+    }));
+
+    return () => { lines.forEach((l) => candleSeries.removePriceLine(l)); lines.length = 0; };
+  }, [tradeScenario]);
 
   // Bo overlay chinh moi (theo yeu cau nguoi dung): SMA200/EMA100/50/21
   // - du lieu THAT tu computedIndicators (tinh boi api/stock.py qua
