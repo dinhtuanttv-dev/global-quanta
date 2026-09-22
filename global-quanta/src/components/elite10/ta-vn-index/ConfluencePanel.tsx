@@ -42,7 +42,7 @@ export function ConfluencePanel({ breakdown, ticker }: { breakdown?: EliteScoreB
       <div className="mb-2 flex items-center justify-between border-b border-white/10 pb-3">
         <div className="text-3xl font-bold text-amber-400">
           {breakdown.overall?.value !== undefined && breakdown.overall?.value !== null ? breakdown.overall.value.toFixed(1) : '—'}
-          <span className="text-sm font-normal text-slate-500">/5</span>
+          <span className="text-sm font-normal text-slate-500">/100</span>
         </div>
         <div className="text-right text-[10px] text-slate-500">
           Elite Score
