@@ -10,6 +10,7 @@ import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
 import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
 import { useAiInsight } from '../../hooks/elite10/useAiInsight';
 import { useCycleDetail } from '../../hooks/elite10/useCycleDetail';
+import { useSmcDetector } from '../../hooks/elite10/useSmcDetector';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
@@ -64,6 +65,7 @@ export function TaVnIndexPanel({
   const { universeRank } = useUniverseRank(ticker);
   const { insight } = useAiInsight(ticker);
   const { cycleDetail } = useCycleDetail(ticker);
+  const { smcReal } = useSmcDetector(ticker);
 
   // 1. Loading
   if (isLoading) {
@@ -145,7 +147,7 @@ export function TaVnIndexPanel({
 
       <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
-      <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} />
+      <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
       <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
 
       {watchlist}
