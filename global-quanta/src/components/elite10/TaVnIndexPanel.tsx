@@ -146,7 +146,7 @@ export function TaVnIndexPanel({
       {cycleDetail && <CycleEnginePanel data={cycleDetail} />}
 
       <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
-      <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} />
+      <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
       <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
 

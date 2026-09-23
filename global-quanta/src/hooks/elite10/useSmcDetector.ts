@@ -11,12 +11,17 @@ export interface StructureEvent { date: string; type: "BOS" | "CHoCH"; direction
 export interface OrderBlockZone { date: string; direction: "bullish" | "bearish"; top: number; bottom: number; linkedEventDate: string; impulseRatio: number; }
 export interface VsaSignal { date: string; type: "no_demand" | "no_supply"; volume: number; volumePercentile: number; }
 
+export interface WyckoffRange { startDate: string; endDate: string; support: number; resistance: number; avgVolume: number; avgSpread: number; }
+export interface WyckoffEvent { date: string; type: "spring" | "sos" | "lps"; price: number; volume: number; volumeVsAvgPct: number; }
+export interface WyckoffSchematic { range: WyckoffRange; spring: WyckoffEvent | null; sos: WyckoffEvent | null; lps: WyckoffEvent | null; status: "range_only" | "spring_confirmed" | "sos_confirmed" | "lps_confirmed"; }
+
 export interface SmcDetectorData {
   ticker: string; swingPointCount: number;
   fvg: { total: number; unmitigated: number; zones: FvgZone[] };
   structure: { totalEvents: number; recentEvents: StructureEvent[]; currentBias: "bullish" | "bearish" | null; lastEventType: "BOS" | "CHoCH" | null };
   orderBlocks: { total: number; zones: OrderBlockZone[] };
   vsa: { recentSignals: VsaSignal[]; lastSignal: VsaSignal | null };
+  wyckoff: WyckoffSchematic | null;
   methodologyNote: string;
 }
 
