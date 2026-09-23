@@ -1,5 +1,7 @@
 import useSWR from "swr";
 
+import type { WindowStat } from "./useCycleDetail";
+
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://tuan-quant-scanner-psi.vercel.app";
 const fetcher = (url: string) => fetch(url).then((r) => {
   if (!r.ok) throw new Error(`Loi ${r.status}`);
@@ -22,6 +24,14 @@ export interface SmcDetectorData {
   orderBlocks: { total: number; zones: OrderBlockZone[] };
   vsa: { recentSignals: VsaSignal[]; lastSignal: VsaSignal | null };
   wyckoff: WyckoffSchematic | null;
+  backtest: {
+    holdDays: number;
+    fvgBullish: WindowStat | null; fvgBearish: WindowStat | null;
+    bosBullish: WindowStat | null; bosBearish: WindowStat | null;
+    chochBullish: WindowStat | null; chochBearish: WindowStat | null;
+    orderBlockBullish: WindowStat | null; orderBlockBearish: WindowStat | null;
+    wyckoffNote: string;
+  };
   methodologyNote: string;
 }
 

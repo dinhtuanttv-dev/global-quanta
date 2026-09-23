@@ -15,6 +15,7 @@ import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
 import { PatternScannerPanel } from './ta-vn-index/PatternScannerPanel';
+import { SmcBacktestPanel } from './ta-vn-index/SmcBacktestPanel';
 import { EventVolatilityTable } from './ta-vn-index/EventVolatilityTable';
 import { ConfluencePanel } from './ta-vn-index/ConfluencePanel';
 import { ConfluenceWaterfall } from './ta-vn-index/ConfluenceWaterfall';
@@ -149,6 +150,7 @@ export function TaVnIndexPanel({
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
       <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
+      <SmcBacktestPanel smcReal={smcReal} />
 
       {watchlist}
 
