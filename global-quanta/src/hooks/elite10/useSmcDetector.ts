@@ -32,7 +32,21 @@ export interface SmcDetectorData {
     orderBlockBullish: WindowStat | null; orderBlockBearish: WindowStat | null;
     wyckoffNote: string;
   };
+  tripleBarrierBacktest: {
+    atrMultiplier: number; timeLimitDays: number;
+    fvgBullish: TripleBarrierStats | null; fvgBearish: TripleBarrierStats | null;
+    bosBullish: TripleBarrierStats | null; bosBearish: TripleBarrierStats | null;
+    chochBullish: TripleBarrierStats | null; chochBearish: TripleBarrierStats | null;
+    orderBlockBullish: TripleBarrierStats | null; orderBlockBearish: TripleBarrierStats | null;
+    note: string;
+  };
   methodologyNote: string;
+}
+
+export interface TripleBarrierStats {
+  sampleSize: number; winRatePct: number; wilsonCi90: [number, number];
+  breakdown: { takeProfitPct: number; stopLossPct: number; timeLimitPct: number };
+  avgReturnPct: number; avgDaysToHit: number; isLowSample: boolean;
 }
 
 // Elite 10 - SMC THAT (Giai doan 1: FVG + BOS/CHoCH). Noi voi route MOI
