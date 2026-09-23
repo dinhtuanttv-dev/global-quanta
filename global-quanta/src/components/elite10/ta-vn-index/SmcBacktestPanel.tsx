@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { SmcDetectorData, TripleBarrierStats } from '../../../hooks/elite10/useSmcDetector';
 import type { WindowStat } from '../../../hooks/elite10/useCycleDetail';
 
@@ -7,10 +8,15 @@ import type { WindowStat } from '../../../hooks/elite10/useCycleDetail';
  * sampleSize tu buildWindowStats() (time-engine.ts) - Y HET logic da
  * dung cho Tab Co Tuc, khong viet lai gi moi.
  *
- * MUC C (Tech Spec v2, 2026-09-23): them khoi Triple-Barrier SONG SONG
- * ben duoi (khong thay the khoi backtest cu o tren) - de so sanh 2
- * phuong phap: backtest don gian (chi nhin gia sau N ngay) vs
- * Triple-Barrier (3 rao chan TP/SL/time-limit, cham rao nao truoc).
+ * MUC C (Tech Spec v2): them phuong phap Triple-Barrier (Lopez de
+ * Prado) - SONG SONG voi backtest don gian cu (khong thay the).
+ *
+ * NANG CAP UI (2026-09-23): thay vi hien CA 2 BANG CUNG LUC (rat dai),
+ * dung TAB SWITCHER de nguoi dung chon xem 1 trong 2 phuong phap tai 1
+ * thoi diem - gon hon, van giu du lieu day du ca 2 (khong xoa gi).
+ * Backend cung da mo rong du lieu backtest tu 6 thang len 2 nam de tang
+ * co mau (Wyckoff Schematic van chi xet 6 thang gan nhat de giu tinh
+ * thoi su).
  */
 function Row({ stat }: { stat: WindowStat | null }) {
   if (!stat || stat.sampleSize === 0) {
@@ -55,34 +61,60 @@ function TripleBarrierRow({ label, stat }: { label: string; stat: TripleBarrierS
   );
 }
 
+type BacktestMethod = 'simple' | 'tripleBarrier';
+
 export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null }) {
+  const [method, setMethod] = useState<BacktestMethod>('tripleBarrier');
   if (!smcReal) return null;
   const bt = smcReal.backtest;
   const tb = smcReal.tripleBarrierBacktest;
 
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2.5 flex items-center justify-between">
         <div className="text-[11px] font-bold tracking-wide text-cyan-300">BACKTEST PATTERN SMC/WYCKOFF</div>
-        <span className="text-[9px] text-slate-500">Sau {bt.holdDays} phiên · dữ liệu 6 tháng gần nhất</span>
+        <span className="text-[9px] text-slate-500">Dữ liệu 2 năm gần nhất</span>
       </div>
 
-      <Row stat={bt.fvgBullish} /><Row stat={bt.fvgBearish} />
-      <Row stat={bt.bosBullish} /><Row stat={bt.bosBearish} />
-      <Row stat={bt.chochBullish} /><Row stat={bt.chochBearish} />
-      <Row stat={bt.orderBlockBullish} /><Row stat={bt.orderBlockBearish} />
-
-      <div className="mt-2.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">
-        <p>⏳ <b className="text-slate-300">Wyckoff Spring/SOS/LPS:</b> {bt.wyckoffNote}</p>
-        <p className="mt-1">Mẫu thường nhỏ (n&lt;30, dữ liệu 6 tháng) — tham khảo, không phải cam kết. Xem cờ "n&lt;30" trước khi tin vào con số.</p>
+      {/* Nut truot (tab switcher) - chon 1 trong 2 phuong phap de xem,
+          tranh cuon 1 trang qua dai voi ca 2 bang cung luc. */}
+      <div className="mb-3 inline-flex rounded-md border border-white/10 bg-white/[0.02] p-0.5 text-[10px]">
+        <button
+          type="button"
+          onClick={() => setMethod('simple')}
+          className={method === 'simple'
+            ? 'rounded px-3 py-1.5 font-bold text-slate-950 bg-cyan-400'
+            : 'rounded px-3 py-1.5 font-medium text-slate-400 hover:text-slate-200'}
+        >
+          Đơn giản (sau {bt.holdDays} phiên)
+        </button>
+        <button
+          type="button"
+          onClick={() => setMethod('tripleBarrier')}
+          className={method === 'tripleBarrier'
+            ? 'rounded px-3 py-1.5 font-bold text-slate-950 bg-cyan-400'
+            : 'rounded px-3 py-1.5 font-medium text-slate-400 hover:text-slate-200'}
+        >
+          Triple-Barrier{tb && <span className="ml-1 opacity-70">±{tb.atrMultiplier}×ATR</span>}
+        </button>
       </div>
 
-      {tb && (
+      {method === 'simple' && (
         <>
-          <div className="mb-2 mt-4 flex items-center justify-between border-t border-white/10 pt-3">
-            <div className="text-[11px] font-bold tracking-wide text-cyan-300">TRIPLE-BARRIER (López de Prado)</div>
-            <span className="text-[9px] text-slate-500">TP/SL ±{tb.atrMultiplier}×ATR14 · giới hạn {tb.timeLimitDays} phiên</span>
+          <Row stat={bt.fvgBullish} /><Row stat={bt.fvgBearish} />
+          <Row stat={bt.bosBullish} /><Row stat={bt.bosBearish} />
+          <Row stat={bt.chochBullish} /><Row stat={bt.chochBearish} />
+          <Row stat={bt.orderBlockBullish} /><Row stat={bt.orderBlockBearish} />
+          <div className="mt-2.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">
+            <p>⏳ <b className="text-slate-300">Wyckoff Spring/SOS/LPS:</b> {bt.wyckoffNote}</p>
+            <p className="mt-1">Mẫu thường nhỏ (n&lt;30) — tham khảo, không phải cam kết. Xem cờ "n&lt;30" trước khi tin vào con số.</p>
           </div>
+        </>
+      )}
+
+      {method === 'tripleBarrier' && tb && (
+        <>
+          <p className="mb-2 text-[9px] text-slate-500">Chốt lời/cắt lỗ = entry ±{tb.atrMultiplier}×ATR14 · giới hạn thời gian {tb.timeLimitDays} phiên</p>
           <TripleBarrierRow label="FVG tăng" stat={tb.fvgBullish} />
           <TripleBarrierRow label="FVG giảm" stat={tb.fvgBearish} />
           <TripleBarrierRow label="BOS tăng" stat={tb.bosBullish} />
