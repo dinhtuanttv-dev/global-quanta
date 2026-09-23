@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { SmcDetectorData, TripleBarrierStats } from '../../../hooks/elite10/useSmcDetector';
+import type { SmcDetectorData, TripleBarrierStats, StabilityResult } from '../../../hooks/elite10/useSmcDetector';
 import type { WindowStat } from '../../../hooks/elite10/useCycleDetail';
 
 /**
@@ -38,7 +38,7 @@ function Row({ stat }: { stat: WindowStat | null }) {
   );
 }
 
-function TripleBarrierRow({ label, stat }: { label: string; stat: TripleBarrierStats | null }) {
+function TripleBarrierRow({ label, stat, stability }: { label: string; stat: TripleBarrierStats | null; stability?: StabilityResult | null }) {
   if (!stat || stat.sampleSize === 0) {
     return <div className="flex items-center justify-between border-b border-white/5 py-1.5 text-[11px] last:border-b-0"><span className="text-slate-500">{label}</span><span className="text-slate-600">Chưa đủ mẫu</span></div>;
   }
@@ -48,6 +48,11 @@ function TripleBarrierRow({ label, stat }: { label: string; stat: TripleBarrierS
         <span className="text-slate-300">
           {label}
           {stat.isLowSample && <span className="ml-1.5 rounded bg-amber-500/15 px-1 py-0.5 text-[8px] font-bold text-amber-400">n&lt;30</span>}
+          {stability?.flagUnstable && (
+            <span className="ml-1.5 rounded bg-rose-500/15 px-1 py-0.5 text-[8px] font-bold text-rose-400" title="Tỷ lệ thắng tổng thể trông cao nhưng chỉ đến từ 1-2 giai đoạn, không nhất quán qua thời gian">
+              ⚠ KHÔNG ỔN ĐỊNH
+            </span>
+          )}
         </span>
         <span className="text-right">
           <span className="font-mono text-slate-200">{stat.winRatePct.toFixed(0)}%</span>
@@ -57,6 +62,12 @@ function TripleBarrierRow({ label, stat }: { label: string; stat: TripleBarrierS
       <div className="mt-0.5 text-[9px] text-slate-500">
         Chốt lời {stat.breakdown.takeProfitPct.toFixed(0)}% · Cắt lỗ {stat.breakdown.stopLossPct.toFixed(0)}% · Hết hạn {stat.breakdown.timeLimitPct.toFixed(0)}% · TB {stat.avgDaysToHit.toFixed(0)} phiên
       </div>
+      {stability && stability.stabilityScorePct !== null && (
+        <div className="mt-0.5 text-[9px] text-slate-500">
+          Ổn định qua thời gian: <span className={stability.flagUnstable ? 'font-bold text-rose-400' : 'text-slate-400'}>{stability.periodsWinning}/{stability.periodsWithData} giai đoạn thắng ≥50%</span>
+          {stability.winRateStdDevPct !== null && ` · độ lệch ${stability.winRateStdDevPct.toFixed(0)}pp`}
+        </div>
+      )}
     </div>
   );
 }
@@ -68,6 +79,7 @@ export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null
   if (!smcReal) return null;
   const bt = smcReal.backtest;
   const tb = smcReal.tripleBarrierBacktest;
+  const st = smcReal.stability;
 
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
@@ -115,15 +127,16 @@ export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null
       {method === 'tripleBarrier' && tb && (
         <>
           <p className="mb-2 text-[9px] text-slate-500">Chốt lời/cắt lỗ = entry ±{tb.atrMultiplier}×ATR14 · giới hạn thời gian {tb.timeLimitDays} phiên</p>
-          <TripleBarrierRow label="FVG tăng" stat={tb.fvgBullish} />
-          <TripleBarrierRow label="FVG giảm" stat={tb.fvgBearish} />
-          <TripleBarrierRow label="BOS tăng" stat={tb.bosBullish} />
-          <TripleBarrierRow label="BOS giảm" stat={tb.bosBearish} />
-          <TripleBarrierRow label="CHoCH tăng" stat={tb.chochBullish} />
-          <TripleBarrierRow label="CHoCH giảm" stat={tb.chochBearish} />
-          <TripleBarrierRow label="Order Block tăng" stat={tb.orderBlockBullish} />
-          <TripleBarrierRow label="Order Block giảm" stat={tb.orderBlockBearish} />
+          <TripleBarrierRow label="FVG tăng" stat={tb.fvgBullish} stability={st?.fvgBullish} />
+          <TripleBarrierRow label="FVG giảm" stat={tb.fvgBearish} stability={st?.fvgBearish} />
+          <TripleBarrierRow label="BOS tăng" stat={tb.bosBullish} stability={st?.bosBullish} />
+          <TripleBarrierRow label="BOS giảm" stat={tb.bosBearish} stability={st?.bosBearish} />
+          <TripleBarrierRow label="CHoCH tăng" stat={tb.chochBullish} stability={st?.chochBullish} />
+          <TripleBarrierRow label="CHoCH giảm" stat={tb.chochBearish} stability={st?.chochBearish} />
+          <TripleBarrierRow label="Order Block tăng" stat={tb.orderBlockBullish} stability={st?.orderBlockBullish} />
+          <TripleBarrierRow label="Order Block giảm" stat={tb.orderBlockBearish} stability={st?.orderBlockBearish} />
           <div className="mt-2.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">{tb.note}</div>
+          {st && <div className="mt-1.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">{st.note}</div>}
         </>
       )}
     </div>

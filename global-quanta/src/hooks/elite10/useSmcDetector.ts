@@ -40,6 +40,13 @@ export interface SmcDetectorData {
     orderBlockBullish: TripleBarrierStats | null; orderBlockBearish: TripleBarrierStats | null;
     note: string;
   };
+  stability: {
+    fvgBullish: StabilityResult | null; fvgBearish: StabilityResult | null;
+    bosBullish: StabilityResult | null; bosBearish: StabilityResult | null;
+    chochBullish: StabilityResult | null; chochBearish: StabilityResult | null;
+    orderBlockBullish: StabilityResult | null; orderBlockBearish: StabilityResult | null;
+    note: string;
+  };
   methodologyNote: string;
 }
 
@@ -47,6 +54,18 @@ export interface TripleBarrierStats {
   sampleSize: number; winRatePct: number; wilsonCi90: [number, number];
   breakdown: { takeProfitPct: number; stopLossPct: number; timeLimitPct: number };
   avgReturnPct: number; avgDaysToHit: number; isLowSample: boolean;
+}
+
+export interface PeriodStability {
+  periodIndex: number; startDate: string; endDate: string;
+  sampleSize: number; winRatePct: number | null;
+}
+export interface StabilityResult {
+  numPeriods: number; periods: PeriodStability[];
+  periodsWithData: number; periodsWinning: number;
+  stabilityScorePct: number | null; winRateStdDevPct: number | null;
+  overallWinRatePct: number; overallSampleSize: number;
+  flagUnstable: boolean;
 }
 
 // Elite 10 - SMC THAT (Giai doan 1: FVG + BOS/CHoCH). Noi voi route MOI
