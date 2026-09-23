@@ -11,7 +11,7 @@
  * về qua API — Frontend KHÔNG tự tính DTW/SMC/Wyckoff/Elliott/ADX.
  */
 
-export type DataSource = 'HARD_DATA' | 'ESTIMATED';
+export type DataSource = 'HARD_DATA' | 'ESTIMATED' | 'MISSING';
 
 export interface QuantValue {
   value: number;

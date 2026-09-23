@@ -56,10 +56,14 @@ export function TickerWatchlist({ selectedTicker, onSelectTicker }: TickerWatchl
               }
             >
               <div className="text-xs font-bold text-slate-100">{t.ticker}</div>
-              <div className={t.changePct.value >= 0 ? 'mt-0.5 text-[10px] text-emerald-400' : 'mt-0.5 text-[10px] text-rose-400'}>
-                {t.changePct.value > 0 ? '+' : ''}
-                {t.changePct.value.toFixed(1)}%
-              </div>
+              {t.changePct.source === 'MISSING' ? (
+                <div className="mt-0.5 text-[10px] text-slate-500">— chưa có giá hôm nay</div>
+              ) : (
+                <div className={t.changePct.value >= 0 ? 'mt-0.5 text-[10px] text-emerald-400' : 'mt-0.5 text-[10px] text-rose-400'}>
+                  {t.changePct.value > 0 ? '+' : ''}
+                  {t.changePct.value.toFixed(1)}%
+                </div>
+              )}
               <div className="mt-0.5 text-[8px] text-slate-500">{t.badge}</div>
             </button>
           ))}
