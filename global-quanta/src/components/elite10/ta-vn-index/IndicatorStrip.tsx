@@ -7,10 +7,10 @@ import { SourceBadge } from './SourceBadge';
  * vnstock qua api/stock.py) - fallback ve field mock cu neu chua co du
  * lieu that (vd loi mang, chua tich hop xong). MACD VAN LA MOCK (can
  * tinh them Signal Line tu EMA12/EMA26 - de danh cho Giai doan 2).
- * SMC (2026-09-22): uu tien smcReal (FVG+BOS/CHoCH THAT, tu module
- * lib/elite10/smc-detector.ts, da test khop 100% qua vi du tinh tay) -
- * fallback ve field mock cu neu chua load xong. Order Block VAN LA MOCK
- * (can nguong dinh luong rieng, de danh cho Giai doan 2). */
+ * SMC + VSA (2026-09-22, Giai doan 1+2): uu tien smcReal (FVG+BOS/CHoCH+
+ * Order Block+VSA THAT, tu module lib/elite10/smc-detector.ts, da test
+ * khop 100% qua vi du tinh tay) - fallback ve field mock cu neu chua
+ * load xong. */
 export function IndicatorStrip({
   smc, vsa, rsi, macd, computedIndicators, smcReal,
 }: { smc: SmcData; vsa: VsaData; rsi: RsiData; macd: MacdData; computedIndicators?: ComputedIndicatorBar[] | null; smcReal?: SmcDetectorData | null }) {
@@ -39,7 +39,7 @@ export function IndicatorStrip({
         {smcReal ? (
           <>
             <div className="text-[13px] font-bold text-slate-100">
-              {smcReal.fvg.unmitigated} FVG chưa lấp · {smcReal.structure.totalEvents} BOS/CHoCH
+              {smcReal.orderBlocks.total} OB · {smcReal.fvg.unmitigated} FVG chưa lấp · {smcReal.structure.totalEvents} BOS/CHoCH
               <SourceBadge source="HARD_DATA" />
             </div>
             <p className="mt-0.5 text-[10px] text-slate-500">
@@ -57,8 +57,22 @@ export function IndicatorStrip({
       </div>
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">VSA Engine</div>
-        <div className="text-[13px] font-bold text-slate-100">{vsa.pattern}</div>
-        <p className="mt-0.5 text-[10px] text-slate-500">{vsa.detail}</p>
+        {smcReal ? (
+          <>
+            <div className="text-[13px] font-bold text-slate-100">
+              {smcReal.vsa.lastSignal ? (smcReal.vsa.lastSignal.type === 'no_demand' ? 'No demand' : 'No supply') : 'Chưa có tín hiệu'}
+              <SourceBadge source="HARD_DATA" />
+            </div>
+            <p className="mt-0.5 text-[10px] text-slate-500">
+              {smcReal.vsa.lastSignal ? `Volume percentile ${smcReal.vsa.lastSignal.volumePercentile} (20 phiên gần nhất)` : 'Không có nến volume thấp+spread hẹp gần đây'}
+            </p>
+          </>
+        ) : (
+          <>
+            <div className="text-[13px] font-bold text-slate-100">{vsa.pattern}</div>
+            <p className="mt-0.5 text-[10px] text-slate-500">{vsa.detail}</p>
+          </>
+        )}
       </div>
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">RSI (14)</div>

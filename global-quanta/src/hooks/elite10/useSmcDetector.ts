@@ -8,11 +8,15 @@ const fetcher = (url: string) => fetch(url).then((r) => {
 
 export interface FvgZone { startDate: string; endDate: string; direction: "bullish" | "bearish"; top: number; bottom: number; isMitigated: boolean; mitigatedDate: string | null; }
 export interface StructureEvent { date: string; type: "BOS" | "CHoCH"; direction: "bullish" | "bearish"; brokenSwingPrice: number; brokenSwingDate: string; }
+export interface OrderBlockZone { date: string; direction: "bullish" | "bearish"; top: number; bottom: number; linkedEventDate: string; impulseRatio: number; }
+export interface VsaSignal { date: string; type: "no_demand" | "no_supply"; volume: number; volumePercentile: number; }
 
 export interface SmcDetectorData {
   ticker: string; swingPointCount: number;
   fvg: { total: number; unmitigated: number; zones: FvgZone[] };
   structure: { totalEvents: number; recentEvents: StructureEvent[]; currentBias: "bullish" | "bearish" | null; lastEventType: "BOS" | "CHoCH" | null };
+  orderBlocks: { total: number; zones: OrderBlockZone[] };
+  vsa: { recentSignals: VsaSignal[]; lastSignal: VsaSignal | null };
   methodologyNote: string;
 }
 
