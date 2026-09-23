@@ -51,7 +51,7 @@ export function WyckoffElliottGrid({ wyckoff, elliott, wyckoffReal }: { wyckoff:
             <div className="text-[13px] font-bold text-slate-100">{wyckoff.phase ?? 'Chưa xác định'}</div>
             {wyckoff.confidence && (
               <div className="mt-0.5 text-[11px] text-slate-400">
-                Độ tin cậy: {(wyckoff.confidence.value * 100).toFixed(0)}%
+                Độ tin cậy: {wyckoff.confidence.value.toFixed(0)}%
                 <SourceBadge source={wyckoff.confidence.source} />
               </div>
             )}
@@ -64,7 +64,7 @@ export function WyckoffElliottGrid({ wyckoff, elliott, wyckoffReal }: { wyckoff:
         <div className="mb-1 text-[11px] font-bold text-slate-200">
           Elliott wave
           <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400">
-            ĐỘ TIN CẬY {(elliott.confidence.value * 100).toFixed(0)}%
+            ĐỘ TIN CẬY {elliott.confidence.value.toFixed(0)}%
           </span>
         </div>
         <div className="text-[13px] font-bold text-slate-100">
