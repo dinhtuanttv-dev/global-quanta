@@ -155,9 +155,16 @@ export function MainChart({
     p90SeriesRef.current = p90Series;
 
     const handleResize = () => {
-      if (containerRef.current) {
-        chart.applyOptions({ width: containerRef.current.clientWidth });
-      }
+      // FIX (bug "Object is disposed"): neu resize event da nam trong
+      // hang doi TRUOC KHI removeEventListener chay (VD nguoi dung
+      // resize cua so dung luc component unmount), handleResize van se
+      // thuc thi mot lan cuoi DU listener da bi go - boc try/catch de
+      // an toan tuyet doi.
+      try {
+        if (containerRef.current) {
+          chart.applyOptions({ width: containerRef.current.clientWidth });
+        }
+      } catch { /* chart da dispose, bo qua */ }
     };
     window.addEventListener('resize', handleResize);
     handleResize();
@@ -334,13 +341,19 @@ export function MainChart({
       });
     }
 
-    const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e';
+    // FIX (van de hien thi da phat hien): mau TP/SL Triple-Barrier
+    // TRUNG HOAN TOAN voi mau TradeScenario (ca 2 deu #1fe08a/#ff4d5e)
+    // - khi ca 2 bo duong cung hien (TradeScenario luon hien mac dinh +
+    // Triple-Barrier khi chon 1 tin hieu), nguoi dung KHONG PHAN BIET
+    // DUOC duong nao la gi. Doi Triple-Barrier sang tim/cam (dong bo
+    // voi mau vung to Triple-Barrier da dung: rgba(168,85,247,...)).
+    const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e'; // giu nguyen cho badge/vien vung (không đổi để không phá vỡ ý nghĩa "thắng=xanh/thua=đỏ" của kết quả lịch sử)
     tbLines.push(candleSeries.createPriceLine({
-      price: occ.tpBarrier, color: '#1fe08a', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      price: occ.tpBarrier, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
       axisLabelVisible: true, title: 'Chốt lời (Triple-Barrier)',
     }));
     tbLines.push(candleSeries.createPriceLine({
-      price: occ.slBarrier, color: '#ff4d5e', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      price: occ.slBarrier, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
       axisLabelVisible: true, title: 'Cắt lỗ (Triple-Barrier)',
     }));
 

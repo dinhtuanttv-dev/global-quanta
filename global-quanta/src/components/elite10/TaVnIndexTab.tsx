@@ -4,7 +4,7 @@ import { TaVnIndexPanel } from './TaVnIndexPanel';
 import { useAppStore } from '../../store/useAppStore';
 import type { Timeframe } from '../../types/taVnIndex';
 
-const DEFAULT_TIMEFRAME: Timeframe = 'W';
+const DEFAULT_TIMEFRAME: Timeframe = 'D';
 const DEFAULT_OVERLAYS: Record<string, boolean> = {
   trendline: true,
   demandZone: true,
