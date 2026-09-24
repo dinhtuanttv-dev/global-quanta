@@ -404,30 +404,53 @@ export function MainChart({
       return;
     }
 
-    const lastBar = priceSeries[priceSeries.length - 1];
-    const lastDate = new Date(lastBar.time);
+    // FIX (bug hoi quy da phat hien): "new Date(lastBar.time)" voi
+    // lastBar.time dang "YYYY-MM-DD" bi trinh duyet PARSE THEO UTC,
+    // VA truoc do "toDateStr" dung toISOString() (cung LUON tra ve UTC)
+    // - 2 loi timezone cong don co the lam ngay bi lech/trung lap,
+    // khien setData() cua lightweight-charts nem loi (doi hoi time
+    // TANG DAN nghiem ngat) va LAM SAP TOAN BO CHART (khong chi 3
+    // duong fan chart, vi cung 1 chart instance). Sua bang cach PARSE
+    // VA FORMAT THU CONG theo LOCAL time (khong qua Date UTC methods),
+    // VA BOC TOAN BO trong try/catch de fan chart loi KHONG BAO GIO
+    // lam sap chart chinh (chi bo qua fan chart, candlestick van hien
+    // thi binh thuong).
+    try {
+      const lastBar = priceSeries[priceSeries.length - 1];
+      const [y, m, d] = lastBar.time.split('-').map(Number);
+      if (!y || !m || !d) throw new Error(`Ngày nến cuối không hợp lệ: ${lastBar.time}`);
+      const lastDate = new Date(y, m - 1, d); // LOCAL time, khong qua UTC
 
-    function addBusinessDays(start: Date, n: number): Date {
-      const d = new Date(start);
-      let added = 0;
-      while (added < n) {
-        d.setDate(d.getDate() + 1);
-        const dow = d.getDay();
-        if (dow !== 0 && dow !== 6) added++;
+      function addBusinessDays(start: Date, n: number): Date {
+        const dt = new Date(start.getTime());
+        let added = 0;
+        while (added < n) {
+          dt.setDate(dt.getDate() + 1);
+          const dow = dt.getDay();
+          if (dow !== 0 && dow !== 6) added++;
+        }
+        return dt;
       }
-      return d;
+      function toDateStr(dt: Date): string {
+        // Format LOCAL (khong dung toISOString - luon tra ve UTC).
+        const yy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, '0');
+        const dd = String(dt.getDate()).padStart(2, '0');
+        return `${yy}-${mm}-${dd}`;
+      }
+
+      const anchor = { time: lastBar.time as never, value: lastBar.close };
+      const p10Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p10 }))];
+      const p50Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p50 }))];
+      const p90Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p90 }))];
+
+      p10Series.setData(p10Data);
+      p50Series.setData(p50Data);
+      p90Series.setData(p90Data);
+    } catch (err) {
+      console.error('[MainChart] Không vẽ được fan chart MS-GARCH (bỏ qua, chart chính vẫn hiển thị bình thường):', err);
+      p10Series.setData([]); p50Series.setData([]); p90Series.setData([]);
     }
-    function toDateStr(d: Date): string { return d.toISOString().slice(0, 10); }
-
-    // Diem noi tiep tu gia hien tai (de duong lien tuc voi nen cuoi cung)
-    const anchor = { time: lastBar.time as never, value: lastBar.close };
-    const p10Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p10 }))];
-    const p50Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p50 }))];
-    const p90Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p90 }))];
-
-    p10Series.setData(p10Data);
-    p50Series.setData(p50Data);
-    p90Series.setData(p90Data);
   }, [fanChart, priceSeries]);
 
   // Bo overlay chinh moi (theo yeu cau nguoi dung): SMA200/EMA100/50/21
