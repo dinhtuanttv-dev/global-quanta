@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { TaVnIndexResponse, Timeframe } from '../../types/taVnIndex';
 import type { ApiError } from '../../hooks/ta-vn-index/useTaVnIndex';
 import { ControlBar } from './ta-vn-index/ControlBar';
@@ -10,7 +11,7 @@ import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
 import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
 import { useAiInsight } from '../../hooks/elite10/useAiInsight';
 import { useCycleDetail } from '../../hooks/elite10/useCycleDetail';
-import { useSmcDetector } from '../../hooks/elite10/useSmcDetector';
+import { useSmcDetector, type TripleBarrierOccurrence } from '../../hooks/elite10/useSmcDetector';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
@@ -69,6 +70,13 @@ export function TaVnIndexPanel({
   const { cycleDetail } = useCycleDetail(ticker);
   const { smcReal } = useSmcDetector(ticker);
 
+  // MOI (Triple-Barrier tren bieu do, thiet ke 2 lop): state dieu phoi
+  // giua SmcBacktestPanel (chon pattern) va MainChart (hien markers +
+  // TP/SL cua occurrence dang chon). Dat NGAY SAU cac hook fetch du
+  // lieu, TRUOC moi early-return (Rules of Hooks).
+  const [selectedPatternKey, setSelectedPatternKey] = useState<string | null>(null);
+  const [selectedOccurrenceIndex, setSelectedOccurrenceIndex] = useState<number | null>(null);
+
   // 1. Loading
   if (isLoading) {
     return (
@@ -115,6 +123,20 @@ export function TaVnIndexPanel({
   // gay khong nhat quan (Chart dung that, bang duoi van hien mock).
   const resolvedEvents = overlay?.events && overlay.events.length > 0 ? overlay.events : data.events;
 
+  // MOI (Triple-Barrier tren bieu do): map patternKey sang dung mang
+  // occurrences. Khi CHON pattern moi, TU DONG chon occurrence GAN
+  // NHAT (phan tu cuoi mang) lam mac dinh cho Lop 2.
+  const tbData = smcReal?.tripleBarrierBacktest;
+  const currentOccurrences: TripleBarrierOccurrence[] | null = selectedPatternKey && tbData
+    ? ((tbData as unknown as Record<string, { occurrences: TripleBarrierOccurrence[] } | null>)[selectedPatternKey]?.occurrences ?? null)
+    : null;
+
+  function handleSelectPattern(key: string) {
+    setSelectedPatternKey(key);
+    const occs = (tbData as unknown as Record<string, { occurrences: unknown[] } | null> | undefined)?.[key]?.occurrences;
+    setSelectedOccurrenceIndex(occs && occs.length > 0 ? occs.length - 1 : null);
+  }
+
   return (
     <div className="flex flex-col gap-3 text-slate-200">
       <div className="text-[13px] font-bold tracking-wide text-cyan-300">
@@ -140,7 +162,45 @@ export function TaVnIndexPanel({
           showBollinger={overlays.bollinger}
           tradeScenario={overlay?.tradeScenario}
           riskFlags={overlay?.riskFlags}
+          tripleBarrierOccurrences={currentOccurrences}
+          selectedOccurrenceIndex={selectedOccurrenceIndex}
         />
+
+        {/* MOI (Triple-Barrier Lop 2): thanh dieu huong xem lai cac tin
+            hieu cu hon cua pattern dang chon. */}
+        {currentOccurrences && currentOccurrences.length > 1 && selectedOccurrenceIndex !== null && (
+          <div className="mt-2 flex items-center justify-between rounded-md border border-purple-400/25 bg-purple-500/[0.04] px-3 py-2 text-[10px]">
+            <button
+              type="button"
+              disabled={selectedOccurrenceIndex <= 0}
+              onClick={() => setSelectedOccurrenceIndex((i) => (i !== null ? Math.max(0, i - 1) : null))}
+              className="rounded bg-white/5 px-2 py-1 font-bold text-slate-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              ◀ Cũ hơn
+            </button>
+            <span className="text-slate-400">
+              Tín hiệu {selectedOccurrenceIndex + 1}/{currentOccurrences.length}
+              {(() => {
+                const occ = currentOccurrences[selectedOccurrenceIndex];
+                if (!occ) return null;
+                const resultLabel = occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian';
+                return (
+                  <span className="ml-2">
+                    · {occ.signalDate} · <span className={occ.label === 1 ? 'font-bold text-emerald-400' : 'font-bold text-rose-400'}>{resultLabel}</span> ({occ.actualReturnPct >= 0 ? '+' : ''}{occ.actualReturnPct.toFixed(1)}%)
+                  </span>
+                );
+              })()}
+            </span>
+            <button
+              type="button"
+              disabled={selectedOccurrenceIndex >= currentOccurrences.length - 1}
+              onClick={() => setSelectedOccurrenceIndex((i) => (i !== null ? Math.min(currentOccurrences.length - 1, i + 1) : null))}
+              className="rounded bg-white/5 px-2 py-1 font-bold text-slate-300 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              Mới hơn ▶
+            </button>
+          </div>
+        )}
         <EventVolatilityTable priceSeries={data.priceSeries} events={resolvedEvents} demandZone={demandZone} />
       </div>
 
@@ -151,7 +211,7 @@ export function TaVnIndexPanel({
       <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
       <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
-      <SmcBacktestPanel smcReal={smcReal} />
+      <SmcBacktestPanel smcReal={smcReal} selectedPatternKey={selectedPatternKey} onSelectPattern={handleSelectPattern} />
 
       <DebateArenaPanel ticker={ticker} />
 

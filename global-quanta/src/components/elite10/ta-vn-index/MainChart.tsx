@@ -8,6 +8,7 @@ import {
   type MouseEventParams,
 } from 'lightweight-charts';
 import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent, ComputedIndicatorBar, TradeScenario } from '../../../types/taVnIndex';
+import type { TripleBarrierOccurrence } from '../../../hooks/elite10/useSmcDetector';
 import { buildTimeIndex } from '../../../lib/taMath';
 
 interface MainChartProps {
@@ -29,6 +30,12 @@ interface MainChartProps {
   // risk flags danh dau canh bao tai nen hien tai.
   tradeScenario?: TradeScenario | null;
   riskFlags?: string[];
+  // MOI (2026-09-24, tich hop Triple-Barrier len bieu do - thiet ke 2
+  // lop): Lop 1 (markers) hien TAT CA occurrences cua pattern dang xem
+  // (xanh=thang, do=thua). Lop 2 (TP/SL lines + vung to mau) CHI hien
+  // dung 1 occurrence dang duoc chon.
+  tripleBarrierOccurrences?: TripleBarrierOccurrence[] | null;
+  selectedOccurrenceIndex?: number | null;
 }
 
 const ZONE_COLORS: Record<PriceZone['kind'], { bg: string; border: string }> = {
@@ -36,6 +43,7 @@ const ZONE_COLORS: Record<PriceZone['kind'], { bg: string; border: string }> = {
   order_block_bullish: { bg: 'rgba(31,224,138,0.14)', border: 'rgba(31,224,138,0.6)' },
   order_block_bearish: { bg: 'rgba(255,77,94,0.14)', border: 'rgba(255,77,94,0.6)' },
   fvg: { bg: 'rgba(34,232,255,0.1)', border: 'rgba(34,232,255,0.5)' },
+  triple_barrier_window: { bg: 'rgba(168,85,247,0.08)', border: 'rgba(168,85,247,0.45)' },
 };
 
 function fmtLegend(bar: OhlcBar): string {
@@ -59,6 +67,7 @@ export function MainChart({
   priceSeries, zones, trendline, events, showTrendline, showDemandZone,
   computedIndicators, showSma200, showEma, showBollinger,
   tradeScenario, riskFlags,
+  tripleBarrierOccurrences, selectedOccurrenceIndex,
 }: MainChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -72,6 +81,8 @@ export function MainChart({
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const zoneElsRef = useRef<HTMLDivElement[]>([]);
   const priceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
+  const tbPriceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
+  const tbZoneElRef = useRef<HTMLDivElement | null>(null);
   const [legendHtml, setLegendHtml] = useState('');
 
   // Khởi tạo chart 1 lần
@@ -176,7 +187,21 @@ export function MainChart({
       ? [{ time: lastBarTime, position: 'aboveBar' as const, color: '#ff4d5e', shape: 'arrowDown' as const, text: '⚠' }]
       : [];
     const markers = [...eventMarkers, ...riskMarker].sort((a, b) => (a.time > b.time ? 1 : -1));
-    candleSeries.setMarkers(markers);
+
+    // MOI (Triple-Barrier Lop 1 - tong quan): danh dau MOI occurrence
+    // cua pattern dang xem, xanh=thang do=thua. GOP VAO CUNG mot lan
+    // goi setMarkers() (goi 2 lan rieng se GHI DE nhau).
+    const tbMarkers = (tripleBarrierOccurrences ?? [])
+      .filter((occ) => timeIndex.has(occ.signalDate))
+      .map((occ) => ({
+        time: occ.signalDate,
+        position: 'inBar' as const,
+        color: occ.label === 1 ? '#1fe08a' : '#ff4d5e',
+        shape: 'circle' as const,
+        text: '',
+      }));
+    const allMarkers = [...markers, ...tbMarkers].sort((a, b) => (a.time > b.time ? 1 : -1));
+    candleSeries.setMarkers(allMarkers);
 
     const lastBar = priceSeries[priceSeries.length - 1];
     setLegendHtml(fmtLegend(lastBar));
@@ -191,7 +216,7 @@ export function MainChart({
     };
     chart.subscribeCrosshairMove(handleCrosshair);
     return () => chart.unsubscribeCrosshairMove(handleCrosshair);
-  }, [priceSeries, events, riskFlags]);
+  }, [priceSeries, events, riskFlags, tripleBarrierOccurrences]);
 
   // Trendline
   useEffect(() => {
@@ -241,6 +266,73 @@ export function MainChart({
 
     return () => { lines.forEach((l) => candleSeries.removePriceLine(l)); lines.length = 0; };
   }, [tradeScenario]);
+
+  // MOI (Triple-Barrier Lop 2 - chi tiet): khi nguoi dung CHON 1
+  // occurrence cu the, ve DUNG 2 duong TP/SL (ref RIENG, khong dam vao
+  // priceLinesRef cua tradeScenario) + 1 vung to mau (tai su dung ky
+  // thuat div-overlay giong zones nhung DOC LAP).
+  useEffect(() => {
+    const chart = chartRef.current;
+    const candleSeries = candleSeriesRef.current;
+    const container = containerRef.current;
+
+    const tbLines = tbPriceLinesRef.current;
+    tbLines.forEach((l) => candleSeries?.removePriceLine(l));
+    tbLines.length = 0;
+    tbZoneElRef.current?.remove();
+    tbZoneElRef.current = null;
+
+    if (!chart || !candleSeries || !container) return;
+    if (selectedOccurrenceIndex === null || selectedOccurrenceIndex === undefined) return;
+    const occ = (tripleBarrierOccurrences ?? [])[selectedOccurrenceIndex];
+    if (!occ) return;
+
+    const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e';
+    tbLines.push(candleSeries.createPriceLine({
+      price: occ.tpBarrier, color: '#1fe08a', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true, title: 'Chốt lời (Triple-Barrier)',
+    }));
+    tbLines.push(candleSeries.createPriceLine({
+      price: occ.slBarrier, color: '#ff4d5e', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true, title: 'Cắt lỗ (Triple-Barrier)',
+    }));
+
+    function drawZone() {
+      tbZoneElRef.current?.remove();
+      tbZoneElRef.current = null;
+      if (!container || !chart || !candleSeries) return;
+      const y1 = candleSeries.priceToCoordinate(occ.tpBarrier);
+      const y2 = candleSeries.priceToCoordinate(occ.slBarrier);
+      const x1 = chart.timeScale().timeToCoordinate(occ.signalDate as never);
+      const x2 = chart.timeScale().timeToCoordinate(occ.resolvedDate as never);
+      if (y1 === null || y2 === null || x1 === null || x2 === null) return;
+
+      const div = document.createElement('div');
+      div.style.position = 'absolute';
+      div.style.pointerEvents = 'none';
+      div.style.left = `${Math.min(x1, x2)}px`;
+      div.style.top = `${Math.min(y1, y2)}px`;
+      div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
+      div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
+      div.style.background = 'rgba(168,85,247,0.08)';
+      div.style.border = `1.5px solid ${resultColor}`;
+      div.style.borderRadius = '2px';
+      div.title = `${occ.signalDate} → ${occ.resolvedDate} · ${occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian'} · ${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%`;
+      container.appendChild(div);
+      tbZoneElRef.current = div;
+    }
+
+    const raf = requestAnimationFrame(() => requestAnimationFrame(drawZone));
+    chart.timeScale().subscribeVisibleTimeRangeChange(drawZone);
+    return () => {
+      cancelAnimationFrame(raf);
+      chart.timeScale().unsubscribeVisibleTimeRangeChange(drawZone);
+      tbLines.forEach((l) => candleSeries.removePriceLine(l));
+      tbLines.length = 0;
+      tbZoneElRef.current?.remove();
+      tbZoneElRef.current = null;
+    };
+  }, [tripleBarrierOccurrences, selectedOccurrenceIndex]);
 
   // Bo overlay chinh moi (theo yeu cau nguoi dung): SMA200/EMA100/50/21
   // - du lieu THAT tu computedIndicators (tinh boi api/stock.py qua

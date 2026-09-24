@@ -36,7 +36,7 @@ export interface OhlcBar {
 /** Vùng giá chữ nhật vẽ lên chart (Demand Zone, Order Block...) */
 export interface PriceZone {
   id: string;
-  kind: 'demand_zone' | 'order_block_bearish' | 'order_block_bullish' | 'fvg';
+  kind: 'demand_zone' | 'order_block_bearish' | 'order_block_bullish' | 'fvg' | 'triple_barrier_window';
   priceTop: number;
   priceBottom: number;
   timeFrom: string;

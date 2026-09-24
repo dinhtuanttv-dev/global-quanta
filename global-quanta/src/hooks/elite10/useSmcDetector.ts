@@ -50,10 +50,17 @@ export interface SmcDetectorData {
   methodologyNote: string;
 }
 
+export interface TripleBarrierOccurrence {
+  barrierHit: 'take_profit' | 'stop_loss' | 'time_limit';
+  label: 0 | 1; actualReturnPct: number; daysToHit: number;
+  signalDate: string; entryPrice: number; tpBarrier: number; slBarrier: number; resolvedDate: string;
+}
+
 export interface TripleBarrierStats {
   sampleSize: number; winRatePct: number; wilsonCi90: [number, number];
   breakdown: { takeProfitPct: number; stopLossPct: number; timeLimitPct: number };
   avgReturnPct: number; avgDaysToHit: number; isLowSample: boolean;
+  occurrences: TripleBarrierOccurrence[];
 }
 
 export interface PeriodStability {

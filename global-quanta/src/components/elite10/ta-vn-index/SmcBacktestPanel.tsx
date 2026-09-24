@@ -14,9 +14,11 @@ import type { WindowStat } from '../../../hooks/elite10/useCycleDetail';
  * NANG CAP UI (2026-09-23): thay vi hien CA 2 BANG CUNG LUC (rat dai),
  * dung TAB SWITCHER de nguoi dung chon xem 1 trong 2 phuong phap tai 1
  * thoi diem - gon hon, van giu du lieu day du ca 2 (khong xoa gi).
- * Backend cung da mo rong du lieu backtest tu 6 thang len 2 nam de tang
- * co mau (Wyckoff Schematic van chi xet 6 thang gan nhat de giu tinh
- * thoi su).
+ *
+ * TICH HOP BIEU DO (2026-09-24): moi dong Triple-Barrier co nut "Xem
+ * bieu do" - bam vao se hien markers (Lop 1) + TP/SL cua tin hieu gan
+ * nhat (Lop 2) ngay tren MainChart. State chon pattern/occurrence nam
+ * o component cha (TaVnIndexPanel).
  */
 function Row({ stat }: { stat: WindowStat | null }) {
   if (!stat || stat.sampleSize === 0) {
@@ -38,12 +40,17 @@ function Row({ stat }: { stat: WindowStat | null }) {
   );
 }
 
-function TripleBarrierRow({ label, stat, stability }: { label: string; stat: TripleBarrierStats | null; stability?: StabilityResult | null }) {
+function TripleBarrierRow({
+  label, patternKey, stat, stability, isSelected, onSelect,
+}: {
+  label: string; patternKey: string; stat: TripleBarrierStats | null; stability?: StabilityResult | null;
+  isSelected: boolean; onSelect: (key: string) => void;
+}) {
   if (!stat || stat.sampleSize === 0) {
     return <div className="flex items-center justify-between border-b border-white/5 py-1.5 text-[11px] last:border-b-0"><span className="text-slate-500">{label}</span><span className="text-slate-600">Chưa đủ mẫu</span></div>;
   }
   return (
-    <div className="border-b border-white/5 py-1.5 text-[11px] last:border-b-0">
+    <div className={isSelected ? 'rounded border-b border-purple-400/40 bg-purple-500/[0.06] py-1.5 px-1.5 text-[11px] last:border-b-0' : 'border-b border-white/5 py-1.5 text-[11px] last:border-b-0'}>
       <div className="flex items-center justify-between">
         <span className="text-slate-300">
           {label}
@@ -54,9 +61,17 @@ function TripleBarrierRow({ label, stat, stability }: { label: string; stat: Tri
             </span>
           )}
         </span>
-        <span className="text-right">
+        <span className="flex items-center gap-2 text-right">
           <span className="font-mono text-slate-200">{stat.winRatePct.toFixed(0)}%</span>
-          <span className="ml-1.5 text-slate-500">KTC90 [{stat.wilsonCi90[0].toFixed(0)}–{stat.wilsonCi90[1].toFixed(0)}] (n={stat.sampleSize})</span>
+          <span className="text-slate-500">KTC90 [{stat.wilsonCi90[0].toFixed(0)}–{stat.wilsonCi90[1].toFixed(0)}] (n={stat.sampleSize})</span>
+          <button
+            type="button"
+            onClick={() => onSelect(patternKey)}
+            className={isSelected ? 'rounded bg-purple-400 px-1.5 py-0.5 text-[9px] font-bold text-slate-950' : 'rounded bg-white/5 px-1.5 py-0.5 text-[9px] font-bold text-slate-400 hover:bg-white/10 hover:text-slate-200'}
+            title="Hiện các tín hiệu này trên biểu đồ giá"
+          >
+            👁 {isSelected ? 'Đang xem' : 'Xem biểu đồ'}
+          </button>
         </span>
       </div>
       <div className="mt-0.5 text-[9px] text-slate-500">
@@ -74,12 +89,19 @@ function TripleBarrierRow({ label, stat, stability }: { label: string; stat: Tri
 
 type BacktestMethod = 'simple' | 'tripleBarrier';
 
-export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null }) {
+export function SmcBacktestPanel({
+  smcReal, selectedPatternKey, onSelectPattern,
+}: {
+  smcReal?: SmcDetectorData | null;
+  selectedPatternKey?: string | null;
+  onSelectPattern?: (key: string) => void;
+}) {
   const [method, setMethod] = useState<BacktestMethod>('tripleBarrier');
   if (!smcReal) return null;
   const bt = smcReal.backtest;
   const tb = smcReal.tripleBarrierBacktest;
   const st = smcReal.stability;
+  const handleSelect = onSelectPattern ?? (() => {});
 
   return (
     <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
@@ -88,8 +110,6 @@ export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null
         <span className="text-[9px] text-slate-500">Dữ liệu 2 năm gần nhất</span>
       </div>
 
-      {/* Nut truot (tab switcher) - chon 1 trong 2 phuong phap de xem,
-          tranh cuon 1 trang qua dai voi ca 2 bang cung luc. */}
       <div className="mb-3 inline-flex rounded-md border border-white/10 bg-white/[0.02] p-0.5 text-[10px]">
         <button
           type="button"
@@ -126,15 +146,15 @@ export function SmcBacktestPanel({ smcReal }: { smcReal?: SmcDetectorData | null
 
       {method === 'tripleBarrier' && tb && (
         <>
-          <p className="mb-2 text-[9px] text-slate-500">Chốt lời/cắt lỗ = entry ±{tb.atrMultiplier}×ATR14 · giới hạn thời gian {tb.timeLimitDays} phiên</p>
-          <TripleBarrierRow label="FVG tăng" stat={tb.fvgBullish} stability={st?.fvgBullish} />
-          <TripleBarrierRow label="FVG giảm" stat={tb.fvgBearish} stability={st?.fvgBearish} />
-          <TripleBarrierRow label="BOS tăng" stat={tb.bosBullish} stability={st?.bosBullish} />
-          <TripleBarrierRow label="BOS giảm" stat={tb.bosBearish} stability={st?.bosBearish} />
-          <TripleBarrierRow label="CHoCH tăng" stat={tb.chochBullish} stability={st?.chochBullish} />
-          <TripleBarrierRow label="CHoCH giảm" stat={tb.chochBearish} stability={st?.chochBearish} />
-          <TripleBarrierRow label="Order Block tăng" stat={tb.orderBlockBullish} stability={st?.orderBlockBullish} />
-          <TripleBarrierRow label="Order Block giảm" stat={tb.orderBlockBearish} stability={st?.orderBlockBearish} />
+          <p className="mb-2 text-[9px] text-slate-500">Chốt lời/cắt lỗ = entry ±{tb.atrMultiplier}×ATR14 · giới hạn thời gian {tb.timeLimitDays} phiên · bấm "Xem biểu đồ" để hiện tín hiệu ngay trên biểu đồ giá</p>
+          <TripleBarrierRow label="FVG tăng" patternKey="fvgBullish" stat={tb.fvgBullish} stability={st?.fvgBullish} isSelected={selectedPatternKey === 'fvgBullish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="FVG giảm" patternKey="fvgBearish" stat={tb.fvgBearish} stability={st?.fvgBearish} isSelected={selectedPatternKey === 'fvgBearish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="BOS tăng" patternKey="bosBullish" stat={tb.bosBullish} stability={st?.bosBullish} isSelected={selectedPatternKey === 'bosBullish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="BOS giảm" patternKey="bosBearish" stat={tb.bosBearish} stability={st?.bosBearish} isSelected={selectedPatternKey === 'bosBearish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="CHoCH tăng" patternKey="chochBullish" stat={tb.chochBullish} stability={st?.chochBullish} isSelected={selectedPatternKey === 'chochBullish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="CHoCH giảm" patternKey="chochBearish" stat={tb.chochBearish} stability={st?.chochBearish} isSelected={selectedPatternKey === 'chochBearish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="Order Block tăng" patternKey="orderBlockBullish" stat={tb.orderBlockBullish} stability={st?.orderBlockBullish} isSelected={selectedPatternKey === 'orderBlockBullish'} onSelect={handleSelect} />
+          <TripleBarrierRow label="Order Block giảm" patternKey="orderBlockBearish" stat={tb.orderBlockBearish} stability={st?.orderBlockBearish} isSelected={selectedPatternKey === 'orderBlockBearish'} onSelect={handleSelect} />
           <div className="mt-2.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">{tb.note}</div>
           {st && <div className="mt-1.5 rounded bg-white/[0.02] p-2.5 text-[10px] text-slate-500">{st.note}</div>}
         </>
