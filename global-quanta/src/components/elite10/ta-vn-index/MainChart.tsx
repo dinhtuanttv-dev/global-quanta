@@ -90,7 +90,7 @@ export function MainChart({
     if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
-      height: 300,
+      height: 560,
       layout: { background: { color: 'transparent' }, textColor: '#6f8ea3', fontSize: 10 },
       grid: {
         vertLines: { color: 'rgba(255,255,255,0.05)' },
@@ -191,14 +191,17 @@ export function MainChart({
     // MOI (Triple-Barrier Lop 1 - tong quan): danh dau MOI occurrence
     // cua pattern dang xem, xanh=thang do=thua. GOP VAO CUNG mot lan
     // goi setMarkers() (goi 2 lan rieng se GHI DE nhau).
+    // NANG CAP (2026-09-24, ro rang hon): doi tu cham tron nho sang mui
+    // ten lon (arrowUp/arrowDown), aboveBar/belowBar de KHONG bi de len
+    // than nen (khac voi 'inBar' truoc do, kho thay giua nhieu nen).
     const tbMarkers = (tripleBarrierOccurrences ?? [])
       .filter((occ) => timeIndex.has(occ.signalDate))
       .map((occ) => ({
         time: occ.signalDate,
-        position: 'inBar' as const,
+        position: (occ.label === 1 ? 'belowBar' : 'aboveBar') as 'aboveBar' | 'belowBar',
         color: occ.label === 1 ? '#1fe08a' : '#ff4d5e',
-        shape: 'circle' as const,
-        text: '',
+        shape: (occ.label === 1 ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
+        text: occ.label === 1 ? '✓' : '✗',
       }));
     const allMarkers = [...markers, ...tbMarkers].sort((a, b) => (a.time > b.time ? 1 : -1));
     candleSeries.setMarkers(allMarkers);
@@ -287,6 +290,20 @@ export function MainChart({
     const occ = (tripleBarrierOccurrences ?? [])[selectedOccurrenceIndex];
     if (!occ) return;
 
+    // NANG CAP (2026-09-24): TU DONG cuon/zoom chart toi dung vung
+    // tin hieu - truoc do chart khong di chuyen, neu tin hieu nam
+    // ngoai vung dang hien thi thi nguoi dung KHONG THAY GI du da ve
+    // dung. Tim index cua signalDate/resolvedDate trong priceSeries,
+    // zoom voi padding 15 nen moi ben de co du boi canh gia xung quanh.
+    const signalIdx = priceSeries.findIndex((b) => b.time === occ.signalDate);
+    const resolvedIdx = priceSeries.findIndex((b) => b.time === occ.resolvedDate);
+    if (signalIdx >= 0 && resolvedIdx >= 0) {
+      chart.timeScale().setVisibleLogicalRange({
+        from: Math.max(0, signalIdx - 15),
+        to: Math.min(priceSeries.length - 1, resolvedIdx + 15),
+      });
+    }
+
     const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e';
     tbLines.push(candleSeries.createPriceLine({
       price: occ.tpBarrier, color: '#1fe08a', lineWidth: 2, lineStyle: LineStyle.Dashed,
@@ -307,6 +324,8 @@ export function MainChart({
       const x2 = chart.timeScale().timeToCoordinate(occ.resolvedDate as never);
       if (y1 === null || y2 === null || x1 === null || x2 === null) return;
 
+      const resultLabel = occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian';
+
       const div = document.createElement('div');
       div.style.position = 'absolute';
       div.style.pointerEvents = 'none';
@@ -314,10 +333,27 @@ export function MainChart({
       div.style.top = `${Math.min(y1, y2)}px`;
       div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
       div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
-      div.style.background = 'rgba(168,85,247,0.08)';
-      div.style.border = `1.5px solid ${resultColor}`;
-      div.style.borderRadius = '2px';
-      div.title = `${occ.signalDate} → ${occ.resolvedDate} · ${occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian'} · ${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%`;
+      div.style.background = 'rgba(168,85,247,0.1)';
+      div.style.border = `2px solid ${resultColor}`;
+      div.style.borderRadius = '3px';
+      div.title = `${occ.signalDate} → ${occ.resolvedDate} · ${resultLabel} · ${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%`;
+
+      // NANG CAP: nhan KET QUA hien SAN (khong chi hover) - de nhin la
+      // hieu ngay, khong can ru chuot vao vung nho tren mobile.
+      const badge = document.createElement('div');
+      badge.style.position = 'absolute';
+      badge.style.top = '-20px';
+      badge.style.left = '0';
+      badge.style.whiteSpace = 'nowrap';
+      badge.style.fontSize = '10px';
+      badge.style.fontWeight = 'bold';
+      badge.style.padding = '2px 6px';
+      badge.style.borderRadius = '3px';
+      badge.style.background = resultColor;
+      badge.style.color = '#0a1420';
+      badge.textContent = `${occ.label === 1 ? '✓' : '✗'} ${resultLabel} (${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%)`;
+      div.appendChild(badge);
+
       container.appendChild(div);
       tbZoneElRef.current = div;
     }
@@ -404,7 +440,7 @@ export function MainChart({
 
   return (
     <div>
-      <div ref={containerRef} className="relative w-full" style={{ height: 300 }} />
+      <div ref={containerRef} className="relative w-full" style={{ height: 560 }} />
       <div className="mt-1.5 text-[11px] text-slate-400" dangerouslySetInnerHTML={{ __html: legendHtml }} />
     </div>
   );

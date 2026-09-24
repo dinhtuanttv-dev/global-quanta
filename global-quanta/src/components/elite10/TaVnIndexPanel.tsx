@@ -166,6 +166,15 @@ export function TaVnIndexPanel({
           selectedOccurrenceIndex={selectedOccurrenceIndex}
         />
 
+        {/* MOI (huong dan cach doc): chi hien khi da chon 1 pattern -
+            giai thich y nghia mui ten/duong TP-SL/vung to mau va cach
+            phan tich, tranh nguoi dung phai tu doan. */}
+        {currentOccurrences && (
+          <div className="mt-2 rounded-md border border-purple-400/20 bg-purple-500/[0.03] px-3 py-2 text-[10px] leading-relaxed text-slate-400">
+            <b className="text-purple-300">Cách đọc biểu đồ:</b> mỗi <span className="text-emerald-400">▲ ✓</span> / <span className="text-rose-400">▼ ✗</span> trên nến là 1 tín hiệu lịch sử đã backtest — nhìn tổng thể mật độ xanh/đỏ theo thời gian để cảm nhận độ tin cậy (nhiều đỏ gần đây dù xa xưa toàn xanh là dấu hiệu cần thận trọng). Bấm 1 dòng pattern ở panel dưới hoặc dùng nút ◀▶ để xem chi tiết từng tín hiệu: 2 đường đứt nét là mức chốt lời/cắt lỗ, vùng tô màu tím là khoảng thời gian tín hiệu đó đang "mở", nhãn phía trên vùng cho biết kết quả thật.
+          </div>
+        )}
+
         {/* MOI (Triple-Barrier Lop 2): thanh dieu huong xem lai cac tin
             hieu cu hon cua pattern dang chon. */}
         {currentOccurrences && currentOccurrences.length > 1 && selectedOccurrenceIndex !== null && (
