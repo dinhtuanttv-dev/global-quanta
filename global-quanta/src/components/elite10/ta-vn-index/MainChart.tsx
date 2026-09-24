@@ -9,6 +9,7 @@ import {
 } from 'lightweight-charts';
 import type { OhlcBar, PriceZone, TrendlinePoint, ChartEvent, ComputedIndicatorBar, TradeScenario } from '../../../types/taVnIndex';
 import type { TripleBarrierOccurrence } from '../../../hooks/elite10/useSmcDetector';
+import type { FanChartPoint } from '../../../hooks/elite10/useMsGarch';
 import { buildTimeIndex } from '../../../lib/taMath';
 
 interface MainChartProps {
@@ -36,6 +37,9 @@ interface MainChartProps {
   // dung 1 occurrence dang duoc chon.
   tripleBarrierOccurrences?: TripleBarrierOccurrence[] | null;
   selectedOccurrenceIndex?: number | null;
+  // MOI (Muc F, Giai doan 5): fan chart MS-GARCH - dai xac suat p10/
+  // p50/p90 mo rong ra TUONG LAI (sau ngay cuoi cung co du lieu that).
+  fanChart?: FanChartPoint[] | null;
 }
 
 const ZONE_COLORS: Record<PriceZone['kind'], { bg: string; border: string }> = {
@@ -68,6 +72,7 @@ export function MainChart({
   computedIndicators, showSma200, showEma, showBollinger,
   tradeScenario, riskFlags,
   tripleBarrierOccurrences, selectedOccurrenceIndex,
+  fanChart,
 }: MainChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -83,6 +88,9 @@ export function MainChart({
   const priceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
   const tbPriceLinesRef = useRef<ReturnType<ISeriesApi<'Candlestick'>['createPriceLine']>[]>([]);
   const tbZoneElRef = useRef<HTMLDivElement | null>(null);
+  const p10SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const p50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const p90SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const [legendHtml, setLegendHtml] = useState('');
 
   // Khởi tạo chart 1 lần
@@ -126,6 +134,13 @@ export function MainChart({
     const bbUpperSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
     const bbLowerSeries = chart.addLineSeries({ color: 'rgba(150,150,255,0.5)', lineWidth: 1, lineStyle: LineStyle.Dotted, lastValueVisible: false, priceLineVisible: false });
 
+    // MOI (Muc F, Giai doan 5): 3 duong fan chart MS-GARCH - p10 (do
+    // nhat, bi quan), p50 (vang, trung vi), p90 (xanh nhat, lac quan) -
+    // mo rong ra TUONG LAI sau ngay cuoi cung.
+    const p10Series = chart.addLineSeries({ color: 'rgba(255,77,94,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, lastValueVisible: false, priceLineVisible: false });
+    const p50Series = chart.addLineSeries({ color: 'rgba(251,191,36,0.9)', lineWidth: 2, lineStyle: LineStyle.Solid, lastValueVisible: false, priceLineVisible: false });
+    const p90Series = chart.addLineSeries({ color: 'rgba(31,224,138,0.7)', lineWidth: 1, lineStyle: LineStyle.Dashed, lastValueVisible: false, priceLineVisible: false });
+
     chartRef.current = chart;
     candleSeriesRef.current = candleSeries;
     trendSeriesRef.current = trendSeries;
@@ -135,6 +150,9 @@ export function MainChart({
     ema21SeriesRef.current = ema21Series;
     bbUpperSeriesRef.current = bbUpperSeries;
     bbLowerSeriesRef.current = bbLowerSeries;
+    p10SeriesRef.current = p10Series;
+    p50SeriesRef.current = p50Series;
+    p90SeriesRef.current = p90Series;
 
     const handleResize = () => {
       if (containerRef.current) {
@@ -156,6 +174,9 @@ export function MainChart({
       ema21SeriesRef.current = null;
       bbUpperSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
+      p10SeriesRef.current = null;
+      p50SeriesRef.current = null;
+      p90SeriesRef.current = null;
     };
   }, []);
 
@@ -369,6 +390,45 @@ export function MainChart({
       tbZoneElRef.current = null;
     };
   }, [tripleBarrierOccurrences, selectedOccurrenceIndex]);
+
+  // MOI (Muc F, Giai doan 5): ve fan chart MS-GARCH - 3 duong p10/p50/
+  // p90 MO RONG ra tuong lai tu ngay cuoi cung co du lieu that. Tinh
+  // ngay tuong lai bo qua T7/CN (giong lich giao dich chung khoan VN),
+  // don gian hoa - khong xu ly nghi le.
+  useEffect(() => {
+    const p10Series = p10SeriesRef.current, p50Series = p50SeriesRef.current, p90Series = p90SeriesRef.current;
+    if (!p10Series || !p50Series || !p90Series) return;
+
+    if (!fanChart || fanChart.length === 0 || priceSeries.length === 0) {
+      p10Series.setData([]); p50Series.setData([]); p90Series.setData([]);
+      return;
+    }
+
+    const lastBar = priceSeries[priceSeries.length - 1];
+    const lastDate = new Date(lastBar.time);
+
+    function addBusinessDays(start: Date, n: number): Date {
+      const d = new Date(start);
+      let added = 0;
+      while (added < n) {
+        d.setDate(d.getDate() + 1);
+        const dow = d.getDay();
+        if (dow !== 0 && dow !== 6) added++;
+      }
+      return d;
+    }
+    function toDateStr(d: Date): string { return d.toISOString().slice(0, 10); }
+
+    // Diem noi tiep tu gia hien tai (de duong lien tuc voi nen cuoi cung)
+    const anchor = { time: lastBar.time as never, value: lastBar.close };
+    const p10Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p10 }))];
+    const p50Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p50 }))];
+    const p90Data = [anchor, ...fanChart.map((p) => ({ time: toDateStr(addBusinessDays(lastDate, p.day)) as never, value: p.p90 }))];
+
+    p10Series.setData(p10Data);
+    p50Series.setData(p50Data);
+    p90Series.setData(p90Data);
+  }, [fanChart, priceSeries]);
 
   // Bo overlay chinh moi (theo yeu cau nguoi dung): SMA200/EMA100/50/21
   // - du lieu THAT tu computedIndicators (tinh boi api/stock.py qua

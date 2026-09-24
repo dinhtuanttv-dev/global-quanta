@@ -12,6 +12,8 @@ import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
 import { useAiInsight } from '../../hooks/elite10/useAiInsight';
 import { useCycleDetail } from '../../hooks/elite10/useCycleDetail';
 import { useSmcDetector, type TripleBarrierOccurrence } from '../../hooks/elite10/useSmcDetector';
+import { useMsGarch } from '../../hooks/elite10/useMsGarch';
+import { MsGarchPanel } from './ta-vn-index/MsGarchPanel';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
@@ -69,6 +71,7 @@ export function TaVnIndexPanel({
   const { insight } = useAiInsight(ticker);
   const { cycleDetail } = useCycleDetail(ticker);
   const { smcReal } = useSmcDetector(ticker);
+  const { msGarch } = useMsGarch(ticker);
 
   // MOI (Triple-Barrier tren bieu do, thiet ke 2 lop): state dieu phoi
   // giua SmcBacktestPanel (chon pattern) va MainChart (hien markers +
@@ -164,6 +167,7 @@ export function TaVnIndexPanel({
           riskFlags={overlay?.riskFlags}
           tripleBarrierOccurrences={currentOccurrences}
           selectedOccurrenceIndex={selectedOccurrenceIndex}
+          fanChart={msGarch?.fanChart}
         />
 
         {/* MOI (huong dan cach doc): chi hien khi da chon 1 pattern -
@@ -221,6 +225,8 @@ export function TaVnIndexPanel({
       <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
       <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
       <SmcBacktestPanel smcReal={smcReal} selectedPatternKey={selectedPatternKey} onSelectPattern={handleSelectPattern} />
+
+      <MsGarchPanel ticker={ticker} />
 
       <DebateArenaPanel ticker={ticker} />
 
