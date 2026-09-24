@@ -239,7 +239,9 @@ export function MainChart({
       if (bar) setLegendHtml(fmtLegend(bar));
     };
     chart.subscribeCrosshairMove(handleCrosshair);
-    return () => chart.unsubscribeCrosshairMove(handleCrosshair);
+    return () => {
+      try { chart.unsubscribeCrosshairMove(handleCrosshair); } catch { /* chart da dispose, bo qua */ }
+    };
   }, [priceSeries, events, riskFlags, tripleBarrierOccurrences]);
 
   // Trendline
@@ -288,7 +290,14 @@ export function MainChart({
       lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 2${suffix}`,
     }));
 
-    return () => { lines.forEach((l) => candleSeries.removePriceLine(l)); lines.length = 0; };
+    return () => {
+      // FIX (bug "Object is disposed"): React khong dam bao chart.remove()
+      // (cleanup cua useEffect khoi tao) chay SAU CUNG khi unmount - neu
+      // no chay TRUOC cleanup nay, removePriceLine se goi tren 1 series
+      // DA DISPOSE. Boc try/catch de an toan bat ke thu tu cleanup thuc te.
+      try { lines.forEach((l) => candleSeries.removePriceLine(l)); } catch { /* chart da dispose, bo qua */ }
+      lines.length = 0;
+    };
   }, [tradeScenario]);
 
   // MOI (Triple-Barrier Lop 2 - chi tiet): khi nguoi dung CHON 1
@@ -336,47 +345,57 @@ export function MainChart({
     }));
 
     function drawZone() {
-      tbZoneElRef.current?.remove();
-      tbZoneElRef.current = null;
-      if (!container || !chart || !candleSeries) return;
-      const y1 = candleSeries.priceToCoordinate(occ.tpBarrier);
-      const y2 = candleSeries.priceToCoordinate(occ.slBarrier);
-      const x1 = chart.timeScale().timeToCoordinate(occ.signalDate as never);
-      const x2 = chart.timeScale().timeToCoordinate(occ.resolvedDate as never);
-      if (y1 === null || y2 === null || x1 === null || x2 === null) return;
+      // FIX (bug "Object is disposed"): subscribeVisibleTimeRangeChange
+      // co the goi ham nay TRUC TIEP (khong qua requestAnimationFrame),
+      // nen co "cancelled" khong chan het duoc - boc ca THAN HAM trong
+      // try/catch de an toan tuyet doi voi moi truong hop chart/series
+      // da bi dispose truoc do.
+      try {
+        tbZoneElRef.current?.remove();
+        tbZoneElRef.current = null;
+        if (!container || !chart || !candleSeries) return;
+        const y1 = candleSeries.priceToCoordinate(occ.tpBarrier);
+        const y2 = candleSeries.priceToCoordinate(occ.slBarrier);
+        const x1 = chart.timeScale().timeToCoordinate(occ.signalDate as never);
+        const x2 = chart.timeScale().timeToCoordinate(occ.resolvedDate as never);
+        if (y1 === null || y2 === null || x1 === null || x2 === null) return;
 
-      const resultLabel = occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian';
+        const resultLabel = occ.barrierHit === 'take_profit' ? 'Chạm chốt lời' : occ.barrierHit === 'stop_loss' ? 'Chạm cắt lỗ' : 'Hết hạn thời gian';
 
-      const div = document.createElement('div');
-      div.style.position = 'absolute';
-      div.style.pointerEvents = 'none';
-      div.style.left = `${Math.min(x1, x2)}px`;
-      div.style.top = `${Math.min(y1, y2)}px`;
-      div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
-      div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
-      div.style.background = 'rgba(168,85,247,0.1)';
-      div.style.border = `2px solid ${resultColor}`;
-      div.style.borderRadius = '3px';
-      div.title = `${occ.signalDate} → ${occ.resolvedDate} · ${resultLabel} · ${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%`;
+        const div = document.createElement('div');
+        div.style.position = 'absolute';
+        div.style.pointerEvents = 'none';
+        div.style.left = `${Math.min(x1, x2)}px`;
+        div.style.top = `${Math.min(y1, y2)}px`;
+        div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
+        div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
+        div.style.background = 'rgba(168,85,247,0.1)';
+        div.style.border = `2px solid ${resultColor}`;
+        div.style.borderRadius = '3px';
+        div.title = `${occ.signalDate} → ${occ.resolvedDate} · ${resultLabel} · ${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%`;
 
-      // NANG CAP: nhan KET QUA hien SAN (khong chi hover) - de nhin la
-      // hieu ngay, khong can ru chuot vao vung nho tren mobile.
-      const badge = document.createElement('div');
-      badge.style.position = 'absolute';
-      badge.style.top = '-20px';
-      badge.style.left = '0';
-      badge.style.whiteSpace = 'nowrap';
-      badge.style.fontSize = '10px';
-      badge.style.fontWeight = 'bold';
-      badge.style.padding = '2px 6px';
-      badge.style.borderRadius = '3px';
-      badge.style.background = resultColor;
-      badge.style.color = '#0a1420';
-      badge.textContent = `${occ.label === 1 ? '✓' : '✗'} ${resultLabel} (${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%)`;
-      div.appendChild(badge);
+        // NANG CAP: nhan KET QUA hien SAN (khong chi hover) - de nhin la
+        // hieu ngay, khong can ru chuot vao vung nho tren mobile.
+        const badge = document.createElement('div');
+        badge.style.position = 'absolute';
+        badge.style.top = '-20px';
+        badge.style.left = '0';
+        badge.style.whiteSpace = 'nowrap';
+        badge.style.fontSize = '10px';
+        badge.style.fontWeight = 'bold';
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '3px';
+        badge.style.background = resultColor;
+        badge.style.color = '#0a1420';
+        badge.textContent = `${occ.label === 1 ? '✓' : '✗'} ${resultLabel} (${occ.actualReturnPct >= 0 ? '+' : ''}${occ.actualReturnPct.toFixed(1)}%)`;
+        div.appendChild(badge);
 
-      container.appendChild(div);
-      tbZoneElRef.current = div;
+        container.appendChild(div);
+        tbZoneElRef.current = div;
+      } catch {
+        // chart/series da dispose (unmount/chuyen ma dung luc nay) -
+        // an toan bo qua, khong lam sap toan bo ung dung.
+      }
     }
 
     // FIX (bug "Object is disposed"): "requestAnimationFrame(() =>
@@ -395,8 +414,8 @@ export function MainChart({
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      chart.timeScale().unsubscribeVisibleTimeRangeChange(drawZone);
-      tbLines.forEach((l) => candleSeries.removePriceLine(l));
+      try { chart.timeScale().unsubscribeVisibleTimeRangeChange(drawZone); } catch { /* chart da dispose, bo qua */ }
+      try { tbLines.forEach((l) => candleSeries.removePriceLine(l)); } catch { /* chart da dispose, bo qua */ }
       tbLines.length = 0;
       tbZoneElRef.current?.remove();
       tbZoneElRef.current = null;
@@ -494,32 +513,39 @@ export function MainChart({
     if (!chart || !candleSeries || !container || priceSeries.length === 0) return;
 
     function draw() {
-      if (!container) return;
-      zoneElsRef.current.forEach((el) => el.remove());
-      zoneElsRef.current = [];
-      if (!showDemandZone) return;
+      // FIX (bug "Object is disposed"): subscribeVisibleTimeRangeChange
+      // co the goi ham nay TRUC TIEP (khong qua requestAnimationFrame),
+      // boc ca than ham de an toan tuyet doi.
+      try {
+        if (!container) return;
+        zoneElsRef.current.forEach((el) => el.remove());
+        zoneElsRef.current = [];
+        if (!showDemandZone) return;
 
-      for (const zone of zones) {
-        const y1 = candleSeries!.priceToCoordinate(zone.priceTop);
-        const y2 = candleSeries!.priceToCoordinate(zone.priceBottom);
-        const x1 = chart!.timeScale().timeToCoordinate(zone.timeFrom as never);
-        const x2 = chart!.timeScale().timeToCoordinate(zone.timeTo as never);
-        if (y1 === null || y2 === null || x1 === null || x2 === null) continue;
+        for (const zone of zones) {
+          const y1 = candleSeries!.priceToCoordinate(zone.priceTop);
+          const y2 = candleSeries!.priceToCoordinate(zone.priceBottom);
+          const x1 = chart!.timeScale().timeToCoordinate(zone.timeFrom as never);
+          const x2 = chart!.timeScale().timeToCoordinate(zone.timeTo as never);
+          if (y1 === null || y2 === null || x1 === null || x2 === null) continue;
 
-        const colors = ZONE_COLORS[zone.kind];
-        const div = document.createElement('div');
-        div.style.position = 'absolute';
-        div.style.pointerEvents = 'none';
-        div.style.left = `${Math.min(x1, x2)}px`;
-        div.style.top = `${Math.min(y1, y2)}px`;
-        div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
-        div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
-        div.style.background = colors.bg;
-        div.style.border = `1px dashed ${colors.border}`;
-        div.style.borderRadius = '2px';
-        div.title = zone.label;
-        container.appendChild(div);
-        zoneElsRef.current.push(div);
+          const colors = ZONE_COLORS[zone.kind];
+          const div = document.createElement('div');
+          div.style.position = 'absolute';
+          div.style.pointerEvents = 'none';
+          div.style.left = `${Math.min(x1, x2)}px`;
+          div.style.top = `${Math.min(y1, y2)}px`;
+          div.style.width = `${Math.max(2, Math.abs(x2 - x1))}px`;
+          div.style.height = `${Math.max(2, Math.abs(y2 - y1))}px`;
+          div.style.background = colors.bg;
+          div.style.border = `1px dashed ${colors.border}`;
+          div.style.borderRadius = '2px';
+          div.title = zone.label;
+          container.appendChild(div);
+          zoneElsRef.current.push(div);
+        }
+      } catch {
+        // chart/series da dispose - an toan bo qua.
       }
     }
 
@@ -535,7 +561,7 @@ export function MainChart({
     return () => {
       cancelled = true;
       cancelAnimationFrame(raf);
-      chart.timeScale().unsubscribeVisibleTimeRangeChange(draw);
+      try { chart.timeScale().unsubscribeVisibleTimeRangeChange(draw); } catch { /* chart da dispose, bo qua */ }
       zoneElsRef.current.forEach((el) => el.remove());
       zoneElsRef.current = [];
     };
