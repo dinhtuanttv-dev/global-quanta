@@ -379,9 +379,21 @@ export function MainChart({
       tbZoneElRef.current = div;
     }
 
-    const raf = requestAnimationFrame(() => requestAnimationFrame(drawZone));
+    // FIX (bug "Object is disposed"): "requestAnimationFrame(() =>
+    // requestAnimationFrame(fn))" - cancelAnimationFrame(raf) CHI huy
+    // duoc OUTER callback, khong huy duoc INNER neu outer da chay truoc
+    // khi cleanup goi. Neu component unmount/chart bi remove() dung
+    // luc do, inner rAF van chay drawZone() tren series/chart DA
+    // DISPOSED -> loi. Sua bang co "cancelled" kiem tra TRUOC MOI lan
+    // thuc thi, dam bao khong bao gio chay sau khi cleanup.
+    let cancelled = false;
+    const raf = requestAnimationFrame(() => {
+      if (cancelled) return;
+      requestAnimationFrame(() => { if (!cancelled) drawZone(); });
+    });
     chart.timeScale().subscribeVisibleTimeRangeChange(drawZone);
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(drawZone);
       tbLines.forEach((l) => candleSeries.removePriceLine(l));
@@ -511,9 +523,17 @@ export function MainChart({
       }
     }
 
-    const raf = requestAnimationFrame(() => requestAnimationFrame(draw));
+    // FIX (bug "Object is disposed") - xem giai thich chi tiet o useEffect
+    // Triple-Barrier phia tren: inner requestAnimationFrame khong the
+    // cancel qua cancelAnimationFrame(raf) neu outer da chay truoc do.
+    let cancelled = false;
+    const raf = requestAnimationFrame(() => {
+      if (cancelled) return;
+      requestAnimationFrame(() => { if (!cancelled) draw(); });
+    });
     chart.timeScale().subscribeVisibleTimeRangeChange(draw);
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(draw);
       zoneElsRef.current.forEach((el) => el.remove());
