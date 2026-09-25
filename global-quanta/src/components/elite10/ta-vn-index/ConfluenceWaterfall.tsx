@@ -1,4 +1,13 @@
 import type { ConfluenceSource, ConfluencePenaltyItem } from '../../../types/taVnIndex';
+import { useTabNavigation } from '../../../lib/TabNavigationContext';
+
+// Giai Trinh Hoi Tu - Giai doan 4: anh xa pillar key -> TEN TAB THAT
+// (khop dung voi mang TABS trong MainTabs.tsx) - de bam vao 1 thanh se
+// dieu huong dung sang tab nguon du lieu tuong ung.
+const PILLAR_TO_TAB: Record<string, string> = {
+  core: 'Sieu quet AI', ta: 'TA VN-Index', sector: 'Loc nganh',
+  catalyst: 'Chat xuc tac', macro: 'Ket noi the gioi', dividend: 'Co tuc',
+};
 
 /**
  * Vung 3 - "Vi sao ra diem nay - Waterfall" (VIET LAI HOAN TOAN, Giai
@@ -18,6 +27,7 @@ export function ConfluenceWaterfall({
   penalty: { total: number; breakdown: Record<string, ConfluencePenaltyItem> } | null;
   score: number;
 }) {
+  const navigateToTab = useTabNavigation();
   const validSources = sources.filter((s) => s.status !== 'no_data' && s.contribution !== null);
   const penaltyEntries = penalty ? Object.entries(penalty.breakdown) : [];
 
@@ -55,10 +65,22 @@ export function ConfluenceWaterfall({
           const isPositive = (s.contribution ?? 0) >= 0;
           const left = Math.min(pct(s.from), pct(s.to));
           const width = Math.max(0.5, Math.abs(pct(s.to) - pct(s.from)));
+          // Giai doan 4: bam vao 1 hang -> dieu huong sang dung tab
+          // nguon du lieu (chi khi CO context, VD component nay dung
+          // ngoai MainTabs se khong co gi xay ra - an toan).
+          const targetTab = PILLAR_TO_TAB[s.key];
+          const clickable = Boolean(navigateToTab && targetTab);
           return (
-            <div key={s.key} className="border-b border-white/5 py-2 last:border-b-0">
+            <div
+              key={s.key}
+              className={clickable ? 'cursor-pointer rounded border-b border-white/5 py-2 transition-colors last:border-b-0 hover:bg-white/[0.03]' : 'border-b border-white/5 py-2 last:border-b-0'}
+              onClick={clickable ? () => navigateToTab!(targetTab) : undefined}
+              title={clickable ? `Xem chi tiết tại tab "${targetTab}"` : undefined}
+            >
               <div className="flex items-center gap-2 text-[11px]">
-                <span className={s.isCurrentTab ? 'w-[132px] flex-shrink-0 truncate font-bold text-cyan-300' : 'w-[132px] flex-shrink-0 truncate text-slate-400'}>{s.name}</span>
+                <span className={s.isCurrentTab ? 'w-[132px] flex-shrink-0 truncate font-bold text-cyan-300' : 'w-[132px] flex-shrink-0 truncate text-slate-400'}>
+                  {s.name}{clickable && <span className="ml-1 text-slate-600">↗</span>}
+                </span>
                 <div className="relative h-[18px] flex-1 rounded-sm bg-white/5">
                   <div
                     className={isPositive ? 'absolute top-0 h-full rounded-sm bg-emerald-400' : 'absolute top-0 h-full rounded-sm bg-rose-400'}
