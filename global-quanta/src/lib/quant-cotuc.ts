@@ -297,3 +297,438 @@ export function fmtVND(v: number): string {
   return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(v);
 }
 export const fmtPct = (v: number): string => v.toFixed(1) + "%";
+
+// ============================================================================
+// TIMING ENGINE v3 (Giai doan 1 - tich hop tu goi cotuc-timing-engine.zip,
+// file goc: core/quant-cotuc.ts) - CAC HAM MOI, KHONG TRUNG TEN VOI PHAN
+// TREN (da xac nhan qua ra soat: getDaysUntil/getTradePhase/calcDividendScore/
+// calcRealDividendQualityScore/calcCatalystScore/detectRiskFlags/calcDCF/
+// filterAndSortStocks/fmtVND/fmtPct O TREN GIU NGUYEN 100%, KHONG DUNG DEN).
+//
+// Khac voi "getDaysUntil" o tren (dung Date.UTC, KHONG dung timezone VN),
+// cac ham duoi day dung "toDayNumber"/"Clock" voi Asia/Ho_Chi_Minh (sua loi
+// E7 trong docs-v3-design.md) - CHUNG SONG SONG, KHONG thay the lan nhau (2
+// muc dich khac nhau: getDaysUntil cho UI hien tai (17 ma mau + Universe),
+// cac ham moi cho Timing Engine v3 rieng).
+// ============================================================================
+import type {
+  CycleStatsV3,
+  BacktestWindow,
+  EarningsSignal,
+  AnnounceMethod,
+  DataStatus,
+  Sourced,
+  ISODate as ISODateT,
+} from "./cotuc/timing-types";
+
+// Re-export de dung tien: import { DataStatus, Sourced } from './quant-cotuc'
+// van chay duoc; nguon dinh nghia that nam o src/lib/cotuc/timing-types.ts.
+export type { DataStatus, Sourced };
+export type ISODate = ISODateT;
+
+// ---------------------------------------------------------------------------
+// 6.1. Ngay, lich, dong ho
+// ---------------------------------------------------------------------------
+
+export interface Clock {
+  today(): ISODate;
+}
+
+export const systemClock: Clock = {
+  today: () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(new Date()),
+};
+
+export interface HolidayCalendar {
+  isTradingDay(dayNumber: number): boolean;
+}
+
+/** Lich chi loai thu Bay/Chu Nhat - dung khi chua nap lich nghi le that. KHONG dung cho san xuat. */
+export const WEEKEND_ONLY_CALENDAR: HolidayCalendar = {
+  isTradingDay(dayNumber) {
+    const dow = new Date(dayNumber * 86_400_000).getUTCDay(); // 0=CN,6=T7
+    return dow !== 0 && dow !== 6;
+  },
+};
+
+/** Lich tu danh sach ngay nghi tuong minh (YYYY-MM-DD), cong voi loai thu Bay/Chu Nhat. */
+export function makeHolidayCalendar(holidays: readonly ISODate[]): HolidayCalendar {
+  const set = new Set<number>();
+  for (const h of holidays) {
+    const d = toDayNumber(h);
+    if (d !== null) set.add(d);
+  }
+  return {
+    isTradingDay(dayNumber) {
+      return WEEKEND_ONLY_CALENDAR.isTradingDay(dayNumber) && !set.has(dayNumber);
+    },
+  };
+}
+
+const MAX_SPAN_CALENDAR_DAYS = 400;
+
+/** Parse nghiem ngat 'YYYY-MM-DD'; null neu sai dinh dang hoac ngay khong ton tai (31/02, 29/02 nam khong nhuan). */
+export function toDayNumber(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const t = Date.UTC(y, mo - 1, d);
+  const dt = new Date(t);
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return t / 86_400_000;
+}
+
+export function dayNumberToIso(dayNumber: number): ISODate {
+  return new Date(dayNumber * 86_400_000).toISOString().slice(0, 10);
+}
+
+/**
+ * So ngay giao dich tu `from` den `to`. Duong: `to` sau `from`. 0: cung ngay.
+ * null: ngay sai dinh dang, hoac khoang cach lich vuot qua MAX_SPAN_CALENDAR_DAYS (du lieu kha nghi).
+ */
+export function tradingDaysBetween(from: string, to: string | null | undefined, cal: HolidayCalendar): number | null {
+  const a = toDayNumber(from);
+  const b = toDayNumber(to);
+  if (a === null || b === null) return null;
+  if (Math.abs(b - a) > MAX_SPAN_CALENDAR_DAYS) return null;
+  if (a === b) return 0;
+  const step = b > a ? 1 : -1;
+  let n = 0;
+  for (let d = a + step; step > 0 ? d <= b : d >= b; d += step) {
+    if (cal.isTradingDay(d)) n += step;
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------------------
+// 6.2. Cau hinh
+// ---------------------------------------------------------------------------
+
+export interface EngineConfig {
+  conflictWindowTd: number;
+  minEventsForHigh: number;
+  minEventsForMedium: number;
+  staleAfterHours: number;
+  horizonTd: number;
+}
+
+export const DEFAULT_CONFIG: EngineConfig = {
+  conflictWindowTd: 3,
+  minEventsForHigh: 12,
+  minEventsForMedium: 8,
+  staleAfterHours: 36,
+  horizonTd: 30,
+};
+
+export interface Deps {
+  clock: Clock;
+  cal: HolidayCalendar;
+  cfg: EngineConfig;
+}
+
+export function makeDeps(overrides: Partial<Deps> = {}): Deps {
+  return { clock: systemClock, cal: WEEKEND_ONLY_CALENDAR, cfg: DEFAULT_CONFIG, ...overrides };
+}
+
+const downgrade = (c: Confidence): Confidence => (c === "HIGH" ? "MEDIUM" : "LOW");
+
+// ---------------------------------------------------------------------------
+// 4.4. Kieu dau ra
+// ---------------------------------------------------------------------------
+
+export type TimingAction = "NO_DATE" | "POST_EX" | "NO_SIGNAL" | "TOO_EARLY" | "IN_WINDOW" | "WINDOW_PASSED";
+export type Confidence = "HIGH" | "MEDIUM" | "LOW";
+export type EarningsStance = "AVOID" | "REDUCE_SIZE" | "NEUTRAL" | "FAVORABLE" | "UNKNOWN";
+export type ConflictKind = "NONE" | "NEAR_EX" | "INSIDE_HOLD";
+
+export interface EarningsImpact {
+  expectedAnnounce: ISODate | null;
+  announceMethod: AnnounceMethod | null;
+  tdToEarnings: number | null;
+  conflict: ConflictKind;
+  scoreDelta: number | null;
+  stance: EarningsStance;
+  reasons: string[];
+}
+
+export interface Explanation {
+  factor: string;
+  detail: string;
+  effect: "POSITIVE" | "NEGATIVE" | "NEUTRAL";
+}
+
+export interface TimingRecommendation {
+  action: TimingAction;
+  tdToEx: number | null;
+  tdToAgm: number | null;
+  tdToPayment: number | null;
+  window: Pick<BacktestWindow, "id" | "label" | "entryFrom" | "entryTo" | "exitOffset" | "holdsThroughEx"> | null;
+  expectedNetReturn: number | null;
+  nEvents: number | null;
+  confidence: Confidence | null;
+  dateStatus: DataStatus | null;
+  earningsImpact: EarningsImpact;
+  explanations: Explanation[];
+  disclaimer: "NOT_INVESTMENT_ADVICE";
+}
+
+// ---------------------------------------------------------------------------
+// 7.5. resolveEarningsImpact
+// ---------------------------------------------------------------------------
+
+export interface EarningsImpactInput {
+  earnings: EarningsSignal | null;
+  tdToEx: number | null;
+  window: { entryTo: number; exitOffset: number } | null;
+  today: ISODate;
+}
+
+const UNKNOWN_IMPACT: EarningsImpact = {
+  expectedAnnounce: null,
+  announceMethod: null,
+  tdToEarnings: null,
+  conflict: "NONE",
+  scoreDelta: null,
+  stance: "UNKNOWN",
+  reasons: [],
+};
+
+export function resolveEarningsImpact(input: EarningsImpactInput, deps: Deps): EarningsImpact {
+  const { cal, cfg } = deps;
+  const { earnings, tdToEx, window, today } = input;
+  if (!earnings) return UNKNOWN_IMPACT;
+
+  const ann = earnings.expectedAnnounce;
+  const tdToEarn = tradingDaysBetween(today, ann.date, cal);
+  if (tdToEarn === null || tdToEarn < 0) {
+    return { ...UNKNOWN_IMPACT, expectedAnnounce: ann.date, announceMethod: ann.method };
+  }
+
+  const width = cfg.conflictWindowTd + Math.round((ann.lagStdDays ?? 0) / 2);
+  const reasons: string[] = [];
+  let conflict: ConflictKind = "NONE";
+
+  if (tdToEx !== null) {
+    const gap = Math.abs(tdToEx - tdToEarn); // quy uoc v3 (chot loi E2 cua v2)
+    if (gap <= width) {
+      conflict = "NEAR_EX";
+      reasons.push(`KQKD dự kiến cách GDKHQ ${gap} ngày giao dịch (ngưỡng ${width})`);
+    } else if (window && window.exitOffset >= window.entryTo) {
+      const earnOffset = tdToEarn - tdToEx;
+      if (earnOffset >= window.entryTo && earnOffset <= window.exitOffset) {
+        conflict = "INSIDE_HOLD";
+        reasons.push("KQKD dự kiến rơi vào thời gian nắm giữ");
+      }
+    }
+  }
+
+  let scoreDelta: number | null = null;
+  if (earnings.sue !== null && earnings.quality === "OK") {
+    scoreDelta = Math.max(-2, Math.min(2, earnings.sue / 2));
+  }
+
+  let stance: EarningsStance = "NEUTRAL";
+  if (conflict === "NEAR_EX") stance = "AVOID";
+  else if (conflict === "INSIDE_HOLD") stance = "REDUCE_SIZE";
+  else if (scoreDelta !== null && scoreDelta >= 1 && tdToEarn <= 7) stance = "FAVORABLE";
+  else if (scoreDelta === null) stance = "UNKNOWN";
+
+  if (ann.method === "DEADLINE_ONLY") reasons.push("Ngày công bố chỉ ước theo hạn pháp lý");
+
+  return {
+    expectedAnnounce: ann.date,
+    announceMethod: ann.method,
+    tdToEarnings: tdToEarn,
+    conflict,
+    scoreDelta,
+    stance,
+    reasons,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 6.3. optimizeDividendTiming
+// ---------------------------------------------------------------------------
+
+export interface TimingInput {
+  exDate: Sourced<ISODate> | null;
+  agmDate: Sourced<ISODate> | null;
+  paymentDate: Sourced<ISODate> | null;
+  cycle: CycleStatsV3 | null;
+  earnings: EarningsSignal | null;
+}
+
+/** Cua so da chot: khop selectedWindowId VA co co selected (da qua cong thong ke muc 5.6). */
+export function selectedWindow(stats: CycleStatsV3 | null): BacktestWindow | null {
+  if (!stats || stats.selectedWindowId === null) return null;
+  const w = stats.windows.find((x) => x.id === stats.selectedWindowId);
+  return w && w.selected ? w : null;
+}
+
+export function optimizeDividendTiming(input: TimingInput, deps: Deps): TimingRecommendation {
+  const { clock, cal, cfg } = deps;
+  const today = clock.today();
+  const explanations: Explanation[] = [];
+
+  const tdToEx = tradingDaysBetween(today, input.exDate?.value, cal);
+  const tdToAgm = tradingDaysBetween(today, input.agmDate?.value, cal);
+  const tdToPayment = tradingDaysBetween(today, input.paymentDate?.value, cal);
+  const k = tdToEx === null ? null : -tdToEx; // quy uoc dau 2.2: k<0 truoc GDKHQ
+
+  const win = selectedWindow(input.cycle);
+  const earningsImpact = resolveEarningsImpact(
+    { earnings: input.earnings, tdToEx, window: win, today },
+    deps,
+  );
+
+  const base = {
+    tdToEx,
+    tdToAgm,
+    tdToPayment,
+    earningsImpact,
+    explanations,
+    disclaimer: "NOT_INVESTMENT_ADVICE" as const,
+    dateStatus: input.exDate?.status ?? null,
+  };
+  const empty = { window: null, expectedNetReturn: null, nEvents: null, confidence: null };
+
+  if (tdToEx === null) return { action: "NO_DATE", ...empty, ...base };
+  if (tdToEx < 0) return { action: "POST_EX", ...empty, ...base };
+  if (!win) {
+    explanations.push({ factor: "Backtest", detail: "Không có cửa sổ vượt cổng thống kê (mục 5.6)", effect: "NEUTRAL" });
+    return { action: "NO_SIGNAL", ...empty, ...base };
+  }
+
+  let action: TimingAction;
+  if (k! < win.entryFrom) action = "TOO_EARLY";
+  else if (k! <= win.entryTo) action = "IN_WINDOW";
+  else action = "WINDOW_PASSED";
+
+  let confidence: Confidence =
+    win.nEvents >= cfg.minEventsForHigh && (win.oosMeanNet ?? -1) > 0
+      ? "HIGH"
+      : win.nEvents >= cfg.minEventsForMedium
+        ? "MEDIUM"
+        : "LOW";
+  explanations.push({
+    factor: "Backtest",
+    detail: `${win.nEvents} sự kiện, kỳ vọng ròng cận dưới ${(win.netExpectancyLcb * 100).toFixed(2)}%, q=${win.fdrQValue.toFixed(2)}`,
+    effect: "POSITIVE",
+  });
+
+  if (input.exDate?.status !== "CONFIRMED") {
+    confidence = downgrade(confidence);
+    explanations.push({
+      factor: "Ngày GDKHQ",
+      detail: `Trạng thái ${input.exDate?.status ?? "UNKNOWN"}, có thể thay đổi`,
+      effect: "NEGATIVE",
+    });
+  }
+  if (earningsImpact.conflict !== "NONE") {
+    confidence = downgrade(confidence);
+    explanations.push({ factor: "Xung đột KQKD", detail: earningsImpact.reasons.join("; "), effect: "NEGATIVE" });
+  }
+
+  return {
+    action,
+    window: {
+      id: win.id,
+      label: win.label,
+      entryFrom: win.entryFrom,
+      entryTo: win.entryTo,
+      exitOffset: win.exitOffset,
+      holdsThroughEx: win.holdsThroughEx,
+    },
+    expectedNetReturn: win.netExpectancyLcb,
+    nEvents: win.nEvents,
+    confidence,
+    ...base,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 8. Chu ky co tuc va du bao dot tiep theo
+// ---------------------------------------------------------------------------
+
+export interface DividendFrequency {
+  medianMonths: number;
+  cv: number;
+  n: number;
+  regularity: "REGULAR" | "IRREGULAR";
+  confidence: number;
+  nextExpected: ISODate | null;
+}
+
+export function estimateDividendFrequency(exDates: ISODate[]): DividendFrequency | null {
+  const days = exDates
+    .map(toDayNumber)
+    .filter((d): d is number => d !== null)
+    .sort((a, b) => a - b);
+  if (days.length < 3) return null;
+
+  const gaps = days.slice(1).map((d, i) => d - days[i]);
+  const sorted = [...gaps].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  const mean = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+  const sd = Math.sqrt(gaps.reduce((s, g) => s + (g - mean) ** 2, 0) / gaps.length);
+  const cv = mean > 0 ? sd / mean : Infinity;
+
+  const confidence = Math.max(0, Math.min(1, 1 - cv)) * Math.min(1, gaps.length / 6);
+  const last = days[days.length - 1];
+  const nextExpected = dayNumberToIso(last + Math.round(median));
+
+  return {
+    medianMonths: median / 30.44,
+    cv,
+    n: gaps.length,
+    regularity: cv <= 0.25 ? "REGULAR" : "IRREGULAR",
+    confidence,
+    nextExpected,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 9. Phat hien su kien sap toi
+// ---------------------------------------------------------------------------
+
+export interface UpcomingDividend {
+  ticker: string;
+  tdToEx: number;
+  cashPerShare: number | null;
+  status: DataStatus;
+}
+export interface UpcomingEarnings {
+  ticker: string;
+  tdToEarnings: number;
+  quarterLabel: string;
+  method: AnnounceMethod;
+}
+
+export function detectUpcomingDividendEvents(
+  items: { ticker: string; exDate: Sourced<ISODate> | null; cashPerShare: number | null }[],
+  deps: Deps,
+  horizonTd: number = deps.cfg.horizonTd,
+): UpcomingDividend[] {
+  const today = deps.clock.today();
+  return items
+    .map((i) => ({ i, td: tradingDaysBetween(today, i.exDate?.value, deps.cal) }))
+    .filter((x): x is { i: (typeof items)[number]; td: number } => x.td !== null && x.td >= 0 && x.td <= horizonTd)
+    .map(({ i, td }) => ({ ticker: i.ticker, tdToEx: td, cashPerShare: i.cashPerShare, status: i.exDate!.status }))
+    .sort((a, b) => a.tdToEx - b.tdToEx || a.ticker.localeCompare(b.ticker));
+}
+
+export function detectUpcomingEarningsEvents(
+  items: EarningsSignal[],
+  deps: Deps,
+  horizonTd: number = deps.cfg.horizonTd,
+): UpcomingEarnings[] {
+  const today = deps.clock.today();
+  return items
+    .map((e) => ({ e, td: tradingDaysBetween(today, e.expectedAnnounce.date, deps.cal) }))
+    .filter((x): x is { e: EarningsSignal; td: number } => x.td !== null && x.td >= 0 && x.td <= horizonTd)
+    .map(({ e, td }) => ({ ticker: e.ticker, tdToEarnings: td, quarterLabel: e.quarterLabel, method: e.expectedAnnounce.method }))
+    .sort((a, b) => a.tdToEarnings - b.tdToEarnings || a.ticker.localeCompare(b.ticker));
+}
