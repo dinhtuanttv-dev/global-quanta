@@ -1,15 +1,20 @@
-import type { ISeriesApi } from 'lightweight-charts';
+import type { ISeriesApi, SeriesMarker, Time } from 'lightweight-charts';
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import type { OhlcBar } from '../../../../types/taVnIndex';
 import { useChartContext } from './ChartContainer';
 
 /**
- * Giai doan 1/5: component con Candlestick, theo dung pattern chinh
- * thuc - moi Series la 1 component RIENG, tu quan ly lifecycle (add/
- * setData/remove), khong con gop chung vao 1 "sieu useEffect" nhu
- * MainChart.tsx cu.
+ * Giai doan 1/5 (+ mo rong Giai doan 3): component con Candlestick,
+ * theo dung pattern chinh thuc - moi Series la 1 component RIENG, tu
+ * quan ly lifecycle (add/setData/remove), khong con gop chung vao 1
+ * "sieu useEffect" nhu MainChart.tsx cu.
+ *
+ * MO RONG (Giai doan 3): them prop "markers" (su kien T/A/C + canh bao
+ * risk flag + Triple-Barrier Lop 1) - markers GAN LIEN VOI candlestick
+ * series cu the (setMarkers() la method CUA series, khong phai chart),
+ * nen giu trong CUNG component thay vi tach rieng.
  */
-export const CandlestickSeries = forwardRef<ISeriesApi<'Candlestick'>, { data: OhlcBar[] }>((props, ref) => {
+export const CandlestickSeries = forwardRef<ISeriesApi<'Candlestick'>, { data: OhlcBar[]; markers?: SeriesMarker<Time>[] }>((props, ref) => {
   const parent = useChartContext();
   const context = useRef<{ _api?: ISeriesApi<'Candlestick'>; api(): ISeriesApi<'Candlestick'>; free(): void }>({
     api() {
@@ -42,6 +47,13 @@ export const CandlestickSeries = forwardRef<ISeriesApi<'Candlestick'>, { data: O
       );
     } catch { /* chart da dispose, bo qua an toan */ }
   }, [props.data]);
+
+  useLayoutEffect(() => {
+    const currentRef = context.current;
+    try {
+      currentRef.api().setMarkers(props.markers ?? []);
+    } catch { /* chart da dispose, bo qua an toan */ }
+  }, [props.markers]);
 
   useImperativeHandle(ref, () => context.current.api(), []);
 
