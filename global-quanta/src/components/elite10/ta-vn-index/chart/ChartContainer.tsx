@@ -23,6 +23,7 @@ import React, {
 
 export interface ChartApiRef {
   isRemoved: boolean;
+  container: HTMLDivElement;
   api(): IChartApi;
   free(series: ISeriesApi<SeriesType> | null | undefined): void;
 }
@@ -64,6 +65,7 @@ const ChartContainerInner = forwardRef<IChartApi, { children?: React.ReactNode; 
 
   const chartApiRef = useRef<ChartApiRef & { _api?: IChartApi }>({
     isRemoved: false,
+    container,
     api() {
       if (!this._api) {
         this._api = createChart(container, {
