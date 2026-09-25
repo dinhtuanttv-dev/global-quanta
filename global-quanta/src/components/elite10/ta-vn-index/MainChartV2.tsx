@@ -11,6 +11,7 @@ import { CrosshairLegend } from './chart/CrosshairLegend';
 import { TradeScenarioLines } from './chart/TradeScenarioLines';
 import { TripleBarrierZone } from './chart/TripleBarrierZone';
 import { PriceZones } from './chart/PriceZones';
+import { ForecastDivider } from './chart/ForecastDivider';
 
 /**
  * MainChart - VIET LAI HOAN TOAN (Huong B, trietde) theo kien truc
@@ -151,6 +152,7 @@ export function MainChart(props: MainChartProps) {
         <TradeScenarioLines tradeScenario={tradeScenario} />
         <TripleBarrierZone priceSeries={priceSeries} occurrences={tripleBarrierOccurrences} selectedIndex={selectedOccurrenceIndex} />
         <PriceZones priceSeries={priceSeries} zones={zones} showDemandZone={showDemandZone} />
+        <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(fanChart && fanChart.length > 0)} />
       </CandlestickSeries>
 
       <LineSeries data={trendlineData} options={{ color: '#22e8ff', lineWidth: 2 }} />

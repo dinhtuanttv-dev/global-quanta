@@ -77,7 +77,7 @@ const ChartContainerInner = forwardRef<IChartApi, { children?: React.ReactNode; 
             horzLines: { color: 'rgba(255,255,255,0.05)' },
           },
           rightPriceScale: { borderColor: 'rgba(34,232,255,0.2)' },
-          timeScale: { borderColor: 'rgba(34,232,255,0.2)' },
+          timeScale: { borderColor: 'rgba(34,232,255,0.2)', rightOffset: 5 },
         });
       }
       return this._api;
