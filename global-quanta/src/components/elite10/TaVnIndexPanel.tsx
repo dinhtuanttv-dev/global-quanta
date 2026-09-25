@@ -240,7 +240,7 @@ export function TaVnIndexPanel({
 
       {/* Vung 3 - Waterfall: giai thich diem so theo tung nguon */}
       {confluenceBreakdown && (
-        <ConfluenceWaterfall sources={confluenceBreakdown.sources} score={confluenceBreakdown.overall.value} />
+        <ConfluenceWaterfall sources={confluenceBreakdown.sources} penalty={confluenceBreakdown.penalty} score={confluenceBreakdown.overall.value} />
       )}
 
       {/* Vung 4 - Ma tran doi khang + Vung 5 - AI Deep Insight */}

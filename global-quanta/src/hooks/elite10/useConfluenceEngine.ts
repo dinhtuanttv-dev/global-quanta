@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import type { EliteScoreBreakdown, ConfluenceSource, ConfluenceStatus } from "../../types/taVnIndex";
+import type { EliteScoreBreakdown, ConfluenceSource, ConfluenceStatus, ConfluencePenaltyItem } from "../../types/taVnIndex";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://tuan-quant-scanner-psi.vercel.app";
 const fetcher = (url: string) => fetch(url).then((r) => {
@@ -9,8 +9,9 @@ const fetcher = (url: string) => fetch(url).then((r) => {
 
 interface ConfluenceApiResponse {
   score: number; starRating: number;
-  sources: { key: string; name: string; status: string; detail: string; weightPct: number | null; isCurrentTab: boolean }[];
+  sources: { key: string; name: string; status: string; detail: string; weightPct: number | null; isCurrentTab: boolean; contribution: number | null; reasonText: string | null }[];
   nAvailable: number; limitationsNote: string;
+  penalty?: { total: number; breakdown: Record<string, ConfluencePenaltyItem> };
 }
 
 const STATUS_MAP: Record<string, ConfluenceStatus> = { ok: "ok", warn: "warn", no_data: "no_data" };
@@ -23,13 +24,18 @@ const STATUS_MAP: Record<string, ConfluenceStatus> = { ok: "ok", warn: "warn", n
  * FIX (2026-09-18): production bao loi ".map of undefined" - backend co
  * the tra ve response THIEU field "sources" (loi/timeout khong catch
  * dung o 1 nhanh code nao do). Guard AN TOAN o day, KHONG gia dinh
- * response luon dung dinh dang du kien. */
+ * response luon dung dinh dang du kien.
+ *
+ * MO RONG (Giai Trinh Hoi Tu, Giai doan 3): them contribution/reasonText
+ * (da tinh san o Backend) + penalty (kem nhan tieng Viet) cho Waterfall
+ * moi - KHONG doi cach cac truong cu duoc dung, chi THEM. */
 function mapToBreakdown(res: ConfluenceApiResponse): EliteScoreBreakdown {
   const sources: ConfluenceSource[] = Array.isArray(res?.sources)
     ? res.sources.map((s) => ({
         key: s.key, name: s.name,
         status: STATUS_MAP[s.status] ?? "no_data",
         detail: s.detail, weightPct: s.weightPct, isCurrentTab: s.isCurrentTab,
+        contribution: s.contribution ?? null, reasonText: s.reasonText ?? null,
       }))
     : [];
   return {
@@ -38,6 +44,7 @@ function mapToBreakdown(res: ConfluenceApiResponse): EliteScoreBreakdown {
     sources,
     concentrationRiskNote: res?.limitationsNote ?? "Không có dữ liệu.",
     weightsConfirmed: false,
+    penalty: res?.penalty ?? null,
   };
 }
 

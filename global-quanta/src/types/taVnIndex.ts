@@ -179,7 +179,15 @@ export interface ConfluenceSource {
   detail: string;
   weightPct: number | null; // null = chưa hiệu chỉnh trọng số (vd. Khối ngoại)
   isCurrentTab: boolean;
+  // MOI (Giai Trinh Hoi Tu, Giai doan 3): dong gop THAT vao diem cuoi
+  // (= trong so hieu qua x gia tri tin hieu, da tinh san o Backend
+  // dung CONG THUC y het Confluence Engine, khong tu parse string o
+  // FE nua) va cau giai thich tu nhien tu du lieu that.
+  contribution: number | null;
+  reasonText: string | null;
 }
+
+export interface ConfluencePenaltyItem { value: number; labelVi: string; }
 
 export interface EliteScoreBreakdown {
   overall: QuantValue; // ESTIMATED — tổng hợp có trọng số
@@ -188,6 +196,9 @@ export interface EliteScoreBreakdown {
   sources: ConfluenceSource[];
   concentrationRiskNote: string;
   weightsConfirmed: boolean; // false = trọng số là giả thuyết, chưa qua backtest (Giai đoạn 9)
+  // MOI (Giai Trinh Hoi Tu, Giai doan 3): khoan phat diem (VD Bull Trap)
+  // kem nhan tieng Viet, de Waterfall hien thi phan TRU xuong.
+  penalty: { total: number; breakdown: Record<string, ConfluencePenaltyItem> } | null;
 }
 
 // ---------------------------------------------------------------
