@@ -5,7 +5,7 @@ import { ControlBar } from './ta-vn-index/ControlBar';
 import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
 import { ConflictBanner } from './ta-vn-index/ConflictBanner';
 import { MockDataBanner } from './ta-vn-index/MockDataBanner';
-import { MainChart } from './ta-vn-index/MainChart';
+import { MainChart } from './ta-vn-index/MainChartV2';
 import { useChartOverlay } from '../../hooks/elite10/useChartOverlay';
 import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
 import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
