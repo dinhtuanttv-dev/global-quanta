@@ -840,7 +840,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                       <td className="py-3">
                         <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
                       </td>
-                      <ScreenerTimingCells signal={timingSignalsByTicker.get(s.ticker) ?? EMPTY_SIGNAL} />
+                      <ScreenerTimingCells ticker={s.ticker} signal={timingSignalsByTicker.get(s.ticker) ?? EMPTY_SIGNAL} />
                     </tr>
                   );
                 })}

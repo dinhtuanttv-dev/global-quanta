@@ -1,4 +1,5 @@
 import type { TimingSignal } from '../../../lib/cotuc/timing-types';
+import { OptimalTimingSparkline, OptimalActionBadge } from './OptimalTimingSparkline';
 
 /**
  * Các ô cho 4 cột mới của Screener (mục 11.1 tài liệu v3): "Cửa sổ tối ưu", "Kỳ vọng ròng",
@@ -124,11 +125,14 @@ export function EarningsGrowthCell({ signal }: { signal: TimingSignal }) {
 }
 
 /** Gộp 4 ô lại thành 4 <td> — dùng khi muốn chèn nguyên một nhóm cột vào <tr> hiện có. */
-export function ScreenerTimingCells({ signal }: { signal: TimingSignal }) {
+export function ScreenerTimingCells({ ticker, signal }: { ticker: string; signal: TimingSignal }) {
   return (
     <>
       <td>
-        <OptimalWindowCell signal={signal} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <OptimalTimingSparkline ticker={ticker} signal={signal} />
+          <OptimalActionBadge action={signal.action} />
+        </div>
       </td>
       <td>
         <ExpectedReturnCell signal={signal} />
