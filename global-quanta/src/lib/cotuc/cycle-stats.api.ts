@@ -35,7 +35,7 @@ export function normalizeTicker(t: string | null | undefined): string | null {
 
 export function defaultBaseUrl(): string {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return (env?.VITE_COTUC_API_BASE ?? '').replace(/\/+$/, '');
+  return (env?.VITE_COTUC_API_BASE || 'https://tuan-quant-scanner-psi.vercel.app').replace(/\/+$/, '');
 }
 
 export function buildCycleStatsUrl(ticker: string, baseUrl: string = defaultBaseUrl()): string {

@@ -18,3 +18,20 @@
 
 .border-cf-border { border-color: var(--border); }
 .border-cf-border-strong { border-color: var(--border-strong); }
+
+/* GIAI DOAN 0 (ra soat 2026-09-26, xac nhan qua kiem tra thuc te): 8
+   bien --ct-* duoc CycleTimeline.tsx/ScreenerTimingColumns.tsx dung
+   (VD var(--ct-line, #fallback-hex)) nhung CHUA TUNG duoc dinh nghia o
+   dau ca - luon roi ve fallback hex, khong dong bo voi Dark Theme chu
+   dao (--bg-base #0A0E17, --gold...). Map sang DUNG token that da co
+   san trong tokens.css (khong bia mau moi). */
+:root {
+  --ct-line: var(--gold);
+  --ct-buy: var(--positive);
+  --ct-warn: var(--warning);
+  --ct-today: var(--negative);
+  --ct-gap: var(--similar-purple);
+  --ct-grid: var(--border);
+  --ct-fg: var(--text-primary);
+  --ct-muted: var(--text-tertiary);
+}

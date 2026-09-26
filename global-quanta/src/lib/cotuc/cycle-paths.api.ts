@@ -41,7 +41,7 @@ export function normalizeTicker(t: string | null | undefined): string | null {
 /** Base URL của API (host riêng). Đặt VITE_COTUC_API_BASE, để trống nếu cùng origin. */
 export function defaultBaseUrl(): string {
   const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return (env?.VITE_COTUC_API_BASE ?? '').replace(/\/+$/, '');
+  return (env?.VITE_COTUC_API_BASE || 'https://tuan-quant-scanner-psi.vercel.app').replace(/\/+$/, '');
 }
 
 export function buildCyclePathsUrl(ticker: string, baseUrl: string = defaultBaseUrl()): string {

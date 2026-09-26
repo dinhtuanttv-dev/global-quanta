@@ -139,7 +139,7 @@ export interface OptimalTimingTabProps {
  * chỉ fetch phần MỚI ở v3 (cycle-stats, cycle-paths).
  */
 export function OptimalTimingTab({ ticker, exDate, agmDate, paymentDate, earnings, calendar, className }: OptimalTimingTabProps) {
-  const { data: stats, status: statsStatus, error: statsError } = useCycleStatsV3(ticker);
+  const { data: stats, status: statsStatus, error: statsError, isStale, refresh } = useCycleStatsV3(ticker);
   const { data: paths, status: pathsStatus } = useCyclePaths(ticker);
 
   const deps: Deps = useMemo(() => ({ clock: systemClock, cal: calendar ?? WEEKEND_ONLY_CALENDAR, cfg: DEFAULT_CONFIG }), [calendar]);
@@ -159,19 +159,52 @@ export function OptimalTimingTab({ ticker, exDate, agmDate, paymentDate, earning
   if (statsStatus === 'error') {
     return (
       <div className={className} role="alert" data-testid="optimal-timing-error">
-        Không tải được dữ liệu backtest{statsError ? `: ${statsError.message}` : ''}.
+        <p>Không tải được dữ liệu backtest{statsError ? `: ${statsError.message}` : ''}.</p>
+        <button type="button" onClick={() => refresh()} style={{ marginTop: 8, fontSize: 12, color: 'var(--ct-line, #0d6b8f)', textDecoration: 'underline', cursor: 'pointer' }}>
+          Thử lại
+        </button>
+      </div>
+    );
+  }
+  {/* GIAI DOAN 3 (ra soat 2026-09-26): "empty" (chua co du lieu backtest,
+      KHAC "error" - khong phai loi, chi la CHUA DU lich su/chua duoc
+      cron tinh) truoc day roi xuong render OptimalTimingPanel binh
+      thuong voi stats=null, khong co thong bao ro rang gi cho nguoi
+      dung - them nhanh rieng, minh bach ly do. */}
+  if (statsStatus === 'empty') {
+    return (
+      <div className={className} role="status" data-testid="optimal-timing-empty" style={{ opacity: 0.7, padding: 16, textAlign: 'center', color: 'var(--ct-muted, #5d6b78)' }}>
+        Chưa có đủ lịch sử để backtest cho mã này — cron quét định kỳ sẽ tự bổ sung khi có thêm dữ liệu.
       </div>
     );
   }
 
   return (
-    <OptimalTimingPanel
-      ticker={ticker}
-      rec={rec}
-      stats={stats}
-      paths={pathsStatus === 'ready' ? paths : null}
-      className={className}
-    />
+    <div className={className}>
+      {isStale && (
+        <div
+          role="status"
+          data-testid="optimal-timing-stale-banner"
+          style={{
+            marginBottom: 8, padding: '6px 10px', borderRadius: 6,
+            background: 'color-mix(in srgb, var(--ct-warn, #c47a00) 15%, transparent)',
+            border: '1px solid var(--ct-warn, #c47a00)', fontSize: 11, color: 'var(--ct-warn, #c47a00)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+          }}
+        >
+          <span>⚠ Dữ liệu backtest có thể đã cũ — đang chờ lần quét tiếp theo.</span>
+          <button type="button" onClick={() => refresh()} style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer', flexShrink: 0 }}>
+            Làm mới
+          </button>
+        </div>
+      )}
+      <OptimalTimingPanel
+        ticker={ticker}
+        rec={rec}
+        stats={stats}
+        paths={pathsStatus === 'ready' ? paths : null}
+      />
+    </div>
   );
 }
 
