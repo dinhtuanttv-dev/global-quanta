@@ -23,6 +23,7 @@ import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
 import { optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
 import { vnHolidayCalendar } from "../../../lib/cotuc/vn-holidays";
+import { assertNoMockInProduction } from "../../../lib/cotuc/observability";
 import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
@@ -110,9 +111,9 @@ function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
 // STOCK DETAIL MODAL - VA LO HONG #3: Focus Trap + ESC to close
 // ============================================================
 
-function StockModal({ s, onClose, realRs, lifecycleEvents }: {
+function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false }: {
   s: DividendStock; onClose: () => void; realRs?: number | null;
-  lifecycleEvents?: DividendLifecycleEvent[];
+  lifecycleEvents?: DividendLifecycleEvent[]; hasRealDates?: boolean;
 }) {
   const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing">("overview");
   // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
@@ -147,6 +148,18 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
       ),
     [s.exDividendDate, s.agmDate, s.paymentDate, modalEarningsSignal, modalDeps],
   );
+
+  // Buoc 4 muc 7 (yeu cau goc): ghi nhan khi Timing Engine v3 (tab
+  // "Optimal Timing") dang tinh tren exDate/agmDate LA DU LIEU MAU
+  // (VCI tam loi 403, xem realDatesMap o CotucTabInner) - CHU DICH
+  // KHONG BAO GIO truyen env="production" that (se lam assertNoMock
+  // InProduction THROW va crash toan bo Modal) - day la FALLBACK CO
+  // CHU DICH (khong phai code demo quen xoa), nen chi ghi log canh
+  // bao, KHONG chan cung. Nguoi dung van thay ro qua banner o tab
+  // "optimal-timing" (xem JSX ben duoi).
+  useEffect(() => {
+    assertNoMockInProduction(`StockModal[${s.ticker}].exDate/agmDate`, !hasRealDates, "development");
+  }, [s.ticker, hasRealDates]);
 
   const phase = getTradePhase(s);
   const flags = detectRiskFlags(s);
@@ -341,6 +354,11 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
           {modalTab === "timing" && <CycleTimingPanel ticker={s.ticker} />}
           {modalTab === "optimal-timing" && (
             <ErrorBoundary fallbackLabel="Không hiển thị được Optimal Timing">
+              {!hasRealDates && (
+                <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
+                  ⚠ Ngày GDKHQ/ĐHCĐ đang là dữ liệu mẫu (VCI tạm lỗi) — kết quả Timing bên dưới chỉ mang tính minh họa, chưa dùng để quyết định.
+                </div>
+              )}
               <OptimalTimingTab
                 ticker={s.ticker}
                 exDate={toSourcedIso(s.exDividendDate)}
@@ -876,6 +894,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         <ErrorBoundary fallbackLabel="Không hiển thị được Thời Điểm Tối Ưu (v3)">
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Thời Điểm Tối Ưu (v3)</p>
+            {Object.keys(realDatesMap).length === 0 && (
+              <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
+                ⚠ Ngày GDKHQ/ĐHCĐ đang là dữ liệu mẫu (VCI tạm lỗi) — kết quả bên dưới chỉ mang tính minh họa.
+              </div>
+            )}
             <select
               value={timingV3Ticker ?? ""}
               onChange={(e) => setTimingV3Ticker(e.target.value || null)}
@@ -910,6 +933,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       {subTab === "calendar-v3" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Lịch Sự Kiện (v3)">
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+            {Object.keys(realDatesMap).length === 0 && (
+              <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
+                ⚠ Ngày GDKHQ đang là dữ liệu mẫu (VCI tạm lỗi) — danh sách "Sắp GDKHQ" bên dưới chỉ mang tính minh họa.
+              </div>
+            )}
             <CalendarTabV3
               dividendItems={mergedStocks.map((s): DividendCalendarItem => ({
                 ticker: s.ticker,
@@ -929,7 +957,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? universeLifecycleMap[selected.ticker] : lifecycleEventsMap[selected.ticker]} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? universeLifecycleMap[selected.ticker] : lifecycleEventsMap[selected.ticker]} hasRealDates={Object.keys(realDatesMap).length > 0} />}
     </div>
   );
 }
