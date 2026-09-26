@@ -21,7 +21,8 @@ import { CycleTimingPanel } from "./CycleTimingPanel";
 import { CycleRankingPanel } from "./CycleRankingPanel";
 import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
-import { WEEKEND_ONLY_CALENDAR, optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
+import { optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
+import { vnHolidayCalendar } from "../../../lib/cotuc/vn-holidays";
 import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
@@ -131,7 +132,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   // du nhu OptimalTimingTab, vi day chi la 1 chip hien thi ngan gon,
   // khong phai bang phan tich day du).
   const { data: modalEarningsSignal } = useEarningsSignalV3(s.ticker);
-  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: WEEKEND_ONLY_CALENDAR, cfg: DEFAULT_CONFIG }), []);
+  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: vnHolidayCalendar, cfg: DEFAULT_CONFIG }), []);
   const modalRec = useMemo(
     () =>
       optimizeDividendTiming(
@@ -346,7 +347,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
                 agmDate={toSourcedIso(s.agmDate)}
                 paymentDate={toSourcedIso(s.paymentDate)}
                 earnings={modalEarningsSignal}
-                calendar={WEEKEND_ONLY_CALENDAR}
+                calendar={vnHolidayCalendar}
               />
             </ErrorBoundary>
           )}
@@ -897,7 +898,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     agmDate={toSourcedIso(s.agmDate)}
                     paymentDate={toSourcedIso(s.paymentDate)}
                     earnings={timingV3Earnings}
-                    calendar={WEEKEND_ONLY_CALENDAR}
+                    calendar={vnHolidayCalendar}
                   />
                 </div>
               );
@@ -922,7 +923,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               // khi co route bulk rieng - "Sap GDKHQ" van hoat dong day
               // du vi khong phu thuoc du lieu nay.
               earningsItems={[]}
-              deps={makeDeps({ cal: WEEKEND_ONLY_CALENDAR })}
+              deps={makeDeps({ cal: vnHolidayCalendar })}
             />
           </div>
         </ErrorBoundary>
