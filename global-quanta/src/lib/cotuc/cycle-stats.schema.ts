@@ -76,10 +76,24 @@ export const cycleStatsV3Schema = z
       ids.add(w.id);
       // Quy ước dấu mục 2.2: entryFrom <= entryTo <= 0 (vùng mua nằm trước hoặc đúng GDKHQ).
       if (!(w.entryFrom <= w.entryTo)) bad(['windows', i, 'entryFrom'], 'entryFrom phải ≤ entryTo');
-      if (w.entryTo > 0) bad(['windows', i, 'entryTo'], 'entryTo phải ≤ 0 (trước hoặc đúng GDKHQ)');
+      // FIX (2026-09-26, xac nhan qua du lieu THAT tu MWG): rang buoc
+      // goc "entryTo phai <= 0" gia dinh CHI co the mua TRUOC GDKHQ -
+      // nhung he thong da co san 5 cua so chuan (tu truoc khi tich
+      // hop goi nay), trong do W4/W5 la chien luoc MUA SAU GDKHQ
+      // (holdsThroughEx: false, vi da o sau GDKHQ tu dau nen khong co
+      // khai niem "giu QUA" GDKHQ nua) - HOAN TOAN HOP LE ve nghiep vu,
+      // KHONG mau thuan. Rang buoc goc chi thuc su can thiet cho
+      // truong hop holdsThroughEx=true (PHAI mua truoc/dung GDKHQ moi
+      // co the "giu QUA" duoc) - nen CHI ap dung khi do.
+      if (w.holdsThroughEx && w.entryTo > 0) {
+        bad(['windows', i, 'entryTo'], 'entryTo phải ≤ 0 khi holdsThroughEx=true (phải mua trước/đúng GDKHQ mới "giữ qua" được)');
+      }
       // exitOffset có thể dương nếu holdsThroughEx (nắm qua GDKHQ), nhưng không thể thoát trước khi mua xong.
       if (w.exitOffset < w.entryTo) bad(['windows', i, 'exitOffset'], 'exitOffset không được sớm hơn entryTo');
-      if (!w.holdsThroughEx && w.exitOffset > 0) {
+      // Rang buoc nay CHI co y nghia khi vung mua nam TRUOC GDKHQ
+      // (entryTo<=0) - neu vung mua da o SAU GDKHQ (entryTo>0), khong
+      // con khai niem "giu qua" nua, exitOffset>0 la binh thuong.
+      if (w.entryTo <= 0 && !w.holdsThroughEx && w.exitOffset > 0) {
         bad(['windows', i, 'exitOffset'], 'exitOffset > 0 nhưng holdsThroughEx = false (mâu thuẫn)');
       }
     });
