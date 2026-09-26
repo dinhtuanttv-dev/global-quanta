@@ -21,8 +21,16 @@ import { CycleTimingPanel } from "./CycleTimingPanel";
 import { CycleRankingPanel } from "./CycleRankingPanel";
 import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
-import { WEEKEND_ONLY_CALENDAR } from "../../../lib/quant-cotuc";
+import { WEEKEND_ONLY_CALENDAR, optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
+import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
+import { EventDaysChipsV3 } from "./DaysChipV3";
+import { ScreenerTimingCells } from "./ScreenerTimingColumns";
+import { CalendarTabV3 } from "./CalendarTabV3";
+import { makeDeps } from "../../../lib/quant-cotuc";
+import type { DividendCalendarItem } from "./CalendarTabV3";
+import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
+import type { TimingSignal } from "../../../lib/cotuc/timing-types";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -105,7 +113,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   s: DividendStock; onClose: () => void; realRs?: number | null;
   lifecycleEvents?: DividendLifecycleEvent[];
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing">("overview");
+  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing">("overview");
   // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
   // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
   // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
@@ -115,6 +123,29 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
   }, [s.ticker, s.isUniverseOnly, modalTab]);
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Tich hop Timing Engine v3 (rieng le, GD 5): tinh "rec"
+  // (TimingRecommendation) de EventDaysChipsV3 co du du lieu (action/
+  // tdToEx/tdToPayment/dateStatus/earningsImpact.conflict) - CHI dung
+  // exDate/agmDate/paymentDate (KHONG can cycle-stats/cycle-paths day
+  // du nhu OptimalTimingTab, vi day chi la 1 chip hien thi ngan gon,
+  // khong phai bang phan tich day du).
+  const { data: modalEarningsSignal } = useEarningsSignalV3(s.ticker);
+  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: WEEKEND_ONLY_CALENDAR, cfg: DEFAULT_CONFIG }), []);
+  const modalRec = useMemo(
+    () =>
+      optimizeDividendTiming(
+        {
+          exDate: toSourcedIso(s.exDividendDate),
+          agmDate: toSourcedIso(s.agmDate),
+          paymentDate: toSourcedIso(s.paymentDate),
+          cycle: null, // Chua co cycle-stats o day (chi dung cho tdToEx/action co ban) - xem OptimalTimingTab cho phan tich day du
+          earnings: modalEarningsSignal,
+        },
+        modalDeps,
+      ),
+    [s.exDividendDate, s.agmDate, s.paymentDate, modalEarningsSignal, modalDeps],
+  );
 
   const phase = getTradePhase(s);
   const flags = detectRiskFlags(s);
@@ -181,8 +212,15 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
 
         <div className="flex gap-2 p-4 border-b border-cf-border/60 flex-wrap">
           <DaysChip dateStr={s.agmDate} label="ĐHCĐ" />
-          <DaysChip dateStr={s.exDividendDate} label="GDKHQ" />
-          <DaysChip dateStr={s.paymentDate} label="Nhận tiền" />
+          <EventDaysChipsV3
+            action={modalRec.action}
+            tdToEx={modalRec.tdToEx}
+            tdToPayment={modalRec.tdToPayment}
+            exDateStatus={modalRec.dateStatus}
+            exDateIso={vnDateToIso(s.exDividendDate)}
+            paymentDateIso={vnDateToIso(s.paymentDate)}
+            earningsConflict={modalRec.earningsImpact.conflict}
+          />
           <div className="flex-1 min-w-[140px] bg-cf-base/60 rounded-lg p-2 border border-cf-border-strong">
             <p className="text-[9px] text-cf-tertiary font-bold uppercase">Cổ tức / CP</p>
             <p className="text-sm font-black text-cf-positive">{fmtVND(s.dividendAmount)}</p>
@@ -196,13 +234,13 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags","timeline","timing"] as const)
+          {(["overview","dcf","flags","timeline","timing","optimal-timing"] as const)
             .filter((t) => !(t === "dcf" && s.isUniverseOnly)) // DCF dung EPS - vo nghia voi ma Universe (eps=0, khong co du lieu that)
             .map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : "🎯 Xác Suất Giải Ngân"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : "🧭 Optimal Timing"}
             </button>
           ))}
         </div>
@@ -300,6 +338,18 @@ function StockModal({ s, onClose, realRs, lifecycleEvents }: {
 
           {modalTab === "timeline" && <DividendTimelinePanel events={lifecycleEvents} />}
           {modalTab === "timing" && <CycleTimingPanel ticker={s.ticker} />}
+          {modalTab === "optimal-timing" && (
+            <ErrorBoundary fallbackLabel="Không hiển thị được Optimal Timing">
+              <OptimalTimingTab
+                ticker={s.ticker}
+                exDate={toSourcedIso(s.exDividendDate)}
+                agmDate={toSourcedIso(s.agmDate)}
+                paymentDate={toSourcedIso(s.paymentDate)}
+                earnings={modalEarningsSignal}
+                calendar={WEEKEND_ONLY_CALENDAR}
+              />
+            </ErrorBoundary>
+          )}
         </div>
       </div>
     </div>
@@ -315,13 +365,26 @@ interface CotucTabProps {
   isRealRsLoading?: boolean;
 }
 
+/** Gia Trinh Timing v3 (Giai doan 5): dung khi ticker CHUA co trong
+ * response /api/cotuc/timing-signals (VD ma vua duoc them vao Universe,
+ * chua kip tinh o lan cron gan nhat) - KHONG duoc de o trong/crash. */
+const EMPTY_SIGNAL: TimingSignal = {
+  ticker: "", action: "NO_SIGNAL", tdToEx: null, window: null,
+  expectedNetReturn: null, nEvents: null, fdrQValue: null,
+  confidence: null, dateStatus: null, earnings: null,
+};
+
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
-  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing" | "timing-v3">("screener");
+  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing" | "timing-v3" | "calendar-v3">("screener");
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
   // can du lieu 1 ma cu the, khac cac sub-tab khac hien thi danh sach).
   const [timingV3Ticker, setTimingV3Ticker] = useState<string | null>(null);
   const { data: timingV3Earnings } = useEarningsSignalV3(timingV3Ticker);
+  // Giai Trinh Timing v3 (Giai doan 5): mot request cho CA vu tru (khong
+  // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
+  // lenh goi mang). byTicker dung de tra cuu O(1) trong <ScreenerTimingCells>.
+  const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk();
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
@@ -627,6 +690,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
           { id:"timing" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
           { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu (v3)", count: null },
+          { id:"calendar-v3" as const, label:"🗓️ Lịch Sự Kiện (v3)", count: null },
         ].map((t) => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             style={subTab === t.id ? { background:"linear-gradient(135deg,#fbbf24,#f59e0b)" } : {}}
@@ -713,11 +777,15 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   <th className="pb-2">Vị Thế</th>
                   <th className="pb-2">GDKHQ</th>
                   <th className="pb-2">ĐHCĐ</th>
+                  <th className="pb-2" title="Khoang ngay giao dich toi uu de mua truoc GDKHQ (Timing Engine v3)">Cửa Sổ Tối Ưu</th>
+                  <th className="pb-2 text-right" title="Ky vong loi nhuan rong (can duoi 90%) neu mua trong cua so">Kỳ Vọng Ròng</th>
+                  <th className="pb-2">Tin Cậy</th>
+                  <th className="pb-2 text-right">KQKD</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/30">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={8} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
+                  <tr><td colSpan={12} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
                 )}
                 {filtered.map((s) => {
                   const gdkhqDays = getDaysUntil(s.exDividendDate);
@@ -753,6 +821,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                       <td className="py-3">
                         <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
                       </td>
+                      <ScreenerTimingCells signal={timingSignalsByTicker.get(s.ticker) ?? EMPTY_SIGNAL} />
                     </tr>
                   );
                 })}
@@ -820,28 +889,41 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
             {timingV3Ticker && (() => {
               const s = mergedStocks.find((x) => x.ticker === timingV3Ticker);
               if (!s) return null;
-              // Giai Trinh Timing v3 (Giai doan 4): mergedStocks luu date o
-              // format VN ("DD/MM/YYYY"), KHONG phan biet nguon that (VCI)/
-              // mau (mock) sau khi da merge - dung status "DERIVED" (khong
-              // chac chan nguon goc chinh xac), KHONG bia "CONFIRMED".
-              const toSourced = (vnDate: string | null | undefined): Sourced<ISODate> | null => {
-                const iso = vnDateToIso(vnDate);
-                if (!iso) return null;
-                return { value: iso, status: "ESTIMATED", source: "DERIVED", asOf: new Date().toISOString().slice(0, 10) };
-              };
               return (
                 <div style={{ marginTop: 16 }}>
                   <OptimalTimingTab
                     ticker={s.ticker}
-                    exDate={toSourced(s.exDividendDate)}
-                    agmDate={toSourced(s.agmDate)}
-                    paymentDate={toSourced(s.paymentDate)}
+                    exDate={toSourcedIso(s.exDividendDate)}
+                    agmDate={toSourcedIso(s.agmDate)}
+                    paymentDate={toSourcedIso(s.paymentDate)}
                     earnings={timingV3Earnings}
                     calendar={WEEKEND_ONLY_CALENDAR}
                   />
                 </div>
               );
             })()}
+          </div>
+        </ErrorBoundary>
+      )}
+
+      {subTab === "calendar-v3" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Lịch Sự Kiện (v3)">
+          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+            <CalendarTabV3
+              dividendItems={mergedStocks.map((s): DividendCalendarItem => ({
+                ticker: s.ticker,
+                exDate: toSourcedIso(s.exDividendDate),
+                cashPerShare: s.dividendAmount ?? null,
+              }))}
+              // GIOI HAN THAT (minh bach, khong bia): chua co endpoint
+              // lay EarningsSignal cho CA vu tru cung luc (chi co
+              // /api/cotuc/earnings-signal?ticker= cho TUNG ma rieng le -
+              // xem Giai doan 3). Danh sach "Sap KQKD" se trong cho toi
+              // khi co route bulk rieng - "Sap GDKHQ" van hoat dong day
+              // du vi khong phu thuoc du lieu nay.
+              earningsItems={[]}
+              deps={makeDeps({ cal: WEEKEND_ONLY_CALENDAR })}
+            />
           </div>
         </ErrorBoundary>
       )}
@@ -866,6 +948,16 @@ function vnDateToIso(vn: string | null | undefined): string | null {
   const [d, m, y] = vn.split("/");
   if (!d || !m || !y) return null;
   return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+/** Boc 1 ngay VN-format thanh Sourced<ISODate> ma cac component Timing
+ * Engine v3 can (OptimalTimingTab, EventDaysChipsV3 qua optimizeDividendTiming).
+ * status="ESTIMATED" (khong "CONFIRMED") vi mergedStocks KHONG phan biet
+ * nguon that (VCI)/mau (mock) sau khi da merge - minh bach, khong bia. */
+function toSourcedIso(vnDate: string | null | undefined): Sourced<ISODate> | null {
+  const iso = vnDateToIso(vnDate);
+  if (!iso) return null;
+  return { value: iso, status: "ESTIMATED", source: "DERIVED", asOf: new Date().toISOString().slice(0, 10) };
 }
 
 // Boc ErrorBoundary o ngoai cung - vas lo hong #8

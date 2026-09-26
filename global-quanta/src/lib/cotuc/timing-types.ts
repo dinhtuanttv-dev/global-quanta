@@ -96,3 +96,44 @@ export interface TimelineMarkers {
   payment?: number | null;
   earnings?: { offset: number; halfWidth: number } | null;
 }
+
+// ============================================================================
+// Sprint 4/5 (Giai doan 5 - Screener 4 cot moi): "Yeu cau bulk endpoint
+// timing-signals cho ca vu tru (mot request)" - thay vi Screener goi
+// useCycleStats/optimizeDividendTiming rieng cho tung ma (N lenh goi cho
+// N dong bang), backend precompute san TimingRecommendation rut gon cho
+// TOAN BO vu tru va tra ve trong mot response. Day la ban rut gon cua
+// TimingRecommendation (quant-cotuc.ts) - du de ve 4 cot Screener, khong
+// co explanations/toan bo earningsImpact vi Screener khong can giai
+// thich chi tiet nhu modal.
+//
+// LUU Y: TimingAction/Confidence/ConflictKind IMPORT TU quant-cotuc.ts
+// (khong dinh nghia lai o day) - vi ban da merge cua repo dinh nghia
+// TRUC TIEP cac type nay trong quant-cotuc.ts (khac cau truc goc cua
+// goi, noi types.ts la nguon duy nhat) - tranh trung lap dinh nghia.
+import type { TimingAction, Confidence, ConflictKind } from "../quant-cotuc";
+
+export interface TimingSignal {
+  ticker: string;
+  action: TimingAction;
+  tdToEx: number | null;
+  window: Pick<BacktestWindow, "entryFrom" | "entryTo" | "exitOffset"> | null;
+  expectedNetReturn: number | null;
+  nEvents: number | null;
+  /** q-value sau hieu chinh da so sanh - Screener hien trong tooltip cung nEvents. */
+  fdrQValue: number | null;
+  confidence: Confidence | null;
+  dateStatus: DataStatus | null;
+  earnings: {
+    revenueGrowthYoY: number | null;
+    profitGrowthYoY: number | null;
+    conflict: ConflictKind;
+  } | null;
+}
+
+export interface TimingSignalsBulkV3 {
+  version: string;
+  asOf: string;
+  signals: TimingSignal[];
+}
+
