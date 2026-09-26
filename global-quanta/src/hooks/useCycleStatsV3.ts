@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import useSWR from 'swr';
 import type { SWRConfiguration } from 'swr';
 import type { CycleStatsV3 } from '../lib/cotuc/timing-types';
+import { withConcurrencyLimit } from '../lib/cotuc/concurrency-limiter';
 import {
   CycleStatsError,
   buildCycleStatsUrl,
@@ -61,7 +62,7 @@ export function useCycleStatsV3(ticker: string | null | undefined, options: UseC
     // do so luong su kien lich su/thoi gian tinh bootstrap). Tang len
     // 45s, du du so voi 30.7s da do, van an toan duoi 60s maxDuration
     // cua server.
-    () => fetchCycleStats(t as string, { baseUrl, timeoutMs: 45_000 }),
+    () => withConcurrencyLimit(() => fetchCycleStats(t as string, { baseUrl, timeoutMs: 45_000 })),
     CYCLE_STATS_V3_SWR_CONFIG,
   );
 

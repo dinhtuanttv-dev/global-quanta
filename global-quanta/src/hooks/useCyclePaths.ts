@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import useSWR from 'swr';
 import type { SWRConfiguration } from 'swr';
 import type { CyclePathsV3 } from '../lib/cotuc/timing-types';
+import { withConcurrencyLimit } from '../lib/cotuc/concurrency-limiter';
 import {
   CyclePathsError,
   buildCyclePathsUrl,
@@ -70,7 +71,7 @@ export function useCyclePaths(
     // Xem giai thich chi tiet trong useCycleStatsV3.ts (cung fix,
     // cung ly do: timeout mac dinh 15s cua goi qua ngan so voi thoi
     // gian xu ly THAT cua server cho mot so ma).
-    () => fetchCyclePaths(t as string, { baseUrl, timeoutMs: 45_000 }),
+    () => withConcurrencyLimit(() => fetchCyclePaths(t as string, { baseUrl, timeoutMs: 45_000 })),
     CYCLE_PATHS_SWR_CONFIG,
   );
 
