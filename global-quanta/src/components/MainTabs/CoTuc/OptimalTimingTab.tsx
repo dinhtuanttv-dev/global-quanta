@@ -53,6 +53,75 @@ function EarningsCard({ impact }: { impact: EarningsImpact }) {
   );
 }
 
+/**
+ * GIAI DOAN 2 (ra soat "Optimal Timing"): thanh CTA lon, de nhin ngay
+ * (khong can doc bang so/giai thich chi tiet ben duoi) - hien ro "hom
+ * nay co nen vao khong" bang mau + chu lon, kem thanh ky vong rong
+ * (expectedNetReturn) truc quan hoa do lon/dau.
+ */
+function OptimalActionCTA({ rec }: { rec: TimingRecommendation }) {
+  const k = rec.tdToEx === null ? null : -rec.tdToEx;
+  const win = rec.window;
+
+  let badgeBg = 'var(--ct-muted, #5d6b78)';
+  let badgeText = '—';
+  let subText: string | null = null;
+
+  if (rec.action === 'IN_WINDOW') {
+    badgeBg = 'var(--ct-buy, #1e9e5a)';
+    badgeText = '🟢 TRONG CỬA SỔ — MUA NGAY';
+    subText = rec.tdToEx !== null ? `Còn ${rec.tdToEx} ngày giao dịch đến GDKHQ` : null;
+  } else if (rec.action === 'TOO_EARLY') {
+    badgeBg = 'var(--ct-warn, #c47a00)';
+    const waitDays = k !== null && win ? Math.max(0, k - win.entryFrom) : null;
+    badgeText = waitDays !== null ? `⏳ Chờ cửa sổ (còn ${waitDays} ngày GD)` : '⏳ Chờ cửa sổ';
+  } else if (rec.action === 'WINDOW_PASSED') {
+    badgeBg = 'var(--ct-gap, #7a5cc7)';
+    badgeText = '◐ Đã qua cửa sổ mua — cân nhắc chốt lời nếu đã mua trước đó';
+  } else if (rec.action === 'POST_EX') {
+    badgeText = '◻ Đã qua GDKHQ — hết cơ hội cho đợt này';
+  } else if (rec.action === 'NO_SIGNAL') {
+    badgeText = '— Chưa đủ tín hiệu thống kê tin cậy';
+  } else {
+    badgeText = '— Chưa có ngày GDKHQ để tính';
+  }
+
+  const barPct = rec.expectedNetReturn === null ? null : Math.max(-100, Math.min(100, rec.expectedNetReturn * 100 * 4));
+  const barPositive = (rec.expectedNetReturn ?? 0) >= 0;
+
+  return (
+    <div data-testid="optimal-action-cta" style={{ marginBottom: 12 }}>
+      <div
+        style={{
+          padding: '8px 12px', borderRadius: 8, background: `color-mix(in srgb, ${badgeBg} 18%, transparent)`,
+          border: `1px solid ${badgeBg}`, fontWeight: 700, fontSize: 13, color: badgeBg,
+          display: 'flex', flexDirection: 'column', gap: 2,
+        }}
+      >
+        <span>{badgeText}</span>
+        {subText && <span style={{ fontWeight: 400, fontSize: 11, opacity: 0.85 }}>{subText}</span>}
+      </div>
+
+      {rec.expectedNetReturn !== null && (
+        <div
+          title={rec.nEvents !== null ? `Dựa trên ${rec.nEvents} sự kiện lịch sử` : undefined}
+          style={{ marginTop: 6, height: 6, borderRadius: 3, background: 'var(--ct-grid, #dde3e9)', position: 'relative', overflow: 'hidden' }}
+        >
+          <div
+            style={{
+              position: 'absolute', top: 0, bottom: 0,
+              left: barPct! >= 0 ? '50%' : `${50 + barPct! / 2}%`,
+              width: `${Math.abs(barPct!) / 2}%`,
+              background: barPositive ? 'var(--ct-buy, #1e9e5a)' : 'var(--ct-today, #d6336c)',
+            }}
+          />
+          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1, background: 'var(--ct-fg, currentColor)', opacity: 0.3 }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export interface OptimalTimingPanelProps {
   ticker: string;
   rec: TimingRecommendation;
@@ -88,6 +157,8 @@ export function OptimalTimingPanel({ ticker, rec, stats, paths, className }: Opt
           {rec.expectedNetReturn !== null && ` · kỳ vọng ròng (cận dưới 90%) ${(rec.expectedNetReturn * 100).toFixed(1).replace('.', ',')}%`}
         </p>
       )}
+
+      <OptimalActionCTA rec={rec} />
 
       <CycleTimeline stats={stats} paths={paths ?? null} todayOffset={todayOffset} markers={markers} />
 
