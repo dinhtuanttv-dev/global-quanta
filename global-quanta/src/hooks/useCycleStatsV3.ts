@@ -55,7 +55,13 @@ export function useCycleStatsV3(ticker: string | null | undefined, options: UseC
 
   const { data, error, isValidating, mutate } = useSWR<CycleStatsV3 | null, CycleStatsError>(
     key,
-    () => fetchCycleStats(t as string, { baseUrl }),
+    // FIX (2026-09-26, xac nhan qua do thuc te): timeout mac dinh 15s
+    // cua goi qua ngan - server (da qua fix Prisma connection) hoan
+    // thanh THAT SU nhung co the mat toi ~30s cho mot so ma (VD MWG,
+    // do so luong su kien lich su/thoi gian tinh bootstrap). Tang len
+    // 45s, du du so voi 30.7s da do, van an toan duoi 60s maxDuration
+    // cua server.
+    () => fetchCycleStats(t as string, { baseUrl, timeoutMs: 45_000 }),
     CYCLE_STATS_V3_SWR_CONFIG,
   );
 

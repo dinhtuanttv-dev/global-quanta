@@ -67,7 +67,10 @@ export function useCyclePaths(
 
   const { data, error, isValidating, mutate } = useSWR<CyclePathsV3 | null, CyclePathsError>(
     key,
-    () => fetchCyclePaths(t as string, { baseUrl }),
+    // Xem giai thich chi tiet trong useCycleStatsV3.ts (cung fix,
+    // cung ly do: timeout mac dinh 15s cua goi qua ngan so voi thoi
+    // gian xu ly THAT cua server cho mot so ma).
+    () => fetchCyclePaths(t as string, { baseUrl, timeoutMs: 45_000 }),
     CYCLE_PATHS_SWR_CONFIG,
   );
 
