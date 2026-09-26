@@ -19,6 +19,10 @@ import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { CycleTimingPanel } from "./CycleTimingPanel";
 import { CycleRankingPanel } from "./CycleRankingPanel";
+import { OptimalTimingTab } from "./OptimalTimingTab";
+import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
+import { WEEKEND_ONLY_CALENDAR } from "../../../lib/quant-cotuc";
+import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -312,7 +316,12 @@ interface CotucTabProps {
 }
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
-  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing">("screener");
+  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing" | "timing-v3">("screener");
+  // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
+  // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
+  // can du lieu 1 ma cu the, khac cac sub-tab khac hien thi danh sach).
+  const [timingV3Ticker, setTimingV3Ticker] = useState<string | null>(null);
+  const { data: timingV3Earnings } = useEarningsSignalV3(timingV3Ticker);
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
@@ -617,6 +626,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           { id:"calendar" as const, label:"📅 Lịch GDKHQ & ĐHCĐ", count:calendarList.length },
           { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
           { id:"timing" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
+          { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu (v3)", count: null },
         ].map((t) => (
           <button key={t.id} onClick={() => setSubTab(t.id)}
             style={subTab === t.id ? { background:"linear-gradient(135deg,#fbbf24,#f59e0b)" } : {}}
@@ -792,6 +802,50 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
+      {subTab === "timing-v3" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Thời Điểm Tối Ưu (v3)">
+          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+            <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Thời Điểm Tối Ưu (v3)</p>
+            <select
+              value={timingV3Ticker ?? ""}
+              onChange={(e) => setTimingV3Ticker(e.target.value || null)}
+              className="w-full sm:w-64 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm text-cf-primary"
+            >
+              <option value="">— Chọn mã —</option>
+              {mergedStocks.map((s) => (
+                <option key={s.ticker} value={s.ticker}>{s.ticker}</option>
+              ))}
+            </select>
+
+            {timingV3Ticker && (() => {
+              const s = mergedStocks.find((x) => x.ticker === timingV3Ticker);
+              if (!s) return null;
+              // Giai Trinh Timing v3 (Giai doan 4): mergedStocks luu date o
+              // format VN ("DD/MM/YYYY"), KHONG phan biet nguon that (VCI)/
+              // mau (mock) sau khi da merge - dung status "DERIVED" (khong
+              // chac chan nguon goc chinh xac), KHONG bia "CONFIRMED".
+              const toSourced = (vnDate: string | null | undefined): Sourced<ISODate> | null => {
+                const iso = vnDateToIso(vnDate);
+                if (!iso) return null;
+                return { value: iso, status: "ESTIMATED", source: "DERIVED", asOf: new Date().toISOString().slice(0, 10) };
+              };
+              return (
+                <div style={{ marginTop: 16 }}>
+                  <OptimalTimingTab
+                    ticker={s.ticker}
+                    exDate={toSourced(s.exDividendDate)}
+                    agmDate={toSourced(s.agmDate)}
+                    paymentDate={toSourced(s.paymentDate)}
+                    earnings={timingV3Earnings}
+                    calendar={WEEKEND_ONLY_CALENDAR}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+        </ErrorBoundary>
+      )}
+
       {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? universeLifecycleMap[selected.ticker] : lifecycleEventsMap[selected.ticker]} />}
     </div>
   );
@@ -802,6 +856,16 @@ function isoToVnDate(iso: string): string {
   const [y, m, d] = iso.split("-");
   if (!y || !m || !d) return iso;
   return `${d}/${m}/${y}`;
+}
+
+/** Nguoc lai isoToVnDate - can cho Giai Trinh Timing v3 (Giai doan 4):
+ * mergedStocks luu date o format VN, nhung OptimalTimingTab (tu goi
+ * cotuc-timing-engine.zip) can dung ISODate "YYYY-MM-DD". */
+function vnDateToIso(vn: string | null | undefined): string | null {
+  if (!vn) return null;
+  const [d, m, y] = vn.split("/");
+  if (!d || !m || !y) return null;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
 // Boc ErrorBoundary o ngoai cung - vas lo hong #8
