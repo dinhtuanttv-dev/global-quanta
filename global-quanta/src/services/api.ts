@@ -7,7 +7,7 @@ import type {
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 const ACTION_API_BASE = (import.meta.env.VITE_ACTIONS_API_BASE_URL ?? API_BASE).replace(/\/+$/, '');
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '') ?? '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 const RADAR_API_BASE = (import.meta.env.VITE_RADAR_API_BASE_URL ?? (API_BASE || 'https://tuan-quant-scanner-psi.vercel.app')).replace(/\/+$/, '');
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
 
@@ -178,6 +178,59 @@ export async function login(username: string, password: string): Promise<boolean
     return true;
   } catch {
     return false;
+  }
+}
+
+export type AuthCallbackResult =
+  | { kind: 'none' }
+  | { kind: 'set-password'; accessToken: string }
+  | { kind: 'error'; message: string };
+
+export function consumeAuthCallback(): AuthCallbackResult {
+  if (typeof window === 'undefined' || !window.location.hash) return { kind: 'none' };
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const error = params.get('error_description') || params.get('error');
+  const accessToken = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  const expiresIn = Number(params.get('expires_in') || 3600);
+  const callbackType = params.get('type');
+
+  if (error) {
+    window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+    return {
+      kind: 'error',
+      message: params.get('error_code') === 'otp_expired'
+        ? 'Liên kết đã hết hạn hoặc đã được sử dụng. Hãy gửi một liên kết đặt lại mật khẩu mới.'
+        : 'Không thể xác nhận liên kết. Hãy gửi lại lời mời hoặc email đặt lại mật khẩu.',
+    };
+  }
+
+  if (!accessToken || !refreshToken || !['invite', 'recovery'].includes(callbackType ?? '')) return { kind: 'none' };
+
+  saveAuthSession({ access_token: accessToken, refresh_token: refreshToken, expires_in: expiresIn });
+  window.history.replaceState({}, document.title, `${window.location.pathname}${window.location.search}`);
+  return { kind: 'set-password', accessToken };
+}
+
+export async function updateSupabasePassword(accessToken: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { ok: false, error: 'Ứng dụng chưa được cấu hình Supabase.' };
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      method: 'PUT',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        authorization: `Bearer ${accessToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => null);
+      return { ok: false, error: typeof body?.msg === 'string' ? body.msg : 'Liên kết không còn hợp lệ. Hãy gửi liên kết mới.' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Không kết nối được Supabase. Hãy thử lại.' };
   }
 }
 

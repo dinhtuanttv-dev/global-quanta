@@ -11,6 +11,7 @@ interface AppState {
   // ===== AUTH =====
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<boolean>;
+  completeAuthCallback: () => void;
 
   // ===== WATCHLIST (Sidebar) =====
   watchlist: WatchlistStock[];
@@ -65,6 +66,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (ok) set({ isAuthenticated: true });
     return ok;
   },
+  completeAuthCallback: () => set({ isAuthenticated: true }),
 
   watchlist: [],
   loadWatchlist: async () => {
