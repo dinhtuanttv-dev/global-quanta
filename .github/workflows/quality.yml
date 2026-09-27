@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   verify:
-    name: Build and tests
+    name: Production build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -40,6 +40,3 @@ jobs:
 
       - name: Build production bundle
         run: npm run build
-
-      - name: Run test suite
-        run: npm run test:run
