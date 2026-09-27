@@ -2,8 +2,6 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import scanRouter from "./routes/scan.js";
-import alertsRouter from "./routes/alerts.js";
-import { startActionAlertWorker } from "./services/actionAlertWorker.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -27,7 +25,6 @@ app.get("/health", healthHandler);
 app.get("/api/health", healthHandler);
 
 app.use("/api", scanRouter);
-app.use("/api/alerts", alertsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });
@@ -36,5 +33,4 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`AI Chart Vision backend đang chạy tại http://localhost:${PORT}`);
   console.log(`Mock mode: ${process.env.USE_MOCK_DATA !== "false" ? "BẬT (không cần API key)" : "TẮT (dùng API thật)"}`);
-  startActionAlertWorker();
 });
