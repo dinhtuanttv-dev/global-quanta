@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { WatchlistStock, RadarCoreNode, RadarRingNode } from '../types';
+import type { WatchlistStock, RadarCoreNode, RadarRingNode, RadarDataStatus } from '../types';
 import * as api from '../services/api';
 
 interface ToastState {
@@ -48,6 +48,8 @@ interface AppState {
   // ===== RADAR =====
   radarCore: RadarCoreNode[];
   radarRing: RadarRingNode[];
+  radarUpdatedAt: string | null;
+  radarDataStatus: RadarDataStatus;
   loadRadar: () => Promise<void>;
 
   // ===== TOAST (hoàn tác) =====
@@ -57,7 +59,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  isAuthenticated: false,
+  isAuthenticated: api.hasAuthSession(),
   login: async (username, password) => {
     const ok = await api.login(username, password);
     if (ok) set({ isAuthenticated: true });
@@ -142,10 +144,17 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   radarCore: [],
   radarRing: [],
+  radarUpdatedAt: null,
+  radarDataStatus: { kind: 'demo', generatedAt: null, count: 0, provider: 'mock-data.json' },
   loadRadar: async () => {
-    const [core, ring] = await Promise.all([api.fetchRadarCore(), api.fetchRadarRing()]);
-    set({ radarCore: core, radarRing: ring });
-    if (core.length > 0) set({ selectedTicker: core[0].ticker });
+    const { core, ring, status } = await api.fetchRadarData();
+    set({ radarCore: core, radarRing: ring, radarUpdatedAt: status.generatedAt ?? new Date().toISOString(), radarDataStatus: status });
+    const selected = get().selectedTicker;
+    if (selected && !core.some((n) => n.ticker === selected) && !ring.some((n) => n.ticker === selected) && core.length > 0) {
+      set({ selectedTicker: core[0].ticker });
+    } else if (!selected && core.length > 0) {
+      set({ selectedTicker: core[0].ticker });
+    }
   },
 
   toast: null,

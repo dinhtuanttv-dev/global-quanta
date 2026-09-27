@@ -39,6 +39,7 @@ export interface RadarCoreNode {
   holdSuggestion: string;
   convergence: number[];
   trendWarning: string | null;
+  signalLabels?: string[];
 }
 
 export interface RadarRingNode {
@@ -47,6 +48,15 @@ export interface RadarRingNode {
   sector: string;
   price: number;
   changePct: number;
+  signalLabels?: string[];
+  convergence?: number[];
+}
+
+export interface RadarDataStatus {
+  kind: 'live' | 'demo';
+  generatedAt: string | null;
+  count: number;
+  provider: string;
 }
 
 export interface RadarDigest {
