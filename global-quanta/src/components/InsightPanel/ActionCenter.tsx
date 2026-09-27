@@ -226,23 +226,18 @@ export default function ActionCenter() {
         </div>
         {catalyst ? (
           <>
-            <a href={catalyst.sourceUrl} target="_blank" rel="noreferrer" className="ac-catalyst-title">
+            <span className="ac-catalyst-title">
               {catalyst.sourceTitle}
-            </a>
+            </span>
             <div className="ac-catalyst-meta">
-              Tin cậy {catalyst.trustScore}/100 · Độ chính xác lịch sử nguồn {catalyst.sourceHistoricalAccuracy}% ({catalyst.sourceSampleSize} mẫu)
-            </div>
-            <div className="ac-catalyst-meta">Loại nguồn: {catalyst.sourceCategory} · Đối chiếu: {catalyst.corroborationCount} nguồn</div>
-            <div className="ac-catalyst-meta">
-              Phân tích {Math.round(catalyst.sentiment.confidence * 100)}% · {catalyst.sentiment.modelVersion}
-              {catalyst.sentiment.disagreement >= 0.3 ? ' · Mô hình có bất đồng' : ''}
+              Tin cậy {catalyst.trustScore}/100 · Đối chiếu {catalyst.corroborationCount} nguồn
             </div>
             <div className="ac-catalyst-meta">
               Snapshot: {catalystSnapshot?.isStale ? 'CŨ · ' : ''}
               {catalystSnapshot?.scannedAt ? new Date(catalystSnapshot.scannedAt).toLocaleString('vi-VN') : 'thiếu thời điểm cập nhật'}
               {catalystSnapshot?.ageMinutes != null ? ` · ${Math.round(catalystSnapshot.ageMinutes)} phút trước` : ''}
             </div>
-            <div className="ac-catalyst-meta">Audit: {catalyst.auditId} · Xác suất thắng lịch sử {catalyst.historicalWinRate}% (n={catalyst.historicalSampleSize})</div>
+            <div className="ac-catalyst-meta">Mã nguồn: {catalyst.sourceId} · Xác suất thắng lịch sử {catalyst.historicalWinRate}%</div>
           </>
         ) : (
           <div className="ac-catalyst-meta">
