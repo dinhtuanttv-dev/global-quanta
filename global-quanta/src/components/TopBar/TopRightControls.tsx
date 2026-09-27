@@ -1,3 +1,5 @@
+import { useAppStore } from '../../store/useAppStore';
+
 export function SearchBar() {
   return (
     <div className="search-box">
@@ -17,5 +19,6 @@ export function NotificationBell({ hasUnread = true }: { hasUnread?: boolean }) 
 }
 
 export function UserAvatar({ initials = 'NA' }: { initials?: string }) {
-  return <div className="avatar">{initials}</div>;
+  const logout = useAppStore((state) => state.logout);
+  return <button type="button" className="avatar" title="Đăng xuất" aria-label="Đăng xuất" onClick={logout}>{initials}</button>;
 }

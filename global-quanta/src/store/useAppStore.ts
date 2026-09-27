@@ -10,7 +10,9 @@ interface ToastState {
 interface AppState {
   // ===== AUTH =====
   isAuthenticated: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<boolean>;
+  restoreAuthSession: () => Promise<boolean>;
+  logout: () => void;
 
   // ===== WATCHLIST (Sidebar) =====
   watchlist: WatchlistStock[];
@@ -57,11 +59,20 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-  isAuthenticated: false,
-  login: async (username, password) => {
-    const ok = await api.login(username, password);
+  isAuthenticated: api.hasAuthSession(),
+  login: async (email, password) => {
+    const ok = await api.login(email, password);
     if (ok) set({ isAuthenticated: true });
     return ok;
+  },
+  restoreAuthSession: async () => {
+    const ok = await api.restoreSupabaseSession();
+    set({ isAuthenticated: ok });
+    return ok;
+  },
+  logout: () => {
+    void api.signOutSupabase();
+    set({ isAuthenticated: false });
   },
 
   watchlist: [],

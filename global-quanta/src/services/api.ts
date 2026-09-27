@@ -5,7 +5,103 @@ import type {
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '') ?? '';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
+
+export function isSupabaseAuthConfigured(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+}
+
+interface SupabaseSession {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+}
+
+interface SupabaseTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+const AUTH_SESSION_KEY = 'gq_supabase_session_v1';
+
+function readAuthSession(): SupabaseSession | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const session = JSON.parse(window.localStorage.getItem(AUTH_SESSION_KEY) ?? 'null') as SupabaseSession | null;
+    return session?.access_token && session?.refresh_token && Number.isFinite(session.expires_at) ? session : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveAuthSession(session: SupabaseTokenResponse): void {
+  window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+    access_token: session.access_token,
+    refresh_token: session.refresh_token,
+    expires_at: Date.now() + session.expires_in * 1000,
+  } satisfies SupabaseSession));
+}
+
+function clearAuthSession(): void {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(AUTH_SESSION_KEY);
+}
+
+export function hasAuthSession(): boolean {
+  const session = readAuthSession();
+  return Boolean(session && session.expires_at > Date.now());
+}
+
+let refreshInFlight: Promise<boolean> | null = null;
+
+export async function restoreSupabaseSession(): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return false;
+  const session = readAuthSession();
+  if (!session) return false;
+  if (session.expires_at > Date.now() + 60_000) return true;
+
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+          method: 'POST',
+          headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
+          body: JSON.stringify({ refresh_token: session.refresh_token }),
+        });
+        if (!response.ok) {
+          clearAuthSession();
+          return false;
+        }
+        const refreshed = await response.json() as SupabaseTokenResponse;
+        if (!refreshed.access_token || !refreshed.refresh_token || !Number.isFinite(refreshed.expires_in) || refreshed.expires_in <= 0) {
+          clearAuthSession();
+          return false;
+        }
+        saveAuthSession(refreshed);
+        return true;
+      } catch {
+        return false;
+      }
+    })().finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
+
+export async function signOutSupabase(): Promise<void> {
+  const session = readAuthSession();
+  clearAuthSession();
+  if (!session || !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
+  try {
+    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${session.access_token}` },
+    });
+  } catch {
+    // Clearing the local session still signs the user out on this device.
+  }
+}
 
 const WATCHLIST_STORAGE_KEY = 'gq_watchlist_v1';
 
@@ -28,9 +124,22 @@ function saveWatchlistToStorage(list: WatchlistStock[]): void {
   }
 }
 
-export async function login(username: string, password: string): Promise<boolean> {
-  await delay(400);
-  return username === 'demo' && password === 'demo123';
+export async function login(email: string, password: string): Promise<boolean> {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return false;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password }),
+    });
+    if (!response.ok) return false;
+    const session = await response.json() as SupabaseTokenResponse;
+    if (!session.access_token || !session.refresh_token || !Number.isFinite(session.expires_in) || session.expires_in <= 0) return false;
+    saveAuthSession(session);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function fetchRegime(): Promise<{ state: 'RISK_ON' | 'RISK_OFF' | 'NEUTRAL' }> {

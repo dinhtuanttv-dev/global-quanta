@@ -21,6 +21,7 @@
 }
 
 .tb-zone { display: flex; align-items: center; min-width: 0; }
+.topbar-pro .avatar { border: 0; padding: 0; cursor: pointer; font-family: inherit; }
 .tb-zone-left { flex-shrink: 0; gap: 14px; padding-right: 14px; }
 .tb-zone-center { flex: 1 1 auto; min-width: 0; gap: 0; overflow: hidden; display: flex; align-items: center; }
 .tb-zone-right { flex-shrink: 0; gap: 0; margin-left: auto; padding-left: 10px; display: flex; align-items: center; }
