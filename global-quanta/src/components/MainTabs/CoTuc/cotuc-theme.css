@@ -35,3 +35,38 @@
   --ct-fg: var(--text-primary);
   --ct-muted: var(--text-tertiary);
 }
+
+/* GIAI DOAN UI-UPGRADE (2026-09-27, chi UI - KHONG doi tinh nang/cong
+   thuc): gom 24+ cho inline style={{background:"rgba(...)"}} lap lai
+   trong CotucTab.tsx thanh class dat ten ro nghia - GIU DUNG gia tri
+   mau/opacity hien co (khong doi 1 pixel nao), chi doi cach khai bao
+   de dong bo he thong token + de bao tri/doi theme sau nay. */
+.cf-panel { background-color: rgba(2,6,15,0.6); border: 1px solid rgba(148,163,184,0.08); }
+.cf-panel-soft { background-color: rgba(2,6,15,0.4); border: 1px solid rgba(148,163,184,0.08); }
+.cf-panel-muted { background-color: rgba(2,6,15,0.3); }
+.cf-panel-calendar { background-color: rgba(2,6,15,0.5); border: 1px solid rgba(148,163,184,0.08); }
+.cf-panel-strong { background-color: rgba(2,6,15,0.7); border: 1px solid rgba(148,163,184,0.1); }
+.cf-panel-input { background-color: rgba(2,6,15,0.7); border: 1px solid rgba(148,163,184,0.15); }
+.cf-surface-gradient { background: linear-gradient(165deg,#0e1626 0%,#0a1020 100%); border: 1px solid rgba(148,163,184,0.1); }
+.cf-surface-gradient-strong { background: linear-gradient(165deg,#0e1626 0%,#0a1020 100%); border: 1px solid rgba(148,163,184,0.15); }
+.cf-tab-active-gold { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
+/* font-display khong phai utility co san cua Tailwind v4 (khong co
+   tailwind.config @theme dinh nghia) - tu dinh nghia lai tro ve dung
+   bien --font-display da co san trong tokens.css, chi dung cho tieu
+   de panel chinh (khong doi noi dung/kich thuoc chu). */
+.font-display { font-family: var(--font-display); }
+
+.cf-banner-neutral { background-color: rgba(148,163,184,0.05); border: 1px solid rgba(148,163,184,0.15); }
+.cf-banner-sky { background-color: rgba(56,189,248,0.06); border-bottom: 1px solid rgba(56,189,248,0.2); }
+.cf-banner-positive { background-color: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); }
+.cf-banner-negative { background-color: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
+.cf-banner-warning { background-color: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); }
+.cf-banner-warning-soft { background-color: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.25); }
+.cf-chip-gold { background-color: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
+.cf-banner-gold-soft { background-color: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.15); }
+.cf-box-hairline { border: 1px solid rgba(148,163,184,0.1); }
+
+/* Bang Screener: sticky header + zebra + hover toan dong (Phuong an C) -
+   KHONG doi logic sort/filter, chi CSS. */
+.cf-table-sticky-head th { position: sticky; top: 0; background-color: #0b1220; z-index: 1; }
+.cf-table-zebra tbody tr:nth-child(even) { background-color: rgba(255,255,255,0.015); }

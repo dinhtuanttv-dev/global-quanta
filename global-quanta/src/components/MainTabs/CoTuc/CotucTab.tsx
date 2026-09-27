@@ -197,8 +197,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
     <div className="fixed inset-0 z-50 bg-cf-base/90 flex items-center justify-center p-4 overflow-y-auto"
       role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="stock-modal-title"
-        style={{ background:"linear-gradient(165deg,#0e1626 0%,#0a1020 100%)", border:"1px solid rgba(148,163,184,0.15)" }}
-        className="w-full max-w-2xl rounded-2xl shadow-2xl my-4">
+        className="cf-surface-gradient-strong w-full max-w-2xl rounded-2xl shadow-2xl my-4">
 
         <div className="flex items-center justify-between p-5 border-b border-cf-border/60">
           <div className="flex items-center gap-3">
@@ -216,7 +215,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
         </div>
 
         {s.isUniverseOnly && (
-          <div style={{ background: "rgba(56,189,248,0.06)", borderBottom: "1px solid rgba(56,189,248,0.2)" }} className="px-5 py-2 flex items-start gap-2">
+          <div className="cf-banner-sky px-5 py-2 flex items-start gap-2">
             <Info className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-sky-300">
               Mã thuộc <b>Universe mở rộng</b> (VN30+VN100, quét tự động) — Dividend Quality Score, P/E, Nợ/VCSH, RSI là dữ liệu thời gian thực. Chưa có F-Score/DCF/phân tích định tính chi tiết như 17 mã theo dõi chính.
@@ -240,7 +239,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
             <p className="text-sm font-black text-cf-positive">{fmtVND(s.dividendAmount)}</p>
             <p className="text-[9px] text-cf-secondary">Yield: {fmtPct(s.dividendYield)}</p>
           </div>
-          <div style={{ border:"1px solid rgba(148,163,184,0.1)" }} className={`flex-1 min-w-[140px] rounded-lg p-2 ${phase.color}`}>
+          <div className={`cf-box-hairline flex-1 min-w-[140px] rounded-lg p-2 ${phase.color}`}>
             <p className="text-[9px] font-bold uppercase opacity-70">Vị thế</p>
             <p className="text-xs font-black">{phase.icon} {phase.action}</p>
             <p className="text-[9px] opacity-70">{phase.safety}</p>
@@ -274,7 +273,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : "Đang tải...", realRs === null || realRs === undefined],
                   ["Institutional", s.institutionalHold + "%", true],
                 ].map(([label, val, isMock]) => (
-                  <div key={label as string} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-2.5">
+                  <div key={label as string} className="cf-panel rounded-lg p-2.5">
                     <p className="text-[9px] text-cf-tertiary font-bold uppercase flex items-center gap-1">
                       {label}
                       {/* PHUONG AN A: cham vang nho danh dau field du lieu mau, khong phai loi */}
@@ -285,24 +284,24 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                 ))}
               </div>
               {s.agmAgenda && (
-                <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-lg p-3">
+                <div className="cf-panel rounded-lg p-3">
                   <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
                   <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
                 </div>
               )}
               {(s.pros.length > 0 || s.cons.length > 0) ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-lg p-2.5">
+                  <div className="cf-banner-positive rounded-lg p-2.5">
                     <p className="text-[9px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
                     {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
                   </div>
-                  <div style={{ background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" }} className="rounded-lg p-2.5">
+                  <div className="cf-banner-negative rounded-lg p-2.5">
                     <p className="text-[9px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
                     {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
                   </div>
                 </div>
               ) : s.isUniverseOnly ? (
-                <div style={{ background:"rgba(148,163,184,0.05)", border:"1px solid rgba(148,163,184,0.15)" }} className="rounded-lg p-2.5 text-center">
+                <div className="cf-banner-neutral rounded-lg p-2.5 text-center">
                   <p className="text-[10px] text-cf-tertiary italic">Mã thuộc Universe mở rộng — chưa có phân tích định tính (ưu/nhược điểm) như 17 mã theo dõi chính.</p>
                 </div>
               ) : null}
@@ -312,7 +311,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
           {modalTab === "dcf" && (
             <div className="space-y-3">
               {/* VA LO HONG #4: banner canh bao DCF dung EPS proxy, khong phai FCF that */}
-              <div style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.3)" }} className="rounded-xl p-3 flex items-start gap-2">
+              <div className="cf-banner-warning rounded-xl p-3 flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-cf-gold shrink-0 mt-0.5" />
                 <p className="text-[10px] text-cf-gold-bright"><b>Lưu ý quan trọng:</b> DCF này dùng EPS làm proxy thay cho Free Cash Flow thật — kết quả chỉ mang tính tham khảo ước lượng nhanh, KHÔNG phải định giá chính xác. Với mã có Capex cao, sai lệch có thể đáng kể. <b>Giá thị trường dùng để so sánh (% vs thị giá) cũng là số liệu mẫu tĩnh</b>, không phải giá khớp lệnh hiện tại — chênh lệch % dưới đây chỉ mang tính minh họa.</p>
               </div>
@@ -320,7 +319,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                 const pct = ((val - s.price) / s.price * 100);
                 const gRate = s.growth * (sc === "bear" ? 0.4 : sc === "bull" ? 1.6 : 1);
                 return (
-                  <div key={sc} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4 flex items-center justify-between">
+                  <div key={sc} className="cf-panel rounded-xl p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-black text-cf-primary">{label}</p>
                       <p className="text-[9px] text-cf-tertiary mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
@@ -338,11 +337,11 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
           {modalTab === "flags" && (
             <div className="space-y-3">
               {flags.length === 0 ? (
-                <div style={{ background:"rgba(16,185,129,0.06)", border:"1px solid rgba(16,185,129,0.2)" }} className="rounded-xl p-4 flex items-center gap-2 text-cf-positive">
+                <div className="cf-banner-positive rounded-xl p-4 flex items-center gap-2 text-cf-positive">
                   <CheckCircle2 className="w-4 h-4" /><span className="text-xs font-bold">Sạch rủi ro tài chính!</span>
                 </div>
               ) : flags.map((f, i) => (
-                <div key={i} style={{ background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.25)" }} className="rounded-xl p-3 flex items-start gap-2">
+                <div key={i} className="cf-banner-warning-soft rounded-xl p-3 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-cf-gold shrink-0 mt-0.5" />
                   <p className="text-xs text-cf-gold-bright">{f}</p>
                 </div>
@@ -597,11 +596,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       : null;
 
   return (
-    <div style={{ background:"linear-gradient(165deg,#0e1626 0%,#0a1020 100%)", border:"1px solid rgba(148,163,184,0.1)" }}
-      className="rounded-2xl p-5 shadow-xl space-y-4">
+    <div className="cf-surface-gradient rounded-2xl p-5 shadow-xl space-y-4">
 
       <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-cf-border/60">
-        <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5">
+        <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5 font-display">
           <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cổ Tức & ĐHCĐ
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
@@ -619,8 +617,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           ve mau chi khi dang tai/loi. LUU Y: field payoutRatio/growth/
           fscore RIENG LE hien thi trong tab "Tong Quan" cua Modal (khac
           voi Score tong hop) VAN la mau - se lam o buoc sau. */}
-      <div style={{ background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.15)" }}
-        className="rounded-xl p-2.5 flex items-start gap-2">
+      <div className="cf-banner-neutral rounded-xl p-2.5 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
         <p className="text-[9px] text-cf-secondary leading-relaxed">
           <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
@@ -636,7 +633,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       {/* PHUONG AN D: tim/them ma ngoai 17 ma co san. Ket qua duoc luu vao
           "yeu cau bo sung" rieng (localStorage), KHONG dua vao bang
           Score/DCF chinh vi thieu du lieu day du. */}
-      <div style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3 space-y-2">
+      <div className="cf-panel-soft rounded-xl p-3 space-y-2">
         <div className="flex items-center gap-2">
           <Search className="w-3.5 h-3.5 text-cf-tertiary" />
           <input
@@ -674,7 +671,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         )}
       </div>
       {pinnedStocks.length > 0 && (
-        <div style={{ background:"rgba(245,158,11,0.05)", border:"1px solid rgba(245,158,11,0.15)" }} className="rounded-xl p-3">
+        <div className="cf-banner-gold-soft rounded-xl p-3">
           <p className="text-[9px] font-bold text-cf-gold uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
           <div className="flex flex-wrap gap-2">
             {pinnedStocks.map((s) => (
@@ -694,15 +691,15 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           { label:"Sắp GDKHQ (30n)", value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
           { label:"Sắp ĐHCĐ (14n)", value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
         ].map((item) => (
-          <div key={item.label} style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3">
+          <div key={item.label} className="cf-panel rounded-xl p-3">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">{item.label}</p>
-            <p className={`text-xl font-black ${item.color}`}>{item.value}</p>
+            <p className={`text-xl font-black num ${item.color}`}>{item.value}</p>
             <p className="text-[9px] text-cf-tertiary mt-0.5">{item.sub}</p>
           </div>
         ))}
       </div>
 
-      <div style={{ background:"rgba(2,6,15,0.7)", border:"1px solid rgba(148,163,184,0.1)" }} className="flex p-1 rounded-xl">
+      <div className="cf-panel-strong flex p-1 rounded-xl" role="tablist" aria-label="Chuyển chế độ xem Cổ Tức">
         {[
           { id:"screener" as const, label:"📋 Bộ Lọc Cổ Phiếu", count:filtered.length },
           { id:"calendar" as const, label:"📅 Lịch GDKHQ & ĐHCĐ", count:calendarList.length },
@@ -711,25 +708,23 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu (v3)", count: null },
           { id:"calendar-v3" as const, label:"🗓️ Lịch Sự Kiện (v3)", count: null },
         ].map((t) => (
-          <button key={t.id} onClick={() => setSubTab(t.id)}
-            style={subTab === t.id ? { background:"linear-gradient(135deg,#fbbf24,#f59e0b)" } : {}}
-            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black transition-all
-              ${subTab === t.id ? "text-cf-primary" : "text-cf-secondary hover:text-cf-primary"}`}>
-            {t.label}{t.count !== null && <span className={`ml-1 ${subTab === t.id ? "text-cf-tertiary" : "text-cf-gold"}`}>({t.count})</span>}
+          <button key={t.id} role="tab" aria-selected={subTab === t.id} onClick={() => setSubTab(t.id)}
+            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/60
+              ${subTab === t.id ? "cf-tab-active-gold text-cf-primary" : "text-cf-secondary hover:text-cf-primary"}`}>
+            {t.label}{t.count !== null && <span className={`ml-1 num ${subTab === t.id ? "text-cf-tertiary" : "text-cf-gold"}`}>({t.count})</span>}
           </button>
         ))}
       </div>
 
       {subTab === "screener" && (
         <div className="space-y-3">
-          <div style={{ background:"rgba(2,6,15,0.6)", border:"1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3">
+          <div className="cf-panel rounded-xl p-3">
             <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
               <div className="relative flex-1 max-w-xs">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-cf-tertiary" />
                 <input value={filter.searchQ} onChange={(e) => setFilter({ ...filter, searchQ:e.target.value })}
                   placeholder="Tìm mã hoặc tên..."
-                  style={{ background:"rgba(2,6,15,0.7)", border:"1px solid rgba(148,163,184,0.15)" }}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg text-xs text-cf-primary focus:outline-none focus:border-amber-500" />
+                  className="cf-panel-input w-full pl-8 pr-3 py-1.5 rounded-lg text-xs text-cf-primary focus:outline-none focus:border-amber-500" />
               </div>
               <button onClick={() => setShowFilter(!showFilter)} className="text-[10px] text-cf-secondary hover:text-cf-primary flex items-center gap-1">
                 {showFilter ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />} Bộ lọc
@@ -762,8 +757,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     { label:"🔄 Xóa lọc", f:DEFAULT_FILTER },
                   ].map((preset) => (
                     <button key={preset.label} onClick={() => setFilter({ ...DEFAULT_FILTER, ...preset.f })}
-                      style={{ background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)" }}
-                      className="text-[10px] font-bold text-cf-gold px-2 py-1 rounded-lg hover:brightness-110 transition">
+                      className="cf-chip-gold text-[10px] font-bold text-cf-gold px-2 py-1 rounded-lg hover:brightness-110 transition">
                       {preset.label}
                     </button>
                   ))}
@@ -784,8 +778,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
             )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto max-h-[70vh] overflow-y-auto rounded-xl">
+            <table className="cf-table-sticky-head cf-table-zebra w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-cf-border/60 text-cf-secondary text-[10px] uppercase">
                   <th className="pb-2 w-6"></th>
@@ -824,21 +818,21 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                         <span className="text-[9px] text-cf-tertiary block">{s.sector}</span>
                       </td>
                       <td onClick={() => handleSelect(s)} className="py-3 cursor-pointer">
-                        <span className="text-cf-positive font-black">{fmtPct(s.dividendYield)}</span>
-                        <span className="text-[9px] text-cf-tertiary block">{fmtVND(s.dividendAmount)}/cp</span>
+                        <span className="text-cf-positive font-black num">{fmtPct(s.dividendYield)}</span>
+                        <span className="text-[9px] text-cf-tertiary block num">{fmtVND(s.dividendAmount)}/cp</span>
                       </td>
                       <td className="py-3 text-right"><ScoreBadge score={calcRealDividendQualityScore(s, rs, detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} /></td>
                       <td className="py-3 text-center"><RsBadge rs={rs} isLoading={isRealRsLoading} /></td>
                       <td className="py-3"><PhaseBadge s={s} /></td>
                       <td className="py-3">
-                        <span className={`text-[10px] font-mono ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-cf-secondary"}`}>{s.exDividendDate}</span>
-                        {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-cf-tertiary block">còn {gdkhqDays}n</span>}
+                        <span className={`text-[10px] font-mono num ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-cf-secondary"}`}>{s.exDividendDate}</span>
+                        {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-cf-tertiary block num">còn {gdkhqDays}n</span>}
                         {gdkhqDays !== null && gdkhqDays < -60 && (
                           <span className="text-[9px] text-cf-tertiary block italic" title="Đã qua hơn 60 ngày - chưa có đợt mới được công bố (không phải lỗi hệ thống)">Đợt cũ, chưa có lịch mới</span>
                         )}
                       </td>
                       <td className="py-3">
-                        <span className={`text-[10px] font-mono ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
+                        <span className={`text-[10px] font-mono num ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
                       </td>
                       <ScreenerTimingCells ticker={s.ticker} signal={timingSignalsByTicker.get(s.ticker) ?? EMPTY_SIGNAL} />
                     </tr>
@@ -858,17 +852,17 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
             const urgent = gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7;
             return (
               <div key={s.ticker} onClick={() => handleSelect(s)}
-                style={urgent ? { background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.2)" } : past ? { background:"rgba(2,6,15,0.3)", opacity:0.6 } : { background:"rgba(2,6,15,0.5)", border:"1px solid rgba(148,163,184,0.08)" }}
-                className="rounded-xl p-3.5 flex items-center gap-3 cursor-pointer hover:brightness-110 transition">
+                className={`rounded-xl p-3.5 flex items-center gap-3 cursor-pointer hover:brightness-110 transition ${
+                  urgent ? "cf-banner-negative" : past ? "cf-panel-muted opacity-60" : "cf-panel-calendar"}`}>
                 <div className={`w-14 text-center shrink-0 p-2 rounded-xl border ${urgent ? "border-rose-700 bg-rose-950" : "border-cf-border-strong bg-cf-base/60"}`}>
-                  {past ? <span className="text-xs text-cf-tertiary font-bold">Đã qua</span> : <span className={`text-lg font-black block ${urgent ? "text-rose-400 animate-pulse" : "text-cf-gold"}`}>{gdkhqDays}</span>}
+                  {past ? <span className="text-xs text-cf-tertiary font-bold">Đã qua</span> : <span className={`text-lg font-black block num ${urgent ? "text-rose-400 animate-pulse" : "text-cf-gold"}`}>{gdkhqDays}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <span className="font-black text-cf-gold">{s.ticker}</span>
                   <span className="text-[10px] text-cf-secondary ml-2">{s.name}</span>
                   <div className="flex flex-wrap gap-3 text-[10px] text-cf-secondary mt-1">
-                    <span>📅 GDKHQ: <b className="text-cf-gold">{s.exDividendDate}</b></span>
-                    <span>💵 <b className="text-cf-positive">{fmtVND(s.dividendAmount)}/cp</b></span>
+                    <span>📅 GDKHQ: <b className="text-cf-gold num">{s.exDividendDate}</b></span>
+                    <span>💵 <b className="text-cf-positive num">{fmtVND(s.dividendAmount)}/cp</b></span>
                   </div>
                 </div>
                 <ScoreBadge score={calcRealDividendQualityScore(s, realRsMap[s.ticker], detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} />
@@ -892,7 +886,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       {subTab === "timing-v3" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Thời Điểm Tối Ưu (v3)">
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+          <div className="cf-panel rounded-xl p-4">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Thời Điểm Tối Ưu (v3)</p>
             {Object.keys(realDatesMap).length === 0 && (
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
@@ -932,7 +926,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       {subTab === "calendar-v3" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Lịch Sự Kiện (v3)">
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+          <div className="cf-panel rounded-xl p-4">
             {Object.keys(realDatesMap).length === 0 && (
               <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
                 ⚠ Ngày GDKHQ đang là dữ liệu mẫu (VCI tạm lỗi) — danh sách "Sắp GDKHQ" bên dưới chỉ mang tính minh họa.
