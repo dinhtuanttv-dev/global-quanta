@@ -28,8 +28,14 @@ export function useDividendEvents() {
     dedupingInterval: 10 * 60 * 1000,
   });
 
-  // Tra ve map { ticker: { exDate, agmDate } } de CotucTab de merge voi data tinh
-  const realDatesMap: Record<string, { exDate: string | null; agmDate: string | null }> = {};
+  // Tra ve map { ticker: { exDate, agmDate, paymentDate } } de CotucTab de merge voi data tinh
+  // paymentDate (Giai doan them cot "Thanh Toan" o Screener, 2026-09-27):
+  // lay tu settlementDate cua CHINH exEvent gan nhat (ngay tien/CP thuc
+  // te ve tai khoan sau dot GDKHQ do) - da co san trong API tra ve
+  // (dung o DividendTimelinePanel "Vong doi co tuc"), truoc day CHUA
+  // duoc trich vao map nay nen 17 ma theo doi chinh van hien paymentDate
+  // MAU (hardcode) o bang Screener/Modal thay vi du lieu thuc.
+  const realDatesMap: Record<string, { exDate: string | null; agmDate: string | null; paymentDate: string | null }> = {};
   // P1 (UI Timeline): map moi { ticker: DividendLifecycleEvent[] } - 5
   // moc thuc te da chuan hoa + phan loai, dung cho panel "Vong doi co
   // tuc" trong Modal chi tiet.
@@ -42,6 +48,7 @@ export function useDividendEvents() {
       realDatesMap[r.ticker] = {
         exDate: exEvent?.exerciseDate ?? null,
         agmDate: agmEvent?.exerciseDate ?? null,
+        paymentDate: exEvent?.settlementDate ?? null,
       };
       lifecycleEventsMap[r.ticker] = r.lifecycleEvents ?? [];
     });

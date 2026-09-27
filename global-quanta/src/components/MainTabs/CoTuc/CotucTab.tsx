@@ -480,6 +480,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           ...merged,
           exDividendDate: real.exDate ? isoToVnDate(real.exDate) : merged.exDividendDate,
           agmDate: real.agmDate ? isoToVnDate(real.agmDate) : merged.agmDate,
+          // Cot "Thanh Toan" moi o Screener (2026-09-27): uu tien
+          // settlementDate THAT tu VCI khi co, giu nguyen mau tinh
+          // (hardcode trong DIVIDEND_STOCKS) khi chua lay duoc - dung
+          // pattern minh bach giong exDividendDate/agmDate ben tren.
+          paymentDate: real.paymentDate ? isoToVnDate(real.paymentDate) : merged.paymentDate,
         };
       }
       // P0: thay du lieu mau tinh (gia/P-E/ROE/No-VCSH/RSI) bang du lieu
@@ -789,6 +794,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   <th className="pb-2 text-center">RS 3T</th>
                   <th className="pb-2">Vị Thế</th>
                   <th className="pb-2">GDKHQ</th>
+                  <th className="pb-2" title="Ngay tien/co phieu thuc te ve tai khoan (settlement) - sau ngay GDKHQ">Thanh Toán</th>
                   <th className="pb-2">ĐHCĐ</th>
                   <th className="pb-2" title="Khoang ngay giao dich toi uu de mua truoc GDKHQ (Timing Engine v3)">Cửa Sổ Tối Ưu</th>
                   <th className="pb-2 text-right" title="Ky vong loi nhuan rong (can duoi 90%) neu mua trong cua so">Kỳ Vọng Ròng</th>
@@ -798,11 +804,18 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               </thead>
               <tbody className="divide-y divide-slate-800/30">
                 {filtered.length === 0 && (
-                  <tr><td colSpan={12} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
+                  <tr><td colSpan={13} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
                 )}
                 {filtered.map((s) => {
                   const gdkhqDays = getDaysUntil(s.exDividendDate);
                   const agmDays = getDaysUntil(s.agmDate);
+                  const paymentDays = getDaysUntil(s.paymentDate);
+                  // Minh bach nguon du lieu: ma Universe (isUniverseOnly) da
+                  // duoc map paymentDate=settlementDate THAT tu luc tao
+                  // (useUniverseScores.ts) - CHI 17 ma theo doi chinh moi can
+                  // kiem tra qua realDatesMap (xem co settlementDate that tu
+                  // VCI Events hay dang fallback ve du lieu mau hardcode).
+                  const paymentIsMock = !s.isUniverseOnly && !realDatesMap[s.ticker]?.paymentDate;
                   const rs = realRsMap[s.ticker];
                   return (
                     <tr key={s.ticker}
@@ -830,6 +843,13 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                         {gdkhqDays !== null && gdkhqDays < -60 && (
                           <span className="text-[9px] text-cf-tertiary block italic" title="Đã qua hơn 60 ngày - chưa có đợt mới được công bố (không phải lỗi hệ thống)">Đợt cũ, chưa có lịch mới</span>
                         )}
+                      </td>
+                      <td className="py-3">
+                        <span className={`text-[10px] font-mono num ${paymentDays !== null && paymentDays >= 0 && paymentDays <= 7 ? "text-cf-positive font-black animate-pulse" : "text-cf-secondary"}`}>
+                          {s.paymentDate}
+                          {paymentIsMock && <span title="Dữ liệu mẫu, chưa xác nhận được ngày thanh toán thật (VCI chưa công bố/tạm lỗi)" className="ml-1 opacity-70">⏳</span>}
+                        </span>
+                        {paymentDays !== null && paymentDays >= 0 && <span className="text-[9px] text-cf-tertiary block num">còn {paymentDays}n</span>}
                       </td>
                       <td className="py-3">
                         <span className={`text-[10px] font-mono num ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
