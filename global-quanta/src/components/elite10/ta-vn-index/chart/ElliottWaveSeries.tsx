@@ -16,54 +16,53 @@ export interface WavePivot {
  * Tính toán các điểm Pivot Đỉnh/Đáy của Sóng Elliott tự động từ chuỗi nến
  */
 function computeElliottPivots(priceSeries: OhlcBar[]): WavePivot[] {
-  if (priceSeries.length < 30) return [];
+  if (priceSeries.length < 20) return [];
   
-  // Lấy 60 nến gần nhất để tính toán các sóng
   const slice = priceSeries.slice(-60);
-  const pivots: { index: number; bar: OhlcBar; isHigh: boolean }[] = [];
-  
-  // Tìm các đỉnh/đáy cục bộ với bán kính 4 nến
-  const radius = 4;
-  for (let i = radius; i < slice.length - radius; i++) {
-    const current = slice[i];
-    let isHigh = true;
-    let isLow = true;
-    
-    for (let j = i - radius; j <= i + radius; j++) {
-      if (j === i) continue;
-      if (slice[j].high >= current.high) isHigh = false;
-      if (slice[j].low <= current.low) isLow = false;
-    }
-    
-    if (isHigh) pivots.push({ index: i, bar: current, isHigh: true });
-    else if (isLow) pivots.push({ index: i, bar: current, isHigh: false });
-  }
 
-  // Lọc lấy các điểm đan xen (High -> Low -> High -> Low)
-  const filtered: typeof pivots = [];
-  for (const p of pivots) {
-    if (filtered.length === 0) {
-      filtered.push(p);
-    } else {
-      const last = filtered[filtered.length - 1];
-      if (last.isHigh !== p.isHigh) {
+  function findPivotsWithRadius(radius: number) {
+    const pivots: { index: number; bar: OhlcBar; isHigh: boolean }[] = [];
+    for (let i = radius; i < slice.length - radius; i++) {
+      const current = slice[i];
+      let isHigh = true;
+      let isLow = true;
+      for (let j = i - radius; j <= i + radius; j++) {
+        if (j === i) continue;
+        if (slice[j].high >= current.high) isHigh = false;
+        if (slice[j].low <= current.low) isLow = false;
+      }
+      if (isHigh) pivots.push({ index: i, bar: current, isHigh: true });
+      else if (isLow) pivots.push({ index: i, bar: current, isHigh: false });
+    }
+
+    const filtered: typeof pivots = [];
+    for (const p of pivots) {
+      if (filtered.length === 0) {
         filtered.push(p);
       } else {
-        // Nếu cùng loại, giữ điểm cực trị cao/thấp hơn
-        if (p.isHigh && p.bar.high > last.bar.high) filtered[filtered.length - 1] = p;
-        if (!p.isHigh && p.bar.low < last.bar.low) filtered[filtered.length - 1] = p;
+        const last = filtered[filtered.length - 1];
+        if (last.isHigh !== p.isHigh) {
+          filtered.push(p);
+        } else {
+          if (p.isHigh && p.bar.high > last.bar.high) filtered[filtered.length - 1] = p;
+          if (!p.isHigh && p.bar.low < last.bar.low) filtered[filtered.length - 1] = p;
+        }
       }
     }
+    return filtered;
   }
 
-  // Chỉ lấy tối đa 8 mốc sóng (5 sóng đẩy + 3 sóng điều chỉnh)
+  let filtered = findPivotsWithRadius(4);
+  if (filtered.length < 5) filtered = findPivotsWithRadius(3);
+  if (filtered.length < 5) filtered = findPivotsWithRadius(2);
+
   const selected = filtered.slice(-8);
   const waveLabels = ['①', '②', '③', '④', '⑤', 'Ⓐ', 'Ⓑ', 'Ⓒ'];
   
   return selected.map((p, idx) => ({
     time: p.bar.time,
     price: p.isHigh ? p.bar.high : p.bar.low,
-    label: waveLabels[idx] || `Wave ${idx + 1}`,
+    label: waveLabels[idx] || `W${idx + 1}`,
     isHigh: p.isHigh,
   }));
 }

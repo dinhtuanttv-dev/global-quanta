@@ -129,6 +129,12 @@ export function WyckoffPhaseZones({
     }
 
     let cancelled = false;
+    draw(); // Draw immediately
+
+    const timer = setTimeout(() => {
+      if (!cancelled) draw();
+    }, 50);
+
     const raf = requestAnimationFrame(() => {
       if (cancelled) return;
       requestAnimationFrame(() => { if (!cancelled) draw(); });
@@ -138,6 +144,7 @@ export function WyckoffPhaseZones({
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
       cancelAnimationFrame(raf);
       try { if (!chartCtx.isRemoved) chart!.timeScale().unsubscribeVisibleTimeRangeChange(draw); } catch { /* an toan */ }
       elsRef.current.forEach((el) => el.remove());

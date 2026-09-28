@@ -41,21 +41,25 @@ export function ControlBar({ timeframe, onTimeframeChange, overlays, onToggleOve
         ))}
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {OVERLAY_KEYS.map((o) => (
-          <button
-            key={o.key}
-            type="button"
-            aria-pressed={overlays[o.key]}
-            onClick={() => onToggleOverlay(o.key)}
-            className={
-              overlays[o.key]
-                ? 'rounded border border-cyan-400 bg-cyan-400/10 px-2.5 py-1 text-[11px] text-cyan-300'
-                : 'rounded border border-cyan-400/25 px-2.5 py-1 text-[11px] text-slate-400'
-            }
-          >
-            {o.label}
-          </button>
-        ))}
+        {OVERLAY_KEYS.map((o) => {
+          const isActive = Boolean(overlays[o.key]);
+          return (
+            <button
+              key={o.key}
+              type="button"
+              aria-pressed={isActive}
+              onClick={() => onToggleOverlay(o.key)}
+              className={
+                isActive
+                  ? 'flex items-center gap-1 rounded border border-cyan-400 bg-cyan-500/25 px-2.5 py-1 text-[11px] font-bold text-cyan-200 shadow-[0_0_10px_rgba(34,232,255,0.3)] transition-all'
+                  : 'flex items-center gap-1 rounded border border-slate-700/60 bg-slate-900/40 px-2.5 py-1 text-[11px] text-slate-400 hover:border-slate-500 hover:text-slate-300 transition-all'
+              }
+            >
+              <span className={isActive ? 'text-emerald-400 font-extrabold' : 'text-slate-600'}>●</span>
+              {o.label}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
