@@ -12,7 +12,7 @@ import { useCandlestickSeriesContext } from './CandlestickSeries';
  * component nay don TRUOC CandlestickSeries, CandlestickSeries don
  * TRUOC ChartContainer.
  */
-export function TradeScenarioLines({ tradeScenario }: { tradeScenario?: TradeScenario | null }) {
+export function TradeScenarioLines({ tradeScenario, samplePrice }: { tradeScenario?: TradeScenario | null; samplePrice?: number }) {
   const series = useCandlestickSeriesContext();
   const linesRef = useRef<IPriceLine[]>([]);
 
@@ -29,24 +29,28 @@ export function TradeScenarioLines({ tradeScenario }: { tradeScenario?: TradeSce
       const dim = tradeScenario.isEstimated;
       const suffix = dim ? ' (tham chiếu)' : '';
 
+      const isSeriesKvnd = samplePrice && samplePrice > 0 && samplePrice < 1000;
+      const isScenarioVnd = tradeScenario.stopLoss > 1000 || tradeScenario.buyZone[0] > 1000;
+      const scale = (isSeriesKvnd && isScenarioVnd) ? 0.001 : (!isSeriesKvnd && !isScenarioVnd && tradeScenario.stopLoss > 0 && tradeScenario.stopLoss < 1000) ? 1000 : 1;
+
       lines.push(candleSeries.createPriceLine({
-        price: tradeScenario.buyZone[0], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+        price: tradeScenario.buyZone[0] * scale, color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
         lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua từ${suffix}`,
       }));
       lines.push(candleSeries.createPriceLine({
-        price: tradeScenario.buyZone[1], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+        price: tradeScenario.buyZone[1] * scale, color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
         lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua đến${suffix}`,
       }));
       lines.push(candleSeries.createPriceLine({
-        price: tradeScenario.stopLoss, color: dim ? 'rgba(255,77,94,0.4)' : '#ff4d5e',
+        price: tradeScenario.stopLoss * scale, color: dim ? 'rgba(255,77,94,0.4)' : '#ff4d5e',
         lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: `Stop loss${suffix}`,
       }));
       lines.push(candleSeries.createPriceLine({
-        price: tradeScenario.takeProfit[0], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+        price: tradeScenario.takeProfit[0] * scale, color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
         lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 1${suffix}`,
       }));
       lines.push(candleSeries.createPriceLine({
-        price: tradeScenario.takeProfit[1], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+        price: tradeScenario.takeProfit[1] * scale, color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
         lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 2${suffix}`,
       }));
     } catch { /* chart da dispose, bo qua an toan */ }
@@ -58,7 +62,7 @@ export function TradeScenarioLines({ tradeScenario }: { tradeScenario?: TradeSce
       try { lines.forEach((l) => series.api().removePriceLine(l)); } catch { /* an toan */ }
       lines.length = 0;
     };
-  }, [tradeScenario, series]);
+  }, [tradeScenario, series, samplePrice]);
 
   return null;
 }

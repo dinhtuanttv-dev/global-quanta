@@ -272,28 +272,34 @@ export function MainChart({
     lines.forEach((l) => candleSeries.removePriceLine(l));
     lines.length = 0;
 
-    if (!tradeScenario) return;
+    if (!tradeScenario || priceSeries.length === 0) return;
     const dim = tradeScenario.isEstimated;
     const suffix = dim ? ' (tham chiếu)' : '';
 
+    // FIX CHUẨN HÓA ĐƠN VỊ GIÁ: Tránh lệch tỷ lệ giữa priceSeries (k-VND) và tradeScenario (VND)
+    const samplePrice = priceSeries[priceSeries.length - 1]?.close ?? priceSeries[0]?.close ?? 0;
+    const isSeriesKvnd = samplePrice > 0 && samplePrice < 1000;
+    const isScenarioVnd = tradeScenario.stopLoss > 1000 || tradeScenario.buyZone[0] > 1000;
+    const scale = (isSeriesKvnd && isScenarioVnd) ? 0.001 : (!isSeriesKvnd && !isScenarioVnd && tradeScenario.stopLoss > 0 && tradeScenario.stopLoss < 1000) ? 1000 : 1;
+
     lines.push(candleSeries.createPriceLine({
-      price: tradeScenario.buyZone[0], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+      price: tradeScenario.buyZone[0] * scale, color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
       lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua từ${suffix}`,
     }));
     lines.push(candleSeries.createPriceLine({
-      price: tradeScenario.buyZone[1], color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
+      price: tradeScenario.buyZone[1] * scale, color: dim ? 'rgba(34,232,255,0.4)' : '#22e8ff',
       lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: `Mua đến${suffix}`,
     }));
     lines.push(candleSeries.createPriceLine({
-      price: tradeScenario.stopLoss, color: dim ? 'rgba(255,77,94,0.4)' : '#ff4d5e',
+      price: tradeScenario.stopLoss * scale, color: dim ? 'rgba(255,77,94,0.4)' : '#ff4d5e',
       lineWidth: 2, lineStyle: LineStyle.Solid, axisLabelVisible: true, title: `Stop loss${suffix}`,
     }));
     lines.push(candleSeries.createPriceLine({
-      price: tradeScenario.takeProfit[0], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+      price: tradeScenario.takeProfit[0] * scale, color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
       lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 1${suffix}`,
     }));
     lines.push(candleSeries.createPriceLine({
-      price: tradeScenario.takeProfit[1], color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
+      price: tradeScenario.takeProfit[1] * scale, color: dim ? 'rgba(31,224,138,0.4)' : '#1fe08a',
       lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: `Chốt lời 2${suffix}`,
     }));
 
@@ -305,7 +311,7 @@ export function MainChart({
       try { lines.forEach((l) => candleSeries.removePriceLine(l)); } catch { /* chart da dispose, bo qua */ }
       lines.length = 0;
     };
-  }, [tradeScenario]);
+  }, [tradeScenario, priceSeries]);
 
   // MOI (Triple-Barrier Lop 2 - chi tiet): khi nguoi dung CHON 1
   // occurrence cu the, ve DUNG 2 duong TP/SL (ref RIENG, khong dam vao
@@ -322,7 +328,7 @@ export function MainChart({
     tbZoneElRef.current?.remove();
     tbZoneElRef.current = null;
 
-    if (!chart || !candleSeries || !container) return;
+    if (!chart || !candleSeries || !container || priceSeries.length === 0) return;
     if (selectedOccurrenceIndex === null || selectedOccurrenceIndex === undefined) return;
     const occ = (tripleBarrierOccurrences ?? [])[selectedOccurrenceIndex];
     if (!occ) return;
@@ -341,19 +347,22 @@ export function MainChart({
       });
     }
 
-    // FIX (van de hien thi da phat hien): mau TP/SL Triple-Barrier
-    // TRUNG HOAN TOAN voi mau TradeScenario (ca 2 deu #1fe08a/#ff4d5e)
-    // - khi ca 2 bo duong cung hien (TradeScenario luon hien mac dinh +
-    // Triple-Barrier khi chon 1 tin hieu), nguoi dung KHONG PHAN BIET
-    // DUOC duong nao la gi. Doi Triple-Barrier sang tim/cam (dong bo
-    // voi mau vung to Triple-Barrier da dung: rgba(168,85,247,...)).
+    // FIX CHUẨN HÓA ĐƠN VỊ GIÁ: Tránh lệch tỷ lệ giữa priceSeries (k-VND) và Triple Barrier (VND)
+    const samplePrice = priceSeries[priceSeries.length - 1]?.close ?? priceSeries[0]?.close ?? 0;
+    const isSeriesKvnd = samplePrice > 0 && samplePrice < 1000;
+    const isOccVnd = occ.tpBarrier > 1000 || occ.slBarrier > 1000;
+    const tbScale = (isSeriesKvnd && isOccVnd) ? 0.001 : (!isSeriesKvnd && !isOccVnd && occ.tpBarrier > 0 && occ.tpBarrier < 1000) ? 1000 : 1;
+
+    const tpBarrierScaled = occ.tpBarrier * tbScale;
+    const slBarrierScaled = occ.slBarrier * tbScale;
+
     const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e'; // giu nguyen cho badge/vien vung (không đổi để không phá vỡ ý nghĩa "thắng=xanh/thua=đỏ" của kết quả lịch sử)
     tbLines.push(candleSeries.createPriceLine({
-      price: occ.tpBarrier, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      price: tpBarrierScaled, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
       axisLabelVisible: true, title: 'Chốt lời (Triple-Barrier)',
     }));
     tbLines.push(candleSeries.createPriceLine({
-      price: occ.slBarrier, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
+      price: slBarrierScaled, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
       axisLabelVisible: true, title: 'Cắt lỗ (Triple-Barrier)',
     }));
 
@@ -367,8 +376,8 @@ export function MainChart({
         tbZoneElRef.current?.remove();
         tbZoneElRef.current = null;
         if (!container || !chart || !candleSeries) return;
-        const y1 = candleSeries.priceToCoordinate(occ.tpBarrier);
-        const y2 = candleSeries.priceToCoordinate(occ.slBarrier);
+        const y1 = candleSeries.priceToCoordinate(tpBarrierScaled);
+        const y2 = candleSeries.priceToCoordinate(slBarrierScaled);
         const x1 = chart.timeScale().timeToCoordinate(occ.signalDate as never);
         const x2 = chart.timeScale().timeToCoordinate(occ.resolvedDate as never);
         if (y1 === null || y2 === null || x1 === null || x2 === null) return;
