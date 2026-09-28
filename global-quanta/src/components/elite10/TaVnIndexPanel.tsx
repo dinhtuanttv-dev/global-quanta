@@ -165,7 +165,7 @@ export function TaVnIndexPanel({
           showBollinger={overlays.bollinger}
           showWyckoff={overlays.wyckoff}
           showElliott={overlays.elliott}
-          wyckoffReal={data.wyckoffReal}
+          wyckoffReal={smcReal?.wyckoff}
           elliott={data.elliott}
           tradeScenario={overlay?.tradeScenario}
           riskFlags={overlay?.riskFlags}

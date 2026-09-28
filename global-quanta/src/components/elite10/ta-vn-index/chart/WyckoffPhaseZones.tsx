@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
+import type { IChartApi } from 'lightweight-charts';
 import type { OhlcBar } from '../../../../types/taVnIndex';
 import type { WyckoffSchematic } from '../../../../hooks/elite10/useSmcDetector';
 import { useChartContext } from './ChartContainer';
@@ -31,13 +32,13 @@ export function WyckoffPhaseZones({
 
     if (!showWyckoff || priceSeries.length < 10) return;
 
-    let chart;
+    let chart: IChartApi | undefined;
     try { chart = chartCtx.api(); } catch { return; }
     const container = chartCtx.container;
 
     function draw() {
       try {
-        if (series.isRemoved || chartCtx.isRemoved || !container) return;
+        if (series.isRemoved || chartCtx.isRemoved || !container || !chart) return;
         elsRef.current.forEach((el) => el.remove());
         elsRef.current = [];
         if (!showWyckoff) return;
