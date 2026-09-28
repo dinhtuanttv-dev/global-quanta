@@ -134,11 +134,19 @@ export function MainChart(props: MainChartProps) {
       const [y, m, d] = lastBar.time.split('-').map(Number);
       if (!y || !m || !d) throw new Error(`Ngày nến cuối không hợp lệ: ${lastBar.time}`);
       const lastDate = new Date(y, m - 1, d);
+
+      // FIX CHUẨN HÓA ĐƠN VỊ GIÁ DỰ BÁO MS-GARCH FAN CHART:
+      const samplePrice = lastBar.close;
+      const isSeriesKvnd = samplePrice > 0 && samplePrice < 1000;
+      const sampleFanPrice = fanChart[0]?.p50 ?? 0;
+      const isFanVnd = sampleFanPrice > 1000;
+      const fanScale = (isSeriesKvnd && isFanVnd) ? 0.001 : (!isSeriesKvnd && !isFanVnd && sampleFanPrice > 0 && sampleFanPrice < 1000) ? 1000 : 1;
+
       const anchor = { time: lastBar.time as unknown as Time, value: lastBar.close };
       return {
-        p10Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p10 }))],
-        p50Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p50 }))],
-        p90Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p90 }))],
+        p10Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p10 * fanScale }))],
+        p50Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p50 * fanScale }))],
+        p90Data: [anchor, ...fanChart.map((p) => ({ time: toDateStrLocal(addBusinessDays(lastDate, p.day)) as unknown as Time, value: p.p90 * fanScale }))],
       };
     } catch (err) {
       console.error('[MainChart] Không tính được fan chart MS-GARCH (bỏ qua):', err);
@@ -149,7 +157,7 @@ export function MainChart(props: MainChartProps) {
   return (
     <ChartWrapper height={560}>
       <CandlestickSeries data={priceSeries} markers={markers}>
-        <TradeScenarioLines tradeScenario={tradeScenario} />
+        <TradeScenarioLines tradeScenario={tradeScenario} samplePrice={priceSeries[priceSeries.length - 1]?.close} />
         <TripleBarrierZone priceSeries={priceSeries} occurrences={tripleBarrierOccurrences} selectedIndex={selectedOccurrenceIndex} />
         <PriceZones priceSeries={priceSeries} zones={zones} showDemandZone={showDemandZone} />
         <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(fanChart && fanChart.length > 0)} />

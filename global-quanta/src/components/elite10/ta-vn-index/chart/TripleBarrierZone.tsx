@@ -53,15 +53,23 @@ export function TripleBarrierZone({
       } catch { /* an toan */ }
     }
 
+    const samplePrice = priceSeries[priceSeries.length - 1]?.close ?? priceSeries[0]?.close ?? 0;
+    const isSeriesKvnd = samplePrice > 0 && samplePrice < 1000;
+    const isOccVnd = occ.tpBarrier > 1000 || occ.slBarrier > 1000;
+    const tbScale = (isSeriesKvnd && isOccVnd) ? 0.001 : (!isSeriesKvnd && !isOccVnd && occ.tpBarrier > 0 && occ.tpBarrier < 1000) ? 1000 : 1;
+
+    const tpBarrierScaled = occ.tpBarrier * tbScale;
+    const slBarrierScaled = occ.slBarrier * tbScale;
+
     const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e';
     try {
       const candleSeries = series.api();
       lines.push(candleSeries.createPriceLine({
-        price: occ.tpBarrier, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
+        price: tpBarrierScaled, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
         axisLabelVisible: true, title: 'Chốt lời (Triple-Barrier)',
       }));
       lines.push(candleSeries.createPriceLine({
-        price: occ.slBarrier, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
+        price: slBarrierScaled, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
         axisLabelVisible: true, title: 'Cắt lỗ (Triple-Barrier)',
       }));
     } catch { /* an toan */ }
@@ -72,8 +80,8 @@ export function TripleBarrierZone({
         zoneElRef.current = null;
         if (series.isRemoved || chartCtx.isRemoved) return;
         const candleSeries = series.api();
-        const y1 = candleSeries.priceToCoordinate(occ.tpBarrier);
-        const y2 = candleSeries.priceToCoordinate(occ.slBarrier);
+        const y1 = candleSeries.priceToCoordinate(tpBarrierScaled);
+        const y2 = candleSeries.priceToCoordinate(slBarrierScaled);
         const x1 = chart!.timeScale().timeToCoordinate(occ.signalDate as never);
         const x2 = chart!.timeScale().timeToCoordinate(occ.resolvedDate as never);
         if (y1 === null || y2 === null || x1 === null || x2 === null) return;

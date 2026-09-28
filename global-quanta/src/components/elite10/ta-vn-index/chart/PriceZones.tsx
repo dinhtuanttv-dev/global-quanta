@@ -43,9 +43,15 @@ export function PriceZones({
         if (!showDemandZone) return;
 
         const candleSeries = series.api();
+        const samplePrice = priceSeries[priceSeries.length - 1]?.close ?? priceSeries[0]?.close ?? 0;
+        const isSeriesKvnd = samplePrice > 0 && samplePrice < 1000;
+
         for (const zone of zones) {
-          const y1 = candleSeries.priceToCoordinate(zone.priceTop);
-          const y2 = candleSeries.priceToCoordinate(zone.priceBottom);
+          const isZoneVnd = zone.priceTop > 1000;
+          const zScale = (isSeriesKvnd && isZoneVnd) ? 0.001 : (!isSeriesKvnd && !isZoneVnd && zone.priceTop > 0 && zone.priceTop < 1000) ? 1000 : 1;
+
+          const y1 = candleSeries.priceToCoordinate(zone.priceTop * zScale);
+          const y2 = candleSeries.priceToCoordinate(zone.priceBottom * zScale);
           const x1 = chart!.timeScale().timeToCoordinate(zone.timeFrom as never);
           const x2 = chart!.timeScale().timeToCoordinate(zone.timeTo as never);
           if (y1 === null || y2 === null || x1 === null || x2 === null) continue;
