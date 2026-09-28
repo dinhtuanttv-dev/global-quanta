@@ -12,6 +12,10 @@ import { TradeScenarioLines } from './chart/TradeScenarioLines';
 import { TripleBarrierZone } from './chart/TripleBarrierZone';
 import { PriceZones } from './chart/PriceZones';
 import { ForecastDivider } from './chart/ForecastDivider';
+import { WyckoffPhaseZones } from './chart/WyckoffPhaseZones';
+import { ElliottWaveSeries } from './chart/ElliottWaveSeries';
+import type { WyckoffSchematic } from '../../../hooks/elite10/useSmcDetector';
+import type { ElliottData } from '../../../types/taVnIndex';
 
 /**
  * MainChart - VIET LAI HOAN TOAN (Huong B, trietde) theo kien truc
@@ -34,6 +38,10 @@ interface MainChartProps {
   showSma200?: boolean;
   showEma?: boolean;
   showBollinger?: boolean;
+  showWyckoff?: boolean;
+  showElliott?: boolean;
+  wyckoffReal?: WyckoffSchematic | null;
+  elliott?: ElliottData | null;
   tradeScenario?: TradeScenario | null;
   riskFlags?: string[];
   tripleBarrierOccurrences?: TripleBarrierOccurrence[] | null;
@@ -62,6 +70,7 @@ export function MainChart(props: MainChartProps) {
   const {
     priceSeries, zones, trendline, events, showTrendline, showDemandZone,
     computedIndicators, showSma200, showEma, showBollinger,
+    showWyckoff, showElliott, wyckoffReal, elliott,
     tradeScenario, riskFlags,
     tripleBarrierOccurrences, selectedOccurrenceIndex,
     fanChart,
@@ -161,6 +170,8 @@ export function MainChart(props: MainChartProps) {
         <TripleBarrierZone priceSeries={priceSeries} occurrences={tripleBarrierOccurrences} selectedIndex={selectedOccurrenceIndex} />
         <PriceZones priceSeries={priceSeries} zones={zones} showDemandZone={showDemandZone} />
         <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(fanChart && fanChart.length > 0)} />
+        <WyckoffPhaseZones priceSeries={priceSeries} wyckoffReal={wyckoffReal} showWyckoff={Boolean(showWyckoff)} />
+        <ElliottWaveSeries priceSeries={priceSeries} elliott={elliott} showElliott={Boolean(showElliott)} />
       </CandlestickSeries>
 
       <LineSeries data={trendlineData} options={{ color: '#22e8ff', lineWidth: 2 }} />
