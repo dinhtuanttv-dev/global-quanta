@@ -1,4 +1,5 @@
 ﻿import type { DomesticEvent } from "../../../types/catalyst";
+import { isTrustedUrl } from "../../../lib/urlSafety";
 
 const TAG_LABEL: Record<string, string> = {
   NANG_HANG_THI_TRUONG: "NANG HANG THI TRUONG",
@@ -56,9 +57,15 @@ function EventCard({ event }: { event: DomesticEvent }) {
         </span>
       </div>
 
-      <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
-        fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6, textDecoration: "underline",
-      }}>Nguon: {event.sourceName}</a>
+      {isTrustedUrl(event.sourceUrl) ? (
+        <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
+          fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6, textDecoration: "underline",
+        }}>Nguon: {event.sourceName}</a>
+      ) : (
+        <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6 }}>
+          Nguon: {event.sourceName} (URL chua xac thuc - da an lien ket)
+        </span>
+      )}
     </div>
   );
 }

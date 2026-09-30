@@ -1,5 +1,6 @@
 ﻿import TrustScoreBadge from "./TrustScoreBadge";
 import type { CatalystCard as CatalystCardType } from "../../../types/catalyst";
+import { Microscope } from "lucide-react";
 
 const HORIZON_LABEL: Record<string, string> = { short: "Ngan han", medium: "Trung han", long: "Dai han" };
 const PRICE_IN_LABEL: Record<string, string> = {
@@ -14,7 +15,13 @@ function winRateColor(winRate: number): { bg: string; text: string } {
   return { bg: "rgba(148,163,184,0.12)", text: "var(--text-secondary)" };
 }
 
-export default function CatalystCardRow({ card }: { card: CatalystCardType }) {
+interface Props {
+  card: CatalystCardType;
+  /** Phase 1: khi truyen vao, hien nut mo drawer "Phan tich sau" (forensics/risk/explain). */
+  onOpenAnalysis?: (card: CatalystCardType) => void;
+}
+
+export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
   const isBenefit = card.direction === "benefit";
   const wr = winRateColor(card.historicalWinRate);
 
@@ -54,6 +61,20 @@ export default function CatalystCardRow({ card }: { card: CatalystCardType }) {
         }}>
           Ty le thang: {card.historicalWinRate}%
         </span>
+        {onOpenAnalysis && (
+          <button
+            onClick={() => onOpenAnalysis(card)}
+            style={{
+              marginLeft: "auto", display: "flex", alignItems: "center", gap: 4,
+              fontSize: 9.5, fontWeight: 700, color: "var(--gold-bright)",
+              background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)",
+              borderRadius: 8, padding: "2px 8px", cursor: "pointer",
+            }}
+            title="Xem giai thich diem, forensics & quan tri rui ro"
+          >
+            <Microscope size={11} /> Phan tich sau
+          </button>
+        )}
       </div>
     </div>
   );

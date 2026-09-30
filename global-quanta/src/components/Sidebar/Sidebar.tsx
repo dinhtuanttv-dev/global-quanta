@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { fetchLivePrices } from '../MainTabs/SieuQuetAI/livePriceApi';
+import { subscribeSsiMarketQuotes } from '../../services/api';
 import WatchlistRow from './WatchlistRow';
 import SidebarSearchInput from './SidebarSearchInput';
 import SortToggleButton from './SortToggleButton';
@@ -17,6 +18,7 @@ export default function Sidebar() {
   } = useAppStore();
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stock: WatchlistStock } | null>(null);
+  const [ssiStreamConnected, setSsiStreamConnected] = useState(false);
 
   useEffect(() => { loadWatchlist(); }, [loadWatchlist]);
 
@@ -24,6 +26,7 @@ export default function Sidebar() {
   useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
 
   const pollLivePrices = useCallback(async () => {
+    if (ssiStreamConnected) return;
     const tickers = watchlistRef.current.map((s) => s.ticker);
     if (tickers.length === 0) return;
     try {
@@ -38,7 +41,7 @@ export default function Sidebar() {
     } catch (err) {
       console.warn('[Sidebar] Failed to fetch live prices:', err);
     }
-  }, [updateLivePrices]);
+  }, [ssiStreamConnected, updateLivePrices]);
 
   useEffect(() => {
     if (watchlist.length === 0) return;
@@ -46,6 +49,27 @@ export default function Sidebar() {
     const interval = setInterval(pollLivePrices, 60_000);
     return () => clearInterval(interval);
   }, [watchlist.length, pollLivePrices]);
+
+  const watchlistSymbols = useMemo(() => watchlist.map((stock) => stock.ticker).join(','), [watchlist]);
+  useEffect(() => {
+    if (!watchlistSymbols) return;
+    const stop = subscribeSsiMarketQuotes(
+      watchlistSymbols.split(','),
+      (rawQuote) => {
+        const quote = rawQuote as { Content?: { Symbol?: string; LastPrice?: number; EstMatchedPrice?: number; RatioChange?: number } };
+        const content = quote?.Content;
+        const ticker = content?.Symbol?.toUpperCase();
+        const price = Number(content?.LastPrice || content?.EstMatchedPrice || 0);
+        if (!ticker || !Number.isFinite(price) || price <= 0) return;
+        updateLivePrices({ [ticker]: { price, changePct: Number.isFinite(content?.RatioChange) ? content!.RatioChange! : null } });
+      },
+      setSsiStreamConnected,
+    );
+    return () => {
+      setSsiStreamConnected(false);
+      stop();
+    };
+  }, [watchlistSymbols, updateLivePrices]);
 
   const filteredSorted = useMemo(() => {
     let list = watchlist.filter((s) => {
@@ -86,6 +110,14 @@ export default function Sidebar() {
 
       <div className="sb-toolbar">
         <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 600 }}>DANH SÁCH MÃ</span>
+        <span
+          role="status"
+          aria-label={ssiStreamConnected ? 'SSI FastConnect đang kết nối' : 'SSI FastConnect chưa kết nối'}
+          title={ssiStreamConnected ? 'Đang nhận giá thời gian thực từ SSI FastConnect' : 'Đang dùng nguồn giá dự phòng cho đến khi SSI FastConnect kết nối'}
+          style={{ fontSize: 9, color: ssiStreamConnected ? '#34d399' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}
+        >
+          {ssiStreamConnected ? '● SSI LIVE' : '○ SSI OFFLINE'}
+        </span>
         <SortToggleButton active={sortByConvergence} onToggle={toggleSortByConvergence} />
       </div>
 

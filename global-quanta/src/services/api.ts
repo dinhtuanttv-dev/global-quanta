@@ -9,6 +9,53 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '') ?? '
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
 
+/** Calls the same-origin Express proxy; SSI credentials and access tokens stay on the server. */
+export async function fetchSsiMarketData<T = unknown>(
+  endpoint: 'Securities' | 'SecuritiesDetails' | 'IndexComponents' | 'IndexList' | 'DailyOhlc' | 'IntradayOhlc' | 'DailyIndex' | 'DailyStockPrice',
+  params: Record<string, string | number | boolean> = {},
+): Promise<T> {
+  const query = new URLSearchParams(Object.entries(params).map(([key, value]): [string, string] => [key, String(value)]));
+  const serializedQuery = query.toString();
+  const response = await fetch(`${API_BASE}/api/ssi/market/${endpoint}${serializedQuery ? `?${serializedQuery}` : ''}`);
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error ?? `SSI API error: ${response.status}`);
+  return body as T;
+}
+
+export function subscribeSsiMarketQuotes(
+  symbols: string[],
+  onQuote: (quote: unknown) => void,
+  onStatus?: (connected: boolean) => void,
+): () => void {
+  const normalized = [...new Set(symbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))];
+  const batches: string[][] = [];
+  for (let index = 0; index < normalized.length; index += 50) batches.push(normalized.slice(index, index + 50));
+  const connected = batches.map(() => false);
+  const sources = batches.map((batch, batchIndex) => {
+    const query = new URLSearchParams({ symbols: batch.join(',') });
+    const source = new EventSource(`${API_BASE}/api/ssi/stream/market?${query}`);
+    source.addEventListener('quote', (event) => {
+      try { onQuote(JSON.parse((event as MessageEvent<string>).data)); } catch { /* discard malformed stream data */ }
+    });
+    source.addEventListener('status', (event) => {
+      try {
+        connected[batchIndex] = JSON.parse((event as MessageEvent<string>).data).connected === true;
+        onStatus?.(connected.length > 0 && connected.every(Boolean));
+      } catch { /* ignore malformed status */ }
+    });
+    source.addEventListener('error', () => {
+      connected[batchIndex] = false;
+      onStatus?.(false);
+    });
+    source.onerror = () => {
+      connected[batchIndex] = false;
+      onStatus?.(false);
+    };
+    return source;
+  });
+  return () => sources.forEach((source) => source.close());
+}
+
 export function isSupabaseAuthConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
 }

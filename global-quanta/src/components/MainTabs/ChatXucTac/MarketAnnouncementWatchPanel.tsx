@@ -1,5 +1,6 @@
 ﻿import { useMarketAnnouncementWatch } from "../../../hooks/useMarketAnnouncementWatch";
 import type { MarketAnnouncementFinding } from "../../../types/catalyst";
+import { isTrustedUrl } from "../../../lib/urlSafety";
 
 const KIND_LABEL: Record<MarketAnnouncementFinding["kind"], { title: string; accent: string }> = {
   vn30: { title: "KY REVIEW VN30 - MOI PHAT HIEN", accent: "#4c8dff" },
@@ -48,10 +49,15 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
         </span>
       )}
 
-      {finding.sourceUrl && (
+      {finding.sourceUrl && isTrustedUrl(finding.sourceUrl) && (
         <a href={finding.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
           fontSize: 9, color: "var(--text-tertiary)", display: "block", textDecoration: "underline",
         }}>Nguon: {finding.sourceName ?? finding.sourceUrl}</a>
+      )}
+      {finding.sourceUrl && !isTrustedUrl(finding.sourceUrl) && (
+        <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block" }}>
+          Nguon: {finding.sourceName ?? "chua xac thuc"} (URL chua xac thuc - da an lien ket)
+        </span>
       )}
 
       <p style={{ fontSize: 8.5, color: "var(--text-tertiary)", marginTop: 6 }}>

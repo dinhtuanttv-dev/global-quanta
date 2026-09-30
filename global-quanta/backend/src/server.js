@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import scanRouter from "./routes/scan.js";
+import ssiRouter from "./routes/ssi.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -25,6 +26,7 @@ app.get("/health", healthHandler);
 app.get("/api/health", healthHandler);
 
 app.use("/api", scanRouter);
+app.use("/api/ssi", ssiRouter);
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });

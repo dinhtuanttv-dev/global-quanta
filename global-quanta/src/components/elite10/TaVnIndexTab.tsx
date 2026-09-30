@@ -12,12 +12,18 @@ const DEFAULT_OVERLAYS: Record<string, boolean> = {
   vsa: false,
   wyckoff: false,
   elliott: false,
-  // GIAI DOAN 1 (da doi theo yeu cau nguoi dung): SMA200/EMA21/50/100
-  // tinh THAT tu vnstock - mac dinh BAT de nguoi dung thay ngay gia tri
-  // moi. Bollinger mac dinh TAT (de tranh roi mat), nguoi dung tu bat.
   sma200: true,
   ema: true,
   bollinger: false,
+  // TẤT CẢ NÚT MỚI MẶC ĐỊNH TẮT (false) - CHỈ HIỂN THỊ KHU NGƯỜI DÙNG BẤM
+  vwap: false,
+  supertrend: false,
+  fibonacci: false,
+  volumeProfile: false,
+  msGarch: false,
+  events: false,
+  riskFlags: false,
+  subPanels: true,
 };
 
 /**
