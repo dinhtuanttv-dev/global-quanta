@@ -59,14 +59,24 @@ export default function Sidebar() {
   }, [gatewayMode, watchlist.length, pollLivePrices]);
 
   const watchlistSymbols = useMemo(() => watchlist.map((stock) => stock.ticker).join(','), [watchlist]);
+  // Chế độ Gateway: mã của Radar/Action Center đi chung một kết nối stream với watchlist.
+  const radarCore = useAppStore((s) => s.radarCore);
+  const radarRing = useAppStore((s) => s.radarRing);
+  const updateRadarPrices = useAppStore((s) => s.updateRadarPrices);
+  const radarSymbols = useMemo(
+    () => [...new Set([...radarCore, ...radarRing].map((n) => n.ticker))].sort().join(','),
+    [radarCore, radarRing],
+  );
   useEffect(() => {
     if (!watchlistSymbols) return;
     if (gatewayMode) {
       const stop = subscribeMarket({
-        symbols: watchlistSymbols.split(','),
+        symbols: [...watchlistSymbols.split(','), ...radarSymbols.split(',').filter(Boolean)],
         onQuote: (quote) => {
           if (!quote.price || quote.price <= 0) return;
-          updateLivePrices({ [quote.symbol]: { price: quote.price, changePct: quote.changePct } });
+          const update = { [quote.symbol]: { price: quote.price, changePct: quote.changePct } };
+          updateLivePrices(update);
+          updateRadarPrices(update);
           setFeedConnectionLost(false);
         },
         onStatus: (status) => {
@@ -96,7 +106,7 @@ export default function Sidebar() {
       setSsiStreamConnected(false);
       stop();
     };
-  }, [gatewayMode, watchlistSymbols, updateLivePrices]);
+  }, [gatewayMode, watchlistSymbols, radarSymbols, updateLivePrices, updateRadarPrices]);
 
   const filteredSorted = useMemo(() => {
     let list = watchlist.filter((s) => {

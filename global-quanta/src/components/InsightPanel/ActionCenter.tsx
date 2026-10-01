@@ -2,6 +2,7 @@ import { useAppStore } from '../../store/useAppStore';
 import { usePriceTick } from '../../hooks/usePriceTick';
 import { formatPct } from '../../utils/formatNumber';
 import * as api from '../../services/api';
+import { isMarketGatewayEnabled } from '../../services/marketDataClient';
 
 export default function ActionCenter() {
   const { radarCore, radarRing, selectedTicker, showToast } = useAppStore();
@@ -34,6 +35,8 @@ export default function ActionCenter() {
 
   const ticker = core?.ticker ?? ring?.ticker ?? '';
   const changePct = core?.changePct ?? ring?.changePct ?? 0;
+  // Chế độ Gateway: chỉ hiển thị giá khi đã có giá thật, không hiển thị giá mẫu.
+  const hasRealPrice = !isMarketGatewayEnabled() || Boolean(core?.livePrice ?? ring?.livePrice);
   const stateLine = core
     ? `${core.state === 'stable' ? '🛡' : core.state === 'breakout' ? '⚡' : '⚠'} ${core.stateLabel}`
     : `Ring · ${ring!.score}/6 điểm hội tụ — còn ${6 - ring!.score} điểm để vào Core`;
@@ -49,8 +52,8 @@ export default function ActionCenter() {
           <span>{stateLine}</span>
         </div>
         <div className="ac-price">
-          <div className="p num">{livePrice.toLocaleString('vi-VN')}</div>
-          <div className={`c num ${changePct >= 0 ? 'up' : 'down'}`}>{formatPct(changePct)}</div>
+          <div className="p num" title={hasRealPrice ? undefined : 'Đang chờ giá thật từ SSI'}>{hasRealPrice ? livePrice.toLocaleString('vi-VN') : '—'}</div>
+          <div className={`c num ${changePct >= 0 ? 'up' : 'down'}`}>{hasRealPrice ? formatPct(changePct) : ''}</div>
         </div>
       </div>
       <div className="ac-actions">
