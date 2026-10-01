@@ -4,6 +4,8 @@
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
+import { KV } from "../market/scanner/scannerJobs.js";
+import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 
 const router = Router();
 
@@ -77,6 +79,37 @@ router.get("/indices/:code/components", handle(async (req, res) => {
 router.get("/breadth", handle(async (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json(await service().getBreadth(typeof req.query.index === "string" ? req.query.index : "VNINDEX"));
+}));
+
+// Siêu Quét AI (engine trên Gateway, nguồn SSI). Cùng định dạng với Project A
+// /api/sieu-quet-ai/scanner: { generatedAt, indexState, items, totalCount } + dataAsOf/meta.
+router.get("/scanner", handle(async (req, res) => {
+  const doc = (await getMarketRuntime().store.getKv(KV.latest))?.value;
+  if (!doc) {
+    res.status(503).json({ error: "Siêu Quét trên Gateway chưa có kết quả (chưa chạy scanUniverse)." });
+    return;
+  }
+  res.set("Cache-Control", "public, max-age=60");
+  res.json(doc);
+}));
+
+// Dòng phụ Bảng Siêu Quét: phân tích chuyên sâu khối lượng của một mã.
+router.get("/scanner/:symbol/volume", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap(`volume-analysis:${req.params.symbol.toUpperCase()}`, 60_000,
+    () => getVolumeAnalysis(rt.service, req.params.symbol));
+  res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+router.get("/scanner/universe", handle(async (req, res) => {
+  const doc = (await getMarketRuntime().store.getKv(KV.universe))?.value;
+  if (!doc) {
+    res.status(503).json({ error: "Chưa có universe (chưa chạy buildUniverse)." });
+    return;
+  }
+  res.set("Cache-Control", "public, max-age=600");
+  res.json(doc);
 }));
 
 router.get("/price-limits", handle(async (req, res) => {

@@ -1,8 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, memo, useCallback, useEffect, useRef } from "react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
+import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
+import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
+
+const COLUMN_COUNT = 9;
 
 // Mau sac theo statusCode Confluence - dung DUNG bang mau da duyet trong
 // prototype HTML goc (frontend/index.html, bien CONF_COLOR).
@@ -72,7 +76,16 @@ function sourceLabel(source: string): string {
   return "nguồn dự phòng";
 }
 
-function StockRow({ item, live }: { item: SieuQuetStockItem; live?: LiveQuote }) {
+interface StockRowProps {
+  item: SieuQuetStockItem;
+  live?: LiveQuote;
+  expanded: boolean;
+  onToggle: (ticker: string) => void;
+  observe: (el: HTMLTableRowElement | null, ticker: string) => void;
+}
+
+// memo: khi giá realtime đổi, chỉ dòng của mã đó vẽ lại (bảng tới ~300 dòng).
+const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observe }: StockRowProps) {
   // Giá/% ưu tiên SSI qua Market Gateway; điểm số vẫn là kết quả quét định kỳ của Project A.
   const price = live?.price ?? item.price;
   const changePct = live ? live.changePct : item.changePct;
@@ -83,7 +96,17 @@ function StockRow({ item, live }: { item: SieuQuetStockItem; live?: LiveQuote })
   const excluded = item.piotroskiFScore !== null && item.piotroskiFScore <= Math.floor(item.fScoreMax * 3 / 9);
 
   return (
-    <tr className={`border-b border-white/5 hover:bg-white/5 ${excluded ? "opacity-40" : ""}`}>
+    <>
+    <tr
+      ref={(el) => observe(el, item.ticker)}
+      data-ticker={item.ticker}
+      className={`border-b border-white/5 hover:bg-white/5 cursor-pointer select-none ${excluded ? "opacity-40" : ""} ${expanded ? "bg-cyan-950/30" : ""}`}
+      tabIndex={0}
+      aria-expanded={expanded}
+      title="Nhấn đúp (hoặc Enter) để xem phân tích khối lượng"
+      onDoubleClick={() => onToggle(item.ticker)}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onToggle(item.ticker); } }}
+    >
       <td className="py-2 pr-3 text-slate-100 font-semibold">
         {item.ticker}
         <div className="text-[9px] text-slate-500 font-sans">{item.sector}</div>
@@ -111,13 +134,60 @@ function StockRow({ item, live }: { item: SieuQuetStockItem; live?: LiveQuote })
       <td className="text-right pr-3">{item.riskRewardRatio !== null ? fmt(item.riskRewardRatio, 2) : "—"}</td>
       <td className="text-right pr-3">{fmt(item.riskAdjustedMomentum, 2)}</td>
     </tr>
+    {expanded && (
+      <tr className="border-b border-cyan-900/40">
+        <td colSpan={COLUMN_COUNT} className="p-0">
+          {isMarketGatewayEnabled()
+            ? <VolumeAnalysisPanel symbol={item.ticker} />
+            : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần bật Market Gateway (VITE_MARKET_GATEWAY_ENABLED).</div>}
+        </td>
+      </tr>
+    )}
+    </>
   );
-}
+});
 
 export default function SieuQuetAiTab() {
-  const { indexState, items, isLoading, error } = useSieuQuetScanner();
-  const tickers = useMemo(() => items.map((i) => i.ticker), [items]);
-  const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(tickers);
+  const { indexState, items, isLoading, error, dataAsOf, generatedAt, usedSource, universeSize } = useSieuQuetScanner();
+  const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
+  const toggleRow = useCallback((ticker: string) => setExpandedTicker((cur) => (cur === ticker ? null : ticker)), []);
+  useEffect(() => {
+    if (!expandedTicker) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpandedTicker(null); };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [expandedTicker]);
+
+  // Realtime chỉ cho các dòng đang hiển thị trong khung cuộn (giảm số mã đăng ký với SSI).
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const visibleSet = useRef(new Set<string>());
+  const [visibleTickers, setVisibleTickers] = useState<string[]>([]);
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleFlush = useCallback(() => {
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(() => setVisibleTickers([...visibleSet.current].sort()), 400);
+  }, []);
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    observerRef.current = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const t = (e.target as HTMLElement).dataset.ticker;
+        if (!t) continue;
+        if (e.isIntersecting) visibleSet.current.add(t); else visibleSet.current.delete(t);
+      }
+      scheduleFlush();
+    }, { root: scrollRef.current, rootMargin: "200px 0px" });
+    // Các dòng có thể đã gắn vào DOM trước khi observer được tạo (dữ liệu từ cache).
+    scrollRef.current?.querySelectorAll<HTMLTableRowElement>("tr[data-ticker]").forEach((el) => observerRef.current?.observe(el));
+    return () => observerRef.current?.disconnect();
+  }, [scheduleFlush]);
+  const observe = useCallback((el: HTMLTableRowElement | null, ticker: string) => {
+    if (!el || !observerRef.current || el.dataset.ticker !== ticker) return;
+    observerRef.current.observe(el);
+  }, []);
+  const streamTickers = typeof IntersectionObserver === "undefined" ? items.map((i) => i.ticker) : visibleTickers;
+  const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(streamTickers);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
 
   const sectors = useMemo(() => Array.from(new Set(items.map((i) => i.sector).filter(Boolean))) as string[], [items]);
@@ -156,14 +226,24 @@ export default function SieuQuetAiTab() {
       <section className="col-span-12 lg:col-span-8 flex flex-col gap-4">
         <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className="rounded-xl p-4 flex-1">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-cyan-400">Bảng Siêu Quét AI ({filteredItems.length} mã)</h2>
+            <div>
+              <h2 className="text-sm font-semibold text-cyan-400">Bảng Siêu Quét AI ({filteredItems.length} mã)</h2>
+              {(dataAsOf || generatedAt) && (
+                <div className="text-[9px] text-slate-500">
+                  {usedSource === "gateway"
+                    ? <>Điểm số tính trên dữ liệu SSI phiên {dataAsOf} · {universeSize ?? items.length} mã · cập nhật {generatedAt ? new Date(generatedAt).toLocaleString("vi-VN") : "—"}</>
+                    : <>Điểm số từ Project A (mỗi mã có thời điểm tính riêng, xem tooltip cột Giá)</>}
+                  {" · nhấn đúp một dòng để xem phân tích khối lượng"}
+                </div>
+              )}
+            </div>
             <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}
               className="text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-300">
               <option value="all">Tất cả ngành</option>
               {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[640px]">
+          <div ref={scrollRef} className="overflow-x-auto overflow-y-auto max-h-[640px]">
             <table className="w-full text-[10px] font-mono">
               <thead className="text-slate-500 border-b border-white/10 sticky top-0 z-10" style={{ background: "#0f1420" }}>
                 <tr>
@@ -179,7 +259,10 @@ export default function SieuQuetAiTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]} />)}
+                {filteredItems.map((item) => (
+                  <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]}
+                    expanded={expandedTicker === item.ticker} onToggle={toggleRow} observe={observe} />
+                ))}
               </tbody>
             </table>
           </div>

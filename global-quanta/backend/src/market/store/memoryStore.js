@@ -18,9 +18,63 @@ export function createMemoryStore() {
   const components = new Map();
   const limits = new Map();
   const events = [];
+  const daily = new Map(); // date -> Map(symbol -> row)
+  const kv = new Map();
+  const fundamentals = new Map();
 
   return {
     kind: "memory",
+
+    // ---------- Dữ liệu ngày toàn thị trường (Siêu Quét) ----------
+    async upsertMarketDaily(rows) {
+      for (const row of rows) {
+        if (!daily.has(row.date)) daily.set(row.date, new Map());
+        daily.get(row.date).set(row.symbol, { ...row });
+      }
+      return rows.length;
+    },
+    async getMarketDailyDates() {
+      return [...daily.keys()].filter((d) => daily.get(d).size > 0).sort();
+    },
+    async getMarketDailyByDate(date) {
+      return [...(daily.get(date)?.values() ?? [])];
+    },
+    async getMarketDailyRange({ from, to, symbols }) {
+      const wanted = symbols ? new Set(symbols) : null;
+      const out = [];
+      for (const [date, rows] of daily) {
+        if (date < from || date > to) continue;
+        for (const row of rows.values()) if (!wanted || wanted.has(row.symbol)) out.push(row);
+      }
+      return out.sort((a, b) => a.date.localeCompare(b.date));
+    },
+    async applyAdjustment(symbol, upToDate, factor) {
+      let n = 0;
+      for (const [date, rows] of daily) {
+        if (date > upToDate) continue;
+        const row = rows.get(symbol);
+        if (row) { row.closeAdj *= factor; n++; }
+      }
+      return n;
+    },
+
+    // ---------- Khoá-giá trị (kết quả quét, universe, bảng ngành) ----------
+    async getKv(key) {
+      return kv.get(key) ?? null;
+    },
+    async setKv(key, value) {
+      kv.set(key, { value, updatedAt: new Date().toISOString() });
+    },
+
+    // ---------- BCTC lưu đệm ----------
+    async getFundamentals(tickers) {
+      const out = new Map();
+      for (const t of tickers) if (fundamentals.has(t)) out.set(t, fundamentals.get(t));
+      return out;
+    },
+    async upsertFundamentals(entries) {
+      for (const e of entries) fundamentals.set(e.ticker, { ...e, fetchedAt: e.fetchedAt ?? new Date().toISOString() });
+    },
 
     async upsertBars(symbol, list, source) {
       if (!bars.has(symbol)) bars.set(symbol, new Map());

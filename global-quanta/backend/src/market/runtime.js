@@ -10,6 +10,7 @@ import { StreamHub } from "./stream/streamHub.js";
 import { SignalRConnection } from "./stream/signalrConnection.js";
 import { createJobs } from "./jobs.js";
 import { createScheduler } from "./scheduler.js";
+import { createScannerJobs, SCANNER_SCHEDULE } from "./scanner/scannerJobs.js";
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 
@@ -47,8 +48,8 @@ export function getMarketRuntime() {
   });
   service.hub = hub;
 
-  const jobs = createJobs(service);
-  const scheduler = createScheduler(jobs);
+  const jobs = { ...createJobs(service), ...createScannerJobs(service) };
+  const scheduler = createScheduler(jobs, { extraSchedule: SCANNER_SCHEDULE });
 
   runtime = { providers, store, service, hub, jobs, scheduler, started: false };
   return runtime;

@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://tuan-quant-scanner-psi.vercel.app";
 const fetcher = (url: string) => fetch(url).then((r) => {
@@ -42,15 +43,44 @@ export interface SieuQuetStockItem {
   fScoreMax: number;
   foreignNetBuyFlag: boolean;
   computedAt: string;
+  /** Phiên dữ liệu dùng để tính (engine Gateway). */
+  dataAsOf?: string;
+}
+
+export type ScannerSource = "gateway" | "projectA";
+
+/** Nguồn bảng quét: VITE_SCANNER_SOURCE=gateway (engine trên Gateway, dữ liệu SSI) hoặc projectA (mặc định). */
+export function scannerSource(): ScannerSource {
+  return isMarketGatewayEnabled() && String(import.meta.env.VITE_SCANNER_SOURCE ?? "").toLowerCase() === "gateway" ? "gateway" : "projectA";
+}
+
+interface ScannerResponse {
+  generatedAt: string; dataAsOf?: string; source?: string;
+  indexState: SieuQuetIndexState | null; items: SieuQuetStockItem[]; totalCount: number;
+  meta?: { universeSize?: number; universeBuiltAt?: string; skipped?: unknown[] };
+}
+
+/**
+ * Gateway chưa có kết quả (VD ngày đầu triển khai) -> tự dùng Project A để bảng
+ * không trống; UI hiển thị rõ nguồn đang dùng.
+ */
+async function fetchScanner(): Promise<ScannerResponse & { usedSource: ScannerSource }> {
+  if (scannerSource() === "gateway") {
+    try {
+      const res = await fetch(marketUrl("/api/market/scanner"), { cache: "no-store" });
+      if (res.ok) return { ...(await res.json()), usedSource: "gateway" };
+    } catch {
+      /* rơi xuống Project A */
+    }
+  }
+  return { ...(await fetcher(`${API_BASE}/api/sieu-quet-ai/scanner`)), usedSource: "projectA" };
 }
 
 // SIEU QUET AI - doc du lieu THAT (Confluence Engine + Scoring, da port
 // tu Python + nuoi bang VN-Index that/Yahoo/VCI) tu Database, cap nhat
 // dinh ky boi Cron Job sieu-quet-scan (1 lan/ngay).
 export function useSieuQuetScanner() {
-  const { data, error, isLoading, mutate } = useSWR<{
-    generatedAt: string; indexState: SieuQuetIndexState | null; items: SieuQuetStockItem[]; totalCount: number;
-  }>(`${API_BASE}/api/sieu-quet-ai/scanner`, fetcher, {
+  const { data, error, isLoading, mutate } = useSWR(["sieu-quet-scanner", scannerSource()], fetchScanner, {
     refreshInterval: 30 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 10 * 60 * 1000,
@@ -59,6 +89,10 @@ export function useSieuQuetScanner() {
   return {
     indexState: data?.indexState ?? null,
     items: data?.items ?? [],
+    generatedAt: data?.generatedAt ?? null,
+    dataAsOf: data?.dataAsOf ?? null,
+    usedSource: data?.usedSource ?? null,
+    universeSize: data?.meta?.universeSize ?? null,
     isLoading, error, refresh: mutate,
   };
 }
