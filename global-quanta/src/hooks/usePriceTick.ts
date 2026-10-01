@@ -1,4 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
+import { isMarketGatewayEnabled } from '../services/marketDataClient';
+
+/**
+ * Giá mô phỏng (nhiễu ngẫu nhiên) chỉ dùng khi CHƯA có nguồn realtime thật.
+ * Khi bật Market Gateway, giá chỉ đổi khi SSI/nguồn dự phòng đẩy giá mới về —
+ * không hiển thị biến động giả như thể là giá khớp thật.
+ */
+export function isPriceSimulationEnabled(): boolean {
+  return !isMarketGatewayEnabled();
+}
 
 /**
  * usePriceTick — mô phỏng WebSocket tick giá.
@@ -16,7 +26,7 @@ export function usePriceTick(basePrice: number, active = true): number {
   }, [basePrice]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || !isPriceSimulationEnabled()) return;
     const id = setInterval(() => {
       const jitter = (Math.random() - 0.5) * baseRef.current * 0.0006;
       setPrice((p) => Math.max(0, p + jitter));
