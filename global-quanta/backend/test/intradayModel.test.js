@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   BUCKETS, BUCKET_COUNT, bucketIndexOfMinute, sessionToBuckets, buildProfile, stateBefore, outcomeOf,
-  smoothed, walkForward, buildTransitions, probabilityWithin, buildIntradayCycle, CELLS,
+  smoothed, walkForward, buildTransitions, probabilityWithin, buildIntradayCycle, CELLS, rollingProfiles,
 } from "../src/market/scanner/intradayModel.js";
 import { groupSessions } from "../src/market/scanner/intradayService.js";
 import { buildVolumeAnalysis, computeForeign } from "../src/market/scanner/volumeAnalysis.js";
@@ -83,15 +83,15 @@ test("cycle: xác suất làm mượt — ít mẫu thì kéo về nền, nhiề
 
 test("cycle: walk-forward phát hiện được quy luật thật (Brier skill > 0) và không 'ảo' khi không có quy luật", () => {
   const withPattern = makeHistory(120, 7, { pattern: true });
-  const wf = walkForward(withPattern, buildProfile(withPattern));
+  const wf = walkForward(withPattern, rollingProfiles(withPattern));
   assert.ok(wf.surge.brierSkill > 0.05, `skill=${wf.surge.brierSkill}`);
   assert.ok(wf.calibration.length > 0);
   // Không có sự kiện nào -> không đủ cơ sở kiểm định (null), không được báo skill ảo.
   const quiet = makeHistory(120, 8, { pattern: false });
-  assert.equal(walkForward(quiet, buildProfile(quiet)).surge.brierSkill, null);
+  assert.equal(walkForward(quiet, rollingProfiles(quiet)).surge.brierSkill, null);
   // Có bùng nổ nhưng NGẪU NHIÊN (không phụ thuộc trạng thái) -> skill không được dương đáng kể.
   const noise = makeHistory(150, 21, { pattern: false, randomSurge: 0.2 });
-  const wf2 = walkForward(noise, buildProfile(noise));
+  const wf2 = walkForward(noise, rollingProfiles(noise));
   assert.ok(wf2.surge.events >= 20, `events=${wf2.surge.events}`);
   assert.ok(wf2.surge.brierSkill !== null && wf2.surge.brierSkill < 0.03, `skill khi không có quy luật=${wf2.surge.brierSkill}`);
 });
@@ -108,7 +108,7 @@ test("cycle: trạng thái chỉ dùng dữ liệu TRƯỚC khung (không nhìn 
 
 test("cycle: ma trận chuyển — mỗi hàng có tổng xác suất = 1; xác suất chạm ô trong 2 khung ≥ 1 khung", () => {
   const sessions = makeHistory(60, 11);
-  const m = buildTransitions(sessions, buildProfile(sessions));
+  const m = buildTransitions(sessions, rollingProfiles(sessions));
   for (const from of CELLS) {
     const sum = CELLS.reduce((a, to) => a + m[from].to[to].p, 0);
     assert.ok(Math.abs(sum - 1) < 1e-9, `${from}: ${sum}`);
@@ -209,4 +209,24 @@ test("service: dựng chu kỳ cho một mã từ nến phút SSI (giả lập p
   await getIntradayCycle(service, "FPT", { now });
   assert.equal(calls.length, 1, "lịch sử được lưu đệm, không gọi SSI lại");
   await assert.rejects(getIntradayCycle(service, "VNINDEX", { now }), (e) => e.statusCode === 400);
+});
+
+test("cycle: hồ sơ trượt chỉ dùng các phiên TRƯỚC đó và thích nghi khi KL đổi nhịp", () => {
+  const r = rng(41);
+  const bars = [];
+  let ref = 40_000, date = "2026-04-01";
+  for (let i = 0; i < 60; i++) {
+    const s = makeSession(r, date, ref, { pattern: false });
+    // 30 phiên đầu KL gấp 3 lần 30 phiên sau (thị trường hạ nhiệt)
+    bars.push(...s.map((b) => ({ ...b, volume: i < 30 ? b.volume * 3 : b.volume })));
+    ref = s.at(-1).close;
+    date = addDays(date, 1);
+  }
+  const sessions = groupSessions(bars);
+  const profs = rollingProfiles(sessions, 20, 10);
+  assert.equal(profs[5], null);
+  assert.ok(profs[29][5].median > profs[59][5].median * 2.5, "hồ sơ phiên 59 phản ánh nhịp thấp mới");
+  // Không còn "dự báo quá cao" do nhịp cũ: ở giai đoạn sau, tỷ lệ cạn KL dự báo không bị đẩy lên bởi nhịp cũ.
+  const wf = walkForward(sessions, profs, { warmup: 40 });
+  assert.ok(wf.calibration.every((c) => Math.abs(c.predicted - c.observed) < 0.25));
 });

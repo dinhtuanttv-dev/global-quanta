@@ -89,6 +89,14 @@ export function buildProfile(sessions) {
   }));
 }
 
+/**
+ * Hồ sơ TRƯỢT: hồ sơ của phiên i chỉ dựng từ `window` phiên liền trước (không dùng
+ * dữ liệu tương lai, tự thích nghi khi thị trường đổi nhịp). null nếu < minHistory phiên.
+ */
+export function rollingProfiles(sessions, window = 20, minHistory = 10) {
+  return sessions.map((_, i) => (i < minHistory ? null : buildProfile(sessions.slice(Math.max(0, i - window), i))));
+}
+
 // ---------- Trạng thái & kết cục ----------
 
 export function priceBin(changePct) {
@@ -162,6 +170,7 @@ function emptyCounts() {
   return { byState: new Map(), byBucket: Array.from({ length: BUCKET_COUNT }, () => ({ n: 0, surge: 0, dry: 0, up: 0, down: 0 })) };
 }
 function addSession(counts, s, profile) {
+  if (!profile) return;
   for (let b = 1; b < BUCKET_COUNT; b++) {
     const st = stateBefore(s.buckets, b, s.refPrice, profile);
     const oc = outcomeOf(s.buckets, b, profile, s.refPrice);
@@ -190,11 +199,13 @@ function predict(counts, key, b) {
  * Kiểm định walk-forward: duyệt phiên theo thời gian, dự báo phiên d bằng bảng đếm
  * từ các phiên < d, rồi mới cộng phiên d vào. Brier skill = 1 − Brier(mô hình)/Brier(nền).
  */
-export function walkForward(sessions, profile, { warmup = 30 } = {}) {
+export function walkForward(sessions, profiles, { warmup = 30 } = {}) {
+  const profileOf = (i) => (Array.isArray(profiles) ? profiles[i] : profiles);
   const counts = emptyCounts();
   const acc = { surge: { m: 0, b: 0, n: 0, pos: 0, bins: Array.from({ length: 10 }, () => ({ p: 0, o: 0, n: 0 })) }, dry: { m: 0, b: 0, n: 0, pos: 0 } };
   sessions.forEach((s, idx) => {
-    if (idx >= warmup) {
+    const profile = profileOf(idx);
+    if (idx >= warmup && profile) {
       for (let b = 1; b < BUCKET_COUNT; b++) {
         const st = stateBefore(s.buckets, b, s.refPrice, profile);
         const oc = outcomeOf(s.buckets, b, profile, s.refPrice);
@@ -232,11 +243,14 @@ const DIRS = ["up", "flat", "down"];
 const REGIMES = ["low", "norm", "high"];
 export const CELLS = DIRS.flatMap((d) => REGIMES.map((r) => `${d}:${r}`));
 
-export function buildTransitions(sessions, profile) {
+export function buildTransitions(sessions, profiles) {
+  const profileOf = (i) => (Array.isArray(profiles) ? profiles[i] : profiles);
   const counts = new Map(CELLS.map((c) => [c, new Map(CELLS.map((x) => [x, 0]))]));
   const marginal = new Map(CELLS.map((c) => [c, 0]));
   let total = 0;
-  for (const s of sessions) {
+  for (const [i, s] of sessions.entries()) {
+    const profile = profileOf(i);
+    if (!profile) continue;
     let prev = null;
     for (let b = 1; b < BUCKET_COUNT; b++) {
       const oc = outcomeOf(s.buckets, b, profile, s.refPrice);
@@ -288,11 +302,13 @@ export function probabilityWithin(matrix, fromCell, target, steps = 2) {
 export function buildIntradayCycle({ sessions, today = null, nowMinute = null }) {
   const usable = sessions.filter((s) => s.buckets.some(Boolean) && s.refPrice > 0);
   if (usable.length < 20) return { ready: false, reason: `Cần ≥ 20 phiên có nến phút, mới có ${usable.length}.`, sessions: usable.length };
-  const profile = buildProfile(usable);
-  const validation = walkForward(usable, profile);
+  // Bảng đếm & kiểm định dùng hồ sơ TRƯỢT 20 phiên; hôm nay so với 20 phiên gần nhất.
+  const profiles = rollingProfiles(usable);
+  const profile = buildProfile(usable.slice(-20));
+  const validation = walkForward(usable, profiles);
   const counts = validation.counts;
   delete validation.counts;
-  const transitions = buildTransitions(usable, profile);
+  const transitions = buildTransitions(usable, profiles);
   const validated = {
     surge: (validation.surge.brierSkill ?? -1) > 0,
     dry: (validation.dry.brierSkill ?? -1) > 0,
@@ -347,6 +363,7 @@ export function buildIntradayCycle({ sessions, today = null, nowMinute = null })
     to: usable.at(-1).date,
     buckets: BUCKETS.map((b) => ({ id: b.id, label: b.label })),
     profile,
+    profileSessions: Math.min(20, usable.length),
     validation: { ...validation, validated },
     current,
   };

@@ -23,12 +23,26 @@ function maxRangeDays() {
 // dữ liệu rỗng hợp lệ, không phải sự cố (không được làm mở circuit breaker).
 const isNoData = (error) => /no data/i.test(String(error?.message || ""));
 
+const isTransient = (error) => ["TimeoutError", "AbortError"].includes(error?.name) || /timeout|aborted|ECONNRESET|fetch failed/i.test(String(error?.message));
+
+/** Gọi SSI, thử lại tối đa 2 lần (1s, 3s) khi timeout/lỗi mạng tạm thời. */
+async function callWithRetry(call, endpoint, query) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await call(endpoint, query);
+    } catch (error) {
+      if (attempt >= 2 || !isTransient(error)) throw error;
+      await new Promise((r) => setTimeout(r, attempt === 0 ? 1_000 : 3_000));
+    }
+  }
+}
+
 async function fetchAllPages(endpoint, query, call) {
   const rows = [];
   for (let pageIndex = 1; pageIndex <= 50; pageIndex++) {
     let body;
     try {
-      body = await call(endpoint, { ...query, pageIndex: String(pageIndex), pageSize: String(PAGE_SIZE) });
+      body = await callWithRetry(call, endpoint, { ...query, pageIndex: String(pageIndex), pageSize: String(PAGE_SIZE) });
     } catch (error) {
       if (isNoData(error)) break;
       throw error;
