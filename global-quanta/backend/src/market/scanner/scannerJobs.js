@@ -140,9 +140,10 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const results = await mapLimit(due, 2, async (ticker) => {
         const [income, balance] = await Promise.all([fetchQuarterlyIncome(ticker, fetchImpl), fetchQuarterlyBalance(ticker, fetchImpl)]);
         if (pauseMs) await sleep(pauseMs);
-        // VCI lỗi tạm thời: giữ bản cũ thay vì ghi đè bằng "không có dữ liệu".
-        if (!income.available && !balance.available && existing.get(ticker)) { failed++; return null; }
-        income.available || balance.available ? ok++ : failed++;
+        // VCI lỗi: KHÔNG lưu bản ghi rỗng (nếu lưu, mã bị coi là "vừa tải" và 7 ngày sau mới thử lại);
+        // giữ bản cũ nếu có.
+        if (!income.available && !balance.available) { failed++; return null; }
+        ok++;
         return { ticker, income: { ...income, quarters: income.quarters.slice(0, 6) }, balance: { ...balance, quarters: balance.quarters.slice(0, 6) } };
       });
       const entries = results.filter(Boolean);

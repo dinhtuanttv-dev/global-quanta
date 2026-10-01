@@ -95,21 +95,27 @@ export function computeTrend(daily) {
 }
 
 export function computeForeign(daily) {
-  const today = daily.at(-1);
+  // Dòng "hôm nay" ghép từ stream trong phiên KHÔNG có dữ liệu khối ngoại -> không được coi là 0.
+  const partial = Boolean(daily.at(-1)?.partial);
+  const settled = partial ? daily.slice(0, -1) : daily;
+  const today = settled.at(-1);
   const net = (r) => (r.foreignBuyVal ?? 0) - (r.foreignSellVal ?? 0);
   let streak = 0;
   const sign = Math.sign(net(today));
-  if (sign !== 0) for (let i = daily.length - 1; i >= 0 && Math.sign(net(daily[i])) === sign; i--) streak++;
+  if (sign !== 0) for (let i = settled.length - 1; i >= 0 && Math.sign(net(settled[i])) === sign; i--) streak++;
   const turnover = (today.value || 0) + (today.dealValue || 0);
+  if (partial) daily = settled;
   return {
-    today: {
+    pendingToday: partial,
+    lastSettledDate: today.date,
+    today: partial ? null : {
       buyVol: today.foreignBuyVol, sellVol: today.foreignSellVol, netVol: (today.foreignBuyVol ?? 0) - (today.foreignSellVol ?? 0),
       buyVal: today.foreignBuyVal, sellVal: today.foreignSellVal, netVal: net(today),
     },
     net5Val: sum(daily.slice(-5).map(net)),
     net20Val: sum(daily.slice(-20).map(net)),
-    buySharePct: turnover ? round((today.foreignBuyVal / turnover) * 100, 1) : null,
-    sellSharePct: turnover ? round((today.foreignSellVal / turnover) * 100, 1) : null,
+    buySharePct: !partial && turnover ? round((today.foreignBuyVal / turnover) * 100, 1) : null,
+    sellSharePct: !partial && turnover ? round((today.foreignSellVal / turnover) * 100, 1) : null,
     streak: { direction: sign > 0 ? "buy" : sign < 0 ? "sell" : "none", sessions: streak },
     room: today.foreignRoom,
     netSeries20: daily.slice(-20).map((r) => ({ date: r.date, netVal: net(r) })),
@@ -187,15 +193,18 @@ function fmtBn(v) {
 /** Nhận định ngắn theo quy tắc (công khai), không dùng nhãn Wyckoff/VSA. */
 export function buildInsights({ today, trend, foreign, profile, intraday }) {
   const out = [];
-  if (today.rvol20 !== null && today.rvol20 >= 2) out.push(`Khối lượng đột biến ${today.rvol20}× bình quân 20 phiên trong phiên ${today.changePct >= 0 ? "tăng" : "giảm"}.`);
-  else if (today.rvol20 !== null && today.rvol20 <= 0.5) out.push(`Khối lượng thấp (${today.rvol20}× bình quân 20 phiên).`);
+  // Trong phiên: so với KL điển hình CÙNG THỜI ĐIỂM, không so với KL cả ngày.
+  const rv = today.rvolMode === "intraday" ? today.rvolTimeAdjusted : today.rvol20;
+  const basis = today.rvolMode === "intraday" ? `cùng thời điểm ${intraday?.sameTime?.sessions ?? ""} phiên trước` : "bình quân 20 phiên";
+  if (rv !== null && rv !== undefined && rv >= 2) out.push(`Khối lượng đột biến ${rv}× ${basis} trong phiên ${today.changePct >= 0 ? "tăng" : "giảm"}.`);
+  else if (rv !== null && rv !== undefined && rv <= 0.5) out.push(`Khối lượng thấp (${rv}× ${basis}).`);
   if (intraday?.sameTime && intraday.sameTime.ratio >= 1.5) out.push(`Tới ${intraday.sameTime.asOfTime}, khối lượng đã gấp ${intraday.sameTime.ratio}× cùng thời điểm ${intraday.sameTime.sessions} phiên trước.`);
   if (trend.divergence) out.push(`${trend.divergence.label} (giá ${trend.divergence.priceChangePct}% / KL ${trend.divergence.volumeChangePct}% trong 10 phiên).`);
   if (trend.upDownVolumeRatio20 !== null) {
     if (trend.upDownVolumeRatio20 >= 1.5) out.push(`KL phiên tăng gấp ${trend.upDownVolumeRatio20}× KL phiên giảm (20 phiên).`);
     else if (trend.upDownVolumeRatio20 <= 0.67) out.push(`KL phiên giảm áp đảo (tỷ lệ tăng/giảm ${trend.upDownVolumeRatio20}).`);
   }
-  if (foreign.streak.sessions >= 3) out.push(`Khối ngoại ${foreign.streak.direction === "buy" ? "mua" : "bán"} ròng ${foreign.streak.sessions} phiên liên tiếp (20 phiên: ${foreign.net20Val >= 0 ? "+" : ""}${fmtBn(foreign.net20Val)}).`);
+  if (foreign.streak.sessions >= 3) out.push(`${foreign.pendingToday ? `Tới phiên ${foreign.lastSettledDate}, k` : "K"}hối ngoại ${foreign.streak.direction === "buy" ? "mua" : "bán"} ròng ${foreign.streak.sessions} phiên liên tiếp (20 phiên: ${foreign.net20Val >= 0 ? "+" : ""}${fmtBn(foreign.net20Val)}).`);
   if (profile) {
     const pos = { above: "trên", below: "dưới", inside: "trong" }[profile.position];
     out.push(`Giá đang ở ${pos} vùng giá trị ${profile.sessions} phiên (${profile.valueAreaLow.toLocaleString("vi-VN")}–${profile.valueAreaHigh.toLocaleString("vi-VN")}, POC ${profile.poc.toLocaleString("vi-VN")}).`);
@@ -211,7 +220,7 @@ export function buildVolumeAnalysis({ symbol, daily, intradayToday = [], intrada
   const last = daily.at(-1);
   const prev = daily.at(-2);
   const prior20 = daily.slice(-21, -1).map((r) => r.volume);
-  const avg20 = avg(prior20);
+  const avg20 = avg(last.partial ? daily.slice(-21, -1).map((r) => r.volume) : prior20);
   const volume = live?.totalVolume ?? last.volume;
   const price = live?.price ?? last.close;
   const today = {
@@ -223,12 +232,16 @@ export function buildVolumeAnalysis({ symbol, daily, intradayToday = [], intrada
     dealVolume: last.dealVolume,
     dealValue: last.dealValue,
     avgVolume20: round(avg20, 0),
-    rvol20: avg20 ? round(volume / avg20, 2) : null,
+    // Trong phiên, RVOL so với KL CẢ NGÀY luôn thấp giả (lỗi #1) -> dùng RVOL theo thời điểm.
+    rvolMode: last.partial ? "intraday" : "daily",
+    rvol20: last.partial ? null : (avg20 ? round(volume / avg20, 2) : null),
+    rvolTimeAdjusted: null,
   };
   const trend = computeTrend(daily);
   const foreign = computeForeign(daily);
   const profile = computeProfile([...intradayPast, intradayToday], price);
   const intraday = computeIntraday(intradayToday, intradayPast);
+  if (last.partial) today.rvolTimeAdjusted = intraday?.sameTime?.ratio ?? null;
   return {
     symbol, asOf: last.date, today, trend, foreign, profile, intraday,
     insights: buildInsights({ today, trend, foreign, profile, intraday }),

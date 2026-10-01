@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
+import IntradayCyclePanel from "./IntradayCyclePanel";
 
 // Màu: phiên tăng/giảm giữ quy ước xanh/đỏ của bảng. Cặp này chỉ đạt ΔE 5.8 với
 // người mù màu đỏ–lục nên LUÔN kèm mã hoá phụ: cột tăng ĐẶC, cột giảm RỖNG (viền).
@@ -156,13 +157,19 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
         </div>
       </div>
 
+      <IntradayCyclePanel symbol={symbol} />
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
         <Tile label="KL khớp hôm nay" value={fmtVol(today.volume)} sub={`TB20: ${fmtVol(today.avgVolume20)}`} />
-        <Tile label="RVOL (so TB 20 phiên)" value={today.rvol20 !== null ? `${today.rvol20}×` : "—"} tone={today.rvol20 !== null && today.rvol20 >= 1.5 ? "up" : undefined} />
+        {today.rvolMode === "intraday"
+          ? <Tile label="RVOL theo thời điểm" value={today.rvolTimeAdjusted !== null ? `${today.rvolTimeAdjusted}×` : "—"} sub="so KL cùng giờ các phiên trước" tone={today.rvolTimeAdjusted !== null && today.rvolTimeAdjusted >= 1.5 ? "up" : undefined} />
+          : <Tile label="RVOL (so TB 20 phiên)" value={today.rvol20 !== null ? `${today.rvol20}×` : "—"} tone={today.rvol20 !== null && today.rvol20 >= 1.5 ? "up" : undefined} />}
         <Tile label="So cùng thời điểm" value={intraday?.sameTime ? `${intraday.sameTime.ratio}×` : "—"} sub={intraday?.sameTime ? `tới ${intraday.sameTime.asOfTime}, ${intraday.sameTime.sessions} phiên` : undefined} />
         <Tile label="GT khớp / thoả thuận" value={fmtBn(today.value)} sub={`TT: ${fmtBn(today.dealValue)}`} />
-        <Tile label="Khối ngoại ròng hôm nay" value={fmtBn(foreign.today.netVal)} tone={foreign.today.netVal > 0 ? "up" : foreign.today.netVal < 0 ? "down" : undefined}
-          sub={`mua ${foreign.buySharePct ?? "—"}% · bán ${foreign.sellSharePct ?? "—"}% GT`} />
+        {foreign.today
+          ? <Tile label="Khối ngoại ròng hôm nay" value={fmtBn(foreign.today.netVal)} tone={foreign.today.netVal > 0 ? "up" : foreign.today.netVal < 0 ? "down" : undefined}
+              sub={`mua ${foreign.buySharePct ?? "—"}% · bán ${foreign.sellSharePct ?? "—"}% GT`} />
+          : <Tile label="Khối ngoại ròng hôm nay" value="Chưa có" sub={`trong phiên · số chốt tới ${foreign.lastSettledDate}`} />}
         <Tile label="KN ròng 5 / 20 phiên" value={fmtBn(foreign.net5Val)} sub={`20 phiên: ${fmtBn(foreign.net20Val)}`} tone={foreign.net5Val > 0 ? "up" : foreign.net5Val < 0 ? "down" : undefined} />
       </div>
 

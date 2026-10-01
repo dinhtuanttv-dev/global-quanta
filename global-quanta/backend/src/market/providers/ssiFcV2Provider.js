@@ -124,6 +124,12 @@ export function createSsiFcV2Provider({ call = getMarketData } = {}) {
       return bars.map((bar) => ({ ...bar, value: null }));
     },
 
+    /** Nến phút của một khoảng ngày (cửa sổ 30 ngày/request, phân trang 1000). */
+    async getIntradayRange(symbol, from, to) {
+      const bars = normalizeBars(await rangeRows("IntradayOhlc", { symbol: canonicalSymbol(symbol) }, from, to), { intraday: true });
+      return bars.map((bar) => ({ ...bar, value: null }));
+    },
+
     /** DailyOhlc không có chỉ số; DailyIndex chỉ có giá đóng cửa (open/high/low = close). */
     async getIndexDaily(code, from, to) {
       const rows = await rangeRows("DailyIndex", { indexId: ssiV2IndexId(code) }, from, to);
