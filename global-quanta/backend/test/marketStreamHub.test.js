@@ -182,3 +182,22 @@ test("stream: từ chối mã không hợp lệ và vượt giới hạn tổng 
     s.hub.shutdown();
   }
 });
+
+test("stream: Lee–Ready — phân loại mua/bán chủ động theo bước giá TRƯỚC lệnh, gom theo phút", async () => {
+  const s = setup();
+  s.subscribe(["HPG"]);
+  const shard = s.xShards()[0];
+  shard.opts.onStatus("connected");
+  const x = (t, last, totalVol, bid, ask) => ({ DataType: "X", Content: { Symbol: "HPG", LastPrice: last, TotalVol: totalVol, BidPrice1: bid, BidVol1: 1000, AskPrice1: ask, AskVol1: 1000, RefPrice: 20000, TradingDate: "01/10/2026", Time: t } });
+  shard.opts.onMessage(x("10:00:00", 20000, 10_000, 19950, 20000));
+  shard.opts.onMessage(x("10:00:05", 20000, 12_000, 19950, 20000)); // khớp = ask trước đó -> mua 2.000
+  shard.opts.onMessage(x("10:00:09", 19950, 15_000, 19950, 20000)); // khớp = bid -> bán 3.000
+  shard.opts.onMessage(x("10:01:02", 19975, 15_500, 19950, 20000)); // giữa bid/ask, giá tăng -> mua 500 (tick rule)
+  shard.opts.onMessage(x("10:01:03", 19975, 15_500, 19950, 20000)); // không có KL mới -> bỏ qua
+  const flow = s.hub.getTickFlow("hpg");
+  assert.equal(flow.date, "2026-10-01");
+  assert.deepEqual(flow.minutes.map((m) => [m.minute, m.buy, m.sell, m.prints]), [[600, 2000, 3000, 2], [601, 500, 0, 1]]);
+  assert.equal(flow.classifiedVolume, 5500);
+  assert.equal(s.hub.getTickFlow("FPT"), null);
+  s.hub.shutdown();
+});

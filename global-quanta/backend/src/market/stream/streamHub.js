@@ -59,6 +59,48 @@ export class StreamHub {
     this.polling = false;
     this.lastTransport = null;
     this.lastStatusKey = new Map();
+    // Dòng lệnh có dấu theo Lee–Ready, gom theo phút, chỉ giữ phiên hiện tại (bộ nhớ).
+    this.tickFlow = new Map(); // symbol -> { date, minutes: Map(minute -> agg), lastSide, classifiedVolume }
+  }
+
+  /**
+   * Lee–Ready trên tick X: KL khớp = ΔTotalVol giữa hai tick; chiều = so giá khớp với
+   * giá chào bán/mua tốt nhất TRƯỚC lệnh (≥ ask: mua chủ động, ≤ bid: bán chủ động),
+   * nằm giữa thì dùng tick rule; không xác định được thì giữ chiều trước đó.
+   */
+  #recordTick(prev, next) {
+    if (!prev || !next?.symbol || !Number.isFinite(next.totalVolume) || !Number.isFinite(prev.totalVolume)) return;
+    const qty = next.totalVolume - prev.totalVolume;
+    if (!(qty > 0) || !(next.price > 0)) return;
+    const date = String(next.time ?? "").slice(0, 10);
+    const m = String(next.time ?? "").match(/T(\d{2}):(\d{2})/);
+    if (!date || !m) return;
+    const minute = Number(m[1]) * 60 + Number(m[2]);
+    let flow = this.tickFlow.get(next.symbol);
+    if (!flow || flow.date !== date) {
+      flow = { date, minutes: new Map(), lastSide: 0, classifiedVolume: 0 };
+      this.tickFlow.set(next.symbol, flow);
+    }
+    const bid = prev.bid?.[0]?.price, ask = prev.ask?.[0]?.price;
+    let side = 0;
+    if (ask > 0 && next.price >= ask) side = 1;
+    else if (bid > 0 && next.price <= bid) side = -1;
+    else if (prev.price > 0 && next.price !== prev.price) side = next.price > prev.price ? 1 : -1;
+    else side = flow.lastSide;
+    if (side !== 0) flow.lastSide = side;
+    const agg = flow.minutes.get(minute) ?? { minute, buy: 0, sell: 0, unknown: 0, prints: 0, sizes: {} };
+    if (side > 0) agg.buy += qty; else if (side < 0) agg.sell += qty; else agg.unknown += qty;
+    agg.prints++;
+    agg.sizes[qty] = (agg.sizes[qty] ?? 0) + 1;
+    flow.minutes.set(minute, agg);
+    flow.classifiedVolume += qty;
+  }
+
+  /** Dòng lệnh có dấu (Lee–Ready) của phiên hiện tại cho một mã, nếu đang được theo dõi. */
+  getTickFlow(symbol) {
+    const flow = this.tickFlow.get(canonicalSymbol(symbol));
+    if (!flow) return null;
+    return { date: flow.date, classifiedVolume: flow.classifiedVolume, minutes: [...flow.minutes.values()].sort((a, b) => a.minute - b.minute) };
   }
 
   // ---------- API cho route SSE ----------
@@ -269,6 +311,7 @@ export class StreamHub {
     if (quote.price === null && !quote.bid.length && !quote.ask.length && !this.quotes.has(quote.symbol)) return;
     const prev = this.quotes.get(quote.symbol);
     const merged = prev?.source === STREAM_SOURCE ? mergeQuote(prev.quote, quote) : mergeQuote(prev?.quote, quote);
+    if (prev?.source === STREAM_SOURCE) this.#recordTick(prev.quote, merged);
     const wasLive = this.#symbolState(quote.symbol) === "LIVE";
     this.quotes.set(quote.symbol, { quote: merged, at, source: STREAM_SOURCE, fallbackReason: null });
     const payload = this.#quotePayload(quote.symbol, this.quotes.get(quote.symbol));

@@ -3,12 +3,14 @@
 // trong phiên. Nến phút của phiên đã đóng không đổi nên được lưu đệm 12 giờ.
 
 import { buildVolumeAnalysis } from "./volumeAnalysis.js";
+import { getIntradaySessions } from "./intradayService.js";
 import { canonicalSymbol, isValidSymbol } from "../normalizer.js";
 import { ValidationError } from "../errors.js";
 import { expectsLiveTicks, isTradingDay, vnDate, vnParts } from "../calendar.js";
 
 const DAILY_SESSIONS = 60;
-const PROFILE_SESSIONS = 5;
+// 20 phiên (trước đây 5–6): cùng mốc với "Nhịp khối lượng" (trung vị 20 phiên), POC ít nhiễu hơn.
+const PROFILE_SESSIONS = 20;
 
 export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now } = {}) {
   const symbol = canonicalSymbol(rawSymbol);
@@ -40,10 +42,18 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now } =
       return [];
     }
   });
-  const [intradayToday, ...intradayPast] = await Promise.all([
-    intraday(intradayDay, expectsLiveTicks(nowDate) ? 60_000 : 30 * 60_000),
-    ...pastDays.map((d) => intraday(d, 12 * 60 * 60_000)),
-  ]);
+  // Ưu tiên bộ đệm nến phút dùng chung (120 phiên) để không gọi SSI lặp lại; lỗi thì lấy từng ngày như cũ.
+  let intradayToday, intradayPast;
+  try {
+    const shared = await getIntradaySessions(service, symbol, { now });
+    intradayToday = shared.todaySession?.bars ?? [];
+    intradayPast = shared.trainSessions.slice(-PROFILE_SESSIONS).map((s) => s.bars ?? []);
+  } catch {
+    [intradayToday, ...intradayPast] = await Promise.all([
+      intraday(intradayDay, expectsLiveTicks(nowDate) ? 60_000 : 30 * 60_000),
+      ...pastDays.map((d) => intraday(d, 12 * 60 * 60_000)),
+    ]);
+  }
 
   // Trong phiên: dữ liệu ngày của hôm nay chưa có (đồng bộ lúc 15:20) -> ghép từ quote realtime.
   const live = service.hub?.getQuote(symbol) ?? null;

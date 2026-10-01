@@ -76,6 +76,24 @@ function sourceLabel(source: string): string {
   return "nguồn dự phòng";
 }
 
+/** Dòng phụ: chỉ cuộn vào tầm nhìn MỘT lần khi vừa mở (không cuộn lại mỗi lần giá realtime cập nhật). */
+function DetailRow({ ticker }: { ticker: string }) {
+  const rowRef = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => rowRef.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <tr ref={rowRef} className="border-b border-cyan-900/40" style={{ scrollMarginTop: 32 }}>
+      <td colSpan={COLUMN_COUNT} className="p-0">
+        {isMarketGatewayEnabled()
+          ? <VolumeAnalysisPanel symbol={ticker} />
+          : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần bật Market Gateway (VITE_MARKET_GATEWAY_ENABLED).</div>}
+      </td>
+    </tr>
+  );
+}
+
 interface StockRowProps {
   item: SieuQuetStockItem;
   live?: LiveQuote;
@@ -100,6 +118,7 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
     <tr
       ref={(el) => observe(el, item.ticker)}
       data-ticker={item.ticker}
+      style={{ scrollMarginTop: 32 }}
       className={`border-b border-white/5 hover:bg-white/5 cursor-pointer select-none ${excluded ? "opacity-40" : ""} ${expanded ? "bg-cyan-950/30" : ""}`}
       tabIndex={0}
       aria-expanded={expanded}
@@ -134,15 +153,7 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
       <td className="text-right pr-3">{item.riskRewardRatio !== null ? fmt(item.riskRewardRatio, 2) : "—"}</td>
       <td className="text-right pr-3">{fmt(item.riskAdjustedMomentum, 2)}</td>
     </tr>
-    {expanded && (
-      <tr className="border-b border-cyan-900/40">
-        <td colSpan={COLUMN_COUNT} className="p-0">
-          {isMarketGatewayEnabled()
-            ? <VolumeAnalysisPanel symbol={item.ticker} />
-            : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần bật Market Gateway (VITE_MARKET_GATEWAY_ENABLED).</div>}
-        </td>
-      </tr>
-    )}
+    {expanded && <DetailRow ticker={item.ticker} />}
     </>
   );
 });
