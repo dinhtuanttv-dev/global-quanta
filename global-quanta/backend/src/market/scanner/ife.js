@@ -433,7 +433,18 @@ export function trailingZ(arr, window = 60, minHistory = 20) {
  * @param {{ history: any[], today: any|null, tickFlow?: any|null, foreign?: any|null }} p
  *   history: các phiên trước (cũ -> mới) có `bars` nến phút & `buckets`; today: phiên đang xem.
  */
-export function buildIntentFootprint({ history, today, tickFlow = null }) {
+/** Chọn Lee–Ready khi tick đã phủ ≥ 60% KL liên tục của phiên (so với nến phút), ngược lại BVC. */
+export const LR_MIN_COVERAGE = 0.6;
+export function signedMinutes(session, tickFlow) {
+  const bvc = bvcMinutes(session.bars, session.refPrice);
+  const contVol = sum(bvc.map((m) => m.volume));
+  if (tickFlow && tickFlow.date === session.date && contVol > 0 && tickFlow.classifiedVolume >= LR_MIN_COVERAGE * contVol) {
+    return { minutes: leeReadyMinutes(tickFlow, session.bars), method: "LEE_READY" };
+  }
+  return { minutes: bvc, method: "BVC" };
+}
+
+export function buildIntentFootprint({ history, today, tickFlow = null, tickHistory = null }) {
   const usable = history.filter((s) => s.bars?.length && s.refPrice > 0);
   if (usable.length < 30) return { ready: false, reason: `Cần ≥ 30 phiên có nến phút, mới có ${usable.length}.` };
 
@@ -441,7 +452,13 @@ export function buildIntentFootprint({ history, today, tickFlow = null }) {
   const largeThreshold = quantile(contMinuteVols, 0.95);
   const medMinuteVol = median(contMinuteVols) || 1;
 
-  const footprints = usable.map((s) => sessionFootprint(s, bvcMinutes(s.bars, s.refPrice), largeThreshold));
+  // Phiên lịch sử: ưu tiên Lee–Ready đã lưu (market_tick_flow) nếu phủ đủ, ngược lại BVC.
+  const historyMethod = { LEE_READY: 0, BVC: 0 };
+  const footprints = usable.map((s) => {
+    const { minutes, method } = signedMinutes(s, tickHistory?.get(s.date) ?? null);
+    historyMethod[method]++;
+    return sessionFootprint(s, minutes, largeThreshold);
+  });
   const scales = bucketScales(footprints.slice(-60));
   const lambda = estimateLambda(footprints.slice(-60), scales);
   const lambdaRecent = estimateLambda(footprints.slice(-5), scales);
@@ -450,14 +467,9 @@ export function buildIntentFootprint({ history, today, tickFlow = null }) {
   let method = "BVC";
   let todayFp = null;
   if (today?.bars?.length) {
-    const bvc = bvcMinutes(today.bars, today.refPrice);
-    const contVol = sum(bvc.map((m) => m.volume));
-    let minutes = bvc;
-    if (tickFlow && tickFlow.date === today.date && contVol > 0 && tickFlow.classifiedVolume >= 0.6 * contVol) {
-      minutes = leeReadyMinutes(tickFlow, today.bars);
-      method = "LEE_READY";
-    }
-    todayFp = sessionFootprint(today, minutes, largeThreshold);
+    const signed = signedMinutes(today, tickFlow ?? tickHistory?.get(today.date) ?? null);
+    method = signed.method;
+    todayFp = sessionFootprint(today, signed.minutes, largeThreshold);
   }
   const all = todayFp ? [...footprints.filter((f) => f.date !== todayFp.date), todayFp] : footprints;
   const adv = mean(all.slice(-21, -1).map((f) => f.continuousVolume)) || 1;
@@ -494,8 +506,9 @@ export function buildIntentFootprint({ history, today, tickFlow = null }) {
     method,
     methodNote: method === "LEE_READY"
       ? "Chiều chủ động phân loại theo Lee–Ready từ tick SSI realtime."
-      : "Chiều chủ động suy luận bằng Bulk Volume Classification từ nến phút (xấp xỉ; Lee–Ready chỉ có khi mã đang được theo dõi trong phiên).",
+      : "Chiều chủ động suy luận bằng Bulk Volume Classification từ nến phút (xấp xỉ; Lee–Ready chỉ có khi tick của mã đã được ghi trong phiên).",
     sessions: usable.length,
+    historyMethod,
     viewDate: todayFp?.date ?? null,
     largeMinuteThreshold: Math.round(largeThreshold),
     lambda: { bucket: lambda, recent5: lambdaRecent, ratio: lambda && lambdaRecent ? round(lambdaRecent / lambda, 2) : null, daily: lambdaDaily },

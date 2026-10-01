@@ -201,3 +201,25 @@ test("stream: Lee–Ready — phân loại mua/bán chủ động theo bước g
   assert.equal(s.hub.getTickFlow("FPT"), null);
   s.hub.shutdown();
 });
+
+test("stream: drainTickFlow trả các phút đã đổi (bản đầy đủ của phút), lần sau chỉ phút mới; markTickFlowDirty ghi lại", async () => {
+  const s = setup();
+  s.subscribe(["HPG"]);
+  const shard = s.xShards()[0];
+  shard.opts.onStatus("connected");
+  const x = (t, last, totalVol) => ({ DataType: "X", Content: { Symbol: "HPG", LastPrice: last, TotalVol: totalVol, BidPrice1: 19950, BidVol1: 1000, AskPrice1: 20000, AskVol1: 1000, RefPrice: 20000, TradingDate: "01/10/2026", Time: t } });
+  shard.opts.onMessage(x("10:00:00", 20000, 10_000));
+  shard.opts.onMessage(x("10:00:05", 20000, 12_000));
+  const first = s.hub.drainTickFlow();
+  assert.deepEqual(first.map((r) => [r.symbol, r.date, r.minute, r.buy, r.sell, r.prints]), [["HPG", "2026-10-01", 600, 2000, 0, 1]]);
+  assert.deepEqual(s.hub.drainTickFlow(), [], "không có thay đổi -> không ghi lại");
+  shard.opts.onMessage(x("10:00:30", 19950, 13_000));
+  shard.opts.onMessage(x("10:01:00", 20000, 14_000));
+  const second = s.hub.drainTickFlow();
+  assert.deepEqual(second.map((r) => [r.minute, r.buy, r.sell, r.prints]), [[600, 2000, 1000, 2], [601, 1000, 0, 1]], "phút 600 gửi lại bản cộng dồn");
+  s.hub.markTickFlowDirty(second);
+  assert.equal(s.hub.drainTickFlow().length, 2);
+  s.hub.markTickFlowDirty([{ symbol: "HPG", date: "2026-09-30", minute: 600 }]);
+  assert.deepEqual(s.hub.drainTickFlow(), [], "phiên cũ không đánh dấu lại");
+  s.hub.shutdown();
+});

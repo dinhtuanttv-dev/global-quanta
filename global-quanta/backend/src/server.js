@@ -4,7 +4,7 @@ import cors from "cors";
 import scanRouter from "./routes/scan.js";
 import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
-import { startMarketIngestor } from "./market/runtime.js";
+import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
 const app = express();
@@ -45,3 +45,14 @@ app.listen(PORT, () => {
   // Đồng bộ dữ liệu SSI vào kho theo lịch (chỉ khi MARKET_INGESTOR_ENABLED=true).
   startMarketIngestor();
 });
+
+// Railway gửi SIGTERM khi deploy/khởi động lại: ghi nốt dòng lệnh tick còn trong bộ nhớ rồi thoát.
+for (const signal of ["SIGTERM", "SIGINT"]) {
+  process.once(signal, async () => {
+    try {
+      await Promise.race([getMarketRuntime().tickRecorder.flush(), new Promise((r) => setTimeout(r, 8_000))]);
+    } finally {
+      process.exit(0);
+    }
+  });
+}

@@ -144,6 +144,31 @@ test("ife: dùng Lee–Ready khi tick phủ ≥ 60% KL liên tục, ngược l�
   assert.equal(buildIntentFootprint({ history: sessions.slice(0, -1), today, tickFlow: partial }).method, "BVC");
 });
 
+test("ife: phiên lịch sử dùng Lee–Ready đã lưu khi phủ đủ, còn lại BVC", () => {
+  const sessions = makeHistory(50, { seed: 13 });
+  const history = sessions.slice(0, -1);
+  const toFlow = (s, share) => {
+    const cont = s.bars.filter((b) => b.date.slice(11, 16) > "09:15" && b.date.slice(11, 16) < "14:30");
+    const minutes = cont.map((b) => ({ minute: Number(b.date.slice(11, 13)) * 60 + Number(b.date.slice(14, 16)), buy: 0, sell: b.volume * share, unknown: 0, prints: 1, sizes: {} }));
+    return { date: s.date, classifiedVolume: minutes.reduce((a, m) => a + m.sell, 0), minutes };
+  };
+  const tickHistory = new Map([
+    [history.at(-1).date, toFlow(history.at(-1), 1)],
+    [history.at(-2).date, toFlow(history.at(-2), 1)],
+    [history.at(-3).date, toFlow(history.at(-3), 0.2)], // phủ 20% -> giữ BVC
+  ]);
+  const base = buildIntentFootprint({ history, today: sessions.at(-1) });
+  const out = buildIntentFootprint({ history, today: sessions.at(-1), tickHistory });
+  assert.deepEqual(base.historyMethod, { LEE_READY: 0, BVC: history.length });
+  assert.deepEqual(out.historyMethod, { LEE_READY: 2, BVC: history.length - 2 });
+  const d = (r, date) => r.dailyIntent.find((x) => x.date === date).deltaPctAdv;
+  assert.ok(d(out, history.at(-1).date) < -50, "phiên LR toàn bán chủ động -> delta âm mạnh");
+  assert.equal(d(out, history.at(-3).date), d(base, history.at(-3).date));
+  // Phiên đang xem cũng lấy từ lịch sử tick nếu không có tick trong bộ nhớ.
+  const viewed = buildIntentFootprint({ history: history.slice(0, -1), today: history.at(-1), tickHistory });
+  assert.equal(viewed.method, "LEE_READY");
+});
+
 test("ife: lặp kích thước lệnh và cụm khớp cùng giá", () => {
   const minutes = Array.from({ length: 30 }, (_, i) => ({ minute: 600 + i, sizes: { 500: 3, 1000: 1, [700 + i]: 1 } }));
   const clip = clipRegularity(minutes);

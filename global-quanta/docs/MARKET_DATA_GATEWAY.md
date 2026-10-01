@@ -101,7 +101,11 @@ Engine quét chạy trên Gateway (thay cron `sieu-quet-scan` của Project A), 
 5. **HMM diễn giải được:** 5 trạng thái (gom chủ động / gom thụ động / xả chủ động / xả thụ động / trung tính) với nguyên mẫu CỐ ĐỊNH, lọc tiến; tách **cả phiên** (HMM theo phiên, z trượt) và **khung gần nhất** (HMM theo khung) — không trình bày lẫn.
 6. **Kiểm chứng toàn universe:** BVC ngày, trạng thái lọc tiến, ba rào chắn 5 phiên ±1,5 ATR, kiểm định hai tỷ lệ + Benjamini–Hochberg (q = 0,1), cùng chiều hai nửa thời gian, n ≥ 100. Test chứng minh: công nhận khi có quan hệ thật, không công nhận trên dữ liệu ngẫu nhiên.
 
-Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận xác suất. Tick chỉ giữ trong bộ nhớ của phiên hiện tại cho tới khi bật Supabase.
+Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận xác suất.
+
+**Lưu tick bền vững** (`scanner/tickFlowService.js`, migration `20261002010000_market_tick_flow.sql`): StreamHub đánh dấu các phút đã đổi; mỗi phút recorder upsert bản cộng dồn của phút vào `market_tick_flow` (khoá `symbol, trading_date, minute` — ghi lại idempotent; ghi lỗi thì đánh dấu lại để lần sau ghi tiếp; SIGTERM ghi nốt trước khi thoát). IFE đọc lịch sử này: **từng phiên** dùng Lee–Ready nếu tick phủ ≥ 60% KL liên tục của phiên, còn lại BVC (`historyMethod` trong response cho biết số phiên mỗi loại); phiên hôm nay ghép phần đã lưu với bộ nhớ (không mất phần trước khi Gateway khởi động lại). Mặc định chỉ ghi các mã đang có người xem; đặt `MARKET_TICK_RECORDER_SYMBOLS=N` để tự ghi nền N mã thanh khoản cao nhất trong giờ giao dịch (mỗi 50 mã = 1 kết nối SSI). Trạng thái: `GET /api/market/status` → `tickRecorder`.
+
+**Quyền truy cập** (`20261002020000_market_grants.sql`): project tắt tự cấp quyền cho bảng mới, nên cấp tường minh cho `service_role` (khoá bí mật của Gateway) và thu hồi mọi quyền của `anon`/`authenticated` — trình duyệt không đọc/ghi được bảng `market_*` (đã kiểm tra: anon 401, backend 200).
 
 **Giai đoạn 0 (sửa lỗi trên production):** "đột biến lớn nhất" bỏ ATO/ATC; "So cùng thời điểm" dùng trung vị 20 phiên (thống nhất với Nhịp, UI lấy cùng một nguồn); phân bổ KL theo giá 20 phiên từ bộ đệm nến phút dùng chung; dòng phụ cuộn vào tầm nhìn một lần khi mở.
 

@@ -78,7 +78,7 @@ export class StreamHub {
     const minute = Number(m[1]) * 60 + Number(m[2]);
     let flow = this.tickFlow.get(next.symbol);
     if (!flow || flow.date !== date) {
-      flow = { date, minutes: new Map(), lastSide: 0, classifiedVolume: 0 };
+      flow = { date, minutes: new Map(), lastSide: 0, classifiedVolume: 0, dirty: new Set() };
       this.tickFlow.set(next.symbol, flow);
     }
     const bid = prev.bid?.[0]?.price, ask = prev.ask?.[0]?.price;
@@ -93,7 +93,33 @@ export class StreamHub {
     agg.prints++;
     agg.sizes[qty] = (agg.sizes[qty] ?? 0) + 1;
     flow.minutes.set(minute, agg);
+    flow.dirty.add(minute);
     flow.classifiedVolume += qty;
+  }
+
+  /**
+   * Lấy các phút đã thay đổi kể từ lần gọi trước (bản tổng hợp đầy đủ của phút, nên ghi
+   * lại nhiều lần vẫn idempotent) để lưu bền vững; xoá cờ "bẩn".
+   * @returns {{ symbol, date, minute, buy, sell, unknown, prints, sizes }[]}
+   */
+  drainTickFlow() {
+    const rows = [];
+    for (const [symbol, flow] of this.tickFlow) {
+      for (const minute of flow.dirty) {
+        const m = flow.minutes.get(minute);
+        if (m) rows.push({ symbol, date: flow.date, minute, buy: m.buy, sell: m.sell, unknown: m.unknown, prints: m.prints, sizes: { ...m.sizes } });
+      }
+      flow.dirty.clear();
+    }
+    return rows;
+  }
+
+  /** Ghi thất bại -> đánh dấu lại để lần sau ghi tiếp (bỏ qua nếu đã sang phiên khác). */
+  markTickFlowDirty(rows) {
+    for (const r of rows) {
+      const flow = this.tickFlow.get(r.symbol);
+      if (flow && flow.date === r.date && flow.minutes.has(r.minute)) flow.dirty.add(r.minute);
+    }
   }
 
   /** Dòng lệnh có dấu (Lee–Ready) của phiên hiện tại cho một mã, nếu đang được theo dõi. */

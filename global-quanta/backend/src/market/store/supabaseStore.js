@@ -130,6 +130,23 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
       })), "ticker");
     },
 
+    // ---------- Dòng lệnh Lee–Ready theo phút (IFE) ----------
+    async upsertTickFlow(rows) {
+      const now = new Date().toISOString();
+      await upsert("market_tick_flow", rows.map((r) => ({
+        symbol: r.symbol, trading_date: r.date, minute: r.minute,
+        buy: r.buy, sell: r.sell, unknown: r.unknown, prints: r.prints, sizes: r.sizes ?? {}, updated_at: now,
+      })), "symbol,trading_date,minute");
+      return rows.length;
+    },
+    async getTickFlowRange({ symbol, from, to }) {
+      const rows = await selectAll(`market_tick_flow?select=symbol,trading_date,minute,buy,sell,unknown,prints,sizes&symbol=eq.${enc(symbol)}&trading_date=gte.${from}&trading_date=lte.${to}&order=trading_date.asc,minute.asc`);
+      return rows.map((r) => ({
+        symbol: r.symbol, date: r.trading_date, minute: Number(r.minute),
+        buy: Number(r.buy), sell: Number(r.sell), unknown: Number(r.unknown), prints: Number(r.prints), sizes: r.sizes ?? {},
+      }));
+    },
+
     async upsertBars(symbol, list, source) {
       if (!list.length) return 0;
       await upsert("market_ohlcv_daily", list.map((b) => ({

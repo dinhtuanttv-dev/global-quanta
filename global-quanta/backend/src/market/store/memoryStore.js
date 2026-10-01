@@ -21,6 +21,7 @@ export function createMemoryStore() {
   const daily = new Map(); // date -> Map(symbol -> row)
   const kv = new Map();
   const fundamentals = new Map();
+  const tickFlow = new Map(); // `${symbol}|${date}` -> Map(minute -> row)
 
   return {
     kind: "memory",
@@ -74,6 +75,25 @@ export function createMemoryStore() {
     },
     async upsertFundamentals(entries) {
       for (const e of entries) fundamentals.set(e.ticker, { ...e, fetchedAt: e.fetchedAt ?? new Date().toISOString() });
+    },
+
+    // ---------- Dòng lệnh Lee–Ready theo phút (IFE) ----------
+    async upsertTickFlow(rows) {
+      for (const r of rows) {
+        const key = `${r.symbol}|${r.date}`;
+        if (!tickFlow.has(key)) tickFlow.set(key, new Map());
+        tickFlow.get(key).set(r.minute, { minute: r.minute, buy: r.buy, sell: r.sell, unknown: r.unknown, prints: r.prints, sizes: { ...r.sizes } });
+      }
+      return rows.length;
+    },
+    async getTickFlowRange({ symbol, from, to }) {
+      const out = [];
+      for (const [key, minutes] of tickFlow) {
+        const [sym, date] = key.split("|");
+        if (sym !== symbol || date < from || date > to) continue;
+        out.push(...[...minutes.values()].map((m) => ({ symbol, date, ...m })));
+      }
+      return out.sort((a, b) => a.date.localeCompare(b.date) || a.minute - b.minute);
     },
 
     async upsertBars(symbol, list, source) {
