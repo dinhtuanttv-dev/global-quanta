@@ -5,14 +5,15 @@ import scanRouter from "./routes/scan.js";
 import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
 import { startMarketIngestor } from "./market/runtime.js";
+import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// FRONTEND_ORIGIN có thể là danh sách phân tách bằng dấu phẩy (VD domain Vercel + localhost)
-// khi Gateway chạy ở domain riêng (Railway/Fly/VPS).
-const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173").split(",").map((o) => o.trim()).filter(Boolean);
-app.use(cors({ origin: allowedOrigins.length === 1 ? allowedOrigins[0] : allowedOrigins }));
+// FRONTEND_ORIGIN: danh sách phân tách bằng dấu phẩy, hỗ trợ "*" cho URL preview
+// Vercel (xem utils/corsOrigins.js) khi Gateway chạy ở domain riêng.
+const allowedOrigins = parseAllowedOrigins(process.env.FRONTEND_ORIGIN || "http://localhost:5173");
+app.use(cors({ origin: (origin, callback) => callback(null, isOriginAllowed(origin, allowedOrigins)) }));
 app.use(express.json({ limit: "15mb" })); // ảnh base64 cần payload lớn hơn mặc định
 
 function healthHandler(req, res) {
