@@ -62,6 +62,15 @@ Chưa kiểm chứng: SSI API v3 (chưa có khóa), giới hạn khoảng ngày 
 6. **Scanner/backtest:** Express đặt `HISTORICAL_DATA_SOURCE=market_service`; Vercel `api/scan.js` đặt `HISTORICAL_DATA_SOURCE=market_gateway` cùng `MARKET_GATEWAY_URL`.
 7. **SSI v3 (tùy chọn):** đặt `SSI_V3_API_KEY` và `SSI_V3_API_SECRET`. Kênh v3 tự trở thành nguồn REST đầu tiên trong chuỗi; stream vẫn dùng FC v2 vì stream v3 cần OTP.
 
+## Hạ tầng hiện tại (Railway)
+
+- Project `global-quanta-gateway`, service `gateway`, URL `https://gateway-production-1da0.up.railway.app`.
+- **Nguồn:** GitHub `dinhtuanttv-dev/global-quanta`, nhánh `main`. Merge vào `main` có thay đổi trong `global-quanta/backend/**` sẽ tự deploy (watch path `/global-quanta/backend/**`).
+- **Build:** root directory `global-quanta/backend`, `Dockerfile`. Healthcheck `/health` (timeout 60s), restart `ON_FAILURE` (tối đa 10 lần).
+- **Vùng:** Singapore (`asia-southeast1`), 1 replica. Chỉ chạy 1 replica vì mỗi replica tự giữ kết nối SSI và kho `memory` riêng.
+- Các thiết lập trên lưu trong cấu hình service (không dùng `railway.json`, định dạng này hết hạn 01/12/2026). Không dùng `railway config apply` (IaC) khi chưa khai báo đủ biến môi trường, vì IaC xoá mọi biến không khai báo.
+- `FRONTEND_ORIGIN`: `https://global-quanta.vercel.app`, `https://global-quanta-*-dinhtuanttv-devs-projects.vercel.app`, `https://dinhtuan-ck.vercel.app`, `https://dinhtuan-*-dinhtuanttv-devs-projects.vercel.app`, `http://localhost:5173`.
+
 ## Vận hành
 
 - `GET /api/market/status`: phiên, trạng thái provider và breaker, shard stream, lịch và kết quả job, sự kiện chuyển nguồn gần nhất.

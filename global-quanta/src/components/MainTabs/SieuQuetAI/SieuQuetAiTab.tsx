@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { EventPanel } from "./EventPanel";
+import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 
 // Mau sac theo statusCode Confluence - dung DUNG bang mau da duyet trong
 // prototype HTML goc (frontend/index.html, bien CONF_COLOR).
@@ -65,7 +66,19 @@ function ImpulseGauge({ score }: { score: number }) {
   );
 }
 
-function StockRow({ item }: { item: SieuQuetStockItem }) {
+function sourceLabel(source: string): string {
+  if (source === "SSI_STREAM") return "SSI realtime";
+  if (source.startsWith("SSI")) return "SSI";
+  return "nguồn dự phòng";
+}
+
+function StockRow({ item, live }: { item: SieuQuetStockItem; live?: LiveQuote }) {
+  // Giá/% ưu tiên SSI qua Market Gateway; điểm số vẫn là kết quả quét định kỳ của Project A.
+  const price = live?.price ?? item.price;
+  const changePct = live ? live.changePct : item.changePct;
+  const priceTitle = live
+    ? `Giá ${sourceLabel(live.source)}${live.asOf ? ` · ${live.asOf}` : ""}`
+    : `Giá chốt lúc quét (${item.computedAt}) — Project A`;
   const confClass = (item.confluenceStatusCode && CONF_COLOR[item.confluenceStatusCode]) ?? "bg-slate-800 text-slate-400 border-slate-600";
   const excluded = item.piotroskiFScore !== null && item.piotroskiFScore <= Math.floor(item.fScoreMax * 3 / 9);
 
@@ -75,10 +88,11 @@ function StockRow({ item }: { item: SieuQuetStockItem }) {
         {item.ticker}
         <div className="text-[9px] text-slate-500 font-sans">{item.sector}</div>
       </td>
-      <td className="text-right pr-3">
-        {fmt(item.price, 0)}
-        <div className={`text-[9px] ${(item.changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {(item.changePct ?? 0) >= 0 ? "+" : ""}{fmt(item.changePct, 2)}%
+      <td className="text-right pr-3" title={priceTitle}>
+        {fmt(price, 0)}
+        {live && live.source.startsWith("SSI") && <span className="ml-1 text-[8px] text-emerald-500">●</span>}
+        <div className={`text-[9px] ${(changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+          {(changePct ?? 0) >= 0 ? "+" : ""}{fmt(changePct, 2)}%
         </div>
       </td>
       <td className="text-right pr-3 font-semibold text-amber-400">{fmt(item.smartScore, 1)}</td>
@@ -102,6 +116,8 @@ function StockRow({ item }: { item: SieuQuetStockItem }) {
 
 export default function SieuQuetAiTab() {
   const { indexState, items, isLoading, error } = useSieuQuetScanner();
+  const tickers = useMemo(() => items.map((i) => i.ticker), [items]);
+  const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(tickers);
   const [sectorFilter, setSectorFilter] = useState<string>("all");
 
   const sectors = useMemo(() => Array.from(new Set(items.map((i) => i.sector).filter(Boolean))) as string[], [items]);
@@ -128,7 +144,9 @@ export default function SieuQuetAiTab() {
         <EventPanel />
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3">
           <p className="text-[9px] text-sky-300">
-            Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.
+            {gatewayEnabled
+              ? <>Giá: SSI realtime qua Market Gateway (● = giá SSI). Điểm số TA/FA, VN-Index đa tầng: quét định kỳ (Yahoo + VCI + VNDirect) cho {items.length} mã.</>
+              : <>Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.</>}
             Sự kiện: AI Discovery (Gemini + Google Search, 3 lần/ngày) + nhập tay, chỉ sự kiện đã xác nhận mới ảnh hưởng Smart Score.
           </p>
         </div>
@@ -161,7 +179,7 @@ export default function SieuQuetAiTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => <StockRow key={item.ticker} item={item} />)}
+                {filteredItems.map((item) => <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]} />)}
               </tbody>
             </table>
           </div>
