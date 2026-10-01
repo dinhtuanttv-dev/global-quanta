@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 
-const API_BASE = "https://tuan-quant-scanner-psi.vercel.app";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://tuan-quant-scanner-psi.vercel.app";
 
 export interface IndexCompareItem {
   index: string;

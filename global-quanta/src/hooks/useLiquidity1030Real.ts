@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 
-const API_BASE = "https://tuan-quant-scanner-psi.vercel.app";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://tuan-quant-scanner-psi.vercel.app";
 
 export interface Liquidity1030Data {
   today: { date: string; cumulativeVolumeAt1030: number };

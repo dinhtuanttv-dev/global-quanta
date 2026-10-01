@@ -5,6 +5,8 @@
  * khong kha dung hoac loi, fallback goi truc tiep Yahoo Finance.
  */
 
+import { getQuotes, isMarketGatewayEnabled } from "../../../services/marketDataClient";
+
 export interface LivePrice {
   ticker: string;
   price: number | null;
@@ -136,6 +138,28 @@ export async function fetchLivePrice(ticker: string): Promise<LivePrice> {
 export async function fetchLivePrices(tickers: string[]): Promise<LivePriceResponse> {
   if (tickers.length === 0) {
     return {};
+  }
+
+  // Chế độ Market Gateway: backend chọn nguồn (SSI -> dự phòng) và gắn nhãn nguồn.
+  if (isMarketGatewayEnabled()) {
+    const results: LivePriceResponse = {};
+    for (let i = 0; i < tickers.length; i += 200) {
+      const { quotes } = await getQuotes(tickers.slice(i, i + 200));
+      for (const ticker of tickers.slice(i, i + 200)) {
+        const q = quotes[ticker.toUpperCase()];
+        results[ticker] = q
+          ? {
+              ticker,
+              price: q.price,
+              change: q.change,
+              changePct: q.changePct,
+              previousClose: q.refPrice,
+              timestamp: new Date(q.provenance.asOf ?? Date.now()),
+            }
+          : { ticker, price: null, change: null, changePct: null, previousClose: null, timestamp: new Date(), error: "Không có giá từ mọi nguồn" };
+      }
+    }
+    return results;
   }
 
   const proxyResult = await fetchViaProxy(tickers);

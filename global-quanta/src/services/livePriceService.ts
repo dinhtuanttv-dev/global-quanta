@@ -4,6 +4,7 @@
  */
 
 import { priceTickEngine } from "./priceTickEngine";
+import { getQuotes, isMarketGatewayEnabled } from "./marketDataClient";
 
 const YAHOO_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
 const YAHOO_PROXY_BASE = import.meta.env.VITE_API_BASE_URL
@@ -122,8 +123,22 @@ async function fetchViaDirect(tickers: string[]): Promise<Map<string, LivePriceD
 
 // Fetch gia cho nhieu tickers
 // FIX: Kiem tra so luong price thuc su co gia tri, khong chi size cua map
+// Chế độ Market Gateway: backend chọn nguồn (SSI -> dự phòng), không gọi Yahoo từ trình duyệt.
+async function fetchViaGateway(tickers: string[]): Promise<Map<string, LivePriceData>> {
+  const result = new Map<string, LivePriceData>();
+  for (let i = 0; i < tickers.length; i += 200) {
+    const { quotes, missing } = await getQuotes(tickers.slice(i, i + 200));
+    for (const [ticker, q] of Object.entries(quotes)) {
+      result.set(ticker, { ticker, price: q.price, change: q.change, changePct: q.changePct });
+    }
+    for (const ticker of missing) result.set(ticker, { ticker, price: null, error: "Không có giá từ mọi nguồn" });
+  }
+  return result;
+}
+
 async function fetchYahooPrices(tickers: string[]): Promise<Map<string, LivePriceData>> {
   if (tickers.length === 0) return new Map();
+  if (isMarketGatewayEnabled()) return fetchViaGateway(tickers);
   if (YAHOO_PROXY_BASE) {
     const proxyResult = await fetchViaProxy(tickers);
     const successCount = Array.from(proxyResult.values()).filter(v => v.price !== null).length;

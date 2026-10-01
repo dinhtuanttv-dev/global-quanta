@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { fetchLivePrices } from '../MainTabs/SieuQuetAI/livePriceApi';
 import { subscribeSsiMarketQuotes } from '../../services/api';
+import {
+  describeFeedStatus, FEED_TONE_COLOR, isMarketGatewayEnabled, subscribeMarket, type StreamStatus,
+} from '../../services/marketDataClient';
 import WatchlistRow from './WatchlistRow';
 import SidebarSearchInput from './SidebarSearchInput';
 import SortToggleButton from './SortToggleButton';
@@ -19,6 +22,10 @@ export default function Sidebar() {
 
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; stock: WatchlistStock } | null>(null);
   const [ssiStreamConnected, setSsiStreamConnected] = useState(false);
+  // Chế độ Market Gateway: backend chọn nguồn (SSI -> dự phòng), Sidebar chỉ hiển thị.
+  const gatewayMode = isMarketGatewayEnabled();
+  const [feedStatus, setFeedStatus] = useState<StreamStatus | null>(null);
+  const [feedConnectionLost, setFeedConnectionLost] = useState(false);
 
   useEffect(() => { loadWatchlist(); }, [loadWatchlist]);
 
@@ -44,15 +51,45 @@ export default function Sidebar() {
   }, [ssiStreamConnected, updateLivePrices]);
 
   useEffect(() => {
-    if (watchlist.length === 0) return;
+    // Chế độ Gateway: fallback do backend đảm nhiệm, không poll Yahoo từ trình duyệt.
+    if (gatewayMode || watchlist.length === 0) return;
     pollLivePrices();
     const interval = setInterval(pollLivePrices, 60_000);
     return () => clearInterval(interval);
-  }, [watchlist.length, pollLivePrices]);
+  }, [gatewayMode, watchlist.length, pollLivePrices]);
 
   const watchlistSymbols = useMemo(() => watchlist.map((stock) => stock.ticker).join(','), [watchlist]);
+  // Chế độ Gateway: mã của Radar/Action Center đi chung một kết nối stream với watchlist.
+  const radarCore = useAppStore((s) => s.radarCore);
+  const radarRing = useAppStore((s) => s.radarRing);
+  const updateRadarPrices = useAppStore((s) => s.updateRadarPrices);
+  const radarSymbols = useMemo(
+    () => [...new Set([...radarCore, ...radarRing].map((n) => n.ticker))].sort().join(','),
+    [radarCore, radarRing],
+  );
   useEffect(() => {
     if (!watchlistSymbols) return;
+    if (gatewayMode) {
+      const stop = subscribeMarket({
+        symbols: [...watchlistSymbols.split(','), ...radarSymbols.split(',').filter(Boolean)],
+        onQuote: (quote) => {
+          if (!quote.price || quote.price <= 0) return;
+          const update = { [quote.symbol]: { price: quote.price, changePct: quote.changePct } };
+          updateLivePrices(update);
+          updateRadarPrices(update);
+          setFeedConnectionLost(false);
+        },
+        onStatus: (status) => {
+          setFeedStatus(status);
+          setFeedConnectionLost(false);
+        },
+        onError: () => setFeedConnectionLost(true),
+      });
+      return () => {
+        setFeedStatus(null);
+        stop();
+      };
+    }
     const stop = subscribeSsiMarketQuotes(
       watchlistSymbols.split(','),
       (rawQuote) => {
@@ -69,7 +106,7 @@ export default function Sidebar() {
       setSsiStreamConnected(false);
       stop();
     };
-  }, [watchlistSymbols, updateLivePrices]);
+  }, [gatewayMode, watchlistSymbols, radarSymbols, updateLivePrices, updateRadarPrices]);
 
   const filteredSorted = useMemo(() => {
     let list = watchlist.filter((s) => {
@@ -99,6 +136,7 @@ export default function Sidebar() {
   };
 
   const handleDelete = (ticker: string) => removeStock(ticker);
+  const feedBadge = describeFeedStatus(feedStatus, feedConnectionLost);
 
   return (
     <div className="sidebar">
@@ -110,14 +148,25 @@ export default function Sidebar() {
 
       <div className="sb-toolbar">
         <span style={{ fontSize: 9.5, color: 'var(--text-tertiary)', fontWeight: 600 }}>DANH SÁCH MÃ</span>
-        <span
-          role="status"
-          aria-label={ssiStreamConnected ? 'SSI FastConnect đang kết nối' : 'SSI FastConnect chưa kết nối'}
-          title={ssiStreamConnected ? 'Đang nhận giá thời gian thực từ SSI FastConnect' : 'Đang dùng nguồn giá dự phòng cho đến khi SSI FastConnect kết nối'}
-          style={{ fontSize: 9, color: ssiStreamConnected ? '#34d399' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}
-        >
-          {ssiStreamConnected ? '● SSI LIVE' : '○ SSI OFFLINE'}
-        </span>
+        {gatewayMode ? (
+          <span
+            role="status"
+            aria-label={feedBadge.title}
+            title={feedBadge.title}
+            style={{ fontSize: 9, color: FEED_TONE_COLOR[feedBadge.tone], whiteSpace: 'nowrap' }}
+          >
+            {feedBadge.label}
+          </span>
+        ) : (
+          <span
+            role="status"
+            aria-label={ssiStreamConnected ? 'SSI FastConnect đang kết nối' : 'SSI FastConnect chưa kết nối'}
+            title={ssiStreamConnected ? 'Đang nhận giá thời gian thực từ SSI FastConnect' : 'Đang dùng nguồn giá dự phòng cho đến khi SSI FastConnect kết nối'}
+            style={{ fontSize: 9, color: ssiStreamConnected ? '#34d399' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}
+          >
+            {ssiStreamConnected ? '● SSI LIVE' : '○ SSI OFFLINE'}
+          </span>
+        )}
         <SortToggleButton active={sortByConvergence} onToggle={toggleSortByConvergence} />
       </div>
 

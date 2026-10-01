@@ -1,4 +1,5 @@
 ﻿import useSWR from "swr";
+import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 
 interface OhlcvBar { date: string; open: number; high: number; low: number; close: number; volume: number; }
 interface OhlcvApiResponse { ticker: string; bars: OhlcvBar[]; }
@@ -10,7 +11,11 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 
 export function useOhlcvData(ticker: string | null, range: string = "3mo", limit: number = 30) {
   const { data, error, isLoading } = useSWR<OhlcvApiResponse>(
-    ticker ? `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/ohlcv?ticker=${encodeURIComponent(ticker)}&range=${range}&limit=${limit}` : null,
+    ticker
+      ? isMarketGatewayEnabled()
+        ? marketUrl("/api/market/ohlcv", { ticker, range, limit })
+        : `${import.meta.env.VITE_API_BASE_URL ?? ""}/api/ohlcv?ticker=${encodeURIComponent(ticker)}&range=${range}&limit=${limit}`
+      : null,
     fetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 }
   );

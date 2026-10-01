@@ -51,6 +51,8 @@ interface AppState {
   radarCore: RadarCoreNode[];
   radarRing: RadarRingNode[];
   loadRadar: () => Promise<void>;
+  /** Thay giá mẫu của Radar bằng giá thật (Market Gateway). */
+  updateRadarPrices: (prices: Record<string, { price: number; changePct: number | null }>) => void;
 
   // ===== TOAST (hoàn tác) =====
   toast: ToastState | null;
@@ -157,6 +159,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     const [core, ring] = await Promise.all([api.fetchRadarCore(), api.fetchRadarRing()]);
     set({ radarCore: core, radarRing: ring });
     if (core.length > 0) set({ selectedTicker: core[0].ticker });
+  },
+  updateRadarPrices: (prices) => {
+    const apply = <T extends { ticker: string; price: number; changePct: number; livePrice?: boolean }>(nodes: T[]): T[] =>
+      nodes.map((n) => {
+        const p = prices[n.ticker];
+        if (!p || !(p.price > 0)) return n;
+        return { ...n, price: p.price, changePct: p.changePct ?? n.changePct, livePrice: true };
+      });
+    set((s) => ({ radarCore: apply(s.radarCore), radarRing: apply(s.radarRing) }));
   },
 
   toast: null,

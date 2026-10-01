@@ -36,6 +36,8 @@ export interface RadarCoreNode {
   stateLabel: string;
   price: number;
   changePct: number;
+  /** true khi price/changePct đã được thay bằng giá thật từ Market Gateway (SSI). */
+  livePrice?: boolean;
   holdSuggestion: string;
   convergence: number[];
   trendWarning: string | null;
@@ -47,6 +49,7 @@ export interface RadarRingNode {
   sector: string;
   price: number;
   changePct: number;
+  livePrice?: boolean;
 }
 
 export interface RadarDigest {

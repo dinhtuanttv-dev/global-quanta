@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from "react";
+import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 
-const API_BASE = "https://tuan-quant-scanner-psi.vercel.app";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "https://tuan-quant-scanner-psi.vercel.app";
 
 export interface VnIndexRealData {
   value: number;
@@ -21,7 +22,12 @@ export function useVnIndexReal(refreshMs = 60_000) {
     async function load() {
       try {
         const [ohlcvRes, valueRes] = await Promise.all([
-          fetch(`${API_BASE}/api/ohlcv?ticker=VNINDEX&range=1mo&limit=30`, { cache: "no-store" }),
+          fetch(
+            isMarketGatewayEnabled()
+              ? marketUrl("/api/market/ohlcv", { ticker: "VNINDEX", range: "1mo", limit: 30 })
+              : `${API_BASE}/api/ohlcv?ticker=VNINDEX&range=1mo&limit=30`,
+            { cache: "no-store" },
+          ),
           fetch(`${API_BASE}/api/market-data/vnindex-value-estimate`, { cache: "no-store" }).catch(() => null),
         ]);
 

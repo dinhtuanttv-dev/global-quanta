@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 
 // PHUONG AN D: dung route /api/universe da co san o Project A (theo route
 // table trong guide: "GET /api/universe - Danh sách mã + ngành (VN30+VN100)
@@ -22,7 +23,8 @@ export interface UniverseTicker {
 export function useUniverseSearch() {
   // Universe it thay doi trong ngay -> cache dai (30 phut), khop tinh than
   // "nhẹ, không gọi Yahoo" cua route nay trong guide.
-  const { data, error, isLoading } = useSWR(`${API_BASE}/api/universe`, fetcher, {
+  const url = isMarketGatewayEnabled() ? marketUrl("/api/market/universe") : `${API_BASE}/api/universe`;
+  const { data, error, isLoading } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 30 * 60 * 1000,
   });

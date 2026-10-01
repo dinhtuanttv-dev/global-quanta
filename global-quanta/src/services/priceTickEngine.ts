@@ -1,3 +1,5 @@
+import { isPriceSimulationEnabled } from '../hooks/usePriceTick';
+
 /**
  * priceTickEngine.ts
  * ────────────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ class PriceTickEngine {
    * Nếu true (mặc định): random jitter khi không có giá từ external source.
    * Set false khi livePriceService đang chạy (giá thật từ Yahoo Finance).
    */
-  private enableJitter = true;
+  private enableJitter = isPriceSimulationEnabled();
 
   constructor() {
     if (typeof document !== 'undefined') {
