@@ -90,6 +90,21 @@ Engine quét chạy trên Gateway (thay cron `sieu-quet-scan` của Project A), 
 
 **VCI:** `iq.vietcap.com.vn` trả 403 nếu thiếu `Origin`/`Referer` của `trading.vietcap.com.vn` (đo 01/10/2026). Job BCTC không lưu bản ghi lỗi (để thử lại lần chạy sau).
 
+## IFE — Intent Footprint Engine (bản đồ ý đồ dòng tiền)
+
+`GET /api/market/scanner/:symbol/intent` — `backend/src/market/scanner/ife.js` (hàm thuần), kiểm chứng `ifeValidation.js` (job `ifeValidate` 15:50, lưu `ife:validation`).
+
+1. **Dòng lệnh có dấu:** Lee–Ready trên tick X của StreamHub (phiên hiện tại, mã đang được theo dõi; KL = ΔTotalVol, chiều so với bid/ask TRƯỚC lệnh, giữa thì tick rule) — dùng khi phủ ≥ 60% KL liên tục; còn lại Bulk Volume Classification trên nến phút `buy% = Φ(Δp/σ)`. ATO/ATC tách riêng (khớp định kỳ).
+2. **Nỗ lực – Kết quả – Tác động:** z vững (trung vị/MAD theo khung, 60 phiên) của delta chuẩn hoá và lợi suất khung; λ Kyle (hồi quy qua gốc). Cờ: hấp thụ bán/mua, đẩy mua/đạp bán, cạn kiệt, thủng thanh khoản (ngưỡng công khai trong `bucketFlags`).
+3. **Chữ ký thực thi:** tự tương quan delta trong phiên/theo phiên, Hurst R/S, CV tỷ lệ tham gia, lặp kích thước lệnh (chỉ khi có tick), cụm khớp dồn tại một giá (H = L, KL ≥ 5× trung vị phút).
+4. **Stealth Score 1/5/20 phiên:** cường độ dòng lệnh "tay to" (phút KL ≥ p95) × độ êm (giá thực so với giá kỳ vọng theo λ ngày) × bền bỉ; **z theo thứ hạng** (vững khi phân phối dồn về 0 — lỗi MAD≈0 đã có test). Phân kỳ tay to – tay nhỏ 20 phiên.
+5. **HMM diễn giải được:** 5 trạng thái (gom chủ động / gom thụ động / xả chủ động / xả thụ động / trung tính) với nguyên mẫu CỐ ĐỊNH, lọc tiến; tách **cả phiên** (HMM theo phiên, z trượt) và **khung gần nhất** (HMM theo khung) — không trình bày lẫn.
+6. **Kiểm chứng toàn universe:** BVC ngày, trạng thái lọc tiến, ba rào chắn 5 phiên ±1,5 ATR, kiểm định hai tỷ lệ + Benjamini–Hochberg (q = 0,1), cùng chiều hai nửa thời gian, n ≥ 100. Test chứng minh: công nhận khi có quan hệ thật, không công nhận trên dữ liệu ngẫu nhiên.
+
+Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận xác suất. Tick chỉ giữ trong bộ nhớ của phiên hiện tại cho tới khi bật Supabase.
+
+**Giai đoạn 0 (sửa lỗi trên production):** "đột biến lớn nhất" bỏ ATO/ATC; "So cùng thời điểm" dùng trung vị 20 phiên (thống nhất với Nhịp, UI lấy cùng một nguồn); phân bổ KL theo giá 20 phiên từ bộ đệm nến phút dùng chung; dòng phụ cuộn vào tầm nhìn một lần khi mở.
+
 ## Hạ tầng hiện tại (Railway)
 
 - Project `global-quanta-gateway`, service `gateway`, URL `https://gateway-production-1da0.up.railway.app`.

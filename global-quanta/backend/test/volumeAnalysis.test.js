@@ -70,5 +70,8 @@ test("volume: trong phiên — gom 15 phút, tỷ trọng ATO/ATC, so cùng th�
   assert.equal(i.atoSharePct, 50);
   assert.equal(i.sameTime.asOfTime, "10:02");
   assert.equal(i.sameTime.ratio, 4); // 2000 / bình quân(500, 500)
-  assert.equal(i.peak.time, "09:15");
+  // ATO (09:15) lớn theo cơ chế khớp định kỳ -> KHÔNG được coi là "đột biến"; chỉ xét khớp liên tục.
+  assert.equal(i.peak.time, "09:20");
+  const withAtc = computeIntraday([...today, mk("14:45", 9_999_999)], past);
+  assert.notEqual(withAtc.peak.time, "14:45");
 });

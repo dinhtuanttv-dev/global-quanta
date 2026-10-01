@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import IntradayCyclePanel from "./IntradayCyclePanel";
+import IntentFootprintPanel from "./IntentFootprintPanel";
+import { useIntradayCycle } from "../../../hooks/useIntradayCycle";
 
 // Màu: phiên tăng/giảm giữ quy ước xanh/đỏ của bảng. Cặp này chỉ đạt ΔE 5.8 với
 // người mù màu đỏ–lục nên LUÔN kèm mã hoá phụ: cột tăng ĐẶC, cột giảm RỖNG (viền).
@@ -141,6 +143,8 @@ function IntradayBars({ buckets }: { buckets: { time: string; volume: number }[]
 
 export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
   const { data, error, isLoading } = useVolumeAnalysis(symbol);
+  // Cùng khoá SWR với phần Nhịp -> không gọi thêm; dùng làm nguồn DUY NHẤT cho RVOL theo thời điểm.
+  const { data: cycle } = useIntradayCycle(symbol);
 
   if (isLoading && !data) return <div className="p-3 text-[10px] text-slate-500 font-sans">Đang phân tích khối lượng {symbol}…</div>;
   if (error || !data) return <div className="p-3 text-[10px] text-rose-400 font-sans">Không tải được phân tích khối lượng: {String(error?.message ?? "không có dữ liệu")}</div>;
@@ -158,13 +162,16 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
       </div>
 
       <IntradayCyclePanel symbol={symbol} />
+      <IntentFootprintPanel symbol={symbol} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
         <Tile label="KL khớp hôm nay" value={fmtVol(today.volume)} sub={`TB20: ${fmtVol(today.avgVolume20)}`} />
         {today.rvolMode === "intraday"
           ? <Tile label="RVOL theo thời điểm" value={today.rvolTimeAdjusted !== null ? `${today.rvolTimeAdjusted}×` : "—"} sub="so KL cùng giờ các phiên trước" tone={today.rvolTimeAdjusted !== null && today.rvolTimeAdjusted >= 1.5 ? "up" : undefined} />
           : <Tile label="RVOL (so TB 20 phiên)" value={today.rvol20 !== null ? `${today.rvol20}×` : "—"} tone={today.rvol20 !== null && today.rvol20 >= 1.5 ? "up" : undefined} />}
-        <Tile label="So cùng thời điểm" value={intraday?.sameTime ? `${intraday.sameTime.ratio}×` : "—"} sub={intraday?.sameTime ? `tới ${intraday.sameTime.asOfTime}, ${intraday.sameTime.sessions} phiên` : undefined} />
+        {cycle?.current?.timeAdjustedRvol != null
+          ? <Tile label="So cùng thời điểm" value={`${cycle.current.timeAdjustedRvol.toFixed(2)}×`} sub="trung vị 20 phiên (như phần Nhịp)" />
+          : <Tile label="So cùng thời điểm" value={intraday?.sameTime ? `${intraday.sameTime.ratio}×` : "—"} sub={intraday?.sameTime ? `tới ${intraday.sameTime.asOfTime}, trung vị ${intraday.sameTime.sessions} phiên` : undefined} />}
         <Tile label="GT khớp / thoả thuận" value={fmtBn(today.value)} sub={`TT: ${fmtBn(today.dealValue)}`} />
         {foreign.today
           ? <Tile label="Khối ngoại ròng hôm nay" value={fmtBn(foreign.today.netVal)} tone={foreign.today.netVal > 0 ? "up" : foreign.today.netVal < 0 ? "down" : undefined}

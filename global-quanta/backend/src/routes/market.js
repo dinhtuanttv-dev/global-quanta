@@ -6,7 +6,8 @@ import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
-import { getIntradayCycle } from "../market/scanner/intradayService.js";
+import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
+import { buildIntentFootprint } from "../market/scanner/ife.js";
 
 const router = Router();
 
@@ -108,6 +109,22 @@ router.get("/scanner/:symbol/intraday-cycle", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const data = await rt.service.cache.wrap(`intraday-cycle:${req.params.symbol.toUpperCase()}`, 30_000,
     () => getIntradayCycle(rt.service, req.params.symbol));
+  res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+// Dòng phụ: IFE — bản đồ ý đồ dòng tiền (dòng lệnh có dấu, hấp thụ, chữ ký thực thi, stealth, HMM).
+router.get("/scanner/:symbol/intent", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = req.params.symbol.toUpperCase();
+  const data = await rt.service.cache.wrap(`ife:${symbol}`, 30_000, async () => {
+    const s = await getIntradaySessions(rt.service, symbol);
+    const tickFlow = rt.hub?.getTickFlow(symbol) ?? null;
+    const footprint = buildIntentFootprint({ history: s.trainSessions, today: s.todaySession, tickFlow });
+    const validation = (await rt.store.getKv(KV.ifeValidation))?.value ?? null;
+    return { symbol, live: s.sessionLive, viewDate: s.viewDate, ...footprint, validation,
+      disclaimer: "IFE là suy luận xác suất từ dấu vết giao dịch (không có danh tính tài khoản); không phải khuyến nghị đầu tư." };
+  });
   res.set("Cache-Control", "private, max-age=30");
   res.json(data);
 }));

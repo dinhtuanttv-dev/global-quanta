@@ -168,13 +168,17 @@ export function computeIntraday(todayBars, pastSessions) {
   const total = sum(todayBars.map((b) => b.volume || 0));
   const atoVol = sum(todayBars.filter((b) => { const m = minuteOfSession(b.date); return m !== null && m <= 9 * 60 + 15; }).map((b) => b.volume));
   const atcVol = sum(todayBars.filter((b) => { const m = minuteOfSession(b.date); return m !== null && m >= 14 * 60 + 30; }).map((b) => b.volume));
-  const sorted = [...todayBars].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+  // Đột biến: chỉ xét khớp lệnh LIÊN TỤC — ATO/ATC luôn lớn theo cơ chế khớp định kỳ, không phải tín hiệu.
+  const continuousBars = todayBars.filter((b) => { const m = minuteOfSession(b.date); return m !== null && m > 9 * 60 + 15 && m < 14 * 60 + 30; });
+  const sorted = [...continuousBars].sort((a, b) => (b.volume || 0) - (a.volume || 0));
   const avgBar = total / todayBars.length;
 
   // KL lũy kế tới phút hiện tại so với cùng thời điểm các phiên trước.
   const lastMinute = Math.max(...todayBars.map((b) => minuteOfSession(b.date) ?? 0));
   const pastCum = pastSessions.filter((s) => s.length).map((s) => cumulativeAt(cumulativeByMinute(s), lastMinute));
-  const avgPastCum = avg(pastCum);
+  // Trung vị (không phải trung bình) để khớp định nghĩa RVOL theo thời điểm của "Nhịp khối lượng".
+  const sortedCum = [...pastCum].sort((a, b) => a - b);
+  const avgPastCum = sortedCum.length ? (sortedCum.length % 2 ? sortedCum[(sortedCum.length - 1) / 2] : (sortedCum[sortedCum.length / 2 - 1] + sortedCum[sortedCum.length / 2]) / 2) : null;
 
   return {
     buckets15m: [...buckets.entries()].sort().map(([time, volume]) => ({ time, volume })),

@@ -12,11 +12,13 @@ import {
 } from "./universe.js";
 import { fetchQuarterlyIncome, fetchQuarterlyBalance } from "./vciFinancials.js";
 import { runScan, topForeignNetBuy } from "./scanEngine.js";
+import { validateIntentStates } from "./ifeValidation.js";
 import { isTradingDay, lastCompletedSessionDate } from "../calendar.js";
 import { addDays, fetchJson, mapLimit, sleep } from "../util.js";
 import { notifyOps } from "../alerts.js";
 
 export const KV = {
+  ifeValidation: "ife:validation",
   latest: "scanner:latest",
   universe: "scanner:universe",
   emptyDates: "scanner:empty-dates",
@@ -151,6 +153,22 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       return { due: due.length, ok, failed, remaining: tickers.filter((t) => !existing.get(t)).length - entries.length };
     },
 
+    /** Kiểm chứng trạng thái ý đồ IFE trên toàn universe (dữ liệu ngày), lưu kết quả để UI hiển thị. */
+    async ifeValidate() {
+      const universe = (await store.getKv(KV.universe))?.value?.tickers ?? [];
+      if (!universe.length) throw new Error("Chưa có universe. Chạy buildUniverse trước.");
+      const dates = (await store.getMarketDailyDates()).slice(-HISTORY_SESSIONS);
+      const rows = await store.getMarketDailyRange({ from: dates[0], to: dates.at(-1), symbols: universe.map((u) => u.ticker) });
+      const bySymbol = new Map();
+      for (const r of rows) {
+        if (!bySymbol.has(r.symbol)) bySymbol.set(r.symbol, []);
+        bySymbol.get(r.symbol).push(r);
+      }
+      const result = { generatedAt: new Date(now()).toISOString(), ...validateIntentStates(bySymbol) };
+      await store.setKv(KV.ifeValidation, result);
+      return { samples: result.samples, validated: result.states.filter((s) => s.validated).map((s) => s.id) };
+    },
+
     async scanUniverse() {
       const universeDoc = (await store.getKv(KV.universe))?.value;
       if (!universeDoc?.tickers?.length) throw new Error("Chưa có universe. Chạy buildUniverse trước.");
@@ -211,6 +229,7 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
 export const SCANNER_SCHEDULE = [
   { name: "syncMarketDaily", at: "15:20", tradingDayOnly: true },
   { name: "scanUniverse", at: "15:40", tradingDayOnly: true },
+  { name: "ifeValidate", at: "15:50", tradingDayOnly: true },
   { name: "refreshFundamentals", at: "09:00", weekdays: [6] },
   { name: "buildUniverse", at: "20:00", weekdays: [0] },
   { name: "backfillMarketDaily", at: "02:30", tradingDayOnly: false },

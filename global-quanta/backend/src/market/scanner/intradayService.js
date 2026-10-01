@@ -28,7 +28,7 @@ async function withSlot(fn) {
   }
 }
 
-/** Gom nến phút nhiều phiên -> [{ date, refPrice, buckets }] theo thứ tự thời gian. */
+/** Gom nến phút nhiều phiên -> [{ date, refPrice, buckets, bars }] theo thứ tự thời gian (giữ nến phút cho IFE). */
 export function groupSessions(bars) {
   const byDate = new Map();
   for (const b of bars) {
@@ -40,16 +40,21 @@ export function groupSessions(bars) {
   const out = [];
   let prevClose = null;
   for (const date of dates) {
-    const buckets = sessionToBuckets(byDate.get(date));
+    const sessionBars = byDate.get(date).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const buckets = sessionToBuckets(sessionBars);
     const lastClose = [...buckets].reverse().find(Boolean)?.close ?? null;
     const firstOpen = buckets.find(Boolean)?.open ?? null;
-    out.push({ date, refPrice: prevClose ?? firstOpen, buckets });
+    out.push({ date, refPrice: prevClose ?? firstOpen, buckets, bars: sessionBars });
     if (lastClose) prevClose = lastClose;
   }
   return out;
 }
 
-export async function getIntradayCycle(service, rawSymbol, { now = Date.now } = {}) {
+/**
+ * Nến phút lịch sử (120 phiên, lưu đệm tới hết ngày) + phiên đang xem, dùng chung cho
+ * Nhịp khối lượng, dòng phụ phân tích KL và IFE (không gọi SSI lặp lại).
+ */
+export async function getIntradaySessions(service, rawSymbol, { now = Date.now } = {}) {
   const symbol = canonicalSymbol(rawSymbol);
   if (!isValidSymbol(symbol) || isIndexSymbol(symbol)) throw new ValidationError("Mã cổ phiếu không hợp lệ.");
   const provider = service.router.providers?.ssiFcV2;
@@ -84,11 +89,19 @@ export async function getIntradayCycle(service, rawSymbol, { now = Date.now } = 
     todaySession = history.find((s) => s.date === viewDate) ?? null;
   }
   const trainSessions = sessionLive ? history : history.filter((s) => s.date < viewDate);
+  if (sessionLive && todaySession) {
+    todaySession.bars = (await service.cache.wrap(`intraday-cycle-today:${symbol}:${today}`, expectsLiveTicks(nowDate) ? 60_000 : 5 * 60_000,
+      () => provider.getIntradayOhlcv(symbol, today).catch(() => []))).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  }
+  return { symbol, sessionLive, today, viewDate, history, trainSessions, todaySession, nowMinute: sessionLive ? vnParts(nowDate).minutes : null };
+}
 
+export async function getIntradayCycle(service, rawSymbol, { now = Date.now } = {}) {
+  const { symbol, sessionLive, viewDate, trainSessions, todaySession, nowMinute } = await getIntradaySessions(service, rawSymbol, { now });
   const result = buildIntradayCycle({
     sessions: trainSessions,
     today: todaySession,
-    nowMinute: sessionLive ? vnParts(nowDate).minutes : null,
+    nowMinute,
   });
   return {
     symbol,
