@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { getQuotes, isMarketGatewayEnabled } from "../services/marketDataClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 const fetcher = (url: string) => fetch(url).then((r) => {
@@ -26,10 +27,19 @@ export function useFundamentalsData() {
     dedupingInterval: 10 * 60 * 1000,
   });
 
+  // Chế độ Market Gateway: giá lấy theo nguồn chính SSI; P/E, ROE, Nợ/VCSH vẫn từ VCI.
+  const tickersKey = data?.fundamentals ? data.fundamentals.map((f: FundamentalsEntry) => f.ticker).sort().join(",") : "";
+  const { data: ssiQuotes } = useSWR(
+    isMarketGatewayEnabled() && tickersKey ? ["cotuc-ssi-quotes", tickersKey] : null,
+    () => getQuotes(tickersKey.split(",")),
+    { refreshInterval: 60 * 1000, revalidateOnFocus: false },
+  );
+
   const fundamentalsMap: Record<string, FundamentalsEntry> = {};
   if (data?.fundamentals) {
     data.fundamentals.forEach((f: FundamentalsEntry) => {
-      fundamentalsMap[f.ticker] = f;
+      const ssiPrice = ssiQuotes?.quotes?.[f.ticker.toUpperCase()]?.price;
+      fundamentalsMap[f.ticker] = ssiPrice ? { ...f, price: ssiPrice } : f;
     });
   }
 

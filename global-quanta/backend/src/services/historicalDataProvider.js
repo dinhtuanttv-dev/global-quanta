@@ -17,7 +17,14 @@ import { generateMockHistoricalCandles } from "./patternBacktest.js";
 export class HistoricalDataConfigError extends Error {}
 
 const USE_MOCK_DATA = String(process.env.USE_MOCK_DATA).toLowerCase() === "true";
-const SOURCE = process.env.HISTORICAL_DATA_SOURCE || ""; // "internal_api" | "" (chưa cấu hình)
+// "market_service" (SSI primary, chạy trong tiến trình Express) | "market_gateway"
+// (gọi HTTP tới Market Gateway — dùng cho bản Vercel serverless) |
+// "internal_api" (Project A, nguồn cũ) | "" (chưa cấu hình).
+const SOURCE = process.env.HISTORICAL_DATA_SOURCE || "";
+// Đường dẫn để trong biến: bản Vercel (api/_lib re-export file này) không đóng gói
+// runtime backend (ws, @ssi.developer/ssi-sdk chỉ cài trong backend/).
+const MARKET_RUNTIME_MODULE = "../market/runtime.js";
+const MARKET_GATEWAY_URL = (process.env.MARKET_GATEWAY_URL || "").replace(/\/+$/, "");
 const INTERNAL_API_BASE = process.env.INTERNAL_HISTORICAL_API_BASE || "";
 // Bắt buộc nếu Project A đang bật Vercel Deployment Protection (trường hợp
 // gọi vào domain *.vercel.app đã deploy thật). Nếu Project A chạy local
@@ -41,6 +48,27 @@ export async function fetchHistoricalCandles(symbol, opts = {}) {
     };
   }
 
+  if (SOURCE === "market_service" || SOURCE === "market_gateway") {
+    const timeframe = opts.timeframe || "D";
+    if (!["D", "1D"].includes(String(timeframe).toUpperCase())) {
+      throw new HistoricalDataConfigError(`Nguồn ${SOURCE} hiện chỉ hỗ trợ khung ngày (timeframe=D), nhận ${timeframe}.`);
+    }
+    // Lấy dư nến để đủ warm-up cho chỉ báo; giá đã điều chỉnh cổ tức để backtest không bị gãy giá.
+    const params = { symbol, limit: String(Math.max(minBars + 50, 500)), adjusted: "true" };
+    const body = SOURCE === "market_service"
+      ? await (await import(MARKET_RUNTIME_MODULE)).getMarketRuntime().service.getOhlcv(params)
+      : await fetchFromMarketGateway(params);
+    const candles = (body.bars || []).filter((bar) => !bar.partial).map((bar) => ({
+      time: bar.date, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume,
+    }));
+    if (candles.length < minBars) {
+      throw new HistoricalDataConfigError(
+        `Chỉ nhận được ${candles.length} nến cho ${symbol} (nguồn ${body.provenance?.source ?? "?"}), cần tối thiểu ${minBars} nến.`
+      );
+    }
+    return { candles, isMock: false, source: `market:${body.provenance?.source ?? "unknown"}` };
+  }
+
   if (SOURCE === "internal_api") {
     if (!INTERNAL_API_BASE) {
       throw new HistoricalDataConfigError(
@@ -59,9 +87,25 @@ export async function fetchHistoricalCandles(symbol, opts = {}) {
 
   throw new HistoricalDataConfigError(
     "USE_MOCK_DATA=false nhưng chưa cấu hình HISTORICAL_DATA_SOURCE hợp lệ. " +
-      "Đặt HISTORICAL_DATA_SOURCE=internal_api và INTERNAL_HISTORICAL_API_BASE trong .env, " +
+      "Đặt HISTORICAL_DATA_SOURCE=market_service (SSI, khuyến nghị), market_gateway (kèm MARKET_GATEWAY_URL) " +
+      "hoặc internal_api (kèm INTERNAL_HISTORICAL_API_BASE) trong .env, " +
       "hoặc đặt USE_MOCK_DATA=true để chạy demo (KHÔNG dùng cho quyết định thật)."
   );
+}
+
+async function fetchFromMarketGateway(params) {
+  if (!MARKET_GATEWAY_URL) {
+    throw new HistoricalDataConfigError("HISTORICAL_DATA_SOURCE=market_gateway nhưng thiếu MARKET_GATEWAY_URL.");
+  }
+  const url = `${MARKET_GATEWAY_URL}/api/market/ohlcv?${new URLSearchParams(params)}`;
+  let res;
+  try {
+    res = await fetch(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
+  } catch (networkErr) {
+    throw new HistoricalDataConfigError(`Không kết nối được Market Gateway: ${networkErr.message}`);
+  }
+  if (!res.ok) throw new HistoricalDataConfigError(`Market Gateway trả HTTP ${res.status} cho ${params.symbol}.`);
+  return res.json();
 }
 
 async function fetchFromInternalApi(symbol, opts, baseUrl) {

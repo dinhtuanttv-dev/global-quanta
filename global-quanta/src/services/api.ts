@@ -1,4 +1,5 @@
 ﻿import mockData from '../mocks/mock-data.json';
+import { isMarketGatewayEnabled, marketUrl } from './marketDataClient';
 import type {
   WatchlistStock, AddableStock, RadarCoreNode, RadarRingNode,
   RadarDigest, ConcentrationRisk, NewsItem, VnIndexData, MacroTickerData, LiquidityData,
@@ -242,7 +243,7 @@ let _universeCache: AddableStock[] | null = null;
 async function loadUniverse(): Promise<AddableStock[]> {
   if (_universeCache) return _universeCache;
   try {
-    const res = await fetch(`${API_BASE}/api/universe`);
+    const res = await fetch(isMarketGatewayEnabled() ? marketUrl('/api/market/universe') : `${API_BASE}/api/universe`);
     if (!res.ok) throw new Error(`Universe API loi: ${res.status}`);
     const json = await res.json();
     _universeCache = (json.tickers ?? []) as AddableStock[];

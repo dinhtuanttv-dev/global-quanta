@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 import { DIVIDEND_STOCKS } from "../lib/quant-cotuc";
 
 // PHUONG AN C: RS (Relative Strength) 3 thang = % thay doi gia cua ma so voi
@@ -43,7 +44,10 @@ function parseCloses(raw: any): OhlcvBar[] {
 
 async function fetchOhlcv(ticker: string): Promise<OhlcvBar[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/ohlcv?ticker=${ticker}&range=3mo&limit=100`);
+    const url = isMarketGatewayEnabled()
+      ? marketUrl("/api/market/ohlcv", { ticker, range: "3mo", limit: 100 })
+      : `${API_BASE}/api/ohlcv?ticker=${ticker}&range=3mo&limit=100`;
+    const res = await fetch(url);
     if (!res.ok) return [];
     const json = await res.json();
     return parseCloses(json);
