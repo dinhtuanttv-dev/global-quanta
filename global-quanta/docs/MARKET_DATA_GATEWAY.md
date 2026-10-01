@@ -62,6 +62,19 @@ Chưa kiểm chứng: SSI API v3 (chưa có khóa), giới hạn khoảng ngày 
 6. **Scanner/backtest:** Express đặt `HISTORICAL_DATA_SOURCE=market_service`; Vercel `api/scan.js` đặt `HISTORICAL_DATA_SOURCE=market_gateway` cùng `MARKET_GATEWAY_URL`.
 7. **SSI v3 (tùy chọn):** đặt `SSI_V3_API_KEY` và `SSI_V3_API_SECRET`. Kênh v3 tự trở thành nguồn REST đầu tiên trong chuỗi; stream vẫn dùng FC v2 vì stream v3 cần OTP.
 
+## Siêu Quét AI trên Gateway
+
+Engine quét chạy trên Gateway (thay cron `sieu-quet-scan` của Project A), một lượt cho toàn universe.
+
+- **Công thức:** chuyển nguyên văn từ Project A commit `9306bc3` (`backend/src/market/scanner/formulas.js`). Golden test so với bản gốc (`backend/test/fixtures/projectA/`): từng hàm (`scannerParity.test.js`) và cả vòng lặp quét (`scannerEngine.test.js`).
+- **Khác bản cũ (đã duyệt):** (a) RS Rating, percentile FA, Breadth tính trên toàn universe thay vì lô ≤100 mã; (b) nến từ SSI (`DailyStockPrice`, giá điều chỉnh); (c) cờ NN mua ròng = top 5 HOSE theo giá trị mua ròng từ SSI; (d) sự kiện đã xác nhận đọc từ Project A `/api/sieu-quet-ai/events`.
+- **Universe:** top `SCANNER_UNIVERSE_SIZE` (300) theo GT khớp bình quân 20 phiên trên HOSE/HNX/UPCoM, ngưỡng `SCANNER_MIN_AVG_VALUE` (1 tỷ) + mã ghim (17 mã cổ tức + universe Project A). Đo ngày 01/10/2026: 276 mã đạt ≥ 1 tỷ. Ngành: DIVIDEND_STOCKS > universe Project A > ngành Siêu Quét hiện tại > TradingView (chỉ nhãn ngành) > `Khac`.
+- **Dữ liệu ngày toàn thị trường:** `DailyStockPrice` theo sàn (~9 request/phiên cho cả thị trường). Sự kiện quyền: mỗi ngày tải lại phiên trước, nếu giá điều chỉnh đổi thì nhân lại toàn bộ lịch sử của mã đó (`market_apply_adjustment`).
+- **Lịch (giờ VN):** `syncMarketDaily` 15:20, `scanUniverse` 15:40 (ngày giao dịch); `refreshFundamentals` Thứ Bảy 09:00; `buildUniverse` Chủ nhật 20:00; `backfillMarketDaily` 02:30 (chạy tiếp được, bỏ qua phiên đã có).
+- **API:** `GET /api/market/scanner` (cùng định dạng Project A + `dataAsOf`, `meta`), `GET /api/market/scanner/universe`, `GET /api/market/scanner/:symbol/volume` (dòng phụ phân tích khối lượng).
+- **Frontend:** `VITE_SCANNER_SOURCE=gateway`. Nếu Gateway chưa có kết quả, bảng tự dùng Project A và ghi rõ nguồn. Nhấn đúp (hoặc Enter) một dòng để mở dòng phụ, Esc để đóng. Realtime chỉ đăng ký cho các dòng đang hiển thị.
+- **Triển khai lần đầu:** chạy migration `20261002000000_market_scanner.sql`, đặt `MARKET_STORE=supabase`, `MARKET_INGESTOR_ENABLED=true`, rồi lần lượt `POST /api/market/admin/jobs/{backfillMarketDaily,buildUniverse,refreshFundamentals,scanUniverse}`.
+
 ## Hạ tầng hiện tại (Railway)
 
 - Project `global-quanta-gateway`, service `gateway`, URL `https://gateway-production-1da0.up.railway.app`.

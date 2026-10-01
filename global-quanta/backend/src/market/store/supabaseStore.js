@@ -58,8 +58,77 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
 
   const enc = encodeURIComponent;
 
+  const dailyToRow = (r) => ({
+    symbol: r.symbol, trading_date: r.date, exchange: r.exchange,
+    open: r.open, high: r.high, low: r.low, close: r.close, close_adj: r.closeAdj,
+    ref_price: r.refPrice, ceiling: r.ceiling, floor: r.floor,
+    volume: r.volume, value: r.value, deal_volume: r.dealVolume, deal_value: r.dealValue,
+    foreign_buy_vol: r.foreignBuyVol, foreign_sell_vol: r.foreignSellVol,
+    foreign_buy_val: r.foreignBuyVal, foreign_sell_val: r.foreignSellVal, foreign_room: r.foreignRoom,
+  });
+  const n = (v) => (v === null || v === undefined ? null : Number(v));
+  const rowToDaily = (r) => ({
+    symbol: r.symbol, date: r.trading_date, exchange: r.exchange,
+    open: n(r.open), high: n(r.high), low: n(r.low), close: n(r.close), closeAdj: n(r.close_adj),
+    refPrice: n(r.ref_price), ceiling: n(r.ceiling), floor: n(r.floor),
+    volume: n(r.volume), value: n(r.value), dealVolume: n(r.deal_volume), dealValue: n(r.deal_value),
+    foreignBuyVol: n(r.foreign_buy_vol), foreignSellVol: n(r.foreign_sell_vol),
+    foreignBuyVal: n(r.foreign_buy_val), foreignSellVal: n(r.foreign_sell_val), foreignRoom: n(r.foreign_room),
+  });
+
   return {
     kind: "supabase",
+
+    // ---------- Dữ liệu ngày toàn thị trường (Siêu Quét) ----------
+    async upsertMarketDaily(rows) {
+      await upsert("market_daily", rows.map(dailyToRow), "symbol,trading_date");
+      return rows.length;
+    },
+    async getMarketDailyDates() {
+      const rows = await selectAll("market_daily_dates?order=trading_date.asc");
+      return rows.map((r) => r.trading_date);
+    },
+    async getMarketDailyByDate(date) {
+      return (await selectAll(`market_daily?trading_date=eq.${date}`)).map(rowToDaily);
+    },
+    async getMarketDailyRange({ from, to, symbols }) {
+      const out = [];
+      const chunks = symbols ? Array.from({ length: Math.ceil(symbols.length / 100) }, (_, i) => symbols.slice(i * 100, i * 100 + 100)) : [null];
+      for (const chunk of chunks) {
+        const filter = chunk ? `&symbol=in.(${chunk.map(enc).join(",")})` : "";
+        out.push(...(await selectAll(`market_daily?trading_date=gte.${from}&trading_date=lte.${to}${filter}&order=trading_date.asc`)).map(rowToDaily));
+      }
+      return out.sort((a, b) => a.date.localeCompare(b.date));
+    },
+    async applyAdjustment(symbol, upToDate, factor) {
+      return request("rpc/market_apply_adjustment", { method: "POST", body: { p_symbol: symbol, p_upto: upToDate, p_factor: factor } });
+    },
+
+    // ---------- Khoá-giá trị (kết quả quét, universe, bảng ngành) ----------
+    async getKv(key) {
+      const rows = await request(`market_kv?key=eq.${enc(key)}`);
+      return rows?.[0] ? { value: rows[0].value, updatedAt: rows[0].updated_at } : null;
+    },
+    async setKv(key, value) {
+      await upsert("market_kv", [{ key, value, updated_at: new Date().toISOString() }], "key");
+    },
+
+    // ---------- BCTC lưu đệm ----------
+    async getFundamentals(tickers) {
+      const out = new Map();
+      for (let i = 0; i < tickers.length; i += 100) {
+        const chunk = tickers.slice(i, i + 100);
+        for (const r of await selectAll(`market_fundamentals?ticker=in.(${chunk.map(enc).join(",")})`)) {
+          out.set(r.ticker, { ticker: r.ticker, income: r.income, balance: r.balance, fetchedAt: r.fetched_at });
+        }
+      }
+      return out;
+    },
+    async upsertFundamentals(entries) {
+      await upsert("market_fundamentals", entries.map((e) => ({
+        ticker: e.ticker, income: e.income, balance: e.balance, fetched_at: e.fetchedAt ?? new Date().toISOString(),
+      })), "ticker");
+    },
 
     async upsertBars(symbol, list, source) {
       if (!list.length) return 0;

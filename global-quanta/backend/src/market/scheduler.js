@@ -17,8 +17,8 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
-export function createScheduler(jobs, { now = Date.now, tickMs = 30_000 } = {}) {
-  const schedule = DEFAULT_SCHEDULE.map((job) => ({
+export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSchedule = [] } = {}) {
+  const schedule = [...DEFAULT_SCHEDULE, ...extraSchedule].map((job) => ({
     ...job,
     at: process.env[`MARKET_JOB_${job.name.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}_AT`] || job.at,
   }));
@@ -53,10 +53,11 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000 } = {}) 
   function tick() {
     const date = new Date(now());
     const today = vnDate(date);
-    const { minutes } = vnParts(date);
+    const { minutes, weekday } = vnParts(date);
     for (const job of schedule) {
       if (lastRunDate.get(job.name) === today) continue;
       if (job.tradingDayOnly && !isTradingDay(date)) continue;
+      if (job.weekdays && !job.weekdays.includes(weekday)) continue;
       if (minutes < toMinutes(job.at)) continue;
       lastRunDate.set(job.name, today);
       run(job.name).catch(() => {});
