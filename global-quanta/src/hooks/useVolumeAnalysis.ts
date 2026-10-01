@@ -11,6 +11,9 @@ export interface VolumeAnalysis {
   today: {
     date: string; price: number; changePct: number | null; volume: number; value: number;
     dealVolume: number; dealValue: number; avgVolume20: number | null; rvol20: number | null;
+    /** "intraday": trong phiên, dùng rvolTimeAdjusted (so cùng thời điểm) thay cho rvol20. */
+    rvolMode: "daily" | "intraday";
+    rvolTimeAdjusted: number | null;
   };
   trend: {
     bars30: VolumeBar[]; ma20Volume: number | null; upDownVolumeRatio20: number | null;
@@ -18,7 +21,10 @@ export interface VolumeAnalysis {
     divergence: { code: string; label: string; priceChangePct: number; volumeChangePct: number } | null;
   };
   foreign: {
-    today: { buyVol: number; sellVol: number; netVol: number; buyVal: number; sellVal: number; netVal: number };
+    /** true: đang trong phiên, dữ liệu khối ngoại hôm nay chưa có (không phải 0). */
+    pendingToday: boolean;
+    lastSettledDate: string;
+    today: { buyVol: number; sellVol: number; netVol: number; buyVal: number; sellVal: number; netVal: number } | null;
     net5Val: number; net20Val: number; buySharePct: number | null; sellSharePct: number | null;
     streak: { direction: "buy" | "sell" | "none"; sessions: number };
     room: number | null;

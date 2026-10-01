@@ -6,6 +6,7 @@ import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
+import { getIntradayCycle } from "../market/scanner/intradayService.js";
 
 const router = Router();
 
@@ -98,6 +99,15 @@ router.get("/scanner/:symbol/volume", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const data = await rt.service.cache.wrap(`volume-analysis:${req.params.symbol.toUpperCase()}`, 60_000,
     () => getVolumeAnalysis(rt.service, req.params.symbol));
+  res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+// Dòng phụ: chu kỳ & xác suất khối lượng trong phiên (17 khung, 120 phiên lịch sử).
+router.get("/scanner/:symbol/intraday-cycle", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap(`intraday-cycle:${req.params.symbol.toUpperCase()}`, 30_000,
+    () => getIntradayCycle(rt.service, req.params.symbol));
   res.set("Cache-Control", "private, max-age=30");
   res.json(data);
 }));

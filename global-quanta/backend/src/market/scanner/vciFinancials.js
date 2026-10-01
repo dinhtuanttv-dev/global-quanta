@@ -6,7 +6,13 @@
 // VCI trả HTTP 200 kể cả khi lỗi -> phải kiểm tra `successful`.
 
 const IQ_BASE_URL = "https://iq.vietcap.com.vn/api/iq-insight-service";
-const HEADERS = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", Accept: "application/json" };
+// VCI trả 403 nếu thiếu Origin/Referer của trang Vietcap (đo ngày 01/10/2026: không có -> 403, có -> 200).
+const HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36",
+  Accept: "application/json",
+  Origin: "https://trading.vietcap.com.vn",
+  Referer: "https://trading.vietcap.com.vn/",
+};
 
 const num = (v) => (v !== null && v !== undefined ? Number(v) : null);
 const byNewest = (a, b) => (b.year - a.year) || (b.quarter - a.quarter);

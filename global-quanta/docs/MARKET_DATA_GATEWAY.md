@@ -75,6 +75,21 @@ Engine quét chạy trên Gateway (thay cron `sieu-quet-scan` của Project A), 
 - **Frontend:** `VITE_SCANNER_SOURCE=gateway`. Nếu Gateway chưa có kết quả, bảng tự dùng Project A và ghi rõ nguồn. Nhấn đúp (hoặc Enter) một dòng để mở dòng phụ, Esc để đóng. Realtime chỉ đăng ký cho các dòng đang hiển thị.
 - **Triển khai lần đầu:** chạy migration `20261002000000_market_scanner.sql`, đặt `MARKET_STORE=supabase`, `MARKET_INGESTOR_ENABLED=true`, rồi lần lượt `POST /api/market/admin/jobs/{backfillMarketDaily,buildUniverse,refreshFundamentals,scanUniverse}`.
 
+## Nhịp & xác suất khối lượng trong phiên (dòng phụ)
+
+`GET /api/market/scanner/:symbol/intraday-cycle` — `backend/src/market/scanner/intradayModel.js` (hàm thuần) + `intradayService.js`.
+
+- **Dữ liệu:** nến 1 phút SSI `IntradayOhlc` (SSI lưu ≥ 12 tháng; 1 request = 30 ngày, ~5 trang). 120 phiên lịch sử gom 17 khung: ATO · 9 khung 15' sáng · 6 khung 15' chiều · ATC. Lịch sử lưu đệm tới hết ngày; hôm nay làm mới 60s trong phiên (không mở thêm kết nối stream).
+- **Hồ sơ điển hình:** trung vị/p25/p75 KL từng khung trên thang log, tỷ trọng lũy kế -> RVOL theo thời điểm (chia tỷ lệ phút trong khung đang chạy) và dự phóng KL cuối phiên.
+- **Xác suất có điều kiện:** trạng thái đầu khung = biến động giá so tham chiếu (5 mức) × vị trí so VWAP × RVOL lũy kế (3 mức). Kết cục khung kế tiếp: bùng nổ (≥2× trung vị khung), cạn (≤0,5×), chiều giá. Ước lượng `p = (k + α·p_nền)/(n + α)`, α = 20, khoảng tin cậy 90% (Beta), `n < 15` = ít mẫu.
+- **Kiểm định walk-forward:** dự báo phiên d chỉ bằng các phiên < d; Brier skill so với mức nền của chính khung. Chỉ công nhận khi skill > 0 và có ≥ 20 lần sự kiện xảy ra (tránh skill ảo khi sự kiện quá hiếm — đã có test).
+- **Ma trận giá – khối lượng:** 9 ô (chiều giá × mức KL), ma trận chuyển giữa các khung (làm mượt), xác suất chạm "KL cao + tăng/giảm" trong 2 khung tới (trạng thái hấp thụ).
+- Đây là **xác suất lịch sử đã hiệu chỉnh**, không phải dự báo chắc chắn; UI luôn hiện n, khoảng tin cậy, mức nền và trạng thái kiểm định.
+
+**Sửa ở dòng phụ phân tích khối lượng:** trong phiên RVOL so với KL cùng thời điểm (không so KL cả ngày); khối ngoại hôm nay hiển thị "chưa có" thay vì 0; nhận định dùng RVOL theo thời điểm.
+
+**VCI:** `iq.vietcap.com.vn` trả 403 nếu thiếu `Origin`/`Referer` của `trading.vietcap.com.vn` (đo 01/10/2026). Job BCTC không lưu bản ghi lỗi (để thử lại lần chạy sau).
+
 ## Hạ tầng hiện tại (Railway)
 
 - Project `global-quanta-gateway`, service `gateway`, URL `https://gateway-production-1da0.up.railway.app`.
