@@ -285,8 +285,19 @@ test("research: chuỗi job đầu-cuối trên memory store (flow -> signals ->
   const sig2 = await jobs.researchSignals();
   assert.equal(sig2.signals, 0, "gia tăng: không ghi lại tín hiệu cũ");
 
+  // Mốc "đã chấm" bị đẩy quá xa (VD lần chấm khi sổ cái còn rỗng) -> ghi bù tín hiệu cũ phải lùi mốc.
+  await store.setKv("research:evaluated-through", { date: "2026-09-30" });
+  await store.setKv("research:signals-through", { date: null });
+  await jobs.researchSignals();
+  assert.ok((await store.getKv("research:evaluated-through")).value.date < "2026-09-01");
   const ev = await jobs.researchEvaluate();
   assert.ok(ev.outcomesWritten > 0);
+  const benchDates = new Set((await store.selectRows("market_regime_daily")).map((r) => r.trading_date));
+  const ledgerN = (await store.selectRows("market_signal_ledger")).filter((l) => l.signal_date <= dates.at(-11) && benchDates.has(l.signal_date)).length;
+  const scored = new Set((await store.selectRows("market_signal_outcomes")).filter((o) => o.horizon === 10).map((o) => `${o.symbol}|${o.signal_date}|${o.signal}`));
+  assert.equal(scored.size, ledgerN, "mọi tín hiệu đủ T+10 đều đã được chấm");
+  const through = (await store.getKv("research:evaluated-through")).value.date;
+  assert.ok(through >= dates.at(-12) && through < dates.at(-1), `mốc ${through}`);
   assert.equal(ev.maintenance.refresh, null, "memory store: bỏ qua hàm SQL");
   const overview = await getResearchOverview(store);
   assert.ok(overview.performance.length > 0);

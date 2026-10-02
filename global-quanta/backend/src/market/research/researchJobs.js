@@ -209,6 +209,10 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
       }
       await upsertChunked(store, T.flow, flowUpdates, "symbol,trading_date");
       await upsertChunked(store, T.ledger, ledger, "symbol,signal_date,signal");
+      // Ghi bù tín hiệu ngày cũ hơn mốc đã chấm -> lùi mốc để researchEvaluate chấm cả phần bù.
+      const evaluated = (await store.getKv(RESEARCH_KV.evaluatedThrough))?.value?.date ?? null;
+      const oldest = ledger.reduce((m, l) => (!m || l.signal_date < m ? l.signal_date : m), null);
+      if (evaluated && oldest && oldest <= evaluated) await store.setKv(RESEARCH_KV.evaluatedThrough, { date: addDays(oldest, -1) });
       if (lastDate) await store.setKv(RESEARCH_KV.signalsThrough, { date: lastDate });
       return { regimeDays: regimeSeries.length, featuresWritten: flowUpdates.length, signals: ledger.length, through: lastDate };
     },
@@ -235,16 +239,22 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
       const indexPos = new Map(indexRows.map((r, i) => [r.date, i]));
       const posCache = new Map();
       const outcomes = [];
+      let oldestIncomplete = null, newestPending = null;
       for (const p of pending) {
+        if (!newestPending || p.signal_date > newestPending) newestPending = p.signal_date;
         const isIndex = p.symbol === "VNINDEX";
         const rows = isIndex ? indexRows : daily.get(p.symbol) ?? [];
         if (!isIndex && !posCache.has(p.symbol)) posCache.set(p.symbol, new Map(rows.map((r, i) => [r.date, i])));
         const i = isIndex ? indexPos.get(p.signal_date) : posCache.get(p.symbol).get(p.signal_date);
-        if (i === undefined) continue;
+        if (i === undefined) continue; // không có giá ngày đó: không chấm được, không chặn mốc
         for (const h of HORIZONS) {
           if (done.has(`${p.symbol}|${p.signal_date}|${p.signal}|${h}`)) continue;
           const o = evaluateOutcome(rows, i, p.direction, h, isIndex ? null : benchClose);
-          if (!o) continue;
+          if (!o) {
+            // Chỉ "chờ" khi chưa đủ h phiên tương lai; thiếu dữ liệu khác (VD không có VN-Index ngày đó) thì bỏ qua.
+            if (i + h >= rows.length && (!oldestIncomplete || p.signal_date < oldestIncomplete)) oldestIncomplete = p.signal_date;
+            continue;
+          }
           outcomes.push({
             symbol: p.symbol, signal_date: p.signal_date, signal: p.signal, horizon: h,
             ret: o.ret, bench_ret: o.benchRet, excess_ret: o.excessRet, barrier: o.barrier, mfe: o.mfe, mae: o.mae, hit: o.hit,
@@ -253,9 +263,10 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         }
       }
       await upsertChunked(store, T.outcomes, outcomes, "symbol,signal_date,signal,horizon");
-      // Mọi tín hiệu tới phiên cách đây ≥ 10 phiên đã đủ T+10 -> lần sau không cần quét lại.
-      const settled = dates.at(-11);
-      if (settled) await store.setKv(RESEARCH_KV.evaluatedThrough, { date: settled });
+      // Mốc "đã chấm xong": chỉ tiến tới ngay trước tín hiệu cũ nhất còn thiếu kỳ hạn
+      // (không suy từ lịch — sổ cái có thể được ghi bù ngày cũ sau đó).
+      const through = oldestIncomplete ? addDays(oldestIncomplete, -1) : newestPending ?? evaluatedThrough;
+      if (through) await store.setKv(RESEARCH_KV.evaluatedThrough, { date: through });
 
       // Hiệu suất toàn lịch sử (JS — chạy được cả khi không có Supabase).
       const ledgerAll = await store.selectRows(T.ledger, { select: "symbol,signal_date,signal,direction,regime" });
