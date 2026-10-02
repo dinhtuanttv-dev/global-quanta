@@ -1,83 +1,36 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { fetchLivePrices } from './MainTabs/SieuQuetAI/livePriceApi';
 import { subscribeSsiMarketQuotes } from '../services/api';
 import { isMarketGatewayEnabled, subscribeMarket } from '../services/marketDataClient';
-import { allWatchlistTickers, migrateLegacyWatchlist, useWatchlists } from '../hooks/useWatchlists';
+import { allWatchlistTickers, hasLegacyList, useWatchlists, watchlistActions } from '../hooks/useWatchlists';
 
 /**
- * Thành phần chạy ngầm ở cấp ứng dụng (thay phần việc nền của cột "Danh sách mã" cũ):
- *   - nạp danh sách mã cũ một lần và chuyển sang ★ Danh mục (giữ ghi chú, ghim);
- *   - giữ luồng giá thời gian thực cho Radar / Action Center (và danh sách cũ);
- *   - báo trạng thái nguồn giá cho đèn trên thanh trên.
- * Không hiển thị gì.
+ * Thành phần chạy ngầm ở cấp ứng dụng: giữ luồng giá thời gian thực cho các mã trong ★ Danh mục
+ * (ELITE COMMAND RADAR, Action Center) và mã đang chọn; báo trạng thái nguồn giá cho đèn trên thanh trên.
+ * Gộp tick, ghi vào store tối đa mỗi giây. Không hiển thị gì.
  */
 export default function MarketFeed() {
-  const watchlist = useAppStore((s) => s.watchlist);
-  const loadWatchlist = useAppStore((s) => s.loadWatchlist);
-  const updateLivePrices = useAppStore((s) => s.updateLivePrices);
-  const updateRadarPrices = useAppStore((s) => s.updateRadarPrices);
-  const setFeed = useAppStore((s) => s.setFeed);
   const setLivePrices = useAppStore((s) => s.setLivePrices);
+  const setFeed = useAppStore((s) => s.setFeed);
+  const selectedTicker = useAppStore((s) => s.selectedTicker);
   const { lists } = useWatchlists();
-  const listSymbols = useMemo(() => allWatchlistTickers(lists).sort().join(','), [lists]);
-  const radarCore = useAppStore((s) => s.radarCore);
-  const radarRing = useAppStore((s) => s.radarRing);
-  const legacyConnected = useAppStore((s) => s.feed.legacySsiConnected);
+  const symbolsKey = useMemo(
+    () => [...new Set([...allWatchlistTickers(lists), ...(selectedTicker ? [selectedTicker] : [])])].sort().slice(0, 300).join(','),
+    [lists, selectedTicker],
+  );
   const gatewayMode = isMarketGatewayEnabled();
 
-  const loaded = useRef(false);
-  useEffect(() => {
-    void loadWatchlist().then(() => { loaded.current = true; });
-  }, [loadWatchlist]);
-
-  // Chuyển danh sách cũ sang ★ Danh mục (chỉ một lần cho mỗi trình duyệt).
-  useEffect(() => {
-    if (loaded.current && watchlist.length) migrateLegacyWatchlist(watchlist);
-  }, [watchlist]);
-
-  const watchlistRef = useRef(watchlist);
-  useEffect(() => { watchlistRef.current = watchlist; }, [watchlist]);
-
-  const watchlistSymbols = useMemo(() => watchlist.map((s) => s.ticker).join(','), [watchlist]);
-  const radarSymbols = useMemo(
-    () => [...new Set([...radarCore, ...radarRing].map((n) => n.ticker))].sort().join(','),
-    [radarCore, radarRing],
-  );
-
-  // Không có Gateway: poll giá dự phòng khi SSI FastConnect chưa kết nối (như cột cũ).
-  const pollLivePrices = useCallback(async () => {
-    if (legacyConnected) return;
-    const tickers = watchlistRef.current.map((s) => s.ticker);
-    if (!tickers.length) return;
-    try {
-      const prices = await fetchLivePrices(tickers);
-      const priceMap: Record<string, { price: number; changePct: number | null }> = {};
-      for (const [ticker, info] of Object.entries(prices)) if (info.price !== null) priceMap[ticker] = { price: info.price, changePct: info.changePct };
-      updateLivePrices(priceMap);
-    } catch (err) {
-      console.warn('[MarketFeed] Không lấy được giá dự phòng:', err);
-    }
-  }, [legacyConnected, updateLivePrices]);
+  // Đã bỏ "Danh sách mã (cũ)" (14 mã mẫu chuyển từ cột trái cũ): xoá khỏi trình duyệt khi mở trang.
+  useEffect(() => { if (hasLegacyList(lists)) watchlistActions.removeLegacy(); }, [lists]);
 
   useEffect(() => {
-    if (gatewayMode || !watchlist.length) return;
-    void pollLivePrices();
-    const interval = setInterval(pollLivePrices, 60_000);
-    return () => clearInterval(interval);
-  }, [gatewayMode, watchlist.length, pollLivePrices]);
-
-  useEffect(() => {
-    const symbols = [...new Set([...watchlistSymbols.split(','), ...radarSymbols.split(','), ...listSymbols.split(',')].filter(Boolean))].slice(0, 300);
-    if (!symbols.length) return;
-    // Gộp tick, ghi vào store tối đa mỗi giây (tránh vẽ lại Radar / danh sách theo từng tick).
+    if (!symbolsKey) return;
+    const symbols = symbolsKey.split(',');
     let pending: Record<string, { price: number; changePct: number | null }> = {};
     const timer = setInterval(() => {
       if (!Object.keys(pending).length) return;
       const batch = pending;
       pending = {};
-      updateLivePrices(batch);
-      updateRadarPrices(batch);
       setLivePrices(batch);
     }, 1000);
     let stop: () => void;
@@ -109,7 +62,7 @@ export default function MarketFeed() {
       setFeed(gatewayMode ? { gatewayStatus: null } : { legacySsiConnected: false });
       stop();
     };
-  }, [gatewayMode, watchlistSymbols, radarSymbols, listSymbols, updateLivePrices, updateRadarPrices, setLivePrices, setFeed]);
+  }, [gatewayMode, symbolsKey, setLivePrices, setFeed]);
 
   return null;
 }

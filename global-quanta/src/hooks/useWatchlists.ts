@@ -10,10 +10,10 @@ export interface Watchlist {
   /** Mã được ghim lên đầu danh mục. */
   pinned?: string[];
 }
-interface State { lists: Watchlist[]; activeId: string }
+/** radarId: danh mục cấp mã cho ELITE COMMAND RADAR (mặc định "Danh mục của tôi"). */
+interface State { lists: Watchlist[]; activeId: string; radarId?: string }
 
 const KEY = "gq.watchlists.v1";
-const LEGACY_MIGRATED_KEY = "gq.watchlists.legacyMigrated";
 export const LEGACY_LIST_NAME = "Danh sách mã (cũ)";
 const EVENT = "gq:watchlists";
 export const MAX_WATCHLIST_TICKERS = 60;
@@ -33,7 +33,11 @@ function read(): State {
     const parsed = JSON.parse(raw) as State;
     if (!Array.isArray(parsed.lists) || !parsed.lists.length) throw new Error("rỗng");
     cachedRaw = raw;
-    cachedState = { lists: parsed.lists, activeId: parsed.lists.some((l) => l.id === parsed.activeId) ? parsed.activeId : parsed.lists[0].id };
+    cachedState = {
+      lists: parsed.lists,
+      activeId: parsed.lists.some((l) => l.id === parsed.activeId) ? parsed.activeId : parsed.lists[0].id,
+      radarId: parsed.radarId && parsed.lists.some((l) => l.id === parsed.radarId) ? parsed.radarId : undefined,
+    };
     return cachedState;
   } catch {
     return memory ?? DEFAULT;
@@ -73,7 +77,41 @@ export const watchlistActions = {
   rename: (name: string) => update((s) => mapActive(s, (l) => ({ ...l, name: name.trim() || l.name }))),
   remove: () => update((s) => {
     const lists = s.lists.filter((l) => l.id !== s.activeId);
-    return lists.length ? { lists, activeId: lists[0].id } : DEFAULT;
+    return lists.length ? { lists, activeId: lists[0].id, radarId: s.radarId === s.activeId ? undefined : s.radarId } : DEFAULT;
+  }),
+  /** Chọn danh mục cấp mã cho ELITE COMMAND RADAR. */
+  setRadarList: (id: string) => update((s) => ({ ...s, radarId: id })),
+  /**
+   * Gộp "Danh sách mã (cũ)" vào "Danh mục của tôi" (giữ thứ tự, ghi chú, mã ghim; tối đa 60 mã) rồi xoá
+   * danh sách cũ. Chưa có "Danh mục của tôi" thì đổi tên danh sách cũ thành danh mục đó.
+   */
+  mergeLegacy: () => update((s) => {
+    const legacy = s.lists.find((l) => l.name === LEGACY_LIST_NAME);
+    if (!legacy) return s;
+    const mine = s.lists.find((l) => l.id === "default");
+    if (!mine) {
+      const renamed: Watchlist = { ...legacy, id: "default", name: DEFAULT.lists[0].name };
+      const lists = s.lists.map((l) => (l === legacy ? renamed : l));
+      const fix = (id?: string) => (id === legacy.id ? "default" : id);
+      return { lists, activeId: fix(s.activeId)!, radarId: fix(s.radarId) };
+    }
+    const tickers = [...new Set([...mine.tickers, ...legacy.tickers])].slice(0, MAX_WATCHLIST_TICKERS);
+    const merged: Watchlist = {
+      ...mine, tickers,
+      notes: { ...(legacy.notes ?? {}), ...(mine.notes ?? {}) },
+      pinned: [...new Set([...(mine.pinned ?? []), ...(legacy.pinned ?? [])])].filter((t) => tickers.includes(t)),
+    };
+    const lists = s.lists.filter((l) => l !== legacy).map((l) => (l === mine ? merged : l));
+    const fix = (id?: string) => (id === legacy.id ? "default" : id);
+    return { lists, activeId: fix(s.activeId)!, radarId: fix(s.radarId) };
+  }),
+  /** Xoá hẳn "Danh sách mã (cũ)" (không gộp). */
+  removeLegacy: () => update((s) => {
+    const lists = s.lists.filter((l) => l.name !== LEGACY_LIST_NAME);
+    if (lists.length === s.lists.length) return s;
+    if (!lists.length) return DEFAULT;
+    const ok = (id?: string) => (id && lists.some((l) => l.id === id) ? id : undefined);
+    return { lists, activeId: ok(s.activeId) ?? lists[0].id, radarId: ok(s.radarId) };
   }),
   /** Thêm mã vào danh mục đang chọn; trả số mã thực sự thêm (giới hạn 60). */
   add: (tickers: string[]) => {
@@ -102,42 +140,21 @@ export const watchlistActions = {
   })),
 };
 
-export function isLegacyMigrated(): boolean {
-  try { return Boolean(window.localStorage.getItem(LEGACY_MIGRATED_KEY)); } catch { return Boolean(memory?.lists.some((l) => l.name === LEGACY_LIST_NAME)); }
-}
-
 /** Mọi mã trong mọi danh mục (Radar dùng để giữ "xoá khỏi danh mục thì xoá khỏi Radar"). */
 export function allWatchlistTickers(lists: Watchlist[]): string[] {
   return [...new Set(lists.flatMap((l) => l.tickers))];
 }
 
-/**
- * Chuyển danh sách mã của cột trái cũ sang ★ Danh mục — một lần cho mỗi trình duyệt.
- * Giữ thứ tự, ghi chú (lý do theo dõi) và mã đã ghim; không đổi danh mục đang chọn của người dùng.
- * @returns true nếu vừa chuyển
- */
-export function migrateLegacyWatchlist(legacy: { ticker: string; reason?: string | null; pinned?: boolean }[]): boolean {
-  try { if (window.localStorage.getItem(LEGACY_MIGRATED_KEY)) return false; } catch { if (memory?.lists.some((l) => l.name === LEGACY_LIST_NAME)) return false; }
-  const tickers = [...new Set(legacy.map((w) => w.ticker.toUpperCase()).filter((t) => TICKER_RE.test(t)))].slice(0, MAX_WATCHLIST_TICKERS);
-  if (!tickers.length) return false;
-  const notes = Object.fromEntries(legacy.filter((w) => w.reason).map((w) => [w.ticker.toUpperCase(), String(w.reason)]));
-  const pinned = legacy.filter((w) => w.pinned).map((w) => w.ticker.toUpperCase());
-  update((s) => {
-    if (s.lists.some((l) => l.name === LEGACY_LIST_NAME)) return s;
-    const lists = s.lists.length === 1 && s.lists[0].id === "default" && s.lists[0].tickers.length === 0
-      ? [] // danh mục mặc định còn trống -> thay bằng danh sách cũ
-      : s.lists;
-    const list: Watchlist = { id: "legacy", name: LEGACY_LIST_NAME, tickers, notes, pinned };
-    return { lists: [...lists, list], activeId: lists.length ? s.activeId : list.id };
-  });
-  try { window.localStorage.setItem(LEGACY_MIGRATED_KEY, new Date().toISOString()); } catch { /* bỏ qua */ }
-  return true;
+/** Danh sách mã (cũ) còn tồn tại trong trình duyệt này không (để hiện nút gộp / xoá). */
+export function hasLegacyList(lists: Watchlist[]): boolean {
+  return lists.some((l) => l.name === LEGACY_LIST_NAME);
 }
 
 export function useWatchlists() {
   const state = useSyncExternalStore(subscribe, read, () => DEFAULT);
   const active = state.lists.find((l) => l.id === state.activeId) ?? state.lists[0];
-  return { lists: state.lists, active, ...watchlistActions };
+  const radar = state.lists.find((l) => l.id === state.radarId) ?? state.lists.find((l) => l.id === "default") ?? state.lists[0];
+  return { lists: state.lists, active, radar, ...watchlistActions };
 }
 
 /** Chỉ dùng trong test. */

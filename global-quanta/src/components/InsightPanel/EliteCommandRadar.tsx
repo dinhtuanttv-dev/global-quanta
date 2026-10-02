@@ -1,4 +1,3 @@
-﻿import { useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import RadarSvgCanvas from './RadarSvgCanvas';
 import RadarCoreNode from './RadarCoreNode';
@@ -6,95 +5,79 @@ import RadarRingNode from './RadarRingNode';
 import ConvergenceBreakdown from './ConvergenceBreakdown';
 import ConcentrationRiskBanner from './ConcentrationRiskBanner';
 import DigestNote from './DigestNote';
-import * as api from '../../services/api';
-import type { RadarDigest, ConcentrationRisk, RadarRingNode as RadarRingNodeType } from '../../types';
-import { useTAConsensus } from '../../hooks/useTAConsensus';
-import { mergeRadarWithConsensus } from '../../utils/radarBooster';
-import { allWatchlistTickers, isLegacyMigrated, useWatchlists } from '../../hooks/useWatchlists';
+import type { RadarRingNode as RadarRingNodeType } from '../../types';
+import { useRadarModel } from '../../hooks/useRadarModel';
+import { useWatchlists } from '../../hooks/useWatchlists';
+import { CORE_MIN } from '../../lib/radarModel';
 
 const CORE_ANGLES = [270, 30, 150, 90, 210];
-const RING_ANGLES = [220, 255, 300, 340, 15, 60, 95, 130, 185, 20, 75];
+/** Ring: chia đều quanh vòng theo số mã (tránh nhãn chồng nhau). */
+const ringAngle = (i: number, n: number) => (200 + (i * 360) / Math.max(1, n)) % 360;
 
+/**
+ * ELITE COMMAND RADAR — các mã của ★ Danh mục được chọn (mặc định "Danh mục của tôi"), chấm hội tụ 6 tiêu chí
+ * bằng dữ liệu thật của 6 tab. Thêm / bớt mã ở danh mục (☆ trong Bảng Siêu Quét hoặc ô tìm mã) là Radar đổi theo.
+ */
 export default function EliteCommandRadar() {
-  const { radarCore, radarRing, watchlist, loadRadar, selectedTicker, selectTicker } = useAppStore();
-  const [digest, setDigest] = useState<RadarDigest | null>(null);
-  const [risk, setRisk] = useState<ConcentrationRisk | null>(null);
-  const { results: taResults } = useTAConsensus();
+  const { selectedTicker, selectTicker } = useAppStore();
+  const { lists, setRadarList } = useWatchlists();
+  const model = useRadarModel();
+  const { core, ring, scored, hidden, risk, digest, missingSources, listName, listId, tickers } = model;
 
-  useEffect(() => {
-    loadRadar();
-    api.fetchRadarDigest().then(setDigest);
-    api.fetchConcentrationRisk().then(setRisk);
-  }, [loadRadar]);
-
-  // Mã đủ điều kiện lên Radar: các ★ Danh mục (sau khi đã chuyển danh sách cũ sang); trước đó
-  // gộp thêm danh sách cũ. Giữ quy tắc "xoá khỏi danh mục thì xoá khỏi Radar".
-  const { lists } = useWatchlists();
-  const livePrices = useAppStore((s) => s.livePrices);
-  const eligible = useMemo(() => {
-    const tickers = new Set(allWatchlistTickers(lists));
-    if (!isLegacyMigrated()) for (const w of watchlist) tickers.add(w.ticker);
-    const legacy = new Map(watchlist.map((w) => [w.ticker, w]));
-    return [...tickers].map((ticker) => {
-      const w = legacy.get(ticker), live = livePrices[ticker];
-      return { ticker, sector: w?.sector, price: live?.price ?? w?.price, changePct: live?.changePct ?? w?.changePct };
-    });
-  }, [lists, watchlist, livePrices]);
-  const { core: mergedCore, ring: mergedRing } = useMemo(
-    () => mergeRadarWithConsensus(radarCore, radarRing, eligible, taResults),
-    [radarCore, radarRing, eligible, taResults]
-  );
-
-  const selectedCore = mergedCore.find((n) => n.ticker === selectedTicker);
-  const selectedRing = mergedRing.find((n) => n.ticker === selectedTicker);
+  const selected = scored.find((x) => x.ticker === selectedTicker) ?? null;
   const handleSelectRing = (node: RadarRingNodeType) => selectTicker(node.ticker);
 
   return (
     <div className="panel-block radar-block">
-      <div className="panel-head">
+      <div className="panel-head" style={{ alignItems: 'center' }}>
         <div className="panel-title">⌖ ELITE COMMAND RADAR <span className="ai-chip">AI</span></div>
+        <select
+          value={listId}
+          onChange={(e) => setRadarList(e.target.value)}
+          aria-label="Danh mục hiển thị trên Radar"
+          title="Danh mục hiển thị trên Radar"
+          style={{ marginLeft: 'auto', maxWidth: 150, fontSize: 10, background: 'var(--bg-surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 5, padding: '2px 4px' }}
+        >
+          {lists.map((l) => <option key={l.id} value={l.id}>★ {l.name} ({l.tickers.length})</option>)}
+        </select>
       </div>
-      <div className="radar-sub">Nhìn vào trung tâm — điều khiển từ ngoại vi</div>
+      <div className="radar-sub">
+        {tickers.length
+          ? `★ ${listName}: ${tickers.length} mã · Core ≥ ${CORE_MIN}/6 tiêu chí${hidden ? ` · ${hidden} mã điểm thấp không hiện trên vòng` : ''}`
+          : `★ ${listName} đang trống — bấm ☆ cạnh mã trong Bảng Siêu Quét hoặc tìm mã ở thanh trên để thêm.`}
+      </div>
       <div className="radar-canvas-wrap">
         <RadarSvgCanvas>
           <g>
-            {mergedRing.map((node, i) => (
-              <RadarRingNode key={node.ticker} node={node} angle={RING_ANGLES[i % RING_ANGLES.length]} onSelect={handleSelectRing} />
+            {ring.map((node, i) => (
+              <RadarRingNode key={node.ticker} node={node} angle={ringAngle(i, ring.length)} onSelect={handleSelectRing} />
             ))}
           </g>
           <g>
-            {mergedCore.map((node, i) => (
+            {core.map((node, i) => (
               <RadarCoreNode key={node.ticker} node={node} angle={CORE_ANGLES[i % CORE_ANGLES.length]} onSelect={selectTicker} />
             ))}
           </g>
         </RadarSvgCanvas>
       </div>
       <div className="legend-row">
-        <div className="legend-item"><span className="legend-dot" style={{ background: 'var(--gold)' }} />Core (6/6)</div>
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#5B8CD6' }} />Ring (2-5/6)</div>
+        <div className="legend-item"><span className="legend-dot" style={{ background: 'var(--gold)' }} />Core (≥{CORE_MIN}/6)</div>
+        <div className="legend-item"><span className="legend-dot" style={{ background: '#5B8CD6' }} />Ring (0–{CORE_MIN - 1}/6)</div>
         <div className="legend-item">🛡 Ổn định</div>
         <div className="legend-item">⚡ Bứt phá</div>
         <div className="legend-item">⚠ Cảnh báo sớm</div>
       </div>
-      {selectedCore && (
-        <ConvergenceBreakdown
-          name={selectedCore.ticker}
-          score={selectedCore.convergence.filter(Boolean).length}
-          convergence={selectedCore.convergence}
-        />
+      {selected && (
+        <ConvergenceBreakdown name={selected.ticker} score={selected.score} convergence={selected.convergence} />
       )}
-      {!selectedCore && selectedRing && (
-        <ConvergenceBreakdown
-          name={selectedRing.ticker}
-          score={selectedRing.score}
-          convergence={Array.from({ length: 6 }, (_, i) => (i < selectedRing.score ? 1 : 0))}
-        />
+      {selectedTicker && !selected && tickers.length > 0 && (
+        <div className="digest-note">☆ {selectedTicker} chưa có trong ★ {listName} — thêm vào danh mục để Radar chấm hội tụ.</div>
       )}
       {risk && <ConcentrationRiskBanner risk={risk} />}
       {digest && <DigestNote digest={digest} />}
-      <div className="time-slider">
-        Lịch sử Core <input type="range" min={0} max={6} defaultValue={6} /> Hôm nay
-      </div>
+      {missingSources.length > 0 && (
+        <div className="digest-note" style={{ opacity: 0.75 }}>Đang chờ dữ liệu: {missingSources.join(', ')} (chưa tính là "không đạt").</div>
+      )}
     </div>
   );
 }
