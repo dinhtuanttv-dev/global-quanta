@@ -21,6 +21,11 @@ test("news NLP: phân loại sự kiện và cảm xúc có dấu (không nhầm
   assert.equal(classifyEvent("Con trai tỷ phú đăng ký mua 50 triệu cổ phiếu").id, "INSIDER");
   assert.equal(classifyEvent("VOS chốt quyền trả cổ tức bằng tiền").id, "DIVIDEND");
   assert.equal(classifyEvent("Công ty tổ chức hội thảo thường niên").id, "OTHER");
+  // Tiêu đề diễn biến giá không bị nhầm thành "Phát hành / tăng vốn"; loại cụ thể vẫn thắng.
+  assert.equal(classifyEvent("Vốn hóa PNJ giảm hơn 2.000 tỷ đồng sau 3 phiên").id, "MARKET");
+  assert.equal(classifyEvent("Khối ngoại bán ròng mạnh HPG").id, "MARKET");
+  assert.equal(classifyEvent("Cổ phiếu tăng trần sau tin lợi nhuận kỷ lục").id, "EARNINGS");
+  assert.equal(classifyEvent("SSI chào bán 300 triệu cổ phiếu tăng vốn").id, "ISSUANCE");
   assert.ok(sentiment("TTF vào diện kiểm soát sau nhiều lần bị cảnh báo").score <= -0.6);
   assert.ok(sentiment("Lợi nhuận kỷ lục, vượt kế hoạch năm").score >= 0.9);
   assert.equal(sentiment("Khách hàng nhận tiền lại, sản phẩm gồm nhẫn và dây chuyền").score, 0, "lại ≠ lãi, gồm ≠ gom");
@@ -102,7 +107,7 @@ test("news: dịch vụ đầu-cuối — nguồn lỗi độc lập không làm
 test("news: loại sự kiện ưu tiên tiêu đề, tóm tắt chỉ dùng khi tiêu đề không rõ", () => {
   const base = { id: "x", url: null, attachment: null, publishedAt: "2026-10-02T08:00:00+07:00", source: "CAFEF", sourceLabel: "CafeF", tickers: ["PNJ"] };
   const [a] = enrichAndDedupe([{ ...base, title: "Vốn hóa PNJ giảm hơn 5.000 tỷ đồng chỉ vài ngày", summary: "Khối ngoại bán ra mạnh" }], { wanted: new Set(["PNJ"]), symbols: SYMBOLS });
-  assert.equal(a.eventType, "OTHER");
+  assert.equal(a.eventType, "MARKET"); // tiêu đề diễn biến giá -> không rơi xuống tóm tắt
   const [b] = enrichAndDedupe([{ ...base, id: "y", title: "PNJ: tin mới", summary: "Công ty báo lãi quý 3 vượt kế hoạch" }], { wanted: new Set(["PNJ"]), symbols: SYMBOLS });
   assert.equal(b.eventType, "EARNINGS");
 });

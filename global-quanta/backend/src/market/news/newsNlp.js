@@ -49,6 +49,9 @@ export const EVENT_TYPES = [
   { id: "AGM", label: "ĐHĐCĐ / nghị quyết", weight: 0.6, re: /(đại hội|đhđcđ|nghị quyết|hđqt|lấy ý kiến cổ đông|kế hoạch kinh doanh)/ },
   { id: "PERSONNEL", label: "Nhân sự", weight: 0.5, re: /(bổ nhiệm|miễn nhiệm|từ nhiệm|tổng giám đốc|chủ tịch|thành viên hđqt|kế toán trưởng)/ },
   { id: "RATING", label: "Khuyến nghị / định giá", weight: 0.55, re: /(khuyến nghị|giá mục tiêu|định giá|nâng hạng|hạ hạng|xếp hạng|outperform)/ },
+  // Diễn biến giá / thị trường: đặt CUỐI (loại cụ thể thắng) nhưng vẫn khớp tiêu đề, để tiêu đề kiểu "Vốn hoá PNJ giảm…"
+  // không rơi xuống phân loại theo tóm tắt (từ khoá lẻ trong thân bài như "phát hành" làm nhầm loại).
+  { id: "MARKET", label: "Diễn biến giá / thị trường", weight: 0.5, re: /(vốn hóa|vốn hoá|thị giá|giá cổ phiếu|cổ phiếu (?:tăng|giảm)|bốc hơi|khối ngoại|tăng trần|giảm sàn|nằm sàn|kịch trần|thanh khoản|phiên giao dịch|chứng khoán hôm nay|vn-index|vnindex)/ },
 ];
 const OTHER = { id: "OTHER", label: "Tin doanh nghiệp", weight: 0.45 };
 

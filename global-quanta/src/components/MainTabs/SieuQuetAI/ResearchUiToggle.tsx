@@ -10,7 +10,7 @@ export default function ResearchUiToggle({ compact = false }: { compact?: boolea
       role="switch"
       aria-checked={on}
       onClick={() => setOn(!on)}
-      title={on ? "Đang hiện khối AI học & thích ứng (bấm để ẩn)" : "Hiện khối AI học & thích ứng (thử nghiệm)"}
+      title={on ? "Đang hiện khối AI học & thích ứng (bấm để ẩn)" : "Hiện khối AI học & thích ứng"}
       aria-label={compact ? "Hiện chỉ số AI trong bảng phân tích khối lượng" : undefined}
       className={`inline-flex items-center gap-1.5 ${compact ? "text-[9px] align-middle" : "text-[9.5px]"} text-slate-400 hover:text-slate-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 rounded`}
     >
