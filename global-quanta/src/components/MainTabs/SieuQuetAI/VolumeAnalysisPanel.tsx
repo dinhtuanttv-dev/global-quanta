@@ -1,9 +1,10 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import IntradayCyclePanel from "./IntradayCyclePanel";
 import IntentFootprintPanel from "./IntentFootprintPanel";
 import AdaptiveScoreCard from "./AdaptiveScoreCard";
 import { useResearchUi } from "../../../hooks/useResearchUi";
+import ResearchUiToggle from "./ResearchUiToggle";
 import { useIntradayCycle } from "../../../hooks/useIntradayCycle";
 
 // Màu: phiên tăng/giảm giữ quy ước xanh/đỏ của bảng. Cặp này chỉ đạt ΔE 5.8 với
@@ -147,10 +148,9 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
   const { data, error, isLoading } = useVolumeAnalysis(symbol);
   // Cùng khoá SWR với phần Nhịp -> không gọi thêm; dùng làm nguồn DUY NHẤT cho RVOL theo thời điểm.
   const { data: cycle } = useIntradayCycle(symbol);
-  // Chỉ số AI: chỉ có khi công tắc "AI nghiên cứu" bật, và luôn THU GỌN cho tới khi bấm mở
-  // (thu gọn = không gọi API nghiên cứu). Công tắc tắt -> phần đầu bảng giữ nguyên DOM như cũ.
+  // Công tắc "AI" ở cuối dòng tiêu đề (dùng chung trạng thái với công tắc "AI nghiên cứu").
+  // Tắt: mọi phần của bảng giữ nguyên như cũ, không gọi API nghiên cứu. Bật: khối AI dưới tiêu đề.
   const [researchOn] = useResearchUi();
-  const [aiOpen, setAiOpen] = useState(false);
 
   if (isLoading && !data) return <div className="p-3 text-[10px] text-slate-500 font-sans">Đang phân tích khối lượng {symbol}…</div>;
   if (error || !data) return <div className="p-3 text-[10px] text-rose-400 font-sans">Không tải được phân tích khối lượng: {String(error?.message ?? "không có dữ liệu")}</div>;
@@ -161,33 +161,14 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
   return (
     <div className="p-3 font-sans" style={{ background: "rgba(2,132,199,0.04)" }}>
       <div className="flex items-baseline justify-between mb-2">
-        {researchOn ? (
-          <div className="flex items-baseline gap-2">
-            <div className="text-[11px] font-semibold text-cyan-300">Phân tích khối lượng · {symbol}</div>
-            <button
-              type="button"
-              aria-expanded={aiOpen}
-              aria-controls={`ai-insights-${symbol}`}
-              onClick={() => setAiOpen((v) => !v)}
-              title={aiOpen ? "Thu gọn chỉ số AI" : "Xem chỉ số AI: điểm thích ứng, xác suất T+3/T+5/T+10, tín hiệu đang bật"}
-              className={`text-[9px] px-1.5 py-px rounded border transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 ${aiOpen ? "border-violet-400/60 bg-violet-500/15 text-violet-200" : "border-white/10 text-slate-400 hover:text-violet-200 hover:border-violet-400/40"}`}
-            >
-              AI {aiOpen ? "▾" : "▸"}
-            </button>
-          </div>
-        ) : (
-          <div className="text-[11px] font-semibold text-cyan-300">Phân tích khối lượng · {symbol}</div>
-        )}
+        <div className="text-[11px] font-semibold text-cyan-300">Phân tích khối lượng · {symbol}</div>
         <div className="text-[9px] text-slate-500">
           Dữ liệu SSI tới phiên {data.asOf}{data.partialToday ? " (hôm nay đang giao dịch)" : ""} · nhấn đúp hoặc Esc để đóng
+          <span className="ml-2"><ResearchUiToggle compact /></span>
         </div>
       </div>
 
-      {researchOn && aiOpen && (
-        <div id={`ai-insights-${symbol}`}>
-          <AdaptiveScoreCard symbol={symbol} />
-        </div>
-      )}
+      {researchOn && <AdaptiveScoreCard symbol={symbol} />}
 
       <IntradayCyclePanel symbol={symbol} />
       <IntentFootprintPanel symbol={symbol} />

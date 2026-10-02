@@ -1,17 +1,16 @@
 import { useSyncExternalStore } from "react";
 import { isMarketGatewayEnabled } from "../services/marketDataClient";
 
-// Bật/tắt giao diện tầng nghiên cứu (panel "AI học & thích ứng" + khối Action Center) ngay trên UI.
-// - Mặc định TẮT (VITE_RESEARCH_UI=true chỉ đổi mặc định thành bật).
+// Hiện/ẩn các khối AI (Bảng phân tích khối lượng, panel "AI học & thích ứng", Action Center).
+// - Mặc định HIỆN trên trang chính (không cần cờ môi trường); công tắc trên UI chỉ để ẩn khi không cần.
 // - Lựa chọn của người xem nhớ trong localStorage của trình duyệt đó; localStorage lỗi/bị chặn thì
 //   vẫn bật/tắt được trong phiên (giữ trong bộ nhớ).
 // - Chỉ có khi Market Gateway bật (dữ liệu nghiên cứu nằm trên Gateway).
 
-const KEY = "gq.researchUi";
+// Khoá mới: lựa chọn "ẩn" theo quy ước cũ (mặc định tắt) không còn áp dụng.
+const KEY = "gq.researchUi.v2";
 const EVENT = "gq:research-ui";
 let memory: boolean | null = null;
-
-const defaultOn = () => String(import.meta.env.VITE_RESEARCH_UI ?? "").toLowerCase() === "true";
 
 export const researchUiAvailable = () => isMarketGatewayEnabled();
 
@@ -22,7 +21,7 @@ function read(): boolean {
     if (v === "1") return true;
     if (v === "0") return false;
   } catch { /* localStorage không dùng được */ }
-  return memory ?? defaultOn();
+  return memory ?? true;
 }
 
 export function setResearchUi(on: boolean) {

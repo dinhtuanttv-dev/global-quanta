@@ -72,12 +72,25 @@ describe("VolumeAnalysisPanel", () => {
   const research = {
     symbol: "FPT", asOf: "2026-10-01", regime: "SIDEWAY", method: "BVC", features: [], profile: null,
     adaptive: [3, 5, 10].map((h) => ({ horizon: h, ready: true, version: "v1", prob: h === 3 ? 0.58 : h === 5 ? 0.62 : 0.5, regimeModel: false, contributions: [], holdout: null })),
-    todaySignals: [], recentSignals: [], disclaimer: "Không phải khuyến nghị đầu tư.",
+    todaySignals: [{ date: "2026-10-01", signal: "STEALTH_20", label: "Stealth Score 20 phiên", direction: 1, score: 1.8, regime: "SIDEWAY", outcomes: {}, trackRecord: [] }],
+    recentSignals: [], disclaimer: "Không phải khuyến nghị đầu tư.",
+  };
+  const perfRow = (signal: string, horizon: number, hitRate: number, baseline: number, z: number, verdict: string) => ({
+    signal, regime: "ALL", horizon, n: 1700, long: 1000, short: 700, hitRate, hitLow: hitRate - 0.02, hitHigh: hitRate + 0.02, baseline,
+    avgSignedExcess: 0.005, tStat: 5, zHit: 5.6, pValue: 0.004, zHitClustered: z, tStatClustered: 2.5, effectiveN: 366, clusters: { dates: 69, symbols: 43 }, verdict,
+  });
+  const overview = {
+    generatedAt: "2026-10-02T01:41:00Z", currentRegime: { date: "2026-10-01", regime: "SIDEWAY", impulseScore: 29.6, breadthPct: 31.8 }, baseline: {},
+    performance: [perfRow("STEALTH_20", 3, 0.543, 0.48, 2.62, "edge"), perfRow("STEALTH_20", 5, 0.537, 0.48, 2.25, "edge"), perfRow("IFE_INTENT", 5, 0.474, 0.473, 0.1, "none")],
+    counts: null, models: [], lastTraining: null, signalLabels: {}, featureLabels: {}, disclaimer: "",
   };
   async function renderPanel(researchUi: "1" | "0" | null) {
     vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
-    if (researchUi) window.localStorage.setItem("gq.researchUi", researchUi);
-    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/research/") ? research : fixture) }));
+    if (researchUi) window.localStorage.setItem("gq.researchUi.v2", researchUi);
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      json: async () => (String(url).includes("/research/overview") ? overview : String(url).includes("/research/") ? research : fixture),
+    }));
     vi.stubGlobal("fetch", fetchMock);
     const el = document.createElement("div");
     const root = createRoot(el);
@@ -89,36 +102,37 @@ describe("VolumeAnalysisPanel", () => {
     return { el, root, researchCalls };
   }
 
-  it("mặc định (công tắc AI tắt): phần đầu bảng nguyên bản, không có nút AI, không gọi API nghiên cứu", async () => {
-    const { el, root, researchCalls } = await renderPanel(null);
+  it("đã ẩn AI: chỉ còn công tắc nhỏ cuối dòng tiêu đề, không có khối AI, không gọi API nghiên cứu", async () => {
+    const { el, root, researchCalls } = await renderPanel("0");
     const header = el.querySelector(".font-sans > div")!;
+    expect(header.children.length).toBe(2);
     expect(header.children[0].textContent).toBe("Phân tích khối lượng · FPT");
-    expect(header.children[0].tagName).toBe("DIV");
-    expect(header.children[0].children.length).toBe(0);
-    expect(el.querySelector("button[aria-controls]")).toBeNull();
+    const sw = header.querySelector('[role="switch"]') as HTMLButtonElement;
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(sw.textContent).toBe("AI");
     expect(el.textContent).not.toContain("Điểm dòng tiền thích ứng");
     expect(researchCalls()).toBe(0);
     act(() => root.unmount());
   });
 
-  it("công tắc AI bật: nút 'AI ▸' thu gọn sẵn; bấm mở xem xác suất T+3/T+5, bấm lại thu gọn", async () => {
-    const { el, root, researchCalls } = await renderPanel("1");
-    const btn = el.querySelector("button[aria-controls='ai-insights-FPT']") as HTMLButtonElement;
-    expect(btn.textContent).toBe("AI ▸");
-    expect(btn.getAttribute("aria-expanded")).toBe("false");
-    expect(el.textContent).not.toContain("Điểm dòng tiền thích ứng");
-    expect(researchCalls()).toBe(0);
+  it("mặc định HIỆN trực tiếp: điểm thích ứng T+3/T+5 và bảng hiệu suất với z đã tính chồng lấn; ẩn -> về nguyên bản", async () => {
+    const { el, root, researchCalls } = await renderPanel(null);
+    const sw = el.querySelector('[role="switch"]') as HTMLButtonElement;
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    const text = el.textContent ?? "";
+    expect(text).toContain("AI · Điểm dòng tiền thích ứng & hiệu suất tín hiệu");
+    expect(text).toContain("▲ 58%");
+    expect(text).toContain("▲ 62%");
+    expect(text).toContain("Hiệu suất tín hiệu");
+    expect(text).toContain("54.3% / 48.0% z 2.6");
+    expect(text).toContain("✓ có lợi thế");
+    expect(text).toContain("≈ như ngẫu nhiên");
+    expect(text).toContain("● Stealth 20 phiên");
+    expect(researchCalls()).toBe(2);
 
-    await act(async () => { btn.click(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-    expect(btn.getAttribute("aria-expanded")).toBe("true");
-    expect(el.querySelector("#ai-insights-FPT")!.textContent).toContain("▲ 58%");
-    expect(el.textContent).toContain("▲ 62%");
-    expect(researchCalls()).toBe(1);
-
-    await act(async () => { btn.click(); });
-    expect(el.querySelector("#ai-insights-FPT")).toBeNull();
-    expect(el.textContent).toContain("Phân tích khối lượng · FPT");
+    await act(async () => { sw.click(); });
+    expect(el.textContent).not.toContain("AI · Điểm dòng tiền thích ứng");
+    expect(window.localStorage.getItem("gq.researchUi.v2")).toBe("0");
     act(() => root.unmount());
   });
 });

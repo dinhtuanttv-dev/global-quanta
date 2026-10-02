@@ -50,8 +50,9 @@ const symbolDetail = {
 
 async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
   vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
-  window.localStorage.setItem("gq.researchUi", researchUi ? "1" : "0");
-  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => body }));
+  window.localStorage.setItem("gq.researchUi.v2", researchUi ? "1" : "0");
+  // Thẻ AI trong bảng KL gọi cả /research/:symbol và /research/overview (bảng hiệu suất).
+  const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/overview") && !(body as { performance?: unknown }).performance ? overview(true) : body) }));
   vi.stubGlobal("fetch", fetchMock);
   const el = document.createElement("div");
   document.body.appendChild(el);
@@ -66,7 +67,7 @@ async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
 describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetResearchUiForTest(); document.body.innerHTML = ""; });
 
-  it("công tắc tắt: không hiển thị gì và không gọi API nghiên cứu", async () => {
+  it("người dùng đã ẩn: không hiển thị gì và không gọi API nghiên cứu", async () => {
     const panel = await mount(<AdaptiveLearningPanel />, overview(true), false);
     expect(panel.textContent).toBe("");
     const card = await mount(<AdaptiveScoreCard symbol="PVT" />, symbolDetail, false);
@@ -105,7 +106,7 @@ describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
     expect(text).toContain("POC 27.350");
   });
 
-  it("công tắc trên UI: mặc định tắt; bật -> hiện panel và khối mã (cả hai cây React đồng bộ); tắt -> về nguyên bản; nhớ lựa chọn", async () => {
+  it("công tắc trên UI: mặc định HIỆN; ẩn -> cả hai nơi về nguyên bản (đồng bộ hai cây React); nhớ lựa chọn", async () => {
     vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
     const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/overview") ? overview(true) : symbolDetail) }));
     vi.stubGlobal("fetch", fetchMock);
@@ -120,23 +121,24 @@ describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
     await act(async () => {
       for (const t of [a, b]) t.root.render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{t.node}</SWRConfig>);
     });
-    const sw = a.el.querySelector('[role="switch"]') as HTMLButtonElement;
-    expect(sw.getAttribute("aria-checked")).toBe("false");
-    expect(a.el.textContent).not.toContain("AI học & thích ứng");
-    expect(b.el.textContent).toBe("");
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    await act(async () => { sw.click(); });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    // Mặc định HIỆN trên trang chính (không cần cờ môi trường).
+    const sw = a.el.querySelector('[role="switch"]') as HTMLButtonElement;
     expect(sw.getAttribute("aria-checked")).toBe("true");
     expect(a.el.textContent).toContain("AI học & thích ứng");
     expect(b.el.textContent).toContain("▲ 61%");
-    expect(window.localStorage.getItem("gq.researchUi")).toBe("1");
 
+    // Ẩn -> cả hai nơi về nguyên bản, không còn khối AI; lựa chọn được nhớ.
     await act(async () => { sw.click(); });
+    expect(sw.getAttribute("aria-checked")).toBe("false");
     expect(a.el.textContent).not.toContain("AI học & thích ứng");
     expect(b.el.textContent).toBe("");
-    expect(window.localStorage.getItem("gq.researchUi")).toBe("0");
+    expect(window.localStorage.getItem("gq.researchUi.v2")).toBe("0");
+
+    await act(async () => { sw.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(a.el.textContent).toContain("AI học & thích ứng");
+    expect(window.localStorage.getItem("gq.researchUi.v2")).toBe("1");
   });
 
   it("không có Market Gateway: không hiện công tắc", async () => {
