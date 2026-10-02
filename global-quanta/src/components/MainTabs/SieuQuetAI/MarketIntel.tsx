@@ -189,7 +189,7 @@ function ForestRow({ label, value, mean, lo, hi, base, n, nEff }: { label: strin
   const color = !isNum(mean) || !isNum(base) ? MUTED : isNum(lo) && lo > base ? UP : isNum(hi) && hi < base ? DOWN : "#cbd5e1";
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_6.3rem] items-center gap-2 text-[9.5px]" title={`${label}: ${value} · ${n} phiên (hiệu dụng ≈ ${nEff})`}>
-      <span className="truncate text-slate-400">{label}: <span className="text-slate-200">{value}</span></span>
+      <span className="text-slate-400 leading-tight">{label}: <span className="text-slate-200">{value}</span></span>
       <span className="relative h-3">
         <span className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
         {isNum(base) && <span className="absolute top-0 bottom-0 w-px border-l border-dashed border-slate-400/70" style={{ left: xPos(base) }} />}
@@ -209,7 +209,7 @@ function WeightRow({ w }: { w: { label: string; coef: number | null; lo: number 
   const color = !sig ? MUTED : (w.coef ?? 0) > 0 ? UP : DOWN;
   return (
     <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_3.2rem] items-center gap-2 text-[9.5px]" title={`${w.label}: ${signed(w.coef)} [${signed(w.lo)}, ${signed(w.hi)}]${sig ? "" : " — KTC chứa 0"}`}>
-      <span className="truncate text-slate-400">{w.label}</span>
+      <span className="text-slate-400 leading-tight">{w.label}</span>
       <span className="relative h-3">
         <span className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-400/50" />
         {isNum(w.lo) && isNum(w.hi) && <span className="absolute top-1/2 h-[3px] -translate-y-1/2 rounded" style={{ left: pos(w.lo), width: `calc(${pos(w.hi)} - ${pos(w.lo)})`, background: `${color}88` }} />}
@@ -227,7 +227,7 @@ const VERDICT: Record<string, { glyph: string; text: string; color: string }> = 
   insufficient: { glyph: "…", text: "chưa đủ mẫu", color: MUTED },
 };
 export const INTEL_SIGNALS = ["FOOTPRINT", "IMPULSE2", "HMM_REGIME", "DIVERGENCE", "DIST_DAYS"] as const;
-/** Nhãn dự phòng khi Gateway chưa trả `signalLabels` mới. */
+/** Nhãn ngắn hiển thị trong bảng kiểm định (nhãn đầy đủ của Gateway nằm trong tooltip). */
 const INTEL_LABELS: Record<string, string> = {
   FOOTPRINT: "Dấu chân tay to (5 phiên)", IMPULSE2: "Impulse 2.0", HMM_REGIME: "Chế độ HMM",
   DIVERGENCE: "Phân kỳ đa khung", DIST_DAYS: "Ngày phân phối bất thường",
@@ -326,16 +326,17 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
       {/* Kiểm định tín hiệu mới */}
       <div>
         <div className="text-[9px] text-slate-500 mb-0.5">Kiểm định tín hiệu mới trong vòng phản hồi (trúng / nền · z cụm) — tín hiệu chưa có lợi thế chỉ để tham khảo</div>
-        <table className="w-full text-[9px] font-mono">
+        <table className="w-full table-fixed text-[9px] font-mono">
+          <colgroup><col className="w-[34%]" /><col /><col /><col /></colgroup>
           <tbody>
             {INTEL_SIGNALS.map((sig) => (
               <tr key={sig} className="border-t border-white/5">
-                <td className="px-1 font-sans text-slate-300 whitespace-nowrap">{signalLabels[sig] ?? INTEL_LABELS[sig]}</td>
+                <td className="px-1 font-sans text-slate-300 truncate" title={signalLabels[sig] ?? INTEL_LABELS[sig]}>{INTEL_LABELS[sig]}</td>
                 {[3, 5, 10].map((hz) => {
                   const r = performance.find((x) => x.signal === sig && x.regime === "ALL" && x.horizon === hz);
                   const v = r ? VERDICT[r.verdict] : null;
                   return (
-                    <td key={hz} className="px-1 text-right whitespace-nowrap" title={r ? `T+${hz}: n=${r.n} (hiệu dụng ≈ ${r.effectiveN ?? r.n}) · KTC95% ${pct(r.hitLow)}–${pct(r.hitHigh)}` : `T+${hz}: chưa chấm`}>
+                    <td key={hz} className="px-0.5 text-right whitespace-nowrap overflow-hidden" title={r ? `T+${hz}: n=${r.n} (hiệu dụng ≈ ${r.effectiveN ?? r.n}) · KTC95% ${pct(r.hitLow)}–${pct(r.hitHigh)}` : `T+${hz}: chưa chấm`}>
                       {r && v ? <><span className="text-slate-200">{pct(r.hitRate)}</span><span className="text-slate-500">/{pct(r.baseline)}</span> <span style={{ color: v.color }}>{v.glyph}</span></> : <span className="text-slate-600">T+{hz} …</span>}
                     </td>
                   );
