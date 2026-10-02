@@ -149,24 +149,49 @@ test("research: tổng hợp hiệu suất — mốc nền theo CHIỀU tín hi�
   // Thị trường: chỉ 43% mã vượt chỉ số -> bán "trúng" 57% dù không có kỹ năng.
   const p = 0.43;
   const joined = [];
+  // Tín hiệu độc lập: rải trên 200 ngày × 40 mã, kết quả trúng/trượt không theo ngày hay mã.
+  const r = rng(99);
+  const days = tradingDatesBack("2026-09-30", 200);
+  const at = (i) => ({ symbol: `S${(i * 13) % 40}`, date: days[i % 200] });
   for (let i = 0; i < 400; i++) {
-    // Tín hiệu bán không có kỹ năng: trúng đúng 57% (= nền của chiều bán).
-    joined.push({ signal: "NOSKILL_SHORT", direction: -1, regime: "SIDEWAY", horizon: 5, hit: i % 100 < 57, expectedHit: 1 - p, signedExcess: i % 2 ? 0.01 : -0.01 });
-    // Tín hiệu mua có kỹ năng: trúng 55% so với nền 43%.
-    joined.push({ signal: "SKILL_LONG", direction: 1, regime: i % 2 ? "UPTREND" : "SIDEWAY", horizon: 5, hit: i % 100 < 55, expectedHit: p, signedExcess: i % 100 < 55 ? 0.02 : -0.01 });
+    // Tín hiệu bán không có kỹ năng: trúng với xác suất đúng bằng nền của chiều bán (57%).
+    joined.push({ signal: "NOSKILL_SHORT", ...at(i), direction: -1, regime: "SIDEWAY", horizon: 5, hit: r() < 0.57, expectedHit: 1 - p, signedExcess: r() < 0.5 ? 0.01 : -0.01 });
+    // Tín hiệu mua có kỹ năng: trúng 58% so với nền 43%.
+    const hit = r() < 0.58;
+    joined.push({ signal: "SKILL_LONG", ...at(i), direction: 1, regime: i % 2 ? "UPTREND" : "SIDEWAY", horizon: 5, hit, expectedHit: p, signedExcess: hit ? 0.02 : -0.01 });
   }
   const rows = summarizePerformance(joined);
   const ns = rows.find((r) => r.signal === "NOSKILL_SHORT" && r.regime === "ALL");
   assert.equal(ns.baseline, 0.57);
+  assert.ok(Math.abs(ns.zHitClustered) < 1.96);
   assert.equal(ns.verdict, "none", "57% trúng ở chiều bán KHÔNG phải lợi thế");
   const sk = rows.find((r) => r.signal === "SKILL_LONG" && r.regime === "ALL");
   assert.equal(sk.verdict, "edge");
   assert.ok(sk.zHit > 4 && sk.tStat > 2);
+  assert.ok(sk.zHitClustered > 3, `z cụm ${sk.zHitClustered}`);
   assert.equal(rows.find((r) => r.signal === "SKILL_LONG" && r.regime === "UPTREND").n, 200);
   // Tín hiệu mua trúng 30% khi nền 43% -> ngược kỳ vọng.
-  const bad = summarizePerformance(Array.from({ length: 300 }, (_, i) => ({ signal: "BAD", direction: 1, regime: "UPTREND", horizon: 3, hit: i % 10 < 3, expectedHit: p, signedExcess: -0.01 })));
+  const bad = summarizePerformance(Array.from({ length: 300 }, (_, i) => ({ signal: "BAD", ...at(i), direction: 1, regime: "UPTREND", horizon: 3, hit: r() < 0.3, expectedHit: p, signedExcess: -0.01 })));
   assert.equal(bad.find((r) => r.regime === "ALL").verdict, "negative");
   assert.equal(summarizePerformance([{ signal: "X", direction: 1, regime: "UPTREND", horizon: 3, hit: true, expectedHit: null, signedExcess: 0 }]).length, 0);
+});
+
+test("research: tín hiệu chồng lấn — sai số cụm làm z co lại, không báo lợi thế giả", () => {
+  // 10 mã × 60 ngày; mỗi KHỐI 5 ngày cả thị trường cùng trúng hoặc cùng trượt (sốc chung, nhãn chồng lấn).
+  const r = rng(5);
+  const dates = tradingDatesBack("2026-09-30", 60);
+  const blockHit = Array.from({ length: 12 }, () => r() < 0.62);
+  const joined = [];
+  for (let s = 0; s < 12; s++) for (const [k, date] of dates.entries()) {
+    joined.push({ signal: "CORR", symbol: `S${s}`, date, direction: 1, regime: "SIDEWAY", horizon: 5, hit: blockHit[Math.floor(k / 5)], expectedHit: 0.5, signedExcess: blockHit[Math.floor(k / 5)] ? 0.01 : -0.01 });
+  }
+  const row = summarizePerformance(joined).find((x) => x.regime === "ALL");
+  assert.equal(row.n, 720);
+  assert.ok(Math.abs(row.zHit) > 3, `z độc lập ${row.zHit} bị thổi phồng`);
+  assert.ok(Math.abs(row.zHitClustered) < 1.96, `z cụm ${row.zHitClustered}`);
+  assert.equal(row.verdict, "none");
+  assert.ok(row.effectiveN < 50, `n hiệu dụng ${row.effectiveN}`);
+  assert.deepEqual(row.clusters, { dates: 12, symbols: 12 });
 });
 
 test("research: quy tắc phát tín hiệu công khai", () => {

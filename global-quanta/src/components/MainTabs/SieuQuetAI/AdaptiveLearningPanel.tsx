@@ -70,7 +70,7 @@ export default function AdaptiveLearningPanel() {
           );
           const v = VERDICT[r.verdict];
           return (
-            <div key={sig} title={`n=${r.n} (mua ${r.long} / bán ${r.short}) · KTC95% ${pct(r.hitLow, 1)}–${pct(r.hitHigh, 1)} · mốc nền ${pct(r.baseline, 1)} (z=${r.zHit ?? "—"}) · lợi suất vượt (đã trừ TB cùng ngày) ${pct(r.avgSignedExcess, 2)}, t=${r.tStat ?? "—"}`}>
+            <div key={sig} title={`n=${r.n} (mua ${r.long} / bán ${r.short}) · KTC95% ${pct(r.hitLow, 1)}–${pct(r.hitHigh, 1)} · mốc nền ${pct(r.baseline, 1)} · z=${r.zHitClustered ?? r.zHit ?? "—"} (đã tính chồng lấn; n hiệu dụng ≈ ${r.effectiveN ?? r.n}) · lợi suất vượt (đã trừ TB cùng ngày) ${pct(r.avgSignedExcess, 2)}, t=${r.tStatClustered ?? r.tStat ?? "—"}`}>
               <div className="flex justify-between text-[9.5px]">
                 <span className="text-slate-300">{label}</span>
                 <span style={{ color: v.color }}>{pct(r.hitRate, 1)} <span className="text-slate-500">/ nền {pct(r.baseline, 0)}</span> <span className="text-[8.5px]">{v.text}</span></span>

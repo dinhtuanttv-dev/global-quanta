@@ -8,6 +8,9 @@ export interface PerformanceRow {
   signal: string; regime: string; horizon: number; n: number; long: number; short: number;
   hitRate: number; hitLow: number; hitHigh: number; baseline: number;
   avgSignedExcess: number | null; tStat: number | null; zHit?: number | null; pValue: number | null;
+  /** Kiểm định có tính tín hiệu chồng lấn (sai số cụm hai chiều ngày × mã) — dùng cho phán định. */
+  zHitClustered?: number | null; tStatClustered?: number | null; effectiveN?: number;
+  clusters?: { dates: number; symbols: number };
   verdict: "edge" | "negative" | "none" | "insufficient";
 }
 

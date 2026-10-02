@@ -98,42 +98,90 @@ export function wilson(k, n, z = 1.96) {
 }
 
 /**
+ * Phương sai cụm hai chiều (Cameron–Gelbach–Miller) của tổng phần dư:
+ *   V = V_ngày + V_mã − V_quan sát.
+ * - Cụm NGÀY: các khối h phiên liên tiếp (nhãn T+h của các ngày trong cùng khối chồng lấn nhau,
+ *   và các mã cùng ngày cùng chịu một cú sốc thị trường).
+ * - Cụm MÃ: tín hiệu của một mã kéo dài nhiều ngày liền (Stealth bền bỉ) -> tương quan chuỗi.
+ *   Chỉ dùng khi có ≥ 10 mã (tín hiệu cấp chỉ số chỉ có 1 "mã").
+ */
+export function twoWayClusterVariance(rows, residual, dateBlock) {
+  const sq = (m) => { let v = 0; for (const x of m.values()) v += x * x; return v; };
+  const byDate = new Map(), bySym = new Map();
+  let white = 0;
+  for (const r of rows) {
+    const e = residual(r);
+    white += e * e;
+    const db = dateBlock(r);
+    byDate.set(db, (byDate.get(db) ?? 0) + e);
+    bySym.set(r.symbol, (bySym.get(r.symbol) ?? 0) + e);
+  }
+  const vDate = sq(byDate);
+  if (bySym.size < 10) return { variance: Math.max(vDate, white), dateClusters: byDate.size, symbolClusters: bySym.size };
+  const vSym = sq(bySym);
+  const v = vDate + vSym - white;
+  // CGM có thể âm với mẫu nhỏ -> lấy phương sai một chiều lớn hơn (thận trọng).
+  return { variance: v > 0 ? Math.max(v, white) : Math.max(vDate, vSym, white), dateClusters: byDate.size, symbolClusters: bySym.size };
+}
+
+/**
  * Mốc so sánh "không có kỹ năng" phải cùng CHIỀU và cùng NGÀY với tín hiệu:
  *   - Mua (+1) trúng khi mã vượt VN-Index; bán (−1) trúng khi mã thua VN-Index. Vì đa số mã thường
  *     thua chỉ số vốn hoá, tỷ lệ nền của chiều bán cao hơn hẳn chiều mua -> phải tính riêng.
  *   - Mỗi tín hiệu so với toàn universe CÙNG NGÀY (độ rộng thị trường thay đổi theo thời gian):
  *     expectedHit = p_up(ngày, h) nếu mua, 1 − p_up nếu bán; lợi suất vượt được trừ trung bình
  *     cắt ngang cùng ngày trước khi nhân chiều (tránh "lãi miễn phí" của chiều bán).
- * @param {{ signal, direction, regime, horizon, hit, expectedHit, signedExcess }[]} joined
+ * Kiểm định: z/t với sai số CỤM hai chiều (ngày theo khối h phiên × mã) vì tín hiệu chồng lấn;
+ * zHit/tStat (giả định độc lập) giữ lại để tham khảo. Phán định dùng bản cụm.
+ * @param {{ signal, symbol, date, direction, regime, horizon, hit, expectedHit, signedExcess }[]} joined
  */
 export function summarizePerformance(joined) {
+  // Thứ hạng ngày giao dịch (để chia khối h phiên liên tiếp).
+  const dateRank = new Map([...new Set(joined.map((r) => r.date).filter(Boolean))].sort().map((d, i) => [d, i]));
   const groups = new Map();
   for (const r of joined) {
     if (!r.direction || r.expectedHit === null || r.expectedHit === undefined) continue;
     for (const regime of ["ALL", r.regime ?? "UNKNOWN"]) {
       const key = `${r.signal}|${regime}|${r.horizon}`;
       let g = groups.get(key);
-      if (!g) groups.set(key, (g = { signal: r.signal, regime, horizon: r.horizon, n: 0, hits: 0, exp: 0, expVar: 0, sum: 0, sumSq: 0, long: 0, short: 0 }));
-      g.n++; g.hits += r.hit ? 1 : 0;
-      g.exp += r.expectedHit; g.expVar += r.expectedHit * (1 - r.expectedHit);
-      g.sum += r.signedExcess; g.sumSq += r.signedExcess * r.signedExcess;
+      if (!g) groups.set(key, (g = { signal: r.signal, regime, horizon: r.horizon, rows: [], long: 0, short: 0 }));
+      g.rows.push(r);
       if (r.direction > 0) g.long++; else g.short++;
     }
   }
   const rows = [...groups.values()].map((g) => {
-    const avg = g.sum / g.n;
-    const sd = g.n > 1 ? Math.sqrt(Math.max(0, (g.sumSq - g.n * avg * avg) / (g.n - 1))) : null;
-    const t = sd ? avg / (sd / Math.sqrt(g.n)) : null;
-    const hitRate = g.hits / g.n;
-    const base = g.exp / g.n;
-    const [lo, hi] = wilson(g.hits, g.n);
-    // Số lần trúng so với kỳ vọng (tổng Bernoulli với p khác nhau): z = (k − Σp) / √Σp(1−p).
-    const zHit = g.expVar > 0 ? (g.hits - g.exp) / Math.sqrt(g.expVar) : 0;
-    const verdict = g.n < 30 ? "insufficient" : zHit >= 1.96 ? "edge" : zHit <= -1.96 ? "negative" : "none";
+    const n = g.rows.length;
+    let hits = 0, exp = 0, expVar = 0, sum = 0, sumSq = 0;
+    for (const r of g.rows) {
+      hits += r.hit ? 1 : 0; exp += r.expectedHit; expVar += r.expectedHit * (1 - r.expectedHit);
+      sum += r.signedExcess; sumSq += r.signedExcess * r.signedExcess;
+    }
+    const avg = sum / n;
+    const sd = n > 1 ? Math.sqrt(Math.max(0, (sumSq - n * avg * avg) / (n - 1))) : null;
+    const t = sd ? avg / (sd / Math.sqrt(n)) : null;
+    const hitRate = hits / n;
+    const base = exp / n;
+    const [lo, hi] = wilson(hits, n);
+    const zHit = expVar > 0 ? (hits - exp) / Math.sqrt(expVar) : 0;
+
+    // Sai số cụm hai chiều.
+    const block = (r) => (r.date && dateRank.has(r.date) ? Math.floor(dateRank.get(r.date) / Math.max(1, g.horizon)) : r.date);
+    const hc = twoWayClusterVariance(g.rows, (r) => (r.hit ? 1 : 0) - r.expectedHit, block);
+    const ec = twoWayClusterVariance(g.rows, (r) => r.signedExcess - avg, block);
+    const zCl = hc.variance > 0 ? (hits - exp) / Math.sqrt(hc.variance) : 0;
+    const tCl = ec.variance > 0 ? sum / Math.sqrt(ec.variance) : null;
+    // Hệ số co giãn hiệu dụng: n_hiệu dụng ≈ n × (phương sai độc lập / phương sai cụm).
+    const effN = hc.variance > 0 ? Math.round((n * expVar) / hc.variance) : n;
+
+    const enough = n >= 30 && hc.dateClusters >= 8;
+    const verdict = !enough ? "insufficient" : zCl >= 1.96 ? "edge" : zCl <= -1.96 ? "negative" : "none";
     return {
-      signal: g.signal, regime: g.regime, horizon: g.horizon, n: g.n, long: g.long, short: g.short,
+      signal: g.signal, regime: g.regime, horizon: g.horizon, n, long: g.long, short: g.short,
       hitRate: round(hitRate, 4), hitLow: round(lo, 4), hitHigh: round(hi, 4), baseline: round(base, 4),
-      avgSignedExcess: round(avg, 5), tStat: round(t, 2), zHit: round(zHit, 2), pValue: round(1 - normCdf(zHit), 4), verdict,
+      avgSignedExcess: round(avg, 5), tStat: round(t, 2), zHit: round(zHit, 2),
+      zHitClustered: round(zCl, 2), tStatClustered: round(tCl, 2), effectiveN: Math.min(n, effN),
+      clusters: { dates: hc.dateClusters, symbols: hc.symbolClusters },
+      pValue: round(1 - normCdf(zCl), 4), verdict,
     };
   });
   return rows.sort((a, b) => a.signal.localeCompare(b.signal) || a.regime.localeCompare(b.regime) || a.horizon - b.horizon);
