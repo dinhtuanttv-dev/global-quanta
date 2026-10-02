@@ -200,3 +200,16 @@ Nút **[Siêu Quét AI | Bảng giá]** ở tiêu đề bảng (nhớ theo trìn
   - `evidence`: dòng hiệu suất tốt nhất theo z cụm (ALL và theo trạng thái thị trường hiện tại) để UI ghi đúng mức tin cậy.
 - Radar: ◆ cạnh chấm khi Stealth 20 bật (xanh tích luỹ / đỏ phân phối; đặc = đã kiểm định có lợi thế, rỗng = chưa), khối "Tín hiệu dòng tiền" (bằng chứng: tỷ lệ đúng vs nền, z cụm; danh sách mã đang bật; IFE ghi rõ "chỉ tham khảo"; mô hình chưa đạt -> không hiện xác suất), tooltip và phần giải trình có "Lớp tín hiệu dòng tiền". Ảnh chụp lịch sử lưu thêm `sg` -> sự kiện "◆ Stealth 20 vừa bật" (+ thông báo trình duyệt).
 - Tôn trọng công tắc hiển thị AI nghiên cứu (`gq.researchUi.v2`, mặc định bật).
+
+## Market Intelligence VN-Index (dải VN-Index, tab Siêu Quét AI)
+Tính trong job `researchSignals` (16:20 ngày giao dịch), `backend/src/market/research/marketIntel.js`, lưu KV `research:intel`, trả qua `GET /api/market/research/overview` (trường `intel`). **Không nhìn tương lai**: mọi giá trị ngày t chỉ dùng dữ liệu ≤ t (có test cắt dữ liệu tương lai).
+- **Dấu chân dòng tiền lớn**: Σ delta lệnh tay to × giá / Σ KL khớp liên tục × giá trên các mã có dữ liệu dòng lệnh (≈ 143 mã), cộng 5 phiên, z so 60 phiên trước; khối ngoại ròng / giá trị giao dịch (universe).
+- **Ngày phân phối / tích luỹ**: VN-Index −/+ ≥ 0,2% với KL cao hơn phiên trước, đếm 25 phiên; ngưỡng "nhiều bất thường" = phân vị ≥ 80% của 250 phiên trước (chuẩn "≥ 5 ngày" của Mỹ đúng ở > 50% số phiên VN-Index nên không dùng). VSA theo giá đóng cửa (nến chỉ số không có cao/thấp): KL z ≥ 1,5 nhưng |biến động| z ≤ 0,5 = "nỗ lực không kết quả".
+- **HMM** Gauss 3 trạng thái (lợi suất 5 phiên, biến động 20 phiên), Baum–Welch, fit lại mỗi 20 phiên trên quá khứ (từ phiên 250), lọc thuận -> P(Giảm / Đi ngang / Tăng). Nhãn trạng thái chính vẫn là luật MA.
+- **Phân kỳ đa khung** 5/20/60 phiên: giá ở vùng cao (phân vị ≥ 0,8) mà độ rộng / dấu chân luỹ kế ở vùng thấp (≤ 0,4) -> âm; ngược lại -> dương.
+- **Impulse 2.0** = 75% Impulse cũ + 25% điểm dấu chân tay to (hiện song song, không thay Impulse cũ).
+- **Rủi ro dòng tiền rút** (0–100, mô tả): trung bình phân vị ngày phân phối, sigmoid(−z tay to), 1 − độ rộng, P(HMM Giảm).
+- **Xác suất Bayes T+3/5/10** theo từng điều kiện hiện tại: Beta–Binomial, prior co về mức nền (k = 10), n hiệu dụng ≈ n/h; hiển thị dạng biểu đồ rừng (KTC 95%, vạch mức nền).
+- **Mô hình tổng hợp**: logistic Bayes (prior Gauss = ridge λ = 2) trên 7 đặc trưng, walk-forward có purge T+h, fit lại mỗi 20 dự báo; Brier skill ngoài mẫu + KTC 95% bootstrap khối. **Chỉ hiện xác suất khi cận dưới KTC của skill > 0**; trọng số kèm KTC bootstrap khối.
+- **Vòng phản hồi**: tín hiệu VNINDEX mới `FOOTPRINT`, `IMPULSE2`, `HMM_REGIME`, `DIVERGENCE`, `DIST_DAYS` ghi vào `market_signal_ledger` (lần đầu ghi bù toàn lịch sử, mốc `research:intel-signals-through`), chấm T+3/5/10 với z cụm như các tín hiệu khác.
+- Kết quả trên dữ liệu thật lúc phát hành (02/10/2026): mô hình tổng hợp **chưa đạt** (skill ngoài mẫu âm ở cả 3 kỳ hạn) -> UI không hiện xác suất mô hình; dấu chân tay to cùng chiều nhưng chưa có ý nghĩa thống kê.

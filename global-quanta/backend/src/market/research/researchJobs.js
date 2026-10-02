@@ -17,6 +17,7 @@ import { breadthByDate, buildRegimeSeries } from "./regime.js";
 import { computeDailyFeatures, featureVector } from "./features.js";
 import { HORIZONS, stockSignals, impulseSignal, adaptiveSignal, evaluateOutcome, summarizePerformance } from "./feedback.js";
 import { trainAdaptive, decidePromotion, predictRaw, evaluate, passesSkillGate } from "./tuner.js";
+import { buildMarketIntel, footprintByDate, intelSignals, INTEL_KV, INTEL_SIGNALS_KV } from "./marketIntel.js";
 
 export const RESEARCH_KV = {
   signalsThrough: "research:signals-through",
@@ -163,7 +164,8 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
       const daily = await dailyBySymbol(symbols, from, to);
 
       // 1. Regime & Impulse dựng lại cho từng ngày.
-      const regimeSeries = buildRegimeSeries(await indexBars(), breadthByDate(daily));
+      const idxBars = await indexBars();
+      const regimeSeries = buildRegimeSeries(idxBars, breadthByDate(daily));
       await upsertChunked(store, T.regime, regimeSeries.map((r) => ({
         trading_date: r.date, index_code: "VNINDEX", close: r.close, ma20: r.ma20, ma50: r.ma50, ma200: r.ma200,
         breadth_pct: r.breadthPct, impulse_score: r.impulseScore, regime: r.regime, updated_at: new Date().toISOString(),
@@ -207,6 +209,30 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         const s = impulseSignal(r.impulseScore);
         if (s) ledger.push({ symbol: "VNINDEX", signal_date: r.date, signal: s.signal, direction: s.direction, score: s.score, regime: r.regime, model_version: null, features: { breadthPct: r.breadthPct } });
       }
+      // 3. Market Intelligence cấp VN-Index (dấu chân tay to, ngày phân phối, HMM, phân kỳ, Bayes, mô hình walk-forward).
+      //    Lỗi ở bước này không chặn phần còn lại của job.
+      let intel = null;
+      try {
+        const regimesAll = await regimeRows();
+        intel = buildMarketIntel({ index: idxBars, regimes: regimesAll, footprint: footprintByDate(flowAll, daily) });
+        if (intel) {
+          const { allDays, ...stored } = intel;
+          await store.setKv(INTEL_KV, { generatedAt: new Date(now()).toISOString(), ...stored });
+          // Tín hiệu mới đi vào vòng phản hồi; lần đầu ghi bù toàn bộ lịch sử có đặc trưng (mỗi ngày chỉ dùng dữ liệu ≤ ngày đó).
+          const intelThrough = (await store.getKv(INTEL_SIGNALS_KV))?.value?.date ?? null;
+          let intelLast = intelThrough;
+          for (const d of allDays) {
+            if (intelThrough && d.date <= intelThrough) continue;
+            for (const s of intelSignals(d)) {
+              ledger.push({ symbol: "VNINDEX", signal_date: d.date, signal: s.signal, direction: s.direction, score: s.score, regime: d.regime, model_version: null, features: null });
+            }
+            if (!intelLast || d.date > intelLast) intelLast = d.date;
+          }
+          if (intelLast) await store.setKv(INTEL_SIGNALS_KV, { date: intelLast });
+        }
+      } catch (error) {
+        console.warn(`[research] marketIntel: ${error.message}`);
+      }
       await upsertChunked(store, T.flow, flowUpdates, "symbol,trading_date");
       await upsertChunked(store, T.ledger, ledger, "symbol,signal_date,signal");
       // Ghi bù tín hiệu ngày cũ hơn mốc đã chấm -> lùi mốc để researchEvaluate chấm cả phần bù.
@@ -214,7 +240,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
       const oldest = ledger.reduce((m, l) => (!m || l.signal_date < m ? l.signal_date : m), null);
       if (evaluated && oldest && oldest <= evaluated) await store.setKv(RESEARCH_KV.evaluatedThrough, { date: addDays(oldest, -1) });
       if (lastDate) await store.setKv(RESEARCH_KV.signalsThrough, { date: lastDate });
-      return { regimeDays: regimeSeries.length, featuresWritten: flowUpdates.length, signals: ledger.length, through: lastDate };
+      return { regimeDays: regimeSeries.length, featuresWritten: flowUpdates.length, signals: ledger.length, through: lastDate, intelAsOf: intel?.asOf ?? null };
     },
 
     /** Chấm điểm T+3/T+5/T+10, tổng hợp hiệu suất, dọn tick, làm mới materialized view. */

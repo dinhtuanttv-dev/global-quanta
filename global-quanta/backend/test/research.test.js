@@ -343,6 +343,8 @@ test("research: chuỗi job đầu-cuối trên memory store (flow -> signals ->
   assert.ok(overview.performance.length > 0);
   assert.ok(overview.currentRegime?.regime);
   assert.ok(overview.baseline[5] > 0 && overview.baseline[5] < 1);
+  assert.ok(overview.intel?.asOf, "Market Intelligence được tính trong researchSignals và trả qua overview");
+  assert.ok(!("allDays" in overview.intel), "chuỗi đầy đủ không lưu vào KV");
 
   const tr = await jobs.researchTrain();
   assert.match(tr["T+5"], /insufficient/, "4 mã không đủ 3.000 mẫu -> không thăng hạng mô hình");
