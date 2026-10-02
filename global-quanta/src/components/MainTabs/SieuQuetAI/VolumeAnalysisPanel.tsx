@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import IntradayCyclePanel from "./IntradayCyclePanel";
 import IntentFootprintPanel from "./IntentFootprintPanel";
-import AdaptiveScoreCard from "./AdaptiveScoreCard";
 import { useIntradayCycle } from "../../../hooks/useIntradayCycle";
 
 // Màu: phiên tăng/giảm giữ quy ước xanh/đỏ của bảng. Cặp này chỉ đạt ΔE 5.8 với
@@ -164,7 +163,6 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
 
       <IntradayCyclePanel symbol={symbol} />
       <IntentFootprintPanel symbol={symbol} />
-      <AdaptiveScoreCard symbol={symbol} />
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-2">
         <Tile label="KL khớp hôm nay" value={fmtVol(today.volume)} sub={`TB20: ${fmtVol(today.avgVolume20)}`} />

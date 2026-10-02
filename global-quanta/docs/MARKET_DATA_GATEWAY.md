@@ -147,6 +147,6 @@ Mã nguồn `backend/src/market/research/` (Node, cùng tiến trình Gateway �
 
 **Lịch**: `researchFlow` 16:00 → `researchSignals` 16:20 → `researchEvaluate` 16:40 (ngày giao dịch), `researchBackfill` 20:30 hằng ngày, `researchTrain` Thứ Bảy 10:30. Nạp lịch sử `RESEARCH_FLOW_SESSIONS` (mặc định 250) phiên nến phút tốn ~100 s/mã từ SSI, nên chia lô theo thứ tự thanh khoản: `researchFlow` tối đa `RESEARCH_FLOW_MAX_BACKFILL` (20) mã mới/lần, `researchBackfill` tối đa `RESEARCH_BACKFILL_MAX` (90) mã/đêm; mã đã có chỉ nạp phiên mới (1 request). Tiến độ lưu theo từng mã.
 
-**API/UI**: `GET /api/market/research/overview` (panel "AI học & thích ứng" dưới Market Impulse Gauge), `GET /api/market/research/:symbol` (thẻ "Điểm dòng tiền thích ứng" trong dòng phụ Siêu Quét và trong Action Center).
+**API/UI**: `GET /api/market/research/overview`, `GET /api/market/research/:symbol`. Giao diện nằm sau cờ **`VITE_RESEARCH_UI=true`** (mặc định TẮT — giao diện production giữ nguyên, không gọi API nghiên cứu): panel "AI học & thích ứng" dưới Market Impulse Gauge và khối điểm thích ứng cuối Action Center. Bảng phân tích khối lượng (dòng phụ Siêu Quét) **không** thay đổi.
 
 Giới hạn: SSI chỉ giữ nến phút ~12 tháng và không cung cấp tick lịch sử — tick Lee–Ready chỉ tích luỹ từ khi bật ghi (02/10/2026). Kết quả là thống kê quá khứ, không phải khuyến nghị đầu tư.

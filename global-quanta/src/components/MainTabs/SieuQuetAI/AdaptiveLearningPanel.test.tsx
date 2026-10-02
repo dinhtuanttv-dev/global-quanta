@@ -46,9 +46,11 @@ const symbolDetail = {
   disclaimer: "Xác suất học từ dữ liệu quá khứ (kiểm định walk-forward); không phải khuyến nghị đầu tư.",
 };
 
-async function mount(node: React.ReactNode, body: unknown) {
+async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
   vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
-  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => body })));
+  vi.stubEnv("VITE_RESEARCH_UI", researchUi ? "true" : "");
+  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => body }));
+  vi.stubGlobal("fetch", fetchMock);
   const el = document.createElement("div");
   document.body.appendChild(el);
   const root = createRoot(el);
@@ -56,11 +58,20 @@ async function mount(node: React.ReactNode, body: unknown) {
     root.render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{node}</SWRConfig>);
   });
   await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-  return el;
+  return Object.assign(el, { fetchMock });
 }
 
 describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+  it("cờ VITE_RESEARCH_UI tắt (mặc định): không hiển thị gì và không gọi API nghiên cứu", async () => {
+    const panel = await mount(<AdaptiveLearningPanel />, overview(true), false);
+    expect(panel.textContent).toBe("");
+    const card = await mount(<AdaptiveScoreCard symbol="PVT" />, symbolDetail, false);
+    expect(card.textContent).toBe("");
+    expect(panel.fetchMock).not.toHaveBeenCalled();
+    expect(card.fetchMock).not.toHaveBeenCalled();
+  });
 
   it("hiển thị trạng thái thị trường, tỷ lệ trúng kèm phán định và trọng số học được so với heuristic", async () => {
     const el = await mount(<AdaptiveLearningPanel />, overview(true));
