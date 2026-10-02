@@ -10,6 +10,7 @@ import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intrada
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
+import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 
 const router = Router();
@@ -137,6 +138,18 @@ router.get("/scanner/:symbol/intent", handle(async (req, res) => {
 }));
 
 // Tầng nghiên cứu: hiệu suất tín hiệu (vòng phản hồi T+3/5/10) + mô hình trọng số thích ứng.
+// Tin tức thông minh cho danh mục: công bố thông tin + tin doanh nghiệp + báo chí, gắn mã, khử trùng,
+// phân loại sự kiện, chấm cảm xúc, phản ứng giá so VN-Index. GET /news?tickers=FPT,HPG&days=14 (≤ 60 mã).
+router.get("/news", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const tickers = parseNewsTickers(req.query.tickers);
+  const days = Math.min(30, Math.max(1, Number(req.query.days) || 14));
+  const key = `news:${days}:${[...tickers].sort().join(",")}`;
+  const data = await rt.service.cache.wrap(key, 3 * 60_000, () => getNewsForTickers(rt.service, tickers, { days }));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+
 router.get("/research/overview", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const data = await rt.service.cache.wrap("research:overview", 60_000, () => getResearchOverview(rt.store));

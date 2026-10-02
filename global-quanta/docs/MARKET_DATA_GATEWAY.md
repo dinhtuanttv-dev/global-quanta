@@ -169,3 +169,13 @@ Nút **[Siêu Quét AI | Bảng giá]** ở tiêu đề bảng (nhớ theo trìn
 - Chọn mã: bấm một lần một dòng Bảng Siêu Quét / Bảng giá = chọn mã cho toàn trang (Action Center, Radar, tab CF…); nhấn đúp vẫn mở phân tích khối lượng. Ô tìm mã trên thanh trên (phím "/"): gợi ý từ Bảng Siêu Quét; Enter → mở tab Siêu Quét, cuộn tới mã, mở chi tiết; mã ngoài danh sách được thêm vào ★ Danh mục để chấm điểm.
 - Tab Siêu Quét: cụm VN-Index thành **dải thu gọn được** phía trên (một dòng tóm tắt; "Chi tiết" mở 3 thẻ xếp ngang); bảng rộng toàn bộ; Sự kiện + nguồn dữ liệu xuống dưới. Bề rộng bảng đo bằng trình duyệt thật: 1366px ~900px (trước ~400px), 1536px ~1070px, 1920px ~1450px; Bảng giá 23 cột không cần cuộn ngang từ 1366px.
 - CSS: reset `*{margin:0;padding:0}` ngoài layer trong App.css / tokens.css từng ghi đè mọi lớp khoảng cách Tailwind v4; vùng `.tw-scope` (tab Siêu Quét) được loại khỏi reset để khoảng cách Tailwind hoạt động đúng (các tab khác giữ nguyên).
+
+## Tin tức thông minh (Action Center)
+
+`GET /api/market/news?tickers=…&days=14` (≤ 60 mã, `backend/src/market/news/`). Nguồn thật: **VNDirect finfo** (công bố thông tin chính thức HOSE/HNX/UPCOM + tin doanh nghiệp, đã gắn mã — truy vấn đúng các mã của danh mục) và **RSS Vietstock / CafeF** (gắn mã bằng "(HOSE: XXX)" hoặc mã niêm yết trong tiêu đề/tóm tắt, loại từ viết tắt). Mỗi nguồn lỗi độc lập; đệm 3–5 phút.
+- Khử trùng lặp giữa nguồn: cùng mã + tiêu đề Jaccard ≥ 0,6 trong 3 ngày → gộp, đếm số nguồn xác nhận.
+- Phân loại sự kiện theo tiêu đề trước (pháp lý/cảnh báo, KQKD, giao dịch nội bộ, M&A, cổ tức, phát hành, hợp đồng, ĐHĐCĐ, nhân sự, khuyến nghị).
+- Cảm xúc: từ điển tài chính tiếng Việt CÓ DẤU (không nhầm lãi/lại, lỗ/lo, gom/gồm), khớp cụm dài trước ("giảm lỗ" là tích cực), xử lý phủ định ("không tăng").
+- Phản ứng giá: lợi suất từ phiên đóng cửa trước tin (tin sau 15h tính từ chính phiên đó) tới phiên mới nhất, trừ VN-Index; KL phiên sau tin so TB20. Nhận định: "tin tích cực nhưng giá chưa phản ánh"…
+- Mức quan trọng 0–100: loại sự kiện × độ tin cậy nguồn × độ mới (bán rã 3 ngày) × cường độ cảm xúc × xác nhận chéo × phản ứng KL.
+- UI: tin của ★ Danh mục trên Radar (+ mã đang chọn), nhãn Core/Ring, "nhiệt tin" theo mã, lọc Công bố / Tích cực / Tiêu cực / Mã đang chọn, mở chi tiết (tóm tắt, phản ứng giá, link bài gốc, tài liệu đính kèm).
