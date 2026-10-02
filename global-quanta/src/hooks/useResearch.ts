@@ -28,8 +28,25 @@ export interface ModelSummary {
   weights: { name: string; weight: number }[]; regimeModels: string[];
 }
 
+export interface ForwardStats { n: number; nEff: number; pUp: number | null; lo: number | null; hi: number | null; meanRet: number | null }
+
+/** Phân tích AI cấp VN-Index (panel cột trái). */
+export interface IndexAnalysis {
+  from: string; to: string;
+  current: {
+    date: string; close: number; regime: Regime; streak: number; impulseScore: number | null; impulseZone: "LOW" | "MID" | "HIGH" | null;
+    breadthPct: number | null; ma20: number | null; ma50: number | null; ma200: number | null;
+  };
+  history: { date: string; regime: Regime; impulseScore: number | null; breadthPct: number | null; close: number }[];
+  base: Record<string, ForwardStats>;
+  byRegime: Record<Regime, { sessions: number; share: number; avgRun: number | null; horizons: Record<string, ForwardStats> }>;
+  byImpulse: Record<"LOW" | "MID" | "HIGH", { label: string; sessions: number; horizons: Record<string, ForwardStats> }>;
+  note: string;
+}
+
 export interface ResearchOverview {
   generatedAt: string | null;
+  index?: IndexAnalysis | null;
   currentRegime: { date: string; regime: Regime; impulseScore: number | null; breadthPct: number | null } | null;
   baseline: Record<string, number>;
   performance: PerformanceRow[];

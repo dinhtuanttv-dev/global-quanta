@@ -1,5 +1,6 @@
 import { REGIME_LABEL, useResearchSymbol, type ResearchSymbol } from "../../../hooks/useResearch";
 import StrategyPerformanceTable from "./StrategyPerformanceTable";
+import AdaptiveModelStrip from "./AdaptiveModelStrip";
 
 const BUY = "#059669";
 const SELL = "#e11d48";
@@ -89,6 +90,7 @@ export default function AdaptiveScoreCard({ symbol }: { symbol: string }) {
         </div>
         <StrategyPerformanceTable activeSignals={data.todaySignals.map((s) => s.signal)} />
       </div>
+      <div className="mt-2"><AdaptiveModelStrip /></div>
       <div className="text-[8.5px] text-slate-500 mt-1">{data.disclaimer}</div>
     </>,
     data.regime ? `${REGIME_LABEL[data.regime]} · ${data.method === "LEE_READY" ? "Lee–Ready" : "BVC"}` : undefined,

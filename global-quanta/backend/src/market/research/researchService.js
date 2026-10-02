@@ -6,6 +6,7 @@ import { RESEARCH_KV, T, flowFromRow, describeModel } from "./researchJobs.js";
 import { featureVector, FEATURE_NAMES } from "./features.js";
 import { explain } from "./tuner.js";
 import { SIGNAL_LABELS, HORIZONS } from "./feedback.js";
+import { analyzeIndex } from "./indexAnalysis.js";
 
 export const FEATURE_LABELS = {
   zEffort: "Nỗ lực dòng lệnh (z)",
@@ -26,13 +27,21 @@ async function activeModelRows(store) {
 }
 
 export async function getResearchOverview(store) {
-  const [model, performance, active] = await Promise.all([
+  const [model, performance, active, regimeRows] = await Promise.all([
     store.getKv(RESEARCH_KV.model), store.getKv(RESEARCH_KV.performance), activeModelRows(store),
+    store.selectRows(T.regime, { order: "trading_date.asc" }),
   ]);
+  const num = (v) => (v === null || v === undefined ? null : Number(v));
+  const index = analyzeIndex(regimeRows.map((r) => ({
+    date: r.trading_date, close: num(r.close), regime: r.regime, impulseScore: num(r.impulse_score), breadthPct: num(r.breadth_pct),
+    ma20: num(r.ma20), ma50: num(r.ma50), ma200: num(r.ma200),
+  })));
   const perf = performance?.value ?? null;
   return {
     generatedAt: perf?.generatedAt ?? null,
     currentRegime: perf?.currentRegime ?? null,
+    // Phân tích AI cấp VN-Index (panel cột trái): trạng thái, lịch sử, VN-Index sau T+h theo trạng thái / vùng Impulse.
+    index,
     baseline: perf?.baseline ?? {},
     performance: perf?.rows ?? [],
     counts: perf ? { signals: perf.signals, outcomes: perf.outcomes } : null,
