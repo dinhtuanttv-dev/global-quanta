@@ -3,10 +3,12 @@ import { useAppStore } from '../store/useAppStore';
 import { subscribeSsiMarketQuotes } from '../services/api';
 import { isMarketGatewayEnabled, subscribeMarket } from '../services/marketDataClient';
 import { allWatchlistTickers, hasLegacyList, useWatchlists, watchlistActions } from '../hooks/useWatchlists';
+import { alertActions, alertText, browserNotify, checkAlerts, usePriceAlerts } from '../lib/priceAlerts';
 
 /**
  * Thành phần chạy ngầm ở cấp ứng dụng: giữ luồng giá thời gian thực cho các mã trong ★ Danh mục
- * (ELITE COMMAND RADAR, Action Center) và mã đang chọn; báo trạng thái nguồn giá cho đèn trên thanh trên.
+ * (ELITE COMMAND RADAR, Action Center), mã đang chọn và mã có ⏰ cảnh báo giá; báo trạng thái nguồn giá cho đèn trên thanh trên.
+ * Kiểm tra cảnh báo giá mỗi khi giá cập nhật: chạm -> đánh dấu đã kích hoạt, toast + thông báo trình duyệt.
  * Gộp tick, ghi vào store tối đa mỗi giây. Không hiển thị gì.
  */
 export default function MarketFeed() {
@@ -14,10 +16,24 @@ export default function MarketFeed() {
   const setFeed = useAppStore((s) => s.setFeed);
   const selectedTicker = useAppStore((s) => s.selectedTicker);
   const { lists } = useWatchlists();
+  const alerts = usePriceAlerts();
+  const alertTickers = useMemo(() => [...new Set(alerts.filter((a) => !a.triggeredAt).map((a) => a.ticker))].sort().join(','), [alerts]);
   const symbolsKey = useMemo(
-    () => [...new Set([...allWatchlistTickers(lists), ...(selectedTicker ? [selectedTicker] : [])])].sort().slice(0, 300).join(','),
-    [lists, selectedTicker],
+    () => [...new Set([...allWatchlistTickers(lists), ...(selectedTicker ? [selectedTicker] : []), ...(alertTickers ? alertTickers.split(',') : [])])]
+      .sort().slice(0, 300).join(','),
+    [lists, selectedTicker, alertTickers],
   );
+  const livePrices = useAppStore((s) => s.livePrices);
+  const showToast = useAppStore((s) => s.showToast);
+
+  useEffect(() => {
+    const hits = checkAlerts(alerts, livePrices);
+    if (!hits.length) return;
+    alertActions.markTriggered(hits.map((h) => ({ id: h.alert.id, price: h.price })));
+    const text = hits.map((h) => alertText(h.alert, h.price)).join(' · ');
+    showToast(`⏰ Cảnh báo giá: ${text}`);
+    for (const h of hits) browserNotify(`⏰ ${h.alert.ticker} chạm mức cảnh báo`, alertText(h.alert, h.price), h.alert.id);
+  }, [alerts, livePrices, showToast]);
   const gatewayMode = isMarketGatewayEnabled();
 
   // Đã bỏ "Danh sách mã (cũ)" (14 mã mẫu chuyển từ cột trái cũ): xoá khỏi trình duyệt khi mở trang.

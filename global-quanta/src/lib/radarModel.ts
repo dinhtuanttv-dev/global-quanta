@@ -110,6 +110,18 @@ function coreState(item: SieuQuetStockItem | null): Pick<RadarCoreNode, "state" 
   };
 }
 
+export type RadarState = "stable" | "breakout" | "caution";
+
+/** Trạng thái hiển thị trên Radar: cảnh báo (Down-Trend / F-Score thấp), bứt phá, ổn định. */
+export function radarState(x: ScoredTicker): RadarState {
+  const i = x.item;
+  if (!i) return "stable";
+  const excluded = i.piotroskiFScore !== null && i.piotroskiFScore <= Math.floor(i.fScoreMax * 3 / 9);
+  if (excluded || i.trendTag === "Down-Trend") return "caution";
+  if (i.breakoutBoostBadge || (i.trendTag === "Up-Trend" && (i.rsRating ?? 0) >= 80)) return "breakout";
+  return "stable";
+}
+
 const rank = (a: ScoredTicker, b: ScoredTicker) => b.score - a.score || (b.item?.smartScore ?? -1) - (a.item?.smartScore ?? -1) || a.ticker.localeCompare(b.ticker);
 
 export interface RadarModel {

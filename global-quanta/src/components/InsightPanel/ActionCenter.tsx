@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useAppStore } from '../../store/useAppStore';
 import { getOhlcv, isMarketGatewayEnabled } from '../../services/marketDataClient';
@@ -10,6 +10,7 @@ import { useWatchlists } from '../../hooks/useWatchlists';
 import { CORE_MIN } from '../../lib/radarModel';
 import { keyLevels, positionSize, tickSize } from '../../lib/tradeLevels';
 import Card, { AiChip } from './Card';
+import PriceAlertBox from './PriceAlertBox';
 
 // ACTION CENTER — mã đang chọn (Radar / Bảng Siêu Quét / ô tìm mã):
 //   Quan tâm / Loại bỏ (thêm / bỏ khỏi ★ Danh mục của Radar), mức giá then chốt tính từ dữ liệu thật (MA20/50,
@@ -78,6 +79,7 @@ export default function ActionCenter() {
   const [capital, setCapital] = useState(() => readNum('gq.ac.capital', 100_000_000));
   const [riskPct, setRiskPct] = useState(() => readNum('gq.ac.riskPct', 1));
   const [stopInput, setStopInput] = useState<string>('');
+  useEffect(() => setStopInput(''), [ticker]); // dừng lỗ tự nhập là của mã trước
   const stop = stopInput ? Number(stopInput.replace(/\D/g, '')) : levels?.stop ?? null;
   const size = price && stop ? positionSize(capital, riskPct, price, stop) : null;
   const save = (k: string, v: number) => { try { window.localStorage.setItem(k, String(v)); } catch { /* bỏ qua */ } };
@@ -180,6 +182,8 @@ export default function ActionCenter() {
           ) : <span className="text-slate-500">Nhập vốn, % rủi ro và giá dừng lỗ thấp hơn giá hiện tại.</span>}
         </div>
       </div>
+
+      <PriceAlertBox ticker={ticker} price={price} levels={levels} />
 
       <div className="text-[10px] text-slate-400 mt-2">Gợi ý khung nắm giữ (theo quy tắc): <b className="text-slate-200 font-medium">{core ? core.holdSuggestion : 'Theo dõi — chưa đủ điều kiện Core'}</b></div>
       {research.data?.asOf && (

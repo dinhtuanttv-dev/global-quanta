@@ -12,6 +12,7 @@ import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
+import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 
 const router = Router();
 
@@ -163,6 +164,22 @@ router.get("/research/:symbol", handle(async (req, res) => {
   const data = await rt.service.cache.wrap(`research:${symbol}`, 60_000, () => getResearchSymbol(rt.store, symbol));
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
+}));
+
+// Lịch sử ELITE COMMAND RADAR theo người dùng đăng nhập (Supabase Auth) × ★ danh mục.
+// GET /radar/history?list=<tên danh mục>&days=30 · PUT /radar/snapshot { list, items } (ghi đè ảnh của ngày giao dịch hiện tại).
+const verifyUser = createAuthVerifier();
+
+router.get("/radar/history", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getHistory(getMarketRuntime().store, userId, { list: req.query.list, days: req.query.days }));
+}));
+
+router.put("/radar/snapshot", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveSnapshot(getMarketRuntime().store, userId, req.body ?? {}));
 }));
 
 // Danh mục tự chọn / rổ chỉ số: chấm điểm theo cùng công thức + bối cảnh của lần quét gần nhất.
