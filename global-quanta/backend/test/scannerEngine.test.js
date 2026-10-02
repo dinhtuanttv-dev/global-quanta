@@ -283,7 +283,7 @@ test("jobs: buildUniverse + scanUniverse chạy trọn với kho memory", async 
     if (String(url).includes("/api/sieu-quet-ai/scanner")) return json({ items: [{ ticker: "S01", sector: "Ngân hàng" }] });
     if (String(url).includes("/api/universe")) return json({ tickers: [{ ticker: "VNM", sector: "Thực phẩm" }] });
     if (String(url).includes("/api/sieu-quet-ai/events")) return json({ events: [] });
-    if (String(url).includes("tradingview")) return json({ data: [{ s: "HOSE:S02", d: ["S02", "Finance", "Cty S02"] }] });
+    if (String(url).includes("tradingview")) return json({ data: [{ s: "HOSE:S02", d: ["S02", "Finance", "Cty S02", "Investment Banks/Brokers"] }, { s: "HOSE:XYZ", d: ["XYZ", "Utilities", "Cty XYZ", "Electric Utilities"] }] });
     if (String(url).includes("vietcap")) return json({ successful: false, msg: "test" });
     throw new Error(`unexpected ${url}`);
   };
@@ -296,6 +296,11 @@ test("jobs: buildUniverse + scanUniverse chạy trọn với kho memory", async 
     assert.ok(universe.tickers.some((t) => t.ticker === "VNM" && t.pinned && t.sector === "Thực phẩm"));
     assert.equal(universe.tickers.find((t) => t.ticker === "S01").sector, "Ngân hàng");
     assert.equal(universe.tickers.find((t) => t.ticker === "S02").sector, "Finance");
+    // Phân ngành 2 cấp: nhãn tuyển chọn ưu tiên, TradingView industry chi tiết hơn sector.
+    assert.deepEqual(pick(universe.tickers.find((t) => t.ticker === "S01"), ["industry", "sectorGroup"]), { industry: "Ngân hàng", sectorGroup: "Tài chính" });
+    assert.deepEqual(pick(universe.tickers.find((t) => t.ticker === "S02"), ["industry", "sectorGroup"]), { industry: "Chứng khoán", sectorGroup: "Tài chính" });
+    const tax = (await store.getKv(KV.taxonomy)).value;
+    assert.deepEqual(tax.map.XYZ, ["Tiện ích", "Điện"], "phân ngành lưu cho cả mã ngoài universe");
     assert.ok(ub.total >= 10);
     const fa = await jobs.refreshFundamentals();
     assert.equal(fa.ok, 0);
@@ -307,6 +312,12 @@ test("jobs: buildUniverse + scanUniverse chạy trọn với kho memory", async 
     assert.equal(doc.dataAsOf, "2026-10-01");
     assert.equal(doc.totalCount, doc.items.length);
     assert.ok(doc.indexState.narrative.startsWith("VN-Index đang ở trạng thái"));
+    assert.equal(doc.items.find((i) => i.ticker === "S02").industry, "Chứng khoán");
+    const ctx = (await store.getKv(KV.context)).value;
+    assert.equal(ctx.dataAsOf, doc.dataAsOf);
+    assert.equal(ctx.faUniverse.roe.length, scan.scanned);
+    assert.equal(ctx.universeReturns64d.length, scan.scanned);
+    assert.ok(typeof ctx.bias === "string" && Number.isFinite(ctx.breakoutProbability));
   } finally {
     delete process.env.SCANNER_UNIVERSE_SIZE;
     delete process.env.SCANNER_MIN_AVG_VALUE;

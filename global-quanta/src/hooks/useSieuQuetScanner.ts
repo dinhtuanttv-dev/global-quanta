@@ -45,6 +45,11 @@ export interface SieuQuetStockItem {
   computedAt: string;
   /** Phiên dữ liệu dùng để tính (engine Gateway). */
   dataAsOf?: string;
+  /** Phân ngành 2 cấp (Gateway): Ngành và Nhóm ngành thống nhất tiếng Việt. */
+  industry?: string | null;
+  sectorGroup?: string | null;
+  /** Danh mục tự chọn: false = mã ngoài universe, được chấm theo bối cảnh của lần quét. */
+  inUniverse?: boolean;
 }
 
 export type ScannerSource = "gateway" | "projectA";

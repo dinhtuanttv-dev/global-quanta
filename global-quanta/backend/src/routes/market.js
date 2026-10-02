@@ -9,6 +9,7 @@ import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
+import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 
 const router = Router();
@@ -147,6 +148,18 @@ router.get("/research/:symbol", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const symbol = req.params.symbol.toUpperCase();
   const data = await rt.service.cache.wrap(`research:${symbol}`, 60_000, () => getResearchSymbol(rt.store, symbol));
+  res.set("Cache-Control", "private, max-age=60");
+  res.json(data);
+}));
+
+// Danh mục tự chọn / rổ chỉ số: chấm điểm theo cùng công thức + bối cảnh của lần quét gần nhất.
+// GET /scanner/custom?tickers=FPT,HPG,... (tối đa 60 mã)
+router.get("/scanner/custom", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const tickers = parseTickers(req.query.tickers);
+  const latest = (await rt.store.getKv(KV.latest))?.value;
+  const key = `scanner-custom:${latest?.generatedAt ?? "none"}:${[...tickers].sort().join(",")}`;
+  const data = await rt.service.cache.wrap(key, 10 * 60_000, () => scoreCustomTickers(rt.service, tickers));
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));
