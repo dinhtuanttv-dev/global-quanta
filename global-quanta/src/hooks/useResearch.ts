@@ -15,6 +15,7 @@ export interface HoldoutMetrics {
   n: number; from?: string; to?: string; baseRate: number; logLoss: number; brier: number; brierSkill: number;
   auc: number | null; decileSpread: number | null; activeShare: number; activeHitRate: number | null;
   calibration: { predicted: number; observed: number; n: number }[];
+  bootstrap?: { days: number; iters: number; brierSkill90: [number, number]; auc90: [number, number] | null } | null;
 }
 
 export interface ModelSummary {

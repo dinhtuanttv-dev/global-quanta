@@ -16,7 +16,7 @@ import { summarizeSessions } from "./flowHistory.js";
 import { breadthByDate, buildRegimeSeries } from "./regime.js";
 import { computeDailyFeatures, featureVector } from "./features.js";
 import { HORIZONS, stockSignals, impulseSignal, adaptiveSignal, evaluateOutcome, summarizePerformance } from "./feedback.js";
-import { trainAdaptive, decidePromotion, predictRaw, evaluate } from "./tuner.js";
+import { trainAdaptive, decidePromotion, predictRaw, evaluate, passesSkillGate } from "./tuner.js";
 
 export const RESEARCH_KV = {
   signalsThrough: "research:signals-through",
@@ -326,7 +326,12 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         const samples = samplesByH.get(h) ?? [];
         const res = trainAdaptive(samples, { horizon: h });
         const model = `ADAPTIVE_T${h}`;
-        const current = active.get(h) ?? null;
+        let current = active.get(h) ?? null;
+        // Mô hình đang chạy không đạt cổng kỹ năng hiện hành (VD được thăng hạng theo cổng cũ) -> cho nghỉ.
+        if (current && !passesSkillGate(current.metrics?.holdout)) {
+          await store.upsertRows(T.weights, [stripHorizon({ ...current, status: "retired" })], "model,version");
+          current = null;
+        }
         if (!res.ok) {
           summary.horizons[h] = { status: "insufficient", reason: res.reason, samples: samples.length, active: current && describeModel(current) };
           continue;

@@ -221,6 +221,7 @@ test("research: huấn luyện thích ứng — có tín hiệu thật thì thă
   assert.equal(good.ok, true);
   assert.ok(good.metrics.holdout.brierSkill > 0.02 && good.metrics.holdout.auc > 0.6);
   assert.equal(decidePromotion(good, null).promote, true);
+  assert.ok(good.metrics.holdout.bootstrap.brierSkill90[0] > 0 && good.metrics.holdout.bootstrap.auc90[0] > 0.5);
   const ex = explain(good.model, FEATURE_NAMES.map((_, j) => (j === 0 ? 2 : 0)), "UPTREND");
   assert.ok(ex.prob > 0.6);
   assert.equal(ex.contributions[0].name, "zEffort");
@@ -230,6 +231,9 @@ test("research: huấn luyện thích ứng — có tín hiệu thật thì thă
   assert.equal(decidePromotion(noise, null).promote, false, `noise skill ${noise.metrics.holdout.brierSkill}`);
   // Ứng viên kém mô hình đang chạy -> giữ mô hình cũ.
   assert.equal(decidePromotion({ metrics: { holdout: { ...good.metrics.holdout, brierSkill: 0.01 } } }, { metrics: { holdout: { brierSkill: 0.05 } } }).promote, false);
+  // Kỹ năng điểm dương nhưng KTC chạm 0 -> không đủ bằng chứng.
+  const marginal = { metrics: { holdout: { ...good.metrics.holdout, brierSkill: 0.004, auc: 0.53, bootstrap: { brierSkill90: [-0.006, 0.014], auc90: [0.49, 0.57] } } } };
+  assert.equal(decidePromotion(marginal, null).promote, false);
   assert.equal(trainAdaptive(syntheticSamples(500, 1)).ok, false);
 });
 

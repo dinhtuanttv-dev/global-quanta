@@ -135,6 +135,42 @@ export function evaluate(preds, samples, baseRate) {
   };
 }
 
+/**
+ * Bootstrap theo KHỐI NGÀY trên holdout: nhãn chồng lấn (h phiên) và các mã cùng ngày tương quan,
+ * nên lấy mẫu lại theo ngày chứ không theo từng dòng. Trả khoảng 90% của Brier skill và AUC.
+ */
+export function bootstrapHoldout(preds, samples, baseRate, { iters = 300, seed = 7 } = {}) {
+  const byDate = new Map();
+  samples.forEach((s, i) => { if (!byDate.has(s.date)) byDate.set(s.date, []); byDate.get(s.date).push(i); });
+  const days = [...byDate.values()];
+  if (days.length < 10) return null;
+  let st = seed >>> 0;
+  const rand = () => ((st = (st * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+  const skills = [], aucs = [];
+  for (let it = 0; it < iters; it++) {
+    const idx = [];
+    for (let k = 0; k < days.length; k++) idx.push(...days[Math.floor(rand() * days.length)]);
+    let br = 0, ref = 0;
+    for (const i of idx) { br += (preds[i] - samples[i].y) ** 2; ref += (baseRate - samples[i].y) ** 2; }
+    skills.push(ref ? 1 - br / ref : 0);
+    const a = auc(idx.map((i) => preds[i]), idx.map((i) => samples[i].y));
+    if (a !== null) aucs.push(a);
+  }
+  const q = (arr, p) => { const s2 = [...arr].sort((x, y) => x - y); return s2[Math.min(s2.length - 1, Math.floor(p * s2.length))]; };
+  return {
+    days: days.length, iters,
+    brierSkill90: [round(q(skills, 0.05), 5), round(q(skills, 0.95), 5)],
+    auc90: aucs.length ? [round(q(aucs, 0.05), 4), round(q(aucs, 0.95), 4)] : null,
+  };
+}
+
+/** Cổng kỹ năng ngoài mẫu: cận dưới KTC 90% (bootstrap theo ngày) của Brier skill > 0 VÀ của AUC > 0,5. */
+export function passesSkillGate(holdout) {
+  const b = holdout?.bootstrap;
+  if (!holdout || holdout.n < MIN_HOLDOUT || !b) return false;
+  return b.brierSkill90[0] > 0 && b.auc90 !== null && b.auc90[0] > 0.5;
+}
+
 /** Chia fold theo ngày (liên tục), purge các ngày train trong `embargo` phiên trước fold test. */
 export function walkForwardFolds(samples, { folds = 5, embargo = 5 } = {}) {
   const dates = [...new Set(samples.map((s) => s.date))].sort();
@@ -213,7 +249,7 @@ export function trainAdaptive(samples, { horizon = 5, folds = 5 } = {}) {
   // Holdout: fold cuối, chưa dùng để chọn λ.
   const hm = fitModel(holdout.train, lambda);
   const holdPreds = holdout.test.map((s) => predictRaw(hm, s.x, s.regime));
-  const holdoutMetrics = evaluate(holdPreds, holdout.test, hm.baseRate);
+  const holdoutMetrics = { ...evaluate(holdPreds, holdout.test, hm.baseRate), bootstrap: bootstrapHoldout(holdPreds, holdout.test, hm.baseRate) };
   const heur = holdout.test.map((s) => heuristicScore(hm.scaler, s.x));
   const heurOrder = heur.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]);
   const dec = Math.max(1, Math.floor(heur.length / 10));
@@ -252,7 +288,10 @@ export function trainAdaptive(samples, { horizon = 5, folds = 5 } = {}) {
 export function decidePromotion(candidate, active, { liveMetrics = null } = {}) {
   const h = candidate.metrics.holdout;
   if (h.n < MIN_HOLDOUT) return { promote: false, reason: `Holdout chỉ có ${h.n} mẫu (< ${MIN_HOLDOUT}).` };
-  if (!(h.brierSkill > 0) || !(h.auc > 0.5)) return { promote: false, reason: `Không có kỹ năng ngoài mẫu (Brier skill ${h.brierSkill}, AUC ${h.auc}).` };
+  if (!passesSkillGate(h)) {
+    const b = h.bootstrap;
+    return { promote: false, reason: `Chưa đủ bằng chứng kỹ năng ngoài mẫu (Brier skill ${h.brierSkill}${b ? `, KTC90% [${b.brierSkill90.join("; ")}]` : ""}; AUC ${h.auc}${b?.auc90 ? `, KTC90% [${b.auc90.join("; ")}]` : ""}).` };
+  }
   if (!active) return { promote: true, reason: "Chưa có mô hình đang chạy; ứng viên có kỹ năng ngoài mẫu dương." };
   const a = active.metrics?.holdout;
   if (liveMetrics && liveMetrics.n >= 500 && !(liveMetrics.brierSkill > 0)) {

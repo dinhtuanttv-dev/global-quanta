@@ -94,7 +94,7 @@ export default function AdaptiveLearningPanel() {
         {model?.holdout ? (
           <>
             <div className="grid grid-cols-3 gap-1 text-[9px] mb-1.5">
-              <div title="Brier skill ngoài mẫu so với dự báo bằng tỷ lệ nền (>0 là tốt hơn)">
+              <div title={`Brier skill ngoài mẫu so với dự báo bằng tỷ lệ nền (>0 là tốt hơn)${model.holdout.bootstrap ? ` · KTC90% (bootstrap theo ${model.holdout.bootstrap.days} ngày): ${(model.holdout.bootstrap.brierSkill90[0] * 100).toFixed(2)}% … ${(model.holdout.bootstrap.brierSkill90[1] * 100).toFixed(2)}%` : ""}`}>
                 <div className="text-slate-500">Brier skill</div><div className="text-slate-100">{(model.holdout.brierSkill * 100).toFixed(2)}%</div>
               </div>
               <div title="AUC ngoài mẫu; heuristic = trọng số ban đầu chưa học">
