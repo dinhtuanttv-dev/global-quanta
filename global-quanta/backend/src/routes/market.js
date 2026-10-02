@@ -13,6 +13,7 @@ import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.j
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
+import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 
 const router = Router();
 
@@ -180,6 +181,16 @@ router.put("/radar/snapshot", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveSnapshot(getMarketRuntime().store, userId, req.body ?? {}));
+}));
+
+// Lớp tín hiệu dòng tiền trên Radar: Stealth 20 / IFE / mô hình thích ứng (chỉ khi đạt kiểm định) + bằng chứng thống kê.
+// GET /radar/signals?tickers=FPT,HPG (≤ 80 mã)
+router.get("/radar/signals", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const tickers = parseSignalTickers(req.query.tickers);
+  const data = await rt.service.cache.wrap(`radar-signals:${[...tickers].sort().join(",")}`, 5 * 60_000, () => getRadarSignals(rt.store, tickers));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
 }));
 
 // Danh mục tự chọn / rổ chỉ số: chấm điểm theo cùng công thức + bối cảnh của lần quét gần nhất.

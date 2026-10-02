@@ -40,6 +40,17 @@ const history = {
   ],
 };
 const calls: { url: string; init?: RequestInit }[] = [];
+const ev = (verdict: string) => ({ signal: "STEALTH_20", label: "Stealth", verdict, all: { horizon: 3, n: 1704, hitRate: 0.5434, baseline: 0.4806, zClustered: 2.64, verdict }, regime: null });
+const signals = {
+  asOf: "2026-10-02", freshFrom: "2026-09-30", regime: "SIDEWAY", stealthThreshold: 1.5,
+  evidence: { STEALTH_20: ev("edge"), IFE_INTENT: { ...ev("none"), signal: "IFE_INTENT" } },
+  adaptiveModels: [3, 5, 10].map((horizon) => ({ horizon, active: false, version: null })),
+  items: {
+    AAA: { asOf: "2026-10-02", stealth20: { z: 2.4, on: true, direction: 1, score: 2.4, date: "2026-10-02" }, intent: { state: "ACC_ACTIVE", label: "Gom chủ động", p: 0.86, direction: 1, date: "2026-10-02" }, netIntent: 0.5, adaptive: [] },
+    BBB: null,
+  },
+  disclaimer: "",
+};
 
 const roots: ReturnType<typeof createRoot>[] = [];
 async function mount(node: React.ReactNode, tickers: string[]) {
@@ -50,6 +61,7 @@ async function mount(node: React.ReactNode, tickers: string[]) {
     const u = String(url);
     calls.push({ url: u, init });
     if (u.includes("/api/market/radar/history")) return { ok: true, status: 200, json: async () => history };
+    if (u.includes("/api/market/radar/signals")) return { ok: true, status: 200, json: async () => signals };
     if (u.includes("/api/market/scanner") && !u.includes("custom")) return { ok: true, status: 200, json: async () => scan };
     if (u.includes("/api/market/ohlcv")) return { ok: true, status: 200, json: async () => ({ bars }) };
     return { ok: false, status: 404, json: async () => ({ error: "không có" }) };
@@ -165,5 +177,24 @@ describe("Cột phải: Radar + Action Center thế hệ mới", () => {
     const del = el.querySelector('button[aria-label^="Xoá cảnh báo"]') as HTMLButtonElement;
     await act(async () => { del.click(); });
     expect(readAlerts()).toHaveLength(0);
+  });
+
+  it("Lớp tín hiệu: ◆ Stealth 20 trên chấm + bằng chứng kiểm định; IFE chỉ tham khảo; mô hình chưa đạt -> không có xác suất", async () => {
+    const el = await mount(<EliteCommandRadar />, ["AAA", "BBB"]);
+    await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+    expect(calls.some((c) => c.url.includes("/api/market/radar/signals") && c.url.includes("tickers=AAA%2CBBB"))).toBe(true);
+    const box = el.querySelector('[aria-label="Tín hiệu dòng tiền"]')!;
+    expect(box.textContent).toContain("ĐÃ KIỂM ĐỊNH");
+    expect(box.textContent).toContain("đúng chiều 54% so với nền 48% sau T+3");
+    expect(box.textContent).toContain("◆ AAA ▲ +2,40");
+    expect(box.textContent).toContain("1 mã chưa có dữ liệu dòng tiền");
+    expect(box.textContent).toContain("chưa đạt kiểm định ngoài mẫu");
+    expect(el.querySelectorAll("svg rect.radar-stealth")).toHaveLength(1);
+    const aaa = el.querySelector('svg [role="button"][aria-label^="AAA"]')!;
+    expect(aaa.getAttribute("aria-label")).toContain("Stealth 20 tích luỹ âm thầm");
+    await act(async () => { (box.querySelector("button") as HTMLButtonElement).click(); });
+    expect(useAppStore.getState().selectedTicker).toBe("AAA");
+    expect(el.textContent).toContain("LỚP TÍN HIỆU DÒNG TIỀN (AI)");
+    expect(el.textContent).toContain("Gom chủ động 86%");
   });
 });

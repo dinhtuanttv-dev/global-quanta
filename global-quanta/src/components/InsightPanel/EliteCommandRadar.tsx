@@ -10,11 +10,15 @@ import { useRadarHistory } from '../../hooks/useRadarHistory';
 import { previousSnapshot, radarEvents, scoreTrails, toSnapItems, type RadarEvent, type SnapItem } from '../../lib/radarHistory';
 import { browserNotify } from '../../lib/priceAlerts';
 import { CONVERGENCE_LABELS } from '../../types';
+import { useRadarSignals } from '../../hooks/useRadarSignals';
+import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
 
 // ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 6 tiêu chí bằng dữ liệu thật.
 //   Góc = nhóm ngành · Bán kính = điểm hội tụ (tâm = 6/6, vùng vàng = Core ≥ 4/6) · Kích thước = Smart Score
 //   Ký hiệu = trạng thái (🛡 ổn định / ⚡ bứt phá / ⚠ cảnh báo) · Viền = cảm xúc tin 3 ngày · Vòng nhấp nháy = tin quan trọng trong 24 giờ.
 // Lịch sử (Supabase qua Gateway): ảnh chụp mỗi ngày giao dịch -> vệt chuyển động 5 ngày, thanh tua lại, sự kiện radar (vào/ra Core…).
+// Lớp tín hiệu dòng tiền (giai đoạn 3): ◆ Stealth 20 (tín hiệu duy nhất đã qua kiểm định có lợi thế, kèm bằng chứng),
+// ý đồ IFE (chỉ tham khảo — chưa có lợi thế), xác suất mô hình thích ứng (chỉ khi mô hình đạt kiểm định).
 // Màu theo tab Siêu Quét: cyan (khung, mã), hổ phách (Core / điểm), xanh/đỏ (tăng/giảm, tin tốt/xấu), tím (AI).
 
 const UP = '#34d399', DOWN = '#fb7185', AMBER = '#f59e0b', CYAN = '#38bdf8';
@@ -24,6 +28,8 @@ const SHORT_GROUP: Record<string, string> = {
   'Bất động sản': 'BĐS', 'Chưa phân nhóm': 'Khác',
 };
 const groupLabel = (g: string) => SHORT_GROUP[g] ?? g;
+/** Lề ngang của khung SVG cho nhãn nhóm ngành ở mép trái/phải. */
+const PAD_X = 56;
 const pct = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
 
 function Evidence({ x }: { x: ScoredTicker }) {
@@ -59,7 +65,7 @@ function Evidence({ x }: { x: ScoredTicker }) {
 }
 
 const fmtDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
-const NOTIFY_KINDS = new Set(['enter_core', 'leave_core', 'turn_caution']);
+const NOTIFY_KINDS = new Set(['enter_core', 'leave_core', 'stealth_on', 'turn_caution']);
 const NOTIFIED_KEY = 'gq.radar.notified';
 
 /** Thông báo trình duyệt cho sự kiện quan trọng — mỗi (ngày, mã, loại) một lần. */
@@ -70,6 +76,53 @@ function notifyEvents(date: string, events: RadarEvent[]) {
   if (!fresh.length) return;
   for (const e of fresh) browserNotify('ELITE COMMAND RADAR', e.text, `radar-${date}-${e.kind}-${e.ticker}`);
   try { window.localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...seen, ...fresh.map((e) => `${date}|${e.kind}|${e.ticker}`)].slice(-300))); } catch { /* bỏ qua */ }
+}
+
+const VIOLET = '#a78bfa';
+const pctNum = (v: number | null | undefined, d = 0) => (v === null || v === undefined ? '—' : `${(v * 100).toFixed(d)}%`);
+const zTxt = (z: number | null | undefined) => (z === null || z === undefined ? '—' : `${z >= 0 ? '+' : ''}${z.toFixed(2).replace('.', ',')}`);
+const stealthText = (dir: number) => (dir > 0 ? 'tích luỹ âm thầm' : 'phân phối âm thầm');
+
+/** Câu bằng chứng của Stealth 20 từ vòng phản hồi (z cụm = đã tính chồng lấn ngày × mã). */
+function stealthProof(sig: RadarSignals): string {
+  const e = sig.evidence.STEALTH_20;
+  const a = e.all;
+  if (!a) return 'Chưa đủ dữ liệu kiểm định.';
+  const base = `đúng chiều ${pctNum(a.hitRate)} so với nền ${pctNum(a.baseline)} sau T+${a.horizon} (${a.n.toLocaleString('vi-VN')} lần, z cụm ${zTxt(a.zClustered)})`;
+  const r = e.regime;
+  return r && sig.regime ? `${base}; riêng thị trường ${sig.regime === 'SIDEWAY' ? 'đi ngang' : sig.regime === 'UPTREND' ? 'tăng' : 'giảm'}: ${pctNum(r.hitRate)} vs ${pctNum(r.baseline)}, z ${zTxt(r.zClustered)}` : base;
+}
+
+/** Lớp tín hiệu của mã đang chọn (trong phần giải trình). */
+function SignalLayer({ x, sig }: { x: RadarSignalItem | null; sig: RadarSignals }) {
+  const edge = sig.evidence.STEALTH_20.verdict === 'edge';
+  return (
+    <div className="mt-2 pt-2 border-t border-white/5">
+      <div className="text-[9px] tracking-wider font-semibold mb-1" style={{ color: VIOLET }}>LỚP TÍN HIỆU DÒNG TIỀN (AI)</div>
+      {!x ? <div className="text-[10px] text-slate-500">Chưa có dữ liệu dòng tiền cho mã này (tầng nghiên cứu bổ sung dần mỗi đêm).</div> : (
+        <ul className="space-y-0.5 text-[10.5px]">
+          <li>
+            <span style={{ color: x.stealth20.on ? (x.stealth20.direction > 0 ? UP : DOWN) : '#64748b' }}>◆</span>{' '}
+            <b className="font-medium text-slate-200">Stealth 20</b>{' '}
+            <span className="text-slate-400">z {zTxt(x.stealth20.z)} (ngưỡng ±{sig.stealthThreshold})</span>
+            {x.stealth20.on
+              ? <> — <b style={{ color: x.stealth20.direction > 0 ? UP : DOWN }}>đang bật: {stealthText(x.stealth20.direction)}</b> <span className="text-slate-500">({fmtDate(x.stealth20.date!)})</span></>
+              : <span className="text-slate-500"> — chưa bật</span>}
+            <span className="text-slate-500">{edge ? ' · đã kiểm định có lợi thế' : ' · chưa đạt kiểm định'}</span>
+          </li>
+          <li className="text-slate-400">
+            ◐ Ý đồ dòng tiền (HMM): {x.intent ? <b className="font-medium" style={{ color: x.intent.direction > 0 ? UP : DOWN }}>{x.intent.label} {pctNum(x.intent.p)}</b> : 'trung tính'}
+            <span className="text-slate-500"> · chỉ tham khảo, chưa có lợi thế thống kê</span>
+          </li>
+          <li className="text-slate-400">
+            ✦ Mô hình thích ứng: {x.adaptive.length
+              ? x.adaptive.map((a) => <b key={a.horizon} className="font-medium mr-1.5" style={{ color: VIOLET }}>T+{a.horizon} {pctNum(a.prob)}</b>)
+              : <span className="text-slate-500">chưa đạt kiểm định ngoài mẫu — không hiển thị xác suất</span>}
+          </li>
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
@@ -107,9 +160,19 @@ export default function EliteCommandRadar() {
   const coreSet = useMemo(() => new Set(core.map((n) => n.ticker)), [core]);
   const byTicker = useMemo(() => new Map(scored.map((x) => [x.ticker, x])), [scored]);
 
-  // Lịch sử: chỉ lưu khi đủ 6 nguồn (thiếu nguồn -> điểm thấp giả -> sự kiện "rời Core" giả).
-  const snapItems = useMemo(() => toSnapItems(scored, coreSet, live), [scored, coreSet, live]);
-  const ready = !model.loading && missingSources.length === 0 && scored.some((x) => x.item);
+  // Lớp tín hiệu dòng tiền (Stealth 20 / IFE / mô hình thích ứng).
+  const signals = useRadarSignals(tickers);
+  const sig = signals.data;
+  const stealthMap = useMemo(() => {
+    if (!sig) return null;
+    const m = new Map<string, number>();
+    for (const [t, v] of Object.entries(sig.items)) if (v) m.set(t, v.stealth20.on ? v.stealth20.direction : 0);
+    return m;
+  }, [sig]);
+
+  // Lịch sử: chỉ lưu khi đủ 6 nguồn (thiếu nguồn -> điểm thấp giả -> sự kiện "rời Core" giả) và lớp tín hiệu đã tải xong.
+  const snapItems = useMemo(() => toSnapItems(scored, coreSet, live, stealthMap), [scored, coreSet, live, stealthMap]);
+  const ready = !model.loading && missingSources.length === 0 && scored.some((x) => x.item) && !signals.isLoading;
   const history = useRadarHistory(listName, snapItems, ready);
   const [viewDate, setViewDate] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -159,6 +222,11 @@ export default function EliteCommandRadar() {
     return out;
   }, [news.data]);
 
+  const stealthEdge = sig?.evidence.STEALTH_20.verdict === 'edge';
+  const stealthOn = sig ? Object.entries(sig.items).filter(([, v]) => v?.stealth20.on)
+    .sort((a, b) => Math.abs(b[1]!.stealth20.z ?? 0) - Math.abs(a[1]!.stealth20.z ?? 0)) : [];
+  const intents = sig ? Object.values(sig.items).filter((v) => v?.intent) : [];
+  const noFlow = sig ? Object.values(sig.items).filter((v) => !v).length : 0;
   const selected = selectedTicker && !replay ? byTicker.get(selectedTicker) ?? null : null;
   const selectedSnap = selectedTicker && replay ? viewMap.get(selectedTicker) ?? null : null;
   const tip = hover ? layout.nodes.find((n) => n.ticker === hover) ?? null : null;
@@ -172,13 +240,17 @@ export default function EliteCommandRadar() {
     const ni = replay ? undefined : newsInfo.get(n.ticker);
     const rim = ni ? (ni.sentiment >= 0.25 ? UP : ni.sentiment <= -0.25 ? DOWN : null) : null;
     const isSel = selectedTicker === n.ticker;
-    const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}`;
+    const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}`;
     return (
       <g key={n.ticker} transform={`translate(${n.x.toFixed(1)} ${n.y.toFixed(1)})`} role="button" tabIndex={0} aria-label={label} aria-pressed={isSel}
         className="cursor-pointer focus:outline-none radar-node"
         onClick={() => selectTicker(n.ticker)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTicker(n.ticker); } }}
         onMouseEnter={() => setHover(n.ticker)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.ticker)} onBlur={() => setHover(null)}>
         {ni?.hot && <circle r={n.dot + 4} fill="none" stroke={rim ?? AMBER} strokeWidth={1.5} className="radar-pulse" />}
+        {v.sg ? (
+          <rect x={-2.8} y={-2.8} width={5.6} height={5.6} transform={`translate(${-(n.dot + 2.5)} ${-(n.dot - 1)}) rotate(45)`}
+            fill={stealthEdge ? (v.sg > 0 ? UP : DOWN) : 'none'} stroke={v.sg > 0 ? UP : DOWN} strokeWidth={1.2} className="radar-stealth" />
+        ) : null}
         {n.core ? (
           <>
             <circle r={n.dot + 6} fill={AMBER} opacity={0.16} />
@@ -236,7 +308,7 @@ export default function EliteCommandRadar() {
       </div>
 
       <div className="relative">
-        <svg viewBox={`-56 0 ${VIEW_W + 112} ${VIEW_H}`} className="w-full block" role="group" aria-label="Elite Command Radar: góc theo nhóm ngành, bán kính theo điểm hội tụ">
+        <svg viewBox={`${-PAD_X} 0 ${VIEW_W + 2 * PAD_X} ${VIEW_H}`} className="w-full block" role="group" aria-label="Elite Command Radar: góc theo nhóm ngành, bán kính theo điểm hội tụ">
           <defs>
             <radialGradient id="radarCore" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor={AMBER} stopOpacity={0.16} />
@@ -279,10 +351,11 @@ export default function EliteCommandRadar() {
           const v = viewMap.get(tip.ticker)!;
           const price = (replay ? null : live[tip.ticker]?.price) ?? v.p ?? null;
           const chg = (replay ? null : live[tip.ticker]?.changePct) ?? v.c ?? null;
-          const left = (tip.x / VIEW_W) * 100, top = (tip.y / VIEW_H) * 100;
+          // Khung SVG nới 56 đơn vị mỗi bên (nhãn nhóm ngành) -> quy đổi theo bề rộng thật; tooltip (176px) luôn nằm trong thẻ.
+          const left = ((tip.x + PAD_X) / (VIEW_W + 2 * PAD_X)) * 100, top = (tip.y / VIEW_H) * 100;
           return (
             <div role="tooltip" className="absolute z-20 pointer-events-none rounded-lg px-2 py-1.5 text-[10px] shadow-xl w-44"
-              style={{ left: `${Math.min(70, Math.max(2, left - 22))}%`, top: `calc(${top}% + ${tip.dot + 6}px)`, background: '#0f1420', border: '1px solid rgba(56,189,248,0.35)' }}>
+              style={{ left: `clamp(0px, calc(${left}% - 88px), calc(100% - 176px))`, top: `calc(${top}% + ${tip.dot + 6}px)`, background: '#0f1420', border: '1px solid rgba(56,189,248,0.35)' }}>
               <div className="flex justify-between"><b className="text-slate-100 font-mono">{tip.ticker}</b><span className="text-amber-400 font-mono">{v.s}/6</span></div>
               <div className="text-slate-400 truncate">{x?.item?.industry ?? tip.group}{replay ? ` · ${fmtDate(replay.date)}` : ''}</div>
               <div className="flex justify-between font-mono">
@@ -290,6 +363,8 @@ export default function EliteCommandRadar() {
                 <span style={{ color: (chg ?? 0) >= 0 ? UP : DOWN }}>{pct(chg)}</span>
               </div>
               <div className="text-slate-400">Smart <span className="text-amber-400">{v.sm?.toFixed(1) ?? '—'}</span>{x ? ` · RS ${x.item?.rsRating?.toFixed(0) ?? '—'}` : ''}</div>
+              {v.sg ? <div style={{ color: v.sg > 0 ? UP : DOWN }}>◆ Stealth 20: {stealthText(v.sg)}</div> : null}
+              {!replay && sig?.items[tip.ticker]?.intent && (() => { const it = sig.items[tip.ticker]!.intent!; return <div className="text-slate-400">◐ {it.label} {pctNum(it.p)}</div>; })()}
             </div>
           );
         })()}
@@ -302,7 +377,39 @@ export default function EliteCommandRadar() {
         <span>To = Smart cao</span>
         <span><span style={{ color: CYAN }}>●</span> ổn định · <span style={{ color: AMBER }}>●</span> ⚡ bứt phá · <span style={{ color: DOWN }}>●</span> ⚠ cảnh báo (Down-Trend / F-Score thấp)</span>
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày</span>
+        {sig && <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 tích luỹ/phân phối{stealthEdge ? ' (đã kiểm định)' : ' (rỗng = chưa đạt kiểm định)'}</span>}
       </div>
+
+      {sig && !replay && (
+        <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(167,139,250,0.05)', border: '1px solid rgba(167,139,250,0.22)' }} aria-label="Tín hiệu dòng tiền">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[9px] tracking-wider font-semibold" style={{ color: VIOLET }}>
+              TÍN HIỆU DÒNG TIỀN · ◆ STEALTH 20 {stealthEdge && <span className="ml-1 px-1 rounded text-[8.5px] text-emerald-300 border border-emerald-500/40">ĐÃ KIỂM ĐỊNH</span>}
+            </div>
+            {sig.asOf && <span className="text-[9px] text-slate-500 font-mono shrink-0">phiên {fmtDate(sig.asOf)}</span>}
+          </div>
+          <div className="text-[9.5px] text-slate-400 mt-0.5 leading-snug">{stealthProof(sig)}.</div>
+          {stealthOn.length ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {stealthOn.map(([t, v]) => (
+                <button key={t} type="button" onClick={() => selectTicker(t)} title={`${t}: Stealth 20 z ${zTxt(v!.stealth20.z)} — ${stealthText(v!.stealth20.direction)}`}
+                  className="text-[10px] px-1.5 py-0.5 rounded border font-mono hover:bg-white/5"
+                  style={{ color: v!.stealth20.direction > 0 ? UP : DOWN, borderColor: v!.stealth20.direction > 0 ? 'rgba(52,211,153,0.4)' : 'rgba(251,113,133,0.4)' }}>
+                  ◆ {t} {v!.stealth20.direction > 0 ? '▲' : '▼'} {zTxt(v!.stealth20.z)}
+                </button>
+              ))}
+            </div>
+          ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong ★ {listName} đang bật Stealth 20 ({sig.freshFrom ? `từ ${fmtDate(sig.freshFrom)}` : '3 phiên gần nhất'}).</div>}
+          <div className="text-[9.5px] text-slate-500 mt-1 leading-snug">
+            ◐ Ý đồ HMM: <span style={{ color: UP }}>Gom {intents.filter((v) => v!.intent!.direction > 0).length}</span> · <span style={{ color: DOWN }}>Xả {intents.filter((v) => v!.intent!.direction < 0).length}</span> mã — chỉ tham khảo (chưa có lợi thế thống kê).
+            {' '}✦ Mô hình thích ứng: {sig.adaptiveModels.some((m) => m.active)
+              ? `đang dùng T+${sig.adaptiveModels.filter((m) => m.active).map((m) => m.horizon).join('/')}`
+              : 'chưa đạt kiểm định ngoài mẫu (không hiển thị xác suất)'}.
+            {noFlow > 0 && ` ${noFlow} mã chưa có dữ liệu dòng tiền (bổ sung dần mỗi đêm).`}
+          </div>
+        </div>
+      )}
+      {signals.error && !replay && <div className="mt-1 text-[9.5px] text-slate-500">Lớp tín hiệu dòng tiền tạm thời không tải được.</div>}
 
       {history.enabled && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(56,189,248,0.04)', border: '1px solid rgba(56,189,248,0.15)' }}>
@@ -345,7 +452,7 @@ export default function EliteCommandRadar() {
                 <li key={`${e.kind}-${e.ticker}`}>
                   <button type="button" onClick={() => selectTicker(e.ticker)} className="text-left text-[10.5px] hover:underline"
                     style={{ color: e.tone === 'up' ? UP : e.tone === 'down' ? DOWN : '#cbd5e1' }}>
-                    {e.kind === 'enter_core' ? '◎' : e.kind === 'leave_core' ? '○' : e.tone === 'up' ? '▲' : '▼'} {e.text}
+                    {e.kind === 'enter_core' ? '◎' : e.kind === 'leave_core' ? '○' : e.kind === 'stealth_on' ? '◆' : e.tone === 'up' ? '▲' : '▼'} {e.text}
                   </button>
                 </li>
               ))}
@@ -359,6 +466,7 @@ export default function EliteCommandRadar() {
 
       {selectedSnap && replay && <SnapEvidence v={selectedSnap} date={replay.date} />}
       {selected && <Evidence x={selected} />}
+      {selected && sig && <SignalLayer x={sig.items[selected.ticker] ?? null} sig={sig} />}
       {selectedTicker && !selected && !replay && tickers.length > 0 && (
         <div className="mt-2 text-[10.5px] text-slate-400">☆ {selectedTicker} chưa có trong ★ {listName} — bấm <b className="text-cyan-300">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</div>
       )}
