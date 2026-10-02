@@ -23,16 +23,19 @@ const item = (ticker: string, smartScore = 55.5): SieuQuetStockItem => ({
   confluenceBoost: 0, confluenceReasonCodes: [], breakoutBoostBadge: false, piotroskiFScore: 5, fScoreMax: 9, foreignNetBuyFlag: false, computedAt: "",
 });
 
+const roots: ReturnType<typeof createRoot>[] = [];
 async function render(node: React.ReactNode) {
   const el = document.createElement("div");
   document.body.appendChild(el);
   const root = createRoot(el);
+  roots.push(root);
   await act(async () => { root.render(node); });
   return { el, root };
 }
 
 describe("Bảng giá trực tuyến (kiểu SSI)", () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); document.body.innerHTML = ""; });
+  // Gỡ component sau mỗi test: hook bảng giá có setInterval, để lại sẽ chạy sau khi môi trường test bị huỷ.
+  afterEach(() => { act(() => { for (const r of roots.splice(0)) r.unmount(); }); vi.unstubAllGlobals(); vi.unstubAllEnvs(); document.body.innerHTML = ""; });
 
   it("quy ước màu bảng giá VN và đơn vị hiển thị", () => {
     const q = quote("FPT", 62_800);
