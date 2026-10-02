@@ -33,3 +33,20 @@ màu quý Q1 cyan · Q2 emerald · Q3 amber · Q4 violet. Bọc `.tw-scope` đ�
 
 ## Kiểm thử
 `npx vitest run` — gồm test hợp đồng với dữ liệu thật FPT (`src/lib/cotuc/__fixtures__/fpt-seasonality.prod.json`).
+
+# Bộ máy quyết định 3 trạng thái + theo dõi tín hiệu (giai đoạn 4)
+
+Server (Project A, cron `timing-signals-scan`) tính MỘT ảnh chụp quyết định cho từng mã từ giá SSI + sự kiện VNDirect +
+mùa vụ KQKD và ghi vào sổ theo dõi; trình duyệt chỉ hiển thị đúng ảnh chụp đó (thứ người dùng thấy = thứ được chấm điểm).
+
+| Vị trí | Thành phần | Endpoint |
+|---|---|---|
+| StockModal → tab Optimal Timing (đầu tab) | `decision/DecisionBar` (`DecisionBarCard`) | `GET /api/cotuc/decision-states` (cả danh mục, SWR dùng chung) |
+| Cổ tức → 🧭 Thời Điểm Tối Ưu (v3), trên OptimalTimingTab | `DecisionBarCard` | như trên |
+| Cổ tức → 🧭 Thời Điểm Tối Ưu (v3), cuối trang | `decision/SignalTrackingPanel` (`SignalTrackingCard`) | `GET /api/cotuc/signal-tracking` |
+
+- 🟢 Thuận lợi: đang trong vùng mua, xác suất tổng hợp ≥ 60%, mọi điều kiện bắt buộc đạt (thanh khoản không bắt buộc).
+- 🟡 Quan sát: còn cơ hội nhưng thiếu điều kiện (ghi rõ thiếu gì). ⚪ Chưa nên: không có ngày/cửa sổ, đã qua vùng mua, hoặc xác suất < 50%.
+- Ngày GDKHQ "ước tính" (chưa có thông báo VNDirect) ⇒ tối đa Quan sát.
+- learnSignalWeights / calibration **chưa bật**; sổ theo dõi ghi từ 10/2026, cần ≥ 30 kết quả trước khi cân nhắc.
+- Hợp đồng zod: `src/lib/cotuc/decision.ts`; test với ảnh chụp thật `src/lib/cotuc/__fixtures__/decision-states.real.json`.

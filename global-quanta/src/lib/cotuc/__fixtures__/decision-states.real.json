@@ -1,0 +1,485 @@
+{
+ "asOf": "2026-10-02T23:21:35.916Z",
+ "count": 3,
+ "states": [
+  {
+   "version": "v3-p4",
+   "ticker": "MWG",
+   "asOf": "2026-10-03",
+   "priceDate": "2026-10-02",
+   "exDate": {
+    "value": "2026-10-07",
+    "status": "CONFIRMED",
+    "source": "DERIVED",
+    "asOf": "2026-10-02T23:21:35.176Z",
+    "label": "VNDirect (thông báo GDKHQ)"
+   },
+   "recommendation": {
+    "action": "WINDOW_PASSED",
+    "window": {
+     "id": "w2",
+     "label": "W2 · Trước họp ĐHĐCĐ",
+     "entryFrom": -30,
+     "entryTo": -15,
+     "exitOffset": 5,
+     "holdsThroughEx": true
+    },
+    "expectedNetReturn": 0.03634998006906484,
+    "nEvents": 8,
+    "confidence": "MEDIUM",
+    "tdToEx": 3,
+    "earningsImpact": {
+     "expectedAnnounce": "2026-10-28",
+     "announceMethod": "HISTORICAL_LAG",
+     "tdToEarnings": 18,
+     "conflict": "NONE",
+     "scoreDelta": 2,
+     "stance": "NEUTRAL",
+     "reasons": []
+    },
+    "dateStatus": "CONFIRMED"
+   },
+   "decision": {
+    "level": "AVOID",
+    "headline": "Chưa nên vào — Đã qua vùng mua",
+    "checks": [
+     {
+      "key": "inWindow",
+      "label": "Đang trong vùng mua",
+      "passed": false,
+      "detail": "Đã qua vùng mua"
+     },
+     {
+      "key": "probability",
+      "label": "Xác suất tổng hợp đủ cao",
+      "passed": true,
+      "detail": "61% (từ 1 tín hiệu, trọng số 4.4)"
+     },
+     {
+      "key": "notRunTooFar",
+      "label": "Giá chưa chạy trước quá xa",
+      "passed": true,
+      "detail": "Ở phân vị 25% so với các đợt trước"
+     },
+     {
+      "key": "notInvalidated",
+      "label": "Chưa chạm mức vô hiệu hoá / hết thời gian",
+      "passed": true,
+      "detail": "Còn trong thời gian hợp lệ"
+     },
+     {
+      "key": "dateConfirmed",
+      "label": "Ngày sự kiện đã xác nhận",
+      "passed": true,
+      "detail": "Đã xác nhận: 07/10/2026 · VNDirect (thông báo GDKHQ)"
+     },
+     {
+      "key": "noEarningsConflict",
+      "label": "Không xung đột KQKD",
+      "passed": true,
+      "detail": "Không có"
+     },
+     {
+      "key": "marketRegime",
+      "label": "Thị trường chung không xấu",
+      "passed": false,
+      "detail": "Đang phòng thủ (dưới MA dài hạn hoặc biến động cao) — Giá đóng cửa dưới MA200"
+     },
+     {
+      "key": "liquidity",
+      "label": "Thanh khoản đủ",
+      "passed": true,
+      "detail": "Đủ — GTGD bình quân 20 phiên 177.2 tỷ (ngưỡng 5 tỷ)"
+     }
+    ],
+    "combinedProbability": 0.6091695230524218,
+    "disclaimer": "NOT_INVESTMENT_ADVICE"
+   },
+   "combined": {
+    "probability": 0.6091695230524218,
+    "probabilityBeforeShrink": 0.7,
+    "contributions": [
+     {
+      "name": "Cổ tức",
+      "probability": 0.7,
+      "weight": 4.4,
+      "logOdds": 0.8472978603872034,
+      "share": 1
+     }
+    ],
+    "totalWeight": 4.4
+   },
+   "signals": [
+    {
+     "name": "Cổ tức",
+     "used": true,
+     "probability": 0.7,
+     "weight": 4.4,
+     "detail": "W2 · Trước họp ĐHĐCĐ: thắng 6/8 đợt → hậu nghiệm Beta 70% (CI90 45%–90%)"
+    },
+    {
+     "name": "Mùa vụ KQKD",
+     "used": false,
+     "probability": null,
+     "weight": 0,
+     "detail": "KQKD Q3/2026 (dự kiến 2026-10-28) không rơi vào thời gian nắm giữ"
+    }
+   ],
+   "regime": {
+    "regime": "RISK_OFF",
+    "belowMa": true,
+    "currentVolatility": 0.00858746001210632,
+    "volatilityPercentile": 0.1593625498007968,
+    "reasons": [
+     "Giá đóng cửa dưới MA200"
+    ]
+   },
+   "entryPlan": {
+    "tranches": [
+     {
+      "offset": -30,
+      "fraction": 0.3333333333333333
+     },
+     {
+      "offset": -22,
+      "fraction": 0.3333333333333333
+     },
+     {
+      "offset": -15,
+      "fraction": 0.3333333333333333
+     }
+    ],
+    "runTooFar": {
+     "percentile": 0.24703842135564685,
+     "hasRunTooFar": false
+    },
+    "invalidationLevel": null,
+    "invalidated": false,
+    "timeStopped": false,
+    "pauseFurtherEntries": false
+   },
+   "currentCar": -8.139540758842628e-05,
+   "liquidity": {
+    "avgValue20": 177231090500,
+    "threshold": 5000000000,
+    "ok": true
+   },
+   "earnings": {
+    "quarterLabel": "Q3/2026",
+    "expectedAnnounce": "2026-10-28",
+    "tdToEarnings": 18
+   },
+   "disclaimer": "NOT_INVESTMENT_ADVICE"
+  },
+  {
+   "version": "v3-p4",
+   "ticker": "REE",
+   "asOf": "2026-10-03",
+   "priceDate": "2026-10-02",
+   "exDate": {
+    "value": "2026-11-26",
+    "status": "ESTIMATED",
+    "source": "DERIVED",
+    "asOf": "2026-10-02T23:21:35.539Z",
+    "label": "Ước tính theo chu kỳ chi (trung vị 3.2 tháng, 11 đợt)"
+   },
+   "recommendation": {
+    "action": "TOO_EARLY",
+    "window": {
+     "id": "w3",
+     "label": "W3 · Trước GDKHQ (an toàn)",
+     "entryFrom": -25,
+     "entryTo": -15,
+     "exitOffset": 3,
+     "holdsThroughEx": true
+    },
+    "expectedNetReturn": 0.025371980758305313,
+    "nEvents": 10,
+    "confidence": "LOW",
+    "tdToEx": 39,
+    "earningsImpact": {
+     "expectedAnnounce": "2026-10-29",
+     "announceMethod": "HISTORICAL_LAG",
+     "tdToEarnings": 19,
+     "conflict": "NONE",
+     "scoreDelta": -0.06488769630387232,
+     "stance": "NEUTRAL",
+     "reasons": []
+    },
+    "dateStatus": "ESTIMATED"
+   },
+   "decision": {
+    "level": "WATCH",
+    "headline": "Quan sát — còn thiếu: Đang trong vùng mua, Ngày sự kiện đã xác nhận, Thị trường chung không xấu",
+    "checks": [
+     {
+      "key": "inWindow",
+      "label": "Đang trong vùng mua",
+      "passed": false,
+      "detail": "Chưa tới vùng mua"
+     },
+     {
+      "key": "probability",
+      "label": "Xác suất tổng hợp đủ cao",
+      "passed": true,
+      "detail": "65% (từ 1 tín hiệu, trọng số 5.5)"
+     },
+     {
+      "key": "notRunTooFar",
+      "label": "Giá chưa chạy trước quá xa",
+      "passed": true,
+      "detail": "Ở phân vị 62% so với các đợt trước"
+     },
+     {
+      "key": "notInvalidated",
+      "label": "Chưa chạm mức vô hiệu hoá / hết thời gian",
+      "passed": true,
+      "detail": "Còn trong thời gian hợp lệ"
+     },
+     {
+      "key": "dateConfirmed",
+      "label": "Ngày sự kiện đã xác nhận",
+      "passed": false,
+      "detail": "Chỉ mới công bố/ước tính, có thể đổi: 26/11/2026 · Ước tính theo chu kỳ chi (trung vị 3.2 tháng, 11 đợt)"
+     },
+     {
+      "key": "noEarningsConflict",
+      "label": "Không xung đột KQKD",
+      "passed": true,
+      "detail": "Không có"
+     },
+     {
+      "key": "marketRegime",
+      "label": "Thị trường chung không xấu",
+      "passed": false,
+      "detail": "Đang phòng thủ (dưới MA dài hạn hoặc biến động cao) — Giá đóng cửa dưới MA200"
+     },
+     {
+      "key": "liquidity",
+      "label": "Thanh khoản đủ",
+      "passed": true,
+      "detail": "Đủ — GTGD bình quân 20 phiên 18.9 tỷ (ngưỡng 5 tỷ)"
+     }
+    ],
+    "combinedProbability": 0.653857453741714,
+    "disclaimer": "NOT_INVESTMENT_ADVICE"
+   },
+   "combined": {
+    "probability": 0.653857453741714,
+    "probabilityBeforeShrink": 0.7499999999999999,
+    "contributions": [
+     {
+      "name": "Cổ tức",
+      "probability": 0.75,
+      "weight": 5.5,
+      "logOdds": 1.0986122886681096,
+      "share": 1
+     }
+    ],
+    "totalWeight": 5.5
+   },
+   "signals": [
+    {
+     "name": "Cổ tức",
+     "used": true,
+     "probability": 0.75,
+     "weight": 5.5,
+     "detail": "W3 · Trước GDKHQ (an toàn): thắng 8/10 đợt → hậu nghiệm Beta 75% (CI90 53%–92%)"
+    },
+    {
+     "name": "Mùa vụ KQKD",
+     "used": false,
+     "probability": null,
+     "weight": 0,
+     "detail": "Q3/2026: chưa có cửa sổ mùa vụ đạt kiểm định (cần ≥ 8 kỳ)"
+    }
+   ],
+   "regime": {
+    "regime": "RISK_OFF",
+    "belowMa": true,
+    "currentVolatility": 0.00858746001210632,
+    "volatilityPercentile": 0.1593625498007968,
+    "reasons": [
+     "Giá đóng cửa dưới MA200"
+    ]
+   },
+   "entryPlan": {
+    "tranches": [
+     {
+      "offset": -25,
+      "fraction": 0.3333333333333333
+     },
+     {
+      "offset": -20,
+      "fraction": 0.3333333333333333
+     },
+     {
+      "offset": -15,
+      "fraction": 0.3333333333333333
+     }
+    ],
+    "runTooFar": {
+     "percentile": 0.6192061044234611,
+     "hasRunTooFar": false
+    },
+    "invalidationLevel": null,
+    "invalidated": false,
+    "timeStopped": false,
+    "pauseFurtherEntries": false
+   },
+   "currentCar": 0.018018422170057048,
+   "liquidity": {
+    "avgValue20": 18905075500,
+    "threshold": 5000000000,
+    "ok": true
+   },
+   "earnings": {
+    "quarterLabel": "Q3/2026",
+    "expectedAnnounce": "2026-10-29",
+    "tdToEarnings": 19
+   },
+   "disclaimer": "NOT_INVESTMENT_ADVICE"
+  },
+  {
+   "version": "v3-p4",
+   "ticker": "FPT",
+   "asOf": "2026-10-03",
+   "priceDate": "2026-10-02",
+   "exDate": {
+    "value": "2026-11-02",
+    "status": "ESTIMATED",
+    "source": "DERIVED",
+    "asOf": "2026-10-02T23:21:35.910Z",
+    "label": "Ước tính theo chu kỳ chi (trung vị 2.1 tháng, 15 đợt)"
+   },
+   "recommendation": {
+    "action": "NO_SIGNAL",
+    "window": null,
+    "expectedNetReturn": null,
+    "nEvents": null,
+    "confidence": null,
+    "tdToEx": 21,
+    "earningsImpact": {
+     "expectedAnnounce": "2026-10-24",
+     "announceMethod": "HISTORICAL_LAG",
+     "tdToEarnings": 15,
+     "conflict": "NONE",
+     "scoreDelta": 2,
+     "stance": "NEUTRAL",
+     "reasons": []
+    },
+    "dateStatus": "ESTIMATED"
+   },
+   "decision": {
+    "level": "AVOID",
+    "headline": "Chưa nên vào — Chưa đủ bằng chứng thống kê",
+    "checks": [
+     {
+      "key": "inWindow",
+      "label": "Đang trong vùng mua",
+      "passed": false,
+      "detail": "Chưa đủ bằng chứng thống kê"
+     },
+     {
+      "key": "probability",
+      "label": "Xác suất tổng hợp đủ cao",
+      "passed": null,
+      "detail": "50% (từ 0 tín hiệu, trọng số 0.0)"
+     },
+     {
+      "key": "notRunTooFar",
+      "label": "Giá chưa chạy trước quá xa",
+      "passed": null,
+      "detail": "Chưa có dữ liệu lịch sử để so sánh"
+     },
+     {
+      "key": "notInvalidated",
+      "label": "Chưa chạm mức vô hiệu hoá / hết thời gian",
+      "passed": true,
+      "detail": "Còn trong thời gian hợp lệ"
+     },
+     {
+      "key": "dateConfirmed",
+      "label": "Ngày sự kiện đã xác nhận",
+      "passed": false,
+      "detail": "Chỉ mới công bố/ước tính, có thể đổi: 02/11/2026 · Ước tính theo chu kỳ chi (trung vị 2.1 tháng, 15 đợt)"
+     },
+     {
+      "key": "noEarningsConflict",
+      "label": "Không xung đột KQKD",
+      "passed": true,
+      "detail": "Không có"
+     },
+     {
+      "key": "marketRegime",
+      "label": "Thị trường chung không xấu",
+      "passed": false,
+      "detail": "Đang phòng thủ (dưới MA dài hạn hoặc biến động cao) — Giá đóng cửa dưới MA200"
+     },
+     {
+      "key": "liquidity",
+      "label": "Thanh khoản đủ",
+      "passed": true,
+      "detail": "Đủ — GTGD bình quân 20 phiên 398.1 tỷ (ngưỡng 5 tỷ)"
+     }
+    ],
+    "combinedProbability": 0.5,
+    "disclaimer": "NOT_INVESTMENT_ADVICE"
+   },
+   "combined": {
+    "probability": 0.5,
+    "probabilityBeforeShrink": 0.5,
+    "contributions": [],
+    "totalWeight": 0
+   },
+   "signals": [
+    {
+     "name": "Cổ tức",
+     "used": false,
+     "probability": null,
+     "weight": 0,
+     "detail": "Không có cửa sổ cổ tức qua cổng thống kê"
+    },
+    {
+     "name": "Mùa vụ KQKD",
+     "used": false,
+     "probability": null,
+     "weight": 0,
+     "detail": "KQKD Q3/2026 (dự kiến 2026-10-24) không rơi vào thời gian nắm giữ"
+    }
+   ],
+   "regime": {
+    "regime": "RISK_OFF",
+    "belowMa": true,
+    "currentVolatility": 0.00858746001210632,
+    "volatilityPercentile": 0.1593625498007968,
+    "reasons": [
+     "Giá đóng cửa dưới MA200"
+    ]
+   },
+   "entryPlan": {
+    "tranches": [],
+    "runTooFar": {
+     "percentile": null,
+     "hasRunTooFar": false
+    },
+    "invalidationLevel": null,
+    "invalidated": false,
+    "timeStopped": false,
+    "pauseFurtherEntries": false
+   },
+   "currentCar": null,
+   "liquidity": {
+    "avgValue20": 398134131500,
+    "threshold": 5000000000,
+    "ok": true
+   },
+   "earnings": {
+    "quarterLabel": "Q3/2026",
+    "expectedAnnounce": "2026-10-24",
+    "tdToEarnings": 15
+   },
+   "disclaimer": "NOT_INVESTMENT_ADVICE"
+  }
+ ]
+}
