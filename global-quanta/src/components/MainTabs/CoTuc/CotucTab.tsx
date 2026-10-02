@@ -45,6 +45,8 @@ import EarningsQuarterPanel from "./EarningsQuarterPanel";
 import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
 import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
 import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
+import { DecisionBarCard } from "./decision/DecisionBar";
+import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
 import { useAppStore } from "../../../store/useAppStore";
 
 // ============================================================
@@ -361,6 +363,9 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
           )}
           {modalTab === "optimal-timing" && (
             <ErrorBoundary fallbackLabel="Không hiển thị được Optimal Timing">
+              <ErrorBoundary fallbackLabel="Không hiển thị được Trạng thái quyết định">
+                <DecisionBarCard ticker={s.ticker} className="mb-3" />
+              </ErrorBoundary>
               {!hasRealDates && (
                 <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
                   ⚠ Ngày GDKHQ/ĐHCĐ đang là dữ liệu mẫu (VCI tạm lỗi) — kết quả Timing bên dưới chỉ mang tính minh họa, chưa dùng để quyết định.
@@ -938,6 +943,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               if (!s) return null;
               return (
                 <div style={{ marginTop: 16 }}>
+                  <ErrorBoundary fallbackLabel="Không hiển thị được Trạng thái quyết định">
+                    <DecisionBarCard ticker={s.ticker} className="mb-4" />
+                  </ErrorBoundary>
                   <OptimalTimingTab
                     ticker={s.ticker}
                     exDate={toSourcedIso(s.exDividendDate)}
@@ -954,6 +962,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
             })()}
             <div style={{ marginTop: 16 }}>
               <SeasonalOpportunitiesCard onSelectTicker={(t) => setTimingV3Ticker(t)} />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <ErrorBoundary fallbackLabel="Không hiển thị được Theo dõi tín hiệu">
+                <SignalTrackingCard />
+              </ErrorBoundary>
             </div>
           </div>
         </ErrorBoundary>
