@@ -123,3 +123,19 @@ describe("Bố cục toàn chiều rộng (gỡ cột Danh sách mã)", () => {
     expect(useAppStore.getState().scannerFocus).toEqual({ ticker: "ABC", nonce: nonce + 1 });
   });
 });
+
+describe("Xoá Danh sách mã (cũ) khi mở trang", () => {
+  afterEach(() => { vi.unstubAllGlobals(); window.localStorage.clear(); resetWatchlistsForTest(); document.body.innerHTML = ""; });
+  it("MarketFeed xoá danh sách cũ, giữ nguyên Danh mục của tôi", async () => {
+    vi.stubGlobal("EventSource", class { addEventListener() {} close() {} onerror = null; });
+    const { default: MarketFeed } = await import("./MarketFeed");
+    window.localStorage.setItem("gq.watchlists.v1", JSON.stringify({ activeId: "legacy", lists: [
+      { id: "default", name: "Danh mục của tôi", tickers: ["SSI"] }, { id: "legacy", name: LEGACY_LIST_NAME, tickers: ["VNM", "FPT"] }] }));
+    await render(<MarketFeed />);
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const saved = JSON.parse(window.localStorage.getItem("gq.watchlists.v1")!);
+    expect(saved.lists.map((l: { name: string }) => l.name)).toEqual(["Danh mục của tôi"]);
+    expect(saved.lists[0].tickers).toEqual(["SSI"]);
+    expect(saved.activeId).toBe("default");
+  });
+});

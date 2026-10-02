@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
-import { LEGACY_LIST_NAME, MAX_WATCHLIST_TICKERS, hasLegacyList, parseTickerInput, useWatchlists } from "../../../hooks/useWatchlists";
+import { MAX_WATCHLIST_TICKERS, parseTickerInput, useWatchlists } from "../../../hooks/useWatchlists";
 import { basketSummary } from "./scannerTaxonomy";
 
 const fmt1 = (v: number | null) => (v === null ? "—" : v.toFixed(1));
@@ -47,18 +47,6 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
 
   return (
     <div className="mb-2 px-2 py-1.5 rounded" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.08)" }}>
-      {hasLegacyList(wl.lists) && (
-        <div role="note" className="flex flex-wrap items-center gap-2 mb-1.5 px-2 py-1 rounded text-[9.5px] text-amber-200" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)" }}>
-          <span>
-            Còn danh mục <b>"{LEGACY_LIST_NAME}"</b> ({wl.lists.find((l) => l.name === LEGACY_LIST_NAME)?.tickers.length ?? 0} mã, chuyển từ cột trái cũ — phần lớn là mã mẫu ban đầu).
-            Tinh gọn bằng một trong hai cách:
-          </span>
-          <button type="button" className="px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/30"
-            onClick={() => wl.mergeLegacy()} title="Gộp mã, ghi chú, mã ghim vào Danh mục của tôi rồi xoá danh sách cũ">Gộp vào "Danh mục của tôi" rồi xoá</button>
-          <button type="button" className="px-2 py-0.5 rounded bg-white/5 text-slate-300 hover:bg-rose-500/20 hover:text-rose-200"
-            onClick={() => { if (window.confirm(`Xoá hẳn "${LEGACY_LIST_NAME}" (không gộp)?`)) wl.removeLegacy(); }}>Xoá hẳn</button>
-        </div>
-      )}
       <div className="flex flex-wrap items-center gap-1.5">
         {renaming ? (
           <input autoFocus defaultValue={wl.active.name} aria-label="Tên danh mục"

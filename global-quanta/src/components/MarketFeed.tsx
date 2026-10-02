@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { subscribeSsiMarketQuotes } from '../services/api';
 import { isMarketGatewayEnabled, subscribeMarket } from '../services/marketDataClient';
-import { allWatchlistTickers, useWatchlists } from '../hooks/useWatchlists';
+import { allWatchlistTickers, hasLegacyList, useWatchlists, watchlistActions } from '../hooks/useWatchlists';
 
 /**
  * Thành phần chạy ngầm ở cấp ứng dụng: giữ luồng giá thời gian thực cho các mã trong ★ Danh mục
@@ -19,6 +19,9 @@ export default function MarketFeed() {
     [lists, selectedTicker],
   );
   const gatewayMode = isMarketGatewayEnabled();
+
+  // Đã bỏ "Danh sách mã (cũ)" (14 mã mẫu chuyển từ cột trái cũ): xoá khỏi trình duyệt khi mở trang.
+  useEffect(() => { if (hasLegacyList(lists)) watchlistActions.removeLegacy(); }, [lists]);
 
   useEffect(() => {
     if (!symbolsKey) return;
