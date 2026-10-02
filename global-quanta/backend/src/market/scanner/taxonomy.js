@@ -98,13 +98,21 @@ const TV_SECTOR = {
   "Communications": "Viễn thông", "Miscellaneous": "Khác",
 };
 
+// Phân ngành tay cho mã thanh khoản cao mà TradingView/SSI không có nhãn (chủ yếu UPCOM).
+// Chỉ ghi các mã đã chắc chắn; mã chưa rõ để "Khác" thay vì đoán.
+export const MANUAL = {
+  ABW: "Ngân hàng", VNZ: "Công nghệ thông tin", SEA: "Thủy sản & Xuất khẩu", CQN: "Vận tải & Logistics",
+  TVN: "Thép & Kim loại", TOS: "Vận tải & Logistics", TIN: "Dịch vụ tài chính", SVI: "Bao bì, Giấy & Gỗ", VIW: "Xây dựng",
+};
+
 /**
- * @param {{ legacy?: string|null, tvIndustry?: string|null, tvSector?: string|null }} src
+ * @param {{ legacy?: string|null, tvIndustry?: string|null, tvSector?: string|null, symbol?: string|null }} src
  * @returns {{ industry: string, group: string }}
  */
-export function classify({ legacy = null, tvIndustry = null, tvSector = null } = {}) {
+export function classify({ legacy = null, tvIndustry = null, tvSector = null, symbol = null } = {}) {
   const fromLegacy = legacy ? LEGACY.get(normalizeLabel(legacy)) : null;
-  const industry = fromLegacy
+  const industry = (symbol && MANUAL[symbol])
+    ?? fromLegacy
     ?? (tvIndustry && TV_INDUSTRY[tvIndustry])
     ?? (tvSector && TV_SECTOR[tvSector])
     // Nhãn cũ đã là tiếng Anh của TradingView (sector) -> dùng bảng sector.

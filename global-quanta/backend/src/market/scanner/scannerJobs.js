@@ -13,7 +13,7 @@ import {
 import { fetchQuarterlyIncome, fetchQuarterlyBalance } from "./vciFinancials.js";
 import { runScan, topForeignNetBuy } from "./scanEngine.js";
 import { validateIntentStates } from "./ifeValidation.js";
-import { classify } from "./taxonomy.js";
+import { classify, MANUAL } from "./taxonomy.js";
 import { isTradingDay, lastCompletedSessionDate } from "../calendar.js";
 import { addDays, fetchJson, mapLimit, sleep } from "../util.js";
 import { notifyOps } from "../alerts.js";
@@ -93,11 +93,11 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
     for (const symbol of symbolsAll) {
       const tvIndustry = tradingView.industries.get(symbol) ?? null, tvSector = tradingView.sectors.get(symbol) ?? null;
       // TradingView lỗi lần này -> giữ phân ngành cũ thay vì rơi về "Khác".
-      if (!tvIndustry && !tvSector && !legacy.get(symbol) && previousMap[symbol]) {
+      if (!tvIndustry && !tvSector && !legacy.get(symbol) && !MANUAL[symbol] && previousMap[symbol]) {
         taxonomy.set(symbol, { group: previousMap[symbol][0], industry: previousMap[symbol][1] });
         continue;
       }
-      taxonomy.set(symbol, classify({ legacy: legacy.get(symbol) ?? null, tvIndustry, tvSector }));
+      taxonomy.set(symbol, classify({ legacy: legacy.get(symbol) ?? null, tvIndustry, tvSector, symbol }));
     }
     await store.setKv(KV.taxonomy, {
       updatedAt: new Date(now()).toISOString(),

@@ -55,6 +55,7 @@ test("taxonomy: nhãn có dấu/không dấu/tiếng Anh quy về cùng ngành; 
   assert.deepEqual(classify({ legacy: "Khac", tvSector: "Utilities" }), { industry: "Điện", group: "Tiện ích" });
   assert.deepEqual(classify({ legacy: "Finance" }), { industry: "Dịch vụ tài chính", group: "Tài chính" });
   assert.deepEqual(classify({}), { industry: "Khác", group: "Khác" });
+  assert.deepEqual(classify({ symbol: "ABW" }), { industry: "Ngân hàng", group: "Tài chính" }, "phân ngành tay cho mã không có nhãn");
   // Mỗi ngành thuộc đúng một nhóm.
   const all = SECTOR_GROUPS.flatMap((g) => g.industries);
   assert.equal(new Set(all).size, all.length);
