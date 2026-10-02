@@ -179,3 +179,9 @@ Nút **[Siêu Quét AI | Bảng giá]** ở tiêu đề bảng (nhớ theo trìn
 - Phản ứng giá: lợi suất từ phiên đóng cửa trước tin (tin sau 15h tính từ chính phiên đó) tới phiên mới nhất, trừ VN-Index; KL phiên sau tin so TB20. Nhận định: "tin tích cực nhưng giá chưa phản ánh"…
 - Mức quan trọng 0–100: loại sự kiện × độ tin cậy nguồn × độ mới (bán rã 3 ngày) × cường độ cảm xúc × xác nhận chéo × phản ứng KL.
 - UI: tin của ★ Danh mục trên Radar (+ mã đang chọn), nhãn Core/Ring, "nhiệt tin" theo mã, lọc Công bố / Tích cực / Tiêu cực / Mã đang chọn, mở chi tiết (tóm tắt, phản ứng giá, link bài gốc, tài liệu đính kèm).
+
+## Cột phải thế hệ mới — giai đoạn 1 (Radar + Action Center)
+- Giao diện cùng bảng màu tab Siêu Quét AI (thẻ tối bo góc `Card.tsx`, tiêu đề cyan, điểm hổ phách, chip AI tím); mỗi thẻ thu gọn được, nhớ theo trình duyệt.
+- **Radar** (`EliteCommandRadar.tsx` + `lib/radarLayout.ts`): góc = nhóm ngành (mỗi lát ≥ 22°, có nhãn "nhóm · số mã"), bán kính = điểm hội tụ (vòng ≥ 4/6 = vùng Core), kích thước chấm = Smart, màu = trạng thái (ổn định / bứt phá / cảnh báo), viền = cảm xúc tin 3 ngày, vòng nhấp nháy = tin nóng 24h. Bố cục tất định + nới chồng lấn (test 60 mã không đè nhau). Mỗi mã là nút bấm có aria-label, chọn bằng Enter/Space, tooltip khi rê/focus.
+- **Giải trình hội tụ**: 6 tiêu chí với 3 trạng thái — ✓ đạt (kèm số liệu, vd "Smart 72.0 ≥ 60"), ✗ không đạt (lý do), … nguồn chưa tải được (không tính là "không đạt").
+- **Action Center**: bỏ MUA/BÁN, thay bằng **☆ Quan tâm** (thêm vào ★ Danh mục của Radar) / **✕ Loại bỏ** (có hoàn tác). Mức giá then chốt từ OHLCV (`lib/tradeLevels.ts`): MA20/50, ATR14, đỉnh/đáy 20 phiên, dừng lỗ gợi ý = giá − 2×ATR (không dưới đáy 20 − ATR), sparkline 60 phiên. Máy tính khối lượng theo % rủi ro vốn (lô 100, không vượt vốn).

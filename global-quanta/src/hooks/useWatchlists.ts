@@ -79,6 +79,28 @@ export const watchlistActions = {
     const lists = s.lists.filter((l) => l.id !== s.activeId);
     return lists.length ? { lists, activeId: lists[0].id, radarId: s.radarId === s.activeId ? undefined : s.radarId } : DEFAULT;
   }),
+  /** Thêm mã vào một danh mục cụ thể (VD danh mục của Radar) — nút "Quan tâm". Trả true nếu đã thêm. */
+  addTo: (listId: string, ticker: string): boolean => {
+    let added = false;
+    update((s) => ({ ...s, lists: s.lists.map((l) => {
+      if (l.id !== listId || l.tickers.includes(ticker) || l.tickers.length >= MAX_WATCHLIST_TICKERS) return l;
+      added = true;
+      return { ...l, tickers: [...l.tickers, ticker] };
+    }) }));
+    return added;
+  },
+  /** Bỏ mã khỏi một danh mục cụ thể — nút "Loại bỏ". Trả lại bản cũ của danh mục để hoàn tác. */
+  removeFrom: (listId: string, ticker: string): Watchlist | null => {
+    let before: Watchlist | null = null;
+    update((s) => ({ ...s, lists: s.lists.map((l) => {
+      if (l.id !== listId || !l.tickers.includes(ticker)) return l;
+      before = l;
+      return { ...l, tickers: l.tickers.filter((t) => t !== ticker), pinned: (l.pinned ?? []).filter((t) => t !== ticker) };
+    }) }));
+    return before;
+  },
+  /** Khôi phục nguyên trạng một danh mục (hoàn tác "Loại bỏ"). */
+  restoreList: (list: Watchlist) => update((s) => ({ ...s, lists: s.lists.map((l) => (l.id === list.id ? list : l)) })),
   /** Chọn danh mục cấp mã cho ELITE COMMAND RADAR. */
   setRadarList: (id: string) => update((s) => ({ ...s, radarId: id })),
   /**
