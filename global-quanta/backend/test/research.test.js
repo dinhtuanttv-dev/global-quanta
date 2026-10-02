@@ -260,12 +260,22 @@ test("research: chuỗi job đầu-cuối trên memory store (flow -> signals ->
   const now = () => Date.UTC(2026, 9, 1, 10, 0); // 17:00 VN 01/10
   const jobs = createResearchJobs(service, { now });
 
-  const flow = await jobs.researchFlow();
-  assert.equal(flow.sessionsWritten, 400);
-  assert.equal(flow.failed, 0);
-  const again = await jobs.researchFlow();
-  assert.equal(again.sessionsWritten, 0, "chạy lại: không nạp lại phiên đã có");
-  assert.equal(rangeCalls, 4);
+  process.env.RESEARCH_FLOW_MAX_BACKFILL = "3";
+  try {
+    const flow = await jobs.researchFlow();
+    assert.equal(flow.sessionsWritten, 300, "lô đầu: chỉ nạp lịch sử 3 mã");
+    assert.equal(flow.backfillRemaining, 1);
+    assert.equal(flow.failed, 0);
+    const next = await jobs.researchFlow();
+    assert.equal(next.sessionsWritten, 100, "lần sau: mã còn lại; mã đã có không nạp lại");
+    assert.equal(next.backfillRemaining, 0);
+    const again = await jobs.researchBackfill();
+    assert.equal(again.sessionsWritten, 0, "chạy lại: không nạp lại phiên đã có");
+    assert.equal(again.upToDate, 4);
+    assert.equal(rangeCalls, 4);
+  } finally {
+    delete process.env.RESEARCH_FLOW_MAX_BACKFILL;
+  }
 
   const sig = await jobs.researchSignals();
   assert.ok(sig.regimeDays > 30 && sig.featuresWritten > 200 && sig.signals > 0, JSON.stringify(sig));

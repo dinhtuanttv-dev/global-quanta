@@ -1,6 +1,8 @@
 // Job tầng nghiên cứu (chạy sau Siêu Quét, ngày giao dịch):
 //   researchFlow      16:00 — cô đặc nến phút / tick Lee–Ready mỗi phiên -> market_flow_daily + Volume Profile
-//                            (lần đầu nạp RESEARCH_FLOW_SESSIONS phiên, sau đó chỉ phiên mới)
+//                            (mã đã có: chỉ phiên mới; mã chưa có: nạp tối đa RESEARCH_FLOW_MAX_BACKFILL mã/lần)
+//   researchBackfill  20:30 — như researchFlow nhưng lô lớn hơn (nạp lịch sử ~1 năm ≈ 100 s/mã từ SSI),
+//                            ngoài giờ giao dịch; tiến độ lưu theo từng mã nên chạy tiếp được sau khi bị ngắt
 //   researchSignals   16:20 — Regime + Impulse theo ngày, đặc trưng IFE, ghi sổ cái tín hiệu
 //   researchEvaluate  16:40 — chấm T+3/T+5/T+10, tổng hợp hiệu suất, cô đặc/dọn tick, làm mới materialized view
 //   researchTrain     Thứ Bảy 10:30 — tinh chỉnh trọng số (champion / challenger)
@@ -33,6 +35,8 @@ export const T = {
 };
 
 const FLOW_SESSIONS = () => Number(process.env.RESEARCH_FLOW_SESSIONS) || 250;
+const MAX_BACKFILL = () => Number(process.env.RESEARCH_FLOW_MAX_BACKFILL) || 20;
+const MAX_BACKFILL_NIGHT = () => Number(process.env.RESEARCH_BACKFILL_MAX) || 90;
 const TICK_KEEP_DAYS = () => Number(process.env.RESEARCH_TICK_KEEP_DAYS) || 60;
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 
@@ -74,7 +78,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
   async function universeTickers() {
     const tickers = (await store.getKv(KV.universe))?.value?.tickers ?? [];
     if (!tickers.length) throw new Error("Chưa có universe. Chạy buildUniverse trước.");
-    return tickers.map((t) => t.ticker);
+    return [...tickers].sort((x, y) => (y.avgValue20 ?? 0) - (x.avgValue20 ?? 0)).map((t) => t.ticker);
   }
 
   async function dailyBySymbol(symbols, from, to) {
@@ -98,47 +102,58 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
     return new Map(rows.map((r) => [Number(String(r.model).replace("ADAPTIVE_T", "")), { ...r, horizon: Number(String(r.model).replace("ADAPTIVE_T", "")) }]));
   }
 
-  const jobs = {
-    /** Cô đặc nến phút từng phiên của universe (gia tăng). */
-    async researchFlow() {
-      const provider = service.router.providers?.ssiFcV2;
-      if (!provider?.isConfigured?.()) throw new Error("Chưa cấu hình SSI FC Data cho nến phút.");
-      const symbols = await universeTickers();
-      const lastClosed = lastCompletedSessionDate(new Date(now()));
-      const dates = (await store.getMarketDailyDates()).filter((d) => d <= lastClosed).slice(-FLOW_SESSIONS());
-      if (!dates.length) throw new Error("Chưa có dữ liệu ngày. Chạy backfillMarketDaily trước.");
-      const existing = groupBy(await store.selectRows(T.flow, {
-        select: "symbol,trading_date,minute_p95", gte: { trading_date: addDays(dates[0], -120) }, order: "trading_date.asc",
-      }), "symbol");
+  /** Cô đặc nến phút từng phiên của universe (gia tăng; nạp lịch sử cho tối đa `maxBackfill` mã chưa có). */
+  async function flowJob({ maxBackfill }) {
+    const provider = service.router.providers?.ssiFcV2;
+    if (!provider?.isConfigured?.()) throw new Error("Chưa cấu hình SSI FC Data cho nến phút.");
+    const symbols = await universeTickers();
+    const lastClosed = lastCompletedSessionDate(new Date(now()));
+    const dates = (await store.getMarketDailyDates()).filter((d) => d <= lastClosed).slice(-FLOW_SESSIONS());
+    if (!dates.length) throw new Error("Chưa có dữ liệu ngày. Chạy backfillMarketDaily trước.");
+    const existing = groupBy(await store.selectRows(T.flow, {
+      select: "symbol,trading_date,minute_p95", gte: { trading_date: addDays(dates[0], -120) }, order: "trading_date.asc",
+    }), "symbol");
 
-      let sessions = 0, failed = 0, skipped = 0;
-      await mapLimit(symbols, 2, async (symbol) => {
-        const have = existing.get(symbol) ?? [];
-        const last = have.at(-1)?.trading_date ?? null;
-        // Đã có dữ liệu: chỉ nạp phiên MỚI; chưa có: nạp cả cửa sổ (không thử lại lỗ hổng cũ mãi mãi).
-        const missing = dates.filter((d) => (last ? d > last : true));
-        if (!missing.length) { skipped++; return; }
-        try {
-          const from = missing[0], to = missing.at(-1);
-          const bars = from === to ? await provider.getIntradayOhlcv(symbol, from) : await provider.getIntradayRange(symbol, from, to);
-          const wanted = new Set(missing);
-          const grouped = groupSessions(bars).filter((s) => wanted.has(s.date));
-          const ticks = typeof store.getTickFlowRange === "function" ? groupTickRows(await store.getTickFlowRange({ symbol, from, to })) : new Map();
-          const daily = await store.getMarketDailyRange({ from, to, symbols: [symbol] });
-          const refByDate = new Map(daily.filter((r) => r.refPrice > 0).map((r) => [r.date, r.refPrice]));
-          const { flow, profiles } = summarizeSessions(grouped, {
-            priorP95s: have.map((r) => num(r.minute_p95)), tickByDate: ticks, refByDate,
-          });
-          if (flow.length) await store.upsertRows(T.flow, flow.map((f) => flowToRow(symbol, f)), "symbol,trading_date");
-          if (profiles.length) await store.upsertRows(T.profile, profiles.map((p) => profileToRow(symbol, p)), "symbol,trading_date");
-          sessions += flow.length;
-        } catch (error) {
-          failed++;
-          console.warn(`[research] researchFlow ${symbol}: ${error.message}`);
-        }
-      });
-      return { symbols: symbols.length, sessionsWritten: sessions, upToDate: skipped, failed, window: [dates[0], dates.at(-1)] };
-    },
+    // Mã đã có lịch sử trước (nhanh, 1 request/mã), rồi một lô mã cần nạp lịch sử theo thứ tự thanh khoản.
+    const known = symbols.filter((s) => existing.has(s));
+    const fresh = symbols.filter((s) => !existing.has(s));
+    const batch = [...known, ...fresh.slice(0, maxBackfill)];
+    let sessions = 0, failed = 0, skipped = 0;
+    await mapLimit(batch, 2, async (symbol) => {
+      const have = existing.get(symbol) ?? [];
+      const last = have.at(-1)?.trading_date ?? null;
+      // Đã có dữ liệu: chỉ nạp phiên MỚI; chưa có: nạp cả cửa sổ (không thử lại lỗ hổng cũ mãi mãi).
+      const missing = dates.filter((d) => (last ? d > last : true));
+      if (!missing.length) { skipped++; return; }
+      try {
+        const from = missing[0], to = missing.at(-1);
+        const bars = from === to ? await provider.getIntradayOhlcv(symbol, from) : await provider.getIntradayRange(symbol, from, to);
+        const wanted = new Set(missing);
+        const grouped = groupSessions(bars).filter((s) => wanted.has(s.date));
+        const ticks = typeof store.getTickFlowRange === "function" ? groupTickRows(await store.getTickFlowRange({ symbol, from, to })) : new Map();
+        const daily = await store.getMarketDailyRange({ from, to, symbols: [symbol] });
+        const refByDate = new Map(daily.filter((r) => r.refPrice > 0).map((r) => [r.date, r.refPrice]));
+        const { flow, profiles } = summarizeSessions(grouped, {
+          priorP95s: have.map((r) => num(r.minute_p95)), tickByDate: ticks, refByDate,
+        });
+        if (flow.length) await store.upsertRows(T.flow, flow.map((f) => flowToRow(symbol, f)), "symbol,trading_date");
+        if (profiles.length) await store.upsertRows(T.profile, profiles.map((p) => profileToRow(symbol, p)), "symbol,trading_date");
+        sessions += flow.length;
+      } catch (error) {
+        failed++;
+        console.warn(`[research] researchFlow ${symbol}: ${error.message}`);
+      }
+    });
+    return {
+      symbols: symbols.length, processed: batch.length, sessionsWritten: sessions, upToDate: skipped, failed,
+      backfilled: Math.min(fresh.length, maxBackfill), backfillRemaining: Math.max(0, fresh.length - maxBackfill),
+      window: [dates[0], dates.at(-1)],
+    };
+  }
+
+  const jobs = {
+    researchFlow: () => flowJob({ maxBackfill: MAX_BACKFILL() }),
+    researchBackfill: () => flowJob({ maxBackfill: MAX_BACKFILL_NIGHT() }),
 
     /** Regime + Impulse theo ngày, đặc trưng IFE, sổ cái tín hiệu (gia tăng). */
     async researchSignals() {
@@ -377,6 +392,7 @@ async function baselineHitRates(store, benchClose, dates) {
 
 export const RESEARCH_SCHEDULE = [
   { name: "researchFlow", at: "16:00", tradingDayOnly: true },
+  { name: "researchBackfill", at: "20:30", tradingDayOnly: false },
   { name: "researchSignals", at: "16:20", tradingDayOnly: true },
   { name: "researchEvaluate", at: "16:40", tradingDayOnly: true },
   { name: "researchTrain", at: "10:30", weekdays: [6] },

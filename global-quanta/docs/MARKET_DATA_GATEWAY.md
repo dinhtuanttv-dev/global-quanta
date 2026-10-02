@@ -145,7 +145,7 @@ Mã nguồn `backend/src/market/research/` (Node, cùng tiến trình Gateway �
 
 **Tinh chỉnh trọng số** (`tuner.js`): hồi quy logistic L2 **co về trọng số heuristic** (ít dữ liệu ⇒ gần heuristic); trọng số riêng theo regime co về trọng số chung. Walk-forward theo ngày với purge/embargo = h phiên; λ chọn trên các fold đầu, đánh giá trên fold cuối chưa dùng (holdout). **Champion/challenger**: chỉ thăng hạng khi holdout có Brier skill > 0 và AUC > 0,5 (≥ 1.000 mẫu) và không kém mô hình đang chạy; mọi phiên bản (active/rejected/retired) lưu ở `market_model_weights`. Điểm thích ứng chỉ được ghi vào sổ cái cho ngày SAU dữ liệu huấn luyện (không tự chấm trong mẫu).
 
-**Lịch**: `researchFlow` 16:00 → `researchSignals` 16:20 → `researchEvaluate` 16:40 (ngày giao dịch), `researchTrain` Thứ Bảy 10:30. Lần đầu `researchFlow` nạp `RESEARCH_FLOW_SESSIONS` (mặc định 250) phiên nến phút cho cả universe (~30–40 phút), sau đó chỉ phiên mới.
+**Lịch**: `researchFlow` 16:00 → `researchSignals` 16:20 → `researchEvaluate` 16:40 (ngày giao dịch), `researchBackfill` 20:30 hằng ngày, `researchTrain` Thứ Bảy 10:30. Nạp lịch sử `RESEARCH_FLOW_SESSIONS` (mặc định 250) phiên nến phút tốn ~100 s/mã từ SSI, nên chia lô theo thứ tự thanh khoản: `researchFlow` tối đa `RESEARCH_FLOW_MAX_BACKFILL` (20) mã mới/lần, `researchBackfill` tối đa `RESEARCH_BACKFILL_MAX` (90) mã/đêm; mã đã có chỉ nạp phiên mới (1 request). Tiến độ lưu theo từng mã.
 
 **API/UI**: `GET /api/market/research/overview` (panel "AI học & thích ứng" dưới Market Impulse Gauge), `GET /api/market/research/:symbol` (thẻ "Điểm dòng tiền thích ứng" trong dòng phụ Siêu Quét và trong Action Center).
 
