@@ -43,7 +43,8 @@ interface RowProps {
 const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onToggle, onStar, observe, selected, onSelect }: RowProps) {
   const matchColor = priceColor(q?.price, q);
   const bid = q?.bid ?? [], ask = q?.ask ?? [];
-  const cell = "px-1 text-right tabular-nums";
+  // Ô gọn (2px mỗi bên) để 23 cột vừa khung 1366px mà không phải cuộn ngang.
+  const cell = "px-0.5 text-right tabular-nums";
   const flashBg = flash === "up" ? "rgba(34,197,94,0.28)" : flash === "down" ? "rgba(244,63,94,0.28)" : undefined;
   const side = (lv: { price: number; volume: number } | undefined) => (
     <>
@@ -101,10 +102,10 @@ export interface PricingBoardProps {
 const noop = () => {};
 
 export default function PricingBoard({ sections, grouped, quotes, flash, now, expandedTicker, starred, onToggle, onStar, observe, renderDetail, emptyText, selectedTicker = null, onSelect = noop }: PricingBoardProps) {
-  const th = "px-1 font-normal text-right";
+  const th = "px-0.5 font-normal text-right";
   const total = sections.reduce((n, [, l]) => n + l.length, 0);
   return (
-    <table className="w-full text-[10.5px] font-mono" aria-label="Bảng giá trực tuyến">
+    <table className="w-full text-[10px] font-mono" aria-label="Bảng giá trực tuyến">
       <thead className="text-slate-400 sticky top-0 z-10" style={{ background: "#0f1420" }}>
         <tr className="text-[9.5px] text-slate-500 border-b border-white/5">
           <th className="text-left pl-1 font-normal sticky left-0" style={{ background: "#0f1420" }} rowSpan={2}>Mã</th>
