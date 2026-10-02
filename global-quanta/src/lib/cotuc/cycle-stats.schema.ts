@@ -30,7 +30,7 @@ const unitInterval = (label: string) =>
 
 const offsetInt = z.number().int();
 
-const backtestWindowSchema = z.object({
+export const backtestWindowSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   entryFrom: offsetInt,

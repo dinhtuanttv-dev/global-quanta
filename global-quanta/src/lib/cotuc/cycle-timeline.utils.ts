@@ -48,7 +48,7 @@ export function buildCurve(paths: CyclePathsV3): CurvePoint[] {
 }
 
 /** Cửa sổ được chọn: phải khớp selectedWindowId VÀ có cờ selected (đã qua cổng thống kê). */
-export function selectedWindow(stats: CycleStatsV3 | null): BacktestWindow | null {
+export function selectedWindow(stats: Omit<CycleStatsV3, 'eventType'> | null): BacktestWindow | null {
   if (!stats || stats.selectedWindowId === null) return null;
   const w = stats.windows.find((x) => x.id === stats.selectedWindowId);
   return w && w.selected ? w : null;
@@ -83,6 +83,18 @@ export const POSITION_TEXT: Record<Position, string> = {
   IN_WINDOW: 'Đang trong vùng mua',
   WINDOW_PASSED: 'Đã qua vùng mua',
 };
+
+/**
+ * Bản tổng quát của POSITION_TEXT: thay "GDKHQ" bằng `eventLabel` bất kỳ (mặc định 'GDKHQ',
+ * giữ nguyên hành vi cũ) — để CycleTimeline tái dùng được cho các sự kiện lặp lại khác (ví dụ
+ * "ngày công bố KQKD") mà không phải viết lại toàn bộ component. Chỉ 2 trạng thái nhắc tới tên
+ * sự kiện cụ thể (UNKNOWN, POST_EX); các trạng thái còn lại nói về "vùng mua" nên giữ nguyên.
+ */
+export function positionText(position: Position, eventLabel = 'GDKHQ'): string {
+  if (position === 'UNKNOWN') return `Chưa có ngày ${eventLabel}`;
+  if (position === 'POST_EX') return `Đã qua ${eventLabel}`;
+  return POSITION_TEXT[position];
+}
 
 /** Offset của một mốc so với GDKHQ (ngày GD). Cả hai đầu vào tính từ hôm nay. */
 export function markerOffset(tdToTarget: number | null, tdToEx: number | null): number | null {
