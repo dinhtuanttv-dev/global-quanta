@@ -137,6 +137,12 @@ export async function restoreSupabaseSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
+/** Access token Supabase còn hạn (tự làm mới nếu sắp hết) — để gọi API Gateway cần đăng nhập. */
+export async function getAccessToken(): Promise<string | null> {
+  if (!(await restoreSupabaseSession())) return null;
+  return readAuthSession()?.access_token ?? null;
+}
+
 export async function signOutSupabase(): Promise<void> {
   const session = readAuthSession();
   clearAuthSession();

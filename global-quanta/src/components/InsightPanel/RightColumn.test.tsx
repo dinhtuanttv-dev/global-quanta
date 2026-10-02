@@ -7,6 +7,9 @@ import EliteCommandRadar from "./EliteCommandRadar";
 import { keyLevels, positionSize, tickSize } from "../../lib/tradeLevels";
 import { resetWatchlistsForTest } from "../../hooks/useWatchlists";
 import { useAppStore } from "../../store/useAppStore";
+import { readAlerts, resetPriceAlertsForTest } from "../../lib/priceAlerts";
+
+vi.mock("../../services/api", async (orig) => ({ ...(await orig<typeof import("../../services/api")>()), getAccessToken: async () => "tok" }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -28,13 +31,25 @@ const scan = {
   ],
 };
 
+const snap = (t: string, s: number, pass: string) => ({ t, s, g: "Tài chính", sm: 70, st: "stable", core: s >= 4, pass, p: 25_000, c: 0 });
+const history = {
+  list: "Danh mục của tôi", today: "2026-10-02",
+  snapshots: [
+    { date: "2026-09-30", items: [snap("AAA", 2, "110000")] },
+    { date: "2026-10-01", items: [snap("AAA", 4, "111100")] },
+  ],
+};
+const calls: { url: string; init?: RequestInit }[] = [];
+
 const roots: ReturnType<typeof createRoot>[] = [];
 async function mount(node: React.ReactNode, tickers: string[]) {
   vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
   vi.stubEnv("VITE_SCANNER_SOURCE", "gateway");
   window.localStorage.setItem("gq.watchlists.v1", JSON.stringify({ activeId: "default", lists: [{ id: "default", name: "Danh mục của tôi", tickers }] }));
-  vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+  vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
     const u = String(url);
+    calls.push({ url: u, init });
+    if (u.includes("/api/market/radar/history")) return { ok: true, status: 200, json: async () => history };
     if (u.includes("/api/market/scanner") && !u.includes("custom")) return { ok: true, status: 200, json: async () => scan };
     if (u.includes("/api/market/ohlcv")) return { ok: true, status: 200, json: async () => ({ bars }) };
     return { ok: false, status: 404, json: async () => ({ error: "không có" }) };
@@ -51,7 +66,8 @@ async function mount(node: React.ReactNode, tickers: string[]) {
 describe("Cột phải: Radar + Action Center thế hệ mới", () => {
   afterEach(() => {
     act(() => { for (const r of roots.splice(0)) r.unmount(); });
-    vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetWatchlistsForTest(); document.body.innerHTML = "";
+    vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetWatchlistsForTest(); resetPriceAlertsForTest(); document.body.innerHTML = "";
+    calls.length = 0;
     useAppStore.setState({ selectedTicker: null, toast: null });
   });
 
@@ -104,5 +120,50 @@ describe("Cột phải: Radar + Action Center thế hệ mới", () => {
     expect(el.textContent).toContain("Nguồn chưa tải được"); // các nguồn Project A lỗi -> "chưa có dữ liệu", không phải "không đạt"
     await act(async () => { aaa.dispatchEvent(new FocusEvent("focusin", { bubbles: true })); });
     expect(el.querySelector('[role="tooltip"]')?.textContent).toContain("Ngân hàng");
+  });
+
+  it("Radar lịch sử: tải theo tài khoản (Bearer), tua lại ngày cũ hiện sự kiện + hội tụ ngày đó; thiếu nguồn thì KHÔNG lưu ảnh chụp", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const el = await mount(<EliteCommandRadar />, ["AAA", "BBB"]);
+      await act(async () => { await new Promise((r) => setTimeout(r, 20)); });
+      const get = calls.find((c) => c.url.includes("/api/market/radar/history"))!;
+      expect(get.url).toContain("list=Danh+m%E1%BB%A5c+c%E1%BB%A7a+t%C3%B4i");
+      expect((get.init?.headers as Record<string, string>).authorization).toBe("Bearer tok");
+      expect(el.textContent).toContain("Chờ đủ 6 nguồn dữ liệu");
+
+      const range = el.querySelector('input[type="range"]') as HTMLInputElement;
+      expect(range.max).toBe("2");
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(range, "1");
+        range.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      expect(el.textContent).toContain("Đang xem 01/10");
+      expect(el.textContent).toContain("AAA vào Core (2/6 → 4/6)");
+      expect(el.querySelectorAll('svg [role="button"]')).toHaveLength(1); // ảnh chụp ngày đó chỉ có AAA
+      useAppStore.setState({ selectedTicker: "AAA" });
+      await act(async () => {});
+      expect(el.textContent).toContain("HỘI TỤ NGÀY 01/10");
+
+      await act(async () => { vi.advanceTimersByTime(20_000); });
+      expect(calls.some((c) => c.init?.method === "PUT")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Cảnh báo giá: đặt nhanh theo mức then chốt, xoá được", async () => {
+    useAppStore.setState({ selectedTicker: "AAA" });
+    const el = await mount(<ActionCenter />, ["AAA"]);
+    expect(el.textContent).toContain("CẢNH BÁO GIÁ");
+    const quick = [...el.querySelectorAll("button")].find((b) => /Dừng lỗ gợi ý/.test(b.textContent ?? "")) as HTMLButtonElement;
+    await act(async () => { quick.click(); });
+    const a = readAlerts();
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ ticker: "AAA", kind: "below", price: 25_100, label: "Dừng lỗ gợi ý" });
+    expect(el.textContent).toContain("AAA ≤ 25.100");
+    const del = el.querySelector('button[aria-label^="Xoá cảnh báo"]') as HTMLButtonElement;
+    await act(async () => { del.click(); });
+    expect(readAlerts()).toHaveLength(0);
   });
 });
