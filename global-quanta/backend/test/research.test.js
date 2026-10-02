@@ -313,3 +313,30 @@ test("research: mẫu huấn luyện — nhãn vượt VN-Index sau h phiên, b�
   assert.deepEqual([s.get(3).length, s.get(5).length, s.get(10).length], [37, 35, 30]);
   assert.ok(s.get(5).every((x) => x.y === 1 && x.regime === "UPTREND"));
 });
+
+test("research: đọc theo trang luôn có thứ tự duy nhất; upsert bỏ dòng trùng khoá", async () => {
+  const { stableOrder, dedupeByKey, createSupabaseStore } = await import("../src/market/store/supabaseStore.js");
+  assert.equal(stableOrder("market_flow_daily", "trading_date.asc"), "trading_date.asc,symbol.asc");
+  assert.equal(stableOrder("market_signal_ledger", undefined), "symbol.asc,signal_date.asc,signal.asc");
+  assert.equal(stableOrder("market_daily", "x.asc"), "x.asc");
+  const rows = dedupeByKey([{ s: "A", d: 1, v: 1 }, { s: "A", d: 1, v: 2 }, { s: "B", d: 1, v: 3 }], "s,d");
+  assert.deepEqual(rows.map((r) => r.v), [2, 3]);
+
+  const saved = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY };
+  process.env.SUPABASE_URL = "https://x.supabase.co";
+  process.env.SUPABASE_SECRET_KEY = "sb_secret_test";
+  try {
+    const calls = [];
+    const store = createSupabaseStore({ fetchImpl: async (url, init) => { calls.push({ url, init }); return new Response(init.method === "POST" ? null : "[]", { status: init.method === "POST" ? 201 : 200 }); } });
+    await store.selectRows("market_flow_daily", { gte: { trading_date: "2026-01-01" }, order: "trading_date.asc" });
+    assert.match(calls[0].url, /order=trading_date\.asc,symbol\.asc/);
+    await store.getMarketDailyRange({ from: "2026-01-01", to: "2026-02-01", symbols: ["AAA"] });
+    assert.match(calls[1].url, /order=trading_date\.asc,symbol\.asc/);
+    await store.upsertRows("market_flow_daily", [{ symbol: "A", trading_date: "2026-01-02", delta: 1 }, { symbol: "A", trading_date: "2026-01-02", delta: 2 }], "symbol,trading_date");
+    assert.deepEqual(JSON.parse(calls[2].init.body).map((r) => r.delta), [2]);
+  } finally {
+    for (const [k, v] of [["SUPABASE_URL", saved.url], ["SUPABASE_SECRET_KEY", saved.key]]) {
+      if (v === undefined) delete process.env[k]; else process.env[k] = v;
+    }
+  }
+});

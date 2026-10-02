@@ -7,6 +7,35 @@
 
 import { isSsiSource, selectMemory } from "./memoryStore.js";
 
+// Khoá chính các bảng đọc theo trang: phân trang bằng Range chỉ đúng khi thứ tự là DUY NHẤT —
+// sắp theo cột không duy nhất (VD chỉ trading_date) thì Postgres có thể trả trùng/thiếu dòng giữa các trang.
+export const PRIMARY_KEYS = {
+  market_flow_daily: ["symbol", "trading_date"],
+  market_volume_profile_daily: ["symbol", "trading_date"],
+  market_regime_daily: ["trading_date"],
+  market_signal_ledger: ["symbol", "signal_date", "signal"],
+  market_signal_outcomes: ["symbol", "signal_date", "signal", "horizon"],
+  market_model_weights: ["model", "version"],
+  market_tick_flow_daily: ["symbol", "trading_date"],
+};
+
+/** Thêm các cột khoá chính còn thiếu vào cuối `order` để thứ tự luôn duy nhất. */
+export function stableOrder(table, order) {
+  const keys = PRIMARY_KEYS[table];
+  if (!keys) return order;
+  const parts = order ? order.split(",") : [];
+  const used = new Set(parts.map((p) => p.split(".")[0]));
+  return [...parts, ...keys.filter((k) => !used.has(k)).map((k) => `${k}.asc`)].join(",");
+}
+
+/** Bỏ dòng trùng khoá trong cùng một lệnh upsert (giữ dòng sau cùng) — Postgres từ chối ON CONFLICT trùng. */
+export function dedupeByKey(rows, conflict) {
+  const cols = conflict.split(",");
+  const m = new Map();
+  for (const r of rows) m.set(cols.map((c) => r[c]).join("|"), r);
+  return m.size === rows.length ? rows : [...m.values()];
+}
+
 /** {eq, gte, lte, in, order, limit, select} -> query string PostgREST. */
 export function postgrestQuery({ select, eq = {}, gte = {}, lte = {}, in: inList = {}, order, limit } = {}) {
   const enc = encodeURIComponent;
@@ -60,7 +89,8 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
     return rows;
   }
 
-  async function upsert(table, rows, conflict) {
+  async function upsert(table, allRows, conflict) {
+    const rows = dedupeByKey(allRows, conflict);
     for (let i = 0; i < rows.length; i += 500) {
       await request(`${table}?on_conflict=${conflict}`, {
         method: "POST",
@@ -103,14 +133,14 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
       return rows.map((r) => r.trading_date);
     },
     async getMarketDailyByDate(date) {
-      return (await selectAll(`market_daily?trading_date=eq.${date}`)).map(rowToDaily);
+      return (await selectAll(`market_daily?trading_date=eq.${date}&order=symbol.asc`)).map(rowToDaily);
     },
     async getMarketDailyRange({ from, to, symbols }) {
       const out = [];
       const chunks = symbols ? Array.from({ length: Math.ceil(symbols.length / 100) }, (_, i) => symbols.slice(i * 100, i * 100 + 100)) : [null];
       for (const chunk of chunks) {
         const filter = chunk ? `&symbol=in.(${chunk.map(enc).join(",")})` : "";
-        out.push(...(await selectAll(`market_daily?trading_date=gte.${from}&trading_date=lte.${to}${filter}&order=trading_date.asc`)).map(rowToDaily));
+        out.push(...(await selectAll(`market_daily?trading_date=gte.${from}&trading_date=lte.${to}${filter}&order=trading_date.asc,symbol.asc`)).map(rowToDaily));
       }
       return out.sort((a, b) => a.date.localeCompare(b.date));
     },
@@ -177,7 +207,8 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
         }
         return query.order ? selectMemory(out, { order: query.order, limit: query.limit }) : out;
       }
-      const path = `${table}?${postgrestQuery(query)}`;
+      // Đọc nhiều trang: thứ tự phải duy nhất (bổ sung khoá chính).
+      const path = `${table}?${postgrestQuery(query.limit ? query : { ...query, order: stableOrder(table, query.order) })}`;
       return query.limit ? (await request(path)) ?? [] : selectAll(path);
     },
     async deleteRows(table, query = {}) {
@@ -208,7 +239,7 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
     },
 
     async listNonSsiBars(since) {
-      const rows = await selectAll(`market_ohlcv_daily?select=symbol,trading_date,close,source&trading_date=gte.${since}&source=not.like.SSI*`);
+      const rows = await selectAll(`market_ohlcv_daily?select=symbol,trading_date,close,source&trading_date=gte.${since}&source=not.like.SSI*&order=symbol.asc,trading_date.asc`);
       return rows.filter((r) => !isSsiSource(r.source)).map((r) => ({ symbol: r.symbol, date: r.trading_date, close: Number(r.close), source: r.source }));
     },
 
