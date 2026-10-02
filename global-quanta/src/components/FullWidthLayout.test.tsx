@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { SWRConfig } from "swr";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import PanelResizer, { clampInsightWidth, INSIGHT_DEFAULT, INSIGHT_MIN } from "./PanelResizer";
+import PanelResizer, { clampInsightWidth, defaultInsightWidth, INSIGHT_DEFAULT, INSIGHT_MIN } from "./PanelResizer";
 import { TickerSearch } from "./TopBar/TickerSearch";
 import { useAppStore } from "../store/useAppStore";
 import { LEGACY_LIST_NAME, isLegacyMigrated, migrateLegacyWatchlist, resetWatchlistsForTest, watchlistActions, useWatchlists } from "../hooks/useWatchlists";
@@ -69,6 +69,15 @@ describe("Bố cục toàn chiều rộng (gỡ cột Danh sách mã)", () => {
     await act(async () => { sep.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); });
     expect(app.style.getPropertyValue("--insight-w")).toBe(`${INSIGHT_DEFAULT}px`);
     expect(app.hasAttribute("data-insight-collapsed")).toBe(false);
+  });
+
+  it("màn hình laptop (< 1440px): cột phải mặc định 320px để Bảng giá vừa khung", async () => {
+    vi.stubGlobal("innerWidth", 1366);
+    expect(defaultInsightWidth()).toBe(320);
+    const { host } = await render(<PanelResizer />, "app");
+    expect((host as HTMLElement).style.getPropertyValue("--insight-w")).toBe("320px");
+    vi.stubGlobal("innerWidth", 1920);
+    expect(defaultInsightWidth()).toBe(INSIGHT_DEFAULT);
   });
 
   it("tìm mã trên thanh trên: phím '/', gợi ý từ Bảng Siêu Quét, Enter -> chọn mã + yêu cầu mở trong bảng", async () => {

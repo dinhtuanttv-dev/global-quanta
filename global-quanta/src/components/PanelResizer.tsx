@@ -3,9 +3,11 @@ import { useCallback, useEffect, useRef } from 'react';
 // Vạch kéo giữa khu trung tâm và cột phải (Radar / Action Center): kéo sang trái/phải để đổi bề rộng
 // cột phải mượt mà (cập nhật biến CSS trực tiếp trong requestAnimationFrame, không vẽ lại React khi kéo).
 // Kéo hẳn sang phải (< 200px) = thu gọn cột phải; nhấn đúp = về mặc định 380px. Phím ←/→ chỉnh 24px,
-// Home/End = rộng nhất / thu gọn. Bề rộng nhớ theo trình duyệt.
+// Home/End = rộng nhất / thu gọn. Bề rộng nhớ theo trình duyệt. Mặc định 380px (320px khi màn hình < 1440px).
 
 export const INSIGHT_DEFAULT = 380;
+/** Mặc định theo màn hình: laptop (< 1440px) cột phải hẹp hơn để Bảng giá 23 cột vừa khung. */
+export const defaultInsightWidth = () => (typeof window !== 'undefined' && window.innerWidth < 1440 ? 320 : INSIGHT_DEFAULT);
 export const INSIGHT_MIN = 280;
 export const INSIGHT_COLLAPSE_AT = 200;
 const KEY = 'gq.insightWidth';
@@ -23,7 +25,7 @@ export function readInsightWidth(): number {
     const v = Number(window.localStorage.getItem(KEY));
     if (window.localStorage.getItem(KEY) !== null && Number.isFinite(v)) return clampInsightWidth(v);
   } catch { /* bỏ qua */ }
-  return INSIGHT_DEFAULT;
+  return defaultInsightWidth();
 }
 
 export function applyInsightWidth(app: HTMLElement | null, w: number) {
@@ -33,7 +35,7 @@ export function applyInsightWidth(app: HTMLElement | null, w: number) {
 }
 
 export default function PanelResizer() {
-  const widthRef = useRef(INSIGHT_DEFAULT);
+  const widthRef = useRef(defaultInsightWidth());
   const handleRef = useRef<HTMLDivElement | null>(null);
   const frame = useRef<number | null>(null);
   const app = () => handleRef.current?.closest('.app') as HTMLElement | null;
@@ -90,7 +92,7 @@ export default function PanelResizer() {
     else if (e.key === 'ArrowRight') { e.preventDefault(); commit(w <= INSIGHT_MIN ? 0 : clampInsightWidth(w - 24)); }
     else if (e.key === 'Home') { e.preventDefault(); commit(insightMax()); }
     else if (e.key === 'End') { e.preventDefault(); commit(0); }
-    else if (e.key === 'Enter') { e.preventDefault(); commit(w ? 0 : INSIGHT_DEFAULT); }
+    else if (e.key === 'Enter') { e.preventDefault(); commit(w ? 0 : defaultInsightWidth()); }
   };
 
   return (
@@ -102,11 +104,11 @@ export default function PanelResizer() {
       aria-label="Kéo để đổi bề rộng cột Radar / Action Center (nhấn đúp: về mặc định)"
       aria-valuemin={0}
       aria-valuemax={720}
-      aria-valuenow={INSIGHT_DEFAULT}
+      aria-valuenow={defaultInsightWidth()}
       tabIndex={0}
       title="Kéo sang trái/phải để đổi bề rộng · kéo hẳn sang phải để thu gọn · nhấn đúp: về mặc định"
       onPointerDown={onPointerDown}
-      onDoubleClick={() => commit(widthRef.current === INSIGHT_DEFAULT ? 0 : INSIGHT_DEFAULT)}
+      onDoubleClick={() => commit(widthRef.current === defaultInsightWidth() ? 0 : defaultInsightWidth())}
       onKeyDown={onKeyDown}
     >
       <span className="panel-resizer-grip" aria-hidden="true" />
