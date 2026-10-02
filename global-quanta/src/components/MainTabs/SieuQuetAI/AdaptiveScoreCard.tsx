@@ -1,4 +1,5 @@
 import { REGIME_LABEL, useResearchSymbol, type ResearchSymbol } from "../../../hooks/useResearch";
+import StrategyPerformanceTable from "./StrategyPerformanceTable";
 
 const BUY = "#059669";
 const SELL = "#e11d48";
@@ -57,14 +58,17 @@ export function AdaptiveScoreBody({ data, compact = false }: { data: ResearchSym
   );
 }
 
-/** Thẻ "Điểm thích ứng" trong dòng phụ phân tích khối lượng. */
+/**
+ * Khối AI trong Bảng phân tích khối lượng (chỉ khi công tắc AI bật): cột trái điểm thích ứng +
+ * xác suất T+3/T+5/T+10 + tín hiệu đang bật; cột phải bảng hiệu suất chiến lược (z đã tính chồng lấn).
+ */
 export default function AdaptiveScoreCard({ symbol }: { symbol: string }) {
   const { data, error, isLoading, enabled } = useResearchSymbol(symbol);
   if (!enabled) return null;
   const shell = (children: React.ReactNode, right?: string) => (
     <div className="rounded-lg p-2.5 mb-2" style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.2)" }}>
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[10px] text-violet-200 font-semibold">Điểm dòng tiền thích ứng (AI tự học)</div>
+        <div className="text-[10px] text-violet-200 font-semibold">AI · Điểm dòng tiền thích ứng & hiệu suất tín hiệu</div>
         {right && <div className="text-[8.5px] text-slate-400">{right}</div>}
       </div>
       {children}
@@ -74,12 +78,17 @@ export default function AdaptiveScoreCard({ symbol }: { symbol: string }) {
   if (error || !data || !data.asOf) return shell(<div className="text-[9px] text-slate-500">Chưa có dữ liệu nghiên cứu cho {symbol}.</div>);
   return shell(
     <>
-      <AdaptiveScoreBody data={data} />
-      {data.profile && (
-        <div className="text-[8.5px] text-slate-500 mt-1">
-          Volume Profile phiên {data.profile.date}: POC {data.profile.poc.toLocaleString("vi-VN")} · VA {data.profile.vaLow.toLocaleString("vi-VN")}–{data.profile.vaHigh.toLocaleString("vi-VN")} · VWAP {data.profile.vwap.toLocaleString("vi-VN")}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div>
+          <AdaptiveScoreBody data={data} />
+          {data.profile && (
+            <div className="text-[8.5px] text-slate-500 mt-1">
+              Volume Profile phiên {data.profile.date}: POC {data.profile.poc.toLocaleString("vi-VN")} · VA {data.profile.vaLow.toLocaleString("vi-VN")}–{data.profile.vaHigh.toLocaleString("vi-VN")} · VWAP {data.profile.vwap.toLocaleString("vi-VN")}
+            </div>
+          )}
         </div>
-      )}
+        <StrategyPerformanceTable activeSignals={data.todaySignals.map((s) => s.signal)} />
+      </div>
       <div className="text-[8.5px] text-slate-500 mt-1">{data.disclaimer}</div>
     </>,
     data.regime ? `${REGIME_LABEL[data.regime]} · ${data.method === "LEE_READY" ? "Lee–Ready" : "BVC"}` : undefined,

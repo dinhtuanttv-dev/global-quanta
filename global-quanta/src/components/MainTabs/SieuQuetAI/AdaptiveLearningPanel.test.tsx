@@ -51,7 +51,8 @@ const symbolDetail = {
 async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
   vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
   window.localStorage.setItem("gq.researchUi", researchUi ? "1" : "0");
-  const fetchMock = vi.fn(async () => ({ ok: true, json: async () => body }));
+  // Thẻ AI trong bảng KL gọi cả /research/:symbol và /research/overview (bảng hiệu suất).
+  const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/overview") && !(body as { performance?: unknown }).performance ? overview(true) : body) }));
   vi.stubGlobal("fetch", fetchMock);
   const el = document.createElement("div");
   document.body.appendChild(el);
