@@ -3,10 +3,18 @@ import { useSyncExternalStore } from "react";
 // Danh mục tự chọn (Custom Watchlist) của người xem: nhiều danh mục có tên, lưu trong localStorage
 // của trình duyệt (đồng bộ giữa các tab). localStorage lỗi/bị chặn -> vẫn dùng được trong phiên.
 
-export interface Watchlist { id: string; name: string; tickers: string[] }
+export interface Watchlist {
+  id: string; name: string; tickers: string[];
+  /** Ghi chú / lý do theo dõi từng mã (chuyển từ danh sách cũ, sửa được). */
+  notes?: Record<string, string>;
+  /** Mã được ghim lên đầu danh mục. */
+  pinned?: string[];
+}
 interface State { lists: Watchlist[]; activeId: string }
 
 const KEY = "gq.watchlists.v1";
+const LEGACY_MIGRATED_KEY = "gq.watchlists.legacyMigrated";
+export const LEGACY_LIST_NAME = "Danh sách mã (cũ)";
 const EVENT = "gq:watchlists";
 export const MAX_WATCHLIST_TICKERS = 60;
 const TICKER_RE = /^[A-Z][A-Z0-9]{2,5}$/;
@@ -82,7 +90,49 @@ export const watchlistActions = {
     ...l, tickers: l.tickers.includes(ticker) ? l.tickers.filter((t) => t !== ticker) : l.tickers.length < MAX_WATCHLIST_TICKERS ? [...l.tickers, ticker] : l.tickers,
   }))),
   clear: () => update((s) => mapActive(s, (l) => ({ ...l, tickers: [] }))),
+  setNote: (ticker: string, note: string | null) => update((s) => mapActive(s, (l) => {
+    const notes = { ...(l.notes ?? {}) };
+    if (note && note.trim()) notes[ticker] = note.trim(); else delete notes[ticker];
+    return { ...l, notes };
+  })),
+  togglePin: (ticker: string) => update((s) => mapActive(s, (l) => {
+    const pinned = new Set(l.pinned ?? []);
+    if (pinned.has(ticker)) pinned.delete(ticker); else pinned.add(ticker);
+    return { ...l, pinned: [...pinned] };
+  })),
 };
+
+export function isLegacyMigrated(): boolean {
+  try { return Boolean(window.localStorage.getItem(LEGACY_MIGRATED_KEY)); } catch { return Boolean(memory?.lists.some((l) => l.name === LEGACY_LIST_NAME)); }
+}
+
+/** Mọi mã trong mọi danh mục (Radar dùng để giữ "xoá khỏi danh mục thì xoá khỏi Radar"). */
+export function allWatchlistTickers(lists: Watchlist[]): string[] {
+  return [...new Set(lists.flatMap((l) => l.tickers))];
+}
+
+/**
+ * Chuyển danh sách mã của cột trái cũ sang ★ Danh mục — một lần cho mỗi trình duyệt.
+ * Giữ thứ tự, ghi chú (lý do theo dõi) và mã đã ghim; không đổi danh mục đang chọn của người dùng.
+ * @returns true nếu vừa chuyển
+ */
+export function migrateLegacyWatchlist(legacy: { ticker: string; reason?: string | null; pinned?: boolean }[]): boolean {
+  try { if (window.localStorage.getItem(LEGACY_MIGRATED_KEY)) return false; } catch { if (memory?.lists.some((l) => l.name === LEGACY_LIST_NAME)) return false; }
+  const tickers = [...new Set(legacy.map((w) => w.ticker.toUpperCase()).filter((t) => TICKER_RE.test(t)))].slice(0, MAX_WATCHLIST_TICKERS);
+  if (!tickers.length) return false;
+  const notes = Object.fromEntries(legacy.filter((w) => w.reason).map((w) => [w.ticker.toUpperCase(), String(w.reason)]));
+  const pinned = legacy.filter((w) => w.pinned).map((w) => w.ticker.toUpperCase());
+  update((s) => {
+    if (s.lists.some((l) => l.name === LEGACY_LIST_NAME)) return s;
+    const lists = s.lists.length === 1 && s.lists[0].id === "default" && s.lists[0].tickers.length === 0
+      ? [] // danh mục mặc định còn trống -> thay bằng danh sách cũ
+      : s.lists;
+    const list: Watchlist = { id: "legacy", name: LEGACY_LIST_NAME, tickers, notes, pinned };
+    return { lists: [...lists, list], activeId: lists.length ? s.activeId : list.id };
+  });
+  try { window.localStorage.setItem(LEGACY_MIGRATED_KEY, new Date().toISOString()); } catch { /* bỏ qua */ }
+  return true;
+}
 
 export function useWatchlists() {
   const state = useSyncExternalStore(subscribe, read, () => DEFAULT);

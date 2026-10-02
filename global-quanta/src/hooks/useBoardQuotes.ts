@@ -12,7 +12,10 @@ export interface BoardState {
   flash: Record<string, { dir: FlashDir; at: number }>;
 }
 
-const SNAPSHOT_BATCH = 150;
+// Lô nhỏ, chạy song song: mã chưa có trong stream phải lấy từ REST của SSI (chậm) -> các dòng hiện dần
+// thay vì chờ cả lô lớn; stream SSE vẫn cập nhật song song.
+const SNAPSHOT_BATCH = 12;
+const SNAPSHOT_PARALLEL = 3;
 
 export function useBoardQuotes(symbols: string[], { flushMs = 500, enabled = true } = {}) {
   const key = useMemo(() => [...new Set(symbols.map((s) => s.toUpperCase()))].sort().join(","), [symbols]);
@@ -26,9 +29,10 @@ export function useBoardQuotes(symbols: string[], { flushMs = 500, enabled = tru
     const need = key.split(",").filter((s) => !known.current.has(s));
     if (!need.length) return;
     let cancelled = false;
-    (async () => {
-      for (let i = 0; i < need.length; i += SNAPSHOT_BATCH) {
-        const batch = need.slice(i, i + SNAPSHOT_BATCH);
+    const batches: string[][] = [];
+    for (let i = 0; i < need.length; i += SNAPSHOT_BATCH) batches.push(need.slice(i, i + SNAPSHOT_BATCH));
+    const worker = async () => {
+      for (let batch = batches.shift(); batch; batch = batches.shift()) {
         try {
           const res = await fetchMarketJson<{ quotes: Record<string, MarketQuote> }>("/api/market/quotes", { symbols: batch.join(",") });
           if (cancelled) return;
@@ -41,7 +45,8 @@ export function useBoardQuotes(symbols: string[], { flushMs = 500, enabled = tru
           });
         } catch { /* bỏ qua: stream vẫn cập nhật */ }
       }
-    })();
+    };
+    for (let k = 0; k < SNAPSHOT_PARALLEL; k++) void worker();
     return () => { cancelled = true; };
   }, [key, enabled]);
 

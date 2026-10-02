@@ -16,7 +16,8 @@ export interface MergedRadarData {
 export function mergeRadarWithConsensus(
   radarCore: RadarCoreNode[],
   radarRing: RadarRingNode[],
-  watchlist: WatchlistStock[],
+  /** Chỉ cần mã: danh sách cũ hoặc các ★ Danh mục. */
+  watchlist: (Pick<WatchlistStock, "ticker"> & Partial<Pick<WatchlistStock, "sector" | "price" | "changePct">>)[],
   consensusResults: TAConsensusResult[]
 ): MergedRadarData {
   const consensusMap = new Map(consensusResults.map((r) => [r.ticker, r]));

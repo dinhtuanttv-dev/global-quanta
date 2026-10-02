@@ -1,4 +1,5 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
+import { useAppStore } from "../../store/useAppStore";
 import SieuQuetAiTab from "./SieuQuetAI/SieuQuetAiTab";
 import TaVnIndexTab from "./TaVnIndex/TaVnIndexTab";
 import CotucTab from "./CoTuc/CotucTab";
@@ -13,6 +14,9 @@ const KNOWN_TABS = new Set(TABS);
 
 export default function MainTabs() {
   const [activeTab, setActiveTab] = useState(TABS[0]);
+  // Tìm mã trên thanh trên -> mở tab Siêu Quét (bảng tự cuộn tới mã và mở chi tiết).
+  const scannerFocus = useAppStore((s) => s.scannerFocus);
+  useEffect(() => { if (scannerFocus) setActiveTab("Sieu quet AI"); }, [scannerFocus]);
   return (
     <TabNavigationContext.Provider value={setActiveTab}>
       <div className="main">

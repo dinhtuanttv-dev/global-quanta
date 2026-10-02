@@ -4,7 +4,10 @@
    Giai doan 5, phai dam bao file do that su co mat truoc khi them lai
    @import. */
 
-*{box-sizing:border-box;margin:0;padding:0;}
+/* Reset toàn cục KHÔNG nằm trong layer nên thắng mọi lớp tiện ích Tailwind v4 (px-*, py-*, m-*…).
+   Vùng .tw-scope (tab Siêu Quét) được loại khỏi reset này: ở đó Tailwind preflight (layer base) vẫn
+   reset như cũ, nhưng khoảng cách Tailwind của các thành phần hoạt động đúng thiết kế. */
+*:not(:where(.tw-scope, .tw-scope *)){box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg-base);
   color:var(--text-primary);
@@ -19,18 +22,32 @@ body{
 .num{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
 
 /* ===== LAYOUT ===== */
+/* Hai cột: khu trung tâm (rộng tối đa) | vạch kéo | Radar + Action Center (bề rộng kéo được, --insight-w). */
 .app{
   display:grid;
-  grid-template-columns:236px 1fr 380px;
+  grid-template-columns:minmax(0,1fr) 6px var(--insight-w, 380px);
   grid-template-rows:56px 1fr;
   height:100vh;
   gap:1px;
   background:var(--bg-base);
 }
 .topbar{grid-column:1/4;grid-row:1;}
-.sidebar{grid-column:1;grid-row:2;overflow-y:auto;}
-.main{grid-column:2;grid-row:2;overflow-y:auto;}
-.insight{grid-column:3;grid-row:2;overflow-y:auto;display:flex;flex-direction:column;}
+.main{grid-column:1;grid-row:2;overflow-y:auto;min-width:0;}
+.panel-resizer{grid-column:2;grid-row:2;}
+.insight{grid-column:3;grid-row:2;overflow-y:auto;display:flex;flex-direction:column;min-width:0;}
+.app[data-insight-collapsed] .insight{display:none;}
+
+/* Vạch kéo đổi bề rộng cột phải */
+.panel-resizer{
+  position:relative;cursor:col-resize;touch-action:none;
+  background:var(--bg-base);outline:none;
+  display:flex;align-items:center;justify-content:center;
+}
+.panel-resizer::before{content:"";position:absolute;inset:0 2px;background:var(--border);transition:background .15s;}
+.panel-resizer:hover::before,.panel-resizer:focus-visible::before,.app[data-resizing] .panel-resizer::before{background:var(--gold, #e8b84b);}
+.panel-resizer-grip{position:relative;width:2px;height:28px;border-radius:2px;background:var(--text-tertiary);box-shadow:3px 0 0 var(--text-tertiary);opacity:.6;transform:translateX(-1.5px);}
+.app[data-resizing]{cursor:col-resize;user-select:none;}
+.app[data-resizing] iframe{pointer-events:none;}
 
 /* ===== TOP BAR ===== */
 .topbar{
@@ -498,16 +515,17 @@ body{
 @media (max-width: 768px) {
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: 56px auto auto auto;
+    grid-template-rows: 56px auto auto;
     height: auto;
     min-height: 100vh;
     overflow-y: visible;
   }
 
-  /* Thu tu hien thi: TopBar (row1, khong doi) -> Main -> Sidebar -> Insight */
+  /* Thu tu hien thi: TopBar (row1, khong doi) -> Main -> Insight; khong co vach keo tren di dong */
   .main { grid-column: 1; grid-row: 2; overflow-y: visible; padding: 14px; }
-  .sidebar { grid-column: 1; grid-row: 3; overflow-y: auto; max-height: 320px; }
-  .insight { grid-column: 1; grid-row: 4; overflow-y: visible; }
+  .panel-resizer { display: none; }
+  .insight { grid-column: 1; grid-row: 3; overflow-y: visible; }
+  .app[data-insight-collapsed] .insight { display: flex; }
 
   .main-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
   .m-tab { flex-shrink: 0; }
@@ -524,14 +542,13 @@ body{
 }
 
 @media (max-width: 420px) {
-  .sidebar { max-height: 260px; }
   .panel-title { font-size: 11px; }
 }
 
 
 @media (max-width: 768px) {
   html, body, #root, .app { overflow-x: hidden; max-width: 100vw; }
-  .main, .sidebar, .insight, .topbar { overflow-x: hidden; max-width: 100vw; }
+  .main, .insight, .topbar { overflow-x: hidden; max-width: 100vw; }
   .radar-canvas-wrap { overflow: hidden; width: 100%; }
   .radar-canvas-wrap svg { max-width: 100%; height: auto; }
 }
