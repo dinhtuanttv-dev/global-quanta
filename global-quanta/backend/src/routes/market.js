@@ -14,6 +14,7 @@ import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/n
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
+import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
 
 const router = Router();
 
@@ -191,6 +192,22 @@ router.get("/radar/signals", handle(async (req, res) => {
   const data = await rt.service.cache.wrap(`radar-signals:${[...tickers].sort().join(",")}`, 5 * 60_000, () => getRadarSignals(rt.store, tickers));
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
+}));
+
+// Lịch sử giá DANH NGHĨA dài hạn từ SSI (kho bền vững) + gợi ý sự kiện quyền từ giá tham chiếu — nguồn giá chính cho
+// Timing Engine cổ tức ở Project A (Project A tự điều chỉnh bằng sự kiện quyền VCI). GET /ohlcv/nominal-history?ticker=VNM&years=5
+let nominalHistory = null;
+router.get("/ohlcv/nominal-history", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
+  const r = await nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
+  res.set("Cache-Control", "private, max-age=600");
+  res.json({
+    symbol: r.symbol, priceType: "NOMINAL", isIndex: Boolean(r.index), referenceBase: r.base,
+    bars: r.bars, referenceAdjustments: r.events, referenceAnomalies: r.anomalies,
+    provenance: { source: r.source, refresh: r.refresh, asOf: r.bars.at(-1)?.date ?? null, from: r.bars[0]?.date ?? null, count: r.bars.length,
+      note: "Giá khớp danh nghĩa SSI. referenceAdjustments suy từ RefPrice — đáng tin tới ~2024 (từ 2025 SSI không còn điều chỉnh RefPrice vào ngày GDKHQ)." },
+  });
 }));
 
 // Danh mục tự chọn / rổ chỉ số: chấm điểm theo cùng công thức + bối cảnh của lần quét gần nhất.
