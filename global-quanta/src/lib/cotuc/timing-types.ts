@@ -137,3 +137,68 @@ export interface TimingSignalsBulkV3 {
   signals: TimingSignal[];
 }
 
+// =============================================================================
+// Mùa vụ KQKD theo quý (giai đoạn 3 gói cotuc-timing-engine) — chép nguyên từ types.ts của gói.
+// =============================================================================
+
+export type Quarter = 1 | 2 | 3 | 4;
+
+/** Xem core/beta-binomial.ts để biết cách tính. Định nghĩa lại ở đây để types.ts độc lập với core. */
+export interface BetaPosterior {
+  alpha: number;
+  beta: number;
+  mean: number;
+  ci: [number, number];
+  level: number;
+}
+
+/**
+ * CycleStatsV3 cho MỘT quý của MỘT mã: giống hệt CycleStatsV3 (cùng BacktestWindow[],
+ * cùng cổng chọn mục 5.6) cộng thêm `quarter` và `reactionProbability` — xác suất Bayes
+ * mà cửa sổ ĐƯỢC CHỌN cho quý này có CAR dương từ entry đến exit, dạng phân phối đầy đủ
+ * (không phải một con số winRate).
+ */
+export interface EarningsCycleStatsV3 extends Omit<CycleStatsV3, 'eventType'> {
+  eventType: 'EARNINGS';
+  quarter: Quarter;
+  /** null khi selectedWindowId = null (không có cửa sổ nào qua cổng cho quý này). */
+  reactionProbability: BetaPosterior | null;
+}
+
+/** Mùa vụ của MỘT quý trong lịch năm: tháng công bố điển hình + độ bất định + xác suất phản ứng. */
+export interface QuarterSeasonality {
+  quarter: Quarter;
+  /** Tháng dương lịch (1-12) — trung vị lịch sử của ngày công bố quý này. */
+  typicalAnnounceMonth: number;
+  /** Độ lệch chuẩn của tháng công bố qua các năm — vẽ thành dải bất định trên trục 12 tháng. */
+  announceMonthStd: number;
+  reactionProbability: BetaPosterior | null;
+  nEvents: number;
+  dataStatus: DataStatus;
+  /**
+   * Phân phối dự báo Student-t của NGÀY công bố (đơn vị: ngày sau cuối kỳ báo cáo), từ mô hình
+   * Normal-Inverse-Gamma (core/announce-date-model.ts). Cho phép vẽ đường mật độ xác suất trên
+   * trục 12 tháng và tính P(công bố trong N ngày tới). Tuỳ chọn để tương thích dữ liệu cũ.
+   */
+  announceModel?: { mu: number; scale: number; dof: number; n: number; ci90: [number, number] };
+}
+
+/** Timeline chu kỳ KQKD tổng hợp CẢ NĂM cho một mã — 4 phần tử, quarter 1..4. */
+export interface AnnualEarningsCalendarV3 {
+  ticker: string;
+  version: string;
+  asOf: string;
+  quarters: QuarterSeasonality[];
+}
+
+/** Một cơ hội mùa vụ được phát hiện khi quét cả vũ trụ (xem scan-seasonal-opportunities.ts). */
+export interface SeasonalOpportunity {
+  ticker: string;
+  quarter: Quarter;
+  /** Cận dưới của khoảng tin cậy — tiêu chí xếp hạng CHÍNH (thận trọng kiểu Bayes, không dùng mean). */
+  reactionProbabilityLowerBound: number;
+  reactionProbabilityMean: number;
+  expectedNetReturn: number;
+  nEvents: number;
+  window: Pick<BacktestWindow, 'entryFrom' | 'entryTo' | 'exitOffset'>;
+}

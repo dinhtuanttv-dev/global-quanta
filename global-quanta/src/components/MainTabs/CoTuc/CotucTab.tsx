@@ -42,6 +42,9 @@ import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
 import { ErrorBoundary } from "../../ErrorBoundary";
 import EarningsQuarterPanel from "./EarningsQuarterPanel";
+import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
+import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
+import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
 import { useAppStore } from "../../../store/useAppStore";
 
 // ============================================================
@@ -115,7 +118,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   s: DividendStock; onClose: () => void; realRs?: number | null;
   lifecycleEvents?: DividendLifecycleEvent[]; hasRealDates?: boolean;
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing">("overview");
+  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing" | "seasonality">("overview");
   // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
   // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
   // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
@@ -247,13 +250,13 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags","timeline","timing","optimal-timing"] as const)
+          {(["overview","dcf","flags","timeline","timing","optimal-timing","seasonality"] as const)
             .filter((t) => !(t === "dcf" && s.isUniverseOnly)) // DCF dung EPS - vo nghia voi ma Universe (eps=0, khong co du lieu that)
             .map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : "🧭 Optimal Timing"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : t === "optimal-timing" ? "🧭 Optimal Timing" : "📊 Mùa vụ KQKD"}
             </button>
           ))}
         </div>
@@ -351,6 +354,11 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
 
           {modalTab === "timeline" && <DividendTimelinePanel events={lifecycleEvents} />}
           {modalTab === "timing" && <CycleTimingPanel ticker={s.ticker} />}
+          {modalTab === "seasonality" && (
+            <ErrorBoundary fallbackLabel="Không hiển thị được Mùa vụ KQKD">
+              <EarningsSeasonalityTab ticker={s.ticker} />
+            </ErrorBoundary>
+          )}
           {modalTab === "optimal-timing" && (
             <ErrorBoundary fallbackLabel="Không hiển thị được Optimal Timing">
               {!hasRealDates && (
@@ -403,6 +411,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
   // lenh goi mang). byTicker dung de tra cuu O(1) trong <ScreenerTimingCells>.
   const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk();
+  const earningsSignalsBulk = useEarningsSignalsBulk();
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
@@ -937,9 +946,15 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     earnings={timingV3Earnings}
                     calendar={vnHolidayCalendar}
                   />
+                  <div style={{ marginTop: 16 }}>
+                    <EarningsSeasonalityTab ticker={s.ticker} />
+                  </div>
                 </div>
               );
             })()}
+            <div style={{ marginTop: 16 }}>
+              <SeasonalOpportunitiesCard onSelectTicker={(t) => setTimingV3Ticker(t)} />
+            </div>
           </div>
         </ErrorBoundary>
       )}
@@ -958,13 +973,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                 exDate: toSourcedIso(s.exDividendDate),
                 cashPerShare: s.dividendAmount ?? null,
               }))}
-              // GIOI HAN THAT (minh bach, khong bia): chua co endpoint
-              // lay EarningsSignal cho CA vu tru cung luc (chi co
-              // /api/cotuc/earnings-signal?ticker= cho TUNG ma rieng le -
-              // xem Giai doan 3). Danh sach "Sap KQKD" se trong cho toi
-              // khi co route bulk rieng - "Sap GDKHQ" van hoat dong day
-              // du vi khong phu thuoc du lieu nay.
-              earningsItems={[]}
+              // "Sap KQKD": EarningsSignal CA danh muc trong 1 request (/api/cotuc/earnings-signals,
+              // Project A doc bang EarningsSeasonalityCache do cron earnings-seasonality-scan ghi;
+              // nham QUY SAP CONG BO, ngay du kien uoc tu do tre lich su cua tung ma).
+              earningsItems={earningsSignalsBulk.signals}
               deps={makeDeps({ cal: vnHolidayCalendar })}
             />
           </div>

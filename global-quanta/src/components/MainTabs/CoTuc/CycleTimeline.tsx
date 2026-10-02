@@ -1,8 +1,11 @@
 import { useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import type { CyclePathsV3, CycleStatsV3, TimelineMarkers } from '../../../lib/cotuc/timing-types';
+
+/** Nhận cả CycleStatsV3 (cổ tức) lẫn EarningsCycleStatsV3 (KQKD) — component chỉ dùng windows/selectedWindowId/metadata, không dùng eventType. */
+export type CycleTimelineStats = Omit<CycleStatsV3, 'eventType'>;
 import {
-  POSITION_TEXT,
+  positionText,
   buildCurve,
   describeOffset,
   formatPct,
@@ -21,13 +24,17 @@ import {
  * Màu tuỳ biến bằng CSS variables: --ct-line, --ct-buy, --ct-warn, --ct-today, --ct-gap, --ct-muted, --ct-grid, --ct-fg.
  */
 export interface CycleTimelineProps {
-  stats: CycleStatsV3 | null;
+  stats: CycleTimelineStats | null;
   /** Dữ liệu đường CAR từng đợt. Thiếu thì chỉ hiện bảng cửa sổ. */
   paths?: CyclePathsV3 | null;
   /** k = -tdToEx (ngày giao dịch so với GDKHQ). null nếu chưa có ngày GDKHQ. */
   todayOffset: number | null;
   markers?: TimelineMarkers;
   className?: string;
+  /** Tên sự kiện ở mốc 0 (mặc định 'GDKHQ'; Mùa vụ KQKD dùng 'công bố') — dùng positionText của gói. */
+  eventLabel?: string;
+  /** Ẩn bảng 'Các cửa sổ đã kiểm định' khi nơi dùng đã có bảng riêng (Mùa vụ KQKD). Mặc định hiện. */
+  hideWindowTable?: boolean;
 }
 
 const W = 700;
@@ -52,7 +59,7 @@ const C = {
 
 type Num = number | null | undefined;
 
-export function CycleTimeline({ stats, paths = null, todayOffset, markers, className }: CycleTimelineProps) {
+export function CycleTimeline({ stats, paths = null, todayOffset, markers, className, eventLabel = 'GDKHQ', hideWindowTable = false }: CycleTimelineProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [showPaths, setShowPaths] = useState(true);
@@ -133,23 +140,23 @@ export function CycleTimeline({ stats, paths = null, todayOffset, markers, class
 
   const fixedMarks: { key: string; offset: number | null | undefined; label: string; color: string; dashed: boolean }[] = [
     { key: 'agm', offset: markers?.agm, label: 'ĐHCĐ', color: C.muted, dashed: true },
-    { key: 'ex', offset: 0, label: 'GDKHQ', color: C.gap, dashed: false },
+    { key: 'ex', offset: 0, label: eventLabel === 'GDKHQ' ? 'GDKHQ' : eventLabel.charAt(0).toUpperCase() + eventLabel.slice(1), color: C.gap, dashed: false },
     { key: 'pay', offset: markers?.payment, label: 'Thanh toán', color: C.muted, dashed: true },
   ];
   const earn = markers?.earnings ?? null;
 
   return (
     <section className={className} aria-label={`Chu kỳ cổ tức ${stats.ticker}`}>
-      <p data-testid="timeline-status" style={{ margin: '0 0 4px', fontWeight: 600 }}>
-        {POSITION_TEXT[position]}
+      <p data-testid="timeline-status" style={{ margin: '0 0 4px', fontWeight: 600, fontSize: 12 }}>
+        {positionText(position, eventLabel)}
       </p>
       {win ? (
-        <p style={{ margin: '0 0 8px', fontSize: 13 }}>
-          Vùng mua [{win.entryFrom}, {win.entryTo}] ngày GD trước GDKHQ, thoát tại {win.exitOffset}. Kỳ vọng ròng (cận dưới 90%){' '}
+        <p style={{ margin: '0 0 8px', fontSize: 11, color: C.muted }}>
+          Vùng mua [{win.entryFrom}, {win.entryTo}] ngày GD so với {eventLabel}, thoát tại {win.exitOffset}. Kỳ vọng ròng (cận dưới 90%){' '}
           {formatPct(win.netExpectancyLcb)}, {win.nEvents} đợt.
         </p>
       ) : (
-        <p data-testid="timeline-nosignal" style={{ margin: '0 0 8px', fontSize: 13 }}>
+        <p data-testid="timeline-nosignal" style={{ margin: '0 0 8px', fontSize: 11, color: C.muted }}>
           Không có cửa sổ nào vượt cổng thống kê (số đợt, kỳ vọng ròng, hiệu chỉnh đa so sánh). Không chọn đại một vùng mua.
         </p>
       )}
@@ -160,7 +167,7 @@ export function CycleTimeline({ stats, paths = null, todayOffset, markers, class
             ref={svgRef}
             viewBox={`0 0 ${W} ${H}`}
             role="img"
-            aria-label="Đường CAR trung bình theo ngày giao dịch quanh GDKHQ"
+            aria-label={`Đường CAR trung bình theo ngày giao dịch quanh ${eventLabel}`}
             style={{ width: '100%', height: 'auto', display: 'block', touchAction: 'pan-y' }}
             onPointerMove={(e) => {
               const t = offsetFromPointer(e);
@@ -186,7 +193,7 @@ export function CycleTimeline({ stats, paths = null, todayOffset, markers, class
               </text>
             ))}
             <text x={ML + PW / 2} y={H - 2} textAnchor="middle" fontSize={11} style={{ fill: C.muted }}>
-              ngày giao dịch so với GDKHQ
+              ngày giao dịch so với {eventLabel}
             </text>
 
             {win && (
@@ -326,7 +333,7 @@ export function CycleTimeline({ stats, paths = null, todayOffset, markers, class
         </p>
       )}
 
-      <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginTop: 8 }}>
+      {!hideWindowTable && <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', marginTop: 8 }}>
         <caption style={{ textAlign: 'left', fontWeight: 600, paddingBottom: 4 }}>Các cửa sổ đã kiểm định</caption>
         <thead>
           <tr>
@@ -354,7 +361,7 @@ export function CycleTimeline({ stats, paths = null, todayOffset, markers, class
             </tr>
           ))}
         </tbody>
-      </table>
+      </table>}
 
       <p style={{ fontSize: 12, color: C.muted, margin: '8px 0 0' }}>
         Dữ liệu {stats.version} · {stats.asOf} · benchmark {stats.benchmark} · giá điều chỉnh. Không phải khuyến nghị đầu tư.
