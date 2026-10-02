@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { SWRConfig } from "swr";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
+import { resetResearchUiForTest } from "../../../hooks/useResearchUi";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -32,7 +33,7 @@ const fixture = {
 };
 
 describe("VolumeAnalysisPanel", () => {
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetResearchUiForTest(); });
 
   it("hiển thị ô số liệu, chú thích và mã hoá phụ phiên tăng (đặc) / giảm (rỗng)", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => fixture })));
@@ -65,6 +66,59 @@ describe("VolumeAnalysisPanel", () => {
     });
     await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(el.textContent).toContain("Chưa có dữ liệu ngày");
+    act(() => root.unmount());
+  });
+
+  const research = {
+    symbol: "FPT", asOf: "2026-10-01", regime: "SIDEWAY", method: "BVC", features: [], profile: null,
+    adaptive: [3, 5, 10].map((h) => ({ horizon: h, ready: true, version: "v1", prob: h === 3 ? 0.58 : h === 5 ? 0.62 : 0.5, regimeModel: false, contributions: [], holdout: null })),
+    todaySignals: [], recentSignals: [], disclaimer: "Không phải khuyến nghị đầu tư.",
+  };
+  async function renderPanel(researchUi: "1" | "0" | null) {
+    vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
+    if (researchUi) window.localStorage.setItem("gq.researchUi", researchUi);
+    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/research/") ? research : fixture) }));
+    vi.stubGlobal("fetch", fetchMock);
+    const el = document.createElement("div");
+    const root = createRoot(el);
+    await act(async () => {
+      root.render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}><VolumeAnalysisPanel symbol="FPT" /></SWRConfig>);
+    });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    const researchCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes("/research/")).length;
+    return { el, root, researchCalls };
+  }
+
+  it("mặc định (công tắc AI tắt): phần đầu bảng nguyên bản, không có nút AI, không gọi API nghiên cứu", async () => {
+    const { el, root, researchCalls } = await renderPanel(null);
+    const header = el.querySelector(".font-sans > div")!;
+    expect(header.children[0].textContent).toBe("Phân tích khối lượng · FPT");
+    expect(header.children[0].tagName).toBe("DIV");
+    expect(header.children[0].children.length).toBe(0);
+    expect(el.querySelector("button[aria-controls]")).toBeNull();
+    expect(el.textContent).not.toContain("Điểm dòng tiền thích ứng");
+    expect(researchCalls()).toBe(0);
+    act(() => root.unmount());
+  });
+
+  it("công tắc AI bật: nút 'AI ▸' thu gọn sẵn; bấm mở xem xác suất T+3/T+5, bấm lại thu gọn", async () => {
+    const { el, root, researchCalls } = await renderPanel("1");
+    const btn = el.querySelector("button[aria-controls='ai-insights-FPT']") as HTMLButtonElement;
+    expect(btn.textContent).toBe("AI ▸");
+    expect(btn.getAttribute("aria-expanded")).toBe("false");
+    expect(el.textContent).not.toContain("Điểm dòng tiền thích ứng");
+    expect(researchCalls()).toBe(0);
+
+    await act(async () => { btn.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(btn.getAttribute("aria-expanded")).toBe("true");
+    expect(el.querySelector("#ai-insights-FPT")!.textContent).toContain("▲ 58%");
+    expect(el.textContent).toContain("▲ 62%");
+    expect(researchCalls()).toBe(1);
+
+    await act(async () => { btn.click(); });
+    expect(el.querySelector("#ai-insights-FPT")).toBeNull();
+    expect(el.textContent).toContain("Phân tích khối lượng · FPT");
     act(() => root.unmount());
   });
 });
