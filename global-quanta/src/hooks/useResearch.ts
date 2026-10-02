@@ -44,9 +44,33 @@ export interface IndexAnalysis {
   note: string;
 }
 
+/** Một ngày của Market Intelligence (mọi giá trị chỉ dùng dữ liệu ≤ ngày đó). */
+export interface IntelDay {
+  date: string; close: number; regime: Regime | null; impulse: number | null; impulse2: number | null; breadth: number | null;
+  zLd5: number | null; zFr5: number | null; dist25: number; distPct: number | null; acc25: number; isDist: boolean; effortNoResult: boolean;
+  pBear: number | null; pNeutral: number | null; pBull: number | null; div: number; risk: number | null;
+}
+export interface BetaPost { n: number; nEff: number; ups: number; mean: number | null; lo: number | null; hi: number | null; raw: number | null }
+export interface MarketIntel {
+  generatedAt?: string; asOf: string;
+  current: IntelDay & { hmmState: number | null; divergences: { window: number; indicator: string; priceRank: number | null; indRank: number | null; type: "bullish" | "bearish" | null }[] };
+  hmm: { states: { label: string; ret5: number | null; vol20: number | null; stay: number | null }[]; trainedThrough: string | null } | null;
+  series: IntelDay[];
+  bayes: Record<string, { base: { n: number; p: number | null }; rows: (BetaPost & { id: string; label: string; value: string })[] }>;
+  models: Record<string, {
+    samples: number; passed: boolean; prob: number | null; baseRate: number | null;
+    oos: { n: number; nEff: number | null; skill: number | null; lo: number | null; hi: number | null; hitRate: number | null };
+    weights: { name: string; label: string; coef: number | null; lo: number | null; hi: number | null }[];
+  }>;
+  coverage: { indexDays: number; footprintDays: number; from: string; to: string };
+  modelFeatures: { name: string; label: string }[];
+  notes: string;
+}
+
 export interface ResearchOverview {
   generatedAt: string | null;
   index?: IndexAnalysis | null;
+  intel?: MarketIntel | null;
   currentRegime: { date: string; regime: Regime; impulseScore: number | null; breadthPct: number | null } | null;
   baseline: Record<string, number>;
   performance: PerformanceRow[];

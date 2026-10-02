@@ -1,4 +1,5 @@
 import { REGIME_LABEL, useResearchOverview, type ForwardStats, type PerformanceRow } from "../../../hooks/useResearch";
+import { IntelAiSections } from "./MarketIntel";
 
 // Panel cột trái (vĩ mô): AI phân tích riêng VN-Index. Chỉ số cấp MÃ (điểm thích ứng, bảng hiệu suất
 // tín hiệu, trọng số học được) nằm trong Bảng phân tích khối lượng của từng mã.
@@ -42,6 +43,8 @@ export default function VnIndexAiPanel() {
 
   return (
     <div style={box} className="rounded-xl p-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="min-w-0">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-semibold text-violet-300">AI phân tích VN-Index</h2>
         <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold" style={{ color: st.color, border: `1px solid ${st.color}` }}
@@ -129,6 +132,14 @@ export default function VnIndexAiPanel() {
       </div>
       <div className="text-[8.5px] text-slate-500">
         Dữ liệu {a.from} → {a.to}. {a.note} Chỉ số AI của từng mã: nhấn đúp một dòng trong Bảng Siêu Quét.
+      </div>
+      </div>
+      <div className="min-w-0 xl:border-l xl:border-white/5 xl:pl-4">
+        <h3 className="text-[11px] font-semibold text-violet-300 mb-1.5">Market Intelligence · HMM · Bayes · dòng tiền lớn</h3>
+        {data.intel
+          ? <IntelAiSections intel={data.intel} performance={data.performance ?? []} signalLabels={data.signalLabels ?? {}} />
+          : <div className="text-[10px] text-slate-500">Lớp Market Intelligence sẽ hiện sau lần chạy job nghiên cứu kế tiếp (researchSignals).</div>}
+      </div>
       </div>
     </div>
   );

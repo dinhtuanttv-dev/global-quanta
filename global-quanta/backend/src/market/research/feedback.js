@@ -18,6 +18,12 @@ export const SIGNAL_LABELS = {
   ADAPTIVE_T3: "Điểm thích ứng T+3",
   ADAPTIVE_T5: "Điểm thích ứng T+5",
   ADAPTIVE_T10: "Điểm thích ứng T+10",
+  // Market Intelligence cấp VN-Index (marketIntel.js)
+  FOOTPRINT: "Dấu chân tay to toàn thị trường (5 phiên)",
+  IMPULSE2: "Impulse 2.0 (lọc dòng tiền lớn)",
+  HMM_REGIME: "Chế độ thị trường HMM",
+  DIVERGENCE: "Phân kỳ đa khung",
+  DIST_DAYS: "Ngày phân phối nhiều bất thường (top 20%)",
 };
 
 /** Tín hiệu cấp mã từ đặc trưng ngày. Chỉ ghi khi tín hiệu "bật" (direction ≠ 0). */

@@ -8,6 +8,7 @@ import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import VnIndexAiPanel from "./VnIndexAiPanel";
 import ResearchUiToggle from "./ResearchUiToggle";
 import { useResearchUi } from "../../../hooks/useResearchUi";
+import { useResearchOverview } from "../../../hooks/useResearch";
 import { useWatchlists } from "../../../hooks/useWatchlists";
 import { useScannerBasket, type Basket } from "../../../hooks/useScannerBasket";
 import ScannerToolbar, { type GroupBy } from "./ScannerToolbar";
@@ -17,6 +18,7 @@ import PricingBoard from "./PricingBoard";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
+import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
 
 const COLUMN_COUNT = 9;
 
@@ -33,53 +35,19 @@ const CONF_COLOR: Record<string, string> = {
   NGHICH_XU_HUONG: "bg-rose-950 text-rose-400 border-rose-700",
 };
 
-const BIAS_COLOR: Record<string, string> = {
-  uptrend: "text-emerald-400", accumulation: "text-amber-400", defensive: "text-blue-400",
-  distribution: "text-rose-400", downtrend: "text-rose-400",
-};
-
 function fmt(n: number | null | undefined, d = 1): string {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
   return n.toFixed(d);
 }
 
-function IndexTechnicalCard({ state }: { state: ReturnType<typeof useSieuQuetScanner>["indexState"] }) {
-  if (!state) return <div className="text-[10px] text-slate-500">Đang tải dữ liệu VN-Index...</div>;
-  const biasColor = BIAS_COLOR[state.trendBias] ?? "text-slate-300";
-
-  return (
-    <div className="space-y-2 text-xs">
-      <div className="flex justify-between"><span className="text-slate-500">Xu hướng</span><span className={`font-semibold ${biasColor}`}>{state.trendLabel}</span></div>
-      <div className="grid grid-cols-3 gap-2 font-mono text-[10px] text-slate-400">
-        <div>MA20<br /><span className="text-slate-200">{fmt(state.ma20)}</span></div>
-        <div>MA50<br /><span className="text-slate-200">{fmt(state.ma50)}</span></div>
-        <div>MA200<br /><span className="text-slate-200">{fmt(state.ma200)}</span></div>
-      </div>
-      <div className="flex justify-between"><span className="text-slate-500">RSI(14)</span><span className="font-mono text-slate-200">{fmt(state.rsi14)}</span></div>
-      <div className="flex justify-between"><span className="text-slate-500">MACD Hist.</span><span className="font-mono text-slate-200">{fmt(state.macdHistogram, 2)}</span></div>
-      <div className="flex justify-between"><span className="text-slate-500">Breadth</span><span className="font-mono text-slate-200">{fmt(state.marketBreadthPct, 1)}%</span></div>
-      <div className="flex justify-between"><span className="text-slate-500">Phân kỳ</span><span className="font-mono text-slate-200">{state.divergence}</span></div>
-      <div className="flex justify-between"><span className="text-slate-500">ATR Percentile</span><span className="font-mono text-slate-200">{fmt(state.atrPercentile, 1)}</span></div>
-      <div className="flex justify-between"><span className="text-slate-500">Breakout Prob.</span><span className="font-mono text-slate-200">{fmt(state.breakoutProbability, 1)}%</span></div>
-      <p className="text-slate-400 text-[10px] pt-2 border-t border-white/10">{state.narrative}</p>
-    </div>
-  );
+/** Khối kỹ thuật + khối Impulse/dòng tiền lấy thêm giá đóng cửa và Market Intelligence từ tổng quan nghiên cứu (SWR dùng chung). */
+function TechnicalConnected({ state }: { state: ReturnType<typeof useSieuQuetScanner>["indexState"] }) {
+  const { data } = useResearchOverview();
+  return <TechnicalTiles state={state} close={data?.index?.current.close ?? null} />;
 }
-
-function ImpulseGauge({ score }: { score: number }) {
-  const zoneColor = score < 35 ? "#f43f5e" : score <= 65 ? "#f59e0b" : "#10b981";
-  const zoneLabel = score < 35 ? "Rủi ro cao" : score <= 65 ? "Tích lũy an toàn" : "Hưng phấn / Mở rộng";
-  return (
-    <div className="flex items-center gap-3">
-      <div className="text-3xl font-mono font-semibold" style={{ color: zoneColor }}>{fmt(score, 1)}</div>
-      <div className="flex-1">
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-          <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(0, score))}%`, background: zoneColor }} />
-        </div>
-        <div className="text-[10px] mt-1" style={{ color: zoneColor }}>{zoneLabel}</div>
-      </div>
-    </div>
-  );
+function ImpulseConnected({ score }: { score: number | null }) {
+  const { data } = useResearchOverview();
+  return <ImpulseFlowPanel score={score} intel={data?.intel} />;
 }
 
 function sourceLabel(source: string): string {
@@ -304,8 +272,8 @@ export default function SieuQuetAiTab() {
       {/* DẢI VN-INDEX (thu gọn được) — nhường toàn bộ bề ngang cho bảng */}
       <VnIndexBand
         indexState={indexState}
-        technical={<IndexTechnicalCard state={indexState} />}
-        impulse={indexState ? <ImpulseGauge score={indexState.impulseScore} /> : null}
+        technical={<TechnicalConnected state={indexState} />}
+        impulse={<ImpulseConnected score={indexState?.impulseScore ?? null} />}
         aiPanel={researchUiOn ? <VnIndexAiPanel /> : null}
         toggle={<ResearchUiToggle />}
       />
