@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useCallback, useEffect, useRef } from "react";
+import { Fragment, useState, useMemo, memo, useCallback, useEffect, useRef } from "react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { EventPanel } from "./EventPanel";
@@ -8,6 +8,11 @@ import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import VnIndexAiPanel from "./VnIndexAiPanel";
 import ResearchUiToggle from "./ResearchUiToggle";
 import { useResearchUi } from "../../../hooks/useResearchUi";
+import { useWatchlists } from "../../../hooks/useWatchlists";
+import { useScannerBasket, type Basket } from "../../../hooks/useScannerBasket";
+import ScannerToolbar, { type GroupBy } from "./ScannerToolbar";
+import WatchlistBar, { BasketSummary } from "./WatchlistBar";
+import { GROUP_ORDER, groupOf, industryOf } from "./scannerTaxonomy";
 
 const COLUMN_COUNT = 9;
 
@@ -103,10 +108,12 @@ interface StockRowProps {
   expanded: boolean;
   onToggle: (ticker: string) => void;
   observe: (el: HTMLTableRowElement | null, ticker: string) => void;
+  starred: boolean;
+  onStar: (ticker: string) => void;
 }
 
 // memo: khi giá realtime đổi, chỉ dòng của mã đó vẽ lại (bảng tới ~300 dòng).
-const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observe }: StockRowProps) {
+const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observe, starred, onStar }: StockRowProps) {
   // Giá/% ưu tiên SSI qua Market Gateway; điểm số vẫn là kết quả quét định kỳ của Project A.
   const price = live?.price ?? item.price;
   const changePct = live ? live.changePct : item.changePct;
@@ -129,9 +136,14 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
       onDoubleClick={() => onToggle(item.ticker)}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onToggle(item.ticker); } }}
     >
-      <td className="py-2 pr-3 text-slate-100 font-semibold">
+      <td className="py-2 pr-3 text-slate-100 font-semibold whitespace-nowrap">
+        <button type="button" aria-pressed={starred} aria-label={starred ? `Bỏ ${item.ticker} khỏi danh mục` : `Thêm ${item.ticker} vào danh mục`}
+          title={starred ? "Bỏ khỏi danh mục đang chọn" : "Thêm vào danh mục đang chọn"}
+          onClick={(e) => { e.stopPropagation(); onStar(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()}
+          className={`mr-1 font-sans ${starred ? "text-amber-400" : "text-slate-600 hover:text-amber-300"}`}>{starred ? "★" : "☆"}</button>
         {item.ticker}
-        <div className="text-[9px] text-slate-500 font-sans">{item.sector}</div>
+        {item.inUniverse === false && <span className="ml-1 text-[8px] font-normal font-sans text-violet-300 border border-violet-500/40 rounded px-0.5" title="Ngoài universe: chấm theo cùng công thức và bối cảnh của lần quét">ngoài DS</span>}
+        <div className="text-[9px] text-slate-500 font-sans font-normal" title={item.sectorGroup ? `${item.sectorGroup} › ${industryOf(item)}` : undefined}>{industryOf(item)}</div>
       </td>
       <td className="text-right pr-3" title={priceTitle}>
         {fmt(price, 0)}
@@ -203,13 +215,39 @@ export default function SieuQuetAiTab() {
   const streamTickers = typeof IntersectionObserver === "undefined" ? items.map((i) => i.ticker) : visibleTickers;
   const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(streamTickers);
   const [researchUiOn] = useResearchUi();
-  const [sectorFilter, setSectorFilter] = useState<string>("all");
 
-  const sectors = useMemo(() => Array.from(new Set(items.map((i) => i.sector).filter(Boolean))) as string[], [items]);
+  // Rổ (Tất cả / VN30 / Danh mục), lọc ngành 2 cấp, gom nhóm — lựa chọn rổ nhớ theo trình duyệt.
+  const [basket, setBasketState] = useState<Basket>(() => {
+    try { const v = window.localStorage.getItem("gq.scannerBasket"); return v === "VN30" || v === "WATCHLIST" ? v : "ALL"; } catch { return "ALL"; }
+  });
+  const setBasket = useCallback((b: Basket) => {
+    setBasketState(b);
+    try { window.localStorage.setItem("gq.scannerBasket", b); } catch { /* bỏ qua */ }
+  }, []);
+  const [industries, setIndustries] = useState<Set<string>>(() => new Set());
+  const [groupBy, setGroupBy] = useState<GroupBy>("none");
+  const watchlists = useWatchlists();
+  const toggleStar = watchlists.toggle;
+  const starredSet = useMemo(() => new Set(watchlists.active.tickers), [watchlists.active.tickers]);
+  const onStar = useCallback((ticker: string) => toggleStar(ticker), [toggleStar]);
+  const gatewayReady = usedSource === "gateway";
+  // Nguồn dự phòng (Project A) không có rổ VN30 -> hiển thị Tất cả.
+  const effectiveBasket: Basket = !gatewayReady && basket === "VN30" ? "ALL" : basket;
+  const basketData = useScannerBasket(items, effectiveBasket, watchlists.active.tickers);
   const filteredItems = useMemo(
-    () => sectorFilter === "all" ? items : items.filter((i) => i.sector === sectorFilter),
-    [items, sectorFilter]
+    () => (industries.size ? basketData.items.filter((i) => industries.has(industryOf(i))) : basketData.items),
+    [basketData.items, industries],
   );
+  // Gom nhóm: các đoạn theo nhóm ngành (thứ tự cố định) hoặc theo ngành (nhiều mã trước).
+  const sections = useMemo(() => {
+    if (groupBy === "none") return null;
+    const key = groupBy === "group" ? groupOf : industryOf;
+    const m = new Map<string, SieuQuetStockItem[]>();
+    for (const it of filteredItems) { const k = key(it); if (!m.has(k)) m.set(k, []); m.get(k)!.push(it); }
+    const rank = (k: string) => (GROUP_ORDER.indexOf(k) === -1 ? 99 : GROUP_ORDER.indexOf(k));
+    return [...m].sort((a, b) => (groupBy === "group" ? rank(a[0]) - rank(b[0]) : b[1].length - a[1].length) || a[0].localeCompare(b[0], "vi"));
+  }, [filteredItems, groupBy]);
+  const basketTitle = effectiveBasket === "VN30" ? "Rổ VN30" : effectiveBasket === "WATCHLIST" ? `★ ${watchlists.active.name}` : "Bộ lọc ngành";
 
   if (isLoading) return <div className="p-6 text-center text-slate-500 text-sm">Đang tải dữ liệu Siêu Quét AI...</div>;
   if (error) return <div className="p-6 text-center text-rose-400 text-sm">Không tải được dữ liệu: {String(error)}</div>;
@@ -246,7 +284,9 @@ export default function SieuQuetAiTab() {
         <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className="rounded-xl p-4 flex-1">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-cyan-400">Bảng Siêu Quét AI ({filteredItems.length} mã)</h2>
+              <h2 className="text-sm font-semibold text-cyan-400">
+                Bảng Siêu Quét AI ({filteredItems.length} mã){effectiveBasket !== "ALL" && <span className="ml-1 text-[11px] text-cyan-200/80 font-normal">· {basketTitle}</span>}
+              </h2>
               {(dataAsOf || generatedAt) && (
                 <div className="text-[9px] text-slate-500">
                   {usedSource === "gateway"
@@ -256,12 +296,15 @@ export default function SieuQuetAiTab() {
                 </div>
               )}
             </div>
-            <select value={sectorFilter} onChange={(e) => setSectorFilter(e.target.value)}
-              className="text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-300">
-              <option value="all">Tất cả ngành</option>
-              {sectors.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <ScannerToolbar basket={effectiveBasket} onBasket={setBasket} watchlistCount={watchlists.active.tickers.length} gatewayReady={gatewayReady}
+              items={basketData.items} industries={industries} onIndustries={setIndustries} groupBy={groupBy} onGroupBy={setGroupBy} />
           </div>
+          {effectiveBasket === "WATCHLIST" && (
+            <WatchlistBar notFound={basketData.notFound} insufficient={basketData.insufficient} loading={basketData.loading} gatewayReady={gatewayReady} />
+          )}
+          {(effectiveBasket !== "ALL" || industries.size > 0) && <BasketSummary items={filteredItems} title={basketTitle} />}
+          {effectiveBasket === "VN30" && basketData.loading && <div className="text-[10px] text-slate-500 mb-2">Đang tải rổ VN30…</div>}
+          {basketData.customError ? <div className="text-[10px] text-rose-400 mb-2">Không chấm điểm được mã ngoài universe: {basketData.customError instanceof Error ? basketData.customError.message : String(basketData.customError)}</div> : null}
           <div ref={scrollRef} className="overflow-x-auto overflow-y-auto max-h-[640px]">
             <table className="w-full text-[10px] font-mono">
               <thead className="text-slate-500 border-b border-white/10 sticky top-0 z-10" style={{ background: "#0f1420" }}>
@@ -278,10 +321,28 @@ export default function SieuQuetAiTab() {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item) => (
-                  <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]}
-                    expanded={expandedTicker === item.ticker} onToggle={toggleRow} observe={observe} />
+                {(sections ?? [["", filteredItems] as [string, SieuQuetStockItem[]]]).map(([name, list]) => (
+                  <Fragment key={name || "all"}>
+                    {sections && (
+                      <tr className="bg-white/[0.03] border-b border-white/10">
+                        <td colSpan={COLUMN_COUNT} className="py-1 px-1 font-sans text-[10px]">
+                          <span className="text-cyan-200 font-semibold">{name}</span>
+                          <span className="text-slate-400"> · {list.length} mã · Smart TB {(list.reduce((a, i) => a + (i.smartScore ?? 0), 0) / list.length).toFixed(1)} · ▲ {list.filter((i) => i.trendTag === "Up-Trend").length} Up-Trend</span>
+                        </td>
+                      </tr>
+                    )}
+                    {list.map((item) => (
+                      <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]}
+                        expanded={expandedTicker === item.ticker} onToggle={toggleRow} observe={observe}
+                        starred={starredSet.has(item.ticker)} onStar={onStar} />
+                    ))}
+                  </Fragment>
                 ))}
+                {filteredItems.length === 0 && !basketData.loading && (
+                  <tr><td colSpan={COLUMN_COUNT} className="py-6 text-center text-slate-500 font-sans text-[10px]">
+                    {effectiveBasket === "WATCHLIST" && watchlists.active.tickers.length === 0 ? "Danh mục trống — thêm mã ở ô phía trên." : "Không có mã nào khớp bộ lọc."}
+                  </td></tr>
+                )}
               </tbody>
             </table>
           </div>

@@ -13,6 +13,7 @@ import {
 import { fetchQuarterlyIncome, fetchQuarterlyBalance } from "./vciFinancials.js";
 import { runScan, topForeignNetBuy } from "./scanEngine.js";
 import { validateIntentStates } from "./ifeValidation.js";
+import { classify } from "./taxonomy.js";
 import { isTradingDay, lastCompletedSessionDate } from "../calendar.js";
 import { addDays, fetchJson, mapLimit, sleep } from "../util.js";
 import { notifyOps } from "../alerts.js";
@@ -22,6 +23,10 @@ export const KV = {
   latest: "scanner:latest",
   universe: "scanner:universe",
   emptyDates: "scanner:empty-dates",
+  // Phân ngành 2 cấp cho mọi mã (kể cả ngoài universe) — dùng cho bộ lọc và danh mục tự chọn.
+  taxonomy: "scanner:taxonomy",
+  // Bối cảnh universe của lần quét gần nhất (phân phối FA/RS, trạng thái VN-Index) để chấm điểm mã ngoài universe.
+  context: "scanner:context",
 };
 
 const projectABase = () => (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "");
@@ -75,7 +80,61 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
     return { date, rows: today.rows.length, requests, adjustedSymbols: adjusted };
   }
 
+  /**
+   * Phân ngành 2 cấp cho mọi mã: nhãn tiếng Việt tuyển chọn (Project A / cổ tức) ưu tiên, rồi TradingView
+   * industry, rồi sector. Lưu KV để bộ lọc và danh mục tự chọn dùng (kể cả mã ngoài universe).
+   */
+  async function saveTaxonomy({ projectA, tradingView, extraSymbols = [] }) {
+    const legacy = mergeSectors({ scanner: projectA.scannerSectors, universe: projectA.universeSectors });
+    const previous = (await store.getKv(KV.taxonomy))?.value ?? {};
+    const previousMap = previous.map ?? {};
+    const symbolsAll = new Set([...tradingView.sectors.keys(), ...tradingView.industries.keys(), ...legacy.keys(), ...extraSymbols, ...Object.keys(previousMap)]);
+    const taxonomy = new Map();
+    for (const symbol of symbolsAll) {
+      const tvIndustry = tradingView.industries.get(symbol) ?? null, tvSector = tradingView.sectors.get(symbol) ?? null;
+      // TradingView lỗi lần này -> giữ phân ngành cũ thay vì rơi về "Khác".
+      if (!tvIndustry && !tvSector && !legacy.get(symbol) && previousMap[symbol]) {
+        taxonomy.set(symbol, { group: previousMap[symbol][0], industry: previousMap[symbol][1] });
+        continue;
+      }
+      taxonomy.set(symbol, classify({ legacy: legacy.get(symbol) ?? null, tvIndustry, tvSector }));
+    }
+    await store.setKv(KV.taxonomy, {
+      updatedAt: new Date(now()).toISOString(),
+      map: Object.fromEntries([...taxonomy].map(([sym, t]) => [sym, [t.group, t.industry]])),
+      names: { ...(previous.names ?? {}), ...Object.fromEntries(tradingView.names) },
+    });
+    return taxonomy;
+  }
+
+  async function fetchSectorSources() {
+    const [pa, tv] = await Promise.allSettled([fetchProjectASectors(projectABase(), fetchImpl), fetchTradingViewSectors(fetchImpl)]);
+    return {
+      pa, tv,
+      projectA: pa.status === "fulfilled" ? pa.value : { scannerSectors: new Map(), universeSectors: new Map(), universeTickers: [] },
+      tradingView: tv.status === "fulfilled" ? tv.value : { sectors: new Map(), names: new Map(), industries: new Map() },
+    };
+  }
+
   const jobs = {
+    /**
+     * Chỉ làm mới phân ngành (không đổi danh sách universe): cập nhật KV phân ngành và gắn ngành /
+     * nhóm ngành cho các mã trong universe hiện tại. Chạy trước scanUniverse để bảng có ngành mới.
+     */
+    async refreshTaxonomy() {
+      const { projectA, tradingView, tv } = await fetchSectorSources();
+      if (tv.status !== "fulfilled") throw new Error(`Không tải được TradingView: ${tv.reason?.message ?? tv.reason}`);
+      const doc = (await store.getKv(KV.universe))?.value;
+      const taxonomy = await saveTaxonomy({ projectA, tradingView, extraSymbols: doc?.tickers?.map((t) => t.ticker) ?? [] });
+      if (doc?.tickers?.length) {
+        doc.tickers = doc.tickers.map((t) => ({ ...t, industry: taxonomy.get(t.ticker)?.industry ?? "Khác", sectorGroup: taxonomy.get(t.ticker)?.group ?? "Khác" }));
+        await store.setKv(KV.universe, doc);
+      }
+      const groups = {};
+      for (const t of doc?.tickers ?? []) groups[t.sectorGroup] = (groups[t.sectorGroup] ?? 0) + 1;
+      return { symbols: taxonomy.size, universe: doc?.tickers?.length ?? 0, groups };
+    },
+
     async syncMarketDaily() {
       const date = lastCompletedSessionDate(new Date(now()));
       return syncDay(date);
@@ -107,14 +166,13 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const rows = await store.getMarketDailyRange({ from: dates[0], to: dates.at(-1) });
       const ranked = rankByLiquidity(rows, dates.length);
 
-      const [pa, tv] = await Promise.allSettled([fetchProjectASectors(projectABase(), fetchImpl), fetchTradingViewSectors(fetchImpl)]);
-      const projectA = pa.status === "fulfilled" ? pa.value : { scannerSectors: new Map(), universeSectors: new Map(), universeTickers: [] };
-      const tradingView = tv.status === "fulfilled" ? tv.value : { sectors: new Map(), names: new Map() };
+      const { pa, tv, projectA, tradingView } = await fetchSectorSources();
       const previous = (await store.getKv(KV.universe))?.value;
       const pinned = [...new Set([...DIVIDEND_STOCKS.map(([t]) => t), ...projectA.universeTickers, ...(projectA.universeTickers.length ? [] : previous?.pinned ?? [])])];
       const sectors = mergeSectors({ tradingView: tradingView.sectors, scanner: projectA.scannerSectors, universe: projectA.universeSectors });
 
-      const tickers = buildUniverse({ ranked, pinned, sectors, names: tradingView.names, size, minValue });
+      const taxonomy = await saveTaxonomy({ projectA, tradingView, extraSymbols: ranked.map((r) => r.symbol) });
+      const tickers = buildUniverse({ ranked, pinned, sectors, names: tradingView.names, taxonomy, size, minValue });
       const value = {
         builtAt: new Date(now()).toISOString(),
         criteria: { size, minAvgValue: minValue, sessions, from: dates[0], to: dates.at(-1) },
@@ -215,6 +273,8 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         },
       };
       await store.setKv(KV.latest, doc);
+      // Bối cảnh để chấm điểm mã ngoài universe (danh mục tự chọn) bằng cùng phân phối, cùng phiên.
+      await store.setKv(KV.context, { generatedAt: doc.generatedAt, dataAsOf: doc.dataAsOf, ...result.context });
       if (result.skipped.length > universe.length * 0.2) {
         void notifyOps("scanner:skipped", `Siêu Quét bỏ qua ${result.skipped.length}/${universe.length} mã vì thiếu dữ liệu.`);
       }

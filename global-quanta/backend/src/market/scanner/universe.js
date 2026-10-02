@@ -41,7 +41,7 @@ export function rankByLiquidity(rows, sessionCount) {
 /**
  * @param {{ ranked: {symbol,exchange,avgValue}[], pinned: string[], sectors: Map<string,string>, names?: Map<string,string>, size: number, minValue: number }} p
  */
-export function buildUniverse({ ranked, pinned, sectors, names = new Map(), size, minValue }) {
+export function buildUniverse({ ranked, pinned, sectors, names = new Map(), taxonomy = new Map(), size, minValue }) {
   const chosen = new Map();
   for (const r of ranked) {
     if (chosen.size >= size) break;
@@ -60,6 +60,8 @@ export function buildUniverse({ ranked, pinned, sectors, names = new Map(), size
     pinned: u.pinned,
     sector: sectors.get(u.symbol) ?? "Khac",
     name: names.get(u.symbol) ?? null,
+    industry: taxonomy.get(u.symbol)?.industry ?? "Khác",
+    sectorGroup: taxonomy.get(u.symbol)?.group ?? "Khác",
   }));
 }
 
@@ -70,20 +72,22 @@ export async function fetchTradingViewSectors(fetchImpl = globalThis.fetch) {
   const res = await fetchImpl("https://scanner.tradingview.com/vietnam/scan", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ columns: ["name", "sector", "description"], range: [0, 3000] }),
+    body: JSON.stringify({ columns: ["name", "sector", "description", "industry"], range: [0, 3000] }),
     signal: AbortSignal.timeout(20_000),
   });
   if (!res.ok) throw new Error(`TradingView HTTP ${res.status}`);
   const json = await res.json();
   const sectors = new Map();
   const names = new Map();
+  const industries = new Map();
   for (const row of json?.data ?? []) {
     const symbol = String(row.s ?? "").split(":").pop();
     if (!symbol) continue;
     if (row.d?.[1]) sectors.set(symbol, String(row.d[1]));
     if (row.d?.[2]) names.set(symbol, String(row.d[2]));
+    if (row.d?.[3]) industries.set(symbol, String(row.d[3]));
   }
-  return { sectors, names };
+  return { sectors, names, industries };
 }
 
 /** Ngành/universe từ Project A: ngành đang hiển thị ở Siêu Quét + universe gốc (mã ghim). */
