@@ -36,9 +36,11 @@ interface RowProps {
   onToggle: (ticker: string) => void;
   onStar: (ticker: string) => void;
   observe: (el: HTMLTableRowElement | null, ticker: string) => void;
+  selected: boolean;
+  onSelect: (ticker: string) => void;
 }
 
-const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onToggle, onStar, observe }: RowProps) {
+const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onToggle, onStar, observe, selected, onSelect }: RowProps) {
   const matchColor = priceColor(q?.price, q);
   const bid = q?.bid ?? [], ask = q?.ask ?? [];
   const cell = "px-1 text-right tabular-nums";
@@ -51,10 +53,12 @@ const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onT
   );
   return (
     <tr ref={(el) => observe(el, item.ticker)} data-ticker={item.ticker} tabIndex={0} aria-expanded={expanded}
-      title="Nhấn đúp (hoặc Enter) để xem phân tích khối lượng"
+      title="Bấm để chọn mã (Action Center, Radar…) · nhấn đúp (hoặc Enter) để xem phân tích khối lượng"
+      aria-selected={selected}
+      onClick={() => onSelect(item.ticker)}
       onDoubleClick={() => onToggle(item.ticker)}
       onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onToggle(item.ticker); } }}
-      className={`border-b border-white/5 hover:bg-white/5 cursor-pointer select-none ${expanded ? "bg-cyan-950/30" : ""}`}>
+      className={`border-b border-white/5 hover:bg-white/5 cursor-pointer select-none ${expanded ? "bg-cyan-950/30" : ""} ${selected ? "shadow-[inset_3px_0_0_#f59e0b]" : ""}`}>
       <td className="pl-1 pr-2 py-1 font-semibold whitespace-nowrap sticky left-0 z-[1]" style={{ background: "#0d111a", color: matchColor }}>
         <button type="button" aria-pressed={starred} aria-label={starred ? `Bỏ ${item.ticker} khỏi danh mục` : `Thêm ${item.ticker} vào danh mục`}
           onClick={(e) => { e.stopPropagation(); onStar(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()}
@@ -90,9 +94,13 @@ export interface PricingBoardProps {
   observe: (el: HTMLTableRowElement | null, ticker: string) => void;
   renderDetail: (ticker: string, colSpan: number) => ReactNode;
   emptyText: string;
+  selectedTicker?: string | null;
+  onSelect?: (ticker: string) => void;
 }
 
-export default function PricingBoard({ sections, grouped, quotes, flash, now, expandedTicker, starred, onToggle, onStar, observe, renderDetail, emptyText }: PricingBoardProps) {
+const noop = () => {};
+
+export default function PricingBoard({ sections, grouped, quotes, flash, now, expandedTicker, starred, onToggle, onStar, observe, renderDetail, emptyText, selectedTicker = null, onSelect = noop }: PricingBoardProps) {
   const th = "px-1 font-normal text-right";
   const total = sections.reduce((n, [, l]) => n + l.length, 0);
   return (
@@ -134,7 +142,8 @@ export default function PricingBoard({ sections, grouped, quotes, flash, now, ex
                 <Fragment key={item.ticker}>
                   <BoardRow item={item} q={quotes[item.ticker]} flash={f && now - f.at < 1200 ? f.dir : null}
                     expanded={expandedTicker === item.ticker} starred={starred.has(item.ticker)}
-                    onToggle={onToggle} onStar={onStar} observe={observe} />
+                    onToggle={onToggle} onStar={onStar} observe={observe}
+                    selected={selectedTicker === item.ticker} onSelect={onSelect} />
                   {expandedTicker === item.ticker && renderDetail(item.ticker, BOARD_COLUMNS)}
                 </Fragment>
               );

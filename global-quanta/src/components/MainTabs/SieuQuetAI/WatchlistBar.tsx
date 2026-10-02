@@ -31,6 +31,7 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
   const [text, setText] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
+  const pinned = new Set(wl.active.pinned ?? []);
 
   const submit = () => {
     const { valid, invalid } = parseTickerInput(text);
@@ -70,11 +71,20 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
       </div>
       {wl.active.tickers.length > 0 ? (
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {wl.active.tickers.map((t) => {
+          {[...wl.active.tickers].sort((a, b) => Number(pinned.has(b)) - Number(pinned.has(a))).map((t) => {
             const bad = notFound.includes(t) ? "không tìm thấy" : insufficient.includes(t) ? "chưa đủ 50 phiên dữ liệu" : null;
+            const note = wl.active.notes?.[t] ?? null;
+            const isPinned = pinned.has(t);
             return (
-              <span key={t} className={`inline-flex items-center gap-1 text-[9.5px] px-1.5 py-0.5 rounded border ${bad ? "border-rose-700/60 text-rose-300" : "border-white/10 text-slate-300"}`} title={bad ?? undefined}>
+              <span key={t} className={`inline-flex items-center gap-1 text-[9.5px] px-1.5 py-0.5 rounded border ${bad ? "border-rose-700/60 text-rose-300" : isPinned ? "border-amber-500/40 text-slate-200" : "border-white/10 text-slate-300"}`}
+                title={[bad, note ? `Ghi chú: ${note}` : null].filter(Boolean).join(" · ") || undefined}>
+                <button type="button" aria-pressed={isPinned} aria-label={isPinned ? `Bỏ ghim ${t}` : `Ghim ${t} lên đầu`} onClick={() => wl.togglePin(t)}
+                  className={isPinned ? "text-amber-400" : "text-slate-600 hover:text-amber-300"}>📌</button>
                 {t}{bad ? " ⚠" : ""}
+                {note && <span className="text-slate-500 max-w-[90px] truncate">· {note}</span>}
+                <button type="button" aria-label={`Ghi chú cho ${t}`} title="Ghi chú / lý do theo dõi"
+                  onClick={() => { const v = window.prompt(`Ghi chú / lý do theo dõi mã ${t}:`, note ?? ""); if (v !== null) wl.setNote(t, v); }}
+                  className="text-slate-500 hover:text-cyan-300">✎</button>
                 <button type="button" aria-label={`Bỏ ${t} khỏi danh mục`} onClick={() => wl.removeTicker(t)} className="text-slate-500 hover:text-rose-300">×</button>
               </span>
             );

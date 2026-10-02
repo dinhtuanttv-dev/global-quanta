@@ -10,6 +10,7 @@ import * as api from '../../services/api';
 import type { RadarDigest, ConcentrationRisk, RadarRingNode as RadarRingNodeType } from '../../types';
 import { useTAConsensus } from '../../hooks/useTAConsensus';
 import { mergeRadarWithConsensus } from '../../utils/radarBooster';
+import { allWatchlistTickers, isLegacyMigrated, useWatchlists } from '../../hooks/useWatchlists';
 
 const CORE_ANGLES = [270, 30, 150, 90, 210];
 const RING_ANGLES = [220, 255, 300, 340, 15, 60, 95, 130, 185, 20, 75];
@@ -26,9 +27,22 @@ export default function EliteCommandRadar() {
     api.fetchConcentrationRisk().then(setRisk);
   }, [loadRadar]);
 
+  // Mã đủ điều kiện lên Radar: các ★ Danh mục (sau khi đã chuyển danh sách cũ sang); trước đó
+  // gộp thêm danh sách cũ. Giữ quy tắc "xoá khỏi danh mục thì xoá khỏi Radar".
+  const { lists } = useWatchlists();
+  const livePrices = useAppStore((s) => s.livePrices);
+  const eligible = useMemo(() => {
+    const tickers = new Set(allWatchlistTickers(lists));
+    if (!isLegacyMigrated()) for (const w of watchlist) tickers.add(w.ticker);
+    const legacy = new Map(watchlist.map((w) => [w.ticker, w]));
+    return [...tickers].map((ticker) => {
+      const w = legacy.get(ticker), live = livePrices[ticker];
+      return { ticker, sector: w?.sector, price: live?.price ?? w?.price, changePct: live?.changePct ?? w?.changePct };
+    });
+  }, [lists, watchlist, livePrices]);
   const { core: mergedCore, ring: mergedRing } = useMemo(
-    () => mergeRadarWithConsensus(radarCore, radarRing, watchlist, taResults),
-    [radarCore, radarRing, watchlist, taResults]
+    () => mergeRadarWithConsensus(radarCore, radarRing, eligible, taResults),
+    [radarCore, radarRing, eligible, taResults]
   );
 
   const selectedCore = mergedCore.find((n) => n.ticker === selectedTicker);

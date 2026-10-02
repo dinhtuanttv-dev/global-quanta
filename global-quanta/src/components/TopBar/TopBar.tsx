@@ -5,7 +5,8 @@ import MacroTickerItem from './MacroTickerItem';
 import MarketBreadth from './MarketBreadth';
 import LiquidityCheckBadge from './LiquidityCheckBadge';
 import SessionClock from './SessionClock';
-import { SearchBar, NotificationBell, UserAvatar } from './TopRightControls';
+import { NotificationBell, UserAvatar } from './TopRightControls';
+import { TickerSearch, FeedStatusBadge } from './TickerSearch';
 import { useVnIndexReal } from '../../hooks/useVnIndexReal';
 import { useMacroDailyChange } from '../../hooks/useMacroDailyChange';
 import { useMarketBreadthReal } from '../../hooks/useMarketBreadthReal';
@@ -73,7 +74,8 @@ export default function TopBar() {
         <LiquidityCheckBadge />
         <SessionClock sessions={sessions} />
         <div className="top-right">
-          <SearchBar />
+          <FeedStatusBadge />
+          <TickerSearch />
           <NotificationBell />
           <UserAvatar />
         </div>

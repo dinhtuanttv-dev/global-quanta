@@ -1,7 +1,8 @@
 ﻿import { useAppStore } from './store/useAppStore';
 import AuthGate from './components/AuthGate/AuthGate';
 import TopBar from './components/TopBar/TopBar';
-import Sidebar from './components/Sidebar/Sidebar';
+import MarketFeed from './components/MarketFeed';
+import PanelResizer from './components/PanelResizer';
 import MainTabs from './components/MainTabs/MainTabs';
 import InsightPanel from './components/InsightPanel/InsightPanel';
 import UndoToast from './components/shared/UndoToast';
@@ -13,9 +14,10 @@ export default function App() {
     <AuthGate>
       <div className="app">
         <TopBar />
-        <Sidebar />
         <MainTabs />
+        <PanelResizer />
         <InsightPanel />
+        <MarketFeed />
       </div>
       {toast && <UndoToast message={toast.message} onUndo={toast.onUndo} onClose={clearToast} />}
     </AuthGate>

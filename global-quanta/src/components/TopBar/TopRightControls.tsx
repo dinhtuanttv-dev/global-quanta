@@ -1,14 +1,5 @@
 import { useAppStore } from '../../store/useAppStore';
 
-export function SearchBar() {
-  return (
-    <div className="search-box">
-      Tìm mã, lệnh AI...
-      <kbd>/</kbd>
-    </div>
-  );
-}
-
 export function NotificationBell({ hasUnread = true }: { hasUnread?: boolean }) {
   return (
     <div className="icon-btn">

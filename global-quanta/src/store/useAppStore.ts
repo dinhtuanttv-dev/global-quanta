@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { WatchlistStock, RadarCoreNode, RadarRingNode } from '../types';
+import type { StreamStatus } from '../services/marketDataClient';
 import * as api from '../services/api';
 
 interface ToastState {
@@ -32,9 +33,21 @@ interface AppState {
   searchText: string;
   setSearchText: (t: string) => void;
 
-  // ===== SELECTION (liên kết chéo Sidebar ↔ Radar ↔ Action Center) =====
+  // ===== SELECTION (liên kết chéo Bảng Siêu Quét / Bảng giá ↔ Radar ↔ Action Center) =====
   selectedTicker: string | null;
   selectTicker: (ticker: string) => void;
+
+  // ===== TÌM MÃ (thanh trên) -> mở mã trong Bảng Siêu Quét =====
+  /** Yêu cầu Bảng Siêu Quét cuộn tới + mở chi tiết một mã; `nonce` để tìm lại cùng mã vẫn kích hoạt. */
+  scannerFocus: { ticker: string; nonce: number } | null;
+  focusTickerInScanner: (ticker: string) => void;
+
+  // ===== TRẠNG THÁI NGUỒN GIÁ (MarketFeed -> đèn trên thanh trên) =====
+  feed: { gatewayStatus: StreamStatus | null; connectionLost: boolean; legacySsiConnected: boolean };
+  /** Giá realtime gọn theo mã (MarketFeed) cho các mã danh mục / Radar không nằm trong danh sách cũ. */
+  livePrices: Record<string, { price: number; changePct: number | null }>;
+  setLivePrices: (prices: Record<string, { price: number; changePct: number | null }>) => void;
+  setFeed: (patch: Partial<AppState['feed']>) => void;
 
   // ===== SECTOR FILTER (tab Loc nganh) =====
   selectedSectorKey: string | null;
@@ -142,6 +155,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ selectedTicker: ticker });
     get().markRead(ticker);
   },
+
+  scannerFocus: null,
+  focusTickerInScanner: (ticker) => {
+    const t = ticker.trim().toUpperCase();
+    if (!t) return;
+    set((s) => ({ scannerFocus: { ticker: t, nonce: (s.scannerFocus?.nonce ?? 0) + 1 }, selectedTicker: t }));
+  },
+
+  feed: { gatewayStatus: null, connectionLost: false, legacySsiConnected: false },
+  setFeed: (patch) => set((s) => ({ feed: { ...s.feed, ...patch } })),
+  livePrices: {},
+  setLivePrices: (prices) => set((s) => ({ livePrices: { ...s.livePrices, ...prices } })),
 
   selectedSectorKey: null,
   setSelectedSectorKey: (key) => set({ selectedSectorKey: key }),

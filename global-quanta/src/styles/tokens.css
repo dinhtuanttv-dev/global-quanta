@@ -19,7 +19,8 @@
   --font-body:'Inter',sans-serif;
   --font-mono:'IBM Plex Mono',monospace;
 }
-*{box-sizing:border-box;margin:0;padding:0;}
+/* Xem ghi chú ở App.css: vùng .tw-scope (tab Siêu Quét) không bị reset này ghi đè lớp Tailwind. */
+*:not(:where(.tw-scope, .tw-scope *)){box-sizing:border-box;margin:0;padding:0;}
 body{
   background:var(--bg-base);
   color:var(--text-primary);
