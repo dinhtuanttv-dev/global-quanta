@@ -1,5 +1,6 @@
 import useSWR from "swr";
-import { fetchMarketJson, isMarketGatewayEnabled } from "../services/marketDataClient";
+import { fetchMarketJson } from "../services/marketDataClient";
+import { useResearchUi } from "./useResearchUi";
 
 export type Regime = "UPTREND" | "DOWNTREND" | "SIDEWAY";
 
@@ -65,19 +66,12 @@ export const REGIME_LABEL: Record<string, string> = {
   UPTREND: "Uptrend", DOWNTREND: "Downtrend", SIDEWAY: "Sideway", ALL: "Mọi trạng thái", UNKNOWN: "Chưa rõ",
 };
 
-/**
- * Giao diện tầng nghiên cứu (panel "AI học & thích ứng", khối Action Center) chỉ bật khi
- * VITE_RESEARCH_UI=true. Mặc định tắt: giao diện production giữ nguyên, không gọi API nghiên cứu.
- */
-export function isResearchUiEnabled(): boolean {
-  return isMarketGatewayEnabled() && String(import.meta.env.VITE_RESEARCH_UI ?? "").toLowerCase() === "true";
-}
-
 const swrOpts = { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000 };
 
 /** Kết quả tự học: hiệu suất tín hiệu T+3/5/10 theo trạng thái thị trường + mô hình trọng số đang chạy. */
+// Chỉ gọi API khi công tắc "AI nghiên cứu" đang bật (mặc định tắt -> không có request nào).
 export function useResearchOverview() {
-  const enabled = isResearchUiEnabled();
+  const [enabled] = useResearchUi();
   const { data, error, isLoading } = useSWR<ResearchOverview>(
     enabled ? "research-overview" : null,
     () => fetchMarketJson<ResearchOverview>("/api/market/research/overview"),
@@ -88,7 +82,7 @@ export function useResearchOverview() {
 
 /** Điểm thích ứng + tín hiệu đang bật + lịch sử chấm điểm của một mã. */
 export function useResearchSymbol(symbol: string | null) {
-  const enabled = isResearchUiEnabled();
+  const [enabled] = useResearchUi();
   const { data, error, isLoading } = useSWR<ResearchSymbol>(
     enabled && symbol ? ["research-symbol", symbol] : null,
     () => fetchMarketJson<ResearchSymbol>(`/api/market/research/${encodeURIComponent(symbol!)}`),

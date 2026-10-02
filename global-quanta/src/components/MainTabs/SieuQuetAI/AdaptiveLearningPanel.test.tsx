@@ -4,6 +4,8 @@ import { SWRConfig } from "swr";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import AdaptiveLearningPanel from "./AdaptiveLearningPanel";
 import AdaptiveScoreCard from "./AdaptiveScoreCard";
+import ResearchUiToggle from "./ResearchUiToggle";
+import { resetResearchUiForTest } from "../../../hooks/useResearchUi";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -48,7 +50,7 @@ const symbolDetail = {
 
 async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
   vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
-  vi.stubEnv("VITE_RESEARCH_UI", researchUi ? "true" : "");
+  window.localStorage.setItem("gq.researchUi", researchUi ? "1" : "0");
   const fetchMock = vi.fn(async () => ({ ok: true, json: async () => body }));
   vi.stubGlobal("fetch", fetchMock);
   const el = document.createElement("div");
@@ -62,9 +64,9 @@ async function mount(node: React.ReactNode, body: unknown, researchUi = true) {
 }
 
 describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
-  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetResearchUiForTest(); document.body.innerHTML = ""; });
 
-  it("cờ VITE_RESEARCH_UI tắt (mặc định): không hiển thị gì và không gọi API nghiên cứu", async () => {
+  it("công tắc tắt: không hiển thị gì và không gọi API nghiên cứu", async () => {
     const panel = await mount(<AdaptiveLearningPanel />, overview(true), false);
     expect(panel.textContent).toBe("");
     const card = await mount(<AdaptiveScoreCard symbol="PVT" />, symbolDetail, false);
@@ -101,5 +103,47 @@ describe("AdaptiveLearningPanel / AdaptiveScoreCard", () => {
     expect(text).toContain("+0.38");
     expect(text).toContain("lịch sử T+5 trúng 58% (n=400)");
     expect(text).toContain("POC 27.350");
+  });
+
+  it("công tắc trên UI: mặc định tắt; bật -> hiện panel và khối mã (cả hai cây React đồng bộ); tắt -> về nguyên bản; nhớ lựa chọn", async () => {
+    vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
+    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes("/overview") ? overview(true) : symbolDetail) }));
+    vi.stubGlobal("fetch", fetchMock);
+    const mk = (node: React.ReactNode) => {
+      const el = document.createElement("div");
+      document.body.appendChild(el);
+      return { el, root: createRoot(el), node };
+    };
+    // Hai cây React riêng như Siêu Quét và Action Center trên trang thật.
+    const a = mk(<><ResearchUiToggle /><AdaptiveLearningPanel /></>);
+    const b = mk(<AdaptiveScoreCard symbol="PVT" />);
+    await act(async () => {
+      for (const t of [a, b]) t.root.render(<SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{t.node}</SWRConfig>);
+    });
+    const sw = a.el.querySelector('[role="switch"]') as HTMLButtonElement;
+    expect(sw.getAttribute("aria-checked")).toBe("false");
+    expect(a.el.textContent).not.toContain("AI học & thích ứng");
+    expect(b.el.textContent).toBe("");
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await act(async () => { sw.click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    expect(a.el.textContent).toContain("AI học & thích ứng");
+    expect(b.el.textContent).toContain("▲ 61%");
+    expect(window.localStorage.getItem("gq.researchUi")).toBe("1");
+
+    await act(async () => { sw.click(); });
+    expect(a.el.textContent).not.toContain("AI học & thích ứng");
+    expect(b.el.textContent).toBe("");
+    expect(window.localStorage.getItem("gq.researchUi")).toBe("0");
+  });
+
+  it("không có Market Gateway: không hiện công tắc", async () => {
+    vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "false");
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    await act(async () => { createRoot(el).render(<ResearchUiToggle />); });
+    expect(el.innerHTML).toBe("");
   });
 });
