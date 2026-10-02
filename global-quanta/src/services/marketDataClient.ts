@@ -120,6 +120,26 @@ export const getOhlcv = (
   opts: { range?: string; limit?: number; from?: string; to?: string; adjusted?: boolean; resolution?: '1D' | '1m' } = {},
 ) => fetchMarketJson<OhlcvResponse>('/api/market/ohlcv', { ticker, ...opts });
 
+export interface SignalEvidenceRow { horizon: number; n: number; hitRate: number | null; baseline: number | null; zClustered: number | null; verdict: string }
+export interface SignalEvidence { signal: string; label: string; verdict: 'edge' | 'none' | 'negative' | 'insufficient' | (string & {}); all: SignalEvidenceRow | null; regime: SignalEvidenceRow | null }
+export interface RadarSignalItem {
+  asOf: string;
+  stealth20: { z: number | null; on: boolean; direction: number; score: number | null; date: string | null };
+  intent: { state: string; label: string; p: number | null; direction: number; date: string } | null;
+  netIntent: number | null;
+  adaptive: { horizon: number; prob: number }[];
+}
+export interface RadarSignals {
+  asOf: string | null; freshFrom: string | null; regime: string | null; stealthThreshold: number;
+  evidence: { STEALTH_20: SignalEvidence; IFE_INTENT: SignalEvidence };
+  adaptiveModels: { horizon: number; active: boolean; version: string | null }[];
+  items: Record<string, RadarSignalItem | null>;
+  disclaimer: string;
+}
+
+/** Lớp tín hiệu dòng tiền trên Radar (Stealth 20 / IFE / mô hình thích ứng) cho cả danh mục. */
+export const getRadarSignals = (tickers: string[]) => fetchMarketJson<RadarSignals>('/api/market/radar/signals', { tickers: tickers.join(',') });
+
 export const getQuotes = (symbols: string[]) =>
   fetchMarketJson<{ quotes: Record<string, MarketQuote>; missing: string[]; session: string; fallbackReason: string | null }>(
     '/api/market/quotes',

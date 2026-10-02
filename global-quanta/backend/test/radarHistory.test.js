@@ -16,6 +16,9 @@ test("sanitizeItems: giữ mã hợp lệ, bỏ mã sai/trùng/điểm ngoài 0�
   assert.equal(out[1].st, "stable");
   assert.equal(out[1].pass, null);
   assert.equal(out[1].sm, null);
+  assert.equal(out[0].sg, undefined);
+  assert.equal(sanitizeItems([item("PNJ", 3, { sg: 1 })])[0].sg, 1);
+  assert.equal(sanitizeItems([item("PNJ", 3, { sg: 5 })])[0].sg, undefined);
   assert.throws(() => sanitizeItems(Array.from({ length: MAX_ITEMS + 1 }, (_, i) => item(`A${String(i).padStart(3, "0")}`, 1))), /Tối đa/);
   assert.throws(() => sanitizeItems("x"), /mảng/);
   assert.equal(normalizeListKey("  Danh   mục của tôi "), "Danh mục của tôi");

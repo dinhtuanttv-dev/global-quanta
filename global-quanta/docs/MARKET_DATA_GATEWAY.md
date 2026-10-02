@@ -193,3 +193,10 @@ Nút **[Siêu Quét AI | Bảng giá]** ở tiêu đề bảng (nhớ theo trìn
 - **Vệt chuyển động**: điểm hội tụ 5 ảnh chụp trước trên cùng hướng của mã (xanh = mạnh lên, đỏ = yếu đi). **Thanh tua lại** + nút ▶ chạy qua các ngày đã lưu; khi tua, radar/tooltip/giải trình hiện dữ liệu của ngày đó.
 - **Sự kiện radar** (so với ảnh chụp ngày trước): vào/ra Core, ±2 tiêu chí, chuyển ⚠ cảnh báo / ⚡ bứt phá; vào/ra Core và ⚠ gửi thông báo trình duyệt (mỗi ngày × mã × loại một lần).
 - **⏰ Cảnh báo giá** (Action Center): đặt mức tự nhập hoặc nhanh theo dừng lỗ gợi ý / đỉnh 20 phiên / MA20 / ±5%; MarketFeed theo dõi giá realtime (kể cả mã ngoài danh mục), chạm thì toast + thông báo trình duyệt, mỗi cảnh báo báo một lần. Lưu trong trình duyệt (`gq.priceAlerts.v1`).
+
+## Cột phải — giai đoạn 3 (lớp tín hiệu dòng tiền trên Radar)
+- `GET /api/market/radar/signals?tickers=…` (≤ 80 mã, cache 5 phút; `backend/src/market/radar/radarSignals.js`): một lần gọi cho cả ★ danh mục, đọc `market_flow_daily` + `market_signal_ledger` + hiệu suất vòng phản hồi + mô hình đang dùng.
+  - Mỗi mã: Stealth 20 (z, đang bật trong 3 phiên có dữ liệu gần nhất, chiều), ý đồ IFE/HMM (trạng thái, xác suất), xác suất mô hình thích ứng (**chỉ khi mô hình đạt kiểm định**). Mã chưa có dữ liệu dòng tiền -> `null`.
+  - `evidence`: dòng hiệu suất tốt nhất theo z cụm (ALL và theo trạng thái thị trường hiện tại) để UI ghi đúng mức tin cậy.
+- Radar: ◆ cạnh chấm khi Stealth 20 bật (xanh tích luỹ / đỏ phân phối; đặc = đã kiểm định có lợi thế, rỗng = chưa), khối "Tín hiệu dòng tiền" (bằng chứng: tỷ lệ đúng vs nền, z cụm; danh sách mã đang bật; IFE ghi rõ "chỉ tham khảo"; mô hình chưa đạt -> không hiện xác suất), tooltip và phần giải trình có "Lớp tín hiệu dòng tiền". Ảnh chụp lịch sử lưu thêm `sg` -> sự kiện "◆ Stealth 20 vừa bật" (+ thông báo trình duyệt).
+- Tôn trọng công tắc hiển thị AI nghiên cứu (`gq.researchUi.v2`, mặc định bật).

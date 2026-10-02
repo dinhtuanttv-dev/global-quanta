@@ -49,6 +49,7 @@ export function sanitizeItems(items) {
       pass: /^[01-]{6}$/.test(String(raw.pass ?? "")) ? String(raw.pass) : null,
       p: num(raw.p),
       c: num(raw.c),
+      ...([-1, 0, 1].includes(raw.sg) ? { sg: raw.sg } : {}),
     });
   }
   return out;

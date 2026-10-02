@@ -17,6 +17,15 @@ describe("Lịch sử Radar", () => {
     expect(radarEvents(null, cur)).toEqual([]);
   });
 
+  it("sự kiện ◆ Stealth 20 vừa bật — chỉ khi cả hai ảnh chụp có dữ liệu dòng tiền", () => {
+    const ev = radarEvents(
+      [it_("AAA", 2, "stable", { sg: 0 }), it_("BBB", 2), it_("CCC", 2, "stable", { sg: 1 })],
+      [it_("AAA", 2, "stable", { sg: -1 }), it_("BBB", 2, "stable", { sg: 1 }), it_("CCC", 2, "stable", { sg: 1 })],
+    );
+    expect(ev.map((e) => `${e.kind}:${e.ticker}:${e.tone}`)).toEqual(["stealth_on:AAA:down"]);
+    expect(ev[0].text).toBe("AAA bật ◆ Stealth 20: phân phối âm thầm");
+  });
+
   it("ảnh chụp trước, vệt 5 ngày (cũ → mới), dấu vân tay bỏ qua giá", () => {
     const hist = ["2026-09-24", "2026-09-25", "2026-09-26", "2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]
       .map((date, i) => ({ date, items: [it_("AAA", i % 7)] }));
