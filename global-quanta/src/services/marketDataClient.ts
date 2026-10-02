@@ -44,6 +44,11 @@ export interface MarketQuote {
   ask: { price: number; volume: number }[];
   time: string | null;
   provenance: Provenance;
+  avgPrice?: number | null;
+  /** Phiên khớp lệnh hiện tại theo SSI (ATO / LO / ATC / …). */
+  session?: string | null;
+  foreignBuyVolume?: number | null;
+  foreignSellVolume?: number | null;
 }
 
 export interface IndexSnapshot {
