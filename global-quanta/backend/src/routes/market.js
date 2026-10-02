@@ -8,6 +8,8 @@ import { KV } from "../market/scanner/scannerJobs.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
+import { loadTickFlows } from "../market/scanner/tickFlowService.js";
+import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 
 const router = Router();
 
@@ -33,7 +35,7 @@ const service = () => getMarketRuntime().service;
 router.get("/status", handle(async (req, res) => {
   const rt = getMarketRuntime();
   res.set("Cache-Control", "no-store");
-  res.json({ ...(await rt.service.status()), ingestor: { enabled: rt.started, jobs: rt.scheduler.status() } });
+  res.json({ ...(await rt.service.status()), ingestor: { enabled: rt.started, jobs: rt.scheduler.status() }, tickRecorder: rt.tickRecorder.status() });
 }));
 
 router.get("/quotes", handle(async (req, res) => {
@@ -119,13 +121,33 @@ router.get("/scanner/:symbol/intent", handle(async (req, res) => {
   const symbol = req.params.symbol.toUpperCase();
   const data = await rt.service.cache.wrap(`ife:${symbol}`, 30_000, async () => {
     const s = await getIntradaySessions(rt.service, symbol);
-    const tickFlow = rt.hub?.getTickFlow(symbol) ?? null;
-    const footprint = buildIntentFootprint({ history: s.trainSessions, today: s.todaySession, tickFlow });
+    const usable = s.trainSessions.filter((x) => x.bars?.length);
+    const ticks = await loadTickFlows({
+      store: rt.store, hub: rt.hub, symbol,
+      from: usable[0]?.date ?? s.viewDate, to: s.viewDate, today: s.viewDate,
+    });
+    const footprint = buildIntentFootprint({ history: s.trainSessions, today: s.todaySession, tickFlow: ticks.today, tickHistory: ticks.history });
     const validation = (await rt.store.getKv(KV.ifeValidation))?.value ?? null;
     return { symbol, live: s.sessionLive, viewDate: s.viewDate, ...footprint, validation,
       disclaimer: "IFE là suy luận xác suất từ dấu vết giao dịch (không có danh tính tài khoản); không phải khuyến nghị đầu tư." };
   });
   res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+// Tầng nghiên cứu: hiệu suất tín hiệu (vòng phản hồi T+3/5/10) + mô hình trọng số thích ứng.
+router.get("/research/overview", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap("research:overview", 60_000, () => getResearchOverview(rt.store));
+  res.set("Cache-Control", "private, max-age=60");
+  res.json(data);
+}));
+
+router.get("/research/:symbol", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = req.params.symbol.toUpperCase();
+  const data = await rt.service.cache.wrap(`research:${symbol}`, 60_000, () => getResearchSymbol(rt.store, symbol));
+  res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));
 

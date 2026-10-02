@@ -5,6 +5,9 @@ import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
+import AdaptiveLearningPanel from "./AdaptiveLearningPanel";
+import ResearchUiToggle from "./ResearchUiToggle";
+import { useResearchUi } from "../../../hooks/useResearchUi";
 
 const COLUMN_COUNT = 9;
 
@@ -199,6 +202,7 @@ export default function SieuQuetAiTab() {
   }, []);
   const streamTickers = typeof IntersectionObserver === "undefined" ? items.map((i) => i.ticker) : visibleTickers;
   const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(streamTickers);
+  const [researchUiOn] = useResearchUi();
   const [sectorFilter, setSectorFilter] = useState<string>("all");
 
   const sectors = useMemo(() => Array.from(new Set(items.map((i) => i.sector).filter(Boolean))) as string[], [items]);
@@ -219,9 +223,13 @@ export default function SieuQuetAiTab() {
           <IndexTechnicalCard state={indexState} />
         </div>
         <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className="rounded-xl p-4">
-          <h2 className="text-sm font-semibold text-blue-400 mb-3">Market Impulse Gauge</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-blue-400">Market Impulse Gauge</h2>
+            <ResearchUiToggle />
+          </div>
           {indexState && <ImpulseGauge score={indexState.impulseScore} />}
         </div>
+        {researchUiOn && <AdaptiveLearningPanel />}
         <EventPanel />
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3">
           <p className="text-[9px] text-sky-300">

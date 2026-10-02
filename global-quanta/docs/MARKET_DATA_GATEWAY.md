@@ -101,7 +101,11 @@ Engine quét chạy trên Gateway (thay cron `sieu-quet-scan` của Project A), 
 5. **HMM diễn giải được:** 5 trạng thái (gom chủ động / gom thụ động / xả chủ động / xả thụ động / trung tính) với nguyên mẫu CỐ ĐỊNH, lọc tiến; tách **cả phiên** (HMM theo phiên, z trượt) và **khung gần nhất** (HMM theo khung) — không trình bày lẫn.
 6. **Kiểm chứng toàn universe:** BVC ngày, trạng thái lọc tiến, ba rào chắn 5 phiên ±1,5 ATR, kiểm định hai tỷ lệ + Benjamini–Hochberg (q = 0,1), cùng chiều hai nửa thời gian, n ≥ 100. Test chứng minh: công nhận khi có quan hệ thật, không công nhận trên dữ liệu ngẫu nhiên.
 
-Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận xác suất. Tick chỉ giữ trong bộ nhớ của phiên hiện tại cho tới khi bật Supabase.
+Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận xác suất.
+
+**Lưu tick bền vững** (`scanner/tickFlowService.js`, migration `20261002010000_market_tick_flow.sql`): StreamHub đánh dấu các phút đã đổi; mỗi phút recorder upsert bản cộng dồn của phút vào `market_tick_flow` (khoá `symbol, trading_date, minute` — ghi lại idempotent; ghi lỗi thì đánh dấu lại để lần sau ghi tiếp; SIGTERM ghi nốt trước khi thoát). IFE đọc lịch sử này: **từng phiên** dùng Lee–Ready nếu tick phủ ≥ 60% KL liên tục của phiên, còn lại BVC (`historyMethod` trong response cho biết số phiên mỗi loại); phiên hôm nay ghép phần đã lưu với bộ nhớ (không mất phần trước khi Gateway khởi động lại). Mặc định chỉ ghi các mã đang có người xem; đặt `MARKET_TICK_RECORDER_SYMBOLS=N` để tự ghi nền N mã thanh khoản cao nhất trong giờ giao dịch (mỗi 50 mã = 1 kết nối SSI). Trạng thái: `GET /api/market/status` → `tickRecorder`.
+
+**Quyền truy cập** (`20261002020000_market_grants.sql`): project tắt tự cấp quyền cho bảng mới, nên cấp tường minh cho `service_role` (khoá bí mật của Gateway) và thu hồi mọi quyền của `anon`/`authenticated` — trình duyệt không đọc/ghi được bảng `market_*` (đã kiểm tra: anon 401, backend 200).
 
 **Giai đoạn 0 (sửa lỗi trên production):** "đột biến lớn nhất" bỏ ATO/ATC; "So cùng thời điểm" dùng trung vị 20 phiên (thống nhất với Nhịp, UI lấy cùng một nguồn); phân bổ KL theo giá 20 phiên từ bộ đệm nến phút dùng chung; dòng phụ cuộn vào tầm nhìn một lần khi mở.
 
@@ -125,3 +129,24 @@ Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận x
 
 - Backend: `cd backend && npm test` (node:test, gồm sharding, freshness, fallback, hysteresis, tự lành, và các điểm lạ của SSI).
 - Frontend: `npm test` (vitest, client và nhãn trạng thái nguồn).
+
+## Tầng nghiên cứu: lịch sử dài hạn + AI tự học (vòng phản hồi)
+
+Mã nguồn `backend/src/market/research/` (Node, cùng tiến trình Gateway — không thêm runtime thứ hai trên Railway), migration `20261003000000_market_research.sql`.
+
+**Lưu trữ dài hạn** (giữ vĩnh viễn, 1 dòng/mã/phiên — cỡ ~10–20 MB/năm cho 300 mã):
+- `market_flow_daily`: dòng tiền IFE cô đặc mỗi phiên (BVC hoặc Lee–Ready nếu tick phủ ≥ 60%), `features` = 11 đặc trưng chuẩn hoá tại cuối phiên (không nhìn tương lai) + nhãn regime.
+- `market_volume_profile_daily`: POC / vùng giá trị 70% / VWAP + 24 bin nén `{lo, hi, v[]}`; Volume Profile N phiên dựng lại bằng `rollingProfile`.
+- `market_regime_daily`: VN-Index, MA20/50/200, độ rộng, Market Impulse dựng lại theo từng ngày, nhãn **UPTREND / DOWNTREND / SIDEWAY** (giá vs MA50, MA20 vs MA50, độ dốc MA50 10 phiên).
+- `market_tick_flow_daily`: tick theo phiên; tick theo phút chỉ giữ `RESEARCH_TICK_KEEP_DAYS` (mặc định 60) ngày rồi dọn (`market_prune_tick_flow`, chỉ xoá phiên đã cô đặc).
+- **Dataset backtest** `market_research_dataset_mv`: giá + dòng tiền + profile + regime + lợi suất tương lai T+3/5/10 của mã và VN-Index (chỉ dùng làm nhãn). `market_signal_performance_mv`: hiệu suất tín hiệu × regime × kỳ hạn. Làm mới bằng `market_refresh_research()` sau mỗi lần chấm điểm.
+
+**Vòng phản hồi** (`feedback.js`): quy tắc phát tín hiệu công khai — Stealth 5/20 (|z| ≥ 1,5), Bản đồ ý đồ HMM (trạng thái gom/xả với p ≥ 0,5), Market Impulse (≥ 60 / ≤ 40), Điểm thích ứng (P ≥ 55% / ≤ 45%). Mỗi tín hiệu được chấm sau T+3/T+5/T+10: lợi suất, vượt VN-Index, ba rào chắn ±1,5 ATR, MFE/MAE, trúng/trượt; tổng hợp tỷ lệ trúng với KTC Wilson 95% so với **mốc không kỹ năng cùng chiều, cùng ngày** (mua: tỷ lệ mã vượt VN-Index ngày đó; bán: tỷ lệ mã thua — vì đa số mã thua chỉ số vốn hoá nên chiều bán có nền cao hơn), kiểm định z; lợi suất vượt trừ trung bình cắt ngang cùng ngày trước khi nhân chiều. IMPULSE so với tỷ lệ tăng của VN-Index. Theo từng regime.
+
+**Tinh chỉnh trọng số** (`tuner.js`): nhãn CẮT NGANG — mã mạnh hơn trung vị universe cùng ngày sau h phiên (tỷ lệ nền ≈ 50% mọi ngày, đo khả năng chọn mã, không lệch theo xu hướng chung); hồi quy logistic L2 **co về trọng số heuristic** (ít dữ liệu ⇒ gần heuristic); trọng số riêng theo regime co về trọng số chung. Walk-forward theo ngày với purge/embargo = h phiên; λ chọn trên các fold đầu, đánh giá trên fold cuối chưa dùng (holdout). **Champion/challenger**: chỉ thăng hạng khi holdout có Brier skill > 0 và AUC > 0,5 (≥ 1.000 mẫu) và không kém mô hình đang chạy; mọi phiên bản (active/rejected/retired) lưu ở `market_model_weights`. Điểm thích ứng chỉ được ghi vào sổ cái cho ngày SAU dữ liệu huấn luyện (không tự chấm trong mẫu).
+
+**Lịch**: `researchFlow` 16:00 → `researchSignals` 16:20 → `researchEvaluate` 16:40 (ngày giao dịch), `researchBackfill` 20:30 hằng ngày, `researchTrain` Thứ Bảy 10:30. Nạp lịch sử `RESEARCH_FLOW_SESSIONS` (mặc định 250) phiên nến phút tốn ~100 s/mã từ SSI, nên chia lô theo thứ tự thanh khoản: `researchFlow` tối đa `RESEARCH_FLOW_MAX_BACKFILL` (20) mã mới/lần, `researchBackfill` tối đa `RESEARCH_BACKFILL_MAX` (90) mã/đêm; mã đã có chỉ nạp phiên mới (1 request). Tiến độ lưu theo từng mã.
+
+**API/UI**: `GET /api/market/research/overview`, `GET /api/market/research/:symbol`. Giao diện bật/tắt bằng **công tắc "AI nghiên cứu"** ở góc tiêu đề Market Impulse Gauge (chỉ có khi Market Gateway bật). Mặc định TẮT: giao diện nguyên bản, không gọi API nghiên cứu; bật thì hiện panel "AI học & thích ứng" dưới Market Impulse Gauge và khối điểm thích ứng cuối Action Center. Lựa chọn nhớ theo trình duyệt (localStorage, đồng bộ giữa các tab); `VITE_RESEARCH_UI=true` chỉ đổi trạng thái mặc định thành bật. Bảng phân tích khối lượng (dòng phụ Siêu Quét): công tắc tắt thì HTML giống hệt bản cũ; công tắc bật thì cạnh tiêu đề có nút nhỏ **"AI ▸"**, luôn thu gọn khi mở dòng phụ, bấm mới mở khối điểm thích ứng + xác suất T+3/T+5/T+10 + tín hiệu đang bật (chỉ gọi API khi mở).
+
+Giới hạn: SSI chỉ giữ nến phút ~12 tháng và không cung cấp tick lịch sử — tick Lee–Ready chỉ tích luỹ từ khi bật ghi (02/10/2026). Kết quả là thống kê quá khứ, không phải khuyến nghị đầu tư.
