@@ -287,7 +287,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
           const day = base.byDate[h]?.get(l.signal_date);
           if (day) { expectedHit = d > 0 ? day.p : 1 - day.p; signedExcess = d * (num(o.excess_ret) - day.mean); }
         }
-        joined.push({ signal: l.signal, direction: d, regime: l.regime, horizon: h, hit: o.hit, expectedHit, signedExcess });
+        joined.push({ signal: l.signal, symbol: l.symbol, date: l.signal_date, direction: d, regime: l.regime, horizon: h, hit: o.hit, expectedHit, signedExcess });
       }
       const baseline = base.overall;
       const rows = summarizePerformance(joined);
