@@ -132,6 +132,24 @@ export function createSsiFcV2Provider({ call = getMarketData } = {}) {
       return bars.sort((a, b) => a.date.localeCompare(b.date));
     },
 
+    /**
+     * Giá DANH NGHĨA của DailyStockPrice: giá khớp + giá tham chiếu (Sở GDCK đã điều chỉnh vào ngày GDKHQ theo quy chế)
+     * + giá bình quân (cơ sở tham chiếu của HNX/UPCoM). Dùng để TỰ dựng chuỗi điều chỉnh (adjustedHistory.js) —
+     * ClosePriceAdjusted của SSI có lỗi thực tế (VD VNM 03/03/2026 trả giá cũ của 04/12/2025).
+     */
+    async getDailyStockPriceNominal(symbol, from, to) {
+      const rows = await dailyStockPrice(canonicalSymbol(symbol), from, to);
+      const out = new Map();
+      for (const row of rows) {
+        const [bar] = normalizeBars([row]);
+        if (!bar || !(bar.close > 0)) continue;
+        const ref = toNum(row.RefPrice ?? row.refPrice);
+        const avg = toNum(row.AveragePrice ?? row.averagePrice);
+        out.set(bar.date, { date: bar.date, close: bar.close, ref: ref > 0 ? ref : null, avg: avg > 0 ? avg : null, volume: bar.volume ?? null });
+      }
+      return [...out.values()].sort((a, b) => a.date.localeCompare(b.date));
+    },
+
     async getIntradayOhlcv(symbol, date) {
       // Trường Value của IntradayOhlc thực tế bằng giá khớp, không phải giá trị giao dịch.
       const bars = normalizeBars(await rangeRows("IntradayOhlc", { symbol: canonicalSymbol(symbol) }, date, date), { intraday: true });

@@ -194,17 +194,19 @@ router.get("/radar/signals", handle(async (req, res) => {
   res.json(data);
 }));
 
-// Chuỗi giá ĐÃ ĐIỀU CHỈNH dài hạn từ SSI (kho bền vững, tự phát hiện đổi hệ số điều chỉnh) — nguồn giá chính
-// cho Timing Engine cổ tức ở Project A. GET /ohlcv/adjusted-history?ticker=VNM&years=5
-let adjustedHistory = null;
-router.get("/ohlcv/adjusted-history", handle(async (req, res) => {
+// Lịch sử giá DANH NGHĨA dài hạn từ SSI (kho bền vững) + gợi ý sự kiện quyền từ giá tham chiếu — nguồn giá chính cho
+// Timing Engine cổ tức ở Project A (Project A tự điều chỉnh bằng sự kiện quyền VCI). GET /ohlcv/nominal-history?ticker=VNM&years=5
+let nominalHistory = null;
+router.get("/ohlcv/nominal-history", handle(async (req, res) => {
   const rt = getMarketRuntime();
-  adjustedHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
-  const r = await adjustedHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
+  nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
+  const r = await nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
   res.set("Cache-Control", "private, max-age=600");
   res.json({
-    symbol: r.symbol, adjusted: r.adjusted, adjustment: r.adjusted ? "SPLIT_ONLY" : "NONE", bars: r.bars,
-    provenance: { source: r.source, refresh: r.refresh, basisChanged: r.basisChanged ?? false, asOf: r.bars.at(-1)?.date ?? null, from: r.bars[0]?.date ?? null, count: r.bars.length },
+    symbol: r.symbol, priceType: "NOMINAL", isIndex: Boolean(r.index), referenceBase: r.base,
+    bars: r.bars, referenceAdjustments: r.events, referenceAnomalies: r.anomalies,
+    provenance: { source: r.source, refresh: r.refresh, asOf: r.bars.at(-1)?.date ?? null, from: r.bars[0]?.date ?? null, count: r.bars.length,
+      note: "Giá khớp danh nghĩa SSI. referenceAdjustments suy từ RefPrice — đáng tin tới ~2024 (từ 2025 SSI không còn điều chỉnh RefPrice vào ngày GDKHQ)." },
   });
 }));
 
