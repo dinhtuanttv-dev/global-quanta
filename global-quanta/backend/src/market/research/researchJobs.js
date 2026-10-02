@@ -1,0 +1,383 @@
+// Job tầng nghiên cứu (chạy sau Siêu Quét, ngày giao dịch):
+//   researchFlow      16:00 — cô đặc nến phút / tick Lee–Ready mỗi phiên -> market_flow_daily + Volume Profile
+//                            (lần đầu nạp RESEARCH_FLOW_SESSIONS phiên, sau đó chỉ phiên mới)
+//   researchSignals   16:20 — Regime + Impulse theo ngày, đặc trưng IFE, ghi sổ cái tín hiệu
+//   researchEvaluate  16:40 — chấm T+3/T+5/T+10, tổng hợp hiệu suất, cô đặc/dọn tick, làm mới materialized view
+//   researchTrain     Thứ Bảy 10:30 — tinh chỉnh trọng số (champion / challenger)
+
+import { groupSessions } from "../scanner/intradayService.js";
+import { groupTickRows } from "../scanner/tickFlowService.js";
+import { KV } from "../scanner/scannerJobs.js";
+import { lastCompletedSessionDate } from "../calendar.js";
+import { addDays, mapLimit } from "../util.js";
+import { summarizeSessions } from "./flowHistory.js";
+import { breadthByDate, buildRegimeSeries } from "./regime.js";
+import { computeDailyFeatures, featureVector } from "./features.js";
+import { HORIZONS, stockSignals, impulseSignal, adaptiveSignal, evaluateOutcome, summarizePerformance } from "./feedback.js";
+import { trainAdaptive, decidePromotion, predictRaw, evaluate } from "./tuner.js";
+
+export const RESEARCH_KV = {
+  signalsThrough: "research:signals-through",
+  evaluatedThrough: "research:evaluated-through",
+  performance: "research:performance",
+  model: "research:model",
+};
+
+export const T = {
+  flow: "market_flow_daily",
+  profile: "market_volume_profile_daily",
+  regime: "market_regime_daily",
+  ledger: "market_signal_ledger",
+  outcomes: "market_signal_outcomes",
+  weights: "market_model_weights",
+};
+
+const FLOW_SESSIONS = () => Number(process.env.RESEARCH_FLOW_SESSIONS) || 250;
+const TICK_KEEP_DAYS = () => Number(process.env.RESEARCH_TICK_KEEP_DAYS) || 60;
+const num = (v) => (v === null || v === undefined ? null : Number(v));
+
+export const flowFromRow = (r) => ({
+  symbol: r.symbol, date: r.trading_date, method: r.method, close: num(r.close), refPrice: num(r.ref_price),
+  volume: num(r.volume), continuousVolume: num(r.continuous_volume), delta: num(r.delta),
+  largeDelta: num(r.large_delta), smallDelta: num(r.small_delta), ret: num(r.ret), minuteP95: num(r.minute_p95),
+  features: r.features ?? null,
+});
+const flowToRow = (symbol, f, features) => ({
+  symbol, trading_date: f.date, method: f.method, close: f.close, ref_price: f.refPrice, volume: f.volume,
+  continuous_volume: f.continuousVolume, delta: f.delta, large_delta: f.largeDelta, small_delta: f.smallDelta,
+  ret: f.ret, minute_p95: f.minuteP95, features: features ?? f.features ?? null, updated_at: new Date().toISOString(),
+});
+const profileToRow = (symbol, p) => ({
+  symbol, trading_date: p.date, poc: p.poc, va_low: p.vaLow, va_high: p.vaHigh, vwap: p.vwap, bins: p.bins,
+  source: "MINUTE_BARS", updated_at: new Date().toISOString(),
+});
+const profileFromRow = (r) => ({ date: r.trading_date, poc: num(r.poc), vaLow: num(r.va_low), vaHigh: num(r.va_high), vwap: num(r.vwap), bins: r.bins });
+
+function groupBy(rows, key) {
+  const m = new Map();
+  for (const r of rows) {
+    const k = r[key];
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(r);
+  }
+  return m;
+}
+
+async function upsertChunked(store, table, rows, conflict, size = 1000) {
+  for (let i = 0; i < rows.length; i += size) await store.upsertRows(table, rows.slice(i, i + size), conflict);
+  return rows.length;
+}
+
+export function createResearchJobs(service, { now = Date.now } = {}) {
+  const store = service.store;
+
+  async function universeTickers() {
+    const tickers = (await store.getKv(KV.universe))?.value?.tickers ?? [];
+    if (!tickers.length) throw new Error("Chưa có universe. Chạy buildUniverse trước.");
+    return tickers.map((t) => t.ticker);
+  }
+
+  async function dailyBySymbol(symbols, from, to) {
+    const rows = await store.getMarketDailyRange({ from, to, symbols });
+    return groupBy(rows, "symbol");
+  }
+
+  async function indexBars() {
+    const res = await service.getOhlcv({ symbol: "VNINDEX", limit: 700 });
+    return res.bars.filter((b) => !b.partial);
+  }
+
+  async function regimeRows() {
+    return (await store.selectRows(T.regime, { order: "trading_date.asc" })).map((r) => ({
+      date: r.trading_date, close: num(r.close), impulseScore: num(r.impulse_score), regime: r.regime, breadthPct: num(r.breadth_pct),
+    }));
+  }
+
+  async function activeModels() {
+    const rows = await store.selectRows(T.weights, { eq: { status: "active" } });
+    return new Map(rows.map((r) => [Number(String(r.model).replace("ADAPTIVE_T", "")), { ...r, horizon: Number(String(r.model).replace("ADAPTIVE_T", "")) }]));
+  }
+
+  const jobs = {
+    /** Cô đặc nến phút từng phiên của universe (gia tăng). */
+    async researchFlow() {
+      const provider = service.router.providers?.ssiFcV2;
+      if (!provider?.isConfigured?.()) throw new Error("Chưa cấu hình SSI FC Data cho nến phút.");
+      const symbols = await universeTickers();
+      const lastClosed = lastCompletedSessionDate(new Date(now()));
+      const dates = (await store.getMarketDailyDates()).filter((d) => d <= lastClosed).slice(-FLOW_SESSIONS());
+      if (!dates.length) throw new Error("Chưa có dữ liệu ngày. Chạy backfillMarketDaily trước.");
+      const existing = groupBy(await store.selectRows(T.flow, {
+        select: "symbol,trading_date,minute_p95", gte: { trading_date: addDays(dates[0], -120) }, order: "trading_date.asc",
+      }), "symbol");
+
+      let sessions = 0, failed = 0, skipped = 0;
+      await mapLimit(symbols, 2, async (symbol) => {
+        const have = existing.get(symbol) ?? [];
+        const last = have.at(-1)?.trading_date ?? null;
+        // Đã có dữ liệu: chỉ nạp phiên MỚI; chưa có: nạp cả cửa sổ (không thử lại lỗ hổng cũ mãi mãi).
+        const missing = dates.filter((d) => (last ? d > last : true));
+        if (!missing.length) { skipped++; return; }
+        try {
+          const from = missing[0], to = missing.at(-1);
+          const bars = from === to ? await provider.getIntradayOhlcv(symbol, from) : await provider.getIntradayRange(symbol, from, to);
+          const wanted = new Set(missing);
+          const grouped = groupSessions(bars).filter((s) => wanted.has(s.date));
+          const ticks = typeof store.getTickFlowRange === "function" ? groupTickRows(await store.getTickFlowRange({ symbol, from, to })) : new Map();
+          const daily = await store.getMarketDailyRange({ from, to, symbols: [symbol] });
+          const refByDate = new Map(daily.filter((r) => r.refPrice > 0).map((r) => [r.date, r.refPrice]));
+          const { flow, profiles } = summarizeSessions(grouped, {
+            priorP95s: have.map((r) => num(r.minute_p95)), tickByDate: ticks, refByDate,
+          });
+          if (flow.length) await store.upsertRows(T.flow, flow.map((f) => flowToRow(symbol, f)), "symbol,trading_date");
+          if (profiles.length) await store.upsertRows(T.profile, profiles.map((p) => profileToRow(symbol, p)), "symbol,trading_date");
+          sessions += flow.length;
+        } catch (error) {
+          failed++;
+          console.warn(`[research] researchFlow ${symbol}: ${error.message}`);
+        }
+      });
+      return { symbols: symbols.length, sessionsWritten: sessions, upToDate: skipped, failed, window: [dates[0], dates.at(-1)] };
+    },
+
+    /** Regime + Impulse theo ngày, đặc trưng IFE, sổ cái tín hiệu (gia tăng). */
+    async researchSignals() {
+      const symbols = await universeTickers();
+      const dates = await store.getMarketDailyDates();
+      const from = dates.at(-Math.min(dates.length, 330)), to = dates.at(-1);
+      const daily = await dailyBySymbol(symbols, from, to);
+
+      // 1. Regime & Impulse dựng lại cho từng ngày.
+      const regimeSeries = buildRegimeSeries(await indexBars(), breadthByDate(daily));
+      await upsertChunked(store, T.regime, regimeSeries.map((r) => ({
+        trading_date: r.date, index_code: "VNINDEX", close: r.close, ma20: r.ma20, ma50: r.ma50, ma200: r.ma200,
+        breadth_pct: r.breadthPct, impulse_score: r.impulseScore, regime: r.regime, updated_at: new Date().toISOString(),
+      })), "trading_date");
+      const regimeByDate = new Map(regimeSeries.map((r) => [r.date, r]));
+
+      // 2. Đặc trưng + tín hiệu theo mã.
+      const through = (await store.getKv(RESEARCH_KV.signalsThrough))?.value?.date ?? null;
+      const flowAll = groupBy((await store.selectRows(T.flow, { gte: { trading_date: from }, order: "trading_date.asc" })).map(flowFromRow), "symbol");
+      const profAll = groupBy(await store.selectRows(T.profile, { gte: { trading_date: from }, select: "symbol,trading_date,poc,va_low,va_high,vwap,bins" }), "symbol");
+      const models = await activeModels();
+      const ledger = [], flowUpdates = [];
+      let lastDate = through;
+      for (const symbol of symbols) {
+        const flow = flowAll.get(symbol) ?? [];
+        if (flow.length < 25) continue;
+        const feats = computeDailyFeatures({
+          flow, daily: daily.get(symbol) ?? [], profiles: (profAll.get(symbol) ?? []).map(profileFromRow), regimeByDate,
+        });
+        for (const f of flow) {
+          const day = feats.get(f.date);
+          if (!day) continue;
+          if (!f.features || !through || f.date > through) flowUpdates.push(flowToRow(symbol, f, { ...day.features, regime: day.regime }));
+          if (through && f.date <= through) continue;
+          if (!lastDate || f.date > lastDate) lastDate = f.date;
+          const common = { symbol, signal_date: f.date, regime: day.regime };
+          for (const s of stockSignals(day)) {
+            ledger.push({ ...common, signal: s.signal, direction: s.direction, score: s.score, model_version: null, features: { ...day.features, ...(s.extra ?? {}) } });
+          }
+          // Điểm thích ứng: CHỈ ghi cho ngày sau dữ liệu huấn luyện (ngoài mẫu thật), tránh tự chấm điểm trong mẫu.
+          for (const [h, m] of models) {
+            if (!(f.date > m.train_to)) continue;
+            const prob = predictRaw(m.weights, featureVector(day.features), day.regime);
+            const s = adaptiveSignal(h, prob);
+            if (s) ledger.push({ ...common, signal: s.signal, direction: s.direction, score: s.score, model_version: m.version, features: day.features });
+          }
+        }
+      }
+      for (const r of regimeSeries) {
+        if (through && r.date <= through) continue;
+        const s = impulseSignal(r.impulseScore);
+        if (s) ledger.push({ symbol: "VNINDEX", signal_date: r.date, signal: s.signal, direction: s.direction, score: s.score, regime: r.regime, model_version: null, features: { breadthPct: r.breadthPct } });
+      }
+      await upsertChunked(store, T.flow, flowUpdates, "symbol,trading_date");
+      await upsertChunked(store, T.ledger, ledger, "symbol,signal_date,signal");
+      if (lastDate) await store.setKv(RESEARCH_KV.signalsThrough, { date: lastDate });
+      return { regimeDays: regimeSeries.length, featuresWritten: flowUpdates.length, signals: ledger.length, through: lastDate };
+    },
+
+    /** Chấm điểm T+3/T+5/T+10, tổng hợp hiệu suất, dọn tick, làm mới materialized view. */
+    async researchEvaluate() {
+      const dates = await store.getMarketDailyDates();
+      const evaluatedThrough = (await store.getKv(RESEARCH_KV.evaluatedThrough))?.value?.date ?? null;
+      const pending = await store.selectRows(T.ledger, {
+        select: "symbol,signal_date,signal,direction,regime",
+        ...(evaluatedThrough ? { gte: { signal_date: addDays(evaluatedThrough, 1) } } : {}),
+      });
+      const regimes = await regimeRows();
+      const benchClose = new Map(regimes.map((r) => [r.date, r.close]));
+      const done = new Set((await store.selectRows(T.outcomes, {
+        select: "symbol,signal_date,signal,horizon",
+        ...(evaluatedThrough ? { gte: { signal_date: addDays(evaluatedThrough, 1) } } : {}),
+      })).map((o) => `${o.symbol}|${o.signal_date}|${o.signal}|${o.horizon}`));
+
+      const stockSymbols = [...new Set(pending.map((p) => p.symbol).filter((s) => s !== "VNINDEX"))];
+      const minDate = pending.reduce((m, p) => (p.signal_date < m ? p.signal_date : m), dates.at(-1) ?? "9999");
+      const daily = stockSymbols.length ? await dailyBySymbol(stockSymbols, addDays(minDate, -40), dates.at(-1)) : new Map();
+      const indexRows = regimes.map((r) => ({ date: r.date, close: r.close, closeAdj: r.close, high: r.close, low: r.close }));
+      const indexPos = new Map(indexRows.map((r, i) => [r.date, i]));
+      const posCache = new Map();
+      const outcomes = [];
+      for (const p of pending) {
+        const isIndex = p.symbol === "VNINDEX";
+        const rows = isIndex ? indexRows : daily.get(p.symbol) ?? [];
+        if (!isIndex && !posCache.has(p.symbol)) posCache.set(p.symbol, new Map(rows.map((r, i) => [r.date, i])));
+        const i = isIndex ? indexPos.get(p.signal_date) : posCache.get(p.symbol).get(p.signal_date);
+        if (i === undefined) continue;
+        for (const h of HORIZONS) {
+          if (done.has(`${p.symbol}|${p.signal_date}|${p.signal}|${h}`)) continue;
+          const o = evaluateOutcome(rows, i, p.direction, h, isIndex ? null : benchClose);
+          if (!o) continue;
+          outcomes.push({
+            symbol: p.symbol, signal_date: p.signal_date, signal: p.signal, horizon: h,
+            ret: o.ret, bench_ret: o.benchRet, excess_ret: o.excessRet, barrier: o.barrier, mfe: o.mfe, mae: o.mae, hit: o.hit,
+            evaluated_at: new Date().toISOString(),
+          });
+        }
+      }
+      await upsertChunked(store, T.outcomes, outcomes, "symbol,signal_date,signal,horizon");
+      // Mọi tín hiệu tới phiên cách đây ≥ 10 phiên đã đủ T+10 -> lần sau không cần quét lại.
+      const settled = dates.at(-11);
+      if (settled) await store.setKv(RESEARCH_KV.evaluatedThrough, { date: settled });
+
+      // Hiệu suất toàn lịch sử (JS — chạy được cả khi không có Supabase).
+      const ledgerAll = await store.selectRows(T.ledger, { select: "symbol,signal_date,signal,direction,regime" });
+      const outAll = await store.selectRows(T.outcomes, { select: "symbol,signal_date,signal,horizon,hit,excess_ret,ret" });
+      const meta = new Map(ledgerAll.map((l) => [`${l.symbol}|${l.signal_date}|${l.signal}`, l]));
+      const joined = [];
+      for (const o of outAll) {
+        const l = meta.get(`${o.symbol}|${o.signal_date}|${o.signal}`);
+        if (l) joined.push({ signal: l.signal, direction: Number(l.direction), regime: l.regime, horizon: Number(o.horizon), hit: o.hit, excessRet: num(o.excess_ret), ret: num(o.ret) });
+      }
+      const baseline = await baselineHitRates(store, benchClose, dates);
+      const rows = summarizePerformance(joined, baseline);
+      const current = regimes.at(-1) ?? null;
+      await store.setKv(RESEARCH_KV.performance, {
+        generatedAt: new Date(now()).toISOString(), baseline, rows, signals: ledgerAll.length, outcomes: outAll.length,
+        currentRegime: current && { date: current.date, regime: current.regime, impulseScore: current.impulseScore, breadthPct: current.breadthPct },
+      });
+
+      // Dữ liệu dài hạn: cô đặc tick theo phiên, dọn tick phút cũ, làm mới materialized view (chỉ Supabase).
+      const maintenance = {};
+      for (const [name, fn, args] of [
+        ["rollup", "market_rollup_tick_flow", { p_since: addDays(dates.at(-1) ?? new Date(now()).toISOString().slice(0, 10), -14) }],
+        ["prune", "market_prune_tick_flow", { p_keep_days: TICK_KEEP_DAYS() }],
+        ["refresh", "market_refresh_research", {}],
+      ]) {
+        try { maintenance[name] = await store.rpc(fn, args); } catch (error) { maintenance[name] = `lỗi: ${error.message.slice(0, 120)}`; }
+      }
+      return { pending: pending.length, outcomesWritten: outcomes.length, performanceRows: rows.length, maintenance };
+    },
+
+    /** Tinh chỉnh trọng số theo từng kỳ hạn; champion / challenger. */
+    async researchTrain() {
+      const symbols = await universeTickers();
+      const dates = await store.getMarketDailyDates();
+      const from = dates.at(-Math.min(dates.length, 330));
+      const daily = await dailyBySymbol(symbols, from, dates.at(-1));
+      const regimes = await regimeRows();
+      const benchClose = new Map(regimes.map((r) => [r.date, r.close]));
+      const flow = await store.selectRows(T.flow, { select: "symbol,trading_date,features", gte: { trading_date: from } });
+      const samplesByH = buildSamples(flow, daily, benchClose);
+      const active = await activeModels();
+      const summary = { trainedAt: new Date(now()).toISOString(), horizons: {} };
+
+      for (const h of HORIZONS) {
+        const samples = samplesByH.get(h) ?? [];
+        const res = trainAdaptive(samples, { horizon: h });
+        const model = `ADAPTIVE_T${h}`;
+        const current = active.get(h) ?? null;
+        if (!res.ok) {
+          summary.horizons[h] = { status: "insufficient", reason: res.reason, samples: samples.length, active: current && describeModel(current) };
+          continue;
+        }
+        let liveMetrics = null;
+        if (current) {
+          const fresh = samples.filter((s) => s.date > current.train_to);
+          if (fresh.length >= 100) liveMetrics = evaluate(fresh.map((s) => predictRaw(current.weights, s.x, s.regime)), fresh, current.weights.baseRate);
+        }
+        const decision = decidePromotion(res, current && { metrics: current.metrics }, { liveMetrics });
+        const version = `${res.trainTo}.${Date.now().toString(36)}`;
+        const row = {
+          model, version, status: decision.promote ? "active" : "rejected", trained_at: new Date(now()).toISOString(),
+          train_from: res.trainFrom, train_to: res.trainTo, weights: res.model,
+          metrics: { ...res.metrics, decision: decision.reason, liveMetricsOfPrevious: liveMetrics },
+        };
+        if (decision.promote && current) await store.upsertRows(T.weights, [{ ...current, status: "retired", horizon: undefined }].map(stripHorizon), "model,version");
+        await store.upsertRows(T.weights, [row], "model,version");
+        summary.horizons[h] = { status: decision.promote ? "promoted" : "kept", reason: decision.reason, samples: samples.length, active: describeModel(decision.promote ? row : current), candidate: describeModel(row) };
+      }
+      await store.setKv(RESEARCH_KV.model, summary);
+      return Object.fromEntries(Object.entries(summary.horizons).map(([h, v]) => [`T+${h}`, `${v.status}: ${v.reason}`]));
+    },
+  };
+
+  return jobs;
+}
+
+const stripHorizon = (r) => { const { horizon, ...rest } = r; return rest; };
+
+export function describeModel(row) {
+  if (!row) return null;
+  const w = row.weights;
+  return {
+    model: row.model, version: row.version, status: row.status, trainFrom: row.train_from, trainTo: row.train_to,
+    holdout: row.metrics?.holdout ?? null, heuristic: row.metrics?.heuristic ?? null, byRegime: row.metrics?.byRegime ?? null,
+    lambda: row.metrics?.lambda ?? null,
+    weights: w?.features?.map((name, j) => ({ name, weight: Math.round(w.global[j + 1] * 1e4) / 1e4 })) ?? [],
+    regimeModels: Object.keys(w?.regimes ?? {}),
+  };
+}
+
+/**
+ * Mẫu huấn luyện: đặc trưng tại t -> nhãn "vượt VN-Index sau h phiên".
+ * @returns {Map<number, any[]>}
+ */
+export function buildSamples(flowRows, dailyBySym, benchClose) {
+  const out = new Map(HORIZONS.map((h) => [h, []]));
+  const pos = new Map();
+  for (const f of flowRows) {
+    if (!f.features) continue;
+    const rows = dailyBySym.get(f.symbol);
+    if (!rows) continue;
+    if (!pos.has(f.symbol)) pos.set(f.symbol, new Map(rows.map((r, i) => [r.date, i])));
+    const i = pos.get(f.symbol).get(f.trading_date);
+    if (i === undefined) continue;
+    const regime = f.features.regime ?? null;
+    for (const h of HORIZONS) {
+      const o = evaluateOutcome(rows, i, 1, h, benchClose);
+      if (!o) continue;
+      out.get(h).push({ date: f.trading_date, symbol: f.symbol, x: featureVector(f.features), y: o.excessRet > 0 ? 1 : 0, excess: o.excessRet, regime });
+    }
+  }
+  return out;
+}
+
+/** Tỷ lệ "vượt VN-Index" vô điều kiện của universe theo kỳ hạn (mốc so sánh tỷ lệ trúng). */
+async function baselineHitRates(store, benchClose, dates) {
+  const symbols = (await store.getKv(KV.universe))?.value?.tickers?.map((t) => t.ticker) ?? [];
+  if (!symbols.length || !dates.length) return {};
+  const rows = groupBy(await store.getMarketDailyRange({ from: dates.at(-Math.min(dates.length, 260)), to: dates.at(-1), symbols }), "symbol");
+  const out = {};
+  for (const h of HORIZONS) {
+    let k = 0, n = 0;
+    for (const series of rows.values()) {
+      for (let i = 20; i + h < series.length; i++) {
+        const o = evaluateOutcome(series, i, 1, h, benchClose);
+        if (!o) continue;
+        n++; if (o.excessRet > 0) k++;
+      }
+    }
+    out[h] = n ? Math.round((k / n) * 1e4) / 1e4 : 0.5;
+  }
+  return out;
+}
+
+export const RESEARCH_SCHEDULE = [
+  { name: "researchFlow", at: "16:00", tradingDayOnly: true },
+  { name: "researchSignals", at: "16:20", tradingDayOnly: true },
+  { name: "researchEvaluate", at: "16:40", tradingDayOnly: true },
+  { name: "researchTrain", at: "10:30", weekdays: [6] },
+];

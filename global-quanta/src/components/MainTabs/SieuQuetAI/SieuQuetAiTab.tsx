@@ -5,6 +5,7 @@ import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
+import AdaptiveLearningPanel from "./AdaptiveLearningPanel";
 
 const COLUMN_COUNT = 9;
 
@@ -222,6 +223,7 @@ export default function SieuQuetAiTab() {
           <h2 className="text-sm font-semibold text-blue-400 mb-3">Market Impulse Gauge</h2>
           {indexState && <ImpulseGauge score={indexState.impulseScore} />}
         </div>
+        <AdaptiveLearningPanel />
         <EventPanel />
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3">
           <p className="text-[9px] text-sky-300">

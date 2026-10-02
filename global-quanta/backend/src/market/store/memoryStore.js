@@ -12,6 +12,26 @@ export function shouldReplace(existingSource, incomingSource) {
   return isSsiSource(incomingSource) || !isSsiSource(existingSource);
 }
 
+/** Bộ lọc kiểu PostgREST tối giản: eq / gte / lte / in, order "col.asc,col2.desc", limit. */
+export function selectMemory(rows, { eq = {}, gte = {}, lte = {}, in: inList = {}, order, limit } = {}) {
+  let out = rows.filter((r) =>
+    Object.entries(eq).every(([k, v]) => r[k] === v)
+    && Object.entries(gte).every(([k, v]) => r[k] >= v)
+    && Object.entries(lte).every(([k, v]) => r[k] <= v)
+    && Object.entries(inList).every(([k, v]) => v.includes(r[k])));
+  if (order) {
+    const specs = order.split(",").map((s) => { const [col, dir = "asc"] = s.split("."); return { col, sign: dir === "desc" ? -1 : 1 }; });
+    out = out.sort((a, b) => {
+      for (const { col, sign } of specs) {
+        if (a[col] < b[col]) return -sign;
+        if (a[col] > b[col]) return sign;
+      }
+      return 0;
+    });
+  }
+  return limit ? out.slice(0, limit) : out;
+}
+
 export function createMemoryStore() {
   const bars = new Map(); // symbol -> Map(date -> bar+source)
   let securities = { rows: [], source: null, updatedAt: null };
@@ -22,6 +42,7 @@ export function createMemoryStore() {
   const kv = new Map();
   const fundamentals = new Map();
   const tickFlow = new Map(); // `${symbol}|${date}` -> Map(minute -> row)
+  const tables = new Map(); // bảng nghiên cứu: tên -> Map(khoá chính -> dòng snake_case)
 
   return {
     kind: "memory",
@@ -94,6 +115,31 @@ export function createMemoryStore() {
         out.push(...[...minutes.values()].map((m) => ({ symbol, date, ...m })));
       }
       return out.sort((a, b) => a.date.localeCompare(b.date) || a.minute - b.minute);
+    },
+
+    // ---------- Bảng nghiên cứu (cùng tên cột snake_case với Supabase) ----------
+    async upsertRows(table, rows, conflict) {
+      if (!tables.has(table)) tables.set(table, new Map());
+      const t = tables.get(table);
+      const cols = conflict.split(",");
+      for (const r of rows) {
+        const key = cols.map((c) => r[c]).join("|");
+        t.set(key, { ...(t.get(key) ?? {}), ...structuredClone(r) });
+      }
+      return rows.length;
+    },
+    async selectRows(table, query = {}) {
+      return selectMemory([...(tables.get(table)?.values() ?? [])], query).map((r) => structuredClone(r));
+    },
+    async deleteRows(table, query = {}) {
+      const t = tables.get(table);
+      if (!t) return 0;
+      const doomed = new Set(selectMemory([...t.values()], query));
+      for (const [k, v] of t) if (doomed.has(v)) t.delete(k);
+      return doomed.size;
+    },
+    async rpc() {
+      return null; // view/hàm SQL chỉ có trên Supabase
     },
 
     async upsertBars(symbol, list, source) {

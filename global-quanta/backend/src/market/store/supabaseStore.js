@@ -5,7 +5,21 @@
 // Quy tắc "SSI không bị nguồn dự phòng ghi đè" được trigger trong DB đảm bảo,
 // nên phía này luôn upsert kiểu merge-duplicates.
 
-import { isSsiSource } from "./memoryStore.js";
+import { isSsiSource, selectMemory } from "./memoryStore.js";
+
+/** {eq, gte, lte, in, order, limit, select} -> query string PostgREST. */
+export function postgrestQuery({ select, eq = {}, gte = {}, lte = {}, in: inList = {}, order, limit } = {}) {
+  const enc = encodeURIComponent;
+  const parts = [];
+  if (select) parts.push(`select=${select}`);
+  for (const [k, v] of Object.entries(eq)) parts.push(`${k}=eq.${enc(v)}`);
+  for (const [k, v] of Object.entries(gte)) parts.push(`${k}=gte.${enc(v)}`);
+  for (const [k, v] of Object.entries(lte)) parts.push(`${k}=lte.${enc(v)}`);
+  for (const [k, v] of Object.entries(inList)) parts.push(`${k}=in.(${v.map((x) => enc(x)).join(",")})`);
+  if (order) parts.push(`order=${order}`);
+  if (limit) parts.push(`limit=${limit}`);
+  return parts.join("&");
+}
 
 const PAGE = 1000;
 
@@ -145,6 +159,35 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
         symbol: r.symbol, date: r.trading_date, minute: Number(r.minute),
         buy: Number(r.buy), sell: Number(r.sell), unknown: Number(r.unknown), prints: Number(r.prints), sizes: r.sizes ?? {},
       }));
+    },
+
+    // ---------- Bảng nghiên cứu (truy vấn PostgREST tổng quát) ----------
+    async upsertRows(table, rows, conflict) {
+      await upsert(table, rows, conflict);
+      return rows.length;
+    },
+    async selectRows(table, query = {}) {
+      const { in: inList = {} } = query;
+      const [inCol, inValues] = Object.entries(inList)[0] ?? [];
+      // Danh sách IN dài -> chia nhỏ để URL không quá dài.
+      if (inCol && inValues.length > 100) {
+        const out = [];
+        for (let i = 0; i < inValues.length; i += 100) {
+          out.push(...(await this.selectRows(table, { ...query, in: { ...inList, [inCol]: inValues.slice(i, i + 100) } })));
+        }
+        return query.order ? selectMemory(out, { order: query.order, limit: query.limit }) : out;
+      }
+      const path = `${table}?${postgrestQuery(query)}`;
+      return query.limit ? (await request(path)) ?? [] : selectAll(path);
+    },
+    async deleteRows(table, query = {}) {
+      const q = postgrestQuery({ ...query, select: undefined, order: undefined, limit: undefined });
+      if (!q) throw new Error("deleteRows cần điều kiện lọc.");
+      await request(`${table}?${q}`, { method: "DELETE" });
+      return null;
+    },
+    async rpc(fn, args = {}) {
+      return request(`rpc/${fn}`, { method: "POST", body: args });
     },
 
     async upsertBars(symbol, list, source) {

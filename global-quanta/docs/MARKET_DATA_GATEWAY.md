@@ -129,3 +129,24 @@ Giới hạn: không có danh tính tài khoản ở VN — IFE là suy luận x
 
 - Backend: `cd backend && npm test` (node:test, gồm sharding, freshness, fallback, hysteresis, tự lành, và các điểm lạ của SSI).
 - Frontend: `npm test` (vitest, client và nhãn trạng thái nguồn).
+
+## Tầng nghiên cứu: lịch sử dài hạn + AI tự học (vòng phản hồi)
+
+Mã nguồn `backend/src/market/research/` (Node, cùng tiến trình Gateway — không thêm runtime thứ hai trên Railway), migration `20261003000000_market_research.sql`.
+
+**Lưu trữ dài hạn** (giữ vĩnh viễn, 1 dòng/mã/phiên — cỡ ~10–20 MB/năm cho 300 mã):
+- `market_flow_daily`: dòng tiền IFE cô đặc mỗi phiên (BVC hoặc Lee–Ready nếu tick phủ ≥ 60%), `features` = 11 đặc trưng chuẩn hoá tại cuối phiên (không nhìn tương lai) + nhãn regime.
+- `market_volume_profile_daily`: POC / vùng giá trị 70% / VWAP + 24 bin nén `{lo, hi, v[]}`; Volume Profile N phiên dựng lại bằng `rollingProfile`.
+- `market_regime_daily`: VN-Index, MA20/50/200, độ rộng, Market Impulse dựng lại theo từng ngày, nhãn **UPTREND / DOWNTREND / SIDEWAY** (giá vs MA50, MA20 vs MA50, độ dốc MA50 10 phiên).
+- `market_tick_flow_daily`: tick theo phiên; tick theo phút chỉ giữ `RESEARCH_TICK_KEEP_DAYS` (mặc định 60) ngày rồi dọn (`market_prune_tick_flow`, chỉ xoá phiên đã cô đặc).
+- **Dataset backtest** `market_research_dataset_mv`: giá + dòng tiền + profile + regime + lợi suất tương lai T+3/5/10 của mã và VN-Index (chỉ dùng làm nhãn). `market_signal_performance_mv`: hiệu suất tín hiệu × regime × kỳ hạn. Làm mới bằng `market_refresh_research()` sau mỗi lần chấm điểm.
+
+**Vòng phản hồi** (`feedback.js`): quy tắc phát tín hiệu công khai — Stealth 5/20 (|z| ≥ 1,5), Bản đồ ý đồ HMM (trạng thái gom/xả với p ≥ 0,5), Market Impulse (≥ 60 / ≤ 40), Điểm thích ứng (P ≥ 55% / ≤ 45%). Mỗi tín hiệu được chấm sau T+3/T+5/T+10: lợi suất, vượt VN-Index, ba rào chắn ±1,5 ATR, MFE/MAE, trúng/trượt; tổng hợp tỷ lệ trúng với KTC Wilson 95% so với **tỷ lệ nền** (xác suất vượt VN-Index vô điều kiện), theo từng regime.
+
+**Tinh chỉnh trọng số** (`tuner.js`): hồi quy logistic L2 **co về trọng số heuristic** (ít dữ liệu ⇒ gần heuristic); trọng số riêng theo regime co về trọng số chung. Walk-forward theo ngày với purge/embargo = h phiên; λ chọn trên các fold đầu, đánh giá trên fold cuối chưa dùng (holdout). **Champion/challenger**: chỉ thăng hạng khi holdout có Brier skill > 0 và AUC > 0,5 (≥ 1.000 mẫu) và không kém mô hình đang chạy; mọi phiên bản (active/rejected/retired) lưu ở `market_model_weights`. Điểm thích ứng chỉ được ghi vào sổ cái cho ngày SAU dữ liệu huấn luyện (không tự chấm trong mẫu).
+
+**Lịch**: `researchFlow` 16:00 → `researchSignals` 16:20 → `researchEvaluate` 16:40 (ngày giao dịch), `researchTrain` Thứ Bảy 10:30. Lần đầu `researchFlow` nạp `RESEARCH_FLOW_SESSIONS` (mặc định 250) phiên nến phút cho cả universe (~30–40 phút), sau đó chỉ phiên mới.
+
+**API/UI**: `GET /api/market/research/overview` (panel "AI học & thích ứng" dưới Market Impulse Gauge), `GET /api/market/research/:symbol` (thẻ "Điểm dòng tiền thích ứng" trong dòng phụ Siêu Quét và trong Action Center).
+
+Giới hạn: SSI chỉ giữ nến phút ~12 tháng và không cung cấp tick lịch sử — tick Lee–Ready chỉ tích luỹ từ khi bật ghi (02/10/2026). Kết quả là thống kê quá khứ, không phải khuyến nghị đầu tư.

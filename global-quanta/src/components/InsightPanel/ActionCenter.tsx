@@ -3,6 +3,8 @@ import { usePriceTick } from '../../hooks/usePriceTick';
 import { formatPct } from '../../utils/formatNumber';
 import * as api from '../../services/api';
 import { isMarketGatewayEnabled } from '../../services/marketDataClient';
+import { useResearchSymbol } from '../../hooks/useResearch';
+import { AdaptiveScoreBody } from '../MainTabs/SieuQuetAI/AdaptiveScoreCard';
 
 export default function ActionCenter() {
   const { radarCore, radarRing, selectedTicker, showToast } = useAppStore();
@@ -11,6 +13,7 @@ export default function ActionCenter() {
   const ring = radarRing.find((n) => n.ticker === selectedTicker);
 
   const livePrice = usePriceTick(core?.price ?? ring?.price ?? 0, !!(core || ring));
+  const research = useResearchSymbol(core || ring ? selectedTicker : null);
 
   const handleOrder = (side: 'buy' | 'sell') => {
     if (!selectedTicker) return;
@@ -62,6 +65,12 @@ export default function ActionCenter() {
         <div className="ac-btn ac-alert" onClick={handleAlert}>⏰ CẢNH BÁO</div>
       </div>
       <div className="ac-hold">Gợi ý khung nắm giữ: <b>{holdLine}</b></div>
+      {research.data?.asOf && (
+        <div className="ac-hold" style={{ fontFamily: 'inherit' }}>
+          <div style={{ marginBottom: 4 }}>Điểm dòng tiền thích ứng (AI tự học) — xác suất vượt VN-Index:</div>
+          <AdaptiveScoreBody data={research.data} compact />
+        </div>
+      )}
     </div>
   );
 }

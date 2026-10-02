@@ -9,6 +9,7 @@ import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
+import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 
 const router = Router();
 
@@ -131,6 +132,22 @@ router.get("/scanner/:symbol/intent", handle(async (req, res) => {
       disclaimer: "IFE là suy luận xác suất từ dấu vết giao dịch (không có danh tính tài khoản); không phải khuyến nghị đầu tư." };
   });
   res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+// Tầng nghiên cứu: hiệu suất tín hiệu (vòng phản hồi T+3/5/10) + mô hình trọng số thích ứng.
+router.get("/research/overview", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap("research:overview", 60_000, () => getResearchOverview(rt.store));
+  res.set("Cache-Control", "private, max-age=60");
+  res.json(data);
+}));
+
+router.get("/research/:symbol", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = req.params.symbol.toUpperCase();
+  const data = await rt.service.cache.wrap(`research:${symbol}`, 60_000, () => getResearchSymbol(rt.store, symbol));
+  res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));
 

@@ -12,6 +12,7 @@ import { createJobs } from "./jobs.js";
 import { createScheduler } from "./scheduler.js";
 import { createScannerJobs, SCANNER_SCHEDULE } from "./scanner/scannerJobs.js";
 import { createTickRecorder } from "./scanner/tickFlowService.js";
+import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.js";
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 
@@ -49,8 +50,8 @@ export function getMarketRuntime() {
   });
   service.hub = hub;
 
-  const jobs = { ...createJobs(service), ...createScannerJobs(service) };
-  const scheduler = createScheduler(jobs, { extraSchedule: SCANNER_SCHEDULE });
+  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service) };
+  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
