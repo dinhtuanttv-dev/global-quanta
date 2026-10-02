@@ -17,20 +17,28 @@ export const MAX_CORE = 5;
 export const MAX_RING = 11;
 export const SMART_MIN = 60;
 
+/** Mã -> bằng chứng (câu ngắn hiển thị ở Giải trình hội tụ); có mặt = đạt tiêu chí. */
+export type Evidence = Map<string, string> | Set<string>;
+
 export interface RadarSources {
   /** Kết quả Siêu Quét (kể cả mã ngoài universe đã chấm qua /scanner/custom). */
   scanner: Map<string, SieuQuetStockItem>;
   /** null = nguồn chưa tải được (tiêu chí tính là "chưa có dữ liệu", không phải "không đạt"). */
-  world: Set<string> | null;
-  sector: Set<string> | null;
-  ta: Set<string> | null;
-  catalyst: Set<string> | null;
-  dividend: Set<string> | null;
+  world: Evidence | null;
+  sector: Evidence | null;
+  ta: Evidence | null;
+  catalyst: Evidence | null;
+  dividend: Evidence | null;
 }
+
+export type CriterionStatus = "pass" | "fail" | "missing";
+export interface CriterionEvidence { label: string; status: CriterionStatus; text: string }
 
 export interface ScoredTicker {
   ticker: string;
   convergence: number[];
+  /** Bằng chứng từng tiêu chí (cùng thứ tự CONVERGENCE_LABELS). */
+  evidence: CriterionEvidence[];
   score: number;
   /** Nguồn chưa có dữ liệu (theo thứ tự tiêu chí). */
   missing: string[];
@@ -39,26 +47,41 @@ export interface ScoredTicker {
 
 const excluded = (i: SieuQuetStockItem) => i.piotroskiFScore !== null && i.piotroskiFScore <= Math.floor(i.fScoreMax * 3 / 9);
 
+const FAIL_TEXT = [
+  "", "Không thuộc nhóm hưởng lợi từ diễn biến ngành Mỹ / Âu / Á", "Ngoài Top 20 Hội tụ dòng tiền (Lọc ngành)",
+  "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có chất xúc tác / sự kiện hưởng lợi", "Ngoài rổ cổ tức chất lượng",
+];
+const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Thuộc rổ cổ tức chất lượng"];
+const lookup = (e: Evidence, t: string): string | null => (e instanceof Map ? e.get(t) ?? null : e.has(t) ? "" : null);
+
 export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {
   const item = s.scanner.get(ticker) ?? null;
-  const has = (set: Set<string> | null) => (set ? (set.has(ticker) ? 1 : 0) : 0);
-  const convergence = [
-    item && (item.smartScore ?? 0) >= SMART_MIN && !excluded(item) ? 1 : 0,
-    has(s.world),
-    has(s.sector),
-    has(s.ta),
-    has(s.catalyst) || (item && (item.eventImpactScore ?? 0) > 0) ? 1 : 0,
-    has(s.dividend),
-  ];
-  const missing = [
-    item ? null : CONVERGENCE_LABELS[0],
-    s.world ? null : CONVERGENCE_LABELS[1],
-    s.sector ? null : CONVERGENCE_LABELS[2],
-    s.ta ? null : CONVERGENCE_LABELS[3],
-    s.catalyst || item ? null : CONVERGENCE_LABELS[4],
-    s.dividend ? null : CONVERGENCE_LABELS[5],
-  ].filter((x): x is string => Boolean(x));
-  return { ticker, convergence, score: convergence.reduce((a, b) => a + b, 0), missing, item };
+  const evidence: CriterionEvidence[] = [];
+  // 1 Siêu quét AI
+  if (!item) evidence.push({ label: CONVERGENCE_LABELS[0], status: "missing", text: "Chưa có điểm Siêu Quét" });
+  else {
+    const smart = item.smartScore ?? 0;
+    const bad = excluded(item);
+    evidence.push({
+      label: CONVERGENCE_LABELS[0], status: smart >= SMART_MIN && !bad ? "pass" : "fail",
+      text: bad ? `F-Score ${item.piotroskiFScore}/${item.fScoreMax} quá thấp (Smart ${smart.toFixed(1)})`
+        : smart >= SMART_MIN ? `Smart ${smart.toFixed(1)} ≥ ${SMART_MIN}` : `Smart ${smart.toFixed(1)} < ${SMART_MIN}`,
+    });
+  }
+  // 2–6 các tab còn lại
+  const others: [Evidence | null, number][] = [[s.world, 1], [s.sector, 2], [s.ta, 3], [s.catalyst, 4], [s.dividend, 5]];
+  for (const [src, k] of others) {
+    if (!src) { evidence.push({ label: CONVERGENCE_LABELS[k], status: "missing", text: "Nguồn chưa tải được" }); continue; }
+    let hit = lookup(src, ticker);
+    // Chất xúc tác: sự kiện đã xác nhận cho ngành (Siêu Quét) cũng tính.
+    if (hit === null && k === 4 && item && (item.eventImpactScore ?? 0) > 0) hit = `Sự kiện ngành đã xác nhận (+${item.eventImpactScore})`;
+    evidence.push(hit === null
+      ? { label: CONVERGENCE_LABELS[k], status: "fail", text: FAIL_TEXT[k] }
+      : { label: CONVERGENCE_LABELS[k], status: "pass", text: hit || PASS_TEXT[k] });
+  }
+  const convergence: number[] = evidence.map((e) => (e.status === "pass" ? 1 : 0));
+  const missing = evidence.filter((e) => e.status === "missing").map((e) => e.label);
+  return { ticker, convergence, evidence, score: convergence.reduce((a, b) => a + b, 0), missing, item };
 }
 
 function coreState(item: SieuQuetStockItem | null): Pick<RadarCoreNode, "state" | "stateLabel" | "holdSuggestion" | "trendWarning"> {

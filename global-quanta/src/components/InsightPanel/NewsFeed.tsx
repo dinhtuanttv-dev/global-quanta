@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useRadarModel } from '../../hooks/useRadarModel';
 import { useSmartNews, type SmartNewsItem } from '../../hooks/useSmartNews';
+import Card, { AiChip } from './Card';
 
 // TIN TỨC THÔNG MINH — tin THẬT cho các mã của ★ Danh mục trên Radar (+ mã đang chọn):
 // công bố thông tin chính thức, tin doanh nghiệp, Vietstock, CafeF; đã gắn mã, gộp tin trùng giữa nguồn,
@@ -31,25 +32,25 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
   const s = sentGlyph(item.sentiment);
   const rel = item.tickers.map(relevance).find(Boolean) ?? null;
   return (
-    <div className="news-item" style={{ cursor: 'pointer' }} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+    <div className="news-item flex gap-2 py-2 border-t border-white/5 cursor-pointer hover:bg-white/[0.03] rounded" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
         {item.tickers.slice(0, 2).map((t) => (
-          <button key={t} type="button" className="news-tag" onClick={(e) => { e.stopPropagation(); onTicker(t); }} title={`Chọn ${t}`} style={{ border: 'none', cursor: 'pointer' }}>{t}</button>
+          <button key={t} type="button" className="news-tag font-mono text-[10px] font-bold px-1.5 py-0.5 rounded text-cyan-200 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20" onClick={(e) => { e.stopPropagation(); onTicker(t); }} title={`Chọn ${t}`}>{t}</button>
         ))}
       </div>
-      <div className="news-body" style={{ minWidth: 0 }}>
-        <div className="news-title">
+      <div className="news-body flex-1 min-w-0">
+        <div className="news-title text-[11px] leading-snug text-slate-100">
           <span style={{ color: s.c, marginRight: 4 }} title={`${s.t} (${item.sentiment.toFixed(2)})${item.sentimentHits.length ? ` · ${item.sentimentHits.join(', ')}` : ''}`}>{s.g}</span>
           {item.title}
         </div>
-        <div className="news-meta" style={{ flexWrap: 'wrap', rowGap: 2 }}>
-          {rel && <span className={rel === 'Core' ? 'core-relevance' : ''} style={rel !== 'Core' ? { color: '#5B8CD6', fontWeight: 600 } : undefined}>● {rel}</span>}
-          <span style={{ color: 'var(--text-secondary)' }}>{item.eventLabel}</span>
+        <div className="news-meta flex flex-wrap gap-x-1.5 gap-y-0.5 items-center text-[9.5px] text-slate-500 mt-1">
+          {rel && <span className={`font-semibold ${rel === 'Core' ? 'text-amber-400' : 'text-sky-400'}`}>● {rel}</span>}
+          <span className="text-slate-300">{item.eventLabel}</span>
           <span title={item.alsoIn.length ? `Cũng đưa tin: ${item.alsoIn.join(', ')}` : undefined}>
             {item.sourceLabel}{item.corroboration > 1 ? ` +${item.corroboration - 1} nguồn` : ''}
           </span>
           <span>{timeAgo(item.publishedAt)}</span>
-          <span title="Mức quan trọng: loại sự kiện × độ tin cậy nguồn × độ mới × cường độ cảm xúc × xác nhận chéo × phản ứng khối lượng">⚑ {item.importance}</span>
+          <span className="text-amber-400/80" title="Mức quan trọng: loại sự kiện × độ tin cậy nguồn × độ mới × cường độ cảm xúc × xác nhận chéo × phản ứng khối lượng">⚑ {item.importance}</span>
         </div>
         {item.insight && (
           <div style={{ fontSize: 10.5, marginTop: 2, color: item.insight.tone === 'watch' ? WATCH : item.insight.tone === 'up' ? UP : DOWN }}>
@@ -57,7 +58,7 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
           </div>
         )}
         {open && (
-          <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', marginTop: 4, lineHeight: 1.45 }}>
+          <div className="text-[10.5px] text-slate-400 mt-1 leading-snug">
             {item.summary && <div style={{ marginBottom: 3 }}>{item.summary}</div>}
             {item.reaction && item.reaction.ret !== null && (
               <div>
@@ -68,8 +69,8 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
             )}
             {item.sentimentHits.length > 0 && <div>Từ khoá cảm xúc: {item.sentimentHits.join(', ')}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 3 }}>
-              {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--gold)' }}>Mở bài gốc ↗</a>}
-              {item.attachment && item.attachment !== item.url && <a href={item.attachment} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--gold)' }}>Tài liệu đính kèm ↗</a>}
+              {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 hover:text-cyan-200">Mở bài gốc ↗</a>}
+              {item.attachment && item.attachment !== item.url && <a href={item.attachment} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 hover:text-cyan-200">Tài liệu đính kèm ↗</a>}
             </div>
           </div>
         )}
@@ -110,10 +111,9 @@ export default function NewsFeed() {
   const failed = Object.values(data?.sources ?? {}).filter((s) => !s.ok).length;
 
   return (
-    <div className="panel-block news-block">
-      <div className="panel-head"><div className="panel-title">TIN TỨC THÔNG MINH <span className="ai-chip">AI</span></div></div>
-      {!enabled && <div className="ac-hold">Cần Market Gateway để tải tin thật.</div>}
-      {enabled && !tickers.length && <div className="ac-hold">Thêm mã vào ★ {radar.listName} để nhận tin liên quan.</div>}
+    <Card id="news" title={<>TIN TỨC THÔNG MINH <AiChip /></>} className="news-block">
+      {!enabled && <div className="ac-hold text-[10.5px] text-slate-400">Cần Market Gateway để tải tin thật.</div>}
+      {enabled && !tickers.length && <div className="ac-hold text-[10.5px] text-slate-400">Thêm mã vào ★ {radar.listName} để nhận tin liên quan.</div>}
       {enabled && tickers.length > 0 && (
         <>
           {heat.length > 0 && (
@@ -123,7 +123,7 @@ export default function NewsFeed() {
                 return (
                   <button key={t} type="button" onClick={() => { selectTicker(t); setFilter('selected'); setLimit(PAGE); }}
                     title={`${h.count} tin · cảm xúc TB ${h.avgSentiment.toFixed(2)} — bấm để lọc`}
-                    style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, cursor: 'pointer', background: 'var(--bg-surface-2)', border: `1px solid ${s.c}55`, color: 'var(--text-secondary)' }}>
+                    className="text-[10px] px-1.5 py-px rounded bg-black/30 text-slate-300 font-mono" style={{ border: `1px solid ${s.c}55` }}>
                     {t} <span style={{ color: s.c }}>{s.g}{h.count}</span>
                   </button>
                 );
@@ -133,29 +133,28 @@ export default function NewsFeed() {
           <div role="tablist" aria-label="Lọc tin" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
             {FILTERS.map((f) => (
               <button key={f.id} role="tab" aria-selected={filter === f.id} type="button" onClick={() => { setFilter(f.id); setLimit(PAGE); }}
-                style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, cursor: 'pointer', border: '1px solid var(--border)',
-                  background: filter === f.id ? 'rgba(232,184,75,0.15)' : 'transparent', color: filter === f.id ? 'var(--gold)' : 'var(--text-secondary)' }}>
+                className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${filter === f.id ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-slate-200'}`}>
                 {f.label}
               </button>
             ))}
           </div>
-          {isLoading && !data && <div className="ac-hold">Đang tổng hợp tin từ HOSE/HNX, VNDirect, Vietstock, CafeF…</div>}
-          {error && !data && <div className="ac-hold">Không tải được tin: {String((error as Error).message ?? error)}</div>}
-          {data && items.length === 0 && <div className="ac-hold">Không có tin phù hợp trong {data.days} ngày qua.</div>}
+          {isLoading && !data && <div className="ac-hold text-[10.5px] text-slate-400">Đang tổng hợp tin từ HOSE/HNX, VNDirect, Vietstock, CafeF…</div>}
+          {error && !data && <div className="ac-hold text-[10.5px] text-slate-400">Không tải được tin: {String((error as Error).message ?? error)}</div>}
+          {data && items.length === 0 && <div className="ac-hold text-[10.5px] text-slate-400">Không có tin phù hợp trong {data.days} ngày qua.</div>}
           {items.slice(0, limit).map((item) => <NewsRow key={item.id} item={item} relevance={relevance} onTicker={selectTicker} />)}
           {items.length > limit && (
-            <button type="button" onClick={() => setLimit((l) => l + PAGE)} style={{ fontSize: 10.5, color: 'var(--gold)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>
+            <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="text-[10.5px] text-cyan-300 hover:text-cyan-200 py-1">
               Xem thêm {Math.min(PAGE, items.length - limit)} tin ▾
             </button>
           )}
           {data && (
-            <div style={{ fontSize: 9.5, color: 'var(--text-tertiary)', marginTop: 4 }}>
+            <div className="text-[9.5px] text-slate-500 mt-1">
               Nguồn: công bố HOSE/HNX/UPCOM, VNDirect, Vietstock, CafeF · {data.days} ngày · {data.items.length} tin sau khi gộp trùng
               {failed ? ` · ${failed} nguồn tạm lỗi` : ''} · cảm xúc theo từ điển tài chính, không phải khuyến nghị.
             </div>
           )}
         </>
       )}
-    </div>
+    </Card>
   );
 }

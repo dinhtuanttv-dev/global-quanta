@@ -35,18 +35,24 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   const sources: RadarSources = useMemo(() => {
     const worldReady = us.topGainers.length + us.topLosers.length > 0;
     const world = worldReady
-      ? new Set(computeBeneficiaryStocks({
+      ? new Map(computeBeneficiaryStocks({
           usGainers: us.topGainers, usLosers: us.topLosers, euGainers: eu.topGainers, euLosers: eu.topLosers,
           asiaGainers: asia.topGainers, asiaLosers: asia.topLosers, macro: null, commodityDeltas: null,
-        }).filter((b) => b.direction === "positive").map((b) => b.ticker))
+        }).filter((b) => b.direction === "positive").map((b) => [b.ticker, `Hưởng lợi: ${b.sources.slice(0, 2).join("; ")}`]))
       : null;
     const impacts = catalyst?.tickerImpacts as Record<string, { direction: string; compositeScore: number }> | undefined;
     return {
       scanner: new Map(basket.items.map((i) => [i.ticker, i])),
       world,
-      sector: top20Data?.top20 ? new Set(top20Data.top20.map((r) => r.ticker)) : null,
-      ta: ta.results.length || (!ta.isLoading && !ta.error) ? new Set(ta.results.map((r) => r.ticker)) : null,
-      catalyst: impacts ? new Set(Object.entries(impacts).filter(([, v]) => v.direction === "benefit" && v.compositeScore > 0).map(([t]) => t)) : null,
+      sector: top20Data?.top20
+        ? new Map(top20Data.top20.map((r, i) => [r.ticker, `Top 20 Hội tụ dòng tiền: hạng ${i + 1}, điểm ${Math.round(r.confluenceScore)}`]))
+        : null,
+      ta: ta.results.length || (!ta.isLoading && !ta.error)
+        ? new Map(ta.results.map((r) => [r.ticker, `Đồng thuận TA ${r.taConsensusScore}${r.goldenPatternLabel ? ` · ${r.goldenPatternLabel}` : ""}${r.wyckoffPhase ? ` · Wyckoff ${r.wyckoffPhase}` : ""}`]))
+        : null,
+      catalyst: impacts
+        ? new Map(Object.entries(impacts).filter(([, v]) => v.direction === "benefit" && v.compositeScore > 0).map(([t, v]) => [t, `Chất xúc tác hưởng lợi, điểm ${Math.round(v.compositeScore)}`]))
+        : null,
       dividend: qualityScoreData?.results ? new Set((qualityScoreData.results as { ticker: string }[]).map((r) => r.ticker)) : null,
     };
   }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.results, ta.isLoading, ta.error, qualityScoreData]);
