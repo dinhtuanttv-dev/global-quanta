@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { REGIME_LABEL, useResearchOverview, type PerformanceRow } from "../../../hooks/useResearch";
 
-// Bảng hiệu suất chiến lược gọn: mỗi tín hiệu một dòng, T+3 / T+5 = tỷ lệ trúng so với mốc nền
+// Bảng hiệu suất chiến lược gọn: mỗi tín hiệu một dòng, T+3 / T+5 / T+10 = tỷ lệ trúng so với mốc nền
 // cùng chiều, cùng ngày, kèm z ĐÃ TÍNH CHỒNG LẤN (sai số cụm ngày × mã). Kết luận theo z cụm.
 const SIGNALS: { id: string; label: string }[] = [
   { id: "STEALTH_20", label: "Stealth 20 phiên" },
@@ -24,10 +24,15 @@ function Cell({ r }: { r: PerformanceRow | undefined }) {
   const v = VERDICT[r.verdict];
   return (
     <td className="py-0.5 px-1 text-right whitespace-nowrap"
-      title={`n=${r.n} (hiệu dụng ≈ ${r.effectiveN ?? r.n}) · mua ${r.long} / bán ${r.short} · mốc nền ${pct(r.baseline)} · z đã tính chồng lấn ${z ?? "—"} · lợi suất vượt TB ${pct(r.avgSignedExcess)}`}>
+      title={`n=${r.n} (hiệu dụng ≈ ${r.effectiveN ?? r.n}) · mua ${r.long} / bán ${r.short} · KTC95% ${pct(r.hitLow)}–${pct(r.hitHigh)} · mốc nền ${pct(r.baseline)} (vạch trắng) · z đã tính chồng lấn ${z ?? "—"} · lợi suất vượt TB ${pct(r.avgSignedExcess)}`}>
       <span style={{ color: v.color }}>{pct(r.hitRate)}</span>
       <span className="text-slate-500"> / {pct(r.baseline)}</span>
       <span className="text-slate-400"> z {z === null ? "—" : z.toFixed(1)}</span>
+      {/* KTC 95% của tỷ lệ trúng so với vạch mốc nền */}
+      <div className="relative h-1 rounded bg-white/5 mt-0.5" aria-hidden="true">
+        <div className="absolute h-full rounded" style={{ left: `${r.hitLow * 100}%`, width: `${Math.max(1, (r.hitHigh - r.hitLow) * 100)}%`, background: v.color, opacity: 0.55 }} />
+        <div className="absolute h-full w-px bg-slate-200" style={{ left: `${r.baseline * 100}%` }} />
+      </div>
     </td>
   );
 }
@@ -57,6 +62,7 @@ export default function StrategyPerformanceTable({ activeSignals = [] }: { activ
             <th className="text-left font-normal px-1">Tín hiệu</th>
             <th className="text-right font-normal px-1">T+3</th>
             <th className="text-right font-normal px-1">T+5</th>
+            <th className="text-right font-normal px-1">T+10</th>
             <th className="text-right font-normal px-1">Kết luận T+5</th>
           </tr>
         </thead>
@@ -72,6 +78,7 @@ export default function StrategyPerformanceTable({ activeSignals = [] }: { activ
                 </td>
                 <Cell r={find(s.id, 3)} />
                 <Cell r={t5} />
+                <Cell r={find(s.id, 10)} />
                 <td className="py-0.5 px-1 text-right font-sans whitespace-nowrap" style={{ color: v?.color ?? "#64748b" }}>
                   {v ? `${v.glyph} ${v.text}` : "chưa có dữ liệu"}
                 </td>

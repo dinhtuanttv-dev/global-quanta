@@ -5,7 +5,7 @@ import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
-import AdaptiveLearningPanel from "./AdaptiveLearningPanel";
+import VnIndexAiPanel from "./VnIndexAiPanel";
 import ResearchUiToggle from "./ResearchUiToggle";
 import { useResearchUi } from "../../../hooks/useResearchUi";
 
@@ -229,7 +229,7 @@ export default function SieuQuetAiTab() {
           </div>
           {indexState && <ImpulseGauge score={indexState.impulseScore} />}
         </div>
-        {researchUiOn && <AdaptiveLearningPanel />}
+        {researchUiOn && <VnIndexAiPanel />}
         <EventPanel />
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3">
           <p className="text-[9px] text-sky-300">

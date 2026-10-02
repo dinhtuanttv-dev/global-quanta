@@ -8,6 +8,7 @@ import { evaluateOutcome, summarizePerformance, wilson, stockSignals, adaptiveSi
 import { fitLogistic, trainAdaptive, decidePromotion, walkForwardFolds, auc, explain } from "../src/market/research/tuner.js";
 import { createResearchJobs, buildSamples } from "../src/market/research/researchJobs.js";
 import { getResearchOverview, getResearchSymbol } from "../src/market/research/researchService.js";
+import { analyzeIndex } from "../src/market/research/indexAnalysis.js";
 import { createMemoryStore, selectMemory } from "../src/market/store/memoryStore.js";
 import { postgrestQuery } from "../src/market/store/supabaseStore.js";
 import { groupSessions } from "../src/market/scanner/intradayService.js";
@@ -393,4 +394,29 @@ test("research: đọc theo trang luôn có thứ tự duy nhất; upsert bỏ d
       if (v === undefined) delete process.env[k]; else process.env[k] = v;
     }
   }
+});
+
+test("research: phân tích VN-Index — chuỗi trạng thái, độ dài đợt, xác suất tăng sau T+h theo trạng thái/vùng Impulse", () => {
+  const dates = tradingDatesBack("2026-09-30", 120);
+  // 60 phiên tăng đều (UPTREND, Impulse 70) rồi 60 phiên giảm đều (DOWNTREND, Impulse 30).
+  const rows = dates.map((date, i) => i < 60
+    ? { date, close: 1000 + i * 5, regime: "UPTREND", impulseScore: 70, breadthPct: 70 }
+    : { date, close: 1300 - (i - 60) * 5, regime: "DOWNTREND", impulseScore: 30, breadthPct: 25 });
+  const a = analyzeIndex(rows);
+  assert.equal(a.current.regime, "DOWNTREND");
+  assert.equal(a.current.streak, 60);
+  assert.equal(a.current.impulseZone, "LOW");
+  assert.equal(a.history.length, 60);
+  assert.equal(a.byRegime.UPTREND.avgRun, 60);
+  assert.equal(a.byRegime.SIDEWAY.sessions, 0);
+  const up5 = a.byRegime.UPTREND.horizons[5];
+  // 60 phiên UPTREND: 55 phiên nhìn T+5 hoàn toàn trong đợt tăng -> tăng; 5 phiên cuối nhìn sang đợt giảm.
+  assert.equal(up5.n, 60);
+  assert.equal(up5.nEff, 12, "n hiệu dụng = n / h");
+  assert.ok(up5.pUp > 0.8 && up5.lo < up5.pUp && up5.hi >= up5.pUp);
+  assert.equal(a.byRegime.DOWNTREND.horizons[5].pUp, 0);
+  assert.equal(a.byRegime.DOWNTREND.horizons[5].n, 55, "5 phiên cuối chưa đủ T+5");
+  assert.equal(a.byImpulse.HIGH.sessions, 60);
+  assert.ok(a.byImpulse.HIGH.horizons[3].meanRet > 0 && a.byImpulse.LOW.horizons[3].meanRet < 0);
+  assert.equal(analyzeIndex([]), null);
 });
