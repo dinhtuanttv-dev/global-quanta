@@ -86,7 +86,7 @@ describe("VolumeAnalysisPanel", () => {
   };
   async function renderPanel(researchUi: "1" | "0" | null) {
     vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
-    if (researchUi) window.localStorage.setItem("gq.researchUi", researchUi);
+    if (researchUi) window.localStorage.setItem("gq.researchUi.v2", researchUi);
     const fetchMock = vi.fn(async (url: string) => ({
       ok: true,
       json: async () => (String(url).includes("/research/overview") ? overview : String(url).includes("/research/") ? research : fixture),
@@ -102,8 +102,8 @@ describe("VolumeAnalysisPanel", () => {
     return { el, root, researchCalls };
   }
 
-  it("mặc định (AI tắt): chỉ thêm công tắc nhỏ cuối dòng tiêu đề, không có khối AI, không gọi API nghiên cứu", async () => {
-    const { el, root, researchCalls } = await renderPanel(null);
+  it("đã ẩn AI: chỉ còn công tắc nhỏ cuối dòng tiêu đề, không có khối AI, không gọi API nghiên cứu", async () => {
+    const { el, root, researchCalls } = await renderPanel("0");
     const header = el.querySelector(".font-sans > div")!;
     expect(header.children.length).toBe(2);
     expect(header.children[0].textContent).toBe("Phân tích khối lượng · FPT");
@@ -115,11 +115,9 @@ describe("VolumeAnalysisPanel", () => {
     act(() => root.unmount());
   });
 
-  it("bật công tắc trong bảng KL: hiện điểm thích ứng T+3/T+5 và bảng hiệu suất với z đã tính chồng lấn; tắt -> về nguyên bản", async () => {
+  it("mặc định HIỆN trực tiếp: điểm thích ứng T+3/T+5 và bảng hiệu suất với z đã tính chồng lấn; ẩn -> về nguyên bản", async () => {
     const { el, root, researchCalls } = await renderPanel(null);
     const sw = el.querySelector('[role="switch"]') as HTMLButtonElement;
-    await act(async () => { sw.click(); });
-    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
     expect(sw.getAttribute("aria-checked")).toBe("true");
     const text = el.textContent ?? "";
     expect(text).toContain("AI · Điểm dòng tiền thích ứng & hiệu suất tín hiệu");
@@ -131,11 +129,10 @@ describe("VolumeAnalysisPanel", () => {
     expect(text).toContain("≈ như ngẫu nhiên");
     expect(text).toContain("● Stealth 20 phiên");
     expect(researchCalls()).toBe(2);
-    expect(window.localStorage.getItem("gq.researchUi")).toBe("1");
 
     await act(async () => { sw.click(); });
     expect(el.textContent).not.toContain("AI · Điểm dòng tiền thích ứng");
-    expect(window.localStorage.getItem("gq.researchUi")).toBe("0");
+    expect(window.localStorage.getItem("gq.researchUi.v2")).toBe("0");
     act(() => root.unmount());
   });
 });
