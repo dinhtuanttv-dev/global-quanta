@@ -7,7 +7,7 @@ export type Regime = "UPTREND" | "DOWNTREND" | "SIDEWAY";
 export interface PerformanceRow {
   signal: string; regime: string; horizon: number; n: number; long: number; short: number;
   hitRate: number; hitLow: number; hitHigh: number; baseline: number;
-  avgSignedExcess: number | null; tStat: number | null; pValue: number | null;
+  avgSignedExcess: number | null; tStat: number | null; zHit?: number | null; pValue: number | null;
   verdict: "edge" | "negative" | "none" | "insufficient";
 }
 

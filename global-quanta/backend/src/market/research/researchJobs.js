@@ -272,16 +272,28 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
       const ledgerAll = await store.selectRows(T.ledger, { select: "symbol,signal_date,signal,direction,regime" });
       const outAll = await store.selectRows(T.outcomes, { select: "symbol,signal_date,signal,horizon,hit,excess_ret,ret" });
       const meta = new Map(ledgerAll.map((l) => [`${l.symbol}|${l.signal_date}|${l.signal}`, l]));
+      const base = await baselineStats(store, benchClose, dates, indexRows);
       const joined = [];
       for (const o of outAll) {
         const l = meta.get(`${o.symbol}|${o.signal_date}|${o.signal}`);
-        if (l) joined.push({ signal: l.signal, direction: Number(l.direction), regime: l.regime, horizon: Number(o.horizon), hit: o.hit, excessRet: num(o.excess_ret), ret: num(o.ret) });
+        if (!l) continue;
+        const h = Number(o.horizon), d = Number(l.direction);
+        let expectedHit = null, signedExcess = null;
+        if (l.symbol === "VNINDEX") {
+          const p = base.index[h];
+          expectedHit = p === undefined ? null : d > 0 ? p : 1 - p;
+          signedExcess = d * (num(o.ret) - (base.indexMean[h] ?? 0));
+        } else {
+          const day = base.byDate[h]?.get(l.signal_date);
+          if (day) { expectedHit = d > 0 ? day.p : 1 - day.p; signedExcess = d * (num(o.excess_ret) - day.mean); }
+        }
+        joined.push({ signal: l.signal, direction: d, regime: l.regime, horizon: h, hit: o.hit, expectedHit, signedExcess });
       }
-      const baseline = await baselineHitRates(store, benchClose, dates);
-      const rows = summarizePerformance(joined, baseline);
+      const baseline = base.overall;
+      const rows = summarizePerformance(joined);
       const current = regimes.at(-1) ?? null;
       await store.setKv(RESEARCH_KV.performance, {
-        generatedAt: new Date(now()).toISOString(), baseline, rows, signals: ledgerAll.length, outcomes: outAll.length,
+        generatedAt: new Date(now()).toISOString(), baseline, baselineIndex: base.index, rows, signals: ledgerAll.length, outcomes: outAll.length,
         currentRegime: current && { date: current.date, regime: current.regime, impulseScore: current.impulseScore, breadthPct: current.breadthPct },
       });
 
@@ -358,11 +370,27 @@ export function describeModel(row) {
 }
 
 /**
- * Mẫu huấn luyện: đặc trưng tại t -> nhãn "vượt VN-Index sau h phiên".
+ * Mẫu huấn luyện: đặc trưng tại t -> nhãn CẮT NGANG "mạnh hơn trung vị toàn universe cùng ngày
+ * sau h phiên" (lợi suất vượt VN-Index trừ trung vị cùng ngày > 0). Tỷ lệ nền ≈ 50% mọi ngày nên
+ * mô hình đo khả năng CHỌN MÃ, không bị xu hướng chung của thị trường (vốn đổi theo tuần) làm lệch.
  * @returns {Map<number, any[]>}
  */
 export function buildSamples(flowRows, dailyBySym, benchClose) {
   const out = new Map(HORIZONS.map((h) => [h, []]));
+  // Trung vị lợi suất vượt của toàn universe theo (h, ngày).
+  const medians = new Map(HORIZONS.map((h) => [h, new Map()]));
+  for (const h of HORIZONS) {
+    const byDate = new Map();
+    for (const rows of dailyBySym.values()) {
+      for (let i = 0; i + h < rows.length; i++) {
+        const o = evaluateOutcome(rows, i, 1, h, benchClose);
+        if (!o) continue;
+        if (!byDate.has(rows[i].date)) byDate.set(rows[i].date, []);
+        byDate.get(rows[i].date).push(o.excessRet);
+      }
+    }
+    for (const [d, v] of byDate) if (v.length >= 3) medians.get(h).set(d, medianOf(v));
+  }
   const pos = new Map();
   for (const f of flowRows) {
     if (!f.features) continue;
@@ -374,29 +402,55 @@ export function buildSamples(flowRows, dailyBySym, benchClose) {
     const regime = f.features.regime ?? null;
     for (const h of HORIZONS) {
       const o = evaluateOutcome(rows, i, 1, h, benchClose);
-      if (!o) continue;
-      out.get(h).push({ date: f.trading_date, symbol: f.symbol, x: featureVector(f.features), y: o.excessRet > 0 ? 1 : 0, excess: o.excessRet, regime });
+      const med = medians.get(h).get(f.trading_date);
+      if (!o || med === undefined) continue;
+      const rel = o.excessRet - med;
+      out.get(h).push({ date: f.trading_date, symbol: f.symbol, x: featureVector(f.features), y: rel > 0 ? 1 : 0, excess: rel, regime });
     }
   }
   return out;
 }
 
-/** Tỷ lệ "vượt VN-Index" vô điều kiện của universe theo kỳ hạn (mốc so sánh tỷ lệ trúng). */
-async function baselineHitRates(store, benchClose, dates) {
+function medianOf(values) {
+  const s = [...values].sort((a, b) => a - b);
+  const m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+/**
+ * Mốc so sánh theo NGÀY (cắt ngang toàn universe): p_up = tỷ lệ mã vượt VN-Index sau h phiên kể từ
+ * ngày đó, mean = lợi suất vượt trung bình; cùng tỷ lệ tăng của VN-Index (cho tín hiệu cấp chỉ số).
+ */
+async function baselineStats(store, benchClose, dates, indexRows) {
+  const out = { byDate: {}, overall: {}, index: {}, indexMean: {} };
   const symbols = (await store.getKv(KV.universe))?.value?.tickers?.map((t) => t.ticker) ?? [];
-  if (!symbols.length || !dates.length) return {};
-  const rows = groupBy(await store.getMarketDailyRange({ from: dates.at(-Math.min(dates.length, 260)), to: dates.at(-1), symbols }), "symbol");
-  const out = {};
+  const rows = symbols.length && dates.length
+    ? groupBy(await store.getMarketDailyRange({ from: dates.at(-Math.min(dates.length, 330)), to: dates.at(-1), symbols }), "symbol")
+    : new Map();
+  // Cắt ngang tối thiểu 20 mã/ngày (universe nhỏ: một nửa số mã, ít nhất 3).
+  const minCross = Math.min(20, Math.max(3, Math.floor(rows.size / 2)));
   for (const h of HORIZONS) {
+    const acc = new Map();
     let k = 0, n = 0;
     for (const series of rows.values()) {
-      for (let i = 20; i + h < series.length; i++) {
+      for (let i = 0; i + h < series.length; i++) {
         const o = evaluateOutcome(series, i, 1, h, benchClose);
         if (!o) continue;
+        const a = acc.get(series[i].date) ?? { up: 0, n: 0, sum: 0 };
+        a.n++; a.sum += o.excessRet; if (o.excessRet > 0) a.up++;
+        acc.set(series[i].date, a);
         n++; if (o.excessRet > 0) k++;
       }
     }
-    out[h] = n ? Math.round((k / n) * 1e4) / 1e4 : 0.5;
+    out.byDate[h] = new Map([...acc].filter(([, a]) => a.n >= minCross).map(([d, a]) => [d, { p: a.up / a.n, mean: a.sum / a.n }]));
+    out.overall[h] = n ? Math.round((k / n) * 1e4) / 1e4 : 0.5;
+    let ku = 0, ni = 0, si = 0;
+    for (let i = 0; i + h < indexRows.length; i++) {
+      const r = indexRows[i + h].close / indexRows[i].close - 1;
+      ni++; si += r; if (r > 0) ku++;
+    }
+    out.index[h] = ni ? Math.round((ku / ni) * 1e4) / 1e4 : 0.5;
+    out.indexMean[h] = ni ? si / ni : 0;
   }
   return out;
 }

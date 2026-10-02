@@ -59,7 +59,7 @@ export default function AdaptiveLearningPanel() {
 
       {/* Vòng phản hồi: tỷ lệ trúng của từng tín hiệu so với tỷ lệ nền */}
       <div className="text-[8.5px] text-slate-500 mb-1">
-        Tỷ lệ trúng (vượt VN-Index theo chiều tín hiệu) sau {horizon} phiên · nền {pct(data.baseline[String(horizon)], 1)}
+        Tỷ lệ trúng theo chiều tín hiệu sau {horizon} phiên (mua: vượt VN-Index, bán: thua VN-Index) · vạch trắng = mốc không kỹ năng cùng chiều, cùng ngày
       </div>
       <div className="space-y-1 mb-3">
         {SIGNALS.map((sig) => {
@@ -70,10 +70,10 @@ export default function AdaptiveLearningPanel() {
           );
           const v = VERDICT[r.verdict];
           return (
-            <div key={sig} title={`n=${r.n} (mua ${r.long} / bán ${r.short}) · KTC95% ${pct(r.hitLow, 1)}–${pct(r.hitHigh, 1)} · lợi suất vượt TB theo chiều ${pct(r.avgSignedExcess, 2)} · t=${r.tStat ?? "—"}`}>
+            <div key={sig} title={`n=${r.n} (mua ${r.long} / bán ${r.short}) · KTC95% ${pct(r.hitLow, 1)}–${pct(r.hitHigh, 1)} · mốc nền ${pct(r.baseline, 1)} (z=${r.zHit ?? "—"}) · lợi suất vượt (đã trừ TB cùng ngày) ${pct(r.avgSignedExcess, 2)}, t=${r.tStat ?? "—"}`}>
               <div className="flex justify-between text-[9.5px]">
                 <span className="text-slate-300">{label}</span>
-                <span style={{ color: v.color }}>{pct(r.hitRate, 1)} <span className="text-[8.5px]">{v.text}</span></span>
+                <span style={{ color: v.color }}>{pct(r.hitRate, 1)} <span className="text-slate-500">/ nền {pct(r.baseline, 0)}</span> <span className="text-[8.5px]">{v.text}</span></span>
               </div>
               {/* Thanh KTC 95% so với vạch tỷ lệ nền */}
               <div className="relative h-1.5 rounded bg-white/5 mt-0.5">

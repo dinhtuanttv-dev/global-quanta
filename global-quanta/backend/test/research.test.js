@@ -143,20 +143,30 @@ test("research: chấm kết quả T+h — lợi suất, vượt chỉ số, MFE
   assert.equal(evaluateOutcome(rows, 20, 0, 5, bench).hit, null);
 });
 
-test("research: tổng hợp hiệu suất — Wilson, so với tỷ lệ nền, theo regime", () => {
+test("research: tổng hợp hiệu suất — mốc nền theo CHIỀU tín hiệu, Wilson, theo regime", () => {
   const [lo, hi] = wilson(60, 100);
   assert.ok(lo > 0.5 && lo < 0.6 && hi > 0.6);
+  // Thị trường: chỉ 43% mã vượt chỉ số -> bán "trúng" 57% dù không có kỹ năng.
+  const p = 0.43;
   const joined = [];
-  for (let i = 0; i < 200; i++) joined.push({ signal: "STEALTH_20", direction: 1, regime: i % 2 ? "UPTREND" : "SIDEWAY", horizon: 5, hit: i % 10 < 7, excessRet: i % 10 < 7 ? 0.02 : -0.01 });
-  for (let i = 0; i < 200; i++) joined.push({ signal: "IFE_INTENT", direction: -1, regime: "DOWNTREND", horizon: 5, hit: i % 2 === 0, excessRet: i % 2 === 0 ? -0.01 : 0.01 });
-  const rows = summarizePerformance(joined, { 5: 0.5 });
-  const st = rows.find((r) => r.signal === "STEALTH_20" && r.regime === "ALL");
-  assert.equal(st.n, 200);
-  assert.equal(st.hitRate, 0.7);
-  assert.equal(st.verdict, "edge");
-  assert.ok(st.avgSignedExcess > 0 && st.tStat > 2);
-  assert.equal(rows.find((r) => r.signal === "STEALTH_20" && r.regime === "UPTREND").n, 100);
-  assert.equal(rows.find((r) => r.signal === "IFE_INTENT" && r.regime === "ALL").verdict, "none");
+  for (let i = 0; i < 400; i++) {
+    // Tín hiệu bán không có kỹ năng: trúng đúng 57% (= nền của chiều bán).
+    joined.push({ signal: "NOSKILL_SHORT", direction: -1, regime: "SIDEWAY", horizon: 5, hit: i % 100 < 57, expectedHit: 1 - p, signedExcess: i % 2 ? 0.01 : -0.01 });
+    // Tín hiệu mua có kỹ năng: trúng 55% so với nền 43%.
+    joined.push({ signal: "SKILL_LONG", direction: 1, regime: i % 2 ? "UPTREND" : "SIDEWAY", horizon: 5, hit: i % 100 < 55, expectedHit: p, signedExcess: i % 100 < 55 ? 0.02 : -0.01 });
+  }
+  const rows = summarizePerformance(joined);
+  const ns = rows.find((r) => r.signal === "NOSKILL_SHORT" && r.regime === "ALL");
+  assert.equal(ns.baseline, 0.57);
+  assert.equal(ns.verdict, "none", "57% trúng ở chiều bán KHÔNG phải lợi thế");
+  const sk = rows.find((r) => r.signal === "SKILL_LONG" && r.regime === "ALL");
+  assert.equal(sk.verdict, "edge");
+  assert.ok(sk.zHit > 4 && sk.tStat > 2);
+  assert.equal(rows.find((r) => r.signal === "SKILL_LONG" && r.regime === "UPTREND").n, 200);
+  // Tín hiệu mua trúng 30% khi nền 43% -> ngược kỳ vọng.
+  const bad = summarizePerformance(Array.from({ length: 300 }, (_, i) => ({ signal: "BAD", direction: 1, regime: "UPTREND", horizon: 3, hit: i % 10 < 3, expectedHit: p, signedExcess: -0.01 })));
+  assert.equal(bad.find((r) => r.regime === "ALL").verdict, "negative");
+  assert.equal(summarizePerformance([{ signal: "X", direction: 1, regime: "UPTREND", horizon: 3, hit: true, expectedHit: null, signedExcess: 0 }]).length, 0);
 });
 
 test("research: quy tắc phát tín hiệu công khai", () => {
@@ -314,15 +324,19 @@ test("research: chuỗi job đầu-cuối trên memory store (flow -> signals ->
   assert.ok(detail.adaptive.every((a) => a.ready === false));
 });
 
-test("research: mẫu huấn luyện — nhãn vượt VN-Index sau h phiên, bỏ phiên chưa đủ kỳ hạn", () => {
+test("research: mẫu huấn luyện — nhãn cắt ngang (mạnh hơn trung vị universe cùng ngày), bỏ phiên chưa đủ kỳ hạn", () => {
   const dates = tradingDatesBack("2026-09-30", 40);
-  const rows = dates.map((date, i) => ({ symbol: "AAA", date, close: 100 + i, closeAdj: 100 + i, high: 101 + i, low: 99 + i }));
+  const mk = (sym, step) => dates.map((date, i) => ({ symbol: sym, date, close: 100 + step * i, closeAdj: 100 + step * i, high: 101 + step * i, low: 99 + step * i }));
+  const daily = new Map([["AAA", mk("AAA", 2)], ["BBB", mk("BBB", 1)], ["CCC", mk("CCC", 0.5)]]);
   const bench = new Map(dates.map((d) => [d, 1000]));
   const features = Object.fromEntries(FEATURE_NAMES.map((n) => [n, 0.1]));
-  const flow = dates.map((d) => ({ symbol: "AAA", trading_date: d, features: { ...features, regime: "UPTREND" } }));
-  const s = buildSamples(flow, new Map([["AAA", rows]]), bench);
-  assert.deepEqual([s.get(3).length, s.get(5).length, s.get(10).length], [37, 35, 30]);
-  assert.ok(s.get(5).every((x) => x.y === 1 && x.regime === "UPTREND"));
+  const flow = ["AAA", "CCC"].flatMap((sym) => dates.map((d) => ({ symbol: sym, trading_date: d, features: { ...features, regime: "UPTREND" } })));
+  const s = buildSamples(flow, daily, bench);
+  assert.deepEqual([s.get(3).length, s.get(5).length, s.get(10).length], [74, 70, 60]);
+  // Cả AAA và CCC đều "vượt VN-Index" (chỉ số đi ngang) nhưng chỉ AAA mạnh hơn trung vị (BBB).
+  assert.ok(s.get(5).filter((x) => x.symbol === "AAA").every((x) => x.y === 1));
+  assert.ok(s.get(5).filter((x) => x.symbol === "CCC").every((x) => x.y === 0));
+  assert.ok(s.get(5).every((x) => x.regime === "UPTREND"));
 });
 
 test("research: đọc theo trang luôn có thứ tự duy nhất; upsert bỏ dòng trùng khoá", async () => {

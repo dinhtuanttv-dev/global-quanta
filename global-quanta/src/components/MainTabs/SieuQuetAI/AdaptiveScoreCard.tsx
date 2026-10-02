@@ -23,9 +23,12 @@ export function AdaptiveScoreBody({ data, compact = false }: { data: ResearchSym
   return (
     <>
       {ready.length ? (
-        <div className="grid grid-cols-3 gap-1 mb-1.5">
-          {[3, 5, 10].map((h) => <ProbPill key={h} h={h} prob={data.adaptive.find((a) => a.horizon === h)?.prob} />)}
-        </div>
+        <>
+          <div className="text-[8.5px] text-slate-500 mb-0.5">Xác suất mạnh hơn trung vị thị trường (cùng ngày) sau T+h phiên</div>
+          <div className="grid grid-cols-3 gap-1 mb-1.5">
+            {[3, 5, 10].map((h) => <ProbPill key={h} h={h} prob={data.adaptive.find((a) => a.horizon === h)?.prob} />)}
+          </div>
+        </>
       ) : (
         <div className="text-[9px] text-slate-400 mb-1">Chưa có mô hình đạt kiểm định ngoài mẫu — chỉ hiển thị tín hiệu và lịch sử chấm điểm.</div>
       )}

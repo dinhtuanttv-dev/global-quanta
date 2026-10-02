@@ -67,7 +67,7 @@ export default function ActionCenter() {
       <div className="ac-hold">Gợi ý khung nắm giữ: <b>{holdLine}</b></div>
       {research.data?.asOf && (
         <div className="ac-hold" style={{ fontFamily: 'inherit' }}>
-          <div style={{ marginBottom: 4 }}>Điểm dòng tiền thích ứng (AI tự học) — xác suất vượt VN-Index:</div>
+          <div style={{ marginBottom: 4 }}>Điểm dòng tiền thích ứng (AI tự học) — xác suất mạnh hơn trung vị thị trường:</div>
           <AdaptiveScoreBody data={research.data} compact />
         </div>
       )}

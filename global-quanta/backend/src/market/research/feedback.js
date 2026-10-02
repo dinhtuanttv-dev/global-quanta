@@ -98,19 +98,25 @@ export function wilson(k, n, z = 1.96) {
 }
 
 /**
- * @param {{ signal, direction, regime, horizon, hit, excessRet, ret }[]} joined  ledger ⋈ outcomes
- * @param {Record<number, number>} baselineHit  tỷ lệ "vượt VN-Index" vô điều kiện theo kỳ hạn
+ * Mốc so sánh "không có kỹ năng" phải cùng CHIỀU và cùng NGÀY với tín hiệu:
+ *   - Mua (+1) trúng khi mã vượt VN-Index; bán (−1) trúng khi mã thua VN-Index. Vì đa số mã thường
+ *     thua chỉ số vốn hoá, tỷ lệ nền của chiều bán cao hơn hẳn chiều mua -> phải tính riêng.
+ *   - Mỗi tín hiệu so với toàn universe CÙNG NGÀY (độ rộng thị trường thay đổi theo thời gian):
+ *     expectedHit = p_up(ngày, h) nếu mua, 1 − p_up nếu bán; lợi suất vượt được trừ trung bình
+ *     cắt ngang cùng ngày trước khi nhân chiều (tránh "lãi miễn phí" của chiều bán).
+ * @param {{ signal, direction, regime, horizon, hit, expectedHit, signedExcess }[]} joined
  */
-export function summarizePerformance(joined, baselineHit = {}) {
+export function summarizePerformance(joined) {
   const groups = new Map();
   for (const r of joined) {
-    if (!r.direction) continue;
+    if (!r.direction || r.expectedHit === null || r.expectedHit === undefined) continue;
     for (const regime of ["ALL", r.regime ?? "UNKNOWN"]) {
       const key = `${r.signal}|${regime}|${r.horizon}`;
       let g = groups.get(key);
-      if (!g) groups.set(key, (g = { signal: r.signal, regime, horizon: r.horizon, n: 0, hits: 0, sum: 0, sumSq: 0, long: 0, short: 0 }));
-      const signed = r.direction * (r.excessRet ?? r.ret);
-      g.n++; g.hits += r.hit ? 1 : 0; g.sum += signed; g.sumSq += signed * signed;
+      if (!g) groups.set(key, (g = { signal: r.signal, regime, horizon: r.horizon, n: 0, hits: 0, exp: 0, expVar: 0, sum: 0, sumSq: 0, long: 0, short: 0 }));
+      g.n++; g.hits += r.hit ? 1 : 0;
+      g.exp += r.expectedHit; g.expVar += r.expectedHit * (1 - r.expectedHit);
+      g.sum += r.signedExcess; g.sumSq += r.signedExcess * r.signedExcess;
       if (r.direction > 0) g.long++; else g.short++;
     }
   }
@@ -119,15 +125,15 @@ export function summarizePerformance(joined, baselineHit = {}) {
     const sd = g.n > 1 ? Math.sqrt(Math.max(0, (g.sumSq - g.n * avg * avg) / (g.n - 1))) : null;
     const t = sd ? avg / (sd / Math.sqrt(g.n)) : null;
     const hitRate = g.hits / g.n;
-    const base = baselineHit[g.horizon] ?? 0.5;
+    const base = g.exp / g.n;
     const [lo, hi] = wilson(g.hits, g.n);
-    // Kiểm định một phía: tỷ lệ trúng > tỷ lệ nền.
-    const zHit = g.n ? (hitRate - base) / Math.sqrt(base * (1 - base) / g.n) : 0;
-    const signal = g.n >= 30 && lo > base ? "edge" : g.n >= 30 && hi < base ? "negative" : g.n < 30 ? "insufficient" : "none";
+    // Số lần trúng so với kỳ vọng (tổng Bernoulli với p khác nhau): z = (k − Σp) / √Σp(1−p).
+    const zHit = g.expVar > 0 ? (g.hits - g.exp) / Math.sqrt(g.expVar) : 0;
+    const verdict = g.n < 30 ? "insufficient" : zHit >= 1.96 ? "edge" : zHit <= -1.96 ? "negative" : "none";
     return {
       signal: g.signal, regime: g.regime, horizon: g.horizon, n: g.n, long: g.long, short: g.short,
       hitRate: round(hitRate, 4), hitLow: round(lo, 4), hitHigh: round(hi, 4), baseline: round(base, 4),
-      avgSignedExcess: round(avg, 5), tStat: round(t, 2), pValue: round(1 - normCdf(zHit), 4), verdict: signal,
+      avgSignedExcess: round(avg, 5), tStat: round(t, 2), zHit: round(zHit, 2), pValue: round(1 - normCdf(zHit), 4), verdict,
     };
   });
   return rows.sort((a, b) => a.signal.localeCompare(b.signal) || a.regime.localeCompare(b.regime) || a.horizon - b.horizon);
