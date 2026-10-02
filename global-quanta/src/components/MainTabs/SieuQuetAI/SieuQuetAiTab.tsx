@@ -13,6 +13,8 @@ import { useScannerBasket, type Basket } from "../../../hooks/useScannerBasket";
 import ScannerToolbar, { type GroupBy } from "./ScannerToolbar";
 import WatchlistBar, { BasketSummary } from "./WatchlistBar";
 import { GROUP_ORDER, groupOf, industryOf } from "./scannerTaxonomy";
+import PricingBoard from "./PricingBoard";
+import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 
 const COLUMN_COUNT = 9;
 
@@ -85,7 +87,7 @@ function sourceLabel(source: string): string {
 }
 
 /** Dòng phụ: chỉ cuộn vào tầm nhìn MỘT lần khi vừa mở (không cuộn lại mỗi lần giá realtime cập nhật). */
-function DetailRow({ ticker }: { ticker: string }) {
+function DetailRow({ ticker, colSpan = COLUMN_COUNT }: { ticker: string; colSpan?: number }) {
   const rowRef = useRef<HTMLTableRowElement | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => rowRef.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
@@ -93,7 +95,7 @@ function DetailRow({ ticker }: { ticker: string }) {
   }, []);
   return (
     <tr ref={rowRef} className="border-b border-cyan-900/40" style={{ scrollMarginTop: 32 }}>
-      <td colSpan={COLUMN_COUNT} className="p-0">
+      <td colSpan={colSpan} className="p-0">
         {isMarketGatewayEnabled()
           ? <VolumeAnalysisPanel symbol={ticker} />
           : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần bật Market Gateway (VITE_MARKET_GATEWAY_ENABLED).</div>}
@@ -212,8 +214,19 @@ export default function SieuQuetAiTab() {
     if (!el || !observerRef.current || el.dataset.ticker !== ticker) return;
     observerRef.current.observe(el);
   }, []);
+  // Hai chế độ dùng CHUNG rổ / bộ lọc ngành / gom nhóm / danh mục: chỉ khác cách hiển thị.
+  const [mode, setModeState] = useState<"scanner" | "board">(() => {
+    try { return window.localStorage.getItem("gq.scannerMode") === "board" ? "board" : "scanner"; } catch { return "scanner"; }
+  });
+  const setMode = useCallback((m: "scanner" | "board") => {
+    setModeState(m);
+    visibleSet.current.clear();
+    try { window.localStorage.setItem("gq.scannerMode", m); } catch { /* bỏ qua */ }
+  }, []);
   const streamTickers = typeof IntersectionObserver === "undefined" ? items.map((i) => i.ticker) : visibleTickers;
-  const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(streamTickers);
+  // Mỗi chế độ chỉ mở một luồng giá cho các dòng đang hiển thị (không đăng ký trùng với SSI).
+  const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(mode === "scanner" ? streamTickers : []);
+  const board = useBoardQuotes(mode === "board" ? streamTickers : [], { enabled: mode === "board" });
   const [researchUiOn] = useResearchUi();
 
   // Rổ (Tất cả / VN30 / Danh mục), lọc ngành 2 cấp, gom nhóm — lựa chọn rổ nhớ theo trình duyệt.
@@ -284,15 +297,27 @@ export default function SieuQuetAiTab() {
         <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className="rounded-xl p-4 flex-1">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h2 className="text-sm font-semibold text-cyan-400">
-                Bảng Siêu Quét AI ({filteredItems.length} mã){effectiveBasket !== "ALL" && <span className="ml-1 text-[11px] text-cyan-200/80 font-normal">· {basketTitle}</span>}
-              </h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div role="tablist" aria-label="Chế độ hiển thị" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
+                  {([["scanner", "Siêu Quét AI"], ["board", "Bảng giá"]] as const).map(([m, label]) => (
+                    <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
+                      className={`px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${mode === m ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <h2 className="text-sm font-semibold text-cyan-400">
+                  ({filteredItems.length} mã){effectiveBasket !== "ALL" && <span className="ml-1 text-[11px] text-cyan-200/80 font-normal">· {basketTitle}</span>}
+                </h2>
+              </div>
               {(dataAsOf || generatedAt) && (
                 <div className="text-[9px] text-slate-500">
                   {usedSource === "gateway"
                     ? <>Điểm số tính trên dữ liệu SSI phiên {dataAsOf} · {universeSize ?? items.length} mã · cập nhật {generatedAt ? new Date(generatedAt).toLocaleString("vi-VN") : "—"}</>
                     : <>Điểm số từ Project A (mỗi mã có thời điểm tính riêng, xem tooltip cột Giá)</>}
-                  {" · nhấn đúp một dòng để xem phân tích khối lượng"}
+                  {mode === "board"
+                    ? " · Bảng giá: giá × 1.000đ, KL cổ phiếu, realtime SSI · nhấn đúp một dòng để xem phân tích khối lượng"
+                    : " · nhấn đúp một dòng để xem phân tích khối lượng"}
                 </div>
               )}
             </div>
@@ -306,6 +331,15 @@ export default function SieuQuetAiTab() {
           {effectiveBasket === "VN30" && basketData.loading && <div className="text-[10px] text-slate-500 mb-2">Đang tải rổ VN30…</div>}
           {basketData.customError ? <div className="text-[10px] text-rose-400 mb-2">Không chấm điểm được mã ngoài universe: {basketData.customError instanceof Error ? basketData.customError.message : String(basketData.customError)}</div> : null}
           <div ref={scrollRef} className="overflow-x-auto overflow-y-auto max-h-[640px]">
+            {mode === "board" ? (
+              <PricingBoard
+                sections={sections ?? [["", filteredItems]]} grouped={Boolean(sections)}
+                quotes={board.quotes} flash={board.flash} now={board.now}
+                expandedTicker={expandedTicker} starred={starredSet} onToggle={toggleRow} onStar={onStar} observe={observe}
+                renderDetail={(ticker, colSpan) => <DetailRow ticker={ticker} colSpan={colSpan} />}
+                emptyText={effectiveBasket === "WATCHLIST" && watchlists.active.tickers.length === 0 ? "Danh mục trống — thêm mã ở ô phía trên." : "Không có mã nào khớp bộ lọc."}
+              />
+            ) : (
             <table className="w-full text-[10px] font-mono">
               <thead className="text-slate-500 border-b border-white/10 sticky top-0 z-10" style={{ background: "#0f1420" }}>
                 <tr>
@@ -345,6 +379,7 @@ export default function SieuQuetAiTab() {
                 )}
               </tbody>
             </table>
+            )}
           </div>
         </div>
       </section>
