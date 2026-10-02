@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import PanelResizer, { clampInsightWidth, defaultInsightWidth, INSIGHT_DEFAULT, INSIGHT_MIN } from "./PanelResizer";
 import { TickerSearch } from "./TopBar/TickerSearch";
 import { useAppStore } from "../store/useAppStore";
-import { LEGACY_LIST_NAME, isLegacyMigrated, migrateLegacyWatchlist, resetWatchlistsForTest, watchlistActions, useWatchlists } from "../hooks/useWatchlists";
+import { LEGACY_LIST_NAME, hasLegacyList, resetWatchlistsForTest, watchlistActions, useWatchlists } from "../hooks/useWatchlists";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -22,34 +22,49 @@ async function render(node: React.ReactNode, wrapClass?: string) {
 describe("Bố cục toàn chiều rộng (gỡ cột Danh sách mã)", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetWatchlistsForTest(); document.body.innerHTML = ""; });
 
-  it("chuyển danh sách mã cũ sang ★ Danh mục một lần, giữ ghi chú và mã ghim", () => {
-    const legacy = [
-      { ticker: "FPT", reason: "Dẫn dắt công nghệ", pinned: true },
-      { ticker: "hpg", reason: null, pinned: false },
-      { ticker: "VNM", reason: "Cổ tức", pinned: false },
-    ];
-    expect(isLegacyMigrated()).toBe(false);
-    expect(migrateLegacyWatchlist(legacy)).toBe(true);
-    let snap: ReturnType<typeof useWatchlists> | null = null;
-    function Spy() { snap = useWatchlists(); return null; }
-    return render(<Spy />).then(() => {
-      expect(snap!.lists.map((l) => l.name)).toEqual([LEGACY_LIST_NAME]); // danh mục mặc định trống được thay
-      expect(snap!.active.tickers).toEqual(["FPT", "HPG", "VNM"]);
-      expect(snap!.active.notes).toEqual({ FPT: "Dẫn dắt công nghệ", VNM: "Cổ tức" });
-      expect(snap!.active.pinned).toEqual(["FPT"]);
-      expect(isLegacyMigrated()).toBe(true);
-      expect(migrateLegacyWatchlist(legacy)).toBe(false); // chỉ một lần
-    });
-  });
-
-  it("đã có danh mục riêng: danh sách cũ được thêm thành danh mục mới, KHÔNG đổi danh mục đang chọn", async () => {
-    watchlistActions.add(["SSI"]);
-    migrateLegacyWatchlist([{ ticker: "VCB" }]);
+  /** Dựng trạng thái như trình duyệt đã chuyển danh sách cũ ở bản trước (PR #13). */
+  const seed = (lists: { id: string; name: string; tickers: string[]; notes?: Record<string, string>; pinned?: string[] }[], activeId: string, radarId?: string) =>
+    window.localStorage.setItem("gq.watchlists.v1", JSON.stringify({ lists, activeId, radarId }));
+  async function snapshot() {
     let snap: ReturnType<typeof useWatchlists> | null = null;
     function Spy() { snap = useWatchlists(); return null; }
     await render(<Spy />);
-    expect(snap!.lists.map((l) => l.name)).toEqual(["Danh mục của tôi", LEGACY_LIST_NAME]);
-    expect(snap!.active.tickers).toEqual(["SSI"]);
+    return snap!;
+  }
+
+  it("gộp \"Danh sách mã (cũ)\" vào \"Danh mục của tôi\": hợp mã (không trùng), giữ ghi chú + ghim, rồi xoá danh sách cũ", async () => {
+    seed([
+      { id: "default", name: "Danh mục của tôi", tickers: ["SSI", "FPT"], notes: { FPT: "của tôi" }, pinned: ["SSI"] },
+      { id: "legacy", name: LEGACY_LIST_NAME, tickers: ["VNM", "FPT", "HPG"], notes: { FPT: "cũ", VNM: "Cổ tức" }, pinned: ["HPG"] },
+    ], "legacy", "legacy");
+    expect(hasLegacyList((await snapshot()).lists)).toBe(true);
+    watchlistActions.mergeLegacy();
+    const s = await snapshot();
+    expect(s.lists.map((l) => l.name)).toEqual(["Danh mục của tôi"]);
+    expect(s.active.tickers).toEqual(["SSI", "FPT", "VNM", "HPG"]);
+    expect(s.active.notes).toEqual({ FPT: "của tôi", VNM: "Cổ tức" }); // ghi chú của tôi được ưu tiên
+    expect(s.active.pinned).toEqual(["SSI", "HPG"]);
+    expect(s.radar.id).toBe("default"); // Radar đang trỏ danh sách cũ -> chuyển sang Danh mục của tôi
+  });
+
+  it("chưa có \"Danh mục của tôi\": danh sách cũ được đổi tên thành danh mục đó", async () => {
+    seed([{ id: "legacy", name: LEGACY_LIST_NAME, tickers: ["VCB"] }, { id: "wl-x", name: "Ngân hàng", tickers: ["TCB"] }], "wl-x");
+    watchlistActions.mergeLegacy();
+    const s = await snapshot();
+    expect(s.lists.map((l) => [l.id, l.name, l.tickers.join()])).toEqual([["default", "Danh mục của tôi", "VCB"], ["wl-x", "Ngân hàng", "TCB"]]);
+    expect(s.active.id).toBe("wl-x"); // không đổi danh mục đang chọn
+  });
+
+  it("xoá hẳn danh sách cũ; Radar mặc định theo \"Danh mục của tôi\" và đổi được danh mục", async () => {
+    seed([{ id: "default", name: "Danh mục của tôi", tickers: ["SSI"] }, { id: "legacy", name: LEGACY_LIST_NAME, tickers: ["VNM"] }, { id: "wl-b", name: "B", tickers: ["ACB"] }], "legacy");
+    watchlistActions.removeLegacy();
+    let s = await snapshot();
+    expect(s.lists.map((l) => l.id)).toEqual(["default", "wl-b"]);
+    expect(s.active.id).toBe("default");
+    expect(s.radar.id).toBe("default");
+    watchlistActions.setRadarList("wl-b");
+    s = await snapshot();
+    expect(s.radar.tickers).toEqual(["ACB"]);
   });
 
   it("vạch kéo: kẹp bề rộng, thu gọn khi kéo hẳn sang phải, phím tắt, nhớ bề rộng", async () => {

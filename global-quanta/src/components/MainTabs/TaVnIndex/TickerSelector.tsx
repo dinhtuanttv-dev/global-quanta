@@ -1,10 +1,11 @@
 ﻿import { useState } from "react";
-import { useAppStore } from "../../../store/useAppStore";
+import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 
 interface Props { ticker: string; onChange: (ticker: string) => void; }
 
 export default function TickerSelector({ ticker, onChange }: Props) {
-  const watchlist = useAppStore((s) => s.watchlist);
+  const { items } = useSieuQuetScanner();
+  const watchlist = items.map((i) => ({ ticker: i.ticker, sector: i.industry ?? i.sector ?? "" }));
   const [query, setQuery] = useState("");
 
   const matches = query

@@ -5,15 +5,26 @@ import * as api from '../../services/api';
 import { isMarketGatewayEnabled } from '../../services/marketDataClient';
 import { useResearchSymbol } from '../../hooks/useResearch';
 import { AdaptiveScoreBody } from '../MainTabs/SieuQuetAI/AdaptiveScoreCard';
+import { useRadarModel } from '../../hooks/useRadarModel';
+import { useSieuQuetScanner } from '../../hooks/useSieuQuetScanner';
+import { CORE_MIN } from '../../lib/radarModel';
 
 export default function ActionCenter() {
-  const { radarCore, radarRing, selectedTicker, showToast } = useAppStore();
+  const { selectedTicker, showToast } = useAppStore();
+  const live = useAppStore((s) => s.livePrices);
+  const radar = useRadarModel();
+  const { items } = useSieuQuetScanner();
 
-  const core = radarCore.find((n) => n.ticker === selectedTicker);
-  const ring = radarRing.find((n) => n.ticker === selectedTicker);
+  // Mã đang chọn: ưu tiên dữ liệu Radar (★ Danh mục); mã ngoài danh mục thì lấy từ Bảng Siêu Quét.
+  const core = radar.core.find((n) => n.ticker === selectedTicker);
+  const ring = radar.ring.find((n) => n.ticker === selectedTicker);
+  const scored = radar.scored.find((x) => x.ticker === selectedTicker) ?? null;
+  const item = scored?.item ?? items.find((i) => i.ticker === selectedTicker) ?? null;
+  const known = Boolean(selectedTicker && (core || ring || scored || item));
 
-  const livePrice = usePriceTick(core?.price ?? ring?.price ?? 0, !!(core || ring));
-  const research = useResearchSymbol(core || ring ? selectedTicker : null);
+  const basePrice = live[selectedTicker ?? '']?.price ?? core?.price ?? ring?.price ?? item?.price ?? 0;
+  const livePrice = usePriceTick(basePrice, known);
+  const research = useResearchSymbol(known ? selectedTicker : null);
 
   const handleOrder = (side: 'buy' | 'sell') => {
     if (!selectedTicker) return;
@@ -27,23 +38,27 @@ export default function ActionCenter() {
     showToast(`Đã đặt cảnh báo cho ${selectedTicker}.`);
   };
 
-  if (!core && !ring) {
+  if (!known) {
     return (
       <div className="panel-block">
         <div className="panel-head"><div className="panel-title">ACTION CENTER <span className="ai-chip">AI</span></div></div>
-        <div className="ac-hold">Chọn 1 mã trên Radar để xem chi tiết hành động.</div>
+        <div className="ac-hold">Chọn 1 mã trên Radar hoặc bấm một dòng trong Bảng Siêu Quét để xem chi tiết hành động.</div>
       </div>
     );
   }
 
-  const ticker = core?.ticker ?? ring?.ticker ?? '';
-  const changePct = core?.changePct ?? ring?.changePct ?? 0;
+  const ticker = selectedTicker!;
+  const changePct = live[ticker]?.changePct ?? core?.changePct ?? ring?.changePct ?? item?.changePct ?? 0;
   // Chế độ Gateway: chỉ hiển thị giá khi đã có giá thật, không hiển thị giá mẫu.
-  const hasRealPrice = !isMarketGatewayEnabled() || Boolean(core?.livePrice ?? ring?.livePrice);
+  const hasRealPrice = !isMarketGatewayEnabled() || Boolean(live[ticker] || core?.livePrice || ring?.livePrice || item?.price);
+  const score = scored?.score ?? null;
   const stateLine = core
-    ? `${core.state === 'stable' ? '🛡' : core.state === 'breakout' ? '⚡' : '⚠'} ${core.stateLabel}`
-    : `Ring · ${ring!.score}/6 điểm hội tụ — còn ${6 - ring!.score} điểm để vào Core`;
+    ? `${core.state === 'stable' ? '🛡' : core.state === 'breakout' ? '⚡' : '⚠'} ${core.stateLabel} · Core ${score}/6`
+    : score !== null
+      ? `Ring · ${score}/6 tiêu chí hội tụ — còn ${Math.max(0, CORE_MIN - score)} tiêu chí để vào Core`
+      : `Ngoài ★ ${radar.listName} — ☆ thêm vào danh mục để Radar chấm hội tụ`;
   const holdLine = core ? core.holdSuggestion : 'Theo dõi — chưa đủ điều kiện hành động Core';
+  const subtitle = item?.companyName ?? core?.name ?? item?.industry ?? ring?.sector ?? '';
 
   return (
     <div className="panel-block">
@@ -51,7 +66,7 @@ export default function ActionCenter() {
       <div className="ac-selected">
         <div className="ac-avatar">{ticker}</div>
         <div className="ac-info">
-          <b>{ticker}{core ? ` — ${core.name}` : ` — ${ring!.sector}`}</b>
+          <b>{ticker}{subtitle ? ` — ${subtitle}` : ''}</b>
           <span>{stateLine}</span>
         </div>
         <div className="ac-price">
