@@ -5,6 +5,8 @@
 //     tự theo zoom/pan, tối đa 12 nhãn không chồng nhau — thay lớp SVG + forceTick cũ.
 //   - Pointer Events: vẽ bằng chuột, cảm ứng, bút (khoá kéo/zoom biểu đồ khi đang vẽ).
 //   - quant-core chạy trong Web Worker (AnalysisController); hình vẽ lưu theo mã + tài khoản (chartDrawingsStore).
+//   - MẶC ĐỊNH TẮT mọi chỉ báo/công cụ (chỉ có nến); bật lớp nào mới vẽ lớp đó. Mọi thứ là series/marker/primitive
+//     của thư viện -> kéo chuột, cuộn, zoom và BÀN PHÍM (← → + − Home End) đều di chuyển cùng nến.
 import { useRef, useEffect, useState, useMemo } from "react";
 import { Trash2, XCircle } from "lucide-react";
 import { TVChartManager, type ChartMarkerInput } from "../../../lib/ta-command-center/TVChartManager";
@@ -25,6 +27,7 @@ import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyc
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/types";
 import type { DrawingToolType, DrawnPrimitive, DomainPoint } from "../../../lib/ta-command-center/DrawingManager";
+import type { AnalysisController as Controller } from "../../../lib/ta-command-center/AnalysisController";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
@@ -48,6 +51,17 @@ const VSA_LABEL: Record<string, string> = {
   Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
 };
 const SAVE_DEBOUNCE_MS = 1000;
+
+/** Hình vẽ tay thuộc lớp nào: vẽ xong / nạp hình đã lưu -> tự bật lớp đó (mặc định các lớp đều tắt). */
+const LAYER_OF_TOOL: Partial<Record<DrawnPrimitive["toolType"], "trendline" | "demandzone" | "elliott">> = {
+  trendline: "trendline", rectangle: "demandzone", elliott: "elliott",
+};
+function enableLayersFor(controller: Controller, list: DrawnPrimitive[]) {
+  for (const p of list) {
+    const layer = LAYER_OF_TOOL[p.toolType];
+    if (layer) controller.layers.enable(layer);
+  }
+}
 
 export default function TVChartPanel({ bars, ticker, highlightPattern, corporateActions = NO_ACTIONS }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -89,7 +103,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     setCurrentBars(activeBars);
 
     if (!tvManagerRef.current && chartContainerRef.current) {
-      tvManagerRef.current = new TVChartManager(chartContainerRef.current, activeBars, { rsi: calculateRSI(activeBars).series });
+      tvManagerRef.current = new TVChartManager(chartContainerRef.current, activeBars);
     } else if (tvManagerRef.current) {
       tvManagerRef.current.setData(activeBars, calculateRSI(activeBars).series);
     }
@@ -109,6 +123,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
       controller.drawing.on("elliott:draft-updated", setElliottDraft),
       controller.drawing.on("fibExtension:changed", setFibExtensionMode),
       controller.drawing.on("primitive:draft-updated", setDraftPrimitive),
+      controller.drawing.on("primitive:created", (p) => enableLayersFor(controller, [p])),
     ];
     setPrimitives(controller.drawing.getPrimitives());
     setLog(controller.getLog());
@@ -148,6 +163,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     const local = loadLocal(ticker);
     persistedRef.current = JSON.stringify(local.primitives);
     controller.drawing.replaceAll(local.primitives);
+    enableLayersFor(controller, local.primitives);
     loadedSymbolRef.current = ticker;
     void loadCloud(ticker).then((cloud) => {
       if (cancelled || !cloud) return;
@@ -155,6 +171,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
       if (best !== local) {
         persistedRef.current = JSON.stringify(best.primitives);
         controller.drawing.replaceAll(best.primitives);
+        enableLayersFor(controller, best.primitives);
         saveLocal(ticker, best.primitives, best.updatedAt ?? undefined);
         setSaveState("cloud");
       }
@@ -181,14 +198,16 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     if (!tvManagerRef.current || !layerState) return;
     const markers: ChartMarkerInput[] = [];
     const visibleDates = new Set(currentBars.map((b) => b.date));
-    corporateActions.forEach((c) => {
-      if (timeframe === "D" && visibleDates.has(c.date)) markers.push({ time: c.date, position: "belowBar", color: GQ_COLORS.amber, shape: "square", text: c.label });
-    });
+    if (layerState.corporate && timeframe === "D") {
+      corporateActions.forEach((c) => {
+        if (visibleDates.has(c.date)) markers.push({ time: c.date, position: "belowBar", color: GQ_COLORS.amber, shape: "square", text: c.label });
+      });
+    }
     if (layerState.smc) {
       smc.bos.forEach((b) => markers.push({ time: b.date, position: b.type === "bullish" ? "belowBar" : "aboveBar", color: b.type === "bullish" ? GQ_COLORS.bull : GQ_COLORS.bear, shape: b.type === "bullish" ? "arrowUp" : "arrowDown", text: "" })); // BOS: chỉ mũi tên — nhãn chữ do lớp phủ quản lý ngân sách
       smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: "circle", text: "CHoCH" }));
-      smc.liquidity.forEach((l) => {
-        if (l.state === "SWEPT" && l.stateDate) markers.push({ time: l.stateDate, position: l.type === "EQL" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: l.type === "EQL" ? "arrowUp" : "arrowDown", text: l.type === "EQL" ? "SSL Sweep" : "BSL Sweep" });
+      smc.sweeps.forEach((l) => {
+        if (l.stateDate) markers.push({ time: l.stateDate, position: l.type === "EQL" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: l.type === "EQL" ? "arrowUp" : "arrowDown", text: l.type === "EQL" ? "SSL Sweep" : "BSL Sweep" });
       });
     }
     if (layerState.vsa) {
@@ -199,6 +218,32 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     }
     tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
   }, [smc, vsa, layerState, corporateActions, currentBars, timeframe]);
+
+  // ---- Pane chỉ báo (khối lượng, RSI) theo công tắc lớp ----
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv || !layerState) return;
+    tv.setVolumeVisible(layerState.volume);
+    tv.setRsiVisible(layerState.rsi);
+  }, [layerState]);
+  useEffect(() => { tvManagerRef.current?.setRsi(rsiResult.series); }, [rsiResult]);
+
+  // ---- Bàn phím: ← → dịch 5 nến (Shift: 20), + − zoom, Home/End về đầu/cuối dữ liệu ----
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    const step = e.shiftKey ? 20 : 5;
+    const actions: Record<string, () => void> = {
+      ArrowLeft: () => tv.panBars(-step), ArrowRight: () => tv.panBars(step),
+      ArrowUp: () => tv.zoom(0.8), ArrowDown: () => tv.zoom(1.25), "+": () => tv.zoom(0.8), "=": () => tv.zoom(0.8), "-": () => tv.zoom(1.25),
+      Home: () => tv.goToStart(), End: () => tv.goToEnd(),
+      Escape: () => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); },
+    };
+    const act = actions[e.key];
+    if (!act) return;
+    e.preventDefault();
+    act();
+  };
 
   // ---- Lớp phủ canvas ----
   const scene = useMemo(() => buildScene({
@@ -317,6 +362,11 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         </div>
         <div
           ref={chartContainerRef}
+          tabIndex={0}
+          role="application"
+          aria-label={`Biểu đồ ${ticker} — bàn phím: ← → dịch nến (Shift ×4), + − zoom, Home/End về đầu/cuối`}
+          title="Bấm vào biểu đồ rồi dùng ← → (Shift: nhanh), + −, Home, End"
+          onKeyDown={onKeyDown}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -325,7 +375,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
             background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%",
             cursor: activeTool ? "crosshair" : "default", touchAction: activeTool ? "none" : "auto",
           }}
-          className="rounded-xl overflow-hidden relative w-full"
+          className="rounded-xl overflow-hidden relative w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/60"
         />
       </div>
 

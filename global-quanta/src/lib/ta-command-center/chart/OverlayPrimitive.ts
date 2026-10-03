@@ -32,7 +32,7 @@ class Renderer implements IPrimitivePaneRenderer {
       };
       for (const it of o.scene.items) this.drawItem(ctx, it, W, H, addLabel);
       const placed = placeLabels(labels, W, H);
-      o.onRendered?.(placed.length, o.scene.items.length);
+      o.onRendered?.(placed.length, o.scene.items.length, o.probe());
       for (const l of placed) {
         ctx.fillStyle = "rgba(10,14,23,0.72)";
         ctx.fillRect(l.x, l.y - l.h + 1, l.w, l.h);
@@ -75,13 +75,14 @@ class Renderer implements IPrimitivePaneRenderer {
       if (x1 === null || x2 === null || y === null) return;
       dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1;
       ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
-      addLabel(it.label, Math.max(x1, Math.min(x2, W) - 70), y - 2);
+      addLabel(it.label, x1 + 2, y - 2); // neo vào nến bắt đầu — ra khỏi khung thì nhãn ẩn, không trôi theo màn hình
     } else if (it.kind === "vline") {
       const x = o.x(it.t);
       if (x === null) return;
       dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
-      addLabel(it.label, x + 2, 12);
+      const ly = it.labelPrice !== undefined ? o.y(it.labelPrice) : 12;
+      if (ly !== null) addLabel(it.label, x + 2, ly - 2);
     } else if (it.kind === "segment") {
       const a = o.pt(it.a);
       const b = o.pt(it.b);
@@ -120,7 +121,16 @@ class PaneView implements IPrimitivePaneView {
 export class OverlayPrimitive implements ISeriesPrimitive<Time> {
   scene: Scene = EMPTY_SCENE;
   /** Gọi sau mỗi lần vẽ (số nhãn đã đặt, số phần tử) — dùng cho kiểm thử/giám sát. */
-  onRendered?: (labels: number, items: number) => void;
+  onRendered?: (labels: number, items: number, probe: { date: string; itemX: number | null; candleX: number | null } | null) => void;
+
+  /** Phần tử mẫu (có ngày bắt đầu) + toạ độ của nó và của nến cùng ngày, tính ở khung hình hiện tại. */
+  probe() {
+    const it = this.scene.items.find((x) => "t1" in x || "a" in x || "t" in x);
+    if (!it) return null;
+    const date = "t1" in it ? it.t1 : "a" in it ? it.a.t : "t" in it ? it.t : "";
+    const candleX = this.chart?.timeScale().timeToCoordinate(toTime(date)) ?? null;
+    return { date, itemX: this.x(date), candleX };
+  }
   private chart: IChartApi | null = null;
   private series: ISeriesApi<SeriesType> | null = null;
   private requestUpdate: (() => void) | null = null;

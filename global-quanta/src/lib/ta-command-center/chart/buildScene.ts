@@ -1,10 +1,10 @@
 // Dựng Scene (toạ độ miền) từ kết quả phân tích + hình vẽ tay — hàm thuần, thay toàn bộ lớp SVG cũ trong TVChartPanel.
+// Mỗi lớp CHỈ vẽ khi người dùng bật (mặc định tắt hết). Mọi phần tử neo vào (ngày, giá) -> di chuyển cùng nến.
 import type { SmcState } from "../AnalysisController";
 import type { WyckoffResult } from "../detectors/wyckoffDetector";
 import type { LayerState } from "../LayerManager";
 import type { DomainPoint, DrawingToolType, DrawnPrimitive } from "../DrawingManager";
 import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
-import { countZoneTests } from "../detectors/smcDetector";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 
@@ -32,64 +32,48 @@ export function buildScene(inp: SceneInput): Scene {
     items.push({ kind: "band", t1: inp.highlight.start, t2: inp.highlight.end, fill: rgba(GQ_COLORS.uv, 0.08), stroke: rgba(GQ_COLORS.uv, 0.6), dash: [5, 3], label: { text: "Mẫu hình", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.user } });
   }
 
+  // SMC: chỉ vùng CÒN HIỆU LỰC (OB chưa test, FVG còn mở, thanh khoản chưa quét) — không nhãn "test", không vạch CE.
   if (layers?.smc) {
     const pd = smc.premiumDiscount;
     if (pd) {
-      const from = bars[Math.max(0, bars.length - 50)].date;
-      items.push({ kind: "zone", t1: from, t2: null, top: pd.swingHigh, bottom: pd.midpoint, fill: rgba(GQ_COLORS.bear, 0.035) });
-      items.push({ kind: "zone", t1: from, t2: null, top: pd.midpoint, bottom: pd.swingLow, fill: rgba(GQ_COLORS.bull, 0.035) });
-      items.push({ kind: "zone", t1: from, t2: null, top: pd.oteHigh, bottom: pd.oteLow, fill: rgba(GQ_COLORS.amber, 0.06), stroke: rgba(GQ_COLORS.amber, 0.35), dash: [2, 2],
+      // Neo vào điểm bắt đầu của dải giao dịch (swing đã xác nhận), kéo dài tới mép phải.
+      items.push({ kind: "zone", t1: pd.startDate, t2: null, top: pd.swingHigh, bottom: pd.midpoint, fill: rgba(GQ_COLORS.bear, 0.03) });
+      items.push({ kind: "zone", t1: pd.startDate, t2: null, top: pd.midpoint, bottom: pd.swingLow, fill: rgba(GQ_COLORS.bull, 0.03) });
+      items.push({ kind: "zone", t1: pd.startDate, t2: null, top: pd.oteHigh, bottom: pd.oteLow, fill: rgba(GQ_COLORS.amber, 0.06), stroke: rgba(GQ_COLORS.amber, 0.3), dash: [2, 2],
         label: { text: `OTE ${pd.legDir === "bullish" ? "▲" : "▼"} · ${pd.currentZone === "premium" ? "Premium" : pd.currentZone === "discount" ? "Discount" : "EQ"}`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other } });
     }
     for (const ob of smc.obs) {
-      if (ob.status === "EXPIRED") continue;
-      const active = ob.status === "ACTIVE";
-      const breaker = ob.status === "BREAKER";
       const c = dirColor(ob.type);
-      items.push({
-        kind: "zone", t1: ob.date, t2: active ? null : ob.mitigatedAt, top: ob.top, bottom: ob.bottom,
-        fill: rgba(c, active ? 0.14 : 0.05), stroke: active ? rgba(c, 0.5) : undefined, dash: breaker ? [3, 3] : undefined,
-        label: { text: `${breaker ? "Breaker" : "OB"} ${ob.type === "bullish" ? "▲" : "▼"}${active ? "" : ob.status === "MITIGATED" ? " · 50%" : ""}`, color: c, priority: active ? LABEL_PRIORITY.obActive : LABEL_PRIORITY.other },
-      });
+      items.push({ kind: "zone", t1: ob.date, t2: null, top: ob.top, bottom: ob.bottom, fill: rgba(c, 0.13), stroke: rgba(c, 0.45),
+        label: { text: `OB ${ob.type === "bullish" ? "▲" : "▼"}`, color: c, priority: LABEL_PRIORITY.obActive } });
     }
     for (const g of smc.fvgs) {
-      const open = g.state === "OPEN" || g.state === "PARTIAL";
       const c = g.type === "bullish" ? GQ_COLORS.cyan : GQ_COLORS.amber;
-      items.push({
-        kind: "zone", t1: g.startDate, t2: g.filledAt ?? null, top: g.top, bottom: g.bottom,
-        fill: rgba(c, open ? 0.12 : 0.04),
-        label: { text: `FVG${g.state === "CE" ? " · CE" : g.state === "INVERTED" ? " · IFVG" : g.state === "FILLED" ? " · lấp" : ""}`, color: c, priority: open ? LABEL_PRIORITY.fvgOpen : LABEL_PRIORITY.other },
-      });
-      if (open) items.push({ kind: "hline", t1: g.startDate, t2: null, price: (g.top + g.bottom) / 2, color: rgba(c, 0.35), dash: [2, 3] });
+      items.push({ kind: "zone", t1: g.startDate, t2: null, top: g.top, bottom: g.bottom, fill: rgba(c, 0.1),
+        label: { text: "FVG", color: c, priority: LABEL_PRIORITY.fvgOpen } });
     }
     for (const l of smc.liquidity) {
       const c = l.type === "EQH" ? GQ_COLORS.bear : GQ_COLORS.bull;
-      const swept = l.state !== "RESTING";
-      items.push({
-        kind: "hline", t1: l.date, t2: swept ? l.stateDate : null, price: l.price, color: rgba(c, swept ? 0.25 : 0.55), dash: [3, 2],
-        label: { text: `${l.type === "EQH" ? "BSL" : "SSL"} (${l.touches})${l.state === "SWEPT" ? " · swept" : l.state === "RUN" ? " · run" : ""}`, color: c, priority: swept ? LABEL_PRIORITY.other : LABEL_PRIORITY.liquidity },
-      });
+      items.push({ kind: "hline", t1: l.date, t2: null, price: l.price, color: rgba(c, 0.5), dash: [3, 2],
+        label: { text: l.type === "EQH" ? "BSL" : "SSL", color: c, priority: LABEL_PRIORITY.liquidity } });
     }
   }
 
   const w = inp.wyckoff;
   if (layers?.wyckoff && w && w.rangeHigh !== null && w.rangeLow !== null && w.rangeStartDate) {
     items.push({ kind: "zone", t1: w.rangeStartDate, t2: w.rangeEndDate ?? last, top: w.rangeHigh, bottom: w.rangeLow, fill: rgba(GQ_COLORS.uv, 0.05), stroke: rgba(GQ_COLORS.uv, 0.6), dash: [4, 3],
-      label: { text: `Wyckoff range · khớp mẫu ${w.confidenceScore}%`, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+      label: { text: "Wyckoff range", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     for (const e of w.events) {
-      items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.35), dash: [2, 2], label: { text: e.event, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+      items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3), dash: [2, 2], labelPrice: e.price, label: { text: e.event, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     }
   }
 
   // ---- Hình vẽ tay ----
   for (const p of inp.primitives) {
-    if (p.toolType === "rectangle" && layers?.demandzone !== false) {
-      const top = Math.max(p.p1.price, p.p2.price);
-      const bottom = Math.min(p.p1.price, p.p2.price);
-      const tests = countZoneTests(bars, top, bottom, p.p1.date);
-      items.push({ kind: "zone", t1: p.p1.date, t2: p.p2.date, top, bottom, fill: rgba(GQ_COLORS.amber, Math.max(0.03, 0.12 - tests * 0.025)), stroke: rgba(GQ_COLORS.amber, 0.6), dash: [4, 2],
-        label: tests > 0 ? { text: `Zone · test ${tests}`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.user } : undefined });
-    } else if (p.toolType === "trendline" && layers?.trendline !== false) {
+    if (p.toolType === "rectangle" && layers?.demandzone) {
+      items.push({ kind: "zone", t1: p.p1.date, t2: p.p2.date, top: Math.max(p.p1.price, p.p2.price), bottom: Math.min(p.p1.price, p.p2.price),
+        fill: rgba(GQ_COLORS.amber, 0.1), stroke: rgba(GQ_COLORS.amber, 0.6), dash: [4, 2] });
+    } else if (p.toolType === "trendline" && layers?.trendline) {
       items.push({ kind: "segment", a: { t: p.p1.date, price: p.p1.price }, b: { t: p.p2.date, price: p.p2.price }, color: GQ_COLORS.cyan, width: 1.5 });
     } else if (p.toolType === "fibonacci") {
       const [from, to] = p.p1.date <= p.p2.date ? [p.p1.date, p.p2.date] : [p.p2.date, p.p1.date];

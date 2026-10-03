@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { placeLabels, LABEL_BUDGET, type LabelBox } from "./scene";
 import { buildScene } from "./buildScene";
-import { EMPTY_SMC, type SmcState } from "../AnalysisController";
-import { sanitizePrimitives, type DrawnPrimitive } from "../DrawingManager";
+import { EMPTY_SMC, toSmcState, type SmcState } from "../AnalysisController";
+import { analyze } from "../../quant-core";
+import { buildFibLevels, sanitizePrimitives, type DrawnPrimitive } from "../DrawingManager";
 import { pickNewer } from "../chartDrawingsStore";
 import type { OhlcvBar } from "../types";
+import { DEFAULT_LAYER_STATE } from "../LayerManager";
 
 const box = (x: number, y: number, priority: number, text = "L"): LabelBox => ({ x, y, w: 40, h: 10, text, color: "#fff", priority });
 
@@ -26,33 +28,63 @@ describe("P3 — ngân sách nhãn (tối đa 12, không chồng nhau, ưu tiên
 const bars: OhlcvBar[] = Array.from({ length: 80 }, (_, i) => ({
   date: new Date(Date.UTC(2026, 0, 1 + i)).toISOString().slice(0, 10), open: 100, high: 101, low: 99, close: 100, volume: 1000,
 }));
-const layers = { trendline: true, demandzone: true, smc: true, vsa: false, wyckoff: false, elliott: false, aiDetectionMaster: false };
+const layers = { ...DEFAULT_LAYER_STATE, trendline: true, demandzone: true, smc: true };
 
 describe("P3 — buildScene (toạ độ miền, thay lớp SVG)", () => {
-  it("OB ACTIVE kéo tới mép phải; OB đã mitigated dừng ở ngày mitigation; FVG mở có vạch CE; tắt lớp SMC -> không vẽ", () => {
-    const smc: SmcState = {
-      ...EMPTY_SMC,
-      obs: [
-        { date: bars[10].date, type: "bullish", top: 100, bottom: 98, mitigated: false, mitigatedAt: null, status: "ACTIVE", kind: "BOS" },
-        { date: bars[20].date, type: "bearish", top: 103, bottom: 101, mitigated: true, mitigatedAt: bars[30].date, status: "MITIGATED", kind: "CHoCH" },
-      ],
-      fvgs: [{ startDate: bars[40].date, endDate: bars[42].date, type: "bullish", top: 102, bottom: 101, filled: false, filledAt: null, state: "OPEN", filledPct: 0 }],
-    };
-    const s = buildScene({ bars, smc, wyckoff: null, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null });
-    const zones = s.items.filter((i) => i.kind === "zone") as Extract<(typeof s.items)[number], { kind: "zone" }>[];
-    expect(zones[0].t2).toBeNull();
-    expect(zones[1].t2).toBe(bars[30].date);
-    expect(s.items.some((i) => i.kind === "hline" && i.price === 101.5)).toBe(true);
-    const off = buildScene({ bars, smc, wyckoff: null, layers: { ...layers, smc: false }, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null });
-    expect(off.items).toHaveLength(0);
+  const smc: SmcState = {
+    ...EMPTY_SMC,
+    obs: [{ date: bars[10].date, type: "bullish", top: 100, bottom: 98, mitigated: false, mitigatedAt: null, status: "ACTIVE", kind: "BOS" }],
+    fvgs: [{ startDate: bars[40].date, endDate: bars[42].date, type: "bullish", top: 102, bottom: 101, filled: false, filledAt: null, state: "OPEN", filledPct: 0 }],
+    liquidity: [{ date: bars[50].date, price: 103, type: "EQH", touches: 2, state: "RESTING", stateDate: null }],
+  };
+  const base = { bars, smc, wyckoff: null, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null };
+
+  it("MẶC ĐỊNH TẮT: mọi lớp tắt -> biểu đồ chỉ có nến (0 phần tử lớp phủ), kể cả khi có hình vẽ tay", () => {
+    expect(Object.entries(DEFAULT_LAYER_STATE).every(([, v]) => v === false)).toBe(true);
+    const trend: DrawnPrimitive = { id: "t", toolType: "trendline", p1: { date: bars[1].date, price: 1 }, p2: { date: bars[5].date, price: 2 }, createdAt: 1 };
+    expect(buildScene({ ...base, layers: DEFAULT_LAYER_STATE, primitives: [trend] }).items).toHaveLength(0);
+  });
+
+  it("SMC bật: vùng còn hiệu lực kéo tới mép phải, không nhãn 'test', không vạch CE", () => {
+    const s = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, smc: true } });
+    expect(s.items.every((i) => i.kind !== "zone" || i.t2 === null)).toBe(true);
+    expect(s.items.filter((i) => i.kind === "hline")).toHaveLength(1); // chỉ đường BSL, không có vạch CE của FVG
+    const labels = s.items.map((i) => ("label" in i ? i.label?.text ?? "" : ""));
+    expect(labels.some((t) => /test|50%|lấp/.test(t))).toBe(false);
   });
 
   it("hình đang vẽ dở luôn hiện; Fib vẽ đủ các mức", () => {
-    const s = buildScene({
-      bars, smc: EMPTY_SMC, wyckoff: null, layers: { ...layers, trendline: false }, primitives: [],
-      draft: { toolType: "fibonacci", p1: { date: bars[5].date, price: 110 }, p2: { date: bars[15].date, price: 100 } }, elliottDraft: [], fibExtension: true, highlight: null,
-    });
+    const s = buildScene({ ...base, smc: EMPTY_SMC, layers: DEFAULT_LAYER_STATE,
+      draft: { toolType: "fibonacci", p1: { date: bars[5].date, price: 110 }, p2: { date: bars[15].date, price: 100 } }, fibExtension: true });
     expect(s.items.filter((i) => i.kind === "hline")).toHaveLength(10); // 7 mức + 3 mức mở rộng
+  });
+});
+
+describe("P3 — sửa logic", () => {
+  it("Fibonacci: 0% ở điểm kết thúc, 100% ở điểm bắt đầu — đúng cả sóng tăng và sóng giảm", () => {
+    const up = buildFibLevels({ date: "a", price: 100 }, { date: "b", price: 200 }, false); // đáy -> đỉnh
+    expect(up.find((l) => l.ratio === 0.236)!.price).toBeCloseTo(176.4, 6); // ngay dưới đỉnh
+    const down = buildFibLevels({ date: "a", price: 200 }, { date: "b", price: 100 }, true); // đỉnh -> đáy
+    expect(down.find((l) => l.ratio === 0.236)!.price).toBeCloseTo(123.6, 6); // ngay trên đáy (bản cũ: 176,4 — sai)
+    expect(down.find((l) => l.ratio === 1.618)!.price).toBeCloseTo(261.8, 6);
+  });
+
+  it("toSmcState chỉ giữ vùng còn hiệu lực; sweep tách riêng; Premium/Discount neo vào swing", () => {
+    let seed = 3;
+    const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    let c = 50_000;
+    const b: OhlcvBar[] = Array.from({ length: 500 }, (_, i) => {
+      const o = c; c = o * (1 + Math.sin(i / 30) * 0.004 + (rnd() - 0.5) * 0.04);
+      return { date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), open: o, high: Math.max(o, c) * 1.01, low: Math.min(o, c) * 0.99, close: c, volume: 1e6 * (0.5 + rnd()) };
+    });
+    const a = analyze(b);
+    const s = toSmcState(a);
+    expect(s.obs.every((o) => o.status === "ACTIVE")).toBe(true);
+    expect(s.fvgs.every((g) => g.state === "OPEN" || g.state === "PARTIAL")).toBe(true);
+    expect(s.liquidity.every((l) => l.state === "RESTING")).toBe(true);
+    expect(s.sweeps.every((l) => l.state === "SWEPT")).toBe(true);
+    expect(s.totals.obs).toBe(a.orderBlocks.length);
+    if (s.premiumDiscount) expect([a.dealingRange!.highDate, a.dealingRange!.lowDate]).toContain(s.premiumDiscount.startDate);
   });
 });
 

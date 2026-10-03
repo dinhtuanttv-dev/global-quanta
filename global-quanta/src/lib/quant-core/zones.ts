@@ -154,7 +154,7 @@ export function detectLiquidity(bars: Bar[], pivots: Pivot[], atr: number[], { i
 
 // ---------------- Dealing Range · Premium/Discount · OTE ----------------
 export interface DealingRange {
-  high: number; low: number; highIndex: number; lowIndex: number; legDir: Dir;
+  high: number; low: number; highIndex: number; lowIndex: number; highDate: string; lowDate: string; legDir: Dir;
   eq: number; eqLow: number; eqHigh: number;
   oteLow: number; oteHigh: number; ote705: number;
   zone: "premium" | "discount" | "equilibrium";
@@ -176,7 +176,7 @@ export function computeDealingRange(bars: Bar[], pivots: Pivot[]): DealingRange 
     : { oteLow: lo.price + 0.618 * r, oteHigh: lo.price + 0.786 * r, ote705: lo.price + 0.705 * r };
   const c = bars[last].close;
   return {
-    high: hi.price, low: lo.price, highIndex: hi.index, lowIndex: lo.index, legDir, eq, eqLow: eq - band, eqHigh: eq + band, ...ote,
+    high: hi.price, low: lo.price, highIndex: hi.index, lowIndex: lo.index, highDate: hi.date, lowDate: lo.date, legDir, eq, eqLow: eq - band, eqHigh: eq + band, ...ote,
     zone: c > eq + band ? "premium" : c < eq - band ? "discount" : "equilibrium",
   };
 }

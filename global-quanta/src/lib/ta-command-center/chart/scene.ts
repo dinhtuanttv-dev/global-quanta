@@ -23,7 +23,7 @@ export type SceneItem =
   | { kind: "zone"; t1: string; t2: string | null; top: number; bottom: number; fill: string; stroke?: string; dash?: number[]; label?: SceneLabel }
   | { kind: "band"; t1: string; t2: string; fill: string; stroke?: string; dash?: number[]; label?: SceneLabel } // dải dọc toàn chiều cao
   | { kind: "hline"; t1: string; t2: string | null; price: number; color: string; dash?: number[]; width?: number; label?: SceneLabel }
-  | { kind: "vline"; t: string; color: string; dash?: number[]; label?: SceneLabel }
+  | { kind: "vline"; t: string; color: string; dash?: number[]; label?: SceneLabel; labelPrice?: number } // nhãn neo vào giá (VD sự kiện Wyckoff)
   | { kind: "segment"; a: ScenePoint; b: ScenePoint; color: string; width?: number; dash?: number[] }
   | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; label?: SceneLabel };
 

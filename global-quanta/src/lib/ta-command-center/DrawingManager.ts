@@ -28,11 +28,14 @@ const ELLIOTT_LABELS = ["0", "1", "2", "3", "4", "5"];
 
 export const FIB_TIME_SEQUENCE = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
 
+/**
+ * Mức Fibonacci Retracement: 0% tại điểm KẾT THÚC (p2), 100% tại điểm BẮT ĐẦU (p1) — chuẩn TradingView.
+ * Kéo đáy→đỉnh (sóng tăng): 23,6% nằm ngay dưới đỉnh. Kéo đỉnh→đáy (sóng giảm): 23,6% nằm ngay trên đáy.
+ * (Bản cũ luôn đặt 0% ở giá cao nhất -> sai với sóng giảm.) Mức mở rộng > 100% nằm vượt điểm bắt đầu.
+ */
 export function buildFibLevels(p1: DomainPoint, p2: DomainPoint, includeExtension: boolean) {
-  const high = Math.max(p1.price, p2.price);
-  const low = Math.min(p1.price, p2.price);
   const ratios = includeExtension ? [...FIB_RATIOS, ...FIB_EXTENSION_RATIOS] : FIB_RATIOS;
-  return ratios.map((ratio) => ({ ratio, price: high - (high - low) * ratio }));
+  return ratios.map((ratio) => ({ ratio, price: p2.price + (p1.price - p2.price) * ratio }));
 }
 
 function validateElliottRules(points: DomainPoint[]): string[] {

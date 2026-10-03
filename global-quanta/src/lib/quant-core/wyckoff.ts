@@ -72,7 +72,8 @@ export function classifyWyckoffV2(bars: Bar[]): WyckoffResult {
   };
   // Sự kiện QUYẾT ĐỊNH (Spring/SOS/UT/SOW) ghi lần GẦN NHẤT (ghi đè), để pha phản ánh trạng thái hiện tại.
   const replace = (event: WyckoffEventDetail["event"], prev: number, k: number, price: number, strength: number) => {
-    if (prev >= 0) events.splice(events.findIndex((e) => e.event === event && e.index === prev), 1);
+    const at = prev >= 0 ? events.findIndex((e) => e.event === event && e.index === prev) : -1;
+    if (at >= 0) events.splice(at, 1);
     return push(event, k, price, strength);
   };
   const a = (k: number) => atr[k] || 1;
