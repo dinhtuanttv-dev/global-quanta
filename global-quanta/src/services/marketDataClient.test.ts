@@ -1,3 +1,4 @@
+import { getMarketGateway } from '../config/marketGateway';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { describeFeedStatus, isSsiSource, marketUrl, subscribeMarket, type StreamStatus } from './marketDataClient';
 
@@ -43,8 +44,9 @@ describe('describeFeedStatus', () => {
 
 describe('marketUrl / isSsiSource', () => {
   it('bỏ tham số rỗng và mã hoá query', () => {
+    // Tiền tố = Gateway đang cấu hình (mặc định Gateway production khi không khai báo biến môi trường).
     expect(marketUrl('/api/market/ohlcv', { ticker: 'FPT', range: '3mo', from: undefined, limit: 30 })).toBe(
-      '/api/market/ohlcv?ticker=FPT&range=3mo&limit=30',
+      `${getMarketGateway().baseUrl}/api/market/ohlcv?ticker=FPT&range=3mo&limit=30`,
     );
   });
 

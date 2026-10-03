@@ -5,14 +5,12 @@
  * (Project A/Yahoo) là dự phòng. Frontend KHÔNG tự chọn nguồn hay tự fallback;
  * chỉ hiển thị nhãn nguồn/độ mới mà backend gắn kèm (provenance).
  *
- * Bật bằng VITE_MARKET_GATEWAY_ENABLED=true. Khi chưa bật, các hook giữ nguyên
- * đường gọi cũ để production không bị ảnh hưởng cho tới khi Gateway được host.
+ * Mặc định BẬT, trỏ Gateway production (src/config/marketGateway.ts); chỉ tắt khi VITE_MARKET_GATEWAY_ENABLED=false.
  */
-
-const MARKET_API_BASE = String(import.meta.env.VITE_MARKET_API_BASE_URL ?? '').replace(/\/+$/, '');
+import { getMarketGateway } from '../config/marketGateway';
 
 export function isMarketGatewayEnabled(): boolean {
-  return String(import.meta.env.VITE_MARKET_GATEWAY_ENABLED ?? '').toLowerCase() === 'true';
+  return getMarketGateway().enabled;
 }
 
 export type MarketSource = 'SSI_STREAM' | 'SSI_V3' | 'SSI_FC_V2' | 'LEGACY' | 'STORE' | (string & {});
@@ -105,7 +103,7 @@ export function marketUrl(path: string, params: Params = {}): string {
     if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
   }
   const qs = query.toString();
-  return `${MARKET_API_BASE}${path}${qs ? `?${qs}` : ''}`;
+  return `${getMarketGateway().baseUrl}${path}${qs ? `?${qs}` : ''}`;
 }
 
 export async function fetchMarketJson<T>(path: string, params: Params = {}, init?: RequestInit): Promise<T> {
