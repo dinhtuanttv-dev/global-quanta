@@ -19,12 +19,12 @@ export default function TaCommandCenterTab({ ticker, onRequestTickerChange, high
 
   if (isLoading) return (
     <div className="h-64 flex items-center justify-center gap-2 text-xs text-slate-400">
-      <RefreshCw className="w-4 h-4 animate-spin" /> Dang tai du lieu cho {ticker}...
+      <RefreshCw className="w-4 h-4 animate-spin" /> Đang tải dữ liệu {ticker}…
     </div>
   );
   if (error) return (
     <div className="h-64 flex items-center justify-center gap-2 text-xs text-red-300">
-      <AlertCircle className="w-4 h-4" /> Khong co du lieu cho {ticker}.
+      <AlertCircle className="w-4 h-4" /> Không có dữ liệu cho {ticker}.
     </div>
   );
 

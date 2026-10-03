@@ -17,9 +17,9 @@ export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionM
   const tools: { id: DrawingToolType; icon: typeof Square; label: string }[] = [
     { id: "trendline", icon: TrendingUp, label: "Trendline" },
     { id: "rectangle", icon: Square, label: "Zone" },
-    { id: "fibonacci", icon: Activity, label: fibExtensionMode ? "Fibonacci (co Extension)" : "Fibonacci" },
+    { id: "fibonacci", icon: Activity, label: fibExtensionMode ? "Fibonacci (có Extension)" : "Fibonacci" },
     { id: "fibTimeZone", icon: Clock3, label: "Fibonacci Time Zones (1 click)" },
-    { id: "elliott", icon: Waves, label: "Elliott Wave (6 diem)" },
+    { id: "elliott", icon: Waves, label: "Elliott Wave (6 điểm)" },
   ];
 
   return (
@@ -38,7 +38,7 @@ export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionM
       })}
       <div style={{ height: 1, background: "rgba(148,163,184,0.15)" }} className="my-0.5" />
       <button
-        title={fibExtensionMode ? "Fib Extension: BAT (127.2/161.8/261.8%)" : "Fib Extension: TAT"}
+        title={fibExtensionMode ? "Fib Extension: BẬT (127.2/161.8/261.8%)" : "Fib Extension: TẮT"}
         onClick={onToggleFibExtension}
         style={fibExtensionMode ? { background: "rgba(167,139,250,0.2)", color: "#a78bfa" } : { color: "#64748b" }}
         className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition text-[9px] font-bold">

@@ -27,12 +27,13 @@ export default function LayerToggleBar({ state, onToggle, onToggleMaster }: Prop
           {LABELS[key]}
         </button>
       ))}
-      <button onClick={() => onToggleMaster(!state.aiDetectionMaster)}
+      <button onClick={() => onToggleMaster(!state.aiDetectionMaster)} aria-pressed={state.aiDetectionMaster}
+        title="Đối chiếu hình vẽ tay / mẫu hình với SMC · VSA · Wyckoff (điểm theo luật, không phải mô hình AI)"
         style={state.aiDetectionMaster
           ? { background: "rgba(16,185,129,0.15)", border: "1px solid rgba(16,185,129,0.4)", color: "#34d399" }
           : { background: "rgba(2,6,15,0.5)", border: "1px solid rgba(148,163,184,0.12)", color: "#64748b" }}
         className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black ml-auto transition">
-        <Zap className="w-3 h-3" /> AI Detection
+        <Zap className="w-3 h-3" /> Confluence Engine
       </button>
     </div>
   );

@@ -25,7 +25,7 @@ export default function TimeframeSelector({ current, onChange }: Props) {
           {opt.label}
         </button>
       ))}
-      <span className="text-[9px] text-slate-500 ml-1">H4/M1 chờ xác minh dữ liệu intraday</span>
+      <span className="text-[9px] text-slate-500 ml-1">W = gộp từ nến D · H4/M1 chờ Bar Builder intraday (P4)</span>
     </div>
   );
 }

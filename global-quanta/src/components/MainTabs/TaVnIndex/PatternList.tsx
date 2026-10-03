@@ -1,7 +1,8 @@
 ﻿"use client";
-import { Search, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { usePatternScan } from "../../../hooks/usePatternScan";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
+import ProvenanceBadge from "./ProvenanceBadge";
 
 interface Props { onSelectPattern: (pattern: PatternMatch) => void; }
 
@@ -14,7 +15,7 @@ export default function PatternList({ onSelectPattern }: Props) {
           <Search className="w-3 h-3" /> Pattern Scanner
         </p>
         <div className="flex items-center gap-2">
-          {scanData && <span className="flex items-center gap-1 text-[9px] text-emerald-400"><CheckCircle2 className="w-2.5 h-2.5" />HARD_DATA</span>}
+          {scanData && <ProvenanceBadge kind="INFERRED" className="" />}
           <button onClick={() => refresh()} className="text-slate-400 hover:text-slate-200">
             <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
           </button>
@@ -24,31 +25,31 @@ export default function PatternList({ onSelectPattern }: Props) {
       {scanData && (
         <div className="flex flex-wrap gap-2 mb-2">
           <span style={{ background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.25)" }} className="text-[9px] text-sky-400 px-2 py-0.5 rounded-full">Vol &gt; 500.000 CP</span>
-          <span style={{ background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.25)" }} className="text-[9px] text-sky-400 px-2 py-0.5 rounded-full">Gia &gt; MA200</span>
+          <span style={{ background: "rgba(56,189,248,0.1)", border: "1px solid rgba(56,189,248,0.25)" }} className="text-[9px] text-sky-400 px-2 py-0.5 rounded-full">Giá &gt; MA200</span>
           <span className="text-[9px] text-slate-500 ml-auto">
-            Universe: {scanData.universeSource === "VN30_VN100" ? "VN30+VN100" : "60 ma du phong"} · Dat loc: {scanData.eligibleCount}/{scanData.totalUniverse} · Mo hinh: {scanData.matches.length}
+            Universe: {scanData.universeSource === "VN30_VN100" ? "VN30+VN100" : "61 mã dự phòng"} · Đạt lọc: {scanData.eligibleCount}/{scanData.totalUniverse} · Mẫu hình: {scanData.matches.length}
           </span>
         </div>
       )}
 
       {isLoading && !scanData && (
         <div className="flex items-center gap-2 text-[10px] text-slate-400 py-4 justify-center">
-          <RefreshCw className="w-3 h-3 animate-spin" /> Dang quet pattern (loc thi truong + nhan dien)...
+          <RefreshCw className="w-3 h-3 animate-spin" /> Đang quét mẫu hình (lọc thị trường + nhận diện)…
         </div>
       )}
 
       {scanData && scanData.matches.length === 0 && (
-        <p className="text-[10px] text-slate-500 italic py-3 text-center">Khong co ma nao dang hinh thanh mo hinh du dieu kien.</p>
+        <p className="text-[10px] text-slate-500 italic py-3 text-center">Không có mã nào đang hình thành mẫu hình đủ điều kiện.</p>
       )}
 
       <div className="max-h-48 overflow-y-auto">
         <table className="w-full text-left text-[10px] border-collapse">
           <thead>
             <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
-              <th className="pb-1.5">Ma</th>
-              <th className="pb-1.5">Mo hinh</th>
-              <th className="pb-1.5 text-right">Conf</th>
-              <th className="pb-1.5">TT</th>
+              <th className="pb-1.5">Mã</th>
+              <th className="pb-1.5">Mẫu hình</th>
+              <th className="pb-1.5 text-right" title="Điểm theo luật của Pattern Scanner — chưa kiểm định thống kê">Điểm</th>
+              <th className="pb-1.5">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/30">
@@ -64,7 +65,7 @@ export default function PatternList({ onSelectPattern }: Props) {
                 </td>
                 <td className="py-1.5">
                   <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${m.status === "confirmed" ? "bg-emerald-500/10 text-emerald-400" : "bg-sky-500/10 text-sky-400"}`}>
-                    {m.status === "confirmed" ? "Xac nhan" : "Hinh thanh"}
+                    {m.status === "confirmed" ? "Breakout" : "Forming"}
                   </span>
                 </td>
               </tr>
