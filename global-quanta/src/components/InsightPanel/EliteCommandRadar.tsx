@@ -12,6 +12,9 @@ import { browserNotify } from '../../lib/priceAlerts';
 import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
+import { useBuyTimeline } from '../../hooks/useBuyTimeline';
+import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
+import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
 // ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 6 tiêu chí bằng dữ liệu thật.
 //   Góc = nhóm ngành · Bán kính = điểm hội tụ (tâm = 6/6, vùng vàng = Core ≥ 4/6) · Kích thước = Smart Score
@@ -19,6 +22,9 @@ import type { RadarSignalItem, RadarSignals } from '../../services/marketDataCli
 // Lịch sử (Supabase qua Gateway): ảnh chụp mỗi ngày giao dịch -> vệt chuyển động 5 ngày, thanh tua lại, sự kiện radar (vào/ra Core…).
 // Lớp tín hiệu dòng tiền (giai đoạn 3): ◆ Stealth 20 (tín hiệu duy nhất đã qua kiểm định có lợi thế, kèm bằng chứng),
 // ý đồ IFE (chỉ tham khảo — chưa có lợi thế), xác suất mô hình thích ứng (chỉ khi mô hình đạt kiểm định).
+// Lớp ⏱ Điểm mua (Timeline tab Cổ tức): CHỈ mã đang có trên Radar — vòng quanh chấm (xanh = trong vùng mua, vàng = ≤ 5 phiên,
+// nét đứt = gần đạt kiểm định), dòng tooltip, khối giải trình, dải "điểm mua 10 phiên tới", sự kiện + thông báo (chỉ bậc đạt
+// kiểm định), bộ lọc "chỉ mã có điểm mua". Mã trong Timeline mà không có trên Radar KHÔNG được đưa vào.
 // Màu theo tab Siêu Quét: cyan (khung, mã), hổ phách (Core / điểm), xanh/đỏ (tăng/giảm, tin tốt/xấu), tím (AI).
 
 const UP = '#34d399', DOWN = '#fb7185', AMBER = '#f59e0b', CYAN = '#38bdf8';
@@ -67,6 +73,18 @@ function Evidence({ x }: { x: ScoredTicker }) {
 const fmtDate = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
 const NOTIFY_KINDS = new Set(['enter_core', 'leave_core', 'stealth_on', 'turn_caution']);
 const NOTIFIED_KEY = 'gq.radar.notified';
+const BUY_ONLY_KEY = 'gq.radar.buyOnly';
+
+/** Thông báo vào vùng mua / sắp tới vùng mua — mỗi vùng mua một lần (khoá gắn ngày bắt đầu vùng mua). */
+function notifyBuyEvents(events: ReturnType<typeof buyWindowEvents>) {
+  if (!events.length) return;
+  let seen: string[] = [];
+  try { seen = JSON.parse(window.localStorage.getItem(NOTIFIED_KEY) ?? '[]'); } catch { /* bỏ qua */ }
+  const fresh = events.filter((e) => !seen.includes(e.notifyKey));
+  if (!fresh.length) return;
+  for (const e of fresh) browserNotify('ELITE COMMAND RADAR · ⏱ Điểm mua', e.text, `radar-${e.notifyKey}`);
+  try { window.localStorage.setItem(NOTIFIED_KEY, JSON.stringify([...seen, ...fresh.map((e) => e.notifyKey)].slice(-300))); } catch { /* bỏ qua */ }
+}
 
 /** Thông báo trình duyệt cho sự kiện quan trọng — mỗi (ngày, mã, loại) một lần. */
 function notifyEvents(date: string, events: RadarEvent[]) {
@@ -125,6 +143,40 @@ function SignalLayer({ x, sig }: { x: RadarSignalItem | null; sig: RadarSignals 
   );
 }
 
+const BUY_KIND = { DIVIDEND: 'Chu kỳ cổ tức', EARNINGS: 'Mùa vụ KQKD' } as const;
+const BUY_STATUS = { IN_WINDOW: 'ĐANG TRONG VÙNG MUA', UPCOMING: 'SẮP TỚI ĐIỂM MUA', PASSED: 'ĐÃ QUA VÙNG MUA' } as const;
+const RING_COLOR: Record<RadarBuyRing, string> = { in: UP, soon: AMBER, near: '#94a3b8', later: CYAN };
+const BUY_BASIS: Record<string, string> = { CONFIRMED: 'đã xác nhận', ESTIMATED: 'ước tính', ANNOUNCED: 'đã công bố', HISTORICAL_LAG: 'ước theo độ trễ lịch sử', DEADLINE_ONLY: 'theo hạn pháp lý' };
+
+/** Khối giải trình điểm mua của mã đang chọn (chỉ khi mã có trên Radar và có vùng mua trong Timeline). */
+function BuyLayer({ info }: { info: RadarBuyInfo }) {
+  const r = info.row;
+  const color = RING_COLOR[info.ring];
+  return (
+    <div className="mt-2 pt-2 border-t border-white/5" aria-label="Điểm mua tối ưu" data-testid="radar-buy-layer">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-[9px] tracking-wider font-semibold" style={{ color }}>⏱ ĐIỂM MUA TỐI ƯU · {BUY_KIND[r.kind].toUpperCase()}</div>
+        <span className="text-[9px] font-semibold" style={{ color }}>{BUY_STATUS[r.status]}</span>
+      </div>
+      <div className="text-[10.5px] text-slate-200 mt-0.5">
+        {r.windowLabel} — vùng mua <b className="font-mono">{fmtDate(r.entryFromDate)} → {fmtDate(r.entryToDate)}</b>
+        <span className="text-slate-500 font-mono"> ({fmtOffset(r.entryFrom)}…{fmtOffset(r.entryTo)}) · thoát {fmtDate(r.exitDate)}</span>
+        {r.status === 'UPCOMING' && <span className="text-slate-400"> · còn {r.sessionsToEntry} phiên</span>}
+      </div>
+      <div className="text-[10px] text-slate-400">{r.eventLabel} {fmtDate(r.eventDate)} ({BUY_BASIS[r.eventDateBasis] ?? r.eventDateBasis})</div>
+      <div className="text-[10.5px] font-mono mt-0.5">
+        <span className="text-amber-300">thắng {Math.round(r.winRate * 100)}%</span> <span className="text-slate-500">/ {r.nEvents} đợt</span>
+        {r.probability !== null && <span className="text-slate-400"> · xác suất {Math.round(r.probability * 100)}%</span>}
+        <span style={{ color: r.netExpectancy >= 0 ? UP : DOWN }}> · kỳ vọng {fmtRatioPct(r.netExpectancy, { signed: true })}</span>
+        <span className="text-slate-500"> (cận dưới {fmtRatioPct(r.netExpectancyLcb, { signed: true })})</span>
+      </div>
+      {r.tier === 'NEAR'
+        ? <div className="text-[10px] text-amber-300/80">Gần đạt kiểm định — còn thiếu: {r.missing.join('; ')}. Chỉ để theo dõi.</div>
+        : <div className="text-[10px] text-emerald-300/80">✓ Đạt kiểm định (≥ 8 đợt, q-value FDR, cận dưới lợi nhuận ròng &gt; 0).</div>}
+    </div>
+  );
+}
+
 function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
   return (
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -163,6 +215,15 @@ export default function EliteCommandRadar() {
   // Lớp tín hiệu dòng tiền (Stealth 20 / IFE / mô hình thích ứng).
   const signals = useRadarSignals(tickers);
   const sig = signals.data;
+  // Lớp ⏱ Điểm mua — chỉ mã đang có trên Radar (tickers = ★ danh mục Radar đang hiển thị).
+  const timeline = useBuyTimeline();
+  const buyMap = useMemo(() => pickRadarBuyRows(timeline.data?.rows ?? [], tickers), [timeline.data, tickers]);
+  const buyChips = useMemo(() => upcomingBuyChips(buyMap), [buyMap]);
+  const buyEvents = useMemo(() => buyWindowEvents(buyMap), [buyMap]);
+  const [buyOnly, setBuyOnly] = useState<boolean>(() => { try { return window.localStorage.getItem(BUY_ONLY_KEY) === '1'; } catch { return false; } });
+  const toggleBuyOnly = () => setBuyOnly((v) => { try { window.localStorage.setItem(BUY_ONLY_KEY, v ? '0' : '1'); } catch { /* bỏ qua */ } return !v; });
+  useEffect(() => { notifyBuyEvents(buyEvents); }, [buyEvents]);
+
   const stealthMap = useMemo(() => {
     if (!sig) return null;
     const m = new Map<string, number>();
@@ -182,8 +243,10 @@ export default function EliteCommandRadar() {
   const curDate = replay?.date ?? history.today ?? new Date().toISOString().slice(0, 10);
   const viewItems: SnapItem[] = replay ? replay.items : snapItems;
   const viewMap = useMemo(() => new Map(viewItems.map((i) => [i.t, i])), [viewItems]);
-  const layoutKey = viewItems.map((i) => `${i.t}:${i.s}:${i.g}:${i.sm}:${i.core ? 1 : 0}`).join('|');
-  const layout = useMemo(() => layoutRadar(viewItems.map((i) => ({
+  // Bộ lọc "⏱ chỉ mã có điểm mua": chỉ ẩn bớt chấm trên Radar hiện tại; không đổi danh mục, không đổi ảnh chụp lịch sử.
+  const shownItems = buyOnly && !replay ? viewItems.filter((i) => buyMap.has(i.t)) : viewItems;
+  const layoutKey = shownItems.map((i) => `${i.t}:${i.s}:${i.g}:${i.sm}:${i.core ? 1 : 0}`).join('|');
+  const layout = useMemo(() => layoutRadar(shownItems.map((i) => ({
     ticker: i.t, score: i.s, group: i.g ?? 'Chưa phân nhóm', smart: i.sm, core: i.core,
   }))), [layoutKey]);
   const trails = useMemo(() => scoreTrails(history.snapshots, curDate, 5), [history.snapshots, curDate]);
@@ -240,13 +303,22 @@ export default function EliteCommandRadar() {
     const ni = replay ? undefined : newsInfo.get(n.ticker);
     const rim = ni ? (ni.sentiment >= 0.25 ? UP : ni.sentiment <= -0.25 ? DOWN : null) : null;
     const isSel = selectedTicker === n.ticker;
-    const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}`;
+    const buy = replay ? undefined : buyMap.get(n.ticker);
+    const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}${buy ? `, điểm mua: ${BUY_STATUS[buy.row.status].toLowerCase()}` : ''}`;
+    const ringR = n.dot + (n.core ? 9 : 5);
     return (
       <g key={n.ticker} transform={`translate(${n.x.toFixed(1)} ${n.y.toFixed(1)})`} role="button" tabIndex={0} aria-label={label} aria-pressed={isSel}
         className="cursor-pointer focus:outline-none radar-node"
         onClick={() => selectTicker(n.ticker)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTicker(n.ticker); } }}
         onMouseEnter={() => setHover(n.ticker)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(n.ticker)} onBlur={() => setHover(null)}>
         {ni?.hot && <circle r={n.dot + 4} fill="none" stroke={rim ?? AMBER} strokeWidth={1.5} className="radar-pulse" />}
+        {buy && (
+          <circle r={ringR} fill="none" stroke={RING_COLOR[buy.ring]} data-buy-ring={buy.ring}
+            strokeWidth={buy.ring === 'in' ? 1.8 : buy.ring === 'soon' ? 1.5 : 1}
+            strokeDasharray={buy.ring === 'near' ? '2 2' : buy.ring === 'later' ? '1 3' : undefined}
+            opacity={buy.ring === 'near' || buy.ring === 'later' ? 0.6 : 0.95}
+            className={buy.ring === 'in' ? 'radar-buy-pulse' : undefined} />
+        )}
         {v.sg ? (
           <rect x={-2.8} y={-2.8} width={5.6} height={5.6} transform={`translate(${-(n.dot + 2.5)} ${-(n.dot - 1)}) rotate(45)`}
             fill={stealthEdge ? (v.sg > 0 ? UP : DOWN) : 'none'} stroke={v.sg > 0 ? UP : DOWN} strokeWidth={1.2} className="radar-stealth" />
@@ -303,6 +375,13 @@ export default function EliteCommandRadar() {
             {replay && <span className="text-cyan-300">⏮ Đang xem {fmtDate(replay.date)}</span>}
             <span>{groups} nhóm ngành</span>
             {!replay && newsInfo.size > 0 && <span>Tin nóng 24h <b className="text-amber-300">{[...newsInfo.values()].filter((v) => v.hot).length}</b></span>}
+            {!replay && (
+              <button type="button" onClick={toggleBuyOnly} aria-pressed={buyOnly} data-testid="radar-buy-only"
+                title="Chỉ hiện các mã của danh mục này đang có vùng mua trong Timeline (tab Cổ tức)"
+                className={`rounded border px-1.5 leading-[16px] ${buyOnly ? 'border-emerald-400/50 text-emerald-300 bg-emerald-400/10' : 'border-white/10 text-slate-400 hover:text-slate-200'}`}>
+                ⏱ Chỉ mã có điểm mua ({buyMap.size})
+              </button>
+            )}
           </>
         ) : <span>★ {listName} đang trống — bấm ☆ cạnh mã trong Bảng Siêu Quét hoặc tìm mã (phím /) để thêm.</span>}
       </div>
@@ -364,6 +443,16 @@ export default function EliteCommandRadar() {
               </div>
               <div className="text-slate-400">Smart <span className="text-amber-400">{v.sm?.toFixed(1) ?? '—'}</span>{x ? ` · RS ${x.item?.rsRating?.toFixed(0) ?? '—'}` : ''}</div>
               {v.sg ? <div style={{ color: v.sg > 0 ? UP : DOWN }}>◆ Stealth 20: {stealthText(v.sg)}</div> : null}
+              {!replay && buyMap.get(tip.ticker) && (() => {
+                const b = buyMap.get(tip.ticker)!;
+                const r = b.row;
+                return (
+                  <div style={{ color: RING_COLOR[b.ring] }}>
+                    ⏱ {r.kind === 'DIVIDEND' ? 'Cổ tức' : 'KQKD'} {r.windowId.toUpperCase()} · {fmtDate(r.entryFromDate)}→{fmtDate(r.entryToDate)}
+                    <span className="text-slate-400"> · thắng {Math.round(r.winRate * 100)}% · {fmtRatioPct(r.netExpectancy, { signed: true })}{r.tier === 'NEAR' ? ' · gần đạt' : ''}</span>
+                  </div>
+                );
+              })()}
               {!replay && sig?.items[tip.ticker]?.intent && (() => { const it = sig.items[tip.ticker]!.intent!; return <div className="text-slate-400">◐ {it.label} {pctNum(it.p)}</div>; })()}
             </div>
           );
@@ -378,7 +467,41 @@ export default function EliteCommandRadar() {
         <span><span style={{ color: CYAN }}>●</span> ổn định · <span style={{ color: AMBER }}>●</span> ⚡ bứt phá · <span style={{ color: DOWN }}>●</span> ⚠ cảnh báo (Down-Trend / F-Score thấp)</span>
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày</span>
         {sig && <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 tích luỹ/phân phối{stealthEdge ? ' (đã kiểm định)' : ' (rỗng = chưa đạt kiểm định)'}</span>}
+        <span>⏱ vòng <span style={{ color: UP }}>xanh</span> = trong vùng mua · <span style={{ color: AMBER }}>vàng</span> = ≤ {SOON_SESSIONS} phiên · nét đứt = gần đạt kiểm định</span>
       </div>
+
+      {!replay && tickers.length > 0 && (
+        <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.2)' }} aria-label="Điểm mua sắp tới" data-testid="radar-buy-strip">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[9px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · ★ {listName}</div>
+            <span className="text-[9px] text-slate-500 shrink-0">Timeline tab Cổ tức · chỉ mã trên Radar</span>
+          </div>
+          {timeline.error && !timeline.data ? <div className="text-[10px] text-slate-500 mt-1">Timeline điểm mua tạm thời không tải được.</div>
+            : buyChips.length ? (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {buyChips.map(({ row: r, ring }) => (
+                  <button key={r.id} type="button" onClick={() => selectTicker(r.ticker)} data-testid="radar-buy-chip"
+                    title={`${r.ticker} · ${r.windowLabel} · ${fmtDate(r.entryFromDate)}→${fmtDate(r.entryToDate)} · thắng ${Math.round(r.winRate * 100)}%${r.tier === 'NEAR' ? ` · gần đạt: ${r.missing.join('; ')}` : ''}`}
+                    className="text-[10px] px-1.5 py-0.5 rounded border font-mono hover:bg-white/5"
+                    style={{ color: RING_COLOR[ring], borderColor: `${RING_COLOR[ring]}66`, borderStyle: r.tier === 'NEAR' ? 'dashed' : 'solid' }}>
+                    {r.status === 'IN_WINDOW' ? '●' : '⏱'} {r.ticker} {r.kind === 'DIVIDEND' ? 'CT' : 'KQ'} {r.status === 'IN_WINDOW' ? 'trong vùng' : `${r.sessionsToEntry}p`}
+                  </button>
+                ))}
+              </div>
+            ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong ★ {listName} có vùng mua trong {CHIP_SESSIONS} phiên tới{buyMap.size ? ` (${buyMap.size} mã có vùng mua xa hơn)` : ''}.</div>}
+          {buyEvents.length > 0 && (
+            <ul className="mt-1 space-y-0.5" aria-label="Sự kiện điểm mua">
+              {buyEvents.map((e) => (
+                <li key={e.notifyKey}>
+                  <button type="button" onClick={() => selectTicker(e.ticker)} className="text-left text-[10.5px] hover:underline" style={{ color: e.kind === 'enter_buy_window' ? UP : AMBER }}>
+                    {e.kind === 'enter_buy_window' ? '◎' : '⏳'} {e.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {sig && !replay && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(167,139,250,0.05)', border: '1px solid rgba(167,139,250,0.22)' }} aria-label="Tín hiệu dòng tiền">
@@ -467,6 +590,7 @@ export default function EliteCommandRadar() {
       {selectedSnap && replay && <SnapEvidence v={selectedSnap} date={replay.date} />}
       {selected && <Evidence x={selected} />}
       {selected && sig && <SignalLayer x={sig.items[selected.ticker] ?? null} sig={sig} />}
+      {selected && buyMap.get(selected.ticker) && <BuyLayer info={buyMap.get(selected.ticker)!} />}
       {selectedTicker && !selected && !replay && tickers.length > 0 && (
         <div className="mt-2 text-[10.5px] text-slate-400">☆ {selectedTicker} chưa có trong ★ {listName} — bấm <b className="text-cyan-300">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</div>
       )}
