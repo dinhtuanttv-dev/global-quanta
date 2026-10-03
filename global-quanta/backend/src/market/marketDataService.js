@@ -83,7 +83,8 @@ export function createMarketDataService({ providers, store, router, now = Date.n
     const coversStart = cached.length && cached[0].date <= addDays(from, 7);
     const coversEnd = cached.length && cached.at(-1).date >= wantedLast;
     if (coversStart && coversEnd) {
-      return { bars: cached, ...dominantSource(cached, "STORE"), fallbackReason: null, attempts: [], fromStore: true };
+      const repaired = index ? await repairFlatIndexBars(symbol, cached) : cached;
+      return { bars: repaired, ...dominantSource(repaired, "STORE"), fallbackReason: null, attempts: [], fromStore: true };
     }
 
     // Chỉ thiếu phần đuôi -> lấy thêm từ vài ngày trước bản ghi cuối.
@@ -102,32 +103,84 @@ export function createMarketDataService({ providers, store, router, now = Date.n
   }
 
   /**
-   * SSI DailyIndex chỉ có giá đóng cửa. Bổ sung open/high/low từ nguồn cũ cho
-   * đúng ngày đó, CHỈ khi giá đóng cửa hai nguồn khớp nhau (lệch < 1%); giá
-   * đóng cửa, khối lượng, giá trị vẫn là của SSI.
+   * SSI DailyIndex nhiều giai đoạn chỉ có giá đóng cửa. Bổ sung open/high/low cho đúng ngày đó từ nguồn tham chiếu,
+   * CHỈ khi giá đóng cửa hai nguồn khớp nhau; giá đóng cửa, khối lượng, giá trị vẫn là của SSI.
+   * Thứ tự: VNDirect finfo (lệch < 0,2%) -> nguồn cũ Project A (lệch < 1%).
    */
-  async function enrichIndexOhl(symbol, bars, from, to) {
-    if (!bars.some((b) => b.closeOnly)) return bars;
-    let legacyByDate = new Map();
-    if (providers.legacy?.isConfigured?.()) {
+  const INDEX_OHL_SOURCES = [
+    { key: "vndirectIndex", tolerance: 0.002 },
+    { key: "legacy", tolerance: 0.01 },
+  ];
+
+  async function indexReferences(symbol, from, to) {
+    const out = [];
+    for (const { key, tolerance } of INDEX_OHL_SOURCES) {
+      const p = providers[key];
+      if (!p?.isConfigured?.()) continue;
       try {
-        const legacyBars = await cache.wrap(`legacy-index:${symbol}:${from}:${to}`, 10 * 60_000, () => providers.legacy.getIndexDaily(symbol, from, to));
-        legacyByDate = new Map(legacyBars.map((b) => [b.date, b]));
+        const rows = await cache.wrap(`${key}-index:${symbol}:${from}:${to}`, 10 * 60_000, () => p.getIndexDaily(symbol, from, to));
+        out.push({ tolerance, byDate: new Map(rows.map((b) => [b.date, b])) });
       } catch (error) {
-        console.warn(`[market] Không bổ sung được OHL cho ${symbol}: ${error.message}`);
+        console.warn(`[market] Không lấy được OHL tham chiếu (${key}) cho ${symbol}: ${error.message}`);
       }
     }
+    return out;
+  }
+
+  async function enrichIndexOhl(symbol, bars, from, to) {
+    if (!bars.some((b) => b.closeOnly)) return bars;
+    const refs = await indexReferences(symbol, from, to);
     return bars.map(({ closeOnly, ...bar }) => {
-      if (!closeOnly) return bar;
-      const ref = legacyByDate.get(bar.date);
-      if (!ref || !bar.close || Math.abs(ref.close - bar.close) / bar.close >= 0.01) return bar;
-      return {
-        ...bar,
-        open: ref.open,
-        high: Math.max(ref.high, bar.close, ref.open),
-        low: Math.min(ref.low, bar.close, ref.open),
-      };
+      if (!closeOnly || !bar.close) return bar;
+      for (const { tolerance, byDate } of refs) {
+        const ref = byDate.get(bar.date);
+        if (!ref || Math.abs(ref.close - bar.close) / bar.close >= tolerance) continue;
+        return {
+          ...bar,
+          open: ref.open,
+          high: Math.max(ref.high, bar.close, ref.open),
+          low: Math.min(ref.low, bar.close, ref.open),
+        };
+      }
+      return bar;
     });
+  }
+
+  /** Nến "dẹt" (O=H=L=C, có khối lượng) = SSI chỉ trả giá đóng cửa và chưa bổ sung được O/H/L lúc ghi kho. */
+  const isFlatBar = (b) => b.open === b.close && b.high === b.close && b.low === b.close && (b.volume ?? 0) > 0;
+
+  /**
+   * Sửa nến chỉ số dẹt đã nằm sẵn trong kho (ghi từ trước khi có nguồn tham chiếu): bổ sung O/H/L rồi ghi đè kho.
+   * Mỗi mã thử tối đa 1 lần / 30 phút để không gọi nguồn ngoài liên tục khi nguồn đó cũng thiếu dữ liệu.
+   */
+  async function repairFlatIndexBars(symbol, cached) {
+    const flats = cached.filter(isFlatBar);
+    if (!flats.length) return cached;
+    const from = flats[0].date;
+    const to = flats.at(-1).date;
+    const fixed = await cache.wrap(`index-repair:${symbol}:${from}:${to}`, 30 * 60_000, async () => {
+      const enriched = await enrichIndexOhl(symbol, flats.map((b) => ({ ...b, closeOnly: true })), from, to);
+      const changed = enriched.filter((b) => !isFlatBar(b));
+      if (changed.length) {
+        const bySource = new Map();
+        for (const b of changed) {
+          const { source, ...bar } = b;
+          const key = source ?? "SSI_FC_V2";
+          if (!bySource.has(key)) bySource.set(key, []);
+          bySource.get(key).push(bar);
+        }
+        for (const [source, list] of bySource) {
+          try {
+            await store.upsertBars(symbol, list, source);
+          } catch (error) {
+            console.warn(`[market] Ghi kho nến chỉ số đã sửa lỗi (${symbol}): ${error.message}`);
+          }
+        }
+        console.log(`[market] Đã bổ sung O/H/L cho ${changed.length}/${flats.length} nến dẹt của ${symbol}.`);
+      }
+      return new Map(changed.map((b) => [b.date, b]));
+    });
+    return cached.map((b) => fixed.get(b.date) ?? b);
   }
 
   /** Nến hôm nay (chưa đóng) dựng từ quote stream, để biểu đồ thấy giá realtime. */
@@ -196,11 +249,16 @@ export function createMarketDataService({ providers, store, router, now = Date.n
 
     const expectedLast = lastCompletedSessionDate(new Date(now()));
     const lastDate = bars.filter((b) => !b.partial).at(-1)?.date ?? null;
+    // Cơ sở giá thật của chuỗi (xem adjusted/adjustedHistory.js): DailyOhlc của SSI KHÔNG phải giá danh nghĩa —
+    // SSI chỉ áp hệ số của đợt quyền GẦN NHẤT cho toàn bộ lịch sử. Chuỗi điều chỉnh cộng dồn đúng: /api/market/ta-series.
+    const priceBasis = isIndexSymbol(symbol) ? "INDEX_POINTS" : adjustedApplied ? "SSI_CLOSE_PRICE_ADJUSTED" : "SSI_LATEST_EVENT_ADJUSTED";
     return {
       symbol,
       ticker: symbol,
       resolution: "1D",
       adjusted: adjustedApplied,
+      priceBasis,
+      flatBars: isIndexSymbol(symbol) ? bars.filter(isFlatBar).length : undefined,
       bars,
       provenance: {
         ...provenance({

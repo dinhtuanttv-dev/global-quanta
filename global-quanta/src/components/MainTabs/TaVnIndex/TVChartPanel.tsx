@@ -32,6 +32,7 @@ import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/z
 import type { SignalBacktestResult } from "../../../lib/ta-command-center/detectors/signalBacktest";
 import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
+import type { CorporateActionMark } from "../../../hooks/useTaSeries";
 
 interface Props {
   bars: OhlcvBar[];
@@ -41,13 +42,17 @@ interface Props {
   // với PatternList ở TaVnIndexTab.tsx): tầng cha truyền pattern vừa chọn
   // xuống đây để vẫn khoanh vùng ngày trên biểu đồ, không mất tính năng.
   highlightPattern?: PatternMatch | null;
+  /** Ngày GDKHQ đã điều chỉnh trong chuỗi giá (Gateway /ta-series) — đánh dấu ■ trên biểu đồ. */
+  corporateActions?: CorporateActionMark[];
 }
 
 function isTwoPointPrimitive(p: DrawnPrimitive): p is RectangleZone | Trendline | FibonacciRetracement {
   return p.toolType === "rectangle" || p.toolType === "trendline" || p.toolType === "fibonacci";
 }
 
-export default function TVChartPanel({ bars, ticker, onRequestTickerChange, highlightPattern }: Props) {
+const NO_ACTIONS: CorporateActionMark[] = [];
+
+export default function TVChartPanel({ bars, ticker, onRequestTickerChange, highlightPattern, corporateActions = NO_ACTIONS }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tvManagerRef = useRef<TVChartManager | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
@@ -152,7 +157,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
 
   useEffect(() => {
     if (!tvManagerRef.current || !layerState) return;
-    const markers: { time: string; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown" | "circle"; text: string }[] = [];
+    const markers: { time: string; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown" | "circle" | "square"; text: string }[] = [];
+    // Sự kiện quyền luôn hiện (bối cảnh dữ liệu, không phải tín hiệu): chỉ đánh dấu ngày có trong khung đang xem.
+    const visibleDates = new Set(currentBars.map((b) => b.date));
+    corporateActions.forEach((c) => {
+      if (timeframe === "D" && visibleDates.has(c.date)) markers.push({ time: c.date, position: "belowBar", color: "#fbbf24", shape: "square", text: c.label });
+    });
     if (layerState.smc) {
       smc.obs.forEach((ob) => markers.push({ time: ob.date, position: ob.type === "bullish" ? "belowBar" : "aboveBar", color: ob.type === "bullish" ? "#34d399" : "#f87171", shape: "circle", text: `OB${ob.type === "bullish" ? "+" : "-"}` }));
       smc.bos.forEach((b) => markers.push({ time: b.date, position: b.type === "bullish" ? "belowBar" : "aboveBar", color: b.type === "bullish" ? "#38bdf8" : "#fb923c", shape: b.type === "bullish" ? "arrowUp" : "arrowDown", text: "BOS" }));
@@ -179,7 +189,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     }
     markers.sort((a, b) => a.time.localeCompare(b.time));
     tvManagerRef.current.setMarkers(markers);
-  }, [smc, vsa, layerState]);
+  }, [smc, vsa, layerState, corporateActions, currentBars, timeframe]);
 
   const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
   const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);

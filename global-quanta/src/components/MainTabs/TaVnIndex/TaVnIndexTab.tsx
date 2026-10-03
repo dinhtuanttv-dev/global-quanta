@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAppStore } from "../../../store/useAppStore";
-import TickerSelector from "./TickerSelector";
+import TickerSelector, { DEFAULT_TA_SYMBOL } from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
 import GoldenFilterPanel from "./GoldenFilterPanel";
 import TAConsensusPanel from "./TAConsensusPanel";
@@ -13,7 +13,8 @@ import "./AIChartVision/styles.css";
 
 export default function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
-  const [ticker, setTicker] = useState(globalSelectedTicker ?? "VNM");
+  // Mặc định VN-Index (TA_VNINDEX_UPGRADE_SPEC §2.1.1) — mã đang chọn ở nơi khác vẫn được ưu tiên.
+  const [ticker, setTicker] = useState(globalSelectedTicker ?? DEFAULT_TA_SYMBOL);
   const [activeSubTab, setActiveSubTab] = useState<SubTabKey>("pattern");
   const [suggestedTicker, setSuggestedTicker] = useState<string | null>(null);
   // ĐÃ THÊM — thay cho <PatternList> từng gắn sẵn TRÙNG LẶP bên trong

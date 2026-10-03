@@ -5,6 +5,7 @@ import { createStore } from "./store/index.js";
 import { createSsiV3Provider } from "./providers/ssiV3Provider.js";
 import { createSsiFcV2Provider } from "./providers/ssiFcV2Provider.js";
 import { createLegacyProvider } from "./providers/legacyProvider.js";
+import { createVndirectIndexProvider } from "./providers/vndirectIndexProvider.js";
 import { createMarketDataService } from "./marketDataService.js";
 import { StreamHub } from "./stream/streamHub.js";
 import { SignalRConnection } from "./stream/signalrConnection.js";
@@ -30,6 +31,7 @@ export function getMarketRuntime() {
     ssiV3: createSsiV3Provider(),
     ssiFcV2: createSsiFcV2Provider(),
     legacy: createLegacyProvider(),
+    vndirectIndex: createVndirectIndexProvider(),
   };
   const store = createStore();
   const service = createMarketDataService({ providers, store });

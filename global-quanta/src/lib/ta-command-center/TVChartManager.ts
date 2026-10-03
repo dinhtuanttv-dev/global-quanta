@@ -18,11 +18,13 @@ function toTime(dateStr: string): UTCTimestamp {
   return (new Date(isoStr).getTime() / 1000) as UTCTimestamp;
 }
 
+const DEFAULT_VISIBLE_BARS = 250;
+
 export interface ChartMarkerInput {
   time: string;
   position: "aboveBar" | "belowBar";
   color: string;
-  shape: "arrowUp" | "arrowDown" | "circle";
+  shape: "arrowUp" | "arrowDown" | "circle" | "square";
   text: string;
 }
 
@@ -84,7 +86,12 @@ export class TVChartManager {
     }));
     this.candleSeries.setData(candleData);
     this.volumeSeries.setData(volData);
-    this.chart.timeScale().fitContent();
+    // Chuỗi dài (≈3 năm) -> mặc định nhìn 250 phiên gần nhất; kéo/cuộn để xem toàn bộ lịch sử.
+    if (bars.length > DEFAULT_VISIBLE_BARS + 50) {
+      this.chart.timeScale().setVisibleLogicalRange({ from: bars.length - DEFAULT_VISIBLE_BARS, to: bars.length + 3 });
+    } else {
+      this.chart.timeScale().fitContent();
+    }
   }
 
   setMarkers(markers: ChartMarkerInput[]): void {

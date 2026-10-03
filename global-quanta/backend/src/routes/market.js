@@ -16,6 +16,8 @@ import { getResearchOverview, getResearchSymbol } from "../market/research/resea
 import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
+import { createCorporateActions } from "../market/adjusted/corporateActions.js";
+import { createTaSeries } from "../market/adjusted/taSeries.js";
 
 const router = Router();
 
@@ -222,6 +224,24 @@ router.get("/ohlcv/nominal-history", handle(async (req, res) => {
     provenance: { source: r.source, refresh: r.refresh, asOf: r.bars.at(-1)?.date ?? null, from: r.bars[0]?.date ?? null, count: r.bars.length,
       note: "Giá khớp danh nghĩa SSI. referenceAdjustments suy từ RefPrice — đáng tin tới ~2024 (từ 2025 SSI không còn điều chỉnh RefPrice vào ngày GDKHQ)." },
   });
+}));
+
+// Chuỗi giá cho TA VN-Index: điều chỉnh CỘNG DỒN theo sự kiện quyền (cổ tức tiền/cổ phiếu, thưởng) — xem adjusted/taSeries.js.
+// GET /ta-series?ticker=FPT&range=5y&limit=750 · chỉ số trả điểm chỉ số. Luôn có priceBasis + warnings.
+let taSeries = null;
+router.get("/ta-series", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
+  taSeries ??= createTaSeries({
+    service: rt.service,
+    nominalHistory,
+    corporateActions: createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") }),
+  });
+  const q = req.query;
+  const key = `ta-series:${String(q.ticker ?? q.symbol ?? "").toUpperCase()}:${q.range ?? "5y"}:${q.limit ?? 750}`;
+  const data = await rt.service.cache.wrap(key, 60_000, () => taSeries.get({ symbol: q.ticker ?? q.symbol, range: q.range, limit: q.limit }));
+  res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
 }));
 
 // Danh mục tự chọn / rổ chỉ số: chấm điểm theo cùng công thức + bối cảnh của lần quét gần nhất.
