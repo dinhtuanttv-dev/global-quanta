@@ -8,8 +8,8 @@ import type { TimingSignal, TimingSignalsBulkV3 } from './timing-types';
  * cycle-paths.schema.ts/cycle-stats.schema.ts: kiểm cả hợp đồng nghiệp vụ, không chỉ kiểu.
  */
 export const TIMING_SIGNALS_LIMITS = {
-  /** VN30+VN100+... — 300 đủ dư cho vũ trụ hiện tại, chặn payload bất thường lớn. */
-  maxSignals: 300,
+  /** Danh mục Siêu Quét AI (~300 mã, 10/2026) — 600 đủ dư, chặn payload bất thường lớn. */
+  maxSignals: 600,
   maxAbsReturn: 1.5,
 } as const;
 
@@ -61,10 +61,10 @@ const timingSignalSchema = z
   })
   .superRefine((v, ctx) => {
     const bad = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', message, path });
-    // Quy ước dấu mục 2.2: entryFrom <= entryTo <= 0.
+    // entryFrom <= entryTo <= exitOffset. Cửa sổ SAU GDKHQ (W4 +3..+6, W5 +20..+35) hợp lệ — trước đây bị chặn bằng
+    // entryTo <= 0 dù là cửa sổ chuẩn của engine; khi danh mục mở rộng ~300 mã, một mã chọn W4/W5 làm hỏng cả lô.
     if (v.window) {
       if (!(v.window.entryFrom <= v.window.entryTo)) bad(['window', 'entryFrom'], 'entryFrom phải ≤ entryTo');
-      if (v.window.entryTo > 0) bad(['window', 'entryTo'], 'entryTo phải ≤ 0 (trước hoặc đúng GDKHQ)');
       if (v.window.exitOffset < v.window.entryTo) bad(['window', 'exitOffset'], 'exitOffset không được sớm hơn entryTo');
     }
     // action là IN_WINDOW/TOO_EARLY/WINDOW_PASSED chỉ có ý nghĩa khi có window đã chọn.
@@ -75,6 +75,8 @@ const timingSignalSchema = z
       bad(['window'], "action = 'NO_SIGNAL' nhưng window khác null (mục 5.6: không chọn cửa sổ khi chưa qua cổng)");
     }
   });
+
+export { timingSignalSchema };
 
 export const timingSignalsBulkV3Schema = z
   .object({
@@ -106,13 +108,39 @@ export function formatIssues(issues: ReadonlyArray<{ path: ReadonlyArray<Propert
   return out;
 }
 
-export type ParseTimingSignalsResult = { ok: true; data: TimingSignalsBulkV3 } | { ok: false; issues: string[] };
+export type ParseTimingSignalsResult =
+  | { ok: true; data: TimingSignalsBulkV3; dropped: string[] }
+  | { ok: false; issues: string[] };
 
+const envelopeSchema = z.object({
+  version: z.string().min(1),
+  asOf: z.string().refine((s) => !Number.isNaN(Date.parse(s)), { message: 'phải là mốc thời gian ISO hợp lệ' }),
+  signals: z.array(z.unknown()).max(TIMING_SIGNALS_LIMITS.maxSignals),
+});
+
+/**
+ * Kiểm vỏ (version/asOf/số dòng) nghiêm ngặt; kiểm TỪNG dòng riêng: dòng sai hợp đồng bị BỎ (ghi vào `dropped`) thay vì
+ * làm hỏng cả bảng ~300 mã. Dòng trùng mã giữ dòng đầu.
+ */
 export function parseTimingSignals(raw: unknown): ParseTimingSignalsResult {
   try {
-    const r = timingSignalsBulkV3Schema.safeParse(raw);
-    if (r.success) return { ok: true, data: r.data as TimingSignalsBulkV3 };
-    return { ok: false, issues: formatIssues(r.error.issues) };
+    const env = envelopeSchema.safeParse(raw);
+    if (!env.success) return { ok: false, issues: formatIssues(env.error.issues) };
+    const dropped: string[] = [];
+    const seen = new Set<string>();
+    const signals: TimingSignal[] = [];
+    env.data.signals.forEach((row, i) => {
+      const r = timingSignalSchema.safeParse(row);
+      if (!r.success) {
+        const t = (row as { ticker?: unknown })?.ticker;
+        dropped.push(`signals[${i}]${typeof t === 'string' ? ` (${t})` : ''}: ${formatIssues(r.error.issues, 2).join('; ')}`);
+        return;
+      }
+      if (seen.has(r.data.ticker)) { dropped.push(`signals[${i}] (${r.data.ticker}): ticker trùng`); return; }
+      seen.add(r.data.ticker);
+      signals.push(r.data as TimingSignal);
+    });
+    return { ok: true, data: { version: env.data.version, asOf: env.data.asOf, signals } as TimingSignalsBulkV3, dropped };
   } catch (e) {
     return { ok: false, issues: [`(gốc): lỗi khi validate: ${e instanceof Error ? e.message : String(e)}`] };
   }

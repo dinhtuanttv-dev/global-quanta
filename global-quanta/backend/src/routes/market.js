@@ -232,6 +232,12 @@ router.get("/scanner/universe", handle(async (req, res) => {
   res.json(doc);
 }));
 
+// Trạng thái quét liên tục tab Cổ tức (không chứa secret) — giao diện hiển thị "đang quét · vòng · cập nhật lúc".
+router.get("/cotuc-scan/status", handle(async (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(getMarketRuntime().cotucScanner.status());
+}));
+
 router.get("/price-limits", handle(async (req, res) => {
   res.set("Cache-Control", "private, max-age=600");
   res.json(await service().getPriceLimits(typeof req.query.date === "string" ? req.query.date : undefined));

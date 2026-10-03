@@ -47,6 +47,10 @@ import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList
 import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
 import { DecisionBarCard } from "./decision/DecisionBar";
 import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
+import { CotucScanStatusBar } from "./live/CotucScanStatusBar";
+import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
+import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
+import { buildUniverseStocks, trailingCashDividend, trailingYieldPct } from "../../../lib/cotuc/universe-stocks";
 import { useAppStore } from "../../../store/useAppStore";
 
 // ============================================================
@@ -543,10 +547,37 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   // day du bang du lieu rut gon.
   const { aiAnalysisMap } = useAiAnalysis();
 
+  // Danh mục Siêu Quét AI (~300 mã, Gateway) + giá khớp TRỰC TIẾP (REST + stream SSE, như bảng Siêu Quét).
+  // Mã ngoài 17 mã gốc dựng từ sự kiện quyền THẬT (/api/cotuc/events, VNDirect); tỷ suất = cổ tức tiền 12 tháng / giá hiện tại.
+  const { rows: gatewayUniverse } = useCotucUniverse();
+  const liveSymbols = useMemo(
+    () => [...new Set([...mergedStocks.map((s) => s.ticker), ...universeStocks.map((s) => s.ticker), ...gatewayUniverse.map((u) => u.ticker)])],
+    [mergedStocks, universeStocks, gatewayUniverse],
+  );
+  const board = useBoardQuotes(liveSymbols, { flushMs: 1000 });
+  const livePrices = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const [t, q] of Object.entries(board.quotes)) if (q?.price && q.price > 0) out[t] = q.price;
+    return out;
+  }, [board.quotes]);
+  const todayIso = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+
   const allStocksWithUniverse = useMemo(() => {
     const existingTickerSet = new Set(mergedStocks.map((s) => s.ticker));
     const newFromUniverse = universeStocks.filter((s) => !existingTickerSet.has(s.ticker));
-    const combined = [...mergedStocks, ...newFromUniverse];
+    const known = new Set([...existingTickerSet, ...newFromUniverse.map((s) => s.ticker)]);
+    const fromGateway = buildUniverseStocks({ universe: gatewayUniverse, exclude: known, lifecycleEventsMap, realDatesMap, prices: livePrices, today: todayIso });
+    // Giá trực tiếp + tỷ suất cổ tức THẬT (12 tháng) ghi đè giá/tỷ suất mẫu khi có dữ liệu.
+    const combined = [...mergedStocks, ...newFromUniverse, ...fromGateway].map((s) => {
+      const price = livePrices[s.ticker] ?? s.price;
+      const ev = lifecycleEventsMap[s.ticker];
+      const y = trailingYieldPct(trailingCashDividend(ev, todayIso), price);
+      // Cổ tức/CP của đợt tiền mặt gần nhất (VNDirect) thay số mẫu tĩnh của 17 mã gốc.
+      const lastCash = (ev ?? []).filter((e) => e.eventType === "CASH" && e.valuePerShare && e.exrightDate)
+        .sort((a, b) => (b.exrightDate ?? "").localeCompare(a.exrightDate ?? ""))[0]?.valuePerShare ?? null;
+      if (price === s.price && y === null && lastCash === null) return s;
+      return { ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount };
+    });
     // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
     // lieu dinh luong) cho CA 17 ma va Universe - CHI GHI DE khi da co
     // ket qua AI (con lai giu mau/mac dinh trong luc cho vong xoay).
@@ -560,7 +591,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         catalystScore: ai.catalystScore ?? s.catalystScore,
       };
     });
-  }, [mergedStocks, universeStocks, aiAnalysisMap]);
+  }, [mergedStocks, universeStocks, aiAnalysisMap, gatewayUniverse, lifecycleEventsMap, realDatesMap, livePrices, todayIso]);
 
   // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
@@ -703,9 +734,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </div>
       )}
 
+      <CotucScanStatusBar universeCount={allStocksWithUniverse.length} />
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-cf-positive", sub:`${mergedStocks.length} mã theo dõi` },
+          { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-cf-positive", sub:`${allStocksWithUniverse.length} mã theo dõi` },
           { label:"Yield > 5%", value:String(stats.highYield), color:"text-cf-gold", sub:"mã trong universe" },
           { label:"Sắp GDKHQ (30n)", value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
           { label:"Sắp ĐHCĐ (14n)", value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
@@ -981,7 +1014,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
               </div>
             )}
             <CalendarTabV3
-              dividendItems={mergedStocks.map((s): DividendCalendarItem => ({
+              dividendItems={allStocksWithUniverse.filter((s) => s.exDividendDate).map((s): DividendCalendarItem => ({
                 ticker: s.ticker,
                 exDate: toSourcedIso(s.exDividendDate),
                 cashPerShare: s.dividendAmount ?? null,
@@ -996,7 +1029,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? universeLifecycleMap[selected.ticker] : lifecycleEventsMap[selected.ticker]} hasRealDates={Object.keys(realDatesMap).length > 0} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? (universeLifecycleMap[selected.ticker] ?? lifecycleEventsMap[selected.ticker]) : lifecycleEventsMap[selected.ticker]} hasRealDates={Object.keys(realDatesMap).length > 0} />}
     </div>
   );
 }

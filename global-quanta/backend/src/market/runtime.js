@@ -15,6 +15,7 @@ import { createTickRecorder } from "./scanner/tickFlowService.js";
 import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.js";
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
+import { createCotucScanner } from "./cotuc/cotucScanner.js";
 
 let runtime;
 
@@ -56,7 +57,10 @@ export function getMarketRuntime() {
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, started: false };
+  // Quét liên tục tab Cổ tức (~300 mã): gọi xoay vòng cron theo lô của Project A (cần PROJECT_A_CRON_SECRET).
+  const cotucScanner = createCotucScanner({ store });
+
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, started: false };
   return runtime;
 }
 
@@ -68,6 +72,7 @@ export function startMarketIngestor() {
   const runOnStart = String(process.env.MARKET_RUN_JOBS_ON_START ?? "true").toLowerCase() === "true" ? ["syncSecurities"] : [];
   rt.scheduler.start({ runOnStart });
   rt.tickRecorder.start();
+  rt.cotucScanner.start();
   console.log(`[market] Ingestor đã bật (store=${rt.store.kind}).`);
   return rt;
 }
@@ -75,6 +80,7 @@ export function startMarketIngestor() {
 export function stopMarketRuntime() {
   if (!runtime) return;
   runtime.scheduler.stop();
+  runtime.cotucScanner.stop();
   void runtime.tickRecorder.stop();
   runtime.hub.shutdown();
   runtime = undefined;

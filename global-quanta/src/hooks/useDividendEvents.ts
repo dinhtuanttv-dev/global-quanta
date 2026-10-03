@@ -23,9 +23,10 @@ export interface DividendLifecycleEvent {
 
 export function useDividendEvents() {
   const { data, error, isLoading, mutate } = useSWR(`${API_BASE}/api/cotuc/events`, fetcher, {
-    refreshInterval: 30 * 60 * 1000,
+    // Thông báo GDKHQ/ĐHCĐ mới (VNDirect) xuất hiện trong ngày -> làm mới mỗi 5 phút (route cache CDN 5 phút).
+    refreshInterval: 5 * 60 * 1000,
     revalidateOnFocus: false,
-    dedupingInterval: 10 * 60 * 1000,
+    dedupingInterval: 60 * 1000,
   });
 
   // Tra ve map { ticker: { exDate, agmDate, paymentDate } } de CotucTab de merge voi data tinh

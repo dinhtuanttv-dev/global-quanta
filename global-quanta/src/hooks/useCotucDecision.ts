@@ -9,7 +9,9 @@ import {
 // Bộ máy quyết định 3 trạng thái: MỘT request cho cả danh mục (SWR khử trùng giữa StockModal và sub-tab v3).
 const SWR_OPTS = {
   revalidateOnFocus: false,
-  dedupingInterval: 10 * 60_000,
+  dedupingInterval: 30_000,
+  // Ảnh chụp quyết định được Gateway làm mới liên tục -> tự làm mới mỗi phút.
+  refreshInterval: 60_000,
   shouldRetryOnError: (err: unknown) => isRetryableSeasonality(err as SeasonalityFetchError),
   errorRetryCount: 2,
 };

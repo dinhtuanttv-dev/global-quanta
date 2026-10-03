@@ -100,6 +100,7 @@ export async function fetchTimingSignals(opts: FetchTimingSignalsOptions = {}): 
 
     const parsed = parseTimingSignals(raw);
     if (!parsed.ok) throw new TimingSignalsError('SCHEMA', 'Dữ liệu timing-signals sai hợp đồng (schema)', { issues: parsed.issues });
+    if (parsed.dropped.length) console.warn(`[timing-signals] bỏ ${parsed.dropped.length} dòng sai hợp đồng:`, parsed.dropped.slice(0, 5));
     return parsed.data;
   } finally {
     clearTimeout(timer);

@@ -50,3 +50,15 @@ mùa vụ KQKD và ghi vào sổ theo dõi; trình duyệt chỉ hiển thị đ
 - Ngày GDKHQ "ước tính" (chưa có thông báo VNDirect) ⇒ tối đa Quan sát.
 - learnSignalWeights / calibration **chưa bật**; sổ theo dõi ghi từ 10/2026, cần ≥ 30 kết quả trước khi cân nhắc.
 - Hợp đồng zod: `src/lib/cotuc/decision.ts`; test với ảnh chụp thật `src/lib/cotuc/__fixtures__/decision-states.real.json`.
+
+# Danh mục ~300 mã + cập nhật thời gian thực (10/2026)
+
+- Danh mục tab Cổ tức = danh mục Siêu Quét AI (Gateway `/api/market/scanner/universe`, `useCotucUniverse`). 17 mã gốc giữ dữ liệu
+  đầy đủ; mã khác dựng từ sự kiện quyền THẬT (`/api/cotuc/events`, VNDirect) bằng `lib/cotuc/universe-stocks.ts` (trường chưa có
+  dữ liệu để 0 + `isUniverseOnly`).
+- Giá khớp TRỰC TIẾP cho mọi mã qua `useBoardQuotes` (REST + stream SSE, như bảng Siêu Quét); tỷ suất cổ tức = cổ tức tiền 12 tháng
+  (VNDirect) / giá hiện tại; cổ tức/CP = đợt tiền mặt gần nhất.
+- Tự làm mới: timing-signals + decision-states mỗi 60 giây, sự kiện quyền mỗi 5 phút; dải `live/CotucScanStatusBar` đọc
+  `/api/market/cotuc-scan/status` mỗi 20 giây.
+- `parseTimingSignals` kiểm từng dòng: dòng sai hợp đồng bị bỏ riêng (không làm hỏng cả bảng ~300 mã); cửa sổ sau GDKHQ (W4/W5) hợp lệ.
+- `optimizeDividendTiming`: cửa sổ sau GDKHQ còn hiệu lực tới điểm thoát (đồng bộ với Project A).

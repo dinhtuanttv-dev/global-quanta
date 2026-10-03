@@ -219,3 +219,19 @@ Tính trong job `researchSignals` (16:20 ngày giao dịch), `backend/src/market
 - **Vì sao trả giá DANH NGHĨA (đối chiếu bản ghi gốc SSI DailyStockPrice, 02–03/10/2026):** `ClosePriceAdjusted` (và `DailyOhlc` suy từ nó) chỉ áp hệ số của đợt sự kiện quyền GẦN NHẤT cho toàn bộ lịch sử, không cộng dồn (VNM 10/2021 → 25/06/2026: Adj/Close = 0,96830 mọi ngày); `RefPrice` chỉ được điều chỉnh đúng tới ~cuối 2024, từ 2025 bằng giá đóng cửa hôm trước kể cả ngày GDKHQ (VNM 26/06/2026: 58.300 thay vì 56.450). `ClosePrice` đúng ở mọi giai đoạn.
 - `referenceAdjustments`: ngày giá tham chiếu lệch cơ sở (Close hôm trước với HOSE, giá bình quân với HNX/UPCoM — tự nhận theo đa số) quá 1 bước giá -> gợi ý sự kiện quyền (đáng tin tới ~2024), để Project A đối chiếu chéo với sự kiện VNDirect. Project A tự điều chỉnh: cổ tức tiền mặt sau thuế 5%, cổ tức CP/thưởng.
 - Kho `market_adjusted_series` lưu giá danh nghĩa (không đổi theo thời gian) -> lần đầu tải đủ (SSI 30 ngày/lượt ≈ 61 lượt cho 5 năm, ~15 s), sau đó chỉ nối đuôi; đã kiểm trong 2 giờ -> trả kho. Tải đầy đủ giới hạn 40 mã/giờ (vượt -> 503). SSI có dữ liệu từ 10/2016 (10 năm).
+
+## Quét liên tục tab Cổ tức (~300 mã) — `market/cotuc/cotucScanner.js`
+
+Mọi phép tính cổ tức nằm ở Project A (không sao chép thuật toán sang Gateway). Gateway chạy thường trực nên đảm nhận việc gọi
+xoay vòng các cron theo lô của Project A, có header `Authorization: Bearer $PROJECT_A_CRON_SECRET`:
+
+| Việc | Khi nào | Lô |
+|---|---|---|
+| `/api/cron/timing-signals-scan?offset&limit` — quyết định 3 trạng thái + theo dõi tín hiệu, có giá trong phiên | Trong phiên khớp lệnh mỗi `MARKET_COTUC_SESSION_EVERY_MS` (3 phút); ngoài phiên mỗi `MARKET_COTUC_OFFHOURS_EVERY_MS` (15 phút) | 25 mã (~12 lô/vòng 281 mã) |
+| `/api/cron/earnings-seasonality-scan?phase=collect` rồi `phase=finalize` — mùa vụ KQKD | 18:00–06:30, mỗi `MARKET_COTUC_SEASON_EVERY_MS` (2 phút), một vòng/đêm | 3 mã |
+
+- Tuần tự, không chồng request; lỗi giữ offset để thử lại, lỗi 3 lần liên tiếp cùng lô thì bỏ qua lô đó (ghi `skippedOffsets`).
+- Offset/số vòng lưu KV `cotuc:scan` → khởi động lại không quét lại từ đầu.
+- Tắt: thiếu `PROJECT_A_CRON_SECRET` hoặc `MARKET_COTUC_SCAN_ENABLED=false`. Chạy cùng Ingestor (`MARKET_INGESTOR_ENABLED`).
+- Trạng thái (không chứa secret): `GET /api/market/cotuc-scan/status` — giao diện hiển thị dải "Quét liên tục · vòng · lô · cập nhật lúc".
+- Chi phí Vercel (Project A): ~12 lô/36 phút trong phiên; tăng `MARKET_COTUC_SESSION_EVERY_MS` nếu chạm giới hạn CPU của gói Hobby.

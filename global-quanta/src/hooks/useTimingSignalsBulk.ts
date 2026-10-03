@@ -38,9 +38,10 @@ const EMPTY_MAP: ReadonlyMap<string, TimingSignal> = new Map();
 export const TIMING_SIGNALS_SWR_CONFIG: SWRConfiguration<TimingSignalsBulkV3, TimingSignalsError> = {
   revalidateOnFocus: false,
   revalidateOnReconnect: true,
-  // Bulk cho cả vũ trụ là dữ liệu "nặng" hơn một mã đơn lẻ — dedupe dài hơn cycle-stats/cycle-paths
-  // (10 phút) để tránh Screener gọi lại khi người dùng chuyển tab qua lại nhanh.
-  dedupingInterval: 15 * 60 * 1000,
+  // Dedupe 30 giây: chuyển tab qua lại không gọi lại, nhưng vẫn theo kịp nhịp quét liên tục.
+  dedupingInterval: 30 * 1000,
+  // Quét liên tục (Gateway gọi lô mỗi 3 phút trong phiên) -> tự làm mới mỗi phút.
+  refreshInterval: 60 * 1000,
   onErrorRetry: (err, _key, _config, revalidate, { retryCount }) => {
     if (!isRetryable(err) || retryCount >= MAX_RETRIES) return;
     setTimeout(() => void revalidate({ retryCount }), 1000 * 2 ** retryCount);
