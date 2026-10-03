@@ -48,6 +48,8 @@ import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
 import { DecisionBarCard } from "./decision/DecisionBar";
 import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
 import { CotucScanStatusBar } from "./live/CotucScanStatusBar";
+import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
+import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { buildUniverseStocks, trailingCashDividend, trailingYieldPct } from "../../../lib/cotuc/universe-stocks";
@@ -413,7 +415,9 @@ const EMPTY_SIGNAL: TimingSignal = {
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
   const vnHolidayCalendar = useVnTradingCalendar();
-  const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing" | "timing-v3" | "calendar-v3">("screener");
+  // Mặc định mở "Timeline điểm mua" — câu hỏi chính của tab: mã nào sắp/đang vào vùng mua có cơ sở thống kê.
+  const [subTab, setSubTab] = useState<"timeline" | "screener" | "calendar" | "earnings" | "timing" | "timing-v3" | "calendar-v3">("timeline");
+  const buyTimeline = useBuyTimeline();
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
   // can du lieu 1 ma cu the, khac cac sub-tab khac hien thi danh sach).
@@ -756,6 +760,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       <div className="cf-panel-strong flex p-1 rounded-xl" role="tablist" aria-label="Chuyển chế độ xem Cổ Tức">
         {[
+          { id:"timeline" as const, label:"⏱ Timeline Điểm Mua", count: buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null },
           { id:"screener" as const, label:"📋 Bộ Lọc Cổ Phiếu", count:filtered.length },
           { id:"calendar" as const, label:"📅 Lịch GDKHQ & ĐHCĐ", count:calendarList.length },
           { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
@@ -770,6 +775,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           </button>
         ))}
       </div>
+
+      {subTab === "timeline" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Timeline điểm mua">
+          <BuyTimelineTab onSelectTicker={(t) => { setSelectedTicker(t); selectTickerGlobal(t); }} />
+        </ErrorBoundary>
+      )}
 
       {subTab === "screener" && (
         <div className="space-y-3">
