@@ -110,5 +110,5 @@ export const CONVERGENCE_LABELS = [
   'Lọc ngành',
   'TA VN-Index',
   'Chất xúc tác',
-  'Cổ tức',
+  'Cổ tức · điểm mua',
 ];

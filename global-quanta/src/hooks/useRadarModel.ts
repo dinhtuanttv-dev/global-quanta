@@ -11,6 +11,9 @@ import { useSectorPulse } from "./useSectorPulse";
 import { useSectorPulseRegion } from "./useSectorPulseRegion";
 import { computeBeneficiaryStocks } from "../lib/beneficiary-stocks";
 import { buildRadarModel, type RadarModel, type RadarSources } from "../lib/radarModel";
+import { useBuyTimeline } from "./useBuyTimeline";
+import { useDecisionStates } from "./useCotucDecision";
+import { buyCriterion } from "../lib/radarTimeline";
 
 /**
  * ELITE COMMAND RADAR theo ★ Danh mục được chọn cho Radar (mặc định "Danh mục của tôi").
@@ -28,6 +31,14 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   const { top20Data } = useTop20Radar(null);
   const { snapshot: catalyst } = useCatalystData();
   const { qualityScoreData } = useQualityScore();
+  // Tiêu chí 6 "Cổ tức · điểm mua": Timeline điểm mua + DecisionBar (tab Cổ tức) — chỉ xét mã trên Radar.
+  const buyTimeline = useBuyTimeline();
+  const decisionStates = useDecisionStates();
+  const buy = useMemo(() => {
+    if (!buyTimeline.data) return null; // chưa tải / lỗi -> "chưa có dữ liệu", không tính là "không đạt"
+    const decisions = decisionStates.states.map((d) => ({ ticker: d.ticker, level: d.decision.level, combinedProbability: d.decision.combinedProbability }));
+    return buyCriterion(buyTimeline.data.rows, decisions, tickers);
+  }, [buyTimeline.data, decisionStates.states, tickers]);
   const us = useSectorPulse();
   const eu = useSectorPulseRegion("eu");
   const asia = useSectorPulseRegion("asia");
@@ -53,9 +64,10 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       catalyst: impacts
         ? new Map(Object.entries(impacts).filter(([, v]) => v.direction === "benefit" && v.compositeScore > 0).map(([t, v]) => [t, `Chất xúc tác hưởng lợi, điểm ${Math.round(v.compositeScore)}`]))
         : null,
-      dividend: qualityScoreData?.results ? new Set((qualityScoreData.results as { ticker: string }[]).map((r) => r.ticker)) : null,
+      dividend: buy ? buy.pass : null,
+      dividendFail: buy?.fail,
     };
-  }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.results, ta.isLoading, ta.error, qualityScoreData]);
+  }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.results, ta.isLoading, ta.error, buy]);
 
   const model = useMemo(() => buildRadarModel(tickers, sources, live), [tickers, sources, live]);
   return { ...model, listName: radar.name, listId: radar.id, tickers, loading: isLoading || basket.loading };

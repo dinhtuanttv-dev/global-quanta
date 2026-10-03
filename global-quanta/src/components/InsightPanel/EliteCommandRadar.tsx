@@ -13,7 +13,7 @@ import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
 import { useBuyTimeline } from '../../hooks/useBuyTimeline';
-import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
+import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
 // ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 6 tiêu chí bằng dữ liệu thật.
@@ -188,6 +188,8 @@ function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
       <ul className="space-y-0.5">
         {CONVERGENCE_LABELS.map((label, i) => {
           const c = v.pass?.[i] ?? '-';
+          // Ảnh chụp trước khi đổi bộ tiêu chí: tiêu chí 6 khi đó là "thuộc rổ 17 mã cổ tức".
+          if (i === 5 && (v.cv ?? 1) < 2) label = 'Cổ tức (tiêu chí cũ: thuộc rổ 17 mã)';
           return (
             <li key={label} className="flex gap-1.5 text-[10.5px]">
               <span className="w-3 text-center font-semibold" style={{ color: c === '1' ? UP : c === '0' ? DOWN : '#64748b' }}>{c === '1' ? '✓' : c === '0' ? '✗' : '…'}</span>
@@ -249,7 +251,8 @@ export default function EliteCommandRadar() {
   const layout = useMemo(() => layoutRadar(shownItems.map((i) => ({
     ticker: i.t, score: i.s, group: i.g ?? 'Chưa phân nhóm', smart: i.sm, core: i.core,
   }))), [layoutKey]);
-  const trails = useMemo(() => scoreTrails(history.snapshots, curDate, 5), [history.snapshots, curDate]);
+  const viewCv = replay ? replay.items[0]?.cv ?? 1 : RADAR_CRITERIA_VERSION;
+  const trails = useMemo(() => scoreTrails(history.snapshots, curDate, 5, viewCv), [history.snapshots, curDate, viewCv]);
   const prevSnap = useMemo(() => previousSnapshot(history.snapshots, curDate), [history.snapshots, curDate]);
   const events = useMemo(() => (replay || ready ? radarEvents(prevSnap?.items, viewItems) : []), [replay, ready, prevSnap, viewItems]);
   useEffect(() => { if (!replay && events.length) notifyEvents(curDate, events); }, [replay, events, curDate]);

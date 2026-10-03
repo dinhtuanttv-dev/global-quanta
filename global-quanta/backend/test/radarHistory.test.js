@@ -71,3 +71,11 @@ test("createAuthVerifier: không có token -> 401; token hợp lệ được nh�
     process.env.SUPABASE_SECRET_KEY = prev.key ?? "";
   }
 });
+
+test("sanitizeItems giữ phiên bản bộ tiêu chí cv (1–9), bỏ giá trị sai", async () => {
+  const { sanitizeItems } = await import("../src/market/radar/radarHistory.js");
+  const out = sanitizeItems([{ t: "FPT", s: 3, cv: 2 }, { t: "HPG", s: 2, cv: "2" }, { t: "VNM", s: 1, cv: 99 }]);
+  assert.equal(out[0].cv, 2);
+  assert.equal("cv" in out[1], false);
+  assert.equal("cv" in out[2], false);
+});

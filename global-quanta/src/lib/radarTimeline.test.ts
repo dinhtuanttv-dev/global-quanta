@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TimelineRow } from './cotuc/buy-timeline';
-import { buyWindowEvents, pickRadarBuyRows, ringOf, upcomingBuyChips } from './radarTimeline';
+import { buyCriterion, buyWindowEvents, pickRadarBuyRows, ringOf, upcomingBuyChips, RADAR_CRITERIA_VERSION } from './radarTimeline';
+import { radarEvents, scoreTrails, type SnapItem } from './radarHistory';
 
 const row = (over: Partial<TimelineRow>): TimelineRow => ({
   id: `${over.ticker ?? 'FPT'}:${over.windowId ?? 'w3'}:${over.kind ?? 'DIVIDEND'}`, ticker: 'FPT', sector: null, kind: 'DIVIDEND', tier: 'VALIDATED', status: 'UPCOMING',
@@ -57,5 +58,40 @@ describe('chỉ mã CÓ TRÊN RADAR mới được tích hợp', () => {
     expect(ev.map((e) => `${e.kind}:${e.ticker}`)).toEqual(['enter_buy_window:PNJ', 'buy_window_soon:FPT']);
     expect(ev[0].text).toBe('PNJ vào vùng mua cổ tức W3 (01/10→30/10)');
     expect(ev[0].notifyKey).toBe('buy-in|PNJ|DIVIDEND|2026-10-01');
+  });
+});
+
+
+describe('tiêu chí 6 "Cổ tức · điểm mua" (phiên bản 2)', () => {
+  const rows = [
+    row({ ticker: 'FPT', sessionsToEntry: 9 }),                                   // đạt kiểm định, ≤ 10 phiên -> ĐẠT
+    row({ ticker: 'HPG', sessionsToEntry: 25, entryFromDate: '2026-11-10' }),     // đạt kiểm định nhưng > 10 phiên
+    row({ ticker: 'VCB', tier: 'NEAR', kind: 'EARNINGS', windowId: 'e1', missing: ['q-value 0.99 > 0.1'] }),
+    row({ ticker: 'BVH', sessionsToEntry: 1 }),                                   // KHÔNG trên Radar -> bỏ qua
+  ];
+  const c = buyCriterion(rows, [{ ticker: 'VNM', level: 'FAVORABLE', combinedProbability: 0.66 }, { ticker: 'BVH', level: 'FAVORABLE', combinedProbability: 0.9 }], ['FPT', 'HPG', 'VCB', 'VNM', 'VIC']);
+  it('đạt: vùng mua đạt kiểm định ≤ 10 phiên, hoặc DecisionBar Thuận lợi', () => {
+    expect([...c.pass.keys()].sort()).toEqual(['FPT', 'VNM']);
+    expect(c.pass.get('FPT')).toContain('còn 9 phiên');
+    expect(c.pass.get('VNM')).toContain('Thuận lợi');
+  });
+  it('không đạt có lý do cụ thể; gần đạt không tính; mã ngoài Radar không xuất hiện', () => {
+    expect(c.fail.get('HPG')).toContain('còn 25 phiên');
+    expect(c.fail.get('VCB')).toContain('Gần đạt');
+    expect(c.fail.has('VIC')).toBe(false); // không có gì -> câu chung
+    expect(c.pass.has('BVH') || c.fail.has('BVH')).toBe(false);
+  });
+});
+
+describe('lịch sử: không so sánh điểm qua mốc đổi bộ tiêu chí', () => {
+  const snap = (s: number, cv?: number): SnapItem => ({ t: 'FPT', s, g: null, sm: null, st: 'stable', core: s >= 4, pass: null, p: null, c: null, ...(cv ? { cv } : {}) });
+  it('cv 1 -> 2: không sinh "rời Core" giả; cùng cv vẫn sinh sự kiện', () => {
+    expect(radarEvents([snap(4)], [snap(3, RADAR_CRITERIA_VERSION)])).toEqual([]);
+    expect(radarEvents([snap(4, 2)], [snap(3, 2)]).map((e) => e.kind)).toEqual(['leave_core']);
+  });
+  it('vệt điểm chỉ lấy ảnh chụp cùng phiên bản tiêu chí', () => {
+    const hist = [{ date: '2026-10-01', items: [snap(4)] }, { date: '2026-10-02', items: [snap(3, 2)] }];
+    expect(scoreTrails(hist, '2026-10-05', 5, 2).get('FPT')).toEqual([3]);
+    expect(scoreTrails(hist, '2026-10-05', 5).get('FPT')).toEqual([4, 3]);
   });
 });

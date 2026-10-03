@@ -9,7 +9,9 @@ import type { SieuQuetStockItem } from "../hooks/useSieuQuetScanner";
 //   3 Lọc ngành        : thuộc Top 20 Hội tụ dòng tiền của tab Lọc ngành
 //   4 TA VN-Index      : thuộc danh sách đồng thuận kỹ thuật (Golden Filter ∩ Convergence Scan)
 //   5 Chất xúc tác     : tác động "hưởng lợi" từ chất xúc tác tin tức, hoặc sự kiện đã xác nhận cho ngành
-//   6 Cổ tức           : thuộc rổ cổ phiếu cổ tức chất lượng (tab Cổ tức)
+//   6 Cổ tức · điểm mua: có vùng mua ĐẠT KIỂM ĐỊNH (chu kỳ cổ tức hoặc mùa vụ KQKD — Timeline tab Cổ tức) đang mở hoặc bắt
+//                        đầu trong ≤ 10 phiên, HOẶC DecisionBar "Thuận lợi". "Gần đạt" KHÔNG tính (chỉ ghi lý do). Từ
+//                        phiên bản tiêu chí 2 (RADAR_CRITERIA_VERSION) — trước đó là "thuộc rổ 17 mã cổ tức".
 // Core = ≥ CORE_MIN/6 tiêu chí (tối đa 5 mã); Ring = các mã còn lại có điểm cao nhất (tối đa 11 mã).
 
 export const CORE_MIN = 4;
@@ -29,6 +31,8 @@ export interface RadarSources {
   ta: Evidence | null;
   catalyst: Evidence | null;
   dividend: Evidence | null;
+  /** Lý do KHÔNG đạt theo từng mã (VD "gần đạt — thiếu q-value") — thay câu chung FAIL_TEXT nếu có. */
+  dividendFail?: Map<string, string>;
 }
 
 export type CriterionStatus = "pass" | "fail" | "missing";
@@ -49,9 +53,9 @@ const excluded = (i: SieuQuetStockItem) => i.piotroskiFScore !== null && i.piotr
 
 const FAIL_TEXT = [
   "", "Không thuộc nhóm hưởng lợi từ diễn biến ngành Mỹ / Âu / Á", "Ngoài Top 20 Hội tụ dòng tiền (Lọc ngành)",
-  "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có chất xúc tác / sự kiện hưởng lợi", "Ngoài rổ cổ tức chất lượng",
+  "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có chất xúc tác / sự kiện hưởng lợi", "Chưa có vùng mua cổ tức/KQKD đạt kiểm định trong 10 phiên",
 ];
-const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Thuộc rổ cổ tức chất lượng"];
+const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Có vùng mua cổ tức/KQKD đạt kiểm định"];
 const lookup = (e: Evidence, t: string): string | null => (e instanceof Map ? e.get(t) ?? null : e.has(t) ? "" : null);
 
 export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {
@@ -76,7 +80,7 @@ export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {
     // Chất xúc tác: sự kiện đã xác nhận cho ngành (Siêu Quét) cũng tính.
     if (hit === null && k === 4 && item && (item.eventImpactScore ?? 0) > 0) hit = `Sự kiện ngành đã xác nhận (+${item.eventImpactScore})`;
     evidence.push(hit === null
-      ? { label: CONVERGENCE_LABELS[k], status: "fail", text: FAIL_TEXT[k] }
+      ? { label: CONVERGENCE_LABELS[k], status: "fail", text: (k === 5 ? s.dividendFail?.get(ticker) : undefined) ?? FAIL_TEXT[k] }
       : { label: CONVERGENCE_LABELS[k], status: "pass", text: hit || PASS_TEXT[k] });
   }
   const convergence: number[] = evidence.map((e) => (e.status === "pass" ? 1 : 0));
