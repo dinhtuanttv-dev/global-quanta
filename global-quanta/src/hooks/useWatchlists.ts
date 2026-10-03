@@ -11,7 +11,8 @@ export interface Watchlist {
   pinned?: string[];
 }
 /** radarId: danh mục cấp mã cho ELITE COMMAND RADAR (mặc định "Danh mục của tôi"). */
-interface State { lists: Watchlist[]; activeId: string; radarId?: string }
+export interface WatchlistState { lists: Watchlist[]; activeId: string; radarId?: string }
+type State = WatchlistState;
 
 const KEY = "gq.watchlists.v1";
 export const LEGACY_LIST_NAME = "Danh sách mã (cũ)";
@@ -66,6 +67,13 @@ export function parseTickerInput(text: string): { valid: string[]; invalid: stri
 }
 
 const update = (fn: (s: State) => State) => write(fn(read()));
+
+/** Đọc/ghi NGUYÊN trạng thái — chỉ cho bộ đồng bộ đám mây (useWatchlistCloudSync). */
+export const watchlistStore = {
+  get: (): WatchlistState => read(),
+  replace: (next: WatchlistState) => write(next),
+  subscribe,
+};
 const mapActive = (s: State, fn: (l: Watchlist) => Watchlist): State => ({ ...s, lists: s.lists.map((l) => (l.id === s.activeId ? fn(l) : l)) });
 
 export const watchlistActions = {

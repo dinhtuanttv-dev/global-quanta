@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
+import { watchlistSyncStatus } from "../../../lib/watchlistSync";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { MAX_WATCHLIST_TICKERS, parseTickerInput, useWatchlists } from "../../../hooks/useWatchlists";
 import { basketSummary } from "./scannerTaxonomy";
@@ -96,6 +97,19 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
       )}
       {msg && <div className="text-[9.5px] text-slate-400 mt-1">{msg}</div>}
       {!gatewayReady && <div className="text-[9.5px] text-amber-400 mt-1">Mã ngoài universe cần Market Gateway để được chấm điểm.</div>}
+      <SyncLine />
     </div>
   );
+}
+
+/** Trạng thái đồng bộ ★ Danh mục theo tài khoản (mọi máy đã đăng nhập thấy cùng danh mục). */
+function SyncLine() {
+  const st = useSyncExternalStore(watchlistSyncStatus.subscribe, watchlistSyncStatus.get, watchlistSyncStatus.get);
+  if (st.mode === 'off') return null;
+  const at = st.at ? new Date(st.at).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }) : null;
+  const text = st.mode === 'synced' ? `☁ Đã đồng bộ theo tài khoản${at ? ` · ${at}` : ""} — mọi máy đăng nhập thấy cùng danh mục`
+    : st.mode === 'syncing' ? "☁ Đang đồng bộ danh mục…"
+    : st.mode === 'signed-out' ? "Chưa đăng nhập: danh mục chỉ lưu trên máy này"
+    : `☁ Chưa đồng bộ được (${st.error ?? "lỗi"}) — sẽ thử lại`;
+  return <div data-testid="watchlist-sync" className={`text-[9.5px] mt-1 ${st.mode === 'error' ? "text-amber-400" : "text-slate-500"}`}>{text}</div>;
 }

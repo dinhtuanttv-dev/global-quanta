@@ -19,6 +19,7 @@ export const PRIMARY_KEYS = {
   market_tick_flow_daily: ["symbol", "trading_date"],
   market_radar_snapshots: ["user_id", "list_key", "snap_date"],
   market_adjusted_series: ["symbol"],
+  market_user_watchlists: ["user_id"],
 };
 
 /** Thêm các cột khoá chính còn thiếu vào cuối `order` để thứ tự luôn duy nhất. */

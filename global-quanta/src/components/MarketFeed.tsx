@@ -4,6 +4,7 @@ import { subscribeSsiMarketQuotes } from '../services/api';
 import { isMarketGatewayEnabled, subscribeMarket } from '../services/marketDataClient';
 import { allWatchlistTickers, hasLegacyList, useWatchlists, watchlistActions } from '../hooks/useWatchlists';
 import { alertActions, alertText, browserNotify, checkAlerts, usePriceAlerts } from '../lib/priceAlerts';
+import { startWatchlistCloudSync } from '../lib/watchlistSync';
 
 /**
  * Thành phần chạy ngầm ở cấp ứng dụng: giữ luồng giá thời gian thực cho các mã trong ★ Danh mục
@@ -38,6 +39,8 @@ export default function MarketFeed() {
 
   // Đã bỏ "Danh sách mã (cũ)" (14 mã mẫu chuyển từ cột trái cũ): xoá khỏi trình duyệt khi mở trang.
   useEffect(() => { if (hasLegacyList(lists)) watchlistActions.removeLegacy(); }, [lists]);
+  // ★ Danh mục theo tài khoản: đồng bộ mọi máy đã đăng nhập (Gateway + Supabase); chưa đăng nhập -> chỉ lưu trên máy này.
+  useEffect(() => startWatchlistCloudSync(), []);
 
   useEffect(() => {
     if (!symbolsKey) return;
