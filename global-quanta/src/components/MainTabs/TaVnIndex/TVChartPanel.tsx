@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Trash2, XCircle } from "lucide-react";
 import { TVChartManager } from "../../../lib/ta-command-center/TVChartManager";
-import { AnalysisController, EMPTY_SMC, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
+import { AnalysisController, EMPTY_SMC, type ChochBacktest, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
 import DrawingPalette from "./DrawingPalette";
 import LayerToggleBar from "./LayerToggleBar";
 import AISignalLogPanel from "./AISignalLogPanel";
@@ -29,8 +29,9 @@ import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerM
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import { countZoneTests } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
-import type { SignalBacktestResult } from "../../../lib/ta-command-center/detectors/signalBacktest";
-import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
+import type { VsaSignal as VSASignal } from "../../../lib/quant-core";
+import BacktestPanel from "./BacktestPanel";
+import { TA_INDICES } from "./TickerSelector";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import type { CorporateActionMark } from "../../../hooks/useTaSeries";
 
@@ -68,7 +69,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // ĐÃ THÊM — kết quả backtest CHoCH thật (tỷ lệ thắng trên chính lịch sử
   // giá của mã đang xem), đồng bộ cùng lúc với `smc` vì cả 2 được tính
   // chung trong recomputeDetectors() của AnalysisController.
-  const [chochBacktest, setChochBacktest] = useState<{ bullish: SignalBacktestResult; bearish: SignalBacktestResult } | null>(null);
+  const [chochBacktest, setChochBacktest] = useState<ChochBacktest | null>(null);
   // ĐÃ THÊM: lưu hình đang vẽ dở (draft) để hiển thị preview theo thời gian
   // thực khi rê chuột — trước đây KHÔNG hề subscribe sự kiện
   // "primitive:draft-updated" dù DrawingManager đã phát ra sự kiện này mỗi
@@ -85,8 +86,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   useEffect(() => {
     if (bars.length === 0) return;
 
-    if (!controllerRef.current) controllerRef.current = new AnalysisController(bars);
-    else controllerRef.current.updateDailyBars(bars);
+    const isIndex = TA_INDICES.some((x) => x.symbol === ticker);
+    if (!controllerRef.current) controllerRef.current = new AnalysisController(bars, { isIndex });
+    else controllerRef.current.updateDailyBars(bars, { isIndex });
 
     const controller = controllerRef.current;
     const activeBars = controller.getCurrentBars();
@@ -170,6 +172,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       // hẳn màu/nhãn với BOS (tiếp diễn) để không gây nhầm lẫn khi nhìn
       // nhanh trên biểu đồ.
       smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: "#fbbf24", shape: "circle", text: "CHoCH" }));
+      // Liquidity Sweep: râu vượt vùng thanh khoản (EQH/EQL) rồi đóng cửa quay lại — SSL dưới đáy, BSL trên đỉnh.
+      smc.liquidity.forEach((l) => {
+        if (l.state === "SWEPT" && l.stateDate) markers.push({ time: l.stateDate, position: l.type === "EQL" ? "belowBar" : "aboveBar", color: "#a78bfa", shape: l.type === "EQL" ? "arrowUp" : "arrowDown", text: l.type === "EQL" ? "SSL Sweep" : "BSL Sweep" });
+      });
     }
     if (layerState.vsa) {
       // ĐÃ SỬA: thêm màu riêng cho 3 tín hiệu VSA mới (Upthrust/Shakeout/
@@ -177,14 +183,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       // phân biệt được trên biểu đồ.
       vsa.forEach((v) => {
         const colorMap: Record<string, string> = {
-          "Stopping Volume": "#a78bfa", "Climax": "#fbbf24",
-          "Upthrust": "#f87171", "Shakeout": "#34d399", "Two-Bar Reversal": "#38bdf8",
+          "Selling Climax": "#34d399", "Stopping Volume": "#34d399", Shakeout: "#34d399", "No Supply": "#34d399",
+          "Buying Climax": "#f43f5e", Upthrust: "#f43f5e", "No Demand": "#f43f5e", Absorption: "#a78bfa",
         };
         const labelMap: Record<string, string> = {
-          "Stopping Volume": "Stop", "Climax": "Clim", "No Demand": "NoDe", "No Supply": "NoSu",
-          "Upthrust": "Up-T", "Shakeout": "Shk", "Two-Bar Reversal": "2BR",
+          "Selling Climax": "SC", "Buying Climax": "BC", "Stopping Volume": "SV", "No Demand": "ND", "No Supply": "NS",
+          Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
         };
-        markers.push({ time: v.date, position: "aboveBar", color: colorMap[v.type] || "#64748b", shape: "circle", text: labelMap[v.type] || v.type.slice(0, 4) });
+        markers.push({ time: v.date, position: v.dir === "bullish" ? "belowBar" : "aboveBar", color: colorMap[v.type] || "#64748b", shape: "circle", text: labelMap[v.type] || v.type.slice(0, 4) });
       });
     }
     markers.sort((a, b) => a.time.localeCompare(b.time));
@@ -741,45 +747,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <ElliottWavePanelPlaceholder />
       </div>
 
-      {/* ĐÃ THÊM — Backtest CHoCH thật trên chính lịch sử giá mã đang xem
-          (tái dùng nguyên lý Pattern Backtest Engine) + điểm tin cậy %
-          của Wyckoff — thay "cảm tính" bằng bằng chứng thống kê thật. */}
-      {chochBacktest && (
-        <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3 mt-2">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-            Backtest CHoCH (trên chính mã đang xem)
-            <span className="ml-auto font-mono text-[8.5px] text-amber-400" title="Đỉnh/đáy cần 5 nến bên phải để xác nhận nhưng CHoCH đang dùng ngay — sẽ sửa ở P2 (engine chống look-ahead)">
-              ⚠ CHƯA KIỂM ĐỊNH · có look-ahead
-            </span>
-          </p>
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
-            <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-lg p-2">
-              <p className="text-slate-400">CHoCH tăng {chochBacktest.bullish.lowSampleWarning && <span className="text-amber-400">(mẫu nhỏ)</span>}</p>
-              <p className="text-sm font-black text-sky-400">
-                {chochBacktest.bullish.sampleSize} lần
-                {chochBacktest.bullish.successRatePct !== null && ` · ${chochBacktest.bullish.successRatePct}% thắng`}
-              </p>
-              {chochBacktest.bullish.avgReturnPct !== null && (
-                <p className="text-slate-500">LN TB {chochBacktest.bullish.avgReturnPct > 0 ? "+" : ""}{chochBacktest.bullish.avgReturnPct}%</p>
-              )}
-            </div>
-            <div style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }} className="rounded-lg p-2">
-              <p className="text-slate-400">CHoCH giảm {chochBacktest.bearish.lowSampleWarning && <span className="text-amber-400">(mẫu nhỏ)</span>}</p>
-              <p className="text-sm font-black text-red-400">
-                {chochBacktest.bearish.sampleSize} lần
-                {chochBacktest.bearish.successRatePct !== null && ` · ${chochBacktest.bearish.successRatePct}% thắng`}
-              </p>
-              {chochBacktest.bearish.avgReturnPct !== null && (
-                <p className="text-slate-500">LN TB {chochBacktest.bearish.avgReturnPct > 0 ? "+" : ""}{chochBacktest.bearish.avgReturnPct}%</p>
-              )}
-            </div>
-          </div>
-          <p className="text-[8px] text-slate-600 mt-2">
-            Đo lợi nhuận 10 phiên sau mỗi lần CHoCH, vào lệnh tại giá đóng cửa phiên tín hiệu, chưa trừ phí/thuế, chưa so với tỷ lệ nền.
-            Tỷ lệ thắng hiện bị thổi phồng do look-ahead — chỉ dùng tham khảo cho tới khi P2 hoàn tất. Mẫu &lt; 5 lần không đủ tin cậy.
-          </p>
-        </div>
-      )}
+      {chochBacktest && <BacktestPanel data={chochBacktest} />}
 
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 

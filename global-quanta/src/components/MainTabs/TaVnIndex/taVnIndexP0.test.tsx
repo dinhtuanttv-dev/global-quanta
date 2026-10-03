@@ -5,7 +5,8 @@ import { SMCPanel, WyckoffPanel } from "./MethodPanels";
 import { buildPrompt } from "./SmartNotePanel";
 import { AnalysisController } from "../../../lib/ta-command-center/AnalysisController";
 import { AIEngine } from "../../../lib/ta-command-center/AIEngine";
-import { countSmcEvents, detectOrderBlocks, detectFVG, SMC_DISPLAY_LIMIT } from "../../../lib/ta-command-center/detectors/smcDetector";
+import { SMC_DISPLAY_LIMIT } from "../../../lib/ta-command-center/AnalysisController";
+import { analyze } from "../../../lib/quant-core";
 import { classifyWyckoffPhase, describeRangeCriteria, WYCKOFF_PHASE_LABEL, type WyckoffPhase, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateADX, calculateMACD, calculateRSI } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
@@ -82,15 +83,16 @@ describe("TA VN-Index P0 — Wyckoff hiển thị đủ mọi pha", () => {
 describe("TA VN-Index P0 — SMC đếm số thật, không phải giới hạn hiển thị", () => {
   it("tổng OB/FVG vượt giới hạn vẽ; ô SMC hiển thị tổng thật", async () => {
     const b = bars();
-    const totals = countSmcEvents(b);
+    const c = analyze(b).counts;
+    const totals = { obs: c.orderBlocks, fvgs: c.fvgs, bos: c.bos, choch: c.choch, liquidity: c.liquidity, sweeps: c.sweeps };
     expect(totals.obs).toBeGreaterThan(SMC_DISPLAY_LIMIT.obs);
     expect(totals.fvgs).toBeGreaterThan(SMC_DISPLAY_LIMIT.fvgs);
-    expect(detectOrderBlocks(b)).toHaveLength(SMC_DISPLAY_LIMIT.obs);
-    expect(detectFVG(b)).toHaveLength(SMC_DISPLAY_LIMIT.fvgs);
 
     const controller = new AnalysisController(b);
     const smc = controller.getSmc();
     expect(smc.totals).toEqual(totals);
+    expect(smc.obs).toHaveLength(SMC_DISPLAY_LIMIT.obs);
+    expect(smc.fvgs).toHaveLength(SMC_DISPLAY_LIMIT.fvgs);
     const el = await render(<SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={b.length} />);
     expect(el.textContent).toContain(`${totals.obs} OB · ${totals.fvgs} FVG · ${totals.bos} BOS · ${totals.choch} CHoCH`);
     expect(el.textContent).toContain(`Toàn bộ ${b.length} nến`);
