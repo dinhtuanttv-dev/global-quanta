@@ -223,7 +223,7 @@ function fakeDayFactory(closeAdjByDate) {
   const calls = [];
   const fetchDay = async (date) => {
     calls.push(date);
-    if (date === "2026-09-02") return { date, rows: [], requests: 1 }; // ngày nghỉ lễ
+    if (date === "2026-09-02" || date === "2026-09-08") return { date, rows: [], requests: 1 }; // lễ / ngày đóng sàn bất thường
     const adj = closeAdjByDate(date);
     return { date, requests: 3, rows: [
       { symbol: "FPT", date, exchange: "HOSE", open: 100, high: 101, low: 99, close: 100, closeAdj: adj, volume: 1, value: 5e9, foreignBuyVal: 0, foreignSellVal: 0 },
@@ -258,7 +258,9 @@ test("jobs: backfill bỏ qua phiên đã có, ghi nhớ ngày nghỉ, chạy ti
   assert.ok(first.pending > 0);
   const second = await jobs.backfillMarketDaily({ sessions: 30, maxDays: 100 });
   assert.equal(second.pending, 0);
-  assert.deepEqual(second.emptyDates.concat(first.emptyDates).includes("2026-09-02"), true);
+  // 02/09 là lễ theo lịch tự tính -> không gọi SSI; ngày thường không có phiên bất thường (08/09) vẫn được ghi nhớ.
+  assert.equal(calls.includes("2026-09-02"), false);
+  assert.deepEqual(second.emptyDates.concat(first.emptyDates).includes("2026-09-08"), true);
   const before = calls.length;
   await jobs.backfillMarketDaily({ sessions: 30, maxDays: 100 });
   assert.equal(calls.length, before, "lần chạy thứ ba không gọi lại SSI");

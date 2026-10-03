@@ -232,6 +232,22 @@ router.get("/scanner/universe", handle(async (req, res) => {
   res.json(doc);
 }));
 
+// Lịch nghỉ giao dịch tự tính (không cần nạp tay): GET /trading-calendar?from=YYYY-MM-DD&to=YYYY-MM-DD (tối đa 6 năm).
+// Mỗi ngày nghỉ ghi nguồn: OBSERVED (phiên thật), OFFICIAL (MARKET_HOLIDAYS), RULE (âm lịch + Bộ luật Lao động).
+router.get("/trading-calendar", handle(async (req, res) => {
+  const cal = getMarketRuntime().tradingCalendar;
+  const y = new Date().getUTCFullYear();
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  const from = re.test(String(req.query.from ?? "")) ? String(req.query.from) : `${y - 1}-01-01`;
+  const to = re.test(String(req.query.to ?? "")) ? String(req.query.to) : `${y + 2}-12-31`;
+  if (to < from || Date.parse(to) - Date.parse(from) > 6 * 366 * 86_400_000) {
+    res.status(400).json({ error: "Khoảng from..to không hợp lệ (tối đa 6 năm)." });
+    return;
+  }
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json({ from, to, holidays: cal.list(from, to), status: cal.status() });
+}));
+
 // Trạng thái quét liên tục tab Cổ tức (không chứa secret) — giao diện hiển thị "đang quét · vòng · cập nhật lúc".
 router.get("/cotuc-scan/status", handle(async (req, res) => {
   res.set("Cache-Control", "no-store");

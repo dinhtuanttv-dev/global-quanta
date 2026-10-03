@@ -16,6 +16,10 @@ import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.j
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
+import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
+import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
+import { setHolidayProvider } from "./calendar.js";
+import { marketConfig } from "./config.js";
 
 let runtime;
 
@@ -60,7 +64,15 @@ export function getMarketRuntime() {
   // Quét liên tục tab Cổ tức (~300 mã): gọi xoay vòng cron theo lô của Project A (cần PROJECT_A_CRON_SECRET).
   const cotucScanner = createCotucScanner({ store });
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, started: false };
+  // Lịch giao dịch tự vận hành: quan sát phiên VN-Index thật (10 năm) > MARKET_HOLIDAYS > quy tắc âm lịch/BLLĐ.
+  const tradingCalendar = createTradingCalendarService({
+    loadSessionDates: async () => (await createAdjustedHistory({ service, store }).get("VNINDEX", { years: 10 })).bars.map((b) => b.date),
+    official: () => marketConfig().holidays,
+  });
+  setHolidayProvider(tradingCalendar.isHoliday);
+  tradingCalendar.start();
+
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, started: false };
   return runtime;
 }
 
@@ -81,6 +93,8 @@ export function stopMarketRuntime() {
   if (!runtime) return;
   runtime.scheduler.stop();
   runtime.cotucScanner.stop();
+  runtime.tradingCalendar.stop();
+  setHolidayProvider(null);
   void runtime.tickRecorder.stop();
   runtime.hub.shutdown();
   runtime = undefined;

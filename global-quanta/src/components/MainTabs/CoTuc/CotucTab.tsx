@@ -22,7 +22,7 @@ import { CycleRankingPanel } from "./CycleRankingPanel";
 import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
 import { optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
-import { vnHolidayCalendar } from "../../../lib/cotuc/vn-holidays";
+import { useVnTradingCalendar } from "../../../lib/cotuc/vn-holidays";
 import { assertNoMockInProduction } from "../../../lib/cotuc/observability";
 import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
@@ -125,6 +125,8 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   lifecycleEvents?: DividendLifecycleEvent[]; hasRealDates?: boolean;
 }) {
   const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing" | "seasonality">("overview");
+  // Lịch nghỉ tự tính (âm lịch + BLLĐ) + lớp phiên thật từ Gateway — không cần nạp danh sách tay.
+  const vnHolidayCalendar = useVnTradingCalendar();
   // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
   // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
   // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
@@ -142,7 +144,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   // du nhu OptimalTimingTab, vi day chi la 1 chip hien thi ngan gon,
   // khong phai bang phan tich day du).
   const { data: modalEarningsSignal } = useEarningsSignalV3(s.ticker);
-  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: vnHolidayCalendar, cfg: DEFAULT_CONFIG }), []);
+  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: vnHolidayCalendar, cfg: DEFAULT_CONFIG }), [vnHolidayCalendar]);
   const modalRec = useMemo(
     () =>
       optimizeDividendTiming(
@@ -410,6 +412,7 @@ const EMPTY_SIGNAL: TimingSignal = {
 };
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
+  const vnHolidayCalendar = useVnTradingCalendar();
   const [subTab, setSubTab] = useState<"screener" | "calendar" | "earnings" | "timing" | "timing-v3" | "calendar-v3">("screener");
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
