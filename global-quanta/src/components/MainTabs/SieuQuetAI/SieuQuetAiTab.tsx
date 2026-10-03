@@ -68,7 +68,7 @@ function DetailRow({ ticker, colSpan = COLUMN_COUNT }: { ticker: string; colSpan
       <td colSpan={colSpan} className="p-0">
         {isMarketGatewayEnabled()
           ? <VolumeAnalysisPanel symbol={ticker} />
-          : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần bật Market Gateway (VITE_MARKET_GATEWAY_ENABLED).</div>}
+          : <div className="p-3 text-[10px] text-slate-400 font-sans">Phân tích khối lượng cần Market Gateway (đang tắt bằng VITE_MARKET_GATEWAY_ENABLED=false).</div>}
       </td>
     </tr>
   );

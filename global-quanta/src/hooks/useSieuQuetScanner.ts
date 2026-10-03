@@ -1,3 +1,4 @@
+import { getMarketGateway } from "../config/marketGateway";
 import useSWR from "swr";
 import { isMarketGatewayEnabled, marketUrl } from "../services/marketDataClient";
 
@@ -54,9 +55,9 @@ export interface SieuQuetStockItem {
 
 export type ScannerSource = "gateway" | "projectA";
 
-/** Nguồn bảng quét: VITE_SCANNER_SOURCE=gateway (engine trên Gateway, dữ liệu SSI) hoặc projectA (mặc định). */
+/** Nguồn bảng quét: engine trên Gateway (SSI, mặc định) hoặc projectA (VITE_SCANNER_SOURCE=projectA / Gateway tắt). */
 export function scannerSource(): ScannerSource {
-  return isMarketGatewayEnabled() && String(import.meta.env.VITE_SCANNER_SOURCE ?? "").toLowerCase() === "gateway" ? "gateway" : "projectA";
+  return isMarketGatewayEnabled() ? getMarketGateway().scannerSource : "projectA";
 }
 
 interface ScannerResponse {

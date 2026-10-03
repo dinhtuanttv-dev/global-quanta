@@ -5,6 +5,7 @@
  * chứng 10 năm phiên thật) + lớp Market Gateway /api/market/trading-calendar (quan sát phiên thật + ngày nghỉ nối chính
  * thức). `vnHolidayCalendar` dùng được ngay (chỉ quy tắc); hook useVnTradingCalendar() trả lịch đã có lớp Gateway.
  */
+import { getMarketGateway } from '../../config/marketGateway';
 import { useEffect, useState } from 'react';
 import type { HolidayCalendar } from '../quant-cotuc';
 import { fetchGatewayHolidays, makeVnTradingCalendar, type GatewayHolidays } from './vn-trading-calendar';
@@ -12,14 +13,14 @@ import { fetchGatewayHolidays, makeVnTradingCalendar, type GatewayHolidays } fro
 /** Lịch theo quy tắc tự tính (đồng bộ, không I/O) — đúng cho mọi năm, trừ ngày nghỉ nối chưa biết trước. */
 export const vnHolidayCalendar: HolidayCalendar = makeVnTradingCalendar(null);
 
-const MARKET_API_BASE = String(import.meta.env.VITE_MARKET_API_BASE_URL ?? '').replace(/\/+$/, '');
 let gatewayPromise: Promise<GatewayHolidays | null> | null = null;
 
 function loadGatewayHolidays(): Promise<GatewayHolidays | null> {
-  if (!MARKET_API_BASE) return Promise.resolve(null);
+  const gw = getMarketGateway();
+  if (!gw.enabled) return Promise.resolve(null);
   if (!gatewayPromise) {
     const y = new Date().getUTCFullYear();
-    gatewayPromise = fetchGatewayHolidays(MARKET_API_BASE, `${y - 1}-01-01`, `${y + 2}-12-31`);
+    gatewayPromise = fetchGatewayHolidays(gw.baseUrl, `${y - 1}-01-01`, `${y + 2}-12-31`);
   }
   return gatewayPromise;
 }
