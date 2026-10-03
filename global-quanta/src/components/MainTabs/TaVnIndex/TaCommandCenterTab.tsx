@@ -42,7 +42,7 @@ export default function TaCommandCenterTab({ ticker, onRequestTickerChange, high
         <span className="font-mono">{bars.length} phiên D · {bars[0]?.date ?? "—"} → {bars[bars.length - 1]?.date ?? "—"}</span>
         {priceBasis === "ADJUSTED_CUMULATIVE" && (
           <span title={corporateActions.map((c) => `${c.date} ${c.label} (hệ số ${c.factor})`).join("\n")}>
-            {corporateActions.length} sự kiện quyền đã điều chỉnh (■ trên biểu đồ)
+            {corporateActions.length} sự kiện quyền đã điều chỉnh (bật lớp "Sự kiện quyền" để thấy ■)
           </span>
         )}
         {warnings.map((w) => <span key={w} className="text-amber-400">⚠ {w}</span>)}

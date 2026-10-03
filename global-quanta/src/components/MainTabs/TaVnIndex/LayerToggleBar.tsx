@@ -2,9 +2,10 @@
 import { Zap } from "lucide-react";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 
+// Thứ tự = thứ tự hiển thị. Tất cả mặc định TẮT (LayerManager.DEFAULT_LAYER_STATE).
 const LABELS: Record<LayerKey, string> = {
-  trendline: "Trendline", demandzone: "Demand Zone", smc: "SMC",
-  vsa: "VSA", wyckoff: "Wyckoff", elliott: "Elliott",
+  volume: "Khối lượng", rsi: "RSI 14", smc: "SMC", vsa: "VSA", wyckoff: "Wyckoff", corporate: "Sự kiện quyền",
+  trendline: "Trendline", demandzone: "Demand Zone", elliott: "Elliott",
 };
 
 interface Props { state: LayerState; onToggle: (key: LayerKey) => void; onToggleMaster: (on: boolean) => void; }
@@ -14,7 +15,7 @@ export default function LayerToggleBar({ state, onToggle, onToggleMaster }: Prop
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       {keys.map((key) => (
-        <button key={key} onClick={() => onToggle(key)}
+        <button key={key} onClick={() => onToggle(key)} aria-pressed={state[key]} data-layer={key}
           style={state[key]
             ? { background: "rgba(56,189,248,0.12)", border: "1px solid rgba(56,189,248,0.35)", color: "#38bdf8" }
             : { background: "rgba(2,6,15,0.5)", border: "1px solid rgba(148,163,184,0.12)", color: "#64748b" }}

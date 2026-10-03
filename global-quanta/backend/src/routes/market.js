@@ -2,6 +2,7 @@
 // Mọi response đều có `provenance` { source, asOf, isStale, fallbackReason }.
 
 import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
+import { getUserChartState, normalizeChartSymbol, saveUserChartState } from "../market/watchlists/userChartState.js";
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
@@ -192,6 +193,19 @@ router.put("/watchlists", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveUserWatchlists(getMarketRuntime().store, userId, req.body ?? {}));
+}));
+
+// Hình vẽ tay TA VN-Index theo tài khoản + mã: GET /chart-state?symbol=FPT · PUT /chart-state?symbol=FPT { primitives }.
+router.get("/chart-state", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserChartState(getMarketRuntime().store, userId, normalizeChartSymbol(req.query.symbol)));
+}));
+
+router.put("/chart-state", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserChartState(getMarketRuntime().store, userId, normalizeChartSymbol(req.query.symbol), req.body ?? {}));
 }));
 
 router.put("/radar/snapshot", handle(async (req, res) => {

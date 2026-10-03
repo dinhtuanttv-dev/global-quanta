@@ -1,37 +1,37 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+// Biểu đồ TA VN-Index — P3 (TA_VNINDEX_UPGRADE_SPEC §2.1.1):
+//   - Lightweight Charts v5: pane giá · khối lượng · RSI14; lớp phủ canvas (OverlayPrimitive) cắt đúng trong vùng giá,
+//     tự theo zoom/pan, tối đa 12 nhãn không chồng nhau — thay lớp SVG + forceTick cũ.
+//   - Pointer Events: vẽ bằng chuột, cảm ứng, bút (khoá kéo/zoom biểu đồ khi đang vẽ).
+//   - quant-core chạy trong Web Worker (AnalysisController); hình vẽ lưu theo mã + tài khoản (chartDrawingsStore).
+//   - MẶC ĐỊNH TẮT mọi chỉ báo/công cụ (chỉ có nến); bật lớp nào mới vẽ lớp đó. Mọi thứ là series/marker/primitive
+//     của thư viện -> kéo chuột, cuộn, zoom và BÀN PHÍM (← → + − Home End) đều di chuyển cùng nến.
+import { useRef, useEffect, useState, useMemo } from "react";
 import { Trash2, XCircle } from "lucide-react";
-import { TVChartManager } from "../../../lib/ta-command-center/TVChartManager";
+import { TVChartManager, type ChartMarkerInput } from "../../../lib/ta-command-center/TVChartManager";
 import { AnalysisController, EMPTY_SMC, type ChochBacktest, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
+import { buildScene } from "../../../lib/ta-command-center/chart/buildScene";
+import { GQ_COLORS } from "../../../lib/ta-command-center/chart/scene";
+import { loadCloud, loadLocal, pickNewer, saveCloud, saveLocal } from "../../../lib/ta-command-center/chartDrawingsStore";
 import DrawingPalette from "./DrawingPalette";
 import LayerToggleBar from "./LayerToggleBar";
 import AISignalLogPanel from "./AISignalLogPanel";
 import TimeframeSelector from "./TimeframeSelector";
-// ĐÃ XÓA import PatternList/ConvergenceFilterPanel — không còn dùng
-// trực tiếp trong file này (tránh nhân bản, xem giải thích ở cuối file).
 import OscillatorPanel from "./OscillatorPanel";
 import SmartNotePanel from "./SmartNotePanel";
+import BacktestPanel from "./BacktestPanel";
 import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
-// ĐÃ SỬA: bỏ import classifyWyckoffPhase — Wyckoff giờ tính trong
-// AnalysisController (cùng kiến trúc cache/event với SMC/VSA), không tính
-// rời trực tiếp trong component nữa. Giữ lại type WyckoffResult để khai
-// báo state.
+import { TA_INDICES } from "./TickerSelector";
 import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/types";
-import type {
-  DrawingToolType, DrawnPrimitive, DomainPoint,
-  RectangleZone, Trendline, FibonacciRetracement, ElliottWaveMarking, FibTimeZoneMarking,
-} from "../../../lib/ta-command-center/DrawingManager";
-import { FIB_TIME_SEQUENCE, buildFibLevels } from "../../../lib/ta-command-center/DrawingManager";
+import type { DrawingToolType, DrawnPrimitive, DomainPoint } from "../../../lib/ta-command-center/DrawingManager";
+import type { AnalysisController as Controller } from "../../../lib/ta-command-center/AnalysisController";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
-import { countZoneTests } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
-import type { VsaSignal as VSASignal } from "../../../lib/quant-core";
-import BacktestPanel from "./BacktestPanel";
-import { TA_INDICES } from "./TickerSelector";
+import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import type { CorporateActionMark } from "../../../hooks/useTaSeries";
 
@@ -39,57 +39,65 @@ interface Props {
   bars: OhlcvBar[];
   ticker: string;
   onRequestTickerChange?: (ticker: string) => void;
-  // ĐÃ THÊM — thay cho <PatternList> gắn sẵn (nay đã bỏ, tránh nhân bản
-  // với PatternList ở TaVnIndexTab.tsx): tầng cha truyền pattern vừa chọn
-  // xuống đây để vẫn khoanh vùng ngày trên biểu đồ, không mất tính năng.
+  /** Mẫu hình vừa chọn ở Pattern Scanner (tầng cha) — khoanh vùng ngày trên biểu đồ. */
   highlightPattern?: PatternMatch | null;
   /** Ngày GDKHQ đã điều chỉnh trong chuỗi giá (Gateway /ta-series) — đánh dấu ■ trên biểu đồ. */
   corporateActions?: CorporateActionMark[];
 }
 
-function isTwoPointPrimitive(p: DrawnPrimitive): p is RectangleZone | Trendline | FibonacciRetracement {
-  return p.toolType === "rectangle" || p.toolType === "trendline" || p.toolType === "fibonacci";
+const NO_ACTIONS: CorporateActionMark[] = [];
+const VSA_LABEL: Record<string, string> = {
+  "Selling Climax": "SC", "Buying Climax": "BC", "Stopping Volume": "SV", "No Demand": "ND", "No Supply": "NS",
+  Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
+};
+const SAVE_DEBOUNCE_MS = 1000;
+
+/** Hình vẽ tay thuộc lớp nào: vẽ xong / nạp hình đã lưu -> tự bật lớp đó (mặc định các lớp đều tắt). */
+const LAYER_OF_TOOL: Partial<Record<DrawnPrimitive["toolType"], "trendline" | "demandzone" | "elliott">> = {
+  trendline: "trendline", rectangle: "demandzone", elliott: "elliott",
+};
+function enableLayersFor(controller: Controller, list: DrawnPrimitive[]) {
+  for (const p of list) {
+    const layer = LAYER_OF_TOOL[p.toolType];
+    if (layer) controller.layers.enable(layer);
+  }
 }
 
-const NO_ACTIONS: CorporateActionMark[] = [];
-
-export default function TVChartPanel({ bars, ticker, onRequestTickerChange, highlightPattern, corporateActions = NO_ACTIONS }: Props) {
+export default function TVChartPanel({ bars, ticker, highlightPattern, corporateActions = NO_ACTIONS }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tvManagerRef = useRef<TVChartManager | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
-  const isDrawingRef = useRef(false);
+  const drawingPointerRef = useRef<number | null>(null);
+  const loadedSymbolRef = useRef<string | null>(null);
+  // Nội dung đã nạp/lưu gần nhất — chỉ lưu khi người dùng thật sự đổi hình vẽ (tránh ghi đè bản đám mây bằng bản cũ).
+  const persistedRef = useRef<string>("[]");
 
   const [activeTool, setActiveTool] = useState<DrawingToolType | null>(null);
   const [primitives, setPrimitives] = useState<DrawnPrimitive[]>([]);
   const [layerState, setLayerState] = useState<LayerState | null>(null);
   const [log, setLog] = useState<SignalLogEntry[]>([]);
   const [smc, setSmc] = useState<SmcState>(EMPTY_SMC);
-  const [vsa, setVsa] = useState<VSASignal[]>([]);
+  const [vsa, setVsa] = useState<VsaSignal[]>([]);
   const [wyckoffResult, setWyckoffResult] = useState<WyckoffResult | null>(null);
-  // ĐÃ THÊM — kết quả backtest CHoCH thật (tỷ lệ thắng trên chính lịch sử
-  // giá của mã đang xem), đồng bộ cùng lúc với `smc` vì cả 2 được tính
-  // chung trong recomputeDetectors() của AnalysisController.
   const [chochBacktest, setChochBacktest] = useState<ChochBacktest | null>(null);
-  // ĐÃ THÊM: lưu hình đang vẽ dở (draft) để hiển thị preview theo thời gian
-  // thực khi rê chuột — trước đây KHÔNG hề subscribe sự kiện
-  // "primitive:draft-updated" dù DrawingManager đã phát ra sự kiện này mỗi
-  // lần updateDraw() chạy, khiến người dùng không thấy gì cho tới khi thả
-  // chuột ("chưa ghim vào di chuyển của chuột").
   const [draftPrimitive, setDraftPrimitive] = useState<{ toolType: DrawingToolType; p1: DomainPoint; p2: DomainPoint } | null>(null);
   const [timeframe, setTimeframeState] = useState<Timeframe>("D");
   const [currentBars, setCurrentBars] = useState<OhlcvBar[]>(bars);
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null);
   const [elliottDraft, setElliottDraft] = useState<DomainPoint[]>([]);
   const [fibExtensionMode, setFibExtensionMode] = useState(false);
-  const [, forceTick] = useState(0);
+  const [saveState, setSaveState] = useState<"idle" | "local" | "cloud">("idle");
 
+  const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
+  const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
+  const adxResult = useMemo(() => calculateADX(currentBars), [currentBars]);
+
+  // ---- Khởi tạo / cập nhật bộ điều phối + biểu đồ khi dữ liệu đổi ----
   useEffect(() => {
     if (bars.length === 0) return;
-
     const isIndex = TA_INDICES.some((x) => x.symbol === ticker);
     if (!controllerRef.current) controllerRef.current = new AnalysisController(bars, { isIndex });
     else controllerRef.current.updateDailyBars(bars, { isIndex });
-
     const controller = controllerRef.current;
     const activeBars = controller.getCurrentBars();
     setCurrentBars(activeBars);
@@ -97,46 +105,41 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!tvManagerRef.current && chartContainerRef.current) {
       tvManagerRef.current = new TVChartManager(chartContainerRef.current, activeBars);
     } else if (tvManagerRef.current) {
-      tvManagerRef.current.setData(activeBars);
+      tvManagerRef.current.setData(activeBars, calculateRSI(activeBars).series);
     }
 
-    const unsubPrim = controller.onPrimitivesUpdated(setPrimitives);
-    const unsubLog = controller.onLogUpdated(setLog);
-    const unsubSmc = controller.onSmcUpdated(setSmc);
-    const unsubVsa = controller.onVsaUpdated(setVsa);
-    const unsubWyckoff = controller.onWyckoffUpdated(setWyckoffResult);
-    const unsubLayers = controller.onLayersChanged(setLayerState);
-    const unsubTf = controller.onTimeframeChanged(({ timeframe: tf, bars: newBars }: { timeframe: Timeframe; bars: OhlcvBar[] }) => {
-      setTimeframeState(tf);
-      setCurrentBars(newBars);
-      tvManagerRef.current?.setData(newBars);
-    });
-    const unsubElliottDraft = controller.drawing.on("elliott:draft-updated", setElliottDraft);
-    const unsubFibExt = controller.drawing.on("fibExtension:changed", setFibExtensionMode);
-    // ĐÃ THÊM: subscribe draft preview cho Trendline/Rectangle/Fibonacci
-    const unsubDraft = controller.drawing.on("primitive:draft-updated", setDraftPrimitive);
-    const unsubRange = tvManagerRef.current?.onVisibleRangeChange(() => forceTick((t) => t + 1)) ?? (() => {});
-
+    const unsubs = [
+      controller.onPrimitivesUpdated(setPrimitives),
+      controller.onLogUpdated(setLog),
+      controller.onSmcUpdated((s) => { setSmc(s); setChochBacktest(controller.getChochBacktest()); }),
+      controller.onVsaUpdated(setVsa),
+      controller.onWyckoffUpdated(setWyckoffResult),
+      controller.onLayersChanged(setLayerState),
+      controller.onTimeframeChanged(({ timeframe: tf, bars: newBars }) => {
+        setTimeframeState(tf);
+        setCurrentBars(newBars);
+        tvManagerRef.current?.setData(newBars, calculateRSI(newBars).series);
+      }),
+      controller.drawing.on("elliott:draft-updated", setElliottDraft),
+      controller.drawing.on("fibExtension:changed", setFibExtensionMode),
+      controller.drawing.on("primitive:draft-updated", setDraftPrimitive),
+      controller.drawing.on("primitive:created", (p) => enableLayersFor(controller, [p])),
+    ];
     setPrimitives(controller.drawing.getPrimitives());
     setLog(controller.getLog());
     setSmc(controller.getSmc());
     setVsa(controller.getVsa());
     setWyckoffResult(controller.getWyckoff());
+    setChochBacktest(controller.getChochBacktest());
     setLayerState(controller.getLayerState());
     setTimeframeState(controller.getCurrentTimeframe());
     setElliottDraft(controller.drawing.getElliottDraft());
     setFibExtensionMode(controller.drawing.getFibExtensionMode());
-
-    return () => { unsubPrim(); unsubLog(); unsubSmc(); unsubVsa(); unsubWyckoff(); unsubLayers(); unsubTf(); unsubElliottDraft(); unsubFibExt(); unsubDraft(); unsubRange(); };
-  }, [bars]);
+    return () => unsubs.forEach((u) => u());
+  }, [bars, ticker]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
-    // ĐÃ SỬA: theo dõi CẢ chiều cao (contentRect.height), không chỉ chiều
-    // rộng như trước — trước đây chart luôn cố định 360px bất kể CSS
-    // height của khung chứa thay đổi thế nào (VD "70vh"). Giờ mỗi khi
-    // khung chứa đổi kích thước (kể cả do resize cửa sổ hay layout đổi),
-    // chart tự co giãn đúng theo cả 2 chiều.
     const observer = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
       const h = entries[0]?.contentRect.height;
@@ -151,343 +154,163 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     controllerRef.current?.destroy(); controllerRef.current = null;
   }, []);
 
-  // ĐÃ THÊM: đồng bộ kết quả backtest CHoCH mỗi khi `smc` đổi (cả 2 được
-  // tính cùng lúc trong recomputeDetectors() của AnalysisController).
+  // ---- Hình vẽ theo mã + tài khoản: nạp khi đổi mã, lưu (gom 1 giây) khi thay đổi ----
   useEffect(() => {
-    setChochBacktest(controllerRef.current?.getChochBacktest() ?? null);
-  }, [smc]);
+    const controller = controllerRef.current;
+    if (!controller || !bars.length) return;
+    let cancelled = false;
+    loadedSymbolRef.current = null;
+    const local = loadLocal(ticker);
+    persistedRef.current = JSON.stringify(local.primitives);
+    controller.drawing.replaceAll(local.primitives);
+    enableLayersFor(controller, local.primitives);
+    loadedSymbolRef.current = ticker;
+    void loadCloud(ticker).then((cloud) => {
+      if (cancelled || !cloud) return;
+      const best = pickNewer(local, cloud);
+      if (best !== local) {
+        persistedRef.current = JSON.stringify(best.primitives);
+        controller.drawing.replaceAll(best.primitives);
+        enableLayersFor(controller, best.primitives);
+        saveLocal(ticker, best.primitives, best.updatedAt ?? undefined);
+        setSaveState("cloud");
+      }
+    });
+    return () => { cancelled = true; };
+  }, [ticker, bars.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (loadedSymbolRef.current !== ticker) return;
+    const json = JSON.stringify(primitives);
+    if (json === persistedRef.current) return;
+    const symbol = ticker;
+    const timer = setTimeout(() => {
+      persistedRef.current = json;
+      saveLocal(symbol, primitives);
+      setSaveState("local");
+      void saveCloud(symbol, primitives).then((at) => { if (at) setSaveState("cloud"); });
+    }, SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [primitives]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Marker: sự kiện quyền, BOS/CHoCH, Sweep, VSA ----
+  useEffect(() => {
     if (!tvManagerRef.current || !layerState) return;
-    const markers: { time: string; position: "aboveBar" | "belowBar"; color: string; shape: "arrowUp" | "arrowDown" | "circle" | "square"; text: string }[] = [];
-    // Sự kiện quyền luôn hiện (bối cảnh dữ liệu, không phải tín hiệu): chỉ đánh dấu ngày có trong khung đang xem.
+    const markers: ChartMarkerInput[] = [];
     const visibleDates = new Set(currentBars.map((b) => b.date));
-    corporateActions.forEach((c) => {
-      if (timeframe === "D" && visibleDates.has(c.date)) markers.push({ time: c.date, position: "belowBar", color: "#fbbf24", shape: "square", text: c.label });
-    });
+    if (layerState.corporate && timeframe === "D") {
+      corporateActions.forEach((c) => {
+        if (visibleDates.has(c.date)) markers.push({ time: c.date, position: "belowBar", color: GQ_COLORS.amber, shape: "square", text: c.label });
+      });
+    }
     if (layerState.smc) {
-      smc.obs.forEach((ob) => markers.push({ time: ob.date, position: ob.type === "bullish" ? "belowBar" : "aboveBar", color: ob.type === "bullish" ? "#34d399" : "#f87171", shape: "circle", text: `OB${ob.type === "bullish" ? "+" : "-"}` }));
-      smc.bos.forEach((b) => markers.push({ time: b.date, position: b.type === "bullish" ? "belowBar" : "aboveBar", color: b.type === "bullish" ? "#38bdf8" : "#fb923c", shape: b.type === "bullish" ? "arrowUp" : "arrowDown", text: "BOS" }));
-      // ĐÃ THÊM — CHoCH (Change of Character): tín hiệu đảo chiều, khác
-      // hẳn màu/nhãn với BOS (tiếp diễn) để không gây nhầm lẫn khi nhìn
-      // nhanh trên biểu đồ.
-      smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: "#fbbf24", shape: "circle", text: "CHoCH" }));
-      // Liquidity Sweep: râu vượt vùng thanh khoản (EQH/EQL) rồi đóng cửa quay lại — SSL dưới đáy, BSL trên đỉnh.
-      smc.liquidity.forEach((l) => {
-        if (l.state === "SWEPT" && l.stateDate) markers.push({ time: l.stateDate, position: l.type === "EQL" ? "belowBar" : "aboveBar", color: "#a78bfa", shape: l.type === "EQL" ? "arrowUp" : "arrowDown", text: l.type === "EQL" ? "SSL Sweep" : "BSL Sweep" });
+      smc.bos.forEach((b) => markers.push({ time: b.date, position: b.type === "bullish" ? "belowBar" : "aboveBar", color: b.type === "bullish" ? GQ_COLORS.bull : GQ_COLORS.bear, shape: b.type === "bullish" ? "arrowUp" : "arrowDown", text: "" })); // BOS: chỉ mũi tên — nhãn chữ do lớp phủ quản lý ngân sách
+      smc.choch.forEach((c) => markers.push({ time: c.date, position: c.type === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: "circle", text: "CHoCH" }));
+      smc.sweeps.forEach((l) => {
+        if (l.stateDate) markers.push({ time: l.stateDate, position: l.type === "EQL" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: l.type === "EQL" ? "arrowUp" : "arrowDown", text: l.type === "EQL" ? "SSL Sweep" : "BSL Sweep" });
       });
     }
     if (layerState.vsa) {
-      // ĐÃ SỬA: thêm màu riêng cho 3 tín hiệu VSA mới (Upthrust/Shakeout/
-      // Two-Bar Reversal) — trước đây rơi vào màu xám mặc định, không
-      // phân biệt được trên biểu đồ.
-      vsa.forEach((v) => {
-        const colorMap: Record<string, string> = {
-          "Selling Climax": "#34d399", "Stopping Volume": "#34d399", Shakeout: "#34d399", "No Supply": "#34d399",
-          "Buying Climax": "#f43f5e", Upthrust: "#f43f5e", "No Demand": "#f43f5e", Absorption: "#a78bfa",
-        };
-        const labelMap: Record<string, string> = {
-          "Selling Climax": "SC", "Buying Climax": "BC", "Stopping Volume": "SV", "No Demand": "ND", "No Supply": "NS",
-          Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
-        };
-        markers.push({ time: v.date, position: v.dir === "bullish" ? "belowBar" : "aboveBar", color: colorMap[v.type] || "#64748b", shape: "circle", text: labelMap[v.type] || v.type.slice(0, 4) });
-      });
+      vsa.forEach((v) => markers.push({
+        time: v.date, position: v.dir === "bullish" ? "belowBar" : "aboveBar",
+        color: v.dir === "bullish" ? GQ_COLORS.bull : v.dir === "bearish" ? GQ_COLORS.bear : GQ_COLORS.uv, shape: "circle", text: VSA_LABEL[v.type] ?? v.type.slice(0, 4),
+      }));
     }
-    markers.sort((a, b) => a.time.localeCompare(b.time));
-    tvManagerRef.current.setMarkers(markers);
+    tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
   }, [smc, vsa, layerState, corporateActions, currentBars, timeframe]);
 
-  const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
-  const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
-  const adxResult = useMemo(() => calculateADX(currentBars), [currentBars]);
+  // ---- Pane chỉ báo (khối lượng, RSI) theo công tắc lớp ----
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv || !layerState) return;
+    tv.setVolumeVisible(layerState.volume);
+    tv.setRsiVisible(layerState.rsi);
+  }, [layerState]);
+  useEffect(() => { tvManagerRef.current?.setRsi(rsiResult.series); }, [rsiResult]);
 
-  const handleTimeframeChange = (tf: Timeframe) => {
-    controllerRef.current?.setTimeframe(tf);
+  // ---- Bàn phím: ← → dịch 5 nến (Shift: 20), + − zoom, Home/End về đầu/cuối dữ liệu ----
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    const step = e.shiftKey ? 20 : 5;
+    const actions: Record<string, () => void> = {
+      ArrowLeft: () => tv.panBars(-step), ArrowRight: () => tv.panBars(step),
+      ArrowUp: () => tv.zoom(0.8), ArrowDown: () => tv.zoom(1.25), "+": () => tv.zoom(0.8), "=": () => tv.zoom(0.8), "-": () => tv.zoom(1.25),
+      Home: () => tv.goToStart(), End: () => tv.goToEnd(),
+      Escape: () => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); },
+    };
+    const act = actions[e.key];
+    if (!act) return;
+    e.preventDefault();
+    act();
   };
 
-  const handleToggleFibExtension = () => {
-    controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
-  };
+  // ---- Lớp phủ canvas ----
+  const scene = useMemo(() => buildScene({
+    bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
+    elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange]);
+  useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
 
-  // ĐÃ THÊM — Nâng cấp Elliott: gợi ý 6 điểm bằng Zigzag pivot thật, tạo
-  // ngay 1 bản Elliott Wave nháp mà không bắt người dùng tự click 6 lần.
-  // Người dùng có thể xóa (nút "Xóa") nếu không đồng ý và vẽ lại tay.
-  const handleSuggestElliott = () => {
-    if (!controllerRef.current) return;
-    const points = suggestElliottPoints(currentBars);
-    if (!points) {
-      window.alert("Chưa đủ dữ liệu đỉnh/đáy rõ ràng để gợi ý sóng Elliott cho mã này.");
-      return;
-    }
-    controllerRef.current.drawing.createElliottFromPoints(points);
-    if (layerState && !layerState.elliott) {
-      controllerRef.current.layers.toggle("elliott");
-    }
-    forceTick((t) => t + 1);
-  };
-
-  // ĐÃ SỬA — thay handleSelectPattern (trước đây được <PatternList> gắn
-  // sẵn gọi trực tiếp) bằng useEffect lắng nghe prop `highlightPattern` từ
-  // tầng cha. Việc đổi mã (onRequestTickerChange) nay do CHÍNH tầng cha
-  // xử lý (đã có sẵn qua handleCandidateSelect ở TaVnIndexTab.tsx) — ở
-  // đây chỉ còn giữ đúng phần khoanh vùng ngày + log confluence, tránh
-  // gọi đổi mã 2 lần từ 2 nơi.
   useEffect(() => {
     if (!highlightPattern) return;
     setHighlightRange({ start: highlightPattern.dateRangeStart, end: highlightPattern.dateRangeEnd });
     controllerRef.current?.logPatternConfluence(highlightPattern);
   }, [highlightPattern]);
 
-  const getSvgCoords = useCallback((e: React.MouseEvent) => {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-  }, []);
+  // Khoá kéo/zoom biểu đồ khi đang chọn công cụ vẽ (để thao tác chạm/kéo vẽ hình thay vì cuộn biểu đồ).
+  useEffect(() => { tvManagerRef.current?.setInteractionLocked(activeTool !== null); }, [activeTool]);
 
-  const toDomainPoint = (x: number, y: number) => {
-    const tv = tvManagerRef.current;
-    if (!tv) return null;
-    const price = tv.pixelToPrice(y);
-    const date = tv.pixelToDate(x);
-    if (price === null || date === null) return null;
-    return { date, price };
+  const handleTimeframeChange = (tf: Timeframe) => controllerRef.current?.setTimeframe(tf);
+  const handleToggleFibExtension = () => controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
+  const handleSuggestElliott = () => {
+    if (!controllerRef.current) return;
+    const points = suggestElliottPoints(currentBars);
+    if (!points) { window.alert("Chưa đủ dữ liệu đỉnh/đáy rõ ràng để gợi ý sóng Elliott cho mã này."); return; }
+    controllerRef.current.drawing.createElliottFromPoints(points);
+    if (layerState && !layerState.elliott) controllerRef.current.layers.toggle("elliott");
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!activeTool || !controllerRef.current) return;
-    const { x, y } = getSvgCoords(e);
-    const point = toDomainPoint(x, y);
+  // ---- Pointer Events (chuột · cảm ứng · bút) ----
+  const toDomain = (e: React.PointerEvent) => tvManagerRef.current?.clientToDomain(e.clientX, e.clientY) ?? null;
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const controller = controllerRef.current;
+    if (!activeTool || !controller) return;
+    const point = toDomain(e);
     if (!point) return;
-
+    e.preventDefault();
     if (activeTool === "elliott") {
-      controllerRef.current.drawing.addElliottPoint(point);
-      if (controllerRef.current.drawing.getElliottDraft().length === 0) {
+      controller.drawing.addElliottPoint(point);
+      if (controller.drawing.getElliottDraft().length === 0) {
         setActiveTool(null);
-        // ĐÃ THÊM: vừa vẽ xong Elliott Wave (đủ 6 điểm) — tự bật toggle
-        // "Elliott" trên LayerToggleBar nếu đang tắt, để hình vừa vẽ hiện
-        // ra ngay lập tức thay vì người dùng phải tự đi tìm nút bật riêng
-        // (nếu không, elliottMarkings vẫn lọc ẩn hình dù đã vẽ xong).
-        if (layerState && !layerState.elliott) {
-          controllerRef.current.layers.toggle("elliott");
-        }
+        if (layerState && !layerState.elliott) controller.layers.toggle("elliott");
       }
-      forceTick((t) => t + 1);
       return;
     }
-
-    if (activeTool === "fibTimeZone") {
-      controllerRef.current.drawing.addFibTimeZone(point);
-      setActiveTool(null);
-      forceTick((t) => t + 1);
-      return;
-    }
-
-    isDrawingRef.current = true;
-    controllerRef.current.drawing.startDraw(activeTool, point);
-    forceTick((t) => t + 1);
+    if (activeTool === "fibTimeZone") { controller.drawing.addFibTimeZone(point); setActiveTool(null); return; }
+    drawingPointerRef.current = e.pointerId;
+    // Giữ con trỏ để kéo ra ngoài khung vẫn vẽ tiếp; một số trình duyệt di động không cho -> bỏ qua, vẫn vẽ bình thường.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* không bắt được con trỏ */ }
+    controller.drawing.startDraw(activeTool, point);
   };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDrawingRef.current || !controllerRef.current) return;
-    const { x, y } = getSvgCoords(e);
-    const point = toDomainPoint(x, y);
-    if (!point) return;
-    controllerRef.current.drawing.updateDraw(point);
-    forceTick((t) => t + 1);
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drawingPointerRef.current !== e.pointerId) return;
+    const point = toDomain(e);
+    if (point) controllerRef.current?.drawing.updateDraw(point);
   };
-
-  const handleMouseUp = (e: React.MouseEvent) => {
-    if (!isDrawingRef.current || !controllerRef.current) return;
-    isDrawingRef.current = false;
-    const { x, y } = getSvgCoords(e);
-    const point = toDomainPoint(x, y);
-    if (point) controllerRef.current.drawing.finishDraw(point);
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drawingPointerRef.current !== e.pointerId) return;
+    drawingPointerRef.current = null;
+    const point = toDomain(e);
+    if (point) controllerRef.current?.drawing.finishDraw(point);
+    else controllerRef.current?.drawing.cancelDraw();
     setActiveTool(null);
-    forceTick((t) => t + 1);
   };
-
-  const tv = tvManagerRef.current;
-
-  const renderPrimitivePixels = (p: RectangleZone | Trendline | FibonacciRetracement) => {
-    if (!tv) return null;
-    const x1 = tv.timeToPixel(p.p1.date); const y1 = tv.priceToPixel(p.p1.price);
-    const x2 = tv.timeToPixel(p.p2.date); const y2 = tv.priceToPixel(p.p2.price);
-    if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
-    return { x1, y1, x2, y2 };
+  const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (drawingPointerRef.current !== e.pointerId) return;
+    drawingPointerRef.current = null;
+    controllerRef.current?.drawing.cancelDraw();
   };
-
-  // ĐÃ THÊM: tính tọa độ pixel cho hình đang vẽ dở (draft) — hiển thị
-  // LUÔN LUÔN bất kể trạng thái toggle layer (người đang chủ động vẽ cần
-  // thấy phản hồi ngay lập tức, không phụ thuộc Trendline/Demand Zone
-  // đang bật hay tắt).
-  const draftPixels = useMemo(() => {
-    if (!tv || !draftPrimitive) return null;
-    const x1 = tv.timeToPixel(draftPrimitive.p1.date);
-    const y1 = tv.priceToPixel(draftPrimitive.p1.price);
-    const x2 = tv.timeToPixel(draftPrimitive.p2.date);
-    const y2 = tv.priceToPixel(draftPrimitive.p2.price);
-    if (x1 === null || y1 === null || x2 === null || y2 === null) return null;
-    return { toolType: draftPrimitive.toolType, x1, y1, x2, y2 };
-  }, [tv, draftPrimitive]);
-
-  const visiblePrimitives = useMemo(() => {
-    if (!layerState) return [];
-    return primitives.filter(isTwoPointPrimitive).filter((p) => {
-      if (p.toolType === "trendline") return layerState.trendline;
-      if (p.toolType === "rectangle") return layerState.demandzone;
-      return true;
-    });
-  }, [primitives, layerState]);
-
-  const elliottMarkings = useMemo(() => {
-    if (!layerState?.elliott) return [];
-    return primitives.filter((p): p is ElliottWaveMarking => p.toolType === "elliott");
-  }, [primitives, layerState]);
-
-  const fibTimeZoneMarkings = useMemo(() => {
-    return primitives.filter((p): p is FibTimeZoneMarking => p.toolType === "fibTimeZone");
-  }, [primitives]);
-
-  const fibTimeZoneLines = useMemo(() => {
-    if (!tv || currentBars.length === 0) return [];
-    const lines: { key: string; x: number; label: string }[] = [];
-    fibTimeZoneMarkings.forEach((marking) => {
-      const anchorIdx = currentBars.findIndex((b) => b.date === marking.anchor.date);
-      if (anchorIdx === -1) return;
-      FIB_TIME_SEQUENCE.forEach((seq) => {
-        const targetIdx = anchorIdx + seq;
-        if (targetIdx >= currentBars.length) return;
-        const targetDate = currentBars[targetIdx].date;
-        const x = tv.timeToPixel(targetDate);
-        if (x === null) return;
-        lines.push({ key: `${marking.id}-${seq}`, x, label: String(seq) });
-      });
-    });
-    return lines;
-  }, [tv, fibTimeZoneMarkings, currentBars]);
-
-  const smcOverlayRects = useMemo(() => {
-    if (!tv || !layerState?.smc) return [];
-    const lastBar = currentBars[currentBars.length - 1];
-    const rects: { key: string; x1: number; x2: number; y1: number; y2: number; color: string; label: string }[] = [];
-
-    smc.obs.forEach((ob, i) => {
-      const x1 = tv.timeToPixel(ob.date);
-      if (x1 === null) return;
-      const endDate = ob.mitigatedAt ?? lastBar?.date;
-      const x2 = endDate ? tv.timeToPixel(endDate) : x1 + 40;
-      if (x2 === null) return;
-      const y1 = tv.priceToPixel(ob.top);
-      const y2 = tv.priceToPixel(ob.bottom);
-      if (y1 === null || y2 === null) return;
-      const baseAlpha = ob.mitigated ? 0.06 : 0.15;
-      const color = ob.type === "bullish" ? `rgba(52,211,153,${baseAlpha})` : `rgba(248,113,113,${baseAlpha})`;
-      const label = `OB ${ob.type === "bullish" ? "up" : "down"}${ob.mitigated ? " (đã test)" : ""}`;
-      rects.push({ key: `ob-${i}`, x1, x2, y1, y2, color, label });
-    });
-
-    smc.fvgs.forEach((fvg, i) => {
-      const x1 = tv.timeToPixel(fvg.startDate);
-      const endDate = fvg.filledAt ?? fvg.endDate;
-      const x2 = endDate ? tv.timeToPixel(endDate) : null;
-      if (x1 === null || x2 === null) return;
-      const y1 = tv.priceToPixel(fvg.top);
-      const y2 = tv.priceToPixel(fvg.bottom);
-      if (y1 === null || y2 === null) return;
-      const baseAlpha = fvg.filled ? 0.05 : 0.12;
-      const color = fvg.type === "bullish" ? `rgba(56,189,248,${baseAlpha})` : `rgba(251,146,60,${baseAlpha})`;
-      rects.push({ key: `fvg-${i}`, x1, x2, y1, y2, color, label: fvg.filled ? "FVG (đã lấp)" : "FVG" });
-    });
-
-    return rects;
-  }, [tv, smc, layerState, currentBars]);
-
-  const wyckoffOverlay = useMemo(() => {
-    if (!tv || !layerState?.wyckoff || !wyckoffResult) return null;
-    if (wyckoffResult.rangeHigh === null || wyckoffResult.rangeLow === null || !wyckoffResult.rangeStartDate) return null;
-    const x1 = tv.timeToPixel(wyckoffResult.rangeStartDate);
-    const lastBar = currentBars[currentBars.length - 1];
-    const x2 = lastBar ? tv.timeToPixel(lastBar.date) : null;
-    const yTop = tv.priceToPixel(wyckoffResult.rangeHigh);
-    const yBottom = tv.priceToPixel(wyckoffResult.rangeLow);
-    if (x1 === null || x2 === null || yTop === null || yBottom === null) return null;
-
-    const markers: { x: number; label: string; color: string }[] = [];
-    if (wyckoffResult.springDate) {
-      const x = tv.timeToPixel(wyckoffResult.springDate);
-      if (x !== null) markers.push({ x, label: "Spring", color: "#38bdf8" });
-    }
-    if (wyckoffResult.testDate) {
-      const x = tv.timeToPixel(wyckoffResult.testDate);
-      if (x !== null) markers.push({ x, label: "Test", color: "#fbbf24" });
-    }
-    if (wyckoffResult.markupDate) {
-      const x = tv.timeToPixel(wyckoffResult.markupDate);
-      if (x !== null) markers.push({ x, label: "Markup", color: "#34d399" });
-    }
-    if (wyckoffResult.declineDate) {
-      const x = tv.timeToPixel(wyckoffResult.declineDate);
-      if (x !== null) markers.push({ x, label: "Decline", color: "#f87171" });
-    }
-
-    return { x1, x2, yTop, yBottom, markers };
-  }, [tv, wyckoffResult, layerState, currentBars]);
-
-  // ĐÃ THÊM — Liquidity Sweep / EQH-EQL: vẽ đường ngang nét đứt tại mức
-  // giá có 2+ đỉnh/đáy gần bằng nhau — nơi thanh khoản (lệnh dừng lỗ) dồn
-  // cụm, mục tiêu "quét thanh khoản" kinh điển trong SMC/ICT hiện đại.
-  const liquidityLines = useMemo(() => {
-    if (!tv || !layerState?.smc || currentBars.length === 0) return [];
-    const lastBar = currentBars[currentBars.length - 1];
-    const xEnd = tv.timeToPixel(lastBar.date);
-    if (xEnd === null) return [];
-    return smc.liquidity
-      .map((pool) => {
-        const y = tv.priceToPixel(pool.price);
-        const xStart = tv.timeToPixel(pool.date);
-        if (y === null || xStart === null) return null;
-        return { key: `${pool.type}-${pool.date}`, xStart, xEnd, y, type: pool.type, touches: pool.touches };
-      })
-      .filter((l): l is { key: string; xStart: number; xEnd: number; y: number; type: "EQH" | "EQL"; touches: number } => l !== null);
-  }, [tv, smc, layerState, currentBars]);
-
-  // ĐÃ THÊM — Premium/Discount Zone + OTE: chia nền biểu đồ thành 2 nửa
-  // theo swing gần nhất — nửa trên (premium, tô đỏ nhạt) là vùng cân nhắc
-  // bán, nửa dưới (discount, tô xanh nhạt) là vùng cân nhắc mua; dải OTE
-  // (62-79% hồi lại) tô đậm hơn — công cụ ra quyết định vào lệnh phổ biến
-  // nhất trong ICT/SMC hiện đại.
-  const premiumDiscountOverlay = useMemo(() => {
-    if (!tv || !layerState?.smc || !smc.premiumDiscount || currentBars.length === 0) return null;
-    const pd = smc.premiumDiscount;
-    const firstBar = currentBars[Math.max(0, currentBars.length - 50)];
-    const lastBar = currentBars[currentBars.length - 1];
-    const x1 = tv.timeToPixel(firstBar.date);
-    const x2 = tv.timeToPixel(lastBar.date);
-    const yHigh = tv.priceToPixel(pd.swingHigh);
-    const yMid = tv.priceToPixel(pd.midpoint);
-    const yLow = tv.priceToPixel(pd.swingLow);
-    const yOteLow = tv.priceToPixel(pd.oteLow);
-    const yOteHigh = tv.priceToPixel(pd.oteHigh);
-    if ([x1, x2, yHigh, yMid, yLow, yOteLow, yOteHigh].some((v) => v === null)) return null;
-    return { x1: x1!, x2: x2!, yHigh: yHigh!, yMid: yMid!, yLow: yLow!, yOteLow: yOteLow!, yOteHigh: yOteHigh!, zone: pd.currentZone };
-  }, [tv, smc, layerState, currentBars]);
-
-  const elliottDraftPixels = useMemo(() => {
-    if (!tv) return [];
-    return elliottDraft
-      .map((pt) => {
-        const x = tv.timeToPixel(pt.date); const y = tv.priceToPixel(pt.price);
-        return x !== null && y !== null ? { x, y } : null;
-      })
-      .filter((p): p is { x: number; y: number } => p !== null);
-  }, [tv, elliottDraft]);
-
-  const patternHighlightPixels = useMemo(() => {
-    if (!tv || !highlightRange) return null;
-    const x1 = tv.timeToPixel(highlightRange.start);
-    const x2 = tv.timeToPixel(highlightRange.end);
-    if (x1 === null || x2 === null) return null;
-    return { x1, x2 };
-  }, [tv, highlightRange, currentBars]);
 
   if (bars.length === 0) return <div className="text-xs text-slate-500 italic py-8 text-center">Chưa có dữ liệu nến cho {ticker}.</div>;
 
@@ -500,14 +323,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           onToggleMaster={(on) => controllerRef.current?.layers.setMaster(on)} />
       )}
 
-      {/* ĐÃ SỬA — theo đúng yêu cầu: khung Chart biểu đồ chính chiếm ~70%
-          chiều cao màn hình. Trước đây "minHeight: 400" chỉ là SÀN tối
-          thiểu, không ép chart thật to hơn — giờ đặt "height: 70vh" thật,
-          kết hợp sửa TVChartManager.ts (đọc đúng clientHeight thay vì
-          hardcode 360px) để chart thật sự lấp đầy đúng khung này. Các
-          panel SMC/VSA/Wyckoff/Backtest bên dưới KHÔNG bị ảnh hưởng — vẫn
-          nằm ở luồng bình thường, giữ nguyên chiều cao tự nhiên. */}
-      <div className="relative" style={{ height: "70vh" }}>
+      <div className="relative" style={{ height: "70vh", minHeight: 420 }} data-testid="ta-chart">
         <DrawingPalette
           activeTool={activeTool}
           onSelectTool={setActiveTool}
@@ -517,17 +333,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           onSuggestElliott={handleSuggestElliott}
         />
         {wyckoffResult && (
-          <SmartNotePanel
-            ticker={ticker}
-            wyckoff={wyckoffResult}
-            smc={smc}
-            vsa={vsa}
-            rsi={rsiResult}
-            macd={macdResult}
-            adx={adxResult}
-          />
+          <SmartNotePanel ticker={ticker} wyckoff={wyckoffResult} smc={smc} vsa={vsa} rsi={rsiResult} macd={macdResult} adx={adxResult} />
         )}
         <div className="absolute top-3 z-10 flex items-center gap-2" style={{ left: 44 }}>
+          {activeTool && (
+            <span className="text-[10px] text-cyan-300 bg-slate-900/85 px-2 py-1 rounded-lg" data-testid="drawing-hint">
+              Đang vẽ — kéo trên biểu đồ (chạm giữ rồi kéo trên điện thoại) ·{" "}
+              <button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); }}>Huỷ</button>
+            </span>
+          )}
           {elliottDraft.length > 0 && (
             <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
               className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
@@ -536,208 +350,33 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           )}
           {primitives.length > 0 && (
             <button onClick={() => controllerRef.current?.drawing.clearAll()}
-              className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
+              className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
               <Trash2 className="w-3 h-3" /> Xoá hình vẽ ({primitives.length})
             </button>
           )}
+          {primitives.length > 0 && saveState !== "idle" && (
+            <span className="text-[9px] text-slate-500 bg-slate-900/70 px-1.5 py-0.5 rounded" data-testid="drawings-saved">
+              {saveState === "cloud" ? "☁ đã lưu theo tài khoản" : "đã lưu trên máy này"}
+            </span>
+          )}
         </div>
-        <div ref={chartContainerRef}
-          style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%" }}
-          className="rounded-xl overflow-hidden relative w-full" />
-        <svg className="absolute inset-0 w-full h-full" style={{ cursor: activeTool ? "crosshair" : "default", zIndex: 5, pointerEvents: activeTool ? "auto" : "none" }}
-          onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
-          onMouseLeave={() => { if (isDrawingRef.current) { controllerRef.current?.drawing.cancelDraw(); isDrawingRef.current = false; } }}>
-
-          {premiumDiscountOverlay && (
-            <g opacity={0.5}>
-              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={premiumDiscountOverlay.yHigh}
-                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.max(0, premiumDiscountOverlay.yMid - premiumDiscountOverlay.yHigh)}
-                fill="rgba(248,113,113,0.05)" stroke="none" />
-              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={premiumDiscountOverlay.yMid}
-                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.max(0, premiumDiscountOverlay.yLow - premiumDiscountOverlay.yMid)}
-                fill="rgba(52,211,153,0.05)" stroke="none" />
-              <rect x={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y={Math.min(premiumDiscountOverlay.yOteLow, premiumDiscountOverlay.yOteHigh)}
-                width={Math.abs(premiumDiscountOverlay.x2 - premiumDiscountOverlay.x1)} height={Math.abs(premiumDiscountOverlay.yOteLow - premiumDiscountOverlay.yOteHigh)}
-                fill="rgba(56,189,248,0.1)" stroke="rgba(56,189,248,0.3)" strokeWidth={1} strokeDasharray="2,2" />
-              <line x1={Math.min(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y1={premiumDiscountOverlay.yMid}
-                x2={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2)} y2={premiumDiscountOverlay.yMid}
-                stroke="rgba(148,163,184,0.4)" strokeWidth={1} strokeDasharray="2,2" />
-              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 60} y={premiumDiscountOverlay.yHigh + 12} fontSize="8" fill="#f87171">Premium</text>
-              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 60} y={premiumDiscountOverlay.yLow - 4} fontSize="8" fill="#34d399">Discount</text>
-              <text x={Math.max(premiumDiscountOverlay.x1, premiumDiscountOverlay.x2) - 30} y={Math.min(premiumDiscountOverlay.yOteLow, premiumDiscountOverlay.yOteHigh) + 10} fontSize="8" fill="#38bdf8">OTE</text>
-            </g>
-          )}
-
-          {patternHighlightPixels && (
-            <rect x={Math.min(patternHighlightPixels.x1, patternHighlightPixels.x2)} y={10}
-              width={Math.abs(patternHighlightPixels.x2 - patternHighlightPixels.x1)} height={340}
-              fill="rgba(167,139,250,0.1)" stroke="#a78bfa" strokeWidth={1} strokeDasharray="5,3" />
-          )}
-
-          {smcOverlayRects.map((r) => (
-            <g key={r.key}>
-              <rect x={Math.min(r.x1, r.x2)} y={Math.min(r.y1, r.y2)}
-                width={Math.abs(r.x2 - r.x1)} height={Math.max(2, Math.abs(r.y2 - r.y1))}
-                fill={r.color} stroke="none" />
-              <text x={Math.min(r.x1, r.x2) + 2} y={Math.min(r.y1, r.y2) - 2} fontSize="8" fill="#94a3b8">{r.label}</text>
-            </g>
-          ))}
-
-          {liquidityLines.map((l) => (
-            <g key={l.key}>
-              <line x1={l.xStart} y1={l.y} x2={l.xEnd} y2={l.y}
-                stroke={l.type === "EQH" ? "rgba(248,113,113,0.5)" : "rgba(52,211,153,0.5)"} strokeWidth={1} strokeDasharray="3,2" />
-              <text x={l.xEnd - 40} y={l.y - 3} fontSize="8" fill={l.type === "EQH" ? "#f87171" : "#34d399"}>{l.type} ({l.touches})</text>
-            </g>
-          ))}
-
-          {wyckoffOverlay && (
-            <g>
-              <rect x={Math.min(wyckoffOverlay.x1, wyckoffOverlay.x2)} y={Math.min(wyckoffOverlay.yTop, wyckoffOverlay.yBottom)}
-                width={Math.abs(wyckoffOverlay.x2 - wyckoffOverlay.x1)} height={Math.abs(wyckoffOverlay.yBottom - wyckoffOverlay.yTop)}
-                fill="rgba(167,139,250,0.06)" stroke="#a78bfa" strokeWidth={1} strokeDasharray="4,3" />
-              <text x={Math.min(wyckoffOverlay.x1, wyckoffOverlay.x2) + 4} y={Math.min(wyckoffOverlay.yTop, wyckoffOverlay.yBottom) + 12}
-                fontSize="9" fill="#a78bfa" fontWeight="bold">Wyckoff Range ({wyckoffResult?.confidenceScore ?? 0}% tin cậy)</text>
-              {wyckoffOverlay.markers.map((m, i) => (
-                <g key={i}>
-                  <line x1={m.x} y1={Math.min(wyckoffOverlay.yTop, wyckoffOverlay.yBottom)} x2={m.x} y2={Math.max(wyckoffOverlay.yTop, wyckoffOverlay.yBottom) + 15}
-                    stroke={m.color} strokeWidth={1} strokeDasharray="2,2" />
-                  <text x={m.x} y={Math.max(wyckoffOverlay.yTop, wyckoffOverlay.yBottom) + 26} textAnchor="middle" fontSize="9" fontWeight="bold" fill={m.color}>{m.label}</text>
-                </g>
-              ))}
-            </g>
-          )}
-
-          {fibTimeZoneLines.map((l) => (
-            <g key={l.key}>
-              <line x1={l.x} y1={10} x2={l.x} y2={350} stroke="#f472b6" strokeWidth={1} strokeDasharray="3,3" opacity={0.6} />
-              <text x={l.x + 2} y={20} fontSize="8" fill="#f472b6">{l.label}</text>
-            </g>
-          ))}
-
-          {draftPixels && draftPixels.toolType === "rectangle" && (
-            <rect x={Math.min(draftPixels.x1, draftPixels.x2)} y={Math.min(draftPixels.y1, draftPixels.y2)}
-              width={Math.abs(draftPixels.x2 - draftPixels.x1)} height={Math.abs(draftPixels.y2 - draftPixels.y1)}
-              fill="rgba(245,158,11,0.08)" stroke="rgba(245,158,11,0.7)" strokeWidth={1} strokeDasharray="3,3" />
-          )}
-          {draftPixels && draftPixels.toolType === "trendline" && (
-            <line x1={draftPixels.x1} y1={draftPixels.y1} x2={draftPixels.x2} y2={draftPixels.y2}
-              stroke="#38bdf8" strokeWidth={1.5} strokeDasharray="4,3" opacity={0.8} />
-          )}
-          {/* ĐÃ SỬA: vẽ đúng lưới % Fibonacci thật khi đang kéo (dùng lại
-              buildFibLevels() — cùng công thức với lúc thả chuột hoàn tất),
-              thay vì chỉ 1 đường thẳng đơn giản như bản vá trước — người
-              dùng cần thấy TRƯỚC khi thả chuột các mức % sẽ nằm ở đâu. */}
-          {draftPixels && draftPrimitive && draftPrimitive.toolType === "fibonacci" && tv && (() => {
-            const levels = buildFibLevels(draftPrimitive.p1, draftPrimitive.p2, fibExtensionMode);
-            return (
-              <g opacity={0.7}>
-                <line x1={draftPixels.x1} y1={draftPixels.y1} x2={draftPixels.x2} y2={draftPixels.y2}
-                  stroke="#a78bfa" strokeWidth={1} strokeDasharray="2,2" />
-                {levels.map((lvl, i) => {
-                  const y = tv.priceToPixel(lvl.price);
-                  if (y === null) return null;
-                  const isExtension = lvl.ratio > 1;
-                  return (
-                    <g key={i}>
-                      <line x1={Math.min(draftPixels.x1, draftPixels.x2)} y1={y} x2={Math.max(draftPixels.x1, draftPixels.x2)} y2={y}
-                        stroke={isExtension ? "rgba(244,114,182,0.6)" : "rgba(167,139,250,0.6)"} strokeWidth={1} strokeDasharray="2,2" />
-                      <text x={Math.max(draftPixels.x1, draftPixels.x2) + 2} y={y + 3} fontSize="8" fill={isExtension ? "#f472b6" : "#a78bfa"}>
-                        {(lvl.ratio * 100).toFixed(1)}%
-                      </text>
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })()}
-
-          {visiblePrimitives.map((p) => {
-            const px = renderPrimitivePixels(p);
-            if (!px) return null;
-            if (p.toolType === "rectangle") {
-              const zone = p as RectangleZone;
-              const top = Math.max(zone.p1.price, zone.p2.price);
-              const bottom = Math.min(zone.p1.price, zone.p2.price);
-              // ĐÃ THÊM: mờ dần theo số lần đã bị test lại — đúng nguyên
-              // lý SMC/ICT: vùng bị "cày" nhiều lần thì lệnh chờ tại đó
-              // đã cạn dần, không còn nguyên vẹn như lúc mới hình thành.
-              const testCount = countZoneTests(currentBars, top, bottom, zone.p1.date);
-              const alpha = Math.max(0.03, 0.12 - testCount * 0.025);
-              return (
-                <g key={p.id}>
-                  <rect x={Math.min(px.x1, px.x2)} y={Math.min(px.y1, px.y2)}
-                    width={Math.abs(px.x2 - px.x1)} height={Math.abs(px.y2 - px.y1)}
-                    fill={`rgba(245,158,11,${alpha})`} stroke="rgba(245,158,11,0.5)" strokeWidth={1} strokeDasharray="4,2" />
-                  {testCount > 0 && (
-                    <text x={Math.min(px.x1, px.x2) + 2} y={Math.min(px.y1, px.y2) - 2} fontSize="8" fill="#fbbf24">
-                      Đã test {testCount} lần
-                    </text>
-                  )}
-                </g>
-              );
-            }
-            if (p.toolType === "trendline") return (
-              <line key={p.id} x1={px.x1} y1={px.y1} x2={px.x2} y2={px.y2} stroke="#38bdf8" strokeWidth={1.5} />
-            );
-            return (
-              <g key={p.id}>
-                {p.levels.map((lvl, i) => {
-                  const y = tv?.priceToPixel(lvl.price);
-                  if (y === null || y === undefined) return null;
-                  const isExtension = lvl.ratio > 1;
-                  return (
-                    <g key={i}>
-                      <line x1={Math.min(px.x1, px.x2)} y1={y} x2={Math.max(px.x1, px.x2)} y2={y}
-                        stroke={isExtension ? "rgba(244,114,182,0.5)" : "rgba(167,139,250,0.5)"} strokeWidth={1} strokeDasharray="2,2" />
-                      <text x={Math.max(px.x1, px.x2) + 2} y={y + 3} fontSize="8" fill={isExtension ? "#f472b6" : "#a78bfa"}>{(lvl.ratio * 100).toFixed(1)}%</text>
-                    </g>
-                  );
-                })}
-              </g>
-            );
-          })}
-
-          {elliottMarkings.map((marking) => {
-            if (!tv) return null;
-            const pts = marking.points
-              .map((pt) => {
-                const x = tv.timeToPixel(pt.date); const y = tv.priceToPixel(pt.price);
-                return x !== null && y !== null ? { x, y } : null;
-              })
-              .filter((p): p is { x: number; y: number } => p !== null);
-            if (pts.length < 2) return null;
-            const hasViolation = marking.violations.length > 0;
-            const strokeColor = hasViolation ? "#f87171" : "#fbbf24";
-            const pointsAttr = pts.map((p) => `${p.x},${p.y}`).join(" ");
-            return (
-              <g key={marking.id}>
-                <polyline points={pointsAttr} fill="none" stroke={strokeColor} strokeWidth={1.5} strokeDasharray={hasViolation ? "4,3" : undefined} />
-                {pts.map((p, i) => (
-                  <g key={i}>
-                    <circle cx={p.x} cy={p.y} r={9} fill="#0F1420" stroke={strokeColor} strokeWidth={1.5} />
-                    <text x={p.x} y={p.y + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill={strokeColor}>{marking.labels[i]}</text>
-                  </g>
-                ))}
-                {hasViolation && pts.length > 0 && (
-                  <text x={pts[pts.length - 1].x + 12} y={pts[pts.length - 1].y} fontSize="9" fill="#f87171" fontWeight="bold">
-                    Vi phạm {marking.violations.length} quy tắc
-                  </text>
-                )}
-              </g>
-            );
-          })}
-
-          {elliottDraftPixels.map((p, i) => (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r={8} fill="#0F1420" stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="2,1" />
-              <text x={p.x} y={p.y + 3} textAnchor="middle" fontSize="9" fontWeight="bold" fill="#fbbf24">{i}</text>
-            </g>
-          ))}
-          {elliottDraftPixels.length > 1 && (
-            <polyline points={elliottDraftPixels.map((p) => `${p.x},${p.y}`).join(" ")} fill="none" stroke="#fbbf24" strokeWidth={1} strokeDasharray="3,2" opacity={0.6} />
-          )}
-        </svg>
+        <div
+          ref={chartContainerRef}
+          tabIndex={0}
+          role="application"
+          aria-label={`Biểu đồ ${ticker} — bàn phím: ← → dịch nến (Shift ×4), + − zoom, Home/End về đầu/cuối`}
+          title="Bấm vào biểu đồ rồi dùng ← → (Shift: nhanh), + −, Home, End"
+          onKeyDown={onKeyDown}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerCancel}
+          style={{
+            background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%",
+            cursor: activeTool ? "crosshair" : "default", touchAction: activeTool ? "none" : "auto",
+          }}
+          className="rounded-xl overflow-hidden relative w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/60"
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
@@ -751,12 +390,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
 
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 
-      {/* ĐÃ SỬA — LỖI NHÂN BẢN: 2 dòng <PatternList>/<ConvergenceFilterPanel>
-          trước đây gắn CỐ ĐỊNH ở đây, TRONG KHI TaVnIndexTab.tsx (file cha)
-          CŨNG render chính 2 component này qua SubTabNavigation (tab
-          "pattern"/"convergence") — gây hiện 2 lần trên màn hình, bóp
-          nghẹt khung biểu đồ chính. Không mất tính năng gì: cả 2 component
-          vẫn truy cập đầy đủ qua đúng sub-tab tương ứng ở tầng cha. */}
       <AISignalLogPanel log={log} engineOn={!!layerState?.aiDetectionMaster} />
     </div>
   );

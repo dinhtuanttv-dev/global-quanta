@@ -91,8 +91,10 @@ describe("TA VN-Index P0 — SMC đếm số thật, không phải giới hạn 
     const controller = new AnalysisController(b);
     const smc = controller.getSmc();
     expect(smc.totals).toEqual(totals);
-    expect(smc.obs).toHaveLength(SMC_DISPLAY_LIMIT.obs);
-    expect(smc.fvgs).toHaveLength(SMC_DISPLAY_LIMIT.fvgs);
+    // Chỉ vẽ vùng CÒN HIỆU LỰC (yêu cầu 03/10): OB chưa test, FVG còn mở — tối đa giới hạn hiển thị.
+    expect(smc.obs.length).toBeLessThanOrEqual(SMC_DISPLAY_LIMIT.obs);
+    expect(smc.obs.every((o) => o.status === "ACTIVE")).toBe(true);
+    expect(smc.fvgs.every((g) => g.state === "OPEN" || g.state === "PARTIAL")).toBe(true);
     const el = await render(<SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={b.length} />);
     expect(el.textContent).toContain(`${totals.obs} OB · ${totals.fvgs} FVG · ${totals.bos} BOS · ${totals.choch} CHoCH`);
     expect(el.textContent).toContain(`Toàn bộ ${b.length} nến`);
