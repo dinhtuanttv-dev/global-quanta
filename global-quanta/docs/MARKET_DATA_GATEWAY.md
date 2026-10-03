@@ -251,3 +251,15 @@ Không cần nạp danh sách ngày nghỉ hằng năm. Ba lớp, ưu tiên từ
 `calendar.isTradingDay()` (lập lịch job, phiên, backfill) dùng cả 3 lớp. `GET /api/market/trading-calendar?from&to`
 (tối đa 6 năm) trả `{ holidays: [{date, source: OBSERVED|OFFICIAL|RULE, reason}], status }` cho Project A và giao diện
 (bản sao TS giống hệt: `src/lib/cotuc/vn-trading-calendar.ts`, Project A `lib/cotuc/timing-v3/vn-trading-calendar.ts`).
+
+## ELITE COMMAND RADAR × Timeline điểm mua (tab Cổ tức)
+
+- **Quy tắc**: chỉ mã ĐANG CÓ trên Radar (★ danh mục Radar đang hiển thị) mới nhận dữ liệu Timeline; mã trong Timeline mà
+  không có trên Radar bị bỏ qua (không vẽ, không gợi ý, không thông báo). Logic thuần: `src/lib/radarTimeline.ts`.
+- Lớp ⏱ (PR A+B+D): vòng quanh chấm (xanh = trong vùng mua, vàng = ≤ 5 phiên, nét đứt = gần đạt), tooltip, khối "ĐIỂM MUA TỐI
+  ƯU", dải "điểm mua 10 phiên tới", nút lọc "chỉ mã có điểm mua", sự kiện/thông báo vào vùng mua / còn ≤ 3 phiên (chỉ bậc đạt
+  kiểm định, mỗi vùng mua một lần).
+- **Tiêu chí 6 "Cổ tức · điểm mua"** (bộ tiêu chí phiên bản 2): đạt khi có vùng mua cổ tức/KQKD ĐẠT KIỂM ĐỊNH đang mở hoặc
+  bắt đầu trong ≤ 10 phiên, hoặc DecisionBar "Thuận lợi"; "gần đạt" không tính (ghi lý do). Trước đây: "thuộc rổ 17 mã cổ tức".
+  Ảnh chụp lịch sử mang `cv` (gateway `sanitizeItems` giữ trường này): không sinh sự kiện vào/ra Core và không nối vệt điểm
+  qua mốc đổi bộ tiêu chí; xem lại ảnh chụp cũ ghi rõ "tiêu chí cũ".

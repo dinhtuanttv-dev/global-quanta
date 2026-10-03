@@ -40,7 +40,7 @@ describe("ELITE COMMAND RADAR — 6 tiêu chí từ dữ liệu thật của dan
     expect(m.digest?.text).toContain("EEE gần Core nhất (2/6)");
     expect(m.missingSources).toEqual([]);
     const partial = buildRadarModel(["AAA"], src({ world: null, dividend: null }));
-    expect(partial.missingSources).toEqual(["Kết nối thế giới", "Cổ tức"]);
+    expect(partial.missingSources).toEqual(["Kết nối thế giới", "Cổ tức · điểm mua"]);
     expect(partial.core).toEqual([]); // 3/6 khi thiếu nguồn
   });
 

@@ -50,6 +50,8 @@ export function sanitizeItems(items) {
       p: num(raw.p),
       c: num(raw.c),
       ...([-1, 0, 1].includes(raw.sg) ? { sg: raw.sg } : {}),
+      // Phiên bản bộ tiêu chí hội tụ (giao diện dùng để không so sánh điểm qua mốc đổi tiêu chí).
+      ...(Number.isInteger(raw.cv) && raw.cv >= 1 && raw.cv <= 9 ? { cv: raw.cv } : {}),
     });
   }
   return out;

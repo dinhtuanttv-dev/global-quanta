@@ -78,3 +78,45 @@ export function buyWindowEvents(map: Map<string, RadarBuyInfo>): BuyEvent[] {
   }
   return out.sort((a, b) => (a.kind === b.kind ? a.ticker.localeCompare(b.ticker) : a.kind === 'enter_buy_window' ? -1 : 1));
 }
+
+// ---------------------------------------------------------------------------
+// Tiêu chí 6 của Radar "Cổ tức · điểm mua" (phiên bản tiêu chí 2)
+// ---------------------------------------------------------------------------
+export const RADAR_CRITERIA_VERSION = 2;
+export const CRITERION_SESSIONS = 10;
+
+export interface DecisionLite { ticker: string; level: 'FAVORABLE' | 'WATCH' | 'AVOID'; combinedProbability: number }
+
+/**
+ * Đạt khi: có vùng mua ĐẠT KIỂM ĐỊNH đang mở hoặc bắt đầu trong ≤ CRITERION_SESSIONS phiên, HOẶC DecisionBar "Thuận lợi".
+ * "Gần đạt" không tính — chỉ ghi lý do. Chỉ xét mã trên Radar (`radarTickers`).
+ */
+export function buyCriterion(
+  rows: readonly TimelineRow[], decisions: readonly DecisionLite[], radarTickers: readonly string[],
+): { pass: Map<string, string>; fail: Map<string, string> } {
+  const onRadar = new Set(radarTickers.map((t) => t.toUpperCase()));
+  const pass = new Map<string, string>();
+  const fail = new Map<string, string>();
+  const byTicker = new Map<string, TimelineRow[]>();
+  for (const r of rows) {
+    const t = r.ticker.toUpperCase();
+    if (!onRadar.has(t) || r.status === 'PASSED') continue;
+    byTicker.set(t, [...(byTicker.get(t) ?? []), r]);
+  }
+  const fav = new Map(decisions.filter((d) => d.level === 'FAVORABLE' && onRadar.has(d.ticker.toUpperCase())).map((d) => [d.ticker.toUpperCase(), d]));
+  for (const t of onRadar) {
+    const list = (byTicker.get(t) ?? []).slice().sort((a, b) => compareRows(a, b));
+    const ok = list.find((r) => r.tier === 'VALIDATED' && (r.status === 'IN_WINDOW' || r.sessionsToEntry <= CRITERION_SESSIONS));
+    if (ok) {
+      pass.set(t, `Vùng mua ${KIND_TEXT[ok.kind]} ${ok.windowId.toUpperCase()} ${dm(ok.entryFromDate)}→${dm(ok.entryToDate)}${ok.status === 'IN_WINDOW' ? ' (đang mở)' : ` (còn ${ok.sessionsToEntry} phiên)`} · đạt kiểm định, thắng ${Math.round(ok.winRate * 100)}%`);
+      continue;
+    }
+    const d = fav.get(t);
+    if (d) { pass.set(t, `DecisionBar "Thuận lợi" · xác suất tổng hợp ${Math.round(d.combinedProbability * 100)}%`); continue; }
+    const far = list.find((r) => r.tier === 'VALIDATED');
+    const near = list.find((r) => r.tier === 'NEAR');
+    if (far) fail.set(t, `Vùng mua ${KIND_TEXT[far.kind]} đạt kiểm định nhưng còn ${far.sessionsToEntry} phiên (> ${CRITERION_SESSIONS})`);
+    else if (near) fail.set(t, `Gần đạt (${KIND_TEXT[near.kind]} ${near.windowId.toUpperCase()} ${dm(near.entryFromDate)}→${dm(near.entryToDate)}) — còn thiếu: ${near.missing.join('; ')}`);
+  }
+  return { pass, fail };
+}
