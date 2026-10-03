@@ -44,7 +44,7 @@ const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onT
   const matchColor = priceColor(q?.price, q);
   const bid = q?.bid ?? [], ask = q?.ask ?? [];
   // Ô gọn (2px mỗi bên) để 23 cột vừa khung 1366px mà không phải cuộn ngang.
-  const cell = "px-0.5 text-right tabular-nums";
+  const cell = "px-1 text-right tabular-nums";
   const flashBg = flash === "up" ? "rgba(34,197,94,0.28)" : flash === "down" ? "rgba(244,63,94,0.28)" : undefined;
   const side = (lv: { price: number; volume: number } | undefined) => (
     <>
@@ -102,16 +102,16 @@ export interface PricingBoardProps {
 const noop = () => {};
 
 export default function PricingBoard({ sections, grouped, quotes, flash, now, expandedTicker, starred, onToggle, onStar, observe, renderDetail, emptyText, selectedTicker = null, onSelect = noop }: PricingBoardProps) {
-  const th = "px-0.5 font-normal text-right";
+  const th = "px-1 font-normal text-right";
   const total = sections.reduce((n, [, l]) => n + l.length, 0);
   return (
-    <table className="w-full text-[10px] font-mono" aria-label="Bảng giá trực tuyến">
+    <table className="w-full min-w-[880px] text-[10px] font-mono whitespace-nowrap" aria-label="Bảng giá trực tuyến">
       <thead className="text-slate-400 sticky top-0 z-10" style={{ background: "#0f1420" }}>
         <tr className="text-[9.5px] text-slate-500 border-b border-white/5">
           <th className="text-left pl-1 font-normal sticky left-0" style={{ background: "#0f1420" }} rowSpan={2}>Mã</th>
-          <th className="font-normal" style={{ color: COLOR.ceil }} rowSpan={2}>Trần</th>
-          <th className="font-normal" style={{ color: COLOR.floor }} rowSpan={2}>Sàn</th>
-          <th className="font-normal" style={{ color: COLOR.ref }} rowSpan={2}>TC</th>
+          <th className="px-1 font-normal text-right" style={{ color: COLOR.ceil }} rowSpan={2}>Trần</th>
+          <th className="px-1 font-normal text-right" style={{ color: COLOR.floor }} rowSpan={2}>Sàn</th>
+          <th className="px-1 font-normal text-right" style={{ color: COLOR.ref }} rowSpan={2}>TC</th>
           <th className="font-normal text-center border-l border-white/10" colSpan={6}>Bên mua</th>
           <th className="font-normal text-center border-x border-white/10" colSpan={3}>Khớp lệnh</th>
           <th className="font-normal text-center" colSpan={6}>Bên bán</th>

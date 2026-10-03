@@ -515,7 +515,7 @@ body{
 @media (max-width: 768px) {
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: 56px auto auto;
+    grid-template-rows: auto auto auto; /* thanh trên xuống 2 dòng trên điện thoại -> không cố định 56px (bị nội dung đè) */
     height: auto;
     min-height: 100vh;
     overflow-y: visible;
