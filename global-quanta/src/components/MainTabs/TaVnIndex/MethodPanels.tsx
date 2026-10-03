@@ -1,7 +1,7 @@
 "use client";
 import { Clock } from "lucide-react";
-import { SMC_DISPLAY_LIMIT, type OrderBlock, type FairValueGap, type BreakOfStructure, type SmcTotals } from "../../../lib/ta-command-center/detectors/smcDetector";
-import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
+import { SMC_DISPLAY_LIMIT, type OrderBlock, type FairValueGap, type BreakOfStructure, type SmcTotals } from "../../../lib/ta-command-center/AnalysisController";
+import { VSA_DIRECTION, type VsaSignal as VSASignal } from "../../../lib/quant-core";
 import { WYCKOFF_PHASE_LABEL, describeRangeCriteria, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import ProvenanceBadge from "./ProvenanceBadge";
 
@@ -24,30 +24,27 @@ export function SMCPanel({ obs, fvgs, bos, choch, totals, barCount }: {
         {totals.obs} OB · {totals.fvgs} FVG · {totals.bos} BOS · {totals.choch} CHoCH
       </p>
       <p className="text-[9px] text-slate-500 mt-0.5">
-        Toàn bộ {barCount} nến · biểu đồ vẽ {Math.min(totals.obs, SMC_DISPLAY_LIMIT.obs)} OB / {Math.min(totals.fvgs, SMC_DISPLAY_LIMIT.fvgs)} FVG gần nhất
+        Toàn bộ {barCount} nến · {totals.sweeps} Liquidity Sweep · vẽ {Math.min(totals.obs, SMC_DISPLAY_LIMIT.obs)} OB / {Math.min(totals.fvgs, SMC_DISPLAY_LIMIT.fvgs)} FVG gần nhất
       </p>
       {lastShift && (
         <p className="text-[9px] mt-1" style={{ color: lastShift.type === "bullish" ? "#34d399" : "#f43f5e" }}>
-          {isChoch ? "CHoCH (Structural Shift)" : "BOS"} {lastShift.type === "bullish" ? "▲" : "▼"} {lastShift.date} · phá {fmt(lastShift.brokenLevel)}
+          {isChoch ? "CHoCH (Structural Shift)" : "BOS"} {lastShift.type === "bullish" ? "▲" : "▼"} {lastShift.date} · phá {fmt(lastShift.brokenLevel)}{lastShift.displaced ? " · displacement" : ""}
         </p>
       )}
       {lastOB && (
         <p className="text-[9px] text-slate-500 mt-0.5 font-mono">
-          OB gần nhất {lastOB.type === "bullish" ? "▲" : "▼"} {fmt(lastOB.bottom)}–{fmt(lastOB.top)}{lastOB.mitigated ? " · đã mitigated" : ""}
+          OB gần nhất {lastOB.type === "bullish" ? "▲" : "▼"} {fmt(lastOB.bottom)}–{fmt(lastOB.top)} · {lastOB.status === "ACTIVE" ? "chưa test" : lastOB.status === "MITIGATED" ? "mitigated (50%)" : lastOB.status === "BREAKER" ? "Breaker Block" : "hết hạn"}
         </p>
       )}
     </div>
   );
 }
 
-const VSA_DIRECTION: Partial<Record<VSASignal["type"], "▲" | "▼">> = {
-  "Stopping Volume": "▲", "No Supply": "▲", Shakeout: "▲",
-  "No Demand": "▼", Upthrust: "▼",
-};
 
 export function VSAPanel({ signals }: { signals: VSASignal[] }) {
   const last = signals[signals.length - 1];
-  const dir = last ? VSA_DIRECTION[last.type] : undefined;
+  const d = last ? VSA_DIRECTION[last.type] : null;
+  const dir = d === "bullish" ? "▲" : d === "bearish" ? "▼" : undefined;
   return (
     <div style={CARD} className="rounded-xl p-3" data-testid="vsa-panel">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1">
@@ -59,9 +56,9 @@ export function VSAPanel({ signals }: { signals: VSASignal[] }) {
             {dir ? `${dir} ` : ""}{last.type}
           </p>
           <p className="text-[9px] text-slate-500 mt-1 font-mono">
-            Effort {last.volumeRatio}× vol TB20 · Spread {last.spreadRatio}× · {last.date}
+            zV {last.zV} · zS {last.zS} · CLV {last.clv} · {last.date}
           </p>
-          {!dir && <p className="text-[9px] text-slate-600 mt-0.5">Tín hiệu chưa phân biệt hướng (Climax / Two-Bar Reversal).</p>}
+          {!dir && <p className="text-[9px] text-slate-600 mt-0.5">Absorption: effort lớn, result nhỏ — trung tính về hướng.</p>}
         </>
       ) : <p className="text-[10px] text-slate-600 italic">Chưa có tín hiệu VSA trong 8 tín hiệu gần nhất.</p>}
     </div>
@@ -84,6 +81,8 @@ export function WyckoffPanel({ result, barCount }: { result: WyckoffResult; barC
             {result.springDate && ` · Spring ${result.springDate}`}
             {result.testDate && ` · ST ${result.testDate}`}
           </p>
+          {(result.phaseC ?? result.phaseD ?? result.phaseB) && <p className="text-[9px] text-violet-300/80 mt-0.5">{result.phaseC ?? result.phaseD ?? result.phaseB}</p>}
+          {result.phaseE && <p className="text-[9px] text-amber-300/80 mt-0.5" data-testid="wyckoff-location">{result.phaseE}</p>}
           <p className="text-[9px] text-slate-600 mt-0.5" title="Tỷ lệ sự kiện mẫu chuẩn đã xuất hiện — không phải xác suất">
             Sự kiện khớp mẫu: {result.confidenceScore}% (không phải xác suất)
           </p>

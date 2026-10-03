@@ -1,7 +1,7 @@
 import type { DrawnPrimitive, RectangleZone, Trendline } from "./DrawingManager";
-import type { OrderBlock, FairValueGap, BreakOfStructure } from "./detectors/smcDetector";
+import type { OrderBlock, FairValueGap, BreakOfStructure } from "./AnalysisController";
 import { countZoneTests } from "./detectors/smcDetector";
-import type { VSASignal } from "./detectors/vsaDetector";
+import type { VsaSignal as VSASignal } from "../quant-core";
 import { WYCKOFF_PHASE_LABEL, type WyckoffResult } from "./detectors/wyckoffDetector";
 import type { PatternMatch, OhlcvBar } from "./types";
 import type { Provenance } from "./provenance";

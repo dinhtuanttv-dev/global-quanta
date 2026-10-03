@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Sparkles, ChevronDown, ChevronUp, RefreshCw, Bot } from "lucide-react";
 import { WYCKOFF_PHASE_LABEL, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import type { SmcState } from "../../../lib/ta-command-center/AnalysisController";
-import type { VSASignal } from "../../../lib/ta-command-center/detectors/vsaDetector";
+import type { VsaSignal as VSASignal } from "../../../lib/quant-core";
 import type { RsiResult, MacdResult, AdxResult } from "../../../lib/ta-command-center/detectors/technicalOscillators";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";

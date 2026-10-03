@@ -2,33 +2,29 @@ import { DrawingManager, type DrawnPrimitive } from "./DrawingManager";
 import { LayerManager, type LayerState } from "./LayerManager";
 import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
-import {
-  detectOrderBlocks, detectFVG, detectBOS, detectCHoCH, detectLiquidityPools, computePremiumDiscountZone,
-  computeStructureEventsFull, countSmcEvents,
-  type OrderBlock, type SmcTotals, type FairValueGap, type BreakOfStructure, type LiquidityPool, type PremiumDiscountZone,
-} from "./detectors/smcDetector";
-// ĐÃ THÊM — tái dùng nguyên lý Pattern Backtest Engine cho tín hiệu CHoCH
-// (xem signalBacktest.ts để hiểu vì sao chỉ áp dụng cho CHoCH — tín hiệu
-// duy nhất trong nhóm này có hướng kỳ vọng tăng/giảm RÕ RÀNG, không mơ hồ
-// như VSA Climax).
-import { backtestSignalDates, type SignalBacktestResult } from "./detectors/signalBacktest";
-import { detectVSASignals, type VSASignal } from "./detectors/vsaDetector";
-// ĐÃ THÊM: đưa tính toán Wyckoff vào AnalysisController, cùng kiến trúc
-// cache/event với SMC/VSA — trước đây Wyckoff được tính RIÊNG, TÁCH RỜI
-// trong TVChartPanel.tsx, khiến AIEngine (chạy trong controller này)
-// không có cách nào truy cập kết quả Wyckoff để đối chiếu chéo. Đây chính
-// là nguyên nhân gốc khiến toggle "Wyckoff" trước đây không ảnh hưởng gì
-// tới confidence AI dù logic tính điểm đã viết sẵn.
+// P2: mọi phép tính dùng @gq/quant-core (không look-ahead, có confirmedIndex). Các detector cũ trong ./detectors chỉ còn
+// phục vụ dữ liệu Project A (convergence) và test lịch sử.
+import { analyze, ENGINE_VERSION, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
 import { classifyWyckoffPhase, type WyckoffResult } from "./detectors/wyckoffDetector";
 import type { PatternMatch } from "./types";
 import { EventEmitter } from "./EventEmitter";
 import type { OhlcvBar } from "./types";
 
+// ---- Dạng dữ liệu cho giao diện (giữ tên trường cũ để lớp vẽ không phải đổi) ----
+export interface OrderBlock { date: string; type: Dir; top: number; bottom: number; mitigated: boolean; mitigatedAt: string | null; status: ObStatus; kind: "BOS" | "CHoCH" }
+export interface FairValueGap { startDate: string; endDate: string; type: Dir; top: number; bottom: number; filled: boolean; filledAt: string | null; state: FvgState; filledPct: number }
+export interface BreakOfStructure { date: string; type: Dir; brokenLevel: number; displaced: boolean }
+export interface LiquidityPool { date: string; price: number; type: "EQH" | "EQL"; touches: number; state: PoolState; stateDate: string | null }
+export interface PremiumDiscountZone { swingHigh: number; swingLow: number; midpoint: number; oteLow: number; oteHigh: number; currentZone: "premium" | "discount" | "equilibrium"; legDir: Dir }
+export interface SmcTotals { obs: number; fvgs: number; bos: number; choch: number; liquidity: number; sweeps: number }
+
+export const SMC_DISPLAY_LIMIT = { obs: 10, fvgs: 10, bos: 6, choch: 4, liquidity: 6 } as const;
+
 interface ControllerEvents extends Record<string, unknown> {
   "log:updated": SignalLogEntry[];
   "primitives:updated": DrawnPrimitive[];
   "smc:updated": SmcState;
-  "vsa:updated": VSASignal[];
+  "vsa:updated": VsaSignal[];
   "wyckoff:updated": WyckoffResult;
   "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
 }
@@ -42,8 +38,39 @@ export interface SmcState {
 
 export const EMPTY_SMC: SmcState = {
   obs: [], fvgs: [], bos: [], choch: [], liquidity: [], premiumDiscount: null,
-  totals: { obs: 0, fvgs: 0, bos: 0, choch: 0, liquidity: 0 },
+  totals: { obs: 0, fvgs: 0, bos: 0, choch: 0, liquidity: 0, sweeps: 0 },
 };
+
+export interface ChochBacktest { bullish: EventStudyResult; bearish: EventStudyResult; engineVersion: string }
+export interface ControllerOptions { isIndex?: boolean }
+
+/** Ánh xạ kết quả quant-core -> dạng hiển thị (chỉ vài đối tượng gần nhất; tổng số giữ trong totals). */
+export function toSmcState(a: Analysis): SmcState {
+  const shift = (e: Analysis["structure"][number]): BreakOfStructure => ({ date: e.date, type: e.dir, brokenLevel: e.level, displaced: e.displaced });
+  const bos = a.structure.filter((e) => e.kind === "BOS");
+  const choch = a.structure.filter((e) => e.kind === "CHoCH");
+  const dr = a.dealingRange;
+  return {
+    obs: a.orderBlocks.slice(-SMC_DISPLAY_LIMIT.obs).map((z) => ({
+      date: z.date, type: z.dir, top: z.top, bottom: z.bottom, mitigated: z.status !== "ACTIVE",
+      mitigatedAt: z.statusDate, status: z.status, kind: z.kind,
+    })),
+    fvgs: a.fvgs.slice(-SMC_DISPLAY_LIMIT.fvgs).map((g) => ({
+      startDate: g.startDate, endDate: g.endDate, type: g.dir, top: g.top, bottom: g.bottom,
+      filled: g.state === "FILLED" || g.state === "INVERTED", filledAt: g.state === "FILLED" || g.state === "INVERTED" ? g.stateDate : null,
+      state: g.state, filledPct: g.filledPct,
+    })),
+    bos: bos.slice(-SMC_DISPLAY_LIMIT.bos).map(shift),
+    choch: choch.slice(-SMC_DISPLAY_LIMIT.choch).map(shift),
+    liquidity: a.liquidity.slice(-SMC_DISPLAY_LIMIT.liquidity).map((z) => ({
+      date: z.date, price: z.level, type: z.side === "BSL" ? "EQH" : "EQL", touches: z.touches, state: z.state, stateDate: z.stateDate,
+    })),
+    premiumDiscount: dr ? {
+      swingHigh: dr.high, swingLow: dr.low, midpoint: dr.eq, oteLow: dr.oteLow, oteHigh: dr.oteHigh, currentZone: dr.zone, legDir: dr.legDir,
+    } : null,
+    totals: { obs: a.counts.orderBlocks, fvgs: a.counts.fvgs, bos: a.counts.bos, choch: a.counts.choch, liquidity: a.counts.liquidity, sweeps: a.counts.sweeps },
+  };
+}
 
 export class AnalysisController {
   drawing = new DrawingManager();
@@ -55,14 +82,15 @@ export class AnalysisController {
   private bars: OhlcvBar[] = [];
   private log: SignalLogEntry[] = [];
   private smcCache: SmcState = EMPTY_SMC;
-  private vsaCache: VSASignal[] = [];
+  private vsaCache: VsaSignal[] = [];
   private wyckoffCache: WyckoffResult = classifyWyckoffPhase([]);
-  // ĐÃ THÊM — kết quả backtest CHoCH (bullish/bearish riêng), tính lại
-  // mỗi khi dữ liệu nến/khung thời gian đổi.
-  private chochBacktestCache: { bullish: SignalBacktestResult; bearish: SignalBacktestResult } | null = null;
+  private chochBacktestCache: ChochBacktest | null = null;
+  private analysis: Analysis | null = null;
+  private options: ControllerOptions;
   private unsubscribers: (() => void)[] = [];
 
-  constructor(dailyBars: OhlcvBar[]) {
+  constructor(dailyBars: OhlcvBar[], options: ControllerOptions = {}) {
+    this.options = options;
     this.timeframeController.setDailyBars(dailyBars);
     this.bars = this.timeframeController.getBarsForCurrentTimeframe();
     this.recomputeDetectors();
@@ -86,7 +114,8 @@ export class AnalysisController {
     this.unsubscribers.push(unsubCreated, unsubDeleted);
   }
 
-  updateDailyBars(dailyBars: OhlcvBar[]): void {
+  updateDailyBars(dailyBars: OhlcvBar[], options?: ControllerOptions): void {
+    if (options) this.options = options;
     this.timeframeController.setDailyBars(dailyBars);
     this.bars = this.timeframeController.getBarsForCurrentTimeframe();
     this.recomputeDetectors();
@@ -114,30 +143,23 @@ export class AnalysisController {
   }
 
   private recomputeDetectors(): void {
-    this.smcCache = {
-      obs: detectOrderBlocks(this.bars), fvgs: detectFVG(this.bars), bos: detectBOS(this.bars),
-      choch: detectCHoCH(this.bars), liquidity: detectLiquidityPools(this.bars), premiumDiscount: computePremiumDiscountZone(this.bars),
-      totals: countSmcEvents(this.bars),
-    };
-    this.vsaCache = detectVSASignals(this.bars);
-    this.wyckoffCache = classifyWyckoffPhase(this.bars);
-    // ĐÃ THÊM: backtest CHoCH trên TOÀN BỘ lịch sử (không dùng bản đã cắt
-    // bớt cho UI) — dùng computeStructureEventsFull thay vì smcCache.choch.
-    const fullChoch = computeStructureEventsFull(this.bars).choch;
-    const bullishDates = fullChoch.filter((c) => c.type === "bullish").map((c) => c.date);
-    const bearishDates = fullChoch.filter((c) => c.type === "bearish").map((c) => c.date);
-    this.chochBacktestCache = {
-      bullish: backtestSignalDates(this.bars, bullishDates, "bullish", "CHoCH tăng"),
-      bearish: backtestSignalDates(this.bars, bearishDates, "bearish", "CHoCH giảm"),
-    };
+    const a = analyze(this.bars, { isIndex: this.options.isIndex });
+    this.analysis = a;
+    this.smcCache = toSmcState(a);
+    this.vsaCache = a.vsa.slice(-8);
+    this.wyckoffCache = a.wyckoff;
+    // Event study trên TOÀN BỘ lịch sử: vào lệnh giá mở cửa T+1, trừ phí/thuế, so với tỷ lệ nền (quant-core/eventStudy).
+    this.chochBacktestCache = { bullish: a.backtest.chochBull, bearish: a.backtest.chochBear, engineVersion: ENGINE_VERSION };
     this.emitter.emit("smc:updated", this.smcCache);
     this.emitter.emit("vsa:updated", this.vsaCache);
     this.emitter.emit("wyckoff:updated", this.wyckoffCache);
   }
 
+  /** Kết quả đầy đủ của quant-core (sweep, trạng thái FVG/OB, dealing range…) cho lớp vẽ nâng cao. */
+  getAnalysis(): Analysis | null { return this.analysis; }
   getChochBacktest() { return this.chochBacktestCache; }
   getSmc() { return this.smcCache; }
-  getVsa(): VSASignal[] { return this.vsaCache; }
+  getVsa(): VsaSignal[] { return this.vsaCache; }
   getWyckoff(): WyckoffResult { return this.wyckoffCache; }
   getLog(): SignalLogEntry[] { return this.log; }
   getLayerState(): LayerState { return this.layers.getState(); }
@@ -145,7 +167,7 @@ export class AnalysisController {
   onLogUpdated(h: (log: SignalLogEntry[]) => void) { return this.emitter.on("log:updated", h); }
   onPrimitivesUpdated(h: (p: DrawnPrimitive[]) => void) { return this.emitter.on("primitives:updated", h); }
   onSmcUpdated(h: (s: SmcState) => void) { return this.emitter.on("smc:updated", h); }
-  onVsaUpdated(h: (v: VSASignal[]) => void) { return this.emitter.on("vsa:updated", h); }
+  onVsaUpdated(h: (v: VsaSignal[]) => void) { return this.emitter.on("vsa:updated", h); }
   onWyckoffUpdated(h: (w: WyckoffResult) => void) { return this.emitter.on("wyckoff:updated", h); }
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }
   onTimeframeChanged(h: (payload: { timeframe: Timeframe; bars: OhlcvBar[] }) => void) { return this.emitter.on("timeframe:changed", h); }
