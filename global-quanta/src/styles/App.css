@@ -502,7 +502,7 @@ body{
 .t1-scenario-val{position:relative;z-index:1;font-family:var(--font-mono);font-size:10.5px;padding-left:6px;line-height:16px;color:var(--text-primary);}
 
 .ta-vnindex-tab{padding:4px;}
-.ta-ticker-selector{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.ta-ticker-selector{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px;}
 .ta-ticker-current{font-family:var(--font-mono);font-size:18px;font-weight:700;color:var(--gold-bright);background:var(--bg-surface-2);padding:6px 14px;border-radius:8px;border:1px solid var(--border);}
 .ta-ticker-input{background:var(--bg-surface-2);border:1px solid var(--border);border-radius:7px;padding:7px 10px;font-size:12px;color:var(--text-primary);width:200px;}
 .ta-ticker-selector{position:relative;}
