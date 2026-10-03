@@ -4,8 +4,9 @@ import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
 // P2: mọi phép tính dùng @gq/quant-core (không look-ahead, có confirmedIndex). Các detector cũ trong ./detectors chỉ còn
 // phục vụ dữ liệu Project A (convergence) và test lịch sử.
-import { analyze, ENGINE_VERSION, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
+import { ENGINE_VERSION, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
 import { classifyWyckoffPhase, type WyckoffResult } from "./detectors/wyckoffDetector";
+import { runAnalysis } from "../quant-core/runner";
 import type { PatternMatch } from "./types";
 import { EventEmitter } from "./EventEmitter";
 import type { OhlcvBar } from "./types";
@@ -111,7 +112,9 @@ export class AnalysisController {
       this.emitter.emit("primitives:updated", this.drawing.getPrimitives());
     });
 
-    this.unsubscribers.push(unsubCreated, unsubDeleted);
+    const unsubReplaced = this.drawing.on("primitives:replaced", (list) => this.emitter.emit("primitives:updated", list));
+
+    this.unsubscribers.push(unsubCreated, unsubDeleted, unsubReplaced);
   }
 
   updateDailyBars(dailyBars: OhlcvBar[], options?: ControllerOptions): void {
@@ -142,8 +145,15 @@ export class AnalysisController {
     this.emitter.emit("log:updated", this.log);
   }
 
+  private cancelPending: () => void = () => {};
+
+  /** Tính lại trong Web Worker (không chặn giao diện); kết quả cũ bị bỏ nếu dữ liệu/khung đã đổi. */
   private recomputeDetectors(): void {
-    const a = analyze(this.bars, { isIndex: this.options.isIndex });
+    this.cancelPending();
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex }, (a) => this.applyAnalysis(a));
+  }
+
+  private applyAnalysis(a: Analysis): void {
     this.analysis = a;
     this.smcCache = toSmcState(a);
     this.vsaCache = a.vsa.slice(-8);
@@ -172,5 +182,5 @@ export class AnalysisController {
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }
   onTimeframeChanged(h: (payload: { timeframe: Timeframe; bars: OhlcvBar[] }) => void) { return this.emitter.on("timeframe:changed", h); }
 
-  destroy(): void { this.unsubscribers.forEach((u) => u()); }
+  destroy(): void { this.cancelPending(); this.unsubscribers.forEach((u) => u()); }
 }

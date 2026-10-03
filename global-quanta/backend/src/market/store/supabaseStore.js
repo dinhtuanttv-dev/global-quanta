@@ -20,6 +20,7 @@ export const PRIMARY_KEYS = {
   market_radar_snapshots: ["user_id", "list_key", "snap_date"],
   market_adjusted_series: ["symbol"],
   market_user_watchlists: ["user_id"],
+  market_user_chart_state: ["user_id", "symbol"],
 };
 
 /** Thêm các cột khoá chính còn thiếu vào cuối `order` để thứ tự luôn duy nhất. */

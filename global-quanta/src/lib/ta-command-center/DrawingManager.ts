@@ -42,17 +42,17 @@ function validateElliottRules(points: DomainPoint[]): string[] {
   const isUptrend = p1.price > p0.price;
 
   const rule1Ok = isUptrend ? p2.price > p0.price : p2.price < p0.price;
-  if (!rule1Ok) violations.push("Song 2 hoi qua 100% Song 1 - vi pham quy tac Elliott co ban.");
+  if (!rule1Ok) violations.push("Sóng 2 hồi quá 100% sóng 1 — vi phạm quy tắc Elliott cơ bản.");
 
   const wave1Len = Math.abs(p1.price - p0.price);
   const wave3Len = Math.abs(p3.price - p2.price);
   const wave5Len = Math.abs(p5.price - p4.price);
   if (wave3Len < wave1Len && wave3Len < wave5Len) {
-    violations.push("Song 3 la song ngan nhat trong 3 song day (1,3,5) - vi pham quy tac Elliott.");
+    violations.push("Sóng 3 ngắn nhất trong 3 sóng đẩy (1, 3, 5) — vi phạm quy tắc Elliott.");
   }
 
   const rule3Ok = isUptrend ? p4.price > p1.price : p4.price < p1.price;
-  if (!rule3Ok) violations.push("Song 4 choi lan vung gia Song 1 - vi pham quy tac Elliott.");
+  if (!rule3Ok) violations.push("Sóng 4 chồng lấn vùng giá sóng 1 — vi phạm quy tắc Elliott.");
 
   return violations;
 }
@@ -63,6 +63,24 @@ interface DrawingEvents extends Record<string, unknown> {
   "primitive:deleted": { id: string };
   "elliott:draft-updated": DomainPoint[];
   "fibExtension:changed": boolean;
+  "primitives:replaced": DrawnPrimitive[];
+}
+
+const TOOL_TYPES = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone"]);
+const isPoint = (p: unknown): p is DomainPoint =>
+  !!p && typeof (p as DomainPoint).date === "string" && /^\d{4}-\d{2}-\d{2}/.test((p as DomainPoint).date) && Number.isFinite((p as DomainPoint).price);
+
+/** Kiểm tra hình vẽ đã lưu (localStorage/đám mây) trước khi nạp — bỏ phần tử sai dạng. */
+export function sanitizePrimitives(raw: unknown): DrawnPrimitive[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((p): p is DrawnPrimitive => {
+    if (!p || typeof p !== "object" || !TOOL_TYPES.has((p as DrawnPrimitive).toolType) || typeof (p as DrawnPrimitive).id !== "string") return false;
+    const x = p as DrawnPrimitive;
+    if (x.toolType === "elliott") return Array.isArray(x.points) && x.points.length === 6 && x.points.every(isPoint);
+    if (x.toolType === "fibTimeZone") return isPoint(x.anchor);
+    if (x.toolType === "fibonacci" && !Array.isArray(x.levels)) return false;
+    return isPoint(x.p1) && isPoint(x.p2);
+  }).slice(0, 100);
 }
 
 export class DrawingManager {
@@ -177,6 +195,13 @@ export class DrawingManager {
     // ĐÃ SỬA — cùng lỗi gốc rễ như finishDraw()/addElliottPoint() ở trên.
     this.primitives = [...this.primitives, marking];
     this.emitter.emit("primitive:created", marking);
+  }
+
+  /** Nạp hình vẽ đã lưu cho mã đang xem (không phát "primitive:created" -> không ghi nhật ký hợp lưu). */
+  replaceAll(list: DrawnPrimitive[]): void {
+    this.primitives = sanitizePrimitives(list);
+    this.elliottDraft = [];
+    this.emitter.emit("primitives:replaced", this.primitives);
   }
 
   deletePrimitive(id: string): void { this.primitives = this.primitives.filter((p) => p.id !== id); this.emitter.emit("primitive:deleted", { id }); }
