@@ -595,7 +595,10 @@ export function optimizeDividendTiming(input: TimingInput, deps: Deps): TimingRe
   const empty = { window: null, expectedNetReturn: null, nEvents: null, confidence: null };
 
   if (tdToEx === null) return { action: "NO_DATE", ...empty, ...base };
-  if (tdToEx < 0) return { action: "POST_EX", ...empty, ...base };
+  // Cửa sổ SAU GDKHQ (W4 +3..+6, W5 +20..+35): đợt vừa qua vẫn còn hiệu lực tới điểm thoát — không coi là POST_EX.
+  // GIỐNG Project A lib/cotuc/timing-v3/decision/optimize-dividend-timing.ts (sửa một nơi phải sửa cả hai).
+  const postExWindowLive = win !== null && win.entryFrom > 0 && k! <= win.exitOffset;
+  if (tdToEx < 0 && !postExWindowLive) return { action: "POST_EX", ...empty, ...base };
   if (!win) {
     explanations.push({ factor: "Backtest", detail: "Không có cửa sổ vượt cổng thống kê (mục 5.6)", effect: "NEUTRAL" });
     return { action: "NO_SIGNAL", ...empty, ...base };

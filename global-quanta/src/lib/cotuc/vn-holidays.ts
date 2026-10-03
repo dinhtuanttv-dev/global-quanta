@@ -39,4 +39,12 @@ export const VN_STOCK_HOLIDAYS_2026: readonly string[] = [
   "2026-08-31", "2026-09-01", "2026-09-02",
 ] as const;
 
-export const vnHolidayCalendar = makeHolidayCalendar(VN_STOCK_HOLIDAYS_2026);
+/**
+ * 2027 — TAM THOI, chi gom ngay le DUONG LICH co dinh theo Bo luat Lao dong 2019 (Dieu 112; le trung ngay nghi hang tuan
+ * thi nghi bu ngay lam viec ke tiep): 01/01, 30/04, 01/05 (thu Bay -> nghi bu thu Hai 03/05), 02/09.
+ * CHUA co: Tet Am lich, Gio To Hung Vuong, ngay nghi kem 02/09 — phu thuoc quyet dinh hang nam, CHO HOSE/HNX cong bo
+ * (thuong thang 12/2026) roi bo sung. Khong bia ngay chua cong bo.
+ */
+export const VN_STOCK_HOLIDAYS_2027_PROVISIONAL: readonly string[] = ["2027-01-01", "2027-04-30", "2027-05-03", "2027-09-02"];
+
+export const vnHolidayCalendar = makeHolidayCalendar([...VN_STOCK_HOLIDAYS_2026, ...VN_STOCK_HOLIDAYS_2027_PROVISIONAL]);
