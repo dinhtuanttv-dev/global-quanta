@@ -38,3 +38,15 @@ describe('buildUniverseStocks', () => {
     expect(rows[1]).toMatchObject({ dividendYield: 0, exDividendDate: '', marketCap: 'Small' });
   });
 });
+
+import { isSpecialDividend } from './universe-stocks';
+describe('cổ tức đặc biệt', () => {
+  const ev = (pairs: [string, number][]) => pairs.map(([d, v]) => cash('X', d, v));
+  it('12 tháng gần nhất ≥ 2× trung vị các năm trước -> ĐB', () => {
+    expect(isSpecialDividend(ev([['2026-06-01', 5000], ['2025-06-01', 1500], ['2024-06-01', 1500], ['2023-06-01', 1200]]), '2026-10-03')).toBe(true);
+    expect(isSpecialDividend(ev([['2026-06-01', 1600], ['2025-06-01', 1500], ['2024-06-01', 1500]]), '2026-10-03')).toBe(false);
+  });
+  it('thiếu lịch sử -> không gắn cờ', () => {
+    expect(isSpecialDividend(ev([['2026-06-01', 9000]]), '2026-10-03')).toBe(false);
+  });
+});
