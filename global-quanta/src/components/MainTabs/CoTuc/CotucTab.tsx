@@ -2,13 +2,13 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import "./cotuc-theme.css";
 import {
-  Coins, TrendingUp, TrendingDown, Search, RefreshCw,
+  Coins, Search, RefreshCw,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
 } from "lucide-react";
 import {
   DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcRealDividendQualityScore, isQualityScoreReal, calcCatalystScore,
   detectRiskFlags, calcDCF, filterAndSortStocks, getDaysUntil,
-  fmtVND, fmtPct, DEFAULT_FILTER,
+  fmtVND, fmtPct, DEFAULT_FILTER, explainFilter, UPCOMING_WINDOW_DAYS, PE_NO_LIMIT,
   type DividendFilter, type DividendStock,
 } from "../../../lib/quant-cotuc";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
@@ -27,12 +27,10 @@ import { assertNoMockInProduction } from "../../../lib/cotuc/observability";
 import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
-import { ScreenerTimingCells } from "./ScreenerTimingColumns";
 import { CalendarTabV3 } from "./CalendarTabV3";
 import { makeDeps } from "../../../lib/quant-cotuc";
 import type { DividendCalendarItem } from "./CalendarTabV3";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
-import type { TimingSignal } from "../../../lib/cotuc/timing-types";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -52,7 +50,9 @@ import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
-import { buildUniverseStocks, trailingCashDividend, trailingYieldPct } from "../../../lib/cotuc/universe-stocks";
+import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct } from "../../../lib/cotuc/universe-stocks";
+import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
+import { useDecisionStates } from "../../../hooks/useCotucDecision";
 import { useAppStore } from "../../../store/useAppStore";
 
 // ============================================================
@@ -73,27 +73,7 @@ function ScoreBadge({ score, isReal = true }: { score: number; isReal?: boolean 
   );
 }
 
-function PhaseBadge({ s }: { s: DividendStock }) {
-  const phase = getTradePhase(s);
-  return (
-    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg border flex items-center gap-0.5 w-fit ${phase.color}`}>
-      {phase.icon} {phase.label}
-    </span>
-  );
-}
 
-// VA LO HONG #6: phan biet ro "dang tai" (...) vs "khong co du lieu" (-)
-// thay vi ca 2 truong hop deu hien "-" giong het nhau nhu ban truoc.
-function RsBadge({ rs, isLoading }: { rs: number | null | undefined; isLoading?: boolean }) {
-  if (isLoading) return <span className="text-cf-tertiary text-[9px] animate-pulse">...</span>;
-  if (rs === null || rs === undefined) return <span className="text-cf-tertiary text-[9px]">-</span>;
-  return (
-    <span className={`text-[9px] font-bold flex items-center gap-0.5 ${rs >= 0 ? "text-cf-positive" : "text-cf-negative"}`}>
-      {rs >= 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-      {rs >= 0 ? "+" : ""}{rs}%
-    </span>
-  );
-}
 
 function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
   const d = getDaysUntil(dateStr);
@@ -407,11 +387,6 @@ interface CotucTabProps {
 /** Gia Trinh Timing v3 (Giai doan 5): dung khi ticker CHUA co trong
  * response /api/cotuc/timing-signals (VD ma vua duoc them vao Universe,
  * chua kip tinh o lan cron gan nhat) - KHONG duoc de o trong/crash. */
-const EMPTY_SIGNAL: TimingSignal = {
-  ticker: "", action: "NO_SIGNAL", tdToEx: null, window: null,
-  expectedNetReturn: null, nEvents: null, fdrQValue: null,
-  confidence: null, dateStatus: null, earnings: null,
-};
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
   const vnHolidayCalendar = useVnTradingCalendar();
@@ -425,7 +400,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   const { data: timingV3Earnings } = useEarningsSignalV3(timingV3Ticker);
   // Giai Trinh Timing v3 (Giai doan 5): mot request cho CA vu tru (khong
   // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
-  // lenh goi mang). byTicker dung de tra cuu O(1) trong <ScreenerTimingCells>.
+  // lenh goi mang). byTicker dung de tra cuu O(1) trong bang chinh (DividendScreenerTable).
   const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk();
   const earningsSignalsBulk = useEarningsSignalsBulk();
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
@@ -567,6 +542,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     for (const [t, q] of Object.entries(board.quotes)) if (q?.price && q.price > 0) out[t] = q.price;
     return out;
   }, [board.quotes]);
+  const liveChangePct = useMemo(() => {
+    const out: Record<string, number | null> = {};
+    for (const [t, q] of Object.entries(board.quotes)) out[t] = q?.changePct ?? null;
+    return out;
+  }, [board.quotes]);
+  const decisionStates = useDecisionStates();
   const todayIso = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 
   const allStocksWithUniverse = useMemo(() => {
@@ -582,8 +563,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       // Cổ tức/CP của đợt tiền mặt gần nhất (VNDirect) thay số mẫu tĩnh của 17 mã gốc.
       const lastCash = (ev ?? []).filter((e) => e.eventType === "CASH" && e.valuePerShare && e.exrightDate)
         .sort((a, b) => (b.exrightDate ?? "").localeCompare(a.exrightDate ?? ""))[0]?.valuePerShare ?? null;
-      if (price === s.price && y === null && lastCash === null) return s;
-      return { ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount };
+      // Chỉ số cơ bản THẬT (VNDirect, cả danh mục) thay số mẫu/0; đánh dấu fundamentalsReal để bộ lọc và bảng phân biệt.
+      const f = fundamentalsMap[s.ticker];
+      const real = !!f && f.dataQuality !== "UNAVAILABLE";
+      return {
+        ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount,
+        pe: real ? f.peRatio ?? 0 : s.pe, roe: real ? f.roe ?? 0 : s.roe, debtEquity: real ? f.debtEquity ?? 0 : s.debtEquity,
+        fundamentalsReal: real, specialDividend: isSpecialDividend(ev, todayIso),
+      };
     });
     // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
     // lieu dinh luong) cho CA 17 ma va Universe - CHI GHI DE khi da co
@@ -598,7 +585,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         catalystScore: ai.catalystScore ?? s.catalystScore,
       };
     });
-  }, [mergedStocks, universeStocks, aiAnalysisMap, gatewayUniverse, lifecycleEventsMap, realDatesMap, livePrices, todayIso]);
+  }, [mergedStocks, universeStocks, aiAnalysisMap, gatewayUniverse, lifecycleEventsMap, realDatesMap, livePrices, todayIso, fundamentalsMap]);
 
   // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
@@ -617,6 +604,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     ), [allStocksWithUniverse, effectiveFilter, sortField, sortAsc, realRsMap]
   );
 
+  const filterStats = useMemo(() => explainFilter(allStocksWithUniverse, effectiveFilter), [allStocksWithUniverse, effectiveFilter]);
+
   // Danh sach da ghim luon hien dau, khong phu thuoc bo loc
   const pinnedStocks = useMemo(() => allStocksWithUniverse.filter((s) => pinned.includes(s.ticker)), [allStocksWithUniverse, pinned]);
 
@@ -625,11 +614,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     const highYield = allStocksWithUniverse.filter((x) => x.dividendYield >= 5).length;
     const upcoming = allStocksWithUniverse.filter((x) => {
       const d = getDaysUntil(x.exDividendDate);
-      return d !== null && d >= 0 && d <= 30;
+      return d !== null && d >= 0 && d <= UPCOMING_WINDOW_DAYS;
     }).length;
     const upcomingAGM = allStocksWithUniverse.filter((x) => {
       const d = getDaysUntil(x.agmDate);
-      return d !== null && d >= 0 && d <= 14;
+      return d !== null && d >= 0 && d <= UPCOMING_WINDOW_DAYS;
     });
     return { yieldAvg, highYield, upcoming, upcomingAGM };
   }, [allStocksWithUniverse]);
@@ -647,10 +636,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     else { setSortField(field); setSortAsc(false); }
   };
 
-  const SortIcon = ({ field }: { field: string }) =>
-    sortField === field
-      ? (sortAsc ? <ChevronUp className="w-3 h-3 inline" /> : <ChevronDown className="w-3 h-3 inline" />)
-      : null;
 
   return (
     <div className="cf-surface-gradient rounded-2xl p-5 shadow-xl space-y-4">
@@ -747,8 +732,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         {[
           { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-cf-positive", sub:`${allStocksWithUniverse.length} mã theo dõi` },
           { label:"Yield > 5%", value:String(stats.highYield), color:"text-cf-gold", sub:"mã trong universe" },
-          { label:"Sắp GDKHQ (30n)", value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
-          { label:"Sắp ĐHCĐ (14n)", value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
+          { label:`Sắp GDKHQ (${UPCOMING_WINDOW_DAYS}n)`, value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
+          { label:`Sắp ĐHCĐ (${UPCOMING_WINDOW_DAYS}n)`, value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
         ].map((item) => (
           <div key={item.label} className="cf-panel rounded-xl p-3">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">{item.label}</p>
@@ -803,7 +788,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                   {[
                     { label:`Yield ≥ ${fmtPct(filter.minYield)}`, key:"minYield", min:0, max:15, step:0.5, val:filter.minYield },
                     { label:`ROE ≥ ${fmtPct(filter.minRoe)}`, key:"minRoe", min:0, max:30, step:1, val:filter.minRoe },
-                    { label:`P/E ≤ ${filter.maxPe}x`, key:"maxPe", min:5, max:25, step:0.5, val:filter.maxPe },
+                    { label: filter.maxPe >= PE_NO_LIMIT ? "P/E: không giới hạn" : `P/E ≤ ${filter.maxPe}x`, key:"maxPe", min:5, max:PE_NO_LIMIT, step:0.5, val:filter.maxPe },
                     { label:`F-Score ≥ ${filter.minFscore}/9`, key:"minFscore", min:0, max:9, step:1, val:filter.minFscore },
                   ].map((f) => (
                     <div key={f.key}>
@@ -816,8 +801,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
                   {[
-                    { label:"👑 Siêu Cổ Tức", f:{ minYield:7, minRoe:12, maxPe:15, maxDebt:0.5, minFscore:6, hideRiskFlags:true } },
-                    { label:"💎 Kim Cương", f:{ minYield:3, minRoe:20, maxPe:20, maxDebt:0.7, minFscore:7 } },
+                    { label:"👑 Siêu Cổ Tức", f:{ minYield:7, minRoe:12, maxPe:15, maxDebt:0.5, hideRiskFlags:true } },
+                    { label:"💎 Kim Cương", f:{ minYield:3, minRoe:20, maxPe:20, maxDebt:0.7 } },
                     { label:"📅 Sắp GDKHQ", f:{ upcomingGDKHQ:true } },
                     { label:"📋 Sắp ĐHCĐ", f:{ upcomingAGM:true } },
                     { label:"🔄 Xóa lọc", f:DEFAULT_FILTER },
@@ -844,84 +829,38 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
             )}
           </div>
 
-          <div className="overflow-x-auto max-h-[70vh] overflow-y-auto rounded-xl">
-            <table className="cf-table-sticky-head cf-table-zebra w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-cf-border/60 text-cf-secondary text-[10px] uppercase">
-                  <th className="pb-2 w-6"></th>
-                  <th className="pb-2 cursor-pointer hover:text-cf-primary" onClick={() => handleSort("ticker")}>Mã <SortIcon field="ticker" /></th>
-                  <th className="pb-2 cursor-pointer hover:text-cf-gold" onClick={() => handleSort("dividendYield")}>Yield <SortIcon field="dividendYield" /></th>
-                  <th className="pb-2 text-right cursor-pointer hover:text-cf-primary" onClick={() => handleSort("score")} title="Dividend Quality Score - 4 tầng (Chất lượng cổ tức/Tăng trưởng/Định giá/Kỹ thuật), dữ liệu thời gian thực khi có đủ">Score <SortIcon field="score" /></th>
-                  <th className="pb-2 text-center">RS 3T</th>
-                  <th className="pb-2">Vị Thế</th>
-                  <th className="pb-2">GDKHQ</th>
-                  <th className="pb-2" title="Ngay tien/co phieu thuc te ve tai khoan (settlement) - sau ngay GDKHQ">Thanh Toán</th>
-                  <th className="pb-2">ĐHCĐ</th>
-                  <th className="pb-2" title="Khoang ngay giao dich toi uu de mua truoc GDKHQ (Timing Engine v3)">Cửa Sổ Tối Ưu</th>
-                  <th className="pb-2 text-right" title="Ky vong loi nhuan rong (can duoi 90%) neu mua trong cua so">Kỳ Vọng Ròng</th>
-                  <th className="pb-2">Tin Cậy</th>
-                  <th className="pb-2 text-right">KQKD</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/30">
-                {filtered.length === 0 && (
-                  <tr><td colSpan={13} className="py-8 text-center text-cf-tertiary text-xs italic">Không có mã nào phù hợp. Hãy nới lỏng bộ lọc.</td></tr>
-                )}
-                {filtered.map((s) => {
-                  const gdkhqDays = getDaysUntil(s.exDividendDate);
-                  const agmDays = getDaysUntil(s.agmDate);
-                  const paymentDays = getDaysUntil(s.paymentDate);
-                  // Minh bach nguon du lieu: ma Universe (isUniverseOnly) da
-                  // duoc map paymentDate=settlementDate THAT tu luc tao
-                  // (useUniverseScores.ts) - CHI 17 ma theo doi chinh moi can
-                  // kiem tra qua realDatesMap (xem co settlementDate that tu
-                  // VCI Events hay dang fallback ve du lieu mau hardcode).
-                  const paymentIsMock = !s.isUniverseOnly && !realDatesMap[s.ticker]?.paymentDate;
-                  const rs = realRsMap[s.ticker];
-                  return (
-                    <tr key={s.ticker}
-                      className={`hover:bg-cf-surface-2/30 transition ${s.ticker === globalSelectedTicker ? "bg-amber-950/20 ring-1 ring-inset ring-amber-700/40" : ""}`}>
-                      <td className="py-3">
-                        <button onClick={(e) => { e.stopPropagation(); togglePin(s.ticker); }}
-                          className={isPinned(s.ticker) ? "text-cf-gold" : "text-cf-tertiary hover:text-cf-tertiary"}>
-                          <Star className="w-3.5 h-3.5" fill={isPinned(s.ticker) ? "currentColor" : "none"} />
-                        </button>
-                      </td>
-                      <td onClick={() => handleSelect(s)} className="py-3 cursor-pointer">
-                        <span className="font-black text-cf-gold">{s.ticker}</span>
-                        <span className="text-[9px] text-cf-tertiary block">{s.sector}</span>
-                      </td>
-                      <td onClick={() => handleSelect(s)} className="py-3 cursor-pointer">
-                        <span className="text-cf-positive font-black num">{fmtPct(s.dividendYield)}</span>
-                        <span className="text-[9px] text-cf-tertiary block num">{fmtVND(s.dividendAmount)}/cp</span>
-                      </td>
-                      <td className="py-3 text-right"><ScoreBadge score={calcRealDividendQualityScore(s, rs, detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} /></td>
-                      <td className="py-3 text-center"><RsBadge rs={rs} isLoading={isRealRsLoading} /></td>
-                      <td className="py-3"><PhaseBadge s={s} /></td>
-                      <td className="py-3">
-                        <span className={`text-[10px] font-mono num ${gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7 ? "text-rose-400 font-black animate-pulse" : "text-cf-secondary"}`}>{s.exDividendDate}</span>
-                        {gdkhqDays !== null && gdkhqDays >= 0 && <span className="text-[9px] text-cf-tertiary block num">còn {gdkhqDays}n</span>}
-                        {gdkhqDays !== null && gdkhqDays < -60 && (
-                          <span className="text-[9px] text-cf-tertiary block italic" title="Đã qua hơn 60 ngày - chưa có đợt mới được công bố (không phải lỗi hệ thống)">Đợt cũ, chưa có lịch mới</span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-[10px] font-mono num ${paymentDays !== null && paymentDays >= 0 && paymentDays <= 7 ? "text-cf-positive font-black animate-pulse" : "text-cf-secondary"}`}>
-                          {s.paymentDate}
-                          {paymentIsMock && <span title="Dữ liệu mẫu, chưa xác nhận được ngày thanh toán thật (VCI chưa công bố/tạm lỗi)" className="ml-1 opacity-70">⏳</span>}
-                        </span>
-                        {paymentDays !== null && paymentDays >= 0 && <span className="text-[9px] text-cf-tertiary block num">còn {paymentDays}n</span>}
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-[10px] font-mono num ${agmDays !== null && agmDays >= 0 && agmDays <= 7 ? "text-purple-400 font-black animate-pulse" : "text-cf-tertiary"}`}>{s.agmDate}</span>
-                      </td>
-                      <ScreenerTimingCells ticker={s.ticker} signal={timingSignalsByTicker.get(s.ticker) ?? EMPTY_SIGNAL} />
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Minh bạch bộ lọc: ghi rõ đang ẩn bao nhiêu mã và vì sao (không ẩn lặng lẽ). */}
+          <div data-testid="filter-explain" className="tw-scope flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10.5px] text-slate-500">
+            <span>Hiển thị <span className="font-mono tabular-nums text-slate-200">{filtered.length}</span>/<span className="font-mono tabular-nums">{allStocksWithUniverse.length}</span> mã</span>
+            {filterStats.stale > 0 && (
+              <button type="button" onClick={() => setFilter({ ...filter, hideStaleEvents: false })} className="text-slate-400 hover:text-cyan-300 underline decoration-dotted">
+                ẩn {filterStats.stale} mã chưa có lịch cổ tức mới — hiện
+              </button>
+            )}
+            {filterStats.missingData > 0 && (
+              <span title="Ngưỡng ROE / P/E / Nợ / F-Score đang bật nhưng mã chưa có số liệu thật cho trường đó — không tính là đạt">
+                ẩn {filterStats.missingData} mã thiếu số liệu cho ngưỡng đang bật
+              </span>
+            )}
+            <span className="ml-auto">Giá SSI trực tiếp · chỉ số cơ bản VNDirect · bấm tiêu đề cột để sắp xếp</span>
           </div>
+          <DividendScreenerTable
+            rows={filtered}
+            sortField={sortField}
+            sortAsc={sortAsc}
+            onSort={(f: SortField) => handleSort(f)}
+            onSelect={handleSelect}
+            isPinned={isPinned}
+            onTogglePin={togglePin}
+            selectedTicker={globalSelectedTicker}
+            realRsMap={realRsMap}
+            timingByTicker={timingSignalsByTicker}
+            decisionsByTicker={decisionStates.byTicker}
+            livePrices={livePrices}
+            liveChangePct={liveChangePct}
+            flash={board.flash}
+            now={board.now}
+          />
         </div>
       )}
 

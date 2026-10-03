@@ -28,6 +28,27 @@ export function trailingCashDividend(events: DividendLifecycleEvent[] | undefine
   return sum > 0 ? sum : null;
 }
 
+/**
+ * Cổ tức ĐẶC BIỆT: tổng tiền mặt 12 tháng gần nhất ≥ 2× trung vị tổng hằng năm của (tối đa) 4 năm trước đó.
+ * Cần ít nhất 2 năm lịch sử có chi tiền; không đủ -> false (không gắn cờ khi không có cơ sở so sánh).
+ */
+export function isSpecialDividend(events: DividendLifecycleEvent[] | undefined, today: string): boolean {
+  const ttm = trailingCashDividend(events, today);
+  if (!ttm || !events?.length) return false;
+  const t = Date.parse(today);
+  const yearly: number[] = [];
+  for (let k = 1; k <= 4; k++) {
+    const to = new Date(t - k * 365 * 86_400_000).toISOString().slice(0, 10);
+    const v = trailingCashDividend(events, to);
+    if (v) yearly.push(v);
+  }
+  if (yearly.length < 2) return false;
+  const sorted = [...yearly].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  return median > 0 && ttm >= 2 * median;
+}
+
 /** Tỷ suất cổ tức (%) = cổ tức tiền 12 tháng / giá hiện tại. null nếu thiếu một trong hai. */
 export function trailingYieldPct(ttm: number | null, price: number | null | undefined): number | null {
   return ttm && price && price > 0 ? Math.round((ttm / price) * 1000) / 10 : null;

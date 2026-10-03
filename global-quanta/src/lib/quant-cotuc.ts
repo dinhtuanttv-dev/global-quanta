@@ -33,6 +33,10 @@ export interface DividendStock {
   // hien thi nhu la du lieu that (UI phai kiem tra co nay va an/thay
   // the bang thong bao ro rang).
   isUniverseOnly?: boolean;
+  /** P/E, ROE, Nợ/VCSH là số THẬT (VNDirect, /api/cotuc/fundamentals) — false/undefined = chưa có (đang là 0 hoặc số mẫu). */
+  fundamentalsReal?: boolean;
+  /** Cổ tức 12 tháng gần nhất có đợt chi lớn bất thường (≥ 2× mức thường lệ) — tỷ suất không lặp lại hằng năm. */
+  specialDividend?: boolean;
 }
 
 // ============================================================
@@ -242,11 +246,66 @@ export interface DividendFilter {
   hideStaleEvents: boolean;
 }
 
+/** Ngưỡng "sắp tới" dùng chung cho thẻ KPI, nút lọc nhanh và lịch: 30 ngày. */
+export const UPCOMING_WINDOW_DAYS = 30;
+/** Thanh trượt P/E: tại mức này coi như KHÔNG giới hạn (P/E thật có mã > 25, VD VIC ~81). */
+export const PE_NO_LIMIT = 60;
+/** Nợ/VCSH: tại mức này coi như KHÔNG giới hạn. */
+export const DEBT_NO_LIMIT = 99;
+/** Ngành tài chính: Nợ/VCSH cao là bản chất ngành (VCB ~9,7) — không áp bộ lọc Nợ/VCSH. */
+export const isFinancialSector = (sector: string) => /ng[âa]n h[àa]ng|ch[ứu]ng kho[áa]n|b[ảa]o hi[ểe]m|t[àa]i ch[íi]nh/i.test(sector);
+
 export const DEFAULT_FILTER: DividendFilter = {
-  minYield:0, minRoe:0, maxPe:25, maxDebt:1.5, minFscore:0,
+  minYield:0, minRoe:0, maxPe:PE_NO_LIMIT, maxDebt:DEBT_NO_LIMIT, minFscore:0,
   trend:"All", phase:"All", upcomingGDKHQ:false, upcomingAGM:false,
   hideRiskFlags:false, searchQ:"", hideStaleEvents:true,
 };
+
+export type FilterVerdict = "PASS" | "FAIL" | "MISSING_DATA" | "STALE";
+
+/**
+ * Kết quả lọc MỘT mã, phân biệt rõ lý do bị ẩn:
+ *  - MISSING_DATA: đang bật ngưỡng (ROE/P/E/Nợ/F-Score) nhưng mã CHƯA CÓ số thật cho trường đó — không coi là "đạt" (tránh
+ *    lọt mã thiếu dữ liệu vào nhóm "Siêu Cổ Tức") nhưng cũng không trộn với "không đạt"; giao diện đếm riêng.
+ *  - STALE: đợt GDKHQ gần nhất đã qua > 60 ngày, chưa có lịch mới (ẩn mặc định, bật lại được).
+ */
+export function filterVerdict(s: DividendStock, filter: DividendFilter): FilterVerdict {
+  const q = filter.searchQ.toLowerCase();
+  if (q && !s.ticker.toLowerCase().includes(q) && !s.name.toLowerCase().includes(q)) return "FAIL";
+  if (s.dividendYield < filter.minYield) return "FAIL";
+  const real = s.fundamentalsReal === true;
+  const roeOn = filter.minRoe > 0;
+  const peOn = filter.maxPe < PE_NO_LIMIT;
+  const debtOn = filter.maxDebt < DEBT_NO_LIMIT && !isFinancialSector(s.sector);
+  if ((roeOn || peOn || debtOn) && !real) return "MISSING_DATA";
+  if (roeOn && s.roe < filter.minRoe) return "FAIL";
+  if (peOn && (!(s.pe > 0) || s.pe > filter.maxPe)) return s.pe > 0 ? "FAIL" : "MISSING_DATA"; // P/E ≤ 0 = lỗ / chưa có EPS
+  if (debtOn && s.debtEquity > filter.maxDebt) return "FAIL";
+  if (filter.minFscore > 0) {
+    if (s.isUniverseOnly && !s.fscore) return "MISSING_DATA"; // F-Score thật chỉ có ở 17 mã gốc
+    if (s.fscore < filter.minFscore) return "FAIL";
+  }
+  if (filter.trend !== "All" && s.technicalTrend !== filter.trend) return "FAIL";
+  if (filter.phase !== "All" && getTradePhase(s).status !== filter.phase) return "FAIL";
+  const gdkhqDays = getDaysUntil(s.exDividendDate);
+  if (filter.upcomingGDKHQ && !(gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= UPCOMING_WINDOW_DAYS)) return "FAIL";
+  const agmDays = getDaysUntil(s.agmDate);
+  if (filter.upcomingAGM && !(agmDays !== null && agmDays >= 0 && agmDays <= UPCOMING_WINDOW_DAYS)) return "FAIL";
+  if (filter.hideRiskFlags && detectRiskFlags(s).length > 2) return "FAIL";
+  // Mặc định ẩn mã chỉ có đợt GDKHQ đã qua > 60 ngày (chưa có lịch mới) — xét SAU cùng để đếm đúng số mã bị ẩn vì lý do này.
+  if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return "STALE";
+  return "PASS";
+}
+
+/** Đếm số mã bị ẩn theo từng lý do (để giao diện ghi rõ thay vì ẩn lặng lẽ). */
+export function explainFilter(stocks: DividendStock[], filter: DividendFilter): { pass: number; fail: number; missingData: number; stale: number } {
+  const out = { pass: 0, fail: 0, missingData: 0, stale: 0 };
+  for (const s of stocks) {
+    const v = filterVerdict(s, filter);
+    if (v === "PASS") out.pass++; else if (v === "FAIL") out.fail++; else if (v === "MISSING_DATA") out.missingData++; else out.stale++;
+  }
+  return out;
+}
 
 export function filterAndSortStocks(
   stocks: DividendStock[], filter: DividendFilter,
@@ -254,28 +313,8 @@ export function filterAndSortStocks(
   sortAsc: boolean,
   realRsMap?: Record<string, number | null>
 ): DividendStock[] {
-  const q = filter.searchQ.toLowerCase();
   return stocks
-    .filter((s) => {
-      if (q && !s.ticker.toLowerCase().includes(q) && !s.name.toLowerCase().includes(q)) return false;
-      if (s.dividendYield < filter.minYield) return false;
-      if (s.roe < filter.minRoe) return false;
-      if (s.pe > filter.maxPe) return false;
-      if (s.debtEquity > filter.maxDebt) return false;
-      if (s.fscore < filter.minFscore) return false;
-      if (filter.trend !== "All" && s.technicalTrend !== filter.trend) return false;
-      if (filter.phase !== "All" && getTradePhase(s).status !== filter.phase) return false;
-      const gdkhqDays = getDaysUntil(s.exDividendDate);
-      // FIX theo yeu cau: mac dinh AN ma chi co dot GDKHQ da qua QUA LAU
-      // (>60 ngay, chua co dot moi duoc VCI cong bo) - tranh bang chinh
-      // bi "chiem cho" boi cac ma khong con thoi su.
-      if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return false;
-      if (filter.upcomingGDKHQ && !(gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 45)) return false;
-      const agmDays = getDaysUntil(s.agmDate);
-      if (filter.upcomingAGM && !(agmDays !== null && agmDays >= 0 && agmDays <= 30)) return false;
-      if (filter.hideRiskFlags && detectRiskFlags(s).length > 2) return false;
-      return true;
-    })
+    .filter((s) => filterVerdict(s, filter) === "PASS")
     .sort((a, b) => {
       let va: number, vb: number;
       if (sortField === "score") {
