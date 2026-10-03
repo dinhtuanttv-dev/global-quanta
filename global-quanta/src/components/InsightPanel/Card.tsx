@@ -16,13 +16,13 @@ export default function Card({ id, title, right, children, className = '' }: { i
   };
   return (
     <section className={`rounded-xl ${className}`} style={CARD_STYLE} aria-label={typeof title === 'string' ? title : id}>
-      <div className="flex items-center gap-2 px-3 pt-2.5 pb-2">
+      <div className="flex flex-wrap items-center gap-2 px-3 pt-2.5 pb-2">
         <button type="button" onClick={toggle} aria-expanded={!collapsed}
-          className="flex items-center gap-2 text-sm font-semibold text-cyan-400 hover:text-cyan-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded">
+          className="flex items-center gap-2 whitespace-nowrap text-sm font-semibold text-cyan-400 hover:text-cyan-300 focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded">
           <span className="text-[10px] text-slate-500 w-2">{collapsed ? '▸' : '▾'}</span>
           {title}
         </button>
-        {right && <div className="ml-auto flex items-center gap-2">{right}</div>}
+        {right && <div className="ml-auto flex min-w-0 max-w-full items-center gap-2">{right}</div>}
       </div>
       {!collapsed && <div className="px-3 pb-3">{children}</div>}
     </section>
