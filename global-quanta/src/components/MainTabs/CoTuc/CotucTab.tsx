@@ -47,6 +47,7 @@ import { DecisionBarCard } from "./decision/DecisionBar";
 import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
 import { CotucScanStatusBar } from "./live/CotucScanStatusBar";
 import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
+import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
@@ -391,7 +392,9 @@ interface CotucTabProps {
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
   const vnHolidayCalendar = useVnTradingCalendar();
   // Mặc định mở "Timeline điểm mua" — câu hỏi chính của tab: mã nào sắp/đang vào vùng mua có cơ sở thống kê.
-  const [subTab, setSubTab] = useState<"timeline" | "screener" | "calendar" | "earnings" | "timing" | "timing-v3" | "calendar-v3">("timeline");
+  const [subTab, setSubTab] = useState<"timeline" | "screener" | "earnings" | "ranking" | "timing-v3" | "calendar-v3" | "legacy">("timeline");
+  // "🗂 Bản cũ": Lịch GDKHQ v1 và Xếp hạng v2 (engine cũ, 17 mã) — giữ để đối chiếu, không xoá chức năng.
+  const [legacyView, setLegacyView] = useState<"calendar" | "timing">("calendar");
   const buyTimeline = useBuyTimeline();
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
@@ -427,6 +430,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     setSelectedTicker(s.ticker);
     selectTickerGlobal(s.ticker);
   }, [selectTickerGlobal]);
+  // Mở StockModal theo mã (cả danh mục ~300 mã — modal tự tra trong allStocksWithUniverse).
+  const openTicker = useCallback((t: string) => { setSelectedTicker(t); selectTickerGlobal(t); }, [selectTickerGlobal]);
 
   // PHUONG AN D: mo rong universe qua /api/universe. Ma them vao KHONG duoc
   // trung voi 17 ma da co trong DIVIDEND_STOCKS.
@@ -747,11 +752,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         {[
           { id:"timeline" as const, label:"⏱ Timeline Điểm Mua", count: buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null },
           { id:"screener" as const, label:"📋 Bộ Lọc Cổ Phiếu", count:filtered.length },
-          { id:"calendar" as const, label:"📅 Lịch GDKHQ & ĐHCĐ", count:calendarList.length },
+          { id:"calendar-v3" as const, label:"🗓️ Lịch Sự Kiện", count: null },
+          { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu", count: null },
           { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
-          { id:"timing" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
-          { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu (v3)", count: null },
-          { id:"calendar-v3" as const, label:"🗓️ Lịch Sự Kiện (v3)", count: null },
+          { id:"ranking" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
+          { id:"legacy" as const, label:"🗂 Bản Cũ", count: null },
         ].map((t) => (
           <button key={t.id} role="tab" aria-selected={subTab === t.id} onClick={() => setSubTab(t.id)}
             className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/60
@@ -763,7 +768,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       {subTab === "timeline" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Timeline điểm mua">
-          <BuyTimelineTab onSelectTicker={(t) => { setSelectedTicker(t); selectTickerGlobal(t); }} />
+          <BuyTimelineTab onSelectTicker={openTicker} />
         </ErrorBoundary>
       )}
 
@@ -864,7 +869,18 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         </div>
       )}
 
-      {subTab === "calendar" && (
+      {subTab === "legacy" && (
+        <div className="tw-scope flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-[10.5px]" style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <span className="text-slate-500">Phiên bản cũ (giữ để đối chiếu):</span>
+          {([["calendar", "📅 Lịch GDKHQ & ĐHCĐ (v1)"], ["timing", "🎯 Xếp hạng xác suất (v2 · 17 mã)"]] as const).map(([id, label]) => (
+            <button key={id} type="button" onClick={() => setLegacyView(id)} aria-pressed={legacyView === id}
+              className={`rounded-md border px-2 py-0.5 font-semibold ${legacyView === id ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{label}</button>
+          ))}
+          <span className="ml-auto text-slate-600">Bản mới: 🗓️ Lịch Sự Kiện · 🎯 Xếp Hạng Xác Suất (toàn danh mục)</span>
+        </div>
+      )}
+
+      {subTab === "legacy" && legacyView === "calendar" && (
         <div className="space-y-2">
           {calendarList.map((s) => {
             const gdkhqDays = getDaysUntil(s.exDividendDate);
@@ -894,13 +910,19 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       {subTab === "earnings" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được bảng KQKD">
-          <EarningsQuarterPanel onSelectTicker={(t) => { const s = mergedStocks.find((x) => x.ticker === t); if (s) handleSelect(s); }} />
+          <EarningsQuarterPanel onSelectTicker={openTicker} />
         </ErrorBoundary>
       )}
 
-      {subTab === "timing" && (
+      {subTab === "ranking" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được bảng xếp hạng xác suất">
-          <CycleRankingPanel onSelectTicker={(t) => { const s = mergedStocks.find((x) => x.ticker === t) ?? universeStocks.find((x) => x.ticker === t); if (s) handleSelect(s); }} />
+          <DecisionRanking onSelectTicker={openTicker} />
+        </ErrorBoundary>
+      )}
+
+      {subTab === "legacy" && legacyView === "timing" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được bảng xếp hạng xác suất (v2)">
+          <CycleRankingPanel onSelectTicker={openTicker} />
         </ErrorBoundary>
       )}
 
