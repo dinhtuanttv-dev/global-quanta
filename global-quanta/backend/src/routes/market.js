@@ -1,6 +1,7 @@
 // API dữ liệu thị trường chuẩn hoá: SSI là nguồn chính, nguồn cũ là dự phòng.
 // Mọi response đều có `provenance` { source, asOf, isStale, fallbackReason }.
 
+import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
@@ -176,6 +177,19 @@ router.get("/radar/history", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await getHistory(getMarketRuntime().store, userId, { list: req.query.list, days: req.query.days }));
+}));
+
+// ★ Danh mục theo tài khoản (đồng bộ mọi máy): GET /watchlists · PUT /watchlists { state }. Cần đăng nhập (JWT Supabase).
+router.get("/watchlists", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserWatchlists(getMarketRuntime().store, userId));
+}));
+
+router.put("/watchlists", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserWatchlists(getMarketRuntime().store, userId, req.body ?? {}));
 }));
 
 router.put("/radar/snapshot", handle(async (req, res) => {
