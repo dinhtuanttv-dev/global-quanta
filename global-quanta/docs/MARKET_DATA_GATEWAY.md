@@ -235,3 +235,19 @@ xoay vòng các cron theo lô của Project A, có header `Authorization: Bearer
 - Tắt: thiếu `PROJECT_A_CRON_SECRET` hoặc `MARKET_COTUC_SCAN_ENABLED=false`. Chạy cùng Ingestor (`MARKET_INGESTOR_ENABLED`).
 - Trạng thái (không chứa secret): `GET /api/market/cotuc-scan/status` — giao diện hiển thị dải "Quét liên tục · vòng · lô · cập nhật lúc".
 - Chi phí Vercel (Project A): ~12 lô/36 phút trong phiên; tăng `MARKET_COTUC_SESSION_EVERY_MS` nếu chạm giới hạn CPU của gói Hobby.
+
+## Lịch nghỉ giao dịch tự vận hành — `market/tradingCalendar/`
+
+Không cần nạp danh sách ngày nghỉ hằng năm. Ba lớp, ưu tiên từ cao xuống:
+
+1. **Quan sát** (`tradingCalendarService.js`): nạp 10 năm phiên VN-Index (SSI, nominal-history), ngày thường không có phiên
+   = nghỉ. Bắt được ngày nghỉ nối do Chính phủ đổi ngày làm việc và sự cố đóng sàn. Làm mới mỗi 6 giờ.
+2. **Chính thức** (tuỳ chọn): `MARKET_HOLIDAYS` khi Sở đã công bố ngày nghỉ nối trong tương lai.
+3. **Quy tắc** (`vnHolidays.js` + `vnLunar.js`): âm lịch Việt Nam (+7) → Tết, Giỗ Tổ; Tết = 5 ngày thường gần mùng 2;
+   lễ rơi cuối tuần nghỉ bù ngày thường kế tiếp; 02/09 + 1 ngày liền kề từ 2021.
+   Kiểm chứng 2017–2026 (`test/tradingCalendar.test.js`, fixture 10 năm): khớp 106/106 ngày, không đánh nhầm ngày nào;
+   8 ngày sót là ngày nghỉ nối/sự cố — lớp 1 bắt.
+
+`calendar.isTradingDay()` (lập lịch job, phiên, backfill) dùng cả 3 lớp. `GET /api/market/trading-calendar?from&to`
+(tối đa 6 năm) trả `{ holidays: [{date, source: OBSERVED|OFFICIAL|RULE, reason}], status }` cho Project A và giao diện
+(bản sao TS giống hệt: `src/lib/cotuc/vn-trading-calendar.ts`, Project A `lib/cotuc/timing-v3/vn-trading-calendar.ts`).

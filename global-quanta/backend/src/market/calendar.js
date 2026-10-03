@@ -3,6 +3,7 @@
 // đóng cửa": ngoài phiên không có tick là bình thường, không được báo STALE.
 
 import { marketConfig } from "./config.js";
+import { ruleHolidaySet } from "./tradingCalendar/vnHolidays.js";
 
 const VN_OFFSET_MS = 7 * 60 * 60_000;
 
@@ -26,10 +27,25 @@ export function vnDate(now = new Date()) {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
+// Nguồn ngày nghỉ: mặc định QUY TẮC tự tính (âm lịch + Bộ luật Lao động) ∪ MARKET_HOLIDAYS; khi runtime khởi động,
+// tradingCalendarService thay bằng bộ 3 lớp (quan sát phiên thật > chính thức > quy tắc) qua setHolidayProvider.
+let ruleCache = { from: 0, to: -1, set: new Map() };
+function defaultIsHoliday(date) {
+  const y = Number(date.slice(0, 4));
+  if (y < ruleCache.from || y > ruleCache.to) ruleCache = { from: y - 2, to: y + 3, set: ruleHolidaySet(y - 2, y + 3) };
+  return ruleCache.set.has(date) || marketConfig().holidays.has(date);
+}
+let holidayProvider = defaultIsHoliday;
+
+/** Thay nguồn ngày nghỉ (runtime gọi khi đã nạp lớp quan sát). Truyền null để về mặc định. */
+export function setHolidayProvider(fn) {
+  holidayProvider = typeof fn === "function" ? fn : defaultIsHoliday;
+}
+
 export function isTradingDay(now = new Date()) {
   const p = vnParts(now);
   if (p.weekday === 0 || p.weekday === 6) return false;
-  return !marketConfig().holidays.has(vnDate(now));
+  return !holidayProvider(vnDate(now));
 }
 
 const SESSIONS = [
