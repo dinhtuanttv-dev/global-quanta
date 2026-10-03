@@ -43,9 +43,26 @@ export interface WyckoffResult {
   phaseE?: string;
 }
 
-const RANGE_LOOKBACK = 50;
-const RANGE_MAX_WIDTH = 0.15;
-const RANGE_MIN_BARS = 30;
+export const RANGE_LOOKBACK = 50;
+export const RANGE_MAX_WIDTH = 0.15;
+export const RANGE_MIN_BARS = 30;
+
+/** Nhãn hiển thị DUY NHẤT cho mọi pha (ô Wyckoff, Smart Note, bộ lọc Hợp lưu). Thiếu nhãn = lỗi biên dịch. */
+export const WYCKOFF_PHASE_LABEL: Record<WyckoffPhase, string> = {
+  accumulation: "Accumulation",
+  spring: "Spring (Phase C)",
+  test: "Test (Phase C)",
+  markup: "Markup",
+  distribution: "Distribution",
+  decline: "Markdown",
+  undetermined: "Chưa xác định",
+};
+
+/** Mô tả điều kiện tìm vùng giao dịch, dùng đúng tham số của thuật toán (không ghi số tay trên UI). */
+export function describeRangeCriteria(barCount: number): string {
+  const windowSize = Math.min(RANGE_LOOKBACK, Math.floor(barCount / 3));
+  return `biên độ ≤ ${Math.round(RANGE_MAX_WIDTH * 100)}% trong cửa sổ ${windowSize} phiên (cần ≥ ${RANGE_MIN_BARS} phiên dữ liệu)`;
+}
 
 function averageVolume(bars: OhlcvBar[], n: number): number {
   const recent = bars.slice(-n);

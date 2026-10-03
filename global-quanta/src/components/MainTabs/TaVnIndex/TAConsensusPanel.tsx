@@ -17,19 +17,19 @@ export default function TAConsensusPanel({ onSelectTicker }: { onSelectTicker: (
     <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(245,158,11,0.3)" }} className="rounded-xl p-3 space-y-2.5">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-bold text-amber-300 uppercase flex items-center gap-1.5">
-          <Crown className="w-3 h-3" /> Dong Thuan TA — Top 20
+          <Crown className="w-3 h-3" /> TA Consensus — Top 20
         </p>
         <span className="text-[9px] text-slate-500">
-          Golden: {goldenCount} · Hop luu: {convergenceCount} · Giao: {intersectionCount}
+          Golden: {goldenCount} · Hợp lưu: {convergenceCount} · Giao: {intersectionCount}
         </span>
       </div>
 
       {isLoading && results.length === 0 && (
-        <p className="text-[10px] text-slate-400 py-3 text-center">Dang tong hop du lieu tu 2 nguon...</p>
+        <p className="text-[10px] text-slate-400 py-3 text-center">Đang tổng hợp dữ liệu từ 2 nguồn…</p>
       )}
 
       {!isLoading && results.length === 0 && (
-        <p className="text-[10px] text-slate-500 italic py-3 text-center">Chua co du lieu tu Golden Filter hoac Bo loc Hop luu.</p>
+        <p className="text-[10px] text-slate-500 italic py-3 text-center">Chưa có dữ liệu từ Golden Filter hoặc Bộ lọc Hợp lưu.</p>
       )}
 
       {results.length > 0 && (
@@ -37,11 +37,11 @@ export default function TAConsensusPanel({ onSelectTicker }: { onSelectTicker: (
           <table className="w-full text-left text-[10px] border-collapse">
             <thead>
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
-                <th className="pb-1.5">Ma</th>
-                <th className="pb-1.5">Nhan</th>
+                <th className="pb-1.5">Mã</th>
+                <th className="pb-1.5">Nhãn</th>
                 <th className="pb-1.5 text-center">GF</th>
-                <th className="pb-1.5 text-center">Hop luu</th>
-                <th className="pb-1.5 text-right">Diem</th>
+                <th className="pb-1.5 text-center">Hợp lưu</th>
+                <th className="pb-1.5 text-right" title="Điểm theo luật (trung bình 2 nguồn + 15 khi giao nhau) — chưa kiểm định">Điểm</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/30">

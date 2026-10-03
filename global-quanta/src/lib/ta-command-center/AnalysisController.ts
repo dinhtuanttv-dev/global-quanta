@@ -4,8 +4,8 @@ import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, type Timeframe } from "./TimeframeController";
 import {
   detectOrderBlocks, detectFVG, detectBOS, detectCHoCH, detectLiquidityPools, computePremiumDiscountZone,
-  computeStructureEventsFull,
-  type OrderBlock, type FairValueGap, type BreakOfStructure, type LiquidityPool, type PremiumDiscountZone,
+  computeStructureEventsFull, countSmcEvents,
+  type OrderBlock, type SmcTotals, type FairValueGap, type BreakOfStructure, type LiquidityPool, type PremiumDiscountZone,
 } from "./detectors/smcDetector";
 // ĐÃ THÊM — tái dùng nguyên lý Pattern Backtest Engine cho tín hiệu CHoCH
 // (xem signalBacktest.ts để hiểu vì sao chỉ áp dụng cho CHoCH — tín hiệu
@@ -27,14 +27,23 @@ import type { OhlcvBar } from "./types";
 interface ControllerEvents extends Record<string, unknown> {
   "log:updated": SignalLogEntry[];
   "primitives:updated": DrawnPrimitive[];
-  "smc:updated": {
-    obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[];
-    choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null;
-  };
+  "smc:updated": SmcState;
   "vsa:updated": VSASignal[];
   "wyckoff:updated": WyckoffResult;
   "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
 }
+
+export interface SmcState {
+  obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[];
+  choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null;
+  /** Tổng số thật trên toàn bộ nến — các mảng trên chỉ là vài sự kiện gần nhất để vẽ. */
+  totals: SmcTotals;
+}
+
+export const EMPTY_SMC: SmcState = {
+  obs: [], fvgs: [], bos: [], choch: [], liquidity: [], premiumDiscount: null,
+  totals: { obs: 0, fvgs: 0, bos: 0, choch: 0, liquidity: 0 },
+};
 
 export class AnalysisController {
   drawing = new DrawingManager();
@@ -45,10 +54,7 @@ export class AnalysisController {
 
   private bars: OhlcvBar[] = [];
   private log: SignalLogEntry[] = [];
-  private smcCache = {
-    obs: [] as OrderBlock[], fvgs: [] as FairValueGap[], bos: [] as BreakOfStructure[],
-    choch: [] as BreakOfStructure[], liquidity: [] as LiquidityPool[], premiumDiscount: null as PremiumDiscountZone | null,
-  };
+  private smcCache: SmcState = EMPTY_SMC;
   private vsaCache: VSASignal[] = [];
   private wyckoffCache: WyckoffResult = classifyWyckoffPhase([]);
   // ĐÃ THÊM — kết quả backtest CHoCH (bullish/bearish riêng), tính lại
@@ -111,6 +117,7 @@ export class AnalysisController {
     this.smcCache = {
       obs: detectOrderBlocks(this.bars), fvgs: detectFVG(this.bars), bos: detectBOS(this.bars),
       choch: detectCHoCH(this.bars), liquidity: detectLiquidityPools(this.bars), premiumDiscount: computePremiumDiscountZone(this.bars),
+      totals: countSmcEvents(this.bars),
     };
     this.vsaCache = detectVSASignals(this.bars);
     this.wyckoffCache = classifyWyckoffPhase(this.bars);
@@ -137,7 +144,7 @@ export class AnalysisController {
 
   onLogUpdated(h: (log: SignalLogEntry[]) => void) { return this.emitter.on("log:updated", h); }
   onPrimitivesUpdated(h: (p: DrawnPrimitive[]) => void) { return this.emitter.on("primitives:updated", h); }
-  onSmcUpdated(h: (s: { obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[]; choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null }) => void) { return this.emitter.on("smc:updated", h); }
+  onSmcUpdated(h: (s: SmcState) => void) { return this.emitter.on("smc:updated", h); }
   onVsaUpdated(h: (v: VSASignal[]) => void) { return this.emitter.on("vsa:updated", h); }
   onWyckoffUpdated(h: (w: WyckoffResult) => void) { return this.emitter.on("wyckoff:updated", h); }
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }

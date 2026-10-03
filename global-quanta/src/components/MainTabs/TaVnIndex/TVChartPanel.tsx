@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { Trash2, XCircle } from "lucide-react";
 import { TVChartManager } from "../../../lib/ta-command-center/TVChartManager";
-import { AnalysisController } from "../../../lib/ta-command-center/AnalysisController";
+import { AnalysisController, EMPTY_SMC, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
 import DrawingPalette from "./DrawingPalette";
 import LayerToggleBar from "./LayerToggleBar";
 import AISignalLogPanel from "./AISignalLogPanel";
@@ -27,7 +27,6 @@ import type {
 import { FIB_TIME_SEQUENCE, buildFibLevels } from "../../../lib/ta-command-center/DrawingManager";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
-import type { OrderBlock, FairValueGap, BreakOfStructure, LiquidityPool, PremiumDiscountZone } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { countZoneTests } from "../../../lib/ta-command-center/detectors/smcDetector";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
 import type { SignalBacktestResult } from "../../../lib/ta-command-center/detectors/signalBacktest";
@@ -58,10 +57,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [primitives, setPrimitives] = useState<DrawnPrimitive[]>([]);
   const [layerState, setLayerState] = useState<LayerState | null>(null);
   const [log, setLog] = useState<SignalLogEntry[]>([]);
-  const [smc, setSmc] = useState<{
-    obs: OrderBlock[]; fvgs: FairValueGap[]; bos: BreakOfStructure[];
-    choch: BreakOfStructure[]; liquidity: LiquidityPool[]; premiumDiscount: PremiumDiscountZone | null;
-  }>({ obs: [], fvgs: [], bos: [], choch: [], liquidity: [], premiumDiscount: null });
+  const [smc, setSmc] = useState<SmcState>(EMPTY_SMC);
   const [vsa, setVsa] = useState<VSASignal[]>([]);
   const [wyckoffResult, setWyckoffResult] = useState<WyckoffResult | null>(null);
   // ĐÃ THÊM — kết quả backtest CHoCH thật (tỷ lệ thắng trên chính lịch sử
@@ -477,7 +473,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     return { x1, x2 };
   }, [tv, highlightRange, currentBars]);
 
-  if (bars.length === 0) return <div className="text-xs text-slate-500 italic py-8 text-center">Chua co du lieu nen cho {ticker}.</div>;
+  if (bars.length === 0) return <div className="text-xs text-slate-500 italic py-8 text-center">Chưa có dữ liệu nến cho {ticker}.</div>;
 
   return (
     <div className="space-y-3">
@@ -519,13 +515,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           {elliottDraft.length > 0 && (
             <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
               className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
-              <XCircle className="w-3 h-3" /> Huy Elliott ({elliottDraft.length}/6)
+              <XCircle className="w-3 h-3" /> Huỷ Elliott ({elliottDraft.length}/6)
             </button>
           )}
           {primitives.length > 0 && (
             <button onClick={() => controllerRef.current?.drawing.clearAll()}
               className="text-[10px] text-red-400 hover:text-red-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
-              <Trash2 className="w-3 h-3" /> Xoa ({primitives.length})
+              <Trash2 className="w-3 h-3" /> Xoá hình vẽ ({primitives.length})
             </button>
           )}
         </div>
@@ -709,7 +705,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
                 ))}
                 {hasViolation && pts.length > 0 && (
                   <text x={pts[pts.length - 1].x + 12} y={pts[pts.length - 1].y} fontSize="9" fill="#f87171" fontWeight="bold">
-                    Vi pham {marking.violations.length} quy tac
+                    Vi phạm {marking.violations.length} quy tắc
                   </text>
                 )}
               </g>
@@ -729,9 +725,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-        <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} />
+        <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
-        {wyckoffResult && <WyckoffPanel result={wyckoffResult} />}
+        {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} />}
         <ElliottWavePanelPlaceholder />
       </div>
 
@@ -740,7 +736,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           của Wyckoff — thay "cảm tính" bằng bằng chứng thống kê thật. */}
       {chochBacktest && (
         <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3 mt-2">
-          <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Backtest tín hiệu thật (trên chính mã đang xem)</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+            Backtest CHoCH (trên chính mã đang xem)
+            <span className="ml-auto font-mono text-[8.5px] text-amber-400" title="Đỉnh/đáy cần 5 nến bên phải để xác nhận nhưng CHoCH đang dùng ngay — sẽ sửa ở P2 (engine chống look-ahead)">
+              ⚠ CHƯA KIỂM ĐỊNH · có look-ahead
+            </span>
+          </p>
           <div className="grid grid-cols-2 gap-2 text-[10px]">
             <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-lg p-2">
               <p className="text-slate-400">CHoCH tăng {chochBacktest.bullish.lowSampleWarning && <span className="text-amber-400">(mẫu nhỏ)</span>}</p>
@@ -764,7 +765,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             </div>
           </div>
           <p className="text-[8px] text-slate-600 mt-2">
-            Đo lợi nhuận 10 phiên sau mỗi lần CHoCH xảy ra trong lịch sử — mẫu &lt; 5 lần không đủ tin cậy thống kê.
+            Đo lợi nhuận 10 phiên sau mỗi lần CHoCH, vào lệnh tại giá đóng cửa phiên tín hiệu, chưa trừ phí/thuế, chưa so với tỷ lệ nền.
+            Tỷ lệ thắng hiện bị thổi phồng do look-ahead — chỉ dùng tham khảo cho tới khi P2 hoàn tất. Mẫu &lt; 5 lần không đủ tin cậy.
           </p>
         </div>
       )}
@@ -777,7 +779,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           "pattern"/"convergence") — gây hiện 2 lần trên màn hình, bóp
           nghẹt khung biểu đồ chính. Không mất tính năng gì: cả 2 component
           vẫn truy cập đầy đủ qua đúng sub-tab tương ứng ở tầng cha. */}
-      <AISignalLogPanel log={log} />
+      <AISignalLogPanel log={log} engineOn={!!layerState?.aiDetectionMaster} />
     </div>
   );
 }

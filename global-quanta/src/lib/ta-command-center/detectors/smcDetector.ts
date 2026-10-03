@@ -46,7 +46,8 @@ function calcATRSeries(bars: OhlcvBar[], period = ATR_PERIOD): number[] {
   return atr;
 }
 
-export function detectOrderBlocks(bars: OhlcvBar[]): OrderBlock[] {
+/** Mọi OB trong lịch sử (chưa cắt, chưa xét mitigation) — dùng để đếm tổng số thật. */
+function collectOrderBlocks(bars: OhlcvBar[]): OrderBlock[] {
   const atr = calcATRSeries(bars);
   const obs: OrderBlock[] = [];
   for (let i = 0; i < bars.length - 3; i++) {
@@ -61,7 +62,13 @@ export function detectOrderBlocks(bars: OhlcvBar[]): OrderBlock[] {
       obs.push({ date: bar.date, type: "bearish", top: bar.high, bottom: bar.low, mitigated: false, mitigatedAt: null });
     }
   }
-  const recent = obs.slice(-10);
+  return obs;
+}
+
+export const SMC_DISPLAY_LIMIT = { obs: 10, fvgs: 10, bos: 6, choch: 4, liquidity: 6 } as const;
+
+export function detectOrderBlocks(bars: OhlcvBar[]): OrderBlock[] {
+  const recent = collectOrderBlocks(bars).slice(-SMC_DISPLAY_LIMIT.obs);
   for (const ob of recent) {
     const obIndex = bars.findIndex((b) => b.date === ob.date);
     if (obIndex === -1) continue;
@@ -77,7 +84,7 @@ export function detectOrderBlocks(bars: OhlcvBar[]): OrderBlock[] {
   return recent;
 }
 
-export function detectFVG(bars: OhlcvBar[]): FairValueGap[] {
+function collectFVG(bars: OhlcvBar[]): FairValueGap[] {
   const atr = calcATRSeries(bars);
   const gaps: FairValueGap[] = [];
   for (let i = 0; i < bars.length - 2; i++) {
@@ -90,7 +97,11 @@ export function detectFVG(bars: OhlcvBar[]): FairValueGap[] {
       gaps.push({ startDate: c1.date, endDate: c3.date, type: "bearish", top: c1.low, bottom: c3.high, filled: false, filledAt: null });
     }
   }
-  const recent = gaps.slice(-10);
+  return gaps;
+}
+
+export function detectFVG(bars: OhlcvBar[]): FairValueGap[] {
+  const recent = collectFVG(bars).slice(-SMC_DISPLAY_LIMIT.fvgs);
   for (const gap of recent) {
     const gapIndex = bars.findIndex((b) => b.date === gap.endDate);
     if (gapIndex === -1) continue;
@@ -167,13 +178,13 @@ export function computeStructureEventsFull(bars: OhlcvBar[]): { bos: BreakOfStru
 }
 
 export function detectBOS(bars: OhlcvBar[]): BreakOfStructure[] {
-  return computeStructureEvents(bars).bos.slice(-6);
+  return computeStructureEvents(bars).bos.slice(-SMC_DISPLAY_LIMIT.bos);
 }
 
 /** ĐÃ THÊM — CHoCH (Change of Character): tín hiệu đảo chiều sớm, phân
  * biệt rõ với BOS (tiếp diễn xu hướng). */
 export function detectCHoCH(bars: OhlcvBar[]): BreakOfStructure[] {
-  return computeStructureEvents(bars).choch.slice(-4);
+  return computeStructureEvents(bars).choch.slice(-SMC_DISPLAY_LIMIT.choch);
 }
 
 /** ĐÃ THÊM — Liquidity Sweep / Equal Highs-Equal Lows (EQH/EQL): vùng
@@ -189,7 +200,7 @@ export interface LiquidityPool {
 
 const EQUAL_LEVEL_TOLERANCE = 0.0015; // 0.15% — 2 đỉnh/đáy trong ngưỡng này coi là "bằng nhau"
 
-export function detectLiquidityPools(bars: OhlcvBar[]): LiquidityPool[] {
+function collectLiquidityPools(bars: OhlcvBar[]): LiquidityPool[] {
   const { highs, lows } = detectSwingPoints(bars);
   const pools: LiquidityPool[] = [];
 
@@ -216,7 +227,25 @@ export function detectLiquidityPools(bars: OhlcvBar[]): LiquidityPool[] {
 
   clusterPoints(highs, "EQH");
   clusterPoints(lows, "EQL");
-  return pools.slice(-6);
+  return pools;
+}
+
+export function detectLiquidityPools(bars: OhlcvBar[]): LiquidityPool[] {
+  return collectLiquidityPools(bars).slice(-SMC_DISPLAY_LIMIT.liquidity);
+}
+
+export interface SmcTotals { obs: number; fvgs: number; bos: number; choch: number; liquidity: number }
+
+/** Tổng số sự kiện THẬT trên toàn bộ nến (UI chỉ vẽ vài sự kiện gần nhất — xem SMC_DISPLAY_LIMIT). */
+export function countSmcEvents(bars: OhlcvBar[]): SmcTotals {
+  const structure = computeStructureEvents(bars);
+  return {
+    obs: collectOrderBlocks(bars).length,
+    fvgs: collectFVG(bars).length,
+    bos: structure.bos.length,
+    choch: structure.choch.length,
+    liquidity: collectLiquidityPools(bars).length,
+  };
 }
 
 /** ĐÃ THÊM — Premium/Discount Zone (chia đôi vùng giá theo swing gần

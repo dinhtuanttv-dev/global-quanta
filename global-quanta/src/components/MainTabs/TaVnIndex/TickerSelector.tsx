@@ -17,7 +17,7 @@ export default function TickerSelector({ ticker, onChange }: Props) {
       <span className="ta-ticker-current">{ticker}</span>
       <input
         className="ta-ticker-input"
-        placeholder="Doi ma khac..."
+        placeholder="Đổi mã…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
       />
