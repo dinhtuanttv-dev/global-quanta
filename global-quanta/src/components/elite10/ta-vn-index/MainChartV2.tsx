@@ -14,6 +14,10 @@ import { PriceZones } from './chart/PriceZones';
 import { ForecastDivider } from './chart/ForecastDivider';
 import { WyckoffPhaseZones } from './chart/WyckoffPhaseZones';
 import { ElliottWaveSeries } from './chart/ElliottWaveSeries';
+import { VwapSeries } from './chart/VwapSeries';
+import { SuperTrendSeries } from './chart/SuperTrendSeries';
+import { FibonacciLevels } from './chart/FibonacciLevels';
+import { VolumeProfileZones } from './chart/VolumeProfileZones';
 import type { WyckoffSchematic } from '../../../hooks/elite10/useSmcDetector';
 import type { ElliottData } from '../../../types/taVnIndex';
 
@@ -40,6 +44,13 @@ interface MainChartProps {
   showBollinger?: boolean;
   showWyckoff?: boolean;
   showElliott?: boolean;
+  showVwap?: boolean;
+  showSuperTrend?: boolean;
+  showFibonacci?: boolean;
+  showVolumeProfile?: boolean;
+  showMsGarch?: boolean;
+  showEvents?: boolean;
+  showRiskFlags?: boolean;
   wyckoffReal?: WyckoffSchematic | null;
   elliott?: ElliottData | null;
   tradeScenario?: TradeScenario | null;
@@ -70,7 +81,9 @@ export function MainChart(props: MainChartProps) {
   const {
     priceSeries, zones, trendline, events, showTrendline, showDemandZone,
     computedIndicators, showSma200, showEma, showBollinger,
-    showWyckoff, showElliott, wyckoffReal, elliott,
+    showWyckoff, showElliott, showVwap, showSuperTrend, showFibonacci, showVolumeProfile,
+    showMsGarch, showEvents, showRiskFlags,
+    wyckoffReal, elliott,
     tradeScenario, riskFlags,
     tripleBarrierOccurrences, selectedOccurrenceIndex,
     fanChart,
@@ -78,17 +91,19 @@ export function MainChart(props: MainChartProps) {
 
   const markers = useMemo<SeriesMarker<Time>[]>(() => {
     const timeIndex = buildTimeIndex(priceSeries);
-    const eventMarkers = (Array.isArray(events) ? events : [])
-      .filter((ev) => timeIndex.has(ev.time))
-      .map((ev) => ({
-        time: ev.time as unknown as Time,
-        position: (ev.type === 'T' ? 'aboveBar' : 'belowBar') as 'aboveBar' | 'belowBar',
-        color: ev.type === 'T' ? '#22e8ff' : ev.type === 'A' ? '#a78bfa' : '#ffb020',
-        shape: 'circle' as const,
-        text: ev.type,
-      }));
+    const eventMarkers = showEvents && Array.isArray(events)
+      ? events
+          .filter((ev) => timeIndex.has(ev.time))
+          .map((ev) => ({
+            time: ev.time as unknown as Time,
+            position: (ev.type === 'T' ? 'aboveBar' : 'belowBar') as 'aboveBar' | 'belowBar',
+            color: ev.type === 'T' ? '#22e8ff' : ev.type === 'A' ? '#a78bfa' : '#ffb020',
+            shape: 'circle' as const,
+            text: ev.type,
+          }))
+      : [];
     const lastBarTime = priceSeries[priceSeries.length - 1]?.time;
-    const riskMarker = riskFlags && riskFlags.length > 0 && lastBarTime
+    const riskMarker = showRiskFlags && riskFlags && riskFlags.length > 0 && lastBarTime
       ? [{ time: lastBarTime as unknown as Time, position: 'aboveBar' as const, color: '#ff4d5e', shape: 'arrowDown' as const, text: '⚠' }]
       : [];
     const tbMarkers = (tripleBarrierOccurrences ?? [])
@@ -101,7 +116,7 @@ export function MainChart(props: MainChartProps) {
         text: occ.label === 1 ? '✓' : '✗',
       }));
     return [...eventMarkers, ...riskMarker, ...tbMarkers].sort((a, b) => (a.time > b.time ? 1 : -1));
-  }, [events, riskFlags, priceSeries, tripleBarrierOccurrences]);
+  }, [events, riskFlags, priceSeries, tripleBarrierOccurrences, showEvents, showRiskFlags]);
 
   const trendlineData = useMemo<(LineData | WhitespaceData)[]>(
     () => (showTrendline ? (trendline as unknown as LineData[]) : []),
@@ -135,7 +150,7 @@ export function MainChart(props: MainChartProps) {
   );
 
   const { p10Data, p50Data, p90Data } = useMemo(() => {
-    if (!fanChart || fanChart.length === 0 || priceSeries.length === 0) {
+    if (!showMsGarch || !fanChart || fanChart.length === 0 || priceSeries.length === 0) {
       return { p10Data: [] as (LineData | WhitespaceData)[], p50Data: [] as (LineData | WhitespaceData)[], p90Data: [] as (LineData | WhitespaceData)[] };
     }
     try {
@@ -161,7 +176,7 @@ export function MainChart(props: MainChartProps) {
       console.error('[MainChart] Không tính được fan chart MS-GARCH (bỏ qua):', err);
       return { p10Data: [] as (LineData | WhitespaceData)[], p50Data: [] as (LineData | WhitespaceData)[], p90Data: [] as (LineData | WhitespaceData)[] };
     }
-  }, [fanChart, priceSeries]);
+  }, [fanChart, priceSeries, showMsGarch]);
 
   return (
     <ChartWrapper height={560}>
@@ -169,9 +184,13 @@ export function MainChart(props: MainChartProps) {
         <TradeScenarioLines tradeScenario={tradeScenario} samplePrice={priceSeries[priceSeries.length - 1]?.close} />
         <TripleBarrierZone priceSeries={priceSeries} occurrences={tripleBarrierOccurrences} selectedIndex={selectedOccurrenceIndex} />
         <PriceZones priceSeries={priceSeries} zones={zones} showDemandZone={showDemandZone} />
-        <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(fanChart && fanChart.length > 0)} />
+        <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(showMsGarch && fanChart && fanChart.length > 0)} />
         <WyckoffPhaseZones priceSeries={priceSeries} wyckoffReal={wyckoffReal} showWyckoff={Boolean(showWyckoff)} />
         <ElliottWaveSeries priceSeries={priceSeries} elliott={elliott} showElliott={Boolean(showElliott)} />
+        <VwapSeries priceSeries={priceSeries} showVwap={Boolean(showVwap)} />
+        <SuperTrendSeries priceSeries={priceSeries} showSuperTrend={Boolean(showSuperTrend)} />
+        <FibonacciLevels priceSeries={priceSeries} showFibonacci={Boolean(showFibonacci)} />
+        <VolumeProfileZones priceSeries={priceSeries} showVolumeProfile={Boolean(showVolumeProfile)} />
       </CandlestickSeries>
 
       <LineSeries data={trendlineData} options={{ color: '#22e8ff', lineWidth: 2 }} />

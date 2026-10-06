@@ -165,6 +165,13 @@ export function TaVnIndexPanel({
           showBollinger={overlays.bollinger}
           showWyckoff={overlays.wyckoff}
           showElliott={overlays.elliott}
+          showVwap={overlays.vwap}
+          showSuperTrend={overlays.supertrend}
+          showFibonacci={overlays.fibonacci}
+          showVolumeProfile={overlays.volumeProfile}
+          showMsGarch={overlays.msGarch}
+          showEvents={overlays.events}
+          showRiskFlags={overlays.riskFlags}
           wyckoffReal={smcReal?.wyckoff}
           elliott={data.elliott}
           tradeScenario={overlay?.tradeScenario}
@@ -221,37 +228,35 @@ export function TaVnIndexPanel({
         <EventVolatilityTable priceSeries={data.priceSeries} events={resolvedEvents} demandZone={demandZone} />
       </div>
 
-      {/* Vung 2.5 - Chu Ky & Thoi Diem (Time Engine day du) */}
-      {cycleDetail && <CycleEnginePanel data={cycleDetail} />}
-
-      <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
-      <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
-      <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
-      <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
-      <SmcBacktestPanel smcReal={smcReal} selectedPatternKey={selectedPatternKey} onSelectPattern={handleSelectPattern} />
-
-      <MsGarchPanel ticker={ticker} />
-
-      <DebateArenaPanel ticker={ticker} />
-
-      {watchlist}
-
-      {/* FIX (ra soat 2026-09-17): uu tien Confluence Engine THAT (6
-          pillar da port + test khop 100% Python) - fallback ve mock cu
-          (data.confluence, 7 nguon co dinh) CHI KHI chua load xong, de
-          khong hien man hinh trong khi cho API. */}
-      <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
-
-      {/* Vung 3 - Waterfall: giai thich diem so theo tung nguon */}
-      {confluenceBreakdown && (
-        <ConfluenceWaterfall sources={confluenceBreakdown.sources} penalty={confluenceBreakdown.penalty} score={confluenceBreakdown.overall.value} />
-      )}
-
-      {/* Vung 4 - Ma tran doi khang + Vung 5 - AI Deep Insight */}
-      {insight && (
+      {/* Vung Bảng Chỉ báo Phụ - Có thể Bật/Tắt linh hoạt bằng nút [ Bảng chỉ báo phụ ] */}
+      {overlays.subPanels !== false && (
         <>
-          <ConfluenceCaseMatrix bullCase={insight.bullCase} bearCase={insight.bearCase} />
-          <AiDeepInsightPanel tradeScenario={insight.tradeScenario} riskFlags={insight.riskFlags} warnings={insight.warnings} />
+          {cycleDetail && <CycleEnginePanel data={cycleDetail} />}
+
+          <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
+          <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
+          <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
+          <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
+          <SmcBacktestPanel smcReal={smcReal} selectedPatternKey={selectedPatternKey} onSelectPattern={handleSelectPattern} />
+
+          <MsGarchPanel ticker={ticker} />
+
+          <DebateArenaPanel ticker={ticker} />
+
+          {watchlist}
+
+          <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
+
+          {confluenceBreakdown && (
+            <ConfluenceWaterfall sources={confluenceBreakdown.sources} penalty={confluenceBreakdown.penalty} score={confluenceBreakdown.overall.value} />
+          )}
+
+          {insight && (
+            <>
+              <ConfluenceCaseMatrix bullCase={insight.bullCase} bearCase={insight.bearCase} />
+              <AiDeepInsightPanel tradeScenario={insight.tradeScenario} riskFlags={insight.riskFlags} warnings={insight.warnings} />
+            </>
+          )}
         </>
       )}
     </div>
