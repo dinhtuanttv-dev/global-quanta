@@ -84,10 +84,11 @@ export function TaVnIndexPanel({
   if (isLoading) {
     return (
       <div className="flex flex-col gap-3 text-slate-200">
+        {watchlist}
         {controlBar}
         <div className="flex flex-col items-center gap-2 py-10">
           <div className="h-6 w-6 animate-spin rounded-full border-[3px] border-white/10 border-t-cyan-400" />
-          <p className="text-xs text-slate-400">Đang phân tích kỹ thuật…</p>
+          <p className="text-xs text-slate-400">Đang phân tích kỹ thuật {ticker}…</p>
         </div>
       </div>
     );
@@ -97,11 +98,12 @@ export function TaVnIndexPanel({
   if (isError) {
     return (
       <div className="flex flex-col gap-3 text-slate-200">
+        {watchlist}
         {controlBar}
         <div className="flex flex-col items-center gap-2 py-8 text-center" role="alert">
-          <p className="text-sm">Không tải được dữ liệu TA VN-Index.</p>
+          <p className="text-sm">Không tải được dữ liệu TA cho mã {ticker}.</p>
           <p className="text-xs text-slate-500">{error?.message ?? 'Lỗi không xác định.'}</p>
-          <button type="button" onClick={onRetry} className="rounded border border-rose-500 px-3.5 py-1.5 text-xs text-rose-400">
+          <button type="button" onClick={onRetry} className="rounded border border-rose-500 px-3.5 py-1.5 text-xs text-rose-400 hover:bg-rose-500/10">
             Thử lại
           </button>
         </div>
@@ -113,8 +115,9 @@ export function TaVnIndexPanel({
   if (isEmpty || !data) {
     return (
       <div className="flex flex-col gap-3 text-slate-200">
+        {watchlist}
         {controlBar}
-        <div className="py-10 text-center text-xs text-slate-500">Chưa có đủ dữ liệu kỹ thuật cho mã này.</div>
+        <div className="py-10 text-center text-xs text-slate-500">Chưa có đủ dữ liệu kỹ thuật cho mã {ticker}. Vui lòng chọn mã khác ở danh sách trên.</div>
       </div>
     );
   }
@@ -142,9 +145,17 @@ export function TaVnIndexPanel({
 
   return (
     <div className="flex flex-col gap-3 text-slate-200">
-      <div className="text-[13px] font-bold tracking-wide text-cyan-300">
-        [ TA VN-INDEX ] — {data.ticker} · sau nâng cấp TA Logic Engine
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[13px] font-bold tracking-wide text-cyan-300">
+          [ TA VN-INDEX ] — {data.ticker} · Phân Tích Kỹ Thuật Chuyên Sâu Elite 10
+        </div>
+        <div className="text-[11px] text-slate-400">
+          Đang xem: <span className="font-bold text-cyan-400">{ticker}</span>
+        </div>
       </div>
+
+      {/* DANH SÁCH MÃ & BỘ CHỌN THÔNG MINH - VỊ TRÍ CAO NHẤT, HIỆN ĐẠI NHẤT */}
+      {watchlist}
 
       {controlBar}
       <MockDataBanner isMock={data.analysisIsMock ?? false} fallbackReason={data.fallbackReason} />
@@ -242,8 +253,6 @@ export function TaVnIndexPanel({
           <MsGarchPanel ticker={ticker} />
 
           <DebateArenaPanel ticker={ticker} />
-
-          {watchlist}
 
           <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
 

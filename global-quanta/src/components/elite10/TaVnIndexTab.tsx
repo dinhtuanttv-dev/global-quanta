@@ -37,7 +37,8 @@ const DEFAULT_OVERLAYS: Record<string, boolean> = {
 export function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
   const [localTicker, setLocalTicker] = useState<string | null>(null);
-  const ticker = localTicker ?? globalSelectedTicker;
+  const DEFAULT_TICKER = 'VNINDEX';
+  const ticker = localTicker ?? globalSelectedTicker ?? DEFAULT_TICKER;
 
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [overlays, setOverlays] = useState<Record<string, boolean>>(DEFAULT_OVERLAYS);
@@ -47,10 +48,6 @@ export function TaVnIndexTab() {
   const toggleOverlay = (key: string) => {
     setOverlays((prev) => ({ ...prev, [key]: !prev[key] }));
   };
-
-  if (!ticker) {
-    return <div className="py-10 text-center text-xs text-slate-500">Chọn một mã cổ phiếu để xem phân tích kỹ thuật.</div>;
-  }
 
   return (
     <TaVnIndexPanel
