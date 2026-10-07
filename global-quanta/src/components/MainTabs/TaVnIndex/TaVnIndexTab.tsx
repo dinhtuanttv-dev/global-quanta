@@ -9,6 +9,7 @@ import PatternList from "./PatternList";
 import SubTabNavigation, { SubTabKey } from "./SubTabNavigation";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
 import AIChartVisionTab from "./AIChartVision";
+import TechnicalFilterPanel from "./TechnicalFilterPanel";
 import "./AIChartVision/styles.css";
 
 export default function TaVnIndexTab() {
@@ -120,6 +121,12 @@ export default function TaVnIndexTab() {
           <div className="mt-2">
             {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
             {activeSubTab === "convergence" && <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />}
+            {activeSubTab === "camslim" && (
+              <TechnicalFilterPanel strategy="camslim" onSelectTicker={handleCandidateSelect} />
+            )}
+            {activeSubTab === "base-breakout" && (
+              <TechnicalFilterPanel strategy="base-breakout" onSelectTicker={handleCandidateSelect} />
+            )}
             {activeSubTab === "golden" && (
               <>
                 <GoldenFilterPanel onSelectTicker={handleCandidateSelect} />

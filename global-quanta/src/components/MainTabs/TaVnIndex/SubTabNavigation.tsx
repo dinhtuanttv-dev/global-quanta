@@ -1,6 +1,6 @@
-import { Search, GitMerge, Star, Cpu } from "lucide-react";
+import { Search, GitMerge, Star, Cpu, Coffee, TrendingUp } from "lucide-react";
 
-export type SubTabKey = "pattern" | "convergence" | "golden" | "aichart";
+export type SubTabKey = "pattern" | "convergence" | "golden" | "camslim" | "base-breakout" | "aichart";
 
 interface SubTabNavigationProps {
   activeTab: SubTabKey;
@@ -11,17 +11,19 @@ const TABS: { key: SubTabKey; label: string; icon: React.ReactNode }[] = [
   { key: "pattern", label: "Pattern Scanner", icon: <Search className="w-3.5 h-3.5" /> },
   { key: "convergence", label: "Bộ lọc Hợp lưu Nâng Cao", icon: <GitMerge className="w-3.5 h-3.5" /> },
   { key: "golden", label: "Golden Filter x Top 20", icon: <Star className="w-3.5 h-3.5" /> },
+  { key: "camslim", label: "CAMSLIM Cup & Handle", icon: <Coffee className="w-3.5 h-3.5" /> },
+  { key: "base-breakout", label: "Base Breakout", icon: <TrendingUp className="w-3.5 h-3.5" /> },
   { key: "aichart", label: "AI Chart Vision", icon: <Cpu className="w-3.5 h-3.5" /> },
 ];
 
 export default function SubTabNavigation({ activeTab, onTabChange }: SubTabNavigationProps) {
   return (
-    <div className="flex items-center gap-1.5 px-2 py-2 rounded-lg" style={{ background: "rgba(15,23,42,0.8)", borderTop: "1px solid rgba(148,163,184,0.1)" }}>
+    <div className="flex items-center gap-1.5 px-2 py-2 rounded-lg overflow-x-auto" style={{ background: "rgba(15,23,42,0.8)", borderTop: "1px solid rgba(148,163,184,0.1)" }}>
       {TABS.map((tab) => (
         <button
           key={tab.key}
           onClick={() => onTabChange(tab.key)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all duration-200"
+          className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold transition-all duration-200"
           style={{
             background: activeTab === tab.key
               ? "linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.1))"

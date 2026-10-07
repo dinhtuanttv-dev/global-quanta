@@ -19,6 +19,7 @@ import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignal
 import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
 import { createCorporateActions } from "../market/adjusted/corporateActions.js";
 import { createTaSeries } from "../market/adjusted/taSeries.js";
+import { runTechnicalFilter, STRATEGY_IDS } from "../market/strategies/technicalFilters.js";
 
 const router = Router();
 
@@ -104,6 +105,22 @@ router.get("/scanner", handle(async (req, res) => {
   }
   res.set("Cache-Control", "public, max-age=60");
   res.json(doc);
+}));
+// Independent technical screeners for the TA VN-Index module.
+router.get("/strategies/:strategy", handle(async (req, res) => {
+  const { strategy } = req.params;
+  if (!STRATEGY_IDS.includes(strategy)) {
+    res.status(404).json({ error: `Unknown technical strategy: ${strategy}.` });
+    return;
+  }
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap(
+    `technical-filter:${strategy}`,
+    5 * 60_000,
+    () => runTechnicalFilter(rt.service, strategy),
+  );
+  res.set("Cache-Control", "private, max-age=60");
+  res.json(data);
 }));
 
 // Dòng phụ Bảng Siêu Quét: phân tích chuyên sâu khối lượng của một mã.
