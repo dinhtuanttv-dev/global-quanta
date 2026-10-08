@@ -7,11 +7,9 @@
 //     các ngưỡng giá/thanh khoản trong preset gốc của chiến lược tính theo đơn vị khác nên đặt về 0).
 //   - Quét một lần sau ATC (job scanStrategies) và lưu KV `strategies:<id>`; API đọc KV.
 
-import { createRequire } from "node:module";
 import { mapLimit } from "../util.js";
 
-const require = createRequire(import.meta.url);
-const CamSlim = require("./camSlim.cjs");
+import { buildCsEvidence, buildRsTable, marketContextM, scanCanSlimV2 } from "./canSlimV2.js";
 import { buildEvidence, marketContext, scanBaseBreakoutV2 } from "./baseBreakoutV2.js";
 
 export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout"]);
@@ -20,7 +18,7 @@ export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S1", "base-breakout": "screener-v2/S2" });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S3", "base-breakout": "screener-v2/S3" });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -35,8 +33,6 @@ export function screenerCriteria(env = process.env) {
   };
 }
 
-// Ngưỡng của preset gốc tính theo đơn vị giá/khối lượng khác VN -> tắt, dùng cổng thanh khoản VND chung.
-const CAMSLIM_OPTIONS = Object.freeze({ minPrice: 0, minAvgVol: 0, minDollarVol: 0 });
 
 function failure(statusCode, message) {
   const error = new Error(message);
@@ -72,10 +68,13 @@ function commonLastDate(seriesList) {
 
 function runStrategy(strategy, bars, ctx) {
   if (strategy === "camslim") {
-    const r = CamSlim.scanSymbol(bars, CAMSLIM_OPTIONS);
-    return r.status ? { status: r.status, date: r.date, metrics: r.metrics, checks: r.checks } : null;
+    const r = scanCanSlimV2(bars, ctx.canslim);
+    return r.status ? {
+      status: r.status, grade: r.grade, date: r.date, metrics: r.metrics, components: r.components, plan: r.plan,
+      pattern: r.pattern, fundamentals: r.fundamentals,
+    } : null;
   }
-  const r = scanBaseBreakoutV2(bars, ctx);
+  const r = scanBaseBreakoutV2(bars, ctx.market);
   return r.status ? { status: r.status, grade: r.grade, date: r.date, metrics: r.metrics, checks: r.checks, components: r.components, plan: r.plan } : null;
 }
 
@@ -112,8 +111,16 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
   })).filter(Boolean);
 
   const dataAsOf = commonLastDate(loaded);
-  let market = { marketUp: () => null, lastDate: null };
-  try { if (typeof loadSeries.index === "function") market = marketContext(await loadSeries.index()); } catch { /* thiếu VN-Index -> M = null */ }
+  let indexBars = [];
+  try { if (typeof loadSeries.index === "function") indexBars = await loadSeries.index(); } catch { /* thiếu VN-Index -> M = null */ }
+  const market = marketContext(indexBars);
+  // CAN SLIM: BCTC quý (kho market_fundamentals, VCI), RS O'Neil + sức mạnh ngành theo ngày trên toàn universe, M có ngày phân phối.
+  let canslim = null;
+  if (strategies.includes("camslim")) {
+    const faMap = typeof service.store.getFundamentals === "function" ? await service.store.getFundamentals(loaded.map((s) => s.item.ticker)) : new Map();
+    const rsTable = buildRsTable(new Map(loaded.filter((s) => s.bars.length >= 253).map((s) => [s.item.ticker, { bars: s.bars, sector: s.item.sector }])));
+    canslim = { faMap, rsTable, market: marketContextM(indexBars) };
+  }
   if (!dataAsOf) throw failure(503, "Chưa tải được chuỗi giá của mã nào trong universe.");
 
   const eligible = [];
@@ -135,7 +142,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     const errors = [];
     for (const { item, bars, gate, priceBasis: basis } of eligible) {
       try {
-        const r = runStrategy(strategy, bars, market);
+        const r = runStrategy(strategy, bars, { market, canslim: canslim && { symbol: item.ticker, fa: canslim.faMap.get(item.ticker), rsTable: canslim.rsTable, market: canslim.market } });
         if (r) {
           results.push({
             ticker: item.ticker, name: item.name ?? null, sector: item.sector ?? null, ...r,
@@ -148,14 +155,18 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     }
     results.sort((a, b) => compareResults(strategy, a, b));
     // Bằng chứng lịch sử (S2: Base Breakout) — mọi mã đã tải, cổng thanh khoản áp TẠI từng thời điểm (tránh thiên lệch sống sót).
-    const evidence = strategy === "base-breakout" && withEvidence
+    const evidence = !withEvidence ? null : strategy === "base-breakout"
       ? buildEvidence(loaded.map((s) => s.bars), { minAvgValue20: criteria.minAvgValue20, ctx: market })
-      : null;
+      : buildCsEvidence(loaded.map((s) => ({ symbol: s.item.ticker, bars: s.bars, fa: canslim.faMap.get(s.item.ticker) })), { rsTable: canslim.rsTable, market: canslim.market, minAvgValue20: criteria.minAvgValue20 });
     out[strategy] = {
       strategy,
       engine: STRATEGY_ENGINE[strategy],
       ...(evidence ? { evidence } : {}),
-      ...(strategy === "base-breakout" ? { market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20" } } : {}),
+      market: {
+        indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20",
+        ...(strategy === "camslim" ? { distributionDays: canslim.market.distributionDays(dataAsOf) } : {}),
+      },
+      ...(strategy === "camslim" ? { fundamentalsCoverage: { withData: [...canslim.faMap.values()].filter((f) => f?.income?.quarters?.length).length, with12Quarters: [...canslim.faMap.values()].filter((f) => (f?.income?.quarters?.length ?? 0) >= 12).length } } : {}),
       generatedAt,
       dataAsOf,
       source: "SSI Market Gateway · giá điều chỉnh cộng dồn",

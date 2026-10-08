@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { VN_RULES } from "../src/market/strategies/vnBacktest.js";
 import { V2, backtestV2, dailyVolumeProfile, evaluateV2, marketContext, prepareV2, summarizeTrades } from "../src/market/strategies/baseBreakoutV2.js";
 
 const T = 280; // phiên tín hiệu trong các ca dựng sẵn
@@ -38,9 +39,9 @@ test("T+2,5: thủng stop ở T và T+1 nhưng chỉ bán được chiều T+2, 
   assert.equal(x.entryIdx, T + 1);
   assert.equal(x.exitIdx, T + 3, "không bán ở T (entry) và T+1");
   assert.equal(x.reason, "STOP");
-  const entry = bars[T + 1].open * (1 + V2.slipPct);
+  const entry = bars[T + 1].open * (1 + VN_RULES.slipPct);
   const exitPx = Math.min(x.stop, bars[T + 3].close);
-  const expected = ((exitPx * (1 - V2.slipPct) * (1 - V2.feePct - V2.sellTaxPct)) / (entry * (1 + V2.feePct)) - 1) * 100;
+  const expected = ((exitPx * (1 - VN_RULES.slipPct) * (1 - VN_RULES.feePct - VN_RULES.sellTaxPct)) / (entry * (1 + VN_RULES.feePct)) - 1) * 100;
   assert.ok(Math.abs(x.netPct - expected) < 1e-9, `${x.netPct} vs ${expected}`);
 });
 
@@ -63,7 +64,7 @@ test("chi phí: đi ngang tới hết thời gian giữ -> lỗ đúng bằng ph
   const bars = series(flat(12));
   const { trades } = backtestV2(bars, { accept: onlyAt(T), trailMA: 0, maxHold: 5 });
   assert.equal(trades[0].reason, "TIME");
-  const expected = (((1 - V2.slipPct) * (1 - V2.feePct - V2.sellTaxPct)) / ((1 + V2.slipPct) * (1 + V2.feePct)) - 1) * 100;
+  const expected = (((1 - VN_RULES.slipPct) * (1 - VN_RULES.feePct - VN_RULES.sellTaxPct)) / ((1 + VN_RULES.slipPct) * (1 + VN_RULES.feePct)) - 1) * 100;
   assert.ok(Math.abs(trades[0].netPct - expected) < 1e-9, `${trades[0].netPct} vs ${expected}`);
   assert.ok(trades[0].netPct < -0.5 && trades[0].netPct > -0.6, `${trades[0].netPct}`);
 });

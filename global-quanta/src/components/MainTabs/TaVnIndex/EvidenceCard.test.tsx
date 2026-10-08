@@ -38,6 +38,12 @@ describe("EvidenceCard", () => {
     expect(el.textContent).toContain("M chưa thuận");
     expect(el.textContent).toContain("Hạng A");
     expect(el.querySelector("details")?.open).toBe(false);
+    expect(el.querySelector('[data-testid="evidence-small-sample"]')).toBeNull();
+  });
+
+  it("cảnh báo mẫu nhỏ khi < 100 lệnh", () => {
+    const el = render(<EvidenceCard evidence={{ ...evidence, all: { ...evidence.all, n: 57 } }} marketUp />);
+    expect(el.querySelector('[data-testid="evidence-small-sample"]')?.textContent).toContain("57 lệnh");
   });
 
   it("không có nhãn M khi thị trường thuận", () => {

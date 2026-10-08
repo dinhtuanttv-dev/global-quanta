@@ -52,6 +52,11 @@ export default function EvidenceCard({ evidence, marketUp }: { evidence: Technic
       </summary>
       <div className="pt-2 space-y-2">
         <p className="text-slate-400 leading-relaxed">{evidence.reason}</p>
+        {evidence.all.n > 0 && evidence.all.n < 100 && (
+          <p className="text-amber-300/90 leading-relaxed" data-testid="evidence-small-sample">
+            Mẫu nhỏ ({evidence.all.n} lệnh): chênh lệch giữa các hạng / nhóm chưa có ý nghĩa thống kê — chỉ tham khảo.
+          </p>
+        )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
           <Cell title={`Trong mẫu${evidence.period ? ` ${evidence.period.from.slice(0, 7)}→` : ""}`} s={evidence.inSample} />
           <Cell title={`Ngoài mẫu${evidence.period ? ` từ ${evidence.period.oosFrom.slice(0, 7)}` : ""}`} s={evidence.outOfSample} base={evidence.baseline?.outOfSample ?? null} />

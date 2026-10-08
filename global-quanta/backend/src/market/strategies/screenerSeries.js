@@ -9,7 +9,7 @@
 // Lịch sử còn thiếu được job backfillScreenerHistory nạp từ SSI ban đêm.
 
 import { ADJUSTED_TABLE } from "../adjusted/adjustedHistory.js";
-import { adjustOhlcSeries } from "../adjusted/corporateActions.js";
+import { adjustOhlcSeries, repairUnexplainedGaps } from "../adjusted/corporateActions.js";
 import { nominalizeBars } from "../adjusted/taSeries.js";
 import { addDays } from "../util.js";
 
@@ -54,14 +54,20 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
         const bars = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 
         const warnings = [];
+        // Sự kiện quyền thiếu / hệ số không khôi phục được -> khoảng cách qua đêm > 20%: điều chỉnh lùi theo khoảng cách.
+        const finish = (list, priceBasis, extra = {}) => {
+          const fix = repairUnexplainedGaps(list);
+          if (fix.repaired.length) warnings.push(`Tự điều chỉnh ${fix.repaired.length} khoảng cách giá > 20% chưa có sự kiện quyền (${fix.repaired.map((x) => x.date).join(", ")}).`);
+          return { bars: fix.bars, priceBasis, gapRepairs: fix.repaired, warnings, ...extra };
+        };
         if (coverage < MIN_NOMINAL_COVERAGE) {
           warnings.push(`Giá danh nghĩa chỉ khớp ${Math.round(coverage * 100)}% số phiên lịch sử.`);
           // Không khôi phục được danh nghĩa -> điều chỉnh thêm theo sự kiện sẽ nhân đôi hệ số đợt quyền gần nhất.
-          return { bars, priceBasis: "SSI_LATEST_EVENT_ADJUSTED", warnings };
+          return finish(bars, "SSI_LATEST_EVENT_ADJUSTED");
         }
-        if (!ca) return { bars, priceBasis: "NOMINAL_UNADJUSTED", warnings: ["Chưa tải được sự kiện quyền."] };
+        if (!ca) { warnings.push("Chưa tải được sự kiện quyền."); return finish(bars, "NOMINAL_UNADJUSTED"); }
         const adj = adjustOhlcSeries(bars, ca.events);
-        return { bars: adj.bars, priceBasis: "ADJUSTED_CUMULATIVE", events: adj.applied.length, warnings };
+        return finish(adj.bars, "ADJUSTED_CUMULATIVE", { events: adj.applied.length });
       };
       // VN-Index (điểm chỉ số) cho yếu tố M — kho nến được job nghiên cứu / biểu đồ cập nhật hằng ngày.
       loadSeries.index = () => store.getBars("VNINDEX", from, to);
