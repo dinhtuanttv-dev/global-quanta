@@ -141,7 +141,7 @@ describe("Wyckoff — bản đồ chu kỳ & kế hoạch 3 lần (W3)", () => {
     const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
     expect(el.querySelector('[data-testid="wyckoff-cycle-map"]')?.getAttribute("data-current")).toBe("E");
     expect(el.querySelector('[data-testid="wyckoff-plan3"]')?.textContent).toContain("không phải khuyến nghị");
-    expect(el.querySelector('[data-testid="wyckoff-liquidity"]')?.textContent).toContain("15% KL TB20");
+    expect(el.querySelector('[data-testid="wyckoff-liquidity"]')?.textContent).toContain("10–20% KL TB20");
   });
   it("lớp vẽ: dải Phase A–E dưới range, đoạn hiện tại có nhãn '(hiện tại)'; lịch sử không vẽ", () => {
     const layers = { ...DEFAULT_LAYER_STATE, wyckoff: true };
@@ -151,6 +151,17 @@ describe("Wyckoff — bản đồ chu kỳ & kế hoạch 3 lần (W3)", () => {
     const stale = staleSpringSeries(90);
     const h = buildScene({ bars: stale, smc: null, wyckoff: analyze(stale).wyckoff, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
     expect(h.items.some((i) => i.kind === "zone" && /^Phase /.test(i.label?.text ?? ""))).toBe(false);
+  });
+});
+
+describe("Wyckoff — tín hiệu (W4)", () => {
+  it("thẻ hiện khối 'Tín hiệu Wyckoff · chưa đạt kiểm định' kèm số liệu ngoài mẫu", () => {
+    const bars = classicAccumulationSeries();
+    const w = analyze(bars, { timeframe: "D" }).wyckoffAlt!;
+    const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
+    const b = el.querySelector('[data-testid="wyckoff-signals"]');
+    expect(b?.textContent).toContain("chưa đạt kiểm định");
+    expect(b?.textContent).toContain("Ngoài mẫu");
   });
 });
 

@@ -92,6 +92,16 @@ export function buildScene(inp: SceneInput): Scene {
           label: { text: p.current ? `Phase ${p.phase} (hiện tại)` : `Phase ${p.phase}`, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
       }
     }
+    // W4: lần mua khớp (Lần 1/2/3) + cắt lỗ của lần gần nhất — chỉ cấu trúc đang hoạt động.
+    const plan = current ? w.tranches ?? null : null;
+    if (plan && plan.side === "buy") {
+      const done = plan.tranches.filter((t) => t.status === "done" && t.date);
+      for (const t of done) items.push({ kind: "vline", t: t.date!, color: rgba(GQ_COLORS.bull, 0.35), dash: [1, 3], labelPrice: t.price ?? undefined,
+        label: { text: `Lần ${t.n}`, color: GQ_COLORS.bull, priority: LABEL_PRIORITY.wyckoff } });
+      const lastDone = done[done.length - 1];
+      if (lastDone?.stop != null) items.push({ kind: "hline", t1: lastDone.date!, t2: null, price: lastDone.stop, color: rgba(GQ_COLORS.bear, 0.55), dash: [4, 3],
+        label: { text: `Cắt lỗ lần ${lastDone.n}`, color: GQ_COLORS.bear, priority: LABEL_PRIORITY.wyckoff } });
+    }
     // W2: đường cung / cầu của xu hướng trước range + đường song song (kênh), cao trào ngoài kênh, mục tiêu ước lượng 1×.
     const tt = current ? w.tests ?? null : null;
     if (tt?.channel) {

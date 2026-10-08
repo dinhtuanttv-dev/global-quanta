@@ -11,6 +11,7 @@ import { classifyWyckoffV2 } from "./wyckoff";
 import { classifyWyckoffV3 } from "./wyckoffV3";
 import { wyckoffNineTests } from "./wyckoffTests";
 import { phaseSegments, tradePlan3 } from "./wyckoffPlan";
+import { wyckoffSignals } from "./wyckoffSignals";
 import type { WyckoffResult } from "../ta-command-center/detectors/wyckoffDetector";
 import { eventStudy } from "./eventStudy";
 import { buildSessionProfiles, buildVolumeProfile, type SessionProfile, type VolumeProfile } from "./volumeProfile";
@@ -62,7 +63,9 @@ function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, is
   const rsItem = isIndex ? tests?.items.find((x) => x.key === "rs") : undefined;
   if (rsItem) rsItem.value = "không áp dụng cho chỉ số";
   // Chỉ số không giao dịch trực tiếp -> không có kế hoạch vào / thoát lệnh.
-  return { ...r, caveats, tests, phases: phaseSegments(bars, r), tranches: isIndex ? null : tradePlan3(bars, r) };
+  const out: WyckoffResult = { ...r, caveats, tests, phases: phaseSegments(bars, r), tranches: isIndex ? null : tradePlan3(bars, r) };
+  out.signals = wyckoffSignals(bars, out);
+  return out;
 }
 
 /** Số nến cho Composite Volume Profile trên khung D/W/M. */
