@@ -1,7 +1,9 @@
-import { AlertCircle, Activity, Info, RefreshCw } from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { AlertCircle, Activity, ChevronRight, Info, RefreshCw } from "lucide-react";
 import { useTechnicalFilter, type TechnicalFilterResult, type TechnicalFilterStrategy } from "../../../hooks/useTechnicalFilter";
 import EvidenceCard from "./EvidenceCard";
 import CanSlimDots from "./CanSlimDots";
+import ScreenerDeepPanel from "./ScreenerDeepPanel";
 
 const GRADE_STYLE: Record<string, string> = {
   A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -49,9 +51,45 @@ function skippedSummary(skipped: { reason: string }[]) {
   return [...count].map(([reason, n]) => `${n} ${SKIP_LABELS[reason] ?? reason}`).join(" · ");
 }
 
+/** Dòng phụ phân tích chuyên sâu: cuộn vào tầm nhìn MỘT lần khi vừa mở (như dòng phụ của Siêu Quét). */
+function DeepRow({ children, width }: { children: React.ReactNode; width: number | null }) {
+  const ref = useRef<HTMLTableRowElement | null>(null);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => ref.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  return (
+    <tr ref={ref} className="border-b border-cyan-900/40" data-testid="deep-row">
+      <td colSpan={7} className="p-0">
+        {/* Bảng có thể rộng hơn khung nhìn (cuộn ngang) -> bảng phụ bám theo bề rộng khung, dính mép trái. */}
+        <div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div>
+      </td>
+    </tr>
+  );
+}
+
 export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props) {
   const { data, error, isLoading, refresh } = useTechnicalFilter(strategy);
   const isCamSlim = strategy === "camslim";
+  // Nhấn đúp / bấm mã -> mở bảng phụ phân tích chuyên sâu (không mở biểu đồ); nhấn đúp lại hoặc Esc -> đóng.
+  const [open, setOpen] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [frameW, setFrameW] = useState<number | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!open || !el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setFrameW(el.clientWidth));
+    ro.observe(el);
+    setFrameW(el.clientWidth);
+    return () => ro.disconnect();
+  }, [open]);
+  const toggle = useCallback((ticker: string) => setOpen((cur) => (cur === ticker ? null : ticker)), []);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
 
   return (
     <section
@@ -118,7 +156,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
       )}
 
       {!!data?.results.length && (
-        <div className="max-h-64 overflow-auto">
+        <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-64 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
@@ -145,14 +183,23 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
             </thead>
             <tbody className="divide-y divide-slate-800/30">
               {data.results.map((result) => (
-                <tr key={result.ticker} className="hover:bg-slate-800/30 transition">
+                <Fragment key={result.ticker}>
+                <tr
+                  className={`transition cursor-pointer select-none ${open === result.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"}`}
+                  onDoubleClick={() => toggle(result.ticker)}
+                  aria-expanded={open === result.ticker}
+                  data-testid="filter-row"
+                >
                   <td className="py-1.5">
                     <button
                       type="button"
-                      onClick={() => onSelectTicker(result.ticker)}
-                      className="font-black text-amber-400 hover:text-amber-300"
-                      title={`Mở ${result.ticker} trên biểu đồ TA`}
+                      onClick={() => toggle(result.ticker)}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-0.5 font-black text-amber-400 hover:text-amber-300"
+                      title={`Phân tích chuyên sâu ${result.ticker} (nhấn đúp dòng hoặc Esc để đóng)`}
+                      aria-label={`Phân tích chuyên sâu ${result.ticker}`}
                     >
+                      <ChevronRight className={`w-3 h-3 transition-transform ${open === result.ticker ? "rotate-90" : ""}`} />
                       {result.ticker}
                     </button>
                     <span className="block text-[8px] text-slate-600">{result.date}</span>
@@ -197,6 +244,12 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                     </>
                   )}
                 </tr>
+                {open === result.ticker && (
+                  <DeepRow width={frameW}>
+                    <ScreenerDeepPanel strategy={strategy} result={result} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} />
+                  </DeepRow>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

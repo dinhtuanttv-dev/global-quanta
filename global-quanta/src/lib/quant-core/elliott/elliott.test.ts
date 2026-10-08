@@ -29,9 +29,10 @@ describe("quant-core Elliott", () => {
     const main = bars(111, f).map((b, i) => ({ ...b, date: day(60 + i) }));
     const s = elliottState([...pre, ...main]);
     expect(s).not.toBeNull();
-    expect(s!.scenario.points.map((p) => p.i - 60)).toEqual([0, 20, 30, 55, 65, 80]);
+    expect(s!.scenario!.points.map((p) => p.i - 60)).toEqual([0, 20, 30, 55, 65, 80]);
     expect(s!.wave).toBe("C");
     expect(s!.label).toContain("Sóng C");
+    expect(s!.degree).not.toBeNull();
     expect(s!.levels.length).toBeGreaterThan(0);
     expect(s!.invalidation?.price).toBeGreaterThan(0);
   });

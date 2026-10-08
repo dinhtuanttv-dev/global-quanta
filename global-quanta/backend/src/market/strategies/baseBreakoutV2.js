@@ -106,6 +106,8 @@ export function evaluateV2(S, t, ctx = {}) {
       ...m, score, belowPivotPct: belowPivot * 100,
       vp: vp && { poc: vp.poc, vah: vp.vah, val: vp.val }, foreignNet5: fNet5,
     },
+    // Hộp nền giá 10 phiên trước phiên tín hiệu (để vẽ — S5).
+    base: { fromDate: S.date[Math.max(0, t - 10)], toDate: S.date[t - 1], high: m.basePivot, low: m.baseLow },
     checks: c,
   };
 }
