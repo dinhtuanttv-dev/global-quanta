@@ -5,6 +5,8 @@
 import { STRATEGY_IDS, STRATEGY_RANGE, runTechnicalFilters, strategyKvKey } from "./technicalFilters.js";
 import { createScreenerSeries } from "./screenerSeries.js";
 import { recordSignals } from "./signalTracking.js";
+import { buildConvergenceEvidence, CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh } from "./convergenceV2.js";
+import { screenerCriteria } from "./technicalFilters.js";
 import { lastCompletedSessionDate, vnDate } from "../calendar.js";
 import { addDays, sleep } from "../util.js";
 
@@ -33,6 +35,28 @@ export function createStrategyJobs({ service, corporateActions, now = Date.now, 
         skipped: any.skipped.length,
         results: Object.fromEntries(STRATEGY_IDS.map((id) => [id, docs[id].resultCount])),
       };
+    },
+
+    /**
+     * Bằng chứng lịch sử Hợp lưu v2 (point-in-time mọi nến, ≈4 phút): chạy đêm, chỉ khi bản lưu khác engine hoặc cũ hơn 7 ngày
+     * (`force` = tính lại ngay). Ghi KV strategies:convergence:evidence.
+     */
+    async buildConvergenceEvidence({ force = false } = {}) {
+      const stored = (await store.getKv(CONVERGENCE_EVIDENCE_KV))?.value ?? null;
+      if (!force && convergenceEvidenceFresh(stored, now())) return { skipped: "FRESH", engine: stored.engine, computedAt: stored.computedAt };
+      const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
+      const loadSeries = await seriesSource.prepare(universe.map((x) => x.ticker));
+      const seriesList = [];
+      for (const { ticker } of universe) {
+        try { const s = await loadSeries(ticker); const bars = (s?.bars ?? []).filter((b) => !b.partial && b.open > 0 && b.close > 0); if (bars.length >= 300) seriesList.push(bars); } catch { /* bỏ mã lỗi */ }
+      }
+      let indexBars = [];
+      try { if (typeof loadSeries.index === "function") indexBars = await loadSeries.index(); } catch { /* thiếu VN-Index -> R = 0 */ }
+      const t0 = now();
+      const evidence = await buildConvergenceEvidence(seriesList, { indexBars, minAvgValue20: screenerCriteria().minAvgValue20 });
+      const doc = { engine: CONVERGENCE_VERSION, computedAt: new Date(now()).toISOString(), symbols: seriesList.length, ms: now() - t0, evidence };
+      await store.setKv(CONVERGENCE_EVIDENCE_KV, doc);
+      return { engine: doc.engine, symbols: doc.symbols, ms: doc.ms, label: evidence.label, oos: evidence.outOfSample };
     },
 
     /**
@@ -76,4 +100,5 @@ export function createStrategyJobs({ service, corporateActions, now = Date.now, 
 export const STRATEGY_SCHEDULE = [
   { name: "scanStrategies", at: "15:45", tradingDayOnly: true },
   { name: "backfillScreenerHistory", at: "03:00", tradingDayOnly: false },
+  { name: "buildConvergenceEvidence", at: "03:30", tradingDayOnly: false },
 ];

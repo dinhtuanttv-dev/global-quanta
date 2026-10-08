@@ -46,7 +46,8 @@ export function wyckoffTimeframePolicy(tf: string | undefined): { enabled: boole
   return { enabled: true, note: null };
 }
 
-function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, isIndex: boolean, benchmark?: Bar[] | null): WyckoffResult {
+/** Wyckoff đầy đủ (engine + chính sách khung + 9 phép thử + dòng thời gian + kế hoạch + tín hiệu) — dùng chung cho analyze() và Hợp lưu v2. */
+export function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, isIndex: boolean, benchmark?: Bar[] | null): WyckoffResult {
   const policy = wyckoffTimeframePolicy(tf);
   const r = engine === "v3" ? classifyWyckoffV3(bars, { timeframe: tf, isIndex }) : classifyWyckoffV2(bars);
   if (!policy.enabled) {
