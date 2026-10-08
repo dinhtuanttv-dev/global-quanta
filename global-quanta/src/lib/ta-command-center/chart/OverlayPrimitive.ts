@@ -2,13 +2,13 @@
 // tự vẽ lại khi zoom/pan (thư viện gọi renderer mỗi khung hình) — thay lớp SVG phủ cũ + forceTick React.
 
 import type {
-  IChartApi, ISeriesApi, ISeriesPrimitive, IPrimitivePaneRenderer, IPrimitivePaneView, SeriesAttachedParameter, SeriesType, Time, UTCTimestamp,
+  IChartApi, ISeriesApi, ISeriesPrimitive, IPrimitivePaneRenderer, IPrimitivePaneView, SeriesAttachedParameter, SeriesType, Time,
 } from "lightweight-charts-v5";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
+import { chartTime } from "./time";
 import { EMPTY_SCENE, placeLabels, type LabelBox, type Scene, type SceneItem, type SceneLabel, type ScenePoint } from "./scene";
 
-export const toTime = (date: string): UTCTimestamp =>
-  (Date.parse(date.includes("T") ? (date.endsWith("Z") ? date : `${date}Z`) : `${date}T00:00:00Z`) / 1000) as UTCTimestamp;
+export const toTime = chartTime;
 
 const FONT = "600 9px 'IBM Plex Mono', monospace";
 
@@ -89,6 +89,22 @@ class Renderer implements IPrimitivePaneRenderer {
       if (!a || !b) return;
       dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    } else if (it.kind === "profile") {
+      const x1 = o.x(it.t1);
+      const x2 = o.x(it.t2);
+      if (x1 === null || x2 === null || !(it.maxVolume > 0)) return;
+      const span = Math.max(12, Math.abs(x2 - x1));
+      const left = Math.min(x1, x2);
+      for (const bin of it.bins) {
+        if (!(bin.volume > 0)) continue;
+        const yTop = o.y(bin.high);
+        const yBot = o.y(bin.low);
+        if (yTop === null || yBot === null) continue;
+        const len = (bin.volume / it.maxVolume) * span * it.widthFrac;
+        const inVa = bin.low >= it.vaLow - 1e-9 && bin.high <= it.vaHigh + 1e-9;
+        ctx.fillStyle = inVa ? it.vaColor : it.color;
+        ctx.fillRect(left, Math.min(yTop, yBot) + 0.5, len, Math.max(1, Math.abs(yBot - yTop) - 1));
+      }
     } else if (it.kind === "poly") {
       const pts = it.points.map((p) => o.pt(p)).filter((p): p is [number, number] => p !== null);
       if (pts.length < 1) return;
@@ -128,7 +144,8 @@ export class OverlayPrimitive implements ISeriesPrimitive<Time> {
     const it = this.scene.items.find((x) => "t1" in x || "a" in x || "t" in x);
     if (!it) return null;
     const date = "t1" in it ? it.t1 : "a" in it ? it.a.t : "t" in it ? it.t : "";
-    const candleX = this.chart?.timeScale().timeToCoordinate(toTime(date)) ?? null;
+    // So với nến THẬT mà phần tử neo vào (VD profile phiên neo thời điểm nến 1 phút -> nến 15m chứa thời điểm đó).
+    const candleX = this.chart?.timeScale().timeToCoordinate(toTime(this.resolveDate(date))) ?? null;
     return { date, itemX: this.x(date), candleX };
   }
   private chart: IChartApi | null = null;
@@ -148,18 +165,24 @@ export class OverlayPrimitive implements ISeriesPrimitive<Time> {
   setDates(dates: string[]) { this.dates = dates; }
   setScene(scene: Scene) { this.scene = scene; this.requestUpdate?.(); }
 
-  /** Ngày -> x; ngày không có nến (VD khung W, ngày nghỉ) -> nến gần nhất trước đó. */
+  /** Nến mà một ngày/thời điểm neo vào: chính nó nếu có nến, ngược lại nến gần nhất TRƯỚC đó (VD khung W, 15m, ngày nghỉ). */
+  resolveDate(date: string): string {
+    if (!this.dates.length || this.dates.includes(date)) return date;
+    if (date < this.dates[0]) return this.dates[0];
+    let lo = 0;
+    let hi = this.dates.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (this.dates[mid] <= date) lo = mid; else hi = mid - 1; }
+    return this.dates[lo];
+  }
+
+  /** Ngày -> x của nến neo (resolveDate). */
   x(date: string): number | null {
     if (!this.chart) return null;
     const ts = this.chart.timeScale();
     const direct = ts.timeToCoordinate(toTime(date));
     if (direct !== null) return direct;
     if (!this.dates.length) return null;
-    let lo = 0;
-    let hi = this.dates.length - 1;
-    if (date < this.dates[0]) return ts.timeToCoordinate(toTime(this.dates[0]));
-    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (this.dates[mid] <= date) lo = mid; else hi = mid - 1; }
-    return ts.timeToCoordinate(toTime(this.dates[lo]));
+    return ts.timeToCoordinate(toTime(this.resolveDate(date)));
   }
   y(price: number): number | null { return this.series?.priceToCoordinate(price) ?? null; }
   pt(p: ScenePoint): [number, number] | null {

@@ -6,7 +6,9 @@ export const MAX_PRIMITIVES = 100;
 const MAX_BYTES = 64 * 1024;
 const SYMBOL_RE = /^[A-Z][A-Z0-9]{2,9}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-const TOOLS = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone"]);
+const TOOLS = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone", "avwap"]);
+// Ngày (D) hoặc thời điểm ISO (khung intraday, VD 2026-10-02T10:15:00+07:00) — giữ nguyên giờ phút.
+const ISO_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
 function badRequest(message) {
   const error = new Error(message);
@@ -21,7 +23,7 @@ export function normalizeChartSymbol(raw) {
 }
 
 const point = (p) => p && typeof p === "object" && typeof p.date === "string" && DATE_RE.test(p.date) && Number.isFinite(Number(p.price))
-  ? { date: p.date.slice(0, 10), price: Number(p.price) } : null;
+  ? { date: ISO_RE.test(p.date) ? p.date : p.date.slice(0, 10), price: Number(p.price) } : null;
 
 /** Kiểm tra + chuẩn hoá danh sách hình vẽ (không tin dữ liệu đầu vào). */
 export function sanitizeChartPrimitives(raw) {
@@ -38,9 +40,9 @@ export function sanitizeChartPrimitives(raw) {
       const labels = Array.isArray(p.labels) ? p.labels.slice(0, 6).map((l) => String(l).slice(0, 4)) : ["0", "1", "2", "3", "4", "5"];
       const violations = Array.isArray(p.violations) ? p.violations.slice(0, 5).map((v) => String(v).slice(0, 160)) : [];
       out.push({ id, toolType: "elliott", points: pts, labels, violations, createdAt });
-    } else if (p.toolType === "fibTimeZone") {
+    } else if (p.toolType === "fibTimeZone" || p.toolType === "avwap") {
       const anchor = point(p.anchor);
-      if (anchor) out.push({ id, toolType: "fibTimeZone", anchor, createdAt });
+      if (anchor) out.push({ id, toolType: p.toolType, anchor, createdAt });
     } else {
       const p1 = point(p.p1);
       const p2 = point(p.p2);

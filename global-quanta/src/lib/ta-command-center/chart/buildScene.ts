@@ -7,6 +7,7 @@ import type { DomainPoint, DrawingToolType, DrawnPrimitive } from "../DrawingMan
 import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
+import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 
 export interface SceneInput {
   bars: OhlcvBar[];
@@ -18,7 +19,13 @@ export interface SceneInput {
   elliottDraft: DomainPoint[];
   fibExtension: boolean;
   highlight: { start: string; end: string } | null;
+  /** P4: Volume Profile (composite D/W/M hoặc theo phiên intraday) + Anchored VWAP mặc định — từ quant-core (Worker). */
+  profile?: { sessions: SessionProfile[]; composite: VolumeProfile | null } | null;
+  avwap?: { anchorDate: string; points: VwapPoint[] } | null;
 }
+
+/** Số phiên vẽ histogram trên khung intraday (POC còn "naked" của các phiên cũ hơn vẫn vẽ thành đường). */
+export const SVP_SESSIONS_DRAWN = 5;
 
 const dirColor = (dir: string) => (dir === "bullish" ? GQ_COLORS.bull : GQ_COLORS.bear);
 
@@ -113,5 +120,37 @@ export function buildScene(inp: SceneInput): Scene {
   if (inp.elliottDraft.length) {
     items.push({ kind: "poly", points: inp.elliottDraft.map((pt) => ({ t: pt.date, price: pt.price })), color: GQ_COLORS.amber, dash: [3, 2], nodeLabels: inp.elliottDraft.map((_, i) => String(i)) });
   }
+  pushVolumeLayers(items, inp);
   return { items };
+}
+
+/** P4 — Volume Profile + Anchored VWAP (mỗi lớp chỉ vẽ khi người dùng bật). Neo theo (ngày, giá) -> bám nến. */
+function pushVolumeLayers(items: SceneItem[], inp: SceneInput) {
+  const layers = inp.layers;
+  if (layers?.vprofile && inp.profile) {
+    const drawProfile = (p: VolumeProfile, widthFrac: number, label: string) => {
+      items.push({ kind: "profile", t1: p.fromDate, t2: p.toDate, bins: p.bins, maxVolume: p.maxVolume, vaLow: p.val, vaHigh: p.vah, widthFrac,
+        color: rgba(GQ_COLORS.cyan, 0.16), vaColor: rgba(GQ_COLORS.cyan, 0.34) });
+      items.push({ kind: "hline", t1: p.fromDate, t2: p.toDate, price: p.poc, color: GQ_COLORS.amber, width: 1.5, label: { text: label, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
+      items.push({ kind: "hline", t1: p.fromDate, t2: p.toDate, price: p.vah, color: rgba(GQ_COLORS.cyan, 0.6), dash: [3, 3] });
+      items.push({ kind: "hline", t1: p.fromDate, t2: p.toDate, price: p.val, color: rgba(GQ_COLORS.cyan, 0.6), dash: [3, 3] });
+    };
+    const { composite, sessions } = inp.profile;
+    if (composite) drawProfile(composite, 0.45, `POC ${composite.method === "triangular" ? "≈" : ""}`.trim());
+    const recent = sessions.slice(-SVP_SESSIONS_DRAWN);
+    for (const sp of recent) drawProfile(sp.profile, 0.6, "POC");
+    // Naked POC: POC phiên cũ chưa bị chạm lại -> kéo tới mép phải (mục tiêu thanh khoản kinh điển).
+    for (const sp of sessions.slice(0, -1)) {
+      if (!sp.naked) continue;
+      items.push({ kind: "hline", t1: sp.profile.toDate, t2: null, price: sp.profile.poc, color: rgba(GQ_COLORS.amber, 0.55), dash: [6, 3],
+        label: { text: "nPOC", color: GQ_COLORS.amber, priority: LABEL_PRIORITY.liquidity } });
+    }
+  }
+  if (layers?.avwap && inp.avwap?.points.length) {
+    const pts = inp.avwap.points;
+    const line = (k: number) => pts.map((p) => ({ t: p.date, price: p.vwap + k * p.sigma }));
+    items.push({ kind: "poly", points: line(0), color: GQ_COLORS.amber, width: 1.5, label: { text: "AVWAP · swing", color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
+    for (const k of [1, -1]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.6), width: 1, dash: [4, 3] });
+    for (const k of [2, -2]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.35), width: 1, dash: [2, 3] });
+  }
 }

@@ -1,7 +1,7 @@
 import { DrawingManager, type DrawnPrimitive } from "./DrawingManager";
 import { LayerManager, type LayerState } from "./LayerManager";
 import { AIEngine, type SignalLogEntry } from "./AIEngine";
-import { TimeframeController, type Timeframe } from "./TimeframeController";
+import { TimeframeController, isIntradayTf, type IntradayBar, type Timeframe } from "./TimeframeController";
 // P2: mọi phép tính dùng @gq/quant-core (không look-ahead, có confirmedIndex). Các detector cũ trong ./detectors chỉ còn
 // phục vụ dữ liệu Project A (convergence) và test lịch sử.
 import { ENGINE_VERSION, OB_EXPIRY_BARS, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
@@ -148,6 +148,17 @@ export class AnalysisController {
     this.recomputeDetectors();
   }
 
+  /** Nến 1 phút (Gateway /ta-intraday) cho khung 1m/5m/15m/1H + Session Volume Profile. */
+  setIntradayBars(bars: IntradayBar[]): void {
+    this.timeframeController.setIntradayBars(bars);
+    if (isIntradayTf(this.timeframeController.getTimeframe())) {
+      this.bars = this.timeframeController.getBarsForCurrentTimeframe();
+      this.recomputeDetectors();
+      this.emitter.emit("timeframe:changed", { timeframe: this.timeframeController.getTimeframe(), bars: this.bars });
+    }
+  }
+  hasIntraday(): boolean { return this.timeframeController.hasIntraday(); }
+
   setTimeframe(tf: Timeframe): void {
     this.timeframeController.setTimeframe(tf);
     this.bars = this.timeframeController.getBarsForCurrentTimeframe();
@@ -174,7 +185,9 @@ export class AnalysisController {
   /** Tính lại trong Web Worker (không chặn giao diện); kết quả cũ bị bỏ nếu dữ liệu/khung đã đổi. */
   private recomputeDetectors(): void {
     this.cancelPending();
-    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex }, (a) => this.applyAnalysis(a));
+    const tf = this.timeframeController.getTimeframe();
+    const bars1m = isIntradayTf(tf) ? this.timeframeController.getIntradayBars() : undefined;
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m }, (a) => this.applyAnalysis(a));
   }
 
   private applyAnalysis(a: Analysis): void {
