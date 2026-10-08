@@ -33,6 +33,12 @@ export class TVChartManager {
   private volumeSeries: ISeriesApi<"Histogram"> | null = null;
   private rsiSeries: ISeriesApi<"Line"> | null = null;
   private rsiValues: (number | null)[] = [];
+  private currentDates = new Set<string>();
+  /** Chỉ giữ điểm trùng thời gian một nến của chuỗi hiện tại (pane chỉ báo không được thêm mốc lạ vào trục). */
+  private onCandles<T extends { date: string }>(data: T[]): T[] { return data.filter((d) => this.currentDates.has(d.date)); }
+  // P5: pane Order Flow (Delta + CVD) và pane Khối ngoại (ròng + luỹ kế) — chỉ tồn tại khi bật lớp.
+  private flowSeries: { delta: ISeriesApi<"Histogram">; cvd: ISeriesApi<"Line"> } | null = null;
+  private foreignSeries: { net: ISeriesApi<"Histogram">; cum: ISeriesApi<"Line"> } | null = null;
   private markers: ISeriesMarkersPluginApi<Time>;
   readonly overlay = new OverlayPrimitive();
   private currentBars: OhlcvBar[] = [];
@@ -76,7 +82,14 @@ export class TVChartManager {
   }
 
   setData(bars: OhlcvBar[], rsi?: (number | null)[]): void {
+    // Trục thời gian của thư viện là HỢP thời gian mọi series: xoá dữ liệu cũ của pane chỉ báo TRƯỚC khi nạp nến mới,
+    // nếu không các mốc của khung cũ (VD nến 15m) lẫn vào khung mới làm lệch khung nhìn (lỗi tái hiện 08/10/2026).
+    this.flowSeries?.delta.setData([]);
+    this.flowSeries?.cvd.setData([]);
+    this.foreignSeries?.net.setData([]);
+    this.foreignSeries?.cum.setData([]);
     this.currentBars = bars;
+    this.currentDates = new Set(bars.map((b) => b.date));
     this.overlay.setDates(bars.map((b) => b.date));
     this.candleSeries.setData(bars.map((b) => ({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close })));
     this.fillVolume();
@@ -123,6 +136,42 @@ export class TVChartManager {
 
   paneCount(): number { return this.chart.panes().length; }
 
+  /** Pane Order Flow: histogram Delta (mua − bán chủ động) + đường CVD (thang riêng bên trái). null = gỡ pane. */
+  setFlowPane(data: { date: string; delta: number; cvd: number }[] | null): void {
+    if (!data) {
+      if (this.flowSeries) { this.chart.removeSeries(this.flowSeries.delta); this.chart.removeSeries(this.flowSeries.cvd); this.flowSeries = null; this.layoutPanes(); }
+      return;
+    }
+    if (!this.flowSeries) {
+      const pane = this.chart.panes().length;
+      const delta = this.chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, pane);
+      const cvd = this.chart.addSeries(LineSeries, { color: GQ_COLORS.amber, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: { type: "volume" } }, pane);
+      this.flowSeries = { delta, cvd };
+      this.layoutPanes();
+    }
+    data = this.onCandles(data);
+    this.flowSeries.delta.setData(data.map((d) => ({ time: toTime(d.date), value: d.delta, color: d.delta >= 0 ? rgba(GQ_COLORS.bull, 0.6) : rgba(GQ_COLORS.bear, 0.6) })));
+    this.flowSeries.cvd.setData(data.map((d) => ({ time: toTime(d.date), value: d.cvd })));
+  }
+
+  /** Pane Khối ngoại (khung D/W/M): giá trị mua − bán ròng theo nến + đường luỹ kế. null = gỡ pane. */
+  setForeignPane(data: { date: string; net: number; cum: number }[] | null): void {
+    if (!data) {
+      if (this.foreignSeries) { this.chart.removeSeries(this.foreignSeries.net); this.chart.removeSeries(this.foreignSeries.cum); this.foreignSeries = null; this.layoutPanes(); }
+      return;
+    }
+    if (!this.foreignSeries) {
+      const pane = this.chart.panes().length;
+      const net = this.chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, pane);
+      const cum = this.chart.addSeries(LineSeries, { color: GQ_COLORS.cyan, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: { type: "volume" } }, pane);
+      this.foreignSeries = { net, cum };
+      this.layoutPanes();
+    }
+    data = this.onCandles(data);
+    this.foreignSeries.net.setData(data.map((d) => ({ time: toTime(d.date), value: d.net, color: d.net >= 0 ? rgba(GQ_COLORS.bull, 0.6) : rgba(GQ_COLORS.bear, 0.6) })));
+    this.foreignSeries.cum.setData(data.map((d) => ({ time: toTime(d.date), value: d.cum })));
+  }
+
   private fillVolume(): void {
     this.volumeSeries?.setData(this.currentBars.map((b) => ({
       time: toTime(b.date), value: b.volume,
@@ -138,8 +187,10 @@ export class TVChartManager {
   private layoutPanes(): void {
     const panes = this.chart.panes();
     this.container.dataset.panes = String(panes.length);
-    panes[0]?.setStretchFactor(panes.length === 1 ? 1 : panes.length === 2 ? 0.78 : 0.66);
-    for (let i = 1; i < panes.length; i++) panes[i].setStretchFactor(panes.length === 2 ? 0.22 : 0.17);
+    // Pane giá luôn chiếm phần lớn; các pane chỉ báo chia đều phần còn lại.
+    const main = panes.length === 1 ? 1 : panes.length === 2 ? 0.78 : panes.length === 3 ? 0.66 : 0.58;
+    panes[0]?.setStretchFactor(main);
+    for (let i = 1; i < panes.length; i++) panes[i].setStretchFactor((1 - main) / (panes.length - 1));
   }
 
   // ---- Bàn phím: dịch chuyển/zoom qua API thời gian của thư viện -> mọi series, marker, lớp phủ di chuyển cùng nến ----

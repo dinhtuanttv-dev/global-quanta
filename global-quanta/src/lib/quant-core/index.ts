@@ -11,6 +11,7 @@ import { classifyWyckoffV2 } from "./wyckoff";
 import { eventStudy } from "./eventStudy";
 import { buildSessionProfiles, buildVolumeProfile, type SessionProfile, type VolumeProfile } from "./volumeProfile";
 import { anchoredVwap, anchorIndexOf, type VwapPoint } from "./vwap";
+import { buildFlowBars, computeVpin, detectAbsorption, detectCvdDivergence, type FlowMinute } from "./orderFlow";
 
 export * from "./math";
 export * from "./structure";
@@ -20,8 +21,9 @@ export * from "./wyckoff";
 export * from "./eventStudy";
 export * from "./volumeProfile";
 export * from "./vwap";
+export * from "./orderFlow";
 
-export const ENGINE_VERSION = "2.1.0";
+export const ENGINE_VERSION = "2.2.0";
 
 /** Số nến cho Composite Volume Profile trên khung D/W/M. */
 export const COMPOSITE_PROFILE_BARS = 60;
@@ -30,6 +32,8 @@ export interface AnalyzeOptions {
   isIndex?: boolean; limitPct?: number | null; structure?: Partial<StructureParams>; horizon?: number;
   /** Nến 1 phút (khung intraday) -> Session Volume Profile chính xác theo mức giá; không có -> Composite xấp xỉ từ nến ngày. */
   bars1m?: (Bar & { auction?: string })[];
+  /** Dòng lệnh theo phút (Gateway /ta-flow). Có (kể cả rỗng) -> tính Order Flow; phiên thiếu tick dùng BVC. */
+  flowMinutes?: FlowMinute[];
 }
 
 export function analyze(bars: Bar[], opts: AnalyzeOptions = {}) {
@@ -54,6 +58,20 @@ export function analyze(bars: Bar[], opts: AnalyzeOptions = {}) {
     const anchorDate = dealingRange.highIndex < dealingRange.lowIndex ? dealingRange.highDate : dealingRange.lowDate;
     avwap = { anchorDate, points: anchoredVwap(bars, anchorIndexOf(bars, anchorDate)) };
   }
+  let orderFlow = null;
+  if (opts.flowMinutes) {
+    const flow = buildFlowBars(bars, opts.flowMinutes);
+    const intraday = bars.length > 0 && bars[0].date.length > 10;
+    const sessions = intraday ? new Set(bars.map((b) => b.date.slice(0, 10))).size : bars.length;
+    const tickBars = flow.filter((f) => f.source === "TICK").length;
+    orderFlow = {
+      bars: flow,
+      absorption: detectAbsorption(bars, flow, { isIndex }),
+      divergences: detectCvdDivergence(st.pivots, flow),
+      vpin: computeVpin(bars, flow, { sessions }),
+      coverage: { tickBars, bvcBars: flow.length - tickBars, tickPct: flow.length ? Math.round((tickBars / flow.length) * 100) : 0 },
+    };
+  }
   const backtest = {
     chochBull: eventStudy(bars, choch.filter((e) => e.dir === "bullish").map((e) => e.index), "bullish", "CHoCH ▲", horizon),
     chochBear: eventStudy(bars, choch.filter((e) => e.dir === "bearish").map((e) => e.index), "bearish", "CHoCH ▼", horizon),
@@ -62,7 +80,7 @@ export function analyze(bars: Bar[], opts: AnalyzeOptions = {}) {
     engineVersion: ENGINE_VERSION,
     atr: st.atr, pivots: st.pivots, structure: st.events, trend: st.trend,
     orderBlocks, fvgs, liquidity, dealingRange, vsa, wyckoff, backtest,
-    profile: { sessions, composite }, avwap,
+    profile: { sessions, composite }, avwap, orderFlow,
     counts: {
       bos: st.events.length - choch.length, choch: choch.length, orderBlocks: orderBlocks.length, fvgs: fvgs.length,
       liquidity: liquidity.length, sweeps: liquidity.filter((z) => z.state === "SWEPT").length, vsa: vsa.length,
