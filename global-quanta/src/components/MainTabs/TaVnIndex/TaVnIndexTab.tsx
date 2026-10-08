@@ -4,7 +4,6 @@ import TickerSelector, { DEFAULT_TA_SYMBOL } from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
 import GoldenFilterPanel from "./GoldenFilterPanel";
 import TAConsensusPanel from "./TAConsensusPanel";
-import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
 import ConvergencePanelV2 from "./ConvergencePanelV2";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import PatternList from "./PatternList";
@@ -118,14 +117,14 @@ export default function TaVnIndexTab() {
         <>
           <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
           {/* ĐÃ SỬA — LỖI NHÂN BẢN: đây vẫn là nơi DUY NHẤT render
-              PatternList/ConvergenceFilterPanel — TVChartPanel.tsx không
+              PatternList/ConvergencePanelV2 — TVChartPanel.tsx không
               còn tự gắn thêm bản sao thứ 2 của 2 component này nữa. */}
           <div className="mt-2">
             {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
-            {/* Hợp lưu v2 (Gateway); Gateway tắt -> bộ lọc cũ của Project A làm dự phòng (gỡ ở H4 sau khi xác minh). */}
+            {/* Hợp lưu v2 chạy trên Gateway (bộ lọc cũ của Project A đã gỡ khỏi tab — H4). */}
             {activeSubTab === "convergence" && (isMarketGatewayEnabled()
               ? <ConvergencePanelV2 onSelectTicker={handleCandidateSelect} />
-              : <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />)}
+              : <p className="text-[10px] text-slate-500 italic py-4 text-center">Bộ lọc Hợp lưu v2 cần Market Gateway (chưa bật cho môi trường này).</p>)}
             {activeSubTab === "camslim" && (
               <TechnicalFilterPanel strategy="camslim" onSelectTicker={handleCandidateSelect} />
             )}

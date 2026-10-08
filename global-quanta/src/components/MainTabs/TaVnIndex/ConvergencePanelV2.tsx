@@ -2,6 +2,7 @@
 // lọc theo phía / trạng thái / pha, toàn bộ kết quả (không cắt 20), thời điểm quét, thẻ bằng chứng; bấm mã hoặc nhấn đúp dòng
 // -> bảng phụ phân tích chuyên sâu (không mở biểu đồ), bấm lại / Esc -> đóng.
 // Kiểm định đặt trước (PR #53): EXPERIMENTAL — danh sách để XEM XÉT, không phải tín hiệu mua.
+// Theo dõi thực tế (H4): mỗi phiên ghi sổ SCR_CV_{BUY|SELL}_{READY|WATCH}, researchEvaluate chấm T+5 / T+10 so với VN-Index.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, GitMerge, Info, RefreshCw } from "lucide-react";
 import { useConvergenceV2, type ConvergenceRow } from "../../../hooks/useConvergenceV2";
@@ -101,7 +102,7 @@ export default function ConvergencePanelV2({ onSelectTicker }: { onSelectTicker:
       </p>
       {data?.evidence && (data.evidence.label === "PENDING"
         ? <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>
-        : <EvidenceCard evidence={data.evidence as TechnicalFilterEvidence} marketUp={data.market?.up} live={undefined} liveNote="Chưa ghi sổ theo dõi thực tế cho Hợp lưu v2 (bước H4, cần duyệt riêng)." />)}
+        : <EvidenceCard evidence={data.evidence as TechnicalFilterEvidence} marketUp={data.market?.up} live={data.liveTracking} />)}
 
       {data && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid="convergence-filters">

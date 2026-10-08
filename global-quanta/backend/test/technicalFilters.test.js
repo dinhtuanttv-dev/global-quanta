@@ -104,7 +104,7 @@ test("job scanStrategies lưu KV từng chiến lược", async () => {
   assert.equal(r.dataAsOf, "2026-10-07");
   assert.equal(r.scanned, 1);
   for (const id of ["camslim", "base-breakout"]) assert.equal((await service.store.getKv(strategyKvKey(id))).value.strategy, id);
-  const results = ["camslim", "base-breakout"].reduce((n, id) => n + r.results[id], 0);
+  const results = ["camslim", "base-breakout", "convergence"].reduce((n, id) => n + r.results[id], 0);
   assert.equal(r.ledger, results, "mọi tín hiệu của phiên được ghi vào sổ cái theo dõi thực tế");
 });
 
