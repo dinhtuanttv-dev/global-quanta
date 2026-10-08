@@ -19,6 +19,24 @@ const formatPrice = (value?: number) =>
 const formatPct = (value?: number) =>
   value == null || !Number.isFinite(value) ? "—" : `${value.toFixed(1)}%`;
 
+const formatBillion = (value?: number) =>
+  value == null || !Number.isFinite(value) ? "—" : `${new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 }).format(value / 1e9)} tỷ`;
+
+const SKIP_LABELS: Record<string, string> = {
+  INSUFFICIENT_BARS: "chưa đủ lịch sử",
+  STALE: "tạm ngừng giao dịch",
+  ILLIQUID: "thanh khoản thấp",
+  LOW_PRICE: "giá thấp",
+  LOAD_FAILED: "lỗi tải dữ liệu",
+  INVALID_DATA: "lỗi dữ liệu",
+};
+
+function skippedSummary(skipped: { reason: string }[]) {
+  const count = new Map<string, number>();
+  for (const s of skipped) count.set(s.reason, (count.get(s.reason) ?? 0) + 1);
+  return [...count].map(([reason, n]) => `${n} ${SKIP_LABELS[reason] ?? reason}`).join(" · ");
+}
+
 export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props) {
   const { data, error, isLoading, refresh } = useTechnicalFilter(strategy);
   const isCamSlim = strategy === "camslim";
@@ -53,6 +71,11 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
           </span>
         )}
       </p>
+      {data?.criteria && (
+        <p className="text-[9px] text-slate-500" data-testid="filter-criteria">
+          Giá điều chỉnh cộng dồn · {data.criteria.range === "3y" ? "3 năm" : data.criteria.range} · Giá ≥ {formatPrice(data.criteria.minPrice)}đ · GTGD TB20 ≥ {formatBillion(data.criteria.minAvgValue20)}
+        </p>
+      )}
 
       {error && (
         <div role="alert" className="flex items-center gap-1.5 text-[10px] text-red-300 py-2">
@@ -143,9 +166,13 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
 
       {data && data.skipped.length > 0 && (
         <details className="text-[9px] text-slate-500">
-          <summary className="cursor-pointer">Bỏ qua {data.skipped.length} mã (thiếu dữ liệu hoặc lỗi dữ liệu)</summary>
+          <summary className="cursor-pointer">Bỏ qua {data.skipped.length} mã: {skippedSummary(data.skipped)}</summary>
           <p className="pt-1 break-words">
-            {data.skipped.map((item) => `${item.ticker}: ${item.reason}${item.bars == null ? "" : ` (${item.bars} phiên)`}`).join(" · ")}
+            {data.skipped.map((item) => {
+              const label = SKIP_LABELS[item.reason] ?? item.reason;
+              const detail = item.bars != null ? ` ${item.bars} phiên` : item.avgValue20 != null ? ` ${formatBillion(item.avgValue20)}` : item.lastDate ? ` từ ${item.lastDate}` : "";
+              return `${item.ticker}: ${label}${detail}`;
+            }).join(" · ")}
           </p>
         </details>
       )}
