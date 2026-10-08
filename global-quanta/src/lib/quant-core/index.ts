@@ -9,6 +9,7 @@ import { computeDealingRange, detectFVG, detectLiquidity, detectOrderBlocks } fr
 import { detectVsa } from "./vsa";
 import { classifyWyckoffV2 } from "./wyckoff";
 import { classifyWyckoffV3 } from "./wyckoffV3";
+import { wyckoffNineTests } from "./wyckoffTests";
 import type { WyckoffResult } from "../ta-command-center/detectors/wyckoffDetector";
 import { eventStudy } from "./eventStudy";
 import { buildSessionProfiles, buildVolumeProfile, type SessionProfile, type VolumeProfile } from "./volumeProfile";
@@ -43,7 +44,7 @@ export function wyckoffTimeframePolicy(tf: string | undefined): { enabled: boole
   return { enabled: true, note: null };
 }
 
-function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, isIndex: boolean): WyckoffResult {
+function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, isIndex: boolean, benchmark?: Bar[] | null): WyckoffResult {
   const policy = wyckoffTimeframePolicy(tf);
   const r = engine === "v3" ? classifyWyckoffV3(bars, { timeframe: tf, isIndex }) : classifyWyckoffV2(bars);
   if (!policy.enabled) {
@@ -54,7 +55,12 @@ function wyckoffFor(bars: Bar[], engine: "v2" | "v3", tf: string | undefined, is
   if (isIndex && !caveats.some((c) => c.includes("không giao dịch trực tiếp"))) {
     caveats.push("VN-Index là chỉ số, không giao dịch trực tiếp; khối lượng là KL toàn thị trường (không phải dòng tiền vào một tài sản).");
   }
-  return { ...r, caveats };
+  // So sánh với VN-Index chỉ ở khung D (ngày khớp 1–1) và chỉ cho mã cổ phiếu.
+  const bm = !isIndex && (tf ?? "D") === "D" ? benchmark : null;
+  const tests = wyckoffNineTests(bars, r, bm);
+  const rsItem = isIndex ? tests?.items.find((x) => x.key === "rs") : undefined;
+  if (rsItem) rsItem.value = "không áp dụng cho chỉ số";
+  return { ...r, caveats, tests };
 }
 
 /** Số nến cho Composite Volume Profile trên khung D/W/M. */
@@ -68,6 +74,8 @@ export interface AnalyzeOptions {
   flowMinutes?: FlowMinute[];
   /** Khung đang phân tích (1m/5m/15m/1H/D/W/M) — chính sách & cảnh báo Wyckoff theo khung. */
   timeframe?: string;
+  /** Nến ngày VN-Index — sức mạnh tương đối trong 9 phép thử Wyckoff (chỉ khung D, mã cổ phiếu). */
+  benchmark?: Bar[] | null;
 }
 
 export function analyze(bars: Bar[], opts: AnalyzeOptions = {}) {
@@ -78,8 +86,8 @@ export function analyze(bars: Bar[], opts: AnalyzeOptions = {}) {
   const liquidity = detectLiquidity(bars, st.pivots, st.atr, { isIndex });
   const dealingRange = computeDealingRange(bars, st.pivots);
   const vsa = detectVsa(bars);
-  const wyckoff = wyckoffFor(bars, WYCKOFF_DEFAULT_ENGINE, opts.timeframe, isIndex);
-  const wyckoffAlt = wyckoffFor(bars, WYCKOFF_DEFAULT_ENGINE === "v2" ? "v3" : "v2", opts.timeframe, isIndex);
+  const wyckoff = wyckoffFor(bars, WYCKOFF_DEFAULT_ENGINE, opts.timeframe, isIndex, opts.benchmark);
+  const wyckoffAlt = wyckoffFor(bars, WYCKOFF_DEFAULT_ENGINE === "v2" ? "v3" : "v2", opts.timeframe, isIndex, opts.benchmark);
   const choch = st.events.filter((e) => e.kind === "CHoCH");
   const horizon = opts.horizon ?? 10;
   // Volume Profile: intraday -> theo từng phiên từ nến 1 phút (T2); D/W/M -> composite 60 nến, phân phối tam giác (T3, xấp xỉ).

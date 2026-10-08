@@ -110,3 +110,27 @@ describe("Wyckoff — bằng chứng VSA (W1)", () => {
     expect(s.items.some((i) => "label" in i && /Wyckoff|Creek|ICE|JAC|BUEC|Spring/.test(i.label?.text ?? ""))).toBe(false);
   });
 });
+
+describe("Wyckoff — 9 phép thử (W2)", () => {
+  it("thẻ hiện '9 phép thử mua: x/y đạt · không phải xác suất' và mục tiêu ước lượng; cấu trúc lịch sử không hiện", () => {
+    const bars = classicAccumulationSeries();
+    const w = analyze(bars, { timeframe: "D" }).wyckoffAlt!;
+    const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
+    const t = el.querySelector('[data-testid="wyckoff-tests"]');
+    expect(t?.textContent).toMatch(/9 phép thử mua: \d\/\d đạt/);
+    expect(t?.textContent).toContain("không phải xác suất");
+    expect(el.querySelector('[data-testid="wyckoff-targets"]')?.textContent).toContain("1×");
+    act(() => root?.unmount()); root = null; document.body.innerHTML = "";
+    const stale = staleSpringSeries(90);
+    const el2 = render(<WyckoffPanel result={analyze(stale).wyckoff} barCount={stale.length} timeframe="D" />);
+    expect(el2.querySelector('[data-testid="wyckoff-tests"]')).toBeNull();
+  });
+
+  it("lớp vẽ: mục tiêu ước lượng 1× (đường ngang) với cấu trúc đang hoạt động", () => {
+    const layers = { ...DEFAULT_LAYER_STATE, wyckoff: true };
+    const bars = classicAccumulationSeries();
+    const s = buildScene({ bars, smc: null, wyckoff: analyze(bars).wyckoffAlt, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s.items.some((i) => i.kind === "hline" && i.label?.text === "Mục tiêu ước lượng 1×")).toBe(true);
+  });
+});
+

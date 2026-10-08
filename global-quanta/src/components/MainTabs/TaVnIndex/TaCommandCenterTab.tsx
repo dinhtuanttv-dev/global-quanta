@@ -3,6 +3,7 @@ import { RefreshCw, AlertCircle } from "lucide-react";
 import { useTaSeries, PRICE_BASIS_LABEL } from "../../../hooks/useTaSeries";
 import ProvenanceBadge from "./ProvenanceBadge";
 import TVChartPanel from "./TVChartPanel";
+import { TA_INDICES } from "./TickerSelector";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
 
 interface Props {
@@ -17,6 +18,8 @@ interface Props {
 
 export default function TaCommandCenterTab({ ticker, onRequestTickerChange, highlightPattern }: Props) {
   const { bars, isLoading, error, priceBasis, corporateActions, warnings } = useTaSeries(ticker);
+  // VN-Index cho so sánh sức mạnh tương đối (Wyckoff W2); SWR dùng chung cache khi đã xem VN-Index.
+  const benchmark = useTaSeries(TA_INDICES.some((x) => x.symbol === ticker) ? null : "VNINDEX");
 
   if (isLoading) return (
     <div className="h-64 flex items-center justify-center gap-2 text-xs text-slate-400">
@@ -47,7 +50,7 @@ export default function TaCommandCenterTab({ ticker, onRequestTickerChange, high
         )}
         {warnings.map((w) => <span key={w} className="text-amber-400">⚠ {w}</span>)}
       </div>
-      <TVChartPanel bars={bars} ticker={ticker} onRequestTickerChange={onRequestTickerChange} highlightPattern={highlightPattern} corporateActions={corporateActions} />
+      <TVChartPanel bars={bars} ticker={ticker} onRequestTickerChange={onRequestTickerChange} highlightPattern={highlightPattern} corporateActions={corporateActions} benchmarkBars={benchmark.bars.length ? benchmark.bars : null} />
     </>
   );
 }

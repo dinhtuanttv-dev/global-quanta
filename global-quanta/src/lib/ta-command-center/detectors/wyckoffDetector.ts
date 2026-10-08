@@ -1,5 +1,6 @@
 import type { OhlcvBar } from "../types";
 import type { WyckoffEvidence } from "../../quant-core/wyckoffEvidence";
+import type { WyckoffTests } from "../../quant-core/wyckoffTests";
 
 // ĐÃ THÊM "decline" — pha sau khi phá đáy vùng phân phối, đối xứng với
 // "markup" (pha sau khi phá đỉnh vùng tích lũy). Trước đây type khai báo
@@ -76,6 +77,8 @@ export interface WyckoffResult {
   kind?: string | null;
   /** Bằng chứng VSA theo tài liệu (Spring #1/#2/#3, xác nhận nến kế tiếp, Creek/ICE · JAC/BUEC, tích luỹ vs phân phối) — chỉ hiển thị. */
   evidence?: WyckoffEvidence | null;
+  /** 9 phép thử mua / bán, kênh xu hướng trước range, sức mạnh tương đối, mục tiêu ước lượng (W2) — chỉ hiển thị. */
+  tests?: WyckoffTests | null;
   /** Các cấu trúc engine tìm thấy (để vẽ: đang hoạt động đậm, lịch sử mờ). */
   structures?: {
     kind: string; direction: "long" | "short"; wyckoffPhase: string; status: string; current: boolean;

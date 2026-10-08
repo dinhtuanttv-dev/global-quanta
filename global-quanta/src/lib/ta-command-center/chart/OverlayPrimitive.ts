@@ -75,7 +75,8 @@ class Renderer implements IPrimitivePaneRenderer {
       if (x1 === null || x2 === null || y === null) return;
       dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1;
       ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
-      addLabel(it.label, x1 + 2, y - 2); // neo vào nến bắt đầu — ra khỏi khung thì nhãn ẩn, không trôi theo màn hình
+      // Neo vào nến bắt đầu — ra khỏi khung (ngang hoặc dọc) thì nhãn ẩn, không trôi / kẹp vào mép.
+      if (y >= 0 && y <= H) addLabel(it.label, x1 + 2, y - 2);
     } else if (it.kind === "vline") {
       const x = o.x(it.t);
       if (x === null) return;

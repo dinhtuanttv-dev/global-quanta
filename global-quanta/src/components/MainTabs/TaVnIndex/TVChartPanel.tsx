@@ -48,6 +48,8 @@ interface Props {
   highlightPattern?: PatternMatch | null;
   /** Ngày GDKHQ đã điều chỉnh trong chuỗi giá (Gateway /ta-series) — đánh dấu ■ trên biểu đồ. */
   corporateActions?: CorporateActionMark[];
+  /** Nến ngày VN-Index — so sánh sức mạnh tương đối trong 9 phép thử Wyckoff (bỏ qua khi đang xem chỉ số). */
+  benchmarkBars?: OhlcvBar[] | null;
 }
 
 const NO_ACTIONS: CorporateActionMark[] = [];
@@ -68,7 +70,7 @@ function enableLayersFor(controller: Controller, list: DrawnPrimitive[]) {
   }
 }
 
-export default function TVChartPanel({ bars, ticker, highlightPattern, corporateActions = NO_ACTIONS }: Props) {
+export default function TVChartPanel({ bars, ticker, highlightPattern, corporateActions = NO_ACTIONS, benchmarkBars = null }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tvManagerRef = useRef<TVChartManager | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
@@ -152,6 +154,12 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     setFibExtensionMode(controller.drawing.getFibExtensionMode());
     return () => unsubs.forEach((u) => u());
   }, [bars, ticker]);
+
+  // VN-Index (tải riêng, có thể tới sau) -> 9 phép thử Wyckoff so sánh sức mạnh tương đối.
+  useEffect(() => {
+    if (bars.length === 0) return;
+    controllerRef.current?.setBenchmark(TA_INDICES.some((x) => x.symbol === ticker) ? null : benchmarkBars?.length ? benchmarkBars : null);
+  }, [benchmarkBars, bars, ticker]);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;

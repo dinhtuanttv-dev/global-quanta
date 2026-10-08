@@ -83,6 +83,20 @@ export function buildScene(inp: SceneInput): Scene {
       const text = e.confirmedIndex === null ? `${name}?` : e.confirmedDate && e.confirmedDate !== e.date ? `${name} ✓${dm(e.confirmedDate)}` : name;
       items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3 * a), dash: [2, 2], labelPrice: e.price, label: { text, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     }
+    // W2: đường cung / cầu của xu hướng trước range + đường song song (kênh), cao trào ngoài kênh, mục tiêu ước lượng 1×.
+    const tt = current ? w.tests ?? null : null;
+    if (tt?.channel) {
+      const ch = tt.channel, c = ch.kind === "down" ? GQ_COLORS.bear : GQ_COLORS.bull;
+      items.push({ kind: "segment", a: { t: ch.line.a.date, price: ch.line.a.price }, b: { t: ch.line.b.date, price: ch.line.b.price }, color: rgba(c, 0.6), width: 1 });
+      items.push({ kind: "segment", a: { t: ch.parallel.a.date, price: ch.parallel.a.price }, b: { t: ch.parallel.b.date, price: ch.parallel.b.price }, color: rgba(c, 0.35), width: 1, dash: [3, 3] });
+      if (ch.climaxOutside) items.push({ kind: "vline", t: ch.climaxOutside.date, color: rgba(c, 0.3), dash: [2, 2], labelPrice: ch.climaxOutside.price,
+        label: { text: ch.kind === "down" ? "ngoài kênh (quá bán)" : "ngoài kênh (quá mua)", color: c, priority: LABEL_PRIORITY.wyckoff } });
+    }
+    if (tt && tt.targets.length) {
+      const t1 = tt.targets[0];
+      items.push({ kind: "hline", t1: w.rangeEndDate ?? last, t2: null, price: t1.price, color: rgba(GQ_COLORS.amber, 0.5), dash: [2, 3],
+        label: { text: "Mục tiêu ước lượng 1×", color: GQ_COLORS.amber, priority: LABEL_PRIORITY.wyckoff } });
+    }
     // Creek / ICE và JAC · BUEC / phá ICE — chỉ với cấu trúc ĐANG HOẠT ĐỘNG (cấu trúc lịch sử không vẽ thêm).
     if (current && ev) {
       if (ev.creek) items.push({ kind: "poly", points: ev.creek.points.map((p) => ({ t: p.date, price: p.price })), color: rgba(GQ_COLORS.bull, 0.7), width: 1, dash: [5, 3],

@@ -48,7 +48,7 @@ export const EMPTY_SMC: SmcState = {
 };
 
 export interface ChochBacktest { bullish: EventStudyResult; bearish: EventStudyResult; engineVersion: string }
-export interface ControllerOptions { isIndex?: boolean }
+export interface ControllerOptions { isIndex?: boolean; /** Nến ngày VN-Index (so sánh sức mạnh trong Wyckoff, chỉ khung D). */ benchmark?: OhlcvBar[] | null }
 
 const obView = (z: Analysis["orderBlocks"][number]): OrderBlock => ({
   date: z.date, type: z.dir, top: z.top, bottom: z.bottom, mitigated: z.status !== "ACTIVE", mitigatedAt: z.statusDate, status: z.status, kind: z.kind,
@@ -142,9 +142,16 @@ export class AnalysisController {
   }
 
   updateDailyBars(dailyBars: OhlcvBar[], options?: ControllerOptions): void {
-    if (options) this.options = options;
+    if (options) this.options = { ...this.options, ...options };
     this.timeframeController.setDailyBars(dailyBars);
     this.bars = this.timeframeController.getBarsForCurrentTimeframe();
+    this.recomputeDetectors();
+  }
+
+  /** Đổi chuỗi VN-Index dùng để so sánh (tải sau chuỗi của mã) -> tính lại. */
+  setBenchmark(benchmark: OhlcvBar[] | null): void {
+    if (this.options.benchmark === benchmark) return;
+    this.options = { ...this.options, benchmark };
     this.recomputeDetectors();
   }
 
@@ -194,7 +201,8 @@ export class AnalysisController {
     this.cancelPending();
     const tf = this.timeframeController.getTimeframe();
     const bars1m = isIntradayTf(tf) ? this.timeframeController.getIntradayBars() : undefined;
-    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined, timeframe: tf }, (a) => this.applyAnalysis(a));
+    const benchmark = tf === "D" && !this.options.isIndex ? this.options.benchmark ?? null : null;
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined, timeframe: tf, benchmark }, (a) => this.applyAnalysis(a));
   }
 
   private applyAnalysis(a: Analysis): void {

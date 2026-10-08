@@ -4,6 +4,7 @@ import { SMC_DISPLAY_LIMIT, type OrderBlock, type FairValueGap, type BreakOfStru
 import { VSA_DIRECTION, type VsaSignal as VSASignal } from "../../../lib/quant-core";
 import { WYCKOFF_PHASE_LABEL, describeRangeCriteria, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import type { WyckoffEvidence } from "../../../lib/quant-core/wyckoffEvidence";
+import type { WyckoffTests } from "../../../lib/quant-core/wyckoffTests";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
@@ -132,6 +133,37 @@ export function WyckoffEvidenceBlock({ ev, current }: { ev: WyckoffEvidence; cur
   );
 }
 
+/** 9 phép thử mua / bán (W2): đạt / chưa đạt + cách đo; kênh xu hướng, sức mạnh so với VN-Index, mục tiêu ước lượng. */
+export function WyckoffTestsBlock({ t }: { t: WyckoffTests }) {
+  const f = (v: number) => Math.round(v).toLocaleString("vi-VN");
+  return (
+    <details className="text-[9px] text-slate-400" data-testid="wyckoff-tests">
+      <summary className="cursor-pointer">
+        9 phép thử {t.side === "buy" ? "mua" : "bán"}: <span className="text-slate-200 font-semibold">{t.passed}/{t.avail}</span> đạt
+        {t.avail < 9 ? ` (${9 - t.avail} chưa đo được)` : ""} · không phải xác suất
+      </summary>
+      <ol className="pt-1 space-y-0.5">
+        {t.items.map((x) => (
+          <li key={x.key} className="leading-snug" data-testid={`wyckoff-test-${x.key}`}>
+            <span className={x.ok === true ? "text-emerald-300" : x.ok === false ? "text-rose-300" : "text-slate-500"}>{x.ok === true ? "✓" : x.ok === false ? "✗" : "–"}</span>{" "}
+            {x.n}. <span className="text-slate-300">{x.label}</span> <span className="text-slate-500">— {x.value}</span>
+          </li>
+        ))}
+      </ol>
+      {t.channel?.climaxOutside && (
+        <p className="pt-1 text-slate-300">
+          Cao trào {t.channel.kind === "down" ? "thủng dưới kênh giảm (quá bán)" : "vượt trên kênh tăng (quá mua)"} ngày {t.channel.climaxOutside.date} — dấu hiệu {t.channel.kind === "down" ? "SC" : "BC"} theo tài liệu.
+        </p>
+      )}
+      <p className="pt-1 text-slate-400 font-mono" data-testid="wyckoff-targets">
+        Mục tiêu ước lượng (nguyên nhân–kết quả): {t.targets.map((x) => `${x.k}× ${f(x.price)}`).join(" · ")}
+        {t.retrace50 != null ? ` · vùng hồi 50% ${f(t.retrace50)}` : ""}
+      </p>
+      <p className="text-slate-600 pt-0.5">{t.note}</p>
+    </details>
+  );
+}
+
 /**
  * Thẻ Wyckoff Cycle: phân biệt pha HIỆN TẠI (cấu trúc còn hiệu lực) với cấu trúc LỊCH SỬ đã hết hiệu lực; mỗi sự kiện
  * có ngày xảy ra và ngày xác nhận; tiêu chí đạt / chưa đạt; lý do kết luận có thể sai. Không hiển thị "độ tin cậy %".
@@ -190,6 +222,7 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
       )}
 
       {result.evidence && <WyckoffEvidenceBlock ev={result.evidence} current={isCurrent} />}
+      {isCurrent && result.tests && <WyckoffTestsBlock t={result.tests} />}
 
       {checks.length > 0 && (
         <details className="text-[9px] text-slate-400" data-testid="wyckoff-checks">
