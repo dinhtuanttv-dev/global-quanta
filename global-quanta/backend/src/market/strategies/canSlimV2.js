@@ -306,6 +306,7 @@ export function buildCsEvidence(items, { rsTable, market, minAvgValue20 = 0, wei
   return evidenceFromTrades(all, baseline, {
     first, last,
     rules: "Cốc tay cầm O'Neil · vào giá mở cửa T+1 sau phiên vượt pivot · T+2,5 · phí 0,15% + trượt 0,1%/chiều + thuế bán 0,1% · bỏ phiên khoá trần · cắt lỗ 8%, chốt lời 20%, thoát khi đóng cửa dưới MA50 (sau 10 phiên), tối đa 90 phiên",
+    trials: 1, // trọng số gốc O'Neil, không tinh chỉnh
     extra: { skippedLimitUp },
   });
 }

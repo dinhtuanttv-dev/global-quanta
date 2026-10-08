@@ -1,7 +1,7 @@
 // Thẻ bằng chứng (Screener Engine v2 / S2): backtest gộp toàn universe theo luật VN, tách trong/ngoài mẫu.
 // Nhãn VALIDATED chỉ khi phần NGOÀI MẪU đạt; còn lại EXPERIMENTAL — hiển thị trung thực cả khi kết quả xấu.
 import { ShieldAlert, ShieldCheck } from "lucide-react";
-import type { TechnicalFilterEvidence, TradeStats } from "../../../hooks/useTechnicalFilter";
+import type { LiveStat, LiveTracking, TechnicalFilterEvidence, TradeStats } from "../../../hooks/useTechnicalFilter";
 
 const pct = (v?: number | null, sign = true) =>
   v == null || !Number.isFinite(v) ? "—" : `${sign && v > 0 ? "+" : ""}${v.toFixed(2).replace(".", ",")}%`;
@@ -35,7 +35,47 @@ function Cell({ title, s, base }: { title: string; s?: TradeStats; base?: number
   );
 }
 
-export default function EvidenceCard({ evidence, marketUp }: { evidence: TechnicalFilterEvidence; marketUp: boolean | null | undefined }) {
+const VERDICT: Record<LiveStat["verdict"], { text: string; cls: string }> = {
+  edge: { text: "có lợi thế", cls: "text-emerald-400" },
+  negative: { text: "ngược kỳ vọng", cls: "text-rose-400" },
+  none: { text: "như ngẫu nhiên", cls: "text-slate-400" },
+  insufficient: { text: "chưa đủ mẫu", cls: "text-slate-500" },
+};
+const pct0 = (v: number) => `${Math.round(v * 100)}%`;
+
+function LiveCell({ s }: { s: LiveStat | null }) {
+  if (!s) return <td className="px-1 text-right text-slate-600">—</td>;
+  return (
+    <td className="px-1 text-right whitespace-nowrap" title={`n=${s.n} · KTC95% ${pct0(s.hitLow)}–${pct0(s.hitHigh)} · z (cụm) ${s.z ?? "—"}`}>
+      <span className="font-mono text-slate-200">{pct0(s.hitRate)}</span><span className="text-slate-500"> / {pct0(s.baseline)}</span>
+      <span className={`block text-[8px] ${VERDICT[s.verdict].cls}`}>{VERDICT[s.verdict].text} · n={s.n}</span>
+    </td>
+  );
+}
+
+/** Theo dõi THỰC TẾ (ngoài mẫu hoàn toàn): tỷ lệ trúng T+5 / T+10 so với mốc nền cùng ngày. */
+export function LiveTrackingTable({ live }: { live: LiveTracking | undefined }) {
+  const has = live && [live.breakout, live.setup].some((g) => g.h5 || g.h10);
+  return (
+    <div data-testid="live-tracking">
+      <div className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Theo dõi thực tế (từ ngày triển khai — ngoài mẫu hoàn toàn)</div>
+      {!has ? (
+        <p className="text-[9px] text-slate-500">Đang ghi nhận tín hiệu mỗi phiên lúc 15:45; kết quả T+5 / T+10 được chấm tự động lúc 16:40 so với VN-Index. Cần ≥ 30 tín hiệu để kết luận.</p>
+      ) : (
+        <table className="w-full text-[9px]">
+          <thead className="text-slate-500"><tr><th className="text-left font-normal px-1">Trúng / nền</th><th className="text-right font-normal px-1">T+5</th><th className="text-right font-normal px-1">T+10</th></tr></thead>
+          <tbody>
+            <tr className="border-t border-white/5"><td className="px-1 text-slate-300">Breakout</td><LiveCell s={live!.breakout.h5} /><LiveCell s={live!.breakout.h10} /></tr>
+            <tr className="border-t border-white/5"><td className="px-1 text-slate-300">Setup</td><LiveCell s={live!.setup.h5} /><LiveCell s={live!.setup.h10} /></tr>
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
+export default function EvidenceCard({ evidence, marketUp, live }: { evidence: TechnicalFilterEvidence; marketUp: boolean | null | undefined; live?: LiveTracking }) {
+  const v = evidence.validation;
   const validated = evidence.label === "VALIDATED";
   return (
     <details className="rounded-lg border border-slate-800/70 bg-slate-950/40 p-2 text-[10px]" data-testid="evidence-card">
@@ -75,6 +115,29 @@ export default function EvidenceCard({ evidence, marketUp }: { evidence: Technic
             <Cell title="VN-Index dưới MA20 (M chưa thuận)" s={evidence.byMarket.down} />
           </div>
         )}
+        {v && (
+          <div className="rounded-md p-2 space-y-1" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }} data-testid="evidence-validation">
+            <div className="text-[9px] uppercase tracking-wide text-slate-500">Kiểm định</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+              <span>KTC 95% lợi nhuận TB ngoài mẫu: <span className="font-mono text-slate-200">{v.ciOutOfSample ? `${pct(v.ciOutOfSample.mean[0])} … ${pct(v.ciOutOfSample.mean[1])}` : "chưa đủ lệnh"}</span></span>
+              <span>KTC 95% PF ngoài mẫu: <span className="font-mono text-slate-200">{v.ciOutOfSample ? `${num(v.ciOutOfSample.pf[0])} … ${num(v.ciOutOfSample.pf[1])}` : "—"}</span></span>
+              <span>t so với nền (toàn bộ / ngoài mẫu): <span className="font-mono text-slate-200">{num(v.tVsBaseline)} / {num(v.tVsBaselineOos)}</span></span>
+              <span>Số cấu hình đã thử khi chọn tham số: <span className="font-mono text-slate-200">{v.trials}</span>{v.trials > 1 ? " — kết quả trong mẫu có thiên lệch tối ưu" : ""}</span>
+            </div>
+            {v.periods.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="text-[9px] font-mono w-full">
+                  <thead className="text-slate-500"><tr><th className="text-left font-normal pr-2">Nửa năm</th>{v.periods.map((p) => <th key={p.period} className="text-right font-normal px-1">{p.period}</th>)}</tr></thead>
+                  <tbody>
+                    <tr><td className="text-slate-500 pr-2">PF</td>{v.periods.map((p) => <td key={p.period} className={`text-right px-1 ${pfTone(p.profitFactor)}`}>{num(p.profitFactor)}</td>)}</tr>
+                    <tr><td className="text-slate-500 pr-2">Lệnh</td>{v.periods.map((p) => <td key={p.period} className="text-right px-1 text-slate-400">{p.n}</td>)}</tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+        <LiveTrackingTable live={live} />
         {evidence.rules && <p className="text-[9px] text-slate-500 leading-relaxed">{evidence.rules}</p>}
       </div>
     </details>

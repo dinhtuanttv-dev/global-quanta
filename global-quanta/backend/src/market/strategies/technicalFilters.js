@@ -18,7 +18,7 @@ export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S5", "base-breakout": "screener-v2/S5" });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6" });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;

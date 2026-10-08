@@ -169,6 +169,8 @@ export function buildEvidence(seriesList, { minAvgValue20 = 0, oosRatio = 0.3, c
   return evidenceFromTrades(all, baseline, {
     first, last, oosRatio,
     rules: "Vào giá mở cửa T+1 · T+2,5 · phí 0,15% + trượt 0,1%/chiều + thuế bán 0,1% · bỏ phiên khoá trần, không bán khi khoá sàn · stop nền/ATR, mục tiêu 3R, trailing MA20 sau 5 phiên, tối đa 30 phiên",
+    // S2 đã thử lưới 5 bộ lọc × 5 cách thoát lệnh + cấu hình gốc trên dữ liệu trong mẫu.
+    trials: 26,
     extra: { skippedLimitUp },
   });
 }

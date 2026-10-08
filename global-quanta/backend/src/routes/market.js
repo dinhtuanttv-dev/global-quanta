@@ -21,6 +21,7 @@ import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
 import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
+import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 
 const router = Router();
 
@@ -129,6 +130,9 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
     });
     data = docs[strategy];
   }
+  // S6: hiệu suất THỰC TẾ (ngoài mẫu, từ ngày triển khai) do researchEvaluate chấm hằng ngày.
+  const perf = (await rt.store.getKv(PERFORMANCE_KV))?.value;
+  data = { ...data, liveTracking: liveTracking(perf, strategy) };
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));

@@ -89,11 +89,63 @@ export function baselineReturns(bars, { eligible = () => true, hold = 10, step =
   return out;
 }
 
+// ---------------------------------------------------------------- kiểm định (S6)
+
+/** Bộ sinh số ngẫu nhiên có hạt giống (mulberry32) — kết quả bootstrap lặp lại được. */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+
 /**
- * Bằng chứng gộp: tách trong/ngoài mẫu theo NGÀY chung, nhãn VALIDATED khi ngoài mẫu ≥ 30 lệnh,
- * PF ≥ 1,1, kỳ vọng > 0 và vượt nền.
+ * Khoảng tin cậy 95% bootstrap (lấy mẫu lại theo NGÀY vào lệnh — các lệnh cùng ngày tương quan) cho lợi nhuận TB và PF.
+ * @returns { mean: [lo, hi], pf: [lo, hi] } | null
  */
-export function evidenceFromTrades(all, baseline, { first, last, oosRatio = 0.3, rules, extra = {} }) {
+export function bootstrapCi(trades, { iters = 1000, seed = 7 } = {}) {
+  if (trades.length < 10) return null;
+  const byDate = new Map();
+  for (const x of trades) { if (!byDate.has(x.entryDate)) byDate.set(x.entryDate, []); byDate.get(x.entryDate).push(x.netPct); }
+  const clusters = [...byDate.values()];
+  const r = rng(seed), means = [], pfs = [];
+  for (let k = 0; k < iters; k++) {
+    let sum = 0, n = 0, gw = 0, gl = 0;
+    for (let c = 0; c < clusters.length; c++) {
+      for (const v of clusters[Math.floor(r() * clusters.length)]) { sum += v; n++; if (v > 0) gw += v; else gl -= v; }
+    }
+    means.push(sum / n); pfs.push(gl > 0 ? gw / gl : 10);
+  }
+  const q = (a, p) => { const s = [...a].sort((x, y) => x - y); return Math.round(s[Math.min(s.length - 1, Math.floor(p * s.length))] * 100) / 100; };
+  return { mean: [q(means, 0.025), q(means, 0.975)], pf: [q(pfs, 0.025), q(pfs, 0.975)], clusters: clusters.length };
+}
+
+/** Welch t của lợi nhuận TB lệnh so với lợi nhuận nền. */
+export function welchT(a, b) {
+  if (a.length < 2 || b.length < 2) return null;
+  const m = (x) => x.reduce((p, q) => p + q, 0) / x.length;
+  const v = (x, mu) => x.reduce((p, q) => p + (q - mu) ** 2, 0) / (x.length - 1);
+  const ma = m(a), mb = m(b), se = Math.sqrt(v(a, ma) / a.length + v(b, mb) / b.length);
+  return se > 0 ? Math.round(((ma - mb) / se) * 100) / 100 : null;
+}
+
+/** Walk-forward theo nửa năm (theo ngày vào lệnh): ổn định qua các giai đoạn thị trường? */
+export function byHalfYear(trades) {
+  const g = new Map();
+  for (const x of trades) {
+    const y = x.entryDate.slice(0, 4), h = Number(x.entryDate.slice(5, 7)) <= 6 ? "H1" : "H2";
+    const k = `${h}/${y}`;
+    if (!g.has(k)) g.set(k, []);
+    g.get(k).push(x);
+  }
+  return [...g].sort((a, b) => (a[0].slice(3) + a[0].slice(0, 2)).localeCompare(b[0].slice(3) + b[0].slice(0, 2)))
+    .map(([period, list]) => ({ period, ...summarizeTrades(list) }));
+}
+
+/**
+ * Bằng chứng gộp: tách trong/ngoài mẫu theo NGÀY chung. Nhãn VALIDATED khi NGOÀI MẪU: ≥ 30 lệnh, PF ≥ 1,1,
+ * kỳ vọng > 0, vượt nền VÀ cận dưới KTC 95% bootstrap của lợi nhuận TB > 0.
+ * @param trials số cấu hình đã thử khi chọn tham số (minh bạch về rủi ro tối ưu quá khớp)
+ */
+export function evidenceFromTrades(all, baseline, { first, last, oosRatio = 0.3, rules, trials = 1, extra = {} }) {
   if (!first) return { label: "EXPERIMENTAL", reason: "Chưa đủ lịch sử để kiểm định.", all: { n: 0 } };
   const span = Date.parse(last) - Date.parse(first);
   const cut = new Date(Date.parse(first) + span * (1 - oosRatio)).toISOString().slice(0, 10);
@@ -101,11 +153,20 @@ export function evidenceFromTrades(all, baseline, { first, last, oosRatio = 0.3,
   const baseMean = (list) => (list.length ? Math.round((list.reduce((a, x) => a + x.netPct, 0) / list.length) * 100) / 100 : null);
   const oos = summarizeTrades(outS);
   const baseOos = baseMean(baseline.filter((x) => x.date >= cut));
-  const validated = oos.n >= 30 && (oos.profitFactor ?? 0) >= 1.1 && oos.expectancyR > 0 && baseOos != null && oos.avgNetPct > baseOos;
+  const ciOos = bootstrapCi(outS);
+  const validated = oos.n >= 30 && (oos.profitFactor ?? 0) >= 1.1 && oos.expectancyR > 0 && baseOos != null && oos.avgNetPct > baseOos
+    && ciOos != null && ciOos.mean[0] > 0;
   return {
     label: validated ? "VALIDATED" : "EXPERIMENTAL",
-    reason: validated ? "Ngoài mẫu: PF ≥ 1,1, kỳ vọng dương và vượt nền." :
-      oos.n < 30 ? `Ngoài mẫu mới ${oos.n} lệnh (< 30).` : "Ngoài mẫu chưa đạt PF ≥ 1,1 / kỳ vọng dương / vượt nền.",
+    reason: validated ? "Ngoài mẫu: PF ≥ 1,1, kỳ vọng dương, vượt nền, KTC 95% lợi nhuận TB > 0." :
+      oos.n < 30 ? `Ngoài mẫu mới ${oos.n} lệnh (< 30).` : "Ngoài mẫu chưa đạt PF ≥ 1,1 / kỳ vọng dương / vượt nền / KTC 95% > 0.",
+    validation: {
+      ciAll: bootstrapCi(all), ciOutOfSample: ciOos,
+      tVsBaseline: welchT(all.map((x) => x.netPct), baseline.map((x) => x.netPct)),
+      tVsBaselineOos: welchT(outS.map((x) => x.netPct), baseline.filter((x) => x.date >= cut).map((x) => x.netPct)),
+      periods: byHalfYear(all),
+      trials,
+    },
     period: { from: first, to: last, oosFrom: cut },
     rules,
     all: summarizeTrades(all), inSample: summarizeTrades(inS), outOfSample: oos,
