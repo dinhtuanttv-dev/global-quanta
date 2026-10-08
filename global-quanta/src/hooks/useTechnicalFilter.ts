@@ -29,7 +29,7 @@ export interface TechnicalFilterMetrics {
 
 export interface TechnicalFilterComponent {
   key: string;
-  factor?: "C" | "A" | "N" | "S" | "L" | "I" | "M";
+  factor?: "C" | "A" | "N" | "S" | "L" | "I" | "M" | null;
   label: string;
   max: number;
   points: number;
@@ -71,6 +71,25 @@ export interface CupHandlePattern {
   uShape: boolean; handleVolDry: boolean; belowPivotPct: number;
 }
 
+export interface PricePoint { date: string; price: number }
+
+export interface ConfluenceCluster { price: number; low: number; high: number; weight: number; sources: string[] }
+
+/** S4 — hợp lưu Elliott/Fibonacci của tay cầm (tính từ đáy cốc bên phải). */
+export interface HandleConfluence {
+  rightLeg: { from: PricePoint; to: PricePoint };
+  retracePct: number;
+  fib: { ratio: number; price: number }[];
+  wave: { count: string; points: PricePoint[]; wave4Zone: { ratio: number; price: number }[]; overlapLimit: number } | null;
+  abc: { A: PricePoint; B: PricePoint; bRatio: number; cTarget: number } | null;
+  avwap: number | null;
+  poc: number | null;
+  clusters: ConfluenceCluster[];
+  best: ConfluenceCluster | null;
+  handleAtConfluence: boolean;
+  earlyEntry: { price: number; stop: number; riskPct: number } | null;
+}
+
 export interface CanSlimFundamentals {
   latestQuarter: string;
   npGrowthQ: number | null; npGrowthPrevQ: number | null; revGrowthQ: number | null; accelerating: boolean;
@@ -86,6 +105,7 @@ export interface TechnicalFilterResult {
   components?: TechnicalFilterComponent[];
   plan?: { entry: number; stop: number; target: number; riskPct: number; rr: number; buyZoneTop?: number };
   pattern?: CupHandlePattern;
+  handle?: HandleConfluence | null;
   fundamentals?: CanSlimFundamentals | null;
   date: string;
   metrics: TechnicalFilterMetrics;

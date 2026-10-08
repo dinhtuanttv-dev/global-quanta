@@ -18,7 +18,7 @@ export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S3", "base-breakout": "screener-v2/S3" });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S4", "base-breakout": "screener-v2/S3" });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -71,7 +71,7 @@ function runStrategy(strategy, bars, ctx) {
     const r = scanCanSlimV2(bars, ctx.canslim);
     return r.status ? {
       status: r.status, grade: r.grade, date: r.date, metrics: r.metrics, components: r.components, plan: r.plan,
-      pattern: r.pattern, fundamentals: r.fundamentals,
+      pattern: r.pattern, handle: r.handle, fundamentals: r.fundamentals,
     } : null;
   }
   const r = scanBaseBreakoutV2(bars, ctx.market);
