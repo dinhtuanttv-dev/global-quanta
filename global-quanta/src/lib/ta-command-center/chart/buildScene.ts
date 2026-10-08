@@ -83,6 +83,15 @@ export function buildScene(inp: SceneInput): Scene {
       const text = e.confirmedIndex === null ? `${name}?` : e.confirmedDate && e.confirmedDate !== e.date ? `${name} ✓${dm(e.confirmedDate)}` : name;
       items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3 * a), dash: [2, 2], labelPrice: e.price, label: { text, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     }
+    // W3: dòng thời gian Phase A–E — dải mỏng ngay dưới đáy range, ghim theo nến; đoạn hiện tại đậm hơn.
+    if (current && w.phases?.length) {
+      const hgt = w.rangeHigh - w.rangeLow;
+      for (const [i, p] of w.phases.entries()) {
+        items.push({ kind: "zone", t1: p.startDate, t2: p.endDate, top: w.rangeLow - 0.03 * hgt, bottom: w.rangeLow - 0.09 * hgt,
+          fill: rgba(GQ_COLORS.uv, p.current ? 0.32 : i % 2 ? 0.1 : 0.18), stroke: rgba(GQ_COLORS.uv, p.current ? 0.8 : 0.3),
+          label: { text: p.current ? `Phase ${p.phase} (hiện tại)` : `Phase ${p.phase}`, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+      }
+    }
     // W2: đường cung / cầu của xu hướng trước range + đường song song (kênh), cao trào ngoài kênh, mục tiêu ước lượng 1×.
     const tt = current ? w.tests ?? null : null;
     if (tt?.channel) {

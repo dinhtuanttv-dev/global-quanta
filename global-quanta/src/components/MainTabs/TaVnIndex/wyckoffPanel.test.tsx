@@ -134,3 +134,23 @@ describe("Wyckoff — 9 phép thử (W2)", () => {
   });
 });
 
+describe("Wyckoff — bản đồ chu kỳ & kế hoạch 3 lần (W3)", () => {
+  it("thẻ: sơ đồ chu kỳ tô sáng pha hiện tại; kế hoạch ghi 'minh hoạ, không phải khuyến nghị' và giới hạn KL", () => {
+    const bars = classicAccumulationSeries();
+    const w = analyze(bars, { timeframe: "D" }).wyckoffAlt!;
+    const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
+    expect(el.querySelector('[data-testid="wyckoff-cycle-map"]')?.getAttribute("data-current")).toBe("E");
+    expect(el.querySelector('[data-testid="wyckoff-plan3"]')?.textContent).toContain("không phải khuyến nghị");
+    expect(el.querySelector('[data-testid="wyckoff-liquidity"]')?.textContent).toContain("15% KL TB20");
+  });
+  it("lớp vẽ: dải Phase A–E dưới range, đoạn hiện tại có nhãn '(hiện tại)'; lịch sử không vẽ", () => {
+    const layers = { ...DEFAULT_LAYER_STATE, wyckoff: true };
+    const bars = classicAccumulationSeries();
+    const s = buildScene({ bars, smc: null, wyckoff: analyze(bars).wyckoffAlt, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s.items.some((i) => i.kind === "zone" && i.label?.text === "Phase E (hiện tại)")).toBe(true);
+    const stale = staleSpringSeries(90);
+    const h = buildScene({ bars: stale, smc: null, wyckoff: analyze(stale).wyckoff, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(h.items.some((i) => i.kind === "zone" && /^Phase /.test(i.label?.text ?? ""))).toBe(false);
+  });
+});
+
