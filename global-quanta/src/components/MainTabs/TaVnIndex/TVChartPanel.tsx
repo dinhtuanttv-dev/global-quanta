@@ -34,6 +34,9 @@ import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/z
 import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import type { CorporateActionMark } from "../../../hooks/useTaSeries";
+import { useTaIntraday } from "../../../hooks/useTaIntraday";
+import { isIntradayTf } from "../../../lib/ta-command-center/TimeframeController";
+import type { Analysis } from "../../../lib/quant-core";
 
 interface Props {
   bars: OhlcvBar[];
@@ -82,6 +85,10 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   const [chochBacktest, setChochBacktest] = useState<ChochBacktest | null>(null);
   const [draftPrimitive, setDraftPrimitive] = useState<{ toolType: DrawingToolType; p1: DomainPoint; p2: DomainPoint } | null>(null);
   const [timeframe, setTimeframeState] = useState<Timeframe>("D");
+  // P4: khung intraday — chỉ tải nến phút khi người dùng chọn 1m/5m/15m/1H lần đầu; khung chờ áp dụng khi dữ liệu về.
+  const [wantIntraday, setWantIntraday] = useState(false);
+  const [pendingTf, setPendingTf] = useState<Timeframe | null>(null);
+  const [volumeExtras, setVolumeExtras] = useState<{ profile: Analysis["profile"]; avwap: Analysis["avwap"] } | null>(null);
   const [currentBars, setCurrentBars] = useState<OhlcvBar[]>(bars);
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null);
   const [elliottDraft, setElliottDraft] = useState<DomainPoint[]>([]);
@@ -111,7 +118,12 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     const unsubs = [
       controller.onPrimitivesUpdated(setPrimitives),
       controller.onLogUpdated(setLog),
-      controller.onSmcUpdated((s) => { setSmc(s); setChochBacktest(controller.getChochBacktest()); }),
+      controller.onSmcUpdated((s) => {
+        setSmc(s);
+        setChochBacktest(controller.getChochBacktest());
+        const a = controller.getAnalysis();
+        setVolumeExtras(a ? { profile: a.profile, avwap: a.avwap } : null);
+      }),
       controller.onVsaUpdated(setVsa),
       controller.onWyckoffUpdated(setWyckoffResult),
       controller.onLayersChanged(setLayerState),
@@ -228,6 +240,16 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   }, [layerState]);
   useEffect(() => { tvManagerRef.current?.setRsi(rsiResult.series); }, [rsiResult]);
 
+  // ---- P4: nến phút SSI cho khung intraday (làm mới 60 giây trong phiên) ----
+  const intraday = useTaIntraday(ticker, wantIntraday);
+  useEffect(() => {
+    const controller = controllerRef.current;
+    if (!controller || !intraday.bars.length) return;
+    controller.setIntradayBars(intraday.bars);
+    if (pendingTf) { controller.setTimeframe(pendingTf); setPendingTf(null); }
+  }, [intraday.bars]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { tvManagerRef.current?.setTimeVisible(isIntradayTf(timeframe)); }, [timeframe]);
+
   // ---- Bàn phím: ← → dịch 5 nến (Shift: 20), + − zoom, Home/End về đầu/cuối dữ liệu ----
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const tv = tvManagerRef.current;
@@ -249,7 +271,8 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   const scene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange]);
+    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null,
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, volumeExtras]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
 
   useEffect(() => {
@@ -261,7 +284,18 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   // Khoá kéo/zoom biểu đồ khi đang chọn công cụ vẽ (để thao tác chạm/kéo vẽ hình thay vì cuộn biểu đồ).
   useEffect(() => { tvManagerRef.current?.setInteractionLocked(activeTool !== null); }, [activeTool]);
 
-  const handleTimeframeChange = (tf: Timeframe) => controllerRef.current?.setTimeframe(tf);
+  const handleTimeframeChange = (tf: Timeframe) => {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    if (isIntradayTf(tf) && !controller.hasIntraday()) {
+      setWantIntraday(true); // tải nến phút, áp dụng khung khi dữ liệu về
+      setPendingTf(tf);
+      return;
+    }
+    if (isIntradayTf(tf)) setWantIntraday(true);
+    setPendingTf(null);
+    controller.setTimeframe(tf);
+  };
   const handleToggleFibExtension = () => controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
   const handleSuggestElliott = () => {
     if (!controllerRef.current) return;
@@ -316,7 +350,8 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
 
   return (
     <div className="space-y-3">
-      <TimeframeSelector current={timeframe} onChange={handleTimeframeChange} />
+      <TimeframeSelector current={pendingTf ?? timeframe} onChange={handleTimeframeChange}
+        loadingIntraday={intraday.isLoading} intradayError={intraday.error} intradaySessions={intraday.sessions.length} />
       {layerState && (
         <LayerToggleBar state={layerState}
           onToggle={(key: LayerKey) => controllerRef.current?.layers.toggle(key)}
@@ -386,7 +421,12 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         <ElliottWavePanelPlaceholder />
       </div>
 
-      {chochBacktest && <BacktestPanel data={chochBacktest} />}
+      {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
+      {isIntradayTf(timeframe) && (
+        <p className="text-[9px] text-slate-500 rounded-xl p-3" style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} data-testid="backtest-intraday-note">
+          Event study chỉ chạy trên khung D/W/M: cổ phiếu mua trong phiên chưa bán được trong ngày (T+2.5), đo lợi suất theo nến phút sẽ sai bản chất.
+        </p>
+      )}
 
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 

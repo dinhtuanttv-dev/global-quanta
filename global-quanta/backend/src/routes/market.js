@@ -19,6 +19,7 @@ import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignal
 import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
 import { createCorporateActions } from "../market/adjusted/corporateActions.js";
 import { createTaSeries } from "../market/adjusted/taSeries.js";
+import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { runTechnicalFilter, STRATEGY_IDS } from "../market/strategies/technicalFilters.js";
 
 const router = Router();
@@ -260,7 +261,7 @@ router.get("/ohlcv/nominal-history", handle(async (req, res) => {
 // Chuỗi giá cho TA VN-Index: điều chỉnh CỘNG DỒN theo sự kiện quyền (cổ tức tiền/cổ phiếu, thưởng) — xem adjusted/taSeries.js.
 // GET /ta-series?ticker=FPT&range=5y&limit=750 · chỉ số trả điểm chỉ số. Luôn có priceBasis + warnings.
 let taSeries = null;
-router.get("/ta-series", handle(async (req, res) => {
+function getTaSeries() {
   const rt = getMarketRuntime();
   nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
   taSeries ??= createTaSeries({
@@ -268,10 +269,29 @@ router.get("/ta-series", handle(async (req, res) => {
     nominalHistory,
     corporateActions: createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") }),
   });
+  return taSeries;
+}
+
+router.get("/ta-series", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const series = getTaSeries();
   const q = req.query;
   const key = `ta-series:${String(q.ticker ?? q.symbol ?? "").toUpperCase()}:${q.range ?? "5y"}:${q.limit ?? 750}`;
-  const data = await rt.service.cache.wrap(key, 60_000, () => taSeries.get({ symbol: q.ticker ?? q.symbol, range: q.range, limit: q.limit }));
+  const data = await rt.service.cache.wrap(key, 60_000, () => series.get({ symbol: q.ticker ?? q.symbol, range: q.range, limit: q.limit }));
   res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+// Nến phút N phiên gần nhất cho khung 1m/5m/15m/1H + Session Volume Profile — cùng cơ sở giá với /ta-series.
+// GET /ta-intraday?ticker=FPT&days=20 (tối đa 30). Nến khớp định kỳ (ATO/ATC) có cờ `auction`.
+let taIntraday = null;
+router.get("/ta-intraday", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  taIntraday ??= createTaIntraday({ service: rt.service, taSeries: getTaSeries() });
+  const q = req.query;
+  const key = `ta-intraday:${String(q.ticker ?? q.symbol ?? "").toUpperCase()}:${q.days ?? 20}`;
+  const data = await rt.service.cache.wrap(key, 30_000, () => taIntraday.get({ symbol: q.ticker ?? q.symbol, days: q.days }));
+  res.set("Cache-Control", "private, max-age=20");
   res.json(data);
 }));
 

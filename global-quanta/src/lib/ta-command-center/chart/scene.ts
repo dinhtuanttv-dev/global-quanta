@@ -25,7 +25,10 @@ export type SceneItem =
   | { kind: "hline"; t1: string; t2: string | null; price: number; color: string; dash?: number[]; width?: number; label?: SceneLabel }
   | { kind: "vline"; t: string; color: string; dash?: number[]; label?: SceneLabel; labelPrice?: number } // nhãn neo vào giá (VD sự kiện Wyckoff)
   | { kind: "segment"; a: ScenePoint; b: ScenePoint; color: string; width?: number; dash?: number[] }
-  | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; label?: SceneLabel };
+  | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; label?: SceneLabel }
+  // Volume Profile: histogram ngang neo từ nến t1 tới nến t2 (độ dài thanh = KL/KL max × widthFrac × bề rộng [t1,t2]).
+  | { kind: "profile"; t1: string; t2: string; bins: { low: number; high: number; volume: number }[]; maxVolume: number;
+      vaLow: number; vaHigh: number; widthFrac: number; color: string; vaColor: string };
 
 export interface Scene { items: SceneItem[] }
 export const EMPTY_SCENE: Scene = { items: [] };

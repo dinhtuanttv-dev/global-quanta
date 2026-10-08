@@ -5,18 +5,15 @@
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
   createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, LineStyle,
-  type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time, type UTCTimestamp,
+  type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
 import { OverlayPrimitive } from "./chart/OverlayPrimitive";
+import { chartTime } from "./chart/time";
 import { GQ_COLORS, rgba, type Scene } from "./chart/scene";
 
-/** Ngày "YYYY-MM-DD" hoặc ISO có giờ (khung intraday) -> UTCTimestamp. */
-export function toTime(dateStr: string): UTCTimestamp {
-  const hasTime = dateStr.includes("T");
-  const isoStr = hasTime ? (dateStr.endsWith("Z") ? dateStr : `${dateStr}Z`) : `${dateStr}T00:00:00Z`;
-  return (new Date(isoStr).getTime() / 1000) as UTCTimestamp;
-}
+/** Ngày hoặc ISO (intraday) -> thời gian trục — dùng chung với lớp phủ (chart/time.ts). */
+export const toTime = chartTime;
 
 const DEFAULT_VISIBLE_BARS = 250;
 
@@ -177,6 +174,9 @@ export class TVChartManager {
   }
 
   setScene(scene: Scene): void { this.overlay.setScene(scene); }
+
+  /** Khung intraday: hiện giờ:phút trên trục thời gian. */
+  setTimeVisible(on: boolean): void { this.chart.applyOptions({ timeScale: { timeVisible: on, secondsVisible: false } }); }
 
   resize(width: number, height: number): void { this.chart.resize(width, height); }
 

@@ -17,7 +17,7 @@ test("sanitizeChartPrimitives: giữ hình hợp lệ, bỏ sai dạng, giới h
     { id: "f", toolType: "fibonacci", p1: { date: "2026-01-01", price: 10 }, p2: { date: "2026-01-09", price: 20 }, levels: [{ ratio: 0.5, price: 15 }, { ratio: "x" }] },
   ]);
   assert.deepEqual(out.map((p) => p.id), ["a", "e", "f"]);
-  assert.equal(out[1].anchor.date, "2026-02-03");
+  assert.equal(out[1].anchor.date, "2026-02-03T00:00:00Z", "giữ nguyên giờ phút (hình vẽ trên khung intraday)");
   assert.deepEqual(out[2].levels, [{ ratio: 0.5, price: 15 }]);
   assert.equal(sanitizeChartPrimitives(Array.from({ length: 150 }, (_, i) => line(`l${i}`))).length, MAX_PRIMITIVES);
   assert.throws(() => sanitizeChartPrimitives("x"), /mảng/);
