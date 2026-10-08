@@ -47,7 +47,7 @@ export function componentValue(c: TechnicalFilterComponent): string {
   }
 }
 
-function Card({ title, right, children, className = "" }: { title: string; right?: ReactNode; children: ReactNode; className?: string }) {
+export function Card({ title, right, children, className = "" }: { title: string; right?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={`rounded-lg p-2.5 min-w-0 ${className}`} style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
       <div className="flex items-center justify-between gap-2 mb-1.5">
@@ -59,7 +59,7 @@ function Card({ title, right, children, className = "" }: { title: string; right
   );
 }
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
+export function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
   return (
     <div className="rounded-md px-2 py-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="text-[8px] text-slate-500 uppercase tracking-wide">{label}</div>
@@ -70,7 +70,7 @@ function Tile({ label, value, sub, tone }: { label: string; value: string; sub?:
 }
 
 /** Vòng điểm 0–100. */
-function ScoreRing({ score, grade }: { score: number; grade?: string }) {
+export function ScoreRing({ score, grade }: { score: number; grade?: string }) {
   const r = 22, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, score / 100));
   const color = grade === "A" ? UP : grade === "B" ? ACCENT : "#64748b";
   return (
@@ -84,7 +84,7 @@ function ScoreRing({ score, grade }: { score: number; grade?: string }) {
   );
 }
 
-function VolumeBars({ data }: { data: VolumeAnalysis["trend"] }) {
+export function VolumeBars({ data }: { data: VolumeAnalysis["trend"] }) {
   const W = 300, H = 80;
   const max = Math.max(...data.bars30.map((b) => b.volume), data.ma20Volume ?? 0, 1);
   const bw = W / Math.max(1, data.bars30.length);
@@ -106,7 +106,7 @@ function VolumeBars({ data }: { data: VolumeAnalysis["trend"] }) {
   );
 }
 
-function ForeignBars({ series }: { series: VolumeAnalysis["foreign"]["netSeries20"] }) {
+export function ForeignBars({ series }: { series: VolumeAnalysis["foreign"]["netSeries20"] }) {
   const W = 300, H = 70, mid = H / 2;
   const max = Math.max(...series.map((s) => Math.abs(s.netVal)), 1);
   const bw = W / Math.max(series.length, 1);

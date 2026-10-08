@@ -5,6 +5,8 @@ import TaCommandCenterTab from "./TaCommandCenterTab";
 import GoldenFilterPanel from "./GoldenFilterPanel";
 import TAConsensusPanel from "./TAConsensusPanel";
 import ConvergenceFilterPanel from "./ConvergenceFilterPanel";
+import ConvergencePanelV2 from "./ConvergencePanelV2";
+import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import PatternList from "./PatternList";
 import SubTabNavigation, { SubTabKey } from "./SubTabNavigation";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
@@ -120,7 +122,10 @@ export default function TaVnIndexTab() {
               còn tự gắn thêm bản sao thứ 2 của 2 component này nữa. */}
           <div className="mt-2">
             {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
-            {activeSubTab === "convergence" && <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />}
+            {/* Hợp lưu v2 (Gateway); Gateway tắt -> bộ lọc cũ của Project A làm dự phòng (gỡ ở H4 sau khi xác minh). */}
+            {activeSubTab === "convergence" && (isMarketGatewayEnabled()
+              ? <ConvergencePanelV2 onSelectTicker={handleCandidateSelect} />
+              : <ConvergenceFilterPanel onSelectTicker={handleCandidateSelect} />)}
             {activeSubTab === "camslim" && (
               <TechnicalFilterPanel strategy="camslim" onSelectTicker={handleCandidateSelect} />
             )}
