@@ -21,11 +21,25 @@ export interface TechnicalFilterMetrics {
 
 export interface TechnicalFilterResult {
   ticker: string;
+  name?: string | null;
+  sector?: string | null;
   status: "SETUP" | "BREAKOUT";
   date: string;
   metrics: TechnicalFilterMetrics;
   checks: Record<string, boolean>;
+  liquidity?: { price: number; avgValue20: number };
+  priceBasis?: string;
+  bars?: number;
 }
+
+export interface TechnicalFilterCriteria {
+  minPrice: number;
+  minAvgValue20: number;
+  range: string;
+  priceBasis: string;
+}
+
+export type TechnicalFilterSkipReason = "INSUFFICIENT_BARS" | "STALE" | "ILLIQUID" | "LOW_PRICE" | "LOAD_FAILED" | "INVALID_DATA";
 
 export interface TechnicalFilterResponse {
   strategy: TechnicalFilterStrategy;
@@ -36,7 +50,10 @@ export interface TechnicalFilterResponse {
   scannedCount: number;
   resultCount: number;
   results: TechnicalFilterResult[];
-  skipped: { ticker: string; reason: string; bars?: number; message?: string }[];
+  engine?: string;
+  criteria?: TechnicalFilterCriteria;
+  priceBasis?: Record<string, number>;
+  skipped: { ticker: string; reason: TechnicalFilterSkipReason | string; bars?: number; message?: string; lastDate?: string; price?: number; avgValue20?: number }[];
   disclaimer: string;
 }
 

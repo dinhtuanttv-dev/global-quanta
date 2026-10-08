@@ -7,6 +7,7 @@ import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
+import { lastCompletedSessionDate } from "../market/calendar.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
@@ -16,12 +17,10 @@ import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/n
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
-import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
-import { createCorporateActions } from "../market/adjusted/corporateActions.js";
-import { createTaSeries } from "../market/adjusted/taSeries.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
-import { runTechnicalFilter, STRATEGY_IDS } from "../market/strategies/technicalFilters.js";
+import { runTechnicalFilters, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
+import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 
 const router = Router();
 
@@ -108,7 +107,7 @@ router.get("/scanner", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=60");
   res.json(doc);
 }));
-// Independent technical screeners for the TA VN-Index module.
+// Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout) — xem strategies/technicalFilters.js.
 router.get("/strategies/:strategy", handle(async (req, res) => {
   const { strategy } = req.params;
   if (!STRATEGY_IDS.includes(strategy)) {
@@ -116,11 +115,19 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
     return;
   }
   const rt = getMarketRuntime();
-  const data = await rt.service.cache.wrap(
-    `technical-filter:${strategy}`,
-    5 * 60_000,
-    () => runTechnicalFilter(rt.service, strategy),
-  );
+  // Kết quả quét sau ATC (job scanStrategies, KV strategies:<id>). Chưa có -> quét ngay một lần và lưu lại.
+  const stored = (await rt.store.getKv(strategyKvKey(strategy)))?.value;
+  // Bản lưu cũ hơn phiên đã đóng gần nhất (job lỗi/chưa chạy) và đã quá 30 phút -> quét lại.
+  const outdated = stored && stored.dataAsOf < lastCompletedSessionDate(new Date()) && Date.now() - Date.parse(stored.generatedAt) > 30 * 60_000;
+  let data = stored;
+  if (!stored || outdated) {
+    const docs = await rt.service.cache.wrap("technical-filters:all", 10 * 60_000, async () => {
+      const all = await runTechnicalFilters(rt.service, { seriesSource: createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }) });
+      for (const id of STRATEGY_IDS) await rt.store.setKv(strategyKvKey(id), all[id]);
+      return all;
+    });
+    data = docs[strategy];
+  }
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));
@@ -245,11 +252,9 @@ router.get("/radar/signals", handle(async (req, res) => {
 
 // Lịch sử giá DANH NGHĨA dài hạn từ SSI (kho bền vững) + gợi ý sự kiện quyền từ giá tham chiếu — nguồn giá chính cho
 // Timing Engine cổ tức ở Project A (Project A tự điều chỉnh bằng sự kiện quyền VCI). GET /ohlcv/nominal-history?ticker=VNM&years=5
-let nominalHistory = null;
 router.get("/ohlcv/nominal-history", handle(async (req, res) => {
   const rt = getMarketRuntime();
-  nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
-  const r = await nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
+  const r = await rt.nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
   res.set("Cache-Control", "private, max-age=600");
   res.json({
     symbol: r.symbol, priceType: "NOMINAL", isIndex: Boolean(r.index), referenceBase: r.base,
@@ -261,17 +266,7 @@ router.get("/ohlcv/nominal-history", handle(async (req, res) => {
 
 // Chuỗi giá cho TA VN-Index: điều chỉnh CỘNG DỒN theo sự kiện quyền (cổ tức tiền/cổ phiếu, thưởng) — xem adjusted/taSeries.js.
 // GET /ta-series?ticker=FPT&range=5y&limit=750 · chỉ số trả điểm chỉ số. Luôn có priceBasis + warnings.
-let taSeries = null;
-function getTaSeries() {
-  const rt = getMarketRuntime();
-  nominalHistory ??= createAdjustedHistory({ service: rt.service, store: rt.store });
-  taSeries ??= createTaSeries({
-    service: rt.service,
-    nominalHistory,
-    corporateActions: createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") }),
-  });
-  return taSeries;
-}
+const getTaSeries = () => getMarketRuntime().taSeries;
 
 router.get("/ta-series", handle(async (req, res) => {
   const rt = getMarketRuntime();

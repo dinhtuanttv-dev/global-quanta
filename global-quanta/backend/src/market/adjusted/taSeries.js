@@ -10,7 +10,7 @@
 import { isIndexSymbol, canonicalSymbol } from "../normalizer.js";
 import { adjustOhlcSeries } from "./corporateActions.js";
 
-const RANGE_YEARS = { "1y": 1, "2y": 2, "5y": 5 };
+const RANGE_YEARS = { "1y": 1, "2y": 2, "3y": 3, "5y": 5 };
 const MAX_FACTOR_DEVIATION = 0.5; // |k − 1| lớn hơn -> dữ liệu lệch ngày/lỗi, không tin
 
 /** Khôi phục OHLC danh nghĩa từ nến SSI + giá đóng cửa danh nghĩa (hàm thuần). */

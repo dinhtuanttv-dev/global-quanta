@@ -10,7 +10,7 @@ import { SourceRouter } from "./sourceRouter.js";
 import { addDays, daysBetween, TtlCache } from "./util.js";
 import { notifyOps } from "./alerts.js";
 
-const RANGE_DAYS = { "1d": 5, "5d": 10, "1mo": 31, "3mo": 93, "6mo": 186, "1y": 366, "2y": 731, "5y": 1827, "10y": 3653, max: 7305 };
+const RANGE_DAYS = { "1d": 5, "5d": 10, "1mo": 31, "3mo": 93, "6mo": 186, "1y": 366, "2y": 731, "3y": 1096, "5y": 1827, "10y": 3653, max: 7305 };
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60_000;
 
