@@ -1,5 +1,6 @@
-﻿import type { GoldenFilterStock } from "./goldenFilterEngine";
-import type { ConvergenceResult } from "../detectors/convergenceEngine";
+import type { GoldenFilterStock } from "./goldenFilterEngine";
+/** Kết quả Hợp lưu tối thiểu (từ 2026-10-09: Hợp lưu v2 của Market Gateway, phía mua). */
+export interface ConvergenceResult { ticker: string; sector: string; wyckoffPhase: string; compositeScore: number }
 
 export type TAConsensusLabel = "Elite Convergence" | "Golden Intersection" | "Convergence Only" | "Pattern Only";
 
