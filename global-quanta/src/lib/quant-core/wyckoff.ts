@@ -6,9 +6,17 @@
 //   - PS/SC chỉ khi có xu hướng giảm trước range; PSY/BC chỉ khi có xu hướng tăng trước range (bản cũ: gần như luôn có cả hai).
 //   - Spring/UT: thủng biên ≤ 1,5×ATR rồi đóng cửa trở lại trong range (≤ 3 nến).
 // Đầu ra giữ kiểu WyckoffResult để giao diện dùng chung. "% khớp mẫu" là tỷ lệ sự kiện, KHÔNG phải xác suất.
+// Sửa 2026-10-08 (lỗi "range cũ nhưng pha hiện tại"): trước đây pha = sự kiện quyết định gần nhất BẤT KỂ đã bao lâu và
+// kể cả khi đã bị phá (VD Spring rồi giá đóng cửa dưới đáy Spring). Giờ: Spring/UT bị huỷ khi giá đóng cửa vượt cực trị
+// của nó; sự kiện quyết định hết hiệu lực sau max(20, độ dài range) nến của CHÍNH khung đang phân tích; giá rời range
+// quá 1× độ rộng range ngược chiều pha -> hết hiệu lực. Khi hết hiệu lực: phase = "undetermined", status = "historical",
+// cấu trúc cũ nằm ở `historical`. Mỗi sự kiện có ngày xác nhận (Spring/UT: khi đóng cửa trở lại trong range).
 
 import { atrSeries, type Bar } from "./math";
-import { classifyWyckoffPhase, type WyckoffEventDetail, type WyckoffResult } from "../ta-command-center/detectors/wyckoffDetector";
+import { classifyWyckoffPhase, WYCKOFF_PHASE_LABEL, type WyckoffEventDetail, type WyckoffResult } from "../ta-command-center/detectors/wyckoffDetector";
+
+/** Hết hiệu lực: không có sự kiện quyết định mới trong max(minBars, rangeFactor × độ dài range) nến (khung đang phân tích). */
+export const WYCKOFF_STALE = { minBars: 20, rangeFactor: 1, awayHeights: 1 } as const;
 
 export const WYCKOFF_RANGE = { maxWidthATR: 8, minBars: 30, maxBars: 80, recentBars: 120 } as const;
 
@@ -53,10 +61,11 @@ const avgVolBefore = (bars: Bar[], i: number, w = 20) => {
 };
 
 export function classifyWyckoffV2(bars: Bar[]): WyckoffResult {
-  const base = classifyWyckoffPhase([]);
+  const base: WyckoffResult = { ...classifyWyckoffPhase([]), engine: "v2", asOf: bars.length ? bars[bars.length - 1].date : null };
+  if (bars.length < WYCKOFF_RANGE.minBars + 20) return { ...base, status: "insufficient", statusReason: `Cần ≥ ${WYCKOFF_RANGE.minBars + 20} nến, có ${bars.length}.` };
   const atr = atrSeries(bars, 14);
   const range = findTradingRange(bars);
-  if (!range) return base;
+  if (!range) return { ...base, status: "insufficient", statusReason: "Không tìm thấy trading range (biên ≤ 8× ATR, 30–80 nến, trong 120 nến gần nhất)." };
   const n = bars.length;
   const res: WyckoffResult = {
     ...base, rangeHigh: range.high, rangeLow: range.low,
@@ -77,12 +86,14 @@ export function classifyWyckoffV2(bars: Bar[]): WyckoffResult {
     return push(event, k, price, strength);
   };
   const a = (k: number) => atr[k] || 1;
-  const closesBackInside = (k: number, side: "low" | "high") => {
+  // Nến đầu tiên (k..k+3, không vượt dữ liệu hiện có) đóng cửa trở lại trong range = nến XÁC NHẬN Spring/UT; -1 nếu chưa.
+  const backInsideAt = (k: number, side: "low" | "high") => {
     for (let j = k; j <= Math.min(n - 1, k + 3); j++) {
-      if (side === "low" ? bars[j].close > range.low : bars[j].close < range.high) return true;
+      if (side === "low" ? bars[j].close > range.low : bars[j].close < range.high) return j;
     }
-    return false;
+    return -1;
   };
+  const closesBackInside = (k: number, side: "low" | "high") => backInsideAt(k, side) >= 0;
 
   // ---------- Nhánh tích luỹ ----------
   let ps = -1, sc = -1, st = -1, spring = -1, sos = -1, lps = -1;
@@ -136,6 +147,72 @@ export function classifyWyckoffV2(bars: Bar[]): WyckoffResult {
   const last = bars[n - 1].close;
   res.phaseE = last > range.high ? "Giá hiện TRÊN range" : last < range.low ? "Giá hiện DƯỚI range — chưa có SOW đủ effort xác nhận" : "Giá hiện TRONG range";
   if (last < range.low && sow >= 0 && sow === Math.max(sos, sow, spring, ut)) res.phaseE = "Giá hiện DƯỚI range (sau SOW)";
+  // ---------- Ngày xác nhận của từng sự kiện ----------
+  for (const e of events) {
+    const ci = e.event === "Spring" ? backInsideAt(e.index, "low") : e.event === "UT" ? backInsideAt(e.index, "high") : e.index;
+    e.confirmedIndex = ci >= 0 ? ci : null;
+    e.confirmedDate = ci >= 0 ? bars[ci].date : null;
+  }
   res.events = events.sort((x, y) => x.index - y.index);
+
+  // ---------- Hiệu lực của pha hiện tại ----------
+  const lastIdx = n - 1;
+  const rangeLen = range.end - range.start + 1;
+  const limit = Math.max(WYCKOFF_STALE.minBars, Math.round(WYCKOFF_STALE.rangeFactor * rangeLen));
+  const height = Math.max(1e-9, range.high - range.low);
+  const springCi = spring >= 0 ? backInsideAt(spring, "low") : -1;
+  const utCi = ut >= 0 ? backInsideAt(ut, "high") : -1;
+  let springBroken: number | null = null;
+  let utBroken: number | null = null;
+  if (spring >= 0) for (let j = Math.max(spring + 1, springCi); j <= lastIdx; j++) if (bars[j].close < bars[spring].low) { springBroken = j; break; }
+  if (ut >= 0) for (let j = Math.max(ut + 1, utCi); j <= lastIdx; j++) if (bars[j].close > bars[ut].high) { utBroken = j; break; }
+  const decisiveIdx = decisive
+    ? (decisive.phase === "spring" ? Math.max(decisive.k, springCi) : decisive.phase === "distribution" ? Math.max(decisive.k, utCi) : decisive.k)
+    : null;
+  // Không có sự kiện quyết định: tuổi tính từ cuối range (pha B theo bối cảnh).
+  const anchor = decisiveIdx ?? range.end;
+  const age = lastIdx - anchor;
+  const bullish = res.phase === "spring" || res.phase === "test" || res.phase === "markup" || res.phase === "accumulation";
+  const bearish = res.phase === "distribution" || res.phase === "decline";
+  const awayBelow = last < range.low - WYCKOFF_STALE.awayHeights * height;
+  const awayAbove = last > range.high + WYCKOFF_STALE.awayHeights * height;
+  const fmt = (v: number) => Math.round(v).toLocaleString("vi-VN");
+  let staleReason: string | null = null;
+  if (res.phase !== "undetermined") {
+    if ((res.phase === "spring" || res.phase === "test") && springBroken != null) {
+      staleReason = `Spring ${bars[spring].date} đã bị phá: đóng cửa dưới đáy Spring (${fmt(bars[spring].low)}) ngày ${bars[springBroken].date}.`;
+    } else if (res.phase === "distribution" && decisive?.phase === "distribution" && utBroken != null) {
+      staleReason = `UT ${bars[ut].date} đã bị phá: đóng cửa trên đỉnh UT (${fmt(bars[ut].high)}) ngày ${bars[utBroken].date}.`;
+    } else if (age > limit) {
+      staleReason = `Sự kiện quyết định cuối cách đây ${age} nến, quá thời hạn hiệu lực ${limit} nến (= max(20, độ dài range ${rangeLen} nến)).`;
+    } else if ((bullish && awayBelow) || (bearish && awayAbove)) {
+      staleReason = `Giá hiện đã rời ${awayBelow ? "xuống dưới" : "lên trên"} range quá 1 lần độ rộng range, ngược chiều pha ${WYCKOFF_PHASE_LABEL[res.phase]}.`;
+    }
+  }
+  res.checks = [
+    { label: "Có xu hướng trước range (giảm → tích luỹ / tăng → phân phối)", ok: priorDown || priorUp },
+    { label: "Climax (SC/BC) với KL ≥ 2× TB20", ok: sc >= 0 || bc >= 0 },
+    { label: "Spring/UT: thủng biên ≤ 1,5 ATR rồi đóng cửa trở lại trong range", ok: spring >= 0 || ut >= 0 },
+    { label: "SOS/SOW: đóng cửa vượt biên ± 0,25 ATR với KL ≥ 1,3× TB20", ok: sos >= 0 || sow >= 0 },
+    { label: `Sự kiện quyết định còn hiệu lực (≤ ${limit} nến, chưa bị phá)`, ok: res.phase === "undetermined" ? null : staleReason == null },
+  ];
+  res.caveats = [
+    "Engine v2 tìm range theo độ nén (biên ≤ 8× ATR), không theo chuỗi SC → AR → ST của Phase A.",
+    "Spring/UT chỉ nhận ra khi giá thủng biên của range đã chọn — range có thể khác range người phân tích vẽ tay.",
+  ];
+  if (staleReason) {
+    res.historical = {
+      phase: res.phase, wyckoffPhase: null, kind: bullish ? "accumulation" : "distribution", status: "stale",
+      rangeHigh: range.high, rangeLow: range.low, startDate: bars[range.start].date, endDate: bars[range.end].date, reason: staleReason,
+    };
+    res.phase = "undetermined";
+    res.status = "historical";
+    res.statusReason = staleReason;
+  } else {
+    res.status = res.phase === "undetermined" ? "insufficient" : "active";
+    res.statusReason = res.phase === "undetermined"
+      ? "Có trading range nhưng chưa đủ sự kiện / bối cảnh để xác định pha."
+      : `Sự kiện quyết định cách đây ${age} nến (hiệu lực ≤ ${limit}).`;
+  }
   return res;
 }

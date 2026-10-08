@@ -194,7 +194,7 @@ export class AnalysisController {
     this.cancelPending();
     const tf = this.timeframeController.getTimeframe();
     const bars1m = isIntradayTf(tf) ? this.timeframeController.getIntradayBars() : undefined;
-    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined }, (a) => this.applyAnalysis(a));
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined, timeframe: tf }, (a) => this.applyAnalysis(a));
   }
 
   private applyAnalysis(a: Analysis): void {

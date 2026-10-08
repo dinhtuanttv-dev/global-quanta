@@ -442,7 +442,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
-        {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} />}
+        {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} timeframe={timeframe} compare={controllerRef.current?.getAnalysis()?.wyckoffAlt ?? null} />}
         <ElliottWavePanelPlaceholder />
       </div>
 

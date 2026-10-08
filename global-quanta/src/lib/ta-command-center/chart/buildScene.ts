@@ -68,10 +68,16 @@ export function buildScene(inp: SceneInput): Scene {
 
   const w = inp.wyckoff;
   if (layers?.wyckoff && w && w.rangeHigh !== null && w.rangeLow !== null && w.rangeStartDate) {
-    items.push({ kind: "zone", t1: w.rangeStartDate, t2: w.rangeEndDate ?? last, top: w.rangeHigh, bottom: w.rangeLow, fill: rgba(GQ_COLORS.uv, 0.05), stroke: rgba(GQ_COLORS.uv, 0.6), dash: [4, 3],
-      label: { text: "Wyckoff range", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+    // Cấu trúc đang hoạt động: đậm; cấu trúc lịch sử / hết hiệu lực: mờ + nhãn "(lịch sử)" — không trình bày như pha hiện tại.
+    const current = (w.status ?? "active") === "active" && w.phase !== "undetermined";
+    const a = current ? 1 : 0.45;
+    items.push({ kind: "zone", t1: w.rangeStartDate, t2: w.rangeEndDate ?? last, top: w.rangeHigh, bottom: w.rangeLow, fill: rgba(GQ_COLORS.uv, 0.05 * a), stroke: rgba(GQ_COLORS.uv, 0.6 * a), dash: current ? [4, 3] : [2, 4],
+      label: { text: current ? "Wyckoff range" : "Wyckoff range (lịch sử)", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+    const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
     for (const e of w.events) {
-      items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3), dash: [2, 2], labelPrice: e.price, label: { text: e.event, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+      // Sự kiện ghi ở ngày XẢY RA; chưa xác nhận -> "?"; xác nhận muộn hơn -> thêm "✓dd/mm" (ngày biết được).
+      const text = e.confirmedIndex === null ? `${e.event}?` : e.confirmedDate && e.confirmedDate !== e.date ? `${e.event} ✓${dm(e.confirmedDate)}` : e.event;
+      items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3 * a), dash: [2, 2], labelPrice: e.price, label: { text, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     }
   }
 
