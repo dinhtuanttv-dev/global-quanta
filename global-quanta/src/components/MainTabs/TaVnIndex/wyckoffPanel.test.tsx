@@ -81,3 +81,32 @@ describe("Wyckoff — khung thời gian, chỉ số, lớp vẽ", () => {
     expect(spring.confirmedIndex!).toBeGreaterThanOrEqual(spring.index);
   });
 });
+
+describe("Wyckoff — bằng chứng VSA (W1)", () => {
+  it("thẻ hiện mục Bằng chứng VSA: Spring #loại, nến xác nhận SOS, đặc điểm range; ghi rõ chỉ hiển thị", () => {
+    const bars = classicAccumulationSeries();
+    const w = analyze(bars, { timeframe: "D" }).wyckoffAlt!;
+    const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
+    const ev = el.querySelector('[data-testid="wyckoff-evidence"]');
+    expect(ev).not.toBeNull();
+    expect(ev!.textContent).toMatch(/Spring #[123]/);
+    expect(el.querySelector('[data-testid="wyckoff-ev-confirm"]')?.textContent).toMatch(/SOS .* nến sau/);
+    expect(ev!.textContent).toContain("chưa tính vào pha");
+  });
+
+  it("lớp vẽ: nhãn Spring kèm #loại; cấu trúc lịch sử không vẽ Creek/ICE", () => {
+    const layers = { ...DEFAULT_LAYER_STATE, wyckoff: true };
+    const bars = classicAccumulationSeries();
+    const s = buildScene({ bars, smc: null, wyckoff: analyze(bars).wyckoffAlt, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s.items.some((i) => i.kind === "vline" && /^Spring#[123]/.test(i.label?.text ?? ""))).toBe(true);
+    const stale = staleSpringSeries(90);
+    const h = buildScene({ bars: stale, smc: null, wyckoff: analyze(stale).wyckoff, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(h.items.some((i) => i.kind === "poly" && /Creek|ICE/.test(i.label?.text ?? ""))).toBe(false);
+  });
+
+  it("lớp Wyckoff tắt -> không vẽ gì của Wyckoff (mặc định OFF)", () => {
+    const bars = classicAccumulationSeries();
+    const s = buildScene({ bars, smc: null, wyckoff: analyze(bars).wyckoffAlt, layers: DEFAULT_LAYER_STATE, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s.items.some((i) => "label" in i && /Wyckoff|Creek|ICE|JAC|BUEC|Spring/.test(i.label?.text ?? ""))).toBe(false);
+  });
+});
