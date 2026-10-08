@@ -46,6 +46,30 @@ describe("EvidenceCard", () => {
     expect(el.querySelector('[data-testid="evidence-small-sample"]')?.textContent).toContain("57 lệnh");
   });
 
+  it("phần kiểm định: KTC 95%, t so với nền, số cấu hình đã thử, bảng nửa năm", () => {
+    const el = render(<EvidenceCard marketUp evidence={{ ...evidence, validation: {
+      ciAll: { mean: [-0.5, 0.2], pf: [0.8, 1.1], clusters: 300 }, ciOutOfSample: { mean: [-3.1, -1.4], pf: [0.25, 0.5], clusters: 80 },
+      tVsBaseline: 0.4, tVsBaselineOos: -1.9, trials: 26,
+      periods: [{ period: "H2/2024", n: 120, profitFactor: 0.9 }, { period: "H1/2025", n: 300, profitFactor: 1.4 }],
+    } }} />);
+    const v = el.querySelector('[data-testid="evidence-validation"]')!.textContent!;
+    expect(v).toContain("-3,10% … -1,40%");
+    expect(v).toContain("26");
+    expect(v).toContain("thiên lệch tối ưu");
+    expect(v).toContain("H1/2025");
+  });
+
+  it("theo dõi thực tế: chưa có dữ liệu -> giải thích; có -> trúng / nền + kết luận", () => {
+    let el = render(<EvidenceCard evidence={evidence} marketUp />);
+    expect(el.querySelector('[data-testid="live-tracking"]')!.textContent).toContain("Đang ghi nhận tín hiệu mỗi phiên");
+    act(() => root?.unmount()); root = null;
+    const stat = { n: 34, hitRate: 0.62, baseline: 0.5, hitLow: 0.45, hitHigh: 0.76, z: 2.1, avgSignedExcess: 0.01, verdict: "edge" as const };
+    el = render(<EvidenceCard evidence={evidence} marketUp live={{ generatedAt: null, breakout: { h3: null, h5: stat, h10: null }, setup: { h3: null, h5: null, h10: null } }} />);
+    const t = el.querySelector('[data-testid="live-tracking"]')!.textContent!;
+    expect(t).toContain("62% / 50%");
+    expect(t).toContain("có lợi thế · n=34");
+  });
+
   it("không có nhãn M khi thị trường thuận", () => {
     const el = render(<EvidenceCard evidence={{ ...evidence, label: "VALIDATED" }} marketUp />);
     expect(el.textContent).not.toContain("M chưa thuận");

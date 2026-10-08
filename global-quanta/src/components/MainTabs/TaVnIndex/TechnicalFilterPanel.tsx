@@ -121,7 +121,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
           </span>
         )}
       </p>
-      {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} />}
+      {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} live={data.liveTracking} />}
       {isCamSlim && data?.market && (
         <p className="text-[9px] text-slate-500" data-testid="canslim-context">
           M: VN-Index {data.market.up ? "trên" : data.market.up === false ? "dưới" : "chưa rõ so với"} MA20 · {data.market.distributionDays ?? "—"} ngày phân phối / 25 phiên

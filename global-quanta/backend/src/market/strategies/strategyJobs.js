@@ -4,6 +4,7 @@
 
 import { STRATEGY_IDS, STRATEGY_RANGE, runTechnicalFilters, strategyKvKey } from "./technicalFilters.js";
 import { createScreenerSeries } from "./screenerSeries.js";
+import { recordSignals } from "./signalTracking.js";
 import { lastCompletedSessionDate, vnDate } from "../calendar.js";
 import { addDays, sleep } from "../util.js";
 
@@ -20,9 +21,13 @@ export function createStrategyJobs({ service, corporateActions, now = Date.now, 
     async scanStrategies() {
       const docs = await runTechnicalFilters(service, { seriesSource, now });
       for (const id of STRATEGY_IDS) await store.setKv(strategyKvKey(id), docs[id]);
+      // S6: ghi tín hiệu vào sổ cái để theo dõi thực tế (lỗi ghi không làm hỏng kết quả quét).
+      let ledger = 0;
+      try { ledger = await recordSignals(store, docs); } catch (error) { ledger = `lỗi: ${error.message.slice(0, 120)}`; }
       const any = docs[STRATEGY_IDS[0]];
       return {
         priceBasis: any.priceBasis,
+        ledger,
         dataAsOf: any.dataAsOf,
         scanned: any.scannedCount,
         skipped: any.skipped.length,

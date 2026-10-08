@@ -61,6 +61,22 @@ export interface TechnicalFilterEvidence {
   byMarket?: { up: TradeStats; down: TradeStats };
   baseline?: { holdBars: number; all: number | null; outOfSample: number | null };
   skippedLimitUp?: number;
+  /** S6 — kiểm định: KTC 95% bootstrap (theo ngày vào lệnh), t so với nền, walk-forward nửa năm, số cấu hình đã thử. */
+  validation?: {
+    ciAll: { mean: [number, number]; pf: [number, number]; clusters: number } | null;
+    ciOutOfSample: { mean: [number, number]; pf: [number, number]; clusters: number } | null;
+    tVsBaseline: number | null;
+    tVsBaselineOos: number | null;
+    periods: (TradeStats & { period: string })[];
+    trials: number;
+  };
+}
+
+export interface LiveStat { n: number; hitRate: number; baseline: number; hitLow: number; hitHigh: number; z: number | null; avgSignedExcess: number | null; verdict: "edge" | "negative" | "none" | "insufficient" }
+export interface LiveTracking {
+  generatedAt: string | null;
+  breakout: Record<"h3" | "h5" | "h10", LiveStat | null>;
+  setup: Record<"h3" | "h5" | "h10", LiveStat | null>;
 }
 
 export interface CupHandlePattern {
@@ -140,6 +156,7 @@ export interface TechnicalFilterResponse {
   evidence?: TechnicalFilterEvidence;
   market?: { indexAsOf: string | null; up: boolean | null; rule: string; distributionDays?: number | null };
   fundamentalsCoverage?: { withData: number; with12Quarters: number };
+  liveTracking?: LiveTracking;
   criteria?: TechnicalFilterCriteria;
   priceBasis?: Record<string, number>;
   skipped: { ticker: string; reason: TechnicalFilterSkipReason | string; bars?: number; message?: string; lastDate?: string; price?: number; avgValue20?: number }[];
