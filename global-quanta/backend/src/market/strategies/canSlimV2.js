@@ -12,6 +12,7 @@
 import { hoseTick } from "../adjusted/adjustedHistory.js";
 import { baselineReturns, evidenceFromTrades, simulateVnTrade, smaOf } from "./vnBacktest.js";
 import { liquidityAt } from "./baseBreakoutV2.js";
+import { handleConfluence } from "./handleConfluence.js";
 
 export const CS = Object.freeze({
   cupMin: 35, cupMax: 325, depthMin: 0.12, depthMax: 0.4, priorRise: 0.25, priorLookback: 130,
@@ -220,6 +221,9 @@ export function evaluateCs(S, t, ctx = {}, weights = WEIGHTS) {
   add("iForeign", "I", "Khối ngoại mua ròng 20 phiên", nf >= 10 ? (f20 > 0 ? 1 : 0) : 0, nf >= 10 ? f20 : null);
   add("market", "M", "VN-Index trên MA20", mUp === true ? 1 : 0, mUp);
   add("mDistribution", "M", "≤ 5 ngày phân phối / 25 phiên", dist == null ? 0 : dist <= 5 ? 1 : 0, dist);
+  // S4 — hợp lưu Elliott/Fibonacci của tay cầm: chỉ hiển thị (0 điểm) cho tới khi đủ mẫu kiểm định.
+  const handle = handleConfluence(S, p, t);
+  add("handleConfluence", null, "Đáy tay cầm chạm vùng hợp lưu Fib/Elliott", handle?.handleAtConfluence ? 1 : 0, handle?.retracePct ?? null);
   const total = comp.reduce((a, x) => a + x.max, 0) || 1;
   const score = Math.round((comp.reduce((a, x) => a + x.points, 0) / total) * 100);
   const grade = score >= CS.gradeA ? "A" : score >= CS.gradeB ? "B" : "C";
@@ -229,6 +233,7 @@ export function evaluateCs(S, t, ctx = {}, weights = WEIGHTS) {
   return {
     status: p.status, grade, score, components: comp,
     pattern: p,
+    handle,
     fundamentals: f,
     plan: { entry, stop, target: entry * (1 + CS.targetPct), riskPct: ((entry - stop) / entry) * 100, rr: CS.targetPct / ((entry - stop) / entry), buyZoneTop: p.pivot * (1 + CS.buyZone) },
     metrics: {
