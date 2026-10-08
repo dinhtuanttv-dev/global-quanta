@@ -35,10 +35,11 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
         daily.get(row.symbol).push({
           date: row.date, open: row.open || row.close, high: row.high || row.close, low: row.low || row.close, close: row.close,
           volume: row.volume ?? 0, value: row.value ?? null,
+          foreignNet: Number.isFinite(row.foreignBuyVal) && Number.isFinite(row.foreignSellVal) ? row.foreignBuyVal - row.foreignSellVal : null,
         });
       }
 
-      return async function loadSeries(symbol) {
+      const loadSeries = async function loadSeries(symbol) {
         const [history, adjRows, ca] = await Promise.all([
           store.getBars(symbol, from, to),
           store.selectRows(ADJUSTED_TABLE, { eq: { symbol }, limit: 1 }),
@@ -62,6 +63,9 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
         const adj = adjustOhlcSeries(bars, ca.events);
         return { bars: adj.bars, priceBasis: "ADJUSTED_CUMULATIVE", events: adj.applied.length, warnings };
       };
+      // VN-Index (điểm chỉ số) cho yếu tố M — kho nến được job nghiên cứu / biểu đồ cập nhật hằng ngày.
+      loadSeries.index = () => store.getBars("VNINDEX", from, to);
+      return loadSeries;
     },
   };
 }

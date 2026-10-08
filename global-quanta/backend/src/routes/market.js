@@ -19,7 +19,7 @@ import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/ra
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
-import { runTechnicalFilters, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
+import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 
 const router = Router();
@@ -118,7 +118,8 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
   // Kết quả quét sau ATC (job scanStrategies, KV strategies:<id>). Chưa có -> quét ngay một lần và lưu lại.
   const stored = (await rt.store.getKv(strategyKvKey(strategy)))?.value;
   // Bản lưu cũ hơn phiên đã đóng gần nhất (job lỗi/chưa chạy) và đã quá 30 phút -> quét lại.
-  const outdated = stored && stored.dataAsOf < lastCompletedSessionDate(new Date()) && Date.now() - Date.parse(stored.generatedAt) > 30 * 60_000;
+  const outdated = stored && (stored.engine !== STRATEGY_ENGINE[strategy] ||
+    (stored.dataAsOf < lastCompletedSessionDate(new Date()) && Date.now() - Date.parse(stored.generatedAt) > 30 * 60_000));
   let data = stored;
   if (!stored || outdated) {
     const docs = await rt.service.cache.wrap("technical-filters:all", 10 * 60_000, async () => {

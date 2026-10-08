@@ -12,13 +12,15 @@ import { mapLimit } from "../util.js";
 
 const require = createRequire(import.meta.url);
 const CamSlim = require("./camSlim.cjs");
-const BaseBreakout = require("./baseBreakout.cjs");
+import { buildEvidence, marketContext, scanBaseBreakoutV2 } from "./baseBreakoutV2.js";
 
 export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout"]);
 /** Số phiên tối thiểu: MA200 + đỉnh 250 phiên của CAMSLIM. */
 export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
+/** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S1", "base-breakout": "screener-v2/S2" });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -35,7 +37,6 @@ export function screenerCriteria(env = process.env) {
 
 // Ngưỡng của preset gốc tính theo đơn vị giá/khối lượng khác VN -> tắt, dùng cổng thanh khoản VND chung.
 const CAMSLIM_OPTIONS = Object.freeze({ minPrice: 0, minAvgVol: 0, minDollarVol: 0 });
-const BASE_OPTIONS = Object.freeze({ minPrice: 0, maxPrice: 0, minAvgVol: 0, minAvgValue: 0, minVol0: 0, minVol1: 0, minVol2: 0, minValue0: 0 });
 
 function failure(statusCode, message) {
   const error = new Error(message);
@@ -69,20 +70,17 @@ function commonLastDate(seriesList) {
   return best?.[0] ?? null;
 }
 
-function runStrategy(strategy, bars) {
+function runStrategy(strategy, bars, ctx) {
   if (strategy === "camslim") {
     const r = CamSlim.scanSymbol(bars, CAMSLIM_OPTIONS);
     return r.status ? { status: r.status, date: r.date, metrics: r.metrics, checks: r.checks } : null;
   }
-  const r = BaseBreakout.scanSymbol(bars, BASE_OPTIONS);
-  return r.ok ? { status: "BREAKOUT", date: r.date, metrics: r.metrics, checks: r.checks } : null;
+  const r = scanBaseBreakoutV2(bars, ctx);
+  return r.status ? { status: r.status, grade: r.grade, date: r.date, metrics: r.metrics, checks: r.checks, components: r.components, plan: r.plan } : null;
 }
 
 function compareResults(strategy, a, b) {
-  if (strategy === "camslim") {
-    return Number(b.status === "BREAKOUT") - Number(a.status === "BREAKOUT") || b.metrics.score - a.metrics.score;
-  }
-  return b.metrics.score - a.metrics.score;
+  return Number(b.status === "BREAKOUT") - Number(a.status === "BREAKOUT") || b.metrics.score - a.metrics.score;
 }
 
 /**
@@ -92,7 +90,7 @@ function compareResults(strategy, a, b) {
  * @param loadSeries    hoặc truyền thẳng (symbol) => Promise<{ bars, priceBasis }>
  * @returns {Record<strategy, doc>}
  */
-export async function runTechnicalFilters(service, { seriesSource, loadSeries, strategies = STRATEGY_IDS, concurrency = 6, criteria = screenerCriteria(), now = Date.now } = {}) {
+export async function runTechnicalFilters(service, { seriesSource, loadSeries, strategies = STRATEGY_IDS, concurrency = 6, criteria = screenerCriteria(), withEvidence = true, now = Date.now } = {}) {
   for (const s of strategies) if (!STRATEGY_IDS.includes(s)) throw failure(404, `Chiến lược không hợp lệ: ${s}.`);
   if (typeof loadSeries !== "function" && typeof seriesSource?.prepare !== "function") throw failure(503, "Chưa cấu hình nguồn chuỗi giá điều chỉnh.");
 
@@ -114,6 +112,8 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
   })).filter(Boolean);
 
   const dataAsOf = commonLastDate(loaded);
+  let market = { marketUp: () => null, lastDate: null };
+  try { if (typeof loadSeries.index === "function") market = marketContext(await loadSeries.index()); } catch { /* thiếu VN-Index -> M = null */ }
   if (!dataAsOf) throw failure(503, "Chưa tải được chuỗi giá của mã nào trong universe.");
 
   const eligible = [];
@@ -135,7 +135,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     const errors = [];
     for (const { item, bars, gate, priceBasis: basis } of eligible) {
       try {
-        const r = runStrategy(strategy, bars);
+        const r = runStrategy(strategy, bars, market);
         if (r) {
           results.push({
             ticker: item.ticker, name: item.name ?? null, sector: item.sector ?? null, ...r,
@@ -147,9 +147,15 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
       }
     }
     results.sort((a, b) => compareResults(strategy, a, b));
+    // Bằng chứng lịch sử (S2: Base Breakout) — mọi mã đã tải, cổng thanh khoản áp TẠI từng thời điểm (tránh thiên lệch sống sót).
+    const evidence = strategy === "base-breakout" && withEvidence
+      ? buildEvidence(loaded.map((s) => s.bars), { minAvgValue20: criteria.minAvgValue20, ctx: market })
+      : null;
     out[strategy] = {
       strategy,
-      engine: "screener-v2/S1",
+      engine: STRATEGY_ENGINE[strategy],
+      ...(evidence ? { evidence } : {}),
+      ...(strategy === "base-breakout" ? { market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20" } } : {}),
       generatedAt,
       dataAsOf,
       source: "SSI Market Gateway · giá điều chỉnh cộng dồn",
