@@ -5,7 +5,7 @@
 import { STRATEGY_IDS, STRATEGY_RANGE, runTechnicalFilters, strategyKvKey } from "./technicalFilters.js";
 import { createScreenerSeries } from "./screenerSeries.js";
 import { recordSignals } from "./signalTracking.js";
-import { buildConvergenceEvidence, CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh } from "./convergenceV2.js";
+import { buildConvergenceEvidenceInWorker, CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh } from "./convergenceV2.js";
 import { screenerCriteria } from "./technicalFilters.js";
 import { lastCompletedSessionDate, vnDate } from "../calendar.js";
 import { addDays, sleep } from "../util.js";
@@ -18,6 +18,7 @@ const YOUNG_RECHECK_MS = 30 * 86_400_000; // mã niêm yết chưa đủ 3 năm:
 export function createStrategyJobs({ service, corporateActions, now = Date.now, pauseMs = 1_500 }) {
   const store = service.store;
   const seriesSource = createScreenerSeries({ store, corporateActions });
+  let convergenceRun = null; // { startedAt, task } — lượt tính bằng chứng Hợp lưu đang chạy
 
   return {
     async scanStrategies() {
@@ -38,25 +39,43 @@ export function createStrategyJobs({ service, corporateActions, now = Date.now, 
     },
 
     /**
-     * Bằng chứng lịch sử Hợp lưu v2 (point-in-time mọi nến, ≈4 phút): chạy đêm, chỉ khi bản lưu khác engine hoặc cũ hơn 7 ngày
-     * (`force` = tính lại ngay). Ghi KV strategies:convergence:evidence.
+     * Bằng chứng lịch sử Hợp lưu v2 (point-in-time mọi nến): tính trong WORKER THREAD, chỉ khi bản lưu khác engine hoặc cũ hơn
+     * 7 ngày (`force` = tính lại). Mặc định KHÔNG chờ: khởi động rồi trả về ngay (job / request admin không bị treo), worker xong thì
+     * ghi KV strategies:convergence:evidence. Chỉ một lượt chạy tại một thời điểm. `wait: true` (test) = chờ tới khi xong.
      */
-    async buildConvergenceEvidence({ force = false } = {}) {
+    async buildConvergenceEvidence({ force = false, wait = false } = {}) {
+      if (convergenceRun) return { skipped: "RUNNING", startedAt: convergenceRun.startedAt };
       const stored = (await store.getKv(CONVERGENCE_EVIDENCE_KV))?.value ?? null;
       if (!force && convergenceEvidenceFresh(stored, now())) return { skipped: "FRESH", engine: stored.engine, computedAt: stored.computedAt };
-      const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
-      const loadSeries = await seriesSource.prepare(universe.map((x) => x.ticker));
-      const seriesList = [];
-      for (const { ticker } of universe) {
-        try { const s = await loadSeries(ticker); const bars = (s?.bars ?? []).filter((b) => !b.partial && b.open > 0 && b.close > 0); if (bars.length >= 300) seriesList.push(bars); } catch { /* bỏ mã lỗi */ }
-      }
-      let indexBars = [];
-      try { if (typeof loadSeries.index === "function") indexBars = await loadSeries.index(); } catch { /* thiếu VN-Index -> R = 0 */ }
-      const t0 = now();
-      const evidence = await buildConvergenceEvidence(seriesList, { indexBars, minAvgValue20: screenerCriteria().minAvgValue20 });
-      const doc = { engine: CONVERGENCE_VERSION, computedAt: new Date(now()).toISOString(), symbols: seriesList.length, ms: now() - t0, evidence };
-      await store.setKv(CONVERGENCE_EVIDENCE_KV, doc);
-      return { engine: doc.engine, symbols: doc.symbols, ms: doc.ms, label: evidence.label, oos: evidence.outOfSample };
+      const startedAt = new Date(now()).toISOString();
+      const task = (async () => {
+        const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
+        const loadSeries = await seriesSource.prepare(universe.map((x) => x.ticker));
+        const seriesList = [];
+        for (const { ticker } of universe) {
+          try {
+            const s = await loadSeries(ticker);
+            const bars = (s?.bars ?? []).filter((b) => !b.partial && b.open > 0 && b.close > 0)
+              .map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume, value: b.value }));
+            if (bars.length >= 300) seriesList.push(bars);
+          } catch { /* bỏ mã lỗi */ }
+        }
+        let indexBars = [];
+        try { if (typeof loadSeries.index === "function") indexBars = (await loadSeries.index()).map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume })); } catch { /* thiếu VN-Index -> R = 0 */ }
+        const t0 = now();
+        const evidence = await buildConvergenceEvidenceInWorker(seriesList, { indexBars, minAvgValue20: screenerCriteria().minAvgValue20 });
+        const doc = { engine: CONVERGENCE_VERSION, computedAt: new Date(now()).toISOString(), symbols: seriesList.length, ms: now() - t0, evidence };
+        await store.setKv(CONVERGENCE_EVIDENCE_KV, doc);
+        return { engine: doc.engine, symbols: doc.symbols, ms: doc.ms, label: evidence.label, oos: evidence.outOfSample };
+      })();
+      convergenceRun = { startedAt, task };
+      const done = task.then(
+        (r) => { convergenceRun = null; return r; },
+        (error) => { convergenceRun = null; console.error("[convergence] bằng chứng lỗi:", error instanceof Error ? error.message : error); throw error; },
+      );
+      if (wait) return done;
+      done.catch(() => {});
+      return { started: true, startedAt };
     },
 
     /**

@@ -22,6 +22,7 @@ import { createTaFlow } from "../market/adjusted/taFlow.js";
 import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
+import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 
 const router = Router();
 
@@ -129,6 +130,11 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
       return all;
     });
     data = docs[strategy];
+  }
+  // Hợp lưu v2: bằng chứng do job (worker) ghi KV riêng, có thể xong SAU lần quét -> luôn lấy bản mới nhất còn hiệu lực.
+  if (strategy === "convergence") {
+    const ev = (await rt.store.getKv(CONVERGENCE_EVIDENCE_KV))?.value;
+    if (convergenceEvidenceFresh(ev)) data = { ...data, evidence: { ...ev.evidence, computedAt: ev.computedAt } };
   }
   // S6: hiệu suất THỰC TẾ (ngoài mẫu, từ ngày triển khai) do researchEvaluate chấm hằng ngày.
   const perf = (await rt.store.getKv(PERFORMANCE_KV))?.value;

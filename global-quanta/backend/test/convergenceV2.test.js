@@ -84,19 +84,32 @@ test("backtest: vào lệnh T+1 sau tín hiệu, không chồng lệnh cùng mã
   }
 });
 
-test("job buildConvergenceEvidence: bỏ qua khi bản lưu còn hiệu lực; force -> tính và lưu KV", async () => {
+test("job buildConvergenceEvidence: worker thread không chặn event loop; một lượt tại một thời điểm; bỏ qua khi còn hiệu lực", async () => {
   const store = createMemoryStore();
-  await store.setKv("scanner:universe", { tickers: [{ ticker: "AAA" }] });
+  const tickers = ["AAA", "BBB", "CCC", "DDD"];
+  await store.setKv("scanner:universe", { tickers: tickers.map((ticker) => ({ ticker })) });
   const bars = springSeries();
-  await store.upsertBars("AAA", bars, "SSI");
-  await store.upsertMarketDaily(bars.slice(-5).map((b) => ({ symbol: "AAA", ...b })));
+  for (const t of tickers) {
+    await store.upsertBars(t, bars, "SSI");
+    await store.upsertMarketDaily(bars.slice(-5).map((b) => ({ symbol: t, ...b })));
+  }
   const corporateActions = { get: async () => ({ covered: true, events: [] }) };
   const jobs = createStrategyJobs({ service: { store }, corporateActions });
-  const r1 = await jobs.buildConvergenceEvidence({ force: true });
-  assert.equal(r1.engine, CONVERGENCE_VERSION);
+  // Mặc định không chờ: trả về ngay; lượt thứ hai trong lúc đang chạy -> RUNNING.
+  const started = await jobs.buildConvergenceEvidence({ force: true });
+  assert.equal(started.started, true);
+  assert.equal((await jobs.buildConvergenceEvidence({ force: true })).skipped, "RUNNING");
+  // Event loop vẫn chạy trong lúc worker tính.
+  let ticks = 0;
+  const timer = setInterval(() => { ticks++; }, 20);
+  const deadline = Date.now() + 120_000;
+  while (!(await store.getKv(CONVERGENCE_EVIDENCE_KV)) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));
+  clearInterval(timer);
   const stored = (await store.getKv(CONVERGENCE_EVIDENCE_KV)).value;
   assert.equal(stored.engine, CONVERGENCE_VERSION);
+  assert.equal(stored.symbols, 4);
   assert.ok(stored.evidence.label);
-  const r2 = await jobs.buildConvergenceEvidence();
-  assert.equal(r2.skipped, "FRESH");
+  assert.ok(ticks >= Math.floor(stored.ms / 20) * 0.5, `event loop bị chặn: ${ticks} tick trong ${stored.ms} ms`);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal((await jobs.buildConvergenceEvidence()).skipped, "FRESH");
 });

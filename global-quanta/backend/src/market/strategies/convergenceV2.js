@@ -9,6 +9,7 @@
 import { convergenceAt, CONVERGENCE_VERSION } from "../vendor/quantCore.mjs";
 import { baselineReturns, evidenceFromTrades, simulateVnTrade } from "./vnBacktest.js";
 import { liquidityAt } from "./baseBreakoutV2.js";
+import { Worker } from "node:worker_threads";
 
 export { CONVERGENCE_VERSION };
 export const CONVERGENCE_EVIDENCE_KV = "strategies:convergence:evidence";
@@ -92,6 +93,20 @@ export async function buildConvergenceEvidence(seriesList, { indexBars = [], min
     // Trọng số đặt trước, không tinh chỉnh theo kết quả.
     trials: 1,
     extra: { skippedLimitUp, engine: CONVERGENCE_VERSION },
+  });
+}
+
+/**
+ * Tính bằng chứng trong worker thread (event loop chính không bị chặn). Trả Promise<evidence>.
+ * `timeoutMs` — quá hạn thì dừng worker và báo lỗi (không treo job mãi).
+ */
+export function buildConvergenceEvidenceInWorker(seriesList, { indexBars = [], minAvgValue20 = 0, timeoutMs = 30 * 60_000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(new URL("./convergenceEvidenceWorker.js", import.meta.url), { workerData: { seriesList, indexBars, minAvgValue20 } });
+    const timer = setTimeout(() => { worker.terminate(); reject(new Error(`Worker bằng chứng Hợp lưu quá ${Math.round(timeoutMs / 60_000)} phút`)); }, timeoutMs);
+    worker.once("message", (m) => { clearTimeout(timer); worker.terminate(); m.ok ? resolve(m.evidence) : reject(new Error(m.message)); });
+    worker.once("error", (e) => { clearTimeout(timer); reject(e); });
+    worker.once("exit", (code) => { clearTimeout(timer); if (code !== 0 && code !== 1) reject(new Error(`Worker thoát mã ${code}`)); });
   });
 }
 
