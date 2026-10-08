@@ -1,6 +1,7 @@
 import { AlertCircle, Activity, Info, RefreshCw } from "lucide-react";
 import { useTechnicalFilter, type TechnicalFilterResult, type TechnicalFilterStrategy } from "../../../hooks/useTechnicalFilter";
 import EvidenceCard from "./EvidenceCard";
+import CanSlimDots from "./CanSlimDots";
 
 const GRADE_STYLE: Record<string, string> = {
   A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -83,6 +84,15 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
         )}
       </p>
       {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} />}
+      {isCamSlim && data?.market && (
+        <p className="text-[9px] text-slate-500" data-testid="canslim-context">
+          M: VN-Index {data.market.up ? "trên" : data.market.up === false ? "dưới" : "chưa rõ so với"} MA20 · {data.market.distributionDays ?? "—"} ngày phân phối / 25 phiên
+          {data.fundamentalsCoverage && data.fundamentalsCoverage.with12Quarters < 0.8 * data.fundamentalsCoverage.withData && (
+            <span className="text-amber-300/80"> · BCTC đủ 12 quý: {data.fundamentalsCoverage.with12Quarters}/{data.fundamentalsCoverage.withData} mã (đang bổ sung — yếu tố A chưa đủ)</span>
+          )}
+          {" "}· Tăng trưởng đo bằng LNST (EPS quý VCI chưa điều chỉnh theo cổ tức cổ phiếu)
+        </p>
+      )}
       {data?.criteria && (
         <p className="text-[9px] text-slate-500" data-testid="filter-criteria">
           Giá điều chỉnh cộng dồn · {data.criteria.range === "3y" ? "3 năm" : data.criteria.range} · Giá ≥ {formatPrice(data.criteria.minPrice)}đ · GTGD TB20 ≥ {formatBillion(data.criteria.minAvgValue20)}
@@ -116,9 +126,11 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                 <th className="py-1.5">Tín hiệu</th>
                 {isCamSlim ? (
                   <>
-                    <th className="py-1.5 text-right">Độ sâu cốc</th>
+                    <th className="py-1.5 text-right">Điểm</th>
+                    <th className="py-1.5 pl-3">CAN SLIM</th>
+                    <th className="py-1.5 text-right hidden sm:table-cell">Cốc</th>
                     <th className="py-1.5 text-right">Pivot</th>
-                    <th className="py-1.5 text-right">Handle</th>
+                    <th className="py-1.5 text-right">RS</th>
                   </>
                 ) : (
                   <>
@@ -164,9 +176,14 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                   </td>
                   {isCamSlim ? (
                     <>
-                      <td className="py-1.5 text-right text-slate-300">{formatPct(result.metrics.depthPct)}</td>
+                      <td className="py-1.5 text-right font-mono font-bold text-slate-200" title={scoreTitle(result)}>{result.metrics.score ?? "—"}</td>
+                      <td className="py-1.5 pl-3">{result.components ? <CanSlimDots components={result.components} /> : "—"}</td>
+                      <td className="py-1.5 text-right text-slate-300 hidden sm:table-cell">
+                        {result.pattern ? `${result.pattern.depthPct.toFixed(0)}% · ${result.pattern.cupBars}p` : formatPct(result.metrics.depthPct)}
+                        {result.pattern && <span className="block text-[8px] text-slate-500">tay cầm {result.pattern.handleBars}p · {result.pattern.handleDepthPct.toFixed(0)}%</span>}
+                      </td>
                       <td className="py-1.5 text-right font-mono text-slate-300">{formatPrice(result.metrics.pivot)}</td>
-                      <td className="py-1.5 text-right text-slate-300">{result.metrics.handleBars ?? "—"} phiên</td>
+                      <td className={`py-1.5 text-right font-mono ${(result.metrics.rs ?? 0) >= 80 ? "text-emerald-400" : "text-slate-300"}`}>{result.metrics.rs ?? "—"}</td>
                     </>
                   ) : (
                     <>

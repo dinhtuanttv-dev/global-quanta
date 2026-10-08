@@ -115,3 +115,31 @@ export function createCorporateActions({ base, fetchImpl = globalThis.fetch, now
     },
   };
 }
+
+/**
+ * Lưới an toàn cho sự kiện quyền THIẾU trong nguồn (hàm thuần): khoảng cách qua đêm (mở cửa / đóng cửa hôm trước)
+ * vượt `threshold` (20% > mọi biên độ sàn, UPCoM 15%) chỉ có thể là tách/gộp/thưởng cổ phiếu chưa điều chỉnh
+ * -> điều chỉnh lùi toàn bộ nến trước đó theo đúng hệ số khoảng cách. Giá tham chiếu từ 2025 không còn được điều chỉnh
+ * vào ngày GDKHQ nên không dùng được làm căn cứ.
+ * @returns {{ bars, repaired: {date, factor}[] }}
+ */
+export function repairUnexplainedGaps(bars, { threshold = 0.2 } = {}) {
+  const n = bars.length;
+  const gaps = [];
+  for (let i = 1; i < n; i++) {
+    const prev = bars[i - 1].close, open = bars[i].open, close = bars[i].close;
+    if (!(prev > 0 && open > 0)) continue;
+    const g = open / prev - 1, gc = close / prev - 1;
+    if (Math.abs(g) > threshold && Math.abs(gc) > threshold && Math.sign(g) === Math.sign(gc)) gaps.push({ i, factor: open / prev });
+  }
+  if (!gaps.length) return { bars, repaired: [] };
+  const out = bars.slice();
+  let k = 1, gi = gaps.length - 1;
+  for (let i = n - 1; i >= 0; i--) {
+    while (gi >= 0 && gaps[gi].i > i) { k *= gaps[gi].factor; gi--; }
+    if (k === 1) continue;
+    const b = bars[i];
+    out[i] = { ...b, open: b.open * k, high: b.high * k, low: b.low * k, close: b.close * k, volume: b.volume == null ? b.volume : Math.round(b.volume / k) };
+  }
+  return { bars: out, repaired: gaps.map((x) => ({ date: bars[x.i].date, factor: Math.round(x.factor * 10000) / 10000 })) };
+}

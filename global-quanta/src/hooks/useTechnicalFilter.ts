@@ -18,12 +18,18 @@ export interface TechnicalFilterMetrics {
   riskPct?: number;
   plan?: { entry?: number; stop: number; target: number; riskPct: number; rr?: number };
   belowPivotPct?: number;
+  rs?: number | null;
+  cupBars?: number;
+  handleDepthPct?: number;
+  distributionDays?: number | null;
+  foreignNet20?: number | null;
   foreignNet5?: number | null;
   vp?: { poc: number; vah: number; val: number } | null;
 }
 
 export interface TechnicalFilterComponent {
   key: string;
+  factor?: "C" | "A" | "N" | "S" | "L" | "I" | "M";
   label: string;
   max: number;
   points: number;
@@ -57,6 +63,20 @@ export interface TechnicalFilterEvidence {
   skippedLimitUp?: number;
 }
 
+export interface CupHandlePattern {
+  status: "BREAKOUT" | "SETUP";
+  leftLipIdx: number; cupLowIdx: number; rightLipIdx: number; handleLowIdx: number;
+  leftLip: number; cupLow: number; rightLip: number; handleLow: number; pivot: number;
+  depthPct: number; handleDepthPct: number; cupBars: number; handleBars: number;
+  uShape: boolean; handleVolDry: boolean; belowPivotPct: number;
+}
+
+export interface CanSlimFundamentals {
+  latestQuarter: string;
+  npGrowthQ: number | null; npGrowthPrevQ: number | null; revGrowthQ: number | null; accelerating: boolean;
+  npGrowthTtm: number | null; sustained: boolean; roe: number | null;
+}
+
 export interface TechnicalFilterResult {
   ticker: string;
   name?: string | null;
@@ -64,7 +84,9 @@ export interface TechnicalFilterResult {
   status: "SETUP" | "BREAKOUT";
   grade?: "A" | "B" | "C";
   components?: TechnicalFilterComponent[];
-  plan?: { entry: number; stop: number; target: number; riskPct: number; rr: number };
+  plan?: { entry: number; stop: number; target: number; riskPct: number; rr: number; buyZoneTop?: number };
+  pattern?: CupHandlePattern;
+  fundamentals?: CanSlimFundamentals | null;
   date: string;
   metrics: TechnicalFilterMetrics;
   checks: Record<string, boolean>;
@@ -93,7 +115,8 @@ export interface TechnicalFilterResponse {
   results: TechnicalFilterResult[];
   engine?: string;
   evidence?: TechnicalFilterEvidence;
-  market?: { indexAsOf: string | null; up: boolean | null; rule: string };
+  market?: { indexAsOf: string | null; up: boolean | null; rule: string; distributionDays?: number | null };
+  fundamentalsCoverage?: { withData: number; with12Quarters: number };
   criteria?: TechnicalFilterCriteria;
   priceBasis?: Record<string, number>;
   skipped: { ticker: string; reason: TechnicalFilterSkipReason | string; bars?: number; message?: string; lastDate?: string; price?: number; avgValue20?: number }[];

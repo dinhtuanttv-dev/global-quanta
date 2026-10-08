@@ -32,6 +32,7 @@ export const KV = {
 const projectABase = () => (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "");
 const ADJ_EPSILON = 0.0005;
 const HISTORY_SESSIONS = 260; // ~1 năm như bản gốc (Yahoo "1y"), đủ MA200 + RS 64 phiên
+const FA_QUARTERS = 20; // 5 năm: Siêu Quét dùng 6 quý gần nhất, CAN SLIM (A) cần 12 quý
 
 /** Các ngày giao dịch (theo lịch) lùi từ `end`, tối đa `count` ngày. */
 export function tradingDatesBack(end, count) {
@@ -195,7 +196,8 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const tickers = universe.map((u) => u.ticker);
       const existing = await store.getFundamentals(tickers);
       const cutoff = now() - maxAgeDays * 86_400_000;
-      const due = tickers.filter((t) => !existing.get(t) || Date.parse(existing.get(t).fetchedAt) < cutoff).slice(0, limit);
+      // CAN SLIM (bộ lọc TA) cần ≥ 12 quý cho yếu tố A -> bản lưu cũ chỉ có 6 quý cũng tải lại.
+      const due = tickers.filter((t) => !existing.get(t) || Date.parse(existing.get(t).fetchedAt) < cutoff || (existing.get(t).income?.quarters?.length ?? 0) < 12).slice(0, limit);
       let ok = 0, failed = 0;
       const results = await mapLimit(due, 2, async (ticker) => {
         const [income, balance] = await Promise.all([fetchQuarterlyIncome(ticker, fetchImpl), fetchQuarterlyBalance(ticker, fetchImpl)]);
@@ -204,7 +206,7 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         // giữ bản cũ nếu có.
         if (!income.available && !balance.available) { failed++; return null; }
         ok++;
-        return { ticker, income: { ...income, quarters: income.quarters.slice(0, 6) }, balance: { ...balance, quarters: balance.quarters.slice(0, 6) } };
+        return { ticker, income: { ...income, quarters: income.quarters.slice(0, FA_QUARTERS) }, balance: { ...balance, quarters: balance.quarters.slice(0, FA_QUARTERS) } };
       });
       const entries = results.filter(Boolean);
       if (entries.length) await store.upsertFundamentals(entries);

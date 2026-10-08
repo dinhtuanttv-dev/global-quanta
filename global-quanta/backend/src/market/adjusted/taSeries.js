@@ -8,7 +8,7 @@
 // Dự phòng: thiếu giá danh nghĩa hoặc sự kiện quyền -> trả chuỗi tốt nhất có được và GHI RÕ priceBasis + warnings.
 
 import { isIndexSymbol, canonicalSymbol } from "../normalizer.js";
-import { adjustOhlcSeries } from "./corporateActions.js";
+import { adjustOhlcSeries, repairUnexplainedGaps } from "./corporateActions.js";
 
 const RANGE_YEARS = { "1y": 1, "2y": 2, "3y": 3, "5y": 5 };
 const MAX_FACTOR_DEVIATION = 0.5; // |k − 1| lớn hơn -> dữ liệu lệch ngày/lỗi, không tin
@@ -74,10 +74,14 @@ export function createTaSeries({ service, nominalHistory, corporateActions }) {
       }
       if (!ca.covered) warnings.push(`${symbol} không có trong nguồn sự kiện quyền — giả định không có sự kiện.`);
       const adj = adjustOhlcSeries(nominal.bars, ca.events);
+      // Sự kiện thiếu trong nguồn / hệ số SSI lệch > 50% không khôi phục được -> khoảng cách qua đêm > 20%.
+      const fix = repairUnexplainedGaps(adj.bars);
+      if (fix.repaired.length) warnings.push(`Tự điều chỉnh ${fix.repaired.length} khoảng cách giá > 20% chưa có sự kiện quyền (${fix.repaired.map((x) => x.date).join(", ")}).`);
       return {
         ...base,
         priceBasis: "ADJUSTED_CUMULATIVE",
-        bars: adj.bars,
+        bars: fix.bars,
+        gapRepairs: fix.repaired,
         corporateActions: adj.applied,
         quality: { nominalCoverage, eventsSkipped: adj.skipped.filter((x) => x.reason !== "OUT_OF_RANGE").length, eventsSource: ca.source, eventsGeneratedAt: ca.generatedAt },
         warnings,

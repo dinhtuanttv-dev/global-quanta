@@ -5,6 +5,7 @@ import { liquidityGate, runTechnicalFilter, runTechnicalFilters, screenerCriteri
 import { createStrategyJobs, SCREENER_BACKFILL_KV } from "../src/market/strategies/strategyJobs.js";
 import { createScreenerSeries } from "../src/market/strategies/screenerSeries.js";
 import { ADJUSTED_TABLE } from "../src/market/adjusted/adjustedHistory.js";
+import { repairUnexplainedGaps } from "../src/market/adjusted/corporateActions.js";
 
 const criteria = screenerCriteria({});
 
@@ -78,15 +79,16 @@ test("screenerSeries: kho nến SSI -> danh nghĩa, market_daily ghi đè phiên
   await store.upsertBars("AAA", hist.map((b) => ({ ...b, open: Math.round(b.open / 1.3), high: Math.round(b.high / 1.3), low: Math.round(b.low / 1.3), close: Math.round(b.close / 1.3) })), "SSI");
   await store.upsertRows(ADJUSTED_TABLE, [{ symbol: "AAA", from_date: hist[0].date, to_date: "2026-10-05", bars: hist.slice(0, -1).map((b) => [b.date, b.close, null, null, b.volume]) }], "symbol");
   await store.upsertMarketDaily([
-    { symbol: "AAA", date: "2026-10-06", open: 5_000, high: 5_100, low: 4_950, close: 5_050, volume: 1_000, value: 5_050_000 },
-    { symbol: "AAA", date: "2026-10-07", open: 5_050, high: 5_200, low: 5_000, close: 5_150, volume: 1_000, value: 5_150_000 },
+    { symbol: "AAA", date: "2026-10-06", open: 7_700, high: 7_800, low: 7_650, close: 7_750, volume: 1_000, value: 7_750_000 },
+    { symbol: "AAA", date: "2026-10-07", open: 7_750, high: 7_900, low: 7_700, close: 7_850, volume: 1_000, value: 7_850_000 },
   ]);
   const corporateActions = { get: async () => ({ covered: true, events: [{ exDate: "2026-10-06", type: "STOCK_DIVIDEND", cash: 0, ratio: 0.3, label: "Cổ tức CP 30%" }] }) };
   const loadSeries = await createScreenerSeries({ store, corporateActions }).prepare(["AAA"]);
   const s = await loadSeries("AAA");
   assert.equal(s.bars.at(-1).date, "2026-10-07");
-  assert.equal(s.bars.at(-1).close, 5_150, "phiên cuối = giá danh nghĩa của sàn");
-  assert.equal(s.bars.at(-2).close, 5_050, "market_daily thắng nến kho cùng ngày");
+  assert.equal(s.bars.at(-1).close, 7_850, "phiên cuối = giá danh nghĩa của sàn");
+  assert.equal(s.bars.at(-2).close, 7_750, "market_daily thắng nến kho cùng ngày");
+  assert.deepEqual(s.gapRepairs, [], "sự kiện có trong nguồn -> không cần tự điều chỉnh");
   assert.equal(s.priceBasis, "ADJUSTED_CUMULATIVE");
   assert.equal(s.events, 1);
   assert.ok(Math.abs(s.bars[0].close - hist[0].close / 1.3) <= 5, `trước GDKHQ: danh nghĩa 10.000 -> điều chỉnh ~7.692 (được ${s.bars[0].close})`);
@@ -123,4 +125,22 @@ test("job backfillScreenerHistory chỉ nạp mã thiếu lịch sử 3 năm, gh
   calls.length = 0;
   await jobs.backfillScreenerHistory();
   assert.deepEqual(calls, ["NEW:3y"], "YNG niêm yết < 3 năm: 30 ngày mới thử lại; NEW vẫn thiếu trong kho giả lập");
+});
+
+test("repairUnexplainedGaps: tách 1:4 thiếu trong nguồn sự kiện -> điều chỉnh lùi theo khoảng cách; biến động thường không đụng tới", () => {
+  const bars = [
+    { date: "2026-09-10", open: 82_600, high: 83_500, low: 82_000, close: 83_100, volume: 100 },
+    { date: "2026-09-14", open: 82_000, high: 82_400, low: 80_500, close: 80_600, volume: 100 },
+    { date: "2026-09-15", open: 21_550, high: 21_550, low: 21_100, close: 21_550, volume: 400 },
+    { date: "2026-09-16", open: 21_600, high: 22_600, low: 21_550, close: 22_400, volume: 400 },
+  ];
+  const r = repairUnexplainedGaps(bars);
+  assert.equal(r.repaired.length, 1);
+  assert.equal(r.repaired[0].date, "2026-09-15");
+  assert.ok(Math.abs(r.bars[1].close - 21_550) < 1, "phiên trước GDKHQ về cùng thang giá");
+  assert.equal(r.bars[1].volume, Math.round(100 / (21_550 / 80_600)));
+  assert.deepEqual(r.bars.slice(2), bars.slice(2), "phiên sau không đổi");
+  // trần UPCoM +15% hai phiên liền: không phải sự kiện
+  const normal = [{ date: "a", open: 100, high: 100, low: 100, close: 100 }, { date: "b", open: 115, high: 115, low: 115, close: 115 }, { date: "c", open: 132, high: 132, low: 132, close: 132 }];
+  assert.deepEqual(repairUnexplainedGaps(normal).repaired, []);
 });
