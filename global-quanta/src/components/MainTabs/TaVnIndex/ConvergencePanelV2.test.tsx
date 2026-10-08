@@ -93,3 +93,19 @@ describe("Bảng phụ Hợp lưu v2 (H3)", () => {
     expect(el.querySelector('[data-testid="wyckoff-sketch"] svg')?.getAttribute("aria-label")).toContain("tích luỹ");
   });
 });
+
+describe("Theo dõi thực tế Hợp lưu v2 (H4)", () => {
+  it("bảng theo dõi hiện 4 nhóm Mua/Bán · READY/theo dõi", async () => {
+    const { LiveTrackingTable } = await import("./EvidenceCard");
+    const stat = { n: 35, hitRate: 0.6, baseline: 0.5, hitLow: 0.45, hitHigh: 0.73, z: 1.2, avgSignedExcess: 0.8, verdict: "none" as const };
+    const g = (key: string, label: string) => ({ key, label, h3: null, h5: stat, h10: null });
+    const live = { generatedAt: "x", breakout: { h3: null, h5: null, h10: null }, setup: { h3: null, h5: null, h10: null },
+      groups: [g("buyReady", "Mua · READY"), g("buyWatch", "Mua · theo dõi"), g("sellReady", "Bán · READY"), g("sellWatch", "Bán · theo dõi")] };
+    const el = render(<LiveTrackingTable live={live} />);
+    const rowsText = [...el.querySelectorAll("tbody tr")].map((r) => r.textContent);
+    expect(rowsText).toHaveLength(4);
+    expect(rowsText[2]).toContain("Bán · READY");
+    expect(rowsText[0]).toContain("60%");
+  });
+});
+

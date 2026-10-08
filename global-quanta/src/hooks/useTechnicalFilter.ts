@@ -77,6 +77,8 @@ export interface LiveTracking {
   generatedAt: string | null;
   breakout: Record<"h3" | "h5" | "h10", LiveStat | null>;
   setup: Record<"h3" | "h5" | "h10", LiveStat | null>;
+  /** Hợp lưu v2: nhóm theo phía × trạng thái (Mua/Bán · READY/theo dõi). */
+  groups?: ({ key: string; label: string } & Record<"h3" | "h5" | "h10", LiveStat | null>)[];
 }
 
 export interface CupHandlePattern {

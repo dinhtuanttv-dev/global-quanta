@@ -4,7 +4,7 @@ import { createMemoryStore } from "../src/market/store/memoryStore.js";
 import { runTechnicalFilters, screenerCriteria, STRATEGY_ENGINE } from "../src/market/strategies/technicalFilters.js";
 import { backtestConvergence, CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh, scanConvergenceV2 } from "../src/market/strategies/convergenceV2.js";
 import { createStrategyJobs } from "../src/market/strategies/strategyJobs.js";
-import { ledgerRows } from "../src/market/strategies/signalTracking.js";
+import { ledgerRows, liveTracking } from "../src/market/strategies/signalTracking.js";
 
 const day = (i) => new Date(Date.UTC(2024, 0, 1) + i * 86_400_000).toISOString().slice(0, 10);
 const wave = (i, amp, per) => amp * Math.sin((2 * Math.PI * i) / per);
@@ -70,9 +70,20 @@ test("bằng chứng hết hiệu lực khi khác engine hoặc cũ hơn 7 ngày
   assert.equal(convergenceEvidenceFresh(null, now), false);
 });
 
-test("KHÔNG ghi sổ cái tín hiệu cho Hợp lưu v2 (ghi DB là bước H4, cần duyệt riêng)", () => {
-  const docs = { convergence: { strategy: "convergence", dataAsOf: "2026-10-09", results: [{ ticker: "AAA", status: "READY", grade: "A", metrics: { score: 80, close: 1 } }] } };
-  assert.deepEqual(ledgerRows(docs), []);
+test("H4: ghi sổ cái SCR_CV_{BUY|SELL}_{READY|WATCH}, chiều +1 mua / −1 bán; theo dõi thực tế 4 nhóm", () => {
+  const docs = { convergence: { strategy: "convergence", engine: "convergence-v2/H1", dataAsOf: "2026-10-09", results: [
+    { ticker: "AAA", status: "READY", grade: "A", side: "buy", date: "2026-10-09", metrics: { score: 80, close: 1 }, plan: { entry: 1, stop: 0.9, target: 1.3 }, wyckoff: { cyclePhase: "C", testsPassed: 6, tranche: { n: 1 } }, zone: { kinds: ["wyckoff", "ob"] } },
+    { ticker: "BBB", status: "WATCH", grade: "B", side: "sell", date: "2026-10-09", metrics: { score: 55, close: 1 }, plan: null, wyckoff: { cyclePhase: "E" }, zone: null },
+  ] } };
+  const rows = ledgerRows(docs);
+  assert.deepEqual(rows.map((r) => [r.symbol, r.signal, r.direction]), [["AAA", "SCR_CV_BUY_READY", 1], ["BBB", "SCR_CV_SELL_WATCH", -1]]);
+  assert.deepEqual(rows[0].features.zoneKinds, ["wyckoff", "ob"]);
+  assert.equal(rows[0].features.phase, "C");
+  const perf = { generatedAt: "x", rows: [{ regime: "ALL", signal: "SCR_CV_SELL_WATCH", horizon: 5, n: 40, hitRate: 0.55, baseline: 0.5, hitLow: 0.4, hitHigh: 0.7, verdict: "none" }] };
+  const live = liveTracking(perf, "convergence");
+  assert.deepEqual(live.groups.map((g) => g.key), ["buyReady", "buyWatch", "sellReady", "sellWatch"]);
+  assert.equal(live.groups[3].h5.n, 40);
+  assert.equal(live.groups[0].h5, null);
 });
 
 test("backtest: vào lệnh T+1 sau tín hiệu, không chồng lệnh cùng mã", () => {

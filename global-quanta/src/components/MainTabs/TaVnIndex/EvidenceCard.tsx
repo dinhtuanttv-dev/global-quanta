@@ -55,7 +55,8 @@ function LiveCell({ s }: { s: LiveStat | null }) {
 
 /** Theo dõi THỰC TẾ (ngoài mẫu hoàn toàn): tỷ lệ trúng T+5 / T+10 so với mốc nền cùng ngày. */
 export function LiveTrackingTable({ live }: { live: LiveTracking | undefined }) {
-  const has = live && [live.breakout, live.setup].some((g) => g.h5 || g.h10);
+  const rows = live?.groups ?? (live ? [{ key: "bo", label: "Breakout", ...live.breakout }, { key: "setup", label: "Setup", ...live.setup }] : []);
+  const has = rows.some((g) => g.h5 || g.h10);
   return (
     <div data-testid="live-tracking">
       <div className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Theo dõi thực tế (từ ngày triển khai — ngoài mẫu hoàn toàn)</div>
@@ -65,8 +66,7 @@ export function LiveTrackingTable({ live }: { live: LiveTracking | undefined }) 
         <table className="w-full text-[9px]">
           <thead className="text-slate-500"><tr><th className="text-left font-normal px-1">Trúng / nền</th><th className="text-right font-normal px-1">T+5</th><th className="text-right font-normal px-1">T+10</th></tr></thead>
           <tbody>
-            <tr className="border-t border-white/5"><td className="px-1 text-slate-300">Breakout</td><LiveCell s={live!.breakout.h5} /><LiveCell s={live!.breakout.h10} /></tr>
-            <tr className="border-t border-white/5"><td className="px-1 text-slate-300">Setup</td><LiveCell s={live!.setup.h5} /><LiveCell s={live!.setup.h10} /></tr>
+            {rows.map((g) => <tr key={g.key} className="border-t border-white/5"><td className="px-1 text-slate-300">{g.label}</td><LiveCell s={g.h5} /><LiveCell s={g.h10} /></tr>)}
           </tbody>
         </table>
       )}
