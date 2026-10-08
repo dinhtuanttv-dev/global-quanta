@@ -16,7 +16,45 @@ export interface TechnicalFilterMetrics {
   volRatio?: number;
   mfi?: number;
   riskPct?: number;
-  plan?: { stop: number; target: number; riskPct: number };
+  plan?: { entry?: number; stop: number; target: number; riskPct: number; rr?: number };
+  belowPivotPct?: number;
+  foreignNet5?: number | null;
+  vp?: { poc: number; vah: number; val: number } | null;
+}
+
+export interface TechnicalFilterComponent {
+  key: string;
+  label: string;
+  max: number;
+  points: number;
+  ok: boolean;
+  value: number | boolean | null;
+}
+
+export interface TradeStats {
+  n: number;
+  winRate?: number;
+  avgNetPct?: number;
+  medianNetPct?: number;
+  profitFactor?: number | null;
+  expectancyR?: number;
+  avgBars?: number;
+  byReason?: Record<string, number>;
+}
+
+export interface TechnicalFilterEvidence {
+  label: "VALIDATED" | "EXPERIMENTAL";
+  reason: string;
+  period?: { from: string; to: string; oosFrom: string };
+  rules?: string;
+  all: TradeStats;
+  inSample?: TradeStats;
+  outOfSample?: TradeStats;
+  byGrade?: Record<"A" | "B" | "C", TradeStats>;
+  byGradeOutOfSample?: Record<"A" | "B" | "C", TradeStats>;
+  byMarket?: { up: TradeStats; down: TradeStats };
+  baseline?: { holdBars: number; all: number | null; outOfSample: number | null };
+  skippedLimitUp?: number;
 }
 
 export interface TechnicalFilterResult {
@@ -24,6 +62,9 @@ export interface TechnicalFilterResult {
   name?: string | null;
   sector?: string | null;
   status: "SETUP" | "BREAKOUT";
+  grade?: "A" | "B" | "C";
+  components?: TechnicalFilterComponent[];
+  plan?: { entry: number; stop: number; target: number; riskPct: number; rr: number };
   date: string;
   metrics: TechnicalFilterMetrics;
   checks: Record<string, boolean>;
@@ -51,6 +92,8 @@ export interface TechnicalFilterResponse {
   resultCount: number;
   results: TechnicalFilterResult[];
   engine?: string;
+  evidence?: TechnicalFilterEvidence;
+  market?: { indexAsOf: string | null; up: boolean | null; rule: string };
   criteria?: TechnicalFilterCriteria;
   priceBasis?: Record<string, number>;
   skipped: { ticker: string; reason: TechnicalFilterSkipReason | string; bars?: number; message?: string; lastDate?: string; price?: number; avgValue20?: number }[];

@@ -1,5 +1,16 @@
 import { AlertCircle, Activity, Info, RefreshCw } from "lucide-react";
-import { useTechnicalFilter, type TechnicalFilterStrategy } from "../../../hooks/useTechnicalFilter";
+import { useTechnicalFilter, type TechnicalFilterResult, type TechnicalFilterStrategy } from "../../../hooks/useTechnicalFilter";
+import EvidenceCard from "./EvidenceCard";
+
+const GRADE_STYLE: Record<string, string> = {
+  A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  B: "bg-sky-500/15 text-sky-300 border-sky-500/30",
+  C: "bg-slate-500/15 text-slate-300 border-slate-500/30",
+};
+
+/** Tooltip điểm: từng thành phần có tính điểm. */
+const scoreTitle = (r: TechnicalFilterResult) =>
+  (r.components ?? []).filter((c) => c.max > 0).map((c) => `${c.label}: ${c.points}/${c.max}`).join("\n");
 
 interface Props {
   strategy: TechnicalFilterStrategy;
@@ -14,7 +25,7 @@ const LABELS: Record<TechnicalFilterStrategy, string> = {
 const formatPrice = (value?: number) =>
   value == null || !Number.isFinite(value)
     ? "—"
-    : new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 }).format(value);
+    : new Intl.NumberFormat("vi-VN", { maximumFractionDigits: value >= 1000 ? 0 : 2 }).format(value);
 
 const formatPct = (value?: number) =>
   value == null || !Number.isFinite(value) ? "—" : `${value.toFixed(1)}%`;
@@ -71,6 +82,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
           </span>
         )}
       </p>
+      {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} />}
       {data?.criteria && (
         <p className="text-[9px] text-slate-500" data-testid="filter-criteria">
           Giá điều chỉnh cộng dồn · {data.criteria.range === "3y" ? "3 năm" : data.criteria.range} · Giá ≥ {formatPrice(data.criteria.minPrice)}đ · GTGD TB20 ≥ {formatBillion(data.criteria.minAvgValue20)}
@@ -110,8 +122,9 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                   </>
                 ) : (
                   <>
-                    <th className="py-1.5 text-right">Base</th>
-                    <th className="py-1.5 text-right">Vol × TB</th>
+                    <th className="py-1.5 text-right">Điểm</th>
+                    <th className="py-1.5 text-right">Pivot</th>
+                    <th className="py-1.5 text-right hidden sm:table-cell">Vol × TB</th>
                     <th className="py-1.5 text-right">Stop</th>
                     <th className="py-1.5 text-right">Rủi ro</th>
                   </>
@@ -140,6 +153,14 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                     }`}>
                       {result.status === "BREAKOUT" ? "Breakout" : "Setup"}
                     </span>
+                    {result.grade && (
+                      <span className={`ml-1 text-[8px] px-1 py-0.5 rounded border font-black ${GRADE_STYLE[result.grade]}`} data-testid="grade">
+                        {result.grade}
+                      </span>
+                    )}
+                    {result.status === "SETUP" && result.metrics.belowPivotPct != null && (
+                      <span className="block text-[8px] text-slate-500">cách pivot {formatPct(result.metrics.belowPivotPct)}</span>
+                    )}
                   </td>
                   {isCamSlim ? (
                     <>
@@ -149,12 +170,13 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                     </>
                   ) : (
                     <>
+                      <td className="py-1.5 text-right font-mono font-bold text-slate-200" title={scoreTitle(result)}>{result.metrics.score ?? "—"}</td>
                       <td className="py-1.5 text-right font-mono text-slate-300">{formatPrice(result.metrics.basePivot)}</td>
-                      <td className="py-1.5 text-right text-slate-300">
+                      <td className="py-1.5 text-right text-slate-300 hidden sm:table-cell">
                         {result.metrics.volRatio == null ? "—" : `${result.metrics.volRatio.toFixed(2)}×`}
                       </td>
-                      <td className="py-1.5 text-right font-mono text-slate-300">{formatPrice(result.metrics.plan?.stop)}</td>
-                      <td className="py-1.5 text-right text-slate-300">{formatPct(result.metrics.plan?.riskPct)}</td>
+                      <td className="py-1.5 text-right font-mono text-slate-300">{formatPrice(result.plan?.stop ?? result.metrics.plan?.stop)}</td>
+                      <td className="py-1.5 text-right text-slate-300">{formatPct(result.plan?.riskPct ?? result.metrics.plan?.riskPct)}</td>
                     </>
                   )}
                 </tr>
