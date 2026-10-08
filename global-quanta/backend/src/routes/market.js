@@ -20,6 +20,7 @@ import { createAdjustedHistory } from "../market/adjusted/adjustedHistory.js";
 import { createCorporateActions } from "../market/adjusted/corporateActions.js";
 import { createTaSeries } from "../market/adjusted/taSeries.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
+import { createTaFlow } from "../market/adjusted/taFlow.js";
 import { runTechnicalFilter, STRATEGY_IDS } from "../market/strategies/technicalFilters.js";
 
 const router = Router();
@@ -284,6 +285,19 @@ router.get("/ta-series", handle(async (req, res) => {
 
 // Nến phút N phiên gần nhất cho khung 1m/5m/15m/1H + Session Volume Profile — cùng cơ sở giá với /ta-series.
 // GET /ta-intraday?ticker=FPT&days=20 (tối đa 30). Nến khớp định kỳ (ATO/ATC) có cờ `auction`.
+// Order Flow: dòng lệnh theo phút (Lee–Ready, ATO/ATC tách riêng, lệnh lớn ≥ p99) + khối ngoại theo ngày.
+// GET /ta-flow?ticker=FPT&days=20
+let taFlow = null;
+router.get("/ta-flow", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  taFlow ??= createTaFlow({ store: rt.store, hub: rt.hub });
+  const q = req.query;
+  const key = `ta-flow:${String(q.ticker ?? q.symbol ?? "").toUpperCase()}:${q.days ?? 20}`;
+  const data = await rt.service.cache.wrap(key, 30_000, () => taFlow.get({ symbol: q.ticker ?? q.symbol, days: q.days }));
+  res.set("Cache-Control", "private, max-age=20");
+  res.json(data);
+}));
+
 let taIntraday = null;
 router.get("/ta-intraday", handle(async (req, res) => {
   const rt = getMarketRuntime();

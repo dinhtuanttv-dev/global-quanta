@@ -4,7 +4,7 @@ import { AIEngine, type SignalLogEntry } from "./AIEngine";
 import { TimeframeController, isIntradayTf, type IntradayBar, type Timeframe } from "./TimeframeController";
 // P2: mọi phép tính dùng @gq/quant-core (không look-ahead, có confirmedIndex). Các detector cũ trong ./detectors chỉ còn
 // phục vụ dữ liệu Project A (convergence) và test lịch sử.
-import { ENGINE_VERSION, OB_EXPIRY_BARS, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
+import { ENGINE_VERSION, OB_EXPIRY_BARS, type FlowMinute, type Analysis, type Dir, type EventStudyResult, type FvgState, type ObStatus, type PoolState, type VsaSignal } from "../quant-core";
 import { classifyWyckoffPhase, type WyckoffResult } from "./detectors/wyckoffDetector";
 import { runAnalysis } from "../quant-core/runner";
 import type { PatternMatch } from "./types";
@@ -159,6 +159,13 @@ export class AnalysisController {
   }
   hasIntraday(): boolean { return this.timeframeController.hasIntraday(); }
 
+  /** P5: dòng lệnh theo phút (Gateway /ta-flow); null = không tính Order Flow (lớp đang tắt). */
+  private flowMinutes: FlowMinute[] | null = null;
+  setFlowMinutes(minutes: FlowMinute[] | null): void {
+    this.flowMinutes = minutes;
+    this.recomputeDetectors();
+  }
+
   setTimeframe(tf: Timeframe): void {
     this.timeframeController.setTimeframe(tf);
     this.bars = this.timeframeController.getBarsForCurrentTimeframe();
@@ -187,7 +194,7 @@ export class AnalysisController {
     this.cancelPending();
     const tf = this.timeframeController.getTimeframe();
     const bars1m = isIntradayTf(tf) ? this.timeframeController.getIntradayBars() : undefined;
-    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m }, (a) => this.applyAnalysis(a));
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined }, (a) => this.applyAnalysis(a));
   }
 
   private applyAnalysis(a: Analysis): void {

@@ -35,6 +35,8 @@ import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import type { CorporateActionMark } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
+import { useTaFlow, type ForeignDay } from "../../../hooks/useTaFlow";
+import OrderFlowPanel from "./OrderFlowPanel";
 import { isIntradayTf } from "../../../lib/ta-command-center/TimeframeController";
 import type { Analysis } from "../../../lib/quant-core";
 
@@ -88,7 +90,8 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   // P4: khung intraday — chỉ tải nến phút khi người dùng chọn 1m/5m/15m/1H lần đầu; khung chờ áp dụng khi dữ liệu về.
   const [wantIntraday, setWantIntraday] = useState(false);
   const [pendingTf, setPendingTf] = useState<Timeframe | null>(null);
-  const [volumeExtras, setVolumeExtras] = useState<{ profile: Analysis["profile"]; avwap: Analysis["avwap"] } | null>(null);
+  const [volumeExtras, setVolumeExtras] = useState<{ profile: Analysis["profile"]; avwap: Analysis["avwap"]; orderFlow: Analysis["orderFlow"] } | null>(null);
+  const orderFlow = volumeExtras?.orderFlow ?? null;
   const [currentBars, setCurrentBars] = useState<OhlcvBar[]>(bars);
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null);
   const [elliottDraft, setElliottDraft] = useState<DomainPoint[]>([]);
@@ -122,7 +125,7 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         setSmc(s);
         setChochBacktest(controller.getChochBacktest());
         const a = controller.getAnalysis();
-        setVolumeExtras(a ? { profile: a.profile, avwap: a.avwap } : null);
+        setVolumeExtras(a ? { profile: a.profile, avwap: a.avwap, orderFlow: a.orderFlow } : null);
       }),
       controller.onVsaUpdated(setVsa),
       controller.onWyckoffUpdated(setWyckoffResult),
@@ -228,8 +231,12 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         color: v.dir === "bullish" ? GQ_COLORS.bull : v.dir === "bearish" ? GQ_COLORS.bear : GQ_COLORS.uv, shape: "circle", text: VSA_LABEL[v.type] ?? v.type.slice(0, 4),
       }));
     }
+    if (layerState.orderflow && orderFlow) {
+      for (const a of orderFlow.absorption) markers.push({ time: a.date, position: a.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: "square", text: "ABS" });
+      for (const d of orderFlow.divergences) markers.push({ time: d.date, position: d.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: "Div" });
+    }
     tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
-  }, [smc, vsa, layerState, corporateActions, currentBars, timeframe]);
+  }, [smc, vsa, layerState, corporateActions, currentBars, timeframe, orderFlow]);
 
   // ---- Pane chỉ báo (khối lượng, RSI) theo công tắc lớp ----
   useEffect(() => {
@@ -249,6 +256,24 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     if (pendingTf) { controller.setTimeframe(pendingTf); setPendingTf(null); }
   }, [intraday.bars]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { tvManagerRef.current?.setTimeVisible(isIntradayTf(timeframe)); }, [timeframe]);
+
+  // ---- P5: Order Flow (Delta/CVD, Absorption, Divergence, VPIN) + Khối ngoại — chỉ tải khi bật lớp ----
+  const flowEnabled = Boolean(layerState?.orderflow || layerState?.foreign);
+  const flow = useTaFlow(ticker, flowEnabled);
+  useEffect(() => {
+    controllerRef.current?.setFlowMinutes(layerState?.orderflow && flow.data ? flow.data.minutes : null);
+  }, [flow.data, layerState?.orderflow]);
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    tv.setFlowPane(layerState?.orderflow && orderFlow ? orderFlow.bars : null);
+  }, [orderFlow, layerState?.orderflow]);
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    if (!layerState?.foreign || isIntradayTf(timeframe) || !flow.data?.foreign.length) { tv.setForeignPane(null); return; }
+    tv.setForeignPane(foreignByBar(currentBars, flow.data.foreign));
+  }, [flow.data, layerState?.foreign, currentBars, timeframe]);
 
   // ---- Bàn phím: ← → dịch 5 nến (Shift: 20), + − zoom, Home/End về đầu/cuối dữ liệu ----
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -428,9 +453,31 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         </p>
       )}
 
+      <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
+        largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} />
+
       <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />
 
       <AISignalLogPanel log={log} engineOn={!!layerState?.aiDetectionMaster} />
     </div>
   );
+}
+
+/** Khối ngoại theo ngày -> theo nến khung hiện tại (D: cùng ngày; W/M: cộng các ngày thuộc kỳ của nến) + luỹ kế. */
+export function foreignByBar(bars: OhlcvBar[], days: ForeignDay[]): { date: string; net: number; cum: number }[] {
+  const out: { date: string; net: number; cum: number }[] = [];
+  let j = 0;
+  let cum = 0;
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  for (let i = 0; i < bars.length; i++) {
+    const end = i + 1 < bars.length ? bars[i + 1].date : "9999-12-31";
+    let net = 0;
+    let has = false;
+    while (j < sorted.length && sorted[j].date < bars[i].date) j++;
+    while (j < sorted.length && sorted[j].date < end) { net += sorted[j].netVal; has = true; j++; }
+    if (!has) continue;
+    cum += net;
+    out.push({ date: bars[i].date, net, cum });
+  }
+  return out;
 }
