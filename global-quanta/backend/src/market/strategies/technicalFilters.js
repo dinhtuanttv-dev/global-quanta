@@ -19,6 +19,8 @@ export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout"]);
 export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
+/** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S1", "base-breakout": "screener-v2/S2" });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -151,7 +153,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
       : null;
     out[strategy] = {
       strategy,
-      engine: strategy === "base-breakout" ? "screener-v2/S2" : "screener-v2/S1",
+      engine: STRATEGY_ENGINE[strategy],
       ...(evidence ? { evidence } : {}),
       ...(strategy === "base-breakout" ? { market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20" } } : {}),
       generatedAt,
