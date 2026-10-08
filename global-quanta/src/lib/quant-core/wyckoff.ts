@@ -13,6 +13,7 @@
 // cấu trúc cũ nằm ở `historical`. Mỗi sự kiện có ngày xác nhận (Spring/UT: khi đóng cửa trở lại trong range).
 
 import { atrSeries, type Bar } from "./math";
+import { wyckoffEvidence } from "./wyckoffEvidence";
 import { classifyWyckoffPhase, WYCKOFF_PHASE_LABEL, type WyckoffEventDetail, type WyckoffResult } from "../ta-command-center/detectors/wyckoffDetector";
 
 /** Hết hiệu lực: không có sự kiện quyết định mới trong max(minBars, rangeFactor × độ dài range) nến (khung đang phân tích). */
@@ -154,6 +155,11 @@ export function classifyWyckoffV2(bars: Bar[]): WyckoffResult {
     e.confirmedDate = ci >= 0 ? bars[ci].date : null;
   }
   res.events = events.sort((x, y) => x.index - y.index);
+  res.evidence = wyckoffEvidence(bars, range, res.events);
+  for (const sp of res.evidence.springs) {
+    const e = res.events.find((x) => x.index === sp.index && (x.event === "Spring" || x.event === "UT"));
+    if (e) e.label = `${e.event}#${sp.kind}`;
+  }
 
   // ---------- Hiệu lực của pha hiện tại ----------
   const lastIdx = n - 1;

@@ -74,10 +74,28 @@ export function buildScene(inp: SceneInput): Scene {
     items.push({ kind: "zone", t1: w.rangeStartDate, t2: w.rangeEndDate ?? last, top: w.rangeHigh, bottom: w.rangeLow, fill: rgba(GQ_COLORS.uv, 0.05 * a), stroke: rgba(GQ_COLORS.uv, 0.6 * a), dash: current ? [4, 3] : [2, 4],
       label: { text: current ? "Wyckoff range" : "Wyckoff range (lịch sử)", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
     const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+    const ev = w.evidence ?? null;
     for (const e of w.events) {
       // Sự kiện ghi ở ngày XẢY RA; chưa xác nhận -> "?"; xác nhận muộn hơn -> thêm "✓dd/mm" (ngày biết được).
-      const text = e.confirmedIndex === null ? `${e.event}?` : e.confirmedDate && e.confirmedDate !== e.date ? `${e.event} ✓${dm(e.confirmedDate)}` : e.event;
+      // Spring/UT kèm loại #1/#2/#3 theo tài liệu VSA.
+      const sp = ev?.springs.find((x) => x.index === e.index);
+      const name = sp ? `${e.event}#${sp.kind}` : e.event;
+      const text = e.confirmedIndex === null ? `${name}?` : e.confirmedDate && e.confirmedDate !== e.date ? `${name} ✓${dm(e.confirmedDate)}` : name;
       items.push({ kind: "vline", t: e.date, color: rgba(GQ_COLORS.uv, 0.3 * a), dash: [2, 2], labelPrice: e.price, label: { text, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.wyckoff } });
+    }
+    // Creek / ICE và JAC · BUEC / phá ICE — chỉ với cấu trúc ĐANG HOẠT ĐỘNG (cấu trúc lịch sử không vẽ thêm).
+    if (current && ev) {
+      if (ev.creek) items.push({ kind: "poly", points: ev.creek.points.map((p) => ({ t: p.date, price: p.price })), color: rgba(GQ_COLORS.bull, 0.7), width: 1, dash: [5, 3],
+        label: { text: "Creek", color: GQ_COLORS.bull, priority: LABEL_PRIORITY.wyckoff } });
+      if (ev.ice) items.push({ kind: "poly", points: ev.ice.points.map((p) => ({ t: p.date, price: p.price })), color: rgba(GQ_COLORS.bear, 0.7), width: 1, dash: [5, 3],
+        label: { text: "ICE", color: GQ_COLORS.bear, priority: LABEL_PRIORITY.wyckoff } });
+      for (const b of ev.breaks) {
+        // Chỉ cú phá còn hiệu lực (đủ biên độ + KL, chưa thất bại); cú phá yếu / thất bại chỉ liệt kê trong thẻ.
+        if ((b.kind !== "JAC" && b.kind !== "ICE-break") || b.failed) continue;
+        const c = b.kind === "JAC" ? GQ_COLORS.bull : GQ_COLORS.bear;
+        items.push({ kind: "vline", t: b.date, color: rgba(c, 0.35), dash: [2, 2], labelPrice: b.price, label: { text: b.kind === "JAC" ? "JAC" : "phá ICE", color: c, priority: LABEL_PRIORITY.wyckoff } });
+        if (b.backup) items.push({ kind: "vline", t: b.backup.date, color: rgba(c, 0.3), dash: [2, 2], labelPrice: b.backup.price, label: { text: b.kind === "JAC" ? "BUEC" : "hồi ICE", color: c, priority: LABEL_PRIORITY.wyckoff } });
+      }
     }
   }
 

@@ -3,6 +3,7 @@ import { Clock } from "lucide-react";
 import { SMC_DISPLAY_LIMIT, type OrderBlock, type FairValueGap, type BreakOfStructure, type SmcTotals } from "../../../lib/ta-command-center/AnalysisController";
 import { VSA_DIRECTION, type VsaSignal as VSASignal } from "../../../lib/quant-core";
 import { WYCKOFF_PHASE_LABEL, describeRangeCriteria, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
+import type { WyckoffEvidence } from "../../../lib/quant-core/wyckoffEvidence";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
@@ -79,6 +80,58 @@ const EVENT_VI: Record<string, string> = {
   SOW_B: "SOW trong Phase B", UTA: "UTA – vượt đỉnh giả trong B", FAIL: "Cấu trúc thất bại", PENDING: "Đang chờ xác nhận",
 };
 
+
+const VERDICT_UI = {
+  confirmed: { mark: "✓", text: "xác nhận", cls: "text-emerald-300" },
+  rejected: { mark: "✗", text: "không xác nhận", cls: "text-rose-300" },
+  unclear: { mark: "–", text: "chưa rõ", cls: "text-slate-400" },
+  pending: { mark: "◌", text: "chờ nến sau", cls: "text-slate-400" },
+} as const;
+
+/** Bằng chứng VSA theo tài liệu (Spring #1/#2/#3, nến xác nhận, Creek/ICE · JAC/BUEC, tích luỹ vs phân phối). Chỉ hiển thị. */
+export function WyckoffEvidenceBlock({ ev, current }: { ev: WyckoffEvidence; current: boolean }) {
+  const has = ev.springs.length || ev.confirmations.length || ev.breaks.length || ev.lean;
+  if (!has) return null;
+  const dim = current ? "text-slate-300" : "text-slate-500";
+  return (
+    <details className="text-[9px] text-slate-400" data-testid="wyckoff-evidence" open={current}>
+      <summary className="cursor-pointer">Bằng chứng VSA (theo tài liệu Wyckoff/VSA){current ? "" : " · cấu trúc lịch sử"}</summary>
+      <ul className="pt-1 space-y-1">
+        {ev.springs.map((sp) => (
+          <li key={`sp-${sp.index}`} className={`${dim} leading-snug`} data-testid="wyckoff-ev-spring">
+            <span className={`inline-block mr-1.5 px-1 rounded border text-[8px] ${sp.actionable ? "border-emerald-500/30 text-emerald-300" : "border-amber-500/30 text-amber-300"}`}>
+              {sp.side === "spring" ? "Spring" : "UT"} #{sp.kind} · {sp.actionable ? "đủ điều kiện" : "chờ Test"}
+            </span>
+            {sp.note.replace(/^(Spring|UT) #\d: /, "")}
+          </li>
+        ))}
+        {ev.confirmations.map((c) => {
+          const v = VERDICT_UI[c.verdict];
+          return (
+            <li key={`cf-${c.event}-${c.index}`} className={`${dim} leading-snug`} data-testid="wyckoff-ev-confirm">
+              <span className={v.cls}>{v.mark}</span> {c.event} {c.date} → nến sau{c.at ? ` ${c.at.date}` : ""}: <span className={v.cls}>{v.text}</span> — {c.reason}
+            </li>
+          );
+        })}
+        {ev.breaks.map((b) => (
+          <li key={`br-${b.kind}-${b.index}`} className={`${dim} leading-snug`} data-testid="wyckoff-ev-break">
+            <span className={b.kind === "JAC" ? "text-emerald-300" : b.kind === "ICE-break" ? "text-rose-300" : "text-slate-400"}>{b.kind === "JAC" ? "JAC" : b.kind === "ICE-break" ? "Phá ICE" : b.kind === "creek-weak" ? "Vượt Creek yếu" : "Thủng ICE yếu"}</span> {b.date}: {b.note}
+          </li>
+        ))}
+        {ev.lean && (
+          <li className={dim} data-testid="wyckoff-ev-lean">
+            Đặc điểm range: <span className="text-violet-300">{ev.lean.label === "chưa rõ" ? "chưa rõ tích luỹ hay phân phối" : `nghiêng ${ev.lean.label}`}</span> ({ev.lean.score > 0 ? "+" : ""}{ev.lean.score}/4)
+            <ul className="pl-3 text-slate-500">
+              {ev.lean.features.map((f) => <li key={f.key}>{f.vote > 0 ? "▲" : f.vote < 0 ? "▼" : "·"} {f.label}: {f.value}</li>)}
+            </ul>
+          </li>
+        )}
+      </ul>
+      <p className="text-slate-600 pt-1">{ev.note}</p>
+    </details>
+  );
+}
+
 /**
  * Thẻ Wyckoff Cycle: phân biệt pha HIỆN TẠI (cấu trúc còn hiệu lực) với cấu trúc LỊCH SỬ đã hết hiệu lực; mỗi sự kiện
  * có ngày xảy ra và ngày xác nhận; tiêu chí đạt / chưa đạt; lý do kết luận có thể sai. Không hiển thị "độ tin cậy %".
@@ -135,6 +188,8 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
           })}
         </ul>
       )}
+
+      {result.evidence && <WyckoffEvidenceBlock ev={result.evidence} current={isCurrent} />}
 
       {checks.length > 0 && (
         <details className="text-[9px] text-slate-400" data-testid="wyckoff-checks">

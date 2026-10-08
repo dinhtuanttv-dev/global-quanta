@@ -4,6 +4,7 @@
 import { analyzeWyckoff, planForPhase, timeframeAdvice, type WyEvent, type WyStructure } from "./wyckoffGet.js";
 import { classifyWyckoffPhase, type WyckoffEvent, type WyckoffEventDetail, type WyckoffPhase, type WyckoffResult } from "../../ta-command-center/detectors/wyckoffDetector";
 import type { Bar } from "../math";
+import { wyckoffEvidence } from "../wyckoffEvidence";
 
 export interface WyckoffV3Options { timeframe?: string; isIndex?: boolean }
 
@@ -67,6 +68,7 @@ export function classifyWyckoffV3(bars: Bar[], opts: WyckoffV3Options = {}): Wyc
     volume: bars[e.i]?.volume ?? 0, strength: e.ci == null ? 0.5 : 0.8,
     confirmedIndex: e.ci, confirmedDate: e.ci == null ? null : date(e.ci),
   }));
+  const evidenceOf = (s: WyStructure, ev: WyckoffEventDetail[]) => wyckoffEvidence(bars, { start: s.startI, end: s.endI, high: s.resistance, low: s.support }, ev);
   const current = res.current;
   const structures = res.structures.map((s) => ({
     kind: s.kind, direction: s.direction, wyckoffPhase: s.phase, status: s.status, current: s === current,
@@ -89,6 +91,7 @@ export function classifyWyckoffV3(bars: Bar[], opts: WyckoffV3Options = {}): Wyc
           wyckoffPhase: "E", kind: lastEnded.kind,
           rangeHigh: lastEnded.resistance, rangeLow: lastEnded.support, rangeStartDate: date(lastEnded.startI), rangeEndDate: date(lastEnded.endI),
           events: mapEvents(lastEnded),
+          evidence: evidenceOf(lastEnded, mapEvents(lastEnded)),
           checks: [{ label: `Còn hiệu lực: ${lastEnded.freshness.barsSinceLastEvent} nến từ sự kiện xác nhận cuối (ngưỡng ${lastEnded.freshness.limit})`, ok: true },
             { label: lastEnded.direction === "long" ? "Giá giữ trên hỗ trợ TR" : "Giá giữ dưới kháng cự TR", ok: true }],
           plan: { action: plan.action, detail: plan.detail },
@@ -113,6 +116,7 @@ export function classifyWyckoffV3(bars: Bar[], opts: WyckoffV3Options = {}): Wyc
       out.rangeHigh = lastEnded.resistance; out.rangeLow = lastEnded.support;
       out.rangeStartDate = date(lastEnded.startI); out.rangeEndDate = date(lastEnded.endI);
       out.events = mapEvents(lastEnded);
+      out.evidence = evidenceOf(lastEnded, out.events);
     } else out.statusReason = "Chưa tìm thấy cấu trúc Wyckoff (climax SC/BC hoặc trading range nối tiếp một xu hướng).";
     return out;
   }
@@ -144,6 +148,7 @@ export function classifyWyckoffV3(bars: Bar[], opts: WyckoffV3Options = {}): Wyc
     rangeHigh: current.resistance, rangeLow: current.support,
     rangeStartDate: date(current.startI), rangeEndDate: date(current.endI),
     events,
+    evidence: evidenceOf(current, events),
     springDate: lastConfirmed("Spring") ?? lastConfirmed("UT") ?? lastConfirmed("UTAD"),
     testDate: lastConfirmed("Test") ?? lastConfirmed("ST"),
     markupDate: lastConfirmed("SOS"), declineDate: lastConfirmed("SOW"),
