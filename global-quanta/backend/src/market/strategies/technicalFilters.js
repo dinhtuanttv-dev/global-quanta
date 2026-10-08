@@ -11,14 +11,15 @@ import { mapLimit } from "../util.js";
 
 import { buildCsEvidence, buildRsTable, marketContextM, scanCanSlimV2 } from "./canSlimV2.js";
 import { buildEvidence, marketContext, scanBaseBreakoutV2 } from "./baseBreakoutV2.js";
+import { CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh, scanConvergenceV2 } from "./convergenceV2.js";
 
-export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout"]);
+export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout", "convergence"]);
 /** Số phiên tối thiểu: MA200 + đỉnh 250 phiên của CAMSLIM. */
 export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6" });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6", convergence: CONVERGENCE_VERSION });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -74,11 +75,13 @@ function runStrategy(strategy, bars, ctx) {
       pattern: r.pattern, handle: r.handle, fundamentals: r.fundamentals,
     } : null;
   }
+  if (strategy === "convergence") return scanConvergenceV2(bars, { indexBars: ctx.indexBars, avgValue20: ctx.gate?.avgValue20 });
   const r = scanBaseBreakoutV2(bars, ctx.market);
   return r.status ? { status: r.status, grade: r.grade, date: r.date, metrics: r.metrics, checks: r.checks, components: r.components, plan: r.plan, base: r.base } : null;
 }
 
 function compareResults(strategy, a, b) {
+  if (strategy === "convergence") return Number(b.status === "READY") - Number(a.status === "READY") || Number(b.side === "buy") - Number(a.side === "buy") || b.metrics.score - a.metrics.score;
   return Number(b.status === "BREAKOUT") - Number(a.status === "BREAKOUT") || b.metrics.score - a.metrics.score;
 }
 
@@ -142,7 +145,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     const errors = [];
     for (const { item, bars, gate, priceBasis: basis } of eligible) {
       try {
-        const r = runStrategy(strategy, bars, { market, canslim: canslim && { symbol: item.ticker, fa: canslim.faMap.get(item.ticker), rsTable: canslim.rsTable, market: canslim.market } });
+        const r = runStrategy(strategy, bars, { market, indexBars, gate, canslim: canslim && { symbol: item.ticker, fa: canslim.faMap.get(item.ticker), rsTable: canslim.rsTable, market: canslim.market } });
         if (r) {
           results.push({
             ticker: item.ticker, name: item.name ?? null, sector: item.sector ?? null, ...r,
@@ -155,7 +158,10 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     }
     results.sort((a, b) => compareResults(strategy, a, b));
     // Bằng chứng lịch sử (S2: Base Breakout) — mọi mã đã tải, cổng thanh khoản áp TẠI từng thời điểm (tránh thiên lệch sống sót).
-    const evidence = !withEvidence ? null : strategy === "base-breakout"
+    // Hợp lưu v2: bằng chứng tính ở job đêm (≈4 phút) và đọc từ KV — không tính trong request.
+    const evidence = !withEvidence ? null : strategy === "convergence"
+      ? await storedConvergenceEvidence(service.store, now())
+      : strategy === "base-breakout"
       ? buildEvidence(loaded.map((s) => s.bars), { minAvgValue20: criteria.minAvgValue20, ctx: market })
       : buildCsEvidence(loaded.map((s) => ({ symbol: s.item.ticker, bars: s.bars, fa: canslim.faMap.get(s.item.ticker) })), { rsTable: canslim.rsTable, market: canslim.market, minAvgValue20: criteria.minAvgValue20 });
     out[strategy] = {
@@ -181,6 +187,12 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
     };
   }
   return out;
+}
+
+async function storedConvergenceEvidence(store, nowMs) {
+  const stored = (await store.getKv(CONVERGENCE_EVIDENCE_KV))?.value ?? null;
+  if (convergenceEvidenceFresh(stored, nowMs)) return { ...stored.evidence, computedAt: stored.computedAt };
+  return { label: "PENDING", reason: "Bằng chứng lịch sử đang chờ job đêm tính (≈4 phút; tính lại khi đổi engine hoặc sau 7 ngày).", all: { n: 0 } };
 }
 
 export async function runTechnicalFilter(service, strategy, options = {}) {
