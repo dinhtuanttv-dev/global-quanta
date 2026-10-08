@@ -66,6 +66,7 @@ export interface TechnicalFilterEvidence {
 export interface CupHandlePattern {
   status: "BREAKOUT" | "SETUP";
   leftLipIdx: number; cupLowIdx: number; rightLipIdx: number; handleLowIdx: number;
+  leftLipDate: string; cupLowDate: string; rightLipDate: string; handleLowDate: string;
   leftLip: number; cupLow: number; rightLip: number; handleLow: number; pivot: number;
   depthPct: number; handleDepthPct: number; cupBars: number; handleBars: number;
   uShape: boolean; handleVolDry: boolean; belowPivotPct: number;
@@ -106,6 +107,8 @@ export interface TechnicalFilterResult {
   plan?: { entry: number; stop: number; target: number; riskPct: number; rr: number; buyZoneTop?: number };
   pattern?: CupHandlePattern;
   handle?: HandleConfluence | null;
+  /** Base Breakout: hộp nền 10 phiên. */
+  base?: { fromDate: string; toDate: string; high: number; low: number };
   fundamentals?: CanSlimFundamentals | null;
   date: string;
   metrics: TechnicalFilterMetrics;

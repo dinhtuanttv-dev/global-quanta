@@ -72,6 +72,8 @@ export function detectCupHandle(S, t) {
   return {
     status: breakout ? "BREAKOUT" : "SETUP",
     leftLipIdx: l, cupLowIdx, rightLipIdx: r, handleLowIdx,
+    // ngày (để vẽ trên chuỗi khác cùng ngày — bảng phụ phân tích chuyên sâu S5)
+    leftLipDate: S.date[l], cupLowDate: S.date[cupLowIdx], rightLipDate: S.date[r], handleLowDate: S.date[handleLowIdx],
     leftLip, cupLow, rightLip, handleLow, pivot,
     depthPct: depth * 100, handleDepthPct: handleDepth * 100, cupBars: r - l, handleBars,
     uShape: uPos >= 0.2 && uPos <= 0.8, handleVolDry: handleBars > 0 && hv / handleBars < v50 / n50,
