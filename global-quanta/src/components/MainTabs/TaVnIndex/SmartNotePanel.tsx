@@ -25,7 +25,11 @@ export function buildPrompt(p: Props): string {
   const t = p.smc.totals;
   return [
     `Bạn là chuyên gia phân tích kỹ thuật chứng khoán Việt Nam. Dưới đây là dữ liệu ĐÃ TÍNH cho mã ${p.ticker}. CHỈ dùng đúng các số này, KHÔNG tự đưa ra giá mục tiêu hay xác suất không có trong danh sách:`,
-    `- Wyckoff (INFERRED — suy luận mẫu hình giá/khối lượng, không phải dòng tiền tổ chức thật): ${WYCKOFF_PHASE_LABEL[p.wyckoff.phase]}; sự kiện khớp mẫu ${p.wyckoff.confidenceScore}% (không phải xác suất).`,
+    p.wyckoff.status === "historical"
+      ? `- Wyckoff (INFERRED): CHƯA XÁC ĐỊNH pha hiện tại — cấu trúc gần nhất đã hết hiệu lực (${p.wyckoff.statusReason ?? "lịch sử"}). KHÔNG được mô tả cấu trúc cũ như pha hiện tại.`
+      : p.wyckoff.status === "insufficient"
+        ? `- Wyckoff (INFERRED): chưa đủ bằng chứng để xác định pha (${p.wyckoff.statusReason ?? "thiếu dữ liệu"}).`
+        : `- Wyckoff (INFERRED — suy luận mẫu hình giá/khối lượng, không phải dòng tiền tổ chức thật): ${WYCKOFF_PHASE_LABEL[p.wyckoff.phase]}${p.wyckoff.wyckoffPhase ? ` (Phase ${p.wyckoff.wyckoffPhase})` : ""}; ${p.wyckoff.status ? (p.wyckoff.statusReason ?? "") : `sự kiện khớp mẫu ${p.wyckoff.confidenceScore}% (không phải xác suất)`}. Kiểm định 10/2024–10/2026: nhãn pha chưa có lợi thế dự báo nhất quán.`,
     `- SMC (DERIVED): ${t.obs} Order Block, ${t.fvgs} FVG, ${t.bos} BOS, ${t.choch} CHoCH trên toàn bộ dữ liệu.${lastOb ? ` OB gần nhất: ${lastOb.type}, vùng ${lastOb.bottom.toLocaleString("vi-VN")}–${lastOb.top.toLocaleString("vi-VN")}.` : ""}`,
     `- VSA (DERIVED): ${lastVsa ? `${lastVsa.type} ngày ${lastVsa.date}` : "chưa có tín hiệu gần đây"}.`,
     `- RSI(14) (DERIVED): ${p.rsi.latest !== null ? p.rsi.latest.toFixed(1) : "chưa đủ dữ liệu"}.`,

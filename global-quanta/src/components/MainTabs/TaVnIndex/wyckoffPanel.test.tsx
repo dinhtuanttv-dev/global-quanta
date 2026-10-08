@@ -1,0 +1,83 @@
+import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, describe, expect, it } from "vitest";
+import { WyckoffPanel } from "./MethodPanels";
+import { buildPrompt } from "./SmartNotePanel";
+import { analyze, classifyWyckoffV2, wyckoffTimeframePolicy } from "../../../lib/quant-core";
+import { buildScene } from "../../../lib/ta-command-center/chart/buildScene";
+import { DEFAULT_LAYER_STATE } from "../../../lib/ta-command-center/LayerManager";
+import { classicAccumulationSeries, staleSpringSeries } from "../../../lib/quant-core/__fixtures__/wyckoffSeries";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+let root: ReturnType<typeof createRoot> | null = null;
+afterEach(() => { act(() => root?.unmount()); root = null; document.body.innerHTML = ""; });
+function render(ui: React.ReactElement) {
+  const el = document.createElement("div");
+  document.body.appendChild(el);
+  root = createRoot(el);
+  act(() => root!.render(ui));
+  return el;
+}
+
+describe("Thẻ Wyckoff Cycle — hiện hành / lịch sử / chưa đủ bằng chứng", () => {
+  it("cấu trúc cũ hết hiệu lực -> 'Chưa xác định pha hiện tại', huy hiệu Lịch sử, range ghi rõ là lịch sử, có lý do", () => {
+    const bars = staleSpringSeries(90);
+    const w = analyze(bars, { timeframe: "D" }).wyckoff;
+    const el = render(<WyckoffPanel result={w} barCount={bars.length} timeframe="D" />);
+    expect(el.querySelector('[data-testid="wyckoff-phase"]')?.textContent).toBe("Chưa xác định pha hiện tại");
+    expect(el.querySelector('[data-testid="wyckoff-status"]')?.textContent).toBe("Lịch sử · hết hiệu lực");
+    expect(el.querySelector('[data-testid="wyckoff-range"]')?.textContent).toContain("Range lịch sử");
+    expect(el.querySelector('[data-testid="wyckoff-historical"]')?.textContent).toContain("Spring");
+    expect(el.textContent).not.toMatch(/\d+% \(không phải xác suất\)/); // không hiển thị "độ tin cậy %"
+  });
+
+  it("cấu trúc đang hoạt động: pha + Phase, sự kiện có ngày xảy ra và ngày xác nhận khác nhau", () => {
+    const bars = classicAccumulationSeries();
+    const a = analyze(bars, { timeframe: "D" });
+    const el = render(<WyckoffPanel result={a.wyckoffAlt} barCount={bars.length} timeframe="D" compare={a.wyckoff} />);
+    expect(el.querySelector('[data-testid="wyckoff-status"]')?.textContent).toBe("Đang hoạt động");
+    expect(el.querySelector('[data-testid="wyckoff-phase"]')?.textContent).toContain("Phase E");
+    expect(el.querySelector('[data-testid="wyckoff-events"]')?.textContent).toContain("xác nhận");
+    expect(el.querySelector('[data-testid="wyckoff-checks"]')?.textContent).toContain("không phải xác suất");
+    expect(el.querySelector('[data-testid="wyckoff-compare"]')).not.toBeNull();
+  });
+
+  it("Smart Note không mô tả cấu trúc cũ như pha hiện tại", () => {
+    const w = classifyWyckoffV2(staleSpringSeries(90));
+    const prompt = buildPrompt({ ticker: "FPT", wyckoff: w, smc: { obs: [], fvgs: [], bos: [], choch: [], totals: { obs: 0, fvgs: 0, bos: 0, choch: 0, liquidity: 0, sweeps: 0 } } as never, vsa: [], rsi: { latest: null } as never, macd: { latest: { histogram: null } } as never, adx: { latest: null } as never });
+    expect(prompt).toContain("CHƯA XÁC ĐỊNH pha hiện tại");
+    expect(prompt).not.toContain("Spring (Phase C);");
+  });
+});
+
+describe("Wyckoff — khung thời gian, chỉ số, lớp vẽ", () => {
+  it("1m/5m tắt, 15m/1H/W/M có cảnh báo, D không cảnh báo; VN-Index có cảnh báo chỉ số", () => {
+    expect(wyckoffTimeframePolicy("1m").enabled).toBe(false);
+    expect(wyckoffTimeframePolicy("15m").note).toMatch(/khung nhỏ/);
+    expect(wyckoffTimeframePolicy("W").note).toMatch(/chưa kiểm định/);
+    expect(wyckoffTimeframePolicy("D").note).toBeNull();
+    const bars = classicAccumulationSeries();
+    const off = analyze(bars, { timeframe: "5m" }).wyckoff;
+    expect(off.phase).toBe("undetermined");
+    expect(off.statusReason).toMatch(/tắt ở khung 5m/);
+    expect(analyze(bars, { timeframe: "D", isIndex: true }).wyckoff.caveats?.join(" ")).toMatch(/không giao dịch trực tiếp/);
+  });
+
+  it("lớp vẽ: range lịch sử có nhãn '(lịch sử)'; sự kiện xác nhận muộn có '✓dd/mm'", () => {
+    const layers = { ...DEFAULT_LAYER_STATE, wyckoff: true };
+    const stale = staleSpringSeries(90);
+    const s1 = buildScene({ bars: stale, smc: null, wyckoff: analyze(stale).wyckoff, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s1.items.some((i) => i.kind === "zone" && i.label?.text === "Wyckoff range (lịch sử)")).toBe(true);
+    const bars = classicAccumulationSeries();
+    const s2 = buildScene({ bars, smc: null, wyckoff: analyze(bars).wyckoffAlt, layers, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null } as never);
+    expect(s2.items.some((i) => i.kind === "zone" && i.label?.text === "Wyckoff range")).toBe(true);
+    expect(s2.items.some((i) => i.kind === "vline" && /✓\d\d\/\d\d/.test(i.label?.text ?? ""))).toBe(true);
+  });
+
+  it("v2: Spring có ngày xác nhận = phiên đóng cửa trở lại trong range", () => {
+    const w = classifyWyckoffV2(staleSpringSeries(0));
+    const spring = w.events.find((e) => e.event === "Spring")!;
+    expect(spring.confirmedIndex).not.toBeNull();
+    expect(spring.confirmedIndex!).toBeGreaterThanOrEqual(spring.index);
+  });
+});

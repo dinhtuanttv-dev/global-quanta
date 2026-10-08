@@ -65,29 +65,107 @@ export function VSAPanel({ signals }: { signals: VSASignal[] }) {
   );
 }
 
-export function WyckoffPanel({ result, barCount }: { result: WyckoffResult; barCount: number }) {
+const STATUS_UI = {
+  active: { text: "Đang hoạt động", cls: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
+  historical: { text: "Lịch sử · hết hiệu lực", cls: "bg-amber-500/10 text-amber-300 border-amber-500/30" },
+  insufficient: { text: "Chưa đủ bằng chứng", cls: "bg-slate-500/10 text-slate-300 border-slate-500/30" },
+} as const;
+
+const EVENT_VI: Record<string, string> = {
+  PS: "PS – hỗ trợ sơ bộ", SC: "SC – bán tháo cao trào", AR: "AR – nhịp hồi tự động", ST: "ST – kiểm định lại",
+  Spring: "Spring – rũ bỏ dưới hỗ trợ", Test: "Test – kiểm định Spring", SOS: "SOS – dấu hiệu sức mạnh", LPS: "LPS – điểm hỗ trợ cuối",
+  PSY: "PSY – cung sơ bộ", BC: "BC – mua cao trào", UT: "UT – bẫy tăng", UTAD: "UTAD – bẫy tăng sau phân phối",
+  SOW: "SOW – dấu hiệu suy yếu", LPSY: "LPSY – điểm cung cuối", BUA: "BUA – nền trên kháng cự", E: "Phase E – phá vỡ xu hướng",
+  SOW_B: "SOW trong Phase B", UTA: "UTA – vượt đỉnh giả trong B", FAIL: "Cấu trúc thất bại", PENDING: "Đang chờ xác nhận",
+};
+
+/**
+ * Thẻ Wyckoff Cycle: phân biệt pha HIỆN TẠI (cấu trúc còn hiệu lực) với cấu trúc LỊCH SỬ đã hết hiệu lực; mỗi sự kiện
+ * có ngày xảy ra và ngày xác nhận; tiêu chí đạt / chưa đạt; lý do kết luận có thể sai. Không hiển thị "độ tin cậy %".
+ */
+export function WyckoffPanel({ result, barCount, compare, timeframe }: { result: WyckoffResult; barCount: number; compare?: WyckoffResult | null; timeframe?: string }) {
+  // Kết quả kiểu cũ (không có status): coi là đang hoạt động nếu đã có pha.
+  const status = result.status ?? (result.phase === "undetermined" ? "insufficient" : "active");
+  const ui = STATUS_UI[status];
+  const isCurrent = status === "active" && result.phase !== "undetermined";
+  const events = [...result.events].sort((a, b) => a.index - b.index).slice(-6);
+  const checks = result.checks ?? [];
+  const okN = checks.filter((c) => c.ok === true).length, avail = checks.filter((c) => c.ok !== null).length;
+  const fmtP = (v: number | null | undefined) => (v == null ? "—" : Math.round(v).toLocaleString("vi-VN"));
   return (
-    <div style={CARD} className="rounded-xl p-3" data-testid="wyckoff-panel">
-      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1">
+    <div style={CARD} className="rounded-xl p-3 space-y-1.5" data-testid="wyckoff-panel" data-status={status}>
+      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-wrap">
         Wyckoff Cycle <ProvenanceBadge kind="INFERRED" />
+        <span className={`ml-auto normal-case text-[8.5px] px-1.5 py-0.5 rounded border ${ui.cls}`} data-testid="wyckoff-status">{ui.text}</span>
       </p>
-      <p className="text-sm font-bold text-violet-300" data-testid="wyckoff-phase">{WYCKOFF_PHASE_LABEL[result.phase]}</p>
-      {result.phase === "undetermined" ? (
-        <p className="text-[9px] text-slate-500 mt-1">Chưa tìm thấy trading range: {describeRangeCriteria(barCount)}.</p>
-      ) : (
-        <>
-          <p className="text-[9px] text-slate-500 mt-1 font-mono">
-            Range {result.rangeLow?.toLocaleString("vi-VN")}–{result.rangeHigh?.toLocaleString("vi-VN")} từ {result.rangeStartDate}
-            {result.springDate && ` · Spring ${result.springDate}`}
-            {result.testDate && ` · ST ${result.testDate}`}
-          </p>
-          {(result.phaseC ?? result.phaseD ?? result.phaseB) && <p className="text-[9px] text-violet-300/80 mt-0.5">{result.phaseC ?? result.phaseD ?? result.phaseB}</p>}
-          {result.phaseE && <p className="text-[9px] text-amber-300/80 mt-0.5" data-testid="wyckoff-location">{result.phaseE}</p>}
-          <p className="text-[9px] text-slate-600 mt-0.5" title="Tỷ lệ sự kiện mẫu chuẩn đã xuất hiện — không phải xác suất">
-            Sự kiện khớp mẫu: {result.confidenceScore}% (không phải xác suất)
-          </p>
-        </>
+      <p className="text-sm font-bold text-violet-300" data-testid="wyckoff-phase">
+        {isCurrent ? WYCKOFF_PHASE_LABEL[result.phase] : status === "historical" ? "Chưa xác định pha hiện tại" : WYCKOFF_PHASE_LABEL[result.phase]}
+        {isCurrent && result.wyckoffPhase && <span className="text-[10px] text-violet-300/70 font-semibold"> · Phase {result.wyckoffPhase}</span>}
+      </p>
+      {result.statusReason && <p className="text-[9px] text-slate-400 leading-snug" data-testid="wyckoff-reason">{result.statusReason}</p>}
+      {result.status == null && result.phase === "undetermined" && result.rangeLow == null && (
+        <p className="text-[9px] text-slate-500">Chưa tìm thấy trading range: {describeRangeCriteria(barCount)}.</p>
       )}
+
+      {result.rangeLow != null && result.rangeHigh != null && (
+        <p className={`text-[9px] font-mono ${isCurrent ? "text-slate-400" : "text-slate-500"}`} data-testid="wyckoff-range">
+          {isCurrent ? "Range" : "Range lịch sử"} {fmtP(result.rangeLow)}–{fmtP(result.rangeHigh)} · {result.rangeStartDate} → {result.rangeEndDate ?? "nay"}
+        </p>
+      )}
+      {result.historical && (
+        <p className="text-[9px] text-amber-300/80 leading-snug" data-testid="wyckoff-historical">
+          Cấu trúc gần nhất: {WYCKOFF_PHASE_LABEL[result.historical.phase]}{result.historical.wyckoffPhase ? `, Phase ${result.historical.wyckoffPhase}` : ""}
+          {result.statusReason?.includes(result.historical.reason) ? "" : ` — ${result.historical.reason}`}
+        </p>
+      )}
+      {result.phaseC && isCurrent && <p className="text-[9px] text-violet-300/80">{result.phaseC}</p>}
+      {result.phaseE && <p className="text-[9px] text-amber-300/80" data-testid="wyckoff-location">{result.phaseE}</p>}
+
+      {events.length > 0 && (
+        <ul className="text-[9px] font-mono space-y-0.5" data-testid="wyckoff-events">
+          {events.map((e, i) => {
+            const pending = e.confirmedIndex === null;
+            const later = e.confirmedDate && e.confirmedDate !== e.date;
+            return (
+              <li key={`${e.event}-${e.index}-${i}`} className={`flex justify-between gap-2 ${isCurrent ? "text-slate-300" : "text-slate-500"}`}>
+                <span className="truncate font-sans" title={EVENT_VI[e.event] ?? e.event}>{pending ? "◌ " : "● "}{e.label && e.label !== e.event ? `${e.event} (${e.label})` : e.event}</span>
+                <span className="whitespace-nowrap">{e.date}{pending ? " · chờ xác nhận" : later ? ` · xác nhận ${e.confirmedDate}` : ""}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {checks.length > 0 && (
+        <details className="text-[9px] text-slate-400" data-testid="wyckoff-checks">
+          <summary className="cursor-pointer">Tiêu chí: {okN}/{avail} đạt (đếm tiêu chí, không phải xác suất)</summary>
+          <ul className="pt-1 space-y-0.5">
+            {checks.map((c) => <li key={c.label}>{c.ok === true ? "✓" : c.ok === false ? "✗" : "–"} {c.label}</li>)}
+          </ul>
+        </details>
+      )}
+      {result.status == null && (
+        <p className="text-[9px] text-slate-600" title="Tỷ lệ sự kiện mẫu chuẩn đã xuất hiện — không phải xác suất">
+          Sự kiện khớp mẫu: {result.confidenceScore}% (không phải xác suất)
+        </p>
+      )}
+      {(result.caveats?.length ?? 0) > 0 && (
+        <details className="text-[9px] text-slate-500" data-testid="wyckoff-caveats">
+          <summary className="cursor-pointer">Vì sao kết luận có thể sai</summary>
+          <ul className="pt-1 space-y-0.5 list-disc pl-3">{result.caveats!.map((c) => <li key={c}>{c}</li>)}</ul>
+        </details>
+      )}
+      {compare && (
+        <p className="text-[9px] text-slate-500 border-t border-white/5 pt-1" data-testid="wyckoff-compare">
+          Engine {compare.engine} (thử nghiệm, chưa đạt tiêu chí làm mặc định):{" "}
+          <span className="text-slate-300">
+            {compare.status === "active" && compare.phase !== "undetermined" ? `${WYCKOFF_PHASE_LABEL[compare.phase]}${compare.wyckoffPhase ? ` · Phase ${compare.wyckoffPhase}` : ""}` : compare.status === "historical" ? "chưa xác định (cấu trúc cũ hết hiệu lực)" : "chưa đủ bằng chứng"}
+          </span>
+        </p>
+      )}
+      <p className="text-[8.5px] text-slate-600">
+        Engine {result.engine ?? "v1"} · dữ liệu tới {result.asOf ?? "—"} · {barCount} nến{timeframe ? ` · khung ${timeframe}` : ""} · kiểm định 10/2024–10/2026: nhãn pha chưa có lợi thế dự báo nhất quán
+      </p>
     </div>
   );
 }

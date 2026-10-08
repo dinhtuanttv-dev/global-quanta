@@ -8,16 +8,28 @@ export type WyckoffPhase = "accumulation" | "spring" | "test" | "markup" | "dist
 
 export type WyckoffEvent =
   | "PS" | "SC" | "AR" | "ST" | "Spring" | "Test" | "SOS" | "LPS" // nhánh tích lũy
-  | "PSY" | "BC" | "UT" | "UTAD" | "SOW" | "LPSY"; // ĐÃ THÊM — nhánh phân phối, đối xứng nhánh trên
+  | "PSY" | "BC" | "UT" | "UTAD" | "SOW" | "LPSY" // ĐÃ THÊM — nhánh phân phối, đối xứng nhánh trên
+  | "AR" | "BUA" | "E" | "SOW_B" | "UTA" | "FAIL" | "PENDING"; // Wyckoff v3: AR, BUA, phá vỡ Phase E, phá vỡ giả trong B, thất bại, chờ xác nhận
 
 export interface WyckoffEventDetail {
   event: WyckoffEvent;
+  /** Ngày sự kiện XẢY RA (VD đáy Spring). */
   date: string;
   index: number;
   price: number;
   volume: number;
   strength: number;
+  /** Ngày sự kiện được XÁC NHẬN — chỉ biết được khi nến này đóng cửa (VD Spring: khi đóng cửa trở lại trong range). null = tạm thời. */
+  confirmedDate?: string | null;
+  confirmedIndex?: number | null;
+  /** Nhãn chi tiết của engine (VD SPRING_3, SHAKEOUT, UT_2). */
+  label?: string;
 }
+
+/** Trạng thái của kết luận: cấu trúc đang hoạt động / chỉ còn là cấu trúc lịch sử / không đủ dữ liệu. */
+export type WyckoffStatus = "active" | "historical" | "insufficient";
+
+export interface WyckoffCheck { label: string; ok: boolean | null }
 
 export interface WyckoffResult {
   phase: WyckoffPhase;
@@ -41,6 +53,31 @@ export interface WyckoffResult {
   phaseC?: string;
   phaseD?: string;
   phaseE?: string;
+  // ---- Bổ sung (2026-10-08): phân biệt hiện hành / lịch sử, nhân quả, minh bạch ----
+  engine?: "v1" | "v2" | "v3";
+  /** active: pha hiện tại có hiệu lực · historical: chỉ có cấu trúc cũ/hết hiệu lực -> phase = "undetermined" · insufficient: thiếu dữ liệu. */
+  status?: WyckoffStatus;
+  statusReason?: string;
+  /** Ngày nến cuối được phân tích. */
+  asOf?: string | null;
+  /** Pha Wyckoff A–E của cấu trúc (khác `phase` dùng chung giao diện). */
+  wyckoffPhase?: "A" | "B" | "C" | "D" | "E" | null;
+  /** Cấu trúc gần nhất đã kết thúc / hết hiệu lực (để hiển thị như LỊCH SỬ, không phải pha hiện tại). */
+  historical?: {
+    phase: WyckoffPhase; wyckoffPhase: string | null; kind: string; status: string;
+    rangeHigh: number; rangeLow: number; startDate: string; endDate: string; reason: string;
+  } | null;
+  /** Tiêu chí đã thoả / chưa thoả (null = chưa áp dụng). Không phải xác suất. */
+  checks?: WyckoffCheck[];
+  /** Lý do kết luận có thể sai / giới hạn dữ liệu. */
+  caveats?: string[];
+  plan?: { action: string; detail: string } | null;
+  kind?: string | null;
+  /** Các cấu trúc engine tìm thấy (để vẽ: đang hoạt động đậm, lịch sử mờ). */
+  structures?: {
+    kind: string; direction: "long" | "short"; wyckoffPhase: string; status: string; current: boolean;
+    rangeHigh: number; rangeLow: number; startDate: string; endDate: string;
+  }[];
 }
 
 export const RANGE_LOOKBACK = 50;
