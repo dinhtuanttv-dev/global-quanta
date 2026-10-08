@@ -137,10 +137,10 @@ export function WyckoffEvidenceBlock({ ev, current }: { ev: WyckoffEvidence; cur
 }
 
 /** 9 phép thử mua / bán (W2): đạt / chưa đạt + cách đo; kênh xu hướng, sức mạnh so với VN-Index, mục tiêu ước lượng. */
-export function WyckoffTestsBlock({ t }: { t: WyckoffTests }) {
+export function WyckoffTestsBlock({ t, open = false }: { t: WyckoffTests; open?: boolean }) {
   const f = (v: number) => Math.round(v).toLocaleString("vi-VN");
   return (
-    <details className="text-[9px] text-slate-400" data-testid="wyckoff-tests">
+    <details className="text-[9px] text-slate-400" data-testid="wyckoff-tests" open={open}>
       <summary className="cursor-pointer">
         9 phép thử {t.side === "buy" ? "mua" : "bán"}: <span className="text-slate-200 font-semibold">{t.passed}/{t.avail}</span> đạt
         {t.avail < 9 ? ` (${9 - t.avail} chưa đo được)` : ""} · không phải xác suất
@@ -208,10 +208,10 @@ export function WyckoffCycleMap({ kind, current }: { kind: "accumulation" | "dis
 }
 
 /** Kế hoạch 3 lần theo tài liệu (W3) — minh hoạ. */
-export function WyckoffPlanBlock({ plan }: { plan: TradePlan3 }) {
+export function WyckoffPlanBlock({ plan, open = false }: { plan: TradePlan3; open?: boolean }) {
   const f = (v: number | null) => (v == null ? "—" : Math.round(v).toLocaleString("vi-VN"));
   return (
-    <details className="text-[9px] text-slate-400" data-testid="wyckoff-plan3">
+    <details className="text-[9px] text-slate-400" data-testid="wyckoff-plan3" open={open}>
       <summary className="cursor-pointer">{plan.title} · minh hoạ, không phải khuyến nghị</summary>
       <ol className="pt-1 space-y-0.5">
         {plan.tranches.map((t) => (

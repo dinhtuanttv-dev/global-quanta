@@ -74,7 +74,7 @@ export function LiveTrackingTable({ live }: { live: LiveTracking | undefined }) 
   );
 }
 
-export default function EvidenceCard({ evidence, marketUp, live }: { evidence: TechnicalFilterEvidence; marketUp: boolean | null | undefined; live?: LiveTracking }) {
+export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { evidence: TechnicalFilterEvidence; marketUp: boolean | null | undefined; live?: LiveTracking; liveNote?: string }) {
   const v = evidence.validation;
   const validated = evidence.label === "VALIDATED";
   return (
@@ -137,7 +137,7 @@ export default function EvidenceCard({ evidence, marketUp, live }: { evidence: T
             )}
           </div>
         )}
-        <LiveTrackingTable live={live} />
+        {liveNote ? <p className="text-[9px] text-slate-500" data-testid="live-note">{liveNote}</p> : <LiveTrackingTable live={live} />}
         {evidence.rules && <p className="text-[9px] text-slate-500 leading-relaxed">{evidence.rules}</p>}
       </div>
     </details>
