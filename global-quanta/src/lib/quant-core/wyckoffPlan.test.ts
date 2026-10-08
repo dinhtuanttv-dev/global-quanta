@@ -41,6 +41,9 @@ describe("Kế hoạch 3 lần (W3)", () => {
     const adv = bars.slice(-20).reduce((s, b) => s + b.volume, 0) / 20;
     expect(p.maxShares!).toBeLessThanOrEqual(adv * 0.15);
     expect(p.note).toMatch(/KHÔNG phải khuyến nghị/);
+    expect(p.liquidity.map((l) => l.pct)).toEqual([0.1, 0.15, 0.2]);
+    expect(p.liquidity[0].shares).toBeLessThanOrEqual(p.liquidity[2].shares);
+    for (const l of p.liquidity) { expect(l.shares % 100).toBe(0); expect(l.shares).toBeLessThanOrEqual(adv * l.pct); }
   });
   it("chỉ số -> không có kế hoạch; cấu trúc lịch sử -> null", () => {
     const bars = classicAccumulationSeries();

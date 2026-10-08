@@ -6,6 +6,8 @@ import { WYCKOFF_PHASE_LABEL, describeRangeCriteria, type WyckoffResult } from "
 import type { WyckoffEvidence } from "../../../lib/quant-core/wyckoffEvidence";
 import type { WyckoffTests } from "../../../lib/quant-core/wyckoffTests";
 import { PHASE_VI, type PhaseLetter, type TradePlan3 } from "../../../lib/quant-core/wyckoffPlan";
+import type { WyckoffSignal } from "../../../lib/quant-core/wyckoffSignals";
+import { WYCKOFF_SIGNAL_NOTE } from "../../../lib/quant-core/wyckoffSignalValidation";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
@@ -221,11 +223,38 @@ export function WyckoffPlanBlock({ plan }: { plan: TradePlan3 }) {
           </li>
         ))}
       </ol>
-      {plan.maxShares != null && (
-        <p className="pt-1 font-mono text-slate-400" data-testid="wyckoff-liquidity">KL tối đa mỗi lệnh ≈ {plan.maxShares.toLocaleString("vi-VN")} cp (15% KL TB20) ≈ {(plan.maxValue! / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ đồng</p>
+      {plan.liquidity.length > 0 && (
+        <p className="pt-1 font-mono text-slate-400" data-testid="wyckoff-liquidity">
+          KL tối đa mỗi lệnh (10–20% KL TB20): {plan.liquidity.map((l) => `${Math.round(l.pct * 100)}% ≈ ${l.shares.toLocaleString("vi-VN")} cp / ${(l.value / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ`).join(" · ")}
+        </p>
       )}
       <p className="text-slate-600 pt-0.5">{plan.note}</p>
     </details>
+  );
+}
+
+/** Tín hiệu Wyckoff (W4): chuyển pha / lần mua khớp, mỗi tín hiệu kèm kết quả kiểm định ngoài mẫu. */
+export function WyckoffSignalsBlock({ signals }: { signals: WyckoffSignal[] }) {
+  if (!signals.length) return null;
+  return (
+    <div className="text-[9px] space-y-1 rounded-lg border border-white/5 p-1.5" data-testid="wyckoff-signals">
+      <p className="text-slate-400 font-semibold uppercase tracking-wide text-[8.5px]">Tín hiệu Wyckoff · chưa đạt kiểm định</p>
+      <ul className="space-y-1">
+        {signals.map((x) => (
+          <li key={x.key} className="leading-snug" data-testid={`wyckoff-signal-${x.key}`}>
+            <span className={x.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{x.side === "buy" ? "▲" : "▼"}</span>{" "}
+            <span className="text-slate-200">{x.label}</span>{" "}
+            <span className="font-mono text-slate-500">{x.knownDate}{x.knownDate !== x.date ? ` (xảy ra ${x.date})` : ""}</span>
+            {x.fresh && <span className="ml-1 px-1 rounded border border-violet-400/40 text-violet-300 text-[8px]">mới · {x.ageBars} nến</span>}
+            <span className={`ml-1 px-1 rounded border text-[8px] ${x.validation.adverse ? "border-rose-500/40 text-rose-300" : "border-slate-500/40 text-slate-400"}`}>
+              {x.validation.status === "VALIDATED" ? "đã kiểm định" : x.validation.adverse ? "⚠ ngoài mẫu ngược kỳ vọng" : "chưa đạt kiểm định"}
+            </span>
+            <span className="block text-slate-500 pl-3">{x.validation.summary}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="text-slate-600">{WYCKOFF_SIGNAL_NOTE}</p>
+    </div>
   );
 }
 
@@ -269,6 +298,7 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
         </p>
       )}
       {result.phaseC && isCurrent && <p className="text-[9px] text-violet-300/80">{result.phaseC}</p>}
+      {isCurrent && result.signals && <WyckoffSignalsBlock signals={result.signals} />}
       {result.phaseE && <p className="text-[9px] text-amber-300/80" data-testid="wyckoff-location">{result.phaseE}</p>}
 
       {events.length > 0 && (
