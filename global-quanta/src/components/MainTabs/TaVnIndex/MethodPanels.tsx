@@ -5,6 +5,7 @@ import { VSA_DIRECTION, type VsaSignal as VSASignal } from "../../../lib/quant-c
 import { WYCKOFF_PHASE_LABEL, describeRangeCriteria, type WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import type { WyckoffEvidence } from "../../../lib/quant-core/wyckoffEvidence";
 import type { WyckoffTests } from "../../../lib/quant-core/wyckoffTests";
+import { PHASE_VI, type PhaseLetter, type TradePlan3 } from "../../../lib/quant-core/wyckoffPlan";
 import ProvenanceBadge from "./ProvenanceBadge";
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
@@ -164,6 +165,70 @@ export function WyckoffTestsBlock({ t }: { t: WyckoffTests }) {
   );
 }
 
+// Sơ đồ chu kỳ (W3): đường giá mẫu của tích luỹ (phân phối = lật dọc), 5 đoạn A–E, đoạn hiện tại được tô sáng.
+const MAP_X: Record<PhaseLetter, [number, number]> = { A: [0, 60], B: [60, 150], C: [150, 186], D: [186, 240], E: [240, 300] };
+const MAP_PATH: [number, number][] = [
+  [0, 6], [15, 22], [25, 56], [35, 26], [50, 49], [60, 41], [75, 28], [90, 46], [105, 27], [120, 47], [135, 30], [150, 44],
+  [162, 62], [175, 40], [186, 52], [200, 22], [212, 32], [228, 16], [240, 22], [260, 12], [280, 7], [300, 3],
+];
+// peak = đỉnh của đường mẫu tích luỹ (nhãn đặt phía trên); đáy -> nhãn phía dưới. Phân phối lật dọc nên đảo vị trí.
+const MAP_TAGS: { x: number; y: number; acc: string; dis: string; peak: boolean }[] = [
+  { x: 25, y: 56, acc: "SC", dis: "BC", peak: false }, { x: 35, y: 26, acc: "AR", dis: "AR", peak: true }, { x: 50, y: 49, acc: "ST", dis: "ST", peak: false },
+  { x: 162, y: 62, acc: "Spring", dis: "UT", peak: false }, { x: 186, y: 52, acc: "Test", dis: "Test", peak: false },
+  { x: 200, y: 22, acc: "SOS", dis: "SOW", peak: true }, { x: 212, y: 32, acc: "LPS", dis: "LPSY", peak: false },
+];
+export function WyckoffCycleMap({ kind, current }: { kind: "accumulation" | "distribution"; current: PhaseLetter | null }) {
+  const flip = (y: number) => (kind === "distribution" ? 66 - y : y);
+  const pts = MAP_PATH.map(([x, y]) => `${x},${flip(y)}`).join(" ");
+  return (
+    <figure className="m-0" data-testid="wyckoff-cycle-map" data-current={current ?? ""}>
+      <svg viewBox="0 -8 300 84" className="w-full h-auto max-w-[340px]" role="img" aria-label={`Sơ đồ ${kind === "accumulation" ? "tích luỹ" : "phân phối"} Wyckoff, pha hiện tại ${current ?? "chưa rõ"}`}>
+        {(Object.keys(MAP_X) as PhaseLetter[]).map((p) => {
+          const [a, b] = MAP_X[p];
+          const on = p === current;
+          return (
+            <g key={p}>
+              <rect x={a} y={-8} width={b - a} height={76} fill={on ? "rgba(167,139,250,0.16)" : "transparent"} stroke="rgba(148,163,184,0.12)" strokeWidth={0.5} />
+              <text x={(a + b) / 2} y={75} textAnchor="middle" fontSize={7} fill={on ? "#c4b5fd" : "#64748b"} fontWeight={on ? 700 : 400}>{p}</text>
+            </g>
+          );
+        })}
+        <line x1={0} x2={240} y1={flip(26)} y2={flip(26)} stroke="rgba(148,163,184,0.35)" strokeDasharray="3 2" strokeWidth={0.6} />
+        <line x1={0} x2={240} y1={flip(49)} y2={flip(49)} stroke="rgba(148,163,184,0.35)" strokeDasharray="3 2" strokeWidth={0.6} />
+        <polyline points={pts} fill="none" stroke="#a78bfa" strokeWidth={1.4} strokeLinejoin="round" />
+        {MAP_TAGS.map((t) => (
+          <text key={t.acc} x={t.x} y={flip(t.y) + ((t.peak !== (kind === "distribution")) ? -3 : 7)} textAnchor="middle" fontSize={5.5} fill="#94a3b8">{kind === "accumulation" ? t.acc : t.dis}</text>
+        ))}
+      </svg>
+      <figcaption className="text-[9px] text-slate-400">{current ? PHASE_VI[current] : "Chưa xác định Phase A–E"} · sơ đồ mẫu, không theo tỷ lệ giá</figcaption>
+    </figure>
+  );
+}
+
+/** Kế hoạch 3 lần theo tài liệu (W3) — minh hoạ. */
+export function WyckoffPlanBlock({ plan }: { plan: TradePlan3 }) {
+  const f = (v: number | null) => (v == null ? "—" : Math.round(v).toLocaleString("vi-VN"));
+  return (
+    <details className="text-[9px] text-slate-400" data-testid="wyckoff-plan3">
+      <summary className="cursor-pointer">{plan.title} · minh hoạ, không phải khuyến nghị</summary>
+      <ol className="pt-1 space-y-0.5">
+        {plan.tranches.map((t) => (
+          <li key={t.n} className="leading-snug">
+            <span className={t.status === "done" ? "text-emerald-300" : t.status === "pending" ? "text-amber-300" : "text-slate-500"}>{t.status === "done" ? "✓" : t.status === "pending" ? "◌" : "–"}</span>{" "}
+            <span className="text-slate-300">{t.label}</span> ({Math.round(t.sizePct * 100)}%){" "}
+            <span className="font-mono text-slate-500">{t.price != null ? `· ${plan.side === "buy" ? "vào" : "thoát"} ~${f(t.price)}` : ""}{t.stop != null ? ` · cắt lỗ ${f(t.stop)}` : ""}</span>
+            <span className="text-slate-500"> — {t.note}{t.date ? ` (${t.date})` : ""}</span>
+          </li>
+        ))}
+      </ol>
+      {plan.maxShares != null && (
+        <p className="pt-1 font-mono text-slate-400" data-testid="wyckoff-liquidity">KL tối đa mỗi lệnh ≈ {plan.maxShares.toLocaleString("vi-VN")} cp (15% KL TB20) ≈ {(plan.maxValue! / 1e9).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} tỷ đồng</p>
+      )}
+      <p className="text-slate-600 pt-0.5">{plan.note}</p>
+    </details>
+  );
+}
+
 /**
  * Thẻ Wyckoff Cycle: phân biệt pha HIỆN TẠI (cấu trúc còn hiệu lực) với cấu trúc LỊCH SỬ đã hết hiệu lực; mỗi sự kiện
  * có ngày xảy ra và ngày xác nhận; tiêu chí đạt / chưa đạt; lý do kết luận có thể sai. Không hiển thị "độ tin cậy %".
@@ -222,7 +287,12 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
       )}
 
       {result.evidence && <WyckoffEvidenceBlock ev={result.evidence} current={isCurrent} />}
+      {isCurrent && (result.phases?.length ?? 0) > 0 && (
+        <WyckoffCycleMap kind={result.phase === "distribution" || result.phase === "decline" ? "distribution" : "accumulation"}
+          current={result.phases!.find((p) => p.current)?.phase ?? null} />
+      )}
       {isCurrent && result.tests && <WyckoffTestsBlock t={result.tests} />}
+      {isCurrent && result.tranches && <WyckoffPlanBlock plan={result.tranches} />}
 
       {checks.length > 0 && (
         <details className="text-[9px] text-slate-400" data-testid="wyckoff-checks">

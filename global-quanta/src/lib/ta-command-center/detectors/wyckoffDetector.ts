@@ -1,6 +1,7 @@
 import type { OhlcvBar } from "../types";
 import type { WyckoffEvidence } from "../../quant-core/wyckoffEvidence";
 import type { WyckoffTests } from "../../quant-core/wyckoffTests";
+import type { PhaseSegment, TradePlan3 } from "../../quant-core/wyckoffPlan";
 
 // ĐÃ THÊM "decline" — pha sau khi phá đáy vùng phân phối, đối xứng với
 // "markup" (pha sau khi phá đỉnh vùng tích lũy). Trước đây type khai báo
@@ -79,6 +80,10 @@ export interface WyckoffResult {
   evidence?: WyckoffEvidence | null;
   /** 9 phép thử mua / bán, kênh xu hướng trước range, sức mạnh tương đối, mục tiêu ước lượng (W2) — chỉ hiển thị. */
   tests?: WyckoffTests | null;
+  /** Dòng thời gian Phase A–E của cấu trúc đang hoạt động (W3, suy từ sự kiện). */
+  phases?: PhaseSegment[];
+  /** Kế hoạch 3 lần theo tài liệu (W3) — minh hoạ, không phải khuyến nghị; null với chỉ số. */
+  tranches?: TradePlan3 | null;
   /** Các cấu trúc engine tìm thấy (để vẽ: đang hoạt động đậm, lịch sử mờ). */
   structures?: {
     kind: string; direction: "long" | "short"; wyckoffPhase: string; status: string; current: boolean;
