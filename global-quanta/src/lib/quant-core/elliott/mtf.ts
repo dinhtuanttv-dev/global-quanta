@@ -5,6 +5,7 @@ import { ruleHolidaySet } from "../../cotuc/vn-trading-calendar";
 import { aggregateToWeekly } from "../../ta-command-center/TimeframeController";
 import type { OhlcvBar } from "../../ta-command-center/types";
 import { elliottState, type ElliottPivot, type ElliottState } from "./index";
+import { oscAgreement, oscillatorCount, type OscCount } from "./oscCount";
 
 /** Số nến tuần tối thiểu: dao động 5/35 cần 35 nến + vài sóng. */
 export const ELLIOTT_MIN_WEEKS = 60;
@@ -23,6 +24,8 @@ export interface ElliottMtf {
   relationText: string;
   /** Pivot tuần ghim vào nến NGÀY nơi đạt cực trị của tuần (để vẽ trên biểu đồ D không lệch nến). */
   weekPivotsOnDaily: (ElliottPivot & { dayDate: string })[];
+  /** E2: đếm theo Elliott Oscillator (song song với đếm hình học) + mức khớp với đếm hình học cùng khung. */
+  osc: { week: (OscCount & { agree: ReturnType<typeof oscAgreement> }) | null; day: OscCount & { agree: ReturnType<typeof oscAgreement> } };
 }
 
 const MOTIVE = new Set(["3", "5"]);
@@ -93,5 +96,7 @@ export function elliottMtf(daily: OhlcvBar[]): ElliottMtf {
     return { ...p, dayDate: e ? (p.type === "H" ? e.hi : e.lo) : String(p.time) };
   });
   const r = mtfRelation(week, day);
-  return { week, day, relation: r.relation, relationText: r.text, weekPivotsOnDaily };
+  const dOsc = oscillatorCount(daily.slice(-500)), wOsc = weekly.length >= ELLIOTT_MIN_WEEKS ? oscillatorCount(weekly.slice(-500)) : null;
+  const osc = { day: { ...dOsc, agree: oscAgreement(dOsc, day) }, week: wOsc ? { ...wOsc, agree: oscAgreement(wOsc, week) } : null };
+  return { week, day, relation: r.relation, relationText: r.text, weekPivotsOnDaily, osc };
 }

@@ -6,6 +6,7 @@ import { Eye, EyeOff, LineChart, Sparkles, X } from "lucide-react";
 import ProvenanceBadge from "./ProvenanceBadge";
 import ElliottSketch, { ElliottSchematic } from "./ElliottSketch";
 import type { ElliottMtf } from "../../../lib/quant-core/elliott/mtf";
+import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 import type { ElliottState } from "../../../lib/quant-core/elliott";
 import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, ELLIOTT_VN_VALIDATION, oscCheckVnNote, type ElliottCheckKey } from "../../../lib/quant-core/elliott/vnValidation";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
@@ -48,7 +49,23 @@ function Checks({ st }: { st: ElliottState }) {
   );
 }
 
-function FrameRow({ tag, st, partial }: { tag: string; st: ElliottState | null; partial?: boolean }) {
+type OscRow = (OscCount & { agree: "match" | "differ" | "na" }) | null;
+const AGREE: Record<"match" | "differ" | "na", { t: string; cls: string }> = {
+  match: { t: "khớp đếm hình học", cls: "text-emerald-300 border-emerald-500/30" },
+  differ: { t: "khác đếm hình học", cls: "text-amber-300 border-amber-500/30" },
+  na: { t: "chưa đối chiếu", cls: "text-slate-500 border-slate-700" },
+};
+function OscLine({ o }: { o: OscRow }) {
+  if (!o) return null;
+  return (
+    <p className="text-[9px] text-slate-400 leading-snug flex flex-wrap items-center gap-1" data-testid="elliott-osc-count" title="Đếm sóng theo Elliott Oscillator (sách GET): sóng 3 = đỉnh dao động vượt dải, sóng 4 kéo dao động về ≥ 90%, sóng 5 phân kỳ">
+      <span>{o.label}</span>
+      <span className={`text-[8px] px-1 rounded border ${AGREE[o.agree].cls}`}>{AGREE[o.agree].t}</span>
+    </p>
+  );
+}
+
+function FrameRow({ tag, st, partial, osc }: { tag: string; st: ElliottState | null; partial?: boolean; osc?: OscRow }) {
   return (
     <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : "D"}`}>
       <div className="flex items-center gap-1.5">
@@ -63,6 +80,7 @@ function FrameRow({ tag, st, partial }: { tag: string; st: ElliottState | null; 
           <Checks st={st} />
         </>
       )}
+      <OscLine o={osc ?? null} />
     </div>
   );
 }
@@ -91,8 +109,8 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
       </p>
       {!mtf ? <p className="text-[10px] text-slate-500">Đang tính…</p> : (
         <>
-          <FrameRow tag="Tuần" st={mtf.week} partial={mtf.week?.partial} />
-          <FrameRow tag="Ngày" st={mtf.day} />
+          <FrameRow tag="Tuần" st={mtf.week} partial={mtf.week?.partial} osc={mtf.osc.week} />
+          <FrameRow tag="Ngày" st={mtf.day} osc={mtf.osc.day} />
           <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
         </>
       )}
@@ -133,6 +151,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
     ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
   const sc = st?.scenario ?? null;
   const corr = sc?.correction ?? null;
+  const oc = frame === "W" ? mtf.osc.week : mtf.osc.day;
   return (
     <div className="rounded-xl p-3 space-y-2" style={{ background: "linear-gradient(180deg, rgba(2,132,199,0.07), rgba(2,6,15,0.2))", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="elliott-deep-panel">
       <header className="flex flex-wrap items-center gap-2">
@@ -149,6 +168,16 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
         </div>
       </header>
       <p className="text-[10px] text-slate-300 leading-snug">{mtf.relationText}</p>
+      {oc && (
+        <div className="rounded-lg p-2 text-[10px] space-y-0.5" style={CARD} data-testid="elliott-osc-detail">
+          <p className="text-[9px] font-semibold text-slate-400 uppercase">Đếm theo dao động (phương pháp sách) · song song đếm hình học</p>
+          <OscLine o={oc} />
+          <p className="text-[9px] text-slate-500 font-mono">
+            {oc.w3 && `Sóng 3 ${oc.w3.date} ${fmtP(oc.w3.price)}`}{oc.w4 && ` · Sóng 4 ${oc.w4.date} ${fmtP(oc.w4.price)}`}{oc.w5 && ` · Sóng 5 ${oc.w5.date} ${fmtP(oc.w5.price)}`}
+          </p>
+          <p className="text-[8.5px] text-slate-500">{ELLIOTT_VN_VALIDATION.O3.summary}</p>
+        </div>
+      )}
 
       {!st || st.wave === "none" ? (
         <p className="text-[10px] text-slate-500 py-4 text-center">{st ? st.label : "Chưa đủ dữ liệu cho khung này."} — không vẽ cấu trúc cũ.</p>
@@ -156,7 +185,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
           <div className="lg:col-span-2 rounded-lg p-2" style={CARD}>
             <p className={`text-[11px] font-bold mb-1 ${st.dir === "up" ? "text-emerald-300" : "text-rose-300"}`}>{st.label}</p>
-            <ElliottSketch bars={bars} state={st} higher={higher} ticker={ticker} frame={frame} />
+            <ElliottSketch bars={bars} state={st} higher={higher} ticker={ticker} frame={frame} osc={oc} />
           </div>
           <div className="space-y-2">
             <div className="rounded-lg p-2" style={CARD}>
