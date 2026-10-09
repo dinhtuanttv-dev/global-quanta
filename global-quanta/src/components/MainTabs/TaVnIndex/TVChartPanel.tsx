@@ -30,6 +30,8 @@ import type { OhlcvBar, PatternMatch } from "../../../lib/ta-command-center/type
 import type { DrawingToolType, DrawnPrimitive, DomainPoint } from "../../../lib/ta-command-center/DrawingManager";
 import type { AnalysisController as Controller } from "../../../lib/ta-command-center/AnalysisController";
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
+import { usePatternDetail } from "../../../hooks/usePatterns";
+import { toChartWeekly } from "../../../lib/ta-command-center/chart/pringScene";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
 import type { VsaSignal } from "../../../lib/quant-core";
@@ -341,12 +343,17 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     return { primary: mtf.day, higher };
   }, [mtf, timeframe]);
 
+  // P5: mô hình giá Pring (Pattern Scanner v2) — chỉ tải khi bật lớp, khung D / W.
+  const pringOn = Boolean(layerState?.pring) && (timeframe === "D" || timeframe === "W") && !TA_INDICES.some((x) => x.symbol === ticker);
+  const pringDetail = usePatternDetail(pringOn ? ticker : null);
+  const pringScene = useMemo(() => (pringOn && pringDetail.data ? (timeframe === "W" ? toChartWeekly(pringDetail.data.weekly) : pringDetail.data.daily) : null), [pringOn, pringDetail.data, timeframe]);
+
   // ---- Lớp phủ canvas ----
   const scene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
     elliottDraft: elliottProposal ?? elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene,
-  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene]);
+    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene,
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
 
   useEffect(() => {

@@ -9,6 +9,7 @@ import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
+import { pringSceneItems, type PringScenePattern } from "./pringScene";
 
 export interface SceneInput {
   bars: OhlcvBar[];
@@ -25,6 +26,8 @@ export interface SceneInput {
   avwap?: { anchorDate: string; points: VwapPoint[] } | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
+  /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
+  pring?: PringScenePattern[] | null;
 }
 
 /** Số phiên vẽ histogram trên khung intraday (POC còn "naked" của các phiên cũ hơn vẫn vẽ thành đường). */
@@ -182,6 +185,7 @@ export function buildScene(inp: SceneInput): Scene {
   }
   pushVolumeLayers(items, inp);
   if (layers?.elliottAuto && inp.elliott) items.push(...elliottSceneItems({ bars, ...inp.elliott }));
+  if (layers?.pring && inp.pring?.length) items.push(...pringSceneItems(bars, inp.pring));
   return { items };
 }
 

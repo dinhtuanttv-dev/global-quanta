@@ -6,7 +6,7 @@ import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerM
 const LABELS: Record<LayerKey, string> = {
   volume: "Khối lượng", rsi: "RSI 14", vprofile: "Volume Profile", avwap: "Anchored VWAP", orderflow: "Order Flow", foreign: "Khối ngoại", smc: "SMC", vsa: "VSA", wyckoff: "Wyckoff", corporate: "Sự kiện quyền",
   trendline: "Trendline", demandzone: "Demand Zone", elliott: "Elliott (vẽ tay)",
-  elliottAuto: "Elliott tự động", elliottOsc: "Elliott Oscillator",
+  elliottAuto: "Elliott tự động", elliottOsc: "Elliott Oscillator", pring: "Mô hình giá (Pring)",
 };
 
 interface Props { state: LayerState; onToggle: (key: LayerKey) => void; onToggleMaster: (on: boolean) => void; }
