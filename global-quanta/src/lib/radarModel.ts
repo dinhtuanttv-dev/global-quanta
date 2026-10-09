@@ -7,7 +7,7 @@ import type { SieuQuetStockItem } from "../hooks/useSieuQuetScanner";
 //   1 Siêu quét AI     : Smart Score ≥ 60 và không bị loại vì F-Score thấp (Gateway, cả mã ngoài universe)
 //   2 Kết nối thế giới : mã hưởng lợi từ diễn biến ngành Mỹ / Âu / Á (cùng phép tính tab Kết nối thế giới)
 //   3 Lọc ngành        : thuộc Top 20 Hội tụ dòng tiền của tab Lọc ngành
-//   4 TA VN-Index      : thuộc danh sách đồng thuận kỹ thuật (Golden Filter ∩ Convergence Scan)
+//   4 TA VN-Index      : SEPA Minervini Sẵn sàng / Cảnh báo mua (Golden SEPA, Gateway; SP5 thay Golden Filter ∩ Convergence cũ)
 //   5 Chất xúc tác     : tác động "hưởng lợi" từ chất xúc tác tin tức, hoặc sự kiện đã xác nhận cho ngành
 //   6 Cổ tức · điểm mua: có vùng mua ĐẠT KIỂM ĐỊNH (chu kỳ cổ tức hoặc mùa vụ KQKD — Timeline tab Cổ tức) đang mở hoặc bắt
 //                        đầu trong ≤ 10 phiên, HOẶC DecisionBar "Thuận lợi". "Gần đạt" KHÔNG tính (chỉ ghi lý do). Từ

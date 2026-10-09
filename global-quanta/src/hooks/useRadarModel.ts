@@ -3,7 +3,7 @@ import { useAppStore } from "../store/useAppStore";
 import { useSieuQuetScanner } from "./useSieuQuetScanner";
 import { useScannerBasket } from "./useScannerBasket";
 import { useWatchlists } from "./useWatchlists";
-import { useTAConsensus } from "./useTAConsensus";
+import { useGoldenSepa } from "./useGoldenSepa";
 import { useTop20Radar } from "./useTop20Radar";
 import { useCatalystData } from "./useCatalystData";
 import { useQualityScore } from "./useQualityScore";
@@ -27,7 +27,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   const basket = useScannerBasket(items, "WATCHLIST", tickers);
   const live = useAppStore((s) => s.livePrices);
 
-  const ta = useTAConsensus();
+  const ta = useGoldenSepa();
   const { top20Data } = useTop20Radar(null);
   const { snapshot: catalyst } = useCatalystData();
   const { qualityScoreData } = useQualityScore();
@@ -58,8 +58,9 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       sector: top20Data?.top20
         ? new Map(top20Data.top20.map((r, i) => [r.ticker, `Top 20 Hội tụ dòng tiền: hạng ${i + 1}, điểm ${Math.round(r.confluenceScore)}`]))
         : null,
-      ta: ta.results.length || (!ta.isLoading && !ta.error)
-        ? new Map(ta.results.map((r) => [r.ticker, `Đồng thuận TA ${r.taConsensusScore}${r.goldenPatternLabel ? ` · ${r.goldenPatternLabel}` : ""}${r.wyckoffPhase ? ` · Wyckoff ${r.wyckoffPhase}` : ""}`]))
+      // Tiêu chí 4 (SP5): SEPA Sẵn sàng / Cảnh báo mua trên Gateway (Golden SEPA), kèm xác nhận chéo — thay Đồng thuận TA cũ.
+      ta: ta.doc
+        ? new Map(ta.rows.filter((r) => r.sepa.list !== "THEO DÕI").map((r) => [r.sepa.ticker, `SEPA ${r.sepa.list.toLowerCase()}${r.sepa.metrics.pattern ? ` · ${r.sepa.metrics.pattern} ${r.sepa.metrics.footprint ?? ""}`.trimEnd() : ""} · xác nhận ${r.confirms.length}/3${r.confirms.length ? ` (${r.confirms.map((c) => c.label).join(", ")})` : ""}`]))
         : null,
       catalyst: impacts
         ? new Map(Object.entries(impacts).filter(([, v]) => v.direction === "benefit" && v.compositeScore > 0).map(([t, v]) => [t, `Chất xúc tác hưởng lợi, điểm ${Math.round(v.compositeScore)}`]))
@@ -67,7 +68,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       dividend: buy ? buy.pass : null,
       dividendFail: buy?.fail,
     };
-  }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.results, ta.isLoading, ta.error, buy]);
+  }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.rows, ta.doc, buy]);
 
   const model = useMemo(() => buildRadarModel(tickers, sources, live), [tickers, sources, live]);
   return { ...model, listName: radar.name, listId: radar.id, tickers, loading: isLoading || basket.loading };

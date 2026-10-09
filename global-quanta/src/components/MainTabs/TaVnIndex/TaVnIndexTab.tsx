@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import TickerSelector, { DEFAULT_TA_SYMBOL } from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
-import GoldenFilterPanel from "./GoldenFilterPanel";
-import TAConsensusPanel from "./TAConsensusPanel";
+import GoldenSepaPanel from "./GoldenSepaPanel";
 import ConvergencePanelV2 from "./ConvergencePanelV2";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import PatternList from "./PatternList";
@@ -136,14 +135,10 @@ export default function TaVnIndexTab() {
             {activeSubTab === "sepa" && (isMarketGatewayEnabled()
               ? <SepaPanel onSelectTicker={handleCandidateSelect} />
               : <p className="text-[10px] text-slate-500 italic py-4 text-center">Bộ lọc SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
-            {activeSubTab === "golden" && (
-              <>
-                <GoldenFilterPanel onSelectTicker={handleCandidateSelect} />
-                <div style={{ marginTop: 16 }}>
-                  <TAConsensusPanel onSelectTicker={handleCandidateSelect} />
-                </div>
-              </>
-            )}
+            {/* SP5: Golden SEPA thay hoàn toàn Golden Filter × Top 20 Kỹ thuật + TA Consensus (Project A). */}
+            {activeSubTab === "golden" && (isMarketGatewayEnabled()
+              ? <GoldenSepaPanel onSelectTicker={handleCandidateSelect} />
+              : <p className="text-[10px] text-slate-500 italic py-4 text-center">Golden SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
           </div>
         </>
       )}

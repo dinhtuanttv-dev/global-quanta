@@ -7,7 +7,7 @@
 //   - Cơ bản: BCTC quý VCI theo ngày công bố ước tính (hết quý + 45 ngày); "EPS" = LNST cổ đông công ty mẹ (vnQuarterly).
 //   - Thị trường BẤT LỢI / THẬN TRỌNG -> stop 6% (sách s.370). Kế hoạch lệnh tính với vốn tham chiếu 1 tỷ đồng; giao diện tính lại
 //     theo vốn của người dùng (lưu trên máy).
-// Chưa ghi sổ theo dõi (SCR_SEPA_* từ SP5). Bằng chứng: kiểm định đặt trước SP3 (sepa/validation.js).
+// Sổ theo dõi (SP5): scanStrategies ghi SCR_SEPA_READY / _ALERT / _S2 (signalTracking.js). Bằng chứng: kiểm định SP3 (sepa/validation.js).
 
 import { BUCKETS, groupStrength, runSepaScreen, SEPA, vnQuarterly } from "./sepa/index.js";
 import { sepaEvidence } from "./sepa/validation.js";

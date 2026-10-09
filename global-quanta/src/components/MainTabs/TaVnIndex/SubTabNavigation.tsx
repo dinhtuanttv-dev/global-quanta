@@ -10,7 +10,7 @@ interface SubTabNavigationProps {
 const TABS: { key: SubTabKey; label: string; icon: React.ReactNode }[] = [
   { key: "pattern", label: "Pattern Scanner", icon: <Search className="w-3.5 h-3.5" /> },
   { key: "convergence", label: "Bộ lọc Hợp lưu Nâng Cao", icon: <GitMerge className="w-3.5 h-3.5" /> },
-  { key: "golden", label: "Golden Filter x Top 20", icon: <Star className="w-3.5 h-3.5" /> },
+  { key: "golden", label: "Golden SEPA", icon: <Star className="w-3.5 h-3.5" /> },
   { key: "camslim", label: "CAMSLIM Cup & Handle", icon: <Coffee className="w-3.5 h-3.5" /> },
   { key: "base-breakout", label: "Base Breakout", icon: <TrendingUp className="w-3.5 h-3.5" /> },
   { key: "sepa", label: "SEPA Minervini", icon: <Trophy className="w-3.5 h-3.5" /> },

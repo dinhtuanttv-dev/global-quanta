@@ -119,6 +119,14 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
         </div>
       )}
       {data?.evidence && data.evidence.label !== "PENDING" && <SepaEvidenceCard evidence={data.evidence} />}
+      {data && (
+        <p className="text-[9px] text-slate-500" data-testid="sepa-live">
+          Theo dõi thực tế (sổ SCR_SEPA_READY / _ALERT / _S2, ghi mỗi phiên quét 15:45, chấm T+3/T+5/T+10 so với VN-Index):{" "}
+          {(data.liveTracking?.groups ?? []).some((g) => g.h5)
+            ? (data.liveTracking!.groups ?? []).map((g) => g.h5 ? `${g.label} T+5: n ${g.h5.n}, trúng ${Math.round(g.h5.hitRate * 100)}% (nền ${Math.round(g.h5.baseline * 100)}%)` : `${g.label}: chưa đủ mẫu`).join(" · ")
+            : "chưa có tín hiệu đủ T+5."}
+        </p>
+      )}
       {data?.evidence?.label === "PENDING" && <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="sepa-evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>}
 
       {data && (

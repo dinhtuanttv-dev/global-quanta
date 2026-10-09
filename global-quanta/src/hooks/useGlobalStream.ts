@@ -92,7 +92,7 @@ export function useGlobalStream() {
     // tuong doi "/api/global/stream" - chi dung khi FE/API cung origin
     // (Next.js full-stack goc). Project B (Vite) va Project A (Next.js) la
     // 2 origin khac nhau -> BAT BUOC dung API_BASE, giong moi hook khac
-    // trong du an (useGoldenFilter, useEarningsData...). EventSource ho tro
+    // trong du an (useEarningsData...). EventSource ho tro
     // URL tuyet doi khac origin binh thuong; CORS wildcard "*" da co san o
     // Project A (next.config.ts) nen khong can cau hinh them.
     const es = new EventSource(`${API_BASE}/api/global/stream`);
