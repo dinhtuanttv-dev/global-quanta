@@ -17,9 +17,11 @@ export interface ElliottState {
   dir: "up" | "down" | null;
   /** Bậc sóng của kịch bản (nhỏ/trung/lớn/chính — zigzag 1,5% … 12%). */
   degree: string | null;
-  probability: number | null;
+  /** Trọng số TƯƠNG ĐỐI của kịch bản so với các kịch bản khác (softmax điểm mô hình từ bảng thống kê sách GET + trọng số
+   *  tự đặt) — KHÔNG phải xác suất đã hiệu chỉnh trên dữ liệu VN. */
+  weight: number | null;
   scenario: ElliottScenario | null;
-  alternatives: { label: string; probability: number | null }[];
+  alternatives: { label: string; weight: number | null }[];
   invalidation: { price: number; side: "above" | "below"; reason: string } | null;
   levels: FibLevel[];
   /** Pivot đã xác nhận (ci ≠ null) + pivot cuối đang chạy. */
@@ -98,9 +100,9 @@ export function elliottState(bars: OhlcvBar[]): ElliottState | null {
       ...d,
       dir: sc.dir,
       degree: sc.degree ? DEGREE_VI[sc.degree] ?? sc.degree : null,
-      probability: sc.weight ?? null,
+      weight: sc.weight ?? null,
       scenario: sc,
-      alternatives: (res.scenarios.slice(1, 3) as Scenario[]).map((x) => ({ label: describe(x, res.pivots).label, probability: x.weight ?? null })),
+      alternatives: (res.scenarios.slice(1, 3) as Scenario[]).map((x) => ({ label: describe(x, res.pivots).label, weight: x.weight ?? null })),
       invalidation: inv ? { price: inv.price, side: inv.side, reason: inv.reason } : null,
       levels: levelsOf(sc),
       pivots: res.pivots,
@@ -112,7 +114,7 @@ export function elliottState(bars: OhlcvBar[]): ElliottState | null {
     const dirText = w3.dir === "up" ? "tăng" : "giảm";
     return {
       wave: "3", label: `Có thể đang ở sóng 3 (${dirText}) — chưa đủ 5 sóng để xếp hạng`, dir: w3.dir ?? null, degree: "bậc trung",
-      probability: null, scenario: null, alternatives: [], invalidation: null,
+      weight: null, scenario: null, alternatives: [], invalidation: null,
       levels: [
         ...(w3.targets ?? []).map((t) => ({ label: `Mục tiêu sóng 3 ×${String(t.ratio).replace(".", ",")} sóng 1`, price: t.price })),
         ...(w3.wave4Zones ?? []).map((z) => ({ label: `Vùng sóng 4 tương lai ${String(z.ratio).replace(".", ",")}`, price: z.price })),
@@ -122,6 +124,6 @@ export function elliottState(bars: OhlcvBar[]): ElliottState | null {
   }
   return {
     wave: "none", label: "Chưa có cấu trúc 5 sóng rõ ràng ở các bậc gần đây", dir: null, degree: null,
-    probability: null, scenario: null, alternatives: [], invalidation: null, levels: [], pivots: res.pivots, asOf,
+    weight: null, scenario: null, alternatives: [], invalidation: null, levels: [], pivots: res.pivots, asOf,
   };
 }
