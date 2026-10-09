@@ -1,7 +1,9 @@
 // Elliott Wave cho quant-core (Screener Engine v2 / S4): bọc engine GET (elliottGet.js) thành trạng thái dễ đọc —
 // "đang sóng mấy", kịch bản chính + xác suất, mốc vô hiệu, các mức Fibonacci liên quan.
-// Kết quả mang tính DIỄN GIẢI (INFERRED): bảng thống kê/trọng số của engine lấy từ sách, chưa hiệu chỉnh cho VN.
+// Kết quả mang tính DIỄN GIẢI (INFERRED): trọng số kịch bản dùng bảng tỷ lệ sóng của VN (E4, vnValidation.ts) nhưng
+// không tín hiệu nào có lợi thế lợi suất ngoài mẫu — chỉ để đối chiếu với sách.
 import { analyzeFull, invalidationOf, zigzag, type ElliottPivot, type ElliottScenario } from "./elliottGet.js";
+import { ELLIOTT_VN_TABLES } from "./vnValidation";
 import type { OhlcvBar } from "../../ta-command-center/types";
 
 export type { ElliottPivot, ElliottScenario } from "./elliottGet.js";
@@ -17,8 +19,8 @@ export interface ElliottState {
   dir: "up" | "down" | null;
   /** Bậc sóng của kịch bản (nhỏ/trung/lớn/chính — zigzag 1,5% … 12%). */
   degree: string | null;
-  /** Trọng số TƯƠNG ĐỐI của kịch bản so với các kịch bản khác (softmax điểm mô hình từ bảng thống kê sách GET + trọng số
-   *  tự đặt) — KHÔNG phải xác suất đã hiệu chỉnh trên dữ liệu VN. */
+  /** Trọng số TƯƠNG ĐỐI của kịch bản so với các kịch bản khác (softmax điểm mô hình từ bảng tỷ lệ sóng VN + trọng số
+   *  tự đặt) — KHÔNG phải xác suất xảy ra. */
   weight: number | null;
   scenario: ElliottScenario | null;
   alternatives: { label: string; weight: number | null }[];
@@ -69,8 +71,9 @@ function levelsOf(sc: ElliottScenario): FibLevel[] {
   const out: FibLevel[] = [];
   if (sc.status === "wave5-forming") {
     for (const l of sc.targets.wave5.levels) out.push({ label: `Mục tiêu sóng 5 ×${l.ratio}`, price: l.price });
-    out.push({ label: "Cửa sổ sóng 5: 62% của 0→3", price: sc.targets.wave5.window03.low });
-    out.push({ label: "Cửa sổ sóng 5: 100% của 0→3", price: sc.targets.wave5.window03.high });
+    // T-43; trên VN chỉ 23,6% sóng 5 kết thúc trong cửa sổ này (E4) — nhãn ghi "sách".
+    out.push({ label: "Cửa sổ sóng 5 (sách): 62% của 0→3", price: sc.targets.wave5.window03.low });
+    out.push({ label: "Cửa sổ sóng 5 (sách): 100% của 0→3", price: sc.targets.wave5.window03.high });
   } else {
     out.push({ label: "Mục tiêu đầu tiên của điều chỉnh (đáy/đỉnh sóng 4)", price: sc.points[4].price });
     const [p0, , , , , p5] = sc.points;
@@ -90,7 +93,7 @@ function levelsOf(sc: ElliottScenario): FibLevel[] {
 export function elliottState(bars: OhlcvBar[]): ElliottState | null {
   if (bars.length < 60) return null;
   const window = bars.slice(-ELLIOTT_BAR_LIMIT);
-  const res = analyzeFull(toCandles(window), { pro: { topN: 3 } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
+  const res = analyzeFull(toCandles(window), { pro: { topN: 3, statTables: ELLIOTT_VN_TABLES } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
   const asOf = window[window.length - 1].date;
   const sc = res.scenarios[0] as Scenario | undefined;
   if (sc) {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { confirmedPivotsAt, elliottState, pivotsOf } from "./index";
-import { analyze, analyzeCorrection, DEFAULTS, elliottOscillator, statWave2, zigzag } from "./elliottGet.js";
+import { analyze, analyzeCorrection, DEFAULTS, elliottOscillator, probOf, STAT_TABLES, statWave2, zigzag } from "./elliottGet.js";
+import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, oscCheckVnNote } from "./vnValidation";
 import type { OhlcvBar } from "../../ta-command-center/types";
 
 const day = (i: number) => new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10);
@@ -105,3 +106,27 @@ describe("Elliott — E1 đúng sách GET", () => {
   });
 });
 
+
+describe("Elliott — E4 kiểm định VN", () => {
+  it("bảng tỷ lệ VN cùng khoảng với bảng sách, tổng ≈ 1; elliottState xếp hạng bằng bảng VN", () => {
+    for (const k of ["w2", "w3", "w4"] as const) {
+      expect(ELLIOTT_VN_TABLES[k].map((b) => b.max)).toEqual(STAT_TABLES[k].map((b) => b.max));
+      expect(Math.abs(ELLIOTT_VN_TABLES[k].reduce((a, b) => a + b.p, 0) - 1)).toBeLessThan(0.005);
+    }
+    const legs = [[0, 100], [20, 120], [30, 110], [55, 145], [65, 133], [80, 151], [92, 136], [100, 142], [110, 139]];
+    const f = (i: number) => {
+      for (let k = 1; k < legs.length; k++) if (i <= legs[k][0]) { const [i0, p0] = legs[k - 1], [i1, p1] = legs[k]; return p0 + ((p1 - p0) * (i - i0)) / (i1 - i0); }
+      return legs[legs.length - 1][1];
+    };
+    const s = elliottState([...bars(60, (i) => 100 + Math.sin(i / 3) * 1.5), ...bars(111, f).map((b, i) => ({ ...b, date: day(60 + i) }))])!;
+    const sc = s.scenario!, lg = (t: { max: number; p: number | null }[], r: number) => Math.log(probOf(t, r));
+    const vn = (lg(ELLIOTT_VN_TABLES.w2, sc.ratios.w2) + lg(ELLIOTT_VN_TABLES.w3, sc.ratios.w3) + lg(ELLIOTT_VN_TABLES.w4, sc.ratios.w4)) / 3;
+    expect(sc.features!.logp).toBeCloseTo(vn, 9);
+  });
+
+  it("nhãn điều kiện dao động ghi tỷ lệ VN thật theo bậc sóng", () => {
+    expect(oscCheckVnNote("wave4Osc", { degree: "intermediate" })).toBe("Trên VN 0,6% xung lực thoả (sách: ≈ 94% (T-15/T-16))");
+    expect(oscCheckVnNote("wave3Strongest", { degree: "major" })).toContain("91,5%");
+    expect(ELLIOTT_VN_NOTE).toContain("không tín hiệu Elliott nào có lợi thế");
+  });
+});
