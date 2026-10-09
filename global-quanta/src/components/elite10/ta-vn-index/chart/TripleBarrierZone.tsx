@@ -1,3 +1,4 @@
+import { plausiblePrice } from './sanitize';
 import { LineStyle } from 'lightweight-charts';
 import type { IPriceLine } from 'lightweight-charts';
 import { useLayoutEffect, useRef } from 'react';
@@ -64,11 +65,11 @@ export function TripleBarrierZone({
     const resultColor = occ.label === 1 ? '#1fe08a' : '#ff4d5e';
     try {
       const candleSeries = series.api();
-      lines.push(candleSeries.createPriceLine({
+      if (plausiblePrice(tpBarrierScaled, priceSeries)) lines.push(candleSeries.createPriceLine({
         price: tpBarrierScaled, color: '#c084fc', lineWidth: 2, lineStyle: LineStyle.Dashed,
         axisLabelVisible: true, title: 'Chốt lời (Triple-Barrier)',
       }));
-      lines.push(candleSeries.createPriceLine({
+      if (plausiblePrice(slBarrierScaled, priceSeries)) lines.push(candleSeries.createPriceLine({
         price: slBarrierScaled, color: '#fb923c', lineWidth: 2, lineStyle: LineStyle.Dashed,
         axisLabelVisible: true, title: 'Cắt lỗ (Triple-Barrier)',
       }));

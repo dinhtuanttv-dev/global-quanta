@@ -80,7 +80,7 @@ export function EventVolatilityTable({ priceSeries, events, demandZone }: EventV
         </tbody>
       </table>
 
-      {troughStat && (
+      {troughStat && Number.isFinite(troughStat.close) && Number.isFinite(troughStat.pct) && (
         <p className="mt-2 text-[10px] text-slate-500">
           Từ đáy Demand Zone ({troughStat.time}, {troughStat.close.toLocaleString()}) đến hiện tại:{' '}
           <b className={troughStat.pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}>

@@ -9,6 +9,7 @@ import { CandlestickSeries } from './chart/CandlestickSeries';
 import { LineSeries } from './chart/LineSeries';
 import { CrosshairLegend } from './chart/CrosshairLegend';
 import { TradeScenarioLines } from './chart/TradeScenarioLines';
+import { candleTimes, cleanCandles } from './chart/sanitize';
 import { TripleBarrierZone } from './chart/TripleBarrierZone';
 import { PriceZones } from './chart/PriceZones';
 import { ForecastDivider } from './chart/ForecastDivider';
@@ -88,6 +89,9 @@ export function MainChart(props: MainChartProps) {
     tripleBarrierOccurrences, selectedOccurrenceIndex,
     fanChart,
   } = props;
+
+  // Mốc thời gian của nến (đã làm sạch) — mọi series đường chỉ dùng các mốc này.
+  const candleTimeSet = useMemo(() => candleTimes(cleanCandles(priceSeries)), [priceSeries]);
 
   const markers = useMemo<SeriesMarker<Time>[]>(() => {
     const timeIndex = buildTimeIndex(priceSeries);
@@ -181,7 +185,7 @@ export function MainChart(props: MainChartProps) {
   return (
     <ChartWrapper height={560}>
       <CandlestickSeries data={priceSeries} markers={markers}>
-        <TradeScenarioLines tradeScenario={tradeScenario} samplePrice={priceSeries[priceSeries.length - 1]?.close} />
+        <TradeScenarioLines tradeScenario={tradeScenario} samplePrice={priceSeries[priceSeries.length - 1]?.close} priceSeries={priceSeries} />
         <TripleBarrierZone priceSeries={priceSeries} occurrences={tripleBarrierOccurrences} selectedIndex={selectedOccurrenceIndex} />
         <PriceZones priceSeries={priceSeries} zones={zones} showDemandZone={showDemandZone} />
         <ForecastDivider priceSeries={priceSeries} hasForecast={Boolean(showMsGarch && fanChart && fanChart.length > 0)} />
@@ -193,16 +197,16 @@ export function MainChart(props: MainChartProps) {
         <VolumeProfileZones priceSeries={priceSeries} showVolumeProfile={Boolean(showVolumeProfile)} />
       </CandlestickSeries>
 
-      <LineSeries data={trendlineData} options={{ color: '#22e8ff', lineWidth: 2 }} />
-      <LineSeries data={sma200Data} options={{ color: '#b71c1c', lineWidth: 2 }} />
-      <LineSeries data={ema100Data} options={{ color: '#9b59b6', lineWidth: 1 }} />
-      <LineSeries data={ema50Data} options={{ color: '#ffd60a', lineWidth: 1 }} />
-      <LineSeries data={ema21Data} options={{ color: '#1fe08a', lineWidth: 1 }} />
-      <LineSeries data={bbUpperData} options={{ color: 'rgba(150,150,255,0.5)' }} />
-      <LineSeries data={bbLowerData} options={{ color: 'rgba(150,150,255,0.5)' }} />
-      <LineSeries data={p10Data} options={{ color: 'rgba(255,77,94,0.7)', lineWidth: 1 }} />
-      <LineSeries data={p50Data} options={{ color: 'rgba(251,191,36,0.9)', lineWidth: 2 }} />
-      <LineSeries data={p90Data} options={{ color: 'rgba(31,224,138,0.7)', lineWidth: 1 }} />
+      <LineSeries alignTo={candleTimeSet} data={trendlineData} options={{ color: '#22e8ff', lineWidth: 2 }} />
+      <LineSeries alignTo={candleTimeSet} data={sma200Data} options={{ color: '#b71c1c', lineWidth: 2 }} />
+      <LineSeries alignTo={candleTimeSet} data={ema100Data} options={{ color: '#9b59b6', lineWidth: 1 }} />
+      <LineSeries alignTo={candleTimeSet} data={ema50Data} options={{ color: '#ffd60a', lineWidth: 1 }} />
+      <LineSeries alignTo={candleTimeSet} data={ema21Data} options={{ color: '#1fe08a', lineWidth: 1 }} />
+      <LineSeries alignTo={candleTimeSet} data={bbUpperData} options={{ color: 'rgba(150,150,255,0.5)' }} />
+      <LineSeries alignTo={candleTimeSet} data={bbLowerData} options={{ color: 'rgba(150,150,255,0.5)' }} />
+      <LineSeries alignTo={candleTimeSet} data={p10Data} options={{ color: 'rgba(255,77,94,0.7)', lineWidth: 1 }} />
+      <LineSeries alignTo={candleTimeSet} data={p50Data} options={{ color: 'rgba(251,191,36,0.9)', lineWidth: 2 }} />
+      <LineSeries alignTo={candleTimeSet} data={p90Data} options={{ color: 'rgba(31,224,138,0.7)', lineWidth: 1 }} />
 
       <CrosshairLegend priceSeries={priceSeries} />
     </ChartWrapper>

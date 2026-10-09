@@ -1,6 +1,7 @@
 import type { ISeriesApi, LineData, LineStyle, WhitespaceData } from 'lightweight-charts';
 import { forwardRef, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import { useChartContext } from './ChartContainer';
+import { alignLine } from './sanitize';
 
 export interface LineSeriesOptions {
   color?: string;
@@ -21,7 +22,7 @@ export interface LineSeriesOptions {
  * duong nay co mau/kieu co dinh trong suot vong doi), CHI "data" la
  * props thay doi dong (setData moi khi props.data doi).
  */
-export const LineSeries = forwardRef<ISeriesApi<'Line'>, { data: (LineData | WhitespaceData)[]; options?: LineSeriesOptions }>((props, ref) => {
+export const LineSeries = forwardRef<ISeriesApi<'Line'>, { data: (LineData | WhitespaceData)[]; options?: LineSeriesOptions; alignTo?: Set<string> | null }>((props, ref) => {
   const parent = useChartContext();
   const optionsRef = useRef(props.options);
   const context = useRef<{ _api?: ISeriesApi<'Line'>; api(): ISeriesApi<'Line'>; free(): void }>({
@@ -48,9 +49,10 @@ export const LineSeries = forwardRef<ISeriesApi<'Line'>, { data: (LineData | Whi
   useLayoutEffect(() => {
     const currentRef = context.current;
     try {
-      currentRef.api().setData(props.data);
+      // Chỉ mốc có nến + giá trị hữu hạn (sanitize.ts) — không chèn điểm lạ vào trục thời gian.
+      currentRef.api().setData(alignLine(props.data, props.alignTo ?? null));
     } catch { /* chart da dispose, bo qua an toan */ }
-  }, [props.data]);
+  }, [props.data, props.alignTo]);
 
   useImperativeHandle(ref, () => context.current.api(), []);
 

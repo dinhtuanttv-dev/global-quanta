@@ -2,6 +2,7 @@ import type { ISeriesApi, SeriesMarker, Time } from 'lightweight-charts';
 import React, { createContext, forwardRef, useContext, useImperativeHandle, useLayoutEffect, useRef } from 'react';
 import type { OhlcBar } from '../../../../types/taVnIndex';
 import { useChartContext } from './ChartContainer';
+import { alignMarkers, candleTimes, cleanCandles } from './sanitize';
 
 /**
  * MO RONG (Giai doan 4): SeriesContext RIENG (khac ChartContext) - cho
@@ -71,21 +72,23 @@ export const CandlestickSeries = forwardRef<ISeriesApi<'Candlestick'>, { data: O
     };
   }, []);
 
-  useLayoutEffect(() => {
-    const currentRef = context.current;
-    try {
-      currentRef.api().setData(
-        props.data.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })),
-      );
-    } catch { /* chart da dispose, bo qua an toan */ }
-  }, [props.data]);
+  // Làm sạch (sanitize.ts): nến hợp lệ, sắp + bỏ trùng; marker chỉ ở mốc có nến — tránh "Value is null" của lightweight-charts.
+  const clean = React.useMemo(() => cleanCandles(props.data), [props.data]);
+  const times = React.useMemo(() => candleTimes(clean), [clean]);
 
   useLayoutEffect(() => {
     const currentRef = context.current;
     try {
-      currentRef.api().setMarkers(props.markers ?? []);
+      currentRef.api().setData(clean.map((b) => ({ time: b.time, open: b.open, high: b.high, low: b.low, close: b.close })));
     } catch { /* chart da dispose, bo qua an toan */ }
-  }, [props.markers]);
+  }, [clean]);
+
+  useLayoutEffect(() => {
+    const currentRef = context.current;
+    try {
+      currentRef.api().setMarkers(alignMarkers(props.markers, times));
+    } catch { /* chart da dispose, bo qua an toan */ }
+  }, [props.markers, times]);
 
   useImperativeHandle(ref, () => context.current.api(), []);
 
