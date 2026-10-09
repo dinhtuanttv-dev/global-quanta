@@ -70,7 +70,7 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
         return finish(adj.bars, "ADJUSTED_CUMULATIVE", { events: adj.applied.length });
       };
       // VN-Index (điểm chỉ số) cho yếu tố M — kho nến được job nghiên cứu / biểu đồ cập nhật hằng ngày.
-      loadSeries.index = () => store.getBars("VNINDEX", from, to);
+      loadSeries.index = (code = "VNINDEX") => store.getBars(code, from, to);
       return loadSeries;
     },
   };

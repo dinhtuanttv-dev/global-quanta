@@ -23,6 +23,8 @@ import { createTaFlow } from "../market/adjusted/taFlow.js";
 import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { patternDetail } from "../market/strategies/patternScan.js";
+import { chartVision, screenerIndex } from "../market/chartVision/chartVision.js";
+import { isIndexSymbol } from "../market/normalizer.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 
@@ -141,6 +143,31 @@ router.get("/strategies/patterns/:symbol", handle(async (req, res) => {
     return patternDetail(symbol, await loadSeries(symbol));
   });
   if (!data) { res.status(404).json({ error: `Chưa có chuỗi giá cho ${symbol}.` }); return; }
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+
+// AI Chart Vision v2 — phân tích đa khung D/W/M từ chuỗi giá điều chỉnh (chỉ đọc kho, không gọi SSI, không gọi AI) + các bộ lọc
+// đang chứa mã (đọc KV strategies:<id>, chỉ mục dùng chung 5 phút). Bộ nhớ đệm 10 phút / mã.
+router.get("/chart-vision/:symbol", handle(async (req, res) => {
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{2,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const rt = getMarketRuntime();
+  const index = await rt.service.cache.wrap("chart-vision:screeners", 5 * 60_000, async () => {
+    const docs = {};
+    for (const id of STRATEGY_IDS) docs[id] = (await rt.store.getKv(strategyKvKey(id)))?.value ?? null;
+    return screenerIndex(docs);
+  });
+  const data = await rt.service.cache.wrap(`chart-vision:${symbol}`, 10 * 60_000, async () => {
+    const isIndex = isIndexSymbol(symbol);
+    const loadSeries = await createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }).prepare(isIndex ? [] : [symbol]);
+    const raw = isIndex ? { bars: await loadSeries.index(symbol), priceBasis: "INDEX_POINTS" } : await loadSeries(symbol);
+    const bars = (raw?.bars ?? []).filter((b) => !b.partial && b.open > 0 && b.high > 0 && b.low > 0 && b.close > 0)
+      .map((b) => ({ date: b.date, open: b.open, high: Math.max(b.high, b.open, b.close), low: Math.min(b.low, b.open, b.close), close: b.close, volume: b.volume ?? 0 }));
+    if (bars.length < 60) return null;
+    return { ...chartVision(symbol, bars, { screeners: index.get(symbol) ?? [], isIndex }), priceBasis: raw.priceBasis ?? "UNKNOWN", warnings: raw.warnings ?? [] };
+  });
+  if (!data) { res.status(404).json({ error: `Chưa đủ chuỗi giá cho ${symbol} (cần ≥ 60 phiên).` }); return; }
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
 }));
