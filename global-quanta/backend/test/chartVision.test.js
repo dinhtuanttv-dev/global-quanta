@@ -41,6 +41,10 @@ test("xu hướng tăng: mọi khung dương, cấu trúc đỉnh–đáy cao d�
   assert.ok(["ALIGNED_UP", "PARTIAL"].includes(r.synthesis.alignment.key));
   assert.equal(r.method.label, "EXPERIMENTAL");
   assert.ok(r.synthesis.checklist.length >= 5);
+  // dữ liệu vẽ: nến gọn + MA cùng độ dài cửa sổ; MA200 ngày có giá trị ngay đầu cửa sổ
+  assert.equal(r.bars.D.length, 180);
+  assert.equal(r.ma.D[200].length, 180);
+  assert.ok(Number.isFinite(r.ma.D[200][0]));
 });
 
 test("đối xứng: xu hướng giảm cho điểm âm ở mọi khung", () => {

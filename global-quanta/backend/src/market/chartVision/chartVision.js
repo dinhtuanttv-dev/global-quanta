@@ -276,6 +276,11 @@ export function chartVision(symbol, bars, { screeners = [], isIndex = false } = 
       note: "Tổng hợp theo quy tắc minh bạch từ nến thật (không gọi AI): xu hướng MA 35% · động lượng RSI/MACD 25% · cấu trúc đỉnh–đáy 25% · khối lượng 15%; hợp lưu D 45% · W 35% · M 20%. Chưa kiểm định ngoài mẫu — dùng để tham khảo.",
     },
     bars: Object.fromEntries(CV_TIMEFRAMES.map((tf) => [tf, series[tf].slice(-TF[tf].sketchBars).map(compact)])),
+    // đường MA cho cửa sổ vẽ, tính trên CẢ chuỗi (MA200 ngày vẫn có giá trị ở đầu cửa sổ 180 nến)
+    ma: Object.fromEntries(CV_TIMEFRAMES.map((tf) => {
+      const closes = series[tf].map((b) => b.close), k = TF[tf].sketchBars;
+      return [tf, Object.fromEntries(TF[tf].ma.map((n) => [n, sma(closes, n).slice(-k).map(r2)]))];
+    })),
   };
 }
 
