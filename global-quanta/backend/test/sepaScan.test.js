@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
 import { runTechnicalFilters, screenerCriteria, STRATEGY_ENGINE, STRATEGY_IDS } from "../src/market/strategies/technicalFilters.js";
-import { ledgerRows } from "../src/market/strategies/signalTracking.js";
+import { isSepaS2, ledgerRows, liveTracking } from "../src/market/strategies/signalTracking.js";
 import { analyzeFundamentals, vnQuarterly } from "../src/market/strategies/sepa/index.js";
 
 const O = JSON.parse(gunzipSync(readFileSync(new URL("./fixtures/sepa/oracle_sp2.json.gz", import.meta.url))).toString("utf8"));
@@ -77,11 +77,20 @@ test("KV strategies:sepa: 4 danh sách, xếp theo danh sách rồi điểm, JSO
   assert.ok(noFa.fundamentals.warnings[0].startsWith("Thiếu dữ liệu cơ bản"));
 });
 
-test("chưa ghi sổ theo dõi SEPA (SCR_SEPA_* bắt đầu từ SP5)", async () => {
+test("sổ theo dõi SEPA (SP5): READY / ALERT theo danh sách + S2; THEO DÕI / LOẠI không ghi; liveTracking 3 nhóm", async () => {
   const { service, loadSeries } = await setup();
   const docs = await runTechnicalFilters(service, { loadSeries, criteria: screenerCriteria({}), strategies: ["sepa"] });
-  assert.ok(docs.sepa.results.length > 0);
-  assert.equal(ledgerRows(docs).filter((r) => String(r.signal).includes("SEPA")).length, 0);
+  const rows = ledgerRows(docs);
+  const res = docs.sepa.results;
+  const count = (l) => res.filter((r) => r.list === l).length;
+  assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_READY").length, count("SẴN SÀNG MUA"));
+  assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_ALERT").length, count("CẢNH BÁO MUA"));
+  assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_S2").length, res.filter(isSepaS2).length);
+  assert.ok(rows.every((r) => r.direction === 1 && r.model_version === "sepa/SP3" && r.features.list));
+  assert.ok(!rows.some((r) => ["THEO DÕI", "LOẠI"].includes(r.features.list)));
+  const live = liveTracking({ generatedAt: "x", rows: [{ regime: "ALL", signal: "SCR_SEPA_READY", horizon: 5, n: 12, hitRate: 0.6, baseline: 0.5, hitLow: 0.4, hitHigh: 0.8, verdict: "none" }] }, "sepa");
+  assert.deepEqual(live.groups.map((g) => g.key), ["ready", "alert", "s2"]);
+  assert.equal(live.groups[0].h5.n, 12);
 });
 
 test("vnQuarterly: chỉ quý đã công bố (hết quý + 45 ngày), quý thiếu = NaN để so cùng kỳ đúng quý", () => {

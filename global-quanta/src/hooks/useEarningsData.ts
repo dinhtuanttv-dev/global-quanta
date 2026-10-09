@@ -1,7 +1,7 @@
 import useSWR from "swr";
 
 // Sua so voi ban goc trong zip: them API_BASE, dung dung convention
-// da co san o useGoldenFilter.ts (refreshInterval/dedupingInterval giong het,
+// da co san o cac hook SWR khac (refreshInterval/dedupingInterval giong het,
 // key build qua VITE_API_BASE_URL vi Project B khong cung-origin voi
 // Project A o production).
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
