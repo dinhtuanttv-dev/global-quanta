@@ -1,6 +1,6 @@
-import { Search, GitMerge, Star, Cpu, Coffee, TrendingUp } from "lucide-react";
+import { Search, GitMerge, Star, Cpu, Coffee, TrendingUp, Trophy } from "lucide-react";
 
-export type SubTabKey = "pattern" | "convergence" | "golden" | "camslim" | "base-breakout" | "aichart";
+export type SubTabKey = "pattern" | "convergence" | "golden" | "camslim" | "base-breakout" | "sepa" | "aichart";
 
 interface SubTabNavigationProps {
   activeTab: SubTabKey;
@@ -13,6 +13,7 @@ const TABS: { key: SubTabKey; label: string; icon: React.ReactNode }[] = [
   { key: "golden", label: "Golden Filter x Top 20", icon: <Star className="w-3.5 h-3.5" /> },
   { key: "camslim", label: "CAMSLIM Cup & Handle", icon: <Coffee className="w-3.5 h-3.5" /> },
   { key: "base-breakout", label: "Base Breakout", icon: <TrendingUp className="w-3.5 h-3.5" /> },
+  { key: "sepa", label: "SEPA Minervini", icon: <Trophy className="w-3.5 h-3.5" /> },
   { key: "aichart", label: "AI Chart Vision", icon: <Cpu className="w-3.5 h-3.5" /> },
 ];
 

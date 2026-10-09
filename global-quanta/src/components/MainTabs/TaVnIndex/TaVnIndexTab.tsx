@@ -11,6 +11,7 @@ import SubTabNavigation, { SubTabKey } from "./SubTabNavigation";
 import type { PatternMatch } from "../../../lib/ta-command-center/types";
 import AIChartVisionTab from "./AIChartVision";
 import TechnicalFilterPanel from "./TechnicalFilterPanel";
+import SepaPanel from "./SepaPanel";
 import "./AIChartVision/styles.css";
 
 export default function TaVnIndexTab() {
@@ -131,6 +132,10 @@ export default function TaVnIndexTab() {
             {activeSubTab === "base-breakout" && (
               <TechnicalFilterPanel strategy="base-breakout" onSelectTicker={handleCandidateSelect} />
             )}
+            {/* SEPA Minervini (SP4) — chiến lược "sepa" của Gateway; bảng phụ phân tích chuyên sâu theo sách. */}
+            {activeSubTab === "sepa" && (isMarketGatewayEnabled()
+              ? <SepaPanel onSelectTicker={handleCandidateSelect} />
+              : <p className="text-[10px] text-slate-500 italic py-4 text-center">Bộ lọc SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
             {activeSubTab === "golden" && (
               <>
                 <GoldenFilterPanel onSelectTicker={handleCandidateSelect} />
