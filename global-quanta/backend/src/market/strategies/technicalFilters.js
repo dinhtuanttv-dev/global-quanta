@@ -1,4 +1,4 @@
-// Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout) — Screener Engine v2 / S1.
+// Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout, Hợp lưu, SEPA, Mô hình giá Pring) — Screener Engine v2 / S1.
 //
 // Dữ liệu (S1):
 //   - Chuỗi giá ĐIỀU CHỈNH CỘNG DỒN ~3 năm, cùng cơ sở giá với /api/market/ta-series, đọc kho, không gọi SSI
@@ -13,14 +13,15 @@ import { buildCsEvidence, buildRsTable, marketContextM, scanCanSlimV2 } from "./
 import { buildEvidence, marketContext, scanBaseBreakoutV2 } from "./baseBreakoutV2.js";
 import { CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh, scanConvergenceV2 } from "./convergenceV2.js";
 import { SEPA_ENGINE, scanSepa } from "./sepaScan.js";
+import { PATTERN_EVIDENCE, PATTERNS_ENGINE, scanPatternUniverse } from "./patternScan.js";
 
-export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout", "convergence", "sepa"]);
+export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout", "convergence", "sepa", "patterns"]);
 /** Số phiên tối thiểu: MA200 + đỉnh 250 phiên của CAMSLIM. */
 export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6", convergence: CONVERGENCE_VERSION, sepa: SEPA_ENGINE });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6", convergence: CONVERGENCE_VERSION, sepa: SEPA_ENGINE, patterns: PATTERNS_ENGINE });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -156,6 +157,21 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
         universeCount: universe.length, scannedCount: eligible.length - sp.errors.length, resultCount: sp.results.length,
         results: sp.results,
         skipped: [...skipped, ...sp.errors.map((e) => ({ ...e, reason: "INVALID_DATA" }))].sort((a, b) => a.ticker.localeCompare(b.ticker)),
+        disclaimer: DISCLAIMER,
+      };
+      continue;
+    }
+    if (strategy === "patterns") {
+      // Pattern Scanner v2 (Pring) — khung ngày + tuần, chỉ bản tóm tắt; chi tiết qua /strategies/patterns/:symbol (patternScan.js).
+      const pt = scanPatternUniverse({ eligible });
+      out.patterns = {
+        strategy, engine: STRATEGY_ENGINE.patterns, ...(withEvidence ? { evidence: PATTERN_EVIDENCE } : {}),
+        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20" },
+        timeframes: ["D", "W"], counts: pt.counts,
+        generatedAt, dataAsOf, source: "SSI Market Gateway · giá điều chỉnh cộng dồn", criteria, priceBasis,
+        universeCount: universe.length, scannedCount: eligible.length - pt.errors.length, resultCount: pt.results.length,
+        results: pt.results,
+        skipped: [...skipped, ...pt.errors].sort((a, b) => a.ticker.localeCompare(b.ticker)),
         disclaimer: DISCLAIMER,
       };
       continue;

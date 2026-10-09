@@ -1,5 +1,5 @@
 // Job của bộ lọc kỹ thuật TA VN-Index (Screener Engine v2 / S1):
-//   scanStrategies          15:45 ngày giao dịch — quét CAMSLIM + Base Breakout một lần sau ATC (chỉ đọc kho), lưu KV strategies:<id>
+//   scanStrategies          15:45 ngày giao dịch — quét mọi bộ lọc (CAMSLIM, Base Breakout, Hợp lưu, SEPA, Mô hình giá) một lần sau ATC (chỉ đọc kho), lưu KV strategies:<id>
 //   backfillScreenerHistory 03:00 hằng đêm       — nạp đủ ~3 năm nến ngày cho mã universe còn thiếu (ngoài giờ, có giới hạn)
 
 import { STRATEGY_IDS, STRATEGY_RANGE, runTechnicalFilters, strategyKvKey } from "./technicalFilters.js";
