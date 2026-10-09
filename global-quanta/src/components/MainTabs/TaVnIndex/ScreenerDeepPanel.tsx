@@ -9,7 +9,7 @@ import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolume
 import type {
   TechnicalFilterComponent, TechnicalFilterResponse, TechnicalFilterResult, TechnicalFilterStrategy,
 } from "../../../hooks/useTechnicalFilter";
-import { elliottState } from "../../../lib/quant-core/elliott";
+import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { ELLIOTT_VN_NOTE } from "../../../lib/quant-core/elliott/vnValidation";
 import PatternSketch from "./PatternSketch";
 
@@ -159,7 +159,9 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
   const series = useTaSeries(result.ticker);
   const { data: vol } = useVolumeAnalysis(result.ticker);
   // Elliott chạy trên trình duyệt (quant-core) — chỉ khi dòng được mở.
-  const ew = useMemo(() => (series.bars.length >= 60 ? elliottState(series.bars) : null), [series.bars]);
+  // E6: hai khung — tuần (gộp từ chuỗi ngày) cho bối cảnh lớn, ngày cho cấu trúc đang chạy.
+  const mtf = useMemo(() => (series.bars.length >= 60 ? elliottMtf(series.bars) : null), [series.bars]);
+  const ew = mtf?.day ?? null;
   const plan = result.plan ?? result.metrics.plan;
   const h = result.handle;
   const p = result.pattern;
@@ -278,6 +280,14 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
                 </ul>
               )}
               {h?.wave && <div className="text-slate-400">Cạnh phải cốc: <span className="text-slate-200">{h.wave.count}</span></div>}
+              {mtf?.week && (
+                <div className="rounded px-1.5 py-1 space-y-0.5" style={{ background: "rgba(148,163,184,0.05)" }} data-testid="deep-elliott-week">
+                  <div className="text-[9px] text-slate-500">Khung tuần{mtf.week.partial ? " (tuần chưa hết)" : ""}</div>
+                  <div className="text-[10px] font-semibold text-slate-200">{mtf.week.label}</div>
+                  <div className="text-[9px] text-slate-400">{mtf.relationText}</div>
+                </div>
+              )}
+              {mtf && mtf.osc.day.wave !== "none" && <div className="text-[9px] text-slate-400" data-testid="deep-elliott-osc">{mtf.osc.day.label}</div>}
               <p className="text-[8px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. {ELLIOTT_VN_NOTE}</p>
             </div>
           ) : <div className="text-[10px] text-slate-500 py-4">{series.isLoading ? "Đang đếm sóng…" : "Chưa có kịch bản sóng hợp lệ."}</div>}
