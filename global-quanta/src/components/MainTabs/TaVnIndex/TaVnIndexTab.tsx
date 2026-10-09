@@ -5,9 +5,8 @@ import TaCommandCenterTab from "./TaCommandCenterTab";
 import GoldenSepaPanel from "./GoldenSepaPanel";
 import ConvergencePanelV2 from "./ConvergencePanelV2";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
-import PatternList from "./PatternList";
+import PatternScannerPanel from "./PatternScannerPanel";
 import SubTabNavigation, { SubTabKey } from "./SubTabNavigation";
-import type { PatternMatch } from "../../../lib/ta-command-center/types";
 import AIChartVisionTab from "./AIChartVision";
 import TechnicalFilterPanel from "./TechnicalFilterPanel";
 import SepaPanel from "./SepaPanel";
@@ -18,12 +17,6 @@ export default function TaVnIndexTab() {
   const [ticker, setTicker] = useState(globalSelectedTicker ?? DEFAULT_TA_SYMBOL);
   const [activeSubTab, setActiveSubTab] = useState<SubTabKey>("pattern");
   const [suggestedTicker, setSuggestedTicker] = useState<string | null>(null);
-  // ĐÃ THÊM — thay cho <PatternList> từng gắn sẵn TRÙNG LẶP bên trong
-  // TVChartPanel.tsx (đã bỏ): lưu pattern vừa chọn, truyền xuống
-  // TaCommandCenterTab -> TVChartPanel để vẫn khoanh vùng ngày trên biểu
-  // đồ — giữ nguyên đúng hành vi cũ, chỉ đổi đường truyền dữ liệu.
-  const [patternHighlight, setPatternHighlight] = useState<PatternMatch | null>(null);
-
   useEffect(() => {
     if (globalSelectedTicker) setTicker(globalSelectedTicker);
   }, [globalSelectedTicker]);
@@ -31,11 +24,6 @@ export default function TaVnIndexTab() {
   const handleCandidateSelect = (symbol: string) => {
     setTicker(symbol);
     setSuggestedTicker(symbol);
-  };
-
-  const handleSelectPattern = (pattern: PatternMatch) => {
-    if (pattern.ticker) handleCandidateSelect(pattern.ticker);
-    setPatternHighlight(pattern);
   };
 
   const handleTabChange = (tab: SubTabKey) => {
@@ -61,7 +49,7 @@ export default function TaVnIndexTab() {
           không phải toàn bộ khối này. Quay về luồng cuộn trang bình
           thường, tự nhiên hơn. */}
       <div style={{ display: activeSubTab === "aichart" ? "none" : undefined }}>
-        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} highlightPattern={patternHighlight} />
+        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} />
       </div>
 
       {activeSubTab === "aichart" && (
@@ -128,10 +116,13 @@ export default function TaVnIndexTab() {
         <>
           <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
           {/* ĐÃ SỬA — LỖI NHÂN BẢN: đây vẫn là nơi DUY NHẤT render
-              PatternList/ConvergencePanelV2 — TVChartPanel.tsx không
+              các bộ lọc — TVChartPanel.tsx không
               còn tự gắn thêm bản sao thứ 2 của 2 component này nữa. */}
           <div className="mt-2">
-            {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
+            {/* Pattern Scanner v2 (Pring, P4) thay Pattern Scanner cũ của Project A (/api/pattern-scan, chỉ 4 mẫu, báo mô hình cũ). */}
+            {activeSubTab === "pattern" && (isMarketGatewayEnabled()
+              ? <PatternScannerPanel onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
+              : <p className="text-[10px] text-slate-500 italic py-4 text-center">Pattern Scanner v2 cần Market Gateway (chưa bật cho môi trường này).</p>)}
             {/* Hợp lưu v2 chạy trên Gateway (bộ lọc cũ của Project A đã gỡ khỏi tab — H4). */}
             {activeSubTab === "convergence" && (isMarketGatewayEnabled()
               ? <ConvergencePanelV2 onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
