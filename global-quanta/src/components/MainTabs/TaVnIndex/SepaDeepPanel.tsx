@@ -5,7 +5,7 @@
 // 5.6 (4 giai đoạn), Trend Template 8 tiêu chí (s.101–102), 10.38 (LNST/doanh thu theo quý), Chương 9 (dẫn dắt),
 // Chương 12–13 (kế hoạch lệnh, Hình 13.2), theo dõi sau phá vỡ (s.271–285).
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { LineChart, X } from "lucide-react";
+import { LineChart, X, Cpu } from "lucide-react";
 import { useTaSeries } from "../../../hooks/useTaSeries";
 import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import { isS2Signal, type SepaDoc, type SepaRow } from "../../../hooks/useSepa";
@@ -127,9 +127,9 @@ function Ring({ score, list }: { score: number; list: string }) {
   );
 }
 
-interface Props { row: SepaRow; doc: SepaDoc; onClose: () => void; onOpenChart: (ticker: string) => void }
+interface Props { row: SepaRow; doc: SepaDoc; onClose: () => void; onOpenChart: (ticker: string) => void; onOpenVision?: (ticker: string) => void }
 
-export default function SepaDeepPanel({ row, doc, onClose, onOpenChart }: Props) {
+export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVision }: Props) {
   const full = row.list !== "LOẠI";
   const series = useTaSeries(full ? row.ticker : null);
   const { data: vol } = useVolumeAnalysis(full ? row.ticker : null);
@@ -163,6 +163,11 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart }: Props)
           </div>
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
+          {onOpenVision && (
+            <button type="button" onClick={() => onOpenVision(row.ticker)} data-testid="open-vision" className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20">
+              <Cpu className="w-3 h-3" />AI Chart Vision
+            </button>
+          )}
           <button type="button" onClick={() => onOpenChart(row.ticker)} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:border-emerald-500/50 hover:text-emerald-300">
             <LineChart className="w-3 h-3" />Mở biểu đồ TA
           </button>

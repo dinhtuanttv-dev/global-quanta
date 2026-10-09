@@ -5,7 +5,7 @@
 import { useMemo } from "react";
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { ELLIOTT_VN_NOTE } from "../../../lib/quant-core/elliott/vnValidation";
-import { LineChart, X } from "lucide-react";
+import { LineChart, X, Cpu } from "lucide-react";
 import { useTaSeries } from "../../../hooks/useTaSeries";
 import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import type { ConvergenceDoc, ConvergenceRow } from "../../../hooks/useConvergenceV2";
@@ -33,9 +33,11 @@ interface Props {
   doc: ConvergenceDoc;
   onClose: () => void;
   onOpenChart: (ticker: string) => void;
+  /** Mở AI Chart Vision (đa khung) cho mã. */
+  onOpenVision?: (ticker: string) => void;
 }
 
-export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart }: Props) {
+export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, onOpenVision }: Props) {
   const series = useTaSeries(row.ticker);
   const bench = useTaSeries("VNINDEX");
   const { data: vol } = useVolumeAnalysis(row.ticker);
@@ -99,6 +101,11 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart }:
           </div>
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
+          {onOpenVision && (
+            <button type="button" onClick={() => onOpenVision(row.ticker)} data-testid="open-vision" className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20">
+              <Cpu className="w-3 h-3" />AI Chart Vision
+            </button>
+          )}
           <button type="button" onClick={() => onOpenChart(row.ticker)} className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:border-cyan-500/50 hover:text-cyan-300">
             <LineChart className="w-3 h-3" />Mở biểu đồ TA
           </button>

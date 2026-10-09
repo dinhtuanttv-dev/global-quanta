@@ -47,7 +47,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   );
 }
 
-export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker: string) => void }) {
+export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
   const { data, error, isLoading, refresh } = useSepa();
   const [list, setList] = useState<ListFilter>("active");
   const [pattern, setPattern] = useState<string>("all");
@@ -197,7 +197,7 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
                     </td>
                   </tr>
                   {open === r.ticker && (
-                    <DeepRow width={frameW}><SepaDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} /></DeepRow>
+                    <DeepRow width={frameW}><SepaDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
                   )}
                 </Fragment>
               ))}

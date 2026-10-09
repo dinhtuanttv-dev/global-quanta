@@ -32,7 +32,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   return <tr ref={ref} data-testid="golden-sepa-deep-row"><td colSpan={6} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td></tr>;
 }
 
-export default function GoldenSepaPanel({ onSelectTicker }: { onSelectTicker: (ticker: string) => void }) {
+export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
   const { rows, doc, sources, isLoading, error, partial, refresh } = useGoldenSepa();
   const [min, setMin] = useState<MinConfirm>(0);
   const [open, setOpen] = useState<string | null>(null);
@@ -125,7 +125,7 @@ export default function GoldenSepaPanel({ onSelectTicker }: { onSelectTicker: (t
                         <span className="text-slate-500">Xác nhận chéo:</span>
                         {confirms.length ? confirms.map((c) => <span key={c.key} className="px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-200">{c.label} · {c.detail}</span>) : <span className="text-slate-400">chưa có bộ lọc nào khác xác nhận</span>}
                       </div>
-                      <SepaDeepPanel row={r} doc={doc} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} />
+                      <SepaDeepPanel row={r} doc={doc} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
                     </DeepRow>
                   )}
                 </Fragment>
