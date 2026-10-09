@@ -30,10 +30,10 @@ async function makeService(tickers) {
   return { store };
 }
 
-test("chiến lược patterns đăng ký đủ: id, engine pring/P2", () => {
+test("chiến lược patterns đăng ký đủ: id, engine pring/P4", () => {
   assert.ok(STRATEGY_IDS.includes("patterns"));
   assert.equal(STRATEGY_ENGINE.patterns, PATTERNS_ENGINE);
-  assert.equal(PATTERNS_ENGINE, "pring/P2");
+  assert.equal(PATTERNS_ENGINE, "pring/P4");
 });
 
 test("runTechnicalFilters(patterns): tóm tắt khung ngày + tuần, mô hình chính, đếm, EXPERIMENTAL, gọn", async () => {
@@ -43,7 +43,7 @@ test("runTechnicalFilters(patterns): tóm tắt khung ngày + tuần, mô hình 
   const loadSeries = async (s) => ({ bars: s === "DBL" ? bars : flat, priceBasis: "ADJUSTED_CUMULATIVE" });
   const { patterns: doc } = await runTechnicalFilters(service, { loadSeries, strategies: ["patterns"], criteria: screenerCriteria({}) });
   assert.equal(doc.strategy, "patterns");
-  assert.equal(doc.engine, "pring/P2");
+  assert.equal(doc.engine, "pring/P4");
   assert.equal(doc.evidence.label, "EXPERIMENTAL");
   assert.deepEqual(doc.timeframes, ["D", "W"]);
   assert.equal(doc.dataAsOf, bars.at(-1).date);
@@ -87,7 +87,7 @@ test("nến tuần: W-FRI, date = phiên cuối tuần, tuần dở dang đượ
 
 test("patternDetail: mô hình đầy đủ để vẽ + nến ngày/tuần gọn; mã không có dữ liệu -> null", () => {
   const d = patternDetail("DBL", { bars: dbBars(), priceBasis: "ADJUSTED_CUMULATIVE" });
-  assert.equal(d.engine, "pring/P2");
+  assert.equal(d.engine, "pring/P4");
   const p = d.daily.find((x) => x.type === "DOUBLE_BOTTOM");
   assert.ok(p && p.points.length >= 3 && p.lines.length >= 1 && p.checks.length > 0 && p.timeframe === "D");
   assert.equal(d.bars.daily.length, 320);
@@ -100,7 +100,19 @@ test("patternDetail: mô hình đầy đủ để vẽ + nến ngày/tuần gọ
   assert.equal(patternDetail("X", { bars: [] }), null);
 });
 
-test("P2 không ghi sổ tín hiệu cho patterns (SCR_PAT_* bắt đầu từ P4)", () => {
-  const rows = ledgerRows({ patterns: { engine: "pring/P2", results: [{ ticker: "AAA", date: "2026-10-09", status: "CONFIRMED", metrics: { score: 80 } }] } });
-  assert.equal(rows.length, 0);
+test("P4 sổ tín hiệu SCR_PAT_*: chỉ mô hình xác nhận đúng phiên quét; tuần dở dang không ghi; 1 dòng / mã / hướng / khung", () => {
+  const doc = { engine: "pring/P4", dataAsOf: "2026-10-09", market: { up: true }, results: [
+    { ticker: "AAA", partialWeek: false, patterns: [
+      { timeframe: "D", dir: "bull", state: "CONFIRMED", confirmDate: "2026-10-09", type: "DOUBLE_BOTTOM", family: "double", score: 70, checksOk: 8, checksTotal: 10, plan: { entry: 10, stop: 9, target: 13, rr: 3 } },
+      { timeframe: "D", dir: "bull", state: "CONFIRMED", confirmDate: "2026-10-09", type: "ASC_TRIANGLE", family: "triangle", score: 60 },
+      { timeframe: "D", dir: "bear", state: "CONFIRMED", confirmDate: "2026-10-08", type: "RISING_WEDGE", family: "wedge" },
+      { timeframe: "W", dir: "bear", state: "CONFIRMED", confirmDate: "2026-10-09", type: "HS_TOP", family: "hs" },
+    ] },
+    { ticker: "BBB", partialWeek: true, patterns: [{ timeframe: "W", dir: "bull", state: "CONFIRMED", confirmDate: "2026-10-09", type: "FLAG", family: "flag" }] },
+  ] };
+  const rows = ledgerRows({ patterns: doc });
+  assert.deepEqual(rows.map((r) => [r.symbol, r.signal, r.direction]), [["AAA", "SCR_PAT_BUY", 1], ["AAA", "SCR_PAT_W_SELL", -1]]);
+  assert.equal(rows[0].features.type, "DOUBLE_BOTTOM", "mô hình hạng cao nhất");
+  assert.equal(rows[0].features.group, "G1");
+  assert.equal(rows[0].model_version, "pring/P4");
 });
