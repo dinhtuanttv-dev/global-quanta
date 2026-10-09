@@ -7,7 +7,8 @@ import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
-import { lastCompletedSessionDate } from "../market/calendar.js";
+import { lastCompletedSessionDate, vnDate } from "../market/calendar.js";
+import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
@@ -110,6 +111,24 @@ router.get("/scanner", handle(async (req, res) => {
   res.json(doc);
 }));
 // Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout) — xem strategies/technicalFilters.js.
+// SEPA SP6: cảnh báo phá vỡ trong phiên cho mã SEPA đang chờ pivot (KV strategies:sepa + quotes trong phiên).
+const sepaFirstSeen = new Map();
+router.get("/strategies/sepa/intraday", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap("sepa-intraday", 30_000, async () => {
+    const doc = (await rt.store.getKv(strategyKvKey("sepa")))?.value ?? null;
+    if (!doc) return { error: "Chưa có kết quả quét SEPA." };
+    const symbols = sepaIntradayCandidates(doc).map((r) => r.ticker);
+    const quotes = symbols.length ? await rt.service.getQuotes(symbols) : {};
+    const now = new Date();
+    for (const k of sepaFirstSeen.keys()) if (!k.startsWith(vnDate(now))) sepaFirstSeen.delete(k);
+    return buildSepaIntraday({ doc, quotes: quotes?.quotes ?? quotes, now, firstSeen: sepaFirstSeen });
+  });
+  if (data.error) { res.status(503).json(data); return; }
+  res.set("Cache-Control", "private, max-age=20");
+  res.json(data);
+}));
+
 router.get("/strategies/:strategy", handle(async (req, res) => {
   const { strategy } = req.params;
   if (!STRATEGY_IDS.includes(strategy)) {

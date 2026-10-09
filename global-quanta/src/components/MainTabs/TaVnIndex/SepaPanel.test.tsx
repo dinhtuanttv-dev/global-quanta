@@ -13,6 +13,13 @@ const REJECT = doc.results.find((r) => r.list === "LOẠI")!;
 
 vi.mock("../../../hooks/useSepa", async (orig) => ({ ...(await orig<typeof import("../../../hooks/useSepa")>()), useSepa: () => ({ data: doc, error: undefined, isLoading: false, refresh: () => {} }) }));
 vi.mock("../../../hooks/useTaSeries", () => ({ useTaSeries: (t: string | null) => ({ bars: t ? barsOf[t] ?? [] : [], isLoading: false, error: undefined, priceBasis: "ADJUSTED_CUMULATIVE", corporateActions: [], warnings: [], quality: {} }) }));
+vi.mock("../../../hooks/useSepaIntraday", () => ({ useSepaIntraday: () => ({ live: true, error: undefined, isLoading: false, refresh: () => {}, data: {
+  version: "sepa/SP6", asOf: "2026-10-12T03:00:00Z", date: "2026-10-12", session: "LO", minutesElapsed: 60, sessionMinutes: 255, scanDataAsOf: "2026-10-09", candidates: 2,
+  counts: { breakout: 1, lowVol: 0, near: 1, extended: 0 }, rule: "Giá vượt pivot, KL ≥ 1,4× TB50",
+  rows: [
+    { ticker: "RW8", list: "CẢNH BÁO MUA", pivot: 100, price: 101, distPct: 1, projRatio: 2.1, state: "BREAKOUT", label: "Phá vỡ đạt KL dự phóng", reliable: true, since: "2026-10-12T02:55:00Z" },
+    { ticker: "ZZZ", list: "THEO DÕI", pivot: 50, price: 40, distPct: -20, projRatio: 0.5, state: "BELOW", label: "Dưới pivot", reliable: true },
+  ] } }) }));
 vi.mock("../../../hooks/useVolumeAnalysis", () => ({ useVolumeAnalysis: () => ({ data: undefined }) }));
 
 const { default: SepaPanel } = await import("./SepaPanel");
@@ -123,3 +130,17 @@ describe("SEPA — bảng phụ phân tích chuyên sâu", () => {
     expect(deep.querySelectorAll('[data-testid="sepa-tt"] li')).toHaveLength(8);
   });
 });
+
+describe("SEPA SP6 — cảnh báo phá vỡ trong phiên", () => {
+  it("chỉ hiện mã vượt / sát pivot (ẩn 'dưới pivot'); bấm chip -> mở bảng phụ mã đó", () => {
+    const el = render(<SepaPanel onSelectTicker={() => {}} />);
+    const chips = [...el.querySelectorAll('[data-testid="sepa-intraday-chip"]')];
+    expect(chips.map((c) => c.getAttribute("data-state"))).toEqual(["BREAKOUT"]);
+    expect(q(el, "sepa-intraday-session")?.textContent).toContain("60/255 phút");
+    expect(chips[0].textContent).toContain("2,1×");
+    click(chips[0]);
+    expect(q(el, "sepa-deep-panel")).not.toBeNull();
+    expect(q(el, "sepa-deep-panel")?.textContent).toContain(ALERT.ticker);
+  });
+});
+

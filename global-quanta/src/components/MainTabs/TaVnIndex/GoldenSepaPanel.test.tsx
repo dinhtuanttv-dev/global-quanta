@@ -24,6 +24,13 @@ vi.mock("../../../hooks/useConvergenceV2", () => ({
   ] }, error: undefined, isLoading: false, refresh: () => {} }),
 }));
 vi.mock("../../../hooks/useTaSeries", () => ({ useTaSeries: (t: string | null) => ({ bars: t ? barsOf[t] ?? [] : [], isLoading: false, error: undefined, priceBasis: "ADJUSTED_CUMULATIVE", corporateActions: [], warnings: [], quality: {} }) }));
+vi.mock("../../../hooks/useSepaIntraday", () => ({ useSepaIntraday: () => ({ live: true, error: undefined, isLoading: false, refresh: () => {}, data: {
+  version: "sepa/SP6", asOf: "2026-10-12T03:00:00Z", date: "2026-10-12", session: "LO", minutesElapsed: 60, sessionMinutes: 255, scanDataAsOf: "2026-10-09", candidates: 2,
+  counts: { breakout: 1, lowVol: 0, near: 1, extended: 0 }, rule: "Giá vượt pivot, KL ≥ 1,4× TB50",
+  rows: [
+    { ticker: "RW8", list: "CẢNH BÁO MUA", pivot: 100, price: 101, distPct: 1, projRatio: 2.1, state: "BREAKOUT", label: "Phá vỡ đạt KL dự phóng", reliable: true, since: "2026-10-12T02:55:00Z" },
+    { ticker: "ZZZ", list: "THEO DÕI", pivot: 50, price: 40, distPct: -20, projRatio: 0.5, state: "BELOW", label: "Dưới pivot", reliable: true },
+  ] } }) }));
 vi.mock("../../../hooks/useVolumeAnalysis", () => ({ useVolumeAnalysis: () => ({ data: undefined }) }));
 
 const { default: GoldenSepaPanel } = await import("./GoldenSepaPanel");
