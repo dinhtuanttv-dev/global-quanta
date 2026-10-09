@@ -4,6 +4,9 @@ import { useLayoutEffect, useRef, useMemo } from 'react';
 import type { OhlcBar, ElliottData } from '../../../../types/taVnIndex';
 import { useChartContext } from './ChartContainer';
 import { useCandlestickSeriesContext } from './CandlestickSeries';
+import { elliottState } from '../../../../lib/quant-core/elliott';
+import { elliottCountPoints } from '../../../../lib/ta-command-center/chart/elliottScene';
+import type { OhlcvBar } from '../../../../lib/ta-command-center/types';
 
 export interface WavePivot {
   time: string;
@@ -21,215 +24,34 @@ export interface ElliottCalculationResult {
   summary: string;
 }
 
-/**
- * Tìm các đỉnh/đáy cục bộ (zigzag swing points) xen kẽ nhau với bán kính xác định
- */
-function findAlternatingSwings(
-  bars: OhlcBar[],
-  radius: number
-): { index: number; bar: OhlcBar; isHigh: boolean; price: number }[] {
-  const rawPivots: { index: number; bar: OhlcBar; isHigh: boolean; price: number }[] = [];
-
-  for (let i = radius; i < bars.length - radius; i++) {
-    const current = bars[i];
-    let isHigh = true;
-    let isLow = true;
-
-    for (let j = i - radius; j <= i + radius; j++) {
-      if (j === i) continue;
-      if (bars[j].high >= current.high) isHigh = false;
-      if (bars[j].low <= current.low) isLow = false;
-    }
-
-    if (isHigh) {
-      rawPivots.push({ index: i, bar: current, isHigh: true, price: current.high });
-    } else if (isLow) {
-      rawPivots.push({ index: i, bar: current, isHigh: false, price: current.low });
-    }
-  }
-
-  // Lọc xen kẽ đỉnh - đáy liên tiếp (loại bỏ 2 đỉnh hoặc 2 đáy liền nhau bằng cách giữ lại điểm cực trị cao/thấp hơn)
-  const alternating: typeof rawPivots = [];
-  for (const p of rawPivots) {
-    if (alternating.length === 0) {
-      alternating.push(p);
-    } else {
-      const prev = alternating[alternating.length - 1];
-      if (prev.isHigh !== p.isHigh) {
-        alternating.push(p);
-      } else {
-        if (p.isHigh && p.price > prev.price) alternating[alternating.length - 1] = p;
-        if (!p.isHigh && p.price < prev.price) alternating[alternating.length - 1] = p;
-      }
-    }
-  }
-
-  return alternating;
-}
+const CIRCLED: Record<string, string> = { "0": "⓪", "1": "①", "2": "②", "3": "③", "4": "④", "5": "⑤", A: "Ⓐ", B: "Ⓑ", C: "Ⓒ" };
+const pct = (v: number) => `${Math.round(v * 100)}%`;
 
 /**
- * Tính toán & Thẩm định cấu trúc Sóng Elliott chuẩn định lượng (6 điểm P0-P5 + ABC)
+ * Cấu trúc sóng Elliott cho biểu đồ Elite 10 — DÙNG CHUNG engine GET của tab TA (quant-core/elliott, E6):
+ * đa bậc sóng, điều kiện Elliott Oscillator, bảng tỷ lệ sóng VN. Chỉ vẽ cấu trúc CÒN HIỆU LỰC (≤ 3 pivot sau điểm cuối);
+ * không có thì không vẽ (thay cho zigzag 90 nến cũ luôn ghép 6 pivot cuối kể cả khi vi phạm quy tắc).
  */
-function computeElliottStructure(priceSeries: OhlcBar[]): ElliottCalculationResult {
-  if (priceSeries.length < 25) {
-    return { pivots: [], isValidImpulse: false, violations: ['Chưa đủ dữ liệu nến'], isUptrend: true, summary: '' };
-  }
-
-  // Khảo sát 80-100 nến gần nhất để bám sát chu kỳ sóng hiện hành
-  const windowBars = priceSeries.slice(-90);
-
-  // Thử nghiệm các bán kính swing từ lớn đến nhỏ để tìm bộ swing phù hợp nhất
-  let swings = findAlternatingSwings(windowBars, 4);
-  if (swings.length < 6) swings = findAlternatingSwings(windowBars, 3);
-  if (swings.length < 6) swings = findAlternatingSwings(windowBars, 2);
-
-  if (swings.length < 6) {
+export function computeElliottStructure(priceSeries: OhlcBar[]): ElliottCalculationResult {
+  const empty = (summary: string): ElliottCalculationResult => ({ pivots: [], isValidImpulse: false, violations: [], isUptrend: true, summary });
+  if (priceSeries.length < 60) return empty('Chưa đủ dữ liệu nến (cần ≥ 60)');
+  const bars: OhlcvBar[] = priceSeries.map((b) => ({ date: b.time, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0 }));
+  const st = elliottState(bars);
+  const cnt = st?.scenario ? elliottCountPoints(st) : null;
+  if (!st || !cnt) return empty(st?.label ?? 'Chưa có cấu trúc 5 sóng rõ ràng');
+  const up = st.dir === 'up', r = st.scenario!.ratios;
+  const fib: Record<string, string> = { '2': `Hồi ${pct(r.w2)} W1`, '3': `Ext ${pct(r.w3)} W1`, '4': `Hồi ${pct(r.w4)} W3` };
+  const pivots: WavePivot[] = cnt.points.map((p, k) => {
+    const raw = cnt.labels[k], base = raw.replace('?', '');
     return {
-      pivots: swings.map((s, i) => ({
-        time: s.bar.time,
-        price: s.price,
-        label: `W${i + 1}`,
-        isHigh: s.isHigh,
-      })),
-      isValidImpulse: false,
-      violations: ['Chưa đủ số điểm xoay để định hình sóng Elliott chuẩn (cần tối thiểu 6 điểm P0-P5).'],
-      isUptrend: true,
-      summary: 'Đang hình thành cấu trúc swing',
+      time: p.date, price: p.price,
+      label: `${CIRCLED[base] ?? base}${raw.endsWith('?') ? '?' : ''}`,
+      isHigh: (up ? ['1', '3', '5', 'B'] : ['0', '2', '4', 'A', 'C']).includes(base),
+      fibInfo: fib[base],
     };
-  }
-
-  // Lấy 6 điểm swing gần nhất để kiểm tra cấu trúc 5 sóng đẩy (P0 -> P1 -> P2 -> P3 -> P4 -> P5)
-  // Nếu có thêm 2 hoặc 3 điểm sau P5, có thể định hình sóng điều chỉnh ABC
-  const totalSwings = swings.length;
-  // Xét cụm 6 điểm P0..P5:
-  // Nếu totalSwings >= 9 -> có thể là P0..P5 kèm A, B, C
-  const hasAbc = totalSwings >= 9;
-  const startIndex = hasAbc ? totalSwings - 9 : totalSwings - 6;
-  const activeCluster = swings.slice(startIndex);
-
-  const [p0, p1, p2, p3, p4, p5] = activeCluster;
-  const isUptrend = p1.price > p0.price; // Nếu p1 > p0: Sóng đẩy tăng; ngược lại: Sóng đẩy giảm
-
-  const violations: string[] = [];
-
-  // ==========================================
-  // KIỂM TRA 3 QUY TẮC BẮT BUỘC (CARDINAL RULES)
-  // ==========================================
-
-  // Quy tắc 1: Sóng 2 không hồi quá 100% Sóng 1 (không vượt qua P0)
-  const rule1Ok = isUptrend ? p2.price > p0.price : p2.price < p0.price;
-  if (!rule1Ok) {
-    violations.push('Sóng ② hồi quá 100% Sóng ① (thủng điểm xuất phát ⓪)');
-  }
-
-  // Quy tắc 2: Sóng 3 không phải là sóng ngắn nhất trong 3 sóng đẩy (1, 3, 5)
-  const lenWave1 = Math.abs(p1.price - p0.price);
-  const lenWave3 = Math.abs(p3.price - p2.price);
-  const lenWave5 = Math.abs(p5.price - p4.price);
-
-  if (lenWave3 < lenWave1 && lenWave3 < lenWave5) {
-    violations.push('Sóng ③ ngắn nhất trong 3 sóng đẩy (①, ③, ⑤) — vi phạm quy tắc cơ bản');
-  }
-
-  // Quy tắc 3: Sóng 4 không xâm phạm vào vùng giá đỉnh/đáy của Sóng 1
-  const rule3Ok = isUptrend ? p4.price > p1.price : p4.price < p1.price;
-  if (!rule3Ok) {
-    violations.push('Sóng ④ xâm phạm vào vùng giá của Sóng ① (overlap violation)');
-  }
-
-  const isValidImpulse = violations.length === 0;
-
-  // ==========================================
-  // TÍNH CÁC TỶ LỆ FIBONACCI THƯỜNG GẶP
-  // ==========================================
-  const fibWave2Retrace = lenWave1 > 0 ? ((Math.abs(p2.price - p1.price) / lenWave1) * 100).toFixed(0) : '';
-  const fibWave3Extension = lenWave1 > 0 ? ((lenWave3 / lenWave1) * 100).toFixed(0) : '';
-  const fibWave4Retrace = lenWave3 > 0 ? ((Math.abs(p4.price - p3.price) / lenWave3) * 100).toFixed(0) : '';
-
-  // Gắn nhãn chuẩn với ký hiệu số sóng và thông tin Fibonacci
-  const pivotsResult: WavePivot[] = [
-    {
-      time: p0.bar.time,
-      price: p0.price,
-      label: '⓪ Gốc',
-      isHigh: p0.isHigh,
-    },
-    {
-      time: p1.bar.time,
-      price: p1.price,
-      label: '①',
-      isHigh: p1.isHigh,
-      fibInfo: `Sóng 1: ${lenWave1.toFixed(1)}đ`,
-    },
-    {
-      time: p2.bar.time,
-      price: p2.price,
-      label: '②',
-      isHigh: p2.isHigh,
-      fibInfo: `Hồi ${fibWave2Retrace}% W1`,
-    },
-    {
-      time: p3.bar.time,
-      price: p3.price,
-      label: '③',
-      isHigh: p3.isHigh,
-      fibInfo: `Ext ${fibWave3Extension}% W1`,
-    },
-    {
-      time: p4.bar.time,
-      price: p4.price,
-      label: '④',
-      isHigh: p4.isHigh,
-      fibInfo: `Hồi ${fibWave4Retrace}% W3`,
-    },
-    {
-      time: p5.bar.time,
-      price: p5.price,
-      label: '⑤',
-      isHigh: p5.isHigh,
-    },
-  ];
-
-  // Nếu có các điểm sóng điều chỉnh phía sau (A, B, C)
-  if (activeCluster.length >= 7) {
-    const pA = activeCluster[6];
-    pivotsResult.push({
-      time: pA.bar.time,
-      price: pA.price,
-      label: 'Ⓐ',
-      isHigh: pA.isHigh,
-    });
-  }
-  if (activeCluster.length >= 8) {
-    const pB = activeCluster[7];
-    pivotsResult.push({
-      time: pB.bar.time,
-      price: pB.price,
-      label: 'Ⓑ',
-      isHigh: pB.isHigh,
-    });
-  }
-  if (activeCluster.length >= 9) {
-    const pC = activeCluster[8];
-    pivotsResult.push({
-      time: pC.bar.time,
-      price: pC.price,
-      label: 'Ⓒ',
-      isHigh: pC.isHigh,
-    });
-  }
-
-  const summary = isValidImpulse
-    ? `Cấu trúc 5 sóng ${isUptrend ? 'tăng' : 'giảm'} hợp lệ (W3: ${fibWave3Extension}% W1, W2: hồi ${fibWave2Retrace}%)`
-    : `Cấu trúc sóng có ${violations.length} điểm vi phạm quy tắc Elliott`;
-
-  return {
-    pivots: pivotsResult,
-    isValidImpulse,
-    violations,
-    isUptrend,
-    summary,
-  };
+  });
+  const w = st.weight != null ? ` · trọng số tương đối ${Math.round(st.weight * 100)}%` : '';
+  return { pivots, isValidImpulse: true, violations: [], isUptrend: up, summary: `${st.label}${w}` };
 }
 
 export function ElliottWaveSeries({

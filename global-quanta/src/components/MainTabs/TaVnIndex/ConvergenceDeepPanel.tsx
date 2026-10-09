@@ -3,6 +3,8 @@
 // (quant-core: convergenceAt + Wyckoff v2 + 9 phép thử + kế hoạch 3 lần), cùng cửa sổ 400 nến, chuỗi giá điều chỉnh và VN-Index
 // -> khớp với biểu đồ TA. Bên trái: mô phỏng Wyckoff trên giá thật; bên phải: sơ đồ mẫu chuẩn với vị trí hiện tại.
 import { useMemo } from "react";
+import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
+import { ELLIOTT_VN_NOTE } from "../../../lib/quant-core/elliott/vnValidation";
 import { LineChart, X } from "lucide-react";
 import { useTaSeries } from "../../../hooks/useTaSeries";
 import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
@@ -53,6 +55,11 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart }:
     return { window, conv, w, obs, fvgs, buy };
   }, [series.bars, bench.bars, row.side]);
 
+  // E6: bối cảnh sóng Elliott hai khung (cùng engine với tab TA) — chỉ để đối chiếu, không vào điểm Hợp lưu.
+  const ew = useMemo(() => {
+    const bars = series.bars.filter((b) => !(b as { partial?: boolean }).partial);
+    return bars.length >= 60 ? elliottMtf(bars) : null;
+  }, [series.bars]);
   const conv = model?.conv ?? null;
   const w = model?.w ?? null;
   const last = model?.window[model.window.length - 1];
@@ -216,6 +223,22 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart }:
           {vol ? <ForeignBars series={vol.foreign.netSeries20} /> : <div className="text-[10px] text-slate-500 py-6 text-center">Đang tải khối ngoại…</div>}
         </Card>
       </div>
+      {ew && (
+        <Card title="Bối cảnh sóng Elliott" right="INFERRED · EXPERIMENTAL">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]" data-testid="deep-convergence-elliott">
+            {([["Tuần", ew.week, ew.osc.week], ["Ngày", ew.day, ew.osc.day]] as const).map(([tag, st, oc]) => (
+              <div key={tag} className="space-y-0.5">
+                <div className="text-[9px] text-slate-500">Khung {tag.toLowerCase()}{tag === "Tuần" && ew.week?.partial ? " (tuần chưa hết)" : ""}</div>
+                <div className={`font-semibold ${st?.dir === "up" ? "text-emerald-300" : st?.dir === "down" ? "text-rose-300" : "text-slate-400"}`}>{st?.label ?? "Chưa đủ dữ liệu"}</div>
+                {st?.invalidation && <div className="text-[9px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} {Math.round(st.invalidation.price).toLocaleString("vi-VN")}</div>}
+                {oc && oc.wave !== "none" && <div className="text-[9px] text-slate-500">{oc.label}</div>}
+              </div>
+            ))}
+          </div>
+          <p className="text-[9px] text-slate-400 mt-1">{ew.relationText}</p>
+          <p className="text-[8.5px] text-slate-600 mt-0.5">{ELLIOTT_VN_NOTE}</p>
+        </Card>
+      )}
       <p className="text-[9px] text-slate-600">
         Bấm lại mã hoặc Esc để đóng · {doc.disclaimer} · {series.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : series.priceBasis} · cùng engine với Gateway và biểu đồ TA
       </p>
