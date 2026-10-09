@@ -34,17 +34,19 @@ async function setup() {
   return { service: { store }, loadSeries };
 }
 
-test("sepa là một chiến lược của bộ lọc TA (engine sepa/SP2), chạy cùng lần tải dữ liệu", () => {
+test("sepa là một chiến lược của bộ lọc TA (engine sepa/SP3), chạy cùng lần tải dữ liệu", () => {
   assert.ok(STRATEGY_IDS.includes("sepa"));
-  assert.equal(STRATEGY_ENGINE.sepa, "sepa/SP2");
+  assert.equal(STRATEGY_ENGINE.sepa, "sepa/SP3");
 });
 
 test("KV strategies:sepa: 4 danh sách, xếp theo danh sách rồi điểm, JSON sạch, kế hoạch lệnh cho mã gần điểm mua", async () => {
   const { service, loadSeries } = await setup();
   const docs = await runTechnicalFilters(service, { loadSeries, criteria: screenerCriteria({}), strategies: ["sepa"] });
   const d = docs.sepa;
-  assert.equal(d.engine, "sepa/SP2");
-  assert.equal(d.evidence.label, "PENDING");
+  assert.equal(d.engine, "sepa/SP3");
+  assert.equal(d.evidence.label, "EXPERIMENTAL");
+  assert.equal(d.evidence.validation.hypotheses.find((h) => h.id === "S2").verdict, "PASS");
+  assert.deepEqual(d.evidence.validation.hypotheses.filter((h) => ["S1", "S3", "S4"].includes(h.id)).map((h) => h.verdict), ["FAIL", "FAIL", "FAIL"]);
   assert.equal(JSON.stringify(d), JSON.stringify(JSON.parse(JSON.stringify(d))));
   assert.ok(!JSON.stringify(d).includes("NaN"));
   const order = { "SẴN SÀNG MUA": 0, "CẢNH BÁO MUA": 1, "THEO DÕI": 2, "LOẠI": 3 };

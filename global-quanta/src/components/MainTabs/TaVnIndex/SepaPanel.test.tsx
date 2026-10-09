@@ -45,7 +45,14 @@ describe("SEPA Minervini — danh sách (SP4)", () => {
     expect(rows()[0]).toContain(READY.ticker);
     expect(q(el, "sepa-market-verdict")?.textContent).toBe(doc.market!.sepa!.danh_gia);
     expect(q(el, "sepa-asof")?.textContent).toContain(`phiên ${doc.dataAsOf}`);
-    expect(q(el, "sepa-evidence-pending")?.textContent).toContain("SP3");
+    // SP3: thẻ bằng chứng với bảng giả thuyết (kể cả thất bại) và nhãn tín hiệu S2
+    expect(q(el, "sepa-evidence")?.textContent).toContain("EXPERIMENTAL");
+    click(q(el, "sepa-evidence-toggle"));
+    const ev = q(el, "sepa-evidence-table")!.textContent!;
+    expect(ev).toContain("S1");
+    expect(ev).toContain("KHÔNG ĐẠT");
+    expect(ev).toContain("ĐẠT");
+    expect(el.querySelectorAll('[data-testid="sepa-s2"]').length).toBe(READY.status === "BREAKOUT" && READY.pattern?.breakout?.KL_pha_vo_dat ? 1 : 0);
     expect(q(el, "sepa-footprint-cell")?.textContent).toBe(READY.metrics.footprint);
     expect(el.textContent).toContain("không phải khuyến nghị mua");
     click(q(el, "sepa-filter-LOẠI"));

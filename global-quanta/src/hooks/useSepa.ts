@@ -71,6 +71,15 @@ export interface SepaMarketHealth {
   ngay_phan_phoi_25_phien?: number; so_dinh_52t?: number; so_day_52t?: number; ty_le_dat_trend_template?: number;
   danh_gia: "THUẬN LỢI" | "TRUNG TÍNH" | "THẬN TRỌNG" | "BẤT LỢI"; goi_y_rui_ro: string; ghi_chu_RS?: string; hardMarket?: boolean;
 }
+export interface SepaStat { n: number; mean: number; ci?: [number, number] }
+export interface SepaHypothesis {
+  id: string; label: string; criterion?: string; verdict: "PASS" | "FAIL" | "DESCRIPTIVE"; caveat?: string;
+  is?: SepaStat; oos?: SepaStat | Record<string, SepaStat | Record<string, number>>; all?: Record<string, unknown>; control?: SepaStat;
+}
+export interface SepaValidation { version: string; engine: string; period: { from: string; to: string; oosFrom: string; sessions: number }; rules: string; hypotheses: SepaHypothesis[] }
+/** Tín hiệu S2 của kiểm định SP3: SẴN SÀNG MUA + phá vỡ với KL đạt chuẩn. */
+export const isS2Signal = (r: SepaRow) => r.list === "SẴN SÀNG MUA" && r.status === "BREAKOUT" && Boolean(r.pattern?.breakout?.KL_pha_vo_dat);
+
 export interface SepaDoc {
   strategy: "sepa"; engine: string; generatedAt: string; dataAsOf: string;
   universeCount: number; scannedCount: number; resultCount: number;
@@ -78,7 +87,7 @@ export interface SepaDoc {
   lists: Record<SepaList, number>;
   sectors: { nganh: string; mean: number; max: number; count: number; hang_nganh: number }[];
   market?: { indexAsOf: string | null; up: boolean | null; rule: string; sepa?: SepaMarketHealth };
-  evidence?: { label: "PENDING" | "VALIDATED" | "EXPERIMENTAL"; reason: string };
+  evidence?: { label: "PENDING" | "VALIDATED" | "EXPERIMENTAL"; reason: string; validation?: SepaValidation; signals?: { breakoutReady?: string } };
   equityRef: number;
   risk: { avgGain: number; maxStop: number; hardMarketStop: number; riskPerTrade: number; maxPositionPct: number; breakevenRMultiple: number; lot: number; note?: string };
   fundamentalsCoverage?: { withData: number; withInventory: number };
