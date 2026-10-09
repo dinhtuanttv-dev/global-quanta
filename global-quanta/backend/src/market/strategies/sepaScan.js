@@ -7,18 +7,13 @@
 //   - Cơ bản: BCTC quý VCI theo ngày công bố ước tính (hết quý + 45 ngày); "EPS" = LNST cổ đông công ty mẹ (vnQuarterly).
 //   - Thị trường BẤT LỢI / THẬN TRỌNG -> stop 6% (sách s.370). Kế hoạch lệnh tính với vốn tham chiếu 1 tỷ đồng; giao diện tính lại
 //     theo vốn của người dùng (lưu trên máy).
-// Chưa ghi sổ theo dõi (SCR_SEPA_* từ SP5); bằng chứng lịch sử OOS ở SP3.
+// Chưa ghi sổ theo dõi (SCR_SEPA_* từ SP5). Bằng chứng: kiểm định đặt trước SP3 (sepa/validation.js).
 
 import { BUCKETS, groupStrength, runSepaScreen, SEPA, vnQuarterly } from "./sepa/index.js";
+import { sepaEvidence } from "./sepa/validation.js";
 
-export const SEPA_ENGINE = "sepa/SP2";
+export const SEPA_ENGINE = "sepa/SP3";
 export const SEPA_EQUITY_REF = 1_000_000_000;
-const EVIDENCE_PENDING = Object.freeze({
-  label: "PENDING",
-  reason: "Kiểm định ngoài mẫu (OOS) với tiêu chí đặt trước thực hiện ở bước SP3 — trước đó SEPA là EXPERIMENTAL, chỉ hiển thị.",
-  all: { n: 0 },
-});
-
 const round = (x, nd = 4) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 10 ** nd) / 10 ** nd : x);
 const shortPattern = (p) => ({ name: p.name, detected: p.detected, status: p.status, score: p.score, footprint: p.footprint || null, pivot: p.pivot, reasonsFailed: p.reasonsFailed.slice(0, 3) });
 
@@ -93,7 +88,7 @@ export function scanSepa({ loaded, eligible, indexBars, faMap, dataAsOf, equity 
   const sectors = groupStrength(Object.fromEntries(Object.entries(screen.rs).filter(([k]) => elig.has(k))), sectorOf).map((x) => ({ ...x, mean: round(x.mean, 1) }));
   return {
     engine: SEPA_ENGINE,
-    evidence: EVIDENCE_PENDING,
+    evidence: sepaEvidence(),
     sepaMarket: clean({ ...screen.market, hardMarket: screen.hardMarket }),
     lists: counts,
     sectors,

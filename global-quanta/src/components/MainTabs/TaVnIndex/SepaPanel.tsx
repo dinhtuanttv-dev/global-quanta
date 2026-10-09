@@ -2,10 +2,11 @@
 // sức khỏe thị trường (s.196–226), ngành dẫn dắt, lọc theo danh sách / mô hình, toàn bộ kết quả, thời điểm quét; bấm mã hoặc nhấn
 // đúp dòng -> bảng phụ phân tích chuyên sâu (không mở biểu đồ), bấm lại / Esc -> đóng.
 // Danh sách theo dõi kiểu sổ tay của tác giả (Hình 10.42): SẴN SÀNG MUA -> CẢNH BÁO MUA -> THEO DÕI (+ LOẠI), ghi kèm dấu chân "7W 10/3 3T".
-// Chưa kiểm định ngoài mẫu (SP3) -> EXPERIMENTAL: danh sách để XEM XÉT, không phải khuyến nghị mua.
+// Kiểm định đặt trước SP3: EXPERIMENTAL (chỉ tín hiệu S2 "phá vỡ đạt chuẩn" đạt ngưỡng OOS, kèm cảnh báo) — danh sách để XEM XÉT.
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, Info, RefreshCw, Trophy } from "lucide-react";
-import { SEPA_LISTS, useSepa, type SepaList, type SepaRow } from "../../../hooks/useSepa";
+import { isS2Signal, SEPA_LISTS, useSepa, type SepaList, type SepaRow } from "../../../hooks/useSepa";
+import SepaEvidenceCard from "./SepaEvidenceCard";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.round(v).toLocaleString("vi-VN"));
@@ -95,7 +96,7 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
         <Info className="w-3 h-3 shrink-0 mt-px" />
         <span className="flex-1 min-w-[14rem]">
           Theo sách "Giao dịch như một phù thủy chứng khoán" (Mark Minervini): cổng Trend Template 8 tiêu chí rồi các bộ lọc tách biệt, tổng hợp bằng điểm.
-          Chưa kiểm định ngoài mẫu — danh sách để xem xét, không phải khuyến nghị mua. {data?.disclaimer}
+          Đã kiểm định đặt trước: chưa có lợi thế vững (xem chi tiết) — danh sách để xem xét, không phải khuyến nghị mua. {data?.disclaimer}
         </span>
         {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="sepa-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {active}/{data.scannedCount} mã</span>}
       </p>
@@ -117,6 +118,7 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
           {sectors.map((s) => <span key={s.nganh} className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">#{s.hang_nganh} {s.nganh} · {String(s.mean).replace(".", ",")}</span>)}
         </div>
       )}
+      {data?.evidence && data.evidence.label !== "PENDING" && <SepaEvidenceCard evidence={data.evidence} />}
       {data?.evidence?.label === "PENDING" && <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="sepa-evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>}
 
       {data && (
@@ -181,6 +183,7 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
                       <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${r.status === "BREAKOUT" ? "bg-emerald-500/15 text-emerald-300" : r.status === "NEAR_PIVOT" ? "bg-amber-500/15 text-amber-200" : "bg-slate-500/10 text-slate-400"}`}>
                         {r.status ? STATUS_VI[r.status] ?? r.status : "—"}
                       </span>
+                      {isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300" title="Tín hiệu S2 đạt ngưỡng kiểm định ngoài mẫu (n 37), trong mẫu không có lợi thế" data-testid="sepa-s2">S2 · đạt OOS*</span>}
                     </td>
                   </tr>
                   {open === r.ticker && (

@@ -8,7 +8,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { LineChart, X } from "lucide-react";
 import { useTaSeries } from "../../../hooks/useTaSeries";
 import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
-import type { SepaDoc, SepaRow } from "../../../hooks/useSepa";
+import { isS2Signal, type SepaDoc, type SepaRow } from "../../../hooks/useSepa";
 import { Card, ForeignBars, Tile, VolumeBars } from "./ScreenerDeepPanel";
 import SepaSketch from "./SepaSketch";
 import { ContractionShapes, FootprintDiagram, QuarterlyGrowth, RLadder, RoiCurve, StageCycleMap } from "./SepaDiagrams";
@@ -156,6 +156,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart }: Props)
             {p && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-violet-500/15 text-violet-200">{p.name} · {STATUS_VI[p.status] ?? p.status}</span>}
             {st && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/15 text-slate-200">{st.label}{st.stage === 2 ? ` · nền thứ ${st.baseCount + 1}` : ""}</span>}
             <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300">{doc.evidence?.label === "VALIDATED" ? "VALIDATED" : "EXPERIMENTAL"}</span>
+            {isS2Signal(row) && <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-300" title="Ngoài mẫu: n 37, +3,66%/20 phiên, KTC [0,69; 7,33]; trong mẫu −0,48%" data-testid="sepa-deep-s2">S2 phá vỡ đạt chuẩn · đạt OOS (thận trọng)</span>}
           </div>
           <div className="text-[10px] text-slate-400 truncate">
             {row.name ?? ""}{row.sector ? ` · ${row.sector}` : ""} · SEPA (Minervini) · engine {doc.engine} · dữ liệu tới {row.date}
@@ -271,7 +272,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart }: Props)
               <div className="mt-1.5 flex flex-wrap gap-1">
                 {Object.entries(row.screens).map(([k, ok]) => <span key={k} className={`text-[8.5px] px-1.5 py-0.5 rounded border ${ok ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-500"}`}>{ok ? "✓" : "✗"} {SCREEN_VI[k] ?? k}</span>)}
               </div>
-              <p className="mt-1 text-[9px] text-slate-500">Chạy nhiều bộ lọc tách biệt rồi tổng hợp bằng điểm (s.52) · chưa kiểm định ngoài mẫu.</p>
+              <p className="mt-1 text-[9px] text-slate-500">Chạy nhiều bộ lọc tách biệt rồi tổng hợp bằng điểm (s.52) · kiểm định SP3: thứ bậc danh sách và Trend Template chưa có lợi thế ngoài mẫu.</p>
             </Card>
           </div>
 
