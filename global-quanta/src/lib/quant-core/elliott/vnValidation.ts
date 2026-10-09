@@ -36,7 +36,7 @@ export function oscCheckVnNote(key: ElliottCheckKey, sc?: Pick<ElliottScenario, 
 
 export interface ElliottValidationRow { status: "VALIDATED" | "EXPERIMENTAL" | "PASS" | "FAIL"; summary: string }
 
-export const ELLIOTT_VN_VALIDATION: Record<"A" | "B" | "C" | "C2" | "D" | "E" | "E3" | "F" | "G1" | "G2", ElliottValidationRow> = {
+export const ELLIOTT_VN_VALIDATION: Record<"A" | "B" | "C" | "C2" | "D" | "E" | "E3" | "F" | "G1" | "G2" | "O1" | "O2" | "O3", ElliottValidationRow> = {
   A: { status: "PASS", summary: "Không vẽ lại: 7.092 lần so pivot đã xác nhận tại t với toàn chuỗi — 0 lệch; 13.336 xung lực hoàn chỉnh giữ nguyên 100%." },
   B: { status: "PASS", summary: "Bảng tỷ lệ VN khác sách và ổn định: sóng 2 hồi > 62% chiếm 53% (sách: 15%; vùng 50–60% chỉ 16,5% so với 73%). Sóng 4 gần sách (61% trong 30–50%)." },
   C: { status: "EXPERIMENTAL", summary: "Mục tiêu sóng 5: ngoài mẫu 126 lần, chạm 55,6% so với mức ngẫu nhiên cùng khoảng cách 54,3% (lift 1,02) — không có lợi thế." },
@@ -46,6 +46,9 @@ export const ELLIOTT_VN_VALIDATION: Record<"A" | "B" | "C" | "C2" | "D" | "E" | 
   E3: { status: "EXPERIMENTAL", summary: "Hậu kiểm (không đặt trước) với elliottMtf — khung tuần zigzag 6/12/24%: hai khung cùng đi tăng ngoài mẫu 139 lần +0,02% [−1,72; 1,34]; cùng đi giảm 282 lần −1,17% [−2,31; −0,14] nhưng trong mẫu +0,03% — không nhất quán, không coi là đạt." },
   F: { status: "FAIL", summary: "Điều kiện dao động của sách hiếm khi đúng ở bậc ngày nhỏ: sóng 4 kéo dao động về ≥ 90% chỉ 0,6% (3%) / 3,8% (6%), đúng dần ở bậc 12–20% (26–48%). Nguyên nhân: dao động 5/35 trễ ~17 phiên, dài hơn sóng." },
   G1: { status: "EXPERIMENTAL", summary: "Mua khi dao động về 0 sau sóng 3: chỉ 4 sự kiện trong 3 năm — chưa kiểm định được." },
+  O1: { status: "EXPERIMENTAL", summary: "Đếm theo dao động — mua khi sang sóng 5 tăng: ngoài mẫu 150 lần −0,81% [KTC −2,16; 0,64]; toàn kỳ 601 lần −1,48% [−2,30; −0,59] — NGƯỢC kỳ vọng. Hai lần sửa quy tắc kết thúc sóng 5 (sau khi xem kết quả: về cực trị sóng 4, dao động đổi chiều qua 0) không đổi kết luận (−0,88% · −0,69%)." },
+  O2: { status: "EXPERIMENTAL", summary: "Đếm theo dao động — bán khi qua sóng 5 tăng: ngoài mẫu 117 lần −0,44% [KTC −2,20; 1,42] — chưa có ý nghĩa." },
+  O3: { status: "EXPERIMENTAL", summary: "Đếm theo dao động và đếm hình học chỉ khớp 16,7% số lần cả hai cùng có cách đếm (mẫu mỗi 5 phiên) — hai phương pháp thường cho kết luận khác nhau." },
   G2: { status: "EXPERIMENTAL", summary: "Bán khi xung lực tăng hoàn chỉnh có phân kỳ sóng 5: 29 sự kiện (ngoài mẫu 1), TB ≈ 0% — chưa kiểm định được." },
 };
 

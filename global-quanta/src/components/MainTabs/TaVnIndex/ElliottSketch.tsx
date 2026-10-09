@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 import { elliottOscData, type ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
+import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 
 const UP = "#059669";
 const DOWN = "#e11d48";
@@ -26,6 +27,8 @@ export interface ElliottSketchProps {
   higher?: { points: { date: string; price: number }[]; labels: string[] } | null;
   ticker: string;
   frame: "D" | "W";
+  /** E2: đếm theo dao động — đánh dấu ◆ Đ3 / Đ4 / Đ5 tại giá. */
+  osc?: OscCount | null;
 }
 
 export function elliottSketchWindow(bars: OhlcvBar[], state: ElliottState): { from: number; to: number } {
@@ -36,7 +39,7 @@ export function elliottSketchWindow(bars: OhlcvBar[], state: ElliottState): { fr
   return { from: Math.max(0, Math.min(idx >= 0 ? idx - 12 : to - 120, to - 60), to - 300), to };
 }
 
-export default function ElliottSketch({ bars, state, higher, ticker, frame }: ElliottSketchProps) {
+export default function ElliottSketch({ bars, state, higher, ticker, frame, osc: oc = null }: ElliottSketchProps) {
   const [hover, setHover] = useState<number | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
   const [compact, setCompact] = useState(false);
@@ -148,6 +151,17 @@ export default function ElliottSketch({ bars, state, higher, ticker, frame }: El
             </g>
           );
         })}
+        {oc && ([["Đ3", oc.w3], ["Đ4", oc.w4], ["Đ5", oc.w5]] as const).map(([t, p]) => {
+          const px = p ? xOf(p.date) : null;
+          if (!p || px == null) return null;
+          const py = y(p.price), top = (t === "Đ4") !== up ? false : true;
+          return (
+            <g key={t} data-testid={`sketch-osc-${t}`}>
+              <path d={`M${px},${py - 5} l4,5 l-4,5 l-4,-5 z`} fill={AMBER} stroke={BG} strokeWidth={1} />
+              <text x={px + 6} y={top ? py - 6 : py + 12} fontSize={8.5} fontWeight={800} fill={AMBER}>{t}</text>
+            </g>
+          );
+        })}
         <circle cx={xEnd} cy={y(view[view.length - 1].close)} r={3} fill={INK} />
         {/* Elliott Oscillator 5/35 */}
         <rect x={0} y={PH + GAP} width={plotW} height={OH} fill="rgba(148,163,184,0.04)" />
@@ -194,6 +208,7 @@ export default function ElliottSketch({ bars, state, higher, ticker, frame }: El
         <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2" style={{ borderColor: cc }} />Đếm sóng {frame === "W" ? "tuần" : "ngày"}</span>
         {hPts.length >= 2 && <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: VIOLET }} />(n) đếm sóng tuần</span>}
         <span>● đã xác nhận · ◌? chưa xác nhận</span>
+        {oc?.w3 && <span style={{ color: AMBER }}>◆ Đ3–Đ5: đếm theo dao động</span>}
         <span>cột đậm = dao động vượt dải 80%</span>
         <span className="ml-auto text-slate-500">{view[0].date} → {view[view.length - 1].date} · {from > 0 ? `${view.length} nến` : "toàn bộ"}</span>
       </div>

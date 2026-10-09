@@ -94,6 +94,7 @@ describe("E5 — thẻ Elliott hai khung + phác đồ", () => {
     expect(el.querySelector('[data-testid="elliott-row-D"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="elliott-relation"]')?.textContent).toBe(mtf.relationText);
     expect(el.textContent).not.toMatch(/xác suất/i);
+    expect(el.querySelectorAll('[data-testid="elliott-osc-count"]').length).toBe(mtf.osc.week ? 2 : 1); // E2: đếm theo dao động mỗi khung
     expect(el.querySelector('[data-testid="elliott-toggle-auto"]')?.getAttribute("aria-pressed")).toBe("false");
     act(() => (el.querySelector('[data-testid="elliott-toggle-auto"]') as HTMLButtonElement).click());
     act(() => (el.querySelector('[data-testid="elliott-toggle-osc"]') as HTMLButtonElement).click());
