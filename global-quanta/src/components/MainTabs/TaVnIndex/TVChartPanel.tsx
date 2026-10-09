@@ -21,7 +21,8 @@ import TimeframeSelector from "./TimeframeSelector";
 import OscillatorPanel from "./OscillatorPanel";
 import SmartNotePanel from "./SmartNotePanel";
 import BacktestPanel from "./BacktestPanel";
-import { SMCPanel, VSAPanel, WyckoffPanel, ElliottWavePanelPlaceholder } from "./MethodPanels";
+import { SMCPanel, VSAPanel, WyckoffPanel } from "./MethodPanels";
+import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
 import { TA_INDICES } from "./TickerSelector";
 import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
@@ -37,7 +38,10 @@ import type { CorporateActionMark } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
 import { useTaFlow, type ForeignDay } from "../../../hooks/useTaFlow";
 import OrderFlowPanel from "./OrderFlowPanel";
-import { isIntradayTf } from "../../../lib/ta-command-center/TimeframeController";
+import { aggregateToWeekly, isIntradayTf } from "../../../lib/ta-command-center/TimeframeController";
+import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
+import { elliottOscData, type ElliottState } from "../../../lib/quant-core/elliott";
+import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
 import type { Analysis } from "../../../lib/quant-core";
 
 interface Props {
@@ -58,6 +62,20 @@ const VSA_LABEL: Record<string, string> = {
   Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
 };
 const SAVE_DEBOUNCE_MS = 1000;
+
+/** Gợi ý vẽ Elliott từ engine: 6 điểm 0–5 của kịch bản chính (điểm 5 chưa có -> cực trị nến cuối, tạm). null nếu không đủ. */
+export function engineElliottPoints(st: ElliottState | null, bars: OhlcvBar[]): DomainPoint[] | null {
+  const cnt = st?.scenario ? elliottCountPoints(st) : null;
+  if (!cnt || !bars.length) return null;
+  const pts = cnt.points.slice(0, 6).map((p) => ({ date: p.date, price: p.price }));
+  if (pts.length === 5) {
+    const last = bars[bars.length - 1];
+    if (last.date <= pts[4].date) return null;
+    pts.push({ date: last.date, price: st!.dir === "up" ? last.high : last.low });
+  }
+  const dates = new Set(bars.map((b) => b.date));
+  return pts.length === 6 && pts.every((p) => dates.has(p.date)) ? pts : null;
+}
 
 /** Hình vẽ tay thuộc lớp nào: vẽ xong / nạp hình đã lưu -> tự bật lớp đó (mặc định các lớp đều tắt). */
 const LAYER_OF_TOOL: Partial<Record<DrawnPrimitive["toolType"], "trendline" | "demandzone" | "elliott">> = {
@@ -99,6 +117,12 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   const [elliottDraft, setElliottDraft] = useState<DomainPoint[]>([]);
   const [fibExtensionMode, setFibExtensionMode] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "local" | "cloud">("idle");
+  // E5 — Elliott: engine GET hai khung (tuần gộp từ chuỗi ngày), bản nháp "Gợi ý", bảng phân tích chi tiết.
+  const mtf = useMemo(() => (bars.length >= 60 ? elliottMtf(bars) : null), [bars]);
+  const weeklyBars = useMemo(() => aggregateToWeekly(bars), [bars]);
+  const [elliottProposal, setElliottProposal] = useState<DomainPoint[] | null>(null);
+  const [elliottDetail, setElliottDetail] = useState(false);
+  useEffect(() => { setElliottProposal(null); }, [ticker, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
   const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
@@ -300,12 +324,29 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     act();
   };
 
+  // ---- Elliott Oscillator (khung phụ, bật/tắt bằng lớp elliottOsc) ----
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    tv.setElliottOscPane(layerState?.elliottOsc && currentBars.length > 40 ? elliottOscData(currentBars) : null);
+  }, [layerState?.elliottOsc, currentBars]);
+
+  // Đếm sóng tự động cho khung đang xem: D = khung ngày (+ đếm tuần ghim vào nến ngày), W = khung tuần; khung khác không vẽ.
+  const elliottScene = useMemo(() => {
+    if (!mtf) return null;
+    if (timeframe === "W") return { primary: mtf.week };
+    if (timeframe !== "D") return null;
+    const higher = mtf.week?.scenario
+      ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
+    return { primary: mtf.day, higher };
+  }, [mtf, timeframe]);
+
   // ---- Lớp phủ canvas ----
   const scene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
-    elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null,
-  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, volumeExtras]);
+    elliottDraft: elliottProposal ?? elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
+    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene,
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
 
   useEffect(() => {
@@ -330,12 +371,22 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
     controller.setTimeframe(tf);
   };
   const handleToggleFibExtension = () => controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
+  // "Gợi ý": ưu tiên đếm sóng của engine GET (khung D/W) -> BẢN NHÁP nét đứt; chỉ thành hình vẽ khi người dùng chấp nhận.
+  // Engine chưa có kịch bản 5 sóng -> dùng gợi ý Zigzag cũ (6 pivot gần nhất).
   const handleSuggestElliott = () => {
     if (!controllerRef.current) return;
-    const points = suggestElliottPoints(currentBars);
+    const st = timeframe === "W" ? mtf?.week ?? null : timeframe === "D" ? mtf?.day ?? null : null;
+    const points = engineElliottPoints(st, currentBars) ?? suggestElliottPoints(currentBars);
     if (!points) { window.alert("Chưa đủ dữ liệu đỉnh/đáy rõ ràng để gợi ý sóng Elliott cho mã này."); return; }
-    controllerRef.current.drawing.createElliottFromPoints(points);
-    if (layerState && !layerState.elliott) controllerRef.current.layers.toggle("elliott");
+    controllerRef.current.drawing.cancelElliottDraft();
+    setElliottProposal(points);
+  };
+  const acceptElliottProposal = () => {
+    const controller = controllerRef.current;
+    if (!controller || !elliottProposal) return;
+    controller.drawing.createElliottFromPoints(elliottProposal);
+    controller.layers.enable("elliott");
+    setElliottProposal(null);
   };
 
   // ---- Pointer Events (chuột · cảm ứng · bút) ----
@@ -410,6 +461,13 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
               <button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); }}>Huỷ</button>
             </span>
           )}
+          {elliottProposal && (
+            <span className="text-[10px] text-amber-300 flex items-center gap-1.5 bg-slate-900/85 px-2 py-1 rounded-lg" data-testid="elliott-proposal">
+              Gợi ý Elliott (nháp) ·
+              <button type="button" className="underline text-emerald-300" onClick={acceptElliottProposal} data-testid="elliott-proposal-accept">Chấp nhận</button>
+              <button type="button" className="underline text-slate-400" onClick={() => setElliottProposal(null)}>Huỷ</button>
+            </span>
+          )}
           {elliottDraft.length > 0 && (
             <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
               className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
@@ -451,8 +509,13 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
         {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} timeframe={timeframe} compare={controllerRef.current?.getAnalysis()?.wyckoffAlt ?? null} />}
-        <ElliottWavePanelPlaceholder />
+        <ElliottWavePanel mtf={mtf} timeframe={timeframe}
+          autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
+          onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
+          onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}
+          onSuggest={handleSuggestElliott} detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
       </div>
+      {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}
 
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
