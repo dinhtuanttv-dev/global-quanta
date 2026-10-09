@@ -10,6 +10,7 @@ import type {
   TechnicalFilterComponent, TechnicalFilterResponse, TechnicalFilterResult, TechnicalFilterStrategy,
 } from "../../../hooks/useTechnicalFilter";
 import { elliottState } from "../../../lib/quant-core/elliott";
+import { ELLIOTT_VN_NOTE } from "../../../lib/quant-core/elliott/vnValidation";
 import PatternSketch from "./PatternSketch";
 
 const UP = "#059669";
@@ -277,7 +278,7 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
                 </ul>
               )}
               {h?.wave && <div className="text-slate-400">Cạnh phải cốc: <span className="text-slate-200">{h.wave.count}</span></div>}
-              <p className="text-[8px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. Bảng thống kê của engine lấy từ sách GET (futures thập niên 1990), chưa hiệu chỉnh cho thị trường VN.</p>
+              <p className="text-[8px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. {ELLIOTT_VN_NOTE}</p>
             </div>
           ) : <div className="text-[10px] text-slate-500 py-4">{series.isLoading ? "Đang đếm sóng…" : "Chưa có kịch bản sóng hợp lệ."}</div>}
         </Card>

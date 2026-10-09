@@ -95,6 +95,8 @@ export interface ElliottOptions {
     maxPivotsAfter?: number;
     projectBars?: number;
     temperature?: number;
+    /** Bảng tỷ lệ sóng 2/3/4 thay cho STAT_TABLES của sách (vd. ELLIOTT_VN_TABLES). */
+    statTables?: Record<"w2" | "w3" | "w4", { max: number; p: number | null }[]>;
   };
 }
 
@@ -116,3 +118,8 @@ export function statWave2(r: number): { bucket: string; pct: number | null };
 export function detectTriangle(t: ElliottPivot[]): { valid: boolean; points?: ElliottPivot[] };
 export function evaluateImpulse(candles: ElliottCandle[], osc: number[], bands: { up: number[]; lo: number[] }, pts: ElliottPivot[], o: typeof DEFAULTS): ElliottScenario;
 export function analyze(candles: ElliottCandle[], options?: ElliottOptions): { osc: number[]; bands: { up: number[]; lo: number[] }; pivots: ElliottPivot[]; best: ElliottScenario | null; correction: ElliottCorrection | null; impulses: ElliottScenario[] };
+
+export type ElliottStatTable = { max: number; p: number | null }[];
+/** Bảng tỷ lệ sóng của sách GET (T-37, T-38, T-40). */
+export const STAT_TABLES: Record<"w2" | "w3" | "w4", ElliottStatTable>;
+export function probOf(table: ElliottStatTable, r: number, nullP?: number, floor?: number): number;
