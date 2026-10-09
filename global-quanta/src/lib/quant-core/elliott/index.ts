@@ -88,12 +88,14 @@ function levelsOf(sc: ElliottScenario): FibLevel[] {
  *   - Có kịch bản được xếp hạng (cấu trúc còn "sống": ≤ 3 pivot sau điểm cuối) -> kịch bản chính + phương án khác.
  *   - Không có, nhưng có tín hiệu sóng 3 đang chạy -> "có thể đang ở sóng 3".
  *   - Còn lại -> nói rõ CHƯA có cấu trúc 5 sóng rõ ràng (không dùng một cấu trúc đã cũ).
- * null khi chưa đủ dữ liệu.
+ * null khi chưa đủ dữ liệu. `zigzagPct` = ngưỡng zigzag gốc của bậc trung (mặc định 3% cho khung ngày; khung tuần dùng 6%);
+ * `degrees` = các bậc sóng (hệ số nhân ngưỡng zigzag), mặc định DEGREES của engine.
  */
-export function elliottState(bars: OhlcvBar[]): ElliottState | null {
+export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degrees?: { name: string; k: number }[] } = {}): ElliottState | null {
   if (bars.length < 60) return null;
   const window = bars.slice(-ELLIOTT_BAR_LIMIT);
-  const res = analyzeFull(toCandles(window), { pro: { topN: 3, statTables: ELLIOTT_VN_TABLES } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
+  const zz = opts.zigzagPct != null ? { zigzag: { pct: opts.zigzagPct } } : {};
+  const res = analyzeFull(toCandles(window), { ...zz, pro: { topN: 3, statTables: ELLIOTT_VN_TABLES, ...(opts.degrees ? { degrees: opts.degrees } : {}) } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
   const asOf = window[window.length - 1].date;
   const sc = res.scenarios[0] as Scenario | undefined;
   if (sc) {
