@@ -11,7 +11,6 @@ import type { PatternMatch } from "../../../lib/ta-command-center/types";
 import AIChartVisionTab from "./AIChartVision";
 import TechnicalFilterPanel from "./TechnicalFilterPanel";
 import SepaPanel from "./SepaPanel";
-import "./AIChartVision/styles.css";
 
 export default function TaVnIndexTab() {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
@@ -43,6 +42,12 @@ export default function TaVnIndexTab() {
     setActiveSubTab(tab);
     if (tab === "aichart") setSuggestedTicker(null);
   };
+  // Bảng phụ của các bộ lọc -> mở thẳng AI Chart Vision cho mã đó.
+  const openVision = (symbol: string) => {
+    setTicker(symbol);
+    setSuggestedTicker(null);
+    setActiveSubTab("aichart");
+  };
 
   const showSuggestionBanner = suggestedTicker !== null && activeSubTab !== "aichart";
 
@@ -60,7 +65,13 @@ export default function TaVnIndexTab() {
       </div>
 
       {activeSubTab === "aichart" && (
-        <AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} />
+        <>
+          {/* thanh tab con vẫn hiện ở AI Chart Vision để quay lại các bộ lọc */}
+          <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
+          <div className="mt-2">
+            <AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} onOpenScreener={(tab) => handleTabChange(tab as SubTabKey)} />
+          </div>
+        </>
       )}
 
       {showSuggestionBanner && (
@@ -123,21 +134,21 @@ export default function TaVnIndexTab() {
             {activeSubTab === "pattern" && <PatternList onSelectPattern={handleSelectPattern} />}
             {/* Hợp lưu v2 chạy trên Gateway (bộ lọc cũ của Project A đã gỡ khỏi tab — H4). */}
             {activeSubTab === "convergence" && (isMarketGatewayEnabled()
-              ? <ConvergencePanelV2 onSelectTicker={handleCandidateSelect} />
+              ? <ConvergencePanelV2 onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
               : <p className="text-[10px] text-slate-500 italic py-4 text-center">Bộ lọc Hợp lưu v2 cần Market Gateway (chưa bật cho môi trường này).</p>)}
             {activeSubTab === "camslim" && (
-              <TechnicalFilterPanel strategy="camslim" onSelectTicker={handleCandidateSelect} />
+              <TechnicalFilterPanel strategy="camslim" onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
             )}
             {activeSubTab === "base-breakout" && (
-              <TechnicalFilterPanel strategy="base-breakout" onSelectTicker={handleCandidateSelect} />
+              <TechnicalFilterPanel strategy="base-breakout" onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
             )}
             {/* SEPA Minervini (SP4) — chiến lược "sepa" của Gateway; bảng phụ phân tích chuyên sâu theo sách. */}
             {activeSubTab === "sepa" && (isMarketGatewayEnabled()
-              ? <SepaPanel onSelectTicker={handleCandidateSelect} />
+              ? <SepaPanel onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
               : <p className="text-[10px] text-slate-500 italic py-4 text-center">Bộ lọc SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
             {/* SP5: Golden SEPA thay hoàn toàn Golden Filter × Top 20 Kỹ thuật + TA Consensus (Project A). */}
             {activeSubTab === "golden" && (isMarketGatewayEnabled()
-              ? <GoldenSepaPanel onSelectTicker={handleCandidateSelect} />
+              ? <GoldenSepaPanel onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
               : <p className="text-[10px] text-slate-500 italic py-4 text-center">Golden SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
           </div>
         </>

@@ -18,6 +18,8 @@ const scoreTitle = (r: TechnicalFilterResult) =>
 interface Props {
   strategy: TechnicalFilterStrategy;
   onSelectTicker: (ticker: string) => void;
+  /** Mở AI Chart Vision cho mã (từ bảng phụ). */
+  onOpenVision?: (ticker: string) => void;
 }
 
 const LABELS: Record<TechnicalFilterStrategy, string> = {
@@ -68,7 +70,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   );
 }
 
-export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props) {
+export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenVision }: Props) {
   const { data, error, isLoading, refresh } = useTechnicalFilter(strategy);
   const isCamSlim = strategy === "camslim";
   // Nhấn đúp / bấm mã -> mở bảng phụ phân tích chuyên sâu (không mở biểu đồ); nhấn đúp lại hoặc Esc -> đóng.
@@ -246,7 +248,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker }: Props
                 </tr>
                 {open === result.ticker && (
                   <DeepRow width={frameW}>
-                    <ScreenerDeepPanel strategy={strategy} result={result} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} />
+                    <ScreenerDeepPanel strategy={strategy} result={result} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
                   </DeepRow>
                 )}
                 </Fragment>

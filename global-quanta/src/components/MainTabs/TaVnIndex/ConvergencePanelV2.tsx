@@ -49,7 +49,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   );
 }
 
-export default function ConvergencePanelV2({ onSelectTicker }: { onSelectTicker: (ticker: string) => void }) {
+export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
   const { data, error, isLoading, refresh } = useConvergenceV2();
   const [side, setSide] = useState<Side>("all");
   const [status, setStatus] = useState<Status>("all");
@@ -190,7 +190,7 @@ export default function ConvergencePanelV2({ onSelectTicker }: { onSelectTicker:
                   </tr>
                   {open === r.ticker && data && (
                     <DeepRow width={frameW}>
-                      <ConvergenceDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} />
+                      <ConvergenceDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
                     </DeepRow>
                   )}
                 </Fragment>
