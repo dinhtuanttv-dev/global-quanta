@@ -2,7 +2,8 @@
 // (lib/cotuc/vci-financials-adapter.ts, vci-balance-sheet-adapter.ts, commit 9306bc3).
 // Mã trường đã được Project A đối chiếu với BCTC công khai:
 //   KQKD: isa1 doanh thu thuần, isa22 LNST, isa23 EPS, isa4 giá vốn, isa5 lợi nhuận gộp
-//   CĐKT: bsa53 tổng tài sản, bsa54 tổng nợ, bsa78 VCSH, bsa1 TSNH, bsa55 nợ ngắn hạn, bsa67 nợ dài hạn
+//   CĐKT: bsa53 tổng tài sản, bsa54 tổng nợ, bsa78 VCSH, bsa1 TSNH, bsa55 nợ ngắn hạn, bsa67 nợ dài hạn,
+//         bsa15 hàng tồn kho ròng, bsa9 phải thu khách hàng (thêm cho SEPA)
 // VCI trả HTTP 200 kể cả khi lỗi -> phải kiểm tra `successful`.
 
 const IQ_BASE_URL = "https://iq.vietcap.com.vn/api/iq-insight-service";
@@ -62,5 +63,8 @@ export function fetchQuarterlyBalance(ticker, fetchImpl = globalThis.fetch) {
     currentAssets: num(row.bsa1 ?? null),
     currentLiabilities: num(row.bsa55 ?? null),
     longTermDebt: num(row.bsa67 ?? null),
+    // SEPA (Chương 8 — chất lượng lợi nhuận): đối chiếu metadata VCI /financial-statement/metrics ngày 09/10/2026.
+    inventory: num(row.bsa15 ?? null), // Hàng tồn kho, ròng
+    receivables: num(row.bsa9 ?? null), // Phải thu khách hàng
   }), fetchImpl);
 }

@@ -110,3 +110,17 @@ export function withRecentBreakout(detector, S, t, lookback = 5, opts = {}) {
   }
   return detector(S, t, opts);
 }
+
+export const STATUS_RANK = Object.freeze({ BREAKOUT: 5, NEAR_PIVOT: 4, SQUAT: 3, FORMING: 2, EXTENDED: 1, FAILED: 0, NONE: -1 });
+
+/** Mô hình tốt nhất: trạng thái gần điểm mua nhất, rồi điểm chất lượng (bằng nhau -> giữ thứ tự quét). */
+export function bestPattern(pats) {
+  const det = pats.filter((p) => p.detected);
+  if (!det.length) return null;
+  const key = (p) => [STATUS_RANK[p.status] ?? -1, p.score];
+  // sorted(..., reverse=True) của Python ổn định: phần tử bằng khóa giữ thứ tự gốc -> lấy phần tử ĐẦU trong nhóm lớn nhất
+  let best = det[0];
+  for (const p of det.slice(1)) { const [a, b] = key(p), [c, d] = key(best); if (a > c || (a === c && b > d)) best = p; }
+  return best;
+}
+
