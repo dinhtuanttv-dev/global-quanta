@@ -81,17 +81,29 @@ export function npPercentile(A, a, b, q) {
   return g >= 0.5 ? hi - d * (1 - g) : lo + d * g;
 }
 
-/** Series.rolling(w, min_periods).mean() của pandas (thuật toán Kahan cộng/trừ + chống nhiễu giá trị lặp). */
-export function rollMean(A, w, minp = w) {
+/**
+ * Series.rolling(w, min_periods).mean() / .sum() của pandas: thuật toán Kahan cộng/trừ, bỏ qua NaN, chống nhiễu khi các giá trị
+ * trong cửa sổ bằng nhau (GH#42064).
+ */
+function rollKahan(A, w, minp, kind) {
   const N = A.length, out = new Float64Array(N).fill(NaN);
   let sum = 0, cAdd = 0, cRem = 0, nobs = 0, neg = 0, same = 0, prev = NaN;
-  const add = (v) => { nobs++; const y = v - cAdd, t = sum + y; cAdd = t - sum - y; sum = t; if (v < 0 || Object.is(v, -0)) neg++; if (v === prev) same++; else same = 1; prev = v; };
-  const rem = (v) => { nobs--; const y = -v - cRem, t = sum + y; cRem = t - sum - y; sum = t; if (v < 0 || Object.is(v, -0)) neg--; };
+  const add = (v) => {
+    if (Number.isNaN(v)) return;
+    nobs++; const y = v - cAdd, t = sum + y; cAdd = t - sum - y; sum = t;
+    if (v < 0 || Object.is(v, -0)) neg++;
+    if (v === prev) same++; else same = 1;
+    prev = v;
+  };
+  const rem = (v) => { if (Number.isNaN(v)) return; nobs--; const y = -v - cRem, t = sum + y; cRem = t - sum - y; sum = t; if (v < 0 || Object.is(v, -0)) neg--; };
   for (let i = 0; i < N; i++) {
     const s = Math.max(0, i - w + 1);
     if (i === 0) { prev = A[s]; same = 0; sum = cAdd = cRem = 0; nobs = neg = 0; for (let j = s; j <= i; j++) add(A[j]); }
     else { for (let j = Math.max(0, i - w); j < s; j++) rem(A[j]); add(A[i]); }
-    if (nobs >= minp && nobs > 0) {
+    if (kind === "sum") {
+      if (nobs === 0 && minp === 0) out[i] = 0;
+      else if (nobs >= minp) out[i] = same >= nobs ? prev * nobs : sum;
+    } else if (nobs >= minp && nobs > 0) {
       let r = sum / nobs;
       if (same >= nobs) r = prev; else if (neg === 0 && r < 0) r = 0; else if (neg === nobs && r > 0) r = 0;
       out[i] = r;
@@ -99,6 +111,8 @@ export function rollMean(A, w, minp = w) {
   }
   return out;
 }
+export const rollMean = (A, w, minp = w) => rollKahan(A, w, minp, "mean");
+export const rollSum = (A, w, minp = w) => rollKahan(A, w, minp, "sum");
 /** Dịch 1 phiên (Series.shift(1)). */
 export function shift1(A) { const o = new Float64Array(A.length).fill(NaN); for (let i = 1; i < A.length; i++) o[i] = A[i - 1]; return o; }
 

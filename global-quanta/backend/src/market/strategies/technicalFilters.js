@@ -12,14 +12,15 @@ import { mapLimit } from "../util.js";
 import { buildCsEvidence, buildRsTable, marketContextM, scanCanSlimV2 } from "./canSlimV2.js";
 import { buildEvidence, marketContext, scanBaseBreakoutV2 } from "./baseBreakoutV2.js";
 import { CONVERGENCE_EVIDENCE_KV, CONVERGENCE_VERSION, convergenceEvidenceFresh, scanConvergenceV2 } from "./convergenceV2.js";
+import { SEPA_ENGINE, scanSepa } from "./sepaScan.js";
 
-export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout", "convergence"]);
+export const STRATEGY_IDS = Object.freeze(["camslim", "base-breakout", "convergence", "sepa"]);
 /** Số phiên tối thiểu: MA200 + đỉnh 250 phiên của CAMSLIM. */
 export const STRATEGY_MIN_BARS = 260;
 export const STRATEGY_RANGE = "3y";
 export const strategyKvKey = (strategy) => `strategies:${strategy}`;
 /** Phiên bản engine của từng bộ lọc — bản lưu KV khác phiên bản (vừa deploy) thì quét lại. */
-export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6", convergence: CONVERGENCE_VERSION });
+export const STRATEGY_ENGINE = Object.freeze({ camslim: "screener-v2/S6", "base-breakout": "screener-v2/S6", convergence: CONVERGENCE_VERSION, sepa: SEPA_ENGINE });
 
 const DISCLAIMER = "Bộ lọc kỹ thuật để tham khảo, không phải khuyến nghị đầu tư.";
 const LIQUIDITY_SESSIONS = 20;
@@ -118,9 +119,11 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
   try { if (typeof loadSeries.index === "function") indexBars = await loadSeries.index(); } catch { /* thiếu VN-Index -> M = null */ }
   const market = marketContext(indexBars);
   // CAN SLIM: BCTC quý (kho market_fundamentals, VCI), RS O'Neil + sức mạnh ngành theo ngày trên toàn universe, M có ngày phân phối.
-  let canslim = null;
+  let canslim = null, faMap = null;
+  if (strategies.includes("camslim") || strategies.includes("sepa")) {
+    faMap = typeof service.store.getFundamentals === "function" ? await service.store.getFundamentals(loaded.map((s) => s.item.ticker)) : new Map();
+  }
   if (strategies.includes("camslim")) {
-    const faMap = typeof service.store.getFundamentals === "function" ? await service.store.getFundamentals(loaded.map((s) => s.item.ticker)) : new Map();
     const rsTable = buildRsTable(new Map(loaded.filter((s) => s.bars.length >= 253).map((s) => [s.item.ticker, { bars: s.bars, sector: s.item.sector }])));
     canslim = { faMap, rsTable, market: marketContextM(indexBars) };
   }
@@ -141,6 +144,22 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
   const generatedAt = new Date(now()).toISOString();
   const out = {};
   for (const strategy of strategies) {
+    if (strategy === "sepa") {
+      // SEPA chạy trên CẢ universe một lần (RS phân vị, sức khỏe thị trường, tỷ lệ đạt Trend Template) — xem sepaScan.js.
+      const sp = scanSepa({ loaded, eligible, indexBars, faMap, dataAsOf });
+      out.sepa = {
+        strategy, engine: STRATEGY_ENGINE.sepa, ...(withEvidence ? { evidence: sp.evidence } : {}),
+        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20", sepa: sp.sepaMarket },
+        lists: sp.lists, sectors: sp.sectors, equityRef: sp.equityRef, risk: sp.risk,
+        fundamentalsCoverage: { withData: [...faMap.values()].filter((f) => f?.income?.quarters?.length).length, withInventory: [...faMap.values()].filter((f) => f?.balance?.quarters?.some((q) => q.inventory != null)).length },
+        generatedAt, dataAsOf, source: "SSI Market Gateway · giá điều chỉnh cộng dồn · BCTC VCI", criteria, priceBasis,
+        universeCount: universe.length, scannedCount: eligible.length - sp.errors.length, resultCount: sp.results.length,
+        results: sp.results,
+        skipped: [...skipped, ...sp.errors.map((e) => ({ ...e, reason: "INVALID_DATA" }))].sort((a, b) => a.ticker.localeCompare(b.ticker)),
+        disclaimer: DISCLAIMER,
+      };
+      continue;
+    }
     const results = [];
     const errors = [];
     for (const { item, bars, gate, priceBasis: basis } of eligible) {

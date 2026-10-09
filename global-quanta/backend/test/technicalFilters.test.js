@@ -51,7 +51,7 @@ test("một lần tải chuỗi điều chỉnh cho cả hai bộ lọc; bỏ n�
   };
   const docs = await runTechnicalFilters(service, { loadSeries, criteria });
   assert.equal(calls.length, 6, "mỗi mã tải đúng một lần cho cả hai chiến lược");
-  for (const id of ["camslim", "base-breakout"]) {
+  for (const id of ["camslim", "base-breakout", "sepa"]) {
     const d = docs[id];
     assert.equal(d.dataAsOf, "2026-10-07", "nến partial hôm nay bị loại");
     assert.equal(d.scannedCount, 2);

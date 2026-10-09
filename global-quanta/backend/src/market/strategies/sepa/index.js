@@ -7,6 +7,7 @@ import { prepareSepa } from "./indicators.js";
 import { scanAllBases } from "./patterns/bases.js";
 import { postBreakoutMonitor } from "./patterns/monitor.js";
 import { scanVcp } from "./patterns/vcp.js";
+import { bestPattern } from "./patterns/common.js";
 import { planTrade } from "./risk.js";
 import { classifyStage, trendTemplate } from "./trend.js";
 
@@ -16,21 +17,11 @@ export * from "./trend.js";
 export * from "./risk.js";
 export { detectVcp, scanVcp } from "./patterns/vcp.js";
 export { detectCupHandle, detectFlatBase, detectPowerPlay, detectPrimaryBase, detectThreeC, scanAllBases } from "./patterns/bases.js";
-export { evaluateBreakout, withRecentBreakout } from "./patterns/common.js";
+export { STATUS_RANK, bestPattern, evaluateBreakout, withRecentBreakout } from "./patterns/common.js";
+export * from "./fundamentals.js";
+export * from "./leadership.js";
+export * from "./screener.js";
 export { postBreakoutMonitor } from "./patterns/monitor.js";
-
-export const STATUS_RANK = Object.freeze({ BREAKOUT: 5, NEAR_PIVOT: 4, SQUAT: 3, FORMING: 2, EXTENDED: 1, FAILED: 0, NONE: -1 });
-
-/** Mô hình tốt nhất: trạng thái gần điểm mua nhất, rồi điểm chất lượng (bằng nhau -> giữ thứ tự quét). */
-export function bestPattern(pats) {
-  const det = pats.filter((p) => p.detected);
-  if (!det.length) return null;
-  const key = (p) => [STATUS_RANK[p.status] ?? -1, p.score];
-  // sorted(..., reverse=True) của Python ổn định: phần tử bằng khóa giữ thứ tự gốc -> lấy phần tử ĐẦU trong nhóm lớn nhất
-  let best = det[0];
-  for (const p of det.slice(1)) { const [a, b] = key(p), [c, d] = key(best); if (a > c || (a === c && b > d)) best = p; }
-  return best;
-}
 
 /**
  * Phân tích kỹ thuật SEPA tại phiên t (chỉ dữ liệu ≤ t).
