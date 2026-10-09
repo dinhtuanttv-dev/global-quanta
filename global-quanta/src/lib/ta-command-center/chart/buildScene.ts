@@ -8,6 +8,7 @@ import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
+import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
 
 export interface SceneInput {
   bars: OhlcvBar[];
@@ -22,6 +23,8 @@ export interface SceneInput {
   /** P4: Volume Profile (composite D/W/M hoặc theo phiên intraday) + Anchored VWAP mặc định — từ quant-core (Worker). */
   profile?: { sessions: SessionProfile[]; composite: VolumeProfile | null } | null;
   avwap?: { anchorDate: string; points: VwapPoint[] } | null;
+  /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
+  elliott?: Omit<ElliottSceneInput, "bars"> | null;
 }
 
 /** Số phiên vẽ histogram trên khung intraday (POC còn "naked" của các phiên cũ hơn vẫn vẽ thành đường). */
@@ -178,6 +181,7 @@ export function buildScene(inp: SceneInput): Scene {
     items.push({ kind: "poly", points: inp.elliottDraft.map((pt) => ({ t: pt.date, price: pt.price })), color: GQ_COLORS.amber, dash: [3, 2], nodeLabels: inp.elliottDraft.map((_, i) => String(i)) });
   }
   pushVolumeLayers(items, inp);
+  if (layers?.elliottAuto && inp.elliott) items.push(...elliottSceneItems({ bars, ...inp.elliott }));
   return { items };
 }
 

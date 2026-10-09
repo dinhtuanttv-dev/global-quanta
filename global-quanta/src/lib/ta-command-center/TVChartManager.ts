@@ -39,6 +39,7 @@ export class TVChartManager {
   // P5: pane Order Flow (Delta + CVD) và pane Khối ngoại (ròng + luỹ kế) — chỉ tồn tại khi bật lớp.
   private flowSeries: { delta: ISeriesApi<"Histogram">; cvd: ISeriesApi<"Line"> } | null = null;
   private foreignSeries: { net: ISeriesApi<"Histogram">; cum: ISeriesApi<"Line"> } | null = null;
+  private elliottOscSeries: { osc: ISeriesApi<"Histogram">; up: ISeriesApi<"Line">; lo: ISeriesApi<"Line"> } | null = null;
   private markers: ISeriesMarkersPluginApi<Time>;
   readonly overlay = new OverlayPrimitive();
   private currentBars: OhlcvBar[] = [];
@@ -170,6 +171,36 @@ export class TVChartManager {
     data = this.onCandles(data);
     this.foreignSeries.net.setData(data.map((d) => ({ time: toTime(d.date), value: d.net, color: d.net >= 0 ? rgba(GQ_COLORS.bull, 0.6) : rgba(GQ_COLORS.bear, 0.6) })));
     this.foreignSeries.cum.setData(data.map((d) => ({ time: toTime(d.date), value: d.cum })));
+  }
+
+  /**
+   * Pane Elliott Oscillator (SMA5 − SMA35 của giá giữa (H+L)/2) + dải bứt phá 80% cực trị 100 nến trước (T-20).
+   * Cột sáng = vượt dải (dấu hiệu sóng 3 theo sách); cột mờ = trong dải. null = gỡ pane.
+   */
+  setElliottOscPane(data: { date: string; osc: number; up: number; lo: number }[] | null): void {
+    if (!data) {
+      if (this.elliottOscSeries) {
+        for (const x of Object.values(this.elliottOscSeries)) this.chart.removeSeries(x);
+        this.elliottOscSeries = null; this.layoutPanes();
+      }
+      return;
+    }
+    if (!this.elliottOscSeries) {
+      const pane = this.chart.panes().length;
+      const osc = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: true, title: "EO 5/35" }, pane);
+      const band = { lineWidth: 1 as const, lineStyle: LineStyle.Dashed, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
+      const up = this.chart.addSeries(LineSeries, { ...band, color: rgba(GQ_COLORS.bull, 0.55) }, pane);
+      const lo = this.chart.addSeries(LineSeries, { ...band, color: rgba(GQ_COLORS.bear, 0.55) }, pane);
+      this.elliottOscSeries = { osc, up, lo };
+      this.layoutPanes();
+    }
+    data = this.onCandles(data);
+    this.elliottOscSeries.osc.setData(data.map((d) => ({
+      time: toTime(d.date), value: d.osc,
+      color: d.osc >= 0 ? rgba(GQ_COLORS.bull, d.up > 0 && d.osc > d.up ? 0.9 : 0.35) : rgba(GQ_COLORS.bear, d.lo < 0 && d.osc < d.lo ? 0.9 : 0.35),
+    })));
+    this.elliottOscSeries.up.setData(data.map((d) => ({ time: toTime(d.date), value: d.up })));
+    this.elliottOscSeries.lo.setData(data.map((d) => ({ time: toTime(d.date), value: d.lo })));
   }
 
   private fillVolume(): void {

@@ -2,7 +2,7 @@
 // "đang sóng mấy", kịch bản chính + xác suất, mốc vô hiệu, các mức Fibonacci liên quan.
 // Kết quả mang tính DIỄN GIẢI (INFERRED): trọng số kịch bản dùng bảng tỷ lệ sóng của VN (E4, vnValidation.ts) nhưng
 // không tín hiệu nào có lợi thế lợi suất ngoài mẫu — chỉ để đối chiếu với sách.
-import { analyzeFull, invalidationOf, zigzag, type ElliottPivot, type ElliottScenario } from "./elliottGet.js";
+import { analyzeFull, breakoutBands, elliottOscillator, invalidationOf, zigzag, type ElliottPivot, type ElliottScenario } from "./elliottGet.js";
 import { ELLIOTT_VN_TABLES } from "./vnValidation";
 import type { OhlcvBar } from "../../ta-command-center/types";
 
@@ -29,6 +29,8 @@ export interface ElliottState {
   /** Pivot đã xác nhận (ci ≠ null) + pivot cuối đang chạy. */
   pivots: ElliottPivot[];
   asOf: string;
+  /** Số nến của cửa sổ phân tích (chỉ số i của pivot tính trong cửa sổ này; nến cuối = barCount − 1). */
+  barCount: number;
 }
 
 const toCandles = (bars: OhlcvBar[]) => bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
@@ -36,6 +38,14 @@ const toCandles = (bars: OhlcvBar[]) => bars.map((b) => ({ time: b.date, open: b
 /** Pivot zigzag chỉ dùng dữ liệu đến nến `t` (không nhìn trước): pivot toàn chuỗi có ci ≤ t. */
 export function confirmedPivotsAt(pivots: ElliottPivot[], t: number): ElliottPivot[] {
   return pivots.filter((p) => p.ci != null && p.ci <= t);
+}
+
+/** Elliott Oscillator 5/35 + dải bứt phá 80% (T-20) theo nến — cho khung phụ biểu đồ. Bỏ 34 nến đầu (chưa đủ SMA35). */
+export function elliottOscData(bars: OhlcvBar[]): { date: string; osc: number; up: number; lo: number }[] {
+  const c = toCandles(bars), osc = elliottOscillator(c, 5, 35), b = breakoutBands(osc, { pct: 0.8, lookback: 100 });
+  const out: { date: string; osc: number; up: number; lo: number }[] = [];
+  osc.forEach((v, i) => { if (Number.isFinite(v)) out.push({ date: bars[i].date, osc: v, up: b.up[i], lo: b.lo[i] }); });
+  return out;
 }
 
 export function pivotsOf(bars: OhlcvBar[], pct = 0.03): ElliottPivot[] {
@@ -70,7 +80,7 @@ function describeRaw(sc: Scenario, pivots: ElliottPivot[]): Pick<ElliottState, "
 function levelsOf(sc: ElliottScenario): FibLevel[] {
   const out: FibLevel[] = [];
   if (sc.status === "wave5-forming") {
-    for (const l of sc.targets.wave5.levels) out.push({ label: `Mục tiêu sóng 5 ×${l.ratio}`, price: l.price });
+    for (const l of sc.targets.wave5.levels) out.push({ label: `Mục tiêu sóng 5 ×${String(l.ratio).replace(".", ",")}`, price: l.price });
     // T-43; trên VN chỉ 23,6% sóng 5 kết thúc trong cửa sổ này (E4) — nhãn ghi "sách".
     out.push({ label: "Cửa sổ sóng 5 (sách): 62% của 0→3", price: sc.targets.wave5.window03.low });
     out.push({ label: "Cửa sổ sóng 5 (sách): 100% của 0→3", price: sc.targets.wave5.window03.high });
@@ -112,6 +122,7 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
       levels: levelsOf(sc),
       pivots: res.pivots,
       asOf,
+      barCount: window.length,
     };
   }
   const w3 = res.signals?.find((x) => x.type === "wave3");
@@ -124,11 +135,11 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
         ...(w3.targets ?? []).map((t) => ({ label: `Mục tiêu sóng 3 ×${String(t.ratio).replace(".", ",")} sóng 1`, price: t.price })),
         ...(w3.wave4Zones ?? []).map((z) => ({ label: `Vùng sóng 4 tương lai ${String(z.ratio).replace(".", ",")}`, price: z.price })),
       ],
-      pivots: res.pivots, asOf,
+      pivots: res.pivots, asOf, barCount: window.length,
     };
   }
   return {
     wave: "none", label: "Chưa có cấu trúc 5 sóng rõ ràng ở các bậc gần đây", dir: null, degree: null,
-    weight: null, scenario: null, alternatives: [], invalidation: null, levels: [], pivots: res.pivots, asOf,
+    weight: null, scenario: null, alternatives: [], invalidation: null, levels: [], pivots: res.pivots, asOf, barCount: window.length,
   };
 }
