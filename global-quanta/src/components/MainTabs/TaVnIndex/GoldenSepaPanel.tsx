@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { AlertCircle, ChevronRight, Info, RefreshCw, Star } from "lucide-react";
 import { isS2Signal } from "../../../hooks/useSepa";
 import { useGoldenSepa, type GoldenSepaRow } from "../../../hooks/useGoldenSepa";
+import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
 const CONFIRM_SHORT: Record<string, string> = { camslim: "CS", "base-breakout": "BB", convergence: "HL" };
@@ -73,6 +74,7 @@ export default function GoldenSepaPanel({ onSelectTicker }: { onSelectTicker: (t
         </span>
         {doc && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="golden-sepa-asof">SEPA phiên {doc.dataAsOf} · CS {sources.camslim ?? "—"} · BB {sources["base-breakout"] ?? "—"} · HL {sources.convergence ?? "—"}</span>}
       </p>
+      {doc && <SepaIntradayStrip onOpen={(t) => { setMin(0); setOpen(t); }} />}
       {doc && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid="golden-sepa-filters">
           <Chip value={0 as MinConfirm} current={min} onChange={setMin} testId="golden-min-0">Tất cả {rows.length}</Chip>

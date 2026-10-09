@@ -7,6 +7,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { AlertCircle, ChevronRight, Info, RefreshCw, Trophy } from "lucide-react";
 import { isS2Signal, SEPA_LISTS, useSepa, type SepaList, type SepaRow } from "../../../hooks/useSepa";
 import SepaEvidenceCard from "./SepaEvidenceCard";
+import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.round(v).toLocaleString("vi-VN"));
@@ -118,6 +119,7 @@ export default function SepaPanel({ onSelectTicker }: { onSelectTicker: (ticker:
           {sectors.map((s) => <span key={s.nganh} className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">#{s.hang_nganh} {s.nganh} · {String(s.mean).replace(".", ",")}</span>)}
         </div>
       )}
+      {data && <SepaIntradayStrip onOpen={(t) => { setList("active"); setPattern("all"); setOpen(t); }} />}
       {data?.evidence && data.evidence.label !== "PENDING" && <SepaEvidenceCard evidence={data.evidence} />}
       {data && (
         <p className="text-[9px] text-slate-500" data-testid="sepa-live">

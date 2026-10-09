@@ -12,8 +12,9 @@
 import { BUCKETS, groupStrength, runSepaScreen, SEPA, vnQuarterly } from "./sepa/index.js";
 import { sepaEvidence } from "./sepa/validation.js";
 
-export const SEPA_ENGINE = "sepa/SP3";
+export const SEPA_ENGINE = "sepa/SP6";
 export const SEPA_EQUITY_REF = 1_000_000_000;
+const vol50At = (S, t) => { const a = Math.max(0, t - 49); let s = 0; for (let i = a; i <= t; i++) s += S.V[i]; return Math.round(s / (t - a + 1)); };
 const round = (x, nd = 4) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 10 ** nd) / 10 ** nd : x);
 const shortPattern = (p) => ({ name: p.name, detected: p.detected, status: p.status, score: p.score, footprint: p.footprint || null, pivot: p.pivot, reasonsFailed: p.reasonsFailed.slice(0, 3) });
 
@@ -37,6 +38,8 @@ export function sepaRow(r, item, S, t, extra = {}) {
       stop: r.plan?.stop ?? null, stopPct: r.plan ? round(r.plan.stopPct * 100, 2) : null,
       fundScore: r.fund.score, epsGrowthQ: r.fund.metrics.EPS_gan_nhat ?? null, revGrowthQ: r.fund.metrics.DT_gan_nhat ?? null,
       code33: Boolean(r.fund.flags.MAT_MA_33), leadScore: r.lead.diem_dan_dat ?? null,
+      // SP6: KL TB 50 phiên tới phiên quét — mốc so KL dự phóng trong phiên (≥ 1,4× = phá vỡ đạt chuẩn, s.270)
+      vol50: vol50At(S, t),
     },
     liquidity: extra.liquidity ?? null, priceBasis: extra.priceBasis ?? null,
   };

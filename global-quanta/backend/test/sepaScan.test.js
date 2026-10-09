@@ -34,16 +34,16 @@ async function setup() {
   return { service: { store }, loadSeries };
 }
 
-test("sepa là một chiến lược của bộ lọc TA (engine sepa/SP3), chạy cùng lần tải dữ liệu", () => {
+test("sepa là một chiến lược của bộ lọc TA (engine sepa/SP6), chạy cùng lần tải dữ liệu", () => {
   assert.ok(STRATEGY_IDS.includes("sepa"));
-  assert.equal(STRATEGY_ENGINE.sepa, "sepa/SP3");
+  assert.equal(STRATEGY_ENGINE.sepa, "sepa/SP6");
 });
 
 test("KV strategies:sepa: 4 danh sách, xếp theo danh sách rồi điểm, JSON sạch, kế hoạch lệnh cho mã gần điểm mua", async () => {
   const { service, loadSeries } = await setup();
   const docs = await runTechnicalFilters(service, { loadSeries, criteria: screenerCriteria({}), strategies: ["sepa"] });
   const d = docs.sepa;
-  assert.equal(d.engine, "sepa/SP3");
+  assert.equal(d.engine, "sepa/SP6");
   assert.equal(d.evidence.label, "EXPERIMENTAL");
   assert.equal(d.evidence.validation.hypotheses.find((h) => h.id === "S2").verdict, "PASS");
   assert.deepEqual(d.evidence.validation.hypotheses.filter((h) => ["S1", "S3", "S4"].includes(h.id)).map((h) => h.verdict), ["FAIL", "FAIL", "FAIL"]);
@@ -86,7 +86,7 @@ test("sổ theo dõi SEPA (SP5): READY / ALERT theo danh sách + S2; THEO DÕI /
   assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_READY").length, count("SẴN SÀNG MUA"));
   assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_ALERT").length, count("CẢNH BÁO MUA"));
   assert.equal(rows.filter((r) => r.signal === "SCR_SEPA_S2").length, res.filter(isSepaS2).length);
-  assert.ok(rows.every((r) => r.direction === 1 && r.model_version === "sepa/SP3" && r.features.list));
+  assert.ok(rows.every((r) => r.direction === 1 && r.model_version === "sepa/SP6" && r.features.list));
   assert.ok(!rows.some((r) => ["THEO DÕI", "LOẠI"].includes(r.features.list)));
   const live = liveTracking({ generatedAt: "x", rows: [{ regime: "ALL", signal: "SCR_SEPA_READY", horizon: 5, n: 12, hitRate: 0.6, baseline: 0.5, hitLow: 0.4, hitHigh: 0.8, verdict: "none" }] }, "sepa");
   assert.deepEqual(live.groups.map((g) => g.key), ["ready", "alert", "s2"]);
