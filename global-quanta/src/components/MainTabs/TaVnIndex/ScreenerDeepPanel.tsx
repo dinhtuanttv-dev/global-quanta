@@ -264,20 +264,20 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
           {ew ? (
             <div className="space-y-1.5 text-[10px]" data-testid="deep-elliott">
               <div className="text-[12px] font-bold text-cyan-200">{ew.label}</div>
-              {ew.probability != null && (
-                <div>
-                  <div className="flex justify-between text-[9px] text-slate-500"><span>Xác suất kịch bản (mô hình)</span><span className="font-mono text-slate-300">{Math.round(ew.probability * 100)}%</span></div>
-                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.round(ew.probability * 100)}%`, background: ACCENT }} /></div>
+              {ew.weight != null && (
+                <div title="Trọng số tương đối giữa các kịch bản sóng (softmax điểm mô hình) — không phải xác suất xảy ra">
+                  <div className="flex justify-between text-[9px] text-slate-500"><span>Trọng số tương đối (chưa hiệu chỉnh)</span><span className="font-mono text-slate-300">{Math.round(ew.weight * 100)}%</span></div>
+                  <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.round(ew.weight * 100)}%`, background: ACCENT }} /></div>
                 </div>
               )}
               {ew.invalidation && <div className="text-slate-400">Vô hiệu nếu giá {ew.invalidation.side === "below" ? "thủng" : "vượt"} <span className="font-mono text-slate-200">{fmtP(ew.invalidation.price)}</span></div>}
               {ew.alternatives.length > 0 && (
                 <ul className="text-[9px] text-slate-500 space-y-0.5">
-                  {ew.alternatives.map((a, i) => <li key={i}>Phương án {i + 2}: {a.label}{a.probability != null ? ` · ${Math.round(a.probability * 100)}%` : ""}</li>)}
+                  {ew.alternatives.map((a, i) => <li key={i}>Phương án {i + 2}: {a.label}{a.weight != null ? ` · trọng số ${Math.round(a.weight * 100)}%` : ""}</li>)}
                 </ul>
               )}
               {h?.wave && <div className="text-slate-400">Cạnh phải cốc: <span className="text-slate-200">{h.wave.count}</span></div>}
-              <p className="text-[8px] text-slate-600">Bảng thống kê của engine lấy từ sách GET, chưa hiệu chỉnh cho thị trường VN.</p>
+              <p className="text-[8px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. Bảng thống kê của engine lấy từ sách GET (futures thập niên 1990), chưa hiệu chỉnh cho thị trường VN.</p>
             </div>
           ) : <div className="text-[10px] text-slate-500 py-4">{series.isLoading ? "Đang đếm sóng…" : "Chưa có kịch bản sóng hợp lệ."}</div>}
         </Card>

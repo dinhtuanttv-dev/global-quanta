@@ -142,10 +142,11 @@ export function wave5Targets(p0, p1, p2, p3, p4) {
 }
 
 // Thống kê của tác giả (T-37, T-38, T-40)
-export function statWave2(r) {
+export function statWave2(r) {                                // T-37: 12% ≤38% · 73% trong 50–60% · 15% >62%
   if (r <= 0.38) return { bucket: '≤38%', pct: 12 };
   if (r < 0.5) return { bucket: '38–50%', pct: null };       // sách không nêu
-  if (r <= 0.62) return { bucket: '50–62%', pct: 73 };
+  if (r <= 0.6) return { bucket: '50–60%', pct: 73 };
+  if (r <= 0.62) return { bucket: '60–62%', pct: null };     // sách không nêu
   return { bucket: '>62%', pct: 15 };
 }
 export function statWave3(r) {
@@ -225,6 +226,58 @@ export function classifySegment(c, pa, pb, s, o) {
   return pv.length > 2 ? { kind: 'complex-other', family: 'complex' } : { family: 'unknown' };
 }
 
+/** Số sóng con trong đoạn [pa, pb] (zigzag mịn): số chặng = số pivot bên trong + 1. Dùng cho cấu trúc sóng A (T-27). */
+export function subwaveCount(c, pa, pb, o) {
+  const seg = c.slice(pa.i, pb.i + 1);
+  if (seg.length < 5) return null;
+  const zz = o.zigzag;
+  const inner = zigzag(seg, { pct: zz.pct * o.fineFactor, atrPeriod: zz.atrPeriod, atrMult: zz.atrMult * o.fineFactor })
+    .filter(p => p.i > 0 && p.i < seg.length - 1 && p.confirmed);
+  return inner.length + 1;
+}
+
+/**
+ * Sóng điều chỉnh sau 5 sóng — đầy đủ theo sách (T-27…T-30):
+ *   - classifyABC (zigzag / flat / irregular theo tỷ lệ B);
+ *   - cấu trúc sóng A: zigzag ⇒ A có 5 sóng con; flat / irregular ⇒ A có 3 sóng con (T-27). Không khớp ⇒ cờ structureOk=false;
+ *   - "phân kỳ góc" ở sóng C: giá C vượt cuối A nhưng dao động yếu hơn ở A (T-27);
+ *   - tam giác ở sóng B: 5 pivot a–e sau A hội tụ ⇒ thrust cùng hướng sóng A (T-30).
+ * k5 = chỉ số (trong pivots) của đỉnh/đáy sóng 5; s = hướng xung lực (+1 / −1).
+ */
+export function analyzeCorrection(c, osc, pivots, k5, s, o) {
+  const start = pivots[k5], A = pivots[k5 + 1];
+  if (!A) return null;
+  // Tam giác ở sóng B (T-30): a,b,c,d,e = pivots k5+2 … k5+6, C = k5+7.
+  const triPts = pivots.slice(k5 + 2, k5 + 7);
+  if (triPts.length === 5 && triPts.every(p => p.confirmed)) {
+    const tri = detectTriangle([A, ...triPts.slice(0, 4)]);
+    if (tri.valid) {
+      const C = pivots[k5 + 7];
+      return {
+        kind: 'triangle-B', family: 'complex', triangle: tri, lenA: s * (start.price - A.price),
+        thrust: { direction: s > 0 ? 'down' : 'up', note: 'Tam giác ở sóng B: thrust cùng hướng sóng A (T-30)' },
+        C: C ?? null, aWaves: subwaveCount(c, start, A, o), structureOk: null, cDivergence: null,
+      };
+    }
+  }
+  const B = pivots[k5 + 2], C0 = pivots[k5 + 3];
+  if (!B) return null;
+  const C = C0 && C0.confirmed ? C0 : undefined;
+  const res = classifyABC(start, A, B, C, s, o);
+  const aWaves = subwaveCount(c, start, A, o);
+  res.aWaves = aWaves;
+  res.structureOk = aWaves == null || (aWaves !== 3 && aWaves !== 5) ? null
+    : res.kind === 'zigzag' ? aWaves === 5 : (res.kind === 'flat' || res.kind === 'irregular') ? aWaves === 3 : null;
+  if (C) {
+    // Hướng điều chỉnh ngược xung lực: cực trị dao động theo hướng −s.
+    const oscA = osExt(osc, -s, start.i, A.i, 'max'), oscC = osExt(osc, -s, B.i, C.i, 'max');
+    res.cDivergence = res.cBeyondA && !isNaN(oscA.v) && !isNaN(oscC.v)
+      ? { pass: oscC.v < oscA.v, oscA: oscA.v, oscC: oscC.v, note: 'Giá C vượt cuối A nhưng dao động yếu hơn — dấu hiệu kết thúc điều chỉnh (T-27)' }
+      : null;
+  } else res.cDivergence = null;
+  return res;
+}
+
 /** Quy tắc luân phiên (T-31). */
 export function alternation(f2, f4) {
   if (f2 === 'unknown' || f4 === 'unknown') return { ok: null, note: 'không đủ dữ liệu để phân loại' };
@@ -265,6 +318,8 @@ export function evaluateImpulse(c, osc, bands, pts, o) {
   if (!isNaN(pk3.v) && pk3.v > 0) {
     const b = s > 0 ? bands.up[pk3.i] : -bands.lo[pk3.i];
     checks.wave3Band = { pass: b > 0 && pk3.v > b * (1 + o.osc.bandMargin), osc: pk3.v, band: b };           // T-20
+    const pk1 = osExt(osc, s, I[0], I[1], 'max');
+    checks.wave3Strongest = { pass: isNaN(pk1.v) || pk3.v > pk1.v, peak1: pk1.v, peak3: pk3.v };          // T-13/T-17: sóng 3 = dao động mạnh nhất
     const tr4 = osExt(osc, s, I[3], I[4], 'min');
     if (!isNaN(tr4.v)) {
       const pullback = (pk3.v - tr4.v) / pk3.v, opposite = tr4.v < 0 ? -tr4.v / pk3.v : 0;
@@ -356,8 +411,7 @@ export function analyze(candles, userOpts = {}) {
   let correction = null;
   if (best && best.status === 'complete') {
     const s = best.dir === 'up' ? 1 : -1, k = pivots.findIndex(p => p.i === best.points[5].i);
-    const [A, B, C] = [pivots[k + 1], pivots[k + 2], pivots[k + 3]];
-    if (A && B) correction = classifyABC(best.points[5], A, B, C, s, o);
+    correction = analyzeCorrection(candles, osc, pivots, k, s, o);
   }
   if (best) {                                   // Quy tắc luân phiên cần ≥ sóng 4
     const s = best.dir === 'up' ? 1 : -1, p = best.points;
@@ -604,8 +658,7 @@ export function multiDegreeScenarios(c, osc, bands, o, degrees = DEGREES) {
       sc.pivotsAfter = pivots.length - 1 - idx.get(sc.points[sc.points.length - 1].i);
       if (sc.points.length === 6 && sc.points[5].confirmed) {
         const k = idx.get(sc.points[5].i), s = sc.dir === 'up' ? 1 : -1;
-        const [A, B, C] = [pivots[k + 1], pivots[k + 2], pivots[k + 3]];
-        if (A && B) sc.correction = classifyABC(sc.points[5], A, B, C && C.confirmed ? C : undefined, s, o);
+        sc.correction = analyzeCorrection(c, osc, pivots, k, s, o);
       }
       return sc;
     });
@@ -621,7 +674,7 @@ export function multiDegreeScenarios(c, osc, bands, o, degrees = DEGREES) {
 // ───────────────────────────── 13. Xếp hạng kịch bản theo xác suất (không chỉ 1 đáp án) ─────────────────────────────
 // Bảng xác suất mặc định = số liệu của sách (T-37, T-38, T-40). Có thể thay bằng bảng hiệu chỉnh từ dữ liệu VN (Mục 15).
 export const STAT_TABLES = {
-  w2: [{ max: 0.38, p: 0.12 }, { max: 0.5, p: null }, { max: 0.62, p: 0.73 }, { max: Infinity, p: 0.15 }],
+  w2: [{ max: 0.38, p: 0.12 }, { max: 0.5, p: null }, { max: 0.6, p: 0.73 }, { max: 0.62, p: null }, { max: Infinity, p: 0.15 }], // T-37: 73% là 50–60%
   w3: [{ max: 1, p: 0.02 }, { max: 1.6, p: 0.15 }, { max: 1.75, p: 0.45 }, { max: 2.62, p: 0.30 }, { max: Infinity, p: 0.08 }],
   w4: [{ max: 0.24, p: null }, { max: 0.3, p: 0.15 }, { max: 0.5, p: 0.60 }, { max: 0.62, p: 0.15 }, { max: Infinity, p: 0.10 }],
 };
