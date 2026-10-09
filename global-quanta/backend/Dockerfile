@@ -1,6 +1,7 @@
 # Market Gateway + Ingestor: cần chạy liên tục (giữ kết nối SSI stream),
 # không chạy được trên Vercel serverless. Dùng được cho Railway, Fly.io, VPS.
-FROM node:20-slim
+# Bản sao chính thức của Docker Hub trên ECR Public — Railway bị Docker Hub giới hạn lượt tải (429).
+FROM public.ecr.aws/docker/library/node:20-slim
 WORKDIR /app
 ENV NODE_ENV=production
 # Không tải trình duyệt Playwright (chỉ dùng cho AI Chart Vision capture).
