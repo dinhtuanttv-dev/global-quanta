@@ -22,6 +22,7 @@ import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
 import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
+import { patternDetail } from "../market/strategies/patternScan.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 
@@ -126,6 +127,21 @@ router.get("/strategies/sepa/intraday", handle(async (req, res) => {
   });
   if (data.error) { res.status(503).json(data); return; }
   res.set("Cache-Control", "private, max-age=20");
+  res.json(data);
+}));
+
+// Pattern Scanner v2 (Pring) — bảng phụ: mô hình đầy đủ (hình học, vòng đời, checklist) khung ngày + tuần và nến để vẽ.
+// Cùng chuỗi giá điều chỉnh với job quét (chỉ đọc kho, không gọi SSI); bộ nhớ đệm 10 phút / mã.
+router.get("/strategies/patterns/:symbol", handle(async (req, res) => {
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{2,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap(`patterns-detail:${symbol}`, 10 * 60_000, async () => {
+    const loadSeries = await createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }).prepare([symbol]);
+    return patternDetail(symbol, await loadSeries(symbol));
+  });
+  if (!data) { res.status(404).json({ error: `Chưa có chuỗi giá cho ${symbol}.` }); return; }
+  res.set("Cache-Control", "private, max-age=120");
   res.json(data);
 }));
 
