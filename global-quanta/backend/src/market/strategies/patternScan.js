@@ -3,11 +3,12 @@
 //
 // KV strategies:patterns chỉ lưu BẢN TÓM TẮT mỗi mô hình (bản đầy đủ ≈ 3 KB/mô hình -> ≈ 2,5 MB cho cả universe);
 // bảng phụ đọc chi tiết qua GET /api/market/strategies/patterns/:symbol (patternDetail — tính theo yêu cầu, cùng chuỗi giá).
-// Điểm số là điểm minh bạch theo checklist Pring, CHƯA kiểm định ngoài mẫu (P3) -> nhãn EXPERIMENTAL.
+// Kiểm định đặt trước P3 (pring/validation.js): không nhóm mô hình nào đạt ngoài mẫu, điểm không xếp hạng được -> EXPERIMENTAL.
 // P2 KHÔNG ghi sổ tín hiệu (SCR_PAT_* bắt đầu từ P4 theo kế hoạch đã duyệt).
 
 import { PATTERN_ENGINE, PRING, preparePattern, scanPatterns } from "./pring/index.js";
 import { toWeekly, weekFriday } from "./sepa/indicators.js";
+import { PRING_VALIDATION } from "./pring/validation.js";
 
 export const PATTERNS_ENGINE = PATTERN_ENGINE;
 export const PATTERN_TIMEFRAMES = Object.freeze(["D", "W"]);
@@ -97,10 +98,12 @@ export function scanPatternUniverse({ eligible }) {
   return { results, errors, counts };
 }
 
+/** Bằng chứng: kiểm định đặt trước P3 (pring/validation.js) — không nhóm nào đạt -> EXPERIMENTAL, chỉ hiển thị. */
 export const PATTERN_EVIDENCE = Object.freeze({
-  label: "EXPERIMENTAL",
-  reason: "Điểm = checklist minh bạch theo Martin Pring (bối cảnh, số lần chạm, khối lượng, phá vỡ dứt khoát, giữ 2 thanh…). CHƯA kiểm định ngoài mẫu — kiểm định đặt trước theo từng họ mô hình ở bước P3.",
-  all: { n: 0 },
+  label: PRING_VALIDATION.label,
+  reason: PRING_VALIDATION.conclusion,
+  validation: PRING_VALIDATION,
+  all: { n: PRING_VALIDATION.H1.G2.oos.n + PRING_VALIDATION.H1.G3.oos.n },
 });
 
 /** Nến gọn [date, o, h, l, c, v] để vẽ trong bảng phụ. */
