@@ -13,7 +13,7 @@ export { STATE_VI } from "./lifecycle.js";
 export { barPatternsAt, BAR_LABEL } from "./bars.js";
 export { preparePattern, pivotsAt, zigzag, atrOf } from "./core.js";
 
-export const PATTERN_ENGINE = "pring/P2";
+export const PATTERN_ENGINE = "pring/P4";
 const ACTIVE = new Set(["BREAKOUT", "CONFIRMED", "PULLBACK", "TARGET1", "TARGET2"]);
 /** Độ "tươi": đang hình thành (điểm cuối mô hình ≤ 40 thanh trước) hoặc sự kiện cuối ≤ 20 thanh trước. */
 export const FRESH = Object.freeze({ formingBars: 40, eventBars: 20, failedBars: 5 });

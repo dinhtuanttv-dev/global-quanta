@@ -4,7 +4,7 @@
 // KV strategies:patterns chỉ lưu BẢN TÓM TẮT mỗi mô hình (bản đầy đủ ≈ 3 KB/mô hình -> ≈ 2,5 MB cho cả universe);
 // bảng phụ đọc chi tiết qua GET /api/market/strategies/patterns/:symbol (patternDetail — tính theo yêu cầu, cùng chuỗi giá).
 // Kiểm định đặt trước P3 (pring/validation.js): không nhóm mô hình nào đạt ngoài mẫu, điểm không xếp hạng được -> EXPERIMENTAL.
-// P2 KHÔNG ghi sổ tín hiệu (SCR_PAT_* bắt đầu từ P4 theo kế hoạch đã duyệt).
+// Sổ tín hiệu (P4): SCR_PAT_BUY / _SELL / _W_BUY / _W_SELL — mô hình được xác nhận đúng phiên quét (signalTracking.js).
 
 import { PATTERN_ENGINE, PRING, preparePattern, scanPatterns } from "./pring/index.js";
 import { toWeekly, weekFriday } from "./sepa/indicators.js";
@@ -58,11 +58,16 @@ export function summarizePattern(p) {
   };
 }
 
-/** Hạng để chọn mô hình chính / xếp danh sách: đang hiệu lực (phá vỡ/xác nhận/pullback) > hình thành > đạt mục tiêu > thất bại; tăng trước giảm. */
+/**
+ * Hạng để chọn mô hình chính / xếp danh sách — THEO TRẠNG THÁI, KHÔNG theo điểm (kiểm định P3 H3: điểm không xếp hạng được):
+ * đang hiệu lực (phá vỡ/xác nhận/pullback) > hình thành > đạt mục tiêu > thất bại; tăng trước giảm; khung tuần trước ngày;
+ * cùng hạng -> sự kiện gần hơn (ngày phá vỡ, hoặc ngày kết thúc mô hình).
+ */
 export function patternRank(p) {
   const st = ACTIVE.has(p.state) ? 4 : p.state === "FORMING" ? 3 : p.state.startsWith("TARGET") ? 2 : 1;
-  return st * 1000 + (p.dir === "bull" ? 200 : 0) + (p.timeframe === "W" ? 50 : 0) + (p.score ?? 0);
+  return st * 1000 + (p.dir === "bull" ? 200 : 0) + (p.timeframe === "W" ? 50 : 0);
 }
+const recency = (p) => p.breakoutDate ?? p.endDate ?? "";
 
 /**
  * Quét universe (đã qua cổng giá/thanh khoản ở technicalFilters).
@@ -74,7 +79,7 @@ export function scanPatternUniverse({ eligible }) {
   for (const { item, bars, gate, priceBasis } of eligible) {
     try {
       const a = analyzePatterns(bars);
-      const patterns = [...a.daily, ...a.weekly].map(summarizePattern).sort((x, y) => patternRank(y) - patternRank(x));
+      const patterns = [...a.daily, ...a.weekly].map(summarizePattern).sort((x, y) => patternRank(y) - patternRank(x) || recency(y).localeCompare(recency(x)));
       if (!patterns.length) continue;
       for (const p of patterns) {
         counts.byState[p.state] = (counts.byState[p.state] ?? 0) + 1;
@@ -94,7 +99,7 @@ export function scanPatternUniverse({ eligible }) {
       errors.push({ ticker: item.ticker, reason: "INVALID_DATA", message: error instanceof Error ? error.message : String(error) });
     }
   }
-  results.sort((x, y) => y.metrics.rank - x.metrics.rank || x.ticker.localeCompare(y.ticker));
+  results.sort((x, y) => y.metrics.rank - x.metrics.rank || recency(y.patterns[0]).localeCompare(recency(x.patterns[0])) || x.ticker.localeCompare(y.ticker));
   return { results, errors, counts };
 }
 
