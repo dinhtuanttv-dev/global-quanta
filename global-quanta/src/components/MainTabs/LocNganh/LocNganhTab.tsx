@@ -105,6 +105,8 @@ export default function LocNganhTab() {
                 onClearSector={() => setSelectedSectorKey(null)}
                 onSelectTicker={selectTicker}
                 timingOf={timingOf}
+                dataSource={top20Data?.dataSource}
+                evidence={top20Data?.evidence}
               />
             </>
           )}
