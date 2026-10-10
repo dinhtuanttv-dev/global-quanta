@@ -18,8 +18,14 @@ test("GTGD 20/250: dòng tiền tăng gấp 3 trong 20 phiên gần nhất -> t�
   const bench = mk(() => 1000);
   const hot = mk(() => 20, (i) => (i >= 280 ? 3e9 : 1e9));
   const x = tickerInputs("HOT", hot, new Map(bench.map((b) => [b.date, b.close])));
-  assert.ok(x.volumeSpikeRatio > 2.4 && x.volumeSpikeRatio < 3.1, String(x.volumeSpikeRatio));
+  assert.ok(x.valueRatioRaw > 2.4 && x.valueRatioRaw < 3.1, String(x.valueRatioRaw));
   assert.equal(x.liquid, false);
+  // so với thị trường: cả thị trường cạn 50% -> mã giữ nguyên dòng tiền có tỷ lệ tương đối ≈ 2
+  const dry = (n) => mk(() => 20, (i) => (i >= 280 ? 0.5e10 : 1e10));
+  const seriesOf = new Map([["DR1", dry()], ["DR2", dry()], ["DR3", dry()], ["KEEP", mk(() => 20, () => 1e10)]]);
+  const doc = buildTop20Inputs({ seriesOf, benchBars: bench });
+  const keep = doc.tickers.find((t) => t.ticker === "KEEP"), d1 = doc.tickers.find((t) => t.ticker === "DR1");
+  assert.ok(Math.abs(d1.volumeSpikeRatio - 1) < 0.05 && keep.volumeSpikeRatio > 1.7, JSON.stringify([d1, keep]));
 });
 
 test("PVT / A-D: tăng đều, đóng cửa sát đỉnh -> dương; giảm đều -> âm", () => {

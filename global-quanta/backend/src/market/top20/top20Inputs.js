@@ -1,7 +1,8 @@
 // Radar Top 20 (T0, 2026-10-10) — thành phần đầu vào cho điểm hội tụ, tính trên chuỗi ĐIỀU CHỈNH CỘNG DỒN của cả universe
 // (thay Yahoo 6 tháng chưa điều chỉnh + 61 mã viết cứng ở Project A). Project A vẫn chấm điểm (confluence-score.ts) — hợp đồng giữ nguyên.
 //   rs3m            lợi suất 63 phiên của mã − của VN-Index, % — CĂN THEO NGÀY (trước đây Yahoo VN-Index chỉ trả 1 nến -> null ở mọi mã)
-//   volumeSpikeRatio  GTGD TB20 / GTGD TB250 (dòng tiền bất thường bền hơn 1 phiên; thang tương tự tỷ lệ cũ ~0,5–3)
+//   volumeSpikeRatio  (GTGD TB20 / TB250 của mã) ÷ trung vị cùng tỷ lệ của universe thanh khoản — dòng tiền bất thường SO VỚI
+//                     THỊ TRƯỜNG (tâm ≈ 1 như thang cũ; khi cả thị trường cạn thanh khoản không làm mọi mã về 0). valueRatioRaw = tỷ lệ thô.
 //   pvtScore, adScore  xu hướng PVT / A-D 20 phiên chuẩn hoá −100..100 (cùng công thức Project A)
 //   avgValue60, liquid  GTGD TB60 (đồng) và cờ ≥ 5 tỷ
 // Hàm thuần — không I/O.
@@ -54,7 +55,7 @@ export function tickerInputs(ticker, bars, benchByDate, { minValue = TOP20_MIN_V
   const v20 = avgValue(bars, 20), vLong = avgValue(bars, Math.min(250, bars.length)), v60 = avgValue(bars, 60);
   return {
     ticker, lastDate: bars[e].date, bars: bars.length,
-    rs3m: r1(rs3m), volumeSpikeRatio: vLong > 0 ? r2(v20 / vLong) : null,
+    rs3m: r1(rs3m), valueRatioRaw: vLong > 0 ? r2(v20 / vLong) : null, volumeSpikeRatio: null,
     pvtScore: pvtTrend(bars), adScore: adTrend(bars),
     avgValue60: Math.round(v60), liquid: v60 >= minValue,
   };
@@ -71,8 +72,11 @@ export function buildTop20Inputs({ seriesOf, benchBars, now = Date.now }) {
     if (x) tickers.push({ ...x, stale: Boolean(staleBefore && x.lastDate < staleBefore) });
   }
   tickers.sort((a, b) => a.ticker.localeCompare(b.ticker));
+  const raws = tickers.filter((x) => x.liquid && !x.stale && x.valueRatioRaw > 0).map((x) => x.valueRatioRaw).sort((a, b) => a - b);
+  const med = raws.length ? (raws.length % 2 ? raws[raws.length >> 1] : (raws[raws.length / 2 - 1] + raws[raws.length / 2]) / 2) : null;
+  for (const x of tickers) x.volumeSpikeRatio = med > 0 && x.valueRatioRaw != null ? r2(x.valueRatioRaw / med) : x.valueRatioRaw;
   return {
     engine: TOP20_INPUTS_ENGINE, dataAsOf, builtAt: new Date(now()).toISOString(), priceBasis: "ADJUSTED_CUMULATIVE",
-    minValue: TOP20_MIN_VALUE, count: tickers.length, liquid: tickers.filter((x) => x.liquid && !x.stale).length, tickers,
+    minValue: TOP20_MIN_VALUE, marketValueRatioMedian: r2(med), count: tickers.length, liquid: tickers.filter((x) => x.liquid && !x.stale).length, tickers,
   };
 }
