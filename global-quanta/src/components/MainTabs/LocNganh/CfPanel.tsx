@@ -13,6 +13,10 @@ import { ClusterPanel } from './ClusterPanel';
 import { ExplainabilityPanel } from './ExplainabilityPanel';
 import { TimingForecastPanel } from './TimingForecastPanel';
 import { PersonalizationSettings } from './PersonalizationSettings';
+import { CfEvidenceBanner } from './CfEvidenceBanner';
+import type { MatchChartMode } from './MainChart';
+
+const UNIT: Record<Timeframe, string> = { daily: 'phiên', weekly: 'tuần', monthly: 'tháng' };
 
 interface CycleFingerprintPanelProps {
   data: CycleFingerprintResponse | undefined;
@@ -41,7 +45,9 @@ export function CycleFingerprintPanel({
   personalization, onPersonalizationChange,
 }: CycleFingerprintPanelProps) {
   const { t } = useCfI18n();
-  const [highlightedTicker, setHighlightedTicker] = useState<string | null>(null);
+  const [highlightedKey, setHighlightedKey] = useState<string | null>(null);
+  const [chartMode, setChartMode] = useState<MatchChartMode>('overlay');
+  const unit = UNIT[timeframe];
 
   const topBar = (
     <div className="cf-tab__top-bar">
@@ -95,7 +101,15 @@ export function CycleFingerprintPanel({
   return (
     <div className="cf-tab">
       {topBar}
+      <CfEvidenceBanner windowSize={windowSize} />
       <WarningBanner score={qualityScoreWithPersonalThreshold} />
+
+      <div className="cf-mode-toggle" role="group" aria-label="Cách vẽ giai đoạn tương tự">
+        {([['overlay', `Chồng lên hiện tại + 60 ${unit} sau`], ['shape', 'Hình dạng mẫu (kiểu cũ)']] as const).map(([m, label]) => (
+          <button key={m} type="button" className={`cf-chip ${chartMode === m ? 'cf-chip--active' : ''}`} aria-pressed={chartMode === m}
+            data-testid={`cf-mode-${m}`} onClick={() => setChartMode(m)}>{label}</button>
+        ))}
+      </div>
 
       {/* Bieu do gia chinh - Y HET Giai doan 1, khong dinh dang lieu Nhom 1 nao */}
       <div className="cf-tab__main-row">
@@ -104,20 +118,22 @@ export function CycleFingerprintPanel({
           topMatches={data.topMatches}
           atrSeries={data.atrSeries}
           useAtrAxis={useAtrAxis}
-          highlightedTicker={highlightedTicker}
+          highlightedKey={highlightedKey}
+          mode={chartMode}
+          unitLabel={unit}
         />
         <QualityScoreBadge score={data.qualityScore} />
       </div>
 
       <SummaryTable summary={data.summary} />
 
-      <TopKList matches={data.topMatches} highlightedTicker={highlightedTicker} onHighlight={setHighlightedTicker} />
+      <TopKList matches={data.topMatches} highlightedKey={highlightedKey} onHighlight={setHighlightedKey} unitLabel={unit} />
 
       {/* Nhom 1 - tat ca deu la panel RIENG, khong dung chung canvas voi MainChart */}
       {data.fanChart && data.fanChart.length > 0 && <FanChartPanel fanChart={data.fanChart} />}
       <ClusterPanel clusterInput={data.clusterInput} />
       {data.explainability && <ExplainabilityPanel explainability={data.explainability} />}
-      {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} />}
+      {data.timingForecast && <TimingForecastPanel timing={data.timingForecast} shownCount={data.topMatches.length} />}
 
       <PersonalizationSettings settings={personalization} onChange={onPersonalizationChange} />
     </div>

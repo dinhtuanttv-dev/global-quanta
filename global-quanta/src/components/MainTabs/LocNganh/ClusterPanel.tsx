@@ -56,11 +56,11 @@ export function ClusterPanel({ clusterInput }: { clusterInput: ClusterInput | un
       <h4>Phân cụm chu kỳ (HDBSCAN)</h4>
       {isNoise ? (
         <p className="cf-cluster-status">
-          Mẫu hình hiện tại <b>không thuộc nhóm nào rõ ràng</b> trong {clusterInput.candidates.length} chu kỳ đã quét — khá đặc thù, ít lặp lại trong lịch sử.
+          Giai đoạn giống nhất <b>không thuộc nhóm nào rõ ràng</b> trong {clusterInput.candidates.length} giai đoạn đã quét (các giai đoạn này vốn được chọn vì giống nhau, nên phân cụm chỉ mang tính mô tả).
         </p>
       ) : (
         <p className="cf-cluster-status">
-          Mẫu hình hiện tại thuộc <b>Cụm #{todayClusterLabel}</b> (độ tin cậy thuộc cụm: {Math.round(todayProbability * 100)}%)
+          Giai đoạn giống nhất thuộc <b>Cụm #{todayClusterLabel}</b> (độ tin cậy thuộc cụm: {Math.round(todayProbability * 100)}%) — mô tả, không phải tín hiệu.
         </p>
       )}
 

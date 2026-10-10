@@ -20,6 +20,7 @@ export function QualityScoreBadge({ score }: { score: QualityScoreBreakdown }) {
         <div><dt>{t('quality.regime')}</dt><dd>{(score.regime.value * 100).toFixed(0)}%</dd></div>
         <div><dt>{t('quality.sampleSize')}</dt><dd>{(score.sampleSize.value * 100).toFixed(0)}%</dd></div>
       </dl>
+      <p className="cf-note">Tương đồng là thang tương đối (giai đoạn khớp nhất luôn 100%), nên điểm này hầu như luôn cao — không phản ánh độ tin cậy dự báo.</p>
     </div>
   );
 }

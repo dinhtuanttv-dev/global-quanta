@@ -3,6 +3,7 @@ import { useCfI18n } from '../../../i18n/CfI18nProvider';
 import { SourceBadge } from './SourceBadge';
 
 export function SummaryTable({ summary }: { summary: CycleFingerprintResponse['summary'] }) {
+  const n = summary.sampleCount;
   const { t } = useCfI18n();
 
   return (
@@ -33,6 +34,10 @@ export function SummaryTable({ summary }: { summary: CycleFingerprintResponse['s
         <span className="cf-summary-label">{t('summary.sampleCount')}</span>
         <span>{summary.sampleCount}</span>
       </div>
+      <p className="cf-note" data-testid="cf-summary-note" style={{ gridColumn: "1 / -1", flexBasis: "100%" }}>
+        Thống kê mô tả trên {n} giai đoạn của chính mã — mẫu rất nhỏ và không độc lập (diễn biến sau của các giai đoạn có thể chồng lấn nhau).
+        Không dùng làm xác suất thắng.
+      </p>
     </section>
   );
 }
