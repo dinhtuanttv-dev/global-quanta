@@ -3,8 +3,7 @@
 // Cấu hình CHỐT từ CF3 (cf3-config.json, SHA-256) — không chỉnh tay. Nhãn bằng chứng: CYCLE_VALIDATION.
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-import { createScreenerSeries } from "../strategies/screenerSeries.js";
-import { ICB_KV } from "../sectors/icbTaxonomy.js";
+import { loadAdjustedUniverse } from "../universeSeries.js";
 import { buildCalendar, buildLibrary, eligiblePrefix, HORIZONS, prepareSeries, windowFeatures } from "./library.js";
 import { absoluteSimilarity, candidatePool, forecastFromPool } from "./engine.js";
 import { hashConfig } from "./validate.js";
@@ -20,7 +19,6 @@ const HISTORY_DAYS = 1826;
 const pct = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(Math.expm1(x) * 10000) / 100); // log -> %
 const r3 = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 1000) / 1000);
 
-async function mapLimit(items, n, fn) { let i = 0; await Promise.all(Array.from({ length: n }, async () => { while (i < items.length) { const k = i++; await fn(items[k]); } })); }
 
 /** Dựng ngữ cảnh (lịch, chuỗi, thư viện) từ map chuỗi + VN-Index + ngành — dùng chung cho job và test. */
 export function buildCycleContext({ seriesOf, benchBars, sectorOf, now = Date.now }) {
@@ -109,33 +107,8 @@ export function createCycleService({ service, corporateActions, taSeries = null,
     return docs;
   }
   async function build() {
-    const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
-    if (!universe.length) throw new Error("Chưa có universe.");
-    const icb = (await store.getKv(ICB_KV))?.value ?? null;
-    const loadSeries = await createScreenerSeries({ store, corporateActions, historyDays: HISTORY_DAYS }).prepare(universe.map((u) => u.ticker));
-    const seriesOf = new Map();
-    let skipped = 0, viaTaSeries = 0;
-    const retry = [];
-    await mapLimit(universe, 6, async (u) => {
-      try {
-        const r = await loadSeries(u.ticker);
-        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") { retry.push(u.ticker); return; }
-        const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
-        if (bars.length) seriesOf.set(u.ticker, bars);
-      } catch { retry.push(u.ticker); }
-    });
-    // Kho chưa khôi phục được chuỗi cộng dồn (độ khớp danh nghĩa < 90%) -> lấy /ta-series (nguồn đã dùng cho CF3), nhẹ tay 2 luồng.
-    // Cùng quy tắc dữ liệu với CF3: chỉ nhận ADJUSTED_CUMULATIVE.
-    await mapLimit(retry, 2, async (t) => {
-      try {
-        const r = taSeries ? await taSeries.get({ symbol: t, range: "5y", limit: 1400 }) : null;
-        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") { skipped++; return; }
-        seriesOf.set(t, (r.bars ?? []).filter((b) => !b.partial && b.close > 0)); viaTaSeries++;
-      } catch { skipped++; }
-    });
-    const benchBars = (await loadSeries.index("VNINDEX")).filter((b) => !b.partial && b.close > 0);
+    const { seriesOf, benchBars, sectorOf, skipped, viaTaSeries } = await loadAdjustedUniverse({ store, corporateActions, taSeries, historyDays: HISTORY_DAYS });
     if (benchBars.length < 400) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
-    const sectorOf = new Map(Object.entries(icb?.symbols ?? {}).map(([t, v]) => [t, v?.l2 ?? null]));
     const next = buildCycleContext({ seriesOf, benchBars, sectorOf, now });
     next.skipped = skipped; next.viaTaSeries = viaTaSeries; next.sectorOf = sectorOf;
     ctx = next; cache.clear();
