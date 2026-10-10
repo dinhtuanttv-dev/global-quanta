@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { useAppStore } from "../../../store/useAppStore";
-import { useSectorRRG } from "../../../hooks/useSectorRRG";
 import { useTop20Radar } from "../../../hooks/useTop20Radar";
 import LocNganhPanel from "./LocNganhPanel";
 import CycleScreenerPanel from "./CycleScreenerPanel";
 import { CycleFingerprintTab } from "./CfTab";
 import SectorRotationPanel from "./timing/SectorRotationPanel";
 import { useSectorTimingSignals } from "../../../hooks/useSectorTimingSignals";
-import { useSectorTaxonomy } from "../../../hooks/useSectorRotation";
+import { useSectorRrg, useSectorTaxonomy } from "../../../hooks/useSectorRotation";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 
 type SubTab = "rrg" | "fingerprint";
@@ -26,7 +25,8 @@ export default function LocNganhTab() {
   const resetSectorFilters = useAppStore((s) => s.resetSectorFilters);
   const selectTicker = useAppStore((s) => s.selectTicker);
 
-  const { rrgData, error: rrgError, isLoading: rrgLoading } = useSectorRRG();
+  // L5: ma trận RRG cũ (Yahoo, 1 mã đại diện, 8 ngành) đã gỡ — ngành chọn ở bảng Xoay vòng ngành ICB (mã ICB 4 số)
+  const sectorRrg = useSectorRrg();
   const { top20Data, error: top20Error, isLoading: top20Loading } = useTop20Radar(selectedSectorKey);
 
   // L4: tín hiệu thời điểm của ngành ICB (cấp 2) chứa từng mã trong Top 20
@@ -35,8 +35,13 @@ export default function LocNganhTab() {
   const icb = useSectorTaxonomy();
   const timingOf = useMemo(() => (icb && timing.bySector.size ? (t: string) => timing.bySector.get(icb[t]?.l2 ?? "") ?? null : undefined), [icb, timing.bySector]);
 
-  const isLoading = rrgLoading || top20Loading;
-  const error = rrgError || top20Error;
+  const isLoading = top20Loading;
+  const error = top20Error;
+  const selectedSector = useMemo(() => {
+    if (!selectedSectorKey) return null;
+    const s = sectorRrg.data?.sectors.find((x) => x.code === selectedSectorKey);
+    return { code: selectedSectorKey, name: s?.name ?? selectedSectorKey };
+  }, [selectedSectorKey, sectorRrg.data]);
 
   const filteredTop20 = useMemo(() => {
     const raw = top20Data?.top20 ?? [];
@@ -50,7 +55,7 @@ export default function LocNganhTab() {
 
   return (
     <div className="loc-nganh-tab">
-      {/* Sub-tab switcher - CHI dieu huong hien thi, KHONG anh huong logic RRG/Top20 */}
+      {/* Sub-tab: chỉ điều hướng hiển thị, không ảnh hưởng logic xoay vòng ngành / Top 20 */}
       <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
         <button
           onClick={() => setSubTab("rrg")}
@@ -61,7 +66,7 @@ export default function LocNganhTab() {
             border: "none",
           }}
         >
-          RRG & Radar
+          Xoay vòng ngành & Top 20
         </button>
         <button
           onClick={() => setSubTab("fingerprint")}
@@ -78,11 +83,11 @@ export default function LocNganhTab() {
 
       {subTab === "rrg" && (
         <>
-          {isLoading && !rrgData && <div className="t1-state-msg">Dang tai du lieu nganh...</div>}
-          {error && <div className="t1-state-msg t1-error">Khong tai duoc: {String(error)}</div>}
+          {isLoading && !top20Data && <div className="t1-state-msg">Đang tải Top 20…</div>}
+          {gateway && <SectorRotationPanel selectedSector={selectedSectorKey} onFilterSector={(code) => setSelectedSectorKey(code === selectedSectorKey ? null : code)} />}
+          {error && <div className="t1-state-msg t1-error">Không tải được Top 20: {String(error)}</div>}
           {!error && (
             <>
-              {gateway && <SectorRotationPanel />}
               <CycleScreenerPanel
                 selectedQuadrant={selectedQuadrant}
                 onSelectQuadrant={setSelectedQuadrant}
@@ -93,19 +98,15 @@ export default function LocNganhTab() {
                 onReset={resetSectorFilters}
               />
               <LocNganhPanel
-                rrgPoints={rrgData?.points ?? []}
                 top20={filteredTop20}
                 totalAnalyzed={top20Data?.totalAnalyzed ?? 0}
                 riskOnScore={top20Data?.riskOnScore ?? null}
-                selectedSectorKey={selectedSectorKey}
-                onSelectSector={(key) => setSelectedSectorKey(key === selectedSectorKey ? null : key)}
+                selectedSector={selectedSector}
+                onClearSector={() => setSelectedSectorKey(null)}
                 onSelectTicker={selectTicker}
                 timingOf={timingOf}
               />
             </>
-          )}
-          {!isLoading && !error && rrgData && rrgData.points.length === 0 && (
-            <div className="t1-state-msg">Khong co du lieu nganh nao kha dung.</div>
           )}
         </>
       )}

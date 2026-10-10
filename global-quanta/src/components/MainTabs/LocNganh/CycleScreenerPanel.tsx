@@ -11,6 +11,7 @@ interface Props {
 }
 
 const QUADRANTS: Quadrant[] = ["Leading", "Improving", "Weakening", "Lagging"];
+const QUADRANT_VI: Record<Quadrant, string> = { Leading: "Dẫn dắt", Improving: "Cải thiện", Weakening: "Suy yếu", Lagging: "Tụt hậu" };
 
 export default function CycleScreenerPanel({
   selectedQuadrant, onSelectQuadrant, minRsScore, onChangeMinRs,
@@ -19,11 +20,11 @@ export default function CycleScreenerPanel({
   return (
     <div className="panel-block" style={{ marginBottom: 16 }}>
       <div className="sb-row" style={{ marginBottom: 10 }}>
-        <b style={{ color: "var(--gold)" }}>Bo Loc Da Tang Chu Ky</b>
+        <b style={{ color: "var(--gold)" }}>Bộ lọc Top 20</b>
       </div>
 
       <div style={{ marginBottom: 10 }}>
-        <span style={{ fontSize: 10, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Trang thai RRG</span>
+        <span style={{ fontSize: 10, color: "var(--text-tertiary)", display: "block", marginBottom: 4 }}>Góc RRG của ngành (ICB cấp 2)</span>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {QUADRANTS.map((q) => (
             <button
@@ -36,7 +37,7 @@ export default function CycleScreenerPanel({
                 border: "1px solid " + (selectedQuadrant === q ? "var(--gold)" : "transparent"),
               }}
             >
-              {q}
+              {QUADRANT_VI[q]}
             </button>
           ))}
         </div>
@@ -44,13 +45,13 @@ export default function CycleScreenerPanel({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 8 }}>
         <div>
-          <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>RS Score toi thieu: {minRsScore}</span>
+          <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>Điểm RS tối thiểu: {minRsScore}</span>
           <input type="range" min={0} max={100} value={minRsScore}
             onChange={(e) => onChangeMinRs(Number(e.target.value))}
             style={{ width: "100%", accentColor: "var(--gold)" }} />
         </div>
         <div>
-          <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>Volume Score toi thieu: {minVolumeScore}</span>
+          <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>Điểm khối lượng tối thiểu: {minVolumeScore}</span>
           <input type="range" min={0} max={100} value={minVolumeScore}
             onChange={(e) => onChangeMinVolume(Number(e.target.value))}
             style={{ width: "100%", accentColor: "var(--gold)" }} />
@@ -58,7 +59,7 @@ export default function CycleScreenerPanel({
       </div>
 
       <button onClick={onReset} style={{ fontSize: 10, color: "var(--text-tertiary)", background: "none", border: "none", cursor: "pointer" }}>
-        Xoa toan bo bo loc
+        Xóa toàn bộ bộ lọc
       </button>
     </div>
   );

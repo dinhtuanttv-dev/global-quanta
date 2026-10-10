@@ -14,6 +14,9 @@ export interface ConfluenceStock {
   ticker: string;
   sectorKey: string;
   sectorQuadrant: string;
+  /** L5: ngành ICB cấp 2 (Gateway) chứa mã — nguồn góc RRG của dòng. */
+  icbCode?: string | null;
+  icbName?: string | null;
   rs3m: number | null;
   volumeSpikeRatio: number | null;
   pvtScore: number | null;         // -100..100, tho

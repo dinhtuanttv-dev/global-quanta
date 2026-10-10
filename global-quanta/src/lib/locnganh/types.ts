@@ -207,9 +207,38 @@ export interface GatewaySectorRrg {
   tail: { week: string; date: string; ratio: number; momentum: number; quadrant: Quadrant }[];
   latestClosed: { ratio: number; momentum: number; heading: number | null; velocity: number | null };
   transitions: number; weeksSinceImproving: number | null; historyWeeks: number; from: string;
+  flow?: SectorFlow; state?: { key: SectorStateKey; label: string; why: string[] };
 }
 export interface GatewaySectorRrgDoc {
   engine: string; dataAsOf: string; closedThrough: string | null; partialWeek: boolean; method: string;
   coverage: { l2Total: number; l2Covered: number; missing: { code: string; name: string; reason: string }[]; classified: number; withSeries: number };
   sectors: GatewaySectorRrg[];
+  rotation?: Record<"2" | "3", SectorRotation>;
+  evidence?: { label: string; reason: string };
+}
+
+// =============================================================================
+// L5 — dòng tiền & trạng thái ngành (Gateway sectors/flow.js)
+// =============================================================================
+export type SectorStateKey = "GROWTH" | "ACCUMULATION" | "BOTTOMING" | "DISTRIBUTION" | "DECLINE" | "NEUTRAL";
+export interface SectorLeader {
+  ticker: string; rs: number | null; ret63: number | null; fromHigh: number | null; passed: number; leader: boolean; tags: string[];
+  checks: { aboveMa50: boolean; aboveMa200: boolean; nearHigh: boolean; beatsSector: boolean | null; rsStrong: boolean; volumeUp: boolean };
+}
+export interface SectorFlow {
+  share: { share20: number; share60: number; changePct: number; z: number; state: "INFLOW" | "OUTFLOW" | "RISING" | "FALLING"; history: { date: string; share: number }[] };
+  money: { cmf20: number; upDownValue: number; foreignNet20: number | null; foreignCoverage: number; accumulationScore: number; stealthAccumulation: boolean; stealthDistribution: boolean; volContraction: number | null };
+  price: { ret20: number | null; ret63: number | null };
+  breadth: { aboveMa50: number | null; aboveMa200: number | null; nearHigh52: number | null; members: number };
+  stage: { stage: number; label: string; confidence: number; stage2Start: string | null; baseCount: number } | null;
+  leaders: SectorLeader[];
+}
+export interface SectorRotation {
+  weeks: number; note: string;
+  gainers: { code: string; name: string; delta: number }[]; losers: { code: string; name: string; delta: number }[];
+  transfers: { from: string; fromName: string; to: string; toName: string; pp: number }[];
+}
+export interface SectorTrackingSummary {
+  summary: { totalSignals: number; resolvedSignals: number; rollingAccuracy: number | null; rollingWindowSize?: number; brierScore: number | null; cusum: { posSum: number; negSum: number; n: number; alarmed: boolean; alarmDirection: "HIGH" | "LOW" | null }; meanPredicted: number | null };
+  recent: { id: string; sectorCode: string; level: string; predictedProbability: number; entryDate: string; plannedExitDate: string; outcome: 0 | 1 | null; realizedCar: number | null }[];
 }
