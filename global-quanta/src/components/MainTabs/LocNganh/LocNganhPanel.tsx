@@ -53,7 +53,8 @@ function Top20Detail({ s, onClose }: { s: ConfluenceStock; onClose: () => void }
   ];
   return (
     <tr data-testid="top20-detail"><td colSpan={12} style={{ padding: 0 }}>
-      <div style={{ border: "1px solid var(--gold)", borderRadius: 8, padding: "10px 12px", margin: "6px 0" }}>
+      {/* ghim theo khung nhìn: bảng Top 20 rộng ≥ 980px cuộn ngang trên mobile — thẻ không trôi theo */}
+      <div style={{ border: "1px solid var(--gold)", borderRadius: 8, padding: "10px 12px", margin: "6px 0", position: "sticky", left: 0, maxWidth: "min(100%, calc(100vw - 40px))", boxSizing: "border-box" }}>
         <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
           <b style={{ color: "var(--gold)", fontSize: 14 }}>{s.ticker}</b>
           <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Điểm hội tụ {s.confluenceScore} = Σ điểm thành phần × trọng số</span>
