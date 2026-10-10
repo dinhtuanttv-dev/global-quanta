@@ -5,6 +5,7 @@
 
 import { isPartialWeek } from "../strategies/patternScan.js";
 import { buildSectorIndex, computeRrg, INDEX_PARAMS, quadrantTransitions, RRG_PARAMS, weeklyCloses } from "./rrg.js";
+import { SECTOR_VALIDATION } from "./validation.js";
 
 export const SECTOR_RRG_ENGINE = "sector-rrg/L1";
 export const SECTOR_RRG_KV = "sectors:rrg";
@@ -59,6 +60,7 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, now = 
     method: "Chỉ số ngành = rổ mã ICB trong universe (GTGD TB60 ≥ 300 triệu, ≥ 2 mã; < 3 mã = rổ mỏng), trọng số GTGD 60 phiên (trần 25%/mã), tái cân bằng đầu tháng, giá điều chỉnh. RRG tuần (W-FRI) so VN-Index: RS-Ratio = 100 + z(EMA4 RS, 26 tuần), RS-Momentum = 100 + z(EMA4 ΔRS-Ratio, 26 tuần) — 1 đơn vị = 1σ; góc phần tư lọc nhiễu bằng vùng đệm 0,15σ; sự kiện chỉ trên tuần đã đóng.",
     coverage: { universe: universe.length, withSeries: tickers.length, classified: tickers.length - unclassified.length, unclassified: unclassified.slice(0, 50),
       l2Total: icb.levels[2].length, l2Covered: sectors.filter((x) => x.level === 2).length, missing },
+    evidence: { label: SECTOR_VALIDATION.label, reason: SECTOR_VALIDATION.conclusion, validation: SECTOR_VALIDATION },
     sectors,
   };
   return { summary, history: { engine: SECTOR_RRG_ENGINE, dataAsOf: lastDate, closedThrough, sectors: history } };
