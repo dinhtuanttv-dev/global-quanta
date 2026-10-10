@@ -5,6 +5,10 @@ import { useTop20Radar } from "../../../hooks/useTop20Radar";
 import LocNganhPanel from "./LocNganhPanel";
 import CycleScreenerPanel from "./CycleScreenerPanel";
 import { CycleFingerprintTab } from "./CfTab";
+import SectorRotationPanel from "./timing/SectorRotationPanel";
+import { useSectorTimingSignals } from "../../../hooks/useSectorTimingSignals";
+import { useSectorTaxonomy } from "../../../hooks/useSectorRotation";
+import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 
 type SubTab = "rrg" | "fingerprint";
 
@@ -24,6 +28,12 @@ export default function LocNganhTab() {
 
   const { rrgData, error: rrgError, isLoading: rrgLoading } = useSectorRRG();
   const { top20Data, error: top20Error, isLoading: top20Loading } = useTop20Radar(selectedSectorKey);
+
+  // L4: tín hiệu thời điểm của ngành ICB (cấp 2) chứa từng mã trong Top 20
+  const gateway = isMarketGatewayEnabled();
+  const timing = useSectorTimingSignals({ enabled: gateway && subTab === "rrg" });
+  const icb = useSectorTaxonomy();
+  const timingOf = useMemo(() => (icb && timing.bySector.size ? (t: string) => timing.bySector.get(icb[t]?.l2 ?? "") ?? null : undefined), [icb, timing.bySector]);
 
   const isLoading = rrgLoading || top20Loading;
   const error = rrgError || top20Error;
@@ -72,6 +82,7 @@ export default function LocNganhTab() {
           {error && <div className="t1-state-msg t1-error">Khong tai duoc: {String(error)}</div>}
           {!error && (
             <>
+              {gateway && <SectorRotationPanel />}
               <CycleScreenerPanel
                 selectedQuadrant={selectedQuadrant}
                 onSelectQuadrant={setSelectedQuadrant}
@@ -89,6 +100,7 @@ export default function LocNganhTab() {
                 selectedSectorKey={selectedSectorKey}
                 onSelectSector={(key) => setSelectedSectorKey(key === selectedSectorKey ? null : key)}
                 onSelectTicker={selectTicker}
+                timingOf={timingOf}
               />
             </>
           )}

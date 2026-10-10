@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 import type { RRGPoint } from "../../../hooks/useSectorRRG";
 import type { ConfluenceStock } from "../../../hooks/useTop20Radar";
+import type { SectorTimingSignal } from "../../../lib/locnganh/types";
+import { SectorScreenerCells } from "./timing/SectorScreenerCells";
 
 interface Props {
   rrgPoints: RRGPoint[];
@@ -10,6 +12,8 @@ interface Props {
   selectedSectorKey: string | null;
   onSelectSector: (key: string) => void;
   onSelectTicker: (ticker: string) => void;
+  /** L4: tín hiệu thời điểm của NGÀNH ICB chứa mã (engine xoay vòng ngành) — có thì thêm 4 cột. */
+  timingOf?: (ticker: string) => SectorTimingSignal | null;
 }
 
 const QUADRANT_LABEL: Record<string, string> = {
@@ -33,7 +37,7 @@ function scoreCellStyle(score: number): CSSProperties {
 }
 
 export default function LocNganhPanel({
-  rrgPoints, top20, totalAnalyzed, riskOnScore, selectedSectorKey, onSelectSector, onSelectTicker,
+  rrgPoints, top20, totalAnalyzed, riskOnScore, selectedSectorKey, onSelectSector, onSelectTicker, timingOf,
 }: Props) {
   const quadrants = ["Leading", "Improving", "Lagging", "Weakening"];
   const riskInfo = riskOnScore !== null ? riskOnLabel(riskOnScore) : null;
@@ -102,7 +106,7 @@ export default function LocNganhPanel({
       </div>
 
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 640 }}>
+        <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: timingOf ? 980 : 640 }}>
           <thead>
             <tr style={{ color: "var(--text-tertiary)", fontSize: 10, textTransform: "uppercase" }}>
               <th style={{ textAlign: "left", padding: "4px 0" }}>Ma</th>
@@ -113,11 +117,17 @@ export default function LocNganhPanel({
               <th style={{ textAlign: "center" }} title="Price-Volume Trend - dong tien co trong so, phat hien tich luy/rut ron ben vung qua nhieu phien">PVT</th>
               <th style={{ textAlign: "center" }} title="Accumulation/Distribution Line - ap luc mua/ban thuc qua vi tri dong cua, phat hien tich luy/phan phoi ngam ke ca khi gia di ngang">A/D</th>
               <th style={{ textAlign: "right" }}>Confluence</th>
+              {timingOf && <>
+                <th style={{ textAlign: "left", paddingLeft: 10 }} title="Cửa sổ tối ưu của NGÀNH ICB chứa mã (phiên sau khi ngành vào Cải thiện)">Cửa sổ ngành</th>
+                <th style={{ textAlign: "left" }}>Kỳ vọng ròng</th>
+                <th style={{ textAlign: "left" }}>Tin cậy</th>
+                <th style={{ textAlign: "left" }}>P(outperform)</th>
+              </>}
             </tr>
           </thead>
           <tbody>
             {top20.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: "center", padding: 16, color: "var(--text-tertiary)" }}>Chua co ma nao dat tieu chuan.</td></tr>
+              <tr><td colSpan={timingOf ? 12 : 8} style={{ textAlign: "center", padding: 16, color: "var(--text-tertiary)" }}>Chua co ma nao dat tieu chuan.</td></tr>
             )}
             {top20.map((s, i) => (
               <tr
@@ -139,6 +149,7 @@ export default function LocNganhPanel({
                     background: s.confluenceScore >= 70 ? "rgba(52,211,153,0.1)" : "rgba(245,158,11,0.1)",
                   }}>{s.confluenceScore}</span>
                 </td>
+                {timingOf && (() => { const sig = timingOf(s.ticker); return sig ? <SectorScreenerCells signal={sig} /> : <td colSpan={4} style={{ fontSize: 11, color: "var(--text-tertiary)", paddingLeft: 10 }}>—</td>; })()}
               </tr>
             ))}
           </tbody>
