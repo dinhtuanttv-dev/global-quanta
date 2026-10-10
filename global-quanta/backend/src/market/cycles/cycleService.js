@@ -9,6 +9,7 @@ import { buildCalendar, buildLibrary, eligiblePrefix, HORIZONS, prepareSeries, w
 import { absoluteSimilarity, candidatePool, forecastFromPool } from "./engine.js";
 import { hashConfig } from "./validate.js";
 import { CYCLE_VALIDATION } from "./validation.js";
+import { LEDGER_INDEX_KV, ledgerKv, recordSnapshot, scoreLedger, snapshotRow } from "./ledger.js";
 
 export const CYCLE_ENGINE = "cycles/CF2";
 const CONFIG = JSON.parse(fs.readFileSync(fileURLToPath(new URL("./cf3-config.json", import.meta.url)), "utf8"));
@@ -33,11 +34,22 @@ export function buildCycleContext({ seriesOf, benchBars, sectorOf, now = Date.no
 /** base 100 tại phiên đầu của mảng closes[a..b]. */
 const base100 = (closes, a, b) => { const out = []; for (let i = a; i <= b; i++) out.push(Math.round((closes[i] / closes[a]) * 10000) / 100); return out; };
 
-/** Truy vấn một mã trên ngữ cảnh đã dựng. Trả null nếu mã không có trong thư viện / thiếu dữ liệu. */
-export function queryCycles(ctx, symbol) {
+/** Chuẩn bị chuỗi của một mã NGOÀI thư viện theo lịch & trung vị ngành của ngữ cảnh (chỉ để truy vấn, không thêm vào thư viện). */
+export function prepareExternal(ctx, ticker, bars, sector = null) {
+  const kept = bars.filter((b) => !b.partial && b.close > 0 && ctx.cal.calOf.has(b.date));
+  if (kept.length < 320) return null;
+  return {
+    ticker, sector, dates: kept.map((b) => b.date), closes: kept.map((b) => b.close),
+    values: kept.map((b) => (b.value > 0 ? b.value : (b.volume ?? 0) * b.close)),
+    cal: Int32Array.from(kept, (b) => ctx.cal.calOf.get(b.date)),
+  };
+}
+
+/** Truy vấn một mã trên ngữ cảnh đã dựng (hoặc chuỗi ngoài `external`). Trả null nếu thiếu dữ liệu. */
+export function queryCycles(ctx, symbol, external = null) {
   const k = ctx.index.get(symbol);
-  if (k == null) return null;
-  const s = ctx.prep.prepared[k], { lib, cal, prep } = ctx;
+  if (k == null && !external) return null;
+  const s = k != null ? ctx.prep.prepared[k] : external, { lib, cal, prep } = ctx;
   const e = s.closes.length - 1;
   const f = windowFeatures(s, e, { W: lib.W, M: lib.M, cal, sectorMedian: prep.sectorMedian });
   if (!f) return null;
@@ -74,45 +86,91 @@ export function queryCycles(ctx, symbol) {
       interval80: { h: 20, loPct: pct(fc.pred[h20] + q20.lo), hiPct: pct(fc.pred[h20] + q20.hi), calibrated: CYCLE_VALIDATION.coverage.ok, oosCoverage: CYCLE_VALIDATION.coverage.value },
     },
     library: { windows: L, tickers: lib.tickers.length },
+    inLibrary: k != null,
   };
 }
 
-export function createCycleService({ service, corporateActions, now = Date.now }) {
+export function createCycleService({ service, corporateActions, taSeries = null, now = Date.now }) {
   const store = service.store;
-  let ctx = null, inflight = null;
+  let ctx = null, inflight = null, ledgerDocs = null;
   const cache = new Map();
+  /** Bản chụp dự báo của mọi mã trong thư viện cho ngày dữ liệu hiện tại (ghi một lần / ngày). */
+  async function snapshot(c) {
+    const rows = [];
+    for (const t of c.lib.tickers) { const q = queryCycles(c, t); if (q) rows.push(snapshotRow(t, q)); }
+    return recordSnapshot(store, { date: c.dataAsOf, engine: CYCLE_ENGINE, sha256: CONFIG.sha256, rows });
+  }
+  async function loadLedger(c) {
+    if (ledgerDocs?.builtAt === c.builtAt) return ledgerDocs.docs;
+    const dates = ((await store.getKv(LEDGER_INDEX_KV))?.value?.dates ?? []).slice(-120);
+    const docs = [];
+    for (const d of dates) { const v = (await store.getKv(ledgerKv(d)))?.value; if (v?.rows) docs.push(v); }
+    ledgerDocs = { builtAt: c.builtAt, docs };
+    return docs;
+  }
   async function build() {
     const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
     if (!universe.length) throw new Error("Chưa có universe.");
     const icb = (await store.getKv(ICB_KV))?.value ?? null;
     const loadSeries = await createScreenerSeries({ store, corporateActions, historyDays: HISTORY_DAYS }).prepare(universe.map((u) => u.ticker));
     const seriesOf = new Map();
-    let skipped = 0;
+    let skipped = 0, viaTaSeries = 0;
+    const retry = [];
     await mapLimit(universe, 6, async (u) => {
       try {
         const r = await loadSeries(u.ticker);
-        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") { skipped++; return; } // cùng quy tắc dữ liệu với CF3
+        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") { retry.push(u.ticker); return; }
         const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
         if (bars.length) seriesOf.set(u.ticker, bars);
+      } catch { retry.push(u.ticker); }
+    });
+    // Kho chưa khôi phục được chuỗi cộng dồn (độ khớp danh nghĩa < 90%) -> lấy /ta-series (nguồn đã dùng cho CF3), nhẹ tay 2 luồng.
+    // Cùng quy tắc dữ liệu với CF3: chỉ nhận ADJUSTED_CUMULATIVE.
+    await mapLimit(retry, 2, async (t) => {
+      try {
+        const r = taSeries ? await taSeries.get({ symbol: t, range: "5y", limit: 1400 }) : null;
+        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") { skipped++; return; }
+        seriesOf.set(t, (r.bars ?? []).filter((b) => !b.partial && b.close > 0)); viaTaSeries++;
       } catch { skipped++; }
     });
     const benchBars = (await loadSeries.index("VNINDEX")).filter((b) => !b.partial && b.close > 0);
     if (benchBars.length < 400) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
     const sectorOf = new Map(Object.entries(icb?.symbols ?? {}).map(([t, v]) => [t, v?.l2 ?? null]));
     const next = buildCycleContext({ seriesOf, benchBars, sectorOf, now });
-    next.skipped = skipped;
+    next.skipped = skipped; next.viaTaSeries = viaTaSeries; next.sectorOf = sectorOf;
     ctx = next; cache.clear();
-    return { windows: next.lib.N, tickers: next.lib.tickers.length, skipped, dataAsOf: next.dataAsOf };
+    return { windows: next.lib.N, tickers: next.lib.tickers.length, skipped, viaTaSeries, dataAsOf: next.dataAsOf };
+  }
+  async function ledgerFor(symbol = null) {
+    const c = await ensure();
+    return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, ...scoreLedger(c, await loadLedger(c), { symbol }) };
   }
   const ensure = () => (ctx ? Promise.resolve(ctx) : (inflight ??= build().then(() => ctx).finally(() => { inflight = null; })));
   return {
-    jobs: { buildCycleLibrary: () => (inflight ??= build().finally(() => { inflight = null; })) },
+    jobs: {
+      // 16:05 ngày giao dịch: dựng thư viện rồi ghi bản chụp sổ theo dõi (bỏ qua nếu ngày đó đã ghi)
+      buildCycleLibrary: async () => {
+        const info = await (inflight ??= build().finally(() => { inflight = null; }));
+        const snap = await snapshot(ctx);
+        ledgerDocs = null;
+        return { ...info, ledger: snap };
+      },
+    },
+    ledger: ledgerFor,
     async query(symbol) {
       const c = await ensure();
       const key = `${c.builtAt}:${symbol}`;
       if (cache.has(key)) return cache.get(key);
-      const r = queryCycles(c, symbol);
-      const doc = r && { engine: CYCLE_ENGINE, builtAt: c.builtAt, dataAsOf: c.dataAsOf, config: { sha256: CONFIG.sha256, lambda: CONFIG.lambda, hMult: CONFIG.hMult, W: CONFIG.W }, evidence: CYCLE_VALIDATION, ...r };
+      let r = queryCycles(c, symbol);
+      if (!r && taSeries) { // mã ngoài thư viện: truy vấn bằng chuỗi /ta-series của chính mã (không thêm vào thư viện)
+        const ts = await taSeries.get({ symbol, range: "5y", limit: 1400 }).catch(() => null);
+        if (ts?.priceBasis === "ADJUSTED_CUMULATIVE") {
+          const ext = prepareExternal(c, symbol, ts.bars ?? [], c.sectorOf?.get(symbol) ?? null);
+          if (ext) r = { ...queryCycles(c, symbol, ext), inLibrary: false };
+        }
+      }
+      const led = r ? await ledgerFor(symbol).catch(() => null) : null;
+      const doc = r && { engine: CYCLE_ENGINE, ledger: led, builtAt: c.builtAt, dataAsOf: c.dataAsOf, config: { sha256: CONFIG.sha256, lambda: CONFIG.lambda, hMult: CONFIG.hMult, W: CONFIG.W }, evidence: CYCLE_VALIDATION, ...r };
       if (cache.size > 500) cache.clear();
       cache.set(key, doc);
       return doc;

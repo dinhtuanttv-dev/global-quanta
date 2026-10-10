@@ -68,7 +68,7 @@ export function getMarketRuntime() {
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
-  const cycles = createCycleService({ service, corporateActions });
+  const cycles = createCycleService({ service, corporateActions, taSeries });
   const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs };
   const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE] });
 

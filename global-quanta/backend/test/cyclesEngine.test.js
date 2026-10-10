@@ -124,3 +124,30 @@ test("phục vụ trực tuyến: queryCycles trả 30 giai đoạn có ngày + 
   const { CYCLE_VALIDATION } = await import("../src/market/cycles/validation.js");
   assert.equal(CYCLE_VALIDATION.verdict, "FAIL"); assert.equal(CYCLE_VALIDATION.label, "EXPERIMENTAL");
 });
+
+test("sổ theo dõi: ghi một lần / ngày; chưa đủ 21 phiên -> chờ; đủ -> chấm IC, đúng hướng, Brier, độ phủ; lịch sử từng mã", async () => {
+  const { buildCycleContext, queryCycles } = await import("../src/market/cycles/cycleService.js");
+  const { recordSnapshot, scoreLedger, snapshotRow, LEDGER_INDEX_KV, ledgerKv } = await import("../src/market/cycles/ledger.js");
+  const seriesOf = new Map(), sectorOf = new Map();
+  for (let k = 0; k < 24; k++) { const t = `L${String(k).padStart(2, "0")}`; seriesOf.set(t, walk(k + 31)); sectorOf.set(t, k % 2 ? "S1" : "S2"); }
+  const full = buildCycleContext({ seriesOf, benchBars: walk(999), sectorOf });
+  // bản chụp cũ: dựng ngữ cảnh với dữ liệu cắt tới 40 phiên trước -> có 21 phiên sau để chấm
+  const cut = (bars) => bars.slice(0, -40);
+  const past = buildCycleContext({ seriesOf: new Map([...seriesOf].map(([t, b]) => [t, cut(b)])), benchBars: cut(walk(999)), sectorOf });
+  const kv = new Map();
+  const store = { getKv: async (k) => (kv.has(k) ? { value: kv.get(k) } : null), setKv: async (k, v) => { kv.set(k, v); } };
+  const rows = past.lib.tickers.map((t) => snapshotRow(t, queryCycles(past, t)));
+  assert.equal((await recordSnapshot(store, { date: past.dataAsOf, engine: "x", sha256: "y", rows })).written, true);
+  assert.equal((await recordSnapshot(store, { date: past.dataAsOf, engine: "x", sha256: "y", rows })).written, false);
+  const todayRows = full.lib.tickers.map((t) => snapshotRow(t, queryCycles(full, t)));
+  await recordSnapshot(store, { date: full.dataAsOf, engine: "x", sha256: "y", rows: todayRows });
+  assert.deepEqual(kv.get(LEDGER_INDEX_KV).dates, [past.dataAsOf, full.dataAsOf]);
+  const docs = kv.get(LEDGER_INDEX_KV).dates.map((d) => kv.get(ledgerKv(d)));
+  const sc = scoreLedger(full, docs, { symbol: "L03" });
+  assert.equal(sc.maturedDates, 1);
+  assert.equal(sc.scoredRows, rows.length);
+  assert.equal(sc.pendingRows, todayRows.length); // bản chụp hôm nay chưa đủ 21 phiên
+  assert.ok(sc.hitRate >= 0 && sc.hitRate <= 1 && sc.brier >= 0 && sc.coverage80 >= 0 && sc.coverage80 <= 1);
+  assert.ok(sc.meanIc >= -1 && sc.meanIc <= 1);
+  assert.equal(sc.mine.length, 2); assert.ok(sc.mine[0].realizedPct != null); assert.equal(sc.mine[1].realizedPct, null);
+});

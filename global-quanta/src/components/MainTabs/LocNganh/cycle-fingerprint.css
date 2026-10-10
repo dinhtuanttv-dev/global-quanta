@@ -104,3 +104,24 @@
 .cf-topk-list { overflow-x: auto; }
 .cf-topk-table td { white-space: nowrap; }
 .cf-source-badge { white-space: nowrap; }
+
+/* CF4 — engine v2 */
+.cf2-engine { margin-bottom: 12px; }
+.cf2-checks { list-style: none; padding: 0; margin: 4px 0 6px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 2px 12px; font-size: 11.5px; }
+.cf2-checks li[data-pass="true"] span { color: var(--positive); }
+.cf2-checks li[data-pass="false"] span { color: var(--negative); }
+.cf2-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 10px 0; }
+.cf2-tiles > div { background: var(--bg-surface-2); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cf2-tiles span { font-size: 11px; color: var(--text-tertiary); }
+.cf2-tiles b { font-size: 16px; color: var(--text-primary); }
+.cf2-tiles em { font-style: normal; font-size: 10.5px; color: var(--text-tertiary); }
+.cf2-horizons { margin-bottom: 12px; }
+.cf2-detail { border: 1px solid var(--gold); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.cf2-detail__head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font-size: 12px; color: var(--text-secondary); }
+.cf2-detail__head b { color: var(--gold); font-size: 14px; }
+.cf2-detail__head button { margin-left: auto; background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 14px; }
+.cf2-detail svg { width: 100%; max-width: 520px; height: auto; display: block; margin: 6px 0; }
+.cf2-detail__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin: 6px 0 0; font-size: 12px; }
+.cf2-detail__stats dt { color: var(--text-tertiary); font-size: 11px; }
+.cf2-detail__stats dd { margin: 0; font-weight: 600; }
+.cf2-ledger { margin-top: 14px; }

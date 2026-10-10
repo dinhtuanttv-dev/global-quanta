@@ -111,7 +111,9 @@ export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, high
   }, [priceSeries, topMatches, atrSeries, useAtrAxis, mode]);
 
   if (!view) return null;
-  const dim = (k: string) => (highlightedKey && highlightedKey !== k ? 0.22 : 0.9);
+  // nhiều đường (engine v2: 30 giai đoạn) -> nhạt hơn để trung vị / đường đang chọn nổi lên
+  const baseOpacity = topMatches.length > 10 ? 0.35 : 0.9;
+  const dim = (k: string) => (highlightedKey ? (highlightedKey === k ? 1 : 0.12) : baseOpacity);
   const wide = (k: string) => (highlightedKey === k ? 2.5 : 1.2);
 
   return (
