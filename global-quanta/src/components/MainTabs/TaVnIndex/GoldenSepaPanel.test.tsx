@@ -23,6 +23,12 @@ vi.mock("../../../hooks/useConvergenceV2", () => ({
     { ticker: READY.ticker, side: "sell", status: "WATCH", wyckoff: { cyclePhase: "B" }, metrics: { score: 50 } },
   ] }, error: undefined, isLoading: false, refresh: () => {} }),
 }));
+vi.mock("../../../hooks/usePatterns", () => ({
+  usePatterns: () => ({ data: { dataAsOf: doc.dataAsOf, results: [
+    { ticker: ALERT.ticker, patterns: [{ dir: "bull", state: "CONFIRMED", label: "Đáy đôi", timeframe: "D", stateLabel: "Phá vỡ đã xác nhận" }] },
+    { ticker: READY.ticker, patterns: [{ dir: "bear", state: "CONFIRMED", label: "Nêm tăng", timeframe: "D", stateLabel: "Phá vỡ đã xác nhận" }, { dir: "bull", state: "FORMING", label: "Tam giác tăng", timeframe: "W", stateLabel: "Đang hình thành" }] },
+  ] }, error: undefined, isLoading: false, refresh: () => {} }),
+}));
 vi.mock("../../../hooks/useTaSeries", () => ({ useTaSeries: (t: string | null) => ({ bars: t ? barsOf[t] ?? [] : [], isLoading: false, error: undefined, priceBasis: "ADJUSTED_CUMULATIVE", corporateActions: [], warnings: [], quality: {} }) }));
 vi.mock("../../../hooks/useSepaIntraday", () => ({ useSepaIntraday: () => ({ live: true, error: undefined, isLoading: false, refresh: () => {}, data: {
   version: "sepa/SP6", asOf: "2026-10-12T03:00:00Z", date: "2026-10-12", session: "LO", minutesElapsed: 60, sessionMinutes: 255, scanDataAsOf: "2026-10-09", candidates: 2,
@@ -56,18 +62,20 @@ describe("Golden SEPA (SP5) — thay Golden Filter × Top 20", () => {
     expect(el.textContent).not.toContain("Top 20");
   });
 
-  it("chỉ mã thuộc 3 danh sách SEPA (không LOẠI); xác nhận chéo CAN SLIM / Base Breakout / Hợp lưu phía mua; không có điểm tự đặt", () => {
+  it("chỉ mã thuộc 3 danh sách SEPA (không LOẠI); xác nhận chéo CAN SLIM / Base Breakout / Hợp lưu phía mua / Mô hình giá Pring tăng đang hiệu lực; không có điểm tự đặt", () => {
     const el = render(<GoldenSepaPanel onSelectTicker={() => {}} />);
     const r = rows(el);
     expect(r).toHaveLength(2);
     expect(r.some((x) => x.includes(REJECT.ticker))).toBe(false);
     const confirms = [...el.querySelectorAll('[data-testid="golden-sepa-confirms"]')].map((c) => c.textContent);
-    expect(confirms[0]).toContain("2/3"); // READY: CS + BB; Hợp lưu phía BÁN không tính
+    expect(confirms[0]).toContain("2/4"); // READY: CS + BB; Hợp lưu phía BÁN, Pring giảm / đang hình thành không tính
     expect(confirms[0]).toContain("CS");
-    expect(confirms[1]).toContain("1/3"); // ALERT: Hợp lưu phía mua
+    expect(confirms[0]).not.toContain("MH");
+    expect(confirms[1]).toContain("2/4"); // ALERT: Hợp lưu phía mua + Pring tăng đã xác nhận
+    expect(confirms[1]).toContain("MH");
     expect(el.textContent).toContain("không cộng điểm tự đặt");
     click(el.querySelector('[data-testid="golden-min-2"]'));
-    expect(rows(el)).toEqual([expect.stringContaining(READY.ticker)]);
+    expect(rows(el)).toHaveLength(2);
   });
 
   it("bấm mã -> bảng phụ SEPA + dải xác nhận chéo (không mở biểu đồ); Esc -> đóng", () => {

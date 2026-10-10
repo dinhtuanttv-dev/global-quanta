@@ -1,15 +1,15 @@
 // Golden SEPA (SP5) — thay Golden Filter × Top 20 Kỹ thuật (đã gỡ hoàn toàn): SEPA Minervini là lõi, xác nhận chéo bởi CAN SLIM,
-// Base Breakout và Hợp lưu v2 (phía mua) — mọi nguồn chạy trên Gateway, cùng universe và chuỗi giá điều chỉnh.
+// Base Breakout, Hợp lưu v2 (phía mua) và Mô hình giá Pring (P5) — mọi nguồn chạy trên Gateway, cùng universe và chuỗi giá điều chỉnh.
 // Bấm mã / nhấn đúp dòng -> bảng phụ SEPA (cùng bảng phụ của tab SEPA), Esc -> đóng. Không có điểm composite tự đặt.
 // Sổ theo dõi thực tế: SCR_SEPA_READY / _ALERT / _S2 (researchEvaluate chấm T+3/T+5/T+10 so với VN-Index).
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, Info, RefreshCw, Star } from "lucide-react";
 import { isS2Signal } from "../../../hooks/useSepa";
-import { useGoldenSepa, type GoldenSepaRow } from "../../../hooks/useGoldenSepa";
+import { GOLDEN_SOURCES, useGoldenSepa, type GoldenSepaRow } from "../../../hooks/useGoldenSepa";
 import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
-const CONFIRM_SHORT: Record<string, string> = { camslim: "CS", "base-breakout": "BB", convergence: "HL" };
+const CONFIRM_SHORT: Record<string, string> = { camslim: "CS", "base-breakout": "BB", convergence: "HL", patterns: "MH" };
 const LIST_SHORT: Record<string, string> = { "SẴN SÀNG MUA": "Sẵn sàng", "CẢNH BÁO MUA": "Cảnh báo", "THEO DÕI": "Theo dõi" };
 type MinConfirm = 0 | 1 | 2;
 
@@ -72,7 +72,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
           Gateway (cùng universe, cùng giá điều chỉnh). Xếp theo danh sách → số xác nhận → điểm SEPA; không cộng điểm tự đặt. Xác nhận chéo chưa được kiểm định —
           danh sách để xem xét, không phải khuyến nghị mua.
         </span>
-        {doc && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="golden-sepa-asof">SEPA phiên {doc.dataAsOf} · CS {sources.camslim ?? "—"} · BB {sources["base-breakout"] ?? "—"} · HL {sources.convergence ?? "—"}</span>}
+        {doc && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="golden-sepa-asof">SEPA phiên {doc.dataAsOf} · CS {sources.camslim ?? "—"} · BB {sources["base-breakout"] ?? "—"} · HL {sources.convergence ?? "—"} · MH {sources.patterns ?? "—"}</span>}
       </p>
       {doc && <SepaIntradayStrip onOpen={(t) => { setMin(0); setOpen(t); }} />}
       {doc && (
@@ -113,7 +113,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
                     <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span>{isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300">S2 · đạt OOS*</span>}</td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12 }}>{r.score.toFixed(1).replace(".", ",")}</td>
                     <td className="py-1.5" data-testid="golden-sepa-confirms">
-                      <span className="font-mono text-slate-300 mr-1">{confirms.length}/3</span>
+                      <span className="font-mono text-slate-300 mr-1">{confirms.length}/{GOLDEN_SOURCES}</span>
                       {confirms.map((c) => <span key={c.key} title={`${c.label}: ${c.detail}`} className="inline-block mr-0.5 text-[8px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-200">{CONFIRM_SHORT[c.key]}</span>)}
                     </td>
                     <td className="py-1.5 hidden sm:table-cell">{r.metrics.pattern ? <><span className="text-slate-200">{r.metrics.pattern}</span><span className="block text-[9px] font-mono text-amber-200/90">{r.metrics.footprint}</span></> : <span className="text-slate-600">—</span>}</td>
@@ -134,7 +134,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
           </table>
         </div>
       )}
-      <p className="text-[9px] text-slate-600">CS = CAN SLIM · BB = Base Breakout · HL = Hợp lưu v2 (phía mua) · {doc?.disclaimer}</p>
+      <p className="text-[9px] text-slate-600">CS = CAN SLIM · BB = Base Breakout · HL = Hợp lưu v2 (phía mua) · MH = mô hình giá Pring tăng đang hiệu lực (EXPERIMENTAL, kiểm định P3 chưa đạt) · {doc?.disclaimer}</p>
     </section>
   );
 }
