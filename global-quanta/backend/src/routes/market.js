@@ -197,6 +197,16 @@ router.get("/sectors/taxonomy", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json(doc);
 }));
+// Cycle Fingerprint v2 (CF2) — 30 giai đoạn tương tự toàn universe cho cửa sổ 30 phiên gần nhất + dự báo vượt VN-Index (EXPERIMENTAL theo CF3).
+router.get("/cycles/:symbol", handle(async (req, res) => {
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{3,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const doc = await getMarketRuntime().cycles.query(symbol);
+  if (!doc) { res.status(404).json({ error: `${symbol} chưa có trong thư viện chu kỳ (ngoài universe, thiếu lịch sử điều chỉnh cộng dồn hoặc < 1 năm dữ liệu).` }); return; }
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(doc);
+}));
+
 router.get("/sectors/:code/history", handle(async (req, res) => {
   const code = String(req.params.code || "").padStart(4, "0");
   if (!/^\d{4}$/.test(code)) { res.status(400).json({ error: "Mã ngành không hợp lệ." }); return; }
