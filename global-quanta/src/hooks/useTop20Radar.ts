@@ -35,6 +35,9 @@ export interface Top20Response {
   totalAnalyzed: number;
   riskOnScore: number; // MOI - dung de giai thich tai sao trong so hien tai lai nhu vay
   top20: ConfluenceStock[];
+  /** T0 (2026-10-10): nguồn dữ liệu thật (Gateway chuỗi điều chỉnh cộng dồn, hoặc Yahoo cũ khi Gateway lỗi). */
+  dataSource?: { provider: string; priceBasis: string; dataAsOf: string | null; universe: number; liquid: number; fallbackReason?: string };
+  evidence?: { label: string; reason: string };
 }
 
 export function useTop20Radar(sectorKey: string | null) {
