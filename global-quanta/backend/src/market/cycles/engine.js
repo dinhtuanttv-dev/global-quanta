@@ -142,9 +142,16 @@ export function placeboForecast(lib, L, ws, seed, opts = ENGINE_DEFAULTS) {
 
 /** Độ tương đồng tuyệt đối: tỷ lệ cặp ngẫu nhiên có d LỚN hơn (null đã sắp tăng dần). */
 export function absoluteSimilarity(d, nullSorted) {
-  let lo = 0, hi = nullSorted.length;
-  while (lo < hi) { const m = (lo + hi) >> 1; if (nullSorted[m] < d) lo = m + 1; else hi = m; }
-  return 1 - lo / Math.max(nullSorted.length, 1);
+  const n = nullSorted.length;
+  if (!n) return null;
+  if (d <= nullSorted[0]) return 1;
+  if (d >= nullSorted[n - 1]) return 0;
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (nullSorted[m] <= d) lo = m; else hi = m; }
+  // nội suy tuyến tính giữa hai phân vị kề nhau (bảng phân vị đều 0..1)
+  const span = nullSorted[hi] - nullSorted[lo];
+  const frac = span > 0 ? (d - nullSorted[lo]) / span : 0;
+  return 1 - (lo + frac) / (n - 1);
 }
 
 export { HORIZONS };

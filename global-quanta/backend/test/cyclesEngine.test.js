@@ -85,6 +85,8 @@ test("độ tương đồng tuyệt đối: đơn điệu giảm theo khoảng c
   assert.ok(absoluteSimilarity(0.1, nullSorted) > absoluteSimilarity(1, nullSorted));
   assert.ok(absoluteSimilarity(1, nullSorted) < 0.6 && absoluteSimilarity(1, nullSorted) > 0.4);
   assert.equal(absoluteSimilarity(-1, nullSorted), 1);
+  assert.equal(absoluteSimilarity(5, nullSorted), 0);
+  assert.ok(Math.abs(absoluteSimilarity(0.005, nullSorted) - 0.9975) < 1e-9); // nội suy giữa phân vị 0 và 0,5%
 });
 
 test("kiểm định: hash phát hiện cấu hình bị sửa; bootstrap khối; Holm dừng ở giả thuyết đầu tiên không bác bỏ", () => {
@@ -93,9 +95,32 @@ test("kiểm định: hash phát hiện cấu hình bị sửa; bootstrap khối
   assert.notEqual(hashConfig({ ...cfg, lambda: 1 }), cfg.sha256);
   const pos = blockBootstrap(Array.from({ length: 60 }, (_, i) => 0.05 + 0.01 * Math.sin(i)));
   assert.ok(pos.lo > 0 && pos.pOneSided === 0);
+  const tiny = blockBootstrap([0.1, 0.2, 0.3, 0.4]);
+  assert.equal(tiny.insufficient, true); assert.equal(tiny.pOneSided, null);
   const h = holm([{ name: "a", p: 0.001 }, { name: "b", p: 0.04 }, { name: "c", p: 0.01 }]);
   assert.deepEqual(h.map((x) => [x.name, x.reject]), [["a", true], ["c", true], ["b", true]]);
   // c (0,001 ≤ 0,05/3) bác bỏ; a (0,03 > 0,05/2) không -> dừng, b cũng không
   assert.deepEqual(holm([{ name: "a", p: 0.03 }, { name: "b", p: 0.04 }, { name: "c", p: 0.001 }]).map((x) => [x.name, x.reject]), [["c", true], ["a", false], ["b", false]]);
   assert.ok(spearman([1, 2, 3, 4], [10, 20, 30, 40]) > 0.999);
+});
+
+test("phục vụ trực tuyến: queryCycles trả 30 giai đoạn có ngày + đường mẫu/diễn biến sau, dự báo theo 4 kỳ hạn, nhãn CF3; mã lạ -> null", async () => {
+  const { buildCycleContext, queryCycles, CYCLE_CONFIG } = await import("../src/market/cycles/cycleService.js");
+  const seriesOf = new Map(), sectorOf = new Map();
+  for (let k = 0; k < 14; k++) { const t = `Q${String(k).padStart(2, "0")}`; seriesOf.set(t, walk(k + 11)); sectorOf.set(t, k % 3 ? "S1" : "S2"); }
+  const ctx = buildCycleContext({ seriesOf, benchBars: walk(999), sectorOf });
+  const r = queryCycles(ctx, "Q00");
+  assert.equal(r.window, CYCLE_CONFIG.W);
+  assert.equal(r.neighbors.length, 30);
+  for (const n of r.neighbors) {
+    assert.ok(n.start < n.end && n.end < r.asOf);
+    assert.equal(n.pattern.length, 30); assert.equal(n.pattern[0], 100);
+    assert.ok(n.forward.length === 61 && n.forward[0] === 100);
+    assert.ok(n.similarity >= 0 && n.similarity <= 1);
+  }
+  assert.deepEqual(r.forecast.horizons.map((h) => h.h), [10, 20, 40, 60]);
+  assert.equal(r.forecast.interval80.calibrated, false); // CF3: độ phủ ngoài mẫu 73% < 75%
+  assert.equal(queryCycles(ctx, "ZZZ"), null);
+  const { CYCLE_VALIDATION } = await import("../src/market/cycles/validation.js");
+  assert.equal(CYCLE_VALIDATION.verdict, "FAIL"); assert.equal(CYCLE_VALIDATION.label, "EXPERIMENTAL");
 });

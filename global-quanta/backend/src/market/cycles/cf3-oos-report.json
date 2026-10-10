@@ -1,0 +1,305 @@
+{
+ "prereg": "cycles/CF3-prereg-2026-10-10",
+ "configSha256": "d31502966402ab09f10b57617af86fbeea5a92f0c229700b865d845e3b73b5a6",
+ "config": {
+  "lambda": 0,
+  "hMult": 2,
+  "W": 30
+ },
+ "verdict": "FAIL",
+ "label": "EXPERIMENTAL",
+ "checks": [
+  {
+   "id": 1,
+   "name": "IC hạng TB > 0, cận dưới KTC > 0",
+   "pass": false,
+   "value": {
+    "n": 53,
+    "mean": 0.0004,
+    "lo": -0.0234,
+    "hi": 0.028,
+    "pOneSided": 0.4815
+   }
+  },
+  {
+   "id": 2,
+   "name": "IC engine − IC placebo > 0, cận dưới KTC > 0",
+   "pass": false,
+   "value": {
+    "n": 53,
+    "mean": -0.0142,
+    "lo": -0.0437,
+    "hi": 0.0161,
+    "pOneSided": 0.7965
+   }
+  },
+  {
+   "id": 3,
+   "name": "IC trong mẫu > 0",
+   "pass": true,
+   "value": 0.0251
+  },
+  {
+   "id": 4,
+   "name": "Brier skill của P(vượt VN-Index) > 0",
+   "pass": true,
+   "value": 0.0057
+  },
+  {
+   "id": 5,
+   "name": "Chênh lệch nhóm 20% cao − 20% thấp sau phí 0,3% > 0",
+   "pass": false,
+   "value": {
+    "n": 53,
+    "mean": -0.0038,
+    "lo": -0.0114,
+    "hi": 0.0048,
+    "pOneSided": 0.8235
+   }
+  },
+  {
+   "id": 6,
+   "name": "Cỡ mẫu ≥ 40 ngày và ≥ 100 mã",
+   "pass": true,
+   "value": {
+    "dates": 53,
+    "tickers": 220
+   }
+  }
+ ],
+ "coverage": {
+  "value": 0.7289,
+  "band": [
+   0.75,
+   0.85
+  ],
+  "ok": false
+ },
+ "outOfSample": {
+  "rows": 9891,
+  "dates": 53,
+  "tickers": 220,
+  "ic": {
+   "n": 53,
+   "mean": 0.0004,
+   "lo": -0.0234,
+   "hi": 0.028,
+   "pOneSided": 0.4815
+  },
+  "placeboIc": {
+   "n": 53,
+   "mean": 0.0146,
+   "lo": -0.0027,
+   "hi": 0.0319,
+   "pOneSided": 0.0435
+  },
+  "icMinusPlacebo": {
+   "n": 53,
+   "mean": -0.0142,
+   "lo": -0.0437,
+   "hi": 0.0161,
+   "pOneSided": 0.7965
+  },
+  "brier": 0.2432,
+  "brierBase": 0.2446,
+  "brierSkill": 0.0057,
+  "quintileSpreadNet": {
+   "n": 53,
+   "mean": -0.0038,
+   "lo": -0.0114,
+   "hi": 0.0048,
+   "pOneSided": 0.8235
+  },
+  "coverage80": 0.7289,
+  "avgNEff": 14.1541
+ },
+ "inSample": {
+  "rows": 19536,
+  "dates": 111,
+  "tickers": 219,
+  "ic": {
+   "n": 111,
+   "mean": 0.0251,
+   "lo": 0.0037,
+   "hi": 0.0466,
+   "pOneSided": 0.0095
+  },
+  "placeboIc": {
+   "n": 111,
+   "mean": -0.0123,
+   "lo": -0.0246,
+   "hi": 0.0005,
+   "pOneSided": 0.9685
+  },
+  "icMinusPlacebo": {
+   "n": 111,
+   "mean": 0.0374,
+   "lo": 0.0147,
+   "hi": 0.0603,
+   "pOneSided": 0
+  },
+  "brier": 0.2525,
+  "brierBase": 0.2495,
+  "brierSkill": -0.0118,
+  "quintileSpreadNet": {
+   "n": 111,
+   "mean": 0.0025,
+   "lo": -0.0033,
+   "hi": 0.0079,
+   "pOneSided": 0.193
+  },
+  "coverage80": 0.8,
+  "avgNEff": 10.2825
+ },
+ "placeboBaselines": {
+  "randomNeighbours": {
+   "n": 53,
+   "mean": 0.0146,
+   "lo": -0.0027,
+   "hi": 0.0319,
+   "pOneSided": 0.0435
+  },
+  "momentum": {
+   "ret20": {
+    "n": 53,
+    "mean": -0.0234,
+    "lo": -0.0826,
+    "hi": 0.0347,
+    "pOneSided": 0.7875
+   },
+   "ret60": {
+    "n": 53,
+    "mean": -0.0156,
+    "lo": -0.1137,
+    "hi": 0.0767,
+    "pOneSided": 0.6165
+   },
+   "reversal5": {
+    "n": 53,
+    "mean": 0.0004,
+    "lo": -0.0353,
+    "hi": 0.0346,
+    "pOneSided": 0.4945
+   }
+  }
+ },
+ "secondary": [
+  {
+   "name": "IC kỳ hạn 10 phiên",
+   "mean": 0.0102,
+   "lo": -0.0095,
+   "hi": 0.0306,
+   "n": 53,
+   "p": 0.1565,
+   "threshold": 0.0063,
+   "reject": false
+  },
+  {
+   "name": "IC cửa sổ 60 phiên",
+   "mean": 0.0091,
+   "lo": -0.0128,
+   "hi": 0.0315,
+   "n": 53,
+   "p": 0.198,
+   "threshold": 0.0071,
+   "reject": false
+  },
+  {
+   "name": "IC chỉ thư viện cùng ngành",
+   "mean": 0.0073,
+   "lo": -0.0263,
+   "hi": 0.0394,
+   "n": 53,
+   "p": 0.3275,
+   "threshold": 0.0083,
+   "reject": false
+  },
+  {
+   "name": "IC kỳ hạn 60 phiên",
+   "mean": 0.0059,
+   "lo": -0.0403,
+   "hi": 0.0471,
+   "n": 45,
+   "p": 0.3555,
+   "threshold": 0.01,
+   "reject": false
+  },
+  {
+   "name": "IC từng phần (sau momentum 20/60 & đảo chiều 5)",
+   "mean": 0.0015,
+   "lo": -0.0179,
+   "hi": 0.0222,
+   "n": 53,
+   "p": 0.4415,
+   "threshold": 0.0125,
+   "reject": false
+  },
+  {
+   "name": "IC khi VN-Index trên MA200",
+   "mean": -0.0003,
+   "lo": -0.0249,
+   "hi": 0.029,
+   "n": 49,
+   "p": 0.518,
+   "threshold": 0.0167,
+   "reject": false
+  },
+  {
+   "name": "IC cửa sổ 20 phiên",
+   "mean": -0.0026,
+   "lo": -0.0224,
+   "hi": 0.019,
+   "n": 53,
+   "p": 0.5985,
+   "threshold": 0.025,
+   "reject": false
+  },
+  {
+   "name": "IC kỳ hạn 40 phiên",
+   "mean": -0.0056,
+   "lo": -0.0368,
+   "hi": 0.024,
+   "n": 49,
+   "p": 0.628,
+   "threshold": 0.05,
+   "reject": false
+  },
+  {
+   "name": "IC khi VN-Index dưới MA200",
+   "mean": 0.0089,
+   "n": 4,
+   "p": null,
+   "note": "thiếu mẫu (< 12 ngày)"
+  }
+ ],
+ "limitations": [
+  "Universe hiện tại (280 mã) — có thiên lệch sống sót: mã đã huỷ niêm yết không có trong dữ liệu."
+ ],
+ "rowsSample": [
+  {
+   "date": "2025-08-21",
+   "ticker": "VIC",
+   "pred20": 0.0023,
+   "act20": 0.1904
+  },
+  {
+   "date": "2025-08-21",
+   "ticker": "VPB",
+   "pred20": -0.0022,
+   "act20": -0.178
+  },
+  {
+   "date": "2025-08-21",
+   "ticker": "VHM",
+   "pred20": -0.0122,
+   "act20": 0.0123
+  }
+ ],
+ "ms": 135198,
+ "corrections": [
+  {
+   "at": "2026-10-10",
+   "what": "Mô tả thêm: dòng có < 12 ngày (≤ 3 khối bootstrap) cho KTC suy biến và p = 0 giả -> đánh dấu thiếu mẫu, Holm tính lại trên các dòng còn lại từ p đã lưu. Không chạy lại OOS; 6 điều kiện chính không đổi."
+  }
+ ]
+}

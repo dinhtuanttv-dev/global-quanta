@@ -52,3 +52,18 @@ Khoảng conformal chỉ được hiển thị là "khoảng dự báo" khi đ�
 **Không đạt:** giữ nhãn EXPERIMENTAL, chỉ để quan sát. Xác suất và khoảng hiển thị là mô tả lịch sử.
 
 **Hạn chế:** thiên lệch sống sót, vì universe là danh sách hiện tại.
+
+## Kết quả (chạy 2026-10-10)
+- **Thời điểm chốt:** mã nguồn và quy tắc commit b3081e7 trước khi chạy. Cấu hình chốt sau pha trong mẫu là commit c67fe62, SHA-256 `d31502966402…`; λ = 0 (chỉ hình dạng), hMult = 2.
+- **Trong mẫu** (2023-03-07 → 2025-05-22, 111 ngày, 219 mã): IC +0,025 [+0,004; +0,047].
+- **Ngoài mẫu** (2025-08-21 → 2026-09-10, 53 ngày, 220 mã, 9.891 dự báo, chạy một lần): **KHÔNG ĐẠT → EXPERIMENTAL**.
+  - IC +0,0004 [−0,023; +0,028] → không đạt.
+  - IC − placebo −0,014 [−0,044; +0,016] → không đạt.
+  - IC trong mẫu > 0 → đạt.
+  - Brier skill +0,006 → đạt.
+  - Chênh lệch 20% cao − thấp sau phí −0,38% → không đạt.
+  - Cỡ mẫu → đạt.
+  - Độ phủ khoảng 80% là 73%, ngoài dải [75%, 85%] → không hiển thị là khoảng dự báo.
+- **Mô tả thêm (Holm):** không giả thuyết nào bị bác bỏ.
+- **Đính chính báo cáo:** dòng "VN-Index dưới MA200" chỉ có 4 ngày, khiến bootstrap suy biến (p = 0 giả). Dòng này được đánh dấu thiếu mẫu, không chạy lại OOS, 6 điều kiện chính không đổi.
+- Báo cáo đầy đủ: `cf3-is-report.json`, `cf3-oos-report.json`; tóm tắt cho API ở `validation.js`.

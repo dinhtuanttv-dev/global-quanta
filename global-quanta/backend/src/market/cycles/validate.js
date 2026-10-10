@@ -141,6 +141,8 @@ export function icSeries(rows, score, h = P.primaryH) {
 /** Bootstrap khối liên tiếp (block = 4 ngày truy vấn ≈ 20 phiên, khớp chồng lấn kỳ hạn) — KTC 95% & p một phía (H0: TB ≤ 0). */
 export function blockBootstrap(xs, { iters = P.bootstrapIters, block = P.block, seed = P.seed } = {}) {
   const n = xs.length; if (!n) return { n: 0 };
+  // < 3 khối: mọi mẫu bootstrap gần như trùng nhau -> KTC suy biến; báo "thiếu mẫu", không tính p
+  if (n < 3 * block) return { n, mean: r4(mean(xs)), lo: null, hi: null, pOneSided: null, insufficient: true };
   const rand = rng(seed), ms = [];
   for (let b = 0; b < iters; b++) {
     let s = 0, k = 0;
@@ -288,7 +290,10 @@ export function runOutOfSample(ctx, frozen, { isReport, onProgress, secondaryCtx
     verdict: passed ? "PASS" : "FAIL", label: passed ? "ĐÃ KIỂM ĐỊNH" : "EXPERIMENTAL",
     checks, coverage: { value: m.coverage80, band: P.coverageBand, ok: coverageOk },
     outOfSample: m, inSample: isReport?.inSample ?? null, placeboBaselines: { randomNeighbours: m.placeboIc, momentum },
-    secondary: holm(sec.map((s) => ({ name: s.name, mean: s.mean, lo: s.lo, hi: s.hi, n: s.n, p: s.pOneSided }))),
+    secondary: [
+      ...holm(sec.filter((s) => s.pOneSided != null).map((s) => ({ name: s.name, mean: s.mean, lo: s.lo, hi: s.hi, n: s.n, p: s.pOneSided }))),
+      ...sec.filter((s) => s.pOneSided == null).map((s) => ({ name: s.name, mean: s.mean, n: s.n, p: null, note: "thiếu mẫu (< 12 ngày)" })),
+    ],
     limitations: ["Universe hiện tại (280 mã) — có thiên lệch sống sót: mã đã huỷ niêm yết không có trong dữ liệu."],
     rowsSample: rows.slice(0, 3).map((r) => ({ date: r.date, ticker: r.ticker, pred20: r4(r.preds[0].pred[P.primaryH]), act20: r4(r.act[P.primaryH]) })),
   };
