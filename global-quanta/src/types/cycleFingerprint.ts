@@ -39,6 +39,8 @@ export interface CycleMatch {
     d60: QuantValue;
   };
   alignedSeries: { sessionOffset: number; normalizedClose: QuantValue }[];
+  /** CF0: diễn biến SAU giai đoạn — base 100 tại điểm kết thúc, offset 0..+60 (backend mới; bản cũ không có). */
+  forwardSeries?: { sessionOffset: number; normalizedClose: QuantValue }[];
 }
 
 export interface PricePoint {
@@ -106,6 +108,8 @@ export interface ExplainabilityBreakdown {
 
 export interface TimingForecast {
   targetReturnPct: number;
+  /** CF0: số giai đoạn dùng cho dự báo thời gian / dải xác suất (rộng hơn 5 giai đoạn hiển thị). */
+  poolSize?: number;
   hittingProbability: { withinSessions: number; probabilityPct: QuantValue }[];
   daysToPeak: QuantValue;
   daysToTrough: QuantValue;

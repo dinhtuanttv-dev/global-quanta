@@ -52,7 +52,7 @@ export function FanChartPanel({ fanChart }: { fanChart: FanChartBand[] }) {
         <path d={medianPathD} fill="none" stroke="var(--gold)" strokeWidth={1.5} />
       </svg>
       <p className="cf-fanchart-caption">
-        Ước tính từ phân vị (percentile) diễn biến giá của các chu kỳ lịch sử tương tự nhất, tính từ hôm nay (trục X: số phiên tương lai)
+        Phân vị diễn biến sau của các giai đoạn tương tự (base 100 = hôm nay; trục X: số phiên sau). Mô tả mức phân tán lịch sử, không phải khoảng tin cậy dự báo.
       </p>
     </section>
   );

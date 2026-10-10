@@ -8,6 +8,7 @@ interface PersonalizationSettingsProps {
 }
 
 const WEIGHT_KEYS = ['similarity', 'liquidity', 'regime', 'sampleSize'] as const;
+const SHOW_WEIGHT_SLIDERS = false;
 const WEIGHT_LABEL_KEYS: Record<(typeof WEIGHT_KEYS)[number], 'quality.similarity' | 'quality.liquidity' | 'quality.regime' | 'quality.sampleSize'> = {
   similarity: 'quality.similarity',
   liquidity: 'quality.liquidity',
@@ -39,11 +40,13 @@ export function PersonalizationSettings({ settings, onChange }: PersonalizationS
         <span>{Math.round(settings.qualityScoreThreshold * 100)}%</span>
       </label>
 
-      <p className="cf-settings-subtitle">
+      {/* CF0: thanh trượt trọng số ẩn — backend vẫn tính theo trọng số cố định 40/20/20/20 nên kéo không có tác dụng.
+          Bật lại khi backend nhận trọng số tùy chỉnh. */}
+      {SHOW_WEIGHT_SLIDERS && <p className="cf-settings-subtitle">
         {t('personalization.weightsTitle')}
         {totalWeight !== 1 && ` ${t('personalization.weightsTotal', { pct: (totalWeight * 100).toFixed(0) })}`}
-      </p>
-      {WEIGHT_KEYS.map((key) => (
+      </p>}
+      {SHOW_WEIGHT_SLIDERS && WEIGHT_KEYS.map((key) => (
         <label key={key} className="cf-settings-row">
           <span>{t(WEIGHT_LABEL_KEYS[key])}</span>
           <input

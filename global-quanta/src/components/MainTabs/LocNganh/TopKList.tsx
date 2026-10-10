@@ -1,14 +1,17 @@
 import type { CycleMatch } from '../../../types/cycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 import { SourceBadge } from './SourceBadge';
+import { fmtCfDate, matchKey } from './MainChart';
 
 interface TopKListProps {
   matches: CycleMatch[];
-  highlightedTicker: string | null;
-  onHighlight: (ticker: string | null) => void;
+  highlightedKey: string | null;
+  onHighlight: (key: string | null) => void;
+  unitLabel: string;
 }
 
-export function TopKList({ matches, highlightedTicker, onHighlight }: TopKListProps) {
+/** CF0: mỗi dòng là một GIAI ĐOẠN (có ngày), highlight theo giai đoạn — trước đây theo mã nên cả 5 dòng cùng sáng. */
+export function TopKList({ matches, highlightedKey, onHighlight, unitLabel }: TopKListProps) {
   const { t } = useCfI18n();
   if (matches.length === 0) return null;
 
@@ -19,24 +22,26 @@ export function TopKList({ matches, highlightedTicker, onHighlight }: TopKListPr
         <thead>
           <tr>
             <th>{t('topk.col.ticker')}</th>
-            <th>{t('topk.col.similarity')}</th>
-            <th>R10</th>
-            <th>R20</th>
-            <th>R30</th>
-            <th>R60</th>
+            <th>Giai đoạn</th>
+            <th title="Thang tương đối trong lần quét (min-max): giai đoạn khớp nhất luôn = 100%">{t('topk.col.similarity')}</th>
+            {[10, 20, 30, 60].map((h) => <th key={h} title={`Lợi suất ${h} ${unitLabel} SAU khi giai đoạn kết thúc`}>R{h}</th>)}
           </tr>
         </thead>
         <tbody>
           {matches.map((m) => {
-            const isHighlighted = highlightedTicker === m.ticker;
+            const key = matchKey(m);
+            const isHighlighted = highlightedKey === key;
             return (
               <tr
-                key={`${m.ticker}-${m.matchStartDate}`}
+                key={key}
+                data-testid="cf-topk-row"
                 className={isHighlighted ? 'cf-topk-row--highlighted' : ''}
-                onMouseEnter={() => onHighlight(m.ticker)}
+                onMouseEnter={() => onHighlight(key)}
                 onMouseLeave={() => onHighlight(null)}
+                onClick={() => onHighlight(isHighlighted ? null : key)}
               >
                 <td>{m.ticker}</td>
+                <td data-testid="cf-topk-period" style={{ whiteSpace: 'nowrap' }}>{fmtCfDate(m.matchStartDate)} → {fmtCfDate(m.matchEndDate)}</td>
                 <td>
                   {m.similarityPct.value.toFixed(1)}%
                   <SourceBadge source={m.similarityPct.source} />
@@ -52,6 +57,7 @@ export function TopKList({ matches, highlightedTicker, onHighlight }: TopKListPr
           })}
         </tbody>
       </table>
+      <p className="cf-note">Rê chuột hoặc chạm một dòng để làm nổi giai đoạn đó trên biểu đồ. Các giai đoạn đều thuộc lịch sử của chính mã này.</p>
     </section>
   );
 }
