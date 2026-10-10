@@ -22,6 +22,7 @@ import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
 import { createCorporateActions } from "./adjusted/corporateActions.js";
 import { createTaSeries } from "./adjusted/taSeries.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
+import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { setHolidayProvider } from "./calendar.js";
 import { marketConfig } from "./config.js";
 
@@ -65,8 +66,8 @@ export function getMarketRuntime() {
   const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
 
-  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }) };
-  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE] });
+  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }) };
+  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });

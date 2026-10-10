@@ -25,6 +25,8 @@ import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { patternDetail } from "../market/strategies/patternScan.js";
 import { chartVision, screenerIndex } from "../market/chartVision/chartVision.js";
 import { isIndexSymbol } from "../market/normalizer.js";
+import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRotation.js";
+import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 
@@ -170,6 +172,39 @@ router.get("/chart-vision/:symbol", handle(async (req, res) => {
   if (!data) { res.status(404).json({ error: `Chưa đủ chuỗi giá cho ${symbol} (cần ≥ 60 phiên).` }); return; }
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
+}));
+
+// Lọc ngành (L1): xoay vòng ngành ICB (VNDirect cấp 2/3) — RRG tuần JdK so VN-Index, chỉ số ngành tổng hợp. Job buildSectorRotation
+// 15:50 ghi KV; chưa có -> chạy một lần (cache 10 phút). Không gọi SSI.
+async function sectorDoc(rt, key) {
+  let doc = (await rt.store.getKv(key))?.value ?? null;
+  if (!doc) {
+    await rt.service.cache.wrap("sectors:build", 10 * 60_000, () => rt.jobs.buildSectorRotation());
+    doc = (await rt.store.getKv(key))?.value ?? null;
+  }
+  return doc;
+}
+router.get("/sectors/rrg", handle(async (req, res) => {
+  const doc = await sectorDoc(getMarketRuntime(), SECTOR_RRG_KV);
+  if (!doc) { res.status(503).json({ error: "Chưa dựng được xoay vòng ngành." }); return; }
+  const level = Number(req.query.level) || null;
+  res.set("Cache-Control", "public, max-age=120");
+  res.json(level ? { ...doc, sectors: doc.sectors.filter((s) => s.level === level) } : doc);
+}));
+router.get("/sectors/taxonomy", handle(async (req, res) => {
+  const doc = (await getMarketRuntime().store.getKv(ICB_KV))?.value ?? null;
+  if (!doc) { res.status(503).json({ error: "Chưa có phân ngành ICB." }); return; }
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(doc);
+}));
+router.get("/sectors/:code/history", handle(async (req, res) => {
+  const code = String(req.params.code || "").padStart(4, "0");
+  if (!/^\d{4}$/.test(code)) { res.status(400).json({ error: "Mã ngành không hợp lệ." }); return; }
+  const doc = await sectorDoc(getMarketRuntime(), SECTOR_RRG_HISTORY_KV);
+  const s = doc?.sectors?.[code];
+  if (!s) { res.status(404).json({ error: `Không có ngành ${code}.` }); return; }
+  res.set("Cache-Control", "public, max-age=300");
+  res.json({ engine: doc.engine, dataAsOf: doc.dataAsOf, closedThrough: doc.closedThrough, ...s });
 }));
 
 router.get("/strategies/:strategy", handle(async (req, res) => {
