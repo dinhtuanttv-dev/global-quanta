@@ -197,6 +197,12 @@ router.get("/sectors/taxonomy", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json(doc);
 }));
+// Cycle Fingerprint v2 (CF4) — sổ theo dõi thực tế (bản chụp dự báo 20 phiên hằng ngày, chấm khi đủ 21 phiên).
+router.get("/cycles-ledger", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().cycles.ledger());
+}));
+
 // Cycle Fingerprint v2 (CF2) — 30 giai đoạn tương tự toàn universe cho cửa sổ 30 phiên gần nhất + dự báo vượt VN-Index (EXPERIMENTAL theo CF3).
 router.get("/cycles/:symbol", handle(async (req, res) => {
   const symbol = String(req.params.symbol || "").toUpperCase();
