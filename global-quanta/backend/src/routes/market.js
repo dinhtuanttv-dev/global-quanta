@@ -197,6 +197,12 @@ router.get("/sectors/taxonomy", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json(doc);
 }));
+// Radar Top 20 (T0) — thành phần đầu vào (RS 3 tháng căn ngày với VN-Index, GTGD 20/250, PVT, A/D, thanh khoản) cho cả universe.
+router.get("/top20/inputs", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().top20.inputs());
+}));
+
 // Cycle Fingerprint v2 (CF4) — sổ theo dõi thực tế (bản chụp dự báo 20 phiên hằng ngày, chấm khi đủ 21 phiên).
 router.get("/cycles-ledger", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
