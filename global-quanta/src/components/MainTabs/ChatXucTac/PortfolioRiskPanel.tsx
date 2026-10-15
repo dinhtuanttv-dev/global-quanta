@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import {
   computeHistoricalVar,
@@ -78,16 +78,16 @@ export default function PortfolioRiskPanel({
           </label>
         </div>
         <div style={{ marginTop: 4, fontSize: 11 }}>
-          <div>Kelly day du: <b>{(sizing.fullKellyPct * 100).toFixed(1)}%</b></div>
+          <div>Kelly đầy đủ: <b>{(sizing.fullKellyPct * 100).toFixed(1)}%</b></div>
           <div style={{ color: "var(--gold-bright)", fontWeight: 700, marginTop: 2 }}>
             De xuat: {(sizing.recommendedPct * 100).toFixed(1)}% NAV ({sizing.recommendedAmount.toLocaleString("vi-VN")}₫)
           </div>
-          {sizing.capped && <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 2 }}>Da ap tran toi da 10%/ma</div>}
+          {sizing.capped && <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 2 }}>Đã áp trần tối đa 10%/mã</div>}
         </div>
       </div>
 
       <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 10 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--text-secondary)" }}>VaR / CVaR (95%, 1 ngay)</p>
+        <p style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--text-secondary)" }}>VaR / CVaR (95%, 1 ngày)</p>
         <div style={{ fontSize: 11 }}>
           <div>VaR: <b style={{ color: "var(--negative)" }}>{(varResult.varPct * 100).toFixed(2)}%</b> ({varResult.varAmount.toLocaleString("vi-VN")}₫)</div>
           <div>CVaR: <b style={{ color: "var(--negative)" }}>{(varResult.cvarPct * 100).toFixed(2)}%</b> ({varResult.cvarAmount.toLocaleString("vi-VN")}₫)</div>
@@ -97,7 +97,7 @@ export default function PortfolioRiskPanel({
       </div>
 
       <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 10 }}>
-        <p style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--text-secondary)" }}>Kich ban stress test</p>
+        <p style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--text-secondary)" }}>Kịch bản stress test</p>
         {stress.map((r) => (
           <div key={r.scenario.name} style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",

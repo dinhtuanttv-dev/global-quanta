@@ -1,6 +1,6 @@
-﻿import type { HeatmapCell } from "../../../hooks/useCatalystHeatmap";
+import type { HeatmapCell } from "../../../hooks/useCatalystHeatmap";
 
-const GROUPS: HeatmapCell["group"][] = ["Truc tiep", "Lan toa"];
+const GROUPS: HeatmapCell["group"][] = ["Trực tiếp", "Lan tỏa"];
 
 // Mau theo cuong do that (khong bia nguong) - scale tuyen tinh theo max tuyet doi
 // trong toan bo du lieu hien co, khong dung nguong co dinh tuy y.
@@ -27,7 +27,7 @@ export default function CatalystHeatmap({ cells }: { cells: HeatmapCell[] }) {
         <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 420 }}>
           <thead>
             <tr>
-              <th style={{ textAlign: "left", fontSize: 10, color: "var(--text-tertiary)", padding: "4px 8px" }}>Nganh</th>
+              <th style={{ textAlign: "left", fontSize: 10, color: "var(--text-tertiary)", padding: "4px 8px" }}>Ngành</th>
               {GROUPS.map((g) => (
                 <th key={g} style={{ fontSize: 10, color: "var(--text-tertiary)", padding: "4px 8px", textAlign: "center" }}>{g}</th>
               ))}

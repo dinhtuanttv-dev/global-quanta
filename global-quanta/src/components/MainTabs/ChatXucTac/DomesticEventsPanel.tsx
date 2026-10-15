@@ -1,12 +1,12 @@
-﻿import type { DomesticEvent } from "../../../types/catalyst";
+import type { DomesticEvent } from "../../../types/catalyst";
 import { isTrustedUrl } from "../../../lib/urlSafety";
 
 const TAG_LABEL: Record<string, string> = {
-  NANG_HANG_THI_TRUONG: "NANG HANG THI TRUONG",
-  KY_REVIEW_CHI_SO: "KY REVIEW CHI SO",
-  ROOM_NGOAI: "ROOM NGOAI",
-  IPO_NIEM_YET: "IPO / NIEM YET",
-  CHINH_SACH: "CHINH SACH",
+  NANG_HANG_THI_TRUONG: "NÂNG HẠNG THỊ TRƯỜNG",
+  KY_REVIEW_CHI_SO: "KỲ REVIEW CHỈ SỐ",
+  ROOM_NGOAI: "ROOM NGOẠI",
+  IPO_NIEM_YET: "IPO / NIÊM YẾT",
+  CHINH_SACH: "CHÍNH SÁCH",
 };
 
 function EventCard({ event }: { event: DomesticEvent }) {
@@ -53,7 +53,7 @@ function EventCard({ event }: { event: DomesticEvent }) {
           marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--gold-bright)",
           background: "rgba(251,191,36,0.08)", padding: "4px 10px", borderRadius: 6, whiteSpace: "nowrap",
         }}>
-          {event.isPast ? "Da co hieu luc" : `Con ${event.daysUntil} ngay`}
+          {event.isPast ? "Đã có hiệu lực" : `Con ${event.daysUntil} ngay`}
         </span>
       </div>
 

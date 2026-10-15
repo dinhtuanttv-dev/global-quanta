@@ -1,4 +1,4 @@
-﻿import type { MoverItem } from "../../../types/catalyst";
+import type { MoverItem } from "../../../types/catalyst";
 
 function MoverRow({ item, positive }: { item: MoverItem; positive: boolean }) {
   const rankChange = item.prevRank - item.rank;
@@ -39,13 +39,13 @@ export default function MoversList({ upMovers, downMovers }: { upMovers: MoverIt
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
       <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 8px", minWidth: 0 }}>
-        <p style={{ fontSize: 10.5, fontWeight: 700, color: "var(--positive)", margin: "0 0 6px", paddingLeft: 4 }}>TANG HANG (tich cuc)</p>
-        {upMovers.length === 0 && <p style={{ fontSize: 10, color: "var(--text-tertiary)", paddingLeft: 4 }}>Chua co du lieu</p>}
+        <p style={{ fontSize: 10.5, fontWeight: 700, color: "var(--positive)", margin: "0 0 6px", paddingLeft: 4 }}>TĂNG HẠNG (tích cực)</p>
+        {upMovers.length === 0 && <p style={{ fontSize: 10, color: "var(--text-tertiary)", paddingLeft: 4 }}>Chưa có dữ liệu</p>}
         {upMovers.map((m) => <MoverRow key={m.ticker + m.rank} item={m} positive />)}
       </div>
       <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 8px", minWidth: 0 }}>
-        <p style={{ fontSize: 10.5, fontWeight: 700, color: "var(--negative)", margin: "0 0 6px", paddingLeft: 4 }}>GIAM HANG (tieu cuc)</p>
-        {downMovers.length === 0 && <p style={{ fontSize: 10, color: "var(--text-tertiary)", paddingLeft: 4 }}>Chua co du lieu</p>}
+        <p style={{ fontSize: 10.5, fontWeight: 700, color: "var(--negative)", margin: "0 0 6px", paddingLeft: 4 }}>GIẢM HẠNG (tiêu cực)</p>
+        {downMovers.length === 0 && <p style={{ fontSize: 10, color: "var(--text-tertiary)", paddingLeft: 4 }}>Chưa có dữ liệu</p>}
         {downMovers.map((m) => <MoverRow key={m.ticker + m.rank} item={m} positive={false} />)}
       </div>
     </div>

@@ -1,21 +1,21 @@
-﻿import type { ForensicScoreResult } from "../../../types/financialEngineering";
+import type { ForensicScoreResult } from "../../../types/financialEngineering";
 
 interface Props { forensic: ForensicScoreResult; }
 
 function zoneLabel(zone: ForensicScoreResult["altmanZone"]) {
-  return { safe: "An toan", grey: "Vung xam", distress: "Nguy co" }[zone];
+  return { safe: "An toàn", grey: "Vùng xám", distress: "Nguy cơ" }[zone];
 }
 function zoneColor(zone: ForensicScoreResult["altmanZone"]) {
   return { safe: "var(--positive)", grey: "var(--text-secondary)", distress: "var(--negative)" }[zone];
 }
 function fLabel(flag: ForensicScoreResult["piotroskiFlag"]) {
-  return { strong: "Manh", moderate: "Trung binh", weak: "Yeu" }[flag];
+  return { strong: "Mạnh", moderate: "Trung bình", weak: "Yếu" }[flag];
 }
 function fColor(flag: ForensicScoreResult["piotroskiFlag"]) {
   return { strong: "var(--positive)", moderate: "var(--text-secondary)", weak: "var(--negative)" }[flag];
 }
 function beneishLabel(flag: ForensicScoreResult["beneishFlag"]) {
-  return { likely_manipulator: "Can ra soat them", unlikely: "Binh thuong", insufficient_data: "Thieu du lieu" }[flag];
+  return { likely_manipulator: "Cần rà soát thêm", unlikely: "Bình thường", insufficient_data: "Thiếu dữ liệu" }[flag];
 }
 
 // A.1 (Phase 1) - hien gon 3 chi so forensic + co canh bao aspect-conflict.

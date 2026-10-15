@@ -1,4 +1,4 @@
-﻿import { Calendar, Landmark, TrendingUp, Factory } from "lucide-react";
+import { Calendar, Landmark, TrendingUp, Factory } from "lucide-react";
 import type { MacroCalendarEvent } from "../../../types/catalyst";
 
 // Chi hien ten su kien + so ngay con lai - KHONG hien nhan tich cuc/tieu cuc
@@ -10,13 +10,13 @@ type EventKind = "fomc" | "cpi" | "pmi" | "other";
 function classifyEvent(title: string): { kind: EventKind; icon: typeof Landmark; label: string; accent: string } {
   const t = title.toLowerCase();
   if (t.includes("fomc") || t.includes("fed")) {
-    return { kind: "fomc", icon: Landmark, label: "FED - QUOC TE", accent: "#4c8dff" };
+    return { kind: "fomc", icon: Landmark, label: "FED · QUỐC TẾ", accent: "#4c8dff" };
   }
   if (t.includes("cpi") || t.includes("xuat nhap khau") || t.includes("xuất nhập khẩu")) {
     return { kind: "cpi", icon: TrendingUp, label: "CPI & XNK - GSO", accent: "#fbbf24" };
   }
   if (t.includes("pmi")) {
-    return { kind: "pmi", icon: Factory, label: "PMI SAN XUAT", accent: "#a78bfa" };
+    return { kind: "pmi", icon: Factory, label: "PMI SẢN XUẤT", accent: "#a78bfa" };
   }
   return { kind: "other", icon: Calendar, label: "LICH VI MO", accent: "var(--text-tertiary)" };
 }
@@ -71,7 +71,7 @@ function EventRow({ ev }: { ev: MacroCalendarEvent }) {
 
       <div style={{ flexShrink: 0, textAlign: "right" }}>
         <div style={{ fontSize: 10.5, fontWeight: 700, color: isUrgent ? "#fbbf24" : "var(--text-secondary)" }}>
-          {ev.daysRemaining <= 0 ? "Hom nay" : `${Math.round(ev.daysRemaining)} ngay`}
+          {ev.daysRemaining <= 0 ? "Hôm nay" : `${Math.round(ev.daysRemaining)} ngay`}
         </div>
         <div style={{ fontSize: 9, color: "var(--text-tertiary)", marginTop: 1 }}>
           {new Date(ev.executionDate).toLocaleDateString("vi-VN")}

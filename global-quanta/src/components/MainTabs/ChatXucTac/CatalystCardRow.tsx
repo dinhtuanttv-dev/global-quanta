@@ -1,10 +1,10 @@
-﻿import TrustScoreBadge from "./TrustScoreBadge";
+import TrustScoreBadge from "./TrustScoreBadge";
 import type { CatalystCard as CatalystCardType } from "../../../types/catalyst";
 import { Microscope } from "lucide-react";
 
-const HORIZON_LABEL: Record<string, string> = { short: "Ngan han", medium: "Trung han", long: "Dai han" };
+const HORIZON_LABEL: Record<string, string> = { short: "Ngắn hạn", medium: "Trung hạn", long: "Dài hạn" };
 const PRICE_IN_LABEL: Record<string, string> = {
-  not_reflected: "Chua phan anh vao gia", partially_reflected: "Da phan anh 1 phan", reflected: "Da phan anh du",
+  not_reflected: "Chưa phản ánh vào giá", partially_reflected: "Đã phản ánh một phần", reflected: "Đã phản ánh đủ",
 };
 
 // Nguong 55% lay theo TAI-LIEU-NANG-CAP-CHAT-XUC-TAC.md - duoi nguong nay
@@ -17,7 +17,7 @@ function winRateColor(winRate: number): { bg: string; text: string } {
 
 interface Props {
   card: CatalystCardType;
-  /** Phase 1: khi truyen vao, hien nut mo drawer "Phan tich sau" (forensics/risk/explain). */
+  /** Phase 1: khi truyen vao, hien nut mo drawer "Phân tích sâu" (forensics/risk/explain). */
   onOpenAnalysis?: (card: CatalystCardType) => void;
 }
 
@@ -34,7 +34,7 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
         <span style={{ fontWeight: 700, fontSize: 12.5 }}>{card.ticker}</span>
         <span style={{ fontSize: 10, color: isBenefit ? "var(--positive)" : "var(--negative)", fontWeight: 600 }}>
-          {isBenefit ? "Tich cuc" : "Tieu cuc"}
+          {isBenefit ? "Tích cực" : "Tiêu cực"}
         </span>
         <TrustScoreBadge trustScore={card.trustScore} />
         {card.isConflicted && (

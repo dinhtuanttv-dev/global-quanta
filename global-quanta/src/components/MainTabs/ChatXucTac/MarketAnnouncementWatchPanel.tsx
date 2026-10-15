@@ -1,15 +1,15 @@
-﻿import { useMarketAnnouncementWatch } from "../../../hooks/useMarketAnnouncementWatch";
+import { useMarketAnnouncementWatch } from "../../../hooks/useMarketAnnouncementWatch";
 import type { MarketAnnouncementFinding } from "../../../types/catalyst";
 import { isTrustedUrl } from "../../../lib/urlSafety";
 
 const KIND_LABEL: Record<MarketAnnouncementFinding["kind"], { title: string; accent: string }> = {
-  vn30: { title: "KY REVIEW VN30 - MOI PHAT HIEN", accent: "#4c8dff" },
-  msci: { title: "MSCI NANG HANG - MOI PHAT HIEN", accent: "#22c55e" },
-  sbv: { title: "SBV THAY DOI LAI SUAT - MOI PHAT HIEN", accent: "#fbbf24" },
+  vn30: { title: "KỲ REVIEW VN30 · MỚI PHÁT HIỆN", accent: "#4c8dff" },
+  msci: { title: "MSCI NÂNG HẠNG · MỚI PHÁT HIỆN", accent: "#22c55e" },
+  sbv: { title: "NHNN THAY ĐỔI LÃI SUẤT · MỚI PHÁT HIỆN", accent: "#fbbf24" },
 };
 
 function formatDate(iso: string | null): string {
-  if (!iso) return "Chua ro";
+  if (!iso) return "Chưa rõ";
   return new Date(iso).toLocaleDateString("vi-VN");
 }
 
@@ -36,8 +36,8 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
       }}>{title}</span>
 
       <div style={{ fontSize: 11, color: "var(--text-secondary)", marginBottom: 8 }}>
-        <div>Ngay cong bo: <b style={{ color: "var(--text-primary)" }}>{formatDate(finding.announcementDate)}</b></div>
-        <div>Ngay hieu luc: <b style={{ color: "var(--text-primary)" }}>{formatDate(finding.effectiveDate)}</b></div>
+        <div>Ngày công bố: <b style={{ color: "var(--text-primary)" }}>{formatDate(finding.announcementDate)}</b></div>
+        <div>Ngày hiệu lực: <b style={{ color: "var(--text-primary)" }}>{formatDate(finding.effectiveDate)}</b></div>
       </div>
 
       {days !== null && (
@@ -45,7 +45,7 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
           fontSize: 11, fontWeight: 700, color: accent, background: `${accent}14`,
           padding: "4px 10px", borderRadius: 6, display: "inline-block", marginBottom: 8,
         }}>
-          {days >= 0 ? `Con ${days} ngay den khi hieu luc` : "Da co hieu luc"}
+          {days >= 0 ? `Còn ${days} ngày đến khi hiệu lực` : "Đã có hiệu lực"}
         </span>
       )}
 

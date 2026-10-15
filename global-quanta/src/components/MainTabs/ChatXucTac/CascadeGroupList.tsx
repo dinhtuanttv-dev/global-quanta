@@ -1,4 +1,4 @@
-﻿import type { CatalystCard } from "../../../types/catalyst";
+import type { CatalystCard } from "../../../types/catalyst";
 
 interface CascadeGroup {
   sourceId: string;
@@ -26,7 +26,7 @@ export default function CascadeGroupList({ cards }: { cards: CatalystCard[] }) {
 
   return (
     <div style={{ marginTop: 4 }}>
-      <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "6px 0 4px" }}>Tac dong lan toa (gian tiep)</p>
+      <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "6px 0 4px" }}>Tác động lan tỏa (gián tiếp)</p>
       {groups.map((g) => (
         <div key={g.sourceId} style={{
           display: "flex", alignItems: "center", gap: 6, padding: "5px 8px",
