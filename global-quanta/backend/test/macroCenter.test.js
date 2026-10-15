@@ -189,3 +189,38 @@ test("router: route engine, nguồn, công cụ, admin cần token", async () =>
     server.close();
   }
 });
+
+import { releaseSchedule, fomcEvents, analysisEvents } from "../src/market/macro/catalystEvents.js";
+
+test("X3 lịch công bố: GSO tháng 9/2026 công bố ~06/10, gộp theo (ngày, cơ quan), trong cửa sổ", () => {
+  const ev = releaseSchedule("2026-10-01", 40);
+  const gso = ev.find((e) => e.id === "release:GSO:2026-10-06");
+  assert.ok(!ev.some((e) => /IR|EXb/.test(e.series.map((s) => s.seriesId).join(" "))), "IR/EX là số liệu ngày");
+  assert.ok(gso, JSON.stringify(ev.map((e) => e.id)));
+  assert.match(gso.title, /tháng 9\/2026/);
+  assert.ok(gso.series.some((s) => s.seriesId === "CPI"));
+  assert.equal(gso.estimated, true);
+  assert.equal(gso.daysRemaining, 5);
+  assert.ok(ev.every((e) => e.date >= "2026-10-01" && e.date <= "2026-11-10"));
+  assert.ok(!ev.some((e) => /HOSE|thị trường/.test(e.title)));
+  assert.equal(new Set(ev.map((e) => e.id)).size, ev.length);
+});
+
+test("X3 FOMC: chỉ ngày tương lai trong cửa sổ; cảnh báo/chế độ KHÔNG phát ở chế độ mô phỏng", () => {
+  assert.deepEqual(fomcEvents("2026-10-16", 60).map((e) => e.date), ["2026-10-28", "2026-12-09"]);
+  const regime = { current: { label: "Thắt chặt", probs: [0.1, 0.9] }, history: [{ period: "2026-08", probs: [0.8, 0.2] }, { period: "2026-09", probs: [0.1, 0.9] }] };
+  const alerts = { alerts: [{ id: "a", level: "warn", messageVi: "x" }] };
+  assert.deepEqual(analysisEvents({ mode: "synthetic", alerts, regime, todayIso: "2026-10-16" }), []);
+  const real = analysisEvents({ mode: "real", alerts, regime, todayIso: "2026-10-16" });
+  assert.deepEqual(real.map((e) => e.kind), ["alert", "regime"]);
+  assert.match(real[1].title, /Thắt chặt.*9\/2026.*90%/);
+});
+
+test("X3 dịch vụ: catalystEvents ở chế độ mô phỏng chỉ có lịch (không cảnh báo)", async () => {
+  const svc = createMacroService({ store: memKv(), inline: true, now: () => NOW });
+  const r = await svc.catalystEvents({ horizonDays: 45 });
+  assert.equal(r.mode, "synthetic");
+  assert.equal(r.asOf, "2026-10-16");
+  assert.ok(r.events.length > 0);
+  assert.ok(r.events.every((e) => e.kind === "release" || e.kind === "fomc"));
+});

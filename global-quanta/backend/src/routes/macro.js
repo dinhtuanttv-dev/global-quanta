@@ -59,6 +59,12 @@ export function createMacroRouter({ getService, adminToken = () => process.env.M
     res.json(await getService().source());
   }));
 
+  router.get("/catalyst-events", readRl, wrap(async (req, res) => {
+    const h = Number(req.query.horizonDays);
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await getService().catalystEvents({ horizonDays: Number.isInteger(h) && h >= 1 && h <= 180 ? h : 60 }));
+  }));
+
   router.get("/tools", readRl, wrap(async (req, res) => {
     res.set("Cache-Control", "public, max-age=300");
     res.json(await getService().toolSpecs());
