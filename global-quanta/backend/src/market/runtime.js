@@ -25,6 +25,7 @@ import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
 import { createTop20Service, TOP20_SCHEDULE } from "./top20/top20Jobs.js";
+import { createAlphaService, ALPHA_SCHEDULE } from "./alpha/alphaService.js";
 import { setHolidayProvider } from "./calendar.js";
 import { marketConfig } from "./config.js";
 
@@ -72,8 +73,10 @@ export function getMarketRuntime() {
   const cycles = createCycleService({ service, corporateActions, taSeries });
   // Radar Top 20 (T0): thành phần đầu vào trên chuỗi điều chỉnh cộng dồn của cả universe (Project A chấm điểm).
   const top20 = createTop20Service({ service, corporateActions, taSeries });
-  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs };
-  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE] });
+  // Top 20 v2 (M1 đa yếu tố, T3 EXPERIMENTAL): 18 yếu tố giá / dòng tiền / BCTC VNDirect / ngành + sổ theo dõi thực tế.
+  const alpha = createAlphaService({ service, corporateActions, taSeries });
+  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs };
+  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -89,7 +92,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, started: false };
   return runtime;
 }
 
