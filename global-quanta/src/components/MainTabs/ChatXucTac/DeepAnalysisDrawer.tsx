@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import type { CatalystCard } from "../../../types/catalyst";
@@ -67,7 +67,7 @@ export default function DeepAnalysisDrawer({ card, onClose }: Props) {
             color: card.direction === "benefit" ? "var(--positive)" : "var(--negative)",
             background: card.direction === "benefit" ? "rgba(52,211,153,0.12)" : "rgba(248,113,113,0.12)",
           }}>
-            {card.direction === "benefit" ? "Tich cuc" : card.direction === "harm" ? "Tieu cuc" : "Trung tinh"}
+            {card.direction === "benefit" ? "Tích cực" : card.direction === "harm" ? "Tiêu cực" : "Trung tính"}
           </span>
           <button onClick={onClose} style={{
             marginLeft: "auto", background: "transparent", border: "none", cursor: "pointer",
@@ -81,9 +81,9 @@ export default function DeepAnalysisDrawer({ card, onClose }: Props) {
         </p>
 
         <div style={{ display: "flex", gap: 6, marginBottom: 14, borderBottom: "1px solid var(--border)", paddingBottom: 8 }}>
-          <SubTabButton active={subTab === "explain"} onClick={() => setSubTab("explain")}>Giai thich diem</SubTabButton>
+          <SubTabButton active={subTab === "explain"} onClick={() => setSubTab("explain")}>Giải thích điểm</SubTabButton>
           <SubTabButton active={subTab === "forensics"} onClick={() => setSubTab("forensics")}>Forensics</SubTabButton>
-          <SubTabButton active={subTab === "risk"} onClick={() => setSubTab("risk")}>Quan tri rui ro</SubTabButton>
+          <SubTabButton active={subTab === "risk"} onClick={() => setSubTab("risk")}>Quản trị rủi ro</SubTabButton>
         </div>
 
         {subTab === "explain" && <ScoreExplanationPanel explanation={explanation} />}

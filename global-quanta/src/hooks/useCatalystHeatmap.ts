@@ -3,7 +3,7 @@ import type { CatalystSector } from "../types/catalyst";
 
 export interface HeatmapCell {
   sector: string;
-  group: "Truc tiep" | "Lan toa";
+  group: "Trực tiếp" | "Lan tỏa";
   avgImpact: number; // trung binh netSignedImpact - co the am/duong
   cardCount: number;
 }
@@ -14,9 +14,9 @@ export function useCatalystHeatmap(sectors: CatalystSector[]): HeatmapCell[] {
   return useMemo(() => {
     const cells: HeatmapCell[] = [];
     sectors.forEach((s) => {
-      const groups: { key: "Truc tiep" | "Lan toa"; cards: typeof s.primaryCards }[] = [
-        { key: "Truc tiep", cards: s.primaryCards },
-        { key: "Lan toa", cards: s.cascadeCards },
+      const groups: { key: "Trực tiếp" | "Lan tỏa"; cards: typeof s.primaryCards }[] = [
+        { key: "Trực tiếp", cards: s.primaryCards },
+        { key: "Lan tỏa", cards: s.cascadeCards },
       ];
       groups.forEach(({ key, cards }) => {
         if (cards.length === 0) {

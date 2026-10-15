@@ -1,0 +1,24 @@
+{
+  "name": "macro-center",
+  "version": "1.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.5.0" },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "serve:demo": "tsx scripts/serve.ts --demo",
+    "serve": "tsx scripts/serve.ts --db macro.db",
+    "import": "tsx scripts/import-csv.ts --db macro.db",
+    "report": "tsx scripts/make-report.ts --db macro.db",
+    "report:demo": "tsx scripts/make-report.ts --demo --out bao-cao-demo.md",
+    "sample-csv": "tsx scripts/export-sample-csv.ts",
+    "validate:montecarlo": "tsx scripts/validate-montecarlo.ts",
+    "preview": "tsx scripts/render-preview.tsx"
+  },
+  "dependencies": { "react": "^19.0.0", "react-dom": "^19.0.0" },
+  "devDependencies": {
+    "@types/node": "^22.10.0", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0",
+    "tsx": "^4.19.0", "typescript": "^5.6.0", "vitest": "^2.1.0"
+  }
+}
