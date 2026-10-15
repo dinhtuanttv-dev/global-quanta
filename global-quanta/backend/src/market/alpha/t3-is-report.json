@@ -1,0 +1,131 @@
+{
+ "prereg": "alpha/T3-prereg-2026-10-10",
+ "frozen": {
+  "prereg": "alpha/T3-prereg-2026-10-10",
+  "rules": {
+   "version": "alpha/T3-prereg-2026-10-10",
+   "step": 5,
+   "isFraction": 0.7,
+   "embargoDates": 12,
+   "minRowsStart": 100,
+   "minPerDate": 20,
+   "topN": 20,
+   "maxPerSector": 4,
+   "cost": 0.003,
+   "minValue": 5000000000,
+   "m1": {
+    "lookback": 756,
+    "shrink": 0.5,
+    "minHistory": 20
+   },
+   "m2": {
+    "trees": 100,
+    "depth": 3,
+    "lr": 0.1,
+    "minLeaf": 50,
+    "bins": 32,
+    "reg": 1,
+    "k": 20,
+    "sigma": 1,
+    "retrainEvery": 12,
+    "lookback": 756,
+    "purge": 20,
+    "embargo": 20,
+    "minGroups": 30
+   },
+   "bootstrapIters": 2000,
+   "block": 4,
+   "placeboPaths": 100,
+   "seed": 20261010,
+   "minOosDates": 40,
+   "minOosTickers": 100
+  },
+  "factors": [
+   "mom12_1",
+   "mom6_1",
+   "resRs63",
+   "high52",
+   "trend",
+   "lowVol60",
+   "foreign20",
+   "foreign60",
+   "valueTrend",
+   "cmf20",
+   "rev5",
+   "npYoY",
+   "revYoY",
+   "npAccel",
+   "roe",
+   "ep",
+   "npTtmG",
+   "sectorRs63"
+  ],
+  "chosen": "M1",
+  "nTrials": 2,
+  "srVariance": 0.01701301350012786,
+  "isDates": [
+   "2022-10-25",
+   "2025-04-08"
+  ],
+  "oosDates": [
+   "2025-07-11",
+   "2026-09-04"
+  ],
+  "isIc": {
+   "M1": 0.0007,
+   "M2": -0.0473
+  },
+  "sha256": "5924b93bd87af7d2e2c623883bf4b2af29bc01bd37458e3bebf1a730d31c6ad8"
+ },
+ "inSample": {
+  "M1": {
+   "ic": {
+    "n": 123,
+    "mean": 0.0007,
+    "lo": -0.0389,
+    "hi": 0.0346,
+    "pOneSided": 0.461
+   },
+   "spread": {
+    "n": 123,
+    "mean": -0.0005,
+    "lo": -0.003,
+    "hi": 0.0018,
+    "pOneSided": 0.6575
+   },
+   "vsPlacebo": {
+    "n": 123,
+    "mean": -0.0001,
+    "lo": -0.0027,
+    "hi": 0.0023,
+    "pOneSided": 0.497
+   },
+   "turnover": 0.2374
+  },
+  "M2": {
+   "ic": {
+    "n": 123,
+    "mean": -0.0473,
+    "lo": -0.0931,
+    "hi": -0.0061,
+    "pOneSided": 0.988
+   },
+   "spread": {
+    "n": 123,
+    "mean": -0.0032,
+    "lo": -0.0059,
+    "hi": -0.0009,
+    "pOneSided": 0.9995
+   },
+   "vsPlacebo": {
+    "n": 123,
+    "mean": -0.0023,
+    "lo": -0.005,
+    "hi": 0,
+    "pOneSided": 0.978
+   },
+   "turnover": 0.335
+  }
+ },
+ "ms": 49983
+}
