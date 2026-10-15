@@ -32,13 +32,18 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
       background: "var(--bg-surface)", borderRadius: 6, marginBottom: 6,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={{ fontWeight: 700, fontSize: 12.5 }}>{card.ticker}</span>
+        {onOpenAnalysis ? (
+          <button type="button" onClick={() => onOpenAnalysis(card)} title={`Phân tích sâu ${card.ticker}`}
+            style={{ fontWeight: 700, fontSize: 12.5, background: "transparent", border: 0, padding: 0, color: "var(--text-primary)", cursor: "pointer", textDecoration: "underline dotted" }}>
+            {card.ticker}
+          </button>
+        ) : <span style={{ fontWeight: 700, fontSize: 12.5 }}>{card.ticker}</span>}
         <span style={{ fontSize: 10, color: isBenefit ? "var(--positive)" : "var(--negative)", fontWeight: 600 }}>
           {isBenefit ? "Tích cực" : "Tiêu cực"}
         </span>
         <TrustScoreBadge trustScore={card.trustScore} />
         {card.isConflicted && (
-          <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700 }}>⚠ Mau thuan tin hieu</span>
+          <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700 }}>⚠ Mâu thuẫn tín hiệu</span>
         )}
         {/* MOI (2026-09-11): chi hien khi that su "buy" - du lieu that tu ban
             tin HOSE hang ngay (Top 5 CP mua rong). KHONG hien badge "sell"
@@ -55,11 +60,11 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
       <div style={{ display: "flex", gap: 8, fontSize: 9.5, color: "var(--text-tertiary)", flexWrap: "wrap", alignItems: "center" }}>
         <span>{HORIZON_LABEL[card.horizon] ?? card.horizon}</span>
         <span>{PRICE_IN_LABEL[card.priceInStatus] ?? card.priceInStatus}</span>
-        <span>Xac nhan cheo: {card.corroborationCount} nguon</span>
+        <span>Xác nhận chéo: {card.corroborationCount} nguồn</span>
         <span style={{
           background: wr.bg, color: wr.text, fontWeight: 700, padding: "1px 6px", borderRadius: 8,
         }}>
-          Ty le thang: {card.historicalWinRate}%
+          Tỷ lệ thắng: {card.historicalWinRate}%
         </span>
         {onOpenAnalysis && (
           <button
@@ -70,9 +75,9 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
               background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)",
               borderRadius: 8, padding: "2px 8px", cursor: "pointer",
             }}
-            title="Xem giai thich diem, forensics & quan tri rui ro"
+            title="Giải thích điểm, sức khoẻ tài chính & quản trị rủi ro"
           >
-            <Microscope size={11} /> Phan tich sau
+            <Microscope size={11} /> Phân tích sâu
           </button>
         )}
       </div>

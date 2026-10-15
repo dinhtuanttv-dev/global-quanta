@@ -16,6 +16,7 @@ import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
+import { createForensicSource, createPortfolioRisk } from "../market/research/deepAnalysis.js";
 import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
@@ -332,6 +333,21 @@ router.get("/research/:symbol", handle(async (req, res) => {
   const data = await rt.service.cache.wrap(`research:${symbol}`, 60_000, () => getResearchSymbol(rt.store, symbol));
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
+}));
+
+// X5 — ngăn kéo Phân tích sâu (tab Chất xúc tác): BCTC năm thật cho forensics + lợi suất thật của danh mục ★.
+let forensicSource = null;
+let portfolioRisk = null;
+router.get("/fundamentals/:symbol/forensic", handle(async (req, res) => {
+  forensicSource ??= createForensicSource();
+  res.set("Cache-Control", "public, max-age=3600");
+  res.json(await forensicSource(req.params.symbol));
+}));
+
+router.get("/portfolio-risk", handle(async (req, res) => {
+  portfolioRisk ??= createPortfolioRisk({ taSeries: getMarketRuntime().taSeries });
+  res.set("Cache-Control", "private, max-age=600");
+  res.json(await portfolioRisk(req.query.symbols));
 }));
 
 // Lịch sử ELITE COMMAND RADAR theo người dùng đăng nhập (Supabase Auth) × ★ danh mục.
