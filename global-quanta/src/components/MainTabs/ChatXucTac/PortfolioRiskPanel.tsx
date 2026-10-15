@@ -61,18 +61,18 @@ export default function PortfolioRiskPanel({
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 8, padding: 10 }}>
         <p style={{ fontSize: 11, fontWeight: 700, margin: "0 0 8px", color: "var(--text-secondary)" }}>
-          Khoi luong vao lenh (1/4 Kelly - uoc tinh minh hoa)
+          Khối lượng vào lệnh (1/4 Kelly)
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-          <label style={labelStyle}>Xac suat thang
+          <label style={labelStyle}>Xác suất thắng
             <input type="number" step="0.01" min={0.01} max={0.99} value={winProb}
               onChange={(e) => setWinProb(Number(e.target.value))} style={inputStyle} />
           </label>
-          <label style={labelStyle}>Ty le lai/lo TB
+          <label style={labelStyle}>Tỷ lệ lãi/lỗ TB
             <input type="number" step="0.1" min={0.1} value={winLoss}
               onChange={(e) => setWinLoss(Number(e.target.value))} style={inputStyle} />
           </label>
-          <label style={labelStyle}>He so Kelly
+          <label style={labelStyle}>Hệ số Kelly
             <input type="number" step="0.05" min={0.05} max={1} value={kellyFraction}
               onChange={(e) => setKellyFraction(Number(e.target.value))} style={inputStyle} />
           </label>
@@ -80,7 +80,7 @@ export default function PortfolioRiskPanel({
         <div style={{ marginTop: 4, fontSize: 11 }}>
           <div>Kelly đầy đủ: <b>{(sizing.fullKellyPct * 100).toFixed(1)}%</b></div>
           <div style={{ color: "var(--gold-bright)", fontWeight: 700, marginTop: 2 }}>
-            De xuat: {(sizing.recommendedPct * 100).toFixed(1)}% NAV ({sizing.recommendedAmount.toLocaleString("vi-VN")}₫)
+            Gợi ý: {(sizing.recommendedPct * 100).toFixed(1)}% NAV ({sizing.recommendedAmount.toLocaleString("vi-VN")}₫)
           </div>
           {sizing.capped && <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 2 }}>Đã áp trần tối đa 10%/mã</div>}
         </div>
@@ -91,7 +91,7 @@ export default function PortfolioRiskPanel({
         <div style={{ fontSize: 11 }}>
           <div>VaR: <b style={{ color: "var(--negative)" }}>{(varResult.varPct * 100).toFixed(2)}%</b> ({varResult.varAmount.toLocaleString("vi-VN")}₫)</div>
           <div>CVaR: <b style={{ color: "var(--negative)" }}>{(varResult.cvarPct * 100).toFixed(2)}%</b> ({varResult.cvarAmount.toLocaleString("vi-VN")}₫)</div>
-          <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 4 }}>Co mau: {varResult.sampleSize} phien</div>
+          <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 4 }}>Cỡ mẫu: {varResult.sampleSize} phiên</div>
           {varResult.warning && <div style={{ fontSize: 9.5, color: "#fbbf24", marginTop: 2 }}>{varResult.warning}</div>}
         </div>
       </div>
