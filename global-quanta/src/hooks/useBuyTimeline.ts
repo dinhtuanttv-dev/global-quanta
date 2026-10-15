@@ -2,16 +2,12 @@ import useSWR from 'swr';
 import { isRetryableSeasonality, type SeasonalityFetchError } from '../lib/cotuc/http-json';
 import { buildBuyTimelineUrl, fetchBuyTimeline, type BuyTimeline } from '../lib/cotuc/buy-timeline';
 
-/**
- * Timeline điểm mua — làm mới mỗi 10 phút. Hook này chạy trong thanh bên Elite Command Radar trên MỌI tab: trước đây làm mới
- * mỗi phút + mỗi lần focus cửa sổ, mỗi lượt đọc nguyên snapshot của ~281 mã trên Supabase (vượt quota egress 10/2026).
- * Server nay đệm 10 phút + CDN 10 phút, nên làm mới dày hơn cũng không có dữ liệu mới hơn.
- */
+/** Timeline điểm mua — tự làm mới mỗi phút (Gateway quét liên tục cập nhật dữ liệu nguồn). */
 export function useBuyTimeline() {
   const { data, error, isLoading } = useSWR<BuyTimeline | null>(buildBuyTimelineUrl(), () => fetchBuyTimeline(), {
-    refreshInterval: 10 * 60_000,
-    dedupingInterval: 5 * 60_000,
-    revalidateOnFocus: false,
+    refreshInterval: 60_000,
+    dedupingInterval: 30_000,
+    revalidateOnFocus: true,
     shouldRetryOnError: (err: unknown) => isRetryableSeasonality(err as SeasonalityFetchError),
     errorRetryCount: 2,
   });
