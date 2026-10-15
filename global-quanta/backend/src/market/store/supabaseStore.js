@@ -115,6 +115,13 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
     foreign_buy_val: r.foreignBuyVal, foreign_sell_val: r.foreignSellVal, foreign_room: r.foreignRoom,
   });
   const n = (v) => (v === null || v === undefined ? null : Number(v));
+  // Tiết kiệm băng thông Supabase (quota egress, 10/2026): luôn chọn CỘT TƯỜNG MINH, không `select=*`.
+  const DAILY_COLUMNS = "symbol,trading_date,exchange,open,high,low,close,close_adj,ref_price,ceiling,floor,volume,value,deal_volume,deal_value,foreign_buy_vol,foreign_sell_vol,foreign_buy_val,foreign_sell_val,foreign_room";
+  const BAR_COLUMNS = "trading_date,open,high,low,close,volume,value,source";
+  // Cache KV trong bộ nhớ: tài liệu KV lớn (VD sectors:rrg:history ≈ 2,2 MB) trước đây bị đọc NGUYÊN mỗi request.
+  // Trong KV_FRESH_MS trả bản nhớ; quá hạn -> chỉ hỏi updated_at (~100 byte), đổi mới tải lại value.
+  const KV_FRESH_MS = Number(process.env.MARKET_KV_CACHE_MS) || 60_000;
+  const kvCache = new Map(); // key -> { value, updatedAt, checkedAt }
   const rowToDaily = (r) => ({
     symbol: r.symbol, date: r.trading_date, exchange: r.exchange,
     open: n(r.open), high: n(r.high), low: n(r.low), close: n(r.close), closeAdj: n(r.close_adj),
@@ -137,14 +144,15 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
       return rows.map((r) => r.trading_date);
     },
     async getMarketDailyByDate(date) {
-      return (await selectAll(`market_daily?trading_date=eq.${date}&order=symbol.asc`)).map(rowToDaily);
+      return (await selectAll(`market_daily?select=${DAILY_COLUMNS}&trading_date=eq.${date}&order=symbol.asc`)).map(rowToDaily);
     },
-    async getMarketDailyRange({ from, to, symbols }) {
+    /** `columns`: danh sách cột (chuỗi PostgREST) khi nơi gọi chỉ cần một phần — giảm payload. */
+    async getMarketDailyRange({ from, to, symbols, columns = DAILY_COLUMNS }) {
       const out = [];
       const chunks = symbols ? Array.from({ length: Math.ceil(symbols.length / 100) }, (_, i) => symbols.slice(i * 100, i * 100 + 100)) : [null];
       for (const chunk of chunks) {
         const filter = chunk ? `&symbol=in.(${chunk.map(enc).join(",")})` : "";
-        out.push(...(await selectAll(`market_daily?trading_date=gte.${from}&trading_date=lte.${to}${filter}&order=trading_date.asc,symbol.asc`)).map(rowToDaily));
+        out.push(...(await selectAll(`market_daily?select=${columns}&trading_date=gte.${from}&trading_date=lte.${to}${filter}&order=trading_date.asc,symbol.asc`)).map(rowToDaily));
       }
       return out.sort((a, b) => a.date.localeCompare(b.date));
     },
@@ -154,11 +162,21 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
 
     // ---------- Khoá-giá trị (kết quả quét, universe, bảng ngành) ----------
     async getKv(key) {
-      const rows = await request(`market_kv?key=eq.${enc(key)}`);
-      return rows?.[0] ? { value: rows[0].value, updatedAt: rows[0].updated_at } : null;
+      const c = kvCache.get(key);
+      // trả BẢN SAO: nơi gọi có thể sửa object (VD nối lịch sử rồi setKv) — không được làm hỏng bản trong cache
+      if (c && Date.now() - c.checkedAt < KV_FRESH_MS) return c.updatedAt == null ? null : { value: structuredClone(c.value), updatedAt: c.updatedAt };
+      if (c && c.updatedAt != null) {
+        const head = await request(`market_kv?select=updated_at&key=eq.${enc(key)}`);
+        if (head?.[0]?.updated_at === c.updatedAt) { c.checkedAt = Date.now(); return { value: structuredClone(c.value), updatedAt: c.updatedAt }; }
+      }
+      const rows = await request(`market_kv?select=value,updated_at&key=eq.${enc(key)}`);
+      const row = rows?.[0] ?? null;
+      kvCache.set(key, { value: row?.value ?? null, updatedAt: row?.updated_at ?? null, checkedAt: Date.now() });
+      return row ? { value: structuredClone(row.value), updatedAt: row.updated_at } : null;
     },
     async setKv(key, value) {
       await upsert("market_kv", [{ key, value, updated_at: new Date().toISOString() }], "key");
+      kvCache.delete(key); // lần đọc kế tiếp tải bản mới (không đoán định dạng updated_at của Postgres)
     },
 
     // ---------- BCTC lưu đệm ----------
@@ -235,7 +253,7 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch } = {}) {
     },
 
     async getBars(symbol, from, to) {
-      const rows = await selectAll(`market_ohlcv_daily?symbol=eq.${enc(symbol)}&trading_date=gte.${from}&trading_date=lte.${to}&order=trading_date.asc`);
+      const rows = await selectAll(`market_ohlcv_daily?select=${BAR_COLUMNS}&symbol=eq.${enc(symbol)}&trading_date=gte.${from}&trading_date=lte.${to}&order=trading_date.asc`);
       return rows.map((r) => ({
         date: r.trading_date, open: Number(r.open), high: Number(r.high), low: Number(r.low), close: Number(r.close),
         volume: Number(r.volume), value: r.value === null ? null : Number(r.value), source: r.source,
