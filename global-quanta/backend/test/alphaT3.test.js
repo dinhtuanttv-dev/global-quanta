@@ -86,3 +86,27 @@ test("Deflated Sharpe: SR0 tăng theo phương sai SR giữa các thử nghiệm
   const cfg = { x: 1 }; cfg.sha256 = hashConfig(cfg);
   assert.notEqual(hashConfig({ ...cfg, x: 2 }), cfg.sha256);
 });
+
+test("production M1: trọng số chỉ từ IC đã kết thúc trong 756 phiên; chấm bản chụp sau 21 phiên; tóm tắt sổ theo dõi", async () => {
+  const { liveM1Weights, scoreSnapshot, ledgerSummary, buildLiveTop20 } = await import("../src/market/alpha/alphaService.js");
+  const seriesOf = new Map(), sectorOf = new Map();
+  for (let k = 0; k < 30; k++) { const t = `P${String(k).padStart(2, "0")}`; seriesOf.set(t, walk(k + 5, (k - 15) * 2e-5)); sectorOf.set(t, `S${k % 5}`); }
+  const bench = walk(4242);
+  const cut = (b) => b.slice(0, -30);
+  const data0 = prepareAlpha({ seriesOf: new Map([...seriesOf].map(([t, b]) => [t, cut(b)])), benchBars: cut(bench), sectorOf });
+  const hist = Array.from({ length: 30 }, (_, i) => ({ date: data0.cal.dates[100 + i * 5], ic: Array.from({ length: K }, (_, k) => (k === 0 ? 0.2 : 0)) }));
+  const w = liveM1Weights(hist, data0.cal, data0.cal.dates.length - 1);
+  assert.equal(w.days, 30); assert.ok(w.weights[0] > w.weights[1]);
+  const few = liveM1Weights(hist.slice(0, 5), data0.cal, data0.cal.dates.length - 1);
+  assert.ok(few.weights.every((x) => Math.abs(x - 1 / K) < 1e-12));
+  const { doc, snapshot } = buildLiveTop20({ seriesOf: new Map([...seriesOf].map(([t, b]) => [t, cut(b)])), benchBars: cut(bench), sectorOf, vnd: null, icHistory: hist });
+  assert.equal(doc.top20.length, 20);
+  assert.equal(doc.top20[0].factors.length, 18);
+  assert.equal(doc.evidence.verdict, "FAIL");
+  const full = prepareAlpha({ seriesOf, benchBars: bench, sectorOf });
+  assert.equal(scoreSnapshot(snapshot, data0), null); // chưa đủ 21 phiên
+  const sc = scoreSnapshot(snapshot, full);
+  assert.ok(sc && sc.ic.length === 18 && sc.n === 30 && Number.isFinite(sc.spreadPct));
+  const sum = ledgerSummary([sc, null]);
+  assert.equal(sum.maturedDates, 1);
+});

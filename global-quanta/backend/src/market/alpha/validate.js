@@ -68,7 +68,7 @@ export function setup(inputs, { quadrantOf = () => null } = {}) {
 }
 
 /** IC theo ngày của từng yếu tố (h20) — đầu vào M1. */
-function factorIcByDate(ctx) {
+export function factorIcByDate(ctx) {
   const out = new Map();
   for (const ce of ctx.dates) {
     const rows = ctx.byDate.get(ce).filter((r) => r.y.h20 != null);

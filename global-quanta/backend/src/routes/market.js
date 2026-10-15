@@ -197,6 +197,12 @@ router.get("/sectors/taxonomy", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=3600");
   res.json(doc);
 }));
+// Top 20 v2 (T2/T5) — mô hình M1 đa yếu tố (18 yếu tố, phân rã đóng góp), nhãn T3 và sổ theo dõi thực tế.
+router.get("/alpha/top20", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().alpha.top20());
+}));
+
 // Radar Top 20 (T0) — thành phần đầu vào (RS 3 tháng căn ngày với VN-Index, GTGD 20/250, PVT, A/D, thanh khoản) cho cả universe.
 router.get("/top20/inputs", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
