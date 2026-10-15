@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "bundle:gateway": "node scripts/bundle-gateway.mjs"
+    "bundle:gateway": "node scripts/bundle-gateway.mjs",
+    "bundle:macro": "node scripts/bundle-macro.mjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
