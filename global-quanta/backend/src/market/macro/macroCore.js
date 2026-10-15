@@ -41,6 +41,22 @@ export function coverageOf(store) {
   return { series, usableFactors: factors, usableTargets: targets, realReady: factors.length > 0 && targets.length > 0 };
 }
 
+/**
+ * MacroScore CHỈ ĐỂ THAM KHẢO (quyết định dự án 2026-10-16): không bao giờ trả usableForDecisions = true.
+ * Kết quả cổng kiểm định (backtest.gate) vẫn giữ nguyên để minh bạch; trên dữ liệu mô phỏng cổng "đạt" là vô nghĩa.
+ */
+export function referenceOnly(res, mode) {
+  const b = res?.body;
+  if (!b || typeof b !== "object" || !("usableForDecisions" in b)) return res;
+  const passed = !!b.backtest?.gate?.pass;
+  const gateNote = mode === "synthetic"
+    ? "Dữ liệu MÔ PHỎNG — kết quả cổng kiểm định không có giá trị thực tế. MacroScore chỉ minh hoạ."
+    : passed
+      ? "MacroScore vượt cổng kiểm định ngoài mẫu của gói, nhưng CHỈ ĐỂ THAM KHẢO — chưa qua kiểm định đặt trước, không đưa vào quyết định."
+      : "MacroScore CHƯA vượt cổng kiểm định; chỉ dùng để tham khảo, không đưa vào bộ máy quyết định.";
+  return { ...res, body: { ...b, usableForDecisions: false, gatePassed: passed, gateNote, evidence: mode === "synthetic" ? "SYNTHETIC" : "REFERENCE_ONLY" } };
+}
+
 export function createMacroCore({ today } = {}) {
   let real = [];
   let state = null;
@@ -52,7 +68,8 @@ export function createMacroCore({ today } = {}) {
     const mode = coverage.realReady ? "real" : "synthetic";
     const store = mode === "real" ? realStore : makeSyntheticStore();
     // Dữ liệu chỉ đổi khi nạp (dataVersion đổi) -> TTL dài; tính lại chỉ khi đổi dữ liệu hoặc ngày asOf.
-    const api = createMacroApi({ store, today, cacheTtlMs: 12 * 3600_000, maxCacheEntries: 400, notice: mode === "synthetic" ? SYNTHETIC_NOTICE : undefined });
+    const raw = createMacroApi({ store, today, cacheTtlMs: 12 * 3600_000, maxCacheEntries: 400, notice: mode === "synthetic" ? SYNTHETIC_NOTICE : undefined });
+    const api = { ...raw, handle: async (req) => referenceOnly(await raw.handle(req), mode) };
     state = { mode, api, tools: createMacroChatTools(api), coverage, realCount: real.length };
   }
   rebuild();

@@ -65,9 +65,13 @@ test("Chưa có số liệu thật -> chế độ MÔ PHỎNG, mọi phản hồ
   const score = await svc.handle({ method: "POST", path: "/api/macro/score", query: {}, body: { target: "VNINDEX" } });
   assert.equal(score.status, 200);
   assert.equal(score.body.notice, SYNTHETIC_NOTICE);
+  assert.equal(score.body.usableForDecisions, false);
+  assert.equal(score.body.evidence, "SYNTHETIC");
   const tool = await svc.runTool("macro_overview", { target: "VN30" });
   assert.equal(tool.ok, true);
   assert.equal(tool.notice, SYNTHETIC_NOTICE);
+  assert.equal(tool.data.usableForDecisions, false);
+  assert.ok(tool.guidance.some((g) => /KHÔNG đưa khuyến nghị/.test(g)));
   const bad = await svc.runTool("khong_co", {});
   assert.equal(bad.ok, false);
 });
@@ -114,6 +118,8 @@ test("Nạp CSV biến vĩ mô thật đủ 60 tháng -> chế độ THẬT, kh�
   const score = await svc.handle({ method: "POST", path: "/api/macro/score", query: {}, body: { target: "VNINDEX" } });
   assert.equal(score.status, 200, JSON.stringify(score.body));
   assert.equal(score.body.notice, undefined);
+  assert.equal(score.body.usableForDecisions, false);
+  assert.equal(score.body.evidence, "REFERENCE_ONLY");
   // khởi động lại: đọc từ KV
   const svc2 = createMacroService({ store: kv, inline: true, now: () => NOW });
   const s2 = await svc2.source();

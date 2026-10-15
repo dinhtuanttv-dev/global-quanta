@@ -89,7 +89,7 @@ export function createMacroRouter({ getService, adminToken = () => process.env.M
         res.status(404).json({ error: "Không tìm thấy." });
         return;
       }
-      const r = await getService().handle({ method: req.method, path: `/api/macro/${req.params.route}`, query: strQuery(req.query), body: req.body });
+      const r = await getService().handle({ method: req.method === "HEAD" ? "GET" : req.method, path: `/api/macro/${req.params.route}`, query: strQuery(req.query), body: req.body });
       res.set("Cache-Control", r.status === 200 ? "public, max-age=120" : "no-store");
       res.status(r.status).json(r.body);
     }));
