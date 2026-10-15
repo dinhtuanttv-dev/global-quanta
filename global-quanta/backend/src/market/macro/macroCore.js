@@ -57,7 +57,10 @@ export function referenceOnly(res, mode) {
   return { ...res, body: { ...b, usableForDecisions: false, gatePassed: passed, gateNote, evidence: mode === "synthetic" ? "SYNTHETIC" : "REFERENCE_ONLY" } };
 }
 
-export function createMacroCore({ today } = {}) {
+/** Ngày hiện tại theo giờ Việt Nam (UTC+7) — asOf mặc định của engine. */
+export const vnToday = (now = Date.now()) => new Date(now + 7 * 3600_000).toISOString().slice(0, 10);
+
+export function createMacroCore({ today = () => vnToday() } = {}) {
   let real = [];
   let state = null;
 

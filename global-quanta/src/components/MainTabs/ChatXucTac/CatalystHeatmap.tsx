@@ -1,4 +1,5 @@
 import type { HeatmapCell } from "../../../hooks/useCatalystHeatmap";
+import { sectorLabelVi } from "../../../utils/sectorLabelVi";
 
 const GROUPS: HeatmapCell["group"][] = ["Trực tiếp", "Lan tỏa"];
 
@@ -36,7 +37,7 @@ export default function CatalystHeatmap({ cells }: { cells: HeatmapCell[] }) {
           <tbody>
             {sectors.map((sector) => (
               <tr key={sector}>
-                <td style={{ fontSize: 11, fontWeight: 600, padding: "6px 8px", whiteSpace: "nowrap" }}>{sector}</td>
+                <td style={{ fontSize: 11, fontWeight: 600, padding: "6px 8px", whiteSpace: "nowrap" }}>{sectorLabelVi(sector)}</td>
                 {GROUPS.map((g) => {
                   const cell = cells.find((c) => c.sector === sector && c.group === g);
                   if (!cell) return <td key={g} />;

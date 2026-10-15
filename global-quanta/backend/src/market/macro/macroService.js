@@ -4,7 +4,8 @@
 //     Nguồn: CSV nạp qua route admin (GSO/NHNN/...), và chuỗi chỉ số HOSE (tháng đã đóng) lấy từ lịch sử giá Gateway.
 //   - Chưa đủ số liệu thật (>= 1 biến vĩ mô và >= 1 chỉ số, 60 tháng) -> engine dùng kho MÔ PHỎNG, có biểu ngữ. Không trộn.
 import { Worker } from "node:worker_threads";
-import { createMacroCore, mergeObservations, parseSeriesCsv } from "./macroCore.js";
+import { createMacroCore, mergeObservations, parseSeriesCsv, vnToday } from "./macroCore.js";
+import { buildMacroCatalystEvents } from "./catalystEvents.js";
 
 export const MACRO_KV_KEY = "macro:observations";
 // Mã chỉ số trong danh mục MacroCenter -> mã chỉ số của Gateway.
@@ -104,14 +105,14 @@ export function monthlyCloses(bars, todayIso) {
 }
 
 export function createMacroService({ store, history, inline = false, now = Date.now, log = console } = {}) {
-  const engine = inline ? inlineEngine({ today: () => new Date(now()).toISOString().slice(0, 10) }) : workerEngine();
+  const engine = inline ? inlineEngine({ today: () => vnToday(now()) }) : workerEngine();
   let observations = [];
   let ready = null;
   let writeChain = Promise.resolve();
   let hoseAt = 0;
   let hosePending = null;
 
-  const todayIso = () => new Date(now()).toISOString().slice(0, 10);
+  const todayIso = () => vnToday(now());
 
   async function persist(list) {
     observations = list;
@@ -214,6 +215,11 @@ export function createMacroService({ store, history, inline = false, now = Date.
         if (added || changed) await persist(list);
         return { ...base, written: true, added, changed, source: await engine.source() };
       });
+    },
+    /** X3: lịch xúc tác vĩ mô hợp nhất (công bố số liệu ước tính, FOMC, cảnh báo/chế độ khi có số liệu thật). */
+    async catalystEvents({ horizonDays = 60 } = {}) {
+      await init();
+      return buildMacroCatalystEvents(this, { todayIso: todayIso(), horizonDays });
     },
     close: () => engine.close(),
   };
