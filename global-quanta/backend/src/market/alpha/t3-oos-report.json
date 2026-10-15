@@ -1,0 +1,273 @@
+{
+ "prereg": "alpha/T3-prereg-2026-10-10",
+ "configSha256": "5924b93bd87af7d2e2c623883bf4b2af29bc01bd37458e3bebf1a730d31c6ad8",
+ "chosen": "M1",
+ "verdict": "FAIL",
+ "label": "EXPERIMENTAL",
+ "checks": [
+  {
+   "id": 1,
+   "name": "IC hạng M1 > 0, cận dưới KTC > 0",
+   "pass": true,
+   "value": {
+    "n": 58,
+    "mean": 0.037,
+    "lo": 0.0015,
+    "hi": 0.0757,
+    "pOneSided": 0.0215
+   }
+  },
+  {
+   "id": 2,
+   "name": "Top 20 − universe thanh khoản, sau phí: TB > 0, cận dưới > 0",
+   "pass": false,
+   "value": {
+    "n": 58,
+    "mean": -0.0014,
+    "lo": -0.0043,
+    "hi": 0.0016,
+    "pOneSided": 0.83
+   }
+  },
+  {
+   "id": 3,
+   "name": "Top 20 hơn placebo cùng ràng buộc, cận dưới > 0",
+   "pass": false,
+   "value": {
+    "n": 58,
+    "mean": -0.0013,
+    "lo": -0.0041,
+    "hi": 0.0017,
+    "pOneSided": 0.8165
+   }
+  },
+  {
+   "id": 4,
+   "name": "Top 20 hơn điểm hội tụ hiện tại VÀ momentum 6-1 (cùng Top 20, cùng phí)",
+   "pass": false,
+   "value": {
+    "vsConfluence": {
+     "n": 58,
+     "mean": 0.0023,
+     "lo": -0.0037,
+     "hi": 0.009,
+     "pOneSided": 0.2235
+    },
+    "vsMomentum": {
+     "n": 58,
+     "mean": -0.0002,
+     "lo": -0.0045,
+     "hi": 0.0041,
+     "pOneSided": 0.544
+    }
+   }
+  },
+  {
+   "id": 5,
+   "name": "Deflated Sharpe > 0 (SR − SR0 > 0)",
+   "pass": false,
+   "value": {
+    "sr": -0.1248,
+    "sr0": 0.0678,
+    "deflated": -0.1926,
+    "prob": 0.0743,
+    "T": 58
+   }
+  },
+  {
+   "id": 6,
+   "name": "IC trong mẫu > 0; OOS ≥ 40 ngày & ≥ 100 mã",
+   "pass": true,
+   "value": {
+    "isIc": 0.0007,
+    "oosDates": 58,
+    "tickers": 221
+   }
+  }
+ ],
+ "outOfSample": {
+  "ic": {
+   "n": 58,
+   "mean": 0.037,
+   "lo": 0.0015,
+   "hi": 0.0757,
+   "pOneSided": 0.0215
+  },
+  "spread": {
+   "n": 58,
+   "mean": -0.0014,
+   "lo": -0.0043,
+   "hi": 0.0016,
+   "pOneSided": 0.83
+  },
+  "vsPlacebo": {
+   "n": 58,
+   "mean": -0.0013,
+   "lo": -0.0041,
+   "hi": 0.0017,
+   "pOneSided": 0.8165
+  },
+  "vsConfluence": {
+   "n": 58,
+   "mean": 0.0023,
+   "lo": -0.0037,
+   "hi": 0.009,
+   "pOneSided": 0.2235
+  },
+  "vsMomentum": {
+   "n": 58,
+   "mean": -0.0002,
+   "lo": -0.0045,
+   "hi": 0.0041,
+   "pOneSided": 0.544
+  },
+  "dsr": {
+   "sr": -0.1248,
+   "sr0": 0.0678,
+   "deflated": -0.1926,
+   "prob": 0.0743,
+   "T": 58
+  },
+  "turnover": 0.1784,
+  "maxDrawdownSpread": -0.1215,
+  "periods": 58
+ },
+ "secondary": [
+  {
+   "name": "IC M1 kỳ hạn 40 phiên",
+   "mean": 0.0322,
+   "lo": 0.0039,
+   "hi": 0.0615,
+   "n": 54,
+   "p": 0.0135,
+   "threshold": 0.0056,
+   "reject": false
+  },
+  {
+   "name": "IC M1 khi VN-Index trên MA200",
+   "mean": 0.0374,
+   "lo": 0.0003,
+   "hi": 0.0752,
+   "n": 53,
+   "p": 0.0235,
+   "threshold": 0.0063,
+   "reject": false
+  },
+  {
+   "name": "IC M1 kỳ hạn 60 phiên",
+   "mean": 0.0281,
+   "lo": -0.0014,
+   "hi": 0.0576,
+   "n": 50,
+   "p": 0.032,
+   "threshold": 0.0071,
+   "reject": false
+  },
+  {
+   "name": "IC M1 kỳ hạn 10 phiên",
+   "mean": 0.0304,
+   "lo": -0.0014,
+   "hi": 0.0622,
+   "n": 58,
+   "p": 0.0325,
+   "threshold": 0.0083,
+   "reject": false
+  },
+  {
+   "name": "IC nhóm price",
+   "mean": 0.0459,
+   "lo": -0.0216,
+   "hi": 0.1165,
+   "n": 58,
+   "p": 0.0895,
+   "threshold": 0.01,
+   "reject": false
+  },
+  {
+   "name": "IC nhóm fund",
+   "mean": 0.0111,
+   "lo": -0.0223,
+   "hi": 0.0459,
+   "n": 58,
+   "p": 0.2435,
+   "threshold": 0.0125,
+   "reject": false
+  },
+  {
+   "name": "IC nhóm sector",
+   "mean": 0.0041,
+   "lo": -0.0346,
+   "hi": 0.0399,
+   "n": 58,
+   "p": 0.398,
+   "threshold": 0.0167,
+   "reject": false
+  },
+  {
+   "name": "IC M2 (mô hình không chọn)",
+   "mean": 0.0014,
+   "lo": -0.0313,
+   "hi": 0.0352,
+   "n": 58,
+   "p": 0.466,
+   "threshold": 0.025,
+   "reject": false
+  },
+  {
+   "name": "IC nhóm flow",
+   "mean": -0.0531,
+   "lo": -0.093,
+   "hi": -0.0141,
+   "n": 58,
+   "p": 0.997,
+   "threshold": 0.05,
+   "reject": false
+  },
+  {
+   "name": "IC M1 khi VN-Index dưới MA200",
+   "mean": 0.0327,
+   "n": 5,
+   "p": null,
+   "note": "thiếu mẫu"
+  }
+ ],
+ "lastPortfolio": {
+  "ce": 1220,
+  "date": "2026-09-04",
+  "gross": 0.004059551228581926,
+  "net": 0.003609551228581926,
+  "uni": -0.012145172229027699,
+  "spread": 0.015754723457609626,
+  "turnover": 0.15,
+  "placebo": -0.009573327150066882,
+  "tickers": [
+   "VHM",
+   "VPI",
+   "VIC",
+   "SIP",
+   "KSF",
+   "DRI",
+   "PVP",
+   "HCM",
+   "ABB",
+   "VEA",
+   "DHC",
+   "BSR",
+   "EVF",
+   "GMD",
+   "BMP",
+   "HDB",
+   "PHP",
+   "ORS",
+   "POW",
+   "PET"
+  ]
+ },
+ "limitations": [
+  "Universe hiện tại (thiên lệch sống sót).",
+  "BCTC: số liệu là bản điều chỉnh mới nhất của VNDirect; thời điểm dùng = ngày tạo bản ghi đầu (≈ ngày công bố).",
+  "Điểm hội tụ so sánh dùng trọng số Risk-On trung lập (50) vì không có lịch sử DXY/VIX/US10Y theo ngày.",
+  "Lee–Ready chưa đủ lịch sử để kiểm định — chỉ đưa vào sổ theo dõi thực tế (T5)."
+ ],
+ "ms": 121030
+}

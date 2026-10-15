@@ -73,3 +73,21 @@ Người dùng duyệt quy tắc ngày 2026-10-10, trước khi chạy.
 - số liệu BCTC là bản điều chỉnh mới nhất;
 - benchmark hội tụ dùng Risk-On trung lập;
 - Lee–Ready chưa kiểm định được (chỉ đưa vào sổ theo dõi T5).
+
+## Kết quả (chạy 2026-10-15)
+- **Thời điểm chốt:** mã nguồn và quy tắc commit 70e31c9 trước khi chạy. Cấu hình chốt sau pha trong mẫu là commit ea515eb (SHA-256 `5924b93b…`).
+- **Trong mẫu** (2022-10-25 → 2025-04-08, 123 ngày):
+  - M1: IC +0,0007 [−0,039; +0,035];
+  - M2: IC −0,047 [−0,093; −0,006];
+  - chọn **M1**.
+- **Ngoài mẫu** (2025-07-11 → 2026-09-04, 58 ngày, 221 mã, chạy một lần): **KHÔNG ĐẠT (2/6) → EXPERIMENTAL**.
+  1. IC +0,037 [+0,002; +0,076] → ĐẠT.
+  2. Top 20 − universe sau phí −0,14%/5 phiên [−0,43; +0,16] → không đạt.
+  3. Top 20 − placebo −0,13% → không đạt.
+  4. Hơn điểm hội tụ hiện tại +0,23% nhưng kém momentum 6-1 −0,02% → không đạt.
+  5. Deflated Sharpe: SR −0,125 < SR0 0,068 → không đạt.
+  6. Điều kiện cỡ mẫu và IC trong mẫu → ĐẠT.
+- **Mô tả thêm:**
+  - Không giả thuyết nào bị Holm bác bỏ. Gần nhất là IC kỳ hạn 40 phiên, p 0,0135.
+  - Nhóm dòng tiền có IC −0,053 [−0,093; −0,014], ngược kỳ vọng.
+  - Vòng quay TB 18%/lần; sụt giảm tối đa của chuỗi chênh lệch −12%.
