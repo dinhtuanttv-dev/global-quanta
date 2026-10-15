@@ -220,3 +220,16 @@ Kiểm tra bằng trình duyệt thật, API sống, **chưa từng được th�
 3. Nguồn dữ liệu vĩ mô thật lấy từ đâu và ở định dạng nào? (mục 2.10)
 4. Có chấp nhận thêm file SQLite cho kho vĩ mô, hay dùng CSDL hiện có? (mục 2.9)
 5. Tín hiệu vĩ mô/Risk-On-Off hiện có nằm ở đâu, và có muốn `MacroScore` thay thế, bổ sung, hay chỉ để tham khảo? (mục 7)
+
+---
+
+## Triển khai thực tế trên Gateway (X2, 2026-10-16)
+
+- Engine được đóng gói bằng esbuild: `src/gateway.ts` -> `backend/src/market/macro/vendor/macroEngine.mjs` (`npm run bundle:macro`; test `macroEngineBundle.test.ts` đỏ nếu quên build lại).
+- Chạy trong **worker thread** (`macroWorker.js`) — lần tính đầu ~2 s CPU không chặn Gateway.
+- **Không dùng `macro-store-sqlite`** (Gateway chạy Node 20, không có `node:sqlite`; Vercel FS chỉ-đọc). Số liệu thật lưu **chỉ-thêm** trong Gateway KV `macro:observations` (seriesId, period, value, asOf, source).
+- **Không trộn thật/mô phỏng**: chế độ `real` chỉ bật khi kho thật có >= 1 biến vĩ mô VÀ >= 1 chỉ số đủ 60 tháng; ngược lại toàn bộ engine dùng kho mô phỏng, mọi phản hồi mang `SYNTHETIC_NOTICE`.
+- Chỉ số HOSE (VNINDEX, VN30, VN100, VNMID, VNSML, VNALLSHARE — tháng đã đóng, 10 năm) tự nạp từ lịch sử giá Gateway, 2 lần/ngày.
+- Biến vĩ mô (GSO/NHNN/...) nạp qua `POST /api/macro/admin/import` (Bearer `MARKET_ADMIN_TOKEN`): `{ seriesId, csv, source?, asOf?, locale?, dryRun?, force? }` — có lỗi chất lượng mức error thì từ chối trừ khi `force`.
+- **Lệch HANDOFF**: route đọc `/api/macro/*` CÔNG KHAI (không requireAuth) + giới hạn tần suất theo IP (120 đọc / 40 tính toán mỗi phút) — tab Chất xúc tác mở cho mọi người như các tab khác; không có dữ liệu người dùng.
+- Thêm: `GET /api/macro/source` (chế độ, độ phủ), `GET /api/macro/tools` (đặc tả công cụ Anthropic + system prompt), `POST /api/macro/tools/:name` (chạy công cụ chat cho X4).

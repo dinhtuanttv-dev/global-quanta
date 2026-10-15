@@ -4,6 +4,8 @@ import cors from "cors";
 import scanRouter from "./routes/scan.js";
 import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
+import { createMacroRouter } from "./routes/macro.js";
+import { createMacroService } from "./market/macro/macroService.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
@@ -34,6 +36,10 @@ app.get("/api/health", healthHandler);
 app.use("/api", scanRouter);
 app.use("/api/ssi", ssiRouter);
 app.use("/api/market", marketRouter);
+// Trung tâm vĩ mô (tab Chất xúc tác): engine MacroCenter chạy trong worker thread, số liệu thật chỉ-thêm trong KV.
+let macroService = null;
+const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));
+app.use("/api/macro", createMacroRouter({ getService: getMacroService }));
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });
