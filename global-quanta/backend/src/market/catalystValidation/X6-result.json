@@ -1,0 +1,981 @@
+{
+ "prereg": {
+  "horizons": [
+   5,
+   20
+  ],
+  "primary": 20,
+  "minN": 30,
+  "bootstrap": 10000,
+  "seed": 20261016,
+  "forwardFrom": "2026-10-17"
+ },
+ "sample": {
+  "records": 88,
+  "withT0": 79,
+  "excluded": {
+   "noPrice": 8,
+   "noT0": 1
+  },
+  "matured": {
+   "5": 73,
+   "20": 47
+  }
+ },
+ "primary": {
+  "horizon": 20,
+  "n": 47,
+  "clusters": 42,
+  "mean": 0.031222787234042537,
+  "lo": 0.008110059999999995,
+  "hi": 0.055890863636363634,
+  "hitRate": 0.574468085106383,
+  "binomP": 0.19084669883160643
+ },
+ "secondary": {
+  "sar5": {
+   "n": 73,
+   "clusters": 68,
+   "mean": -0.005445383561643836,
+   "lo": -0.019016578947368426,
+   "hi": 0.00658789333333333,
+   "hitRate": 0.3698630136986301,
+   "binomP": 0.9906911242834023
+  },
+  "byDirection": {
+   "benefit": {
+    "n": 42,
+    "clusters": 37,
+    "mean": 0.02375452380952381,
+    "lo": 0.001540204545454544,
+    "hi": 0.04831592105263157,
+    "hitRate": 0.5714285714285714,
+    "binomP": 0.22039953367129783
+   },
+   "harm": {
+    "n": 5,
+    "clusters": 5,
+    "mean": 0.09395619999999999,
+    "lo": 0.017383399999999993,
+    "hi": 0.170529,
+    "hitRate": 0.6,
+    "binomP": 0.5
+   }
+  },
+  "byCategory": {
+   "macro": {
+    "n": 32,
+    "clusters": 32,
+    "mean": 0.03209200000000001,
+    "lo": 0.0037115312500000004,
+    "hi": 0.06219674999999999,
+    "hitRate": 0.65625,
+    "binomP": 0.055092082591727376
+   },
+   "rating": {
+    "n": 2,
+    "clusters": 2,
+    "mean": -0.027972999999999998,
+    "lo": -0.078554,
+    "hi": 0.022608,
+    "hitRate": 0.5,
+    "binomP": 0.75
+   },
+   "contract": {
+    "n": 8,
+    "clusters": 3,
+    "mean": 0.0033364999999999975,
+    "lo": -0.045105,
+    "hi": 0.01948366666666666,
+    "hitRate": 0.25,
+    "binomP": 0.96484375
+   },
+   "regulatory": {
+    "n": 5,
+    "clusters": 5,
+    "mean": 0.09395619999999999,
+    "lo": 0.017383399999999993,
+    "hi": 0.170529,
+    "hitRate": 0.6,
+    "binomP": 0.5
+   }
+  }
+ },
+ "verdict": "PASS",
+ "evidence": "VALIDATED_IN_SAMPLE",
+ "rows": [
+  {
+   "id": "cmu1c7238000q04l7b9btsx1j::YEG",
+   "ticker": "YEG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu1c7238000q04l7b9btsx1j",
+   "scannedAt": "2026-09-14T14:27:17.510Z",
+   "t0": "2026-09-14",
+   "sar5": 0.019412,
+   "sar20": 0.183946
+  },
+  {
+   "id": "cmu5izv9m000s04ictmdm61lh::PVP",
+   "ticker": "PVP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu5izv9m000s04ictmdm61lh",
+   "scannedAt": "2026-09-17T12:48:47.024Z",
+   "t0": "2026-09-17",
+   "sar5": 0.082746,
+   "sar20": 0.263072
+  },
+  {
+   "id": "cmu5izy5f000w04icmno45p1i::GEE",
+   "ticker": "GEE",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu5izy5f000w04icmno45p1i",
+   "scannedAt": "2026-09-17T12:48:47.024Z",
+   "t0": "2026-09-17",
+   "sar5": 0.113389,
+   "sar20": 0.078363
+  },
+  {
+   "id": "cmro1qbvg000084vtnsddhdjf::POW",
+   "ticker": "POW",
+   "direction": "benefit",
+   "category": "rating",
+   "sourceId": "cmro1qbvg000084vtnsddhdjf",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": -0.017136,
+   "sar20": 0.022608
+  },
+  {
+   "id": "cmtvi2a9v000004l5pujnxda7::TIP",
+   "ticker": "TIP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtvi2a9v000004l5pujnxda7",
+   "scannedAt": "2026-09-10T12:24:59.104Z",
+   "t0": "2026-09-10",
+   "sar5": -0.008808,
+   "sar20": 0.019447
+  },
+  {
+   "id": "cmu1c70rw000o04l7yk5sv90h::DMC",
+   "ticker": "DMC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu1c70rw000o04l7yk5sv90h",
+   "scannedAt": "2026-09-14T14:27:17.510Z",
+   "t0": "2026-09-14",
+   "sar5": -0.007338,
+   "sar20": -0.01989
+  },
+  {
+   "id": "cmugz0ulw000h04l0fzi8b7di::TMS",
+   "ticker": "TMS",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmugz0ulw000h04l0fzi8b7di",
+   "scannedAt": "2026-09-25T13:02:51.983Z",
+   "t0": "2026-09-25",
+   "sar5": -0.04129,
+   "sar20": null
+  },
+  {
+   "id": "cmv12sfe3000i06jugukamv87::BTP",
+   "ticker": "BTP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmv12sfe3000i06jugukamv87",
+   "scannedAt": "2026-10-09T14:43:43.382Z",
+   "t0": "2026-10-09",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmr8itxyh0000pcvto9jhrdr7::HPG",
+   "ticker": "HPG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8itxyh0000pcvto9jhrdr7",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.012116,
+   "sar20": -0.011656
+  },
+  {
+   "id": "cmr8itxyh0000pcvto9jhrdr7::NKG",
+   "ticker": "NKG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8itxyh0000pcvto9jhrdr7",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.039197,
+   "sar20": -0.078554
+  },
+  {
+   "id": "cmr8kjkrk0000lcvthtimcffj::VGC",
+   "ticker": "VGC",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8kjkrk0000lcvthtimcffj",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.021162,
+   "sar20": 0.148661
+  },
+  {
+   "id": "cmtsrbnj1000004l4qbyikoro::DIG",
+   "ticker": "DIG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrbnj1000004l4qbyikoro",
+   "scannedAt": "2026-09-08T14:24:57.906Z",
+   "t0": "2026-09-08",
+   "sar5": -0.014098,
+   "sar20": -0.057498
+  },
+  {
+   "id": "cmtsrboxw000204l4pv1gfu31::PTB",
+   "ticker": "PTB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrboxw000204l4pv1gfu31",
+   "scannedAt": "2026-09-08T14:24:57.906Z",
+   "t0": "2026-09-08",
+   "sar5": -0.040278,
+   "sar20": -0.021259
+  },
+  {
+   "id": "cmtsrbqc7000404l4qldbz07a::VPI",
+   "ticker": "VPI",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrbqc7000404l4qldbz07a",
+   "scannedAt": "2026-09-08T14:24:57.906Z",
+   "t0": "2026-09-08",
+   "sar5": 0.050734,
+   "sar20": 0.022553
+  },
+  {
+   "id": "cmtu2tkla000004l515633syy::DVP",
+   "ticker": "DVP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtu2tkla000004l515633syy",
+   "scannedAt": "2026-09-09T12:30:29.709Z",
+   "t0": "2026-09-09",
+   "sar5": -0.001516,
+   "sar20": 0.070486
+  },
+  {
+   "id": "cmu2ocxh5000p04kz6hnl304v::TRC",
+   "ticker": "TRC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu2ocxh5000p04kz6hnl304v",
+   "scannedAt": "2026-09-15T12:55:31.879Z",
+   "t0": "2026-09-15",
+   "sar5": -0.010171,
+   "sar20": 0.174131
+  },
+  {
+   "id": "cmrejd7yt0000dovtngmhqtko::NKG",
+   "ticker": "NKG",
+   "direction": "benefit",
+   "category": "rating",
+   "sourceId": "cmrejd7yt0000dovtngmhqtko",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": -0.039197,
+   "sar20": -0.078554
+  },
+  {
+   "id": "cmtsrh19w000604l823curyqd::TCH",
+   "ticker": "TCH",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrh19w000604l823curyqd",
+   "scannedAt": "2026-09-08T14:24:57.907Z",
+   "t0": "2026-09-08",
+   "sar5": -0.031606,
+   "sar20": -0.046495
+  },
+  {
+   "id": "cmtvi2fo8000804l5lbjvxma9::VIB",
+   "ticker": "VIB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtvi2fo8000804l5lbjvxma9",
+   "scannedAt": "2026-09-10T12:24:59.104Z",
+   "t0": "2026-09-10",
+   "sar5": -0.003788,
+   "sar20": 0.057875
+  },
+  {
+   "id": "cmu5izzhj000y04icu0hi97wo::PNC",
+   "ticker": "PNC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu5izzhj000y04icu0hi97wo",
+   "scannedAt": "2026-09-17T12:48:47.024Z",
+   "t0": "2026-10-01",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmufjd3le000k04kxp1stopg9::VPB",
+   "ticker": "VPB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmufjd3le000k04kxp1stopg9",
+   "scannedAt": "2026-09-24T12:56:46.173Z",
+   "t0": "2026-09-24",
+   "sar5": 0.067511,
+   "sar20": null
+  },
+  {
+   "id": "cmupnj2y4000h04lbxegga192::ADP",
+   "ticker": "ADP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmupnj2y4000h04lbxegga192",
+   "scannedAt": "2026-10-01T14:51:02.128Z",
+   "t0": "2026-10-01",
+   "sar5": 0.014362,
+   "sar20": null
+  },
+  {
+   "id": "cmuznvtx2000f04l8yiokvwg3::ANT",
+   "ticker": "ANT",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuznvtx2000f04l8yiokvwg3",
+   "scannedAt": "2026-10-08T14:58:41.023Z",
+   "t0": "2026-10-08",
+   "sar5": -0.034633,
+   "sar20": null
+  },
+  {
+   "id": "cmv12scit000e06ju2kr98ocy::VPG",
+   "ticker": "VPG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmv12scit000e06ju2kr98ocy",
+   "scannedAt": "2026-10-09T14:43:43.382Z",
+   "t0": "2026-10-09",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmr8obpvm0000x0vt9q5xxhew::HPG",
+   "ticker": "HPG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8obpvm0000x0vt9q5xxhew",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.012116,
+   "sar20": -0.011656
+  },
+  {
+   "id": "cmtvi2czj000404l5f3dxr13v::ELC",
+   "ticker": "ELC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtvi2czj000404l5f3dxr13v",
+   "scannedAt": "2026-09-10T12:24:59.104Z",
+   "t0": "2026-09-10",
+   "sar5": -0.018441,
+   "sar20": -0.105967
+  },
+  {
+   "id": "cmu5izwtr000u04icac0odyvw::TDP",
+   "ticker": "TDP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu5izwtr000u04icac0odyvw",
+   "scannedAt": "2026-09-17T12:48:47.024Z",
+   "t0": "2026-09-17",
+   "sar5": -0.047082,
+   "sar20": 0.087451
+  },
+  {
+   "id": "cmulfxqfm000l04jqneifbyf7::PNJ",
+   "ticker": "PNJ",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmulfxqfm000l04jqneifbyf7",
+   "scannedAt": "2026-09-28T16:07:22.454Z",
+   "t0": "2026-09-28",
+   "sar5": -0.333705,
+   "sar20": null
+  },
+  {
+   "id": "cmuznvsj4000c04l8mz37qvti::KDH",
+   "ticker": "KDH",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuznvsj4000c04l8mz37qvti",
+   "scannedAt": "2026-10-08T14:58:41.023Z",
+   "t0": "2026-10-08",
+   "sar5": 0.053378,
+   "sar20": null
+  },
+  {
+   "id": "cmr8kjkrk0000lcvthtimcffj::NKG",
+   "ticker": "NKG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8kjkrk0000lcvthtimcffj",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.039197,
+   "sar20": -0.078554
+  },
+  {
+   "id": "cmr8obpvm0000x0vt9q5xxhew::VGC",
+   "ticker": "VGC",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8obpvm0000x0vt9q5xxhew",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": -0.021162,
+   "sar20": 0.148661
+  },
+  {
+   "id": "cmtvi2bn5000204l54lq595m5::SVT",
+   "ticker": "SVT",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtvi2bn5000204l54lq595m5",
+   "scannedAt": "2026-09-10T12:24:59.104Z",
+   "t0": "2026-09-10",
+   "sar5": -0.017968,
+   "sar20": 0.050306
+  },
+  {
+   "id": "cmv12sgte000k06juwmk9vypv::HDB",
+   "ticker": "HDB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmv12sgte000k06juwmk9vypv",
+   "scannedAt": "2026-10-09T14:43:43.382Z",
+   "t0": "2026-10-09",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmu1c73f0000s04l7hx8muojr::DGC",
+   "ticker": "DGC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu1c73f0000s04l7hx8muojr",
+   "scannedAt": "2026-09-14T14:27:17.510Z",
+   "t0": "2026-09-14",
+   "sar5": -0.062749,
+   "sar20": -0.086831
+  },
+  {
+   "id": "cmu5iztx9000q04icoeczuyu3::TCX",
+   "ticker": "TCX",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu5iztx9000q04icoeczuyu3",
+   "scannedAt": "2026-09-17T12:48:47.023Z",
+   "t0": "2026-09-17",
+   "sar5": -0.031763,
+   "sar20": -0.06914
+  },
+  {
+   "id": "cmue474nc000j04l7mbn0uz1b::VPH",
+   "ticker": "VPH",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmue474nc000j04l7mbn0uz1b",
+   "scannedAt": "2026-09-23T13:04:21.738Z",
+   "t0": "2026-09-23",
+   "sar5": -0.028692,
+   "sar20": null
+  },
+  {
+   "id": "cmuo6vjns000i04k1c3h9r7fb::NVL",
+   "ticker": "NVL",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuo6vjns000i04k1c3h9r7fb",
+   "scannedAt": "2026-09-30T14:17:02.251Z",
+   "t0": "2026-09-30",
+   "sar5": 0.018405,
+   "sar20": null
+  },
+  {
+   "id": "cmuy81ld1000g04l472ljyf52::GMD",
+   "ticker": "GMD",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuy81ld1000g04l472ljyf52",
+   "scannedAt": "2026-10-07T14:47:27.313Z",
+   "t0": "2026-10-07",
+   "sar5": 0.005673,
+   "sar20": null
+  },
+  {
+   "id": "cmr8obrb6000ax0vtx4ldxa0a::VCB",
+   "ticker": "VCB",
+   "direction": "harm",
+   "category": "regulatory",
+   "sourceId": "cmr8obrb6000ax0vtx4ldxa0a",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": -0.027095,
+   "sar20": -0.020903
+  },
+  {
+   "id": "cmtvi2ebw000604l5355onx0i::HTN",
+   "ticker": "HTN",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtvi2ebw000604l5355onx0i",
+   "scannedAt": "2026-09-10T12:24:59.104Z",
+   "t0": "2026-09-10",
+   "sar5": 0.014009,
+   "sar20": 0.150686
+  },
+  {
+   "id": "cmtwxf6fq000n04k1yivuwu02::PHR",
+   "ticker": "PHR",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtwxf6fq000n04k1yivuwu02",
+   "scannedAt": "2026-09-11T12:22:36.075Z",
+   "t0": "2026-09-11",
+   "sar5": -0.050182,
+   "sar20": 0.037107
+  },
+  {
+   "id": "cmu1c74qb000v04l7zblqa4l2::DHG",
+   "ticker": "DHG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu1c74qb000v04l7zblqa4l2",
+   "scannedAt": "2026-09-14T14:27:17.510Z",
+   "t0": "2026-09-14",
+   "sar5": -0.001947,
+   "sar20": 0.028293
+  },
+  {
+   "id": "cmu43olm4000r04l5m6y406h2::ACG",
+   "ticker": "ACG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu43olm4000r04l5m6y406h2",
+   "scannedAt": "2026-09-16T12:52:18.377Z",
+   "t0": "2026-09-16",
+   "sar5": 0.00209,
+   "sar20": null
+  },
+  {
+   "id": "cmue4737s000h04l7b4fsoc75::BVB",
+   "ticker": "BVB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmue4737s000h04l7b4fsoc75",
+   "scannedAt": "2026-09-23T13:04:21.738Z",
+   "t0": "2026-09-23",
+   "sar5": -0.000277,
+   "sar20": null
+  },
+  {
+   "id": "cmuvgqf39000c04jth1ljifkp::DHC",
+   "ticker": "DHC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuvgqf39000c04jth1ljifkp",
+   "scannedAt": "2026-10-05T16:27:22.614Z",
+   "t0": "2026-10-05",
+   "sar5": -0.034726,
+   "sar20": null
+  },
+  {
+   "id": "cmr8itylc0004pcvtf5ijzlhi::NVL",
+   "ticker": "NVL",
+   "direction": "harm",
+   "category": "regulatory",
+   "sourceId": "cmr8itylc0004pcvtf5ijzlhi",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": 0.065707,
+   "sar20": 0.170529
+  },
+  {
+   "id": "cmr8kjmam0005lcvthhxp5z2n::NVL",
+   "ticker": "NVL",
+   "direction": "harm",
+   "category": "regulatory",
+   "sourceId": "cmr8kjmam0005lcvthhxp5z2n",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": 0.065707,
+   "sar20": 0.170529
+  },
+  {
+   "id": "cmr8obpvm0000x0vt9q5xxhew::NKG",
+   "ticker": "NKG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8obpvm0000x0vt9q5xxhew",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": -0.039197,
+   "sar20": -0.078554
+  },
+  {
+   "id": "cmtu2tlxc000204l5z84wburw::BMI",
+   "ticker": "BMI",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtu2tlxc000204l5z84wburw",
+   "scannedAt": "2026-09-09T12:30:29.710Z",
+   "t0": "2026-09-09",
+   "sar5": -0.01974,
+   "sar20": 0.033996
+  },
+  {
+   "id": "cmtu2tojy000604l556drh58q::HUB",
+   "ticker": "HUB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtu2tojy000604l556drh58q",
+   "scannedAt": "2026-09-09T12:30:29.710Z",
+   "t0": "2026-09-09",
+   "sar5": -0.021418,
+   "sar20": -0.044642
+  },
+  {
+   "id": "cmufjd4za000n04kxg56vz1d6::PGD",
+   "ticker": "PGD",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmufjd4za000n04kxg56vz1d6",
+   "scannedAt": "2026-09-24T12:56:46.173Z",
+   "t0": "2026-09-24",
+   "sar5": -0.006626,
+   "sar20": null
+  },
+  {
+   "id": "cmufjd6cj000p04kx3tc22yeo::HTL",
+   "ticker": "HTL",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmufjd6cj000p04kx3tc22yeo",
+   "scannedAt": "2026-09-24T12:56:46.173Z",
+   "t0": "2026-09-24",
+   "sar5": 0.041797,
+   "sar20": null
+  },
+  {
+   "id": "cmr8kjkrk0000lcvthtimcffj::HPG",
+   "ticker": "HPG",
+   "direction": "benefit",
+   "category": "contract",
+   "sourceId": "cmr8kjkrk0000lcvthtimcffj",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.012116,
+   "sar20": -0.011656
+  },
+  {
+   "id": "cmr8kjmme000alcvttf4d8769::VCB",
+   "ticker": "VCB",
+   "direction": "harm",
+   "category": "regulatory",
+   "sourceId": "cmr8kjmme000alcvttf4d8769",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": -0.027095,
+   "sar20": -0.020903
+  },
+  {
+   "id": "cmucobny2000g04jj5sft41om::PHC",
+   "ticker": "PHC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmucobny2000g04jj5sft41om",
+   "scannedAt": "2026-09-22T12:52:15.319Z",
+   "t0": "2026-09-22",
+   "sar5": 0.035306,
+   "sar20": null
+  },
+  {
+   "id": "cmucobpdd000i04jjklp0qa38::PLP",
+   "ticker": "PLP",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmucobpdd000i04jjklp0qa38",
+   "scannedAt": "2026-09-22T12:52:15.320Z",
+   "t0": "2026-09-22",
+   "sar5": 0.021811,
+   "sar20": null
+  },
+  {
+   "id": "cmufjd7ps000r04kxjqon345s::SBV",
+   "ticker": "SBV",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmufjd7ps000r04kxjqon345s",
+   "scannedAt": "2026-09-24T12:56:46.173Z",
+   "t0": "2026-09-24",
+   "sar5": 0.02682,
+   "sar20": null
+  },
+  {
+   "id": "cmupnj49x000j04lbqsu7aif9::VOS",
+   "ticker": "VOS",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmupnj49x000j04lbqsu7aif9",
+   "scannedAt": "2026-10-01T14:51:02.128Z",
+   "t0": "2026-10-01",
+   "sar5": 0.088614,
+   "sar20": null
+  },
+  {
+   "id": "cmubcjce5000l04lfelq5sg0h::FPT",
+   "ticker": "FPT",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmubcjce5000l04lfelq5sg0h",
+   "scannedAt": "2026-09-21T14:34:30.084Z",
+   "t0": "2026-09-21",
+   "sar5": -0.030904,
+   "sar20": null
+  },
+  {
+   "id": "cmumrnuup000j04l9k94v3hwd::TDW",
+   "ticker": "TDW",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmumrnuup000j04l9k94v3hwd",
+   "scannedAt": "2026-09-29T14:23:23.500Z",
+   "t0": "2026-09-30",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmur1jpf9000f04iaehe4o9xn::PDV",
+   "ticker": "PDV",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmur1jpf9000f04iaehe4o9xn",
+   "scannedAt": "2026-10-02T14:11:11.920Z",
+   "t0": "2026-10-02",
+   "sar5": 0.051782,
+   "sar20": null
+  },
+  {
+   "id": "cmv12sdyq000g06jundzujuyr::AGR",
+   "ticker": "AGR",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmv12sdyq000g06jundzujuyr",
+   "scannedAt": "2026-10-09T14:43:43.382Z",
+   "t0": "2026-10-09",
+   "sar5": null,
+   "sar20": null
+  },
+  {
+   "id": "cmr8obqyj0005x0vt1y2ovcop::NVL",
+   "ticker": "NVL",
+   "direction": "harm",
+   "category": "regulatory",
+   "sourceId": "cmr8obqyj0005x0vt1y2ovcop",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": 0.065707,
+   "sar20": 0.170529
+  },
+  {
+   "id": "cmr8obr6t0008x0vtt9hmp82u::VCB",
+   "ticker": "VCB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmr8obr6t0008x0vtt9hmp82u",
+   "scannedAt": "2026-09-06T22:45:57.048Z",
+   "t0": "2026-09-07",
+   "sar5": 0.027095,
+   "sar20": 0.020903
+  },
+  {
+   "id": "cmtsrgwxw000004l82j6ramdm::AGG",
+   "ticker": "AGG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrgwxw000004l82j6ramdm",
+   "scannedAt": "2026-09-08T14:24:57.906Z",
+   "t0": "2026-09-08",
+   "sar5": -0.013857,
+   "sar20": -0.101108
+  },
+  {
+   "id": "cmubcjaz1000j04lfzmi2lzxs::TNC",
+   "ticker": "TNC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmubcjaz1000j04lfzmi2lzxs",
+   "scannedAt": "2026-09-21T14:34:30.084Z",
+   "t0": "2026-09-21",
+   "sar5": 0.010399,
+   "sar20": null
+  },
+  {
+   "id": "cmur1jqqc000h04iaflgvlr64::TPB",
+   "ticker": "TPB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmur1jqqc000h04iaflgvlr64",
+   "scannedAt": "2026-10-02T14:11:11.920Z",
+   "t0": "2026-10-02",
+   "sar5": -0.03704,
+   "sar20": null
+  },
+  {
+   "id": "cmr8kjmif0008lcvtrdy52si5::VCB",
+   "ticker": "VCB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmr8kjmif0008lcvtrdy52si5",
+   "scannedAt": "2026-09-06T22:45:57.047Z",
+   "t0": "2026-09-07",
+   "sar5": 0.027095,
+   "sar20": 0.020903
+  },
+  {
+   "id": "cmtu2tn8n000404l5ak6t8wku::PDN",
+   "ticker": "PDN",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtu2tn8n000404l5ak6t8wku",
+   "scannedAt": "2026-09-09T12:30:29.710Z",
+   "t0": "2026-09-09",
+   "sar5": 0.00468,
+   "sar20": 0.053929
+  },
+  {
+   "id": "cmu1c6zg0000m04l79q0to5t1::GTA",
+   "ticker": "GTA",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu1c6zg0000m04l79q0to5t1",
+   "scannedAt": "2026-09-14T14:27:17.509Z",
+   "t0": "2026-09-17",
+   "sar5": -0.053046,
+   "sar20": null
+  },
+  {
+   "id": "cmu43ok90000p04l5ncb92zmn::SZL",
+   "ticker": "SZL",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu43ok90000p04l5ncb92zmn",
+   "scannedAt": "2026-09-16T12:52:18.376Z",
+   "t0": "2026-09-16",
+   "sar5": -0.03097,
+   "sar20": 0.052869
+  },
+  {
+   "id": "cmu43omy0000t04l573gljngx::HT1",
+   "ticker": "HT1",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu43omy0000t04l573gljngx",
+   "scannedAt": "2026-09-16T12:52:18.377Z",
+   "t0": "2026-09-16",
+   "sar5": 0.066306,
+   "sar20": 0.101398
+  },
+  {
+   "id": "cmuy81ip7000b04l46hb2joor::MWG",
+   "ticker": "MWG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuy81ip7000b04l46hb2joor",
+   "scannedAt": "2026-10-07T14:47:27.313Z",
+   "t0": "2026-10-07",
+   "sar5": -0.017158,
+   "sar20": null
+  },
+  {
+   "id": "cmtsrgztx000404l82s4z7evr::RYG",
+   "ticker": "RYG",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtsrgztx000404l82s4z7evr",
+   "scannedAt": "2026-09-08T14:24:57.907Z",
+   "t0": "2026-09-08",
+   "sar5": 0.005269,
+   "sar20": 0.025201
+  },
+  {
+   "id": "cmtwxf4wn000l04k19tbs46es::SZC",
+   "ticker": "SZC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmtwxf4wn000l04k19tbs46es",
+   "scannedAt": "2026-09-11T12:22:36.075Z",
+   "t0": "2026-09-11",
+   "sar5": -0.019695,
+   "sar20": -0.028995
+  },
+  {
+   "id": "cmu2ocw3r000n04kz0u9c0j42::SRF",
+   "ticker": "SRF",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu2ocw3r000n04kz0u9c0j42",
+   "scannedAt": "2026-09-15T12:55:31.879Z",
+   "t0": "2026-09-15",
+   "sar5": 0.077939,
+   "sar20": 0.101436
+  },
+  {
+   "id": "cmu2ocyu0000r04kzn7yhe2mk::BHN",
+   "ticker": "BHN",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmu2ocyu0000r04kzn7yhe2mk",
+   "scannedAt": "2026-09-15T12:55:31.879Z",
+   "t0": "2026-09-15",
+   "sar5": -0.022673,
+   "sar20": -0.025582
+  },
+  {
+   "id": "cmugz0w0l000j04l0abzz2kn4::VTB",
+   "ticker": "VTB",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmugz0w0l000j04l0abzz2kn4",
+   "scannedAt": "2026-09-25T13:02:51.983Z",
+   "t0": "2026-09-25",
+   "sar5": -0.076087,
+   "sar20": null
+  },
+  {
+   "id": "cmuy81k1h000e04l4ojj029ol::BIC",
+   "ticker": "BIC",
+   "direction": "benefit",
+   "category": "macro",
+   "sourceId": "cmuy81k1h000e04l4ojj029ol",
+   "scannedAt": "2026-10-07T14:47:27.313Z",
+   "t0": "2026-10-07",
+   "sar5": -0.044198,
+   "sar20": null
+  }
+ ],
+ "ranAt": "2026-10-15T23:45:37.444Z",
+ "priceSource": "https://gateway-production-1da0.up.railway.app/api/market/ta-series (ADJUSTED_CUMULATIVE)",
+ "indexLastDate": "2026-10-15",
+ "filterFrom": null
+}

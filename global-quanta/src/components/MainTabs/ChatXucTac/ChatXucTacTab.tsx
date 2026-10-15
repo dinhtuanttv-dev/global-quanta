@@ -20,6 +20,7 @@ import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
 import { MacroCenterTab } from "./MacroCenter/src/ui/MacroCenterTab";
 import { getMarketGateway } from "../../../config/marketGateway";
+import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
 
 type SubTab = "macro" | "catalyst" | "chat";
@@ -97,6 +98,7 @@ function CatalystContent() {
   return (
     <div className="t1-toolbar" style={{ flexDirection: "column", alignItems: "stretch", gap: 0 }}>
       <span className="t1-toolbar-title">CHẤT XÚC TÁC · CATALYST ENGINE</span>
+      <EvidenceNote />
       {isLoading && !snapshot && <CatalystSkeleton />}
 
       {error && (
@@ -125,7 +127,7 @@ function CatalystContent() {
                 background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)",
                 borderRadius: 8, padding: "6px 10px", fontSize: 10.5, color: "#fbbf24", marginBottom: 10,
               }}>
-                ⚠ Dữ liệu cũ ({snapshot.ageMinutes} phút trước) — lần quét gần nhất có thể đã thất bại.
+                ⚠ Dữ liệu cũ ({snapshot.ageMinutes != null && snapshot.ageMinutes >= 120 ? `${Math.round(snapshot.ageMinutes / 60)} giờ` : `${snapshot.ageMinutes} phút`} trước) — lần quét gần nhất có thể đã thất bại.
               </div>
             )}
 
@@ -170,5 +172,22 @@ function CatalystContent() {
         </CatalystErrorBoundary>
       )}
     </div>
+  );
+}
+
+const pctVi = (x: number, d = 1) => `${x >= 0 ? "+" : ""}${(x * 100).toLocaleString("vi-VN", { maximumFractionDigits: d })}%`;
+
+/** X6: nhãn bằng chứng của chiều tác động (kiểm định đặt trước) — luôn hiện cùng giới hạn của nó. */
+function EvidenceNote() {
+  return (
+    <details style={{ fontSize: 10.5, color: "var(--text-tertiary)", margin: "6px 0 2px" }}>
+      <summary style={{ cursor: "pointer" }}>
+        Bằng chứng: <b style={{ color: "var(--text-secondary)" }}>đạt kiểm định đặt trước trong mẫu nhỏ</b> — lợi suất vượt VN-Index 20 phiên theo chiều tín hiệu {pctVi(EV.meanSar20)} (KTC95 {pctVi(EV.ci95[0])} … {pctVi(EV.ci95[1])}, n = {EV.n20})
+      </summary>
+      <p style={{ margin: "4px 0 0", lineHeight: 1.5 }}>
+        Mẫu {EV.n20} tín hiệu trong một tháng ({EV.window}); tỷ lệ đúng chiều {pctVi(EV.hitRate20, 0).replace("+", "")} chưa khác 50% có ý nghĩa; sau 5 phiên chưa thấy hiệu ứng ({pctVi(EV.meanSar5)}).
+        “Tỷ lệ thắng” trên thẻ là tỷ lệ tăng giá thô 5 phiên, không phải lợi suất vượt trội. Engine sau bản sửa ngày {EV.ranOn} được chấm lại bằng kiểm định tiến khi đủ 30 tín hiệu. Không phải khuyến nghị đầu tư.
+      </p>
+    </details>
   );
 }
