@@ -13,7 +13,9 @@ import {
 export const WORLD_KV_KEY = "world:data";
 const REFRESH_MS = 12 * 3600_000;
 const RETRY_MS = 65 * 60_000; // chạm ngân sách tải lịch sử đầy đủ (40/giờ, dùng chung) -> thử lại sau ~1 giờ
-const HISTORY_YEARS = 7; // >= 60 tháng chung cho ma trận (5 năm chỉ cho 59 tháng đã đóng)
+// 6 năm: >= 60 tháng chung cho ma trận (5 năm chỉ cho 59 tháng đã đóng). KHÔNG dùng 7: giá danh nghĩa SSI chỉ có từ 27/02/2020,
+// yêu cầu dài hơn nguồn có khiến kho lịch sử luôn "chưa phủ đủ" -> tải đầy đủ lại mỗi lần, đốt ngân sách 40 lượt/giờ dùng chung.
+const HISTORY_YEARS = 6;
 const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
 const MACRO_FACTORS = new Set(["FED", "DXY", "OIL"]); // đã có nguồn thật ở Trung tâm vĩ mô (FRED/Yahoo)
 
@@ -36,6 +38,8 @@ export function createWorldService({ store, history, corporateActions, macroObse
     : createWorkerProxy({ url: new URL("./worldWorker.js", import.meta.url), label: "thế giới", replayOp: "setData", timeoutMs: 120_000 });
   let ready = null;
   let builtAt = 0;
+  let attemptedAt = 0; // lần thử gần nhất (kể cả thất bại / chưa đủ) — chặn việc mỗi request lại kích hoạt dựng & tải lịch sử
+  let lastComplete = false;
   let pending = null;
   let retryTimer = null;
 
@@ -101,7 +105,7 @@ export function createWorldService({ store, history, corporateActions, macroObse
       if (start != null) for (const o of monthlyIndexFromReturns(tradingDays, ew.ret, today(), { startIndex: start })) sectorMonthly.push({ seriesId: sec, ...o, source: "Gateway: rổ cân bằng tỷ trọng (giá điều chỉnh)" });
       report.sectors[sec] = { members: used, missing, from: start == null ? null : tradingDays[start], minMembersNow: ew.members.at(-1) };
     }
-    if (budgetHit) report.notes.push("Chưa nạp đủ lịch sử 7 năm cho mọi mã (giới hạn tải 40 lượt/giờ dùng chung) — tự thử lại sau ~1 giờ.");
+    if (budgetHit) report.notes.push("Chưa nạp đủ lịch sử 6 năm cho mọi mã (giới hạn tải 40 lượt/giờ dùng chung) — tự thử lại sau ~1 giờ.");
     const emptySectors = Object.entries(report.sectors).filter(([, r]) => r.from == null).map(([k]) => k);
     if (emptySectors.length) report.notes.push(`Ngành chưa đủ mã để dựng chỉ số: ${emptySectors.join(", ")} — bản dựng không được dùng.`);
     // 4) yếu tố tháng: FED/DXY/OIL từ Trung tâm vĩ mô + Yahoo
@@ -126,12 +130,17 @@ export function createWorldService({ store, history, corporateActions, macroObse
   }
 
   function refresh({ force = false } = {}) {
-    if (!force && now() - builtAt < REFRESH_MS) return Promise.resolve({ skipped: "fresh" });
     if (pending) return pending;
+    if (!force) {
+      if (builtAt && now() - builtAt < REFRESH_MS) return Promise.resolve({ skipped: "fresh" });
+      if (attemptedAt && !lastComplete && now() - attemptedAt < RETRY_MS) return Promise.resolve({ skipped: "retry-later" });
+    }
     pending = (async () => {
       await init();
+      attemptedAt = now();
       const payload = await build();
       // CHỈ dùng bản dựng đầy đủ: ngành thiếu dữ liệu sẽ thành chuỗi 0 và cho event study/kết nối giả -> giữ bản cũ, thử lại sau.
+      lastComplete = payload.meta.complete;
       if (payload.meta.complete) {
         if (store?.setKv) await store.setKv(WORLD_KV_KEY, payload);
         await engine.call("setData", payload);

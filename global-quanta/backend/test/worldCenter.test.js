@@ -151,6 +151,8 @@ test("worldService: dựng đủ -> lưu KV + chế độ THẬT, kèm báo cáo
   assert.equal(r2.complete, false);
   assert.equal(kv2.m.has(WORLD_KV_KEY), false, "bản thiếu không được lưu");
   assert.equal(r2.source.mode, "synthetic");
+  // bản chưa đủ: request kế tiếp KHÔNG được kích hoạt dựng lại ngay (không đốt ngân sách tải lịch sử)
+  assert.equal((await svc2.refresh()).skipped, "retry-later");
   await svc2.close();
 });
 
