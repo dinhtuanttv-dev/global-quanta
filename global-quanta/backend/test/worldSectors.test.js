@@ -74,7 +74,10 @@ test("M2 scores/detail: nhãn EXPERIMENTAL, xếp hạng, 404/400, biểu đồ 
   const taSeries = { get: async () => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: dts.map((d, i) => ({ date: d, close: 10 + (i % 5) })) }) };
   const svc = createWorldSectorService({ fetchImpl, sectorIndices: async () => icb, taSeries, now: () => Date.UTC(2025, 10, 20), log: { warn() {} } });
   const sc = await svc.scores();
-  assert.equal(sc.evidence.label, "EXPERIMENTAL");
+  assert.equal(sc.evidence.short.label, "EVIDENCE");
+  assert.equal(sc.evidence.medium.label, "EXPERIMENTAL");
+  assert.equal(sc.rows.find((r) => r.icb === "0500").short.evidence.label, "EVIDENCE");
+  assert.equal(sc.rows.find((r) => r.icb === "8300").short.evidence.label, "EXPERIMENTAL");
   assert.equal(sc.rows.length, VN_SECTORS.length);
   assert.ok(sc.rankings.short.tailwind.some((r) => r.icb === "0500"));
   assert.ok(sc.rows.find((r) => r.icb === "0500").heat.US);
