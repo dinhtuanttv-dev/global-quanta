@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0-gq — 2026-10-16 (rà soát chuyên sâu Kết nối thế giới, W1–W7)
+- W1: Risk-On Index kiểm định đặt trước 10 năm (Gateway `riskOnValidation/`): IC +0,049, KTC95 [−0,10; +0,22] → KHÔNG ĐẠT; nhãn heuristic, bị loại khỏi quyết định Lọc ngành (Project A #27).
+- W2: 8 rổ ngành dùng chỉ số ICB toàn ngành của Gateway từ 2022-02 (giảm thiên lệch sống sót); đoạn trước + Thuỷ sản/Dệt may vẫn là rổ, gắn cờ.
+- W3: cổng xác nhận đặt trước 12 cặp (`world-confirmatory.ts`, `GET /api/world/confirmatory`, `docs/WORLD-W3-*`): 0/12 đạt; tín hiệu ngành chỉ lấy cặp đã xác nhận.
+- W4: TARIFF ← FRED EPUTRADE, PMI_US ← Philly Fed (proxy). PMI_CN/CONTAINER/EM_FLOWS vẫn chưa có nguồn mở.
+- W5: event study với ngành định trước, kiểm chiều, cờ trùng cửa sổ, BMP bỏ trùng + quy chiều; thêm PBoC 24/09/2024 và Geneva 12/05/2025 (`docs/WORLD-W5-results.md`).
+- W6/W7: `GET /api/world/pulse` (một nguồn có ngày cho giá ngày, dự phòng Project A); ẩn hồ sơ cổ phiếu khi chưa có dữ liệu phơi nhiễm; quy tắc ưu tiên heuristic ↔ bằng chứng; công cụ chat `world_confirmatory`.
+
 ## 1.2.0-gq — 2026-10-16 (Kết nối thế giới)
 - Đưa module world của gói 1.2 vào repo; gói chuyển tới `src/macro-center/` (dùng chung 2 tab). Lõi `quant-macro` lên 1.2 (quy tắc phân xử ADF/KPSS cho chuỗi dai dẳng).
 - Dữ liệu THẬT: 6 thị trường, 10 rổ ngành (giá điều chỉnh, 6 năm), 8 yếu tố tháng (FRED/Yahoo), 35 sự kiện thật đã kiểm duyệt; yếu tố không có nguồn mở để trống.
