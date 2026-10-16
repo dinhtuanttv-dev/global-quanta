@@ -1,10 +1,11 @@
 // X4 — "Hỏi đáp xúc tác": chat với Claude (Opus 5.5) có công cụ vĩ mô (Gateway) + xúc tác (snapshot engine).
 // Trung thực theo thiết kế: biểu ngữ notice (dữ liệu mô phỏng/cũ) đứng ĐẦU câu trả lời; thẻ kết quả lấy từ chính tool_result;
 // con số không truy được tới công cụ -> cảnh báo hiển thị; không khuyến nghị mua/bán.
-import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { AlertTriangle, Loader2, Send, Square, Wrench } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatStreamEvent, type ChatToolResult } from "../../../services/catalystChat";
 import { ToolResultCard, toolLabel } from "./CatalystChatCards";
+import { MarkdownLite } from "../../shared/MarkdownLite";
 
 interface ToolRun { id: string; name: string; result?: ChatToolResult }
 interface AssistantTurn {
@@ -27,33 +28,6 @@ const SUGGESTIONS = [
   "Nếu VND mất giá 3% thì chỉ số nào chịu thiệt?",
   "Mã HPG đang có xúc tác gì?",
 ];
-
-/** Markdown tối giản an toàn (không dùng innerHTML): đoạn, gạch đầu dòng, tiêu đề ###, **đậm**. */
-function renderInline(s: string): ReactNode[] {
-  return s.split(/(\*\*[^*]+\*\*)/g).map((part, i) => (part.startsWith("**") && part.endsWith("**") ? <strong key={i}>{part.slice(2, -2)}</strong> : <Fragment key={i}>{part}</Fragment>));
-}
-export function MiniMarkdown({ text }: { text: string }) {
-  const blocks: ReactNode[] = [];
-  let list: string[] = [];
-  const flush = () => {
-    if (list.length) blocks.push(<ul key={`u${blocks.length}`} style={{ margin: "4px 0 6px", paddingLeft: 18 }}>{list.map((l, i) => <li key={i} style={{ margin: "2px 0" }}>{renderInline(l)}</li>)}</ul>);
-    list = [];
-  };
-  for (const raw of text.split("\n")) {
-    const line = raw.trimEnd();
-    const bullet = /^\s*(?:[-*•]|\d+[.)])\s+(.*)$/.exec(line);
-    if (bullet) {
-      list.push(bullet[1]);
-      continue;
-    }
-    flush();
-    if (!line.trim()) continue;
-    const h = /^#{1,4}\s+(.*)$/.exec(line);
-    blocks.push(h ? <p key={`h${blocks.length}`} style={{ margin: "8px 0 4px", fontWeight: 700 }}>{renderInline(h[1])}</p> : <p key={`p${blocks.length}`} style={{ margin: "4px 0" }}>{renderInline(line)}</p>);
-  }
-  flush();
-  return <>{blocks}</>;
-}
 
 function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode }) {
   const c = tone === "warn" ? "var(--warning, #f59e0b)" : "var(--text-tertiary)";
@@ -80,7 +54,7 @@ function AssistantBubble({ t }: { t: AssistantTurn }) {
         </div>
       )}
       <div style={{ fontSize: 12.5, lineHeight: 1.55, color: "var(--text-primary)" }}>
-        {t.text ? <MiniMarkdown text={t.text} /> : !t.done && <span style={{ color: "var(--text-tertiary)" }}>Đang phân tích…</span>}
+        {t.text ? <MarkdownLite text={t.text} /> : !t.done && <span style={{ color: "var(--text-tertiary)" }}>Đang phân tích…</span>}
       </div>
       {t.tools.map((r) => (r.result ? <ToolResultCard key={`c${r.id}`} name={r.name} result={r.result} /> : null))}
       {t.untraceable.length > 0 && (

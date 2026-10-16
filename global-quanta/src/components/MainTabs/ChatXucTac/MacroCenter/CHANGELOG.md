@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0-gq — 2026-10-16 (bản tích hợp Global Quanta)
+- Số liệu thật tự động: FED, Brent (FRED), DXY, USD/VND (Yahoo) + chỉ số HOSE từ Gateway; loại chuỗi ngừng cập nhật.
+- Giao diện: nguồn & chất lượng dữ liệu, chế độ vĩ mô (HMM) + độ nhạy theo chế độ, báo cáo tháng (trước đây API có nhưng UI chưa hiển thị).
+- Báo cáo tháng: câu kết luận cổng MacroScore luôn kèm lưu ý chỉ tham khảo / mô phỏng.
+- Gỡ phần không dùng trong ứng dụng: kho SQLite (`node:sqlite` không có trên Gateway Node 20), adapter HTTP và CLI (`scripts/`), bản nháp Python, CSV mô phỏng mẫu, ảnh preview, package.json/tsconfig riêng. Bản gốc vẫn ở `C:\Users\HP\macro-center`.
+
 ## 1.1.0 — 2026-10-12
 - Lớp công cụ cho chat (`macro-chat-tools.ts`): 6 tool (tổng quan, tra cứu tác động, kịch bản, chi tiết ô, lịch và cảnh báo, báo cáo), kiểm tra tham số, kết quả gọn kèm `guidance` trung thực, adapter Anthropic/OpenAI, system prompt tiếng Việt.
 - Tài liệu bàn giao tích hợp cho AI: `docs/INTEGRATION-chat-xuc-tac.md`.

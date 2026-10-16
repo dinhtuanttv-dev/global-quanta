@@ -9,7 +9,11 @@ import { MacroImpactMatrix } from './MacroImpactMatrix';
 import { CellDetail } from './CellDetail';
 import { ScenarioPanel } from './ScenarioPanel';
 import { MacroCalendar } from './MacroCalendar';
-import type { AlertsPayload, CalendarPayload, CellDetailPayload, HealthPayload, ImpactPayload, ScenarioPayload, SeriesPayload, ThermoPayload } from './types';
+import { DataSourcePanel, RegimePanel, ReportPanel } from './MacroExtraPanels';
+import type { AlertsPayload, CalendarPayload, CellDetailPayload, HealthPayload, ImpactPayload, ScenarioPayload, SeriesPayload, SourcePayload, ThermoPayload } from './types';
+
+/** 6 biến của bài báo gốc mà MacroScore dùng (macro-api.ts PAPER_FACTORS). */
+const PAPER_FACTORS = ['CPI', 'IR', 'M2', 'EX', 'IO', 'FDI'];
 
 export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; asOf?: string; mainTarget?: string }) {
   const client = useMemo(() => props.client ?? createMacroClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
@@ -31,6 +35,7 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
   const score = useAsync((s) => client.score<ThermoPayload>({ asOf, target: mainTarget }, s), [client, asOf, mainTarget], connected);
   const alerts = useAsync((s) => client.alerts<AlertsPayload>(asOf, s), [client, asOf], connected);
   const calendar = useAsync((s) => client.calendar<CalendarPayload>(asOf, s), [client, asOf], connected);
+  const source = useAsync((s) => client.source<SourcePayload>(s), [client, health.data?.dataVersion], connected);
 
   const view = useMemo(() => (impact.data ? buildMatrixView(impact.data, filter) : null), [impact.data, filter]);
   const selectedCell = selected && view ? view.cells[cellKey(selected.factor, selected.target)] : undefined;
@@ -69,9 +74,20 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
       )}
 
       {connected && <>
+      <section className="mc-section" aria-labelledby="mc-src">
+        <h2 id="mc-src">Nguồn &amp; chất lượng dữ liệu</h2>
+        <DataSourcePanel source={source.data} sourceError={source.error} series={series.data} />
+      </section>
+
       <section className="mc-section" aria-labelledby="mc-thermo">
         <h2 id="mc-thermo">Nhiệt kế vĩ mô</h2>
         {score.error ? <p className="state" role="alert">{score.error}</p> : score.data ? <MacroThermometer data={score.data} names={names} /> : <p className="state" role="status">Đang tính nhiệt kế vĩ mô…</p>}
+        {score.data?.factors && score.data.factors.length < PAPER_FACTORS.length && (
+          <p className="muted" role="note">
+            MacroScore dựa trên {score.data.factors.length}/{PAPER_FACTORS.length} biến của mô hình gốc ({score.data.factors.join(', ') || '—'}); chưa có số liệu thật cho{' '}
+            {PAPER_FACTORS.filter((f) => !score.data!.factors!.includes(f)).map((f) => names[f] ?? f).join(', ')} — điểm này chưa phản ánh đầy đủ bức tranh vĩ mô.
+          </p>
+        )}
       </section>
 
       <section className="mc-section" aria-labelledby="mc-matrix">
@@ -98,6 +114,11 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
         )}
       </section>
 
+      <section className="mc-section" aria-labelledby="mc-regime">
+        <h2 id="mc-regime">Chế độ vĩ mô</h2>
+        <RegimePanel client={client} asOf={asOf} enabled={connected} names={names} factors={impact.data?.factors ?? []} targets={impact.data?.targets ?? []} />
+      </section>
+
       <div className="mc-grid two">
         <section className="mc-section" aria-labelledby="mc-scn">
           <h2 id="mc-scn">Kịch bản</h2>
@@ -111,6 +132,11 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
           <MacroCalendar calendar={calendar.data} alerts={alerts.data} calendarError={calendar.error} alertsError={alerts.error} />
         </section>
       </div>
+
+      <section className="mc-section" aria-labelledby="mc-report">
+        <h2 id="mc-report">Báo cáo tháng</h2>
+        <ReportPanel client={client} asOf={asOf} enabled={connected} />
+      </section>
       </>}
     </div>
   );

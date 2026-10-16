@@ -1,7 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
 import { createMacroApi } from './macro-api';
-import { startMacroServer } from './macro-http';
 import { SYNTHETIC_NOTICE, makeSyntheticStore } from './macro-seed';
 
 const store = makeSyntheticStore(2024);
@@ -130,21 +129,5 @@ describe('cell detail, scenario, score, regime, alerts, calendar', () => {
     expect(c.releases.length).toBeGreaterThan(5);
     expect(c.releases.every((x: Any) => x.estimated === true)).toBe(true);
     expect(c.caveat).toContain('ƯỚC TÍNH');
-  });
-});
-
-describe('HTTP adapter', () => {
-  it('serves JSON over a real socket, rejects bad JSON and unknown routes', async () => {
-    const s = await startMacroServer(api, { port: 0 });
-    const base = `http://127.0.0.1:${s.port}`;
-    const h = await fetch(`${base}/api/macro/health`);
-    expect(h.status).toBe(200);
-    expect((await h.json()).ok).toBe(true);
-    const ok = await fetch(`${base}/api/macro/scenario`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ scenarioId: 'cpi-up', horizon: 2 }) });
-    expect(ok.status).toBe(200);
-    const badJson = await fetch(`${base}/api/macro/impact`, { method: 'POST', body: '{nope' });
-    expect(badJson.status).toBe(400);
-    expect((await fetch(`${base}/zzz`)).status).toBe(404);
-    await s.close();
   });
 });

@@ -143,9 +143,17 @@ function CatalystContent() {
               }}
             />
 
+            {snapshot.sanitized && (
+              <div role="note" style={{ fontSize: 10.5, color: "var(--text-secondary)", border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", marginBottom: 10 }}>
+                Đã ẩn {snapshot.sanitized.removedCards} thẻ và {snapshot.sanitized.removedMovers} mục tăng/giảm hạng. {snapshot.sanitized.reason}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 16, fontSize: 11, color: "var(--text-secondary)", marginBottom: 12, flexWrap: "wrap" }}>
-              <span>Tích cực: <b style={{ color: "var(--positive)" }}>{snapshot.totalBenefitCount}</b></span>
-              <span>Tiêu cực: <b style={{ color: "var(--negative)" }}>{snapshot.totalHarmCount}</b></span>
+              {!snapshot.sanitized && <>
+                <span>Tích cực: <b style={{ color: "var(--positive)" }}>{snapshot.totalBenefitCount}</b></span>
+                <span>Tiêu cực: <b style={{ color: "var(--negative)" }}>{snapshot.totalHarmCount}</b></span>
+              </>}
               <span>Cập nhật: {freshnessLabel}</span>
             </div>
 
@@ -182,11 +190,13 @@ function EvidenceNote() {
   return (
     <details style={{ fontSize: 10.5, color: "var(--text-tertiary)", margin: "6px 0 2px" }}>
       <summary style={{ cursor: "pointer" }}>
-        Bằng chứng: <b style={{ color: "var(--text-secondary)" }}>đạt kiểm định đặt trước trong mẫu nhỏ</b> — lợi suất vượt VN-Index 20 phiên theo chiều tín hiệu {pctVi(EV.meanSar20)} (KTC95 {pctVi(EV.ci95[0])} … {pctVi(EV.ci95[1])}, n = {EV.n20})
+        Bằng chứng: <b style={{ color: "var(--warning, #f59e0b)" }}>THỬ NGHIỆM</b> — chiều “tích cực/tiêu cực” của engine chưa được kiểm chứng đủ mẫu sạch
       </summary>
       <p style={{ margin: "4px 0 0", lineHeight: 1.5 }}>
-        Mẫu {EV.n20} tín hiệu trong một tháng ({EV.window}); tỷ lệ đúng chiều {pctVi(EV.hitRate20, 0).replace("+", "")} chưa khác 50% có ý nghĩa; sau 5 phiên chưa thấy hiệu ứng ({pctVi(EV.meanSar5)}).
-        “Tỷ lệ thắng” trên thẻ là tỷ lệ tăng giá thô 5 phiên, không phải lợi suất vượt trội. Engine sau bản sửa ngày {EV.ranOn} được chấm lại bằng kiểm định tiến khi đủ 30 tín hiệu. Không phải khuyến nghị đầu tư.
+        Kiểm định đặt trước ({EV.window}) cho lợi suất vượt VN-Index 20 phiên theo chiều tín hiệu {pctVi(EV.prereg.meanSar20)} (KTC95 {pctVi(EV.prereg.ci95[0])} … {pctVi(EV.prereg.ci95[1])}, n = {EV.prereg.n20}).
+        Rà soát nguồn gốc sau đó phát hiện {EV.seedSignals} tín hiệu đến từ dữ liệu mẫu bịa (đã gỡ). Loại chúng và tin trung lập, mẫu sạch còn {EV.clean.n20} tín hiệu — dưới ngưỡng {EV.minN} đã đăng ký
+        ({pctVi(EV.clean.meanSar20)}, KTC95 {pctVi(EV.clean.ci95[0])} … {pctVi(EV.clean.ci95[1])}). Chấm lại bằng kiểm định tiến khi đủ {EV.minN} tín hiệu sạch.
+        “Tỷ lệ thắng” trên thẻ là tỷ lệ tăng giá thô 5 phiên, không phải lợi suất vượt trội. Không phải khuyến nghị đầu tư.
       </p>
     </details>
   );

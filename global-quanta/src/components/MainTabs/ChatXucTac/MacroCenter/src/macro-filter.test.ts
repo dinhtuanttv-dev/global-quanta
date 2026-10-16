@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { DEFAULT_FILTER, buildMatrixView, cellKey, describeCell, fmtNum, fmtQ, type ImpactPayloadLike } from './macro-filter';
 import { createMacroClient, MacroApiError } from './macro-client';
 import { createMacroApi } from './macro-api';
-import { startMacroServer } from './macro-http';
 import { makeSyntheticStore } from './macro-seed';
 
 const mk = (factor: string, target: string, t: number, sig: boolean, lag = 1) => ({
@@ -77,11 +76,16 @@ describe('Vietnamese formatting and narrative', () => {
   });
 });
 
-describe('client against the real API over HTTP', () => {
+describe('client against the real API (in-process fetch)', () => {
   it('returns typed payloads and surfaces server errors as MacroApiError', async () => {
     const api = createMacroApi({ store: makeSyntheticStore(2024), today: () => '2026-07-15' });
-    const s = await startMacroServer(api);
-    const c = createMacroClient(`http://127.0.0.1:${s.port}`);
+    // fetch trong tiến trình: đi qua đúng api.handle (route, kiểm tra tham số, mã lỗi) mà không cần máy chủ HTTP
+    const fetchImpl = async (url: string, init?: RequestInit) => {
+      const u = new URL(url, 'http://local');
+      const r = await api.handle({ method: init?.method ?? 'GET', path: u.pathname, query: Object.fromEntries(u.searchParams), body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined });
+      return new Response(JSON.stringify(r.body), { status: r.status, headers: { 'content-type': 'application/json' } });
+    };
+    const c = createMacroClient('', fetchImpl);
     const health = await c.health<{ ok: boolean }>();
     expect(health.ok).toBe(true);
     const sc = await c.scenario<{ ranking: unknown[] }>({ scenarioId: 'cpi-up', horizon: 2 });
@@ -97,6 +101,5 @@ describe('client against the real API over HTTP', () => {
     expect(err instanceof MacroApiError).toBe(true);
     expect((err as MacroApiError).status).toBe(400);
     expect((err as MacroApiError).message).toContain('adjust');
-    await s.close();
   });
 });

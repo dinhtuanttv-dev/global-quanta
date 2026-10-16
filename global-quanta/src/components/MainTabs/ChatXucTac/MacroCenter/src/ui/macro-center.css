@@ -143,3 +143,31 @@
 @media (prefers-reduced-motion: no-preference) {
   .thermo-marker { transition: left 240ms ease-out; }
 }
+
+/* ── Nguồn dữ liệu, chế độ vĩ mô, báo cáo (Global Quanta) ── */
+.mc .ds-mode { padding: 1px 8px; border-radius: 4px; background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
+.mc .ds-mode[data-mode='real'] { background: color-mix(in srgb, var(--up) 14%, transparent); color: var(--up); }
+.mc .ds-wrap { overflow-x: auto; margin-top: 8px; }
+.mc .ds-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mc .ds-table th, .mc .ds-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+.mc .ds-table thead th { color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+.mc .ds-table tbody th { font-weight: 600; }
+.mc .ds-table tbody th small { color: var(--ink-3); font-weight: 400; }
+.mc .ds-table td[data-tone='ok'] { color: var(--up); }
+.mc .ds-table td[data-tone='warn'] { color: var(--warn); }
+.mc .ds-table td[data-tone='muted'] { color: var(--ink-3); }
+.mc .ds-table [data-severity='error'] { color: var(--down); }
+.mc code { font-size: 0.92em; }
+.mc .rg-strip { display: flex; gap: 2px; height: 14px; margin: 8px 0; }
+.mc .rg-strip i, .mc .rg-legend i { flex: 1; border-radius: 2px; background: var(--ink-3); }
+.mc .rg-legend { list-style: none; padding: 0; margin: 0 0 10px; font-size: 12px; color: var(--ink-2); }
+.mc .rg-legend li { display: flex; gap: 6px; align-items: baseline; margin: 3px 0; }
+.mc .rg-legend i { display: inline-block; flex: 0 0 10px; width: 10px; height: 10px; }
+.mc [data-state='0'] > i, .mc .rg-strip i[data-state='0'] { background: #4c8dff; }
+.mc [data-state='1'] > i, .mc .rg-strip i[data-state='1'] { background: var(--navy); }
+.mc [data-state='2'] > i, .mc .rg-strip i[data-state='2'] { background: #a78bfa; }
+.mc [data-state='3'] > i, .mc .rg-strip i[data-state='3'] { background: var(--ink-2); }
+/* chế độ là nhãn phân loại, KHÔNG mang nghĩa tốt/xấu -> màu trung tính, không dùng xanh/đỏ */
+.mc .rg-impact select { margin-left: 4px; }
+.mc .rg-impact .fb-row { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 12px; }
+.mc .mc-report { font-size: 13px; line-height: 1.55; margin-top: 8px; }

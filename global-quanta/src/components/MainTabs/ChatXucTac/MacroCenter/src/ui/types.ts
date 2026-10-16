@@ -15,6 +15,8 @@ export interface CellDetailPayload extends Notice {
 }
 export interface ThermoPayload extends Notice {
   target: string;
+  /** biến thực sự dùng cho MacroScore (6 biến của bài báo gốc, lọc theo số liệu có) */
+  factors?: string[];
   thermometer: { value: number; band: string; bandVi: string; period: string; topContributors: { factor: string; contribution: number }[] } | null;
   backtest: { ic: number; icP: number; hitRate: number; gate: { pass: boolean; reasons: string[] } } | null;
   usableForDecisions: boolean;
@@ -27,3 +29,21 @@ export interface ScenarioPayload extends Notice {
 export interface CalendarPayload extends Notice { releases: { seriesId: string; nameVi: string; period: string; expectedDate: string; status: 'upcoming' | 'overdue'; daysUntil: number }[]; caveat: string }
 export interface AlertsPayload extends Notice { alerts: { id: string; level: 'info' | 'warn' | 'high'; messageVi: string }[] }
 export type { CellLike };
+
+// ── Gateway (/api/macro/source) và các route chưa có trên UI gốc ──
+export interface SourceSeries { id: string; nameVi: string; role: 'factor' | 'target'; n: number; first: string | null; last: string | null; stale: boolean; sources: string[] }
+export interface SourcePayload {
+  mode: 'real' | 'synthetic'; notice: string | null; minMonths: number; realObservations: number;
+  series: SourceSeries[]; usableFactors: string[]; usableTargets: string[]; staleSeries: string[];
+}
+export interface RegimeState { state: number; label: string; expectedDurationMonths: number; stationaryShare: number; meansByFeature: Record<string, number> }
+export interface RegimePayload extends Notice {
+  asOf: string; firstPeriod: string; lastPeriod: string; features: string[]; K: number;
+  summary: RegimeState[]; current: { probs: number[]; state: number; label: string }; history: { period: string; probs: number[] }[]; note?: string;
+}
+export interface RegimeImpactPayload extends Notice {
+  factor: string; target: string; lag: number;
+  perRegime: { state: number; label: string; n: number; beta: number; se: number; t: number; p: number; sufficient: boolean }[];
+  equalityP: number; differs: boolean; note: string;
+}
+export interface ReportPayload extends Notice { asOf: string; markdown: string }

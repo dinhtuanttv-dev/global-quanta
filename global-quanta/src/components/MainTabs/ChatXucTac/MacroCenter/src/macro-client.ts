@@ -40,6 +40,10 @@ export function createMacroClient(baseUrl = '', fetchImpl?: FetchLike) {
     regime: <T = unknown>(asOf?: string, signal?: AbortSignal) => call<T>('GET', `regime${qs({ asOf })}`, undefined, signal),
     alerts: <T = unknown>(asOf?: string, signal?: AbortSignal) => call<T>('GET', `alerts${qs({ asOf })}`, undefined, signal),
     calendar: <T = unknown>(asOf?: string, signal?: AbortSignal) => call<T>('GET', `calendar${qs({ asOf })}`, undefined, signal),
+    regimeImpact: <T = unknown>(body: Record<string, unknown>, signal?: AbortSignal) => call<T>('POST', 'regime-impact', body, signal),
+    report: <T = unknown>(asOf?: string, signal?: AbortSignal) => call<T>('GET', `report${qs({ asOf })}`, undefined, signal),
+    /** Gateway: chế độ dữ liệu (thật / mô phỏng), độ phủ và nguồn từng chuỗi. */
+    source: <T = unknown>(signal?: AbortSignal) => call<T>('GET', 'source', undefined, signal),
   };
 }
 export type MacroClient = ReturnType<typeof createMacroClient>;
