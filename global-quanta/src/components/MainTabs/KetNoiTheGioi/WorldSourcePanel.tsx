@@ -15,7 +15,7 @@ interface WorldSource {
     complete: boolean;
     report: {
       markets: Record<string, { source: string; labelVi?: string; lagOneDay?: boolean; flatDays?: number }>;
-      sectors: Record<string, { members: string[]; missing: string[]; from: string | null }>;
+      sectors: Record<string, { members: string[]; missing: string[]; from: string | null; source?: { kind: "icb" | "icb+basket" | "basket"; icb: string | null; icbName: string | null; icbFrom: string | null; survivorshipBias: boolean } }>;
       missingFactors: Record<string, string>;
       notes: string[];
     };
@@ -63,12 +63,18 @@ export default function WorldSourcePanel() {
               </ul>
             </div>
             <div>
-              <b>Ngành = rổ cân bằng tỷ trọng, giá điều chỉnh theo sự kiện quyền:</b>
+              <b>Ngành = chỉ số ngành ICB toàn ngành (khi khớp sát), đoạn trước đó / ngành không có ICB = rổ chọn tay cân bằng tỷ trọng (giá điều chỉnh):</b>
               <ul className="list-disc pl-4">
                 {sectors.map((s) => (
                   <li key={s.id}>
-                    {s.nameVi}: {r.sectors[s.id]?.members.join(", ") || "—"}
+                    {s.nameVi}:{" "}
+                    {r.sectors[s.id]?.source?.icbFrom
+                      ? <>ICB {r.sectors[s.id].source!.icb} {r.sectors[s.id].source!.icbName} từ {r.sectors[s.id].source!.icbFrom}{r.sectors[s.id].source!.kind === "icb+basket" ? <span style={muted}> · trước đó rổ: {r.sectors[s.id].members.join(", ")}</span> : null}</>
+                      : <>rổ chọn tay: {r.sectors[s.id]?.members.join(", ") || "—"}</>}
                     {r.sectors[s.id]?.missing.length ? <span style={muted}> (thiếu: {r.sectors[s.id].missing.join(", ")})</span> : null}
+                    {r.sectors[s.id]?.source?.survivorshipBias
+                      ? <span title="Rổ chọn tay gồm các mã còn niêm yết & thanh khoản hôm nay — lợi suất quá khứ có xu hướng thiên cao (thiên lệch sống sót)" style={{ color: "var(--gold, #e8b84b)" }}> · thiên lệch sống sót</span>
+                      : null}
                     {" · "}{s.n} tháng{s.stale ? " · ngừng cập nhật — đã loại" : ""}
                   </li>
                 ))}

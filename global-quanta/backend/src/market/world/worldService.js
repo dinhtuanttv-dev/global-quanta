@@ -6,8 +6,8 @@ import { createInlineProxy, createWorkerProxy } from "../macro/workerProxy.js";
 import { vnToday } from "../macro/macroCore.js";
 import { createWorldCore } from "./worldCore.js";
 import {
-  FOREIGN_MARKETS, REAL_WORLD_EVENTS, SECTOR_BASKETS, WORLD_FACTORS_WITHOUT_SOURCE, WORLD_MONTHLY_YAHOO,
-  alignForeignReturns, closeMap, equalWeightReturns, firstFullIndex, monthlyIndexFromReturns,
+  FOREIGN_MARKETS, REAL_WORLD_EVENTS, SECTOR_BASKETS, SECTOR_ICB, WORLD_FACTORS_WITHOUT_SOURCE, WORLD_MONTHLY_YAHOO,
+  alignForeignReturns, closeMap, equalWeightReturns, firstFullIndex, monthlyIndexFromReturns, spliceSectorReturns,
 } from "./worldData.js";
 
 export const WORLD_KV_KEY = "world:data";
@@ -34,7 +34,10 @@ async function yahoo(symbol, interval, range, fetchImpl) {
   return parseYahooChart(await r.json()).map((p) => ({ date: p.date, close: p.value }));
 }
 
-export function createWorldService({ store, history, corporateActions, macroObservations, inline = false, fetchImpl = globalThis.fetch, now = Date.now, log = console } = {}) {
+/**
+ * sectorIndices: () => { [icbCode]: { name, index: [[date, close, n]] } } — chỉ số ngành ICB đã dựng của Lọc ngành (KV, không gọi SSI).
+ */
+export function createWorldService({ store, history, corporateActions, macroObservations, sectorIndices = null, inline = false, fetchImpl = globalThis.fetch, now = Date.now, log = console } = {}) {
   const today = () => vnToday(now());
   const engine = inline
     ? createInlineProxy(worldOps(createWorldCore({ today })))
@@ -83,7 +86,15 @@ export function createWorldService({ store, history, corporateActions, macroObse
       markets[id] = a.ret;
       report.markets[id] = { source: `Yahoo:${m.symbol}`, labelVi: m.labelVi, lagOneDay: m.lag1, flatDays: a.flatDays, first: a.first, last: a.last };
     }
-    // 3) ngành: rổ cân bằng tỷ trọng, giá điều chỉnh cộng dồn theo sự kiện quyền (cùng cơ chế /ta-series)
+    // 3) ngành: chỉ số ICB của Gateway khi có ngành khớp sát (ít thiên lệch sống sót hơn); trước ngày ICB bắt đầu và ngành không
+    //    có ICB khớp: rổ cân bằng tỷ trọng, giá điều chỉnh cộng dồn theo sự kiện quyền (cùng cơ chế /ta-series)
+    let icbSectors = null;
+    try {
+      icbSectors = sectorIndices ? await sectorIndices() : null;
+    } catch (e) {
+      log.warn?.(`[world] không đọc được chỉ số ngành ICB: ${e.message}`);
+    }
+    if (sectorIndices && !icbSectors) report.notes.push("Chưa đọc được chỉ số ngành ICB (Lọc ngành) — mọi ngành tạm dùng rổ chọn tay.");
     const sectors = {};
     const sectorMonthly = [];
     let budgetHit = false;
@@ -104,10 +115,24 @@ export function createWorldService({ store, history, corporateActions, macroObse
         }
       }
       const ew = equalWeightReturns(tradingDays, series);
-      const start = firstFullIndex(ew.members);
-      sectors[sec] = start == null ? tradingDays.map(() => 0) : ew.ret.map((r, i) => (i < start ? 0 : r));
-      if (start != null) for (const o of monthlyIndexFromReturns(tradingDays, ew.ret, today(), { startIndex: start })) sectorMonthly.push({ seriesId: sec, ...o, source: "Gateway: rổ cân bằng tỷ trọng (giá điều chỉnh)" });
-      report.sectors[sec] = { members: used, missing, from: start == null ? null : tradingDays[start], minMembersNow: ew.members.at(-1) };
+      const icbCode = SECTOR_ICB[sec] ?? null;
+      const icb = icbCode ? icbSectors?.[icbCode] ?? null : null;
+      const sp = spliceSectorReturns(tradingDays, ew.ret, firstFullIndex(ew.members), icb?.index);
+      const start = sp.start;
+      sectors[sec] = start == null ? tradingDays.map(() => 0) : sp.ret;
+      const srcLabel = sp.icbFrom
+        ? `Gateway: chỉ số ngành ICB ${icbCode} ${icb.name ?? ""} từ ${sp.icbFrom}${sp.basketDays ? " (trước đó: rổ chọn tay)" : ""}`.replace(/\s+/g, " ")
+        : "Gateway: rổ cân bằng tỷ trọng chọn tay (giá điều chỉnh)";
+      if (start != null) for (const o of monthlyIndexFromReturns(tradingDays, sp.ret, today(), { startIndex: start })) sectorMonthly.push({ seriesId: sec, ...o, source: srcLabel });
+      report.sectors[sec] = {
+        members: used, missing, from: start == null ? null : tradingDays[start], minMembersNow: ew.members.at(-1),
+        source: {
+          kind: sp.icbFrom ? (sp.basketDays ? "icb+basket" : "icb") : "basket", label: srcLabel, icb: icbCode, icbName: icb?.name ?? null,
+          icbFrom: sp.icbFrom, icbDays: sp.icbDays, basketDays: sp.basketDays, gapDays: sp.gapDays,
+          // rổ chọn tay = các mã còn niêm yết/thanh khoản hôm nay -> lợi suất quá khứ thiên cao (survivorship)
+          survivorshipBias: sp.basketDays > 0,
+        },
+      };
     }
     if (budgetHit) report.notes.push("Chưa nạp đủ lịch sử 6 năm cho mọi mã (giới hạn tải 40 lượt/giờ dùng chung) — tự thử lại sau ~1 giờ.");
     const emptySectors = Object.entries(report.sectors).filter(([, r]) => r.from == null).map(([k]) => k);

@@ -8,6 +8,7 @@ import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
 import { createWorldRouter } from "./routes/world.js";
 import { createWorldService } from "./market/world/worldService.js";
+import { SECTOR_RRG_HISTORY_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
@@ -47,6 +48,7 @@ let worldService = null;
 const getWorldService = () => (worldService ??= createWorldService({
   store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory, corporateActions: getMarketRuntime().corporateActions,
   macroObservations: () => getMacroService().observations(),
+  sectorIndices: async () => (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null,
 }));
 app.use("/api/world", createWorldRouter({ getService: getWorldService }));
 
