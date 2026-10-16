@@ -51,14 +51,32 @@ export const WORLD_MONTHLY_YAHOO = {
   VIX: { symbol: "^VIX", source: "Yahoo:^VIX" },
   MSCI_EM: { symbol: "EEM", source: "Yahoo:EEM (ETF MSCI Emerging Markets)" },
 };
+/**
+ * Yếu tố tháng từ FRED (W4, 2026-10-16). proxy = không phải đúng chỉ tiêu tên yếu tố — ghi rõ trên UI.
+ * asOfDay: ngày của tháng SAU được coi là đã công bố (EPU thương mại ra đầu tháng sau; Philly Fed ra thứ Năm tuần 3 CÙNG tháng).
+ */
+export const WORLD_MONTHLY_FRED = {
+  TARIFF: { id: "EPUTRADE", source: "FRED:EPUTRADE (Baker–Bloom–Davis, bất định chính sách thương mại Mỹ)", proxy: false, asOfDay: 10 },
+  PMI_US: { id: "GACDFSA066MSFRBPHI", source: "FRED:GACDFSA066MSFRBPHI (Philly Fed khảo sát sản xuất) — PROXY cho PMI sản xuất Mỹ", proxy: true, asOfDay: 1 },
+};
 /** Yếu tố của gói CHƯA có nguồn mở — không có dữ liệu, không bịa. */
 export const WORLD_FACTORS_WITHOUT_SOURCE = {
-  CONTAINER: "Cước container (Drewry WCI/SCFI — trả phí)",
-  PMI_CN: "PMI sản xuất Trung Quốc (Caixin/NBS — không có API mở)",
-  PMI_US: "PMI sản xuất Mỹ (ISM — trả phí)",
+  CONTAINER: "Cước container (Drewry WCI/SCFI — trả phí; FRED không có)",
+  PMI_CN: "PMI sản xuất Trung Quốc (Caixin/NBS — không có API mở; OECD CLI Trung Quốc trên FRED ngừng ở 2024-01, quá cũ để dùng)",
   EM_FLOWS: "Dòng vốn thị trường mới nổi (IIF/EPFR — trả phí)",
-  TARIFF: "Bất định chính sách thương mại (chưa nối nguồn)",
 };
+
+/** CSV FRED tháng -> tháng ĐÃ ĐÓNG { period, value, asOf } với ngày công bố asOfDay của tháng sau. */
+export function fredMonthly(points, todayIso, asOfDay = 1) {
+  const nowPeriod = todayIso.slice(0, 7);
+  const by = new Map();
+  for (const p of points) { const period = p.date.slice(0, 7); if (period < nowPeriod) by.set(period, p.value); }
+  return [...by.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([period, value]) => {
+    const [y, m] = period.split("-").map(Number);
+    const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+    return { period, value, asOf: `${ny}-${String(nm).padStart(2, "0")}-${String(asOfDay).padStart(2, "0")}` };
+  });
+}
 
 // ── Sự kiện THẬT (nhập tay, đã kiểm duyệt). Giờ công bố UTC. FOMC: 14:00 giờ miền Đông Mỹ (18:00Z mùa hè / 19:00Z mùa đông).
 const FOMC = [

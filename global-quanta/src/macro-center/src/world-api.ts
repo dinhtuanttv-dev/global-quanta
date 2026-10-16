@@ -3,7 +3,8 @@
  *
  *   GET  /api/world/series         catalog of factors, sectors, markets, scenarios
  *   GET  /api/world/overview       pulse of world factors, tier counts, spillover, pending events
- *   POST /api/world/matrix         factor × sector impact matrix with evidence tiers
+ *   POST /api/world/matrix         factor × sector impact matrix with evidence tiers (EXPLORATORY)
+ *   GET  /api/world/confirmatory   pre-registered 12-pair confirmatory gate (docs/WORLD-W3-prereg.md)
  *   GET  /api/world/connectedness  Diebold-Yilmaz table, rolling total, tail dependence
  *   GET  /api/world/events         event list with CAR, q-values and tiers
  *   GET  /api/world/events/:id     event-study detail
@@ -21,6 +22,7 @@ import { connectedness, rollingConnectedness, tailDependence } from './world-con
 import { alignEventToSession, bmpTest, eventStudy, type EventStudyResult } from './world-events';
 import { hierarchicalShrink } from './world-shrinkage';
 import { assignTier, stockTier, summarizeTiers } from './world-evidence';
+import { runConfirmatory } from './world-confirmatory';
 import { channelExposure } from './world-transmission';
 import {
   CHANNEL_NAMES_VI, VN_SECTORS, WORLD_FACTOR_IDS, WORLD_FACTOR_INFO, WORLD_MARKETS, TIER_MEANING_VI, type EvidenceTier,
@@ -125,6 +127,15 @@ export function createWorldApi(deps: WorldApiDeps) {
           cells, counts: summarizeTiers(cells.map((c) => c.tier)), tierMeaning: TIER_MEANING_VI, warnings: b.warnings as string[],
         };
       });
+    });
+
+  // ── pre-registered confirmatory gate (W3) ──
+  const confirmatory = (asOf: string) =>
+    memo(`confirmatory|${asOf}`, () => {
+      const m = monthly(asOf);
+      const r = runConfirmatory(m.prep);
+      return { asOf, firstPeriod: m.ds.dates[0], lastPeriod: m.ds.dates[m.ds.dates.length - 1], notice: deps.notice, ...r,
+        rows: r.rows.map((x) => ({ ...x, factorName: nameOf[x.factor], sectorName: sectorName[x.sector] })) };
     });
 
   // ── connectedness ──
@@ -293,6 +304,7 @@ export function createWorldApi(deps: WorldApiDeps) {
         return { status: 200, body: { notice: deps.notice, factors: WORLD_FACTOR_IDS.map((id) => ({ id, nameVi: nameOf[id], ...WORLD_FACTOR_INFO[id] })), sectors: VN_SECTORS, markets: WORLD_MARKETS, scenarios: WORLD_SCENARIOS, tierMeaning: TIER_MEANING_VI } };
       if (m === 'GET' && path === '/api/world/overview') return { status: 200, body: await overview(asOfOf(q.asOf)) };
       if (m === 'POST' && path === '/api/world/matrix') return { status: 200, body: await matrix(asOfOf(body.asOf), intIn(body.maxLag, 'maxLag', 1, 12, 6)) };
+      if (m === 'GET' && path === '/api/world/confirmatory') return { status: 200, body: confirmatory(asOfOf(q.asOf)) };
       if (m === 'GET' && path === '/api/world/connectedness') return { status: 200, body: { notice: deps.notice, ...connectednessReport(intIn(q.window, 'window', 120, 1000, 250), intIn(q.H, 'H', 1, 30, 10), intIn(q.step, 'step', 5, 200, 40)) } };
       if (m === 'GET' && path === '/api/world/events') return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: 'Benjamini-Yekutieli trên toàn bộ sự kiện × ngành' } };
       const em = /^\/api\/world\/events\/([A-Za-z0-9_-]+)$/.exec(path);

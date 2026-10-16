@@ -2734,6 +2734,103 @@ function summarizeTiers(tiers) {
   return out;
 }
 
+// src/macro-center/src/world-confirmatory.ts
+var WORLD_PREREG_VERSION = "W3-v1 (2026-10-16)";
+var WORLD_PREREG_LAG = 1;
+var WORLD_PREREG_PAIRS = [
+  { id: "P1", factor: "OIL", sector: "S_OIL", sign: 1, mechanismVi: "Gi\xE1 d\u1EA7u \u2192 doanh thu d\u1EA7u kh\xED" },
+  { id: "P2", factor: "STEEL", sector: "S_STEEL", sign: 1, mechanismVi: "Gi\xE1 th\xE9p HRC \u2192 gi\xE1 b\xE1n th\xE9p" },
+  { id: "P3", factor: "FED", sector: "S_RE", sign: -1, mechanismVi: "L\xE3i su\u1EA5t Fed \u2192 chi ph\xED v\u1ED1n B\u0110S" },
+  { id: "P4", factor: "FED", sector: "S_BANK", sign: -1, mechanismVi: "L\xE3i su\u1EA5t Fed \u2192 d\xF2ng v\u1ED1n / \xE1p l\u1EF1c l\xE3i su\u1EA5t VN" },
+  { id: "P5", factor: "DXY", sector: "S_SEC", sign: -1, mechanismVi: "USD m\u1EA1nh \u2192 kh\u1ED1i ngo\u1EA1i r\xFAt, thanh kho\u1EA3n gi\u1EA3m" },
+  { id: "P6", factor: "VIX", sector: "S_SEC", sign: -1, mechanismVi: "Ng\u1EA1i r\u1EE7i ro to\xE0n c\u1EA7u \u2192 thanh kho\u1EA3n / m\xF4i gi\u1EDBi" },
+  { id: "P7", factor: "SEMI", sector: "S_TECH", sign: 1, mechanismVi: "Chu k\u1EF3 b\xE1n d\u1EABn \u2192 c\xF4ng ngh\u1EC7" },
+  { id: "P8", factor: "CNY", sector: "S_STEEL", sign: -1, mechanismVi: "CNY y\u1EBFu \u2192 th\xE9p Trung Qu\u1ED1c r\u1EBB, c\u1EA1nh tranh nh\u1EADp kh\u1EA9u" },
+  { id: "P9", factor: "TARIFF", sector: "S_TEXTILE", sign: -1, mechanismVi: "B\u1EA5t \u0111\u1ECBnh thu\u1EBF quan \u2192 d\u1EC7t may xu\u1EA5t kh\u1EA9u" },
+  { id: "P10", factor: "TARIFF", sector: "S_SEAFOOD", sign: -1, mechanismVi: "B\u1EA5t \u0111\u1ECBnh thu\u1EBF quan \u2192 thu\u1EF7 s\u1EA3n xu\u1EA5t kh\u1EA9u" },
+  { id: "P11", factor: "PMI_US", sector: "S_TEXTILE", sign: 1, mechanismVi: "C\u1EA7u s\u1EA3n xu\u1EA5t M\u1EF9 (proxy Philly Fed) \u2192 d\u1EC7t may" },
+  { id: "P12", factor: "PMI_US", sector: "S_PORT", sign: 1, mechanismVi: "C\u1EA7u s\u1EA3n xu\u1EA5t M\u1EF9 (proxy Philly Fed) \u2192 c\u1EA3ng / logistics" }
+];
+var isFin = (v) => typeof v === "number" && Number.isFinite(v);
+function fitPair(y, x, lag) {
+  const common = Math.max(lag, 2);
+  let best = 0, bestBic = Infinity;
+  for (let p = 0; p <= 2; p++) {
+    const d = buildDesign({ y, xs: [x], lag, arLags: p, start: common });
+    if (d.X.length < d.names.length + 12) continue;
+    try {
+      const r = olsFit(d.X, d.y, { hac: false });
+      if (r.bic < bestBic) {
+        bestBic = r.bic;
+        best = p;
+      }
+    } catch {
+    }
+  }
+  const design = buildDesign({ y, xs: [x], lag, arLags: best });
+  if (design.X.length < design.names.length + 12) return null;
+  try {
+    return { res: olsFit(design.X, design.y, {}), arLags: best, design };
+  } catch {
+    return null;
+  }
+}
+function runConfirmatory(prep, opts = {}) {
+  const pairs = opts.pairs ?? WORLD_PREREG_PAIRS;
+  const lag = opts.lag ?? WORLD_PREREG_LAG, alpha = opts.alpha ?? 0.05;
+  const fits = pairs.map((p) => {
+    const y = prep.targets[p.sector], x = prep.factors[p.factor];
+    if (!y || !x) return null;
+    return fitPair(y, x, lag);
+  });
+  const pOne = fits.map((f, i) => {
+    if (!f) return 1;
+    const t = f.res.tHac[1], df = Math.max(1, f.res.n - f.res.k);
+    return isFin(t) ? 1 - studentTCdf(pairs[i].sign * t, df) : 1;
+  });
+  const q = adjustPValues(pOne, "by");
+  const rows = pairs.map((p, i) => {
+    const f = fits[i];
+    if (!f) return { ...p, available: false, beta: null, t: null, pOneSided: 1, q: q[i], nobs: null, arLags: null, signOk: null, stable: null, shareSameSign: null, oosPass: null, oosIc: null, oosHitRate: null, oosReasons: [], confirmed: false, reasonVi: "Thi\u1EBFu d\u1EEF li\u1EC7u (< 60 th\xE1ng ho\u1EB7c kh\xF4ng c\xF3 ngu\u1ED3n) \u2014 t\xEDnh p = 1, v\u1EABn trong h\u1ECD 12 c\u1EB7p." };
+    const beta = f.res.beta[1], t = f.res.tHac[1];
+    const signOk = Math.sign(beta) === p.sign;
+    let stab = null;
+    try {
+      stab = summarizeStability(rollingBeta(f.design, 1, opts.window ?? 48), beta);
+    } catch {
+      stab = null;
+    }
+    const bt = backtestMacroScore({ y: prep.targets[p.sector], factors: { [p.factor]: prep.factors[p.factor] }, lag, B: opts.B ?? 499, seed: opts.seed ?? 3 });
+    const oosPass = bt ? bt.gate.pass : false;
+    const confirmed = q[i] < alpha && signOk && stab?.stable === true && oosPass;
+    const gaps = [];
+    if (!(q[i] < alpha)) gaps.push(`q = ${q[i].toFixed(3)} \u2265 ${alpha}`);
+    if (!signOk) gaps.push("ng\u01B0\u1EE3c chi\u1EC1u k\u1EF3 v\u1ECDng");
+    if (stab?.stable !== true) gaps.push("kh\xF4ng \u1ED5n \u0111\u1ECBnh theo th\u1EDDi gian");
+    if (!oosPass) gaps.push("kh\xF4ng \u0111\u1EA1t ngo\xE0i m\u1EABu");
+    return {
+      ...p,
+      available: true,
+      beta,
+      t,
+      pOneSided: pOne[i],
+      q: q[i],
+      nobs: f.res.n,
+      arLags: f.arLags,
+      signOk,
+      stable: stab ? stab.stable : null,
+      shareSameSign: stab ? stab.shareSameSign : null,
+      oosPass,
+      oosIc: bt ? bt.ic : null,
+      oosHitRate: bt ? bt.hitRate : null,
+      oosReasons: bt ? bt.gate.reasons : ["Kh\xF4ng \u0111\u1EE7 \u0111i\u1EC3m ngo\xE0i m\u1EABu."],
+      confirmed,
+      reasonVi: confirmed ? "\u0110\u1EA1t b\u1EADc x\xE1c nh\u1EADn A: q < 0,05, \u0111\xFAng chi\u1EC1u, \u1ED5n \u0111\u1ECBnh v\xE0 \u0111\u1EA1t ngo\xE0i m\u1EABu." : `Ch\u01B0a x\xE1c nh\u1EADn: ${gaps.join("; ")}.`
+    };
+  });
+  return { version: WORLD_PREREG_VERSION, lag, family: pairs.length, rows, confirmed: rows.filter((r) => r.confirmed).length };
+}
+
 // src/macro-center/src/world-transmission.ts
 function channelExposure(x) {
   const rev = x.revenueByRegion;
@@ -2924,6 +3021,18 @@ function createWorldApi(deps) {
       };
     });
   });
+  const confirmatory = (asOf) => memo(`confirmatory|${asOf}`, () => {
+    const m = monthly(asOf);
+    const r = runConfirmatory(m.prep);
+    return {
+      asOf,
+      firstPeriod: m.ds.dates[0],
+      lastPeriod: m.ds.dates[m.ds.dates.length - 1],
+      notice: deps.notice,
+      ...r,
+      rows: r.rows.map((x) => ({ ...x, factorName: nameOf[x.factor], sectorName: sectorName[x.sector] }))
+    };
+  });
   const marketMatrix = () => world.tradingDays.map((_, t) => WORLD_MARKETS.map((m) => world.markets[m.id][t]));
   const connectednessReport = (window, H, step) => memo(`conn|${window}|${H}|${step}`, () => {
     const Y = marketMatrix();
@@ -3097,6 +3206,7 @@ function createWorldApi(deps) {
         return { status: 200, body: { notice: deps.notice, factors: WORLD_FACTOR_IDS.map((id) => ({ id, nameVi: nameOf[id], ...WORLD_FACTOR_INFO[id] })), sectors: VN_SECTORS, markets: WORLD_MARKETS, scenarios: WORLD_SCENARIOS, tierMeaning: TIER_MEANING_VI } };
       if (m === "GET" && path === "/api/world/overview") return { status: 200, body: await overview(asOfOf(q.asOf)) };
       if (m === "POST" && path === "/api/world/matrix") return { status: 200, body: await matrix(asOfOf(body.asOf), intIn(body.maxLag, "maxLag", 1, 12, 6)) };
+      if (m === "GET" && path === "/api/world/confirmatory") return { status: 200, body: confirmatory(asOfOf(q.asOf)) };
       if (m === "GET" && path === "/api/world/connectedness") return { status: 200, body: { notice: deps.notice, ...connectednessReport(intIn(q.window, "window", 120, 1e3, 250), intIn(q.H, "H", 1, 30, 10), intIn(q.step, "step", 5, 200, 40)) } };
       if (m === "GET" && path === "/api/world/events") return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: "Benjamini-Yekutieli tr\xEAn to\xE0n b\u1ED9 s\u1EF1 ki\u1EC7n \xD7 ng\xE0nh" } };
       const em = /^\/api\/world\/events\/([A-Za-z0-9_-]+)$/.exec(path);
@@ -3457,6 +3567,8 @@ export {
   WORLD_FACTOR_IDS,
   WORLD_FACTOR_INFO,
   WORLD_MARKETS,
+  WORLD_PREREG_PAIRS,
+  WORLD_PREREG_VERSION,
   WORLD_SCENARIOS,
   WORLD_SYNTHETIC_NOTICE,
   WORLD_TOOL_SPECS,
@@ -3470,6 +3582,7 @@ export {
   makeSyntheticStore,
   makeSyntheticWorld,
   normalizePeriod,
+  runConfirmatory,
   toAnthropicTools,
   validateArgs,
   validateWorldEvent

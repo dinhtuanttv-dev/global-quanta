@@ -142,21 +142,26 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
     async sectorSignals() {
       const base = { mode: state.mode, deadband: WORLD_SIGNAL_DEADBAND, probabilityBounds: WORLD_SIGNAL_PROB_BOUNDS };
       if (state.mode !== "real") return { ...base, sectors: [], reason: "Dữ liệu mô phỏng — không đưa vào bộ máy quyết định." };
+      // W3: chỉ cặp đạt BẬC XÁC NHẬN A của bộ 12 cặp đăng ký trước mới vào tín hiệu (không dùng bậc A của ma trận thăm dò).
+      const cf = await coreHandle({ method: "GET", path: "/api/world/confirmatory", query: {}, body: {} });
+      if (cf.status !== 200) return { ...base, sectors: [], reason: String(cf.body?.error ?? "Chưa tính được cổng xác nhận.") };
       const mx = await coreHandle({ method: "POST", path: "/api/world/matrix", query: {}, body: {} });
-      if (mx.status !== 200) return { ...base, sectors: [], reason: String(mx.body?.error ?? "Chưa tính được ma trận.") };
       const sectors = [];
       for (const s of VN_SECTORS) {
-        const cells = mx.body.cells.filter((c) => c.sector === s.id);
-        const tierA = cells.filter((c) => c.tier === "A").map((c) => c.factor);
+        const cells = mx.status === 200 ? mx.body.cells.filter((c) => c.sector === s.id) : [];
+        const tierA = cf.body.rows.filter((r) => r.sector === s.id && r.confirmed).map((r) => r.factor);
+        const tested = cf.body.rows.filter((r) => r.sector === s.id).map((r) => r.id);
         let score = null;
         if (tierA.length) {
           const r = await state.api.macro.handle({ method: "POST", path: "/api/macro/score", query: {}, body: { target: s.id, factors: tierA, lag: 1 } });
           score = r.status === 200 ? r.body : null;
         }
         const sig = worldSignalFromScore(score, tierA);
-        sectors.push({ sector: s.id, nameVi: s.nameVi, tierA, tierB: cells.filter((c) => c.tier === "B").map((c) => c.factor), ...sig });
+        // tierB = bậc B của ma trận THĂM DÒ — chỉ để tham khảo, không bao giờ vào quyết định
+        sectors.push({ sector: s.id, nameVi: s.nameVi, tierA, tierB: cells.filter((c) => c.tier === "B").map((c) => c.factor), preregPairs: tested, ...sig,
+          ...(tierA.length ? {} : { reason: tested.length ? `Cặp đăng ký trước (${tested.join(", ")}) chưa đạt bậc xác nhận A.` : "Không có cặp đăng ký trước cho ngành này." }) });
       }
-      return { ...base, asOf: mx.body.asOf, lastPeriod: mx.body.lastPeriod, sectors };
+      return { ...base, gate: { version: cf.body.version, family: cf.body.family, lag: cf.body.lag, confirmed: cf.body.confirmed }, asOf: cf.body.asOf, lastPeriod: cf.body.lastPeriod, sectors };
     },
 
   };
