@@ -9,6 +9,7 @@ import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
 import BeneficiaryStocksPanel from "./BeneficiaryStocksPanel";
 import WorldSourcePanel from "./WorldSourcePanel";
+import EvidenceTag, { EvidencePriorityNote } from "./EvidenceTag";
 import { WorldTab } from "../../../macro-center/src/ui/world/WorldTab";
 import { getMarketGateway } from "../../../config/marketGateway";
 
@@ -131,14 +132,12 @@ export default function KetNoiTheGioiTab() {
 
       {macro && (
         <>
+          <EvidencePriorityNote />
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Risk-On Index</p>
-                <span title="Công thức cố định (DXY 40% + VIX 30% + Treasury 30%), tính trực tiếp từ dữ liệu Yahoo Finance thật"
-                  className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>
-                  HARD_DATA
-                </span>
+                <EvidenceTag kind="failed" title="Công thức đặt tay (DXY 40% + VIX 30% + US10Y 30%) trên số liệu Yahoo thật. Kiểm định đặt trước 10 năm (124 mẫu không chồng lấn): IC +0,05, KTC95 [−0,10; +0,22] — KHÔNG ĐẠT. Chỉ tham khảo." />
               </div>
               <RiskStatusBadge status={macro.risk_status} />
             </div>
@@ -172,7 +171,7 @@ export default function KetNoiTheGioiTab() {
           <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Nhịp Đập Thị Trường Thế Giới</p>
-              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>HARD_DATA</span>
+              <EvidenceTag kind="data" />
             </div>
             {markets.length === 0 ? (
               <p className="text-xs italic py-4 text-center" style={{ color: T.textTertiary }}>Không có dữ liệu thị trường.</p>

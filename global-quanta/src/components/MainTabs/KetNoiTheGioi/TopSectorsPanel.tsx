@@ -8,6 +8,7 @@ import { SECTOR_ETF_TO_SECTOR_KEY } from "../../../lib/sector-etf-to-sectorkey";
 import { EU_SECTOR_INSTRUMENTS, ASIA_SECTOR_PROXY_BASKETS } from "../../../lib/region-sector-sources";
 import { computeSectorConsensus, type MarketSectorEntry } from "../../../lib/sector-consensus";
 import ConfidenceBadge from "./ConfidenceBadge";
+import EvidenceTag from "./EvidenceTag";
 import { useState } from "react";
 
 const T = {
@@ -193,7 +194,7 @@ export default function TopSectorsPanel() {
     <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3.5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Top Ngành Thị Trường (Smart Mapping → VN)</p>
-        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>HARD_DATA</span>
+        <EvidenceTag kind="heuristic" title="Biến động ngành nước ngoài là số liệu thật; ánh xạ → ngành VN là đặt tay, chưa kiểm định ngoài mẫu." />
       </div>
 
       <div className="flex gap-2 border-b pb-2.5 mb-3" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
