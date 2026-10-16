@@ -2,12 +2,11 @@ import { useState } from "react";
 import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, Sparkles, CheckCircle2, LineChart, Package, Network } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useGlobalStream } from "../../../hooks/useGlobalStream";
-import { useMacroAnalysis } from "../../../hooks/useMacroAnalysis";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
 import CommodityPulseSubTab from "./CommodityPulseSubTab";
-import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
-import BeneficiaryStocksPanel from "./BeneficiaryStocksPanel";
+import WorldSectorPanel from "./worldSectors/WorldSectorPanel";
+import AiAnalysisPanel from "./AiAnalysisPanel";
 import WorldSourcePanel from "./WorldSourcePanel";
 import WorldConfirmatoryPanel from "./WorldConfirmatoryPanel";
 import useSWR from "swr";
@@ -59,8 +58,7 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
 
 export default function KetNoiTheGioiTab() {
   const selectTicker = useAppStore((s) => s.selectTicker);
-  const { data, connected, commodityDeltas, source: pulseSource, monthlyFromProjectA } = useGlobalStream();
-  const { result: aiResult, isLoading: aiLoading, error: aiError, analyze } = useMacroAnalysis();
+  const { data, connected, source: pulseSource, monthlyFromProjectA } = useGlobalStream();
   const [showAllMarkets, setShowAllMarkets] = useState(false);
   // Sub-tab: "market" = Nhịp đập thị trường (thời gian thực), "commodity" = Nhịp đập hàng hoá,
   // "world" = Truyền dẫn & bằng chứng (engine world của gói macro-center 1.2 trên Gateway, số liệu thật).
@@ -217,99 +215,9 @@ export default function KetNoiTheGioiTab() {
             )}
           </div>
 
-          <TopSectorsPanel />
+          <WorldSectorPanel />
 
-          <BeneficiaryStocksPanel macro={macro} commodityDeltas={commodityDeltas} />
-
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Phân Tích AI Đa Tác Nhân (Gemini)</p>
-                <span title="Kết quả suy luận từ AI, không phải công thức toán cố định — luôn kèm confidence và có thể sai"
-                  className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.1)", color: T.gold }}>
-                  ESTIMATED
-                </span>
-                {aiResult?.cached && (
-                  <span title="Kết quả đã lưu cache, không gọi Gemini mới lần này — tránh tốn phí lặp lại"
-                    className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>
-                    CACHE · {aiResult.cacheAgeMinutes}p trước
-                  </span>
-                )}
-              </div>
-              <button onClick={analyze} disabled={aiLoading}
-                style={{ background: aiLoading ? "rgba(148,163,184,0.1)" : `linear-gradient(135deg, ${T.gold}, ${T.goldBright})` }}
-                className="text-[10px] font-black px-3 py-1.5 rounded-lg flex items-center gap-1.5 disabled:cursor-not-allowed"
-                title="Gọi Gemini AI thật - tốn phí mỗi lần bấm">
-                <Sparkles className="w-3 h-3" style={{ color: aiLoading ? T.textTertiary : "#0a1020" }} />
-                <span style={{ color: aiLoading ? T.textTertiary : "#0a1020" }}>{aiLoading ? "Đang phân tích..." : "Chạy Phân Tích AI"}</span>
-              </button>
-            </div>
-
-            {aiError && (
-              <div style={{ background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.2)" }} className="rounded-lg p-2.5 mb-2">
-                <p className="text-[10px]" style={{ color: T.negative }}>Không phân tích được: {aiError}</p>
-              </div>
-            )}
-
-            {!aiResult && !aiError && !aiLoading && (
-              <p className="text-[10px] italic" style={{ color: T.textTertiary }}>
-                Bấm "Chạy Phân Tích AI" để 3 agent (Market/News/Evidence) phân tích dữ liệu thị trường hiện tại và xác định ngành CP VN bị ảnh hưởng.
-              </p>
-            )}
-
-            {aiResult && aiResult.market && (
-              <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  {aiResult.evidence.verified
-                    ? <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: T.positive }} />
-                    : <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" style={{ color: T.negative }} />}
-                  <div>
-                    <p className="text-xs" style={{ color: "#f1f5f9" }}>{aiResult.market.summaryVi}</p>
-                    <p className="text-[9px] mt-1" style={{ color: T.textTertiary }}>
-                      Độ tin cậy: <b style={{ color: "#f1f5f9" }}>{Math.round(aiResult.finalConfidence * 100)}%</b>
-                      {!aiResult.evidence.verified && <span style={{ color: T.negative }}> — Evidence Agent phát hiện mâu thuẫn, độ tin cậy đã bị hạ thấp</span>}
-                    </p>
-                  </div>
-                </div>
-
-                {aiResult.market.affectedSectorKeys.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {aiResult.market.affectedSectorKeys.map((key) => {
-                      const mapping = lookupSectorMapping(key);
-                      if (!mapping) return null;
-                      return (
-                        <div key={key} style={{ background: "rgba(148,163,184,0.04)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-lg p-2">
-                          <p className="text-[9px] font-bold" style={{ color: T.gold }}>{mapping.sectorLabelVi}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {mapping.vnTickers.map((ticker) => (
-                              <button key={ticker} onClick={() => selectTicker(ticker)}
-                                style={{ background: "rgba(2,6,15,0.6)" }}
-                                className="text-[9px] font-black px-1.5 py-0.5 rounded" >
-                                <span style={{ color: T.goldBright }}>{ticker}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {aiResult.evidence.discrepancies.length > 0 && (
-                  <div style={{ background: "rgba(245,158,11,0.06)" }} className="rounded-lg p-2">
-                    <p className="text-[9px] font-bold mb-1" style={{ color: T.gold }}>⚠ Mâu thuẫn Evidence Agent phát hiện:</p>
-                    {aiResult.evidence.discrepancies.map((d, i) => (
-                      <p key={i} className="text-[9px]" style={{ color: T.textSecondary }}>• {d}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <p className="text-[9px] italic mt-3 pt-2 border-t" style={{ borderColor: "rgba(148,163,184,0.08)", color: T.textTertiary }}>
-              {aiResult?.disclaimer ?? "Thông tin mang tính tham khảo, không phải khuyến nghị đầu tư."}
-            </p>
-          </div>
+          <AiAnalysisPanel />
 
           <StockImpactTable />
         </>

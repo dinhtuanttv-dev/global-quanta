@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import useSWR from "swr";
 import { TrendingUp, TrendingDown, Minus, History } from "lucide-react";
-import { lookupSectorMapping } from "../../../lib/macro-mapping";
+import { sectorNameOf } from "../../../lib/worldSectors/sectorNames";
 import SectorImpactDetailModal, { type SectorImpact } from "./SectorImpactDetailModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -159,7 +159,6 @@ export default function StockImpactTable() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {filteredSectors.map((sector) => {
               const meta = directionMeta(sector.direction);
-              const mapping = lookupSectorMapping(sector.sectorKey);
               return (
                 <button key={sector.id} onClick={() => setDetailSector(sector)}
                   className="text-left rounded-lg p-2.5 transition-transform hover:scale-[1.02]"
@@ -169,7 +168,7 @@ export default function StockImpactTable() {
                     <span className="text-[9px] font-bold" style={{ color: meta.color }}>{Math.round(sector.confidence * 100)}%</span>
                   </div>
                   <p className="text-[10px] font-bold leading-tight mb-1.5 line-clamp-2" style={{ color: "#f1f5f9" }}>
-                    {mapping?.sectorLabelVi ?? sector.sectorKey}
+                    {sectorNameOf(sector.sectorKey)}
                   </p>
                   {sector.vnTickers.length > 0 && (
                     <div className="flex flex-wrap gap-1">
