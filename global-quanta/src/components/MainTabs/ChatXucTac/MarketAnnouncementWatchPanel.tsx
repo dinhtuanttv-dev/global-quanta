@@ -61,7 +61,7 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
       )}
 
       <p style={{ fontSize: 8.5, color: "var(--text-tertiary)", marginTop: 6 }}>
-        Phat hien tu dong boi AI (Gemini + Google Search) - kiem tra lai nguon truoc khi ra quyet dinh.
+        Phát hiện tự động bởi AI (Gemini + Google Search) — kiểm tra lại nguồn trước khi ra quyết định.
       </p>
     </div>
   );
