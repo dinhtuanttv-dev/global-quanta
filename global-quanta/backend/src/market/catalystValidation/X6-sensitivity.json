@@ -1,0 +1,38 @@
+{
+ "note": "Phân tích độ nhạy SAU KIỂM ĐỊNH (không đăng ký trước): loại tín hiệu từ dữ liệu mẫu (scripts/seed-catalyst.ts, khớp ticker|category|direction|propagation) và tin trung lập nhận diện được qua tiêu đề trong snapshot.",
+ "counts": {
+  "seed": 15,
+  "neutral": 3,
+  "real": 2,
+  "unverified": 27
+ },
+ "results": {
+  "all": {
+   "n": 47,
+   "clusters": 42,
+   "mean": 0.031222787234042537,
+   "lo": 0.008110059999999995,
+   "hi": 0.055890863636363634,
+   "hitRate": 0.574468085106383,
+   "binomP": 0.19084669883160643
+  },
+  "exclSeed": {
+   "n": 32,
+   "clusters": 32,
+   "mean": 0.029037250000000004,
+   "lo": 0.0001641562500000011,
+   "hi": 0.0588116875,
+   "hitRate": 0.625,
+   "binomP": 0.10766357486136258
+  },
+  "exclSeedNeutral": {
+   "n": 29,
+   "clusters": 29,
+   "mean": 0.030563172413793107,
+   "lo": 0.0005708965517241385,
+   "hi": 0.06324093103448276,
+   "hitRate": 0.6206896551724138,
+   "binomP": 0.132465448230505
+  }
+ }
+}

@@ -233,3 +233,4 @@ Kiểm tra bằng trình duyệt thật, API sống, **chưa từng được th�
 - Biến vĩ mô (GSO/NHNN/...) nạp qua `POST /api/macro/admin/import` (Bearer `MARKET_ADMIN_TOKEN`): `{ seriesId, csv, source?, asOf?, locale?, dryRun?, force? }` — có lỗi chất lượng mức error thì từ chối trừ khi `force`.
 - **Lệch HANDOFF**: route đọc `/api/macro/*` CÔNG KHAI (không requireAuth) + giới hạn tần suất theo IP (120 đọc / 40 tính toán mỗi phút) — tab Chất xúc tác mở cho mọi người như các tab khác; không có dữ liệu người dùng.
 - Thêm: `GET /api/macro/source` (chế độ, độ phủ), `GET /api/macro/tools` (đặc tả công cụ Anthropic + system prompt), `POST /api/macro/tools/:name` (chạy công cụ chat cho X4).
+- (2026-10-16) Thêm nguồn thật tự động: FED/OIL (FRED), DXY/EX (Yahoo); `POST /api/macro/admin/refresh-feeds` (thay `refresh-hose`). Chuỗi ngừng cập nhật (kỳ cuối cũ hơn độ trễ công bố + 3 tháng) bị loại khỏi engine. UI có thêm: Nguồn & chất lượng dữ liệu, Chế độ vĩ mô, Báo cáo tháng.

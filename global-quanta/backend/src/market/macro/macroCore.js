@@ -29,16 +29,31 @@ export function mergeObservations(existing, incoming) {
   return { list, added, changed };
 }
 
-/** Độ phủ của kho số liệu thật: số tháng mỗi chuỗi, và có đủ để bật chế độ "real" không. */
-export function coverageOf(store) {
+const monthsBetween = (a, b) => {
+  const [ya, ma] = a.split("-").map(Number);
+  const [yb, mb] = b.split("-").map(Number);
+  return (yb - ya) * 12 + (mb - ma);
+};
+/** Ngưỡng "ngừng cập nhật": độ trễ công bố của chuỗi + 3 tháng (VD chỉ số đổi mã, nguồn ngừng). */
+export const STALE_GRACE_MONTHS = 3;
+
+/**
+ * Độ phủ của kho số liệu thật. Chuỗi NGỪNG CẬP NHẬT (kỳ cuối cũ hơn độ trễ công bố + 3 tháng) bị loại khỏi phân tích:
+ * engine lấy GIAO các kỳ của mọi chuỗi, một chuỗi dừng sẽ kéo cả ma trận/cảnh báo về quá khứ mà vẫn trông như "hiện tại".
+ */
+export function coverageOf(store, todayIso) {
+  const nowPeriod = (todayIso ?? new Date().toISOString()).slice(0, 7);
   const series = VN_CATALOG.map((m) => {
     const pts = store.getSeries(m.id);
-    return { id: m.id, nameVi: m.nameVi, role: m.role, n: pts.length, first: pts[0]?.period ?? null, last: pts.at(-1)?.period ?? null };
+    const last = pts.at(-1)?.period ?? null;
+    const lagMonths = last ? monthsBetween(last, nowPeriod) : null;
+    const stale = last != null && lagMonths > (m.pubLagMonths ?? 0) + 1 + STALE_GRACE_MONTHS;
+    return { id: m.id, nameVi: m.nameVi, role: m.role, n: pts.length, first: pts[0]?.period ?? null, last, stale };
   });
-  const ok = (role) => series.filter((s) => s.role === role && s.n >= MIN_MONTHS).map((s) => s.id);
+  const ok = (role) => series.filter((s) => s.role === role && s.n >= MIN_MONTHS && !s.stale).map((s) => s.id);
   const factors = ok("factor");
   const targets = ok("target");
-  return { series, usableFactors: factors, usableTargets: targets, realReady: factors.length > 0 && targets.length > 0 };
+  return { series, usableFactors: factors, usableTargets: targets, staleSeries: series.filter((s) => s.stale).map((s) => s.id), realReady: factors.length > 0 && targets.length > 0 };
 }
 
 /**
@@ -47,6 +62,11 @@ export function coverageOf(store) {
  */
 export function referenceOnly(res, mode) {
   const b = res?.body;
+  // báo cáo tháng (Markdown) được dựng trong engine, không đi qua lớp này -> sửa câu kết luận cổng ngay trong văn bản
+  if (b && typeof b === "object" && typeof b.markdown === "string") {
+    const note = mode === "synthetic" ? "dữ liệu MÔ PHỎNG — kết quả cổng không có giá trị thực tế; MacroScore chỉ minh hoạ." : "MacroScore CHỈ ĐỂ THAM KHẢO (chưa qua kiểm định đặt trước), không dùng cho quyết định.";
+    return { ...res, body: { ...b, markdown: b.markdown.replace(/MacroScore (CHƯA )?vượt cổng kiểm định ngoài mẫu[^.\n]*\./g, (m) => `${m} Lưu ý: ${note}`) } };
+  }
   if (!b || typeof b !== "object" || !("usableForDecisions" in b)) return res;
   const passed = !!b.backtest?.gate?.pass;
   const gateNote = mode === "synthetic"
@@ -65,9 +85,14 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
   let state = null;
 
   function rebuild() {
+    const all = new InMemoryVintageStore();
+    if (real.length) all.upsert(real);
+    const coverage = coverageOf(all, today());
+    // engine chỉ thấy các chuỗi còn cập nhật
     const realStore = new InMemoryVintageStore();
-    if (real.length) realStore.upsert(real);
-    const coverage = coverageOf(realStore);
+    const stale = new Set(coverage.staleSeries);
+    const fresh = real.filter((o) => !stale.has(o.seriesId));
+    if (fresh.length) realStore.upsert(fresh);
     const mode = coverage.realReady ? "real" : "synthetic";
     const store = mode === "real" ? realStore : makeSyntheticStore();
     // Dữ liệu chỉ đổi khi nạp (dataVersion đổi) -> TTL dài; tính lại chỉ khi đổi dữ liệu hoặc ngày asOf.

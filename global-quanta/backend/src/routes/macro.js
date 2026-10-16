@@ -84,9 +84,9 @@ export function createMacroRouter({ getService, adminToken = () => process.env.M
     }));
   }));
 
-  router.post("/admin/refresh-hose", admin, wrap(async (req, res) => {
+  router.post("/admin/refresh-feeds", admin, wrap(async (req, res) => {
     res.set("Cache-Control", "no-store");
-    res.json(await getService().refreshHoseTargets({ force: true }));
+    res.json(await getService().refreshAutoFeeds({ force: true }));
   }));
 
   for (const method of ["get", "post"]) {

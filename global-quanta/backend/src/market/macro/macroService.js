@@ -1,17 +1,19 @@
 // Dịch vụ Trung tâm vĩ mô của Gateway.
 //   - Engine (gói MacroCenter của người dùng, đóng gói sẵn) chạy trong worker thread; `inline: true` cho test.
 //   - Số liệu THẬT lưu chỉ-thêm trong KV `macro:observations` (mỗi quan sát = seriesId, period, value, asOf, source).
-//     Nguồn: CSV nạp qua route admin (GSO/NHNN/...), và chuỗi chỉ số HOSE (tháng đã đóng) lấy từ lịch sử giá Gateway.
+//     Nguồn tự động (tháng đã đóng, 2 lần/ngày): chỉ số HOSE từ lịch sử giá Gateway; FED/OIL (FRED), DXY/EX (Yahoo) —
+//     macroGlobalFeeds.js. Biến nội địa VN (CPI, M2, tín dụng, ...): CSV nạp qua route admin.
 //   - Chưa đủ số liệu thật (>= 1 biến vĩ mô và >= 1 chỉ số, 60 tháng) -> engine dùng kho MÔ PHỎNG, có biểu ngữ. Không trộn.
 import { Worker } from "node:worker_threads";
 import { createMacroCore, mergeObservations, parseSeriesCsv, vnToday } from "./macroCore.js";
 import { buildMacroCatalystEvents } from "./catalystEvents.js";
+import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
 
 export const MACRO_KV_KEY = "macro:observations";
 // Mã chỉ số trong danh mục MacroCenter -> mã chỉ số của Gateway.
 export const HOSE_TARGETS = { VNINDEX: "VNINDEX", VN30: "VN30", VN100: "VN100", VNMIDCAP: "VNMID", VNSMALLCAP: "VNSML", VNALLSHARE: "VNALLSHARE" };
 const HOSE_SOURCE = "gateway-hose";
-const HOSE_REFRESH_MS = 12 * 3600_000;
+const FEED_REFRESH_MS = 12 * 3600_000;
 const CALL_TIMEOUT_MS = 90_000;
 
 function workerEngine() {
@@ -104,13 +106,13 @@ export function monthlyCloses(bars, todayIso) {
   });
 }
 
-export function createMacroService({ store, history, inline = false, now = Date.now, log = console } = {}) {
+export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, inline = false, now = Date.now, log = console } = {}) {
   const engine = inline ? inlineEngine({ today: () => vnToday(now()) }) : workerEngine();
   let observations = [];
   let ready = null;
   let writeChain = Promise.resolve();
-  let hoseAt = 0;
-  let hosePending = null;
+  let feedsAt = 0;
+  let feedsPending = null;
 
   const todayIso = () => vnToday(now());
 
@@ -146,26 +148,36 @@ export function createMacroService({ store, history, inline = false, now = Date.
     return p;
   }
 
-  /** Bổ sung chuỗi chỉ số HOSE thật từ lịch sử giá Gateway (tối đa 10 năm), tối đa 2 lần/ngày; lỗi thì bỏ qua. */
-  function refreshHoseTargets({ force = false } = {}) {
-    if (!history?.get) return Promise.resolve({ skipped: "no-history" });
-    if (!force && now() - hoseAt < HOSE_REFRESH_MS) return Promise.resolve({ skipped: "fresh" });
-    if (hosePending) return hosePending;
-    hosePending = (async () => {
-      await init();
-      const incoming = [];
-      const report = {};
-      for (const [seriesId, symbol] of Object.entries(HOSE_TARGETS)) {
-        try {
-          const h = await history.get(symbol, { years: 10 });
-          const months = monthlyCloses(h?.bars, todayIso());
-          report[seriesId] = months.length;
-          for (const m of months) incoming.push({ seriesId, ...m, source: HOSE_SOURCE });
-        } catch (e) {
-          report[seriesId] = `lỗi: ${e.message}`;
-        }
+  /** Chuỗi chỉ số HOSE thật từ lịch sử giá Gateway (tối đa 10 năm). */
+  async function hoseObservations(report) {
+    const out = [];
+    if (!history?.get) return out;
+    for (const [seriesId, symbol] of Object.entries(HOSE_TARGETS)) {
+      try {
+        const months = monthlyCloses((await history.get(symbol, { years: 10 }))?.bars, todayIso());
+        report[seriesId] = { source: HOSE_SOURCE, months: months.length, first: months[0]?.period ?? null, last: months.at(-1)?.period ?? null };
+        for (const m of months) out.push({ seriesId, ...m, source: HOSE_SOURCE });
+      } catch (e) {
+        report[seriesId] = { source: HOSE_SOURCE, error: e.message };
       }
-      hoseAt = now();
+    }
+    return out;
+  }
+
+  /** Nạp mọi nguồn tự động (chỉ số HOSE + biến toàn cầu), tối đa 2 lần/ngày; lỗi một nguồn không chặn nguồn khác. */
+  function refreshAutoFeeds({ force = false } = {}) {
+    if (!force && now() - feedsAt < FEED_REFRESH_MS) return Promise.resolve({ skipped: "fresh" });
+    if (feedsPending) return feedsPending;
+    feedsPending = (async () => {
+      await init();
+      const report = {};
+      const [hose, global] = await Promise.all([
+        hoseObservations(report),
+        globalFeeds ? globalFeeds({ todayIso: todayIso() }).catch((e) => ({ observations: [], report: { global: { error: e.message } } })) : { observations: [], report: {} },
+      ]);
+      Object.assign(report, global.report);
+      feedsAt = now();
+      const incoming = [...hose, ...global.observations];
       if (!incoming.length) return { report, added: 0, changed: 0 };
       return serialized(async () => {
         const { list, added, changed } = mergeObservations(observations, incoming);
@@ -173,25 +185,32 @@ export function createMacroService({ store, history, inline = false, now = Date.
         return { report, added, changed };
       });
     })().finally(() => {
-      hosePending = null;
+      feedsPending = null;
     });
-    return hosePending;
+    return feedsPending;
   }
+  const refreshInBackground = () => refreshAutoFeeds().catch((e) => log.warn?.(`[macro] nạp nguồn tự động lỗi: ${e.message}`));
 
   return {
     init,
-    refreshHoseTargets,
+    refreshAutoFeeds,
     async handle(req) {
       await init();
-      refreshHoseTargets().catch((e) => log.warn?.(`[macro] nạp chỉ số HOSE lỗi: ${e.message}`));
+      refreshInBackground();
       return engine.handle(req);
     },
     async source() {
       await init();
+      refreshInBackground();
       const s = await engine.source();
       const bySource = {};
-      for (const o of observations) bySource[o.source ?? "csv"] = (bySource[o.source ?? "csv"] ?? 0) + 1;
-      return { ...s, bySource };
+      const seriesSources = {};
+      for (const o of observations) {
+        const src = o.source ?? "csv";
+        bySource[src] = (bySource[src] ?? 0) + 1;
+        (seriesSources[o.seriesId] ??= new Set()).add(src);
+      }
+      return { ...s, bySource, series: s.series.map((x) => ({ ...x, sources: [...(seriesSources[x.id] ?? [])] })) };
     },
     async runTool(name, args) {
       await init();

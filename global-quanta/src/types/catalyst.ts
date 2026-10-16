@@ -1,4 +1,4 @@
-﻿export type ImpactDirection = "benefit" | "harm" | "none";
+export type ImpactDirection = "benefit" | "harm" | "none";
 export type PropagationDistance = "direct" | "downstream";
 export type Horizon = "short" | "medium" | "long";
 export type PriceInStatus = "not_reflected" | "partially_reflected" | "reflected";
@@ -86,6 +86,8 @@ export interface CatalystSnapshot {
   tickerImpacts: Record<string, TickerImpactResult>;
   isStale: boolean;
   ageMinutes: number;
+  /** Snapshot quét trước bản sửa nguồn gốc: đã ẩn dữ liệu mẫu + tin trung lập khi đọc (Project A). */
+  sanitized?: { removedCards: number; removedMovers: number; reason: string };
 }
 
 export interface CatalystErrorResponse {
