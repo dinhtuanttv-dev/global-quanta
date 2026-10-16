@@ -27,7 +27,7 @@ export default function ForensicScoreBadge({ forensic }: Props) {
           fontSize: 10.5, fontWeight: 700, color: "#fbbf24", background: "rgba(251,191,36,0.1)",
           border: "1px solid rgba(251,191,36,0.3)", borderRadius: 6, padding: "5px 8px", marginBottom: 8,
         }}>
-          ⚠ Tin tich cuc nhung nen tang tai chinh suy yeu
+          ⚠ Tin tích cực nhưng nền tảng tài chính suy yếu
         </div>
       )}
       <Row label="Altman Z''" value={`${forensic.altmanZScore.toFixed(2)} · ${zoneLabel(forensic.altmanZone)}`} color={zoneColor(forensic.altmanZone)} />

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 // Tinh lai "X phut truoc" moi giay dua tren mot moc thoi gian co dinh (scannedAt),
 // khong can goi lai API - chi la dong ho dem nguoc client-side thuan tuy.
@@ -11,11 +11,11 @@ export function useLiveFreshness(scannedAt: string | undefined): string {
     const update = () => {
       const diffMs = Date.now() - new Date(scannedAt).getTime();
       const diffSec = Math.max(0, Math.floor(diffMs / 1000));
-      if (diffSec < 60) { setLabel(`${diffSec} giay truoc`); return; }
+      if (diffSec < 60) { setLabel(`${diffSec} giây trước`); return; }
       const diffMin = Math.floor(diffSec / 60);
-      if (diffMin < 60) { setLabel(`${diffMin} phut truoc`); return; }
+      if (diffMin < 60) { setLabel(`${diffMin} phút trước`); return; }
       const diffHour = Math.floor(diffMin / 60);
-      setLabel(`${diffHour} gio truoc`);
+      setLabel(`${diffHour} giờ trước`);
     };
 
     update();

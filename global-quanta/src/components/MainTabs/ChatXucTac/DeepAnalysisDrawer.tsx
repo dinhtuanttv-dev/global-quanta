@@ -93,7 +93,7 @@ export default function DeepAnalysisDrawer({ card, onClose }: Props) {
               <>
                 <Note>
                   BCTC năm {fin.data.fiscalDates?.[0]?.slice(0, 4)} so với {fin.data.fiscalDates?.[1]?.slice(0, 4)} · nguồn VNDirect (hợp nhất).
-                  Beneish/Altman/Piotroski là công cụ hỗ trợ sàng lọc, không phải kết luận gian lận/phá sản. Altman Z dùng bản gốc cho doanh nghiệp sản xuất.
+                  Beneish/Altman/Piotroski là công cụ hỗ trợ sàng lọc, không phải kết luận gian lận/phá sản. Altman Z'' là bản điều chỉnh cho thị trường mới nổi / doanh nghiệp phi sản xuất.
                 </Note>
                 <ForensicScoreBadge forensic={forensic} />
               </>
