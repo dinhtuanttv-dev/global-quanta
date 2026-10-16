@@ -5,8 +5,32 @@
 //   - "synthetic": chưa có dữ liệu ngày thật -> bộ mô phỏng của gói + WORLD_SYNTHETIC_NOTICE trên mọi phản hồi.
 import {
   createWorldApi, makeSyntheticWorld, InMemoryVintageStore, WORLD_CATALOG, WORLD_SYNTHETIC_NOTICE, validateWorldEvent,
-  VN_SECTORS, WORLD_MARKETS, WORLD_FACTOR_IDS,
+  VN_SECTORS, WORLD_MARKETS, WORLD_FACTOR_IDS, createWorldChatTools, WORLD_TOOL_SPECS, WORLD_CHAT_GUIDELINES, toAnthropicTools,
 } from "../macro/vendor/macroEngine.mjs";
+
+/** Biên độ "trung tính" của MacroScore ngành (thang −1..+1): trong khoảng này tín hiệu không nghiêng hướng nào. */
+export const WORLD_SIGNAL_DEADBAND = 0.05;
+/** Xác suất của tín hiệu bị chặn trong khoảng này (tín hiệu bổ sung, không được lấn át bằng chứng chính). */
+export const WORLD_SIGNAL_PROB_BOUNDS = [0.3, 0.7];
+
+/**
+ * Tín hiệu "bối cảnh thế giới" cho MỘT ngành (dùng cho bộ máy quyết định Lọc ngành), từ kết quả MacroScore của gói trên
+ * CHỈ các liên kết bậc A của ngành:
+ *   usable = cổng kiểm định ngoài mẫu của gói đạt (walk-forward, IC có ý nghĩa, thắng mô hình ngây thơ) trên số liệu thật;
+ *   probability = tỷ lệ đúng hướng NGOÀI MẪU (hitRate) theo chiều của điểm hiện tại — đã hiệu chỉnh bằng chính lịch sử của nó,
+ *   không phải ánh xạ tuỳ ý; |điểm| < deadband -> 0,5; chặn trong [0,3; 0,7].
+ */
+export function worldSignalFromScore(score, tierA) {
+  if (!tierA.length) return { usable: false, probability: null, reason: "Chưa có liên kết bậc A (vượt kiểm định bội + ổn định + ngoài mẫu) với ngành này." };
+  const t = score?.thermometer, bt = score?.backtest;
+  if (!t || !bt) return { usable: false, probability: null, reason: "Chưa đủ dữ liệu để tính điểm ngoài mẫu." };
+  if (!bt.gate?.pass) return { usable: false, probability: null, reason: `Cổng kiểm định ngoài mẫu CHƯA đạt (${(bt.gate?.reasons ?? []).join("; ") || "không đạt"}).`, ic: bt.ic, hitRate: bt.hitRate };
+  const v = t.value;
+  const [lo, hi] = WORLD_SIGNAL_PROB_BOUNDS;
+  const raw = Math.abs(v) < WORLD_SIGNAL_DEADBAND ? 0.5 : v > 0 ? bt.hitRate : 1 - bt.hitRate;
+  const probability = Math.min(hi, Math.max(lo, raw));
+  return { usable: true, probability, reason: `Điểm ${v.toFixed(2)} (kỳ ${t.period ?? "?"}); đúng hướng ngoài mẫu ${(bt.hitRate * 100).toFixed(0)}%, IC ${bt.ic.toFixed(2)}.`, ic: bt.ic, hitRate: bt.hitRate, value: v };
+}
 
 export const MIN_DAYS = 300;
 export const MIN_MONTHS = 60;
@@ -83,6 +107,15 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
   }
   build(null);
 
+  const coreHandle = async (req) => {
+    const r = await state.api.handle(req);
+    // Hồ sơ cổ phiếu cần phơi nhiễm doanh thu từ BCTC (chưa có nguồn có sourceRef) -> nói rõ thay vì "không có cổ phiếu".
+    if (state.mode === "real" && r.status === 404 && /^\/api\/world\/stock\//.test(req.path)) {
+      return { status: 422, body: { error: "Chưa có dữ liệu phơi nhiễm (doanh thu theo vùng, tỷ trọng chi phí hàng hoá, ngoại tệ) có nguồn BCTC cho mã này — hồ sơ cổ phiếu chưa khả dụng." } };
+    }
+    return r;
+  };
+
   return {
     setData(payload) {
       build(payload);
@@ -98,13 +131,33 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
         meta: state.meta,
       };
     },
-    async handle(req) {
-      const r = await state.api.handle(req);
-      // Hồ sơ cổ phiếu cần phơi nhiễm doanh thu từ BCTC (chưa có nguồn có sourceRef) -> nói rõ thay vì "không có cổ phiếu".
-      if (state.mode === "real" && r.status === 404 && /^\/api\/world\/stock\//.test(req.path)) {
-        return { status: 422, body: { error: "Chưa có dữ liệu phơi nhiễm (doanh thu theo vùng, tỷ trọng chi phí hàng hoá, ngoại tệ) có nguồn BCTC cho mã này — hồ sơ cổ phiếu chưa khả dụng." } };
-      }
-      return r;
+    handle: coreHandle,
+    toolSpecs() {
+      return { specs: WORLD_TOOL_SPECS, anthropic: toAnthropicTools(WORLD_TOOL_SPECS), guidelines: WORLD_CHAT_GUIDELINES, mode: state.mode, notice: state.mode === "synthetic" ? WORLD_SYNTHETIC_NOTICE : null };
     },
+    runTool(name, args) {
+      return createWorldChatTools({ handle: coreHandle }).run(name, args);
+    },
+    /** Tín hiệu bối cảnh thế giới theo ngành (bộ máy quyết định Lọc ngành). Chế độ mô phỏng -> không có tín hiệu nào dùng được. */
+    async sectorSignals() {
+      const base = { mode: state.mode, deadband: WORLD_SIGNAL_DEADBAND, probabilityBounds: WORLD_SIGNAL_PROB_BOUNDS };
+      if (state.mode !== "real") return { ...base, sectors: [], reason: "Dữ liệu mô phỏng — không đưa vào bộ máy quyết định." };
+      const mx = await coreHandle({ method: "POST", path: "/api/world/matrix", query: {}, body: {} });
+      if (mx.status !== 200) return { ...base, sectors: [], reason: String(mx.body?.error ?? "Chưa tính được ma trận.") };
+      const sectors = [];
+      for (const s of VN_SECTORS) {
+        const cells = mx.body.cells.filter((c) => c.sector === s.id);
+        const tierA = cells.filter((c) => c.tier === "A").map((c) => c.factor);
+        let score = null;
+        if (tierA.length) {
+          const r = await state.api.macro.handle({ method: "POST", path: "/api/macro/score", query: {}, body: { target: s.id, factors: tierA, lag: 1 } });
+          score = r.status === 200 ? r.body : null;
+        }
+        const sig = worldSignalFromScore(score, tierA);
+        sectors.push({ sector: s.id, nameVi: s.nameVi, tierA, tierB: cells.filter((c) => c.tier === "B").map((c) => c.factor), ...sig });
+      }
+      return { ...base, asOf: mx.body.asOf, lastPeriod: mx.body.lastPeriod, sectors };
+    },
+
   };
 }

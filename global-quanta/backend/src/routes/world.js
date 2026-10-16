@@ -25,6 +25,22 @@ export function createWorldRouter({ getService, adminToken = () => process.env.M
     res.json(await getService().source());
   }));
 
+  // Công cụ chat world_* (cho "Hỏi đáp xúc tác" ở Project A) — cùng hợp đồng với /api/macro/tools.
+  router.get("/tools", readRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await getService().toolSpecs());
+  }));
+  router.post("/tools/:name", computeRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json(await getService().runTool(req.params.name, req.body ?? {}));
+  }));
+
+  // Tín hiệu bối cảnh thế giới theo ngành cho bộ máy quyết định Lọc ngành (chỉ dùng được khi cổng ngoài mẫu đạt).
+  router.get("/sector-signals", computeRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=1800");
+    res.json(await getService().sectorSignals());
+  }));
+
   router.post("/admin/refresh", (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." })), wrap(async (req, res) => {
     res.set("Cache-Control", "no-store");
     res.json(await getService().refresh({ force: true }));

@@ -76,7 +76,8 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
     if (!ready) {
       ready = (async () => {
         try {
-          const saved = store?.getKv ? await store.getKv(MACRO_KV_KEY) : null;
+          // getKv của kho Gateway trả { value, updatedAt } (memoryStore và supabaseStore) — đọc .value
+          const saved = store?.getKv ? (await store.getKv(MACRO_KV_KEY))?.value ?? null : null;
           observations = Array.isArray(saved?.observations) ? saved.observations : [];
         } catch (e) {
           log.warn?.(`[macro] không đọc được ${MACRO_KV_KEY}: ${e.message}`);

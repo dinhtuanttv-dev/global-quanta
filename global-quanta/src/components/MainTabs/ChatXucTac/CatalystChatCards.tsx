@@ -18,6 +18,23 @@ const TOOL_LABEL: Record<string, string> = {
   catalyst_overview: "Tổng quan xúc tác",
   catalyst_ticker: "Xúc tác theo mã",
   catalyst_sector: "Xúc tác theo ngành",
+  world_links: "Liên kết thế giới → ngành",
+  world_events: "Sự kiện thế giới",
+  world_connectedness: "Kết nối thị trường",
+  world_scenario: "Kịch bản thế giới",
+  world_stock_profile: "Phơi nhiễm quốc tế",
+};
+
+/** Bậc bằng chứng của gói macro-center: A/B có màu, C và pending trung tính (không phải "có tác động"). */
+const TIER_STYLE: Record<string, { label: string; color: string }> = {
+  A: { label: "Bậc A", color: "var(--positive, #34d399)" },
+  B: { label: "Bậc B", color: "var(--gold, #e8b84b)" },
+  C: { label: "Bậc C", color: "var(--text-tertiary)" },
+  pending: { label: "Chờ đo", color: "var(--text-tertiary)" },
+};
+const Tier = ({ t }: { t: string }) => {
+  const s = TIER_STYLE[t] ?? { label: t, color: "var(--text-tertiary)" };
+  return <span title={t === "C" ? "Chưa đủ bằng chứng / giả thuyết — không phải \"có tác động\"" : undefined} style={{ fontSize: 9.5, fontWeight: 700, color: s.color, border: `1px solid ${s.color}`, borderRadius: 4, padding: "0 4px" }}>{s.label}</span>;
 };
 export const toolLabel = (name: string) => TOOL_LABEL[name] ?? name;
 
@@ -130,6 +147,50 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
           <span style={{ color: dirColor(c.direction) }}>{c.direction === "benefit" ? "có lợi" : "bất lợi"}</span>, fmt(c.impact), c.corroboration, `${fmt(c.historicalWinRatePct, 0)}%`,
           c.priceInStatus === "reflected" ? "đã phản ánh" : "chưa",
         ])} />
+      </Shell>
+    );
+  }
+  if (name === "world_links") {
+    const rows: Obj[] = d.rows ?? [];
+    return (
+      <Shell title={`${title} · A ${d.counts?.A ?? 0} · B ${d.counts?.B ?? 0} · C ${d.counts?.C ?? 0}`}>
+        {rows.length ? (
+          <Table head={["Yếu tố → Ngành", "Hướng", "β", "t", "Trễ", "Bậc"]} rows={rows.map((r) => [
+            `${r.factorName ?? r.factor} → ${r.sectorName ?? r.sector}`, <span style={{ color: dirColor(r.direction) }}>{r.direction}</span>, fmt(r.beta), fmt(r.t, 1), `${r.lagMonths} th`, <Tier t={r.tier} />,
+          ])} />
+        ) : <div style={{ fontSize: 11, color: "var(--text-secondary)" }}>Chưa có liên kết bậc A/B nào — chưa tìm thấy bằng chứng.</div>}
+      </Shell>
+    );
+  }
+  if (name === "world_events") {
+    const evs: Obj[] = d.events ?? (d.id ? [{ title: d.title, tier: d.tier, sector: d.sector, carPct: d.carPct, q: d.q }] : []);
+    if (!evs.length) return null;
+    return (
+      <Shell title={title}>
+        <Table head={["Sự kiện", "Ngành", "CAR (−1,+3)", "q", "Bậc"]} rows={evs.slice(0, 10).map((e) => [
+          <span title={e.title} style={{ display: "inline-block", maxWidth: 240, overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "bottom" }}>{e.title}</span>,
+          e.sector ?? "—", e.carPct == null ? "—" : `${fmt(e.carPct, 1)}%`, e.q == null ? "—" : fmt(e.q, 3), <Tier t={e.tier} />,
+        ])} />
+      </Shell>
+    );
+  }
+  if (name === "world_connectedness") {
+    return (
+      <Shell title={`${title} · lan truyền tổng ${fmt(d.totalRecentPct, 1)}%`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          Việt Nam nhận từ: {(d.vnReceivesFrom ?? []).map((x: Obj) => `${x.market} ${fmt(x.sharePct, 1)}%`).join(" · ")}
+          <br />Phụ thuộc đuôi (cùng rơi vào 5% ngày tệ nhất; độc lập ≈ 0,05): {(d.tailDependence ?? []).map((x: Obj) => `${x.market} ${fmt(x.jointCrashProb)}`).join(" · ")}
+        </div>
+      </Shell>
+    );
+  }
+  if (name === "world_scenario" && Array.isArray(d.sectors)) {
+    return (
+      <Shell title={`${title} · ${d.scenario} · ${d.horizonMonths} tháng · ${d.conclusiveSectors} ngành có hướng`}>
+        <Table head={["Ngành", "Ước tính", "KTC 90%", "Kết luận"]} rows={d.sectors.map((r: Obj) => [
+          r.name, `${fmt(r.estPct, 1)}%`, `[${fmt(r.ciLowPct, 1)}; ${fmt(r.ciHighPct, 1)}]`, r.conclusive ? "có hướng" : "chưa kết luận",
+        ])} />
+        {Array.isArray(d.warnings) && d.warnings.length > 0 && <div style={{ fontSize: 10, color: "var(--warning, #f59e0b)", marginTop: 4 }}>{d.warnings.join(" · ")}</div>}
       </Shell>
     );
   }

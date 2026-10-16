@@ -53,3 +53,18 @@ describe("X4 — khung chat", () => {
     expect(document.querySelector("li")?.textContent).toBe("nhiệt kế -0,31");
   });
 });
+
+import { ToolResultCard } from "./CatalystChatCards";
+
+describe("X4 — thẻ công cụ thế giới", () => {
+  it("world_links không có A/B -> nói rõ chưa có bằng chứng; world_events hiện bậc C trung tính", () => {
+    const { container } = render(<ToolResultCard name="world_links" result={{ ok: true, data: { counts: { A: 0, B: 0, C: 80 }, rows: [] } }} />);
+    expect(container.textContent).toMatch(/A 0 · B 0 · C 80/);
+    expect(container.textContent).toMatch(/chưa tìm thấy bằng chứng/);
+    cleanup();
+    const ev = render(<ToolResultCard name="world_events" result={{ ok: true, data: { events: [{ id: "us-tariff-2025-04-02", title: "Mỹ công bố thuế đối ứng", tier: "C", sector: "Cảng và logistics", carPct: -10.4, q: 0.292 }] } }} />);
+    expect(ev.container.textContent).toMatch(/Bậc C/);
+    expect(ev.container.textContent).toMatch(/−10,4%|-10,4%/);
+    expect([...ev.container.querySelectorAll("[title]")].some((n) => /không phải "có tác động"/.test(n.getAttribute("title") ?? ""))).toBe(true);
+  });
+});

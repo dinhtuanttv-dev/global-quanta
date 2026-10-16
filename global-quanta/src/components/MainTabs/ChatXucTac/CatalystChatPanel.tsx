@@ -27,6 +27,9 @@ const SUGGESTIONS = [
   "Lạm phát ảnh hưởng gì tới VNSmallcap?",
   "Nếu VND mất giá 3% thì chỉ số nào chịu thiệt?",
   "Mã HPG đang có xúc tác gì?",
+  "Yếu tố thế giới nào tác động tới ngành ngân hàng? Bằng chứng bậc mấy?",
+  "Thị trường Việt Nam đang nhận lan truyền từ đâu?",
+  "Thuế đối ứng của Mỹ tháng 4/2025 tác động ngành nào?",
 ];
 
 function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode }) {
@@ -74,7 +77,7 @@ export default function CatalystChatPanel() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [meta, setMeta] = useState<{ remaining: number; macroMode: string | null } | null>(null);
+  const [meta, setMeta] = useState<{ remaining: number; macroMode: string | null; worldMode: string | null } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -103,7 +106,7 @@ export default function CatalystChatPanel() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     const onEvent = (e: ChatStreamEvent) => {
-      if (e.type === "meta") setMeta({ remaining: e.remaining, macroMode: e.macroMode });
+      if (e.type === "meta") setMeta({ remaining: e.remaining, macroMode: e.macroMode, worldMode: e.worldMode ?? null });
       else if (e.type === "text") updateLast((a) => ({ ...a, text: a.text + e.delta }));
       else if (e.type === "notice") updateLast((a) => (a.notices.includes(e.notice) ? a : { ...a, notices: [...a.notices, e.notice] }));
       else if (e.type === "tool_call") updateLast((a) => ({ ...a, tools: [...a.tools, { id: e.id, name: e.name }] }));
@@ -135,8 +138,9 @@ export default function CatalystChatPanel() {
     <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
         <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>Hỏi đáp xúc tác</span>
-        <span>· Claude Opus 5.5 · công cụ vĩ mô + xúc tác</span>
+        <span>· Claude Opus 5.5 · công cụ vĩ mô + thế giới + xúc tác</span>
         {meta?.macroMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô đang dùng dữ liệu MÔ PHỎNG</span>}
+        {meta?.worldMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta && <span style={{ marginLeft: "auto" }}>Còn {meta.remaining} câu hôm nay</span>}
       </div>
 
