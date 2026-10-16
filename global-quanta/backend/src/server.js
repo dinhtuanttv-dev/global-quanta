@@ -10,11 +10,23 @@ import { createWorldRouter } from "./routes/world.js";
 import { createWorldService } from "./market/world/worldService.js";
 import { createCommodityService } from "./market/commodities/commodityService.js";
 import { createCommoditiesRouter } from "./routes/commodities.js";
+import { createWorldSectorService } from "./market/worldSectors/worldSectorService.js";
+import { createWorldSectorsRouter } from "./routes/worldSectors.js";
 import { SECTOR_RRG_HISTORY_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
 const app = express();
+
+// Chỉ số ngành ICB (KV `sectors:rrg:history`, ~1–2 MB) dùng chung cho Kết nối thế giới / hàng hoá / ngành thế giới — đệm 15 phút
+// để mỗi request không đọc lại KV (egress Supabase).
+let sectorDocMemo = null;
+const sectorIndices = async () => {
+  if (sectorDocMemo && Date.now() - sectorDocMemo.at < 15 * 60_000) return sectorDocMemo.value;
+  const value = (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null;
+  if (value) sectorDocMemo = { at: Date.now(), value };
+  return value;
+};
 const PORT = process.env.PORT || 4000;
 
 // FRONTEND_ORIGIN: danh sách phân tách bằng dấu phẩy, hỗ trợ "*" cho URL preview
@@ -50,16 +62,20 @@ let worldService = null;
 const getWorldService = () => (worldService ??= createWorldService({
   store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory, corporateActions: getMarketRuntime().corporateActions,
   macroObservations: () => getMacroService().observations(),
-  sectorIndices: async () => (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null,
+  sectorIndices,
 }));
 app.use("/api/world", createWorldRouter({ getService: getWorldService }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;
 const getCommodityService = () => (commodityService ??= createCommodityService({
   store: getMarketRuntime().store, taSeries: getMarketRuntime().taSeries,
-  sectorIndices: async () => (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null,
+  sectorIndices,
 }));
 app.use("/api/commodities", createCommoditiesRouter({ getService: getCommodityService }));
+// Nhịp đập thị trường (M1): ngành thế giới (STOXX 600 / SPDR / TOPIX-17 / KODEX …) ↔ ngành ICB Việt Nam.
+let worldSectorService = null;
+const getWorldSectorService = () => (worldSectorService ??= createWorldSectorService({ sectorIndices }));
+app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService }));
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });
