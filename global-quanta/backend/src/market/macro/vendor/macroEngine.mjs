@@ -3508,7 +3508,8 @@ var sectorIds = VN_SECTORS.map((s) => s.id);
 var ASOF2 = { type: "string", description: "Ng\xE0y tham chi\u1EBFu YYYY-MM-DD; b\u1ECF tr\u1ED1ng \u0111\u1EC3 d\xF9ng d\u1EEF li\u1EC7u m\u1EDBi nh\u1EA5t." };
 var obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
 var WORLD_TOOL_SPECS = [
-  { name: "world_links", description: 'Tra c\u1EE9u li\xEAn k\u1EBFt gi\u1EEFa y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi v\xE0 ng\xE0nh Vi\u1EC7t Nam, k\xE8m b\u1EADc b\u1EB1ng ch\u1EE9ng (A/B/C), h\u01B0\u1EDBng, \u0111\u1ED9 tr\u1EC5, q-value. M\u1EB7c \u0111\u1ECBnh ch\u1EC9 tr\u1EA3 li\xEAn k\u1EBFt b\u1EADc A v\xE0 B. D\xF9ng khi h\u1ECFi "y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi n\xE0o t\xE1c \u0111\u1ED9ng t\u1EDBi ng\xE0nh X?".', parameters: obj({ factor: { type: "string", description: "M\xE3 y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi.", enum: factorIds2 }, sector: { type: "string", description: "M\xE3 ng\xE0nh.", enum: sectorIds }, includeC: { type: "boolean", description: "G\u1ED3m c\u1EA3 li\xEAn k\u1EBFt b\u1EADc C (ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng); m\u1EB7c \u0111\u1ECBnh false." }, topN: { type: "number", description: "S\u1ED1 d\xF2ng t\u1ED1i \u0111a 1..15, m\u1EB7c \u0111\u1ECBnh 8.", minimum: 1, maximum: 15 }, asOf: ASOF2 }) },
+  { name: "world_confirmatory", description: 'C\u1ED5ng X\xC1C NH\u1EACN \u0111\u1EB7t tr\u01B0\u1EDBc (W3): 12 c\u1EB7p y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi \u2192 ng\xE0nh ch\u1ECDn theo c\u01A1 ch\u1EBF kinh t\u1EBF tr\u01B0\u1EDBc khi ch\u1EA1y, tr\u1EC5 1 th\xE1ng, BY tr\xEAn 12 c\u1EB7p, \u1ED5n \u0111\u1ECBnh + ngo\xE0i m\u1EABu. Ch\u1EC9 c\u1EB7p "\u0111\xE3 x\xE1c nh\u1EADn" m\u1EDBi v\xE0o quy\u1EBFt \u0111\u1ECBnh L\u1ECDc ng\xE0nh. D\xF9ng khi h\u1ECFi "t\xEDn hi\u1EC7u th\u1EBF gi\u1EDBi n\xE0o \u0110\xC3 \u0111\u01B0\u1EE3c ki\u1EC3m ch\u1EE9ng?".', parameters: obj({}) },
+  { name: "world_links", description: 'Ma tr\u1EADn TH\u0102M D\xD2: li\xEAn k\u1EBFt gi\u1EEFa y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi v\xE0 ng\xE0nh Vi\u1EC7t Nam (ch\u1ECDn tr\u1EC5 t\u1ED1t nh\u1EA5t 0\u20136), k\xE8m b\u1EADc b\u1EB1ng ch\u1EE9ng (A/B/C), h\u01B0\u1EDBng, \u0111\u1ED9 tr\u1EC5, q-value. M\u1EB7c \u0111\u1ECBnh ch\u1EC9 tr\u1EA3 li\xEAn k\u1EBFt b\u1EADc A v\xE0 B. D\xF9ng khi h\u1ECFi "y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi n\xE0o t\xE1c \u0111\u1ED9ng t\u1EDBi ng\xE0nh X?".', parameters: obj({ factor: { type: "string", description: "M\xE3 y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi.", enum: factorIds2 }, sector: { type: "string", description: "M\xE3 ng\xE0nh.", enum: sectorIds }, includeC: { type: "boolean", description: "G\u1ED3m c\u1EA3 li\xEAn k\u1EBFt b\u1EADc C (ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng); m\u1EB7c \u0111\u1ECBnh false." }, topN: { type: "number", description: "S\u1ED1 d\xF2ng t\u1ED1i \u0111a 1..15, m\u1EB7c \u0111\u1ECBnh 8.", minimum: 1, maximum: 15 }, asOf: ASOF2 }) },
   { name: "world_events", description: "Danh s\xE1ch s\u1EF1 ki\u1EC7n th\u1EBF gi\u1EDBi \u0111\xE3 \u0111o ph\u1EA3n \u1EE9ng c\u1EE7a ng\xE0nh Vi\u1EC7t Nam (CAR, q, b\u1EADc) ho\u1EB7c chi ti\u1EBFt m\u1ED9t s\u1EF1 ki\u1EC7n n\u1EBFu truy\u1EC1n eventId.", parameters: obj({ eventId: { type: "string", description: "M\xE3 s\u1EF1 ki\u1EC7n \u0111\u1EC3 xem chi ti\u1EBFt (v\xED d\u1EE5 ev1)." } }) },
   { name: "world_connectedness", description: "M\u1EE9c lan truy\u1EC1n gi\u1EEFa c\xE1c th\u1ECB tr\u01B0\u1EDDng (M\u1EF9, Trung Qu\u1ED1c, Nh\u1EADt, H\xE0n Qu\u1ED1c, Th\xE1i Lan, Vi\u1EC7t Nam): ch\u1EC9 s\u1ED1 lan truy\u1EC1n t\u1ED5ng, Vi\u1EC7t Nam nh\u1EADn t\u1EEB \u0111\xE2u, ph\u1EE5 thu\u1ED9c \u0111u\xF4i.", parameters: obj({}) },
   { name: "world_scenario", description: "M\xF4 ph\u1ECFng k\u1ECBch b\u1EA3n c\u1EE7a th\u1EBF gi\u1EDBi (\u0111\u1ED9 l\u1EC7ch chu\u1EA9n) v\xE0 x\u1EBFp h\u1EA1ng ng\xE0nh, c\u1ED5 phi\u1EBFu ch\u1ECBu t\xE1c \u0111\u1ED9ng. Truy\u1EC1n scenarioId HO\u1EB6C shocks [{factor, sigma}].", parameters: obj({ scenarioId: { type: "string", description: "K\u1ECBch b\u1EA3n c\xF3 s\u1EB5n: tariff-up, usd-strong, oil-spike, fed-cut, china-recovery, risk-off.", enum: ["tariff-up", "usd-strong", "oil-spike", "fed-cut", "china-recovery", "risk-off"] }, shocks: { type: "array", description: "C\xFA s\u1ED1c tu\u1EF3 ch\u1EC9nh [{factor, sigma}], sigma trong [-6, 6] t\xEDnh b\u1EB1ng \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", items: { type: "object" } }, horizon: { type: "number", description: "T\u1EA7m nh\xECn 1..12 th\xE1ng, m\u1EB7c \u0111\u1ECBnh 3.", minimum: 1, maximum: 12 } }) },
@@ -3520,7 +3521,9 @@ var WORLD_CHAT_GUIDELINES = `Quy t\u1EAFc b\u1ED5 sung khi d\xF9ng c\xF4ng c\u1E
 3. C\u1ED5 phi\u1EBFu: \u0111\u1ED9 nh\u1EA1y \u0111\xE3 co r\xFAt v\u1EC1 ng\xE0nh; b\u1EADc c\u1EE7a m\xE3 kh\xF4ng cao h\u01A1n b\u1EADc c\u1EE7a ng\xE0nh.
 4. K\u1EBFt n\u1ED1i th\u1ECB tr\u01B0\u1EDDng m\xF4 t\u1EA3 tr\u1EA1ng th\xE1i truy\u1EC1n bi\u1EBFn \u0111\u1ED9ng, kh\xF4ng d\u1EF1 b\xE1o h\u01B0\u1EDBng \u0111i; ph\u1EE5 thu\u1ED9c \u0111u\xF4i ch\u1EC9 n\xF3i v\u1EC1 x\xE1c su\u1EA5t c\xF9ng s\u1EE5t m\u1EA1nh.
 5. K\u1ECBch b\u1EA3n: conclusive = false ngh\u0129a l\xE0 ch\u01B0a k\u1EBFt lu\u1EADn \u0111\u01B0\u1EE3c h\u01B0\u1EDBng. \u0110\xE2y l\xE0 suy di\u1EC5n l\u1ECBch s\u1EED, kh\xF4ng ph\u1EA3i d\u1EF1 b\xE1o hay khuy\u1EBFn ngh\u1ECB mua b\xE1n.
-6. N\u1EBFu k\u1EBFt qu\u1EA3 c\xF3 notice (d\u1EEF li\u1EC7u m\xF4 ph\u1ECFng) h\xE3y n\xEAu ngay \u0111\u1EA7u c\xE2u tr\u1EA3 l\u1EDDi.`;
+6. N\u1EBFu k\u1EBFt qu\u1EA3 c\xF3 notice (d\u1EEF li\u1EC7u m\xF4 ph\u1ECFng) h\xE3y n\xEAu ngay \u0111\u1EA7u c\xE2u tr\u1EA3 l\u1EDDi.
+7. world_links l\xE0 ma tr\u1EADn TH\u0102M D\xD2 (ch\u1ECDn tr\u1EC5 t\u1ED1t nh\u1EA5t); ch\u1EC9 world_confirmatory l\xE0 ki\u1EC3m \u0111\u1ECBnh \u0111\u1EB7t tr\u01B0\u1EDBc. Khi \u0111\u01B0\u1EE3c h\u1ECFi t\xEDn hi\u1EC7u n\xE0o d\xF9ng \u0111\u01B0\u1EE3c \u0111\u1EC3 ra quy\u1EBFt \u0111\u1ECBnh, d\xF9ng world_confirmatory; n\u1EBFu 0 c\u1EB7p \u0111\u1EA1t, n\xF3i th\u1EB3ng l\xE0 ch\u01B0a c\xF3 t\xEDn hi\u1EC7u th\u1EBF gi\u1EDBi n\xE0o \u0111\u01B0\u1EE3c ki\u1EC3m ch\u1EE9ng.
+8. S\u1EF1 ki\u1EC7n: ng\xE0nh \u0111\u01B0\u1EE3c \u0111o l\xE0 ng\xE0nh \u0111\u1ECBnh tr\u01B0\u1EDBc (prespecified). S\u1EF1 ki\u1EC7n tr\xF9ng c\u1EEDa s\u1ED5 v\u1EDBi s\u1EF1 ki\u1EC7n kh\xE1c th\xEC kh\xF4ng t\xE1ch \u0111\u01B0\u1EE3c t\xE1c \u0111\u1ED9ng; s\u1EF1 ki\u1EC7n ng\u01B0\u1EE3c chi\u1EC1u k\u1EF3 v\u1ECDng ph\u1EA3i n\xF3i r\xF5.`;
 var round2 = (v, d = 2) => Number.isFinite(v) ? Math.round(v * 10 ** d) / 10 ** d : NaN;
 function createWorldChatTools(api) {
   const call = async (method, path, body) => {
@@ -3530,6 +3533,23 @@ function createWorldChatTools(api) {
   const fail = (r) => ({ ok: false, error: String(r.body.error ?? `L\u1ED7i ${r.status}`) });
   const withAsOf = (a, extra = {}) => ({ ...extra, ...a.asOf ? { asOf: a.asOf } : {} });
   const handlers = {
+    async world_confirmatory() {
+      const r = await call("GET", "confirmatory");
+      if (r.status !== 200) return fail(r);
+      return {
+        ok: true,
+        notice: r.body.notice,
+        data: {
+          version: r.body.version,
+          family: r.body.family,
+          lagMonths: r.body.lag,
+          confirmed: r.body.confirmed,
+          period: `${r.body.firstPeriod}..${r.body.lastPeriod}`,
+          rows: r.body.rows.map((x) => ({ id: x.id, factor: x.factor, factorName: x.factorName, sector: x.sector, sectorName: x.sectorName, expected: x.sign > 0 ? "t\u0103ng" : "gi\u1EA3m", beta: x.beta == null ? null : round2(x.beta, 3), t: x.t == null ? null : round2(x.t, 2), pOneSided: round2(x.pOneSided, 4), q: round2(x.q, 3), stable: x.stable, oosPass: x.oosPass, confirmed: x.confirmed, reason: x.reasonVi }))
+        },
+        guidance: ["Ch\u1EC9 c\u1EB7p confirmed = true m\u1EDBi \u0111\u01B0\u1EE3c coi l\xE0 t\xEDn hi\u1EC7u \u0111\xE3 ki\u1EC3m ch\u1EE9ng.", ...r.body.confirmed === 0 ? ["0 c\u1EB7p \u0111\u1EA1t: n\xF3i th\u1EADt l\xE0 ch\u01B0a c\xF3 t\xEDn hi\u1EC7u th\u1EBF gi\u1EDBi n\xE0o \u0111\u01B0\u1EE3c ki\u1EC3m ch\u1EE9ng; c\xE1c b\u1EADc A/B c\u1EE7a world_links ch\u1EC9 l\xE0 th\u0103m d\xF2."] : []]
+      };
+    },
     async world_links(a) {
       const r = await call("POST", "matrix", withAsOf(a));
       if (r.status !== 200) return fail(r);
@@ -3541,7 +3561,7 @@ function createWorldChatTools(api) {
         ok: true,
         notice: r.body.notice,
         data: { counts: r.body.counts, matched: all.length, rows: rows.map((c) => ({ factor: c.factor, factorName: name[c.factor], sector: c.sector, sectorName: sname[c.sector], direction: c.direction === "+" ? "t\u0103ng" : "gi\u1EA3m", beta: round2(c.beta), t: round2(c.t, 1), q: c.q < 1e-3 ? "<0.001" : round2(c.q, 3), lagMonths: c.lag, tier: c.tier, reason: c.reasonVi })) },
-        guidance: ["Lu\xF4n n\xEAu b\u1EADc (A/B/C), h\u01B0\u1EDBng v\xE0 \u0111\u1ED9 tr\u1EC5 khi n\xEAu m\u1ED9t li\xEAn k\u1EBFt.", 'B\u1EADc C l\xE0 ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng ho\u1EB7c gi\u1EA3 thuy\u1EBFt, kh\xF4ng ph\u1EA3i "c\xF3 t\xE1c \u0111\u1ED9ng".', ...rows.length === 0 ? ["Kh\xF4ng c\xF3 li\xEAn k\u1EBFt b\u1EADc A/B n\xE0o tho\u1EA3 \u0111i\u1EC1u ki\u1EC7n: n\xF3i th\u1EADt l\xE0 ch\u01B0a t\xECm th\u1EA5y b\u1EB1ng ch\u1EE9ng."] : []]
+        guidance: ["\u0110\xE2y l\xE0 ma tr\u1EADn TH\u0102M D\xD2 (ch\u1ECDn tr\u1EC5 t\u1ED1t nh\u1EA5t 0\u20136) \u2014 kh\xF4ng ph\u1EA3i ki\u1EC3m \u0111\u1ECBnh \u0111\u1EB7t tr\u01B0\u1EDBc; xem world_confirmatory cho t\xEDn hi\u1EC7u \u0111\xE3 ki\u1EC3m ch\u1EE9ng.", "Lu\xF4n n\xEAu b\u1EADc (A/B/C), h\u01B0\u1EDBng v\xE0 \u0111\u1ED9 tr\u1EC5 khi n\xEAu m\u1ED9t li\xEAn k\u1EBFt.", 'B\u1EADc C l\xE0 ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng ho\u1EB7c gi\u1EA3 thuy\u1EBFt, kh\xF4ng ph\u1EA3i "c\xF3 t\xE1c \u0111\u1ED9ng".', ...rows.length === 0 ? ["Kh\xF4ng c\xF3 li\xEAn k\u1EBFt b\u1EADc A/B n\xE0o tho\u1EA3 \u0111i\u1EC1u ki\u1EC7n: n\xF3i th\u1EADt l\xE0 ch\u01B0a t\xECm th\u1EA5y b\u1EB1ng ch\u1EE9ng."] : []]
       };
     },
     async world_events(a) {

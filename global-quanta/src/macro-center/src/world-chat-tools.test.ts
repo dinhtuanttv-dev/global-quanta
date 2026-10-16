@@ -17,8 +17,17 @@ describe('world chat tools', () => {
     expect(new Set(WORLD_TOOL_SPECS.map((s) => s.name)).size).toBe(WORLD_TOOL_SPECS.length);
     WORLD_TOOL_SPECS.forEach((s) => { expect(s.parameters.additionalProperties).toBe(false); expect(s.description.length).toBeGreaterThan(40); });
     expect(toAnthropicTools(WORLD_TOOL_SPECS)[0].input_schema.type).toBe('object');
-    expect(toOpenAITools(WORLD_TOOL_SPECS)[0].function.name).toBe('world_links');
+    expect(toOpenAITools(WORLD_TOOL_SPECS)[0].function.name).toBe('world_confirmatory');
+    expect(WORLD_CHAT_GUIDELINES).toContain('world_confirmatory');
     for (const k of ['Bậc A', 'Bậc C', 'pending', 'conclusive', 'notice']) expect(WORLD_CHAT_GUIDELINES).toContain(k);
+  });
+  it('world_confirmatory trả đúng 12 cặp đăng ký trước kèm kết luận', async () => {
+    const r = await tools.run('world_confirmatory', {});
+    expect(r.ok).toBe(true);
+    const d = r.data as Any;
+    expect(d.family).toBe(12);
+    expect(d.rows).toHaveLength(12);
+    expect(d.rows.every((x: Any) => typeof x.confirmed === 'boolean')).toBe(true);
   });
   it('rejects unknown tools and invalid arguments', async () => {
     expect((await tools.run('world_hack', {})).ok).toBe(false);

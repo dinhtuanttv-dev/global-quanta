@@ -18,7 +18,8 @@ const TOOL_LABEL: Record<string, string> = {
   catalyst_overview: "Tổng quan xúc tác",
   catalyst_ticker: "Xúc tác theo mã",
   catalyst_sector: "Xúc tác theo ngành",
-  world_links: "Liên kết thế giới → ngành",
+  world_confirmatory: "Cổng xác nhận đặt trước",
+  world_links: "Liên kết thế giới → ngành (thăm dò)",
   world_events: "Sự kiện thế giới",
   world_connectedness: "Kết nối thị trường",
   world_scenario: "Kịch bản thế giới",
@@ -146,6 +147,16 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
           c.ticker, <span title={c.catalyst} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "bottom" }}>{c.catalyst}</span>,
           <span style={{ color: dirColor(c.direction) }}>{c.direction === "benefit" ? "có lợi" : "bất lợi"}</span>, fmt(c.impact), c.corroboration, `${fmt(c.historicalWinRatePct, 0)}%`,
           c.priceInStatus === "reflected" ? "đã phản ánh" : "chưa",
+        ])} />
+      </Shell>
+    );
+  }
+  if (name === "world_confirmatory" && Array.isArray(d.rows)) {
+    return (
+      <Shell title={`${title} · ${d.confirmed}/${d.family} cặp đạt · trễ ${d.lagMonths} tháng`}>
+        <Table head={["Cặp", "Kỳ vọng", "β (t)", "q", "Kết luận"]} rows={d.rows.map((r: Obj) => [
+          `${r.factorName ?? r.factor} → ${r.sectorName ?? r.sector}`, r.expected, r.beta == null ? "thiếu dữ liệu" : `${fmt(r.beta, 3)} (${fmt(r.t)})`, fmt(r.q, 3),
+          <span style={{ color: r.confirmed ? "var(--positive, #34d399)" : "var(--text-tertiary)" }}>{r.confirmed ? "Đã xác nhận" : "Chưa xác nhận"}</span>,
         ])} />
       </Shell>
     );
