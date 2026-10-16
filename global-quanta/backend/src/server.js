@@ -6,6 +6,8 @@ import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
 import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
+import { createWorldRouter } from "./routes/world.js";
+import { createWorldService } from "./market/world/worldService.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
@@ -40,6 +42,13 @@ app.use("/api/market", marketRouter);
 let macroService = null;
 const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));
 app.use("/api/macro", createMacroRouter({ getService: getMacroService }));
+// Kết nối thế giới (engine world của gói macro-center 1.2): dữ liệu thật dựng 2 lần/ngày, engine trong worker thread.
+let worldService = null;
+const getWorldService = () => (worldService ??= createWorldService({
+  store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory, corporateActions: getMarketRuntime().corporateActions,
+  macroObservations: () => getMacroService().observations(),
+}));
+app.use("/api/world", createWorldRouter({ getService: getWorldService }));
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });

@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render } from '../../../../../../test/rtl-lite';
+import { cleanup, render } from '../../../test/rtl-lite';
 import { DataSourcePanel, RegimePanel } from './MacroExtraPanels';
 import type { MacroClient } from '../macro-client';
 import type { SourcePayload } from './types';

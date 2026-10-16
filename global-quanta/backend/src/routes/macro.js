@@ -29,7 +29,7 @@ export function createRateLimiter({ limit, windowMs = 60_000, now = Date.now }) 
   };
 }
 
-function isAdmin(req, expected) {
+export function isAdmin(req, expected) {
   const header = String(req.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!expected || !header) return false;
   const a = Buffer.from(header);

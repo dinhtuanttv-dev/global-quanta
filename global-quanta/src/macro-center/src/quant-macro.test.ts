@@ -336,6 +336,21 @@ describe('spurious-regression guard (the paper\'s main weakness)', () => {
   });
 });
 
+describe('persistent stationary series (PMI-like) are not needlessly differenced', () => {
+  it('AR(0.7) is classified I(0) at least 95% of the time while random walks almost never are', () => {
+    const rng = mulberry32(81);
+    let ar0 = 0;
+    let rw0 = 0;
+    const N = 80;
+    for (let s = 0; s < N; s++) {
+      if (diagnoseIntegration(ar1(220, 0.7, rng)).klass === 'I(0)') ar0++;
+      if (diagnoseIntegration(randomWalk(220, rng)).klass === 'I(0)') rw0++;
+    }
+    expect(rate(ar0, N)).toBeGreaterThan(0.95);
+    expect(rate(rw0, N)).toBeLessThan(0.06);
+  });
+});
+
 describe('trend-stationary guard', () => {
   it('a series stationary only around a trend is differenced, not used in levels', () => {
     const rng = mulberry32(71);

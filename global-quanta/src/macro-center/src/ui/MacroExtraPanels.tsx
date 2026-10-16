@@ -1,7 +1,7 @@
 // Các phần của engine CHƯA có trên giao diện gốc: nguồn & chất lượng dữ liệu, chế độ vĩ mô (HMM) + độ nhạy theo chế độ,
 // báo cáo tháng. Chỉ hiển thị đúng payload API — không tự tính thêm số liệu.
 import { useState } from 'react';
-import { MarkdownLite } from '../../../../../shared/MarkdownLite';
+import { MarkdownLite } from '../../../components/shared/MarkdownLite';
 import type { MacroClient } from '../macro-client';
 import { useAsync } from './useMacro';
 import type { RegimeImpactPayload, RegimePayload, ReportPayload, SeriesPayload, SourcePayload } from './types';

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, Sparkles, CheckCircle2, LineChart, Package } from "lucide-react";
+import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, Sparkles, CheckCircle2, LineChart, Package, Network } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useGlobalStream } from "../../../hooks/useGlobalStream";
 import { useMacroAnalysis } from "../../../hooks/useMacroAnalysis";
@@ -8,6 +8,9 @@ import CommodityPulseSubTab from "./CommodityPulseSubTab";
 import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
 import BeneficiaryStocksPanel from "./BeneficiaryStocksPanel";
+import WorldSourcePanel from "./WorldSourcePanel";
+import { WorldTab } from "../../../macro-center/src/ui/world/WorldTab";
+import { getMarketGateway } from "../../../config/marketGateway";
 
 // Mau theo bien token cua du an (muc 3.1 guide) - KHONG hardcode hex moi.
 // Doc qua inline style thay vi Tailwind, vi tab nay khong lien quan
@@ -55,9 +58,9 @@ export default function KetNoiTheGioiTab() {
   const { data, connected, commodityDeltas } = useGlobalStream();
   const { result: aiResult, isLoading: aiLoading, error: aiError, analyze } = useMacroAnalysis();
   const [showAllMarkets, setShowAllMarkets] = useState(false);
-  // PHASE (Sub-tab): "market" = Nhip Dap Thi Truong (noi dung cu, giu
-  // nguyen), "commodity" = Nhip Dap Hang Hoa (MOI).
-  const [activeSubTab, setActiveSubTab] = useState<"market" | "commodity">("market");
+  // Sub-tab: "market" = Nhịp đập thị trường (thời gian thực), "commodity" = Nhịp đập hàng hoá,
+  // "world" = Truyền dẫn & bằng chứng (engine world của gói macro-center 1.2 trên Gateway, số liệu thật).
+  const [activeSubTab, setActiveSubTab] = useState<"market" | "commodity" | "world">("market");
 
   const macro = data?.macro ?? null;
   const markets = data?.markets ?? [];
@@ -88,7 +91,7 @@ export default function KetNoiTheGioiTab() {
       </p>
 
       {/* Thanh Sub-tab (MOI) */}
-      <div className="flex gap-2 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
+      <div className="flex gap-2 border-b overflow-x-auto" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
         <button onClick={() => setActiveSubTab("market")}
           className="text-[10px] font-bold uppercase px-3 py-2 flex items-center gap-1.5"
           style={{ color: activeSubTab === "market" ? T.gold : T.textTertiary, borderBottom: activeSubTab === "market" ? `2px solid ${T.gold}` : "2px solid transparent" }}>
@@ -98,6 +101,11 @@ export default function KetNoiTheGioiTab() {
           className="text-[10px] font-bold uppercase px-3 py-2 flex items-center gap-1.5"
           style={{ color: activeSubTab === "commodity" ? T.gold : T.textTertiary, borderBottom: activeSubTab === "commodity" ? `2px solid ${T.gold}` : "2px solid transparent" }}>
           <Package className="w-3.5 h-3.5" /> Nhịp Đập Hàng Hóa
+        </button>
+        <button onClick={() => setActiveSubTab("world")}
+          className="text-[10px] font-bold uppercase px-3 py-2 flex items-center gap-1.5"
+          style={{ color: activeSubTab === "world" ? T.gold : T.textTertiary, borderBottom: activeSubTab === "world" ? `2px solid ${T.gold}` : "2px solid transparent" }}>
+          <Network className="w-3.5 h-3.5" /> Truyền Dẫn &amp; Bằng Chứng
         </button>
       </div>
 
@@ -293,6 +301,18 @@ export default function KetNoiTheGioiTab() {
       )}
 
       {activeSubTab === "commodity" && <CommodityPulseSubTab macro={macro} />}
+
+      {activeSubTab === "world" && (
+        <div className="space-y-3">
+          <p className="text-[10px] leading-relaxed" style={{ color: T.textTertiary }}>
+            Yếu tố và sự kiện thế giới đi vào ngành Việt Nam qua kênh nào, mạnh đến đâu và <b>bằng chứng ở bậc nào</b>: A — vượt hiệu chỉnh kiểm định bội,
+            ổn định và vượt kiểm định ngoài mẫu; B — có ý nghĩa sau hiệu chỉnh; C — giả thuyết / chưa đủ bằng chứng (không phải “có tác động”).
+            Quan hệ thống kê lịch sử, không phải dự báo hay khuyến nghị.
+          </p>
+          <WorldSourcePanel />
+          <WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" />
+        </div>
+      )}
     </div>
   );
 }

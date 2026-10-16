@@ -4,7 +4,7 @@
 //     Nguồn tự động (tháng đã đóng, 2 lần/ngày): chỉ số HOSE từ lịch sử giá Gateway; FED/OIL (FRED), DXY/EX (Yahoo) —
 //     macroGlobalFeeds.js. Biến nội địa VN (CPI, M2, tín dụng, ...): CSV nạp qua route admin.
 //   - Chưa đủ số liệu thật (>= 1 biến vĩ mô và >= 1 chỉ số, 60 tháng) -> engine dùng kho MÔ PHỎNG, có biểu ngữ. Không trộn.
-import { Worker } from "node:worker_threads";
+import { createInlineProxy, createWorkerProxy } from "./workerProxy.js";
 import { createMacroCore, mergeObservations, parseSeriesCsv, vnToday } from "./macroCore.js";
 import { buildMacroCatalystEvents } from "./catalystEvents.js";
 import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
@@ -16,75 +16,25 @@ const HOSE_SOURCE = "gateway-hose";
 const FEED_REFRESH_MS = 12 * 3600_000;
 const CALL_TIMEOUT_MS = 90_000;
 
-function workerEngine() {
-  let worker = null;
-  let seq = 0;
-  const pending = new Map();
-  let lastReal = null;
-  const failAll = (msg) => {
-    for (const { reject, timer } of pending.values()) {
-      clearTimeout(timer);
-      reject(new Error(msg));
-    }
-    pending.clear();
-  };
-  const spawn = () => {
-    worker = new Worker(new URL("./macroWorker.js", import.meta.url));
-    worker.unref();
-    worker.on("message", ({ id, ok, value, error }) => {
-      const p = pending.get(id);
-      if (!p) return;
-      pending.delete(id);
-      clearTimeout(p.timer);
-      ok ? p.resolve(value) : p.reject(new Error(error));
-    });
-    const dead = (why) => {
-      worker = null;
-      failAll(`Worker vĩ mô dừng (${why}).`);
-    };
-    worker.on("error", (e) => dead(e.message));
-    worker.on("exit", (code) => dead(`mã ${code}`));
-    // khởi động lại: nạp lại số liệu thật đã biết
-    if (lastReal) send("setReal", [lastReal]).catch(() => {});
-  };
-  const send = (op, args) => {
-    if (!worker) spawn();
-    const id = ++seq;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        pending.delete(id);
-        reject(new Error("Tính toán vĩ mô quá thời gian."));
-      }, CALL_TIMEOUT_MS);
-      pending.set(id, { resolve, reject, timer });
-      worker.postMessage({ id, op, args });
-    });
-  };
-  return {
-    setReal: (list) => {
-      lastReal = list;
-      return send("setReal", [list]);
-    },
-    source: () => send("source"),
-    handle: (req) => send("handle", [req]),
-    runTool: (name, args) => send("runTool", [name, args]),
-    toolSpecs: () => send("toolSpecs"),
-    close: async () => {
-      const w = worker;
-      worker = null;
-      if (w) await w.terminate();
-    },
-  };
-}
+export const macroOps = (core) => ({
+  setReal: ([list]) => core.setReal(list),
+  source: () => core.source(),
+  handle: ([req]) => core.handle(req),
+  runTool: ([name, args]) => core.runTool(name, args),
+  toolSpecs: () => core.toolSpecs(),
+});
 
-function inlineEngine(opts) {
-  const core = createMacroCore(opts);
+function createEngine({ inline, today }) {
+  const p = inline
+    ? createInlineProxy(macroOps(createMacroCore({ today })))
+    : createWorkerProxy({ url: new URL("./macroWorker.js", import.meta.url), label: "vĩ mô", replayOp: "setReal", timeoutMs: CALL_TIMEOUT_MS });
   return {
-    setReal: async (list) => core.setReal(list),
-    source: async () => core.source(),
-    handle: async (req) => core.handle(req),
-    runTool: async (name, args) => core.runTool(name, args),
-    toolSpecs: async () => core.toolSpecs(),
-    close: async () => {},
+    setReal: (list) => p.call("setReal", list),
+    source: () => p.call("source"),
+    handle: (req) => p.call("handle", req),
+    runTool: (name, args) => p.call("runTool", name, args),
+    toolSpecs: () => p.call("toolSpecs"),
+    close: () => p.close(),
   };
 }
 
@@ -107,7 +57,7 @@ export function monthlyCloses(bars, todayIso) {
 }
 
 export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, inline = false, now = Date.now, log = console } = {}) {
-  const engine = inline ? inlineEngine({ today: () => vnToday(now()) }) : workerEngine();
+  const engine = createEngine({ inline, today: () => vnToday(now()) });
   let observations = [];
   let ready = null;
   let writeChain = Promise.resolve();
@@ -198,6 +148,11 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       await init();
       refreshInBackground();
       return engine.handle(req);
+    },
+    /** Quan sát thật hiện có (chỉ đọc) — Kết nối thế giới dùng lại FED/DXY/OIL. */
+    async observations() {
+      await init();
+      return observations;
     },
     async source() {
       await init();

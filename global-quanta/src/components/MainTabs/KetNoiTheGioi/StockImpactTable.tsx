@@ -73,6 +73,9 @@ export default function StockImpactTable() {
   }), [sectors]);
 
   const filteredSectors = activeTab === "all" ? sectors : sectors.filter((s) => s.direction === activeTab);
+  // Bảng do AI suy luận tại một thời điểm — quá 3 ngày thì nói rõ là cũ (không trình bày như hiện trạng).
+  const ageDays = data?.generatedAt ? (Date.now() - Date.parse(data.generatedAt)) / 86_400_000 : null;
+  const stale = ageDays != null && ageDays > 3;
 
   const TABS: { key: FilterTab; label: string }[] = [
     { key: "all", label: "Tất cả" },
@@ -115,6 +118,11 @@ export default function StockImpactTable() {
           </span>
         </div>
       </div>
+      {stale && (
+        <p role="note" className="text-[10px] rounded-lg px-2.5 py-1.5 mb-2" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: T.gold }}>
+          ⚠ Bảng do AI tạo lúc {new Date(data!.generatedAt!).toLocaleString("vi-VN")} — đã {Math.floor(ageDays!)} ngày, không phản ánh thị trường hiện tại. Bấm “Chạy Phân Tích AI” để tạo bản mới.
+        </p>
+      )}
 
       {/* MOI: overallSummaryVi hien 1 LAN DUY NHAT o day, khong lap lai o tung card nua */}
       {data?.overallSummaryVi && (

@@ -1,6 +1,6 @@
-// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: src/components/MainTabs/ChatXucTac/MacroCenter/src (gateway.ts). Tạo lại: npm run bundle:macro
+// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: src/macro-center/src (gateway.ts). Tạo lại: npm run bundle:macro
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/quant-macro.ts
+// src/macro-center/src/quant-macro.ts
 var isFiniteNum = (v) => typeof v === "number" && Number.isFinite(v);
 function mean(a) {
   let s = 0;
@@ -505,6 +505,10 @@ function diagnoseIntegration(y, opts = {}) {
   const kpss = kpssTest(y, { trend: opts.trending ? "ct" : "c" });
   if (adf.rejectUnitRoot5 && !kpss.rejectStationarity5) return { klass: "I(0)", adf, kpss };
   if (!adf.rejectUnitRoot5 && kpss.rejectStationarity5) return { klass: "I(1)", adf, kpss };
+  if (adf.pValue < 0.01 && kpss.rejectStationarity5) {
+    const long = kpssTest(y, { trend: opts.trending ? "ct" : "c", lags: Math.ceil(12 * Math.pow(y.length / 100, 0.25)) });
+    if (long.pValue > 0.01) return { klass: "I(0)", adf, kpss };
+  }
   if (y.length >= 40) {
     const za = zivotAndrewsTest(y, { model: "intercept" });
     if (za.rejectUnitRoot5 && !adf.rejectUnitRoot5) return { klass: "break-stationary", adf, kpss, za };
@@ -837,7 +841,7 @@ function analyzeMacro(input) {
   return { dates: input.dates, diagnostics: prep.diagnostics, cells, best, stability, warnings };
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-data.ts
+// src/macro-center/src/macro-data.ts
 var VN_CATALOG = [
   { id: "CPI", nameVi: "L\u1EA1m ph\xE1t (CPI, so c\xF9ng k\u1EF3)", role: "factor", kind: "rate", unit: "%", source: "GSO", pubLagMonths: 1, typicalReleaseDay: 6, group: "prices" },
   { id: "IR", nameVi: "L\xE3i su\u1EA5t li\xEAn ng\xE2n h\xE0ng 1 th\xE1ng", role: "factor", kind: "rate", unit: "%/n\u0103m", source: "NHNN", pubLagMonths: 0, typicalReleaseDay: 1, group: "money" },
@@ -1083,7 +1087,7 @@ function checkQuality(seriesId, pts, meta, nowPeriod) {
   return issues;
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-scenario.ts
+// src/macro-center/src/macro-scenario.ts
 function tQuantile(p, df) {
   let lo = 0;
   let hi = 50;
@@ -1268,7 +1272,7 @@ function buildThermometer(points) {
   return { value: last.score, band, bandVi, topContributors, row: last.row };
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-backtest.ts
+// src/macro-center/src/macro-backtest.ts
 function ranks(a) {
   const idx = a.map((_, i) => i).sort((i, j) => a[i] - a[j]);
   const r = new Array(a.length);
@@ -1368,7 +1372,7 @@ function backtestMacroScore(args) {
   };
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-regime.ts
+// src/macro-center/src/macro-regime.ts
 var LOG2PI = Math.log(2 * Math.PI);
 function standardize(obs, center, scale) {
   return obs.map((row2) => row2.map((v, d) => (v - center[d]) / scale[d]));
@@ -1625,7 +1629,7 @@ function regimeConditionalBeta(args) {
   return { perRegime, equalityF: F, equalityP: p, differs: p < 0.05 };
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-filter.ts
+// src/macro-center/src/macro-filter.ts
 function fmtNum(v, digits = 2) {
   if (!Number.isFinite(v)) return "\u2013";
   return v.toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -1636,7 +1640,7 @@ function fmtQ(q) {
   return fmtNum(q, 3);
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-report.ts
+// src/macro-center/src/macro-report.ts
 var cell = (s) => s.replace(/\|/g, "\\|").replace(/\n/g, " ");
 var row = (cols) => `| ${cols.map(cell).join(" | ")} |`;
 var table = (head, rows) => [row(head), row(head.map(() => "---")), ...rows.map(row)].join("\n");
@@ -1706,7 +1710,7 @@ function buildMonthlyReport(inp) {
   return out.join("\n\n") + "\n";
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-api.ts
+// src/macro-center/src/macro-api.ts
 var ApiError = class extends Error {
   constructor(status, message) {
     super(message);
@@ -1736,7 +1740,7 @@ function createMacroApi(deps) {
     while (cache.size > maxEntries) cache.delete(cache.keys().next().value);
     return value;
   };
-  const obj = (b) => b && typeof b === "object" && !Array.isArray(b) ? b : {};
+  const obj2 = (b) => b && typeof b === "object" && !Array.isArray(b) ? b : {};
   const optStr = (v, name) => {
     if (v === void 0 || v === null || v === "") return void 0;
     if (typeof v !== "string") throw new ApiError(400, `${name} ph\u1EA3i l\xE0 chu\u1ED7i.`);
@@ -1767,14 +1771,14 @@ function createMacroApi(deps) {
   };
   const prepare = (asOf, factors, targets) => {
     const known = (id) => deps.store.getSeries(id, asOf).length >= 60;
-    const factorIds2 = factors ?? catalog.filter((m) => m.role === "factor" && known(m.id)).map((m) => m.id);
+    const factorIds3 = factors ?? catalog.filter((m) => m.role === "factor" && known(m.id)).map((m) => m.id);
     const targetIds2 = targets ?? catalog.filter((m) => m.role === "target" && known(m.id)).map((m) => m.id);
-    const missing = [...factorIds2, ...targetIds2].filter((id) => deps.store.getSeries(id, asOf).length === 0);
+    const missing = [...factorIds3, ...targetIds2].filter((id) => deps.store.getSeries(id, asOf).length === 0);
     if (missing.length) throw new ApiError(422, `Ch\u01B0a c\xF3 d\u1EEF li\u1EC7u cho: ${missing.join(", ")}.`);
-    if (factorIds2.length === 0 || targetIds2.length === 0) throw new ApiError(422, "Ch\u01B0a \u0111\u1EE7 d\u1EEF li\u1EC7u (c\u1EA7n \xEDt nh\u1EA5t 60 th\xE1ng) cho bi\u1EBFn v\u0129 m\xF4 v\xE0 ch\u1EC9 s\u1ED1.");
-    const ds = buildDataset(deps.store, [...factorIds2, ...targetIds2], asOf);
+    if (factorIds3.length === 0 || targetIds2.length === 0) throw new ApiError(422, "Ch\u01B0a \u0111\u1EE7 d\u1EEF li\u1EC7u (c\u1EA7n \xEDt nh\u1EA5t 60 th\xE1ng) cho bi\u1EBFn v\u0129 m\xF4 v\xE0 ch\u1EC9 s\u1ED1.");
+    const ds = buildDataset(deps.store, [...factorIds3, ...targetIds2], asOf);
     if (ds.dates.length < 60) throw new ApiError(422, `Ch\u1EC9 c\xF3 ${ds.dates.length} th\xE1ng chung gi\u1EEFa c\xE1c chu\u1ED7i \u0111\xE3 ch\u1ECDn; c\u1EA7n t\u1ED1i thi\u1EC3u 60.`);
-    return { asOf, ds, factorIds: factorIds2, targetIds: targetIds2 };
+    return { asOf, ds, factorIds: factorIds3, targetIds: targetIds2 };
   };
   const stationary = (p) => memo(`stat|${p.asOf}|${p.factorIds.join(",")}|${p.targetIds.join(",")}`, () => ({
     prep: prepareStationary({
@@ -1875,7 +1879,7 @@ function createMacroApi(deps) {
       const raw = b.shocks;
       if (!Array.isArray(raw) || raw.length === 0) throw new ApiError(400, "C\u1EA7n scenarioId ho\u1EB7c danh s\xE1ch shocks.");
       shocks = raw.map((r, i) => {
-        const o = obj(r);
+        const o = obj2(r);
         const factor = optStr(o.factor, `shocks[${i}].factor`);
         const amount = optNum(o.amount, `shocks[${i}].amount`, -100, 100);
         const unit = optStr(o.unit, `shocks[${i}].unit`);
@@ -1896,8 +1900,8 @@ function createMacroApi(deps) {
     const lag = optInt(b.lag, "lag", 1, 6) ?? 1;
     const minTrain = optInt(b.minTrain, "minTrain", 36, 240) ?? 60;
     const chosen = idList(b.factors, "factors", "factor");
-    const factorIds2 = chosen ?? PAPER_FACTORS.filter((f) => deps.store.getSeries(f, asOf).length >= 60);
-    const p = prepare(asOf, factorIds2, [target]);
+    const factorIds3 = chosen ?? PAPER_FACTORS.filter((f) => deps.store.getSeries(f, asOf).length >= 60);
+    const p = prepare(asOf, factorIds3, [target]);
     const { prep, dates } = stationary(p);
     const key = `score|${asOf}|${target}|${lag}|${minTrain}|${p.factorIds.join(",")}`;
     return memo(key, () => {
@@ -2074,12 +2078,12 @@ function createMacroApi(deps) {
       const route = (method, p) => m === method && path === `/api/macro/${p}`;
       if (route("GET", "health")) return { status: 200, body: { ok: true, dataVersion: deps.store.dataVersion(), cache: { entries: cache.size, hits, misses } } };
       if (route("GET", "series")) return { status: 200, body: seriesList(req.query) };
-      if (route("POST", "impact")) return { status: 200, body: impact(obj(req.body)) };
-      if (route("POST", "cell")) return { status: 200, body: cell2(obj(req.body)) };
-      if (route("POST", "scenario")) return { status: 200, body: scenario(obj(req.body)) };
-      if (route("POST", "score")) return { status: 200, body: score(obj(req.body)) };
+      if (route("POST", "impact")) return { status: 200, body: impact(obj2(req.body)) };
+      if (route("POST", "cell")) return { status: 200, body: cell2(obj2(req.body)) };
+      if (route("POST", "scenario")) return { status: 200, body: scenario(obj2(req.body)) };
+      if (route("POST", "score")) return { status: 200, body: score(obj2(req.body)) };
       if (route("GET", "regime")) return { status: 200, body: regime(req.query) };
-      if (route("POST", "regime-impact")) return { status: 200, body: regimeImpact(obj(req.body)) };
+      if (route("POST", "regime-impact")) return { status: 200, body: regimeImpact(obj2(req.body)) };
       if (route("GET", "report")) return { status: 200, body: report(req.query) };
       if (route("GET", "alerts")) return { status: 200, body: alerts(req.query) };
       if (route("GET", "calendar")) return { status: 200, body: calendar(req.query) };
@@ -2093,7 +2097,7 @@ function createMacroApi(deps) {
   return { handle, cacheStats: () => ({ entries: cache.size, hits, misses }), clearCache: () => cache.clear() };
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-seed.ts
+// src/macro-center/src/macro-seed.ts
 var SYNTHETIC_NOTICE = "D\u1EEE LI\u1EC6U M\xD4 PH\u1ECENG \u2014 kh\xF4ng ph\u1EA3i s\u1ED1 li\u1EC7u th\u1EF1c c\u1EE7a GSO/NHNN/HOSE.";
 var TRUE_EFFECTS = {
   VNINDEX: { CPI: -3, IR: -2, M2: 1.2, PMI: 0.75, DXY: -0.6 },
@@ -2162,7 +2166,7 @@ function makeSyntheticStore(seed = 2024, start = "2008-01", months = 222) {
   return store;
 }
 
-// src/components/MainTabs/ChatXucTac/MacroCenter/src/macro-chat-tools.ts
+// src/macro-center/src/macro-chat-tools.ts
 var factorIds = VN_CATALOG.filter((m) => m.role === "factor").map((m) => m.id);
 var targetIds = VN_CATALOG.filter((m) => m.role === "target").map((m) => m.id);
 var ASOF = { type: "string", description: "Ng\xE0y tham chi\u1EBFu YYYY-MM-DD; b\u1ECF tr\u1ED1ng \u0111\u1EC3 d\xF9ng d\u1EEF li\u1EC7u m\u1EDBi nh\u1EA5t. Ch\u1EC9 d\xF9ng th\xF4ng tin \u0111\xE3 bi\u1EBFt t\u1EA1i ng\xE0y \u0111\xF3." };
@@ -2420,19 +2424,1053 @@ function createMacroChatTools(api) {
     }
   };
 }
+
+// src/macro-center/src/world-connectedness.ts
+function fitVar(Y, p) {
+  const T = Y.length;
+  const K = Y[0].length;
+  if (T - p < K * p + 10) throw new Error("fitVar: sample too short for this lag order");
+  const X = [];
+  for (let t = p; t < T; t++) {
+    const row2 = [1];
+    for (let l = 1; l <= p; l++) for (let j = 0; j < K; j++) row2.push(Y[t - l][j]);
+    X.push(row2);
+  }
+  const A = Array.from({ length: p }, () => Array.from({ length: K }, () => new Array(K).fill(0)));
+  const intercept = new Array(K).fill(0);
+  const resid = Array.from({ length: X.length }, () => new Array(K).fill(0));
+  for (let i = 0; i < K; i++) {
+    const y = Y.slice(p).map((r) => r[i]);
+    const res = olsFit(X, y, { hac: false });
+    intercept[i] = res.beta[0];
+    for (let l = 0; l < p; l++) for (let j = 0; j < K; j++) A[l][i][j] = res.beta[1 + l * K + j];
+    res.residuals.forEach((e, t) => resid[t][i] = e);
+  }
+  const n = X.length;
+  const dof = n - (K * p + 1);
+  const Sigma = Array.from({ length: K }, () => new Array(K).fill(0));
+  for (let a = 0; a < K; a++)
+    for (let b = 0; b < K; b++) {
+      let s = 0;
+      for (let t = 0; t < n; t++) s += resid[t][a] * resid[t][b];
+      Sigma[a][b] = s / dof;
+    }
+  return { K, p, nobs: n, A, intercept, Sigma };
+}
+function selectVarLag(Y, maxP = 5) {
+  const K = Y[0].length;
+  let best = 1;
+  let bestBic = Infinity;
+  for (let p = 1; p <= maxP; p++) {
+    try {
+      const sub = Y.slice(maxP - p);
+      const f = fitVar(sub, p);
+      const bic = logDet(f.Sigma) + K * K * p * Math.log(f.nobs) / f.nobs;
+      if (bic < bestBic) {
+        bestBic = bic;
+        best = p;
+      }
+    } catch {
+      break;
+    }
+  }
+  return best;
+}
+function logDet(M) {
+  const n = M.length;
+  const A = M.map((r) => r.slice());
+  let ld = 0;
+  for (let c = 0; c < n; c++) {
+    let piv = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    if (Math.abs(A[piv][c]) < 1e-300) return -Infinity;
+    [A[c], A[piv]] = [A[piv], A[c]];
+    ld += Math.log(Math.abs(A[c][c]));
+    for (let r = c + 1; r < n; r++) {
+      const f = A[r][c] / A[c][c];
+      for (let j = c; j < n; j++) A[r][j] -= f * A[c][j];
+    }
+  }
+  return ld;
+}
+var matMul2 = (A, B) => A.map((row2) => B[0].map((_, j) => row2.reduce((s, a, k) => s + a * B[k][j], 0)));
+var eye = (K) => Array.from({ length: K }, (_, i) => Array.from({ length: K }, (_2, j) => i === j ? 1 : 0));
+function maCoefficients(A, H) {
+  const K = A[0].length;
+  const Phi = [eye(K)];
+  for (let h = 1; h < H; h++) {
+    let acc = Array.from({ length: K }, () => new Array(K).fill(0));
+    for (let l = 1; l <= Math.min(h, A.length); l++) {
+      const term = matMul2(A[l - 1], Phi[h - l]);
+      acc = acc.map((r, i) => r.map((v, j) => v + term[i][j]));
+    }
+    Phi.push(acc);
+  }
+  return Phi;
+}
+function generalizedFevd(fit, H) {
+  const K = fit.K;
+  const Phi = maCoefficients(fit.A, H);
+  const S = fit.Sigma;
+  const theta = Array.from({ length: K }, () => new Array(K).fill(0));
+  for (let i = 0; i < K; i++) {
+    let denom = 0;
+    for (let h = 0; h < H; h++) {
+      const pe = Phi[h][i];
+      let v = 0;
+      for (let a = 0; a < K; a++) for (let b = 0; b < K; b++) v += pe[a] * S[a][b] * pe[b];
+      denom += v;
+    }
+    for (let j = 0; j < K; j++) {
+      let num = 0;
+      for (let h = 0; h < H; h++) {
+        let cross = 0;
+        for (let a = 0; a < K; a++) cross += Phi[h][i][a] * S[a][j];
+        num += cross * cross;
+      }
+      theta[i][j] = num / S[j][j] / denom;
+    }
+  }
+  return theta.map((row2) => {
+    const s = row2.reduce((a, b) => a + b, 0);
+    return row2.map((v) => v / s);
+  });
+}
+function summarizeConnectedness(theta, names) {
+  const K = theta.length;
+  const table2 = theta.map((r) => r.map((v) => v * 100));
+  const from = table2.map((r, i) => r.reduce((s, v, j) => j === i ? s : s + v, 0));
+  const to = names.map((_, j) => table2.reduce((s, r, i) => i === j ? s : s + r[j], 0));
+  const net = to.map((v, j) => v - from[j]);
+  const pairwiseNet = table2.map((r, i) => r.map((v, j) => i === j ? 0 : v - table2[j][i]));
+  return { names, table: table2, from, to, net, pairwiseNet, total: from.reduce((a, b) => a + b, 0) / K };
+}
+function connectedness(Y, names, opts = {}) {
+  const p = opts.p ?? selectVarLag(Y, 4);
+  const H = opts.H ?? 10;
+  const fit = fitVar(Y, p);
+  return { ...summarizeConnectedness(generalizedFevd(fit, H), names), p, H };
+}
+function rollingConnectedness(Y, names, opts = {}) {
+  const w = opts.window ?? 250;
+  const step = opts.step ?? 20;
+  const p = opts.p ?? 1;
+  const H = opts.H ?? 10;
+  const out = [];
+  for (let end = w; end <= Y.length; end += step) {
+    try {
+      const c = summarizeConnectedness(generalizedFevd(fitVar(Y.slice(end - w, end), p), H), names);
+      out.push({ end: end - 1, total: c.total, to: c.to, from: c.from });
+    } catch {
+    }
+  }
+  return out;
+}
+function tailDependence(x, y, q = 0.05, tail = "lower") {
+  const n = Math.min(x.length, y.length);
+  const sx = [...x.slice(0, n)].sort((a, b) => a - b);
+  const sy = [...y.slice(0, n)].sort((a, b) => a - b);
+  const k = Math.max(1, Math.floor(q * n));
+  const cx = tail === "lower" ? sx[k - 1] : sx[n - k];
+  const cy = tail === "lower" ? sy[k - 1] : sy[n - k];
+  let nx = 0;
+  let both = 0;
+  for (let i = 0; i < n; i++) {
+    const inX = tail === "lower" ? x[i] <= cx : x[i] >= cx;
+    const inY = tail === "lower" ? y[i] <= cy : y[i] >= cy;
+    if (inX) {
+      nx++;
+      if (inY) both++;
+    }
+  }
+  return nx === 0 ? NaN : both / nx;
+}
+
+// src/macro-center/src/world-events.ts
+var ICT_OFFSET_HOURS = 7;
+function alignEventToSession(tsUtc, tradingDays, closeHourIct = 15) {
+  const t = Date.parse(tsUtc);
+  if (Number.isNaN(t)) return null;
+  const local = new Date(t + ICT_OFFSET_HOURS * 36e5);
+  const date = local.toISOString().slice(0, 10);
+  const hour = local.getUTCHours() + local.getUTCMinutes() / 60;
+  const idxSame = tradingDays.indexOf(date);
+  if (idxSame >= 0 && hour < closeHourIct) return { index: idxSame, date, sameDay: true };
+  const next = tradingDays.findIndex((d) => d > date);
+  return next < 0 ? null : { index: next, date: tradingDays[next], sameDay: false };
+}
+function flagLimitDays(retPct, limitPct = 7, tolPct = 0.05) {
+  return retPct.map((r) => Math.abs(r) >= limitPct - tolPct);
+}
+function eventStudy(ret, mkt, eventIdx, opts = {}) {
+  const est = opts.est ?? { start: -250, end: -30 };
+  const win = opts.window ?? { lo: -1, hi: 3 };
+  const pathR = opts.path ?? { lo: -5, hi: 10 };
+  const limitPct = opts.limitPct ?? 7;
+  const e0 = eventIdx + est.start;
+  const e1 = eventIdx + est.end;
+  if (e0 < 0 || e1 >= eventIdx || eventIdx + Math.max(win.hi, pathR.hi) >= ret.length || ret.length !== mkt.length) return null;
+  const X = [];
+  const y = [];
+  const limits = flagLimitDays(ret, limitPct);
+  for (let t = e0; t <= e1; t++) {
+    if (opts.excludeLimitDaysFromEstimation && limits[t]) continue;
+    if (!Number.isFinite(ret[t]) || !Number.isFinite(mkt[t])) continue;
+    X.push([1, mkt[t]]);
+    y.push(ret[t]);
+  }
+  if (X.length < 60) return null;
+  const fit = olsFit(X, y, { hac: false });
+  const [alpha, beta] = fit.beta;
+  const n = X.length;
+  const mbar = mean(X.map((r) => r[1]));
+  let smm = 0;
+  for (const r of X) smm += (r[1] - mbar) ** 2;
+  const sigma2 = fit.sigma2;
+  const ar = (t) => ret[t] - (alpha + beta * mkt[t]);
+  const L = win.hi - win.lo + 1;
+  let sumX = 0;
+  let car = 0;
+  let limitDays = 0;
+  for (let d = win.lo; d <= win.hi; d++) {
+    const t = eventIdx + d;
+    car += ar(t);
+    sumX += mkt[t] - mbar;
+    if (limits[t]) limitDays++;
+  }
+  const varCar = sigma2 * (L + L * L / n + sumX * sumX / smm);
+  const se = Math.sqrt(varCar);
+  const tstat = car / se;
+  const path = [];
+  let cum = 0;
+  let sx = 0;
+  for (let d = pathR.lo; d <= pathR.hi; d++) {
+    const t = eventIdx + d;
+    const a = ar(t);
+    if (d >= win.lo) {
+      cum += a;
+      sx += mkt[t] - mbar;
+      const l = d - win.lo + 1;
+      path.push({ day: d, ar: a, car: cum, se: Math.sqrt(sigma2 * (l + l * l / n + sx * sx / smm)) });
+    } else path.push({ day: d, ar: a, car: null, se: null });
+  }
+  return { alpha, beta, sigma: Math.sqrt(sigma2), nEst: n, car, varCar, se, t: tstat, p: studentTTwoSidedP(tstat, n - 2), path, limitDaysInWindow: limitDays };
+}
+function bmpTest(results) {
+  const n = results.length;
+  if (n < 3) return null;
+  const sc = results.map((r) => r.car / Math.sqrt(r.varCar));
+  const s = std(sc);
+  if (!(s > 0)) return null;
+  const t = mean(sc) * Math.sqrt(n) / s;
+  return { n, caar: mean(results.map((r) => r.car)), t, p: studentTTwoSidedP(t, n - 1) };
+}
+
+// src/macro-center/src/world-shrinkage.ts
+function dlTau2(items) {
+  const k = items.length;
+  if (k < 2) return 0;
+  const w = items.map((i) => 1 / (i.se * i.se));
+  const sw = w.reduce((a, b) => a + b, 0);
+  const muFe = items.reduce((s, i, j) => s + w[j] * i.beta, 0) / sw;
+  const Q = items.reduce((s, i, j) => s + w[j] * (i.beta - muFe) ** 2, 0);
+  const C = sw - w.reduce((s, x) => s + x * x, 0) / sw;
+  return C > 0 ? Math.max(0, (Q - (k - 1)) / C) : 0;
+}
+function shrinkGroup(items, opts = {}) {
+  if (items.length === 0) return { mu: opts.priorMu ?? 0, muSe: Infinity, tau2: opts.tau2 ?? 0, items: [] };
+  const tau2 = opts.tau2 ?? dlTau2(items);
+  const w = items.map((i) => 1 / (tau2 + i.se * i.se));
+  const sw = w.reduce((a, b) => a + b, 0);
+  const mu = opts.priorMu ?? items.reduce((s, i, j) => s + w[j] * i.beta, 0) / sw;
+  const muVar = 1 / sw;
+  return {
+    mu,
+    muSe: Math.sqrt(muVar),
+    tau2,
+    items: items.map((i) => {
+      const v = i.se * i.se;
+      const B = tau2 / (tau2 + v);
+      return { ...i, shrunk: mu + B * (i.beta - mu), weight: B, postSd: Math.sqrt(B * v + (1 - B) ** 2 * muVar) };
+    })
+  };
+}
+function hierarchicalShrink(groups) {
+  const first = {};
+  for (const [g, items] of Object.entries(groups)) first[g] = shrinkGroup(items);
+  const identified = Object.entries(groups).filter(([, v]) => v.length >= 3).map(([g]) => first[g].tau2);
+  const pooled = identified.length ? identified.reduce((a, b) => a + b, 0) / identified.length : 0;
+  const sectorMeans = Object.entries(first).filter(([, r]) => r.items.length > 0).map(([g, r]) => ({ id: g, beta: r.mu, se: Math.max(r.muSe, 1e-6) }));
+  const top = shrinkGroup(sectorMeans);
+  const priorOf = new Map(top.items.map((i) => [i.id, i.shrunk]));
+  const out = {};
+  for (const [g, items] of Object.entries(groups)) {
+    const tau2 = items.length >= 3 ? first[g].tau2 : pooled;
+    const priorMu = priorOf.get(g) ?? top.mu;
+    out[g] = { ...shrinkGroup(items, { tau2, priorMu }), priorMu };
+  }
+  return { globalMu: top.mu, globalTau2: top.tau2, groups: out };
+}
+
+// src/macro-center/src/world-evidence.ts
+function assignTier(i) {
+  const alpha = i.alpha ?? 0.05;
+  if (i.isHypothesis) return { tier: "C", reasonVi: "L\xE0 gi\u1EA3 thuy\u1EBFt (c\u01A1 ch\u1EBF kinh t\u1EBF, \u0111\u1ED3 th\u1ECB ho\u1EB7c tin do AI tr\xEDch); ch\u01B0a \u0111\u01B0\u1EE3c s\u1ED1 li\u1EC7u x\xE1c nh\u1EADn." };
+  if (!(i.q < alpha)) return { tier: "C", reasonVi: "Ch\u01B0a v\u01B0\u1EE3t hi\u1EC7u ch\u1EC9nh ki\u1EC3m \u0111\u1ECBnh b\u1ED9i; ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng." };
+  if (i.stable === true && i.oosPass === true) return { tier: "A", reasonVi: "V\u01B0\u1EE3t hi\u1EC7u ch\u1EC9nh ki\u1EC3m \u0111\u1ECBnh b\u1ED9i, \u1ED5n \u0111\u1ECBnh theo th\u1EDDi gian v\xE0 v\u01B0\u1EE3t ki\u1EC3m \u0111\u1ECBnh ngo\xE0i m\u1EABu." };
+  const gaps = [];
+  if (i.stable !== true) gaps.push(i.stable === false ? "kh\xF4ng \u1ED5n \u0111\u1ECBnh theo th\u1EDDi gian" : "ch\u01B0a ki\u1EC3m tra \u0111\u1ED9 \u1ED5n \u0111\u1ECBnh");
+  if (i.oosPass !== true) gaps.push(i.oosPass === false ? "ch\u01B0a v\u01B0\u1EE3t ki\u1EC3m \u0111\u1ECBnh ngo\xE0i m\u1EABu" : "ch\u01B0a ki\u1EC3m tra ngo\xE0i m\u1EABu");
+  return { tier: "B", reasonVi: `C\xF3 \xFD ngh\u0129a th\u1ED1ng k\xEA sau hi\u1EC7u ch\u1EC9nh nh\u01B0ng ${gaps.join(" v\xE0 ")}.` };
+}
+function stockTier(sector, ownSignificant) {
+  if (sector === "C") return "C";
+  if (sector === "A") return ownSignificant ? "A" : "B";
+  return ownSignificant ? "B" : "C";
+}
+function summarizeTiers(tiers) {
+  const out = { A: 0, B: 0, C: 0 };
+  for (const t of tiers) out[t]++;
+  return out;
+}
+
+// src/macro-center/src/world-transmission.ts
+function channelExposure(x) {
+  const rev = x.revenueByRegion;
+  const foreign = Object.entries(rev).filter(([r]) => r !== "VN").reduce((s, [, v]) => s + (v ?? 0), 0) / 100;
+  return {
+    commodity: x.commodityCostShare,
+    fx_rates: x.fxRevenueShare - x.fxDebtShare,
+    capital_flow: x.foreignOwnership ?? 0,
+    export_demand: foreign,
+    risk_sentiment: x.foreignOwnership ?? 0,
+    policy_trade: (rev.US ?? 0) / 100
+  };
+}
+
+// src/macro-center/src/world-types.ts
+var CHANNEL_NAMES_VI = {
+  commodity: "H\xE0ng ho\xE1",
+  fx_rates: "T\u1EF7 gi\xE1, l\xE3i su\u1EA5t",
+  capital_flow: "D\xF2ng v\u1ED1n",
+  export_demand: "C\u1EA7u xu\u1EA5t kh\u1EA9u",
+  risk_sentiment: "T\xE2m l\xFD r\u1EE7i ro",
+  policy_trade: "Ch\xEDnh s\xE1ch th\u01B0\u01A1ng m\u1EA1i"
+};
+var TIER_MEANING_VI = {
+  A: "V\u01B0\u1EE3t hi\u1EC7u ch\u1EC9nh ki\u1EC3m \u0111\u1ECBnh b\u1ED9i, \u1ED5n \u0111\u1ECBnh theo th\u1EDDi gian v\xE0 v\u01B0\u1EE3t ki\u1EC3m \u0111\u1ECBnh ngo\xE0i m\u1EABu",
+  B: "C\xF3 \xFD ngh\u0129a th\u1ED1ng k\xEA trong m\u1EABu sau hi\u1EC7u ch\u1EC9nh ki\u1EC3m \u0111\u1ECBnh b\u1ED9i",
+  C: "Gi\u1EA3 thuy\u1EBFt ho\u1EB7c ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng"
+};
+var WORLD_EXTRA_FACTORS = [
+  { id: "CNY", nameVi: "T\u1EF7 gi\xE1 USD/CNY", role: "factor", kind: "level", unit: "CNY", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "STEEL", nameVi: "Gi\xE1 th\xE9p th\u1EBF gi\u1EDBi", role: "factor", kind: "level", unit: "USD/t\u1EA5n", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "CONTAINER", nameVi: "C\u01B0\u1EDBc container", role: "factor", kind: "level", unit: "ch\u1EC9 s\u1ED1", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "PMI_CN", nameVi: "PMI s\u1EA3n xu\u1EA5t Trung Qu\u1ED1c", role: "factor", kind: "rate", unit: "\u0111i\u1EC3m", source: "ngu\u1ED3n ch\xEDnh th\u1EE9c", pubLagMonths: 1, typicalReleaseDay: 1, group: "global" },
+  { id: "PMI_US", nameVi: "PMI s\u1EA3n xu\u1EA5t M\u1EF9", role: "factor", kind: "rate", unit: "\u0111i\u1EC3m", source: "ngu\u1ED3n ch\xEDnh th\u1EE9c", pubLagMonths: 1, typicalReleaseDay: 1, group: "global" },
+  { id: "SEMI", nameVi: "Chu k\u1EF3 b\xE1n d\u1EABn", role: "factor", kind: "level", unit: "ch\u1EC9 s\u1ED1", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "VIX", nameVi: "VIX (r\u1EE7i ro to\xE0n c\u1EA7u)", role: "factor", kind: "level", unit: "\u0111i\u1EC3m", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "EM_FLOWS", nameVi: "D\xF2ng v\u1ED1n th\u1ECB tr\u01B0\u1EDDng m\u1EDBi n\u1ED5i", role: "factor", kind: "rate", unit: "t\u1EF7 USD", source: "t\u1ED5 ch\u1EE9c t\xE0i ch\xEDnh qu\u1ED1c t\u1EBF", pubLagMonths: 1, typicalReleaseDay: 10, group: "global" },
+  { id: "TARIFF", nameVi: "B\u1EA5t \u0111\u1ECBnh ch\xEDnh s\xE1ch th\u01B0\u01A1ng m\u1EA1i", role: "factor", kind: "level", unit: "ch\u1EC9 s\u1ED1", source: "ch\u1EC9 s\u1ED1 b\u1EA5t \u0111\u1ECBnh ch\xEDnh s\xE1ch", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "MSCI_EM", nameVi: "Ch\u1EC9 s\u1ED1 th\u1ECB tr\u01B0\u1EDDng m\u1EDBi n\u1ED5i", role: "factor", kind: "level", unit: "\u0111i\u1EC3m", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" }
+];
+var WORLD_FACTOR_INFO = {
+  FED: { region: "US", channel: "fx_rates" },
+  DXY: { region: "US", channel: "fx_rates" },
+  OIL: { region: "GLOBAL", channel: "commodity" },
+  CNY: { region: "CN", channel: "fx_rates" },
+  STEEL: { region: "CN", channel: "commodity" },
+  CONTAINER: { region: "GLOBAL", channel: "export_demand" },
+  PMI_CN: { region: "CN", channel: "export_demand" },
+  PMI_US: { region: "US", channel: "export_demand" },
+  SEMI: { region: "GLOBAL", channel: "export_demand" },
+  VIX: { region: "US", channel: "risk_sentiment" },
+  EM_FLOWS: { region: "GLOBAL", channel: "capital_flow" },
+  TARIFF: { region: "US", channel: "policy_trade" },
+  MSCI_EM: { region: "GLOBAL", channel: "capital_flow" }
+};
+var WORLD_FACTOR_IDS = Object.keys(WORLD_FACTOR_INFO);
+var VN_SECTORS = [
+  { id: "S_BANK", nameVi: "Ng\xE2n h\xE0ng" },
+  { id: "S_SEC", nameVi: "Ch\u1EE9ng kho\xE1n" },
+  { id: "S_RE", nameVi: "B\u1EA5t \u0111\u1ED9ng s\u1EA3n" },
+  { id: "S_STEEL", nameVi: "Th\xE9p" },
+  { id: "S_OIL", nameVi: "D\u1EA7u kh\xED" },
+  { id: "S_SEAFOOD", nameVi: "Thu\u1EF7 s\u1EA3n" },
+  { id: "S_TEXTILE", nameVi: "D\u1EC7t may" },
+  { id: "S_PORT", nameVi: "C\u1EA3ng v\xE0 logistics" },
+  { id: "S_TECH", nameVi: "C\xF4ng ngh\u1EC7" },
+  { id: "S_POWER", nameVi: "\u0110i\u1EC7n" }
+];
+var SECTOR_TARGETS = VN_SECTORS.map((s) => ({
+  id: s.id,
+  nameVi: s.nameVi,
+  role: "target",
+  kind: "index",
+  unit: "\u0111i\u1EC3m",
+  source: "HOSE",
+  pubLagMonths: 0,
+  typicalReleaseDay: 1,
+  group: "market"
+}));
+var WORLD_MARKETS = [
+  { id: "US", nameVi: "M\u1EF9" },
+  { id: "CN", nameVi: "Trung Qu\u1ED1c" },
+  { id: "JP", nameVi: "Nh\u1EADt" },
+  { id: "KR", nameVi: "H\xE0n Qu\u1ED1c" },
+  { id: "TH", nameVi: "Th\xE1i Lan" },
+  { id: "VN", nameVi: "Vi\u1EC7t Nam" }
+];
+var EVENT_TYPES = ["monetary_policy", "trade_policy", "macro_release", "commodity_shock", "geopolitical", "index_reclassification", "other"];
+var isIso = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?Z$/.test(s) && !Number.isNaN(Date.parse(s));
+var isObj = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+function validateWorldEvent(e) {
+  if (!isObj(e)) return ["S\u1EF1 ki\u1EC7n ph\u1EA3i l\xE0 m\u1ED9t \u0111\u1ED1i t\u01B0\u1EE3ng."];
+  const errs = [];
+  if (typeof e.id !== "string" || !e.id.trim()) errs.push("Thi\u1EBFu id.");
+  if (e.kind !== "scheduled" && e.kind !== "surprise") errs.push("kind ph\u1EA3i l\xE0 'scheduled' ho\u1EB7c 'surprise'.");
+  if (!EVENT_TYPES.includes(e.type)) errs.push(`type kh\xF4ng h\u1EE3p l\u1EC7; cho ph\xE9p: ${EVENT_TYPES.join(", ")}.`);
+  if (typeof e.titleVi !== "string" || !e.titleVi.trim()) errs.push("Thi\u1EBFu ti\xEAu \u0111\u1EC1.");
+  if (!isIso(e.tsUtc)) errs.push("tsUtc ph\u1EA3i l\xE0 th\u1EDDi \u0111i\u1EC3m UTC d\u1EA1ng ISO 8601 k\u1EBFt th\xFAc b\u1EB1ng Z.");
+  if (!Array.isArray(e.sectorsHint) || !e.sectorsHint.every((s) => VN_SECTORS.some((v) => v.id === s))) errs.push("sectorsHint ph\u1EA3i l\xE0 danh s\xE1ch m\xE3 ng\xE0nh h\u1EE3p l\u1EC7.");
+  if (![-1, 0, 1].includes(e.polarityHint)) errs.push("polarityHint ph\u1EA3i l\xE0 -1, 0 ho\u1EB7c 1.");
+  if (!isObj(e.source) || typeof e.source.name !== "string" || !e.source.name) errs.push("Thi\u1EBFu ngu\u1ED3n.");
+  if (e.extraction !== void 0) {
+    const x = e.extraction;
+    if (!isObj(x) || x.method !== "manual" && x.method !== "llm" || typeof x.confidence !== "number" || x.confidence < 0 || x.confidence > 1 || typeof x.reviewed !== "boolean")
+      errs.push("extraction kh\xF4ng h\u1EE3p l\u1EC7 (method, confidence 0..1, reviewed).");
+    else if (x.method === "llm" && x.confidence < 0.6 && x.reviewed !== true) errs.push("S\u1EF1 ki\u1EC7n do AI tr\xEDch v\u1EDBi \u0111\u1ED9 tin c\u1EADy d\u01B0\u1EDBi 0,6 ph\u1EA3i \u0111\u01B0\u1EE3c ng\u01B0\u1EDDi ki\u1EC3m duy\u1EC7t tr\u01B0\u1EDBc khi \u0111o.");
+  }
+  return errs;
+}
+
+// src/macro-center/src/world-api.ts
+var WORLD_SCENARIOS = [
+  { id: "tariff-up", nameVi: "Thu\u1EBF quan M\u1EF9 t\u0103ng", descriptionVi: "B\u1EA5t \u0111\u1ECBnh ch\xEDnh s\xE1ch th\u01B0\u01A1ng m\u1EA1i t\u0103ng 1,5 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", shocks: [{ factor: "TARIFF", sigma: 1.5 }] },
+  { id: "usd-strong", nameVi: "USD m\u1EA1nh l\xEAn", descriptionVi: "Ch\u1EC9 s\u1ED1 USD t\u0103ng 1 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", shocks: [{ factor: "DXY", sigma: 1 }] },
+  { id: "oil-spike", nameVi: "Gi\xE1 d\u1EA7u t\u0103ng m\u1EA1nh", descriptionVi: "Gi\xE1 d\u1EA7u t\u0103ng 2 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", shocks: [{ factor: "OIL", sigma: 2 }] },
+  { id: "fed-cut", nameVi: "Fed gi\u1EA3m l\xE3i su\u1EA5t", descriptionVi: "L\xE3i su\u1EA5t Fed gi\u1EA3m 1 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n, USD y\u1EBFu \u0111i 0,5.", shocks: [{ factor: "FED", sigma: -1 }, { factor: "DXY", sigma: -0.5 }] },
+  { id: "china-recovery", nameVi: "Trung Qu\u1ED1c ph\u1EE5c h\u1ED3i", descriptionVi: "PMI Trung Qu\u1ED1c t\u0103ng 1,5 v\xE0 gi\xE1 th\xE9p t\u0103ng 1 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", shocks: [{ factor: "PMI_CN", sigma: 1.5 }, { factor: "STEEL", sigma: 1 }] },
+  { id: "risk-off", nameVi: "Tr\xE1nh r\u1EE7i ro to\xE0n c\u1EA7u", descriptionVi: "VIX t\u0103ng 2 v\xE0 d\xF2ng v\u1ED1n th\u1ECB tr\u01B0\u1EDDng m\u1EDBi n\u1ED5i gi\u1EA3m 1,5 \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", shocks: [{ factor: "VIX", sigma: 2 }, { factor: "EM_FLOWS", sigma: -1.5 }] }
+];
+var ApiError2 = class extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+};
+function createWorldApi(deps) {
+  const { world, store, catalog } = deps;
+  const today = deps.today ?? (() => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
+  const macro = createMacroApi({ store, catalog, today, notice: deps.notice });
+  const nameOf = Object.fromEntries(catalog.map((m) => [m.id, m.nameVi]));
+  const sectorName = Object.fromEntries(VN_SECTORS.map((s) => [s.id, s.nameVi]));
+  const cache = /* @__PURE__ */ new Map();
+  const memo = (key, f) => {
+    const k = `${store.dataVersion()}|${key}`;
+    if (!cache.has(k)) cache.set(k, f());
+    return cache.get(k);
+  };
+  const asOfOf = (v) => {
+    const s = typeof v === "string" && v ? v : today();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) throw new ApiError2(400, "asOf ph\u1EA3i c\xF3 d\u1EA1ng YYYY-MM-DD.");
+    return s;
+  };
+  const intIn = (v, name, lo, hi, dflt) => {
+    if (v === void 0 || v === null || v === "") return dflt;
+    const n = Number(v);
+    if (!Number.isInteger(n) || n < lo || n > hi) throw new ApiError2(400, `${name} ph\u1EA3i l\xE0 s\u1ED1 nguy\xEAn trong [${lo}, ${hi}].`);
+    return n;
+  };
+  const monthly = (asOf) => memo(`monthly|${asOf}`, () => {
+    const factors = WORLD_FACTOR_IDS.filter((id) => store.getSeries(id, asOf).length >= 60);
+    const targets = VN_SECTORS.map((s) => s.id).filter((id) => store.getSeries(id, asOf).length >= 60);
+    if (!factors.length || !targets.length) throw new ApiError2(422, "Ch\u01B0a \u0111\u1EE7 d\u1EEF li\u1EC7u th\xE1ng (c\u1EA7n \xEDt nh\u1EA5t 60 th\xE1ng) cho y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi v\xE0 ng\xE0nh.");
+    const ds = buildDataset(store, [...factors, ...targets], asOf);
+    if (ds.dates.length < 60) throw new ApiError2(422, "S\u1ED1 th\xE1ng chung gi\u1EEFa c\xE1c chu\u1ED7i d\u01B0\u1EDBi 60.");
+    const prep = prepareStationary({ dates: ds.dates, factors: toMacroSeries(ds, catalog, factors), targets: toMacroSeries(ds, catalog, targets) });
+    return { factors, targets, ds, prep };
+  });
+  const matrix = (asOf, maxLag) => memo(`matrix|${asOf}|${maxLag}`, () => {
+    const m = monthly(asOf);
+    const r = macro.handle({ method: "POST", path: "/api/macro/impact", query: {}, body: { asOf, factors: m.factors, targets: m.targets, maxLag } });
+    return r.then((resp) => {
+      if (resp.status !== 200) throw new ApiError2(resp.status, String(resp.body.error ?? "L\u1ED7i ma tr\u1EADn"));
+      const b = resp.body;
+      const cells = b.best.map((c) => {
+        const key = `${c.factor}|${c.target}`;
+        const st = b.stability[key];
+        let oosPass = null;
+        if (c.q < 0.05) {
+          oosPass = memo(`oos|${asOf}|${key}|${c.lag}`, () => {
+            const bt = backtestMacroScore({ y: m.prep.targets[c.target], factors: { [c.factor]: m.prep.factors[c.factor] }, lag: Math.max(1, c.lag), B: 149, seed: 3 });
+            return bt ? bt.gate.pass : false;
+          });
+        }
+        const { tier, reasonVi } = assignTier({ q: c.q, stable: st ? st.stable : null, oosPass });
+        return { factor: c.factor, sector: c.target, direction: c.direction, beta: c.beta, t: c.t, q: c.q, lag: c.lag, tier, reasonVi, stable: st ? st.stable : null, oosPass };
+      });
+      return {
+        asOf,
+        firstPeriod: b.firstPeriod,
+        lastPeriod: b.lastPeriod,
+        notice: b.notice,
+        factors: m.factors.map((id) => ({ id, nameVi: nameOf[id], ...WORLD_FACTOR_INFO[id], channelVi: CHANNEL_NAMES_VI[WORLD_FACTOR_INFO[id].channel] })),
+        sectors: m.targets.map((id) => ({ id, nameVi: sectorName[id] })),
+        cells,
+        counts: summarizeTiers(cells.map((c) => c.tier)),
+        tierMeaning: TIER_MEANING_VI,
+        warnings: b.warnings
+      };
+    });
+  });
+  const marketMatrix = () => world.tradingDays.map((_, t) => WORLD_MARKETS.map((m) => world.markets[m.id][t]));
+  const connectednessReport = (window, H, step) => memo(`conn|${window}|${H}|${step}`, () => {
+    const Y = marketMatrix();
+    const names = WORLD_MARKETS.map((m) => m.nameVi);
+    const full = connectedness(Y, names, { p: 1, H });
+    const recent = connectedness(Y.slice(-window), names, { p: 1, H });
+    const roll = rollingConnectedness(Y, names, { window, step, p: 1, H });
+    const vn = WORLD_MARKETS.findIndex((m) => m.id === "VN");
+    const vnSeries = world.markets.VN;
+    return {
+      names,
+      window,
+      H,
+      p: 1,
+      full: { table: full.table, from: full.from, to: full.to, net: full.net, total: full.total },
+      recent: { table: recent.table, from: recent.from, to: recent.to, net: recent.net, total: recent.total },
+      rolling: roll.map((r) => ({ date: world.tradingDays[r.end], total: r.total, vnFrom: r.from[vn] })),
+      vnReceivesFrom: WORLD_MARKETS.filter((_, i) => i !== vn).map((m, i) => ({ market: m.id, nameVi: m.nameVi, share: recent.table[vn][WORLD_MARKETS.findIndex((x) => x.id === m.id)], i })).sort((a, b) => b.share - a.share).map(({ i: _i, ...rest }) => rest),
+      tailDependence: WORLD_MARKETS.filter((m) => m.id !== "VN").map((m) => ({ market: m.id, nameVi: m.nameVi, lowerTail: tailDependence(world.markets[m.id], vnSeries, 0.05, "lower"), independentBaseline: 0.05 }))
+    };
+  });
+  const studies = () => memo("studies", () => {
+    const list = world.events.map((ev) => {
+      const align = alignEventToSession(ev.tsUtc, world.tradingDays);
+      const results = {};
+      if (align) for (const s of VN_SECTORS) {
+        const r = eventStudy(world.sectors[s.id], world.markets.VN, align.index);
+        if (r) results[s.id] = r;
+      }
+      return { id: ev.id, ev, align, results, q: {} };
+    });
+    const flat = [];
+    list.forEach((s, i) => Object.entries(s.results).forEach(([sec, r]) => flat.push({ i, sec, p: r.p })));
+    const q = adjustPValues(flat.map((f) => f.p), "by");
+    flat.forEach((f, k) => list[f.i].q[f.sec] = q[k]);
+    return list;
+  });
+  const bmpFor = (type, sector) => {
+    const items = studies().filter((s) => s.ev.type === type && s.results[sector]).map((s) => ({ car: s.results[sector].car, varCar: s.results[sector].varCar }));
+    return bmpTest(items);
+  };
+  const eventRow = (s) => {
+    const candidates = Object.keys(s.results);
+    if (!candidates.length || !s.align) return { id: s.id, titleVi: s.ev.titleVi, kind: s.ev.kind, type: s.ev.type, region: s.ev.region, tsUtc: s.ev.tsUtc, sessionDate: s.align?.date ?? null, tier: "pending", status: "Ch\u1EDD \u0111\u1EE7 phi\xEAn sau s\u1EF1 ki\u1EC7n" };
+    const hinted = candidates.filter((c) => s.ev.sectorsHint.includes(c));
+    const pool = hinted.length ? hinted : candidates;
+    const best = pool.reduce((a, b) => s.results[b].p < s.results[a].p ? b : a);
+    const r = s.results[best];
+    const bmp = bmpFor(s.ev.type, best);
+    const replicated = !!bmp && bmp.p < 0.05 && Math.sign(bmp.caar) === Math.sign(r.car);
+    const { tier, reasonVi } = assignTier({ q: s.q[best], stable: replicated, oosPass: replicated });
+    return {
+      id: s.id,
+      titleVi: s.ev.titleVi,
+      kind: s.ev.kind,
+      type: s.ev.type,
+      region: s.ev.region,
+      tsUtc: s.ev.tsUtc,
+      sessionDate: s.align.date,
+      sameDay: s.align.sameDay,
+      sector: best,
+      sectorName: sectorName[best],
+      car: r.car,
+      se: r.se,
+      t: r.t,
+      p: r.p,
+      q: s.q[best],
+      ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se],
+      bmp: bmp ? { n: bmp.n, t: bmp.t, p: bmp.p } : null,
+      tier,
+      reasonVi,
+      limitDays: r.limitDaysInWindow,
+      extraction: s.ev.extraction ?? null
+    };
+  };
+  const shrunkBetas = (factor) => memo(`shrink|${factor}`, () => {
+    const groups = {};
+    for (const b of world.stockBetas[factor] ?? []) (groups[b.sectorId] ??= []).push({ id: b.code, beta: b.beta, se: b.se });
+    return hierarchicalShrink(groups);
+  });
+  async function overview(asOf) {
+    const m = monthly(asOf);
+    const mx = await matrix(asOf, 6);
+    const pulse = m.factors.map((id) => {
+      const z = expandingZ(m.prep.factors[id]);
+      let last = NaN;
+      for (let i = z.length - 1; i >= 0; i--) if (Number.isFinite(z[i])) {
+        last = z[i];
+        break;
+      }
+      return { id, nameVi: nameOf[id], z: last, unusual: Math.abs(last) >= 2, links: mx.cells.filter((c) => c.factor === id && c.tier !== "C").length, ...WORLD_FACTOR_INFO[id] };
+    });
+    const conn = connectednessReport(250, 10, 40);
+    const studs = studies();
+    return {
+      asOf,
+      notice: mx.notice,
+      pulse,
+      tierCounts: mx.counts,
+      spillover: { total: conn.recent.total, fullSample: conn.full.total },
+      events: { total: world.events.length, pending: studs.filter((s) => !Object.keys(s.results).length).length, tiers: summarizeTiers(studs.map(eventRow).filter((r) => r.tier !== "pending").map((r) => r.tier)) }
+    };
+  }
+  async function scenario(body) {
+    const asOf = asOfOf(body.asOf);
+    const horizon = intIn(body.horizon, "horizon", 1, 12, 3);
+    let shocks;
+    let meta;
+    if (typeof body.scenarioId === "string") {
+      const sc = WORLD_SCENARIOS.find((s) => s.id === body.scenarioId);
+      if (!sc) throw new ApiError2(404, `Kh\xF4ng c\xF3 k\u1ECBch b\u1EA3n '${body.scenarioId}'.`);
+      shocks = sc.shocks;
+      meta = { id: sc.id, nameVi: sc.nameVi, descriptionVi: sc.descriptionVi };
+    } else if (Array.isArray(body.shocks) && body.shocks.length) {
+      shocks = body.shocks.map((s, i) => {
+        if (typeof s?.factor !== "string" || !WORLD_FACTOR_IDS.includes(s.factor) || typeof s?.sigma !== "number" || !Number.isFinite(s.sigma) || Math.abs(s.sigma) > 6)
+          throw new ApiError2(400, `shocks[${i}] c\u1EA7n factor h\u1EE3p l\u1EC7 v\xE0 sigma trong [-6, 6].`);
+        return { factor: s.factor, sigma: s.sigma };
+      });
+      meta = { id: "custom", nameVi: "K\u1ECBch b\u1EA3n tu\u1EF3 ch\u1EC9nh", descriptionVi: "" };
+    } else throw new ApiError2(400, "C\u1EA7n scenarioId ho\u1EB7c danh s\xE1ch shocks.");
+    const m = monthly(asOf);
+    const names = m.factors;
+    const sdOf = (id) => std(m.prep.factors[id].filter(Number.isFinite));
+    const shockVec = names.map((id) => (shocks.find((s) => s.factor === id)?.sigma ?? 0) * sdOf(id));
+    const warnings = shocks.filter((s) => !names.includes(s.factor)).map((s) => `B\u1ECF qua ${s.factor}: kh\xF4ng c\xF3 d\u1EEF li\u1EC7u.`);
+    const xs = names.map((id) => m.prep.factors[id]);
+    const mx = await matrix(asOf, 6);
+    const sectors = m.targets.map((sec) => {
+      const irf = localProjectionIRF({ y: m.prep.targets[sec], xs, shock: shockVec, horizon, arLags: 1, level: 0.9 });
+      const at = irf[irf.length - 1];
+      return { sector: sec, nameVi: sectorName[sec], irf, est: at?.est ?? NaN, lo: at?.lo ?? NaN, hi: at?.hi ?? NaN, conclusive: !!at && (at.lo > 0 || at.hi < 0) };
+    });
+    sectors.sort((a, b) => a.est - b.est);
+    const lead = shocks.find((s) => world.stockBetas[s.factor]);
+    let stocks = [];
+    if (lead) {
+      const h = shrunkBetas(lead.factor);
+      stocks = Object.entries(h.groups).flatMap(
+        ([sec, g]) => g.items.map((it) => {
+          const cell2 = mx.cells.find((c) => c.factor === lead.factor && c.sector === sec);
+          const own = Math.abs(it.beta / it.se) > 1.96;
+          return { code: it.id, sector: sec, sectorName: sectorName[sec], beta: it.shrunk, ownWeight: it.weight, est: it.shrunk * lead.sigma, tier: stockTier(cell2?.tier ?? "C", own) };
+        })
+      ).sort((a, b) => a.est - b.est).slice(0, 8);
+    }
+    return { asOf, scenario: meta, shocks, horizon, notice: deps.notice, sectors, stocks, stockFactor: lead?.factor ?? null, warnings, conclusiveCount: sectors.filter((s) => s.conclusive).length };
+  }
+  async function stock(code) {
+    const x = world.exposures.find((e) => e.code === code);
+    if (!x) throw new ApiError2(404, `Kh\xF4ng c\xF3 c\u1ED5 phi\u1EBFu ${code}.`);
+    const mx = await matrix(asOfOf(void 0), 6);
+    const betas = Object.keys(world.stockBetas).map((factor) => {
+      const h = shrunkBetas(factor);
+      const g = h.groups[x.sectorId];
+      const it = g?.items.find((i) => i.id === code);
+      if (!it) return null;
+      const cell2 = mx.cells.find((c) => c.factor === factor && c.sector === x.sectorId);
+      const own = Math.abs(it.beta / it.se) > 1.96;
+      return { factor, nameVi: nameOf[factor], own: it.beta, se: it.se, sectorPrior: g.priorMu, shrunk: it.shrunk, ownWeight: it.weight, postSd: it.postSd, sectorTier: cell2?.tier ?? "C", tier: stockTier(cell2?.tier ?? "C", own), sectorPeers: g.items.length };
+    }).filter(Boolean);
+    return { code, sector: x.sectorId, sectorName: sectorName[x.sectorId], exposure: x, channels: channelExposure(x), betas, notice: deps.notice };
+  }
+  async function handle(req) {
+    try {
+      const path = req.path.replace(/\/+$/, "");
+      const m = req.method.toUpperCase();
+      const q = req.query;
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      if (m === "GET" && path === "/api/world/series")
+        return { status: 200, body: { notice: deps.notice, factors: WORLD_FACTOR_IDS.map((id) => ({ id, nameVi: nameOf[id], ...WORLD_FACTOR_INFO[id] })), sectors: VN_SECTORS, markets: WORLD_MARKETS, scenarios: WORLD_SCENARIOS, tierMeaning: TIER_MEANING_VI } };
+      if (m === "GET" && path === "/api/world/overview") return { status: 200, body: await overview(asOfOf(q.asOf)) };
+      if (m === "POST" && path === "/api/world/matrix") return { status: 200, body: await matrix(asOfOf(body.asOf), intIn(body.maxLag, "maxLag", 1, 12, 6)) };
+      if (m === "GET" && path === "/api/world/connectedness") return { status: 200, body: { notice: deps.notice, ...connectednessReport(intIn(q.window, "window", 120, 1e3, 250), intIn(q.H, "H", 1, 30, 10), intIn(q.step, "step", 5, 200, 40)) } };
+      if (m === "GET" && path === "/api/world/events") return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: "Benjamini-Yekutieli tr\xEAn to\xE0n b\u1ED9 s\u1EF1 ki\u1EC7n \xD7 ng\xE0nh" } };
+      const em = /^\/api\/world\/events\/([A-Za-z0-9_-]+)$/.exec(path);
+      if (m === "GET" && em) {
+        const s = studies().find((x) => x.id === em[1]);
+        if (!s) throw new ApiError2(404, `Kh\xF4ng c\xF3 s\u1EF1 ki\u1EC7n ${em[1]}.`);
+        const row2 = eventRow(s);
+        const bestRes = row2.sector ? s.results[row2.sector] : null;
+        return {
+          status: 200,
+          body: {
+            notice: deps.notice,
+            event: row2,
+            alignment: s.align,
+            path: bestRes ? bestRes.path : [],
+            model: bestRes ? { alpha: bestRes.alpha, beta: bestRes.beta, sigma: bestRes.sigma, nEst: bestRes.nEst } : null,
+            sectors: Object.entries(s.results).map(([sec, r]) => ({ sector: sec, nameVi: sectorName[sec], car: r.car, se: r.se, ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se], t: r.t, p: r.p, q: s.q[sec] })).sort((a, b) => a.car - b.car)
+          }
+        };
+      }
+      const sm = /^\/api\/world\/stock\/([A-Za-z0-9_-]+)$/.exec(path);
+      if (m === "GET" && sm) return { status: 200, body: await stock(sm[1]) };
+      if (m === "POST" && path === "/api/world/scenario") return { status: 200, body: await scenario(body) };
+      if (path.startsWith("/api/world/")) return { status: 405, body: { error: "Ph\u01B0\u01A1ng th\u1EE9c ho\u1EB7c \u0111\u01B0\u1EDDng d\u1EABn kh\xF4ng \u0111\u01B0\u1EE3c h\u1ED7 tr\u1EE3." } };
+      return { status: 404, body: { error: "Kh\xF4ng t\xECm th\u1EA5y." } };
+    } catch (e) {
+      if (e instanceof ApiError2) return { status: e.status, body: { error: e.message } };
+      return { status: 500, body: { error: "L\u1ED7i t\xEDnh to\xE1n n\u1ED9i b\u1ED9." } };
+    }
+  }
+  return { handle, macro };
+}
+
+// src/macro-center/src/world-seed.ts
+var EVENT_SCALE = 1.9;
+var WORLD_SYNTHETIC_NOTICE = "D\u1EEE LI\u1EC6U M\xD4 PH\u1ECENG \u2014 th\u1EBF gi\u1EDBi, ng\xE0nh v\xE0 c\u1ED5 phi\u1EBFu trong b\u1EA3n n\xE0y kh\xF4ng ph\u1EA3i s\u1ED1 li\u1EC7u th\u1EADt.";
+var TRUE_WORLD_EFFECTS = {
+  S_PORT: { CONTAINER: 0.35, PMI_CN: 1 },
+  S_SEAFOOD: { TARIFF: -0.5, CONTAINER: -0.15 },
+  S_TEXTILE: { TARIFF: -0.5 },
+  S_STEEL: { STEEL: 0.45, PMI_CN: 1.2, TARIFF: -0.2 },
+  S_OIL: { OIL: 0.35 },
+  S_BANK: { FED: -4, VIX: -0.25 },
+  S_SEC: { VIX: -0.4, EM_FLOWS: 0.6 },
+  S_RE: { FED: -5 },
+  S_TECH: { SEMI: 0.4, VIX: -0.3 },
+  S_POWER: {}
+};
+var WORLD_CATALOG = [...VN_CATALOG, ...WORLD_EXTRA_FACTORS, ...SECTOR_TARGETS];
+function weekdays(start, n) {
+  const out = [];
+  const d = /* @__PURE__ */ new Date(`${start}T00:00:00Z`);
+  while (out.length < n) {
+    const dow = d.getUTCDay();
+    if (dow !== 0 && dow !== 6) out.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return out;
+}
+function makeSyntheticWorld(seed = 11) {
+  const rng = mulberry32(seed);
+  const N = 1600;
+  const tradingDays = weekdays("2020-01-01", N);
+  const ids = WORLD_MARKETS.map((m) => m.id);
+  const K = ids.length;
+  const A = Array.from({ length: K }, () => new Array(K).fill(0));
+  for (let i = 0; i < K; i++) A[i][i] = 0.05;
+  const fromUs = [0.02, 0.1, 0.25, 0.2, 0.15, 0.18];
+  fromUs.forEach((v, i) => A[i][0] = i === 0 ? 0.05 : v);
+  A[5][1] = 0.08;
+  A[5][3] = 0.05;
+  A[5][4] = 0.04;
+  const sd = [1, 1.2, 1.1, 1.3, 1.1, 1.2];
+  const R = [new Array(K).fill(0)];
+  for (let t = 1; t < N; t++) {
+    const common = randn(rng);
+    R.push(R[t - 1].map((_, i) => A[i].reduce((s, a, j) => s + a * R[t - 1][j], 0) + sd[i] * (0.92 * randn(rng) + 0.39 * common)));
+  }
+  const markets = {};
+  ids.forEach((id, i) => markets[id] = R.map((r) => r[i]));
+  const specs = [
+    { idx: 320, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [1]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.6, S_TEXTILE: -2.2 }, llm: 0.86 },
+    { idx: 520, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [2]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.8, S_TEXTILE: -2 }, llm: 0.9 },
+    { idx: 700, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [3]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.4, S_TEXTILE: -2.4, S_STEEL: -1 }, llm: 0.88 },
+    { idx: 400, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [1]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_BANK: -1.5, S_RE: -1.8, S_SEC: -1.2 } },
+    { idx: 600, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [2]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_BANK: -1.4, S_RE: -2 } },
+    { idx: 800, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [3]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_RE: -1.7, S_SEC: -1.5 } },
+    { idx: 450, kind: "scheduled", type: "macro_release", title: "C\xF4ng b\u1ED1 PMI s\u1EA3n xu\u1EA5t Trung Qu\u1ED1c [1]", region: "CN", hint: ["S_STEEL", "S_PORT"], pol: 1, effects: { S_STEEL: 1.4, S_PORT: 1.2 } },
+    { idx: 650, kind: "scheduled", type: "macro_release", title: "C\xF4ng b\u1ED1 PMI s\u1EA3n xu\u1EA5t Trung Qu\u1ED1c [2]", region: "CN", hint: ["S_STEEL", "S_PORT"], pol: 1, effects: { S_STEEL: 1.2, S_PORT: 1 } },
+    { idx: 900, kind: "surprise", type: "commodity_shock", title: "Bi\u1EBFn \u0111\u1ED9ng m\u1EA1nh c\u1EE7a gi\xE1 d\u1EA7u", region: "GLOBAL", hint: ["S_OIL"], pol: 1, effects: {}, llm: 0.8 },
+    { idx: 1e3, kind: "surprise", type: "geopolitical", title: "S\u1EF1 ki\u1EC7n \u0111\u1ECBa ch\xEDnh tr\u1ECB [1]", region: "GLOBAL", hint: ["S_SEC"], pol: -1, effects: {}, llm: 0.75 },
+    { idx: 1100, kind: "scheduled", type: "macro_release", title: "S\u1ED1 li\u1EC7u vi\u1EC7c l\xE0m M\u1EF9", region: "US", hint: ["S_SEC"], pol: -1, effects: {} },
+    { idx: N - 2, kind: "scheduled", type: "index_reclassification", title: "\u0110\xE1nh gi\xE1 ph\xE2n lo\u1EA1i th\u1ECB tr\u01B0\u1EDDng c\u1EE7a t\u1ED5 ch\u1EE9c ch\u1EC9 s\u1ED1", region: "GLOBAL", hint: ["S_SEC", "S_BANK"], pol: 1, effects: {} }
+  ];
+  const events = [];
+  const plantedEventEffects = {};
+  specs.forEach((s, k) => {
+    const id = `ev${k + 1}`;
+    const prev = tradingDays[s.idx - 1];
+    events.push({
+      id,
+      kind: s.kind,
+      type: s.type,
+      titleVi: s.title,
+      tsUtc: `${prev}T09:30:00Z`,
+      region: s.region,
+      sectorsHint: s.hint,
+      polarityHint: s.pol,
+      source: { name: "[t\xEAn ngu\u1ED3n]", url: "[\u0111\u01B0\u1EDDng d\u1EABn]" },
+      extraction: s.llm ? { method: "llm", confidence: s.llm, reviewed: true } : { method: "manual", confidence: 1, reviewed: true }
+    });
+    plantedEventEffects[id] = Object.fromEntries(Object.entries(s.effects).map(([k2, v]) => [k2, Math.round(v * EVENT_SCALE * 10) / 10]));
+  });
+  const betaMkt = { S_BANK: 1.2, S_SEC: 1.4, S_RE: 1.3, S_STEEL: 1.1, S_OIL: 0.9, S_SEAFOOD: 0.8, S_TEXTILE: 0.9, S_PORT: 1, S_TECH: 1.1, S_POWER: 0.7 };
+  const sectors = {};
+  VN_SECTORS.forEach((s) => sectors[s.id] = markets.VN.map((m) => betaMkt[s.id] * m + 0.55 * randn(rng)));
+  specs.forEach((s, k) => {
+    for (const sec of Object.keys(s.effects)) {
+      const eff = plantedEventEffects[`ev${k + 1}`][sec];
+      sectors[sec][s.idx] += eff;
+      if (s.idx + 1 < N) sectors[sec][s.idx + 1] += eff * 0.5;
+    }
+  });
+  const exposures = [];
+  const stockBetas = { TARIFF: [], CONTAINER: [] };
+  const plan = [
+    // sector, prefix, count, US share, sector beta TARIFF, sector beta CONTAINER, tau
+    ["S_SEAFOOD", "SEA", 6, 35, -1.8, -0.2, 0.5],
+    ["S_TEXTILE", "TEX", 6, 40, -1.6, -0.1, 0.5],
+    ["S_STEEL", "STL", 5, 8, -0.5, 0, 0.25],
+    ["S_PORT", "PRT", 5, 12, -0.3, 1.4, 0.4],
+    ["S_OIL", "OIL", 4, 3, 0, 0, 0.2],
+    ["S_BANK", "BNK", 6, 0, -0.1, 0, 0.15],
+    ["S_TECH", "TCH", 4, 25, -0.3, 0.1, 0.3]
+  ];
+  for (const [sec, pre, n2, us, bT, bC, tau] of plan) {
+    for (let i = 0; i < n2; i++) {
+      const code = `${pre}${i + 1}`;
+      const usShare = Math.max(0, Math.min(70, Math.round(us * (0.6 + 0.8 * rng()))));
+      const eu = Math.round((100 - usShare) * (us > 0 ? 0.25 : 0.05) * (0.6 + 0.8 * rng()));
+      const cn = Math.round((100 - usShare - eu) * 0.12);
+      const vn = 100 - usShare - eu - cn;
+      exposures.push({
+        code,
+        sectorId: sec,
+        revenueByRegion: { VN: vn, US: usShare, EU: eu, CN: cn },
+        commodityCostShare: Math.round((0.15 + 0.4 * rng()) * 100) / 100,
+        fxRevenueShare: Math.round((100 - vn) / 100 * 100) / 100,
+        fxDebtShare: Math.round(0.35 * rng() * 100) / 100,
+        asOfPeriod: "2026-03",
+        sourceRef: "BCTC [k\u1EF3], thuy\u1EBFt minh [m\u1EE5c]"
+      });
+      const se = 0.35 + 0.9 * rng();
+      stockBetas.TARIFF.push({ code, sectorId: sec, beta: bT + tau * randn(rng) + se * randn(rng), se });
+      const se2 = 0.35 + 0.9 * rng();
+      stockBetas.CONTAINER.push({ code, sectorId: sec, beta: bC + tau * randn(rng) + se2 * randn(rng), se: se2 });
+    }
+  }
+  const store = new InMemoryVintageStore();
+  const n = 222;
+  const start = "2008-01";
+  const ar = (phi, mu, s, x0, floor = -Infinity) => {
+    const y = [x0];
+    for (let i = 1; i < n; i++) y.push(Math.max(floor, mu + phi * (y[i - 1] - mu) + s * randn(rng)));
+    return y;
+  };
+  const lvl = (s, x0) => {
+    const y = [x0];
+    for (let i = 1; i < n; i++) y.push(y[i - 1] * Math.exp(s * randn(rng) / 100));
+    return y;
+  };
+  const raw = {
+    FED: ar(0.985, 2, 0.35, 2, 0),
+    DXY: lvl(1.5, 85),
+    OIL: lvl(8, 80),
+    CNY: lvl(0.6, 7),
+    STEEL: lvl(5, 600),
+    CONTAINER: lvl(5, 1500),
+    PMI_CN: ar(0.7, 50, 1.2, 50),
+    PMI_US: ar(0.7, 52, 1.4, 52),
+    SEMI: lvl(4, 100),
+    VIX: ar(0.8, 18, 3, 18, 9),
+    EM_FLOWS: ar(0.5, 0, 2, 0),
+    TARIFF: lvl(6, 100),
+    MSCI_EM: lvl(4.5, 1e3)
+  };
+  const ld = (x) => x.map((v, i) => i === 0 ? 0 : 100 * Math.log(v / x[i - 1]));
+  const dd = (x) => x.map((v, i) => i === 0 ? 0 : v - x[i - 1]);
+  const stat = {
+    FED: dd(raw.FED),
+    DXY: ld(raw.DXY),
+    OIL: ld(raw.OIL),
+    CNY: ld(raw.CNY),
+    STEEL: ld(raw.STEEL),
+    CONTAINER: ld(raw.CONTAINER),
+    PMI_CN: raw.PMI_CN.map((v) => v - 50),
+    PMI_US: raw.PMI_US.map((v) => v - 52),
+    SEMI: ld(raw.SEMI),
+    VIX: raw.VIX.map((v) => v - 18),
+    EM_FLOWS: raw.EM_FLOWS.slice(),
+    TARIFF: ld(raw.TARIFF),
+    MSCI_EM: ld(raw.MSCI_EM)
+  };
+  const pub = Object.fromEntries(Object.entries(catalogById(WORLD_CATALOG)).map(([id, m]) => [id, m.pubLagMonths]));
+  const market = Array.from({ length: n }, () => 2.4 * randn(rng));
+  for (const [sec, eff] of Object.entries(TRUE_WORLD_EFFECTS)) {
+    const ret = new Array(n).fill(0);
+    for (let t = 1; t < n; t++) {
+      let r = 0.5 + market[t] + 1.2 * randn(rng);
+      for (const [f, b] of Object.entries(eff)) {
+        const src = t - 1 - (pub[f] ?? 0);
+        if (src >= 0) r += b * stat[f][src];
+      }
+      ret[t] = r;
+    }
+    const idx = [1e3];
+    for (let t = 1; t < n; t++) idx.push(idx[t - 1] * Math.exp(ret[t] / 100));
+    raw[sec] = idx;
+  }
+  const obs = [];
+  for (const meta of [...WORLD_EXTRA_FACTORS, ...SECTOR_TARGETS, ...VN_CATALOG.filter((m) => ["FED", "DXY", "OIL"].includes(m.id))]) {
+    const v = raw[meta.id];
+    if (!v) continue;
+    for (let i = 0; i < n; i++) {
+      const period = addMonths(start, i);
+      obs.push({ seriesId: meta.id, period, value: v[i], asOf: estimateAsOf(period, meta.pubLagMonths, meta.typicalReleaseDay) });
+    }
+  }
+  store.upsert(obs);
+  return { data: { tradingDays, markets, sectors, events, plantedEventEffects, exposures, stockBetas }, store, catalog: WORLD_CATALOG };
+}
+
+// src/macro-center/src/world-chat-tools.ts
+var factorIds2 = WORLD_FACTOR_IDS;
+var sectorIds = VN_SECTORS.map((s) => s.id);
+var ASOF2 = { type: "string", description: "Ng\xE0y tham chi\u1EBFu YYYY-MM-DD; b\u1ECF tr\u1ED1ng \u0111\u1EC3 d\xF9ng d\u1EEF li\u1EC7u m\u1EDBi nh\u1EA5t." };
+var obj = (properties, required = []) => ({ type: "object", properties, required, additionalProperties: false });
+var WORLD_TOOL_SPECS = [
+  { name: "world_links", description: 'Tra c\u1EE9u li\xEAn k\u1EBFt gi\u1EEFa y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi v\xE0 ng\xE0nh Vi\u1EC7t Nam, k\xE8m b\u1EADc b\u1EB1ng ch\u1EE9ng (A/B/C), h\u01B0\u1EDBng, \u0111\u1ED9 tr\u1EC5, q-value. M\u1EB7c \u0111\u1ECBnh ch\u1EC9 tr\u1EA3 li\xEAn k\u1EBFt b\u1EADc A v\xE0 B. D\xF9ng khi h\u1ECFi "y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi n\xE0o t\xE1c \u0111\u1ED9ng t\u1EDBi ng\xE0nh X?".', parameters: obj({ factor: { type: "string", description: "M\xE3 y\u1EBFu t\u1ED1 th\u1EBF gi\u1EDBi.", enum: factorIds2 }, sector: { type: "string", description: "M\xE3 ng\xE0nh.", enum: sectorIds }, includeC: { type: "boolean", description: "G\u1ED3m c\u1EA3 li\xEAn k\u1EBFt b\u1EADc C (ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng); m\u1EB7c \u0111\u1ECBnh false." }, topN: { type: "number", description: "S\u1ED1 d\xF2ng t\u1ED1i \u0111a 1..15, m\u1EB7c \u0111\u1ECBnh 8.", minimum: 1, maximum: 15 }, asOf: ASOF2 }) },
+  { name: "world_events", description: "Danh s\xE1ch s\u1EF1 ki\u1EC7n th\u1EBF gi\u1EDBi \u0111\xE3 \u0111o ph\u1EA3n \u1EE9ng c\u1EE7a ng\xE0nh Vi\u1EC7t Nam (CAR, q, b\u1EADc) ho\u1EB7c chi ti\u1EBFt m\u1ED9t s\u1EF1 ki\u1EC7n n\u1EBFu truy\u1EC1n eventId.", parameters: obj({ eventId: { type: "string", description: "M\xE3 s\u1EF1 ki\u1EC7n \u0111\u1EC3 xem chi ti\u1EBFt (v\xED d\u1EE5 ev1)." } }) },
+  { name: "world_connectedness", description: "M\u1EE9c lan truy\u1EC1n gi\u1EEFa c\xE1c th\u1ECB tr\u01B0\u1EDDng (M\u1EF9, Trung Qu\u1ED1c, Nh\u1EADt, H\xE0n Qu\u1ED1c, Th\xE1i Lan, Vi\u1EC7t Nam): ch\u1EC9 s\u1ED1 lan truy\u1EC1n t\u1ED5ng, Vi\u1EC7t Nam nh\u1EADn t\u1EEB \u0111\xE2u, ph\u1EE5 thu\u1ED9c \u0111u\xF4i.", parameters: obj({}) },
+  { name: "world_scenario", description: "M\xF4 ph\u1ECFng k\u1ECBch b\u1EA3n c\u1EE7a th\u1EBF gi\u1EDBi (\u0111\u1ED9 l\u1EC7ch chu\u1EA9n) v\xE0 x\u1EBFp h\u1EA1ng ng\xE0nh, c\u1ED5 phi\u1EBFu ch\u1ECBu t\xE1c \u0111\u1ED9ng. Truy\u1EC1n scenarioId HO\u1EB6C shocks [{factor, sigma}].", parameters: obj({ scenarioId: { type: "string", description: "K\u1ECBch b\u1EA3n c\xF3 s\u1EB5n: tariff-up, usd-strong, oil-spike, fed-cut, china-recovery, risk-off.", enum: ["tariff-up", "usd-strong", "oil-spike", "fed-cut", "china-recovery", "risk-off"] }, shocks: { type: "array", description: "C\xFA s\u1ED1c tu\u1EF3 ch\u1EC9nh [{factor, sigma}], sigma trong [-6, 6] t\xEDnh b\u1EB1ng \u0111\u1ED9 l\u1EC7ch chu\u1EA9n.", items: { type: "object" } }, horizon: { type: "number", description: "T\u1EA7m nh\xECn 1..12 th\xE1ng, m\u1EB7c \u0111\u1ECBnh 3.", minimum: 1, maximum: 12 } }) },
+  { name: "world_stock_profile", description: "H\u1ED3 s\u01A1 ph\u01A1i nhi\u1EC5m qu\u1ED1c t\u1EBF c\u1EE7a m\u1ED9t c\u1ED5 phi\u1EBFu: doanh thu theo v\xF9ng, ngo\u1EA1i t\u1EC7, \u0111\u1ED9 nh\u1EA1y sau co r\xFAt v\u1EC1 ng\xE0nh v\xE0 b\u1EADc b\u1EB1ng ch\u1EE9ng.", parameters: obj({ code: { type: "string", description: "M\xE3 c\u1ED5 phi\u1EBFu." } }, ["code"]) }
+];
+var WORLD_CHAT_GUIDELINES = `Quy t\u1EAFc b\u1ED5 sung khi d\xF9ng c\xF4ng c\u1EE5 world_*:
+1. B\u1EADc A: v\u01B0\u1EE3t ki\u1EC3m \u0111\u1ECBnh b\u1ED9i, \u1ED5n \u0111\u1ECBnh v\xE0 v\u01B0\u1EE3t ngo\xE0i m\u1EABu. B\u1EADc B: c\xF3 \xFD ngh\u0129a trong m\u1EABu. B\u1EADc C: gi\u1EA3 thuy\u1EBFt ho\u1EB7c ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng. Lu\xF4n n\xEAu b\u1EADc khi n\xEAu m\u1ED9t li\xEAn k\u1EBFt; kh\xF4ng g\u1ECDi b\u1EADc C l\xE0 "c\xF3 t\xE1c \u0111\u1ED9ng".
+2. S\u1EF1 ki\u1EC7n: n\xF3i r\xF5 ph\u1EA3n \u1EE9ng l\xE0 l\u1EE3i su\u1EA5t b\u1EA5t th\u01B0\u1EDDng so v\u1EDBi m\xF4 h\xECnh th\u1ECB tr\u01B0\u1EDDng, k\xE8m c\u1EEDa s\u1ED5 (\u22121, +3). S\u1EF1 ki\u1EC7n "pending" ch\u01B0a \u0111o \u0111\u01B0\u1EE3c.
+3. C\u1ED5 phi\u1EBFu: \u0111\u1ED9 nh\u1EA1y \u0111\xE3 co r\xFAt v\u1EC1 ng\xE0nh; b\u1EADc c\u1EE7a m\xE3 kh\xF4ng cao h\u01A1n b\u1EADc c\u1EE7a ng\xE0nh.
+4. K\u1EBFt n\u1ED1i th\u1ECB tr\u01B0\u1EDDng m\xF4 t\u1EA3 tr\u1EA1ng th\xE1i truy\u1EC1n bi\u1EBFn \u0111\u1ED9ng, kh\xF4ng d\u1EF1 b\xE1o h\u01B0\u1EDBng \u0111i; ph\u1EE5 thu\u1ED9c \u0111u\xF4i ch\u1EC9 n\xF3i v\u1EC1 x\xE1c su\u1EA5t c\xF9ng s\u1EE5t m\u1EA1nh.
+5. K\u1ECBch b\u1EA3n: conclusive = false ngh\u0129a l\xE0 ch\u01B0a k\u1EBFt lu\u1EADn \u0111\u01B0\u1EE3c h\u01B0\u1EDBng. \u0110\xE2y l\xE0 suy di\u1EC5n l\u1ECBch s\u1EED, kh\xF4ng ph\u1EA3i d\u1EF1 b\xE1o hay khuy\u1EBFn ngh\u1ECB mua b\xE1n.
+6. N\u1EBFu k\u1EBFt qu\u1EA3 c\xF3 notice (d\u1EEF li\u1EC7u m\xF4 ph\u1ECFng) h\xE3y n\xEAu ngay \u0111\u1EA7u c\xE2u tr\u1EA3 l\u1EDDi.`;
+var round2 = (v, d = 2) => Number.isFinite(v) ? Math.round(v * 10 ** d) / 10 ** d : NaN;
+function createWorldChatTools(api) {
+  const call = async (method, path, body) => {
+    const r = await api.handle({ method, path: `/api/world/${path}`, query: method === "GET" ? Object.fromEntries(Object.entries(body ?? {}).map(([k, v]) => [k, String(v)])) : {}, body: method === "POST" ? body : void 0 });
+    return { status: r.status, body: r.body };
+  };
+  const fail = (r) => ({ ok: false, error: String(r.body.error ?? `L\u1ED7i ${r.status}`) });
+  const withAsOf = (a, extra = {}) => ({ ...extra, ...a.asOf ? { asOf: a.asOf } : {} });
+  const handlers = {
+    async world_links(a) {
+      const r = await call("POST", "matrix", withAsOf(a));
+      if (r.status !== 200) return fail(r);
+      const name = Object.fromEntries(r.body.factors.map((f) => [f.id, f.nameVi]));
+      const sname = Object.fromEntries(r.body.sectors.map((s) => [s.id, s.nameVi]));
+      const all = r.body.cells.filter((c) => (!a.factor || c.factor === a.factor) && (!a.sector || c.sector === a.sector));
+      const rows = all.filter((c) => a.includeC === true || c.tier !== "C").sort((x, y) => Math.abs(y.t) - Math.abs(x.t)).slice(0, Math.min(15, Math.max(1, Math.floor(a.topN ?? 8))));
+      return {
+        ok: true,
+        notice: r.body.notice,
+        data: { counts: r.body.counts, matched: all.length, rows: rows.map((c) => ({ factor: c.factor, factorName: name[c.factor], sector: c.sector, sectorName: sname[c.sector], direction: c.direction === "+" ? "t\u0103ng" : "gi\u1EA3m", beta: round2(c.beta), t: round2(c.t, 1), q: c.q < 1e-3 ? "<0.001" : round2(c.q, 3), lagMonths: c.lag, tier: c.tier, reason: c.reasonVi })) },
+        guidance: ["Lu\xF4n n\xEAu b\u1EADc (A/B/C), h\u01B0\u1EDBng v\xE0 \u0111\u1ED9 tr\u1EC5 khi n\xEAu m\u1ED9t li\xEAn k\u1EBFt.", 'B\u1EADc C l\xE0 ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng ho\u1EB7c gi\u1EA3 thuy\u1EBFt, kh\xF4ng ph\u1EA3i "c\xF3 t\xE1c \u0111\u1ED9ng".', ...rows.length === 0 ? ["Kh\xF4ng c\xF3 li\xEAn k\u1EBFt b\u1EADc A/B n\xE0o tho\u1EA3 \u0111i\u1EC1u ki\u1EC7n: n\xF3i th\u1EADt l\xE0 ch\u01B0a t\xECm th\u1EA5y b\u1EB1ng ch\u1EE9ng."] : []]
+      };
+    },
+    async world_events(a) {
+      if (a.eventId) {
+        const r2 = await call("GET", `events/${a.eventId}`);
+        if (r2.status !== 200) return fail(r2);
+        const e = r2.body.event;
+        return {
+          ok: true,
+          notice: r2.body.notice,
+          data: { id: e.id, title: e.titleVi, tier: e.tier, status: e.status ?? null, sessionDate: r2.body.alignment?.date ?? null, sector: e.sectorName ?? null, carPct: e.car === void 0 ? null : round2(e.car), q: e.q === void 0 ? null : round2(e.q, 4), ci90: e.ci90 ? [round2(e.ci90[0]), round2(e.ci90[1])] : null, bmp: e.bmp ?? null, topSectors: r2.body.sectors.slice(0, 3).map((s) => ({ name: s.nameVi, carPct: round2(s.car) })), reason: e.reasonVi ?? null },
+          guidance: ["Ph\u1EA3n \u1EE9ng l\xE0 l\u1EE3i su\u1EA5t b\u1EA5t th\u01B0\u1EDDng t\xEDch lu\u1EF9 (\u22121, +3) so v\u1EDBi m\xF4 h\xECnh th\u1ECB tr\u01B0\u1EDDng.", 'S\u1EF1 ki\u1EC7n c\xF3 tier "pending" ch\u01B0a \u0111o \u0111\u01B0\u1EE3c; kh\xF4ng suy di\u1EC5n.']
+        };
+      }
+      const r = await call("GET", "events");
+      if (r.status !== 200) return fail(r);
+      return {
+        ok: true,
+        notice: r.body.notice,
+        data: { events: r.body.events.map((e) => ({ id: e.id, title: e.titleVi, tier: e.tier, sector: e.sectorName ?? null, carPct: e.car === void 0 ? null : round2(e.car, 1), q: e.q === void 0 ? null : round2(e.q, 4) })) },
+        guidance: ["Hi\u1EC7u ch\u1EC9nh ki\u1EC3m \u0111\u1ECBnh b\u1ED9i tr\xEAn to\xE0n b\u1ED9 s\u1EF1 ki\u1EC7n \xD7 ng\xE0nh.", "Tier C l\xE0 ch\u01B0a \u0111\u1EE7 b\u1EB1ng ch\u1EE9ng; pending l\xE0 ch\u01B0a \u0111\u1EE7 phi\xEAn \u0111\u1EC3 \u0111o."]
+      };
+    },
+    async world_connectedness() {
+      const r = await call("GET", "connectedness");
+      if (r.status !== 200) return fail(r);
+      const b = r.body;
+      return {
+        ok: true,
+        notice: b.notice,
+        data: { totalRecentPct: round2(b.recent.total, 1), totalFullSamplePct: round2(b.full.total, 1), vnReceivesFrom: b.vnReceivesFrom.map((x) => ({ market: x.nameVi, sharePct: round2(x.share, 1) })), netTransmitters: b.names.map((n, i) => ({ market: n, netPct: round2(b.recent.net[i], 1) })).sort((x, y) => y.netPct - x.netPct), tailDependence: b.tailDependence.map((t) => ({ market: t.nameVi, jointCrashProb: round2(t.lowerTail, 2), independentBaseline: t.independentBaseline })) },
+        guidance: ["\u0110o m\u1EE9c truy\u1EC1n bi\u1EBFn \u0111\u1ED9ng, kh\xF4ng d\u1EF1 b\xE1o h\u01B0\u1EDBng \u0111i.", "Ph\u1EE5 thu\u1ED9c \u0111u\xF4i l\xE0 x\xE1c su\u1EA5t c\xF9ng n\u1EB1m trong 5% ng\xE0y t\u1EC7 nh\u1EA5t; hai th\u1ECB tr\u01B0\u1EDDng \u0111\u1ED9c l\u1EADp cho kho\u1EA3ng 0,05."]
+      };
+    },
+    async world_scenario(a) {
+      if (!a.scenarioId && !(Array.isArray(a.shocks) && a.shocks.length)) return { ok: false, error: "C\u1EA7n scenarioId (tariff-up, usd-strong, oil-spike, fed-cut, china-recovery, risk-off) ho\u1EB7c shocks." };
+      const body = { horizon: a.horizon ?? 3 };
+      if (a.scenarioId) body.scenarioId = a.scenarioId;
+      else body.shocks = a.shocks;
+      const r = await call("POST", "scenario", body);
+      if (r.status !== 200) return fail(r);
+      return {
+        ok: true,
+        notice: r.body.notice,
+        data: { scenario: r.body.scenario.nameVi, horizonMonths: r.body.horizon, conclusiveSectors: r.body.conclusiveCount, sectors: r.body.sectors.map((s) => ({ name: s.nameVi, estPct: round2(s.est, 1), ciLowPct: round2(s.lo, 1), ciHighPct: round2(s.hi, 1), conclusive: s.conclusive })), stocks: r.body.stocks.slice(0, 5).map((s) => ({ code: s.code, sector: s.sectorName, estPct: round2(s.est, 1), tier: s.tier })), warnings: r.body.warnings },
+        guidance: ["Kho\u1EA3ng tin c\u1EADy 90%; conclusive = false ngh\u0129a l\xE0 ch\u01B0a k\u1EBFt lu\u1EADn \u0111\u01B0\u1EE3c h\u01B0\u1EDBng.", "B\u1EADc c\u1EE7a m\xE3 kh\xF4ng cao h\u01A1n b\u1EADc c\u1EE7a ng\xE0nh.", "Suy di\u1EC5n l\u1ECBch s\u1EED, kh\xF4ng ph\u1EA3i d\u1EF1 b\xE1o hay khuy\u1EBFn ngh\u1ECB."]
+      };
+    },
+    async world_stock_profile(a) {
+      const r = await call("GET", `stock/${a.code}`);
+      if (r.status !== 200) return fail(r);
+      const b = r.body;
+      return {
+        ok: true,
+        notice: b.notice,
+        data: { code: b.code, sector: b.sectorName, revenueByRegionPct: b.exposure.revenueByRegion, fxRevenuePct: round2(b.exposure.fxRevenueShare * 100, 0), fxDebtPct: round2(b.exposure.fxDebtShare * 100, 0), source: `${b.exposure.sourceRef}, k\u1EF3 ${b.exposure.asOfPeriod}`, betas: b.betas.map((x) => ({ factor: x.nameVi, own: round2(x.own), sectorPrior: round2(x.sectorPrior), shrunk: round2(x.shrunk), ownDataWeightPct: round2(x.ownWeight * 100, 0), tier: x.tier })) },
+        guidance: ["Ph\u01A1i nhi\u1EC5m l\xE0 d\u1EEF ki\u1EC7n t\u1EEB b\xE1o c\xE1o t\xE0i ch\xEDnh; \u0111\u1ED9 nh\u1EA1y l\xE0 \u01B0\u1EDBc l\u01B0\u1EE3ng \u0111\xE3 co r\xFAt v\u1EC1 ng\xE0nh.", "B\u1EADc c\u1EE7a m\xE3 kh\xF4ng cao h\u01A1n b\u1EADc c\u1EE7a ng\xE0nh."]
+      };
+    }
+  };
+  return {
+    specs: WORLD_TOOL_SPECS,
+    async run(name, args) {
+      const spec = WORLD_TOOL_SPECS.find((s) => s.name === name);
+      if (!spec) return { ok: false, error: `Kh\xF4ng c\xF3 c\xF4ng c\u1EE5 ${name}. C\xF4ng c\u1EE5 h\u1EE3p l\u1EC7: ${WORLD_TOOL_SPECS.map((s) => s.name).join(", ")}.` };
+      const bad = validateArgs(spec.parameters, args);
+      if (bad) return { ok: false, error: bad };
+      try {
+        return await handlers[name](args ?? {});
+      } catch {
+        return { ok: false, error: "L\u1ED7i n\u1ED9i b\u1ED9 khi ch\u1EA1y c\xF4ng c\u1EE5 th\u1EBF gi\u1EDBi." };
+      }
+    }
+  };
+}
 export {
   InMemoryVintageStore,
   MACRO_CHAT_SYSTEM_PROMPT,
   MACRO_TOOL_SPECS,
   SYNTHETIC_NOTICE,
   VN_CATALOG,
+  VN_SECTORS,
+  WORLD_CATALOG,
+  WORLD_CHAT_GUIDELINES,
+  WORLD_EXTRA_FACTORS,
+  WORLD_FACTOR_IDS,
+  WORLD_FACTOR_INFO,
+  WORLD_MARKETS,
+  WORLD_SCENARIOS,
+  WORLD_SYNTHETIC_NOTICE,
+  WORLD_TOOL_SPECS,
   catalogById,
   checkQuality,
   createMacroApi,
   createMacroChatTools,
+  createWorldApi,
+  createWorldChatTools,
   importSeriesCsv,
   makeSyntheticStore,
+  makeSyntheticWorld,
   normalizePeriod,
   toAnthropicTools,
-  validateArgs
+  validateArgs,
+  validateWorldEvent
 };
