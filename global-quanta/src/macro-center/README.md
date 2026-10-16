@@ -1,6 +1,6 @@
-# Trung tâm vĩ mô (MacroCenter) — bản tích hợp Global Quanta
+# macro-center (Trung tâm vĩ mô + Kết nối thế giới) — bản tích hợp Global Quanta
 
-Engine của gói `macro-center` 1.1: kiểm định tính dừng, OLS-HAC, hiệu chỉnh kiểm định bội, HMM, kịch bản, backtest và báo cáo. Gói này đã được đưa vào tab **Chất xúc tác → 1. Phân tích vĩ mô**. Bản gốc độc lập vẫn nằm ở `C:\Users\HP\macro-center`; tài liệu trong `docs/` là tài liệu bàn giao của gói gốc và được giữ lại để tham khảo.
+Engine của gói `macro-center` 1.2 (bản gốc: `Tuan macro-center-v1.2.zip`). Dùng cho tab **Chất xúc tác → 1. Phân tích vĩ mô** và tab **Kết nối thế giới → Truyền dẫn & bằng chứng**. Engine vĩ mô gồm: kiểm định tính dừng, OLS-HAC, hiệu chỉnh kiểm định bội, HMM, kịch bản, backtest và báo cáo. Gói này đã được đưa vào tab **Chất xúc tác → 1. Phân tích vĩ mô**. Bản gốc độc lập vẫn nằm ở `C:\Users\HP\macro-center`; tài liệu trong `docs/` là tài liệu bàn giao của gói gốc và được giữ lại để tham khảo.
 
 ## Chạy ở đâu
 
@@ -9,6 +9,7 @@ Engine của gói `macro-center` 1.1: kiểm định tính dừng, OLS-HAC, hi�
 | Engine (TS thuần) | `src/*.ts`, đóng gói cho Gateway bằng `npm run bundle:macro` thành `backend/src/market/macro/vendor/macroEngine.mjs`. Test `macroEngineBundle.test.ts` báo đỏ nếu quên đóng gói lại |
 | API `/api/macro/*` | Gateway (Railway): `backend/src/routes/macro.js`, `backend/src/market/macro/*`. Engine chạy trong worker thread |
 | Giao diện | `src/ui/*` (`MacroCenterTab`, các panel nguồn dữ liệu / chế độ / báo cáo trong `MacroExtraPanels.tsx`) |
+| Kết nối thế giới | `src/world-*.ts`, `src/ui/world/*`; API `/api/world/*` trên Gateway (`backend/src/routes/world.js`, `backend/src/market/world/*`). Xem `docs/SPEC-ket-noi-the-gioi.md` và `docs/INTEGRATION-NOTES.md` |
 | Công cụ chat | `src/macro-chat-tools.ts`, chạy trên Gateway (`POST /api/macro/tools/:name`), dùng cho tab "3. Hỏi đáp xúc tác" |
 
 ## Dữ liệu
@@ -26,4 +27,4 @@ Engine của gói `macro-center` 1.1: kiểm định tính dừng, OLS-HAC, hi�
 
 ## Test
 
-`npx vitest run src/components/MainTabs/ChatXucTac/MacroCenter` cho frontend và engine; `cd backend && node --test test/macroCenter.test.js` cho Gateway.
+`npx vitest run src/macro-center` cho frontend và engine; `cd backend && node --test test/macroCenter.test.js` cho Gateway.

@@ -1,4 +1,4 @@
-// Đóng gói động cơ vĩ mô (TS) cho Gateway (Node thuần): MacroCenter/src/gateway.ts -> backend/src/market/macro/vendor/macroEngine.mjs.
+// Đóng gói động cơ vĩ mô (TS) cho Gateway (Node thuần): src/macro-center/src/gateway.ts -> backend/src/market/macro/vendor/macroEngine.mjs.
 // Tất định (không dấu thời gian) để test macroEngineBundle.test.ts so sánh được với bản build lại.
 import { build } from "esbuild";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -6,11 +6,11 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const BUNDLE_OUT = fileURLToPath(new URL("../backend/src/market/macro/vendor/macroEngine.mjs", import.meta.url));
-export const BANNER = "// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: src/components/MainTabs/ChatXucTac/MacroCenter/src (gateway.ts). Tạo lại: npm run bundle:macro";
+export const BANNER = "// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: src/macro-center/src (gateway.ts). Tạo lại: npm run bundle:macro";
 
 export async function bundleMacro({ write = true } = {}) {
   const r = await build({
-    entryPoints: [fileURLToPath(new URL("../src/components/MainTabs/ChatXucTac/MacroCenter/src/gateway.ts", import.meta.url))],
+    entryPoints: [fileURLToPath(new URL("../src/macro-center/src/gateway.ts", import.meta.url))],
     bundle: true, format: "esm", platform: "node", target: "node20", write: false, legalComments: "none",
     banner: { js: BANNER }, logLevel: "silent",
   });

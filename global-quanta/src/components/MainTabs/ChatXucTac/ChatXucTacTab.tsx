@@ -18,7 +18,7 @@ import MarketAnnouncementWatchPanel from "./MarketAnnouncementWatchPanel";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
-import { MacroCenterTab } from "./MacroCenter/src/ui/MacroCenterTab";
+import { MacroCenterTab } from "../../../macro-center/src/ui/MacroCenterTab";
 import { getMarketGateway } from "../../../config/marketGateway";
 import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";

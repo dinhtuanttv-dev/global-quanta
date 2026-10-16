@@ -1,9 +1,9 @@
 // @vitest-environment node
-// Bản đóng gói động cơ vĩ mô của Gateway phải trùng khớp bản build lại từ mã nguồn — sửa MacroCenter/src mà quên `npm run bundle:macro` -> test đỏ.
+// Bản đóng gói động cơ vĩ mô của Gateway phải trùng khớp bản build lại từ mã nguồn — sửa src/macro-center/src mà quên `npm run bundle:macro` -> test đỏ.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 // @ts-expect-error — script JS
-import { bundleMacro, BUNDLE_OUT } from "../../../../../../scripts/bundle-macro.mjs";
+import { bundleMacro, BUNDLE_OUT } from "../../../scripts/bundle-macro.mjs";
 
 describe("Bản đóng gói động cơ vĩ mô cho Gateway", () => {
   it("backend/src/market/macro/vendor/macroEngine.mjs khớp mã nguồn hiện tại", async () => {

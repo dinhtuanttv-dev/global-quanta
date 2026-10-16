@@ -654,6 +654,13 @@ export function diagnoseIntegration(y: number[], opts: { trending?: boolean } = 
   const kpss = kpssTest(y, { trend: opts.trending ? 'ct' : 'c' });
   if (adf.rejectUnitRoot5 && !kpss.rejectStationarity5) return { klass: 'I(0)', adf, kpss };
   if (!adf.rejectUnitRoot5 && kpss.rejectStationarity5) return { klass: 'I(1)', adf, kpss };
+  // Persistent but stationary series (PMI, spreads, VIX...) inflate KPSS, especially with the short
+  // bandwidth. Arbitrate with a long-bandwidth KPSS (Schwert l12): if ADF rejects at 1% and the
+  // long-bandwidth KPSS does not reject at 1%, trust the strong ADF rejection instead of differencing.
+  if (adf.pValue < 0.01 && kpss.rejectStationarity5) {
+    const long = kpssTest(y, { trend: opts.trending ? 'ct' : 'c', lags: Math.ceil(12 * Math.pow(y.length / 100, 0.25)) });
+    if (long.pValue > 0.01) return { klass: 'I(0)', adf, kpss };
+  }
   if (y.length >= 40) {
     const za = zivotAndrewsTest(y, { model: 'intercept' });
     if (za.rejectUnitRoot5 && !adf.rejectUnitRoot5) return { klass: 'break-stationary', adf, kpss, za };
