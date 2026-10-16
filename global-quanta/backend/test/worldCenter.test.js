@@ -194,7 +194,8 @@ test("worldSignalFromScore: chỉ dùng khi có liên kết bậc A VÀ cổng n
 test("worldCore: công cụ chat world_* chạy qua engine; tín hiệu ngành ở chế độ mô phỏng = không dùng được", async () => {
   const core = createWorldCore({ today: () => "2026-10-16" });
   const specs = core.toolSpecs();
-  assert.equal(specs.anthropic.length, 5);
+  assert.equal(specs.anthropic.length, 6);
+  assert.ok(specs.anthropic.some((t) => t.name === "world_confirmatory"));
   assert.match(specs.guidelines, /bậc C/);
   const ev = await core.runTool("world_events", {});
   assert.equal(ev.ok, true);
