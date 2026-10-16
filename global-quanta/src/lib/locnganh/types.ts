@@ -186,7 +186,7 @@ export type SectorTimingSignalV2 = SectorTimingSignal & {
 export interface SectorTimingBulkV2 extends SectorTimingSignalsBulkV3 {
   signals: SectorTimingSignalV2[];
   gateway?: { engine: string; dataAsOf: string; closedThrough: string | null; method: string };
-  market?: { riskOnScore: number | null; macroRegime: MacroRegime };
+  market?: { riskOnScore: number | null; macroRegime: MacroRegime; riskOnRegime?: MacroRegime; riskOnInDecision?: boolean; riskOnEvidence?: { label: string; reason: string } };
   evidence?: { label: string; reason: string };
 }
 /** Chi tiết một ngành (Project A /api/locnganh/sector-cycle?code=). */

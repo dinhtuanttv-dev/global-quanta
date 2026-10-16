@@ -4,6 +4,7 @@ import { useAppStore } from "../../../store/useAppStore";
 import { useSectorPulse } from "../../../hooks/useSectorPulse";
 import { useSectorPulseRegion } from "../../../hooks/useSectorPulseRegion";
 import { computeBeneficiaryStocks } from "../../../lib/beneficiary-stocks";
+import EvidenceTag from "./EvidenceTag";
 import type { MacroTrendRow, MacroCommodityDeltas } from "../../../hooks/useGlobalStream";
 import WinRateBadge from "./WinRateBadge";
 
@@ -49,10 +50,7 @@ function BeneficiaryStocksPanel({ macro, commodityDeltas }: Props) {
           <Sparkles className="w-3.5 h-3.5" style={{ color: T.gold }} />
           <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Cổ Phiếu Được Hưởng Lợi / Chịu Áp Lực</p>
         </div>
-        <span title="Tính trực tiếp từ dữ liệu ngành + hàng hóa đã fetch sẵn qua bảng ánh xạ cố định - KHÔNG qua AI, không tốn phí, cập nhật liên tục"
-          className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>
-          HARD_DATA
-        </span>
+        <EvidenceTag kind="heuristic" title="Bảng ánh xạ đặt tay từ biến động ngành/hàng hoá → mã VN (không qua AI). Chưa qua kiểm định ngoài mẫu — chỉ tham khảo." />
       </div>
       <div className="mb-2">
         <WinRateBadge />

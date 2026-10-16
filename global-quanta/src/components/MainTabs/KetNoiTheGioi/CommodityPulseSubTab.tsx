@@ -4,6 +4,7 @@ import { useHousingPrices } from "../../../hooks/useHousingPrices";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
 import type { MacroTrendRow } from "../../../hooks/useGlobalStream";
 import StalenessBadge from "./StalenessBadge";
+import EvidenceTag from "./EvidenceTag";
 import TrendSparkline from "./TrendSparkline";
 
 const T = {
@@ -110,7 +111,7 @@ export default function CommodityPulseSubTab({ macro }: CommodityPulseSubTabProp
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Hàng Hóa Chiến Lược</p>
-            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>HARD_DATA</span>
+            <EvidenceTag kind="data" />
           </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             <CommodityCard icon={<Coins className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Vàng"
@@ -156,10 +157,7 @@ export default function CommodityPulseSubTab({ macro }: CommodityPulseSubTabProp
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Xu Hướng Giá Nhà Thế Giới</p>
-          <span title="Bank for International Settlements - dữ liệu theo quý"
-            className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>
-            HARD_DATA (BIS)
-          </span>
+          <EvidenceTag kind="data" title="Bank for International Settlements — số liệu thật theo quý" />
         </div>
         {housingLoading && (
           <p className="text-xs italic py-3 text-center" style={{ color: T.textTertiary }}>Đang tải...</p>
