@@ -3,12 +3,29 @@ import { mutate } from "swr";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
-interface AnalysisResult {
-  market: { summaryVi: string; affectedSectorKeys: string[]; direction: "positive" | "negative" | "mixed"; confidence: number; evidenceRefs: string[] } | null;
+/** Một ngành trong kết quả AI (Project A, từ 2026-09-11; mã ICB + kiểm chứng bằng code từ 2026-10-17). */
+export interface AiSector {
+  sectorKey: string;
+  direction: "bullish" | "bearish" | "neutral";
+  confidence: number;
+  reasoningVi: string;
+  evidenceRefs: string[];
+  verified: boolean;
+  discrepancies: string[];
+  quant?: { shortScore: number | null; shortLabel: string; mediumScore: number | null; shortEvidence: string } | null;
+  vnTickers?: string[];
+  sectorNameVi?: string | null;
+}
+
+export interface AnalysisResult {
+  overallSummaryVi: string;
+  sectors: AiSector[];
   news: unknown;
-  evidence: { verified: boolean; discrepancies: string[]; finalConfidence: number };
-  finalConfidence: number;
+  newsVerified: boolean;
+  newsDiscrepancies: string[];
   disclaimer: string;
+  mode?: "gateway-icb" | "legacy";
+  context?: { source: string; dataPoints: number; generatedAt?: string };
   // MUC 4: minh bach cho biet day la ket qua cache (khong ton phi Gemini
   // lan nay) hay moi goi that.
   cached?: boolean;

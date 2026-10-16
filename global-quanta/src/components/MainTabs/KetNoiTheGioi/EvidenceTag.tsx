@@ -28,10 +28,10 @@ export function EvidencePriorityNote() {
   return (
     <p className="text-[9px] leading-relaxed rounded-lg px-3 py-2"
       style={{ color: "var(--text-tertiary, #64748b)", background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.1)" }}>
-      <b style={{ color: "var(--text-secondary, #94a3b8)" }}>Quy tắc ưu tiên:</b> các bảng gắn nhãn HEURISTIC (Risk-On, Top ngành, cổ phiếu
-      hưởng lợi/chịu áp lực) là luật đặt tay. Khi chúng nói khác với tab <i>Truyền dẫn &amp; bằng chứng</i>, chỉ liên kết <b>bậc A/B</b> mới
-      được ưu tiên; bậc C nghĩa là <i>chưa có bằng chứng</i> — không xác nhận cũng không bác bỏ heuristic. Risk-On đã kiểm định đặt trước
-      (10 năm, 124 mẫu) và <b>không đạt</b> nên không được dùng trong quyết định Lọc ngành.
+      <b style={{ color: "var(--text-secondary, #94a3b8)" }}>Quy tắc ưu tiên:</b> nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước —
+      xếp hạng ngành thuận/ngược gió <b>ngắn hạn</b> (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC
+      (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với tab <i>Truyền dẫn &amp; bằng chứng</i>, chỉ liên kết <b>bậc A/B</b> mới được
+      ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và <b>không đạt</b> nên không dùng trong quyết định Lọc ngành.
     </p>
   );
 }

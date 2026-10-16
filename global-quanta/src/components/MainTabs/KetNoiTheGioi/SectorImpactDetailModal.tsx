@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { TrendingUp, TrendingDown, Minus, X } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
+import { sectorNameOf } from "../../../lib/worldSectors/sectorNames";
 import { lookupSectorMapping } from "../../../lib/macro-mapping";
 
 const T = {
@@ -58,7 +59,6 @@ export default function SectorImpactDetailModal({ sector, onClose }: Props) {
 
   if (!sector) return null;
   const meta = directionMeta(sector.direction);
-  const mapping = lookupSectorMapping(sector.sectorKey);
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4" style={{ background: "rgba(2,6,15,0.75)" }}>
@@ -66,7 +66,7 @@ export default function SectorImpactDetailModal({ sector, onClose }: Props) {
         style={{ background: "#0B0F19", border: "1px solid rgba(148,163,184,0.15)", boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}>
         <div className="flex items-start justify-between mb-3">
           <div>
-            <p className="text-sm font-bold" style={{ color: "#f1f5f9" }}>{mapping?.sectorLabelVi ?? sector.sectorKey}</p>
+            <p className="text-sm font-bold" style={{ color: "#f1f5f9" }}>{sectorNameOf(sector.sectorKey)}</p>
             <div className="flex items-center gap-1.5 mt-1">
               <meta.Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
               <span className="text-xs font-bold" style={{ color: meta.color }}>{meta.label}</span>
@@ -82,8 +82,8 @@ export default function SectorImpactDetailModal({ sector, onClose }: Props) {
           <p className="text-xs leading-relaxed mb-3" style={{ color: "#cbd5e1" }}>{sector.reasoningVi}</p>
         )}
 
-        {mapping?.transmissionNote && (
-          <p className="text-[10px] leading-relaxed mb-3 italic" style={{ color: T.textTertiary }}>{mapping.transmissionNote}</p>
+        {lookupSectorMapping(sector.sectorKey)?.transmissionNote && (
+          <p className="text-[10px] leading-relaxed mb-3 italic" style={{ color: T.textTertiary }}>{lookupSectorMapping(sector.sectorKey)?.transmissionNote}</p>
         )}
 
         {sector.evidenceRefs.length > 0 && (
