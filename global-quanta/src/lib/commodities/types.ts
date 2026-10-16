@@ -66,3 +66,31 @@ export function staleDays(item: Pick<CommodityItem, "freq" | "period" | "source"
   const days = Math.floor((now - Date.parse(ref)) / 86_400_000);
   return days > (item.freq === "month" ? 45 : 5) ? days : null;
 }
+
+export type CommodityRange = "1y" | "3y" | "5y" | "10y";
+
+export interface CommodityRelation {
+  kind: "icb" | "ticker"; code: string; labelVi: string; unavailable?: boolean;
+  n?: number; window?: number; corr?: number | null; beta?: number | null; band?: number; significant?: boolean;
+  rolling?: [string, number | null][]; leadLag?: { lag: number; r: number | null; n: number }[]; bestLag?: { lag: number; r: number | null };
+  basisVi?: string; exploratory?: boolean;
+}
+
+export interface CommodityStats {
+  last: number; lastDate: string; changes: Record<string, number | null>;
+  high1y: number; low1y: number; percentile5y: number | null; zScore1y: number | null; drawdown5y: number | null;
+  vol: { now: number | null; avg5y: number | null; window: number; unitVi: string };
+  volSeries: [string, number][]; ddSeries: [string, number][]; n: number;
+}
+
+export interface CommodityHistory {
+  id: string; nameVi: string; unit: string; group: string; worldFactor: string | null; vnPrice: boolean; twoWayVi: string | null; range: CommodityRange;
+  available: boolean; reasonVi?: string; freq?: CommodityFreq; source: CommoditySource; from?: string; to?: string;
+  world?: [string, number][];
+  vnd?: { labelVi: string; source: string; points: [string, number][] };
+  vnSeries?: { kind: "icb" | "ticker"; code: string; labelVi: string; priceBasis: string; warnings?: string[]; first: string | null; last: string | null }[];
+  chart?: { key: string; labelVi: string; rebased: [string, number][] }[];
+  stats?: CommodityStats | null;
+  relations?: CommodityRelation[];
+  notes?: string[];
+}
