@@ -5,7 +5,7 @@ import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
 const strQuery = (q) => Object.fromEntries(Object.entries(q ?? {}).filter(([, v]) => typeof v === "string"));
-const HEAVY = /^\/(matrix|scenario|connectedness|overview)$/;
+const HEAVY = /^\/(matrix|scenario|connectedness|overview|confirmatory)$/;
 
 export function createWorldRouter({ getService, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
   const router = Router();
@@ -46,7 +46,7 @@ export function createWorldRouter({ getService, adminToken = () => process.env.M
     res.json(await getService().refresh({ force: true }));
   }));
 
-  router.all(/^\/(series|overview|matrix|connectedness|events|events\/[A-Za-z0-9_-]+|stock\/[A-Za-z0-9_-]+|scenario)$/,
+  router.all(/^\/(series|overview|matrix|confirmatory|connectedness|events|events\/[A-Za-z0-9_-]+|stock\/[A-Za-z0-9_-]+|scenario)$/,
     (req, res, next) => (HEAVY.test(req.path) ? computeRl : readRl)(req, res, next),
     wrap(async (req, res) => {
       const method = req.method === "HEAD" ? "GET" : req.method;

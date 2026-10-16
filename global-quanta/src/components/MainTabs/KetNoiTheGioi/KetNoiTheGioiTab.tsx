@@ -9,6 +9,9 @@ import TopSectorsPanel from "./TopSectorsPanel";
 import StockImpactTable from "./StockImpactTable";
 import BeneficiaryStocksPanel from "./BeneficiaryStocksPanel";
 import WorldSourcePanel from "./WorldSourcePanel";
+import WorldConfirmatoryPanel from "./WorldConfirmatoryPanel";
+import useSWR from "swr";
+import { fetchMarketJson } from "../../../services/marketDataClient";
 import EvidenceTag, { EvidencePriorityNote } from "./EvidenceTag";
 import { WorldTab } from "../../../macro-center/src/ui/world/WorldTab";
 import { getMarketGateway } from "../../../config/marketGateway";
@@ -63,6 +66,10 @@ export default function KetNoiTheGioiTab() {
   // "world" = Truyền dẫn & bằng chứng (engine world của gói macro-center 1.2 trên Gateway, số liệu thật).
   const [activeSubTab, setActiveSubTab] = useState<"market" | "commodity" | "world">("market");
 
+  // Hồ sơ cổ phiếu (W7): chỉ hiện khi Gateway có dữ liệu phơi nhiễm thật (chưa có -> 422)
+  const { data: stockProbe } = useSWR(activeSubTab === "world" ? "world-stock-probe" : null,
+    () => fetchMarketJson("/api/world/stock/HPG").then(() => true, () => false), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
+  const stockProfileReady = stockProbe === true;
   const macro = data?.macro ?? null;
   const markets = data?.markets ?? [];
   const displayedMarkets = showAllMarkets ? markets : markets.slice(0, 6);
@@ -309,7 +316,12 @@ export default function KetNoiTheGioiTab() {
             Quan hệ thống kê lịch sử, không phải dự báo hay khuyến nghị.
           </p>
           <WorldSourcePanel />
-          <WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" />
+          <WorldConfirmatoryPanel />
+          <p className="text-[9.5px]" style={{ color: T.textTertiary }}>
+            Bên dưới là phần <b>thăm dò</b>: 13 yếu tố × 10 ngành, chọn trễ tốt nhất 0–6. Bậc A/B ở đây là tham khảo; quyết định Lọc ngành chỉ dùng cổng xác nhận phía trên.
+            {!stockProfileReady && " Hồ sơ cổ phiếu đang ẩn vì chưa có dữ liệu phơi nhiễm quốc tế thật cho từng mã."}
+          </p>
+          <WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" hideStock={!stockProfileReady} />
         </div>
       )}
     </div>

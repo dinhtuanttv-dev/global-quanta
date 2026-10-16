@@ -3,7 +3,8 @@
  *
  *   GET  /api/world/series         catalog of factors, sectors, markets, scenarios
  *   GET  /api/world/overview       pulse of world factors, tier counts, spillover, pending events
- *   POST /api/world/matrix         factor × sector impact matrix with evidence tiers
+ *   POST /api/world/matrix         factor × sector impact matrix with evidence tiers (EXPLORATORY)
+ *   GET  /api/world/confirmatory   pre-registered 12-pair confirmatory gate (docs/WORLD-W3-prereg.md)
  *   GET  /api/world/connectedness  Diebold-Yilmaz table, rolling total, tail dependence
  *   GET  /api/world/events         event list with CAR, q-values and tiers
  *   GET  /api/world/events/:id     event-study detail
@@ -21,6 +22,7 @@ import { connectedness, rollingConnectedness, tailDependence } from './world-con
 import { alignEventToSession, bmpTest, eventStudy, type EventStudyResult } from './world-events';
 import { hierarchicalShrink } from './world-shrinkage';
 import { assignTier, stockTier, summarizeTiers } from './world-evidence';
+import { runConfirmatory } from './world-confirmatory';
 import { channelExposure } from './world-transmission';
 import {
   CHANNEL_NAMES_VI, VN_SECTORS, WORLD_FACTOR_IDS, WORLD_FACTOR_INFO, WORLD_MARKETS, TIER_MEANING_VI, type EvidenceTier,
@@ -127,6 +129,15 @@ export function createWorldApi(deps: WorldApiDeps) {
       });
     });
 
+  // ── pre-registered confirmatory gate (W3) ──
+  const confirmatory = (asOf: string) =>
+    memo(`confirmatory|${asOf}`, () => {
+      const m = monthly(asOf);
+      const r = runConfirmatory(m.prep);
+      return { asOf, firstPeriod: m.ds.dates[0], lastPeriod: m.ds.dates[m.ds.dates.length - 1], notice: deps.notice, ...r,
+        rows: r.rows.map((x) => ({ ...x, factorName: nameOf[x.factor], sectorName: sectorName[x.sector] })) };
+    });
+
   // ── connectedness ──
   const marketMatrix = () => world.tradingDays.map((_, t) => WORLD_MARKETS.map((m) => world.markets[m.id][t]));
   const connectednessReport = (window: number, H: number, step: number) =>
@@ -148,12 +159,19 @@ export function createWorldApi(deps: WorldApiDeps) {
     });
 
   // ── events ──
+  // W5 (2026-10-16): ngành mục tiêu ĐỊNH TRƯỚC = sectorsHint[0] (không chọn ngành có p nhỏ nhất); họ BY xác nhận = một kiểm định /
+  // sự kiện; sự kiện có chiều (polarityHint ≠ 0) phải đúng chiều; cửa sổ (−1,+3) trùng sự kiện khác -> bị nhiễu, tối đa bậc C;
+  // nhân rộng BMP theo loại chỉ dùng sự kiện không trùng cửa sổ. Kết quả các ngành khác vẫn có (q toàn bảng) nhưng là THĂM DÒ.
+  const EVENT_WINDOW = { lo: -1, hi: 3 };
   interface Study {
     id: string;
     ev: WorldData['events'][number];
     align: ReturnType<typeof alignEventToSession>;
     results: Record<string, EventStudyResult>;
     q: Record<string, number>;
+    primary: string | null;
+    qPrimary: number | null;
+    overlapsWith: string[];
   }
   const studies = (): Study[] =>
     memo('studies', () => {
@@ -164,31 +182,61 @@ export function createWorldApi(deps: WorldApiDeps) {
           const r = eventStudy(world.sectors[s.id], world.markets.VN, align.index);
           if (r) results[s.id] = r;
         }
-        return { id: ev.id, ev, align, results, q: {} };
+        const h0 = ev.sectorsHint[0];
+        const primary = h0 && results[h0] ? h0 : null;
+        return { id: ev.id, ev, align, results, q: {}, primary, qPrimary: null, overlapsWith: [] };
       });
+      const span = EVENT_WINDOW.hi - EVENT_WINDOW.lo;
+      for (const a of list) for (const b of list)
+        if (a !== b && a.align && b.align && Math.abs(a.align.index - b.align.index) <= span) a.overlapsWith.push(b.id);
       const flat: { i: number; sec: string; p: number }[] = [];
       list.forEach((s, i) => Object.entries(s.results).forEach(([sec, r]) => flat.push({ i, sec, p: r.p })));
       const q = adjustPValues(flat.map((f) => f.p), 'by');
       flat.forEach((f, k) => (list[f.i].q[f.sec] = q[k]));
+      const prim = list.map((s, i) => ({ i, p: s.primary ? s.results[s.primary].p : NaN })).filter((x) => Number.isFinite(x.p));
+      const qp = adjustPValues(prim.map((x) => x.p), 'by');
+      prim.forEach((x, k) => (list[x.i].qPrimary = qp[k]));
       return list;
     });
   const bmpFor = (type: string, sector: string) => {
-    const items = studies().filter((s) => s.ev.type === type && s.results[sector]).map((s) => ({ car: s.results[sector].car, varCar: s.results[sector].varCar }));
+    // cụm trùng cửa sổ chỉ giữ sự kiện đầu tiên (không đếm một cú sốc hai lần)
+    const seen = new Set<string>();
+    const items: { car: number; varCar: number }[] = [];
+    for (const s of studies().filter((x) => x.ev.type === type && x.results[sector]).sort((a, b) => (a.align!.index - b.align!.index))) {
+      if (s.overlapsWith.some((o) => seen.has(o))) { seen.add(s.id); continue; }
+      seen.add(s.id);
+      // sự kiện có chiều: quy về cùng hướng (CAR × chiều) để tin xấu và tin tốt cùng loại không triệt tiêu nhau
+      items.push({ car: s.results[sector].car * (s.ev.polarityHint || 1), varCar: s.results[sector].varCar });
+    }
     return bmpTest(items);
   };
   const eventRow = (s: Study) => {
     const candidates = Object.keys(s.results);
     if (!candidates.length || !s.align) return { id: s.id, titleVi: s.ev.titleVi, kind: s.ev.kind, type: s.ev.type, region: s.ev.region, tsUtc: s.ev.tsUtc, sessionDate: s.align?.date ?? null, tier: 'pending', status: 'Chờ đủ phiên sau sự kiện' };
-    const hinted = candidates.filter((c) => s.ev.sectorsHint.includes(c));
-    const pool = hinted.length ? hinted : candidates;
-    const best = pool.reduce((a, b) => (s.results[b].p < s.results[a].p ? b : a));
+    const exploratoryBest = candidates.reduce((a, b) => (s.results[b].p < s.results[a].p ? b : a));
+    const overlapTitles = s.overlapsWith.map((id) => world.events.find((e) => e.id === id)?.titleVi ?? id);
+    if (!s.primary) {
+      const r = s.results[exploratoryBest];
+      return {
+        id: s.id, titleVi: s.ev.titleVi, kind: s.ev.kind, type: s.ev.type, region: s.ev.region, tsUtc: s.ev.tsUtc, sessionDate: s.align.date, sameDay: s.align.sameDay,
+        sector: exploratoryBest, sectorName: sectorName[exploratoryBest], prespecified: false, car: r.car, se: r.se, t: r.t, p: r.p, q: s.q[exploratoryBest],
+        ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se], bmp: null, tier: 'C' as EvidenceTier, polarity: s.ev.polarityHint, signOk: null, overlapsWith: overlapTitles,
+        reasonVi: 'Không có ngành mục tiêu định trước — ngành hiển thị là ngành có p nhỏ nhất (thăm dò), không phải bằng chứng.', limitDays: r.limitDaysInWindow, extraction: s.ev.extraction ?? null,
+      };
+    }
+    const best = s.primary;
     const r = s.results[best];
     const bmp = bmpFor(s.ev.type, best);
-    const replicated = !!bmp && bmp.p < 0.05 && Math.sign(bmp.caar) === Math.sign(r.car);
-    const { tier, reasonVi } = assignTier({ q: s.q[best], stable: replicated, oosPass: replicated });
+    const signOk = s.ev.polarityHint === 0 ? null : Math.sign(r.car) === s.ev.polarityHint;
+    const replicated = !!bmp && bmp.p < 0.05 && Math.sign(bmp.caar) === Math.sign(r.car * (s.ev.polarityHint || 1));
+    let { tier, reasonVi } = assignTier({ q: s.qPrimary ?? 1, stable: replicated, oosPass: replicated });
+    if (signOk === false && tier !== 'C') { tier = 'C'; reasonVi = 'Ngược chiều dự kiến của sự kiện — không tính là bằng chứng.'; }
+    if (s.overlapsWith.length && tier !== 'C') { tier = 'C'; reasonVi = `Cửa sổ (−1,+3) trùng sự kiện khác (${overlapTitles.join('; ')}) — không tách được tác động.`; }
     return {
       id: s.id, titleVi: s.ev.titleVi, kind: s.ev.kind, type: s.ev.type, region: s.ev.region, tsUtc: s.ev.tsUtc, sessionDate: s.align.date, sameDay: s.align.sameDay,
-      sector: best, sectorName: sectorName[best], car: r.car, se: r.se, t: r.t, p: r.p, q: s.q[best], ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se],
+      sector: best, sectorName: sectorName[best], prespecified: true, car: r.car, se: r.se, t: r.t, p: r.p, q: s.qPrimary ?? 1, qAllCells: s.q[best],
+      ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se], polarity: s.ev.polarityHint, signOk, overlapsWith: overlapTitles,
+      exploratoryBest: exploratoryBest !== best ? { sector: exploratoryBest, sectorName: sectorName[exploratoryBest], car: s.results[exploratoryBest].car, p: s.results[exploratoryBest].p } : null,
       bmp: bmp ? { n: bmp.n, t: bmp.t, p: bmp.p } : null, tier, reasonVi, limitDays: r.limitDaysInWindow, extraction: s.ev.extraction ?? null,
     };
   };
@@ -293,8 +341,9 @@ export function createWorldApi(deps: WorldApiDeps) {
         return { status: 200, body: { notice: deps.notice, factors: WORLD_FACTOR_IDS.map((id) => ({ id, nameVi: nameOf[id], ...WORLD_FACTOR_INFO[id] })), sectors: VN_SECTORS, markets: WORLD_MARKETS, scenarios: WORLD_SCENARIOS, tierMeaning: TIER_MEANING_VI } };
       if (m === 'GET' && path === '/api/world/overview') return { status: 200, body: await overview(asOfOf(q.asOf)) };
       if (m === 'POST' && path === '/api/world/matrix') return { status: 200, body: await matrix(asOfOf(body.asOf), intIn(body.maxLag, 'maxLag', 1, 12, 6)) };
+      if (m === 'GET' && path === '/api/world/confirmatory') return { status: 200, body: confirmatory(asOfOf(q.asOf)) };
       if (m === 'GET' && path === '/api/world/connectedness') return { status: 200, body: { notice: deps.notice, ...connectednessReport(intIn(q.window, 'window', 120, 1000, 250), intIn(q.H, 'H', 1, 30, 10), intIn(q.step, 'step', 5, 200, 40)) } };
-      if (m === 'GET' && path === '/api/world/events') return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: 'Benjamini-Yekutieli trên toàn bộ sự kiện × ngành' } };
+      if (m === 'GET' && path === '/api/world/events') return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: 'Xác nhận: Benjamini-Yekutieli trên ngành mục tiêu định trước (1 kiểm định / sự kiện); q toàn bảng sự kiện × ngành chỉ để thăm dò' } };
       const em = /^\/api\/world\/events\/([A-Za-z0-9_-]+)$/.exec(path);
       if (m === 'GET' && em) {
         const s = studies().find((x) => x.id === em[1]);

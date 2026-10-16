@@ -241,3 +241,14 @@ test("W2 spliceSectorReturns: rổ trước ngày ICB bắt đầu, ICB sau đó
   for (const k of Object.keys(SECTOR_ICB)) assert.ok(B[k], k);
   assert.equal(SECTOR_ICB.S_SEAFOOD, undefined);
 });
+
+test("W4 fredMonthly: tháng đã đóng, ngày công bố theo asOfDay của tháng sau; nguồn FRED cho TARIFF/PMI_US (proxy ghi rõ)", async () => {
+  const { fredMonthly, WORLD_MONTHLY_FRED, WORLD_FACTORS_WITHOUT_SOURCE } = await import("../src/market/world/worldData.js");
+  const m = fredMonthly([{ date: "2026-08-01", value: 5 }, { date: "2026-09-01", value: 6 }, { date: "2026-10-01", value: 7 }], "2026-10-16", 10);
+  assert.deepEqual(m, [{ period: "2026-08", value: 5, asOf: "2026-09-10" }, { period: "2026-09", value: 6, asOf: "2026-10-10" }]);
+  assert.equal(fredMonthly([{ date: "2025-12-01", value: 1 }], "2026-02-01")[0].asOf, "2026-01-01");
+  assert.equal(WORLD_MONTHLY_FRED.TARIFF.id, "EPUTRADE");
+  assert.equal(WORLD_MONTHLY_FRED.PMI_US.proxy, true);
+  assert.equal(WORLD_FACTORS_WITHOUT_SOURCE.TARIFF, undefined);
+  assert.equal(WORLD_FACTORS_WITHOUT_SOURCE.PMI_US, undefined);
+});

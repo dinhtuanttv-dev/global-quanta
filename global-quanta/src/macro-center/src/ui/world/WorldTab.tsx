@@ -16,7 +16,7 @@ const { WorldScenario, StockProfile } = ScenarioStockImports;
 
 type TabId = 'overview' | 'matrix' | 'events' | 'connect' | 'scenario' | 'stock';
 const TABS: { id: TabId; label: string }[] = [
-  { id: 'overview', label: 'Tổng quan' }, { id: 'matrix', label: 'Ngành' }, { id: 'events', label: 'Sự kiện' },
+  { id: 'overview', label: 'Tổng quan' }, { id: 'matrix', label: 'Ngành (thăm dò)' }, { id: 'events', label: 'Sự kiện' },
   { id: 'connect', label: 'Kết nối thị trường' }, { id: 'scenario', label: 'Kịch bản' }, { id: 'stock', label: 'Hồ sơ cổ phiếu' },
 ];
 
@@ -27,8 +27,8 @@ interface OverviewPayload { notice?: string; pulse: PulseItem[]; tierCounts: Rec
 const CHANNELS: Record<string, string> = { commodity: 'Hàng hoá', fx_rates: 'Tỷ giá, lãi suất', capital_flow: 'Dòng vốn', export_demand: 'Cầu xuất khẩu', risk_sentiment: 'Tâm lý rủi ro', policy_trade: 'Chính sách thương mại' };
 
 /** Import './world.css' once in your app entry. theme: 'light' | 'dark' | 'auto' (follows the OS). */
-/** hideHeader: ẩn tiêu đề khi nhúng trong một tab đã có tiêu đề riêng (Global Quanta). */
-export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?: 'light' | 'dark' | 'auto'; initialStock?: string; hideHeader?: boolean }) {
+/** hideHeader: ẩn tiêu đề khi nhúng trong một tab đã có tiêu đề riêng (Global Quanta). hideStock: ẩn hồ sơ cổ phiếu khi chưa có dữ liệu phơi nhiễm thật. */
+export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?: 'light' | 'dark' | 'auto'; initialStock?: string; hideHeader?: boolean; hideStock?: boolean }) {
   const client = useMemo(() => props.client ?? createWorldClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
   const [tab, setTab] = useState<TabId>('overview');
   const [filter, setFilter] = useState<WorldFilter>(DEFAULT_WORLD_FILTER);
@@ -65,7 +65,7 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
       )}
       <Notice text={notice} />
       <nav className="tabs" aria-label="Các phần của Kết nối thế giới">
-        {TABS.map((t) => (<button key={t.id} type="button" aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>{t.label}</button>))}
+        {TABS.filter((t) => !(props.hideStock && t.id === 'stock')).map((t) => (<button key={t.id} type="button" aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>{t.label}</button>))}
       </nav>
 
       {tab === 'overview' && (

@@ -1,13 +1,13 @@
 // Dịch vụ Kết nối thế giới của Gateway: dựng dữ liệu THẬT (ngày + tháng) tối đa 2 lần/ngày, lưu gọn ở KV `world:data`,
 // engine world (gói macro-center 1.2) chạy trong worker thread. Request chỉ đọc kết quả đã dựng — không gọi nguồn ngoài.
 import { adjustOhlcSeries, repairUnexplainedGaps } from "../adjusted/corporateActions.js";
-import { parseYahooMonthly as parseYahooChart, toClosedMonths } from "../macro/macroGlobalFeeds.js";
+import { parseFredCsv, parseYahooMonthly as parseYahooChart, toClosedMonths } from "../macro/macroGlobalFeeds.js";
 import { createInlineProxy, createWorkerProxy } from "../macro/workerProxy.js";
 import { vnToday } from "../macro/macroCore.js";
 import { createWorldCore } from "./worldCore.js";
 import {
-  FOREIGN_MARKETS, REAL_WORLD_EVENTS, SECTOR_BASKETS, SECTOR_ICB, WORLD_FACTORS_WITHOUT_SOURCE, WORLD_MONTHLY_YAHOO,
-  alignForeignReturns, closeMap, equalWeightReturns, firstFullIndex, monthlyIndexFromReturns, spliceSectorReturns,
+  FOREIGN_MARKETS, REAL_WORLD_EVENTS, SECTOR_BASKETS, SECTOR_ICB, WORLD_FACTORS_WITHOUT_SOURCE, WORLD_MONTHLY_FRED, WORLD_MONTHLY_YAHOO,
+  alignForeignReturns, closeMap, equalWeightReturns, firstFullIndex, fredMonthly, monthlyIndexFromReturns, spliceSectorReturns,
 } from "./worldData.js";
 
 export const WORLD_KV_KEY = "world:data";
@@ -148,6 +148,18 @@ export function createWorldService({ store, history, corporateActions, macroObse
         report.monthly[id] = { source: f.source, months: months.length, first: months[0]?.period ?? null, last: months.at(-1)?.period ?? null };
       } catch (e) {
         report.monthly[id] = { source: f.source, error: e.message };
+      }
+    }
+    for (const [id, f] of Object.entries(WORLD_MONTHLY_FRED)) {
+      try {
+        const r = await fetchImpl(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(f.id)}&cosd=2005-01-01`, { headers: UA, signal: AbortSignal.timeout(45_000) });
+        if (!r.ok) throw new Error(`FRED ${f.id} HTTP ${r.status}`);
+        const months = fredMonthly(parseFredCsv(await r.text()), today(), f.asOfDay);
+        if (!months.length) throw new Error("nguồn trả rỗng");
+        for (const m of months) monthly.push({ seriesId: id, ...m, source: f.source });
+        report.monthly[id] = { source: f.source, proxy: f.proxy, months: months.length, first: months[0].period, last: months.at(-1).period };
+      } catch (e) {
+        report.monthly[id] = { source: f.source, proxy: f.proxy, error: e.message };
       }
     }
     return {

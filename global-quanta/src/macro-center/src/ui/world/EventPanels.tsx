@@ -15,6 +15,10 @@ export interface EventRow {
   q?: number;
   tier: EvidenceTier | 'pending';
   status?: string;
+  /** W5: ngành mục tiêu định trước (sectorsHint[0]) hay ngành p nhỏ nhất (thăm dò) */
+  prespecified?: boolean;
+  overlapsWith?: string[];
+  signOk?: boolean | null;
 }
 
 export interface EventDetailPayload {
@@ -32,13 +36,13 @@ export function EventList({ events, selected, onSelect }: { events: EventRow[]; 
     <div className="scroll">
       <table className="ev-table">
         <caption className="sr-only">Danh sách sự kiện thế giới và phản ứng của ngành Việt Nam chịu ảnh hưởng nhiều nhất.</caption>
-        <thead><tr><th scope="col">Phiên</th><th scope="col">Sự kiện</th><th scope="col">Ngành</th><th scope="col">Phản ứng (%)</th><th scope="col">q</th><th scope="col">Bậc</th></tr></thead>
+        <thead><tr><th scope="col">Phiên</th><th scope="col">Sự kiện</th><th scope="col">Ngành định trước</th><th scope="col">Phản ứng (%)</th><th scope="col">q</th><th scope="col">Bậc</th></tr></thead>
         <tbody>
           {events.map((e) => (
             <tr key={e.id} aria-selected={selected === e.id} className={selected === e.id ? 'sel' : undefined}>
               <td>{e.sessionDate ?? '[–]'}</td>
               <td><button type="button" className="link" onClick={() => onSelect(e.id)} aria-label={`Xem chi tiết: ${e.titleVi}`}>{e.titleVi}</button><br /><span className="muted">{kindVi(e.kind)} · {e.region}</span></td>
-              <td>{e.sectorName ?? '–'}</td>
+              <td>{e.sectorName ?? '–'}{e.prespecified === false && <><br /><span className="muted">thăm dò</span></>}{e.overlapsWith?.length ? <><br /><span className="muted" title={e.overlapsWith.join('; ')}>trùng cửa sổ</span></> : null}{e.signOk === false && <><br /><span className="muted">ngược chiều</span></>}</td>
               <td>
                 {e.car !== undefined && e.ci90 ? (
                   <span className="car-cell"><CiTrack est={e.car} lo={e.ci90[0]} hi={e.ci90[1]} range={8} label={`Phản ứng ${fmtSigned(e.car, 1, '%')}, khoảng tin cậy ${fmtSigned(e.ci90[0], 1)} đến ${fmtSigned(e.ci90[1], 1)}`} /><strong>{fmtSigned(e.car, 1, '%')}</strong></span>
