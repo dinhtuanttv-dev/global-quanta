@@ -3,7 +3,7 @@
 // lỗi nguồn -> giữ bản cũ (ghi rõ thời điểm lấy).
 import { parseQuote } from "../world/worldPulse.js";
 import { COMMODITIES, commodityById } from "./catalog.js";
-import { describe, monthEnd, rebase, relation, sliceRange, toVnd } from "./commodityAnalytics.js";
+import { describe, monthEnd, quality, rebase, relation, sliceRange, toVnd } from "./commodityAnalytics.js";
 import { fetchPinkSheet } from "./pinkSheet.js";
 
 export const PINK_KV_KEY = "commodities:pinksheet";
@@ -184,6 +184,7 @@ export function createCommodityService({ store = null, fetchImpl = globalThis.fe
         world: shown,
         vnd: { labelVi: `VND/${c.unit.replace(/^USD\//, "")}`, source: "Yahoo:VND=X", points: sliceRange(vnd, range) },
         vnSeries: vnSeries.map(({ points, ...m }) => ({ ...m, first: points[0]?.[0] ?? null, last: points.at(-1)?.[0] ?? null })),
+        quality: quality(world, freq),
         chart, stats: stats && { ...stats, volSeries: sliceRange(stats.volSeries, range), ddSeries: sliceRange(stats.ddSeries, range) },
         relations: relations.map((r) => (r.rolling ? { ...r, rolling: sliceRange(r.rolling, range) } : r)),
         notes,

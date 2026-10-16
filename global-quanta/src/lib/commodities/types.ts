@@ -91,6 +91,7 @@ export interface CommodityHistory {
   vnSeries?: { kind: "icb" | "ticker"; code: string; labelVi: string; priceBasis: string; warnings?: string[]; first: string | null; last: string | null }[];
   chart?: { key: string; labelVi: string; rebased: [string, number][] }[];
   stats?: CommodityStats | null;
+  quality?: { first: string; last: string; n: number; maxGapDays: number; maxGapAfter: string | null; bigMoves: number; bigMoveThresholdPct: number; lastBigMove: string | null } | null;
   relations?: CommodityRelation[];
   notes?: string[];
 }

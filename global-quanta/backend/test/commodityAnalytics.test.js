@@ -94,3 +94,18 @@ test("history: 404/400, BDI không có số, chuỗi ngày + VND + ICB + mã CP,
   const gold = (await svc.history("GOLD", "1y")).body;
   assert.deepEqual(gold.vnSeries.map((s) => s.code), ["PNJ"]); // không có ICB khớp -> chỉ mã đại diện
 });
+
+test("C4 quality: khoảng trống dài nhất + số kỳ biến động lớn; catalog không trùng mã nguồn", async () => {
+  const { quality } = await import("../src/market/commodities/commodityAnalytics.js");
+  const { COMMODITIES } = await import("../src/market/commodities/catalog.js");
+  const q = quality([["2026-01-02", 100], ["2026-01-05", 100], ["2026-01-15", 120], ["2026-01-16", 121]], "day");
+  assert.equal(q.maxGapDays, 10);
+  assert.equal(q.maxGapAfter, "2026-01-05");
+  assert.equal(q.bigMoves, 1);
+  assert.equal(q.lastBigMove, "2026-01-15");
+  assert.equal(quality([["2026-01", 1]], "month"), null);
+  const keys = COMMODITIES.filter((c) => c.source.kind !== "none").map((c) => c.source.symbol ?? c.source.column);
+  assert.equal(new Set(keys).size, keys.length);
+  assert.equal(COMMODITIES.length, 20);
+  assert.equal(COMMODITIES.find((c) => c.id === "HRC").worldFactor, "STEEL");
+});

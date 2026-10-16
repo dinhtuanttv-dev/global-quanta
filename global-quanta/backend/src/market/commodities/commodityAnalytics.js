@@ -161,3 +161,18 @@ export function rebase(series, from) {
     return { ...s, rebased: base > 0 ? pts.map(([d, v]) => [d, r4((v / base) * 100)]) : [] };
   });
 }
+
+/**
+ * Chất lượng chuỗi: khoảng trống dài nhất (ngày lịch), số kỳ biến động |log r| > ngưỡng (10% ngày / 25% tháng) — với hợp đồng
+ * tương lai kỳ gần, một phần là bước nhảy khi nối kỳ hạn, không phải biến động giá thật.
+ */
+export function quality(points, freq) {
+  if (points.length < 2) return null;
+  const toMs = (d) => (d.length === 7 ? Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, 1) : Date.parse(`${d}T00:00:00Z`));
+  let maxGap = 0, gapAt = null;
+  for (let i = 1; i < points.length; i++) { const g = (toMs(points[i][0]) - toMs(points[i - 1][0])) / 86_400_000; if (g > maxGap) { maxGap = g; gapAt = points[i - 1][0]; } }
+  const thr = freq === "month" ? 25 : 10;
+  const big = logReturns(points).filter(([, r]) => Math.abs(r) > thr);
+  return { first: points[0][0], last: points.at(-1)[0], n: points.length, maxGapDays: Math.round(maxGap), maxGapAfter: gapAt, bigMoves: big.length, bigMoveThresholdPct: thr, lastBigMove: big.at(-1)?.[0] ?? null };
+}
+
