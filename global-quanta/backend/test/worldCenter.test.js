@@ -8,9 +8,10 @@ import { createWorldCore, screenEvents, worldCoverage, worldSignalFromScore } fr
 import { WORLD_KV_KEY, createWorldService } from "../src/market/world/worldService.js";
 import { createWorldRouter } from "../src/routes/world.js";
 
+// KV giả CÙNG hợp đồng với kho Gateway (memoryStore/supabaseStore): getKv trả { value, updatedAt }; m giữ giá trị thô để kiểm tra
 const memKv = () => {
   const m = new Map();
-  return { m, getKv: async (k) => (m.has(k) ? structuredClone(m.get(k)) : null), setKv: async (k, v) => void m.set(k, structuredClone(v)) };
+  return { m, getKv: async (k) => (m.has(k) ? { value: structuredClone(m.get(k)), updatedAt: "t" } : null), setKv: async (k, v) => void m.set(k, structuredClone(v)) };
 };
 const NOW = Date.parse("2026-10-16T03:00:00Z");
 
@@ -206,4 +207,17 @@ test("worldCore: công cụ chat world_* chạy qua engine; tín hiệu ngành �
   const real = await core.sectorSignals();
   assert.equal(real.mode, "real");
   assert.ok(real.reason || real.sectors.every((x) => x.usable === false || typeof x.probability === "number"));
+});
+
+import { createMemoryStore } from "../src/market/store/memoryStore.js";
+
+test("worldService + macroService: dữ liệu đã lưu được ĐỌC LẠI sau khởi động lại (kho thật của Gateway trả { value, updatedAt })", async () => {
+  const store = createMemoryStore();
+  const svc = createWorldService({ store, inline: true, now: () => NOW, ...fakes() });
+  assert.equal((await svc.refresh({ force: true })).complete, true);
+  // "khởi động lại": dịch vụ mới, cùng kho, KHÔNG gọi refresh
+  const svc2 = createWorldService({ store, inline: true, now: () => NOW, ...fakes({ budgetAt: 0 }) });
+  await svc2.init();
+  const src = await svc2.source();
+  assert.equal(src.mode, "real");
 });

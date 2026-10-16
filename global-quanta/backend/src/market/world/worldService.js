@@ -51,7 +51,8 @@ export function createWorldService({ store, history, corporateActions, macroObse
       ready = (async () => {
         let saved = null;
         try {
-          saved = store?.getKv ? await store.getKv(WORLD_KV_KEY) : null;
+          // getKv của kho Gateway trả { value, updatedAt } (memoryStore và supabaseStore) — đọc .value
+          saved = store?.getKv ? (await store.getKv(WORLD_KV_KEY))?.value ?? null : null;
         } catch (e) {
           log.warn?.(`[world] không đọc được ${WORLD_KV_KEY}: ${e.message}`);
         }

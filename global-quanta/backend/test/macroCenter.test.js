@@ -5,9 +5,10 @@ import { createMacroService, monthlyCloses, MACRO_KV_KEY } from "../src/market/m
 import { mergeObservations, SYNTHETIC_NOTICE } from "../src/market/macro/macroCore.js";
 import { createMacroRouter, createRateLimiter } from "../src/routes/macro.js";
 
+// KV giả CÙNG hợp đồng với kho Gateway (memoryStore/supabaseStore): getKv trả { value, updatedAt }; m giữ giá trị thô để kiểm tra
 const memKv = () => {
   const m = new Map();
-  return { m, getKv: async (k) => (m.has(k) ? structuredClone(m.get(k)) : null), setKv: async (k, v) => void m.set(k, structuredClone(v)) };
+  return { m, getKv: async (k) => (m.has(k) ? { value: structuredClone(m.get(k)), updatedAt: "t" } : null), setKv: async (k, v) => void m.set(k, structuredClone(v)) };
 };
 const NOW = Date.parse("2026-10-16T03:00:00Z");
 // nhiễu tất định (sin thuần thỏa hồi quy tuyến tính chính xác -> ma trận suy biến trong ADF)
