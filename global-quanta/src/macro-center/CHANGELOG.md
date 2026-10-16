@@ -2,7 +2,7 @@
 
 ## 1.2.0-gq — 2026-10-16 (Kết nối thế giới)
 - Đưa module world của gói 1.2 vào repo; gói chuyển tới `src/macro-center/` (dùng chung 2 tab). Lõi `quant-macro` lên 1.2 (quy tắc phân xử ADF/KPSS cho chuỗi dai dẳng).
-- Dữ liệu THẬT: 6 thị trường, 10 rổ ngành (giá điều chỉnh, 7 năm), 8 yếu tố tháng (FRED/Yahoo), 35 sự kiện thật đã kiểm duyệt; yếu tố không có nguồn mở để trống.
+- Dữ liệu THẬT: 6 thị trường, 10 rổ ngành (giá điều chỉnh, 6 năm), 8 yếu tố tháng (FRED/Yahoo), 35 sự kiện thật đã kiểm duyệt; yếu tố không có nguồn mở để trống.
 - Engine world chạy trong worker thread trên Gateway (`/api/world/*`); UI nhúng trong tab Kết nối thế giới (theme tối, không tải Google Fonts).
 - Test của gói lần đầu chạy bằng Vitest thật: sửa 2 lỗi môi trường (đường dẫn CSS, adapter HTTP).
 

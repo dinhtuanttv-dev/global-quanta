@@ -39,7 +39,7 @@ export default function WorldSourcePanel() {
         <b style={{ color: data.mode === "real" ? "var(--positive)" : "var(--warning, #f59e0b)" }}>{data.mode === "real" ? "SỐ LIỆU THẬT" : "MÔ PHỎNG"}</b>
         {data.meta && <> · dựng lúc {new Date(data.meta.builtAt).toLocaleString("vi-VN")}</>}
         {data.mode === "real" && <> · biến thế giới đủ {data.minMonths} tháng: {factors.filter((f) => f.usable).map((f) => f.id).join(", ") || "—"}</>}
-        {data.mode === "synthetic" && <> · đang dựng dữ liệu thật lần đầu (lịch sử 7 năm cho rổ ngành) — tự cập nhật khi xong.</>}
+        {data.mode === "synthetic" && <> · đang dựng dữ liệu thật lần đầu (lịch sử 6 năm cho rổ ngành) — tự cập nhật khi xong.</>}
       </p>
       {r && Object.keys(r.missingFactors).length > 0 && (
         <p>

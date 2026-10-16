@@ -39,7 +39,7 @@
 
 **Dữ liệu thật:**
 - Lịch phiên HOSE và VN-Index lấy từ Gateway.
-- 10 ngành là rổ cân bằng tỷ trọng, dùng giá điều chỉnh cộng dồn theo sự kiện quyền, lịch sử 7 năm.
+- 10 ngành là rổ cân bằng tỷ trọng, dùng giá điều chỉnh cộng dồn theo sự kiện quyền, lịch sử 6 năm.
 - Thị trường Mỹ (S&P 500), Trung Quốc, Nhật, Hàn lấy từ Yahoo.
   - Riêng **Thái Lan dùng ETF THD** (USD, giao dịch giờ Mỹ) vì Yahoo không có lịch sử SET.
   - Mỹ và THD lấy phiên ngày trước, vì sàn đóng cửa sau giờ VN.
@@ -64,7 +64,7 @@
 
 ## 6. Rủi ro và việc tiếp theo
 
-1. **Lần dựng đầu cần tải lịch sử 7 năm cho khoảng 75 mã**, trong khi ngân sách chung chỉ 40 lần/giờ. Job tự dừng khi gặp 503 và thử lại sau khoảng 1 giờ. Chỉ dùng bản dựng **đủ cả 10 ngành**; bản thiếu sẽ tạo chuỗi 0 và cho kết quả giả. Trong lúc chờ, tab ở chế độ mô phỏng và có biểu ngữ.
+1. **Lần dựng đầu cần tải lịch sử 6 năm cho khoảng 75 mã**, trong khi ngân sách chung chỉ 40 lần/giờ. Job tự dừng khi gặp 503 và thử lại sau khoảng 1 giờ. Chỉ dùng bản dựng **đủ cả 10 ngành**; bản thiếu sẽ tạo chuỗi 0 và cho kết quả giả. Trong lúc chờ, tab ở chế độ mô phỏng và có biểu ngữ.
 2. Ngưỡng kiểm định ngoài mẫu cho bậc A do tác giả gói chọn, chưa hiệu chỉnh trên dữ liệu thật.
 3. Chưa nối công cụ chat `world_*` vào "Hỏi đáp xúc tác" (Giai đoạn 5 chỉ làm khi người dùng yêu cầu).
 4. Không đưa tín hiệu world vào bộ máy quyết định (Giai đoạn 6).
