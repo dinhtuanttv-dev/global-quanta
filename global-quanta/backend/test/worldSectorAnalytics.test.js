@@ -68,3 +68,13 @@ test("compositeSeries: gộp đều giữa khu vực theo phiên VN", () => {
   assert.ok(c.length > 60);
   assert.ok(c.every(([, x]) => Number.isFinite(x)));
 });
+
+test("hàng hoá tháng không vào điểm ngắn hạn (không có thông tin mới theo phiên)", () => {
+  const d = days(300);
+  const vn = walk(d.slice(0, 299), (i) => (i % 2 ? 0.01 : -0.01));
+  const months = Array.from({ length: 40 }, (_, i) => [`${2023 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`, 100 + i * 10 + (i % 3)]);
+  const sc = sectorScores(vn, [], [{ id: "M", nameVi: "M", sign: 1, freq: "month", points: months }]);
+  assert.equal(sc.commodities[0].short, null);
+  assert.equal(sc.short.commodity, null);
+  assert.ok(sc.medium.commodity != null);
+});

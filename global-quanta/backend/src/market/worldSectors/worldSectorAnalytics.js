@@ -129,7 +129,8 @@ export function sectorScores(vnPts, inst, commodities = []) {
   const m3 = aggregate(comp.map((c) => ({ region: c.region, match: c.match, z: c.m3?.z })));
   const vn = { w1: zMove(vnPts, 5), m1: zMove(vnPts, 21), m3: zMove(vnPts, 63) };
   const cm = commodities.map((c) => {
-    const s = c.freq === "month" ? zMove(c.points, 1) : newSinceVnClose(c.points, "prev", vnLast);
+    // hàng hoá THÁNG (Pink Sheet) không có thông tin mới theo phiên -> chỉ vào trung hạn
+    const s = c.freq === "month" ? null : newSinceVnClose(c.points, "prev", vnLast);
     const mm = c.freq === "month" ? zMove(c.points, 3) : zMove(c.points, 63);
     return { id: c.id, nameVi: c.nameVi, sign: c.sign, freq: c.freq, short: s && { ...s, z: s.z == null ? null : ROUND(s.z * c.sign, 3) }, medium: mm && { ...mm, z: mm.z == null ? null : ROUND(mm.z * c.sign, 3) } };
   });
