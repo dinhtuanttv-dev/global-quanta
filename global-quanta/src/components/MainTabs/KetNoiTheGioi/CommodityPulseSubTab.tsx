@@ -149,6 +149,8 @@ export default function CommodityPulseSubTab({ macro }: CommodityPulseSubTabProp
           <p className="text-[9px] italic mt-2" style={{ color: T.textTertiary }}>
             Quặng sắt &amp; Cước container: không có giá/chỉ số Yahoo Finance đáng tin cậy — dùng % thay đổi trung bình rổ cổ phiếu đại diện làm tín hiệu gián tiếp, không phải giá/cước thật.
             Cao su &amp; Phân bón: nguồn World Bank Pink Sheet, cập nhật theo tháng (không phải real-time như DXY/VIX).
+            {macro.quotes?.gold && <> Vàng / Brent / WTI: hợp đồng tương lai kỳ gần (GC=F / BZ=F / CL=F), Yahoo qua Gateway, phiên {macro.quotes.gold.date.split("-").reverse().join("/")}
+              — khác Brent giao ngay FRED (giá cuối tháng) dùng trong phân tích tháng của Chất xúc tác / Truyền dẫn.</>}
           </p>
         </div>
       )}

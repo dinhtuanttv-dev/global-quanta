@@ -59,7 +59,7 @@ function BreakdownBar({ label, value }: { label: string; value: number }) {
 
 export default function KetNoiTheGioiTab() {
   const selectTicker = useAppStore((s) => s.selectTicker);
-  const { data, connected, commodityDeltas } = useGlobalStream();
+  const { data, connected, commodityDeltas, source: pulseSource, monthlyFromProjectA } = useGlobalStream();
   const { result: aiResult, isLoading: aiLoading, error: aiError, analyze } = useMacroAnalysis();
   const [showAllMarkets, setShowAllMarkets] = useState(false);
   // Sub-tab: "market" = Nhịp đập thị trường (thời gian thực), "commodity" = Nhịp đập hàng hoá,
@@ -94,8 +94,13 @@ export default function KetNoiTheGioiTab() {
       </div>
 
       <p className="text-[9px] leading-relaxed" style={{ color: T.textTertiary }}>
-        ℹ️ Kênh dữ liệu dùng Server-Sent Events (SSE), không phải WebSocket hai chiều thật — tự đóng và tự kết nối lại
-        sau mỗi ~55 giây, cập nhật mỗi 5 giây khi đang kết nối.
+        ℹ️ Nguồn giá ngày:{" "}
+        {pulseSource === "gateway"
+          ? <>Gateway (Yahoo Finance), làm mới mỗi 60 giây — DXY, VIX, US10Y, vàng, Brent, WTI và các chỉ số đều từ <b>một nguồn</b>, kèm ngày phiên.</>
+          : pulseSource === "project-a"
+            ? <><b style={{ color: T.gold }}>dự phòng</b> — luồng SSE của Project A (Gateway không phản hồi); số liệu có thể trễ, xem giờ cập nhật.</>
+            : "đang tải…"}
+        {" "}Cao su, urê, BDI, cước container và quặng sắt (proxy) là số liệu tháng/proxy từ Project A{monthlyFromProjectA ? "" : " — hiện chưa lấy được"}.
       </p>
 
       {/* Thanh Sub-tab (MOI) */}
@@ -155,18 +160,24 @@ export default function KetNoiTheGioiTab() {
               <BreakdownBar label="Treasury 10Y (30%)" value={macro.breakdown.treasuryScore} />
             </div>
             <div className="grid grid-cols-2 md:grid-cols-5 gap-2 pt-3 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
-              {[
-                ["DXY", macro.dxy.toFixed(2)],
-                ["VIX", macro.vix.toFixed(2)],
-                ["US 10Y", macro.treasury_10y.toFixed(2) + "%"],
-                ["Vàng", macro.gold !== null ? macro.gold.toFixed(0) : "—"],
-                ["Brent", macro.oil_brent !== null ? macro.oil_brent.toFixed(1) : "—"],
-              ].map(([label, val]) => (
-                <div key={label}>
-                  <p className="text-[9px]" style={{ color: T.textTertiary }}>{label}</p>
-                  <p className="text-xs font-bold" style={{ color: "#f1f5f9" }}>{val}</p>
-                </div>
-              ))}
+              {([
+                ["DXY", macro.dxy.toFixed(2), "dxy"],
+                ["VIX", macro.vix.toFixed(2), "vix"],
+                ["US 10Y", macro.treasury_10y.toFixed(2) + "%", "treasury_10y"],
+                ["Vàng", macro.gold !== null ? macro.gold.toFixed(0) : "—", "gold"],
+                ["Brent", macro.oil_brent !== null ? macro.oil_brent.toFixed(1) : "—", "oil_brent"],
+              ] as const).map(([label, val, key]) => {
+                const q = macro.quotes?.[key];
+                return (
+                  <div key={label} title={q ? `${q.nameVi} — ${q.source}, phiên ${q.date}` : `Project A, cập nhật ${new Date(macro.fetched_at).toLocaleString("vi-VN")}`}>
+                    <p className="text-[9px]" style={{ color: T.textTertiary }}>{label}</p>
+                    <p className="text-xs font-bold" style={{ color: "#f1f5f9" }}>{val}</p>
+                    <p className="text-[8px]" style={{ color: T.textTertiary }}>
+                      {q ? `${q.symbol} · ${q.date.split("-").reverse().slice(0, 2).join("/")}` : new Date(macro.fetched_at).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
             <div className="mt-2 pt-2 border-t text-[9px]" style={{ borderColor: "rgba(148,163,184,0.08)", color: T.textTertiary }}>
               Baltic Dry Index: {macro.baltic_dry_index !== null
@@ -187,7 +198,7 @@ export default function KetNoiTheGioiTab() {
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {displayedMarkets.map((m) => (
                     <div key={m.symbol} style={{ background: "rgba(148,163,184,0.04)" }} className="rounded-lg p-2.5">
-                      <p className="text-[9px] truncate" style={{ color: T.textTertiary }}>{m.name}</p>
+                      <p className="text-[9px] truncate" style={{ color: T.textTertiary }} title={m.source ? `${m.source}${m.date ? `, phiên ${m.date}` : ""}` : undefined}>{m.name}{m.date ? ` · ${m.date.split("-").reverse().slice(0, 2).join("/")}` : ""}</p>
                       <p className="text-sm font-black" style={{ color: "#f1f5f9" }}>{m.value.toLocaleString("vi-VN")}</p>
                       <p className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: m.change_percent >= 0 ? T.positive : T.negative }}>
                         {m.change_percent >= 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
