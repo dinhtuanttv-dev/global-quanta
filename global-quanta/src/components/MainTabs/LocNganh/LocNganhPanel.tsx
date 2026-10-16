@@ -98,13 +98,13 @@ export default function LocNganhPanel({
             bach hoa, khong de nguoi dung thay diem doi ma khong hieu ly do */}
         {riskInfo && (
           <span
-            title="Trọng số RRG/RS/Volume/PVT/A-D thay đổi theo chỉ số này"
+            title="Trọng số RRG/RS/Volume/PVT/A-D nghiêng theo chỉ số này — HEURISTIC: Risk-On đã kiểm định đặt trước 10 năm và KHÔNG ĐẠT (IC +0,05, KTC95 [−0,10; +0,22])"
             style={{
               marginLeft: "auto", fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10,
               color: riskInfo.color, background: "rgba(148,163,184,0.08)",
             }}
           >
-            Risk-On {riskOnScore}/100 · {riskInfo.text} · {riskInfo.explain}
+            Risk-On {riskOnScore}/100 · {riskInfo.text} · {riskInfo.explain} · heuristic, không đạt kiểm định
           </span>
         )}
       </div>

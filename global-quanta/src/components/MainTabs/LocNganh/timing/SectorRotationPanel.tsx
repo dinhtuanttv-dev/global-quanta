@@ -99,7 +99,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
       || ((b.flow?.share.changePct ?? 0) - (a.flow?.share.changePct ?? 0));
   }), [sectors, bySector]);
   const toggle = (code: string) => setOpen((c) => (c === code ? null : code));
-  const data = timing.data as (typeof timing.data & { market?: { riskOnScore: number | null; macroRegime: string }; evidence?: { label: string; reason: string } }) | null;
+  const data = timing.data as (typeof timing.data & { market?: { riskOnScore: number | null; macroRegime: string; riskOnRegime?: string; riskOnInDecision?: boolean }; evidence?: { label: string; reason: string } }) | null;
   const evidence = rrg.data?.evidence ?? data?.evidence;
 
   return (
@@ -118,7 +118,9 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
       </div>
       <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "0 0 4px" }}>
         {rrg.data ? <>Gateway · phiên {rrg.data.dataAsOf} · tuần đã đóng {rrg.data.closedThrough} · {rrg.data.coverage.l2Covered}/{rrg.data.coverage.l2Total} ngành cấp 2{rrg.data.coverage.missing.length ? ` (thiếu: ${rrg.data.coverage.missing.map((m) => m.name).join(", ")})` : ""}</> : "Đang tải dữ liệu ngành…"}
-        {data?.market && <> · Risk-On {data.market.riskOnScore ?? "—"} ({data.market.macroRegime})</>}
+        {data?.market && (data.market.riskOnInDecision === false
+          ? <span title="Risk-On đã kiểm định đặt trước và KHÔNG ĐẠT — chế độ thị trường của quyết định chỉ dựa trên MA200/biến động VN-Index"> · Risk-On {data.market.riskOnScore ?? "—"} ({data.market.riskOnRegime ?? "—"}, heuristic — không dùng trong quyết định)</span>
+          : <> · Risk-On {data.market.riskOnScore ?? "—"} ({data.market.macroRegime})</>)}
         {" "}· Chỉ số ngành = rổ mã ICB, trọng số GTGD; RRG chuẩn hoá z (1 đơn vị = 1σ), lọc nhiễu 0,15σ.
       </p>
       {evidence && <p style={{ fontSize: 10, color: "var(--warning)", margin: "0 0 10px" }} data-testid="sector-evidence">Kiểm định đặt trước L3: {evidence.reason}</p>}
