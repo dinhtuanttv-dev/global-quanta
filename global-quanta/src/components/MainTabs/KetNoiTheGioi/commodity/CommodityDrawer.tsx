@@ -119,6 +119,11 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                   {(data.vnSeries ?? []).map((v) => <li key={v.code}>• {v.labelVi} — {v.priceBasis === "INDEX_POINTS" ? "điểm chỉ số" : "giá điều chỉnh theo sự kiện quyền"}, từ {fmtPeriod(v.first)}{data.freq === "month" ? " (giá cuối tháng)" : ""}.</li>)}
                   {data.vnPrice && <li>• Đây là giá xuất khẩu <b>của Việt Nam</b> (World Bank), so với gạo Thái cùng loại.</li>}
                   {(data.notes ?? []).map((n) => <li key={n}>• {n}</li>)}
+                  {data.quality && (
+                    <li>• Chất lượng chuỗi: {data.quality.n} {unitWord} từ {fmtPeriod(data.quality.first)}; khoảng trống dài nhất {data.quality.maxGapDays} ngày;
+                      {" "}{data.quality.bigMoves} {unitWord} biến động trên {data.quality.bigMoveThresholdPct}%{data.freq === "day" ? " (với hợp đồng tương lai kỳ gần, một phần là bước nhảy khi nối kỳ hạn)" : ""}
+                      {data.quality.lastBigMove ? `, gần nhất ${fmtPeriod(data.quality.lastBigMove)}` : ""}.</li>
+                  )}
                 </ul>
               </Section>
 
