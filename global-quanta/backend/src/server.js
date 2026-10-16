@@ -8,6 +8,8 @@ import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
 import { createWorldRouter } from "./routes/world.js";
 import { createWorldService } from "./market/world/worldService.js";
+import { createCommodityService } from "./market/commodities/commodityService.js";
+import { createCommoditiesRouter } from "./routes/commodities.js";
 import { SECTOR_RRG_HISTORY_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
@@ -51,6 +53,10 @@ const getWorldService = () => (worldService ??= createWorldService({
   sectorIndices: async () => (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null,
 }));
 app.use("/api/world", createWorldRouter({ getService: getWorldService }));
+// Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
+let commodityService = null;
+const getCommodityService = () => (commodityService ??= createCommodityService({ store: getMarketRuntime().store }));
+app.use("/api/commodities", createCommoditiesRouter({ getService: getCommodityService }));
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });

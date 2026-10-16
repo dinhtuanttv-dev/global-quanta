@@ -26,8 +26,12 @@ export function parseQuote(json) {
   if (!r) return null;
   const ts = r.timestamp ?? [], closes = r.indicators?.quote?.[0]?.close ?? [];
   const bars = ts.map((t, i) => ({ t, c: closes[i] })).filter((b) => Number.isFinite(b.c) && b.c > 0);
-  const price = Number.isFinite(r.meta?.regularMarketPrice) ? r.meta.regularMarketPrice : bars.at(-1)?.c;
-  const time = Number.isFinite(r.meta?.regularMarketTime) ? r.meta.regularMarketTime : bars.at(-1)?.t;
+  // meta.regularMarketPrice có thể ĐỨNG YÊN nhiều năm (ví dụ TIO=F: meta 2021-08 trong khi nến ngày vẫn chạy đến hiện tại)
+  // -> chỉ dùng meta khi nó KHÔNG cũ hơn nến cuối.
+  const last = bars.at(-1);
+  const metaOk = Number.isFinite(r.meta?.regularMarketPrice) && Number.isFinite(r.meta?.regularMarketTime) && (!last || r.meta.regularMarketTime >= last.t);
+  const price = metaOk ? r.meta.regularMarketPrice : last?.c;
+  const time = metaOk ? r.meta.regularMarketTime : last?.t;
   if (!Number.isFinite(price) || !Number.isFinite(time)) return null;
   // phiên trước = nến ngày gần nhất có NGÀY khác ngày của giá hiện tại
   const prev = [...bars].reverse().find((b) => day(b.t) < day(time))?.c ?? null;
