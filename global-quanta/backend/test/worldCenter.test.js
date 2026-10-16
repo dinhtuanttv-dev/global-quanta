@@ -4,7 +4,7 @@ import express from "express";
 import {
   REAL_WORLD_EVENTS, SECTOR_BASKETS, alignForeignReturns, equalWeightReturns, firstFullIndex, monthlyIndexFromReturns,
 } from "../src/market/world/worldData.js";
-import { createWorldCore, screenEvents, worldCoverage } from "../src/market/world/worldCore.js";
+import { createWorldCore, screenEvents, worldCoverage, worldSignalFromScore } from "../src/market/world/worldCore.js";
 import { WORLD_KV_KEY, createWorldService } from "../src/market/world/worldService.js";
 import { createWorldRouter } from "../src/routes/world.js";
 
@@ -175,4 +175,35 @@ test("router: route engine, nguồn, admin cần token, route lạ 404", async (
   } finally {
     server.close();
   }
+});
+
+test("worldSignalFromScore: chỉ dùng khi có liên kết bậc A VÀ cổng ngoài mẫu đạt; xác suất = tỷ lệ đúng hướng ngoài mẫu theo chiều điểm, chặn [0,3; 0,7]", () => {
+  const pass = { pass: true, reasons: [] };
+  assert.equal(worldSignalFromScore(null, []).usable, false);
+  const fail = worldSignalFromScore({ thermometer: { value: 0.6 }, backtest: { ic: 0.02, hitRate: 0.52, gate: { pass: false, reasons: ["IC không có ý nghĩa"] } } }, ["DXY"]);
+  assert.equal(fail.usable, false);
+  assert.equal(fail.probability, null);
+  assert.match(fail.reason, /CHƯA đạt/);
+  assert.equal(worldSignalFromScore({ thermometer: { value: 0.4 }, backtest: { ic: 0.2, hitRate: 0.64, gate: pass } }, ["DXY"]).probability, 0.64);
+  assert.ok(Math.abs(worldSignalFromScore({ thermometer: { value: -0.4 }, backtest: { ic: 0.2, hitRate: 0.64, gate: pass } }, ["DXY"]).probability - 0.36) < 1e-12);
+  assert.equal(worldSignalFromScore({ thermometer: { value: 0.01 }, backtest: { ic: 0.2, hitRate: 0.64, gate: pass } }, ["DXY"]).probability, 0.5);
+  assert.equal(worldSignalFromScore({ thermometer: { value: 0.9 }, backtest: { ic: 0.4, hitRate: 0.9, gate: pass } }, ["DXY"]).probability, 0.7);
+});
+
+test("worldCore: công cụ chat world_* chạy qua engine; tín hiệu ngành ở chế độ mô phỏng = không dùng được", async () => {
+  const core = createWorldCore({ today: () => "2026-10-16" });
+  const specs = core.toolSpecs();
+  assert.equal(specs.anthropic.length, 5);
+  assert.match(specs.guidelines, /bậc C/);
+  const ev = await core.runTool("world_events", {});
+  assert.equal(ev.ok, true);
+  assert.match(ev.notice, /MÔ PHỎNG/);
+  assert.equal((await core.runTool("world_nope", {})).ok, false);
+  const sig = await core.sectorSignals();
+  assert.equal(sig.mode, "synthetic");
+  assert.deepEqual(sig.sectors, []);
+  core.setData(realPayload());
+  const real = await core.sectorSignals();
+  assert.equal(real.mode, "real");
+  assert.ok(real.reason || real.sectors.every((x) => x.usable === false || typeof x.probability === "number"));
 });

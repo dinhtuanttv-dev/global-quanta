@@ -12,7 +12,7 @@ export interface ChatToolResult {
 }
 
 export type ChatStreamEvent =
-  | { type: "meta"; remaining: number; macroMode: "real" | "synthetic" | null }
+  | { type: "meta"; remaining: number; macroMode: "real" | "synthetic" | null; worldMode?: "real" | "synthetic" | null }
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: unknown }
   | { type: "tool_result"; id: string; name: string; result: ChatToolResult }

@@ -23,6 +23,9 @@ export const worldOps = (core) => ({
   setData: ([payload]) => core.setData(payload),
   source: () => core.source(),
   handle: ([req]) => core.handle(req),
+  toolSpecs: () => core.toolSpecs(),
+  runTool: ([name, args]) => core.runTool(name, args),
+  sectorSignals: () => core.sectorSignals(),
 });
 
 async function yahoo(symbol, interval, range, fetchImpl) {
@@ -173,6 +176,20 @@ export function createWorldService({ store, history, corporateActions, macroObse
       await init();
       refreshInBackground();
       return engine.call("source");
+    },
+    async toolSpecs() {
+      await init();
+      return engine.call("toolSpecs");
+    },
+    async runTool(name, args) {
+      await init();
+      refreshInBackground();
+      return engine.call("runTool", name, args);
+    },
+    async sectorSignals() {
+      await init();
+      refreshInBackground();
+      return engine.call("sectorSignals");
     },
     close: () => engine.close(),
   };

@@ -66,5 +66,16 @@
 
 1. **Lần dựng đầu cần tải lịch sử 6 năm cho khoảng 75 mã**, trong khi ngân sách chung chỉ 40 lần/giờ. Job tự dừng khi gặp 503 và thử lại sau khoảng 1 giờ. Chỉ dùng bản dựng **đủ cả 10 ngành**; bản thiếu sẽ tạo chuỗi 0 và cho kết quả giả. Trong lúc chờ, tab ở chế độ mô phỏng và có biểu ngữ.
 2. Ngưỡng kiểm định ngoài mẫu cho bậc A do tác giả gói chọn, chưa hiệu chỉnh trên dữ liệu thật.
-3. Chưa nối công cụ chat `world_*` vào "Hỏi đáp xúc tác" (Giai đoạn 5 chỉ làm khi người dùng yêu cầu).
-4. Không đưa tín hiệu world vào bộ máy quyết định (Giai đoạn 6).
+3. **Giai đoạn 5 — chat (xong, 16/10/2026):**
+   - 5 công cụ `world_*` chạy trên Gateway: `GET /api/world/tools`, `POST /api/world/tools/:name`.
+   - Được nối vào "Hỏi đáp xúc tác" ở Project A, cùng với `WORLD_CHAT_GUIDELINES`, chú giải mã ngành và danh sách yếu tố chưa có nguồn.
+   - Thẻ kết quả hiển thị bậc A/B/C; bậc C có màu trung tính và chú thích "không phải có tác động".
+4. **Giai đoạn 6 — bộ máy quyết định (xong, 16/10/2026):** tín hiệu "Bối cảnh thế giới" được đưa vào quyết định ngành của Lọc ngành. Tab Cổ tức không bị đụng tới.
+   - **Nguồn tín hiệu:** `GET /api/world/sector-signals`, tính MacroScore của gói **chỉ trên các liên kết bậc A** của từng ngành.
+   - **Xác suất:** bằng tỷ lệ đúng hướng ngoài mẫu (hitRate) theo chiều điểm hiện tại; vùng trung tính ±0,05; chặn trong [0,3; 0,7].
+   - **Cổng an toàn:** chỉ có trọng số khi cổng ngoài mẫu của gói đạt trên số liệu thật. Nếu không đạt, xác suất tổng hợp giống hệt khi chưa có tín hiệu (có test).
+   - **Không dùng cờ môi trường bị ẩn** (nguyên tắc dự án: mọi tính năng hiển thị mặc định). Bản thân cổng là công tắc, và trạng thái luôn hiện trên DecisionBar.
+   - **Cách áp:** một bước cập nhật Bayes riêng, `logit(p') = logit(p) + κ·logit(p_tg)` với `κ = w/(W+w+4)` và `w = 2 × hệ số chế độ thị trường`. Không đưa qua `combineLogOdds`, vì bộ gộp đó chuẩn hoá theo trọng số trung bình: test phát hiện một tín hiệu bất lợi yếu lại làm xác suất **tăng**.
+   - **Hiển thị:** dòng kiểm tra trên DecisionBar chỉ mang tính thông tin, không bao giờ chặn FAVORABLE.
+   - **Ánh xạ ICB → rổ ngành** chỉ cho các ngành khớp sát: 0500/0530/0570 dầu khí, 1750 thép, 2770 cảng, 7530 điện, 8300 ngân hàng, 8600 bất động sản, 8700 chứng khoán, 9500/9530 công nghệ.
+   - **Kết quả trên số liệu thật (chạy thử 16/10):** 0/80 liên kết bậc A/B, nên tín hiệu **chưa có trọng số ở ngành nào**. Đây là cổng làm đúng việc, không phải lỗi.
