@@ -19,5 +19,12 @@ export function createCommoditiesRouter({ getService, readLimit = 120, now } = {
     res.json(await getService().snapshot());
   }));
 
+  // Phân tích chuyên sâu một mặt hàng (C2): giá thế giới, quy đổi VND, chuỗi phía Việt Nam, thống kê, biến động, quan hệ (thăm dò).
+  router.get("/:id/history", readRl, wrap(async (req, res) => {
+    const r = await getService().history(String(req.params.id || "").toUpperCase(), typeof req.query.range === "string" ? req.query.range : "5y");
+    res.set("Cache-Control", r.status === 200 ? "public, max-age=300" : "no-store");
+    res.status(r.status).json(r.body);
+  }));
+
   return router;
 }

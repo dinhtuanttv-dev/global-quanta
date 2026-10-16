@@ -55,7 +55,10 @@ const getWorldService = () => (worldService ??= createWorldService({
 app.use("/api/world", createWorldRouter({ getService: getWorldService }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;
-const getCommodityService = () => (commodityService ??= createCommodityService({ store: getMarketRuntime().store }));
+const getCommodityService = () => (commodityService ??= createCommodityService({
+  store: getMarketRuntime().store, taSeries: getMarketRuntime().taSeries,
+  sectorIndices: async () => (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null,
+}));
 app.use("/api/commodities", createCommoditiesRouter({ getService: getCommodityService }));
 
 app.use((req, res) => {
