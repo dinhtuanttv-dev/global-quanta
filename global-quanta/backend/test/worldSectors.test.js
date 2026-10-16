@@ -60,3 +60,30 @@ test("snapshot: ghép spark vào lịch sử, ngành VN từ ICB, mã lỗi đư
   await svc.snapshot();
   assert.equal(calls, before); // lịch sử 6 giờ + spark 5 phút trong bộ đệm
 });
+
+test("M2 scores/detail: nhãn EXPERIMENTAL, xếp hạng, 404/400, biểu đồ ≤ 4 đường, cổ phiếu thành phần theo trọng số", async () => {
+  const n = 320;
+  const dts = Array.from({ length: n }, (_, i) => new Date(Date.UTC(2025, 0, 1) + i * 86_400_000).toISOString().slice(0, 10));
+  const ts = dts.map((d) => Date.parse(`${d}T20:00:00Z`) / 1000);
+  const fetchImpl = async (url) => {
+    if (url.includes("/spark")) return { ok: true, json: async () => ({ spark: { result: [] } }) };
+    const up = /XLE|EXH1|1618/.test(decodeURIComponent(url));
+    return { ok: true, json: async () => ({ chart: { result: [{ meta: {}, timestamp: ts, indicators: { quote: [{ close: dts.map((_, i) => 100 + (i % 3) + (up && i === n - 1 ? 8 : 0)) }] } }] } }) };
+  };
+  const icb = Object.fromEntries(VN_SECTORS.map((s) => [s.icb, { name: s.nameVi, index: dts.slice(0, n - 1).map((d, i) => [d, 50 + (i % 4), 5]), rebalances: [{ date: "2025-10-01", weights: { AAA: 0.5, BBB: 0.3, CCC: 0.2 } }] }]));
+  const taSeries = { get: async () => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: dts.map((d, i) => ({ date: d, close: 10 + (i % 5) })) }) };
+  const svc = createWorldSectorService({ fetchImpl, sectorIndices: async () => icb, taSeries, now: () => Date.UTC(2025, 10, 20), log: { warn() {} } });
+  const sc = await svc.scores();
+  assert.equal(sc.evidence.label, "EXPERIMENTAL");
+  assert.equal(sc.rows.length, VN_SECTORS.length);
+  assert.ok(sc.rankings.short.tailwind.some((r) => r.icb === "0500"));
+  assert.ok(sc.rows.find((r) => r.icb === "0500").heat.US);
+  assert.equal((await svc.detail("9999")).status, 404);
+  assert.equal((await svc.detail("8300", "7y")).status, 400);
+  const d = (await svc.detail("8300", "1y")).body;
+  assert.ok(d.chart.length >= 2 && d.chart.length <= 4);
+  assert.equal(d.chart[0].key, "vn");
+  assert.deepEqual(d.stocks.map((s) => s.symbol), ["AAA", "BBB", "CCC"]);
+  assert.ok(d.stocks[0].beta != null);
+  assert.ok(d.relations.length >= 3);
+});
