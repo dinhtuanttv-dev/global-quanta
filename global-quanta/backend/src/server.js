@@ -74,7 +74,9 @@ const getCommodityService = () => (commodityService ??= createCommodityService({
 app.use("/api/commodities", createCommoditiesRouter({ getService: getCommodityService }));
 // Nhịp đập thị trường (M1): ngành thế giới (STOXX 600 / SPDR / TOPIX-17 / KODEX …) ↔ ngành ICB Việt Nam.
 let worldSectorService = null;
-const getWorldSectorService = () => (worldSectorService ??= createWorldSectorService({ sectorIndices }));
+const getWorldSectorService = () => (worldSectorService ??= createWorldSectorService({
+  sectorIndices, taSeries: getMarketRuntime().taSeries, commoditySeries: (id) => getCommodityService().seriesOf(id),
+}));
 app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService }));
 
 app.use((req, res) => {

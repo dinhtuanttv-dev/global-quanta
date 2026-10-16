@@ -192,5 +192,13 @@ export function createCommodityService({ store = null, fetchImpl = globalThis.fe
     };
   }
 
-  return { snapshot, pinkSheet, yahooJson, history };
+  /** Chuỗi giá một mặt hàng cho engine ngành (M2): { id, nameVi, freq, points } hoặc null. */
+  async function seriesOf(id) {
+    const c = commodityById(id);
+    if (!c || c.source.kind === "none") return null;
+    if (c.source.kind === "wb") return { id, nameVi: c.nameVi, freq: "month", points: (await pinkSheet())?.series?.[c.source.column]?.points ?? [] };
+    return { id, nameVi: c.nameVi, freq: "day", points: yahooDailyBars(await yahooJson(c.source.symbol, "10y")) };
+  }
+
+  return { snapshot, pinkSheet, yahooJson, history, seriesOf };
 }

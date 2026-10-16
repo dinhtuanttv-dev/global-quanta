@@ -125,3 +125,17 @@ export function instrumentsFor(icb) {
   return WORLD_SECTOR_INSTRUMENTS.flatMap((i) => i.maps.filter((x) => x.icb === icb).map((x) => ({ symbol: i.symbol, region: i.region, nameVi: i.nameVi, session: i.session, match: x.match })))
     .sort((a, b) => order[a.match] - order[b.match]);
 }
+
+/**
+ * Hàng hoá dẫn dắt theo ngành VN (id trong danh mục hàng hoá C1–C4) với chiều tác động kỳ vọng (+1 giá tăng có lợi, −1 bất lợi).
+ * Ánh xạ đặt tay theo cơ chế kinh tế = HEURISTIC; hiển thị phân rã riêng trong điểm.
+ */
+export const COMMODITY_DRIVERS = {
+  "0500": [["BRENT", 1], ["NATGAS", 1]],
+  "1300": [["UREA", 1], ["DAP", 1]],
+  "1700": [["IRON_ORE", 1], ["COPPER", 1]],
+  "1750": [["IRON_ORE", 1], ["HRC", 1]],
+  "3570": [["SUGAR", 1], ["RICE_VN", 1]],
+  "5700": [["BRENT", -1]],
+};
+
