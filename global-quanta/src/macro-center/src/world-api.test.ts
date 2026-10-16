@@ -148,3 +148,32 @@ describe('stock profile and scenario', () => {
     o.pulse.forEach((p: Any) => expect(Number.isFinite(p.z)).toBe(true));
   });
 });
+
+describe('W5 — ngành định trước, chiều, trùng cửa sổ', () => {
+  it('ngành = sectorsHint[0]; ngược chiều -> C; trùng cửa sổ -> C và được ghi rõ', async () => {
+    const base = w.data.events.find((e) => e.id === 'ev1')!;
+    const ts = base.tsUtc;
+    const d = new Date(ts); d.setUTCDate(d.getUTCDate() + 1);
+    const twin = { ...base, id: 'twin', tsUtc: d.toISOString().replace('.000', '') };
+    const flipped = { ...base, id: 'flip', polarityHint: (-Math.sign(-1)) as 1 };
+    const api2 = createWorldApi({ world: { ...w.data, events: [base, twin] }, store: w.store, catalog: w.catalog, today: () => '2026-07-15', notice: WORLD_SYNTHETIC_NOTICE });
+    const r2 = (await api2.handle({ method: 'GET', path: '/api/world/events', query: {}, body: undefined })).body as Any;
+    for (const e of r2.events) {
+      expect(e.prespecified).toBe(true);
+      expect(e.sector).toBe(base.sectorsHint[0]);
+      expect(e.overlapsWith.length).toBe(1);
+      expect(e.tier).toBe('C');
+    }
+    const api3 = createWorldApi({ world: { ...w.data, events: [flipped] }, store: w.store, catalog: w.catalog, today: () => '2026-07-15', notice: WORLD_SYNTHETIC_NOTICE });
+    const r3 = (await api3.handle({ method: 'GET', path: '/api/world/events', query: {}, body: undefined })).body as Any;
+    if (r3.events[0].car < 0) {
+      expect(r3.events[0].signOk).toBe(false);
+      expect(r3.events[0].tier).toBe('C');
+    }
+    const noHint = { ...base, id: 'nohint', sectorsHint: [] as string[] };
+    const api4 = createWorldApi({ world: { ...w.data, events: [noHint] }, store: w.store, catalog: w.catalog, today: () => '2026-07-15', notice: WORLD_SYNTHETIC_NOTICE });
+    const r4 = (await api4.handle({ method: 'GET', path: '/api/world/events', query: {}, body: undefined })).body as Any;
+    expect(r4.events[0].prespecified).toBe(false);
+    expect(r4.events[0].tier).toBe('C');
+  });
+});

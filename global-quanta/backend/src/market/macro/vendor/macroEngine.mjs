@@ -3054,6 +3054,7 @@ function createWorldApi(deps) {
       tailDependence: WORLD_MARKETS.filter((m) => m.id !== "VN").map((m) => ({ market: m.id, nameVi: m.nameVi, lowerTail: tailDependence(world.markets[m.id], vnSeries, 0.05, "lower"), independentBaseline: 0.05 }))
     };
   });
+  const EVENT_WINDOW = { lo: -1, hi: 3 };
   const studies = () => memo("studies", () => {
     const list = world.events.map((ev) => {
       const align = alignEventToSession(ev.tsUtc, world.tradingDays);
@@ -3062,28 +3063,84 @@ function createWorldApi(deps) {
         const r = eventStudy(world.sectors[s.id], world.markets.VN, align.index);
         if (r) results[s.id] = r;
       }
-      return { id: ev.id, ev, align, results, q: {} };
+      const h0 = ev.sectorsHint[0];
+      const primary = h0 && results[h0] ? h0 : null;
+      return { id: ev.id, ev, align, results, q: {}, primary, qPrimary: null, overlapsWith: [] };
     });
+    const span = EVENT_WINDOW.hi - EVENT_WINDOW.lo;
+    for (const a of list) for (const b of list)
+      if (a !== b && a.align && b.align && Math.abs(a.align.index - b.align.index) <= span) a.overlapsWith.push(b.id);
     const flat = [];
     list.forEach((s, i) => Object.entries(s.results).forEach(([sec, r]) => flat.push({ i, sec, p: r.p })));
     const q = adjustPValues(flat.map((f) => f.p), "by");
     flat.forEach((f, k) => list[f.i].q[f.sec] = q[k]);
+    const prim = list.map((s, i) => ({ i, p: s.primary ? s.results[s.primary].p : NaN })).filter((x) => Number.isFinite(x.p));
+    const qp = adjustPValues(prim.map((x) => x.p), "by");
+    prim.forEach((x, k) => list[x.i].qPrimary = qp[k]);
     return list;
   });
   const bmpFor = (type, sector) => {
-    const items = studies().filter((s) => s.ev.type === type && s.results[sector]).map((s) => ({ car: s.results[sector].car, varCar: s.results[sector].varCar }));
+    const seen = /* @__PURE__ */ new Set();
+    const items = [];
+    for (const s of studies().filter((x) => x.ev.type === type && x.results[sector]).sort((a, b) => a.align.index - b.align.index)) {
+      if (s.overlapsWith.some((o) => seen.has(o))) {
+        seen.add(s.id);
+        continue;
+      }
+      seen.add(s.id);
+      items.push({ car: s.results[sector].car * (s.ev.polarityHint || 1), varCar: s.results[sector].varCar });
+    }
     return bmpTest(items);
   };
   const eventRow = (s) => {
     const candidates = Object.keys(s.results);
     if (!candidates.length || !s.align) return { id: s.id, titleVi: s.ev.titleVi, kind: s.ev.kind, type: s.ev.type, region: s.ev.region, tsUtc: s.ev.tsUtc, sessionDate: s.align?.date ?? null, tier: "pending", status: "Ch\u1EDD \u0111\u1EE7 phi\xEAn sau s\u1EF1 ki\u1EC7n" };
-    const hinted = candidates.filter((c) => s.ev.sectorsHint.includes(c));
-    const pool = hinted.length ? hinted : candidates;
-    const best = pool.reduce((a, b) => s.results[b].p < s.results[a].p ? b : a);
+    const exploratoryBest = candidates.reduce((a, b) => s.results[b].p < s.results[a].p ? b : a);
+    const overlapTitles = s.overlapsWith.map((id) => world.events.find((e) => e.id === id)?.titleVi ?? id);
+    if (!s.primary) {
+      const r2 = s.results[exploratoryBest];
+      return {
+        id: s.id,
+        titleVi: s.ev.titleVi,
+        kind: s.ev.kind,
+        type: s.ev.type,
+        region: s.ev.region,
+        tsUtc: s.ev.tsUtc,
+        sessionDate: s.align.date,
+        sameDay: s.align.sameDay,
+        sector: exploratoryBest,
+        sectorName: sectorName[exploratoryBest],
+        prespecified: false,
+        car: r2.car,
+        se: r2.se,
+        t: r2.t,
+        p: r2.p,
+        q: s.q[exploratoryBest],
+        ci90: [r2.car - 1.645 * r2.se, r2.car + 1.645 * r2.se],
+        bmp: null,
+        tier: "C",
+        polarity: s.ev.polarityHint,
+        signOk: null,
+        overlapsWith: overlapTitles,
+        reasonVi: "Kh\xF4ng c\xF3 ng\xE0nh m\u1EE5c ti\xEAu \u0111\u1ECBnh tr\u01B0\u1EDBc \u2014 ng\xE0nh hi\u1EC3n th\u1ECB l\xE0 ng\xE0nh c\xF3 p nh\u1ECF nh\u1EA5t (th\u0103m d\xF2), kh\xF4ng ph\u1EA3i b\u1EB1ng ch\u1EE9ng.",
+        limitDays: r2.limitDaysInWindow,
+        extraction: s.ev.extraction ?? null
+      };
+    }
+    const best = s.primary;
     const r = s.results[best];
     const bmp = bmpFor(s.ev.type, best);
-    const replicated = !!bmp && bmp.p < 0.05 && Math.sign(bmp.caar) === Math.sign(r.car);
-    const { tier, reasonVi } = assignTier({ q: s.q[best], stable: replicated, oosPass: replicated });
+    const signOk = s.ev.polarityHint === 0 ? null : Math.sign(r.car) === s.ev.polarityHint;
+    const replicated = !!bmp && bmp.p < 0.05 && Math.sign(bmp.caar) === Math.sign(r.car * (s.ev.polarityHint || 1));
+    let { tier, reasonVi } = assignTier({ q: s.qPrimary ?? 1, stable: replicated, oosPass: replicated });
+    if (signOk === false && tier !== "C") {
+      tier = "C";
+      reasonVi = "Ng\u01B0\u1EE3c chi\u1EC1u d\u1EF1 ki\u1EBFn c\u1EE7a s\u1EF1 ki\u1EC7n \u2014 kh\xF4ng t\xEDnh l\xE0 b\u1EB1ng ch\u1EE9ng.";
+    }
+    if (s.overlapsWith.length && tier !== "C") {
+      tier = "C";
+      reasonVi = `C\u1EEDa s\u1ED5 (\u22121,+3) tr\xF9ng s\u1EF1 ki\u1EC7n kh\xE1c (${overlapTitles.join("; ")}) \u2014 kh\xF4ng t\xE1ch \u0111\u01B0\u1EE3c t\xE1c \u0111\u1ED9ng.`;
+    }
     return {
       id: s.id,
       titleVi: s.ev.titleVi,
@@ -3095,12 +3152,18 @@ function createWorldApi(deps) {
       sameDay: s.align.sameDay,
       sector: best,
       sectorName: sectorName[best],
+      prespecified: true,
       car: r.car,
       se: r.se,
       t: r.t,
       p: r.p,
-      q: s.q[best],
+      q: s.qPrimary ?? 1,
+      qAllCells: s.q[best],
       ci90: [r.car - 1.645 * r.se, r.car + 1.645 * r.se],
+      polarity: s.ev.polarityHint,
+      signOk,
+      overlapsWith: overlapTitles,
+      exploratoryBest: exploratoryBest !== best ? { sector: exploratoryBest, sectorName: sectorName[exploratoryBest], car: s.results[exploratoryBest].car, p: s.results[exploratoryBest].p } : null,
       bmp: bmp ? { n: bmp.n, t: bmp.t, p: bmp.p } : null,
       tier,
       reasonVi,
@@ -3208,7 +3271,7 @@ function createWorldApi(deps) {
       if (m === "POST" && path === "/api/world/matrix") return { status: 200, body: await matrix(asOfOf(body.asOf), intIn(body.maxLag, "maxLag", 1, 12, 6)) };
       if (m === "GET" && path === "/api/world/confirmatory") return { status: 200, body: confirmatory(asOfOf(q.asOf)) };
       if (m === "GET" && path === "/api/world/connectedness") return { status: 200, body: { notice: deps.notice, ...connectednessReport(intIn(q.window, "window", 120, 1e3, 250), intIn(q.H, "H", 1, 30, 10), intIn(q.step, "step", 5, 200, 40)) } };
-      if (m === "GET" && path === "/api/world/events") return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: "Benjamini-Yekutieli tr\xEAn to\xE0n b\u1ED9 s\u1EF1 ki\u1EC7n \xD7 ng\xE0nh" } };
+      if (m === "GET" && path === "/api/world/events") return { status: 200, body: { notice: deps.notice, events: studies().map(eventRow), family: "X\xE1c nh\u1EADn: Benjamini-Yekutieli tr\xEAn ng\xE0nh m\u1EE5c ti\xEAu \u0111\u1ECBnh tr\u01B0\u1EDBc (1 ki\u1EC3m \u0111\u1ECBnh / s\u1EF1 ki\u1EC7n); q to\xE0n b\u1EA3ng s\u1EF1 ki\u1EC7n \xD7 ng\xE0nh ch\u1EC9 \u0111\u1EC3 th\u0103m d\xF2" } };
       const em = /^\/api\/world\/events\/([A-Za-z0-9_-]+)$/.exec(path);
       if (m === "GET" && em) {
         const s = studies().find((x) => x.id === em[1]);

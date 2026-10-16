@@ -101,6 +101,15 @@ export const REAL_WORLD_EVENTS = [
     id: "us-tariff-pause-2025-04-09", kind: "surprise", type: "trade_policy", titleVi: "Mỹ hoãn 90 ngày thuế đối ứng", tsUtc: "2025-04-09T17:20:00Z", region: "US",
     sectorsHint: ["S_TEXTILE", "S_SEAFOOD", "S_PORT", "S_STEEL"], polarityHint: 1, source: { name: "Nhà Trắng — tạm hoãn thuế đối ứng 09/04/2025" }, extraction: REVIEWED,
   },
+  // W5 (2026-10-16): sự kiện có chiều rõ. Ngành mục tiêu = phần tử đầu của sectorsHint (định trước, không chọn theo p).
+  {
+    id: "pboc-stimulus-2024-09-24", kind: "surprise", type: "monetary_policy", titleVi: "PBoC công bố gói nới lỏng (hạ RRR, lãi suất, hỗ trợ chứng khoán & BĐS)", tsUtc: "2024-09-24T01:00:00Z", region: "CN",
+    sectorsHint: ["S_STEEL", "S_OIL", "S_SEC"], polarityHint: 1, source: { name: "PBoC/NFRA/CSRC — họp báo 09:00 giờ Bắc Kinh 24/09/2024" }, extraction: REVIEWED,
+  },
+  {
+    id: "us-cn-geneva-2025-05-12", kind: "surprise", type: "trade_policy", titleVi: "Mỹ – Trung đạt thoả thuận Geneva, giảm thuế 90 ngày", tsUtc: "2025-05-12T08:00:00Z", region: "US",
+    sectorsHint: ["S_TEXTILE", "S_SEAFOOD", "S_PORT"], polarityHint: 1, source: { name: "Tuyên bố chung Mỹ – Trung tại Geneva 12/05/2025" }, extraction: REVIEWED,
+  },
   {
     id: "ftse-vn-upgrade-2025-10-07", kind: "scheduled", type: "index_reclassification", titleVi: "FTSE Russell nâng hạng Việt Nam lên thị trường mới nổi thứ cấp", tsUtc: "2025-10-07T21:00:00Z", region: "GLOBAL",
     sectorsHint: ["S_SEC", "S_BANK", "S_RE"], polarityHint: 1, source: { name: "FTSE Russell — kỳ xét phân loại thị trường 10/2025" }, extraction: REVIEWED,
