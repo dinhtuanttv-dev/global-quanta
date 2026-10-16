@@ -221,3 +221,23 @@ test("worldService + macroService: dữ liệu đã lưu được ĐỌC LẠI s
   const src = await svc2.source();
   assert.equal(src.mode, "real");
 });
+
+test("W2 spliceSectorReturns: rổ trước ngày ICB bắt đầu, ICB sau đó; ICB < 3 mã bị bỏ; không nguồn -> start null", async () => {
+  const { spliceSectorReturns, SECTOR_ICB, SECTOR_BASKETS: B } = await import("../src/market/world/worldData.js");
+  const days = ["d0", "d1", "d2", "d3", "d4", "d5"];
+  const basket = [0, 1, 1, 1, 1, 1];
+  const icb = [["d1", 100, 2], ["d2", 100, 5], ["d3", 110, 5], ["d4", 99, 5], ["d5", 99, 5]];
+  const sp = spliceSectorReturns(days, basket, 1, icb);
+  assert.equal(sp.icbFrom, "d2"); // d1 có 2 mã < 3 -> bỏ
+  assert.deepEqual(sp.ret, [0, 1, 1, 10, -10, 0]);
+  assert.equal(sp.start, 1);
+  assert.equal(sp.basketDays, 2);
+  assert.equal(sp.icbDays, 3);
+  const none = spliceSectorReturns(days, basket, null, null);
+  assert.equal(none.start, null);
+  const onlyIcb = spliceSectorReturns(days, basket, null, icb);
+  assert.equal(onlyIcb.start, 2);
+  assert.deepEqual(onlyIcb.ret.slice(0, 3), [0, 0, 0]);
+  for (const k of Object.keys(SECTOR_ICB)) assert.ok(B[k], k);
+  assert.equal(SECTOR_ICB.S_SEAFOOD, undefined);
+});

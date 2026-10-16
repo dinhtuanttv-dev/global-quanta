@@ -5,7 +5,9 @@
 //   markets (% lợi suất ngày): VN = VN-Index; CN/JP/KR = chỉ số đóng cửa CÙNG NGÀY (đóng trước/khoảng giờ đóng cửa VN);
 //     US = S&P 500 và TH = ETF THD (Yahoo không có lịch sử SET) lấy phiên Mỹ NGÀY TRƯỚC (đã biết trước khi VN mở cửa).
 //     Thị trường nghỉ trong phiên VN -> 0 (không có thay đổi giá), ghi trong `coverage`.
-//   sectors (% lợi suất ngày): chỉ số CÂN BẰNG TỶ TRỌNG của rổ cổ phiếu từng ngành (giá điều chỉnh theo sự kiện quyền).
+//   sectors (% lợi suất ngày): ngành có chỉ số ICB tương ứng (SECTOR_ICB) dùng CHỈ SỐ NGÀNH ICB của Gateway (toàn bộ mã ngành,
+//     tái cân bằng tháng — Lọc ngành) từ ngày chỉ số bắt đầu; đoạn trước đó và ngành không có ICB khớp (thuỷ sản, dệt may) dùng
+//     rổ CÂN BẰNG TỶ TRỌNG chọn tay (giá điều chỉnh theo sự kiện quyền) — có thiên lệch sống sót, ghi rõ trong coverage.
 // Tháng (VintageStore): yếu tố thế giới (FRED/Yahoo) + chỉ số ngành tháng (giá cuối tháng của chỉ số ngày) — tháng đã đóng,
 //   asOf = ngày 1 tháng sau.
 
@@ -22,6 +24,14 @@ export const SECTOR_BASKETS = {
   S_TECH: ["FPT", "CMG", "ELC", "VGI", "CTR"],
   S_POWER: ["POW", "REE", "NT2", "QTP", "GEG", "PC1"],
 };
+/**
+ * Rổ thế giới -> chỉ số ngành ICB của Gateway (/api/market/sectors/:code/history), chỉ khi khớp sát (giống
+ * Project A lib/locnganh/world-context.ts). S_SEAFOOD / S_TEXTILE không có ngành ICB tương ứng (thuộc 3570 / 3760 lẫn mã khác).
+ */
+export const SECTOR_ICB = {
+  S_BANK: "8300", S_SEC: "8700", S_RE: "8600", S_STEEL: "1750", S_OIL: "0500", S_PORT: "2770", S_TECH: "9500", S_POWER: "7530",
+};
+export const MIN_ICB_MEMBERS = 3; // chỉ số ICB chỉ được dùng từ phiên có >= 3 mã thành phần
 export const MIN_BASKET_MEMBERS = 2; // tối thiểu để dựng chỉ số ngày (mỗi rổ có 3+ mã ứng viên)
 
 /** Thị trường nước ngoài (Yahoo, nến ngày). lag1: dùng phiên ngày TRƯỚC của sàn đó (sàn Mỹ đóng cửa sau giờ VN). */
@@ -132,6 +142,31 @@ export function equalWeightReturns(tradingDays, seriesBySymbol) {
     return n ? round(sum / n) : 0;
   });
   return { ret, members };
+}
+
+/**
+ * Ghép lợi suất ngày: chỉ số ICB (index = [[date, close, n]]) từ phiên đầu tiên có ICB ở cả 2 phiên liền kề với n >= minMembers;
+ * trước đó dùng rổ (basketRet, từ basketStart). Sau khi ICB bắt đầu, phiên thiếu ICB (hiếm) dùng rổ và được đếm (gapDays).
+ * Trả { ret, start, icbFrom, icbDays, basketDays, gapDays } — start = phiên đầu chuỗi có nghĩa (null nếu không có nguồn nào).
+ */
+export function spliceSectorReturns(tradingDays, basketRet, basketStart, icbIndex, minMembers = MIN_ICB_MEMBERS) {
+  const icb = new Map((icbIndex ?? []).filter((r) => r[1] > 0 && (r[2] ?? minMembers) >= minMembers).map((r) => [r[0], r[1]]));
+  let icbStart = null;
+  for (let t = 1; t < tradingDays.length; t++) if (icb.has(tradingDays[t - 1]) && icb.has(tradingDays[t])) { icbStart = t; break; }
+  const bs = basketStart ?? Infinity;
+  let icbDays = 0, basketDays = 0, gapDays = 0;
+  const ret = tradingDays.map((d, t) => {
+    if (icbStart != null && t >= icbStart) {
+      const a = icb.get(tradingDays[t - 1]), b = icb.get(d);
+      if (a > 0 && b > 0) { icbDays++; return round(pct(a, b)); }
+      gapDays++;
+      return t >= bs ? basketRet?.[t] ?? 0 : 0;
+    }
+    if (t >= bs) { basketDays++; return basketRet?.[t] ?? 0; }
+    return 0;
+  });
+  const start = Math.min(bs, icbStart != null ? icbStart - 1 : Infinity);
+  return { ret, start: Number.isFinite(start) ? start : null, icbFrom: icbStart != null ? tradingDays[icbStart - 1] : null, icbDays, basketDays, gapDays };
 }
 
 /** Lợi suất ngày % -> chỉ số tháng (giá trị cuối tháng của chỉ số gốc 100), chỉ tháng ĐÃ ĐÓNG, từ ngày đầu có đủ thành viên. */
