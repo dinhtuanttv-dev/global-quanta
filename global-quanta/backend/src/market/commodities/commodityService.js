@@ -2,12 +2,15 @@
 // Yahoo (ngày): bộ nhớ đệm theo (mã, khoảng). Pink Sheet (tháng): KV `commodities:pinksheet`, làm mới tối đa 12 giờ/lần,
 // lỗi nguồn -> giữ bản cũ (ghi rõ thời điểm lấy).
 import { parseQuote } from "../world/worldPulse.js";
-import { COMMODITIES } from "./catalog.js";
+import { COMMODITIES, commodityById } from "./catalog.js";
+import { describe, monthEnd, rebase, relation, sliceRange, toVnd } from "./commodityAnalytics.js";
 import { fetchPinkSheet } from "./pinkSheet.js";
 
 export const PINK_KV_KEY = "commodities:pinksheet";
 const PINK_REFRESH_MS = 12 * 3600_000;
 const YAHOO_TTL = { "1y": 10 * 60_000, "10y": 6 * 3600_000 };
+const VN_TICKER_TTL = 6 * 3600_000;
+export const HISTORY_RANGES = ["1y", "3y", "5y", "10y"];
 const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
 export const SNAPSHOT_DAILY_POINTS = 60;
 export const SNAPSHOT_MONTHLY_POINTS = 24;
@@ -41,8 +44,13 @@ export function dailySnapshot(json) {
   return { value: q.value, period: q.date, time: q.time, change: { pct: q.changePct, basisVi: "so với phiên trước" }, history: bars.slice(-SNAPSHOT_DAILY_POINTS) };
 }
 
-export function createCommodityService({ store = null, fetchImpl = globalThis.fetch, now = Date.now, log = console } = {}) {
+/**
+ * sectorIndices: () => { [icb]: { name, index: [[date, close, n]] } } (KV Lọc ngành, không gọi SSI).
+ * taSeries: { get({ symbol, range, limit }) } — giá cổ phiếu điều chỉnh cộng dồn theo sự kiện quyền (cùng cơ sở tab TA).
+ */
+export function createCommodityService({ store = null, fetchImpl = globalThis.fetch, now = Date.now, log = console, sectorIndices = null, taSeries = null } = {}) {
   const yahooCache = new Map();
+  const vnTickerCache = new Map();
   let pink = null, pinkInflight = null, pinkLoaded = false;
 
   async function yahooJson(symbol, range) {
@@ -104,5 +112,84 @@ export function createCommodityService({ store = null, fetchImpl = globalThis.fe
     };
   }
 
-  return { snapshot, pinkSheet, yahooJson };
+  async function vnTicker(symbol) {
+    const hit = vnTickerCache.get(symbol);
+    if (hit && now() - hit.at < VN_TICKER_TTL) return hit.value;
+    const r = await taSeries.get({ symbol, range: "5y", limit: 1300 });
+    const value = { points: (r.bars ?? []).filter((b) => b.close > 0 && !b.partial).map((b) => [b.date, b.close]), priceBasis: r.priceBasis, warnings: r.warnings ?? [] };
+    vnTickerCache.set(symbol, { at: now(), value });
+    return value;
+  }
+
+  /** Phân tích chuyên sâu một mặt hàng (C2). range: 1y | 3y | 5y | 10y (khung hiển thị; thống kê 5 năm luôn dùng đủ dữ liệu có). */
+  async function history(id, range = "5y") {
+    const c = commodityById(id);
+    if (!c) return { status: 404, body: { error: `Không có mặt hàng ${id}.` } };
+    if (!HISTORY_RANGES.includes(range)) return { status: 400, body: { error: `range phải là ${HISTORY_RANGES.join(", ")}.` } };
+    const base = { id: c.id, nameVi: c.nameVi, unit: c.unit, group: c.group, worldFactor: c.worldFactor ?? null, vnPrice: !!c.vnPrice, twoWayVi: c.twoWayVi ?? null, range };
+    if (c.source.kind === "none") return { status: 200, body: { ...base, available: false, source: c.source, reasonVi: c.source.labelVi } };
+    const freq = c.source.kind === "wb" ? "month" : "day";
+    let world = [], source;
+    if (freq === "month") {
+      const ps = await pinkSheet();
+      world = ps?.series?.[c.source.column]?.points ?? [];
+      source = { kind: "wb", labelVi: c.source.labelVi, column: c.source.column, updatedOn: ps?.updatedOn ?? null };
+    } else {
+      world = yahooDailyBars(await yahooJson(c.source.symbol, "10y"));
+      source = { kind: "yahoo", labelVi: c.source.labelVi, symbol: c.source.symbol };
+    }
+    if (world.length < 3) return { status: 200, body: { ...base, available: false, freq, source, reasonVi: "Nguồn chưa có đủ lịch sử." } };
+    const notes = [];
+    let fx = [];
+    try { fx = yahooDailyBars(await yahooJson("VND=X", "10y")); } catch (e) { notes.push(`Chưa lấy được USD/VND (${e.message}) — bỏ đường quy đổi VND.`); }
+    const vnd = toVnd(world, fx, freq);
+    // chuỗi phía Việt Nam: chỉ số ngành ICB (nếu có) + cổ phiếu đại diện đầu tiên (giá điều chỉnh theo sự kiện quyền)
+    const vnSeries = [];
+    if (c.vn?.icb && sectorIndices) {
+      try {
+        const sec = (await sectorIndices())?.[c.vn.icb];
+        if (sec?.index?.length) vnSeries.push({ kind: "icb", code: c.vn.icb, labelVi: `Chỉ số ngành ICB ${c.vn.icb} ${sec.name ?? ""}`.trim(), priceBasis: "INDEX_POINTS", points: sec.index.filter((r) => r[1] > 0).map((r) => [r[0], r[1]]) });
+      } catch (e) { notes.push(`Chưa đọc được chỉ số ngành ICB (${e.message}).`); }
+    }
+    const tk = c.vn?.tickers?.[0];
+    if (tk && taSeries) {
+      try {
+        const t = await vnTicker(tk);
+        if (t.points.length) vnSeries.push({ kind: "ticker", code: tk, labelVi: `Cổ phiếu ${tk} (heuristic — mã đại diện đặt tay)`, priceBasis: t.priceBasis, warnings: t.warnings, points: t.points });
+      } catch (e) { notes.push(`Chưa lấy được giá ${tk} (${e.message}).`); }
+    }
+    if (!vnSeries.length && !c.vnPrice) notes.push("Chưa có chuỗi so sánh phía Việt Nam cho mặt hàng này (không có ngành ICB / mã đại diện đã xác nhận).");
+    const compare = [];
+    const cw = c.compareWith ? commodityById(c.compareWith) : null;
+    if (cw?.source.kind === "wb" && freq === "month") {
+      const pts = (await pinkSheet())?.series?.[cw.source.column]?.points ?? [];
+      if (pts.length) compare.push({ key: `cmp:${cw.id}`, labelVi: `${cw.nameVi} (${cw.source.labelVi})`, points: pts });
+    }
+    const openPeriod = new Date(now()).toISOString().slice(0, 7);
+    const vnForStats = (s) => (freq === "month" ? monthEnd(s.points, openPeriod) : s.points);
+    const stats = describe(world, freq);
+    const relations = vnSeries.map((s) => ({ kind: s.kind, code: s.code, labelVi: s.labelVi, ...(relation(world, vnForStats(s), freq) ?? { unavailable: true }) }));
+    const shown = sliceRange(world, range);
+    const from = shown[0][0];
+    const chart = rebase([
+      { key: "world", labelVi: `Giá thế giới (${c.unit})`, points: world },
+      ...(vnd.length ? [{ key: "vnd", labelVi: `Quy đổi VND (giá thế giới × USD/VND — không phải giá nội địa)`, points: vnd }] : []),
+      ...vnSeries.map((s) => ({ key: `vn:${s.code}`, labelVi: s.labelVi, points: freq === "month" ? vnForStats(s) : s.points })),
+      ...compare,
+    ], from).map(({ points, ...rest }) => rest);
+    return {
+      status: 200,
+      body: {
+        ...base, available: true, freq, source, from, to: world.at(-1)[0],
+        world: shown,
+        vnd: { labelVi: `VND/${c.unit.replace(/^USD\//, "")}`, source: "Yahoo:VND=X", points: sliceRange(vnd, range) },
+        vnSeries: vnSeries.map(({ points, ...m }) => ({ ...m, first: points[0]?.[0] ?? null, last: points.at(-1)?.[0] ?? null })),
+        chart, stats: stats && { ...stats, volSeries: sliceRange(stats.volSeries, range), ddSeries: sliceRange(stats.ddSeries, range) },
+        relations: relations.map((r) => (r.rolling ? { ...r, rolling: sliceRange(r.rolling, range) } : r)),
+        notes,
+      },
+    };
+  }
+
+  return { snapshot, pinkSheet, yahooJson, history };
 }
