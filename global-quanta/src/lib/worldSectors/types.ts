@@ -8,6 +8,7 @@ export interface Evidence { label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string;
 
 export interface WsRow {
   icb: string; nameVi: string; parent: string | null; available: boolean; members: number | null; vnLast: string | null;
+  constituents?: { ticker: string; weight: number }[];
   short: { score: number | null; sectors: Agg; commodity: number | null; label: WsLabel; week: Agg; evidence: Evidence };
   medium: { score: number | null; sectors: Agg; m1: Agg; commodity: number | null; label: WsLabel; gap3m: number | null; vn: { w1: Move | null; m1: Move | null; m3: Move | null } };
   heat: Partial<Record<RegionId, { new: number | null; w1: number | null; m1: number | null; m3: number | null; n: number; best: Match }>>;

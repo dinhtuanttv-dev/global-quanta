@@ -81,6 +81,7 @@ test("M2 scores/detail: nhãn EXPERIMENTAL, xếp hạng, 404/400, biểu đồ 
   assert.equal(sc.rows.length, VN_SECTORS.length);
   assert.ok(sc.rankings.short.tailwind.some((r) => r.icb === "0500"));
   assert.ok(sc.rows.find((r) => r.icb === "0500").heat.US);
+  assert.deepEqual(sc.rows.find((r) => r.icb === "0500").constituents.map((c) => c.ticker), ["AAA", "BBB", "CCC"]);
   assert.equal((await svc.detail("9999")).status, 404);
   assert.equal((await svc.detail("8300", "7y")).status, 400);
   const d = (await svc.detail("8300", "1y")).body;

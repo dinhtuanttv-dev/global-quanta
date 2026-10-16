@@ -1,9 +1,8 @@
 // Nhịp đập thị trường › Ngành thế giới → ngành Việt Nam (M4). Dữ liệu: Gateway /api/world-sectors/scores (M1–M3).
 // Xếp hạng thuận/ngược gió (ngắn hạn = thông tin mới sau phiên VN; trung hạn = 3 tháng) + bản đồ nhiệt ngành VN × khu vực.
 import { useState } from "react";
-import useSWR from "swr";
-import { fetchMarketJson } from "../../../../services/marketDataClient";
-import { divergingColor, fmtZ, labelVi, REGION_ORDER, REGION_SHORT, type RegionId, type WsRow, type WsScores } from "../../../../lib/worldSectors/types";
+import { useWorldSectorScores } from "../../../../hooks/useWorldSectorScores";
+import { divergingColor, fmtZ, labelVi, REGION_ORDER, REGION_SHORT, type RegionId, type WsRow } from "../../../../lib/worldSectors/types";
 import EvidenceTag from "../EvidenceTag";
 import WorldSectorDrawer from "./WorldSectorDrawer";
 
@@ -61,7 +60,7 @@ function RankList({ title, items, rows, horizon, onOpen, tone }: { title: string
 }
 
 export default function WorldSectorPanel() {
-  const { data, error } = useSWR<WsScores>("world-sectors-scores", () => fetchMarketJson<WsScores>("/api/world-sectors/scores"), { refreshInterval: 5 * 60_000, revalidateOnFocus: false });
+  const { data, error } = useWorldSectorScores();
   const [horizon, setHorizon] = useState<Horizon>("short");
   const [heatKey, setHeatKey] = useState<HeatKey>("new");
   const [open, setOpen] = useState<string | null>(null);

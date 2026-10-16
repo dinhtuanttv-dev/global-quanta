@@ -186,7 +186,10 @@ export function createWorldSectorService({ sectorIndices = null, commoditySeries
         };
         heat[r] = { new: agg("new"), w1: agg("w1"), m1: agg("m1"), m3: agg("m3"), n: ci.length, best: ci[0].match };
       }
-      rows.push({ icb: s.icb, nameVi: v.name, parent: s.parent ?? null, available: true, members: v.members, vnLast: sc.vnLast, short: { ...sc.short, evidence: sectorEvidence(s.icb) }, medium: sc.medium, heat,
+      // thành phần (kỳ tái cân bằng gần nhất, tối đa 8 mã theo tỷ trọng) — cho Radar và AI
+      const reb = v.rebalances.at(-1);
+      const constituents = reb ? Object.entries(reb.weights).sort((x, y) => y[1] - x[1]).slice(0, 8).map(([ticker, weight]) => ({ ticker, weight })) : [];
+      rows.push({ icb: s.icb, nameVi: v.name, parent: s.parent ?? null, available: true, members: v.members, vnLast: sc.vnLast, constituents, short: { ...sc.short, evidence: sectorEvidence(s.icb) }, medium: sc.medium, heat,
         drivers: sc.commodities.map((c) => ({ id: c.id, nameVi: c.nameVi, sign: c.sign, short: c.short, medium: c.medium })) });
     }
     const ok = rows.filter((r) => r.available);
