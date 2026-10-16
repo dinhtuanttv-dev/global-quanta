@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchMarketJson } from "../services/marketDataClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -101,35 +101,11 @@ export function mergePulse(sse: StreamPayload | null, gw: GatewayPulse | null): 
   return { payload: null, source: null };
 }
 
-// MOI (2026-09-10): cac truong hang hoa (gold, oil_brent, oil_wti,
-// baltic_dry_index, robusta_coffee) chi la GIA TRI TUYET DOI, chua co san
-// %-thay doi tu backend (khac voi iron_ore_proxy_change_percent va
-// container_freight_proxy_change_percent, ca 2 da la % san). Tinh %-delta
-// CLIENT-SIDE bang cach so sanh voi frame SSE lien truoc - dung cho Bang
-// Tong Hop Co Phieu Huong Loi (tinh nang 2). KHONG ap dung cho
-// rubber_price/fertilizer_urea_price vi 2 truong nay da co san
-// *_change_percent rieng tu backend (tinh theo thang, khong phai theo
-// frame SSE 5s).
-export interface MacroCommodityDeltas {
-  goldChangePercent: number | null;
-  oilBrentChangePercent: number | null;
-  oilWtiChangePercent: number | null;
-  balticDryChangePercent: number | null;
-  robustaCoffeeChangePercent: number | null;
-}
-
-function calcPct(prev: number | null | undefined, curr: number | null | undefined): number | null {
-  if (typeof prev !== "number" || typeof curr !== "number" || prev === 0) return null;
-  return ((curr - prev) / prev) * 100;
-}
-
 export function useGlobalStream() {
   const [data, setData] = useState<StreamPayload | null>(null);
   const [gw, setGw] = useState<GatewayPulse | null>(null);
   const [gwOk, setGwOk] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [commodityDeltas, setCommodityDeltas] = useState<MacroCommodityDeltas | null>(null);
-  const prevMacroRef = useRef<MacroTrendRow | null>(null);
 
   useEffect(() => {
     // FIX (tich hop Project B, 2026-08-26): ban goc trong zip dung path
@@ -144,17 +120,6 @@ export function useGlobalStream() {
     es.onmessage = (e) => {
       try {
         const parsed: StreamPayload = JSON.parse(e.data);
-        if (parsed.macro) {
-          const prev = prevMacroRef.current;
-          setCommodityDeltas({
-            goldChangePercent: calcPct(prev?.gold, parsed.macro.gold),
-            oilBrentChangePercent: calcPct(prev?.oil_brent, parsed.macro.oil_brent),
-            oilWtiChangePercent: calcPct(prev?.oil_wti, parsed.macro.oil_wti),
-            balticDryChangePercent: calcPct(prev?.baltic_dry_index, parsed.macro.baltic_dry_index),
-            robustaCoffeeChangePercent: calcPct(prev?.robusta_coffee, parsed.macro.robusta_coffee),
-          });
-          prevMacroRef.current = parsed.macro;
-        }
         setData(parsed);
       } catch {
         // Frame loi (hiem, VD JSON bi cat giua chung) - bo qua, cho frame
@@ -177,18 +142,5 @@ export function useGlobalStream() {
   }, []);
 
   const merged = useMemo(() => mergePulse(data, gw), [data, gw]);
-  // Gateway có % thay đổi theo PHIÊN (so với phiên trước) cho vàng/dầu — ý nghĩa hơn so sánh 2 khung SSE 5 giây.
-  const deltas = useMemo<MacroCommodityDeltas | null>(() => {
-    const q = merged.source === "gateway" ? merged.payload?.macro?.quotes : undefined;
-    if (!q) return commodityDeltas;
-    return {
-      goldChangePercent: q.gold?.changePct ?? null,
-      oilBrentChangePercent: q.oil_brent?.changePct ?? null,
-      oilWtiChangePercent: q.oil_wti?.changePct ?? null,
-      balticDryChangePercent: commodityDeltas?.balticDryChangePercent ?? null,
-      robustaCoffeeChangePercent: commodityDeltas?.robustaCoffeeChangePercent ?? null,
-    };
-  }, [merged, commodityDeltas]);
-
-  return { data: merged.payload, connected: connected || gwOk, commodityDeltas: deltas, source: merged.source, monthlyFromProjectA: !!data?.macro };
+  return { data: merged.payload, connected: connected || gwOk, source: merged.source, monthlyFromProjectA: !!data?.macro };
 }

@@ -7,9 +7,8 @@ import { useGoldenSepa } from "./useGoldenSepa";
 import { useTop20Radar } from "./useTop20Radar";
 import { useCatalystData } from "./useCatalystData";
 import { useQualityScore } from "./useQualityScore";
-import { useSectorPulse } from "./useSectorPulse";
-import { useSectorPulseRegion } from "./useSectorPulseRegion";
-import { computeBeneficiaryStocks } from "../lib/beneficiary-stocks";
+import { useWorldSectorScores } from "./useWorldSectorScores";
+import { fmtZ } from "../lib/worldSectors/types";
 import { buildRadarModel, type RadarModel, type RadarSources } from "../lib/radarModel";
 import { useBuyTimeline } from "./useBuyTimeline";
 import { useDecisionStates } from "./useCotucDecision";
@@ -39,18 +38,21 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
     const decisions = decisionStates.states.map((d) => ({ ticker: d.ticker, level: d.decision.level, combinedProbability: d.decision.combinedProbability }));
     return buyCriterion(buyTimeline.data.rows, decisions, tickers);
   }, [buyTimeline.data, decisionStates.states, tickers]);
-  const us = useSectorPulse();
-  const eu = useSectorPulseRegion("eu");
-  const asia = useSectorPulseRegion("asia");
+  const ws = useWorldSectorScores();
 
   const sources: RadarSources = useMemo(() => {
-    const worldReady = us.topGainers.length + us.topLosers.length > 0;
-    const world = worldReady
-      ? new Map(computeBeneficiaryStocks({
-          usGainers: us.topGainers, usLosers: us.topLosers, euGainers: eu.topGainers, euLosers: eu.topLosers,
-          asiaGainers: asia.topGainers, asiaLosers: asia.topLosers, macro: null, commodityDeltas: null,
-        }).filter((b) => b.direction === "positive").map((b) => [b.ticker, `Hưởng lợi: ${b.sources.slice(0, 2).join("; ")}`]))
-      : null;
+    // 2026-10-17: mã thuộc ngành ICB THUẬN GIÓ ngắn hạn (ngành thế giới → ngành VN, xếp hạng đã kiểm định đặt trước WS-v1,
+    // lợi thế nhỏ) — thành phần thật theo tỷ trọng; thay bảng "hưởng lợi" cũ (mã đặt tay, ±0,5% một ngày).
+    let world: Map<string, string> | null = null;
+    if (ws.data) {
+      world = new Map();
+      const rows = new Map(ws.data.rows.map((r) => [r.icb, r]));
+      for (const t of ws.data.rankings.short.tailwind) {
+        for (const c of rows.get(t.icb)?.constituents ?? []) {
+          if (!world.has(c.ticker)) world.set(c.ticker, `Ngành ${t.nameVi} thuận gió ngắn hạn ${fmtZ(t.score, 2)} σ (ngành thế giới → VN)`);
+        }
+      }
+    }
     const impacts = catalyst?.tickerImpacts as Record<string, { direction: string; compositeScore: number }> | undefined;
     return {
       scanner: new Map(basket.items.map((i) => [i.ticker, i])),
@@ -68,7 +70,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       dividend: buy ? buy.pass : null,
       dividendFail: buy?.fail,
     };
-  }, [basket.items, us.topGainers, us.topLosers, eu.topGainers, eu.topLosers, asia.topGainers, asia.topLosers, catalyst, top20Data, ta.rows, ta.doc, buy]);
+  }, [basket.items, ws.data, catalyst, top20Data, ta.rows, ta.doc, buy]);
 
   const model = useMemo(() => buildRadarModel(tickers, sources, live), [tickers, sources, live]);
   return { ...model, listName: radar.name, listId: radar.id, tickers, loading: isLoading || basket.loading };
