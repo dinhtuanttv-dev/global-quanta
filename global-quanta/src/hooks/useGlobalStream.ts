@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchMarketJson } from "../services/marketDataClient";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -41,7 +42,14 @@ export interface MacroTrendRow {
   risk_status: "RISK_ON" | "NEUTRAL" | "RISK_OFF";
   breakdown: { dxyScore: number; vixScore: number; treasuryScore: number };
   fetched_at: string;
+  /** W6: ngày phiên + nguồn của từng giá ngày (chỉ có khi lấy từ Gateway /api/world/pulse) */
+  quotes?: Partial<Record<PulseQuoteKey, PulseQuote>>;
+  /** W1: Risk-On đã kiểm định đặt trước và không đạt */
+  risk_on_evidence?: "HEURISTIC_FAILED";
 }
+
+export type PulseQuoteKey = "dxy" | "vix" | "treasury_10y" | "gold" | "oil_brent" | "oil_wti";
+export interface PulseQuote { value: number; prevClose: number | null; changePct: number | null; date: string; time: string; symbol: string; nameVi: string; source: string }
 
 export interface MarketPulseRow {
   id: string;
@@ -51,12 +59,46 @@ export interface MarketPulseRow {
   value: number;
   change_percent: number;
   fetched_at: string;
+  date?: string;
+  source?: string;
 }
 
 interface StreamPayload {
   macro: MacroTrendRow | null;
   markets: MarketPulseRow[] | null;
   timestamp: string;
+}
+
+/** Gateway /api/world/pulse — một nguồn (Yahoo) cho giá ngày, mỗi số kèm ngày phiên. */
+interface GatewayPulse {
+  source: "gateway";
+  macro: Pick<MacroTrendRow, "dxy" | "vix" | "treasury_10y" | "gold" | "oil_brent" | "oil_wti" | "risk_on_score" | "risk_status" | "breakdown" | "fetched_at" | "quotes" | "risk_on_evidence"> | null;
+  markets: MarketPulseRow[];
+  timestamp: string;
+  missing: string[];
+}
+
+/** Nguồn của giá ngày đang hiển thị. "gateway" = Yahoo qua Gateway (ưu tiên); "project-a" = luồng SSE cũ (dự phòng). */
+export type PulseSource = "gateway" | "project-a" | null;
+
+const MONTHLY_DEFAULTS = {
+  id: "gateway", baltic_dry_index: null, robusta_coffee: null, iron_ore_proxy_change_percent: null, rubber_price: null, rubber_change_percent: null,
+  fertilizer_urea_price: null, fertilizer_urea_change_percent: null, container_freight_proxy_change_percent: null,
+} satisfies Partial<MacroTrendRow>;
+const GATEWAY_POLL_MS = 60_000;
+
+/**
+ * W6 (2026-10-16) — hợp nhất nguồn: DXY/VIX/US10Y/vàng/Brent/WTI, Risk-On và các chỉ số lấy từ Gateway (Yahoo, kèm ngày);
+ * luồng Project A chỉ còn cấp các trường THÁNG / proxy (cao su, urê, BDI, cước container, quặng sắt). Gateway lỗi -> dùng
+ * nguyên bản Project A (dự phòng). Không trộn hai nguồn cho cùng một con số.
+ */
+export function mergePulse(sse: StreamPayload | null, gw: GatewayPulse | null): { payload: StreamPayload | null; source: PulseSource } {
+  if (gw?.macro) {
+    const macro: MacroTrendRow = { ...MONTHLY_DEFAULTS, ...(sse?.macro ?? {}), ...gw.macro } as MacroTrendRow;
+    return { payload: { macro, markets: gw.markets.length ? gw.markets : sse?.markets ?? [], timestamp: gw.timestamp }, source: "gateway" };
+  }
+  if (sse) return { payload: sse, source: "project-a" };
+  return { payload: null, source: null };
 }
 
 // MOI (2026-09-10): cac truong hang hoa (gold, oil_brent, oil_wti,
@@ -83,6 +125,8 @@ function calcPct(prev: number | null | undefined, curr: number | null | undefine
 
 export function useGlobalStream() {
   const [data, setData] = useState<StreamPayload | null>(null);
+  const [gw, setGw] = useState<GatewayPulse | null>(null);
+  const [gwOk, setGwOk] = useState(false);
   const [connected, setConnected] = useState(false);
   const [commodityDeltas, setCommodityDeltas] = useState<MacroCommodityDeltas | null>(null);
   const prevMacroRef = useRef<MacroTrendRow | null>(null);
@@ -121,5 +165,30 @@ export function useGlobalStream() {
     return () => es.close();
   }, []);
 
-  return { data, connected, commodityDeltas };
+  useEffect(() => {
+    let alive = true;
+    const load = () =>
+      fetchMarketJson<GatewayPulse>("/api/world/pulse")
+        .then((d) => { if (alive) { setGw(d); setGwOk(true); } })
+        .catch(() => { if (alive) setGwOk(false); });
+    load();
+    const id = setInterval(load, GATEWAY_POLL_MS);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  const merged = useMemo(() => mergePulse(data, gw), [data, gw]);
+  // Gateway có % thay đổi theo PHIÊN (so với phiên trước) cho vàng/dầu — ý nghĩa hơn so sánh 2 khung SSE 5 giây.
+  const deltas = useMemo<MacroCommodityDeltas | null>(() => {
+    const q = merged.source === "gateway" ? merged.payload?.macro?.quotes : undefined;
+    if (!q) return commodityDeltas;
+    return {
+      goldChangePercent: q.gold?.changePct ?? null,
+      oilBrentChangePercent: q.oil_brent?.changePct ?? null,
+      oilWtiChangePercent: q.oil_wti?.changePct ?? null,
+      balticDryChangePercent: commodityDeltas?.balticDryChangePercent ?? null,
+      robustaCoffeeChangePercent: commodityDeltas?.robustaCoffeeChangePercent ?? null,
+    };
+  }, [merged, commodityDeltas]);
+
+  return { data: merged.payload, connected: connected || gwOk, commodityDeltas: deltas, source: merged.source, monthlyFromProjectA: !!data?.macro };
 }

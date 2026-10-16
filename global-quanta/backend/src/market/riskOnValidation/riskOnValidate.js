@@ -8,10 +8,16 @@ function normalizeInverse(value, safe, danger) {
   if (value >= danger) return 0;
   return Math.round(((danger - value) / (danger - safe)) * 100);
 }
-export function riskOnIndex({ dxy, vix, treasury10y }) {
-  const score = Math.round(normalizeInverse(dxy, THRESHOLDS.dxy.safe, THRESHOLDS.dxy.danger) * 0.4
-    + normalizeInverse(vix, THRESHOLDS.vix.safe, THRESHOLDS.vix.danger) * 0.3
-    + normalizeInverse(treasury10y, THRESHOLDS.treasury10y.safe, THRESHOLDS.treasury10y.danger) * 0.3);
+export function riskOnBreakdown({ dxy, vix, treasury10y }) {
+  return {
+    dxyScore: normalizeInverse(dxy, THRESHOLDS.dxy.safe, THRESHOLDS.dxy.danger),
+    vixScore: normalizeInverse(vix, THRESHOLDS.vix.safe, THRESHOLDS.vix.danger),
+    treasuryScore: normalizeInverse(treasury10y, THRESHOLDS.treasury10y.safe, THRESHOLDS.treasury10y.danger),
+  };
+}
+export function riskOnIndex(x) {
+  const b = riskOnBreakdown(x);
+  const score = Math.round(b.dxyScore * 0.4 + b.vixScore * 0.3 + b.treasuryScore * 0.3);
   return { score, status: score >= 65 ? "RISK_ON" : score <= 35 ? "RISK_OFF" : "NEUTRAL" };
 }
 

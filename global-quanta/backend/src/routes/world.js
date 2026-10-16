@@ -3,11 +3,14 @@
 // route nặng (matrix, scenario, connectedness) dùng hạn mức tính toán. Dựng lại dữ liệu: chỉ admin (Bearer MARKET_ADMIN_TOKEN).
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
+import { createWorldPulse } from "../market/world/worldPulse.js";
 
 const strQuery = (q) => Object.fromEntries(Object.entries(q ?? {}).filter(([, v]) => typeof v === "string"));
+let pulse = null;
+const defaultPulse = () => (pulse ??= createWorldPulse());
 const HEAVY = /^\/(matrix|scenario|connectedness|overview|confirmatory)$/;
 
-export function createWorldRouter({ getService, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
+export function createWorldRouter({ getService, getPulse = defaultPulse, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
   const router = Router();
   const readRl = createRateLimiter({ limit: readLimit, now });
   const computeRl = createRateLimiter({ limit: computeLimit, now });
@@ -19,6 +22,12 @@ export function createWorldRouter({ getService, adminToken = () => process.env.M
       console.warn(`[world] ${req.method} ${req.path}: ${e?.message}`);
     }
   };
+
+  // Nhịp đập thế giới (W6/W7): giá mới nhất kèm ngày + nguồn — một nguồn thống nhất cho tab Kết nối thế giới.
+  router.get("/pulse", readRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(await getPulse().get());
+  }));
 
   router.get("/source", readRl, wrap(async (req, res) => {
     res.set("Cache-Control", "public, max-age=120");
