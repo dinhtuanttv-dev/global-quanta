@@ -56,7 +56,7 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
       )}
       {finding.sourceUrl && !isTrustedUrl(finding.sourceUrl) && (
         <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block" }}>
-          Nguon: {finding.sourceName ?? "chua xac thuc"} (URL chua xac thuc - da an lien ket)
+          Nguồn: {finding.sourceName ?? "chưa xác thực"} (URL chưa xác thực — đã ẩn liên kết)
         </span>
       )}
 

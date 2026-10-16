@@ -1,4 +1,4 @@
-﻿import type { TopBeneficiaryRow } from "../../../hooks/useTopBeneficiaries";
+import type { TopBeneficiaryRow } from "../../../hooks/useTopBeneficiaries";
 
 export default function TopBeneficiariesPanel({ rows }: { rows: TopBeneficiaryRow[] }) {
   if (rows.length === 0) return null;
@@ -8,9 +8,9 @@ export default function TopBeneficiariesPanel({ rows }: { rows: TopBeneficiaryRo
   return (
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginTop: 16 }}>
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)" }}>
-        <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>TOP CO PHIEU HUONG LOI NHIEU NHAT</p>
+        <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>TOP CỔ PHIẾU HƯỞNG LỢI NHIỀU NHẤT</p>
         <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
-          Tong hop diem tu tat ca tin tuc dang tac dong tich cuc len tung ma
+          Tổng hợp điểm từ tất cả tin tức đang tác động tích cực lên từng mã
         </p>
       </div>
       {rows.map((r) => (

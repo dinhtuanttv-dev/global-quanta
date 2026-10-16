@@ -1,4 +1,4 @@
-﻿import type { EmergingSourceSummary } from "../../../types/catalyst";
+import type { EmergingSourceSummary } from "../../../types/catalyst";
 
 export default function EmergingSourceRow({ source }: { source: EmergingSourceSummary }) {
   return (
@@ -10,11 +10,11 @@ export default function EmergingSourceRow({ source }: { source: EmergingSourceSu
       <div>
         <span style={{ fontSize: 12, fontWeight: 600 }}>{source.title}</span>
         <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 2 }}>
-          {source.category} · Xac nhan cheo: {source.corroborationCount} nguon
+          {source.category} · Xác nhận chéo: {source.corroborationCount} nguồn
         </div>
       </div>
       <span style={{ fontSize: 10, color: "var(--text-secondary)" }}>
-        Anh huong {source.affectedTargetCount} ma
+        Ảnh hưởng {source.affectedTargetCount} mã
       </span>
     </div>
   );

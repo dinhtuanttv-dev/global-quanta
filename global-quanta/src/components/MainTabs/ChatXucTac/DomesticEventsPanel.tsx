@@ -63,7 +63,7 @@ function EventCard({ event }: { event: DomesticEvent }) {
         }}>Nguon: {event.sourceName}</a>
       ) : (
         <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6 }}>
-          Nguon: {event.sourceName} (URL chua xac thuc - da an lien ket)
+          Nguồn: {event.sourceName} (URL chưa xác thực — đã ẩn liên kết)
         </span>
       )}
     </div>
@@ -75,7 +75,7 @@ export default function DomesticEventsPanel({ events }: { events: DomesticEvent[
 
   return (
     <div style={{ marginTop: 16 }}>
-      <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "0 0 8px" }}>SU KIEN CO CAU THI TRUONG TRONG NUOC</p>
+      <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "0 0 8px" }}>SỰ KIỆN CƠ CẤU THỊ TRƯỜNG TRONG NƯỚC</p>
       {events.map((ev) => <EventCard key={ev.id} event={ev} />)}
     </div>
   );
