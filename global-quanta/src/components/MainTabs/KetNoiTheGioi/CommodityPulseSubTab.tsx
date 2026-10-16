@@ -1,10 +1,12 @@
-import { AlertTriangle, Home } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, ChevronRight, Home } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useHousingPrices } from "../../../hooks/useHousingPrices";
 import { useCommoditySnapshot } from "../../../hooks/useCommoditySnapshot";
 import { fmtPct, fmtPeriod, fmtPrice, staleDays, type CommodityItem } from "../../../lib/commodities/types";
 import EvidenceTag from "./EvidenceTag";
 import TrendSparkline from "./TrendSparkline";
+import CommodityDrawer from "./commodity/CommodityDrawer";
 
 const T = {
   gold: "var(--gold, #f59e0b)",
@@ -16,13 +18,15 @@ const T = {
 
 const GROUP_ORDER = ["Kim loại quý", "Năng lượng", "Kim loại", "Nông sản", "Phân bón", "Vận tải"];
 
-function CommodityCard({ c }: { c: CommodityItem }) {
+function CommodityCard({ c, onOpen }: { c: CommodityItem; onOpen: (c: CommodityItem) => void }) {
   const selectTicker = useAppStore((s) => s.selectTicker);
   const stale = c.available ? staleDays(c) : null;
   const hist = c.history ?? [];
   const chg = c.change?.pct ?? null;
   return (
-    <div data-testid={`commodity-card-${c.id}`} style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3.5 flex flex-col gap-1.5">
+    <div data-testid={`commodity-card-${c.id}`} role="button" tabIndex={0} aria-label={`${c.nameVi}: mở phân tích chuyên sâu`}
+      onClick={() => onOpen(c)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpen(c); } }}
+      style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} className="rounded-xl p-3.5 flex flex-col gap-1.5 hover:brightness-125 focus:outline focus:outline-1">
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-bold" style={{ color: T.textSecondary }}>{c.nameVi}</p>
         <div className="flex items-center gap-1 shrink-0">
@@ -57,9 +61,12 @@ function CommodityCard({ c }: { c: CommodityItem }) {
         <div className="flex flex-wrap items-center gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
           <span title="Ánh xạ đặt tay mặt hàng → cổ phiếu VN, chưa kiểm định ngoài mẫu" className="text-[8px]" style={{ color: T.textTertiary }}>Mã liên quan (heuristic):</span>
           {c.vnTickers.map((t) => (
-            <button key={t} onClick={() => selectTicker(t)} className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
+            <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
           ))}
         </div>
+      )}
+      {c.available && (
+        <p className="text-[9px] flex items-center gap-0.5" style={{ color: T.gold }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
       )}
       {c.twoWayVi && (
         <div className="flex items-start gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
@@ -74,10 +81,11 @@ function CommodityCard({ c }: { c: CommodityItem }) {
 export default function CommodityPulseSubTab() {
   const { countries, isLoading: housingLoading, error: housingError } = useHousingPrices();
   const { data: snap, error: snapError } = useCommoditySnapshot();
+  const [open, setOpen] = useState<CommodityItem | null>(null);
   const groups = snap ? GROUP_ORDER.map((g) => [g, snap.items.filter((i) => i.group === g)] as const).filter(([, xs]) => xs.length) : [];
 
   return (
-    <div className="space-y-4">
+    <div className="tw-scope space-y-4">
       {!snap && !snapError && (
         <div className="flex items-center gap-2 text-xs py-6 justify-center" style={{ color: T.textSecondary }}>
           <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
@@ -96,7 +104,7 @@ export default function CommodityPulseSubTab() {
             <div key={g}>
               <p className="text-[9px] font-bold uppercase mb-1.5" style={{ color: T.textTertiary }}>{g}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {xs.map((c) => <CommodityCard key={c.id} c={c} />)}
+                {xs.map((c) => <CommodityCard key={c.id} c={c} onOpen={(x) => x.available && setOpen(x)} />)}
               </div>
             </div>
           ))}
@@ -109,6 +117,8 @@ export default function CommodityPulseSubTab() {
           </p>
         </div>
       )}
+
+      {open && <CommodityDrawer item={open} onClose={() => setOpen(null)} />}
 
       {/* GIA NHA THE GIOI - tan suat thap (quy), SWR rieng */}
       <div>
