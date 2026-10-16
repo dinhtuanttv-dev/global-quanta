@@ -15,6 +15,8 @@ export interface CellDetailPayload extends Notice {
 }
 export interface ThermoPayload extends Notice {
   target: string;
+  /** biến thực sự dùng cho MacroScore (6 biến của bài báo gốc, lọc theo số liệu có) */
+  factors?: string[];
   thermometer: { value: number; band: string; bandVi: string; period: string; topContributors: { factor: string; contribution: number }[] } | null;
   backtest: { ic: number; icP: number; hitRate: number; gate: { pass: boolean; reasons: string[] } } | null;
   usableForDecisions: boolean;

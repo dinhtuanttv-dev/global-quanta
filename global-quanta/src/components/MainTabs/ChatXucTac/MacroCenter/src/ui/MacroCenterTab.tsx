@@ -12,6 +12,9 @@ import { MacroCalendar } from './MacroCalendar';
 import { DataSourcePanel, RegimePanel, ReportPanel } from './MacroExtraPanels';
 import type { AlertsPayload, CalendarPayload, CellDetailPayload, HealthPayload, ImpactPayload, ScenarioPayload, SeriesPayload, SourcePayload, ThermoPayload } from './types';
 
+/** 6 biến của bài báo gốc mà MacroScore dùng (macro-api.ts PAPER_FACTORS). */
+const PAPER_FACTORS = ['CPI', 'IR', 'M2', 'EX', 'IO', 'FDI'];
+
 export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; asOf?: string; mainTarget?: string }) {
   const client = useMemo(() => props.client ?? createMacroClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
   const asOf = props.asOf;
@@ -79,6 +82,12 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
       <section className="mc-section" aria-labelledby="mc-thermo">
         <h2 id="mc-thermo">Nhiệt kế vĩ mô</h2>
         {score.error ? <p className="state" role="alert">{score.error}</p> : score.data ? <MacroThermometer data={score.data} names={names} /> : <p className="state" role="status">Đang tính nhiệt kế vĩ mô…</p>}
+        {score.data?.factors && score.data.factors.length < PAPER_FACTORS.length && (
+          <p className="muted" role="note">
+            MacroScore dựa trên {score.data.factors.length}/{PAPER_FACTORS.length} biến của mô hình gốc ({score.data.factors.join(', ') || '—'}); chưa có số liệu thật cho{' '}
+            {PAPER_FACTORS.filter((f) => !score.data!.factors!.includes(f)).map((f) => names[f] ?? f).join(', ')} — điểm này chưa phản ánh đầy đủ bức tranh vĩ mô.
+          </p>
+        )}
       </section>
 
       <section className="mc-section" aria-labelledby="mc-matrix">
