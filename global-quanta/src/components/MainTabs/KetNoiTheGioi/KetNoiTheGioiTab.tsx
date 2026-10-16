@@ -317,7 +317,7 @@ export default function KetNoiTheGioiTab() {
       </>
       )}
 
-      {activeSubTab === "commodity" && <CommodityPulseSubTab macro={macro} />}
+      {activeSubTab === "commodity" && <CommodityPulseSubTab />}
 
       {activeSubTab === "world" && (
         <div className="space-y-3">

@@ -33,3 +33,11 @@ test("pulse: mọi số có nguồn + ngày; Risk-On gắn HEURISTIC_FAILED; thi
   assert.ok(d.markets.every((m) => m.date && m.source));
   assert.equal(await p.get(), d); // cache 5 phút
 });
+
+test("parseQuote: meta cũ hơn nến cuối (TIO=F) -> dùng nến cuối, không dùng giá meta đứng yên", () => {
+  const j = chart([90, 91, 92], { price: 161.91, time: Date.UTC(2021, 7, 11) / 1000 });
+  const q = parseQuote(j);
+  assert.equal(q.value, 92);
+  assert.equal(q.date, "2026-10-15");
+  assert.equal(q.prevClose, 91);
+});

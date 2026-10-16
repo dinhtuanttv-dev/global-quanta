@@ -1,9 +1,8 @@
-import { Coins, Fuel, Ship, Coffee, Mountain, Home, Trees, Sprout, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Home } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
 import { useHousingPrices } from "../../../hooks/useHousingPrices";
-import { lookupSectorMapping } from "../../../lib/macro-mapping";
-import type { MacroTrendRow } from "../../../hooks/useGlobalStream";
-import StalenessBadge from "./StalenessBadge";
+import { useCommoditySnapshot } from "../../../hooks/useCommoditySnapshot";
+import { fmtPct, fmtPeriod, fmtPrice, staleDays, type CommodityItem } from "../../../lib/commodities/types";
 import EvidenceTag from "./EvidenceTag";
 import TrendSparkline from "./TrendSparkline";
 
@@ -15,142 +14,98 @@ const T = {
   textTertiary: "var(--text-tertiary, #64748b)",
 };
 
-interface CommodityCardProps {
-  icon: React.ReactNode;
-  nameVi: string;
-  value: string | null;
-  unit: string;
-  sectorKey: string;
-  isEstimateOrProxy?: boolean;
-  proxyTooltip?: string;
-  changeSignal?: number | null; // >0 xanh, <0 do, null xam
-  twoWayCaution?: string; // MOI: canh bao khi 1 gia tac dong 2 chieu nguoc nhau len 2 nhom CP khac nhau
-  updatedAt?: string | null; // MOI: danh cho du lieu tan suat thang - hien StalenessBadge neu qua cu
-  history?: number[] | null; // MOI: toi da ~6 diem gan nhat - hien TrendSparkline
-}
+const GROUP_ORDER = ["Kim loại quý", "Năng lượng", "Kim loại", "Nông sản", "Phân bón", "Vận tải"];
 
-function CommodityCard({ icon, nameVi, value, unit, sectorKey, isEstimateOrProxy, proxyTooltip, changeSignal, twoWayCaution, updatedAt, history }: CommodityCardProps) {
+function CommodityCard({ c }: { c: CommodityItem }) {
   const selectTicker = useAppStore((s) => s.selectTicker);
-  const mapping = lookupSectorMapping(sectorKey);
-
+  const stale = c.available ? staleDays(c) : null;
+  const hist = c.history ?? [];
+  const chg = c.change?.pct ?? null;
   return (
-    <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3.5">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5">
-          {icon}
-          <p className="text-[10px] font-bold" style={{ color: T.textSecondary }}>{nameVi}</p>
-        </div>
-        <div className="flex items-center gap-1">
-          <StalenessBadge updatedAt={updatedAt} />
-          {isEstimateOrProxy && (
-            <span title={proxyTooltip ?? "Không phải giá giao dịch trực tiếp - xem chi tiết nguồn dữ liệu"}
-              className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.1)", color: T.gold }}>
-              PROXY
-            </span>
-          )}
+    <div data-testid={`commodity-card-${c.id}`} style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3.5 flex flex-col gap-1.5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-[10px] font-bold" style={{ color: T.textSecondary }}>{c.nameVi}</p>
+        <div className="flex items-center gap-1 shrink-0">
+          {c.vnPrice && <span title="Giá xuất khẩu của Việt Nam (không phải giá thế giới quy đổi)" className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>GIÁ VIỆT NAM</span>}
+          {stale !== null && <span title="Nguồn chưa có số mới" className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.12)", color: T.gold }}>cũ {stale} ngày</span>}
+          <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: T.textTertiary }}>{c.freq === "day" ? "NGÀY" : c.freq === "month" ? "THÁNG" : "—"}</span>
         </div>
       </div>
-      <div className="flex items-end justify-between gap-2">
-        <div>
-          {value !== null ? (
+      {c.available ? (
+        <div className="flex items-end justify-between gap-2">
+          <div>
             <p className="text-lg font-black" style={{ color: "#f1f5f9" }}>
-              {value} <span className="text-[10px] font-normal" style={{ color: T.textTertiary }}>{unit}</span>
+              {fmtPrice(c.value)} <span className="text-[10px] font-normal" style={{ color: T.textTertiary }}>{c.unit}</span>
             </p>
-          ) : (
-            <p className="text-xs italic" style={{ color: T.textTertiary }}>Chưa có dữ liệu</p>
-          )}
-          {changeSignal !== undefined && changeSignal !== null && (
-            <p className="text-[10px] font-bold mt-0.5" style={{ color: changeSignal >= 0 ? T.positive : T.negative }}>
-              {changeSignal >= 0 ? "+" : ""}{changeSignal}% (xu hướng nhóm liên quan)
+            <p className="text-[10px] font-bold" style={{ color: chg == null ? T.textTertiary : chg >= 0 ? T.positive : T.negative }}>
+              {fmtPct(chg)} <span className="font-normal" style={{ color: T.textTertiary }}>{c.change?.basisVi}</span>
             </p>
-          )}
+            {c.yoyPct != null && <p className="text-[9px]" style={{ color: T.textTertiary }}>So với cùng kỳ năm trước: <b style={{ color: c.yoyPct >= 0 ? T.positive : T.negative }}>{fmtPct(c.yoyPct, 1)}</b></p>}
+          </div>
+          <TrendSparkline values={hist.map((h) => h[1])} width={96} height={30}
+            label={hist.length ? `${c.nameVi}: ${hist.length} ${c.freq === "day" ? "phiên" : "tháng"}, ${fmtPeriod(hist[0][0])} → ${fmtPeriod(hist[hist.length - 1][0])}` : undefined} />
         </div>
-        <div title="Xu hướng vài kỳ gần nhất">
-          <TrendSparkline values={history} />
-        </div>
-      </div>
-      {mapping && mapping.vnTickers.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2 pt-2 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
-          {mapping.vnTickers.map((ticker) => (
-            <button key={ticker} onClick={() => selectTicker(ticker)}
-              className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>
-              {ticker}
-            </button>
+      ) : (
+        <p className="text-xs italic" style={{ color: T.textTertiary }}>{c.reasonVi ?? "Chưa có dữ liệu"}</p>
+      )}
+      <p className="text-[8.5px]" style={{ color: T.textTertiary }}>
+        {c.available && <>{c.freq === "day" ? "Phiên" : "Kỳ"} {fmtPeriod(c.period)}{hist.length > 1 && ` · xu hướng ${hist.length} ${c.freq === "day" ? "phiên" : "tháng"}`} · </>}
+        {c.source.symbol ? `${c.source.symbol} — ` : ""}{c.source.labelVi}
+        {c.freq === "month" && c.source.updatedOn && ` (bản công bố ${fmtPeriod(c.source.updatedOn)})`}
+      </p>
+      {c.vnTickers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
+          <span title="Ánh xạ đặt tay mặt hàng → cổ phiếu VN, chưa kiểm định ngoài mẫu" className="text-[8px]" style={{ color: T.textTertiary }}>Mã liên quan (heuristic):</span>
+          {c.vnTickers.map((t) => (
+            <button key={t} onClick={() => selectTicker(t)} className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
           ))}
         </div>
       )}
-      {twoWayCaution && (
-        <div className="flex items-start gap-1 mt-2 pt-2 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
+      {c.twoWayVi && (
+        <div className="flex items-start gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
           <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.gold }} />
-          <p className="text-[8px] italic" style={{ color: T.textTertiary }}>{twoWayCaution}</p>
+          <p className="text-[8px] italic" style={{ color: T.textTertiary }}>{c.twoWayVi}</p>
         </div>
       )}
     </div>
   );
 }
 
-interface CommodityPulseSubTabProps {
-  macro: MacroTrendRow | null;
-}
-
-export default function CommodityPulseSubTab({ macro }: CommodityPulseSubTabProps) {
+export default function CommodityPulseSubTab() {
   const { countries, isLoading: housingLoading, error: housingError } = useHousingPrices();
+  const { data: snap, error: snapError } = useCommoditySnapshot();
+  const groups = snap ? GROUP_ORDER.map((g) => [g, snap.items.filter((i) => i.group === g)] as const).filter(([, xs]) => xs.length) : [];
 
   return (
     <div className="space-y-4">
-      {/* TRANG THAI: cho macro tu component cha (SSE dung chung, khong tao
-          ket noi thu 2) */}
-      {!macro && (
+      {!snap && !snapError && (
         <div className="flex items-center gap-2 text-xs py-6 justify-center" style={{ color: T.textSecondary }}>
           <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
           Đang tải dữ liệu hàng hóa...
         </div>
       )}
+      {snapError && <p className="text-xs" style={{ color: T.negative }}>Không tải được dữ liệu hàng hoá từ Gateway: {snapError.message}</p>}
 
-      {macro && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
+      {snap && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
             <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Hàng Hóa Chiến Lược</p>
-            <EvidenceTag kind="data" />
+            <EvidenceTag kind="data" title="Giá thị trường thật — mỗi mặt hàng một nguồn, kèm phiên/kỳ" />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <CommodityCard icon={<Coins className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Vàng"
-              value={macro.gold !== null ? macro.gold.toFixed(1) : null} unit="USD/oz" sectorKey="PRECIOUS_METALS" />
-            <CommodityCard icon={<Fuel className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Dầu Brent"
-              value={macro.oil_brent !== null ? macro.oil_brent.toFixed(1) : null} unit="USD/thùng" sectorKey="ENERGY_OIL_GAS" />
-            <CommodityCard icon={<Fuel className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Dầu WTI"
-              value={macro.oil_wti !== null ? macro.oil_wti.toFixed(1) : null} unit="USD/thùng" sectorKey="ENERGY_OIL_GAS" />
-            <CommodityCard icon={<Ship className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cước tàu hàng rời (BDI)"
-              value={macro.baltic_dry_index !== null ? String(macro.baltic_dry_index) : null} unit="điểm" sectorKey="SHIPPING_LOGISTICS"
-              isEstimateOrProxy proxyTooltip="Baltic Dry Index đo cước tàu HÀNG RỜI (quặng sắt, than, ngũ cốc) - KHÔNG đại diện cho cước tàu container. Xem thẻ 'Cước container' riêng bên cạnh." />
-            <CommodityCard icon={<Ship className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cước container (Proxy)"
-              value={typeof macro.container_freight_proxy_change_percent === "number" ? "ZIM/MAERSK-B/COSCO" : null} unit=""
-              changeSignal={macro.container_freight_proxy_excess_return_percent ?? macro.container_freight_proxy_change_percent ?? null}
-              sectorKey="SHIPPING_LOGISTICS" isEstimateOrProxy
-              proxyTooltip={typeof macro.container_freight_proxy_excess_return_percent === "number"
-                ? "Excess return (market-neutral): % thay đổi rổ cổ phiếu hãng tàu ĐÃ TRỪ % thay đổi index thị trường tương ứng - phản ánh yếu tố ngành thuần túy hơn."
-                : "Không có chỉ số cước container miễn phí đủ tin cậy - dùng % thay đổi trung bình cổ phiếu 3 hãng tàu container lớn (ZIM, Maersk B, COSCO Shipping Holdings) làm tín hiệu gián tiếp."} />
-            <CommodityCard icon={<Coffee className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cà phê Robusta"
-              value={macro.robusta_coffee !== null ? macro.robusta_coffee.toFixed(1) : null} unit="chỉ số NASDAQ" sectorKey="AGRICULTURE_COFFEE" />
-            <CommodityCard icon={<Mountain className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Quặng sắt (Proxy)"
-              value={macro.iron_ore_proxy_change_percent !== null ? "RIO/VALE/BHP" : null} unit=""
-              changeSignal={macro.iron_ore_proxy_change_percent} sectorKey="STEEL_MATERIALS" isEstimateOrProxy
-              proxyTooltip="Không có ticker Yahoo Finance đáng tin cậy cho quặng sắt - dùng % thay đổi trung bình 3 cổ phiếu khai khoáng lớn nhất thế giới (RIO/VALE/BHP) làm tín hiệu gián tiếp." />
-            <CommodityCard icon={<Trees className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Cao su tự nhiên"
-              value={typeof macro.rubber_price === "number" ? macro.rubber_price.toFixed(2) : null} unit="USD/kg"
-              changeSignal={macro.rubber_change_percent ?? null} sectorKey="RUBBER_NATURAL"
-              updatedAt={macro.rubber_price_updated_at} history={macro.rubber_price_history}
-              twoWayCaution="Giá tăng có lợi cho DN trồng/khai thác (PHR, DPR, TRC) nhưng BẤT LỢI cho DN sản xuất lốp xe (DRC, CSM, SRC) vì đây là nguyên liệu đầu vào của họ." />
-            <CommodityCard icon={<Sprout className="w-3.5 h-3.5" style={{ color: T.gold }} />} nameVi="Phân bón (Urea)"
-              value={typeof macro.fertilizer_urea_price === "number" ? macro.fertilizer_urea_price.toFixed(0) : null} unit="USD/tấn"
-              changeSignal={macro.fertilizer_urea_change_percent ?? null} sectorKey="FERTILIZER"
-              updatedAt={macro.fertilizer_urea_price_updated_at} history={macro.fertilizer_urea_price_history} />
-          </div>
-          <p className="text-[9px] italic mt-2" style={{ color: T.textTertiary }}>
-            Quặng sắt &amp; Cước container: không có giá/chỉ số Yahoo Finance đáng tin cậy — dùng % thay đổi trung bình rổ cổ phiếu đại diện làm tín hiệu gián tiếp, không phải giá/cước thật.
-            Cao su &amp; Phân bón: nguồn World Bank Pink Sheet, cập nhật theo tháng (không phải real-time như DXY/VIX).
-            {macro.quotes?.gold && <> Vàng / Brent / WTI: hợp đồng tương lai kỳ gần (GC=F / BZ=F / CL=F), Yahoo qua Gateway, phiên {macro.quotes.gold.date.split("-").reverse().join("/")}
-              — khác Brent giao ngay FRED (giá cuối tháng) dùng trong phân tích tháng của Chất xúc tác / Truyền dẫn.</>}
+          {groups.map(([g, xs]) => (
+            <div key={g}>
+              <p className="text-[9px] font-bold uppercase mb-1.5" style={{ color: T.textTertiary }}>{g}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {xs.map((c) => <CommodityCard key={c.id} c={c} />)}
+              </div>
+            </div>
+          ))}
+          <p className="text-[9px] italic" style={{ color: T.textTertiary }}>
+            Giá NGÀY: hợp đồng tương lai kỳ gần trên Yahoo qua Gateway (nối kỳ hạn nên có thể có bước nhảy khi đáo hạn). Giá THÁNG: World Bank
+            Pink Sheet — trung bình tháng, công bố đầu tháng sau
+            {snap.pinkSheet?.updatedOn ? ` (bản ${fmtPeriod(snap.pinkSheet.updatedOn)}, kỳ mới nhất ${fmtPeriod(snap.pinkSheet.lastPeriod)})` : ""}
+            {snap.pinkSheet?.lastError ? ` — lần lấy gần nhất lỗi, đang dùng bản lưu lúc ${new Date(snap.pinkSheet.fetchedAt).toLocaleString("vi-VN")}` : ""}.
+            Brent tháng (Pink Sheet) khác Brent tương lai kỳ gần (ngày). Mã cổ phiếu là ánh xạ đặt tay, không phải khuyến nghị.
           </p>
         </div>
       )}
