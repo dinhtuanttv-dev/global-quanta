@@ -22,7 +22,7 @@ export default function CatalystHeatmap({ cells }: { cells: HeatmapCell[] }) {
   return (
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginTop: 16 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "0 0 10px" }}>
-        BAN DO NHIET: NGANH x LOAI TAC DONG
+        BẢN ĐỒ NHIỆT: NGÀNH × LOẠI TÁC ĐỘNG
       </p>
       <div style={{ overflowX: "auto" }}>
         <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 420 }}>

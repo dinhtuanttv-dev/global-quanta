@@ -26,19 +26,25 @@ interface Props {
 export default function VnIndexHero({ data, valueMethodology }: Props) {
   const livePrice = usePriceTick(data.value);
   const up = data.changePct >= 0;
+  // Giá 0 = CHƯA CÓ dữ liệu (VD luồng giá vừa khởi động lại), không phải VN-Index về 0 — không hiển thị "0.0 (−100%)".
+  const hasValue = Number.isFinite(data.value) && data.value > 0;
 
   return (
     <div className="vn-hero">
       <div className="vn-hero-main">
         <span className="vn-hero-name">VN-INDEX</span>
         <div className="vn-hero-valrow">
-          <span className="vn-hero-val num">{livePrice.toFixed(1)}</span>
-          <span className={`vn-hero-chg num ${up ? 'up' : 'down'}`}>
-            {formatSignedInt(data.changeAbs)} ({formatPct(data.changePct)})
-          </span>
+          <span className="vn-hero-val num">{hasValue ? livePrice.toFixed(1) : '—'}</span>
+          {hasValue ? (
+            <span className={`vn-hero-chg num ${up ? 'up' : 'down'}`}>
+              {formatSignedInt(data.changeAbs)} ({formatPct(data.changePct)})
+            </span>
+          ) : (
+            <span className="vn-hero-chg num">đang chờ giá</span>
+          )}
         </div>
       </div>
-      <Sparkline data={data.sparkline} width={76} height={28} color={up ? 'positive' : 'negative'} />
+      {hasValue && <Sparkline data={data.sparkline.filter((v) => v > 0)} width={76} height={28} color={up ? 'positive' : 'negative'} />}
       <div className="vn-hero-meta">
         <span>KL <b>{data.volumeShares}</b></span>
         <span
