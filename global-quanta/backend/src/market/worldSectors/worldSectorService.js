@@ -5,6 +5,7 @@
 import { quality } from "../commodities/commodityAnalytics.js";
 import { yahooDailyBars } from "../commodities/commodityService.js";
 import { COMMODITY_DRIVERS, instrumentsFor, MATCH_LABEL_VI, MATCH_WEIGHT, REGIONS, VN_SECTORS, WORLD_SECTOR_INSTRUMENTS } from "./catalog.js";
+import { sectorEvidence, WS_EVIDENCE } from "./wsEvidence.js";
 import { alignPairs, dailyVol, labelOf, pearson, rebase, relation, sectorScores, zMove } from "./worldSectorAnalytics.js";
 
 const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
@@ -185,7 +186,7 @@ export function createWorldSectorService({ sectorIndices = null, commoditySeries
         };
         heat[r] = { new: agg("new"), w1: agg("w1"), m1: agg("m1"), m3: agg("m3"), n: ci.length, best: ci[0].match };
       }
-      rows.push({ icb: s.icb, nameVi: v.name, parent: s.parent ?? null, available: true, members: v.members, vnLast: sc.vnLast, short: sc.short, medium: sc.medium, heat,
+      rows.push({ icb: s.icb, nameVi: v.name, parent: s.parent ?? null, available: true, members: v.members, vnLast: sc.vnLast, short: { ...sc.short, evidence: sectorEvidence(s.icb) }, medium: sc.medium, heat,
         drivers: sc.commodities.map((c) => ({ id: c.id, nameVi: c.nameVi, sign: c.sign, short: c.short, medium: c.medium })) });
     }
     const ok = rows.filter((r) => r.available);
@@ -194,7 +195,12 @@ export function createWorldSectorService({ sectorIndices = null, commoditySeries
       .map((r) => ({ icb: r.icb, nameVi: r.nameVi, score: r[key].score }));
     return {
       generatedAt: new Date(now()).toISOString(),
-      evidence: { label: "EXPERIMENTAL", reasonVi: "Điểm thuận/ngược gió là thăm dò — chưa qua kiểm định đặt trước (M3)." },
+      evidence: {
+        version: WS_EVIDENCE.version, sample: WS_EVIDENCE.sample,
+        short: { label: WS_EVIDENCE.shortList.pass ? "EVIDENCE" : "EXPERIMENTAL", ...WS_EVIDENCE.shortList },
+        medium: { label: WS_EVIDENCE.mediumList.pass ? "EVIDENCE" : "EXPERIMENTAL", ...WS_EVIDENCE.mediumList },
+        reasonVi: "Kiểm định đặt trước WS-v1: xếp hạng ngắn hạn ĐẠT (IC ≈ 0,02 — nhỏ); trung hạn KHÔNG ĐẠT; riêng Dầu khí đạt ở cấp ngành.",
+      },
       method: {
         vi: "z = biến động / (σ ngày 250 phiên × √số phiên). Trong khu vực: trung bình theo mức khớp (chuẩn 1 · gần 0,75 · một phần 0,4); giữa khu vực: trung bình đều. Ngắn hạn = thông tin mới sau phiên VN gần nhất; trung hạn = 3 tháng. Có hàng hoá dẫn dắt: 70% ngành thế giới + 30% hàng hoá. Ngưỡng thuận/ngược gió ±0,5. |z| của từng mã chặn ở 3 khi gộp; khu vực chưa có phiên mới không tính.",
       },
@@ -269,7 +275,7 @@ export function createWorldSectorService({ sectorIndices = null, commoditySeries
       status: 200,
       body: {
         icb, nameVi: v.name, available: true, range, from, vnLast: sc.vnLast, members: v.members,
-        evidence: { label: "EXPERIMENTAL", reasonVi: "Tương quan / beta / điểm là thăm dò — chưa qua kiểm định đặt trước (M3)." },
+        evidence: { short: sectorEvidence(icb), medium: { label: "EXPERIMENTAL", labelVi: WS_EVIDENCE.mediumList.labelVi }, relationsVi: "Tương quan / beta / độ trễ là mô tả (thăm dò).", version: WS_EVIDENCE.version },
         scores: { short: sc.short, medium: sc.medium }, components: sc.components, drivers: sc.commodities,
         chart, relations, stocks, rebalanceDate: lastReb?.date ?? null,
         stocksNoteVi: "Beta = % lợi suất phiên của cổ phiếu cho 1 độ lệch chuẩn của tín hiệu tổng hợp ngành thế giới (phiên nước ngoài TRƯỚC phiên VN), 250 phiên gần nhất; giá điều chỉnh theo sự kiện quyền (ta-series).",
