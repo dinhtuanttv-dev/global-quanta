@@ -22,17 +22,23 @@ import { MacroCenterTab } from "../../../macro-center/src/ui/MacroCenterTab";
 import { getMarketGateway } from "../../../config/marketGateway";
 import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
+import ImpactBoard from "./ImpactBoard";
+import WorldTodayStrip from "./WorldTodayStrip";
 
-type SubTab = "macro" | "catalyst" | "chat";
+type SubTab = "macro" | "impact" | "catalyst" | "chat";
+// Z3 (2026-10-17): thêm "Tác động ngành & cổ phiếu" (ghép chiến lược thế giới + hàng hoá + xúc tác theo ICB) — đầu mối từ vĩ mô tới mã.
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: "macro", label: "1. Phân tích vĩ mô" },
-  { id: "catalyst", label: "2. Chất xúc tác hiện tại" },
-  { id: "chat", label: "3. Hỏi đáp xúc tác" },
+  { id: "impact", label: "2. Tác động ngành & cổ phiếu" },
+  { id: "catalyst", label: "3. Chất xúc tác hiện tại" },
+  { id: "chat", label: "4. Hỏi đáp xúc tác" },
 ];
 
 export default function ChatXucTacTab() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("macro");
-  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, catalyst: null, chat: null });
+  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, impact: null, catalyst: null, chat: null });
+  const [seed, setSeed] = useState<string | null>(null);
+  const askAi = (question: string) => { setSeed(question); setActiveSubTab("chat"); };
   const moveSubTab = (tab: SubTab) => {
     setActiveSubTab(tab);
     tabRefs.current[tab]?.focus();
@@ -76,10 +82,14 @@ export default function ChatXucTacTab() {
 
       <section id={`chat-xuc-tac-${activeSubTab}-panel`} role="tabpanel" aria-labelledby={`chat-xuc-tac-${activeSubTab}-tab`} tabIndex={0}>
         {/* X2: API vĩ mô chạy trên Market Gateway (/api/macro/*) */}
-        {activeSubTab === "macro" && <MacroCenterTab baseUrl={getMarketGateway().baseUrl} />}
+        {activeSubTab === "macro" && <>
+          <WorldTodayStrip onOpenImpact={() => setActiveSubTab("impact")} />
+          <MacroCenterTab baseUrl={getMarketGateway().baseUrl} />
+        </>}
+        {activeSubTab === "impact" && <ImpactBoard onAsk={askAi} />}
         {activeSubTab === "catalyst" && <CatalystContent />}
-        {/* X4: Claude + công cụ vĩ mô (Gateway) & xúc tác (snapshot engine) */}
-        {activeSubTab === "chat" && <CatalystChatPanel />}
+        {/* X4/Z2: Claude hoặc Gemini + công cụ vĩ mô, thế giới, ngành ICB (Gateway) & xúc tác (snapshot engine) */}
+        {activeSubTab === "chat" && <CatalystChatPanel seedQuestion={seed} onSeedConsumed={() => setSeed(null)} />}
       </section>
     </div>
   );
