@@ -13,6 +13,9 @@ import useSWR from "swr";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import EvidenceTag, { EvidencePriorityNote } from "./EvidenceTag";
 import { WorldTab } from "../../../macro-center/src/ui/world/WorldTab";
+import StrategyPanel from "./strategy/StrategyPanel";
+import EvidenceLedgerPanel from "./strategy/EvidenceLedgerPanel";
+import "./world-gq.css";
 import { getMarketGateway } from "../../../config/marketGateway";
 
 // Mau theo bien token cua du an (muc 3.1 guide) - KHONG hardcode hex moi.
@@ -228,19 +231,25 @@ export default function KetNoiTheGioiTab() {
       {activeSubTab === "commodity" && <CommodityPulseSubTab />}
 
       {activeSubTab === "world" && (
-        <div className="space-y-3">
-          <p className="text-[10px] leading-relaxed" style={{ color: T.textTertiary }}>
+        <div className="space-y-3" data-testid="td-root">
+          <StrategyPanel />
+          <EvidenceLedgerPanel />
+          <p className="text-[10px] font-bold uppercase pt-2" style={{ color: T.textSecondary }}>Bằng chứng truyền dẫn chi tiết</p>
+          <p className="text-[9.5px] leading-relaxed" style={{ color: T.textTertiary }}>
             Yếu tố và sự kiện thế giới đi vào ngành Việt Nam qua kênh nào, mạnh đến đâu và <b>bằng chứng ở bậc nào</b>: A — vượt hiệu chỉnh kiểm định bội,
             ổn định và vượt kiểm định ngoài mẫu; B — có ý nghĩa sau hiệu chỉnh; C — giả thuyết / chưa đủ bằng chứng (không phải “có tác động”).
-            Quan hệ thống kê lịch sử, không phải dự báo hay khuyến nghị.
+            Ma trận 10 rổ ngành (chuỗi tháng) ánh xạ sang ICB: Ngân hàng 8300, Chứng khoán 8700, BĐS 8600, Thép 1750, Dầu khí 0500, Cảng 2770, Công nghệ 9500, Điện 7530.
           </p>
-          <WorldSourcePanel />
           <WorldConfirmatoryPanel />
+          <WorldSourcePanel />
           <p className="text-[9.5px]" style={{ color: T.textTertiary }}>
             Bên dưới là phần <b>thăm dò</b>: 13 yếu tố × 10 ngành, chọn trễ tốt nhất 0–6. Bậc A/B ở đây là tham khảo; quyết định Lọc ngành chỉ dùng cổng xác nhận phía trên.
+            Kịch bản dùng local projection tháng — ước tính vượt ±50%/3 tháng là bất ổn về số (chiến lược đã gắn cờ, không dùng).
             {!stockProfileReady && " Hồ sơ cổ phiếu đang ẩn vì chưa có dữ liệu phơi nhiễm quốc tế thật cho từng mã."}
           </p>
-          <WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" hideStock={!stockProfileReady} />
+          <div className="gq-world">
+            <WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" hideStock={!stockProfileReady} />
+          </div>
         </div>
       )}
     </div>

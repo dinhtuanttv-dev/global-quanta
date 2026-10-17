@@ -59,7 +59,7 @@ export function createWorldStrategyService({ worldSectors, worldService = null, 
       },
       regime: riskRegime(pl?.macro),
       method: {
-        shortVi: "α = IC × σ × z (Grinold–Kahn). z = điểm ngắn hạn trừ trung bình các ngành, chuẩn hoá cắt ngang; σ = độ lệch chuẩn lợi suất tương đối ngày (ngành − VN-Index) 250 phiên; IC = chỉ IC đã đạt kiểm định đặt trước. P(vượt VN-Index) ≈ Φ(α/σ). Ưu tiên khi z ≥ 1, giảm tỷ trọng khi z ≤ −1.",
+        shortVi: "α = IC × σ × z (Grinold–Kahn). z = điểm ngắn hạn trừ trung bình các ngành, chuẩn hoá cắt ngang; σ = độ lệch chuẩn lợi suất tương đối ngày (ngành − VN-Index) 250 phiên; IC = chỉ IC đã đạt kiểm định đặt trước. P(vượt VN-Index) ≈ Φ(α/σ). Tư thế theo α: 1/5 số ngành có α cao nhất (dương) = Ưu tiên, 1/5 thấp nhất (âm) = Giảm tỷ trọng.",
         mediumVi: "Bối cảnh = đồng thuận của 3 nguồn: điểm 3 tháng ngành thế giới, chu kỳ RRG Lọc ngành (Dẫn dắt/Cải thiện +, Suy yếu/Tụt hậu −), áp lực yếu tố truyền dẫn (liên kết bậc A/B × z yếu tố, ±0,5). ≥ 2 nguồn cùng chiều và không nguồn nào ngược -> Thuận / Bất lợi; còn lại Hỗn hợp/Trung tính.",
       },
       short, medium,

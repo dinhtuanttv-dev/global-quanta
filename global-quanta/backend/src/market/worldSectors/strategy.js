@@ -33,7 +33,6 @@ export function icFor(icb, ev) {
   return { ic: ev.shortList.ic, basisVi: `IC xếp hạng danh sách ${ev.shortList.ic} (WS-v1).` };
 }
 
-const STANCE_SHORT = (z) => (z == null ? "na" : z >= 1 ? "overweight" : z <= -1 ? "underweight" : "neutral");
 
 /**
  * Ngắn hạn. rows: dòng /api/world-sectors/scores; series: { [icb]: points }; vnIndex: points; ev: WS_EVIDENCE.
@@ -49,7 +48,7 @@ export function shortTermStrategy(rows, series, vnIndex, ev) {
     const { ic, basisVi } = icFor(r.icb, ev);
     const alpha = sigma != null ? ic * sigma * z : null; // log-lợi suất tương đối kỳ vọng / phiên
     return {
-      icb: r.icb, nameVi: r.nameVi, parent: r.parent ?? null, score: r.short.score, zx: ROUND(z, 3), stance: STANCE_SHORT(z),
+      icb: r.icb, nameVi: r.nameVi, parent: r.parent ?? null, score: r.short.score, zx: ROUND(z, 3), stance: "neutral",
       ic, icBasisVi: basisVi, sigmaBps: sigma != null ? ROUND(sigma * 1e4, 1) : null,
       alphaBps: alpha != null ? ROUND(alpha * 1e4, 2) : null,
       pOutperform: alpha != null && sigma > 0 ? ROUND(normCdf(alpha / sigma), 4) : null,
@@ -57,6 +56,9 @@ export function shortTermStrategy(rows, series, vnIndex, ev) {
       constituents: (r.constituents ?? []).slice(0, 5),
     };
   }).sort((a, b) => (b.alphaBps ?? -1e9) - (a.alphaBps ?? -1e9));
+  // Tư thế theo α (đã gồm IC riêng của ngành): 1/5 đầu Ưu tiên, 1/5 cuối Giảm tỷ trọng (α phải cùng dấu), còn lại Trung tính.
+  const k = Math.max(1, Math.ceil(out.length / 5));
+  out.forEach((r, i) => { r.stance = r.alphaBps == null ? "na" : i < k && r.alphaBps > 0 ? "overweight" : i >= out.length - k && r.alphaBps < 0 ? "underweight" : "neutral"; });
   return { n: out.length, crossMean: ROUND(m, 3), crossSd: ROUND(sd, 3), rows: out };
 }
 

@@ -25,7 +25,7 @@ test("shortTermStrategy: z cắt ngang trung bình 0 / độ lệch 1; α = IC·
   assert.ok(Math.abs(oil.alphaBps - oil.ic * oil.sigmaBps * oil.zx) < 0.05);
   assert.ok(oil.pOutperform > 0.5);
   assert.equal(oil.stance, "overweight");
-  assert.equal(s.rows.find((r) => r.icb === "8600").stance, "underweight");
+  assert.equal(s.rows.find((r) => r.icb === "8600").stance, "underweight"); // 1/5 cuối theo α
   assert.equal(s.rows[0].icb, "0500"); // xếp theo α
   assert.ok(Math.abs(normCdf(0) - 0.5) < 1e-6);
   assert.equal(relativeVol(series["0500"].slice(0, 10), vn), null);
