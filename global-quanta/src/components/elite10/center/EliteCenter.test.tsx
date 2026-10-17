@@ -1,0 +1,72 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "../../../test/rtl-lite";
+
+const decision = {
+  version: "E3-v2", date: "2026-10-16", builtAt: "2026-10-17T09:00:00Z", icComb: 0.0146, sigma5: 0.043,
+  universe: { panel: 276, eligible: 131 },
+  weights: [
+    { id: "stealth20", labelVi: "Stealth 20", tab: "Siêu quét AI", tier: "A", mainH: 5, n: 215, icMeas: 0.0159, icPrior: 0.02, icPost: 0.0168, w: 0.6 },
+    { id: "top20_alpha", labelVi: "Điểm alpha M1", tab: "Lọc ngành", tier: "B", mainH: 5, n: 0, icMeas: 0, icPrior: 0.01, icPost: 0.01, w: 0.4 },
+  ],
+  portfolio: [{ ticker: "ORS", weight: 0.14, Z: 2.25, rank: 1, alpha5Pct: 0.14, pOutperform: 0.513, sectorKey: "8700", close: 13500, stop: 12896, target: 14406, holdSessions: 10 }],
+  scores: [
+    { ticker: "ORS", rank: 1, Z: 2.25, alpha5Pct: 0.14, pOutperform: 0.513, eligible: true, reason: null, close: 13500, advBn: 25, sigma20: 0.02, sectorKey: "8700", contributions: [{ id: "stealth20", z: 2, contribution: 1.2 }, { id: "top20_alpha", z: 0, contribution: 0 }] },
+    { ticker: "DSE", rank: 2, Z: 2.2, alpha5Pct: 0.13, pOutperform: 0.512, eligible: true, reason: null, close: 20650, advBn: 11, sigma20: 0.02, sectorKey: "8700", contributions: [] },
+  ],
+  ledgerSummary: { horizons: { 5: { n: 0, meanExcess: null, hitRate: null, excessCi95: null, meanPortfolioNet: null, meanVnIndex: null, ic: { n: 0, mean: null, t: null }, curve: [] }, 10: { n: 0, ic: { n: 0 } } }, criteria: { icPass: false, excessPass: false, sessions: 1 }, label: "EXPERIMENTAL", labelVi: "THĂM DÒ — cần ≥ 60 phiên tiến (hiện 1 phiên)" },
+};
+const panelTicker = {
+  date: "2026-10-16", ticker: "ORS", icb: { l2: "8700" }, sector: null, missingSources: ["cotuc"],
+  values: { stealth20: 2.1, top20_alpha: null, smart_score: 70 },
+  signals: [
+    { id: "stealth20", tab: "Siêu quét AI", labelVi: "Stealth 20", unit: "z", level: "stock", tier: "A" },
+    { id: "top20_alpha", tab: "Lọc ngành", labelVi: "Điểm alpha M1", unit: "điểm", level: "stock", tier: "B" },
+    { id: "smart_score", tab: "Siêu quét AI", labelVi: "Smart Score", unit: "0–100", level: "stock", tier: "C" },
+  ],
+};
+vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
+  useEliteDecision: () => ({ data: decision, error: null, isLoading: false }),
+  useEliteEvidence: () => ({ data: { signals: [{ id: "stealth20", tier: "A" }, { id: "top20_alpha", tier: "B" }, { id: "smart_score", tier: "C" }] } }),
+  useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
+  useEliteTicker: (t: string) => (t === "ORS" ? { decision: { ...decision.scores[0], date: "2026-10-16", version: "E3-v2", icComb: 0.0146, weights: decision.weights, inPortfolio: true, universe: decision.universe }, panel: panelTicker, isLoading: false } : { decision: null, panel: null, isLoading: false }),
+}));
+vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] }, regime: { stressed: true, vix: 20, vixChg: 21.4 } } }) }));
+vi.mock("swr", async (orig) => {
+  const real = await orig<typeof import("swr")>();
+  return { ...real, default: (key: unknown, ...rest: unknown[]) => (key === "research-overview" ? { data: { currentRegime: { date: "2026-10-16", regime: "SIDEWAY", impulseScore: 39.3, breadthPct: 41.1 } } } : (real.default as never as (...a: unknown[]) => unknown)(key, ...rest)) };
+});
+
+import DecisionBoard from "./DecisionBoard";
+import SignalProfileCard, { percentile } from "./SignalProfileCard";
+
+afterEach(cleanup);
+
+describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
+  it("bảng quyết định: nhãn THĂM DÒ, bối cảnh, danh mục, trọng số chỉ A/B, bấm mã mở hồ sơ", () => {
+    const opened: string[] = [];
+    render(<DecisionBoard onOpenTicker={(t) => opened.push(t)} />);
+    expect(screen.getByTestId("elite-label").textContent).toContain("THĂM DÒ");
+    expect(screen.getByTestId("elite-context").textContent).toContain("Căng thẳng");
+    expect(screen.getByTestId("elite-context").textContent).toContain("Đi ngang");
+    const row = screen.getByTestId("elite-pick-ORS").textContent ?? "";
+    expect(row).toContain("Dịch vụ tài chính");
+    expect(row).toContain("14,0%");
+    expect(row).toContain("Stealth 20");
+    expect(screen.getByTestId("elite-weights").textContent).toContain("chưa đo");
+    fireEvent.click(screen.getByTestId("elite-pick-ORS").querySelector("button")!);
+    expect(opened).toEqual(["ORS"]);
+    expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
+  });
+
+  it("hồ sơ: đủ tín hiệu theo tab, bậc hiện hành, giá trị trống không điền số; mã ngoài vũ trụ báo rõ", () => {
+    render(<SignalProfileCard ticker="ORS" />);
+    expect(screen.getByTestId("elite-profile-score").textContent).toContain("Trong Elite 10");
+    expect(screen.getByTestId("elite-sig-top20_alpha").textContent).toContain("—");
+    expect(screen.getByTestId("elite-sig-smart_score").textContent).toContain("Bậc C");
+    expect(screen.getByTestId("elite-profile").textContent).toContain("cotuc");
+    cleanup();
+    render(<SignalProfileCard ticker="VNINDEX" />);
+    expect(screen.getByTestId("elite-profile-missing").textContent).toContain("VNINDEX");
+    expect(percentile([1, 2, 3, 4], 3)).toBe(62.5);
+  });
+});
