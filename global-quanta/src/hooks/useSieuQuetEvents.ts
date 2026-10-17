@@ -33,11 +33,12 @@ function uuidLike(): string {
 export function useSieuQuetEvents() {
   // N3 (2026-10-17): tab mặc định — 15 phút/lần thay vì 2–5 phút (CSDL Neon của Project A chỉ ngủ sau 5 phút không truy vấn).
   // Ứng viên mới chỉ sinh từ cron sieu-quet-event-discover 3 lần/ngày; xác nhận/bỏ qua vẫn cập nhật ngay qua mutate().
+  // Lỗi (VD CSDL hết hạn mức): thử lại tối đa 3 lần rồi chờ nhịp làm mới kế tiếp — SWR mặc định thử lại vô hạn ~30 giây/lần.
   const eventsRes = useSWR<{ events: SieuQuetEvent[] }>(`${API_BASE}/api/sieu-quet-ai/events`, fetcher, {
-    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false,
+    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false, errorRetryCount: 3,
   });
   const candidatesRes = useSWR<{ candidates: SieuQuetEventCandidate[] }>(`${API_BASE}/api/sieu-quet-ai/candidates`, fetcher, {
-    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false,
+    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false, errorRetryCount: 3,
   });
 
   const [actionError, setActionError] = useState<string | null>(null);
