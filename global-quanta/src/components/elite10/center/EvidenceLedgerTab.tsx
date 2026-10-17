@@ -19,7 +19,7 @@ function IcCell({ s, h }: { s: EvidenceSignal; h: string }) {
     <td className="px-1 py-1 text-center" title={`${x.n} ngày (${fmtDate(x.from)} → ${fmtDate(x.to)}) · t ${num(x.t)} · q ${num(x.q, 3)} · ${x.stable ? "ổn định hai nửa" : "không ổn định hai nửa"}`}>
       <div className={`rounded px-1 py-0.5 font-mono text-[10.5px] text-slate-100 ${main ? "ring-1 ring-amber-300/60" : ""}`} style={{ background: divergingColor(x.mean == null ? null : x.mean * 100) }}>
         {sgn(x.mean, 3)}
-        <span className="block text-[9px] text-slate-300/80">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ổn định" : ""}</span>
+        <span className="block text-[9px] text-slate-300/80">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ✓" : ""}</span>
       </div>
     </td>
   );
@@ -120,7 +120,7 @@ export default function EvidenceLedgerTab() {
         </div>
         <p className="text-[10.5px] text-slate-400">
           Ô = IC hạng Spearman trung bình theo ngày giữa tín hiệu và lợi suất từ đóng cửa d+1 tới d+1+h; màu xanh = dự báo đúng chiều, đỏ = ngược chiều.
-          Khung vàng = kỳ hạn chính dùng để giáng bậc. Luật thăng/giáng và định nghĩa ghi trong bản đăng ký trước E2 (không sửa sau khi đo).
+          Khung vàng = kỳ hạn chính dùng để giáng bậc; ✓ = dương ở cả hai nửa thời gian. Luật thăng/giáng và định nghĩa ghi trong bản đăng ký trước E2 (không sửa sau khi đo).
         </p>
         <div className="overflow-x-auto">
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="elite-ic-table">
