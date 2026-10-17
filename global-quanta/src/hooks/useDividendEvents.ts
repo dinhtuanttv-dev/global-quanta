@@ -28,6 +28,7 @@ export function useDividendEvents() {
     refreshInterval: 15 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 5 * 60 * 1000,
+    errorRetryCount: 3, // lỗi (VD CSDL hết hạn mức): thử lại tối đa 3 lần thay vì vô hạn
   });
 
   // Tra ve map { ticker: { exDate, agmDate, paymentDate } } de CotucTab de merge voi data tinh
