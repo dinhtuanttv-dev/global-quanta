@@ -15,13 +15,26 @@ const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
 export const SNAPSHOT_DAILY_POINTS = 60;
 export const SNAPSHOT_MONTHLY_POINTS = 24;
 
-/** JSON chart Yahoo -> nến ngày [["YYYY-MM-DD", close]] (bỏ ô trống, giữ nến cuối cùng mỗi ngày). */
-export function yahooDailyBars(json) {
-  const r = json?.chart?.result?.[0];
-  const ts = r?.timestamp ?? [], c = r?.indicators?.quote?.[0]?.close ?? [];
+/**
+ * Nến ngày [["YYYY-MM-DD", close]] từ timestamp + close của Yahoo (bỏ ô trống, giữ nến cuối mỗi ngày). Yahoo đôi khi trả close = null
+ * cho phiên gần nhất (đã gặp 2026-10-17 với ETF Mỹ) trong khi meta.regularMarketPrice vẫn có giá đóng cửa -> nếu meta MỚI HƠN nến
+ * hợp lệ cuối cùng thì thêm nến theo ngày của meta. Meta cũ hơn (đứng yên, như TIO=F) thì bỏ qua.
+ */
+export function barsFromYahoo(meta, ts = [], c = []) {
   const by = new Map();
   ts.forEach((t, i) => { if (Number.isFinite(c[i]) && c[i] > 0) by.set(new Date(t * 1000).toISOString().slice(0, 10), c[i]); });
-  return [...by.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+  const out = [...by.entries()].sort(([a], [b]) => (a < b ? -1 : 1));
+  if (Number.isFinite(meta?.regularMarketPrice) && meta.regularMarketPrice > 0 && Number.isFinite(meta?.regularMarketTime)) {
+    const d = new Date(meta.regularMarketTime * 1000).toISOString().slice(0, 10);
+    if (!out.length || d > out[out.length - 1][0]) out.push([d, meta.regularMarketPrice]);
+  }
+  return out;
+}
+
+/** JSON chart Yahoo -> nến ngày (xem barsFromYahoo). */
+export function yahooDailyBars(json) {
+  const r = json?.chart?.result?.[0];
+  return barsFromYahoo(r?.meta, r?.timestamp ?? [], r?.indicators?.quote?.[0]?.close ?? []);
 }
 
 const pct = (a, b) => (a > 0 && b > 0 ? (b / a - 1) * 100 : null);
