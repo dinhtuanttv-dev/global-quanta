@@ -9,11 +9,13 @@
 //     GET  /api/elite/decision/:ticker điểm và đóng góp từng tín hiệu của một mã
 //     GET  /api/elite/ledger          sổ theo dõi tiến của danh mục (khoá lúc dựng, chấm sau d+1+h)
 //     POST /api/elite/admin/decision  dựng quyết định + chấm sổ (admin)
+// E5: GET  /api/elite/tools           công cụ chat elite_* cho Claude/Gemini (Project A) — cùng hợp đồng /api/world-sectors/tools
+//     POST /api/elite/tools/:name
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   const wrap = (fn) => async (req, res) => {
     try {
@@ -91,6 +93,17 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     if (!getDecision) return res.status(503).json({ error: "Engine quyết định chưa cấu hình." });
     const d = await getDecision().build({ force: req.query.force === "1" });
     res.json({ date: d.date, icComb: d.icComb, universe: d.universe, portfolio: d.portfolio.map((x) => `${x.ticker} ${(x.weight * 100).toFixed(1)}%`), label: d.ledgerSummary?.label });
+  }));
+
+  router.get("/tools", (req, res) => {
+    if (!getChatTools) return res.status(503).json({ error: "Chưa bật công cụ." });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(getChatTools().specs());
+  });
+  router.post("/tools/:name", wrap(async (req, res) => {
+    if (!getChatTools) return res.status(503).json({ error: "Chưa bật công cụ." });
+    res.set("Cache-Control", "no-store");
+    res.json(await getChatTools().run(String(req.params.name || ""), req.body ?? {}));
   }));
 
   router.post("/admin/build", (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." })), wrap(async (req, res) => {

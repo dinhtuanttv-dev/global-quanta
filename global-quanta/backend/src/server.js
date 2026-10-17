@@ -21,6 +21,7 @@ import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
+import { createEliteChatTools } from "./market/elite/chatTools.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 
@@ -132,7 +133,12 @@ const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: 
 let eliteDecision = null;
 const vnIndexCloses = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
 const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), vnIndex: vnIndexCloses }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision }));
+// E5: công cụ chat elite_* (Claude / Gemini ở Project A).
+let eliteChatTools = null;
+const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
+  decision: () => getEliteDecision().decision(), panel: () => getElitePanel().panel(), evidence: () => getEliteEvidence().evidence(),
+}));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   let eliteEvidenceTriedFor = null;
