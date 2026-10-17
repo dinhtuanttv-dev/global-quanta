@@ -6,7 +6,7 @@ import CotucTab from "./CoTuc/CotucTab";
 import KetNoiTheGioiTab from "./KetNoiTheGioi/KetNoiTheGioiTab";
 import LocNganhTab from "./LocNganh/LocNganhTab";
 import ChatXucTacTab from "./ChatXucTac/ChatXucTacTab";
-import { TaVnIndexTab as Elite10Tab } from "../elite10/TaVnIndexTab";
+import Elite10Tab from "../elite10/Elite10Hub";
 import { TabNavigationContext } from "../../lib/TabNavigationContext";
 
 const TABS = ["Sieu quet AI", "Ket noi the gioi", "Loc nganh", "TA VN-Index", "Chat xuc tac", "Co tuc", "Elite 10"];

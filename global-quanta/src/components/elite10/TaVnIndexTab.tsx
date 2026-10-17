@@ -33,11 +33,13 @@ const DEFAULT_OVERLAYS: Record<string, boolean> = {
  * bộ — không ép store toàn cục đổi theo, tránh các tab khác bị nhảy mã
  * ngoài ý muốn người dùng.
  */
-export function TaVnIndexTab() {
+export function TaVnIndexTab({ ticker: controlled, onTickerChange }: { ticker?: string; onTickerChange?: (t: string) => void } = {}) {
   const globalSelectedTicker = useAppStore((s) => s.selectedTicker);
   const [localTicker, setLocalTicker] = useState<string | null>(null);
   const DEFAULT_TICKER = 'VNINDEX';
-  const ticker = localTicker ?? globalSelectedTicker ?? DEFAULT_TICKER;
+  // E4: Elite10Hub điều khiển mã (bấm từ Bảng quyết định -> Hồ sơ 360°); không có prop thì giữ hành vi cũ.
+  const ticker = controlled ?? localTicker ?? globalSelectedTicker ?? DEFAULT_TICKER;
+  const selectTicker = (t: string) => (onTickerChange ? onTickerChange(t) : setLocalTicker(t));
 
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [overlays, setOverlays] = useState<Record<string, boolean>>(DEFAULT_OVERLAYS);
@@ -61,7 +63,7 @@ export function TaVnIndexTab() {
       priceBasis={priceBasis}
       timeframe={timeframe}
       onTimeframeChange={setTimeframe}
-      onSelectTicker={setLocalTicker}
+      onSelectTicker={selectTicker}
       overlays={overlays}
       onToggleOverlay={toggleOverlay}
     />
