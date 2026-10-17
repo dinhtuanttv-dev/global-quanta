@@ -1,13 +1,28 @@
 // Dịch vụ chiến lược (S1): ghép Nhịp đập thị trường (điểm ngành thế giới → ngành VN), Nhịp đập hàng hoá (qua điểm ngành),
 // Truyền dẫn & bằng chứng (engine world: ma trận, cổng xác nhận, yếu tố, kịch bản) và chu kỳ RRG Lọc ngành. Bộ đệm 10 phút.
 import { WS_EVIDENCE } from "./wsEvidence.js";
-import { mediumTermContext, riskRegime, shortTermStrategy, STRATEGY_VERSION } from "./strategy.js";
+import { evaluateLedger, mediumTermContext, riskRegime, shortTermStrategy, STRATEGY_VERSION, updateLedger } from "./strategy.js";
+
+export const LEDGER_KV_KEY = "worldstrategy:ledger";
 
 const TTL = 10 * 60_000;
 const SCENARIOS = ["usd-strong", "oil-spike", "risk-off"];
 
-export function createWorldStrategyService({ worldSectors, worldService = null, pulse = null, vnIndex = null, rrgDoc = null, now = Date.now, log = console } = {}) {
-  let cache = null, inflight = null;
+export function createWorldStrategyService({ worldSectors, worldService = null, pulse = null, vnIndex = null, rrgDoc = null, store = null, now = Date.now, log = console } = {}) {
+  let cache = null, inflight = null, ledgerMem = null;
+
+  /** Sổ theo dõi tiến: đọc KV một lần, ghi lại chỉ khi bản ghi thay đổi (tối đa vài lần / phiên). */
+  async function ledgerUpdate(date, rows) {
+    if (ledgerMem == null) {
+      try { ledgerMem = (await store?.getKv?.(LEDGER_KV_KEY))?.value ?? []; } catch (e) { log.warn?.(`[strategy] đọc sổ lỗi: ${e.message}`); ledgerMem = []; }
+    }
+    const next = updateLedger(ledgerMem, date, rows, now());
+    if (JSON.stringify(next) !== JSON.stringify(ledgerMem)) {
+      ledgerMem = next;
+      try { await store?.setKv?.(LEDGER_KV_KEY, next); } catch (e) { log.warn?.(`[strategy] ghi sổ lỗi: ${e.message}`); }
+    }
+    return ledgerMem;
+  }
   const call = async (req) => {
     if (!worldService) return null;
     try { const r = await worldService.handle(req); return r?.status === 200 ? r.body : null; } catch (e) { log.warn?.(`[strategy] ${req.path}: ${e.message}`); return null; }
@@ -34,6 +49,8 @@ export function createWorldStrategyService({ worldSectors, worldService = null, 
       scenarios: scen.filter(Boolean).map((s) => ({ id: s.scenario?.id, nameVi: s.scenario?.nameVi, sectors: s.sectors })),
     });
     const vnLast = scores.rows.find((r) => r.vnLast)?.vnLast ?? null;
+    const ledger = await ledgerUpdate(vnLast, short.rows);
+    const forward = evaluateLedger(ledger, series, vni);
     return {
       version: STRATEGY_VERSION, generatedAt: new Date(now()).toISOString(), vnLast,
       evidence: {
@@ -46,6 +63,7 @@ export function createWorldStrategyService({ worldSectors, worldService = null, 
         mediumVi: "Bối cảnh = đồng thuận của 3 nguồn: điểm 3 tháng ngành thế giới, chu kỳ RRG Lọc ngành (Dẫn dắt/Cải thiện +, Suy yếu/Tụt hậu −), áp lực yếu tố truyền dẫn (liên kết bậc A/B × z yếu tố, ±0,5). ≥ 2 nguồn cùng chiều và không nguồn nào ngược -> Thuận / Bất lợi; còn lại Hỗn hợp/Trung tính.",
       },
       short, medium,
+      forward: { ...forward, methodVi: "Mỗi phiên VN ghi xếp hạng z ngắn hạn; khoá lúc 09:00 giờ VN phiên kế tiếp; chấm bằng IC Spearman với lợi suất tương đối (ngành − VN-Index) của phiên kế tiếp và danh mục 1/3 trên − 1/3 dưới." },
       sources: { matrix: !!matrix, overview: !!overview, confirm: !!confirm, scenarios: scen.filter(Boolean).length, rrg: !!rrg, pulse: !!pl, vnIndex: vni.length },
     };
   }

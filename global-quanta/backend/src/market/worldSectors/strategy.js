@@ -123,3 +123,69 @@ export function riskRegime(pulseMacro) {
       : "Biến động thế giới bình thường.",
   };
 }
+
+// ── S2: sổ theo dõi tiến (forward ledger) ──────────────────────────────────────────────────────────────────────────────
+// Mỗi phiên VN d ghi z ngắn hạn của các ngành; bản ghi được cập nhật cho tới 09:00 giờ VN (02:00Z) của ngày làm việc kế tiếp rồi
+// KHOÁ cứng — không dùng thông tin trong phiên dự báo. Đánh giá: IC Spearman cắt ngang giữa z(d) và lợi suất tương đối của phiên
+// VN kế tiếp; danh mục "nhóm đầu − nhóm cuối" (1/3 trên − 1/3 dưới, cân bằng) cộng dồn.
+export const LEDGER_MAX = 600;
+
+/** 02:00Z của ngày làm việc (T2–T6) đầu tiên sau ngày d. */
+export function nextOpenMs(d) {
+  const t = new Date(`${d}T02:00:00Z`);
+  do t.setUTCDate(t.getUTCDate() + 1); while ([0, 6].includes(t.getUTCDay()));
+  return t.getTime();
+}
+
+/** Ghi / khoá bản ghi cho phiên `date`. Trả ledger mới (không đổi đầu vào). */
+export function updateLedger(ledger, date, rows, nowMs) {
+  const list = (ledger ?? []).map((e) => ({ ...e }));
+  for (const e of list) if (!e.frozen && nowMs >= nextOpenMs(e.date)) e.frozen = true;
+  if (!date || nowMs >= nextOpenMs(date)) return list.slice(-LEDGER_MAX);
+  const z = Object.fromEntries(rows.filter((r) => r.zx != null).map((r) => [r.icb, r.zx]));
+  if (Object.keys(z).length < 10) return list.slice(-LEDGER_MAX);
+  const entry = { date, recordedAt: new Date(nowMs).toISOString(), frozen: false, z };
+  const i = list.findIndex((e) => e.date === date);
+  if (i >= 0) { if (!list[i].frozen) list[i] = entry; } else list.push(entry);
+  return list.sort((a, b) => (a.date < b.date ? -1 : 1)).slice(-LEDGER_MAX);
+}
+
+const rank = (xs) => { const idx = xs.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]); const r = new Array(xs.length); for (let k = 0; k < idx.length;) { let j = k; while (j + 1 < idx.length && idx[j + 1][0] === idx[k][0]) j++; const a = (k + j) / 2 + 1; for (let t = k; t <= j; t++) r[idx[t][1]] = a; k = j + 1; } return r; };
+function spearmanIc(x, y) { const n = x.length; if (n < 5) return null; const rx = rank(x), ry = rank(y), m = (n + 1) / 2; let c = 0, vx = 0, vy = 0; for (let i = 0; i < n; i++) { c += (rx[i] - m) * (ry[i] - m); vx += (rx[i] - m) ** 2; vy += (ry[i] - m) ** 2; } return vx > 0 && vy > 0 ? c / Math.sqrt(vx * vy) : null; }
+function nw(xs, L = 5) { const n = xs.length; if (n < 5) return { mean: n ? mean(xs) : null, t: null, p: null }; const m = mean(xs), e = xs.map((x) => x - m); let v = e.reduce((a, x) => a + x * x, 0) / n; for (let l = 1; l <= L; l++) { let g = 0; for (let i = l; i < n; i++) g += e[i] * e[i - l]; v += 2 * (1 - l / (L + 1)) * (g / n); } const t = m / Math.sqrt(Math.max(v, 1e-18) / n); return { mean: m, t, p: 1 - normCdf(t) }; }
+
+/** Đánh giá sổ: chỉ bản ghi ĐÃ KHOÁ và đã có phiên VN kế tiếp. series: { icb: points }, vnIndex: points. */
+export function evaluateLedger(ledger, series, vnIndex) {
+  const lvl = (pts) => new Map(pts.map((p) => [p[0], p[1]]));
+  const V = lvl(vnIndex), S = Object.fromEntries(Object.entries(series).map(([k, v]) => [k, lvl(v)]));
+  const vDates = vnIndex.map((p) => p[0]);
+  const days = [];
+  for (const e of (ledger ?? []).filter((x) => x.frozen)) {
+    const i = vDates.indexOf(e.date);
+    if (i < 0 || i + 1 >= vDates.length) continue;
+    const d1 = vDates[i + 1];
+    const vr = Math.log(V.get(d1) / V.get(e.date));
+    const xs = [], ys = [];
+    for (const [icb, z] of Object.entries(e.z)) {
+      const a = S[icb]?.get(e.date), b = S[icb]?.get(d1);
+      if (a > 0 && b > 0) { xs.push(z); ys.push(Math.log(b / a) - vr); }
+    }
+    if (xs.length < 10) continue;
+    const ic = spearmanIc(xs, ys);
+    const order = xs.map((z, k) => [z, ys[k]]).sort((a, b) => b[0] - a[0]);
+    const k3 = Math.max(1, Math.floor(order.length / 3));
+    const spread = mean(order.slice(0, k3).map((x) => x[1])) - mean(order.slice(-k3).map((x) => x[1]));
+    days.push({ date: e.date, next: d1, ic: ROUND(ic, 4), spreadPct: ROUND(spread * 100, 4), n: xs.length });
+  }
+  const ics = days.map((d) => d.ic).filter((x) => x != null);
+  const st = nw(ics);
+  let cum = 0;
+  const curve = days.map((d) => [d.next, ROUND((cum += d.spreadPct / 100) * 100, 4)]);
+  return {
+    since: ledger?.[0]?.date ?? null, recorded: (ledger ?? []).length, evaluated: days.length,
+    meanIc: ROUND(st.mean, 4), t: ROUND(st.t, 2), p: ROUND(st.p, 4),
+    hitRate: days.length ? ROUND(days.filter((d) => d.spreadPct > 0).length / days.length, 4) : null,
+    cumSpreadPct: curve.length ? curve.at(-1)[1] : null, curve, days: days.slice(-60),
+    statusVi: days.length < 60 ? `Đang tích luỹ mẫu: ${days.length}/60 phiên đã chấm — chưa đủ để kết luận.` : st.mean > 0 && st.p < 0.05 ? "Theo dõi tiến: IC dương có ý nghĩa." : "Theo dõi tiến: chưa thấy IC dương có ý nghĩa.",
+  };
+}
