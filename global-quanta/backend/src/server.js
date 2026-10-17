@@ -18,6 +18,9 @@ import { createWorldSectorsRouter } from "./routes/worldSectors.js";
 import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
+import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
+import { createEliteRouter } from "./routes/elite.js";
+import { isTradingDay, vnDate } from "./market/calendar.js";
 
 const app = express();
 
@@ -115,6 +118,28 @@ const getWsChatTools = () => (wsChatTools ??= createWsChatTools({
   strategy: () => getWorldStrategy().strategy(), worldSectors: getWorldSectorService(), commodities: getCommodityService(), taxonomy,
 }));
 app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService, getStrategy: getWorldStrategy, getChatTools: getWsChatTools }));
+// Elite 10 (E1): sổ đăng ký tín hiệu — gom kết quả mọi tab sau phiên thành bảng mã × tín hiệu (point-in-time, KV theo ngày).
+let elitePanel = null;
+const getElitePanel = () => (elitePanel ??= createElitePanelService({
+  store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
+}));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel }));
+if (process.env.NODE_ENV !== "test") {
+  // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
+  const eliteTick = async () => {
+    try {
+      if (!panelDue(Date.now(), isTradingDay)) return;
+      const latest = await getElitePanel().panel();
+      if (latest?.date === vnDate(new Date())) return;
+      const doc = await getElitePanel().build();
+      console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
+    } catch (e) {
+      console.warn(`[elite] ${e.message}`);
+    }
+  };
+  setTimeout(eliteTick, 120_000).unref?.();
+  setInterval(eliteTick, 10 * 60_000).unref?.();
+}
 // Sổ theo dõi tiến (S2): dựng chiến lược 30 phút/lần để ghi & khoá bản ghi trước giờ mở cửa VN (không phụ thuộc người xem).
 if (process.env.NODE_ENV !== "test") {
   const tick = () => getWorldStrategy().strategy().catch((e) => console.warn(`[strategy] ${e.message}`));
