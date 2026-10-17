@@ -1,9 +1,9 @@
 // Elite 10 E6 — "Bằng chứng & sổ theo dõi": kết quả engine bằng chứng E2 (IC hạng theo kỳ hạn, t Newey–West, q Benjamini–Hochberg,
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
-import { useEliteEvidence, useEliteLedger } from "../../../hooks/elite10/useEliteCenter";
+import { useEliteEvidence, useEliteLedger, useEliteRetro } from "../../../hooks/elite10/useEliteCenter";
 import { divergingColor } from "../../../lib/worldSectors/types";
-import type { EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
+import type { EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
 
 const H = ["1", "5", "10", "20"] as const;
@@ -69,9 +69,40 @@ function LedgerSummaryView({ s }: { s: LedgerSummary }) {
   );
 }
 
+const RETRO_LABEL: Record<string, string> = { stealth5: "Stealth 5", stealth20: "Stealth 20", net_intent: "Ý đồ IFE", mom5_atr: "Động lượng 5 phiên", log_rvol: "RVOL (log)" };
+
+function RetroSection({ r }: { r: EliteRetro | null | undefined }) {
+  if (!r) return <p className="text-[11px] text-slate-500">Kiểm định hồi cứu E7 chưa chạy.</p>;
+  const ok = r.label === "EVIDENCE";
+  return (
+    <div className="space-y-2 text-[11px]" data-testid="elite-retro">
+      <p className={`font-bold ${ok ? "text-emerald-300" : "text-amber-300"}`}>{r.verdictVi}</p>
+      <p className="text-slate-400">{r.version} · {r.period.sessions} phiên walk-forward ({fmtDate(r.period.from)} → {fmtDate(r.period.to)}) · chỉ 5 tín hiệu dòng tiền có lịch sử point-in-time.</p>
+      <LedgerSummaryView s={{ horizons: r.horizons, criteria: r.criteria, label: r.label, labelVi: r.verdictVi }} />
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
+          <p className="text-[9.5px] font-bold uppercase text-slate-500">Mẫu không chồng lấn (10 phiên)</p>
+          <p>{r.descriptive.nonOverlapping10.n} mẫu · TB {r.descriptive.nonOverlapping10.mean != null ? `${sgn(r.descriptive.nonOverlapping10.mean * 100, 2)}%` : "—"}</p>
+        </div>
+        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
+          <p className="text-[9.5px] font-bold uppercase text-slate-500">Quy năm · vòng quay</p>
+          <p>Vượt rổ đều ≈ {r.descriptive.annualisedExcess != null ? `${sgn(r.descriptive.annualisedExcess * 100, 1)}%/năm` : "—"} · vòng quay {r.descriptive.dailyTurnover != null ? `${num(r.descriptive.dailyTurnover * 100, 0)}%/phiên` : "—"}</p>
+        </div>
+        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
+          <p className="text-[9.5px] font-bold uppercase text-slate-500">Số phiên ở bậc A/B/C</p>
+          <p className="text-[10px]">{Object.entries(r.descriptive.tierDays).map(([k, v]) => `${RETRO_LABEL[k] ?? k}: ${v.A}/${v.B}/${v.C}`).join(" · ")}</p>
+        </div>
+      </div>
+      <Curve points={r.horizons["10"]?.curve ?? []} />
+      <p className="text-[10px] text-slate-500">Mỗi phiên chỉ dùng IC đã có tại thời điểm đó; bậc, trọng số, danh mục và cách chấm dùng đúng hàm của E2/E3. Không điều chỉnh tham số sau khi xem kết quả (E7-prereg).</p>
+    </div>
+  );
+}
+
 export default function EvidenceLedgerTab() {
   const { data: ev, error } = useEliteEvidence();
   const { data: ledger } = useEliteLedger();
+  const { data: retro } = useEliteRetro();
   const sorted = useMemo(() => {
     const order = { A: 0, B: 1, C: 2 } as const;
     return [...(ev?.signals ?? [])].sort((a, b) => order[a.tier] - order[b.tier] || (b.byH[String(b.mainH)]?.mean ?? -9) - (a.byH[String(a.mainH)]?.mean ?? -9));
@@ -112,6 +143,11 @@ export default function EvidenceLedgerTab() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Kiểm định hồi cứu walk-forward (E7)</h4>
+        <RetroSection r={retro} />
       </section>
 
       <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-ledger-tab">

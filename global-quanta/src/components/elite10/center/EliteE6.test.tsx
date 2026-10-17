@@ -29,7 +29,7 @@ const risk = {
   correlation: { tickers: ["ORS", "NAB"], matrix: [[1, 0.42], [0.42, 1]] },
 };
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
-  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRisk: () => ({ data: risk, isLoading: false }),
+  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRisk: () => ({ data: risk, isLoading: false }),
 }));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] } } }) }));
 

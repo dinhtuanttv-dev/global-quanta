@@ -35,3 +35,10 @@ export function useEliteRisk() {
 export function useEliteLedger() {
   return useSWR<import("../../lib/elite10/decisionTypes").EliteLedger>("elite-ledger", () => fetchMarketJson("/api/elite/ledger"), OPTS);
 }
+
+/** E7: kiểm định hồi cứu walk-forward (404 khi chưa chạy -> null). */
+export function useEliteRetro() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRetro | null>("elite-retro", async () => {
+    try { return await fetchMarketJson("/api/elite/retro"); } catch { return null; }
+  }, OPTS);
+}

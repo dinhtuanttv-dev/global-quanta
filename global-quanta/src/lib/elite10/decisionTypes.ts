@@ -65,3 +65,12 @@ export interface LedgerEntry {
   results: Record<string, { from: string; to: string; portfolioNet: number; universeNet: number; excess: number; vnIndex: number | null; ic: number | null; names: number }>;
 }
 export interface EliteLedger { version: string; updatedAt: string; summary: LedgerSummary; entries: LedgerEntry[] }
+
+export interface EliteRetro {
+  version: string; generatedAt: string; prereg: string; label: "EVIDENCE" | "EXPERIMENTAL"; verdictVi: string;
+  period: { from: string | null; to: string | null; sessions: number };
+  criteria: { icPass: boolean; excessPass: boolean; sessions: number };
+  horizons: Record<string, LedgerHorizon>;
+  descriptive: { nonOverlapping10: { n: number; mean: number | null; ci95: [number, number] | null }; annualisedExcess: number | null; dailyTurnover: number | null; tierDays: Record<string, Record<Tier, number>> };
+  lastWeights: { id: string; tier: Tier; w: number; icPost: number }[];
+}
