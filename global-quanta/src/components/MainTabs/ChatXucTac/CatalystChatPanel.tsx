@@ -1,15 +1,17 @@
-// X4 — "Hỏi đáp xúc tác": chat với Claude (Opus 5.5) có công cụ vĩ mô (Gateway) + xúc tác (snapshot engine).
+// X4/Z3 — "Hỏi đáp xúc tác": Claude (Opus 5.5) hoặc Gemini, hoặc SO SÁNH hai mô hình cạnh nhau — cùng bộ công cụ vĩ mô (Gateway),
+// Kết nối thế giới (world_*), ngành thế giới → ngành ICB VN (ws_*: chiến lược, ngành, hàng hoá, phơi nhiễm cổ phiếu) và xúc tác.
 // Trung thực theo thiết kế: biểu ngữ notice (dữ liệu mô phỏng/cũ) đứng ĐẦU câu trả lời; thẻ kết quả lấy từ chính tool_result;
 // con số không truy được tới công cụ -> cảnh báo hiển thị; không khuyến nghị mua/bán.
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { AlertTriangle, Loader2, Send, Square, Wrench } from "lucide-react";
-import { ChatHttpError, streamCatalystChat, type ChatStreamEvent, type ChatToolResult } from "../../../services/catalystChat";
+import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatStreamEvent, type ChatToolResult } from "../../../services/catalystChat";
 import { ToolResultCard, toolLabel } from "./CatalystChatCards";
 import { MarkdownLite } from "../../shared/MarkdownLite";
 
 interface ToolRun { id: string; name: string; result?: ChatToolResult }
-interface AssistantTurn {
-  role: "assistant";
+export interface Lane {
+  provider: ChatProvider;
+  model?: string;
   text: string;
   notices: string[];
   tools: ToolRun[];
@@ -18,19 +20,30 @@ interface AssistantTurn {
   done: boolean;
   fallback?: boolean;
 }
+interface AssistantTurn { role: "assistant"; lanes: Lane[] }
 type Turn = { role: "user"; text: string } | AssistantTurn;
+type Mode = ChatProvider | "compare";
 
-const SUGGESTIONS = [
+const MODES: { id: Mode; label: string; title: string }[] = [
+  { id: "claude", label: "Claude", title: "Claude Opus 5.5 — gọi công cụ, suy luận sâu" },
+  { id: "gemini", label: "Gemini", title: "Gemini — gọi công cụ (function calling), cùng bộ công cụ & kiểm tra con số" },
+  { id: "compare", label: "So sánh 2 mô hình", title: "Hỏi cả Claude và Gemini cùng lúc, hiện cạnh nhau (tính 2 câu vào hạn mức)" },
+];
+const PROVIDER_VI: Record<ChatProvider, string> = { claude: "Claude", gemini: "Gemini" };
+
+export const SUGGESTIONS = [
+  "Ngành nào thuận gió / ngược gió phiên tới? Lợi thế lớn cỡ nào?",
+  "HPG chịu tác động thế giới thế nào? Hàng hoá nào dẫn dắt?",
+  "Dầu Brent tăng thì ngành và cổ phiếu Việt Nam nào bị ảnh hưởng?",
   "Vĩ mô đang thuận lợi hay bất lợi cho VN-Index?",
   "Đang có chất xúc tác gì nổi bật? Ngành nào hưởng lợi?",
   "Sắp có số liệu vĩ mô hay sự kiện gì cần chú ý?",
-  "Lạm phát ảnh hưởng gì tới VNSmallcap?",
-  "Nếu VND mất giá 3% thì chỉ số nào chịu thiệt?",
-  "Mã HPG đang có xúc tác gì?",
+  "Bối cảnh trung hạn của ngành ngân hàng ra sao (thế giới, RRG, truyền dẫn)?",
+  "Giá gạo Việt Nam và quặng sắt đang ở đâu so với 5 năm?",
   "Yếu tố thế giới nào tác động tới ngành ngân hàng? Bằng chứng bậc mấy?",
-  "Thị trường Việt Nam đang nhận lan truyền từ đâu?",
-  "Thuế đối ứng của Mỹ tháng 4/2025 tác động ngành nào?",
 ];
+
+const newLane = (provider: ChatProvider): Lane => ({ provider, text: "", notices: [], tools: [], untraceable: [], done: false });
 
 function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode }) {
   const c = tone === "warn" ? "var(--warning, #f59e0b)" : "var(--text-tertiary)";
@@ -42,9 +55,14 @@ function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode
   );
 }
 
-function AssistantBubble({ t }: { t: AssistantTurn }) {
+function LaneView({ t, showHeader }: { t: Lane; showHeader: boolean }) {
   return (
-    <div style={{ alignSelf: "stretch", minWidth: 0 }}>
+    <div style={{ minWidth: 0 }} data-testid={`lane-${t.provider}`}>
+      {showHeader && (
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--gold, #e8b84b)", marginBottom: 4 }}>
+          {PROVIDER_VI[t.provider]}{t.model ? <span style={{ color: "var(--text-tertiary)", fontWeight: 400, textTransform: "none" }}> · {t.model}</span> : null}
+        </div>
+      )}
       {t.notices.map((n) => <Banner key={n} tone="warn">{n}</Banner>)}
       {t.tools.length > 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 4, margin: "0 0 6px" }}>
@@ -73,10 +91,24 @@ function AssistantBubble({ t }: { t: AssistantTurn }) {
   );
 }
 
-export default function CatalystChatPanel() {
+/** Lịch sử cho một mô hình: câu trả lời của chính mô hình đó (hoặc làn đầu tiên nếu lượt trước không hỏi mô hình này). */
+export function historyFor(turns: Turn[], provider: ChatProvider): { role: "user" | "assistant"; content: string }[] {
+  const out: { role: "user" | "assistant"; content: string }[] = [];
+  for (const t of turns) {
+    if (t.role === "user") { out.push({ role: "user", content: t.text }); continue; }
+    const lane = t.lanes.find((l) => l.provider === provider) ?? t.lanes[0];
+    if (lane && lane.done && !lane.error && lane.text.trim()) out.push({ role: "assistant", content: lane.text });
+    else out.pop(); // câu hỏi không có trả lời hợp lệ -> bỏ (API yêu cầu xen kẽ)
+  }
+  while (out.length && out[out.length - 1].role === "user") out.pop();
+  return out;
+}
+
+export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { seedQuestion?: string | null; onSeedConsumed?: () => void } = {}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<Mode>("claude");
   const [meta, setMeta] = useState<{ remaining: number; macroMode: string | null; worldMode: string | null } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -86,46 +118,54 @@ export default function CatalystChatPanel() {
   }, [turns]);
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const updateLast = (fn: (a: AssistantTurn) => AssistantTurn) =>
+  const updateLane = (provider: ChatProvider, fn: (a: Lane) => Lane) =>
     setTurns((ts) => {
       const last = ts[ts.length - 1];
-      return last && last.role === "assistant" ? [...ts.slice(0, -1), fn(last)] : ts;
+      if (!last || last.role !== "assistant") return ts;
+      return [...ts.slice(0, -1), { ...last, lanes: last.lanes.map((l) => (l.provider === provider ? fn(l) : l)) }];
     });
+
+  async function runLane(provider: ChatProvider, q: string, prior: Turn[], ctrl: AbortController) {
+    const onEvent = (e: ChatStreamEvent) => {
+      if (e.type === "meta") { setMeta({ remaining: e.remaining, macroMode: e.macroMode, worldMode: e.worldMode ?? null }); updateLane(provider, (a) => ({ ...a, model: e.model })); }
+      else if (e.type === "text") updateLane(provider, (a) => ({ ...a, text: a.text + e.delta }));
+      else if (e.type === "notice") updateLane(provider, (a) => (a.notices.includes(e.notice) ? a : { ...a, notices: [...a.notices, e.notice] }));
+      else if (e.type === "tool_call") updateLane(provider, (a) => ({ ...a, tools: [...a.tools, { id: e.id, name: e.name }] }));
+      else if (e.type === "tool_result") updateLane(provider, (a) => ({ ...a, tools: a.tools.map((r) => (r.id === e.id ? { ...r, result: e.result } : r)) }));
+      else if (e.type === "audit") updateLane(provider, (a) => ({ ...a, untraceable: e.untraceable }));
+      else if (e.type === "error") updateLane(provider, (a) => ({ ...a, error: e.message }));
+      else if (e.type === "done") updateLane(provider, (a) => ({ ...a, done: true, fallback: e.fallback }));
+    };
+    try {
+      await streamCatalystChat([...historyFor(prior, provider), { role: "user", content: q }], onEvent, ctrl.signal, provider);
+    } catch (err) {
+      const msg = ctrl.signal.aborted ? "Đã dừng." : err instanceof ChatHttpError ? err.message : "Không kết nối được dịch vụ hỏi đáp.";
+      updateLane(provider, (a) => ({ ...a, error: msg }));
+    } finally {
+      updateLane(provider, (a) => ({ ...a, done: true }));
+    }
+  }
 
   async function ask(question: string) {
     const q = question.trim();
     if (!q || busy) return;
-    const history = turns
-      .filter((t) => (t.role === "user" ? true : t.done && !t.error && t.text.trim()))
-      .map((t) => ({ role: t.role, content: t.text }));
-    // API yêu cầu xen kẽ: bỏ câu hỏi cuối chưa có trả lời hợp lệ
-    while (history.length && history[history.length - 1].role === "user") history.pop();
-    setTurns((ts) => [...ts, { role: "user", text: q }, { role: "assistant", text: "", notices: [], tools: [], untraceable: [], done: false }]);
+    const providers: ChatProvider[] = mode === "compare" ? ["claude", "gemini"] : [mode];
+    const prior = turns;
+    setTurns((ts) => [...ts, { role: "user", text: q }, { role: "assistant", lanes: providers.map(newLane) }]);
     setInput("");
     setBusy(true);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    const onEvent = (e: ChatStreamEvent) => {
-      if (e.type === "meta") setMeta({ remaining: e.remaining, macroMode: e.macroMode, worldMode: e.worldMode ?? null });
-      else if (e.type === "text") updateLast((a) => ({ ...a, text: a.text + e.delta }));
-      else if (e.type === "notice") updateLast((a) => (a.notices.includes(e.notice) ? a : { ...a, notices: [...a.notices, e.notice] }));
-      else if (e.type === "tool_call") updateLast((a) => ({ ...a, tools: [...a.tools, { id: e.id, name: e.name }] }));
-      else if (e.type === "tool_result") updateLast((a) => ({ ...a, tools: a.tools.map((r) => (r.id === e.id ? { ...r, result: e.result } : r)) }));
-      else if (e.type === "audit") updateLast((a) => ({ ...a, untraceable: e.untraceable }));
-      else if (e.type === "error") updateLast((a) => ({ ...a, error: e.message }));
-      else if (e.type === "done") updateLast((a) => ({ ...a, done: true, fallback: e.fallback }));
-    };
-    try {
-      await streamCatalystChat([...history, { role: "user", content: q }], onEvent, ctrl.signal);
-    } catch (err) {
-      const msg = ctrl.signal.aborted ? "Đã dừng." : err instanceof ChatHttpError ? err.message : "Không kết nối được dịch vụ hỏi đáp.";
-      updateLast((a) => ({ ...a, error: msg }));
-    } finally {
-      updateLast((a) => ({ ...a, done: true }));
-      setBusy(false);
-      abortRef.current = null;
-    }
+    await Promise.all(providers.map((p) => runLane(p, q, prior, ctrl)));
+    setBusy(false);
+    abortRef.current = null;
   }
+
+  // câu hỏi chuyển sang từ bảng "Tác động ngành & cổ phiếu"
+  useEffect(() => {
+    if (seedQuestion && !busy) { void ask(seedQuestion); onSeedConsumed?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seedQuestion]);
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -135,10 +175,19 @@ export default function CatalystChatPanel() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }} data-testid="catalyst-chat">
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
         <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>Hỏi đáp xúc tác</span>
-        <span>· Claude Opus 5.5 · công cụ vĩ mô + thế giới + xúc tác</span>
+        <div role="group" aria-label="Mô hình AI" style={{ display: "flex", gap: 4 }}>
+          {MODES.map((m) => (
+            <button key={m.id} type="button" title={m.title} aria-pressed={mode === m.id} disabled={busy} onClick={() => setMode(m.id)}
+              style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 6, border: 0, cursor: busy ? "default" : "pointer",
+                background: mode === m.id ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: mode === m.id ? "var(--gold, #e8b84b)" : "var(--text-secondary)" }}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <span>· công cụ vĩ mô + thế giới + ngành ICB + hàng hoá + xúc tác</span>
         {meta?.macroMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta?.worldMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta && <span style={{ marginLeft: "auto" }}>Còn {meta.remaining} câu hôm nay</span>}
@@ -160,7 +209,11 @@ export default function CatalystChatPanel() {
           <div key={i} style={{ alignSelf: "flex-end", maxWidth: "85%", fontSize: 12.5, background: "color-mix(in srgb, var(--gold, #e8b84b) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--gold, #e8b84b) 30%, transparent)", borderRadius: "10px 10px 2px 10px", padding: "7px 10px", color: "var(--text-primary)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
             {t.text}
           </div>
-        ) : <AssistantBubble key={i} t={t} />)}
+        ) : (
+          <div key={i} style={{ display: "grid", gap: 12, gridTemplateColumns: t.lanes.length > 1 ? "repeat(auto-fit, minmax(280px, 1fr))" : "minmax(0, 1fr)" }}>
+            {t.lanes.map((l) => <LaneView key={l.provider} t={l} showHeader={t.lanes.length > 1 || l.provider === "gemini"} />)}
+          </div>
+        ))}
         <div ref={endRef} />
       </div>
 
@@ -171,7 +224,7 @@ export default function CatalystChatPanel() {
           onChange={(e) => setInput(e.target.value.slice(0, 2000))}
           onKeyDown={onKey}
           rows={2}
-          placeholder="Hỏi về chất xúc tác, ngành, mã hoặc vĩ mô… (Enter để gửi)"
+          placeholder="Hỏi về chất xúc tác, ngành, mã, hàng hoá hoặc vĩ mô… (Enter để gửi)"
           style={{ flex: 1, minWidth: 0, resize: "vertical", fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-primary)", fontFamily: "inherit" }}
         />
         {busy ? (

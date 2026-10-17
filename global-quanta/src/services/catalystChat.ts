@@ -3,6 +3,9 @@ import { getAccessToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
+/** Mô hình trả lời (Z2): Claude (mặc định) hoặc Gemini — cùng bộ công cụ & kiểm tra con số. */
+export type ChatProvider = "claude" | "gemini";
+
 export interface ChatToolResult {
   ok: boolean;
   notice?: string | null;
@@ -12,7 +15,7 @@ export interface ChatToolResult {
 }
 
 export type ChatStreamEvent =
-  | { type: "meta"; remaining: number; macroMode: "real" | "synthetic" | null; worldMode?: "real" | "synthetic" | null }
+  | { type: "meta"; remaining: number; macroMode: "real" | "synthetic" | null; worldMode?: "real" | "synthetic" | null; provider?: ChatProvider; model?: string }
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: unknown }
   | { type: "tool_result"; id: string; name: string; result: ChatToolResult }
@@ -48,13 +51,14 @@ export async function streamCatalystChat(
   messages: { role: "user" | "assistant"; content: string }[],
   onEvent: (e: ChatStreamEvent) => void,
   signal?: AbortSignal,
+  provider: ChatProvider = "claude",
 ): Promise<void> {
   const token = await getAccessToken();
   if (!token) throw new ChatHttpError(401, "Cần đăng nhập để dùng Hỏi đáp xúc tác.");
   const res = await fetch(`${API_BASE}/api/catalysts/chat`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, provider }),
     signal,
   });
   if (!res.ok || !res.body) {

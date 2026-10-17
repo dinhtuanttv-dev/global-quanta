@@ -24,7 +24,17 @@ const TOOL_LABEL: Record<string, string> = {
   world_connectedness: "Kết nối thị trường",
   world_scenario: "Kịch bản thế giới",
   world_stock_profile: "Phơi nhiễm quốc tế",
+  ws_strategy: "Chiến lược ngành thế giới",
+  ws_sector: "Ngành thế giới → ngành VN",
+  ws_commodities: "Bảng giá hàng hoá",
+  ws_commodity: "Phân tích hàng hoá",
+  ws_stock: "Tác động lên cổ phiếu",
 };
+
+const STANCE_VI: Record<string, string> = { overweight: "Ưu tiên", neutral: "Trung tính", underweight: "Giảm tỷ trọng", na: "—", supportive: "Bối cảnh thuận", mixed: "Hỗn hợp", adverse: "Bối cảnh bất lợi" };
+const stanceColor = (s: string) => (s === "overweight" || s === "supportive" ? "var(--positive, #34d399)" : s === "underweight" || s === "adverse" ? "var(--negative, #f87171)" : "var(--text-secondary)");
+const Stance = ({ s }: { s: string }) => <span style={{ color: stanceColor(s), fontWeight: 700 }}>{STANCE_VI[s] ?? s}</span>;
+const sgn = (x: unknown, d = 1) => (typeof x === "number" && Number.isFinite(x) ? `${x > 0 ? "+" : ""}${fmt(x, d)}` : "—");
 
 /** Bậc bằng chứng của gói macro-center: A/B có màu, C và pending trung tính (không phải "có tác động"). */
 const TIER_STYLE: Record<string, { label: string; color: string }> = {
@@ -202,6 +212,64 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
           r.name, `${fmt(r.estPct, 1)}%`, `[${fmt(r.ciLowPct, 1)}; ${fmt(r.ciHighPct, 1)}]`, r.conclusive ? "có hướng" : "chưa kết luận",
         ])} />
         {Array.isArray(d.warnings) && d.warnings.length > 0 && <div style={{ fontSize: 10, color: "var(--warning, #f59e0b)", marginTop: 4 }}>{d.warnings.join(" · ")}</div>}
+      </Shell>
+    );
+  }
+  if (name === "ws_strategy" && Array.isArray(d.shortTop)) {
+    const rows: Obj[] = [...d.shortTop, ...(d.shortBottom ?? [])];
+    return (
+      <Shell title={`${title} · phiên ${d.asOf ?? "—"}${d.regime?.stressed ? " · biến động cao" : ""}`}>
+        <Table head={["Ngành", "Tư thế ngắn hạn", "α (đcb/phiên)", "P vượt", "Mã lớn"]} rows={rows.map((r) => [
+          r.nameVi, <Stance s={r.stance} />, sgn(r.alphaBps), r.pOutperform == null ? "—" : `${fmt(r.pOutperform * 100, 1)}%`, (r.topStocks ?? []).join(" "),
+        ])} />
+        {d.medium && <div style={{ fontSize: 10.5, color: "var(--text-secondary)", marginTop: 4 }}>
+          Trung hạn (bối cảnh, không dự báo): thuận — {(d.medium.supportive ?? []).map((m: Obj) => m.nameVi).join(", ") || "—"}; bất lợi — {(d.medium.adverse ?? []).map((m: Obj) => m.nameVi).join(", ") || "—"}
+        </div>}
+      </Shell>
+    );
+  }
+  if (name === "ws_sector" && d.short) {
+    return (
+      <Shell title={`${title} · ${d.nameVi} (ICB ${d.icb}) · ${d.asOf ?? ""}`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          Ngắn hạn {sgn(d.short.score, 2)} σ ({d.short.evidence}) · trung hạn {sgn(d.medium?.score, 2)} σ ({d.medium?.evidence})
+          {Array.isArray(d.drivers) && d.drivers.length > 0 && <><br />Hàng hoá: {d.drivers.map((x: Obj) => `${x.nameVi} ${sgn(x.shortPct)}% phiên · ${sgn(x.mediumPct)}% 3T`).join(" · ")}</>}
+        </div>
+        {Array.isArray(d.stocks) && d.stocks.length > 0 && (
+          <Table head={["Mã", "Tỷ trọng", "β", "1 phiên", "1 tháng"]} rows={d.stocks.slice(0, 6).map((x: Obj) => [x.ticker, `${fmt(x.weightPct, 1)}%`, fmt(x.betaPct, 2), `${sgn(x.d1Pct)}%`, `${sgn(x.m1Pct)}%`])} />
+        )}
+      </Shell>
+    );
+  }
+  if (name === "ws_commodities" && Array.isArray(d.items)) {
+    return (
+      <Shell title={title}>
+        <Table head={["Mặt hàng", "Giá", "Thay đổi", "Kỳ"]} rows={d.items.map((x: Obj) => [x.nameVi, `${fmt(x.value)} ${x.unit}`, `${sgn(x.changePct)}% ${x.basis ?? ""}`, x.period])} />
+      </Shell>
+    );
+  }
+  if (name === "ws_commodity" && d.id) {
+    const ch: Obj = d.changesPct ?? {};
+    return (
+      <Shell title={`${title} · ${d.nameVi} · ${d.lastDate ?? ""}`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          {fmt(d.last)} {d.unit} · 1 phiên {sgn(ch.d1)}% · 1 tháng {sgn(ch.m1)}% · 3 tháng {sgn(ch.m3)}% · 1 năm {sgn(ch.y1)}%
+          <br />Phân vị 5 năm {fmt(d.percentile5y, 0)} · z 1 năm {sgn(d.zScore1y, 2)} · biến động {fmt(d.volNowPct, 1)}% (TB 5 năm {fmt(d.volAvg5yPct, 1)}%)
+          {Array.isArray(d.relations) && d.relations.length > 0 && <><br />Quan hệ (thăm dò): {d.relations.map((r: Obj) => `${r.code} r ${fmt(r.corr, 2)}${r.significant ? "" : " (chưa có ý nghĩa)"}`).join(" · ")}</>}
+        </div>
+      </Shell>
+    );
+  }
+  if (name === "ws_stock" && d.ticker) {
+    const e: Obj | null = d.stockExposure;
+    return (
+      <Shell title={`${title} · ${d.ticker}${d.sector ? ` · ${d.sector.nameVi} (ICB ${d.sector.icb})` : ""}`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          Ngắn hạn ngành: {d.sectorShort ? <><Stance s={d.sectorShort.stance} /> α {sgn(d.sectorShort.alphaBps)} đcb/phiên · P vượt {d.sectorShort.pOutperform == null ? "—" : `${fmt(d.sectorShort.pOutperform * 100, 1)}%`}</> : "—"}
+          <br />Trung hạn ngành: {d.sectorMedium ? <><Stance s={d.sectorMedium.stance} /> (bối cảnh, không dự báo)</> : "—"}
+          {e && <><br />Mã: tỷ trọng {fmt(e.weightPct, 1)}% · β {fmt(e.betaPct, 2)} · 1 tháng {sgn(e.m1Pct)}% · 3 tháng {sgn(e.m3Pct)}%</>}
+          {Array.isArray(d.drivers) && d.drivers.length > 0 && <><br />Hàng hoá dẫn dắt: {d.drivers.map((x: Obj) => x.nameVi).join(", ")}</>}
+        </div>
       </Shell>
     );
   }
