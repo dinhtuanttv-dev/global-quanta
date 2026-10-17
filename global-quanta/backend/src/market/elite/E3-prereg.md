@@ -51,3 +51,16 @@ Chưa đạt cả 1 và 2 thì Điểm Elite và danh mục giữ nhãn **THĂM 
 - Hầu hết tín hiệu bậc A/B mới có dữ liệu tiến từ 16/10/2026; trọng số ban đầu dựa chủ yếu vào tiên nghiệm và Stealth 20.
 - Không mô hình hoá trượt giá, trần/sàn, thanh khoản trong phiên.
 - Không có tín hiệu định thời thị trường đạt kiểm định: danh mục luôn đầy đủ 100%, không đề xuất tỷ lệ tiền mặt.
+
+## Sửa đổi E3-v2 (2026-10-17, trước khi có bất kỳ kết quả tiến nào)
+
+**Lý do**: lần dựng đầu tiên (phiên 16/10/2026) cho thấy một trường hợp suy biến chưa lường trước. NAF đứng giá 47.900–48.000
+suốt 25 phiên (giá bị neo, dấu hiệu chào mua công khai / sáp nhập), σ20 = 0,09%/ngày. Quy tắc tỷ trọng ∝ 1/σ20 vì vậy dồn trần
+20% vào một mã gần như không thể tăng giá. Đây là lỗi của quy tắc, không phải của dữ liệu. Sửa trước khi sổ theo dõi có kết quả:
+bản ghi duy nhất của E3-v1 (16/10, chưa chấm) được lưu trữ riêng, không xoá; sổ E3-v2 bắt đầu lại.
+
+**Thay đổi** (mọi điều khác giữ nguyên):
+
+1. Thêm điều kiện đủ: σ20 ≥ 0,5%/ngày (loại mã có giá bị neo).
+2. Tỷ trọng ∝ 1 / max(σ20, 1%) thay cho 1/σ20, rồi áp trần 20% như cũ.
+3. Dải cắt lỗ / mục tiêu dùng cùng max(σ20, 1%).
