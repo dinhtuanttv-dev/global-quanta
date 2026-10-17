@@ -3,11 +3,13 @@
 //   GET  /api/elite/panel[?date=]    bảng tín hiệu mã × tín hiệu của một phiên (mặc định phiên mới nhất)
 //   GET  /api/elite/panel/:ticker    các tín hiệu của một mã ở phiên mới nhất
 //   POST /api/elite/admin/build      dựng lại bảng phiên mới nhất (Bearer MARKET_ADMIN_TOKEN; ?force=1 ghi đè)
+// E2: GET  /api/elite/evidence       bằng chứng từng tín hiệu (IC theo kỳ hạn, q BH, bậc A/B/C theo E2-prereg.md)
+//     POST /api/elite/admin/evidence  cập nhật chuỗi IC + bậc (admin)
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 
-export function createEliteRouter({ getPanel, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   const wrap = (fn) => async (req, res) => {
     try {
@@ -39,6 +41,20 @@ export function createEliteRouter({ getPanel, adminToken = () => process.env.MAR
     if (!row) return res.status(404).json({ error: `${ticker} không nằm trong vũ trụ Siêu quét phiên ${doc.date}.` });
     res.set("Cache-Control", "public, max-age=300");
     res.json({ date: doc.date, version: doc.version, asOf: doc.asOf, missingSources: doc.missingSources, signals: doc.signals, ...row });
+  }));
+
+  router.get("/evidence", wrap(async (req, res) => {
+    const ev = getEvidence ? await getEvidence().evidence() : null;
+    if (!ev) return res.status(404).json({ error: "Chưa có kết quả engine bằng chứng." });
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(ev);
+  }));
+
+  const admin = (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }));
+  router.post("/admin/evidence", admin, wrap(async (req, res) => {
+    if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
+    const ev = await getEvidence().update();
+    res.json({ version: ev.version, calendarLast: ev.calendarLast, tests: ev.tests, counts: ev.counts });
   }));
 
   router.post("/admin/build", (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." })), wrap(async (req, res) => {

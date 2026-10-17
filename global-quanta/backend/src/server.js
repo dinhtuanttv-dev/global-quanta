@@ -19,6 +19,7 @@ import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./market/sectors/sectorRot
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
+import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 
@@ -123,16 +124,28 @@ let elitePanel = null;
 const getElitePanel = () => (elitePanel ??= createElitePanelService({
   store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel }));
+// E2: engine bằng chứng — IC hạng từng tín hiệu theo E2-prereg.md, cập nhật tăng dần sau mỗi bảng mới.
+let eliteEvidence = null;
+const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel() }));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
+  let eliteEvidenceTriedFor = null;
   const eliteTick = async () => {
     try {
       if (!panelDue(Date.now(), isTradingDay)) return;
       const latest = await getElitePanel().panel();
-      if (latest?.date === vnDate(new Date())) return;
-      const doc = await getElitePanel().build();
-      console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
+      if (latest?.date !== vnDate(new Date())) {
+        const doc = await getElitePanel().build();
+        console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
+      }
+      const panelDate = (await getElitePanel().panel())?.date;
+      const ev = await getEliteEvidence().evidence();
+      if (panelDate && ev?.calendarLast !== panelDate && eliteEvidenceTriedFor !== panelDate) {
+        eliteEvidenceTriedFor = panelDate;
+        const next = await getEliteEvidence().update();
+        console.log(`[elite] bằng chứng ${next.calendarLast}: ${next.tests} phép thử, A ${next.counts.A} · B ${next.counts.B} · C ${next.counts.C}`);
+      }
     } catch (e) {
       console.warn(`[elite] ${e.message}`);
     }
