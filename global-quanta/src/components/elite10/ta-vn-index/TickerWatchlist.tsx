@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useTickerWatchlist } from '../../../hooks/ta-vn-index/useTickerWatchlist';
+import { useTickerWatchlist, WATCHLIST_FILTER_LABEL } from '../../../hooks/ta-vn-index/useTickerWatchlist';
 import type { WatchlistFilter } from '../../../types/taVnIndex';
 
 interface TickerWatchlistProps {
@@ -7,12 +7,8 @@ interface TickerWatchlistProps {
   onSelectTicker: (ticker: string) => void;
 }
 
-const FILTERS: { key: WatchlistFilter; label: string }[] = [
-  { key: 'all', label: 'Tất cả' },
-  { key: 'core', label: 'Cốt lõi (Core)' },
-  { key: 'ring', label: 'Vệ tinh (Ring)' },
-  { key: 'pinned', label: 'Đã ghim ⭐' },
-];
+// E0: nguồn = Siêu quét AI (Gateway) + danh mục ★ Radar.
+const FILTERS: { key: WatchlistFilter; label: string }[] = (['all', 'core', 'ring', 'pinned'] as WatchlistFilter[]).map((key) => ({ key, label: WATCHLIST_FILTER_LABEL[key] }));
 
 const QUICK_INDICES = [
   { ticker: 'VNINDEX', label: 'VN-Index' },

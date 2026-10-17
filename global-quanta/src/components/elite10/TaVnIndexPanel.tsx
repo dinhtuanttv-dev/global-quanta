@@ -4,7 +4,6 @@ import type { ApiError } from '../../hooks/ta-vn-index/useTaVnIndex';
 import { ControlBar } from './ta-vn-index/ControlBar';
 import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
 import { ConflictBanner } from './ta-vn-index/ConflictBanner';
-import { MockDataBanner } from './ta-vn-index/MockDataBanner';
 import { MainChart } from './ta-vn-index/MainChartV2';
 import { useChartOverlay } from '../../hooks/elite10/useChartOverlay';
 import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
@@ -40,7 +39,13 @@ interface TaVnIndexPanelProps {
   onSelectTicker: (ticker: string) => void;
   overlays: Record<string, boolean>;
   onToggleOverlay: (key: string) => void;
+  priceBasis?: string | null;
 }
+
+const PRICE_BASIS_VI: Record<string, string> = {
+  ADJUSTED_CUMULATIVE: 'giá điều chỉnh cộng dồn', INDEX_POINTS: 'điểm chỉ số', NOMINAL_UNADJUSTED: 'giá danh nghĩa (chưa điều chỉnh)',
+  SSI_LATEST_EVENT_ADJUSTED: 'giá SSI điều chỉnh đợt quyền gần nhất',
+};
 
 export function TaVnIndexPanel({
   ticker,
@@ -55,6 +60,7 @@ export function TaVnIndexPanel({
   onSelectTicker,
   overlays,
   onToggleOverlay,
+  priceBasis,
 }: TaVnIndexPanelProps) {
   const controlBar = (
     <ControlBar
@@ -66,7 +72,7 @@ export function TaVnIndexPanel({
   );
   const watchlist = <TickerWatchlist selectedTicker={ticker} onSelectTicker={onSelectTicker} />;
   const { overlay } = useChartOverlay(ticker);
-  const { breakdown: confluenceBreakdown } = useConfluenceEngine(ticker);
+  const { breakdown: confluenceBreakdown, error: confluenceError } = useConfluenceEngine(ticker);
   const { universeRank } = useUniverseRank(ticker);
   const { insight } = useAiInsight(ticker);
   const { cycleDetail } = useCycleDetail(ticker);
@@ -127,7 +133,8 @@ export function TaVnIndexPanel({
   // FIX (ra soat 2026-09-17): dung CHUNG 1 nguon events cho ca MainChart
   // VA EventVolatilityTable - truoc day 2 noi dung mock/that khac nhau,
   // gay khong nhat quan (Chart dung that, bang duoi van hien mock).
-  const resolvedEvents = overlay?.events && overlay.events.length > 0 ? overlay.events : data.events;
+  // E0: chỉ sự kiện thật (lớp phủ Project A); không còn sự kiện mẫu dự phòng.
+  const resolvedEvents = overlay?.events ?? [];
 
   // MOI (Triple-Barrier tren bieu do): map patternKey sang dung mang
   // occurrences. Khi CHON pattern moi, TU DONG chon occurrence GAN
@@ -158,7 +165,10 @@ export function TaVnIndexPanel({
       {watchlist}
 
       {controlBar}
-      <MockDataBanner isMock={data.analysisIsMock ?? false} fallbackReason={data.fallbackReason} />
+      <p className="text-[10px] text-slate-500" data-testid="elite10-source-note">
+        Nguồn: Market Gateway ({PRICE_BASIS_VI[priceBasis ?? ''] ?? 'giá SSI'}) · phiên cuối {data.asOfDate} · chỉ báo, SMC, VSA, Elliott tính bằng
+        cùng engine với tab TA VN-Index. Phần chưa có engine thật ghi "CHƯA CÓ", không điền số mẫu.
+      </p>
       <ConflictBanner conflicts={data.conflicts} />
 
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
@@ -254,7 +264,7 @@ export function TaVnIndexPanel({
 
           <DebateArenaPanel ticker={ticker} />
 
-          <ConfluencePanel breakdown={confluenceBreakdown ?? data.confluence} ticker={data.ticker} />
+          <ConfluencePanel breakdown={confluenceBreakdown} ticker={data.ticker} unavailable={Boolean(confluenceError)} />
 
           {confluenceBreakdown && (
             <ConfluenceWaterfall sources={confluenceBreakdown.sources} penalty={confluenceBreakdown.penalty} score={confluenceBreakdown.overall.value} />
