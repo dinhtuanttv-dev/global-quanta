@@ -3,7 +3,7 @@ import { Router } from "express";
 import { createRateLimiter } from "./macro.js";
 import { MATCH_LABEL_VI, REGIONS, VN_SECTORS, WORLD_SECTOR_INSTRUMENTS } from "../market/worldSectors/catalog.js";
 
-export function createWorldSectorsRouter({ getService, readLimit = 120, now } = {}) {
+export function createWorldSectorsRouter({ getService, getStrategy = null, readLimit = 120, now } = {}) {
   const router = Router();
   const readRl = createRateLimiter({ limit: readLimit, now });
   const wrap = (fn) => async (req, res) => {
@@ -25,6 +25,12 @@ export function createWorldSectorsRouter({ getService, readLimit = 120, now } = 
   router.get("/scores", readRl, wrap(async (req, res) => {
     res.set("Cache-Control", "public, max-age=120");
     res.json(await getService().scores());
+  }));
+  // Chiến lược ngắn hạn (α = IC·σ·z, chỉ IC đã kiểm định) & bối cảnh trung hạn (S1).
+  router.get("/strategy", readRl, wrap(async (req, res) => {
+    if (!getStrategy) { res.status(503).json({ error: "Chưa bật chiến lược." }); return; }
+    res.set("Cache-Control", "public, max-age=120");
+    res.json(await getStrategy().strategy());
   }));
   router.get("/:icb/detail", readRl, wrap(async (req, res) => {
     const r = await getService().detail(String(req.params.icb || ""), typeof req.query.range === "string" ? req.query.range : "3y");

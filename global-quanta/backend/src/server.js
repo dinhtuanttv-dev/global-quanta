@@ -6,13 +6,14 @@ import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
 import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
-import { createWorldRouter } from "./routes/world.js";
+import { createWorldRouter, defaultPulse } from "./routes/world.js";
+import { createWorldStrategyService } from "./market/worldSectors/worldStrategyService.js";
 import { createWorldService } from "./market/world/worldService.js";
 import { createCommodityService } from "./market/commodities/commodityService.js";
 import { createCommoditiesRouter } from "./routes/commodities.js";
 import { createWorldSectorService } from "./market/worldSectors/worldSectorService.js";
 import { createWorldSectorsRouter } from "./routes/worldSectors.js";
-import { SECTOR_RRG_HISTORY_KV } from "./market/sectors/sectorRotation.js";
+import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
@@ -77,7 +78,20 @@ let worldSectorService = null;
 const getWorldSectorService = () => (worldSectorService ??= createWorldSectorService({
   sectorIndices, taSeries: getMarketRuntime().taSeries, commoditySeries: (id) => getCommodityService().seriesOf(id),
 }));
-app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService }));
+// Chiến lược ngắn/trung hạn (S1): ghép ngành thế giới, hàng hoá, engine Truyền dẫn, RRG Lọc ngành.
+let rrgMemo = null;
+const rrgDoc = async () => {
+  if (rrgMemo && Date.now() - rrgMemo.at < 15 * 60_000) return rrgMemo.value;
+  const value = (await getMarketRuntime().store.getKv(SECTOR_RRG_KV))?.value ?? null;
+  if (value) rrgMemo = { at: Date.now(), value };
+  return value;
+};
+let worldStrategy = null;
+const getWorldStrategy = () => (worldStrategy ??= createWorldStrategyService({
+  worldSectors: getWorldSectorService(), worldService: getWorldService(), pulse: defaultPulse(), rrgDoc,
+  vnIndex: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "2y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]),
+}));
+app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService, getStrategy: getWorldStrategy }));
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });
