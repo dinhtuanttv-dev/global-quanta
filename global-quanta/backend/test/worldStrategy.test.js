@@ -75,3 +75,23 @@ test("riskRegime + dịch vụ: ghép nguồn, đệm 10 phút, nguồn lỗi kh
   await svc.strategy();
   assert.equal(calls, 1);
 });
+
+test("S2 sổ theo dõi: ghi tới 09:00 VN phiên kế tiếp rồi khoá; chấm IC với phiên VN kế tiếp", async () => {
+  const { nextOpenMs, updateLedger, evaluateLedger } = await import("../src/market/worldSectors/strategy.js");
+  assert.equal(new Date(nextOpenMs("2026-10-16")).toISOString(), "2026-10-19T02:00:00.000Z"); // T6 -> T2
+  const rows = Array.from({ length: 12 }, (_, k) => ({ icb: String(1000 + k), zx: k - 5.5 }));
+  let L = updateLedger([], "2026-10-16", rows, Date.parse("2026-10-17T00:00:00Z"));
+  assert.equal(L.length, 1);
+  assert.equal(L[0].frozen, false);
+  const later = updateLedger(L, "2026-10-16", rows.map((r) => ({ ...r, zx: -r.zx })), Date.parse("2026-10-19T03:00:00Z"));
+  assert.equal(later[0].frozen, true);
+  assert.equal(later[0].z["1000"], -5.5); // không bị ghi đè sau khi khoá
+  // phiên kế tiếp: ngành z cao tăng hơn -> IC = 1
+  const vn = [["2026-10-16", 100], ["2026-10-19", 100]];
+  const series = Object.fromEntries(rows.map((r) => [r.icb, [["2026-10-16", 100], ["2026-10-19", 100 + r.zx]]]));
+  const ev = evaluateLedger(later, series, vn);
+  assert.equal(ev.evaluated, 1);
+  assert.equal(ev.days[0].ic, 1);
+  assert.ok(ev.cumSpreadPct > 0);
+  assert.match(ev.statusVi, /Đang tích luỹ mẫu/);
+});

@@ -19,11 +19,21 @@ import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 
 const app = express();
 
-// Chỉ số ngành ICB (KV `sectors:rrg:history`, ~1–2 MB) dùng chung cho Kết nối thế giới / hàng hoá / ngành thế giới — đệm 15 phút
-// để mỗi request không đọc lại KV (egress Supabase).
+// Chỉ số ngành ICB (KV `sectors:rrg:history`, ~2,3 MB) dùng chung cho Kết nối thế giới / hàng hoá / ngành thế giới / chiến lược.
+// KV chỉ dựng lại 1 lần/ngày (job 15:50 giờ VN) -> đệm tới 09:15Z kế tiếp (tối đa 12 giờ): ~2 lần đọc/ngày thay vì mỗi request
+// (egress Supabase gói miễn phí).
+const kvMemoValid = (memo) => {
+  if (!memo) return false;
+  const age = Date.now() - memo.at;
+  if (age > 12 * 3600_000) return false;
+  const next = new Date(memo.at);
+  next.setUTCHours(9, 15, 0, 0);
+  if (next.getTime() <= memo.at) next.setUTCDate(next.getUTCDate() + 1);
+  return Date.now() < next.getTime();
+};
 let sectorDocMemo = null;
 const sectorIndices = async () => {
-  if (sectorDocMemo && Date.now() - sectorDocMemo.at < 15 * 60_000) return sectorDocMemo.value;
+  if (kvMemoValid(sectorDocMemo)) return sectorDocMemo.value;
   const value = (await getMarketRuntime().store.getKv(SECTOR_RRG_HISTORY_KV))?.value?.sectors ?? null;
   if (value) sectorDocMemo = { at: Date.now(), value };
   return value;
@@ -81,17 +91,23 @@ const getWorldSectorService = () => (worldSectorService ??= createWorldSectorSer
 // Chiến lược ngắn/trung hạn (S1): ghép ngành thế giới, hàng hoá, engine Truyền dẫn, RRG Lọc ngành.
 let rrgMemo = null;
 const rrgDoc = async () => {
-  if (rrgMemo && Date.now() - rrgMemo.at < 15 * 60_000) return rrgMemo.value;
+  if (kvMemoValid(rrgMemo)) return rrgMemo.value;
   const value = (await getMarketRuntime().store.getKv(SECTOR_RRG_KV))?.value ?? null;
   if (value) rrgMemo = { at: Date.now(), value };
   return value;
 };
 let worldStrategy = null;
 const getWorldStrategy = () => (worldStrategy ??= createWorldStrategyService({
-  worldSectors: getWorldSectorService(), worldService: getWorldService(), pulse: defaultPulse(), rrgDoc,
+  worldSectors: getWorldSectorService(), worldService: getWorldService(), pulse: defaultPulse(), rrgDoc, store: getMarketRuntime().store,
   vnIndex: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "2y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]),
 }));
 app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService, getStrategy: getWorldStrategy }));
+// Sổ theo dõi tiến (S2): dựng chiến lược 30 phút/lần để ghi & khoá bản ghi trước giờ mở cửa VN (không phụ thuộc người xem).
+if (process.env.NODE_ENV !== "test") {
+  const tick = () => getWorldStrategy().strategy().catch((e) => console.warn(`[strategy] ${e.message}`));
+  setTimeout(tick, 90_000).unref?.();
+  setInterval(tick, 30 * 60_000).unref?.();
+}
 
 app.use((req, res) => {
   res.status(404).json({ error: "Không tìm thấy route." });
