@@ -7,7 +7,8 @@ import { createWorldPulse } from "../market/world/worldPulse.js";
 
 const strQuery = (q) => Object.fromEntries(Object.entries(q ?? {}).filter(([, v]) => typeof v === "string"));
 let pulse = null;
-const defaultPulse = () => (pulse ??= createWorldPulse());
+/** Nhịp đập thế giới dùng chung (route /pulse + chiến lược ngành). */
+export const defaultPulse = () => (pulse ??= createWorldPulse());
 const HEAVY = /^\/(matrix|scenario|connectedness|overview|confirmatory)$/;
 
 export function createWorldRouter({ getService, getPulse = defaultPulse, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {

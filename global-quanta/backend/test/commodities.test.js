@@ -112,3 +112,13 @@ test("commodityService.snapshot: Pink Sheet lưu KV, Yahoo theo phiên, nguồn 
   await svc.snapshot(); // Pink Sheet còn mới + Yahoo trong TTL -> chỉ gọi lại mã lỗi
   assert.ok(calls.length - n1 <= 1);
 });
+
+test("barsFromYahoo: close null ở phiên cuối nhưng meta có giá mới hơn -> thêm nến; meta cũ hơn -> bỏ qua", async () => {
+  const { barsFromYahoo } = await import("../src/market/commodities/commodityService.js");
+  const ts = [Date.UTC(2026, 9, 14, 13, 30) / 1000, Date.UTC(2026, 9, 15, 13, 30) / 1000, Date.UTC(2026, 9, 16, 13, 30) / 1000];
+  const b = barsFromYahoo({ regularMarketPrice: 68.24, regularMarketTime: Date.UTC(2026, 9, 16, 20) / 1000 }, ts, [67.63, 66.56, null]);
+  assert.deepEqual(b.at(-1), ["2026-10-16", 68.24]);
+  assert.equal(b.length, 3);
+  const stale = barsFromYahoo({ regularMarketPrice: 161.9, regularMarketTime: Date.UTC(2021, 7, 11) / 1000 }, ts, [90, 91, 92]);
+  assert.deepEqual(stale.at(-1), ["2026-10-16", 92]);
+});

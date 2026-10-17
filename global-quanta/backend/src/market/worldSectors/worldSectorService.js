@@ -3,7 +3,7 @@
 //   giá mới nhất: endpoint spark theo lô 20 mã, bộ nhớ đệm 5 phút, ghép vào cuối lịch sử nếu mới hơn.
 // Ngành VN: chỉ số ICB của Lọc ngành (sectorIndices — KV đã dựng, không gọi SSI).
 import { quality } from "../commodities/commodityAnalytics.js";
-import { yahooDailyBars } from "../commodities/commodityService.js";
+import { barsFromYahoo, yahooDailyBars } from "../commodities/commodityService.js";
 import { COMMODITY_DRIVERS, instrumentsFor, MATCH_LABEL_VI, MATCH_WEIGHT, REGIONS, VN_SECTORS, WORLD_SECTOR_INSTRUMENTS } from "./catalog.js";
 import { sectorEvidence, WS_EVIDENCE } from "./wsEvidence.js";
 import { alignPairs, dailyVol, labelOf, pearson, rebase, relation, sectorScores, zMove } from "./worldSectorAnalytics.js";
@@ -29,10 +29,7 @@ export function parseSpark(json) {
   const out = new Map();
   for (const r of json?.spark?.result ?? []) {
     const q = r.response?.[0];
-    const ts = q?.timestamp ?? [], c = q?.indicators?.quote?.[0]?.close ?? [];
-    const by = new Map();
-    ts.forEach((t, i) => { if (Number.isFinite(c[i]) && c[i] > 0) by.set(new Date(t * 1000).toISOString().slice(0, 10), c[i]); });
-    out.set(r.symbol, [...by.entries()].sort(([a], [b]) => (a < b ? -1 : 1)));
+    out.set(r.symbol, barsFromYahoo(q?.meta, q?.timestamp ?? [], q?.indicators?.quote?.[0]?.close ?? []));
   }
   return out;
 }
