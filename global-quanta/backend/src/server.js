@@ -8,6 +8,8 @@ import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
 import { createWorldRouter, defaultPulse } from "./routes/world.js";
 import { createWorldStrategyService } from "./market/worldSectors/worldStrategyService.js";
+import { createWsChatTools } from "./market/worldSectors/chatTools.js";
+import { ICB_KV } from "./market/sectors/icbTaxonomy.js";
 import { createWorldService } from "./market/world/worldService.js";
 import { createCommodityService } from "./market/commodities/commodityService.js";
 import { createCommoditiesRouter } from "./routes/commodities.js";
@@ -101,7 +103,18 @@ const getWorldStrategy = () => (worldStrategy ??= createWorldStrategyService({
   worldSectors: getWorldSectorService(), worldService: getWorldService(), pulse: defaultPulse(), rrgDoc, store: getMarketRuntime().store,
   vnIndex: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "2y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]),
 }));
-app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService, getStrategy: getWorldStrategy }));
+let taxonomyMemo = null;
+const taxonomy = async () => {
+  if (kvMemoValid(taxonomyMemo)) return taxonomyMemo.value;
+  const value = (await getMarketRuntime().store.getKv(ICB_KV))?.value ?? null;
+  if (value) taxonomyMemo = { at: Date.now(), value };
+  return value;
+};
+let wsChatTools = null;
+const getWsChatTools = () => (wsChatTools ??= createWsChatTools({
+  strategy: () => getWorldStrategy().strategy(), worldSectors: getWorldSectorService(), commodities: getCommodityService(), taxonomy,
+}));
+app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSectorService, getStrategy: getWorldStrategy, getChatTools: getWsChatTools }));
 // Sổ theo dõi tiến (S2): dựng chiến lược 30 phút/lần để ghi & khoá bản ghi trước giờ mở cửa VN (không phụ thuộc người xem).
 if (process.env.NODE_ENV !== "test") {
   const tick = () => getWorldStrategy().strategy().catch((e) => console.warn(`[strategy] ${e.message}`));

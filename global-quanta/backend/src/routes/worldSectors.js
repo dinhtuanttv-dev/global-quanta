@@ -3,9 +3,10 @@ import { Router } from "express";
 import { createRateLimiter } from "./macro.js";
 import { MATCH_LABEL_VI, REGIONS, VN_SECTORS, WORLD_SECTOR_INSTRUMENTS } from "../market/worldSectors/catalog.js";
 
-export function createWorldSectorsRouter({ getService, getStrategy = null, readLimit = 120, now } = {}) {
+export function createWorldSectorsRouter({ getService, getStrategy = null, getChatTools = null, readLimit = 120, computeLimit = 60, now } = {}) {
   const router = Router();
   const readRl = createRateLimiter({ limit: readLimit, now });
+  const computeRl = createRateLimiter({ limit: computeLimit, now });
   const wrap = (fn) => async (req, res) => {
     try {
       await fn(req, res);
@@ -31,6 +32,17 @@ export function createWorldSectorsRouter({ getService, getStrategy = null, readL
     if (!getStrategy) { res.status(503).json({ error: "Chưa bật chiến lược." }); return; }
     res.set("Cache-Control", "public, max-age=120");
     res.json(await getStrategy().strategy());
+  }));
+  // Công cụ chat ws_* cho "Hỏi đáp xúc tác" (Project A) — cùng hợp đồng với /api/world/tools.
+  router.get("/tools", readRl, (req, res) => {
+    if (!getChatTools) { res.status(503).json({ error: "Chưa bật công cụ." }); return; }
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(getChatTools().specs());
+  });
+  router.post("/tools/:name", computeRl, wrap(async (req, res) => {
+    if (!getChatTools) { res.status(503).json({ error: "Chưa bật công cụ." }); return; }
+    res.set("Cache-Control", "no-store");
+    res.json(await getChatTools().run(String(req.params.name || ""), req.body ?? {}));
   }));
   router.get("/:icb/detail", readRl, wrap(async (req, res) => {
     const r = await getService().detail(String(req.params.icb || ""), typeof req.query.range === "string" ? req.query.range : "3y");
