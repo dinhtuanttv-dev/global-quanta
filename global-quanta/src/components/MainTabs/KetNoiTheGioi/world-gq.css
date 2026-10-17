@@ -1,0 +1,39 @@
+/* Đồng nhất giao diện engine Truyền dẫn (gói macro-center, lớp .wd) với tab Kết nối thế giới (S3, 2026-10-17).
+   Chỉ áp dụng trong .gq-world — gói dùng chung với tab Chất xúc tác không bị ảnh hưởng.
+   Màu tăng/giảm = bảng phân kỳ xanh dương ↔ đỏ (dataviz, đã kiểm định nền tối) như bản đồ nhiệt Nhịp đập thị trường. */
+.gq-world .wd[data-theme] {
+  --ground: #0b1220; --panel: rgba(2, 6, 15, 0.55); --surface: rgba(148, 163, 184, 0.05); --track: rgba(148, 163, 184, 0.12);
+  --ink: #f1f5f9; --ink2: #94a3b8; --ink3: #64748b; --rule: rgba(148, 163, 184, 0.14);
+  --accent: #f59e0b; --accentHover: #fbbf24; --onAccent: #0a1020; --accentSoft: rgba(245, 158, 11, 0.35);
+  --up3: #3987e5; --up3fg: #f1f5f9; --up2: #2a5f9e; --up2fg: #f1f5f9; --up1: #26405f; --up1fg: #f1f5f9;
+  --down3: #e66767; --down3fg: #f1f5f9; --down2: #9c4a48; --down2fg: #f1f5f9; --down1: #5a3534; --down1fg: #f1f5f9;
+  --upci: #2a5f9e; --downci: #9c4a48; --uptext: #7fb2f0; --downtext: #f09a9a;
+  --warnbg: rgba(245, 158, 11, 0.08); --warnborder: rgba(245, 158, 11, 0.35); --warntext: #fbbf24; --warnmark: #f59e0b;
+  font-size: 11px; gap: 12px;
+}
+.gq-world .wd h1 { display: none; }
+.gq-world .wd h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink2); margin: 0 0 8px; }
+.gq-world .wd .h3 { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--ink2); margin: 12px 0 6px; }
+.gq-world .wd p, .gq-world .wd .muted { font-size: 10.5px; }
+.gq-world .wd .panel { border: 1px solid var(--rule); border-top: 1px solid var(--rule); border-radius: 12px; padding: 12px; background: var(--panel); }
+.gq-world .wd .tabs { gap: 4px 8px; border-bottom: 1px solid var(--rule); }
+.gq-world .wd .tabs button { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 8px 10px; min-height: 32px; border-bottom-width: 2px; color: var(--ink3); }
+.gq-world .wd .tabs button[aria-current='page'] { color: var(--accent); border-bottom-color: var(--accent); }
+.gq-world .wd .chip { min-height: 28px; padding: 0 10px; border-radius: 6px; font-size: 10px; font-weight: 700; background: var(--surface); border-color: transparent; color: var(--ink2); }
+.gq-world .wd .chip[aria-pressed='true'] { background: rgba(245, 158, 11, 0.15); border-color: transparent; color: var(--accent); }
+.gq-world .wd .input, .gq-world .wd select { min-height: 28px; font-size: 10.5px; border-radius: 6px; background: var(--surface); }
+.gq-world .wd .flabel { font-size: 10px; min-width: 4.5rem; }
+.gq-world .wd .pulse { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.gq-world .wd .pulse-card, .gq-world .wd .stats li { border-radius: 10px; padding: 10px; gap: 6px; background: var(--surface); border-color: transparent; }
+.gq-world .wd .pulse-name { font-size: 10.5px; color: var(--ink2); }
+.gq-world .wd .pulse-z strong, .gq-world .wd .stats strong { font-size: 16px; font-weight: 800; }
+.gq-world .wd .pulse-bar { background: var(--up3); }
+.gq-world .wd .wm th, .gq-world .wd .wm tbody th { font-size: 10px; }
+.gq-world .wd .cell { min-height: 34px; border-radius: 6px; font-size: 10px; }
+.gq-world .wd .cell .arrow { font-size: 13px; }
+.gq-world .wd .legend { font-size: 9.5px; }
+.gq-world .wd .ev { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.gq-world .wd .ev-A { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: transparent; }
+.gq-world .wd .ev-B { color: var(--accent); border: 1px solid var(--accentSoft); }
+.gq-world .wd .notice { font-size: 10.5px; border-radius: 8px; }
+.gq-world .wd table { font-size: 10.5px; }
