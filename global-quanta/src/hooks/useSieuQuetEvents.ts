@@ -31,11 +31,13 @@ function uuidLike(): string {
 // dung LA BEN "doi chung" cuoi cung (thay cho 2-3 AI doc lap cua ban
 // goc, vi chi co 1 AI provider - Gemini + Google Search Grounding).
 export function useSieuQuetEvents() {
+  // N3 (2026-10-17): tab mặc định — 15 phút/lần thay vì 2–5 phút (CSDL Neon của Project A chỉ ngủ sau 5 phút không truy vấn).
+  // Ứng viên mới chỉ sinh từ cron sieu-quet-event-discover 3 lần/ngày; xác nhận/bỏ qua vẫn cập nhật ngay qua mutate().
   const eventsRes = useSWR<{ events: SieuQuetEvent[] }>(`${API_BASE}/api/sieu-quet-ai/events`, fetcher, {
-    refreshInterval: 5 * 60 * 1000, revalidateOnFocus: false,
+    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false,
   });
   const candidatesRes = useSWR<{ candidates: SieuQuetEventCandidate[] }>(`${API_BASE}/api/sieu-quet-ai/candidates`, fetcher, {
-    refreshInterval: 2 * 60 * 1000, revalidateOnFocus: false,
+    refreshInterval: 15 * 60 * 1000, revalidateOnFocus: false,
   });
 
   const [actionError, setActionError] = useState<string | null>(null);
