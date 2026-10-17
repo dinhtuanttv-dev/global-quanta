@@ -2,7 +2,7 @@ process.env.MARKET_ALERTS_ENABLED = "false";
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createCotucScanner, cotucScanConfig, inSeasonalityWindow, COTUC_SCAN_KV } from "../src/market/cotuc/cotucScanner.js";
+import { createCotucScanner, cotucScanConfig, inSeasonalityWindow, lastSlotAt, COTUC_SCAN_KV } from "../src/market/cotuc/cotucScanner.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
 
 // Thứ Sáu 02/10/2026 (ngày giao dịch). Giờ VN = UTC+7.
@@ -36,35 +36,43 @@ test("cotucScanConfig: không có secret -> tắt, không lộ secret trong stat
   assert.ok(!JSON.stringify(createCotucScanner({ config }).status()).includes("s3cret"));
 });
 
-test("trong phiên: quét xoay vòng toàn danh mục mỗi 3 phút, đủ vòng thì đếm pass", async () => {
+test("N1 trong phiên: một vòng liền mạch (các lô nối nhau mỗi nhịp) rồi nghỉ tới 60 phút sau", async () => {
   let t = at("10:00");
   const pa = fakeProjectA({ total: 60 });
   const sc = createCotucScanner({ store: createMemoryStore(), fetchImpl: pa.fetchImpl, now: () => t, config });
   assert.equal(await sc.tick(), "timing");
-  assert.equal(await sc.tick(), null, "chưa tới 3 phút");
-  t += 180_000; await sc.tick();
-  t += 180_000; await sc.tick();
+  t += 30_000; assert.equal(await sc.tick(), "timing");
+  t += 30_000; assert.equal(await sc.tick(), "timing");
   assert.deepEqual(pa.calls.map((c) => c.offset), [0, 25, 50]);
   assert.equal(pa.calls[0].auth, "Bearer s3cret");
-  const st = sc.status();
+  let st = sc.status();
   assert.equal(st.mode, "SESSION");
   assert.equal(st.timing.passes, 1);
-  assert.equal(st.timing.offset, 0);
+  assert.equal(st.timingPassActive, false);
   assert.equal(st.timing.lastResult.liveQuotes, 25);
+  for (let i = 0; i < 20; i++) { t += 120_000; assert.equal(await sc.tick(), null, "Neon được nghỉ giữa hai vòng"); }
+  t = at("11:00"); assert.equal(await sc.tick(), "timing", "đủ 60 phút -> vòng mới");
+  assert.equal(pa.calls.length, 4);
+  st = sc.status();
+  assert.equal(st.intervals.sessionMs, 3_600_000);
+  assert.deepEqual(st.intervals.offHoursSlotsVn, ["08:00", "15:05"]);
 });
 
-test("ban đêm: xen kẽ mùa vụ KQKD theo lô rồi finalize; timing chỉ 15 phút/lần", async () => {
-  let t = at("20:00");
+test("N1 ngoài phiên: chỉ chạy ở mốc 15:05 và 08:00; mùa vụ KQKD nối liền trong khung 05:00–08:45 rồi finalize", async () => {
+  let t = at("15:05");
   const pa = fakeProjectA({ total: 6 });
   const sc = createCotucScanner({ store: createMemoryStore(), fetchImpl: pa.fetchImpl, now: () => t, config });
-  assert.equal(await sc.tick(), "timing");
-  t += 120_000; assert.equal(await sc.tick(), "seasonality");
-  t += 120_000; assert.equal(await sc.tick(), "seasonality");
+  assert.equal(await sc.tick(), "timing", "mốc 15:05");
+  for (const hhmm of ["15:30", "18:00", "20:00", "23:59"]) { t = at(hhmm); assert.equal(await sc.tick(), null, `${hhmm}: nghỉ`); }
+  t = at("05:00", "2026-10-03"); assert.equal(await sc.tick(), "seasonality");
+  t += 30_000; assert.equal(await sc.tick(), "seasonality");
   const st = sc.status();
   assert.equal(st.seasonality.passes, 1);
   assert.ok(st.seasonality.lastFinalizeAt);
   assert.equal(pa.calls.filter((c) => c.phase === "finalize").length, 1);
-  t += 120_000; assert.equal(await sc.tick(), null, "vòng mùa vụ vừa xong -> không chạy lại trong đêm");
+  t += 30_000; assert.equal(await sc.tick(), null, "vòng mùa vụ vừa xong -> không chạy lại");
+  t = at("08:00", "2026-10-03"); assert.equal(await sc.tick(), "timing", "mốc 08:00");
+  t = at("08:30", "2026-10-03"); assert.equal(await sc.tick(), null);
 });
 
 test("lỗi lặp lại 3 lần cùng lô -> bỏ qua lô để vòng quét không kẹt", async () => {
@@ -72,7 +80,7 @@ test("lỗi lặp lại 3 lần cùng lô -> bỏ qua lô để vòng quét khô
   const pa = fakeProjectA({ total: 60, fail: (u) => u.searchParams.get("offset") === "25" });
   const sc = createCotucScanner({ store: createMemoryStore(), fetchImpl: pa.fetchImpl, now: () => t, config });
   await sc.tick();
-  for (let i = 0; i < 3; i++) { t += 180_000; await sc.tick(); }
+  for (let i = 0; i < 3; i++) { t += 30_000; await sc.tick(); }
   const st = sc.status();
   assert.equal(st.timing.offset, 50);
   assert.deepEqual(st.timing.skippedOffsets, [25]);
@@ -90,8 +98,12 @@ test("offset lưu KV và nạp lại sau khởi động", async () => {
   assert.equal(pa.calls.at(-1).offset, 25);
 });
 
-test("inSeasonalityWindow: 18:00–06:30 giờ VN", () => {
-  assert.equal(inSeasonalityWindow(new Date(at("18:00"))), true);
-  assert.equal(inSeasonalityWindow(new Date(at("06:29"))), true);
-  assert.equal(inSeasonalityWindow(new Date(at("12:00"))), false);
+test("inSeasonalityWindow: mặc định 05:00–08:45 giờ VN, hỗ trợ khung qua nửa đêm; lastSlotAt xét cả hôm qua", () => {
+  assert.equal(inSeasonalityWindow(new Date(at("05:00"))), true);
+  assert.equal(inSeasonalityWindow(new Date(at("08:44"))), true);
+  assert.equal(inSeasonalityWindow(new Date(at("08:45"))), false);
+  assert.equal(inSeasonalityWindow(new Date(at("23:00")), [22 * 60, 2 * 60]), true);
+  assert.equal(inSeasonalityWindow(new Date(at("12:00")), [22 * 60, 2 * 60]), false);
+  assert.equal(lastSlotAt(at("07:00"), [8 * 60, 15 * 60 + 5]), at("15:05", "2026-10-01"));
+  assert.equal(lastSlotAt(at("09:00"), [8 * 60, 15 * 60 + 5]), at("08:00"));
 });
