@@ -19,14 +19,18 @@ const STATUS_DOT: Record<ConfluenceStatus, string> = {
  * tai". Them guard som + optional chaining o MOI diem doc du lieu long
  * nhau, khong chi tin tuong prop luon day du.
  */
-export function ConfluencePanel({ breakdown, ticker }: { breakdown?: EliteScoreBreakdown | null; ticker: string }) {
+export function ConfluencePanel({ breakdown, ticker, unavailable = false }: { breakdown?: EliteScoreBreakdown | null; ticker: string; unavailable?: boolean }) {
   if (!breakdown) {
     return (
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
         <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">
           GIẢI TRÌNH HỘI TỤ — {ticker} (7 NGUỒN)
         </div>
-        <p className="py-4 text-center text-[11px] text-slate-500">Đang tải dữ liệu hội tụ…</p>
+        <p className="py-4 text-center text-[11px] text-slate-500" data-testid="confluence-unavailable">
+          {unavailable
+            ? 'Chưa có Điểm Hội tụ: engine Hội tụ của Project A đang không phản hồi. Không hiển thị số dự phòng. Điểm Hội tụ sẽ được thay bằng Điểm Elite có kiểm định (lộ trình E3).'
+            : 'Đang tải dữ liệu hội tụ…'}
+        </p>
       </div>
     );
   }

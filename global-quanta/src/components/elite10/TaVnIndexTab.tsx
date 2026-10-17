@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { useTaVnIndex } from '../../hooks/ta-vn-index/useTaVnIndex';
+import { useEliteAnalysis } from '../../hooks/elite10/useEliteAnalysis';
 import { TaVnIndexPanel } from './TaVnIndexPanel';
 import { useAppStore } from '../../store/useAppStore';
 import type { Timeframe } from '../../types/taVnIndex';
 
 const DEFAULT_TIMEFRAME: Timeframe = 'D';
 const DEFAULT_OVERLAYS: Record<string, boolean> = {
-  trendline: true,
   demandZone: true,
   smc: true,
   vsa: false,
@@ -43,7 +42,8 @@ export function TaVnIndexTab() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const [overlays, setOverlays] = useState<Record<string, boolean>>(DEFAULT_OVERLAYS);
 
-  const { data, isLoading, isError, error, isEmpty, refresh } = useTaVnIndex(ticker, timeframe);
+  // E0 (2026-10-17): nến Gateway + engine quant-core (thay route mô phỏng ta-vn-index/analyze).
+  const { data, isLoading, isError, error, isEmpty, refresh, priceBasis } = useEliteAnalysis(ticker, timeframe);
 
   const toggleOverlay = (key: string) => {
     setOverlays((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -58,6 +58,7 @@ export function TaVnIndexTab() {
       error={error}
       isEmpty={isEmpty}
       onRetry={refresh}
+      priceBasis={priceBasis}
       timeframe={timeframe}
       onTimeframeChange={setTimeframe}
       onSelectTicker={setLocalTicker}

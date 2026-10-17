@@ -30,9 +30,7 @@ export function WyckoffElliottGrid({ wyckoff, elliott, wyckoffReal }: { wyckoff:
           {wyckoffReal ? (
             <span className="ml-1.5 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[8px] font-bold text-emerald-400">DỮ LIỆU THẬT</span>
           ) : (
-            <span className="ml-1.5 rounded bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-bold text-slate-400">
-              {wyckoff.regimeGated ? 'ADX-GATED · HẠ TIN CẬY' : 'ADX-GATED'}
-            </span>
+            <span className="ml-1.5 rounded bg-slate-500/15 px-1.5 py-0.5 text-[8px] font-bold text-slate-400">CHƯA CÓ</span>
           )}
         </div>
         {wyckoffReal ? (
@@ -63,12 +61,14 @@ export function WyckoffElliottGrid({ wyckoff, elliott, wyckoffReal }: { wyckoff:
       <div className="rounded border border-white/10 bg-white/[0.02] p-2.5">
         <div className="mb-1 text-[11px] font-bold text-slate-200">
           Elliott wave
-          <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400">
-            ĐỘ TIN CẬY {elliott.confidence.value.toFixed(0)}%
-          </span>
+          {elliott.confidence.source !== 'MISSING' && (
+            <span className="ml-1.5 rounded bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-bold text-amber-400" title="Trọng số tương đối của kịch bản so với các cách đếm khác (engine GET, tab TA VN-Index) — không phải xác suất xảy ra">
+              TRỌNG SỐ KỊCH BẢN {elliott.confidence.value.toFixed(0)}%
+            </span>
+          )}
         </div>
         <div className="text-[13px] font-bold text-slate-100">
-          {elliott.waveLabel} ({elliott.alternateCounts > 1 ? `1/${elliott.alternateCounts} cách đếm` : 'duy nhất'})
+          {elliott.waveLabel}{elliott.alternateCounts > 0 ? ` (${elliott.alternateCounts > 1 ? `1/${elliott.alternateCounts} cách đếm` : 'duy nhất'})` : ''}
         </div>
         <p className="mt-1 text-[10px] text-slate-500">
           Đếm sóng luôn có thể có nhiều cách hợp lệ — hiển thị độ tin cậy thay vì khẳng định 1 kết luận duy nhất.

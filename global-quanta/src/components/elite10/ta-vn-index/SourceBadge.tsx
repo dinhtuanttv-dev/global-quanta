@@ -1,7 +1,10 @@
 import type { DataSource } from '../../../types/taVnIndex';
 
-/** Badge nhỏ gắn nhãn HARD_DATA / ESTIMATED cạnh mọi số liệu định lượng. */
+/** Badge nhỏ gắn nhãn HARD_DATA / ESTIMATED / MISSING cạnh mọi số liệu định lượng. */
 export function SourceBadge({ source }: { source: DataSource }) {
+  if (source === 'MISSING') {
+    return <span className="ml-1.5 rounded px-1.5 py-0.5 text-[9px] font-bold bg-slate-500/15 text-slate-400" title="Chưa có dữ liệu thật cho chỉ số này">CHƯA CÓ</span>;
+  }
   const isEstimated = source === 'ESTIMATED';
   return (
     <span

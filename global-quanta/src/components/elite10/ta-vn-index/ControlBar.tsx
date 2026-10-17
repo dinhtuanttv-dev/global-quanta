@@ -1,4 +1,5 @@
 import type { Timeframe } from '../../../types/taVnIndex';
+import { ELITE_TIMEFRAMES } from '../../../lib/elite10/realAnalysis';
 
 interface ControlBarProps {
   timeframe: Timeframe;
@@ -7,10 +8,10 @@ interface ControlBarProps {
   onToggleOverlay: (key: string) => void;
 }
 
-const TIMEFRAMES: Timeframe[] = ['D', 'W', 'H4', 'M1'];
+// E0: chỉ khung có nến thật từ Gateway (ngày, tuần gộp từ ngày). H4/M1 cũ không có nguồn nến thật.
+const TIMEFRAMES: Timeframe[] = ELITE_TIMEFRAMES;
 const OVERLAY_KEYS: { key: string; label: string; group?: string }[] = [
   // Nhóm 1: Chỉ báo Trend & MA
-  { key: 'trendline', label: 'Trendline', group: 'Xu hướng' },
   { key: 'sma200', label: 'SMA200', group: 'Xu hướng' },
   { key: 'ema', label: 'EMA21/50/100', group: 'Xu hướng' },
   { key: 'bollinger', label: 'Bollinger', group: 'Xu hướng' },
@@ -18,7 +19,7 @@ const OVERLAY_KEYS: { key: string; label: string; group?: string }[] = [
   { key: 'supertrend', label: 'SuperTrend', group: 'Xu hướng' },
 
   // Nhóm 2: Dòng tiền & Cấu trúc Mô hình
-  { key: 'demandZone', label: 'Demand Zone', group: 'Cấu trúc & Dòng tiền' },
+  { key: 'demandZone', label: 'Vùng OB/FVG', group: 'Cấu trúc & Dòng tiền' },
   { key: 'smc', label: 'SMC', group: 'Cấu trúc & Dòng tiền' },
   { key: 'vsa', label: 'VSA', group: 'Cấu trúc & Dòng tiền' },
   { key: 'wyckoff', label: 'Wyckoff', group: 'Cấu trúc & Dòng tiền' },

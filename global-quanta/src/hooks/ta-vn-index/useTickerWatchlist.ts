@@ -1,39 +1,45 @@
-import useSWR from 'swr';
+import { useMemo } from 'react';
 import type { TickerListItem, WatchlistFilter } from '../../types/taVnIndex';
-import { ApiError } from './useTaVnIndex';
+import { useSieuQuetScanner } from '../useSieuQuetScanner';
+import { useWatchlists } from '../useWatchlists';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'https://tuan-quant-scanner-psi.vercel.app';
+// Elite 10 E0 (2026-10-17): danh sách mã từ bảng Siêu quét AI trên Market Gateway (276 mã, Smart Score, RS, nhãn hội tụ) +
+// danh mục ★ Radar của người dùng. Thay /api/elite10/watchlist của Project A: route đó đọc CSDL Neon (đang hết hạn mức -> 502)
+// và ghép hai bộ lọc chưa kiểm định bằng công thức đặt tay (0,5·a + 0,5·b + 15).
+const TOP_N = 40;
 
-// Elite 10 - "Danh sach ma" THAT (2026-09-23): noi voi /api/elite10/watchlist
-// (hop nhat Pattern Scanner + Bo Loc Hop Luu Wyckoff/SMC/FVG + Dong Thuan
-// TA Top 20, tat ca da chay that tu truoc) - thay the route mock cu
-// /api/elite-score/watchlist (12 ma hardcode).
-const WATCHLIST_ENDPOINT = `${API_BASE}/api/elite10/watchlist`;
-
-const fetcher = async (url: string): Promise<TickerListItem[]> => {
-  const res = await fetch(url);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new ApiError(body || `Request failed with status ${res.status}`, res.status);
-  }
-  return res.json();
+export const WATCHLIST_FILTER_LABEL: Record<WatchlistFilter, string> = {
+  all: 'Tất cả',
+  core: 'Smart Score ≥ 80',
+  ring: 'Sức mạnh giá RS ≥ 90',
+  pinned: '★ Danh mục Radar',
 };
 
 export function useTickerWatchlist(filter: WatchlistFilter) {
-  const key = `${WATCHLIST_ENDPOINT}?filter=${filter}`;
-  // dedupingInterval dai (15 phut): route nguon quet toan bo VN30/VN100
-  // (fetch OHLCV that cho ~130 ma moi lan goi), tranh goi lai lien tuc
-  // khi nguoi dung doi filter qua lai nhieu lan trong thoi gian ngan.
-  const { data, error, isLoading } = useSWR<TickerListItem[], ApiError>(key, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 15 * 60 * 1000,
-    refreshInterval: 20 * 60 * 1000,
-  });
+  const { items, isLoading, error } = useSieuQuetScanner();
+  const { radar } = useWatchlists();
 
-  return {
-    tickers: data ?? [],
-    isLoading,
-    isError: Boolean(error),
-    error,
-  };
+  const tickers = useMemo<TickerListItem[]>(() => {
+    const by = new Map(items.map((it) => [it.ticker, it]));
+    const toItem = (ticker: string): TickerListItem => {
+      const it = by.get(ticker);
+      const score = it?.smartScore ?? null;
+      return {
+        ticker,
+        changePct: typeof it?.changePct === 'number' ? { value: it.changePct, source: 'HARD_DATA' } : { value: 0, source: 'MISSING' },
+        status: score != null && score >= 80 ? 'core' : (it?.rsRating ?? 0) >= 90 ? 'ring' : 'watch',
+        badge: it ? [score != null ? `Smart ${Math.round(score)}` : '', it.confluenceStatusLabel ?? ''].filter(Boolean).join(' · ') : 'Ngoài bảng Siêu quét',
+      };
+    };
+    const ranked = [...items].sort((a, b) => (b.smartScore ?? -1) - (a.smartScore ?? -1));
+    const radarTickers = radar?.tickers ?? [];
+    let list: string[];
+    if (filter === 'pinned') list = radarTickers;
+    else if (filter === 'core') list = ranked.filter((it) => (it.smartScore ?? 0) >= 80).map((it) => it.ticker);
+    else if (filter === 'ring') list = ranked.filter((it) => (it.rsRating ?? 0) >= 90).map((it) => it.ticker);
+    else list = [...new Set([...radarTickers, ...ranked.slice(0, TOP_N).map((it) => it.ticker)])];
+    return list.slice(0, 60).map(toItem);
+  }, [items, radar, filter]);
+
+  return { tickers, isLoading, isError: Boolean(error) && items.length === 0, error };
 }
