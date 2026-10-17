@@ -36,8 +36,15 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       const p = await panel.panel();
       if (!p) throw new Error("Chưa có bảng tín hiệu E1.");
       const index = (await kv(DECISION_KV.index))?.dates ?? [];
-      const ledger = (await kv(DECISION_KV.ledger)) ?? { version: E3_VERSION, entries: [] };
-      const exists = index.includes(p.date) && !force;
+      let ledger = (await kv(DECISION_KV.ledger)) ?? { version: E3_VERSION, entries: [] };
+      // Đổi phiên bản E3 (sửa đổi đăng ký trước): lưu trữ sổ cũ nguyên vẹn, sổ mới bắt đầu lại; quyết định phiên hiện tại dựng lại.
+      let versionChanged = false;
+      if (ledger.version !== E3_VERSION) {
+        await store.setKv(`elite:ledger:archive:${String(ledger.version).split(" ")[0]}`, { ...ledger, archivedAt: new Date(now()).toISOString() });
+        ledger = { version: E3_VERSION, entries: [], previous: ledger.version };
+        versionChanged = true;
+      }
+      const exists = index.includes(p.date) && !force && !versionChanged;
       const pendingEntries = ledger.entries.filter((e) => e.universe && LEDGER_HORIZONS.some((h) => !e.results?.[h]));
       if (exists && !pendingEntries.length) { memo ??= await kv(DECISION_KV.decision(p.date)); return memo; }
 

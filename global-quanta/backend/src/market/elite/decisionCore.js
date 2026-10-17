@@ -1,10 +1,12 @@
 // Elite 10 E3 — lõi thuần của engine quyết định, đúng E3-prereg.md (ghi trước khi tính bất kỳ điểm nào).
 import { averageRanks, dailyIc, normCdf, summarize } from "./icCore.js";
 
-export const E3_VERSION = "E3-v1 (prereg 2026-10-17)";
+export const E3_VERSION = "E3-v2 (prereg 2026-10-17, sửa đổi cùng ngày)";
 export const N0 = 60;
 export const PRIOR_IC = { A: 0.02, B: 0.01 };
-export const ELIGIBILITY = { minBars: 60, minValueVnd: 10e9, minPrice: 5000 };
+export const ELIGIBILITY = { minBars: 60, minValueVnd: 10e9, minPrice: 5000, minSigma20: 0.005 };
+/** E3-v2: sàn biến động cho tỷ trọng và dải rủi ro. */
+export const SIGMA_FLOOR = 0.01;
 export const PORTFOLIO = { size: 10, maxPerSector: 3, weightCap: 0.2, stopK: 2, targetK: 3, holdSessions: 10 };
 export const COST_ROUND_TRIP = 0.004;
 export const LEDGER_HORIZONS = [5, 10];
@@ -74,7 +76,8 @@ export function priceStats(prices, date) {
     const sigma20 = std(r20);
     const reason = upto.length < ELIGIBILITY.minBars ? `chỉ có ${upto.length} phiên giá`
       : adv == null || adv < ELIGIBILITY.minValueVnd ? "GTGD TB20 < 10 tỷ"
-        : last.closeAdj < ELIGIBILITY.minPrice ? "giá < 5.000đ" : null;
+        : last.closeAdj < ELIGIBILITY.minPrice ? "giá < 5.000đ"
+          : sigma20 == null || sigma20 < ELIGIBILITY.minSigma20 ? "giá bị neo (σ20 < 0,5%/ngày)" : null;
     out.set(t, { eligible: !reason, reason, close: last.closeAdj, adv, sigma20 });
   }
   return out;
@@ -136,9 +139,9 @@ export function buildDecision({ panel, evidence, prices, cal }) {
     perSector.set(key, (perSector.get(key) ?? 0) + 1);
     picks.push(x);
   }
-  const w = capWeights(picks.map((x) => 1 / x.sigma20), PORTFOLIO.weightCap);
+  const w = capWeights(picks.map((x) => 1 / Math.max(x.sigma20, SIGMA_FLOOR)), PORTFOLIO.weightCap);
   const portfolio = picks.map((x, i) => {
-    const band = x.sigma20 * Math.sqrt(5);
+    const band = Math.max(x.sigma20, SIGMA_FLOOR) * Math.sqrt(5);
     return {
       ticker: x.ticker, weight: w[i], Z: x.Z, rank: x.rank, alpha5Pct: x.alpha5Pct, pOutperform: x.pOutperform, sectorKey: x.sectorKey,
       close: x.close, stop: x.close * (1 - PORTFOLIO.stopK * band), target: x.close * (1 + PORTFOLIO.targetK * band), holdSessions: PORTFOLIO.holdSessions,

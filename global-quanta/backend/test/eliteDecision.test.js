@@ -50,7 +50,8 @@ function world() {
   for (let i = 0; i < 60; i++) {
     const t = tick(i);
     rows.push({ ticker: t, icb: { l2: i >= 54 ? "8300" : `S${i % 9}` }, values: { stealth20: i, ws_sector_alpha: null, top20_alpha: 60 - i, smart_score: 100 - i } });
-    cal.forEach((date, k) => daily.push({ symbol: t, date, closeAdj: (i === 3 ? 3000 : 20000) * (1 + 0.0004 * i * k + 0.01 * Math.sin(k + i)), value: i === 5 ? 1e9 : 2e10 }));
+    // T57: giá bị neo (như NAF 10/2026) -> loại theo E3-v2.
+    cal.forEach((date, k) => daily.push({ symbol: t, date, closeAdj: i === 57 ? 48000 + (k % 3 === 0 ? -50 : 0) : (i === 3 ? 3000 : 20000) * (1 + 0.0004 * i * k + 0.03 * Math.sin(k + i)), value: i === 5 ? 1e9 : 2e10 }));
   }
   for (const s of ["VNM", "FPT", "HPG", "VCB", "MWG"]) cal.forEach((date) => daily.push({ symbol: s, date, closeAdj: 10, value: 1e11 }));
   return { cal, rows, daily, tick };
@@ -64,15 +65,16 @@ test("E3 buildDecision: xếp theo Z, trần 3 mã/ngành, loại mã không đ�
   const d = buildDecision({ panel: { date, rows }, evidence, prices, cal: cal.slice(0, 100) });
   assert.equal(d.portfolio.length, 10);
   assert.equal(d.portfolio.filter((x) => x.sectorKey === "8300").length, 3, "6 mã cùng ngành điểm cao nhất -> chỉ lấy 3");
-  assert.ok(!d.portfolio.some((x) => ["T03", "T05"].includes(x.ticker)), "giá < 5.000đ / GTGD < 10 tỷ bị loại");
+  assert.ok(!d.portfolio.some((x) => ["T03", "T05", "T57"].includes(x.ticker)), "giá < 5.000đ / GTGD < 10 tỷ / giá bị neo bị loại");
   assert.equal(d.scores.find((x) => x.ticker === "T05").reason, "GTGD TB20 < 10 tỷ");
+  assert.match(d.scores.find((x) => x.ticker === "T57").reason, /giá bị neo/);
   assert.ok(Math.abs(d.portfolio.reduce((a, x) => a + x.weight, 0) - 1) < 1e-9);
   assert.ok(d.portfolio.every((x) => x.weight <= 0.2 + 1e-9 && x.stop < x.close && x.target > x.close));
   assert.equal(d.scores[0].ticker, "T59");
   assert.ok(d.scores[0].alpha5Pct > 0 && d.scores[d.scores.length - 1].alpha5Pct < 0);
   assert.ok(d.scores[0].pOutperform > 0.5);
   assert.deepEqual(d.scores[0].contributions.map((c) => c.id), ["stealth20", "ws_sector_alpha", "top20_alpha"]);
-  assert.equal(d.universe.eligible, 58);
+  assert.equal(d.universe.eligible, 57);
 });
 
 test("E3 sổ theo dõi: chấm sau d+1+h, lợi suất vượt = danh mục − rổ đều; tiêu chí cần ≥ 60 phiên", () => {
@@ -99,6 +101,7 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
   const store = createMemoryStore();
   const upto = (k) => daily.filter((r) => r.date <= cal[k]);
   await store.upsertMarketDaily(upto(99));
+  await store.setKv(DECISION_KV.ledger, { version: "E3-v1 (prereg 2026-10-17)", entries: [{ date: "2026-01-01", holdings: [], universe: [], results: {} }] });
   let panelDoc = { date: cal[99], version: "E1", rows };
   const svc = createDecisionService({
     store, panel: { panel: async () => panelDoc }, evidence: { evidence: async () => evidence },
@@ -107,7 +110,9 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
   const d1 = await svc.build();
   assert.equal(d1.portfolio.length, 10);
   let ledger = (await store.getKv(DECISION_KV.ledger)).value;
-  assert.equal(ledger.entries.length, 1);
+  assert.equal(ledger.entries.length, 1, "đổi phiên bản -> sổ mới bắt đầu lại");
+  assert.equal(ledger.previous, "E3-v1 (prereg 2026-10-17)");
+  assert.equal((await store.getKv("elite:ledger:archive:E3-v1")).value.entries.length, 1, "sổ cũ được lưu trữ nguyên vẹn");
   await svc.build();
   ledger = (await store.getKv(DECISION_KV.ledger)).value;
   assert.equal(ledger.entries.length, 1, "cùng phiên -> không thêm bản ghi");
@@ -121,7 +126,7 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
   const first = ledger.entries[0];
   assert.ok(first.results[5] && first.results[10], "phiên đầu đã chấm đủ 5 và 10 phiên");
   assert.equal(first.z, undefined, "đã chấm đủ -> bỏ Z");
-  assert.equal(first.universeSize, 58);
+  assert.equal(first.universeSize, 57);
   assert.equal(ledger.summary.horizons[5].n, 1);
   const pub = await svc.ledger();
   assert.equal(pub.entries[0].universe, undefined);
