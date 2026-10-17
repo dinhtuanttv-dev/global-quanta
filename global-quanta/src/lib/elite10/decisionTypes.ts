@@ -43,3 +43,25 @@ export const TIER_TITLE: Record<Tier, string> = {
   B: "Có lợi thế một phần / mẫu mỏng — có trọng số nhỏ",
   C: "Thăm dò / chưa kiểm định — chỉ làm bối cảnh, không có trọng số",
 };
+
+export interface VarBlock { level: number; historical: { var: number; cvar: number }; gaussian: { var: number; cvar: number }; cornishFisher: { var: number }; moments: { mean: number; sd: number; skew: number; exKurt: number } }
+export interface EliteRisk {
+  date: string; version: string; generatedAt: string; label: string; available: boolean; reasonVi?: string;
+  sessions?: number; from?: string; to?: string;
+  shrinkage?: { delta: number; avgCorrelation: number; method: string };
+  volatility?: { daily: number; annual: number };
+  holdings?: { ticker: string; weight: number; volAnnual: number; riskContribution: number; sector: string | null }[];
+  diversification?: { ratio: number; effectiveN: number; enb: number; hhi: number };
+  var?: { "0.95": VarBlock; "0.99": VarBlock; tenDayNoteVi: string };
+  beta?: number | null; corrWithVnIndex?: number | null;
+  maxDrawdown?: { value: number; from: string | null; to: string | null };
+  stress?: { worstVnIndexDays: { date: string; vnIndex: number; portfolio: number }[]; worst10Sessions: { from: string; to: string; vnIndex: number; portfolio: number } | null };
+  sectors?: { key: string; weight: number }[];
+  correlation?: { tickers: string[]; matrix: (number | null)[][] };
+}
+
+export interface LedgerEntry {
+  date: string; lockedAt: string; holdings: { ticker: string; weight: number }[]; universeSize: number | null;
+  results: Record<string, { from: string; to: string; portfolioNet: number; universeNet: number; excess: number; vnIndex: number | null; ic: number | null; names: number }>;
+}
+export interface EliteLedger { version: string; updatedAt: string; summary: LedgerSummary; entries: LedgerEntry[] }

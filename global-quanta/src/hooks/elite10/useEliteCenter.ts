@@ -27,3 +27,11 @@ export function useEliteTicker(ticker: string | null) {
 export function useElitePanel() {
   return useSWR<{ date: string; rows: { ticker: string; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);
 }
+
+export function useEliteRisk() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRisk>("elite-risk", () => fetchMarketJson("/api/elite/risk"), OPTS);
+}
+
+export function useEliteLedger() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteLedger>("elite-ledger", () => fetchMarketJson("/api/elite/ledger"), OPTS);
+}
