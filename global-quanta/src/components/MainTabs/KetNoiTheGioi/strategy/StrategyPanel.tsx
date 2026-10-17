@@ -48,7 +48,7 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
           {rows.map((r) => (
             <tr key={r.icb} onClick={() => onOpen(r.icb)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} title={`${r.icBasisVi} σ tương đối ${num(r.sigmaBps)} đcb/phiên.`}>
               <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[8.5px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
-              <td className="text-center"><span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
+              <td className="text-center"><span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
               <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "#f1f5f9" }}>{fmtZ(r.alphaBps, 1)}</b></td>
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
               <td className="text-center" style={muted}>{fmtZ(r.zx, 2)}</td>
