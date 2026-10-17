@@ -23,10 +23,11 @@ export interface DividendLifecycleEvent {
 
 export function useDividendEvents() {
   const { data, error, isLoading, mutate } = useSWR(`${API_BASE}/api/cotuc/events`, fetcher, {
-    // Thông báo GDKHQ/ĐHCĐ mới (VNDirect) xuất hiện trong ngày -> làm mới mỗi 5 phút (route cache CDN 5 phút).
-    refreshInterval: 5 * 60 * 1000,
+    // Thông báo GDKHQ/ĐHCĐ mới (VNDirect) xuất hiện trong ngày -> làm mới 15 phút/lần (N3: route đọc CSDL Neon của
+    // Project A; gọi dày giữ Neon thức, mà thông báo mới chỉ được quét vào vài lần mỗi ngày).
+    refreshInterval: 15 * 60 * 1000,
     revalidateOnFocus: false,
-    dedupingInterval: 60 * 1000,
+    dedupingInterval: 5 * 60 * 1000,
   });
 
   // Tra ve map { ticker: { exDate, agmDate, paymentDate } } de CotucTab de merge voi data tinh

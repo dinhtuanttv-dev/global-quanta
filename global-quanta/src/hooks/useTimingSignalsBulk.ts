@@ -38,10 +38,9 @@ const EMPTY_MAP: ReadonlyMap<string, TimingSignal> = new Map();
 export const TIMING_SIGNALS_SWR_CONFIG: SWRConfiguration<TimingSignalsBulkV3, TimingSignalsError> = {
   revalidateOnFocus: false,
   revalidateOnReconnect: true,
-  // Dedupe 30 giây: chuyển tab qua lại không gọi lại, nhưng vẫn theo kịp nhịp quét liên tục.
-  dedupingInterval: 30 * 1000,
-  // Quét liên tục (Gateway gọi lô mỗi 3 phút trong phiên) -> tự làm mới mỗi phút.
-  refreshInterval: 60 * 1000,
+  // N3 (2026-10-17): Gateway quét theo đợt (mỗi giờ trong phiên) -> dedupe 5 phút, làm mới 10 phút (route cache CDN 5 phút).
+  dedupingInterval: 5 * 60 * 1000,
+  refreshInterval: 10 * 60 * 1000,
   onErrorRetry: (err, _key, _config, revalidate, { retryCount }) => {
     if (!isRetryable(err) || retryCount >= MAX_RETRIES) return;
     setTimeout(() => void revalidate({ retryCount }), 1000 * 2 ** retryCount);
