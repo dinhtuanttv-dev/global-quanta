@@ -5,11 +5,15 @@
 //   POST /api/elite/admin/build      dựng lại bảng phiên mới nhất (Bearer MARKET_ADMIN_TOKEN; ?force=1 ghi đè)
 // E2: GET  /api/elite/evidence       bằng chứng từng tín hiệu (IC theo kỳ hạn, q BH, bậc A/B/C theo E2-prereg.md)
 //     POST /api/elite/admin/evidence  cập nhật chuỗi IC + bậc (admin)
+// E3: GET  /api/elite/decision        Điểm Elite + danh mục Elite 10 phiên mới nhất (?date=) — E3-prereg.md
+//     GET  /api/elite/decision/:ticker điểm và đóng góp từng tín hiệu của một mã
+//     GET  /api/elite/ledger          sổ theo dõi tiến của danh mục (khoá lúc dựng, chấm sau d+1+h)
+//     POST /api/elite/admin/decision  dựng quyết định + chấm sổ (admin)
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   const wrap = (fn) => async (req, res) => {
     try {
@@ -55,6 +59,38 @@ export function createEliteRouter({ getPanel, getEvidence = null, adminToken = (
     if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
     const ev = await getEvidence().update();
     res.json({ version: ev.version, calendarLast: ev.calendarLast, tests: ev.tests, counts: ev.counts });
+  }));
+
+  router.get("/decision", wrap(async (req, res) => {
+    const date = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : null;
+    const doc = getDecision ? await getDecision().decision(date) : null;
+    if (!doc) return res.status(404).json({ error: "Chưa có quyết định Elite 10." });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(doc);
+  }));
+
+  router.get("/decision/:ticker", wrap(async (req, res) => {
+    const ticker = String(req.params.ticker || "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(ticker)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const doc = getDecision ? await getDecision().decision() : null;
+    if (!doc) return res.status(404).json({ error: "Chưa có quyết định Elite 10." });
+    const score = doc.scores.find((x) => x.ticker === ticker);
+    if (!score) return res.status(404).json({ error: `${ticker} không nằm trong vũ trụ phiên ${doc.date}.` });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json({ date: doc.date, version: doc.version, icComb: doc.icComb, weights: doc.weights, inPortfolio: doc.portfolio.some((x) => x.ticker === ticker), universe: doc.universe, ...score });
+  }));
+
+  router.get("/ledger", wrap(async (req, res) => {
+    const l = getDecision ? await getDecision().ledger() : null;
+    if (!l) return res.status(404).json({ error: "Sổ theo dõi chưa có bản ghi." });
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(l);
+  }));
+
+  router.post("/admin/decision", admin, wrap(async (req, res) => {
+    if (!getDecision) return res.status(503).json({ error: "Engine quyết định chưa cấu hình." });
+    const d = await getDecision().build({ force: req.query.force === "1" });
+    res.json({ date: d.date, icComb: d.icComb, universe: d.universe, portfolio: d.portfolio.map((x) => `${x.ticker} ${(x.weight * 100).toFixed(1)}%`), label: d.ledgerSummary?.label });
   }));
 
   router.post("/admin/build", (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." })), wrap(async (req, res) => {
