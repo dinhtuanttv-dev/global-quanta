@@ -43,7 +43,22 @@ export const SUGGESTIONS = [
   "Yếu tố thế giới nào tác động tới ngành ngân hàng? Bằng chứng bậc mấy?",
 ];
 
-const newLane = (provider: ChatProvider): Lane => ({ provider, text: "", notices: [], tools: [], untraceable: [], done: false });
+export const newLane = (provider: ChatProvider): Lane => ({ provider, text: "", notices: [], tools: [], untraceable: [], done: false });
+
+/** Áp một sự kiện stream vào làn trả lời (hàm thuần — dùng chung cho Hỏi đáp và Phòng họp AI Elite 10). */
+export function laneReducer(a: Lane, e: ChatStreamEvent): Lane {
+  switch (e.type) {
+    case "meta": return { ...a, model: e.model };
+    case "text": return { ...a, text: a.text + e.delta };
+    case "notice": return a.notices.includes(e.notice) ? a : { ...a, notices: [...a.notices, e.notice] };
+    case "tool_call": return { ...a, tools: [...a.tools, { id: e.id, name: e.name }] };
+    case "tool_result": return { ...a, tools: a.tools.map((r) => (r.id === e.id ? { ...r, result: e.result } : r)) };
+    case "audit": return { ...a, untraceable: e.untraceable };
+    case "error": return { ...a, error: e.message };
+    case "done": return { ...a, done: true, fallback: e.fallback };
+    default: return a;
+  }
+}
 
 function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode }) {
   const c = tone === "warn" ? "var(--warning, #f59e0b)" : "var(--text-tertiary)";
@@ -55,12 +70,12 @@ function Banner({ tone, children }: { tone: "warn" | "info"; children: ReactNode
   );
 }
 
-function LaneView({ t, showHeader }: { t: Lane; showHeader: boolean }) {
+export function LaneView({ t, showHeader, headerLabel }: { t: Lane; showHeader: boolean; headerLabel?: string }) {
   return (
     <div style={{ minWidth: 0 }} data-testid={`lane-${t.provider}`}>
       {showHeader && (
         <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--gold, #e8b84b)", marginBottom: 4 }}>
-          {PROVIDER_VI[t.provider]}{t.model ? <span style={{ color: "var(--text-tertiary)", fontWeight: 400, textTransform: "none" }}> · {t.model}</span> : null}
+          {headerLabel ?? PROVIDER_VI[t.provider]}{t.model ? <span style={{ color: "var(--text-tertiary)", fontWeight: 400, textTransform: "none" }}> · {t.model}</span> : null}
         </div>
       )}
       {t.notices.map((n) => <Banner key={n} tone="warn">{n}</Banner>)}
@@ -104,7 +119,7 @@ export function historyFor(turns: Turn[], provider: ChatProvider): { role: "user
   return out;
 }
 
-export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { seedQuestion?: string | null; onSeedConsumed?: () => void } = {}) {
+export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, suggestions = SUGGESTIONS, title = "Hỏi đáp xúc tác" }: { seedQuestion?: string | null; onSeedConsumed?: () => void; suggestions?: string[]; title?: string } = {}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -127,14 +142,8 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { se
 
   async function runLane(provider: ChatProvider, q: string, prior: Turn[], ctrl: AbortController) {
     const onEvent = (e: ChatStreamEvent) => {
-      if (e.type === "meta") { setMeta({ remaining: e.remaining, macroMode: e.macroMode, worldMode: e.worldMode ?? null }); updateLane(provider, (a) => ({ ...a, model: e.model })); }
-      else if (e.type === "text") updateLane(provider, (a) => ({ ...a, text: a.text + e.delta }));
-      else if (e.type === "notice") updateLane(provider, (a) => (a.notices.includes(e.notice) ? a : { ...a, notices: [...a.notices, e.notice] }));
-      else if (e.type === "tool_call") updateLane(provider, (a) => ({ ...a, tools: [...a.tools, { id: e.id, name: e.name }] }));
-      else if (e.type === "tool_result") updateLane(provider, (a) => ({ ...a, tools: a.tools.map((r) => (r.id === e.id ? { ...r, result: e.result } : r)) }));
-      else if (e.type === "audit") updateLane(provider, (a) => ({ ...a, untraceable: e.untraceable }));
-      else if (e.type === "error") updateLane(provider, (a) => ({ ...a, error: e.message }));
-      else if (e.type === "done") updateLane(provider, (a) => ({ ...a, done: true, fallback: e.fallback }));
+      if (e.type === "meta") setMeta({ remaining: e.remaining, macroMode: e.macroMode, worldMode: e.worldMode ?? null });
+      updateLane(provider, (a) => laneReducer(a, e));
     };
     try {
       await streamCatalystChat([...historyFor(prior, provider), { role: "user", content: q }], onEvent, ctrl.signal, provider);
@@ -177,7 +186,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { se
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, minWidth: 0 }} data-testid="catalyst-chat">
       <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-tertiary)" }}>
-        <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>Hỏi đáp xúc tác</span>
+        <span style={{ fontWeight: 700, color: "var(--text-secondary)" }}>{title}</span>
         <div role="group" aria-label="Mô hình AI" style={{ display: "flex", gap: 4 }}>
           {MODES.map((m) => (
             <button key={m.id} type="button" title={m.title} aria-pressed={mode === m.id} disabled={busy} onClick={() => setMode(m.id)}
@@ -187,7 +196,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { se
             </button>
           ))}
         </div>
-        <span>· công cụ vĩ mô + thế giới + ngành ICB + hàng hoá + xúc tác</span>
+        <span>· công cụ Elite 10 + vĩ mô + thế giới + ngành ICB + hàng hoá + xúc tác</span>
         {meta?.macroMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta?.worldMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta && <span style={{ marginLeft: "auto" }}>Còn {meta.remaining} câu hôm nay</span>}
@@ -195,7 +204,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed }: { se
 
       {turns.length === 0 && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-          {SUGGESTIONS.map((s) => (
+          {suggestions.map((s) => (
             <button key={s} type="button" onClick={() => void ask(s)} disabled={busy}
               style={{ fontSize: 11, padding: "6px 10px", borderRadius: 14, border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-secondary)", cursor: "pointer", textAlign: "left" }}>
               {s}

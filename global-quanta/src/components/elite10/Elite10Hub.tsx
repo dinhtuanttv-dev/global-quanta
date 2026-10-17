@@ -5,20 +5,22 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
+import EliteAiRoom from "./center/EliteAiRoom";
 import { TaVnIndexTab } from "./TaVnIndexTab";
 import { useAppStore } from "../../store/useAppStore";
 
-type Sub = "board" | "profile";
+type Sub = "board" | "profile" | "ai";
 const SUBS: { id: Sub; label: string }[] = [
   { id: "board", label: "1. Bảng quyết định hôm nay" },
   { id: "profile", label: "2. Hồ sơ 360°" },
+  { id: "ai", label: "3. Phòng họp AI" },
 ];
 
 export default function Elite10Hub() {
   const globalTicker = useAppStore((s) => s.selectedTicker);
   const [sub, setSub] = useState<Sub>("board");
   const [ticker, setTicker] = useState<string | null>(null);
-  const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null });
+  const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null });
   const current = ticker ?? globalTicker ?? "VNINDEX";
   const open = (t: string) => { setTicker(t); setSub("profile"); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -47,6 +49,7 @@ export default function Elite10Hub() {
       </div>
       <section id={`elite10-${sub}-panel`} role="tabpanel" aria-labelledby={`elite10-${sub}-tab`} className="flex flex-col gap-3">
         {sub === "board" && <DecisionBoard onOpenTicker={open} />}
+        {sub === "ai" && <EliteAiRoom defaultTicker={ticker} />}
         {sub === "profile" && (
           <>
             <SignalProfileCard ticker={current} />
