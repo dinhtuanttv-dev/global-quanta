@@ -2,6 +2,7 @@
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
 import { buildDecision, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { noteStoreError } from "./storeHealth.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger" };
 const CAL_SYMBOLS = ["VNM", "FPT", "HPG", "VCB", "MWG"];
@@ -15,7 +16,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console }) {
   let memo = null;
   let building = null;
-  const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch { return null; } };
+  const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
   async function loadPrices(symbols, to) {
     const rows = await store.getMarketDailyRange({ from: isoMinusDays(to, PRICE_DAYS), to, symbols, columns: "symbol,trading_date,close_adj,value" });
