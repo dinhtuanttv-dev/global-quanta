@@ -29,6 +29,9 @@ const TOOL_LABEL: Record<string, string> = {
   ws_commodities: "Bảng giá hàng hoá",
   ws_commodity: "Phân tích hàng hoá",
   ws_stock: "Tác động lên cổ phiếu",
+  elite_decision: "Bảng quyết định Elite 10",
+  elite_ticker: "Hồ sơ 360° (Elite 10)",
+  elite_evidence: "Bằng chứng tín hiệu (E2)",
 };
 
 const STANCE_VI: Record<string, string> = { overweight: "Ưu tiên", neutral: "Trung tính", underweight: "Giảm tỷ trọng", na: "—", supportive: "Bối cảnh thuận", mixed: "Hỗn hợp", adverse: "Bối cảnh bất lợi" };
@@ -212,6 +215,40 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
           r.name, `${fmt(r.estPct, 1)}%`, `[${fmt(r.ciLowPct, 1)}; ${fmt(r.ciHighPct, 1)}]`, r.conclusive ? "có hướng" : "chưa kết luận",
         ])} />
         {Array.isArray(d.warnings) && d.warnings.length > 0 && <div style={{ fontSize: 10, color: "var(--warning, #f59e0b)", marginTop: 4 }}>{d.warnings.join(" · ")}</div>}
+      </Shell>
+    );
+  }
+  if (name === "elite_decision" && Array.isArray(d.portfolio)) {
+    return (
+      <Shell title={`${title} · phiên ${d.date} · ${d.label === "EVIDENCE" ? "đạt tiêu chí" : "THĂM DÒ"}`}>
+        <Table head={["Mã", "Tỷ trọng", "Z", "α 5 phiên", "P vượt", "Cắt lỗ", "Mục tiêu"]} rows={d.portfolio.map((p: Obj) => [
+          p.ticker, `${fmt(p.weightPct, 1)}%`, fmt(p.Z, 2), `${sgn(p.alpha5Pct, 2)}%`, `${fmt(p.pOutperformPct, 1)}%`, fmt(p.stop, 0), fmt(p.target, 0),
+        ])} />
+        <div style={{ fontSize: 10.5, color: "var(--text-secondary)", marginTop: 4 }}>
+          Tín hiệu có trọng số: {(d.weightedSignals ?? []).map((w: Obj) => `${w.labelVi} (bậc ${w.tier}, ${fmt(w.weightPct, 0)}%)`).join(" · ")}
+        </div>
+      </Shell>
+    );
+  }
+  if (name === "elite_ticker" && Array.isArray(d.signals)) {
+    const e: Obj | null = d.elite;
+    const weighted = d.signals.filter((s: Obj) => s.contribution != null);
+    return (
+      <Shell title={`${title} · ${d.ticker} · phiên ${d.date}`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          {e ? <>Hạng {e.rank}/{e.of} · Z {fmt(e.Z, 2)} · α 5 phiên {sgn(e.alpha5Pct, 2)}% · P vượt {fmt(e.pOutperformPct, 1)}%{e.inPortfolio ? " · trong Elite 10" : e.eligible ? "" : ` · không đủ điều kiện (${e.reason})`}</> : "Chưa có Điểm Elite."}
+        </div>
+        {weighted.length > 0 && <Table head={["Tín hiệu có trọng số", "Giá trị", "Bậc", "Đóng góp"]} rows={weighted.map((s: Obj) => [s.labelVi, fmt(s.value, 2), <Tier t={s.tier} />, sgn(s.contribution, 3)])} />}
+      </Shell>
+    );
+  }
+  if (name === "elite_evidence" && Array.isArray(d.signals)) {
+    return (
+      <Shell title={`${title} · A ${d.counts?.A ?? 0} · B ${d.counts?.B ?? 0} · C ${d.counts?.C ?? 0}`}>
+        <Table head={["Tín hiệu", "Bậc", "IC 5 phiên", "t", "q", "Số ngày"]} rows={d.signals.map((s: Obj) => {
+          const h = s.byH?.["5"] ?? s.byH?.[5] ?? {};
+          return [s.labelVi, <Tier t={s.tier} />, sgn(h.ic, 4), fmt(h.t, 2), fmt(h.q, 3), h.days ?? 0];
+        })} />
       </Shell>
     );
   }

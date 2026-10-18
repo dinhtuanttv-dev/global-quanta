@@ -56,7 +56,9 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
 
       let doc = exists ? await kv(DECISION_KV.decision(p.date)) : null;
       if (!doc) {
-        doc = { ...buildDecision({ panel: p, evidence: ev, prices, cal }), builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version };
+        // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
+        const prev = [...ledger.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
+        doc = { ...buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: prev?.holdings ?? [] }), builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version };
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
         if (!ledger.entries.some((e) => e.date === p.date)) {

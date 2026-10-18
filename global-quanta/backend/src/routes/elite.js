@@ -11,11 +11,13 @@
 //     POST /api/elite/admin/decision  dựng quyết định + chấm sổ (admin)
 // E5: GET  /api/elite/tools           công cụ chat elite_* cho Claude/Gemini (Project A) — cùng hợp đồng /api/world-sectors/tools
 //     POST /api/elite/tools/:name
+// E7: GET  /api/elite/retro           kiểm định hồi cứu walk-forward (E7-prereg.md); POST /admin/retro chạy lại (admin)
+// E6: GET  /api/elite/risk            rủi ro danh mục Elite 10 (Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, beta, ENB, căng thẳng)
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   const wrap = (fn) => async (req, res) => {
     try {
@@ -93,6 +95,25 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     if (!getDecision) return res.status(503).json({ error: "Engine quyết định chưa cấu hình." });
     const d = await getDecision().build({ force: req.query.force === "1" });
     res.json({ date: d.date, icComb: d.icComb, universe: d.universe, portfolio: d.portfolio.map((x) => `${x.ticker} ${(x.weight * 100).toFixed(1)}%`), label: d.ledgerSummary?.label });
+  }));
+
+  router.get("/risk", wrap(async (req, res) => {
+    const r = getRisk ? await getRisk().risk() : null;
+    if (!r) return res.status(404).json({ error: "Chưa có danh mục Elite 10 để tính rủi ro." });
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(r);
+  }));
+
+  router.get("/retro", wrap(async (req, res) => {
+    const r = getRetro ? await getRetro().result() : null;
+    if (!r) return res.status(404).json({ error: "Chưa chạy kiểm định hồi cứu E7." });
+    res.set("Cache-Control", "public, max-age=3600");
+    res.json(r);
+  }));
+  router.post("/admin/retro", admin, wrap(async (req, res) => {
+    if (!getRetro) return res.status(503).json({ error: "Chưa cấu hình kiểm định hồi cứu." });
+    const r = await getRetro().run();
+    res.json({ version: r.version, period: r.period, label: r.label, verdictVi: r.verdictVi, runtimeMs: r.runtimeMs, data: r.data });
   }));
 
   router.get("/tools", (req, res) => {

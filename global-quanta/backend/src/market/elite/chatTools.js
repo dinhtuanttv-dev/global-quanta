@@ -15,6 +15,7 @@ export const ELITE_CHAT_GUIDELINES = `Quy tắc công cụ elite_* (trung tâm q
 2. Lợi thế kỳ vọng nhỏ: IC tổng ≈ 0,01–0,02, xác suất vượt thường 50–52%. Nói đúng độ lớn, không phóng đại.
 3. Chỉ tín hiệu bậc A/B có trọng số. Tín hiệu bậc C (Smart Score, bộ lọc kỹ thuật, RRG, xúc tác, Cổ tức…) chỉ là bối cảnh — được nhắc nhưng phải ghi là chưa kiểm định.
 4. Cắt lỗ / mục tiêu là dải biến động mô tả (2σ / 3σ của 5 phiên), chưa tối ưu — không gọi là "điểm mua chuẩn".
+6. Tỷ trọng là ERC (mỗi mã đóng góp rủi ro như nhau) và có vùng đệm giữ mã — đó là quy tắc xây danh mục, không phải mức độ "tin tưởng" từng mã. α ngành thế giới có tiên nghiệm 0 trong Điểm Elite vì lệch kỳ hạn (nó nhắm phiên ngay sau phiên Mỹ).
 5. Khi phân tích một mã: elite_ticker trước, sau đó ws_stock / catalyst_* / macro_* nếu cần bối cảnh. Kết luận theo thứ tự: bằng chứng định lượng -> bối cảnh -> rủi ro.`;
 
 function validate(spec, input) {
@@ -39,8 +40,10 @@ export function createEliteChatTools({ decision, panel, evidence }) {
         data: {
           date: d.date, version: d.version, label: d.ledgerSummary?.label ?? "EXPERIMENTAL", labelVi: d.ledgerSummary?.labelVi ?? null,
           icComb: R(d.icComb, 4), universe: d.universe,
-          portfolio: d.portfolio.map((p) => ({ ticker: p.ticker, sectorIcb: p.sectorKey, weightPct: R(p.weight * 100, 1), Z: R(p.Z, 2), alpha5Pct: R(p.alpha5Pct, 2), pOutperformPct: R(p.pOutperform * 100, 1), close: p.close, stop: Math.round(p.stop), target: Math.round(p.target) })),
-          weightedSignals: d.weights.map((w) => ({ id: w.id, labelVi: w.labelVi, tier: w.tier, icMeasured: R(w.icMeas, 4), days: w.n, icPosterior: R(w.icPost, 4), weightPct: R(w.w * 100, 1) })),
+          portfolio: d.portfolio.map((p) => ({ ticker: p.ticker, sectorIcb: p.sectorKey, weightPct: R(p.weight * 100, 1), Z: R(p.Z, 2), alpha5Pct: R(p.alpha5Pct, 2), pOutperformPct: R(p.pOutperform * 100, 1), close: p.close, stop: Math.round(p.stop), target: Math.round(p.target), riskContributionPct: p.riskContribution != null ? R(p.riskContribution * 100, 1) : null, retainedFromPrevious: p.retained ?? false })),
+          construction: d.construction ? { method: d.construction.method === "erc" ? "ERC (cân bằng đóng góp rủi ro, Ledoit–Wolf)" : "tỷ lệ nghịch biến động", retained: d.construction.retained, turnoverPct: d.construction.turnover != null ? R(d.construction.turnover * 100, 0) : null } : null,
+          signalWeighting: d.signalWeighting?.method === "correlation" ? "theo tương quan giữa tín hiệu (C̃⁻¹·IC)" : "∝ IC",
+          weightedSignals: d.weights.map((w) => ({ id: w.id, labelVi: w.labelVi, tier: w.tier, icMeasured: R(w.icMeas, 4), days: w.n, icPrior: w.icPrior, icPosterior: R(w.icPost, 4), weightPct: R(w.w * 100, 1) })),
           ledger: d.ledgerSummary ? { sessions: d.ledgerSummary.criteria.sessions, h5: d.ledgerSummary.horizons["5"]?.n ?? 0, h10: d.ledgerSummary.horizons["10"]?.n ?? 0 } : null,
         },
         guidance: GUIDE,

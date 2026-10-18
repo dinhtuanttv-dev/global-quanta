@@ -25,7 +25,7 @@ test("E5 elite_*: quyết định kèm nhãn, hồ sơ mã đủ tín hiệu + b
   const d = await tools.run("elite_decision", {});
   assert.equal(d.ok, true);
   assert.equal(d.data.label, "EXPERIMENTAL");
-  assert.deepEqual(d.data.portfolio[0], { ticker: "ORS", sectorIcb: "8700", weightPct: 14, Z: 2.25, alpha5Pct: 0.14, pOutperformPct: 51.3, close: 13500, stop: 12896, target: 14406 });
+  assert.deepEqual(d.data.portfolio[0], { ticker: "ORS", sectorIcb: "8700", weightPct: 14, Z: 2.25, alpha5Pct: 0.14, pOutperformPct: 51.3, close: 13500, stop: 12896, target: 14406, riskContributionPct: null, retainedFromPrevious: false });
   const t = await tools.run("elite_ticker", { ticker: "ors" });
   assert.equal(t.data.elite.inPortfolio, true);
   assert.deepEqual(t.data.signals.map((s) => [s.id, s.tier, s.contribution]), [["stealth20", "A", 1.2], ["smart_score", "C", null]]);

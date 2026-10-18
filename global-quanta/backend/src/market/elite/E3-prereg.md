@@ -64,3 +64,31 @@ bản ghi duy nhất của E3-v1 (16/10, chưa chấm) được lưu trữ riên
 1. Thêm điều kiện đủ: σ20 ≥ 0,5%/ngày (loại mã có giá bị neo).
 2. Tỷ trọng ∝ 1 / max(σ20, 1%) thay cho 1/σ20, rồi áp trần 20% như cũ.
 3. Dải cắt lỗ / mục tiêu dùng cùng max(σ20, 1%).
+
+## Sửa đổi E3-v3 (2026-10-18, trước khi có bất kỳ kết quả tiến nào — sổ E3-v2 có 1 bản ghi, chưa chấm)
+
+**Lý do** (lý thuyết danh mục, không dựa trên kết quả): rà soát mã ngày 18/10 cho thấy ba điểm yếu.
+
+- Trọng số tín hiệu ∝ IC bỏ qua tương quan giữa các tín hiệu (Stealth 5 và Stealth 20 cùng đo dòng tiền ẩn): đếm trùng một chủ đề.
+  IC tổng `Σ wᵢ·ICᵢ` cũng bỏ qua tương quan nên α không đúng độ lớn.
+- Tỷ trọng ∝ 1/σ20 bỏ qua tương quan giữa các mã: với danh mục 16/10, ba mã chứng khoán chiếm 48% rủi ro trên 35% tỷ trọng.
+- Danh mục dựng lại hoàn toàn mỗi phiên: vòng quay và chi phí giao dịch thực tế cao không cần thiết.
+
+**Thay đổi** (mọi điều khác của E3-v2 giữ nguyên):
+
+1. **Trọng số tín hiệu theo tương quan** (Grinold–Kahn): C = ma trận tương quan chéo (Pearson) giữa các điểm z theo hạng của các tín
+   hiệu bậc A/B trên các mã có đủ giá trị trong phiên; co rút `C̃ = 0,5·C + 0,5·I`. Trọng số thô `v = C̃⁻¹ · IC_hậu_nghiệm`; bỏ phần
+   tử âm (về 0), chuẩn hoá tổng = 1. Không đủ ≥ 30 mã có đủ giá trị → giữ trọng số ∝ IC như E3-v2.
+2. **IC tổng đúng của điểm kết hợp**: `IC_comb = Σ wᵢ·ICᵢ / √(wᵀ C̃ w)` (tương quan của tổ hợp tuyến tính các z với lợi suất).
+3. **Vùng đệm giữ mã** (Novy-Marx & Velikov 2016): mã thuộc danh mục phiên liền trước được giữ nếu vẫn đủ điều kiện và nằm trong
+   20 mã đủ điều kiện có Z cao nhất (gấp đôi quy mô danh mục), vẫn tôn trọng trần 3 mã/ngành; phần còn lại lấp theo Z giảm dần.
+4. **Tỷ trọng cân bằng đóng góp rủi ro (ERC)** (Maillard, Roncalli & Teïletche 2010) trên hiệp phương sai Ledoit–Wolf (mục tiêu
+   tương quan hằng số) của lợi suất ngày 120 phiên gần nhất mà mọi mã được chọn đều có giá (cần ≥ 60 phiên); sau đó áp trần 20%
+   như cũ. Không đủ dữ liệu → tỷ trọng ∝ 1/max(σ20, 1%) như E3-v2.
+
+5. **Căn kỳ hạn của α ngành thế giới (WS-v1)**: tín hiệu được kiểm định cho phiên VN ngay sau phiên Mỹ. Bảng E1 dựng lúc 17:00
+   phiên d chỉ có phiên Mỹ d−1 — thông tin đó nhắm phiên VN d, đã diễn ra trước khi danh mục có thể vào lệnh (đóng cửa d+1). Vì vậy
+   tiên nghiệm IC của `ws_sector_alpha` trong Điểm Elite = **0** (thay cho 0,02 của bậc A); tín hiệu chỉ có trọng số khi E2 đo được
+   IC dương theo đúng cách vào lệnh của danh mục. Bậc bằng chứng của nó trong E2 không đổi.
+
+Sổ E3-v2 (1 bản ghi 16/10, chưa chấm) được lưu trữ nguyên vẹn; sổ E3-v3 bắt đầu lại. Tiêu chí thành công không đổi.

@@ -22,6 +22,8 @@ import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js"
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
+import { createRiskService } from "./market/elite/riskService.js";
+import { createRetroService } from "./market/elite/retroService.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 
@@ -138,7 +140,13 @@ let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
   decision: () => getEliteDecision().decision(), panel: () => getElitePanel().panel(), evidence: () => getEliteEvidence().evidence(),
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools }));
+// E7: kiểm định hồi cứu walk-forward (chạy theo yêu cầu admin).
+let eliteRetro = null;
+const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
+// E6: rủi ro danh mục Elite 10.
+let eliteRisk = null;
+const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   let eliteEvidenceTriedFor = null;

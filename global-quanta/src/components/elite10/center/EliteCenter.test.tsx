@@ -8,7 +8,9 @@ const decision = {
     { id: "stealth20", labelVi: "Stealth 20", tab: "Siêu quét AI", tier: "A", mainH: 5, n: 215, icMeas: 0.0159, icPrior: 0.02, icPost: 0.0168, w: 0.6 },
     { id: "top20_alpha", labelVi: "Điểm alpha M1", tab: "Lọc ngành", tier: "B", mainH: 5, n: 0, icMeas: 0, icPrior: 0.01, icPost: 0.01, w: 0.4 },
   ],
-  portfolio: [{ ticker: "ORS", weight: 0.14, Z: 2.25, rank: 1, alpha5Pct: 0.14, pOutperform: 0.513, sectorKey: "8700", close: 13500, stop: 12896, target: 14406, holdSessions: 10 }],
+  portfolio: [{ ticker: "ORS", weight: 0.14, Z: 2.25, rank: 1, alpha5Pct: 0.14, pOutperform: 0.513, sectorKey: "8700", close: 13500, stop: 12896, target: 14406, holdSessions: 10, retained: true, riskContribution: 0.1 }],
+  construction: { method: "erc", sessions: 120, retained: 1, previous: 10, turnover: 0.42 },
+  signalWeighting: { method: "correlation", corr: { ids: ["stealth20"], matrix: [[1]], shrink: 0.5, names: 119 }, noteVi: null },
   scores: [
     { ticker: "ORS", rank: 1, Z: 2.25, alpha5Pct: 0.14, pOutperform: 0.513, eligible: true, reason: null, close: 13500, advBn: 25, sigma20: 0.02, sectorKey: "8700", contributions: [{ id: "stealth20", z: 2, contribution: 1.2 }, { id: "top20_alpha", z: 0, contribution: 0 }] },
     { ticker: "DSE", rank: 2, Z: 2.2, alpha5Pct: 0.13, pOutperform: 0.512, eligible: true, reason: null, close: 20650, advBn: 11, sigma20: 0.02, sectorKey: "8700", contributions: [] },
@@ -52,6 +54,11 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(row).toContain("Dịch vụ tài chính");
     expect(row).toContain("14,0%");
     expect(row).toContain("Stealth 20");
+    expect(row).toContain("giữ");
+    expect(row).toContain("10,0%");
+    expect(screen.getByTestId("elite-portfolio").textContent).toContain("cân bằng đóng góp rủi ro (ERC)");
+    expect(screen.getByTestId("elite-portfolio").textContent).toContain("vòng quay 42%");
+    expect(screen.getByTestId("elite-weighting-note").textContent).toContain("119 mã");
     expect(screen.getByTestId("elite-weights").textContent).toContain("chưa đo");
     fireEvent.click(screen.getByTestId("elite-pick-ORS").querySelector("button")!);
     expect(opened).toEqual(["ORS"]);

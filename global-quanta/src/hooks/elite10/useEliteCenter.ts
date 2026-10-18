@@ -27,3 +27,18 @@ export function useEliteTicker(ticker: string | null) {
 export function useElitePanel() {
   return useSWR<{ date: string; rows: { ticker: string; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);
 }
+
+export function useEliteRisk() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRisk>("elite-risk", () => fetchMarketJson("/api/elite/risk"), OPTS);
+}
+
+export function useEliteLedger() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteLedger>("elite-ledger", () => fetchMarketJson("/api/elite/ledger"), OPTS);
+}
+
+/** E7: kiểm định hồi cứu walk-forward (404 khi chưa chạy -> null). */
+export function useEliteRetro() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRetro | null>("elite-retro", async () => {
+    try { return await fetchMarketJson("/api/elite/retro"); } catch { return null; }
+  }, OPTS);
+}

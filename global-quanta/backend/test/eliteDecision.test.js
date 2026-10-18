@@ -27,7 +27,8 @@ test("E3 lõi: Φ⁻¹, điểm chuẩn theo hạng, trọng số IC hậu nghi�
   assert.deepEqual(weights.map((w) => w.id), ["stealth20", "ws_sector_alpha", "top20_alpha"], "bậc C không có trọng số");
   const s20 = weights[0];
   assert.ok(Math.abs(s20.icPost - (200 * 0.016 + 60 * 0.02) / 260) < 1e-12);
-  assert.equal(weights[1].icPost, 0.02, "chưa đo -> bằng tiên nghiệm A");
+  assert.equal(weights[1].icPost, 0, "E3-v3 (5): α ngành thế giới lệch kỳ hạn -> tiên nghiệm 0, chưa đo -> IC hậu nghiệm 0");
+  assert.equal(weights[1].w, 0);
   assert.equal(weights[2].w, 0, "IC hậu nghiệm âm -> trọng số 0");
   assert.ok(Math.abs(weights.reduce((a, w) => a + w.w, 0) - 1) < 1e-12);
   assert.ok(icComb > 0.015 && icComb < 0.02);
@@ -131,4 +132,60 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
   const pub = await svc.ledger();
   assert.equal(pub.entries[0].universe, undefined);
   assert.equal((await svc.decision()).date, cal[111]);
+});
+
+import { correlationAdjust, ercWeights, solveLinear, alignedReturns } from "../src/market/elite/decisionCore.js";
+import { ledoitWolf as lw } from "../src/market/elite/riskCore.js";
+
+test("E3-v3: hệ tuyến tính, ERC đóng góp rủi ro bằng nhau", () => {
+  const x = solveLinear([[2, 1], [1, 3]], [3, 5]);
+  assert.ok(Math.abs(x[0] - 0.8) < 1e-12 && Math.abs(x[1] - 1.4) < 1e-12);
+  assert.equal(solveLinear([[1, 2], [2, 4]], [1, 2]), null);
+  const cov = [[0.04, 0.012, 0.006], [0.012, 0.09, 0.009], [0.006, 0.009, 0.01]];
+  const w = ercWeights(cov);
+  const Sw = cov.map((row) => row.reduce((a, v, j) => a + v * w[j], 0));
+  const rc = w.map((v, i) => v * Sw[i]);
+  assert.ok(Math.abs(w.reduce((a, b) => a + b, 0) - 1) < 1e-12);
+  assert.ok(Math.max(...rc) - Math.min(...rc) < 1e-9, `RC ${rc}`);
+  assert.ok(w[2] > w[0] && w[0] > w[1], "mã biến động thấp nhận tỷ trọng cao hơn");
+});
+
+test("E3-v3: trọng số theo tương quan không đếm trùng tín hiệu trùng lặp; IC tổng = Σw·IC/√(wᵀC̃w)", () => {
+  const tick = Array.from({ length: 60 }, (_, i) => `T${i}`);
+  const z = (f) => new Map(tick.map((t, i) => [t, f(i)]));
+  const a = z((i) => Math.sin(i * 1.7)), b = z((i) => Math.sin(i * 1.7) * 0.99 + 0.01 * Math.cos(i)), c = z((i) => Math.cos(i * 0.9 + 2));
+  const base = { weights: [{ id: "a", icPost: 0.02, w: 1 / 3 }, { id: "b", icPost: 0.02, w: 1 / 3 }, { id: "c", icPost: 0.02, w: 1 / 3 }], icComb: 0.02 };
+  const r = correlationAdjust(base, new Map([["a", a], ["b", b], ["c", c]]), tick);
+  assert.equal(r.method, "correlation");
+  const w = Object.fromEntries(r.weights.map((x) => [x.id, x.w]));
+  assert.ok(w.c > w.a && w.c > w.b, `tín hiệu độc lập c phải nặng hơn từng tín hiệu trùng: ${JSON.stringify(w)}`);
+  assert.ok(Math.abs(w.a + w.b + w.c - 1) < 1e-12);
+  assert.ok(r.icComb > 0.02, "kết hợp tín hiệu ít tương quan làm IC tổng tăng");
+  assert.ok(Math.abs(r.weights[0].wNaive - 1 / 3) < 1e-12, "giữ trọng số ∝ IC để đối chiếu");
+  const few = correlationAdjust({ weights: [{ id: "a", icPost: 0.02, w: 0.5 }, { id: "b", icPost: 0.02, w: 0.5 }], icComb: 0.02 }, new Map([["a", a], ["b", new Map()]]), tick);
+  assert.equal(few.method, "ic");
+});
+
+test("E3-v3 buildDecision: ERC khi đủ 60 phiên, vùng đệm giữ mã phiên trước còn trong top 20, vòng quay", () => {
+  const { cal, rows, daily } = world();
+  const date = cal[99];
+  const prices = new Map();
+  for (const r of daily) if (r.date <= date) { if (!prices.has(r.symbol)) prices.set(r.symbol, []); prices.get(r.symbol).push(r); }
+  const first = buildDecision({ panel: { date, rows }, evidence, prices, cal: cal.slice(0, 100) });
+  assert.equal(first.construction.method, "erc");
+  assert.ok(first.construction.sessions >= 60);
+  assert.ok(first.portfolio.every((p) => p.riskContribution != null));
+  assert.ok(Math.abs(first.portfolio.reduce((a, p) => a + p.weight, 0) - 1) < 1e-9);
+  // mã hạng ~15 (ngoài top 10, trong top 20) đang nắm giữ -> được giữ lại; mã hạng thấp -> không giữ
+  const eligibleRanked = first.scores.filter((x) => x.eligible);
+  const inBuffer = eligibleRanked[14].ticker, outBuffer = eligibleRanked[40].ticker;
+  const second = buildDecision({ panel: { date, rows }, evidence, prices, cal: cal.slice(0, 100), prevHoldings: [{ ticker: inBuffer, weight: 0.5 }, { ticker: outBuffer, weight: 0.5 }] });
+  const held = second.portfolio.map((p) => p.ticker);
+  assert.ok(held.includes(inBuffer), "mã trong vùng đệm được giữ");
+  assert.ok(!held.includes(outBuffer), "mã ngoài top 20 bị loại");
+  assert.equal(second.portfolio.find((p) => p.ticker === inBuffer).retained, true);
+  assert.equal(second.construction.retained, 1);
+  assert.ok(second.construction.turnover > 0 && second.construction.turnover <= 1);
+  assert.equal(alignedReturns(prices, ["T10", "T11"], date, 30).length, 30);
+  assert.ok(lw(alignedReturns(prices, ["T10", "T11", "T12"], date, 120)).delta >= 0);
 });
