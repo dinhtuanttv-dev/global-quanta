@@ -86,4 +86,9 @@ bản ghi duy nhất của E3-v1 (16/10, chưa chấm) được lưu trữ riên
    tương quan hằng số) của lợi suất ngày 120 phiên gần nhất mà mọi mã được chọn đều có giá (cần ≥ 60 phiên); sau đó áp trần 20%
    như cũ. Không đủ dữ liệu → tỷ trọng ∝ 1/max(σ20, 1%) như E3-v2.
 
+5. **Căn kỳ hạn của α ngành thế giới (WS-v1)**: tín hiệu được kiểm định cho phiên VN ngay sau phiên Mỹ. Bảng E1 dựng lúc 17:00
+   phiên d chỉ có phiên Mỹ d−1 — thông tin đó nhắm phiên VN d, đã diễn ra trước khi danh mục có thể vào lệnh (đóng cửa d+1). Vì vậy
+   tiên nghiệm IC của `ws_sector_alpha` trong Điểm Elite = **0** (thay cho 0,02 của bậc A); tín hiệu chỉ có trọng số khi E2 đo được
+   IC dương theo đúng cách vào lệnh của danh mục. Bậc bằng chứng của nó trong E2 không đổi.
+
 Sổ E3-v2 (1 bản ghi 16/10, chưa chấm) được lưu trữ nguyên vẹn; sổ E3-v3 bắt đầu lại. Tiêu chí thành công không đổi.
