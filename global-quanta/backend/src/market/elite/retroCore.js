@@ -4,7 +4,7 @@
 import { bhQ, dailyIc, decideTier, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
 import { blockBootstrapCi, buildDecision, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 
-export const E7_VERSION = "E7-v1 (prereg 2026-10-17)";
+export const E7_VERSION = "E7-v2 (prereg 2026-10-17, sửa đổi 2026-10-18)";
 export const RETRO_SIGNALS = { stealth5: "stealth5", stealth20: "stealth20", net_intent: "netIntent", mom5_atr: "mom5Atr", log_rvol: "logRvol" };
 export const RETRO_PRIOR_TIER = { stealth5: "A", stealth20: "A", net_intent: "C", mom5_atr: "C", log_rvol: "C" };
 const LABEL = { stealth5: "Stealth 5", stealth20: "Stealth 20", net_intent: "Ý đồ dòng tiền IFE", mom5_atr: "Động lượng 5 phiên / ATR", log_rvol: "Khối lượng tương đối (log)" };
@@ -68,10 +68,12 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex }) {
     const evidence = { signals: sigIds.map((s) => ({ id: s, labelVi: LABEL[s], tab: "Siêu quét AI", tier: tiers[s], mainH: 5, byH: Object.fromEntries(HORIZONS.map((h) => [h, { n: byS[s][h].n, mean: byS[s][h].mean }])) })) };
     const day = flow.get(D);
     const rows = [...day].map(([t, f]) => ({ ticker: t, icb: { l2: sectors.get(t) ?? null }, values: Object.fromEntries(sigIds.map((s) => [s, Number.isFinite(Number(f?.[RETRO_SIGNALS[s]])) ? Number(f[RETRO_SIGNALS[s]]) : null])) }));
-    const dec = buildDecision({ panel: { date: D, rows }, evidence, prices: pricesUpTo(D), cal: cal.slice(0, iD + 1) });
+    // E7-v2: truyền danh mục phiên walk-forward liền trước làm vùng đệm giữ mã (E3-v3).
+    const dec = buildDecision({ panel: { date: D, rows }, evidence, prices: pricesUpTo(D), cal: cal.slice(0, iD + 1), prevHoldings: entries[entries.length - 1]?.holdings ?? [] });
     if (!dec.portfolio.length) continue;
     const eligible = dec.scores.filter((x) => x.eligible);
     entries.push({
+      construction: dec.construction,
       date: D, holdings: dec.portfolio.map((p) => ({ ticker: p.ticker, weight: p.weight })), universe: eligible.map((x) => x.ticker),
       z: Object.fromEntries(eligible.map((x) => [x.ticker, x.Z])), weights: dec.weights.map((w) => ({ id: w.id, tier: w.tier, w: w.w, icPost: w.icPost })),
     });
@@ -112,6 +114,7 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex }) {
       nonOverlapping10: { n: nonOverlap.length, mean: nonOverlap.length ? nonOverlap.reduce((a, b) => a + b, 0) / nonOverlap.length : null, ci95: blockBootstrapCi(nonOverlap, 2) },
       annualisedExcess: ex10?.meanExcess != null ? (1 + ex10.meanExcess) ** (252 / 10) - 1 : null,
       dailyTurnover: turnover,
+      ercShare: entries.length ? entries.filter((e) => e.construction?.method === "erc").length / entries.length : null,
       tierDays,
     },
     lastWeights: entries[entries.length - 1]?.weights ?? [],

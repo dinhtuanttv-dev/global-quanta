@@ -1,13 +1,24 @@
 // Elite 10 E3 — lõi thuần của engine quyết định, đúng E3-prereg.md (ghi trước khi tính bất kỳ điểm nào).
+// E3-v3 (sửa đổi 2026-10-18): trọng số tín hiệu theo tương quan (C̃⁻¹·IC), IC tổng đúng của tổ hợp, vùng đệm giữ mã, tỷ trọng ERC
+// trên hiệp phương sai Ledoit–Wolf.
 import { averageRanks, dailyIc, normCdf, summarize } from "./icCore.js";
+import { ledoitWolf } from "./riskCore.js";
 
-export const E3_VERSION = "E3-v2 (prereg 2026-10-17, sửa đổi cùng ngày)";
+export const E3_VERSION = "E3-v3 (prereg 2026-10-17, sửa đổi 2026-10-18)";
 export const N0 = 60;
 export const PRIOR_IC = { A: 0.02, B: 0.01 };
+/**
+ * E3-v3 (5): tiên nghiệm riêng theo tín hiệu. α ngành thế giới nhắm phiên VN ngay sau phiên Mỹ — đã qua khi danh mục vào lệnh
+ * (đóng cửa d+1) -> tiên nghiệm 0; chỉ có trọng số khi E2 đo được IC dương.
+ */
+export const PRIOR_IC_OVERRIDE = { ws_sector_alpha: 0 };
 export const ELIGIBILITY = { minBars: 60, minValueVnd: 10e9, minPrice: 5000, minSigma20: 0.005 };
 /** E3-v2: sàn biến động cho tỷ trọng và dải rủi ro. */
 export const SIGMA_FLOOR = 0.01;
-export const PORTFOLIO = { size: 10, maxPerSector: 3, weightCap: 0.2, stopK: 2, targetK: 3, holdSessions: 10 };
+export const PORTFOLIO = { size: 10, maxPerSector: 3, weightCap: 0.2, stopK: 2, targetK: 3, holdSessions: 10, bufferRank: 20 };
+/** E3-v3: co rút ma trận tương quan tín hiệu về I; cửa sổ hiệp phương sai cho ERC. */
+export const SIGNAL_CORR_SHRINK = 0.5;
+export const ERC = { window: 120, minSessions: 60 };
 export const COST_ROUND_TRIP = 0.004;
 export const LEDGER_HORIZONS = [5, 10];
 
@@ -37,6 +48,92 @@ export function normalScores(entries) {
   return out;
 }
 
+/** Giải A·x = b (Gauss có chọn trụ). null nếu suy biến. */
+export function solveLinear(A, b) {
+  const n = b.length;
+  const M = A.map((row, i) => [...row, b[i]]);
+  for (let c = 0; c < n; c++) {
+    let p = c;
+    for (let r = c + 1; r < n; r++) if (Math.abs(M[r][c]) > Math.abs(M[p][c])) p = r;
+    if (Math.abs(M[p][c]) < 1e-12) return null;
+    [M[c], M[p]] = [M[p], M[c]];
+    for (let r = 0; r < n; r++) {
+      if (r === c) continue;
+      const f = M[r][c] / M[c][c];
+      for (let k = c; k <= n; k++) M[r][k] -= f * M[c][k];
+    }
+  }
+  return M.map((row, i) => row[n] / row[i]);
+}
+
+/**
+ * E3-v3: trọng số tín hiệu theo tương quan. zBy: id -> Map(ticker -> z). Trả { weights (thêm wNaive), icComb, corr } hoặc giữ
+ * trọng số ∝ IC khi < 30 mã có đủ mọi giá trị.
+ */
+export function correlationAdjust(base, zBy, tickers) {
+  const rows = base.weights.filter((w) => w.icPost > 0);
+  for (const w of base.weights) w.wNaive = w.w;
+  if (rows.length < 2) return { ...base, corr: null, method: "ic" };
+  const full = tickers.filter((t) => rows.every((w) => zBy.get(w.id)?.has(t)));
+  if (full.length < 30) return { ...base, corr: null, method: "ic", noteVi: `Chỉ ${full.length} mã có đủ mọi tín hiệu (cần ≥ 30) — giữ trọng số ∝ IC.` };
+  const k = rows.length;
+  const Z = rows.map((w) => full.map((t) => zBy.get(w.id).get(t)));
+  const mu = Z.map((v) => v.reduce((a, b) => a + b, 0) / v.length);
+  const sd = Z.map((v, i) => Math.sqrt(v.reduce((a, x) => a + (x - mu[i]) ** 2, 0) / v.length) || 1);
+  const C = Array.from({ length: k }, (_, i) => Array.from({ length: k }, (_, j) => {
+    if (i === j) return 1;
+    let s = 0;
+    for (let n = 0; n < full.length; n++) s += (Z[i][n] - mu[i]) * (Z[j][n] - mu[j]);
+    return s / full.length / (sd[i] * sd[j]);
+  }));
+  const Cs = C.map((row, i) => row.map((v, j) => (1 - SIGNAL_CORR_SHRINK) * v + SIGNAL_CORR_SHRINK * (i === j ? 1 : 0)));
+  const v = solveLinear(Cs, rows.map((w) => w.icPost));
+  if (!v) return { ...base, corr: null, method: "ic" };
+  const pos = v.map((x) => Math.max(0, x));
+  const tot = pos.reduce((a, b) => a + b, 0);
+  if (!(tot > 0)) return { ...base, corr: null, method: "ic" };
+  const wv = pos.map((x) => x / tot);
+  const byId = new Map(rows.map((w, i) => [w.id, wv[i]]));
+  for (const w of base.weights) w.w = byId.get(w.id) ?? 0;
+  const num = rows.reduce((a, w, i) => a + wv[i] * w.icPost, 0);
+  let quad = 0;
+  for (let i = 0; i < k; i++) for (let j = 0; j < k; j++) quad += wv[i] * wv[j] * Cs[i][j];
+  const r4 = (x) => Math.round(x * 1e4) / 1e4;
+  return {
+    weights: base.weights, icComb: quad > 0 ? num / Math.sqrt(quad) : base.icComb, method: "correlation",
+    corr: { ids: rows.map((w) => w.id), matrix: C.map((row) => row.map(r4)), shrink: SIGNAL_CORR_SHRINK, names: full.length },
+  };
+}
+
+/** ERC (Griveau-Billion, Richard & Roncalli 2013 — giảm theo toạ độ tuần hoàn): đóng góp rủi ro bằng nhau. */
+export function ercWeights(cov, iters = 500, tol = 1e-12) {
+  const n = cov.length;
+  const b = 1 / n;
+  let x = cov.map((row, i) => 1 / Math.sqrt(row[i]));
+  for (let it = 0; it < iters; it++) {
+    let delta = 0;
+    for (let i = 0; i < n; i++) {
+      let c = 0;
+      for (let j = 0; j < n; j++) if (j !== i) c += cov[i][j] * x[j];
+      const xi = (-c + Math.sqrt(c * c + 4 * cov[i][i] * b)) / (2 * cov[i][i]);
+      delta = Math.max(delta, Math.abs(xi - x[i]));
+      x[i] = xi;
+    }
+    if (delta < tol) break;
+  }
+  const s = x.reduce((a, v) => a + v, 0);
+  return x.map((v) => v / s);
+}
+
+/** Lợi suất ngày căn theo các phiên mọi mã đều có giá (≤ date), tối đa `window` phiên gần nhất. */
+export function alignedReturns(prices, tickers, date, window) {
+  const maps = tickers.map((t) => new Map((prices.get(t) ?? []).filter((r) => r.date <= date && r.closeAdj > 0).map((r) => [r.date, r.closeAdj])));
+  const dates = [...(maps[0]?.keys() ?? [])].filter((d) => maps.every((m) => m.has(d))).sort();
+  const R = [];
+  for (let k = 1; k < dates.length; k++) R.push(maps.map((m) => m.get(dates[k]) / m.get(dates[k - 1]) - 1));
+  return R.slice(-window);
+}
+
 /** Trọng số theo IC hậu nghiệm từ tài liệu bằng chứng E2 (chỉ bậc A/B). */
 export function signalWeights(evidence) {
   const rows = [];
@@ -45,7 +142,7 @@ export function signalWeights(evidence) {
     const main = s.byH?.[s.mainH] ?? s.byH?.[String(s.mainH)] ?? {};
     const n = main.n ?? 0;
     const icMeas = main.mean ?? 0;
-    const icPrior = PRIOR_IC[s.tier];
+    const icPrior = PRIOR_IC_OVERRIDE[s.id] ?? PRIOR_IC[s.tier];
     const icPost = (n * icMeas + N0 * icPrior) / (n + N0);
     rows.push({ id: s.id, labelVi: s.labelVi, tab: s.tab, tier: s.tier, mainH: s.mainH, n, icMeas, icPrior, icPost });
   }
@@ -102,11 +199,13 @@ export function sigma5(prices, names, cal, date) {
  * Dựng quyết định của phiên d.
  * @param {{ panel: any, evidence: any, prices: Map<string, any[]>, cal: string[] }} p
  */
-export function buildDecision({ panel, evidence, prices, cal }) {
+export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] }) {
   const date = panel.date;
-  const { weights, icComb } = signalWeights(evidence);
   const tickers = panel.rows.map((r) => r.ticker);
-  const zBy = new Map(weights.map((w) => [w.id, normalScores(panel.rows.map((r) => [r.ticker, r.values[w.id]]))]));
+  const base = signalWeights(evidence);
+  const zBy = new Map(base.weights.map((w) => [w.id, normalScores(panel.rows.map((r) => [r.ticker, r.values[w.id]]))]));
+  const adj = correlationAdjust(base, zBy, tickers);
+  const { weights, icComb } = adj;
   const raw = new Map(tickers.map((t) => [t, weights.reduce((a, w) => a + w.w * (zBy.get(w.id).get(t) ?? 0), 0)]));
   const rv = [...raw.values()];
   const m = rv.length ? mean(rv) : 0, s = std(rv) || 1;
@@ -128,27 +227,55 @@ export function buildDecision({ panel, evidence, prices, cal }) {
   }).sort((a, b) => b.Z - a.Z);
   scores.forEach((x, i) => { x.rank = i + 1; });
 
-  // Danh mục: Z giảm dần, trần 3 mã / ngành ICB cấp 2, tỷ trọng ∝ 1/σ20, trần 20%.
+  // Danh mục (E3-v3): vùng đệm — mã phiên trước còn trong top 20 đủ điều kiện được giữ; lấp phần còn lại theo Z giảm dần;
+  // trần 3 mã / ngành ICB cấp 2.
+  const ranked = scores.filter((x) => x.eligible && x.sigma20 > 0);
+  const bufferSet = new Set(ranked.slice(0, PORTFOLIO.bufferRank).map((x) => x.ticker));
+  const prevSet = new Set((prevHoldings ?? []).map((h) => h.ticker));
   const picks = [];
   const perSector = new Map();
-  for (const x of scores) {
-    if (picks.length >= PORTFOLIO.size) break;
-    if (!x.eligible || !(x.sigma20 > 0)) continue;
+  const take = (x) => {
+    if (picks.length >= PORTFOLIO.size || picks.includes(x)) return;
     const key = x.sectorKey ?? `?${x.ticker}`;
-    if ((perSector.get(key) ?? 0) >= PORTFOLIO.maxPerSector) continue;
+    if ((perSector.get(key) ?? 0) >= PORTFOLIO.maxPerSector) return;
     perSector.set(key, (perSector.get(key) ?? 0) + 1);
     picks.push(x);
+  };
+  for (const x of ranked) if (prevSet.has(x.ticker) && bufferSet.has(x.ticker)) take(x);
+  const retained = new Set(picks.map((x) => x.ticker));
+  for (const x of ranked) take(x);
+  picks.sort((a, b) => b.Z - a.Z);
+
+  // Tỷ trọng (E3-v3): ERC trên hiệp phương sai Ledoit–Wolf 120 phiên; thiếu dữ liệu -> ∝ 1/max(σ20, 1%). Sau đó trần 20%.
+  const R = picks.length > 1 ? alignedReturns(prices, picks.map((x) => x.ticker), date, ERC.window) : [];
+  let method = "inverse-vol", rawW = picks.map((x) => 1 / Math.max(x.sigma20, SIGMA_FLOOR)), cov = null;
+  if (R.length >= ERC.minSessions) {
+    cov = ledoitWolf(R).sigma;
+    rawW = ercWeights(cov);
+    method = "erc";
   }
-  const w = capWeights(picks.map((x) => 1 / Math.max(x.sigma20, SIGMA_FLOOR)), PORTFOLIO.weightCap);
+  const w = capWeights(rawW, PORTFOLIO.weightCap);
+  let rc = null;
+  if (cov) {
+    const Sw = cov.map((row) => row.reduce((a, v, j) => a + v * w[j], 0));
+    const varP = w.reduce((a, v, i) => a + v * Sw[i], 0);
+    rc = w.map((v, i) => (v * Sw[i]) / varP);
+  }
+  const prevW = new Map((prevHoldings ?? []).map((h) => [h.ticker, h.weight]));
+  const turnover = prevHoldings?.length ? [...new Set([...prevW.keys(), ...picks.map((x) => x.ticker)])]
+    .reduce((a, t) => a + Math.abs((w[picks.findIndex((x) => x.ticker === t)] ?? 0) - (prevW.get(t) ?? 0)), 0) / 2 : null;
   const portfolio = picks.map((x, i) => {
     const band = Math.max(x.sigma20, SIGMA_FLOOR) * Math.sqrt(5);
     return {
       ticker: x.ticker, weight: w[i], Z: x.Z, rank: x.rank, alpha5Pct: x.alpha5Pct, pOutperform: x.pOutperform, sectorKey: x.sectorKey,
       close: x.close, stop: x.close * (1 - PORTFOLIO.stopK * band), target: x.close * (1 + PORTFOLIO.targetK * band), holdSessions: PORTFOLIO.holdSessions,
+      retained: retained.has(x.ticker), riskContribution: rc ? rc[i] : null,
     };
   });
   return {
     version: E3_VERSION, date, icComb, sigma5: sig5, weights,
+    signalWeighting: { method: adj.method, corr: adj.corr ?? null, noteVi: adj.noteVi ?? null },
+    construction: { method, sessions: R.length, retained: retained.size, previous: prevSet.size, turnover },
     universe: { panel: tickers.length, eligible: eligibleNames.length },
     portfolio, scores,
   };

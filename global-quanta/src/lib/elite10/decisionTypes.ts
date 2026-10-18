@@ -3,7 +3,7 @@ export type Tier = "A" | "B" | "C";
 
 export interface SignalSpec { id: string; tab: string; labelVi: string; unit: string; level: "stock" | "sector"; tier: Tier; evidenceVi?: string }
 
-export interface SignalWeight { id: string; labelVi: string; tab: string; tier: Tier; mainH: number; n: number; icMeas: number; icPrior: number; icPost: number; w: number }
+export interface SignalWeight { id: string; labelVi: string; tab: string; tier: Tier; mainH: number; n: number; icMeas: number; icPrior: number; icPost: number; w: number; wNaive?: number }
 
 export interface EliteScore {
   ticker: string; rank: number; Z: number; alpha5Pct: number | null; pOutperform: number; eligible: boolean; reason: string | null;
@@ -14,6 +14,8 @@ export interface EliteScore {
 export interface PortfolioPick {
   ticker: string; weight: number; Z: number; rank: number; alpha5Pct: number | null; pOutperform: number; sectorKey: string | null;
   close: number; stop: number; target: number; holdSessions: number;
+  /** E3-v3: giữ từ danh mục phiên trước (vùng đệm) và đóng góp rủi ro Euler trong danh mục. */
+  retained?: boolean; riskContribution?: number | null;
 }
 
 export interface LedgerHorizon {
@@ -25,6 +27,8 @@ export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criter
 export interface EliteDecision {
   version: string; date: string; builtAt: string; icComb: number; sigma5: number | null; weights: SignalWeight[];
   universe: { panel: number; eligible: number }; portfolio: PortfolioPick[]; scores: EliteScore[]; ledgerSummary: LedgerSummary | null;
+  signalWeighting?: { method: "correlation" | "ic"; corr: { ids: string[]; matrix: number[][]; shrink: number; names: number } | null; noteVi: string | null };
+  construction?: { method: "erc" | "inverse-vol"; sessions: number; retained: number; previous: number; turnover: number | null };
 }
 
 export interface EvidenceHorizon { n: number; mean: number | null; t: number | null; pPos: number | null; q: number | null; stable: boolean; halves: [number, number] | null; from: string | null; to: string | null }
