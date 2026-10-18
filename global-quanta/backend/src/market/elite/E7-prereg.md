@@ -48,3 +48,8 @@ danh mục, số phiên mỗi tín hiệu ở từng bậc.
 - Khoảng một năm dữ liệu, ít chế độ thị trường; các tín hiệu dòng tiền tương quan với nhau.
 - Bậc khởi điểm A của Stealth 5/20 đến từ sổ cái nghiên cứu có trùng một phần thời gian với cửa sổ này (không hoàn toàn ngoài mẫu
   về mặt lựa chọn tín hiệu).
+
+## Sửa đổi E7-v2 (2026-10-18, trước khi chạy lần nào trên dữ liệu thật)
+
+E3 được nâng lên E3-v3 (xem E3-prereg.md). Kiểm định hồi cứu gọi **đúng hàm `buildDecision` hiện hành (E3-v3)**, truyền danh mục
+của phiên walk-forward liền trước làm vùng đệm giữ mã. Mọi điều khác của E7 giữ nguyên.
