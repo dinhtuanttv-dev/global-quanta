@@ -10,6 +10,7 @@ import { ALPHA_KV } from "../alpha/alphaService.js";
 import { strategyKvKey } from "../strategies/technicalFilters.js";
 import { T as RESEARCH_T } from "../research/researchJobs.js";
 import { buildSignalRows, ELITE_PANEL_VERSION, SIGNAL_SPECS } from "./signalRegistry.js";
+import { noteStoreError } from "./storeHealth.js";
 
 export const ELITE_KV = {
   index: "elite:panel:index",
@@ -37,7 +38,7 @@ export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, f
   let building = null;
 
   const kv = async (key) => {
-    try { return (await store.getKv(key))?.value ?? null; } catch { return null; }
+    try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; }
   };
 
   async function latestFeatures(date) {

@@ -8,6 +8,7 @@
 import { T as RESEARCH_T } from "../research/researchJobs.js";
 import { SIGNAL_SPECS } from "./signalRegistry.js";
 import { bhQ, dailyIc, decideTier, E2_VERSION, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
+import { noteStoreError } from "./storeHealth.js";
 
 export const EVIDENCE_KV = { ic: "elite:ic", evidence: "elite:evidence" };
 
@@ -27,7 +28,7 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
   let memo = null;
 
   const kv = async (key) => {
-    try { return (await store.getKv(key))?.value ?? null; } catch { return null; }
+    try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; }
   };
 
   async function sessionCalendar(lastDate) {

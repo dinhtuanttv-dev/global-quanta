@@ -16,9 +16,15 @@
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
+import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
 export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
+  // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
+  const missing = (res, msg) => {
+    const err = recentStoreError();
+    return err ? res.status(503).json({ error: storeErrorVi(err), storeUnavailable: true }) : res.status(404).json({ error: msg });
+  };
   const wrap = (fn) => async (req, res) => {
     try {
       await fn(req, res);
@@ -35,7 +41,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
   router.get("/panel", wrap(async (req, res) => {
     const date = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : null;
     const doc = await getPanel().panel(date);
-    if (!doc) return res.status(404).json({ error: date ? `Chưa có bảng tín hiệu phiên ${date}.` : "Chưa có bảng tín hiệu nào." });
+    if (!doc) return missing(res, date ? `Chưa có bảng tín hiệu phiên ${date}.` : "Chưa có bảng tín hiệu nào.");
     res.set("Cache-Control", "public, max-age=300");
     res.json(doc);
   }));
@@ -44,7 +50,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     const ticker = String(req.params.ticker || "").toUpperCase();
     if (!/^[A-Z0-9]{3,10}$/.test(ticker)) return res.status(400).json({ error: "Mã không hợp lệ." });
     const doc = await getPanel().panel();
-    if (!doc) return res.status(404).json({ error: "Chưa có bảng tín hiệu nào." });
+    if (!doc) return missing(res, "Chưa có bảng tín hiệu nào.");
     const row = doc.rows.find((r) => r.ticker === ticker);
     if (!row) return res.status(404).json({ error: `${ticker} không nằm trong vũ trụ Siêu quét phiên ${doc.date}.` });
     res.set("Cache-Control", "public, max-age=300");
@@ -53,7 +59,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
 
   router.get("/evidence", wrap(async (req, res) => {
     const ev = getEvidence ? await getEvidence().evidence() : null;
-    if (!ev) return res.status(404).json({ error: "Chưa có kết quả engine bằng chứng." });
+    if (!ev) return missing(res, "Chưa có kết quả engine bằng chứng.");
     res.set("Cache-Control", "public, max-age=600");
     res.json(ev);
   }));
@@ -68,7 +74,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
   router.get("/decision", wrap(async (req, res) => {
     const date = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date) ? req.query.date : null;
     const doc = getDecision ? await getDecision().decision(date) : null;
-    if (!doc) return res.status(404).json({ error: "Chưa có quyết định Elite 10." });
+    if (!doc) return missing(res, "Chưa có quyết định Elite 10.");
     res.set("Cache-Control", "public, max-age=300");
     res.json(doc);
   }));
@@ -77,7 +83,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     const ticker = String(req.params.ticker || "").toUpperCase();
     if (!/^[A-Z0-9]{3,10}$/.test(ticker)) return res.status(400).json({ error: "Mã không hợp lệ." });
     const doc = getDecision ? await getDecision().decision() : null;
-    if (!doc) return res.status(404).json({ error: "Chưa có quyết định Elite 10." });
+    if (!doc) return missing(res, "Chưa có quyết định Elite 10.");
     const score = doc.scores.find((x) => x.ticker === ticker);
     if (!score) return res.status(404).json({ error: `${ticker} không nằm trong vũ trụ phiên ${doc.date}.` });
     res.set("Cache-Control", "public, max-age=300");
@@ -86,7 +92,7 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
 
   router.get("/ledger", wrap(async (req, res) => {
     const l = getDecision ? await getDecision().ledger() : null;
-    if (!l) return res.status(404).json({ error: "Sổ theo dõi chưa có bản ghi." });
+    if (!l) return missing(res, "Sổ theo dõi chưa có bản ghi.");
     res.set("Cache-Control", "public, max-age=600");
     res.json(l);
   }));
@@ -99,14 +105,14 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
 
   router.get("/risk", wrap(async (req, res) => {
     const r = getRisk ? await getRisk().risk() : null;
-    if (!r) return res.status(404).json({ error: "Chưa có danh mục Elite 10 để tính rủi ro." });
+    if (!r) return missing(res, "Chưa có danh mục Elite 10 để tính rủi ro.");
     res.set("Cache-Control", "public, max-age=600");
     res.json(r);
   }));
 
   router.get("/retro", wrap(async (req, res) => {
     const r = getRetro ? await getRetro().result() : null;
-    if (!r) return res.status(404).json({ error: "Chưa chạy kiểm định hồi cứu E7." });
+    if (!r) return missing(res, "Chưa chạy kiểm định hồi cứu E7.");
     res.set("Cache-Control", "public, max-age=3600");
     res.json(r);
   }));

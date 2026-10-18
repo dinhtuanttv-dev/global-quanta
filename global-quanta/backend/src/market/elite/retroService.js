@@ -2,6 +2,7 @@
 // (đọc toàn bộ đặc trưng dòng tiền + ~1,2 năm giá: một lần, không chạy định kỳ).
 import { T as RESEARCH_T } from "../research/researchJobs.js";
 import { RETRO_SIGNALS, runRetro } from "./retroCore.js";
+import { noteStoreError } from "./storeHealth.js";
 
 export const RETRO_KV = "elite:retro";
 const CAL_SYMBOLS = ["VNM", "FPT", "HPG", "VCB", "MWG"];
@@ -50,7 +51,7 @@ export function createRetroService({ store, taxonomy, vnIndex, now = Date.now, l
 
   async function result() {
     if (memo) return memo;
-    try { memo = (await store.getKv(RETRO_KV))?.value ?? null; } catch { memo = null; }
+    try { memo = (await store.getKv(RETRO_KV))?.value ?? null; } catch (e) { noteStoreError(e); memo = null; }
     return memo;
   }
 
