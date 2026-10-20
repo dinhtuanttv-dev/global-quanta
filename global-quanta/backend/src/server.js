@@ -26,6 +26,8 @@ import { createRiskService } from "./market/elite/riskService.js";
 import { createRetroService } from "./market/elite/retroService.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
+import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
+import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
 
 const app = express();
 
@@ -55,6 +57,8 @@ const PORT = process.env.PORT || 4000;
 const allowedOrigins = parseAllowedOrigins(process.env.FRONTEND_ORIGIN || "http://localhost:5173");
 app.use(cors({ origin: (origin, callback) => callback(null, isOriginAllowed(origin, allowedOrigins)) }));
 app.use(express.json({ limit: "15mb" })); // ảnh base64 cần payload lớn hơn mặc định
+// D0: nhãn đo egress Supabase theo route (3 đoạn đầu đường dẫn, bỏ mã cổ phiếu / id ở cuối).
+app.use((req, res, next) => withDbTag(`http:${req.path.split("/").slice(0, 4).join("/")}`, next));
 
 function healthHandler(req, res) {
   res.json({
@@ -70,6 +74,8 @@ app.get("/health", healthHandler);
 // 1 đường dẫn dù đang chạy local hay đã deploy, không cần code rẽ nhánh
 // theo môi trường cho riêng health check.
 app.get("/api/health", healthHandler);
+// D0/D1: băng thông Supabase hôm nay + dự báo tháng, trạng thái kho đệm.
+app.use("/api/health/db-budget", createDbBudgetRouter({ getStore: () => getMarketRuntime().store, meter: sharedEgressMeter() }));
 
 app.use("/api", scanRouter);
 app.use("/api/ssi", ssiRouter);
@@ -175,12 +181,13 @@ if (process.env.NODE_ENV !== "test") {
       console.warn(`[elite] ${e.message}`);
     }
   };
-  setTimeout(eliteTick, 120_000).unref?.();
-  setInterval(eliteTick, 10 * 60_000).unref?.();
+  const eliteTagged = () => withDbTag("job:elite", eliteTick);
+  setTimeout(eliteTagged, 120_000).unref?.();
+  setInterval(eliteTagged, 10 * 60_000).unref?.();
 }
 // Sổ theo dõi tiến (S2): dựng chiến lược 30 phút/lần để ghi & khoá bản ghi trước giờ mở cửa VN (không phụ thuộc người xem).
 if (process.env.NODE_ENV !== "test") {
-  const tick = () => getWorldStrategy().strategy().catch((e) => console.warn(`[strategy] ${e.message}`));
+  const tick = () => withDbTag("job:worldStrategy", () => getWorldStrategy().strategy()).catch((e) => console.warn(`[strategy] ${e.message}`));
   setTimeout(tick, 90_000).unref?.();
   setInterval(tick, 30 * 60_000).unref?.();
 }
@@ -194,6 +201,7 @@ app.listen(PORT, () => {
   console.log(`Mock mode: ${process.env.USE_MOCK_DATA !== "false" ? "BẬT (không cần API key)" : "TẮT (dùng API thật)"}`);
   // Đồng bộ dữ liệu SSI vào kho theo lịch (chỉ khi MARKET_INGESTOR_ENABLED=true).
   startMarketIngestor();
+  if (process.env.NODE_ENV !== "test") startDbBudgetPersistence({ getStore: () => getMarketRuntime().store, meter: sharedEgressMeter() });
 });
 
 // Railway gửi SIGTERM khi deploy/khởi động lại: ghi nốt dòng lệnh tick còn trong bộ nhớ rồi thoát.
@@ -201,6 +209,7 @@ for (const signal of ["SIGTERM", "SIGINT"]) {
   process.once(signal, async () => {
     try {
       await Promise.race([getMarketRuntime().tickRecorder.flush(), new Promise((r) => setTimeout(r, 8_000))]);
+      getMarketRuntime().store.flushWarehouse?.(); // D1: ghi nốt phân vùng đệm ra đĩa
     } finally {
       process.exit(0);
     }
