@@ -3,6 +3,7 @@
 // chạy bù trong ngày. Các job chạy tuần tự để không dồn tải lên SSI.
 
 import { isTradingDay, vnDate, vnParts } from "./calendar.js";
+import { withDbTag } from "./store/egressMeter.js";
 
 const DEFAULT_SCHEDULE = [
   { name: "syncSecurities", at: "08:15", tradingDayOnly: true },
@@ -37,7 +38,7 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSc
     history.set(name, { ...(history.get(name) || {}), running: true, startedAt: started, trigger });
     const job = queue.then(async () => {
       try {
-        const result = await jobs[name]();
+        const result = await withDbTag(`job:${name}`, () => jobs[name]()); // D0: đo egress theo job
         history.set(name, { running: false, startedAt: started, finishedAt: new Date(now()).toISOString(), trigger, ok: true, result });
         return result;
       } catch (error) {
