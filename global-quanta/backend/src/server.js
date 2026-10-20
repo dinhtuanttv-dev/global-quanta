@@ -155,8 +155,10 @@ const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRu
 app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
-  let eliteEvidenceTriedFor = null;
-  let eliteDecisionTriedFor = null;
+  // Mỗi phiên dựng một lần; lần dựng LỖI (VD kho dữ liệu tạm khoá) được thử lại sau 30 phút thay vì bỏ cả ngày.
+  const ELITE_RETRY_MS = 30 * 60_000;
+  const tried = { evidence: null, decision: null }; // { date, at, ok }
+  const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
   const eliteTick = async () => {
     try {
       if (!panelDue(Date.now(), isTradingDay)) return;
@@ -167,14 +169,16 @@ if (process.env.NODE_ENV !== "test") {
       }
       const panelDate = (await getElitePanel().panel())?.date;
       const ev = await getEliteEvidence().evidence();
-      if (panelDate && ev?.calendarLast !== panelDate && eliteEvidenceTriedFor !== panelDate) {
-        eliteEvidenceTriedFor = panelDate;
+      if (panelDate && ev?.calendarLast !== panelDate && due("evidence", panelDate)) {
+        tried.evidence = { date: panelDate, at: Date.now(), ok: false };
         const next = await getEliteEvidence().update();
+        tried.evidence.ok = true;
         console.log(`[elite] bằng chứng ${next.calendarLast}: ${next.tests} phép thử, A ${next.counts.A} · B ${next.counts.B} · C ${next.counts.C}`);
       }
-      if (panelDate && eliteDecisionTriedFor !== panelDate) {
-        eliteDecisionTriedFor = panelDate;
+      if (panelDate && due("decision", panelDate)) {
+        tried.decision = { date: panelDate, at: Date.now(), ok: false };
         const dec = await getEliteDecision().build();
+        tried.decision.ok = true;
         console.log(`[elite] Elite 10 ${dec.date}: ${dec.portfolio.map((x) => x.ticker).join(", ")} · ${dec.ledgerSummary?.label}`);
       }
     } catch (e) {

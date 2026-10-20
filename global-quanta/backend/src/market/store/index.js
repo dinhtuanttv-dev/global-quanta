@@ -10,7 +10,7 @@ import { createWarehouse } from "./warehouse.js";
 export function warehouseFromEnv(env = process.env) {
   if (String(env.MARKET_WAREHOUSE ?? "on").toLowerCase() === "off") return null;
   const dir = env.MARKET_WAREHOUSE_DIR || (env.RAILWAY_VOLUME_MOUNT_PATH ? `${env.RAILWAY_VOLUME_MOUNT_PATH.replace(/\/+$/, "")}/warehouse` : null);
-  return createWarehouse({ dir, ramMb: Number(env.MARKET_WAREHOUSE_RAM_MB) || 96 });
+  return createWarehouse({ dir, ramMb: Number(env.MARKET_WAREHOUSE_RAM_MB) || 64 /* heap thật ≈ 1,2–1,45 × trần (đo 2026-10-20) */ });
 }
 
 export function createStore() {

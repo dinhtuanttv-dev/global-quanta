@@ -6,7 +6,8 @@
 //   - ngày vượt `softMb` -> cảnh báo (log + Telegram), vẫn phục vụ;
 //   - ngày vượt `hardMb` HOẶC tháng ≥ 90% hạn mức -> lượt đọc của route người xem bị từ chối (503 nêu rõ nguyên nhân);
 //   - ngày vượt `jobMb`  HOẶC tháng ≥ 97% hạn mức -> cả job cũng dừng đọc (không bao giờ chạm trần để bị khoá 402).
-// Ngưỡng ngày đủ rộng cho lần nạp đầy kho đệm (một lần sau khi khôi phục); lúc ổn định mỗi ngày chỉ vài MB.
+// Ngưỡng ngày chỉ để bắt BẤT THƯỜNG (lúc ổn định mỗi ngày vài MB; nạp đầy kho đệm lần đầu ~250–300 MB, đo 2026-10-20) —
+// ràng buộc thật là hạn mức THÁNG, nên chặn chủ yếu theo tháng để không gián đoạn người xem.
 // Hạn mức tháng mặc định 3,5 GB cho Gateway: chừa ~1,5 GB cho project Supabase của Project A (cùng tổ chức, chung 5 GB).
 // Số đo là byte JSON đã giải nén (≥ byte thực trên đường truyền khi có gzip) -> ước lượng THẬN TRỌNG.
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -37,8 +38,8 @@ const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) :
 export function createEgressMeter({
   now = Date.now,
   softMb = num(process.env.MARKET_EGRESS_SOFT_MB, 150),
-  hardMb = num(process.env.MARKET_EGRESS_HARD_MB, 300),
-  jobMb = num(process.env.MARKET_EGRESS_JOB_MB, 500),
+  hardMb = num(process.env.MARKET_EGRESS_HARD_MB, 600),
+  jobMb = num(process.env.MARKET_EGRESS_JOB_MB, 800),
   monthlyQuotaMb = num(process.env.MARKET_EGRESS_MONTH_QUOTA_MB, 3584),
   onAlert = () => {},
 } = {}) {

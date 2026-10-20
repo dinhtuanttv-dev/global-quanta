@@ -91,3 +91,18 @@ test("chuỗi cỡ universe: nạp MỘT lần cho ngày dữ liệu, job cần 
   await one("FPT"); await one("FPT");
   assert.equal(counts.bars, 5);
 });
+
+test("getKv: kho tạm không truy cập được khi kiểm updated_at -> trả bản đã đệm (giá trị cuối cùng trong kho)", async () => {
+  process.env.SUPABASE_URL = "https://x.supabase.co"; process.env.SUPABASE_SECRET_KEY = "k"; process.env.MARKET_KV_CACHE_MS = "1";
+  const f = fakeSupabase();
+  let down = false;
+  const fetchImpl = async (url, opts) => (down ? { ok: false, status: 402, text: async () => "exceed_egress_quota" } : f.fetchImpl(url, opts));
+  const store = createSupabaseStore({ fetchImpl, meter: null });
+  const a = await store.getKv("big");
+  down = true;
+  await new Promise((r) => setTimeout(r, 5));
+  const b = await store.getKv("big");
+  assert.deepEqual(b, a);
+  await assert.rejects(() => store.getKv("never-loaded")); // chưa từng có bản đệm -> vẫn báo lỗi thật
+  delete process.env.MARKET_KV_CACHE_MS;
+});

@@ -13,6 +13,7 @@ import { isSsiSource, selectMemory } from "./memoryStore.js";
 import { sharedEgressMeter } from "./egressMeter.js";
 import { createSymbolRanges, createValueCache } from "./partitionCache.js";
 import { createTableCache } from "./tableCache.js";
+import { noteStoreError } from "../elite/storeHealth.js";
 
 // Khoá chính các bảng đọc theo trang: phân trang bằng Range chỉ đúng khi thứ tự là DUY NHẤT —
 // sắp theo cột không duy nhất (VD chỉ trading_date) thì Postgres có thể trả trùng/thiếu dòng giữa các trang.
@@ -191,7 +192,7 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch, warehouse = 
     },
   });
   const bars = wh && createSymbolRanges({
-    wh, ns: "bars", rowBytes: 140,
+    wh, ns: "bars", rowBytes: 300,
     fetchRange: async ([symbol], from, to) => new Map([[symbol, await selectAll(`market_ohlcv_daily?select=${BAR_COLUMNS}&symbol=eq.${enc(symbol)}&trading_date=gte.${from}&trading_date=lte.${to}&order=trading_date.asc`)]]),
     fetchDates: async ([symbol], dates) => new Map([[symbol, await selectAll(`market_ohlcv_daily?select=${BAR_COLUMNS}&symbol=eq.${enc(symbol)}&trading_date=in.(${dates.join(",")})&order=trading_date.asc`)]]),
   });
@@ -273,7 +274,15 @@ export function createSupabaseStore({ fetchImpl = globalThis.fetch, warehouse = 
       // trả BẢN SAO: nơi gọi có thể sửa object (VD nối lịch sử rồi setKv) — không được làm hỏng bản trong cache
       if (c && Date.now() - c.checkedAt < KV_FRESH_MS) return c.updatedAt == null ? null : { value: structuredClone(c.value), updatedAt: c.updatedAt };
       if (c && c.updatedAt != null) {
-        const head = await request(`market_kv?select=updated_at&key=eq.${enc(key)}`);
+        let head;
+        try {
+          head = await request(`market_kv?select=updated_at&key=eq.${enc(key)}`);
+        } catch (e) {
+          // Kho tạm không truy cập được (khoá hạn mức / mạng / vượt ngân sách): trong lúc đó không ai ghi được KV (chỉ Gateway ghi),
+          // nên bản đã đệm chính là giá trị cuối cùng trong kho -> phục vụ tiếp thay vì làm hỏng tính năng. Lỗi vẫn được ghi nhận.
+          noteStoreError?.(e);
+          return { value: structuredClone(c.value), updatedAt: c.updatedAt };
+        }
         if (head?.[0]?.updated_at === c.updatedAt) { c.checkedAt = Date.now(); return { value: structuredClone(c.value), updatedAt: c.updatedAt }; }
       }
       const rows = await request(`market_kv?select=value,updated_at&key=eq.${enc(key)}`);
