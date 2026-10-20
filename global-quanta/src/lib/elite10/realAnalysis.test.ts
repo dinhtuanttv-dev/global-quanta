@@ -51,7 +51,6 @@ describe("E0 dựng phân tích thật cho Elite 10", () => {
   it("không còn số mẫu: chỉ báo theo giá thật, khác nhau giữa hai mã", () => {
     const a = buildEliteAnalysis("AAA", "D", bars)!;
     const b = buildEliteAnalysis("BBB", "D", series(400, (k) => 20 + 3 * Math.cos(k / 9)))!;
-    expect(a.analysisIsMock).toBe(false);
     expect(a.priceSeries).toHaveLength(400);
     expect(a.rsi.value.source).toBe("HARD_DATA");
     expect(a.rsi.value.value).not.toBe(b.rsi.value.value);
@@ -60,7 +59,6 @@ describe("E0 dựng phân tích thật cho Elite 10", () => {
     expect(a.trendline).toEqual([]);
     expect(a.events).toEqual([]);
     expect(a.wyckoff.phase).toBeNull();
-    expect(a.confluence).toBeNull();
     for (const z of a.smc.zones) {
       expect(["order_block_bullish", "order_block_bearish", "fvg"]).toContain(z.kind);
       expect(z.priceTop).toBeGreaterThanOrEqual(z.priceBottom);

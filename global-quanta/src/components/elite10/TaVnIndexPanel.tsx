@@ -1,14 +1,10 @@
 import { useState } from 'react';
 import type { TaVnIndexResponse, Timeframe } from '../../types/taVnIndex';
-import type { ApiError } from '../../hooks/ta-vn-index/useTaVnIndex';
+import type { ApiError } from '../../hooks/elite10/useEliteAnalysis';
 import { ControlBar } from './ta-vn-index/ControlBar';
 import { TickerWatchlist } from './ta-vn-index/TickerWatchlist';
-import { ConflictBanner } from './ta-vn-index/ConflictBanner';
 import { MainChart } from './ta-vn-index/MainChartV2';
 import { useChartOverlay } from '../../hooks/elite10/useChartOverlay';
-import { useConfluenceEngine } from '../../hooks/elite10/useConfluenceEngine';
-import { useUniverseRank } from '../../hooks/elite10/useUniverseRank';
-import { useAiInsight } from '../../hooks/elite10/useAiInsight';
 import { useCycleDetail } from '../../hooks/elite10/useCycleDetail';
 import { useSmcDetector, type TripleBarrierOccurrence } from '../../hooks/elite10/useSmcDetector';
 import { useMsGarch } from '../../hooks/elite10/useMsGarch';
@@ -16,14 +12,8 @@ import { MsGarchPanel } from './ta-vn-index/MsGarchPanel';
 import { AdxPanel } from './ta-vn-index/AdxPanel';
 import { WyckoffElliottGrid } from './ta-vn-index/WyckoffElliottGrid';
 import { IndicatorStrip } from './ta-vn-index/IndicatorStrip';
-import { PatternScannerPanel } from './ta-vn-index/PatternScannerPanel';
 import { SmcBacktestPanel } from './ta-vn-index/SmcBacktestPanel';
-import { DebateArenaPanel } from './ta-vn-index/DebateArenaPanel';
 import { EventVolatilityTable } from './ta-vn-index/EventVolatilityTable';
-import { ConfluencePanel } from './ta-vn-index/ConfluencePanel';
-import { ConfluenceWaterfall } from './ta-vn-index/ConfluenceWaterfall';
-import { ConfluenceCaseMatrix } from './ta-vn-index/ConfluenceCaseMatrix';
-import { AiDeepInsightPanel } from './ta-vn-index/AiDeepInsightPanel';
 import { CycleEnginePanel } from './ta-vn-index/CycleEnginePanel';
 
 interface TaVnIndexPanelProps {
@@ -72,9 +62,6 @@ export function TaVnIndexPanel({
   );
   const watchlist = <TickerWatchlist selectedTicker={ticker} onSelectTicker={onSelectTicker} />;
   const { overlay } = useChartOverlay(ticker);
-  const { breakdown: confluenceBreakdown, error: confluenceError } = useConfluenceEngine(ticker);
-  const { universeRank } = useUniverseRank(ticker);
-  const { insight } = useAiInsight(ticker);
   const { cycleDetail } = useCycleDetail(ticker);
   const { smcReal } = useSmcDetector(ticker);
   const { msGarch } = useMsGarch(ticker);
@@ -169,7 +156,6 @@ export function TaVnIndexPanel({
         Nguồn: Market Gateway ({PRICE_BASIS_VI[priceBasis ?? ''] ?? 'giá SSI'}) · phiên cuối {data.asOfDate} · chỉ báo, SMC, VSA, Elliott tính bằng
         cùng engine với tab TA VN-Index. Phần chưa có engine thật ghi "CHƯA CÓ", không điền số mẫu.
       </p>
-      <ConflictBanner conflicts={data.conflicts} />
 
       <div className="rounded-md border border-cyan-400/30 bg-gradient-to-b from-slate-900 to-slate-950 p-3 shadow-[0_0_18px_rgba(34,232,255,0.06)]">
         <div className="mb-2 text-[11px] font-bold tracking-wide text-cyan-300">INTEGRATED CHART &amp; EVENT TIMELINE</div>
@@ -257,25 +243,9 @@ export function TaVnIndexPanel({
           <AdxPanel adx={data.adx} computedIndicators={data.computedIndicators} />
           <WyckoffElliottGrid wyckoff={data.wyckoff} elliott={data.elliott} wyckoffReal={smcReal?.wyckoff} />
           <IndicatorStrip smc={data.smc} vsa={data.vsa} rsi={data.rsi} macd={data.macd} computedIndicators={data.computedIndicators} smcReal={smcReal} />
-          <PatternScannerPanel entries={data.patternScanner} universeRank={universeRank} />
           <SmcBacktestPanel smcReal={smcReal} selectedPatternKey={selectedPatternKey} onSelectPattern={handleSelectPattern} />
 
           <MsGarchPanel ticker={ticker} />
-
-          <DebateArenaPanel ticker={ticker} />
-
-          <ConfluencePanel breakdown={confluenceBreakdown} ticker={data.ticker} unavailable={Boolean(confluenceError)} />
-
-          {confluenceBreakdown && (
-            <ConfluenceWaterfall sources={confluenceBreakdown.sources} penalty={confluenceBreakdown.penalty} score={confluenceBreakdown.overall.value} />
-          )}
-
-          {insight && (
-            <>
-              <ConfluenceCaseMatrix bullCase={insight.bullCase} bearCase={insight.bearCase} />
-              <AiDeepInsightPanel tradeScenario={insight.tradeScenario} riskFlags={insight.riskFlags} warnings={insight.warnings} />
-            </>
-          )}
         </>
       )}
     </div>

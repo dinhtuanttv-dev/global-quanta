@@ -4,8 +4,24 @@ import { fetchMarketJson } from "../../services/marketDataClient";
 import type { OhlcvBar } from "../../lib/ta-command-center/types";
 import type { TaVnIndexResponse, Timeframe } from "../../types/taVnIndex";
 import { buildEliteAnalysis } from "../../lib/elite10/realAnalysis";
-import { ApiError, type UseTaVnIndexResult } from "../ta-vn-index/useTaVnIndex";
 import { TA_SERIES_LIMIT, TA_SERIES_RANGE } from "../useTaSeries";
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+export interface UseTaVnIndexResult {
+  data: TaVnIndexResponse | undefined;
+  isLoading: boolean;
+  isError: boolean;
+  error: ApiError | undefined;
+  isEmpty: boolean;
+  refresh: () => void;
+}
 
 const INDEX_TICKERS = new Set(["VNINDEX", "VN30", "HNXINDEX", "HNX30", "UPCOMINDEX", "VN100"]);
 

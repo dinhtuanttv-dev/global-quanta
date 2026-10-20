@@ -130,78 +130,6 @@ export interface MacdData {
 }
 
 // ---------------------------------------------------------------
-// Pattern Scanner — fix decorrelation + tách geometric/win-rate (Giai đoạn 8)
-// ---------------------------------------------------------------
-
-export interface PatternScannerEntry {
-  ticker: string;
-  sector: string;
-  patternName: string;
-  geometricMatchPct: QuantValue; // HARD_DATA — độ khớp hình học
-  historicalWinRatePct: QuantValue | null; // HARD_DATA — null nếu chưa đủ mẫu lịch sử
-  dampenedConfidencePct: QuantValue; // ESTIMATED — sau correlation dampening
-  isDampened: boolean; // true nếu bị giảm do trùng ngành với mã khác
-}
-
-// ---------------------------------------------------------------
-// Cảnh báo xung đột giữa các module (fix Giai đoạn 8)
-// ---------------------------------------------------------------
-
-export interface ConflictWarning {
-  id: string;
-  sourceA: string;
-  sourceB: string;
-  description: string;
-}
-
-// ---------------------------------------------------------------
-// Bộ đếm hình thành / độ chín tín hiệu (mở rộng Giai đoạn 7)
-// ---------------------------------------------------------------
-
-export type MaturityLevel = 'forming' | 'consolidating' | 'stable';
-
-export interface FormationCounter {
-  componentName: string;
-  barsSinceFormation: number | null; // null = "Chưa đủ dữ liệu"
-  maturity: MaturityLevel | null;
-}
-
-// ---------------------------------------------------------------
-// Giải trình hội tụ — Elite Score Engine (Giai đoạn 7 + 9)
-// ---------------------------------------------------------------
-
-export type ConfluenceStatus = 'ok' | 'warn' | 'conflict' | 'no_data';
-
-export interface ConfluenceSource {
-  key: string;
-  name: string;
-  status: ConfluenceStatus;
-  detail: string;
-  weightPct: number | null; // null = chưa hiệu chỉnh trọng số (vd. Khối ngoại)
-  isCurrentTab: boolean;
-  // MOI (Giai Trinh Hoi Tu, Giai doan 3): dong gop THAT vao diem cuoi
-  // (= trong so hieu qua x gia tri tin hieu, da tinh san o Backend
-  // dung CONG THUC y het Confluence Engine, khong tu parse string o
-  // FE nua) va cau giai thich tu nhien tu du lieu that.
-  contribution: number | null;
-  reasonText: string | null;
-}
-
-export interface ConfluencePenaltyItem { value: number; labelVi: string; }
-
-export interface EliteScoreBreakdown {
-  overall: QuantValue; // ESTIMATED — tổng hợp có trọng số
-  sourcesWithData: number;
-  sourcesTotal: number;
-  sources: ConfluenceSource[];
-  concentrationRiskNote: string;
-  weightsConfirmed: boolean; // false = trọng số là giả thuyết, chưa qua backtest (Giai đoạn 9)
-  // MOI (Giai Trinh Hoi Tu, Giai doan 3): khoan phat diem (VD Bull Trap)
-  // kem nhan tieng Viet, de Waterfall hien thi phan TRU xuong.
-  penalty: { total: number; breakdown: Record<string, ConfluencePenaltyItem> } | null;
-}
-
-// ---------------------------------------------------------------
 // Danh sách mã (watchlist selector)
 // ---------------------------------------------------------------
 
@@ -229,13 +157,6 @@ export interface TaVnIndexResponse {
   asOfDate: string;
   priceSeries: OhlcBar[];
   computedIndicators?: ComputedIndicatorBar[] | null;
-  // true khi TOAN BO khoi phan tich (smc/vsa/wyckoff/elliott/adx/rsi/macd/
-  // patternScanner/confluence) la MOCK - doc lap voi priceSeries (co the
-  // priceSeries da that trong khi analysisIsMock van true). PHAI hien thi
-  // canh bao ro rang cho nguoi dung khi true - xem <MockDataBanner />.
-  analysisIsMock?: boolean;
-  isMock?: boolean; // rieng cho priceSeries
-  fallbackReason?: string;
   trendline: TrendlinePoint[];
   events: ChartEvent[];
   smc: SmcData;
@@ -245,10 +166,6 @@ export interface TaVnIndexResponse {
   adx: AdxData;
   rsi: RsiData;
   macd: MacdData;
-  patternScanner: PatternScannerEntry[];
-  conflicts: ConflictWarning[];
-  formationCounters: FormationCounter[];
-  confluence: EliteScoreBreakdown;
 }
 
 /** Chi so ky thuat THAT (tinh tu vnstock qua api/stock.py) - SMA20/EMA12/
