@@ -7,6 +7,7 @@ import LiquidityCheckBadge from './LiquidityCheckBadge';
 import SessionClock from './SessionClock';
 import { NotificationBell, UserAvatar } from './TopRightControls';
 import { TickerSearch, FeedStatusBadge } from './TickerSearch';
+import InfraHealthBadge from './InfraHealthBadge';
 import { useVnIndexReal } from '../../hooks/useVnIndexReal';
 import { useMacroDailyChange } from '../../hooks/useMacroDailyChange';
 import { useMarketBreadthReal } from '../../hooks/useMarketBreadthReal';
@@ -75,6 +76,7 @@ export default function TopBar() {
         <SessionClock sessions={sessions} />
         <div className="top-right">
           <FeedStatusBadge />
+          <InfraHealthBadge />
           <TickerSearch />
           <NotificationBell />
           <UserAvatar />
