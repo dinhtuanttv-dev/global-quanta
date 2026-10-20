@@ -21,7 +21,9 @@ function lowerBound(arr, date) {
  * Phân vùng theo MÃ với khoảng phủ liên tục [lo, hi]: "mọi dòng của mã trong [lo, hi] đã nằm trong đệm (trừ ngày bẩn)".
  * fetchRange(symbols, from, to) / fetchDates(symbols, dates) -> Map(symbol -> dòng thô Supabase).
  */
-export function createSymbolRanges({ wh, ns, fetchRange, fetchDates, dateOf = (r) => r.trading_date, rowBytes = 320 }) {
+// rowBytes: byte heap THỰC đo được mỗi dòng (đối tượng từ JSON.parse) + phụ phí Map (~80 B) và mảng đã sắp (~56 B) —
+// đo 2026-10-20: market_daily 357 + 136 ≈ 500, nến ≈ 300. Ước lượng đúng để trần RAM của kho đệm là trần thật.
+export function createSymbolRanges({ wh, ns, fetchRange, fetchDates, dateOf = (r) => r.trading_date, rowBytes = 500 }) {
   wh.register(ns, {
     encode: (p) => ({ lo: p.lo, hi: p.hi, rows: [...p.rows.values()], dirty: [...p.dirty.keys()] }),
     decode: (j) => {
