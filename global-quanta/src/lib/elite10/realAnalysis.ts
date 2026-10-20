@@ -87,7 +87,6 @@ export function buildEliteAnalysis(ticker: string, timeframe: Timeframe, daily: 
 
   return {
     ticker, timeframe, asOfDate, priceSeries, computedIndicators,
-    analysisIsMock: false, isMock: false,
     trendline: [],
     events,
     smc: {
@@ -106,11 +105,6 @@ export function buildEliteAnalysis(ticker: string, timeframe: Timeframe, daily: 
     adx: { adx: hv(adxV), plusDi: hv(pdi), minusDi: hv(mdi), dominant: pdi == null || mdi == null ? "neutral" : pdi > mdi ? "plus" : mdi > pdi ? "minus" : "neutral" },
     rsi: { value: hv(rsiV), label: rsiV == null ? "Chưa đủ dữ liệu" : rsiV >= 70 ? "Quá mua" : rsiV <= 30 ? "Quá bán" : "Trung tính" },
     macd: { macd: hv(ml), signal: hv(ms), histogram: hv(mh), label: mh == null ? "Chưa đủ dữ liệu" : mh > 0 ? "Tích cực" : mh < 0 ? "Tiêu cực" : "Trung tính" },
-    patternScanner: [],
-    conflicts: [],
-    formationCounters: [],
-    // Hội tụ chỉ hiển thị khi engine thật trả về (useConfluenceEngine) — không có số dự phòng.
-    confluence: null as unknown as TaVnIndexResponse["confluence"],
     ...(opts.priceBasis ? { priceDataSource: opts.priceBasis } : {}),
   } as TaVnIndexResponse;
 }
