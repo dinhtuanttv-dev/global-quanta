@@ -5,7 +5,7 @@
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
   createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, LineStyle,
-  type IChartApi, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time,
+  type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
 import { OverlayPrimitive } from "./chart/OverlayPrimitive";
@@ -256,6 +256,19 @@ export class TVChartManager {
   }
 
   setScene(scene: Scene): void { this.overlay.setScene(scene); }
+
+  private levelLines: IPriceLine[] = [];
+  /** Thang mức giá ở trục phải (priceLine của thư viện — ghim theo giá, tự theo zoom/pan). [] = gỡ hết. */
+  setPriceLevels(levels: { price: number; color: string; title: string }[]): void {
+    for (const l of this.levelLines) this.candleSeries.removePriceLine(l);
+    this.levelLines = levels.filter((l) => Number.isFinite(l.price)).map((l) => this.candleSeries.createPriceLine({
+      price: l.price, color: l.color, lineWidth: 1, lineStyle: LineStyle.Dotted, axisLabelVisible: true, title: l.title,
+    }));
+    this.container.dataset.priceLevels = String(this.levelLines.length);
+  }
+
+  /** Khoảng trống bên phải nến cuối (số nến) — mở rộng khi vẽ vùng tương lai (nón dự báo, kịch bản). */
+  setRightOffset(bars: number): void { this.chart.applyOptions({ timeScale: { rightOffset: bars } }); }
 
   /** Khung intraday: hiện giờ:phút trên trục thời gian. */
   setTimeVisible(on: boolean): void { this.chart.applyOptions({ timeScale: { timeVisible: on, secondsVisible: false } }); }

@@ -4,6 +4,8 @@ import { useTechnicalFilter, type TechnicalFilterResult, type TechnicalFilterStr
 import EvidenceCard from "./EvidenceCard";
 import CanSlimDots from "./CanSlimDots";
 import ScreenerDeepPanel from "./ScreenerDeepPanel";
+import { useStructureSummary } from "../../../hooks/useStructure";
+import { AlignToggle, StructureCell, alignRowClass, isDayAligned } from "./StructureCells";
 
 const GRADE_STYLE: Record<string, string> = {
   A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -62,7 +64,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-cyan-900/40" data-testid="deep-row">
-      <td colSpan={7} className="p-0">
+      <td colSpan={8} className="p-0">
         {/* Bảng có thể rộng hơn khung nhìn (cuộn ngang) -> bảng phụ bám theo bề rộng khung, dính mép trái. */}
         <div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div>
       </td>
@@ -86,6 +88,9 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
     return () => ro.disconnect();
   }, [open]);
   const toggle = useCallback((ticker: string) => setOpen((cur) => (cur === ticker ? null : ticker)), []);
+  // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
+  const structure = useStructureSummary(Boolean(data?.results.length));
+  const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -158,12 +163,19 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
       )}
 
       {!!data?.results.length && (
+        <div className="flex items-center gap-2">
+          <AlignToggle on={alignOn} onChange={setAlignOn} count={data.results.filter((r) => isDayAligned(structure.byTicker.get(r.ticker))).length} />
+          {structure.data && <span className="text-[9px] text-slate-500">Cấu trúc MTF · {structure.data.asOf}</span>}
+        </div>
+      )}
+      {!!data?.results.length && (
         <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-64 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
                 <th className="py-1.5">Tín hiệu</th>
+                <th className="py-1.5">Cấu trúc</th>
                 {isCamSlim ? (
                   <>
                     <th className="py-1.5 text-right">Điểm</th>
@@ -187,7 +199,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
               {data.results.map((result) => (
                 <Fragment key={result.ticker}>
                 <tr
-                  className={`transition cursor-pointer select-none ${open === result.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"}`}
+                  className={`transition cursor-pointer select-none ${open === result.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structure.byTicker.get(result.ticker))}`}
                   onDoubleClick={() => toggle(result.ticker)}
                   aria-expanded={open === result.ticker}
                   data-testid="filter-row"
@@ -223,6 +235,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                       <span className="block text-[8px] text-slate-500">cách pivot {formatPct(result.metrics.belowPivotPct)}</span>
                     )}
                   </td>
+                  <td className="py-1.5 text-[10px]"><StructureCell row={structure.byTicker.get(result.ticker)} /></td>
                   {isCamSlim ? (
                     <>
                       <td className="py-1.5 text-right font-mono font-bold text-slate-200" title={scoreTitle(result)}>{result.metrics.score ?? "—"}</td>
@@ -248,7 +261,8 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                 </tr>
                 {open === result.ticker && (
                   <DeepRow width={frameW}>
-                    <ScreenerDeepPanel strategy={strategy} result={result} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
+                    <ScreenerDeepPanel strategy={strategy} result={result} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision}
+                      structureRow={structure.byTicker.get(result.ticker)} />
                   </DeepRow>
                 )}
                 </Fragment>

@@ -10,6 +10,8 @@ import SepaEvidenceCard from "./SepaEvidenceCard";
 import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
+import { useStructureSummary } from "../../../hooks/useStructure";
+import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.round(v).toLocaleString("vi-VN"));
 const fmtTime = (iso?: string) => (iso ? new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "—");
 const HEALTH_STYLE: Record<string, string> = {
@@ -42,7 +44,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-emerald-900/40" data-testid="sepa-deep-row">
-      <td colSpan={8} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
+      <td colSpan={9} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
     </tr>
   );
 }
@@ -63,6 +65,9 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
     return () => ro.disconnect();
   }, [open]);
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
+  // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
+  const structureRows = useStructureSummary();
+  const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -146,11 +151,14 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
       {data && rows.length === 0 && <p className="text-[10px] text-slate-500 italic py-4 text-center">Không có mã nào khớp bộ lọc đang chọn.</p>}
 
       {rows.length > 0 && data && (
+        <>
+        <div className="flex items-center gap-2 pb-1"><AlignToggle on={alignOn} onChange={setAlignOn} /></div>
         <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-96 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
+                <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
                 <th className="py-1.5">Danh sách</th>
                 <th className="py-1.5 text-right" style={{ paddingRight: 12, width: 64 }}>Điểm</th>
                 <th className="py-1.5" style={{ paddingLeft: 4 }}>Mô hình · dấu chân</th>
@@ -163,7 +171,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
             <tbody className="divide-y divide-slate-800/30">
               {rows.map((r: SepaRow) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-emerald-500/10" : "hover:bg-slate-800/30"}`}
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-emerald-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`}
                     onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="sepa-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()}
@@ -173,6 +181,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
                       </button>
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
+                    <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                     <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span></td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12, width: 64 }} title={r.components ? `Xu hướng ${r.components.trend.toFixed(1)} · cơ bản ${r.components.fund.toFixed(1)} · RS ${r.components.rs.toFixed(1)} · mô hình ${r.components.pattern.toFixed(1)} · dẫn dắt ${r.components.lead.toFixed(1)}${r.components.penalty ? ` · cảnh báo ${r.components.penalty}` : ""}` : undefined}>
                       {r.score.toFixed(1).replace(".", ",")}
@@ -197,13 +206,14 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
                     </td>
                   </tr>
                   {open === r.ticker && (
-                    <DeepRow width={frameW}><SepaDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
+                    <DeepRow width={frameW}><StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={onSelectTicker} /><SepaDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
                   )}
                 </Fragment>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );

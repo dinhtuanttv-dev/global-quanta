@@ -12,6 +12,8 @@ import type {
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { ELLIOTT_VN_NOTE } from "../../../lib/quant-core/elliott/vnValidation";
 import PatternSketch from "./PatternSketch";
+import type { StructureSummaryRow } from "../../../hooks/useStructure";
+import { StructureDeepBlock } from "./StructureCells";
 
 const UP = "#059669";
 const DOWN = "#e11d48";
@@ -155,9 +157,11 @@ interface Props {
   onOpenChart: (ticker: string) => void;
   /** Mở AI Chart Vision (đa khung) cho mã. */
   onOpenVision?: (ticker: string) => void;
+  /** T5: dòng tóm tắt Cấu trúc MTF của mã (Gateway structure-summary). */
+  structureRow?: StructureSummaryRow;
 }
 
-export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOpenChart, onOpenVision }: Props) {
+export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOpenChart, onOpenVision, structureRow }: Props) {
   const series = useTaSeries(result.ticker);
   const { data: vol } = useVolumeAnalysis(result.ticker);
   // Elliott chạy trên trình duyệt (quant-core) — chỉ khi dòng được mở.
@@ -226,6 +230,7 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
           </button>
         </div>
       </header>
+      <StructureDeepBlock ticker={result.ticker} row={structureRow} onOpenChart={onOpenChart} />
 
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-1.5">
         <Tile label="Giá" value={fmtP(last?.close ?? result.liquidity?.price)} sub={last ? `phiên ${last.date}` : undefined} />

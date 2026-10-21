@@ -2,7 +2,7 @@
 // tự vẽ lại khi zoom/pan (thư viện gọi renderer mỗi khung hình) — thay lớp SVG phủ cũ + forceTick React.
 
 import type {
-  IChartApi, ISeriesApi, ISeriesPrimitive, IPrimitivePaneRenderer, IPrimitivePaneView, SeriesAttachedParameter, SeriesType, Time,
+  IChartApi, ISeriesApi, ISeriesPrimitive, IPrimitivePaneRenderer, IPrimitivePaneView, Logical, SeriesAttachedParameter, SeriesType, Time,
 } from "lightweight-charts-v5";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import { chartTime } from "./time";
@@ -106,6 +106,41 @@ class Renderer implements IPrimitivePaneRenderer {
         ctx.fillStyle = inVa ? it.vaColor : it.color;
         ctx.fillRect(left, Math.min(yTop, yBot) + 0.5, len, Math.max(1, Math.abs(yBot - yTop) - 1));
       }
+    } else if (it.kind === "future") {
+      const pts = it.points.map((p) => { const x = o.xAt(it.from, p.k); const y = o.y(p.price); return x === null || y === null ? null : [x, y] as [number, number]; })
+        .filter((p): p is [number, number] => p !== null);
+      if (pts.length < 2) return;
+      dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.stroke();
+      if (it.arrow) {
+        const [x1, y1] = pts[pts.length - 2], [x2, y2] = pts[pts.length - 1], a = Math.atan2(y2 - y1, x2 - x1);
+        ctx.setLineDash([]); ctx.fillStyle = it.color; ctx.beginPath();
+        ctx.moveTo(x2, y2); ctx.lineTo(x2 - 7 * Math.cos(a - 0.45), y2 - 7 * Math.sin(a - 0.45)); ctx.lineTo(x2 - 7 * Math.cos(a + 0.45), y2 - 7 * Math.sin(a + 0.45));
+        ctx.closePath(); ctx.fill();
+      }
+      const last = pts[pts.length - 1];
+      addLabel(it.label, last[0] + 4, last[1]);
+    } else if (it.kind === "cone") {
+      const x0 = o.x(it.from), y0 = o.y(it.fromPrice);
+      if (x0 === null || y0 === null) return;
+      const up: [number, number][] = [[x0, y0]], dn: [number, number][] = [[x0, y0]], mid: [number, number][] = [[x0, y0]];
+      for (const s of it.steps) {
+        const x = o.xAt(it.from, s.k), yh = o.y(s.hi), yl = o.y(s.lo), ym = o.y(s.mid);
+        if (x === null || yh === null || yl === null || ym === null) continue;
+        up.push([x, yh]); dn.push([x, yl]); mid.push([x, ym]);
+      }
+      if (up.length < 2) return;
+      ctx.fillStyle = it.fill; ctx.beginPath();
+      up.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      for (let i = dn.length - 1; i >= 0; i--) ctx.lineTo(dn[i][0], dn[i][1]);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = it.stroke; ctx.lineWidth = 1; dash([3, 3]);
+      for (const line of [up, dn]) { ctx.beginPath(); line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); }
+      ctx.strokeStyle = it.midColor; ctx.lineWidth = 1.5; dash([]);
+      ctx.beginPath(); mid.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+      for (const l of it.labels ?? []) { const x = o.xAt(it.from, l.k), y = o.y(l.price); if (x !== null && y !== null) addLabel(l.label, x + 3, y + 3); }
     } else if (it.kind === "poly") {
       const pts = it.points.map((p) => o.pt(p)).filter((p): p is [number, number] => p !== null);
       if (pts.length < 1) return;
@@ -186,6 +221,14 @@ export class OverlayPrimitive implements ISeriesPrimitive<Time> {
     return ts.timeToCoordinate(toTime(this.resolveDate(date)));
   }
   y(price: number): number | null { return this.series?.priceToCoordinate(price) ?? null; }
+  /** x của nến neo `date` dịch thêm k nến (k > 0: vùng tương lai bên phải nến cuối) — theo chỉ số logic của thư viện. */
+  xAt(date: string, k: number): number | null {
+    if (!this.chart || !this.dates.length) return null;
+    const d = this.resolveDate(date);
+    const i = this.dates.indexOf(d);
+    if (i < 0) return null;
+    return this.chart.timeScale().logicalToCoordinate((i + k) as Logical) ?? null;
+  }
   pt(p: ScenePoint): [number, number] | null {
     const x = this.x(p.t);
     const y = this.y(p.price);

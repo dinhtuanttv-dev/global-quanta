@@ -6,6 +6,8 @@ import { AlertCircle, ChevronRight, Info, RefreshCw, Shapes } from "lucide-react
 import { STATE_GROUP, usePatterns, type PatternRow, type PatternSummary } from "../../../hooks/usePatterns";
 import PatternDeepPanel, { STATE_STYLE } from "./PatternDeepPanel";
 
+import { useStructureSummary } from "../../../hooks/useStructure";
+import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const fmtN = (v?: number | null, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
 const fmtTime = (iso?: string) => (iso ? new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "—");
 type DirF = "all" | "bull" | "bear";
@@ -35,7 +37,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-violet-900/40" data-testid="pattern-deep-row">
-      <td colSpan={7} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
+      <td colSpan={8} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
     </tr>
   );
 }
@@ -57,6 +59,9 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
     return () => ro.disconnect();
   }, [open]);
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
+  // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
+  const structureRows = useStructureSummary();
+  const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -143,11 +148,14 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
       {data && rows.length === 0 && <p className="text-[10px] text-slate-500 italic py-4 text-center">Không có mã nào khớp bộ lọc đang chọn.</p>}
 
       {rows.length > 0 && data && (
+        <>
+        <div className="flex items-center gap-2 pb-1"><AlignToggle on={alignOn} onChange={setAlignOn} /></div>
         <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-96 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
+                <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
                 <th className="py-1.5">Mô hình</th>
                 <th className="py-1.5">Trạng thái</th>
                 <th className="py-1.5 text-right hidden sm:table-cell">Tiêu chí</th>
@@ -159,7 +167,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
             <tbody className="divide-y divide-slate-800/30">
               {rows.map(({ r, p }) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-violet-500/10" : "hover:bg-slate-800/30"}`}
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-violet-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`}
                     onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="pattern-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()}
@@ -169,6 +177,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
                       </button>
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
+                    <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                     <td className="py-1.5">
                       <span className={p.dir === "bull" ? "text-emerald-300" : "text-rose-300"}>{p.label}</span>
                       <span className="block text-[8px] text-slate-500">{p.timeframe === "W" ? "Tuần" : "Ngày"} · {p.role === "continuation" ? "tiếp diễn" : "đảo chiều"} · {fmtN(p.heightPct, 0)}%</span>
@@ -183,13 +192,14 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
                     <td className="py-1.5 text-right text-slate-500 hidden sm:table-cell">{r.patterns.length > 1 ? `+${r.patterns.length - 1}` : ""}</td>
                   </tr>
                   {open === r.ticker && (
-                    <DeepRow width={frameW}><PatternDeepPanel row={{ ...r, patterns: [p, ...r.patterns.filter((x) => x !== p)] }} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
+                    <DeepRow width={frameW}><StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={onSelectTicker} /><PatternDeepPanel row={{ ...r, patterns: [p, ...r.patterns.filter((x) => x !== p)] }} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
                   )}
                 </Fragment>
               ))}
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );

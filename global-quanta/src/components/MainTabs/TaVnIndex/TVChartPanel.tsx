@@ -7,7 +7,7 @@
 //   - quant-core chạy trong Web Worker (AnalysisController); hình vẽ lưu theo mã + tài khoản (chartDrawingsStore).
 //   - MẶC ĐỊNH TẮT mọi chỉ báo/công cụ (chỉ có nến); bật lớp nào mới vẽ lớp đó. Mọi thứ là series/marker/primitive
 //     của thư viện -> kéo chuột, cuộn, zoom và BÀN PHÍM (← → + − Home End) đều di chuyển cùng nến.
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useRef, useEffect, useState, useMemo, useDeferredValue } from "react";
 import { Trash2, XCircle } from "lucide-react";
 import { TVChartManager, type ChartMarkerInput } from "../../../lib/ta-command-center/TVChartManager";
 import { AnalysisController, EMPTY_SMC, type ChochBacktest, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
@@ -32,6 +32,12 @@ import type { AnalysisController as Controller } from "../../../lib/ta-command-c
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import { usePatternDetail } from "../../../hooks/usePatterns";
 import { toChartWeekly } from "../../../lib/ta-command-center/chart/pringScene";
+import { structureLevels, structureMarkers, structureSceneItems, structureTfFor, type StructureMode } from "../../../lib/ta-command-center/chart/structureScene";
+import { useStructure, STAGE_SHORT, VERDICT_TONE } from "../../../hooks/useStructure";
+import StructurePanel from "./StructurePanel";
+import { STRUCTURE_OPEN_EVENT } from "./StructureCells";
+import { REPLAY_MIN_BARS, replayDoc } from "../../../lib/ta-command-center/chart/structureReplay";
+import { mondayOf } from "../../../lib/ta-command-center/chart/pringScene";
 import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
 import type { VsaSignal } from "../../../lib/quant-core";
@@ -64,6 +70,11 @@ const VSA_LABEL: Record<string, string> = {
   Upthrust: "UT", Shakeout: "SO", Absorption: "ABS",
 };
 const SAVE_DEBOUNCE_MS = 1000;
+const STRUCTURE_MODE_KEY = "gq:structureMode";
+const readStructureMode = (): StructureMode => {
+  try { const v = window.localStorage.getItem(STRUCTURE_MODE_KEY); return v === "trade" || v === "deep" ? v : "overview"; } catch { return "overview"; }
+};
+const VERDICT_CHIP = { bull: "text-emerald-300 border-emerald-400/40", bear: "text-rose-300 border-rose-400/40", warn: "text-amber-300 border-amber-400/40", neutral: "text-cyan-200 border-cyan-400/30" } as const;
 
 /** Gợi ý vẽ Elliott từ engine: 6 điểm 0–5 của kịch bản chính (điểm 5 chưa có -> cực trị nến cuối, tạm). null nếu không đủ. */
 export function engineElliottPoints(st: ElliottState | null, bars: OhlcvBar[]): DomainPoint[] | null {
@@ -90,7 +101,7 @@ function enableLayersFor(controller: Controller, list: DrawnPrimitive[]) {
   }
 }
 
-export default function TVChartPanel({ bars, ticker, highlightPattern, corporateActions = NO_ACTIONS, benchmarkBars = null }: Props) {
+export default function TVChartPanel({ bars, ticker, onRequestTickerChange, highlightPattern, corporateActions = NO_ACTIONS, benchmarkBars = null }: Props) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const tvManagerRef = useRef<TVChartManager | null>(null);
   const controllerRef = useRef<AnalysisController | null>(null);
@@ -125,6 +136,21 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   const [elliottProposal, setElliottProposal] = useState<DomainPoint[] | null>(null);
   const [elliottDetail, setElliottDetail] = useState(false);
   useEffect(() => { setElliottProposal(null); }, [ticker, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+  // T5 — Cấu trúc MTF: chỉ tải khi bật lớp; chế độ hiển thị nhớ trên máy.
+  const [structureMode, setStructureModeState] = useState<StructureMode>(readStructureMode);
+  const setStructureMode = (m: StructureMode) => { setStructureModeState(m); try { window.localStorage.setItem(STRUCTURE_MODE_KEY, m); } catch { /* bỏ qua */ } };
+  const structurePanelRef = useRef<HTMLDivElement>(null);
+  const structureOn = Boolean(layerState?.structure);
+  const structure = useStructure(structureOn ? ticker : null);
+  // T6 — phát lại: chỉ số nến NGÀY; tính lại cấu trúc trên trình duyệt với dữ liệu tới phiên đó.
+  const [replayIdx, setReplayIdx] = useState<number | null>(null);
+  useEffect(() => { setReplayIdx(null); }, [ticker]);
+  const replayIdxDeferred = useDeferredValue(replayIdx);
+  const replayOn = structureOn && replayIdxDeferred != null && (timeframe === "D" || timeframe === "W");
+  const replayed = useMemo(() => (replayOn ? replayDoc(bars, replayIdxDeferred as number, structure.data, ticker) : null),
+    [replayOn, bars, replayIdxDeferred, structure.data, ticker]);
+  const structureDoc = replayed ?? structure.data;
+  const replayAsOf = replayed && replayIdxDeferred != null ? (timeframe === "W" ? mondayOf(bars[replayIdxDeferred].date) : bars[replayIdxDeferred].date) : undefined;
 
   const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
   const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
@@ -265,12 +291,13 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
         color: v.dir === "bullish" ? GQ_COLORS.bull : v.dir === "bearish" ? GQ_COLORS.bear : GQ_COLORS.uv, shape: "circle", text: VSA_LABEL[v.type] ?? v.type.slice(0, 4),
       }));
     }
+    if (layerState.structure) markers.push(...structureMarkers(currentBars, timeframe, structureDoc, structureMode));
     if (layerState.orderflow && orderFlow) {
       for (const a of orderFlow.absorption) markers.push({ time: a.date, position: a.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: "square", text: "ABS" });
       for (const d of orderFlow.divergences) markers.push({ time: d.date, position: d.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: "Div" });
     }
     tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
-  }, [smc, vsa, layerState, corporateActions, currentBars, timeframe, orderFlow]);
+  }, [smc, vsa, layerState, corporateActions, currentBars, timeframe, orderFlow, structureDoc, structureMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Pane chỉ báo (khối lượng, RSI) theo công tắc lớp ----
   useEffect(() => {
@@ -348,13 +375,38 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
   const pringDetail = usePatternDetail(pringOn ? ticker : null);
   const pringScene = useMemo(() => (pringOn && pringDetail.data ? (timeframe === "W" ? toChartWeekly(pringDetail.data.weekly) : pringDetail.data.daily) : null), [pringOn, pringDetail.data, timeframe]);
 
-  // ---- Lớp phủ canvas ----
-  const scene = useMemo(() => buildScene({
+  // ---- Lớp phủ canvas (lớp Cấu trúc MTF vẽ dưới cùng) ----
+  const structureItems = useMemo(() => (structureOn ? structureSceneItems(currentBars, timeframe, structureDoc, structureMode, { asOf: replayAsOf }) : []),
+    [structureOn, currentBars, timeframe, structureDoc, structureMode, replayAsOf]); // eslint-disable-line react-hooks/exhaustive-deps
+  const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
     elliottDraft: elliottProposal ?? elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
     profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene,
   }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene]);
+  const scene = useMemo(() => (structureItems.length ? { items: [...structureItems, ...baseScene.items] } : baseScene), [structureItems, baseScene]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
+  // Thang mức giá trục phải + khoảng trống tương lai (nón dự báo / mũi tên kịch bản).
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    const close = currentBars[currentBars.length - 1]?.close ?? 0;
+    tv.setPriceLevels(structureOn && !replayed ? structureLevels(structure.data, structureMode, close) : []);
+    tv.setRightOffset(structureOn && structureMode !== "overview" && (timeframe === "D" || timeframe === "1H") ? 26 : 6);
+  }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openStructure = () => {
+    const controller = controllerRef.current;
+    if (!controller) return;
+    controller.layers.enable("structure");
+    if (structureMode === "overview") setStructureMode("trade");
+    setTimeout(() => structurePanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  // Bộ lọc -> "Mở trên biểu đồ với cấu trúc": bật lớp + chế độ Giao dịch sau khi đổi mã.
+  useEffect(() => {
+    const onOpen = () => { setTimeout(openStructure, 0); };
+    window.addEventListener(STRUCTURE_OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(STRUCTURE_OPEN_EVENT, onOpen);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  const structureTfa = structure.data ? structure.data.tfs[structureTfFor(timeframe) ?? "D"] ?? structure.data.tfs.D : undefined;
 
   useEffect(() => {
     if (!highlightPattern) return;
@@ -449,7 +501,23 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
           onToggleMaster={(on) => controllerRef.current?.layers.setMaster(on)} />
       )}
 
+      <div className="flex flex-wrap items-center gap-2 -mt-1">
+        <button type="button" onClick={openStructure} data-testid="structure-open"
+          className="px-3 py-1 rounded-full text-[10px] font-black border border-cyan-400/40 text-cyan-200 bg-cyan-500/10 hover:bg-cyan-500/20 transition">
+          Phân tích cấu trúc
+        </button>
+        {structureOn && structure.isLoading && !structure.data && <span className="text-[10px] text-slate-500">Đang phân tích Tuần / Ngày / 1 giờ (SSI)…</span>}
+      </div>
+
       <div className="relative" style={{ height: "70vh", minHeight: 420 }} data-testid="ta-chart">
+        {structureOn && structure.data && (
+          <div className={`absolute top-3 z-10 max-w-[60%] px-2 py-1 rounded-lg bg-slate-950/85 border text-[10px] leading-snug ${VERDICT_CHIP[VERDICT_TONE[structure.data.align.verdict]]}`}
+            style={{ right: 72 }} data-testid="structure-chip" title={structure.data.align.text}>
+            <b>{structure.data.align.verdict}</b>
+            <span className="text-slate-300"> · {structureTfa ? `${structureTfa.tf === "H1" ? "1 giờ" : structureTfa.tf === "W" ? "Tuần" : "Ngày"}: ${STAGE_SHORT[structureTfa.stage]} (${structureTfa.stageAge} nến)` : ""}</span>
+            <span className="hidden sm:inline text-slate-400"> · {structure.data.align.rule}</span>
+          </div>
+        )}
         <DrawingPalette
           activeTool={activeTool}
           onSelectTool={setActiveTool}
@@ -511,6 +579,18 @@ export default function TVChartPanel({ bars, ticker, highlightPattern, corporate
           className="rounded-xl overflow-hidden relative w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/60"
         />
       </div>
+
+      {structureOn && (
+        <div ref={structurePanelRef}>
+          <StructurePanel doc={structureDoc ?? undefined} isLoading={structure.isLoading} error={structure.error}
+            mode={structureMode} onModeChange={setStructureMode} timeframeKey={structureTfFor(timeframe)}
+            onOpenChart={onRequestTickerChange}
+            replay={{
+              index: replayIdx, min: REPLAY_MIN_BARS - 1, max: bars.length - 1, date: replayIdx != null ? bars[replayIdx]?.date ?? null : null,
+              available: (timeframe === "D" || timeframe === "W") && bars.length > REPLAY_MIN_BARS + 5, onChange: setReplayIdx,
+            }} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
