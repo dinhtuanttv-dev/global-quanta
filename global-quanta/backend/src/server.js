@@ -133,6 +133,7 @@ app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSec
 let elitePanel = null;
 const getElitePanel = () => (elitePanel ??= createElitePanelService({
   store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
+  structureSummary: () => getMarketRuntime().structure.summary(),
 }));
 // E2: engine bằng chứng — IC hạng từng tín hiệu theo E2-prereg.md, cập nhật tăng dần sau mỗi bảng mới.
 let eliteEvidence = null;

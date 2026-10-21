@@ -7,7 +7,7 @@ import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
-import { lastCompletedSessionDate, vnDate } from "../market/calendar.js";
+import { expectsLiveTicks, lastCompletedSessionDate, vnDate } from "../market/calendar.js";
 import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
@@ -208,6 +208,32 @@ router.get("/alpha/top20", handle(async (req, res) => {
 router.get("/top20/inputs", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   res.json(await getMarketRuntime().top20.inputs());
+}));
+
+// Cấu trúc thị trường đa khung (T4) — bản tóm tắt toàn universe (job 15:47) để làm giàu bảng bộ lọc.
+router.get("/structure-summary", handle(async (req, res) => {
+  const doc = await getMarketRuntime().structure.summary();
+  if (!doc) { res.status(404).json({ error: "Chưa có bản tóm tắt cấu trúc (job scanStructure chạy 15:47 ngày giao dịch)." }); return; }
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(doc);
+}));
+
+// Cấu trúc đa khung (T6) — sổ dự báo thực tế: độ phủ nón 5/10/20 phiên, α của ACI, lợi suất 10 phiên theo kết luận.
+router.get("/structure-ledger", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().structure.ledgerStats());
+}));
+
+// Cấu trúc thị trường đa khung (T4) — Tuần / Ngày / 1 giờ cho một mã. ?h1=0 để bỏ khung 1 giờ.
+router.get("/structure/:symbol", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{3,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const h1 = String(req.query.h1 ?? "1") !== "0";
+  const live = expectsLiveTicks();
+  const data = await rt.service.cache.wrap(`structure:${symbol}:${h1 ? 1 : 0}`, live ? 60_000 : 10 * 60_000, () => rt.structure.analyze(symbol, { h1 }));
+  res.set("Cache-Control", live ? "private, max-age=30" : "private, max-age=300");
+  res.json(data);
 }));
 
 // Cycle Fingerprint v2 (CF4) — sổ theo dõi thực tế (bản chụp dự báo 20 phiên hằng ngày, chấm khi đủ 21 phiên).
