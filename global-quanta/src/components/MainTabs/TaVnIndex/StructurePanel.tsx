@@ -220,6 +220,11 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
           <div className={`text-2xl font-black ${TONE_CLS[tone]}`}>{v.verdict}</div>
           <div className="text-[10px] text-slate-300 leading-snug">{v.text}</div>
           <div className="text-[9px] text-slate-500 font-mono">{v.rule} · {v.cell}{v.sizeMult < 1 ? ` · tỷ trọng ×${String(v.sizeMult).replace(".", ",")}` : ""}</div>
+          {ev.alignment !== "ĐÃ KIỂM ĐỊNH" && doc.evidence.status === "DONE" && (
+            <p className="text-[9px] text-amber-300/90 leading-snug" data-testid="structure-verdict-warning">
+              Kiểm định ngoài mẫu đặt trước: kết luận này KHÔNG có lợi thế sinh lời — chỉ dùng để mô tả cấu trúc, không phải tín hiệu mua/bán.
+            </p>
+          )}
           <MtfTimeline doc={doc} />
         </div>
 
@@ -266,7 +271,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
         <details className={sec} style={secStyle} open>
           <summary className="flex items-center justify-between cursor-pointer list-none">
             <span className="text-[10px] font-bold text-slate-200">Dự báo tương lai</span>
-            <EvidenceChip label={doc.cone?.label ?? "ĐANG KIỂM ĐỊNH"} />
+            <EvidenceChip label={doc.cone?.label ?? (doc.evidence.status === "DONE" ? "THỰC NGHIỆM" : "ĐANG KIỂM ĐỊNH")} />
           </summary>
           {doc.cone ? (
             <table className="w-full text-[10px] font-mono" data-testid="structure-cone">
@@ -277,7 +282,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
                 ))}
               </tbody>
             </table>
-          ) : <p className="text-[10px] text-slate-500">Nón dự báo chỉ hiển thị sau khi kiểm định độ phủ ngoài mẫu (T2).</p>}
+          ) : <p className="text-[10px] text-slate-500">{doc.evidence.coneNote ?? "Nón dự báo chỉ hiển thị khi đạt kiểm định độ phủ ngoài mẫu (T2)."}</p>}
           {doc.cone?.note && <p className="text-[9px] text-slate-500">{doc.cone.note}</p>}
           {doc.probability && (
             <div className="text-[10px] text-slate-300">
@@ -309,6 +314,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
         <details className={`${sec} lg:col-span-2`} style={secStyle} open>
           <summary className="text-[10px] font-bold text-slate-200 cursor-pointer list-none">Giải thích cấu trúc{tfa ? ` · ${tfa.stageLabel}` : ""}</summary>
           {tfa && <p className="text-[10px] text-slate-300 leading-relaxed">{tfa.stageText}</p>}
+          {doc.evidence.summary && <p className="text-[10px] text-amber-200/80 leading-relaxed rounded px-2 py-1 bg-amber-500/5" data-testid="structure-evidence-summary">{doc.evidence.summary}</p>}
           <ul className="space-y-0.5 text-[10px] text-slate-400 leading-snug list-disc pl-4" data-testid="structure-narrative">
             {narrative.map((n, i) => <li key={i}>{n}</li>)}
           </ul>

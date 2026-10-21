@@ -48,19 +48,22 @@ async function h1Adjusted(sym, daily) {
   const adjClose = new Map(daily.bars.map((b) => [b.date, b.close]));
   const out = [];
   let nominalDays = 0, lastDays = 0;
-  // Theo quý để giới hạn bộ nhớ; provider tự chia cửa sổ 30 ngày.
-  for (let d = new Date(`${FROM_H1}T00:00:00Z`); d.toISOString().slice(0, 10) <= TO; d.setUTCMonth(d.getUTCMonth() + 3)) {
+  // Theo tháng (mã khớp lệnh nhiều dễ quá thời gian chờ), thử lại tối đa 3 lần mỗi tháng.
+  for (let d = new Date(`${FROM_H1}T00:00:00Z`); d.toISOString().slice(0, 10) <= TO; d.setUTCMonth(d.getUTCMonth() + 1)) {
     const from = d.toISOString().slice(0, 10);
-    const e = new Date(d); e.setUTCMonth(e.getUTCMonth() + 3); e.setUTCDate(e.getUTCDate() - 1);
+    const e = new Date(d); e.setUTCMonth(e.getUTCMonth() + 1); e.setUTCDate(e.getUTCDate() - 1);
     const to = e.toISOString().slice(0, 10) < TO ? e.toISOString().slice(0, 10) : TO;
-    const mins = (await p.getIntradayRange(sym, from, to)).filter((b) => b.close > 0).sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let raw = null;
+    for (let k = 0; k < 3 && !raw; k++) { try { raw = await p.getIntradayRange(sym, from, to); } catch (err) { if (k === 2) throw err; await new Promise((r) => setTimeout(r, 3000 * (k + 1))); } }
+    const mins = raw.filter((b) => b.close > 0).sort((a, b) => String(a.date).localeCompare(String(b.date)));
     const lastMin = new Map();
     for (const b of mins) lastMin.set(String(b.date).slice(0, 10), b.close);
     const factor = new Map();
     for (const [day, lm] of lastMin) {
       const ac = adjClose.get(day), nc = daily.nominalClose?.[day];
       if (!(ac > 0)) continue;
-      if (nc > 0 && Math.abs(lm / nc - 1) <= 0.01) { factor.set(day, ac / nc); nominalDays++; }
+      // Nến phút có thể đã được SSI điều chỉnh sẵn (VD cổ tức tiền ~1%) -> chỉ coi là danh nghĩa khi khớp gần như tuyệt đối.
+      if (nc > 0 && Math.abs(lm / nc - 1) <= 0.001) { factor.set(day, ac / nc); nominalDays++; }
       else { factor.set(day, ac / lm); lastDays++; }
     }
     const adj = [];

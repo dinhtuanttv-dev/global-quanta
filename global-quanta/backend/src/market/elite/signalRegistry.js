@@ -45,9 +45,9 @@ export const SIGNAL_SPECS = [
 
 // T7 (2026-10-21): Cấu trúc thị trường đa khung — bậc C (chỉ đo IC, không vào điểm Elite cho tới khi engine bằng chứng thăng bậc).
 SIGNAL_SPECS.push(
-  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 (MTF-prereg): đo IC trên sổ thực tế." },
-  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 (IC bảng kiểm) — xem kết quả kiểm định." },
-  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H2 (đồng thuận đa khung) — xem kết quả kiểm định." },
+  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H1/H5 không đạt OOS (vào Tăng −1,56%/20 phiên); chỉ đo IC." },
+  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 không đạt (IC OOS −0,032)." },
+  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H2 không đạt (MUA đa khung −0,68%/10 phiên OOS)." },
 );
 
 export const SPEC_BY_ID = new Map(SIGNAL_SPECS.map((s) => [s.id, s]));

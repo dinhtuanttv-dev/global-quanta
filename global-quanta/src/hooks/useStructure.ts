@@ -44,7 +44,7 @@ export interface StructureDoc {
   cone: StructureCone | null;
   probability: { value: number | null; baseRate: number | null; label: EvidenceLabel | string; horizon?: number; note?: string | null } | null;
   stageOdds: { stage: StructureStage; age: number; typical: { n: number; median: number; p75: number } | null; up: number | null; down: number | null; label: EvidenceLabel | string } | null;
-  evidence: { prereg: string; status: string; verdicts: Record<string, string>; summary: string | null; labels: Record<"stageUp" | "alignment" | "checklist" | "patterns" | "stageDown", EvidenceLabel> };
+  evidence: { prereg: string; status: string; verdicts: Record<string, string>; summary: string | null; coneNote?: string | null; labels: Record<"stageUp" | "alignment" | "checklist" | "patterns" | "stageDown", EvidenceLabel> };
 }
 
 export interface StructureSummaryRow {

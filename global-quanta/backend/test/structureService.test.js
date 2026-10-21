@@ -65,7 +65,13 @@ test("phân tích đa khung: đủ W/D/H1, chú thích ghim vào ngày có thậ
   for (const a of r.annotations.filter((x) => x.tf === "H1")) assert.match(a.date, /^\d{4}-\d{2}-\d{2} (09|10|11|13|14):00$/);
   assert.equal(r.scenarios.length, 2);
   assert.ok(["MUA", "CHỜ MUA", "ĐỨNG NGOÀI", "GIẢM TỶ TRỌNG", "BÁN"].includes(r.align.verdict));
-  assert.equal(r.evidence.status, "PENDING");
+  assert.equal(r.evidence.status, "DONE");
+  assert.equal(r.cone, null, "nón dự báo không đạt kiểm định -> không trả");
+  assert.match(r.evidence.coneNote, /KHÔNG đạt/);
+  assert.equal(r.probability.value, null);
+  assert.equal(r.stageOdds.label, "ĐÃ KIỂM ĐỊNH");
+  assert.ok(r.stageOdds.up >= 0 && r.stageOdds.up <= 1 && r.stageOdds.down >= 0 && r.stageOdds.down <= 1);
+  assert.equal(r.evidence.labels.alignment, "THỰC NGHIỆM");
   assert.ok(r.narrative.some((x) => x.startsWith("Kết luận")));
   assert.ok(r.dayContextOnH1.length >= 1);
 });

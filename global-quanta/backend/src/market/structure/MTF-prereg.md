@@ -74,4 +74,15 @@ Không ĐẠT → chỉ hiển thị tuổi giai đoạn + thời lượng đi�
 - T7: tín hiệu cấu trúc được đăng ký vào signalRegistry của Elite 10 bất kể kết quả; trọng số do evidence engine tự đo (IC).
 
 ## Sửa đổi
-(chưa có)
+- 2026-10-21 (trước khi chạy, không đổi tiêu chí): HPG, SHB, SSI không tải được nến phút sau 3 lượt (SSI hết thời gian chờ) ->
+  vẫn có đủ nến ngày, nhưng bị loại khỏi H2 (26/30 mã VN30 có khung 1 giờ; TCX/VPL niêm yết muộn chỉ có phần dữ liệu tương ứng).
+- 2026-10-21 (trước khi chạy): một số phiên nến phút SSI đã được điều chỉnh sẵn (~0,95%, VD MWG/SAB 2023) -> quy tắc "danh nghĩa"
+  siết từ ±1% xuống ±0,1%; 225 phiên của các tệp đã tải được neo lại để giá đóng cửa tiết cuối = đóng cửa ngày điều chỉnh.
+- Mã cần ≥ 300 nến ngày để vào quy trình (97/100 mã), chặt hơn mức 260 của điều kiện tập mã.
+
+## Kết quả (2026-10-21, chạy một lần, xem validation.js)
+H1–H5 đều KHÔNG ĐẠT (q ≥ 0,8). H1 vào giai đoạn Tăng: OOS −1,56%/20 phiên, KTC [−2,61; −0,43]. H2 MUA đa khung −0,68%/10 phiên,
+chênh lệch so với ngược khung +0,39 (KTC [−1,11; 2,12]). H3 IC OOS −0,032. H4 PF OOS 0,76 (IS 1,69). H5 −0,51% (KTC chứa 0).
+M (meta-labeling) KHÔNG ĐẠT: AUC OOS 0,49. Q (nón CQR) KHÔNG ĐẠT ở cả 3 kỳ hạn (độ phủ 70/78/80%, rộng hơn đối chứng 44–59%;
+đối chứng phủ 67–71%) -> không hiển thị nón. T3 (HMM + thời lượng) ĐẠT: Brier skill +0,046 (sang Tăng) / +0,007 (sang Giảm),
+ECE 0,010 / 0,027 -> hiển thị xác suất chuyển giai đoạn, ghi rõ lợi thế nhỏ.

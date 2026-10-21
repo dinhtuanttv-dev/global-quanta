@@ -127,8 +127,10 @@ export function createStructureService({ service, taSeries, corporateActions, no
   function evidence(V) {
     const v = V.verdicts ?? {};
     const lab = (k) => (v[k] === "PASS" ? "ĐÃ KIỂM ĐỊNH" : V.status === "PENDING" ? "ĐANG KIỂM ĐỊNH" : "THỰC NGHIỆM");
+    const cr = V.coneReport ? Object.entries(V.coneReport).map(([h, c]) => `${h} phiên ${Math.round((c.model?.coverage ?? 0) * 100)}%`).join(", ") : null;
     return {
       prereg: V.prereg, status: V.status, verdicts: v, summary: V.summary ?? null,
+      coneNote: V.cone ? null : cr ? `Nón dự báo KHÔNG đạt kiểm định độ phủ 77–83% ngoài mẫu (${cr}) — không hiển thị.` : null,
       labels: { stageUp: lab("H1"), alignment: lab("H2"), checklist: lab("H3"), patterns: lab("H4"), stageDown: lab("H5") },
     };
   }
@@ -223,6 +225,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
             }
             entries.push({ t: ticker, d: row.asOf, st: row.st, v: row.v, cone });
           } catch { skipped.push(ticker); }
+          await new Promise((r) => setImmediate(r)); // nhường vòng lặp sự kiện: API vẫn phản hồi trong lúc quét
         }
         const asOf = rows.reduce((m, r) => (r.asOf > m ? r.asOf : m), "");
         let ledgerStats = null;
