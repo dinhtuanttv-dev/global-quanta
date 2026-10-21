@@ -1,0 +1,140 @@
+// @gq/quant-core · Cấu trúc thị trường đa khung (Tuần / Ngày / 1 giờ).
+// Bất biến (có test): mọi đối tượng có confirmedIndex; giai đoạn / tín hiệu / sóng / mẫu tại nến t tính trên bars[0..t]
+// trùng với kết quả tính trên toàn bộ dữ liệu (không nhìn trước, không vẽ lại). Khung lớn chỉ dùng nến đã đóng.
+import type { Bar } from "../math";
+import { alignMatrix, closedHtfIndex, recentBuy, scenarios, toWeekly, type AlignResult, type Scenario } from "./align";
+import { dcSwings, dowSeries, indicators } from "./core";
+import { annotations, narrateTf, stageSegments, type Annotation, type StageSegment } from "./explain";
+import { baseAt, zonesAt } from "./levels";
+import { detectPatterns } from "./patterns";
+import { checklists, granville } from "./signals";
+import { stageMachine } from "./stages";
+import { TF_PARAMS, type CheckItem, type Stage, type Tf, type TfAnalysis, type TfParams } from "./types";
+
+export const MTF_STRUCTURE_VERSION = "1.0.0";
+
+export function analyzeTf(bars: Bar[], tf: Tf, over: Partial<TfParams> = {}): TfAnalysis {
+  const p: TfParams = { ...TF_PARAMS[tf], ...over, tf };
+  const ind = indicators(bars, p);
+  const swings = {
+    small: dcSwings(bars, ind.atr, p.dcSmall, "small"),
+    mid: dcSwings(bars, ind.atr, p.dcMid, "mid"),
+    large: dcSwings(bars, ind.atr, p.dcLarge, "large"),
+  };
+  const dow = dowSeries(bars, swings.mid);
+  const patterns = detectPatterns(bars, ind.atr, swings.mid);
+  const { stage, stageAge } = stageMachine(bars, ind, dow, patterns, p);
+  const signals = granville(bars, ind, p);
+  const t = bars.length - 1;
+  const zones = t >= 1 ? zonesAt(bars, ind, swings, patterns, t, p) : [];
+  const base = t >= 15 ? baseAt(bars, ind, swings.small, t, p) : null;
+  const ck = t >= 1 ? checklists(bars, ind, dow, zones, t, p) : { buy: [], sell: [] };
+  return {
+    tf, params: p, bars,
+    maFast: ind.maFast, maSlow: ind.maSlow, atr: ind.atr, slope: ind.slope, dev: ind.dev, spread: ind.spread,
+    swings, dow, stage, stageAge, patterns, signals, zones, base,
+    checklistBuy: ck.buy, checklistSell: ck.sell,
+  };
+}
+
+export interface MtfInput { w?: Bar[]; d: Bar[]; h1?: Bar[] }
+
+export interface MtfTimelineRow { tf: Tf; segments: StageSegment[] }
+
+export interface MtfStructure {
+  version: string;
+  asOf: string;                         // nến cuối của khung vào lệnh
+  tfs: Partial<Record<Tf, TfAnalysis>>;
+  /** Giai đoạn khung lớn ĐÃ ĐÓNG tại nến cuối khung nhỏ. */
+  context: { week: Stage | null; day: Stage; h1: Stage | null };
+  align: AlignResult;
+  /** Bảng kiểm 7 điểm của khung vào lệnh + mục 8 "khung lớn thuận chiều". */
+  checklist: { buy: CheckItem[]; sell: CheckItem[]; buyScore: number; sellScore: number };
+  scenarios: Scenario[];
+  annotations: Annotation[];
+  timeline: MtfTimelineRow[];
+  narrative: string[];
+  /** Giai đoạn khung ngày (đã đóng) gióng theo từng nến H1 — để tô dải bối cảnh trên biểu đồ 1 giờ. */
+  dayStageOnH1: (Stage | null)[] | null;
+}
+
+export function analyzeStructureMtf(input: MtfInput): MtfStructure {
+  const d = analyzeTf(input.d, "D");
+  const wBars = input.w && input.w.length ? input.w : toWeekly(input.d);
+  const w = wBars.length >= 20 ? analyzeTf(wBars, "W") : null;
+  const h = input.h1 && input.h1.length >= 30 ? analyzeTf(input.h1, "H1") : null;
+  const entry = h ?? d;
+  const te = entry.bars.length - 1;
+
+  // Khung lớn đã đóng tại nến cuối khung vào lệnh.
+  let dayStage: Stage;
+  let dayStageOnH1: (Stage | null)[] | null = null;
+  if (h) {
+    const map = closedHtfIndex(h.bars, d.bars, false);
+    dayStageOnH1 = map.map((j) => (j >= 0 ? d.stage[j] : null));
+    const j = map[te];
+    dayStage = j >= 0 ? d.stage[j] : "RANGE";
+  } else {
+    dayStage = d.stage[d.bars.length - 1] ?? "RANGE";
+  }
+  let weekStage: Stage | null = null;
+  if (w) {
+    const map = closedHtfIndex(entry.bars, w.bars, true);
+    const j = map[te];
+    weekStage = j >= 0 ? w.stage[j] : null;
+  }
+  const h1Stage = h ? h.stage[te] : null;
+  const align = alignMatrix(dayStage, h1Stage, weekStage, recentBuy(entry.signals, te));
+
+  const htfOk = dayStage === "UP" || dayStage === "A";
+  const htfDn = dayStage === "DOWN" || dayStage === "D" || dayStage === "Bp" || dayStage === "C";
+  const buy = [{ key: "htf", ok: !h ? (weekStage ? weekStage === "UP" || weekStage === "A" : htfOk) : htfOk, text: h ? "Khung ngày thuận chiều tăng (UP / tích lũy A)" : "Khung tuần thuận chiều tăng" }, ...entry.checklistBuy];
+  const sell = [{ key: "htf", ok: !h ? (weekStage ? weekStage === "DOWN" || weekStage === "D" : htfDn) : htfDn, text: h ? "Khung ngày thuận chiều giảm" : "Khung tuần thuận chiều giảm" }, ...entry.checklistSell];
+
+  const sc = scenarios(entry, h ? d.zones.filter((z) => z.strength >= 0.5) : []);
+  const ann = [...(w ? annotations(w, 6, 4) : []), ...annotations(d), ...(h ? annotations(h) : [])];
+  const timeline: MtfTimelineRow[] = [
+    ...(w ? [{ tf: "W" as const, segments: stageSegments(w) }] : []),
+    { tf: "D", segments: stageSegments(d) },
+    ...(h ? [{ tf: "H1" as const, segments: stageSegments(h) }] : []),
+  ];
+  const narrative = [...(w ? narrateTf(w) : []), ...narrateTf(d), ...(h ? narrateTf(h) : []), `Kết luận: ${align.verdict} — ${align.text}`, ...align.rules];
+  return {
+    version: MTF_STRUCTURE_VERSION,
+    asOf: entry.bars[te]?.date ?? "",
+    tfs: { ...(w ? { W: w } : {}), D: d, ...(h ? { H1: h } : {}) },
+    context: { week: weekStage, day: dayStage, h1: h1Stage },
+    align,
+    checklist: { buy, sell, buyScore: buy.filter((x) => x.ok).length, sellScore: sell.filter((x) => x.ok).length },
+    scenarios: sc,
+    annotations: ann,
+    timeline,
+    narrative,
+    dayStageOnH1,
+  };
+}
+
+/** Gộp nến phút (SSI) thành nến 1 giờ theo phiên VN: 9h, 10h, 11h (sáng), 13h, 14h (chiều, gồm ATC). */
+export function minutesToH1(minutes: Bar[]): Bar[] {
+  const out: Bar[] = [];
+  let key = "";
+  for (const m of minutes) {
+    const day = m.date.slice(0, 10);
+    const hh = Number(m.date.slice(11, 13));
+    if (!Number.isFinite(hh)) continue;
+    const slot = hh < 9 ? 9 : hh === 12 ? 11 : hh >= 15 ? 14 : hh;
+    const k = `${day} ${String(slot).padStart(2, "0")}:00`;
+    const cur = out[out.length - 1];
+    if (k !== key || !cur) { out.push({ date: k, open: m.open, high: m.high, low: m.low, close: m.close, volume: m.volume }); key = k; continue; }
+    cur.high = Math.max(cur.high, m.high); cur.low = Math.min(cur.low, m.low); cur.close = m.close; cur.volume += m.volume;
+  }
+  return out;
+}
+
+export * from "./types";
+export { STAGE_LABEL, STAGE_TEXT } from "./stages";
+export { PATTERN_NAME, patternStatusAt } from "./patterns";
+export { SIGNAL_TEXT } from "./signals";
+export { toWeekly, weekKey, closedHtfIndex, alignMatrix, stageBias } from "./align";
+export type { AlignResult, Scenario, Verdict } from "./align";
+export type { Annotation, StageSegment } from "./explain";
