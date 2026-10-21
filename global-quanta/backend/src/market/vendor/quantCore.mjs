@@ -3548,6 +3548,81 @@ var TF_PARAMS = {
   W: { tf: "W", maFast: 10, maSlow: 40, atr: 14, slopeLen: 3, dcSmall: 1.5, dcMid: 2.5, dcLarge: 5, touchAtr: 0.6, overAtr: 3.5, warAtr: 0.5, levelLookback: 260 }
 };
 
+// src/lib/quant-core/mtf/compact.ts
+var r2 = (x) => x == null || !Number.isFinite(x) ? null : Math.round(x * 100) / 100;
+function compactTf(a, { segments = 16, signals = 24, swings = 24 } = {}) {
+  const t = a.bars.length - 1, d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
+  const segs = [];
+  for (let i = 0; i <= t; i++) {
+    const s = a.stage[i], cur = segs[segs.length - 1];
+    if (cur && cur.stage === s) {
+      cur.to = d(i);
+      cur.bars++;
+    } else segs.push({ stage: s, label: STAGE_LABEL[s], from: d(i), to: d(i), bars: 1 });
+  }
+  const pats = a.patterns.map((p) => ({ p, status: patternStatusAt(p, t) })).filter(({ p, status }) => status && (status !== "failed" || t - (p.failIndex ?? 0) <= 10) && p.start >= t - a.params.levelLookback).slice(-8).map(({ p, status }) => ({
+    type: p.type,
+    name: PATTERN_NAME[p.type],
+    dir: p.dir,
+    status,
+    points: p.points.map((x) => ({ date: d(x.index), price: r2(x.price), label: x.label })),
+    neck: { d0: d(p.neck.i0), p0: r2(p.neck.p0), d1: d(p.neck.i1), p1: r2(p.neck.p1) },
+    confirmedDate: d(p.confirmedIndex),
+    breakDate: p.breakIndex != null ? d(p.breakIndex) : null,
+    failDate: p.failIndex != null && p.failIndex <= t ? d(p.failIndex) : null,
+    target: r2(p.target),
+    height: r2(p.height)
+  }));
+  return {
+    tf: a.tf,
+    asOf: d(t),
+    close: r2(a.bars[t]?.close),
+    stage: a.stage[t],
+    stageLabel: STAGE_LABEL[a.stage[t]],
+    stageText: STAGE_TEXT[a.stage[t]],
+    stageAge: a.stageAge[t],
+    dow: a.dow[t],
+    ma: { fast: a.params.maFast, slow: a.params.maSlow, fastValue: r2(a.maFast[t]), slowValue: r2(a.maSlow[t]) },
+    dev: r2(a.dev[t]),
+    slope: r2(a.slope[t]),
+    spread: r2(a.spread[t]),
+    atr: r2(a.atr[t]),
+    segments: segs.slice(-segments),
+    zones: a.zones.map((z) => ({ ...z, lo: r2(z.lo), hi: r2(z.hi), mid: r2(z.mid), strength: r2(z.strength) })),
+    base: a.base ? { ...a.base, from: d(a.base.start), to: d(a.base.end), lo: r2(a.base.lo), hi: r2(a.base.hi), rangeAtr: r2(a.base.rangeAtr) } : null,
+    patterns: pats,
+    signals: a.signals.slice(-signals).map((s) => ({ date: d(s.index), code: s.code, side: s.side, price: r2(s.price), note: s.note })),
+    swings: a.swings.mid.filter((s) => s.confirmedIndex <= t).slice(-swings).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price), confirmedDate: d(s.confirmedIndex) })),
+    checklistBuy: a.checklistBuy,
+    checklistSell: a.checklistSell
+  };
+}
+function compactStructure(m) {
+  const d = m.tfs.D, h = m.tfs.H1, w = m.tfs.W;
+  let dayContextOnH1 = null;
+  if (h && m.dayStageOnH1) {
+    dayContextOnH1 = [];
+    m.dayStageOnH1.forEach((s, i) => {
+      const cur = dayContextOnH1[dayContextOnH1.length - 1], dt = h.bars[i].date;
+      if (cur && cur.stage === s) cur.to = dt;
+      else dayContextOnH1.push({ stage: s, label: s ? STAGE_LABEL[s] : null, from: dt, to: dt });
+    });
+  }
+  return {
+    version: m.version,
+    asOf: m.asOf,
+    context: m.context,
+    align: m.align,
+    checklist: m.checklist,
+    scenarios: m.scenarios.map((s) => ({ ...s, trigger: r2(s.trigger), entry: r2(s.entry), stop: r2(s.stop), targets: s.targets.map((x) => r2(x)), rr: r2(s.rr) })),
+    tfs: { ...w ? { W: compactTf(w, { segments: 10 }) } : {}, D: compactTf(d), ...h ? { H1: compactTf(h) } : {} },
+    annotations: m.annotations.map((a) => ({ tf: a.tf, kind: a.kind, date: a.date, price: r2(a.price), text: a.text, detail: a.detail, tone: a.tone })),
+    timeline: m.timeline.map((r) => ({ tf: r.tf, segments: r.segments.slice(-40).map((s) => ({ stage: s.stage, label: s.label, from: s.from, to: s.to })) })),
+    dayContextOnH1,
+    narrative: m.narrative
+  };
+}
+
 // src/lib/quant-core/mtf/index.ts
 var MTF_STRUCTURE_VERSION = "1.0.0";
 function analyzeTf(bars, tf, over = {}) {
@@ -3586,6 +3661,19 @@ function analyzeTf(bars, tf, over = {}) {
     base,
     checklistBuy: ck.buy,
     checklistSell: ck.sell
+  };
+}
+function analyzeTfSeries(bars, tf, over = {}) {
+  const a = analyzeTf(bars, tf, over);
+  const ind = indicators(bars, a.params);
+  return {
+    a,
+    at(t) {
+      const zones = zonesAt(bars, ind, a.swings, a.patterns, t, a.params);
+      const base = t >= 15 ? baseAt(bars, ind, a.swings.small, t, a.params) : null;
+      const ck = checklists(bars, ind, a.dow, zones, t, a.params);
+      return { zones, base, checklistBuy: ck.buy, checklistSell: ck.sell, rrBuy: ck.rrBuy, rrSell: ck.rrSell };
+    }
   };
 }
 function analyzeStructureMtf(input) {
@@ -3671,10 +3759,17 @@ export {
   STAGE_LABEL,
   STAGE_TEXT,
   WYCKOFF_DEFAULT_ENGINE,
+  alignMatrix,
   analyzeStructureMtf,
   analyzeTf as analyzeStructureTf,
+  analyzeTfSeries as analyzeStructureTfSeries,
+  closedHtfIndex,
   clusterLevels,
+  compactStructure,
+  compactTf as compactStructureTf,
   convergenceAt,
   minutesToH1,
+  patternStatusAt,
+  recentBuy,
   toWeekly
 };

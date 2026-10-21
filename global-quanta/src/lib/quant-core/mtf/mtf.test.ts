@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Bar } from "../math";
-import { analyzeStructureMtf, analyzeTf, minutesToH1, patternStatusAt } from "./index";
+import { analyzeStructureMtf, analyzeTf, analyzeTfSeries, minutesToH1, patternStatusAt } from "./index";
 import { alignMatrix, closedHtfIndex, toWeekly, weekKey } from "./align";
 
 /** PRNG có hạt giống (mulberry32) — dữ liệu tổng hợp tái lập được. */
@@ -116,6 +116,21 @@ describe("Bất biến không nhìn trước", () => {
       }
     });
   }
+});
+
+describe("Ảnh chụp tại nến t (kiểm định / sổ dự báo)", () => {
+  it("at(t) trên toàn bộ dữ liệu = vùng giá / nền / bảng kiểm tính trên bars[0..t]", () => {
+    const bars = randomWalk(420, 23);
+    const s = analyzeTfSeries(bars, "D");
+    for (const t of [180, 299, 419]) {
+      const part = analyzeTf(bars.slice(0, t + 1), "D");
+      const snap = s.at(t);
+      expect(snap.zones).toEqual(part.zones);
+      expect(snap.base).toEqual(part.base);
+      expect(snap.checklistBuy).toEqual(part.checklistBuy);
+      expect(snap.checklistSell).toEqual(part.checklistSell);
+    }
+  });
 });
 
 describe("Ghép đa khung", () => {

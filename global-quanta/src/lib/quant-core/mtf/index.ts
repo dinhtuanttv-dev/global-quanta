@@ -37,6 +37,24 @@ export function analyzeTf(bars: Bar[], tf: Tf, over: Partial<TfParams> = {}): Tf
   };
 }
 
+/**
+ * Phân tích một khung + hàm ảnh chụp TẠI nến t (vùng giá, nền, bảng kiểm) — chỉ dùng dữ liệu ≤ t.
+ * Dùng cho kiểm định / sổ dự báo: tránh tính lại toàn bộ trên bars[0..t] cho từng t.
+ */
+export function analyzeTfSeries(bars: Bar[], tf: Tf, over: Partial<TfParams> = {}) {
+  const a = analyzeTf(bars, tf, over);
+  const ind = indicators(bars, a.params);
+  return {
+    a,
+    at(t: number) {
+      const zones = zonesAt(bars, ind, a.swings, a.patterns, t, a.params);
+      const base = t >= 15 ? baseAt(bars, ind, a.swings.small, t, a.params) : null;
+      const ck = checklists(bars, ind, a.dow, zones, t, a.params);
+      return { zones, base, checklistBuy: ck.buy, checklistSell: ck.sell, rrBuy: ck.rrBuy, rrSell: ck.rrSell };
+    },
+  };
+}
+
 export interface MtfInput { w?: Bar[]; d: Bar[]; h1?: Bar[] }
 
 export interface MtfTimelineRow { tf: Tf; segments: StageSegment[] }
@@ -132,9 +150,10 @@ export function minutesToH1(minutes: Bar[]): Bar[] {
 }
 
 export * from "./types";
+export { compactTf, compactStructure } from "./compact";
 export { STAGE_LABEL, STAGE_TEXT } from "./stages";
 export { PATTERN_NAME, patternStatusAt } from "./patterns";
 export { SIGNAL_TEXT } from "./signals";
-export { toWeekly, weekKey, closedHtfIndex, alignMatrix, stageBias } from "./align";
+export { toWeekly, weekKey, closedHtfIndex, alignMatrix, stageBias, recentBuy, scenarios } from "./align";
 export type { AlignResult, Scenario, Verdict } from "./align";
 export type { Annotation, StageSegment } from "./explain";
