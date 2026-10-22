@@ -29,6 +29,7 @@ import { createAlphaService, ALPHA_SCHEDULE } from "./alpha/alphaService.js";
 import { createStructureService, STRUCTURE_SCHEDULE } from "./structure/structureService.js";
 import { setHolidayProvider } from "./calendar.js";
 import { createLocalBootstrap } from "./store/localBootstrap.js";
+import { createMatrixService, MATRIX_SCHEDULE } from "./tradingMatrix/matrixService.js";
 import { marketConfig } from "./config.js";
 
 let runtime;
@@ -82,9 +83,12 @@ export function getMarketRuntime() {
   const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
   // M0: kho cục bộ (Railway Volume) — tự dựng lại từ SSI/VCI khi thiếu; dọn dòng lệnh theo phút cũ mỗi đêm.
   const localBootstrap = createLocalBootstrap({ jobs, store });
+  // Trading Matrix (M1): snapshot trạng thái thị trường từ các nguồn sẵn có; lưu bảng cục bộ 16:50.
+  const matrix = createMatrixService({ service, store, getStructure: () => structure });
+  jobs.matrixSnapshot = () => matrix.snapshot();
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE] });
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -100,7 +104,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, started: false };
   return runtime;
 }
 

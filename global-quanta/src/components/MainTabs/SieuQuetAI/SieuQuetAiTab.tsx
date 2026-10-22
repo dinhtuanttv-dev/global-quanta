@@ -19,6 +19,7 @@ import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
 import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
+import TradingMatrixPanel from "./TradingMatrix/TradingMatrixPanel";
 
 const COLUMN_COUNT = 9;
 
@@ -265,7 +266,13 @@ export default function SieuQuetAiTab() {
   const basketTitle = effectiveBasket === "VN30" ? "Rổ VN30" : effectiveBasket === "WATCHLIST" ? `★ ${watchlists.active.name}` : "Bộ lọc ngành";
 
   if (isLoading) return <div className="p-6 text-center text-slate-500 text-sm">Đang tải dữ liệu Siêu Quét AI...</div>;
-  if (error) return <div className="p-6 text-center text-rose-400 text-sm">Không tải được dữ liệu: {String(error)}</div>;
+  // Bảng quét lỗi không được làm mất Trading Matrix (nguồn độc lập, spec §2.4).
+  if (error) return (
+    <div className="tw-scope flex flex-col gap-4 py-1">
+      <TradingMatrixPanel />
+      <div className="p-6 text-center text-rose-400 text-sm" role="alert">Không tải được bảng Siêu Quét: {String(error)}</div>
+    </div>
+  );
 
   return (
     <div className="tw-scope flex flex-col gap-4 py-1">
@@ -277,6 +284,9 @@ export default function SieuQuetAiTab() {
         aiPanel={researchUiOn ? <VnIndexAiPanel /> : null}
         toggle={<ResearchUiToggle />}
       />
+
+      {/* TRADING MATRIX (M1) — trạng thái thị trường đa nguồn, có mẫu số / nguồn / thời điểm */}
+      <TradingMatrixPanel />
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
       <section className="flex flex-col gap-4 min-w-0">

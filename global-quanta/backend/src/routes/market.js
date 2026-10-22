@@ -210,6 +210,22 @@ router.get("/top20/inputs", handle(async (req, res) => {
   res.json(await getMarketRuntime().top20.inputs());
 }));
 
+// Trading Matrix (M1) — trạng thái thị trường đa nguồn: regime, độ rộng (cuối phiên + trong phiên, có mẫu số), dòng tiền
+// (tách nguồn), biến động, pha phiên, sức khoẻ từng nguồn. ?scope=VNINDEX|VN30|UNIVERSE
+router.get("/trading-matrix/overview", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  const live = expectsLiveTicks();
+  const data = await rt.service.cache.wrap(`matrix:overview:${scope}`, live ? 20_000 : 5 * 60_000, () => rt.matrix.overview({ scope }));
+  res.set("Cache-Control", live ? "private, max-age=15" : "private, max-age=120");
+  res.json(data);
+}));
+router.get("/trading-matrix/history", handle(async (req, res) => {
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  res.set("Cache-Control", "public, max-age=300");
+  res.json({ scope, rows: await getMarketRuntime().matrix.history({ scope, limit: Math.min(Number(req.query.limit) || 60, 250) }) });
+}));
+
 // Cấu trúc thị trường đa khung (T4) — bản tóm tắt toàn universe (job 15:47) để làm giàu bảng bộ lọc.
 router.get("/structure-summary", handle(async (req, res) => {
   const doc = await getMarketRuntime().structure.summary();

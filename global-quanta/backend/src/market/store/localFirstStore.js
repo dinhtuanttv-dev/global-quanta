@@ -14,6 +14,8 @@
 import { noteStoreError } from "../elite/storeHealth.js";
 
 export const USER_TABLES = new Set(["market_user_watchlists", "market_user_chart_state", "market_radar_snapshots"]);
+/** Bảng chỉ có ở kho cục bộ (Trading Matrix…) — không có trên Supabase nên không sao chép (tránh lỗi làm mở cầu dao). */
+export const isLocalOnlyTable = (table) => String(table).startsWith("market_matrix_");
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);
 const HYDRATED_KV = (table) => `__local:hydrated:${table}`;
 
@@ -102,7 +104,7 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
       if (USER_TABLES.has(table)) return inner.upsertRows(table, rows, conflict);
       await hydrateTable(table);
       const n = await local.upsertRows(table, rows, conflict);
-      replicate(() => inner.upsertRows(table, rows, conflict));
+      if (!isLocalOnlyTable(table)) replicate(() => inner.upsertRows(table, rows, conflict));
       return n;
     },
     async selectRows(table, query = {}) {
@@ -114,7 +116,7 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
       if (USER_TABLES.has(table)) return inner.deleteRows(table, query);
       await hydrateTable(table);
       const n = await local.deleteRows(table, query);
-      replicate(() => inner.deleteRows(table, query));
+      if (!isLocalOnlyTable(table)) replicate(() => inner.deleteRows(table, query));
       return n;
     },
     async rpc(fn, args = {}) { const r = await tryInner(() => inner.rpc(fn, args)); return r ?? null; },
