@@ -5,7 +5,8 @@
 // Lỗi một nguồn -> ô đó ghi "không khả dụng", các ô khác vẫn hiển thị; không chặn bảng cổ phiếu.
 import { useState } from "react";
 import { Grid3x3 } from "lucide-react";
-import { useMatrixMovers, useMatrixSectors, useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
+import { useMatrixMovers, useMatrixSectors, useMatrixSignals, useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
+import { RiskChecklist, ScenarioBoard, SignalJournal } from "./ScenarioBoard";
 import SectorHeatmap from "./SectorHeatmap";
 import NotableMovers from "./NotableMovers";
 import { BreadthCard, FlowCard, HEALTH_VI, HealthCard, RegimeCard, SessionCard, SkeletonCard, TONE, VolatilityCard, bn, vn, when } from "./MatrixCards";
@@ -113,6 +114,17 @@ function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: Matri
   );
 }
 
+/** M3 — hàng 4: cờ rủi ro + sổ tín hiệu (spec §10.1). */
+function RiskRow({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
+  const sig = useMatrixSignals(scope, true);
+  return (
+    <div className="pt-3 border-t border-white/5 mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <RiskChecklist flags={d.riskFlags ?? []} />
+      <SignalJournal data={sig.data} />
+    </div>
+  );
+}
+
 const NO_SET = new Set<string>();
 const NOOP = () => {};
 
@@ -137,6 +149,12 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
           ))}
         </div>
         {data && <span className="text-[9px] text-slate-500">cập nhật {when(data.asOf)}</span>}
+        {data?.scenarios?.some((x) => x.state === "CONFIRMED" || x.state === "WATCH") && (
+          <span className="text-[9.5px] px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-200" data-testid="mx-scenario-chip"
+            title="Kịch bản THỰC NGHIỆM — xem Chi tiết để biết bằng chứng và kết quả kiểm định">
+            {data.scenarios.filter((x) => x.state === "CONFIRMED" || x.state === "WATCH").map((x) => `${x.title}: ${x.displayState}`).join(" · ")} · THỰC NGHIỆM
+          </span>
+        )}
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="mx-detail"
           className="ml-auto text-[10.5px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40">
           {open ? "Thu gọn ▴" : "Chi tiết ▾"}
@@ -158,7 +176,14 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
           )}
         </div>
       )}
-      {open && data && <div id="mx-detail"><Details d={data} /><SectorRow scope={scope} active={activeIndustries} onIndustry={onIndustry} onSelectTicker={onSelectTicker} /></div>}
+      {open && data && (
+        <div id="mx-detail">
+          <div className="pt-3"><ScenarioBoard d={data} /></div>
+          <Details d={data} />
+          <SectorRow scope={scope} active={activeIndustries} onIndustry={onIndustry} onSelectTicker={onSelectTicker} />
+          <RiskRow d={data} scope={scope} />
+        </div>
+      )}
     </section>
   );
 }

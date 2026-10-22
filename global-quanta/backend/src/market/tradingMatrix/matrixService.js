@@ -9,6 +9,31 @@ import {
   breadthTrend, createHysteresis, dailyBreadth, flowState, overallHealth, regimeDaily, sessionPhase, sourceHealth, volatilityDaily,
 } from "./features.js";
 import { notableMovers, sectorStats } from "./sectorMatrix.js";
+import { buildStateSeries, neutralState, RULE_VERSION, runLifecycle, SCENARIOS } from "./scenarioEngine.js";
+import { riskFlags } from "./riskRules.js";
+import { MATRIX_VALIDATION } from "./matrixValidation.js";
+
+export const SIGNAL_TABLE = "market_matrix_signal";
+export const OUTCOME_TABLE = "market_matrix_outcome";
+const OUT_HORIZONS = [1, 3, 5, 10];
+
+/** Kịch bản hiện tại (M3): vòng đời chạy lại trên chuỗi đã có (tất định) -> trạng thái phiên cuối + bằng chứng + nhãn kiểm định. */
+function scenarioView(lc, coverage, regimeLabel) {
+  const day = lc.timeline.at(-1);
+  if (!day) return { scenarios: [], neutral: null, day: null };
+  const scenarios = Object.entries(SCENARIOS).map(([id, sc]) => {
+    const d = day[id];
+    const verdict = MATRIX_VALIDATION.verdicts[id] ?? "PENDING";
+    return {
+      id, title: sc.title, meaning: sc.meaning, state: d.state, since: d.since, evidence: d.evidence, contradictions: d.contradictions, groups: d.groups,
+      // M4: chỉ kịch bản ĐẠT mới được gọi "Xác nhận"; còn lại CONFIRMED hiển thị "đủ điều kiện quy tắc (chưa kiểm định)".
+      displayState: d.state === "CONFIRMED" ? (verdict === "PASS" ? "Xác nhận" : "Đủ điều kiện quy tắc") : { WATCH: "Theo dõi", INVALIDATED: "Vô hiệu", COOLDOWN: "Tạm nghỉ", INACTIVE: "Không hoạt động" }[d.state],
+      validation: { verdict, summary: MATRIX_VALIDATION.summary[id], label: verdict === "PASS" ? "ĐÃ KIỂM ĐỊNH" : "THỰC NGHIỆM" },
+      ruleVersion: RULE_VERSION,
+    };
+  });
+  return { scenarios, neutral: neutralState(day, { coverage, regimeLabel }), day };
+}
 
 export const MATRIX_VERSION = "matrix/M1 1.0.0";
 export const MATRIX_SCOPES = { VNINDEX: "Toàn sàn HOSE", VN30: "Rổ VN30", UNIVERSE: "Universe Siêu Quét" };
@@ -131,6 +156,18 @@ export function createMatrixService({ service, store, getStructure = () => null,
     out.flow = flowState({ foreignByDate: d?.foreign ?? [], footprint: fp });
     out.flow.state = hyst(`flow|${scope}`, out.flow.state);
 
+    // 5. Kịch bản (M3) + cờ rủi ro — THỰC NGHIỆM công khai
+    if (d && idxBars?.length) {
+      try {
+        const states = buildStateSeries({ bySymbol: d.bySymbol, indexBars: idxBars.filter((b) => b.date <= d.asOf) });
+        const lc = runLifecycle(states);
+        const v = scenarioView(lc, out.breadth.daily?.coverage ?? null, out.regime.label);
+        out.scenarios = v.scenarios; out.neutral = v.neutral; out.stateVector = states.at(-1) ?? null;
+        out.riskFlags = riskFlags({ day: v.day, flow: out.flow });
+      } catch (e) { log.warn?.(`[matrix] kịch bản: ${e.message}`); }
+    }
+    if (!out.riskFlags.length) out.riskFlags = riskFlags({ day: null, flow: out.flow });
+
     const scanAsOf = (await store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
     health.push(sourceHealth({ id: "scanner", label: "Kết quả Siêu Quét", kind: "daily", asOf: scanAsOf, expectedDate: expected, error: scanAsOf ? null : "Chưa có kết quả quét" }));
     out.dataHealth = { status: overallHealth(health, ["daily", "index"]), sources: health };
@@ -165,8 +202,47 @@ export function createMatrixService({ service, store, getStructure = () => null,
     return { version: MATRIX_VERSION, scope: { id: scope, label: MATRIX_SCOPES[scope] }, horizon: "daily", ...notableMovers({ bySymbol: d.bySymbol, asOf: d.asOf, taxonomy: tax }) };
   }
 
+  /** Chấm kết quả các đợt (phiên vào CONFIRMED) trên VN-Index tại T+1/3/5/10, so nền = TB lợi suất cùng kỳ hạn 250 phiên trước. */
+  async function scoreSignals() {
+    const r = await service.getOhlcv({ symbol: "VNINDEX", limit: 600 });
+    const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
+    const idx = new Map(bars.map((b, i) => [b.date, i])), c = bars.map((b) => b.close);
+    const rows = await store.selectRows(SIGNAL_TABLE, { eq: { state: "CONFIRMED" } });
+    const done = new Set((await store.selectRows(OUTCOME_TABLE, {})).map((x) => `${x.scope}|${x.scenario}|${x.signal_date}|${x.horizon}`));
+    const add = [];
+    for (const s of rows) {
+      const i = idx.get(s.signal_date);
+      if (i == null) continue;
+      for (const h of OUT_HORIZONS) {
+        if (i + h >= c.length || done.has(`${s.scope}|${s.scenario}|${s.signal_date}|${h}`)) continue;
+        const ret = (c[i + h] / c[i] - 1) * 100;
+        const hist = []; for (let j = Math.max(h, i - 250); j <= i; j++) hist.push((c[j] / c[j - h] - 1) * 100);
+        const base = hist.length ? hist.reduce((a, b) => a + b, 0) / hist.length : 0;
+        add.push({ scope: s.scope, scenario: s.scenario, signal_date: s.signal_date, horizon: h, ret: Math.round(ret * 1000) / 1000, excess: Math.round((ret - base) * 1000) / 1000, scored_at: new Date(now()).toISOString() });
+      }
+    }
+    if (add.length) await store.upsertRows(OUTCOME_TABLE, add, "scope,scenario,signal_date,horizon");
+    return { scored: add.length };
+  }
+
+  /** Sổ tín hiệu + kết quả thực tế + kiểm định lịch sử cho giao diện. */
+  async function signals({ scope = "VNINDEX", limit = 40 } = {}) {
+    const sig = await store.selectRows(SIGNAL_TABLE, { eq: { scope }, order: "signal_date.desc", limit });
+    const outs = await store.selectRows(OUTCOME_TABLE, { eq: { scope } });
+    const live = {};
+    for (const id of Object.keys(SCENARIOS)) {
+      live[id] = Object.fromEntries(OUT_HORIZONS.map((h) => {
+        const xs = outs.filter((o) => o.scenario === id && o.horizon === h).map((o) => o.excess);
+        return [h, { n: xs.length, meanExcess: xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null }];
+      }));
+    }
+    return { version: MATRIX_VERSION, scope, ruleVersion: RULE_VERSION, recent: sig.map((s) => ({ scenario: s.scenario, date: s.signal_date, state: s.state, evidence: s.evidence, health: s.health })),
+      live, validation: { prereg: MATRIX_VALIDATION.prereg, verdicts: MATRIX_VALIDATION.verdicts, summary: MATRIX_VALIDATION.summary, stats: MATRIX_VALIDATION.stats },
+      note: "Kết quả thực tế chỉ tính khi đã đủ kỳ hạn; tín hiệu đang theo dõi không được tính như kết quả hoàn tất." };
+  }
+
   return {
-    overview, sectors, movers,
+    overview, sectors, movers, signals, scoreSignals,
     /** 16:50 — lưu snapshot cuối phiên ba phạm vi vào bảng cục bộ (ghi đúng thời điểm, không sửa về sau). */
     async snapshot() {
       const saved = [];
@@ -174,9 +250,19 @@ export function createMatrixService({ service, store, getStructure = () => null,
         const o = await overview({ scope, horizon: "daily" });
         const date = o.sourceAsOf.daily ?? o.session.tradingDate;
         await store.upsertRows(SNAPSHOT_TABLE, [{ scope, trading_date: date, version: MATRIX_VERSION, created_at: o.asOf, doc: o }], "scope,trading_date");
-        saved.push({ scope, date, health: o.dataHealth.status });
+        // Sổ tín hiệu: ghi chuyển trạng thái của phiên đúng thời điểm phát (không ghi lại về sau).
+        const sig = [];
+        for (const sc of o.scenarios ?? []) {
+          if (sc.since !== date) continue;
+          sig.push({ scope, scenario: sc.id, signal_date: date, state: sc.state, rule_version: sc.ruleVersion, created_at: o.asOf,
+            evidence: sc.evidence, contradictions: sc.contradictions, inputs: o.stateVector, coverage: o.breadth.daily?.coverage ?? null, health: o.dataHealth.status });
+        }
+        if (sig.length) await store.upsertRows(SIGNAL_TABLE, sig, "scope,scenario,signal_date");
+        saved.push({ scope, date, health: o.dataHealth.status, signals: sig.length });
       }
-      return { saved };
+      let scoring = null;
+      try { scoring = await scoreSignals(); } catch (e) { scoring = { error: e.message }; }
+      return { saved, scoring };
     },
     async history({ scope = "VNINDEX", limit = 60 } = {}) {
       const rows = await store.selectRows(SNAPSHOT_TABLE, { eq: { scope }, order: "trading_date.desc", limit });

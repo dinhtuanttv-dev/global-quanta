@@ -235,6 +235,12 @@ router.get("/trading-matrix/movers", handle(async (req, res) => {
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
 }));
+// Trading Matrix (M3) — sổ tín hiệu kịch bản (ghi đúng thời điểm), kết quả thực tế T+1/3/5/10 trên VN-Index, kiểm định đặt trước.
+router.get("/trading-matrix/signals", handle(async (req, res) => {
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().matrix.signals({ scope }));
+}));
 router.get("/trading-matrix/history", handle(async (req, res) => {
   const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
   res.set("Cache-Control", "public, max-age=300");

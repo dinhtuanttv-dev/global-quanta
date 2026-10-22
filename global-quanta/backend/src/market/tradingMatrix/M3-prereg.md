@@ -50,3 +50,12 @@ Kỳ hạn T+1/3/5; thống kê theo NGÀY ở trạng thái (block bootstrap 10
 
 ## Sửa đổi
 (chưa có)
+
+## Kết quả (2026-10-22, chạy một lần với code đã cố định ở ba55f7a; xem matrixValidation.js)
+Dữ liệu: 97 mã VN100 + VN-Index, 2021-10-01 → 2026-10-21 (1.260 phiên). Nền 10 phiên: IS −0,05 %, OOS +0,60 %.
+- SC1: THIẾU MẪU — OOS 9 đợt (< 12), TB −0,71 % (KTC −4,26; 2,25); IS 11 đợt −0,42 %.
+- SC2: KHÔNG ĐẠT — OOS 13 đợt TB **+1,42 %** (KTC −0,94; 3,93), IS +1,32 %: sau "chỉ số dẫn dắt, phân hoá" VN-Index KHÔNG giảm
+  (ngược kỳ vọng cảnh báo) -> RF3 chỉ là mô tả, không được trình bày như cảnh báo giảm.
+- SC3: THIẾU MẪU — OOS 6 đợt, TB +1,76 % (KTC chứa 0).
+Mô tả (không đổi nhãn): SC1 T+1 / T+5 OOS có KTC > 0 nhưng chỉ 9 đợt và là kỳ hạn phụ; độ nhạy ±20 % không đổi kết luận.
+Kết luận: cả ba giữ THỰC NGHIỆM; sổ tín hiệu thực tế ghi từ phiên đầu tiên sau triển khai.

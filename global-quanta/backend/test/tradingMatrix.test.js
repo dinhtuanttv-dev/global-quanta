@@ -154,3 +154,27 @@ test("M2 service: sectors / movers theo phạm vi; Smart Score lần quét khác
   const m = await mx.movers({ scope: "VN30" });
   assert.equal(m.eligible, 2); assert.equal(m.label, "Mã biến động đáng chú ý");
 });
+
+test("M3 service: kịch bản + cờ rủi ro trong overview (THỰC NGHIỆM, không gọi 'Xác nhận' khi chưa đạt); snapshot ghi sổ tín hiệu và chấm kết quả", async () => {
+  const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-mx3-")), log: { warn() {} } });
+  const dates = tradingDatesBack("2026-10-21", 320);
+  const syms = Array.from({ length: 12 }, (_, i) => `S${i}`);
+  for (const [k, date] of dates.entries()) await store.upsertMarketDaily(syms.map((symbol, j) => {
+    const c = 100 + k * 0.3 + Math.sin((k + j) / 9) * 3;
+    return { symbol, date, exchange: "HOSE", open: c, high: c * 1.01, low: c * 0.99, close: c, closeAdj: c, refPrice: c - 0.2, volume: 1, value: 1e9, foreignBuyVal: 2e9, foreignSellVal: 0 };
+  }));
+  const idx = dates.map((date, i) => ({ date, open: 1000 + i, high: 1000 + i, low: 1000 + i, close: 1000 + i * 2 + Math.sin(i / 7) * 5, volume: 1 }));
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: syms }), getBreadth: async () => { throw new Error("x"); }, getOhlcv: async () => ({ bars: idx }) };
+  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const o = await mx.overview({ scope: "VNINDEX" });
+  assert.deepEqual(o.scenarios.map((s) => s.id), ["SC1", "SC2", "SC3"]);
+  for (const s of o.scenarios) { assert.equal(s.validation.label, "THỰC NGHIỆM"); assert.notEqual(s.displayState, "Xác nhận"); assert.ok(s.validation.summary.length > 10); }
+  assert.ok(o.stateVector && "b" in o.stateVector);
+  assert.deepEqual(o.riskFlags.map((f) => f.id), ["RF3", "RF4", "RF2", "RF1", "RF5"]);
+  assert.equal(o.riskFlags.find((f) => f.id === "RF1").status, "UNAVAILABLE");
+  const sn = await mx.snapshot();
+  assert.ok(sn.scoring && !sn.scoring.error);
+  const sig = await mx.signals({ scope: "VNINDEX" });
+  assert.equal(sig.ruleVersion, "M3-r1");
+  assert.ok(sig.validation.summary.SC2.includes("ngược với kỳ vọng"));
+});

@@ -31,7 +31,9 @@ export interface MatrixOverview {
     ife: { asOf: string; zLd5: number; zFr5: number | null; method: string; coverageDays: number | null } | null;
   };
   volatility: { asOf: string; atr14: number | null; atrPct: number | null; atrPercentile: number | null; realizedVol20: number | null; rangeZ: number | null; note: string | null } | null;
-  scenarios: unknown[]; riskFlags: unknown[];
+  scenarios: Scenario[]; riskFlags: RiskFlag[];
+  neutral?: { active: boolean; reasons: string[] } | null;
+  stateVector?: Record<string, number | string | null> | null;
   sourceAsOf: Record<string, string | null>;
   dataHealth: { status: HealthStatus; sources: SourceHealth[] };
 }
@@ -72,5 +74,25 @@ export function useMatrixSectors(scope: MatrixScope, enabled: boolean) {
 export function useMatrixMovers(scope: MatrixScope, enabled: boolean) {
   const { data, error, isLoading } = useSWR<MatrixMovers>(enabled ? marketUrl(`/api/market/trading-matrix/movers?scope=${scope}`) : null, fetcher,
     { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true });
+  return { data, error: error as Error | undefined, isLoading };
+}
+
+// ------------------------------------------------------------------ M3: kịch bản, cờ rủi ro, sổ tín hiệu
+export type ScenarioState = "INACTIVE" | "WATCH" | "CONFIRMED" | "INVALIDATED" | "COOLDOWN";
+export interface Scenario {
+  id: "SC1" | "SC2" | "SC3"; title: string; meaning: string; state: ScenarioState; since: string | null; displayState: string;
+  evidence: string[]; contradictions: string[]; groups: Record<string, boolean>; ruleVersion: string;
+  validation: { verdict: string; summary: string; label: string };
+}
+export interface RiskFlag { id: string; title: string; severity: "INFO" | "CAUTION" | "WARNING" | "HIGH"; status: "ON" | "OFF" | "UNAVAILABLE" | "CHECKLIST"; detail?: string; trigger?: string; close?: string; evidence?: string[]; validation?: string; label: string }
+export interface MatrixSignals {
+  version: string; scope: string; ruleVersion: string; note: string;
+  recent: { scenario: string; date: string; state: ScenarioState; evidence: string[]; health: string }[];
+  live: Record<string, Record<string, { n: number; meanExcess: number | null }>>;
+  validation: { prereg: string; verdicts: Record<string, string>; summary: Record<string, string>; stats: Record<string, { episodes: { IS: number; OOS: number }; IS: { n: number; mean: number | null; ci: [number, number] | null }; OOS: { n: number; mean: number | null; ci: [number, number] | null } }> };
+}
+export function useMatrixSignals(scope: MatrixScope, enabled: boolean) {
+  const { data, error, isLoading } = useSWR<MatrixSignals>(enabled ? marketUrl(`/api/market/trading-matrix/signals?scope=${scope}`) : null, fetcher,
+    { refreshInterval: 10 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000 });
   return { data, error: error as Error | undefined, isLoading };
 }
