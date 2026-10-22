@@ -42,6 +42,14 @@ export interface SieuQuetStockItem {
   breakoutBoostBadge: boolean;
   piotroskiFScore: number | null;
   fScoreMax: number;
+  /** v2: false = ngân hàng / chứng khoán / bảo hiểm (F-Score không áp dụng); reason INSUFFICIENT = thiếu BCTC. */
+  fScoreApplicable?: boolean;
+  fScoreReason?: "FINANCIAL" | "INSUFFICIENT" | "NO_DATA" | null;
+  /** v2: R/R từ vùng hỗ trợ / kháng cự của engine cấu trúc (khung ngày). */
+  riskRewardBasis?: { source: string; support: number; resistance: number; asOf: string } | null;
+  faBasis?: "PEER" | "UNIVERSE" | "MIXED" | null;
+  faPeriod?: string | null;
+  peerGroup?: string | null;
   foreignNetBuyFlag: boolean;
   computedAt: string;
   /** Phiên dữ liệu dùng để tính (engine Gateway). */
@@ -60,10 +68,20 @@ export function scannerSource(): ScannerSource {
   return isMarketGatewayEnabled() ? getMarketGateway().scannerSource : "projectA";
 }
 
+/** Kết quả kiểm định đặt trước Smart Score (SQ-prereg.md) — Gateway gửi kèm bảng quét. */
+export interface IcStat { mean: number | null; lo: number | null; hi: number | null; dates: number }
+export interface ScannerValidation {
+  prereg: string; status: "DONE" | "PENDING"; ranAt?: string; primaryHorizon?: number; isEnd?: string;
+  sample?: { dates: number; from: string | null; to: string | null; symbols: number; avgNames: number };
+  verdicts: Record<string, "PASS" | "FAIL" | "INSUFFICIENT">;
+  ic?: Record<string, Record<string, { is: IcStat; oos: IcStat }>>;
+}
+
 interface ScannerResponse {
-  generatedAt: string; dataAsOf?: string; source?: string;
+  generatedAt: string; dataAsOf?: string; source?: string; engine?: string;
   indexState: SieuQuetIndexState | null; items: SieuQuetStockItem[]; totalCount: number;
-  meta?: { universeSize?: number; universeBuiltAt?: string; skipped?: unknown[] };
+  meta?: { universeSize?: number; universeBuiltAt?: string; skipped?: unknown[]; priceBasis?: Record<string, number> };
+  validation?: ScannerValidation;
 }
 
 /**
@@ -99,6 +117,9 @@ export function useSieuQuetScanner() {
     dataAsOf: data?.dataAsOf ?? null,
     usedSource: data?.usedSource ?? null,
     universeSize: data?.meta?.universeSize ?? null,
+    validation: data?.validation ?? null,
+    engine: data?.engine ?? null,
+    priceBasis: data?.meta?.priceBasis ?? null,
     isLoading, error, refresh: mutate,
   };
 }

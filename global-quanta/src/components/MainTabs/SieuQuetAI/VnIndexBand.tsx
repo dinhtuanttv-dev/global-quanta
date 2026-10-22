@@ -50,7 +50,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
             <Chip label="Impulse" value={s.impulseScore.toFixed(1)} color={impulseColor} title="Market Impulse Gauge (0–100)" />
             <Chip label="Độ rộng" value={`${s.marketBreadthPct.toFixed(1)}%`} title="% mã trên MA20" />
             <Chip label="RSI14" value={s.rsi14.toFixed(1)} />
-            <Chip label="Breakout" value={`${s.breakoutProbability.toFixed(0)}%`} />
+            <Chip label="Nén–bứt phá" value={`${s.breakoutProbability.toFixed(0)}/100`} title="Công thức: 100 − ATR percentile − |50 − độ rộng|. Không phải xác suất, chưa kiểm định." />
           </>
         ) : <span className="text-slate-500">Đang tải dữ liệu VN-Index…</span>}
         {cur && st && (

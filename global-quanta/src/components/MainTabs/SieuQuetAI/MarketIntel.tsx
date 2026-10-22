@@ -95,7 +95,7 @@ export function TechnicalTiles({ state, close }: { state: SieuQuetIndexState | n
         <Tile label="ATR Percentile" value={fx(state.atrPercentile)} title="Biến động hiện tại so lịch sử (cao = biến động mạnh)">
           <Meter value={state.atrPercentile} marks={[50, 80]} color={state.atrPercentile >= 80 ? AMBER : "#94a3b8"} />
         </Tile>
-        <Tile label="Breakout Prob." value={`${fx(state.breakoutProbability)}%`}>
+        <Tile label="Chỉ số nén–bứt phá" value={`${fx(state.breakoutProbability)}/100`} title="Công thức: 100 − ATR percentile − |50 − độ rộng|. Không phải xác suất, chưa kiểm định.">
           <Meter value={state.breakoutProbability} marks={[50]} color={state.breakoutProbability >= 50 ? UP : "#94a3b8"} />
         </Tile>
       </div>

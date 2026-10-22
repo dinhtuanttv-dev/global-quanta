@@ -63,4 +63,30 @@ Bảng vẫn hiện trong cả hai trường hợp, vì người dùng yêu cầ
 
 ## Kết quả
 
-_(chưa chạy)_
+Chạy một lần ngày 22/10/2026, sau commit đóng băng c3d3f22. Lệnh: `node scripts/scanner-validate.mjs <mtf-data> out.json --write-constant`. Hằng số kết quả nằm ở `scannerValidation.js`.
+
+**Mẫu:**
+- 208 ngày tái cân bằng, từ 21/07/2022 đến 17/09/2026: 123 ngày trong mẫu (IS), 85 ngày ngoài mẫu (OOS).
+- 100 mã; bình quân 96 mã có điểm mỗi ngày, cũng 96 mã có điểm FA.
+- BCTC VCI tải được đủ 100/100 mã.
+
+**IC xếp hạng ở kỳ hạn chính 20 phiên** (trung bình, kèm CI 95% bootstrap khối):
+
+| Điểm | IS | OOS | Kết luận |
+|---|---|---|---|
+| **Smart Score** | +0,004 [−0,034; +0,037] | **−0,016 [−0,081; +0,046]** | **KHÔNG ĐẠT** |
+| FA | +0,008 [−0,027; +0,040] | +0,001 [−0,037; +0,037] | KHÔNG ĐẠT |
+| TA | −0,013 [−0,060; +0,032] | −0,026 [−0,101; +0,043] | KHÔNG ĐẠT |
+| RS | +0,006 [−0,046; +0,055] | −0,042 [−0,122; +0,031] | KHÔNG ĐẠT |
+| Hệ số đồng thuận | +0,009 [−0,033; +0,053] | +0,000 [−0,061; +0,053] | KHÔNG ĐẠT |
+| Động lượng điều chỉnh rủi ro | +0,005 [−0,047; +0,056] | −0,039 [−0,113; +0,029] | KHÔNG ĐẠT |
+
+**Thông tin phụ:**
+- Ở kỳ hạn 5 và 10 phiên, mọi khoảng tin cậy đều chứa 0.
+- Chênh lệch lợi suất 20 phiên giữa ngũ phân vị trên và dưới theo Smart Score: IS −0,9%, OOS +0,2%.
+
+**Diễn giải:**
+- Không điểm nào xếp hạng được lợi suất tương lai trong VN100 ở bất kỳ kỳ hạn nào.
+- Các sửa lỗi Q2, Q3 và Q5 làm **số liệu đúng hơn** (BCTC, giá điều chỉnh, ngân hàng, R/R), nhưng **không** tạo ra lợi thế dự báo.
+- Trên giao diện, Smart Score mang nhãn "CHƯA ĐẠT KIỂM ĐỊNH — chỉ là xếp hạng mô tả, không phải tín hiệu dự báo", kèm IC ngoài mẫu. Bảng vẫn hiện công khai.
+- Không chỉnh trọng số hay ngưỡng sau khi xem kết quả. Muốn thử lại phải viết prereg mới (r2).
