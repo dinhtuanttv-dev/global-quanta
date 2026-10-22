@@ -178,3 +178,35 @@ test("M3 service: kịch bản + cờ rủi ro trong overview (THỰC NGHIỆM, 
   assert.equal(sig.ruleVersion, "M3-r1");
   assert.ok(sig.validation.summary.SC2.includes("ngược với kỳ vọng"));
 });
+
+test("M5/M6: dự báo có kỳ hạn + tỷ lệ nền + phiên bản + nhãn MÔ TẢ (champion chưa thăng hạng); ghi sổ dự báo, chấm, phát lại không ghi đè sổ, quay lui mô hình, báo cáo vận hành", async () => {
+  const { opsReport, DRILLS } = await import("../src/market/tradingMatrix/matrixOps.js");
+  const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-mx5-")), log: { warn() {} } });
+  const dates = tradingDatesBack("2026-10-21", 320);
+  const syms = Array.from({ length: 12 }, (_, i) => `S${i}`);
+  for (const [k, date] of dates.entries()) await store.upsertMarketDaily(syms.map((symbol, j) => {
+    const c = 100 + k * 0.3 + Math.sin((k + j) / 9) * 3;
+    return { symbol, date, exchange: "HOSE", open: c, high: c, low: c, close: c, closeAdj: c, refPrice: c - 0.2, volume: 1, value: 1e9, foreignBuyVal: 0, foreignSellVal: 0 };
+  }));
+  const idx = dates.map((date, i) => ({ date, open: 1, high: 1, low: 1, close: 1000 + i * 2 + Math.sin(i / 7) * 5, volume: 1 }));
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: syms }), getBreadth: async () => { throw new Error("x"); }, getOhlcv: async () => ({ bars: idx }) };
+  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const o = await mx.overview({ scope: "VNINDEX" });
+  assert.ok(o.forecast.p >= 0 && o.forecast.p <= 1);
+  assert.equal(o.forecast.horizon, 10); assert.equal(o.forecast.modelId, "B0-breadth"); assert.equal(o.forecast.label, "MÔ TẢ");
+  assert.ok(o.forecast.baseRate > 0 && o.forecast.holdout.n > 0);
+  await mx.snapshot();
+  assert.equal((await store.selectRows("market_matrix_forecast", { eq: { scope: "VNINDEX" } })).length, 1);
+  const rp = await mx.replay({ scope: "VNINDEX", from: "2026-10-14", to: "2026-10-17" });
+  assert.equal(rp.replayed, 3, "14–16/10 (17/10/2026 là thứ Bảy)");
+  assert.ok((await store.selectRows("market_matrix_replay", {})).every((r) => r.recomputed === true));
+  assert.equal((await store.selectRows("market_matrix_forecast", { eq: { scope: "VNINDEX" } })).length, 1, "phát lại không ghi vào sổ dự báo");
+  await assert.rejects(() => mx.setActiveModel("không-có"));
+  assert.equal((await mx.setActiveModel("B1-base")).active, "B1-base");
+  assert.equal((await mx.overview({ scope: "VNINDEX" })).forecast.modelId, "B1-base");
+  const ops = await opsReport({ store, matrix: mx, now: () => Date.parse("2026-10-21T10:00:00Z") });
+  assert.equal(ops.dataGaps.missing, 0);
+  assert.equal(ops.model.active, "B1-base");
+  assert.equal(ops.ruleChangelog[0].version, "M3-r1");
+  assert.ok(DRILLS.length >= 6 && ops.drills.every((d) => d.test));
+});

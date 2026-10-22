@@ -30,6 +30,7 @@ import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRo
 import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
+import { opsReport } from "../market/tradingMatrix/matrixOps.js";
 
 const router = Router();
 
@@ -240,6 +241,23 @@ router.get("/trading-matrix/signals", handle(async (req, res) => {
   const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
   res.set("Cache-Control", "public, max-age=300");
   res.json(await getMarketRuntime().matrix.signals({ scope }));
+}));
+// Trading Matrix (M6) — báo cáo vận hành: dữ liệu thiếu, sức khoẻ nguồn, khối lượng cảnh báo, độ trôi mô hình, kho cục bộ, nhật ký quy tắc.
+router.get("/trading-matrix/ops", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  res.set("Cache-Control", "no-store");
+  res.json(await opsReport({ store: rt.store, matrix: rt.matrix }));
+}));
+// M5 rollback mô hình / M6 phát lại (admin, Bearer MARKET_ADMIN_TOKEN).
+router.post("/trading-matrix/admin/model", handle(async (req, res) => {
+  if (!isAdmin(req)) { res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }); return; }
+  res.json(await getMarketRuntime().matrix.setActiveModel(String(req.body?.id ?? "")));
+}));
+router.post("/trading-matrix/admin/replay", handle(async (req, res) => {
+  if (!isAdmin(req)) { res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }); return; }
+  const { scope = "VNINDEX", from, to } = req.body ?? {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(to))) { res.status(400).json({ error: "from / to dạng YYYY-MM-DD." }); return; }
+  res.json(await getMarketRuntime().matrix.replay({ scope: String(scope).toUpperCase(), from, to }));
 }));
 router.get("/trading-matrix/history", handle(async (req, res) => {
   const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();

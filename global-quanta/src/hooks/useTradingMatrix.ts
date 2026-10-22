@@ -34,6 +34,7 @@ export interface MatrixOverview {
   scenarios: Scenario[]; riskFlags: RiskFlag[];
   neutral?: { active: boolean; reasons: string[] } | null;
   stateVector?: Record<string, number | string | null> | null;
+  forecast?: Forecast | null;
   sourceAsOf: Record<string, string | null>;
   dataHealth: { status: HealthStatus; sources: SourceHealth[] };
 }
@@ -94,5 +95,26 @@ export interface MatrixSignals {
 export function useMatrixSignals(scope: MatrixScope, enabled: boolean) {
   const { data, error, isLoading } = useSWR<MatrixSignals>(enabled ? marketUrl(`/api/market/trading-matrix/signals?scope=${scope}`) : null, fetcher,
     { refreshInterval: 10 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000 });
+  return { data, error: error as Error | undefined, isLoading };
+}
+
+// ------------------------------------------------------------------ M5 / M6: dự báo + vận hành
+export interface Forecast {
+  date: string; target: string; horizon: number; p: number; modelId: string; kind: string; baseRate: number; trainN: number; trainedTo: string | null;
+  holdout: { n: number; baseRate: number; id?: string; brier?: number; ece?: number; auc?: number; brierSkill?: number }; gate: string; label: string; note: string;
+}
+export interface MatrixOps {
+  asOf: string; ruleVersion: string;
+  dataGaps: { window: number; missing: number; sample: string[]; lastClosed: string; latestLocal: string | null };
+  sourceHealth: { snapshots: number; byStatus: Record<string, number>; last: { date: string; status: string; sources: { id: string; status: string }[] } | null };
+  alertVolume: { sessions: number; scenarioTransitions: number; riskFlagsOn: number };
+  model: { active: string; gate: string; holdoutBrier: number; threshold: number; liveScored: number; rollingBrier: number | null; drift: boolean };
+  store: { local?: { diskMb: number | null; ramMb: number; marketDailyDates: number }; replica?: { healthy: boolean; lastError: string | null; replicated: number; skippedWhileOpen: number } } | null;
+  bootstrap: { status: string; finishedAt: string | null; steps: { name: string; status: string }[] } | null;
+  ruleChangelog: { version: string; date: string; change: string }[]; modelRegistry: { id: string; status: string; trainedTo: string | null; n: number }[];
+  retention: Record<string, string>; drills: { id: string; scenario: string; expect: string; test: string }[];
+}
+export function useMatrixOps(enabled: boolean) {
+  const { data, error, isLoading } = useSWR<MatrixOps>(enabled ? marketUrl("/api/market/trading-matrix/ops") : null, fetcher, { refreshInterval: 5 * 60_000, revalidateOnFocus: false });
   return { data, error: error as Error | undefined, isLoading };
 }

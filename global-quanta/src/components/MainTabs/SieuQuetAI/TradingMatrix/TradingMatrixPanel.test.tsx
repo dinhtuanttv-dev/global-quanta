@@ -11,6 +11,7 @@ vi.mock("../../../../hooks/useTradingMatrix", () => ({
   useMatrixSectors: () => ({ data: undefined, error: undefined, isLoading: true }),
   useMatrixMovers: () => ({ data: undefined, error: undefined, isLoading: false }),
   useMatrixSignals: () => ({ data: undefined, error: undefined, isLoading: true }),
+  useMatrixOps: () => ({ data: undefined, error: undefined, isLoading: false }),
 }));
 const { default: TradingMatrixPanel } = await import("./TradingMatrixPanel");
 

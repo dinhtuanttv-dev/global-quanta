@@ -12,6 +12,14 @@ import { notableMovers, sectorStats } from "./sectorMatrix.js";
 import { buildStateSeries, neutralState, RULE_VERSION, runLifecycle, SCENARIOS } from "./scenarioEngine.js";
 import { riskFlags } from "./riskRules.js";
 import { MATRIX_VALIDATION } from "./matrixValidation.js";
+import { MATRIX_MODELS } from "./matrixModels.js";
+import { featureRows, HORIZON, predict } from "./models.js";
+import { notifyOps } from "../alerts.js";
+
+export const FORECAST_TABLE = "market_matrix_forecast";
+export const REPLAY_TABLE = "market_matrix_replay";
+const ACTIVE_MODEL_KV = "matrix:activeModel";
+const DRIFT_KV = "matrix:drift";
 
 export const SIGNAL_TABLE = "market_matrix_signal";
 export const OUTCOME_TABLE = "market_matrix_outcome";
@@ -80,6 +88,28 @@ export function createMatrixService({ service, store, getStructure = () => null,
     for (const k of memo.keys()) if (k.startsWith(`${scope}|`)) memo.delete(k);
     memo.set(key, v);
     return v;
+  }
+
+  /** M5: mô hình đang chạy = ghi đè rollback (KV) nếu hợp lệ, ngược lại champion của sổ đăng ký. */
+  async function activeModel() {
+    const override = (await store.getKv(ACTIVE_MODEL_KV).catch(() => null))?.value?.id ?? null;
+    const id = MATRIX_MODELS.models.some((m) => m.id === override) ? override : MATRIX_MODELS.active;
+    return MATRIX_MODELS.models.find((m) => m.id === id);
+  }
+  function forecastOf(model, states, idxBars) {
+    const row = featureRows(states, idxBars).at(-1);
+    if (!row || !model) return null;
+    const g = MATRIX_MODELS.gate;
+    const promoted = model.kind === "C1" && g.verdict === "PROMOTE";
+    const metrics = model.id === g.champion.id ? g.champion : model.id === g.challenger.id ? g.challenger : g.others.find((o) => o.id === model.id) ?? null;
+    return {
+      date: row.date, target: "VN-Index sau " + HORIZON + " phiên cao hơn hôm nay", horizon: HORIZON, p: Math.round(predict(model, row) * 1000) / 1000,
+      modelId: model.id, kind: model.kind, baseRate: model.base, trainN: model.n, trainedTo: model.trainedTo ?? null,
+      holdout: { n: g.n, baseRate: g.baseRate, ...metrics }, gate: g.verdict,
+      label: promoted ? "ĐÃ KIỂM ĐỊNH" : "MÔ TẢ",
+      note: promoted ? "Mô hình đã qua cổng thăng hạng đặt trước."
+        : "Tần suất lịch sử theo nhóm độ rộng (huấn luyện VN100, 2021-10 → 2024-12); mô hình học máy chưa qua cổng thăng hạng (holdout Brier skill " + g.challenger.brierSkill + ").",
+    };
   }
 
   async function overview({ scope = "VNINDEX", horizon = "daily" } = {}) {
@@ -164,6 +194,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
         const v = scenarioView(lc, out.breadth.daily?.coverage ?? null, out.regime.label);
         out.scenarios = v.scenarios; out.neutral = v.neutral; out.stateVector = states.at(-1) ?? null;
         out.riskFlags = riskFlags({ day: v.day, flow: out.flow });
+        out.forecast = forecastOf(await activeModel(), states, idxBars.filter((b) => b.date <= d.asOf));
       } catch (e) { log.warn?.(`[matrix] kịch bản: ${e.message}`); }
     }
     if (!out.riskFlags.length) out.riskFlags = riskFlags({ day: null, flow: out.flow });
@@ -225,6 +256,58 @@ export function createMatrixService({ service, store, getStructure = () => null,
     return { scored: add.length };
   }
 
+  /** M6: chấm dự báo đã đủ 10 phiên; Brier 60 phiên thực tế so holdout (+0,03) -> trôi hiệu chỉnh (2 lần liên tiếp -> cảnh báo). */
+  async function scoreForecasts() {
+    const r = await service.getOhlcv({ symbol: "VNINDEX", limit: 600 });
+    const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
+    const idx = new Map(bars.map((b, i) => [b.date, i]));
+    const rows = await store.selectRows(FORECAST_TABLE, { eq: { scope: "VNINDEX" } });
+    const upd = [];
+    for (const f of rows) {
+      if (f.y != null) continue;
+      const i = idx.get(f.trading_date);
+      if (i == null || i + HORIZON >= bars.length) continue;
+      upd.push({ ...f, y: bars[i + HORIZON].close > bars[i].close ? 1 : 0 });
+    }
+    if (upd.length) await store.upsertRows(FORECAST_TABLE, upd, "scope,trading_date");
+    const st = await modelStatus();
+    const prev = (await store.getKv(DRIFT_KV).catch(() => null))?.value ?? { consecutive: 0 };
+    const consecutive = st.drift ? (prev.consecutive ?? 0) + 1 : 0;
+    await store.setKv(DRIFT_KV, { consecutive, at: new Date(now()).toISOString(), rollingBrier: st.rollingBrier });
+    if (consecutive >= 2) void notifyOps("matrix:drift", "Trading Matrix: mô hình " + st.active + " suy giảm hiệu chỉnh (Brier 60 phiên " + st.rollingBrier + " > ngưỡng " + st.threshold + ") — cân nhắc quay lại phiên bản trước.");
+    return { scored: upd.length, ...st, consecutive };
+  }
+
+  async function modelStatus() {
+    const m = await activeModel();
+    const scored = (await store.selectRows(FORECAST_TABLE, { eq: { scope: "VNINDEX" }, order: "trading_date.desc" })).filter((f) => f.y != null && f.model_id === m.id).slice(0, 60);
+    const rb = scored.length ? scored.reduce((a, f) => a + (f.p - f.y) ** 2, 0) / scored.length : null;
+    const g = MATRIX_MODELS.gate;
+    const hb = m.id === g.champion.id ? g.champion.brier : m.id === g.challenger.id ? g.challenger.brier : (g.others.find((o) => o.id === m.id)?.brier ?? g.champion.brier);
+    const threshold = Math.round((hb + 0.03) * 1e4) / 1e4;
+    return { active: m.id, gate: g.verdict, holdoutBrier: hb, threshold, liveScored: scored.length, rollingBrier: rb == null ? null : Math.round(rb * 1e4) / 1e4, drift: scored.length >= 30 && rb > threshold };
+  }
+
+  /** M6: phát lại snapshot cuối phiên cho các phiên trong quá khứ (dữ liệu ≤ phiên đó) — bảng riêng, KHÔNG ghi đè sổ tín hiệu. */
+  async function replay({ scope = "VNINDEX", from, to }) {
+    scope = MATRIX_SCOPES[scope] ? scope : "VNINDEX";
+    const dates = (await store.getMarketDailyDates()).filter((d) => d >= from && d <= to);
+    const r = await service.getOhlcv({ symbol: "VNINDEX", limit: 600 });
+    const allIdx = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
+    const model = await activeModel();
+    const rows = [];
+    for (const date of dates) {
+      const d = await dailyScope(scope, date);
+      const idxBars = allIdx.filter((b) => b.date <= d.asOf);
+      const states = buildStateSeries({ bySymbol: d.bySymbol, indexBars: idxBars });
+      const v = scenarioView(runLifecycle(states), null, null);
+      rows.push({ scope, trading_date: date, replayed_at: new Date(now()).toISOString(), version: MATRIX_VERSION, rule_version: RULE_VERSION, recomputed: true,
+        doc: { breadth: dailyBreadth(d.bySymbol, d.asOf), regime: regimeDaily(idxBars), volatility: volatilityDaily(idxBars), scenarios: v.scenarios.map((x) => ({ id: x.id, state: x.state })), forecast: forecastOf(model, states, idxBars) } });
+    }
+    if (rows.length) await store.upsertRows(REPLAY_TABLE, rows, "scope,trading_date");
+    return { scope, replayed: rows.length, from, to };
+  }
+
   /** Sổ tín hiệu + kết quả thực tế + kiểm định lịch sử cho giao diện. */
   async function signals({ scope = "VNINDEX", limit = 40 } = {}) {
     const sig = await store.selectRows(SIGNAL_TABLE, { eq: { scope }, order: "signal_date.desc", limit });
@@ -242,7 +325,13 @@ export function createMatrixService({ service, store, getStructure = () => null,
   }
 
   return {
-    overview, sectors, movers, signals, scoreSignals,
+    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay,
+    /** M5: quay lại / chọn phiên bản mô hình trong sổ đăng ký (admin). */
+    async setActiveModel(id) {
+      if (!MATRIX_MODELS.models.some((m) => m.id === id)) throw Object.assign(new Error("Không có mô hình " + id + " trong sổ đăng ký."), { statusCode: 400 });
+      await store.setKv(ACTIVE_MODEL_KV, { id, at: new Date(now()).toISOString() });
+      return modelStatus();
+    },
     /** 16:50 — lưu snapshot cuối phiên ba phạm vi vào bảng cục bộ (ghi đúng thời điểm, không sửa về sau). */
     async snapshot() {
       const saved = [];
@@ -258,11 +347,19 @@ export function createMatrixService({ service, store, getStructure = () => null,
             evidence: sc.evidence, contradictions: sc.contradictions, inputs: o.stateVector, coverage: o.breadth.daily?.coverage ?? null, health: o.dataHealth.status });
         }
         if (sig.length) await store.upsertRows(SIGNAL_TABLE, sig, "scope,scenario,signal_date");
+        // M5/M6: ghi dự báo của mô hình đang chạy để chấm hiệu chỉnh thực tế sau 10 phiên.
+        if (o.forecast && o.forecast.date === date) await store.upsertRows(FORECAST_TABLE, [{ scope, trading_date: date, model_id: o.forecast.modelId, p: o.forecast.p, y: null }], "scope,trading_date");
+        // M6: nguồn bắt buộc hỏng 2 phiên liên tiếp -> cảnh báo vận hành.
+        if (scope === "VNINDEX" && o.dataHealth.status === "UNAVAILABLE") {
+          const prev = (await store.selectRows(SNAPSHOT_TABLE, { eq: { scope }, order: "trading_date.desc", limit: 2 }))[1];
+          if (prev?.doc?.dataHealth?.status === "UNAVAILABLE") void notifyOps("matrix:unavailable", "Trading Matrix: nguồn dữ liệu bắt buộc không khả dụng 2 phiên liên tiếp (" + prev.trading_date + ", " + date + ").");
+        }
         saved.push({ scope, date, health: o.dataHealth.status, signals: sig.length });
       }
-      let scoring = null;
+      let scoring = null, model = null;
       try { scoring = await scoreSignals(); } catch (e) { scoring = { error: e.message }; }
-      return { saved, scoring };
+      try { model = await scoreForecasts(); } catch (e) { model = { error: e.message }; }
+      return { saved, scoring, model };
     },
     async history({ scope = "VNINDEX", limit = 60 } = {}) {
       const rows = await store.selectRows(SNAPSHOT_TABLE, { eq: { scope }, order: "trading_date.desc", limit });

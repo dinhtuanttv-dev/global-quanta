@@ -33,3 +33,10 @@ Xác suất luôn kèm: kỳ hạn (10 phiên), tỷ lệ nền, cỡ mẫu hu�
 
 ## Sửa đổi
 (chưa có)
+
+## Kết quả (2026-10-22, code cố định ở e2647f4, chạy một lần; xem matrixModels.js)
+Huấn luyện 2021-10 → 2024-12; holdout 2025-01-02 → 2026-10-07 (436 phiên, tỷ lệ tăng 57,3 %).
+- Champion B0-breadth: Brier 0,2441 · AUC 0,549 · ECE 0,066. Đối chứng B1-base: Brier 0,2478.
+- Challenger C1-logit: Brier 0,2833 · **Brier skill −16,1 % (KTC −30,0 %; −2,1 %)** · AUC 0,50 · ECE 0,197 — isotonic trên fold cuối
+  gộp mọi dự báo thành một hằng số (không học được tín hiệu vượt nền).
+- **Phán quyết: KEEP_CHAMPION** — C1 chỉ ở mục nghiên cứu; champion B0 là tần suất lịch sử (nhãn MÔ TẢ, không phải "ĐÃ KIỂM ĐỊNH").

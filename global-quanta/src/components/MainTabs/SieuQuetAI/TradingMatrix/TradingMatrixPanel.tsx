@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Grid3x3 } from "lucide-react";
 import { useMatrixMovers, useMatrixSectors, useMatrixSignals, useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
 import { RiskChecklist, ScenarioBoard, SignalJournal } from "./ScenarioBoard";
+import { ForecastBlock, OpsPanel } from "./MatrixOps";
 import SectorHeatmap from "./SectorHeatmap";
 import NotableMovers from "./NotableMovers";
 import { BreadthCard, FlowCard, HEALTH_VI, HealthCard, RegimeCard, SessionCard, SkeletonCard, TONE, VolatilityCard, bn, vn, when } from "./MatrixCards";
@@ -178,10 +179,14 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
       )}
       {open && data && (
         <div id="mx-detail">
-          <div className="pt-3"><ScenarioBoard d={data} /></div>
+          <div className="pt-3 grid grid-cols-1 xl:grid-cols-4 gap-3">
+            <div className="xl:col-span-3"><ScenarioBoard d={data} /></div>
+            <ForecastBlock f={data.forecast} />
+          </div>
           <Details d={data} />
           <SectorRow scope={scope} active={activeIndustries} onIndustry={onIndustry} onSelectTicker={onSelectTicker} />
           <RiskRow d={data} scope={scope} />
+          <OpsPanel />
         </div>
       )}
     </section>
