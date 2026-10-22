@@ -1,58 +1,36 @@
+// TOPBAR — VN-Index (spec §6.2): điểm, thay đổi, sparkline 30 phiên, KL và GIÁ TRỊ THẬT (SSI) từ CÙNG một snapshot,
+// kèm nhãn trạng thái + thời điểm. Không có giá mô phỏng; chưa có giá -> "—" + lý do.
 import Sparkline from './Sparkline';
-import { usePriceTick } from '../../hooks/usePriceTick';
-import { formatSignedInt, formatPct } from '../../utils/formatNumber';
-import type { VnIndexData } from '../../types';
+import StatusTag, { describeMeta } from './StatusTag';
+import type { Block, IndexData } from '../../hooks/useTopbar';
 
-interface Props {
-  data: VnIndexData;
-  valueMethodology?: string | null;
-}
+const fmtPts = (v: number) => v.toLocaleString('vi-VN', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtSigned = (v: number, d = 2) => `${v >= 0 ? '+' : ''}${v.toLocaleString('vi-VN', { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+export const fmtVolume = (v: number | null) => (v == null ? '—' : v >= 1e9 ? `${(v / 1e9).toLocaleString('vi-VN', { maximumFractionDigits: 2 })} tỷ CP` : `${Math.round(v / 1e6).toLocaleString('vi-VN')} tr CP`);
+export const fmtValueVnd = (v: number | null) => (v == null ? '—' : `${Math.round(v / 1e9).toLocaleString('vi-VN')} tỷ`);
 
-// FIX (2026-09-10): DA GO BO hoan toan dropdown "SO SANH CHI SO"
-// (IndexCompareDropdown) - ban nay TRUOC DAY render no VO DIEU KIEN
-// (khong co hover/click/state gi ca), la nguyen nhan THAT SU khien no
-// luon hien tren production suot ca ngay du sua CSS/hover/click nhieu
-// lan o ban khac (global-quanta/src/) khong lien quan gi den ban nay -
-// Vercel build tu chinh thu muc goc "src/" nay, khong phai
-// "global-quanta/src/".
-//
-// FIX (lan 2): dung dung 1-arg form usePriceTick(data.value) - tuong
-// thich voi CA HAI phien ban co the co cua hook nay (ban don gian cu
-// "usePriceTick(basePrice, active?)" LAN ban overload phuc tap moi hon)
-// - tranh phu thuoc vao overload "usePriceTick(null, basePrice)" co the
-// khong ton tai tren may ban tuy phien ban hook thuc te. Props them
-// "valueMethodology?" optional de tuong thich voi ca 2 cach TopBar.tsx
-// co the goi component nay.
-export default function VnIndexHero({ data, valueMethodology }: Props) {
-  const livePrice = usePriceTick(data.value);
-  const up = data.changePct >= 0;
-  // Giá 0 = CHƯA CÓ dữ liệu (VD luồng giá vừa khởi động lại), không phải VN-Index về 0 — không hiển thị "0.0 (−100%)".
-  const hasValue = Number.isFinite(data.value) && data.value > 0;
-
+export default function VnIndexHero({ block }: { block: Block<IndexData> }) {
+  const d = block.data;
+  const up = (d?.changePct ?? 0) >= 0;
   return (
-    <div className="vn-hero">
+    <div className="vn-hero" data-testid="tb-vnindex" title={describeMeta(block.meta)}>
       <div className="vn-hero-main">
-        <span className="vn-hero-name">VN-INDEX</span>
+        <span className="vn-hero-name">VN-INDEX <StatusTag meta={block.meta} compact /></span>
         <div className="vn-hero-valrow">
-          <span className="vn-hero-val num">{hasValue ? livePrice.toFixed(1) : '—'}</span>
-          {hasValue ? (
+          <span className="vn-hero-val num">{d ? fmtPts(d.value) : '—'}</span>
+          {d && d.change != null && d.changePct != null ? (
             <span className={`vn-hero-chg num ${up ? 'up' : 'down'}`}>
-              {formatSignedInt(data.changeAbs)} ({formatPct(data.changePct)})
+              <span aria-hidden>{up ? '▲' : '▼'}</span> {fmtSigned(d.change, 2)} ({fmtSigned(d.changePct, 2)}%)
             </span>
           ) : (
-            <span className="vn-hero-chg num">đang chờ giá</span>
+            <span className="vn-hero-chg num">{block.meta.status === 'loading' ? 'đang tải…' : block.meta.reason ?? 'chưa có giá'}</span>
           )}
         </div>
       </div>
-      {hasValue && <Sparkline data={data.sparkline.filter((v) => v > 0)} width={76} height={28} color={up ? 'positive' : 'negative'} />}
+      {d && d.series.length >= 2 && <Sparkline data={d.series.map((p) => p.value)} width={76} height={28} color={up ? 'positive' : 'negative'} />}
       <div className="vn-hero-meta">
-        <span>KL <b>{data.volumeShares}</b></span>
-        <span
-          className={valueMethodology ? "vn-hero-gt-estimated" : undefined}
-          title={valueMethodology ?? undefined}
-        >
-          GT <b>{data.valueVND}</b>{valueMethodology && <span className="vn-hero-info-icon">ⓘ</span>}
-        </span>
+        <span title="Khối lượng khớp lệnh (SSI)">KL <b>{fmtVolume(d?.volumeShares ?? null)}</b></span>
+        <span title="Giá trị khớp lệnh HOSE (SSI, số liệu thật — không ước tính)">GT <b>{fmtValueVnd(d?.valueVnd ?? null)}</b></span>
       </div>
     </div>
   );

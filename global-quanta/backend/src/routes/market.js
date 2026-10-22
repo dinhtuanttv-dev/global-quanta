@@ -103,6 +103,14 @@ router.get("/indices/:code/components", handle(async (req, res) => {
 }));
 
 // Tương thích Project A /api/market-data/breadth ({ advancers, decliners }).
+// TOPBAR T1 — một snapshot cho thanh ngang; mỗi khối có DataMeta (nguồn, trạng thái, asOf, tuổi, lý do).
+router.get("/topbar", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const data = await rt.service.cache.wrap("topbar:snapshot", 15_000, () => rt.topbar.snapshot());
+  res.set("Cache-Control", "public, max-age=10");
+  res.json(data);
+}));
+
 router.get("/breadth", handle(async (req, res) => {
   res.set("Cache-Control", "no-store");
   res.json(await service().getBreadth(typeof req.query.index === "string" ? req.query.index : "VNINDEX"));

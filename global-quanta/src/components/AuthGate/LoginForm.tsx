@@ -32,7 +32,7 @@ export default function LoginForm({ onSubmit }: Props) {
 
   return (
     <div className={`login-card ${shake ? 'shake' : ''}`} onAnimationEnd={() => setShake(false)}>
-      <div className="login-logo"><div className="mark">GQ</div><span className="name">GLOBAL QUANTA</span></div>
+      <div className="login-logo"><div className="mark">ĐT</div><span className="name">ĐINH TUẤN</span></div>
       <div className="login-sub">Đăng nhập để truy cập Macro &amp; Market Scanner</div>
 
       {!configured && <div className="login-error show" role="alert">Supabase Auth chưa được cấu hình cho website này.</div>}

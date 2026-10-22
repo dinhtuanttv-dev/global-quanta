@@ -39,8 +39,8 @@ interface AppState {
 
   // ===== TÌM MÃ (thanh trên) -> mở mã trong Bảng Siêu Quét =====
   /** Yêu cầu Bảng Siêu Quét cuộn tới + mở chi tiết một mã; `nonce` để tìm lại cùng mã vẫn kích hoạt. */
-  scannerFocus: { ticker: string; nonce: number } | null;
-  focusTickerInScanner: (ticker: string) => void;
+  scannerFocus: { ticker: string; nonce: number; addToWatchlist?: boolean } | null;
+  focusTickerInScanner: (ticker: string, opts?: { addToWatchlist?: boolean }) => void;
 
   // ===== TRẠNG THÁI NGUỒN GIÁ (MarketFeed -> đèn trên thanh trên) =====
   feed: { gatewayStatus: StreamStatus | null; connectionLost: boolean; legacySsiConnected: boolean };
@@ -157,10 +157,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   scannerFocus: null,
-  focusTickerInScanner: (ticker) => {
+  focusTickerInScanner: (ticker, opts) => {
     const t = ticker.trim().toUpperCase();
     if (!t) return;
-    set((s) => ({ scannerFocus: { ticker: t, nonce: (s.scannerFocus?.nonce ?? 0) + 1 }, selectedTicker: t }));
+    set((s) => ({ scannerFocus: { ticker: t, nonce: (s.scannerFocus?.nonce ?? 0) + 1, addToWatchlist: Boolean(opts?.addToWatchlist) }, selectedTicker: t }));
   },
 
   feed: { gatewayStatus: null, connectionLost: false, legacySsiConnected: false },

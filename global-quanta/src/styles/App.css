@@ -560,7 +560,7 @@ body{
   /* Uu tien thong tin cot loi: VN-Index + trang thai thi truong.
      An bot chi so phu (do rong, thanh khoan 10:30) - dung pattern
      progressive disclosure cua cac terminal tai chinh chuyen nghiep. */
-  .breadth, .liq-check { display: none; }
+  .topbar .breadth, .topbar .liq-check { display: none; } /* chỉ trên thanh — panel "Thị trường" (portal) vẫn hiện */
 
   .regime-badge, .vn-hero { flex-shrink: 0; }
   .tickers { gap: 12px; }

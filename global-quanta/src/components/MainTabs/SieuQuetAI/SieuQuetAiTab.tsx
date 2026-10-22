@@ -245,8 +245,8 @@ export default function SieuQuetAiTab() {
       : list;
   }, [basketData.items, industries, effectiveBasket, pinnedSet]);
 
-  // Tìm mã trên thanh trên -> đưa mã vào tầm nhìn: nếu đang bị lọc thì về "Tất cả"; nếu ngoài danh sách
-  // quét thì thêm vào danh mục đang chọn (Gateway chấm điểm); rồi mở phân tích khối lượng của mã.
+  // Tìm mã trên thanh trên -> đưa mã vào tầm nhìn: nếu đang bị lọc thì về "Tất cả"; mã ngoài danh sách quét CHỈ được
+  // thêm vào danh mục khi người dùng chọn rõ "＋ Thêm vào ★ Danh mục" (TOPBAR T3); rồi mở phân tích khối lượng của mã.
   const scannerFocus = useAppStore((s) => s.scannerFocus);
   const handledFocus = useRef<number | null>(null);
   useEffect(() => {
@@ -256,7 +256,7 @@ export default function SieuQuetAiTab() {
     if (!filteredItems.some((i) => i.ticker === t)) {
       setIndustries(new Set());
       if (items.some((i) => i.ticker === t)) setBasket("ALL");
-      else { watchlists.add([t]); setBasket("WATCHLIST"); }
+      else if (scannerFocus.addToWatchlist) { watchlists.add([t]); setBasket("WATCHLIST"); }
     }
     setExpandedTicker(t);
     // Đưa dòng của mã lên đầu khung cuộn để thấy luôn phần phân tích khối lượng bên dưới.
