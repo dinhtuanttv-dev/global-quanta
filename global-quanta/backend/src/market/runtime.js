@@ -20,13 +20,17 @@ import { createCotucScanner } from "./cotuc/cotucScanner.js";
 import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
 import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
 import { createCorporateActions } from "./adjusted/corporateActions.js";
+import { fetchVndEvents } from "./adjusted/vndirectEvents.js";
 import { createTaSeries } from "./adjusted/taSeries.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
 import { createTop20Service, TOP20_SCHEDULE } from "./top20/top20Jobs.js";
 import { createAlphaService, ALPHA_SCHEDULE } from "./alpha/alphaService.js";
+import { createStructureService, STRUCTURE_SCHEDULE } from "./structure/structureService.js";
 import { setHolidayProvider } from "./calendar.js";
+import { createLocalBootstrap } from "./store/localBootstrap.js";
+import { createMatrixService, MATRIX_SCHEDULE } from "./tradingMatrix/matrixService.js";
 import { marketConfig } from "./config.js";
 
 let runtime;
@@ -66,7 +70,8 @@ export function getMarketRuntime() {
 
   // Chuỗi giá điều chỉnh cộng dồn dùng chung cho /ta-series, /ta-intraday và bộ lọc kỹ thuật.
   const nominalHistory = createAdjustedHistory({ service, store });
-  const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") });
+  // Mã Project A không có (Neon khoá -> chỉ 17 mã) hoặc Project A lỗi -> sự kiện quyền trực tiếp từ VNDirect finfo.
+  const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fallback: (symbols) => fetchVndEvents(symbols) });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
@@ -75,8 +80,17 @@ export function getMarketRuntime() {
   const top20 = createTop20Service({ service, corporateActions, taSeries });
   // Top 20 v2 (M1 đa yếu tố, T3 EXPERIMENTAL): 18 yếu tố giá / dòng tiền / BCTC VNDirect / ngành + sổ theo dõi thực tế.
   const alpha = createAlphaService({ service, corporateActions, taSeries });
-  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs };
-  const scheduler = createScheduler(jobs, { extraSchedule: [...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE] });
+  // Cấu trúc thị trường đa khung (T4): SSI /ta-series + nến phút SSI; kho nến 1 giờ trên Railway Volume.
+  const structure = createStructureService({ service, taSeries, corporateActions });
+  const jobs = { ...createJobs(service), ...createScannerJobs(service, { corporateActions }), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
+  // M0: kho cục bộ (Railway Volume) — tự dựng lại từ SSI/VCI khi thiếu; dọn dòng lệnh theo phút cũ mỗi đêm.
+  const localBootstrap = createLocalBootstrap({ jobs, store });
+  // Trading Matrix (M1): snapshot trạng thái thị trường từ các nguồn sẵn có; lưu bảng cục bộ 16:50.
+  const matrix = createMatrixService({ service, store, getStructure: () => structure, corporateActions });
+  jobs.matrixSnapshot = () => matrix.snapshot();
+  jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
+  jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -92,7 +106,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, started: false };
   return runtime;
 }
 
@@ -105,6 +119,8 @@ export function startMarketIngestor() {
   rt.scheduler.start({ runOnStart });
   rt.tickRecorder.start();
   rt.cotucScanner.start();
+  // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
+  if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();
   console.log(`[market] Ingestor đã bật (store=${rt.store.kind}).`);
   return rt;
 }

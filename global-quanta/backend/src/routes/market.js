@@ -7,13 +7,15 @@ import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
-import { lastCompletedSessionDate, vnDate } from "../market/calendar.js";
+import { expectsLiveTicks, lastCompletedSessionDate, vnDate } from "../market/calendar.js";
 import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
+import { attachStructureRr } from "../market/scanner/scanEngine.js";
+import { SCANNER_VALIDATION } from "../market/scanner/scannerValidation.js";
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createForensicSource, createPortfolioRisk } from "../market/research/deepAnalysis.js";
@@ -30,6 +32,7 @@ import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRo
 import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
+import { opsReport } from "../market/tradingMatrix/matrixOps.js";
 
 const router = Router();
 
@@ -107,14 +110,19 @@ router.get("/breadth", handle(async (req, res) => {
 
 // Siêu Quét AI (engine trên Gateway, nguồn SSI). Cùng định dạng với Project A
 // /api/sieu-quet-ai/scanner: { generatedAt, indexState, items, totalCount } + dataAsOf/meta.
+// v2: R/R gắn lúc đọc từ bản tóm tắt cấu trúc (job 15:47, Volume) + nhãn bằng chứng của kiểm định đặt trước (SQ-prereg.md).
+async function structureSummaryOrNull(rt) {
+  try { return (await rt.structure?.summary?.()) ?? null; } catch { return null; }
+}
 router.get("/scanner", handle(async (req, res) => {
-  const doc = (await getMarketRuntime().store.getKv(KV.latest))?.value;
+  const rt = getMarketRuntime();
+  const doc = (await rt.store.getKv(KV.latest))?.value;
   if (!doc) {
     res.status(503).json({ error: "Siêu Quét trên Gateway chưa có kết quả (chưa chạy scanUniverse)." });
     return;
   }
   res.set("Cache-Control", "public, max-age=60");
-  res.json(doc);
+  res.json({ ...doc, items: attachStructureRr(doc.items ?? [], await structureSummaryOrNull(rt)), validation: SCANNER_VALIDATION });
 }));
 // Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout) — xem strategies/technicalFilters.js.
 // SEPA SP6: cảnh báo phá vỡ trong phiên cho mã SEPA đang chờ pivot (KV strategies:sepa + quotes trong phiên).
@@ -208,6 +216,92 @@ router.get("/alpha/top20", handle(async (req, res) => {
 router.get("/top20/inputs", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   res.json(await getMarketRuntime().top20.inputs());
+}));
+
+// Trading Matrix (M1) — trạng thái thị trường đa nguồn: regime, độ rộng (cuối phiên + trong phiên, có mẫu số), dòng tiền
+// (tách nguồn), biến động, pha phiên, sức khoẻ từng nguồn. ?scope=VNINDEX|VN30|UNIVERSE
+router.get("/trading-matrix/overview", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  const live = expectsLiveTicks();
+  const data = await rt.service.cache.wrap(`matrix:overview:${scope}`, live ? 20_000 : 5 * 60_000, () => rt.matrix.overview({ scope }));
+  res.set("Cache-Control", live ? "private, max-age=15" : "private, max-age=120");
+  res.json(data);
+}));
+// Trading Matrix (M2) — heatmap ngành (RS so VN-Index × độ rộng ngành × GTGD) + mã biến động đáng chú ý (không có trọng số chỉ số).
+router.get("/trading-matrix/sectors", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  const data = await rt.service.cache.wrap(`matrix:sectors:${scope}`, 5 * 60_000, () => rt.matrix.sectors({ scope }));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+// Trading Matrix — Index Impact (spec §6.8): điểm đóng góp từng mã vào VN-Index một phiên đã chốt, kèm kiểm tra Σ đóng góp vs thật.
+router.get("/trading-matrix/index-impact", handle(async (req, res) => {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date ?? "")) ? String(req.query.date) : null;
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().matrix.impact(date));
+}));
+router.get("/trading-matrix/movers", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VN30").toUpperCase();
+  const data = await rt.service.cache.wrap(`matrix:movers:${scope}`, 5 * 60_000, () => rt.matrix.movers({ scope }));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+// Trading Matrix (M3) — sổ tín hiệu kịch bản (ghi đúng thời điểm), kết quả thực tế T+1/3/5/10 trên VN-Index, kiểm định đặt trước.
+router.get("/trading-matrix/signals", handle(async (req, res) => {
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().matrix.signals({ scope }));
+}));
+// Trading Matrix (M6) — báo cáo vận hành: dữ liệu thiếu, sức khoẻ nguồn, khối lượng cảnh báo, độ trôi mô hình, kho cục bộ, nhật ký quy tắc.
+router.get("/trading-matrix/ops", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  res.set("Cache-Control", "no-store");
+  res.json(await opsReport({ store: rt.store, matrix: rt.matrix }));
+}));
+// M5 rollback mô hình / M6 phát lại (admin, Bearer MARKET_ADMIN_TOKEN).
+router.post("/trading-matrix/admin/model", handle(async (req, res) => {
+  if (!isAdmin(req)) { res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }); return; }
+  res.json(await getMarketRuntime().matrix.setActiveModel(String(req.body?.id ?? "")));
+}));
+router.post("/trading-matrix/admin/replay", handle(async (req, res) => {
+  if (!isAdmin(req)) { res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }); return; }
+  const { scope = "VNINDEX", from, to } = req.body ?? {};
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(to))) { res.status(400).json({ error: "from / to dạng YYYY-MM-DD." }); return; }
+  res.json(await getMarketRuntime().matrix.replay({ scope: String(scope).toUpperCase(), from, to }));
+}));
+router.get("/trading-matrix/history", handle(async (req, res) => {
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  res.set("Cache-Control", "public, max-age=300");
+  res.json({ scope, rows: await getMarketRuntime().matrix.history({ scope, limit: Math.min(Number(req.query.limit) || 60, 250) }) });
+}));
+
+// Cấu trúc thị trường đa khung (T4) — bản tóm tắt toàn universe (job 15:47) để làm giàu bảng bộ lọc.
+router.get("/structure-summary", handle(async (req, res) => {
+  const doc = await getMarketRuntime().structure.summary();
+  if (!doc) { res.status(404).json({ error: "Chưa có bản tóm tắt cấu trúc (job scanStructure chạy 15:47 ngày giao dịch)." }); return; }
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(doc);
+}));
+
+// Cấu trúc đa khung (T6) — sổ dự báo thực tế: độ phủ nón 5/10/20 phiên, α của ACI, lợi suất 10 phiên theo kết luận.
+router.get("/structure-ledger", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().structure.ledgerStats());
+}));
+
+// Cấu trúc thị trường đa khung (T4) — Tuần / Ngày / 1 giờ cho một mã. ?h1=0 để bỏ khung 1 giờ.
+router.get("/structure/:symbol", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{3,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const h1 = String(req.query.h1 ?? "1") !== "0";
+  const live = expectsLiveTicks();
+  const data = await rt.service.cache.wrap(`structure:${symbol}:${h1 ? 1 : 0}`, live ? 60_000 : 10 * 60_000, () => rt.structure.analyze(symbol, { h1 }));
+  res.set("Cache-Control", live ? "private, max-age=30" : "private, max-age=300");
+  res.json(data);
 }));
 
 // Cycle Fingerprint v2 (CF4) — sổ theo dõi thực tế (bản chụp dự báo 20 phiên hằng ngày, chấm khi đủ 21 phiên).
@@ -463,7 +557,10 @@ router.get("/scanner/custom", handle(async (req, res) => {
   const tickers = parseTickers(req.query.tickers);
   const latest = (await rt.store.getKv(KV.latest))?.value;
   const key = `scanner-custom:${latest?.generatedAt ?? "none"}:${[...tickers].sort().join(",")}`;
-  const data = await rt.service.cache.wrap(key, 10 * 60_000, () => scoreCustomTickers(rt.service, tickers));
+  const data = await rt.service.cache.wrap(key, 10 * 60_000, async () => {
+    const r = await scoreCustomTickers(rt.service, tickers, { corporateActions: rt.corporateActions });
+    return { ...r, items: attachStructureRr(r.items, await structureSummaryOrNull(rt)) };
+  });
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));

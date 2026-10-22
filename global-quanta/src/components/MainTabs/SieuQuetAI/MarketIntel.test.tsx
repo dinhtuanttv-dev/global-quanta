@@ -65,7 +65,7 @@ describe("Market Intelligence VN-Index", () => {
   it("khối kỹ thuật giữ đủ chỉ số cũ, thêm vị trí so MA và thanh ngưỡng", async () => {
     const el = await render(<TechnicalTiles state={state} close={1737.7} />);
     const t = el.textContent ?? "";
-    for (const s of ["Xu hướng", "MA20", "MA50", "MA200", "RSI(14)", "MACD Hist.", "Breadth", "Phân kỳ", "ATR Percentile", "Breakout Prob.", "VN-Index đang ở trạng thái phân phối."]) expect(t).toContain(s);
+    for (const s of ["Xu hướng", "MA20", "MA50", "MA200", "RSI(14)", "MACD Hist.", "Breadth", "Phân kỳ", "ATR Percentile", "Chỉ số nén–bứt phá", "VN-Index đang ở trạng thái phân phối."]) expect(t).toContain(s);
     expect(t).toContain("▼ dưới 3.3%");
     expect(t).toContain("▼ động lượng âm");
   });

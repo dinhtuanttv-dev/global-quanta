@@ -9,6 +9,8 @@ import { GOLDEN_SOURCES, useGoldenSepa, type GoldenSepaRow } from "../../../hook
 import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
+import { useStructureSummary } from "../../../hooks/useStructure";
+import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const CONFIRM_SHORT: Record<string, string> = { camslim: "CS", "base-breakout": "BB", convergence: "HL", patterns: "MH" };
 const LIST_SHORT: Record<string, string> = { "SẴN SÀNG MUA": "Sẵn sàng", "CẢNH BÁO MUA": "Cảnh báo", "THEO DÕI": "Theo dõi" };
 type MinConfirm = 0 | 1 | 2;
@@ -29,7 +31,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
     const id = requestAnimationFrame(() => ref.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
     return () => cancelAnimationFrame(id);
   }, []);
-  return <tr ref={ref} data-testid="golden-sepa-deep-row"><td colSpan={6} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td></tr>;
+  return <tr ref={ref} data-testid="golden-sepa-deep-row"><td colSpan={7} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td></tr>;
 }
 
 export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
@@ -47,6 +49,9 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
     return () => ro.disconnect();
   }, [open]);
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
+  // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
+  const structureRows = useStructureSummary();
+  const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -88,11 +93,14 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
       {isLoading && !doc && <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 py-5"><RefreshCw className="w-3 h-3 animate-spin" /> Đang tải từ Gateway…</div>}
       {doc && shown.length === 0 && <p className="text-[10px] text-slate-500 italic py-4 text-center">Không có mã nào khớp bộ lọc đang chọn.</p>}
       {doc && shown.length > 0 && (
+        <>
+        <div className="flex items-center gap-2 pb-1"><AlignToggle on={alignOn} onChange={setAlignOn} /></div>
         <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-96 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
+                <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
                 <th className="py-1.5">SEPA</th>
                 <th className="py-1.5 text-right" style={{ paddingRight: 12 }}>Điểm</th>
                 <th className="py-1.5">Xác nhận chéo</th>
@@ -103,13 +111,14 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
             <tbody className="divide-y divide-slate-800/30">
               {shown.map(({ sepa: r, confirms }: GoldenSepaRow) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-amber-500/10" : "hover:bg-slate-800/30"}`} onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="golden-sepa-row">
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-amber-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`} onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="golden-sepa-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 font-black text-amber-400 hover:text-amber-300" aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}
                       </button>
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
+                    <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                     <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span>{isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300">S2 · đạt OOS*</span>}</td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12 }}>{r.score.toFixed(1).replace(".", ",")}</td>
                     <td className="py-1.5" data-testid="golden-sepa-confirms">
@@ -125,6 +134,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
                         <span className="text-slate-500">Xác nhận chéo:</span>
                         {confirms.length ? confirms.map((c) => <span key={c.key} className="px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-200">{c.label} · {c.detail}</span>) : <span className="text-slate-400">chưa có bộ lọc nào khác xác nhận</span>}
                       </div>
+                      <StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={onSelectTicker} />
                       <SepaDeepPanel row={r} doc={doc} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
                     </DeepRow>
                   )}
@@ -133,6 +143,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
             </tbody>
           </table>
         </div>
+        </>
       )}
       <p className="text-[9px] text-slate-600">CS = CAN SLIM · BB = Base Breakout · HL = Hợp lưu v2 (phía mua) · MH = mô hình giá Pring tăng đang hiệu lực (EXPERIMENTAL, kiểm định P3 chưa đạt) · {doc?.disclaimer}</p>
     </section>

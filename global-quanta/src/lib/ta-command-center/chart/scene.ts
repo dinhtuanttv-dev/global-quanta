@@ -28,7 +28,11 @@ export type SceneItem =
   | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; label?: SceneLabel }
   // Volume Profile: histogram ngang neo từ nến t1 tới nến t2 (độ dài thanh = KL/KL max × widthFrac × bề rộng [t1,t2]).
   | { kind: "profile"; t1: string; t2: string; bins: { low: number; high: number; volume: number }[]; maxVolume: number;
-      vaLow: number; vaHigh: number; widthFrac: number; color: string; vaColor: string };
+      vaLow: number; vaHigh: number; widthFrac: number; color: string; vaColor: string }
+  // VÙNG TƯƠNG LAI (bên phải nến cuối): toạ độ = nến neo `from` + k nến (chỉ số logic của thư viện) -> vẫn ghim theo nến khi kéo/zoom.
+  | { kind: "future"; from: string; points: { k: number; price: number }[]; color: string; width?: number; dash?: number[]; arrow?: boolean; label?: SceneLabel }
+  | { kind: "cone"; from: string; fromPrice: number; steps: { k: number; lo: number; mid: number; hi: number }[]; fill: string; stroke: string; midColor: string;
+      labels?: { k: number; price: number; label: SceneLabel }[] };
 
 export interface Scene { items: SceneItem[] }
 export const EMPTY_SCENE: Scene = { items: [] };

@@ -32,7 +32,7 @@ async function getJson(fetchImpl, url, timeoutMs) {
  * @param {{ store: any, wsStrategy: () => Promise<any>, rrgDoc: () => Promise<any>, taxonomy: () => Promise<any>,
  *   fetchImpl?: typeof fetch, projectABase?: string, now?: () => number, log?: { warn: Function } }} deps
  */
-export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
+export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, structureSummary = async () => null, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
   const base = (projectABase ?? process.env.LEGACY_MARKET_API_BASE ?? "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "");
   let memo = null; // { date, doc }
   let building = null;
@@ -56,7 +56,7 @@ export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, f
   async function gather(scannerDoc) {
     const scanner = scannerDoc === undefined ? await kv(SCANNER_KV.latest) : scannerDoc;
     const date = scanner?.dataAsOf ?? null;
-    const [features, top20, rrg, tax, ws, catalyst, cotuc, ...strats] = await Promise.all([
+    const [features, top20, rrg, tax, ws, catalyst, cotuc, structure, ...strats] = await Promise.all([
       latestFeatures(date),
       kv(ALPHA_KV.top20),
       rrgDoc().catch(() => null),
@@ -64,15 +64,17 @@ export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, f
       wsStrategy().catch((e) => { log.warn?.(`[elite] worldStrategy: ${e.message}`); return null; }),
       getJson(fetchImpl, `${base}/api/catalysts/latest`, 20_000),
       getJson(fetchImpl, `${base}/api/cotuc/decision-states`, 20_000),
+      structureSummary().catch(() => null),
       ...PANEL_STRATEGIES.map((id) => kv(strategyKvKey(id))),
     ]);
     const strategies = Object.fromEntries(PANEL_STRATEGIES.map((id, i) => [id, strats[i]]));
     return {
       date,
-      src: { scanner, features, top20, strategies, wsStrategy: ws, rrg, taxonomy: tax, catalyst, cotuc },
+      // Cấu trúc chỉ nhận khi cùng phiên với Siêu quét (point-in-time).
+      src: { scanner, features, top20, strategies, wsStrategy: ws, rrg, taxonomy: tax, catalyst, cotuc, structure: structure && structure.asOf === date ? structure : null },
       asOf: {
         scanner: date, top20: top20?.dataAsOf ?? null, wsStrategy: ws?.vnLast ?? null, rrg: rrg?.dataAsOf ?? null,
-        catalyst: catalyst?.scannedAt ?? null, catalystStale: catalyst?.isStale ?? null, cotuc: cotuc?.asOf ?? null,
+        catalyst: catalyst?.scannedAt ?? null, catalystStale: catalyst?.isStale ?? null, cotuc: cotuc?.asOf ?? null, structure: structure?.asOf ?? null,
         strategies: Object.fromEntries(PANEL_STRATEGIES.map((id, i) => [id, strats[i]?.dataAsOf ?? null])),
       },
     };

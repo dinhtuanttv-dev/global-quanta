@@ -50,7 +50,8 @@ function makeInput(seed = 7, nTickers = 60) {
   universe.forEach((u, i) => {
     barsByTicker.set(u.ticker, makeBars(r, i % 13 === 0 ? 40 : 120 + Math.floor(r() * 140))); // vài mã < 50 nến
     if (i % 7 !== 0) {
-      const quarters = Array.from({ length: 6 }, () => makeQuarter(r));
+      // Quý mới nhất trước, có (năm, quý) như VCI: Q2/2026, Q1/2026, Q4/2025…
+      const quarters = Array.from({ length: 6 }, (_, k) => ({ ...makeQuarter(r), year: 2026 - Math.floor((k + 2) / 4), quarter: ((1 - k) % 4 + 4) % 4 + 1 }));
       fundamentals.set(u.ticker, { income: { available: true, quarters }, balance: { available: true, quarters } });
     }
   });
@@ -148,16 +149,19 @@ function referenceScan({ universe, barsByTicker, fundamentals, indexBars, events
 
 const pick = (o, keys) => Object.fromEntries(keys.map((k) => [k, o[k]]));
 
-test("engine: quy trình quét khớp vòng lặp cron gốc của Project A (60 mã giả lập)", () => {
+// Siêu Quét v2 (22/10/2026) cố ý đổi FA / F-Score / thanh khoản / Smart Score / R/R / nhãn chất lượng (xem SQ-prereg.md và
+// test/scannerV2.test.js). Phần KHÔNG đổi vẫn phải khớp đúng vòng lặp cron gốc của Project A.
+const UNCHANGED_KEYS = ["ticker", "price", "changePct", "eventImpactScore", "rsRating", "riskAdjustedMomentum", "trendTag", "foreignNetBuyFlag"];
+test("engine v2: trạng thái VN-Index, RS, xu hướng, động lượng, sự kiện vẫn khớp cron gốc của Project A (60 mã giả lập)", () => {
   for (const seed of [7, 11, 23]) {
     const input = makeInput(seed);
     const ours = runScan(input);
     const ref = referenceScan(input);
     assert.deepEqual(pick(ours.indexState, Object.keys(ref.indexState)), ref.indexState);
-    const keys = Object.keys(ref.items[0]);
+    const keys = UNCHANGED_KEYS;
     const oursByTicker = new Map(ours.items.map((i) => [i.ticker, pick(i, keys)]));
     assert.equal(ours.items.length, ref.items.length);
-    for (const item of ref.items) assert.deepEqual(oursByTicker.get(item.ticker), item, `lệch ở mã ${item.ticker}`);
+    for (const item of ref.items) assert.deepEqual(oursByTicker.get(item.ticker), pick(item, keys), `lệch ở mã ${item.ticker}`);
     assert.ok(ours.skipped.every((s) => s.reason === "INSUFFICIENT_BARS"));
   }
 });

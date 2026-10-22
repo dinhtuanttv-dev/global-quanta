@@ -10,6 +10,8 @@ import type { TechnicalFilterEvidence } from "../../../hooks/useTechnicalFilter"
 import EvidenceCard from "./EvidenceCard";
 import ConvergenceDeepPanel from "./ConvergenceDeepPanel";
 
+import { useStructureSummary } from "../../../hooks/useStructure";
+import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const GRADE_STYLE: Record<string, string> = {
   A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
   B: "bg-sky-500/15 text-sky-300 border-sky-500/30",
@@ -42,7 +44,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-cyan-900/40" data-testid="convergence-deep-row">
-      <td colSpan={7} className="p-0">
+      <td colSpan={8} className="p-0">
         <div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div>
       </td>
     </tr>
@@ -66,6 +68,9 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
     return () => ro.disconnect();
   }, [open]);
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
+  // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
+  const structureRows = useStructureSummary();
+  const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); };
@@ -132,11 +137,14 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
       {data && rows.length === 0 && <p className="text-[10px] text-slate-500 italic py-4 text-center">Không có mã nào khớp bộ lọc đang chọn.</p>}
 
       {rows.length > 0 && (
+        <>
+        <div className="flex items-center gap-2 pb-1"><AlignToggle on={alignOn} onChange={setAlignOn} /></div>
         <div ref={scrollRef} className={open ? "overflow-x-auto" : "max-h-80 overflow-auto"}>
           <table className="w-full text-left text-[10px] border-collapse">
             <thead className="sticky top-0 bg-slate-950/95">
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
+                <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
                 <th className="py-1.5">Phía · pha</th>
                 <th className="py-1.5 text-right pr-1">Điểm</th>
                 <th className="py-1.5 pl-3">Hợp lưu vùng giá</th>
@@ -148,7 +156,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
             <tbody className="divide-y divide-slate-800/30">
               {rows.map((r: ConvergenceRow) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"}`}
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`}
                     onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="convergence-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()}
@@ -158,6 +166,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                       </button>
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
+                    <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                     <td className="py-1.5">
                       <span className={r.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{r.side === "buy" ? "▲ Mua" : "▼ Bán"}</span>
                       <span className="text-violet-300"> · Phase {r.wyckoff.cyclePhase ?? "?"}</span>
@@ -190,6 +199,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                   </tr>
                   {open === r.ticker && data && (
                     <DeepRow width={frameW}>
+                      <StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={onSelectTicker} />
                       <ConvergenceDeepPanel row={r} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} />
                     </DeepRow>
                   )}
@@ -198,6 +208,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
             </tbody>
           </table>
         </div>
+        </>
       )}
     </section>
   );

@@ -16,6 +16,19 @@ const HEADERS = {
 };
 
 const num = (v) => (v !== null && v !== undefined ? Number(v) : null);
+const nz = (v) => (v !== null && v !== undefined && Number(v) !== 0 ? Number(v) : null);
+
+/**
+ * Loại BCTC theo mẫu VCI (đối chiếu /financial-statement/metrics ngày 22/10/2026): ngân hàng có isb* (isb38 Tổng thu nhập
+ * hoạt động), bảo hiểm có isi* (isi64 Doanh thu thuần HĐKD bảo hiểm), chứng khoán có iss* (iss42 doanh thu môi giới,
+ * iss115 lãi FVTPL). Mẫu ngân hàng KHÔNG có doanh thu thuần / lợi nhuận gộp / TSNH / nợ ngắn hạn (isa1, isa5, bsa1, bsa55 = 0).
+ */
+export function statementKind(row) {
+  if (nz(row.isb38) !== null || nz(row.isb27) !== null) return "bank";
+  if (nz(row.isi64) !== null || nz(row.isi103) !== null) return "insurance";
+  if (nz(row.iss42) !== null || nz(row.iss115) !== null) return "securities";
+  return "corporate";
+}
 const byNewest = (a, b) => (b.year - a.year) || (b.quarter - a.quarter);
 
 async function fetchSection(ticker, section, mapRow, fetchImpl) {
@@ -47,7 +60,9 @@ async function fetchSection(ticker, section, mapRow, fetchImpl) {
 
 export function fetchQuarterlyIncome(ticker, fetchImpl = globalThis.fetch) {
   return fetchSection(ticker, "INCOME_STATEMENT", (row) => ({
-    revenue: num(row.isa1 ?? null),
+    // Doanh thu: isa1 (doanh nghiệp, chứng khoán); ngân hàng = Tổng thu nhập hoạt động (isb38); bảo hiểm = isi64.
+    revenue: nz(row.isa1) ?? nz(row.isb38) ?? nz(row.isi64) ?? num(row.isa1 ?? null),
+    kind: statementKind(row),
     netProfit: num(row.isa22 ?? null),
     eps: num(row.isa23 ?? null),
     cogs: num(row.isa4 ?? null),

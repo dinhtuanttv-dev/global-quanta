@@ -43,6 +43,13 @@ export const SIGNAL_SPECS = [
     evidenceVi: "Có sổ theo dõi Brier/CUSUM; chưa có kiểm định đặt trước cho xếp hạng." },
 ];
 
+// T7 (2026-10-21): Cấu trúc thị trường đa khung — bậc C (chỉ đo IC, không vào điểm Elite cho tới khi engine bằng chứng thăng bậc).
+SIGNAL_SPECS.push(
+  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H1/H5 không đạt OOS (vào Tăng −1,56%/20 phiên); chỉ đo IC." },
+  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 không đạt (IC OOS −0,032)." },
+  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H2 không đạt (MUA đa khung −0,68%/10 phiên OOS)." },
+);
+
 export const SPEC_BY_ID = new Map(SIGNAL_SPECS.map((s) => [s.id, s]));
 
 const num = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
@@ -53,6 +60,8 @@ const PATTERN_STATUS = { BREAKOUT: 1, CONFIRMED: 1, TARGET1: 0.5, PULLBACK: 0.5,
 const GRADE = { A: 3, B: 2, C: 1 };
 const QUADRANT = { LEADING: 2, IMPROVING: 1, WEAKENING: -1, LAGGING: -2 };
 const COTUC = { FAVORABLE: 1, WATCH: 0, AVOID: -1 };
+const STRUCT_STAGE = { UP: 2, A: 1, B: 0.5, RANGE: 0, C: -0.5, Bp: -1, D: -1.5, DOWN: -2 };
+const STRUCT_VERDICT = { "MUA": 2, "CHỜ MUA": 1, "ĐỨNG NGOÀI": 0, "GIẢM TỶ TRỌNG": -1, "BÁN": -2 };
 
 /** Ngành ICB cụ thể nhất có trong tập `codes` cho một mã (l3 -> l2 -> l1). */
 export function icbFor(symbolsMap, ticker, codes) {
@@ -75,6 +84,7 @@ export function icbFor(symbolsMap, ticker, codes) {
  * @param {{ symbols: Record<string, {l1?: string, l2?: string, l3?: string}> } | null} src.taxonomy
  * @param {{ tickerImpacts?: Record<string, { direction: string, compositeScore: number }> } | null} src.catalyst
  * @param {{ states?: any[] } | null} src.cotuc                            Project A /api/cotuc/decision-states
+ * @param {{ rows: any[] } | null} [src.structure]                          Gateway structure-summary (T4, job 15:47)
  */
 export function buildSignalRows(src) {
   const missingSources = [];
@@ -118,6 +128,8 @@ export function buildSignalRows(src) {
     missingSources.push("cotuc");
   }
   if (!src.features) missingSources.push("researchFeatures");
+  const structure = src.structure?.rows ? new Map(src.structure.rows.map((r) => [String(r.t).toUpperCase(), r])) : null;
+  if (!structure) missingSources.push("structure");
 
   const rows = tickers.map((ticker) => {
     const it = itemBy.get(ticker) ?? {};
@@ -147,6 +159,9 @@ export function buildSignalRows(src) {
       rrg_quadrant: rrgIcb ? rrg.get(rrgIcb) ?? null : null,
       catalyst_impact: impacts ? (imp && imp.direction !== "none" ? (imp.direction === "harm" ? -1 : 1) * (num(imp.compositeScore) ?? 0) : 0) : null,
       cotuc_decision: cotuc.size ? cotuc.get(ticker) ?? null : null,
+      structure_stage: structure ? STRUCT_STAGE[structure.get(ticker)?.st] ?? null : null,
+      structure_score: structure ? num(structure.get(ticker)?.sc) : null,
+      structure_verdict: structure ? STRUCT_VERDICT[structure.get(ticker)?.v] ?? null : null,
     };
     for (const k of Object.keys(values)) values[k] = r4(values[k]);
     return { ticker, icb: symbols?.[ticker] ?? null, sector: it.industry ?? it.sector ?? null, values };
