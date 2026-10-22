@@ -1,6 +1,7 @@
 import { Fragment, useState, useMemo, memo, useCallback, useEffect, useRef } from "react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
+import { ScannerEvidence } from "./ScannerEvidence";
 import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
@@ -138,11 +139,20 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
       </td>
       <td className="pr-3 text-slate-300">{item.trendTag ?? "—"}</td>
       <td className="pr-3">
-        <span className={`px-1.5 py-0.5 rounded border text-[9px] ${excluded ? "bg-rose-950 text-rose-400 border-rose-700" : "bg-emerald-950/40 text-emerald-400 border-emerald-800"}`}>
-          F-Score {item.piotroskiFScore ?? "—"}/{item.fScoreMax}
-        </span>
+        {item.fScoreApplicable === false ? (
+          <span className="px-1.5 py-0.5 rounded border text-[9px] bg-slate-800/60 text-slate-400 border-slate-600" title="F-Score không áp dụng cho ngân hàng / chứng khoán / bảo hiểm (mẫu BCTC không có lợi nhuận gộp, TSNH, nợ ngắn hạn)">
+            F-Score N/A
+          </span>
+        ) : (
+          <span className={`px-1.5 py-0.5 rounded border text-[9px] ${excluded ? "bg-rose-950 text-rose-400 border-rose-700" : item.piotroskiFScore === null ? "bg-slate-800/60 text-slate-400 border-slate-600" : "bg-emerald-950/40 text-emerald-400 border-emerald-800"}`}
+            title={item.piotroskiFScore === null ? "Chưa đủ BCTC để đánh giá (cần ≥ 4/6 tiêu chí)" : undefined}>
+            F-Score {item.piotroskiFScore ?? "—"}/{item.fScoreMax}
+          </span>
+        )}
       </td>
-      <td className="text-right pr-3">{item.riskRewardRatio !== null ? fmt(item.riskRewardRatio, 2) : "—"}</td>
+      <td className="text-right pr-3" title={item.riskRewardBasis ? `Hỗ trợ ${fmt(item.riskRewardBasis.support, 0)} · kháng cự ${fmt(item.riskRewardBasis.resistance, 0)} (engine cấu trúc, khung ngày, ${item.riskRewardBasis.asOf})` : "Chưa có vùng hỗ trợ / kháng cự bao quanh giá"}>
+        {item.riskRewardRatio !== null && item.riskRewardRatio !== undefined ? fmt(item.riskRewardRatio, 2) : "—"}
+      </td>
       <td className="text-right pr-3">{fmt(item.riskAdjustedMomentum, 2)}</td>
     </tr>
     {expanded && <DetailRow ticker={item.ticker} />}
@@ -151,7 +161,7 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
 });
 
 export default function SieuQuetAiTab() {
-  const { indexState, items, isLoading, error, dataAsOf, generatedAt, usedSource, universeSize } = useSieuQuetScanner();
+  const { indexState, items, isLoading, error, dataAsOf, generatedAt, usedSource, universeSize, validation } = useSieuQuetScanner();
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const toggleRow = useCallback((ticker: string) => setExpandedTicker((cur) => (cur === ticker ? null : ticker)), []);
   // Bảng là nơi chọn mã chính của trang: bấm một lần -> Action Center, Radar, tab CF… theo mã này.
@@ -317,6 +327,7 @@ export default function SieuQuetAiTab() {
                     : " · nhấn đúp một dòng để xem phân tích khối lượng"}
                 </div>
               )}
+              {usedSource === "gateway" && <ScannerEvidence validation={validation} />}
             </div>
             <ScannerToolbar basket={effectiveBasket} onBasket={setBasket} watchlistCount={watchlists.active.tickers.length} gatewayReady={gatewayReady}
               items={basketData.items} industries={industries} onIndustries={setIndustries} groupBy={groupBy} onGroupBy={setGroupBy} />
@@ -348,7 +359,7 @@ export default function SieuQuetAiTab() {
                   <th className="text-left pr-3">Đồng Thuận</th>
                   <th className="text-left pr-3">Trend</th>
                   <th className="text-left pr-3">Chất lượng BCTC</th>
-                  <th className="text-right pr-3">R/R</th>
+                  <th className="text-right pr-3" title="R/R = (kháng cự − giá) / (giá − hỗ trợ), vùng gần nhất của engine cấu trúc (khung ngày)">R/R</th>
                   <th className="text-right pr-3">Risk-Adj Mom.</th>
                 </tr>
               </thead>

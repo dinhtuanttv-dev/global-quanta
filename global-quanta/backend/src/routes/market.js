@@ -14,6 +14,8 @@ import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intrada
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
+import { attachStructureRr } from "../market/scanner/scanEngine.js";
+import { SCANNER_VALIDATION } from "../market/scanner/scannerValidation.js";
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createForensicSource, createPortfolioRisk } from "../market/research/deepAnalysis.js";
@@ -108,14 +110,19 @@ router.get("/breadth", handle(async (req, res) => {
 
 // Siêu Quét AI (engine trên Gateway, nguồn SSI). Cùng định dạng với Project A
 // /api/sieu-quet-ai/scanner: { generatedAt, indexState, items, totalCount } + dataAsOf/meta.
+// v2: R/R gắn lúc đọc từ bản tóm tắt cấu trúc (job 15:47, Volume) + nhãn bằng chứng của kiểm định đặt trước (SQ-prereg.md).
+async function structureSummaryOrNull(rt) {
+  try { return (await rt.structure?.summary?.()) ?? null; } catch { return null; }
+}
 router.get("/scanner", handle(async (req, res) => {
-  const doc = (await getMarketRuntime().store.getKv(KV.latest))?.value;
+  const rt = getMarketRuntime();
+  const doc = (await rt.store.getKv(KV.latest))?.value;
   if (!doc) {
     res.status(503).json({ error: "Siêu Quét trên Gateway chưa có kết quả (chưa chạy scanUniverse)." });
     return;
   }
   res.set("Cache-Control", "public, max-age=60");
-  res.json(doc);
+  res.json({ ...doc, items: attachStructureRr(doc.items ?? [], await structureSummaryOrNull(rt)), validation: SCANNER_VALIDATION });
 }));
 // Bộ lọc kỹ thuật độc lập của tab TA VN-Index (CAMSLIM Cup & Handle, Base Breakout) — xem strategies/technicalFilters.js.
 // SEPA SP6: cảnh báo phá vỡ trong phiên cho mã SEPA đang chờ pivot (KV strategies:sepa + quotes trong phiên).
@@ -228,6 +235,12 @@ router.get("/trading-matrix/sectors", handle(async (req, res) => {
   const data = await rt.service.cache.wrap(`matrix:sectors:${scope}`, 5 * 60_000, () => rt.matrix.sectors({ scope }));
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
+}));
+// Trading Matrix — Index Impact (spec §6.8): điểm đóng góp từng mã vào VN-Index một phiên đã chốt, kèm kiểm tra Σ đóng góp vs thật.
+router.get("/trading-matrix/index-impact", handle(async (req, res) => {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date ?? "")) ? String(req.query.date) : null;
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().matrix.impact(date));
 }));
 router.get("/trading-matrix/movers", handle(async (req, res) => {
   const rt = getMarketRuntime();
@@ -544,7 +557,10 @@ router.get("/scanner/custom", handle(async (req, res) => {
   const tickers = parseTickers(req.query.tickers);
   const latest = (await rt.store.getKv(KV.latest))?.value;
   const key = `scanner-custom:${latest?.generatedAt ?? "none"}:${[...tickers].sort().join(",")}`;
-  const data = await rt.service.cache.wrap(key, 10 * 60_000, () => scoreCustomTickers(rt.service, tickers));
+  const data = await rt.service.cache.wrap(key, 10 * 60_000, async () => {
+    const r = await scoreCustomTickers(rt.service, tickers, { corporateActions: rt.corporateActions });
+    return { ...r, items: attachStructureRr(r.items, await structureSummaryOrNull(rt)) };
+  });
   res.set("Cache-Control", "private, max-age=60");
   res.json(data);
 }));

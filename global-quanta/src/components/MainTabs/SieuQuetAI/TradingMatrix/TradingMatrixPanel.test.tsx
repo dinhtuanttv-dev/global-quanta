@@ -10,6 +10,7 @@ vi.mock("../../../../hooks/useTradingMatrix", () => ({
   useTradingMatrix: (scope: string) => { state.calls.push(scope); return { data: state.data, error: state.error, isLoading: state.isLoading }; },
   useMatrixSectors: () => ({ data: undefined, error: undefined, isLoading: true }),
   useMatrixMovers: () => ({ data: undefined, error: undefined, isLoading: false }),
+  useMatrixImpact: () => ({ data: undefined, error: undefined, isLoading: false }),
   useMatrixSignals: () => ({ data: undefined, error: undefined, isLoading: true }),
   useMatrixOps: () => ({ data: undefined, error: undefined, isLoading: false }),
 }));
@@ -80,5 +81,34 @@ describe("Trading Matrix M1", () => {
     expect(el.querySelectorAll("[data-testid=mx-sources] li").length).toBe(2);
     expect(el.querySelectorAll("figure svg rect").length).toBe(20);
     expect(el.querySelector("[data-testid=mx-sector-row]")?.textContent).toContain("Heatmap ngành");
+  });
+});
+
+describe("Trading Matrix — luồng liên kết (snapshot tổng hợp)", () => {
+  it("dòng liên kết dưới 6 ô: bấm trụ chỉ số -> chọn mã; bấm ngành dẫn -> lọc bảng; kịch bản có mã liên quan", async () => {
+    const picked: string[] = [], industries: (string | null)[] = [];
+    state.data = fixture({
+      links: {
+        impact: { date: "2026-10-21", check: { predictedPoints: 46.6, actualPoints: 46.7, predictedPct: 2.77, actualPct: 2.76, diffPp: 0.01, status: "MATCH" }, up: [{ symbol: "VCB", points: 9.1, changePct: 4.2, industry: "Ngân hàng" }], down: [{ symbol: "VHM", points: -2.3, changePct: -1.1, industry: "Bất động sản" }], top5Share: 48 },
+        sectors: { asOf: "2026-10-21", leaders: [{ industry: "Ngân hàng", rs5: 2.1, breadth: 70 }], laggards: [{ industry: "Bất động sản", rs5: -1.5, breadth: 30 }], flagged: [] },
+        lastSignal: null,
+      },
+      scenarios: [{ id: "SC2", title: "Chỉ số dẫn dắt, thị trường phân hoá", meaning: "m", state: "WATCH", since: "2026-10-21", displayState: "Theo dõi", evidence: [], contradictions: [], groups: {}, ruleVersion: "M3-r1",
+        validation: { verdict: "FAIL", summary: "OOS không đạt", label: "THỰC NGHIỆM" }, related: { kind: "tickers", note: "Trụ kéo chỉ số", items: ["VCB"] } }],
+    });
+    el = document.createElement("div"); document.body.appendChild(el);
+    await act(async () => createRoot(el).render(<TradingMatrixPanel onSelectTicker={(t) => picked.push(t)} onIndustry={(n) => industries.push(n)} />));
+    const links = el.querySelector("[data-testid=mx-links]")!;
+    expect(links.textContent).toContain("5 mã = 48% biến động");
+    await act(async () => (links.querySelector("[aria-label='Chọn VCB']") as HTMLButtonElement).click());
+    await act(async () => (Array.from(links.querySelectorAll("button")).find((b) => b.textContent === "Ngân hàng") as HTMLButtonElement).click());
+    expect(picked).toEqual(["VCB"]);
+    expect(industries).toEqual(["Ngân hàng"]);
+    await act(async () => (Array.from(el.querySelectorAll("button")).find((b) => b.textContent?.includes("Chi tiết")) as HTMLButtonElement).click());
+    const sc = el.querySelector("[data-testid=mx-scenario-SC2]")!;
+    expect(sc.textContent).toContain("Trụ kéo chỉ số");
+    await act(async () => (sc.querySelector("[aria-label='Chọn VCB']") as HTMLButtonElement).click());
+    expect(picked).toEqual(["VCB", "VCB"]);
+    expect(el.querySelector("[data-mx-view=impact]")?.textContent).toBe("Tác động VN-Index");
   });
 });

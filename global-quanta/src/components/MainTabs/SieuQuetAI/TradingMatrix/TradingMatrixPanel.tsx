@@ -5,8 +5,9 @@
 // Lỗi một nguồn -> ô đó ghi "không khả dụng", các ô khác vẫn hiển thị; không chặn bảng cổ phiếu.
 import { useState } from "react";
 import { Grid3x3 } from "lucide-react";
-import { useMatrixMovers, useMatrixSectors, useMatrixSignals, useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
-import { RiskChecklist, ScenarioBoard, SignalJournal } from "./ScenarioBoard";
+import { useMatrixImpact, useMatrixMovers, useMatrixSectors, useMatrixSignals, useTradingMatrix, type MatrixLinks, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
+import { RelatedChips, RiskChecklist, ScenarioBoard, SignalJournal } from "./ScenarioBoard";
+import IndexImpactTable from "./IndexImpactTable";
 import { ForecastBlock, OpsPanel } from "./MatrixOps";
 import SectorHeatmap from "./SectorHeatmap";
 import NotableMovers from "./NotableMovers";
@@ -91,17 +92,34 @@ function Details({ d }: { d: MatrixOverview }) {
   );
 }
 
-/** M2 — hàng "Ngành & mã" (spec §10.1 hàng 3): heatmap ngành / mã biến động đáng chú ý, chỉ tải khi mở Chi tiết. */
+/** Dòng liên kết dưới dải 6 ô (luôn hiện): trụ kéo / đè VN-Index, ngành dẫn dắt / tụt hậu — bấm để chọn mã / lọc bảng. */
+function LinksLine({ links, onIndustry, onSelectTicker }: { links: MatrixLinks | null | undefined; onIndustry: (n: string | null) => void; onSelectTicker: (t: string) => void }) {
+  const imp = links?.impact && !links.impact.error ? links.impact : null;
+  const sx = links?.sectors && !links.sectors.error ? links.sectors : null;
+  if (!imp && !sx) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-[9.5px] text-slate-400" data-testid="mx-links">
+      {imp && imp.up.length > 0 && <span className="flex flex-wrap items-center gap-1">Trụ kéo {when(imp.date)}: <RelatedChips tickers={imp.up.slice(0, 3).map((x) => x.symbol)} onSelectTicker={onSelectTicker} /></span>}
+      {imp && imp.down.length > 0 && <span className="flex flex-wrap items-center gap-1">Đè: <RelatedChips tickers={imp.down.slice(0, 3).map((x) => x.symbol)} onSelectTicker={onSelectTicker} /></span>}
+      {imp?.top5Share != null && <span title="Phần biến động chỉ số do 5 mã đóng góp lớn nhất (theo trị tuyệt đối)">5 mã = {vn(imp.top5Share, 0)}% biến động</span>}
+      {sx && sx.leaders.length > 0 && <span className="flex flex-wrap items-center gap-1">Ngành dẫn: <RelatedChips sectors={sx.leaders.map((x) => x.industry)} onIndustry={onIndustry} /></span>}
+      {sx && sx.laggards.length > 0 && <span className="flex flex-wrap items-center gap-1">Tụt hậu: <RelatedChips sectors={sx.laggards.map((x) => x.industry)} onIndustry={onIndustry} /></span>}
+    </div>
+  );
+}
+
+/** M2 — hàng "Ngành & mã" (spec §10.1 hàng 3): heatmap ngành / Index Impact / mã biến động, chỉ tải khi mở Chi tiết. */
 function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: MatrixScope; active: Set<string>; onIndustry: (n: string | null) => void; onSelectTicker: (t: string) => void }) {
-  const [view, setView] = useState<"sectors" | "movers">("sectors");
+  const [view, setView] = useState<"sectors" | "impact" | "movers">("sectors");
   const sectors = useMatrixSectors(scope, view === "sectors");
+  const impact = useMatrixImpact(view === "impact");
   const movers = useMatrixMovers(scope, view === "movers");
-  const cur = view === "sectors" ? sectors : movers;
+  const cur = view === "sectors" ? sectors : view === "impact" ? impact : movers;
   return (
     <div className="pt-3 border-t border-white/5 mt-3 space-y-2" data-testid="mx-sector-row">
       <div className="flex items-center gap-2">
         <div role="tablist" aria-label="Ngành và mã" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
-          {([["sectors", "Heatmap ngành"], ["movers", "Mã biến động đáng chú ý"]] as const).map(([k, l]) => (
+          {([["sectors", "Heatmap ngành"], ["impact", "Tác động VN-Index"], ["movers", "Mã biến động"]] as const).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)} data-mx-view={k}
               className={`px-2 py-0.5 text-[10.5px] font-semibold ${view === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400"}`}>{l}</button>
           ))}
@@ -110,17 +128,19 @@ function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: Matri
       </div>
       {cur.error && !cur.data && <p className="text-[10px] text-rose-300" role="alert">Không khả dụng: {cur.error.message}</p>}
       {view === "sectors" && sectors.data && <SectorHeatmap data={sectors.data} active={active} onIndustry={onIndustry} />}
+      {view === "impact" && impact.data && <IndexImpactTable data={impact.data} onSelect={onSelectTicker} onIndustry={onIndustry} />}
+      {view === "impact" && scope !== "VNINDEX" && <p className="text-[9px] text-slate-500">Tác động tính cho VN-Index (toàn HOSE) bất kể phạm vi đang chọn.</p>}
       {view === "movers" && movers.data && <NotableMovers data={movers.data} onSelect={onSelectTicker} />}
     </div>
   );
 }
 
 /** M3 — hàng 4: cờ rủi ro + sổ tín hiệu (spec §10.1). */
-function RiskRow({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
+function RiskRow({ d, scope, onIndustry, onSelectTicker }: { d: MatrixOverview; scope: MatrixScope; onIndustry: (n: string | null) => void; onSelectTicker: (t: string) => void }) {
   const sig = useMatrixSignals(scope, true);
   return (
     <div className="pt-3 border-t border-white/5 mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
-      <RiskChecklist flags={d.riskFlags ?? []} />
+      <RiskChecklist flags={d.riskFlags ?? []} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />
       <SignalJournal data={sig.data} />
     </div>
   );
@@ -177,15 +197,16 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
           )}
         </div>
       )}
+      {data && <LinksLine links={data.links} onIndustry={onIndustry} onSelectTicker={onSelectTicker} />}
       {open && data && (
         <div id="mx-detail">
           <div className="pt-3 grid grid-cols-1 xl:grid-cols-4 gap-3">
-            <div className="xl:col-span-3"><ScenarioBoard d={data} /></div>
+            <div className="xl:col-span-3"><ScenarioBoard d={data} onSelectTicker={onSelectTicker} onIndustry={onIndustry} /></div>
             <ForecastBlock f={data.forecast} />
           </div>
           <Details d={data} />
           <SectorRow scope={scope} active={activeIndustries} onIndustry={onIndustry} onSelectTicker={onSelectTicker} />
-          <RiskRow d={data} scope={scope} />
+          <RiskRow d={data} scope={scope} onIndustry={onIndustry} onSelectTicker={onSelectTicker} />
           <OpsPanel />
         </div>
       )}
