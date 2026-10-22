@@ -1,28 +1,23 @@
-﻿import { memo } from 'react';
+﻿// TOPBAR — một ticker vĩ mô (spec §6.3): giá + đơn vị + thay đổi + sparkline 1 tháng + trạng thái riêng (Yahoo chậm ~15 phút,
+// ngoài phiên = giá đóng cửa). Thiếu % thay đổi -> "—" (không hiện 0%). Lỗi -> thẻ lỗi, không số 0.
+import { memo } from 'react';
 import Sparkline from './Sparkline';
-import { usePriceTick } from '../../hooks/usePriceTick';
-import { usePriceFlash } from '../../hooks/usePriceFlash';
-import { formatPct } from '../../utils/formatNumber';
-import type { MacroTickerData } from '../../types';
+import StatusTag, { describeMeta } from './StatusTag';
+import type { Block, MacroData } from '../../hooks/useTopbar';
 
-interface Props {
-  data: MacroTickerData;
-}
-
-function MacroTickerItem({ data }: Props) {
-  const isNumeric = typeof data.value === 'number';
-  const livePrice = usePriceTick(isNumeric ? (data.value as number) : 0, isNumeric);
-  const flash = usePriceFlash(Math.round(livePrice * 10));
-  const up = (data.changePct ?? 0) >= 0;
-
+function MacroTickerItem({ block, fallbackLabel }: { block: Block<MacroData>; fallbackLabel: string }) {
+  const d = block.data;
+  const up = (d?.changePct ?? 0) >= 0;
+  const value = d ? `${d.value.toLocaleString('vi-VN', { minimumFractionDigits: d.digits, maximumFractionDigits: d.digits })}${d.unit === '%' ? '%' : ''}` : '—';
   return (
-    <div className="ticker-item">
-      <span className="t-name">{data.name}</span>
-      <Sparkline data={data.sparkline} color={up ? 'positive' : 'negative'} />
-      <span className={`t-val num ${flash ? `flash-${flash}` : ''}`}>{isNumeric ? livePrice.toFixed(1) : data.value}</span>
-      <span className={`t-chg num ${up ? 'up' : 'down'}`}>
-        {data.changePct !== undefined ? formatPct(data.changePct) : formatPct(data.changeAbs ?? 0)}
+    <div className="ticker-item" title={describeMeta(block.meta)} data-testid={`tb-macro-${d?.symbol ?? fallbackLabel}`}>
+      <span className="t-name">{d?.label ?? fallbackLabel}</span>
+      {d && d.series.length >= 2 && <Sparkline data={d.series.map((p) => p.value)} color={up ? 'positive' : 'negative'} />}
+      <span className="t-val num">{value}</span>
+      <span className={`t-chg num ${d?.changePct == null ? '' : up ? 'up' : 'down'}`}>
+        {d?.changePct == null ? '—' : `${d.changePct >= 0 ? '+' : ''}${d.changePct.toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%`}
       </span>
+      <StatusTag meta={block.meta} compact />
     </div>
   );
 }

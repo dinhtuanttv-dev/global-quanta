@@ -114,13 +114,22 @@ describe("Bố cục toàn chiều rộng (gỡ cột Danh sách mã)", () => {
     expect(options[0]).toContain("HPG");
     await act(async () => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
     expect(useAppStore.getState().scannerFocus?.ticker).toBe("HPG");
+    expect(useAppStore.getState().scannerFocus?.addToWatchlist).toBe(false);
     expect(useAppStore.getState().selectedTicker).toBe("HPG");
-    // Mã ngoài danh sách quét: vẫn mở được (bảng sẽ thêm vào danh mục để chấm điểm).
+    // Mã ngoài danh sách quét (TOPBAR T3): Enter chỉ CHỌN mã, không tự thêm danh mục; thêm danh mục là lựa chọn riêng.
+    await act(async () => { input.focus(); });
     await act(async () => { setValue.call(input, "abc"); input.dispatchEvent(new Event("input", { bubbles: true })); });
-    expect(host.textContent).toContain("Mở ABC");
+    expect(host.textContent).toContain("Chọn ABC");
+    expect(host.textContent).toContain("Thêm ABC vào ★ Danh mục");
     const nonce = useAppStore.getState().scannerFocus!.nonce;
     await act(async () => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
-    expect(useAppStore.getState().scannerFocus).toEqual({ ticker: "ABC", nonce: nonce + 1 });
+    expect(useAppStore.getState().selectedTicker).toBe("ABC");
+    expect(useAppStore.getState().scannerFocus!.nonce).toBe(nonce); // không yêu cầu bảng thêm mã
+    await act(async () => { input.focus(); });
+    await act(async () => { setValue.call(input, "abc"); input.dispatchEvent(new Event("input", { bubbles: true })); });
+    await act(async () => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true })); });
+    await act(async () => { input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); });
+    expect(useAppStore.getState().scannerFocus).toEqual({ ticker: "ABC", nonce: nonce + 1, addToWatchlist: true });
   });
 });
 

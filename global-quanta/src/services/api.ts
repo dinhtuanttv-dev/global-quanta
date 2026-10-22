@@ -97,6 +97,12 @@ function clearAuthSession(): void {
   if (typeof window !== 'undefined') window.localStorage.removeItem(AUTH_SESSION_KEY);
 }
 
+/** Email của phiên đăng nhập hiện tại (menu tài khoản trên thanh trên); null nếu không có. */
+export function currentUserEmail(): string | null {
+  const u = (readAuthSession() as { user?: { email?: string } } | null)?.user;
+  return typeof u?.email === 'string' ? u.email : null;
+}
+
 export function hasAuthSession(): boolean {
   const session = readAuthSession();
   return Boolean(session && session.expires_at > Date.now());
