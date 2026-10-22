@@ -4,16 +4,19 @@
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { notifyOps } from "../market/alerts.js";
+import { BOOTSTRAP_KV } from "../market/store/localBootstrap.js";
 
 export const EGRESS_KV = "ops:egress";
 
 export function createDbBudgetRouter({ getStore, meter, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
-  router.get("/", (req, res) => {
+  router.get("/", async (req, res) => {
     res.set("Cache-Control", "no-store");
-    let warehouse = null;
+    let warehouse = null, local = null, bootstrap = null;
     try { warehouse = getStore().warehouseInfo?.() ?? null; } catch { /* store chưa sẵn sàng */ }
-    res.json({ supabaseEgress: meter.snapshot(), warehouse });
+    // M0: kho cục bộ (Railway Volume) + tiến độ tự dựng lại dữ liệu.
+    try { local = getStore().localInfo?.() ?? null; if (local) bootstrap = (await getStore().getKv(BOOTSTRAP_KV))?.value ?? null; } catch { /* bỏ qua */ }
+    res.json({ supabaseEgress: meter.snapshot(), warehouse, local, bootstrap });
   });
   router.post("/reset-warehouse", (req, res) => {
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
