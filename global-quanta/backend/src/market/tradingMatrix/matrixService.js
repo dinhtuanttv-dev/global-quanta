@@ -8,6 +8,7 @@ import { getResearchOverview } from "../research/researchService.js";
 import {
   breadthTrend, createHysteresis, dailyBreadth, flowState, overallHealth, regimeDaily, sessionPhase, sourceHealth, volatilityDaily,
 } from "./features.js";
+import { notableMovers, sectorStats } from "./sectorMatrix.js";
 
 export const MATRIX_VERSION = "matrix/M1 1.0.0";
 export const MATRIX_SCOPES = { VNINDEX: "Toàn sàn HOSE", VN30: "Rổ VN30", UNIVERSE: "Universe Siêu Quét" };
@@ -136,8 +137,36 @@ export function createMatrixService({ service, store, getStructure = () => null,
     return out;
   }
 
+  /** M2 — heatmap ngành (cùng phân ngành với bảng Siêu Quét) cho phạm vi, phiên đã chốt gần nhất. */
+  async function sectors({ scope = "VNINDEX" } = {}) {
+    scope = MATRIX_SCOPES[scope] ? scope : "VNINDEX";
+    const expected = lastCompletedSessionDate(new Date(now()));
+    const d = await dailyScope(scope, expected);
+    const [idx, tax, scan] = await Promise.all([
+      service.getOhlcv({ symbol: "VNINDEX", limit: 300 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0)),
+      store.getKv("scanner:taxonomy").then((r) => r?.value?.map ?? {}).catch(() => ({})),
+      store.getKv("scanner:latest").then((r) => r?.value ?? null).catch(() => null),
+    ]);
+    // Smart Score chỉ ghép khi lần quét CÙNG phiên (không trộn thời điểm).
+    const smart = scan?.dataAsOf === d.asOf ? new Map((scan.items ?? []).map((i) => [i.ticker, i.smartScore])) : new Map();
+    return {
+      version: MATRIX_VERSION, scope: { id: scope, label: MATRIX_SCOPES[scope] },
+      ...sectorStats({ bySymbol: d.bySymbol, asOf: d.asOf, indexBars: idx, taxonomy: tax, smart }),
+      smartAsOf: scan?.dataAsOf ?? null, smartMatched: smart.size > 0,
+      taxonomySource: "scanner:taxonomy (cùng phân ngành với bộ lọc ngành của bảng)",
+    };
+  }
+
+  /** M2 — mã biến động đáng chú ý (KHÔNG phải đóng góp chỉ số: không có trọng số). */
+  async function movers({ scope = "VN30" } = {}) {
+    scope = MATRIX_SCOPES[scope] ? scope : "VN30";
+    const d = await dailyScope(scope, lastCompletedSessionDate(new Date(now())));
+    const tax = await store.getKv("scanner:taxonomy").then((r) => r?.value?.map ?? {}).catch(() => ({}));
+    return { version: MATRIX_VERSION, scope: { id: scope, label: MATRIX_SCOPES[scope] }, horizon: "daily", ...notableMovers({ bySymbol: d.bySymbol, asOf: d.asOf, taxonomy: tax }) };
+  }
+
   return {
-    overview,
+    overview, sectors, movers,
     /** 16:50 — lưu snapshot cuối phiên ba phạm vi vào bảng cục bộ (ghi đúng thời điểm, không sửa về sau). */
     async snapshot() {
       const saved = [];

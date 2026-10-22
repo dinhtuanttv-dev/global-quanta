@@ -5,7 +5,9 @@
 // Lỗi một nguồn -> ô đó ghi "không khả dụng", các ô khác vẫn hiển thị; không chặn bảng cổ phiếu.
 import { useState } from "react";
 import { Grid3x3 } from "lucide-react";
-import { useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
+import { useMatrixMovers, useMatrixSectors, useTradingMatrix, type MatrixOverview, type MatrixScope } from "../../../../hooks/useTradingMatrix";
+import SectorHeatmap from "./SectorHeatmap";
+import NotableMovers from "./NotableMovers";
 import { BreadthCard, FlowCard, HEALTH_VI, HealthCard, RegimeCard, SessionCard, SkeletonCard, TONE, VolatilityCard, bn, vn, when } from "./MatrixCards";
 
 const SCOPES: { id: MatrixScope; label: string }[] = [{ id: "VNINDEX", label: "Toàn HOSE" }, { id: "VN30", label: "VN30" }, { id: "UNIVERSE", label: "Universe" }];
@@ -87,7 +89,37 @@ function Details({ d }: { d: MatrixOverview }) {
   );
 }
 
-export default function TradingMatrixPanel() {
+/** M2 — hàng "Ngành & mã" (spec §10.1 hàng 3): heatmap ngành / mã biến động đáng chú ý, chỉ tải khi mở Chi tiết. */
+function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: MatrixScope; active: Set<string>; onIndustry: (n: string | null) => void; onSelectTicker: (t: string) => void }) {
+  const [view, setView] = useState<"sectors" | "movers">("sectors");
+  const sectors = useMatrixSectors(scope, view === "sectors");
+  const movers = useMatrixMovers(scope, view === "movers");
+  const cur = view === "sectors" ? sectors : movers;
+  return (
+    <div className="pt-3 border-t border-white/5 mt-3 space-y-2" data-testid="mx-sector-row">
+      <div className="flex items-center gap-2">
+        <div role="tablist" aria-label="Ngành và mã" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
+          {([["sectors", "Heatmap ngành"], ["movers", "Mã biến động đáng chú ý"]] as const).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)} data-mx-view={k}
+              className={`px-2 py-0.5 text-[10.5px] font-semibold ${view === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400"}`}>{l}</button>
+          ))}
+        </div>
+        {cur.isLoading && !cur.data && <span className="text-[10px] text-slate-500">Đang tải…</span>}
+      </div>
+      {cur.error && !cur.data && <p className="text-[10px] text-rose-300" role="alert">Không khả dụng: {cur.error.message}</p>}
+      {view === "sectors" && sectors.data && <SectorHeatmap data={sectors.data} active={active} onIndustry={onIndustry} />}
+      {view === "movers" && movers.data && <NotableMovers data={movers.data} onSelect={onSelectTicker} />}
+    </div>
+  );
+}
+
+const NO_SET = new Set<string>();
+const NOOP = () => {};
+
+export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndustry = NOOP, onSelectTicker = NOOP }: {
+  /** Bộ lọc ngành hiện tại của bảng (cùng state với ScannerToolbar). */
+  activeIndustries?: Set<string>; onIndustry?: (name: string | null) => void; onSelectTicker?: (ticker: string) => void;
+} = {}) {
   const [open, setOpenState] = useState(() => { try { return window.localStorage.getItem(KEY_OPEN) === "1"; } catch { return false; } });
   const [scope, setScopeState] = useState<MatrixScope>(() => { try { const v = window.localStorage.getItem(KEY_SCOPE); return v === "VN30" || v === "UNIVERSE" ? v : "VNINDEX"; } catch { return "VNINDEX"; } });
   const setOpen = (v: boolean) => { setOpenState(v); try { window.localStorage.setItem(KEY_OPEN, v ? "1" : "0"); } catch { /* bỏ qua */ } };
@@ -126,7 +158,7 @@ export default function TradingMatrixPanel() {
           )}
         </div>
       )}
-      {open && data && <div id="mx-detail"><Details d={data} /></div>}
+      {open && data && <div id="mx-detail"><Details d={data} /><SectorRow scope={scope} active={activeIndustries} onIndustry={onIndustry} onSelectTicker={onSelectTicker} /></div>}
     </section>
   );
 }

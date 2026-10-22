@@ -285,8 +285,9 @@ export default function SieuQuetAiTab() {
         toggle={<ResearchUiToggle />}
       />
 
-      {/* TRADING MATRIX (M1) — trạng thái thị trường đa nguồn, có mẫu số / nguồn / thời điểm */}
-      <TradingMatrixPanel />
+      {/* TRADING MATRIX (M1–M2) — trạng thái thị trường đa nguồn; heatmap ngành lọc CÙNG state ngành của bảng, bấm mã chọn toàn trang */}
+      <TradingMatrixPanel activeIndustries={industries} onSelectTicker={onSelect}
+        onIndustry={(name) => setIndustries(name ? new Set([name]) : new Set())} />
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
       <section className="flex flex-col gap-4 min-w-0">

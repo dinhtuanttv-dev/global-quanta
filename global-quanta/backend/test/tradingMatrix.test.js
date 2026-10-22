@@ -112,3 +112,45 @@ test("service: một nguồn lỗi (SSI trong phiên) không làm mất khối k
   const hist = await mx.history({ scope: "VN30" });
   assert.equal(hist.length, 1); assert.equal(hist[0].date, "2026-10-21"); assert.equal(hist[0].regime, "UPTREND");
 });
+
+test("M2 heatmap ngành: cùng phân ngành với bảng, RS so VN-Index, độ rộng ngành, ngành < 3 mã bị ẩn, Smart Score chỉ ghép khi CÙNG phiên", async () => {
+  const { sectorStats, notableMovers } = await import("../src/market/tradingMatrix/sectorMatrix.js");
+  const dates = tradingDatesBack("2026-10-21", 60);
+  const mk = (f, extra = {}) => series(dates, f, { volume: 1e5, value: 2e9, foreignBuyVal: 1e9, foreignSellVal: 0, ...extra });
+  const bySymbol = new Map([
+    ["BK1", mk((i) => 100 + i)], ["BK2", mk((i) => 50 + i * 0.6)], ["BK3", mk((i) => 30 + i * 0.4)],
+    ["RE1", mk((i) => 100 - i * 0.5)], ["RE2", mk((i) => 80 - i * 0.3)], ["RE3", mk((i) => 60 - i * 0.2)],
+    ["XX1", mk((i) => 10)], ["ZZZ", mk((i) => 10)],
+  ]);
+  const idx = dates.map((date, i) => ({ date, open: 1000, high: 1001, low: 999, close: 1000 + i * 0.1 }));
+  const taxonomy = { BK1: ["Tài chính", "Ngân hàng"], BK2: ["Tài chính", "Ngân hàng"], BK3: ["Tài chính", "Ngân hàng"], RE1: ["Bất động sản", "Bất động sản dân cư"], RE2: ["Bất động sản", "Bất động sản dân cư"], RE3: ["Bất động sản", "Bất động sản dân cư"], XX1: ["Khác", "Ngành nhỏ"] };
+  const s = sectorStats({ bySymbol, asOf: "2026-10-21", indexBars: idx, taxonomy, smart: new Map([["BK1", 80], ["BK2", 60]]) });
+  assert.deepEqual(s.sectors.map((x) => x.industry).sort(), ["Bất động sản dân cư", "Ngân hàng"], "ngành < 3 mã (Ngành nhỏ) bị ẩn");
+  assert.equal(s.unclassified, 1);
+  const bank = s.sectors.find((x) => x.industry === "Ngân hàng"), re = s.sectors.find((x) => x.industry === "Bất động sản dân cư");
+  assert.ok(bank.rs[20] > 0 && re.rs[20] < 0);
+  assert.equal(bank.breadth, 100); assert.equal(re.breadth, 0);
+  assert.equal(bank.avgSmart, 70); assert.equal(bank.smartCoverage, 0.67);
+  assert.equal(bank.foreign5, 15e9);
+  const m = notableMovers({ bySymbol, asOf: "2026-10-21", taxonomy });
+  assert.match(m.note, /KHÔNG phải mức đóng góp/);
+  assert.ok(m.gainers.every((x) => x.ret > 0) && m.losers.every((x) => x.ret < 0));
+  assert.equal(m.gainers[0].industry, "Ngân hàng");
+});
+
+test("M2 service: sectors / movers theo phạm vi; Smart Score lần quét khác phiên không bị ghép", async () => {
+  const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-mx2-")), log: { warn() {} } });
+  const dates = tradingDatesBack("2026-10-21", 60);
+  const syms = ["A1", "A2", "A3", "B1"];
+  for (const [k, date] of dates.entries()) await store.upsertMarketDaily(syms.map((symbol, j) => ({ symbol, date, exchange: "HOSE", open: 10 + k, high: 11 + k, low: 9 + k, close: 10 + k * (j + 1) * 0.1, closeAdj: 10 + k * (j + 1) * 0.1, refPrice: 10 + (k - 1) * (j + 1) * 0.1, volume: 1, value: 1e9 * (j + 1), foreignBuyVal: 0, foreignSellVal: 0 })));
+  await store.setKv("scanner:taxonomy", { map: { A1: ["Tài chính", "Ngân hàng"], A2: ["Tài chính", "Ngân hàng"], A3: ["Tài chính", "Ngân hàng"], B1: ["Khác", "Khác"] } });
+  await store.setKv("scanner:latest", { dataAsOf: "2026-10-20", items: [{ ticker: "A1", smartScore: 90 }] });
+  const idx = dates.map((date, i) => ({ date, open: 1000 + i, high: 1001 + i, low: 999 + i, close: 1000 + i }));
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: ["A1", "A2"] }), getOhlcv: async () => ({ bars: idx }) };
+  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const s = await mx.sectors({ scope: "VNINDEX" });
+  assert.equal(s.sectors.length, 1); assert.equal(s.sectors[0].industry, "Ngân hàng");
+  assert.equal(s.smartMatched, false); assert.equal(s.sectors[0].avgSmart, null);
+  const m = await mx.movers({ scope: "VN30" });
+  assert.equal(m.eligible, 2); assert.equal(m.label, "Mã biến động đáng chú ý");
+});

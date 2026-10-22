@@ -48,3 +48,29 @@ export function useTradingMatrix(scope: MatrixScope) {
   });
   return { data, error: error as Error | undefined, isLoading };
 }
+
+// ------------------------------------------------------------------ M2: heatmap ngành + mã biến động đáng chú ý
+export type Horizon = 1 | 5 | 20;
+export interface SectorStat {
+  industry: string; group: string; count: number; eligible: number;
+  rs: Record<string, number | null>; medianReturn: Record<string, number | null>;
+  breadth: number | null; breadth5: number | null; value20: number; foreign5: number;
+  avgSmart: number | null; smartCoverage: number | null; rangeRatio: number | null; flags: { id: string; text: string }[];
+}
+export interface MatrixSectors {
+  version: string; scope: { id: MatrixScope; label: string }; asOf: string; horizons: Horizon[]; indexReturn: Record<string, number | null>;
+  sectors: SectorStat[]; unclassified: number; minSectorSize: number; definition: string; smartAsOf: string | null; smartMatched: boolean; taxonomySource: string;
+}
+export interface Mover { symbol: string; industry: string | null; close: number; ret: number; value: number | null; valueRatio: number | null; avgValue20: number | null; atCeiling: boolean; atFloor: boolean; foreignNet: number }
+export interface MatrixMovers { version: string; scope: { id: MatrixScope; label: string }; asOf: string; eligible: number; liquidityFloor: number | null; gainers: Mover[]; losers: Mover[]; valueSpikes: Mover[]; label: string; note: string }
+
+export function useMatrixSectors(scope: MatrixScope, enabled: boolean) {
+  const { data, error, isLoading } = useSWR<MatrixSectors>(enabled ? marketUrl(`/api/market/trading-matrix/sectors?scope=${scope}`) : null, fetcher,
+    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true });
+  return { data, error: error as Error | undefined, isLoading };
+}
+export function useMatrixMovers(scope: MatrixScope, enabled: boolean) {
+  const { data, error, isLoading } = useSWR<MatrixMovers>(enabled ? marketUrl(`/api/market/trading-matrix/movers?scope=${scope}`) : null, fetcher,
+    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true });
+  return { data, error: error as Error | undefined, isLoading };
+}

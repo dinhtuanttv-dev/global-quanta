@@ -8,6 +8,8 @@ import type { MatrixOverview } from "../../../../hooks/useTradingMatrix";
 const state: { data?: MatrixOverview; error?: Error; isLoading: boolean; calls: string[] } = { isLoading: false, calls: [] };
 vi.mock("../../../../hooks/useTradingMatrix", () => ({
   useTradingMatrix: (scope: string) => { state.calls.push(scope); return { data: state.data, error: state.error, isLoading: state.isLoading }; },
+  useMatrixSectors: () => ({ data: undefined, error: undefined, isLoading: true }),
+  useMatrixMovers: () => ({ data: undefined, error: undefined, isLoading: false }),
 }));
 const { default: TradingMatrixPanel } = await import("./TradingMatrixPanel");
 
@@ -67,7 +69,7 @@ describe("Trading Matrix M1", () => {
     state.data = fixture();
     await render();
     await act(async () => (el.querySelector("[data-mx-scope=VN30]") as HTMLButtonElement).click());
-    expect(state.calls.at(-1)).toBe("VN30");
+    expect(state.calls[state.calls.length - 1]).toBe("VN30");
     await act(async () => (Array.from(el.querySelectorAll("button")).find((b) => b.textContent?.includes("Chi tiết")) as HTMLButtonElement).click());
     const d = el.querySelector("[data-testid=mx-details]")!;
     expect(d.textContent).toContain("Đỉnh / đáy 52 tuần mới");
@@ -75,5 +77,6 @@ describe("Trading Matrix M1", () => {
     expect(d.textContent).toContain("Tự doanh: không có nguồn dữ liệu");
     expect(el.querySelectorAll("[data-testid=mx-sources] li").length).toBe(2);
     expect(el.querySelectorAll("figure svg rect").length).toBe(20);
+    expect(el.querySelector("[data-testid=mx-sector-row]")?.textContent).toContain("Heatmap ngành");
   });
 });

@@ -220,6 +220,21 @@ router.get("/trading-matrix/overview", handle(async (req, res) => {
   res.set("Cache-Control", live ? "private, max-age=15" : "private, max-age=120");
   res.json(data);
 }));
+// Trading Matrix (M2) — heatmap ngành (RS so VN-Index × độ rộng ngành × GTGD) + mã biến động đáng chú ý (không có trọng số chỉ số).
+router.get("/trading-matrix/sectors", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
+  const data = await rt.service.cache.wrap(`matrix:sectors:${scope}`, 5 * 60_000, () => rt.matrix.sectors({ scope }));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+router.get("/trading-matrix/movers", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const scope = String(req.query.scope ?? "VN30").toUpperCase();
+  const data = await rt.service.cache.wrap(`matrix:movers:${scope}`, 5 * 60_000, () => rt.matrix.movers({ scope }));
+  res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
 router.get("/trading-matrix/history", handle(async (req, res) => {
   const scope = String(req.query.scope ?? "VNINDEX").toUpperCase();
   res.set("Cache-Control", "public, max-age=300");
