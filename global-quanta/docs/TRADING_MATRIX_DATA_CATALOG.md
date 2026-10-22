@@ -110,3 +110,17 @@ Mọi ngưỡng trên là **ứng viên**; trước M3 phải đăng ký trướ
 - Báo cáo: n, n hiệu dụng (bootstrap theo cụm ngày), tỷ lệ nền, KTC 95%, Brier / AUC, theo regime.
 - Đa kiểm định: BH-FDR q = 0,10 trên các kịch bản.
 - Chỉ kịch bản ĐẠT mới được trạng thái CONFIRMED (M4); không đạt giữ nhãn THỰC NGHIỆM.
+
+---
+
+## 7. Trạng thái triển khai (22/10/2026)
+
+| Giai đoạn | Nội dung | Kiểm định | Trạng thái |
+|---|---|---|---|
+| M0 | Kho ưu tiên cục bộ (Volume), tự dựng lại từ SSI / VCI | Kiểm thử tương đương + Supabase 402 | Xong |
+| M1 | Dải 6 ô + sức khoẻ dữ liệu | — (mô tả) | Xong |
+| M2 | Heatmap ngành (cùng phân ngành bảng) + mã biến động đáng chú ý | — (mô tả) | Xong |
+| M3 | Kịch bản SC1–SC3 + SC0, cờ RF1–RF5, sổ tín hiệu | Prereg 341e569: SC1 thiếu mẫu, SC2 KHÔNG ĐẠT, SC3 thiếu mẫu → THỰC NGHIỆM | Xong |
+| M4 | "Xác nhận" cho kịch bản ĐẠT | Chưa kịch bản nào đạt → chưa bật; sổ thực tế đang tích luỹ | Chờ bằng chứng |
+| M5 | Champion / challenger, sổ đăng ký mô hình, quay lui | Prereg c5edd78: giữ champion B0 (C1 Brier skill −16 %) | Xong |
+| M6 | Báo cáo vận hành, cảnh báo, phát lại, sổ tay vận hành | Diễn tập sự cố có kiểm thử | Xong (`docs/TRADING_MATRIX_RUNBOOK.md`) |
