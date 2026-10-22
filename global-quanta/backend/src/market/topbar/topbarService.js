@@ -130,7 +130,7 @@ export function cumulativeTo(bars, cutoff = LIQ.cutoff) {
 }
 
 export function createTopbarService({ service, store, fetchImpl = globalThis.fetch, now = Date.now, tradingDatesBack }) {
-  let macroCache = null;
+  let macroCache = null, vixCache = null;
 
   async function yahooDaily(symbol) {
     const r = await fetchImpl(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`, { headers: UA, signal: AbortSignal.timeout(15_000) });
@@ -168,7 +168,12 @@ export function createTopbarService({ service, store, fetchImpl = globalThis.fet
   async function regimeBlock(macro, receivedAt) {
     const val = (id) => macro.find((m) => m.data?.symbol === id)?.data?.value ?? null;
     let vix = null, vixAsOf = null;
-    try { const { q } = await yahooDaily("^VIX"); vix = q?.value ?? null; vixAsOf = q?.time ?? null; } catch { vix = null; }
+    // VIX đệm 5 phút như khối vĩ mô (trước đây gọi Yahoo mỗi lần dựng snapshot -> ~1 giây / lượt).
+    if (vixCache && now() - vixCache.at < 5 * 60_000) ({ vix, vixAsOf } = vixCache);
+    else {
+      try { const { q } = await yahooDaily("^VIX"); vix = q?.value ?? null; vixAsOf = q?.time ?? null; } catch { vix = null; }
+      vixCache = { at: now(), vix, vixAsOf };
+    }
     const x = { dxy: val("DXY"), vix, treasury10y: val("US10Y") };
     const asOfs = [...macro.map((m) => m.meta.asOf), vixAsOf].filter(Boolean).sort();
     if ([x.dxy, x.vix, x.treasury10y].some((v) => v === null)) {
