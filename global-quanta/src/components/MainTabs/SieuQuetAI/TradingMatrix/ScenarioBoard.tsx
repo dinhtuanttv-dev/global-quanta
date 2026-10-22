@@ -8,7 +8,20 @@ const STATE_STYLE: Record<Scenario["state"], { glyph: string; tone: keyof typeof
   COOLDOWN: { glyph: "◌", tone: "missing" }, INACTIVE: { glyph: "○", tone: "missing" },
 };
 
-function ScenarioCard({ s }: { s: Scenario }) {
+export type LinkHandlers = { onSelectTicker?: (t: string) => void; onIndustry?: (n: string | null) => void };
+
+/** Chip mã / ngành liên quan — bấm mã chọn mã toàn trang, bấm ngành lọc bảng Siêu Quét. */
+export function RelatedChips({ tickers = [], sectors = [], onSelectTicker, onIndustry }: { tickers?: string[]; sectors?: string[] } & LinkHandlers) {
+  if (!tickers.length && !sectors.length) return null;
+  return (
+    <span className="flex flex-wrap gap-1 pt-0.5" data-testid="mx-related">
+      {tickers.map((t) => <button key={t} type="button" onClick={() => onSelectTicker?.(t)} className="text-[9px] px-1 rounded border border-amber-500/30 text-amber-200 hover:bg-amber-500/10" aria-label={`Chọn ${t}`}>{t}</button>)}
+      {sectors.map((n) => <button key={n} type="button" onClick={() => onIndustry?.(n)} className="text-[9px] px-1 rounded border border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10" title={`Lọc bảng theo ${n}`}>{n}</button>)}
+    </span>
+  );
+}
+
+function ScenarioCard({ s, onSelectTicker, onIndustry }: { s: Scenario } & LinkHandlers) {
   const st = STATE_STYLE[s.state], t = TONE[st.tone];
   const active = s.state === "CONFIRMED" || s.state === "WATCH";
   return (
@@ -21,12 +34,18 @@ function ScenarioCard({ s }: { s: Scenario }) {
       <p className="text-[9.5px] text-slate-400 leading-snug">{s.meaning}</p>
       {s.evidence.length > 0 && <ul className="text-[9.5px] text-slate-300 space-y-0.5">{s.evidence.map((e) => <li key={e}><span className="text-emerald-400" aria-label="ủng hộ">✓</span> {e}</li>)}</ul>}
       {active && s.contradictions.length > 0 && <ul className="text-[9.5px] text-slate-400 space-y-0.5">{s.contradictions.map((e) => <li key={e}><span className="text-rose-400" aria-label="mâu thuẫn">✗</span> {e}</li>)}</ul>}
+      {s.related && (
+        <div className="text-[9px] text-slate-400">
+          {s.related.note}
+          <RelatedChips tickers={s.related.kind === "tickers" ? s.related.items : []} sectors={s.related.kind === "sectors" ? s.related.items : []} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />
+        </div>
+      )}
       <p className="text-[9px] text-amber-200/80 leading-snug border-t border-white/5 pt-1">Kiểm định: {s.validation.summary}</p>
     </div>
   );
 }
 
-export function ScenarioBoard({ d }: { d: MatrixOverview }) {
+export function ScenarioBoard({ d, onSelectTicker, onIndustry }: { d: MatrixOverview } & LinkHandlers) {
   if (!d.scenarios?.length) return <p className="text-[10px] text-slate-500">Kịch bản: chưa đủ dữ liệu ngày để đánh giá.</p>;
   return (
     <div className="space-y-1.5" data-testid="mx-scenarios">
@@ -35,7 +54,7 @@ export function ScenarioBoard({ d }: { d: MatrixOverview }) {
         <span className="text-[9px] text-slate-500">Quy tắc {d.scenarios[0].ruleVersion} · ≥ 2 nhóm bằng chứng độc lập (giá chỉ số / độ rộng / biến động) · THỰC NGHIỆM</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
-        {d.scenarios.map((s) => <ScenarioCard key={s.id} s={s} />)}
+        {d.scenarios.map((s) => <ScenarioCard key={s.id} s={s} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />)}
         <div className={`rounded-lg border ${d.neutral?.active ? TONE.neutral.bd : "border-dashed border-slate-700/50"} p-2 space-y-1`} data-testid="mx-scenario-SC0">
           <span className="text-[11px] font-semibold text-slate-100">Chuyển pha / chưa xác định</span>
           <div className={`text-[11px] font-semibold ${d.neutral?.active ? "text-slate-200" : "text-slate-500"}`}>{d.neutral?.active ? "■ Đang áp dụng" : "○ Không áp dụng"}</div>
@@ -51,7 +70,7 @@ const FLAG_GLYPH: Record<RiskFlag["status"], { g: string; text: string; cls: str
   UNAVAILABLE: { g: "✕", text: "Chưa có nguồn", cls: "text-slate-500" }, CHECKLIST: { g: "☐", text: "Tự kiểm tra", cls: "text-cyan-300" },
 };
 
-export function RiskChecklist({ flags }: { flags: RiskFlag[] }) {
+export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: RiskFlag[] } & LinkHandlers) {
   return (
     <div className="space-y-1 min-w-0" data-testid="mx-risk">
       <h3 className="text-[10px] font-bold text-slate-300">Cờ rủi ro cần xem xét <span className="font-normal text-slate-500">(không phải lệnh mua / bán)</span></h3>
@@ -65,6 +84,7 @@ export function RiskChecklist({ flags }: { flags: RiskFlag[] }) {
                 <span className="text-slate-200">{f.title}</span> <span className={`text-[9px] ${g.cls}`}>· {g.text}</span>
                 {f.detail && <span className="block text-[9px] text-slate-400">{f.detail}</span>}
                 {f.status === "ON" && f.evidence?.length ? <span className="block text-[9px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
+                {f.related && f.status === "ON" && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
                 {f.trigger && <span className="block text-[9px] text-slate-500">Bật khi: {f.trigger}{f.close ? ` · Tắt khi: ${f.close}` : ""}</span>}
                 {f.validation && <span className="block text-[9px] text-amber-200/70">{f.validation}</span>}
               </span>

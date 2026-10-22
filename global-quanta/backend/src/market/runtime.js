@@ -86,7 +86,7 @@ export function getMarketRuntime() {
   // M0: kho cục bộ (Railway Volume) — tự dựng lại từ SSI/VCI khi thiếu; dọn dòng lệnh theo phút cũ mỗi đêm.
   const localBootstrap = createLocalBootstrap({ jobs, store });
   // Trading Matrix (M1): snapshot trạng thái thị trường từ các nguồn sẵn có; lưu bảng cục bộ 16:50.
-  const matrix = createMatrixService({ service, store, getStructure: () => structure });
+  const matrix = createMatrixService({ service, store, getStructure: () => structure, corporateActions });
   jobs.matrixSnapshot = () => matrix.snapshot();
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });

@@ -15,6 +15,12 @@ import { MATRIX_VALIDATION } from "./matrixValidation.js";
 import { MATRIX_MODELS } from "./matrixModels.js";
 import { featureRows, HORIZON, predict } from "./models.js";
 import { notifyOps } from "../alerts.js";
+import { fetchVndShares, impactSummary, indexImpact } from "./indexImpact.js";
+import { toActiveEvents } from "../scanner/scanEngine.js";
+import { classify } from "../scanner/taxonomy.js";
+
+const SHARES_KV = "matrix:shares";
+const SHARES_TTL_MS = 24 * 3600_000;
 
 export const FORECAST_TABLE = "market_matrix_forecast";
 export const REPLAY_TABLE = "market_matrix_replay";
@@ -24,6 +30,7 @@ const DRIFT_KV = "matrix:drift";
 export const SIGNAL_TABLE = "market_matrix_signal";
 export const OUTCOME_TABLE = "market_matrix_outcome";
 const OUT_HORIZONS = [1, 3, 5, 10];
+const LEDGER_STATES = new Set(["WATCH", "CONFIRMED", "INVALIDATED"]);
 
 /** Kịch bản hiện tại (M3): vòng đời chạy lại trên chuỗi đã có (tất định) -> trạng thái phiên cuối + bằng chứng + nhãn kiểm định. */
 function scenarioView(lc, coverage, regimeLabel) {
@@ -43,14 +50,109 @@ function scenarioView(lc, coverage, regimeLabel) {
   return { scenarios, neutral: neutralState(day, { coverage, regimeLabel }), day };
 }
 
-export const MATRIX_VERSION = "matrix/M1 1.0.0";
+export const MATRIX_VERSION = "matrix/M1 1.1.0";
+
+/** Mã / ngành liên quan của từng kịch bản (spec §6.5): SC1 -> ngành dẫn dắt, SC2 -> trụ kéo chỉ số, SC3 -> ngành có cờ biến động. */
+function attachRelated(scenarios, links) {
+  const imp = links?.impact && !links.impact.error ? links.impact : null;
+  const sx = links?.sectors && !links.sectors.error ? links.sectors : null;
+  return scenarios.map((sc) => {
+    let related = null;
+    if (sc.id === "SC1" && sx) related = { kind: "sectors", note: "Ngành dẫn dắt (RS 5 phiên > 0, độ rộng ≥ 50%)", items: sx.leaders.map((x) => x.industry) };
+    if (sc.id === "SC2" && imp) related = { kind: "tickers", note: `Trụ kéo chỉ số phiên ${imp.date} (5 mã chiếm ${imp.top5Share ?? "—"}% biến động)`, items: imp.up.map((x) => x.symbol) };
+    if (sc.id === "SC3" && sx) related = { kind: "sectors", note: "Ngành có cờ biến động / độ rộng giảm nhanh", items: sx.flagged.map((x) => x.industry) };
+    return { ...sc, related: related && related.items.length ? related : null };
+  });
+}
 export const MATRIX_SCOPES = { VNINDEX: "Toàn sàn HOSE", VN30: "Rổ VN30", UNIVERSE: "Universe Siêu Quét" };
 export const SNAPSHOT_TABLE = "market_matrix_snapshot";
 const HISTORY = 260;
 
-export function createMatrixService({ service, store, getStructure = () => null, now = Date.now, log = console }) {
+export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, now = Date.now, log = console }) {
   const hyst = createHysteresis(2);
   const memo = new Map(); // `${scope}|${asOf}` -> { bySymbol, foreign, at }
+  const impactMemo = new Map(); // date -> kết quả indexImpact
+
+  /** Số cổ phiếu lưu hành (VNDirect) — lưu KV cục bộ, làm mới mỗi 24 giờ; lỗi -> dùng bản cũ. */
+  async function sharesFor(symbols) {
+    const cached = (await store.getKv(SHARES_KV).catch(() => null))?.value ?? null;
+    const have = new Map(Object.entries(cached?.map ?? {}));
+    const fresh = cached && now() - Date.parse(cached.fetchedAt) < SHARES_TTL_MS;
+    const missing = symbols.filter((s) => !have.has(s));
+    if (fresh && missing.length <= symbols.length * 0.05) return { map: have, fetchedAt: cached.fetchedAt, source: "VNDirect finfo OUTSTANDING_SHARES" };
+    try {
+      const got = await fetchShares(symbols);
+      for (const [k, v] of got) have.set(k, v);
+      const fetchedAt = new Date(now()).toISOString();
+      await store.setKv(SHARES_KV, { fetchedAt, map: Object.fromEntries(have) });
+      return { map: have, fetchedAt, source: "VNDirect finfo OUTSTANDING_SHARES" };
+    } catch (e) {
+      if (have.size) return { map: have, fetchedAt: cached?.fetchedAt ?? null, source: "VNDirect finfo OUTSTANDING_SHARES (bản lưu)", warning: e.message };
+      throw e;
+    }
+  }
+
+  /** Index Impact một phiên đã chốt (mặc định phiên gần nhất trong kho). */
+  async function impactFor(date = null) {
+    const expected = lastCompletedSessionDate(new Date(now()));
+    const dates = (await store.getMarketDailyDates()).filter((d) => d <= expected);
+    const day = date && dates.includes(date) ? date : dates.at(-1);
+    if (!day) throw new Error("Kho cục bộ chưa có dữ liệu ngày (đang dựng lại từ SSI).");
+    if (impactMemo.has(day)) return impactMemo.get(day);
+    const rows = await store.getMarketDailyByDate(day);
+    const hose = rows.filter((r) => r.exchange === "HOSE").map((r) => r.symbol);
+    const [sh, idx, tax] = await Promise.all([
+      sharesFor(hose),
+      service.getOhlcv({ symbol: "VNINDEX", limit: 300 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0)),
+      store.getKv("scanner:taxonomy").then((r) => r?.value?.map ?? {}).catch(() => ({})),
+    ]);
+    const i = idx.findIndex((b) => b.date === day);
+    const events = new Map();
+    if (corporateActions) {
+      await corporateActions.prefetch?.(hose).catch(() => {});
+      for (const s of hose) { const ca = await corporateActions.get(s).catch(() => null); if (ca?.events?.length) events.set(s, ca.events); }
+    }
+    const r = indexImpact({ date: day, rows, shares: sh.map, eventsOf: (s) => events.get(s) ?? null, indexPrev: i > 0 ? idx[i - 1].close : null, indexClose: i >= 0 ? idx[i].close : null, taxonomy: tax });
+    const doc = { version: MATRIX_VERSION, index: "VNINDEX", ...r, sharesSource: sh.source, sharesAsOf: sh.fetchedAt, sharesWarning: sh.warning ?? null,
+      eventsSource: corporateActions ? "Project A / VNDirect finfo" : null,
+      method: "c_i = I(t−1)·(P_t − R̃)·N_i / Σ R̃·N; R̃ = giá tham chiếu điều chỉnh sự kiện quyền; N = cổ phiếu lưu hành (VNDirect). Kiểm chứng 20 phiên 24/09–21/10/2026: RMSE 0,020 điểm %, R² 0,9995.",
+      vn30Note: "VN30 tính theo free-float + giới hạn tỷ trọng — chưa có dữ liệu free-float có nguồn nên không tính tác động VN30." };
+    for (const k of impactMemo.keys()) if (impactMemo.size > 5) impactMemo.delete(k);
+    impactMemo.set(day, doc);
+    return doc;
+  }
+
+  /** Liên kết cho snapshot tổng hợp: trụ chỉ số, ngành dẫn dắt / tụt hậu / cảnh báo, tín hiệu gần nhất. */
+  async function linksFor(scope, asOf) {
+    return service.cache.wrap(`matrix:links:${scope}:${asOf}`, 10 * 60_000, async () => {
+      const links = { impact: null, sectors: null, lastSignal: null };
+      if (scope === "VNINDEX") { try { links.impact = impactSummary(await impactFor(asOf)); } catch (e) { links.impact = { error: e.message }; } }
+      try {
+        const sx = await sectors({ scope });
+        const rs5 = (x) => x.rs?.[5] ?? null;
+        const ranked = sx.sectors.filter((x) => rs5(x) !== null);
+        links.sectors = {
+          asOf: sx.asOf,
+          leaders: ranked.filter((x) => rs5(x) > 0 && x.breadth >= 50).sort((a, b) => rs5(b) - rs5(a)).slice(0, 3).map((x) => ({ industry: x.industry, rs5: rs5(x), breadth: x.breadth })),
+          laggards: ranked.filter((x) => rs5(x) < 0 && x.breadth < 50).sort((a, b) => rs5(a) - rs5(b)).slice(0, 3).map((x) => ({ industry: x.industry, rs5: rs5(x), breadth: x.breadth })),
+          flagged: sx.sectors.filter((x) => x.flags?.length).slice(0, 4).map((x) => ({ industry: x.industry, flags: x.flags.map((f) => f.text) })),
+          medianReturn5: Object.fromEntries(sx.sectors.map((x) => [x.industry, { m1: x.medianReturn?.[1] ?? null, m5: x.medianReturn?.[5] ?? null, breadth: x.breadth, breadth5: x.breadth5 }])),
+        };
+      } catch (e) { links.sectors = { error: e.message }; }
+      try { links.lastSignal = (await store.selectRows(SIGNAL_TABLE, { eq: { scope }, order: "signal_date.desc", limit: 1 }))[0] ?? null; } catch { links.lastSignal = null; }
+      if (links.lastSignal) links.lastSignal = { scenario: links.lastSignal.scenario, date: links.lastSignal.signal_date, state: links.lastSignal.state };
+      return links;
+    });
+  }
+
+  /** Sự kiện đã xác nhận của lần quét gần nhất (Project A) -> ngành (cùng phân ngành bảng). null = nguồn không khả dụng. */
+  async function confirmedEvents() {
+    const ctx = (await store.getKv("scanner:context").catch(() => null))?.value ?? null;
+    if (!ctx || ctx.eventsAvailable === false) return null;
+    return toActiveEvents(ctx.events ?? [], new Date(now()))
+      .filter((e) => e.verifiedStatus === "user_confirmed" && e.status !== "resolved")
+      .map((e) => ({ ...e, industries: [...new Set((e.sectors ?? []).map((s) => classify({ legacy: s }).industry))] }));
+  }
 
   async function scopeSymbols(scope, latestRows) {
     if (scope === "VN30") {
@@ -193,11 +295,13 @@ export function createMatrixService({ service, store, getStructure = () => null,
         const lc = runLifecycle(states);
         const v = scenarioView(lc, out.breadth.daily?.coverage ?? null, out.regime.label);
         out.scenarios = v.scenarios; out.neutral = v.neutral; out.stateVector = states.at(-1) ?? null;
-        out.riskFlags = riskFlags({ day: v.day, flow: out.flow });
+        out.links = await linksFor(scope, d.asOf).catch((e) => ({ error: e.message }));
+        out.riskFlags = riskFlags({ day: v.day, flow: out.flow, links: out.links, events: await confirmedEvents() });
+        out.scenarios = attachRelated(out.scenarios, out.links);
         out.forecast = forecastOf(await activeModel(), states, idxBars.filter((b) => b.date <= d.asOf));
       } catch (e) { log.warn?.(`[matrix] kịch bản: ${e.message}`); }
     }
-    if (!out.riskFlags.length) out.riskFlags = riskFlags({ day: null, flow: out.flow });
+    if (!out.riskFlags.length) out.riskFlags = riskFlags({ day: null, flow: out.flow, links: null, events: await confirmedEvents() });
 
     const scanAsOf = (await store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
     health.push(sourceHealth({ id: "scanner", label: "Kết quả Siêu Quét", kind: "daily", asOf: scanAsOf, expectedDate: expected, error: scanAsOf ? null : "Chưa có kết quả quét" }));
@@ -325,7 +429,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
   }
 
   return {
-    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay,
+    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay, impact: impactFor,
     /** M5: quay lại / chọn phiên bản mô hình trong sổ đăng ký (admin). */
     async setActiveModel(id) {
       if (!MATRIX_MODELS.models.some((m) => m.id === id)) throw Object.assign(new Error("Không có mô hình " + id + " trong sổ đăng ký."), { statusCode: 400 });
@@ -343,6 +447,8 @@ export function createMatrixService({ service, store, getStructure = () => null,
         const sig = [];
         for (const sc of o.scenarios ?? []) {
           if (sc.since !== date) continue;
+          // Chỉ ghi chuyển trạng thái có ý nghĩa (vào Theo dõi / Đủ điều kiện / Vô hiệu) — về INACTIVE / COOLDOWN không phải tín hiệu.
+          if (!LEDGER_STATES.has(sc.state)) continue;
           sig.push({ scope, scenario: sc.id, signal_date: date, state: sc.state, rule_version: sc.ruleVersion, created_at: o.asOf,
             evidence: sc.evidence, contradictions: sc.contradictions, inputs: o.stateVector, coverage: o.breadth.daily?.coverage ?? null, health: o.dataHealth.status });
         }

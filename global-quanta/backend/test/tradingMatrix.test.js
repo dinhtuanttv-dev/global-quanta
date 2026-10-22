@@ -93,7 +93,7 @@ test("service: một nguồn lỗi (SSI trong phiên) không làm mất khối k
     getBreadth: async () => { throw new Error("SSI timeout"); },
     getOhlcv: async () => ({ bars: idx }),
   };
-  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const mx = createMatrixService({ service, store, fetchShares: async () => new Map(), now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
   const o = await mx.overview({ scope: "VNINDEX" });
   assert.equal(o.version, MATRIX_VERSION);
   assert.equal(o.scope.eligible, 3, "toàn sàn HOSE = 3 mã (DDD là HNX)");
@@ -147,7 +147,7 @@ test("M2 service: sectors / movers theo phạm vi; Smart Score lần quét khác
   await store.setKv("scanner:latest", { dataAsOf: "2026-10-20", items: [{ ticker: "A1", smartScore: 90 }] });
   const idx = dates.map((date, i) => ({ date, open: 1000 + i, high: 1001 + i, low: 999 + i, close: 1000 + i }));
   const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: ["A1", "A2"] }), getOhlcv: async () => ({ bars: idx }) };
-  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const mx = createMatrixService({ service, store, fetchShares: async () => new Map(), now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
   const s = await mx.sectors({ scope: "VNINDEX" });
   assert.equal(s.sectors.length, 1); assert.equal(s.sectors[0].industry, "Ngân hàng");
   assert.equal(s.smartMatched, false); assert.equal(s.sectors[0].avgSmart, null);
@@ -165,7 +165,7 @@ test("M3 service: kịch bản + cờ rủi ro trong overview (THỰC NGHIỆM, 
   }));
   const idx = dates.map((date, i) => ({ date, open: 1000 + i, high: 1000 + i, low: 1000 + i, close: 1000 + i * 2 + Math.sin(i / 7) * 5, volume: 1 }));
   const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: syms }), getBreadth: async () => { throw new Error("x"); }, getOhlcv: async () => ({ bars: idx }) };
-  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const mx = createMatrixService({ service, store, fetchShares: async () => new Map(), now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
   const o = await mx.overview({ scope: "VNINDEX" });
   assert.deepEqual(o.scenarios.map((s) => s.id), ["SC1", "SC2", "SC3"]);
   for (const s of o.scenarios) { assert.equal(s.validation.label, "THỰC NGHIỆM"); assert.notEqual(s.displayState, "Xác nhận"); assert.ok(s.validation.summary.length > 10); }
@@ -175,6 +175,7 @@ test("M3 service: kịch bản + cờ rủi ro trong overview (THỰC NGHIỆM, 
   const sn = await mx.snapshot();
   assert.ok(sn.scoring && !sn.scoring.error);
   const sig = await mx.signals({ scope: "VNINDEX" });
+  assert.ok(sig.recent.every((r) => ["WATCH", "CONFIRMED", "INVALIDATED"].includes(r.state)), "sổ không ghi chuyển về INACTIVE / COOLDOWN");
   assert.equal(sig.ruleVersion, "M3-r1");
   assert.ok(sig.validation.summary.SC2.includes("ngược với kỳ vọng"));
 });
@@ -190,7 +191,7 @@ test("M5/M6: dự báo có kỳ hạn + tỷ lệ nền + phiên bản + nhãn M
   }));
   const idx = dates.map((date, i) => ({ date, open: 1, high: 1, low: 1, close: 1000 + i * 2 + Math.sin(i / 7) * 5, volume: 1 }));
   const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: syms }), getBreadth: async () => { throw new Error("x"); }, getOhlcv: async () => ({ bars: idx }) };
-  const mx = createMatrixService({ service, store, now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  const mx = createMatrixService({ service, store, fetchShares: async () => new Map(), now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
   const o = await mx.overview({ scope: "VNINDEX" });
   assert.ok(o.forecast.p >= 0 && o.forecast.p <= 1);
   assert.equal(o.forecast.horizon, 10); assert.equal(o.forecast.modelId, "B0-breadth"); assert.equal(o.forecast.label, "MÔ TẢ");
