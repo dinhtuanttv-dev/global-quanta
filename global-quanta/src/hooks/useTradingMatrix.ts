@@ -35,6 +35,8 @@ export interface MatrixOverview {
   neutral?: { active: boolean; reasons: string[] } | null;
   stateVector?: Record<string, number | string | null> | null;
   forecast?: Forecast | null;
+  /** Snapshot tổng hợp: trụ chỉ số (Index Impact), ngành dẫn dắt / tụt hậu / cảnh báo, tín hiệu gần nhất. */
+  links?: MatrixLinks | null;
   sourceAsOf: Record<string, string | null>;
   dataHealth: { status: HealthStatus; sources: SourceHealth[] };
 }
@@ -78,14 +80,37 @@ export function useMatrixMovers(scope: MatrixScope, enabled: boolean) {
   return { data, error: error as Error | undefined, isLoading };
 }
 
+// ------------------------------------------------------------------ Index Impact + liên kết của snapshot tổng hợp
+export interface ImpactItem { symbol: string; industry: string; group: string; close: number; changePct: number; weightPct: number; points: number; value: number | null; adjusted: { from: number; to: number; label: string } | null }
+export interface ImpactCheck { predictedPoints: number; actualPoints: number | null; predictedPct: number; actualPct: number | null; diffPp: number | null; status: "MATCH" | "DEVIATION" | "NO_INDEX" }
+export interface IndexImpactDoc {
+  version: string; index: string; date: string; items: ImpactItem[]; check: ImpactCheck | null;
+  coverage: { symbols: number; of: number; missing: string[] };
+  sectors: { industry: string; group: string; points: number; up: number; down: number; n: number }[];
+  sharesSource: string; sharesAsOf: string | null; sharesWarning: string | null; method: string; vn30Note: string;
+}
+type ImpactLite = { symbol: string; points: number; changePct: number; industry: string };
+export interface MatrixLinks {
+  impact: { date: string; check: ImpactCheck | null; up: ImpactLite[]; down: ImpactLite[]; top5Share: number | null; error?: string } | null;
+  sectors: { asOf: string; leaders: { industry: string; rs5: number; breadth: number }[]; laggards: { industry: string; rs5: number; breadth: number }[]; flagged: { industry: string; flags: string[] }[]; error?: string } | null;
+  lastSignal: { scenario: string; date: string; state: string } | null;
+  error?: string;
+}
+export function useMatrixImpact(enabled: boolean) {
+  const { data, error, isLoading } = useSWR<IndexImpactDoc>(enabled ? marketUrl("/api/market/trading-matrix/index-impact") : null, fetcher,
+    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true });
+  return { data, error: error as Error | undefined, isLoading };
+}
+
 // ------------------------------------------------------------------ M3: kịch bản, cờ rủi ro, sổ tín hiệu
 export type ScenarioState = "INACTIVE" | "WATCH" | "CONFIRMED" | "INVALIDATED" | "COOLDOWN";
 export interface Scenario {
   id: "SC1" | "SC2" | "SC3"; title: string; meaning: string; state: ScenarioState; since: string | null; displayState: string;
   evidence: string[]; contradictions: string[]; groups: Record<string, boolean>; ruleVersion: string;
   validation: { verdict: string; summary: string; label: string };
+  related?: { kind: "tickers" | "sectors"; note: string; items: string[] } | null;
 }
-export interface RiskFlag { id: string; title: string; severity: "INFO" | "CAUTION" | "WARNING" | "HIGH"; status: "ON" | "OFF" | "UNAVAILABLE" | "CHECKLIST"; detail?: string; trigger?: string; close?: string; evidence?: string[]; validation?: string; label: string }
+export interface RiskFlag { id: string; title: string; severity: "INFO" | "CAUTION" | "WARNING" | "HIGH"; status: "ON" | "OFF" | "UNAVAILABLE" | "CHECKLIST"; detail?: string; trigger?: string; close?: string; evidence?: string[]; validation?: string; label: string; related?: { tickers: string[]; sectors: string[] } | null }
 export interface MatrixSignals {
   version: string; scope: string; ruleVersion: string; note: string;
   recent: { scenario: string; date: string; state: ScenarioState; evidence: string[]; health: string }[];

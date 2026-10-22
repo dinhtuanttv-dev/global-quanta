@@ -236,6 +236,12 @@ router.get("/trading-matrix/sectors", handle(async (req, res) => {
   res.set("Cache-Control", "private, max-age=120");
   res.json(data);
 }));
+// Trading Matrix — Index Impact (spec §6.8): điểm đóng góp từng mã vào VN-Index một phiên đã chốt, kèm kiểm tra Σ đóng góp vs thật.
+router.get("/trading-matrix/index-impact", handle(async (req, res) => {
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date ?? "")) ? String(req.query.date) : null;
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().matrix.impact(date));
+}));
 router.get("/trading-matrix/movers", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const scope = String(req.query.scope ?? "VN30").toUpperCase();
