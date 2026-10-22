@@ -11,7 +11,7 @@ import {
   mergeSectors, DIVIDEND_STOCKS,
 } from "./universe.js";
 import { fetchQuarterlyIncome, fetchQuarterlyBalance } from "./vciFinancials.js";
-import { runScan, topForeignNetBuy } from "./scanEngine.js";
+import { adjustedScanBars, runScan, SCANNER_ENGINE, topForeignNetBuy } from "./scanEngine.js";
 import { validateIntentStates } from "./ifeValidation.js";
 import { classify, MANUAL } from "./taxonomy.js";
 import { isTradingDay, lastCompletedSessionDate } from "../calendar.js";
@@ -45,7 +45,7 @@ export function tradingDatesBack(end, count) {
   return out.reverse();
 }
 
-export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMarketDay, fetchImpl = globalThis.fetch, pauseMs = 300 } = {}) {
+export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMarketDay, fetchImpl = globalThis.fetch, pauseMs = 300, corporateActions = null } = {}) {
   const store = service.store;
 
   async function emptyDates() {
@@ -197,7 +197,9 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const existing = await store.getFundamentals(tickers);
       const cutoff = now() - maxAgeDays * 86_400_000;
       // CAN SLIM (bộ lọc TA) cần ≥ 12 quý cho yếu tố A -> bản lưu cũ chỉ có 6 quý cũng tải lại.
-      const due = tickers.filter((t) => !existing.get(t) || Date.parse(existing.get(t).fetchedAt) < cutoff || (existing.get(t).income?.quarters?.length ?? 0) < 12).slice(0, limit);
+      // Siêu Quét v2 cần `kind` (mẫu BCTC ngân hàng / bảo hiểm / chứng khoán) -> bản lưu trước 22/10/2026 cũng tải lại.
+      const due = tickers.filter((t) => !existing.get(t) || Date.parse(existing.get(t).fetchedAt) < cutoff || (existing.get(t).income?.quarters?.length ?? 0) < 12
+        || (existing.get(t).income?.available && existing.get(t).income.quarters?.[0]?.kind === undefined)).slice(0, limit);
       let ok = 0, failed = 0;
       const results = await mapLimit(due, 2, async (ticker) => {
         const [income, balance] = await Promise.all([fetchQuarterlyIncome(ticker, fetchImpl), fetchQuarterlyBalance(ticker, fetchImpl)]);
@@ -241,6 +243,20 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         if (!barsByTicker.has(r.symbol)) barsByTicker.set(r.symbol, []);
         barsByTicker.get(r.symbol).push(r);
       }
+      // Q3: điều chỉnh cộng dồn theo sự kiện quyền (Project A, dự phòng VNDirect). Không có nguồn sự kiện -> giữ giá điều chỉnh
+      // của SSI như trước và ghi rõ cơ sở giá trong meta.
+      const priceBasis = { ADJUSTED_CUMULATIVE: 0, SSI_LATEST_EVENT_ADJUSTED: 0 };
+      if (corporateActions) {
+        await corporateActions.prefetch?.(universe.map((u) => u.ticker)).catch(() => {});
+        for (const u of universe) {
+          const list = barsByTicker.get(u.ticker);
+          if (!list?.length) continue;
+          const ca = await corporateActions.get(u.ticker).catch(() => null);
+          if (!ca?.covered) { priceBasis.SSI_LATEST_EVENT_ADJUSTED++; continue; }
+          barsByTicker.set(u.ticker, adjustedScanBars(list, ca.events).bars);
+          priceBasis.ADJUSTED_CUMULATIVE++;
+        }
+      } else priceBasis.SSI_LATEST_EVENT_ADJUSTED = barsByTicker.size;
       const fundamentals = await store.getFundamentals(universe.map((u) => u.ticker));
       const index = await service.getOhlcv({ symbol: "VNINDEX", limit: 250 });
       const indexBars = index.bars.filter((b) => !b.partial);
@@ -257,11 +273,12 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const latestRows = await store.getMarketDailyByDate(dates.at(-1));
       const foreignNetBuySet = topForeignNetBuy(latestRows);
 
-      const result = runScan({ universe, barsByTicker, fundamentals, indexBars, events, foreignNetBuySet, now: new Date(now()) });
+      const result = runScan({ universe, barsByTicker, fundamentals, indexBars, events, foreignNetBuySet, eventsAvailable: eventsOk, now: new Date(now()) });
       const doc = {
         generatedAt: new Date(now()).toISOString(),
         dataAsOf: dates.at(-1),
         source: "SSI",
+        engine: SCANNER_ENGINE,
         indexState: result.indexState,
         items: result.items,
         totalCount: result.items.length,
@@ -271,6 +288,7 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
           skipped: result.skipped,
           fundamentalsCoverage: fundamentals.size,
           eventsLoaded: eventsOk ? events.length : null,
+          priceBasis,
           indexSource: index.provenance?.source ?? null,
         },
       };

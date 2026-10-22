@@ -77,10 +77,15 @@ export function adjustOhlcSeries(bars, events) {
   return { bars: out, applied, skipped };
 }
 
-/** Bộ nhớ đệm sự kiện quyền toàn universe (một lượt gọi Project A / 6 giờ; lỗi -> giữ bản cũ). */
-export function createCorporateActions({ base, fetchImpl = globalThis.fetch, now = Date.now, ttlMs = EVENTS_TTL_MS, timeoutMs = 90_000 } = {}) {
+/**
+ * Bộ nhớ đệm sự kiện quyền toàn universe (một lượt gọi Project A / 6 giờ; lỗi -> giữ bản cũ).
+ * `fallback(symbols) -> Map<symbol, events[]>` (VNDirect finfo, vndirectEvents.js): dùng cho mã Project A không có hoặc khi
+ * Project A lỗi hẳn — lưu đệm theo mã cùng TTL. Không có `fallback` -> hành vi cũ (covered=false).
+ */
+export function createCorporateActions({ base, fetchImpl = globalThis.fetch, now = Date.now, ttlMs = EVENTS_TTL_MS, timeoutMs = 90_000, fallback = null } = {}) {
   let snapshot = null; // { at, byTicker: Map, generatedAt, source }
   let inflight = null;
+  const fb = new Map(); // symbol -> { at, events }
 
   async function load() {
     const res = await fetchImpl(`${base}/api/cotuc/events`, { signal: AbortSignal.timeout(timeoutMs), headers: { accept: "application/json" } });
@@ -106,12 +111,36 @@ export function createCorporateActions({ base, fetchImpl = globalThis.fetch, now
     }
   }
 
+  /** Nạp nguồn dự phòng cho các mã chưa có (một lượt gộp); lỗi -> bỏ qua (mã giữ covered=false). */
+  async function loadFallback(symbols) {
+    const due = symbols.filter((s) => !(fb.get(s) && now() - fb.get(s).at < ttlMs));
+    if (!fallback || !due.length) return;
+    try {
+      const got = await fallback(due);
+      for (const s of due) if (got.has(s)) fb.set(s, { at: now(), events: got.get(s) });
+    } catch { /* giữ bản cũ nếu có */ }
+  }
+
+  async function snapOrNull() {
+    try { return await ensure(); } catch (error) { if (!fallback) throw error; return null; }
+  }
+
   return {
     /** @returns {Promise<{ events, covered: boolean, generatedAt, source }>} covered=false: mã không có trong nguồn sự kiện */
     async get(symbol) {
-      const snap = await ensure();
-      const events = snap.byTicker.get(String(symbol).toUpperCase());
-      return { events: events ?? [], covered: Boolean(events), generatedAt: snap.generatedAt, source: snap.source };
+      const sym = String(symbol).toUpperCase();
+      const snap = await snapOrNull();
+      const events = snap?.byTicker.get(sym);
+      if (events || !fallback) return { events: events ?? [], covered: Boolean(events), generatedAt: snap?.generatedAt ?? null, source: snap?.source ?? null };
+      await loadFallback([sym]);
+      const f = fb.get(sym);
+      return f ? { events: f.events, covered: true, generatedAt: new Date(f.at).toISOString(), source: "VNDIRECT_FINFO" }
+        : { events: [], covered: false, generatedAt: snap?.generatedAt ?? null, source: snap?.source ?? null };
+    },
+    /** Nạp trước nguồn dự phòng cho cả universe (một lượt gộp thay vì ~280 lượt gọi lẻ). */
+    async prefetch(symbols) {
+      const snap = await snapOrNull();
+      await loadFallback(symbols.map((s) => String(s).toUpperCase()).filter((s) => !snap?.byTicker.has(s)));
     },
   };
 }

@@ -20,6 +20,7 @@ import { createCotucScanner } from "./cotuc/cotucScanner.js";
 import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
 import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
 import { createCorporateActions } from "./adjusted/corporateActions.js";
+import { fetchVndEvents } from "./adjusted/vndirectEvents.js";
 import { createTaSeries } from "./adjusted/taSeries.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
@@ -69,7 +70,8 @@ export function getMarketRuntime() {
 
   // Chuỗi giá điều chỉnh cộng dồn dùng chung cho /ta-series, /ta-intraday và bộ lọc kỹ thuật.
   const nominalHistory = createAdjustedHistory({ service, store });
-  const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "") });
+  // Mã Project A không có (Neon khoá -> chỉ 17 mã) hoặc Project A lỗi -> sự kiện quyền trực tiếp từ VNDirect finfo.
+  const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fallback: (symbols) => fetchVndEvents(symbols) });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
@@ -80,7 +82,7 @@ export function getMarketRuntime() {
   const alpha = createAlphaService({ service, corporateActions, taSeries });
   // Cấu trúc thị trường đa khung (T4): SSI /ta-series + nến phút SSI; kho nến 1 giờ trên Railway Volume.
   const structure = createStructureService({ service, taSeries, corporateActions });
-  const jobs = { ...createJobs(service), ...createScannerJobs(service), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
+  const jobs = { ...createJobs(service), ...createScannerJobs(service, { corporateActions }), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
   // M0: kho cục bộ (Railway Volume) — tự dựng lại từ SSI/VCI khi thiếu; dọn dòng lệnh theo phút cũ mỗi đêm.
   const localBootstrap = createLocalBootstrap({ jobs, store });
   // Trading Matrix (M1): snapshot trạng thái thị trường từ các nguồn sẵn có; lưu bảng cục bộ 16:50.

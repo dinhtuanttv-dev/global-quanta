@@ -7,7 +7,7 @@ import { canonicalSymbol, isValidSymbol, isIndexSymbol } from "../normalizer.js"
 import { ValidationError } from "../errors.js";
 import { mapLimit } from "../util.js";
 import { KV } from "./scannerJobs.js";
-import { scoreCustom, topForeignNetBuy } from "./scanEngine.js";
+import { adjustedScanBars, scoreCustom, topForeignNetBuy } from "./scanEngine.js";
 import { fetchQuarterlyIncome, fetchQuarterlyBalance } from "./vciFinancials.js";
 
 export const MAX_CUSTOM_TICKERS = 60;
@@ -23,7 +23,7 @@ export function parseTickers(raw) {
   return uniq;
 }
 
-export async function scoreCustomTickers(service, rawTickers, { fetchImpl = globalThis.fetch, now = Date.now } = {}) {
+export async function scoreCustomTickers(service, rawTickers, { fetchImpl = globalThis.fetch, now = Date.now, corporateActions = null } = {}) {
   const store = service.store;
   const tickers = parseTickers(rawTickers);
   const [latestKv, contextKv, taxKv] = await Promise.all([store.getKv(KV.latest), store.getKv(KV.context), store.getKv(KV.taxonomy)]);
@@ -59,6 +59,13 @@ export async function scoreCustomTickers(service, rawTickers, { fetchImpl = glob
     }
     for (const t of known) if (!barsByTicker.has(t)) notFound.push(t);
     const withBars = known.filter((t) => barsByTicker.has(t));
+    // Cùng cơ sở giá với lần quét (điều chỉnh cộng dồn theo sự kiện quyền).
+    if (corporateActions) {
+      for (const t of withBars) {
+        const ca = await corporateActions.get(t).catch(() => null);
+        if (ca?.covered) barsByTicker.set(t, adjustedScanBars(barsByTicker.get(t), ca.events).bars);
+      }
+    }
 
     // BCTC: dùng bản đã lưu; thiếu thì tải VCI (song song 2), lưu đệm cho lần sau.
     const fundamentals = await store.getFundamentals(withBars);
@@ -66,7 +73,8 @@ export async function scoreCustomTickers(service, rawTickers, { fetchImpl = glob
     const fetched = (await mapLimit(missing, 2, async (ticker) => {
       const [income, balance] = await Promise.all([fetchQuarterlyIncome(ticker, fetchImpl), fetchQuarterlyBalance(ticker, fetchImpl)]);
       if (!income.available && !balance.available) return null;
-      return { ticker, income: { ...income, quarters: income.quarters.slice(0, 6) }, balance: { ...balance, quarters: balance.quarters.slice(0, 6) } };
+      // 8 quý: TTM so TTM cùng kỳ năm trước (Siêu Quét v2).
+      return { ticker, income: { ...income, quarters: income.quarters.slice(0, 8) }, balance: { ...balance, quarters: balance.quarters.slice(0, 8) } };
     })).filter(Boolean);
     if (fetched.length) {
       await store.upsertFundamentals(fetched);

@@ -108,6 +108,8 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
           const mRecent = dates.find((d) => d >= mFrom) ?? to;
           const allSymbols = new Set([...(memo && memo.to === to ? memo.symbols : []), ...symbols]);
           const daily = await loadDaily(mRecent, to, [...allSymbols]);
+          // Sự kiện quyền dự phòng (VNDirect) cho mã Project A không có: một lượt gộp thay vì gọi lẻ từng mã.
+          await corporateActions.prefetch?.([...allSymbols]).catch(() => {});
           memo = { to, from: mFrom, recentFrom: mRecent, symbols: allSymbols, daily, series: new Map(), load: buildLoader(mFrom, to, daily) };
         }
         const m = memo;
