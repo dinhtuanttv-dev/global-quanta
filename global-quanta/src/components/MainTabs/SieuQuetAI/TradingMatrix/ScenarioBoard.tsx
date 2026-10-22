@@ -84,7 +84,7 @@ export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: Ri
                 <span className="text-slate-200">{f.title}</span> <span className={`text-[9px] ${g.cls}`}>· {g.text}</span>
                 {f.detail && <span className="block text-[9px] text-slate-400">{f.detail}</span>}
                 {f.status === "ON" && f.evidence?.length ? <span className="block text-[9px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
-                {f.related && (f.status === "ON" || f.id === "RF3") && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
+                {f.related && f.status === "ON" && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
                 {f.trigger && <span className="block text-[9px] text-slate-500">Bật khi: {f.trigger}{f.close ? ` · Tắt khi: ${f.close}` : ""}</span>}
                 {f.validation && <span className="block text-[9px] text-amber-200/70">{f.validation}</span>}
               </span>

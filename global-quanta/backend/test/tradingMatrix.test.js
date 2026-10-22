@@ -175,6 +175,7 @@ test("M3 service: kịch bản + cờ rủi ro trong overview (THỰC NGHIỆM, 
   const sn = await mx.snapshot();
   assert.ok(sn.scoring && !sn.scoring.error);
   const sig = await mx.signals({ scope: "VNINDEX" });
+  assert.ok(sig.recent.every((r) => ["WATCH", "CONFIRMED", "INVALIDATED"].includes(r.state)), "sổ không ghi chuyển về INACTIVE / COOLDOWN");
   assert.equal(sig.ruleVersion, "M3-r1");
   assert.ok(sig.validation.summary.SC2.includes("ngược với kỳ vọng"));
 });

@@ -30,6 +30,7 @@ const DRIFT_KV = "matrix:drift";
 export const SIGNAL_TABLE = "market_matrix_signal";
 export const OUTCOME_TABLE = "market_matrix_outcome";
 const OUT_HORIZONS = [1, 3, 5, 10];
+const LEDGER_STATES = new Set(["WATCH", "CONFIRMED", "INVALIDATED"]);
 
 /** Kịch bản hiện tại (M3): vòng đời chạy lại trên chuỗi đã có (tất định) -> trạng thái phiên cuối + bằng chứng + nhãn kiểm định. */
 function scenarioView(lc, coverage, regimeLabel) {
@@ -446,6 +447,8 @@ export function createMatrixService({ service, store, getStructure = () => null,
         const sig = [];
         for (const sc of o.scenarios ?? []) {
           if (sc.since !== date) continue;
+          // Chỉ ghi chuyển trạng thái có ý nghĩa (vào Theo dõi / Đủ điều kiện / Vô hiệu) — về INACTIVE / COOLDOWN không phải tín hiệu.
+          if (!LEDGER_STATES.has(sc.state)) continue;
           sig.push({ scope, scenario: sc.id, signal_date: date, state: sc.state, rule_version: sc.ruleVersion, created_at: o.asOf,
             evidence: sc.evidence, contradictions: sc.contradictions, inputs: o.stateVector, coverage: o.breadth.daily?.coverage ?? null, health: o.dataHealth.status });
         }
