@@ -171,7 +171,8 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const dates = (await store.getMarketDailyDates()).filter((d) => d <= expected);
     const asOf = dates.at(-1);
     if (!asOf) throw new Error("Kho cục bộ chưa có dữ liệu ngày (đang dựng lại từ SSI).");
-    const key = `${scope}|${asOf}`;
+    // Số phiên trong kho nằm trong khoá: lúc kho đang dựng lại (ít phiên) không được giữ kết quả thiếu lịch sử tới phiên sau.
+    const key = `${scope}|${asOf}|${dates.length}`;
     if (memo.has(key)) return memo.get(key);
     const latestRows = await store.getMarketDailyByDate(asOf);
     const { symbols, source } = await scopeSymbols(scope, latestRows);

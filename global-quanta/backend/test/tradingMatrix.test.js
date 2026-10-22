@@ -211,3 +211,16 @@ test("M5/M6: dự báo có kỳ hạn + tỷ lệ nền + phiên bản + nhãn M
   assert.equal(ops.ruleChangelog[0].version, "M3-r1");
   assert.ok(DRILLS.length >= 6 && ops.drills.every((d) => d.test));
 });
+
+test("overview: kho đang dựng lại (ít phiên) -> khi có thêm phiên lịch sử thì tính lại, không giữ kết quả thiếu", async () => {
+  const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-mxmemo-")), log: { warn() {} } });
+  const dates = tradingDatesBack("2026-10-21", 80);
+  const put = async (ds) => { for (const [k, date] of ds.entries()) await store.upsertMarketDaily(["A", "B", "C"].map((symbol) => ({ symbol, date, exchange: "HOSE", open: 10 + k, high: 11 + k, low: 9 + k, close: 10 + k, closeAdj: 10 + k, refPrice: 9 + k, volume: 1, value: 1 }))); };
+  await put(dates.slice(-5));
+  const idx = dates.map((date, i) => ({ date, open: 1000 + i, high: 1000 + i, low: 1000 + i, close: 1000 + i }));
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getIndexComponents: async () => ({ symbols: [] }), getBreadth: async () => { throw new Error("x"); }, getOhlcv: async () => ({ bars: idx }) };
+  const mx = createMatrixService({ service, store, fetchShares: async () => new Map(), now: () => Date.parse("2026-10-21T10:00:00Z"), log: { warn() {} } });
+  assert.equal((await mx.overview({ scope: "VNINDEX" })).breadth.daily.aboveMa20Pct, null, "5 phiên: chưa tính được MA20");
+  await put(dates);
+  assert.ok((await mx.overview({ scope: "VNINDEX" })).breadth.daily.aboveMa20Pct != null, "đủ phiên: tính lại");
+});
