@@ -13,6 +13,7 @@ import { elliottProjection, PROJECTION_NOTE } from "../../../lib/quant-core/elli
 import { INTRADAY_NOTE } from "../../../lib/quant-core/elliott/intraday";
 import { describePosition, treeCovers, type WaveTree } from "../../../lib/quant-core/elliott/v3/waveTree";
 import { EP1_VALIDATION } from "../../../lib/quant-core/elliott/v3/validation";
+import { ElliottLedgerSummary, ElliottScenarioList, type ScenarioView } from "./ElliottScenarioList";
 import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, ELLIOTT_VN_VALIDATION, oscCheckVnNote, type ElliottCheckKey } from "../../../lib/quant-core/elliott/vnValidation";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 
@@ -128,10 +129,12 @@ interface CardProps {
   intraday?: ElliottState | null;
   /** EP1: cây sóng nhiều bậc (engine v3) của khung đang xem. */
   tree?: WaveTree | null;
+  /** EP2: kịch bản có vòng đời (đã xác nhận + tạm) của khung đang xem. */
+  scenarios?: ScenarioView[];
 }
 
 /** EP1: dòng "Elliott Pro v3 (beta)" — vị trí hiện tại qua các bậc của cây sóng + nhãn kép + số liệu nghiệm thu. */
-function TreeRow({ tree }: { tree: WaveTree | null }) {
+function TreeRow({ tree, scenarios = [] }: { tree: WaveTree | null; scenarios?: ScenarioView[] }) {
   if (!tree) return null;
   return (
     <div className="rounded-lg p-2 space-y-0.5" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.18)" }} data-testid="elliott-v3-row">
@@ -142,6 +145,8 @@ function TreeRow({ tree }: { tree: WaveTree | null }) {
         <span className="ml-auto text-[8px] text-slate-500">{tree.levels.length - 1} bậc · ngưỡng {(tree.basePct * 100).toFixed(1).replace(".", ",")}%</span>
       </div>
       <p className={`text-[10px] leading-snug ${treeCovers(tree) ? "text-cyan-100" : "text-slate-500"}`}>{describePosition(tree)}</p>
+      <ElliottScenarioList items={scenarios} />
+      <ElliottLedgerSummary />
       <p className="text-[8.5px] text-slate-500 leading-snug">{EP1_VALIDATION.summary}</p>
     </div>
   );
@@ -178,7 +183,7 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null, intraday = null, tree = null }: CardProps) {
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null, intraday = null, tree = null, scenarios = [] }: CardProps) {
   const isIntra = timeframe === "1H" || timeframe === "15m";
   const frameOk = timeframe === "D" || timeframe === "W" || (isIntra && !!intraday);
   const cur = isIntra ? intraday : !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
@@ -202,7 +207,7 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
             </div>
           )}
           <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
-          <TreeRow tree={tree} />
+          <TreeRow tree={tree} scenarios={scenarios} />
           {onPick && <CountPicker options={options} pick={pick} onPick={onPick} />}
         </>
       )}

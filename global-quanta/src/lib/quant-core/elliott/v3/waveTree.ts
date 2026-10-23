@@ -19,7 +19,8 @@ export const WAVE_TREE_VERSION = "ew-v3.0";
 export const BASE_PCT_STEP = 0.002;
 export const WINDOW_ANCHOR = 25;
 
-export interface TreePivot { i: number; price: number; time: string; type: "H" | "L"; confirmed: boolean }
+/** ci = chỉ số nến tại đó pivot được XÁC NHẬN (null nếu chưa) — mốc "biết được từ khi nào" cho vòng đời kịch bản (EP2). */
+export interface TreePivot { i: number; price: number; time: string; type: "H" | "L"; confirmed: boolean; ci: number | null }
 export type NodeKind = "leg" | "motive" | "corrective" | "orphan";
 export interface WaveNode {
   level: number;
@@ -222,7 +223,11 @@ function assignLabels(n: WaveNode) {
 }
 
 /** Dựng cây sóng cho chuỗi nến (cửa sổ ≤ 500 nến cuối). */
-export function buildWaveTree(candles: ElliottCandle[], opts: { basePct?: number; maxLevels?: number } = {}): WaveTree | null {
+/**
+ * `confirmedOnly` (EP2): bỏ pivot cuối CHƯA xác nhận (chặng đang chạy) — "góc nhìn đã xác nhận" dùng cho sổ theo dõi kịch bản
+ * (mọi điểm neo đều đã xác nhận, như khi người phân tích công bố "C đã xong" sau khi giá đảo chiều đủ ngưỡng).
+ */
+export function buildWaveTree(candles: ElliottCandle[], opts: { basePct?: number; maxLevels?: number; confirmedOnly?: boolean } = {}): WaveTree | null {
   // Cửa sổ NEO theo bội số 25 nến (dài 500–525): điểm bắt đầu zigzag chỉ đổi mỗi 25 phiên — pivot đã xác nhận không bị tính lại
   // mỗi ngày chỉ vì cửa sổ trượt (đo EP1: cửa sổ trượt từng nến làm ~2% pivot cũ đổi).
   const start = Math.floor(Math.max(0, candles.length - 500) / WINDOW_ANCHOR) * WINDOW_ANCHOR;
@@ -231,7 +236,8 @@ export function buildWaveTree(candles: ElliottCandle[], opts: { basePct?: number
   // Ngưỡng nền LƯỢNG TỬ HOÁ theo bước 0,2% (chống "vẽ lại" do ATR% dao động nhẹ từng ngày làm đổi pivot đã xác nhận).
   const basePct = opts.basePct ?? Math.min(0.08, Math.max(0.008, Math.round(medianAtrPct(c) / BASE_PCT_STEP) * BASE_PCT_STEP));
   const zz = zigzag(c, { pct: basePct });
-  const pivots: TreePivot[] = zz.map((p) => ({ i: p.i, price: p.price, time: String(p.time), type: p.type, confirmed: p.confirmed }));
+  const pivots: TreePivot[] = zz.map((p) => ({ i: p.i, price: p.price, time: String(p.time), type: p.type, confirmed: p.confirmed, ci: p.ci }))
+    .filter((p) => !opts.confirmedOnly || p.confirmed);
   if (pivots.length < 3) return null;
   ROLE_H = new Set(pivots.filter((p) => p.type === "H").map((p) => p.i));
   ROLE_L = new Set(pivots.filter((p) => p.type === "L").map((p) => p.i));
