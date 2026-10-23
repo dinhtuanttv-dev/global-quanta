@@ -3,6 +3,7 @@
 //   - Mọi điểm phải trùng một nến của khung đang xem — điểm nào không khớp thì bỏ cả đường (ghim chặt vào nến, không trôi).
 //   - Khung D có thể kèm đếm sóng TUẦN (ký hiệu (1)…(5), bậc lớn hơn) ghim vào nến ngày đạt cực trị của tuần.
 import type { ElliottState } from "../../quant-core/elliott";
+import { elliottProjection } from "../../quant-core/elliott/projection";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type ScenePoint, type SceneItem } from "./scene";
 
@@ -14,6 +15,9 @@ export interface ElliottSceneInput {
   primary: ElliottState | null;
   /** Đếm sóng bậc lớn hơn (tuần) đã ghim sang ngày — chỉ dùng trên khung D. */
   higher?: ElliottHigherDegree | null;
+  /** DW (23/10/2026): phần nào được vẽ — count = đếm sóng (lớp elliottAuto), fib = thang Fibonacci (elliottFib),
+   *  proj = đường kịch bản minh hoạ sang tương lai (elliottProj). Mặc định chỉ count (hành vi E5). */
+  show?: { count?: boolean; fib?: boolean; proj?: boolean };
 }
 
 const isLive5 = (st: ElliottState) => {
@@ -41,7 +45,79 @@ export function elliottCountPoints(st: ElliottState): { points: { date: string; 
   return null;
 }
 
+const fmtP = (v: number) => Math.round(v).toLocaleString("vi-VN");
+
+/** Giá đã được lớp đếm sóng vẽ (tránh vẽ trùng một mức khi bật cả hai lớp). */
+function countLayerPrices(st: ElliottState): number[] {
+  const sc = st.scenario;
+  if (!sc) { const t = st.levels.find((l) => l.label.includes("×1,618")) ?? st.levels[0]; return t ? [t.price] : []; }
+  return sc.afterWave5 && sc.points.length === 6 && !isLive5(st) ? [sc.afterWave5.firstTarget] : [];
+}
+
+/** Nhãn gọn trên biểu đồ (nhãn đầy đủ ở thẻ / phác đồ): "S5 ×1,618", "38,2%", "Sóng 4", "C ×1"… */
+export function shortFib(label: string): string {
+  let m: RegExpMatchArray | null;
+  if ((m = label.match(/^Mục tiêu sóng (\d|C) (×[\d,]+)/))) return `${m[1] === "C" ? "C" : "S" + m[1]} ${m[2]}`;
+  if ((m = label.match(/^Hồi ([\d,]+%)/))) return m[1];
+  if ((m = label.match(/^Cửa sổ sóng 5 \(sách\): (\d+%)/))) return `Cửa sổ S5 ${m[1]}`;
+  if ((m = label.match(/^Vùng sóng 4 tương lai ([\d,]+)/))) return `S4 ${m[1]}`;
+  if (label.startsWith("Mục tiêu đầu tiên của điều chỉnh")) return "Sóng 4";
+  return label;
+}
+
+/** DW2: thang Fibonacci của cách đếm đang chọn — mức ngang có nhãn "tỷ lệ · giá", kéo từ pivot neo tới mép phải. */
+export function elliottFibItems(st: ElliottState, bars: OhlcvBar[], skip: number[] = []): SceneItem[] {
+  const dates = new Set(bars.map((b) => b.date));
+  const sc = st.scenario;
+  // Neo tại ĐIỂM KHỞI ĐẦU của sóng được đo (điểm 0 của xung lực; khi mới có sóng 3: điểm 0 của chặng 0-1-2-3) —
+  // thang trải từ sóng gốc sang phải như phác đồ tham khảo, nhãn nằm trong khung nhìn.
+  const anchor = sc ? String(sc.points[0].time) : String(st.pivots[st.pivots.length - 4]?.time ?? "");
+  if (!dates.has(anchor)) return [];
+  const lv = [...st.levels];
+  // Sau 5 sóng, sóng B/C đang chạy: thêm mục tiêu sóng C của classifyABC (engine đã tính, ghi trong scenario.correction).
+  if (sc?.correction?.cTargets && (st.wave === "B" || st.wave === "C"))
+    for (const t of sc.correction.cTargets) lv.push({ label: `Mục tiêu sóng C ×${String(t.ratio).replace(".", ",")} sóng A`, price: t.price });
+  const seen = new Set<number>();
+  const out: SceneItem[] = [];
+  for (const l of lv) {
+    if (!Number.isFinite(l.price)) continue;
+    const key = Math.round(l.price * 100);
+    if (seen.has(key) || skip.some((p) => Math.abs(p - l.price) < 1e-9)) continue;
+    seen.add(key);
+    out.push({ kind: "hline", t1: anchor, t2: null, price: l.price, color: rgba(GQ_COLORS.amber, 0.55), dash: [1, 3], width: 1,
+      label: { text: `${shortFib(l.label)} · ${fmtP(l.price)}`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other } });
+  }
+  return out;
+}
+
+/** DW3: đường kịch bản minh hoạ từ nến cuối (ghim vào nến cuối, đi theo số nến tương lai). */
+export function elliottProjectionItems(st: ElliottState, bars: OhlcvBar[]): SceneItem[] {
+  const last = bars[bars.length - 1];
+  if (!last || last.date !== st.asOf) return []; // kết quả engine phải khớp đúng nến cuối của khung đang xem
+  const pr = elliottProjection(st, last.close);
+  if (!pr) return [];
+  const color = GQ_COLORS.amber, out: SceneItem[] = [];
+  let prev = { k: 0, price: pr.fromPrice };
+  pr.legs.forEach((g, j) => {
+    const final = j === pr.legs.length - 1;
+    out.push({ kind: "future", from: pr.from, points: [prev, { k: g.k, price: g.price }], color: rgba(color, 0.85), width: 1.5, dash: [6, 3], arrow: final,
+      label: { text: j === 0 ? `${g.label} (kịch bản)` : g.label, color, priority: LABEL_PRIORITY.other } });
+    prev = { k: g.k, price: g.price };
+  });
+  return out;
+}
+
 export function elliottSceneItems(inp: ElliottSceneInput): SceneItem[] {
+  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj };
+  const extra: SceneItem[] = [];
+  if (inp.bars.length && inp.primary && inp.primary.wave !== "none") {
+    if (show.fib) extra.push(...elliottFibItems(inp.primary, inp.bars, show.count ? countLayerPrices(inp.primary) : []));
+    if (show.proj) extra.push(...elliottProjectionItems(inp.primary, inp.bars));
+  }
+  return show.count ? [...countItems(inp), ...extra] : extra;
+}
+
+function countItems(inp: ElliottSceneInput): SceneItem[] {
   const items: SceneItem[] = [];
   const dates = new Set(inp.bars.map((b) => b.date));
   if (!inp.bars.length) return items;
