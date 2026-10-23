@@ -188,8 +188,10 @@ export function elliottGuideItems(st: ElliottState, bars: OhlcvBar[]): SceneItem
       const p = sc.points[k];
       if (p && dates.has(String(p.time))) out.push({ kind: "text", t: String(p.time), price: p.price, dy: p.price > sc.points[k - 1].price ? -26 : 28, label: { text, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other + 2 } });
     };
-    if (pt.wave2) tagAt(2, `"${pt.wave2.best?.tag ?? "?"}" ${pt.wave2.alt}`);
-    if (pt.wave4) tagAt(4, `"${pt.wave4.best?.tag ?? "?"}" ${pt.wave4.alt}`);
+    // Không có mô hình hợp lệ -> chỉ thẻ luân phiên (tính theo độ sâu hồi), không hiện "?".
+    const segTag = (seg: { best: { tag: string } | null; alt: string }) => (seg.best ? `"${seg.best.tag}" ${seg.alt}` : seg.alt);
+    if (pt.wave2) tagAt(2, segTag(pt.wave2));
+    if (pt.wave4) tagAt(4, segTag(pt.wave4));
     if (pt.motive?.best && sc.points[5]) tagAt(5, `"${pt.motive.best.tag}"`);
     if (!pt.consistent && sc.points[3]) tagAt(3, "⚠ không nhất quán");
   }
