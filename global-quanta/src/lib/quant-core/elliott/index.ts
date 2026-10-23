@@ -4,6 +4,7 @@
 // không tín hiệu nào có lợi thế lợi suất ngoài mẫu — chỉ để đối chiếu với sách.
 import { analyzeFull, breakoutBands, elliottOscillator, invalidationOf, zigzag, type ElliottPivot, type ElliottScenario } from "./elliottGet.js";
 import { ELLIOTT_VN_TABLES } from "./vnValidation";
+import { alternationTag, classifyCorrectionSegment, classifyMotive, classifySevenLeg, classifyThreeLeg, classifyTriangle, rankFits, type AlternationTag, type PatternFit, type PatternPoint, type RuleCheck } from "./patterns";
 import type { OhlcvBar } from "../../ta-command-center/types";
 
 export type { ElliottPivot, ElliottScenario } from "./elliottGet.js";
@@ -27,6 +28,8 @@ export interface ElliottState {
   /** DW1 (23/10/2026): trạng thái ĐẦY ĐỦ của các phương án xếp sau (cùng lần chạy engine, cùng điểm số) để chọn vẽ lên biểu đồ.
    *  Chỉ có ở kịch bản chính; phương án thì rỗng. */
   alternates?: ElliottState[];
+  /** DW4: mô hình của từng đoạn theo danh mục quy tắc (patterns.ts) — chỉ gắn thẻ, không đổi xếp hạng. */
+  patterns?: ElliottPatterns | null;
   invalidation: { price: number; side: "above" | "below"; reason: string } | null;
   levels: FibLevel[];
   /** Pivot đã xác nhận (ci ≠ null) + pivot cuối đang chạy. */
@@ -34,6 +37,69 @@ export interface ElliottState {
   asOf: string;
   /** Số nến của cửa sổ phân tích (chỉ số i của pivot tính trong cửa sổ này; nến cuối = barCount − 1). */
   barCount: number;
+}
+
+export interface SegmentPattern { best: PatternFit | null; fits: PatternFit[]; points: PatternPoint[] }
+export interface ElliottPatterns {
+  /** Sóng đẩy 0→5 (hoặc 0→4 + sóng 5 đang chạy): xung lực / nêm. */
+  motive: SegmentPattern | null;
+  wave2: (SegmentPattern & { alt: AlternationTag; retrace: number }) | null;
+  wave4: (SegmentPattern & { alt: AlternationTag; retrace: number }) | null;
+  /** Luân phiên sóng 2 / sóng 4: đạt khi một "Sharp", một "Sideways". */
+  alternationOk: boolean | null;
+  /** Điều chỉnh sau đỉnh/đáy sóng 5 (pivot đã xác nhận cùng bậc): ZZ / FL / EX-FL / RFL / TR / DZ / D3. */
+  correction: SegmentPattern | null;
+  /** Các đỉnh/đáy của cách đếm là cực trị của đoạn kề bên (false = cách đếm không nhất quán với giá). */
+  consistent: boolean;
+}
+
+const P = (p: { i: number; price: number; time: string | number }): PatternPoint => ({ i: p.i, price: p.price, time: String(p.time) });
+const pick = (fits: PatternFit[], points: PatternPoint[]): SegmentPattern => ({ best: fits.find((f) => f.valid) ?? null, fits, points });
+
+/** DW4: gắn thẻ mô hình cho cách đếm `sc` (pivots cùng bậc + zigzag mịn bên trong từng sóng 2 / 4). */
+export function patternsOf(sc: ElliottScenario, pivots: ElliottPivot[], candles: ReturnType<typeof toCandles>, basePct: number): ElliottPatterns {
+  const k = (sc as { degreeK?: number }).degreeK ?? 1;
+  const fine = basePct * k * 0.4;
+  const pts = sc.points.map(P);
+  const motivePts = pts.length === 6 ? pts : null;
+  // Quy tắc cứng bổ sung (DW4, đo 23/10): mỗi đỉnh/đáy sóng phải là CỰC TRỊ của đoạn giữa hai điểm kề bên — nếu giá trong
+  // "sóng 4" đã vượt đỉnh "sóng 3" thì cách đếm không nhất quán (engine có thể chọn pivot khác bậc). Chỉ gắn cờ, không đổi xếp hạng.
+  const extremeRule = (): RuleCheck => {
+    const bad: string[] = [];
+    for (let k = 1; k < pts.length - 1; k++) {
+      const up = pts[k].price > pts[k - 1].price;
+      for (let i = pts[k - 1].i + 1; i < pts[k + 1].i; i++) {
+        const c = candles[i]; if (!c) continue;
+        if (up ? c.high > pts[k].price * (1 + 1e-9) : c.low < pts[k].price * (1 - 1e-9)) { bad.push(String(k)); break; }
+      }
+    }
+    return { id: "pivot-extreme", severity: "hard", pass: bad.length === 0,
+      text: bad.length ? `Đỉnh/đáy sóng ${bad.join(", ")} không phải cực trị của đoạn kề bên — cách đếm không nhất quán` : "Mỗi đỉnh/đáy sóng là cực trị của đoạn kề bên" };
+  };
+  const ext = extremeRule();
+  const withExt = (fits: PatternFit[]) => rankFits(fits.map((f) => ({ ...f, rules: [ext, ...f.rules], valid: f.valid && ext.pass !== false })));
+  const motive = motivePts ? pick(withExt(classifyMotive(motivePts, "unknown")), motivePts) : null;
+  const corrSeg = (a: PatternPoint, b: PatternPoint, prevLen: number) => {
+    const r = classifyCorrectionSegment(candles, a, b, fine);
+    const best = r.fits.find((f) => f.valid) ?? null;
+    const retrace = Math.abs(b.price - a.price) / prevLen;
+    return { ...pick(r.fits, r.points), alt: alternationTag(best, retrace), retrace };
+  };
+  const wave2 = pts.length >= 3 ? corrSeg(pts[1], pts[2], Math.abs(pts[1].price - pts[0].price)) : null;
+  const wave4 = pts.length >= 5 ? corrSeg(pts[3], pts[4], Math.abs(pts[3].price - pts[2].price)) : null;
+  let correction: SegmentPattern | null = null;
+  const p5 = sc.points[5];
+  if (p5?.confirmed) {
+    const after = pivots.filter((x) => x.i > p5.i && x.ci != null).map(P);
+    const seq = [P(p5), ...after];
+    if (seq.length >= 8) correction = pick(classifySevenLeg(seq.slice(0, 8)), seq.slice(0, 8));
+    else if (seq.length >= 6) correction = pick(classifyTriangle(seq.slice(0, 6)), seq.slice(0, 6));
+    else if (seq.length >= 3) {
+      const C = seq[3] ?? null;
+      correction = pick(classifyThreeLeg(seq[0], seq[1], seq[2], C), seq.slice(0, 4));
+    }
+  }
+  return { motive, wave2, wave4, alternationOk: wave2 && wave4 ? wave2.alt !== wave4.alt : null, correction, consistent: ext.pass !== false };
 }
 
 const toCandles = (bars: OhlcvBar[]) => bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
@@ -108,7 +174,8 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
   if (bars.length < 60) return null;
   const window = bars.slice(-ELLIOTT_BAR_LIMIT);
   const zz = opts.zigzagPct != null ? { zigzag: { pct: opts.zigzagPct } } : {};
-  const res = analyzeFull(toCandles(window), { ...zz, pro: { topN: 3, statTables: ELLIOTT_VN_TABLES, ...(opts.degrees ? { degrees: opts.degrees } : {}) } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
+  const candles = toCandles(window);
+  const res = analyzeFull(candles, { ...zz, pro: { topN: 3, statTables: ELLIOTT_VN_TABLES, ...(opts.degrees ? { degrees: opts.degrees } : {}) } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
   const asOf = window[window.length - 1].date;
   const sc = res.scenarios[0] as Scenario | undefined;
   const stateOf = (x: Scenario): ElliottState => {
@@ -122,6 +189,7 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
       alternatives: [],
       invalidation: inv ? { price: inv.price, side: inv.side, reason: inv.reason } : null,
       levels: levelsOf(x),
+      patterns: patternsOf(x, res.pivots, candles, opts.zigzagPct ?? 0.03),
       pivots: res.pivots,
       asOf,
       barCount: window.length,
