@@ -52,6 +52,7 @@ import { aggregateToWeekly, isIntradayTf } from "../../../lib/ta-command-center/
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { elliottOscData, type ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
+import { intradayElliottState } from "../../../lib/quant-core/elliott/intraday";
 import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
 import type { Analysis } from "../../../lib/quant-core";
 
@@ -143,7 +144,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [elliottPick, setElliottPick] = useState(0);
   useEffect(() => { setElliottPick(0); }, [ticker, timeframe, mtf]); // eslint-disable-line react-hooks/exhaustive-deps
   // DW8: cách đếm chỉnh tay của tài khoản (theo mã + khung D/W) + trạng thái chỉnh sửa.
-  const countTf = timeframe === "W" ? "W" : "D";
+  const countTf = timeframe === "W" ? "W" : timeframe === "1H" || timeframe === "15m" ? timeframe : "D";
   const userCounts = useElliottUserCounts(ticker, countTf);
   const [countEditing, setCountEditing] = useState(false);
   const [countPlacing, setCountPlacing] = useState<number | null>(null);
@@ -380,7 +381,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const a = userCounts.active;
     return a ? { points: a.points, editing: false, violations: a.violations.length } : null;
   }, [countEditing, countDraft.value, countViolations, userCounts.active]);
+  // DW9: Elliott khung trong ngày (1H / 15m) tính trên chính nến đang xem.
+  const intradayElliott = useMemo(() => intradayElliottState(currentBars, timeframe), [currentBars, timeframe]);
   const elliottScene = useMemo(() => {
+    if (intradayElliott) {
+      const p = elliottPick > 0 ? intradayElliott.alternates?.[elliottPick - 1] ?? intradayElliott : intradayElliott;
+      return { primary: p, alternate: elliottPick === 0 ? intradayElliott.alternates?.[0] ?? null : intradayElliott, mine: mineScene };
+    }
     if (!mtf) return mineScene ? { primary: null, mine: mineScene } : null;
     const pick = (st: ElliottState | null) => (st && elliottPick > 0 ? st.alternates?.[elliottPick - 1] ?? st : st);
     // DW7: kịch bản phụ = phương án kế tiếp sau cách đếm đang vẽ (chính -> PA2; PA2 -> chính).
@@ -390,7 +397,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const higher = mtf.week?.scenario
       ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
     return { primary: pick(mtf.day), alternate: other(mtf.day), higher, mine: mineScene };
-  }, [mtf, timeframe, elliottPick, mineScene]);
+  }, [mtf, timeframe, elliottPick, mineScene, intradayElliott]);
 
   // P5: mô hình giá Pring (Pattern Scanner v2) — chỉ tải khi bật lớp, khung D / W.
   const pringOn = Boolean(layerState?.pring) && (timeframe === "D" || timeframe === "W") && !TA_INDICES.some((x) => x.symbol === ticker);
@@ -654,7 +661,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
         {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} timeframe={timeframe} compare={controllerRef.current?.getAnalysis()?.wyckoffAlt ?? null} />}
-        <ElliottWavePanel mtf={mtf} timeframe={timeframe}
+        <ElliottWavePanel mtf={mtf} timeframe={timeframe} intraday={intradayElliott}
           autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
           onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
           onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}

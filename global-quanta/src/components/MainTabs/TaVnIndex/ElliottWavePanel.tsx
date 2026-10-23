@@ -10,6 +10,7 @@ import type { ElliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 import type { ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottProjection, PROJECTION_NOTE } from "../../../lib/quant-core/elliott/projection";
+import { INTRADAY_NOTE } from "../../../lib/quant-core/elliott/intraday";
 import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, ELLIOTT_VN_VALIDATION, oscCheckVnNote, type ElliottCheckKey } from "../../../lib/quant-core/elliott/vnValidation";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 
@@ -69,7 +70,7 @@ function OscLine({ o }: { o: OscRow }) {
 
 function FrameRow({ tag, st, partial, osc }: { tag: string; st: ElliottState | null; partial?: boolean; osc?: OscRow }) {
   return (
-    <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : "D"}`}>
+    <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : tag === "Ngày" ? "D" : tag}`}>
       <div className="flex items-center gap-1.5">
         <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{tag}</span>
         {partial && <span className="text-[8px] text-amber-300/80" title="Nến tuần cuối chưa đóng — cấu trúc tuần có thể đổi khi hết tuần">tuần chưa hết</span>}
@@ -121,6 +122,8 @@ interface CardProps {
   onPick?: (k: number) => void;
   /** Giá đóng cửa nến cuối của khung đang xem (gốc đường kịch bản). */
   lastClose?: number | null;
+  /** DW9: trạng thái Elliott của khung trong ngày (1H / 15m) đang xem. */
+  intraday?: ElliottState | null;
 }
 
 /** DW1: chọn cách đếm để vẽ — chính + phương án, kèm trọng số TƯƠNG ĐỐI (không phải xác suất). */
@@ -154,9 +157,10 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null }: CardProps) {
-  const frameOk = timeframe === "D" || timeframe === "W";
-  const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null, intraday = null }: CardProps) {
+  const isIntra = timeframe === "1H" || timeframe === "15m";
+  const frameOk = timeframe === "D" || timeframe === "W" || (isIntra && !!intraday);
+  const cur = isIntra ? intraday : !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
   const drawn = options[pick] ?? cur;
   const btn = (on: boolean) => `inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
@@ -170,6 +174,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
         <>
           <FrameRow tag="Tuần" st={mtf.week} partial={mtf.week?.partial} osc={mtf.osc.week} />
           <FrameRow tag="Ngày" st={mtf.day} osc={mtf.osc.day} />
+          {isIntra && (
+            <div data-testid="elliott-row-intraday">
+              <FrameRow tag={timeframe} st={intraday} />
+              <p className="text-[8.5px] text-slate-500 leading-snug">{intraday ? INTRADAY_NOTE : "Chưa đủ nến trong ngày để đếm sóng (cần ≥ 100 nến 1H / 200 nến 15m)."}</p>
+            </div>
+          )}
           <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
           {onPick && <CountPicker options={options} pick={pick} onPick={onPick} />}
         </>
