@@ -202,6 +202,12 @@ export function describeFeedStatus(status: StreamStatus | null, connectionLost =
     const label = status.session === 'BREAK' ? '■ NGHỈ TRƯA' : '■ ĐÓNG CỬA';
     return { label, tone: 'closed', title: 'Ngoài giờ khớp lệnh: hiển thị giá của phiên gần nhất.' };
   }
+  // Danh mục trống: chỉ theo dõi VN-Index — trạng thái theo kết nối SSI, không treo "đang kết nối" mãi.
+  if (total === 0) {
+    if (status.transport === 'connected' || status.transport === 'degraded') return { label: '● SSI KẾT NỐI', tone: 'live', title: 'Đã kết nối luồng SSI (VN-Index). Danh mục trống nên chưa theo dõi giá mã nào.' };
+    if (status.transport === 'down') return { label: '○ SSI OFFLINE', tone: 'offline', title: 'Mất kết nối SSI stream.' };
+    return { label: '◌ ĐANG KẾT NỐI', tone: 'loading', title: 'Đang kết nối luồng SSI.' };
+  }
   if (total > 0 && status.live.length === total) {
     return { label: '● SSI LIVE', tone: 'live', title: 'Toàn bộ giá đang nhận realtime từ SSI.' };
   }

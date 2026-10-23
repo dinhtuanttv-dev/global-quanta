@@ -43,8 +43,10 @@ export default function MarketFeed() {
   useEffect(() => startWatchlistCloudSync(), []);
 
   useEffect(() => {
-    if (!symbolsKey) return;
-    const symbols = symbolsKey.split(',');
+    // Gateway: luôn mở luồng (kèm VN-Index) để đèn nguồn phản ánh kết nối thật kể cả khi danh mục trống;
+    // trước đây danh mục trống -> không mở luồng -> đèn treo "ĐANG KẾT NỐI" mãi.
+    if (!symbolsKey && !gatewayMode) return;
+    const symbols = symbolsKey ? symbolsKey.split(',') : [];
     let pending: Record<string, { price: number; changePct: number | null }> = {};
     const timer = setInterval(() => {
       if (!Object.keys(pending).length) return;
@@ -56,6 +58,7 @@ export default function MarketFeed() {
     if (gatewayMode) {
       stop = subscribeMarket({
         symbols,
+        indices: ['VNINDEX'],
         onQuote: (quote) => {
           if (!quote.price || quote.price <= 0) return;
           pending[quote.symbol] = { price: quote.price, changePct: quote.changePct };
