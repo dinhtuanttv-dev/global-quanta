@@ -4,6 +4,7 @@
 //   - Khung D có thể kèm đếm sóng TUẦN (ký hiệu (1)…(5), bậc lớn hơn) ghim vào nến ngày đạt cực trị của tuần.
 import type { ElliottState } from "../../quant-core/elliott";
 import { elliottProjection } from "../../quant-core/elliott/projection";
+import { elliottChannels, lineAt, type ChannelKind } from "../../quant-core/elliott/channels";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type ScenePoint, type SceneItem } from "./scene";
 
@@ -17,7 +18,7 @@ export interface ElliottSceneInput {
   higher?: ElliottHigherDegree | null;
   /** DW (23/10/2026): phần nào được vẽ — count = đếm sóng (lớp elliottAuto), fib = thang Fibonacci (elliottFib),
    *  proj = đường kịch bản minh hoạ sang tương lai (elliottProj). Mặc định chỉ count (hành vi E5). */
-  show?: { count?: boolean; fib?: boolean; proj?: boolean };
+  show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean };
 }
 
 const isLive5 = (st: ElliottState) => {
@@ -57,7 +58,8 @@ function countLayerPrices(st: ElliottState): number[] {
 /** Nhãn gọn trên biểu đồ (nhãn đầy đủ ở thẻ / phác đồ): "S5 ×1,618", "38,2%", "Sóng 4", "C ×1"… */
 export function shortFib(label: string): string {
   let m: RegExpMatchArray | null;
-  if ((m = label.match(/^Mục tiêu sóng (\d|C) (×[\d,]+)/))) return `${m[1] === "C" ? "C" : "S" + m[1]} ${m[2]}`;
+  if ((m = label.match(/^Mục tiêu sóng 5 ([\d,]+%) 0→3/))) return `S5 ${m[1]} 0→3`;
+  if ((m = label.match(/^Mục tiêu sóng (\d|B|C) (×[\d,]+)/))) return `${/\d/.test(m[1]) ? "S" + m[1] : m[1]} ${m[2]}`;
   if ((m = label.match(/^Hồi ([\d,]+%)/))) return m[1];
   if ((m = label.match(/^Cửa sổ sóng 5 \(sách\): (\d+%)/))) return `Cửa sổ S5 ${m[1]}`;
   if ((m = label.match(/^Vùng sóng 4 tương lai ([\d,]+)/))) return `S4 ${m[1]}`;
@@ -77,8 +79,33 @@ export function elliottFibItems(st: ElliottState, bars: OhlcvBar[], skip: number
   // Sau 5 sóng, sóng B/C đang chạy: thêm mục tiêu sóng C của classifyABC (engine đã tính, ghi trong scenario.correction).
   if (sc?.correction?.cTargets && (st.wave === "B" || st.wave === "C"))
     for (const t of sc.correction.cTargets) lv.push({ label: `Mục tiêu sóng C ×${String(t.ratio).replace(".", ",")} sóng A`, price: t.price });
-  const seen = new Set<number>();
   const out: SceneItem[] = [];
+  // DW5: tỷ lệ bổ sung theo quy ước của bộ phác đồ (78,6% · 127,2% · 138,2% · 361,8%) + vùng tô màu.
+  const s = st.dir === "up" ? 1 : -1;
+  const zone = (t1: string, a: number, b: number, text: string) => out.push({ kind: "zone", t1, t2: null, top: Math.max(a, b), bottom: Math.min(a, b),
+    fill: rgba(GQ_COLORS.amber, 0.07), stroke: rgba(GQ_COLORS.amber, 0.25), dash: [2, 3], label: { text, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other } });
+  if (!sc && st.wave === "3") {
+    const P = st.pivots.slice(-4);
+    if (P.length === 4) {
+      lv.push({ label: "Mục tiêu sóng 3 ×3,618 sóng 1", price: P[2].price + s * 3.618 * Math.abs(P[1].price - P[0].price) });
+      const z = st.levels.filter((l) => l.label.startsWith("Vùng sóng 4"));
+      if (z.length >= 2 && dates.has(String(P[2].time))) zone(String(P[2].time), z[0].price, z[1].price, "Vùng sóng 4 (38,2–50%)");
+    }
+  } else if (sc && st.wave === "5") {
+    const [p0, , , p3, p4] = sc.points;
+    lv.push({ label: "Mục tiêu sóng 5 38,2% 0→3", price: p4.price + s * 0.382 * Math.abs(p3.price - p0.price) });
+  } else if (sc && sc.points[5]?.confirmed) {
+    const [p0, , , p3, p4, p5] = sc.points, len05 = p5.price - p0.price;
+    lv.push({ label: "Hồi 78,6% của 0→5", price: p5.price - 0.786 * len05 });
+    if (dates.has(String(p5.time))) zone(String(p5.time), p5.price - 0.5 * len05, p5.price - 0.618 * len05, "Vùng (2)/(B) 50–61,8%");
+    if (dates.has(String(p3.time))) zone(String(p3.time), p3.price, p4.price, "Vùng sóng 4 (bậc nhỏ)");
+    const after = st.pivots.filter((x) => x.i > p5.i && x.ci != null);
+    if (st.wave === "B" && after[0]) {
+      const lenA = Math.abs(p5.price - after[0].price);
+      for (const r of [1.272, 1.382]) lv.push({ label: `Mục tiêu sóng B ×${String(r).replace(".", ",")} A (flat mở rộng)`, price: after[0].price + s * r * lenA });
+    }
+  }
+  const seen = new Set<number>();
   for (const l of lv) {
     if (!Number.isFinite(l.price)) continue;
     const key = Math.round(l.price * 100);
@@ -107,10 +134,54 @@ export function elliottProjectionItems(st: ElliottState, bars: OhlcvBar[]): Scen
   return out;
 }
 
+const CHANNEL_COLOR: Record<ChannelKind, string> = { base: GQ_COLORS.cyan, final: GQ_COLORS.amber, corrective: GQ_COLORS.uv };
+
+/**
+ * DW5: lớp "Elliott kênh & mốc" — kênh Base / Final / Corrective + vòng tròn kích hoạt, giá tại đỉnh/đáy của cách đếm,
+ * thẻ mô hình (DW4) + luân phiên Sharp / Sideways. Chỉ vẽ khi kết quả engine khớp nến cuối của khung đang xem.
+ */
+export function elliottGuideItems(st: ElliottState, bars: OhlcvBar[]): SceneItem[] {
+  const last = bars[bars.length - 1];
+  if (!last || last.date !== st.asOf || bars.length < st.barCount) return [];
+  const off = bars.length - st.barCount;
+  const dateAt = (i: number) => bars[off + Math.max(0, Math.min(st.barCount - 1, Math.round(i)))].date;
+  const closes = bars.slice(off).map((b) => b.close);
+  const out: SceneItem[] = [];
+  for (const ch of elliottChannels(st, closes)) {
+    const c = CHANNEL_COLOR[ch.kind];
+    for (const ln of [ch.main, ch.parallel])
+      out.push({ kind: "segment", a: { t: dateAt(ch.from), price: lineAt(ln, ch.from) }, b: { t: dateAt(ch.to), price: lineAt(ln, ch.to) }, color: rgba(c, 0.5), width: 1, dash: [4, 3] });
+    out.push({ kind: "text", t: dateAt(ch.from), price: lineAt(ch.parallel, ch.from), dy: -6, label: { text: ch.label, color: c, priority: LABEL_PRIORITY.other + 1 } });
+    if (ch.trigger) out.push({ kind: "ring", t: dateAt(ch.trigger.i), price: ch.trigger.price, color: c, r: 5,
+      label: { text: ch.kind === "base" ? "kích hoạt" : "phá kênh", color: c, priority: LABEL_PRIORITY.other } });
+  }
+  const sc = st.scenario;
+  const pts = sc ? sc.points : st.wave === "3" ? st.pivots.slice(-4) : [];
+  const dates = new Set(bars.map((b) => b.date));
+  pts.forEach((p, k) => {
+    if (!dates.has(String(p.time)) || pts.length < 2) return;
+    const high = k > 0 ? p.price > pts[k - 1].price : p.price > pts[1].price;
+    out.push({ kind: "text", t: String(p.time), price: p.price, dy: high ? -14 : 16, label: { text: fmtP(p.price), color: GQ_COLORS.text2, priority: LABEL_PRIORITY.other } });
+  });
+  const pt = st.patterns;
+  if (sc && pt) {
+    const tagAt = (k: number, text: string) => {
+      const p = sc.points[k];
+      if (p && dates.has(String(p.time))) out.push({ kind: "text", t: String(p.time), price: p.price, dy: p.price > sc.points[k - 1].price ? -26 : 28, label: { text, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other + 2 } });
+    };
+    if (pt.wave2) tagAt(2, `"${pt.wave2.best?.tag ?? "?"}" ${pt.wave2.alt}`);
+    if (pt.wave4) tagAt(4, `"${pt.wave4.best?.tag ?? "?"}" ${pt.wave4.alt}`);
+    if (pt.motive?.best && sc.points[5]) tagAt(5, `"${pt.motive.best.tag}"`);
+    if (!pt.consistent && sc.points[3]) tagAt(3, "⚠ không nhất quán");
+  }
+  return out;
+}
+
 export function elliottSceneItems(inp: ElliottSceneInput): SceneItem[] {
-  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj };
+  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj, guide: !!inp.show?.guide };
   const extra: SceneItem[] = [];
   if (inp.bars.length && inp.primary && inp.primary.wave !== "none") {
+    if (show.guide) extra.push(...elliottGuideItems(inp.primary, inp.bars));
     if (show.fib) extra.push(...elliottFibItems(inp.primary, inp.bars, show.count ? countLayerPrices(inp.primary) : []));
     if (show.proj) extra.push(...elliottProjectionItems(inp.primary, inp.bars));
   }

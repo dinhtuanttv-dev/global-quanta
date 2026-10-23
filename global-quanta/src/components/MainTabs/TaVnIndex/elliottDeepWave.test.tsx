@@ -98,7 +98,7 @@ describe("DW2 — thang Fibonacci", () => {
   it("mức ngang có nhãn 'tỷ lệ · giá', neo vào một nến thật, không trùng giá", () => {
     const b = series(), st = elliottState(b)!;
     const dates = new Set(b.map((x) => x.date));
-    const items = elliottFibItems(st, b);
+    const items = elliottFibItems(st, b).filter((x) => x.kind === "hline"); // DW5 thêm vùng tô màu (kiểm ở channels.test.ts)
     expect(items.length).toBeGreaterThanOrEqual(3);
     const prices = items.map((x) => (x.kind === "hline" ? x.price : NaN));
     expect(new Set(prices.map((p) => Math.round(p * 100))).size).toBe(prices.length);
@@ -115,7 +115,7 @@ describe("DW — lớp mặc định TẮT, bật độc lập", () => {
     const base = { bars: b, smc: EMPTY_SMC, wyckoff: null, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null, elliott: { primary: st } };
     expect(buildScene({ ...base, layers: DEFAULT_LAYER_STATE }).items).toHaveLength(0);
     const fib = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, elliottFib: true } }).items;
-    expect(fib.length).toBeGreaterThan(0); expect(fib.every((x) => x.kind === "hline")).toBe(true);
+    expect(fib.length).toBeGreaterThan(0); expect(fib.every((x) => x.kind === "hline" || x.kind === "zone")).toBe(true);
     const proj = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, elliottProj: true } }).items;
     expect(proj.length).toBeGreaterThan(0); expect(proj.every((x) => x.kind === "future")).toBe(true);
     // Lớp đếm sóng cũ (E5) không đổi khi chỉ bật elliottAuto.

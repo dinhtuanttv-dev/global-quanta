@@ -122,6 +122,17 @@ class Renderer implements IPrimitivePaneRenderer {
       }
       const last = pts[pts.length - 1];
       addLabel(it.label, last[0] + 4, last[1]);
+    } else if (it.kind === "ring") {
+      const x = o.x(it.t), y = o.y(it.price);
+      if (x === null || y === null) return;
+      dash([]); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+      ctx.beginPath(); ctx.arc(x, y, it.r ?? 5, 0, Math.PI * 2); ctx.stroke();
+      if (y >= 0 && y <= H) addLabel(it.label, x + (it.r ?? 5) + 3, y + 3);
+    } else if (it.kind === "text") {
+      const x = o.x(it.t), y = o.y(it.price);
+      if (x === null || y === null) return;
+      const yy = y + (it.dy ?? 0);
+      if (yy >= 0 && yy <= H) addLabel(it.label, x - 4, yy);
     } else if (it.kind === "cone") {
       const x0 = o.x(it.from), y0 = o.y(it.fromPrice);
       if (x0 === null || y0 === null) return;

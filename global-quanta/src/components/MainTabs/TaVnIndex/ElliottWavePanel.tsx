@@ -104,6 +104,9 @@ interface CardProps {
   projOn?: boolean;
   onToggleFib?: () => void;
   onToggleProj?: () => void;
+  /** DW5: kênh Base / Final / Corrective + điểm kích hoạt + giá đỉnh/đáy + thẻ mô hình. */
+  guideOn?: boolean;
+  onToggleGuide?: () => void;
   /** DW1: cách đếm đang vẽ trên khung đang xem (0 = chính, 1–2 = phương án xếp sau). */
   pick?: number;
   onPick?: (k: number) => void;
@@ -142,7 +145,7 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, pick = 0, onPick, lastClose = null }: CardProps) {
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, pick = 0, onPick, lastClose = null }: CardProps) {
   const frameOk = timeframe === "D" || timeframe === "W";
   const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
@@ -173,6 +176,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           <button type="button" onClick={onToggleFib} aria-pressed={fibOn} disabled={!frameOk} className={btn(fibOn)} data-testid="elliott-toggle-fib"
             title="Thang Fibonacci của cách đếm đang chọn (mục tiêu sóng, mức hồi, mục tiêu sóng C)">
             {fibOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Fibonacci
+          </button>
+        )}
+        {onToggleGuide && (
+          <button type="button" onClick={onToggleGuide} aria-pressed={guideOn} disabled={!frameOk} className={btn(guideOn)} data-testid="elliott-toggle-guide"
+            title="Kênh Base / Final / Corrective, vòng tròn kích hoạt (nến phá kênh), giá tại đỉnh/đáy, thẻ mô hình và luân phiên Sharp / Sideways">
+            {guideOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kênh & mốc
           </button>
         )}
         {onToggleProj && (

@@ -32,7 +32,11 @@ export type SceneItem =
   // VÙNG TƯƠNG LAI (bên phải nến cuối): toạ độ = nến neo `from` + k nến (chỉ số logic của thư viện) -> vẫn ghim theo nến khi kéo/zoom.
   | { kind: "future"; from: string; points: { k: number; price: number }[]; color: string; width?: number; dash?: number[]; arrow?: boolean; label?: SceneLabel }
   | { kind: "cone"; from: string; fromPrice: number; steps: { k: number; lo: number; mid: number; hi: number }[]; fill: string; stroke: string; midColor: string;
-      labels?: { k: number; price: number; label: SceneLabel }[] };
+      labels?: { k: number; price: number; label: SceneLabel }[] }
+  // DW5: vòng tròn đánh dấu điểm kích hoạt (nến phá kênh / đường xu hướng) — neo (ngày, giá).
+  | { kind: "ring"; t: string; price: number; color: string; r?: number; width?: number; label?: SceneLabel }
+  // DW5: chữ neo tại điểm (giá đỉnh/đáy, thẻ mô hình "ZZ" / "Sharp"…); dy = lệch dọc theo pixel (âm = lên trên).
+  | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number };
 
 export interface Scene { items: SceneItem[] }
 export const EMPTY_SCENE: Scene = { items: [] };
