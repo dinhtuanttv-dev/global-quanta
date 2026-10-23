@@ -2,7 +2,7 @@
 // kiểm tra quy tắc ngay khi sửa (vi phạm vẫn cho lưu nhưng gắn cờ), hoàn tác / làm lại, lưu phiên bản, lịch sử, về cách đếm tự động.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, History, MousePointerClick, Plus, Redo2, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
-import { COUNT_LABELS, STATUS_LABEL, type UserCountDisplayStatus, type UserCountPoint, type UserCountsDoc, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
+import { blockingIssue, COUNT_LABELS, STATUS_LABEL, type UserCountDisplayStatus, type UserCountPoint, type UserCountsDoc, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
 import { PATTERN_NAME, type PatternTag } from "../../../lib/quant-core/elliott/patterns";
 import { loadCloudCounts, loadLocalCounts, newerCounts, saveCloudCounts, saveLocalCounts } from "../../../lib/ta-command-center/elliottCountsStore";
 
@@ -14,6 +14,7 @@ export function useElliottUserCounts(symbol: string, tf: string) {
   const [doc, setDoc] = useState<UserCountsDoc>(() => loadLocalCounts(symbol, tf));
   const [syncing, setSyncing] = useState(false);
   const [cloudOk, setCloudOk] = useState<boolean | null>(null);
+  const [rejected, setRejected] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     setDoc(loadLocalCounts(symbol, tf));
@@ -30,10 +31,15 @@ export function useElliottUserCounts(symbol: string, tf: string) {
     setSyncing(true);
     const r = await saveCloudCounts(symbol, tf, stamped);
     setSyncing(false); setCloudOk(r != null);
-    if (r) { setDoc(r); saveLocalCounts(symbol, tf, r); }
+    if (r) {
+      // Máy chủ bỏ phiên bản không hợp lệ -> báo, không im lặng.
+      const lost = stamped.versions.filter((v) => !r.versions.some((x) => x.id === v.id)).length;
+      setRejected(lost ? `Máy chủ từ chối ${lost} phiên bản (dữ liệu không hợp lệ).` : null);
+      setDoc(r); saveLocalCounts(symbol, tf, r);
+    }
   }, [symbol, tf]);
   const active = doc.versions.find((v) => v.id === doc.activeId) ?? null;
-  return { doc, active, save, syncing, cloudOk };
+  return { doc, active, save, syncing, cloudOk, rejected };
 }
 
 /** Lịch sử hoàn tác cho bản nháp điểm. */
@@ -65,6 +71,7 @@ export function ElliottCountEditor({ points, onChange, placing, onPlace, violati
   const [note, setNote] = useState("");
   const [pattern, setPattern] = useState<PatternTag | null>(null);
   const btn = "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-300 hover:text-white disabled:opacity-40";
+  const blocked = blockingIssue(points);
   const nextLabel = COUNT_LABELS[COUNT_LABELS.indexOf((points[points.length - 1]?.label ?? "-1") as (typeof COUNT_LABELS)[number]) + 1];
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (placing != null) ref.current?.scrollIntoView?.({ block: "nearest" }); }, [placing]);
@@ -108,31 +115,34 @@ export function ElliottCountEditor({ points, onChange, placing, onPlace, violati
         <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="Ghi chú" className="flex-1 min-w-[120px] text-[9px] bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200" aria-label="Ghi chú" />
       </div>
       <div className="flex flex-wrap gap-1">
-        <button type="button" className={btn} disabled={points.length < 2} onClick={() => onSave({ note, pattern, confirm: false })} data-testid="elliott-edit-save"><Save className="w-3 h-3" />Lưu phiên bản</button>
-        <button type="button" className={btn} disabled={points.length < 2} onClick={() => onSave({ note, pattern, confirm: true })} data-testid="elliott-edit-confirm"><Check className="w-3 h-3" />Lưu & xác nhận</button>
+        <button type="button" className={btn} disabled={!!blocked} onClick={() => onSave({ note, pattern, confirm: false })} data-testid="elliott-edit-save"><Save className="w-3 h-3" />Lưu phiên bản</button>
+        <button type="button" className={btn} disabled={!!blocked} onClick={() => onSave({ note, pattern, confirm: true })} data-testid="elliott-edit-confirm"><Check className="w-3 h-3" />Lưu & xác nhận</button>
         <button type="button" className={btn} onClick={onCancel} data-testid="elliott-edit-cancel"><X className="w-3 h-3" />Đóng</button>
       </div>
-      {violations.length > 0 && <p className="text-[8.5px] text-slate-500">Vẫn lưu được — phiên bản sẽ mang cờ vi phạm.</p>}
+      {blocked ? <p className="text-[9px] text-amber-300" data-testid="elliott-edit-blocked">{blocked}</p>
+        : violations.length > 0 && <p className="text-[8.5px] text-slate-500">Vẫn lưu được — phiên bản sẽ mang cờ vi phạm.</p>}
     </div>
   );
 }
 
 interface HistoryProps {
   doc: UserCountsDoc;
+  rejected?: string | null;
   statusOf: (v: UserCountVersion) => UserCountDisplayStatus;
   onRestore: (id: string) => void;
   onDelete: (id: string) => void;
   onAuto: () => void;
 }
 
-export function ElliottCountHistory({ doc, statusOf, onRestore, onDelete, onAuto }: HistoryProps) {
-  if (!doc.versions.length) return null;
+export function ElliottCountHistory({ doc, rejected = null, statusOf, onRestore, onDelete, onAuto }: HistoryProps) {
+  if (!doc.versions.length) return rejected ? <p className="text-[9px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p> : null;
   const btn = "text-[9px] px-1 rounded border border-slate-700 text-slate-400 hover:text-white";
   return (
     <div className="rounded-lg p-2 space-y-1" style={CARD} data-testid="elliott-count-history">
       <p className="text-[9px] font-semibold text-slate-400 uppercase flex items-center gap-1"><History className="w-3 h-3" />Cách đếm của tôi · lịch sử
         {doc.activeId && <button type="button" className={`${btn} ml-auto normal-case`} onClick={onAuto} data-testid="elliott-count-auto"><RotateCcw className="w-3 h-3 inline" /> Về cách đếm tự động</button>}
       </p>
+      {rejected && <p className="text-[9px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p>}
       <ul className="space-y-0.5">
         {[...doc.versions].reverse().map((v) => {
           const st = statusOf(v);

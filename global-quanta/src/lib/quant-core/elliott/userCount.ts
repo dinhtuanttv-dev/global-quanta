@@ -53,6 +53,13 @@ const idx = (bars: OhlcvBar[], date: string) => bars.findIndex((b) => b.date ===
  *   thời gian tăng dần · nhãn đúng thứ tự · đỉnh/đáy xen kẽ · mỗi điểm là cực trị của đoạn kề bên · quy tắc sóng đẩy (patterns)
  *   · sóng điều chỉnh A-B-C hợp lệ với ít nhất một mô hình.
  */
+/** Lỗi CHẶN LƯU: thời gian các điểm không tăng dần (hình học vô nghĩa; máy chủ cũng từ chối). Khác vi phạm quy tắc sóng (lưu kèm cờ). */
+export function blockingIssue(points: UserCountPoint[]): string | null {
+  if (points.length < 2) return "Cần ít nhất 2 điểm.";
+  for (let k = 1; k < points.length; k++) if (points[k].date <= points[k - 1].date) return `Điểm ${points[k].label} phải nằm sau điểm ${points[k - 1].label} — chọn lại điểm trước khi lưu.`;
+  return null;
+}
+
 export function validateUserCount(points: UserCountPoint[], bars: OhlcvBar[]): string[] {
   const v: string[] = [];
   if (points.length < 2) return ["Cần ít nhất 2 điểm."];

@@ -72,3 +72,12 @@ describe("DW8 — cách đếm chỉnh tay", () => {
     expect(newerCounts(a, b2)).toBe(b2); expect(newerCounts(b2, a)).toBe(b2); expect(newerCounts(a, null)).toBe(a);
   });
 });
+
+describe("DW8 — chặn lưu khi thời gian không tăng dần", () => {
+  it("blockingIssue: điểm sau phải nằm sau điểm trước; đủ 2 điểm", async () => {
+    const { blockingIssue } = await import("./userCount");
+    expect(blockingIssue([pt(0, 1, "0")])).toMatch(/2 điểm/);
+    expect(blockingIssue([pt(5, 1, "0"), pt(2, 2, "1")])).toMatch(/phải nằm sau/);
+    expect(blockingIssue([pt(1, 1, "0"), pt(2, 2, "1")])).toBeNull();
+  });
+});

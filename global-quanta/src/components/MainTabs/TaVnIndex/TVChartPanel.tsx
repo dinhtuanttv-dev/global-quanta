@@ -681,7 +681,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           canUndo={countDraft.canUndo} canRedo={countDraft.canRedo} onUndo={countDraft.undo} onRedo={countDraft.redo}
           onSave={saveCountVersion} onCancel={() => { setCountEditing(false); setCountPlacing(null); }} syncing={userCounts.syncing} cloudOk={userCounts.cloudOk} />
       )}
-      <ElliottCountHistory doc={userCounts.doc} statusOf={countStatusOf}
+      <ElliottCountHistory doc={userCounts.doc} rejected={userCounts.rejected} statusOf={countStatusOf}
         onRestore={(id) => { void userCounts.save({ ...userCounts.doc, activeId: id }); controllerRef.current?.layers.enable("elliottMine"); }}
         onDelete={(id) => void userCounts.save({ ...userCounts.doc, activeId: userCounts.doc.activeId === id ? null : userCounts.doc.activeId, versions: userCounts.doc.versions.filter((v) => v.id !== id) })}
         onAuto={() => void userCounts.save({ ...userCounts.doc, activeId: null })} />
