@@ -23,6 +23,8 @@ import SmartNotePanel from "./SmartNotePanel";
 import BacktestPanel from "./BacktestPanel";
 import { SMCPanel, VSAPanel, WyckoffPanel } from "./MethodPanels";
 import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
+import { ElliottCountEditor, ElliottCountHistory, useElliottUserCounts, useUndo } from "./ElliottCountEditor";
+import { COUNT_LABELS, displayStatus, draftFromState, newVersionId, snapToCandle, validateUserCount, type UserCountPoint, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
 import { TA_INDICES } from "./TickerSelector";
 import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
 import { calculateRSI, calculateMACD, calculateADX } from "../../../lib/ta-command-center/detectors/technicalOscillators";
@@ -140,6 +142,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // DW1: cách đếm đang vẽ (0 = chính, 1–2 = phương án) — về "chính" khi đổi mã / khung / dữ liệu.
   const [elliottPick, setElliottPick] = useState(0);
   useEffect(() => { setElliottPick(0); }, [ticker, timeframe, mtf]); // eslint-disable-line react-hooks/exhaustive-deps
+  // DW8: cách đếm chỉnh tay của tài khoản (theo mã + khung D/W) + trạng thái chỉnh sửa.
+  const countTf = timeframe === "W" ? "W" : "D";
+  const userCounts = useElliottUserCounts(ticker, countTf);
+  const [countEditing, setCountEditing] = useState(false);
+  const [countPlacing, setCountPlacing] = useState<number | null>(null);
+  const countDraft = useUndo<UserCountPoint[]>([]);
+  useEffect(() => { setCountEditing(false); setCountPlacing(null); }, [ticker, timeframe]);
   // T5 — Cấu trúc MTF: chỉ tải khi bật lớp; chế độ hiển thị nhớ trên máy.
   const [structureMode, setStructureModeState] = useState<StructureMode>(readStructureMode);
   const setStructureMode = (m: StructureMode) => { setStructureModeState(m); try { window.localStorage.setItem(STRUCTURE_MODE_KEY, m); } catch { /* bỏ qua */ } };
@@ -365,17 +374,23 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   }, [layerState?.elliottOsc, currentBars]);
 
   // Đếm sóng tự động cho khung đang xem: D = khung ngày (+ đếm tuần ghim vào nến ngày), W = khung tuần; khung khác không vẽ.
+  const countViolations = useMemo(() => (countEditing ? validateUserCount(countDraft.value, currentBars) : []), [countEditing, countDraft.value, currentBars]);
+  const mineScene = useMemo(() => {
+    if (countEditing) return { points: countDraft.value, editing: true, violations: countViolations.length };
+    const a = userCounts.active;
+    return a ? { points: a.points, editing: false, violations: a.violations.length } : null;
+  }, [countEditing, countDraft.value, countViolations, userCounts.active]);
   const elliottScene = useMemo(() => {
-    if (!mtf) return null;
+    if (!mtf) return mineScene ? { primary: null, mine: mineScene } : null;
     const pick = (st: ElliottState | null) => (st && elliottPick > 0 ? st.alternates?.[elliottPick - 1] ?? st : st);
     // DW7: kịch bản phụ = phương án kế tiếp sau cách đếm đang vẽ (chính -> PA2; PA2 -> chính).
     const other = (st: ElliottState | null) => (!st ? null : elliottPick === 0 ? st.alternates?.[0] ?? null : st);
-    if (timeframe === "W") return { primary: pick(mtf.week), alternate: other(mtf.week) };
+    if (timeframe === "W") return { primary: pick(mtf.week), alternate: other(mtf.week), mine: mineScene };
     if (timeframe !== "D") return null;
     const higher = mtf.week?.scenario
       ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
-    return { primary: pick(mtf.day), alternate: other(mtf.day), higher };
-  }, [mtf, timeframe, elliottPick]);
+    return { primary: pick(mtf.day), alternate: other(mtf.day), higher, mine: mineScene };
+  }, [mtf, timeframe, elliottPick, mineScene]);
 
   // P5: mô hình giá Pring (Pattern Scanner v2) — chỉ tải khi bật lớp, khung D / W.
   const pringOn = Boolean(layerState?.pring) && (timeframe === "D" || timeframe === "W") && !TA_INDICES.some((x) => x.symbol === ticker);
@@ -459,9 +474,41 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     setElliottProposal(null);
   };
 
+  // ---- DW8: chỉnh tay cách đếm Elliott ----
+  const drawnState = elliottScene?.primary ?? null;
+  const startCountEdit = () => {
+    if (countEditing) { setCountEditing(false); setCountPlacing(null); return; }
+    countDraft.reset(userCounts.active?.points ?? draftFromState(drawnState));
+    setCountEditing(true);
+  };
+  const saveCountVersion = (meta: { note: string; pattern: UserCountVersion["pattern"]; confirm: boolean }) => {
+    const v: UserCountVersion = {
+      id: newVersionId(), createdAt: new Date().toISOString(), status: meta.confirm ? "user_confirmed" : "user_edited",
+      points: countDraft.value, degree: drawnState?.degree ?? null, pattern: meta.pattern, note: meta.note,
+      basedOn: { source: userCounts.active ? "user" : "engine", asOf: drawnState?.asOf ?? null, rank: elliottPick }, violations: countViolations,
+    };
+    void userCounts.save({ ...userCounts.doc, activeId: v.id, versions: [...userCounts.doc.versions, v].slice(-20) });
+    setCountEditing(false); setCountPlacing(null);
+    controllerRef.current?.layers.enable("elliottMine");
+  };
+  const countStatusOf = (v: UserCountVersion) => displayStatus(v, currentBars[currentBars.length - 1]?.close ?? null, drawnState);
+
   // ---- Pointer Events (chuột · cảm ứng · bút) ----
   const toDomain = (e: React.PointerEvent) => tvManagerRef.current?.clientToDomain(e.clientX, e.clientY) ?? null;
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // DW8: đang đặt điểm của cách đếm chỉnh tay -> bám high/low của nến gần nhất.
+    if (countEditing && countPlacing != null) {
+      const point = toDomain(e);
+      const snapped = point ? snapToCandle(currentBars, point.date, point.price) : null;
+      if (!snapped) return;
+      e.preventDefault();
+      const cur = countDraft.value;
+      const label = cur[countPlacing]?.label ?? COUNT_LABELS[cur.length] ?? "C";
+      const next = countPlacing < cur.length ? cur.map((p, k) => (k === countPlacing ? { ...snapped, label } : p)) : [...cur, { ...snapped, label }];
+      countDraft.set(next);
+      setCountPlacing(null);
+      return;
+    }
     const controller = controllerRef.current;
     if (!activeTool || !controller) return;
     const point = toDomain(e);
@@ -617,8 +664,19 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           guideOn={!!layerState?.elliottGuide} onToggleGuide={() => controllerRef.current?.layers.toggle("elliottGuide")}
           subOn={!!layerState?.elliottSub} onToggleSub={() => controllerRef.current?.layers.toggle("elliottSub")}
           pick={elliottPick} onPick={setElliottPick} lastClose={currentBars[currentBars.length - 1]?.close ?? null}
+          editing={countEditing} onEdit={startCountEdit}
+          hasMine={!!userCounts.active} mineOn={!!layerState?.elliottMine} onToggleMine={() => controllerRef.current?.layers.toggle("elliottMine")}
           onSuggest={handleSuggestElliott} detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
       </div>
+      {countEditing && (
+        <ElliottCountEditor points={countDraft.value} onChange={countDraft.set} placing={countPlacing} onPlace={setCountPlacing} violations={countViolations}
+          canUndo={countDraft.canUndo} canRedo={countDraft.canRedo} onUndo={countDraft.undo} onRedo={countDraft.redo}
+          onSave={saveCountVersion} onCancel={() => { setCountEditing(false); setCountPlacing(null); }} syncing={userCounts.syncing} cloudOk={userCounts.cloudOk} />
+      )}
+      <ElliottCountHistory doc={userCounts.doc} statusOf={countStatusOf}
+        onRestore={(id) => { void userCounts.save({ ...userCounts.doc, activeId: id }); controllerRef.current?.layers.enable("elliottMine"); }}
+        onDelete={(id) => void userCounts.save({ ...userCounts.doc, activeId: userCounts.doc.activeId === id ? null : userCounts.doc.activeId, versions: userCounts.doc.versions.filter((v) => v.id !== id) })}
+        onAuto={() => void userCounts.save({ ...userCounts.doc, activeId: null })} />
       {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}
 
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}

@@ -17,11 +17,13 @@ export interface ElliottSceneInput {
   primary: ElliottState | null;
   /** Đếm sóng bậc lớn hơn (tuần) đã ghim sang ngày — chỉ dùng trên khung D. */
   higher?: ElliottHigherDegree | null;
+  /** DW8: cách đếm CHỈNH TAY (bản nháp đang sửa hoặc phiên bản đang dùng) — vẽ màu riêng, tách khỏi cách đếm tự động. */
+  mine?: { points: { date: string; price: number; label: string }[]; editing: boolean; violations: number } | null;
   /** DW7: phương án xếp sau của cách đếm đang vẽ (đường kịch bản phụ). */
   alternate?: ElliottState | null;
   /** DW (23/10/2026): phần nào được vẽ — count = đếm sóng (lớp elliottAuto), fib = thang Fibonacci (elliottFib),
    *  proj = đường kịch bản minh hoạ sang tương lai (elliottProj). Mặc định chỉ count (hành vi E5). */
-  show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean; sub?: boolean };
+  show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean; sub?: boolean; mine?: boolean };
 }
 
 const isLive5 = (st: ElliottState) => {
@@ -221,9 +223,20 @@ export function elliottSubItems(st: ElliottState, bars: OhlcvBar[]): SceneItem[]
   return out;
 }
 
+/** DW8: cách đếm chỉnh tay — đường + nhãn tròn màu cyan (nét đứt khi đang sửa); chỉ vẽ điểm trùng một nến của khung đang xem. */
+export function elliottMineItems(mine: NonNullable<ElliottSceneInput["mine"]>, bars: OhlcvBar[]): SceneItem[] {
+  const dates = new Set(bars.map((b) => b.date));
+  const pts = mine.points.filter((p) => dates.has(p.date));
+  if (!pts.length) return [];
+  const color = GQ_COLORS.cyan;
+  return [{ kind: "poly", points: pts.map((p) => ({ t: p.date, price: p.price })), color, width: 1.5, dash: mine.editing ? [5, 3] : undefined, nodeLabels: pts.map((p) => p.label),
+    label: { text: `${mine.editing ? "Đang chỉnh" : "Cách đếm của tôi"}${mine.violations ? ` · ⚠ ${mine.violations}` : ""}`, color, priority: LABEL_PRIORITY.user } }];
+}
+
 export function elliottSceneItems(inp: ElliottSceneInput): SceneItem[] {
-  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj, guide: !!inp.show?.guide, sub: !!inp.show?.sub };
+  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj, guide: !!inp.show?.guide, sub: !!inp.show?.sub, mine: !!inp.show?.mine };
   const extra: SceneItem[] = [];
+  if (inp.mine && (show.mine || inp.mine.editing)) extra.push(...elliottMineItems(inp.mine, inp.bars));
   if (inp.bars.length && inp.primary && inp.primary.wave !== "none") {
     if (show.sub) extra.push(...elliottSubItems(inp.primary, inp.bars));
     if (show.guide) extra.push(...elliottGuideItems(inp.primary, inp.bars));

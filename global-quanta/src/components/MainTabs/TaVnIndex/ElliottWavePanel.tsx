@@ -2,7 +2,7 @@
 // Engine GET (quant-core/elliott) chạy trên trình duyệt từ chuỗi 750 phiên ngày; khung tuần gộp như biểu đồ W.
 // Kết quả DIỄN GIẢI (INFERRED) và EXPERIMENTAL: kiểm định E4 không thấy lợi thế lợi suất (vnValidation.ts).
 import { useState } from "react";
-import { Eye, EyeOff, LineChart, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, LineChart, PencilLine, Sparkles, X } from "lucide-react";
 import ProvenanceBadge from "./ProvenanceBadge";
 import ElliottSketch, { ElliottSchematic } from "./ElliottSketch";
 import { PatternChips, PatternRules } from "./ElliottPatternViews";
@@ -110,6 +110,12 @@ interface CardProps {
   /** DW6: sóng con bậc nhỏ + nhãn kép bậc lớn. */
   subOn?: boolean;
   onToggleSub?: () => void;
+  /** DW8: chỉnh tay cách đếm + lớp "của tôi". */
+  editing?: boolean;
+  onEdit?: () => void;
+  mineOn?: boolean;
+  hasMine?: boolean;
+  onToggleMine?: () => void;
   /** DW1: cách đếm đang vẽ trên khung đang xem (0 = chính, 1–2 = phương án xếp sau). */
   pick?: number;
   onPick?: (k: number) => void;
@@ -148,7 +154,7 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, pick = 0, onPick, lastClose = null }: CardProps) {
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null }: CardProps) {
   const frameOk = timeframe === "D" || timeframe === "W";
   const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
@@ -197,6 +203,17 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           <button type="button" onClick={onToggleProj} aria-pressed={projOn} disabled={!frameOk} className={btn(projOn)} data-testid="elliott-toggle-proj"
             title={PROJECTION_NOTE}>
             {projOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kịch bản
+          </button>
+        )}
+        {onEdit && (
+          <button type="button" onClick={onEdit} aria-pressed={editing} disabled={!frameOk} className={btn(editing)} data-testid="elliott-edit"
+            title="Chỉnh tay cách đếm: bắt đầu từ cách đếm đang vẽ (hoặc phiên bản của bạn), chọn điểm trên biểu đồ, lưu thành phiên bản">
+            <PencilLine className="w-3 h-3" />Chỉnh tay
+          </button>
+        )}
+        {onToggleMine && hasMine && (
+          <button type="button" onClick={onToggleMine} aria-pressed={mineOn} disabled={!frameOk} className={btn(mineOn)} data-testid="elliott-toggle-mine" title="Hiện cách đếm của tôi (phiên bản đang dùng)">
+            {mineOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Của tôi
           </button>
         )}
         <button type="button" onClick={onSuggest} disabled={!frameOk} className={btn(false)} data-testid="elliott-suggest"

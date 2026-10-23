@@ -3,6 +3,7 @@
 
 import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
 import { getUserChartState, normalizeChartSymbol, saveUserChartState } from "../market/watchlists/userChartState.js";
+import { deleteUserElliottCounts, getUserElliottCounts, normalizeCountKey, saveUserElliottCounts } from "../market/watchlists/userElliottCounts.js";
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
@@ -492,6 +493,24 @@ router.put("/chart-state", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveUserChartState(getMarketRuntime().store, userId, normalizeChartSymbol(req.query.symbol), req.body ?? {}));
+}));
+
+// DW8: cách đếm Elliott chỉnh tay theo tài khoản + mã + khung (lịch sử phiên bản):
+//   GET /elliott/counts?symbol=FPT&tf=D · PUT (body { activeId, versions }) · DELETE (xoá mọi phiên bản của mã + khung).
+router.get("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf)));
+}));
+router.put("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf), req.body ?? {}));
+}));
+router.delete("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await deleteUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf)));
 }));
 
 router.put("/radar/snapshot", handle(async (req, res) => {
