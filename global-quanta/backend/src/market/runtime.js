@@ -35,7 +35,6 @@ import { createTopbarService, TOPBAR_SCHEDULE } from "./topbar/topbarService.js"
 import { createAuthService } from "../auth/authService.js";
 import { importSupabaseUserData, listSupabaseUsers } from "../auth/importSupabaseUserData.js";
 import { createElliottAlertEvaluator } from "./watchlists/userElliottAlerts.js";
-import { notifyOps } from "./alerts.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 
