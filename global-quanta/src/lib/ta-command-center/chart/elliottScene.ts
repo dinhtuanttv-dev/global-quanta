@@ -3,7 +3,7 @@
 //   - Mọi điểm phải trùng một nến của khung đang xem — điểm nào không khớp thì bỏ cả đường (ghim chặt vào nến, không trôi).
 //   - Khung D có thể kèm đếm sóng TUẦN (ký hiệu (1)…(5), bậc lớn hơn) ghim vào nến ngày đạt cực trị của tuần.
 import type { ElliottState } from "../../quant-core/elliott";
-import { elliottProjection } from "../../quant-core/elliott/projection";
+import { elliottProjection, shapedPath } from "../../quant-core/elliott/projection";
 import { elliottChannels, lineAt, type ChannelKind } from "../../quant-core/elliott/channels";
 import { elliottNesting } from "../../quant-core/elliott/nesting";
 import type { OhlcvBar } from "../types";
@@ -17,6 +17,8 @@ export interface ElliottSceneInput {
   primary: ElliottState | null;
   /** Đếm sóng bậc lớn hơn (tuần) đã ghim sang ngày — chỉ dùng trên khung D. */
   higher?: ElliottHigherDegree | null;
+  /** DW7: phương án xếp sau của cách đếm đang vẽ (đường kịch bản phụ). */
+  alternate?: ElliottState | null;
   /** DW (23/10/2026): phần nào được vẽ — count = đếm sóng (lớp elliottAuto), fib = thang Fibonacci (elliottFib),
    *  proj = đường kịch bản minh hoạ sang tương lai (elliottProj). Mặc định chỉ count (hành vi E5). */
   show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean; sub?: boolean };
@@ -118,20 +120,36 @@ export function elliottFibItems(st: ElliottState, bars: OhlcvBar[], skip: number
   return out;
 }
 
-/** DW3: đường kịch bản minh hoạ từ nến cuối (ghim vào nến cuối, đi theo số nến tương lai). */
-export function elliottProjectionItems(st: ElliottState, bars: OhlcvBar[]): SceneItem[] {
+/** Nhãn bậc lớn của chặng cuối sau 5 sóng (quy ước phác đồ): C của điều chỉnh = "(2)/(B)". */
+const higherLegLabel = (st: ElliottState, label: string) => (label === "C" && st.scenario?.points[5]?.confirmed ? "C · (2)/(B)" : label);
+
+/**
+ * DW3 + DW7: đường kịch bản minh hoạ từ nến cuối — mỗi chặng vẽ theo HÌNH SÓNG CON (5 nhịp cho chặng đẩy, a-b-c hoặc đi ngang
+ * cho chặng điều chỉnh theo luân phiên), nhãn tại cuối mỗi chặng; `alt` = phương án xếp sau (kịch bản phụ, nét xám chấm);
+ * dấu ✕ tại mốc vô hiệu của cách đếm. Ghim vào nến cuối, đi theo số nến tương lai.
+ */
+export function elliottProjectionItems(st: ElliottState, bars: OhlcvBar[], alt: ElliottState | null = null): SceneItem[] {
   const last = bars[bars.length - 1];
   if (!last || last.date !== st.asOf) return []; // kết quả engine phải khớp đúng nến cuối của khung đang xem
   const pr = elliottProjection(st, last.close);
-  if (!pr) return [];
-  const color = GQ_COLORS.amber, out: SceneItem[] = [];
-  let prev = { k: 0, price: pr.fromPrice };
-  pr.legs.forEach((g, j) => {
-    const final = j === pr.legs.length - 1;
-    out.push({ kind: "future", from: pr.from, points: [prev, { k: g.k, price: g.price }], color: rgba(color, 0.85), width: 1.5, dash: [6, 3], arrow: final,
-      label: { text: j === 0 ? `${g.label} (kịch bản)` : g.label, color, priority: LABEL_PRIORITY.other } });
-    prev = { k: g.k, price: g.price };
-  });
+  const out: SceneItem[] = [];
+  const draw = (s: ElliottState, p: NonNullable<typeof pr>, color: string, dash: number[], prefix: string) => {
+    const { points, legEnds } = shapedPath(p, s);
+    let from = 0;
+    legEnds.forEach((e, j) => {
+      const final = j === legEnds.length - 1;
+      out.push({ kind: "future", from: p.from, points: points.slice(from, e.index + 1), color, width: 1.5, dash, arrow: final,
+        label: { text: `${j === 0 ? prefix : ""}${higherLegLabel(s, e.label)}`, color, priority: LABEL_PRIORITY.other } });
+      from = e.index;
+    });
+  };
+  if (pr) draw(st, pr, rgba(GQ_COLORS.amber, 0.9), [6, 3], "(kịch bản) ");
+  if (alt && alt.asOf === st.asOf) {
+    const pa = elliottProjection(alt, last.close);
+    if (pa) draw(alt, pa, rgba(GQ_COLORS.text2, 0.8), [2, 3], "(kịch bản phụ) ");
+  }
+  if (pr && st.invalidation)
+    out.push({ kind: "text", t: last.date, price: st.invalidation.price, dy: 3, label: { text: `✕ vô hiệu ${fmtP(st.invalidation.price)}`, color: GQ_COLORS.bear, priority: LABEL_PRIORITY.other + 2 } });
   return out;
 }
 
@@ -208,7 +226,7 @@ export function elliottSceneItems(inp: ElliottSceneInput): SceneItem[] {
     if (show.sub) extra.push(...elliottSubItems(inp.primary, inp.bars));
     if (show.guide) extra.push(...elliottGuideItems(inp.primary, inp.bars));
     if (show.fib) extra.push(...elliottFibItems(inp.primary, inp.bars, show.count ? countLayerPrices(inp.primary) : []));
-    if (show.proj) extra.push(...elliottProjectionItems(inp.primary, inp.bars));
+    if (show.proj) extra.push(...elliottProjectionItems(inp.primary, inp.bars, inp.alternate ?? null));
   }
   return show.count ? [...countItems(inp), ...extra] : extra;
 }

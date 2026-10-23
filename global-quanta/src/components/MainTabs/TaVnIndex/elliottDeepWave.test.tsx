@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { elliottState, type ElliottState } from "../../../lib/quant-core/elliott";
-import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
+import { elliottProjection, legShape, PROJECTION_SHAPES, shapedPath } from "../../../lib/quant-core/elliott/projection";
 import { buildScene } from "../../../lib/ta-command-center/chart/buildScene";
 import { elliottFibItems, elliottProjectionItems, shortFib } from "../../../lib/ta-command-center/chart/elliottScene";
 import { DEFAULT_LAYER_STATE } from "../../../lib/ta-command-center/LayerManager";
@@ -79,7 +79,7 @@ describe("DW3 — đường kịch bản minh hoạ", () => {
     const b = series(), st = elliottState(b)!;
     const items = elliottProjectionItems(st, b);
     expect(items.length).toBeGreaterThan(0);
-    for (const it of items) expect(it.kind === "future" && it.from).toBe(b[b.length - 1].date);
+    for (const it of items) expect(it.kind === "future" ? it.from : it.kind === "text" ? it.t : null).toBe(b[b.length - 1].date);
     expect(elliottProjectionItems(st, [...b, { ...b[b.length - 1], date: day(400) }])).toHaveLength(0);
   });
 });
@@ -117,7 +117,7 @@ describe("DW — lớp mặc định TẮT, bật độc lập", () => {
     const fib = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, elliottFib: true } }).items;
     expect(fib.length).toBeGreaterThan(0); expect(fib.every((x) => x.kind === "hline" || x.kind === "zone")).toBe(true);
     const proj = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, elliottProj: true } }).items;
-    expect(proj.length).toBeGreaterThan(0); expect(proj.every((x) => x.kind === "future")).toBe(true);
+    expect(proj.length).toBeGreaterThan(0); expect(proj.every((x) => x.kind === "future" || x.kind === "text")).toBe(true);
     // Lớp đếm sóng cũ (E5) không đổi khi chỉ bật elliottAuto.
     const auto = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, elliottAuto: true } }).items;
     expect(auto.some((x) => x.kind === "future")).toBe(false);
@@ -155,5 +155,30 @@ describe("DW4 — hiển thị mô hình", () => {
     const rules = deep.querySelector("[data-testid=elliott-pattern-rules]")!;
     expect(rules.textContent).toMatch(/\[cứng\]/);
     expect(rules.textContent).toMatch(/KHÔNG ĐẠT/);
+  });
+});
+
+describe("DW7 — đường kịch bản có hình sóng con + kịch bản phụ", () => {
+  it("chặng đẩy 5 nhịp, chặng điều chỉnh 3 nhịp; k không giảm; điểm cuối mỗi chặng = đích của chặng", () => {
+    const st = forming5(), pr = elliottProjection(st, 140)!;
+    const { points, legEnds } = shapedPath(pr, st);
+    expect(points).toHaveLength(1 + (PROJECTION_SHAPES.motive.price.length - 1) + (PROJECTION_SHAPES.zigzag.price.length - 1));
+    for (let j = 1; j < points.length; j++) expect(points[j].k).toBeGreaterThanOrEqual(points[j - 1].k);
+    legEnds.forEach((e, j) => { expect(points[e.index].k).toBe(pr.legs[j].k); expect(points[e.index].price).toBe(pr.legs[j].price); });
+    expect(points[0]).toEqual({ k: 0, price: 140 });
+  });
+  it("luân phiên: sóng 2 'Sharp' -> sóng 4 tương lai vẽ dạng đi ngang; chặng 1/3/5/C là sóng đẩy", () => {
+    const st = forming5();
+    expect(legShape("4", { ...st, patterns: { wave2: { alt: "Sharp" } } } as unknown as ElliottState)).toBe("sideways");
+    expect(legShape("4", { ...st, patterns: { wave2: { alt: "Sideways" } } } as unknown as ElliottState)).toBe("zigzag");
+    for (const l of ["1", "3", "5", "C"]) expect(legShape(l, st)).toBe("motive");
+  });
+  it("kịch bản phụ (nét xám chấm) + dấu ✕ vô hiệu; nhãn C sau 5 sóng = 'C · (2)/(B)'", () => {
+    const b = series(), st = elliottState(b)!;
+    const alt = st.alternates?.[0] ?? null;
+    const items = elliottProjectionItems(st, b, alt);
+    expect(items.some((x) => x.kind === "text" && /✕ vô hiệu/.test(x.label.text))).toBe(st.invalidation != null);
+    expect(items.some((x) => x.kind === "future" && /\(2\)\/\(B\)/.test(x.label?.text ?? ""))).toBe(true);
+    if (alt && elliottProjection(alt, b[b.length - 1].close)) expect(items.some((x) => x.kind === "future" && /kịch bản phụ/.test(x.label?.text ?? ""))).toBe(true);
   });
 });

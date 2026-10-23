@@ -368,11 +368,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const elliottScene = useMemo(() => {
     if (!mtf) return null;
     const pick = (st: ElliottState | null) => (st && elliottPick > 0 ? st.alternates?.[elliottPick - 1] ?? st : st);
-    if (timeframe === "W") return { primary: pick(mtf.week) };
+    // DW7: kịch bản phụ = phương án kế tiếp sau cách đếm đang vẽ (chính -> PA2; PA2 -> chính).
+    const other = (st: ElliottState | null) => (!st ? null : elliottPick === 0 ? st.alternates?.[0] ?? null : st);
+    if (timeframe === "W") return { primary: pick(mtf.week), alternate: other(mtf.week) };
     if (timeframe !== "D") return null;
     const higher = mtf.week?.scenario
       ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
-    return { primary: pick(mtf.day), higher };
+    return { primary: pick(mtf.day), alternate: other(mtf.day), higher };
   }, [mtf, timeframe, elliottPick]);
 
   // P5: mô hình giá Pring (Pattern Scanner v2) — chỉ tải khi bật lớp, khung D / W.
