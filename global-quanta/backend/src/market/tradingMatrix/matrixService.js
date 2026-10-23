@@ -3,7 +3,7 @@
 //   GET /api/market/trading-matrix/overview?scope=VNINDEX|VN30|UNIVERSE&horizon=daily|intraday
 // Dữ liệu: kho cục bộ (Railway Volume, M0) cho dữ liệu ngày; SSI cho độ rộng trong phiên + VN-Index; research / cấu trúc cho
 // regime. Snapshot cuối phiên lưu bảng cục bộ market_matrix_snapshot (job matrixSnapshot 16:50) — không ghi Supabase.
-import { currentSession, expectsLiveTicks, lastCompletedSessionDate, vnParts } from "../calendar.js";
+import { currentSession, expectsLiveTicks, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
 import { getResearchOverview } from "../research/researchService.js";
 import {
   breadthTrend, createHysteresis, dailyBreadth, flowState, overallHealth, regimeDaily, sessionPhase, sourceHealth, volatilityDaily,
@@ -16,6 +16,8 @@ import { MATRIX_MODELS } from "./matrixModels.js";
 import { featureRows, HORIZON, predict } from "./models.js";
 import { notifyOps } from "../alerts.js";
 import { fetchVndShares, impactSummary, indexImpact } from "./indexImpact.js";
+import { fetchMarketDay } from "../scanner/marketDaily.js";
+import { resolveIndexNow } from "../topbar/topbarService.js";
 import { toActiveEvents } from "../scanner/scanEngine.js";
 import { classify } from "../scanner/taxonomy.js";
 
@@ -68,7 +70,10 @@ export const MATRIX_SCOPES = { VNINDEX: "Toàn sàn HOSE", VN30: "Rổ VN30", UN
 export const SNAPSHOT_TABLE = "market_matrix_snapshot";
 const HISTORY = 260;
 
-export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, now = Date.now, log = console }) {
+export const LIVE_IMPACT_TTL_MS = 5 * 60_000;
+const LIVE_SESSIONS = new Set(["ATO", "LO", "BREAK", "ATC"]);
+
+export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, fetchDay = fetchMarketDay, now = Date.now, log = console }) {
   const hyst = createHysteresis(2);
   const memo = new Map(); // `${scope}|${asOf}` -> { bySymbol, foreign, at }
   const impactMemo = new Map(); // date -> kết quả indexImpact
@@ -120,6 +125,48 @@ export function createMatrixService({ service, store, getStructure = () => null,
     for (const k of impactMemo.keys()) if (impactMemo.size > 5) impactMemo.delete(k);
     impactMemo.set(day, doc);
     return doc;
+  }
+
+  // Index Impact TRONG PHIÊN: SSI DailyStockPrice của hôm nay (giá khớp hiện tại toàn sàn, ~6 lượt gọi, ~1 phút) làm mới nền mỗi
+  // 5 phút trong giờ giao dịch; trả bản gần nhất kèm thời điểm (không chặn chờ). Chỉ số hiện tại = snapshot SSI; mốc = đóng cửa phiên trước.
+  let live = { at: 0, doc: null, inflight: null, error: null };
+  async function buildLive() {
+    const nowDate = new Date(now());
+    const today = vnDate(nowDate);
+    const dates = (await store.getMarketDailyDates()).filter((d) => d < today);
+    const prevDay = dates.at(-1);
+    if (!prevDay) throw new Error("Kho cục bộ chưa có dữ liệu ngày.");
+    const universe = new Set((await store.getMarketDailyByDate(prevDay)).filter((r) => r.exchange === "HOSE").map((r) => r.symbol));
+    const day = await fetchDay(today);
+    const rows = day.rows.filter((r) => r.exchange === "HOSE" && universe.has(r.symbol));
+    const hose = [...universe];
+    const [sh, idx, snap, tax] = await Promise.all([
+      sharesFor(hose),
+      service.getOhlcv({ symbol: "VNINDEX", limit: 30 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0 && b.date < today)),
+      service.getIndexSnapshot("VNINDEX"),
+      store.getKv("scanner:taxonomy").then((r) => r?.value?.map ?? {}).catch(() => ({})),
+    ]);
+    const events = new Map();
+    if (corporateActions) for (const s of hose) { const ca = await corporateActions.get(s).catch(() => null); if (ca?.events?.length) events.set(s, ca.events); }
+    // Trong giờ SSI DailyIndex trả điểm = 0 -> lấy điểm hiện tại như thanh trên (nến phút SSI).
+    const ix = await resolveIndexNow({ service, snap, today, prevClose: idx.at(-1)?.close ?? null, intraday: true });
+    const r = indexImpact({ date: today, rows, shares: sh.map, eventsOf: (s) => events.get(s) ?? null, indexPrev: idx.at(-1)?.close ?? null, indexClose: ix.value, taxonomy: tax });
+    return { version: MATRIX_VERSION, index: "VNINDEX", horizon: "intraday", ...r, asOf: new Date(now()).toISOString(), indexAsOf: ix.asOf ?? null, indexSource: ix.source, indexDerived: ix.derived, prevSession: idx.at(-1)?.date ?? null,
+      sharesSource: sh.source, sharesAsOf: sh.fetchedAt, sharesWarning: sh.warning ?? null,
+      method: "Trong phiên: giá khớp hiện tại (SSI DailyStockPrice, làm mới 5 phút) so giá tham chiếu; VN-Index hiện tại (snapshot SSI) so đóng cửa phiên trước. Cùng công thức phiên đã chốt.",
+      vn30Note: "VN30 tính theo free-float + giới hạn tỷ trọng — chưa có dữ liệu free-float có nguồn nên không tính tác động VN30." };
+  }
+  async function impactLive() {
+    const session = currentSession(new Date(now()));
+    if (!LIVE_SESSIONS.has(session)) return { live: false, session, reason: "Ngoài giờ giao dịch — xem tác động của phiên đã chốt." };
+    const fresh = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) && now() - live.at < LIVE_IMPACT_TTL_MS;
+    if (!fresh && !live.inflight) {
+      live.inflight = buildLive().then((doc) => { live = { at: now(), doc, inflight: null, error: null }; })
+        .catch((e) => { live.inflight = null; live.error = e.message; log.warn?.(`[matrix] impact trong phiên: ${e.message}`); });
+    }
+    const todays = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) ? live.doc : null;
+    if (todays) return { live: true, session, refreshing: Boolean(live.inflight), ageSec: Math.round((now() - live.at) / 1000), ...todays };
+    return { live: true, session, pending: true, reason: live.error ? `Lỗi lần tải trước: ${live.error}` : "Đang tải giá trong phiên toàn sàn từ SSI (khoảng 1 phút)…", refreshing: Boolean(live.inflight) };
   }
 
   /** Liên kết cho snapshot tổng hợp: trụ chỉ số, ngành dẫn dắt / tụt hậu / cảnh báo, tín hiệu gần nhất. */
@@ -430,7 +477,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
   }
 
   return {
-    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay, impact: impactFor,
+    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay, impact: impactFor, impactLive,
     /** M5: quay lại / chọn phiên bản mô hình trong sổ đăng ký (admin). */
     async setActiveModel(id) {
       if (!MATRIX_MODELS.models.some((m) => m.id === id)) throw Object.assign(new Error("Không có mô hình " + id + " trong sổ đăng ký."), { statusCode: 400 });

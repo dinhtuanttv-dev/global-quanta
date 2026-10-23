@@ -39,7 +39,24 @@ test("phiên HK / US theo múi giờ IANA: giờ mùa hè / mùa đông Mỹ t�
   assert.equal(sessionsAt(new Date("2026-12-15T14:45:00Z")).US.phase, "open");
   assert.equal(sessionsAt(new Date("2026-10-22T04:30:00Z")).HK.phase, "break"); // 12:30 HKT
   assert.equal(zoned(new Date("2026-03-09T13:45:00Z"), "America/New_York").minutes, 9 * 60 + 45);
-  assert.match(sessionsAt(new Date()).HK.note, /lịch nghỉ lễ/);
+});
+
+test("lịch nghỉ: NYSE theo quy tắc sàn (Good Friday có, Columbus / Veterans không, nghỉ bù cuối tuần); HK từ lịch truyền vào", async () => {
+  const { nyseHolidays, easter } = await import("../src/market/topbar/topbarService.js");
+  assert.deepEqual(easter(2026), { month: 4, day: 5 });
+  assert.deepEqual(easter(2027), { month: 3, day: 28 });
+  assert.deepEqual([...nyseHolidays(2026)].sort(), ["2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25", "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25"]);
+  // 2027: Juneteenth (T7) -> T6 18/6; Độc lập (CN) -> T2 5/7; Giáng sinh (T7) -> T6 24/12; Năm mới 2028 (T7) KHÔNG nghỉ bù 31/12/2027.
+  const h27 = nyseHolidays(2027);
+  for (const d of ["2027-01-01", "2027-03-26", "2027-06-18", "2027-07-05", "2027-12-24"]) assert.ok(h27.has(d), d);
+  assert.ok(!nyseHolidays(2028).has("2027-12-31"));
+  assert.ok(!nyseHolidays(2026).has("2026-10-12") && !nyseHolidays(2026).has("2026-11-11"));
+  assert.equal(sessionsAt(new Date("2026-04-03T14:00:00Z")).US.phase, "holiday"); // Good Friday 10:00 NY
+  assert.equal(sessionsAt(new Date("2026-10-12T14:00:00Z")).US.phase, "open");    // Columbus Day: NYSE mở
+  const hk = new Set(["2026-10-19"]);
+  assert.equal(sessionsAt(new Date("2026-10-19T02:00:00Z"), { hk }).HK.phase, "holiday");
+  assert.equal(sessionsAt(new Date("2026-10-19T02:00:00Z"), { hk }).HK.note, null);
+  assert.match(sessionsAt(new Date("2026-10-19T02:00:00Z")).HK.note, /lịch nghỉ lễ/);
 });
 
 test("thanh khoản: độ lệch chuẩn MẪU, z; thiếu lịch sử / std = 0 / chưa có số hiện tại -> null có lý do", () => {
@@ -88,7 +105,8 @@ test("snapshot: VN-Index + độ rộng cùng một snapshot SSI; giá trị TH�
   const s = await tb.snapshot();
   assert.equal(s.index.meta.status, "live");
   assert.equal(s.index.data.valueVnd, 1.3e13);
-  assert.equal(s.index.data.reference, 1740);
+  assert.equal(s.index.data.reference, 1729, "tham chiếu = đóng cửa phiên trước thật (không dùng trường Change lệch tỷ lệ của SSI)");
+  assert.equal(s.index.data.change, 31);
   assert.equal(s.index.data.series.at(-1).value, 1760);
   assert.equal(s.breadth.data.total, 370);
   assert.equal(s.breadth.data.unchanged, 60);
@@ -132,4 +150,21 @@ test("thanh khoản theo GIÁ TRỊ khi đã ghi đủ 10 phiên (job 10:31); tr
   // Ngày nghỉ: job bỏ qua.
   t = vn("10:31", "2026-10-24").getTime();
   assert.ok((await tb.recordLiquidity1030()).skipped);
+});
+
+test("trong phiên SSI DailyIndex trả điểm = 0 (đo 23/10/2026): lấy điểm từ nến phút SSI; không có nến -> suy từ % có ghi rõ", async () => {
+  const { resolveIndexNow } = await import("../src/market/topbar/topbarService.js");
+  const snap = { value: 0, change: -0.045, changePct: -0.26, date: "2026-10-23", provenance: { source: "SSI_FC_V2", asOf: "2026-10-23T00:00:00+07:00", fetchedAt: "2026-10-23T04:51:58.314Z" } };
+  const svc = (bars) => ({ getOhlcv: async () => ({ bars }) });
+  const a = await resolveIndexNow({ service: svc([{ date: "2026-10-23T09:15:55+07:00", close: 1756.29 }, { date: "2026-10-23T11:30:05+07:00", close: 1756.13 }]), snap, today: "2026-10-23", prevClose: 1760.63, intraday: true });
+  assert.equal(a.value, 1756.13);
+  assert.equal(a.asOf, "2026-10-23T11:30:05+07:00");
+  assert.equal(a.source, "SSI IntradayOhlc (nến phút)");
+  assert.ok(Math.abs(a.change - (1756.13 - 1760.63)) < 1e-9);
+  const b = await resolveIndexNow({ service: svc([]), snap, today: "2026-10-23", prevClose: 1760.63, intraday: true });
+  assert.ok(Math.abs(b.value - 1760.63 * (1 - 0.0026)) < 1e-9);
+  assert.match(b.derived, /suy ra/);
+  assert.equal(b.asOf, "2026-10-23T04:51:58.314Z", "snapshot chỉ có NGÀY -> thời điểm lấy dữ liệu, không phải nửa đêm");
+  const c = await resolveIndexNow({ service: svc([]), snap: { ...snap, changePct: null }, today: "2026-10-23", prevClose: 1760.63, intraday: true });
+  assert.equal(c.value, null);
 });

@@ -73,9 +73,42 @@ function vnNextTransition(now) {
   return new Date(now.getTime() + (next.at - minutes) * 60_000 - (now.getUTCSeconds() * 1000 + now.getUTCMilliseconds())).toISOString();
 }
 
-/** Phiên theo giờ địa phương + lịch tuần (không có lịch nghỉ lễ HK / US -> ghi rõ). */
-function foreignSession(now, { exchange, timeZone, segments }) {
+// ------------------------------------------------------------------ lịch nghỉ HK / US
+const iso = (y, m, d) => `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+const dow = (y, m, d) => new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+const nthWeekday = (y, m, wd, n) => { const first = dow(y, m, 1); return 1 + ((wd - first + 7) % 7) + (n - 1) * 7; };
+const lastWeekday = (y, m, wd) => { const last = new Date(Date.UTC(y, m, 0)).getUTCDate(); return last - ((dow(y, m, last) - wd + 7) % 7); };
+/** Ngày lễ rơi T7 -> nghỉ T6 trước; CN -> T2 sau (quy tắc NYSE; Năm mới rơi T7 thì KHÔNG nghỉ bù T6 31/12). */
+function observed(y, m, d, { newYear = false } = {}) {
+  const w = dow(y, m, d);
+  if (w === 6) return newYear ? null : (() => { const t = new Date(Date.UTC(y, m - 1, d - 1)); return iso(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); })();
+  if (w === 0) { const t = new Date(Date.UTC(y, m - 1, d + 1)); return iso(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate()); }
+  return iso(y, m, d);
+}
+/** Chủ nhật Phục sinh (thuật toán Gregorian ẩn danh). */
+export function easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+  return { month, day };
+}
+/** Ngày nghỉ NYSE theo quy tắc sàn (khác lịch liên bang: có Good Friday; KHÔNG nghỉ Columbus / Veterans). */
+export function nyseHolidays(y) {
+  const e = easter(y);
+  const gf = new Date(Date.UTC(y, e.month - 1, e.day - 2));
+  return new Set([
+    observed(y, 1, 1, { newYear: true }), iso(y, 1, nthWeekday(y, 1, 1, 3)), iso(y, 2, nthWeekday(y, 2, 1, 3)),
+    iso(gf.getUTCFullYear(), gf.getUTCMonth() + 1, gf.getUTCDate()), iso(y, 5, lastWeekday(y, 5, 1)),
+    ...(y >= 2022 ? [observed(y, 6, 19)] : []), observed(y, 7, 4), iso(y, 9, nthWeekday(y, 9, 1, 1)), iso(y, 11, nthWeekday(y, 11, 4, 4)), observed(y, 12, 25),
+  ].filter(Boolean));
+}
+
+/** Phiên theo giờ địa phương + lịch tuần + lịch nghỉ (Set "YYYY-MM-DD" theo ngày địa phương; null = chưa có lịch -> ghi rõ). */
+function foreignSession(now, { exchange, timeZone, segments, holidays = null, calendar = null }) {
   const z = zoned(now, timeZone);
+  if (holidays?.has(z.date)) {
+    return { exchange, timezone: timeZone, phase: "holiday", label: "Nghỉ lễ", nextTransitionAt: null, calendar, note: null };
+  }
   const weekday = z.weekday >= 1 && z.weekday <= 5;
   const seg = weekday ? segments.find((s) => z.minutes >= s[0] && z.minutes < s[1]) : null;
   const inBreak = weekday && !seg && z.minutes >= segments[0][0] && z.minutes < segments.at(-1)[1];
@@ -83,11 +116,12 @@ function foreignSession(now, { exchange, timeZone, segments }) {
   return {
     exchange, timezone: timeZone, phase: seg ? "open" : inBreak ? "break" : "closed", label: seg ? "Mở cửa" : inBreak ? "Nghỉ trưa" : "Đóng cửa",
     nextTransitionAt: next !== undefined ? new Date(now.getTime() + (next - z.minutes) * 60_000 - now.getUTCSeconds() * 1000).toISOString() : null,
-    calendar: "weekday", note: "Chưa có lịch nghỉ lễ — ngày lễ có thể hiện nhầm là mở cửa.",
+    calendar: holidays ? calendar : "weekday", note: holidays ? null : "Chưa có lịch nghỉ lễ — ngày lễ có thể hiện nhầm là mở cửa.",
   };
 }
 
-export function sessionsAt(now) {
+/** @param cal { hk?: Set<string>|null } — lịch nghỉ HKEX (Nager.Date, ngày lễ chung Hồng Kông); NYSE tính theo quy tắc. */
+export function sessionsAt(now, cal = {}) {
   const s = currentSession(now);
   const label = VN_PHASES.filter((p) => p.at <= vnParts(now).minutes).at(-1)?.label;
   const vn = {
@@ -97,8 +131,44 @@ export function sessionsAt(now) {
   };
   return {
     VN: vn,
-    HK: foreignSession(now, { exchange: "HKEX", timeZone: "Asia/Hong_Kong", segments: [[9 * 60 + 30, 12 * 60], [13 * 60, 16 * 60]] }),
-    US: foreignSession(now, { exchange: "NYSE", timeZone: "America/New_York", segments: [[9 * 60 + 30, 16 * 60]] }),
+    HK: foreignSession(now, { exchange: "HKEX", timeZone: "Asia/Hong_Kong", segments: [[9 * 60 + 30, 12 * 60], [13 * 60, 16 * 60]], holidays: cal.hk ?? null, calendar: "Nager.Date (ngày lễ chung HK)" }),
+    US: foreignSession(now, { exchange: "NYSE", timeZone: "America/New_York", segments: [[9 * 60 + 30, 16 * 60]],
+      holidays: (() => { const y = Number(zoned(now, "America/New_York").date.slice(0, 4)); return new Set([...nyseHolidays(y), ...nyseHolidays(y + 1)]); })(), calendar: "Quy tắc nghỉ NYSE" }),
+  };
+}
+
+// ------------------------------------------------------------------ giá VN-Index hiện tại
+const hasClock = (iso) => typeof iso === "string" && !/T00:00:00(\.000)?([+-]\d\d:\d\d|Z)?$/.test(iso);
+const barIso = (d) => { const t = String(d).replace(" ", "T"); return /[+-]\d\d:\d\d$|Z$/.test(t) ? t : `${t.length === 16 ? `${t}:00` : t}+07:00`; };
+
+/**
+ * VN-Index hiện tại + mốc so sánh. Đo 23/10/2026 11:51: trong giờ giao dịch SSI DailyIndex trả IndexValue = 0 (chỉ có % thay đổi,
+ * độ rộng, KL / GT) và thời điểm chỉ có NGÀY. Thứ tự: điểm của snapshot (> 0) -> nến phút SSI IntradayOhlc gần nhất (có giờ) ->
+ * đóng cửa phiên trước × (1 + % SSI) (ghi rõ "suy ra"). Thay đổi luôn tính lại so với đóng cửa phiên trước (trường Change của SSI
+ * lệch tỷ lệ). Hàm dùng chung với Index Impact trong phiên.
+ */
+export async function resolveIndexNow({ service, snap, today, prevClose, intraday }) {
+  let value = snap?.value > 0 ? snap.value : null;
+  let asOf = snap?.provenance?.asOf ?? snap?.time ?? null;
+  let source = snap?.provenance?.source ?? null, derived = null;
+  if (!(value > 0) && intraday) {
+    try {
+      const bars = ((await service.getOhlcv({ symbol: "VNINDEX", resolution: "1m", to: today })).bars ?? []).filter((b) => b.close > 0);
+      const last = bars.at(-1);
+      if (last && String(last.date).slice(0, 10) === today) { value = last.close; asOf = barIso(last.date); source = "SSI IntradayOhlc (nến phút)"; }
+    } catch { /* thử cách sau */ }
+  }
+  if (!(value > 0) && prevClose > 0 && Number.isFinite(snap?.changePct)) {
+    value = prevClose * (1 + snap.changePct / 100);
+    derived = "Điểm suy ra từ đóng cửa phiên trước × % thay đổi của SSI (snapshot chưa trả điểm chỉ số).";
+  }
+  // Snapshot REST chỉ có NGÀY -> dùng thời điểm lấy dữ liệu (đã ghi rõ) để tính tuổi, không coi là dữ liệu nửa đêm.
+  if (asOf && !hasClock(asOf) && snap?.provenance?.fetchedAt && String(snap.provenance.fetchedAt).slice(0, 10) <= today) asOf = snap.provenance.fetchedAt;
+  const reference = prevClose > 0 ? prevClose : (snap?.value > 0 && snap.change != null ? snap.value - snap.change : null);
+  return {
+    value: value > 0 ? value : null, asOf, source, derived, reference,
+    change: value > 0 && reference ? value - reference : null,
+    changePct: value > 0 && reference ? ((value - reference) / reference) * 100 : (Number.isFinite(snap?.changePct) ? snap.changePct : null),
   };
 }
 
@@ -131,6 +201,20 @@ export function cumulativeTo(bars, cutoff = LIQ.cutoff) {
 
 export function createTopbarService({ service, store, fetchImpl = globalThis.fetch, now = Date.now, tradingDatesBack }) {
   let macroCache = null, vixCache = null;
+  const hkCal = new Map(); // năm -> { at, set }
+
+  /** Ngày lễ Hồng Kông (Nager.Date) theo năm, đệm 1 ngày; lỗi -> null (giao diện ghi "chưa có lịch nghỉ lễ"). */
+  async function hkHolidays(year) {
+    const c = hkCal.get(year);
+    if (c && now() - c.at < 86_400_000) return c.set;
+    try {
+      const r = await fetchImpl(`https://date.nager.at/api/v3/PublicHolidays/${year}/HK`, { headers: UA, signal: AbortSignal.timeout(10_000) });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const set = new Set((await r.json()).map((h) => String(h.date).slice(0, 10)));
+      hkCal.set(year, { at: now(), set });
+      return set;
+    } catch { return c?.set ?? null; }
+  }
 
   async function yahooDaily(symbol) {
     const r = await fetchImpl(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1mo&interval=1d`, { headers: UA, signal: AbortSignal.timeout(15_000) });
@@ -257,25 +341,33 @@ export function createTopbarService({ service, store, fetchImpl = globalThis.fet
         const r = await service.getOhlcv({ symbol: "VNINDEX", limit: 30 });
         series = (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => ({ time: b.date, value: b.close }));
       } catch { series = []; }
-      const asOf = snap?.provenance?.asOf ?? snap?.time ?? null;
+      const today = vnDate(nowDate);
+      const snapDay = String(snap?.date ?? snap?.provenance?.asOf ?? "").slice(0, 10) || today;
+      const prevClose = series.filter((p) => p.time < snapDay).at(-1)?.value ?? null;
+      const live = ["ATO", "LO", "BREAK", "ATC", "PT"].includes(session);
+      const ix = snap ? await resolveIndexNow({ service, snap, today, prevClose, intraday: live && snapDay === today }) : null;
+      const asOf = ix?.asOf ?? null;
+      // Nghỉ trưa: dữ liệu không đổi nhưng vẫn là phiên hôm nay -> không gọi "cũ".
       const ls = liveStatus({ asOf, nowMs, inSession });
-      const src = snap?.provenance?.source ?? null;
+      const breakStatus = session === "BREAK" && asOf ? { status: "delayed", ageMs: Math.max(0, nowMs - Date.parse(asOf)), reason: "Nghỉ trưa — giá lúc 11:30." } : null;
+      const st = breakStatus ?? ls;
+      const src = ix?.source ?? snap?.provenance?.source ?? null;
       const fallback = snap?.provenance?.fallbackReason ? "fallback" : null;
-      if (snap?.value > 0) {
-        const reference = snap.change != null ? snap.value - snap.change : null;
+      if (ix?.value > 0) {
         out.index = {
-          data: { code: "VNINDEX", value: snap.value, reference, change: snap.change ?? null, changePct: snap.changePct ?? null,
+          data: { code: "VNINDEX", value: ix.value, reference: ix.reference, change: ix.change, changePct: ix.changePct,
             volumeShares: snap.totalVolume ?? null, valueVnd: snap.totalValue ?? null, unit: "điểm",
-            series: series.filter((p) => p.time < String(asOf ?? "").slice(0, 10)).concat([{ time: String(asOf ?? "").slice(0, 10) || vnDate(nowDate), value: snap.value }]).slice(-30),
-            partialSession: inSession },
-          meta: meta({ source: src, status: fallback ?? ls.status, asOf, receivedAt, ageMs: ls.ageMs, staleAfterMs: FRESH.delayedMs, reason: fallback ? `Nguồn dự phòng: ${snap.provenance.fallbackReason}` : ls.reason }),
+            series: series.filter((p) => p.time < snapDay).concat([{ time: snapDay, value: ix.value }]).slice(-30),
+            partialSession: live },
+          meta: meta({ source: src, status: fallback ?? st.status, asOf, receivedAt, ageMs: st.ageMs, staleAfterMs: FRESH.delayedMs,
+            reason: [fallback ? `Nguồn dự phòng: ${snap.provenance.fallbackReason}` : st.reason, ix.derived].filter(Boolean).join(" ") || null }),
         };
         const A = snap.advances, D = snap.declines, U = snap.noChanges;
         const ok = [A, D, U].every(Number.isFinite) && A + D + U > 0;
         out.breadth = {
           data: ok ? { universe: "VNINDEX (HOSE)", advances: A, declines: D, unchanged: U, ceilings: snap.ceilings ?? null, floors: snap.floors ?? null, total: A + D + U,
             advanceShare: A / (A + D + U), declineShare: D / (A + D + U), netBreadth: (A - D) / (A + D + U), adRatio: D > 0 ? A / D : null } : null,
-          meta: meta({ source: src, status: ok ? (fallback ?? ls.status) : "empty", asOf, receivedAt, ageMs: ls.ageMs, staleAfterMs: FRESH.delayedMs, reason: ok ? ls.reason : "SSI chưa trả số mã tăng / giảm / đứng." }),
+          meta: meta({ source: snap?.provenance?.source ?? src, status: ok ? (fallback ?? st.status) : "empty", asOf, receivedAt, ageMs: st.ageMs, staleAfterMs: FRESH.delayedMs, reason: ok ? st.reason : "SSI chưa trả số mã tăng / giảm / đứng." }),
         };
       } else {
         out.index = { data: null, meta: meta({ source: src, status: out.indexError ? "error" : "empty", receivedAt, reason: out.indexError ?? "Chưa có giá VN-Index." }) };
@@ -283,7 +375,8 @@ export function createTopbarService({ service, store, fetchImpl = globalThis.fet
       }
       delete out.indexError;
 
-      out.sessions = { data: sessionsAt(nowDate), meta: meta({ source: "Lịch giao dịch Gateway (ngày nghỉ tự quan sát) + múi giờ IANA", status: "live", asOf: receivedAt, receivedAt, ageMs: 0 }) };
+      const hk = await hkHolidays(Number(zoned(nowDate, "Asia/Hong_Kong").date.slice(0, 4)));
+      out.sessions = { data: sessionsAt(nowDate, { hk }), meta: meta({ source: "Lịch Gateway (VN, ngày nghỉ tự quan sát) · Nager.Date (HK) · quy tắc NYSE (US) · múi giờ IANA", status: "live", asOf: receivedAt, receivedAt, ageMs: 0 }) };
       out.macro = await macroBlock();
       out.regime = await regimeBlock(out.macro, receivedAt);
       try { out.liquidity = await liquidityBlock(nowDate, snap); } catch (e) { out.liquidity = { data: null, meta: meta({ status: "error", receivedAt, reason: e.message }) }; }

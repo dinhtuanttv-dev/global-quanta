@@ -31,6 +31,7 @@ function Bars({ title, rows, max, onSelect }: { title: string; rows: ImpactItem[
 }
 
 export default function IndexImpactTable({ data, onSelect, onIndustry }: { data: IndexImpactDoc; onSelect: (t: string) => void; onIndustry: (n: string | null) => void }) {
+  if (data.live === false || data.pending) return <p className="text-[10px] text-slate-400" data-testid="mx-impact-pending">{data.reason}</p>;
   const up = data.items.filter((x) => x.points > 0).slice(0, 10);
   const down = [...data.items].reverse().filter((x) => x.points < 0).slice(0, 10);
   const max = Math.max(0, ...up.map((x) => x.points), ...down.map((x) => -x.points));
@@ -40,7 +41,9 @@ export default function IndexImpactTable({ data, onSelect, onIndustry }: { data:
   return (
     <div className="space-y-2" data-testid="mx-impact">
       <p className="text-[10px] text-slate-300">
-        Phiên {when(data.date)} · Σ đóng góp <b className="font-mono">{c ? `${c.predictedPoints >= 0 ? "+" : ""}${vn(c.predictedPoints, 2)}` : "—"}</b> điểm
+        {data.horizon === "intraday"
+          ? <>Trong phiên {when(data.date)} · giá lúc {new Date(data.asOf ?? "").toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{data.refreshing ? " (đang làm mới)" : ""} · so đóng cửa {when(data.prevSession ?? null)}</>
+          : <>Phiên {when(data.date)}</>} · Σ đóng góp <b className="font-mono">{c ? `${c.predictedPoints >= 0 ? "+" : ""}${vn(c.predictedPoints, 2)}` : "—"}</b> điểm
         {c?.actualPoints != null && <> · VN-Index thật <b className="font-mono">{c.actualPoints >= 0 ? "+" : ""}{vn(c.actualPoints, 2)}</b> điểm</>}
         {c && <span className={`ml-1 text-[9px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`} data-testid="mx-impact-check">
           {ok ? `✓ khớp (lệch ${vn(c.diffPp, 3)} điểm %)` : c.status === "NO_INDEX" ? "chưa có VN-Index phiên này" : `⚠ lệch ${vn(c.diffPp, 3)} điểm % — có thể thiếu sự kiện quyền / mã mới`}

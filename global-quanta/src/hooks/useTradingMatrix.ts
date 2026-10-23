@@ -88,6 +88,8 @@ export interface IndexImpactDoc {
   coverage: { symbols: number; of: number; missing: string[] };
   sectors: { industry: string; group: string; points: number; up: number; down: number; n: number }[];
   sharesSource: string; sharesAsOf: string | null; sharesWarning: string | null; method: string; vn30Note: string;
+  /** Trong phiên (?live=1): asOf = lúc lấy giá toàn sàn; ageSec tuổi bản đệm; pending khi đang tải lần đầu; live=false ngoài giờ. */
+  horizon?: "intraday"; live?: boolean; pending?: boolean; refreshing?: boolean; ageSec?: number; reason?: string; asOf?: string; indexAsOf?: string | null; prevSession?: string | null;
 }
 type ImpactLite = { symbol: string; points: number; changePct: number; industry: string };
 export interface MatrixLinks {
@@ -96,9 +98,9 @@ export interface MatrixLinks {
   lastSignal: { scenario: string; date: string; state: string } | null;
   error?: string;
 }
-export function useMatrixImpact(enabled: boolean) {
-  const { data, error, isLoading } = useSWR<IndexImpactDoc>(enabled ? marketUrl("/api/market/trading-matrix/index-impact") : null, fetcher,
-    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true });
+export function useMatrixImpact(enabled: boolean, live = false) {
+  const { data, error, isLoading } = useSWR<IndexImpactDoc>(enabled ? marketUrl(`/api/market/trading-matrix/index-impact${live ? "?live=1" : ""}`) : null, fetcher,
+    { refreshInterval: (d) => (live ? (d?.pending ? 20_000 : 60_000) : 5 * 60_000), revalidateOnFocus: false, dedupingInterval: 10_000, keepPreviousData: false });
   return { data, error: error as Error | undefined, isLoading };
 }
 
