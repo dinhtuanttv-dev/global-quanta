@@ -107,6 +107,9 @@ interface CardProps {
   /** DW5: kênh Base / Final / Corrective + điểm kích hoạt + giá đỉnh/đáy + thẻ mô hình. */
   guideOn?: boolean;
   onToggleGuide?: () => void;
+  /** DW6: sóng con bậc nhỏ + nhãn kép bậc lớn. */
+  subOn?: boolean;
+  onToggleSub?: () => void;
   /** DW1: cách đếm đang vẽ trên khung đang xem (0 = chính, 1–2 = phương án xếp sau). */
   pick?: number;
   onPick?: (k: number) => void;
@@ -145,7 +148,7 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, pick = 0, onPick, lastClose = null }: CardProps) {
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, pick = 0, onPick, lastClose = null }: CardProps) {
   const frameOk = timeframe === "D" || timeframe === "W";
   const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
@@ -182,6 +185,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           <button type="button" onClick={onToggleGuide} aria-pressed={guideOn} disabled={!frameOk} className={btn(guideOn)} data-testid="elliott-toggle-guide"
             title="Kênh Base / Final / Corrective, vòng tròn kích hoạt (nến phá kênh), giá tại đỉnh/đáy, thẻ mô hình và luân phiên Sharp / Sideways">
             {guideOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kênh & mốc
+          </button>
+        )}
+        {onToggleSub && (
+          <button type="button" onClick={onToggleSub} aria-pressed={subOn} disabled={!frameOk} className={btn(subOn)} data-testid="elliott-toggle-sub"
+            title="Sóng con bậc nhỏ (i…v trong sóng đẩy, a b c trong sóng điều chỉnh) + nhãn kép bậc lớn (1)/(A) sau 5 sóng">
+            {subOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Bậc nhỏ
           </button>
         )}
         {onToggleProj && (

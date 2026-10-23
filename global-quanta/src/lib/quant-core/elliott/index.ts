@@ -37,6 +37,8 @@ export interface ElliottState {
   asOf: string;
   /** Số nến của cửa sổ phân tích (chỉ số i của pivot tính trong cửa sổ này; nến cuối = barCount − 1). */
   barCount: number;
+  /** DW6: ngưỡng zigzag gốc của bậc trung đã dùng (0,03 khung ngày · 0,06 khung tuần · nhỏ hơn cho khung trong ngày). */
+  zigzagPct?: number;
 }
 
 export interface SegmentPattern { best: PatternFit | null; fits: PatternFit[]; points: PatternPoint[] }
@@ -193,6 +195,7 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
       pivots: res.pivots,
       asOf,
       barCount: window.length,
+      zigzagPct: opts.zigzagPct ?? 0.03,
     };
   };
   if (sc) {

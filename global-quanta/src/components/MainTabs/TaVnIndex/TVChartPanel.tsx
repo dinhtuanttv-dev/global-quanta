@@ -613,6 +613,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           onToggleFib={() => controllerRef.current?.layers.toggle("elliottFib")}
           onToggleProj={() => controllerRef.current?.layers.toggle("elliottProj")}
           guideOn={!!layerState?.elliottGuide} onToggleGuide={() => controllerRef.current?.layers.toggle("elliottGuide")}
+          subOn={!!layerState?.elliottSub} onToggleSub={() => controllerRef.current?.layers.toggle("elliottSub")}
           pick={elliottPick} onPick={setElliottPick} lastClose={currentBars[currentBars.length - 1]?.close ?? null}
           onSuggest={handleSuggestElliott} detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
       </div>

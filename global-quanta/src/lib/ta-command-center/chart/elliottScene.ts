@@ -5,6 +5,7 @@
 import type { ElliottState } from "../../quant-core/elliott";
 import { elliottProjection } from "../../quant-core/elliott/projection";
 import { elliottChannels, lineAt, type ChannelKind } from "../../quant-core/elliott/channels";
+import { elliottNesting } from "../../quant-core/elliott/nesting";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type ScenePoint, type SceneItem } from "./scene";
 
@@ -18,7 +19,7 @@ export interface ElliottSceneInput {
   higher?: ElliottHigherDegree | null;
   /** DW (23/10/2026): phần nào được vẽ — count = đếm sóng (lớp elliottAuto), fib = thang Fibonacci (elliottFib),
    *  proj = đường kịch bản minh hoạ sang tương lai (elliottProj). Mặc định chỉ count (hành vi E5). */
-  show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean };
+  show?: { count?: boolean; fib?: boolean; proj?: boolean; guide?: boolean; sub?: boolean };
 }
 
 const isLive5 = (st: ElliottState) => {
@@ -177,10 +178,34 @@ export function elliottGuideItems(st: ElliottState, bars: OhlcvBar[]): SceneItem
   return out;
 }
 
+/**
+ * DW6: lớp "Elliott bậc nhỏ" — sóng con i…v / a b c bên trong từng sóng của cách đếm đang chọn (chữ nhỏ, không đường nối)
+ * + nhãn kép bậc lớn "(1)/(A)" tại đỉnh/đáy sóng 5 đã xong. Không tìm được đủ sóng con -> bỏ trống, không bịa nhãn.
+ */
+export function elliottSubItems(st: ElliottState, bars: OhlcvBar[]): SceneItem[] {
+  const last = bars[bars.length - 1];
+  if (!last || last.date !== st.asOf || bars.length < st.barCount) return [];
+  const candles = bars.slice(bars.length - st.barCount).map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+  const n = elliottNesting(st, candles, st.zigzagPct ?? 0.03);
+  if (!n) return [];
+  const dates = new Set(bars.map((b) => b.date));
+  const out: SceneItem[] = [];
+  const color = rgba(st.dir === "up" ? GQ_COLORS.bull : GQ_COLORS.bear, 0.85);
+  for (const subs of Object.values(n.waves)) {
+    const ok = subs.filter((x) => dates.has(x.time));
+    if (ok.length) out.push({ kind: "poly", points: ok.map((x) => ({ t: x.time, price: x.price })), color, width: 0, nodeLabels: ok.map((x) => x.label), nodeStyle: "plain" });
+  }
+  const p5 = st.scenario?.points[5];
+  if (n.higherAt5 && p5 && dates.has(String(p5.time)))
+    out.push({ kind: "text", t: String(p5.time), price: p5.price, dy: p5.price > st.scenario!.points[4].price ? -38 : 40, label: { text: n.higherAt5, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other + 3 } });
+  return out;
+}
+
 export function elliottSceneItems(inp: ElliottSceneInput): SceneItem[] {
-  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj, guide: !!inp.show?.guide };
+  const show = { count: inp.show?.count ?? true, fib: !!inp.show?.fib, proj: !!inp.show?.proj, guide: !!inp.show?.guide, sub: !!inp.show?.sub };
   const extra: SceneItem[] = [];
   if (inp.bars.length && inp.primary && inp.primary.wave !== "none") {
+    if (show.sub) extra.push(...elliottSubItems(inp.primary, inp.bars));
     if (show.guide) extra.push(...elliottGuideItems(inp.primary, inp.bars));
     if (show.fib) extra.push(...elliottFibItems(inp.primary, inp.bars, show.count ? countLayerPrices(inp.primary) : []));
     if (show.proj) extra.push(...elliottProjectionItems(inp.primary, inp.bars));
