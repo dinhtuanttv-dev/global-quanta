@@ -410,3 +410,12 @@
 
 .vn-hero-gt-estimated { cursor: help; border-bottom: 1px dashed rgba(232,193,112,0.4); }
 .vn-hero-info-icon { font-size: 8px; color: var(--gold-bright, #E8C170); margin-left: 3px; }
+
+/* Đổi mật khẩu (menu tài khoản / lần đăng nhập đầu) */
+.tb-pw-form { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; font-size: 11px; }
+.tb-pw-form label { color: var(--text-secondary, #9aa4b8); font-size: 10px; letter-spacing: 0.03em; }
+.tb-pw-form input { background: rgba(255,255,255,0.04); border: 1px solid var(--border-strong, #2E3850); border-radius: 8px; padding: 8px 10px; color: var(--text-primary, #E6EAF2); font: inherit; min-height: 36px; }
+.tb-pw-form input:focus-visible { outline: 2px solid var(--gold-bright, #E8C170); outline-offset: 1px; }
+.tb-pw-error { color: var(--negative, #F87171); margin: 0; }
+.tb-pw-ok { color: var(--positive, #34D399); margin: 0; }
+.tb-account .tb-menu-item + .tb-menu-item { margin-top: 6px; }

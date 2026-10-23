@@ -11,7 +11,8 @@ interface ToastState {
 interface AppState {
   // ===== AUTH =====
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  /** true nếu thành công, ngược lại thông báo lỗi. */
+  login: (email: string, password: string) => Promise<true | string>;
   restoreAuthSession: () => Promise<boolean>;
   logout: () => void;
 
@@ -76,17 +77,17 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   isAuthenticated: api.hasAuthSession(),
   login: async (email, password) => {
-    const ok = await api.login(email, password);
-    if (ok) set({ isAuthenticated: true });
-    return ok;
+    const r = await api.login(email, password);
+    if (r === true) set({ isAuthenticated: true });
+    return r;
   },
   restoreAuthSession: async () => {
-    const ok = await api.restoreSupabaseSession();
+    const ok = await api.restoreSession();
     set({ isAuthenticated: ok });
     return ok;
   },
   logout: () => {
-    void api.signOutSupabase();
+    void api.signOut();
     set({ isAuthenticated: false });
   },
 

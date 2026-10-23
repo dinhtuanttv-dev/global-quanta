@@ -14,8 +14,13 @@
 import { noteStoreError } from "../elite/storeHealth.js";
 
 export const USER_TABLES = new Set(["market_user_watchlists", "market_user_chart_state", "market_radar_snapshots"]);
-/** Bảng chỉ có ở kho cục bộ (Trading Matrix…) — không có trên Supabase nên không sao chép (tránh lỗi làm mở cầu dao). */
-export const isLocalOnlyTable = (table) => String(table).startsWith("market_matrix_");
+/**
+ * Bảng chỉ có ở kho cục bộ (Railway Volume) — KHÔNG sao sang Supabase:
+ *   market_matrix_* (Trading Matrix); auth_* (tài khoản, phiên, khoá ký — đăng nhập trên Railway, 23/10/2026: bí mật không rời Volume);
+ *   bảng người dùng (danh mục, trạng thái biểu đồ, radar) — từ khi đăng nhập chuyển sang Railway, mã người dùng là mã của Gateway
+ *   (dữ liệu cũ trên Supabase được nhập một lần bằng job importSupabaseUserData khi Supabase mở lại).
+ */
+export const isLocalOnlyTable = (table) => String(table).startsWith("market_matrix_") || String(table).startsWith("auth_") || USER_TABLES.has(table);
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);
 const HYDRATED_KV = (table) => `__local:hydrated:${table}`;
 
@@ -101,25 +106,24 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
 
     // ---------- bảng ----------
     async upsertRows(table, rows, conflict) {
-      if (USER_TABLES.has(table)) return inner.upsertRows(table, rows, conflict);
       await hydrateTable(table);
       const n = await local.upsertRows(table, rows, conflict);
       if (!isLocalOnlyTable(table)) replicate(() => inner.upsertRows(table, rows, conflict));
       return n;
     },
     async selectRows(table, query = {}) {
-      if (USER_TABLES.has(table)) return inner.selectRows(table, query);
       await hydrateTable(table);
       return local.selectRows(table, query);
     },
     async deleteRows(table, query = {}) {
-      if (USER_TABLES.has(table)) return inner.deleteRows(table, query);
       await hydrateTable(table);
       const n = await local.deleteRows(table, query);
       if (!isLocalOnlyTable(table)) replicate(() => inner.deleteRows(table, query));
       return n;
     },
     async rpc(fn, args = {}) { const r = await tryInner(() => inner.rpc(fn, args)); return r ?? null; },
+    /** Đọc THẲNG Supabase (job nhập dữ liệu người dùng cũ) — lỗi được ném cho nơi gọi. */
+    readInner: (table, query = {}) => inner.selectRows(table, query),
 
     // ---------- nến ngày ----------
     async upsertBars(symbol, list, source) { const n = await local.upsertBars(symbol, list, source); replicate(() => inner.upsertBars(symbol, list, source)); return n; },

@@ -2,7 +2,7 @@ process.env.MARKET_ALERTS_ENABLED = "false";
 
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createAuthVerifier, getHistory, MAX_ITEMS, normalizeListKey, sanitizeItems, saveSnapshot } from "../src/market/radar/radarHistory.js";
+import { getHistory, MAX_ITEMS, normalizeListKey, sanitizeItems, saveSnapshot } from "../src/market/radar/radarHistory.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
 
 const item = (t, s, extra = {}) => ({ t, s, g: "Tài chính", sm: 71.234, st: "breakout", core: s >= 4, pass: "110110", p: 25_900, c: 1.2, ...extra });
@@ -44,32 +44,6 @@ test("saveSnapshot/getHistory: một ảnh mỗi ngày giao dịch (ghi đè tro
   assert.equal(h.today, "2026-10-02");
   assert.deepEqual((await getHistory(store, "u1", { list: "Danh mục của tôi", days: 2 }, sat)).snapshots.map((s) => s.date), ["2026-09-29", "2026-10-02"]);
   assert.equal((await getHistory(store, "u2", { list: "Danh mục của tôi" }, sat)).snapshots.length, 1);
-});
-
-test("createAuthVerifier: không có token -> 401; token hợp lệ được nhớ; token sai -> 401", async () => {
-  const prev = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_SECRET_KEY };
-  process.env.SUPABASE_URL = "https://example.supabase.co";
-  process.env.SUPABASE_SECRET_KEY = "test-key";
-  try {
-    let calls = 0;
-    const verify = createAuthVerifier({
-      fetchImpl: async (url, init) => {
-        calls++;
-        assert.equal(url, "https://example.supabase.co/auth/v1/user");
-        return init.headers.authorization === "Bearer good"
-          ? { ok: true, status: 200, json: async () => ({ id: "user-1" }) }
-          : { ok: false, status: 401, json: async () => ({}) };
-      },
-    });
-    await assert.rejects(verify(undefined), (e) => e.statusCode === 401);
-    assert.equal(await verify("Bearer good"), "user-1");
-    assert.equal(await verify("Bearer good"), "user-1");
-    assert.equal(calls, 1);
-    await assert.rejects(verify("Bearer bad"), (e) => e.statusCode === 401);
-  } finally {
-    process.env.SUPABASE_URL = prev.url ?? "";
-    process.env.SUPABASE_SECRET_KEY = prev.key ?? "";
-  }
 });
 
 test("sanitizeItems giữ phiên bản bộ tiêu chí cv (1–9), bỏ giá trị sai", async () => {

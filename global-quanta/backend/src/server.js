@@ -28,6 +28,7 @@ import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
+import { createAuthRouter } from "./routes/auth.js";
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.use("/api/health/db-budget", createDbBudgetRouter({ getStore: () => getMarke
 app.use("/api", scanRouter);
 app.use("/api/ssi", ssiRouter);
 app.use("/api/market", marketRouter);
+app.use("/api/auth", createAuthRouter({ getAuth: () => getMarketRuntime().auth }));
 // Trung tâm vĩ mô (tab Chất xúc tác): engine MacroCenter chạy trong worker thread, số liệu thật chỉ-thêm trong KV.
 let macroService = null;
 const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));

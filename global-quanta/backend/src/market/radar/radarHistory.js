@@ -3,7 +3,6 @@
 // kiểm tra dữ liệu và lưu. Ngày của ảnh chụp do Gateway quyết định (ngày giao dịch gần nhất, giờ VN),
 // nên gửi nhiều lần trong ngày chỉ ghi đè ảnh của ngày đó.
 
-import { createHash } from "node:crypto";
 import { lastTradingDate } from "../calendar.js";
 
 export const RADAR_TABLE = "market_radar_snapshots";
@@ -55,51 +54,6 @@ export function sanitizeItems(items) {
     });
   }
   return out;
-}
-
-/**
- * Xác thực access token Supabase Auth bằng /auth/v1/user (Gateway giữ khoá bí mật).
- * Kết quả được nhớ 5 phút theo băm của token để không gọi Auth mỗi request.
- */
-export function createAuthVerifier({ fetchImpl = globalThis.fetch, ttlMs = 5 * 60_000 } = {}) {
-  const cache = new Map();
-  return async function verify(authorization) {
-    const token = /^Bearer\s+(.+)$/i.exec(String(authorization ?? ""))?.[1]?.trim();
-    if (!token) {
-      const error = new Error("Cần đăng nhập.");
-      error.statusCode = 401;
-      throw error;
-    }
-    const url = String(process.env.SUPABASE_URL || "").replace(/\/+$/, "");
-    const key = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
-    if (!url || !key) {
-      const error = new Error("Gateway chưa cấu hình Supabase Auth.");
-      error.statusCode = 503;
-      throw error;
-    }
-    const h = createHash("sha256").update(token).digest("hex");
-    const now = Date.now();
-    const hit = cache.get(h);
-    if (hit && hit.exp > now) return hit.userId;
-    const res = await fetchImpl(`${url}/auth/v1/user`, {
-      headers: { apikey: key, authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!res.ok) {
-      const error = new Error(res.status === 401 || res.status === 403 ? "Phiên đăng nhập hết hạn." : `Supabase Auth lỗi HTTP ${res.status}.`);
-      error.statusCode = res.status === 401 || res.status === 403 ? 401 : 502;
-      throw error;
-    }
-    const user = await res.json();
-    if (!user?.id) {
-      const error = new Error("Không xác định được người dùng.");
-      error.statusCode = 401;
-      throw error;
-    }
-    if (cache.size > 500) cache.clear();
-    cache.set(h, { userId: user.id, exp: now + ttlMs });
-    return user.id;
-  };
 }
 
 export async function saveSnapshot(store, userId, { list, items }, now = new Date()) {

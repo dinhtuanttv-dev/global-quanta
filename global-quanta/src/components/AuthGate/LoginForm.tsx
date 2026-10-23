@@ -1,27 +1,30 @@
 import { useState } from 'react';
-import { isSupabaseAuthConfigured } from '../../services/api';
+import { isAuthConfigured } from '../../services/api';
 
 interface Props {
-  onSubmit: (email: string, password: string) => Promise<boolean>;
+  /** true nếu thành công, ngược lại thông báo lỗi. */
+  onSubmit: (email: string, password: string) => Promise<true | string | boolean>;
+  /** Thông báo hiện sẵn (VD phiên Supabase cũ đã hết dùng được sau khi chuyển hệ thống đăng nhập). */
+  notice?: string | null;
 }
 
-export default function LoginForm({ onSubmit }: Props) {
+export default function LoginForm({ onSubmit, notice = null }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const configured = isSupabaseAuthConfigured();
+  const configured = isAuthConfigured();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!configured || submitting) return;
     setSubmitting(true);
-    setError(false);
+    setError(null);
     try {
-      const ok = await onSubmit(email.trim(), password);
-      if (ok) return;
-      setError(true);
+      const r = await onSubmit(email.trim(), password);
+      if (r === true) return;
+      setError(typeof r === 'string' ? r : 'Không đăng nhập được. Hãy kiểm tra email và mật khẩu rồi thử lại.');
       setPassword('');
       setShake(false);
       requestAnimationFrame(() => setShake(true));
@@ -35,8 +38,9 @@ export default function LoginForm({ onSubmit }: Props) {
       <div className="login-logo"><div className="mark">ĐT</div><span className="name">ĐINH TUẤN</span></div>
       <div className="login-sub">Đăng nhập để truy cập Macro &amp; Market Scanner</div>
 
-      {!configured && <div className="login-error show" role="alert">Supabase Auth chưa được cấu hình cho website này.</div>}
-      {error && <div className="login-error show" role="alert">Không đăng nhập được. Hãy kiểm tra email và mật khẩu rồi thử lại.</div>}
+      {!configured && <div className="login-error show" role="alert">Máy chủ đăng nhập (Market Gateway) đang tắt cho website này.</div>}
+      {notice && !error && <div className="login-error show" role="status" style={{ borderColor: 'rgba(251,191,36,0.4)', color: '#fcd34d' }}>{notice}</div>}
+      {error && <div className="login-error show" role="alert">{error}</div>}
 
       <form onSubmit={handleSubmit}>
         <div className="login-field">
@@ -52,7 +56,7 @@ export default function LoginForm({ onSubmit }: Props) {
         </button>
       </form>
 
-      <div className="login-hint">Đăng nhập được xác thực bằng Supabase Auth.</div>
+      <div className="login-hint">Đăng nhập do máy chủ ĐINH TUẤN xác thực (mật khẩu băm scrypt, phiên ký Ed25519).</div>
     </div>
   );
 }
