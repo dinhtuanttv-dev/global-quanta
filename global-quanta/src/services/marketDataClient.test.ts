@@ -32,6 +32,12 @@ describe('describeFeedStatus', () => {
     expect(badge.title).toContain('HPG, VNM');
   });
 
+  it('danh mục trống (chỉ VN-Index): báo theo kết nối SSI, không treo "ĐANG KẾT NỐI"', () => {
+    expect(describeFeedStatus(status({ transport: 'connected' })).label).toBe('● SSI KẾT NỐI');
+    expect(describeFeedStatus(status({ transport: 'connecting' })).label).toBe('◌ ĐANG KẾT NỐI');
+    expect(describeFeedStatus(status({ transport: 'down' })).tone).toBe('offline');
+  });
+
   it('ngoài giờ giao dịch báo ĐÓNG CỬA thay vì OFFLINE', () => {
     expect(describeFeedStatus(status({ session: 'CLOSED', transport: 'down', closed: ['FPT'] })).tone).toBe('closed');
   });
