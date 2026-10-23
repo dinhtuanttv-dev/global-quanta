@@ -36,6 +36,13 @@ describe("IndexImpactTable", () => {
     expect(sel).toEqual(["BID"]);
     expect(ind).toEqual(["Bất động sản"]);
   });
+  it("trong phiên: đang tải / ngoài giờ -> thông báo, không vẽ số; có dữ liệu -> nhãn 'Trong phiên' + giờ lấy giá", () => {
+    expect(render({ ...doc("MATCH"), live: true, pending: true, reason: "Đang tải giá trong phiên" }).querySelector("[data-testid=mx-impact-pending]")?.textContent).toContain("Đang tải");
+    el?.remove();
+    expect(render({ ...doc("MATCH"), live: false, reason: "Ngoài giờ giao dịch" }).textContent).toContain("Ngoài giờ");
+    el?.remove();
+    expect(render({ ...doc("MATCH"), live: true, horizon: "intraday", asOf: "2026-10-23T03:30:00Z", prevSession: "2026-10-22" }).textContent).toContain("Trong phiên");
+  });
   it("lệch > 0,05 điểm % -> cảnh báo rõ, không che", () => {
     expect(render(doc("DEVIATION")).querySelector("[data-testid=mx-impact-check]")?.textContent).toContain("lệch");
   });

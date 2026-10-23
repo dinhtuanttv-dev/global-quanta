@@ -194,7 +194,14 @@
   .topbar-pro .tb-wide { display: none; }
   .topbar-pro .tb-more { display: inline-flex; margin-right: 8px; }
 }
-@media (max-width: 1100px) { .topbar-pro .ticker-strip { display: none; } }
+.topbar-pro .tb-macro { position: relative; display: flex; align-items: center; flex: 1 1 0%; min-width: 0; }
+.topbar-pro .tb-macro .ticker-strip:focus-visible { outline: 2px solid var(--gold-bright, #E8C170); outline-offset: -2px; border-radius: 6px; }
+.topbar-pro .tb-scroll { position: absolute; top: 50%; transform: translateY(-50%); z-index: 2; width: 24px; height: 32px; border-radius: 6px; border: 1px solid var(--border-strong, #2E3850);
+  background: rgba(15,20,32,0.92); color: var(--text-secondary); font-size: 16px; line-height: 1; cursor: pointer; }
+.topbar-pro .tb-scroll:hover { color: var(--gold-bright, #E8C170); }
+.topbar-pro .tb-scroll-l { left: 0; }
+.topbar-pro .tb-scroll-r { right: 0; }
+@media (max-width: 1100px) { .topbar-pro .tb-macro { display: none; } }
 @media (max-width: 980px) {
   .topbar-pro .logo .logo-name, .topbar-pro .tb-regime, .topbar-pro .vn-hero-meta { display: none; }
 }

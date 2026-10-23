@@ -111,8 +111,9 @@ function LinksLine({ links, onIndustry, onSelectTicker }: { links: MatrixLinks |
 /** M2 — hàng "Ngành & mã" (spec §10.1 hàng 3): heatmap ngành / Index Impact / mã biến động, chỉ tải khi mở Chi tiết. */
 function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: MatrixScope; active: Set<string>; onIndustry: (n: string | null) => void; onSelectTicker: (t: string) => void }) {
   const [view, setView] = useState<"sectors" | "impact" | "movers">("sectors");
+  const [impactLive, setImpactLive] = useState(false);
   const sectors = useMatrixSectors(scope, view === "sectors");
-  const impact = useMatrixImpact(view === "impact");
+  const impact = useMatrixImpact(view === "impact", impactLive);
   const movers = useMatrixMovers(scope, view === "movers");
   const cur = view === "sectors" ? sectors : view === "impact" ? impact : movers;
   return (
@@ -124,6 +125,14 @@ function SectorRow({ scope, active, onIndustry, onSelectTicker }: { scope: Matri
               className={`px-2 py-0.5 text-[10.5px] font-semibold ${view === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400"}`}>{l}</button>
           ))}
         </div>
+        {view === "impact" && (
+          <div role="tablist" aria-label="Thời điểm tác động" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
+            {([[false, "Phiên đã chốt"], [true, "Trong phiên"]] as const).map(([v, l]) => (
+              <button key={l} role="tab" aria-selected={impactLive === v} onClick={() => setImpactLive(v)} data-mx-impact-live={v ? "1" : "0"}
+                className={`px-2 py-0.5 text-[10px] ${impactLive === v ? "bg-violet-500/20 text-violet-200" : "text-slate-400"}`}>{l}</button>
+            ))}
+          </div>
+        )}
         {cur.isLoading && !cur.data && <span className="text-[10px] text-slate-500">Đang tải…</span>}
       </div>
       {cur.error && !cur.data && <p className="text-[10px] text-rose-300" role="alert">Không khả dụng: {cur.error.message}</p>}

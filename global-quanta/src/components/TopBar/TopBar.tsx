@@ -5,6 +5,7 @@
 import RegimeBadge from './RegimeBadge';
 import VnIndexHero from './VnIndexHero';
 import MacroTickerItem from './MacroTickerItem';
+import MacroStrip from './MacroStrip';
 import MarketBreadth from './MarketBreadth';
 import LiquidityCheckBadge, { LiquidityDetail } from './LiquidityCheckBadge';
 import SessionClock from './SessionClock';
@@ -64,9 +65,7 @@ export default function TopBar() {
 
       <div className="tb-zone tb-zone-center">
         <VnIndexHero block={b.index} />
-        <div className="tickers ticker-strip" aria-label="Vĩ mô">
-          {b.macro.map((m, i) => <MacroTickerItem key={MACRO_LABELS[i]} block={m} fallbackLabel={MACRO_LABELS[i]} />)}
-        </div>
+        <MacroStrip blocks={b.macro} labels={MACRO_LABELS} />
       </div>
 
       <div className="tb-zone tb-zone-right">
