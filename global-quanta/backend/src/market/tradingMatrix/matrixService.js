@@ -71,6 +71,7 @@ export const SNAPSHOT_TABLE = "market_matrix_snapshot";
 const HISTORY = 260;
 
 export const LIVE_IMPACT_TTL_MS = 5 * 60_000;
+export const LIVE_IMPACT_DEADLINE_MS = 4 * 60_000;
 const LIVE_SESSIONS = new Set(["ATO", "LO", "BREAK", "ATC"]);
 
 export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, fetchDay = fetchMarketDay, now = Date.now, log = console }) {
@@ -146,8 +147,12 @@ export function createMatrixService({ service, store, getStructure = () => null,
       service.getIndexSnapshot("VNINDEX"),
       store.getKv("scanner:taxonomy").then((r) => r?.value?.map ?? {}).catch(() => ({})),
     ]);
+    // Sự kiện quyền: nạp GỘP một lượt (trước đây gọi lẻ ~420 mã tuần tự -> nhiều phút).
     const events = new Map();
-    if (corporateActions) for (const s of hose) { const ca = await corporateActions.get(s).catch(() => null); if (ca?.events?.length) events.set(s, ca.events); }
+    if (corporateActions) {
+      await corporateActions.prefetch?.(hose).catch(() => {});
+      for (const s of hose) { const ca = await corporateActions.get(s).catch(() => null); if (ca?.events?.length) events.set(s, ca.events); }
+    }
     // Trong giờ SSI DailyIndex trả điểm = 0 -> lấy điểm hiện tại như thanh trên (nến phút SSI).
     const ix = await resolveIndexNow({ service, snap, today, prevClose: idx.at(-1)?.close ?? null, intraday: true });
     const r = indexImpact({ date: today, rows, shares: sh.map, eventsOf: (s) => events.get(s) ?? null, indexPrev: idx.at(-1)?.close ?? null, indexClose: ix.value, taxonomy: tax });
@@ -161,7 +166,11 @@ export function createMatrixService({ service, store, getStructure = () => null,
     if (!LIVE_SESSIONS.has(session)) return { live: false, session, reason: "Ngoài giờ giao dịch — xem tác động của phiên đã chốt." };
     const fresh = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) && now() - live.at < LIVE_IMPACT_TTL_MS;
     if (!fresh && !live.inflight) {
-      live.inflight = buildLive().then((doc) => { live = { at: now(), doc, inflight: null, error: null }; })
+      const t0 = Date.now();
+      let timer;
+      const deadline = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`quá ${LIVE_IMPACT_DEADLINE_MS / 60_000} phút`)), LIVE_IMPACT_DEADLINE_MS); });
+      live.inflight = Promise.race([buildLive(), deadline]).finally(() => clearTimeout(timer))
+        .then((doc) => { live = { at: now(), doc, inflight: null, error: null }; log.info?.(`[matrix] impact trong phiên: ${Math.round((Date.now() - t0) / 1000)} giây`); })
         .catch((e) => { live.inflight = null; live.error = e.message; log.warn?.(`[matrix] impact trong phiên: ${e.message}`); });
     }
     const todays = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) ? live.doc : null;
