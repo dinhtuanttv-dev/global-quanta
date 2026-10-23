@@ -211,3 +211,19 @@ test("tự dựng lại dữ liệu cục bộ: đúng thứ tự phụ thuộc,
   assert.equal(r2.status, "error");
   assert.equal(r2.steps.length, 1);
 });
+
+test("dòng market_daily đọc từ đĩa: đủ 20 cột theo đúng thứ tự, giá trị y hệt dòng ghi (object hình dạng cố định)", async () => {
+  const dir = tmp();
+  const row = { symbol: "FPT", date: "2026-10-02", exchange: "HOSE", open: 1, high: 2, low: 0.5, close: 1.5, closeAdj: 1.4, refPrice: 1.2, ceiling: 1.3, floor: 1.1, volume: 10,
+    value: 15.5, dealVolume: 0, dealValue: 0, foreignBuyVol: 3, foreignSellVol: 1, foreignBuyVal: 4.5, foreignSellVal: 1.5, foreignRoom: 99 };
+  const a = createLocalStore({ dir, log: { warn() {} } });
+  await a.upsertMarketDaily([row, { symbol: "VNM", date: "2026-10-02", close: 60 }]);
+  await new Promise((r) => setTimeout(r, 2100)); // ghi gom xuống đĩa
+  const b = createLocalStore({ dir, log: { warn() {} } }); // đọc lại từ đĩa
+  const [fpt, vnm] = (await b.getMarketDailyByDate("2026-10-02")).sort((x, y) => x.symbol.localeCompare(y.symbol));
+  assert.deepEqual(Object.keys(fpt), Object.keys(row));
+  assert.deepEqual(fpt, row);
+  assert.equal(vnm.close, 60); assert.equal(vnm.high, null); assert.equal(Object.keys(vnm).length, 20);
+  assert.deepEqual(await b.getMarketDailyRange({ from: "2026-10-01", to: "2026-10-03", symbols: ["FPT"] }), [row]);
+  fs.rmSync(dir, { recursive: true, force: true });
+});

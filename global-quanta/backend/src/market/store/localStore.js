@@ -19,6 +19,10 @@ const DATE_COL = {
 const DAILY_FIELDS = ["symbol", "date", "exchange", "open", "high", "low", "close", "closeAdj", "refPrice", "ceiling", "floor", "volume", "value",
   "dealVolume", "dealValue", "foreignBuyVol", "foreignSellVol", "foreignBuyVal", "foreignSellVal", "foreignRoom"];
 
+/** Một dòng market_daily từ mảng giá trị theo DAILY_FIELDS — object literal (hình dạng cố định, thuộc tính nhanh). */
+const dailyRow = (a) => ({ symbol: a[0], date: a[1], exchange: a[2], open: a[3], high: a[4], low: a[5], close: a[6], closeAdj: a[7], refPrice: a[8], ceiling: a[9], floor: a[10], volume: a[11],
+  value: a[12], dealVolume: a[13], dealValue: a[14], foreignBuyVol: a[15], foreignSellVol: a[16], foreignBuyVal: a[17], foreignSellVal: a[18], foreignRoom: a[19] });
+
 const monthsBetween = (from, to) => {
   const out = [];
   let y = Number(from.slice(0, 4)), m = Number(from.slice(5, 7));
@@ -39,7 +43,14 @@ export function createLocalStore({ dir = null, ramMb = 96, log = console, now = 
 
   // ---------- market_daily ----------
   const packDay = (rows) => ({ cols: DAILY_FIELDS, rows: rows.map((r) => DAILY_FIELDS.map((f) => r[f] ?? null)) });
-  const unpackDay = (doc) => (doc?.rows ?? []).map((a) => { const o = {}; doc.cols.forEach((c, i) => { o[c] = a[i]; }); return o; });
+  // 23/10/2026: gán thuộc tính động (o[c] = …) cho 20 cột làm V8 chuyển object sang chế độ "dictionary" (~1 KB/dòng — đệm Trading Matrix
+  // 260 phiên chiếm >100 MB heap). Cột chuẩn -> object literal cố định hình dạng (~280 B/dòng); cùng khoá, cùng thứ tự, cùng giá trị.
+  const sameCols = (cols) => cols.length === DAILY_FIELDS.length && cols.every((c, i) => c === DAILY_FIELDS[i]);
+  const unpackDay = (doc) => {
+    if (!doc?.rows) return [];
+    if (sameCols(doc.cols)) return doc.rows.map(dailyRow);
+    return doc.rows.map((a) => { const o = {}; doc.cols.forEach((c, i) => { o[c] = a[i]; }); return o; });
+  };
   const dayMap = (date) => {
     const doc = seg.get(`md/${date}`);
     return new Map(unpackDay(doc).map((r) => [r.symbol, r]));
