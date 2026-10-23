@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import v8 from "node:v8";
 import cors from "cors";
 import scanRouter from "./routes/scan.js";
 import ssiRouter from "./routes/ssi.js";
@@ -66,6 +67,8 @@ function healthHandler(req, res) {
     status: "ok",
     mock_mode: process.env.USE_MOCK_DATA !== "false",
     time: new Date().toISOString(),
+    // Theo dõi heap (Gateway từng OOM 23/10/2026): MB đang dùng / trần heap V8 / RSS.
+    memory: (() => { const m = process.memoryUsage(), mb = (b) => Math.round(b / 1048576); return { heapUsedMb: mb(m.heapUsed), heapLimitMb: mb(v8.getHeapStatistics().heap_size_limit), rssMb: mb(m.rss) }; })(),
   });
 }
 

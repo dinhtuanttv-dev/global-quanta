@@ -1,13 +1,17 @@
 // M0 (2026-10-22) — tầng đĩa cho kho cục bộ: mỗi "đoạn" là một tệp JSON nén gzip trên Railway Volume.
 //   - Ghi NGUYÊN TỬ: ghi tệp tạm rồi rename (tiến trình chết giữa chừng không để lại tệp hỏng).
 //   - Ghi gom (debounce) theo đoạn: nhiều lần sửa liên tiếp (VD dòng lệnh theo phút) chỉ ghi đĩa một lần.
-//   - Đệm RAM LRU giới hạn theo BYTE (ước lượng = độ dài JSON) — đoạn bẩn không bị đẩy ra trước khi ghi xong.
+//   - Đệm RAM LRU giới hạn theo BYTE HEAP (ước lượng = độ dài JSON × HEAP_PER_JSON_BYTE) — đoạn bẩn không bị đẩy ra trước khi ghi xong.
+//     23/10/2026: trước đây trần tính theo độ dài JSON, nhưng object đã parse chiếm ≈ 3× (đo: 22 MB JSON ngày -> 67 MB heap),
+//     nên trần 96 MB thực tế ≈ 290 MB heap -> Gateway hết heap (OOM ~475 MB) sau 10–40 phút khi người dùng đọc nhiều.
 // Không có thư mục (chạy local/test không gắn volume) -> chỉ RAM, hành vi giống memoryStore.
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 
 const MB = 1024 * 1024;
+/** Heap của giá trị đã parse / độ dài JSON (đo 2026-10-23 trên đoạn md/<ngày>: 3,06). */
+export const HEAP_PER_JSON_BYTE = 3;
 export const safeName = (s) => String(s).replace(/[^A-Za-z0-9_.-]/g, (c) => `%${c.charCodeAt(0).toString(16).padStart(2, "0")}`);
 export const unsafeName = (s) => s.replace(/%([0-9a-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 
@@ -21,7 +25,7 @@ export function createSegments({ dir = null, ramMb = 96, flushMs = 2_000, log = 
     try { fs.mkdirSync(dir, { recursive: true }); disk = true; } catch (e) { log.warn?.(`[local-store] không dùng được ${dir}: ${e.message} — chỉ RAM.`); }
   }
   const fileOf = (id) => path.join(dir, ...id.split("/").map(safeName)) + ".json.gz";
-  const size = (v) => { try { return JSON.stringify(v)?.length ?? 0; } catch { return 0; } };
+  const size = (v) => { try { return (JSON.stringify(v)?.length ?? 0) * HEAP_PER_JSON_BYTE; } catch { return 0; } };
 
   function touch(id, entry) {
     if (ram.has(id)) ramBytes -= ram.get(id).bytes;
