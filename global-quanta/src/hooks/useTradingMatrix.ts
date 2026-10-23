@@ -89,7 +89,7 @@ export interface IndexImpactDoc {
   sectors: { industry: string; group: string; points: number; up: number; down: number; n: number }[];
   sharesSource: string; sharesAsOf: string | null; sharesWarning: string | null; method: string; vn30Note: string;
   /** Trong phiên (?live=1): asOf = lúc lấy giá toàn sàn; ageSec tuổi bản đệm; pending khi đang tải lần đầu; live=false ngoài giờ. */
-  horizon?: "intraday"; live?: boolean; pending?: boolean; refreshing?: boolean; ageSec?: number; reason?: string; asOf?: string; indexAsOf?: string | null; prevSession?: string | null;
+  horizon?: "intraday"; live?: boolean; pending?: boolean; refreshing?: boolean; ageSec?: number; lastError?: string | null; reason?: string; asOf?: string; indexAsOf?: string | null; prevSession?: string | null;
 }
 type ImpactLite = { symbol: string; points: number; changePct: number; industry: string };
 export interface MatrixLinks {

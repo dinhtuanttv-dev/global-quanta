@@ -42,7 +42,7 @@ export default function IndexImpactTable({ data, onSelect, onIndustry }: { data:
     <div className="space-y-2" data-testid="mx-impact">
       <p className="text-[10px] text-slate-300">
         {data.horizon === "intraday"
-          ? <>Trong phiên {when(data.date)} · giá lúc {new Date(data.asOf ?? "").toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{data.refreshing ? " (đang làm mới)" : ""} · so đóng cửa {when(data.prevSession ?? null)}</>
+          ? <>Trong phiên {when(data.date)} · giá lúc {new Date(data.asOf ?? "").toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{data.refreshing ? " (đang làm mới)" : ""} · so đóng cửa {when(data.prevSession ?? null)}{data.lastError ? <span className="text-amber-300"> · đang dùng bản {Math.round((data.ageSec ?? 0) / 60)} phút trước ({data.lastError})</span> : null}</>
           : <>Phiên {when(data.date)}</>} · Σ đóng góp <b className="font-mono">{c ? `${c.predictedPoints >= 0 ? "+" : ""}${vn(c.predictedPoints, 2)}` : "—"}</b> điểm
         {c?.actualPoints != null && <> · VN-Index thật <b className="font-mono">{c.actualPoints >= 0 ? "+" : ""}{vn(c.actualPoints, 2)}</b> điểm</>}
         {c && <span className={`ml-1 text-[9px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`} data-testid="mx-impact-check">
