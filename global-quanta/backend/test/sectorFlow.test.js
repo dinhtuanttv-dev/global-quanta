@@ -53,3 +53,11 @@ test("cổ phiếu dẫn dắt: RS cao, trên MA50/MA200, gần đỉnh, mạnh 
   assert.deepEqual(f.leaders[0].tags, ["SEPA · SẴN SÀNG MUA"]);
   assert.equal(f.leaders.find((l) => l.ticker === "WEA").leader, false);
 });
+
+test("mã có đúng 251 phiên (i = 250) không làm sập job — chưa đủ 252 phiên thì không tính 'gần đỉnh 52 tuần'", () => {
+  const full = ["FUA", "FUB"].map((t) => mk(t, (i) => 100 + i * 0.1, () => 1e9));
+  const young = mk("YNG", (i) => 50 + i * 0.1, () => 1e9); young.bars = young.bars.slice(-251);
+  const members = [...full, young], seriesOf = new Map(members.map((m) => [m.ticker, m.bars]));
+  const f = sectorFlow({ members, index: buildSectorIndex(members, DATES).series, dates: DATES, totals: totalValueByDate(seriesOf), rs: rsPercentiles(seriesOf) });
+  assert.ok(f.breadth, "có độ rộng ngành");
+});
