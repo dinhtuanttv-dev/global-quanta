@@ -8,6 +8,7 @@ import ElliottSketch, { ElliottSchematic } from "./ElliottSketch";
 import type { ElliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 import type { ElliottState } from "../../../lib/quant-core/elliott";
+import { elliottProjection, PROJECTION_NOTE } from "../../../lib/quant-core/elliott/projection";
 import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, ELLIOTT_VN_VALIDATION, oscCheckVnNote, type ElliottCheckKey } from "../../../lib/quant-core/elliott/vnValidation";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 
@@ -96,10 +97,54 @@ interface CardProps {
   onSuggest: () => void;
   detailOpen: boolean;
   onToggleDetail: () => void;
+  /** DW2/DW3: lớp thang Fibonacci + đường kịch bản minh hoạ (mặc định TẮT). */
+  fibOn?: boolean;
+  projOn?: boolean;
+  onToggleFib?: () => void;
+  onToggleProj?: () => void;
+  /** DW1: cách đếm đang vẽ trên khung đang xem (0 = chính, 1–2 = phương án xếp sau). */
+  pick?: number;
+  onPick?: (k: number) => void;
+  /** Giá đóng cửa nến cuối của khung đang xem (gốc đường kịch bản). */
+  lastClose?: number | null;
 }
 
-export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail }: CardProps) {
+/** DW1: chọn cách đếm để vẽ — chính + phương án, kèm trọng số TƯƠNG ĐỐI (không phải xác suất). */
+function CountPicker({ options, pick, onPick }: { options: ElliottState[]; pick: number; onPick: (k: number) => void }) {
+  if (options.length < 2) return null;
+  return (
+    <div className="space-y-0.5" data-testid="elliott-count-picker">
+      <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Cách đếm vẽ trên biểu đồ">
+        {options.map((o, k) => (
+          <button key={k} type="button" role="radio" aria-checked={pick === k} onClick={() => onPick(k)} title={o.label} data-testid={`elliott-pick-${k}`}
+            className={`text-[9px] px-1.5 py-0.5 rounded-md border ${pick === k ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+            {k === 0 ? "Chính" : `Phương án ${k + 1}`}{o.weight != null ? ` · ${Math.round(o.weight * 100)}%` : ""}
+          </button>
+        ))}
+      </div>
+      {pick > 0 && options[pick] && <p className="text-[9px] text-amber-200/90 leading-snug">Đang vẽ: {options[pick].label}</p>}
+    </div>
+  );
+}
+
+/** DW3: căn cứ từng chặng của đường kịch bản đang vẽ. */
+function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose: number | null }) {
+  const pr = st && lastClose != null ? elliottProjection(st, lastClose) : null;
+  return (
+    <div className="rounded-lg p-2 space-y-0.5" style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)" }} data-testid="elliott-projection-basis">
+      {pr ? <ul className="text-[9px] text-slate-300 space-y-0.5">{pr.basis.map((b) => <li key={b}>• {b}</li>)}</ul>
+        : <p className="text-[9px] text-slate-500">Không có đường kịch bản cho trạng thái này (đã qua ABC, chưa rõ cấu trúc, hoặc giá đã vượt mọi mức của engine).</p>}
+      <p className="text-[8.5px] text-slate-500 leading-snug">{PROJECTION_NOTE}</p>
+    </div>
+  );
+}
+
+export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, pick = 0, onPick, lastClose = null }: CardProps) {
   const frameOk = timeframe === "D" || timeframe === "W";
+  const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
+  const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
+  const drawn = options[pick] ?? cur;
   const btn = (on: boolean) => `inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
   return (
     <div style={CARD} className="rounded-xl p-3 space-y-1.5" data-testid="elliott-panel">
@@ -112,6 +157,7 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           <FrameRow tag="Tuần" st={mtf.week} partial={mtf.week?.partial} osc={mtf.osc.week} />
           <FrameRow tag="Ngày" st={mtf.day} osc={mtf.osc.day} />
           <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
+          {onPick && <CountPicker options={options} pick={pick} onPick={onPick} />}
         </>
       )}
       <div className="flex flex-wrap gap-1 pt-0.5">
@@ -121,6 +167,18 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
         <button type="button" onClick={onToggleOsc} aria-pressed={oscOn} className={btn(oscOn)} data-testid="elliott-toggle-osc">
           {oscOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Oscillator
         </button>
+        {onToggleFib && (
+          <button type="button" onClick={onToggleFib} aria-pressed={fibOn} disabled={!frameOk} className={btn(fibOn)} data-testid="elliott-toggle-fib"
+            title="Thang Fibonacci của cách đếm đang chọn (mục tiêu sóng, mức hồi, mục tiêu sóng C)">
+            {fibOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Fibonacci
+          </button>
+        )}
+        {onToggleProj && (
+          <button type="button" onClick={onToggleProj} aria-pressed={projOn} disabled={!frameOk} className={btn(projOn)} data-testid="elliott-toggle-proj"
+            title={PROJECTION_NOTE}>
+            {projOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kịch bản
+          </button>
+        )}
         <button type="button" onClick={onSuggest} disabled={!frameOk} className={btn(false)} data-testid="elliott-suggest"
           title={frameOk ? "Đưa đếm sóng của engine thành BẢN NHÁP hình vẽ tay — bạn chấp nhận hoặc huỷ" : "Gợi ý chỉ có trên khung D / W"}>
           <Sparkles className="w-3 h-3" />Gợi ý vẽ
@@ -129,6 +187,7 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           <LineChart className="w-3 h-3" />Phác đồ chi tiết
         </button>
       </div>
+      {projOn && frameOk && mtf && <ProjectionBasis st={drawn} lastClose={lastClose} />}
     </div>
   );
 }

@@ -49,6 +49,7 @@ import OrderFlowPanel from "./OrderFlowPanel";
 import { aggregateToWeekly, isIntradayTf } from "../../../lib/ta-command-center/TimeframeController";
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { elliottOscData, type ElliottState } from "../../../lib/quant-core/elliott";
+import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
 import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
 import type { Analysis } from "../../../lib/quant-core";
 
@@ -136,6 +137,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [elliottProposal, setElliottProposal] = useState<DomainPoint[] | null>(null);
   const [elliottDetail, setElliottDetail] = useState(false);
   useEffect(() => { setElliottProposal(null); }, [ticker, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+  // DW1: cách đếm đang vẽ (0 = chính, 1–2 = phương án) — về "chính" khi đổi mã / khung / dữ liệu.
+  const [elliottPick, setElliottPick] = useState(0);
+  useEffect(() => { setElliottPick(0); }, [ticker, timeframe, mtf]); // eslint-disable-line react-hooks/exhaustive-deps
   // T5 — Cấu trúc MTF: chỉ tải khi bật lớp; chế độ hiển thị nhớ trên máy.
   const [structureMode, setStructureModeState] = useState<StructureMode>(readStructureMode);
   const setStructureMode = (m: StructureMode) => { setStructureModeState(m); try { window.localStorage.setItem(STRUCTURE_MODE_KEY, m); } catch { /* bỏ qua */ } };
@@ -363,12 +367,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // Đếm sóng tự động cho khung đang xem: D = khung ngày (+ đếm tuần ghim vào nến ngày), W = khung tuần; khung khác không vẽ.
   const elliottScene = useMemo(() => {
     if (!mtf) return null;
-    if (timeframe === "W") return { primary: mtf.week };
+    const pick = (st: ElliottState | null) => (st && elliottPick > 0 ? st.alternates?.[elliottPick - 1] ?? st : st);
+    if (timeframe === "W") return { primary: pick(mtf.week) };
     if (timeframe !== "D") return null;
     const higher = mtf.week?.scenario
       ? { points: mtf.weekPivotsOnDaily.map((p) => ({ date: p.dayDate, price: p.price })), labels: mtf.weekPivotsOnDaily.map((_, k) => `(${k})`) } : null;
-    return { primary: mtf.day, higher };
-  }, [mtf, timeframe]);
+    return { primary: pick(mtf.day), higher };
+  }, [mtf, timeframe, elliottPick]);
 
   // P5: mô hình giá Pring (Pattern Scanner v2) — chỉ tải khi bật lớp, khung D / W.
   const pringOn = Boolean(layerState?.pring) && (timeframe === "D" || timeframe === "W") && !TA_INDICES.some((x) => x.symbol === ticker);
@@ -391,8 +396,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!tv) return;
     const close = currentBars[currentBars.length - 1]?.close ?? 0;
     tv.setPriceLevels(structureOn && !replayed ? structureLevels(structure.data, structureMode, close) : []);
-    tv.setRightOffset(structureOn && structureMode !== "overview" && (timeframe === "D" || timeframe === "1H") ? 26 : 6);
-  }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed]); // eslint-disable-line react-hooks/exhaustive-deps
+    const structureRoom = structureOn && structureMode !== "overview" && (timeframe === "D" || timeframe === "1H") ? 26 : 6;
+    // DW3: chừa đủ chỗ cho đường kịch bản Elliott (nến xa nhất + 4, tối đa 60) khi lớp đang bật.
+    const proj = layerState?.elliottProj && elliottScene?.primary ? elliottProjection(elliottScene.primary, close) : null;
+    const projRoom = proj?.legs.length ? Math.min(60, proj.legs[proj.legs.length - 1].k + 4) : 0;
+    tv.setRightOffset(Math.max(structureRoom, projRoom));
+  }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed, layerState?.elliottProj, elliottScene]); // eslint-disable-line react-hooks/exhaustive-deps
   const openStructure = () => {
     const controller = controllerRef.current;
     if (!controller) return;
@@ -600,6 +609,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
           onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
           onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}
+          fibOn={!!layerState?.elliottFib} projOn={!!layerState?.elliottProj}
+          onToggleFib={() => controllerRef.current?.layers.toggle("elliottFib")}
+          onToggleProj={() => controllerRef.current?.layers.toggle("elliottProj")}
+          pick={elliottPick} onPick={setElliottPick} lastClose={currentBars[currentBars.length - 1]?.close ?? null}
           onSuggest={handleSuggestElliott} detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
       </div>
       {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}

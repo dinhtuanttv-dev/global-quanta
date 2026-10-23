@@ -24,6 +24,9 @@ export interface ElliottState {
   weight: number | null;
   scenario: ElliottScenario | null;
   alternatives: { label: string; weight: number | null }[];
+  /** DW1 (23/10/2026): trạng thái ĐẦY ĐỦ của các phương án xếp sau (cùng lần chạy engine, cùng điểm số) để chọn vẽ lên biểu đồ.
+   *  Chỉ có ở kịch bản chính; phương án thì rỗng. */
+  alternates?: ElliottState[];
   invalidation: { price: number; side: "above" | "below"; reason: string } | null;
   levels: FibLevel[];
   /** Pivot đã xác nhận (ci ≠ null) + pivot cuối đang chạy. */
@@ -108,22 +111,25 @@ export function elliottState(bars: OhlcvBar[], opts: { zigzagPct?: number; degre
   const res = analyzeFull(toCandles(window), { ...zz, pro: { topN: 3, statTables: ELLIOTT_VN_TABLES, ...(opts.degrees ? { degrees: opts.degrees } : {}) } }) as ReturnType<typeof analyzeFull> & { signals?: LiveSignal[] };
   const asOf = window[window.length - 1].date;
   const sc = res.scenarios[0] as Scenario | undefined;
-  if (sc) {
-    const d = describe(sc, res.pivots);
-    const inv = invalidationOf(sc);
+  const stateOf = (x: Scenario): ElliottState => {
+    const inv = invalidationOf(x);
     return {
-      ...d,
-      dir: sc.dir,
-      degree: sc.degree ? DEGREE_VI[sc.degree] ?? sc.degree : null,
-      weight: sc.weight ?? null,
-      scenario: sc,
-      alternatives: (res.scenarios.slice(1, 3) as Scenario[]).map((x) => ({ label: describe(x, res.pivots).label, weight: x.weight ?? null })),
+      ...describe(x, res.pivots),
+      dir: x.dir,
+      degree: x.degree ? DEGREE_VI[x.degree] ?? x.degree : null,
+      weight: x.weight ?? null,
+      scenario: x,
+      alternatives: [],
       invalidation: inv ? { price: inv.price, side: inv.side, reason: inv.reason } : null,
-      levels: levelsOf(sc),
+      levels: levelsOf(x),
       pivots: res.pivots,
       asOf,
       barCount: window.length,
     };
+  };
+  if (sc) {
+    const alts = (res.scenarios.slice(1, 3) as Scenario[]).map(stateOf);
+    return { ...stateOf(sc), alternatives: alts.map((a) => ({ label: a.label, weight: a.weight })), alternates: alts };
   }
   const w3 = res.signals?.find((x) => x.type === "wave3");
   if (w3) {
