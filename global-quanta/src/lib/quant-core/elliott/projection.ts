@@ -92,3 +92,46 @@ export function elliottProjection(st: ElliottState | null, lastClose: number): E
   }
   return legs.length ? { from: st.asOf, fromPrice: lastClose, legs, basis } : null;
 }
+
+// ───────────────────────────── DW7: hình sóng con của đường kịch bản ─────────────────────────────
+/**
+ * Mẫu hình MINH HOẠ (tỷ lệ giá cộng dồn, tỷ lệ thời gian cộng dồn) cho một chặng — như đường vàng của bộ phác đồ:
+ *   motive   — 5 nhịp (i…v) cho chặng đẩy (1, 3, 5, C);
+ *   zigzag   — 3 nhịp a-b-c cho chặng điều chỉnh "Sharp" (2, A, B khi mặc định);
+ *   sideways — flat / đi ngang cho chặng điều chỉnh "Sideways" (sóng 4 khi sóng 2 là Sharp — luân phiên).
+ * Chỉ để vẽ: không phải dự báo hình dạng.
+ */
+export const PROJECTION_SHAPES = {
+  motive: { price: [0, 0.3, 0.16, 0.76, 0.6, 1], time: [0, 0.2, 0.32, 0.64, 0.78, 1] },
+  zigzag: { price: [0, 0.62, 0.38, 1], time: [0, 0.42, 0.62, 1] },
+  sideways: { price: [0, 0.75, 0.2, 1], time: [0, 0.3, 0.62, 1] },
+} as const;
+export type ProjectionShape = keyof typeof PROJECTION_SHAPES;
+
+const MOTIVE_LEGS = new Set(["1", "3", "5", "C"]);
+
+/** Hình của từng chặng: chặng đẩy = motive; sóng 4 theo luân phiên với sóng 2 (Sharp -> sideways); còn lại zigzag. */
+export function legShape(label: string, st: ElliottState): ProjectionShape {
+  if (MOTIVE_LEGS.has(label)) return "motive";
+  if (label === "4") return st.patterns?.wave2?.alt === "Sharp" ? "sideways" : "zigzag";
+  return "zigzag";
+}
+
+/** Đường kịch bản đầy đủ sóng con: danh sách điểm (k, giá) từ nến cuối, kèm vị trí kết thúc mỗi chặng (để gắn nhãn). */
+export function shapedPath(pr: ElliottProjection, st: ElliottState): { points: { k: number; price: number }[]; legEnds: { index: number; label: string }[] } {
+  const points = [{ k: 0, price: pr.fromPrice }];
+  const legEnds: { index: number; label: string }[] = [];
+  let prev = { k: 0, price: pr.fromPrice };
+  for (const leg of pr.legs) {
+    const sh = PROJECTION_SHAPES[legShape(leg.label, st)];
+    const dk = leg.k - prev.k, dp = leg.price - prev.price;
+    for (let j = 1; j < sh.price.length; j++) {
+      const last = j === sh.price.length - 1;
+      const k = last ? leg.k : Math.max(points[points.length - 1].k, prev.k + Math.round(dk * sh.time[j]));
+      points.push({ k, price: last ? leg.price : prev.price + dp * sh.price[j] });
+    }
+    legEnds.push({ index: points.length - 1, label: leg.label });
+    prev = { k: leg.k, price: leg.price };
+  }
+  return { points, legEnds };
+}

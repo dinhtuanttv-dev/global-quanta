@@ -2,7 +2,7 @@
 // Engine GET (quant-core/elliott) chạy trên trình duyệt từ chuỗi 750 phiên ngày; khung tuần gộp như biểu đồ W.
 // Kết quả DIỄN GIẢI (INFERRED) và EXPERIMENTAL: kiểm định E4 không thấy lợi thế lợi suất (vnValidation.ts).
 import { useState } from "react";
-import { Eye, EyeOff, LineChart, Sparkles, X } from "lucide-react";
+import { Eye, EyeOff, LineChart, PencilLine, Sparkles, X } from "lucide-react";
 import ProvenanceBadge from "./ProvenanceBadge";
 import ElliottSketch, { ElliottSchematic } from "./ElliottSketch";
 import { PatternChips, PatternRules } from "./ElliottPatternViews";
@@ -10,6 +10,7 @@ import type { ElliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 import type { ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottProjection, PROJECTION_NOTE } from "../../../lib/quant-core/elliott/projection";
+import { INTRADAY_NOTE } from "../../../lib/quant-core/elliott/intraday";
 import { ELLIOTT_VN_NOTE, ELLIOTT_VN_TABLES, ELLIOTT_VN_VALIDATION, oscCheckVnNote, type ElliottCheckKey } from "../../../lib/quant-core/elliott/vnValidation";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 
@@ -69,7 +70,7 @@ function OscLine({ o }: { o: OscRow }) {
 
 function FrameRow({ tag, st, partial, osc }: { tag: string; st: ElliottState | null; partial?: boolean; osc?: OscRow }) {
   return (
-    <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : "D"}`}>
+    <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : tag === "Ngày" ? "D" : tag}`}>
       <div className="flex items-center gap-1.5">
         <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{tag}</span>
         {partial && <span className="text-[8px] text-amber-300/80" title="Nến tuần cuối chưa đóng — cấu trúc tuần có thể đổi khi hết tuần">tuần chưa hết</span>}
@@ -104,11 +105,25 @@ interface CardProps {
   projOn?: boolean;
   onToggleFib?: () => void;
   onToggleProj?: () => void;
+  /** DW5: kênh Base / Final / Corrective + điểm kích hoạt + giá đỉnh/đáy + thẻ mô hình. */
+  guideOn?: boolean;
+  onToggleGuide?: () => void;
+  /** DW6: sóng con bậc nhỏ + nhãn kép bậc lớn. */
+  subOn?: boolean;
+  onToggleSub?: () => void;
+  /** DW8: chỉnh tay cách đếm + lớp "của tôi". */
+  editing?: boolean;
+  onEdit?: () => void;
+  mineOn?: boolean;
+  hasMine?: boolean;
+  onToggleMine?: () => void;
   /** DW1: cách đếm đang vẽ trên khung đang xem (0 = chính, 1–2 = phương án xếp sau). */
   pick?: number;
   onPick?: (k: number) => void;
   /** Giá đóng cửa nến cuối của khung đang xem (gốc đường kịch bản). */
   lastClose?: number | null;
+  /** DW9: trạng thái Elliott của khung trong ngày (1H / 15m) đang xem. */
+  intraday?: ElliottState | null;
 }
 
 /** DW1: chọn cách đếm để vẽ — chính + phương án, kèm trọng số TƯƠNG ĐỐI (không phải xác suất). */
@@ -142,9 +157,10 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
 }
 
 export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onToggleAuto, onToggleOsc, onSuggest, detailOpen, onToggleDetail,
-  fibOn = false, projOn = false, onToggleFib, onToggleProj, pick = 0, onPick, lastClose = null }: CardProps) {
-  const frameOk = timeframe === "D" || timeframe === "W";
-  const cur = !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
+  fibOn = false, projOn = false, onToggleFib, onToggleProj, guideOn = false, onToggleGuide, subOn = false, onToggleSub, editing = false, onEdit, mineOn = false, hasMine = false, onToggleMine, pick = 0, onPick, lastClose = null, intraday = null }: CardProps) {
+  const isIntra = timeframe === "1H" || timeframe === "15m";
+  const frameOk = timeframe === "D" || timeframe === "W" || (isIntra && !!intraday);
+  const cur = isIntra ? intraday : !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
   const drawn = options[pick] ?? cur;
   const btn = (on: boolean) => `inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
@@ -158,6 +174,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
         <>
           <FrameRow tag="Tuần" st={mtf.week} partial={mtf.week?.partial} osc={mtf.osc.week} />
           <FrameRow tag="Ngày" st={mtf.day} osc={mtf.osc.day} />
+          {isIntra && (
+            <div data-testid="elliott-row-intraday">
+              <FrameRow tag={timeframe} st={intraday} />
+              <p className="text-[8.5px] text-slate-500 leading-snug">{intraday ? INTRADAY_NOTE : "Chưa đủ nến trong ngày để đếm sóng (cần ≥ 100 nến 1H / 200 nến 15m)."}</p>
+            </div>
+          )}
           <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
           {onPick && <CountPicker options={options} pick={pick} onPick={onPick} />}
         </>
@@ -175,10 +197,33 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
             {fibOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Fibonacci
           </button>
         )}
+        {onToggleGuide && (
+          <button type="button" onClick={onToggleGuide} aria-pressed={guideOn} disabled={!frameOk} className={btn(guideOn)} data-testid="elliott-toggle-guide"
+            title="Kênh Base / Final / Corrective, vòng tròn kích hoạt (nến phá kênh), giá tại đỉnh/đáy, thẻ mô hình và luân phiên Sharp / Sideways">
+            {guideOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kênh & mốc
+          </button>
+        )}
+        {onToggleSub && (
+          <button type="button" onClick={onToggleSub} aria-pressed={subOn} disabled={!frameOk} className={btn(subOn)} data-testid="elliott-toggle-sub"
+            title="Sóng con bậc nhỏ (i…v trong sóng đẩy, a b c trong sóng điều chỉnh) + nhãn kép bậc lớn (1)/(A) sau 5 sóng">
+            {subOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Bậc nhỏ
+          </button>
+        )}
         {onToggleProj && (
           <button type="button" onClick={onToggleProj} aria-pressed={projOn} disabled={!frameOk} className={btn(projOn)} data-testid="elliott-toggle-proj"
             title={PROJECTION_NOTE}>
             {projOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Kịch bản
+          </button>
+        )}
+        {onEdit && (
+          <button type="button" onClick={onEdit} aria-pressed={editing} disabled={!frameOk} className={btn(editing)} data-testid="elliott-edit"
+            title="Chỉnh tay cách đếm: bắt đầu từ cách đếm đang vẽ (hoặc phiên bản của bạn), chọn điểm trên biểu đồ, lưu thành phiên bản">
+            <PencilLine className="w-3 h-3" />Chỉnh tay
+          </button>
+        )}
+        {onToggleMine && hasMine && (
+          <button type="button" onClick={onToggleMine} aria-pressed={mineOn} disabled={!frameOk} className={btn(mineOn)} data-testid="elliott-toggle-mine" title="Hiện cách đếm của tôi (phiên bản đang dùng)">
+            {mineOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Của tôi
           </button>
         )}
         <button type="button" onClick={onSuggest} disabled={!frameOk} className={btn(false)} data-testid="elliott-suggest"

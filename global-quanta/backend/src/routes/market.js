@@ -3,6 +3,8 @@
 
 import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
 import { getUserChartState, normalizeChartSymbol, saveUserChartState } from "../market/watchlists/userChartState.js";
+import { deleteUserElliottCounts, getUserElliottCounts, normalizeCountKey, saveUserElliottCounts } from "../market/watchlists/userElliottCounts.js";
+import { listUserAlerts, markEventsRead, saveUserAlerts } from "../market/watchlists/userElliottAlerts.js";
 import { Router } from "express";
 import { timingSafeEqual } from "node:crypto";
 import { getMarketRuntime } from "../market/runtime.js";
@@ -492,6 +494,44 @@ router.put("/chart-state", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveUserChartState(getMarketRuntime().store, userId, normalizeChartSymbol(req.query.symbol), req.body ?? {}));
+}));
+
+// DW8: cách đếm Elliott chỉnh tay theo tài khoản + mã + khung (lịch sử phiên bản):
+//   GET /elliott/counts?symbol=FPT&tf=D · PUT (body { activeId, versions }) · DELETE (xoá mọi phiên bản của mã + khung).
+router.get("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf)));
+}));
+router.put("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf), req.body ?? {}));
+}));
+router.delete("/elliott/counts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await deleteUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf)));
+}));
+
+// DW10: cảnh báo Elliott khi giá chạm mốc (người dùng tự bật): GET /elliott/alerts (cảnh báo + 50 lần báo gần nhất) ·
+//   PUT /elliott/alerts { alerts } (thay cả danh sách) · POST /elliott/alerts/read { ids? } (đánh dấu đã đọc).
+//   Telegram chỉ cho tài khoản quản trị (bot gửi về chat vận hành của chủ hệ thống).
+router.get("/elliott/alerts", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await listUserAlerts(getMarketRuntime().store, userId));
+}));
+router.put("/elliott/alerts", handle(async (req, res) => {
+  const who = await getMarketRuntime().auth.verifyAccess(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserAlerts(getMarketRuntime().store, who.userId, req.body ?? {}, { allowTelegram: !!who.admin }));
+}));
+router.post("/elliott/alerts/read", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.map((x) => String(x).slice(0, 80)) : null;
+  res.json(await markEventsRead(getMarketRuntime().store, userId, ids));
 }));
 
 router.put("/radar/snapshot", handle(async (req, res) => {

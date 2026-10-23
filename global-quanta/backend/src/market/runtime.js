@@ -34,6 +34,7 @@ import { createMatrixService, MATRIX_SCHEDULE } from "./tradingMatrix/matrixServ
 import { createTopbarService, TOPBAR_SCHEDULE } from "./topbar/topbarService.js";
 import { createAuthService } from "../auth/authService.js";
 import { importSupabaseUserData, listSupabaseUsers } from "../auth/importSupabaseUserData.js";
+import { createElliottAlertEvaluator } from "./watchlists/userElliottAlerts.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 
@@ -98,6 +99,9 @@ export function getMarketRuntime() {
   // Đăng nhập trên Railway (thay Supabase Auth): tài khoản / phiên / khoá ký trên Volume (bảng auth_* local-only).
   const auth = createAuthService({ store });
   jobs.authBackup = () => auth.backup();
+  // DW10: cảnh báo Elliott theo mốc giá (người dùng tự bật) — kiểm mỗi 60 giây trong phiên; Telegram qua bot vận hành.
+  const elliottAlerts = createElliottAlertEvaluator({ store, service, send: (text, id) => notifyOps(`elliott-alert:${id}`, text) });
+  jobs.elliottAlertsTick = () => elliottAlerts.tick({ force: true });
   // Khi Supabase mở lại: nhập một lần danh mục / hình vẽ / radar cũ, ghép người dùng theo email (chạy tay qua admin).
   jobs.importSupabaseUserData = async () => {
     if (!store.readInner) return { skipped: "Không có kho Supabase phía sau." };
@@ -121,7 +125,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, started: false };
   return runtime;
 }
 
@@ -134,6 +138,7 @@ export function startMarketIngestor() {
   rt.scheduler.start({ runOnStart });
   rt.tickRecorder.start();
   rt.cotucScanner.start();
+  rt.elliottAlerts.start();
   // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
   if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();
   console.log(`[market] Ingestor đã bật (store=${rt.store.kind}).`);

@@ -1,6 +1,6 @@
 ﻿import { EventEmitter } from "./EventEmitter";
 
-export type LayerKey = "volume" | "rsi" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "pring" | "structure";
+export type LayerKey = "volume" | "rsi" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "pring" | "structure";
 
 export interface LayerState {
   volume: boolean; rsi: boolean; vprofile: boolean; avwap: boolean; orderflow: boolean; foreign: boolean; smc: boolean; vsa: boolean; wyckoff: boolean; corporate: boolean;
@@ -9,6 +9,12 @@ export interface LayerState {
   elliottAuto: boolean; elliottOsc: boolean;
   /** DW2/DW3: thang Fibonacci + đường kịch bản minh hoạ của cách đếm đang chọn. */
   elliottFib: boolean; elliottProj: boolean;
+  /** DW5: kênh Base / Final / Corrective + điểm kích hoạt + giá đỉnh/đáy + thẻ mô hình. */
+  elliottGuide: boolean;
+  /** DW6: sóng con bậc nhỏ (i…v / a b c) + nhãn kép bậc lớn (1)/(A). */
+  elliottSub: boolean;
+  /** DW8: cách đếm chỉnh tay của tài khoản (phiên bản đang dùng). */
+  elliottMine: boolean;
   /** P5: mô hình giá Pring của Pattern Scanner v2 (Gateway), ghim vào nến. */
   pring: boolean;
   /** T5: Cấu trúc thị trường đa khung (Gateway /api/market/structure, SSI) — giai đoạn, vùng giá, kịch bản, nón dự báo. */
@@ -23,7 +29,7 @@ interface LayerEvents extends Record<string, unknown> { "layers:changed": LayerS
 export const DEFAULT_LAYER_STATE: LayerState = {
   volume: false, rsi: false, vprofile: false, avwap: false, orderflow: false, foreign: false, smc: false, vsa: false, wyckoff: false, corporate: false,
   trendline: false, demandzone: false, elliott: false,
-  elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, pring: false, structure: false,
+  elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, elliottGuide: false, elliottSub: false, elliottMine: false, pring: false, structure: false,
   aiDetectionMaster: false,
 };
 

@@ -184,8 +184,8 @@ export function buildScene(inp: SceneInput): Scene {
     items.push({ kind: "poly", points: inp.elliottDraft.map((pt) => ({ t: pt.date, price: pt.price })), color: GQ_COLORS.amber, dash: [3, 2], nodeLabels: inp.elliottDraft.map((_, i) => String(i)) });
   }
   pushVolumeLayers(items, inp);
-  if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj))
-    items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj } }));
+  if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj || layers?.elliottGuide || layers?.elliottSub || layers?.elliottMine || inp.elliott.mine?.editing))
+    items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj, guide: !!layers?.elliottGuide, sub: !!layers?.elliottSub, mine: !!layers?.elliottMine } }));
   if (layers?.pring && inp.pring?.length) items.push(...pringSceneItems(bars, inp.pring));
   return { items };
 }

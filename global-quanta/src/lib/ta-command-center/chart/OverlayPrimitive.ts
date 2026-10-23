@@ -122,6 +122,17 @@ class Renderer implements IPrimitivePaneRenderer {
       }
       const last = pts[pts.length - 1];
       addLabel(it.label, last[0] + 4, last[1]);
+    } else if (it.kind === "ring") {
+      const x = o.x(it.t), y = o.y(it.price);
+      if (x === null || y === null) return;
+      dash([]); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+      ctx.beginPath(); ctx.arc(x, y, it.r ?? 5, 0, Math.PI * 2); ctx.stroke();
+      if (y >= 0 && y <= H) addLabel(it.label, x + (it.r ?? 5) + 3, y + 3);
+    } else if (it.kind === "text") {
+      const x = o.x(it.t), y = o.y(it.price);
+      if (x === null || y === null) return;
+      const yy = y + (it.dy ?? 0);
+      if (yy >= 0 && yy <= H) addLabel(it.label, x - 4, yy);
     } else if (it.kind === "cone") {
       const x0 = o.x(it.from), y0 = o.y(it.fromPrice);
       if (x0 === null || y0 === null) return;
@@ -144,11 +155,21 @@ class Renderer implements IPrimitivePaneRenderer {
     } else if (it.kind === "poly") {
       const pts = it.points.map((p) => o.pt(p)).filter((p): p is [number, number] => p !== null);
       if (pts.length < 1) return;
-      dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
-      ctx.beginPath();
-      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-      ctx.stroke();
-      if (it.nodeLabels) {
+      if (it.width !== 0) {
+        dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+        ctx.beginPath();
+        pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+        ctx.stroke();
+      }
+      if (it.nodeLabels && it.nodeStyle === "plain") {
+        ctx.setLineDash([]); ctx.fillStyle = it.color; ctx.textAlign = "center";
+        pts.forEach(([x, y], i) => {
+          const prev = pts[i - 1]?.[1], next = pts[i + 1]?.[1], ref = prev ?? next ?? y;
+          const isHigh = y < ref;                       // y canvas: nhỏ hơn = cao hơn
+          ctx.fillText(it.nodeLabels![i] ?? "", x, isHigh ? y - 5 : y + 11);
+        });
+        ctx.textAlign = "start";
+      } else if (it.nodeLabels) {
         ctx.setLineDash([]);
         pts.forEach(([x, y], i) => {
           ctx.fillStyle = "#0F1420"; ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fill();
