@@ -54,6 +54,7 @@ import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { elliottOscData, type ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
 import { intradayElliottState } from "../../../lib/quant-core/elliott/intraday";
+import { buildWaveTree } from "../../../lib/quant-core/elliott/v3/waveTree";
 import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
 import type { Analysis } from "../../../lib/quant-core";
 
@@ -384,6 +385,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   }, [countEditing, countDraft.value, countViolations, userCounts.active]);
   // DW9: Elliott khung trong ngày (1H / 15m) tính trên chính nến đang xem.
   const intradayElliott = useMemo(() => intradayElliottState(currentBars, timeframe), [currentBars, timeframe]);
+  // EP1: cây sóng nhiều bậc (engine v3) trên chính khung đang xem (D / W / 1H / 15m).
+  const waveTree = useMemo(() => (["D", "W", "1H", "15m"].includes(timeframe) && currentBars.length >= 60
+    ? buildWaveTree(currentBars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }))) : null), [currentBars, timeframe]);
   const elliottScene = useMemo(() => {
     if (intradayElliott) {
       const p = elliottPick > 0 ? intradayElliott.alternates?.[elliottPick - 1] ?? intradayElliott : intradayElliott;
@@ -662,7 +666,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
         {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} timeframe={timeframe} compare={controllerRef.current?.getAnalysis()?.wyckoffAlt ?? null} />}
-        <ElliottWavePanel mtf={mtf} timeframe={timeframe} intraday={intradayElliott}
+        <ElliottWavePanel mtf={mtf} timeframe={timeframe} intraday={intradayElliott} tree={waveTree}
           autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
           onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
           onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}
