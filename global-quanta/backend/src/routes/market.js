@@ -19,7 +19,7 @@ import { SCANNER_VALIDATION } from "../market/scanner/scannerValidation.js";
 import { getNewsForTickers, parseTickers as parseNewsTickers } from "../market/news/newsService.js";
 import { getResearchOverview, getResearchSymbol } from "../market/research/researchService.js";
 import { createForensicSource, createPortfolioRisk } from "../market/research/deepAnalysis.js";
-import { createAuthVerifier, getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
+import { getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
@@ -457,9 +457,10 @@ router.get("/portfolio-risk", handle(async (req, res) => {
   res.json(await portfolioRisk(req.query.symbols));
 }));
 
-// Lịch sử ELITE COMMAND RADAR theo người dùng đăng nhập (Supabase Auth) × ★ danh mục.
+// Lịch sử ELITE COMMAND RADAR theo người dùng đăng nhập × ★ danh mục.
 // GET /radar/history?list=<tên danh mục>&days=30 · PUT /radar/snapshot { list, items } (ghi đè ảnh của ngày giao dịch hiện tại).
-const verifyUser = createAuthVerifier();
+// Đăng nhập trên Railway (23/10/2026): token JWT Ed25519 của Gateway, kiểm tại chỗ (không gọi Supabase Auth).
+const verifyUser = async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId;
 
 router.get("/radar/history", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);

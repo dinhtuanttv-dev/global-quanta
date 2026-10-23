@@ -110,8 +110,13 @@ test("Supabase khoá 402: tính năng vẫn ghi/đọc bình thường từ đĩ
   t += 16 * 60_000; // hết 15 phút -> thử lại
   await s.getKv("miss-x");
   assert.equal(calls.n, afterFirst + 1);
-  // dữ liệu người dùng: vẫn đi thẳng Supabase (lỗi được báo cho nơi gọi như trước, không âm thầm ghi cục bộ)
-  await assert.rejects(() => s.selectRows("market_user_watchlists", { eq: { user_id: "u" } }));
+  // dữ liệu người dùng + tài khoản (từ 23/10/2026): CHỈ trên Volume, không gọi / không sao Supabase.
+  const before = calls.n;
+  await s.upsertRows("market_user_watchlists", [{ user_id: "u", lists: [] }], "user_id");
+  await s.upsertRows("auth_users", [{ id: "u", email: "a@b.vn", password_hash: "x" }], "id");
+  assert.equal((await s.selectRows("market_user_watchlists", { eq: { user_id: "u" } })).length, 1);
+  await s.drainReplica();
+  assert.equal(calls.n, before, "bảng người dùng / auth_* không chạm Supabase");
 });
 
 test("Supabase khoẻ: sao chép ghi; nhập lịch sử sổ tín hiệu MỘT lần, không đè dòng mới cục bộ; KV thiếu đọc một lần rồi lưu đĩa", async () => {

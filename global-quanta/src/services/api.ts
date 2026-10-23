@@ -6,8 +6,6 @@ import type {
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '') ?? '';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 const delay = (ms = 200) => new Promise((res) => setTimeout(res, ms));
 
 /** Calls the same-origin Express proxy; SSI credentials and access tokens stay on the server. */
@@ -57,50 +55,64 @@ export function subscribeSsiMarketQuotes(
   return () => sources.forEach((source) => source.close());
 }
 
-export function isSupabaseAuthConfigured(): boolean {
-  return Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+// ===== ĐĂNG NHẬP (Railway Gateway, 23/10/2026 — thay Supabase Auth đang bị khoá) =====
+// Access token JWT Ed25519 15 phút + refresh token 30 ngày (đổi mới mỗi lần dùng) do Gateway /api/auth cấp. Phiên Supabase cũ
+// (gq_supabase_session_v1) bị xoá và người dùng được báo đăng nhập lại.
+export function isAuthConfigured(): boolean {
+  return isMarketGatewayEnabled();
 }
 
-interface SupabaseSession {
-  access_token: string;
-  refresh_token: string;
-  expires_at: number;
+export interface AuthUser { id: string; email: string; admin: boolean; mustChangePassword: boolean }
+interface AuthSession { access_token: string; refresh_token: string; expires_at: number; user: AuthUser }
+interface AuthTokenResponse { access_token: string; refresh_token: string; expires_in: number; expires_at?: number; user: AuthUser; error?: string }
+
+const AUTH_SESSION_KEY = 'gq_session_v2';
+const LEGACY_SESSION_KEY = 'gq_supabase_session_v1';
+
+/** Có phiên Supabase cũ không (đã chuyển hệ thống đăng nhập) — xoá và trả true một lần để giao diện báo. */
+export function consumeLegacySession(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    if (window.localStorage.getItem(LEGACY_SESSION_KEY) === null) return false;
+    window.localStorage.removeItem(LEGACY_SESSION_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
-interface SupabaseTokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
-const AUTH_SESSION_KEY = 'gq_supabase_session_v1';
-
-function readAuthSession(): SupabaseSession | null {
+function readAuthSession(): AuthSession | null {
   if (typeof window === 'undefined') return null;
   try {
-    const session = JSON.parse(window.localStorage.getItem(AUTH_SESSION_KEY) ?? 'null') as SupabaseSession | null;
-    return session?.access_token && session?.refresh_token && Number.isFinite(session.expires_at) ? session : null;
+    const session = JSON.parse(window.localStorage.getItem(AUTH_SESSION_KEY) ?? 'null') as AuthSession | null;
+    return session?.access_token && session?.refresh_token && Number.isFinite(session.expires_at) && session.user?.id ? session : null;
   } catch {
     return null;
   }
 }
 
-function saveAuthSession(session: SupabaseTokenResponse): void {
+function saveAuthSession(r: AuthTokenResponse): void {
   window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_at: Date.now() + session.expires_in * 1000,
-  } satisfies SupabaseSession));
+    access_token: r.access_token, refresh_token: r.refresh_token,
+    expires_at: Date.now() + r.expires_in * 1000, user: r.user,
+  } satisfies AuthSession));
 }
 
 function clearAuthSession(): void {
   if (typeof window !== 'undefined') window.localStorage.removeItem(AUTH_SESSION_KEY);
 }
 
+const validTokenResponse = (r: AuthTokenResponse | null): r is AuthTokenResponse =>
+  Boolean(r?.access_token && r?.refresh_token && Number.isFinite(r?.expires_in) && r.expires_in > 0 && r.user?.id);
+
+/** Người dùng của phiên hiện tại (menu tài khoản); null nếu chưa đăng nhập. */
+export function currentUser(): AuthUser | null {
+  return readAuthSession()?.user ?? null;
+}
+
 /** Email của phiên đăng nhập hiện tại (menu tài khoản trên thanh trên); null nếu không có. */
 export function currentUserEmail(): string | null {
-  const u = (readAuthSession() as { user?: { email?: string } } | null)?.user;
-  return typeof u?.email === 'string' ? u.email : null;
+  return readAuthSession()?.user?.email ?? null;
 }
 
 export function hasAuthSession(): boolean {
@@ -110,8 +122,9 @@ export function hasAuthSession(): boolean {
 
 let refreshInFlight: Promise<boolean> | null = null;
 
-export async function restoreSupabaseSession(): Promise<boolean> {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return false;
+/** Phiên còn dùng được (tự đổi access token khi sắp hết hạn bằng refresh token). */
+export async function restoreSession(): Promise<boolean> {
+  if (!isAuthConfigured()) return false;
   const session = readAuthSession();
   if (!session) return false;
   if (session.expires_at > Date.now() + 60_000) return true;
@@ -119,17 +132,18 @@ export async function restoreSupabaseSession(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
-        const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+        const response = await fetch(marketUrl('/api/auth/refresh'), {
           method: 'POST',
-          headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ refresh_token: session.refresh_token }),
         });
-        if (!response.ok) {
+        if (response.status === 401) {
           clearAuthSession();
           return false;
         }
-        const refreshed = await response.json() as SupabaseTokenResponse;
-        if (!refreshed.access_token || !refreshed.refresh_token || !Number.isFinite(refreshed.expires_in) || refreshed.expires_in <= 0) {
+        if (!response.ok) return false; // lỗi tạm (mạng / 5xx): giữ phiên, thử lại lần sau
+        const refreshed = await response.json() as AuthTokenResponse;
+        if (!validTokenResponse(refreshed)) {
           clearAuthSession();
           return false;
         }
@@ -143,23 +157,46 @@ export async function restoreSupabaseSession(): Promise<boolean> {
   return refreshInFlight;
 }
 
-/** Access token Supabase còn hạn (tự làm mới nếu sắp hết) — để gọi API Gateway cần đăng nhập. */
+/** Access token còn hạn (tự làm mới nếu sắp hết) — để gọi API cần đăng nhập. */
 export async function getAccessToken(): Promise<string | null> {
-  if (!(await restoreSupabaseSession())) return null;
+  if (!(await restoreSession())) return null;
   return readAuthSession()?.access_token ?? null;
 }
 
-export async function signOutSupabase(): Promise<void> {
+export async function signOut(): Promise<void> {
   const session = readAuthSession();
   clearAuthSession();
-  if (!session || !SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return;
+  if (!session) return;
   try {
-    await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    await fetch(marketUrl('/api/auth/logout'), {
       method: 'POST',
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${session.access_token}` },
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
     });
   } catch {
-    // Clearing the local session still signs the user out on this device.
+    // Xoá phiên cục bộ vẫn đăng xuất trên máy này.
+  }
+}
+
+/** Đổi mật khẩu: null nếu thành công, ngược lại thông báo lỗi. Các phiên ở máy khác bị thu hồi. */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<string | null> {
+  const token = await getAccessToken();
+  if (!token) return 'Phiên đăng nhập đã hết hạn — hãy đăng nhập lại.';
+  try {
+    const response = await fetch(marketUrl('/api/auth/change-password'), {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    });
+    if (response.ok) {
+      const session = readAuthSession();
+      if (session) window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({ ...session, user: { ...session.user, mustChangePassword: false } }));
+      return null;
+    }
+    const body = await response.json().catch(() => ({})) as { error?: string };
+    return body.error ?? `Lỗi ${response.status}`;
+  } catch {
+    return 'Không kết nối được máy chủ đăng nhập.';
   }
 }
 
@@ -184,21 +221,22 @@ function saveWatchlistToStorage(list: WatchlistStock[]): void {
   }
 }
 
-export async function login(email: string, password: string): Promise<boolean> {
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) return false;
+/** Đăng nhập: true nếu thành công, ngược lại thông báo lỗi (sai thông tin / bị khoá tạm / lỗi kết nối). */
+export async function login(email: string, password: string): Promise<true | string> {
+  if (!isAuthConfigured()) return 'Máy chủ đăng nhập (Market Gateway) đang tắt cho website này.';
   try {
-    const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    const response = await fetch(marketUrl('/api/auth/login'), {
       method: 'POST',
-      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ email: email.trim(), password }),
     });
-    if (!response.ok) return false;
-    const session = await response.json() as SupabaseTokenResponse;
-    if (!session.access_token || !session.refresh_token || !Number.isFinite(session.expires_in) || session.expires_in <= 0) return false;
-    saveAuthSession(session);
+    const body = await response.json().catch(() => null) as AuthTokenResponse | null;
+    if (!response.ok) return body?.error ?? 'Không đăng nhập được. Hãy kiểm tra email và mật khẩu rồi thử lại.';
+    if (!validTokenResponse(body)) return 'Máy chủ trả phiên không hợp lệ.';
+    saveAuthSession(body);
     return true;
   } catch {
-    return false;
+    return 'Không kết nối được máy chủ đăng nhập. Hãy thử lại.';
   }
 }
 
