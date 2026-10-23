@@ -30,6 +30,7 @@ import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
 import { createAuthRouter } from "./routes/auth.js";
+import { createHeapProfileRouter } from "./routes/heapProfile.js";
 
 const app = express();
 
@@ -80,6 +81,7 @@ app.get("/health", healthHandler);
 app.get("/api/health", healthHandler);
 // D0/D1: băng thông Supabase hôm nay + dự báo tháng, trạng thái kho đệm.
 app.use("/api/health/db-budget", createDbBudgetRouter({ getStore: () => getMarketRuntime().store, meter: sharedEgressMeter() }));
+app.use("/api/health/heap-profile", createHeapProfileRouter());
 
 app.use("/api", scanRouter);
 app.use("/api/ssi", ssiRouter);
