@@ -64,3 +64,28 @@ test("bảng trong phiên: xếp phá vỡ trước; giữ thời điểm đầu
   const stale = buildSepaIntraday({ doc, quotes: { AAA: { ...quotes.AAA, time: "2026-10-09T14:45:00+07:00" } }, now });
   assert.equal(stale.rows.find((x) => x.ticker === "AAA").projRatio, null);
 });
+
+test("SP6 live check 23/10/2026: giá đã khớp nhưng nguồn trả KL = 0 (ABB UPCoM) -> không ngoại suy từ 0, không 'đáng tin', vượt pivot = BREAKOUT_NO_VOL", async () => {
+  const { buildSepaIntraday } = await import("../src/market/strategies/sepaIntraday.js");
+  const base = { pivot: 100, vol50: 1_000_000, minutesElapsed: 150 };
+  const near = intradayBreakout({ ...base, price: 98, totalVolume: 0, volumeMissing: true });
+  assert.equal(near.state, "NEAR");
+  assert.equal(near.projRatio, null);
+  assert.equal(near.reliable, false);
+  assert.equal(intradayBreakout({ ...base, price: 101, totalVolume: 0, volumeMissing: true }).state, "BREAKOUT_NO_VOL");
+  // Builder: quote đã khớp hôm nay (giá ≠ tham chiếu) mà KL = 0 -> volumeMissing; mã không khớp (giá = tham chiếu, không biên độ) -> không.
+  const doc = { dataAsOf: "2026-10-22", results: [
+    { ticker: "ABB", list: "SẴN SÀNG MUA", status: "NEAR_PIVOT", metrics: { pivot: 18200, vol50: 882122, pattern: "x", footprint: "x", stopPct: 6 } },
+    { ticker: "ZZZ", list: "CẢNH BÁO MUA", status: "NEAR_PIVOT", metrics: { pivot: 10000, vol50: 1000, pattern: "x", footprint: "x", stopPct: 6 } },
+  ] };
+  const now = new Date("2026-10-23T04:38:00Z");
+  const quotes = {
+    ABB: { price: 17700, refPrice: 17600, high: 17800, low: 17600, totalVolume: 0, time: "2026-10-23T00:00:00+07:00" },
+    ZZZ: { price: 9800, refPrice: 9800, high: 9800, low: 9800, totalVolume: 0, time: "2026-10-23T00:00:00+07:00" },
+  };
+  const out = buildSepaIntraday({ doc, quotes, now });
+  const abb = out.rows.find((r) => r.ticker === "ABB"), zzz = out.rows.find((r) => r.ticker === "ZZZ");
+  assert.ok(abb && zzz, "cả hai mã là ứng viên");
+  assert.deepEqual([abb.volumeMissing, abb.reliable, abb.projRatio, abb.state], [true, false, null, "NEAR"]);
+  assert.equal(zzz.volumeMissing, false);
+});

@@ -20,6 +20,7 @@ export function hoseMinutesElapsed(minutes) {
 export const INTRADAY_STATE_VI = Object.freeze({
   BREAKOUT: "Phá vỡ đạt KL dự phóng",
   BREAKOUT_LOW_VOL: "Vượt pivot, KL dự phóng yếu",
+  BREAKOUT_NO_VOL: "Vượt pivot, chưa có dữ liệu KL",
   EXTENDED: "Đã quá vùng mua (> pivot + 5%)",
   NEAR: "Gần pivot (≤ 3%)",
   BELOW: "Dưới pivot",
@@ -27,22 +28,24 @@ export const INTRADAY_STATE_VI = Object.freeze({
 
 /**
  * Trạng thái phá vỡ trong phiên của một mã.
- * @param {{ pivot: number, vol50: number, price: number, totalVolume: number, minutesElapsed: number }} p
+ * @param {{ pivot: number, vol50: number, price: number, totalVolume: number, minutesElapsed: number, volumeMissing?: boolean }} p
+ *   volumeMissing: giá đã khớp nhưng nguồn trả KL = 0 (đo 23/10/2026: SSI REST với một số mã UPCoM như ABB, VGR) -> KHÔNG ngoại suy
+ *   từ 0 (sẽ ra "KL yếu" giả); trạng thái vượt pivot thành BREAKOUT_NO_VOL, không đánh dấu tin cậy.
  */
-export function intradayBreakout({ pivot, vol50, price, totalVolume, minutesElapsed }, cfg = SEPA.vcp) {
+export function intradayBreakout({ pivot, vol50, price, totalVolume, minutesElapsed, volumeMissing = false }, cfg = SEPA.vcp) {
   if (!(pivot > 0) || !(price > 0)) return null;
   const minutes = Math.max(0, Math.min(HOSE_SESSION_MINUTES, minutesElapsed));
-  const projected = minutes > 0 && Number.isFinite(totalVolume) ? projectIntradayVolume(totalVolume, minutes, HOSE_SESSION_MINUTES) : null;
+  const projected = !volumeMissing && minutes > 0 && Number.isFinite(totalVolume) ? projectIntradayVolume(totalVolume, minutes, HOSE_SESSION_MINUTES) : null;
   const projRatio = projected != null && vol50 > 0 ? projected / vol50 : null;
   const distPct = (price / pivot - 1) * 100;
   let state;
   if (price > pivot * (1 + cfg.maxChasePct)) state = "EXTENDED";
-  else if (price > pivot) state = projRatio != null && projRatio >= cfg.breakoutVolRatio ? "BREAKOUT" : "BREAKOUT_LOW_VOL";
+  else if (price > pivot) state = volumeMissing ? "BREAKOUT_NO_VOL" : projRatio != null && projRatio >= cfg.breakoutVolRatio ? "BREAKOUT" : "BREAKOUT_LOW_VOL";
   else if (price >= pivot * 0.97) state = "NEAR";
   else state = "BELOW";
   return {
     state, label: INTRADAY_STATE_VI[state], distPct, projectedVolume: projected, projRatio,
     volRatioReq: cfg.breakoutVolRatio, buyZoneTop: pivot * (1 + cfg.maxChasePct),
-    reliable: minutes >= INTRADAY_MIN_RELIABLE, minutesElapsed: minutes,
+    reliable: !volumeMissing && minutes >= INTRADAY_MIN_RELIABLE, minutesElapsed: minutes, volumeMissing,
   };
 }
