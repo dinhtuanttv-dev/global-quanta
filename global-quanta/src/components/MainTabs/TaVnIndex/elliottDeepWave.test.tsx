@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
-import ElliottWavePanel from "./ElliottWavePanel";
+import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
 import { elliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import { elliottState, type ElliottState } from "../../../lib/quant-core/elliott";
 import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
@@ -142,5 +142,18 @@ describe("DW1 — chọn cách đếm", () => {
     const n = 1 + (mtf.day?.alternates?.length ?? 0);
     expect(el.querySelectorAll("[data-testid^=elliott-pick-]").length).toBe(n >= 2 ? n : 0);
     if (n >= 2) { act(() => (el.querySelector("[data-testid=elliott-pick-1]") as HTMLButtonElement).click()); expect(picks).toEqual([1]); }
+  });
+});
+
+describe("DW4 — hiển thị mô hình", () => {
+  it("thẻ có chip mô hình; phác đồ chi tiết có bảng quy tắc [cứng]/[mềm] + kết quả kiểm định", () => {
+    const b = series(), mtf = elliottMtf(b);
+    const card = render(<ElliottWavePanel mtf={mtf} timeframe="D" autoOn={false} oscOn={false} onToggleAuto={() => {}} onToggleOsc={() => {}} onSuggest={() => {}} detailOpen={false} onToggleDetail={() => {}} />);
+    expect(card.querySelector("[data-testid=elliott-pattern-chips]")!.textContent).toMatch(/IM/);
+    act(() => root?.unmount()); root = null;
+    const deep = render(<ElliottDeepPanel mtf={mtf} daily={b} weekly={[]} ticker="TEST" onClose={() => {}} />);
+    const rules = deep.querySelector("[data-testid=elliott-pattern-rules]")!;
+    expect(rules.textContent).toMatch(/\[cứng\]/);
+    expect(rules.textContent).toMatch(/KHÔNG ĐẠT/);
   });
 });

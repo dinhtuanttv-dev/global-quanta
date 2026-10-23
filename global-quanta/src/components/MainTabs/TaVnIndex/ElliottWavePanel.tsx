@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Eye, EyeOff, LineChart, Sparkles, X } from "lucide-react";
 import ProvenanceBadge from "./ProvenanceBadge";
 import ElliottSketch, { ElliottSchematic } from "./ElliottSketch";
+import { PatternChips, PatternRules } from "./ElliottPatternViews";
 import type { ElliottMtf } from "../../../lib/quant-core/elliott/mtf";
 import type { OscCount } from "../../../lib/quant-core/elliott/oscCount";
 import type { ElliottState } from "../../../lib/quant-core/elliott";
@@ -79,6 +80,7 @@ function FrameRow({ tag, st, partial, osc }: { tag: string; st: ElliottState | n
           {st.weight != null && <WeightBar w={st.weight} />}
           {st.invalidation && <p className="text-[9px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} <span className="font-mono text-slate-200">{fmtP(st.invalidation.price)}</span></p>}
           <Checks st={st} />
+          <PatternChips st={st} />
         </>
       )}
       <OscLine o={osc ?? null} />
@@ -255,6 +257,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
               {st.alternatives.length > 0 && <ul className="text-[9px] text-slate-400 mt-1 space-y-0.5">{st.alternatives.map((a) => <li key={a.label}>Phương án khác: {a.label}{a.weight != null ? ` · trọng số ${Math.round(a.weight * 100)}%` : ""}</li>)}</ul>}
             </div>}
           </div>
+          <div className="lg:col-span-3"><PatternRules st={st} /></div>
         </div>
       )}
 
