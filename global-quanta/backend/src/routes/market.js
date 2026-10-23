@@ -514,6 +514,17 @@ router.delete("/elliott/counts", handle(async (req, res) => {
   res.json(await deleteUserElliottCounts(getMarketRuntime().store, userId, normalizeCountKey(req.query.symbol, req.query.tf)));
 }));
 
+// EP2: sổ theo dõi kịch bản Elliott (công khai, chỉ đọc): GET /elliott/ledger/summary · GET /elliott/ledger?symbol=FPT
+router.get("/elliott/ledger/summary", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().elliottLedger.summary());
+}));
+router.get("/elliott/ledger", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  const symbol = normalizeChartSymbol(req.query.symbol);
+  res.json({ symbol, rows: await getMarketRuntime().elliottLedger.forSymbol(symbol) });
+}));
+
 // DW10: cảnh báo Elliott khi giá chạm mốc (người dùng tự bật): GET /elliott/alerts (cảnh báo + 50 lần báo gần nhất) ·
 //   PUT /elliott/alerts { alerts } (thay cả danh sách) · POST /elliott/alerts/read { ids? } (đánh dấu đã đọc).
 //   Telegram chỉ cho tài khoản quản trị (bot gửi về chat vận hành của chủ hệ thống).

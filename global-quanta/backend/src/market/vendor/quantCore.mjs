@@ -10,16 +10,16 @@ function trueRange(bars, i) {
 function atrSeries(bars, period = 14) {
   const out = new Array(bars.length).fill(0);
   let sum = 0;
-  let atr = 0;
+  let atr2 = 0;
   for (let i = 0; i < bars.length; i++) {
     const tr = trueRange(bars, i);
     if (i < period) {
       sum += tr;
-      atr = sum / (i + 1);
+      atr2 = sum / (i + 1);
     } else {
-      atr = (atr * (period - 1) + tr) / period;
+      atr2 = (atr2 * (period - 1) + tr) / period;
     }
-    out[i] = atr;
+    out[i] = atr2;
   }
   return out;
 }
@@ -87,7 +87,7 @@ function detectPivots(bars, left = 5, right = 5) {
 }
 function computeStructure(bars, params = {}) {
   const p = { ...DEFAULT_STRUCTURE, ...params };
-  const atr = atrSeries(bars, p.atrPeriod);
+  const atr2 = atrSeries(bars, p.atrPeriod);
   const lv = logVolumes(bars);
   const pivots2 = detectPivots(bars, p.left, p.right);
   const events = [];
@@ -110,7 +110,7 @@ function computeStructure(bars, params = {}) {
       for (let j = pv.index; j <= i; j++) {
         if (dir === "bullish" ? bars[j].low < bars[legStart].low : bars[j].high > bars[legStart].high) legStart = j;
       }
-      const a = atr[i] > 0 ? atr[i] : 1;
+      const a = atr2[i] > 0 ? atr2[i] : 1;
       const body = Math.abs(b.close - b.open) / a;
       let run = 0;
       for (let j = i; j >= Math.max(0, i - 2); j--) {
@@ -137,12 +137,12 @@ function computeStructure(bars, params = {}) {
       else activeLow = null;
     }
   }
-  return { pivots: pivots2, events, trend, atr };
+  return { pivots: pivots2, events, trend, atr: atr2 };
 }
 
 // src/lib/quant-core/zones.ts
 var OB_EXPIRY_BARS = 120;
-function detectOrderBlocks(bars, events, atr) {
+function detectOrderBlocks(bars, events, atr2) {
   const seen = /* @__PURE__ */ new Set();
   const out = [];
   for (const ev of events) {
@@ -158,7 +158,7 @@ function detectOrderBlocks(bars, events, atr) {
     if (seen.has(j)) continue;
     seen.add(j);
     const c = bars[j];
-    const a = atr[ev.index] > 0 ? atr[ev.index] : 1;
+    const a = atr2[ev.index] > 0 ? atr2[ev.index] : 1;
     let top = Math.max(c.open, c.close);
     let bottom = Math.min(c.open, c.close);
     if (top - bottom < 0.1 * a) {
@@ -210,13 +210,13 @@ function detectOrderBlocks(bars, events, atr) {
   }
   return out.sort((a, b) => a.confirmedIndex - b.confirmedIndex);
 }
-function detectFVG(bars, atr, params = {}) {
+function detectFVG(bars, atr2, params = {}) {
   const p = { minATR: 0.25, minTicks: 2, limitPct: 0.07, isIndex: false, ...params };
   const out = [];
   for (let i = 2; i < bars.length; i++) {
     const c1 = bars[i - 2];
     const c3 = bars[i];
-    const a = atr[i] > 0 ? atr[i] : 0;
+    const a = atr2[i] > 0 ? atr2[i] : 0;
     const minGap = Math.max(p.minATR * a, p.minTicks * tickSize(c3.close, p.isIndex));
     let dir = null;
     let top = 0;
@@ -317,7 +317,7 @@ function detectVsa(bars) {
   const lv = logVolumes(bars);
   const sp = spreads(bars);
   const ema = emaSeries(bars.map((b) => b.close), 20);
-  const atr = atrSeries(bars, 14);
+  const atr2 = atrSeries(bars, 14);
   const out = [];
   for (let i = W; i < bars.length; i++) {
     const zV = trailingZ(lv, i, W);
@@ -326,9 +326,9 @@ function detectVsa(bars) {
     const b = bars[i];
     const prev = bars[i - 1];
     const c = clv(b);
-    const slope = i >= 6 ? ema[i - 1] / ema[i - 6] - 1 : 0;
-    const up = slope > 0;
-    const down = slope < 0;
+    const slope2 = i >= 6 ? ema[i - 1] / ema[i - 6] - 1 : 0;
+    const up = slope2 > 0;
+    const down = slope2 < 0;
     const isUpBar = b.close > prev.close;
     const isDownBar = b.close < prev.close;
     let swingHigh = -Infinity;
@@ -346,7 +346,7 @@ function detectVsa(bars) {
     else if (b.low < swingLow && b.close > swingLow && c >= 0.65 && zV >= 1) type = "Shakeout";
     else if (isDownBar && zS <= -0.5 && lowEffort && up) type = "No Supply";
     else if (isUpBar && zS <= -0.5 && lowEffort && down) type = "No Demand";
-    else if (zV >= 1.5 && Math.abs(b.close - prev.close) <= 0.3 * (atr[i] || Infinity)) type = "Absorption";
+    else if (zV >= 1.5 && Math.abs(b.close - prev.close) <= 0.3 * (atr2[i] || Infinity)) type = "Absorption";
     if (!type) continue;
     let v20 = 0;
     let s20 = 0;
@@ -451,12 +451,12 @@ function buildVolumeProfile(bars, opts = {}) {
     toDate: src[src.length - 1].date
   };
 }
-function valueArea(vol, poc, pct2 = 0.7) {
+function valueArea(vol, poc, pct3 = 0.7) {
   const total = vol.reduce((s, v) => s + v, 0);
   let lo = poc;
   let hi = poc;
   let acc = vol[poc];
-  while (acc < pct2 * total && (lo > 0 || hi < vol.length - 1)) {
+  while (acc < pct3 * total && (lo > 0 || hi < vol.length - 1)) {
     const up = (hi + 1 < vol.length ? vol[hi + 1] : 0) + (hi + 2 < vol.length ? vol[hi + 2] : 0);
     const dn = (lo - 1 >= 0 ? vol[lo - 1] : 0) + (lo - 2 >= 0 ? vol[lo - 2] : 0);
     const canUp = hi < vol.length - 1;
@@ -553,9 +553,9 @@ var avgBefore = (xs, i, w) => {
   }
   return c ? s / c : 0;
 };
-function classifySpringBar(bars, k, ci, level, side, atr, forcedKind) {
+function classifySpringBar(bars, k, ci, level, side, atr2, forcedKind) {
   const E = WYCKOFF_EVIDENCE;
-  const A = atr ?? atrSeries(bars, 14);
+  const A = atr2 ?? atrSeries(bars, 14);
   const vols = bars.map((b) => b.volume);
   const av = avgBefore(vols, k, E.avgWindow) || 1;
   const a = A[k] || 1;
@@ -571,9 +571,9 @@ function classifySpringBar(bars, k, ci, level, side, atr, forcedKind) {
       if (broke) break;
       const retracing = j >= ci + 2 && (side === "spring" ? b.low < bars[j - 1].low : b.high > bars[j - 1].high);
       if (!retracing) continue;
-      const near = side === "spring" ? b.low <= level + E.testNearATR * (A[j] || a) : b.high >= level - E.testNearATR * (A[j] || a);
+      const near2 = side === "spring" ? b.low <= level + E.testNearATR * (A[j] || a) : b.high >= level - E.testNearATR * (A[j] || a);
       const holds = side === "spring" ? b.low >= extreme : b.high <= extreme;
-      if (near && holds && b.volume < avgBefore(vols, j, E.avgWindow) && b.volume < E.testVolVsSpring * bars[k].volume) {
+      if (near2 && holds && b.volume < avgBefore(vols, j, E.avgWindow) && b.volume < E.testVolVsSpring * bars[k].volume) {
         test = { index: j, date: b.date, price: side === "spring" ? b.low : b.high };
         break;
       }
@@ -624,14 +624,14 @@ function pivots(bars, from, to, side, k = WYCKOFF_EVIDENCE.pivotK) {
   }
   return out;
 }
-function levelAt(pts, x, dir) {
-  const known = pts.filter((p) => p.ci < x);
+function levelAt(pts2, x, dir) {
+  const known = pts2.filter((p) => p.ci < x);
   if (known.length < 2 || x <= known[known.length - 1].index) return null;
   const a = known[known.length - 2].price, b = known[known.length - 1].price;
   return dir === 1 ? Math.max(a, b) : Math.min(a, b);
 }
 var BREAK_HORIZON = 40;
-function lineBreak(bars, range, pts, dir, atr) {
+function lineBreak(bars, range, pts2, dir, atr2) {
   const E = WYCKOFF_EVIDENCE;
   const spreads2 = bars.map((x) => x.high - x.low);
   const vols = bars.map((x) => x.volume);
@@ -639,7 +639,7 @@ function lineBreak(bars, range, pts, dir, atr) {
   const mid = (range.high + range.low) / 2;
   let weak = null;
   for (let x = range.start + 2 * E.pivotK + 1; x < Math.min(n, range.end + BREAK_HORIZON + 1); x++) {
-    const L = levelAt(pts, x, dir);
+    const L = levelAt(pts2, x, dir);
     if (L == null) continue;
     const crossed = dir === 1 ? bars[x].close > L && bars[x - 1].close <= L : bars[x].close < L && bars[x - 1].close >= L;
     if (!crossed) continue;
@@ -664,7 +664,7 @@ function lineBreak(bars, range, pts, dir, atr) {
     }
     let backup = null, failed = null;
     for (let j = x + 1; j <= Math.min(n - 1, x + E.buecBars); j++) {
-      const b = bars[j], a = atr[j] || 1;
+      const b = bars[j], a = atr2[j] || 1;
       if (dir === 1 ? b.close < mid : b.close > mid) {
         failed = { index: j, date: b.date, price: b.close };
         break;
@@ -681,17 +681,17 @@ function lineBreak(bars, range, pts, dir, atr) {
   return weak;
 }
 function rangeLean(bars, range) {
-  const len = range.end - range.start + 1;
-  if (len < 20) return null;
+  const len2 = range.end - range.start + 1;
+  if (len2 < 20) return null;
   const seg = bars.slice(range.start, range.end + 1);
-  const half = Math.floor(len / 2);
+  const half = Math.floor(len2 / 2);
   const f = [];
   let li = 0, hi = 0;
   seg.forEach((b, i) => {
     if (b.low < seg[li].low) li = i;
     if (b.high > seg[hi].high) hi = i;
   });
-  const lp = li / (len - 1), hp = hi / (len - 1);
+  const lp = li / (len2 - 1), hp = hi / (len2 - 1);
   f.push({
     key: "extremes",
     label: "V\u1ECB tr\xED \u0111\xE1y / \u0111\u1EC9nh th\u1EA5p nh\u1EA5t \u2013 cao nh\u1EA5t trong range",
@@ -700,8 +700,8 @@ function rangeLean(bars, range) {
   });
   const lows = pivots(bars, range.start + half, range.end, "low", 2).filter((p) => p.ci <= range.end);
   const highs = pivots(bars, range.start + half, range.end, "high", 2).filter((p) => p.ci <= range.end);
-  const slope = (ps) => ps.length >= 2 ? Math.sign(ps[ps.length - 1].price - ps[0].price) : 0;
-  const sl = slope(lows), sh = slope(highs);
+  const slope2 = (ps) => ps.length >= 2 ? Math.sign(ps[ps.length - 1].price - ps[0].price) : 0;
+  const sl = slope2(lows), sh = slope2(highs);
   f.push({
     key: "swings",
     label: "\u0110\xE1y / \u0111\u1EC9nh dao \u0111\u1ED9ng \u1EDF n\u1EEDa sau",
@@ -733,13 +733,13 @@ function rangeLean(bars, range) {
 }
 var V3_KIND = { SPRING_3: 3, UT_3: 3, SPRING_2: 2, UT_2: 2, SHAKEOUT: 1, UTAD: 1 };
 function wyckoffEvidence(bars, range, events) {
-  const atr = atrSeries(bars, 14);
+  const atr2 = atrSeries(bars, 14);
   const springs = [];
   const confirmations = [];
   for (const e of events) {
     if ((e.event === "Spring" || e.event === "UT" || e.event === "UTAD") && e.confirmedIndex != null) {
       const forced = e.label ? V3_KIND[e.label] : void 0;
-      springs.push(classifySpringBar(bars, e.index, e.confirmedIndex, e.event === "Spring" ? range.low : range.high, e.event === "Spring" ? "spring" : "ut", atr, forced));
+      springs.push(classifySpringBar(bars, e.index, e.confirmedIndex, e.event === "Spring" ? range.low : range.high, e.event === "Spring" ? "spring" : "ut", atr2, forced));
     }
     if (e.event === "SOS" || e.event === "SOW") {
       const k = Math.max(e.index, e.confirmedIndex ?? e.index);
@@ -750,8 +750,8 @@ function wyckoffEvidence(bars, range, events) {
   const hp = pivots(bars, range.start, range.end, "high").filter((p) => p.price >= mid);
   const lp = pivots(bars, range.start, range.end, "low").filter((p) => p.price <= mid);
   const breaks = [];
-  const up = hp.length >= 2 ? lineBreak(bars, range, hp, 1, atr) : null;
-  const dn = lp.length >= 2 ? lineBreak(bars, range, lp, -1, atr) : null;
+  const up = hp.length >= 2 ? lineBreak(bars, range, hp, 1, atr2) : null;
+  const dn = lp.length >= 2 ? lineBreak(bars, range, lp, -1, atr2) : null;
   const toLine = (ps, br) => {
     const used = (br ? ps.filter((p) => p.ci < br.index) : ps).slice(-LINE_POINTS);
     if (used.length < 2) return null;
@@ -960,9 +960,9 @@ var WYCKOFF_RANGE = { maxWidthATR: 8, minBars: 30, maxBars: 80, recentBars: 120 
 function findTradingRange2(bars) {
   const n = bars.length;
   if (n < WYCKOFF_RANGE.minBars + 20) return null;
-  for (let len = WYCKOFF_RANGE.maxBars; len >= WYCKOFF_RANGE.minBars; len -= 5) {
+  for (let len2 = WYCKOFF_RANGE.maxBars; len2 >= WYCKOFF_RANGE.minBars; len2 -= 5) {
     for (let end = n - 1; end >= Math.max(WYCKOFF_RANGE.minBars, n - 1 - WYCKOFF_RANGE.recentBars); end--) {
-      const start = end - len + 1;
+      const start = end - len2 + 1;
       if (start < 20) continue;
       let hh = -Infinity;
       let ll = Infinity;
@@ -996,7 +996,7 @@ var avgVolBefore = (bars, i, w = 20) => {
 function classifyWyckoffV2(bars) {
   const base = { ...classifyWyckoffPhase([]), engine: "v2", asOf: bars.length ? bars[bars.length - 1].date : null };
   if (bars.length < WYCKOFF_RANGE.minBars + 20) return { ...base, status: "insufficient", statusReason: `C\u1EA7n \u2265 ${WYCKOFF_RANGE.minBars + 20} n\u1EBFn, c\xF3 ${bars.length}.` };
-  const atr = atrSeries(bars, 14);
+  const atr2 = atrSeries(bars, 14);
   const range = findTradingRange2(bars);
   if (!range) return { ...base, status: "insufficient", statusReason: "Kh\xF4ng t\xECm th\u1EA5y trading range (bi\xEAn \u2264 8\xD7 ATR, 30\u201380 n\u1EBFn, trong 120 n\u1EBFn g\u1EA7n nh\u1EA5t)." };
   const n = bars.length;
@@ -1020,7 +1020,7 @@ function classifyWyckoffV2(bars) {
     if (at >= 0) events.splice(at, 1);
     return push(event, k, price, strength);
   };
-  const a = (k) => atr[k] || 1;
+  const a = (k) => atr2[k] || 1;
   const backInsideAt = (k, side) => {
     for (let j = k; j <= Math.min(n - 1, k + 3); j++) {
       if (side === "low" ? bars[j].close > range.low : bars[j].close < range.high) return j;
@@ -1138,13 +1138,13 @@ function classifyWyckoffV2(bars) {
   const bearish = res.phase === "distribution" || res.phase === "decline";
   const awayBelow = last < range.low - WYCKOFF_STALE.awayHeights * height;
   const awayAbove = last > range.high + WYCKOFF_STALE.awayHeights * height;
-  const fmt5 = (v) => Math.round(v).toLocaleString("vi-VN");
+  const fmt6 = (v) => Math.round(v).toLocaleString("vi-VN");
   let staleReason = null;
   if (res.phase !== "undetermined") {
     if ((res.phase === "spring" || res.phase === "test") && springBroken != null) {
-      staleReason = `Spring ${bars[spring].date} \u0111\xE3 b\u1ECB ph\xE1: \u0111\xF3ng c\u1EEDa d\u01B0\u1EDBi \u0111\xE1y Spring (${fmt5(bars[spring].low)}) ng\xE0y ${bars[springBroken].date}.`;
+      staleReason = `Spring ${bars[spring].date} \u0111\xE3 b\u1ECB ph\xE1: \u0111\xF3ng c\u1EEDa d\u01B0\u1EDBi \u0111\xE1y Spring (${fmt6(bars[spring].low)}) ng\xE0y ${bars[springBroken].date}.`;
     } else if (res.phase === "distribution" && decisive?.phase === "distribution" && utBroken != null) {
-      staleReason = `UT ${bars[ut].date} \u0111\xE3 b\u1ECB ph\xE1: \u0111\xF3ng c\u1EEDa tr\xEAn \u0111\u1EC9nh UT (${fmt5(bars[ut].high)}) ng\xE0y ${bars[utBroken].date}.`;
+      staleReason = `UT ${bars[ut].date} \u0111\xE3 b\u1ECB ph\xE1: \u0111\xF3ng c\u1EEDa tr\xEAn \u0111\u1EC9nh UT (${fmt6(bars[ut].high)}) ng\xE0y ${bars[utBroken].date}.`;
     } else if (age > limit) {
       staleReason = `S\u1EF1 ki\u1EC7n quy\u1EBFt \u0111\u1ECBnh cu\u1ED1i c\xE1ch \u0111\xE2y ${age} n\u1EBFn, qu\xE1 th\u1EDDi h\u1EA1n hi\u1EC7u l\u1EF1c ${limit} n\u1EBFn (= max(20, \u0111\u1ED9 d\xE0i range ${rangeLen} n\u1EBFn)).`;
     } else if (bullish && awayBelow || bearish && awayAbove) {
@@ -1275,7 +1275,7 @@ function atrSeries2(c, n = 14) {
 }
 var hasVolume = (c) => c.length > 0 && c.every((x) => Number.isFinite(x.volume));
 function barMetrics(c, o = DEFAULTS) {
-  const n = c.length, atr = atrSeries2(c, o.atrN), hv = hasVolume(c);
+  const n = c.length, atr2 = atrSeries2(c, o.atrN), hv = hasVolume(c);
   const volRel = new Array(n).fill(1), spreadRel = new Array(n).fill(1), clv2 = new Array(n).fill(0), body = new Array(n).fill(0);
   for (let i = 0; i < n; i++) {
     if (hv) {
@@ -1286,12 +1286,12 @@ function barMetrics(c, o = DEFAULTS) {
         volRel[i] = c[i].volume / (t / cnt || 1);
       }
     }
-    const rng = c[i].high - c[i].low, ref = i > 0 && isFinite(atr[i - 1]) ? atr[i - 1] : atr[i];
+    const rng = c[i].high - c[i].low, ref = i > 0 && isFinite(atr2[i - 1]) ? atr2[i - 1] : atr2[i];
     spreadRel[i] = ref > 0 ? rng / ref : 1;
     clv2[i] = rng > 0 ? (2 * c[i].close - c[i].high - c[i].low) / rng : 0;
     body[i] = rng > 0 ? Math.abs(c[i].close - c[i].open) / rng : 0;
   }
-  return { atr, volRel, spreadRel, clv: clv2, body, hasVolume: hv };
+  return { atr: atr2, volRel, spreadRel, clv: clv2, body, hasVolume: hv };
 }
 var er = (c, i, L) => {
   let path = 0;
@@ -1325,8 +1325,8 @@ function trendlineBreak(c, iSC, iAR, resPrice) {
   if (sw.length < 2) return false;
   const a = sw[sw.length - 2], b = sw[sw.length - 1];
   if (c[b].high >= c[a].high) return false;
-  const slope = (c[b].high - c[a].high) / (b - a);
-  return resPrice > c[b].high + slope * (iAR - b);
+  const slope2 = (c[b].high - c[a].high) / (b - a);
+  return resPrice > c[b].high + slope2 * (iAR - b);
 }
 function buildPhaseA(c, m, iSC0, o, endI) {
   let iSC = iSC0, sup = c[iSC].low, j = iSC + 1, hi = -Infinity, iAR = -1, arEnd = iSC, broke = false;
@@ -1600,9 +1600,9 @@ function buaStats(c, m, i0, i1, peak, res, o) {
     }
     vs += m.volRel[k];
   }
-  const n = i1 - i0 + 1, atr = m.atr[i1] || 1, volMean = vs / n, range = peak - lo;
-  const type = lo < res ? "deep-into-TR" : n >= o.buaMinBars && range <= o.buaMaxRangeATR * atr ? "mini-TR" : "shallow-pullback";
-  return { n, low: lo, iLow, volMean, type, rangeATR: range / atr, duration: volMean < 1 ? "ng\u1EAFn (KLGD th\u1EA5p)" : volMean >= o.highVol ? "d\xE0i (KLGD l\u1EDBn)" : "trung b\xECnh" };
+  const n = i1 - i0 + 1, atr2 = m.atr[i1] || 1, volMean = vs / n, range = peak - lo;
+  const type = lo < res ? "deep-into-TR" : n >= o.buaMinBars && range <= o.buaMaxRangeATR * atr2 ? "mini-TR" : "shallow-pullback";
+  return { n, low: lo, iLow, volMean, type, rangeATR: range / atr2, duration: volMean < 1 ? "ng\u1EAFn (KLGD th\u1EA5p)" : volMean >= o.highVol ? "d\xE0i (KLGD l\u1EDBn)" : "trung b\xECnh" };
 }
 function classifyVariant(c, m, tr, run, o) {
   const h = tr.res - tr.sup, a = tr.iStart, b = run.spring ? run.spring.iLow : run.sos != null ? run.sos : c.length - 1;
@@ -2063,8 +2063,8 @@ var fmt = (v) => Math.round(v).toLocaleString("vi-VN");
 var pct = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 var idxOf = (bars, date) => date ? bars.findIndex((b) => b.date === date) : -1;
 var lineAt = (l, x) => l.ap + (l.bp - l.ap) * (x - l.ai) / (l.bi - l.ai);
-function trendChannel(bars, start, kind, atr) {
-  const A = atr ?? atrSeries(bars, 14);
+function trendChannel(bars, start, kind, atr2) {
+  const A = atr2 ?? atrSeries(bars, 14);
   const n = bars.length, last = n - 1;
   const from = Math.max(3, start - WYCKOFF_TESTS.priorBars);
   const side = kind === "down" ? "high" : "low";
@@ -2145,7 +2145,7 @@ function wyckoffNineTests(bars, w, benchmark) {
   const buy = w.phase === "accumulation" || w.phase === "spring" || w.phase === "test" || w.phase === "markup";
   const side = buy ? "buy" : "sell";
   const n = bars.length, last = n - 1;
-  const atr = atrSeries(bars, 14);
+  const atr2 = atrSeries(bars, 14);
   const H = w.rangeHigh, Lo = w.rangeLow, height = Math.max(1e-9, H - Lo);
   const close = bars[last].close;
   const ev = new Set(w.events.map((e) => e.event));
@@ -2192,7 +2192,7 @@ function wyckoffNineTests(bars, w, benchmark) {
     rs ? buy ? rs.diffPct > 0 : rs.diffPct < 0 : null,
     rs ? `${rs.bars} phi\xEAn: m\xE3 ${pct(rs.stockPct)} \xB7 VN-Index ${pct(rs.indexPct)}${rs.stockHigherLow && rs.indexLowerLow ? " \xB7 m\xE3 gi\u1EEF \u0111\xE1y cao h\u01A1n khi ch\u1EC9 s\u1ED1 t\u1EA1o \u0111\xE1y th\u1EA5p h\u01A1n" : ""}` : "ch\u01B0a c\xF3 d\u1EEF li\u1EC7u ch\u1EC9 s\u1ED1 (ch\u1EC9 khung D, m\xE3 c\u1ED5 phi\u1EBFu)"
   );
-  const channel = trendChannel(bars, start, buy ? "down" : "up", atr);
+  const channel = trendChannel(bars, start, buy ? "down" : "up", atr2);
   add(
     "trendline",
     buy ? "\u0110\xE3 ph\xE1 \u0111\u01B0\u1EDDng cung c\u1EE7a xu h\u01B0\u1EDBng gi\u1EA3m" : "\u0110\xE3 ph\xE1 \u0111\u01B0\u1EDDng c\u1EA7u c\u1EE7a xu h\u01B0\u1EDBng t\u0103ng",
@@ -2215,9 +2215,9 @@ function wyckoffNineTests(bars, w, benchmark) {
     ch == null ? null : buy ? ch > 0 : ch < 0,
     highs.length >= 2 ? `${fmt(highs[highs.length - 2].price)} \u2192 ${fmt(highs[highs.length - 1].price)}` : "ch\u01B0a \u0111\u1EE7 \u0111\u1EC9nh"
   );
-  const len = endR - start + 1;
-  add("base", buy ? "\u0110\xE3 h\xECnh th\xE0nh n\u1EC1n \u0111i ngang (\u2265 20 n\u1EBFn)" : "\u0110\xE3 h\xECnh th\xE0nh v\xF9ng \u0111\u1EC9nh \u0111i ngang (\u2265 20 n\u1EBFn)", len >= 20, `${len} n\u1EBFn`);
-  const a = atr[last] || 1;
+  const len2 = endR - start + 1;
+  add("base", buy ? "\u0110\xE3 h\xECnh th\xE0nh n\u1EC1n \u0111i ngang (\u2265 20 n\u1EBFn)" : "\u0110\xE3 h\xECnh th\xE0nh v\xF9ng \u0111\u1EC9nh \u0111i ngang (\u2265 20 n\u1EBFn)", len2 >= 20, `${len2} n\u1EBFn`);
+  const a = atr2[last] || 1;
   const spring = w.events.filter((e) => e.event === (buy ? "Spring" : "UT")).pop();
   const stop = buy ? Math.min(Lo, spring?.price ?? Lo) - 0.5 * a : Math.max(H, spring?.price ?? H) + 0.5 * a;
   const target = buy ? H + height : Lo - height;
@@ -2307,8 +2307,8 @@ function tradePlan3(bars, w) {
   if ((w.status ?? "active") !== "active" || w.phase === "undetermined" || w.rangeHigh == null || w.rangeLow == null || !bars.length) return null;
   const long = w.phase === "accumulation" || w.phase === "spring" || w.phase === "test" || w.phase === "markup";
   const last = bars.length - 1;
-  const atr = atrSeries(bars, 14);
-  const a = atr[last] || 0;
+  const atr2 = atrSeries(bars, 14);
+  const a = atr2[last] || 0;
   const H = w.rangeHigh, L = w.rangeLow;
   const ev = w.evidence ?? null;
   const tranches = [];
@@ -2418,9 +2418,9 @@ function tradePlan3(bars, w) {
     c++;
   }
   const adv = c ? v / c : 0;
-  const lots = (pct2) => Math.floor(adv * pct2 / 100) * 100;
+  const lots = (pct3) => Math.floor(adv * pct3 / 100) * 100;
   const maxShares = adv > 0 ? lots(WYCKOFF_PLAN.liquidityPct) : null;
-  const liquidity = adv > 0 ? WYCKOFF_PLAN.liquidityBand.map((pct2) => ({ pct: pct2, shares: lots(pct2), value: lots(pct2) * bars[last].close })) : [];
+  const liquidity = adv > 0 ? WYCKOFF_PLAN.liquidityBand.map((pct3) => ({ pct: pct3, shares: lots(pct3), value: lots(pct3) * bars[last].close })) : [];
   return {
     side: long ? "buy" : "sell",
     title: long ? "K\u1EBF ho\u1EA1ch 3 l\u1EA7n mua (theo t\xE0i li\u1EC7u)" : "3 b\u01B0\u1EDBc gi\u1EA3m t\u1EF7 tr\u1ECDng (VN kh\xF4ng b\xE1n kh\u1ED1ng)",
@@ -2562,8 +2562,8 @@ function convergenceAt(bars, benchmark, opts = {}) {
   const dir = buy ? "bullish" : "bearish";
   const last = bars.length - 1;
   const close = bars[last].close;
-  const atr = atrSeries(bars, 14);
-  const a = atr[last] || close * 0.02;
+  const atr2 = atrSeries(bars, 14);
+  const a = atr2[last] || close * 0.02;
   const W2 = CONVERGENCE.weights;
   const comp = [];
   const add = (key, label, max, frac, value) => comp.push({ key, label, max, points: Math.round(max * Math.max(0, Math.min(1, frac)) * 10) / 10, ok: frac >= 0.5, value });
@@ -2606,8 +2606,8 @@ function convergenceAt(bars, benchmark, opts = {}) {
   const dr = computeDealingRange(bars, st.pivots);
   if (dr) {
     const anchor = dr.highIndex < dr.lowIndex ? dr.highIndex : dr.lowIndex;
-    const pts = anchoredVwap(bars, anchor);
-    const lastV = pts[pts.length - 1];
+    const pts2 = anchoredVwap(bars, anchor);
+    const lastV = pts2[pts2.length - 1];
     if (lastV) lv("avwap", "AVWAP swing", lastV.vwap, 0.7);
   }
   const clusters = clusterLevels(levels).filter((c2) => (buy ? c2.price <= close + 0.25 * a : c2.price >= close - 0.25 * a) && Math.abs(close - c2.price) <= CONVERGENCE.zoneATR * a);
@@ -2688,7 +2688,7 @@ function convergenceAt(bars, benchmark, opts = {}) {
       tranche: tr ? { n: tr.n, status: tr.status, date: tr.date } : null,
       signals
     },
-    liquidity: { avgValue20: Math.round(avgValue20), capacity: [0.1, 0.15, 0.2].map((pct2) => ({ pct: pct2, value: Math.round(avgValue20 * pct2) })) },
+    liquidity: { avgValue20: Math.round(avgValue20), capacity: [0.1, 0.15, 0.2].map((pct3) => ({ pct: pct3, value: Math.round(avgValue20 * pct3) })) },
     dataAsOf: bars[last].date,
     close
   };
@@ -2713,11 +2713,11 @@ function resolve(bars, p, extreme, width, pp) {
   }
   if (last < bars.length - 1) p.failIndex = last + 1;
 }
-function detectPatterns(bars, atr, mid, pp = PATTERN_PARAMS) {
+function detectPatterns(bars, atr2, mid, pp = PATTERN_PARAMS) {
   const out = [];
   for (let k = 2; k < mid.length; k++) {
     const s2 = mid[k], s1 = mid[k - 1], s0 = mid[k - 2];
-    const a = Math.max(atr[s2.index], 1e-9);
+    const a = Math.max(atr2[s2.index], 1e-9);
     const conf = s2.confirmedIndex;
     if (s0.kind === s2.kind && Math.abs(s2.price - s0.price) <= pp.eqAtr * a) {
       const prev = k >= 3 ? mid[k - 3] : null;
@@ -2921,7 +2921,7 @@ var fmt2 = (x) => Math.abs(x) >= 100 ? x.toLocaleString("vi-VN", { maximumFracti
 function scenarios(a, extraZones = []) {
   const t = a.bars.length - 1;
   if (t < 1) return [];
-  const c = a.bars[t].close, atr = Math.max(a.atr[t], 1e-9);
+  const c = a.bars[t].close, atr2 = Math.max(a.atr[t], 1e-9);
   const zones = [...a.zones, ...extraZones].filter((z) => z.strength >= 0.25);
   const above = zones.filter((z) => z.lo > c).sort((x, y) => x.mid - y.mid);
   const below = zones.filter((z) => z.hi < c).sort((x, y) => y.mid - x.mid);
@@ -2932,8 +2932,8 @@ function scenarios(a, extraZones = []) {
   const bull = pats.filter((p) => p.dir === 1).pop();
   const bear = pats.filter((p) => p.dir === -1).pop();
   const out = [];
-  const trigL = above[0] ? above[0].hi : c + atr;
-  const stopL = below[0] ? Math.min(below[0].lo - 0.5 * atr, trigL - atr) : trigL - 2 * atr;
+  const trigL = above[0] ? above[0].hi : c + atr2;
+  const stopL = below[0] ? Math.min(below[0].lo - 0.5 * atr2, trigL - atr2) : trigL - 2 * atr2;
   const tgL = above.slice(1, 3).map((z) => z.mid);
   if (bull) tgL.push(bull.target);
   const targetsL = [...new Set(tgL.filter((x) => x > trigL).map((x) => +x.toFixed(4)))].sort((x, y) => x - y).slice(0, 3);
@@ -2950,8 +2950,8 @@ function scenarios(a, extraZones = []) {
     targetBasis: basisL,
     text: `N\u1EBFu gi\xE1 \u0110\xD3NG C\u1EECA tr\xEAn ${fmt2(trigL)}${bull ? ` (x\xE1c nh\u1EADn ${PATTERN_NAME[bull.type]})` : ""}: m\u1EE5c ti\xEAu ${targetsL.map(fmt2).join(" \u2192 ")}${basisL === "R-multiple" ? " (\u0111o theo 2R \u2014 ph\xEDa tr\xEAn kh\xF4ng c\xF2n v\xF9ng c\u1EA3n \u0111\xE3 bi\u1EBFt)" : ""}; c\u1EAFt l\u1ED7 d\u01B0\u1EDBi ${fmt2(stopL)}. Ch\u1ED1t m\u1ED9t n\u1EEDa \u1EDF m\u1EE5c ti\xEAu \u0111\u1EA7u.`
   });
-  const trigS = below[0] ? below[0].lo : c - atr;
-  const stopS = above[0] ? Math.max(above[0].hi + 0.5 * atr, trigS + atr) : trigS + 2 * atr;
+  const trigS = below[0] ? below[0].lo : c - atr2;
+  const stopS = above[0] ? Math.max(above[0].hi + 0.5 * atr2, trigS + atr2) : trigS + 2 * atr2;
   const tgS = below.slice(1, 3).map((z) => z.mid);
   if (bear) tgS.push(bear.target);
   const targetsS = [...new Set(tgS.filter((x) => x < trigS && x > 0).map((x) => +x.toFixed(4)))].sort((x, y) => y - x).slice(0, 3);
@@ -2987,32 +2987,32 @@ function indicators(bars, p) {
   const close = bars.map((b) => b.close);
   const maFast = smaSeries(close, p.maFast);
   const maSlow = smaSeries(close, p.maSlow);
-  const atr = atrSeries(bars, p.atr);
+  const atr2 = atrSeries(bars, p.atr);
   const n = bars.length;
-  const slope = new Array(n).fill(NaN);
+  const slope2 = new Array(n).fill(NaN);
   const slopeFast = new Array(n).fill(NaN);
   const dev = new Array(n).fill(NaN);
   const spread = new Array(n).fill(NaN);
   for (let i = 0; i < n; i++) {
-    const a = atr[i] > 0 ? atr[i] : NaN;
+    const a = atr2[i] > 0 ? atr2[i] : NaN;
     if (i >= p.slopeLen) {
-      slope[i] = (maSlow[i] - maSlow[i - p.slopeLen]) / (p.slopeLen * a);
+      slope2[i] = (maSlow[i] - maSlow[i - p.slopeLen]) / (p.slopeLen * a);
       slopeFast[i] = (maFast[i] - maFast[i - p.slopeLen]) / (p.slopeLen * a);
     }
     dev[i] = (close[i] - maSlow[i]) / a;
     spread[i] = (maFast[i] - maSlow[i]) / a;
   }
   const volAvg = smaSeries(bars.map((b) => b.volume), 20);
-  return { maFast, maSlow, atr, slope, slopeFast, dev, spread, volAvg };
+  return { maFast, maSlow, atr: atr2, slope: slope2, slopeFast, dev, spread, volAvg };
 }
-function dcSwings(bars, atr, theta, level) {
+function dcSwings(bars, atr2, theta, level) {
   const out = [];
   if (bars.length === 0) return out;
   let mode = 0;
   let hiP = bars[0].high, hiI = 0, loP = bars[0].low, loI = 0;
   for (let i = 1; i < bars.length; i++) {
     const b = bars[i];
-    const th = theta * Math.max(atr[i], 1e-9);
+    const th = theta * Math.max(atr2[i], 1e-9);
     if (mode >= 0 && b.high > hiP) {
       hiP = b.high;
       hiI = i;
@@ -3316,7 +3316,7 @@ function volumePoc(bars, from, t, step) {
 }
 function zonesAt(bars, ind, swings, patterns, t, p, maxZones = 8) {
   if (t < 1) return [];
-  const atr = Math.max(ind.atr[t], 1e-9);
+  const atr2 = Math.max(ind.atr[t], 1e-9);
   const from = Math.max(0, t - p.levelLookback);
   const close = bars[t].close;
   const cands = [];
@@ -3337,10 +3337,10 @@ function zonesAt(bars, ind, swings, patterns, t, p, maxZones = 8) {
   }
   if (Number.isFinite(ind.maFast[t])) cands.push({ price: ind.maFast[t], w: 1.5, src: "MA" });
   if (Number.isFinite(ind.maSlow[t])) cands.push({ price: ind.maSlow[t], w: 2.5, src: "MA" });
-  const poc = volumePoc(bars, from, t, 0.25 * atr);
+  const poc = volumePoc(bars, from, t, 0.25 * atr2);
   if (poc != null) cands.push({ price: poc, w: 2, src: "Kh\u1ED1i l\u01B0\u1EE3ng" });
   if (cands.length === 0) return [];
-  const h = 0.5 * atr;
+  const h = 0.5 * atr2;
   const lo = Math.min(...cands.map((c) => c.price)) - 2 * h;
   const hi = Math.max(...cands.map((c) => c.price)) + 2 * h;
   const step = h / 4;
@@ -3366,14 +3366,14 @@ function zonesAt(bars, ind, swings, patterns, t, p, maxZones = 8) {
     if (pk.d < 0.15 * dMax) break;
     if (out.some((z) => Math.abs(z.mid - pk.x) < 1.2 * h)) continue;
     const zlo = pk.x - 0.6 * h, zhi = pk.x + 0.6 * h;
-    const near = cands.filter((c) => Math.abs(c.price - pk.x) <= 1.5 * h);
-    const sources = [...new Set(near.map((c) => c.src))];
+    const near2 = cands.filter((c) => Math.abs(c.price - pk.x) <= 1.5 * h);
+    const sources = [...new Set(near2.map((c) => c.src))];
     let touches = 0;
     for (let j = from; j <= t; j++) if (bars[j].low <= zhi && bars[j].high >= zlo && (j === from || !(bars[j - 1].low <= zhi && bars[j - 1].high >= zlo))) touches++;
-    const role = pk.x <= close ? "support" : "resistance";
-    const hs = near.filter((c) => c.kind === "H").length, ls = near.filter((c) => c.kind === "L").length;
-    const flipped = role === "support" ? hs > ls : ls > hs;
-    out.push({ lo: zlo, hi: zhi, mid: pk.x, strength: Math.min(1, pk.d / dMax), sources, touches, role, flipped });
+    const role2 = pk.x <= close ? "support" : "resistance";
+    const hs = near2.filter((c) => c.kind === "H").length, ls = near2.filter((c) => c.kind === "L").length;
+    const flipped = role2 === "support" ? hs > ls : ls > hs;
+    out.push({ lo: zlo, hi: zhi, mid: pk.x, strength: Math.min(1, pk.d / dMax), sources, touches, role: role2, flipped });
   }
   return out.sort((a, b) => a.mid - b.mid);
 }
@@ -3402,13 +3402,13 @@ function bbwPercentile(bars, t, look = 250) {
   return cnt ? Math.round(below / cnt * 100) : null;
 }
 function baseAt(bars, ind, small, t, p, maxRangeAtr = 6) {
-  const atr = Math.max(ind.atr[t], 1e-9);
+  const atr2 = Math.max(ind.atr[t], 1e-9);
   let best = null;
   let lo = Infinity, hi = -Infinity;
   for (let s = t; s >= Math.max(0, t - 120); s--) {
     lo = Math.min(lo, bars[s].low);
     hi = Math.max(hi, bars[s].high);
-    if ((hi - lo) / atr > maxRangeAtr) break;
+    if ((hi - lo) / atr2 > maxRangeAtr) break;
     if (t - s + 1 >= 15) best = { s, lo, hi };
   }
   if (!best) return null;
@@ -3430,9 +3430,9 @@ function baseAt(bars, ind, small, t, p, maxRangeAtr = 6) {
     lo: best.lo,
     hi: best.hi,
     bars: t - best.s + 1,
-    rangeAtr: (best.hi - best.lo) / atr,
+    rangeAtr: (best.hi - best.lo) / atr2,
     contractions,
-    tight: (thi - tlo) / atr <= 1.5,
+    tight: (thi - tlo) / atr2 <= 1.5,
     positionPct: best.hi > best.lo ? Math.round((bars[t].close - best.lo) / (best.hi - best.lo) * 100) : 50,
     bbwPct: bbwPercentile(bars, t),
     maConverged: Number.isFinite(sp) && Math.abs(sp) <= p.warAtr
@@ -3749,27 +3749,733 @@ function minutesToH1(minutes) {
   }
   return out;
 }
+
+// src/lib/quant-core/elliott/elliottGet.js
+function atr(c, n = 14) {
+  const out = new Array(c.length).fill(NaN);
+  let sum = 0, prev = NaN;
+  for (let i = 0; i < c.length; i++) {
+    const tr = i === 0 ? c[i].high - c[i].low : Math.max(c[i].high - c[i].low, Math.abs(c[i].high - c[i - 1].close), Math.abs(c[i].low - c[i - 1].close));
+    if (i < n) {
+      sum += tr;
+      if (i === n - 1) {
+        prev = sum / n;
+        out[i] = prev;
+      }
+    } else {
+      prev = (prev * (n - 1) + tr) / n;
+      out[i] = prev;
+    }
+  }
+  return out;
+}
+function zigzag(c, { pct: pct3 = 0.03, atrPeriod = 14, atrMult = 0 } = {}) {
+  const n = c.length;
+  if (n < 3) return [];
+  const A = atrMult > 0 ? atr(c, atrPeriod) : null;
+  const thr = (i) => A && !isNaN(A[i]) ? atrMult * A[i] : pct3 * c[i].close;
+  const mk = (i, type, confirmed = true, ci = null) => ({ i, time: c[i].time, type, price: type === "H" ? c[i].high : c[i].low, confirmed, ci: confirmed ? ci : null });
+  const out = [];
+  let dir = 0, hi = 0, lo = 0, ext = 0;
+  for (let i = 1; i < n; i++) {
+    if (dir === 0) {
+      if (c[i].high > c[hi].high) hi = i;
+      if (c[i].low < c[lo].low) lo = i;
+      if (c[hi].high - c[lo].low >= thr(i)) {
+        if (lo < hi || lo === hi && c[i].close >= c[i].open) {
+          out.push(mk(lo, "L", true, i));
+          dir = 1;
+          ext = hi;
+        } else {
+          out.push(mk(hi, "H", true, i));
+          dir = -1;
+          ext = lo;
+        }
+      }
+    } else if (dir === 1) {
+      if (c[i].high >= c[ext].high) ext = i;
+      else if (c[ext].high - c[i].low >= thr(i)) {
+        out.push(mk(ext, "H", true, i));
+        dir = -1;
+        ext = i;
+      }
+    } else {
+      if (c[i].low <= c[ext].low) ext = i;
+      else if (c[i].high - c[ext].low >= thr(i)) {
+        out.push(mk(ext, "L", true, i));
+        dir = 1;
+        ext = i;
+      }
+    }
+  }
+  if (dir !== 0) out.push(mk(ext, dir === 1 ? "H" : "L", false));
+  return out;
+}
+var DEFAULT_MODEL = { bias: 0, logp: 1, osc: 1.5, nest: 1, alt: 0.5 };
+var DEFAULT_MODEL_FULL = { ...DEFAULT_MODEL, vol: 0.5, time: 0.3 };
+
+// src/lib/quant-core/elliott/patterns.ts
+var PATTERN_NAME2 = {
+  IM: "Xung l\u1EF1c",
+  LD: "N\xEAm m\u1EDF \u0111\u1EA7u (Leading Diagonal)",
+  ED: "N\xEAm k\u1EBFt th\xFAc (Ending Diagonal)",
+  ZZ: "Zigzag",
+  DZ: "Zigzag k\xE9p",
+  FL: "Flat",
+  "EX-FL": "Flat m\u1EDF r\u1ED9ng",
+  RFL: "Flat ch\u1EA1y",
+  TR: "Tam gi\xE1c thu h\u1EB9p",
+  RTR: "Tam gi\xE1c ch\u1EA1y",
+  ETR: "Tam gi\xE1c m\u1EDF r\u1ED9ng",
+  D3: "\u0110i\u1EC1u ch\u1EC9nh k\xE9p W-X-Y",
+  T3: "\u0110i\u1EC1u ch\u1EC9nh ba W-X-Y-X-Z"
+};
+var DW_FIB = {
+  retrace: [0.236, 0.382, 0.5, 0.618, 0.786],
+  zzB: { typical: [0.5, 0.618], max: 0.786 },
+  flatB: { min: 0.9, expandedMax: 1.382, expandedTypical: [1.272, 1.382] },
+  w3: [1.618, 2.618, 3.618],
+  w4: [0.382, 0.5],
+  w5Of03: [0.382, 0.618],
+  c: [1, 1.618]
+};
+var near = (v, xs, tol = 0.08) => xs.some((x) => Math.abs(v - x) <= tol * Math.max(1, x));
+var fit = (tag, rules, labels) => {
+  const hard = rules.filter((r) => r.severity === "hard"), soft = rules.filter((r) => r.severity === "soft" && r.pass !== null);
+  return { tag, name: PATTERN_NAME2[tag], labels, rules, valid: hard.every((r) => r.pass !== false), score: soft.length ? soft.filter((r) => r.pass).length / soft.length : 0.5 };
+};
+var pct2 = (v) => `${(v * 100).toFixed(1).replace(".", ",")}%`;
+var len = (a, b) => Math.abs(b.price - a.price);
+var dirOf = (a, b) => b.price >= a.price ? 1 : -1;
+var slope = (a, b) => (b.price - a.price) / Math.max(1, b.i - a.i);
+function rankFits(fits) {
+  return fits.map((f, k) => ({ f, k })).sort((a, b) => Number(b.f.valid) - Number(a.f.valid) || b.f.score - a.f.score || a.k - b.k).map((x) => x.f);
+}
+function classifyMotive(p, position = "unknown") {
+  if (p.length < 6) return [];
+  const s = dirOf(p[0], p[1]);
+  const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
+  const r22 = w[1] / w[0], r4 = w[3] / w[2];
+  const w3Shortest = w[2] < w[0] && w[2] < w[4];
+  const overlap = s * (p[4].price - p[1].price) <= 0;
+  const w3Beyond = s * (p[3].price - p[1].price) > 0;
+  const w5Beyond = s * (p[5].price - p[3].price) > 0;
+  const base = [
+    { id: "w2-origin", severity: "hard", pass: r22 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r22)})` },
+    { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
+    { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
+  ];
+  const out = [];
+  out.push(fit("IM", [
+    ...base,
+    { id: "w4-no-overlap", severity: "hard", pass: !overlap, text: "S\xF3ng 4 kh\xF4ng l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1" },
+    { id: "w5-beyond-w3", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t \u0111\u1EC9nh/\u0111\xE1y s\xF3ng 3" : "S\xF3ng 5 h\u1EE5t (truncation)" },
+    { id: "w3-ext", severity: "soft", pass: near(w[2] / w[0], DW_FIB.w3, 0.12), text: `S\xF3ng 3 \u2248 161,8 / 261,8 / 361,8% s\xF3ng 1 (th\u1EF1c t\u1EBF ${pct2(w[2] / w[0])})` },
+    { id: "w4-depth", severity: "soft", pass: near(r4, DW_FIB.w4, 0.12) || r4 < 0.5, text: `S\xF3ng 4 h\u1ED3i 38,2\u201350% s\xF3ng 3 (th\u1EF1c t\u1EBF ${pct2(r4)})` }
+  ], ["0", "1", "2", "3", "4", "5"]));
+  const s13 = slope(p[1], p[3]), s24 = slope(p[2], p[4]);
+  const contracting = w[2] < w[0] && w[4] < w[2] && w[3] < w[1] && s * (s13 - s24) < 0;
+  const expanding = w[2] > w[0] && w[4] > w[2] && w[3] > w[1] && s * (s13 - s24) > 0;
+  const wedge = [
+    ...base,
+    { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
+    { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
+    { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
+    { id: "diag-deep", severity: "soft", pass: r22 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+  ];
+  if (position !== "middle") {
+    if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
+    if (position !== "first") out.push(fit("ED", [...wedge, { id: "ed-pos", severity: "soft", pass: position === "last" ? true : null, text: "N\xEAm k\u1EBFt th\xFAc \u1EDF s\xF3ng 5 / s\xF3ng C" }], ["0", "1", "2", "3", "4", "5"]));
+  }
+  return rankFits(out);
+}
+function classifyThreeLeg(start, A, B, C, sub = {}) {
+  const s = dirOf(start, A), lenA = len(start, A);
+  if (!(lenA > 0)) return [];
+  const bR = s * (A.price - B.price) / lenA;
+  const cBeyond = C ? s * (C.price - A.price) > 0 : null;
+  const cR = C ? len(B, C) / lenA : null;
+  const L = ["0", "A", "B", "C"];
+  const known = (n) => n === 3 || n === 5 ? n : null;
+  const aw = known(sub.aWaves), cw = known(sub.cWaves);
+  const out = [];
+  out.push(fit("ZZ", [
+    { id: "zz-b", severity: "hard", pass: bR < 1, text: `B kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u A (B h\u1ED3i ${pct2(bR)})` },
+    { id: "zz-c", severity: "hard", pass: cBeyond, text: C ? cBeyond ? "C v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i A" : "C ch\u01B0a v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i A" : "C ch\u01B0a h\xECnh th\xE0nh" },
+    { id: "zz-b-depth", severity: "soft", pass: bR <= DW_FIB.zzB.max, text: `B h\u1ED3i 50\u201361,8% (\u2264 78,6%) c\u1EE7a A` },
+    { id: "zz-c-ratio", severity: "soft", pass: cR == null ? null : near(cR, DW_FIB.c, 0.12), text: cR == null ? "C = 100 / 161,8% A (ch\u1EDD C)" : `C \u2248 100 / 161,8% A (th\u1EF1c t\u1EBF ${pct2(cR)})` },
+    { id: "zz-a5", severity: "soft", pass: aw == null ? null : aw === 5, text: "A c\xF3 5 s\xF3ng con (5-3-5)" }
+  ], L));
+  out.push(fit("FL", [
+    { id: "fl-b", severity: "hard", pass: bR >= DW_FIB.flatB.min && bR <= 1.05, text: `B h\u1ED3i 90\u2013105% c\u1EE7a A (th\u1EF1c t\u1EBF ${pct2(bR)})` },
+    { id: "fl-c", severity: "soft", pass: cR == null ? null : cR >= 0.9 && cR <= 1.2, text: cR == null ? "C \u2248 A (ch\u1EDD C)" : `C \u2248 A, k\u1EBFt th\xFAc g\u1EA7n cu\u1ED1i A (th\u1EF1c t\u1EBF ${pct2(cR)})` },
+    { id: "fl-a3", severity: "soft", pass: aw == null ? null : aw === 3, text: "A c\xF3 3 s\xF3ng con (3-3-5)" }
+  ], L));
+  out.push(fit("EX-FL", [
+    { id: "exfl-b", severity: "hard", pass: bR > 1, text: `B v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u A (B = ${pct2(bR)} c\u1EE7a A)` },
+    { id: "exfl-c", severity: "hard", pass: C ? cBeyond : null, text: C ? cBeyond ? "C v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i A" : "C ch\u01B0a v\u01B0\u1EE3t cu\u1ED1i A" : "C ch\u01B0a h\xECnh th\xE0nh" },
+    { id: "exfl-b-ratio", severity: "soft", pass: bR <= DW_FIB.flatB.expandedMax + 0.05, text: `B \u2248 127,2 / 138,2% c\u1EE7a A` },
+    { id: "exfl-c-ratio", severity: "soft", pass: cR == null ? null : near(cR, [1.618], 0.15), text: cR == null ? "C \u2248 161,8% A (ch\u1EDD C)" : `C \u2248 161,8% A (th\u1EF1c t\u1EBF ${pct2(cR)})` },
+    { id: "exfl-a3", severity: "soft", pass: aw == null ? null : aw === 3, text: "A c\xF3 3 s\xF3ng con" }
+  ], L));
+  out.push(fit("RFL", [
+    { id: "rfl-b", severity: "hard", pass: bR > 1, text: `B v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u A (B = ${pct2(bR)} c\u1EE7a A)` },
+    { id: "rfl-c", severity: "hard", pass: C ? cBeyond === false : null, text: C ? cBeyond ? "C v\u01B0\u1EE3t cu\u1ED1i A (kh\xF4ng ph\u1EA3i flat ch\u1EA1y)" : "C kh\xF4ng t\u1EDBi cu\u1ED1i A \u2014 xu h\u01B0\u1EDBng l\u1EDBn m\u1EA1nh" : "C ch\u01B0a h\xECnh th\xE0nh" },
+    { id: "rfl-a3", severity: "soft", pass: aw == null ? null : aw === 3, text: "A c\xF3 3 s\xF3ng con" }
+  ], L));
+  out.push(fit("D3", [
+    { id: "d3-w3", severity: "hard", pass: aw === 3, text: aw == null ? "W: ch\u01B0a \u0111\u1EBFm \u0111\u01B0\u1EE3c s\xF3ng con" : `W l\xE0 \u0111i\u1EC1u ch\u1EC9nh 3 s\xF3ng (\u0111\u1EBFm \u0111\u01B0\u1EE3c ${aw})` },
+    { id: "d3-y3", severity: "hard", pass: cw === 3, text: cw == null ? "Y: ch\u01B0a \u0111\u1EBFm \u0111\u01B0\u1EE3c s\xF3ng con" : `Y l\xE0 \u0111i\u1EC1u ch\u1EC9nh 3 s\xF3ng (\u0111\u1EBFm \u0111\u01B0\u1EE3c ${cw})` },
+    { id: "d3-x", severity: "hard", pass: bR < 1, text: `X kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u W (X h\u1ED3i ${pct2(bR)})` },
+    { id: "d3-y-ratio", severity: "soft", pass: cR == null ? null : near(cR, [1, 0.618, 1.618], 0.12), text: cR == null ? "Y \u2248 W (ch\u1EDD Y)" : `Y \u2248 61,8 / 100 / 161,8% W (th\u1EF1c t\u1EBF ${pct2(cR)})` }
+  ], ["0", "W", "X", "Y"]));
+  return rankFits(out);
+}
+function classifyTriangle(p) {
+  if (p.length < 6) return [];
+  const [o, a, b, c, d, e] = p;
+  const L = [len(o, a), len(a, b), len(b, c), len(c, d), len(d, e)];
+  const beyondPrevStart = (k) => L[k] > L[k - 1];
+  const sAC = slope(a, c), sBD = slope(b, d);
+  const s = dirOf(o, a);
+  const gapStart = Math.abs(a.price - b.price), gapEnd = Math.abs(a.price + sAC * (e.i - a.i) - (b.price + sBD * (e.i - b.i)));
+  const converge = gapEnd < gapStart, diverge = gapEnd > gapStart;
+  const labels = ["0", "A", "B", "C", "D", "E"];
+  const noneBeyond = [2, 3, 4].every((k) => !beyondPrevStart(k));
+  const eInsideD = L[4] < L[3];
+  return rankFits([
+    fit("TR", [
+      { id: "tr-b", severity: "hard", pass: !beyondPrevStart(1), text: "B kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u A" },
+      { id: "tr-nobeyond", severity: "hard", pass: noneBeyond, text: "C, D, E kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u s\xF3ng tr\u01B0\u1EDBc" },
+      { id: "tr-converge", severity: "hard", pass: converge, text: "Hai \u0111\u01B0\u1EDDng A-C v\xE0 B-D h\u1ED9i t\u1EE5" },
+      { id: "tr-e", severity: "soft", pass: eInsideD, text: "E n\u1EB1m trong D" },
+      { id: "tr-shrink", severity: "soft", pass: L[2] < L[1] && L[3] < L[2], text: "C\xE1c s\xF3ng co d\u1EA7n" }
+    ], labels),
+    fit("RTR", [
+      { id: "rtr-b", severity: "hard", pass: beyondPrevStart(1), text: "B v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u A (tam gi\xE1c ch\u1EA1y)" },
+      { id: "rtr-nobeyond", severity: "hard", pass: noneBeyond, text: "C, D, E kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u s\xF3ng tr\u01B0\u1EDBc" },
+      { id: "rtr-converge", severity: "hard", pass: converge, text: "Hai \u0111\u01B0\u1EDDng A-C v\xE0 B-D h\u1ED9i t\u1EE5" },
+      { id: "rtr-e", severity: "soft", pass: eInsideD, text: "E n\u1EB1m trong D" }
+    ], labels),
+    fit("ETR", [
+      { id: "etr-grow", severity: "hard", pass: [2, 3, 4].every(beyondPrevStart), text: "M\u1ED7i s\xF3ng C, D, E v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u s\xF3ng tr\u01B0\u1EDBc" },
+      { id: "etr-diverge", severity: "hard", pass: diverge, text: "Hai \u0111\u01B0\u1EDDng A-C v\xE0 B-D ph\xE2n k\u1EF3" },
+      { id: "etr-dir", severity: "soft", pass: s * (e.price - c.price) > 0 === s * (a.price - o.price) > 0, text: "E c\xF9ng h\u01B0\u1EDBng A" }
+    ], labels)
+  ]);
+}
+function innerPivots(candles, a, b, pct3) {
+  const seg = candles.slice(a.i, b.i + 1);
+  if (seg.length < 5) return [a, b];
+  const inner = zigzag(seg, { pct: pct3 }).filter((p) => p.i > 0 && p.i < seg.length - 1 && p.confirmed).map((p) => ({ i: p.i + a.i, price: p.price, time: String(p.time) }));
+  const out = [a];
+  for (const p of [...inner, b]) {
+    const prev = out[out.length - 1], prev2 = out[out.length - 2];
+    if (prev2 && Math.sign(prev.price - prev2.price) === Math.sign(p.price - prev.price)) out[out.length - 1] = p;
+    else out.push(p);
+  }
+  return out;
+}
+
+// src/lib/quant-core/elliott/v3/waveTree.ts
+var WAVE_TREE_VERSION = "ew-v3.0";
+var BASE_PCT_STEP = 2e-3;
+var WINDOW_ANCHOR = 25;
+var NOTATION = [
+  () => "",
+  (k, m) => m ? ["i", "ii", "iii", "iv", "v"][k] : ["a", "b", "c", "d", "e"][k],
+  (k, m) => m ? String(k + 1) : "ABCDE"[k],
+  (k, m) => `(${m ? k + 1 : "ABCDE"[k]})`,
+  (k, m) => `[${m ? k + 1 : "ABCDE"[k]}]`,
+  (k, m) => `{${m ? k + 1 : "ABCDE"[k]}}`
+];
+var WXY = ["W", "X", "Y"];
+function waveLabel(level, index, pattern) {
+  const f = NOTATION[Math.min(level, NOTATION.length - 1)];
+  if (pattern === "D3") {
+    const w = WXY[index] ?? "?";
+    return level === 1 ? w.toLowerCase() : level >= 3 ? `(${w})` : w;
+  }
+  return f(index, pattern === "IM" || pattern === "LD" || pattern === "ED");
+}
+function medianAtrPct(c, n = 14, lookback = 200) {
+  if (c.length < n + 2) return 0.03;
+  const tr = [];
+  let prev = NaN;
+  const pcts = [];
+  for (let i = 1; i < c.length; i++) {
+    const t = Math.max(c[i].high - c[i].low, Math.abs(c[i].high - c[i - 1].close), Math.abs(c[i].low - c[i - 1].close));
+    tr.push(t);
+    if (tr.length === n) prev = tr.reduce((a, b) => a + b, 0) / n;
+    else if (tr.length > n) prev = (prev * (n - 1) + t) / n;
+    if (tr.length >= n && i >= c.length - lookback && c[i].close > 0) pcts.push(prev / c[i].close);
+  }
+  pcts.sort((a, b) => a - b);
+  return pcts.length ? pcts[pcts.length >> 1] : 0.03;
+}
+var PT = (p) => ({ i: p.i, price: p.price, time: p.time });
+var ROLE_H = /* @__PURE__ */ new Set();
+var ROLE_L = /* @__PURE__ */ new Set();
+function extremesOk(c, pts2, roleH = ROLE_H, roleL = ROLE_L) {
+  for (let k = 1; k < pts2.length - 1; k++) {
+    const up = pts2[k].price > pts2[k - 1].price;
+    for (let i = pts2[k - 1].i + 1; i < pts2[k + 1].i; i++) {
+      if (up ? !roleL.has(i) && c[i].high > pts2[k].price * (1 + 1e-9) : !roleH.has(i) && c[i].low < pts2[k].price * (1 - 1e-9)) return false;
+    }
+  }
+  return true;
+}
+var role = (n) => n.kind === "motive" ? 5 : n.kind === "corrective" ? 3 : n.kind === "leg" ? n.sig >= 5 ? 5 : n.sig === 3 ? 3 : 1 : 1;
+var sigScore = (nodes2, expect) => {
+  let s = 0;
+  nodes2.forEach((n, k) => {
+    const r = role(n);
+    if (r === 1) return;
+    s += expect[k]?.includes(r) ? 0.4 : -0.4;
+  });
+  return s;
+};
+var PATTERN_PRIOR = { IM: 0.3, LD: -0.3, ED: -0.2, ZZ: 0.2, FL: 0.1, "EX-FL": 0, RFL: -1.4, TR: 0, RTR: -1, ETR: -1, D3: -0.2 };
+var structScore = (len2, fitScore, sig, tag) => len2 * (0.45 + 0.55 * fitScore) + sig + (PATTERN_PRIOR[tag] ?? 0);
+var partialScore = (len2, sig, tag) => len2 * 0.35 + 0.6 * sig + (PATTERN_PRIOR[tag] ?? 0);
+var ORPHAN_COST = -0.6;
+var ORPHAN_EDGE_COST = -0.25;
+function makeNode(level, kind, pattern, children, complete, score, fit2) {
+  const start = children[0].start, end = children[children.length - 1].end;
+  return {
+    level,
+    kind,
+    pattern,
+    complete,
+    provisional: children.some((c) => c.provisional),
+    dir: end.price >= start.price ? 1 : -1,
+    start,
+    end,
+    children,
+    childLabels: [],
+    sig: kind === "motive" ? 5 : kind === "corrective" ? 3 : 1,
+    score,
+    fit: fit2
+  };
+}
+function candidatesAt(c, nodes2, j, level) {
+  const out = [];
+  const m = nodes2.length;
+  const pts2 = (len2) => [nodes2[j].start, ...nodes2.slice(j, j + len2).map((n) => n.end)];
+  if (j + 5 <= m) {
+    const p = pts2(5), seg = nodes2.slice(j, j + 5);
+    if (extremesOk(c, p)) {
+      const pp = p.map(PT);
+      for (const f of classifyMotive(pp, "unknown")) if (f.valid) {
+        const exp = f.tag === "IM" ? [[5], [3, 1], [5], [3, 1], [5]] : [[5, 3], [3], [5, 3], [3], [5, 3]];
+        out.push({ len: 5, node: makeNode(level, "motive", f.tag, seg, true, structScore(5, f.score, sigScore(seg, exp), f.tag), f) });
+      }
+      for (const f of classifyTriangle(pp)) if (f.valid)
+        out.push({ len: 5, node: makeNode(level, "corrective", f.tag, seg, true, structScore(5, f.score, sigScore(seg, [[3], [3], [3], [3], [3]]), f.tag), f) });
+    }
+  }
+  if (j + 3 <= m) {
+    const p = pts2(3), seg = nodes2.slice(j, j + 3);
+    if (extremesOk(c, p)) {
+      const [o, A, B, C] = p.map(PT);
+      for (const f of classifyThreeLeg(o, A, B, C, { aWaves: role(seg[0]) === 1 ? null : role(seg[0]), cWaves: role(seg[2]) === 1 ? null : role(seg[2]) })) if (f.valid) {
+        const exp = f.tag === "ZZ" ? [[5], [3], [5]] : f.tag === "D3" ? [[3], [3, 5], [3]] : [[3], [3], [5]];
+        out.push({ len: 3, node: makeNode(level, "corrective", f.tag, seg, true, structScore(3, f.score, sigScore(seg, exp), f.tag), f) });
+      }
+    }
+  }
+  const rest = m - j;
+  if (rest >= 1 && rest <= 4) {
+    const p = pts2(rest), seg = nodes2.slice(j);
+    if (extremesOk(c, p)) {
+      const L = (a, b) => Math.abs(b.price - a.price);
+      const s = Math.sign(p[1].price - p[0].price);
+      const w2ok = rest < 2 || L(p[1], p[2]) < L(p[0], p[1]);
+      const w3ok = rest < 3 || s * (p[3].price - p[1].price) > 0 || !p[3].confirmed;
+      const w4ok = rest < 4 || s * (p[4].price - p[1].price) > 0;
+      if (w2ok && w3ok && w4ok && rest >= 2)
+        out.push({ len: rest, node: makeNode(level, "motive", "IM", seg, false, partialScore(rest, sigScore(seg, [[5], [3, 1], [5], [3, 1]]), "IM"), null) });
+      if (rest <= 2 && w2ok && rest === 2)
+        out.push({ len: rest, node: makeNode(level, "corrective", "ZZ", seg, false, partialScore(rest, sigScore(seg, [[5, 3], [3]]), "ZZ"), null) });
+      if (rest === 2) {
+        const bR = L(p[1], p[2]) / L(p[0], p[1]);
+        if (bR > 1 && bR <= 1.382 + 0.05) out.push({ len: 2, node: makeNode(level, "corrective", "EX-FL", seg, false, partialScore(2, sigScore(seg, [[3], [3]]), "EX-FL"), null) });
+      }
+      if (rest >= 3) {
+        const legs = seg.map((n) => L(n.start, n.end));
+        const shrinking = legs.slice(1).every((x, k) => k === 0 || x < legs[k]);
+        if (shrinking) out.push({ len: rest, node: makeNode(level, "corrective", "TR", seg, false, partialScore(rest, sigScore(seg, [[3], [3], [3], [3]]), "TR") - 0.3, null) });
+      }
+    }
+  }
+  return out;
+}
+function parseLevel(c, nodes2, level, K = 2) {
+  const m = nodes2.length;
+  const best = Array.from({ length: m + 1 }, () => []);
+  best[0] = [{ score: 0, nodes: [] }];
+  const push = (e, p) => {
+    const list = best[e];
+    list.push(p);
+    list.sort((a, b) => b.score - a.score);
+    if (list.length > K) list.length = K;
+  };
+  for (let j = 0; j < m; j++) {
+    if (!best[j].length) continue;
+    const cands = candidatesAt(c, nodes2, j, level);
+    for (const prev of best[j]) {
+      const orphan = { ...nodes2[j], level, kind: "orphan", pattern: null, children: [nodes2[j]], complete: true, childLabels: [], sig: 1, score: 0, fit: null };
+      push(j + 1, { score: prev.score + (j === m - 1 ? ORPHAN_EDGE_COST : ORPHAN_COST), nodes: [...prev.nodes, orphan] });
+      for (const cd of cands) push(j + cd.len, { score: prev.score + cd.node.score, nodes: [...prev.nodes, cd.node] });
+    }
+  }
+  return best[m];
+}
+function assignLabels(n) {
+  if (n.kind !== "motive" && n.kind !== "corrective") return;
+  n.childLabels = n.children.map((_, k) => waveLabel(n.level, k, n.pattern));
+}
+function buildWaveTree(candles, opts = {}) {
+  const start = Math.floor(Math.max(0, candles.length - 500) / WINDOW_ANCHOR) * WINDOW_ANCHOR;
+  const c = candles.slice(start);
+  if (c.length < 60) return null;
+  const basePct = opts.basePct ?? Math.min(0.08, Math.max(8e-3, Math.round(medianAtrPct(c) / BASE_PCT_STEP) * BASE_PCT_STEP));
+  const zz = zigzag(c, { pct: basePct });
+  const pivots2 = zz.map((p) => ({ i: p.i, price: p.price, time: String(p.time), type: p.type, confirmed: p.confirmed, ci: p.ci })).filter((p) => !opts.confirmedOnly || p.confirmed);
+  if (pivots2.length < 3) return null;
+  ROLE_H = new Set(pivots2.filter((p) => p.type === "H").map((p) => p.i));
+  ROLE_L = new Set(pivots2.filter((p) => p.type === "L").map((p) => p.i));
+  const legs = [];
+  for (let k = 1; k < pivots2.length; k++) {
+    const a = pivots2[k - 1], b = pivots2[k];
+    const n = innerPivots(c, PT(a), PT(b), basePct * 0.45).length - 1;
+    legs.push({
+      level: 0,
+      kind: "leg",
+      pattern: null,
+      complete: b.confirmed,
+      provisional: !b.confirmed,
+      dir: b.price >= a.price ? 1 : -1,
+      start: a,
+      end: b,
+      children: [],
+      childLabels: [],
+      sig: n,
+      score: 0,
+      fit: null
+    });
+  }
+  const levels = [legs];
+  const alternates = [];
+  const maxLevels = opts.maxLevels ?? 5;
+  let cur = legs;
+  for (let lv = 1; lv <= maxLevels && cur.length >= 3; lv++) {
+    const paths = parseLevel(c, cur, lv);
+    if (!paths.length) break;
+    const top = paths[0].nodes;
+    if (!top.some((n) => n.kind === "motive" || n.kind === "corrective")) break;
+    top.forEach(assignLabels);
+    levels.push(top);
+    const alt = paths[1]?.nodes[paths[1].nodes.length - 1];
+    const last = top[top.length - 1];
+    if (alt && (alt.kind !== last.kind || alt.pattern !== last.pattern || alt.start.i !== last.start.i)) {
+      assignLabels(alt);
+      alternates.push({ level: lv, node: alt });
+    }
+    if (top.length === cur.length) break;
+    cur = top;
+  }
+  const position = levels.slice(1).map((l) => l[l.length - 1]).reverse();
+  let dualLabel = null;
+  for (const a of [...alternates].sort((x, y) => y.level - x.level)) {
+    const main = levels[a.level][levels[a.level].length - 1];
+    if (main.kind !== "orphan" && a.node.kind !== "orphan" && main.kind !== a.node.kind) {
+      const nm = waveLabel(a.level + 1, 0, main.kind === "motive" ? "IM" : "ZZ"), na = waveLabel(a.level + 1, 0, a.node.kind === "motive" ? "IM" : "ZZ");
+      dualLabel = main.kind === "motive" ? `${nm}/${na}` : `${na}/${nm}`;
+      break;
+    }
+  }
+  return { version: WAVE_TREE_VERSION, basePct, pivots: pivots2, levels, position, alternates, dualLabel, asOf: String(c[c.length - 1].time), barCount: c.length };
+}
+
+// src/lib/quant-core/elliott/v3/scenarios.ts
+var SCENARIO_ENGINE_VERSION = "ew-scn-1.0";
+var STATE_LABEL = {
+  waiting: "Ch\u1EDD k\xEDch ho\u1EA1t",
+  triggered: "\u0110\xE3 k\xEDch ho\u1EA1t",
+  target1: "\u0110\u1EA1t m\u1EE5c ti\xEAu 1",
+  target2: "\u0110\u1EA1t m\u1EE5c ti\xEAu 2",
+  invalidated: "V\xF4 hi\u1EC7u",
+  expired: "H\u1EBFt h\u1EA1n"
+};
+var TEMPLATE_TITLE = {
+  wave3: "S\xF3ng 3",
+  wave5: "S\xF3ng 5",
+  waveC: "S\xF3ng C",
+  triangleThrust: "B\u1EADt kh\u1ECFi tam gi\xE1c",
+  afterImpulse: "\u0110i\u1EC1u ch\u1EC9nh sau 5 s\xF3ng",
+  afterCorrection: "Xu h\u01B0\u1EDBng m\u1EDBi sau \u0111i\u1EC1u ch\u1EC9nh"
+};
+var EXPIRY = { waitBars: 60, runBars: 120 };
+var pts = (n) => [n.children[0].start, ...n.children.map((c) => c.end)];
+var fmt5 = (v) => Math.round(v).toLocaleString("vi-VN");
+function finish(base, used, symbol) {
+  const trig = base.trigger.price, d = base.dir;
+  if (d * (base.invalidation.price - trig) >= 0) return null;
+  const from = base.anchors[base.anchors.length - 1].price;
+  if (d * (base.targets[0].price - trig) <= 0)
+    base = { ...base, targets: base.targets.map((t) => ({ price: trig + d * Math.abs(t.price - from), label: `${t.label} (\u0111o t\u1EEB k\xEDch ho\u1EA1t)` })) };
+  const ci = used.map((p) => p.ci);
+  const provisional = ci.some((x) => x == null);
+  const anchorKey = base.anchors.map((a) => a.time).join(",");
+  return { ...base, id: `${symbol}|${base.template}|${base.level}|${anchorKey}`, createdAt: null, provisional, expiry: EXPIRY };
+}
+function scenarioFromNode(n, prev, role2, symbol = "") {
+  if (n.kind !== "motive" && n.kind !== "corrective") return null;
+  const p = pts(n);
+  const k = n.children.length;
+  const s = p[1].price >= p[0].price ? 1 : -1;
+  const L = (a, b) => Math.abs(b.price - a.price);
+  const lab = n.childLabels;
+  const anchors = (k2) => p.slice(0, k2 + 1).map((x, j) => ({ time: x.time, price: x.price, label: j === 0 ? "0" : lab[j - 1] ?? String(j) }));
+  const tri = n.pattern === "TR" || n.pattern === "RTR" || n.pattern === "ETR";
+  if (n.kind === "motive") {
+    if ((k === 2 || k === 3) && !n.complete) {
+      const w1 = L(p[0], p[1]);
+      return finish({
+        template: "wave3",
+        role: role2,
+        level: n.level,
+        dir: s,
+        title: TEMPLATE_TITLE.wave3,
+        anchors: anchors(2),
+        trigger: { price: p[1].price, line: null, text: `\u0110\xF3ng c\u1EEDa ${s > 0 ? "v\u01B0\u1EE3t" : "th\u1EE7ng"} ${lab[0]} ${fmt5(p[1].price)}` },
+        targets: [{ price: p[2].price + s * 1.618 * w1, label: "161,8% s\xF3ng 1" }, { price: p[2].price + s * 2.618 * w1, label: "261,8% s\xF3ng 1" }],
+        invalidation: { price: p[2].price, text: `${s > 0 ? "Th\u1EE7ng" : "V\u01B0\u1EE3t"} cu\u1ED1i s\xF3ng 2 ${fmt5(p[2].price)}` }
+      }, p.slice(0, 3), symbol);
+    }
+    if ((k === 4 || k === 5) && !n.complete) {
+      const len03 = L(p[0], p[3]);
+      let t = [0.618, 1], t1 = p[4].price + s * t[0] * len03;
+      if (s * (t1 - p[3].price) <= 0) {
+        t = [1, 1.618];
+        t1 = p[4].price + s * t[0] * len03;
+      }
+      return finish({
+        template: "wave5",
+        role: role2,
+        level: n.level,
+        dir: s,
+        title: TEMPLATE_TITLE.wave5,
+        anchors: anchors(4),
+        trigger: { price: p[3].price, line: null, text: `\u0110\xF3ng c\u1EEDa ${s > 0 ? "v\u01B0\u1EE3t" : "th\u1EE7ng"} cu\u1ED1i s\xF3ng 3 ${fmt5(p[3].price)}` },
+        targets: t.map((r) => ({ price: p[4].price + s * r * len03, label: `${String(r * 100).replace(".", ",")}% c\u1EE7a 0\u21923` })),
+        invalidation: { price: p[4].price, text: `${s > 0 ? "Th\u1EE7ng" : "V\u01B0\u1EE3t"} cu\u1ED1i s\xF3ng 4 ${fmt5(p[4].price)}` }
+      }, p.slice(0, 5), symbol);
+    }
+    if (n.complete && k === 5) {
+      const len2 = L(p[0], p[5]);
+      return finish({
+        template: "afterImpulse",
+        role: role2,
+        level: n.level,
+        dir: -s,
+        title: TEMPLATE_TITLE.afterImpulse,
+        anchors: anchors(5),
+        trigger: { price: p[4].price, line: null, text: `\u0110\xF3ng c\u1EEDa ${s > 0 ? "th\u1EE7ng" : "v\u01B0\u1EE3t"} cu\u1ED1i s\xF3ng 4 ${fmt5(p[4].price)}` },
+        targets: [{ price: p[5].price - s * 0.382 * len2, label: "h\u1ED3i 38,2% c\u1EE7a 0\u21925" }, { price: p[5].price - s * 0.618 * len2, label: "h\u1ED3i 61,8% c\u1EE7a 0\u21925" }],
+        invalidation: { price: p[5].price, text: `${s > 0 ? "V\u01B0\u1EE3t" : "Th\u1EE7ng"} \u0111\u1EC9nh s\xF3ng 5 ${fmt5(p[5].price)}` }
+      }, p, symbol);
+    }
+    return null;
+  }
+  if (tri && k >= 4) {
+    const A = L(p[0], p[1]), thrust = -s;
+    const B = p[2], D = p[4], last = p[Math.min(k, 5)];
+    const opp = [p[3], p[5]].filter(Boolean).map((x) => x.price);
+    const inv = thrust > 0 ? Math.min(...opp) : Math.max(...opp);
+    return finish({
+      template: "triangleThrust",
+      role: role2,
+      level: n.level,
+      dir: thrust,
+      title: TEMPLATE_TITLE.triangleThrust,
+      anchors: anchors(Math.min(k, 5)),
+      trigger: { price: D.price, line: { a: { time: B.time, price: B.price }, b: { time: D.time, price: D.price } }, text: "\u0110\xF3ng c\u1EEDa v\u01B0\u1EE3t \u0111\u01B0\u1EDDng B\u2013D c\u1EE7a tam gi\xE1c" },
+      targets: [{ price: last.price + thrust * A, label: "100% \u0111\u1ED9 r\u1ED9ng ch\u1EB7ng A" }, { price: last.price + thrust * 1.618 * A, label: "161,8% ch\u1EB7ng A" }],
+      invalidation: { price: inv, text: `${thrust > 0 ? "Th\u1EE7ng" : "V\u01B0\u1EE3t"} ${fmt5(inv)} (c\u1EF1c tr\u1ECB C/E)` }
+    }, p.slice(0, Math.min(k, 5) + 1), symbol);
+  }
+  if (!tri && (k === 2 || k === 3) && !n.complete) {
+    const lenA = L(p[0], p[1]);
+    return finish({
+      template: "waveC",
+      role: role2,
+      level: n.level,
+      dir: s,
+      title: TEMPLATE_TITLE.waveC,
+      anchors: anchors(2),
+      trigger: { price: p[1].price, line: null, text: `\u0110\xF3ng c\u1EEDa ${s > 0 ? "v\u01B0\u1EE3t" : "th\u1EE7ng"} cu\u1ED1i ${lab[0]} ${fmt5(p[1].price)}` },
+      targets: [{ price: p[2].price + s * lenA, label: "C = 100% A" }, { price: p[2].price + s * 1.618 * lenA, label: "C = 161,8% A" }],
+      invalidation: { price: p[2].price, text: `${s > 0 ? "Th\u1EE7ng" : "V\u01B0\u1EE3t"} cu\u1ED1i ${lab[1]} ${fmt5(p[2].price)}` }
+    }, p.slice(0, 3), symbol);
+  }
+  if (!tri && n.complete && k === 3) {
+    const nd = -s;
+    const base = prev && prev.kind === "motive" ? L(prev.start, prev.end) : L(p[0], p[1]);
+    return finish({
+      template: "afterCorrection",
+      role: role2,
+      level: n.level,
+      dir: nd,
+      title: TEMPLATE_TITLE.afterCorrection,
+      anchors: anchors(3),
+      trigger: { price: p[2].price, line: null, text: `\u0110\xF3ng c\u1EEDa ${nd > 0 ? "v\u01B0\u1EE3t" : "th\u1EE7ng"} cu\u1ED1i ${lab[1]} ${fmt5(p[2].price)}` },
+      targets: [{ price: p[3].price + nd * base, label: prev?.kind === "motive" ? "100% c\u1EA5u tr\xFAc \u0111\u1EA9y tr\u01B0\u1EDBc" : "100% ch\u1EB7ng A" }, { price: p[3].price + nd * 1.618 * base, label: "161,8%" }],
+      invalidation: { price: p[3].price, text: `${nd > 0 ? "Th\u1EE7ng" : "V\u01B0\u1EE3t"} cu\u1ED1i ${lab[2]} ${fmt5(p[3].price)}` }
+    }, p, symbol);
+  }
+  return null;
+}
+function scenariosFromTree(tree, candles, symbol = "") {
+  if (!tree) return [];
+  const w = candles.slice(candles.length - tree.barCount);
+  const out = [];
+  for (let lv = tree.levels.length - 1; lv >= 1 && out.length < 2; lv--) {
+    const lvl = tree.levels[lv];
+    const sc = scenarioFromNode(lvl[lvl.length - 1], lvl[lvl.length - 2] ?? null, out.length ? "secondary" : "primary", symbol);
+    if (sc) out.push(sc);
+  }
+  for (const a of tree.alternates) {
+    const lvl = tree.levels[a.level];
+    const sc = scenarioFromNode(a.node, lvl[lvl.length - 2] ?? null, "alternate", symbol);
+    if (sc && !out.some((x) => x.id === sc.id)) {
+      out.push(sc);
+      break;
+    }
+  }
+  for (const sc of out) {
+    if (sc.provisional) continue;
+    const piv = tree.pivots.filter((p) => sc.anchors.some((a) => a.time === p.time));
+    const ci = Math.max(...piv.map((p) => p.ci ?? -1));
+    sc.createdAt = ci >= 0 && w[ci] ? String(w[ci].time) : null;
+    if (!sc.createdAt) sc.provisional = true;
+  }
+  return out;
+}
+function triggerAt(sc, candles, i) {
+  if (!sc.trigger.line) return sc.trigger.price;
+  const ia = candles.findIndex((c) => String(c.time) === sc.trigger.line.a.time), ib = candles.findIndex((c) => String(c.time) === sc.trigger.line.b.time);
+  if (ia < 0 || ib <= ia) return sc.trigger.price;
+  const slope2 = (sc.trigger.line.b.price - sc.trigger.line.a.price) / (ib - ia);
+  return sc.trigger.line.a.price + slope2 * (i - ia);
+}
+function evaluateLifecycle(sc, candles, fromTime = sc.createdAt) {
+  const ev = [];
+  if (!fromTime) return { state: "waiting", events: ev, triggerPrice: null, barsEvaluated: 0 };
+  let state = "waiting", trigIdx = -1, waited = 0, n = 0;
+  let triggerPrice = null;
+  const d = sc.dir, inv = sc.invalidation.price, [t1, t2] = sc.targets.map((t) => t.price);
+  const touchedInv = (adverse) => d * (inv - adverse) >= 0;
+  const reached = (favorable, t) => d * (favorable - t) >= 0;
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
+    const time = String(c.time);
+    if (time <= fromTime) continue;
+    n++;
+    const fav = d > 0 ? c.high : c.low, adv = d > 0 ? c.low : c.high;
+    if (touchedInv(adv)) {
+      state = "invalidated";
+      ev.push({ type: "invalidated", time, price: inv });
+      break;
+    }
+    if (state === "waiting") {
+      if (d * (c.close - triggerAt(sc, candles, i)) > 0) {
+        state = "triggered";
+        trigIdx = i;
+        triggerPrice = c.close;
+        ev.push({ type: "triggered", time, price: c.close });
+        continue;
+      }
+      if (++waited > sc.expiry.waitBars) {
+        state = "expired";
+        ev.push({ type: "expired", time, price: c.close });
+        break;
+      }
+      continue;
+    }
+    if (state === "triggered" && reached(fav, t1)) {
+      state = "target1";
+      ev.push({ type: "target1", time, price: t1 });
+    }
+    if (state === "target1" && t2 != null && reached(fav, t2)) {
+      state = "target2";
+      ev.push({ type: "target2", time, price: t2 });
+      break;
+    }
+    if (state === "triggered" && i - trigIdx > sc.expiry.runBars) {
+      state = "expired";
+      ev.push({ type: "expired", time, price: c.close });
+      break;
+    }
+  }
+  return { state, events: ev, triggerPrice, barsEvaluated: n };
+}
+function randomWalkHitProb(x, target, invalid) {
+  const a = Math.abs(target - x), b = Math.abs(x - invalid);
+  return a + b > 0 ? b / (a + b) : 0.5;
+}
+function scoreLedger(rows) {
+  let hits = 0, exp = 0, varSum = 0, n = 0;
+  for (const r of rows) {
+    if (r.triggerPrice == null || !r.outcome) continue;
+    const p = randomWalkHitProb(r.triggerPrice, r.target1, r.invalidation);
+    n++;
+    exp += p;
+    varSum += p * (1 - p);
+    if (r.outcome === "hit") hits++;
+  }
+  const z = varSum > 0 ? (hits - exp) / Math.sqrt(varSum) : null;
+  return { n, hits, expected: exp, hitRate: n ? hits / n : null, expectedRate: n ? exp / n : null, z, pass: n >= EP2_PREREG.minN && z != null && z >= EP2_PREREG.zPass };
+}
+var EP2_PREREG = {
+  registeredAt: "2026-10-24",
+  hypothesis: "K\u1ECBch b\u1EA3n \u0111\xE3 k\xEDch ho\u1EA1t \u0111\u1EA1t m\u1EE5c ti\xEAu 1 tr\u01B0\u1EDBc m\u1ED1c v\xF4 hi\u1EC7u NHI\u1EC0U H\u01A0N chu\u1EA9n ng\u1EABu nhi\xEAn (ng\u01B0\u1EDDi \u0111\xE1nh b\u1EA1c ph\xE1 s\u1EA3n).",
+  minN: 100,
+  zPass: 1.96,
+  note: "Ch\u01B0a \u0111\u1EE7 100 k\u1ECBch b\u1EA3n k\u1EBFt th\xFAc th\xEC ghi 'ch\u01B0a \u0111\u1EE7 m\u1EABu'; kh\xF4ng \u0111\u1ED5i ti\xEAu ch\xED sau khi xem d\u1EEF li\u1EC7u."
+};
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
   ENGINE_VERSION,
+  EP2_PREREG,
+  STATE_LABEL as EW_STATE_LABEL,
+  TEMPLATE_TITLE as EW_TEMPLATE_TITLE,
   MTF_STRUCTURE_VERSION,
   PATTERN_NAME,
+  SCENARIO_ENGINE_VERSION,
   SIGNAL_TEXT,
   STAGE_LABEL,
   STAGE_TEXT,
+  WAVE_TREE_VERSION,
   WYCKOFF_DEFAULT_ENGINE,
   alignMatrix,
   analyzeStructureMtf,
   analyzeTf as analyzeStructureTf,
   analyzeTfSeries as analyzeStructureTfSeries,
+  buildWaveTree,
   closedHtfIndex,
   clusterLevels,
   compactStructure,
   compactTf as compactStructureTf,
   convergenceAt,
+  evaluateLifecycle,
   minutesToH1,
   patternStatusAt,
+  randomWalkHitProb,
   recentBuy,
+  scenariosFromTree,
+  scoreLedger,
   toWeekly
 };

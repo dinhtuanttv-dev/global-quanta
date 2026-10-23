@@ -35,6 +35,7 @@ import { createTopbarService, TOPBAR_SCHEDULE } from "./topbar/topbarService.js"
 import { createAuthService } from "../auth/authService.js";
 import { importSupabaseUserData, listSupabaseUsers } from "../auth/importSupabaseUserData.js";
 import { createElliottAlertEvaluator } from "./watchlists/userElliottAlerts.js";
+import { createElliottLedger } from "./elliott/scenarioLedger.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 
@@ -102,6 +103,9 @@ export function getMarketRuntime() {
   // DW10: cảnh báo Elliott theo mốc giá (người dùng tự bật) — kiểm mỗi 60 giây trong phiên; Telegram qua bot vận hành.
   const elliottAlerts = createElliottAlertEvaluator({ store, service, send: (text, id) => notifyOps(`elliott-alert:${id}`, text) });
   jobs.elliottAlertsTick = () => elliottAlerts.tick({ force: true });
+  // EP2: sổ theo dõi kịch bản Elliott — ghi kịch bản mới + cập nhật vòng đời sau giờ đóng cửa.
+  const elliottLedger = createElliottLedger({ store, taSeries });
+  jobs.elliottLedger = () => elliottLedger.run();
   // Khi Supabase mở lại: nhập một lần danh mục / hình vẽ / radar cũ, ghép người dùng theo email (chạy tay qua admin).
   jobs.importSupabaseUserData = async () => {
     if (!store.readInner) return { skipped: "Không có kho Supabase phía sau." };
@@ -109,7 +113,7 @@ export function getMarketRuntime() {
   };
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }] });
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -125,7 +129,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, started: false };
   return runtime;
 }
 
