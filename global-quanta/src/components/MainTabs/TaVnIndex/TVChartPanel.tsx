@@ -24,6 +24,7 @@ import BacktestPanel from "./BacktestPanel";
 import { SMCPanel, VSAPanel, WyckoffPanel } from "./MethodPanels";
 import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
 import { ElliottCountEditor, ElliottCountHistory, useElliottUserCounts, useUndo } from "./ElliottCountEditor";
+import ElliottAlertsPanel from "./ElliottAlertsPanel";
 import { COUNT_LABELS, displayStatus, draftFromState, newVersionId, snapToCandle, validateUserCount, type UserCountPoint, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
 import { TA_INDICES } from "./TickerSelector";
 import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
@@ -684,6 +685,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         onRestore={(id) => { void userCounts.save({ ...userCounts.doc, activeId: id }); controllerRef.current?.layers.enable("elliottMine"); }}
         onDelete={(id) => void userCounts.save({ ...userCounts.doc, activeId: userCounts.doc.activeId === id ? null : userCounts.doc.activeId, versions: userCounts.doc.versions.filter((v) => v.id !== id) })}
         onAuto={() => void userCounts.save({ ...userCounts.doc, activeId: null })} />
+      <ElliottAlertsPanel ticker={ticker} timeframe={timeframe} state={drawnState}
+        mine={userCounts.active && layerState?.elliottMine ? userCounts.active.points : null} dailyBars={bars} />
       {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}
 
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}

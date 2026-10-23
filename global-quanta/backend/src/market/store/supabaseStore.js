@@ -21,6 +21,7 @@ export const PRIMARY_KEYS = {
   // DW8 / DW10 (23/10/2026): cách đếm Elliott chỉnh tay + cảnh báo — chỉ ở kho cục bộ (localFirstStore.isLocalOnlyTable).
   market_user_elliott_counts: ["user_id", "symbol", "timeframe"],
   market_user_elliott_alerts: ["user_id", "id"],
+  market_user_elliott_alert_events: ["user_id", "id"],
   market_flow_daily: ["symbol", "trading_date"],
   market_volume_profile_daily: ["symbol", "trading_date"],
   market_regime_daily: ["trading_date"],
