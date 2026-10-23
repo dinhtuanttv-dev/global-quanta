@@ -8,6 +8,7 @@ import { useSepaIntraday, type SepaIntradayRow } from "../../../hooks/useSepaInt
 const STYLE: Record<string, string> = {
   BREAKOUT: "border-emerald-500/50 bg-emerald-500/10 text-emerald-200",
   BREAKOUT_LOW_VOL: "border-amber-500/40 bg-amber-500/10 text-amber-200",
+  BREAKOUT_NO_VOL: "border-slate-500/40 bg-slate-500/10 text-slate-200",
   EXTENDED: "border-slate-600 bg-slate-500/10 text-slate-300",
   NEAR: "border-sky-500/30 bg-sky-500/5 text-sky-200",
 };
@@ -70,11 +71,11 @@ export default function SepaIntradayStrip({ onOpen }: { onOpen?: (ticker: string
         <div className="flex flex-wrap gap-1.5" data-testid="sepa-intraday-rows">
           {rows.map((r) => (
             <button key={r.ticker} type="button" onClick={() => onOpen?.(r.ticker)} data-testid="sepa-intraday-chip" data-state={r.state ?? ""}
-              title={`${r.label} · pivot ${fmtP(r.pivot)} · vùng mua tới ${fmtP(r.buyZoneTop)} · KL ${fmtP(r.totalVolume)} cp${r.projRatio != null ? `, dự phóng ${r.projRatio.toFixed(2)}× TB50` : ""}${r.reliable === false ? " · mới mở cửa, ngoại suy kém tin cậy" : ""}`}
+              title={`${r.label} · pivot ${fmtP(r.pivot)} · vùng mua tới ${fmtP(r.buyZoneTop)} · KL ${fmtP(r.totalVolume)} cp${r.projRatio != null ? `, dự phóng ${r.projRatio.toFixed(2)}× TB50` : ""}${r.volumeMissing ? " · nguồn giá chưa trả khối lượng — không ngoại suy" : r.reliable === false ? " · mới mở cửa, ngoại suy kém tin cậy" : ""}`}
               className={`text-left text-[9px] px-1.5 py-1 rounded-md border ${STYLE[r.state!] ?? ""}`}>
               <b className="font-black">{r.ticker}</b> <span>{r.label}</span>
               <span className="block font-mono text-[8.5px] opacity-90">
-                {fmtP(r.price)} · {pct(r.distPct)} so pivot · KL {r.projRatio != null ? `${r.projRatio.toFixed(1).replace(".", ",")}×` : "—"}{r.reliable === false ? "*" : ""}{r.since ? ` · từ ${hm(r.since)}` : ""}
+                {fmtP(r.price)} · {pct(r.distPct)} so pivot · KL {r.volumeMissing ? "chưa có" : r.projRatio != null ? `${r.projRatio.toFixed(1).replace(".", ",")}×` : "—"}{r.projRatio != null && r.reliable === false ? "*" : ""}{r.since ? ` · từ ${hm(r.since)}` : ""}
               </span>
             </button>
           ))}

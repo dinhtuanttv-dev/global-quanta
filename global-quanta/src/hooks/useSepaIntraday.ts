@@ -2,13 +2,15 @@
 import useSWR from "swr";
 import { marketUrl } from "../services/marketDataClient";
 
-export type IntradayState = "BREAKOUT" | "BREAKOUT_LOW_VOL" | "EXTENDED" | "NEAR" | "BELOW";
+export type IntradayState = "BREAKOUT" | "BREAKOUT_LOW_VOL" | "BREAKOUT_NO_VOL" | "EXTENDED" | "NEAR" | "BELOW";
 export interface SepaIntradayRow {
   ticker: string; name?: string | null; sector?: string | null; list: string; pattern?: string | null; footprint?: string | null;
   scanStatus?: string; pivot: number; stopPct?: number | null; vol50?: number;
   price?: number; totalVolume?: number; quoteTime?: string | null; quoteToday?: boolean;
   state: IntradayState | null; label?: string; distPct?: number; projectedVolume?: number | null; projRatio?: number | null;
   volRatioReq?: number; buyZoneTop?: number; reliable?: boolean; minutesElapsed?: number; since?: string | null; reason?: string;
+  /** Giá đã khớp nhưng nguồn trả KL = 0 -> không ngoại suy. */
+  volumeMissing?: boolean;
 }
 export interface SepaIntradayDoc {
   version: string; asOf: string; date: string; session: string; minutesElapsed: number; sessionMinutes: number;

@@ -8,7 +8,7 @@ import { hoseMinutesElapsed, intradayBreakout } from "./sepa/intraday.js";
 export const SEPA_INTRADAY_VERSION = "sepa/SP6";
 const WAITING = new Set(["FORMING", "NEAR_PIVOT", "SQUAT"]);
 const ACTIVE_LISTS = new Set(["SẴN SÀNG MUA", "CẢNH BÁO MUA", "THEO DÕI"]);
-const ORDER = { BREAKOUT: 0, BREAKOUT_LOW_VOL: 1, NEAR: 2, EXTENDED: 3, BELOW: 4 };
+const ORDER = { BREAKOUT: 0, BREAKOUT_LOW_VOL: 1, BREAKOUT_NO_VOL: 1, NEAR: 2, EXTENDED: 3, BELOW: 4 };
 
 /** Mã chờ phá vỡ: thuộc 3 danh sách, có pivot, chưa vượt pivot ở phiên quét. */
 export function sepaIntradayCandidates(doc) {
@@ -31,10 +31,13 @@ export function buildSepaIntraday({ doc, quotes, now = new Date(), firstSeen = n
     const quoteToday = q && String(q.time ?? "").startsWith(today);
     const price = Number(q?.price);
     if (!q || !(price > 0)) { rows.push({ ticker: r.ticker, list: r.list, pivot: r.metrics.pivot, state: null, reason: "NO_QUOTE" }); continue; }
-    const b = intradayBreakout({ pivot: r.metrics.pivot, vol50: r.metrics.vol50, price, totalVolume: Number(q.totalVolume), minutesElapsed: quoteToday ? minutes : 0 });
+    // Giá đã khớp hôm nay (khác tham chiếu hoặc có biên độ) mà KL = 0 -> nguồn thiếu KL, không phải "không ai giao dịch".
+    const traded = quoteToday && (Number(q.price) !== Number(q.refPrice) || Number(q.high) > Number(q.low));
+    const volumeMissing = Boolean(traded && !(Number(q.totalVolume) > 0));
+    const b = intradayBreakout({ pivot: r.metrics.pivot, vol50: r.metrics.vol50, price, totalVolume: Number(q.totalVolume), minutesElapsed: quoteToday ? minutes : 0, volumeMissing });
     if (!b) continue;
     let since = null;
-    if (b.state === "BREAKOUT" || b.state === "BREAKOUT_LOW_VOL") {
+    if (b.state === "BREAKOUT" || b.state === "BREAKOUT_LOW_VOL" || b.state === "BREAKOUT_NO_VOL") {
       const key = `${today}|${r.ticker}|${b.state}`;
       if (!firstSeen.has(key)) firstSeen.set(key, now.toISOString());
       since = firstSeen.get(key);
