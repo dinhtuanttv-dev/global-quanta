@@ -103,12 +103,12 @@ test("service: Index Impact từ kho cục bộ + snapshot tổng hợp có liê
 
 test("Index Impact trong phiên: ngoài giờ -> live=false; trong giờ: lần đầu 'đang tải' (không chặn), sau đó bản tính từ giá hiện tại + VN-Index snapshot", async () => {
   const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-iil-")), log: { warn() {} } });
-  await store.upsertMarketDaily(["A", "B"].map((symbol) => ({ symbol, date: "2026-10-22", exchange: "HOSE", open: 100, high: 100, low: 100, close: 100, closeAdj: 100, refPrice: 100, volume: 1, value: 1 })));
+  await store.upsertMarketDaily(["A", "B", "C"].map((symbol) => ({ symbol, date: "2026-10-22", exchange: "HOSE", open: 100, high: 100, low: 100, close: 100, closeAdj: 100, refPrice: 100, volume: 1, value: 1 })));
   // Hôm nay A +10%, B 0%; mã lạ "X" (không thuộc HOSE hôm qua) bị loại khỏi mẫu.
   const fetchDay = async () => ({ rows: [
     { symbol: "A", exchange: "HOSE", close: 110, refPrice: 100 }, { symbol: "B", exchange: "HOSE", close: 100, refPrice: 100 }, { symbol: "X", exchange: "HOSE", close: 5, refPrice: 4 },
   ] });
-  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getOhlcv: async () => ({ bars: [{ date: "2026-10-22", close: 1000 }] }), getIndexSnapshot: async () => ({ value: 1050, provenance: { asOf: "2026-10-23T03:00:00Z" } }) };
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getOhlcv: async () => ({ bars: [{ date: "2026-10-22", close: 1000 }] }), getIndexSnapshot: async () => ({ value: 1000 * (1 + 0.1 / 3), provenance: { asOf: "2026-10-23T03:00:00Z" } }) };
   let t = Date.parse("2026-10-23T03:00:00Z"); // 10:00 VN thứ Sáu
   const mx = createMatrixService({ service, store, fetchShares: async (l) => new Map(l.map((s) => [s, 1e6])), fetchDay, now: () => t, log: { warn() {} } });
   const first = await mx.impactLive();
@@ -117,8 +117,8 @@ test("Index Impact trong phiên: ngoài giờ -> live=false; trong giờ: lần 
   await new Promise((r) => setTimeout(r, 20));
   const doc = await mx.impactLive();
   assert.equal(doc.horizon, "intraday");
-  assert.deepEqual(doc.coverage, { symbols: 2, of: 2, missing: [] });
-  assert.equal(doc.check.status, "MATCH", "A +10% × 50% tỷ trọng = +5% = 1000 -> 1050");
+  assert.deepEqual(doc.coverage, { symbols: 3, of: 3, missing: [] }, "C chưa khớp lệnh vẫn trong mẫu số");
+  assert.equal(doc.check.status, "MATCH", "A +10% × 1/3 tỷ trọng = +3,33% = 1000 -> 1033,3");
   t = Date.parse("2026-10-23T09:00:00Z"); // 16:00 VN
   assert.equal((await mx.impactLive()).live, false);
 });

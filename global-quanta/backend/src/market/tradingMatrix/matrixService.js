@@ -137,9 +137,13 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const dates = (await store.getMarketDailyDates()).filter((d) => d < today);
     const prevDay = dates.at(-1);
     if (!prevDay) throw new Error("Kho cục bộ chưa có dữ liệu ngày.");
-    const universe = new Set((await store.getMarketDailyByDate(prevDay)).filter((r) => r.exchange === "HOSE").map((r) => r.symbol));
+    const prevRows = (await store.getMarketDailyByDate(prevDay)).filter((r) => r.exchange === "HOSE" && r.close > 0);
+    const universe = new Set(prevRows.map((r) => r.symbol));
     const day = await fetchDay(today);
     const rows = day.rows.filter((r) => r.exchange === "HOSE" && universe.has(r.symbol));
+    // Mã chưa khớp lệnh hôm nay vẫn thuộc vốn hoá VN-Index: đứng giá (đóng góp 0) nhưng PHẢI nằm trong mẫu số Σ R·N.
+    const seen = new Set(rows.map((r) => r.symbol));
+    for (const r of prevRows) if (!seen.has(r.symbol)) rows.push({ symbol: r.symbol, exchange: "HOSE", close: r.close, refPrice: r.close, value: 0, untraded: true });
     const hose = [...universe];
     const [sh, idx, snap, tax] = await Promise.all([
       sharesFor(hose),
