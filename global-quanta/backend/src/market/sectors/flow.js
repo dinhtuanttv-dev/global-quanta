@@ -76,7 +76,7 @@ export function sectorFlow({ members, index, dates, totals, rs, tagsOf = () => [
     const m50 = sma(closes, 50, i), m200 = sma(closes, 200, i);
     if (Number.isFinite(m50)) above50.push(closes[i] > m50);
     if (Number.isFinite(m200)) above200.push(closes[i] > m200);
-    if (i >= 250) { let hi = 0; for (let j = i - 251; j <= i; j++) hi = Math.max(hi, m.bars[j].high); nearHigh.push(closes[i] >= hi * 0.9); }
+    if (i >= 251) { let hi = 0; for (let j = i - 251; j <= i; j++) hi = Math.max(hi, m.bars[j].high); nearHigh.push(closes[i] >= hi * 0.9); }
   }
   const pct = (a) => (a.length ? round((a.filter(Boolean).length / a.length) * 100, 1) : null);
   const cmf = vsum > 0 ? mfv / vsum : 0, udr = dnV > 0 ? upV / dnV : upV > 0 ? 3 : 1;
