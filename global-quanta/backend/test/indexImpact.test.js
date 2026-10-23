@@ -122,3 +122,27 @@ test("Index Impact trong phiên: ngoài giờ -> live=false; trong giờ: lần 
   t = Date.parse("2026-10-23T09:00:00Z"); // 16:00 VN
   assert.equal((await mx.impactLive()).live, false);
 });
+
+test("Index Impact trong phiên: SSI trả thiếu giá (0 dòng sau 13:00, đo 23/10/2026) -> không công bố, giữ bản đúng gần nhất kèm lý do", async () => {
+  const store = createLocalStore({ dir: fs.mkdtempSync(path.join(os.tmpdir(), "gq-iil2-")), log: { warn() {} } });
+  await store.upsertMarketDaily(["A", "B", "C", "D"].map((symbol) => ({ symbol, date: "2026-10-22", exchange: "HOSE", open: 100, high: 100, low: 100, close: 100, closeAdj: 100, refPrice: 100, volume: 1, value: 1 })));
+  let full = true;
+  const fetchDay = async () => ({ rows: full ? ["A", "B", "C", "D"].map((symbol) => ({ symbol, exchange: "HOSE", close: 100, refPrice: 100 })) : [] });
+  const service = { cache: { wrap: (_k, _t, fn) => fn() }, getOhlcv: async () => ({ bars: [{ date: "2026-10-22", close: 1000 }] }), getIndexSnapshot: async () => ({ value: 1000, provenance: { asOf: "2026-10-23T03:00:00Z" } }) };
+  let t = Date.parse("2026-10-23T03:00:00Z");
+  const mx = createMatrixService({ service, store, fetchShares: async (l) => new Map(l.map((s) => [s, 1e6])), fetchDay, now: () => t, log: { warn() {}, info() {} } });
+  await mx.impactLive(); await new Promise((r) => setTimeout(r, 20));
+  assert.equal((await mx.impactLive()).check.status, "MATCH");
+  full = false; t += 6 * 60_000; // hết hạn đệm -> làm mới, SSI trả 0 dòng
+  await mx.impactLive(); await new Promise((r) => setTimeout(r, 20));
+  const kept = await mx.impactLive();
+  assert.equal(kept.check.status, "MATCH", "giữ bản đúng gần nhất");
+  assert.match(kept.lastError, /chưa trả đủ giá trong phiên \(0\/4/);
+  assert.ok(kept.ageSec >= 360);
+  // Chưa có bản nào trong ngày -> báo rõ, không công bố số.
+  const mx2 = createMatrixService({ service, store, fetchShares: async (l) => new Map(l.map((s) => [s, 1e6])), fetchDay, now: () => t, log: { warn() {}, info() {} } });
+  await mx2.impactLive(); await new Promise((r) => setTimeout(r, 20));
+  const p2 = await mx2.impactLive();
+  assert.equal(p2.pending, true);
+  assert.match(p2.reason, /chưa trả đủ giá/);
+});

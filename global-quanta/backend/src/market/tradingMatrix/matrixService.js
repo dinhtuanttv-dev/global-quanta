@@ -72,6 +72,7 @@ const HISTORY = 260;
 
 export const LIVE_IMPACT_TTL_MS = 5 * 60_000;
 export const LIVE_IMPACT_DEADLINE_MS = 4 * 60_000;
+export const LIVE_IMPACT_MIN_COVERAGE = 0.5;
 const LIVE_SESSIONS = new Set(["ATO", "LO", "BREAK", "ATC"]);
 
 export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, fetchDay = fetchMarketDay, now = Date.now, log = console }) {
@@ -141,6 +142,8 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const universe = new Set(prevRows.map((r) => r.symbol));
     const day = await fetchDay(today);
     const rows = day.rows.filter((r) => r.exchange === "HOSE" && universe.has(r.symbol));
+    // Đo 23/10/2026: SSI DailyStockPrice của hôm nay lúc 11:50 trả đủ HOSE, sau 13:00 trả 0 dòng -> không đủ thì KHÔNG công bố.
+    if (rows.length < universe.size * LIVE_IMPACT_MIN_COVERAGE) throw new Error(`SSI chưa trả đủ giá trong phiên (${rows.length}/${universe.size} mã HOSE)`);
     // Mã chưa khớp lệnh hôm nay vẫn thuộc vốn hoá VN-Index: đứng giá (đóng góp 0) nhưng PHẢI nằm trong mẫu số Σ R·N.
     const seen = new Set(rows.map((r) => r.symbol));
     for (const r of prevRows) if (!seen.has(r.symbol)) rows.push({ symbol: r.symbol, exchange: "HOSE", close: r.close, refPrice: r.close, value: 0, untraded: true });
@@ -169,16 +172,18 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const session = currentSession(new Date(now()));
     if (!LIVE_SESSIONS.has(session)) return { live: false, session, reason: "Ngoài giờ giao dịch — xem tác động của phiên đã chốt." };
     const fresh = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) && now() - live.at < LIVE_IMPACT_TTL_MS;
-    if (!fresh && !live.inflight) {
+    const cooling = live.error && now() - (live.tried ?? 0) < 60_000; // lỗi -> chờ 1 phút rồi mới thử lại
+    if (!fresh && !live.inflight && !cooling) {
       const t0 = Date.now();
       let timer;
       const deadline = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error(`quá ${LIVE_IMPACT_DEADLINE_MS / 60_000} phút`)), LIVE_IMPACT_DEADLINE_MS); });
       live.inflight = Promise.race([buildLive(), deadline]).finally(() => clearTimeout(timer))
-        .then((doc) => { live = { at: now(), doc, inflight: null, error: null }; log.info?.(`[matrix] impact trong phiên: ${Math.round((Date.now() - t0) / 1000)} giây`); })
-        .catch((e) => { live.inflight = null; live.error = e.message; log.warn?.(`[matrix] impact trong phiên: ${e.message}`); });
+        .then((doc) => { live = { at: now(), doc, inflight: null, error: null, tried: now() }; log.info?.(`[matrix] impact trong phiên: ${Math.round((Date.now() - t0) / 1000)} giây`); })
+        .catch((e) => { live.inflight = null; live.error = e.message; live.tried = now(); log.warn?.(`[matrix] impact trong phiên: ${e.message}`); });
     }
     const todays = live.doc && vnDate(new Date(live.at)) === vnDate(new Date(now())) ? live.doc : null;
-    if (todays) return { live: true, session, refreshing: Boolean(live.inflight), ageSec: Math.round((now() - live.at) / 1000), ...todays };
+    // Lượt làm mới lỗi -> giữ bản đúng gần nhất trong ngày, kèm tuổi + lý do (không công bố số thiếu dữ liệu).
+    if (todays) return { live: true, session, refreshing: Boolean(live.inflight), ageSec: Math.round((now() - live.at) / 1000), lastError: live.error, ...todays };
     return { live: true, session, pending: true, reason: live.error ? `Lỗi lần tải trước: ${live.error}` : "Đang tải giá trong phiên toàn sàn từ SSI (khoảng 1 phút)…", refreshing: Boolean(live.inflight) };
   }
 
