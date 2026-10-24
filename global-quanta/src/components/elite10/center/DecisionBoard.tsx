@@ -6,32 +6,18 @@ import useSWR from "swr";
 import type { ResearchOverview } from "../../../hooks/useResearch";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
-import { TIER_TITLE, type EliteScore, type PortfolioPick, type Tier } from "../../../lib/elite10/decisionTypes";
+import { TIER_TITLE, type PortfolioPick, type Tier } from "../../../lib/elite10/decisionTypes";
 import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
-import { buyTimingCells, ELITE_HOLD_SESSIONS, type BuyCell } from "../../../lib/elite10/buyTimingCell";
+import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
+import { BuyTimingCell, fmtDate, num, price, SectionControls, signed } from "./boardParts";
+import { useBoardSection } from "./boardPrefs";
+import EliteCandidates from "./EliteCandidates";
 
 const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
-const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
-const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
-const signed = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d })}`);
-const price = (v: number | null | undefined) => (v == null ? "—" : Math.round(v).toLocaleString("vi-VN"));
 
 export function TierChip({ tier }: { tier: Tier }) {
   const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-sky-500/15 text-sky-300 border-sky-400/40" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
   return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[9px] font-bold ${cls}`}>Bậc {tier}</span>;
-}
-
-// B2: ô "⏱ Điểm mua" — màu theo loại: trong vùng (xanh) · ≤ 5 phiên (vàng) · trong kỳ nắm giữ (xanh lam) · gần đạt / quy tắc (xám).
-const BUY_TONE: Record<BuyCell["kind"], string> = { in: "text-emerald-300", soon: "text-amber-300", wait: "text-sky-300", near: "text-slate-300", rule: "text-slate-300" };
-const BUY_ICON: Record<BuyCell["kind"], string> = { in: "●", soon: "⏱", wait: "⏱", near: "◌", rule: "→" };
-function BuyTimingCell({ cell }: { cell?: BuyCell }) {
-  if (!cell) return <span className="text-slate-500">—</span>;
-  return (
-    <span title={cell.tooltip} data-kind={cell.kind} className={`inline-flex flex-col leading-tight ${cell.dashed ? "border-b border-dashed border-slate-500/60" : ""}`}>
-      <b className={`whitespace-nowrap ${BUY_TONE[cell.kind]}`}>{BUY_ICON[cell.kind]} {cell.text}</b>
-      <span className="text-[9.5px] text-slate-500 whitespace-nowrap">{cell.sub}</span>
-    </span>
-  );
 }
 
 function Card({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId?: string }) {
@@ -54,23 +40,20 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
   const buy = useGatewayBuyTimeline();
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const byId = useMemo(() => new Map((d?.weights ?? []).map((w) => [w.id, w])), [d]);
-  const next = useMemo(() => {
-    if (!d) return [] as EliteScore[];
-    const held = new Set(d.portfolio.map((p) => p.ticker));
-    return d.scores.filter((s) => s.eligible && !held.has(s.ticker)).slice(0, 8);
-  }, [d]);
+  const pf = useBoardSection("portfolio");
 
   if (error) return <p className="text-xs text-rose-400">Không tải được bảng quyết định: {String(error.message ?? error)}</p>;
   if (isLoading || !d) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tải bảng quyết định Elite 10…</p>;
 
   const lab = d.ledgerSummary;
   const regime = research?.currentRegime;
-  const drivers = (s: { ticker: string }) => {
-    const sc = d.scores.find((x) => x.ticker === s.ticker);
+  const drivers = (ticker: string) => {
+    const sc = d.scores.find((x) => x.ticker === ticker);
     return (sc?.contributions ?? []).filter((c) => c.contribution > 0.05).sort((a, b) => b.contribution - a.contribution).slice(0, 2).map((c) => byId.get(c.id)?.labelVi ?? c.id);
   };
   const maxW = Math.max(...d.portfolio.map((p) => p.weight), 0.01);
   const buyCells = buyTimingCells(d.portfolio.map((p) => p.ticker), buy.data?.rows ?? null, d.date, buy.sessions);
+  const secName = (k: string | null) => (k ? sectorName.get(k) ?? k : "—");
   const buyAge = buy.meta?.fetchedAt ? new Date(buy.meta.fetchedAt).toLocaleString("vi-VN", { hour12: false }) : null;
 
   return (
@@ -102,39 +85,50 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         </div>
       </div>
 
-      <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[11px]" style={{ minWidth: 900, borderCollapse: "collapse" }}>
+      <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>
+          <SectionControls id="elite-portfolio-table" open={pf.open} compact={pf.compact} onToggleOpen={pf.toggleOpen} onToggleCompact={pf.toggleCompact} testid="elite-portfolio" /></span>}>
+        {!pf.open ? (
+          <p className="text-[10.5px] text-slate-400" data-testid="elite-portfolio-summary">
+            {d.portfolio.map((p) => (
+              <button key={p.ticker} type="button" onClick={() => onOpenTicker(p.ticker)} className="mr-2 font-bold text-cyan-300 hover:underline">
+                {p.ticker} <span className="font-normal text-slate-500">{num(p.weight * 100)}% · {buyCells.get(p.ticker)?.text ?? "—"}</span>
+              </button>
+            ))}
+          </p>
+        ) : (<>
+        <div className="overflow-x-auto" id="elite-portfolio-table">
+          <table className="w-full text-[11px]" style={{ minWidth: pf.compact ? 0 : 900, borderCollapse: "collapse" }}>
             <thead>
               <tr className="text-slate-500">
                 <th className="text-left font-normal py-1">Mã</th><th className="text-left font-normal">Ngành</th><th className="text-left font-normal">Tỷ trọng</th>
                 <th className="text-left font-normal pr-2" data-testid="elite-buy-col" title={`Thời điểm mua tốt nhất trong kỳ nắm giữ ${ELITE_HOLD_SESSIONS} phiên: vùng mua mùa vụ ĐẠT KIỂM ĐỊNH (Timeline điểm mua — cổ tức / KQKD) nếu có, ngược lại quy tắc danh mục (mở cửa phiên kế tiếp)`}>⏱ Điểm mua</th>
                 <th className="font-normal" title="Điểm Elite chuẩn hoá trên toàn vũ trụ">Z</th>
-                <th className="font-normal" title="Lợi suất vượt kỳ vọng 5 phiên = IC × σ5 × Z (Grinold–Kahn)">α 5 phiên</th>
+                {!pf.compact && <th className="font-normal" title="Lợi suất vượt kỳ vọng 5 phiên = IC × σ5 × Z (Grinold–Kahn)">α 5 phiên</th>}
                 <th className="font-normal" title="Xác suất vượt trung vị vũ trụ trong 5 phiên">P vượt</th>
-                <th className="font-normal" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)">Rủi ro</th>
-                <th className="text-right font-normal">Giá</th><th className="text-right font-normal">Cắt lỗ</th><th className="text-right font-normal">Mục tiêu</th>
-                <th className="text-left font-normal pl-3">Động lực chính</th>
+                {!pf.compact && <th className="font-normal" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)">Rủi ro</th>}
+                <th className="text-right font-normal">Giá</th><th className="text-right font-normal">Cắt lỗ</th>
+                {!pf.compact && <th className="text-right font-normal">Mục tiêu</th>}
+                {!pf.compact && <th className="text-left font-normal pl-3">Động lực chính</th>}
               </tr>
             </thead>
             <tbody>
               {d.portfolio.map((p: PortfolioPick) => (
                 <tr key={p.ticker} className="border-t border-white/5" data-testid={`elite-pick-${p.ticker}`}>
                   <td className="py-1.5 whitespace-nowrap"><button type="button" onClick={() => onOpenTicker(p.ticker)} className="font-bold text-cyan-300 hover:underline">{p.ticker}</button>{p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[8.5px] text-slate-400">giữ</span>}</td>
-                  <td className="text-slate-400">{p.sectorKey ? sectorName.get(p.sectorKey) ?? p.sectorKey : "—"}</td>
+                  <td className="text-slate-400">{secName(p.sectorKey)}</td>
                   <td className="whitespace-nowrap">
                     <span aria-hidden="true" className="mr-1.5 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${(p.weight / maxW) * 48}px` }} />
                     <b>{num(p.weight * 100)}%</b>
                   </td>
-                  <td className="pr-2 py-1" data-testid={`elite-buy-${p.ticker}`}><BuyTimingCell cell={buyCells.get(p.ticker)} /></td>
+                  <td className="pr-2 py-1" data-testid={`elite-buy-${p.ticker}`}><BuyTimingCell cell={buyCells.get(p.ticker)} compact={pf.compact} /></td>
                   <td className="text-center font-mono">{num(p.Z, 2)}</td>
-                  <td className="text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>
+                  {!pf.compact && <td className="text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>}
                   <td className="text-center font-mono">{num(p.pOutperform * 100, 1)}%</td>
-                  <td className="text-center font-mono text-slate-300">{p.riskContribution != null ? `${num(p.riskContribution * 100)}%` : "—"}</td>
+                  {!pf.compact && <td className="text-center font-mono text-slate-300">{p.riskContribution != null ? `${num(p.riskContribution * 100)}%` : "—"}</td>}
                   <td className="text-right font-mono">{price(p.close)}</td>
                   <td className="text-right font-mono text-rose-300">{price(p.stop)}</td>
-                  <td className="text-right font-mono text-emerald-300">{price(p.target)}</td>
-                  <td className="pl-3 text-slate-400">{drivers(p).join(" · ") || "—"}</td>
+                  {!pf.compact && <td className="text-right font-mono text-emerald-300">{price(p.target)}</td>}
+                  {!pf.compact && <td className="pl-3 text-slate-400">{drivers(p.ticker).join(" · ") || "—"}</td>}
                 </tr>
               ))}
             </tbody>
@@ -153,13 +147,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
           Cắt lỗ / mục tiêu là dải
           2σ / 3σ của 5 phiên, nắm giữ 10 phiên — quy tắc mô tả, chưa tối ưu. Lợi thế kỳ vọng nhỏ (P vượt ≈ 51%): dùng để nghiêng tỷ trọng, không phải tín hiệu chắc thắng.
         </p>
-        {next.length > 0 && (
-          <p className="text-[10.5px] text-slate-400" data-testid="elite-next">
-            Ứng viên kế tiếp: {next.map((s) => (
-              <button key={s.ticker} type="button" onClick={() => onOpenTicker(s.ticker)} className="mr-2 font-bold text-cyan-300/80 hover:underline">{s.ticker} <span className="font-normal text-slate-500">Z {num(s.Z, 2)}</span></button>
-            ))}
-          </p>
-        )}
+        </>)}
+        <EliteCandidates d={d} onOpenTicker={onOpenTicker} sectorName={secName} drivers={drivers} buyRows={buy.data?.rows ?? null} sessions={buy.sessions} />
       </Card>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

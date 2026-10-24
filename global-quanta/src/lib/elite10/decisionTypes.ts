@@ -24,11 +24,19 @@ export interface LedgerHorizon {
 }
 export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criteria: { icPass: boolean; excessPass: boolean; sessions: number }; label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string }
 
+/** C1: ứng viên xếp sau danh mục + lý do chưa vào (Gateway phát lại thuật toán dựng danh mục trên tài liệu đã lưu). */
+export type CandidateReason = "sector_cap" | "full" | "below";
+export interface Candidate {
+  ticker: string; rank: number; Z: number; alpha5Pct: number | null; pOutperform: number; sectorKey: string | null; close: number; sigma20: number;
+  stop: number; target: number; holdSessions: number; inBuffer: boolean; reason: CandidateReason; sectorCount: number | null; maxPerSector: number; sectorHeld: number;
+}
+
 export interface EliteDecision {
   version: string; date: string; builtAt: string; icComb: number; sigma5: number | null; weights: SignalWeight[];
   universe: { panel: number; eligible: number }; portfolio: PortfolioPick[]; scores: EliteScore[]; ledgerSummary: LedgerSummary | null;
   signalWeighting?: { method: "correlation" | "ic"; corr: { ids: string[]; matrix: number[][]; shrink: number; names: number } | null; noteVi: string | null };
   construction?: { method: "erc" | "inverse-vol"; sessions: number; retained: number; previous: number; turnover: number | null };
+  candidates?: Candidate[];
 }
 
 export interface EvidenceHorizon { n: number; mean: number | null; t: number | null; pPos: number | null; q: number | null; stable: boolean; halves: [number, number] | null; from: string | null; to: string | null }
