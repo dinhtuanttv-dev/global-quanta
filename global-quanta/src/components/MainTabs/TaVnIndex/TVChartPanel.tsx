@@ -241,7 +241,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [anchorPick, setAnchorPick] = useState(false);
   const settingsProps = {
     value: ind, onChange: (next: IndicatorSettings) => setWs({ indicators: next }), ticker, anchor: anchorFor,
-    onPickAnchor: () => { setSheet(null); setAnchorPick(true); }, onClearAnchor: () => setAnchor(null),
+    // Đóng menu / bảng trượt đang mở để nến không bị che khi bấm chọn ngày neo.
+    onPickAnchor: () => { setSheet(null); closeOpenPopovers(); setAnchorPick(true); }, onClearAnchor: () => setAnchor(null),
   };
 
   // ---- Khởi tạo / cập nhật bộ điều phối + biểu đồ khi dữ liệu đổi ----
@@ -1318,6 +1319,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
 
 const fmtNum = (v: number, d = 2) => v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, "−");
 const fmtBig = (v: number) => { const a = Math.abs(v); const s = a >= 1e9 ? `${fmtNum(a / 1e9, 2)} tỷ` : a >= 1e6 ? `${fmtNum(a / 1e6, 2)} tr` : a >= 1e3 ? `${fmtNum(a / 1e3, 1)} k` : fmtNum(a, 0); return `${v < 0 ? "−" : v > 0 ? "+" : ""}${s}`; };
+
+/** Đóng mọi Popover API đang mở (menu Lớp, preset…) — trình duyệt chưa hỗ trợ thì bỏ qua. */
+function closeOpenPopovers() {
+  try { document.querySelectorAll<HTMLElement>("[popover]").forEach((el) => { if (el.matches(":popover-open")) el.hidePopover(); }); } catch { /* không hỗ trợ :popover-open */ }
+}
 
 /** R5: AVWAP neo tại ngày người dùng chọn (nến đầu tiên có ngày ≥ ngày neo); ngoài dữ liệu -> null (dùng tự động). */
 export function manualAvwap(bars: OhlcvBar[], anchor: string | null) {
