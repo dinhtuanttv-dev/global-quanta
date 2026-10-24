@@ -67,7 +67,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
           {onOpenVision && <button type="button" onClick={() => onOpenVision(row.ticker)} data-testid="open-vision" className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-sky-500/40 bg-sky-500/10 text-sky-200 hover:bg-sky-500/20"><Cpu className="w-3 h-3" />AI Chart Vision</button>}
-          <button type="button" onClick={() => onOpenChart(row.ticker, p ? { start: p.startDate, end: p.endDate, label: p.label } : null)} data-testid="pattern-open-chart" className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:border-violet-500/50 hover:text-violet-300"><LineChart className="w-3 h-3" />Mở biểu đồ TA</button>
+          <button type="button" onClick={() => { const h = p ?? row.patterns.find((x) => keyOf(x) === pick) ?? row.patterns[0]; onOpenChart(row.ticker, h ? { start: h.startDate, end: h.endDate, label: h.label } : null); }} data-testid="pattern-open-chart" className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded-md border border-slate-700 text-slate-300 hover:border-violet-500/50 hover:text-violet-300"><LineChart className="w-3 h-3" />Mở biểu đồ TA</button>
           <button type="button" onClick={onClose} aria-label="Đóng phân tích chuyên sâu" className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"><X className="w-3.5 h-3.5" /></button>
         </div>
       </header>
