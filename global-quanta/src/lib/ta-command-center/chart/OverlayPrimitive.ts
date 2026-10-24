@@ -32,7 +32,9 @@ class Renderer implements IPrimitivePaneRenderer {
       };
       for (const it of o.scene.items) this.drawItem(ctx, it, W, H, addLabel);
       const placed = placeLabels(labels, W, H, o.scene.labelBudget);
-      o.onRendered?.(placed.length, o.scene.items.length, o.probe());
+      // SC2: số nhãn trong khung bị lược do ngân sách -> giao diện báo "+n nhãn ẩn" (không im lặng bỏ nhãn).
+      const inView = labels.filter((c) => c.x >= 0 && c.y - c.h >= 0 && c.x + c.w <= W && c.y <= H).length;
+      o.onRendered?.(placed.length, o.scene.items.length, o.probe(), Math.max(0, inView - placed.length));
       for (const l of placed) {
         ctx.fillStyle = "rgba(10,14,23,0.72)";
         ctx.fillRect(l.x, l.y - l.h + 1, l.w, l.h);
@@ -194,7 +196,7 @@ class PaneView implements IPrimitivePaneView {
 export class OverlayPrimitive implements ISeriesPrimitive<Time> {
   scene: Scene = EMPTY_SCENE;
   /** Gọi sau mỗi lần vẽ (số nhãn đã đặt, số phần tử) — dùng cho kiểm thử/giám sát. */
-  onRendered?: (labels: number, items: number, probe: { date: string; itemX: number | null; candleX: number | null } | null) => void;
+  onRendered?: (labels: number, items: number, probe: { date: string; itemX: number | null; candleX: number | null } | null, hiddenLabels?: number) => void;
 
   /** Phần tử mẫu (có ngày bắt đầu) + toạ độ của nó và của nến cùng ngày, tính ở khung hình hiện tại. */
   probe() {

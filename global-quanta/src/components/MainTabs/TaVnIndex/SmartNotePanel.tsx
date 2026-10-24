@@ -9,6 +9,8 @@ import type { RsiResult, MacdResult, AdxResult } from "../../../lib/ta-command-c
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 interface Props {
+  /** Super Chart SC4: hiển thị ngay trong bảng chi tiết (không đè lên nến, không thu gọn). */
+  inline?: boolean;
   ticker: string;
   wyckoff: WyckoffResult;
   smc: SmcState;
@@ -41,7 +43,8 @@ export function buildPrompt(p: Props): string {
 }
 
 export default function SmartNotePanel(props: Props) {
-  const [expanded, setExpanded] = useState(false);
+  const [expandedState, setExpanded] = useState(false);
+  const expanded = props.inline || expandedState;
   const [note, setNote] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,15 +79,15 @@ export default function SmartNotePanel(props: Props) {
   }
 
   return (
-    <div data-testid="smart-note" style={{ background: "rgba(14,22,38,0.95)", border: "1px solid rgba(245,158,11,0.3)", maxWidth: 260 }}
-      className="absolute top-3 right-3 z-10 rounded-lg p-2.5">
+    <div data-testid="smart-note" style={{ background: "rgba(14,22,38,0.95)", border: "1px solid rgba(245,158,11,0.3)", maxWidth: props.inline ? undefined : 260 }}
+      className={props.inline ? "rounded-lg p-2.5" : "absolute top-3 right-3 z-10 rounded-lg p-2.5"}>
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
           <Sparkles className="w-3 h-3" /> Smart Note
         </span>
-        <button onClick={() => setExpanded(false)} className="text-slate-400 hover:text-slate-200">
+        {!props.inline && <button onClick={() => setExpanded(false)} className="text-slate-400 hover:text-slate-200" aria-label="Thu gọn Smart Note">
           <ChevronUp className="w-3 h-3" />
-        </button>
+        </button>}
       </div>
 
       {!note && !loading && !error && (

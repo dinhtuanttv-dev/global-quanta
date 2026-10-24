@@ -45,4 +45,13 @@ export class LayerManager {
   enable(key: LayerKey): void { if (!this.state[key]) this.toggle(key); }
   toggle(key: LayerKey): void { this.state = { ...this.state, [key]: !this.state[key] }; this.emitter.emit("layers:changed", this.state); }
   setMaster(on: boolean): void { this.state = { ...this.state, aiDetectionMaster: on }; this.emitter.emit("layers:changed", this.state); }
+  /** Super Chart SC1: đặt nhiều lớp cùng lúc (preset / khôi phục bố cục đã lưu) — một sự kiện duy nhất. */
+  setMany(next: Partial<LayerState>): void {
+    const merged = { ...this.state };
+    let changed = false;
+    for (const [k, v] of Object.entries(next) as [keyof LayerState, boolean][]) if (k in merged && typeof v === "boolean" && merged[k] !== v) { merged[k] = v; changed = true; }
+    if (!changed) return;
+    this.state = merged;
+    this.emitter.emit("layers:changed", this.state);
+  }
 }

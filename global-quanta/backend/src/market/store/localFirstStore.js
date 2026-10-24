@@ -22,7 +22,8 @@ export const USER_TABLES = new Set(["market_user_watchlists", "market_user_chart
  */
 export const isLocalOnlyTable = (table) => String(table).startsWith("market_matrix_") || String(table).startsWith("auth_") || USER_TABLES.has(table)
   || String(table).startsWith("market_user_elliott_") // DW8/DW10: cách đếm Elliott chỉnh tay + cảnh báo (mới, không có trên Supabase)
-  || String(table).startsWith("market_elliott_"); // EP2: sổ theo dõi kịch bản Elliott
+  || String(table).startsWith("market_elliott_") // EP2: sổ theo dõi kịch bản Elliott
+  || table === "market_user_workspace"; // Super Chart SC1: bố cục tab TA theo tài khoản
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);
 const HYDRATED_KV = (table) => `__local:hydrated:${table}`;
 

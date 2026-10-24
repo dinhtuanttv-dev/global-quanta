@@ -23,6 +23,7 @@ export const PRIMARY_KEYS = {
   market_user_elliott_alerts: ["user_id", "id"],
   market_user_elliott_alert_events: ["user_id", "id"],
   market_elliott_ledger: ["id"], // EP2: sổ theo dõi kịch bản Elliott (local-only)
+  market_user_workspace: ["user_id"], // Super Chart SC1: bố cục tab TA theo tài khoản (local-only)
   market_flow_daily: ["symbol", "trading_date"],
   market_volume_profile_daily: ["symbol", "trading_date"],
   market_regime_daily: ["trading_date"],

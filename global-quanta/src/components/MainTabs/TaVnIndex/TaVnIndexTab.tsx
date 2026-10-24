@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import TickerSelector, { DEFAULT_TA_SYMBOL } from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
+import type { ChartHighlight } from "./TVChartPanel";
 import GoldenSepaPanel from "./GoldenSepaPanel";
 import ConvergencePanelV2 from "./ConvergencePanelV2";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
@@ -17,13 +18,16 @@ export default function TaVnIndexTab() {
   const [ticker, setTicker] = useState(globalSelectedTicker ?? DEFAULT_TA_SYMBOL);
   const [activeSubTab, setActiveSubTab] = useState<SubTabKey>("pattern");
   const [suggestedTicker, setSuggestedTicker] = useState<string | null>(null);
+  // Super Chart SC4: mẫu hình chọn ở Pattern Scanner v2 -> khoanh vùng trên biểu đồ (nối lại đường đã đứt từ khi thay bộ lọc cũ).
+  const [highlight, setHighlight] = useState<ChartHighlight | null>(null);
   useEffect(() => {
     if (globalSelectedTicker) setTicker(globalSelectedTicker);
   }, [globalSelectedTicker]);
 
-  const handleCandidateSelect = (symbol: string) => {
+  const handleCandidateSelect = (symbol: string, h?: Omit<ChartHighlight, "n"> | null) => {
     setTicker(symbol);
     setSuggestedTicker(symbol);
+    setHighlight(h ? { ...h, n: Date.now() } : null);
   };
 
   const handleTabChange = (tab: SubTabKey) => {
@@ -41,15 +45,14 @@ export default function TaVnIndexTab() {
 
   return (
     <div className="ta-vnindex-tab">
-      <TickerSelector ticker={ticker} onChange={setTicker} />
-
       {/* ĐÃ SỬA: bỏ khung cuộn 70vh từng bọc ở đây (bọc nhầm cả khối lớn
           gồm chart + SMC/VSA/Wyckoff/Backtest) — chiều cao 70% màn hình
           giờ áp dụng ĐÚNG vào khung chart nến bên trong TVChartPanel.tsx,
           không phải toàn bộ khối này. Quay về luồng cuộn trang bình
           thường, tự nhiên hơn. */}
       <div style={{ display: activeSubTab === "aichart" ? "none" : undefined }}>
-        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} />
+        {/* Phần A — Chart + bảng điều khiển (Super Chart). Ô chọn mã nằm trong thanh đầu của workspace. */}
+        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} highlight={highlight} tickerSlot={<TickerSelector ticker={ticker} onChange={(t) => { setTicker(t); setHighlight(null); }} />} />
       </div>
 
       {activeSubTab === "aichart" && (

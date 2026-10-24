@@ -4,8 +4,8 @@
 // GHIM VÀO NẾN: mọi chỉ báo là series / marker / primitive của thư viện -> kéo chuột, cuộn, zoom, bàn phím đều di chuyển
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
-  createChart, createSeriesMarkers, CandlestickSeries, HistogramSeries, LineSeries, LineStyle,
-  type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type SeriesMarker, type Time,
+  createChart, createSeriesMarkers, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle,
+  type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type MouseEventParams, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
 import { OverlayPrimitive } from "./chart/OverlayPrimitive";
@@ -26,6 +26,12 @@ export interface ChartMarkerInput {
 }
 
 export interface TVChartManagerOptions { timeVisible?: boolean }
+
+/** Pane đang có trên biểu đồ (SC2: tiêu đề + nút đóng + nhớ tỷ lệ chiều cao). */
+export type PaneKind = "price" | "volume" | "rsi" | "flow" | "foreign" | "eosc";
+export interface PaneInfo { index: number; kind: PaneKind; top: number; height: number }
+/** Nến dưới crosshair (SC2: chú giải OHLC). */
+export interface CrosshairBar { date: string; open: number; high: number; low: number; close: number; volume: number; prevClose: number | null; index: number }
 
 export class TVChartManager {
   private chart: IChartApi;
@@ -78,9 +84,67 @@ export class TVChartManager {
     };
     this.markers = createSeriesMarkers(this.candleSeries, []);
     container.dataset.panes = "1";
+    this.overlay.onRendered = ((prev) => (labels, items, probe, hidden) => { prev?.(labels, items, probe, hidden); container.dataset.overlayHidden = String(hidden ?? 0); this.onLabels?.(hidden ?? 0); })(this.overlay.onRendered);
+    this.chart.subscribeCrosshairMove(this.handleCrosshair);
 
     this.setData(bars);
   }
+
+  // ---- SC2: chú giải OHLC theo crosshair, nhãn ẩn, pane, khoảng nhìn, ảnh chụp, chế độ bám nến ----
+  private crosshairCbs = new Set<(b: CrosshairBar | null) => void>();
+  private barIndexByTime = new Map<string, number>();
+  /** Nhận số nhãn bị lược mỗi lần vẽ lớp phủ. */
+  onLabels?: (hidden: number) => void;
+  private handleCrosshair = (param: MouseEventParams<Time>) => {
+    if (!this.crosshairCbs.size) return;
+    const i = param.time == null ? undefined : this.barIndexByTime.get(String(param.time));
+    const b = i == null ? null : this.currentBars[i];
+    const out = b ? { ...b, volume: b.volume ?? 0, prevClose: i! > 0 ? this.currentBars[i! - 1].close : null, index: i! } : null;
+    for (const cb of this.crosshairCbs) cb(out);
+  };
+  /** Đăng ký nhận nến dưới crosshair (null = con trỏ rời biểu đồ). */
+  onCrosshair(cb: (b: CrosshairBar | null) => void): () => void { this.crosshairCbs.add(cb); return () => { this.crosshairCbs.delete(cb); }; }
+  /** Vừa khung toàn bộ dữ liệu. */
+  fit(): void { this.chart.timeScale().fitContent(); }
+  /** Xem `n` nến gần nhất (mốc khoảng thời gian: 1T, 3T, 1N…); n = Infinity -> toàn bộ. */
+  showLast(n: number): void {
+    const len = this.currentBars.length;
+    if (!Number.isFinite(n) || n >= len) { this.fit(); return; }
+    const right = this.chart.timeScale().options().rightOffset ?? 6;
+    this.chart.timeScale().setVisibleLogicalRange({ from: len - n, to: len - 1 + right });
+  }
+  /** Ảnh PNG của biểu đồ (gồm lớp phủ + nhãn). */
+  screenshot(): HTMLCanvasElement { return this.chart.takeScreenshot(true); }
+  /** Crosshair bám giá đóng cửa của nến (Magnet) hay tự do. */
+  setMagnet(on: boolean): void { this.chart.applyOptions({ crosshair: { mode: on ? CrosshairMode.MagnetOHLC : CrosshairMode.Normal } }); }
+  /** Danh sách pane hiện có: loại, vị trí đỉnh và chiều cao (px trong khung biểu đồ). */
+  paneLayout(): PaneInfo[] {
+    const owners: [PaneKind, ISeriesApi<never> | null | undefined][] = [
+      ["volume", this.volumeSeries as never], ["rsi", this.rsiSeries as never], ["flow", this.flowSeries?.delta as never],
+      ["foreign", this.foreignSeries?.net as never], ["eosc", this.elliottOscSeries?.osc as never],
+    ];
+    const kindOf = new Map<number, PaneKind>([[0, "price"]]);
+    for (const [k, s] of owners) if (s) { try { kindOf.set(s.getPane().paneIndex(), k); } catch { /* series vừa gỡ */ } }
+    let top = 0;
+    return this.chart.panes().map((p, i) => { const h = p.getHeight(); const info = { index: i, kind: kindOf.get(i) ?? "price", top, height: h }; top += h + 1; return info; });
+  }
+  /** Tỷ lệ chiều cao người dùng đã kéo (theo loại pane) — để lưu vào bố cục. */
+  paneStretch(): Partial<Record<PaneKind, number>> {
+    const panes = this.chart.panes(), total = panes.reduce((a, p) => a + p.getStretchFactor(), 0) || 1;
+    const out: Partial<Record<PaneKind, number>> = {};
+    for (const info of this.paneLayout()) if (info.kind !== "price") out[info.kind] = Math.round((panes[info.index].getStretchFactor() / total) * 1000) / 1000;
+    return out;
+  }
+  private savedStretch: Partial<Record<PaneKind, number>> = {};
+  /** Áp tỷ lệ đã lưu cho các pane chỉ báo (pane giá nhận phần còn lại). */
+  applyPaneStretch(s: Partial<Record<PaneKind, number>>): void { this.savedStretch = { ...s }; this.layoutPanes(); }
+  /** (ngày, giá) -> px trong khung biểu đồ (hit-test hình vẽ). */
+  domainToPixel(date: string, price: number): { x: number; y: number } | null {
+    const x = this.overlay.x(date), y = this.candleSeries.priceToCoordinate(price);
+    return x == null || y == null ? null : { x, y };
+  }
+  /** Kích thước pane giá. */
+  pricePaneSize(): { width: number; height: number } { return this.chart.paneSize(0); }
 
   setData(bars: OhlcvBar[], rsi?: (number | null)[]): void {
     // Trục thời gian của thư viện là HỢP thời gian mọi series: xoá dữ liệu cũ của pane chỉ báo TRƯỚC khi nạp nến mới,
@@ -91,6 +155,7 @@ export class TVChartManager {
     this.foreignSeries?.cum.setData([]);
     this.currentBars = bars;
     this.currentDates = new Set(bars.map((b) => b.date));
+    this.barIndexByTime = new Map(bars.map((b, i) => [String(toTime(b.date)), i]));
     this.overlay.setDates(bars.map((b) => b.date));
     this.candleSeries.setData(bars.map((b) => ({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close })));
     this.fillVolume();
@@ -220,6 +285,16 @@ export class TVChartManager {
     this.container.dataset.panes = String(panes.length);
     // Pane giá luôn chiếm phần lớn; các pane chỉ báo chia đều phần còn lại.
     const main = panes.length === 1 ? 1 : panes.length === 2 ? 0.78 : panes.length === 3 ? 0.66 : 0.58;
+    // SC2: tỷ lệ người dùng đã lưu (theo loại pane) thắng tỷ lệ mặc định; pane giá giữ tối thiểu 40%.
+    const info = panes.length > 1 ? this.paneLayout() : [];
+    const custom = info.filter((p) => p.kind !== "price").map((p) => this.savedStretch[p.kind]);
+    if (custom.length && custom.every((x) => x != null)) {
+      const sum = Math.min(0.6, custom.reduce((a, b) => a + (b as number), 0));
+      const scale = sum / custom.reduce((a, b) => a + (b as number), 0);
+      panes[0]?.setStretchFactor(1 - sum);
+      info.filter((p) => p.kind !== "price").forEach((p, k) => panes[p.index].setStretchFactor((custom[k] as number) * scale));
+      return;
+    }
     panes[0]?.setStretchFactor(main);
     for (let i = 1; i < panes.length; i++) panes[i].setStretchFactor((1 - main) / (panes.length - 1));
   }
@@ -309,5 +384,5 @@ export class TVChartManager {
     return () => this.chart.timeScale().unsubscribeVisibleTimeRangeChange(cb);
   }
 
-  destroy(): void { this.chart.remove(); }
+  destroy(): void { this.chart.unsubscribeCrosshairMove(this.handleCrosshair); this.crosshairCbs.clear(); this.chart.remove(); }
 }

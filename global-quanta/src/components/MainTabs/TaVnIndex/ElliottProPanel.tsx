@@ -5,7 +5,7 @@
 //   Hiệu quả  — sổ theo dõi thời gian thực (Gateway) + kiểm định lịch sử (EP5).
 //   Của tôi   — chỉnh tay cách đếm, lịch sử phiên bản, cảnh báo.
 //   Theo sách — engine GET cũ (E1–E6, DW1–DW9) để đối chiếu theo sách.
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Bell, BellRing, Eye, EyeOff } from "lucide-react";
 import useSWR from "swr";
 import { fetchMarketJson, isMarketGatewayEnabled } from "../../../services/marketDataClient";
@@ -116,6 +116,8 @@ function BacktestTable() {
 }
 
 interface Props {
+  /** Super Chart: yêu cầu mở tab từ bên ngoài (mỗi yêu cầu là một đối tượng mới). */
+  tabRequest?: { tab: string; n: number } | null;
   ticker: string;
   timeframe: string;
   tree: WaveTree | null;
@@ -129,8 +131,10 @@ interface Props {
   book: ReactNode;
 }
 
-export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, dailyBars, layerOn, onToggleLayer, mode, onMode, mine, book }: Props) {
+export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, dailyBars, layerOn, onToggleLayer, mode, onMode, mine, book, tabRequest }: Props) {
   const [tab, setTab] = useState<Tab>("overview");
+  // Super Chart: thanh công cụ yêu cầu mở một tab (VD "Chỉnh tay cách đếm" -> tab Của tôi); n đổi mỗi lần yêu cầu.
+  useEffect(() => { if (tabRequest) setTab(tabRequest.tab as Tab); }, [tabRequest]);
   const frames = useMemo(() => {
     const d = dailyBars.length >= 60 ? buildWaveTree(toCandles(dailyBars)) : null;
     const wk = dailyBars.length >= 300 ? aggregateToWeekly(dailyBars) : [];
