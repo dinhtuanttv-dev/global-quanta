@@ -3,6 +3,7 @@
 import type { LayerKey, LayerState } from "../../../../lib/ta-command-center/LayerManager";
 import { DEFAULT_LAYER_STATE } from "../../../../lib/ta-command-center/LayerManager";
 import type { PaneKind } from "../../../../lib/ta-command-center/TVChartManager";
+import { DEFAULT_INDICATORS, sanitizeIndicators, type IndicatorSettings } from "./indicatorSettings";
 
 export const WORKSPACE_SCHEMA = 1;
 export type PresetId = "clean" | "priceVolume" | "structure" | "momentum" | "elliott" | "manual" | "mine" | "custom";
@@ -26,11 +27,14 @@ export interface Workspace {
   structureMode: StructureModePref;
   /** "Bố cục của tôi": bộ lớp người dùng tự lưu (null = chưa lưu). */
   mine: Partial<LayerState> | null;
+  /** R5: tham số chỉ báo người dùng chỉnh (mặc định = công thức chuẩn). */
+  indicators: IndicatorSettings;
 }
 
 export const DEFAULT_WORKSPACE: Workspace = {
   schemaVersion: WORKSPACE_SCHEMA, preset: "clean", layers: {}, layout: "workspace",
   inspectorOpen: true, inspectorTab: "overview", dockOpen: true, dockTab: "methods", dockHeight: 420, paneStretch: {}, magnet: false, structureMode: "overview", mine: null,
+  indicators: DEFAULT_INDICATORS,
 };
 
 const ENUM = {
@@ -60,6 +64,7 @@ export function sanitizeWorkspace(raw: unknown): Workspace {
     schemaVersion: WORKSPACE_SCHEMA, preset: pick("preset"), layers, layout: pick("layout"), inspectorOpen: bool("inspectorOpen"), inspectorTab: pick("inspectorTab"),
     dockOpen: bool("dockOpen"), dockTab: pick("dockTab"), dockHeight: Number.isFinite(h) ? Math.min(1200, Math.max(160, Math.round(h))) : DEFAULT_WORKSPACE.dockHeight,
     paneStretch, magnet: bool("magnet"), structureMode: pick("structureMode"), mine: r.mine && typeof r.mine === "object" ? layerObj(r.mine) : null,
+    indicators: sanitizeIndicators(r.indicators),
   };
 }
 

@@ -30,3 +30,17 @@ test("hình vẽ: giữ tên / ẩn / khoá đúng kiểu, bỏ kiểu sai", () 
   assert.equal(a.name, "Kênh tăng"); assert.equal(a.hidden, true); assert.equal(a.locked, true);
   assert.equal("name" in b, false); assert.equal("hidden" in b, false);
 });
+
+test("R5 sanitizeIndicators: kẹp miền, MACD nhanh < chậm, enum lạ -> mặc định, neo AVWAP theo mã hợp lệ", async () => {
+  const { sanitizeIndicators } = await import("../src/market/watchlists/userWorkspace.js");
+  const s = sanitizeIndicators({
+    rsi: { period: 500, upper: 80, lower: 1, method: "evil" }, macd: { fast: 30, slow: 20, signal: 9 }, adx: { period: "x", threshold: 99 },
+    vprofile: { bars: 10, method: "uniform" }, avwap: { anchors: { FPT: "2026-03-02", "bad ticker": "2026-01-01", HPG: "<script>" } }, extra: 1,
+  });
+  assert.deepEqual(s, {
+    rsi: { period: 100, upper: 80, lower: 5, method: "wilder" }, macd: { fast: 12, slow: 26, signal: 9 }, adx: { period: 14, threshold: 60 },
+    vprofile: { bars: 20, method: "uniform" }, avwap: { anchors: { FPT: "2026-03-02" } },
+  });
+  assert.equal(sanitizeIndicators(null), undefined);
+  assert.deepEqual(sanitizeWorkspace({ indicators: { rsi: { period: 21 } } }).indicators.rsi, { period: 21, upper: 70, lower: 30, method: "wilder" });
+});

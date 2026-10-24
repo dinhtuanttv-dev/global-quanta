@@ -26,7 +26,8 @@ export interface SceneInput {
   highlight: { start: string; end: string } | null;
   /** P4: Volume Profile (composite D/W/M hoặc theo phiên intraday) + Anchored VWAP mặc định — từ quant-core (Worker). */
   profile?: { sessions: SessionProfile[]; composite: VolumeProfile | null } | null;
-  avwap?: { anchorDate: string; points: VwapPoint[] } | null;
+  /** `manual`: ngày neo do người dùng chọn (R5); không có -> tự động (đầu dải giao dịch). */
+  avwap?: { anchorDate: string; points: VwapPoint[]; manual?: boolean } | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
   /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
@@ -240,7 +241,7 @@ function pushVolumeLayers(items: SceneItem[], inp: SceneInput) {
   if (layers?.avwap && inp.avwap?.points.length) {
     const pts = inp.avwap.points;
     const line = (k: number) => pts.map((p) => ({ t: p.date, price: p.vwap + k * p.sigma }));
-    items.push({ kind: "poly", points: line(0), color: GQ_COLORS.amber, width: 1.5, label: { text: `AVWAP · neo ${inp.avwap.anchorDate.slice(0, 10)} (tự động: đầu dải giao dịch) · ±1σ ±2σ`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
+    items.push({ kind: "poly", points: line(0), color: GQ_COLORS.amber, width: 1.5, label: { text: `AVWAP · neo ${inp.avwap.anchorDate.slice(0, 10)} (${inp.avwap.manual ? "bạn chọn" : "tự động: đầu dải giao dịch"}) · ±1σ ±2σ`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
     for (const k of [1, -1]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.6), width: 1, dash: [4, 3] });
     for (const k of [2, -2]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.35), width: 1, dash: [2, 3] });
   }
