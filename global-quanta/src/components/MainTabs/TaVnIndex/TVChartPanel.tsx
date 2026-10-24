@@ -56,6 +56,7 @@ import { elliottProjection } from "../../../lib/quant-core/elliott/projection";
 import { intradayElliottState } from "../../../lib/quant-core/elliott/intraday";
 import { buildWaveTree } from "../../../lib/quant-core/elliott/v3/waveTree";
 import { evaluateLifecycle, scenariosFromTree } from "../../../lib/quant-core/elliott/v3/scenarios";
+import { ELLIOTT_PRO_MODES, elliottProSummary, type ElliottProMode } from "../../../lib/ta-command-center/chart/elliottProScene";
 import { elliottCountPoints } from "../../../lib/ta-command-center/chart/elliottScene";
 import type { Analysis } from "../../../lib/quant-core";
 
@@ -397,6 +398,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const live = scenariosFromTree(waveTree, v3Candles, ticker).filter((s) => s.provisional && !confirmed.some((c) => c.template === s.template && c.level === s.level));
     return [...confirmed, ...live].map((sc) => ({ sc, lc: evaluateLifecycle(sc, v3Candles) }));
   }, [v3Candles, waveTree, ticker]);
+  // EP3: chế độ lớp Elliott Pro (nhớ theo trình duyệt — tiện ích riêng của người xem); mặc định "Phác đồ".
+  const [proMode, setProModeState] = useState<ElliottProMode>(() => {
+    try { const v = window.localStorage.getItem("gq.ta.elliottProMode"); return v === "compact" || v === "deep" ? v : "chart"; } catch { return "chart"; }
+  });
+  const setProMode = (m: ElliottProMode) => { setProModeState(m); try { window.localStorage.setItem("gq.ta.elliottProMode", m); } catch { /* riêng tư */ } };
+  const elliottProInput = useMemo(() => (waveTree ? { tree: waveTree, scenarios: v3Scenarios, mode: proMode } : null), [waveTree, v3Scenarios, proMode]);
+  const elliottProText = useMemo(() => (elliottProInput ? elliottProSummary(elliottProInput) : null), [elliottProInput]);
   const elliottScene = useMemo(() => {
     if (intradayElliott) {
       const p = elliottPick > 0 ? intradayElliott.alternates?.[elliottPick - 1] ?? intradayElliott : intradayElliott;
@@ -424,9 +432,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
     elliottDraft: elliottProposal ?? elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene,
-  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene]);
-  const scene = useMemo(() => (structureItems.length ? { items: [...structureItems, ...baseScene.items] } : baseScene), [structureItems, baseScene]);
+    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene, elliottProInput]);
+  const scene = useMemo(() => (structureItems.length ? { ...baseScene, items: [...structureItems, ...baseScene.items] } : baseScene), [structureItems, baseScene]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
   // Thang mức giá trục phải + khoảng trống tương lai (nón dự báo / mũi tên kịch bản).
   useEffect(() => {
@@ -437,9 +445,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const structureRoom = structureOn && structureMode !== "overview" && (timeframe === "D" || timeframe === "1H") ? 26 : 6;
     // DW3: chừa đủ chỗ cho đường kịch bản Elliott (nến xa nhất + 4, tối đa 60) khi lớp đang bật.
     const proj = layerState?.elliottProj && elliottScene?.primary ? elliottProjection(elliottScene.primary, close) : null;
-    const projRoom = proj?.legs.length ? Math.min(60, proj.legs[proj.legs.length - 1].k + 4) : 0;
+    // EP3: mọi đường tương lai của scene (Elliott Pro, kịch bản cũ…) — chừa đủ chỗ (≤ 60 nến).
+    const futureK = Math.max(0, ...baseScene.items.flatMap((it) => (it.kind === "future" ? it.points.map((q) => q.k) : [])));
+    const projRoom = Math.min(60, Math.max(proj?.legs.length ? proj.legs[proj.legs.length - 1].k + 4 : 0, futureK ? futureK + 4 : 0));
     tv.setRightOffset(Math.max(structureRoom, projRoom));
-  }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed, layerState?.elliottProj, elliottScene]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed, layerState?.elliottProj, elliottScene, baseScene]); // eslint-disable-line react-hooks/exhaustive-deps
   const openStructure = () => {
     const controller = controllerRef.current;
     if (!controller) return;
@@ -589,6 +599,18 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       </div>
 
       <div className="relative" style={{ height: "70vh", minHeight: 420 }} data-testid="ta-chart">
+        {layerState?.elliottPro && elliottProText && (
+          <div className="absolute top-3 z-10 max-w-[calc(100%-140px)] px-2 py-1 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] leading-snug text-cyan-100 flex flex-wrap items-center gap-1"
+            style={{ left: 60 }} data-testid="elliott-pro-chip" title="Elliott Pro (engine v3) — diễn giải EXPERIMENTAL, không phải khuyến nghị">
+            <span className="truncate max-w-full">{elliottProText}</span>
+            <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
+              {ELLIOTT_PRO_MODES.map((m) => (
+                <button key={m.id} type="button" role="radio" aria-checked={proMode === m.id} onClick={() => setProMode(m.id)} data-testid={`elliott-pro-mode-${m.id}`}
+                  className={`px-1 rounded border text-[9px] ${proMode === m.id ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
+              ))}
+            </span>
+          </div>
+        )}
         {structureOn && structure.data && (
           <div className={`absolute top-3 z-10 max-w-[60%] px-2 py-1 rounded-lg bg-slate-950/85 border text-[10px] leading-snug ${VERDICT_CHIP[VERDICT_TONE[structure.data.align.verdict]]}`}
             style={{ right: 72 }} data-testid="structure-chip" title={structure.data.align.text}>

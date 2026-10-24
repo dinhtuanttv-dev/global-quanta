@@ -31,7 +31,7 @@ class Renderer implements IPrimitivePaneRenderer {
         labels.push({ x, y, w: ctx.measureText(l.text).width + 4, h: 10, text: l.text, color: l.color, priority: l.priority });
       };
       for (const it of o.scene.items) this.drawItem(ctx, it, W, H, addLabel);
-      const placed = placeLabels(labels, W, H);
+      const placed = placeLabels(labels, W, H, o.scene.labelBudget);
       o.onRendered?.(placed.length, o.scene.items.length, o.probe());
       for (const l of placed) {
         ctx.fillStyle = "rgba(10,14,23,0.72)";

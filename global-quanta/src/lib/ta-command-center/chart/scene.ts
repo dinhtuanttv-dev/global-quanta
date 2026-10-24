@@ -39,7 +39,8 @@ export type SceneItem =
   // DW5: chữ neo tại điểm (giá đỉnh/đáy, thẻ mô hình "ZZ" / "Sharp"…); dy = lệch dọc theo pixel (âm = lên trên).
   | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number };
 
-export interface Scene { items: SceneItem[] }
+/** labelBudget (EP3): ngân sách nhãn của scene (mặc định LABEL_BUDGET) — Elliott Pro nâng theo chế độ. */
+export interface Scene { items: SceneItem[]; labelBudget?: number }
 export const EMPTY_SCENE: Scene = { items: [] };
 
 /** Ngân sách nhãn: tối đa 12 nhãn trong vùng nhìn thấy (đặc tả §2.1.1). */

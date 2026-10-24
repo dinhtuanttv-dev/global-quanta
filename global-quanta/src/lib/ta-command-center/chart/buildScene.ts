@@ -8,10 +8,13 @@ import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
+import { ELLIOTT_PRO_LABEL_BUDGET, elliottProItems, type ElliottProInput } from "./elliottProScene";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
 import { pringSceneItems, type PringScenePattern } from "./pringScene";
 
 export interface SceneInput {
+  /** EP3: dữ liệu lớp Elliott Pro (cây v3 + kịch bản + chế độ) — vẽ khi bật lớp elliottPro. */
+  elliottPro?: ElliottProInput | null;
   bars: OhlcvBar[];
   smc: SmcState;
   wyckoff: WyckoffResult | null;
@@ -187,6 +190,10 @@ export function buildScene(inp: SceneInput): Scene {
   if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj || layers?.elliottGuide || layers?.elliottSub || layers?.elliottMine || inp.elliott.mine?.editing))
     items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj, guide: !!layers?.elliottGuide, sub: !!layers?.elliottSub, mine: !!layers?.elliottMine } }));
   if (layers?.pring && inp.pring?.length) items.push(...pringSceneItems(bars, inp.pring));
+  if (layers?.elliottPro && inp.elliottPro) {
+    items.push(...elliottProItems(inp.elliottPro, bars));
+    return { items, labelBudget: ELLIOTT_PRO_LABEL_BUDGET[inp.elliottPro.mode] };
+  }
   return { items };
 }
 
