@@ -11,6 +11,7 @@ import EvidenceCard from "./EvidenceCard";
 import ConvergenceDeepPanel from "./ConvergenceDeepPanel";
 
 import { useStructureSummary } from "../../../hooks/useStructure";
+import { ElliottCell, useElliottLatest } from "./ElliottCells";
 import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const GRADE_STYLE: Record<string, string> = {
   A: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
@@ -44,7 +45,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-cyan-900/40" data-testid="convergence-deep-row">
-      <td colSpan={8} className="p-0">
+      <td colSpan={9} className="p-0">
         <div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div>
       </td>
     </tr>
@@ -70,6 +71,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
   // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
   const structureRows = useStructureSummary();
+  const elliottLatest = useElliottLatest();
   const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -145,6 +147,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
                 <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
+                <th className="py-1.5 hidden sm:table-cell">Elliott</th>
                 <th className="py-1.5">Phía · pha</th>
                 <th className="py-1.5 text-right pr-1">Điểm</th>
                 <th className="py-1.5 pl-3">Hợp lưu vùng giá</th>
@@ -167,6 +170,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
+                  <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
                     <td className="py-1.5">
                       <span className={r.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{r.side === "buy" ? "▲ Mua" : "▼ Bán"}</span>
                       <span className="text-violet-300"> · Phase {r.wyckoff.cyclePhase ?? "?"}</span>

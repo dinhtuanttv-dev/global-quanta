@@ -97,10 +97,29 @@ export function createElliottLedger({ store, taSeries, now = () => new Date(), l
       verdict: score.n < EP2_PREREG.minN ? "chưa đủ mẫu" : score.pass ? "ĐẠT" : "KHÔNG ĐẠT" };
   }
 
+  /**
+   * EP6: kịch bản đang mở mới nhất của từng mã (ưu tiên đã kích hoạt / đạt MT1 > chờ; cùng loại thì ghi sổ gần nhất, bậc cao hơn)
+   * — gọn cho cột "Elliott" của các bảng lọc.
+   */
+  async function latest() {
+    const rank = { target1: 3, triggered: 2, waiting: 1 };
+    const best = {};
+    for (const r of await store.selectRows(LEDGER_TABLE, {})) {
+      const d = r.doc;
+      if (!d || !rank[d.state]) continue;
+      const cur = best[r.symbol];
+      const better = !cur || rank[d.state] > rank[cur.state] || (rank[d.state] === rank[cur.state] && (d.loggedAt > cur.loggedAt || (d.loggedAt === cur.loggedAt && d.scenario.level > cur.level)));
+      if (better) best[r.symbol] = { template: d.scenario.template, title: d.scenario.title, dir: d.scenario.dir, level: d.scenario.level, state: d.state,
+        trigger: d.scenario.trigger.price, target1: d.scenario.targets[0].price, invalidation: d.scenario.invalidation.price, loggedAt: d.loggedAt,
+        triggeredAt: d.events.find((e) => e.type === "triggered")?.time ?? null };
+    }
+    return best;
+  }
+
   async function forSymbol(symbol) {
     const rows = await store.selectRows(LEDGER_TABLE, { eq: { symbol } });
     return rows.map((r) => r.doc).filter(Boolean).sort((a, b) => (a.loggedAt < b.loggedAt ? 1 : -1)).slice(0, 50);
   }
 
-  return { run, summary, forSymbol, updateSymbol };
+  return { run, summary, forSymbol, latest, updateSymbol };
 }

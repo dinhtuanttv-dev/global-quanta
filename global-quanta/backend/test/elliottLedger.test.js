@@ -51,3 +51,19 @@ test("sổ: ghi kịch bản đã xác nhận, không ghi trùng, chỉ tính n�
 });
 
 test("bảng sổ chỉ ở kho cục bộ", () => assert.equal(isLocalOnlyTable(LEDGER_TABLE), true));
+
+test("latest(): mỗi mã một kịch bản đang mở — ưu tiên đạt MT1 > đã kích hoạt > chờ; bỏ kịch bản đã kết thúc", async () => {
+  const store = createMemoryStore();
+  const sc = (id, level = 1) => ({ id, template: "wave3", title: "Sóng 3", dir: 1, level, trigger: { price: 10 }, targets: [{ price: 12 }], invalidation: { price: 9 } });
+  await store.upsertRows(LEDGER_TABLE, [
+    { id: "a1", symbol: "AAA", doc: { scenario: sc("a1"), loggedAt: "2026-10-20", state: "waiting", events: [] } },
+    { id: "a2", symbol: "AAA", doc: { scenario: sc("a2"), loggedAt: "2026-10-10", state: "triggered", events: [{ type: "triggered", time: "2026-10-15" }] } },
+    { id: "a3", symbol: "AAA", doc: { scenario: sc("a3"), loggedAt: "2026-10-22", state: "invalidated", events: [] } },
+    { id: "b1", symbol: "BBB", doc: { scenario: sc("b1", 1), loggedAt: "2026-10-20", state: "waiting", events: [] } },
+    { id: "b2", symbol: "BBB", doc: { scenario: sc("b2", 3), loggedAt: "2026-10-20", state: "waiting", events: [] } },
+  ], "id");
+  const L = createElliottLedger({ store, taSeries: { get: async () => ({ bars: [] }) }, log: { warn() {} } });
+  const best = await L.latest();
+  assert.equal(best.AAA.state, "triggered"); assert.equal(best.AAA.triggeredAt, "2026-10-15");
+  assert.equal(best.BBB.level, 3);
+});
