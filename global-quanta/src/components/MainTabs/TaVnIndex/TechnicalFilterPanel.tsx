@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import ScanAge from "./ScanAge";
 import { AlertCircle, Activity, ChevronRight, Info, RefreshCw } from "lucide-react";
 import { useTechnicalFilter, type TechnicalFilterResult, type TechnicalFilterStrategy } from "../../../hooks/useTechnicalFilter";
 import EvidenceCard from "./EvidenceCard";
@@ -126,7 +127,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
         {data?.disclaimer ?? "Bộ lọc kỹ thuật tham khảo; tín hiệu chưa được xác nhận là có lợi thế sinh lời."}
         {data && (
           <span className="ml-auto whitespace-nowrap">
-            SSI · {data.dataAsOf} · Đã quét {data.scannedCount}/{data.universeCount}
+            SSI · {data.dataAsOf} · Đã quét {data.scannedCount}/{data.universeCount} <ScanAge dataAsOf={data.dataAsOf} generatedAt={data.generatedAt} />
           </span>
         )}
       </p>

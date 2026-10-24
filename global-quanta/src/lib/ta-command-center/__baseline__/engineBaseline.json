@@ -29,11 +29,11 @@
    "structureStage": "DOWN"
   },
   "hash": {
-   "analyze": "77a33e029cb8509a",
+   "analyze": "37b357b3b49deddc",
    "smc": "bb21e937b7dcf857",
    "vsa": "706d1a296a4e28ca",
    "wyckoff": "d9bb64f23afd3ace",
-   "backtest": "508394fe7bef44da",
+   "backtest": "68782199806416ce",
    "oscillators": "5c1410741c5466db",
    "elliottMtf": "4402137e2ee1fb50",
    "waveTree": "bb1e866e0b13e0cb",
@@ -79,11 +79,11 @@
    "structureStage": "DOWN"
   },
   "hash": {
-   "analyze": "035d3ecf3a41f615",
+   "analyze": "5473e57a6c418b45",
    "smc": "e4615e9a0733de2f",
    "vsa": "342b2cf91d2cb23c",
    "wyckoff": "1509da39bd095dbd",
-   "backtest": "75a495fcb07187b1",
+   "backtest": "2bad00aec541511c",
    "oscillators": "127053ea19dfc4eb",
    "elliottMtf": "4402137e2ee1fb50",
    "waveTree": "2992a84b23010ee4",
@@ -129,11 +129,11 @@
    "structureStage": "DOWN"
   },
   "hash": {
-   "analyze": "13dcb4db2753f362",
+   "analyze": "be2d350bfd8e158f",
    "smc": "d4c0dd086544bfff",
    "vsa": "4f53cda18c2baa0c",
    "wyckoff": "f5d0bee950c15300",
-   "backtest": "368e60e1f58e7a66",
+   "backtest": "b045a16ae5e680e3",
    "oscillators": "969dde5fabf5fb2f",
    "elliottMtf": "123a86081bcc6be9",
    "waveTree": "e40c430634957387",
@@ -180,11 +180,11 @@
    "structureStage": "D"
   },
   "hash": {
-   "analyze": "e27db839e367447c",
+   "analyze": "bc848b1108848b94",
    "smc": "61fef9bc5eaabb15",
    "vsa": "2ae10a003b3d4ef1",
    "wyckoff": "1a982a2c047aebf9",
-   "backtest": "915879e0808f0789",
+   "backtest": "1e701bc390cfab58",
    "oscillators": "6bec581213fcdd6a",
    "elliottMtf": "123a86081bcc6be9",
    "waveTree": "5b7257eae90a9356",

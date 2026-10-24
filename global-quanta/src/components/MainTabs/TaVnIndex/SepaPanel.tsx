@@ -3,6 +3,7 @@
 // đúp dòng -> bảng phụ phân tích chuyên sâu (không mở biểu đồ), bấm lại / Esc -> đóng.
 // Danh sách theo dõi kiểu sổ tay của tác giả (Hình 10.42): SẴN SÀNG MUA -> CẢNH BÁO MUA -> THEO DÕI (+ LOẠI), ghi kèm dấu chân "7W 10/3 3T".
 // Kiểm định đặt trước SP3: EXPERIMENTAL (chỉ tín hiệu S2 "phá vỡ đạt chuẩn" đạt ngưỡng OOS, kèm cảnh báo) — danh sách để XEM XÉT.
+import ScanAge from "./ScanAge";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, Info, RefreshCw, Trophy } from "lucide-react";
 import { isS2Signal, SEPA_LISTS, useSepa, type SepaList, type SepaRow } from "../../../hooks/useSepa";
@@ -106,7 +107,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
           Theo sách "Giao dịch như một phù thủy chứng khoán" (Mark Minervini): cổng Trend Template 8 tiêu chí rồi các bộ lọc tách biệt, tổng hợp bằng điểm.
           Đã kiểm định đặt trước: chưa có lợi thế vững (xem chi tiết) — danh sách để xem xét, không phải khuyến nghị mua. {data?.disclaimer}
         </span>
-        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="sepa-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {active}/{data.scannedCount} mã</span>}
+        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="sepa-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {active}/{data.scannedCount} mã <ScanAge dataAsOf={data.dataAsOf} generatedAt={data.generatedAt} /></span>}
       </p>
 
       {mh && (

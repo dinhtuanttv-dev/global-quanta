@@ -14,7 +14,12 @@ const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`
 const BASE = arg("base")!, OUT = arg("out", "e2e-out")!, PW = fs.readFileSync(arg("pw-file")!, "utf8").trim();
 const EMAIL = arg("email", "e2e@local.test")!, LOCAL = arg("local-auth"), TICKER = arg("ticker", "FPT")!;
 const SKIP = new Set((arg("skip", "") ?? "").split(",").filter(Boolean));
-const VIEWPORTS = { desk: { width: 1440, height: 900 }, wide: { width: 1920, height: 1080 }, tablet: { width: 1024, height: 768 }, m390: { width: 390, height: 844 } } as const;
+// A6: thêm 1280, 360×800, mobile ngang, zoom 200% (1440×900 ở 200% = 720×450 CSS px) — bật bằng --viewports.
+const VIEWPORTS = {
+  desk: { width: 1440, height: 900 }, wide: { width: 1920, height: 1080 }, tablet: { width: 1024, height: 768 }, m390: { width: 390, height: 844 },
+  d1280: { width: 1280, height: 800 }, m360: { width: 360, height: 800 }, land: { width: 844, height: 390 }, zoom200: { width: 720, height: 450 },
+} as const;
+const TOUCH = new Set(["m390", "tablet", "m360", "land"]);
 const wanted = (arg("viewports", "desk,wide,tablet,m390")!).split(",") as (keyof typeof VIEWPORTS)[];
 const GW = /gateway-production-1da0\.up\.railway\.app/;
 const USER_API = /\/api\/(auth\/|market\/(watchlists|chart-state|elliott\/counts|elliott\/alerts|radar|workspace))/;
@@ -312,7 +317,7 @@ async function metrics(p: Page) {
 }
 
 async function runViewport(b: Browser, tag: keyof typeof VIEWPORTS) {
-  const ctx = await b.newContext({ viewport: VIEWPORTS[tag], deviceScaleFactor: 1, hasTouch: tag === "m390" || tag === "tablet", acceptDownloads: true });
+  const ctx = await b.newContext({ viewport: VIEWPORTS[tag], deviceScaleFactor: 1, hasTouch: TOUCH.has(tag), acceptDownloads: true });
   if (LOCAL) {
     await ctx.route(GW, async (route) => {
       const req = route.request();

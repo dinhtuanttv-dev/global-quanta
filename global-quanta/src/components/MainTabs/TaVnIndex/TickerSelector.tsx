@@ -46,7 +46,7 @@ export default function TickerSelector({ ticker, onChange }: Props) {
       <div className="flex items-center gap-1 ml-2" role="group" aria-label="Chỉ số">
         {TA_INDICES.map((x) => (
           <button key={x.symbol} type="button" onClick={() => pick(x.symbol)} aria-pressed={ticker === x.symbol}
-            className={`px-2 py-1 rounded text-[10px] font-semibold font-mono border transition ${ticker === x.symbol ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
+            className={`ta-index-quick px-2 py-1 rounded text-[10px] font-semibold font-mono border transition ${ticker === x.symbol ? "border-cyan-400/50 bg-cyan-500/15 text-cyan-200" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
             {x.label}
           </button>
         ))}

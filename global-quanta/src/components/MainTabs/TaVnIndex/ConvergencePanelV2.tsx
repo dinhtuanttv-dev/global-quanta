@@ -3,6 +3,7 @@
 // -> bảng phụ phân tích chuyên sâu (không mở biểu đồ), bấm lại / Esc -> đóng.
 // Kiểm định đặt trước (PR #53): EXPERIMENTAL — danh sách để XEM XÉT, không phải tín hiệu mua.
 // Theo dõi thực tế (H4): mỗi phiên ghi sổ SCR_CV_{BUY|SELL}_{READY|WATCH}, researchEvaluate chấm T+5 / T+10 so với VN-Index.
+import ScanAge from "./ScanAge";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, GitMerge, Info, RefreshCw } from "lucide-react";
 import { useConvergenceV2, type ConvergenceRow } from "../../../hooks/useConvergenceV2";
@@ -105,7 +106,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
           Chỉ mã có cấu trúc Wyckoff ĐANG HOẠT ĐỘNG; mọi thành phần tính CÙNG CHIỀU với Wyckoff. Trọng số đặt trước, chưa có lợi thế đã kiểm định —
           danh sách để xem xét, không phải tín hiệu mua. {data?.disclaimer}
         </span>
-        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="convergence-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {data.resultCount}/{data.scannedCount} mã</span>}
+        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="convergence-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {data.resultCount}/{data.scannedCount} mã <ScanAge dataAsOf={data.dataAsOf} generatedAt={data.generatedAt} /></span>}
       </p>
       {data?.evidence && (data.evidence.label === "PENDING"
         ? <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>

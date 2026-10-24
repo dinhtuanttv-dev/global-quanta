@@ -2,6 +2,7 @@
 // Base Breakout, Hợp lưu v2 (phía mua) và Mô hình giá Pring (P5) — mọi nguồn chạy trên Gateway, cùng universe và chuỗi giá điều chỉnh.
 // Bấm mã / nhấn đúp dòng -> bảng phụ SEPA (cùng bảng phụ của tab SEPA), Esc -> đóng. Không có điểm composite tự đặt.
 // Sổ theo dõi thực tế: SCR_SEPA_READY / _ALERT / _S2 (researchEvaluate chấm T+3/T+5/T+10 so với VN-Index).
+import ScanAge from "./ScanAge";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, Info, RefreshCw, Star } from "lucide-react";
 import { isS2Signal } from "../../../hooks/useSepa";
@@ -79,7 +80,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
           Gateway (cùng universe, cùng giá điều chỉnh). Xếp theo danh sách → số xác nhận → điểm SEPA; không cộng điểm tự đặt. Xác nhận chéo chưa được kiểm định —
           danh sách để xem xét, không phải khuyến nghị mua.
         </span>
-        {doc && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="golden-sepa-asof">SEPA phiên {doc.dataAsOf} · CS {sources.camslim ?? "—"} · BB {sources["base-breakout"] ?? "—"} · HL {sources.convergence ?? "—"} · MH {sources.patterns ?? "—"}</span>}
+        {doc && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="golden-sepa-asof">SEPA phiên {doc.dataAsOf} · CS {sources.camslim ?? "—"} · BB {sources["base-breakout"] ?? "—"} · HL {sources.convergence ?? "—"} · MH {sources.patterns ?? "—"} <ScanAge dataAsOf={doc.dataAsOf} /></span>}
       </p>
       {doc && <SepaIntradayStrip onOpen={(t) => { setMin(0); setOpen(t); }} />}
       {doc && (
