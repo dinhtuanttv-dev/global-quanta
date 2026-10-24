@@ -100,6 +100,9 @@ test("job scanStructure: tóm tắt từng mã, ghi đĩa; KV lỗi 402 không l
   for (const k of ["t", "st", "age", "v", "sc", "sup", "res", "trigL", "trigS"]) assert.ok(k in row, k);
   assert.ok(row.sc >= 0 && row.sc <= 8);
   assert.equal(typeof summaryRow, "function");
+  assert.equal(doc.momentum.recordedDays, 0, "phiên 21/10 (trước triển khai) không vào sổ đà tăng tiếp diễn");
+  assert.equal(doc.momentum.verdict, "PENDING");
+  assert.equal(doc.momentum.prereg, "structure/MTF-momentum-prereg-2026-10-24");
 });
 
 test("v2: nhãn bằng chứng V1–V5, kết luận chưa kiểm định -> verdictValidated = false; có thống kê lịch sử theo giai đoạn", async () => {
