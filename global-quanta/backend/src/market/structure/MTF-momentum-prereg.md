@@ -32,4 +32,5 @@ KHÔNG ĐẠT nếu tại 120 phiên điều kiện trên không thỏa. Không 
 Phiên ghi đầu tiên = phiên đầu sau triển khai; phiên chấm đầu tiên sau 20 phiên; đủ 120 phiên chấm ≈ 140 phiên giao dịch (~7 tháng).
 
 ## Sửa đổi
-(chưa có)
+1. 2026-10-24 (trước khi sổ ghi bất kỳ phiên nào — làm rõ, không đổi tiêu chí): "phiên đầu sau triển khai" = 2026-10-26
+   (triển khai thứ Bảy 24/10); mã chặn mọi phiên trước 26/10 khỏi sổ, kể cả khi job được chạy tay.

@@ -18,6 +18,7 @@ import { STRUCTURE_VALIDATION } from "./validation.js";
 import { features, prepareIndex, prepareSymbol } from "./validate.js";
 import { applyIsotonic, hmmFilter, linearAt, logisticAt } from "./ml.js";
 import { createStructureLedger } from "./ledger.js";
+import { createMomentumLedger } from "./momentumLedger.js";
 
 export const H1_SESSIONS = 120;          // ≈ 6 tháng: đủ MA80 tiết (= MA 4 giờ), MA100 tiết (= MA ngày) + sóng trung
 export const H1_WARM_INDEXES = ["VN100", "VN30"]; // P2: kho nến 1 giờ được làm ấm hằng ngày cho rổ này (bảng bộ lọc có khung 1 giờ)
@@ -100,6 +101,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
   const store = service.store;
   let summaryMemo = null; // { value, at }
   const ledger = createStructureLedger({ store: h1Cache, now });
+  const momentum = createMomentumLedger({ disk: h1Cache, now });
 
   async function dailyBars(symbol) {
     const r = await taSeries.get({ symbol, range: "5y", limit: 1300 });
@@ -246,6 +248,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
     analyze,
     summary: readSummary,
     ledgerStats: () => ledger.stats(),
+    momentumStats: () => momentum.stats(),
     cacheStats: () => h1Cache.stats(),
     jobs: {
       /** 15:47 — khung D (+ tuần đã đóng) cho toàn universe, dùng chung bộ nhớ đệm chuỗi của job bộ lọc 15:45 (không đọc thêm Supabase). */
@@ -257,7 +260,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
         let vni = null;
         try { const ib = typeof loadSeries.index === "function" ? await loadSeries.index("VNINDEX") : null; if (ib?.length) vni = prepareIndex(ib.filter((b) => !b.partial && b.close > 0)); } catch { vni = null; }
         const aciOff = await ledger.offsets();
-        const rows = [], skipped = [], entries = [], series = new Map();
+        const rows = [], skipped = [], entries = [], series = new Map(), elig = new Map();
         for (const { ticker } of universe) {
           try {
             const r = await loadSeries(ticker);
@@ -268,7 +271,10 @@ export function createStructureService({ service, taSeries, corporateActions, no
             try { const days = await h1Cache.peek(ticker); if (days) { const hb = h1FromCache(days, bars); if (hb.length >= 30) h1 = hb; } } catch { h1 = null; }
             const row = summaryRow(ticker, Q.analyzeStructureMtf({ d: bars, h1: h1 ?? undefined }));
             rows.push(row);
-            series.set(ticker, { close: bars.map((b) => b.close), idx: new Map(bars.map((b, i) => [b.date, i])) });
+            series.set(ticker, { open: bars.map((b) => b.open), close: bars.map((b) => b.close), idx: new Map(bars.map((b, i) => [b.date, i])) });
+            // Đủ điều kiện cho sổ "đà tăng tiếp diễn" (MTF-momentum-prereg): giá ≥ 5.000đ, GTGD TB20 ≥ 5 tỷ (không phải chỉ số).
+            const last20 = bars.slice(-20), val20 = last20.reduce((a, b) => a + b.close * (b.volume ?? 0), 0) / Math.max(1, last20.length);
+            elig.set(ticker, !isIndexSymbol(ticker) && bars.at(-1).close >= 5000 && val20 >= 5e9);
             // T6: khoảng dự báo thô cho sổ thực tế (chỉ khi đã có tham số nón từ kiểm định).
             let cone = null;
             if (vni && STRUCTURE_VALIDATION.cone) {
@@ -285,13 +291,17 @@ export function createStructureService({ service, taSeries, corporateActions, no
           ledgerStats = await ledger.score((t) => series.get(t) ?? null, asOf || vnDate(new Date(now())));
         } catch (e) { ledgerStats = { error: e.message }; }
         const transitions = rows.filter((r) => r.chg && r.asOf === asOf).map((r) => ({ t: r.t, from: r.prev, to: r.st, v: r.v }));
+        let momentumStats = null;
+        try {
+          momentumStats = await momentum.update(asOf || null, rows.filter((r) => r.asOf === asOf).map((r) => ({ t: r.t, st: r.st, ext: r.ext, elig: !!elig.get(r.t) })), (t) => series.get(t) ?? null);
+        } catch (e) { momentumStats = { error: e.message }; }
         const ev = evidence(STRUCTURE_VALIDATION);
-        const doc = { engine: Q.MTF_STRUCTURE_VERSION, generatedAt: new Date(now()).toISOString(), asOf, evidence: ev.labels, verdictValidated: ev.verdictValidated, rows, skipped, transitions, ledger: ledgerStats };
+        const doc = { engine: Q.MTF_STRUCTURE_VERSION, generatedAt: new Date(now()).toISOString(), asOf, evidence: ev.labels, verdictValidated: ev.verdictValidated, rows, skipped, transitions, ledger: ledgerStats, momentum: momentumStats };
         const disk = await h1Cache.writeJson(SUMMARY_FILE, doc);
         let kv = true;
         try { await store.setKv(STRUCTURE_SUMMARY_KV, doc); } catch { kv = false; }
         summaryMemo = { value: doc, at: now() };
-        return { symbols: rows.length, withH1: rows.filter((r) => r.hs).length, skipped: skipped.length, asOf, disk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
+        return { momentum: momentumStats?.error ?? { recorded: momentumStats?.recordedDays, scored: momentumStats?.scoredDays, on: momentumStats?.lastGroup }, symbols: rows.length, withH1: rows.filter((r) => r.hs).length, skipped: skipped.length, asOf, disk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
       },
       /** 15:40 — làm ấm kho nến 1 giờ cho rổ VN100 + VN30 (phiên đã đóng; lần đầu ~120 phiên / mã, sau đó 1 phiên / ngày). */
       async warmStructureH1() {

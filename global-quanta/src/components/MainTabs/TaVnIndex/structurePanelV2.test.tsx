@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SWRConfig } from "swr";
 import StructurePanel from "./StructurePanel";
 import { analyzeStructureMtf, compactStructure } from "../../../lib/quant-core/mtf";
@@ -16,7 +16,7 @@ import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: ReturnType<typeof createRoot> | null = null;
-afterEach(() => { act(() => root?.unmount()); root = null; document.body.innerHTML = ""; });
+afterEach(() => { act(() => root?.unmount()); root = null; document.body.innerHTML = ""; vi.unstubAllGlobals(); });
 
 const csv = readFileSync(path.resolve(process.cwd(), "src/lib/quant-core/mtf/__fixtures__/source_demo_1h.csv"), "utf8");
 const day = (i: number) => new Date(Date.UTC(2023, 0, 2 + i)).toISOString().slice(0, 10);
@@ -91,5 +91,21 @@ describe("MTF v2 — bảng Cấu trúc (chuẩn Pattern Scanner v2)", () => {
     expect(el.querySelector("[data-testid=structure-ext-history]")!.textContent).toContain("+0,79%");
     expect(el.querySelector("[data-testid=structure-checklist]")!.children.length).toBe(8);
     expect(el.querySelector("[data-testid=structure-risk]")).not.toBeNull();
+  });
+});
+
+describe("MTF — sổ thời gian thực M1 'đà tăng tiếp diễn'", () => {
+  it("hiện tiến độ tới mốc 120 phiên, nhãn ĐANG TÍCH LŨY MẪU, không kết luận khi chưa đủ mẫu", async () => {
+    const momentum = { prereg: "structure/MTF-momentum-prereg-2026-10-24", firstDay: "2026-10-26", recordedDays: 30, scoredDays: 10, pendingDays: 20, minDays: 120,
+      meanS: 1.2, ciS: [-0.8, 3.1], meanL: 0.4, hitS: 60, meanOn: 0.9, meanOff: -0.3, lastGroup: { d: "2026-12-04", on: 12, off: 40 }, verdict: "PENDING", confirm: null, label: "ĐANG TÍCH LŨY MẪU", updatedAt: null };
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ engine: "2.0.0", generatedAt: "", asOf: "2026-12-04", evidence: {}, rows: [], skipped: [], momentum }) })));
+    const { el } = await mount();
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    const card = el.querySelector("[data-testid=structure-momentum-ledger]")!;
+    expect(card).not.toBeNull();
+    expect(el.querySelector("[data-testid=structure-momentum-label]")!.textContent).toBe("ĐANG TÍCH LŨY MẪU");
+    expect(card.textContent).toMatch(/10\/120 phiên đã chấm/);
+    expect(card.textContent).toMatch(/chưa đủ mẫu — không kết luận/);
+    expect(card.querySelector("[role=progressbar]")!.getAttribute("aria-valuenow")).toBe("10");
   });
 });

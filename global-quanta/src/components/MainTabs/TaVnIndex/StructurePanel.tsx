@@ -6,7 +6,7 @@
 // Di động: thẻ chỉ số + kết luận trước, các phần còn lại xếp một cột.
 import { useMemo, useState } from "react";
 import { ShieldAlert, ShieldCheck, Layers3, History, ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
-import type { EvidenceLabel, StructureDoc, StructureLedgerStats, StructureStage, StructureStat, StructureStatPair, StructureTfKey, StructureTransition } from "../../../hooks/useStructure";
+import type { EvidenceLabel, StructureDoc, StructureLedgerStats, StructureMomentumStats, StructureStage, StructureStat, StructureStatPair, StructureTfKey, StructureTransition } from "../../../hooks/useStructure";
 import { STAGE_SHORT, STAGE_TONE, VERDICT_TONE, useStructureSummary, verdictText } from "../../../hooks/useStructure";
 import type { OhlcvBar } from "../../../lib/ta-command-center/types";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
@@ -177,6 +177,30 @@ function Transitions({ list, asOf, onOpenChart, validated }: { list: StructureTr
   );
 }
 
+/** Sổ thời gian thực M1 — "đà tăng tiếp diễn": tiến độ tới mốc 120 phiên chấm, TB chênh lệch BẬT − TẮT và KTC khối. */
+function MomentumLedgerCard({ m, inOnGroup }: { m: StructureMomentumStats | null; inOnGroup: boolean }) {
+  if (!m) return <p className="text-[9px] text-slate-500">Sổ “đà tăng tiếp diễn” bắt đầu ghi ở job 15:47 phiên đầu tiên sau triển khai.</p>;
+  const prog = Math.min(1, m.scoredDays / m.minDays);
+  const tone = m.verdict === "PASS" ? "text-emerald-300" : m.verdict === "FAIL" ? "text-rose-300" : "text-amber-300";
+  return (
+    <div className="rounded-md p-2 space-y-1" style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.18)" }} data-testid="structure-momentum-ledger">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[9.5px] font-bold text-amber-200">Sổ thời gian thực · M1 “Đà tăng tiếp diễn”</span>
+        <span className={`text-[8.5px] font-bold ${tone}`} data-testid="structure-momentum-label">{m.label}</span>
+      </div>
+      <p className="text-[9px] text-slate-400 leading-snug">Mỗi phiên, trong các mã giai đoạn ngày Tăng / B: nhóm có cờ Quá đà so với nhóm không có — lợi suất vượt trội 20 phiên kế tiếp (mở cửa phiên sau). Đặt trước, chỉ chấm dữ liệu từ {m.firstDay ?? "phiên đầu tiên"}; chưa dùng vào kết luận.</p>
+      <div className="h-1.5 rounded bg-slate-800 overflow-hidden" role="progressbar" aria-valuenow={m.scoredDays} aria-valuemax={m.minDays} aria-label="Tiến độ sổ"><div className="h-full bg-amber-400/70" style={{ width: `${prog * 100}%` }} /></div>
+      <div className="text-[9px] text-slate-300 font-mono">
+        {m.scoredDays}/{m.minDays} phiên đã chấm · {m.pendingDays} phiên chờ đủ 20 phiên{m.lastGroup ? ` · hôm ${m.lastGroup.d}: ${m.lastGroup.on} mã BẬT / ${m.lastGroup.off} TẮT` : ""}
+      </div>
+      {m.scoredDays > 0 && (
+        <div className="text-[9px] text-slate-300">BẬT − TẮT: <b className="font-mono">{pctS(m.meanS)}</b> {m.ciS ? <span className="text-slate-500">[{pctS(m.ciS[0])}; {pctS(m.ciS[1])}]</span> : null} · sau phí {pctS(m.meanL)} · {m.scoredDays < m.minDays ? "chưa đủ mẫu — không kết luận" : ""}</div>
+      )}
+      {inOnGroup && <p className="text-[9px] text-amber-300" data-testid="structure-momentum-in">Mã này hiện thuộc nhóm BẬT của sổ (quá đà trong xu hướng tăng).</p>}
+    </div>
+  );
+}
+
 function OkIcon({ ok }: { ok: boolean | null }) {
   if (ok == null) return <Minus className="w-3 h-3 text-slate-600 shrink-0" />;
   return ok ? <Check className="w-3 h-3 text-emerald-400 shrink-0" /> : <X className="w-3 h-3 text-rose-400 shrink-0" />;
@@ -206,6 +230,7 @@ interface Props {
 export default function StructurePanel({ doc, isLoading, error, mode, onModeChange, timeframeKey, replay, onOpenChart, bars, timeframe }: Props) {
   const summary = useStructureSummary(true);
   const ledger = summary.data?.ledger && !("error" in summary.data.ledger) ? summary.data.ledger : null;
+  const momentum = summary.data?.momentum && !("error" in summary.data.momentum) ? summary.data.momentum : null;
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const tfa = doc ? doc.tfs[timeframeKey ?? "D"] ?? doc.tfs.D : undefined;
   const narrative = useMemo(() => doc?.narrative ?? [], [doc]);
@@ -259,7 +284,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
           tone={h1 ? (STAGE_TONE[h1.stage] === "bull" ? "up" : STAGE_TONE[h1.stage] === "bear" ? "down" : undefined) : undefined} />
         <Tile label={validated ? "Kết luận" : "Kết luận (mô tả)"} value={verdictText(v.verdict, validated)} sub={`${v.rule} · ${v.cell}`} />
         <Tile label="R:R tại giá hiện tại" value={rr ? `1:${vi(rr.rr, 1)}` : "—"} sub={rr ? (rr.ok ? "giao dịch ổn (thưởng > rủi ro)" : "giao dịch NG (thưởng ≤ rủi ro)") : "giá dưới MA chân trên"} tone={rr ? (rr.ok ? "up" : "down") : undefined} />
-        <Tile label="Lệch MA chân trên" value={tfa.dev != null ? `${vi(tfa.dev, 1)} ATR` : "—"} sub={ext > 0 ? "QUÁ ĐÀ — không mua đuổi" : ext < 0 ? "QUÁ ĐÀ GIẢM — không bán đuổi" : `ngưỡng quá đà ±3 ATR · ${tfName}`} />
+        <Tile label="Lệch MA chân trên" value={tfa.dev != null ? `${vi(tfa.dev, 1)} ATR` : "—"} sub={ext > 0 ? "QUÁ ĐÀ — đang chấm M1 (sổ thực)" : ext < 0 ? "QUÁ ĐÀ GIẢM — không bán đuổi" : `ngưỡng quá đà ±3 ATR · ${tfName}`} />
         <Tile label="Lợi thế kỹ thuật" value={`${doc.checklist.buyScore}/${doc.checklist.buy.length}`} sub={`bán ${doc.checklist.sellScore}/${doc.checklist.sell.length}`} />
       </div>
 
@@ -380,6 +405,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
                 </p>
               )}
               <p className="text-[9px] text-amber-200/80 leading-snug" data-testid="structure-evidence-summary">{doc.evidence.summary}</p>
+              <MomentumLedgerCard m={momentum} inOnGroup={!!day && (day.ext ?? 0) > 0 && (day.stage === "UP" || day.stage === "B")} />
               {doc.evidence.previous && <p className="text-[8.5px] text-slate-500">Lần trước: engine {doc.evidence.previous.engine} ({doc.evidence.previous.ranAt}) — H1–H5 {Object.values(doc.evidence.previous.verdicts).every((x) => x !== "PASS") ? "đều không đạt" : "có thành phần đạt"}.</p>}
             </div>
           ) : <p className="text-[10px] text-slate-500">{doc.evidence.summary ?? "Chưa có kết quả kiểm định."}</p>}

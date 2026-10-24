@@ -88,10 +88,17 @@ export interface StructureLedgerStats {
   coverage: Record<string, { sessions: number; forecasts: number; coverage: number | null; alpha: number | null; offset: number | null; through: string | null }>;
   verdicts: Record<string, { n: number; meanRet10: number | null; recentN: number }>;
 }
+/** Sổ thời gian thực M1 "đà tăng tiếp diễn" (MTF-momentum-prereg): BẬT = cờ quá đà trong giai đoạn UP / B, so với TẮT. */
+export interface StructureMomentumStats {
+  prereg: string; firstDay: string | null; recordedDays: number; scoredDays: number; pendingDays: number; minDays: number;
+  meanS: number | null; ciS: [number, number] | null; meanL: number | null; hitS: number | null; meanOn: number | null; meanOff: number | null;
+  lastGroup: { d: string; on: number; off: number } | null; verdict: "PENDING" | "PASS" | "FAIL"; confirm: string | null; label: string; updatedAt: string | null;
+}
 export interface StructureTransition { t: string; from: StructureStage | null; to: StructureStage; v: StructureVerdict }
 export interface StructureSummaryDoc {
   engine: string; generatedAt: string; asOf: string; evidence: StructureDoc["evidence"]["labels"]; verdictValidated?: boolean; rows: StructureSummaryRow[]; skipped: string[];
   transitions?: StructureTransition[]; ledger?: StructureLedgerStats | { error: string } | null;
+  momentum?: StructureMomentumStats | { error: string } | null;
 }
 
 const fetcher = async <T,>(url: string): Promise<T> => {
