@@ -100,7 +100,7 @@ interface CardProps {
   oscOn: boolean;
   onToggleAuto: () => void;
   onToggleOsc: () => void;
-  onSuggest: () => void;
+  onSuggest?: () => void;
   detailOpen: boolean;
   onToggleDetail: () => void;
   /** DW2/DW3: lớp thang Fibonacci + đường kịch bản minh hoạ (mặc định TẮT). */
@@ -253,10 +253,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
             {mineOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Của tôi
           </button>
         )}
-        <button type="button" onClick={onSuggest} disabled={!frameOk} className={btn(false)} data-testid="elliott-suggest"
+        {onSuggest && (
+          <button type="button" onClick={onSuggest} disabled={!frameOk} className={btn(false)} data-testid="elliott-suggest"
           title={frameOk ? "Đưa đếm sóng của engine thành BẢN NHÁP hình vẽ tay — bạn chấp nhận hoặc huỷ" : "Gợi ý chỉ có trên khung D / W"}>
           <Sparkles className="w-3 h-3" />Gợi ý vẽ
         </button>
+        )}
         <button type="button" onClick={onToggleDetail} aria-expanded={detailOpen} className={btn(detailOpen)} data-testid="elliott-open-detail">
           <LineChart className="w-3 h-3" />Phác đồ chi tiết
         </button>

@@ -25,6 +25,8 @@ import { SMCPanel, VSAPanel, WyckoffPanel } from "./MethodPanels";
 import ElliottWavePanel, { ElliottDeepPanel } from "./ElliottWavePanel";
 import { ElliottCountEditor, ElliottCountHistory, useElliottUserCounts, useUndo } from "./ElliottCountEditor";
 import ElliottAlertsPanel from "./ElliottAlertsPanel";
+import ElliottProPanel from "./ElliottProPanel";
+import { PencilLine } from "lucide-react";
 import { COUNT_LABELS, displayStatus, draftFromState, newVersionId, snapToCandle, validateUserCount, type UserCountPoint, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
 import { TA_INDICES } from "./TickerSelector";
 import type { WyckoffResult } from "../../../lib/ta-command-center/detectors/wyckoffDetector";
@@ -141,9 +143,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // E5 — Elliott: engine GET hai khung (tuần gộp từ chuỗi ngày), bản nháp "Gợi ý", bảng phân tích chi tiết.
   const mtf = useMemo(() => (bars.length >= 60 ? elliottMtf(bars) : null), [bars]);
   const weeklyBars = useMemo(() => aggregateToWeekly(bars), [bars]);
-  const [elliottProposal, setElliottProposal] = useState<DomainPoint[] | null>(null);
   const [elliottDetail, setElliottDetail] = useState(false);
-  useEffect(() => { setElliottProposal(null); }, [ticker, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
   // DW1: cách đếm đang vẽ (0 = chính, 1–2 = phương án) — về "chính" khi đổi mã / khung / dữ liệu.
   const [elliottPick, setElliottPick] = useState(0);
   useEffect(() => { setElliottPick(0); }, [ticker, timeframe, mtf]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -431,9 +431,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     [structureOn, currentBars, timeframe, structureDoc, structureMode, replayAsOf]); // eslint-disable-line react-hooks/exhaustive-deps
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives, draft: draftPrimitive,
-    elliottDraft: elliottProposal ?? elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
+    elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
     profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, elliottProposal, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene, elliottProInput]);
+  }), [currentBars, smc, wyckoffResult, layerState, primitives, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene, elliottProInput]);
   const scene = useMemo(() => (structureItems.length ? { ...baseScene, items: [...structureItems, ...baseScene.items] } : baseScene), [structureItems, baseScene]);
   useEffect(() => { tvManagerRef.current?.setScene(scene); }, [scene]);
   // Thang mức giá trục phải + khoảng trống tương lai (nón dự báo / mũi tên kịch bản).
@@ -489,21 +489,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const handleToggleFibExtension = () => controllerRef.current?.drawing.setFibExtensionMode(!fibExtensionMode);
   // "Gợi ý": ưu tiên đếm sóng của engine GET (khung D/W) -> BẢN NHÁP nét đứt; chỉ thành hình vẽ khi người dùng chấp nhận.
   // Engine chưa có kịch bản 5 sóng -> dùng gợi ý Zigzag cũ (6 pivot gần nhất).
-  const handleSuggestElliott = () => {
-    if (!controllerRef.current) return;
-    const st = timeframe === "W" ? mtf?.week ?? null : timeframe === "D" ? mtf?.day ?? null : null;
-    const points = engineElliottPoints(st, currentBars) ?? suggestElliottPoints(currentBars);
-    if (!points) { window.alert("Chưa đủ dữ liệu đỉnh/đáy rõ ràng để gợi ý sóng Elliott cho mã này."); return; }
-    controllerRef.current.drawing.cancelElliottDraft();
-    setElliottProposal(points);
-  };
-  const acceptElliottProposal = () => {
-    const controller = controllerRef.current;
-    if (!controller || !elliottProposal) return;
-    controller.drawing.createElliottFromPoints(elliottProposal);
-    controller.layers.enable("elliott");
-    setElliottProposal(null);
-  };
+
 
   // ---- DW8: chỉnh tay cách đếm Elliott ----
   const drawnState = elliottScene?.primary ?? null;
@@ -625,7 +611,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           elliottEnabled={!!layerState?.elliott}
           fibExtensionMode={fibExtensionMode}
           onToggleFibExtension={handleToggleFibExtension}
-          onSuggestElliott={handleSuggestElliott}
         />
         {wyckoffResult && (
           <SmartNotePanel ticker={ticker} wyckoff={wyckoffResult} smc={smc} vsa={vsa} rsi={rsiResult} macd={macdResult} adx={adxResult} />
@@ -636,19 +621,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
               Đang vẽ — kéo trên biểu đồ (chạm giữ rồi kéo trên điện thoại) ·{" "}
               <button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); }}>Huỷ</button>
             </span>
-          )}
-          {elliottProposal && (
-            <span className="text-[10px] text-amber-300 flex items-center gap-1.5 bg-slate-900/85 px-2 py-1 rounded-lg" data-testid="elliott-proposal">
-              Gợi ý Elliott (nháp) ·
-              <button type="button" className="underline text-emerald-300" onClick={acceptElliottProposal} data-testid="elliott-proposal-accept">Chấp nhận</button>
-              <button type="button" className="underline text-slate-400" onClick={() => setElliottProposal(null)}>Huỷ</button>
-            </span>
-          )}
-          {elliottDraft.length > 0 && (
-            <button onClick={() => { controllerRef.current?.drawing.cancelElliottDraft(); setActiveTool(null); }}
-              className="text-[10px] text-amber-400 hover:text-amber-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
-              <XCircle className="w-3 h-3" /> Huỷ Elliott ({elliottDraft.length}/6)
-            </button>
           )}
           {primitives.length > 0 && (
             <button onClick={() => controllerRef.current?.drawing.clearAll()}
@@ -697,20 +669,23 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <SMCPanel obs={smc.obs} fvgs={smc.fvgs} bos={smc.bos} choch={smc.choch} totals={smc.totals} barCount={currentBars.length} />
         <VSAPanel signals={vsa} />
         {wyckoffResult && <WyckoffPanel result={wyckoffResult} barCount={currentBars.length} timeframe={timeframe} compare={controllerRef.current?.getAnalysis()?.wyckoffAlt ?? null} />}
-        <ElliottWavePanel mtf={mtf} timeframe={timeframe} intraday={intradayElliott} tree={waveTree} scenarios={v3Scenarios}
-          autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
-          onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
-          onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}
-          fibOn={!!layerState?.elliottFib} projOn={!!layerState?.elliottProj}
-          onToggleFib={() => controllerRef.current?.layers.toggle("elliottFib")}
-          onToggleProj={() => controllerRef.current?.layers.toggle("elliottProj")}
-          guideOn={!!layerState?.elliottGuide} onToggleGuide={() => controllerRef.current?.layers.toggle("elliottGuide")}
-          subOn={!!layerState?.elliottSub} onToggleSub={() => controllerRef.current?.layers.toggle("elliottSub")}
-          pick={elliottPick} onPick={setElliottPick} lastClose={currentBars[currentBars.length - 1]?.close ?? null}
-          editing={countEditing} onEdit={startCountEdit}
-          hasMine={!!userCounts.active} mineOn={!!layerState?.elliottMine} onToggleMine={() => controllerRef.current?.layers.toggle("elliottMine")}
-          onSuggest={handleSuggestElliott} detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
+
       </div>
+      <ElliottProPanel ticker={ticker} timeframe={timeframe} tree={waveTree} scenarios={v3Scenarios} dailyBars={bars}
+        layerOn={!!layerState?.elliottPro} onToggleLayer={() => controllerRef.current?.layers.toggle("elliottPro")} mode={proMode} onMode={setProMode}
+        mine={<>
+          <div className="flex flex-wrap gap-1">
+            <button type="button" onClick={startCountEdit} aria-pressed={countEditing} data-testid="elliott-edit"
+              className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${countEditing ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-300"}`}>
+              <PencilLine className="w-3 h-3" />Chỉnh tay cách đếm
+            </button>
+            {userCounts.active && (
+              <button type="button" onClick={() => controllerRef.current?.layers.toggle("elliottMine")} aria-pressed={!!layerState?.elliottMine} data-testid="elliott-toggle-mine"
+                className={`text-[9px] px-1.5 py-0.5 rounded-md border ${layerState?.elliottMine ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
+                {layerState?.elliottMine ? "Ẩn" : "Hiện"} cách đếm của tôi
+              </button>
+            )}
+          </div>
       {countEditing && (
         <ElliottCountEditor points={countDraft.value} onChange={countDraft.set} placing={countPlacing} onPlace={setCountPlacing} violations={countViolations}
           canUndo={countDraft.canUndo} canRedo={countDraft.canRedo} onUndo={countDraft.undo} onRedo={countDraft.redo}
@@ -722,7 +697,21 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         onAuto={() => void userCounts.save({ ...userCounts.doc, activeId: null })} />
       <ElliottAlertsPanel ticker={ticker} timeframe={timeframe} state={drawnState}
         mine={userCounts.active && layerState?.elliottMine ? userCounts.active.points : null} dailyBars={bars} />
-      {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}
+        </>}
+        book={<>
+          <ElliottWavePanel mtf={mtf} timeframe={timeframe} intraday={intradayElliott} tree={waveTree} scenarios={v3Scenarios}
+          autoOn={!!layerState?.elliottAuto} oscOn={!!layerState?.elliottOsc}
+          onToggleAuto={() => controllerRef.current?.layers.toggle("elliottAuto")}
+          onToggleOsc={() => controllerRef.current?.layers.toggle("elliottOsc")}
+          fibOn={!!layerState?.elliottFib} projOn={!!layerState?.elliottProj}
+          onToggleFib={() => controllerRef.current?.layers.toggle("elliottFib")}
+          onToggleProj={() => controllerRef.current?.layers.toggle("elliottProj")}
+          guideOn={!!layerState?.elliottGuide} onToggleGuide={() => controllerRef.current?.layers.toggle("elliottGuide")}
+          subOn={!!layerState?.elliottSub} onToggleSub={() => controllerRef.current?.layers.toggle("elliottSub")}
+          pick={elliottPick} onPick={setElliottPick} lastClose={currentBars[currentBars.length - 1]?.close ?? null}
+          detailOpen={elliottDetail} onToggleDetail={() => setElliottDetail((v) => !v)} />
+          {elliottDetail && mtf && <ElliottDeepPanel mtf={mtf} daily={bars} weekly={weeklyBars} ticker={ticker} onClose={() => setElliottDetail(false)} />}
+        </>} />
 
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (

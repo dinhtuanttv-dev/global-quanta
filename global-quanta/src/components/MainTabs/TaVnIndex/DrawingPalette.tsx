@@ -1,5 +1,5 @@
 "use client";
-import { TrendingUp, Square, Activity, Waves, Clock3, Sparkles } from "lucide-react";
+import { TrendingUp, Square, Activity, Clock3 } from "lucide-react";
 import type { DrawingToolType } from "../../../lib/ta-command-center/DrawingManager";
 
 interface Props {
@@ -8,18 +8,16 @@ interface Props {
   elliottEnabled: boolean;
   fibExtensionMode: boolean;
   onToggleFibExtension: () => void;
-  // ĐÃ THÊM — Nâng cấp Elliott: gợi ý 6 điểm ứng viên bằng Zigzag pivot
-  // thay vì bắt người dùng tự click từ đầu (xem zigzagSuggest.ts).
-  onSuggestElliott: () => void;
 }
+// EP4 (24/10/2026): công cụ vẽ Elliott 0–5 và nút "Gợi ý" đã bỏ — thay bằng "Chỉnh tay cách đếm" trong bảng Elliott Pro
+// (hình Elliott đã vẽ trước đây vẫn hiển thị, chỉ đọc, qua lớp "Elliott (vẽ tay)").
 
-export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionMode, onToggleFibExtension, onSuggestElliott }: Props) {
+export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionMode, onToggleFibExtension }: Props) {
   const tools: { id: DrawingToolType; icon: typeof Square; label: string }[] = [
     { id: "trendline", icon: TrendingUp, label: "Trendline" },
     { id: "rectangle", icon: Square, label: "Zone" },
     { id: "fibonacci", icon: Activity, label: fibExtensionMode ? "Fibonacci (có Extension)" : "Fibonacci" },
     { id: "fibTimeZone", icon: Clock3, label: "Fibonacci Time Zones (1 click)" },
-    { id: "elliott", icon: Waves, label: "Elliott Wave (6 điểm)" },
   ];
 
   return (
@@ -43,13 +41,6 @@ export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionM
         style={fibExtensionMode ? { background: "rgba(167,139,250,0.2)", color: "#a78bfa" } : { color: "#64748b" }}
         className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition text-[9px] font-bold">
         Ext
-      </button>
-      <button
-        title="AI gợi ý 6 điểm Elliott bằng Zigzag pivot — có thể xóa/vẽ lại nếu không đồng ý"
-        onClick={onSuggestElliott}
-        style={{ color: "#38bdf8" }}
-        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition">
-        <Sparkles className="w-3.5 h-3.5" />
       </button>
     </div>
   );
