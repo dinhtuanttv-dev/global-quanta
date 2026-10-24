@@ -197,6 +197,11 @@ export function BuyTimelineTab({ onSelectTicker, className }: { onSelectTicker?:
         </div>
       )}
 
+      {data?.stale && (
+        <p role="status" className="text-[10.5px] text-amber-300" data-testid="buy-timeline-stale">
+          ⚠ Đang dùng bản lưu gần nhất (dữ liệu {data.asOf.decisions ? new Date(Date.parse(data.asOf.decisions) + 7 * 3_600_000).toISOString().slice(0, 10).split('-').reverse().join('/') : '—'}{data.ageSessions != null ? `, ${data.ageSessions} phiên trước` : ''}) — trạng thái và số phiên đã tính lại theo hôm nay.
+        </p>
+      )}
       {data && (
         <p className="text-[10px] text-slate-500 border-t border-white/5 pt-2">
           Phủ {data.coverage.decisions}/{data.coverage.universe} mã chu kỳ cổ tức · {data.coverage.seasonality} mã mùa vụ KQKD.

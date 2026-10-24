@@ -79,3 +79,29 @@ test("nextSessions: phiên kế tiếp bỏ cuối tuần + ngày nghỉ; phản
   const r = await svc.get();
   assert.ok(r.sessions.includes("2026-10-23") && r.sessions.includes("2026-10-28") && !r.sessions.includes("2026-10-27"));
 });
+
+test("B3/B4: Timeline Gateway tự tính là nguồn chính (Project A lỗi vẫn có), đối chiếu khi Project A trả về, quá 10 phiên thì không hiện vùng mua", async () => {
+  let pa = false, asOf = "2026-10-23T08:00:00.000Z";
+  const local = () => ({ ...doc([row("FPT", "2026-10-29", "2026-11-03"), row("HPG", "2026-10-21", "2026-10-30")]), asOf: { decisions: asOf, seasonality: null } });
+  const fetchImpl = async () => (pa ? new Response(JSON.stringify(doc([row("FPT", "2026-10-29", "2026-11-03"), row("VNM", "2026-11-02", "2026-11-05")])), { status: 200 }) : new Response("{}", { status: 500 }));
+  let t = Date.parse("2026-10-26T03:00:00Z");
+  const svc = createBuyTimingService({ store: createMemoryStore(), fetchImpl, now: () => t, isTrading: weekdays, log: {}, localTimeline: async () => local() });
+  const r = await svc.get();
+  assert.equal(r.available, true);
+  assert.equal(r.meta.source, "GATEWAY_STORE");
+  assert.equal(r.meta.ageSessions, 1);
+  assert.equal(r.meta.stale, false);
+  assert.deepEqual(r.rows.map((x) => x.ticker), ["FPT", "HPG"]);
+  await svc.refresh(); // lượt làm mới nền (Project A đang lỗi) kết thúc
+  pa = true; await svc.refresh({ force: true });
+  assert.deepEqual({ ...svc.status().parity, at: undefined }, { at: undefined, projectA: 2, gateway: 2, mismatches: 2, sample: ["VNM-2026-11-02", "HPG-2026-10-21"] });
+  asOf = "2026-10-01T08:00:00.000Z"; // 17 phiên trước
+  const old = await svc.get();
+  assert.equal(old.available, false);
+  assert.match(old.meta.lastError, /cũ 17 phiên/);
+  // kho Gateway trống -> rơi về bản Project A
+  const svc2 = createBuyTimingService({ store: createMemoryStore(), fetchImpl, now: () => t, isTrading: weekdays, log: {}, localTimeline: async () => null });
+  const r2 = await svc2.get();
+  assert.equal(r2.meta.source, "PROJECT_A_BUY_TIMELINE");
+  assert.equal(r2.rows.length, 2);
+});

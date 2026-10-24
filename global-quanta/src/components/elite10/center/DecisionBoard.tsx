@@ -7,7 +7,7 @@ import type { ResearchOverview } from "../../../hooks/useResearch";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { TIER_TITLE, type PortfolioPick, type Tier } from "../../../lib/elite10/decisionTypes";
-import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
+import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
 import { BuyTimingCell, fmtDate, num, price, SectionControls, signed } from "./boardParts";
 import { useBoardSection } from "./boardPrefs";
@@ -137,7 +137,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
           ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
           (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).{" "}
-          {buy.data ? <>Timeline lấy lúc {buyAge}{buy.meta?.stale ? <b className="text-amber-300"> · CŨ — Project A tạm lỗi, đang dùng bản gần nhất (số phiên đã tính lại theo hôm nay)</b> : ""}.</>
+          {buy.data ? <>Timeline: {buyTimingFreshness(buy.meta)?.text ?? "—"}, lấy lúc {buyAge}{buy.meta?.stale ? <b className="text-amber-300"> · đang dùng bản gần nhất (số phiên đã tính lại theo hôm nay)</b> : ""}.</>
             : buy.loading ? "Đang tải Timeline…" : <b className="text-amber-300">Timeline điểm mua tạm không có ({buy.meta?.lastError ?? buy.error ?? "lỗi"}) — cột dùng quy tắc danh mục.</b>}
         </p>
         <p className="text-[10px] leading-relaxed text-slate-500">

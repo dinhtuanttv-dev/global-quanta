@@ -107,3 +107,36 @@ test("inSeasonalityWindow: mặc định 05:00–08:45 giờ VN, hỗ trợ khun
   assert.equal(lastSlotAt(at("07:00"), [8 * 60, 15 * 60 + 5]), at("15:05", "2026-10-01"));
   assert.equal(lastSlotAt(at("09:00"), [8 * 60, 15 * 60 + 5]), at("08:00"));
 });
+
+test("B0: ngắt mạch — lỗi hạn mức CSDL tạm dừng làn ngay; lỗi hệ thống (2 lô liên tiếp hỏng) tạm dừng, lùi theo cấp số nhân, thành công thì đóng mạch", async () => {
+  const { createCotucScanner } = await import("../src/market/cotuc/cotucScanner.js");
+  let t = Date.parse("2026-10-26T03:00:00Z"); // 10:00 VN thứ Hai, trong phiên
+  let mode = "ok", calls = 0;
+  const fetchImpl = async (url) => {
+    calls++;
+    if (mode === "quota") return new Response(JSON.stringify({ error: "Your account or project has exceeded the quota (53000)" }), { status: 500 });
+    if (mode === "down") return new Response("{}", { status: 503 });
+    const off = Number(new URL(url).searchParams.get("offset"));
+    return new Response(JSON.stringify({ totalTickers: 200, offset: off, nextOffset: off + 25 >= 200 ? 0 : off + 25 }), { status: 200 });
+  };
+  const config = { base: "http://a", secret: "s", enabled: true, sessionPassEveryMs: 3_600_000, offHoursSlots: [480], seasonWindow: [300, 525], timingLimit: 25, seasonLimit: 3, tickMs: 30_000, requestTimeoutMs: 1000 };
+  const sc = createCotucScanner({ fetchImpl, now: () => t, config });
+  assert.equal(await sc.tick(), "timing"); // lô 0 ok -> offset 25
+  mode = "quota"; t += 30_000;
+  assert.equal(await sc.tick(), "timing");
+  assert.ok(sc.status().timing.pausedUntil, "lỗi hạn mức -> tạm dừng ngay");
+  assert.equal(sc.status().timing.offset, 25, "giữ nguyên lô để chạy lại");
+  t += 10 * 60_000; assert.equal(await sc.tick(), null, "đang tạm dừng 15 phút -> không gọi");
+  assert.equal(calls, 2);
+  mode = "down"; t += 6 * 60_000;
+  for (let i = 0; i < 6; i++) { await sc.tick(); t += 30_000; }
+  assert.equal(calls, 8);
+  assert.equal(sc.status().timing.skippedOffsets.length, 1, "lô hỏng 3 lần vẫn được bỏ qua như cũ");
+  assert.equal(sc.status().timing.breakerTrips, 2, "6 lỗi liên tiếp (2 lô) -> ngắt lần 2");
+  const until = Date.parse(sc.status().timing.pausedUntil);
+  assert.ok(until - t > 20 * 60_000, "lần ngắt thứ 2 lùi ~30 phút");
+  mode = "ok"; t = until + 1000;
+  assert.equal(await sc.tick(), "timing");
+  assert.equal(sc.status().timing.pausedUntil, null);
+  assert.equal(sc.status().timing.breakerTrips, 0, "thành công -> đóng mạch");
+});
