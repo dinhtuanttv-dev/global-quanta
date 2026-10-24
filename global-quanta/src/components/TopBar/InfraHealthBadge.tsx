@@ -15,6 +15,34 @@ export interface DbBudget {
   warehouse: { enabled: boolean; disk?: boolean; ramMb?: number; ramCapMb?: number; ramHits?: number; diskHits?: number; misses?: number } | null;
 }
 
+/** B4 (25/10/2026): sức khoẻ "⏱ Timeline điểm mua" — kho Cổ tức trên Gateway, nguồn Timeline, đối chiếu Project A, ngắt mạch quét. */
+export interface CotucHealth {
+  store: { tables: Record<string, { rows: number; updatedAt: string | null }> };
+  buyTiming: { failures: number; lastError: string | null; parity: { mismatches: number; projectA: number; gateway: number; at: string } | null; localError: string | null };
+  scanner: { enabled: boolean; timing: { lastPassAt: string | null; pausedUntil: string | null; lastError: string | null } | null } | null;
+}
+
+const hm = (iso: string | null | undefined) => {
+  if (!iso) return '—';
+  const v = new Date(Date.parse(iso) + 7 * 3_600_000).toISOString();
+  return `${v.slice(11, 16)} ${v.slice(8, 10)}/${v.slice(5, 7)}`;
+};
+
+export function describeCotuc(h: CotucHealth, now = Date.now()): { ok: boolean; text: string } {
+  const d = h.store.tables.decision;
+  const ageH = d?.updatedAt ? (now - Date.parse(d.updatedAt)) / 3_600_000 : Infinity;
+  const paused = h.scanner?.timing?.pausedUntil;
+  const parity = h.buyTiming.parity;
+  // Quyết định cập nhật mỗi giờ trong phiên + 2 mốc ngoài phiên -> quá 3 ngày (qua cuối tuần / lễ ngắn) là bất thường.
+  const ok = (d?.rows ?? 0) > 0 && ageH < 72 && !paused && (!parity || parity.mismatches === 0);
+  const parts = [
+    d?.rows ? `${d.rows} mã, cập nhật ${hm(d.updatedAt)}` : 'kho chưa có dữ liệu',
+    parity ? (parity.mismatches === 0 ? 'khớp Project A' : `lệch Project A ${parity.mismatches} dòng`) : null,
+    paused ? `quét tạm dừng tới ${hm(paused)}` : null,
+  ].filter(Boolean);
+  return { ok, text: `Timeline điểm mua: ${parts.join(' · ')}` };
+}
+
 const TONE = { ok: '#34d399', warn: '#fbbf24', blocked: '#f87171' } as const;
 const POLL_MS = 10 * 60_000;
 
@@ -32,6 +60,7 @@ export function describeBudget(d: DbBudget): { label: string; tone: keyof typeof
 
 export default function InfraHealthBadge() {
   const [data, setData] = useState<DbBudget | null>(null);
+  const [cotuc, setCotuc] = useState<CotucHealth | null>(null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -61,12 +90,15 @@ export default function InfraHealthBadge() {
   useEffect(() => {
     let alive = true;
     const load = () => fetchMarketJson<DbBudget>('/api/health/db-budget').then((d) => { if (alive) setData(d); }).catch(() => {});
-    void load();
-    const id = setInterval(load, POLL_MS);
+    const loadCotuc = () => fetchMarketJson<CotucHealth>('/api/cotuc-store/health').then((d) => { if (alive && d?.store) setCotuc(d); }).catch(() => {});
+    void load(); void loadCotuc();
+    const id = setInterval(() => { void load(); void loadCotuc(); }, POLL_MS);
     return () => { alive = false; clearInterval(id); };
   }, []);
   if (!data?.supabaseEgress) return null;
-  const b = describeBudget(data);
+  const base = describeBudget(data);
+  const ct = cotuc ? describeCotuc(cotuc) : null;
+  const b = ct && !ct.ok && base.tone === 'ok' ? { ...base, tone: 'warn' as const, title: `${base.title} · ${ct.text}` } : ct ? { ...base, title: `${base.title} · ${ct.text}` } : base;
   const e = data.supabaseEgress;
   const w = data.warehouse;
   const hitRate = w?.enabled && (w.ramHits ?? 0) + (w.diskHits ?? 0) + (w.misses ?? 0) > 0
@@ -91,6 +123,7 @@ export default function InfraHealthBadge() {
               Tốn nhiều nhất: {e.byTag.slice(0, 3).map((t) => `${t.key.replace(/^(job|http):/, '')} ${t.mb} MB`).join(' · ')}
             </div>
           )}
+          {ct && <div style={{ marginTop: 4, color: ct.ok ? undefined : TONE.warn }} data-testid="infra-cotuc">{ct.text}</div>}
           <div style={{ marginTop: 4, color: 'var(--text-tertiary, #9ca3af)' }}>Gói miễn phí: 5 GB/tháng cho cả tổ chức Supabase (Gateway dùng tối đa 3,5 GB).</div>
         </div>,
         document.body,

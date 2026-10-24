@@ -12,7 +12,7 @@ import { browserNotify } from '../../lib/priceAlerts';
 import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
-import { useGatewayBuyTimeline } from '../../hooks/useGatewayBuyTimeline';
+import { buyTimingFreshness, useGatewayBuyTimeline } from '../../hooks/useGatewayBuyTimeline';
 import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
@@ -500,7 +500,11 @@ export default function EliteCommandRadar() {
             <div className="text-[9px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · ★ {listName}</div>
             <span className="text-[9px] text-slate-500 shrink-0">Timeline tab Cổ tức · chỉ mã trên Radar</span>
           </div>
-          {timeline.error && !timeline.data ? <div className="text-[10px] text-slate-500 mt-1">Timeline điểm mua tạm thời không tải được.</div>
+          {timeline.data && buyTimingFreshness(timeline.meta) && (
+            <div className={`text-[9px] mt-0.5 ${timeline.meta?.stale ? 'text-amber-300' : 'text-slate-500'}`} data-testid="radar-buy-source">{buyTimingFreshness(timeline.meta)!.text}</div>
+          )}
+          {timeline.loading && !timeline.data ? <div className="text-[10px] text-slate-500 mt-1">Đang tải Timeline điểm mua…</div>
+            : timeline.error && !timeline.data ? <div className="text-[10px] text-amber-300/80 mt-1" data-testid="radar-buy-error" title={timeline.error}>Timeline điểm mua tạm thời không tải được — không có nghĩa là không có điểm mua.</div>
             : buyChips.length ? (
               <div className="flex flex-wrap gap-1 mt-1">
                 {buyChips.map(({ row: r, ring }) => (

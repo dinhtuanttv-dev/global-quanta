@@ -58,9 +58,15 @@ export function lastSlotAt(t, slots) {
 }
 
 const MAX_RETRIES_PER_BATCH = 3;
+// B0 (25/10/2026): NGẮT MẠCH — lỗi liên tiếp (bất kể lô nào) hoặc lỗi hạn mức CSDL (Postgres 53000) -> tạm dừng làn quét, lùi
+// 15 phút -> 30 -> … tối đa 3 giờ. Trước đây làn quét gọi tiếp mọi lô dù Project A đang sập (gọi vô ích + giữ CSDL thức khi vừa mở lại).
+// Một lô hỏng (lỗi riêng của vài mã) vẫn được bỏ qua sau 3 lần như cũ; 6 lần lỗi liên tiếp = ít nhất 2 lô khác nhau cùng hỏng = lỗi hệ thống.
+const BREAKER = Object.freeze({ afterFailures: 2 * MAX_RETRIES_PER_BATCH, baseMs: 15 * 60_000, maxMs: 3 * 3_600_000 });
+const QUOTA_RE = /53000|exceeded the quota|hết hạn mức/i;
 
 function emptyLane() {
-  return { offset: 0, total: null, batches: 0, passes: 0, lastBatchAt: null, lastPassAt: null, lastResult: null, lastError: null, failStreak: 0, skipped: [], passActive: false, passStartedAt: null };
+  return { offset: 0, total: null, batches: 0, passes: 0, lastBatchAt: null, lastPassAt: null, lastResult: null, lastError: null, failStreak: 0, skipped: [], passActive: false, passStartedAt: null,
+    errStreak: 0, trips: 0, pausedUntil: 0 };
 }
 
 export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = Date.now, config = cotucScanConfig() } = {}) {
@@ -98,6 +104,12 @@ export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = 
 
   function onFailure(lane, error, limit) {
     lane.lastError = { at: new Date(now()).toISOString(), offset: lane.offset, message: String(error?.message ?? error).slice(0, 300) };
+    lane.errStreak += 1;
+    if (lane.errStreak >= BREAKER.afterFailures || QUOTA_RE.test(lane.lastError.message)) {
+      lane.pausedUntil = now() + Math.min(BREAKER.maxMs, BREAKER.baseMs * 2 ** lane.trips);
+      lane.trips += 1; lane.errStreak = 0;
+      return; // giữ nguyên lô: chạy lại đúng lô này khi hết thời gian tạm dừng
+    }
     lane.failStreak += 1;
     if (lane.failStreak >= MAX_RETRIES_PER_BATCH) {
       lane.skipped = [...lane.skipped, lane.offset].slice(-20);
@@ -114,7 +126,7 @@ export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = 
     try {
       const r = await call(`/api/cron/timing-signals-scan?offset=${lane.offset}&limit=${config.timingLimit}`);
       lane.batches += 1;
-      lane.failStreak = 0;
+      lane.failStreak = 0; lane.errStreak = 0; lane.trips = 0; lane.pausedUntil = 0;
       lane.total = r.totalTickers ?? lane.total;
       lane.lastResult = {
         at, offset: r.offset ?? lane.offset, processed: r.processedInThisCall ?? null, decisions: r.decisionCount ?? null,
@@ -137,7 +149,7 @@ export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = 
     try {
       const r = await call(`/api/cron/earnings-seasonality-scan?phase=collect&offset=${lane.offset}&limit=${config.seasonLimit}`);
       lane.batches += 1;
-      lane.failStreak = 0;
+      lane.failStreak = 0; lane.errStreak = 0; lane.trips = 0; lane.pausedUntil = 0;
       lane.total = r.totalTickers ?? lane.total;
       const collected = Array.isArray(r.collected) ? r.collected : [];
       lane.lastResult = { at, offset: lane.offset, ok: collected.filter((c) => c.ok).length, failed: collected.filter((c) => !c.ok).length };
@@ -172,8 +184,8 @@ export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = 
         if (due) { tl.passActive = true; tl.passStartedAt = date.toISOString(); }
       }
       // Một vòng đang chạy: lô kế tiếp ngay ở nhịp này (các lô nối liền, rồi Neon được ngủ tới vòng sau).
-      if (tl.passActive) { await runTiming(); return "timing"; }
-      if (!live && inSeasonalityWindow(date, config.seasonWindow)) {
+      if (tl.passActive && t >= tl.pausedUntil) { await runTiming(); return "timing"; }
+      if (!live && inSeasonalityWindow(date, config.seasonWindow) && t >= state.seasonality.pausedUntil) {
         const s = state.seasonality;
         // Đang giữa vòng (offset > 0) thì đi tiếp; vòng mới chỉ bắt đầu nếu vòng trước đã xong > 18 giờ.
         const fresh = s.lastPassAt && t - Date.parse(s.lastPassAt) < 18 * 3_600_000;
@@ -201,6 +213,7 @@ export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = 
         offset: l.offset, total: l.total, batches: l.batches, passes: l.passes, lastBatchAt: l.lastBatchAt, lastPassAt: l.lastPassAt,
         lastResult: l.lastResult, lastError: l.lastError, skippedOffsets: l.skipped,
         progress: l.total ? Math.min(1, l.offset / l.total) : null,
+        pausedUntil: l.pausedUntil > now() ? new Date(l.pausedUntil).toISOString() : null, breakerTrips: l.trips,
       });
       return {
         enabled: config.enabled,

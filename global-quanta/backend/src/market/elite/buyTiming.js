@@ -8,11 +8,14 @@
 //   - TÍNH LẠI trạng thái theo NGÀY HIỆN TẠI (lịch phiên có ngày nghỉ): bản lưu từ hôm trước vẫn cho đúng "đang trong vùng / còn N phiên /
 //     đã qua" — không trình bày số phiên của ngày chụp như của hôm nay.
 // Không sao chép thuật toán của Project A: mọi thống kê (thắng, kỳ vọng, FDR, bậc) giữ nguyên như Project A tính.
+// B3/B4 (25/10/2026): nguồn CHÍNH là Timeline Gateway tự tính từ kho Cổ tức (`localTimeline`, cùng hàm thuần với Project A — test
+// đối chiếu khớp từng dòng); Project A thành bản đối chiếu + dự phòng (mỗi lần lấy được thì so khớp, ghi số dòng lệch vào status).
+// Quy tắc độ mới: dữ liệu quyết định cũ hơn 1 phiên -> gắn "cũ"; cũ hơn BUY_TIMING_POLICY.maxAgeSessions phiên -> không hiện vùng mua.
 import { isTradingDay, vnDate } from "../calendar.js";
 
 export const BUY_TIMING_KV = "local:elite:buy-timeline";
 const MIN = 60_000;
-export const BUY_TIMING_POLICY = Object.freeze({ ttlSessionMs: 60 * MIN, ttlOffHoursMs: 6 * 60 * MIN, backoffBaseMs: 15 * MIN, backoffMaxMs: 180 * MIN, timeoutMs: 12_000 });
+export const BUY_TIMING_POLICY = Object.freeze({ ttlSessionMs: 60 * MIN, ttlOffHoursMs: 6 * 60 * MIN, backoffBaseMs: 15 * MIN, backoffMaxMs: 180 * MIN, timeoutMs: 12_000, maxAgeSessions: 10 });
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const tradingDay = (date) => isTradingDay(new Date(`${date}T03:00:00Z`)); // 10:00 giờ VN của ngày đó
@@ -51,6 +54,16 @@ export function rebaseRows(rows, today, isTrading = tradingDay) {
   });
 }
 
+/** So khớp Timeline Project A với Timeline Gateway (bỏ qua trạng thái / số phiên — hai bản có thể tính ở hai thời điểm trong ngày). */
+export function compareTimelines(a, b) {
+  const key = (r) => [r.tier, r.kind, r.entryFromDate, r.entryToDate, r.exitDate, r.windowId, r.nEvents, r.netExpectancyLcb].join("|");
+  const ma = new Map(a.map((r) => [r.id, key(r)])), mb = new Map(b.map((r) => [r.id, key(r)]));
+  const diff = [];
+  for (const [id, k] of ma) if (mb.get(id) !== k) diff.push(id);
+  for (const id of mb.keys()) if (!ma.has(id)) diff.push(id);
+  return { projectA: a.length, gateway: b.length, mismatches: diff.length, sample: diff.slice(0, 8) };
+}
+
 /** Kiểm vỏ tối thiểu (từng dòng được frontend kiểm nghiêm ngặt bằng zod). */
 export function validTimeline(doc) {
   return Boolean(doc && typeof doc === "object" && DAY_RE.test(doc.today ?? "") && Array.isArray(doc.rows) && doc.coverage && doc.counts);
@@ -59,8 +72,15 @@ export function validTimeline(doc) {
 export function createBuyTimingService({
   store, base = (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""),
   fetchImpl = fetch, now = Date.now, random = Math.random, policy = BUY_TIMING_POLICY, isTrading = tradingDay, log = console,
+  /** B3: () => Promise<thân Timeline | null> — tính từ kho Cổ tức của Gateway (null = kho chưa có dữ liệu). */
+  localTimeline = null,
 } = {}) {
-  const st = { snap: null, loaded: false, inflight: null, failures: 0, nextRetryAt: 0, lastError: null, lastAttemptAt: null, fetches: 0 };
+  const st = { snap: null, loaded: false, inflight: null, failures: 0, nextRetryAt: 0, lastError: null, lastAttemptAt: null, fetches: 0, parity: null, localError: null };
+  const computeLocal = async () => {
+    if (!localTimeline) return null;
+    try { const b = await localTimeline(); st.localError = null; return b && validTimeline(b) && b.coverage.decisions > 0 ? b : null; }
+    catch (e) { st.localError = String(e?.message ?? e).slice(0, 200); return null; }
+  };
 
   async function load() {
     if (st.loaded) return;
@@ -85,6 +105,8 @@ export function createBuyTimingService({
         if (!validTimeline(body)) throw new Error("Project A trả Timeline sai hợp đồng.");
         st.snap = { fetchedAt: new Date(now()).toISOString(), data: body };
         st.failures = 0; st.nextRetryAt = 0; st.lastError = null;
+        const local = await computeLocal();
+        if (local) st.parity = { at: st.snap.fetchedAt, ...compareTimelines(body.rows, local.rows) };
         await store.setKv(BUY_TIMING_KV, st.snap).catch((e) => log.warn?.(`[buy-timing] lưu KV lỗi: ${e.message}`));
         return true;
       } catch (e) {
@@ -103,30 +125,41 @@ export function createBuyTimingService({
 
   return {
     refresh,
-    status: () => ({ hasSnapshot: Boolean(st.snap), fetchedAt: st.snap?.fetchedAt ?? null, failures: st.failures, nextRetryAt: st.nextRetryAt ? new Date(st.nextRetryAt).toISOString() : null, lastError: st.lastError, lastAttemptAt: st.lastAttemptAt, fetches: st.fetches }),
+    status: () => ({ hasSnapshot: Boolean(st.snap), fetchedAt: st.snap?.fetchedAt ?? null, failures: st.failures, nextRetryAt: st.nextRetryAt ? new Date(st.nextRetryAt).toISOString() : null, lastError: st.lastError, lastAttemptAt: st.lastAttemptAt, fetches: st.fetches, parity: st.parity, localError: st.localError, localEnabled: Boolean(localTimeline) }),
     /**
      * Timeline (đã tính lại theo hôm nay). `tickers` -> chỉ các mã đó. Chưa có bản nào -> chờ MỘT lần lấy; có rồi -> trả ngay, làm mới nền.
      * Kết quả cùng hợp đồng với Project A + `meta` (nguồn, thời điểm lấy, cũ hay không, lỗi gần nhất).
      */
     async get({ tickers = null } = {}) {
       await load();
-      if (!st.snap) await refresh();
+      const local = await computeLocal();
+      if (!st.snap && !local) await refresh();
       else void refresh();
       const today = vnDate(new Date(now()));
       // Phiên giao dịch kế tiếp tính từ 10 ngày trước hôm nay (đủ để giao diện chọn "phiên kế tiếp sau ngày dựng danh mục").
       const back = new Date(`${today}T00:00:00Z`); back.setUTCDate(back.getUTCDate() - 10);
       const sessions = nextSessions(back.toISOString().slice(0, 10), 25, isTrading);
+      const data = local ?? st.snap?.data ?? null;
+      // Độ mới tính theo PHIÊN từ lần engine tính quyết định gần nhất (asOf.decisions), không theo lần lấy.
+      const asOfDay = data?.asOf?.decisions ? vnDate(new Date(data.asOf.decisions)) : null;
+      const ageSessions = asOfDay ? sessionsBetween(asOfDay, today, isTrading) : null;
       const meta = {
-        source: "PROJECT_A_BUY_TIMELINE", via: "gateway-cache", fetchedAt: st.snap?.fetchedAt ?? null, snapshotToday: st.snap?.data.today ?? null,
-        stale: !st.snap || !fresh(), lastError: st.lastError, nextRetryAt: st.nextRetryAt ? new Date(st.nextRetryAt).toISOString() : null,
+        source: local ? "GATEWAY_STORE" : "PROJECT_A_BUY_TIMELINE", via: local ? "gateway-compute" : "gateway-cache",
+        fetchedAt: local ? new Date(now()).toISOString() : st.snap?.fetchedAt ?? null, snapshotToday: data?.today ?? null,
+        dataAsOf: data?.asOf?.decisions ?? null, ageSessions,
+        stale: local ? (ageSessions ?? 0) > 1 : !st.snap || !fresh() || (ageSessions ?? 0) > 1,
+        lastError: st.lastError, nextRetryAt: st.nextRetryAt ? new Date(st.nextRetryAt).toISOString() : null, parity: st.parity,
       };
-      if (!st.snap) return { available: false, today, sessions, meta };
+      if (!data) return { available: false, today, sessions, meta };
+      if (ageSessions != null && ageSessions > policy.maxAgeSessions) {
+        return { available: false, today, sessions, meta: { ...meta, lastError: `Dữ liệu điểm mua đã cũ ${ageSessions} phiên (> ${policy.maxAgeSessions}) — không hiện vùng mua để tránh sai.` } };
+      }
       const want = tickers ? new Set(tickers.map((t) => String(t).toUpperCase())) : null;
-      const rows = rebaseRows(st.snap.data.rows.filter((r) => !want || want.has(String(r.ticker).toUpperCase())), today, isTrading);
+      const rows = rebaseRows(data.rows.filter((r) => !want || want.has(String(r.ticker).toUpperCase())), today, isTrading);
       const live = rows.filter((r) => r.status !== "PASSED");
       return {
-        available: true, ...st.snap.data, today, sessions, rows,
-        counts: { ...st.snap.data.counts, inWindow: live.filter((r) => r.status === "IN_WINDOW").length, upcoming: live.filter((r) => r.status === "UPCOMING").length },
+        available: true, ...data, today, sessions, rows,
+        counts: { ...data.counts, inWindow: live.filter((r) => r.status === "IN_WINDOW").length, upcoming: live.filter((r) => r.status === "UPCOMING").length },
         meta,
       };
     },

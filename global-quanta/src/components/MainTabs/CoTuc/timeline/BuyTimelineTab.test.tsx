@@ -71,6 +71,7 @@ describe("BuyTimelineTab", () => {
     expect(el.textContent).toContain("Còn thiếu: q-value 0.11 > 0.1");
     expect(el.textContent).toContain("✓ Đạt kiểm định");
     expect(el.textContent).not.toMatch(/NaN|undefined/);
+    expect(el.querySelector('[data-testid="buy-timeline-stale"]')).toBeNull(); // bản thường không có dòng bản lưu
     await act(async () => { (rows[0].querySelector("button") as HTMLButtonElement).click(); });
     expect(onSelect).toHaveBeenCalledWith("BMP");
   });
@@ -84,5 +85,14 @@ describe("BuyTimelineTab", () => {
     const near = [...el.querySelectorAll("label")].find((l) => l.textContent?.includes("gần đạt"))!.querySelector("input") as HTMLInputElement;
     await act(async () => { near.click(); });
     expect(el.querySelectorAll('[data-testid="timeline-row"]')[0].getAttribute("data-tier")).toBe("VALIDATED");
+  });
+
+  it("B1: nguồn tạm lỗi -> Project A trả bản lưu: hiện một dòng cảnh báo bản lưu + ngày dữ liệu", async () => {
+    const stale = { ...payload, stale: true, servedFrom: "LAST_GOOD", ageSessions: 2 };
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => new Response(JSON.stringify(String(url).includes("buy-timeline") ? stale : { asOf: null, count: 0, states: [] }), { status: 200 })));
+    const el = await mount(<BuyTimelineTab />);
+    const note = el.querySelector('[data-testid="buy-timeline-stale"]');
+    expect(note?.textContent).toContain("Đang dùng bản lưu gần nhất (dữ liệu 05/10/2026, 2 phiên trước)");
+    expect(el.querySelectorAll('[data-testid="timeline-row"]').length).toBeGreaterThan(0);
   });
 });

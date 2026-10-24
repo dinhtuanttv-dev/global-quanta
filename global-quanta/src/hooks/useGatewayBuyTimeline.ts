@@ -5,6 +5,18 @@ import { parseBuyTimeline, type BuyTimeline } from '../lib/cotuc/buy-timeline';
 /** Nguồn + độ tươi của Timeline qua Gateway (B1). */
 export interface BuyTimingMeta {
   source: string; via: string; fetchedAt: string | null; snapshotToday: string | null; stale: boolean; lastError: string | null; nextRetryAt: string | null;
+  /** B4: lần engine tính quyết định gần nhất + số phiên đã trôi qua từ đó (null = chưa rõ). */
+  dataAsOf?: string | null; ageSessions?: number | null;
+}
+
+/** B4: một dòng nguồn + độ mới cho giao diện ("Gateway tự tính · dữ liệu 24/10 · cũ 2 phiên"). */
+export function buyTimingFreshness(meta: BuyTimingMeta | null): { text: string; stale: boolean } | null {
+  if (!meta) return null;
+  const src = meta.source === 'GATEWAY_STORE' ? 'Gateway tự tính' : 'Project A (bản đệm)';
+  const vn = meta.dataAsOf ? new Date(Date.parse(meta.dataAsOf) + 7 * 3_600_000).toISOString() : null; // ngày theo giờ VN, định dạng cố định dd/mm
+  const d = vn ? `${vn.slice(8, 10)}/${vn.slice(5, 7)}` : null;
+  const age = meta.ageSessions != null && meta.ageSessions > 1 ? ` · CŨ ${meta.ageSessions} phiên` : '';
+  return { text: `${src}${d ? ` · dữ liệu ${d}` : ''}${age}`, stale: meta.stale };
 }
 interface GatewayBuyTiming { available: boolean; today: string; sessions?: string[]; meta: BuyTimingMeta; [k: string]: unknown }
 

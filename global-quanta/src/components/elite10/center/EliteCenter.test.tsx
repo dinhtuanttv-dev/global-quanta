@@ -39,8 +39,9 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
 const buyRow = { id: "ORS-1", ticker: "ORS", sector: null, kind: "DIVIDEND", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-10-22", eventDateBasis: "x",
   windowId: "w1", windowLabel: "Trước GDKHQ 5 phiên", entryFrom: -5, entryTo: -1, exitOffset: 3, entryFromDate: "2026-10-15", entryToDate: "2026-10-21", exitDate: "2026-10-27",
   sessionsToEntry: 0, nEvents: 14, winRate: 0.71, probability: null, netExpectancy: 0.021, netExpectancyLcb: 0.004, fdrQValue: 0.03, decisionLevel: null, missing: [] };
-vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({
-  useGatewayBuyTimeline: () => ({ data: { rows: [buyRow] }, sessions: ["2026-10-16", "2026-10-17", "2026-10-20"], meta: { fetchedAt: "2026-10-17T08:00:00Z", stale: false, lastError: null }, loading: false, error: null }),
+vi.mock("../../../hooks/useGatewayBuyTimeline", async (orig) => ({
+  ...(await orig<typeof import("../../../hooks/useGatewayBuyTimeline")>()),
+  useGatewayBuyTimeline: () => ({ data: { rows: [buyRow] }, sessions: ["2026-10-16", "2026-10-17", "2026-10-20"], meta: { source: "GATEWAY_STORE", fetchedAt: "2026-10-17T08:00:00Z", dataAsOf: "2026-10-16T08:00:00Z", ageSessions: 1, stale: false, lastError: null }, loading: false, error: null }),
 }));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] }, regime: { stressed: true, vix: 20, vixChg: 21.4 } } }) }));
 vi.mock("swr", async (orig) => {
@@ -85,7 +86,8 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     const cell = screen.getByTestId("elite-buy-ORS");
     expect(cell.textContent).toContain("Mua ngay");
     expect(cell.querySelector("[data-kind]")?.getAttribute("data-kind")).toBe("in");
-    expect(screen.getByTestId("elite-buy-note").textContent).toContain("Timeline lấy lúc");
+    expect(screen.getByTestId("elite-buy-note").textContent).toContain("lấy lúc");
+    expect(screen.getByTestId("elite-buy-note").textContent).toContain("Gateway tự tính · dữ liệu 16/10");
   });
 
   it("C2: Ứng viên tiếp theo — mặc định thu gọn (dòng tóm tắt), mở ra bảng cùng cấu trúc danh mục + lý do chưa vào", () => {

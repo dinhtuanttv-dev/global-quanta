@@ -1,5 +1,8 @@
 import "dotenv/config";
 import { createBuyTimingService } from "./market/elite/buyTiming.js";
+import { createCotucStore } from "./market/cotuc/cotucStore.js";
+import { createGatewayTimeline } from "./market/cotuc/gatewayTimeline.js";
+import { createCotucStoreRouter } from "./routes/cotucStore.js";
 import express from "express";
 import v8 from "node:v8";
 import cors from "cors";
@@ -158,12 +161,24 @@ const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
 // E7: kiểm định hồi cứu walk-forward (chạy theo yêu cầu admin).
 let eliteRetro = null;
 // B1: Timeline điểm mua (Project A) qua Gateway — bản tốt gần nhất trên Railway Volume, làm mới nền, lùi khi lỗi.
+// B2/B3: kho Cổ tức (thay Neon của Project A) + Timeline tính trên Gateway làm nguồn chính cho Radar / Elite 10.
+let cotucStore = null, gatewayTimeline = null;
+const getCotucStore = () => (cotucStore ??= createCotucStore({ store: getMarketRuntime().store }));
+const getGatewayTimeline = () => (gatewayTimeline ??= createGatewayTimeline({ cotucStore: getCotucStore() }));
 let eliteBuyTiming = null;
-const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store }));
+const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store, localTimeline: () => getGatewayTimeline()() }));
 const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
+app.use("/api/cotuc-store", createCotucStoreRouter({
+  getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
+  getHealth: async () => {
+    const scan = getMarketRuntime().cotucScanner?.status?.() ?? null;
+    const lane = (l) => (l ? { lastPassAt: l.lastPassAt, lastBatchAt: l.lastBatchAt, pausedUntil: l.pausedUntil, breakerTrips: l.breakerTrips, lastError: l.lastError?.message ?? null } : null);
+    return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
+  },
+}));
 app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.

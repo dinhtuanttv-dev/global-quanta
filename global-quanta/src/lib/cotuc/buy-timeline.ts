@@ -40,6 +40,10 @@ const timelineSchema = z.object({
   coverage: z.object({ decisions: z.number(), seasonality: z.number(), universe: z.number() }),
   counts: z.object({ validated: z.number(), near: z.number(), inWindow: z.number(), upcoming: z.number() }),
   rows: z.array(z.unknown()),
+  // B1 (25/10/2026): nguồn tạm lỗi -> Project A trả bản tốt gần nhất dựng lại theo hôm nay (tuỳ chọn, bản cũ không có).
+  stale: z.boolean().optional(),
+  servedFrom: z.string().optional(),
+  ageSessions: z.number().nullable().optional(),
 });
 
 export type TimelineRow = z.infer<typeof rowSchema>;
