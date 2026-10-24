@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeLabels, LABEL_BUDGET, type LabelBox } from "./scene";
-import { buildScene } from "./buildScene";
+import { buildScene, preConfirm } from "./buildScene";
 import { EMPTY_SMC, toSmcState, type SmcState } from "../AnalysisController";
 import { analyze } from "../../quant-core";
 import { buildFibLevels, sanitizePrimitives, type DrawnPrimitive } from "../DrawingManager";
@@ -47,10 +47,32 @@ describe("P3 — buildScene (toạ độ miền, thay lớp SVG)", () => {
 
   it("SMC bật: vùng còn hiệu lực kéo tới mép phải, không nhãn 'test', không vạch CE", () => {
     const s = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, smc: true } });
-    expect(s.items.every((i) => i.kind !== "zone" || i.t2 === null)).toBe(true);
+    // Phần đậm (có nhãn) kéo tới mép phải; đoạn mờ trước xác nhận (FVG: nến 1 -> nến 3) dừng tại nến xác nhận, không nhãn.
+    expect(s.items.every((i) => i.kind !== "zone" || !i.label || i.t2 === null)).toBe(true);
+    const pre = s.items.filter((i) => i.kind === "zone" && i.t2 !== null);
+    expect(pre).toEqual([expect.objectContaining({ t1: bars[40].date, t2: bars[42].date, dash: [1, 3] })]);
+    expect(s.items.find((i) => i.kind === "zone" && i.label?.text === "FVG")).toMatchObject({ t1: bars[42].date });
     expect(s.items.filter((i) => i.kind === "hline")).toHaveLength(1); // chỉ đường BSL, không có vạch CE của FVG
     const labels = s.items.map((i) => ("label" in i ? i.label?.text ?? "" : ""));
     expect(labels.some((t) => /test|50%|lấp/.test(t))).toBe(false);
+  });
+
+  it("R2 point-in-time: OB / thanh khoản có ngày xác nhận -> đoạn mờ tới nến xác nhận, phần đậm + nhãn từ nến xác nhận", () => {
+    const smc2: SmcState = {
+      ...smc,
+      obs: [{ ...smc.obs[0], confirmedDate: bars[14].date }],
+      liquidity: [{ ...smc.liquidity[0], confirmedDate: bars[53].date }],
+    };
+    const s = buildScene({ ...base, smc: smc2, layers: { ...DEFAULT_LAYER_STATE, smc: true } });
+    const ob = s.items.filter((i) => i.kind === "zone" && i.top === 100);
+    expect(ob).toEqual([
+      expect.objectContaining({ t1: bars[10].date, t2: bars[14].date, dash: [1, 3] }),
+      expect.objectContaining({ t1: bars[14].date, t2: null, label: expect.objectContaining({ text: "OB ▲" }) }),
+    ]);
+    const bsl = s.items.filter((i) => i.kind === "hline");
+    expect(bsl.map((i) => [i.t1, i.t2])).toEqual([[bars[50].date, bars[53].date], [bars[53].date, null]]);
+    // Không có ngày xác nhận (dữ liệu cũ) -> như trước: vẽ từ nến gốc.
+    expect(preConfirm([], "2026-01-05", null, { price: 1 }, "#fff")).toBe("2026-01-05");
   });
 
   it("hình đang vẽ dở luôn hiện; Fib vẽ đủ các mức", () => {

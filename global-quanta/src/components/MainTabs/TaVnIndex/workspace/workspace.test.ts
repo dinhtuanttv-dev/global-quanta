@@ -158,3 +158,16 @@ describe("R1 — khối ngoại: 0 là cân bằng; lý do không vẽ được 
     expect(foreignStats([d("a", -1), d("b", 3), d("c", 2)])!.streak).toBe(2);
   });
 });
+
+describe("R2 — CVD divergence vẽ tại nến xác nhận", async () => {
+  const { divergenceMarkers } = await import("../TVChartPanel");
+  const bars = Array.from({ length: 10 }, (_, i) => ({ date: `2026-02-${String(i + 1).padStart(2, "0")}`, open: 1, high: 1, low: 1, close: 1, volume: 1 }));
+  it("marker chính 'Div · sau N nến' ở nến xác nhận + chấm mờ không chữ ở đỉnh/đáy gốc", () => {
+    const m = divergenceMarkers([{ date: bars[3].date, dir: "bearish", confirmedIndex: 6 }], bars);
+    expect(m).toEqual([
+      expect.objectContaining({ time: bars[3].date, text: "", shape: "circle" }),
+      expect.objectContaining({ time: bars[6].date, text: "Div · sau 3 nến", shape: "arrowDown" }),
+    ]);
+    expect(divergenceMarkers([{ date: bars[3].date, dir: "bullish", confirmedIndex: 3 }], bars)).toEqual([expect.objectContaining({ time: bars[3].date, text: "Div" })]);
+  });
+});

@@ -38,6 +38,17 @@ export const SVP_SESSIONS_DRAWN = 5;
 
 const dirColor = (dir: string) => (dir === "bullish" ? GQ_COLORS.bull : GQ_COLORS.bear);
 
+/**
+ * Đoạn TRƯỚC xác nhận [nến gốc, nến xác nhận): mờ + nét đứt, không nhãn. Trả về ngày bắt đầu của phần đậm
+ * (= ngày xác nhận nếu có và muộn hơn nến gốc; ngược lại nến gốc như trước).
+ */
+export function preConfirm(items: SceneItem[], origin: string, confirmed: string | null | undefined, shape: { top: number; bottom: number } | { price: number }, color: string): string {
+  if (!confirmed || confirmed <= origin) return origin;
+  if ("price" in shape) items.push({ kind: "hline", t1: origin, t2: confirmed, price: shape.price, color: rgba(color, 0.25), dash: [1, 3] });
+  else items.push({ kind: "zone", t1: origin, t2: confirmed, top: shape.top, bottom: shape.bottom, fill: rgba(color, 0.04), stroke: rgba(color, 0.25), dash: [1, 3] });
+  return confirmed;
+}
+
 export function buildScene(inp: SceneInput): Scene {
   const items: SceneItem[] = [];
   const { bars, smc, layers } = inp;
@@ -58,19 +69,23 @@ export function buildScene(inp: SceneInput): Scene {
       items.push({ kind: "zone", t1: pd.startDate, t2: null, top: pd.oteHigh, bottom: pd.oteLow, fill: rgba(GQ_COLORS.amber, 0.06), stroke: rgba(GQ_COLORS.amber, 0.3), dash: [2, 2],
         label: { text: `OTE ${pd.legDir === "bullish" ? "▲" : "▼"} · ${pd.currentZone === "premium" ? "Premium" : pd.currentZone === "discount" ? "Discount" : "EQ"}`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.other } });
     }
+    // R2 point-in-time: phần từ nến gốc tới nến XÁC NHẬN vẽ mờ, nét đứt (lúc đó chưa ai biết vùng này); từ nến xác nhận vẽ đậm.
     for (const ob of smc.obs) {
       const c = dirColor(ob.type);
-      items.push({ kind: "zone", t1: ob.date, t2: null, top: ob.top, bottom: ob.bottom, fill: rgba(c, 0.13), stroke: rgba(c, 0.45),
+      const from = preConfirm(items, ob.date, ob.confirmedDate, { top: ob.top, bottom: ob.bottom }, c);
+      items.push({ kind: "zone", t1: from, t2: null, top: ob.top, bottom: ob.bottom, fill: rgba(c, 0.13), stroke: rgba(c, 0.45),
         label: { text: `OB ${ob.type === "bullish" ? "▲" : "▼"}`, color: c, priority: LABEL_PRIORITY.obActive } });
     }
     for (const g of smc.fvgs) {
       const c = g.type === "bullish" ? GQ_COLORS.cyan : GQ_COLORS.amber;
-      items.push({ kind: "zone", t1: g.startDate, t2: null, top: g.top, bottom: g.bottom, fill: rgba(c, 0.1),
+      const from = preConfirm(items, g.startDate, g.endDate, { top: g.top, bottom: g.bottom }, c);
+      items.push({ kind: "zone", t1: from, t2: null, top: g.top, bottom: g.bottom, fill: rgba(c, 0.1),
         label: { text: "FVG", color: c, priority: LABEL_PRIORITY.fvgOpen } });
     }
     for (const l of smc.liquidity) {
       const c = l.type === "EQH" ? GQ_COLORS.bear : GQ_COLORS.bull;
-      items.push({ kind: "hline", t1: l.date, t2: null, price: l.price, color: rgba(c, 0.5), dash: [3, 2],
+      const from = preConfirm(items, l.date, l.confirmedDate, { price: l.price }, c);
+      items.push({ kind: "hline", t1: from, t2: null, price: l.price, color: rgba(c, 0.5), dash: [3, 2],
         label: { text: l.type === "EQH" ? "BSL" : "SSL", color: c, priority: LABEL_PRIORITY.liquidity } });
     }
   }

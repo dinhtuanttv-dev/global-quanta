@@ -373,7 +373,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (layerState.structure) markers.push(...structureMarkers(currentBars, timeframe, structureDoc, structureMode));
     if (layerState.orderflow && orderFlow) {
       for (const a of orderFlow.absorption) markers.push({ time: a.date, position: a.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: "square", text: "ABS" });
-      for (const d of orderFlow.divergences) markers.push({ time: d.date, position: d.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: "Div" });
+      markers.push(...divergenceMarkers(orderFlow.divergences, currentBars));
     }
     tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
   }, [smc, vsa, layerState, corporateActions, currentBars, timeframe, orderFlow, structureDoc, structureMode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1251,6 +1251,22 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     </section>
   );
 }
+
+/**
+ * R2 point-in-time: CVD divergence chỉ được BIẾT khi đỉnh/đáy thứ hai được xác nhận (sau R nến) -> marker chính "Div" tại nến
+ * xác nhận; nến đỉnh/đáy gốc chỉ có chấm mờ không chữ.
+ */
+export function divergenceMarkers(divs: { date: string; dir: "bullish" | "bearish"; confirmedIndex: number }[], bars: OhlcvBar[]): ChartMarkerInput[] {
+  const out: ChartMarkerInput[] = [];
+  for (const d of divs) {
+    const pos = d.dir === "bullish" ? "belowBar" as const : "aboveBar" as const;
+    const at = bars[d.confirmedIndex]?.date ?? d.date;
+    if (at !== d.date) out.push({ time: d.date, position: pos, color: "rgba(251,191,36,0.35)", shape: "circle", text: "" });
+    out.push({ time: at, position: pos, color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: at !== d.date ? `Div · sau ${barsGap(bars, d.date, at)} nến` : "Div" });
+  }
+  return out;
+}
+const barsGap = (bars: OhlcvBar[], a: string, b: string) => Math.max(0, bars.findIndex((x) => x.date === b) - bars.findIndex((x) => x.date === a));
 
 /** Lý do không vẽ được Khối ngoại; null = có dữ liệu để vẽ (hoặc đang tải). */
 export function foreignUnavailable(ticker: string, timeframe: Timeframe, loaded: boolean, days: number): string | null {

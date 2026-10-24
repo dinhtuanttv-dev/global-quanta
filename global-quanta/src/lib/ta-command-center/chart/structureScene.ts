@@ -185,9 +185,16 @@ export function structureSceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc:
     const i = t ? bars.findIndex((x) => x.date === t) : -1;
     if (!t || i < 0) continue;
     items.push({ kind: "hline", t1: bars[Math.max(0, i - 2)].date, t2: bars[Math.min(bars.length - 1, i + 2)].date, price: s.price, color: rgba(s.kind === "H" ? GQ_COLORS.bear : GQ_COLORS.cyan, 0.8), width: 2,
-      label: { text: `${s.kind === "H" ? "Đỉnh" : "Đáy"} mức ${lvl}`, color: s.kind === "H" ? GQ_COLORS.bear : GQ_COLORS.cyan, priority: 22 } });
+      label: { text: `${s.kind === "H" ? "Đỉnh" : "Đáy"} mức ${lvl}${confirmNote(bars, t, s.confirmedDate ? c.map(s.confirmedDate) : null)}`, color: s.kind === "H" ? GQ_COLORS.bear : GQ_COLORS.cyan, priority: 22 } });
   }
   return items;
+}
+
+/** R2: đỉnh/đáy chỉ được biết sau khi giá đảo đủ ngưỡng -> ghi "biết sau N nến" (không ghi khi xác nhận cùng nến). */
+function confirmNote(bars: OhlcvBar[], at: string, confirmed: string | null): string {
+  if (!confirmed || confirmed <= at) return "";
+  const n = barsBetween(bars, at, confirmed);
+  return n > 0 ? ` · biết sau ${n} nến` : "";
 }
 
 function barsBetween(bars: OhlcvBar[], a: string, b: string): number {
