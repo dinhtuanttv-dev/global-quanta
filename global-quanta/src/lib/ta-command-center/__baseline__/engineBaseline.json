@@ -1,0 +1,204 @@
+{
+ "FPT_D": {
+  "counts": {
+   "bars": 800,
+   "scene": {
+    "future": 2,
+    "hline": 16,
+    "poly": 8,
+    "profile": 1,
+    "ring": 1,
+    "segment": 4,
+    "text": 15,
+    "vline": 5,
+    "zone": 9
+   },
+   "smc": {
+    "obs": 36,
+    "fvgs": 133,
+    "bos": 20,
+    "choch": 16,
+    "liquidity": 12,
+    "sweeps": 3
+   },
+   "vsa": 8,
+   "wyckoffPhase": "undetermined",
+   "elliottDayPoints": 6,
+   "chochN": 16,
+   "v3Scenarios": 0,
+   "structureStage": "DOWN"
+  },
+  "hash": {
+   "analyze": "77a33e029cb8509a",
+   "smc": "a690e3724800c697",
+   "vsa": "706d1a296a4e28ca",
+   "wyckoff": "d9bb64f23afd3ace",
+   "backtest": "508394fe7bef44da",
+   "oscillators": "c7d0046566b8108a",
+   "elliottMtf": "4402137e2ee1fb50",
+   "waveTree": "bb1e866e0b13e0cb",
+   "scenarios": "4f53cda18c2baa0c",
+   "elliottProSummary": "cfeebd3730d782cc",
+   "scene": "733153129f6b9c86",
+   "structureDoc": "c69b3caaa63d0b15",
+   "structureScene": {
+    "overview": "198ec49fdc88578d",
+    "trade": "e541f3980b150e90",
+    "deep": "7b0bbcd906482771"
+   },
+   "structureMarkers": "4cfd74f8dc77a6e1",
+   "structureLevels": "6eca8d0604d4d974"
+  }
+ },
+ "FPT_W": {
+  "counts": {
+   "bars": 167,
+   "scene": {
+    "future": 2,
+    "hline": 8,
+    "poly": 8,
+    "profile": 1,
+    "segment": 2,
+    "text": 2,
+    "vline": 4,
+    "zone": 12
+   },
+   "smc": {
+    "obs": 8,
+    "fvgs": 22,
+    "bos": 5,
+    "choch": 3,
+    "liquidity": 1,
+    "sweeps": 0
+   },
+   "vsa": 8,
+   "wyckoffPhase": "undetermined",
+   "elliottDayPoints": 6,
+   "chochN": 3,
+   "v3Scenarios": 2,
+   "structureStage": "DOWN"
+  },
+  "hash": {
+   "analyze": "035d3ecf3a41f615",
+   "smc": "92d220749382eef6",
+   "vsa": "342b2cf91d2cb23c",
+   "wyckoff": "1509da39bd095dbd",
+   "backtest": "75a495fcb07187b1",
+   "oscillators": "266c6ba51c395479",
+   "elliottMtf": "4402137e2ee1fb50",
+   "waveTree": "2992a84b23010ee4",
+   "scenarios": "6929e398bc84611b",
+   "elliottProSummary": "a195392fe77c21ae",
+   "scene": "d548a1ddb6a57b23",
+   "structureDoc": "c69b3caaa63d0b15",
+   "structureScene": {
+    "overview": "92858e8c625c160c",
+    "trade": "81e0559318164f1a",
+    "deep": "209718a369b812b3"
+   },
+   "structureMarkers": "4e64078115f2d219",
+   "structureLevels": "6eca8d0604d4d974"
+  }
+ },
+ "VNINDEX_D": {
+  "counts": {
+   "bars": 800,
+   "scene": {
+    "hline": 12,
+    "poly": 10,
+    "profile": 1,
+    "ring": 3,
+    "segment": 6,
+    "text": 13,
+    "vline": 2,
+    "zone": 18
+   },
+   "smc": {
+    "obs": 38,
+    "fvgs": 711,
+    "bos": 19,
+    "choch": 19,
+    "liquidity": 3,
+    "sweeps": 0
+   },
+   "vsa": 0,
+   "wyckoffPhase": "undetermined",
+   "elliottDayPoints": 6,
+   "chochN": 19,
+   "v3Scenarios": 1,
+   "structureStage": "DOWN"
+  },
+  "hash": {
+   "analyze": "13dcb4db2753f362",
+   "smc": "106392236cd54b7b",
+   "vsa": "4f53cda18c2baa0c",
+   "wyckoff": "f5d0bee950c15300",
+   "backtest": "368e60e1f58e7a66",
+   "oscillators": "06e3671b213ea8a4",
+   "elliottMtf": "123a86081bcc6be9",
+   "waveTree": "e40c430634957387",
+   "scenarios": "92a0abc6cde9cc10",
+   "elliottProSummary": "d36b5bba35fbc75c",
+   "scene": "85b1ce2c526dbc65",
+   "structureDoc": "f66a271aa4b20fea",
+   "structureScene": {
+    "overview": "a840e622bee716fd",
+    "trade": "8f28a78545ede950",
+    "deep": "95cd4c90c4046de9"
+   },
+   "structureMarkers": "b29ab2db315c45d2",
+   "structureLevels": "76c5a77c11f28f81"
+  }
+ },
+ "VNINDEX_W": {
+  "counts": {
+   "bars": 167,
+   "scene": {
+    "future": 2,
+    "hline": 13,
+    "poly": 13,
+    "profile": 1,
+    "ring": 3,
+    "segment": 10,
+    "text": 15,
+    "vline": 1,
+    "zone": 12
+   },
+   "smc": {
+    "obs": 7,
+    "fvgs": 78,
+    "bos": 4,
+    "choch": 3,
+    "liquidity": 1,
+    "sweeps": 0
+   },
+   "vsa": 8,
+   "wyckoffPhase": "distribution",
+   "elliottDayPoints": 6,
+   "chochN": 2,
+   "v3Scenarios": 3,
+   "structureStage": "D"
+  },
+  "hash": {
+   "analyze": "e27db839e367447c",
+   "smc": "7182c26fad1809c3",
+   "vsa": "2ae10a003b3d4ef1",
+   "wyckoff": "1a982a2c047aebf9",
+   "backtest": "915879e0808f0789",
+   "oscillators": "d8869af0791a2fb0",
+   "elliottMtf": "123a86081bcc6be9",
+   "waveTree": "5b7257eae90a9356",
+   "scenarios": "6d32012f42c86381",
+   "elliottProSummary": "4aeb5cf4c7956d5b",
+   "scene": "0872b0c73b8edaa5",
+   "structureDoc": "f66a271aa4b20fea",
+   "structureScene": {
+    "overview": "dd5fc895a3a8e57f",
+    "trade": "6a76872832ad2e3a",
+    "deep": "303c1e08e12f106b"
+   },
+   "structureMarkers": "33c0f1788e12b54e",
+   "structureLevels": "76c5a77c11f28f81"
+  }
+ }
+}

@@ -67,7 +67,7 @@ export default function SmartNotePanel(props: Props) {
 
   if (!expanded) {
     return (
-      <button onClick={() => setExpanded(true)}
+      <button onClick={() => setExpanded(true)} data-testid="smart-note-open"
         style={{ background: "rgba(14,22,38,0.9)", border: "1px solid rgba(245,158,11,0.3)" }}
         className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-amber-300">
         <Sparkles className="w-3 h-3" /> Smart Note <ChevronDown className="w-3 h-3" />
@@ -76,7 +76,7 @@ export default function SmartNotePanel(props: Props) {
   }
 
   return (
-    <div style={{ background: "rgba(14,22,38,0.95)", border: "1px solid rgba(245,158,11,0.3)", maxWidth: 260 }}
+    <div data-testid="smart-note" style={{ background: "rgba(14,22,38,0.95)", border: "1px solid rgba(245,158,11,0.3)", maxWidth: 260 }}
       className="absolute top-3 right-3 z-10 rounded-lg p-2.5">
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
