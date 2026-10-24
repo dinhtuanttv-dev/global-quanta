@@ -48,3 +48,17 @@ Thiếu mẫu (OOS n < 30) -> "THIẾU MẪU" (không phải đạt).
 
 ## Sửa đổi
 (chưa có)
+
+## Kết quả (2026-10-24, chạy MỘT lần bằng scripts/chart-signals-validate.mjs sau commit tiêu chí a914ae3; 97 mã; số liệu: chartSignalsReport.json)
+Cả 9 tín hiệu KHÔNG ĐẠT (q = 1 cho cả 9). Lợi suất vượt trội ngoài mẫu (2025–2026), KTC 95% bootstrap cụm ngày:
+- C1 RSI cắt lên 30: −0,09% / 10 phiên (n 392, [−0,73; 0,61]); trong mẫu −1,30%. Placebo p = 0 (tốt hơn ngày ngẫu nhiên cùng tháng) nhưng vẫn ≤ 0 sau phí.
+- C2 RSI cắt xuống 70 (cảnh báo): +0,59% (n 362, [−0,29; 1,61]) — SAI chiều cảnh báo: sau tín hiệu giá vẫn mạnh hơn thị trường
+  (cùng hướng với cờ "Quá đà" của MTF v2: đà tăng tiếp diễn).
+- C3 MACD cắt lên Signal: −1,03% / 20 phiên (n 1.063, [−1,63; −0,41]) — âm rõ sau phí; 32% mã dương.
+- C4 ADX ≥ 25 + DI+ cắt lên: −0,77% (n 275, [−2,03; 0,51]).
+- C5 CHoCH tăng: −0,95% / 10 phiên (n 451, [−1,66; −0,21]) — âm rõ; khác backtest một mã trong dock (trong mẫu).
+- C6 CVD divergence tăng (BVC): −0,47% (n 251, [−1,35; 0,36]).
+- Khung tuần: W1 RSI +0,11% (n 88, KTC chứa 0); W3 MACD −0,09% (n 301); W4 ADX −3,50% (n 40, [−6,74; −0,47]).
+Mô tả: D và W cùng chiều với MACD, ADX; khác chiều với RSI. Theo năm: C3 âm cả 5 năm; C5 âm cả 5 năm.
+Quyết định (theo mục Quyết định): mọi tín hiệu giữ "THỰC NGHIỆM — chỉ mô tả"; tab Backtest hiển thị bảng này; bảng chỉ báo ghi
+"kiểm định R6: KHÔNG ĐẠT".

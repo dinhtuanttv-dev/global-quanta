@@ -61,6 +61,7 @@ import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/z
 import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspace/indicatorSettings";
+import ChartSignalsValidation from "./ChartSignalsValidation";
 import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
 import type { CorporateActionMark, PriceBasis } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
@@ -1097,6 +1098,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     ),
     indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} params={ind} />,
     backtest: (<>
+      <ChartSignalsValidation />
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
         <p className="text-[9px] text-slate-500 rounded-xl p-3" style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} data-testid="backtest-intraday-note">

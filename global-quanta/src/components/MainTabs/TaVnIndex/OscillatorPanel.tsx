@@ -3,6 +3,7 @@ import type { RsiResult, MacdResult, AdxResult } from "../../../lib/ta-command-c
 
 import ProvenanceBadge from "./ProvenanceBadge";
 import { DEFAULT_INDICATORS, type IndicatorSettings } from "./workspace/indicatorSettings";
+import { anyChartSignalPassed } from "./ChartSignalsValidation";
 
 // Chỉ báo tính bằng công thức chuẩn Wilder/EMA từ giá đóng cửa -> DERIVED (không phải dữ liệu sàn thô).
 const HARD_DATA_BADGE = <ProvenanceBadge kind="DERIVED" />;
@@ -84,7 +85,7 @@ export default function OscillatorPanel({ rsi, macd, adx, context, params = DEFA
       </div>
       {context && (
         <p className="md:col-span-3 text-[9px] text-slate-500" data-testid="osc-context">
-          Tính trên {context.bars} nến khung {context.timeframe}{context.basis ? ` · ${context.basis}` : ""} · công thức {P.rsi.method === "cutler" ? "Cutler (RSI)" : "Wilder (RSI)"}, Wilder (ADX), EMA (MACD). Ngưỡng là quy ước mô tả — chưa kiểm định lợi thế ngoài mẫu.
+          Tính trên {context.bars} nến khung {context.timeframe}{context.basis ? ` · ${context.basis}` : ""} · công thức {P.rsi.method === "cutler" ? "Cutler (RSI)" : "Wilder (RSI)"}, Wilder (ADX), EMA (MACD). Ngưỡng là quy ước mô tả — kiểm định R6 (VN100, ngoài mẫu 2025–2026): tín hiệu RSI / MACD / ADX {anyChartSignalPassed ? "xem tab Backtest" : "KHÔNG ĐẠT"} — chỉ mô tả, không phải lợi thế.
         </p>
       )}
     </div>

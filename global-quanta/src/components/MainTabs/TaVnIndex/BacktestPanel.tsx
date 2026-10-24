@@ -37,8 +37,8 @@ export default function BacktestPanel({ data }: { data: ChochBacktest }) {
     <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3 mt-2" data-testid="backtest-panel">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
         Event study · CHoCH (Structural Shift) trên chính mã đang xem
-        <span className="ml-auto font-mono text-[8.5px] text-amber-400" title="Chưa qua khung kiểm định P6 (Purged CV · Deflated Sharpe · PBO · FDR)">
-          EXPERIMENTAL · engine {data.engineVersion}
+        <span className="ml-auto font-mono text-[8.5px] text-amber-400" title="Một mã, toàn bộ lịch sử (trong mẫu), các cửa sổ nắm giữ có thể chồng nhau — t thường bị thổi phồng. Xem kiểm định VN100 ngoài mẫu ở trên (C5).">
+          1 mã · trong mẫu · KHÔNG phải kiểm định · engine {data.engineVersion}
         </span>
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
