@@ -9,6 +9,8 @@ import path from "node:path";
 const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const BASE = arg("base")!, OUT = arg("out", "e2e-perf")!, PW = fs.readFileSync(arg("pw-file")!, "utf8").trim(), LOCAL = arg("local-auth");
 const EMAIL = arg("email", "e2e@local.test")!;
+/** --proxy-all: đo BẢN BUILD CỤC BỘ trên dữ liệu thật — mọi yêu cầu tới Gateway production đi qua Playwright kèm CORS (origin localhost không được Gateway cho phép). */
+const PROXY_ALL = process.argv.includes("--proxy-all");
 /** SLO (anh duyệt 25/10): desktop kéo/zoom p95 ≤ 16,7 ms (+1 ms sai số đo), mobile CPU 4× p95 ≤ 33,4 ms, đổi mã trung vị ≤ 2 s, bộ nhớ tăng ≤ 40 MB / 20 lần đổi mã. */
 export const SLO = { deskP95: 17.7, mobileP95: 34.4, switchMedianMs: 2000, heapGrowthMb: 40 };
 const GW = /gateway-production-1da0\.up\.railway\.app/;
@@ -19,10 +21,15 @@ fs.mkdirSync(OUT, { recursive: true });
 async function open(vp: { width: number; height: number }, touch: boolean, cpu = 1) {
   const b = await chromium.launch({ args: ["--enable-precise-memory-info", "--js-flags=--expose-gc"] });
   const ctx = await b.newContext({ viewport: vp, hasTouch: touch });
-  if (LOCAL) {
+  if (LOCAL || PROXY_ALL) {
     await ctx.route(GW, async (route) => {
       const req = route.request();
-      if (!USER_API.test(req.url())) return route.continue();
+      if (!USER_API.test(req.url()) || !LOCAL) {
+        if (!PROXY_ALL) return route.continue();
+        const cors = { "access-control-allow-origin": req.headers().origin ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS" };
+        if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+        try { const r = await route.fetch(); return route.fulfill({ response: r, headers: { ...r.headers(), ...cors } }); } catch { return route.abort(); }
+      }
       const cors = { "access-control-allow-origin": req.headers().origin ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS" };
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
       try { const r = await route.fetch({ url: req.url().replace(/^https:\/\/[^/]+/, LOCAL), headers: { ...req.headers(), origin: "http://localhost:5199" } }); return route.fulfill({ response: r, headers: { ...r.headers(), ...cors } }); } catch { return route.abort(); }

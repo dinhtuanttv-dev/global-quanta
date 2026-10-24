@@ -10,7 +10,7 @@ import { useQualityScore } from "./useQualityScore";
 import { useWorldSectorScores } from "./useWorldSectorScores";
 import { fmtZ } from "../lib/worldSectors/types";
 import { buildRadarModel, type RadarModel, type RadarSources } from "../lib/radarModel";
-import { useBuyTimeline } from "./useBuyTimeline";
+import { useGatewayBuyTimeline } from "./useGatewayBuyTimeline";
 import { useDecisionStates } from "./useCotucDecision";
 import { buyCriterion } from "../lib/radarTimeline";
 
@@ -31,7 +31,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   const { snapshot: catalyst } = useCatalystData();
   const { qualityScoreData } = useQualityScore();
   // Tiêu chí 6 "Cổ tức · điểm mua": Timeline điểm mua + DecisionBar (tab Cổ tức) — chỉ xét mã trên Radar.
-  const buyTimeline = useBuyTimeline();
+  const buyTimeline = useGatewayBuyTimeline();
   const decisionStates = useDecisionStates();
   const buy = useMemo(() => {
     if (!buyTimeline.data) return null; // chưa tải / lỗi -> "chưa có dữ liệu", không tính là "không đạt"

@@ -580,3 +580,5 @@ body{
 .radar-buy-pulse{transform-box:fill-box;transform-origin:center;animation:radar-buy-pulse 2.2s ease-in-out infinite;}
 @keyframes radar-buy-pulse{0%,100%{opacity:.95;}50%{opacity:.35;}}
 @media (prefers-reduced-motion: reduce){.radar-pulse,.radar-sweep,.radar-buy-pulse{animation:none;}}
+/* Radar ngoài màn hình / tab ẩn: dừng animation (không bắt trình duyệt vẽ lại mỗi khung hình). */
+.radar-paused .radar-sweep,.radar-paused .radar-pulse,.radar-paused .radar-buy-pulse{animation-play-state:paused;}

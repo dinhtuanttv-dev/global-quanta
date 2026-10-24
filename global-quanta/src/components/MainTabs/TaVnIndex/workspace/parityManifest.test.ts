@@ -4,7 +4,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { PARITY_MANIFEST } from "./parityManifest";
+import { PARITY_MANIFEST, REVEAL } from "./parityManifest";
 import { DEFAULT_LAYER_STATE } from "../../../../lib/ta-command-center/LayerManager";
 
 const root = path.resolve(process.cwd(), "src/components/MainTabs/TaVnIndex");
@@ -53,5 +53,13 @@ describe("SC0 — bản kê bảo toàn tính năng", () => {
     for (const k of layers) expect(checked.has(k), `lớp ${k}`).toBe(true);
     for (const x of PARITY_MANIFEST) if (x.check.kind === "draw") expect(src).toContain(`id: "${x.check.tool}"`);
     for (const k of layers) expect(src.includes("data-layer={key}")).toBe(true);
+  });
+
+  it("công cụ Fibonacci trong nhóm: REVEAL khớp đúng dạng selector E2E dùng ([data-tool=\"…\"])", () => {
+    for (const tool of ["fibonacci", "fibTimeZone"]) {
+      const sel = `[data-tool="${tool}"]`;
+      const rule = REVEAL.find((r) => r.match.test(sel));
+      expect(rule?.by.off?.[0]?.[0], sel).toBe("[data-testid=fib-group-btn]");
+    }
   });
 });

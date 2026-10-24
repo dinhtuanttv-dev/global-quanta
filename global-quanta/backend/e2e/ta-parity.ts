@@ -13,6 +13,8 @@ import { PARITY_MANIFEST, REVEAL, type LayoutMode, type ParityItem } from "../..
 const arg = (k: string, d?: string) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
 const BASE = arg("base")!, OUT = arg("out", "e2e-out")!, PW = fs.readFileSync(arg("pw-file")!, "utf8").trim();
 const EMAIL = arg("email", "e2e@local.test")!, LOCAL = arg("local-auth"), TICKER = arg("ticker", "FPT")!;
+/** --proxy-all: kiểm BẢN BUILD CỤC BỘ trên dữ liệu thật — yêu cầu tới Gateway production đi qua Playwright kèm CORS. */
+const PROXY_ALL = process.argv.includes("--proxy-all");
 const SKIP = new Set((arg("skip", "") ?? "").split(",").filter(Boolean));
 // A6: thêm 1280, 360×800, mobile ngang, zoom 200% (1440×900 ở 200% = 720×450 CSS px) — bật bằng --viewports.
 const VIEWPORTS = {
@@ -318,10 +320,15 @@ async function metrics(p: Page) {
 
 async function runViewport(b: Browser, tag: keyof typeof VIEWPORTS) {
   const ctx = await b.newContext({ viewport: VIEWPORTS[tag], deviceScaleFactor: 1, hasTouch: TOUCH.has(tag), acceptDownloads: true });
-  if (LOCAL) {
+  if (LOCAL || PROXY_ALL) {
     await ctx.route(GW, async (route) => {
       const req = route.request();
-      if (!USER_API.test(req.url())) return route.continue();
+      if (!USER_API.test(req.url()) || !LOCAL) {
+        if (!PROXY_ALL) return route.continue();
+        const cors = { "access-control-allow-origin": req.headers().origin ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS" };
+        if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+        try { const r = await route.fetch(); return route.fulfill({ response: r, headers: { ...r.headers(), ...cors } }); } catch { return route.abort(); }
+      }
       const cors = { "access-control-allow-origin": req.headers().origin ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,DELETE,OPTIONS" };
       if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
       try { const r = await route.fetch({ url: req.url().replace(/^https:\/\/[^/]+/, LOCAL), headers: { ...req.headers(), origin: "http://localhost:5199" } }); return route.fulfill({ response: r, headers: { ...r.headers(), ...cors } }); } catch { return route.abort(); }

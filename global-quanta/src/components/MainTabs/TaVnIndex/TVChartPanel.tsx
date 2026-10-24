@@ -1051,7 +1051,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {dataContext && (
           <Popover testid="data-context-btn" panelTestid="data-context" width={340} title="Nguồn dữ liệu"
             label={<span className="inline-flex items-center gap-1"><ProvenanceBadge kind={dataContext.priceBasis === "INDEX_POINTS" ? "HARD" : "DERIVED"} className="" />
-              <span className={`truncate max-w-[110px] ${dataContext.priceBasis === "ADJUSTED_CUMULATIVE" || dataContext.priceBasis === "INDEX_POINTS" ? "" : "text-amber-300"}`}>{dataContext.priceBasis === "ADJUSTED_CUMULATIVE" ? "Giá điều chỉnh" : dataContext.priceBasis === "INDEX_POINTS" ? "Điểm chỉ số" : dataContext.label}</span>
+              <span className={`ws-btn-text-opt truncate max-w-[110px] ${dataContext.priceBasis === "ADJUSTED_CUMULATIVE" || dataContext.priceBasis === "INDEX_POINTS" ? "" : "text-amber-300"}`}>{dataContext.priceBasis === "ADJUSTED_CUMULATIVE" ? "Giá điều chỉnh" : dataContext.priceBasis === "INDEX_POINTS" ? "Điểm chỉ số" : dataContext.label}</span>
               {dataContext.warnings.length > 0 && <span className="text-amber-300">⚠{dataContext.warnings.length}</span>}
               <span className={`ws-fresh ws-fresh-${freshness.state}`} data-testid="data-freshness" data-state={freshness.state} title={freshness.detail}>●<span className="ws-btn-text-opt"> {freshness.label}</span></span></span>}>
             <div className="text-[10.5px] text-slate-300 space-y-1">

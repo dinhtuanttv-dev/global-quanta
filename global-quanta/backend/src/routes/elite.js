@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -32,6 +32,21 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
       res.status(500).json({ error: String(e?.message ?? e).slice(0, 300) });
     }
   };
+
+  // B1: GET /api/elite/buy-timing[?tickers=A,B]  Timeline điểm mua (Project A) qua bộ đệm Gateway, tính lại theo hôm nay.
+  //     GET /api/elite/buy-timing/status          trạng thái bộ đệm (lần lấy, lỗi, lùi thử lại).
+  router.get("/buy-timing", wrap(async (req, res) => {
+    if (!getBuyTiming) return res.status(404).json({ error: "Chưa bật Timeline điểm mua qua Gateway." });
+    const raw = typeof req.query.tickers === "string" ? req.query.tickers : "";
+    const tickers = raw ? raw.split(",").map((t) => t.trim().toUpperCase()).filter((t) => /^[A-Z0-9]{3,10}$/.test(t)).slice(0, 60) : null;
+    const doc = await getBuyTiming().get({ tickers });
+    res.set("Cache-Control", "public, max-age=120");
+    res.json(doc);
+  }));
+  router.get("/buy-timing/status", (req, res) => {
+    res.set("Cache-Control", "no-store");
+    res.json(getBuyTiming ? getBuyTiming().status() : { enabled: false });
+  });
 
   router.get("/signals", (req, res) => {
     res.set("Cache-Control", "public, max-age=3600");
