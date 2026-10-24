@@ -1,0 +1,469 @@
+{
+ "prereg": "chartSignals/R6-prereg-2026-10-24 (a914ae3)",
+ "generatedAt": "2026-10-24",
+ "universe": 97,
+ "data": {
+  "from": "2021-10-01",
+  "to": "2026-10-21"
+ },
+ "tfConsistency": {
+  "RSI": {
+   "D": -0.09,
+   "W": 0.11,
+   "sameSign": false
+  },
+  "MACD": {
+   "D": -1.03,
+   "W": -0.09,
+   "sameSign": true
+  },
+  "ADX": {
+   "D": -0.77,
+   "W": -3.5,
+   "sameSign": true
+  }
+ },
+ "results": {
+  "C1": {
+   "label": "RSI 14 cắt lên 30",
+   "side": 1,
+   "h": 10,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; ổn định theo mã 0.48",
+   "q": 1,
+   "placeboP": 0,
+   "stability": {
+    "tickers": 92,
+    "share": 0.48
+   },
+   "IS": {
+    "n": 384,
+    "mean": -1.3
+   },
+   "OOS": {
+    "n": 392,
+    "mean": -0.09,
+    "ci": [
+     -0.73,
+     0.61
+    ],
+    "hit": 45.66
+   },
+   "byYear": {
+    "2022": {
+     "n": 84,
+     "mean": -1.08
+    },
+    "2023": {
+     "n": 122,
+     "mean": -1.41
+    },
+    "2024": {
+     "n": 178,
+     "mean": -1.32
+    },
+    "2025": {
+     "n": 204,
+     "mean": -0.22
+    },
+    "2026": {
+     "n": 188,
+     "mean": 0.06
+    }
+   }
+  },
+  "C2": {
+   "label": "RSI 14 cắt xuống 70 (cảnh báo)",
+   "side": -1,
+   "h": 10,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1",
+   "q": 1,
+   "placeboP": 0,
+   "stability": {
+    "tickers": 97,
+    "share": 0.51
+   },
+   "IS": {
+    "n": 495,
+    "mean": 0.14
+   },
+   "OOS": {
+    "n": 362,
+    "mean": 0.59,
+    "ci": [
+     -0.29,
+     1.61
+    ],
+    "hit": 49.72
+   },
+   "byYear": {
+    "2022": {
+     "n": 20,
+     "mean": -4.29
+    },
+    "2023": {
+     "n": 254,
+     "mean": 0.3
+    },
+    "2024": {
+     "n": 221,
+     "mean": 0.35
+    },
+    "2025": {
+     "n": 263,
+     "mean": 0.43
+    },
+    "2026": {
+     "n": 99,
+     "mean": 1.02
+    }
+   }
+  },
+  "C3": {
+   "label": "MACD 12/26/9 cắt lên Signal",
+   "side": 1,
+   "h": 20,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; placebo p = 1; ổn định theo mã 0.32",
+   "q": 1,
+   "placeboP": 1,
+   "stability": {
+    "tickers": 95,
+    "share": 0.32
+   },
+   "IS": {
+    "n": 1422,
+    "mean": -0.94
+   },
+   "OOS": {
+    "n": 1063,
+    "mean": -1.03,
+    "ci": [
+     -1.63,
+     -0.41
+    ],
+    "hit": 39.98
+   },
+   "byYear": {
+    "2022": {
+     "n": 144,
+     "mean": -0.64
+    },
+    "2023": {
+     "n": 635,
+     "mean": -0.89
+    },
+    "2024": {
+     "n": 643,
+     "mean": -1.05
+    },
+    "2025": {
+     "n": 615,
+     "mean": -1.15
+    },
+    "2026": {
+     "n": 448,
+     "mean": -0.85
+    }
+   }
+  },
+  "C4": {
+   "label": "ADX ≥ 25 + DI+ cắt lên DI−",
+   "side": 1,
+   "h": 20,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; placebo p = 1; ổn định theo mã 0.42",
+   "q": 1,
+   "placeboP": 1,
+   "stability": {
+    "tickers": 81,
+    "share": 0.42
+   },
+   "IS": {
+    "n": 336,
+    "mean": -1.03
+   },
+   "OOS": {
+    "n": 275,
+    "mean": -0.77,
+    "ci": [
+     -2.03,
+     0.51
+    ],
+    "hit": 40.73
+   },
+   "byYear": {
+    "2022": {
+     "n": 76,
+     "mean": -2.1
+    },
+    "2023": {
+     "n": 142,
+     "mean": -0.57
+    },
+    "2024": {
+     "n": 118,
+     "mean": -0.89
+    },
+    "2025": {
+     "n": 156,
+     "mean": -0.24
+    },
+    "2026": {
+     "n": 119,
+     "mean": -1.47
+    }
+   }
+  },
+  "C5": {
+   "label": "CHoCH tăng (quant-core)",
+   "side": 1,
+   "h": 10,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; placebo p = 1; ổn định theo mã 0.32",
+   "q": 1,
+   "placeboP": 1,
+   "stability": {
+    "tickers": 95,
+    "share": 0.32
+   },
+   "IS": {
+    "n": 546,
+    "mean": -1
+   },
+   "OOS": {
+    "n": 451,
+    "mean": -0.95,
+    "ci": [
+     -1.66,
+     -0.21
+    ],
+    "hit": 37.92
+   },
+   "byYear": {
+    "2022": {
+     "n": 62,
+     "mean": -0.97
+    },
+    "2023": {
+     "n": 236,
+     "mean": -0.53
+    },
+    "2024": {
+     "n": 248,
+     "mean": -1.47
+    },
+    "2025": {
+     "n": 271,
+     "mean": -1.1
+    },
+    "2026": {
+     "n": 180,
+     "mean": -0.72
+    }
+   }
+  },
+  "C6": {
+   "label": "CVD divergence tăng (BVC)",
+   "side": 1,
+   "h": 10,
+   "tf": "D",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; placebo p = 0.37; ổn định theo mã 0.39",
+   "q": 1,
+   "placeboP": 0.37,
+   "stability": {
+    "tickers": 69,
+    "share": 0.39
+   },
+   "IS": {
+    "n": 230,
+    "mean": -0.93
+   },
+   "OOS": {
+    "n": 251,
+    "mean": -0.47,
+    "ci": [
+     -1.35,
+     0.36
+    ],
+    "hit": 37.45
+   },
+   "byYear": {
+    "2022": {
+     "n": 21,
+     "mean": -2.68
+    },
+    "2023": {
+     "n": 86,
+     "mean": -0.88
+    },
+    "2024": {
+     "n": 123,
+     "mean": -0.67
+    },
+    "2025": {
+     "n": 128,
+     "mean": -0.35
+    },
+    "2026": {
+     "n": 123,
+     "mean": -0.59
+    }
+   }
+  },
+  "W1": {
+   "label": "Tuần: RSI 14 cắt lên 30",
+   "side": 1,
+   "h": 20,
+   "tf": "W",
+   "verdict": "FAIL",
+   "reason": "KTC OOS chứa 0; q = 1 > 0.1; placebo p = 0.67; ổn định theo mã 0.44",
+   "q": 1,
+   "placeboP": 0.67,
+   "stability": {
+    "tickers": 18,
+    "share": 0.44
+   },
+   "IS": {
+    "n": 102,
+    "mean": 1.35
+   },
+   "OOS": {
+    "n": 88,
+    "mean": 0.11,
+    "ci": [
+     -1.31,
+     1.71
+    ],
+    "hit": 45.45
+   },
+   "byYear": {
+    "2022": {
+     "n": 61,
+     "mean": 1.97
+    },
+    "2023": {
+     "n": 13,
+     "mean": -1.6
+    },
+    "2024": {
+     "n": 28,
+     "mean": 1.36
+    },
+    "2025": {
+     "n": 46,
+     "mean": 0.91
+    },
+    "2026": {
+     "n": 42,
+     "mean": -0.77
+    }
+   }
+  },
+  "W3": {
+   "label": "Tuần: MACD cắt lên Signal",
+   "side": 1,
+   "h": 20,
+   "tf": "W",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; TB IS sai chiều; q = 1 > 0.1; placebo p = 1; ổn định theo mã 0.48",
+   "q": 1,
+   "placeboP": 1,
+   "stability": {
+    "tickers": 89,
+    "share": 0.48
+   },
+   "IS": {
+    "n": 371,
+    "mean": -0.76
+   },
+   "OOS": {
+    "n": 301,
+    "mean": -0.09,
+    "ci": [
+     -1.04,
+     0.84
+    ],
+    "hit": 44.52
+   },
+   "byYear": {
+    "2022": {
+     "n": 56,
+     "mean": -1.86
+    },
+    "2023": {
+     "n": 117,
+     "mean": -0.42
+    },
+    "2024": {
+     "n": 198,
+     "mean": -0.65
+    },
+    "2025": {
+     "n": 170,
+     "mean": -0.61
+    },
+    "2026": {
+     "n": 131,
+     "mean": 0.59
+    }
+   }
+  },
+  "W4": {
+   "label": "Tuần: ADX ≥ 25 + DI+ cắt lên DI−",
+   "side": 1,
+   "h": 20,
+   "tf": "W",
+   "verdict": "FAIL",
+   "reason": "TB OOS sai chiều; KTC OOS chứa 0; q = 1 > 0.1; placebo p = 1",
+   "q": 1,
+   "placeboP": 1,
+   "stability": {
+    "tickers": 6,
+    "share": 0.67
+   },
+   "IS": {
+    "n": 52,
+    "mean": 1.09
+   },
+   "OOS": {
+    "n": 40,
+    "mean": -3.5,
+    "ci": [
+     -6.74,
+     -0.47
+    ],
+    "hit": 30
+   },
+   "byYear": {
+    "2022": {
+     "n": 5,
+     "mean": -2.14
+    },
+    "2023": {
+     "n": 36,
+     "mean": 2.38
+    },
+    "2024": {
+     "n": 11,
+     "mean": -1.66
+    },
+    "2025": {
+     "n": 34,
+     "mean": -4.46
+    },
+    "2026": {
+     "n": 6,
+     "mean": 1.94
+    }
+   }
+  }
+ }
+}

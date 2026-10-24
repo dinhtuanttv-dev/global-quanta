@@ -14,6 +14,33 @@ const ENUMS = {
   elliottProMode: new Set(["compact", "chart", "deep"]),
 };
 
+// R5: tham số chỉ báo — miền giống hệt frontend (workspace/indicatorSettings.ts). Ngày neo AVWAP lưu theo mã (≤ 30 mã).
+const IND_LIMITS = {
+  rsi: { period: [2, 100, 14], upper: [51, 95, 70], lower: [5, 49, 30] },
+  macd: { fast: [2, 50, 12], slow: [3, 200, 26], signal: [2, 50, 9] },
+  adx: { period: [2, 100, 14], threshold: [10, 60, 25] },
+  vprofile: { bars: [20, 500, 60] },
+};
+const IND_ENUMS = { rsi: { method: ["wilder", "cutler"] }, vprofile: { method: ["triangular", "uniform"] } };
+const DATE_RE = /^\d{4}-\d{2}-\d{2}(T[0-9:.+Z-]{4,20})?$/;
+const TICKER_RE = /^[A-Z0-9]{2,12}$/;
+
+export function sanitizeIndicators(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out = {};
+  for (const [sec, fields] of Object.entries(IND_LIMITS)) {
+    const src = raw[sec] && typeof raw[sec] === "object" ? raw[sec] : {};
+    out[sec] = {};
+    for (const [f, [lo, hi, d]] of Object.entries(fields)) out[sec][f] = Number.isFinite(Number(src[f])) ? Math.min(hi, Math.max(lo, Math.round(Number(src[f])))) : d;
+    for (const [f, allowed] of Object.entries(IND_ENUMS[sec] ?? {})) out[sec][f] = allowed.includes(src[f]) ? src[f] : allowed[0];
+  }
+  if (out.macd.fast >= out.macd.slow) { out.macd.fast = 12; out.macd.slow = 26; }
+  const anchors = raw.avwap?.anchors && typeof raw.avwap.anchors === "object" ? Object.entries(raw.avwap.anchors) : [];
+  out.avwap = { anchors: {} };
+  for (const [t, d] of anchors.slice(-30)) if (TICKER_RE.test(t) && typeof d === "string" && DATE_RE.test(d)) out.avwap.anchors[t] = d;
+  return out;
+}
+
 function badRequest(message) {
   const error = new Error(message);
   error.statusCode = 400;
@@ -40,6 +67,8 @@ export function sanitizeWorkspace(raw) {
     out.paneStretch = {};
     for (const [k, v] of Object.entries(raw.paneStretch).slice(0, 8)) { const x = num(v, 0.02, 1); if (KEY_RE.test(k) && x !== undefined) out.paneStretch[k] = Math.round(x * 1000) / 1000; }
   }
+  const ind = sanitizeIndicators(raw.indicators);
+  if (ind) out.indicators = ind;
   if (Buffer.byteLength(JSON.stringify(out)) > MAX_BYTES) throw badRequest("Bố cục quá lớn (tối đa 8KB).");
   return out;
 }

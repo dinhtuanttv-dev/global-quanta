@@ -26,13 +26,31 @@ function calculateEMA(values: number[], period: number): (number | null)[] {
   return result;
 }
 
-export function calculateRSI(bars: OhlcvBar[], period = 14): RsiResult {
+/**
+ * RSI. `wilder` (mặc định, chuẩn): trung bình trượt Wilder; `cutler`: trung bình cộng giản đơn `period` phiên gần nhất
+ * (không phụ thuộc điểm bắt đầu chuỗi — R5, người dùng chọn).
+ */
+export function calculateRSI(bars: OhlcvBar[], period = 14, method: "wilder" | "cutler" = "wilder"): RsiResult {
   const closes = bars.map((b) => b.close);
   const series: (number | null)[] = new Array(closes.length).fill(null);
   const needBars = period + 1;
   if (closes.length < needBars) return { series, latest: null, flat: false, needBars };
   // Không lãi cũng không lỗ (chuỗi phẳng): RSI không xác định -> quy ước 50 (trung tính), KHÔNG phải 100 (quá mua).
   const rsiOf = (g: number, l: number) => (g === 0 && l === 0 ? 50 : l === 0 ? 100 : 100 - 100 / (1 + g / l));
+  if (method === "cutler") {
+    let g = 0, l = 0;
+    for (let i = 1; i < closes.length; i++) {
+      const d = closes[i] - closes[i - 1];
+      if (d > 0) g += d; else l -= d;
+      if (i > period) { const o = closes[i - period] - closes[i - period - 1]; if (o > 0) g -= o; else l += o; }
+      // Tổng trượt cộng/trừ dồn có thể lệch dấu phẩy động ~1e-15 -> coi phần dư dưới 1e-9 × giá là 0.
+      const eps = 1e-9 * (Math.abs(closes[i]) || 1);
+      if (g < eps) g = 0;
+      if (l < eps) l = 0;
+      if (i >= period) series[i] = rsiOf(g / period, l / period);
+    }
+    return { series, latest: series[series.length - 1], flat: g === 0 && l === 0, needBars };
+  }
 
   let avgGain = 0, avgLoss = 0;
   for (let i = 1; i <= period; i++) {

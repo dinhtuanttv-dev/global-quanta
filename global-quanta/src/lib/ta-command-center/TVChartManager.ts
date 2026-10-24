@@ -42,6 +42,11 @@ export class TVChartManager {
   private volumeSeries: ISeriesApi<"Histogram"> | null = null;
   private rsiSeries: ISeriesApi<"Line"> | null = null;
   private rsiValues: (number | null)[] = [];
+  /** R5: ngưỡng RSI / ADX do người dùng chỉnh (vạch đứt trong pane). */
+  private rsiLevels: [number, number] = [70, 30];
+  private rsiLines: IPriceLine[] = [];
+  private adxLevel = 25;
+  private adxLine: IPriceLine | null = null;
   private currentDates = new Set<string>();
   /** Chỉ giữ điểm trùng thời gian một nến của chuỗi hiện tại (pane chỉ báo không được thêm mốc lạ vào trục). */
   private onCandles<T extends { date: string }>(data: T[]): T[] { return data.filter((d) => this.currentDates.has(d.date)); }
@@ -191,15 +196,33 @@ export class TVChartManager {
   setRsiVisible(on: boolean): void {
     if (on && !this.rsiSeries) {
       this.rsiSeries = this.chart.addSeries(LineSeries, { color: GQ_COLORS.uv, lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, this.chart.panes().length);
-      for (const [price, color] of [[70, GQ_COLORS.bear], [30, GQ_COLORS.bull]] as const) {
-        this.rsiSeries.createPriceLine({ price, color: rgba(color, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
-      }
+      this.drawRsiLevels();
       this.fillRsi();
     } else if (!on && this.rsiSeries) {
       this.chart.removeSeries(this.rsiSeries);
       this.rsiSeries = null;
+      this.rsiLines = [];
     }
     this.layoutPanes();
+  }
+
+  setRsiLevels(upper: number, lower: number): void {
+    if (this.rsiLevels[0] === upper && this.rsiLevels[1] === lower) return;
+    this.rsiLevels = [upper, lower];
+    this.drawRsiLevels();
+  }
+  private drawRsiLevels(): void {
+    if (!this.rsiSeries) return;
+    for (const l of this.rsiLines) this.rsiSeries.removePriceLine(l);
+    const [up, lo] = this.rsiLevels;
+    this.rsiLines = ([[up, GQ_COLORS.bear], [lo, GQ_COLORS.bull]] as const).map(([price, color]) =>
+      this.rsiSeries!.createPriceLine({ price, color: rgba(color, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" }));
+  }
+  setAdxLevel(level: number): void {
+    this.adxLevel = level;
+    if (!this.adxSeries) return;
+    if (this.adxLine) this.adxSeries.adx.removePriceLine(this.adxLine);
+    this.adxLine = this.adxSeries.adx.createPriceLine({ price: level, color: rgba(GQ_COLORS.amber, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
   }
 
   setRsi(rsi: (number | null)[]): void {
@@ -306,7 +329,7 @@ export class TVChartManager {
   /** R4 — pane ADX (trắng) + +DI (xanh) / −DI (đỏ), vạch 25 = ngưỡng xu hướng (quy ước Wilder). null = gỡ pane. */
   setAdxPane(data: { date: string; adx: number | null; plus: number | null; minus: number | null }[] | null): void {
     if (!data) {
-      if (this.adxSeries) { for (const x of Object.values(this.adxSeries)) this.chart.removeSeries(x); this.adxSeries = null; this.layoutPanes(); }
+      if (this.adxSeries) { for (const x of Object.values(this.adxSeries)) this.chart.removeSeries(x); this.adxSeries = null; this.adxLine = null; this.layoutPanes(); }
       return;
     }
     if (!this.adxSeries) {
@@ -315,8 +338,8 @@ export class TVChartManager {
       const adx = this.chart.addSeries(LineSeries, { ...line, color: "#e2e8f0", lineWidth: 2 }, pane);
       const plus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bull, 0.8) }, pane);
       const minus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bear, 0.8) }, pane);
-      adx.createPriceLine({ price: 25, color: rgba(GQ_COLORS.amber, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
       this.adxSeries = { adx, plus, minus };
+      this.setAdxLevel(this.adxLevel);
       this.layoutPanes();
     }
     data = this.onCandles(data);

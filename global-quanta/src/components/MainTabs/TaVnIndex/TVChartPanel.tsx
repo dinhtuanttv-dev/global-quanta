@@ -60,6 +60,9 @@ import type { SignalLogEntry } from "../../../lib/ta-command-center/AIEngine";
 import { suggestElliottPoints } from "../../../lib/ta-command-center/detectors/zigzagSuggest";
 import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
+import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspace/indicatorSettings";
+import ChartSignalsValidation from "./ChartSignalsValidation";
+import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
 import type { CorporateActionMark, PriceBasis } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
 import { useTaFlow, type ForeignDay } from "../../../hooks/useTaFlow";
@@ -221,9 +224,26 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const structureDoc = replayed ?? structure.data;
   const replayAsOf = replayed && replayIdxDeferred != null ? (timeframe === "W" ? mondayOf(bars[replayIdxDeferred].date) : bars[replayIdxDeferred].date) : undefined;
 
-  const rsiResult = useMemo(() => calculateRSI(currentBars), [currentBars]);
-  const macdResult = useMemo(() => calculateMACD(currentBars), [currentBars]);
-  const adxResult = useMemo(() => calculateADX(currentBars), [currentBars]);
+  // R5: tham số chỉ báo theo tài khoản (mặc định = công thức chuẩn).
+  const ind = ws.indicators;
+  const rsiResult = useMemo(() => calculateRSI(currentBars, ind.rsi.period, ind.rsi.method), [currentBars, ind.rsi.period, ind.rsi.method]);
+  const macdResult = useMemo(() => calculateMACD(currentBars, ind.macd.fast, ind.macd.slow, ind.macd.signal), [currentBars, ind.macd.fast, ind.macd.slow, ind.macd.signal]);
+  const adxResult = useMemo(() => calculateADX(currentBars, ind.adx.period), [currentBars, ind.adx.period]);
+  useEffect(() => { tvApi?.setRsi(rsiResult.series); }, [tvApi, rsiResult]);
+  useEffect(() => { tvApi?.setRsiLevels(ind.rsi.upper, ind.rsi.lower); tvApi?.setAdxLevel(ind.adx.threshold); }, [tvApi, ind.rsi.upper, ind.rsi.lower, ind.adx.threshold]);
+  const setIndicators = (patch: Partial<IndicatorSettings>) => setWs({ indicators: { ...ws.indicators, ...patch } });
+  const anchorFor = ind.avwap.anchors[ticker] ?? null;
+  const setAnchor = (date: string | null) => {
+    const anchors = { ...ind.avwap.anchors };
+    if (date) anchors[ticker] = date; else delete anchors[ticker];
+    setIndicators({ avwap: { anchors } });
+  };
+  const [anchorPick, setAnchorPick] = useState(false);
+  const settingsProps = {
+    value: ind, onChange: (next: IndicatorSettings) => setWs({ indicators: next }), ticker, anchor: anchorFor,
+    // Đóng menu / bảng trượt đang mở để nến không bị che khi bấm chọn ngày neo.
+    onPickAnchor: () => { setSheet(null); closeOpenPopovers(); setAnchorPick(true); }, onClearAnchor: () => setAnchor(null),
+  };
 
   // ---- Khởi tạo / cập nhật bộ điều phối + biểu đồ khi dữ liệu đổi ----
   useEffect(() => {
@@ -461,7 +481,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       ArrowLeft: () => tv.panBars(-step), ArrowRight: () => tv.panBars(step),
       ArrowUp: () => tv.zoom(0.8), ArrowDown: () => tv.zoom(1.25), "+": () => tv.zoom(0.8), "=": () => tv.zoom(0.8), "-": () => tv.zoom(1.25),
       Home: () => tv.goToStart(), End: () => tv.goToEnd(),
-      Escape: () => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); setSelectedId(null); },
+      Escape: () => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); setSelectedId(null); setAnchorPick(false); },
     };
     const act = actions[e.key];
     if (!act) return;
@@ -544,11 +564,19 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const visiblePrims = useMemo(() => primitives.filter((p) => !p.hidden), [primitives]);
   const structureItems = useMemo(() => (structureOn ? structureSceneItems(currentBars, timeframe, structureDoc, structureMode, { asOf: replayAsOf }) : []),
     [structureOn, currentBars, timeframe, structureDoc, structureMode, replayAsOf]); // eslint-disable-line react-hooks/exhaustive-deps
+  // R5: Volume Profile / AVWAP theo tham số người dùng (mặc định -> giữ nguyên kết quả của Worker).
+  const sceneProfile = useMemo(() => {
+    const p = volumeExtras?.profile ?? null;
+    if (!p?.composite || isDefaultSection(ind, "vprofile")) return p;
+    return { ...p, composite: buildVolumeProfile(currentBars.slice(-ind.vprofile.bars), { method: ind.vprofile.method, isIndex: TA_INDICES.some((x) => x.symbol === ticker) }) };
+  }, [volumeExtras, ind, currentBars, ticker]);
+  const sceneAvwap = useMemo(() => manualAvwap(currentBars, anchorFor) ?? volumeExtras?.avwap ?? null, [currentBars, anchorFor, volumeExtras]);
+
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives: visiblePrims, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: volumeExtras?.profile ?? null, avwap: volumeExtras?.avwap ?? null, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, volumeExtras, elliottScene, pringScene, elliottProInput]);
+    profile: sceneProfile, avwap: sceneAvwap, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, elliottScene, pringScene, elliottProInput]);
   // SC3: hình đang chọn — vòng tròn ở các điểm neo (vàng = đã khoá).
   const selectionItems = useMemo((): SceneItem[] => {
     const p = primitives.find((x) => x.id === selectedId);
@@ -646,7 +674,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const barDates = useMemo(() => currentBars.map((b) => b.date), [currentBars]);
   // SC3: bấm vào hình vẽ -> chọn; kéo điểm neo -> sửa, kéo thân -> dời (pha capture: khoá cuộn biểu đồ TRƯỚC khi thư viện nhận).
   const onSelectPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (activeTool || (countEditing && countPlacing != null) || e.button > 0) return;
+    if (anchorPick || activeTool || (countEditing && countPlacing != null) || e.button > 0) return;
     const tv = tvManagerRef.current, ctl = controllerRef.current, el = chartContainerRef.current;
     if (!tv || !ctl || !el) return;
     const rect = el.getBoundingClientRect(), size = tv.pricePaneSize();
@@ -684,6 +712,17 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     return true;
   };
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // R5: đang chọn ngày neo AVWAP -> nến được bấm thành điểm neo (lưu theo mã).
+    if (anchorPick) {
+      const pt = toDomain(e);
+      if (!pt) return;
+      e.preventDefault();
+      setAnchor(pt.date);
+      setAnchorPick(false);
+      if (layerState && !layerState.avwap) controllerRef.current?.layers.toggle("avwap");
+      toasts.push(`Đã neo AVWAP ${ticker} tại ${pt.date.slice(0, 16).replace("T", " ")}.`);
+      return;
+    }
     // DW8: đang đặt điểm của cách đếm chỉnh tay -> bám high/low của nến gần nhất.
     if (countEditing && countPlacing != null) {
       const point = toDomain(e);
@@ -892,7 +931,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const layerPopover = layerState && (
     <Popover testid="layers-menu-btn" panelTestid="layers-menu" label="Lớp & pane" icon={<Layers3 className="w-3.5 h-3.5" />} width={420} align="end"
       active={Object.entries(layerState).some(([k, v]) => v && k !== "aiDetectionMaster")}>
-      <LayerMenu state={layerState} onToggle={toggleLayer} />
+      <LayerMenu state={layerState} onToggle={toggleLayer} settings={settingsProps} />
     </Popover>
   );
   const objectsButton = (
@@ -1058,8 +1097,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
         largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} foreignNote={foreignNote} />
     ),
-    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} />,
+    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} params={ind} />,
     backtest: (<>
+      <ChartSignalsValidation />
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
         <p className="text-[9px] text-slate-500 rounded-xl p-3" style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} data-testid="backtest-intraday-note">
@@ -1116,7 +1156,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {layerState?.foreign && foreignNote && !flow.isLoading && (
@@ -1150,7 +1190,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             )}
           </div>
           {classic && wyckoffResult && <SmartNotePanel ticker={ticker} wyckoff={wyckoffResult} smc={smc} vsa={vsa} rsi={rsiResult} macd={macdResult} adx={adxResult} />}
-          {(activeTool || (countEditing && countPlacing != null) || selected) && (
+          {anchorPick && (
+            <div className="ws-hint" data-testid="anchor-hint" role="status">
+              Bấm vào nến để neo AVWAP cho {ticker}
+              <button type="button" className="underline" onClick={() => setAnchorPick(false)}>Huỷ (Esc)</button>
+            </div>
+          )}
+          {!anchorPick && (activeTool || (countEditing && countPlacing != null) || selected) && (
             <div className="ws-hint" data-testid="drawing-hint" role="status">
               {activeTool ? <>Đang vẽ {TOOLS.find((t) => t.id === activeTool)?.label} — {activeTool === "fibTimeZone" ? "bấm một điểm" : "kéo trên biểu đồ (chạm giữ rồi kéo trên điện thoại)"}</>
                 : countEditing && countPlacing != null ? <>Bấm lên biểu đồ để đặt điểm sóng</>
@@ -1240,7 +1286,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <div className="flex gap-1 mt-2">{editButtons}</div>
       </Modal>
       <Modal open={sheet === "layers"} onClose={() => setSheet(null)} title="Lớp & pane" sheet testid="sheet-layers">
-        {layerState && <LayerMenu state={layerState} onToggle={toggleLayer} dense />}
+        {layerState && <LayerMenu state={layerState} onToggle={toggleLayer} dense settings={settingsProps} />}
         <div className="flex flex-wrap gap-1 mt-2">{confluenceBtn}{structureBtn}</div>
       </Modal>
       <Modal open={sheet === "objects"} onClose={() => setSheet(null)} title="Đối tượng" sheet testid="sheet-objects">{objectList}</Modal>
@@ -1273,6 +1319,18 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
 
 const fmtNum = (v: number, d = 2) => v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, "−");
 const fmtBig = (v: number) => { const a = Math.abs(v); const s = a >= 1e9 ? `${fmtNum(a / 1e9, 2)} tỷ` : a >= 1e6 ? `${fmtNum(a / 1e6, 2)} tr` : a >= 1e3 ? `${fmtNum(a / 1e3, 1)} k` : fmtNum(a, 0); return `${v < 0 ? "−" : v > 0 ? "+" : ""}${s}`; };
+
+/** Đóng mọi Popover API đang mở (menu Lớp, preset…) — trình duyệt chưa hỗ trợ thì bỏ qua. */
+function closeOpenPopovers() {
+  try { document.querySelectorAll<HTMLElement>("[popover]").forEach((el) => { if (el.matches(":popover-open")) el.hidePopover(); }); } catch { /* không hỗ trợ :popover-open */ }
+}
+
+/** R5: AVWAP neo tại ngày người dùng chọn (nến đầu tiên có ngày ≥ ngày neo); ngoài dữ liệu -> null (dùng tự động). */
+export function manualAvwap(bars: OhlcvBar[], anchor: string | null) {
+  if (!anchor) return null;
+  const i = anchorIndexOf(bars, anchor);
+  return i < 0 ? null : { anchorDate: bars[i].date, points: anchoredVwap(bars, i), manual: true };
+}
 
 /** R4: đọc giá trị từng pane tại nến thứ `i` (crosshair) — cùng chuỗi đã vẽ, không tính lại. */
 export function paneValueReader(src: {
