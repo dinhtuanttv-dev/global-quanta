@@ -137,7 +137,7 @@ describe("bảng lệnh + store bố cục", () => {
     expect(workspaceStore.getSnapshot().dockHeight).toBe(1200);
     workspaceStore.update({ dockTab: "elliott" });
     expect(seen).toHaveLength(1); // không đổi -> không phát
-    if (typeof localStorage !== "undefined") expect(JSON.parse(localStorage.getItem("gq.ta.workspace.v1")!).ws.dockTab).toBe("elliott");
+    if (typeof localStorage !== "undefined") expect(JSON.parse(localStorage.getItem("gq.ta.workspace.v1@guest")!).ws.dockTab).toBe("elliott");
     off();
   });
 });

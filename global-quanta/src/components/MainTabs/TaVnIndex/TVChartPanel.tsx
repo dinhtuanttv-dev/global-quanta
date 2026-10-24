@@ -29,7 +29,7 @@ import { TVChartManager, type ChartMarkerInput } from "../../../lib/ta-command-c
 import { AnalysisController, EMPTY_SMC, type ChochBacktest, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
 import { buildScene } from "../../../lib/ta-command-center/chart/buildScene";
 import { GQ_COLORS } from "../../../lib/ta-command-center/chart/scene";
-import { loadCloud, loadLocal, pickNewer, saveCloud, saveLocal } from "../../../lib/ta-command-center/chartDrawingsStore";
+import { loadCloud, loadLocal, resolveOnLoad, saveLocal, syncDrawings } from "../../../lib/ta-command-center/chartDrawingsStore";
 import AISignalLogPanel from "./AISignalLogPanel";
 import TimeframeSelector from "./TimeframeSelector";
 import OscillatorPanel from "./OscillatorPanel";
@@ -179,6 +179,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // ---- Super Chart: bố cục (theo tài khoản), lựa chọn hình vẽ, bảng lệnh, toàn màn hình ----
   const [ws, setWs] = useWorkspace();
   const cloudState = useCloudState();
+  // A2: bố cục vừa đổi ở thiết bị khác (409) -> báo một lần.
+  useEffect(() => { if (workspaceStore.notice) { toasts.push(workspaceStore.notice); workspaceStore.notice = null; } }, [cloudState]); // eslint-disable-line react-hooks/exhaustive-deps
   const [wsRef, wsWidth] = useWidth<HTMLElement>();
   const toasts = useToasts();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -345,14 +347,17 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     loadedSymbolRef.current = ticker;
     void loadCloud(ticker).then((cloud) => {
       if (cancelled || !cloud) return;
-      const best = pickNewer(local, cloud);
-      if (best !== local) {
-        persistedRef.current = JSON.stringify(best.primitives);
+      // A2: máy chưa có thay đổi chưa đồng bộ -> dùng bản đám mây; có -> gộp theo id rồi đẩy lên (không so giờ máy khách).
+      const best = resolveOnLoad(local, cloud);
+      saveLocal(ticker, best);
+      persistedRef.current = JSON.stringify(best.primitives);
+      if (JSON.stringify(best.primitives) !== JSON.stringify(local.primitives)) {
         controller.drawing.replaceAll(best.primitives);
         enableLayersFor(controller, best.primitives);
-        saveLocal(ticker, best.primitives, best.updatedAt ?? undefined);
-        setSaveState("cloud");
       }
+      if (!best.dirty) { setSaveState("cloud"); return; }
+      setSaveState("local");
+      void syncDrawings(ticker, best.primitives).then((r) => { if (!cancelled) setSaveState(r.state); });
     });
     return () => { cancelled = true; };
   }, [ticker, bars.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -364,9 +369,16 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const symbol = ticker;
     const timer = setTimeout(() => {
       persistedRef.current = json;
-      saveLocal(symbol, primitives);
       setSaveState("local");
-      void saveCloud(symbol, primitives).then((at) => { if (at) setSaveState("cloud"); });
+      void syncDrawings(symbol, primitives).then((r) => {
+        setSaveState(r.state);
+        // A2: thiết bị khác vừa lưu hình cho mã này -> đã GỘP (giữ cả hai); cập nhật hình trên chart nếu vẫn đang xem mã đó.
+        if (r.merged && loadedSymbolRef.current === symbol) {
+          persistedRef.current = JSON.stringify(r.primitives);
+          controllerRef.current?.drawing.replaceAll(r.primitives);
+          toasts.push(`Hình vẽ ${symbol} vừa được lưu ở thiết bị khác — đã gộp, giữ hình của cả hai.`);
+        }
+      });
     }, SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [primitives]); // eslint-disable-line react-hooks/exhaustive-deps

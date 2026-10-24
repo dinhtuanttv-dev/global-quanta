@@ -4,12 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, History, MousePointerClick, Plus, Redo2, RotateCcw, Save, Trash2, Undo2, X } from "lucide-react";
 import { blockingIssue, COUNT_LABELS, STATUS_LABEL, type UserCountDisplayStatus, type UserCountPoint, type UserCountsDoc, type UserCountVersion } from "../../../lib/quant-core/elliott/userCount";
 import { PATTERN_NAME, type PatternTag } from "../../../lib/quant-core/elliott/patterns";
-import { loadCloudCounts, loadLocalCounts, newerCounts, saveCloudCounts, saveLocalCounts } from "../../../lib/ta-command-center/elliottCountsStore";
+import { loadCloudCounts, loadLocalCounts, resolveCountsOnLoad, saveLocalCounts, syncCounts } from "../../../lib/ta-command-center/elliottCountsStore";
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
 const fmtP = (v: number) => Math.round(v).toLocaleString("vi-VN");
 
-/** Đồng bộ tài liệu cách đếm của (mã, khung): localStorage ngay, rồi Gateway (bản mới hơn thắng). */
+/** Đồng bộ tài liệu cách đếm của (mã, khung): localStorage theo tài khoản ngay, rồi Gateway có phiên bản (A2 — gộp khi xung đột). */
 export function useElliottUserCounts(symbol: string, tf: string) {
   const [doc, setDoc] = useState<UserCountsDoc>(() => loadLocalCounts(symbol, tf));
   const [syncing, setSyncing] = useState(false);
@@ -17,26 +17,29 @@ export function useElliottUserCounts(symbol: string, tf: string) {
   const [rejected, setRejected] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
-    setDoc(loadLocalCounts(symbol, tf));
+    const local = loadLocalCounts(symbol, tf);
+    setDoc(local);
     loadCloudCounts(symbol, tf).then((c) => {
       if (!alive) return;
       setCloudOk(c != null);
-      setDoc((cur) => { const n = newerCounts(cur, c); saveLocalCounts(symbol, tf, n); return n; });
+      const best = resolveCountsOnLoad(local, c);
+      saveLocalCounts(symbol, tf, best);
+      setDoc(best);
+      if (best.dirty && c) void syncCounts(symbol, tf, best).then((r) => { if (alive) { setDoc(r.doc); setCloudOk(r.cloud); } });
     });
     return () => { alive = false; };
   }, [symbol, tf]);
   const save = useCallback(async (next: UserCountsDoc) => {
-    const stamped = { ...next, updatedAt: new Date().toISOString() };
-    setDoc(stamped); saveLocalCounts(symbol, tf, stamped);
+    setDoc(next);
     setSyncing(true);
-    const r = await saveCloudCounts(symbol, tf, stamped);
-    setSyncing(false); setCloudOk(r != null);
-    if (r) {
-      // Máy chủ bỏ phiên bản không hợp lệ -> báo, không im lặng.
-      const lost = stamped.versions.filter((v) => !r.versions.some((x) => x.id === v.id)).length;
-      setRejected(lost ? `Máy chủ từ chối ${lost} phiên bản (dữ liệu không hợp lệ).` : null);
-      setDoc(r); saveLocalCounts(symbol, tf, r);
+    const r = await syncCounts(symbol, tf, next);
+    setSyncing(false); setCloudOk(r.cloud);
+    if (r.cloud) {
+      // Máy chủ bỏ phiên bản không hợp lệ -> báo, không im lặng. Gộp với thiết bị khác -> báo.
+      const lost = next.versions.filter((v) => !r.doc.versions.some((x) => x.id === v.id)).length;
+      setRejected(lost ? `Máy chủ từ chối ${lost} phiên bản (dữ liệu không hợp lệ).` : r.merged ? "Đã gộp với phiên bản vừa lưu ở thiết bị khác." : null);
     }
+    setDoc(r.doc);
   }, [symbol, tf]);
   const active = doc.versions.find((v) => v.id === doc.activeId) ?? null;
   return { doc, active, save, syncing, cloudOk, rejected };

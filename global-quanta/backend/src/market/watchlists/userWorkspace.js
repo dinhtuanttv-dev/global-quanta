@@ -1,6 +1,8 @@
 // Super Chart SC1 — BỐ CỤC tab TA VN-Index theo TÀI KHOẢN (anh duyệt 24/10/2026, lựa chọn 3): preset, lớp đang bật, bảng chi tiết,
 // dock, tỷ lệ pane… Tách hẳn khỏi hình vẽ (market_user_chart_state, theo mã) — chỉ là sở thích hiển thị, không chứa dữ liệu phân tích.
 // Bảng chỉ ở kho cục bộ Railway (localFirstStore.isLocalOnlyTable). Không tin dữ liệu vào: chỉ nhận khoá / kiểu đã biết, ≤ 8KB.
+import { assertBaseRevision, nextRevision } from "./revision.js";
+
 export const WORKSPACE_TABLE = "market_user_workspace";
 export const WORKSPACE_SCHEMA = 1;
 const MAX_BYTES = 8 * 1024;
@@ -81,7 +83,9 @@ export async function getUserWorkspace(store, userId) {
 
 export async function saveUserWorkspace(store, userId, body, now = new Date()) {
   const doc = sanitizeWorkspace(body?.workspace ?? body);
-  const updatedAt = now.toISOString();
+  const current = await getUserWorkspace(store, userId);
+  assertBaseRevision(body, current);
+  const updatedAt = nextRevision(now, current.updatedAt);
   await store.upsertRows(WORKSPACE_TABLE, [{ user_id: userId, doc, updated_at: updatedAt }], "user_id");
   return { workspace: doc, updatedAt };
 }

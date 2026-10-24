@@ -45,6 +45,7 @@ function sendError(res, error) {
   const status = Number.isInteger(error?.statusCode) ? error.statusCode : 502;
   const body = { error: error?.message || "Market data request failed." };
   if (Array.isArray(error?.attempts)) body.attempts = error.attempts;
+  if (error?.statusCode === 409 && error.current) body.current = error.current; // A2: bản đang lưu để máy khách gộp
   res.status(status).json(body);
 }
 

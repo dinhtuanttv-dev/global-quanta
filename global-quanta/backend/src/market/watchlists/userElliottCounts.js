@@ -3,6 +3,7 @@
 // Một dòng / (user_id, symbol, timeframe): { schemaVersion, activeId, versions[≤20] }. Không đụng tới hình vẽ tay (chart-state).
 // Không tin dữ liệu đầu vào: chuẩn hoá nhãn, ngày, giá, trạng thái; giới hạn 20 phiên bản, 26 điểm / phiên bản, 64 KB / dòng.
 
+import { assertBaseRevision, nextRevision } from "./revision.js";
 export const ELLIOTT_COUNTS_TABLE = "market_user_elliott_counts";
 export const ELLIOTT_COUNTS_SCHEMA = 1;
 export const MAX_VERSIONS = 20;
@@ -79,7 +80,9 @@ export async function getUserElliottCounts(store, userId, key) {
 
 export async function saveUserElliottCounts(store, userId, key, body, now = new Date()) {
   const doc = sanitizeCountsDoc(body);
-  const updatedAt = now.toISOString();
+  const current = await getUserElliottCounts(store, userId, key);
+  assertBaseRevision(body, current);
+  const updatedAt = nextRevision(now, current.updatedAt);
   await store.upsertRows(ELLIOTT_COUNTS_TABLE, [{ user_id: userId, symbol: key.symbol, timeframe: key.timeframe, doc, updated_at: updatedAt }], "user_id,symbol,timeframe");
   return { ...key, ...doc, updatedAt };
 }
