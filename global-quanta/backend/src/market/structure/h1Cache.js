@@ -38,6 +38,12 @@ export function createH1Cache({ dir = structureCacheDir(), maxRamSymbols = 120, 
       stats.misses++;
       return {};
     },
+    /** Như get() nhưng không tính trượt và trả null khi chưa có (job quét dò kho cho ~300 mã). */
+    async peek(symbol) {
+      if (ram.has(symbol)) return ram.get(symbol);
+      if (!disk) return null;
+      try { return JSON.parse(zlib.gunzipSync(await fs.promises.readFile(fileOf(symbol))).toString("utf8")).days ?? null; } catch { return null; }
+    },
     async put(symbol, days) {
       touch(symbol, days);
       if (!disk) return;

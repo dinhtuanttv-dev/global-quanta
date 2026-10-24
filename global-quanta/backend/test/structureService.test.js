@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createStructureService, summaryRow } from "../src/market/structure/structureService.js";
+import { createStructureService, h1FromCache, summaryRow } from "../src/market/structure/structureService.js";
 import { createH1Cache } from "../src/market/structure/h1Cache.js";
 import { rng } from "../src/market/structure/ml.js";
 
@@ -46,7 +46,7 @@ function fixture() {
   };
   const kv = new Map([["scanner:universe", { value: { tickers: [{ ticker: "FPT" }, { ticker: "HPG" }] } }]]);
   const store = { async getKv(k) { return kv.get(k) ?? null; }, async setKv() { throw new Error("HTTP 402"); } };
-  const service = { store, router: { providers: { ssiFcV2: provider } }, cache: { wrap: (_k, _t, fn) => fn() } };
+  const service = { store, router: { providers: { ssiFcV2: provider } }, cache: { wrap: (_k, _t, fn) => fn() }, async getIndexComponents(code) { return { symbols: code === "VN30" ? ["FPT"] : ["FPT", "HPG"] }; } };
   const taSeries = { async get({ symbol }) { return { priceBasis: symbol === "VNINDEX" ? "INDEX_POINTS" : "ADJUSTED_CUMULATIVE", bars: series[symbol], corporateActions: [] }; } };
   const seriesSource = { async prepare() { return async (t) => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: series[t] }); } };
   const svc = createStructureService({ service, taSeries, corporateActions: null, now: () => NOW, h1Cache: createH1Cache({ dir, log: { warn() {} } }), seriesSource });
@@ -100,4 +100,41 @@ test("job scanStructure: tóm tắt từng mã, ghi đĩa; KV lỗi 402 không l
   for (const k of ["t", "st", "age", "v", "sc", "sup", "res", "trigL", "trigS"]) assert.ok(k in row, k);
   assert.ok(row.sc >= 0 && row.sc <= 8);
   assert.equal(typeof summaryRow, "function");
+});
+
+test("v2: nhãn bằng chứng V1–V5, kết luận chưa kiểm định -> verdictValidated = false; có thống kê lịch sử theo giai đoạn", async () => {
+  const { svc } = fixture();
+  const r = await svc.analyze("FPT");
+  assert.equal(r.version, "2.0.0");
+  assert.equal(r.evidence.verdictValidated, false);
+  for (const k of ["alignment", "rrGate", "entryDaily", "stageB", "sellSignal"]) assert.ok(k in r.evidence.labels, k);
+  assert.ok(r.evidence.history.stageTable.B.OOS.n > 0);
+  assert.ok(Array.isArray(r.evidence.history.stageTable.B.OOS.ci));
+  assert.equal(r.evidence.previous.engine, "1.0.0");
+  assert.ok("ext" in r && "rrNow" in r);
+});
+
+test("P2: job warmStructureH1 làm ấm kho nến 1 giờ cho rổ VN100 + VN30 (tải theo tháng, không phiên đang chạy); job quét dùng khung 1 giờ", async () => {
+  const f = fixture();
+  const w = await f.svc.jobs.warmStructureH1();
+  assert.equal(w.symbols, 2);
+  assert.equal(w.warm, 2);
+  assert.equal(w.fetchedSessions, 240);
+  assert.ok(f.calls.range.length >= 2 * 6, "tải theo từng tháng");
+  assert.equal(f.calls.live, 0);
+  const again = await f.svc.jobs.warmStructureH1();
+  assert.equal(again.fetchedSessions, 0, "lần sau chỉ tải phiên còn thiếu");
+  const out = await f.svc.jobs.scanStructure();
+  assert.equal(out.withH1, 2);
+  const doc = await f.svc.summary();
+  assert.ok(doc.rows.every((r) => r.hs), "dòng tóm tắt có giai đoạn khung 1 giờ");
+});
+
+test("h1FromCache: neo nến 1 giờ danh nghĩa theo đóng cửa ngày (điều chỉnh), bỏ phiên không có trong chuỗi ngày", () => {
+  const days = { "2026-10-20": [{ date: "2026-10-20 09:00", open: 10, high: 11, low: 9, close: 10, volume: 1 }, { date: "2026-10-20 14:00", open: 10, high: 10, low: 10, close: 20, volume: 1 }],
+    "2026-10-21": [{ date: "2026-10-21 09:00", open: 5, high: 5, low: 5, close: 5, volume: 1 }] };
+  const out = h1FromCache(days, [{ date: "2026-10-20", close: 10 }]);
+  assert.equal(out.length, 2);
+  assert.equal(out[1].close, 10);
+  assert.equal(out[0].open, 5);
 });

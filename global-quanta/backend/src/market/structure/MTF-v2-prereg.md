@@ -77,3 +77,17 @@ V5 — S khung ngày (cảnh báo giảm): h = 20, không trừ phí. ĐẠT: OO
    bám đúng tài liệu, bỏ khác biệt (a): dùng ZigZag high/low của bản gốc cho cả ba bậc sóng. Sau sửa: giai đoạn thô trùng 671/671 nến,
    tín hiệu 22/22, mẫu hình 7/7, R:R tại giá hiện tại trùng hộp tóm tắt của ảnh DEMO (cắt lỗ 91,61 · mục tiêu 98,48). Đối chiếu này
    thành test cố định src/lib/quant-core/mtf/mtfV2.test.ts (oracle: backend/scripts/structure-oracle.py).
+
+## Kết quả (2026-10-24, chạy MỘT lần bằng scripts/structure-validate-v2.mjs, mã đo commit ced889a; số liệu: validation.js, MTF-v2-report.json)
+V1–V5 đều KHÔNG ĐẠT (q = 0,93).
+- V1 L khung 1 giờ: OOS −0,72%/10 phiên sau phí (n 317, KTC [−1,60; 0,25]); IS −0,67%. Placebo p = 1.
+- V2 L có cổng R:R ≥ 1: OOS +0,25% (n 100, KTC [−1,60; 2,27]); IS −0,85%.
+- V3 L khung ngày: OOS −0,69%/20 phiên (n 229); IS −1,06%. V4 vào B tái tích lũy: OOS −1,37% (n 145); IS −1,13%.
+- V5 S khung ngày: OOS −0,33% (KTC chứa 0); IS −0,66%.
+Mô tả: giai đoạn B có lợi suất vượt trội 20 phiên ÂM cả IS (−1,05%) lần OOS (−0,96%, KTC [−1,63; −0,31]); cờ Quá đà DƯƠNG cả IS
+(+0,72%) lần OOS (+0,79%, KTC [0,05; 1,52]) — cùng hướng với kết quả v1 ("B quá mua" tốt nhất). L khung 1 giờ khi khung ngày thuận
+(UP/B/A) −0,09% vs. còn lại −1,03% (OOS, KTC chồng nhau). M (meta-labeling) KHÔNG ĐẠT (AUC 0,51); Q (nón CQR) KHÔNG ĐẠT;
+T3 (HMM xác suất chuyển giai đoạn) ĐẠT (Brier skill +0,054 / +0,075, ECE 0,007 / 0,012).
+Quyết định theo tiêu chí: giữ "THỰC NGHIỆM — chỉ mô tả", kết luận dùng lời mô tả (không chữ MUA / BÁN); hiển thị thống kê lịch sử
+từng giai đoạn để người dùng thấy giai đoạn B / cờ Quá đà thực tế ra sao. Gợi ý cho lần đặt trước sau (CHƯA kiểm định): giả thuyết
+"đà tăng tiếp diễn" (cờ Quá đà) — đã thấy ở hai lần chạy, phải kiểm định trên sổ thời gian thực trước khi dùng.
