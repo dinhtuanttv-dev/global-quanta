@@ -9,10 +9,13 @@ const LABELS: Record<LayerKey, string> = {
   elliottAuto: "Elliott tự động", elliottOsc: "Elliott Oscillator", elliottFib: "Elliott Fibonacci", elliottProj: "Elliott kịch bản", elliottGuide: "Elliott kênh & mốc", elliottSub: "Elliott bậc nhỏ", elliottMine: "Elliott của tôi", elliottPro: "Elliott Pro", pring: "Mô hình giá (Pring)", structure: "Cấu trúc MTF",
 };
 
+const LEGACY_ELLIOTT = new Set<LayerKey>(["elliottAuto", "elliottOsc", "elliottFib", "elliottProj", "elliottGuide", "elliottSub"]);
+
 interface Props { state: LayerState; onToggle: (key: LayerKey) => void; onToggleMaster: (on: boolean) => void; }
 
 export default function LayerToggleBar({ state, onToggle, onToggleMaster }: Props) {
-  const keys = Object.keys(LABELS) as LayerKey[];
+  // EP4: lớp Elliott cũ (engine GET) chỉ bật trong tab "Theo sách" của bảng Elliott Pro — thanh lớp gọn: Elliott Pro + của tôi + vẽ tay cũ.
+  const keys = (Object.keys(LABELS) as LayerKey[]).filter((k) => !LEGACY_ELLIOTT.has(k));
   return (
     <div className="flex flex-wrap items-center gap-2 mb-3">
       {keys.map((key) => (
