@@ -38,3 +38,17 @@ test("nextRevision tăng nghiêm ngặt", () => {
   assert.equal(nextRevision(T, T.toISOString()), "2026-10-25T03:00:00.001Z");
   assert.equal(nextRevision(new Date("2026-10-25T04:00:00Z"), T.toISOString()), "2026-10-25T04:00:00.000Z");
 });
+
+test("A3 intradayQuality: nến 1 phút thật vs ảnh chụp 15 phút phẳng (như DGC 24/10) -> độ phân giải thực tế", async () => {
+  const { intradayQuality } = await import("../src/market/adjusted/taIntraday.js");
+  const mk = (stepMin, n, flat) => Array.from({ length: n }, (_, i) => {
+    const t = new Date(Date.parse("2026-10-23T09:15:00+07:00") + i * stepMin * 60_000).toISOString();
+    const c = 100 + (i % 3);
+    return { date: t, open: c, high: flat ? c : c + 1, low: flat ? c : c - 1, close: c, volume: 10 };
+  });
+  const real = intradayQuality(mk(1, 220, false));
+  assert.equal(real.effectiveResolution, "1m"); assert.equal(real.coarse, false); assert.equal(real.flatPct, 0);
+  const snap = intradayQuality(mk(15, 17, true));
+  assert.deepEqual([snap.effectiveResolution, snap.coarse, snap.flatPct, snap.barsPerSession], ["15m", true, 100, 17]);
+  assert.equal(intradayQuality([]).effectiveResolution, null);
+});

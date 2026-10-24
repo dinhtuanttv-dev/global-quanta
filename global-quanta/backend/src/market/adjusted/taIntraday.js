@@ -37,6 +37,35 @@ export function prepareIntradayBars(bars, actions, { isIndex = false } = {}) {
   });
 }
 
+/**
+ * A3 (D-07) — chất lượng nến phút theo từng mã (hàm thuần): số nến / phiên, khoảng cách TRUNG VỊ giữa hai nến liền nhau trong phiên,
+ * % nến phẳng (O=H=L=C). Nguồn có lúc chỉ trả ảnh chụp thưa (VD 15 phút / nến, giá phẳng) — báo đúng độ phân giải thực tế để giao diện
+ * không gộp thành nến 1m / 5m giả.
+ */
+export function intradayQuality(bars) {
+  const per = new Map(), gaps = [];
+  let flat = 0;
+  for (let i = 0; i < bars.length; i++) {
+    const b = bars[i], day = String(b.date).slice(0, 10);
+    per.set(day, (per.get(day) ?? 0) + 1);
+    if (b.open === b.high && b.high === b.low && b.low === b.close) flat++;
+    const prev = bars[i - 1];
+    if (prev && String(prev.date).slice(0, 10) === day && !b.auction && !prev.auction) {
+      const g = (Date.parse(b.date) - Date.parse(prev.date)) / 60_000;
+      if (g > 0) gaps.push(g);
+    }
+  }
+  gaps.sort((a, b) => a - b);
+  const medianGapMin = gaps.length ? Math.round(gaps[Math.floor(gaps.length / 2)] * 100) / 100 : null;
+  const effectiveResolution = medianGapMin == null ? null : medianGapMin <= 1.5 ? "1m" : medianGapMin <= 5.5 ? "5m" : medianGapMin <= 15.5 ? "15m" : "1H";
+  const sessions = per.size;
+  return {
+    sessions, barsPerSession: sessions ? Math.round(bars.length / sessions) : 0, medianGapMin, effectiveResolution,
+    flatPct: bars.length ? Math.round((flat / bars.length) * 100) : 0,
+    coarse: effectiveResolution != null && effectiveResolution !== "1m",
+  };
+}
+
 export function createTaIntraday({ service, taSeries, now = Date.now }) {
   return {
     async get({ symbol: raw, days = 20 }) {
@@ -80,6 +109,7 @@ export function createTaIntraday({ service, taSeries, now = Date.now }) {
       return {
         symbol, ticker: symbol, resolution: "1m", priceBasis, bars, sessions,
         provenance: { source: "SSI_FC_V2", asOf: bars.at(-1)?.date ?? null, live: sessionLive, auctionFlagged: bars.filter((b) => b.auction).length },
+        quality: intradayQuality(bars),
       };
     },
   };

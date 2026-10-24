@@ -62,6 +62,8 @@ import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspace/indicatorSettings";
 import ChartSignalsValidation from "./ChartSignalsValidation";
+import { lastBarForming, seriesFreshness } from "../../../lib/ta-command-center/dataStatus";
+import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
 import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
 import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
@@ -93,7 +95,7 @@ interface Props {
   /** Super Chart: ô chọn mã đặt trong thanh đầu của workspace. */
   tickerSlot?: ReactNode;
   /** Super Chart: nguồn gốc dữ liệu (cơ sở giá, số phiên, khoảng ngày, cảnh báo) — hiện trong thanh đầu. */
-  dataContext?: { priceBasis: PriceBasis; label: string; warnings: string[] } | null;
+  dataContext?: { priceBasis: PriceBasis; label: string; warnings: string[]; provenance?: SeriesProvenance | null; quality?: SeriesQuality } | null;
   /** Super Chart SC4: khoanh vùng mẫu hình được chọn ở bộ lọc (Pattern Scanner v2). */
   highlight?: ChartHighlight | null;
 }
@@ -250,6 +252,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     onPickAnchor: () => { setSheet(null); closeOpenPopovers(); setAnchorPick(true); }, onClearAnchor: () => setAnchor(null),
   };
 
+  /** A4: (mã | khung) của dữ liệu đang vẽ — để biết lần nạp tiếp là LÀM MỚI (giữ khung nhìn) hay đổi mã. */
+  const dataKeyRef = useRef<string | null>(null);
   // ---- Khởi tạo / cập nhật bộ điều phối + biểu đồ khi dữ liệu đổi ----
   useEffect(() => {
     if (bars.length === 0) return;
@@ -266,8 +270,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       tvManagerRef.current.applyPaneStretch(saved.paneStretch);
       tvManagerRef.current.setMagnet(saved.magnet);
       setTvApi(tvManagerRef.current);
+      dataKeyRef.current = `${ticker}|${controller.getCurrentTimeframe()}`;
     } else if (tvManagerRef.current) {
-      tvManagerRef.current.setData(activeBars, calculateRSI(activeBars).series);
+      // A4: dữ liệu cùng mã + khung được làm mới -> giữ khung nhìn; đổi mã -> về 250 nến gần nhất.
+      const key = `${ticker}|${controller.getCurrentTimeframe()}`;
+      tvManagerRef.current.setData(activeBars, calculateRSI(activeBars).series, { keepView: dataKeyRef.current === key });
+      dataKeyRef.current = key;
     }
 
     const unsubs = [
@@ -283,10 +291,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       controller.onWyckoffUpdated(setWyckoffResult),
       controller.onLayersChanged(setLayerState),
       controller.onAnalysisError(setAnalysisError),
-      controller.onTimeframeChanged(({ timeframe: tf, bars: newBars }) => {
+      controller.onTimeframeChanged(({ timeframe: tf, bars: newBars, refresh }) => {
         setTimeframeState(tf);
         setCurrentBars(newBars);
-        tvManagerRef.current?.setData(newBars, calculateRSI(newBars).series);
+        tvManagerRef.current?.setData(newBars, calculateRSI(newBars).series, { keepView: Boolean(refresh) });
+        dataKeyRef.current = `${(dataKeyRef.current ?? "").split("|")[0]}|${tf}`;
       }),
       controller.drawing.on("elliott:draft-updated", setElliottDraft),
       controller.drawing.on("fibExtension:changed", setFibExtensionMode),
@@ -469,6 +478,24 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   }, [intraday.bars]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { tvManagerRef.current?.setTimeVisible(isIntradayTf(timeframe)); }, [timeframe]);
 
+  // ---- A3: trạng thái dữ liệu (nguồn · thời điểm · tươi / cũ) + nến cuối đang hình thành + chất lượng nến phút ----
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNowTick(Date.now()), 60_000); return () => clearInterval(id); }, []);
+  const provenance = dataContext?.provenance ?? null;
+  const freshness = useMemo(() => seriesFreshness(provenance, bars[bars.length - 1]?.date ?? null, nowTick), [provenance, bars, nowTick]);
+  const forming = lastBarForming(timeframe, bars[bars.length - 1]?.date ?? null, Boolean(provenance?.partialToday), intraday.live, nowTick);
+  useEffect(() => { tvApi?.setFormingLast(forming); }, [tvApi, forming, currentBars]);
+  const iq = intraday.quality;
+  const minIntraday = iq?.coarse && iq.effectiveResolution ? iq.effectiveResolution : null;
+  useEffect(() => {
+    // Nến phút của mã chỉ có độ phân giải thô (VD ảnh chụp 15 phút) -> không gộp thành nến 1m/5m giả: chuyển sang khung thực tế.
+    if (!minIntraday || !isIntradayTf(timeframe)) return;
+    const order = ["1m", "5m", "15m", "1H"];
+    if (order.indexOf(timeframe) >= order.indexOf(minIntraday)) return;
+    toasts.push(`Nến phút ${ticker} chỉ có độ phân giải ~${minIntraday} — đã chuyển sang khung ${minIntraday} (khung mịn hơn sẽ là nến giả).`);
+    handleTimeframeChange(minIntraday as Timeframe);
+  }, [minIntraday, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- P5: Order Flow (Delta/CVD, Absorption, Divergence, VPIN) + Khối ngoại — chỉ tải khi bật lớp ----
   const flowEnabled = Boolean(layerState?.orderflow || layerState?.foreign);
   const flow = useTaFlow(ticker, flowEnabled);
@@ -631,7 +658,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     // DW3: chừa đủ chỗ cho đường kịch bản Elliott (nến xa nhất + 4, tối đa 60) khi lớp đang bật.
     const proj = layerState?.elliottProj && elliottScene?.primary ? elliottProjection(elliottScene.primary, close) : null;
     // EP3: mọi đường tương lai của scene (Elliott Pro, kịch bản cũ…) — chừa đủ chỗ (≤ 60 nến).
-    const futureK = Math.max(0, ...baseScene.items.flatMap((it) => (it.kind === "future" ? it.points.map((q) => q.k) : [])));
+    const lastIdx = currentBars.length - 1;
+    const futureK = Math.max(0, ...baseScene.items.flatMap((it) => (it.kind === "future" ? it.points.map((q) => q.k)
+      : it.kind === "cloud" ? [Math.max(0, (it.points[it.points.length - 1]?.k ?? 0) - lastIdx)] : [])));
     const projRoom = Math.min(60, Math.max(proj?.legs.length ? proj.legs[proj.legs.length - 1].k + 4 : 0, futureK ? futureK + 4 : 0));
     tv.setRightOffset(Math.max(structureRoom, projRoom));
   }, [structureOn, structure.data, structureMode, currentBars, timeframe, replayed, layerState?.elliottProj, elliottScene, baseScene]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1016,9 +1045,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           <Popover testid="data-context-btn" panelTestid="data-context" width={340} title="Nguồn dữ liệu"
             label={<span className="inline-flex items-center gap-1"><ProvenanceBadge kind={dataContext.priceBasis === "INDEX_POINTS" ? "HARD" : "DERIVED"} className="" />
               <span className={`truncate max-w-[110px] ${dataContext.priceBasis === "ADJUSTED_CUMULATIVE" || dataContext.priceBasis === "INDEX_POINTS" ? "" : "text-amber-300"}`}>{dataContext.priceBasis === "ADJUSTED_CUMULATIVE" ? "Giá điều chỉnh" : dataContext.priceBasis === "INDEX_POINTS" ? "Điểm chỉ số" : dataContext.label}</span>
-              {dataContext.warnings.length > 0 && <span className="text-amber-300">⚠{dataContext.warnings.length}</span>}</span>}>
+              {dataContext.warnings.length > 0 && <span className="text-amber-300">⚠{dataContext.warnings.length}</span>}
+              <span className={`ws-fresh ws-fresh-${freshness.state}`} data-testid="data-freshness" data-state={freshness.state} title={freshness.detail}>●<span className="ws-btn-text-opt"> {freshness.label}</span></span></span>}>
             <div className="text-[10.5px] text-slate-300 space-y-1">
               <p><b>{dataContext.label}</b> · {bars.length} phiên D · {bars[0]?.date ?? "—"} → {bars[bars.length - 1]?.date ?? "—"}</p>
+              <p className={freshness.state === "stale" || freshness.state === "unknown" ? "text-amber-300" : freshness.state === "live" ? "text-emerald-300" : "text-slate-300"} data-testid="data-freshness-detail">● {freshness.detail}</p>
+              {dataContext.quality?.nominalCoverage != null && dataContext.quality.nominalCoverage < 1 && <p className="text-amber-300">⚠ Độ phủ giá danh nghĩa {Math.round(dataContext.quality.nominalCoverage * 100)}% — một phần chuỗi chưa đối chiếu được để điều chỉnh.</p>}
+              {(dataContext.quality?.eventsSkipped ?? 0) > 0 && <p className="text-amber-300" data-testid="events-skipped">⚠ Bỏ qua {dataContext.quality?.eventsSkipped} sự kiện quyền (thiếu dữ liệu) — giá trước các ngày đó có thể CHƯA được điều chỉnh đủ.</p>}
+              {dataContext.quality?.eventsSource && <p className="text-slate-500">Nguồn sự kiện quyền: {dataContext.quality.eventsSource}</p>}
+              {iq && isIntradayTf(timeframe) && <p className={iq.coarse ? "text-amber-300" : "text-slate-400"} data-testid="intraday-quality">Nến phút: {iq.barsPerSession} nến/phiên · khoảng cách trung vị {iq.medianGapMin ?? "—"} phút · {iq.flatPct}% nến phẳng{iq.coarse ? ` — chỉ có độ phân giải ~${iq.effectiveResolution}` : ""}</p>}
               <p className="text-slate-400" data-testid="tf-note">{intraday.isLoading ? "Đang tải nến phút SSI…" : intraday.error ? `⚠ ${intraday.error}` : isIntradayTf(timeframe) ? `Khung ${timeframe}: nến phút SSI · ${intraday.sessions.length} phiên gần nhất · giờ VN` : `Khung ${timeframe}: ${timeframe === "D" ? "nến ngày" : "gộp từ nến D"} điều chỉnh`}</p>
               {dataContext.priceBasis === "ADJUSTED_CUMULATIVE" && <p>{corporateActions.length} sự kiện quyền đã điều chỉnh — bật lớp “Sự kiện quyền” để thấy ■ trên biểu đồ.</p>}
               {corporateActions.slice(-8).map((c) => <p key={c.date} className="font-mono text-[9.5px] text-slate-400">{c.date} {c.label} (hệ số {c.factor})</p>)}
@@ -1179,7 +1214,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             {fmtPx(last.close)} {chgPct != null && <span className={chgPct >= 0 ? "text-emerald-300" : "text-rose-300"}>{chgPct >= 0 ? "+" : ""}{chgPct.toFixed(2).replace(".", ",")}%</span>}
           </span>
         )}
-        <TimeframeSelector compact current={pendingTf ?? timeframe} onChange={handleTimeframeChange}
+        <TimeframeSelector compact current={pendingTf ?? timeframe} onChange={handleTimeframeChange} minIntraday={minIntraday}
           loadingIntraday={intraday.isLoading} intradayError={intraday.error} intradaySessions={intraday.sessions.length} />
         {!isMobile && <div className="ws-group" role="group" aria-label="Khoảng nhìn">
           {rangesFor(timeframe).map((r) => (
@@ -1217,6 +1252,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
+            {forming && (
+              <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] text-cyan-200" data-testid="forming-chip"
+                title="Nến cuối chưa đóng: giá, khối lượng và mọi chỉ báo trên nến này sẽ còn thay đổi cho tới khi kết thúc phiên / tuần / tháng.">
+                Nến cuối đang hình thành (vẽ rỗng) — chỉ báo trên nến này là tạm tính
+              </span>
+            )}
             {analysisError && (
               <span role="alert" className="px-2 py-0.5 rounded-lg bg-red-950/80 border border-red-500/40 text-[10px] text-red-200 inline-flex items-center gap-1 pointer-events-auto" data-testid="analysis-error">
                 Phân tích {ticker} lỗi — chưa có SMC / VSA / Wyckoff cho dữ liệu này ({analysisError.slice(0, 80)})

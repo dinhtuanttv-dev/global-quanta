@@ -159,7 +159,32 @@ export class TVChartManager {
   /** Kích thước pane giá. */
   pricePaneSize(): { width: number; height: number } { return this.chart.paneSize(0); }
 
-  setData(bars: OhlcvBar[], rsi?: (number | null)[]): void {
+  /**
+   * Nạp nến. A4 (C-01/C-02): cùng chuỗi, chỉ nến cuối đổi / thêm vài nến mới -> CẬP NHẬT TỪNG NẾN (không nạp lại toàn bộ, khung nhìn
+   * không nhảy; ở mép phải thì thư viện tự bám nến mới). `keepView` (làm mới dữ liệu cùng mã + khung): nạp lại nhưng GIỮ khung nhìn —
+   * đang xem quá khứ thì đứng yên tại đó, đang ở mép phải thì giữ độ rộng và bám nến cuối. Đổi mã / khung: về 250 nến gần nhất như cũ.
+   */
+  setData(bars: OhlcvBar[], rsi?: (number | null)[], opts: { keepView?: boolean } = {}): void {
+    const prev = this.currentBars;
+    const n = bars.length, m = prev.length;
+    const incremental = opts.keepView && m > 1 && n >= m && n - m <= 5 && prev[0].date === bars[0].date && prev[m - 2].date === bars[m - 2].date;
+    if (incremental) {
+      this.currentBars = bars;
+      for (let i = m - 1; i < n; i++) {
+        const b = bars[i];
+        if (i >= m) { this.currentDates.add(b.date); this.barIndexByTime.set(String(toTime(b.date)), i); }
+        this.candleSeries.update({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close });
+        this.volumeSeries?.update(this.volumePoint(b));
+      }
+      if (n > m) this.overlay.setDates(bars.map((b) => b.date));
+      if (rsi) this.setRsi(rsi);
+      this.paintLast();
+      return;
+    }
+    const ts = this.chart.timeScale();
+    const view = opts.keepView && m > 0 ? ts.getVisibleLogicalRange() : null;
+    const atRight = view ? view.to >= m - 2 : true;
+    const keepTimes = view && !atRight ? ts.getVisibleRange() : null;
     // Trục thời gian của thư viện là HỢP thời gian mọi series: xoá dữ liệu cũ của pane chỉ báo TRƯỚC khi nạp nến mới,
     // nếu không các mốc của khung cũ (VD nến 15m) lẫn vào khung mới làm lệch khung nhìn (lỗi tái hiện 08/10/2026).
     this.flowSeries?.delta.setData([]);
@@ -174,12 +199,36 @@ export class TVChartManager {
     this.candleSeries.setData(bars.map((b) => ({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close })));
     this.fillVolume();
     if (rsi) this.setRsi(rsi);
+    this.paintLast();
+    if (keepTimes) {
+      try { ts.setVisibleRange(keepTimes); return; } catch { /* mốc cũ không còn trong dữ liệu -> mặc định */ }
+    } else if (view) {
+      const rightGap = view.to - (m - 1), width = view.to - view.from;
+      ts.setVisibleLogicalRange({ from: n - 1 + rightGap - width, to: n - 1 + rightGap });
+      return;
+    }
     // Chuỗi dài (≈3 năm) -> mặc định nhìn 250 phiên gần nhất; kéo/cuộn để xem toàn bộ lịch sử.
     if (bars.length > DEFAULT_VISIBLE_BARS + 50) {
-      this.chart.timeScale().setVisibleLogicalRange({ from: bars.length - DEFAULT_VISIBLE_BARS, to: bars.length + 3 });
+      ts.setVisibleLogicalRange({ from: bars.length - DEFAULT_VISIBLE_BARS, to: bars.length + 3 });
     } else {
-      this.chart.timeScale().fitContent();
+      ts.fitContent();
     }
+  }
+
+  /** A3 (D-08): nến cuối đang hình thành (phiên đang chạy / tuần, tháng chưa kết thúc) -> vẽ RỖNG (chỉ viền) để không nhầm là nến đã đóng. */
+  private formingLast = false;
+  setFormingLast(on: boolean): void {
+    if (on === this.formingLast) return;
+    this.formingLast = on;
+    this.paintLast();
+  }
+  private paintLast(): void {
+    const b = this.currentBars[this.currentBars.length - 1];
+    if (!b) return;
+    const c = b.close >= b.open ? GQ_COLORS.bull : GQ_COLORS.bear;
+    this.candleSeries.update(this.formingLast
+      ? { time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close, color: "rgba(0,0,0,0)", borderColor: c, wickColor: c }
+      : { time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close });
   }
 
   /** Pane khối lượng — chỉ tồn tại khi người dùng bật lớp "Khối lượng". */
@@ -371,11 +420,11 @@ export class TVChartManager {
     this.adxSeries.minus.setData(pick("minus"));
   }
 
+  private volumePoint(b: OhlcvBar) {
+    return { time: toTime(b.date), value: b.volume, color: b.close >= b.open ? rgba(GQ_COLORS.bull, 0.45) : rgba(GQ_COLORS.bear, 0.45) };
+  }
   private fillVolume(): void {
-    this.volumeSeries?.setData(this.currentBars.map((b) => ({
-      time: toTime(b.date), value: b.volume,
-      color: b.close >= b.open ? rgba(GQ_COLORS.bull, 0.45) : rgba(GQ_COLORS.bear, 0.45),
-    })));
+    this.volumeSeries?.setData(this.currentBars.map((b) => this.volumePoint(b)));
   }
 
   private fillRsi(): void {
@@ -446,7 +495,21 @@ export class TVChartManager {
   }
 
   /** Khoảng trống bên phải nến cuối (số nến) — mở rộng khi vẽ vùng tương lai (nón dự báo, kịch bản). */
-  setRightOffset(bars: number): void { this.chart.applyOptions({ timeScale: { rightOffset: bars } }); }
+  /**
+   * Chỗ trống bên phải (nến) cho đường tương lai. A4 (C-01): đặt lại tuỳ chọn này làm thư viện kéo khung nhìn về mép phải — trước đây
+   * bị gọi mỗi lần nến / scene đổi nên người dùng đang xem quá khứ bị giật về. Giờ chỉ áp khi giá trị đổi, và giữ nguyên khung nhìn
+   * nếu người dùng không ở mép phải.
+   */
+  private rightOffset = 6;
+  setRightOffset(bars: number): void {
+    if (bars === this.rightOffset) return;
+    const ts = this.chart.timeScale();
+    const r = ts.getVisibleLogicalRange();
+    const atRight = !r || r.to >= this.currentBars.length - 2;
+    this.rightOffset = bars;
+    this.chart.applyOptions({ timeScale: { rightOffset: bars } });
+    if (!atRight && r) ts.setVisibleLogicalRange(r);
+  }
 
   /** Khung intraday: hiện giờ:phút trên trục thời gian. */
   setTimeVisible(on: boolean): void { this.chart.applyOptions({ timeScale: { timeVisible: on, secondsVisible: false } }); }
