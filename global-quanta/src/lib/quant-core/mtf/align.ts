@@ -58,46 +58,77 @@ export interface AlignResult {
 export const stageBias = (s: Stage | null | undefined): -1 | 0 | 1 =>
   s === "UP" || s === "B" ? 1 : s === "DOWN" || s === "D" || s === "Bp" || s === "C" ? -1 : 0;
 
-const BUY_CODES = new Set<Signal["code"]>(["M1", "M2", "M3", "G3"]);
+const BUY_CODES = new Set<Signal["code"]>(["M1", "M2", "M3", "G3", "L"]);
 
 /**
- * Ma trận đồng thuận. trend = khung xu hướng (Ngày), entry = khung vào lệnh (H1), week = khung tuần (lọc R7).
- * entryBuyRecent: khung vào lệnh vừa có tín hiệu mua Granville trong vài nến gần nhất.
+ * Lời MÔ TẢ cho kết luận khi kiểm định đặt trước chưa đạt (MTF-v2-prereg.md: chỉ dùng chữ MUA / BÁN khi V1–V3 có ít nhất một ĐẠT).
+ * Mã kết luận (MUA / CHỜ MUA / …) vẫn giữ nguyên trong dữ liệu để sổ theo dõi và bộ lọc so sánh được qua thời gian.
  */
-export function alignMatrix(trend: Stage, entry: Stage | null, week: Stage | null, entryBuyRecent: boolean): AlignResult {
+export const VERDICT_DESCRIPTIVE: Record<Verdict, string> = {
+  "MUA": "Cấu trúc thuận tăng",
+  "CHỜ MUA": "Chờ tín hiệu tăng",
+  "ĐỨNG NGOÀI": "Trung tính",
+  "GIẢM TỶ TRỌNG": "Cấu trúc suy yếu",
+  "BÁN": "Cấu trúc giảm",
+};
+export const verdictLabel = (v: Verdict, validated: boolean) => (validated ? v : VERDICT_DESCRIPTIVE[v]);
+
+export interface AlignOptions {
+  rrOk?: boolean | null;   // R:R "nếu mua ở giá hiện tại" của khung vào lệnh ≥ 1 (null = chưa đo được)
+  extDay?: number;         // cờ quá đà của khung ngày
+  extEntry?: number;       // cờ quá đà của khung vào lệnh
+}
+
+/**
+ * Ma trận đồng thuận (v2, theo tài liệu gốc: "khung nhỏ thiết lập xu hướng theo hướng khung lớn").
+ * trend = khung xu hướng (Ngày), entry = khung vào lệnh (H1), week = khung tuần (lọc R7).
+ * entryBuyRecent: khung vào lệnh vừa có tín hiệu L / Granville mua trong vài nến gần nhất.
+ * Cổng (P1): MUA chỉ khi R:R tại giá hiện tại ≥ 1 ("giao dịch ổn") và khung vào lệnh không quá đà (không mua đuổi).
+ */
+export function alignMatrix(trend: Stage, entry: Stage | null, week: Stage | null, entryBuyRecent: boolean, opts: AlignOptions = {}): AlignResult {
   const rules: string[] = [];
   const cell = `Ngày:${trend}${entry ? ` × H1:${entry}` : ""}`;
   let verdict: Verdict = "ĐỨNG NGOÀI";
   let rule: AlignResult["rule"] = "R6";
   let text = "";
   const e = entry ?? trend;
-  const eBull = e === "UP" || e === "A";
+  const eBull = e === "UP" || e === "A" || e === "B";
   const eBear = e === "C" || e === "D" || e === "DOWN" || e === "Bp";
+  const rrNg = opts.rrOk === false;
+  const chase = (opts.extEntry ?? 0) > 0;
   switch (trend) {
     case "UP":
+    case "B":
       rule = "R1";
-      if (e === "UP" && entryBuyRecent) { verdict = "MUA"; text = "Khung ngày tăng, khung vào lệnh tăng và vừa có tín hiệu mua — thuận cả hai khung."; }
-      else if (e === "B") { verdict = "CHỜ MUA"; text = "Khung ngày tăng nhưng khung vào lệnh đang quá mua — không mua đuổi, chờ hồi về hỗ trợ."; }
-      else if (eBear) { verdict = "CHỜ MUA"; text = "Khung ngày tăng, khung vào lệnh đang điều chỉnh — chờ khung nhỏ quay lại tích lũy / tăng rồi mới mua."; }
-      else { verdict = "CHỜ MUA"; text = "Khung ngày tăng — chờ tín hiệu mua (hồi chạm MA / phá nền) ở khung vào lệnh."; }
-      rules.push("R1: chỉ mở mua ở khung nhỏ khi khung ngày đang tăng chuẩn.");
+      if ((opts.extDay ?? 0) > 0) {
+        rule = "R3"; verdict = "CHỜ MUA";
+        text = "Khung ngày tăng nhưng giá đã lệch xa MA chân trên (quá đà) — không mua đuổi, chờ điều chỉnh về MA (giai đoạn B tái tích lũy).";
+        rules.push("R3: quá đà — chỉ mua ở nhịp điều chỉnh về MA, không mua ở vùng lệch xa.");
+        break;
+      }
+      if (eBull && entryBuyRecent && !rrNg && !chase) {
+        verdict = "MUA";
+        text = trend === "B"
+          ? "Khung ngày đang tái tích lũy tại MA chân trên; khung vào lệnh quay lại tăng và có tín hiệu (L / Granville) — đúng điểm vào của tài liệu."
+          : "Khung ngày tăng; khung vào lệnh quay lại tăng và có tín hiệu (L / Granville) — thuận cả hai khung.";
+      } else if (eBull && entryBuyRecent && rrNg) { verdict = "CHỜ MUA"; text = "Có tín hiệu thuận khung nhưng phần thưởng không lớn hơn rủi ro (R:R < 1 — giao dịch NG) — chờ giá về gần điểm cắt lỗ hơn."; }
+      else if (eBull && entryBuyRecent && chase) { verdict = "CHỜ MUA"; text = "Có tín hiệu thuận khung nhưng khung vào lệnh đang quá đà — không mua đuổi, chờ điều chỉnh."; }
+      else if (eBear) { verdict = "CHỜ MUA"; text = "Khung ngày tăng, khung vào lệnh đang điều chỉnh — chờ khung nhỏ quay lại tăng (điểm L) rồi mới mua."; }
+      else if (trend === "B") { verdict = "CHỜ MUA"; text = "Khung ngày đang tái tích lũy (điều chỉnh về MA chân trên) — vùng tìm điểm mua, chờ khung vào lệnh bật tăng."; }
+      else { verdict = "CHỜ MUA"; text = "Khung ngày tăng — chờ tín hiệu (L / Granville 2–3) ở khung vào lệnh."; }
+      rules.push("R1: chỉ mở mua ở khung nhỏ khi khung ngày đang tăng / tái tích lũy, và khung nhỏ quay lại tăng cùng chiều.");
+      if (verdict === "MUA" || rrNg) rules.push("Cổng R:R: chỉ mua khi phần thưởng lớn hơn rủi ro (R:R ≥ 1).");
       break;
     case "A":
       rule = "R6";
-      if (e === "UP" && entryBuyRecent) { verdict = "MUA"; text = "Khung ngày đang tích lũy đáy; khung vào lệnh đã tăng — chỉ mua thăm dò (nửa tỷ trọng)."; }
-      else { verdict = "CHỜ MUA"; text = "Khung ngày đang tích lũy đáy — chờ phá nền / viền cổ để xác nhận."; }
-      rules.push("R6: tích lũy / đi ngang — chỉ giao dịch khi phá vỡ, tỷ trọng nhỏ.");
-      break;
-    case "B":
-      rule = "R3";
-      verdict = eBear ? "GIẢM TỶ TRỌNG" : "ĐỨNG NGOÀI";
-      text = eBear ? "Khung ngày quá mua và khung nhỏ đã suy yếu — chốt lời dần." : "Khung ngày quá mua — không mở mua mới, nâng cắt lỗ.";
-      rules.push("R3: khung ngày quá mua — không mua đuổi, chốt một phần ở kháng cự.");
+      if (eBull && entryBuyRecent && !rrNg && !chase) { verdict = "MUA"; text = "Khung ngày vừa tạo đáy (MỘT); khung vào lệnh đã tăng — chỉ mua thăm dò (nửa tỷ trọng) khi giá kiểm tra lại viền cổ / MA."; }
+      else { verdict = "CHỜ MUA"; text = "Khung ngày đang tạo đáy (MỘT) — chờ giá kiểm tra lại viền cổ / MA chân trên và giữ được."; }
+      rules.push("R6: tích lũy / đáy — chỉ giao dịch khi xác nhận, tỷ trọng nhỏ.");
       break;
     case "C":
       rule = "R4"; verdict = "GIẢM TỶ TRỌNG";
-      text = "Khung ngày suy yếu tại đỉnh — hạ tỷ trọng, không mở mua mới dù khung nhỏ hồi.";
-      rules.push("R4: khung ngày ở giai đoạn C — cấm mua mới ở khung nhỏ.");
+      text = "Khung ngày đang phân phối / tạo đỉnh — không mua đuổi, chốt lời dần, chờ gãy viền cổ.";
+      rules.push("R4: khung ngày ở giai đoạn C — không mở mua mới ở khung nhỏ.");
       break;
     case "D":
     case "DOWN":

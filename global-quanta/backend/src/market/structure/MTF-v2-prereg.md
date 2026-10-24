@@ -8,7 +8,8 @@ kèm lý do, ngày và kết quả trước/sau.
 
 ## Engine v2 (src/lib/quant-core/mtf, MTF_STRUCTURE_VERSION 2.0.0)
 Mọi giá trị tại nến t chỉ dùng bars[0..t] (bất biến không nhìn trước, có test). Khác biệt có chủ đích so với bản Python:
-(a) sóng xác nhận bằng giá ĐÓNG CỬA đảo chiều ≥ θ·ATR (bản Python dùng high/low) — chặt hơn, không vẽ lại;
+(a) [đã bỏ — xem Sửa đổi 1] ~~sóng xác nhận bằng giá đóng cửa~~ → dùng đúng ZigZag high/low của bản gốc; riêng đáy đầu tiên ghi
+xác nhận tại nến phát hiện (bản gốc ghi sớm hơn — nhìn trước vài nến ở đúng một điểm);
 (b) bỏ phần gắn nhãn VÙNG mẫu hình hồi tố và gộp đoạn ngắn hồi tố khỏi chuỗi giai đoạn dùng để kiểm định (bản Python ghi rõ
 "chỉ để trực quan"); giao diện được gộp đoạn ngắn ĐÃ KẾT THÚC để dễ đọc, giai đoạn hiện tại luôn là trạng thái thô;
 (c) thêm B′ (đối xứng của B trong xu hướng giảm) và G3 (mua 3 bước, từ bộ ảnh) — mở rộng, không thay quy tắc gốc.
@@ -70,4 +71,9 @@ V5 — S khung ngày (cảnh báo giảm): h = 20, không trừ phí. ĐẠT: OO
 - Kết quả lưu vào backend/src/market/structure/validation.js (sinh tự động, không sửa tay số liệu).
 
 ## Sửa đổi
-(chưa có)
+1. 2026-10-24, TRƯỚC khi chạy trên dữ liệu kiểm định (chưa xem bất kỳ lợi suất nào của v2): đối chiếu engine v2 với chính bản Python
+   gốc trên dữ liệu mẫu du_lieu_mau_1h.csv (750 nến) — giai đoạn thô trùng 98,8%, mọi tín hiệu Granville trùng, nhưng xác nhận sóng
+   bằng giá đóng cửa làm số sóng trung giảm 26 → 18 và tín hiệu L / S lệch (là điểm vào cốt lõi của V1–V3). Vì mục tiêu của v2 là
+   bám đúng tài liệu, bỏ khác biệt (a): dùng ZigZag high/low của bản gốc cho cả ba bậc sóng. Sau sửa: giai đoạn thô trùng 671/671 nến,
+   tín hiệu 22/22, mẫu hình 7/7, R:R tại giá hiện tại trùng hộp tóm tắt của ảnh DEMO (cắt lỗ 91,61 · mục tiêu 98,48). Đối chiếu này
+   thành test cố định src/lib/quant-core/mtf/mtfV2.test.ts (oracle: backend/scripts/structure-oracle.py).
