@@ -22,7 +22,7 @@ const STAGES = ["A", "UP", "B", "C", "D", "DOWN", "Bp", "RANGE"];
 const BUY = new Set(["M1", "M2", "M3", "G3"]);
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : null);
 const r3 = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 1000) / 1000);
-const seg = (date) => (date <= P.isTo ? "IS" : date >= P.oosFrom ? "OOS" : null);
+export const seg = (date) => (date <= P.isTo ? "IS" : date >= P.oosFrom ? "OOS" : null);
 const oneHot = (s) => STAGES.map((x) => (x === s ? 1 : 0));
 
 // ------------------------------------------------------------------ chuẩn bị từng mã
@@ -82,7 +82,7 @@ export function features(u, t) {
 
 // ------------------------------------------------------------------ sự kiện khung D
 
-function dedupBy(events, gap) {
+export function dedupBy(events, gap) {
   const last = new Map(), out = [];
   for (const e of [...events].sort((a, b) => a.symbol.localeCompare(b.symbol) || a.t - b.t)) {
     const k = `${e.symbol}|${e.kind}`;
@@ -114,18 +114,18 @@ export function dailyEvents(u) {
   return out;
 }
 
-const excess = (u, bench, t, h, fee) => {
+export const excess = (u, bench, t, h, fee) => {
   const f = u.fwd[h][t], b = bench[h].get(u.bars[t].date);
   return Number.isFinite(f) && Number.isFinite(b) ? (f - b) * 100 - fee : null;
 };
 
-function splitStats(rows, side) {
+export function splitStats(rows, side) {
   const by = (g) => rows.filter((r) => r.seg === g && r.x != null);
   return { IS: stat(by("IS"), { side }), OOS: stat(by("OOS"), { side }) };
 }
 
 /** Placebo: cùng mã, phiên ngẫu nhiên đủ điều kiện trong cùng tháng. p = tỷ lệ lần placebo có TB ≥ TB thật (theo chiều). */
-function placebo(events, uniBy, bench, h, fee, side, reps = P.placeboReps, seed = 23) {
+export function placebo(events, uniBy, bench, h, fee, side, reps = P.placeboReps, seed = 23) {
   const r = rng(seed);
   const real = mean(events.map((e) => e.x).filter((x) => x != null));
   if (real == null) return null;
@@ -148,7 +148,7 @@ function placebo(events, uniBy, bench, h, fee, side, reps = P.placeboReps, seed 
   return { realMean: r3(real), p: r3(hit / reps) };
 }
 
-function verdictMean(st, side, extra = true) {
+export function verdictMean(st, side, extra = true) {
   const o = st.OOS, i = st.IS;
   if (!o?.n || o.n < P.minOosN) return "INSUFFICIENT";
   const ok = side * o.mean > 0 && o.ci && (side > 0 ? o.ci[0] > 0 : o.ci[1] < 0) && side * (i?.mean ?? 0) > 0 && extra;
@@ -181,7 +181,7 @@ export function h1Events(u, h1Bars) {
 }
 
 /** Hai mẫu độc lập: KTC + p một phía cho chênh lệch TB (bootstrap cụm ngày trong từng nhóm). */
-function diffCi(a, b, iters = 1000, seed = 31) {
+export function diffCi(a, b, iters = 1000, seed = 31) {
   if (a.length < 10 || b.length < 10) return null;
   const cl = (rows) => { const m = new Map(); for (const r of rows) { if (!m.has(r.date)) m.set(r.date, []); m.get(r.date).push(r.x); } return [...m.values()]; };
   const A = cl(a), B = cl(b), r = rng(seed), d = [];
@@ -361,7 +361,7 @@ export function runStructureValidation({ daily, h1 = {}, onProgress = () => {} }
 
 // ------------------------------------------------------------------ M: meta-labeling
 
-function runMeta(events, uniBy) {
+export function runMeta(events, uniBy) {
   const M = P.meta, rows = [];
   const seen = new Set();
   for (const e of events) {
@@ -406,7 +406,7 @@ function runMeta(events, uniBy) {
 
 // ------------------------------------------------------------------ Q: CQR
 
-function runCqr(uni) {
+export function runCqr(uni) {
   const C = P.cqr, out = {};
   const samples = [];
   for (const u of uni) {
@@ -456,7 +456,7 @@ function runCqr(uni) {
 
 // ------------------------------------------------------------------ T3: HMM + thời lượng giai đoạn
 
-function runHmm(uni) {
+export function runHmm(uni) {
   const H = P.hmm;
   const featOf = (u, t) => {
     const c = u.bars[t].close, pc = u.bars[t - 1].close, atr = Math.max(u.a.atr[t], 1e-9);

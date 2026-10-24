@@ -19,7 +19,7 @@ export interface Annotation {
 
 export interface StageSegment { stage: Stage; label: string; from: string; to: string; i0: number; i1: number }
 
-const STAGE_TONE: Record<Stage, Tone> = { A: "neutral", UP: "bull", B: "warn", C: "warn", D: "bear", DOWN: "bear", Bp: "warn", RANGE: "neutral" };
+const STAGE_TONE: Record<Stage, Tone> = { A: "bull", UP: "bull", B: "bull", C: "warn", D: "bear", DOWN: "bear", Bp: "warn", RANGE: "neutral" };
 const fmt = (x: number) => (Math.abs(x) >= 100 ? x.toLocaleString("vi-VN", { maximumFractionDigits: 0 }) : x.toFixed(2).replace(".", ","));
 
 export function stageSegments(a: TfAnalysis): StageSegment[] {

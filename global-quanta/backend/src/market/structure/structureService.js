@@ -19,7 +19,9 @@ import { features, prepareIndex, prepareSymbol } from "./validate.js";
 import { applyIsotonic, hmmFilter, linearAt, logisticAt } from "./ml.js";
 import { createStructureLedger } from "./ledger.js";
 
-export const H1_SESSIONS = 120;          // ≈ 6 tháng: đủ MA100 tiết (= MA20 ngày) + sóng trung
+export const H1_SESSIONS = 120;          // ≈ 6 tháng: đủ MA80 tiết (= MA 4 giờ), MA100 tiết (= MA ngày) + sóng trung
+export const H1_WARM_INDEXES = ["VN100", "VN30"]; // P2: kho nến 1 giờ được làm ấm hằng ngày cho rổ này (bảng bộ lọc có khung 1 giờ)
+const H1_WARM_BUDGET_MS = 10 * 60_000;
 export const STRUCTURE_SUMMARY_KV = "structure:summary";
 const SUMMARY_FILE = "summary";
 const BUY = new Set(["M1", "M2", "M3", "G3"]);
@@ -30,7 +32,23 @@ const px = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 100)
 /** Đổi phân tích một khung thành bản gọn cho giao diện — dùng chung với chế độ phát lại trên trình duyệt (quant-core). */
 export const compactTf = (a, opts) => Q.compactStructureTf(a, opts);
 
-/** Bản tóm tắt một mã cho bảng bộ lọc (khung D + tuần đã đóng). */
+/**
+ * Nến 1 giờ danh nghĩa trong kho -> neo theo chuỗi ngày của job quét (hệ số mỗi phiên = đóng cửa ngày / đóng cửa tiết cuối,
+ * cùng cách của bộ dữ liệu kiểm định). Chỉ phiên có trong chuỗi ngày (không có phiên đang chạy).
+ */
+export function h1FromCache(days, dailyBars, sessions = H1_SESSIONS) {
+  const closeOf = new Map(dailyBars.map((b) => [b.date, b.close]));
+  const out = [];
+  for (const d of Object.keys(days).sort().slice(-sessions)) {
+    const bars = days[d], c = closeOf.get(d), last = bars?.[bars.length - 1]?.close;
+    if (!bars?.length || !(c > 0) || !(last > 0)) continue;
+    const k = c / last;
+    for (const b of bars) out.push(k === 1 ? b : { ...b, open: b.open * k, high: b.high * k, low: b.low * k, close: b.close * k });
+  }
+  return out;
+}
+
+/** Bản tóm tắt một mã cho bảng bộ lọc (khung D + tuần đã đóng, + khung 1 giờ nếu kho có). */
 export function summaryRow(ticker, m) {
   const d = m.tfs.D, t = d.bars.length - 1;
   const lastPat = d.patterns.map((p) => ({ p, s: Q.patternStatusAt(p, t) })).filter(({ s }) => s === "forming" || s === "confirmed").pop();
@@ -39,9 +57,12 @@ export function summaryRow(ticker, m) {
   const res = d.zones.filter((z) => z.role === "resistance").sort((a, b) => a.mid - b.mid)[0];
   return {
     t: ticker, asOf: d.bars[t].date, st: d.stage[t], prev: t > 0 ? d.stage[t - 1] : null, age: d.stageAge[t], ws: m.context.week, dow: d.dow[t],
+    hs: m.context.h1 ?? null, // giai đoạn khung 1 giờ (null = không có khung 1 giờ -> kết luận chỉ từ khung ngày)
     v: m.align.verdict, rule: m.align.rule, sc: m.checklist.buyScore, ss: m.checklist.sellScore,
     chg: t > 0 && d.stage[t] !== d.stage[t - 1],
-    pat: lastPat ? { type: lastPat.p.type, status: lastPat.s, date: d.bars[lastPat.p.breakIndex ?? lastPat.p.confirmedIndex].date } : null,
+    // v2: cờ quá đà khung ngày, R:R "nếu mua ở giá hiện tại" (khung ngày, cách của tài liệu)
+    ext: d.ext[t] ?? 0, rr: d.rrNow ? { v: r2(d.rrNow.rr), ok: d.rrNow.ok } : null,
+    pat: lastPat ? { type: lastPat.p.type, status: lastPat.s, ctx: lastPat.p.context, date: d.bars[lastPat.p.breakIndex ?? lastPat.p.confirmedIndex].date } : null,
     sig: lastSig && t - lastSig.index <= 5 ? { code: lastSig.code, date: d.bars[lastSig.index].date } : null,
     sup: sup ? px(sup.mid) : null, res: res ? px(res.mid) : null,
     trigL: px(m.scenarios[0]?.trigger), trigS: px(m.scenarios[1]?.trigger),
@@ -85,8 +106,23 @@ export function createStructureService({ service, taSeries, corporateActions, no
     return { bars: (r.bars ?? []).filter((b) => b.close > 0), priceBasis: r.priceBasis, actions: (r.corporateActions ?? []).map((a) => ({ date: a.date, factor: a.factor })), warnings: r.warnings ?? [] };
   }
 
-  /** Nến 1 giờ: phiên đã đóng từ kho (thiếu thì tải SSI một lần), phiên đang chạy tải lại mỗi 60 giây. */
-  async function h1Bars(symbol, actions, isIndex) {
+  /** Nến phút SSI theo từng tháng (job làm ấm: không giữ trong bộ đệm chung -> không phình heap). */
+  async function minutesByMonth(provider, symbol, from, to) {
+    const out = [];
+    for (let d = new Date(`${from.slice(0, 7)}-01T00:00:00Z`); d.toISOString().slice(0, 10) <= to; d.setUTCMonth(d.getUTCMonth() + 1)) {
+      const a = d.toISOString().slice(0, 10) < from ? from : d.toISOString().slice(0, 10);
+      const e = new Date(d); e.setUTCMonth(e.getUTCMonth() + 1); e.setUTCDate(0);
+      const b = e.toISOString().slice(0, 10) < to ? e.toISOString().slice(0, 10) : to;
+      out.push(...(await provider.getIntradayRange(symbol, a, b)));
+    }
+    return out;
+  }
+
+  /**
+   * Nến 1 giờ: phiên đã đóng từ kho (thiếu thì tải SSI một lần), phiên đang chạy tải lại mỗi 60 giây.
+   * batch = true (job làm ấm): tải theo tháng, không qua bộ đệm chung, bỏ phiên đang chạy.
+   */
+  async function h1Bars(symbol, actions, isIndex, { batch = false } = {}) {
     const provider = service.router?.providers?.ssiFcV2;
     if (!provider?.isConfigured?.() || typeof provider.getIntradayRange !== "function") return { bars: null, reason: "Chưa cấu hình SSI FC Data cho nến phút." };
     const nowDate = new Date(now());
@@ -99,7 +135,8 @@ export function createStructureService({ service, taSeries, corporateActions, no
     const missing = dates.filter((d) => !(d in days));
     let fetched = 0;
     if (missing.length) {
-      const mins = await service.cache.wrap(`structure-h1:${symbol}:${missing[0]}:${historyEnd}`, 10 * 60_000, () => provider.getIntradayRange(symbol, missing[0], historyEnd));
+      const mins = batch ? await minutesByMonth(provider, symbol, missing[0], historyEnd)
+        : await service.cache.wrap(`structure-h1:${symbol}:${missing[0]}:${historyEnd}`, 10 * 60_000, () => provider.getIntradayRange(symbol, missing[0], historyEnd));
       const byDay = new Map();
       for (const b of mins) { if (!(b?.close > 0)) continue; const k = String(b.date).slice(0, 10); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(b); }
       for (const d of missing) {
@@ -112,7 +149,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
     for (const d of Object.keys(days)) if (!keep.has(d)) delete days[d];
     if (fetched) await h1Cache.put(symbol, days);
     let live = [];
-    if (sessionLive) {
+    if (sessionLive && !batch) {
       const mins = await service.cache.wrap(`structure-h1-live:${symbol}:${today}`, expectsLiveTicks(nowDate) ? 60_000 : 5 * 60_000, () => provider.getIntradayOhlcv(symbol, today).catch(() => []));
       live = Q.minutesToH1(mins.filter((b) => b?.close > 0).sort((a, b) => String(a.date).localeCompare(String(b.date))).map((b) => ({ ...b, date: String(b.date).replace("T", " ").slice(0, 16) })));
     }
@@ -124,14 +161,25 @@ export function createStructureService({ service, taSeries, corporateActions, no
     return { bars, sessions: dates.length + (live.length ? 1 : 0), fetchedSessions: fetched, live: sessionLive };
   }
 
+  /**
+   * Nhãn bằng chứng (MTF v2, MTF-v2-prereg.md): V1 điểm vào L khung 1 giờ (kết luận đa khung) · V2 cổng R:R · V3 L khung ngày ·
+   * V4 giai đoạn B tái tích lũy · V5 S khung ngày. verdictValidated = false -> giao diện dùng lời mô tả thay chữ MUA / BÁN.
+   * Kèm thống kê lịch sử (mô tả) để giao diện cho thấy lợi suất thực của từng giai đoạn / cờ quá đà / vị trí mẫu.
+   */
   function evidence(V) {
     const v = V.verdicts ?? {};
     const lab = (k) => (v[k] === "PASS" ? "ĐÃ KIỂM ĐỊNH" : V.status === "PENDING" ? "ĐANG KIỂM ĐỊNH" : "THỰC NGHIỆM");
     const cr = V.coneReport ? Object.entries(V.coneReport).map(([h, c]) => `${h} phiên ${Math.round((c.model?.coverage ?? 0) * 100)}%`).join(", ") : null;
     return {
-      prereg: V.prereg, status: V.status, verdicts: v, summary: V.summary ?? null,
+      prereg: V.prereg, status: V.status, engine: V.engine ?? null, ranAt: V.ranAt ?? null, period: V.period ?? null, verdicts: v, summary: V.summary ?? null,
+      verdictValidated: !!V.verdictValidated,
       coneNote: V.cone ? null : cr ? `Nón dự báo KHÔNG đạt kiểm định độ phủ 77–83% ngoài mẫu (${cr}) — không hiển thị.` : null,
-      labels: { stageUp: lab("H1"), alignment: lab("H2"), checklist: lab("H3"), patterns: lab("H4"), stageDown: lab("H5") },
+      labels: {
+        alignment: lab("V1"), rrGate: lab("V2"), entryDaily: lab("V3"), stageB: lab("V4"), sellSignal: lab("V5"),
+        checklist: "THỰC NGHIỆM", patterns: "THỰC NGHIỆM", stageUp: "THỰC NGHIỆM", stageDown: "THỰC NGHIỆM",
+      },
+      history: V.stats ? { tests: V.stats, stageTable: V.stageTable ?? null, ext: V.ext ?? null, patternContext: V.patternContext ?? null, v1ByDayStage: V.v1ByDayStage ?? null } : null,
+      previous: V.previous ? { prereg: V.previous.prereg, engine: V.previous.engine, ranAt: V.previous.ranAt, verdicts: V.previous.verdicts } : null,
     };
   }
 
@@ -215,7 +263,10 @@ export function createStructureService({ service, taSeries, corporateActions, no
             const r = await loadSeries(ticker);
             const bars = (r?.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0 }));
             if (bars.length < 260) { skipped.push(ticker); continue; }
-            const row = summaryRow(ticker, Q.analyzeStructureMtf({ d: bars }));
+            // P2: mã có kho nến 1 giờ (rổ VN100 được làm ấm 15:40) -> kết luận đa khung Ngày × 1 giờ như bảng phân tích.
+            let h1 = null;
+            try { const days = await h1Cache.peek(ticker); if (days) { const hb = h1FromCache(days, bars); if (hb.length >= 30) h1 = hb; } } catch { h1 = null; }
+            const row = summaryRow(ticker, Q.analyzeStructureMtf({ d: bars, h1: h1 ?? undefined }));
             rows.push(row);
             series.set(ticker, { close: bars.map((b) => b.close), idx: new Map(bars.map((b, i) => [b.date, i])) });
             // T6: khoảng dự báo thô cho sổ thực tế (chỉ khi đã có tham số nón từ kiểm định).
@@ -234,16 +285,34 @@ export function createStructureService({ service, taSeries, corporateActions, no
           ledgerStats = await ledger.score((t) => series.get(t) ?? null, asOf || vnDate(new Date(now())));
         } catch (e) { ledgerStats = { error: e.message }; }
         const transitions = rows.filter((r) => r.chg && r.asOf === asOf).map((r) => ({ t: r.t, from: r.prev, to: r.st, v: r.v }));
-        const doc = { engine: Q.MTF_STRUCTURE_VERSION, generatedAt: new Date(now()).toISOString(), asOf, evidence: evidence(STRUCTURE_VALIDATION).labels, rows, skipped, transitions, ledger: ledgerStats };
+        const ev = evidence(STRUCTURE_VALIDATION);
+        const doc = { engine: Q.MTF_STRUCTURE_VERSION, generatedAt: new Date(now()).toISOString(), asOf, evidence: ev.labels, verdictValidated: ev.verdictValidated, rows, skipped, transitions, ledger: ledgerStats };
         const disk = await h1Cache.writeJson(SUMMARY_FILE, doc);
         let kv = true;
         try { await store.setKv(STRUCTURE_SUMMARY_KV, doc); } catch { kv = false; }
         summaryMemo = { value: doc, at: now() };
-        return { symbols: rows.length, skipped: skipped.length, asOf, disk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
+        return { symbols: rows.length, withH1: rows.filter((r) => r.hs).length, skipped: skipped.length, asOf, disk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
+      },
+      /** 15:40 — làm ấm kho nến 1 giờ cho rổ VN100 + VN30 (phiên đã đóng; lần đầu ~120 phiên / mã, sau đó 1 phiên / ngày). */
+      async warmStructureH1() {
+        const t0 = now();
+        const provider = service.router?.providers?.ssiFcV2;
+        if (!provider?.isConfigured?.() || typeof provider.getIntradayRange !== "function") return { skipped: "Chưa cấu hình SSI FC Data." };
+        const set = new Set();
+        for (const code of H1_WARM_INDEXES) {
+          try { for (const s of (await service.getIndexComponents(code)).symbols ?? []) set.add(String(s).toUpperCase()); } catch { /* rổ khác vẫn chạy */ }
+        }
+        let fetched = 0, warm = 0, failed = 0, stopped = false;
+        for (const symbol of set) {
+          if (now() - t0 > H1_WARM_BUDGET_MS) { stopped = true; break; }
+          try { const r = await h1Bars(symbol, [], false, { batch: true }); fetched += r.fetchedSessions ?? 0; warm++; } catch { failed++; }
+          await new Promise((r) => setImmediate(r));
+        }
+        return { symbols: set.size, warm, failed, fetchedSessions: fetched, stoppedByBudget: stopped, ms: now() - t0 };
       },
     },
   };
 }
 
-export const STRUCTURE_SCHEDULE = [{ name: "scanStructure", at: "15:47", tradingDayOnly: true }];
+export const STRUCTURE_SCHEDULE = [{ name: "warmStructureH1", at: "15:40", tradingDayOnly: true }, { name: "scanStructure", at: "15:47", tradingDayOnly: true }];
 export { BUY as STRUCTURE_BUY_CODES };

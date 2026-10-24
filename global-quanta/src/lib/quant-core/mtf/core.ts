@@ -1,4 +1,4 @@
-// @gq/quant-core · MTF — chỉ báo nền + sóng Directional Change + Dow. Mọi chuỗi POINT-IN-TIME.
+// @gq/quant-core · MTF — chỉ báo nền + sóng ZigZag theo ATR (như tài liệu gốc) + Dow. Mọi chuỗi POINT-IN-TIME.
 import { atrSeries, type Bar } from "../math";
 import type { Swing, TfParams } from "./types";
 
@@ -47,41 +47,35 @@ export function indicators(bars: Bar[], p: TfParams): Indicators {
 }
 
 /**
- * Sóng Directional Change (thời gian nội tại): một đỉnh/đáy chỉ được XÁC NHẬN khi giá ĐÓNG CỬA đảo chiều
- * ≥ θ·ATR(tại nến xác nhận) tính từ cực trị. Cực trị đo bằng high/low. Không vẽ lại: đã xác nhận thì cố định.
+ * Sóng ZigZag theo ATR — port của zigzag() trong tài liệu gốc (mtf_market_structure.py): một đỉnh chỉ được XÁC NHẬN khi giá
+ * (đáy nến) đảo chiều ≥ k·ATR từ đỉnh (đáy: đỉnh nến vượt đáy ≥ k·ATR). Không vẽ lại: đã xác nhận thì cố định. Khác bản gốc duy nhất:
+ * đáy đầu tiên (pha chưa rõ hướng) được ghi xác nhận tại nến phát hiện thay vì nến đỉnh (bản gốc nhìn trước vài nến ở điểm này).
+ * Bắt đầu từ nến có đủ ATR (period − 1).
  */
-export function dcSwings(bars: Bar[], atr: number[], theta: number, level: Swing["level"]): Swing[] {
+export function zigzagSwings(bars: Bar[], atr: number[], k: number, level: Swing["level"], start = 0): Swing[] {
   const out: Swing[] = [];
-  if (bars.length === 0) return out;
-  let mode: 0 | 1 | -1 = 0; // 0 = chưa rõ, 1 = đang đi lên (tìm đỉnh), -1 = đang đi xuống (tìm đáy)
-  let hiP = bars[0].high, hiI = 0, loP = bars[0].low, loI = 0;
-  for (let i = 1; i < bars.length; i++) {
-    const b = bars[i];
-    const th = theta * Math.max(atr[i], 1e-9);
-    if (mode >= 0 && b.high > hiP) { hiP = b.high; hiI = i; }
-    if (mode <= 0 && b.low < loP) { loP = b.low; loI = i; }
-    if (mode === 1) {
-      if (hiP - b.close >= th) {
-        out.push({ kind: "H", index: hiI, confirmedIndex: i, price: hiP, level });
-        mode = -1; loP = b.low; loI = i;
-        for (let j = hiI + 1; j <= i; j++) if (bars[j].low < loP) { loP = bars[j].low; loI = j; }
+  const n = bars.length;
+  if (n === 0 || start >= n) return out;
+  let dir: 0 | 1 | -1 = 0; // +1 đang tìm đỉnh, −1 đang tìm đáy
+  let extI = start, extP = bars[start].high, loI = start, loP = bars[start].low;
+  for (let i = start + 1; i < n; i++) {
+    const a = Number.isFinite(atr[i]) && atr[i] > 0 ? atr[i] : atr[start];
+    const th = k * a, b = bars[i];
+    if (dir >= 0) {
+      if (b.high > extP) { extI = i; extP = b.high; }
+      if (dir === 0 && b.low < loP) { loI = i; loP = b.low; }
+      if (extP - b.low >= th && (dir === 1 || extP - loP >= th)) {
+        if (dir === 0 && loI < extI) out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
+        out.push({ kind: "H", index: extI, confirmedIndex: i, price: extP, level });
+        dir = -1; extI = i; extP = b.low;
+        continue;
       }
-    } else if (mode === -1) {
-      if (b.close - loP >= th) {
-        out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
-        mode = 1; hiP = b.high; hiI = i;
-        for (let j = loI + 1; j <= i; j++) if (bars[j].high > hiP) { hiP = bars[j].high; hiI = j; }
-      }
-    } else {
-      // Chưa có hướng: chiều nào đảo chiều đủ ngưỡng trước sẽ xác nhận cực trị đầu tiên.
-      if (hiP - b.close >= th && hiI < i) {
-        out.push({ kind: "H", index: hiI, confirmedIndex: i, price: hiP, level });
-        mode = -1; loP = b.low; loI = i;
-        for (let j = hiI + 1; j <= i; j++) if (bars[j].low < loP) { loP = bars[j].low; loI = j; }
-      } else if (b.close - loP >= th && loI < i) {
-        out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
-        mode = 1; hiP = b.high; hiI = i;
-        for (let j = loI + 1; j <= i; j++) if (bars[j].high > hiP) { hiP = bars[j].high; hiI = j; }
+    }
+    if (dir <= 0) {
+      if (dir === -1 && b.low < extP) { extI = i; extP = b.low; }
+      if (dir === -1 && b.high - extP >= th) {
+        out.push({ kind: "L", index: extI, confirmedIndex: i, price: extP, level });
+        dir = 1; extI = i; extP = b.high;
       }
     }
   }

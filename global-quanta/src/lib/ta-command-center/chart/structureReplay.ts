@@ -16,6 +16,6 @@ export function replayDoc(daily: OhlcvBar[], index: number, server: StructureDoc
     symbol: server?.symbol ?? symbol, generatedAt: "",
     dataSource: server?.dataSource ?? { daily: { source: "SSI · /ta-series", priceBasis: "", bars: d.length, warnings: [] }, h1: { unavailable: "Phát lại chỉ dùng khung Tuần / Ngày." } },
     cone: null, probability: null, stageOdds: null,
-    evidence: server?.evidence ?? { prereg: "", status: "PENDING", verdicts: {}, summary: null, labels: { stageUp: "ĐANG KIỂM ĐỊNH", alignment: "ĐANG KIỂM ĐỊNH", checklist: "ĐANG KIỂM ĐỊNH", patterns: "ĐANG KIỂM ĐỊNH", stageDown: "ĐANG KIỂM ĐỊNH" } },
+    evidence: server?.evidence ?? { prereg: "", status: "PENDING", verdicts: {}, summary: null, verdictValidated: false, labels: { alignment: "ĐANG KIỂM ĐỊNH", checklist: "ĐANG KIỂM ĐỊNH", patterns: "ĐANG KIỂM ĐỊNH" } },
   } as StructureDoc;
 }

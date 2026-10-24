@@ -2,8 +2,9 @@
 //   - Ghim chặt vào nến: mọi mốc thời gian phải trùng một nến của khung đang xem (W -> thứ Hai của tuần, 1H -> khoá tiết
 //     "YYYY-MM-DDTHH:00:00+07:00" của TimeframeController); không khớp thì bỏ phần đó (không trôi, không kẹp sai nến).
 //   - Vùng tương lai (nón dự báo, mũi tên kịch bản) dùng chỉ số logic "nến cuối + k" -> vẫn đi cùng nến khi kéo/zoom.
-//   - Ba chế độ: Tổng quan (giai đoạn + 2 vùng gần nhất), Giao dịch (+ kịch bản, nón, tín hiệu, thang mức giá),
-//     Chuyên sâu (+ mọi vùng, mẫu hình, nền giá, sóng trung). Nhãn tiếng Việt, ngân sách 12 nhãn của OverlayPrimitive.
+//   - Ba chế độ: Tổng quan (giai đoạn + 2 vùng gần nhất), Giao dịch (+ kịch bản, R:R "nếu mua ở giá hiện tại", nón, tín hiệu,
+//     thang mức giá), Chuyên sâu (+ mọi vùng, mẫu hình, nền giá, sóng trung, mốc sóng lớn "mức 4 giờ"). Nhãn tiếng Việt,
+//     ngân sách 12 nhãn của OverlayPrimitive. v2: giai đoạn theo tài liệu gốc (B = tái tích lũy), cờ quá đà, vị trí mẫu hình.
 import type { OhlcvBar } from "../types";
 import type { Timeframe } from "../TimeframeController";
 import type { ChartMarkerInput } from "../TVChartManager";
@@ -18,15 +19,18 @@ export const STRUCTURE_MODES: { key: StructureMode; label: string; hint: string 
   { key: "deep", label: "Chuyên sâu", hint: "Thêm mọi vùng giá, mẫu hình, nền giá, sóng trung" },
 ];
 
+// Như ảnh DEMO của tài liệu: xanh = tích lũy / tái tích lũy / tăng, đỏ = phân phối / đảo chiều / giảm.
 const STAGE_FILL: Record<StructureStage, string | null> = {
-  A: rgba(GQ_COLORS.cyan, 0.06), UP: rgba(GQ_COLORS.bull, 0.055), B: rgba(GQ_COLORS.amber, 0.06), C: rgba(GQ_COLORS.amber, 0.08),
-  D: rgba(GQ_COLORS.bear, 0.08), DOWN: rgba(GQ_COLORS.bear, 0.05), Bp: rgba(GQ_COLORS.amber, 0.05), RANGE: null,
+  A: rgba(GQ_COLORS.bull, 0.08), UP: rgba(GQ_COLORS.bull, 0.04), B: rgba(GQ_COLORS.bull, 0.08), C: rgba(GQ_COLORS.bear, 0.07),
+  D: rgba(GQ_COLORS.bear, 0.08), DOWN: rgba(GQ_COLORS.bear, 0.04), Bp: rgba(GQ_COLORS.amber, 0.05), RANGE: null,
 };
 const STAGE_COLOR: Record<StructureStage, string> = {
-  A: GQ_COLORS.cyan, UP: GQ_COLORS.bull, B: GQ_COLORS.amber, C: GQ_COLORS.amber, D: GQ_COLORS.bear, DOWN: GQ_COLORS.bear, Bp: GQ_COLORS.amber, RANGE: GQ_COLORS.text2,
+  A: GQ_COLORS.bull, UP: GQ_COLORS.bull, B: GQ_COLORS.bull, C: GQ_COLORS.amber, D: GQ_COLORS.bear, DOWN: GQ_COLORS.bear, Bp: GQ_COLORS.amber, RANGE: GQ_COLORS.text2,
 };
+/** Điểm vào cốt lõi L / S của tài liệu (màu hồng như ảnh DEMO). */
+export const CORE_COLOR = "#EC4899";
 const NODE: Record<string, string> = { "Đáy 1": "Đ1", "Đáy 2": "Đ2", "Đỉnh 1": "Đ1", "Đỉnh 2": "Đ2", "Cổ": "C", "Vai trái": "VT", "Vai phải": "VP", "Đầu": "Đ" };
-const P = { stage: 20, zone: 30, scenario: 60, cone: 55, pattern: 45, today: 15 } as const;
+const P = { stage: 20, zone: 30, scenario: 60, cone: 55, pattern: 45, today: 15, rr: 62 } as const;
 
 export const fmtPrice = (v: number) => (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("vi-VN") : v.toLocaleString("vi-VN", { maximumFractionDigits: 2 }));
 
@@ -102,8 +106,9 @@ export function structureSceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc:
     if (fill) items.push({ kind: "band", t1: from, t2: to, fill, label: labelled ? { text: `${s.label}${s.bars ? ` · ${s.bars} nến` : ""}`, color: STAGE_COLOR[s.stage], priority: P.stage + i } : undefined });
     else if (labelled) items.push({ kind: "vline", t: from, color: rgba(GQ_COLORS.text2, 0.25), dash: [2, 4], label: { text: s.label, color: GQ_COLORS.text2, priority: P.stage + i } });
   });
+  const extTxt = a.ext ? ` · quá đà ${a.ext > 0 ? "+" : "−"}${Math.abs(a.dev ?? 0).toFixed(1).replace(".", ",")} ATR` : "";
   items.push({ kind: "vline", t: c.last, color: rgba(replay ? GQ_COLORS.amber : GQ_COLORS.cyan, replay ? 0.7 : 0.35), dash: [1, 3],
-    label: { text: replay ? `Phát lại ${replay}` : "Hôm nay", color: replay ? GQ_COLORS.amber : GQ_COLORS.cyan, priority: replay ? 95 : P.today } });
+    label: { text: replay ? `Phát lại ${replay}` : `Hôm nay${extTxt}`, color: replay ? GQ_COLORS.amber : a.ext ? GQ_COLORS.amber : GQ_COLORS.cyan, priority: replay ? 95 : P.today + (a.ext ? 30 : 0) } });
 
   // 2. Vùng hỗ trợ / kháng cự — neo từ đầu giai đoạn hiện tại (hoặc 120 nến gần nhất).
   const lastSeg = a.segments[a.segments.length - 1];
@@ -112,7 +117,14 @@ export function structureSceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc:
 
   if (mode === "overview") return items;
 
-  // 3. Hai kịch bản: mức kích hoạt / cắt lỗ / mục tiêu + mũi tên vào vùng tương lai.
+  // 3. R:R "nếu mua ở giá hiện tại" (cách của tài liệu) + hai kịch bản: mức kích hoạt / cắt lỗ / mục tiêu + mũi tên vào vùng tương lai.
+  if (a.rrNow && !replay) {
+    const r = a.rrNow, tag = r.ok ? "giao dịch ổn" : "giao dịch NG";
+    items.push({ kind: "hline", t1: c.last, t2: null, price: r.stop, color: rgba(GQ_COLORS.bear, 0.75), dash: [2, 2],
+      label: { text: `Nếu mua giá hiện tại: cắt lỗ ${fmtPrice(r.stop)} · R:R 1:${r.rr.toFixed(1).replace(".", ",")} (${tag})`, color: r.ok ? GQ_COLORS.bull : GQ_COLORS.amber, priority: P.rr } });
+    items.push({ kind: "hline", t1: c.last, t2: null, price: r.target, color: rgba(GQ_COLORS.bull, 0.6), dash: [4, 3],
+      label: { text: `Mục tiêu ${fmtPrice(r.target)}${r.targetBasis === "3R" ? " (3R)" : " (đỉnh sóng lớn)"}`, color: GQ_COLORS.bull, priority: P.rr - 1 } });
+  }
   items.push(...scenarioLines(doc, c.last));
   const [L, S] = doc.scenarios;
   if (L && L.targets[0] != null) items.push({ kind: "future", from: c.last, points: [{ k: 0, price: close }, { k: 3, price: L.trigger }, { k: 12, price: L.targets[0] }], color: rgba(GQ_COLORS.bull, 0.8), dash: [5, 3], arrow: true });
@@ -142,7 +154,7 @@ export function structureSceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc:
     const pts = p.points.map((x) => ({ t: c.map(x.date), price: x.price, label: x.label })).filter((x): x is { t: string; price: number; label: string } => x.t !== null);
     if (pts.length !== p.points.length) continue;
     items.push({ kind: "poly", points: pts.map((x) => ({ t: x.t, price: x.price })), color: rgba(col, 0.55), width: 1.2, dash: [2, 3], nodeLabels: pts.map((x) => NODE[x.label] ?? x.label.slice(0, 2)),
-      label: { text: `${p.name} · ${p.status === "confirmed" ? "đã phá cổ" : "đang hình thành"}`, color: col, priority: P.pattern } });
+      label: { text: `${p.name} · ${p.status === "confirmed" ? "đã phá cổ" : "đang hình thành"}${p.contextLabel ? ` · ${p.contextLabel}` : ""}`, color: col, priority: P.pattern } });
     const n0 = c.map(p.neck.d0), n1 = c.map(p.neck.d1);
     const endD = (p.breakDate && c.map(p.breakDate)) ?? c.last;
     if (n0 && n1) {
@@ -166,6 +178,15 @@ export function structureSceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc:
   }
   const sw = a.swings.map((s) => ({ t: c.map(s.date), price: s.price })).filter((x): x is { t: string; price: number } => x.t !== null);
   if (sw.length >= 3) items.push({ kind: "poly", points: sw, color: rgba(GQ_COLORS.text2, 0.45), width: 1, dash: [1, 3] });
+  // Mốc sóng lớn ("mức 4 giờ" ở khung 1 giờ): đoạn ngang ngắn tại đỉnh (đỏ) / đáy (xanh dương) như các ảnh của tài liệu.
+  const lvl = timeframe === "1H" ? "4 giờ" : timeframe === "W" ? "tháng" : "tuần";
+  for (const s of (a.swingsLarge ?? []).slice(-6)) {
+    const t = c.map(s.date);
+    const i = t ? bars.findIndex((x) => x.date === t) : -1;
+    if (!t || i < 0) continue;
+    items.push({ kind: "hline", t1: bars[Math.max(0, i - 2)].date, t2: bars[Math.min(bars.length - 1, i + 2)].date, price: s.price, color: rgba(s.kind === "H" ? GQ_COLORS.bear : GQ_COLORS.cyan, 0.8), width: 2,
+      label: { text: `${s.kind === "H" ? "Đỉnh" : "Đáy"} mức ${lvl}`, color: s.kind === "H" ? GQ_COLORS.bear : GQ_COLORS.cyan, priority: 22 } });
+  }
   return items;
 }
 
@@ -197,7 +218,8 @@ export function structureMarkers(bars: OhlcvBar[], timeframe: Timeframe, doc: St
     const t = c.map(s.date);
     if (!t) return [];
     const buy = s.side === "MUA";
-    return [{ time: t, position: buy ? "belowBar" : "aboveBar", color: s.code === "G3" ? GQ_COLORS.amber : buy ? GQ_COLORS.bull : GQ_COLORS.bear, shape: buy ? "arrowUp" : "arrowDown", text: s.code }];
+    const core = s.code === "L" || s.code === "S";
+    return [{ time: t, position: buy ? "belowBar" : "aboveBar", color: core ? CORE_COLOR : s.code === "G3" ? GQ_COLORS.amber : buy ? GQ_COLORS.bull : GQ_COLORS.bear, shape: buy ? "arrowUp" : "arrowDown", text: s.code }];
   });
 }
 
@@ -209,6 +231,7 @@ export function structureLevels(doc: StructureDoc | null | undefined, mode: Stru
   const out: PriceLevel[] = [];
   const [L, S] = doc.scenarios;
   if (L) { out.push({ price: L.trigger, color: GQ_COLORS.bull, title: "Kích hoạt tăng" }); out.push({ price: L.stop, color: GQ_COLORS.bear, title: "Cắt lỗ" }); }
+  if (doc.rrNow) out.push({ price: doc.rrNow.stop, color: rgba(GQ_COLORS.bear, 0.8), title: `Cắt lỗ (R:R 1:${doc.rrNow.rr.toFixed(1).replace(".", ",")})` });
   if (S) out.push({ price: S.trigger, color: GQ_COLORS.bear, title: "Kích hoạt giảm" });
   const z = doc.tfs.D?.zones ?? [];
   const sup = z.filter((x) => x.role === "support" && x.mid < close).sort((a, b) => b.strength - a.strength)[0];

@@ -45,9 +45,9 @@ export const SIGNAL_SPECS = [
 
 // T7 (2026-10-21): Cấu trúc thị trường đa khung — bậc C (chỉ đo IC, không vào điểm Elite cho tới khi engine bằng chứng thăng bậc).
 SIGNAL_SPECS.push(
-  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H1/H5 không đạt OOS (vào Tăng −1,56%/20 phiên); chỉ đo IC." },
-  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 không đạt (IC OOS −0,032)." },
-  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7", unit: "bậc", level: "stock", tier: "C", evidenceVi: "T2 H2 không đạt (MUA đa khung −0,68%/10 phiên OOS)." },
+  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF v2)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "MTF v2 V4 không đạt (vào B tái tích lũy −1,37%/20 phiên OOS); từ 24/10/2026 thang giai đoạn v2 (B = tái tích lũy); chỉ đo IC." },
+  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 không đạt (IC OOS −0,032); v2 mục R:R theo tài liệu (≥ 1)." },
+  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7 (v2, cổng R:R)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "MTF v2 V1 không đạt (L khung 1 giờ −0,72%/10 phiên OOS), V2 cổng R:R +0,25% (KTC chứa 0)." },
 );
 
 export const SPEC_BY_ID = new Map(SIGNAL_SPECS.map((s) => [s.id, s]));
@@ -60,7 +60,8 @@ const PATTERN_STATUS = { BREAKOUT: 1, CONFIRMED: 1, TARGET1: 0.5, PULLBACK: 0.5,
 const GRADE = { A: 3, B: 2, C: 1 };
 const QUADRANT = { LEADING: 2, IMPROVING: 1, WEAKENING: -1, LAGGING: -2 };
 const COTUC = { FAVORABLE: 1, WATCH: 0, AVOID: -1 };
-const STRUCT_STAGE = { UP: 2, A: 1, B: 0.5, RANGE: 0, C: -0.5, Bp: -1, D: -1.5, DOWN: -2 };
+// v2 (24/10/2026): B = tái tích lũy trong xu hướng tăng (trước đây "quá mua") -> xếp giữa UP và A.
+const STRUCT_STAGE = { UP: 2, B: 1.5, A: 1, RANGE: 0, C: -0.5, Bp: -1, D: -1.5, DOWN: -2 };
 const STRUCT_VERDICT = { "MUA": 2, "CHỜ MUA": 1, "ĐỨNG NGOÀI": 0, "GIẢM TỶ TRỌNG": -1, "BÁN": -2 };
 
 /** Ngành ICB cụ thể nhất có trong tập `codes` cho một mã (l3 -> l2 -> l1). */

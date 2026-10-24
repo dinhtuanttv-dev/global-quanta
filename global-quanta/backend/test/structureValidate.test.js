@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { MTF_PREREG, runStructureValidation } from "../src/market/structure/validate.js";
+import { MTF_V2_PREREG, runStructureValidationV2 } from "../src/market/structure/validateV2.js";
 import { rng } from "../src/market/structure/ml.js";
 
 function days(n) {
@@ -47,5 +48,22 @@ test("kiểm định chạy trọn trên dữ liệu tổng hợp: đủ khoá b
   assert.ok(["PASS", "FAIL", "INSUFFICIENT"].includes(rep.meta.verdict));
   for (const h of MTF_PREREG.cqr.horizons) assert.ok(["PASS", "BASELINE", "FAIL", "INSUFFICIENT"].includes(rep.cqr[h].verdict));
   assert.ok(rep.hmm.typical.UP?.median > 0);
+  assert.ok(["PASS", "FAIL", "INSUFFICIENT"].includes(rep.hmm.verdict));
+});
+
+test("MTF v2: kiểm định V1–V5 chạy trọn trên dữ liệu tổng hợp — đủ khoá, phán quyết hợp lệ, mô tả có KTC", { timeout: 600_000 }, () => {
+  const ds = days(1250);
+  const daily = { VNINDEX: walk(ds, 1, true) };
+  for (let k = 0; k < 14; k++) daily[`S${String(k).padStart(2, "0")}`] = walk(ds, 200 + k);
+  const h1 = { S00: hourly(daily.S00, "2023-01-03"), S01: hourly(daily.S01, "2023-01-03"), S02: hourly(daily.S02, "2023-01-03") };
+  const rep = runStructureValidationV2({ daily, h1 });
+  assert.equal(rep.prereg.version, MTF_V2_PREREG.version);
+  assert.equal(rep.engine, "2.0.0");
+  assert.deepEqual(Object.keys(rep.verdicts.final), ["V1", "V2", "V3", "V4", "V5"]);
+  for (const v of Object.values(rep.verdicts.final)) assert.ok(["PASS", "FAIL", "FAIL_FDR", "INSUFFICIENT"].includes(v));
+  assert.ok(rep.V3.IS.n > 0 && rep.V4.IS.n > 0, "có tín hiệu L và lần vào B khung ngày");
+  assert.ok(rep.V1.IS.n > 0, "có tín hiệu L khung 1 giờ");
+  assert.ok(rep.V2.IS.n <= rep.V1.IS.n, "V2 là tập con của V1");
+  assert.ok(rep.descriptive.stageTable.B.IS.n > 0 && Array.isArray(rep.descriptive.stageTable.UP.IS.ci));
   assert.ok(["PASS", "FAIL", "INSUFFICIENT"].includes(rep.hmm.verdict));
 });

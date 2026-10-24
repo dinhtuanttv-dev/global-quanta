@@ -2695,93 +2695,105 @@ function convergenceAt(bars, benchmark, opts = {}) {
 }
 
 // src/lib/quant-core/mtf/patterns.ts
-var PATTERN_PARAMS = { eqAtr: 1, shoulderAtr: 1.5, neckMinAtr: 1.5, neckMaxSlopeAtr: 1.5, waitMult: 1.5 };
 var neckAt = (nk, j) => nk.i1 === nk.i0 ? nk.p0 : nk.p0 + (nk.p1 - nk.p0) * (j - nk.i0) / (nk.i1 - nk.i0);
-function resolve(bars, p, extreme, width, pp) {
-  const last = Math.min(bars.length - 1, p.confirmedIndex + Math.max(10, Math.round(width * pp.waitMult)));
-  for (let j = p.confirmedIndex; j <= last; j++) {
-    const c = bars[j].close;
-    const nk = neckAt(p.neck, j);
-    if (p.dir === 1 ? c > nk : c < nk) {
-      p.breakIndex = j;
-      return;
-    }
-    if (p.dir === 1 ? c < extreme : c > extreme) {
-      p.failIndex = j;
-      return;
-    }
-  }
-  if (last < bars.length - 1) p.failIndex = last + 1;
+function contextOf(dir, lowIdx, ready, bars, x, dow) {
+  if (dir === 1) return x.slope[lowIdx] > 0 ? "reaccum" : "reversal";
+  return x.slope[ready] > 0 && bars[ready].close > x.maSlow[ready] && dow[ready] === 1 ? "countertrend" : "reversal";
 }
-function detectPatterns(bars, atr2, mid, pp = PATTERN_PARAMS) {
-  const out = [];
-  for (let k = 2; k < mid.length; k++) {
-    const s2 = mid[k], s1 = mid[k - 1], s0 = mid[k - 2];
-    const a = Math.max(atr2[s2.index], 1e-9);
-    const conf = s2.confirmedIndex;
-    if (s0.kind === s2.kind && Math.abs(s2.price - s0.price) <= pp.eqAtr * a) {
-      const prev = k >= 3 ? mid[k - 3] : null;
-      const dir = s0.kind === "L" ? 1 : -1;
-      const ext = dir === 1 ? Math.min(s0.price, s2.price) : Math.max(s0.price, s2.price);
-      const height = Math.abs(s1.price - ext);
-      const ctx = prev ? dir === 1 ? prev.price > s1.price : prev.price < s1.price : false;
-      if (height >= pp.neckMinAtr * a && ctx) {
-        const p = {
-          type: dir === 1 ? "W" : "M",
+function detectPatterns(bars, atr2, mid, x, dow, p) {
+  const n = bars.length;
+  const close = bars.map((b) => b.close);
+  const found = [];
+  for (let j = 0; j < mid.length; j++) {
+    const last = mid[j];
+    const dir = last.kind === "L" ? 1 : -1;
+    const seq = mid.slice(Math.max(0, j - 4), j + 1);
+    const a = Math.max(atr2[last.index], 1e-9);
+    const tol = p.patternTol * a;
+    let pat = null;
+    if (seq.length === 5 && seq[0].kind === last.kind && seq[2].kind === last.kind) {
+      const [s1, n1, hd, n2, s2] = seq;
+      if (dir * (s1.price - hd.price) > tol * 0.5 && dir * (s2.price - hd.price) > tol * 0.5) {
+        const steep = Math.abs(n2.price - n1.price) > p.neckMaxSlopeAtr * a;
+        const neck = steep ? { i0: n2.index, p0: n2.price, i1: n2.index, p1: n2.price } : { i0: n1.index, p0: n1.price, i1: n2.index, p1: n2.price };
+        pat = {
+          type: dir === 1 ? "IHS" : "HS",
           dir,
+          context: "reversal",
           points: [
-            { index: s0.index, price: s0.price, label: dir === 1 ? "\u0110\xE1y 1" : "\u0110\u1EC9nh 1" },
-            { index: s1.index, price: s1.price, label: "C\u1ED5" },
-            { index: s2.index, price: s2.price, label: dir === 1 ? "\u0110\xE1y 2" : "\u0110\u1EC9nh 2" }
+            { index: s1.index, price: s1.price, label: "Vai tr\xE1i" },
+            { index: n1.index, price: n1.price, label: "C\u1ED5" },
+            { index: hd.index, price: hd.price, label: "\u0110\u1EA7u" },
+            { index: n2.index, price: n2.price, label: "C\u1ED5" },
+            { index: s2.index, price: s2.price, label: "Vai ph\u1EA3i" }
           ],
-          neck: { i0: s1.index, p0: s1.price, i1: s1.index, p1: s1.price },
-          start: prev ? prev.index : s0.index,
-          confirmedIndex: conf,
+          neck,
+          start: s1.index,
+          confirmedIndex: s2.confirmedIndex,
           breakIndex: null,
           failIndex: null,
-          height,
-          target: s1.price + dir * height
+          followIndex: null,
+          height: 0,
+          target: 0
         };
-        resolve(bars, p, ext, s2.index - s0.index, pp);
-        out.push(p);
       }
     }
-    if (k >= 4) {
-      const L1 = mid[k - 4], N1 = mid[k - 3], Hd = mid[k - 2], N2 = mid[k - 1], L3 = s2;
-      if (L1.kind === L3.kind && Hd.kind === L1.kind) {
-        const dir = L1.kind === "L" ? 1 : -1;
-        const headBeyond = dir === 1 ? Hd.price < L1.price && Hd.price < L3.price : Hd.price > L1.price && Hd.price > L3.price;
-        const shouldersEq = Math.abs(L1.price - L3.price) <= pp.shoulderAtr * a;
-        const neckFlat = Math.abs(N1.price - N2.price) <= pp.neckMaxSlopeAtr * a;
-        const neck = { i0: N1.index, p0: N1.price, i1: N2.index, p1: N2.price };
-        const height = Math.abs(neckAt(neck, Hd.index) - Hd.price);
-        if (headBeyond && shouldersEq && neckFlat && height >= pp.neckMinAtr * a) {
-          const nkEnd = neckAt(neck, L3.index);
-          const p = {
-            type: dir === 1 ? "IHS" : "HS",
-            dir,
-            points: [
-              { index: L1.index, price: L1.price, label: "Vai tr\xE1i" },
-              { index: N1.index, price: N1.price, label: "C\u1ED5" },
-              { index: Hd.index, price: Hd.price, label: "\u0110\u1EA7u" },
-              { index: N2.index, price: N2.price, label: "C\u1ED5" },
-              { index: L3.index, price: L3.price, label: "Vai ph\u1EA3i" }
-            ],
-            neck,
-            start: L1.index,
-            confirmedIndex: conf,
-            breakIndex: null,
-            failIndex: null,
-            height,
-            target: nkEnd + dir * height
-          };
-          resolve(bars, p, Hd.price, L3.index - L1.index, pp);
-          out.push(p);
+    if (!pat && seq.length >= 3) {
+      const [b1, nk, b2] = seq.slice(-3);
+      if (b1.kind === last.kind && dir * (b2.price - b1.price) >= -tol && Math.abs(b2.price - b1.price) <= 3 * tol) {
+        pat = {
+          type: dir === 1 ? "W" : "M",
+          dir,
+          context: "reversal",
+          points: [
+            { index: b1.index, price: b1.price, label: dir === 1 ? "\u0110\xE1y 1" : "\u0110\u1EC9nh 1" },
+            { index: nk.index, price: nk.price, label: "C\u1ED5" },
+            { index: b2.index, price: b2.price, label: dir === 1 ? "\u0110\xE1y 2" : "\u0110\u1EC9nh 2" }
+          ],
+          neck: { i0: nk.index, p0: nk.price, i1: nk.index, p1: nk.price },
+          start: b1.index,
+          confirmedIndex: b2.confirmedIndex,
+          breakIndex: null,
+          failIndex: null,
+          followIndex: null,
+          height: 0,
+          target: 0
+        };
+      }
+    }
+    if (!pat) continue;
+    const extremes = pat.points.filter((q) => q.label !== "C\u1ED5");
+    const ext = extremes.reduce((m, q) => dir === 1 ? q.price < m.price ? q : m : q.price > m.price ? q : m);
+    const lastPt = pat.points[pat.points.length - 1];
+    if (dir * (neckAt(pat.neck, lastPt.index) - ext.price) < p.neckMinAtr * a) continue;
+    const first = pat.points[0], m4 = x.maSlow[first.index];
+    if (!Number.isFinite(m4) || dir * (m4 - first.price) <= 0) continue;
+    pat.height = Math.abs(neckAt(pat.neck, ext.index) - ext.price);
+    pat.target = neckAt(pat.neck, lastPt.index) + dir * pat.height;
+    pat.context = contextOf(dir, ext.index, Math.min(n - 1, pat.confirmedIndex), bars, x, dow);
+    const ready = pat.confirmedIndex;
+    for (let i = ready; i < Math.min(n, ready + p.breakBars); i++) if (dir * (close[i] - neckAt(pat.neck, i)) > 0) {
+      pat.breakIndex = i;
+      break;
+    }
+    if (pat.breakIndex == null && ready + p.breakBars <= n - 1) pat.failIndex = ready + p.breakBars;
+    if (pat.breakIndex != null) {
+      for (let i = pat.breakIndex; i < Math.min(n, pat.breakIndex + 3 * x.maFast); i++) {
+        if (Number.isFinite(x.maSlow[i]) && dir * (close[i] - x.maSlow[i]) > 0 && dir * x.slope[i] > 0) {
+          pat.followIndex = i;
+          break;
         }
       }
     }
+    found.push(pat);
   }
-  return out;
+  const uniq = /* @__PURE__ */ new Map();
+  for (const pt of found) {
+    const key = `${pt.dir}|${pt.breakIndex ?? `x${pt.confirmedIndex}`}`;
+    const cur = uniq.get(key);
+    if (!cur || (pt.type === "IHS" || pt.type === "HS") && (cur.type === "W" || cur.type === "M")) uniq.set(key, pt);
+  }
+  return [...uniq.values()].sort((a, b) => a.confirmedIndex - b.confirmedIndex);
 }
 function patternStatusAt(p, t) {
   if (p.confirmedIndex > t) return null;
@@ -2793,7 +2805,12 @@ var PATTERN_NAME = {
   W: "Hai \u0111\xE1y (W)",
   M: "Hai \u0111\u1EC9nh (M)",
   IHS: "Vai\u2013\u0111\u1EA7u\u2013vai ng\u01B0\u1EE3c",
-  HS: "Vai\u2013\u0111\u1EA7u\u2013vai"
+  HS: "Vai\u2013\u0111\u1EA7u\u2013vai (Sanzon)"
+};
+var PATTERN_CONTEXT_TEXT = {
+  reversal: { short: "\u0111\u1EA3o chi\u1EC1u", text: "Xu\u1EA5t hi\u1EC7n sau m\u1ED9t nh\u1ECBp xu h\u01B0\u1EDBng \u0111\xE3 ch\u1EEFng \u2014 \u0111\xFAng v\u1ECB tr\xED c\u1EE7a m\u1EABu \u0111\u1EA3o chi\u1EC1u." },
+  reaccum: { short: "t\xE1i t\xEDch l\u0169y", text: "M\u1EABu \u0111\xE1y trong xu h\u01B0\u1EDBng t\u0103ng (MA ch\xE2n tr\xEAn d\u1ED1c l\xEAn) \u2014 n\u1EC1n t\xE1i t\xEDch l\u0169y [B], thu\u1EADn xu h\u01B0\u1EDBng." },
+  countertrend: { short: "ng\u01B0\u1EE3c xu h\u01B0\u1EDBng", text: "M\u1EABu \u0111\u1EC9nh gi\u1EEFa xu h\u01B0\u1EDBng t\u0103ng c\xF2n nguy\xEAn (Dow t\u0103ng, MA d\u1ED1c l\xEAn) \u2014 theo t\xE0i li\u1EC7u, b\xE1n theo m\u1EABu n\xE0y l\u1EE3i th\u1EBF th\u1EA5p." }
 };
 
 // src/lib/quant-core/mtf/align.ts
@@ -2838,56 +2855,75 @@ function closedHtfIndex(ltf, htf, htfIsWeekly) {
   return out;
 }
 var stageBias = (s) => s === "UP" || s === "B" ? 1 : s === "DOWN" || s === "D" || s === "Bp" || s === "C" ? -1 : 0;
-var BUY_CODES = /* @__PURE__ */ new Set(["M1", "M2", "M3", "G3"]);
-function alignMatrix(trend, entry, week, entryBuyRecent) {
+var BUY_CODES = /* @__PURE__ */ new Set(["M1", "M2", "M3", "G3", "L"]);
+var VERDICT_DESCRIPTIVE = {
+  "MUA": "C\u1EA5u tr\xFAc thu\u1EADn t\u0103ng",
+  "CH\u1EDC MUA": "Ch\u1EDD t\xEDn hi\u1EC7u t\u0103ng",
+  "\u0110\u1EE8NG NGO\xC0I": "Trung t\xEDnh",
+  "GI\u1EA2M T\u1EF6 TR\u1ECCNG": "C\u1EA5u tr\xFAc suy y\u1EBFu",
+  "B\xC1N": "C\u1EA5u tr\xFAc gi\u1EA3m"
+};
+var verdictLabel = (v, validated) => validated ? v : VERDICT_DESCRIPTIVE[v];
+function alignMatrix(trend, entry, week, entryBuyRecent, opts = {}) {
   const rules = [];
   const cell = `Ng\xE0y:${trend}${entry ? ` \xD7 H1:${entry}` : ""}`;
   let verdict = "\u0110\u1EE8NG NGO\xC0I";
   let rule = "R6";
   let text = "";
   const e = entry ?? trend;
-  const eBull = e === "UP" || e === "A";
+  const eBull = e === "UP" || e === "A" || e === "B";
   const eBear = e === "C" || e === "D" || e === "DOWN" || e === "Bp";
+  const rrNg = opts.rrOk === false;
+  const chase = (opts.extEntry ?? 0) > 0;
   switch (trend) {
     case "UP":
+    case "B":
       rule = "R1";
-      if (e === "UP" && entryBuyRecent) {
-        verdict = "MUA";
-        text = "Khung ng\xE0y t\u0103ng, khung v\xE0o l\u1EC7nh t\u0103ng v\xE0 v\u1EEBa c\xF3 t\xEDn hi\u1EC7u mua \u2014 thu\u1EADn c\u1EA3 hai khung.";
-      } else if (e === "B") {
+      if ((opts.extDay ?? 0) > 0) {
+        rule = "R3";
         verdict = "CH\u1EDC MUA";
-        text = "Khung ng\xE0y t\u0103ng nh\u01B0ng khung v\xE0o l\u1EC7nh \u0111ang qu\xE1 mua \u2014 kh\xF4ng mua \u0111u\u1ED5i, ch\u1EDD h\u1ED3i v\u1EC1 h\u1ED7 tr\u1EE3.";
+        text = "Khung ng\xE0y t\u0103ng nh\u01B0ng gi\xE1 \u0111\xE3 l\u1EC7ch xa MA ch\xE2n tr\xEAn (qu\xE1 \u0111\xE0) \u2014 kh\xF4ng mua \u0111u\u1ED5i, ch\u1EDD \u0111i\u1EC1u ch\u1EC9nh v\u1EC1 MA (giai \u0111o\u1EA1n B t\xE1i t\xEDch l\u0169y).";
+        rules.push("R3: qu\xE1 \u0111\xE0 \u2014 ch\u1EC9 mua \u1EDF nh\u1ECBp \u0111i\u1EC1u ch\u1EC9nh v\u1EC1 MA, kh\xF4ng mua \u1EDF v\xF9ng l\u1EC7ch xa.");
+        break;
+      }
+      if (eBull && entryBuyRecent && !rrNg && !chase) {
+        verdict = "MUA";
+        text = trend === "B" ? "Khung ng\xE0y \u0111ang t\xE1i t\xEDch l\u0169y t\u1EA1i MA ch\xE2n tr\xEAn; khung v\xE0o l\u1EC7nh quay l\u1EA1i t\u0103ng v\xE0 c\xF3 t\xEDn hi\u1EC7u (L / Granville) \u2014 \u0111\xFAng \u0111i\u1EC3m v\xE0o c\u1EE7a t\xE0i li\u1EC7u." : "Khung ng\xE0y t\u0103ng; khung v\xE0o l\u1EC7nh quay l\u1EA1i t\u0103ng v\xE0 c\xF3 t\xEDn hi\u1EC7u (L / Granville) \u2014 thu\u1EADn c\u1EA3 hai khung.";
+      } else if (eBull && entryBuyRecent && rrNg) {
+        verdict = "CH\u1EDC MUA";
+        text = "C\xF3 t\xEDn hi\u1EC7u thu\u1EADn khung nh\u01B0ng ph\u1EA7n th\u01B0\u1EDFng kh\xF4ng l\u1EDBn h\u01A1n r\u1EE7i ro (R:R < 1 \u2014 giao d\u1ECBch NG) \u2014 ch\u1EDD gi\xE1 v\u1EC1 g\u1EA7n \u0111i\u1EC3m c\u1EAFt l\u1ED7 h\u01A1n.";
+      } else if (eBull && entryBuyRecent && chase) {
+        verdict = "CH\u1EDC MUA";
+        text = "C\xF3 t\xEDn hi\u1EC7u thu\u1EADn khung nh\u01B0ng khung v\xE0o l\u1EC7nh \u0111ang qu\xE1 \u0111\xE0 \u2014 kh\xF4ng mua \u0111u\u1ED5i, ch\u1EDD \u0111i\u1EC1u ch\u1EC9nh.";
       } else if (eBear) {
         verdict = "CH\u1EDC MUA";
-        text = "Khung ng\xE0y t\u0103ng, khung v\xE0o l\u1EC7nh \u0111ang \u0111i\u1EC1u ch\u1EC9nh \u2014 ch\u1EDD khung nh\u1ECF quay l\u1EA1i t\xEDch l\u0169y / t\u0103ng r\u1ED3i m\u1EDBi mua.";
+        text = "Khung ng\xE0y t\u0103ng, khung v\xE0o l\u1EC7nh \u0111ang \u0111i\u1EC1u ch\u1EC9nh \u2014 ch\u1EDD khung nh\u1ECF quay l\u1EA1i t\u0103ng (\u0111i\u1EC3m L) r\u1ED3i m\u1EDBi mua.";
+      } else if (trend === "B") {
+        verdict = "CH\u1EDC MUA";
+        text = "Khung ng\xE0y \u0111ang t\xE1i t\xEDch l\u0169y (\u0111i\u1EC1u ch\u1EC9nh v\u1EC1 MA ch\xE2n tr\xEAn) \u2014 v\xF9ng t\xECm \u0111i\u1EC3m mua, ch\u1EDD khung v\xE0o l\u1EC7nh b\u1EADt t\u0103ng.";
       } else {
         verdict = "CH\u1EDC MUA";
-        text = "Khung ng\xE0y t\u0103ng \u2014 ch\u1EDD t\xEDn hi\u1EC7u mua (h\u1ED3i ch\u1EA1m MA / ph\xE1 n\u1EC1n) \u1EDF khung v\xE0o l\u1EC7nh.";
+        text = "Khung ng\xE0y t\u0103ng \u2014 ch\u1EDD t\xEDn hi\u1EC7u (L / Granville 2\u20133) \u1EDF khung v\xE0o l\u1EC7nh.";
       }
-      rules.push("R1: ch\u1EC9 m\u1EDF mua \u1EDF khung nh\u1ECF khi khung ng\xE0y \u0111ang t\u0103ng chu\u1EA9n.");
+      rules.push("R1: ch\u1EC9 m\u1EDF mua \u1EDF khung nh\u1ECF khi khung ng\xE0y \u0111ang t\u0103ng / t\xE1i t\xEDch l\u0169y, v\xE0 khung nh\u1ECF quay l\u1EA1i t\u0103ng c\xF9ng chi\u1EC1u.");
+      if (verdict === "MUA" || rrNg) rules.push("C\u1ED5ng R:R: ch\u1EC9 mua khi ph\u1EA7n th\u01B0\u1EDFng l\u1EDBn h\u01A1n r\u1EE7i ro (R:R \u2265 1).");
       break;
     case "A":
       rule = "R6";
-      if (e === "UP" && entryBuyRecent) {
+      if (eBull && entryBuyRecent && !rrNg && !chase) {
         verdict = "MUA";
-        text = "Khung ng\xE0y \u0111ang t\xEDch l\u0169y \u0111\xE1y; khung v\xE0o l\u1EC7nh \u0111\xE3 t\u0103ng \u2014 ch\u1EC9 mua th\u0103m d\xF2 (n\u1EEDa t\u1EF7 tr\u1ECDng).";
+        text = "Khung ng\xE0y v\u1EEBa t\u1EA1o \u0111\xE1y (M\u1ED8T); khung v\xE0o l\u1EC7nh \u0111\xE3 t\u0103ng \u2014 ch\u1EC9 mua th\u0103m d\xF2 (n\u1EEDa t\u1EF7 tr\u1ECDng) khi gi\xE1 ki\u1EC3m tra l\u1EA1i vi\u1EC1n c\u1ED5 / MA.";
       } else {
         verdict = "CH\u1EDC MUA";
-        text = "Khung ng\xE0y \u0111ang t\xEDch l\u0169y \u0111\xE1y \u2014 ch\u1EDD ph\xE1 n\u1EC1n / vi\u1EC1n c\u1ED5 \u0111\u1EC3 x\xE1c nh\u1EADn.";
+        text = "Khung ng\xE0y \u0111ang t\u1EA1o \u0111\xE1y (M\u1ED8T) \u2014 ch\u1EDD gi\xE1 ki\u1EC3m tra l\u1EA1i vi\u1EC1n c\u1ED5 / MA ch\xE2n tr\xEAn v\xE0 gi\u1EEF \u0111\u01B0\u1EE3c.";
       }
-      rules.push("R6: t\xEDch l\u0169y / \u0111i ngang \u2014 ch\u1EC9 giao d\u1ECBch khi ph\xE1 v\u1EE1, t\u1EF7 tr\u1ECDng nh\u1ECF.");
-      break;
-    case "B":
-      rule = "R3";
-      verdict = eBear ? "GI\u1EA2M T\u1EF6 TR\u1ECCNG" : "\u0110\u1EE8NG NGO\xC0I";
-      text = eBear ? "Khung ng\xE0y qu\xE1 mua v\xE0 khung nh\u1ECF \u0111\xE3 suy y\u1EBFu \u2014 ch\u1ED1t l\u1EDDi d\u1EA7n." : "Khung ng\xE0y qu\xE1 mua \u2014 kh\xF4ng m\u1EDF mua m\u1EDBi, n\xE2ng c\u1EAFt l\u1ED7.";
-      rules.push("R3: khung ng\xE0y qu\xE1 mua \u2014 kh\xF4ng mua \u0111u\u1ED5i, ch\u1ED1t m\u1ED9t ph\u1EA7n \u1EDF kh\xE1ng c\u1EF1.");
+      rules.push("R6: t\xEDch l\u0169y / \u0111\xE1y \u2014 ch\u1EC9 giao d\u1ECBch khi x\xE1c nh\u1EADn, t\u1EF7 tr\u1ECDng nh\u1ECF.");
       break;
     case "C":
       rule = "R4";
       verdict = "GI\u1EA2M T\u1EF6 TR\u1ECCNG";
-      text = "Khung ng\xE0y suy y\u1EBFu t\u1EA1i \u0111\u1EC9nh \u2014 h\u1EA1 t\u1EF7 tr\u1ECDng, kh\xF4ng m\u1EDF mua m\u1EDBi d\xF9 khung nh\u1ECF h\u1ED3i.";
-      rules.push("R4: khung ng\xE0y \u1EDF giai \u0111o\u1EA1n C \u2014 c\u1EA5m mua m\u1EDBi \u1EDF khung nh\u1ECF.");
+      text = "Khung ng\xE0y \u0111ang ph\xE2n ph\u1ED1i / t\u1EA1o \u0111\u1EC9nh \u2014 kh\xF4ng mua \u0111u\u1ED5i, ch\u1ED1t l\u1EDDi d\u1EA7n, ch\u1EDD g\xE3y vi\u1EC1n c\u1ED5.";
+      rules.push("R4: khung ng\xE0y \u1EDF giai \u0111o\u1EA1n C \u2014 kh\xF4ng m\u1EDF mua m\u1EDBi \u1EDF khung nh\u1ECF.");
       break;
     case "D":
     case "DOWN":
@@ -3005,63 +3041,43 @@ function indicators(bars, p) {
   const volAvg = smaSeries(bars.map((b) => b.volume), 20);
   return { maFast, maSlow, atr: atr2, slope: slope2, slopeFast, dev, spread, volAvg };
 }
-function dcSwings(bars, atr2, theta, level) {
+function zigzagSwings(bars, atr2, k, level, start = 0) {
   const out = [];
-  if (bars.length === 0) return out;
-  let mode = 0;
-  let hiP = bars[0].high, hiI = 0, loP = bars[0].low, loI = 0;
-  for (let i = 1; i < bars.length; i++) {
-    const b = bars[i];
-    const th = theta * Math.max(atr2[i], 1e-9);
-    if (mode >= 0 && b.high > hiP) {
-      hiP = b.high;
-      hiI = i;
-    }
-    if (mode <= 0 && b.low < loP) {
-      loP = b.low;
-      loI = i;
-    }
-    if (mode === 1) {
-      if (hiP - b.close >= th) {
-        out.push({ kind: "H", index: hiI, confirmedIndex: i, price: hiP, level });
-        mode = -1;
-        loP = b.low;
-        loI = i;
-        for (let j = hiI + 1; j <= i; j++) if (bars[j].low < loP) {
-          loP = bars[j].low;
-          loI = j;
-        }
+  const n = bars.length;
+  if (n === 0 || start >= n) return out;
+  let dir = 0;
+  let extI = start, extP = bars[start].high, loI = start, loP = bars[start].low;
+  for (let i = start + 1; i < n; i++) {
+    const a = Number.isFinite(atr2[i]) && atr2[i] > 0 ? atr2[i] : atr2[start];
+    const th = k * a, b = bars[i];
+    if (dir >= 0) {
+      if (b.high > extP) {
+        extI = i;
+        extP = b.high;
       }
-    } else if (mode === -1) {
-      if (b.close - loP >= th) {
-        out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
-        mode = 1;
-        hiP = b.high;
-        hiI = i;
-        for (let j = loI + 1; j <= i; j++) if (bars[j].high > hiP) {
-          hiP = bars[j].high;
-          hiI = j;
-        }
-      }
-    } else {
-      if (hiP - b.close >= th && hiI < i) {
-        out.push({ kind: "H", index: hiI, confirmedIndex: i, price: hiP, level });
-        mode = -1;
-        loP = b.low;
+      if (dir === 0 && b.low < loP) {
         loI = i;
-        for (let j = hiI + 1; j <= i; j++) if (bars[j].low < loP) {
-          loP = bars[j].low;
-          loI = j;
-        }
-      } else if (b.close - loP >= th && loI < i) {
-        out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
-        mode = 1;
-        hiP = b.high;
-        hiI = i;
-        for (let j = loI + 1; j <= i; j++) if (bars[j].high > hiP) {
-          hiP = bars[j].high;
-          hiI = j;
-        }
+        loP = b.low;
+      }
+      if (extP - b.low >= th && (dir === 1 || extP - loP >= th)) {
+        if (dir === 0 && loI < extI) out.push({ kind: "L", index: loI, confirmedIndex: i, price: loP, level });
+        out.push({ kind: "H", index: extI, confirmedIndex: i, price: extP, level });
+        dir = -1;
+        extI = i;
+        extP = b.low;
+        continue;
+      }
+    }
+    if (dir <= 0) {
+      if (dir === -1 && b.low < extP) {
+        extI = i;
+        extP = b.low;
+      }
+      if (dir === -1 && b.high - extP >= th) {
+        out.push({ kind: "L", index: extI, confirmedIndex: i, price: extP, level });
+        dir = 1;
+        extI = i;
+        extP = b.high;
       }
     }
   }
@@ -3100,83 +3116,62 @@ function dowSeries(bars, sw) {
 }
 
 // src/lib/quant-core/mtf/stages.ts
-var STAGE_CONFIRM_BARS = 3;
-var PATTERN_FRESH_BARS = 20;
-function stageMachine(bars, ind, dow, patterns, p) {
+function stageMachine(bars, ind, patterns, large, p) {
   const n = bars.length;
   const stage = new Array(n).fill("RANGE");
   const stageAge = new Array(n).fill(0);
-  let cur = "RANGE";
-  let age = 0;
-  let pend = null;
-  let pendN = 0;
-  const byConf = [...patterns].sort((a, b) => a.confirmedIndex - b.confirmedIndex);
+  const C = bars.map((b) => b.close), Lo = bars.map((b) => b.low), Hi = bars.map((b) => b.high);
+  const { maFast: ma1, maSlow: ma4, atr: atr2, slope: slope2, slopeFast, dev, spread } = ind;
+  const horizon = 3 * p.maFast;
+  const bullBrk = new Array(n).fill(-1e9), bearBrk = new Array(n).fill(-1e9);
+  const topForming = new Array(n).fill(false);
+  for (const pt of patterns) {
+    if (pt.breakIndex != null) (pt.dir > 0 ? bullBrk : bearBrk)[pt.breakIndex] = pt.breakIndex;
+    if (pt.dir < 0) {
+      const end = pt.breakIndex ?? Math.min(n - 1, pt.confirmedIndex + p.breakBars);
+      for (let i = pt.confirmedIndex; i < end; i++) topForming[i] = true;
+    }
+  }
+  for (let i = 1; i < n; i++) {
+    bullBrk[i] = Math.max(bullBrk[i], bullBrk[i - 1]);
+    bearBrk[i] = Math.max(bearBrk[i], bearBrk[i - 1]);
+  }
+  const lowerHigh4h = new Array(n).fill(false);
+  const bigH = large.filter((s) => s.kind === "H").sort((x, y) => x.confirmedIndex - y.confirmedIndex);
+  for (let k = 2; k < bigH.length; k++) {
+    const flag = bigH[k - 1].price > bigH[k - 2].price && bigH[k].price < bigH[k - 1].price;
+    for (let i = bigH[k].confirmedIndex; i < n; i++) lowerHigh4h[i] = flag;
+  }
+  let prev = "";
+  let cur = "RANGE", age = 0;
   for (let i = 0; i < n; i++) {
-    const c = bars[i].close;
-    const mf = ind.maFast[i], ms = ind.maSlow[i], sl = ind.slope[i], slf = ind.slopeFast[i], dv = ind.dev[i], sp = ind.spread[i];
-    if (!Number.isFinite(ms) || !Number.isFinite(sl)) {
-      stage[i] = cur;
-      stageAge[i] = ++age;
-      continue;
-    }
-    let freshBull = null, freshBear = null, formingBull = false, formingBear = false;
-    for (const pt of byConf) {
-      if (pt.confirmedIndex > i) break;
-      const st = patternStatusAt(pt, i);
-      if (st === "confirmed" && i - pt.breakIndex <= PATTERN_FRESH_BARS) {
-        if (pt.dir === 1) freshBull = pt;
-        else freshBear = pt;
-      } else if (st === "forming") {
-        if (pt.dir === 1) formingBull = true;
-        else formingBear = true;
-      }
-    }
-    const war = Math.abs(sp) <= p.warAtr;
-    const trendUp = mf > ms && sl > 0 && c > ms;
-    const trendDn = mf < ms && sl < 0 && c < ms;
-    const wasTop = cur === "UP" || cur === "B" || cur === "C";
-    const wasBottom = cur === "DOWN" || cur === "Bp" || cur === "D" || cur === "A";
-    let cand;
-    let force = false;
-    if (freshBear && freshBear.breakIndex === i && wasTop) {
-      cand = "D";
-      force = true;
-    } else if (freshBull && freshBull.breakIndex === i && (wasBottom || cur === "RANGE")) {
-      cand = "UP";
-      force = true;
-    } else if (trendUp) {
-      if (dv >= p.overAtr) cand = "B";
-      else if (dow[i] === -1 || c < mf && slf < 0 || formingBear) cand = cur === "D" ? "D" : "C";
-      else cand = "UP";
-    } else if (trendDn) {
-      if (c >= mf - p.touchAtr * Math.max(ind.atr[i], 1e-9) && slf >= 0) cand = "Bp";
-      else if (cur === "C" || cur === "B") cand = "D";
-      else cand = "DOWN";
-    } else {
-      if (wasTop) cand = c < ms ? "D" : war || c < mf ? "C" : cur;
-      else if (wasBottom) cand = formingBull || war || c > mf ? "A" : cur === "D" ? "D" : "DOWN";
-      else cand = war ? "RANGE" : dow[i] === 1 && c > ms ? "UP" : dow[i] === -1 && c < ms ? "DOWN" : "RANGE";
-      if (cur === "A" && c > ms && mf > ms && sl >= 0) cand = "UP";
-    }
-    if (cand === cur) {
-      pend = null;
-      pendN = 0;
-    } else if (force) {
-      cur = cand;
-      age = 0;
-      pend = null;
-      pendN = 0;
-    } else {
-      if (pend === cand) pendN++;
-      else {
-        pend = cand;
-        pendN = 1;
-      }
-      if (pendN >= STAGE_CONFIRM_BARS) {
-        cur = cand;
+    const valid = Number.isFinite(ma4[i]) && Number.isFinite(atr2[i]) && Number.isFinite(slope2[i]);
+    if (valid) {
+      const a = atr2[i], t = p.touchAtr * a;
+      const up = C[i] > ma4[i] && ma1[i] > ma4[i] && slope2[i] > 0;
+      const down = C[i] < ma4[i] && ma1[i] < ma4[i] && slope2[i] < 0;
+      const war = Math.abs(spread[i]) < p.warAtr;
+      const recentBear = i - bearBrk[i] <= horizon, recentBull = i - bullBrk[i] <= horizon;
+      const nearMa = Lo[i] <= ma4[i] + t && C[i] >= ma4[i] - t;
+      const climax = dev[i] > p.overAtr * 0.5 && slopeFast[i] < 0 && lowerHigh4h[i];
+      let s;
+      if (recentBear && C[i] < ma4[i]) s = "D";
+      else if (prev === "C" && C[i] < ma4[i]) s = "D";
+      else if (prev === "D" && C[i] < ma4[i] && !down) s = "D";
+      else if (slope2[i] > 0 && C[i] > ma4[i] && (climax || topForming[i])) s = "C";
+      else if (prev === "C" && C[i] > ma4[i] + t) s = "C";
+      else if (recentBull && C[i] > ma4[i] && (prev === "" || prev === "A" || prev === "DOWN" || prev === "RANGE" || prev === "D")) s = "A";
+      else if (prev === "A" && C[i] > ma4[i] && !up) s = "A";
+      else if (slope2[i] > 0 && nearMa && (prev === "A" || prev === "UP" || prev === "B" || prev === "RANGE" || prev === "C")) s = "B";
+      else if (up) s = "UP";
+      else if (down) s = "DOWN";
+      else s = war || prev === "RANGE" || prev === "" ? "RANGE" : prev;
+      prev = s;
+      const bp = (s === "DOWN" || s === "RANGE") && slope2[i] < 0 && Hi[i] >= ma4[i] - t && C[i] <= ma4[i] + t;
+      const out = bp ? "Bp" : s;
+      if (out !== cur) {
+        cur = out;
         age = 0;
-        pend = null;
-        pendN = 0;
       }
     }
     stage[i] = cur;
@@ -3184,29 +3179,32 @@ function stageMachine(bars, ind, dow, patterns, p) {
   }
   return { stage, stageAge };
 }
+function extSeries(ind, p) {
+  return ind.dev.map((d, i) => d >= p.overAtr && ind.slope[i] > 0 ? 1 : d <= -p.overAtr && ind.slope[i] < 0 ? -1 : 0);
+}
 var STAGE_LABEL = {
-  A: "A \xB7 T\xEDch l\u0169y \u0111\xE1y",
+  A: "M\u1ED8T \xB7 T\xEDch l\u0169y / \u0110\xE1y",
   UP: "Xu h\u01B0\u1EDBng t\u0103ng",
-  B: "B \xB7 Qu\xE1 mua, r\u1EE7i ro ph\xE2n ph\u1ED1i",
-  C: "C \xB7 Suy y\u1EBFu t\u1EA1i \u0111\u1EC9nh",
-  D: "D \xB7 Ph\xE1 v\u1EE1 \u0111i xu\u1ED1ng",
+  B: "B \xB7 T\xE1i t\xEDch l\u0169y",
+  C: "C \xB7 Ph\xE2n ph\u1ED1i / \u0110\u1EC9nh",
+  D: "D \xB7 \u0110\u1EA3o chi\u1EC1u gi\u1EA3m",
   DOWN: "Xu h\u01B0\u1EDBng gi\u1EA3m",
   Bp: "B\u2032 \xB7 H\u1ED3i l\xEAn MA trong xu h\u01B0\u1EDBng gi\u1EA3m",
-  RANGE: "\u0110i ngang, ch\u01B0a r\xF5 xu h\u01B0\u1EDBng"
+  RANGE: "C\u1EE7ng c\u1ED1 / N\xE9n n\u1EC1n gi\xE1"
 };
 var STAGE_TEXT = {
-  A: "Gi\xE1 ng\u1EEBng gi\u1EA3m, MA ch\xE2n d\u01B0\u1EDBi v\xE0 ch\xE2n tr\xEAn h\u1ED9i t\u1EE5, \u0111ang t\u1EA1o n\u1EC1n \u0111\xE1y. Ch\u1EDD ph\xE1 v\u1EE1 n\u1EC1n / vi\u1EC1n c\u1ED5 \u0111\u1EC3 x\xE1c nh\u1EADn \u0111\u1EA3o chi\u1EC1u.",
-  UP: "Gi\xE1 tr\xEAn MA ch\xE2n tr\xEAn \u0111ang d\u1ED1c l\xEAn, Dow t\u1EA1o \u0111\u1EC9nh \u2013 \u0111\xE1y sau cao h\u01A1n. \u01AFu ti\xEAn mua khi gi\xE1 h\u1ED3i v\u1EC1 h\u1ED7 tr\u1EE3 / MA.",
-  B: "Gi\xE1 l\u1EC7ch xa MA ch\xE2n tr\xEAn (qu\xE1 mua). Kh\xF4ng mua \u0111u\u1ED5i; ch\u1ED1t l\u1EDDi m\u1ED9t ph\u1EA7n \u1EDF kh\xE1ng c\u1EF1, n\xE2ng \u0111i\u1EC3m c\u1EAFt l\u1ED7.",
-  C: "Xu h\u01B0\u1EDBng t\u0103ng y\u1EBFu d\u1EA7n: gi\xE1 th\u1EE7ng MA ch\xE2n d\u01B0\u1EDBi ho\u1EB7c Dow t\u1EA1o \u0111\u1EC9nh th\u1EA5p h\u01A1n, MA b\u1EAFt \u0111\u1EA7u h\u1ED9i t\u1EE5. H\u1EA1 t\u1EF7 tr\u1ECDng, kh\xF4ng m\u1EDF mua m\u1EDBi.",
-  D: "Gi\xE1 ph\xE1 xu\u1ED1ng d\u01B0\u1EDBi MA ch\xE2n tr\xEAn / vi\u1EC1n c\u1ED5 m\u1EABu \u0111\u1EC9nh. C\u1EA5u tr\xFAc t\u0103ng \u0111\xE3 b\u1ECB ph\xE1 \u2014 \u01B0u ti\xEAn b\u1EA3o to\xE0n v\u1ED1n.",
-  DOWN: "Gi\xE1 d\u01B0\u1EDBi MA ch\xE2n tr\xEAn \u0111ang d\u1ED1c xu\u1ED1ng, Dow t\u1EA1o \u0111\u1EC9nh \u2013 \u0111\xE1y sau th\u1EA5p h\u01A1n. \u0110\u1EE9ng ngo\xE0i ho\u1EB7c ch\u1EC9 giao d\u1ECBch ng\u1EAFn r\u1EA5t nh\u1ECF.",
-  Bp: "Gi\xE1 h\u1ED3i l\xEAn ch\u1EA1m MA ch\xE2n d\u01B0\u1EDBi trong xu h\u01B0\u1EDBng gi\u1EA3m \u2014 th\u01B0\u1EDDng l\xE0 \u0111i\u1EC3m b\xE1n / gi\u1EA3m t\u1EF7 tr\u1ECDng, kh\xF4ng ph\u1EA3i \u0111i\u1EC3m mua.",
-  RANGE: "Hai MA \u0111i ngang, \u0111an xen; ch\u01B0a c\xF3 c\u1EA5u tr\xFAc r\xF5. Ch\u1EC9 giao d\u1ECBch \u1EDF bi\xEAn v\xF9ng ho\u1EB7c ch\u1EDD ph\xE1 v\u1EE1."
+  A: "Gi\xE1 v\u01B0\u1EE3t l\xEAn MA ch\xE2n tr\xEAn sau \u0111\xE1y W / vai-\u0111\u1EA7u-vai ng\u01B0\u1EE3c. \u01AFu ti\xEAn MUA khi gi\xE1 ki\u1EC3m tra l\u1EA1i vi\u1EC1n c\u1ED5 / MA ch\xE2n tr\xEAn v\xE0 gi\u1EEF \u0111\u01B0\u1EE3c (Granville 1 \u2192 3).",
+  UP: "Gi\xE1 tr\xEAn MA ch\xE2n tr\xEAn, MA ch\xE2n d\u01B0\u1EDBi tr\xEAn MA ch\xE2n tr\xEAn, MA ch\xE2n tr\xEAn d\u1ED1c l\xEAn. Gi\u1EEF v\u1ECB th\u1EBF; ch\u1EC9 mua th\xEAm \u1EDF nh\u1ECBp \u0111i\u1EC1u ch\u1EC9nh v\u1EC1 MA, kh\xF4ng mua \u1EDF v\xF9ng l\u1EC7ch xa.",
+  B: "Gi\xE1 \u0111i\u1EC1u ch\u1EC9nh v\u1EC1 MA ch\xE2n tr\xEAn (ch\xE2n t\u01B0\u1EDDng) trong xu h\u01B0\u1EDBng t\u0103ng, n\u1EC1n gi\xE1 \u0111\u01B0\u1EE3c n\xE2ng. T\xECm \u0111i\u1EC3m MUA khi b\u1EADt t\u0103ng t\u1EA1i MA (Granville 2/3, \u0111i\u1EC3m L khi khung nh\u1ECF quay l\u1EA1i t\u0103ng).",
+  C: "Gi\xE1 l\u1EC7ch xa MA ch\xE2n tr\xEAn r\u1ED3i suy y\u1EBFu (\u0111\u1EC9nh s\xF3ng l\u1EDBn th\u1EA5p h\u01A1n) ho\u1EB7c \u0111ang h\xECnh th\xE0nh \u0111\u1EC9nh M / Sanzon. Kh\xF4ng mua \u0111u\u1ED5i; ch\u1ED1t l\u1EDDi d\u1EA7n, ch\u1EDD g\xE3y vi\u1EC1n c\u1ED5 \u0111\u1EC3 B\xC1N (Granville 4 b\xE1n).",
+  D: "Gi\xE1 th\u1EE7ng vi\u1EC1n c\u1ED5 v\xE0 MA ch\xE2n tr\xEAn, MA quay xu\u1ED1ng. \u0110\u1EE9ng ngo\xE0i / B\xC1N khi gi\xE1 h\u1ED3i l\xEAn MA ch\xE2n tr\xEAn th\u1EA5t b\u1EA1i (Granville b\xE1n 2/3).",
+  DOWN: "Gi\xE1 d\u01B0\u1EDBi MA ch\xE2n tr\xEAn, MA ch\xE2n tr\xEAn d\u1ED1c xu\u1ED1ng. Kh\xF4ng b\u1EAFt \u0111\xE1y; ch\u1EDD c\u1EA5u tr\xFAc \u0111\xE1y W / vai-\u0111\u1EA7u-vai ng\u01B0\u1EE3c xu\u1EA5t hi\u1EC7n.",
+  Bp: "Nh\u1ECBp h\u1ED3i ch\u1EA1m MA ch\xE2n tr\xEAn \u0111ang d\u1ED1c xu\u1ED1ng trong xu h\u01B0\u1EDBng gi\u1EA3m \u2014 theo t\xE0i li\u1EC7u l\xE0 v\xF9ng B\xC1N (Granville b\xE1n 2/3, \u0111i\u1EC3m S), kh\xF4ng ph\u1EA3i \u0111i\u1EC3m mua.",
+  RANGE: "Hai MA h\u1ED9i t\u1EE5, b\xEAn mua v\xE0 b\xEAn b\xE1n \u0111ang gi\u1EB1ng co. Kh\xF4ng giao d\u1ECBch trong v\xF9ng nhi\u1EC5u; ch\u1EDD gi\xE1 ph\xE1 v\xF9ng n\u1EC1n theo h\u01B0\u1EDBng MA ch\xE2n tr\xEAn."
 };
 
 // src/lib/quant-core/mtf/explain.ts
-var STAGE_TONE = { A: "neutral", UP: "bull", B: "warn", C: "warn", D: "bear", DOWN: "bear", Bp: "warn", RANGE: "neutral" };
+var STAGE_TONE = { A: "bull", UP: "bull", B: "bull", C: "warn", D: "bear", DOWN: "bear", Bp: "warn", RANGE: "neutral" };
 var fmt3 = (x) => Math.abs(x) >= 100 ? x.toLocaleString("vi-VN", { maximumFractionDigits: 0 }) : x.toFixed(2).replace(".", ",");
 function stageSegments(a) {
   const out = [];
@@ -3440,70 +3438,94 @@ function baseAt(bars, ind, small, t, p, maxRangeAtr = 6) {
 }
 
 // src/lib/quant-core/mtf/signals.ts
-var DEBOUNCE = 5;
 var G3_WINDOW = 30;
 var SIGNAL_TEXT = {
-  M1: "Mua 1 \u2013 gi\xE1 v\u01B0\u1EE3t l\xEAn MA v\u1EEBa ng\u1EEBng gi\u1EA3m",
-  M2: "Mua 2 \u2013 th\u1EE7ng MA ng\u1EAFn r\u1ED3i quay l\u1EA1i tr\xEAn MA \u0111ang l\xEAn",
-  M3: "Mua 3 \u2013 h\u1ED3i v\u1EC1 ch\u1EA1m MA \u0111ang l\xEAn, kh\xF4ng th\u1EE7ng",
-  M4: "Mua 4 \u2013 l\u1EC7ch qu\xE1 xa d\u01B0\u1EDBi MA (qu\xE1 b\xE1n), b\u1EADt h\u1ED3i",
-  B1: "B\xE1n 1 \u2013 gi\xE1 th\u1EE7ng MA v\u1EEBa ng\u1EEBng t\u0103ng",
-  B2: "B\xE1n 2 \u2013 v\u01B0\u1EE3t MA ng\u1EAFn r\u1ED3i quay l\u1EA1i d\u01B0\u1EDBi MA \u0111ang xu\u1ED1ng",
-  B3: "B\xE1n 3 \u2013 h\u1ED3i l\xEAn ch\u1EA1m MA \u0111ang xu\u1ED1ng, kh\xF4ng v\u01B0\u1EE3t",
-  B4: "B\xE1n 4 \u2013 l\u1EC7ch qu\xE1 xa tr\xEAn MA (qu\xE1 mua), suy y\u1EBFu",
+  M1: "Granville 1 \u2013 MA ch\xE2n tr\xEAn quay l\xEAn, gi\xE1 c\u1EAFt l\xEAn MA",
+  M2: "Granville 2 \u2013 th\u1EE7ng nh\u1EB9 MA ch\xE2n tr\xEAn r\u1ED3i b\u1EADt l\u1EA1i",
+  M3: "Granville 3 \u2013 ch\u1EA1m g\u1EA7n MA ch\xE2n tr\xEAn kh\xF4ng th\u1EE7ng, quay \u0111\u1EA7u t\u0103ng",
+  M4: "Granville 4 \u2013 qu\xE1 b\xE1n, c\xE1ch xa MA ch\xE2n tr\xEAn \u2014 h\u1ED3i k\u1EF9 thu\u1EADt (ng\u01B0\u1EE3c xu h\u01B0\u1EDBng)",
+  B1: "Granville 1 b\xE1n \u2013 MA ch\xE2n tr\xEAn quay xu\u1ED1ng, gi\xE1 c\u1EAFt xu\u1ED1ng MA",
+  B2: "Granville 2 b\xE1n \u2013 v\u01B0\u1EE3t nh\u1EB9 MA ch\xE2n tr\xEAn r\u1ED3i th\u1EA5t b\u1EA1i",
+  B3: "Granville 3 b\xE1n \u2013 h\u1ED3i l\xEAn g\u1EA7n MA ch\xE2n tr\xEAn r\u1ED3i quay xu\u1ED1ng",
+  B4: "Granville 4 b\xE1n \u2013 qu\xE1 mua, c\xE1ch xa MA ch\xE2n tr\xEAn \u2014 d\u1EC5 \u0111i\u1EC1u ch\u1EC9nh",
   G3: "Mua 3 b\u01B0\u1EDBc \u2013 MA h\u1ED9i t\u1EE5 \u2192 ph\xE2n k\u1EF3 \u2192 nh\u1ECBp h\u1ED3i \u0111\u1EA7u ti\xEAn",
-  L: "K\u1ECBch b\u1EA3n t\u0103ng",
-  S: "K\u1ECBch b\u1EA3n gi\u1EA3m",
+  L: "L \u2013 khung nh\u1ECF ph\xE1 \u0111\u1EC9nh g\u1EA7n nh\u1EA5t sau \u0111\xE1y cao h\u01A1n, c\xF9ng chi\u1EC1u MA ch\xE2n tr\xEAn (\u0111i\u1EC3m v\xE0o c\u1ED1t l\xF5i)",
+  S: "S \u2013 khung nh\u1ECF th\u1EE7ng \u0111\xE1y g\u1EA7n nh\u1EA5t sau \u0111\u1EC9nh th\u1EA5p h\u01A1n, c\xF9ng chi\u1EC1u MA ch\xE2n tr\xEAn (\u0111i\u1EC3m v\xE0o c\u1ED1t l\xF5i)",
   "KT+": "\u0110\u1EE7 l\u1EE3i th\u1EBF k\u1EF9 thu\u1EADt mua",
   "KT-": "\u0110\u1EE7 l\u1EE3i th\u1EBF k\u1EF9 thu\u1EADt b\xE1n"
 };
-function granville(bars, ind, p) {
+function granville(bars, ind, small, p) {
   const out = [];
   const last = {};
-  let lastWar = -Infinity;
-  let lastG3 = -Infinity;
-  let armM4 = true, armB4 = true;
-  const push = (i, code, side, price) => {
-    if ((last[code] ?? -Infinity) > i - DEBOUNCE) return;
+  const add = (i, code, side, price) => {
+    if (i - (last[code] ?? -1e9) < p.cooldown) return;
     last[code] = i;
     out.push({ index: i, confirmedIndex: i, code, side, price, note: SIGNAL_TEXT[code] });
   };
+  const sw = [...small].sort((a, b) => a.confirmedIndex - b.confirmedIndex);
+  let k = 0;
+  let lastH = null, prevH = null, lastL = null, prevL = null;
+  let lastWar = -Infinity, lastG3 = -Infinity;
+  const win = 3 * p.slopeLen;
   for (let i = 1; i < bars.length; i++) {
-    const ma = ind.maSlow[i], maP = ind.maSlow[i - 1], sl = ind.slope[i], a = Math.max(ind.atr[i], 1e-9);
-    if (!Number.isFinite(ma) || !Number.isFinite(maP) || !Number.isFinite(sl)) continue;
-    const b = bars[i], c = b.close, cp = bars[i - 1].close;
-    const bull = c > b.open, bear = c < b.open;
-    const tch = p.touchAtr * a;
-    const crossUp = cp <= maP && c > ma, crossDn = cp >= maP && c < ma;
-    const slPrev = i >= 10 && Number.isFinite(ind.slope[i - 10]) ? ind.slope[i - 10] : sl;
-    if (Math.abs(ind.spread[i]) <= p.warAtr) lastWar = i;
-    if (crossUp && sl >= -0.02 && slPrev <= 0) push(i, "M1", "MUA", c);
-    else if (crossUp && sl > 0 && slPrev > 0) push(i, "M2", "MUA", c);
-    if (!crossUp && sl > 0 && c > ma && b.low <= ma + tch && bull) {
-      push(i, "M3", "MUA", c);
-      if (i - lastWar <= G3_WINDOW && ind.spread[i] > p.warAtr && lastG3 < lastWar) {
-        lastG3 = i;
-        push(i, "G3", "MUA", c);
+    while (k < sw.length && sw[k].confirmedIndex <= i) {
+      const s = sw[k++];
+      if (s.kind === "H") {
+        prevH = lastH;
+        lastH = s;
+      } else {
+        prevL = lastL;
+        lastL = s;
       }
     }
-    if (ind.dev[i] > -p.overAtr / 2) armM4 = true;
-    if (ind.dev[i] < p.overAtr / 2) armB4 = true;
-    if (armM4 && ind.dev[i] <= -p.overAtr && bull && sl < 0) {
-      armM4 = false;
-      push(i, "M4", "MUA", c);
+    const ma = ind.maSlow[i], maP = ind.maSlow[i - 1], sl = ind.slope[i], a = ind.atr[i];
+    if (![ma, maP, sl, a, ind.atr[i - 1]].every(Number.isFinite)) continue;
+    const b = bars[i], pb = bars[i - 1], C = b.close, Cp = pb.close;
+    if (Math.abs(ind.spread[i]) <= p.warAtr) lastWar = i;
+    const crossUp = Cp <= maP && C > ma, crossDn = Cp >= maP && C < ma;
+    let mn = Infinity, mx = -Infinity;
+    for (let j = Math.max(0, i - win); j < i; j++) if (Number.isFinite(ind.slope[j])) {
+      mn = Math.min(mn, ind.slope[j]);
+      mx = Math.max(mx, ind.slope[j]);
     }
-    if (crossDn && sl <= 0.02 && slPrev >= 0) push(i, "B1", "B\xC1N", c);
-    else if (crossDn && sl < 0 && slPrev < 0) push(i, "B2", "B\xC1N", c);
-    if (!crossDn && sl < 0 && c < ma && b.high >= ma - tch && bear) push(i, "B3", "B\xC1N", c);
-    if (armB4 && ind.dev[i] >= p.overAtr && bear && sl > 0) {
-      armB4 = false;
-      push(i, "B4", "B\xC1N", c);
+    const turnUp = sl > 0 && mn <= 0, turnDn = sl < 0 && mx >= 0;
+    const bullBar = C > b.open && C > pb.high, bearBar = C < b.open && C < pb.low;
+    const t = p.touchAtr * a;
+    if (crossUp && turnUp) add(i, "M1", "MUA", b.low);
+    else if (sl > 0 && b.low < ma && C > ma && bullBar && Cp > maP - a) add(i, "M2", "MUA", b.low);
+    else if (sl > 0 && b.low >= ma && b.low - ma <= t && bullBar) {
+      add(i, "M3", "MUA", b.low);
+      if (i - lastWar <= G3_WINDOW && ind.spread[i] > p.warAtr && lastG3 < lastWar) {
+        lastG3 = i;
+        add(i, "G3", "MUA", b.low);
+      }
     }
+    if (sl < 0 && ind.dev[i] < -p.overAtr && bullBar) add(i, "M4", "MUA", b.low);
+    if (crossDn && turnDn) add(i, "B1", "B\xC1N", b.high);
+    else if (sl < 0 && b.high > ma && C < ma && bearBar && Cp < maP + a) add(i, "B2", "B\xC1N", b.high);
+    else if (sl < 0 && b.high <= ma && ma - b.high <= t && bearBar) add(i, "B3", "B\xC1N", b.high);
+    if (sl > 0 && ind.dev[i] > p.overAtr && bearBar) add(i, "B4", "B\xC1N", b.high);
+    if (sl > 0 && C > ma && lastL && prevL && lastH && lastL.price > prevL.price && Cp <= lastH.price && lastH.price < C && lastH.index < lastL.index)
+      add(i, "L", "MUA", b.low);
+    if (sl < 0 && C < ma && lastH && prevH && lastL && lastH.price < prevH.price && Cp >= lastL.price && lastL.price > C && lastL.index < lastH.index)
+      add(i, "S", "B\xC1N", b.high);
   }
   return out;
 }
+function rrNowAt(bars, ind, small, large, t) {
+  const c = bars[t]?.close, ma = ind.maSlow[t], a = ind.atr[t];
+  if (!(c > 0) || !Number.isFinite(ma) || !Number.isFinite(a) || c <= ma) return null;
+  const lows = small.filter((s) => s.kind === "L" && s.confirmedIndex <= t);
+  if (!lows.length) return null;
+  const stop = lows[lows.length - 1].price - 0.2 * a;
+  if (!(c > stop)) return null;
+  const above = large.filter((s) => s.kind === "H" && s.confirmedIndex <= t && s.price > c).map((s) => s.price);
+  const target = above.length ? Math.min(...above) : c + 3 * (c - stop);
+  const rr = (target - c) / (c - stop);
+  return { entry: c, stop, target, targetBasis: above.length ? "swing4h" : "3R", rr, ok: rr >= 1 };
+}
 var fmt4 = (x) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(2)).replace(".", ",");
-function checklists(bars, ind, dow, zones, t, p) {
+function checklists(bars, ind, dow, zones, t, p, rrNow = null) {
   const c = bars[t].close, a = Math.max(ind.atr[t], 1e-9);
   const ma = ind.maSlow[t], sl = ind.slope[t], sp = ind.spread[t], dv = ind.dev[t];
   let warRecent = false;
@@ -3525,9 +3547,9 @@ function checklists(bars, ind, dow, zones, t, p) {
     { key: "ma", ok: c > ma && sl > 0, text: "Gi\xE1 tr\xEAn MA ch\xE2n tr\xEAn, MA d\u1ED1c l\xEAn" },
     { key: "diverge", ok: warRecent && sp > p.warAtr && sp > spPrev, text: "MA v\u1EEBa h\u1ED9i t\u1EE5 r\u1ED3i ph\xE2n k\u1EF3 l\xEAn (\u0111i\u1EC3m v\xE0o h\u1EE3p l\u1EC7)" },
     { key: "support", ok: !!sup && c - sup.hi <= 1.5 * a, text: sup ? `G\u1EA7n h\u1ED7 tr\u1EE3 m\u1EA1nh ${fmt4(sup.mid)} (\u2264 1,5 ATR)` : "Ch\u01B0a c\xF3 h\u1ED7 tr\u1EE3 m\u1EA1nh b\xEAn d\u01B0\u1EDBi" },
-    { key: "notOver", ok: Number.isFinite(dv) && dv < p.overAtr, text: "Ch\u01B0a qu\xE1 mua (gi\xE1 ch\u01B0a l\u1EC7ch xa MA ch\xE2n tr\xEAn)" },
+    { key: "notOver", ok: Number.isFinite(dv) && dv < p.overAtr, text: "Ch\u01B0a qu\xE1 \u0111\xE0 (gi\xE1 ch\u01B0a l\u1EC7ch xa MA ch\xE2n tr\xEAn \u2014 kh\xF4ng mua \u0111u\u1ED5i)" },
     { key: "volume", ok: upV > dnV, text: "Kh\u1ED1i l\u01B0\u1EE3ng phi\xEAn t\u0103ng l\u1EDBn h\u01A1n phi\xEAn gi\u1EA3m (10 n\u1EBFn)" },
-    { key: "rr", ok: rrBuy != null && rrBuy >= 2, text: rrBuy != null ? `L\u1EE3i nhu\u1EADn/r\u1EE7i ro \u0111\u1EBFn kh\xE1ng c\u1EF1 g\u1EA7n nh\u1EA5t = ${fmt4(rrBuy)} (c\u1EA7n \u2265 2)` : "Ch\u01B0a \u0111o \u0111\u01B0\u1EE3c l\u1EE3i nhu\u1EADn/r\u1EE7i ro" }
+    { key: "rr", ok: !!rrNow?.ok, text: rrNow ? `Mua \u1EDF gi\xE1 hi\u1EC7n t\u1EA1i: R:R = 1:${fmt4(rrNow.rr)} (${rrNow.ok ? "giao d\u1ECBch \u1ED5n, ph\u1EA7n th\u01B0\u1EDFng > r\u1EE7i ro" : "giao d\u1ECBch NG, ph\u1EA7n th\u01B0\u1EDFng kh\xF4ng l\u1EDBn h\u01A1n r\u1EE7i ro"})` : "Ch\u01B0a \u0111o \u0111\u01B0\u1EE3c R:R (gi\xE1 d\u01B0\u1EDBi MA ch\xE2n tr\xEAn ho\u1EB7c ch\u01B0a c\xF3 \u0111\xE1y s\xF3ng nh\u1ECF)" }
   ];
   const sell = [
     { key: "dow", ok: dow[t] === -1, text: "Dow gi\u1EA3m: \u0111\u1EC9nh \u2013 \u0111\xE1y sau th\u1EA5p h\u01A1n" },
@@ -3542,17 +3564,18 @@ function checklists(bars, ind, dow, zones, t, p) {
 }
 
 // src/lib/quant-core/mtf/types.ts
+var SRC = { atr: 14, dcSmall: 1.5, dcMid: 2.5, dcLarge: 4, touchAtr: 0.6, overAtr: 3, warAtr: 0.35, patternTol: 0.8, neckMinAtr: 1.5, neckMaxSlopeAtr: 1.5 };
 var TF_PARAMS = {
-  H1: { tf: "H1", maFast: 20, maSlow: 100, atr: 14, slopeLen: 5, dcSmall: 1.5, dcMid: 3, dcLarge: 6, touchAtr: 0.6, overAtr: 4, warAtr: 0.5, levelLookback: 500 },
-  D: { tf: "D", maFast: 20, maSlow: 100, atr: 14, slopeLen: 5, dcSmall: 1.5, dcMid: 3, dcLarge: 6, touchAtr: 0.6, overAtr: 4, warAtr: 0.5, levelLookback: 500 },
-  W: { tf: "W", maFast: 10, maSlow: 40, atr: 14, slopeLen: 3, dcSmall: 1.5, dcMid: 2.5, dcLarge: 5, touchAtr: 0.6, overAtr: 3.5, warAtr: 0.5, levelLookback: 260 }
+  H1: { tf: "H1", ...SRC, maFast: 20, maSlow: 80, maCtx: 100, slopeLen: 5, levelLookback: 500, breakBars: 60, cooldown: 12, minStageBars: 8 },
+  D: { tf: "D", ...SRC, maFast: 20, maSlow: 100, maCtx: null, slopeLen: 5, levelLookback: 500, breakBars: 60, cooldown: 12, minStageBars: 5 },
+  W: { tf: "W", ...SRC, maFast: 10, maSlow: 40, maCtx: null, slopeLen: 3, levelLookback: 260, breakBars: 30, cooldown: 6, minStageBars: 3 }
 };
 
 // src/lib/quant-core/mtf/compact.ts
 var r2 = (x) => x == null || !Number.isFinite(x) ? null : Math.round(x * 100) / 100;
-function compactTf(a, { segments = 16, signals = 24, swings = 24 } = {}) {
-  const t = a.bars.length - 1, d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
-  const segs = [];
+function displaySegments(a, t = a.bars.length - 1) {
+  const d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
+  let segs = [];
   for (let i = 0; i <= t; i++) {
     const s = a.stage[i], cur = segs[segs.length - 1];
     if (cur && cur.stage === s) {
@@ -3560,11 +3583,38 @@ function compactTf(a, { segments = 16, signals = 24, swings = 24 } = {}) {
       cur.bars++;
     } else segs.push({ stage: s, label: STAGE_LABEL[s], from: d(i), to: d(i), bars: 1 });
   }
+  for (let pass = 0; pass < 2; pass++) {
+    const out = [];
+    segs.forEach((s, k) => {
+      const prev = out[out.length - 1];
+      if (prev && k > 0 && k < segs.length - 1 && s.bars < a.params.minStageBars) {
+        prev.to = s.to;
+        prev.bars += s.bars;
+        return;
+      }
+      if (prev && prev.stage === s.stage) {
+        prev.to = s.to;
+        prev.bars += s.bars;
+        return;
+      }
+      out.push({ ...s });
+    });
+    segs = out;
+  }
+  return segs;
+}
+function compactTf(a, { segments = 16, signals = 24, swings = 24, maSeriesBars = 240 } = {}) {
+  const t = a.bars.length - 1, d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
+  const segs = displaySegments(a, t);
   const pats = a.patterns.map((p) => ({ p, status: patternStatusAt(p, t) })).filter(({ p, status }) => status && (status !== "failed" || t - (p.failIndex ?? 0) <= 10) && p.start >= t - a.params.levelLookback).slice(-8).map(({ p, status }) => ({
     type: p.type,
     name: PATTERN_NAME[p.type],
     dir: p.dir,
     status,
+    context: p.context,
+    contextLabel: PATTERN_CONTEXT_TEXT[p.context].short,
+    contextText: PATTERN_CONTEXT_TEXT[p.context].text,
+    followDate: p.followIndex != null && p.followIndex <= t ? d(p.followIndex) : null,
     points: p.points.map((x) => ({ date: d(x.index), price: r2(x.price), label: x.label })),
     neck: { d0: d(p.neck.i0), p0: r2(p.neck.p0), d1: d(p.neck.i1), p1: r2(p.neck.p1) },
     confirmedDate: d(p.confirmedIndex),
@@ -3582,7 +3632,9 @@ function compactTf(a, { segments = 16, signals = 24, swings = 24 } = {}) {
     stageText: STAGE_TEXT[a.stage[t]],
     stageAge: a.stageAge[t],
     dow: a.dow[t],
-    ma: { fast: a.params.maFast, slow: a.params.maSlow, fastValue: r2(a.maFast[t]), slowValue: r2(a.maSlow[t]) },
+    ext: a.ext[t] ?? 0,
+    ma: { fast: a.params.maFast, slow: a.params.maSlow, ctx: a.params.maCtx, fastValue: r2(a.maFast[t]), slowValue: r2(a.maSlow[t]), ctxValue: a.maCtx ? r2(a.maCtx[t]) : null },
+    rrNow: a.rrNow ? { entry: r2(a.rrNow.entry), stop: r2(a.rrNow.stop), target: r2(a.rrNow.target), targetBasis: a.rrNow.targetBasis, rr: r2(a.rrNow.rr), ok: a.rrNow.ok } : null,
     dev: r2(a.dev[t]),
     slope: r2(a.slope[t]),
     spread: r2(a.spread[t]),
@@ -3593,8 +3645,16 @@ function compactTf(a, { segments = 16, signals = 24, swings = 24 } = {}) {
     patterns: pats,
     signals: a.signals.slice(-signals).map((s) => ({ date: d(s.index), code: s.code, side: s.side, price: r2(s.price), note: s.note })),
     swings: a.swings.mid.filter((s) => s.confirmedIndex <= t).slice(-swings).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price), confirmedDate: d(s.confirmedIndex) })),
+    /** Sóng "mức 4 giờ" (sóng lớn, 4 ATR) — đỉnh / đáy mà tài liệu gọi là "điểm cắt giá ở mức 4 giờ". */
+    swingsLarge: a.swings.large.filter((s) => s.confirmedIndex <= t).slice(-12).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price), confirmedDate: d(s.confirmedIndex) })),
     checklistBuy: a.checklistBuy,
-    checklistSell: a.checklistSell
+    checklistSell: a.checklistSell,
+    /** Chuỗi MA nhanh / chậm / bối cảnh của N nến cuối (biểu đồ khung nhỏ thường tải ít nến hơn chu kỳ MA80 / MA100). */
+    maSeries: (() => {
+      const from = Math.max(0, t + 1 - maSeriesBars);
+      const pick = (arr) => arr ? arr.slice(from, t + 1).map((v) => r2(v)) : null;
+      return { dates: a.bars.slice(from, t + 1).map((b) => b.date), fast: pick(a.maFast), slow: pick(a.maSlow), ctx: pick(a.maCtx) };
+    })()
   };
 }
 function compactStructure(m) {
@@ -3612,8 +3672,10 @@ function compactStructure(m) {
     version: m.version,
     asOf: m.asOf,
     context: m.context,
+    ext: m.ext,
     align: m.align,
     checklist: m.checklist,
+    rrNow: m.rrNow ? { entry: r2(m.rrNow.entry), stop: r2(m.rrNow.stop), target: r2(m.rrNow.target), targetBasis: m.rrNow.targetBasis, rr: r2(m.rrNow.rr), ok: m.rrNow.ok } : null,
     scenarios: m.scenarios.map((s) => ({ ...s, trigger: r2(s.trigger), entry: r2(s.entry), stop: r2(s.stop), targets: s.targets.map((x) => r2(x)), rr: r2(s.rr) })),
     tfs: { ...w ? { W: compactTf(w, { segments: 10 }) } : {}, D: compactTf(d), ...h ? { H1: compactTf(h) } : {} },
     annotations: m.annotations.map((a) => ({ tf: a.tf, kind: a.kind, date: a.date, price: r2(a.price), text: a.text, detail: a.detail, tone: a.tone })),
@@ -3624,35 +3686,39 @@ function compactStructure(m) {
 }
 
 // src/lib/quant-core/mtf/index.ts
-var MTF_STRUCTURE_VERSION = "1.0.0";
+var MTF_STRUCTURE_VERSION = "2.0.0";
 function analyzeTf(bars, tf, over = {}) {
   const p = { ...TF_PARAMS[tf], ...over, tf };
   const ind = indicators(bars, p);
   const swings = {
-    small: dcSwings(bars, ind.atr, p.dcSmall, "small"),
-    mid: dcSwings(bars, ind.atr, p.dcMid, "mid"),
-    large: dcSwings(bars, ind.atr, p.dcLarge, "large")
+    small: zigzagSwings(bars, ind.atr, p.dcSmall, "small", p.atr - 1),
+    mid: zigzagSwings(bars, ind.atr, p.dcMid, "mid", p.atr - 1),
+    large: zigzagSwings(bars, ind.atr, p.dcLarge, "large", p.atr - 1)
   };
   const dow = dowSeries(bars, swings.mid);
-  const patterns = detectPatterns(bars, ind.atr, swings.mid);
-  const { stage, stageAge } = stageMachine(bars, ind, dow, patterns, p);
-  const signals = granville(bars, ind, p);
+  const patterns = detectPatterns(bars, ind.atr, swings.mid, { maSlow: ind.maSlow, slope: ind.slope, maFast: p.maFast }, dow, p);
+  const { stage, stageAge } = stageMachine(bars, ind, patterns, swings.large, p);
+  const signals = granville(bars, ind, swings.small, p);
   const t = bars.length - 1;
   const zones = t >= 1 ? zonesAt(bars, ind, swings, patterns, t, p) : [];
   const base = t >= 15 ? baseAt(bars, ind, swings.small, t, p) : null;
-  const ck = t >= 1 ? checklists(bars, ind, dow, zones, t, p) : { buy: [], sell: [] };
+  const rrNow = t >= 1 ? rrNowAt(bars, ind, swings.small, swings.large, t) : null;
+  const ck = t >= 1 ? checklists(bars, ind, dow, zones, t, p, rrNow) : { buy: [], sell: [] };
   return {
     tf,
     params: p,
     bars,
     maFast: ind.maFast,
     maSlow: ind.maSlow,
+    maCtx: p.maCtx ? smaSeries(bars.map((b) => b.close), p.maCtx) : null,
     atr: ind.atr,
     slope: ind.slope,
     dev: ind.dev,
     spread: ind.spread,
     swings,
     dow,
+    ext: extSeries(ind, p),
+    rrNow,
     stage,
     stageAge,
     patterns,
@@ -3671,8 +3737,9 @@ function analyzeTfSeries(bars, tf, over = {}) {
     at(t) {
       const zones = zonesAt(bars, ind, a.swings, a.patterns, t, a.params);
       const base = t >= 15 ? baseAt(bars, ind, a.swings.small, t, a.params) : null;
-      const ck = checklists(bars, ind, a.dow, zones, t, a.params);
-      return { zones, base, checklistBuy: ck.buy, checklistSell: ck.sell, rrBuy: ck.rrBuy, rrSell: ck.rrSell };
+      const rrNow = rrNowAt(bars, ind, a.swings.small, a.swings.large, t);
+      const ck = checklists(bars, ind, a.dow, zones, t, a.params, rrNow);
+      return { zones, base, rrNow, checklistBuy: ck.buy, checklistSell: ck.sell, rrBuy: ck.rrBuy, rrSell: ck.rrSell };
     }
   };
 }
@@ -3684,14 +3751,17 @@ function analyzeStructureMtf(input) {
   const entry = h ?? d;
   const te = entry.bars.length - 1;
   let dayStage;
+  let dayExt = 0;
   let dayStageOnH1 = null;
   if (h) {
     const map = closedHtfIndex(h.bars, d.bars, false);
     dayStageOnH1 = map.map((j2) => j2 >= 0 ? d.stage[j2] : null);
     const j = map[te];
     dayStage = j >= 0 ? d.stage[j] : "RANGE";
+    dayExt = j >= 0 ? d.ext[j] : 0;
   } else {
     dayStage = d.stage[d.bars.length - 1] ?? "RANGE";
+    dayExt = d.ext[d.bars.length - 1] ?? 0;
   }
   let weekStage = null;
   if (w) {
@@ -3700,10 +3770,16 @@ function analyzeStructureMtf(input) {
     weekStage = j >= 0 ? w.stage[j] : null;
   }
   const h1Stage = h ? h.stage[te] : null;
-  const align = alignMatrix(dayStage, h1Stage, weekStage, recentBuy(entry.signals, te));
-  const htfOk = dayStage === "UP" || dayStage === "A";
+  const align = alignMatrix(
+    dayStage,
+    h1Stage,
+    weekStage,
+    recentBuy(entry.signals, te),
+    { rrOk: entry.rrNow ? entry.rrNow.ok : null, extDay: dayExt, extEntry: entry.ext[te] ?? 0 }
+  );
+  const htfOk = dayStage === "UP" || dayStage === "A" || dayStage === "B";
   const htfDn = dayStage === "DOWN" || dayStage === "D" || dayStage === "Bp" || dayStage === "C";
-  const buy = [{ key: "htf", ok: !h ? weekStage ? weekStage === "UP" || weekStage === "A" : htfOk : htfOk, text: h ? "Khung ng\xE0y thu\u1EADn chi\u1EC1u t\u0103ng (UP / t\xEDch l\u0169y A)" : "Khung tu\u1EA7n thu\u1EADn chi\u1EC1u t\u0103ng" }, ...entry.checklistBuy];
+  const buy = [{ key: "htf", ok: !h ? weekStage ? weekStage === "UP" || weekStage === "A" || weekStage === "B" : htfOk : htfOk, text: h ? "Khung ng\xE0y thu\u1EADn chi\u1EC1u t\u0103ng (t\u0103ng / t\xE1i t\xEDch l\u0169y B / \u0111\xE1y M\u1ED8T)" : "Khung tu\u1EA7n thu\u1EADn chi\u1EC1u t\u0103ng" }, ...entry.checklistBuy];
   const sell = [{ key: "htf", ok: !h ? weekStage ? weekStage === "DOWN" || weekStage === "D" : htfDn : htfDn, text: h ? "Khung ng\xE0y thu\u1EADn chi\u1EC1u gi\u1EA3m" : "Khung tu\u1EA7n thu\u1EADn chi\u1EC1u gi\u1EA3m" }, ...entry.checklistSell];
   const sc = scenarios(entry, h ? d.zones.filter((z) => z.strength >= 0.5) : []);
   const ann = [...w ? annotations(w, 6, 4) : [], ...annotations(d), ...h ? annotations(h) : []];
@@ -3718,6 +3794,8 @@ function analyzeStructureMtf(input) {
     asOf: entry.bars[te]?.date ?? "",
     tfs: { ...w ? { W: w } : {}, D: d, ...h ? { H1: h } : {} },
     context: { week: weekStage, day: dayStage, h1: h1Stage },
+    ext: { day: dayExt, entry: entry.ext[te] ?? 0 },
+    rrNow: entry.rrNow,
     align,
     checklist: { buy, sell, buyScore: buy.filter((x) => x.ok).length, sellScore: sell.filter((x) => x.ok).length },
     scenarios: sc,
@@ -4453,11 +4531,13 @@ export {
   STATE_LABEL as EW_STATE_LABEL,
   TEMPLATE_TITLE as EW_TEMPLATE_TITLE,
   MTF_STRUCTURE_VERSION,
+  PATTERN_CONTEXT_TEXT,
   PATTERN_NAME,
   SCENARIO_ENGINE_VERSION,
   SIGNAL_TEXT,
   STAGE_LABEL,
   STAGE_TEXT,
+  VERDICT_DESCRIPTIVE,
   WAVE_TREE_VERSION,
   WYCKOFF_DEFAULT_ENGINE,
   alignMatrix,
@@ -4477,5 +4557,7 @@ export {
   recentBuy,
   scenariosFromTree,
   scoreLedger,
-  toWeekly
+  rrNowAt as structureRrNowAt,
+  toWeekly,
+  verdictLabel
 };
