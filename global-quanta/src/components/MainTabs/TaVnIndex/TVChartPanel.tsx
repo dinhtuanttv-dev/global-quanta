@@ -38,7 +38,7 @@ import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerM
 import { usePatternDetail } from "../../../hooks/usePatterns";
 import { toChartWeekly } from "../../../lib/ta-command-center/chart/pringScene";
 import { structureLevels, structureMarkers, structureSceneItems, structureTfFor, type StructureMode } from "../../../lib/ta-command-center/chart/structureScene";
-import { useStructure, STAGE_SHORT, VERDICT_TONE } from "../../../hooks/useStructure";
+import { useStructure, STAGE_SHORT, VERDICT_TONE, verdictText } from "../../../hooks/useStructure";
 import StructurePanel from "./StructurePanel";
 import { STRUCTURE_OPEN_EVENT } from "./StructureCells";
 import { REPLAY_MIN_BARS, replayDoc } from "../../../lib/ta-command-center/chart/structureReplay";
@@ -600,7 +600,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         {structureOn && structure.data && (
           <div className={`absolute top-3 z-10 max-w-[60%] px-2 py-1 rounded-lg bg-slate-950/85 border text-[10px] leading-snug ${VERDICT_CHIP[VERDICT_TONE[structure.data.align.verdict]]}`}
             style={{ right: 72 }} data-testid="structure-chip" title={structure.data.align.text}>
-            <b>{structure.data.align.verdict}</b>
+            <b>{verdictText(structure.data.align.verdict, structure.data.evidence.verdictValidated)}</b>
             <span className="text-slate-300"> · {structureTfa ? `${structureTfa.tf === "H1" ? "1 giờ" : structureTfa.tf === "W" ? "Tuần" : "Ngày"}: ${STAGE_SHORT[structureTfa.stage]} (${structureTfa.stageAge} nến)` : ""}</span>
             <span className="hidden sm:inline text-slate-400"> · {structure.data.align.rule}</span>
           </div>
@@ -657,7 +657,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <div ref={structurePanelRef}>
           <StructurePanel doc={structureDoc ?? undefined} isLoading={structure.isLoading} error={structure.error}
             mode={structureMode} onModeChange={setStructureMode} timeframeKey={structureTfFor(timeframe)}
-            onOpenChart={onRequestTickerChange}
+            onOpenChart={onRequestTickerChange} bars={currentBars} timeframe={timeframe}
             replay={{
               index: replayIdx, min: REPLAY_MIN_BARS - 1, max: bars.length - 1, date: replayIdx != null ? bars[replayIdx]?.date ?? null : null,
               available: (timeframe === "D" || timeframe === "W") && bars.length > REPLAY_MIN_BARS + 5, onChange: setReplayIdx,

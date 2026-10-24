@@ -33,7 +33,7 @@ export function displaySegments(a: TfAnalysis, t = a.bars.length - 1): CompactSe
   return segs;
 }
 
-export function compactTf(a: TfAnalysis, { segments = 16, signals = 24, swings = 24 } = {}) {
+export function compactTf(a: TfAnalysis, { segments = 16, signals = 24, swings = 24, maSeriesBars = 240 } = {}) {
   const t = a.bars.length - 1, d = (i: number) => a.bars[Math.max(0, Math.min(t, i))].date;
   const segs = displaySegments(a, t);
   const pats = a.patterns
@@ -66,6 +66,12 @@ export function compactTf(a: TfAnalysis, { segments = 16, signals = 24, swings =
     /** Sóng "mức 4 giờ" (sóng lớn, 4 ATR) — đỉnh / đáy mà tài liệu gọi là "điểm cắt giá ở mức 4 giờ". */
     swingsLarge: a.swings.large.filter((s) => s.confirmedIndex <= t).slice(-12).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price) as number, confirmedDate: d(s.confirmedIndex) })),
     checklistBuy: a.checklistBuy, checklistSell: a.checklistSell,
+    /** Chuỗi MA nhanh / chậm / bối cảnh của N nến cuối (biểu đồ khung nhỏ thường tải ít nến hơn chu kỳ MA80 / MA100). */
+    maSeries: (() => {
+      const from = Math.max(0, t + 1 - maSeriesBars);
+      const pick = (arr: number[] | null) => (arr ? arr.slice(from, t + 1).map((v) => r2(v)) : null);
+      return { dates: a.bars.slice(from, t + 1).map((b) => b.date), fast: pick(a.maFast), slow: pick(a.maSlow), ctx: pick(a.maCtx) };
+    })(),
   };
 }
 
