@@ -57,7 +57,7 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
         </p>
       ) : (
         <div className="overflow-x-auto" id="elite-candidates-table">
-          <table className="w-full text-[11px]" style={{ minWidth: compact ? 0 : 900, borderCollapse: "collapse" }}>
+          <table className="w-full text-[11px]" style={{ minWidth: compact ? 560 : 900, borderCollapse: "collapse" }}>
             <thead>
               <tr className="text-slate-500">
                 <th className="text-left font-normal py-1">Mã</th>
@@ -68,8 +68,8 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
                 {!compact && <th className="font-normal">α 5 phiên</th>}
                 <th className="font-normal">P vượt</th>
                 {!compact && <th className="font-normal" title="Độ biến động ngày 20 phiên (dùng tính cắt lỗ / mục tiêu)">σ20</th>}
-                <th className="text-right font-normal">Giá</th><th className="text-right font-normal">Cắt lỗ</th>
-                {!compact && <th className="text-right font-normal">Mục tiêu</th>}
+                <th className="whitespace-nowrap pl-2 text-right font-normal">Giá</th><th className="whitespace-nowrap pl-2 text-right font-normal">Cắt lỗ</th>
+                {!compact && <th className="whitespace-nowrap pl-2 text-right font-normal">Mục tiêu</th>}
                 {!compact && <th className="text-left font-normal pl-3">Động lực chính</th>}
               </tr>
             </thead>
@@ -83,16 +83,16 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
                       <span className="ml-1 text-[9px] text-slate-500">#{c.rank}</span>
                       {c.inBuffer && <span title="Trong top 20 — nếu đã có trong danh mục thì được giữ (vùng đệm)" className="ml-1 rounded border border-white/15 px-1 text-[8.5px] text-slate-400">đệm</span>}
                     </td>
-                    <td className="text-slate-400">{sectorName(c.sectorKey)}</td>
-                    <td className={c.reason === "sector_cap" ? "text-amber-300" : "text-slate-400"} title={r.title} data-testid={`elite-cand-reason-${c.ticker}`}>{r.text}</td>
+                    <td className="pr-2 text-slate-400">{sectorName(c.sectorKey)}</td>
+                    <td className={`whitespace-nowrap pr-2 ${c.reason === "sector_cap" ? "text-amber-300" : "text-slate-400"}`} title={r.title} data-testid={`elite-cand-reason-${c.ticker}`}>{r.text}</td>
                     <td className="pr-2 py-1" data-testid={`elite-cand-buy-${c.ticker}`}><BuyTimingCell cell={cells.get(c.ticker)} compact={compact} /></td>
-                    <td className="text-center font-mono">{num(c.Z, 2)}</td>
-                    {!compact && <td className="text-center font-mono text-emerald-300/80">{signed(c.alpha5Pct, 2)}%</td>}
-                    <td className="text-center font-mono">{num(c.pOutperform * 100, 1)}%</td>
-                    {!compact && <td className="text-center font-mono text-slate-400">{num(c.sigma20 * 100, 1)}%</td>}
-                    <td className="text-right font-mono">{price(c.close)}</td>
-                    <td className="text-right font-mono text-rose-300/90">{Number.isFinite(c.stop) ? price(c.stop) : "—"}</td>
-                    {!compact && <td className="text-right font-mono text-emerald-300/90">{Number.isFinite(c.target) ? price(c.target) : "—"}</td>}
+                    <td className="whitespace-nowrap px-1 text-center font-mono">{num(c.Z, 2)}</td>
+                    {!compact && <td className="whitespace-nowrap px-1 text-center font-mono text-emerald-300/80">{signed(c.alpha5Pct, 2)}%</td>}
+                    <td className="whitespace-nowrap px-1 text-center font-mono">{num(c.pOutperform * 100, 1)}%</td>
+                    {!compact && <td className="whitespace-nowrap px-1 text-center font-mono text-slate-400">{num(c.sigma20 * 100, 1)}%</td>}
+                    <td className="whitespace-nowrap pl-2 text-right font-mono">{price(c.close)}</td>
+                    <td className="whitespace-nowrap pl-2 text-right font-mono text-rose-300/90">{Number.isFinite(c.stop) ? price(c.stop) : "—"}</td>
+                    {!compact && <td className="whitespace-nowrap pl-2 text-right font-mono text-emerald-300/90">{Number.isFinite(c.target) ? price(c.target) : "—"}</td>}
                     {!compact && <td className="pl-3 text-slate-400">{drivers(c.ticker).join(" · ") || "—"}</td>}
                   </tr>
                 );

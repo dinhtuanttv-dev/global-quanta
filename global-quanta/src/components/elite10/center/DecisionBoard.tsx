@@ -97,7 +97,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
           </p>
         ) : (<>
         <div className="overflow-x-auto" id="elite-portfolio-table">
-          <table className="w-full text-[11px]" style={{ minWidth: pf.compact ? 0 : 900, borderCollapse: "collapse" }}>
+          <table className="w-full text-[11px]" style={{ minWidth: pf.compact ? 560 : 900, borderCollapse: "collapse" }}>
             <thead>
               <tr className="text-slate-500">
                 <th className="text-left font-normal py-1">Mã</th><th className="text-left font-normal">Ngành</th><th className="text-left font-normal">Tỷ trọng</th>
@@ -106,8 +106,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
                 {!pf.compact && <th className="font-normal" title="Lợi suất vượt kỳ vọng 5 phiên = IC × σ5 × Z (Grinold–Kahn)">α 5 phiên</th>}
                 <th className="font-normal" title="Xác suất vượt trung vị vũ trụ trong 5 phiên">P vượt</th>
                 {!pf.compact && <th className="font-normal" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)">Rủi ro</th>}
-                <th className="text-right font-normal">Giá</th><th className="text-right font-normal">Cắt lỗ</th>
-                {!pf.compact && <th className="text-right font-normal">Mục tiêu</th>}
+                <th className="whitespace-nowrap pl-2 text-right font-normal">Giá</th><th className="whitespace-nowrap pl-2 text-right font-normal">Cắt lỗ</th>
+                {!pf.compact && <th className="whitespace-nowrap pl-2 text-right font-normal">Mục tiêu</th>}
                 {!pf.compact && <th className="text-left font-normal pl-3">Động lực chính</th>}
               </tr>
             </thead>
@@ -121,13 +121,13 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
                     <b>{num(p.weight * 100)}%</b>
                   </td>
                   <td className="pr-2 py-1" data-testid={`elite-buy-${p.ticker}`}><BuyTimingCell cell={buyCells.get(p.ticker)} compact={pf.compact} /></td>
-                  <td className="text-center font-mono">{num(p.Z, 2)}</td>
-                  {!pf.compact && <td className="text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>}
-                  <td className="text-center font-mono">{num(p.pOutperform * 100, 1)}%</td>
-                  {!pf.compact && <td className="text-center font-mono text-slate-300">{p.riskContribution != null ? `${num(p.riskContribution * 100)}%` : "—"}</td>}
-                  <td className="text-right font-mono">{price(p.close)}</td>
-                  <td className="text-right font-mono text-rose-300">{price(p.stop)}</td>
-                  {!pf.compact && <td className="text-right font-mono text-emerald-300">{price(p.target)}</td>}
+                  <td className="whitespace-nowrap px-1 text-center font-mono">{num(p.Z, 2)}</td>
+                  {!pf.compact && <td className="whitespace-nowrap px-1 text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>}
+                  <td className="whitespace-nowrap px-1 text-center font-mono">{num(p.pOutperform * 100, 1)}%</td>
+                  {!pf.compact && <td className="whitespace-nowrap px-1 text-center font-mono text-slate-300">{p.riskContribution != null ? `${num(p.riskContribution * 100)}%` : "—"}</td>}
+                  <td className="whitespace-nowrap pl-2 text-right font-mono">{price(p.close)}</td>
+                  <td className="whitespace-nowrap pl-2 text-right font-mono text-rose-300">{price(p.stop)}</td>
+                  {!pf.compact && <td className="whitespace-nowrap pl-2 text-right font-mono text-emerald-300">{price(p.target)}</td>}
                   {!pf.compact && <td className="pl-3 text-slate-400">{drivers(p.ticker).join(" · ") || "—"}</td>}
                 </tr>
               ))}
@@ -162,8 +162,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
                     <td className="py-1"><span className="text-slate-100">{w.labelVi}</span> <span className="text-slate-500">· {w.tab}</span></td>
                     <td className="text-center"><TierChip tier={w.tier} /></td>
                     <td className="whitespace-nowrap text-center font-mono" title={w.icPrior === 0 ? "Tiên nghiệm 0: tín hiệu nhắm phiên VN ngay sau phiên Mỹ, đã qua khi danh mục vào lệnh (E3-v3)" : undefined}>{w.n ? `${signed(w.icMeas, 4)} (${w.n} ngày)` : w.icPrior === 0 ? "chưa đo · tiên nghiệm 0" : "chưa đo"}</td>
-                    <td className="text-center font-mono">{num(w.icPost, 4)}</td>
-                    <td className="text-center font-mono text-slate-500">{w.wNaive != null ? `${num(w.wNaive * 100, 0)}%` : "—"}</td>
+                    <td className="whitespace-nowrap px-1 text-center font-mono">{num(w.icPost, 4)}</td>
+                    <td className="whitespace-nowrap px-1 text-center font-mono text-slate-500">{w.wNaive != null ? `${num(w.wNaive * 100, 0)}%` : "—"}</td>
                     <td className="whitespace-nowrap"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 rounded bg-emerald-400/70 align-middle" style={{ width: `${w.w * 80}px` }} />{num(w.w * 100)}%</td>
                   </tr>
                 ))}
