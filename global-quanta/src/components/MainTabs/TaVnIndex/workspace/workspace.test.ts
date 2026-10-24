@@ -141,3 +141,20 @@ describe("bảng lệnh + store bố cục", () => {
     off();
   });
 });
+
+describe("R1 — khối ngoại: 0 là cân bằng; lý do không vẽ được pane", async () => {
+  const { foreignUnavailable } = await import("../TVChartPanel");
+  const { foreignStats } = await import("../OrderFlowPanel");
+  it("chỉ số / intraday / chưa có dữ liệu -> có lý do; cổ phiếu D có dữ liệu -> null", () => {
+    expect(foreignUnavailable("VNINDEX", "D", true, 0)).toMatch(/chỉ số/);
+    expect(foreignUnavailable("FPT", "15m", true, 200)).toMatch(/D \/ W \/ M/);
+    expect(foreignUnavailable("FPT", "D", true, 0)).toMatch(/chưa có dữ liệu/);
+    expect(foreignUnavailable("FPT", "D", false, 0)).toBeNull();
+    expect(foreignUnavailable("FPT", "W", true, 250)).toBeNull();
+  });
+  it("phiên cuối ròng 0 -> chuỗi 0 (không tính là mua ròng)", () => {
+    const d = (date: string, netVal: number) => ({ date, buyVal: 0, sellVal: 0, netVal, room: null });
+    expect(foreignStats([d("a", 5), d("b", 3), d("c", 0)])!.streak).toBe(0);
+    expect(foreignStats([d("a", -1), d("b", 3), d("c", 2)])!.streak).toBe(2);
+  });
+});

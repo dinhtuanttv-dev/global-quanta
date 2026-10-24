@@ -1,11 +1,13 @@
 ﻿import type { OhlcvBar } from "../types";
 
-export interface RsiResult { series: (number | null)[]; latest: number | null; }
+/** `flat`: 14 phiên gần nhất không có biến động giá (ngừng giao dịch / giá đứng) -> RSI không xác định, quy ước 50. */
+export interface RsiResult { series: (number | null)[]; latest: number | null; flat: boolean; needBars: number }
 export interface MacdResult {
   macdLine: (number | null)[]; signalLine: (number | null)[]; histogram: (number | null)[];
   latest: { macd: number | null; signal: number | null; histogram: number | null };
 }
-export interface AdxResult { series: (number | null)[]; latest: number | null; trendStrength: "yeu" | "trung_binh" | "manh" | "rat_manh"; }
+/** `chua_du`: chưa đủ `needBars` nến để có ADX — KHÔNG phải "trend yếu". */
+export interface AdxResult { series: (number | null)[]; latest: number | null; trendStrength: "chua_du" | "yeu" | "trung_binh" | "manh" | "rat_manh"; needBars: number }
 
 // 3 chi bao ky thuat chuan - cong thuc dung, tinh truc tiep tu OHLCV that.
 // Khac Wyckoff/Elliott, day la HARD_DATA (khong mang tinh suy luan chu quan).
@@ -26,7 +28,10 @@ function calculateEMA(values: number[], period: number): (number | null)[] {
 export function calculateRSI(bars: OhlcvBar[], period = 14): RsiResult {
   const closes = bars.map((b) => b.close);
   const series: (number | null)[] = new Array(closes.length).fill(null);
-  if (closes.length < period + 1) return { series, latest: null };
+  const needBars = period + 1;
+  if (closes.length < needBars) return { series, latest: null, flat: false, needBars };
+  // Không lãi cũng không lỗ (chuỗi phẳng): RSI không xác định -> quy ước 50 (trung tính), KHÔNG phải 100 (quá mua).
+  const rsiOf = (g: number, l: number) => (g === 0 && l === 0 ? 50 : l === 0 ? 100 : 100 - 100 / (1 + g / l));
 
   let avgGain = 0, avgLoss = 0;
   for (let i = 1; i <= period; i++) {
@@ -34,7 +39,7 @@ export function calculateRSI(bars: OhlcvBar[], period = 14): RsiResult {
     if (delta >= 0) avgGain += delta; else avgLoss -= delta;
   }
   avgGain /= period; avgLoss /= period;
-  series[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+  series[period] = rsiOf(avgGain, avgLoss);
 
   for (let i = period + 1; i < closes.length; i++) {
     const delta = closes[i] - closes[i - 1];
@@ -42,10 +47,10 @@ export function calculateRSI(bars: OhlcvBar[], period = 14): RsiResult {
     const loss = delta < 0 ? -delta : 0;
     avgGain = (avgGain * (period - 1) + gain) / period;
     avgLoss = (avgLoss * (period - 1) + loss) / period;
-    series[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
+    series[i] = rsiOf(avgGain, avgLoss);
   }
 
-  return { series, latest: series[series.length - 1] };
+  return { series, latest: series[series.length - 1], flat: avgGain === 0 && avgLoss === 0, needBars };
 }
 
 export function calculateMACD(bars: OhlcvBar[], fast = 12, slow = 26, signalPeriod = 9): MacdResult {
@@ -80,7 +85,8 @@ export function calculateMACD(bars: OhlcvBar[], fast = 12, slow = 26, signalPeri
 
 export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
   const series: (number | null)[] = new Array(bars.length).fill(null);
-  if (bars.length < period * 2) return { series, latest: null, trendStrength: "yeu" };
+  const needBars = period * 2;
+  if (bars.length < needBars) return { series, latest: null, trendStrength: "chua_du", needBars };
 
   const plusDM: number[] = [0];
   const minusDM: number[] = [0];
@@ -123,10 +129,9 @@ export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
   }
 
   const validDx = dx.filter((v): v is number => v !== null);
-  if (validDx.length < period) return { series, latest: null, trendStrength: "yeu" };
+  if (validDx.length < period) return { series, latest: null, trendStrength: "chua_du", needBars };
 
   let adx = validDx.slice(0, period).reduce((s, v) => s + v, 0) / period;
-  let dxIdx = period;
   const firstAdxBarIdx = dx.findIndex((v) => v !== null) + period - 1;
   if (firstAdxBarIdx >= 0 && firstAdxBarIdx < series.length) series[firstAdxBarIdx] = adx;
 
@@ -137,12 +142,12 @@ export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
   }
 
   const latest = series[series.length - 1];
-  let trendStrength: AdxResult["trendStrength"] = "yeu";
+  let trendStrength: AdxResult["trendStrength"] = latest === null ? "chua_du" : "yeu";
   if (latest !== null) {
     if (latest >= 50) trendStrength = "rat_manh";
     else if (latest >= 25) trendStrength = "manh";
     else if (latest >= 15) trendStrength = "trung_binh";
   }
 
-  return { series, latest, trendStrength };
+  return { series, latest, trendStrength, needBars };
 }

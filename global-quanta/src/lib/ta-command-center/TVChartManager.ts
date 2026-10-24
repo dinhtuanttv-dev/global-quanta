@@ -33,6 +33,9 @@ export interface PaneInfo { index: number; kind: PaneKind; top: number; height: 
 /** Nến dưới crosshair (SC2: chú giải OHLC). */
 export interface CrosshairBar { date: string; open: number; high: number; low: number; close: number; volume: number; prevClose: number | null; index: number }
 
+/** Cột dương xanh / âm đỏ / đúng 0 xám (0 = cân bằng, không phải mua). */
+const signColor = (v: number) => (v > 0 ? rgba(GQ_COLORS.bull, 0.6) : v < 0 ? rgba(GQ_COLORS.bear, 0.6) : "rgba(100,116,139,0.6)");
+
 export class TVChartManager {
   private chart: IChartApi;
   private candleSeries: ISeriesApi<"Candlestick">;
@@ -216,7 +219,7 @@ export class TVChartManager {
       this.layoutPanes();
     }
     data = this.onCandles(data);
-    this.flowSeries.delta.setData(data.map((d) => ({ time: toTime(d.date), value: d.delta, color: d.delta >= 0 ? rgba(GQ_COLORS.bull, 0.6) : rgba(GQ_COLORS.bear, 0.6) })));
+    this.flowSeries.delta.setData(data.map((d) => ({ time: toTime(d.date), value: d.delta, color: signColor(d.delta) })));
     this.flowSeries.cvd.setData(data.map((d) => ({ time: toTime(d.date), value: d.cvd })));
   }
 
@@ -234,7 +237,7 @@ export class TVChartManager {
       this.layoutPanes();
     }
     data = this.onCandles(data);
-    this.foreignSeries.net.setData(data.map((d) => ({ time: toTime(d.date), value: d.net, color: d.net >= 0 ? rgba(GQ_COLORS.bull, 0.6) : rgba(GQ_COLORS.bear, 0.6) })));
+    this.foreignSeries.net.setData(data.map((d) => ({ time: toTime(d.date), value: d.net, color: signColor(d.net) })));
     this.foreignSeries.cum.setData(data.map((d) => ({ time: toTime(d.date), value: d.cum })));
   }
 

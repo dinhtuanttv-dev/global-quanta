@@ -9,6 +9,7 @@ const fmtVol = (v: number) => {
   const s = a >= 1e6 ? `${(a / 1e6).toFixed(2)}tr` : a >= 1e3 ? `${(a / 1e3).toFixed(1)}k` : a.toFixed(0);
   return `${v < 0 ? "−" : v > 0 ? "+" : ""}${s}`;
 };
+const signHex = (v: number) => (v > 0 ? "#00F5A0" : v < 0 ? "#FF0055" : "#94a3b8");
 const fmtBn = (v: number) => `${v < 0 ? "−" : v > 0 ? "+" : ""}${(Math.abs(v) / 1e9).toFixed(1)} tỷ`;
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
 
@@ -32,9 +33,11 @@ interface Props {
   largePrintThreshold: number | null;
   foreign: ForeignDay[];
   coverage: { requestedSessions: number; tickSessions: number } | null;
+  /** Lý do không có khối ngoại (chỉ số / chưa có dữ liệu) — hiện thay vì để trống. */
+  foreignNote?: string | null;
 }
 
-export default function OrderFlowPanel({ enabled, loading, error, orderFlow, largePrintThreshold, foreign, coverage }: Props) {
+export default function OrderFlowPanel({ enabled, loading, error, orderFlow, largePrintThreshold, foreign, coverage, foreignNote = null }: Props) {
   const fs = foreignStats(foreign);
   return (
     <div style={CARD} className="rounded-xl p-3" data-testid="orderflow-panel">
@@ -63,7 +66,7 @@ export default function OrderFlowPanel({ enabled, loading, error, orderFlow, lar
               <>
                 <div>
                   <p className="text-slate-500">Delta nến cuối phiên {lastDay}</p>
-                  <p className="font-mono font-bold" style={{ color: dayDelta >= 0 ? "#00F5A0" : "#FF0055" }} data-testid="of-delta">{fmtVol(dayDelta)}</p>
+                  <p className="font-mono font-bold" style={{ color: signHex(dayDelta) }} data-testid="of-delta">{fmtVol(dayDelta)}</p>
                   <p className="text-slate-600">CVD {fmtVol(last?.cvd ?? 0)}</p>
                 </div>
                 <div>
@@ -71,7 +74,7 @@ export default function OrderFlowPanel({ enabled, loading, error, orderFlow, lar
                   <p className="font-mono font-bold" style={{ color: (orderFlow.vpin.percentile ?? 0) >= 90 ? "#FF0055" : "#e2e8f0" }} data-testid="of-vpin">
                     {orderFlow.vpin.latest ?? "—"}{orderFlow.vpin.percentile !== null && <span className="text-slate-500 font-normal"> · p{orderFlow.vpin.percentile}</span>}
                   </p>
-                  <p className="text-slate-600">{(orderFlow.vpin.percentile ?? 0) >= 90 ? "⚠ ≥ p90: biến động cao" : "rổ = KL TB phiên / 50"}</p>
+                  <p className="text-slate-600">{(orderFlow.vpin.percentile ?? 0) >= 90 ? "⚠ ≥ p90: biến động cao" : "rổ = KL TB 20 phiên đầu / 50 (không nhìn trước)"}</p>
                 </div>
                 <div>
                   <p className="text-slate-500">Absorption · CVD divergence</p>
@@ -86,12 +89,13 @@ export default function OrderFlowPanel({ enabled, loading, error, orderFlow, lar
               </>
             );
           })()}
+          {!fs && foreignNote && <p className="col-span-2 md:col-span-4 text-slate-500 border-t border-white/5 pt-2" data-testid="of-foreign-none">Khối ngoại: {foreignNote}</p>}
           {fs && (
             <div className="col-span-2 md:col-span-4 border-t border-white/5 pt-2 flex flex-wrap gap-x-4 gap-y-1 items-center" data-testid="of-foreign">
               <span className="flex items-center gap-1 text-slate-400">Khối ngoại <ProvenanceBadge kind="HARD" className="" /></span>
-              <span className="font-mono" style={{ color: fs.last.netVal >= 0 ? "#00F5A0" : "#FF0055" }}>{fs.last.date}: ròng {fmtBn(fs.last.netVal)}</span>
+              <span className="font-mono" style={{ color: signHex(fs.last.netVal) }}>{fs.last.date}: ròng {fs.last.netVal === 0 ? "0 (cân bằng)" : fmtBn(fs.last.netVal)}</span>
               {fs.z20 !== null && <span className="font-mono text-slate-300">z20 {fs.z20}</span>}
-              <span className="text-slate-400">{fs.streak} phiên {fs.last.netVal >= 0 ? "mua" : "bán"} ròng liên tiếp</span>
+              <span className="text-slate-400" data-testid="of-foreign-streak">{fs.last.netVal === 0 ? "phiên cuối cân bằng — không tính chuỗi" : `${fs.streak} phiên ${fs.last.netVal > 0 ? "mua" : "bán"} ròng liên tiếp`}</span>
               <span className="font-mono text-slate-400">5 phiên {fmtBn(fs.sum5)}</span>
               {fs.last.room !== null && <span className="text-slate-500">room còn {(fs.last.room / 1e6).toFixed(1)}tr cp</span>}
             </div>
