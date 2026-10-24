@@ -7,6 +7,8 @@ import type { ResearchOverview } from "../../../hooks/useResearch";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { TIER_TITLE, type EliteScore, type PortfolioPick, type Tier } from "../../../lib/elite10/decisionTypes";
+import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
+import { buyTimingCells, ELITE_HOLD_SESSIONS, type BuyCell } from "../../../lib/elite10/buyTimingCell";
 
 const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
 const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
@@ -17,6 +19,19 @@ const price = (v: number | null | undefined) => (v == null ? "—" : Math.round(
 export function TierChip({ tier }: { tier: Tier }) {
   const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-sky-500/15 text-sky-300 border-sky-400/40" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
   return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[9px] font-bold ${cls}`}>Bậc {tier}</span>;
+}
+
+// B2: ô "⏱ Điểm mua" — màu theo loại: trong vùng (xanh) · ≤ 5 phiên (vàng) · trong kỳ nắm giữ (xanh lam) · gần đạt / quy tắc (xám).
+const BUY_TONE: Record<BuyCell["kind"], string> = { in: "text-emerald-300", soon: "text-amber-300", wait: "text-sky-300", near: "text-slate-300", rule: "text-slate-300" };
+const BUY_ICON: Record<BuyCell["kind"], string> = { in: "●", soon: "⏱", wait: "⏱", near: "◌", rule: "→" };
+function BuyTimingCell({ cell }: { cell?: BuyCell }) {
+  if (!cell) return <span className="text-slate-500">—</span>;
+  return (
+    <span title={cell.tooltip} data-kind={cell.kind} className={`inline-flex flex-col leading-tight ${cell.dashed ? "border-b border-dashed border-slate-500/60" : ""}`}>
+      <b className={`whitespace-nowrap ${BUY_TONE[cell.kind]}`}>{BUY_ICON[cell.kind]} {cell.text}</b>
+      <span className="text-[9.5px] text-slate-500 whitespace-nowrap">{cell.sub}</span>
+    </span>
+  );
 }
 
 function Card({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId?: string }) {
@@ -36,6 +51,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
   // Chế độ thị trường VN: tải trực tiếp (không phụ thuộc công tắc "AI nghiên cứu" của Siêu quét); cùng khoá SWR để dùng chung bộ đệm.
   const { data: research } = useSWR<ResearchOverview>("research-overview", () => fetchMarketJson<ResearchOverview>("/api/market/research/overview"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 });
   const { data: ws } = useWorldStrategy();
+  const buy = useGatewayBuyTimeline();
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const byId = useMemo(() => new Map((d?.weights ?? []).map((w) => [w.id, w])), [d]);
   const next = useMemo(() => {
@@ -54,6 +70,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
     return (sc?.contributions ?? []).filter((c) => c.contribution > 0.05).sort((a, b) => b.contribution - a.contribution).slice(0, 2).map((c) => byId.get(c.id)?.labelVi ?? c.id);
   };
   const maxW = Math.max(...d.portfolio.map((p) => p.weight), 0.01);
+  const buyCells = buyTimingCells(d.portfolio.map((p) => p.ticker), buy.data?.rows ?? null, d.date, buy.sessions);
+  const buyAge = buy.meta?.fetchedAt ? new Date(buy.meta.fetchedAt).toLocaleString("vi-VN", { hour12: false }) : null;
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-decision-board">
@@ -86,10 +104,11 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
 
       <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>}>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px]" style={{ minWidth: 760, borderCollapse: "collapse" }}>
+          <table className="w-full text-[11px]" style={{ minWidth: 900, borderCollapse: "collapse" }}>
             <thead>
               <tr className="text-slate-500">
                 <th className="text-left font-normal py-1">Mã</th><th className="text-left font-normal">Ngành</th><th className="text-left font-normal">Tỷ trọng</th>
+                <th className="text-left font-normal pr-2" data-testid="elite-buy-col" title={`Thời điểm mua tốt nhất trong kỳ nắm giữ ${ELITE_HOLD_SESSIONS} phiên: vùng mua mùa vụ ĐẠT KIỂM ĐỊNH (Timeline điểm mua — cổ tức / KQKD) nếu có, ngược lại quy tắc danh mục (mở cửa phiên kế tiếp)`}>⏱ Điểm mua</th>
                 <th className="font-normal" title="Điểm Elite chuẩn hoá trên toàn vũ trụ">Z</th>
                 <th className="font-normal" title="Lợi suất vượt kỳ vọng 5 phiên = IC × σ5 × Z (Grinold–Kahn)">α 5 phiên</th>
                 <th className="font-normal" title="Xác suất vượt trung vị vũ trụ trong 5 phiên">P vượt</th>
@@ -107,6 +126,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
                     <span aria-hidden="true" className="mr-1.5 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${(p.weight / maxW) * 48}px` }} />
                     <b>{num(p.weight * 100)}%</b>
                   </td>
+                  <td className="pr-2 py-1" data-testid={`elite-buy-${p.ticker}`}><BuyTimingCell cell={buyCells.get(p.ticker)} /></td>
                   <td className="text-center font-mono">{num(p.Z, 2)}</td>
                   <td className="text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>
                   <td className="text-center font-mono">{num(p.pOutperform * 100, 1)}%</td>
@@ -120,6 +140,12 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
             </tbody>
           </table>
         </div>
+        <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
+          ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
+          (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).{" "}
+          {buy.data ? <>Timeline lấy lúc {buyAge}{buy.meta?.stale ? <b className="text-amber-300"> · CŨ — Project A tạm lỗi, đang dùng bản gần nhất (số phiên đã tính lại theo hôm nay)</b> : ""}.</>
+            : buy.loading ? "Đang tải Timeline…" : <b className="text-amber-300">Timeline điểm mua tạm không có ({buy.meta?.lastError ?? buy.error ?? "lỗi"}) — cột dùng quy tắc danh mục.</b>}
+        </p>
         <p className="text-[10px] leading-relaxed text-slate-500">
           {d.construction
             ? <>Vùng đệm: giữ mã phiên trước còn trong top 20 ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa 3 mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần 20%. </>

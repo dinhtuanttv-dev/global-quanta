@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { useRadarModel } from '../../hooks/useRadarModel';
 import { useWatchlists } from '../../hooks/useWatchlists';
@@ -12,7 +12,7 @@ import { browserNotify } from '../../lib/priceAlerts';
 import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
-import { useBuyTimeline } from '../../hooks/useBuyTimeline';
+import { useGatewayBuyTimeline } from '../../hooks/useGatewayBuyTimeline';
 import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
@@ -202,6 +202,22 @@ function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
   );
 }
 
+/** Phần tử đang nằm trong khung nhìn VÀ tab trình duyệt đang hiện (IntersectionObserver + Page Visibility). */
+function useOnScreen(ref: React.RefObject<Element>): boolean {
+  const [inView, setInView] = useState(true);
+  const [visible, setVisible] = useState(() => typeof document === 'undefined' || document.visibilityState !== 'hidden');
+  useEffect(() => {
+    const el = ref.current;
+    const onVis = () => setVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', onVis);
+    if (!el || typeof IntersectionObserver === 'undefined') return () => document.removeEventListener('visibilitychange', onVis);
+    const io = new IntersectionObserver((es) => setInView(es.some((e) => e.isIntersecting)), { rootMargin: '64px' });
+    io.observe(el);
+    return () => { io.disconnect(); document.removeEventListener('visibilitychange', onVis); };
+  }, [ref]);
+  return inView && visible;
+}
+
 export default function EliteCommandRadar() {
   const { selectedTicker, selectTicker } = useAppStore();
   const live = useAppStore((s) => s.livePrices);
@@ -218,7 +234,12 @@ export default function EliteCommandRadar() {
   const signals = useRadarSignals(tickers);
   const sig = signals.data;
   // Lớp ⏱ Điểm mua — chỉ mã đang có trên Radar (tickers = ★ danh mục Radar đang hiển thị).
-  const timeline = useBuyTimeline();
+  // B3: Timeline qua Gateway (bản gần nhất khi Project A lỗi, số phiên tính lại theo hôm nay).
+  const timeline = useGatewayBuyTimeline();
+  // Hiệu năng (đo 24/10: vạch quét quay vô hạn buộc trình duyệt vẽ lại MỖI khung hình kể cả khi Radar ngoài màn hình -> kéo chart
+  // trên điện thoại chậm 4× tụt còn ~15 khung/giây): chỉ chạy animation khi Radar đang hiện trên màn hình và tab trình duyệt đang mở.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const animate = useOnScreen(svgRef);
   const buyMap = useMemo(() => pickRadarBuyRows(timeline.data?.rows ?? [], tickers), [timeline.data, tickers]);
   const buyChips = useMemo(() => upcomingBuyChips(buyMap), [buyMap]);
   const buyEvents = useMemo(() => buyWindowEvents(buyMap), [buyMap]);
@@ -390,7 +411,7 @@ export default function EliteCommandRadar() {
       </div>
 
       <div className="relative">
-        <svg viewBox={`${-PAD_X} 0 ${VIEW_W + 2 * PAD_X} ${VIEW_H}`} className="w-full block" role="group" aria-label="Elite Command Radar: góc theo nhóm ngành, bán kính theo điểm hội tụ">
+        <svg ref={svgRef} viewBox={`${-PAD_X} 0 ${VIEW_W + 2 * PAD_X} ${VIEW_H}`} className={`w-full block ${animate ? '' : 'radar-paused'}`} role="group" aria-label="Elite Command Radar: góc theo nhóm ngành, bán kính theo điểm hội tụ">
           <defs>
             <radialGradient id="radarCore" cx="50%" cy="50%" r="50%">
               <stop offset="0%" stopColor={AMBER} stopOpacity={0.16} />

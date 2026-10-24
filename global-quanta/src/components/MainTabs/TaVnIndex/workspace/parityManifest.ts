@@ -28,7 +28,7 @@ const INSPECTOR = (tab: string) => ({ docked: [[`[data-inspector-tab="${tab}"]`]
 export const REVEAL: { match: RegExp; by: Partial<Record<LayoutMode | "any", string[][]>> }[] = [
   { match: /^\[data-layer=/, by: { docked: [["[data-testid=layers-menu-btn]"]], drawer: [["[data-testid=layers-menu-btn]"]], off: [["[data-testid=layers-menu-btn]"]], mobile: [["[data-testid=mobile-layers]"]] } },
   // Yêu cầu 25/10: công cụ Fibonacci nằm trong nhóm "Fibonacci" của thanh công cụ (di động: bảng trượt Vẽ).
-  { match: /data-tool=fibonacci|data-tool=fibTimeZone|fib-ext/, by: { docked: [["[data-testid=fib-group-btn]"]], drawer: [["[data-testid=fib-group-btn]"]], off: [["[data-testid=fib-group-btn]"]], mobile: [["[data-testid=mobile-draw]"]] } },
+  { match: /data-tool="?fibonacci|data-tool="?fibTimeZone|fib-ext/, by: { docked: [["[data-testid=fib-group-btn]"]], drawer: [["[data-testid=fib-group-btn]"]], off: [["[data-testid=fib-group-btn]"]], mobile: [["[data-testid=mobile-draw]"]] } },
   { match: /^\[data-tool=|fib-ext|toolbar-count-edit|toolbar-undo|toolbar-redo|toolbar-delete/, by: { mobile: [["[data-testid=mobile-draw]"]] } },
   { match: /confluence-engine|structure-open/, by: { mobile: [["[data-testid=mobile-layers]"]] } },
   { match: /^\[data-range=|png-btn/, by: { mobile: [["[data-testid=mobile-more]"]] } },

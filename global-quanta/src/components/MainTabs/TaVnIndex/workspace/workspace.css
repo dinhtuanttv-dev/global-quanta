@@ -102,11 +102,30 @@
 }
 /* Cảm ứng: vùng chạm ≥ 44px (WCAG 2.5.5). */
 /* A6 (C-09): vùng chạm tối thiểu — CSS toàn cục đè padding Tailwind của nút khung thời gian / chỉ số nhanh (đo được 9×19 px). */
-.ws [data-tf] { min-width: 28px; min-height: 26px; padding: 2px 6px; }
-.ws .ta-index-quick { min-height: 26px; padding: 2px 8px; }
+/* Desktop: ≥ 24 px (WCAG 2.5.8). Hai nhóm thành SEGMENTED CONTROL (nút liền nhau, chung viền, không khoảng hở) — gọn hơn nhóm nút rời
+   nên thanh đầu không xuống dòng dù nút to hơn trước (đo: nút "D" từng chỉ 9×19 px). */
+.ws [data-tf] { min-width: 24px; min-height: 24px; padding: 0 3px; border-radius: 0 !important; margin-left: -1px; }
+.ws-head [role=group][aria-label="Khung thời gian"] { gap: 0 !important; }
+.ws-head [role=group][aria-label="Khung thời gian"] > span[aria-hidden] { margin: 0 3px !important; }
+.ws [data-tf]:first-child, .ws [data-tf="D"] { border-top-left-radius: 6px !important; border-bottom-left-radius: 6px !important; }
+.ws [data-tf="1H"], .ws [data-tf="M"] { border-top-right-radius: 6px !important; border-bottom-right-radius: 6px !important; }
+.ws .ta-index-quick { min-height: 24px; padding: 0 4px; border-radius: 0 !important; margin-left: -1px; }
+.ws-head .ta-ticker-selector [role=group][aria-label="Chỉ số"] { gap: 0 !important; margin-left: 0 !important; }
+/* Nút trong dock (chế độ cấu trúc, phát lại, lọc Mua/Bán…): ≥ 24 px desktop; cảm ứng 32 px hiển thị + vùng chạm 44 px. */
+.ws-dock-body button { min-height: 24px; min-width: 24px; }
+@media (pointer: coarse) {
+  .ws-dock-body button { min-height: 32px; min-width: 44px; position: relative; }
+  .ws-dock-body button::after { content: ""; position: absolute; inset: -6px 0; }
+}
+/* Di động: chip dữ liệu lên cùng hàng giá, hàng khung thời gian xuống cuối (bớt một hàng thanh đầu). */
+.ws[data-mode=mobile] .ws-head > [role=group][aria-label="Khung thời gian"] { order: 5; }
+.ws[data-mode=mobile] .ws-head > [data-testid=ws-right-tools] { order: 4; }
+.ws .ta-index-quick:first-child { border-radius: 6px 0 0 6px !important; } .ws .ta-index-quick:last-child { border-radius: 0 6px 6px 0 !important; }
 @media (pointer: coarse) {
   .ws-btn { min-height: 44px; } .ws-icon-btn { width: 44px; height: 44px; } .ws-toggle { min-height: 44px; } .ws-tab { height: 44px; }
-  .ws [data-tf], .ws .ta-index-quick { min-width: 44px; min-height: 44px; }
+  /* Cảm ứng: vùng chạm 44 px nhưng nút HIỂN THỊ 32 px — phần mở rộng trong suốt (::after) không làm thanh đầu cao thêm. */
+  .ws [data-tf], .ws .ta-index-quick { min-width: 44px; min-height: 32px; position: relative; }
+  .ws [data-tf]::after, .ws .ta-index-quick::after { content: ""; position: absolute; inset: -6px 0; }
 }
 @media (prefers-reduced-motion: reduce) { .ws *, .ws-dialog * { transition: none !important; animation: none !important; } }
 /* Ô chọn mã trong thanh đầu workspace (gọn hơn bản đứng riêng). */

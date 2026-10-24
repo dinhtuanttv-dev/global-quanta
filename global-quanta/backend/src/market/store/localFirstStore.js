@@ -24,6 +24,8 @@ export const isLocalOnlyTable = (table) => String(table).startsWith("market_matr
   || String(table).startsWith("market_user_elliott_") // DW8/DW10: cách đếm Elliott chỉnh tay + cảnh báo (mới, không có trên Supabase)
   || String(table).startsWith("market_elliott_") // EP2: sổ theo dõi kịch bản Elliott
   || table === "market_user_workspace"; // Super Chart SC1: bố cục tab TA theo tài khoản
+/** B1: khoá KV `local:*` chỉ ở Railway Volume (bộ đệm dữ liệu ngoài, VD Timeline điểm mua) — không sao / không hỏi Supabase. */
+export const isLocalOnlyKv = (key) => String(key).startsWith("local:");
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);
 const HYDRATED_KV = (table) => `__local:hydrated:${table}`;
 
@@ -82,14 +84,14 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
     // ---------- KV ----------
     async getKv(key) {
       const v = await local.getKv(key);
-      if (v) return v;
+      if (v || isLocalOnlyKv(key)) return v ?? null;
       if (now() - (kvMiss.get(key) ?? -Infinity) < 10 * 60_000) return null;
       const r = await tryInner(() => inner.getKv(key));
       if (r?.value !== undefined && r?.value !== null) { await local.setKv(key, r.value, r.updatedAt ?? undefined); st.hydratedReads++; return structuredClone(r); }
       if (r !== undefined) kvMiss.set(key, now()); // Supabase trả lời "không có" (không phải lỗi)
       return null;
     },
-    async setKv(key, value) { kvMiss.delete(key); await local.setKv(key, value); replicate(() => inner.setKv(key, value)); },
+    async setKv(key, value) { kvMiss.delete(key); await local.setKv(key, value); if (!isLocalOnlyKv(key)) replicate(() => inner.setKv(key, value)); },
 
     // ---------- BCTC ----------
     async getFundamentals(tickers) {

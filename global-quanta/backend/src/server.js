@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createBuyTimingService } from "./market/elite/buyTiming.js";
 import express from "express";
 import v8 from "node:v8";
 import cors from "cors";
@@ -156,11 +157,14 @@ const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
 }));
 // E7: kiểm định hồi cứu walk-forward (chạy theo yêu cầu admin).
 let eliteRetro = null;
+// B1: Timeline điểm mua (Project A) qua Gateway — bản tốt gần nhất trên Railway Volume, làm mới nền, lùi khi lỗi.
+let eliteBuyTiming = null;
+const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store }));
 const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro }));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   // Mỗi phiên dựng một lần; lần dựng LỖI (VD kho dữ liệu tạm khoá) được thử lại sau 30 phút thay vì bỏ cả ngày.

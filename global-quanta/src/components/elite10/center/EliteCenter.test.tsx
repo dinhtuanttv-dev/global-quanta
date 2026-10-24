@@ -32,6 +32,12 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
   useEliteTicker: (t: string) => (t === "ORS" ? { decision: { ...decision.scores[0], date: "2026-10-16", version: "E3-v2", icComb: 0.0146, weights: decision.weights, inPortfolio: true, universe: decision.universe }, panel: panelTicker, isLoading: false } : { decision: null, panel: null, isLoading: false }),
 }));
+const buyRow = { id: "ORS-1", ticker: "ORS", sector: null, kind: "DIVIDEND", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-10-22", eventDateBasis: "x",
+  windowId: "w1", windowLabel: "Trước GDKHQ 5 phiên", entryFrom: -5, entryTo: -1, exitOffset: 3, entryFromDate: "2026-10-15", entryToDate: "2026-10-21", exitDate: "2026-10-27",
+  sessionsToEntry: 0, nEvents: 14, winRate: 0.71, probability: null, netExpectancy: 0.021, netExpectancyLcb: 0.004, fdrQValue: 0.03, decisionLevel: null, missing: [] };
+vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({
+  useGatewayBuyTimeline: () => ({ data: { rows: [buyRow] }, sessions: ["2026-10-16", "2026-10-17", "2026-10-20"], meta: { fetchedAt: "2026-10-17T08:00:00Z", stale: false, lastError: null }, loading: false, error: null }),
+}));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] }, regime: { stressed: true, vix: 20, vixChg: 21.4 } } }) }));
 vi.mock("swr", async (orig) => {
   const real = await orig<typeof import("swr")>();
@@ -63,6 +69,16 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     fireEvent.click(screen.getByTestId("elite-pick-ORS").querySelector("button")!);
     expect(opened).toEqual(["ORS"]);
     expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
+  });
+
+  it("B2: cột số 4 '⏱ Điểm mua' — vùng mua đạt kiểm định hiển thị trong ô, ghi chú nguồn + thời điểm lấy Timeline", () => {
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    const headers = [...screen.getByTestId("elite-portfolio").querySelectorAll("thead th")].map((th) => th.textContent);
+    expect(headers[3]).toBe("⏱ Điểm mua");
+    const cell = screen.getByTestId("elite-buy-ORS");
+    expect(cell.textContent).toContain("Mua ngay");
+    expect(cell.querySelector("[data-kind]")?.getAttribute("data-kind")).toBe("in");
+    expect(screen.getByTestId("elite-buy-note").textContent).toContain("Timeline lấy lúc");
   });
 
   it("hồ sơ: đủ tín hiệu theo tab, bậc hiện hành, giá trị trống không điền số; mã ngoài vũ trụ báo rõ", () => {
