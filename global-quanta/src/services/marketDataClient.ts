@@ -106,10 +106,15 @@ export function marketUrl(path: string, params: Params = {}): string {
   return `${getMarketGateway().baseUrl}${path}${qs ? `?${qs}` : ''}`;
 }
 
+/** Lỗi Gateway kèm mã HTTP + nội dung (VD 409 có `current` để máy khách gộp). Vẫn là Error như trước. */
+export class MarketApiError extends Error {
+  constructor(message: string, readonly status: number, readonly body: Record<string, unknown>) { super(message); this.name = 'MarketApiError'; }
+}
+
 export async function fetchMarketJson<T>(path: string, params: Params = {}, init?: RequestInit): Promise<T> {
   const res = await fetch(marketUrl(path, params), { cache: 'no-store', ...init });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.error ?? `Market API lỗi ${res.status}`);
+  if (!res.ok) throw new MarketApiError(body?.error ?? `Market API lỗi ${res.status}`, res.status, body ?? {});
   return body as T;
 }
 

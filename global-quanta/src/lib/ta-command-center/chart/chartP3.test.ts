@@ -4,7 +4,7 @@ import { buildScene, preConfirm } from "./buildScene";
 import { EMPTY_SMC, toSmcState, type SmcState } from "../AnalysisController";
 import { analyze } from "../../quant-core";
 import { buildFibLevels, sanitizePrimitives, type DrawnPrimitive } from "../DrawingManager";
-import { pickNewer } from "../chartDrawingsStore";
+import { mergePrimitives, resolveOnLoad } from "../chartDrawingsStore";
 import type { OhlcvBar } from "../types";
 import { DEFAULT_LAYER_STATE } from "../LayerManager";
 
@@ -127,12 +127,16 @@ describe("P3 — lưu hình vẽ", () => {
     expect(out).toEqual([ok]);
     expect(sanitizePrimitives("rác")).toEqual([]);
   });
-  it("pickNewer: bản cập nhật sau thắng; chưa có thời điểm trên máy -> lấy đám mây", () => {
-    const a = { primitives: [], updatedAt: "2026-10-03T10:00:00Z" };
-    const b = { primitives: [], updatedAt: "2026-10-03T11:00:00Z" };
-    expect(pickNewer(a, b)).toBe(b);
-    expect(pickNewer(b, a)).toBe(b);
-    expect(pickNewer(a, null)).toBe(a);
-    expect(pickNewer({ primitives: [], updatedAt: null }, a)).toBe(a);
+  it("A2 resolveOnLoad: máy không có thay đổi chưa đồng bộ -> bản đám mây; có -> gộp theo id (không so giờ máy khách)", () => {
+    const t = (id: string, createdAt: number): DrawnPrimitive => ({ id, toolType: "trendline", p1: { date: "2026-01-05", price: 1 }, p2: { date: "2026-01-06", price: 2 }, createdAt });
+    const cloud = { primitives: [t("a", 1), t("c", 3)], updatedAt: "2026-10-03T10:00:00.000Z" };
+    expect(resolveOnLoad({ primitives: [t("x", 9)], updatedAt: "2026-10-03T09:00:00.000Z", dirty: false }, cloud)).toEqual({ ...cloud, dirty: false });
+    const local = { primitives: [{ ...t("a", 1), name: "sửa trên máy" }, t("b", 2)], updatedAt: null, dirty: true };
+    const r = resolveOnLoad(local, cloud);
+    expect(r.dirty).toBe(true);
+    expect(r.primitives.map((p) => p.id)).toEqual(["a", "b", "c"]);
+    expect(r.primitives[0].name).toBe("sửa trên máy");
+    expect(resolveOnLoad(local, null)).toBe(local);
+    expect(mergePrimitives([], [])).toEqual([]);
   });
 });

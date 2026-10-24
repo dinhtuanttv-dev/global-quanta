@@ -58,7 +58,13 @@ const drawings = async (p: Page) => Number(await p.locator(WS).getAttribute("dat
 const panes = async (p: Page) => Number(await p.locator(CHART).getAttribute("data-panes") ?? 1);
 async function chartShot(p: Page) { return (await p.locator(CHART).screenshot()).toString("base64"); }
 async function chartBox(p: Page) { await closeOverlays(p); await p.locator(CHART).scrollIntoViewIfNeeded(); return (await p.locator(CHART).boundingBox())!; }
-const savedDrawings = (p: Page) => p.evaluate((t) => { try { return JSON.parse(localStorage.getItem(`gq.ta.drawings.v1:${t}`) ?? "null")?.primitives ?? []; } catch { return []; } }, TICKER);
+// A2: khoá hình vẽ gắn theo tài khoản (`gq.ta.drawings.v1:<MÃ>@<id>`) — tìm khoá của mã bất kể tài khoản thử.
+const savedDrawings = (p: Page) => p.evaluate((t) => {
+  try {
+    const k = Object.keys(localStorage).find((x) => x.startsWith(`gq.ta.drawings.v1:${t}@`)) ?? `gq.ta.drawings.v1:${t}`;
+    return JSON.parse(localStorage.getItem(k) ?? "null")?.primitives ?? [];
+  } catch { return []; }
+}, TICKER);
 
 async function drawTrendline(p: Page, fx = 0.55, fy = 0.45) {
   const n0 = await drawings(p);
@@ -322,7 +328,7 @@ async function runViewport(b: Browser, tag: keyof typeof VIEWPORTS) {
   await p.goto(BASE, { waitUntil: "domcontentloaded" }); await p.waitForTimeout(2000);
   await p.fill("#login-email", EMAIL); await p.fill("#login-password", PW); await p.click(".login-btn");
   await p.waitForSelector(".m-tab", { timeout: 30_000 });
-  await p.evaluate(() => { try { localStorage.removeItem("gq.ta.workspace.v1"); } catch { /* bỏ qua */ } });
+  await p.evaluate(() => { try { for (const k of Object.keys(localStorage)) if (k.startsWith("gq.ta.workspace.v1")) localStorage.removeItem(k); } catch { /* bỏ qua */ } });
   await p.locator(".m-tab", { hasText: /TA VN-Index/i }).first().click();
   await p.locator(CHART).waitFor({ state: "visible", timeout: 90_000 }); await p.waitForTimeout(4000);
   const before = await metrics(p);

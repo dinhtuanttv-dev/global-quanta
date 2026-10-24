@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { displayStatus, draftFromState, newVersionId, snapToCandle, userInvalidation, validateUserCount, type UserCountPoint, type UserCountVersion } from "./userCount";
 import { elliottState } from "./index";
 import { elliottMineItems } from "../../ta-command-center/chart/elliottScene";
-import { newerCounts } from "../../ta-command-center/elliottCountsStore";
+import { mergeCounts, resolveCountsOnLoad } from "../../ta-command-center/elliottCountsStore";
 import type { OhlcvBar } from "../../ta-command-center/types";
 
 const day = (i: number) => new Date(Date.UTC(2025, 0, 1 + i)).toISOString().slice(0, 10);
@@ -66,10 +66,15 @@ describe("DW8 — cách đếm chỉnh tay", () => {
     expect(it0.kind === "poly" && it0.dash).toEqual([5, 3]);
     expect(it0.kind === "poly" && it0.label?.text).toMatch(/Đang chỉnh · ⚠ 1/);
   });
-  it("đồng bộ: bản mới hơn (updatedAt) thắng; không có bản đám mây -> giữ bản máy", () => {
-    const a = { schemaVersion: 1, activeId: null, versions: [], updatedAt: "2026-10-23T01:00:00Z" };
-    const b2 = { ...a, updatedAt: "2026-10-23T02:00:00Z", activeId: "x" };
-    expect(newerCounts(a, b2)).toBe(b2); expect(newerCounts(b2, a)).toBe(b2); expect(newerCounts(a, null)).toBe(a);
+  it("A2 đồng bộ: máy không có thay đổi chưa đồng bộ -> bản đám mây; có -> gộp phiên bản theo id (không so giờ máy khách)", () => {
+    const v = (id: string, createdAt: string) => ({ id, createdAt, status: "user_edited" as const, points: [], degree: null, pattern: null }) as never;
+    const cloud = { schemaVersion: 1, activeId: "c1", versions: [v("c1", "2026-10-23T02:00:00Z")], updatedAt: "2026-10-23T02:00:00.000Z" };
+    expect(resolveCountsOnLoad({ schemaVersion: 1, activeId: null, versions: [], updatedAt: null, dirty: false }, cloud)).toEqual({ ...cloud, dirty: false });
+    const local = { schemaVersion: 1, activeId: "l1", versions: [v("l1", "2026-10-23T03:00:00Z")], updatedAt: null, dirty: true };
+    const r = resolveCountsOnLoad(local, cloud);
+    expect(r.versions.map((x) => x.id)).toEqual(["l1", "c1"]);
+    expect(r.activeId).toBe("l1");
+    expect(mergeCounts(local, cloud).updatedAt).toBe(cloud.updatedAt);
   });
 });
 

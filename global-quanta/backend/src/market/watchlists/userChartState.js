@@ -1,6 +1,7 @@
 // Hình vẽ tay trên biểu đồ TA VN-Index theo TÀI KHOẢN + MÃ (đồng bộ mọi máy đã đăng nhập).
 // Gateway xác thực phiên Supabase rồi đọc/ghi market_user_chart_state bằng service_role; trình duyệt không truy cập bảng.
 
+import { assertBaseRevision, nextRevision } from "./revision.js";
 export const CHART_STATE_TABLE = "market_user_chart_state";
 export const MAX_PRIMITIVES = 100;
 const MAX_BYTES = 64 * 1024;
@@ -74,7 +75,9 @@ export async function getUserChartState(store, userId, symbol) {
 
 export async function saveUserChartState(store, userId, symbol, body, now = new Date()) {
   const primitives = sanitizeChartPrimitives(body?.primitives);
-  const updatedAt = now.toISOString();
+  const current = await getUserChartState(store, userId, symbol);
+  assertBaseRevision(body, current);
+  const updatedAt = nextRevision(now, current.updatedAt);
   await store.upsertRows(CHART_STATE_TABLE, [{ user_id: userId, symbol, primitives, updated_at: updatedAt }], "user_id,symbol");
   return { symbol, primitives, updatedAt };
 }
