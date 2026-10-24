@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import TickerSelector, { DEFAULT_TA_SYMBOL } from "./TickerSelector";
 import TaCommandCenterTab from "./TaCommandCenterTab";
+import PanelBoundary from "./workspace/PanelBoundary";
 import type { ChartHighlight } from "./TVChartPanel";
 import GoldenSepaPanel from "./GoldenSepaPanel";
 import ConvergencePanelV2 from "./ConvergencePanelV2";
@@ -52,7 +53,7 @@ export default function TaVnIndexTab() {
           thường, tự nhiên hơn. */}
       <div style={{ display: activeSubTab === "aichart" ? "none" : undefined }}>
         {/* Phần A — Chart + bảng điều khiển (Super Chart). Ô chọn mã nằm trong thanh đầu của workspace. */}
-        <TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} highlight={highlight} tickerSlot={<TickerSelector ticker={ticker} onChange={(t) => { setTicker(t); setHighlight(null); }} />} />
+        <PanelBoundary label="biểu đồ" resetKey={ticker} testid="panel-error-chart"><TaCommandCenterTab ticker={ticker} onRequestTickerChange={setTicker} highlight={highlight} tickerSlot={<TickerSelector ticker={ticker} onChange={(t) => { setTicker(t); setHighlight(null); }} />} /></PanelBoundary>
       </div>
 
       {activeSubTab === "aichart" && (
@@ -60,7 +61,7 @@ export default function TaVnIndexTab() {
           {/* thanh tab con vẫn hiện ở AI Chart Vision để quay lại các bộ lọc */}
           <SubTabNavigation activeTab={activeSubTab} onTabChange={handleTabChange} />
           <div className="mt-2">
-            <AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} onOpenScreener={(tab) => handleTabChange(tab as SubTabKey)} />
+            <PanelBoundary label="AI Chart Vision" resetKey={ticker}><AIChartVisionTab ticker={ticker} onRequestTickerChange={setTicker} onOpenScreener={(tab) => handleTabChange(tab as SubTabKey)} /></PanelBoundary>
           </div>
         </>
       )}
@@ -121,7 +122,7 @@ export default function TaVnIndexTab() {
           {/* ĐÃ SỬA — LỖI NHÂN BẢN: đây vẫn là nơi DUY NHẤT render
               các bộ lọc — TVChartPanel.tsx không
               còn tự gắn thêm bản sao thứ 2 của 2 component này nữa. */}
-          <div className="mt-2">
+          <div className="mt-2"><PanelBoundary label="bộ lọc" resetKey={activeSubTab} testid="panel-error-filter">
             {/* Pattern Scanner v2 (Pring, P4) thay Pattern Scanner cũ của Project A (/api/pattern-scan, chỉ 4 mẫu, báo mô hình cũ). */}
             {activeSubTab === "pattern" && (isMarketGatewayEnabled()
               ? <PatternScannerPanel onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
@@ -144,7 +145,7 @@ export default function TaVnIndexTab() {
             {activeSubTab === "golden" && (isMarketGatewayEnabled()
               ? <GoldenSepaPanel onSelectTicker={handleCandidateSelect} onOpenVision={openVision} />
               : <p className="text-[10px] text-slate-500 italic py-4 text-center">Golden SEPA cần Market Gateway (chưa bật cho môi trường này).</p>)}
-          </div>
+          </PanelBoundary></div>
         </>
       )}
     </div>

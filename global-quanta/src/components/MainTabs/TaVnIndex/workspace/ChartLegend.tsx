@@ -15,9 +15,11 @@ export const PANE_LAYER: Record<Exclude<PaneKind, "price">, LayerKey> = { volume
 const fmtP = (v: number) => (Math.abs(v) >= 1000 ? v.toLocaleString("vi-VN", { maximumFractionDigits: 0 }) : v.toLocaleString("vi-VN", { maximumFractionDigits: 2 }));
 const fmtV = (v: number) => (v >= 1e9 ? `${(v / 1e9).toFixed(2)} tỷ` : v >= 1e6 ? `${(v / 1e6).toFixed(2)} tr` : v >= 1e3 ? `${(v / 1e3).toFixed(1)} k` : String(Math.round(v))).replace(".", ",");
 
-export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, onClosePane, paneNotes = {}, paneValue, paneTitle = {} }: {
+export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, onClosePane, paneNotes = {}, paneValue, paneTitle = {}, priceExtras }: {
   tv: TVChartManager | null; bars: OhlcvBar[]; ticker: string; timeframe: string; layoutKey: string; onClosePane: (k: LayerKey) => void;
   /** R3: nguồn + giới hạn của từng pane (VD Order Flow: ước lượng, tỷ lệ tick / BVC). */ paneNotes?: Partial<Record<PaneKind, string>>;
+  /** 25/10: giá trị EMA / MA / Ichimoku tại nến dưới crosshair (dòng thứ hai của chú giải). */
+  priceExtras?: (index: number) => { label: string; color: string; value: string }[];
   /** R5: tiêu đề theo tham số người dùng (VD "RSI 21 · 80 / 20"). */ paneTitle?: Partial<Record<PaneKind, string>>;
   /** R4: giá trị của pane tại nến dưới crosshair (hoặc nến cuối) — đọc lịch sử, không chỉ giá trị cuối. */ paneValue?: (kind: PaneKind, index: number) => string | null;
 }) {
@@ -52,6 +54,11 @@ export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, on
           <span>O <b>{fmtP(b.open)}</b></span><span>H <b>{fmtP(b.high)}</b></span><span>L <b>{fmtP(b.low)}</b></span><span>C <b className={up ? "text-emerald-300" : "text-rose-300"}>{fmtP(b.close)}</b></span>
           {chg != null && <b className={up ? "text-emerald-300" : "text-rose-300"}>{up ? "+" : ""}{chg.toFixed(2).replace(".", ",")}%</b>}
           {b.volume > 0 && <span>KL <b>{fmtV(b.volume)}</b></span>}
+          {priceExtras && b && priceExtras(b.index).length > 0 && (
+            <span className="ws-legend-extras" data-testid="legend-ma">
+              {priceExtras(b.index).map((x) => <span key={x.label} style={{ color: x.color }}>{x.label} <b>{x.value}</b></span>)}
+            </span>
+          )}
           {hidden > 0 && <span className="ws-chip-warn" title="Lớp phủ giới hạn số nhãn để không chồng chữ — phóng to hoặc tắt bớt lớp để xem thêm" data-testid="labels-hidden">+{hidden} nhãn ẩn</span>}
         </div>
       )}
