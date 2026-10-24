@@ -446,6 +446,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!layerState?.foreign || isIntradayTf(timeframe) || !flow.data?.foreign.length) { tv.setForeignPane(null); return; }
     tv.setForeignPane(foreignByBar(currentBars, flow.data.foreign));
   }, [flow.data, layerState?.foreign, currentBars, timeframe]);
+  // R3: nguồn + giới hạn hiển thị ngay trên tiêu đề pane.
+  const basisShort = dataContext ? (dataContext.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh" : dataContext.priceBasis === "INDEX_POINTS" ? "điểm chỉ số" : dataContext.label) : null;
+  const paneNotes = useMemo(() => paneNotesFor(orderFlow, flow.data?.coverage ?? null, currentBars.length, basisShort), [orderFlow, flow.data?.coverage, currentBars.length, basisShort]);
   // Vì sao pane Khối ngoại không hiện (thay vì im lặng biến mất).
   const foreignNote = foreignUnavailable(ticker, timeframe, Boolean(flow.data), flow.data?.foreign.length ?? 0);
 
@@ -1039,7 +1042,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
         largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} foreignNote={foreignNote} />
     ),
-    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />,
+    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} />,
     backtest: (<>
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
@@ -1097,7 +1100,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {layerState?.foreign && foreignNote && !flow.isLoading && (
@@ -1250,6 +1253,21 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {toasts.node}
     </section>
   );
+}
+
+/** R3: ghi chú nguồn cho từng pane — Order Flow luôn ghi rõ là ƯỚC LƯỢNG và tỷ lệ nến tick thật / BVC. */
+export function paneNotesFor(
+  orderFlow: { coverage: { tickBars: number; bvcBars: number; tickPct: number } } | null,
+  coverage: { requestedSessions: number; tickSessions: number } | null, nBars: number, basis: string | null,
+): Partial<Record<"rsi" | "flow" | "foreign" | "volume", string>> {
+  const out: Partial<Record<"rsi" | "flow" | "foreign" | "volume", string>> = {};
+  if (orderFlow) {
+    const c = orderFlow.coverage;
+    out.flow = `ƯỚC LƯỢNG · tick thật ${c.tickBars}/${c.tickBars + c.bvcBars} nến (cột đậm) · BVC ${c.bvcBars} nến (cột nhạt)${coverage ? ` · ${coverage.tickSessions}/${coverage.requestedSessions} phiên có tick` : ""}`;
+  }
+  out.rsi = `${nBars} nến${basis ? ` · ${basis}` : ""}`;
+  out.foreign = "dữ liệu sàn theo ngày";
+  return out;
 }
 
 /**

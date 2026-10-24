@@ -38,6 +38,8 @@ export const SVP_SESSIONS_DRAWN = 5;
 
 const dirColor = (dir: string) => (dir === "bullish" ? GQ_COLORS.bull : GQ_COLORS.bear);
 
+const barsIn = (bars: { date: string }[], from: string, to: string) => bars.filter((b) => b.date >= from && b.date <= to).length;
+
 /**
  * Đoạn TRƯỚC xác nhận [nến gốc, nến xác nhận): mờ + nét đứt, không nhãn. Trả về ngày bắt đầu của phần đậm
  * (= ngày xác nhận nếu có và muộn hơn nến gốc; ngược lại nến gốc như trước).
@@ -224,7 +226,8 @@ function pushVolumeLayers(items: SceneItem[], inp: SceneInput) {
       items.push({ kind: "hline", t1: p.fromDate, t2: p.toDate, price: p.val, color: rgba(GQ_COLORS.cyan, 0.6), dash: [3, 3] });
     };
     const { composite, sessions } = inp.profile;
-    if (composite) drawProfile(composite, 0.45, `POC ${composite.method === "triangular" ? "≈" : ""}`.trim());
+    // R3: profile D/W/M không có giá khớp từng mức — ước tính từ OHLCV (phân bổ tam giác) -> ghi rõ nguồn + số nến.
+    if (composite) drawProfile(composite, 0.45, composite.method === "triangular" ? `POC ≈ ước tính OHLCV · ${barsIn(inp.bars, composite.fromDate, composite.toDate)} nến` : "POC");
     const recent = sessions.slice(-SVP_SESSIONS_DRAWN);
     for (const sp of recent) drawProfile(sp.profile, 0.6, "POC");
     // Naked POC: POC phiên cũ chưa bị chạm lại -> kéo tới mép phải (mục tiêu thanh khoản kinh điển).
@@ -237,7 +240,7 @@ function pushVolumeLayers(items: SceneItem[], inp: SceneInput) {
   if (layers?.avwap && inp.avwap?.points.length) {
     const pts = inp.avwap.points;
     const line = (k: number) => pts.map((p) => ({ t: p.date, price: p.vwap + k * p.sigma }));
-    items.push({ kind: "poly", points: line(0), color: GQ_COLORS.amber, width: 1.5, label: { text: "AVWAP · swing", color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
+    items.push({ kind: "poly", points: line(0), color: GQ_COLORS.amber, width: 1.5, label: { text: `AVWAP · neo ${inp.avwap.anchorDate.slice(0, 10)} (tự động: đầu dải giao dịch) · ±1σ ±2σ`, color: GQ_COLORS.amber, priority: LABEL_PRIORITY.obActive } });
     for (const k of [1, -1]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.6), width: 1, dash: [4, 3] });
     for (const k of [2, -2]) items.push({ kind: "poly", points: line(k), color: rgba(GQ_COLORS.uv, 0.35), width: 1, dash: [2, 3] });
   }

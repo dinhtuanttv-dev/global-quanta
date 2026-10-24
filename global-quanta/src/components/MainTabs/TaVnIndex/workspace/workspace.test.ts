@@ -171,3 +171,13 @@ describe("R2 — CVD divergence vẽ tại nến xác nhận", async () => {
     expect(divergenceMarkers([{ date: bars[3].date, dir: "bullish", confirmedIndex: 3 }], bars)).toEqual([expect.objectContaining({ time: bars[3].date, text: "Div" })]);
   });
 });
+
+describe("R3 — nguồn dữ liệu + giới hạn trên tiêu đề pane", async () => {
+  const { paneNotesFor } = await import("../TVChartPanel");
+  it("Order Flow luôn ghi ƯỚC LƯỢNG + tỷ lệ nến tick thật / BVC + số phiên có tick", () => {
+    const n = paneNotesFor({ coverage: { tickBars: 1, bvcBars: 749, tickPct: 0 } }, { requestedSessions: 20, tickSessions: 1 }, 750, "giá điều chỉnh");
+    expect(n.flow).toBe("ƯỚC LƯỢNG · tick thật 1/750 nến (cột đậm) · BVC 749 nến (cột nhạt) · 1/20 phiên có tick");
+    expect(n.rsi).toBe("750 nến · giá điều chỉnh");
+    expect(paneNotesFor(null, null, 10, null).flow).toBeUndefined();
+  });
+});
