@@ -34,20 +34,25 @@ export function sanitizeChartPrimitives(raw) {
     const id = String(p.id ?? "").slice(0, 60);
     if (!id) continue;
     const createdAt = Number.isFinite(Number(p.createdAt)) ? Number(p.createdAt) : Date.now();
+    // Super Chart SC3: thuộc tính quản lý đối tượng (tên, ẩn, khoá) — tuỳ chọn, chỉ giữ khi đúng kiểu.
+    const meta = {
+      ...(typeof p.name === "string" && p.name.trim() ? { name: p.name.trim().slice(0, 40) } : {}),
+      ...(p.hidden === true ? { hidden: true } : {}), ...(p.locked === true ? { locked: true } : {}),
+    };
     if (p.toolType === "elliott") {
       const pts = Array.isArray(p.points) ? p.points.map(point) : [];
       if (pts.length !== 6 || pts.some((x) => !x)) continue;
       const labels = Array.isArray(p.labels) ? p.labels.slice(0, 6).map((l) => String(l).slice(0, 4)) : ["0", "1", "2", "3", "4", "5"];
       const violations = Array.isArray(p.violations) ? p.violations.slice(0, 5).map((v) => String(v).slice(0, 160)) : [];
-      out.push({ id, toolType: "elliott", points: pts, labels, violations, createdAt });
+      out.push({ id, toolType: "elliott", points: pts, labels, violations, createdAt, ...meta });
     } else if (p.toolType === "fibTimeZone" || p.toolType === "avwap") {
       const anchor = point(p.anchor);
-      if (anchor) out.push({ id, toolType: p.toolType, anchor, createdAt });
+      if (anchor) out.push({ id, toolType: p.toolType, anchor, createdAt, ...meta });
     } else {
       const p1 = point(p.p1);
       const p2 = point(p.p2);
       if (!p1 || !p2) continue;
-      const item = { id, toolType: p.toolType, p1, p2, createdAt };
+      const item = { id, toolType: p.toolType, p1, p2, createdAt, ...meta };
       if (p.toolType === "fibonacci") {
         item.levels = (Array.isArray(p.levels) ? p.levels : [])
           .slice(0, 12)

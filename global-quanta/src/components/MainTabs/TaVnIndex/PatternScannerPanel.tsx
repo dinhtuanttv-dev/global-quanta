@@ -43,7 +43,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   );
 }
 
-export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
+export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string, highlight?: { start: string; end: string; label: string } | null) => void; onOpenVision?: (ticker: string) => void }) {
   const { data, error, isLoading, refresh } = usePatterns();
   const [dir, setDir] = useState<DirF>("bull");
   const [state, setState] = useState<StateF>("active");
@@ -196,7 +196,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
                     <td className="py-1.5 text-right text-slate-500 hidden sm:table-cell">{r.patterns.length > 1 ? `+${r.patterns.length - 1}` : ""}</td>
                   </tr>
                   {open === r.ticker && (
-                    <DeepRow width={frameW}><StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={onSelectTicker} /><PatternDeepPanel row={{ ...r, patterns: [p, ...r.patterns.filter((x) => x !== p)] }} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
+                    <DeepRow width={frameW}><StructureDeepBlock ticker={r.ticker} row={structureRows.byTicker.get(r.ticker)} onOpenChart={(t) => onSelectTicker(t)} /><PatternDeepPanel row={{ ...r, patterns: [p, ...r.patterns.filter((x) => x !== p)] }} doc={data} onClose={() => setOpen(null)} onOpenChart={onSelectTicker} onOpenVision={onOpenVision} /></DeepRow>
                   )}
                 </Fragment>
               ))}

@@ -3,6 +3,7 @@
 
 import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
 import { getUserChartState, normalizeChartSymbol, saveUserChartState } from "../market/watchlists/userChartState.js";
+import { getUserWorkspace, saveUserWorkspace } from "../market/watchlists/userWorkspace.js";
 import { deleteUserElliottCounts, getUserElliottCounts, normalizeCountKey, saveUserElliottCounts } from "../market/watchlists/userElliottCounts.js";
 import { listUserAlerts, markEventsRead, saveUserAlerts } from "../market/watchlists/userElliottAlerts.js";
 import { Router } from "express";
@@ -494,6 +495,19 @@ router.put("/chart-state", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveUserChartState(getMarketRuntime().store, userId, normalizeChartSymbol(req.query.symbol), req.body ?? {}));
+}));
+
+// Super Chart SC1: bố cục tab TA VN-Index theo tài khoản (preset, lớp, bảng chi tiết, dock) — GET / PUT /workspace { workspace }.
+router.get("/workspace", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserWorkspace(getMarketRuntime().store, userId));
+}));
+
+router.put("/workspace", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserWorkspace(getMarketRuntime().store, userId, req.body ?? {}));
 }));
 
 // DW8: cách đếm Elliott chỉnh tay theo tài khoản + mã + khung (lịch sử phiên bản):

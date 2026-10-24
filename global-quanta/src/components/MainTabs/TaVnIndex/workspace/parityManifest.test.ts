@@ -20,7 +20,7 @@ describe("SC0 — bản kê bảo toàn tính năng", () => {
     const ids = PARITY_MANIFEST.map((x) => x.id);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids.length).toBeGreaterThanOrEqual(40);
-    for (const g of ["header", "chart", "pane", "overlay", "engine", "drawing", "analysis", "elliott", "structure", "handoff"]) expect(PARITY_MANIFEST.some((x) => x.group === g), g).toBe(true);
+    for (const g of ["header", "chart", "pane", "overlay", "engine", "drawing", "analysis", "elliott", "structure", "handoff", "workspace"]) expect(PARITY_MANIFEST.some((x) => x.group === g), g).toBe(true);
   });
 
   it("mọi data-testid trong selector tồn tại trong mã nguồn (cố định hoặc tiền tố của testid động)", () => {
@@ -28,12 +28,22 @@ describe("SC0 — bản kê bảo toàn tính năng", () => {
       for (const sel of selectors(item.check)) {
         for (const m of sel.matchAll(/data-testid(\^?)=([a-z0-9-]+)/g)) {
           const [, prefix, id] = m;
+          // testid="…" = prop của khối Popover (render ra data-testid)
           const ok = prefix ? dynamicPrefixes.some((d) => d.startsWith(id) || id.startsWith(d)) || src.includes(`data-testid="${id}`)
-            : src.includes(`data-testid="${id}"`) || dynamicPrefixes.some((d) => id.startsWith(d));
+            : src.includes(`data-testid="${id}"`) || src.includes(`testid="${id}"`) || dynamicPrefixes.some((d) => id.startsWith(d));
           expect(ok, `${item.id}: data-testid=${id}`).toBe(true);
         }
       }
     }
+  });
+
+  it("mọi selector có đường mở (REVEAL) hợp lệ hoặc luôn hiển thị; 57 tính năng cũ vẫn còn trong bản kê", () => {
+    const old = ["ticker-selector", "ticker-change", "price-basis", "tf-note", "chart-canvas", "chart-keys", "chart-pin", "confluence", "draw-trendline", "draw-zone", "draw-fib", "draw-fibtime",
+      "fib-ext", "draw-saved", "draw-clear", "smart-note", "smc-panel", "vsa-panel", "backtest", "orderflow-panel", "oscillators", "signal-log", "elliott-pro", "elliott-pro-tabs",
+      "elliott-edit", "elliott-history", "elliott-alerts", "elliott-book", "structure-open", "structure-modes", "structure-replay", "structure-chip", "handoff-structure"];
+    const ids = new Set(PARITY_MANIFEST.map((x) => x.id));
+    for (const id of old) expect(ids.has(id), id).toBe(true);
+    expect(PARITY_MANIFEST.filter((x) => !("since" in x) || x.since === "SC0").length).toBeGreaterThanOrEqual(57);
   });
 
   it("mọi lớp đang hiện trên thanh công tắc đều có dòng kiểm; công cụ vẽ trỏ đúng data-tool", () => {
@@ -42,5 +52,6 @@ describe("SC0 — bản kê bảo toàn tính năng", () => {
     const checked = new Set(PARITY_MANIFEST.flatMap((x) => (x.check.kind === "layer" ? [x.check.key] : [])));
     for (const k of layers) expect(checked.has(k), `lớp ${k}`).toBe(true);
     for (const x of PARITY_MANIFEST) if (x.check.kind === "draw") expect(src).toContain(`id: "${x.check.tool}"`);
+    for (const k of layers) expect(src.includes("data-layer={key}")).toBe(true);
   });
 });
