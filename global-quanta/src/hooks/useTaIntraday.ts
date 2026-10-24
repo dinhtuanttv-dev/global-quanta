@@ -5,7 +5,9 @@ import type { PriceBasis } from "./useTaSeries";
 
 export const TA_INTRADAY_SESSIONS = 20;
 
-interface TaIntradayResponse { bars: IntradayBar[]; sessions: string[]; priceBasis: PriceBasis }
+/** A3: chất lượng nến phút của mã (Gateway đo) — độ phân giải thực tế có thể thô hơn 1 phút. */
+export interface IntradayQuality { sessions: number; barsPerSession: number; medianGapMin: number | null; effectiveResolution: "1m" | "5m" | "15m" | "1H" | null; flatPct: number; coarse: boolean }
+interface TaIntradayResponse { bars: IntradayBar[]; sessions: string[]; priceBasis: PriceBasis; quality?: IntradayQuality; provenance?: { live?: boolean; asOf?: string | null } }
 
 const fetcher = (url: string) => fetch(url).then(async (res) => {
   const body = await res.json().catch(() => ({}));
@@ -23,6 +25,8 @@ export function useTaIntraday(ticker: string | null, enabled: boolean) {
     bars: data?.bars ?? [],
     sessions: data?.sessions ?? [],
     priceBasis: data?.priceBasis ?? null,
+    quality: data?.quality ?? null,
+    live: Boolean(data?.provenance?.live),
     isLoading: Boolean(url) && isLoading,
     error: !isMarketGatewayEnabled() && enabled ? "Khung intraday cần Market Gateway" : error ? String(error.message ?? error) : null,
   };

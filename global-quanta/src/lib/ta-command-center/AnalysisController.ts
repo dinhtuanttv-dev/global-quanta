@@ -28,7 +28,8 @@ interface ControllerEvents extends Record<string, unknown> {
   "smc:updated": SmcState;
   "vsa:updated": VsaSignal[];
   "wyckoff:updated": WyckoffResult;
-  "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
+  /** `refresh`: cùng khung, chỉ dữ liệu được làm mới (nến phút mỗi 60 giây) -> chart giữ khung nhìn (A4). */
+  "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[]; refresh?: boolean };
   /** A1: lỗi phân tích (null = đã có kết quả hợp lệ). */
   "analysis:error": string | null;
 }
@@ -167,7 +168,7 @@ export class AnalysisController {
     if (isIntradayTf(this.timeframeController.getTimeframe())) {
       this.bars = this.timeframeController.getBarsForCurrentTimeframe();
       this.recomputeDetectors();
-      this.emitter.emit("timeframe:changed", { timeframe: this.timeframeController.getTimeframe(), bars: this.bars });
+      this.emitter.emit("timeframe:changed", { timeframe: this.timeframeController.getTimeframe(), bars: this.bars, refresh: true });
     }
   }
   hasIntraday(): boolean { return this.timeframeController.hasIntraday(); }
@@ -261,7 +262,7 @@ export class AnalysisController {
   onVsaUpdated(h: (v: VsaSignal[]) => void) { return this.emitter.on("vsa:updated", h); }
   onWyckoffUpdated(h: (w: WyckoffResult) => void) { return this.emitter.on("wyckoff:updated", h); }
   onLayersChanged(h: (s: LayerState) => void) { return this.layers.on(h); }
-  onTimeframeChanged(h: (payload: { timeframe: Timeframe; bars: OhlcvBar[] }) => void) { return this.emitter.on("timeframe:changed", h); }
+  onTimeframeChanged(h: (payload: { timeframe: Timeframe; bars: OhlcvBar[]; refresh?: boolean }) => void) { return this.emitter.on("timeframe:changed", h); }
 
   destroy(): void { this.cancelPending(); this.unsubscribers.forEach((u) => u()); }
 }
