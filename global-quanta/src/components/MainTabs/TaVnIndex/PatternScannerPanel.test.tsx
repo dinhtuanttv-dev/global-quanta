@@ -7,17 +7,18 @@ import fixture from "./__fixtures__/patterns.json";
 
 const doc = fixture.doc as unknown as PatternsDoc;
 const details = fixture.details as unknown as Record<string, PatternDetailFull>;
+const net = vi.hoisted(() => ({ pending: false }));
 vi.mock("../../../hooks/usePatterns", async (orig) => ({
   ...(await orig<typeof import("../../../hooks/usePatterns")>()),
   usePatterns: () => ({ data: doc, error: undefined, isLoading: false, refresh: () => {} }),
-  usePatternDetail: (s: string | null) => ({ data: s ? details[s] : undefined, error: undefined, isLoading: false }),
+  usePatternDetail: (s: string | null) => (net.pending ? { data: undefined, error: undefined, isLoading: true } : { data: s ? details[s] : undefined, error: undefined, isLoading: false }),
 }));
 const { default: PatternScannerPanel } = await import("./PatternScannerPanel");
 const { default: SubTabNavigation } = await import("./SubTabNavigation");
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 let root: ReturnType<typeof createRoot> | null = null;
-afterEach(() => { act(() => root?.unmount()); root = null; document.body.innerHTML = ""; });
+afterEach(() => { net.pending = false; act(() => root?.unmount()); root = null; document.body.innerHTML = ""; });
 function render(ui: React.ReactElement) {
   const el = document.createElement("div"); document.body.appendChild(el);
   root = createRoot(el); act(() => root!.render(ui)); return el;
@@ -86,6 +87,22 @@ describe("Pattern Scanner v2 — danh sách", () => {
       const btns = picker.querySelectorAll("button");
       click(btns[btns.length - 1]);
       expect(btns[btns.length - 1].getAttribute("aria-pressed")).toBe("true");
+    }
+  });
+});
+
+describe("Pattern Scanner v2 -> biểu đồ (Super Chart SC4)", () => {
+  it("'Mở biểu đồ TA' truyền vùng mẫu hình — kể cả khi chi tiết chưa tải xong (dùng tóm tắt của dòng)", () => {
+    for (const pending of [false, true]) {
+      net.pending = pending;
+      const calls: unknown[][] = [];
+      const el = render(<PatternScannerPanel onSelectTicker={(...a) => calls.push(a)} />);
+      click(rowsOf(el)[0].querySelector("button"));
+      click(q(el, "pattern-open-chart"));
+      const [ticker, h] = calls[calls.length - 1] as [string, { start: string; end: string; label: string }];
+      const row = doc.results.find((r) => r.ticker === ticker)!;
+      expect(h).toEqual({ start: row.patterns[0].startDate, end: row.patterns[0].endDate, label: row.patterns[0].label });
+      act(() => root?.unmount()); root = null; document.body.innerHTML = "";
     }
   });
 });
