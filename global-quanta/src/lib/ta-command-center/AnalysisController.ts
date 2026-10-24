@@ -12,10 +12,11 @@ import { EventEmitter } from "./EventEmitter";
 import type { OhlcvBar } from "./types";
 
 // ---- Dạng dữ liệu cho giao diện (giữ tên trường cũ để lớp vẽ không phải đổi) ----
-export interface OrderBlock { date: string; type: Dir; top: number; bottom: number; mitigated: boolean; mitigatedAt: string | null; status: ObStatus; kind: "BOS" | "CHoCH" }
+/** `date` = nến gốc của vùng; `confirmedDate` = nến phá cấu trúc — lần ĐẦU TIÊN biết vùng tồn tại (point-in-time). */
+export interface OrderBlock { date: string; confirmedDate?: string | null; type: Dir; top: number; bottom: number; mitigated: boolean; mitigatedAt: string | null; status: ObStatus; kind: "BOS" | "CHoCH" }
 export interface FairValueGap { startDate: string; endDate: string; type: Dir; top: number; bottom: number; filled: boolean; filledAt: string | null; state: FvgState; filledPct: number }
 export interface BreakOfStructure { date: string; type: Dir; brokenLevel: number; displaced: boolean }
-export interface LiquidityPool { date: string; price: number; type: "EQH" | "EQL"; touches: number; state: PoolState; stateDate: string | null }
+export interface LiquidityPool { date: string; confirmedDate?: string | null; price: number; type: "EQH" | "EQL"; touches: number; state: PoolState; stateDate: string | null }
 export interface PremiumDiscountZone { swingHigh: number; swingLow: number; midpoint: number; oteLow: number; oteHigh: number; currentZone: "premium" | "discount" | "equilibrium"; legDir: Dir; startDate: string }
 export interface SmcTotals { obs: number; fvgs: number; bos: number; choch: number; liquidity: number; sweeps: number }
 
@@ -50,21 +51,24 @@ export const EMPTY_SMC: SmcState = {
 export interface ChochBacktest { bullish: EventStudyResult; bearish: EventStudyResult; engineVersion: string }
 export interface ControllerOptions { isIndex?: boolean; /** Nến ngày VN-Index (so sánh sức mạnh trong Wyckoff, chỉ khung D). */ benchmark?: OhlcvBar[] | null }
 
-const obView = (z: Analysis["orderBlocks"][number]): OrderBlock => ({
-  date: z.date, type: z.dir, top: z.top, bottom: z.bottom, mitigated: z.status !== "ACTIVE", mitigatedAt: z.statusDate, status: z.status, kind: z.kind,
+/** Ngày của nến thứ i trong chuỗi đã phân tích (để đổi confirmedIndex -> ngày xác nhận). */
+type DateAt = (i: number) => string | null;
+const noDate: DateAt = () => null;
+const obView = (z: Analysis["orderBlocks"][number], dateAt: DateAt = noDate): OrderBlock => ({
+  date: z.date, confirmedDate: dateAt(z.confirmedIndex), type: z.dir, top: z.top, bottom: z.bottom, mitigated: z.status !== "ACTIVE", mitigatedAt: z.statusDate, status: z.status, kind: z.kind,
 });
 const fvgView = (g: Analysis["fvgs"][number]): FairValueGap => ({
   startDate: g.startDate, endDate: g.endDate, type: g.dir, top: g.top, bottom: g.bottom,
   filled: g.state === "FILLED" || g.state === "INVERTED", filledAt: g.state === "FILLED" || g.state === "INVERTED" ? g.stateDate : null,
   state: g.state, filledPct: g.filledPct,
 });
-const poolView = (z: Analysis["liquidity"][number]): LiquidityPool => ({
-  date: z.date, price: z.level, type: z.side === "BSL" ? "EQH" : "EQL", touches: z.touches, state: z.state, stateDate: z.stateDate,
+const poolView = (z: Analysis["liquidity"][number], dateAt: DateAt = noDate): LiquidityPool => ({
+  date: z.date, confirmedDate: dateAt(z.confirmedIndex), price: z.level, type: z.side === "BSL" ? "EQH" : "EQL", touches: z.touches, state: z.state, stateDate: z.stateDate,
 });
 
 export function toSmcFull(a: Analysis): SmcFull {
   return {
-    obs: a.orderBlocks.map(obView),
+    obs: a.orderBlocks.map((z) => obView(z)),
     fvgs: a.fvgs.map(fvgView),
     bos: a.structure.map((e) => ({ date: e.date, type: e.dir, brokenLevel: e.level, displaced: e.displaced })),
   };
@@ -74,20 +78,20 @@ export function toSmcFull(a: Analysis): SmcFull {
  * Ánh xạ kết quả quant-core -> dạng hiển thị. CHỈ vùng còn hiệu lực (yêu cầu 03/10: SMC quá rối, bỏ hiển thị "test"):
  * OB chưa bị test (ACTIVE), FVG còn mở (OPEN/PARTIAL), vùng thanh khoản chưa bị quét (RESTING). Tổng số giữ trong totals.
  */
-export function toSmcState(a: Analysis): SmcState {
+export function toSmcState(a: Analysis, dateAt: DateAt = noDate): SmcState {
   const shift = (e: Analysis["structure"][number]): BreakOfStructure => ({ date: e.date, type: e.dir, brokenLevel: e.level, displaced: e.displaced });
   const bos = a.structure.filter((e) => e.kind === "BOS");
   const choch = a.structure.filter((e) => e.kind === "CHoCH");
   const dr = a.dealingRange;
   return {
-    obs: a.orderBlocks.filter((z) => z.status === "ACTIVE").slice(-SMC_DISPLAY_LIMIT.obs).map(obView),
+    obs: a.orderBlocks.filter((z) => z.status === "ACTIVE").slice(-SMC_DISPLAY_LIMIT.obs).map((z) => obView(z, dateAt)),
     // FVG còn mở nhưng đã quá 120 phiên (cùng hạn hiệu lực với OB) không vẽ nữa — tránh các dải kéo ngang toàn biểu đồ.
     fvgs: a.fvgs.filter((g) => (g.state === "OPEN" || g.state === "PARTIAL") && a.atr.length - 1 - g.confirmedIndex <= OB_EXPIRY_BARS)
       .slice(-SMC_DISPLAY_LIMIT.fvgs).map(fvgView),
     bos: bos.slice(-SMC_DISPLAY_LIMIT.bos).map(shift),
     choch: choch.slice(-SMC_DISPLAY_LIMIT.choch).map(shift),
-    liquidity: a.liquidity.filter((z) => z.state === "RESTING").slice(-SMC_DISPLAY_LIMIT.liquidity).map(poolView),
-    sweeps: a.liquidity.filter((z) => z.state === "SWEPT").slice(-SMC_DISPLAY_LIMIT.liquidity).map(poolView),
+    liquidity: a.liquidity.filter((z) => z.state === "RESTING").slice(-SMC_DISPLAY_LIMIT.liquidity).map((z) => poolView(z, dateAt)),
+    sweeps: a.liquidity.filter((z) => z.state === "SWEPT").slice(-SMC_DISPLAY_LIMIT.liquidity).map((z) => poolView(z, dateAt)),
     premiumDiscount: dr ? {
       swingHigh: dr.high, swingLow: dr.low, midpoint: dr.eq, oteLow: dr.oteLow, oteHigh: dr.oteHigh, currentZone: dr.zone, legDir: dr.legDir,
       startDate: dr.highIndex < dr.lowIndex ? dr.highDate : dr.lowDate,
@@ -207,7 +211,8 @@ export class AnalysisController {
 
   private applyAnalysis(a: Analysis): void {
     this.analysis = a;
-    this.smcCache = toSmcState(a);
+    const bars = this.bars;
+    this.smcCache = toSmcState(a, (i) => bars[i]?.date ?? null);
     this.smcFull = toSmcFull(a);
     this.vsaCache = a.vsa.slice(-8);
     this.wyckoffCache = a.wyckoff;

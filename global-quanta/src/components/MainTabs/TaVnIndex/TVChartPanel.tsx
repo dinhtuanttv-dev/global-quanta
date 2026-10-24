@@ -373,7 +373,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (layerState.structure) markers.push(...structureMarkers(currentBars, timeframe, structureDoc, structureMode));
     if (layerState.orderflow && orderFlow) {
       for (const a of orderFlow.absorption) markers.push({ time: a.date, position: a.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.uv, shape: "square", text: "ABS" });
-      for (const d of orderFlow.divergences) markers.push({ time: d.date, position: d.dir === "bullish" ? "belowBar" : "aboveBar", color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: "Div" });
+      markers.push(...divergenceMarkers(orderFlow.divergences, currentBars));
     }
     tvManagerRef.current.setMarkers(markers.filter((m) => visibleDates.has(m.time)));
   }, [smc, vsa, layerState, corporateActions, currentBars, timeframe, orderFlow, structureDoc, structureMode]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -446,6 +446,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!layerState?.foreign || isIntradayTf(timeframe) || !flow.data?.foreign.length) { tv.setForeignPane(null); return; }
     tv.setForeignPane(foreignByBar(currentBars, flow.data.foreign));
   }, [flow.data, layerState?.foreign, currentBars, timeframe]);
+  // R3: nguồn + giới hạn hiển thị ngay trên tiêu đề pane.
+  const basisShort = dataContext ? (dataContext.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh" : dataContext.priceBasis === "INDEX_POINTS" ? "điểm chỉ số" : dataContext.label) : null;
+  const paneNotes = useMemo(() => paneNotesFor(orderFlow, flow.data?.coverage ?? null, currentBars.length, basisShort), [orderFlow, flow.data?.coverage, currentBars.length, basisShort]);
   // Vì sao pane Khối ngoại không hiện (thay vì im lặng biến mất).
   const foreignNote = foreignUnavailable(ticker, timeframe, Boolean(flow.data), flow.data?.foreign.length ?? 0);
 
@@ -1039,7 +1042,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
         largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} foreignNote={foreignNote} />
     ),
-    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />,
+    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} />,
     backtest: (<>
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
@@ -1097,7 +1100,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {layerState?.foreign && foreignNote && !flow.isLoading && (
@@ -1251,6 +1254,37 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     </section>
   );
 }
+
+/** R3: ghi chú nguồn cho từng pane — Order Flow luôn ghi rõ là ƯỚC LƯỢNG và tỷ lệ nến tick thật / BVC. */
+export function paneNotesFor(
+  orderFlow: { coverage: { tickBars: number; bvcBars: number; tickPct: number } } | null,
+  coverage: { requestedSessions: number; tickSessions: number } | null, nBars: number, basis: string | null,
+): Partial<Record<"rsi" | "flow" | "foreign" | "volume", string>> {
+  const out: Partial<Record<"rsi" | "flow" | "foreign" | "volume", string>> = {};
+  if (orderFlow) {
+    const c = orderFlow.coverage;
+    out.flow = `ƯỚC LƯỢNG · tick thật ${c.tickBars}/${c.tickBars + c.bvcBars} nến (cột đậm) · BVC ${c.bvcBars} nến (cột nhạt)${coverage ? ` · ${coverage.tickSessions}/${coverage.requestedSessions} phiên có tick` : ""}`;
+  }
+  out.rsi = `${nBars} nến${basis ? ` · ${basis}` : ""}`;
+  out.foreign = "dữ liệu sàn theo ngày";
+  return out;
+}
+
+/**
+ * R2 point-in-time: CVD divergence chỉ được BIẾT khi đỉnh/đáy thứ hai được xác nhận (sau R nến) -> marker chính "Div" tại nến
+ * xác nhận; nến đỉnh/đáy gốc chỉ có chấm mờ không chữ.
+ */
+export function divergenceMarkers(divs: { date: string; dir: "bullish" | "bearish"; confirmedIndex: number }[], bars: OhlcvBar[]): ChartMarkerInput[] {
+  const out: ChartMarkerInput[] = [];
+  for (const d of divs) {
+    const pos = d.dir === "bullish" ? "belowBar" as const : "aboveBar" as const;
+    const at = bars[d.confirmedIndex]?.date ?? d.date;
+    if (at !== d.date) out.push({ time: d.date, position: pos, color: "rgba(251,191,36,0.35)", shape: "circle", text: "" });
+    out.push({ time: at, position: pos, color: GQ_COLORS.amber, shape: d.dir === "bullish" ? "arrowUp" : "arrowDown", text: at !== d.date ? `Div · sau ${barsGap(bars, d.date, at)} nến` : "Div" });
+  }
+  return out;
+}
+const barsGap = (bars: OhlcvBar[], a: string, b: string) => Math.max(0, bars.findIndex((x) => x.date === b) - bars.findIndex((x) => x.date === a));
 
 /** Lý do không vẽ được Khối ngoại; null = có dữ liệu để vẽ (hoặc đang tải). */
 export function foreignUnavailable(ticker: string, timeframe: Timeframe, loaded: boolean, days: number): string | null {

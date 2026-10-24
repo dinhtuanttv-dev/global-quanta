@@ -38,6 +38,7 @@ export default function LayerMenu({ state, onToggle, dense = false }: { state: L
         </section>
       ))}
       <p className="text-[9px] text-slate-500">Mặc định mọi lớp tắt. Preset chỉ đổi lớp hiển thị — không xoá hình vẽ hay kết quả phân tích.</p>
+      <p className="text-[9px] text-slate-500" data-testid="pit-legend">Point-in-time: phần <b>mờ, nét đứt</b> của vùng OB / FVG / thanh khoản là đoạn TRƯỚC khi tín hiệu được xác nhận (lúc đó chưa biết); marker "Div · sau N nến" đặt tại nến xác nhận.</p>
     </div>
   );
 }

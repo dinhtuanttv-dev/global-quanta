@@ -34,9 +34,11 @@ interface Props {
   rsi: RsiResult;
   macd: MacdResult;
   adx: AdxResult;
+  /** R3: số nến + khung + loại giá dùng để tính. */
+  context?: { bars: number; timeframe: string; basis: string | null };
 }
 
-export default function OscillatorPanel({ rsi, macd, adx }: Props) {
+export default function OscillatorPanel({ rsi, macd, adx, context }: Props) {
   const rsiInfo = rsiLabel(rsi);
   const macdInfo = macdLabel(macd.latest.histogram);
   const adxInfo = ADX_LABEL[adx.trendStrength];
@@ -76,6 +78,11 @@ export default function OscillatorPanel({ rsi, macd, adx }: Props) {
           {adx.trendStrength === "chua_du" ? `${adxInfo.text} — cần ≥ ${adx.needBars} nến (không phải "trend yếu")` : `${adxInfo.text} · >25 mạnh, >50 rất mạnh`}
         </p>
       </div>
+      {context && (
+        <p className="md:col-span-3 text-[9px] text-slate-500" data-testid="osc-context">
+          Tính trên {context.bars} nến khung {context.timeframe}{context.basis ? ` · ${context.basis}` : ""} · công thức Wilder (RSI, ADX) / EMA (MACD). Ngưỡng là quy ước mô tả — chưa kiểm định lợi thế ngoài mẫu.
+        </p>
+      )}
     </div>
   );
 }

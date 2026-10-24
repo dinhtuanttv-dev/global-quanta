@@ -4,14 +4,14 @@
    "bars": 800,
    "scene": {
     "future": 2,
-    "hline": 16,
+    "hline": 18,
     "poly": 8,
     "profile": 1,
     "ring": 1,
     "segment": 4,
     "text": 15,
     "vline": 5,
-    "zone": 9
+    "zone": 12
    },
    "smc": {
     "obs": 36,
@@ -30,7 +30,7 @@
   },
   "hash": {
    "analyze": "77a33e029cb8509a",
-   "smc": "a690e3724800c697",
+   "smc": "bb21e937b7dcf857",
    "vsa": "706d1a296a4e28ca",
    "wyckoff": "d9bb64f23afd3ace",
    "backtest": "508394fe7bef44da",
@@ -39,12 +39,12 @@
    "waveTree": "bb1e866e0b13e0cb",
    "scenarios": "4f53cda18c2baa0c",
    "elliottProSummary": "cfeebd3730d782cc",
-   "scene": "733153129f6b9c86",
+   "scene": "c1bc1c834cce0379",
    "structureDoc": "c69b3caaa63d0b15",
    "structureScene": {
     "overview": "198ec49fdc88578d",
     "trade": "e541f3980b150e90",
-    "deep": "7b0bbcd906482771"
+    "deep": "8b70eabebbfbd7c0"
    },
    "structureMarkers": "4cfd74f8dc77a6e1",
    "structureLevels": "6eca8d0604d4d974"
@@ -55,13 +55,13 @@
    "bars": 167,
    "scene": {
     "future": 2,
-    "hline": 8,
+    "hline": 9,
     "poly": 8,
     "profile": 1,
     "segment": 2,
     "text": 2,
     "vline": 4,
-    "zone": 12
+    "zone": 20
    },
    "smc": {
     "obs": 8,
@@ -80,7 +80,7 @@
   },
   "hash": {
    "analyze": "035d3ecf3a41f615",
-   "smc": "92d220749382eef6",
+   "smc": "e4615e9a0733de2f",
    "vsa": "342b2cf91d2cb23c",
    "wyckoff": "1509da39bd095dbd",
    "backtest": "75a495fcb07187b1",
@@ -89,12 +89,12 @@
    "waveTree": "2992a84b23010ee4",
    "scenarios": "6929e398bc84611b",
    "elliottProSummary": "a195392fe77c21ae",
-   "scene": "d548a1ddb6a57b23",
+   "scene": "79ab2c1bb0231cda",
    "structureDoc": "c69b3caaa63d0b15",
    "structureScene": {
     "overview": "92858e8c625c160c",
     "trade": "81e0559318164f1a",
-    "deep": "209718a369b812b3"
+    "deep": "71ca574bc024f751"
    },
    "structureMarkers": "4e64078115f2d219",
    "structureLevels": "6eca8d0604d4d974"
@@ -111,7 +111,7 @@
     "segment": 6,
     "text": 13,
     "vline": 2,
-    "zone": 18
+    "zone": 30
    },
    "smc": {
     "obs": 38,
@@ -130,7 +130,7 @@
   },
   "hash": {
    "analyze": "13dcb4db2753f362",
-   "smc": "106392236cd54b7b",
+   "smc": "d4c0dd086544bfff",
    "vsa": "4f53cda18c2baa0c",
    "wyckoff": "f5d0bee950c15300",
    "backtest": "368e60e1f58e7a66",
@@ -139,12 +139,12 @@
    "waveTree": "e40c430634957387",
    "scenarios": "92a0abc6cde9cc10",
    "elliottProSummary": "d36b5bba35fbc75c",
-   "scene": "85b1ce2c526dbc65",
+   "scene": "78f71780efe99b4b",
    "structureDoc": "f66a271aa4b20fea",
    "structureScene": {
     "overview": "a840e622bee716fd",
     "trade": "8f28a78545ede950",
-    "deep": "95cd4c90c4046de9"
+    "deep": "be98dd1c887672b3"
    },
    "structureMarkers": "b29ab2db315c45d2",
    "structureLevels": "76c5a77c11f28f81"
@@ -162,7 +162,7 @@
     "segment": 10,
     "text": 15,
     "vline": 1,
-    "zone": 12
+    "zone": 16
    },
    "smc": {
     "obs": 7,
@@ -181,7 +181,7 @@
   },
   "hash": {
    "analyze": "e27db839e367447c",
-   "smc": "7182c26fad1809c3",
+   "smc": "61fef9bc5eaabb15",
    "vsa": "2ae10a003b3d4ef1",
    "wyckoff": "1a982a2c047aebf9",
    "backtest": "915879e0808f0789",
@@ -190,12 +190,12 @@
    "waveTree": "5b7257eae90a9356",
    "scenarios": "6d32012f42c86381",
    "elliottProSummary": "4aeb5cf4c7956d5b",
-   "scene": "0872b0c73b8edaa5",
+   "scene": "241d8b6bc3d30fb2",
    "structureDoc": "f66a271aa4b20fea",
    "structureScene": {
     "overview": "dd5fc895a3a8e57f",
     "trade": "6a76872832ad2e3a",
-    "deep": "303c1e08e12f106b"
+    "deep": "54bd1c96ae6a3110"
    },
    "structureMarkers": "33c0f1788e12b54e",
    "structureLevels": "76c5a77c11f28f81"

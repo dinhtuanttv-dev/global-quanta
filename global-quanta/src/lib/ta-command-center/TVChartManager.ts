@@ -34,7 +34,7 @@ export interface PaneInfo { index: number; kind: PaneKind; top: number; height: 
 export interface CrosshairBar { date: string; open: number; high: number; low: number; close: number; volume: number; prevClose: number | null; index: number }
 
 /** Cột dương xanh / âm đỏ / đúng 0 xám (0 = cân bằng, không phải mua). */
-const signColor = (v: number) => (v > 0 ? rgba(GQ_COLORS.bull, 0.6) : v < 0 ? rgba(GQ_COLORS.bear, 0.6) : "rgba(100,116,139,0.6)");
+const signColor = (v: number, a = 0.6) => (v > 0 ? rgba(GQ_COLORS.bull, a) : v < 0 ? rgba(GQ_COLORS.bear, a) : `rgba(100,116,139,${a})`);
 
 export class TVChartManager {
   private chart: IChartApi;
@@ -206,7 +206,8 @@ export class TVChartManager {
   paneCount(): number { return this.chart.panes().length; }
 
   /** Pane Order Flow: histogram Delta (mua − bán chủ động) + đường CVD (thang riêng bên trái). null = gỡ pane. */
-  setFlowPane(data: { date: string; delta: number; cvd: number }[] | null): void {
+  /** Delta: cột đậm = tick thật (Lee–Ready), cột nhạt = ước lượng BVC từ nến (R3 — không trộn lẫn hai nguồn). */
+  setFlowPane(data: { date: string; delta: number; cvd: number; source?: "TICK" | "BVC" }[] | null): void {
     if (!data) {
       if (this.flowSeries) { this.chart.removeSeries(this.flowSeries.delta); this.chart.removeSeries(this.flowSeries.cvd); this.flowSeries = null; this.layoutPanes(); }
       return;
@@ -219,7 +220,7 @@ export class TVChartManager {
       this.layoutPanes();
     }
     data = this.onCandles(data);
-    this.flowSeries.delta.setData(data.map((d) => ({ time: toTime(d.date), value: d.delta, color: signColor(d.delta) })));
+    this.flowSeries.delta.setData(data.map((d) => ({ time: toTime(d.date), value: d.delta, color: signColor(d.delta, d.source === "BVC" ? 0.22 : 0.6) })));
     this.flowSeries.cvd.setData(data.map((d) => ({ time: toTime(d.date), value: d.cvd })));
   }
 
