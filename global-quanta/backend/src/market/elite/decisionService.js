@@ -1,7 +1,7 @@
 // Elite 10 E3 (2026-10-17) — dịch vụ quyết định: Điểm Elite + danh mục Elite 10 mỗi phiên (E3-prereg.md) và SỔ THEO DÕI TIẾN.
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
-import { buildDecision, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { buildCandidates, buildDecision, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { noteStoreError } from "./storeHealth.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger" };
@@ -107,12 +107,13 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     const d = date ?? idx[idx.length - 1];
     if (!d) return null;
     const doc = await kv(DECISION_KV.decision(d));
+    // C1: ứng viên tính khi trả (phát lại thuật toán trên tài liệu đã lưu) — đúng cả cho phiên đã dựng trước khi có tính năng này.
     if (doc && !date) {
       const ledger = await kv(DECISION_KV.ledger);
-      memo = { ...doc, ledgerSummary: ledger?.summary ?? null };
+      memo = { ...doc, candidates: buildCandidates(doc), ledgerSummary: ledger?.summary ?? null };
       return memo;
     }
-    return doc;
+    return doc ? { ...doc, candidates: buildCandidates(doc) } : doc;
   }
 
   async function ledger() {

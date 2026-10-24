@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "../../../test/rtl-lite";
 
 const decision = {
@@ -15,6 +15,10 @@ const decision = {
     { ticker: "ORS", rank: 1, Z: 2.25, alpha5Pct: 0.14, pOutperform: 0.513, eligible: true, reason: null, close: 13500, advBn: 25, sigma20: 0.02, sectorKey: "8700", contributions: [{ id: "stealth20", z: 2, contribution: 1.2 }, { id: "top20_alpha", z: 0, contribution: 0 }] },
     { ticker: "DSE", rank: 2, Z: 2.2, alpha5Pct: 0.13, pOutperform: 0.512, eligible: true, reason: null, close: 20650, advBn: 11, sigma20: 0.02, sectorKey: "8700", contributions: [] },
   ],
+  candidates: [
+    { ticker: "DSE", rank: 2, Z: 2.2, alpha5Pct: 0.13, pOutperform: 0.512, sectorKey: "8700", close: 20650, sigma20: 0.02, stop: 18803, target: 23420, holdSessions: 10, inBuffer: true, reason: "sector_cap", sectorCount: 3, maxPerSector: 3, sectorHeld: 3 },
+    { ticker: "PVT", rank: 24, Z: 1.1, alpha5Pct: 0.07, pOutperform: 0.506, sectorKey: "2770", close: 19000, sigma20: 0.025, stop: 16876, target: 22186, holdSessions: 10, inBuffer: false, reason: "full", sectorCount: null, maxPerSector: 3, sectorHeld: 0 },
+  ] as unknown[] | undefined,
   ledgerSummary: { horizons: { 5: { n: 0, meanExcess: null, hitRate: null, excessCi95: null, meanPortfolioNet: null, meanVnIndex: null, ic: { n: 0, mean: null, t: null }, curve: [] }, 10: { n: 0, ic: { n: 0 } } }, criteria: { icPass: false, excessPass: false, sessions: 1 }, label: "EXPERIMENTAL", labelVi: "THĂM DÒ — cần ≥ 60 phiên tiến (hiện 1 phiên)" },
 };
 const panelTicker = {
@@ -46,8 +50,11 @@ vi.mock("swr", async (orig) => {
 
 import DecisionBoard from "./DecisionBoard";
 import SignalProfileCard, { percentile } from "./SignalProfileCard";
+import { readBoardPrefs } from "./boardPrefs";
 
-afterEach(cleanup);
+beforeEach(() => { try { localStorage.clear(); } catch { /* không có storage */ } });
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+const heads = (id: string) => [...screen.getByTestId(id).querySelectorAll(`#${id}-table thead th`)].map((th) => th.textContent);
 
 describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
   it("bảng quyết định: nhãn THĂM DÒ, bối cảnh, danh mục, trọng số chỉ A/B, bấm mã mở hồ sơ", () => {
@@ -79,6 +86,65 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(cell.textContent).toContain("Mua ngay");
     expect(cell.querySelector("[data-kind]")?.getAttribute("data-kind")).toBe("in");
     expect(screen.getByTestId("elite-buy-note").textContent).toContain("Timeline lấy lúc");
+  });
+
+  it("C2: Ứng viên tiếp theo — mặc định thu gọn (dòng tóm tắt), mở ra bảng cùng cấu trúc danh mục + lý do chưa vào", () => {
+    const opened: string[] = [];
+    render(<DecisionBoard onOpenTicker={(t) => opened.push(t)} />);
+    const toggle = screen.getByTestId("elite-candidates-toggle");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
+    expect(screen.getByTestId("elite-portfolio-toggle").getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(toggle);
+    expect(screen.getByTestId("elite-candidates-toggle").getAttribute("aria-expanded")).toBe("true");
+    const h = heads("elite-candidates");
+    expect(h.slice(0, 4)).toEqual(["Mã", "Ngành", "Lý do chưa vào", "⏱ Điểm mua"]);
+    expect(h).toContain("σ20");
+    const dse = screen.getByTestId("elite-cand-DSE").textContent ?? "";
+    expect(dse).toContain("#2");
+    expect(dse).toContain("đệm");
+    expect(dse).toContain("Dịch vụ tài chính");
+    expect(dse).toContain("18.803");
+    expect(dse).toContain("23.420");
+    expect(dse).toContain("2,0%");
+    expect(screen.getByTestId("elite-cand-reason-DSE").textContent).toBe("Trần ngành 3/3");
+    expect(screen.getByTestId("elite-cand-reason-PVT").textContent).toBe("Xếp sau 10 mã");
+    expect(screen.getByTestId("elite-cand-PVT").textContent).not.toContain("đệm");
+    expect(screen.getByTestId("elite-cand-buy-DSE").textContent).toContain("Mở cửa 17/10");
+    expect(screen.getByTestId("elite-candidates").textContent).toContain("không phải tín hiệu mua thêm");
+    fireEvent.click(screen.getByTestId("elite-cand-PVT").querySelector("button")!);
+    expect(opened).toEqual(["PVT"]);
+  });
+
+  it("C2: Gọn / Thu gọn — ẩn cột phụ, lưu theo tài khoản, hai bảng độc lập", () => {
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    fireEvent.click(screen.getByTestId("elite-portfolio-compact"));
+    const h = heads("elite-portfolio");
+    expect(h).toEqual(["Mã", "Ngành", "Tỷ trọng", "⏱ Điểm mua", "Z", "P vượt", "Giá", "Cắt lỗ"]);
+    fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
+    expect(heads("elite-candidates")).toContain("α 5 phiên"); // bảng ứng viên giữ chế độ riêng (đầy đủ)
+    fireEvent.click(screen.getByTestId("elite-portfolio-toggle"));
+    expect(screen.getByTestId("elite-portfolio-summary").textContent).toContain("ORS");
+    expect(screen.queryByTestId("elite-pick-ORS")).toBeNull();
+    expect(readBoardPrefs()).toEqual({ portfolio: { open: false, compact: true }, candidates: { open: true, compact: null } });
+    cleanup();
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(screen.getByTestId("elite-portfolio-toggle").getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getByTestId("elite-candidates-toggle").getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("C2: màn hẹp tự dùng chế độ gọn khi người dùng chưa chọn; Gateway cũ (không có candidates) vẫn hiện ứng viên từ scores", () => {
+    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("max-width"), media: q, addEventListener() {}, removeEventListener() {} }));
+    const saved = decision.candidates;
+    decision.candidates = undefined;
+    try {
+      render(<DecisionBoard onOpenTicker={() => {}} />);
+      expect(heads("elite-portfolio")).toEqual(["Mã", "Ngành", "Tỷ trọng", "⏱ Điểm mua", "Z", "P vượt", "Giá", "Cắt lỗ"]);
+      expect(screen.getByTestId("elite-portfolio-compact").getAttribute("aria-pressed")).toBe("true");
+      fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
+      expect(screen.getByTestId("elite-cand-reason-DSE").textContent).toBe("Hạng 2");
+      expect(screen.getByTestId("elite-cand-DSE").textContent).toContain("—");
+    } finally { decision.candidates = saved; }
   });
 
   it("hồ sơ: đủ tín hiệu theo tab, bậc hiện hành, giá trị trống không điền số; mã ngoài vũ trụ báo rõ", () => {

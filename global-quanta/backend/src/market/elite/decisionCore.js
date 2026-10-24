@@ -265,10 +265,9 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
   const turnover = prevHoldings?.length ? [...new Set([...prevW.keys(), ...picks.map((x) => x.ticker)])]
     .reduce((a, t) => a + Math.abs((w[picks.findIndex((x) => x.ticker === t)] ?? 0) - (prevW.get(t) ?? 0)), 0) / 2 : null;
   const portfolio = picks.map((x, i) => {
-    const band = Math.max(x.sigma20, SIGMA_FLOOR) * Math.sqrt(5);
     return {
       ticker: x.ticker, weight: w[i], Z: x.Z, rank: x.rank, alpha5Pct: x.alpha5Pct, pOutperform: x.pOutperform, sectorKey: x.sectorKey,
-      close: x.close, stop: x.close * (1 - PORTFOLIO.stopK * band), target: x.close * (1 + PORTFOLIO.targetK * band), holdSessions: PORTFOLIO.holdSessions,
+      close: x.close, ...stopTarget(x.close, x.sigma20), holdSessions: PORTFOLIO.holdSessions,
       retained: retained.has(x.ticker), riskContribution: rc ? rc[i] : null,
     };
   });
@@ -279,6 +278,52 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
     universe: { panel: tickers.length, eligible: eligibleNames.length },
     portfolio, scores,
   };
+}
+
+/** Cắt lỗ / mục tiêu = dải 2σ / 3σ của 5 phiên (σ = max(σ20, 1%)·√5) — MỘT công thức cho danh mục và ứng viên. */
+export function stopTarget(close, sigma20) {
+  const band = Math.max(sigma20 ?? 0, SIGMA_FLOOR) * Math.sqrt(5);
+  return { stop: close * (1 - PORTFOLIO.stopK * band), target: close * (1 + PORTFOLIO.targetK * band) };
+}
+
+/**
+ * C1 (25/10/2026) — "Ứng viên tiếp theo": các mã đủ điều kiện xếp sau danh mục, kèm LÝ DO chưa vào — PHÁT LẠI đúng thuật toán dựng
+ * danh mục (giữ mã vùng đệm trước, rồi lấp theo Z, trần 3 mã / ngành) trên chính tài liệu đã lưu. Không đổi danh mục / tỷ trọng.
+ * Lý do: "sector_cap" (ngành đã đủ trần tại lượt của mã), "full" (đã đủ 10 mã khi tới lượt). `inBuffer`: trong top 20 — nếu đã nằm trong
+ * danh mục thì sẽ được giữ ở phiên sau.
+ */
+export function buildCandidates(doc, n = 20) {
+  if (!doc?.scores?.length || !doc.portfolio) return [];
+  const held = new Set(doc.portfolio.map((p) => p.ticker));
+  const retainedSet = new Set(doc.portfolio.filter((p) => p.retained).map((p) => p.ticker));
+  const ranked = doc.scores.filter((x) => x.eligible && x.sigma20 > 0).slice().sort((a, b) => b.Z - a.Z);
+  const bufferSet = new Set(ranked.slice(0, PORTFOLIO.bufferRank).map((x) => x.ticker));
+  const picks = new Set(), perSector = new Map(), reasons = new Map();
+  const key = (x) => x.sectorKey ?? `?${x.ticker}`;
+  const take = (x) => {
+    if (picks.has(x.ticker)) return;
+    if (picks.size >= PORTFOLIO.size) { if (!reasons.has(x.ticker)) reasons.set(x.ticker, { kind: "full" }); return; }
+    const c = perSector.get(key(x)) ?? 0;
+    if (c >= PORTFOLIO.maxPerSector) { if (!reasons.has(x.ticker)) reasons.set(x.ticker, { kind: "sector_cap", sectorCount: c }); return; }
+    perSector.set(key(x), c + 1); picks.add(x.ticker);
+  };
+  for (const x of ranked) if (retainedSet.has(x.ticker)) take(x);
+  for (const x of ranked) take(x);
+  // Bất biến: phát lại phải ra ĐÚNG danh mục đã lưu; lệch (dữ liệu cũ / phiên bản thuật toán khác) -> không khẳng định lý do cụ thể.
+  const consistent = picks.size === held.size && [...picks].every((t) => held.has(t));
+  const out = [];
+  for (const x of ranked) {
+    if (held.has(x.ticker)) continue;
+    const r = consistent ? reasons.get(x.ticker) ?? { kind: "full" } : { kind: "below" };
+    out.push({
+      ticker: x.ticker, rank: x.rank, Z: x.Z, alpha5Pct: x.alpha5Pct, pOutperform: x.pOutperform, sectorKey: x.sectorKey, close: x.close, sigma20: x.sigma20,
+      ...stopTarget(x.close, x.sigma20), holdSessions: PORTFOLIO.holdSessions, inBuffer: bufferSet.has(x.ticker),
+      reason: r.kind, sectorCount: r.kind === "sector_cap" ? r.sectorCount : null, maxPerSector: PORTFOLIO.maxPerSector,
+      sectorHeld: doc.portfolio.filter((p) => (p.sectorKey ?? null) === (x.sectorKey ?? null) && x.sectorKey != null).length,
+    });
+    if (out.length >= n) break;
+  }
+  return out;
 }
 
 /** Chuẩn hoá tỷ trọng về 100% với trần mỗi mã (trần hiệu dụng ≥ 1/n để luôn khả thi), phân bổ lại phần vượt trần. */
