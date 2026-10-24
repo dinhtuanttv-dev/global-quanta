@@ -62,6 +62,8 @@ import type { VsaSignal } from "../../../lib/quant-core";
 import type { Timeframe } from "../../../lib/ta-command-center/TimeframeController";
 import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspace/indicatorSettings";
 import ChartSignalsValidation from "./ChartSignalsValidation";
+import PanelBoundary from "./workspace/PanelBoundary";
+import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
 import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
 import type { CorporateActionMark, PriceBasis } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
@@ -239,6 +241,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     setIndicators({ avwap: { anchors } });
   };
   const [anchorPick, setAnchorPick] = useState(false);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const settingsProps = {
     value: ind, onChange: (next: IndicatorSettings) => setWs({ indicators: next }), ticker, anchor: anchorFor,
     // Đóng menu / bảng trượt đang mở để nến không bị che khi bấm chọn ngày neo.
@@ -277,6 +280,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       controller.onVsaUpdated(setVsa),
       controller.onWyckoffUpdated(setWyckoffResult),
       controller.onLayersChanged(setLayerState),
+      controller.onAnalysisError(setAnalysisError),
       controller.onTimeframeChanged(({ timeframe: tf, bars: newBars }) => {
         setTimeframeState(tf);
         setCurrentBars(newBars);
@@ -415,8 +419,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   useEffect(() => {
     const k = `${ticker}|${timeframe}`;
     if (viewKeyRef.current === k) return;
+    const tickerChanged = viewKeyRef.current.split("|")[0] !== ticker;
     viewKeyRef.current = k;
-    setSelectedId(null); setRangeId(null);
+    setSelectedId(null); setRangeId(null); setAnchorPick(false);
+    // A1 (D-09/C-03): đổi mã bằng BẤT KỲ đường nào (ô mã, radar, bảng lệnh…) -> bỏ vùng khoanh mẫu hình của mã cũ.
+    // Khoanh vùng mới đi kèm lần đổi mã (Pattern Scanner) được effect `highlight` đặt lại ngay sau (chạy sau effect này).
+    if (tickerChanged) setHighlightRange(null);
     const c = controllerRef.current;
     if (activeTool || draftPrimitive || elliottDraft.length) {
       c?.drawing.cancelDraw(); c?.drawing.cancelElliottDraft(); setActiveTool(null);
@@ -488,6 +496,21 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     e.preventDefault();
     act();
   };
+
+  // ---- 25/10: bộ EMA 21/50/100 · MA 200 và Ichimoku (lớp phủ giá, mặc định tắt) ----
+  const maValues = useMemo(() => (layerState?.maSet ? movingAverageSet(currentBars) : null), [layerState?.maSet, currentBars]);
+  const ichiValues = useMemo(() => (layerState?.ichimoku ? ichimoku(currentBars) : null), [layerState?.ichimoku, currentBars]);
+  useEffect(() => {
+    tvApi?.setOverlayLines("ma", maValues ? MA_SET.map((m) => ({ id: m.id, color: m.color, width: m.id === "ma200" ? 2 as const : 1 as const, values: maValues[m.id] })) : null);
+  }, [tvApi, maValues]);
+  useEffect(() => {
+    tvApi?.setOverlayLines("ichi", ichiValues ? [
+      { id: "tenkan", color: ICHI_COLORS.tenkan, values: ichiValues.tenkan },
+      { id: "kijun", color: ICHI_COLORS.kijun, values: ichiValues.kijun },
+      { id: "chikou", color: ICHI_COLORS.chikou, dashed: true, values: ichiValues.chikou },
+    ] : null);
+  }, [tvApi, ichiValues]);
+  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues), [maValues, ichiValues]);
 
   // ---- R4: pane MACD / ADX (khung phụ, bật/tắt bằng lớp macd / adx) ----
   useEffect(() => {
@@ -575,8 +598,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives: visiblePrims, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: sceneProfile, avwap: sceneAvwap, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, elliottScene, pringScene, elliottProInput]);
+    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, elliottScene, pringScene, elliottProInput]);
   // SC3: hình đang chọn — vòng tròn ở các điểm neo (vàng = đã khoá).
   const selectionItems = useMemo((): SceneItem[] => {
     const p = primitives.find((x) => x.id === selectedId);
@@ -903,19 +926,42 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const toggleInspector = () => (isWide ? setWs({ inspectorOpen: !ws.inspectorOpen }) : setDrawerOpen((v) => !v));
   const dockShown = isMobile ? mobileDockOpen : ws.dockOpen;
 
+  const toolButton = (t: (typeof TOOLS)[number], inSheet: boolean, after?: () => void) => {
+    const Icon = t.icon;
+    return (
+      <button key={t.id} type="button" onClick={() => { pickTool(t.id); after?.(); }} aria-pressed={activeTool === t.id} data-tool={t.id} aria-label={t.label} title={`${t.label} (${t.key})`} className="ws-btn ws-btn-amber">
+        <Icon className="w-3.5 h-3.5" /><span className={inSheet ? "" : "ws-btn-text-opt"}>{t.short}</span>
+      </button>
+    );
+  };
+  const fibExtButton = (inSheet: boolean) => (
+    <button type="button" onClick={handleToggleFibExtension} aria-pressed={fibExtensionMode} data-testid="fib-ext" className="ws-btn" title={fibExtensionMode ? "Fib mở rộng: BẬT (127,2 / 161,8 / 261,8%)" : "Fib mở rộng: TẮT"} aria-label="Fibonacci mở rộng">
+      <span className="text-[9px] font-black">Ext</span><span className={inSheet ? "" : "ws-btn-text-opt"}>Fib mở rộng</span>
+    </button>
+  );
+  // Yêu cầu 25/10: gộp các công cụ Fibonacci (thoái lui · mở rộng · thời gian) vào MỘT nhóm trên thanh công cụ.
+  const FIB_IDS = new Set<DrawingToolType>(["fibonacci", "fibTimeZone"]);
+  const fibActive = activeTool != null && FIB_IDS.has(activeTool);
+  const fibGroup = (inSheet: boolean) => inSheet ? (
+    <div className="flex flex-wrap gap-1 w-full" role="group" aria-label="Fibonacci" data-testid="fib-group">
+      {TOOLS.filter((t) => FIB_IDS.has(t.id)).map((t) => toolButton(t, true))}{fibExtButton(true)}
+    </div>
+  ) : (
+    <Popover label={fibActive ? TOOLS.find((t) => t.id === activeTool)?.short ?? "Fib" : "Fibonacci"} icon={<Activity className="w-3.5 h-3.5" />} testid="fib-group-btn" panelTestid="fib-group"
+      title="Fibonacci: thoái lui · mở rộng · thời gian" active={fibActive || fibExtensionMode} optionalLabel width={240}>
+      <div className="space-y-1.5">
+        <p className="text-[9px] text-slate-500">Bấm công cụ rồi kéo / bấm trên biểu đồ. "Fib mở rộng" thêm mức 127,2 / 161,8 / 261,8% cho hình Fib vẽ sau.</p>
+        <div className="flex flex-col gap-1">
+          {TOOLS.filter((t) => FIB_IDS.has(t.id)).map((t) => toolButton(t, true, closeOpenPopovers))}
+          {fibExtButton(true)}
+        </div>
+      </div>
+    </Popover>
+  );
   const toolButtons = (inSheet = false) => (
     <>
-      {TOOLS.map((t) => {
-        const Icon = t.icon;
-        return (
-          <button key={t.id} type="button" onClick={() => pickTool(t.id)} aria-pressed={activeTool === t.id} data-tool={t.id} aria-label={t.label} title={`${t.label} (${t.key})`} className="ws-btn ws-btn-amber">
-            <Icon className="w-3.5 h-3.5" /><span className={inSheet ? "" : "ws-btn-text-opt"}>{t.short}</span>
-          </button>
-        );
-      })}
-      <button type="button" onClick={handleToggleFibExtension} aria-pressed={fibExtensionMode} data-testid="fib-ext" className="ws-btn" title={fibExtensionMode ? "Fib mở rộng: BẬT (127,2 / 161,8 / 261,8%)" : "Fib mở rộng: TẮT"} aria-label="Fibonacci mở rộng">
-        <span className="text-[9px] font-black">Ext</span><span className={inSheet ? "" : "ws-btn-text-opt"}>Fib mở rộng</span>
-      </button>
+      {TOOLS.filter((t) => !FIB_IDS.has(t.id)).map((t) => toolButton(t, inSheet))}
+      {fibGroup(inSheet)}
       <button type="button" onClick={startCountEditFromToolbar} aria-pressed={countEditing} className="ws-btn" data-testid="toolbar-count-edit" title="Chỉnh tay cách đếm Elliott (đặt điểm lên biểu đồ)">
         <PencilLine className="w-3.5 h-3.5" /><span className={inSheet ? "" : "ws-btn-text-opt"}>Đếm sóng</span>
       </button>
@@ -1009,8 +1055,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       </div>
       <div className="ws-inspector-body">
         {ws.inspectorTab === "overview" && (
-          <InspectorOverview smc={smc} vsa={vsa} wyckoff={wyckoffResult} rsi={rsiResult} macd={macdResult} adx={adxResult} elliottPro={elliottProText} onOpen={openDock}
-            structure={structureOn && structure.data ? { on: true, verdict: verdictText(structure.data.align.verdict, structure.data.evidence.verdictValidated), stage: structureTfa ? `${STAGE_SHORT[structureTfa.stage]} · ${structureTfa.stageAge} nến` : "" } : { on: false, verdict: "", stage: "" }} />
+          <PanelBoundary label="Tổng quan" resetKey={`${ticker}|${timeframe}`}><InspectorOverview smc={smc} vsa={vsa} wyckoff={wyckoffResult} rsi={rsiResult} macd={macdResult} adx={adxResult} elliottPro={elliottProText} onOpen={openDock}
+            structure={structureOn && structure.data ? { on: true, verdict: verdictText(structure.data.align.verdict, structure.data.evidence.verdictValidated), stage: structureTfa ? `${STAGE_SHORT[structureTfa.stage]} · ${structureTfa.stageAge} nến` : "" } : { on: false, verdict: "", stage: "" }} /></PanelBoundary>
         )}
         {ws.inspectorTab === "objects" && objectList}
         {ws.inspectorTab === "notes" && (wyckoffResult
@@ -1156,9 +1202,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
+            {analysisError && (
+              <span role="alert" className="px-2 py-0.5 rounded-lg bg-red-950/80 border border-red-500/40 text-[10px] text-red-200 inline-flex items-center gap-1 pointer-events-auto" data-testid="analysis-error">
+                Phân tích {ticker} lỗi — chưa có SMC / VSA / Wyckoff cho dữ liệu này ({analysisError.slice(0, 80)})
+                <button type="button" className="underline" onClick={() => controllerRef.current?.retryAnalysis()}>Thử lại</button>
+              </span>
+            )}
             {layerState?.foreign && foreignNote && !flow.isLoading && (
               <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-slate-600/50 text-[10px] text-slate-300" data-testid="foreign-note">Khối ngoại: {foreignNote}</span>
             )}
@@ -1272,7 +1324,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <div className="ws-dock-body" style={classic ? undefined : isMobile ? (mobileDockOpen ? { maxHeight: "78dvh" } : { padding: 0 }) : { height: ws.dockOpen ? ws.dockHeight : 0, padding: ws.dockOpen ? undefined : 0 }}>
           {(classic ? CLASSIC_ORDER : DOCK_TABS.map((t) => t.id)).map((id) => (
             <div key={id} id={`dock-${id}`} role={classic ? undefined : "tabpanel"} data-dock-panel={id} hidden={!classic && (!dockShown || ws.dockTab !== id)} className={classic ? "mb-3" : ""}>
-              {dockPanels[id]}
+              <PanelBoundary label={DOCK_TABS.find((t) => t.id === id)?.label ?? id} resetKey={`${ticker}|${timeframe}`} testid={`panel-error-${id}`}>{dockPanels[id]}</PanelBoundary>
             </div>
           ))}
         </div>
@@ -1323,6 +1375,23 @@ const fmtBig = (v: number) => { const a = Math.abs(v); const s = a >= 1e9 ? `${f
 /** Đóng mọi Popover API đang mở (menu Lớp, preset…) — trình duyệt chưa hỗ trợ thì bỏ qua. */
 function closeOpenPopovers() {
   try { document.querySelectorAll<HTMLElement>("[popover]").forEach((el) => { if (el.matches(":popover-open")) el.hidePopover(); }); } catch { /* không hỗ trợ :popover-open */ }
+}
+
+export const ICHI_COLORS = { tenkan: "#2dd4bf", kijun: "#f97316", chikou: "rgba(148,163,184,0.75)" } as const;
+
+/** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
+export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null) {
+  const f = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: v >= 1000 ? 0 : 2 }));
+  return (i: number): { label: string; color: string; value: string }[] => {
+    const out: { label: string; color: string; value: string }[] = [];
+    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: m.color, value: f(ma[m.id][i]) });
+    if (ichi) {
+      const j = i - ICHIMOKU_DEFAULT.shift;
+      out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]) }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]) },
+        { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—" });
+    }
+    return out;
+  };
 }
 
 /** R5: AVWAP neo tại ngày người dùng chọn (nến đầu tiên có ngày ≥ ngày neo); ngoài dữ liệu -> null (dùng tự động). */

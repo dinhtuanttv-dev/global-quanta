@@ -54,6 +54,8 @@ export class TVChartManager {
   private flowSeries: { delta: ISeriesApi<"Histogram">; cvd: ISeriesApi<"Line"> } | null = null;
   private foreignSeries: { net: ISeriesApi<"Histogram">; cum: ISeriesApi<"Line"> } | null = null;
   private elliottOscSeries: { osc: ISeriesApi<"Histogram">; up: ISeriesApi<"Line">; lo: ISeriesApi<"Line"> } | null = null;
+  /** 25/10: đường TB (EMA 21/50/100, MA 200) và Tenkan / Kijun / Chikou của Ichimoku — series của thư viện trên pane giá (bám nến). */
+  private overlayLines = new Map<string, ISeriesApi<"Line">>();
   private macdSeries: { hist: ISeriesApi<"Histogram">; macd: ISeriesApi<"Line">; signal: ISeriesApi<"Line"> } | null = null;
   private adxSeries: { adx: ISeriesApi<"Line">; plus: ISeriesApi<"Line">; minus: ISeriesApi<"Line"> } | null = null;
   private markers: ISeriesMarkersPluginApi<Time>;
@@ -164,7 +166,7 @@ export class TVChartManager {
     this.flowSeries?.cvd.setData([]);
     this.foreignSeries?.net.setData([]);
     this.foreignSeries?.cum.setData([]);
-    for (const s of [...Object.values(this.macdSeries ?? {}), ...Object.values(this.adxSeries ?? {})]) s.setData([]);
+    for (const s of [...Object.values(this.macdSeries ?? {}), ...Object.values(this.adxSeries ?? {}), ...this.overlayLines.values()]) s.setData([]);
     this.currentBars = bars;
     this.currentDates = new Set(bars.map((b) => b.date));
     this.barIndexByTime = new Map(bars.map((b, i) => [String(toTime(b.date)), i]));
@@ -297,6 +299,26 @@ export class TVChartManager {
     })));
     this.elliottOscSeries.up.setData(data.map((d) => ({ time: toTime(d.date), value: d.up })));
     this.elliottOscSeries.lo.setData(data.map((d) => ({ time: toTime(d.date), value: d.lo })));
+  }
+
+  /**
+   * Nhóm đường phủ trên pane giá: `group` (VD "ma" / "ichi") -> các đường {id, màu, giá trị theo nến}. null = gỡ cả nhóm.
+   * Giá trị null = khoảng trống (chưa đủ dữ liệu), không nối qua.
+   */
+  setOverlayLines(group: string, lines: { id: string; color: string; width?: 1 | 2; dashed?: boolean; values: (number | null)[] }[] | null): void {
+    const prefix = `${group}:`;
+    const keep = new Set((lines ?? []).map((l) => prefix + l.id));
+    for (const [k, s] of this.overlayLines) if (k.startsWith(prefix) && !keep.has(k)) { this.chart.removeSeries(s); this.overlayLines.delete(k); }
+    for (const l of lines ?? []) {
+      const k = prefix + l.id;
+      let s = this.overlayLines.get(k);
+      if (!s) {
+        s = this.chart.addSeries(LineSeries, { color: l.color, lineWidth: l.width ?? 1, lineStyle: l.dashed ? LineStyle.Dotted : LineStyle.Solid,
+          priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 0);
+        this.overlayLines.set(k, s);
+      }
+      s.setData(this.currentBars.map((b, i) => (l.values[i] == null ? { time: toTime(b.date) } : { time: toTime(b.date), value: l.values[i] as number })));
+    }
   }
 
   /** R4 — pane MACD: histogram (đậm khi tăng dần, nhạt khi giảm dần) + đường MACD + Signal. null = gỡ pane. */

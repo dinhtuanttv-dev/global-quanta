@@ -135,6 +135,21 @@ class Renderer implements IPrimitivePaneRenderer {
       if (x === null || y === null) return;
       const yy = y + (it.dy ?? 0);
       if (yy >= 0 && yy <= H) addLabel(it.label, x - 4, yy);
+    } else if (it.kind === "cloud") {
+      // Tô từng đoạn giữa hai điểm liền kề (màu theo A ≥ B), rồi viền Senkou A / B. Chỉ đoạn trong khung nhìn.
+      const P = it.points.map((p) => { const x = o.xAt(it.from, p.k); const ya = o.y(p.a), yb = o.y(p.b); return x === null || ya === null || yb === null ? null : { x, ya, yb, up: p.a >= p.b }; });
+      for (let i = 1; i < P.length; i++) {
+        const a = P[i - 1], b = P[i];
+        if (!a || !b || (a.x < -20 && b.x < -20) || (a.x > W + 20 && b.x > W + 20)) continue;
+        ctx.fillStyle = a.up ? it.up : it.down;
+        ctx.beginPath(); ctx.moveTo(a.x, a.ya); ctx.lineTo(b.x, b.ya); ctx.lineTo(b.x, b.yb); ctx.lineTo(a.x, a.yb); ctx.closePath(); ctx.fill();
+      }
+      dash([]); ctx.lineWidth = 1;
+      for (const [key, color] of [["ya", it.lineA], ["yb", it.lineB]] as const) {
+        ctx.strokeStyle = color; ctx.beginPath(); let started = false;
+        for (const q of P) { if (!q) { started = false; continue; } if (started) ctx.lineTo(q.x, q[key]); else { ctx.moveTo(q.x, q[key]); started = true; } }
+        ctx.stroke();
+      }
     } else if (it.kind === "cone") {
       const x0 = o.x(it.from), y0 = o.y(it.fromPrice);
       if (x0 === null || y0 === null) return;

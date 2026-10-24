@@ -1,11 +1,13 @@
 ﻿import { EventEmitter } from "./EventEmitter";
 
-export type LayerKey = "volume" | "rsi" | "macd" | "adx" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "elliottPro" | "pring" | "structure";
+export type LayerKey = "volume" | "rsi" | "macd" | "adx" | "maSet" | "ichimoku" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "elliottPro" | "pring" | "structure";
 
 export interface LayerState {
   volume: boolean; rsi: boolean;
   /** R4: pane MACD (12,26,9) và ADX + DI± (14) — đọc theo crosshair. */
   macd: boolean; adx: boolean;
+  /** 25/10: bộ đường TB (EMA 21 · 50 · 100, MA 200) và Ichimoku Kinko Hyo (mây + Tenkan/Kijun/Chikou) — vẽ trên nến. */
+  maSet: boolean; ichimoku: boolean;
   vprofile: boolean; avwap: boolean; orderflow: boolean; foreign: boolean; smc: boolean; vsa: boolean; wyckoff: boolean; corporate: boolean;
   trendline: boolean; demandzone: boolean; elliott: boolean;
   /** E5: đếm sóng tự động của engine (ghim vào nến) · khung phụ Elliott Oscillator 5/35. */
@@ -32,7 +34,7 @@ interface LayerEvents extends Record<string, unknown> { "layers:changed": LayerS
 // Yêu cầu 03/10/2026: MỌI chỉ báo/công cụ trên biểu đồ mặc định TẮT — biểu đồ chỉ có nến; người dùng bật lớp nào thì
 // lớp đó mới được vẽ. Riêng hình vẽ tay: vẽ xong (hoặc nạp hình đã lưu) thì lớp tương ứng tự bật để thấy ngay.
 export const DEFAULT_LAYER_STATE: LayerState = {
-  volume: false, rsi: false, macd: false, adx: false, vprofile: false, avwap: false, orderflow: false, foreign: false, smc: false, vsa: false, wyckoff: false, corporate: false,
+  volume: false, rsi: false, macd: false, adx: false, maSet: false, ichimoku: false, vprofile: false, avwap: false, orderflow: false, foreign: false, smc: false, vsa: false, wyckoff: false, corporate: false,
   trendline: false, demandzone: false, elliott: false,
   elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, elliottGuide: false, elliottSub: false, elliottMine: false, elliottPro: false, pring: false, structure: false,
   aiDetectionMaster: false,

@@ -27,6 +27,8 @@ const INSPECTOR = (tab: string) => ({ docked: [[`[data-inspector-tab="${tab}"]`]
 /** Đường mở theo bố cục (mỗi phương án là chuỗi nút cần bấm, thử lần lượt). Khớp theo selector. */
 export const REVEAL: { match: RegExp; by: Partial<Record<LayoutMode | "any", string[][]>> }[] = [
   { match: /^\[data-layer=/, by: { docked: [["[data-testid=layers-menu-btn]"]], drawer: [["[data-testid=layers-menu-btn]"]], off: [["[data-testid=layers-menu-btn]"]], mobile: [["[data-testid=mobile-layers]"]] } },
+  // Yêu cầu 25/10: công cụ Fibonacci nằm trong nhóm "Fibonacci" của thanh công cụ (di động: bảng trượt Vẽ).
+  { match: /data-tool=fibonacci|data-tool=fibTimeZone|fib-ext/, by: { docked: [["[data-testid=fib-group-btn]"]], drawer: [["[data-testid=fib-group-btn]"]], off: [["[data-testid=fib-group-btn]"]], mobile: [["[data-testid=mobile-draw]"]] } },
   { match: /^\[data-tool=|fib-ext|toolbar-count-edit|toolbar-undo|toolbar-redo|toolbar-delete/, by: { mobile: [["[data-testid=mobile-draw]"]] } },
   { match: /confluence-engine|structure-open/, by: { mobile: [["[data-testid=mobile-layers]"]] } },
   { match: /^\[data-range=|png-btn/, by: { mobile: [["[data-testid=mobile-more]"]] } },
@@ -59,7 +61,8 @@ export const PARITY_MANIFEST = [
   { id: "chart-pin", group: "chart", feature: "Lớp phủ ghim chặt vào nến khi kéo / zoom", now: "Lớp phủ canvas", target: "Chart", check: { kind: "custom", name: "pin" } },
   // ---- Pane + lớp phủ + engine
   LAYER("volume", "Pane Khối lượng", "Lớp & pane", true), LAYER("rsi", "Pane RSI 14", "Lớp & pane", true),
-  LAYER("macd", "Pane MACD 12/26/9 (R4)", "Lớp & pane", true), LAYER("adx", "Pane ADX · DI± (R4)", "Lớp & pane", true),
+  LAYER("macd", "Pane MACD 12/26/9 (R4)", "Lớp & pane", true),
+  LAYER("maSet", "EMA 21 · 50 · 100 + MA 200 (25/10)", "Lớp & pane"), LAYER("ichimoku", "Mây Ichimoku 9/26/52 (25/10)", "Lớp & pane"), LAYER("adx", "Pane ADX · DI± (R4)", "Lớp & pane", true),
   LAYER("orderflow", "Pane Order Flow (delta / CVD)", "Lớp & pane"), LAYER("foreign", "Pane Khối ngoại", "Lớp & pane"),
   LAYER("vprofile", "Volume Profile", "Lớp & pane"), LAYER("avwap", "Anchored VWAP", "Lớp & pane"),
   LAYER("smc", "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)", "Lớp & pane"), LAYER("vsa", "VSA", "Lớp & pane"),

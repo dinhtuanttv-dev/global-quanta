@@ -29,6 +29,8 @@ interface ControllerEvents extends Record<string, unknown> {
   "vsa:updated": VsaSignal[];
   "wyckoff:updated": WyckoffResult;
   "timeframe:changed": { timeframe: Timeframe; bars: OhlcvBar[] };
+  /** A1: lỗi phân tích (null = đã có kết quả hợp lệ). */
+  "analysis:error": string | null;
 }
 
 export interface SmcState {
@@ -206,8 +208,28 @@ export class AnalysisController {
     const tf = this.timeframeController.getTimeframe();
     const bars1m = isIntradayTf(tf) ? this.timeframeController.getIntradayBars() : undefined;
     const benchmark = tf === "D" && !this.options.isIndex ? this.options.benchmark ?? null : null;
-    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined, timeframe: tf, benchmark }, (a) => this.applyAnalysis(a));
+    this.cancelPending = runAnalysis(this.bars, { isIndex: this.options.isIndex, bars1m, flowMinutes: this.flowMinutes ?? undefined, timeframe: tf, benchmark }, (a) => this.applyAnalysis(a), (msg) => this.failAnalysis(msg));
   }
+
+  /** A1 (Q-05, D-09): phân tích lỗi -> xoá kết quả cũ (không hiển thị kết quả của dữ liệu trước như của dữ liệu mới) + báo lỗi. */
+  private failAnalysis(message: string): void {
+    this.analysis = null;
+    this.smcCache = EMPTY_SMC;
+    this.smcFull = { obs: [], fvgs: [], bos: [] };
+    this.vsaCache = [];
+    this.wyckoffCache = classifyWyckoffPhase([]);
+    this.chochBacktestCache = null;
+    this.analysisError = message;
+    this.emitter.emit("smc:updated", this.smcCache);
+    this.emitter.emit("vsa:updated", this.vsaCache);
+    this.emitter.emit("wyckoff:updated", this.wyckoffCache);
+    this.emitter.emit("analysis:error", message);
+  }
+  private analysisError: string | null = null;
+  getAnalysisError(): string | null { return this.analysisError; }
+  /** Thử phân tích lại (nút "Thử lại"). */
+  retryAnalysis(): void { this.recomputeDetectors(); }
+  onAnalysisError(h: (m: string | null) => void) { return this.emitter.on("analysis:error", h); }
 
   private applyAnalysis(a: Analysis): void {
     this.analysis = a;
@@ -221,6 +243,7 @@ export class AnalysisController {
     this.emitter.emit("smc:updated", this.smcCache);
     this.emitter.emit("vsa:updated", this.vsaCache);
     this.emitter.emit("wyckoff:updated", this.wyckoffCache);
+    if (this.analysisError) { this.analysisError = null; this.emitter.emit("analysis:error", null); }
   }
 
   /** Kết quả đầy đủ của quant-core (sweep, trạng thái FVG/OB, dealing range…) cho lớp vẽ nâng cao. */

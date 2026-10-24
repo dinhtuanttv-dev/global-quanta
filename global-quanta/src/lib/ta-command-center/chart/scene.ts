@@ -35,6 +35,8 @@ export type SceneItem =
   | { kind: "cone"; from: string; fromPrice: number; steps: { k: number; lo: number; mid: number; hi: number }[]; fill: string; stroke: string; midColor: string;
       labels?: { k: number; price: number; label: SceneLabel }[] }
   // DW5: vòng tròn đánh dấu điểm kích hoạt (nến phá kênh / đường xu hướng) — neo (ngày, giá).
+  // 25/10: mây Ichimoku — điểm theo chỉ số nến tính từ `from` (k có thể vượt nến cuối: vùng tương lai); tô xanh khi A ≥ B, đỏ khi A < B.
+  | { kind: "cloud"; from: string; points: { k: number; a: number; b: number }[]; up: string; down: string; lineA: string; lineB: string }
   | { kind: "ring"; t: string; price: number; color: string; r?: number; width?: number; label?: SceneLabel }
   // DW5: chữ neo tại điểm (giá đỉnh/đáy, thẻ mô hình "ZZ" / "Sharp"…); dy = lệch dọc theo pixel (âm = lên trên).
   | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number };

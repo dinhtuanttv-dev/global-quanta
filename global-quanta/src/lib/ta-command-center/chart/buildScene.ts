@@ -1,5 +1,6 @@
 // Dựng Scene (toạ độ miền) từ kết quả phân tích + hình vẽ tay — hàm thuần, thay toàn bộ lớp SVG cũ trong TVChartPanel.
 // Mỗi lớp CHỈ vẽ khi người dùng bật (mặc định tắt hết). Mọi phần tử neo vào (ngày, giá) -> di chuyển cùng nến.
+import type { IchimokuResult } from "../detectors/movingAverages";
 import type { SmcState } from "../AnalysisController";
 import type { WyckoffResult } from "../detectors/wyckoffDetector";
 import type { LayerState } from "../LayerManager";
@@ -28,6 +29,8 @@ export interface SceneInput {
   profile?: { sessions: SessionProfile[]; composite: VolumeProfile | null } | null;
   /** `manual`: ngày neo do người dùng chọn (R5); không có -> tự động (đầu dải giao dịch). */
   avwap?: { anchorDate: string; points: VwapPoint[]; manual?: boolean } | null;
+  /** 25/10: Ichimoku của khung đang xem — mây Senkou A/B dịch +shift kỳ (vẽ khi bật lớp ichimoku). */
+  ichimoku?: Pick<IchimokuResult, "spanA" | "spanB" | "shift"> | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
   /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
@@ -205,6 +208,11 @@ export function buildScene(inp: SceneInput): Scene {
     items.push({ kind: "poly", points: inp.elliottDraft.map((pt) => ({ t: pt.date, price: pt.price })), color: GQ_COLORS.amber, dash: [3, 2], nodeLabels: inp.elliottDraft.map((_, i) => String(i)) });
   }
   pushVolumeLayers(items, inp);
+  if (layers?.ichimoku && inp.ichimoku) {
+    const { spanA, spanB, shift } = inp.ichimoku;
+    const points = spanA.flatMap((a, i) => (a != null && spanB[i] != null ? [{ k: i + shift, a, b: spanB[i] as number }] : []));
+    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.bull, 0.12), down: rgba(GQ_COLORS.bear, 0.12), lineA: rgba(GQ_COLORS.bull, 0.65), lineB: rgba(GQ_COLORS.bear, 0.65) });
+  }
   if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj || layers?.elliottGuide || layers?.elliottSub || layers?.elliottMine || inp.elliott.mine?.editing))
     items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj, guide: !!layers?.elliottGuide, sub: !!layers?.elliottSub, mine: !!layers?.elliottMine } }));
   if (layers?.pring && inp.pring?.length) items.push(...pringSceneItems(bars, inp.pring));

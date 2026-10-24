@@ -52,6 +52,8 @@
 .ws-chip-warn { pointer-events: auto; padding: 0 5px; border-radius: 99px; background: rgba(245, 158, 11, .15); color: #fcd34d; }
 .ws-pane-title { position: absolute; left: 8px; z-index: 12; display: flex; align-items: center; gap: 4px; font: 9.5px 'IBM Plex Mono', monospace; color: #94a3b8;
   padding: 1px 4px; border-radius: 5px; background: rgba(2, 6, 15, .65); }
+.ws-legend-extras { display: inline-flex; flex-wrap: wrap; gap: 2px 8px; flex-basis: 100%; }
+.ws-legend-extras b { color: inherit; }
 .ws-pane-title { max-width: calc(100% - 72px); overflow: hidden; }
 .ws-pane-title > b { min-width: 5ch; flex-shrink: 0.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* giá trị crosshair ưu tiên giữ */
 .ws-pane-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
