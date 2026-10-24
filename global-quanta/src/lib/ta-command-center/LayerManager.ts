@@ -1,6 +1,6 @@
 ﻿import { EventEmitter } from "./EventEmitter";
 
-export type LayerKey = "volume" | "rsi" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "pring" | "structure";
+export type LayerKey = "volume" | "rsi" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "elliottPro" | "pring" | "structure";
 
 export interface LayerState {
   volume: boolean; rsi: boolean; vprofile: boolean; avwap: boolean; orderflow: boolean; foreign: boolean; smc: boolean; vsa: boolean; wyckoff: boolean; corporate: boolean;
@@ -15,6 +15,8 @@ export interface LayerState {
   elliottSub: boolean;
   /** DW8: cách đếm chỉnh tay của tài khoản (phiên bản đang dùng). */
   elliottMine: boolean;
+  /** EP3: chỉ báo tổng hợp "Elliott Pro" (cây sóng v3 + kịch bản có vòng đời), 3 chế độ. */
+  elliottPro: boolean;
   /** P5: mô hình giá Pring của Pattern Scanner v2 (Gateway), ghim vào nến. */
   pring: boolean;
   /** T5: Cấu trúc thị trường đa khung (Gateway /api/market/structure, SSI) — giai đoạn, vùng giá, kịch bản, nón dự báo. */
@@ -29,7 +31,7 @@ interface LayerEvents extends Record<string, unknown> { "layers:changed": LayerS
 export const DEFAULT_LAYER_STATE: LayerState = {
   volume: false, rsi: false, vprofile: false, avwap: false, orderflow: false, foreign: false, smc: false, vsa: false, wyckoff: false, corporate: false,
   trendline: false, demandzone: false, elliott: false,
-  elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, elliottGuide: false, elliottSub: false, elliottMine: false, pring: false, structure: false,
+  elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, elliottGuide: false, elliottSub: false, elliottMine: false, elliottPro: false, pring: false, structure: false,
   aiDetectionMaster: false,
 };
 

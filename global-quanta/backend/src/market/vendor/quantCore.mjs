@@ -3978,7 +3978,7 @@ function innerPivots(candles, a, b, pct3) {
 }
 
 // src/lib/quant-core/elliott/v3/waveTree.ts
-var WAVE_TREE_VERSION = "ew-v3.0";
+var WAVE_TREE_VERSION = "ew-v3.1";
 var BASE_PCT_STEP = 2e-3;
 var WINDOW_ANCHOR = 25;
 var NOTATION = [
@@ -4035,7 +4035,7 @@ var sigScore = (nodes2, expect) => {
   });
   return s;
 };
-var PATTERN_PRIOR = { IM: 0.3, LD: -0.3, ED: -0.2, ZZ: 0.2, FL: 0.1, "EX-FL": 0, RFL: -1.4, TR: 0, RTR: -1, ETR: -1, D3: -0.2 };
+var PATTERN_PRIOR = { IM: 0.3, LD: -0.3, ED: -0.2, ZZ: 0.2, FL: 0.1, "EX-FL": 0, RFL: -2, TR: 0, RTR: -1.2, ETR: -1, D3: -0.2 };
 var structScore = (len2, fitScore, sig, tag) => len2 * (0.45 + 0.55 * fitScore) + sig + (PATTERN_PRIOR[tag] ?? 0);
 var partialScore = (len2, sig, tag) => len2 * 0.35 + 0.6 * sig + (PATTERN_PRIOR[tag] ?? 0);
 var ORPHAN_COST = -0.6;

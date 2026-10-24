@@ -15,7 +15,7 @@
 import { zigzag, type ElliottCandle } from "../elliottGet.js";
 import { classifyMotive, classifyThreeLeg, classifyTriangle, innerPivots, rankFits, type PatternFit, type PatternPoint, type PatternTag } from "../patterns";
 
-export const WAVE_TREE_VERSION = "ew-v3.0";
+export const WAVE_TREE_VERSION = "ew-v3.1";
 export const BASE_PCT_STEP = 0.002;
 export const WINDOW_ANCHOR = 25;
 
@@ -121,7 +121,7 @@ interface Cand { len: number; node: WaveNode }
  * Tiên nghiệm theo tần suất mô hình trong lý thuyết Elliott (Frost & Prechter): zigzag và xung lực phổ biến; flat chạy,
  * tam giác chạy / mở rộng hiếm. Cộng vào điểm cấu trúc (log-odds thô) để mô hình hiếm phải có bằng chứng mạnh hơn.
  */
-export const PATTERN_PRIOR: Partial<Record<PatternTag, number>> = { IM: 0.3, LD: -0.3, ED: -0.2, ZZ: 0.2, FL: 0.1, "EX-FL": 0, RFL: -1.4, TR: 0, RTR: -1.0, ETR: -1.0, D3: -0.2 };
+export const PATTERN_PRIOR: Partial<Record<PatternTag, number>> = { IM: 0.3, LD: -0.3, ED: -0.2, ZZ: 0.2, FL: 0.1, "EX-FL": 0, RFL: -2.0, TR: 0, RTR: -1.2, ETR: -1.0, D3: -0.2 };
 /** Điểm cấu trúc chuẩn hoá theo số chặng (cấu trúc 5 chặng không bị thiệt so với 3 chặng) + chữ ký sóng con + tiên nghiệm. */
 const structScore = (len: number, fitScore: number, sig: number, tag: PatternTag) => len * (0.45 + 0.55 * fitScore) + sig + (PATTERN_PRIOR[tag] ?? 0);
 const partialScore = (len: number, sig: number, tag: PatternTag) => len * 0.35 + 0.6 * sig + (PATTERN_PRIOR[tag] ?? 0);

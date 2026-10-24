@@ -109,7 +109,7 @@ describe("EP1 — hiển thị trên thẻ Elliott", () => {
     act(() => root.render(<ElliottWavePanel mtf={mtf} timeframe="D" autoOn={false} oscOn={false} onToggleAuto={() => {}} onToggleOsc={() => {}} onSuggest={() => {}} detailOpen={false} onToggleDetail={() => {}} tree={tree} />));
     const row = el.querySelector("[data-testid=elliott-v3-row]")!;
     expect(row.textContent).toMatch(/Elliott Pro v3/);
-    expect(row.textContent).toMatch(/96,6%/);
+    expect(row.textContent).toMatch(/98,3%/);
     act(() => root.unmount()); el.remove();
   });
 });
