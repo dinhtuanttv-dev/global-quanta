@@ -496,6 +496,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     handleTimeframeChange(minIntraday as Timeframe);
   }, [minIntraday, timeframe]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const srStatus = [
+    `Biểu đồ ${ticker}, khung ${timeframe}.`, `Dữ liệu: ${freshness.label}.`, forming ? "Nến cuối đang hình thành." : "",
+    activeTool ? `Đang vẽ ${TOOLS.find((t) => t.id === activeTool)?.label ?? activeTool}.` : "",
+    analysisError ? "Phân tích lỗi." : "",
+    ws.dockOpen ? `Bảng ${DOCK_TABS.find((t) => t.id === ws.dockTab)?.label ?? ""} đang mở.` : "",
+  ].filter(Boolean).join(" ");
+
   // ---- P5: Order Flow (Delta/CVD, Absorption, Divergence, VPIN) + Khối ngoại — chỉ tải khi bật lớp ----
   const flowEnabled = Boolean(layerState?.orderflow || layerState?.foreign);
   const flow = useTaFlow(ticker, flowEnabled);
@@ -1417,6 +1424,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           {wyckoffResult && <SmartNotePanel inline ticker={ticker} wyckoff={wyckoffResult} smc={smc} vsa={vsa} rsi={rsiResult} macd={macdResult} adx={adxResult} />}
         </div>
       </Modal>
+      {/* A6: trình đọc màn hình — bối cảnh chart, trạng thái dữ liệu, công cụ đang chọn, bảng đang mở (đọc khi thay đổi). */}
+      <p className="sr-only" aria-live="polite" data-testid="sr-status">{srStatus}</p>
       {toasts.node}
     </section>
   );

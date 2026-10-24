@@ -1,6 +1,7 @@
 // Pattern Scanner v2 (Martin Pring) — danh sách từ Gateway (chiến lược "patterns", engine pring/P4), thay Pattern Scanner cũ của Project A.
 // Lọc theo hướng / trạng thái / khung / họ mô hình; xếp theo TRẠNG THÁI (kiểm định P3: điểm không xếp hạng được); bấm mã hoặc nhấn đúp
 // dòng -> bảng phụ phân tích chuyên sâu (không mở biểu đồ), bấm lại / Esc -> đóng. Kiểm định đặt trước P3: EXPERIMENTAL.
+import ScanAge from "./ScanAge";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, ChevronRight, Info, RefreshCw, Shapes } from "lucide-react";
 import { STATE_GROUP, usePatterns, type PatternRow, type PatternSummary } from "../../../hooks/usePatterns";
@@ -101,7 +102,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
           Theo "Martin Pring on Price Patterns" (ch1–17): đỉnh/đáy đôi–ba, vai-đầu-vai, chữ nhật, tam giác, nêm, mở rộng, cờ, đáy/đỉnh tròn, cốc tay cầm, đảo.
           Chỉ báo mô hình còn "tươi": đang hình thành gần điểm phá vỡ hoặc vừa có sự kiện. Xếp theo trạng thái. {data?.disclaimer}
         </span>
-        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="pattern-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {data.resultCount}/{data.scannedCount} mã</span>}
+        {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="pattern-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {data.resultCount}/{data.scannedCount} mã <ScanAge dataAsOf={data.dataAsOf} generatedAt={data.generatedAt} /></span>}
       </p>
 
       {v && (

@@ -14,6 +14,12 @@ function Card({ r, tone }: { r: EventStudyResult; tone: "bull" | "bear" }) {
         {r.label} · {r.n} lần
         {r.lowSample && <span className="text-amber-400">(mẫu nhỏ &lt; 30)</span>}
       </p>
+      {(r.censored > 0 || r.overlapDropped > 0) && (
+        <p className="text-[9px] text-slate-500" data-testid={`event-study-${tone}-excluded`}>
+          {r.censored > 0 && `${r.censored} tín hiệu gần đây chưa đủ ${r.horizon} phiên — loại`}{r.censored > 0 && r.overlapDropped > 0 && " · "}
+          {r.overlapDropped > 0 && `${r.overlapDropped} tín hiệu trùng cửa sổ nắm giữ — bỏ (mẫu không chồng nhau)`}
+        </p>
+      )}
       {r.hitRate === null ? (
         <p className="text-slate-600 italic">Chưa đủ dữ liệu sau tín hiệu.</p>
       ) : (

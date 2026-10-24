@@ -12,6 +12,10 @@ export interface EventStudyResult {
   n: number; hitRate: number | null; baseRate: number | null; edgePp: number | null;
   meanRetPct: number | null; baseMeanRetPct: number | null; tStat: number | null;
   lowSample: boolean;
+  /** A5 (R-02): tín hiệu gần cuối dữ liệu, chưa đủ `horizon` phiên -> LOẠI (đếm công khai, không âm thầm bỏ). */
+  censored: number;
+  /** A5 (R-04): tín hiệu rơi vào cửa sổ nắm giữ của tín hiệu trước -> bỏ (mẫu không chồng nhau, t không bị thổi phồng). */
+  overlapDropped: number;
 }
 
 export const COSTS = { buy: 0.0015, sell: 0.0015 + 0.001 };
@@ -34,7 +38,15 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
 
 export function eventStudy(bars: Bar[], signalIndexes: number[], dir: Dir, label: string, horizon = 10): EventStudyResult {
   const h = Math.max(3, horizon);
-  const rets = signalIndexes.map((i) => tradeReturn(bars, i, h, dir)).filter((r): r is number => r !== null);
+  // A5: chỉ giữ tín hiệu KHÔNG chồng cửa sổ (sau khi thoát lệnh trước mới tính tín hiệu mới); tín hiệu chưa đủ kỳ hạn bị loại công khai.
+  let censored = 0, overlapDropped = 0, nextFree = -Infinity;
+  const kept: number[] = [];
+  for (const i of [...signalIndexes].sort((a, b) => a - b)) {
+    if (i + h >= bars.length) { censored++; continue; }
+    if (i < nextFree) { overlapDropped++; continue; }
+    kept.push(i); nextFree = i + h;
+  }
+  const rets = kept.map((i) => tradeReturn(bars, i, h, dir)).filter((r): r is number => r !== null);
   const base: number[] = [];
   const first = signalIndexes.length ? Math.min(...signalIndexes) : 0;
   for (let i = Math.max(0, first - 250); i < bars.length; i++) {
@@ -42,7 +54,7 @@ export function eventStudy(bars: Bar[], signalIndexes: number[], dir: Dir, label
     if (r !== null) base.push(r);
   }
   if (!rets.length || !base.length) {
-    return { label, dir, horizon: h, n: rets.length, hitRate: null, baseRate: null, edgePp: null, meanRetPct: null, baseMeanRetPct: null, tStat: null, lowSample: true };
+    return { label, dir, horizon: h, n: rets.length, hitRate: null, baseRate: null, edgePp: null, meanRetPct: null, baseMeanRetPct: null, tStat: null, lowSample: true, censored, overlapDropped };
   }
   const hit = rets.filter((r) => r > 0).length / rets.length;
   const baseHit = base.filter((r) => r > 0).length / base.length;
@@ -54,6 +66,6 @@ export function eventStudy(bars: Bar[], signalIndexes: number[], dir: Dir, label
     hitRate: r1(hit * 100), baseRate: r1(baseHit * 100), edgePp: r1((hit - baseHit) * 100),
     meanRetPct: r2(m * 100), baseMeanRetPct: r2(bm * 100),
     tStat: sd > 0 && rets.length > 1 ? r2((m - bm) / (sd / Math.sqrt(rets.length))) : null,
-    lowSample: rets.length < MIN_SAMPLE,
+    lowSample: rets.length < MIN_SAMPLE, censored, overlapDropped,
   };
 }
