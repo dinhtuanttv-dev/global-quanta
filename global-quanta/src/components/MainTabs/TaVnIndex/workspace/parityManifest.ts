@@ -59,6 +59,7 @@ export const PARITY_MANIFEST = [
   { id: "chart-pin", group: "chart", feature: "Lớp phủ ghim chặt vào nến khi kéo / zoom", now: "Lớp phủ canvas", target: "Chart", check: { kind: "custom", name: "pin" } },
   // ---- Pane + lớp phủ + engine
   LAYER("volume", "Pane Khối lượng", "Lớp & pane", true), LAYER("rsi", "Pane RSI 14", "Lớp & pane", true),
+  LAYER("macd", "Pane MACD 12/26/9 (R4)", "Lớp & pane", true), LAYER("adx", "Pane ADX · DI± (R4)", "Lớp & pane", true),
   LAYER("orderflow", "Pane Order Flow (delta / CVD)", "Lớp & pane"), LAYER("foreign", "Pane Khối ngoại", "Lớp & pane"),
   LAYER("vprofile", "Volume Profile", "Lớp & pane"), LAYER("avwap", "Anchored VWAP", "Lớp & pane"),
   LAYER("smc", "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)", "Lớp & pane"), LAYER("vsa", "VSA", "Lớp & pane"),

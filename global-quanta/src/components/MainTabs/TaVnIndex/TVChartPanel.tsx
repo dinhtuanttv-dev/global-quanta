@@ -469,6 +469,22 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     act();
   };
 
+  // ---- R4: pane MACD / ADX (khung phụ, bật/tắt bằng lớp macd / adx) ----
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    tv.setMacdPane(layerState?.macd ? currentBars.map((b, i) => ({ date: b.date, macd: macdResult.macdLine[i], signal: macdResult.signalLine[i], hist: macdResult.histogram[i] })) : null);
+  }, [layerState?.macd, currentBars, macdResult]);
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    tv.setAdxPane(layerState?.adx ? currentBars.map((b, i) => ({ date: b.date, adx: adxResult.series[i], plus: adxResult.plusDI[i], minus: adxResult.minusDI[i] })) : null);
+  }, [layerState?.adx, currentBars, adxResult]);
+  // R4: giá trị từng pane tại nến dưới crosshair.
+  const paneValue = useMemo(() => paneValueReader({ bars: currentBars, rsi: rsiResult, macd: macdResult, adx: adxResult, flow: orderFlow?.bars ?? null,
+    foreign: layerState?.foreign && !isIntradayTf(timeframe) && flow.data?.foreign.length ? foreignByBar(currentBars, flow.data.foreign) : null }),
+  [currentBars, rsiResult, macdResult, adxResult, orderFlow, layerState?.foreign, timeframe, flow.data]);
+
   // ---- Elliott Oscillator (khung phụ, bật/tắt bằng lớp elliottOsc) ----
   useEffect(() => {
     const tv = tvManagerRef.current;
@@ -1100,7 +1116,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {layerState?.foreign && foreignNote && !flow.isLoading && (
@@ -1253,6 +1269,33 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {toasts.node}
     </section>
   );
+}
+
+const fmtNum = (v: number, d = 2) => v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^-/, "−");
+const fmtBig = (v: number) => { const a = Math.abs(v); const s = a >= 1e9 ? `${fmtNum(a / 1e9, 2)} tỷ` : a >= 1e6 ? `${fmtNum(a / 1e6, 2)} tr` : a >= 1e3 ? `${fmtNum(a / 1e3, 1)} k` : fmtNum(a, 0); return `${v < 0 ? "−" : v > 0 ? "+" : ""}${s}`; };
+
+/** R4: đọc giá trị từng pane tại nến thứ `i` (crosshair) — cùng chuỗi đã vẽ, không tính lại. */
+export function paneValueReader(src: {
+  bars: OhlcvBar[]; rsi: { series: (number | null)[] }; macd: { macdLine: (number | null)[]; signalLine: (number | null)[]; histogram: (number | null)[] };
+  adx: { series: (number | null)[]; plusDI: (number | null)[]; minusDI: (number | null)[] };
+  flow: { date: string; delta: number; cvd: number; source: string }[] | null; foreign: { date: string; net: number; cum: number }[] | null;
+}): (kind: string, i: number) => string | null {
+  const flowAt = new Map((src.flow ?? []).map((f) => [f.date, f]));
+  const forAt = new Map((src.foreign ?? []).map((f) => [f.date, f]));
+  const n = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : fmtNum(v, d));
+  return (kind, i) => {
+    const b = src.bars[i];
+    if (!b) return null;
+    switch (kind) {
+      case "volume": return fmtBig(b.volume).replace(/^\+/, "");
+      case "rsi": return n(src.rsi.series[i], 1);
+      case "macd": return src.macd.macdLine[i] == null ? "chưa đủ dữ liệu" : `MACD ${n(src.macd.macdLine[i])} · Signal ${n(src.macd.signalLine[i])} · Hist ${n(src.macd.histogram[i])}`;
+      case "adx": return src.adx.series[i] == null ? "chưa đủ dữ liệu" : `ADX ${n(src.adx.series[i], 1)} · +DI ${n(src.adx.plusDI[i], 1)} · −DI ${n(src.adx.minusDI[i], 1)}`;
+      case "flow": { const f = flowAt.get(b.date); return f ? `Δ ${fmtBig(f.delta)} · CVD ${fmtBig(f.cvd)} · ${f.source === "TICK" ? "tick" : "BVC"}` : null; }
+      case "foreign": { const f = forAt.get(b.date); return f ? `ròng ${fmtBig(f.net)} · luỹ kế ${fmtBig(f.cum)}` : "không có dữ liệu ngày này"; }
+      default: return null;
+    }
+  };
 }
 
 /** R3: ghi chú nguồn cho từng pane — Order Flow luôn ghi rõ là ƯỚC LƯỢNG và tỷ lệ nến tick thật / BVC. */

@@ -36,3 +36,12 @@ describe("ADX — thiếu dữ liệu không phải 'trend yếu'", () => {
     expect(a.trendStrength).not.toBe("chua_du");
   });
 });
+
+describe("R4 — DI± theo nến cho pane ADX", () => {
+  it("xu hướng tăng đều: +DI > −DI; cùng độ dài chuỗi giá; null trước khi đủ dữ liệu", () => {
+    const a = calculateADX(trend(80, 0.3));
+    expect(a.plusDI).toHaveLength(80);
+    expect(a.plusDI[5]).toBeNull();
+    expect(a.plusDI[79]!).toBeGreaterThan(a.minusDI[79]!);
+  });
+});

@@ -181,3 +181,34 @@ describe("R3 — nguồn dữ liệu + giới hạn trên tiêu đề pane", asy
     expect(paneNotesFor(null, null, 10, null).flow).toBeUndefined();
   });
 });
+
+describe("R4 — đọc giá trị pane theo crosshair", async () => {
+  const { paneValueReader } = await import("../TVChartPanel");
+  const bars = [0, 1, 2].map((i) => ({ date: `2026-03-0${i + 1}`, open: 10, high: 11, low: 9, close: 10 + i, volume: 1_500_000 * (i + 1) }));
+  const SRC = {
+    bars, rsi: { series: [null, 55.55, 61.2] },
+    macd: { macdLine: [null, 0.12, 0.2], signalLine: [null, 0.1, 0.15], histogram: [null, 0.02, 0.05] },
+    adx: { series: [null, null, 27.3], plusDI: [null, 20, 31], minusDI: [null, 22, 12] },
+    flow: null, foreign: null,
+  };
+  const read = paneValueReader({
+    bars, rsi: { series: [null, 55.55, 61.2] },
+    macd: { macdLine: [null, 0.12, 0.2], signalLine: [null, 0.1, 0.15], histogram: [null, 0.02, 0.05] },
+    adx: { series: [null, null, 27.3], plusDI: [null, 20, 31], minusDI: [null, 22, 12] },
+    flow: [{ date: "2026-03-02", delta: -2_500_000, cvd: 1200, source: "BVC" }], foreign: [{ date: "2026-03-03", net: 3e9, cum: -1.2e9 }],
+  });
+  it("mỗi pane trả giá trị tại đúng nến; thiếu dữ liệu ghi rõ, không bịa", () => {
+    expect(read("rsi", 1)).toBe("55,6");
+    expect(paneValueReader({ ...SRC, macd: { macdLine: [-1234.5], signalLine: [-1], histogram: [-0.5] } })("macd", 0)).toBe("MACD −1.234,50 · Signal −1,00 · Hist −0,50");
+    expect(read("macd", 0)).toBe("chưa đủ dữ liệu");
+    expect(read("macd", 2)).toBe("MACD 0,20 · Signal 0,15 · Hist 0,05");
+    expect(read("adx", 1)).toBe("chưa đủ dữ liệu");
+    expect(read("adx", 2)).toBe("ADX 27,3 · +DI 31,0 · −DI 12,0");
+    expect(read("flow", 1)).toBe("Δ −2,50 tr · CVD +1,2 k · BVC");
+    expect(read("flow", 0)).toBeNull();
+    expect(read("foreign", 2)).toBe("ròng +3,00 tỷ · luỹ kế −1,20 tỷ");
+    expect(read("foreign", 1)).toBe("không có dữ liệu ngày này");
+    expect(read("volume", 0)).toBe("1,50 tr");
+    expect(read("rsi", 9)).toBeNull();
+  });
+});
