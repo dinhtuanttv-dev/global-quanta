@@ -40,7 +40,7 @@ const ENUM = {
   dockTab: ["structure", "elliott", "methods", "flow", "indicators", "backtest", "log"],
   structureMode: ["overview", "trade", "deep"],
 } as const satisfies Partial<Record<keyof Workspace, readonly string[]>>;
-const PANES: PaneKind[] = ["volume", "rsi", "flow", "foreign", "eosc"];
+const PANES: PaneKind[] = ["volume", "rsi", "macd", "adx", "flow", "foreign", "eosc"];
 
 /** Đọc bố cục từ máy / đám mây (không tin dữ liệu): khoá lạ bỏ, giá trị sai -> mặc định. */
 export function sanitizeWorkspace(raw: unknown): Workspace {
@@ -69,7 +69,7 @@ export const PRESETS: readonly Preset[] = [
   { id: "clean", label: "Giá sạch", hint: "Chỉ nến + crosshair", layers: [], dockTab: "methods" },
   { id: "priceVolume", label: "Giá + KL", hint: "Nến + pane khối lượng", layers: ["volume"], dockTab: "flow" },
   { id: "structure", label: "Cấu trúc", hint: "Cấu trúc MTF + SMC + Wyckoff", layers: ["structure", "smc", "wyckoff"], dockTab: "structure" },
-  { id: "momentum", label: "Động lượng", hint: "Khối lượng + RSI; RSI/MACD/ADX trong dock", layers: ["volume", "rsi"], dockTab: "indicators" },
+  { id: "momentum", label: "Động lượng", hint: "Khối lượng + RSI; bật thêm pane MACD / ADX trong menu Lớp", layers: ["volume", "rsi"], dockTab: "indicators" },
   { id: "elliott", label: "Elliott", hint: "Elliott Pro (+ cách đếm của tôi)", layers: ["elliottPro", "elliottMine"], dockTab: "elliott" },
   { id: "manual", label: "Vẽ tay", hint: "Hiện mọi hình vẽ tay + danh sách đối tượng", layers: ["trendline", "demandzone", "elliott"], dockTab: "methods", inspectorTab: "objects" },
 ] as const;

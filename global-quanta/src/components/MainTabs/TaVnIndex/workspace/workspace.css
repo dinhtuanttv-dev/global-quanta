@@ -52,10 +52,11 @@
 .ws-chip-warn { pointer-events: auto; padding: 0 5px; border-radius: 99px; background: rgba(245, 158, 11, .15); color: #fcd34d; }
 .ws-pane-title { position: absolute; left: 8px; z-index: 12; display: flex; align-items: center; gap: 4px; font: 9.5px 'IBM Plex Mono', monospace; color: #94a3b8;
   padding: 1px 4px; border-radius: 5px; background: rgba(2, 6, 15, .65); }
-.ws-pane-title { max-width: calc(100% - 72px); }
+.ws-pane-title { max-width: calc(100% - 72px); overflow: hidden; }
+.ws-pane-title > b { min-width: 5ch; flex-shrink: 0.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* giá trị crosshair ưu tiên giữ */
 .ws-pane-title > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ws-pane-title > span:first-child { flex-shrink: 3; min-width: 48px; }
-.ws-pane-title > span + span { flex-shrink: 1; min-width: 78px; } /* ghi chú nguồn ("ƯỚC LƯỢNG…") không bao giờ bị ẩn hẳn */
+.ws-pane-title > span ~ span { flex-shrink: 2; min-width: 64px; } /* ghi chú nguồn ("ƯỚC LƯỢNG…") không bao giờ bị ẩn hẳn */
 .ws-pane-title button { pointer-events: auto; color: #64748b; } .ws-pane-title button:hover { color: #f1f5f9; }
 .ws-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
   padding: 5px 10px; border-radius: 10px; font-size: 10.5px; color: #a5f3fc; background: rgba(9, 14, 26, .92); border: 1px solid rgba(34, 211, 238, .35); }

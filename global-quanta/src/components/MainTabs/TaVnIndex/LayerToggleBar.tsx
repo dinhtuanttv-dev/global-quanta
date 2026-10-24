@@ -4,7 +4,7 @@ import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerM
 
 // Thứ tự = thứ tự hiển thị. Tất cả mặc định TẮT (LayerManager.DEFAULT_LAYER_STATE).
 const LABELS: Record<LayerKey, string> = {
-  volume: "Khối lượng", rsi: "RSI 14", vprofile: "Volume Profile", avwap: "Anchored VWAP", orderflow: "Order Flow", foreign: "Khối ngoại", smc: "SMC", vsa: "VSA", wyckoff: "Wyckoff", corporate: "Sự kiện quyền",
+  volume: "Khối lượng", rsi: "RSI 14", macd: "MACD 12/26/9", adx: "ADX · DI± 14", vprofile: "Volume Profile", avwap: "Anchored VWAP", orderflow: "Order Flow", foreign: "Khối ngoại", smc: "SMC", vsa: "VSA", wyckoff: "Wyckoff", corporate: "Sự kiện quyền",
   trendline: "Trendline", demandzone: "Demand Zone", elliott: "Elliott (vẽ tay)",
   elliottAuto: "Elliott tự động", elliottOsc: "Elliott Oscillator", elliottFib: "Elliott Fibonacci", elliottProj: "Elliott kịch bản", elliottGuide: "Elliott kênh & mốc", elliottSub: "Elliott bậc nhỏ", elliottMine: "Elliott của tôi", elliottPro: "Elliott Pro", pring: "Mô hình giá (Pring)", structure: "Cấu trúc MTF",
 };

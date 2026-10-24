@@ -7,7 +7,8 @@ export interface MacdResult {
   latest: { macd: number | null; signal: number | null; histogram: number | null };
 }
 /** `chua_du`: chưa đủ `needBars` nến để có ADX — KHÔNG phải "trend yếu". */
-export interface AdxResult { series: (number | null)[]; latest: number | null; trendStrength: "chua_du" | "yeu" | "trung_binh" | "manh" | "rat_manh"; needBars: number }
+export interface AdxResult { series: (number | null)[]; latest: number | null; trendStrength: "chua_du" | "yeu" | "trung_binh" | "manh" | "rat_manh"; needBars: number;
+  /** R4: +DI / −DI theo nến (pane ADX đọc theo crosshair). */ plusDI: (number | null)[]; minusDI: (number | null)[] }
 
 // 3 chi bao ky thuat chuan - cong thuc dung, tinh truc tiep tu OHLCV that.
 // Khac Wyckoff/Elliott, day la HARD_DATA (khong mang tinh suy luan chu quan).
@@ -85,8 +86,10 @@ export function calculateMACD(bars: OhlcvBar[], fast = 12, slow = 26, signalPeri
 
 export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
   const series: (number | null)[] = new Array(bars.length).fill(null);
+  const plusDISeries: (number | null)[] = new Array(bars.length).fill(null);
+  const minusDISeries: (number | null)[] = new Array(bars.length).fill(null);
   const needBars = period * 2;
-  if (bars.length < needBars) return { series, latest: null, trendStrength: "chua_du", needBars };
+  if (bars.length < needBars) return { series, latest: null, trendStrength: "chua_du", needBars, plusDI: plusDISeries, minusDI: minusDISeries };
 
   const plusDM: number[] = [0];
   const minusDM: number[] = [0];
@@ -124,12 +127,13 @@ export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
     if (smoothTR[i] === 0) continue;
     const plusDI = (smoothPlusDM[i] / smoothTR[i]) * 100;
     const minusDI = (smoothMinusDM[i] / smoothTR[i]) * 100;
+    plusDISeries[i] = plusDI; minusDISeries[i] = minusDI;
     const diSum = plusDI + minusDI;
     dx[i] = diSum === 0 ? 0 : (Math.abs(plusDI - minusDI) / diSum) * 100;
   }
 
   const validDx = dx.filter((v): v is number => v !== null);
-  if (validDx.length < period) return { series, latest: null, trendStrength: "chua_du", needBars };
+  if (validDx.length < period) return { series, latest: null, trendStrength: "chua_du", needBars, plusDI: plusDISeries, minusDI: minusDISeries };
 
   let adx = validDx.slice(0, period).reduce((s, v) => s + v, 0) / period;
   const firstAdxBarIdx = dx.findIndex((v) => v !== null) + period - 1;
@@ -149,5 +153,5 @@ export function calculateADX(bars: OhlcvBar[], period = 14): AdxResult {
     else if (latest >= 15) trendStrength = "trung_binh";
   }
 
-  return { series, latest, trendStrength, needBars };
+  return { series, latest, trendStrength, needBars, plusDI: plusDISeries, minusDI: minusDISeries };
 }

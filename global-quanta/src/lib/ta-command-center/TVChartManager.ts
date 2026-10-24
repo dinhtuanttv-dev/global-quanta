@@ -28,7 +28,7 @@ export interface ChartMarkerInput {
 export interface TVChartManagerOptions { timeVisible?: boolean }
 
 /** Pane đang có trên biểu đồ (SC2: tiêu đề + nút đóng + nhớ tỷ lệ chiều cao). */
-export type PaneKind = "price" | "volume" | "rsi" | "flow" | "foreign" | "eosc";
+export type PaneKind = "price" | "volume" | "rsi" | "macd" | "adx" | "flow" | "foreign" | "eosc";
 export interface PaneInfo { index: number; kind: PaneKind; top: number; height: number }
 /** Nến dưới crosshair (SC2: chú giải OHLC). */
 export interface CrosshairBar { date: string; open: number; high: number; low: number; close: number; volume: number; prevClose: number | null; index: number }
@@ -49,6 +49,8 @@ export class TVChartManager {
   private flowSeries: { delta: ISeriesApi<"Histogram">; cvd: ISeriesApi<"Line"> } | null = null;
   private foreignSeries: { net: ISeriesApi<"Histogram">; cum: ISeriesApi<"Line"> } | null = null;
   private elliottOscSeries: { osc: ISeriesApi<"Histogram">; up: ISeriesApi<"Line">; lo: ISeriesApi<"Line"> } | null = null;
+  private macdSeries: { hist: ISeriesApi<"Histogram">; macd: ISeriesApi<"Line">; signal: ISeriesApi<"Line"> } | null = null;
+  private adxSeries: { adx: ISeriesApi<"Line">; plus: ISeriesApi<"Line">; minus: ISeriesApi<"Line"> } | null = null;
   private markers: ISeriesMarkersPluginApi<Time>;
   readonly overlay = new OverlayPrimitive();
   private currentBars: OhlcvBar[] = [];
@@ -125,6 +127,7 @@ export class TVChartManager {
     const owners: [PaneKind, ISeriesApi<never> | null | undefined][] = [
       ["volume", this.volumeSeries as never], ["rsi", this.rsiSeries as never], ["flow", this.flowSeries?.delta as never],
       ["foreign", this.foreignSeries?.net as never], ["eosc", this.elliottOscSeries?.osc as never],
+      ["macd", this.macdSeries?.hist as never], ["adx", this.adxSeries?.adx as never],
     ];
     const kindOf = new Map<number, PaneKind>([[0, "price"]]);
     for (const [k, s] of owners) if (s) { try { kindOf.set(s.getPane().paneIndex(), k); } catch { /* series vừa gỡ */ } }
@@ -156,6 +159,7 @@ export class TVChartManager {
     this.flowSeries?.cvd.setData([]);
     this.foreignSeries?.net.setData([]);
     this.foreignSeries?.cum.setData([]);
+    for (const s of [...Object.values(this.macdSeries ?? {}), ...Object.values(this.adxSeries ?? {})]) s.setData([]);
     this.currentBars = bars;
     this.currentDates = new Set(bars.map((b) => b.date));
     this.barIndexByTime = new Map(bars.map((b, i) => [String(toTime(b.date)), i]));
@@ -270,6 +274,56 @@ export class TVChartManager {
     })));
     this.elliottOscSeries.up.setData(data.map((d) => ({ time: toTime(d.date), value: d.up })));
     this.elliottOscSeries.lo.setData(data.map((d) => ({ time: toTime(d.date), value: d.lo })));
+  }
+
+  /** R4 — pane MACD: histogram (đậm khi tăng dần, nhạt khi giảm dần) + đường MACD + Signal. null = gỡ pane. */
+  setMacdPane(data: { date: string; macd: number | null; signal: number | null; hist: number | null }[] | null): void {
+    if (!data) {
+      if (this.macdSeries) { for (const x of Object.values(this.macdSeries)) this.chart.removeSeries(x); this.macdSeries = null; this.layoutPanes(); }
+      return;
+    }
+    if (!this.macdSeries) {
+      const pane = this.chart.panes().length;
+      const hist = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, pane);
+      const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
+      const macd = this.chart.addSeries(LineSeries, { ...line, color: GQ_COLORS.cyan }, pane);
+      const signal = this.chart.addSeries(LineSeries, { ...line, color: GQ_COLORS.amber }, pane);
+      this.macdSeries = { hist, macd, signal };
+      this.layoutPanes();
+    }
+    data = this.onCandles(data);
+    let prev: number | null = null;
+    this.macdSeries.hist.setData(data.map((d) => {
+      if (d.hist == null) return { time: toTime(d.date) };
+      const rising = prev != null && Math.abs(d.hist) >= Math.abs(prev);
+      prev = d.hist;
+      return { time: toTime(d.date), value: d.hist, color: signColor(d.hist, rising ? 0.7 : 0.35) };
+    }));
+    this.macdSeries.macd.setData(data.map((d) => (d.macd == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.macd })));
+    this.macdSeries.signal.setData(data.map((d) => (d.signal == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.signal })));
+  }
+
+  /** R4 — pane ADX (trắng) + +DI (xanh) / −DI (đỏ), vạch 25 = ngưỡng xu hướng (quy ước Wilder). null = gỡ pane. */
+  setAdxPane(data: { date: string; adx: number | null; plus: number | null; minus: number | null }[] | null): void {
+    if (!data) {
+      if (this.adxSeries) { for (const x of Object.values(this.adxSeries)) this.chart.removeSeries(x); this.adxSeries = null; this.layoutPanes(); }
+      return;
+    }
+    if (!this.adxSeries) {
+      const pane = this.chart.panes().length;
+      const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
+      const adx = this.chart.addSeries(LineSeries, { ...line, color: "#e2e8f0", lineWidth: 2 }, pane);
+      const plus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bull, 0.8) }, pane);
+      const minus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bear, 0.8) }, pane);
+      adx.createPriceLine({ price: 25, color: rgba(GQ_COLORS.amber, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
+      this.adxSeries = { adx, plus, minus };
+      this.layoutPanes();
+    }
+    data = this.onCandles(data);
+    const pick = (k: "adx" | "plus" | "minus") => data!.map((d) => (d[k] == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d[k] as number }));
+    this.adxSeries.adx.setData(pick("adx"));
+    this.adxSeries.plus.setData(pick("plus"));
+    this.adxSeries.minus.setData(pick("minus"));
   }
 
   private fillVolume(): void {
