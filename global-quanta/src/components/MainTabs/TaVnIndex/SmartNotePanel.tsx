@@ -34,9 +34,9 @@ export function buildPrompt(p: Props): string {
         : `- Wyckoff (INFERRED — suy luận mẫu hình giá/khối lượng, không phải dòng tiền tổ chức thật): ${WYCKOFF_PHASE_LABEL[p.wyckoff.phase]}${p.wyckoff.wyckoffPhase ? ` (Phase ${p.wyckoff.wyckoffPhase})` : ""}; ${p.wyckoff.status ? (p.wyckoff.statusReason ?? "") : `sự kiện khớp mẫu ${p.wyckoff.confidenceScore}% (không phải xác suất)`}. Kiểm định 10/2024–10/2026: nhãn pha chưa có lợi thế dự báo nhất quán.`,
     `- SMC (DERIVED): ${t.obs} Order Block, ${t.fvgs} FVG, ${t.bos} BOS, ${t.choch} CHoCH trên toàn bộ dữ liệu.${lastOb ? ` OB gần nhất: ${lastOb.type}, vùng ${lastOb.bottom.toLocaleString("vi-VN")}–${lastOb.top.toLocaleString("vi-VN")}.` : ""}`,
     `- VSA (DERIVED): ${lastVsa ? `${lastVsa.type} ngày ${lastVsa.date}` : "chưa có tín hiệu gần đây"}.`,
-    `- RSI(14) (DERIVED): ${p.rsi.latest !== null ? p.rsi.latest.toFixed(1) : "chưa đủ dữ liệu"}.`,
+    `- RSI(14) (DERIVED): ${p.rsi.latest === null ? "chưa đủ dữ liệu" : p.rsi.flat ? "không xác định — giá không biến động 14 phiên (quy ước 50)" : p.rsi.latest.toFixed(1)}.`,
     `- MACD(12,26,9) (DERIVED): histogram ${p.macd.latest.histogram !== null ? p.macd.latest.histogram.toFixed(2) : "chưa đủ dữ liệu"}.`,
-    `- ADX(14) (DERIVED): ${p.adx.latest !== null ? p.adx.latest.toFixed(1) : "chưa đủ dữ liệu"} (${p.adx.trendStrength}).`,
+    `- ADX(14) (DERIVED): ${p.adx.latest !== null ? `${p.adx.latest.toFixed(1)} (${p.adx.trendStrength})` : "chưa đủ dữ liệu — không kết luận độ mạnh xu hướng"}.`,
     ``,
     `Viết đúng 3 câu: Câu 1 trạng thái chu kỳ Wyckoff. Câu 2 xác nhận từ SMC/VSA hoặc động lượng (RSI/MACD/ADX). Câu 3 vùng giá quan trọng hoặc rủi ro cấu trúc. KHÔNG khuyến nghị mua/bán, KHÔNG bịa số liệu ngoài danh sách.`,
   ].join("\n");

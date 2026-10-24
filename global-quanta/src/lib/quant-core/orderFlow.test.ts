@@ -68,3 +68,28 @@ describe("Order Flow — Absorption, CVD divergence, VPIN", () => {
     expect(computeVpin(bars, balanced, { sessions: 2 }).latest).toBeCloseTo(0, 3);
   });
 });
+
+describe("R1 — tính đúng Order Flow", () => {
+  it("phiên có tick nhưng nến thiếu phút dữ liệu -> BVC (không phải mua = bán = 0 mang nhãn TICK)", () => {
+    const bars = [bar("2026-10-07T09:15:00+07:00", 100), bar("2026-10-07T09:30:00+07:00", 103, 4000), bar("2026-10-07T09:45:00+07:00", 102)];
+    const f = buildFlowBars(bars, [fm("2026-10-07", 9 * 60 + 20, 300, 100), fm("2026-10-07", 9 * 60 + 50, 10, 40)]);
+    expect(f.map((x) => x.source)).toEqual(["TICK", "BVC", "TICK"]);
+    expect(f[1].buy + f[1].sell).toBeCloseTo(4000, 6);
+  });
+
+  it("VPIN point-in-time: thêm phiên sau KHÔNG đổi giá trị VPIN của các nến trước; chưa đủ phiên hiệu chỉnh -> null", () => {
+    const n = 60;
+    const bars = Array.from({ length: n }, (_, i) => bar(`2026-01-${String((i % 28) + 1).padStart(2, "0")}#${i}`, 100 + Math.sin(i / 2) * 3, 1000 + (i % 7) * 400));
+    const flow = bars.map((b, i) => ({ date: b.date, buy: b.volume * (0.3 + 0.4 * ((i * 37) % 10) / 10), sell: 0, delta: 0, cvd: 0, large: 0, source: "BVC" as const }))
+      .map((x, i) => ({ ...x, sell: bars[i].volume - x.buy }));
+    const full = computeVpin(bars, flow, { sessions: n });
+    const part = computeVpin(bars.slice(0, 40), flow.slice(0, 40), { sessions: 40 });
+    expect(part.series).toEqual(full.series.slice(0, 40));
+    expect(full.series.slice(0, 19).every((v) => v === null)).toBe(true);
+    // Gấp 10 lần KL các phiên SAU không làm đổi VPIN quá khứ (trước đây V_b tính từ KL toàn kỳ -> đổi).
+    const boosted = bars.map((b, i) => (i >= 40 ? { ...b, volume: b.volume * 10 } : b));
+    const bflow = flow.map((x, i) => (i >= 40 ? { ...x, buy: x.buy * 10, sell: x.sell * 10 } : x));
+    expect(computeVpin(boosted, bflow, { sessions: n }).series.slice(0, 40)).toEqual(full.series.slice(0, 40));
+  });
+});
+

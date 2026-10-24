@@ -6,8 +6,10 @@ import ProvenanceBadge from "./ProvenanceBadge";
 // Chỉ báo tính bằng công thức chuẩn Wilder/EMA từ giá đóng cửa -> DERIVED (không phải dữ liệu sàn thô).
 const HARD_DATA_BADGE = <ProvenanceBadge kind="DERIVED" />;
 
-function rsiLabel(v: number | null): { text: string; color: string } {
-  if (v === null) return { text: "Chưa đủ dữ liệu", color: "#64748b" };
+function rsiLabel(r: RsiResult): { text: string; color: string } {
+  const v = r.latest;
+  if (v === null) return { text: `Chưa đủ dữ liệu (cần ≥ ${r.needBars} nến)`, color: "#64748b" };
+  if (r.flat) return { text: "Chuỗi giá phẳng 14 phiên — RSI không xác định (quy ước 50)", color: "#64748b" };
   if (v >= 70) return { text: "Overbought", color: "#f43f5e" };
   if (v <= 30) return { text: "Oversold", color: "#34d399" };
   return { text: "Neutral", color: "#94a3b8" };
@@ -21,6 +23,7 @@ function macdLabel(histogram: number | null): { text: string; color: string } {
 }
 
 const ADX_LABEL: Record<AdxResult["trendStrength"], { text: string; color: string }> = {
+  chua_du: { text: "Chưa đủ dữ liệu", color: "#64748b" },
   yeu: { text: "Trend yếu / range-bound", color: "#64748b" },
   trung_binh: { text: "Trend trung bình", color: "#94a3b8" },
   manh: { text: "Trend mạnh", color: "#fbbf24" },
@@ -34,7 +37,7 @@ interface Props {
 }
 
 export default function OscillatorPanel({ rsi, macd, adx }: Props) {
-  const rsiInfo = rsiLabel(rsi.latest);
+  const rsiInfo = rsiLabel(rsi);
   const macdInfo = macdLabel(macd.latest.histogram);
   const adxInfo = ADX_LABEL[adx.trendStrength];
 
@@ -47,7 +50,7 @@ export default function OscillatorPanel({ rsi, macd, adx }: Props) {
         <p className="text-lg font-bold font-mono" style={{ color: rsiInfo.color }}>
           {rsi.latest !== null ? rsi.latest.toFixed(1) : "-"}
         </p>
-        <p className="text-[9px] text-slate-500 mt-1">{rsiInfo.text} · ngưỡng 70 / 30</p>
+        <p className="text-[9px] text-slate-500 mt-1" data-testid="rsi-state">{rsiInfo.text} · ngưỡng 70 / 30</p>
       </div>
 
       <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3">
@@ -69,7 +72,9 @@ export default function OscillatorPanel({ rsi, macd, adx }: Props) {
         <p className="text-lg font-bold font-mono" style={{ color: adxInfo.color }}>
           {adx.latest !== null ? adx.latest.toFixed(1) : "-"}
         </p>
-        <p className="text-[9px] text-slate-500 mt-1">{adxInfo.text} · &gt;25 mạnh, &gt;50 rất mạnh</p>
+        <p className="text-[9px] text-slate-500 mt-1" data-testid="adx-state">
+          {adx.trendStrength === "chua_du" ? `${adxInfo.text} — cần ≥ ${adx.needBars} nến (không phải "trend yếu")` : `${adxInfo.text} · >25 mạnh, >50 rất mạnh`}
+        </p>
       </div>
     </div>
   );

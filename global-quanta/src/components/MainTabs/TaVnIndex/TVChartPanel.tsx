@@ -446,6 +446,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!layerState?.foreign || isIntradayTf(timeframe) || !flow.data?.foreign.length) { tv.setForeignPane(null); return; }
     tv.setForeignPane(foreignByBar(currentBars, flow.data.foreign));
   }, [flow.data, layerState?.foreign, currentBars, timeframe]);
+  // Vì sao pane Khối ngoại không hiện (thay vì im lặng biến mất).
+  const foreignNote = foreignUnavailable(ticker, timeframe, Boolean(flow.data), flow.data?.foreign.length ?? 0);
 
   // ---- Bàn phím: ← → dịch 5 nến (Shift: 20), + − zoom, Home/End về đầu/cuối dữ liệu ----
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -1035,7 +1037,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     ),
     flow: (
       <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
-        largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} />
+        largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} foreignNote={foreignNote} />
     ),
     indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} />,
     backtest: (<>
@@ -1098,6 +1100,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
+            {layerState?.foreign && foreignNote && !flow.isLoading && (
+              <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-slate-600/50 text-[10px] text-slate-300" data-testid="foreign-note">Khối ngoại: {foreignNote}</span>
+            )}
             {layerState?.elliottPro && elliottProText && (
               <div className="px-2 py-1 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] leading-snug text-cyan-100 flex flex-wrap items-center gap-1 max-w-full"
                 data-testid="elliott-pro-chip" title="Elliott Pro (engine v3) — diễn giải EXPERIMENTAL, không phải khuyến nghị">
@@ -1245,6 +1250,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {toasts.node}
     </section>
   );
+}
+
+/** Lý do không vẽ được Khối ngoại; null = có dữ liệu để vẽ (hoặc đang tải). */
+export function foreignUnavailable(ticker: string, timeframe: Timeframe, loaded: boolean, days: number): string | null {
+  if (TA_INDICES.some((x) => x.symbol === ticker)) return "chỉ số không có giao dịch khối ngoại theo mã — chọn một cổ phiếu";
+  if (isIntradayTf(timeframe)) return "dữ liệu sàn theo ngày — chỉ hiển thị ở khung D / W / M";
+  if (loaded && days === 0) return `chưa có dữ liệu khối ngoại cho ${ticker}`;
+  return null;
 }
 
 /** Khối ngoại theo ngày -> theo nến khung hiện tại (D: cùng ngày; W/M: cộng các ngày thuộc kỳ của nến) + luỹ kế. */

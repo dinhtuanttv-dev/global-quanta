@@ -8,7 +8,7 @@ import type { VsaSignal } from "../../../../lib/quant-core";
 import type { DockTab } from "./workspaceModel";
 
 const PHASE_VI: Record<string, string> = { accumulation: "Tích luỹ", spring: "Spring", test: "Test", markup: "Tăng giá", distribution: "Phân phối", decline: "Giảm giá", undetermined: "Chưa xác định" };
-const ADX_VI: Record<string, string> = { yeu: "yếu", trung_binh: "trung bình", manh: "mạnh", rat_manh: "rất mạnh" };
+const ADX_VI: Record<string, string> = { chua_du: "chưa đủ dữ liệu", yeu: "yếu", trung_binh: "trung bình", manh: "mạnh", rat_manh: "rất mạnh" };
 const n1 = (v: number | null | undefined, d = 1) => (v == null ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
 
 interface Props {
@@ -24,7 +24,7 @@ export default function InspectorOverview(p: Props) {
     { tab: "methods", title: "Wyckoff", value: p.wyckoff ? PHASE_VI[p.wyckoff.phase] ?? p.wyckoff.phase : "—", sub: p.wyckoff ? `Tin cậy ${n1(p.wyckoff.confidenceScore, 0)}%` : "", testid: "ov-wyckoff" },
     { tab: "methods", title: "SMC", value: `${p.smc.totals.obs} OB · ${p.smc.totals.fvgs} FVG`, sub: `${p.smc.totals.bos} BOS · ${p.smc.totals.choch} CHoCH`, testid: "ov-smc" },
     { tab: "methods", title: "VSA", value: lastVsa ? lastVsa.type : "Không có tín hiệu", sub: lastVsa ? `phiên ${lastVsa.date.slice(0, 16)}` : "", testid: "ov-vsa" },
-    { tab: "indicators", title: "Động lượng", value: `RSI ${n1(p.rsi.latest)}`, sub: `MACD ${n1(p.macd.latest.histogram, 2)} · ADX ${n1(p.adx.latest)} (${ADX_VI[p.adx.trendStrength] ?? p.adx.trendStrength})`, testid: "ov-momentum" },
+    { tab: "indicators", title: "Động lượng", value: `RSI ${n1(p.rsi.latest)}${p.rsi.flat ? " (giá phẳng)" : ""}`, sub: `MACD ${n1(p.macd.latest.histogram, 2)} · ADX ${n1(p.adx.latest)} (${ADX_VI[p.adx.trendStrength] ?? p.adx.trendStrength})`, testid: "ov-momentum" },
   ];
   return (
     <div className="space-y-1.5" data-testid="inspector-overview">

@@ -30,7 +30,6 @@ const minuteOf = (iso: string) => Number(iso.slice(11, 13)) * 60 + Number(iso.sl
  * D/W/M: theo ngày/tuần/tháng của nến). Phiên không có tick -> BVC. CVD reset mỗi phiên (intraday) / cộng dồn (D/W/M).
  */
 export function buildFlowBars(bars: (Bar & { auction?: string })[], minutes: FlowMinute[]): FlowBar[] {
-  const tickSessions = new Set(minutes.map((m) => m.date));
   const intraday = bars.length > 0 && isIso(bars[0].date);
   const sums = new Array(bars.length).fill(null).map(() => ({ buy: 0, sell: 0, large: 0, has: false }));
   // Chỉ số nến theo phiên (intraday) hoặc theo kỳ (D/W/M: nến cuối có date ≤ ngày của phút).
@@ -73,7 +72,8 @@ export function buildFlowBars(bars: (Bar & { auction?: string })[], minutes: Flo
     let buy: number;
     let sell: number;
     let source: FlowSource;
-    const periodHasTick = intraday ? tickSessions.has(day) : sums[i].has;
+    // Nến không có phút tick nào (kể cả trong phiên có tick — thiếu dữ liệu) -> BVC, KHÔNG gán mua = bán = 0 mang nhãn TICK.
+    const periodHasTick = sums[i].has;
     if (periodHasTick) {
       ({ buy, sell } = sums[i]);
       source = "TICK";
@@ -137,19 +137,24 @@ export function detectCvdDivergence(pivots: Pivot[], flow: FlowBar[]): Divergenc
 
 /**
  * VPIN (Easley–López de Prado–O'Hara): rổ khối lượng cố định V_b, cửa sổ n rổ; VPIN = Σ|V_mua − V_bán| / (n·V_b).
- * V_b mặc định = KL trung bình mỗi phiên / 50. Giá trị gán cho nến làm đầy rổ; percentile so với lịch sử trong cửa sổ.
+ * V_b = KL trung bình mỗi phiên của `calibSessions` phiên ĐẦU / 50 (point-in-time: không dùng KL tương lai để chuẩn hoá);
+ * chuỗi chỉ có giá trị từ khi đã đủ dữ liệu hiệu chỉnh. Percentile của giá trị cuối so với các giá trị TRƯỚC đó.
  */
-export function computeVpin(bars: Bar[], flow: FlowBar[], { sessions = 1, buckets = 50, window = 50 } = {}): VpinResult {
-  const total = bars.reduce((s, b) => s + b.volume, 0);
-  const bucketVolume = total / Math.max(1, sessions) / buckets;
+export function computeVpin(bars: Bar[], flow: FlowBar[], { sessions = 1, buckets = 50, window = 50, calibSessions = 20 } = {}): VpinResult {
   const series: (number | null)[] = new Array(bars.length).fill(null);
+  const nSess = Math.max(1, sessions);
+  const calib = Math.min(calibSessions, nSess);
+  const calibBars = Math.max(1, Math.min(bars.length, Math.round((bars.length / nSess) * calib)));
+  let calibVol = 0;
+  for (let i = 0; i < calibBars; i++) calibVol += bars[i].volume;
+  const bucketVolume = calibVol / calib / buckets;
   if (!(bucketVolume > 0)) return { series, latest: null, percentile: null, bucketVolume: 0 };
   const imbalances: number[] = [];
   let fillB = 0;
   let fillS = 0;
   for (let i = 0; i < bars.length; i++) {
     const v = flow[i].buy + flow[i].sell;
-    if (!(v > 0)) { series[i] = i > 0 ? series[i - 1] : null; continue; }
+    if (!(v > 0)) { if (i >= calibBars - 1) series[i] = i > 0 ? series[i - 1] : null; continue; }
     let rb = flow[i].buy;
     let rs = flow[i].sell;
     while (rb + rs > 1e-9) {
@@ -159,6 +164,7 @@ export function computeVpin(bars: Bar[], flow: FlowBar[], { sessions = 1, bucket
       fillB += fb; fillS += take - fb; rb -= fb; rs -= take - fb;
       if (fillB + fillS >= bucketVolume - 1e-9) { imbalances.push(Math.abs(fillB - fillS)); fillB = 0; fillS = 0; }
     }
+    if (i < calibBars - 1) continue; // V_b chưa được biết tại nến này
     if (imbalances.length >= window) {
       const w = imbalances.slice(-window);
       series[i] = w.reduce((s, x) => s + x, 0) / (window * bucketVolume);
