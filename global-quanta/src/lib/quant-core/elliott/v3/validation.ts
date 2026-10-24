@@ -7,5 +7,5 @@ export const EP1_VALIDATION = {
   msP50: 4, msP95: 12,             // mục tiêu ≤ 15 ms / mã
   recentPivotStability: 0.995,     // pivot đã xác nhận trong 200 nến gần nhất giữ nguyên khi thêm 5 nến
   level1StructureStability: 0.942, // cấu trúc bậc 1 đã kết thúc giữ nguyên khi thêm 5 nến (≈ 5,8% được đếm lại)
-  summary: "Engine v3.1 (24/10/2026, 59 mã): có vị trí 98,3% · không nhất quán 0 · 4 ms (p95 12 ms) · pivot gần đây ổn định 99,5% · cấu trúc bậc 1 được đếm lại ≈ 5,8% khi có nến mới. Diễn giải, chưa có lợi thế ngoài mẫu (EXPERIMENTAL).",
+  summary: "Engine v3.1 (24/10/2026, 59 mã): có vị trí 98,3% · không nhất quán 0 · 4 ms (p95 12 ms) · pivot gần đây ổn định 99,5% · cấu trúc bậc 1 được đếm lại ≈ 5,8% khi có nến mới. Kịch bản: lợi thế NHỎ trong kiểm định lịch sử (EP5, vượt giả dược +2,3 điểm %, chưa trừ phí) — chờ xác nhận bằng sổ thời gian thực.",
 } as const;

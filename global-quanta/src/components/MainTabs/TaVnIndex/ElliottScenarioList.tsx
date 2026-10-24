@@ -3,6 +3,13 @@
 import useSWR from "swr";
 import { fetchMarketJson, isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import { STATE_LABEL, type EwScenario, type ScenarioLifecycle, type ScenarioState } from "../../../lib/quant-core/elliott/v3/scenarios";
+import { EP5_BACKTEST } from "../../../lib/quant-core/elliott/v3/backtestResults";
+
+/** Tần suất LỊCH SỬ (EP5 walk-forward) đạt MT1 trước vô hiệu của mẫu — mô tả quá khứ, không phải dự báo. */
+function historyOf(template: string) {
+  const b = EP5_BACKTEST.byTemplate.find((x) => x.template === template);
+  return b && b.n >= 100 && b.hitRate != null ? `lịch sử ${(b.hitRate * 100).toFixed(0)}% đạt MT1 trước vô hiệu (n = ${b.n.toLocaleString("vi-VN")}; ngẫu nhiên ${((b.expectedRate ?? 0) * 100).toFixed(0)}%)` : null;
+}
 
 const fmt = (v: number) => Math.round(v).toLocaleString("vi-VN");
 const STATE_CLS: Record<ScenarioState, string> = {
@@ -31,6 +38,7 @@ export function ElliottScenarioList({ items }: { items: ScenarioView[] }) {
             Kích hoạt: <span className="text-slate-200">{sc.trigger.text}</span> · MT {sc.targets.map((t) => <span key={t.label} className="text-emerald-200" title={t.label}>{fmt(t.price)} </span>)}
             · Vô hiệu: <span className="text-rose-200">{sc.invalidation.text}</span>
           </p>
+          {historyOf(sc.template) && <p className="text-[8.5px] text-slate-500" data-testid="elliott-scenario-history">{historyOf(sc.template)}</p>}
           {lc.events.length > 0 && <p className="text-[8.5px] text-slate-500">{lc.events.map((e) => `${STATE_LABEL[e.type === "triggered" ? "triggered" : e.type]} ${e.time.slice(5, 10)} (${fmt(e.price)})`).join(" → ")}</p>}
         </li>
       ))}
