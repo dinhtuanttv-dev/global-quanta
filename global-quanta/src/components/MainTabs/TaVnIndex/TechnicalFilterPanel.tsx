@@ -5,6 +5,7 @@ import EvidenceCard from "./EvidenceCard";
 import CanSlimDots from "./CanSlimDots";
 import ScreenerDeepPanel from "./ScreenerDeepPanel";
 import { useStructureSummary } from "../../../hooks/useStructure";
+import { ElliottCell, useElliottLatest } from "./ElliottCells";
 import { AlignToggle, StructureCell, alignRowClass, isDayAligned } from "./StructureCells";
 
 const GRADE_STYLE: Record<string, string> = {
@@ -64,7 +65,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-cyan-900/40" data-testid="deep-row">
-      <td colSpan={8} className="p-0">
+      <td colSpan={9} className="p-0">
         {/* Bảng có thể rộng hơn khung nhìn (cuộn ngang) -> bảng phụ bám theo bề rộng khung, dính mép trái. */}
         <div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div>
       </td>
@@ -90,6 +91,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
   const toggle = useCallback((ticker: string) => setOpen((cur) => (cur === ticker ? null : ticker)), []);
   // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
   const structure = useStructureSummary(Boolean(data?.results.length));
+  const elliottLatest = useElliottLatest();
   const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -176,6 +178,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                 <th className="py-1.5">Mã</th>
                 <th className="py-1.5">Tín hiệu</th>
                 <th className="py-1.5">Cấu trúc</th>
+                <th className="py-1.5">Elliott</th>
                 {isCamSlim ? (
                   <>
                     <th className="py-1.5 text-right">Điểm</th>
@@ -236,6 +239,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                     )}
                   </td>
                   <td className="py-1.5 text-[10px]"><StructureCell row={structure.byTicker.get(result.ticker)} /></td>
+                  <td className="py-1.5 text-[10px]"><ElliottCell row={elliottLatest[result.ticker]} /></td>
                   {isCamSlim ? (
                     <>
                       <td className="py-1.5 text-right font-mono font-bold text-slate-200" title={scoreTitle(result)}>{result.metrics.score ?? "—"}</td>

@@ -10,6 +10,7 @@ import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
 import { useStructureSummary } from "../../../hooks/useStructure";
+import { ElliottCell, useElliottLatest } from "./ElliottCells";
 import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const CONFIRM_SHORT: Record<string, string> = { camslim: "CS", "base-breakout": "BB", convergence: "HL", patterns: "MH" };
 const LIST_SHORT: Record<string, string> = { "SẴN SÀNG MUA": "Sẵn sàng", "CẢNH BÁO MUA": "Cảnh báo", "THEO DÕI": "Theo dõi" };
@@ -31,7 +32,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
     const id = requestAnimationFrame(() => ref.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
     return () => cancelAnimationFrame(id);
   }, []);
-  return <tr ref={ref} data-testid="golden-sepa-deep-row"><td colSpan={7} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td></tr>;
+  return <tr ref={ref} data-testid="golden-sepa-deep-row"><td colSpan={8} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td></tr>;
 }
 
 export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSelectTicker: (ticker: string) => void; onOpenVision?: (ticker: string) => void }) {
@@ -51,6 +52,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
   // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
   const structureRows = useStructureSummary();
+  const elliottLatest = useElliottLatest();
   const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -101,6 +103,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
                 <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
+                <th className="py-1.5 hidden sm:table-cell">Elliott</th>
                 <th className="py-1.5">SEPA</th>
                 <th className="py-1.5 text-right" style={{ paddingRight: 12 }}>Điểm</th>
                 <th className="py-1.5">Xác nhận chéo</th>
@@ -119,6 +122,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
+                  <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
                     <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span>{isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300">S2 · đạt OOS*</span>}</td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12 }}>{r.score.toFixed(1).replace(".", ",")}</td>
                     <td className="py-1.5" data-testid="golden-sepa-confirms">

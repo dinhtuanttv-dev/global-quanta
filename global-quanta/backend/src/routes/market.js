@@ -519,6 +519,10 @@ router.get("/elliott/ledger/summary", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   res.json(await getMarketRuntime().elliottLedger.summary());
 }));
+router.get("/elliott/ledger/latest", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=300");
+  res.json({ bySymbol: await getMarketRuntime().elliottLedger.latest() });
+}));
 router.get("/elliott/ledger", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");
   const symbol = normalizeChartSymbol(req.query.symbol);

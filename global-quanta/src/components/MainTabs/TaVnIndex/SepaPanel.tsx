@@ -11,6 +11,7 @@ import SepaIntradayStrip from "./SepaIntradayStrip";
 import SepaDeepPanel, { LIST_STYLE, STATUS_VI } from "./SepaDeepPanel";
 
 import { useStructureSummary } from "../../../hooks/useStructure";
+import { ElliottCell, useElliottLatest } from "./ElliottCells";
 import { AlignToggle, StructureCell, StructureDeepBlock, alignRowClass } from "./StructureCells";
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.round(v).toLocaleString("vi-VN"));
 const fmtTime = (iso?: string) => (iso ? new Date(iso).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "—");
@@ -44,7 +45,7 @@ function DeepRow({ children, width }: { children: React.ReactNode; width: number
   }, []);
   return (
     <tr ref={ref} className="border-b border-emerald-900/40" data-testid="sepa-deep-row">
-      <td colSpan={9} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
+      <td colSpan={10} className="p-0"><div style={width ? { width, position: "sticky", left: 0 } : undefined}>{children}</div></td>
     </tr>
   );
 }
@@ -67,6 +68,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
   const toggle = useCallback((t: string) => setOpen((cur) => (cur === t ? null : t)), []);
   // T5: cột Cấu trúc MTF + "Thuận khung Ngày" (làm nổi, không ẩn) từ bản tóm tắt của Gateway.
   const structureRows = useStructureSummary();
+  const elliottLatest = useElliottLatest();
   const [alignOn, setAlignOn] = useState(false);
   useEffect(() => {
     if (!open) return;
@@ -159,6 +161,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
               <tr className="border-b border-slate-800/60 text-slate-500 uppercase">
                 <th className="py-1.5">Mã</th>
                 <th className="py-1.5 hidden sm:table-cell">Cấu trúc</th>
+                <th className="py-1.5 hidden sm:table-cell">Elliott</th>
                 <th className="py-1.5">Danh sách</th>
                 <th className="py-1.5 text-right" style={{ paddingRight: 12, width: 64 }}>Điểm</th>
                 <th className="py-1.5" style={{ paddingLeft: 4 }}>Mô hình · dấu chân</th>
@@ -182,6 +185,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
                       <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
+                  <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
                     <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span></td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12, width: 64 }} title={r.components ? `Xu hướng ${r.components.trend.toFixed(1)} · cơ bản ${r.components.fund.toFixed(1)} · RS ${r.components.rs.toFixed(1)} · mô hình ${r.components.pattern.toFixed(1)} · dẫn dắt ${r.components.lead.toFixed(1)}${r.components.penalty ? ` · cảnh báo ${r.components.penalty}` : ""}` : undefined}>
                       {r.score.toFixed(1).replace(".", ",")}
