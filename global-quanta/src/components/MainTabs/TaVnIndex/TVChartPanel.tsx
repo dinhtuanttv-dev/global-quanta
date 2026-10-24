@@ -623,7 +623,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             </span>
           )}
           {primitives.length > 0 && (
-            <button onClick={() => controllerRef.current?.drawing.clearAll()}
+            <button onClick={() => controllerRef.current?.drawing.clearAll()} data-testid="drawings-clear"
               className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1 bg-slate-900/80 px-2 py-1 rounded-lg">
               <Trash2 className="w-3 h-3" /> Xoá hình vẽ ({primitives.length})
             </button>

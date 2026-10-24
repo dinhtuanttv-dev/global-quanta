@@ -39,7 +39,7 @@ export default function OscillatorPanel({ rsi, macd, adx }: Props) {
   const adxInfo = ADX_LABEL[adx.trendStrength];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-2" data-testid="oscillator-panel">
       <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3">
         <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1 flex items-center gap-1">
           RSI (14) {HARD_DATA_BADGE}

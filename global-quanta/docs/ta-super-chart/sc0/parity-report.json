@@ -1,0 +1,1439 @@
+{
+ "base": "http://localhost:5199",
+ "ticker": "FPT",
+ "at": "2026-10-24T04:12:28.482Z",
+ "items": 57,
+ "runs": [
+  {
+   "tag": "desk",
+   "viewport": {
+    "width": 1440,
+    "height": 900
+   },
+   "metrics": {
+    "chartTop": 294,
+    "chartHeight": 630,
+    "chartShareOfViewport": 70,
+    "filtersTop": 1476,
+    "buttons": 53,
+    "layerToggles": 17,
+    "overlaysOnChart": 3,
+    "hscroll": false
+   },
+   "pageErrors": [],
+   "results": [
+    {
+     "id": "ticker-selector",
+     "feature": "Chọn mã (ô nhập + VN-Index/VN30/HNX)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 5
+    },
+    {
+     "id": "ticker-change",
+     "feature": "Đổi mã -> tải lại nến + phân tích",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 4153
+    },
+    {
+     "id": "price-basis",
+     "feature": "Cơ sở giá · số phiên · khoảng ngày · cảnh báo · sự kiện quyền",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "tf-1m",
+     "feature": "Khung 1m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1022
+    },
+    {
+     "id": "tf-5m",
+     "feature": "Khung 5m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1067
+    },
+    {
+     "id": "tf-15m",
+     "feature": "Khung 15m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1084
+    },
+    {
+     "id": "tf-1H",
+     "feature": "Khung 1H",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1064
+    },
+    {
+     "id": "tf-D",
+     "feature": "Khung D",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 891
+    },
+    {
+     "id": "tf-W",
+     "feature": "Khung W",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1026
+    },
+    {
+     "id": "tf-M",
+     "feature": "Khung M",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1014
+    },
+    {
+     "id": "tf-note",
+     "feature": "Ghi chú nguồn nến (phút SSI / gộp từ D)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "chart-canvas",
+     "feature": "Biểu đồ nến (Lightweight Charts v5) + crosshair",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "chart-keys",
+     "feature": "Bàn phím ← → (Shift) + − Home End",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 595
+    },
+    {
+     "id": "chart-pin",
+     "feature": "Lớp phủ ghim chặt vào nến khi kéo / zoom",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2399,
+     "note": "lệch tối đa 0 px"
+    },
+    {
+     "id": "layer-volume",
+     "feature": "Pane Khối lượng",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 187
+    },
+    {
+     "id": "layer-rsi",
+     "feature": "Pane RSI 14",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 184
+    },
+    {
+     "id": "layer-orderflow",
+     "feature": "Pane Order Flow (delta / CVD)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 204
+    },
+    {
+     "id": "layer-foreign",
+     "feature": "Pane Khối ngoại",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 180
+    },
+    {
+     "id": "layer-vprofile",
+     "feature": "Volume Profile",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 216
+    },
+    {
+     "id": "layer-avwap",
+     "feature": "Anchored VWAP",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 180
+    },
+    {
+     "id": "layer-smc",
+     "feature": "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 173
+    },
+    {
+     "id": "layer-vsa",
+     "feature": "VSA",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 162
+    },
+    {
+     "id": "layer-wyckoff",
+     "feature": "Wyckoff",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 167
+    },
+    {
+     "id": "layer-corporate",
+     "feature": "Sự kiện quyền ■",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-pring",
+     "feature": "Mô hình giá (Pring)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 168
+    },
+    {
+     "id": "layer-structure",
+     "feature": "Cấu trúc MTF (lớp + bảng)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 254
+    },
+    {
+     "id": "layer-elliottPro",
+     "feature": "Elliott Pro (lớp + chip 3 chế độ)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 164
+    },
+    {
+     "id": "layer-elliottMine",
+     "feature": "Elliott của tôi (cách đếm chỉnh tay)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-trendline",
+     "feature": "Lớp hình vẽ Trendline",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 165
+    },
+    {
+     "id": "layer-demandzone",
+     "feature": "Lớp hình vẽ Demand Zone",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 168
+    },
+    {
+     "id": "layer-elliott",
+     "feature": "Elliott vẽ tay cũ (chỉ đọc)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 177
+    },
+    {
+     "id": "confluence",
+     "feature": "Confluence Engine (đối chiếu hình vẽ với SMC·VSA·Wyckoff)",
+     "group": "engine",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 160
+    },
+    {
+     "id": "draw-trendline",
+     "feature": "Vẽ Trendline",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 751
+    },
+    {
+     "id": "draw-zone",
+     "feature": "Vẽ Zone (chữ nhật)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 230
+    },
+    {
+     "id": "draw-fib",
+     "feature": "Fibonacci thoái lui",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 251
+    },
+    {
+     "id": "draw-fibtime",
+     "feature": "Fibonacci Time Zones (1 click)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 95
+    },
+    {
+     "id": "fib-ext",
+     "feature": "Fib Extension 127,2/161,8/261,8%",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 183
+    },
+    {
+     "id": "draw-saved",
+     "feature": "Lưu hình vẽ theo mã (máy / tài khoản) + báo đã lưu",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "draw-clear",
+     "feature": "Xoá hình vẽ",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 100
+    },
+    {
+     "id": "smart-note",
+     "feature": "Smart Note (tóm tắt + hỏi AI)",
+     "group": "analysis",
+     "target": "Inspector",
+     "ok": true,
+     "ms": 83
+    },
+    {
+     "id": "smc-panel",
+     "feature": "Thẻ SMC",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "vsa-panel",
+     "feature": "Thẻ VSA",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 5
+    },
+    {
+     "id": "backtest",
+     "feature": "Event study CHoCH (khung D/W/M)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "orderflow-panel",
+     "feature": "Bảng Order Flow / Khối ngoại",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "oscillators",
+     "feature": "RSI / MACD / ADX",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "signal-log",
+     "feature": "Nhật ký tín hiệu (AI Signal Log)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "elliott-pro",
+     "feature": "Bảng Elliott Pro",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 1
+    },
+    {
+     "id": "elliott-pro-tabs",
+     "feature": "6 tab Elliott Pro (Tổng quan…Theo sách)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "elliott-edit",
+     "feature": "Chỉnh tay cách đếm (trình chỉnh + undo/redo)",
+     "group": "elliott",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 800
+    },
+    {
+     "id": "elliott-history",
+     "feature": "Lưu phiên bản cách đếm + lịch sử phiên bản",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 116
+    },
+    {
+     "id": "elliott-alerts",
+     "feature": "Cảnh báo giá Elliott",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 379
+    },
+    {
+     "id": "elliott-book",
+     "feature": "Tab 'Theo sách' (engine GET, 6 lớp cũ)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 395
+    },
+    {
+     "id": "structure-open",
+     "feature": "Nút 'Phân tích cấu trúc' -> bật lớp + bảng",
+     "group": "structure",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 124
+    },
+    {
+     "id": "structure-modes",
+     "feature": "3 chế độ Tổng quan / Giao dịch / Chuyên sâu",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 7
+    },
+    {
+     "id": "structure-replay",
+     "feature": "Phát lại (khung D/W)",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "structure-chip",
+     "feature": "Chip kết luận trên chart",
+     "group": "structure",
+     "target": "Chart",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "handoff-structure",
+     "feature": "Bộ lọc 'Mở trên biểu đồ với cấu trúc' (sự kiện gq:structure-open)",
+     "group": "handoff",
+     "target": "Chart",
+     "ok": true,
+     "ms": 4
+    }
+   ]
+  },
+  {
+   "tag": "tablet",
+   "viewport": {
+    "width": 1024,
+    "height": 768
+   },
+   "metrics": {
+    "chartTop": 337,
+    "chartHeight": 538,
+    "chartShareOfViewport": 70,
+    "filtersTop": 1513,
+    "buttons": 53,
+    "layerToggles": 17,
+    "overlaysOnChart": 3,
+    "hscroll": false
+   },
+   "pageErrors": [],
+   "results": [
+    {
+     "id": "ticker-selector",
+     "feature": "Chọn mã (ô nhập + VN-Index/VN30/HNX)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "ticker-change",
+     "feature": "Đổi mã -> tải lại nến + phân tích",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 4146
+    },
+    {
+     "id": "price-basis",
+     "feature": "Cơ sở giá · số phiên · khoảng ngày · cảnh báo · sự kiện quyền",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "tf-1m",
+     "feature": "Khung 1m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 996
+    },
+    {
+     "id": "tf-5m",
+     "feature": "Khung 5m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1033
+    },
+    {
+     "id": "tf-15m",
+     "feature": "Khung 15m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1084
+    },
+    {
+     "id": "tf-1H",
+     "feature": "Khung 1H",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1079
+    },
+    {
+     "id": "tf-D",
+     "feature": "Khung D",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 895
+    },
+    {
+     "id": "tf-W",
+     "feature": "Khung W",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1008
+    },
+    {
+     "id": "tf-M",
+     "feature": "Khung M",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1010
+    },
+    {
+     "id": "tf-note",
+     "feature": "Ghi chú nguồn nến (phút SSI / gộp từ D)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "chart-canvas",
+     "feature": "Biểu đồ nến (Lightweight Charts v5) + crosshair",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "chart-keys",
+     "feature": "Bàn phím ← → (Shift) + − Home End",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 576
+    },
+    {
+     "id": "chart-pin",
+     "feature": "Lớp phủ ghim chặt vào nến khi kéo / zoom",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2418,
+     "note": "lệch tối đa 0 px"
+    },
+    {
+     "id": "layer-volume",
+     "feature": "Pane Khối lượng",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 170
+    },
+    {
+     "id": "layer-rsi",
+     "feature": "Pane RSI 14",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 183
+    },
+    {
+     "id": "layer-orderflow",
+     "feature": "Pane Order Flow (delta / CVD)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 185
+    },
+    {
+     "id": "layer-foreign",
+     "feature": "Pane Khối ngoại",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 165
+    },
+    {
+     "id": "layer-vprofile",
+     "feature": "Volume Profile",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-avwap",
+     "feature": "Anchored VWAP",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-smc",
+     "feature": "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 168
+    },
+    {
+     "id": "layer-vsa",
+     "feature": "VSA",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 183
+    },
+    {
+     "id": "layer-wyckoff",
+     "feature": "Wyckoff",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-corporate",
+     "feature": "Sự kiện quyền ■",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 167
+    },
+    {
+     "id": "layer-pring",
+     "feature": "Mô hình giá (Pring)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-structure",
+     "feature": "Cấu trúc MTF (lớp + bảng)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 286
+    },
+    {
+     "id": "layer-elliottPro",
+     "feature": "Elliott Pro (lớp + chip 3 chế độ)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 167
+    },
+    {
+     "id": "layer-elliottMine",
+     "feature": "Elliott của tôi (cách đếm chỉnh tay)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 163
+    },
+    {
+     "id": "layer-trendline",
+     "feature": "Lớp hình vẽ Trendline",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 151
+    },
+    {
+     "id": "layer-demandzone",
+     "feature": "Lớp hình vẽ Demand Zone",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 150
+    },
+    {
+     "id": "layer-elliott",
+     "feature": "Elliott vẽ tay cũ (chỉ đọc)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "confluence",
+     "feature": "Confluence Engine (đối chiếu hình vẽ với SMC·VSA·Wyckoff)",
+     "group": "engine",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "draw-trendline",
+     "feature": "Vẽ Trendline",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 756
+    },
+    {
+     "id": "draw-zone",
+     "feature": "Vẽ Zone (chữ nhật)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 249
+    },
+    {
+     "id": "draw-fib",
+     "feature": "Fibonacci thoái lui",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 249
+    },
+    {
+     "id": "draw-fibtime",
+     "feature": "Fibonacci Time Zones (1 click)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 98
+    },
+    {
+     "id": "fib-ext",
+     "feature": "Fib Extension 127,2/161,8/261,8%",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 148
+    },
+    {
+     "id": "draw-saved",
+     "feature": "Lưu hình vẽ theo mã (máy / tài khoản) + báo đã lưu",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "draw-clear",
+     "feature": "Xoá hình vẽ",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 83
+    },
+    {
+     "id": "smart-note",
+     "feature": "Smart Note (tóm tắt + hỏi AI)",
+     "group": "analysis",
+     "target": "Inspector",
+     "ok": true,
+     "ms": 88
+    },
+    {
+     "id": "smc-panel",
+     "feature": "Thẻ SMC",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "vsa-panel",
+     "feature": "Thẻ VSA",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "backtest",
+     "feature": "Event study CHoCH (khung D/W/M)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "orderflow-panel",
+     "feature": "Bảng Order Flow / Khối ngoại",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "oscillators",
+     "feature": "RSI / MACD / ADX",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "signal-log",
+     "feature": "Nhật ký tín hiệu (AI Signal Log)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "elliott-pro",
+     "feature": "Bảng Elliott Pro",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 1
+    },
+    {
+     "id": "elliott-pro-tabs",
+     "feature": "6 tab Elliott Pro (Tổng quan…Theo sách)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "elliott-edit",
+     "feature": "Chỉnh tay cách đếm (trình chỉnh + undo/redo)",
+     "group": "elliott",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 770
+    },
+    {
+     "id": "elliott-history",
+     "feature": "Lưu phiên bản cách đếm + lịch sử phiên bản",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 127
+    },
+    {
+     "id": "elliott-alerts",
+     "feature": "Cảnh báo giá Elliott",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 389
+    },
+    {
+     "id": "elliott-book",
+     "feature": "Tab 'Theo sách' (engine GET, 6 lớp cũ)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 390
+    },
+    {
+     "id": "structure-open",
+     "feature": "Nút 'Phân tích cấu trúc' -> bật lớp + bảng",
+     "group": "structure",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 159
+    },
+    {
+     "id": "structure-modes",
+     "feature": "3 chế độ Tổng quan / Giao dịch / Chuyên sâu",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "structure-replay",
+     "feature": "Phát lại (khung D/W)",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "structure-chip",
+     "feature": "Chip kết luận trên chart",
+     "group": "structure",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "handoff-structure",
+     "feature": "Bộ lọc 'Mở trên biểu đồ với cấu trúc' (sự kiện gq:structure-open)",
+     "group": "handoff",
+     "target": "Chart",
+     "ok": true,
+     "ms": 4
+    }
+   ]
+  },
+  {
+   "tag": "m390",
+   "viewport": {
+    "width": 390,
+    "height": 844
+   },
+   "metrics": {
+    "chartTop": 458,
+    "chartHeight": 591,
+    "chartShareOfViewport": 70,
+    "filtersTop": 2017,
+    "buttons": 53,
+    "layerToggles": 17,
+    "overlaysOnChart": 3,
+    "hscroll": false
+   },
+   "pageErrors": [],
+   "results": [
+    {
+     "id": "ticker-selector",
+     "feature": "Chọn mã (ô nhập + VN-Index/VN30/HNX)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "ticker-change",
+     "feature": "Đổi mã -> tải lại nến + phân tích",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 4139
+    },
+    {
+     "id": "price-basis",
+     "feature": "Cơ sở giá · số phiên · khoảng ngày · cảnh báo · sự kiện quyền",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "tf-1m",
+     "feature": "Khung 1m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 993
+    },
+    {
+     "id": "tf-5m",
+     "feature": "Khung 5m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1053
+    },
+    {
+     "id": "tf-15m",
+     "feature": "Khung 15m",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1067
+    },
+    {
+     "id": "tf-1H",
+     "feature": "Khung 1H",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1060
+    },
+    {
+     "id": "tf-D",
+     "feature": "Khung D",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 880
+    },
+    {
+     "id": "tf-W",
+     "feature": "Khung W",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1039
+    },
+    {
+     "id": "tf-M",
+     "feature": "Khung M",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 1029
+    },
+    {
+     "id": "tf-note",
+     "feature": "Ghi chú nguồn nến (phút SSI / gộp từ D)",
+     "group": "header",
+     "target": "Header",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "chart-canvas",
+     "feature": "Biểu đồ nến (Lightweight Charts v5) + crosshair",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "chart-keys",
+     "feature": "Bàn phím ← → (Shift) + − Home End",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 616
+    },
+    {
+     "id": "chart-pin",
+     "feature": "Lớp phủ ghim chặt vào nến khi kéo / zoom",
+     "group": "chart",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2431,
+     "note": "lệch tối đa 0 px"
+    },
+    {
+     "id": "layer-volume",
+     "feature": "Pane Khối lượng",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 200
+    },
+    {
+     "id": "layer-rsi",
+     "feature": "Pane RSI 14",
+     "group": "pane",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 206
+    },
+    {
+     "id": "layer-orderflow",
+     "feature": "Pane Order Flow (delta / CVD)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 181
+    },
+    {
+     "id": "layer-foreign",
+     "feature": "Pane Khối ngoại",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-vprofile",
+     "feature": "Volume Profile",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 164
+    },
+    {
+     "id": "layer-avwap",
+     "feature": "Anchored VWAP",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 150
+    },
+    {
+     "id": "layer-smc",
+     "feature": "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 169
+    },
+    {
+     "id": "layer-vsa",
+     "feature": "VSA",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 165
+    },
+    {
+     "id": "layer-wyckoff",
+     "feature": "Wyckoff",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-corporate",
+     "feature": "Sự kiện quyền ■",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 167
+    },
+    {
+     "id": "layer-pring",
+     "feature": "Mô hình giá (Pring)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-structure",
+     "feature": "Cấu trúc MTF (lớp + bảng)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 269
+    },
+    {
+     "id": "layer-elliottPro",
+     "feature": "Elliott Pro (lớp + chip 3 chế độ)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-elliottMine",
+     "feature": "Elliott của tôi (cách đếm chỉnh tay)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 166
+    },
+    {
+     "id": "layer-trendline",
+     "feature": "Lớp hình vẽ Trendline",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 148
+    },
+    {
+     "id": "layer-demandzone",
+     "feature": "Lớp hình vẽ Demand Zone",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 168
+    },
+    {
+     "id": "layer-elliott",
+     "feature": "Elliott vẽ tay cũ (chỉ đọc)",
+     "group": "overlay",
+     "target": "Lớp & pane",
+     "ok": true,
+     "ms": 150
+    },
+    {
+     "id": "confluence",
+     "feature": "Confluence Engine (đối chiếu hình vẽ với SMC·VSA·Wyckoff)",
+     "group": "engine",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 165
+    },
+    {
+     "id": "draw-trendline",
+     "feature": "Vẽ Trendline",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 756
+    },
+    {
+     "id": "draw-zone",
+     "feature": "Vẽ Zone (chữ nhật)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 248
+    },
+    {
+     "id": "draw-fib",
+     "feature": "Fibonacci thoái lui",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 233
+    },
+    {
+     "id": "draw-fibtime",
+     "feature": "Fibonacci Time Zones (1 click)",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 97
+    },
+    {
+     "id": "fib-ext",
+     "feature": "Fib Extension 127,2/161,8/261,8%",
+     "group": "drawing",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 132
+    },
+    {
+     "id": "draw-saved",
+     "feature": "Lưu hình vẽ theo mã (máy / tài khoản) + báo đã lưu",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 3
+    },
+    {
+     "id": "draw-clear",
+     "feature": "Xoá hình vẽ",
+     "group": "drawing",
+     "target": "Đối tượng",
+     "ok": true,
+     "ms": 83
+    },
+    {
+     "id": "smart-note",
+     "feature": "Smart Note (tóm tắt + hỏi AI)",
+     "group": "analysis",
+     "target": "Inspector",
+     "ok": true,
+     "ms": 65
+    },
+    {
+     "id": "smc-panel",
+     "feature": "Thẻ SMC",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "vsa-panel",
+     "feature": "Thẻ VSA",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "backtest",
+     "feature": "Event study CHoCH (khung D/W/M)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "orderflow-panel",
+     "feature": "Bảng Order Flow / Khối ngoại",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "oscillators",
+     "feature": "RSI / MACD / ADX",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "signal-log",
+     "feature": "Nhật ký tín hiệu (AI Signal Log)",
+     "group": "analysis",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "elliott-pro",
+     "feature": "Bảng Elliott Pro",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "elliott-pro-tabs",
+     "feature": "6 tab Elliott Pro (Tổng quan…Theo sách)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "elliott-edit",
+     "feature": "Chỉnh tay cách đếm (trình chỉnh + undo/redo)",
+     "group": "elliott",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 806
+    },
+    {
+     "id": "elliott-history",
+     "feature": "Lưu phiên bản cách đếm + lịch sử phiên bản",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 148
+    },
+    {
+     "id": "elliott-alerts",
+     "feature": "Cảnh báo giá Elliott",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 395
+    },
+    {
+     "id": "elliott-book",
+     "feature": "Tab 'Theo sách' (engine GET, 6 lớp cũ)",
+     "group": "elliott",
+     "target": "Dock",
+     "ok": true,
+     "ms": 388
+    },
+    {
+     "id": "structure-open",
+     "feature": "Nút 'Phân tích cấu trúc' -> bật lớp + bảng",
+     "group": "structure",
+     "target": "Toolbar",
+     "ok": true,
+     "ms": 123
+    },
+    {
+     "id": "structure-modes",
+     "feature": "3 chế độ Tổng quan / Giao dịch / Chuyên sâu",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 4
+    },
+    {
+     "id": "structure-replay",
+     "feature": "Phát lại (khung D/W)",
+     "group": "structure",
+     "target": "Dock",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "structure-chip",
+     "feature": "Chip kết luận trên chart",
+     "group": "structure",
+     "target": "Chart",
+     "ok": true,
+     "ms": 2
+    },
+    {
+     "id": "handoff-structure",
+     "feature": "Bộ lọc 'Mở trên biểu đồ với cấu trúc' (sự kiện gq:structure-open)",
+     "group": "handoff",
+     "target": "Chart",
+     "ok": true,
+     "ms": 3
+    }
+   ]
+  }
+ ]
+}
