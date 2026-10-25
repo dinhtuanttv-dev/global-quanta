@@ -24,19 +24,21 @@ import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
 import ImpactBoard from "./ImpactBoard";
 import WorldTodayStrip from "./WorldTodayStrip";
+import EventRadarPanel from "./EventRadarPanel";
 
-type SubTab = "macro" | "impact" | "catalyst" | "chat";
+type SubTab = "macro" | "impact" | "catalyst" | "chat" | "radar";
 // Z3 (2026-10-17): thêm "Tác động ngành & cổ phiếu" (ghép chiến lược thế giới + hàng hoá + xúc tác theo ICB) — đầu mối từ vĩ mô tới mã.
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: "macro", label: "1. Phân tích vĩ mô" },
   { id: "impact", label: "2. Tác động ngành & cổ phiếu" },
   { id: "catalyst", label: "3. Chất xúc tác hiện tại" },
   { id: "chat", label: "4. Hỏi đáp xúc tác" },
+  { id: "radar", label: "5. Event Radar" },
 ];
 
 export default function ChatXucTacTab() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("macro");
-  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, impact: null, catalyst: null, chat: null });
+  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, impact: null, catalyst: null, chat: null, radar: null });
   const [seed, setSeed] = useState<string | null>(null);
   const askAi = (question: string) => { setSeed(question); setActiveSubTab("chat"); };
   const moveSubTab = (tab: SubTab) => {
@@ -90,6 +92,7 @@ export default function ChatXucTacTab() {
         {activeSubTab === "catalyst" && <CatalystContent />}
         {/* X4/Z2: Claude hoặc Gemini + công cụ vĩ mô, thế giới, ngành ICB (Gateway) & xúc tác (snapshot engine) */}
         {activeSubTab === "chat" && <CatalystChatPanel seedQuestion={seed} onSeedConsumed={() => setSeed(null)} />}
+        {activeSubTab === "radar" && <EventRadarPanel />}
       </section>
     </div>
   );

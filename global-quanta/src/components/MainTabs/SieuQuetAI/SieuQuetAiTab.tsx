@@ -3,6 +3,7 @@ import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { ScannerEvidence } from "./ScannerEvidence";
 import { EventPanel } from "./EventPanel";
+import QuantEdgeLab from "./QuantEdgeLab";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
@@ -395,6 +396,7 @@ export default function SieuQuetAiTab() {
       </section>
 
       {/* SỰ KIỆN + NGUỒN DỮ LIỆU (chuyển từ cột trái cũ) */}
+      {researchUiOn && <QuantEdgeLab defaultTicker={selectedTicker} />}
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2"><EventPanel /></div>
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3 h-fit">
