@@ -18,6 +18,7 @@ export const COTUC_TABLES = Object.freeze({
   timing: { key: (r) => r.ticker, heavy: [] },
   season: { key: (r) => r.ticker, heavy: ["samples", "paths", "announceDates"] },
   track: { key: (r) => r.id, heavy: [] },
+  sectortrack: { key: (r) => r.id, heavy: [] }, // MV0: SectorSignalTrack (Lọc ngành)
   cycle: { key: (r) => (r.ticker && r.exDate ? `${r.ticker}:${String(r.exDate).slice(0, 10)}` : null), heavy: [] },
   meta: { key: (r) => r.key, heavy: [] },
 });

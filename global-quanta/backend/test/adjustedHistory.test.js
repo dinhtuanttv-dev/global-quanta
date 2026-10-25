@@ -94,3 +94,27 @@ test("kho giá danh nghĩa: FULL -> CACHE (2 giờ) -> APPEND chỉ tải đuôi
   assert.equal(idx.bars[0].close, 1700);
   await assert.rejects(h.get("<x>"), (e) => e.statusCode === 400);
 });
+
+// MV0 (25/10/2026) — kho lịch sử danh nghĩa không được tự làm mất phần đã tải (cạn ngân sách 40 lượt tải đầy đủ / giờ).
+test("MV0: yêu cầu ngắn hơn (APPEND) KHÔNG cắt lịch sử dài đã lưu; mã niêm yết muộn không tải đầy đủ lại mỗi lần", async () => {
+  const { createMemoryStore } = await import("../src/market/store/memoryStore.js");
+  const { createAdjustedHistory: create } = await import("../src/market/adjusted/adjustedHistory.js");
+  const mk = (start) => { const out = []; for (let d = new Date(`${start}T00:00:00Z`); d <= new Date("2026-10-30T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) { const w = d.getUTCDay(); if (w && w < 6) out.push(d.toISOString().slice(0, 10)); } return out; };
+  const series = { VNM: mk("2016-11-01"), NEW: mk("2019-03-01") };
+  let calls = 0, t = Date.parse("2026-10-23T03:00:00Z");
+  const service = { router: { run: async (_c, _m, [sym, from, to]) => { calls++; return { source: "ssi", data: series[sym].filter((x) => x >= from && x <= to).map((date) => ({ date, close: 100, ref: 100, volume: 1 })) }; } } };
+  const h = create({ service, store: createMemoryStore(), now: () => t });
+  assert.equal((await h.get("VNM", { years: 10 })).refresh, "FULL");
+  t += 3 * 86_400_000;
+  assert.equal((await h.get("VNM", { years: 5 })).refresh, "APPEND");
+  const again = await h.get("VNM", { years: 10 });
+  assert.equal(again.refresh, "CACHE", "10 năm vẫn còn sau yêu cầu 5 năm");
+  assert.equal(again.bars[0].date, "2016-11-01");
+  assert.equal(calls, 2);
+  // Mã niêm yết 2019: lần đầu tải đầy đủ, các lần sau (kể cả ngày sau) dùng kho.
+  assert.equal((await h.get("NEW", { years: 10 })).refresh, "FULL");
+  assert.equal((await h.get("NEW", { years: 10 })).refresh, "CACHE");
+  t += 86_400_000;
+  assert.notEqual((await h.get("NEW", { years: 10 })).refresh, "FULL");
+  assert.equal(calls, 4); // VNM FULL + APPEND, NEW FULL + 1 APPEND/CACHE-kiểm tra đuôi
+});
