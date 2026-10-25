@@ -79,14 +79,37 @@ export function buildAdjustedFromNominal(rows) {
   };
 }
 
+/** MV0b: mã mà SSI không trả được lịch sử (lỗi / rỗng) -> không thử tải đầy đủ lại trong 6 giờ (trước đây mỗi lần gọi mất 1 lượt). */
+export const FULL_FAIL_COOLDOWN_MS = 6 * 60 * 60_000;
+
+/** Nơi gọi = frame đầu tiên NGOÀI thư mục adjusted/ trong async stack của V8 (VD "cycles/cycleService.js:139"). */
+export function callerFromStack(stack = new Error().stack ?? "") {
+  for (const line of stack.split("\n").slice(1)) {
+    const m = /(?:market|routes)[\\/]((?:[\w.-]+[\\/])*[\w.-]+\.js):(\d+)/.exec(line);
+    if (m && !/^adjusted[\\/]/.test(m[1])) return `${m[1].replace(/\\/g, "/")}:${m[2]}`;
+  }
+  return "unknown";
+}
+
 export function createAdjustedHistory({ service, store, now = Date.now, fullRefetchPerHour = 40 } = {}) {
   const fullStamps = [];
   const inflight = new Map();
+  // MV0b (25/10/2026): nhật ký lượt tải đầy đủ (ai gọi, mã, số năm, kết quả) — tìm nơi đốt ngân sách 40 lượt/giờ dùng chung.
+  const fullLog = [];
+  const failUntil = new Map();
+  const stats = { full: 0, fullFailed: 0, budgetRejected: 0, cooldownRejected: 0, cache: 0, append: 0 };
+  const note = (e) => { fullLog.push(e); if (fullLog.length > 300) fullLog.shift(); };
 
-  function takeFullBudget() {
+  function takeFullBudget(symbol, years, caller) {
     const t = now();
     while (fullStamps.length && t - fullStamps[0] > 60 * 60_000) fullStamps.shift();
+    if ((failUntil.get(symbol) ?? 0) > t) {
+      stats.cooldownRejected++;
+      throw new MarketDataError(`SSI chưa trả được lịch sử giá ${symbol} (thử lại sau ${new Date(failUntil.get(symbol)).toISOString().slice(11, 16)} UTC).`, { kind: "transient", statusCode: 503 });
+    }
     if (fullStamps.length >= fullRefetchPerHour) {
+      stats.budgetRejected++;
+      note({ at: new Date(t).toISOString(), symbol, years, caller, outcome: "BUDGET" });
       throw new MarketDataError(`Đang nạp lịch sử giá (đã dùng ${fullRefetchPerHour} lượt tải đầy đủ trong giờ) — thử lại sau.`, { kind: "transient", statusCode: 503 });
     }
     fullStamps.push(t);
@@ -107,7 +130,7 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
     };
   }
 
-  async function load(symbol, years) {
+  async function load(symbol, years, caller) {
     const t = now();
     const expectedLast = lastCompletedSessionDate(new Date(t));
     const wantedFrom = addDays(vnDate(new Date(t)), -Math.round(years * 365.25));
@@ -127,6 +150,7 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
 
     if (row && coversStart && (fresh || upToDate)) {
       if (!fresh) await store.upsertRows(ADJUSTED_TABLE, [{ ...row, checked_at: new Date(t).toISOString() }], "symbol");
+      stats.cache++;
       return result(symbol, stored, wantedFrom, { refresh: "CACHE", source: row.source });
     }
 
@@ -139,10 +163,20 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
       rows = [...merged.values()].sort((a, b) => a.date.localeCompare(b.date));
       source = tail.source;
       refresh = "APPEND";
+      stats.append++;
     } else {
-      takeFullBudget();
-      const full = await fetchNominal(symbol, wantedFrom, expectedLast);
-      if (!full.rows.length) throw new MarketDataError(`SSI không trả giá cho ${symbol}.`, { kind: "transient", statusCode: 502 });
+      takeFullBudget(symbol, years, caller);
+      let full;
+      try {
+        full = await fetchNominal(symbol, wantedFrom, expectedLast);
+        if (!full.rows.length) throw new MarketDataError(`SSI không trả giá cho ${symbol}.`, { kind: "transient", statusCode: 502 });
+      } catch (e) {
+        stats.fullFailed++; failUntil.set(symbol, now() + FULL_FAIL_COOLDOWN_MS);
+        note({ at: new Date(t).toISOString(), symbol, years, caller, outcome: "FAILED", error: String(e?.message ?? e).slice(0, 120) });
+        throw e;
+      }
+      stats.full++; failUntil.delete(symbol);
+      note({ at: new Date(t).toISOString(), symbol, years, caller, outcome: "FULL", bars: full.rows.length, from: full.rows[0]?.date ?? null, hadRow: Boolean(row), storedFrom: row?.from_date ?? null });
       rows = full.rows;
       source = full.source;
       refresh = "FULL";
@@ -162,12 +196,25 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
 
   return {
     /** @returns {{ symbol, nominal, index?, base, bars: {date, close, ref, volume}[], events, anomalies, refresh, source }} */
-    async get(rawSymbol, { years = 5 } = {}) {
+    /** MV0b: ngân sách tải đầy đủ còn lại + nhật ký (theo nơi gọi) — GET /api/market/ohlcv/nominal-history/status. */
+    status() {
+      const t = now();
+      const hour = fullLog.filter((e) => t - Date.parse(e.at) < 60 * 60_000);
+      const by = (k) => hour.reduce((m, e) => ({ ...m, [`${e[k]}`]: (m[`${e[k]}`] ?? 0) + 1 }), {});
+      return {
+        perHour: fullRefetchPerHour, usedLastHour: fullStamps.filter((s) => t - s < 60 * 60_000).length, ...stats,
+        coolingDown: [...failUntil].filter(([, u]) => u > t).map(([s]) => s),
+        lastHour: { byCaller: by("caller"), byOutcome: by("outcome"), byYears: by("years") },
+        recent: fullLog.slice(-60).reverse(),
+      };
+    },
+    async get(rawSymbol, { years = 5, caller = null } = {}) {
+      caller ??= callerFromStack();
       const symbol = canonicalSymbol(rawSymbol);
       if (!symbol || !isValidSymbol(symbol)) throw new ValidationError("Mã chứng khoán không hợp lệ.");
       const y = Math.min(10, Math.max(1, Number(years) || 5));
       const key = `${symbol}:${y}`;
-      if (!inflight.has(key)) inflight.set(key, load(symbol, y).finally(() => inflight.delete(key)));
+      if (!inflight.has(key)) inflight.set(key, load(symbol, y, caller).finally(() => inflight.delete(key)));
       return inflight.get(key);
     },
   };
