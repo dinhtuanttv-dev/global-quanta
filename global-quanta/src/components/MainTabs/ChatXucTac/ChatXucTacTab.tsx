@@ -24,19 +24,22 @@ import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
 import ImpactBoard from "./ImpactBoard";
 import WorldTodayStrip from "./WorldTodayStrip";
+import EventRadarPanel from "./EventRadarPanel";
 
-type SubTab = "macro" | "impact" | "catalyst" | "chat";
+type SubTab = "macro" | "impact" | "catalyst" | "radar" | "chat";
 // Z3 (2026-10-17): thêm "Tác động ngành & cổ phiếu" (ghép chiến lược thế giới + hàng hoá + xúc tác theo ICB) — đầu mối từ vĩ mô tới mã.
+// Event Radar: tab tổng hợp sự kiện thị trường với phân tích phản ứng H1.
 const SUB_TABS: { id: SubTab; label: string }[] = [
   { id: "macro", label: "1. Phân tích vĩ mô" },
   { id: "impact", label: "2. Tác động ngành & cổ phiếu" },
   { id: "catalyst", label: "3. Chất xúc tác hiện tại" },
-  { id: "chat", label: "4. Hỏi đáp xúc tác" },
+  { id: "radar", label: "4. Event Radar" },
+  { id: "chat", label: "5. Hỏi đáp xúc tác" },
 ];
 
 export default function ChatXucTacTab() {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>("macro");
-  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, impact: null, catalyst: null, chat: null });
+  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ macro: null, impact: null, catalyst: null, radar: null, chat: null });
   const [seed, setSeed] = useState<string | null>(null);
   const askAi = (question: string) => { setSeed(question); setActiveSubTab("chat"); };
   const moveSubTab = (tab: SubTab) => {
@@ -88,6 +91,8 @@ export default function ChatXucTacTab() {
         </>}
         {activeSubTab === "impact" && <ImpactBoard onAsk={askAi} />}
         {activeSubTab === "catalyst" && <CatalystContent />}
+        {/* Event Radar: tổng hợp tin & công bố gắn nguồn, phân tích phản ứng H1 */}
+        {activeSubTab === "radar" && <EventRadarPanel />}
         {/* X4/Z2: Claude hoặc Gemini + công cụ vĩ mô, thế giới, ngành ICB (Gateway) & xúc tác (snapshot engine) */}
         {activeSubTab === "chat" && <CatalystChatPanel seedQuestion={seed} onSeedConsumed={() => setSeed(null)} />}
       </section>
@@ -200,13 +205,13 @@ function EvidenceNote() {
   return (
     <details style={{ fontSize: 10.5, color: "var(--text-tertiary)", margin: "6px 0 2px" }}>
       <summary style={{ cursor: "pointer" }}>
-        Bằng chứng: <b style={{ color: "var(--warning, #f59e0b)" }}>THỬ NGHIỆM</b> — chiều “tích cực/tiêu cực” của engine chưa được kiểm chứng đủ mẫu sạch
+        Bằng chứng: <b style={{ color: "var(--warning, #f59e0b)" }}>THỬ NGHIỆM</b> — chiều "tích cực/tiêu cực" của engine chưa được kiểm chứng đủ mẫu sạch
       </summary>
       <p style={{ margin: "4px 0 0", lineHeight: 1.5 }}>
         Kiểm định đặt trước ({EV.window}) cho lợi suất vượt VN-Index 20 phiên theo chiều tín hiệu {pctVi(EV.prereg.meanSar20)} (KTC95 {pctVi(EV.prereg.ci95[0])} … {pctVi(EV.prereg.ci95[1])}, n = {EV.prereg.n20}).
         Rà soát nguồn gốc sau đó phát hiện {EV.seedSignals} tín hiệu đến từ dữ liệu mẫu bịa (đã gỡ). Loại chúng và tin trung lập, mẫu sạch còn {EV.clean.n20} tín hiệu — dưới ngưỡng {EV.minN} đã đăng ký
         ({pctVi(EV.clean.meanSar20)}, KTC95 {pctVi(EV.clean.ci95[0])} … {pctVi(EV.clean.ci95[1])}). Chấm lại bằng kiểm định tiến khi đủ {EV.minN} tín hiệu sạch.
-        “Tỷ lệ thắng” trên thẻ là tỷ lệ tăng giá thô 5 phiên, không phải lợi suất vượt trội. Không phải khuyến nghị đầu tư.
+        "Tỷ lệ thắng" trên thẻ là tỷ lệ tăng giá thô 5 phiên, không phải lợi suất vượt trội. Không phải khuyến nghị đầu tư.
       </p>
     </details>
   );

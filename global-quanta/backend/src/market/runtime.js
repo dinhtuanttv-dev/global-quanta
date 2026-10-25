@@ -38,6 +38,7 @@ import { createElliottAlertEvaluator } from "./watchlists/userElliottAlerts.js";
 import { createElliottLedger } from "./elliott/scenarioLedger.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
+import { createEventRadar } from "./news/eventRadar.js";
 
 let runtime;
 
@@ -52,6 +53,7 @@ export function getMarketRuntime() {
   };
   const store = createStore();
   const service = createMarketDataService({ providers, store });
+  const eventRadar = createEventRadar({ service });
 
   let downSince = null;
   const hub = new StreamHub({
@@ -129,13 +131,14 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
 /** Bật Ingestor (lập lịch đồng bộ) khi MARKET_INGESTOR_ENABLED=true. */
 export function startMarketIngestor() {
   const rt = getMarketRuntime();
+  void rt.eventRadar.start();
   if (rt.started || !featureFlags().ingestorEnabled) return rt;
   rt.started = true;
   const runOnStart = String(process.env.MARKET_RUN_JOBS_ON_START ?? "true").toLowerCase() === "true" ? ["syncSecurities"] : [];
@@ -153,6 +156,7 @@ export function stopMarketRuntime() {
   if (!runtime) return;
   runtime.scheduler.stop();
   runtime.cotucScanner.stop();
+  runtime.eventRadar.stop();
   runtime.tradingCalendar.stop();
   setHolidayProvider(null);
   void runtime.tickRecorder.stop();
