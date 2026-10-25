@@ -30,12 +30,15 @@ import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } fro
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { patternDetail } from "../market/strategies/patternScan.js";
 import { chartVision, screenerIndex } from "../market/chartVision/chartVision.js";
-import { isIndexSymbol } from "../market/normalizer.js";
+import { isIndexSymbol, canonicalSymbol, isValidSymbol } from "../market/normalizer.js";
 import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRotation.js";
 import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 import { opsReport } from "../market/tradingMatrix/matrixOps.js";
+import { buildEventReactionStudy, buildLeadershipStudy } from "../market/research/quantEdgeStudies.js";
+import { ValidationError } from "../market/errors.js";
+
 
 const router = Router();
 
@@ -59,10 +62,113 @@ const handle = (fn) => async (req, res) => {
 
 const service = () => getMarketRuntime().service;
 
+function shiftDate(date, days) {
+  const d = new Date(`${date}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function resolveDailyEventSession(timestamp, sourceDate, bars) {
+  const sessions = bars.filter((bar) => !bar.partial).map((bar) => bar.date).sort();
+  if (!timestamp) {
+    return sessions.includes(sourceDate)
+      ? { date: sourceDate, reason: "date_only_legacy_mapping" }
+      : { date: null, reason: "date_only_not_a_trading_session" };
+  }
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(timestamp));
+  const part = (name) => Number(parts.find((item) => item.type === name)?.value ?? NaN);
+  const minuteOfDay = part("hour") * 60 + part("minute");
+  const beforeOpenSameDay = minuteOfDay < 9 * 60 && sessions.includes(sourceDate);
+  // Daily bars cannot isolate an announcement published after the market opens.
+  // Use the next full trading session to avoid attributing pre-publication moves.
+  const eligible = sessions.find((date) => date > sourceDate || (date === sourceDate && beforeOpenSameDay));
+  return {
+    date: eligible ?? null,
+    reason: eligible === sourceDate ? "before_open_same_session" : "next_full_session_daily_data",
+  };
+}
+
+// Quant Edge H1: event reaction study. Consensus history is not available here, so this route
+// deliberately reports observed reaction and drift, never a surprise score or probability.
+router.get("/research/event-reaction", handle(async (req, res) => {
+  const symbol = canonicalSymbol(req.query.symbol);
+  const eventTimestamp = typeof req.query.eventTimestamp === "string" ? req.query.eventTimestamp : null;
+  const timestampMs = eventTimestamp ? Date.parse(eventTimestamp) : null;
+  if (eventTimestamp && (!Number.isFinite(timestampMs) || timestampMs > Date.now())) {
+    throw new ValidationError("eventTimestamp phải là thời điểm hợp lệ, không ở tương lai.");
+  }
+  const eventDate = eventTimestamp ? vnDate(new Date(timestampMs)) : String(req.query.eventDate ?? "");
+  const eventTimeSource = req.query.eventTimeSource === "gateway_first_seen" ? "gateway_first_seen" : eventTimestamp ? "publisher_timestamp" : "date_only_legacy";
+  const eventLabel = String(req.query.eventLabel ?? "").trim().slice(0, 100);
+  if (!isValidSymbol(symbol)) throw new ValidationError("Mã chứng khoán không hợp lệ.");
+  const eventTime = Date.parse(`${eventDate}T00:00:00.000Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || !Number.isFinite(eventTime) || new Date(eventTime).toISOString().slice(0, 10) !== eventDate) {
+    throw new ValidationError("eventDate phải là ngày hợp lệ dạng YYYY-MM-DD.");
+  }
+  if (eventDate > vnDate(new Date())) throw new ValidationError("Ngày sự kiện không được ở tương lai.");
+  if (!eventLabel) throw new ValidationError("Nhập tên/loại sự kiện để lưu ngữ cảnh nghiên cứu.");
+
+  const key = `qe:event-reaction:${symbol}:${eventTimestamp ?? eventDate}:${eventTimeSource}:${eventLabel}`;
+  const result = await service().cache.wrap(key, 5 * 60_000, async () => {
+    const rt = getMarketRuntime();
+    const from = shiftDate(eventDate, -90), to = [shiftDate(eventDate, 60), vnDate(new Date())].sort()[0];
+    const [stock, index] = await Promise.all([
+      service().getOhlcv({ symbol, from, to, adjusted: true }),
+      service().getOhlcv({ symbol: "VNINDEX", from, to }),
+    ]);
+    const mappedSession = resolveDailyEventSession(timestampMs, eventDate, stock.bars);
+    if (!mappedSession.date) throw new ValidationError("Không tìm thấy phiên giao dịch đầy đủ sau thời điểm tin trong dữ liệu giá.");
+    const [tick] = await Promise.all([
+      loadTickFlows({ store: rt.store, hub: null, symbol, from: mappedSession.date, to: mappedSession.date }),
+    ]);
+    return buildEventReactionStudy({
+      symbol, eventDate: mappedSession.date, eventLabel, stockBars: stock.bars, benchmarkBars: index.bars,
+      eventTimestamp: eventTimestamp ? new Date(timestampMs).toISOString() : null,
+      eventTimeSource, sourceEventDate: eventDate, timeMappingReason: mappedSession.reason,
+      tickFlow: tick.history.get(mappedSession.date) ?? null,
+      source: stock.provenance?.source ?? null, priceBasis: stock.priceBasis ?? null,
+      fallbackReason: stock.provenance?.fallbackReason ?? null,
+    });
+  });
+  res.set("Cache-Control", "private, max-age=60");
+  res.json(result);
+}));
+
+// Quant Edge H2: mô tả độ bền leadership theo regime trên dữ liệu daily đã lưu.
+// Tập mã và ngành hiện tại được dùng xuyên lịch sử; payload luôn công bố giới hạn này.
+router.get("/research/leadership", handle(async (req, res) => {
+  const lookback = Math.min(126, Math.max(20, Number(req.query.lookback) || 63));
+  const horizon = Math.min(60, Math.max(5, Number(req.query.horizon) || 20));
+  const key = `qe:leadership:${lookback}:${horizon}`;
+  const result = await service().cache.wrap(key, 10 * 60_000, async () => {
+    const rt = getMarketRuntime();
+    const index = await service().getOhlcv({ symbol: "VNINDEX", range: "2y", limit: 600 });
+    const bars = index.bars.filter((b) => !b.partial);
+    if (bars.length <= horizon) return { status: "insufficient_data", reason: "Chưa đủ lịch sử VN-Index cho horizon yêu cầu." };
+    const from = bars[Math.max(0, bars.length - lookback - horizon - 5)].date;
+    const to = bars.at(-1).date;
+    const universeResult = await service().getUniverse();
+    const symbols = universeResult.tickers.map((x) => String(x.ticker).toUpperCase());
+    const [marketRows, regimeRows] = await Promise.all([
+      rt.store.getMarketDailyRange({ from, to, symbols }),
+      rt.store.selectRows("market_regime_daily", { gte: { trading_date: from }, lte: { trading_date: to }, order: "trading_date.asc" }),
+    ]);
+    const universe = universeResult.tickers ?? [];
+    const allowed = new Set(universe.map((x) => String(x.ticker).toUpperCase()));
+    const filtered = marketRows.filter((x) => allowed.has(String(x.symbol).toUpperCase()));
+    const analysis = buildLeadershipStudy({ marketRows: filtered, universe, indexBars: bars, regimeRows, lookback, horizon });
+    return { ...analysis, meta: { ...analysis.meta, universeSource: universeResult.provenance?.source ?? null, priceSource: index.provenance?.source ?? null } };
+  });
+  res.set("Cache-Control", "private, max-age=300");
+  res.json(result);
+}));
+
 router.get("/status", handle(async (req, res) => {
   const rt = getMarketRuntime();
   res.set("Cache-Control", "no-store");
-  res.json({ ...(await rt.service.status()), ingestor: { enabled: rt.started, jobs: rt.scheduler.status() }, tickRecorder: rt.tickRecorder.status() });
+  res.json({ ...(await rt.service.status()), ingestor: { enabled: rt.started, jobs: rt.scheduler.status() }, tickRecorder: rt.tickRecorder.status(), eventRadar: rt.eventRadar.status() });
 }));
 
 router.get("/quotes", handle(async (req, res) => {
@@ -428,6 +534,35 @@ router.get("/news", handle(async (req, res) => {
   const key = `news:${days}:${[...tickers].sort().join(",")}`;
   const data = await rt.service.cache.wrap(key, 3 * 60_000, () => getNewsForTickers(rt.service, tickers, { days }));
   res.set("Cache-Control", "private, max-age=120");
+  res.json(data);
+}));
+
+// Event Radar: event-ledger snapshot, source health and explicit coverage limits.
+router.get("/event-radar", handle(async (req, res) => {
+  const ticker = req.query.ticker ? canonicalSymbol(req.query.ticker) : null;
+  if (ticker && !isValidSymbol(ticker)) throw new ValidationError("Mã lọc sự kiện không hợp lệ.");
+  const limit = Math.min(250, Math.max(1, Number(req.query.limit) || 100));
+  const status = typeof req.query.status === "string" ? req.query.status.slice(0, 60) : null;
+  const category = typeof req.query.category === "string" ? req.query.category.slice(0, 60) : null;
+  const data = await getMarketRuntime().eventRadar.list({ ticker, status, category, limit });
+  res.set("Cache-Control", "private, max-age=30");
+  res.json(data);
+}));
+
+router.post("/event-radar/refresh", handle(async (req, res) => {
+  await verifyUser(req.headers.authorization);
+  const result = await getMarketRuntime().eventRadar.refreshNow();
+  res.set("Cache-Control", "no-store");
+  res.json(result);
+}));
+
+router.get("/event-radar/:eventId", handle(async (req, res) => {
+  if (!/^evt_[a-f0-9]{24}$/.test(req.params.eventId)) throw new ValidationError("Mã sự kiện không hợp lệ.");
+  const limit = Math.min(500, Math.max(1, Number(req.query.revisionLimit) || 200));
+  const before = typeof req.query.before === "string" ? req.query.before.slice(0, 180) : null;
+  const data = await getMarketRuntime().eventRadar.getEvent(req.params.eventId, { limit, before });
+  if (!data) { res.status(404).json({ error: "Không tìm thấy sự kiện." }); return; }
+  res.set("Cache-Control", "private, max-age=30");
   res.json(data);
 }));
 

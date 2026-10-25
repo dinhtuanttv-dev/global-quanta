@@ -65,6 +65,8 @@ export async function fetchVndirectNews(tickers, { fetchImpl = globalThis.fetch,
         publishedAt: toIso(n.newsDate),
         source: official ? "DISCLOSURE" : "VNDIRECT_NEWS",
         sourceLabel: official ? `Công bố ${n.newsSource ?? ""}`.trim() : (n.newsSource ? String(n.newsSource) : "VNDirect"),
+        sourceAuthority: "aggregator_tag",
+        usageTermsStatus: "review_required",
         tickers: String(n.tagCodes ?? "").split(",").map((t) => t.trim()).filter(Boolean),
       });
     }
@@ -88,6 +90,8 @@ export function parseRss(xml, feed) {
       publishedAt: toIso(stripHtml(pick("pubDate"))),
       source: feed.id,
       sourceLabel: feed.label,
+      sourceAuthority: feed.authority ?? null,
+      usageTermsStatus: feed.usageTermsStatus ?? "review_required",
       tickers: [],
     });
   }

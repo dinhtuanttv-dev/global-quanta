@@ -21,6 +21,8 @@ import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
 import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
 import TradingMatrixPanel from "./TradingMatrix/TradingMatrixPanel";
+import QuantEdgeLab from "./QuantEdgeLab";
+
 
 const COLUMN_COUNT = 9;
 
@@ -395,6 +397,7 @@ export default function SieuQuetAiTab() {
       </section>
 
       {/* SỰ KIỆN + NGUỒN DỮ LIỆU (chuyển từ cột trái cũ) */}
+      {researchUiOn && <QuantEdgeLab defaultTicker={selectedTicker} />}
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="xl:col-span-2"><EventPanel /></div>
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3 h-fit">
