@@ -21,6 +21,11 @@ import { addDays } from "../util.js";
 
 export const ADJUSTED_TABLE = "market_adjusted_series";
 const RECHECK_MS = 2 * 60 * 60_000;
+/**
+ * MV0 (25/10/2026): mốc "đã hỏi nguồn tới ngày X" theo mã — KV chỉ ở Railway Volume. Mã niêm yết sau ngày yêu cầu (hoặc nguồn
+ * không có dữ liệu sớm hơn) trước đây KHÔNG BAO GIỜ được coi là phủ đủ -> mỗi lần gọi lại tải đầy đủ, đốt ngân sách 40 lượt/giờ.
+ */
+export const requestedFromKv = (symbol) => `local:adjhist:requested-from:${symbol}`;
 const TAIL_DAYS = 7;
 
 /** Bước giá HOSE theo vùng giá (HNX/UPCoM: 100đ). */
@@ -115,7 +120,8 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
 
     const [row] = await store.selectRows(ADJUSTED_TABLE, { eq: { symbol }, limit: 1 });
     const stored = row ? (row.bars ?? []).map(fromTuple) : [];
-    const coversStart = row && String(row.from_date).slice(0, 10) <= addDays(wantedFrom, 10);
+    const askedFrom = row ? (await store.getKv(requestedFromKv(symbol)).catch(() => null))?.value ?? null : null;
+    const coversStart = row && (String(row.from_date).slice(0, 10) <= addDays(wantedFrom, 10) || (askedFrom && askedFrom <= wantedFrom));
     const fresh = row && row.checked_at && t - Date.parse(row.checked_at) < RECHECK_MS;
     const upToDate = row && String(row.to_date).slice(0, 10) >= expectedLast;
 
@@ -141,7 +147,12 @@ export function createAdjustedHistory({ service, store, now = Date.now, fullRefe
       source = full.source;
       refresh = "FULL";
     }
-    const keep = rows.filter((b) => b.date >= addDays(wantedFrom, -10));
+    // MV0: KHÔNG cắt lịch sử đã lưu theo yêu cầu hiện tại. Trước đây yêu cầu 5 năm (nhánh APPEND) cắt mất phần cũ mà yêu cầu 10 năm
+    // vừa tải -> yêu cầu 10 năm kế tiếp lại tải đầy đủ (ping-pong), cạn 40 lượt/giờ dùng chung. Giữ tối đa 10 năm + 30 ngày.
+    const floor = addDays(vnDate(new Date(t)), -Math.round(10 * 365.25) - 30);
+    const keepFrom = refresh === "FULL" ? addDays(wantedFrom, -10) : [addDays(wantedFrom, -10), stored[0]?.date ?? wantedFrom].sort()[0];
+    const keep = rows.filter((b) => b.date >= (keepFrom > floor ? keepFrom : floor));
+    if (refresh === "FULL" && (!askedFrom || wantedFrom < askedFrom)) await store.setKv(requestedFromKv(symbol), wantedFrom).catch(() => {});
     await store.upsertRows(ADJUSTED_TABLE, [{
       symbol, from_date: keep[0].date, to_date: keep.at(-1).date, source, bars: keep.map(toTuple),
       checked_at: new Date(t).toISOString(), updated_at: new Date(t).toISOString(),
