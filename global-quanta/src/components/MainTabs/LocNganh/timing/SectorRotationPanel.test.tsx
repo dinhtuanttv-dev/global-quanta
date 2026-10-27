@@ -36,6 +36,14 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     expect(screen.getByTestId(`rrg4d-sector-${sector.code}`)).toBeTruthy();
     expect(screen.getByTestId("rrg4d-projection").textContent).toContain("ít tương quan tuyến tính");
     expect(screen.getByTestId("rrg4d-data-table")).toBeTruthy();
+    expect(screen.getByTestId("rrg4d-quadrant-summary").textContent).toContain("Dẫn dắt");
+    expect(screen.getByTestId("rrg4d-quadrant-summary").textContent).toContain("Cải thiện");
+    expect(screen.getByTestId("rrg4d-quadrant-summary").textContent).toContain("Suy yếu");
+    expect(screen.getByTestId("rrg4d-quadrant-summary").textContent).toContain("Tụt hậu");
+    const quadrantCard = screen.getByTestId(`rrg4d-quadrant-${sector.quadrant.toLowerCase()}`);
+    fireEvent.click(quadrantCard);
+    expect(screen.getByTestId("rrg4d-data-table").querySelectorAll("tbody tr")).toHaveLength(1);
+    fireEvent.click(quadrantCard);
     fireEvent.click(screen.getByTestId(`rrg4d-sector-${sector.code}`));
     expect(selected).toEqual([sector.code]);
   });
@@ -56,6 +64,7 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     render(<RRG4DProjection sectors={[sector]} />);
     expect(screen.getByTestId("rrg4d-frame-date").textContent).toBe("2026-10-23");
     expect(screen.getByTestId("rrg4d-playback").textContent).toContain("2/2 tuần đã đóng");
+    expect(screen.getByTestId("rrg4d-row-" + sector.code).textContent).toContain("Dẫn dắt");
     fireEvent.click(screen.getByTestId("rrg4d-playback").querySelector('button[aria-label="Lùi một tuần"]')!);
     expect(screen.getByTestId("rrg4d-frame-date").textContent).toBe("2026-10-16");
     expect(screen.getByTestId(`rrg4d-sector-${sector.code}`).getAttribute("aria-label")).toContain("tuần 2026-10-16");
