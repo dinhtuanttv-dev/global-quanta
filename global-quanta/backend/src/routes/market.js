@@ -325,7 +325,7 @@ async function sectorDoc(rt, key) {
   let doc = (await rt.store.getKv(key))?.value ?? null;
   // Migrate only the summary snapshot; the historical detail KV has a different schema.
   const needs4d = key === SECTOR_RRG_KV && doc?.engine === SECTOR_RRG_ENGINE
-    && (doc.sectors ?? []).some((sector) => !sector.rrg4d?.version);
+    && (doc.sectors ?? []).some((sector) => !sector.rrg4d?.version || !sector.rrg4dTrail?.version);
   if (!doc || needs4d) {
     await rt.service.cache.wrap("sectors:build", 10 * 60_000, () => rt.jobs.buildSectorRotation());
     doc = (await rt.store.getKv(key))?.value ?? null;

@@ -211,6 +211,19 @@ export interface GatewaySectorRrg {
     version: string; asOf: string | null; flowShareZ: number | null; marketCorrelation60: number | null;
     correlationObservations: number; correlationStatus: "ready" | "insufficient_history" | "zero_variance"; method: string;
   };
+  /** Actual weekly-closed observations; the client must not interpolate missing X/Y/Z/W samples. */
+  rrg4dTrail?: {
+    version: string; cadence: "weekly_closed"; historyWeeks: number;
+    compositionBasis: "current_universe_reconstructed";
+    points: {
+      week: string; date: string; ratio: number; momentum: number; quadrant: Quadrant;
+      flowShareZ: number | null; flowShareObservations: number;
+      flowShareStatus: "ready" | "insufficient_history" | "zero_variance" | "missing_share";
+      marketCorrelation60: number | null; correlationObservations: number;
+      correlationStatus: "ready" | "insufficient_history" | "zero_variance";
+      quality: "complete" | "partial";
+    }[];
+  };
   transitions: number; weeksSinceImproving: number | null; historyWeeks: number; from: string;
   flow?: SectorFlow; state?: { key: SectorStateKey; label: string; why: string[] };
 }

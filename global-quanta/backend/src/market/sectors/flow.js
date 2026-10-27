@@ -17,6 +17,46 @@ export const FLOW_PARAMS = Object.freeze({ share: 20, shareBase: 60, shareHist: 
 const round = (x, nd = 4) => (Number.isFinite(x) ? Math.round(x * 10 ** nd) / 10 ** nd : null);
 const valOf = (b) => (Number(b.value) > 0 ? Number(b.value) : b.close * (b.volume ?? 0));
 
+function shareZAt(shareDaily, end, p) {
+  const avgShare = (at, n) => {
+    const xs = shareDaily.slice(Math.max(0, at - n + 1), at + 1).filter(Number.isFinite);
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN;
+  };
+  const current = avgShare(end, p.share);
+  const history = [];
+  for (let at = Math.max(p.share, end - p.shareHist); at <= end; at += 5) history.push(avgShare(at, p.share));
+  const valid = history.filter(Number.isFinite);
+  const mean = valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : NaN;
+  const deviation = sd(valid);
+  const status = !Number.isFinite(current) ? "missing_share"
+    : valid.length < 30 ? "insufficient_history"
+      : !(deviation > 0) ? "zero_variance" : "ready";
+  return { value: status === "ready" ? round((current - mean) / deviation, 2) : null, observations: valid.length, status };
+}
+
+/** Point-in-time 250-session share z-score for weekly snapshots; never reads bars after each date. */
+export function sectorShareZHistory({ members, dates, totals, snapshotDates, p = FLOW_PARAMS }) {
+  const byDate = members.map((member) => new Map(member.bars.map((bar) => [bar.date, bar])));
+  const shareDaily = dates.map((date) => {
+    const total = totals.get(date) ?? 0;
+    if (!(total > 0)) return NaN;
+    let sectorValue = 0;
+    for (const bars of byDate) {
+      const bar = bars.get(date);
+      if (bar) sectorValue += valOf(bar);
+    }
+    return sectorValue / total;
+  });
+
+  let end = -1;
+  return snapshotDates.map((requestedDate) => {
+    while (end + 1 < dates.length && dates[end + 1] <= requestedDate) end++;
+    if (end < 0) return { date: requestedDate, value: null, observations: 0, status: "missing_share" };
+    const result = shareZAt(shareDaily, end, p);
+    return { date: dates[end], ...result };
+  });
+}
+
 /** Tổng GTGD universe theo ngày. */
 export function totalValueByDate(seriesOf) {
   const m = new Map();

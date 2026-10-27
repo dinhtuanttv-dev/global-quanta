@@ -40,6 +40,27 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     expect(selected).toEqual([sector.code]);
   });
 
+  it("quỹ đạo 4D phát lại đúng tuần dữ liệu, đồng bộ chi tiết và bảng theo thanh thời gian", () => {
+    const source = rrg.sectors.find((s) => s.level === 2)!;
+    const sector = { ...source, rrg4d: {
+      version: "sector-rrg-4d/v1", asOf: "2026-10-23", flowShareZ: 0.8, marketCorrelation60: 0.35,
+      correlationObservations: 60, correlationStatus: "ready" as const, method: "fixture",
+    }, rrg4dTrail: {
+      version: "sector-rrg-4d-trail/v1", cadence: "weekly_closed" as const, historyWeeks: 2,
+      compositionBasis: "current_universe_reconstructed" as const,
+      points: [
+        { week: "2026-10-16", date: "2026-10-16", ratio: 99.4, momentum: 100.2, quadrant: "IMPROVING" as const, flowShareZ: -0.4, flowShareObservations: 50, flowShareStatus: "ready" as const, marketCorrelation60: -0.2, correlationObservations: 60, correlationStatus: "ready" as const, quality: "complete" as const },
+        { week: "2026-10-23", date: "2026-10-23", ratio: 100.6, momentum: 101.1, quadrant: "LEADING" as const, flowShareZ: 0.8, flowShareObservations: 51, flowShareStatus: "ready" as const, marketCorrelation60: 0.35, correlationObservations: 60, correlationStatus: "ready" as const, quality: "complete" as const },
+      ],
+    } };
+    render(<RRG4DProjection sectors={[sector]} />);
+    expect(screen.getByTestId("rrg4d-frame-date").textContent).toBe("2026-10-23");
+    expect(screen.getByTestId("rrg4d-playback").textContent).toContain("2/2 tuần đã đóng");
+    fireEvent.click(screen.getByTestId("rrg4d-playback").querySelector('button[aria-label="Lùi một tuần"]')!);
+    expect(screen.getByTestId("rrg4d-frame-date").textContent).toBe("2026-10-16");
+    expect(screen.getByTestId(`rrg4d-sector-${sector.code}`).getAttribute("aria-label")).toContain("tuần 2026-10-16");
+  });
+
   it("không tạo điểm 4D giả khi thiếu snapshot hoặc sample correlation", () => {
     const sector = rrg.sectors.find((s) => s.level === 2)!;
     render(<RRG4DProjection sectors={[sector]} />);

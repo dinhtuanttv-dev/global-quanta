@@ -6,16 +6,17 @@
 import { isPartialWeek } from "../strategies/patternScan.js";
 import { buildSectorIndex, computeRrg, INDEX_PARAMS, quadrantTransitions, RRG_PARAMS, weeklyCloses } from "./rrg.js";
 import { SECTOR_VALIDATION } from "./validation.js";
-import { rotationMatrix, rsPercentiles, sectorFlow, sectorState, totalValueByDate } from "./flow.js";
+import { rotationMatrix, rsPercentiles, sectorFlow, sectorShareZHistory, sectorState, totalValueByDate } from "./flow.js";
 
 export const SECTOR_RRG_ENGINE = "sector-rrg/L5";
 export const SECTOR_RRG_KV = "sectors:rrg";
 export const SECTOR_RRG_HISTORY_KV = "sectors:rrg:history";
 
 /** Pearson correlation of aligned daily returns; null until there are enough paired observations. */
-export function rollingMarketCorrelation(indexSeries, benchmarkBars, { lookback = 60, minObservations = 30 } = {}) {
-  const benchmarkByDate = new Map((benchmarkBars ?? []).map((bar) => [bar.date, Number(bar.close)]));
-  const indexByDate = new Map((indexSeries ?? []).map((bar) => [bar.date, Number(bar.close)]));
+export function rollingMarketCorrelation(indexSeries, benchmarkBars, { lookback = 60, minObservations = 30, asOf = null } = {}) {
+  const withinCutoff = (bar) => !asOf || bar.date <= asOf;
+  const benchmarkByDate = new Map((benchmarkBars ?? []).filter(withinCutoff).map((bar) => [bar.date, Number(bar.close)]));
+  const indexByDate = new Map((indexSeries ?? []).filter(withinCutoff).map((bar) => [bar.date, Number(bar.close)]));
   const dates = [...benchmarkByDate.keys()].sort();
   const sectorReturns = [], benchmarkReturns = [];
   for (let i = 1; i < dates.length; i++) {
@@ -74,7 +75,23 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
       const lastInto = (q) => [...tr].reverse().find((x) => x.to === q) ?? null;
       const w = idx.rebalances.at(-1)?.weights ?? {};
       const flow = sectorFlow({ members, index: idx.series, dates, totals, rs, tagsOf });
-      const marketCorrelation = rollingMarketCorrelation(idx.series, benchBars);
+      const closedRrg = rrg.filter((point) => !closedThrough || point.week <= closedThrough);
+      const trailRrg = closedRrg.slice(-26);
+      const shareZByDate = new Map(sectorShareZHistory({
+        members, dates, totals, snapshotDates: trailRrg.map((point) => point.date),
+      }).map((point) => [point.date, point]));
+      const rrg4dTrailPoints = trailRrg.map((point) => {
+        const shareZ = shareZByDate.get(point.date);
+        const correlation = rollingMarketCorrelation(idx.series, benchBars, { asOf: point.date });
+        const complete = shareZ?.status === "ready" && correlation.status === "ready";
+        return {
+          week: point.week, date: point.date, ratio: point.ratio, momentum: point.momentum, quadrant: point.quadrant,
+          flowShareZ: shareZ?.value ?? null, flowShareObservations: shareZ?.observations ?? 0, flowShareStatus: shareZ?.status ?? "missing_share",
+          marketCorrelation60: correlation.value, correlationObservations: correlation.observations, correlationStatus: correlation.status,
+          quality: complete ? "complete" : "partial",
+        };
+      });
+      const latest4d = rrg4dTrailPoints.at(-1) ?? null;
       sectors.push({
         code: it.code, level, name: it.name, en: it.en, parent: it.parent, universeMembers: members.length, indexMembers: idx.series.at(-1)?.n ?? 0,
         thin: (idx.series.at(-1)?.n ?? 0) < INDEX_PARAMS.thinBelow,
@@ -85,16 +102,19 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
         weeksSinceImproving: lastInto("IMPROVING") ? rrg.filter((r) => r.week > lastInto("IMPROVING").week && (!closedThrough || r.week <= closedThrough)).length : null,
         historyWeeks: rrg.length, from: idx.series[0].date,
         flow, state: sectorState(flow, lastClosed.quadrant),
-        // 4D research extension: canonical RRG axes + observed turnover-share anomaly + actual market correlation.
-        // `flow.share.z` is the existing point-in-time z-score of sector traded-value share, not synthetic volume.
+        // Every trail point is computed as-of the same closed week as its RRG coordinates.
         rrg4d: {
           version: "sector-rrg-4d/v1",
-          asOf: lastDate,
-          flowShareZ: Number.isFinite(flow?.share?.z) ? flow.share.z : null,
-          marketCorrelation60: marketCorrelation.value,
-          correlationObservations: marketCorrelation.observations,
-          correlationStatus: marketCorrelation.status,
+          asOf: latest4d?.date ?? null,
+          flowShareZ: latest4d?.flowShareZ ?? null,
+          marketCorrelation60: latest4d?.marketCorrelation60 ?? null,
+          correlationObservations: latest4d?.correlationObservations ?? 0,
+          correlationStatus: latest4d?.correlationStatus ?? "insufficient_history",
           method: "x/y=weekly JdK RS-Ratio/RS-Momentum; z=250-session z-score of traded-value share; color=Pearson correlation of daily sector/VNINDEX returns over up to 60 paired sessions",
+        },
+        rrg4dTrail: {
+          version: "sector-rrg-4d-trail/v1", cadence: "weekly_closed", historyWeeks: rrg4dTrailPoints.length,
+          compositionBasis: "current_universe_reconstructed", points: rrg4dTrailPoints,
         },
       });
       history[it.code] = { code: it.code, level, name: it.name, rrg, transitions: tr, index: idx.series.map((b) => [b.date, b.close, b.n]), rebalances: idx.rebalances.slice(-3) };

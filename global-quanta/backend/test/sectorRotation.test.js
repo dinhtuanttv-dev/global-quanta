@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { buildIcbTaxonomy } from "../src/market/sectors/icbTaxonomy.js";
 import { buildSectorIndex, computeRrg, hysteresisQuadrant, quadrantTransitions, rawQuadrant, weeklyCloses } from "../src/market/sectors/rrg.js";
 import { buildSectorRotation, rollingMarketCorrelation } from "../src/market/sectors/sectorRotation.js";
+import { sectorShareZHistory, totalValueByDate } from "../src/market/sectors/flow.js";
 
 // lịch phiên: thứ Hai–thứ Sáu từ 2022-01-03
 const DATES = (() => { const out = []; const d = new Date(Date.UTC(2022, 0, 3)); while (out.length < 900) { const w = d.getUTCDay(); if (w >= 1 && w <= 5) out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } return out; })();
@@ -43,6 +44,11 @@ test("RRG 4D: market correlation uses aligned daily returns and reports coverage
   const missing = aligned.filter((_, i) => i !== 20);
   const noBridge = rollingMarketCorrelation(missing, benchmark, { lookback: 60, minObservations: 30 });
   assert.equal(noBridge.observations, 43, "missing sector index rows must not be bridged into multi-session returns");
+
+  const cutoff = DATES[35];
+  const asOf = rollingMarketCorrelation(aligned, benchmark, { asOf: cutoff });
+  const prefixOnly = rollingMarketCorrelation(aligned.filter((bar) => bar.date <= cutoff), benchmark.filter((bar) => bar.date <= cutoff));
+  assert.deepEqual(asOf, prefixOnly, "future benchmark and sector rows cannot change an earlier weekly W coordinate");
 });
 
 test("ICB VNDirect: mã -> cấp 1/2/3, đệm mã 4 chữ số, điền cấp cha còn thiếu", () => {
@@ -112,7 +118,30 @@ test("dựng toàn bộ: mọi ngành đủ ≥ 3 mã có RRG, mã chưa phân n
   assert.deepEqual(summary.coverage.unclassified, ["XXX"]);
   const s = summary.sectors[0];
   assert.ok(s.tail.length === 12 && s.latest.ratio && s.quadrant);
+  assert.equal(s.rrg4d.asOf, s.latestClosed.date, "all four coordinates share the same closed-week date");
+  assert.ok(s.rrg4dTrail.points.length <= 26);
+  assert.ok(s.rrg4dTrail.points.length > 1);
+  assert.equal(s.rrg4dTrail.points.at(-1).week, s.latestClosed.week);
+  assert.equal(s.rrg4dTrail.points.at(-1).date, s.latestClosed.date);
+  assert.ok(s.rrg4dTrail.points.every((point) => point.week <= summary.closedThrough));
+  assert.ok(s.rrg4dTrail.points.some((point) => point.quality === "complete"));
   assert.ok(history.sectors["8300"].index.length > 500);
   if (summary.partialWeek) for (const t of history.sectors["8300"].transitions) assert.ok(t.week <= summary.closedThrough);
   assert.ok(summary.sectors[0].quadrant !== summary.sectors[1].quadrant || true);
+});
+
+test("weekly market-share Z trajectory is point-in-time and matches requested observation dates", () => {
+  const members = ["A", "B", "C"].map((ticker, k) => ({ ticker, bars: bars((i) => 80 + i * (k + 1) * 0.02) }));
+  // Give each member a stable but distinct turnover weight while retaining real daily values.
+  members.forEach((member, k) => { member.bars = member.bars.map((bar) => ({ ...bar, value: (k + 1) * (1e9 + (bar.date.charCodeAt(9) % 7) * 1e6) })); });
+  const totals = totalValueByDate(new Map(members.map((member) => [member.ticker, member.bars])));
+  const cutoffIndex = 600;
+  const cutoffDate = DATES[cutoffIndex];
+  const baseline = sectorShareZHistory({ members, dates: DATES, totals, snapshotDates: [cutoffDate] })[0];
+  assert.equal(baseline.date, cutoffDate);
+
+  const mutatedMembers = members.map((member) => ({ ...member, bars: member.bars.map((bar, i) => i > cutoffIndex ? { ...bar, value: bar.value * 50 } : bar) }));
+  const mutatedTotals = totalValueByDate(new Map(mutatedMembers.map((member) => [member.ticker, member.bars])));
+  const afterMutation = sectorShareZHistory({ members: mutatedMembers, dates: DATES, totals: mutatedTotals, snapshotDates: [cutoffDate] })[0];
+  assert.deepEqual(afterMutation, baseline, "later turnover cannot leak into historical Z snapshots");
 });

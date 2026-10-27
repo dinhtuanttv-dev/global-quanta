@@ -21,7 +21,10 @@ const correlationColor = (value: number) => {
 
 type Rotation = { yaw: number; pitch: number; zoom: number };
 type Point3 = { x: number; y: number; z: number };
-type ProjectedPoint = { sector: GatewaySectorRrg; x: number; y: number; depth: number; color: string };
+type TrailPoint = NonNullable<GatewaySectorRrg["rrg4dTrail"]>["points"][number];
+type RRG4DPoint = Pick<TrailPoint, "week" | "date" | "ratio" | "momentum" | "quadrant" | "flowShareZ" | "marketCorrelation60" | "correlationObservations">;
+type ProjectedPoint = { sector: GatewaySectorRrg; snapshot: RRG4DPoint; x: number; y: number; depth: number; color: string };
+type ProjectedTrack = { sector: GatewaySectorRrg; points: ProjectedPoint[] };
 type DragState = { x: number; y: number; moved: boolean };
 
 function project(point: Point3, rotation: Rotation): { x: number; y: number; depth: number } {
@@ -43,6 +46,9 @@ function project(point: Point3, rotation: Rotation): { x: number; y: number; dep
 export default function RRG4DProjection({ sectors, selectedSector, onSelectSector }: Props) {
   const [rotation, setRotation] = useState<Rotation>({ yaw: 0.62, pitch: -0.38, zoom: 1 });
   const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const [trailWeeks, setTrailWeeks] = useState<8 | 13 | 26>(13);
+  const [playbackIndex, setPlaybackIndex] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
 
@@ -54,18 +60,58 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
     && Number.isFinite(s.latestClosed.momentum)
   ), [sectors]);
 
-  const domain = useMemo(() => Math.max(1.5, ...eligible.flatMap((s) => [
-    Math.abs(s.latestClosed.ratio - 100), Math.abs(s.latestClosed.momentum - 100),
-  ])), [eligible]);
+  const allWeeks = useMemo(() => [...new Set(eligible.flatMap((sector) =>
+    (sector.rrg4dTrail?.points ?? []).filter((point) => point.quality === "complete").map((point) => point.week),
+  ))].sort(), [eligible]);
+  const activeWeeks = useMemo(() => allWeeks.slice(-trailWeeks), [allWeeks, trailWeeks]);
+  const latestIndex = Math.max(0, activeWeeks.length - 1);
+  const frameIndex = playbackIndex == null ? latestIndex : clamp(playbackIndex, 0, latestIndex);
+  const frameWeek = activeWeeks[frameIndex] ?? null;
+  const frameDate = frameWeek
+    ? eligible.flatMap((sector) => sector.rrg4dTrail?.points ?? []).find((point) => point.week === frameWeek)?.date ?? frameWeek
+    : eligible[0]?.rrg4d?.asOf ?? null;
 
-  const points = useMemo<ProjectedPoint[]>(() => eligible.map((sector) => {
-    const p = project({
-      x: (sector.latestClosed.ratio - 100) / domain,
-      y: (sector.latestClosed.momentum - 100) / domain,
-      z: clamp(sector.rrg4d!.flowShareZ! / 3, -1, 1),
-    }, rotation);
-    return { sector, ...p, color: correlationColor(sector.rrg4d!.marketCorrelation60!) };
-  }), [eligible, domain, rotation]);
+  const domain = useMemo(() => Math.max(1.5, ...eligible.flatMap((sector) => {
+    const trail = sector.rrg4dTrail?.points ?? [];
+    return trail.flatMap((point) => [Math.abs(point.ratio - 100), Math.abs(point.momentum - 100)]);
+  })), [eligible]);
+
+  const tracks = useMemo<ProjectedTrack[]>(() => eligible.flatMap((sector) => {
+    const history = sector.rrg4dTrail?.points ?? [];
+    let snapshots: RRG4DPoint[];
+    if (frameWeek) {
+      const end = history.find((point) => point.week === frameWeek && point.quality === "complete");
+      if (!end) return [];
+      snapshots = history.filter((point) => point.week <= frameWeek && point.quality === "complete").slice(-trailWeeks);
+    } else if (sector.rrg4d?.correlationStatus === "ready" && sector.rrg4d.flowShareZ != null && sector.rrg4d.marketCorrelation60 != null) {
+      const latestWeek = sector.tail[sector.tail.length - 1]?.week ?? sector.rrg4d.asOf ?? "unknown";
+      snapshots = [{
+        week: latestWeek, date: sector.rrg4d.asOf ?? latestWeek, ratio: sector.latestClosed.ratio,
+        momentum: sector.latestClosed.momentum, quadrant: sector.quadrant, flowShareZ: sector.rrg4d.flowShareZ,
+        marketCorrelation60: sector.rrg4d.marketCorrelation60, correlationObservations: sector.rrg4d.correlationObservations,
+      }];
+    } else return [];
+
+    const points = snapshots.map((snapshot) => {
+      const projected = project({
+        x: (snapshot.ratio - 100) / domain,
+        y: (snapshot.momentum - 100) / domain,
+        z: clamp(snapshot.flowShareZ! / 3, -1, 1),
+      }, rotation);
+      return { sector, snapshot, ...projected, color: correlationColor(snapshot.marketCorrelation60!) };
+    });
+    return points.length ? [{ sector, points }] : [];
+  }), [eligible, frameWeek, trailWeeks, domain, rotation]);
+  const points = useMemo(() => tracks.map((track) => track.points[track.points.length - 1]), [tracks]);
+
+  useEffect(() => {
+    if (!playing || activeWeeks.length < 2) return;
+    const timer = window.setTimeout(() => setPlaybackIndex((index) => Math.min((index ?? 0) + 1, activeWeeks.length - 1)), 850);
+    return () => window.clearTimeout(timer);
+  }, [playing, playbackIndex, activeWeeks.length]);
+  useEffect(() => {
+    if (playing && playbackIndex != null && playbackIndex >= activeWeeks.length - 1) setPlaying(false);
+  }, [playing, playbackIndex, activeWeeks.length]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -128,6 +174,33 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
       ctx.fillText(axis.label, end.x + (end.x >= start.x ? 8 : -8), end.y + (end.y >= start.y ? 16 : -8));
     }
 
+    // Historical movement is made only from complete weekly observations; W colors each segment.
+    for (const track of tracks) {
+      const focus = selectedSector === track.sector.code || hoveredCode === track.sector.code;
+      const count = track.points.length;
+      for (let i = 1; i < count; i++) {
+        const previous = track.points[i - 1], current = track.points[i];
+        const elapsedWeeks = (Date.parse(current.snapshot.week) - Date.parse(previous.snapshot.week)) / (7 * 86_400_000);
+        if (elapsedWeeks !== 1) continue; // Preserve visible breaks; never imply an unobserved path across missing weeks.
+        const age = i / Math.max(1, count - 1);
+        ctx.beginPath(); ctx.moveTo(previous.x, previous.y); ctx.lineTo(current.x, current.y);
+        ctx.strokeStyle = correlationColor((previous.snapshot.marketCorrelation60! + current.snapshot.marketCorrelation60!) / 2);
+        ctx.globalAlpha = focus ? 0.3 + age * 0.65 : 0.07 + age * 0.25;
+        ctx.lineWidth = focus ? 2.8 : 1.15; ctx.stroke(); ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.arc(current.x, current.y, focus ? 3 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = current.color; ctx.globalAlpha = focus ? 0.85 : 0.4; ctx.fill(); ctx.globalAlpha = 1;
+
+        // One directional chevron near the newest end makes time direction obvious without arrow clutter.
+        if (focus && i === count - 1 && count > 1) {
+          const angle = Math.atan2(current.y - previous.y, current.x - previous.x);
+          ctx.beginPath(); ctx.moveTo(current.x, current.y);
+          ctx.lineTo(current.x - 10 * Math.cos(angle - 0.48), current.y - 10 * Math.sin(angle - 0.48));
+          ctx.lineTo(current.x - 10 * Math.cos(angle + 0.48), current.y - 10 * Math.sin(angle + 0.48));
+          ctx.closePath(); ctx.fillStyle = current.color; ctx.fill();
+        }
+      }
+    }
+
     // Points are drawn back-to-front. Size stays fixed so the map encodes exactly X/Y/Z/W.
     for (const point of [...points].sort((a, b) => b.depth - a.depth)) {
       const active = selectedSector === point.sector.code || hoveredCode === point.sector.code;
@@ -142,7 +215,7 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
       ctx.textAlign = "center"; ctx.textBaseline = "top";
       ctx.fillStyle = "#e2e8f0"; ctx.fillText(point.sector.code, point.x, point.y + 10);
     }
-  }, [eligible.length, points, rotation, selectedSector, hoveredCode]);
+  }, [eligible.length, tracks, points, rotation, selectedSector, hoveredCode]);
 
   const canvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -194,6 +267,13 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
 
   const detail = points.find((point) => point.sector.code === (hoveredCode ?? selectedSector)) ?? null;
   const reset = () => { setRotation({ yaw: 0.62, pitch: -0.38, zoom: 1 }); setHoveredCode(null); };
+  const setWindow = (weeks: 8 | 13 | 26) => { setTrailWeeks(weeks); setPlaybackIndex(null); setPlaying(false); };
+  const step = (delta: number) => { setPlaying(false); setPlaybackIndex(clamp(frameIndex + delta, 0, latestIndex)); };
+  const startPlayback = () => {
+    if (activeWeeks.length < 2) return;
+    if (frameIndex >= latestIndex) setPlaybackIndex(0);
+    setPlaying(true);
+  };
 
   return <section data-testid="rrg4d-projection" aria-label="Bản đồ RRG 4D nghiên cứu" style={{ width: "100%" }}>
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "7px 16px", padding: "9px 11px", border: "1px solid var(--bg-surface-2)", borderRadius: 8, marginBottom: 8, fontSize: 10, color: "var(--text-secondary)" }}>
@@ -202,6 +282,25 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
       <span><b style={{ color: "#fbbf24" }}>Z</b> z-score thị phần GTGD</span>
       <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><b>W / màu</b><i aria-hidden="true" style={{ display: "inline-block", width: 82, height: 7, borderRadius: 8, background: `linear-gradient(90deg, ${correlationColor(-1)}, ${correlationColor(0)}, ${correlationColor(1)})` }} />−1 nghịch chiều · 0 ít tương quan tuyến tính · +1 đồng biến mạnh</span>
       <span style={{ marginLeft: "auto", color: "var(--text-tertiary)" }}>{eligible.length}/{sectors.length} ngành đủ mẫu · điểm cùng kích thước</span>
+    </div>
+
+    <div data-testid="rrg4d-playback" style={{ display: "grid", gridTemplateColumns: "auto minmax(150px, 1fr)", alignItems: "center", gap: "8px 12px", padding: "9px 11px", border: "1px solid var(--bg-surface-2)", borderRadius: 8, marginBottom: 8, background: "rgba(15,23,42,.55)", fontSize: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
+        <b style={{ color: "#cbd5e1", marginRight: 3 }}>Quỹ đạo lịch sử</b>
+        {([8, 13, 26] as const).map((weeks) => <button key={weeks} type="button" aria-pressed={trailWeeks === weeks} onClick={() => setWindow(weeks)} style={{ border: `1px solid ${trailWeeks === weeks ? "#38bdf8" : "#334155"}`, borderRadius: 5, padding: "4px 7px", color: trailWeeks === weeks ? "#7dd3fc" : "#94a3b8", background: "transparent", cursor: "pointer", fontSize: 10 }}>{weeks} tuần</button>)}
+        <button type="button" aria-label="Lùi một tuần" disabled={activeWeeks.length < 2 || frameIndex <= 0} onClick={() => step(-1)} style={{ border: "1px solid #334155", borderRadius: 5, padding: "4px 7px", color: "#cbd5e1", background: "transparent", cursor: "pointer", fontSize: 10 }}>◀</button>
+        <button type="button" aria-label={playing ? "Tạm dừng phát lại" : "Phát lại lịch sử"} disabled={activeWeeks.length < 2} onClick={() => playing ? setPlaying(false) : startPlayback()} style={{ border: "1px solid #0e7490", borderRadius: 5, padding: "4px 8px", color: "#a5f3fc", background: "rgba(8,145,178,.12)", cursor: activeWeeks.length < 2 ? "not-allowed" : "pointer", fontSize: 10 }}>{playing ? "Ⅱ Tạm dừng" : "▶ Phát"}</button>
+        <button type="button" aria-label="Tiến một tuần" disabled={activeWeeks.length < 2 || frameIndex >= latestIndex} onClick={() => step(1)} style={{ border: "1px solid #334155", borderRadius: 5, padding: "4px 7px", color: "#cbd5e1", background: "transparent", cursor: "pointer", fontSize: 10 }}>▶</button>
+        <button type="button" onClick={() => { setPlaybackIndex(null); setPlaying(false); }} style={{ border: "1px solid #334155", borderRadius: 5, padding: "4px 7px", color: "#94a3b8", background: "transparent", cursor: "pointer", fontSize: 10 }}>Hiện mới nhất</button>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        <input aria-label="Chọn tuần lịch sử RRG" data-testid="rrg4d-week-slider" type="range" min={0} max={latestIndex} step={1} value={frameIndex} disabled={activeWeeks.length < 2} onChange={(event) => { setPlaying(false); setPlaybackIndex(Number(event.currentTarget.value)); }} style={{ width: "100%", accentColor: "#22d3ee" }} />
+        <b data-testid="rrg4d-frame-date" style={{ minWidth: 78, textAlign: "right", color: "#e2e8f0", fontVariantNumeric: "tabular-nums" }}>{frameDate ?? "Chưa có tuần"}</b>
+      </div>
+      <span role="status" style={{ gridColumn: "1 / -1", color: "var(--text-tertiary)" }}>
+        {activeWeeks.length > 1 ? `${playing ? "Đang phát" : playbackIndex == null ? "Tuần mới nhất" : "Phát lại lịch sử"} · ${frameIndex + 1}/${activeWeeks.length} tuần đã đóng · ${points.length}/${eligible.length} ngành có quan sát đầy đủ` : "Gateway chưa có đủ hai tuần 4D đồng bộ để phát lại; không nội suy hoặc tạo quỹ đạo giả."}
+        {" · "}Độ đậm tăng từ cũ → mới; rê/chọn ngành để xem mũi tên chiều di chuyển. Màu đường/điểm vẫn mã hóa W.
+      </span>
     </div>
 
     <div style={{ position: "relative", width: "100%", overflow: "hidden", border: "1px solid var(--bg-surface-2)", borderRadius: 10, background: "#080d18" }}>
@@ -214,31 +313,32 @@ export default function RRG4DProjection({ sectors, selectedSector, onSelectSecto
       </div>
       <button type="button" onClick={reset} style={{ position: "absolute", right: 10, top: 8, border: "1px solid #334155", borderRadius: 6, color: "#cbd5e1", background: "rgba(5,10,20,.84)", fontSize: 10, padding: "5px 8px", cursor: "pointer" }}>Đặt lại góc nhìn</button>
       {detail && <div aria-live="polite" style={{ position: "absolute", left: 10, bottom: 10, maxWidth: "min(390px, calc(100% - 20px))", padding: "8px 10px", border: "1px solid #334155", borderRadius: 8, background: "rgba(5,10,20,.9)", color: "#e2e8f0", fontSize: 10, pointerEvents: "none" }}>
-        <b style={{ color: detail.color }}>{detail.sector.name}</b> · X {nfmt(detail.sector.latestClosed.ratio - 100)} · Y {nfmt(detail.sector.latestClosed.momentum - 100)} · Z {nfmt(detail.sector.rrg4d!.flowShareZ)} · W ρ {nfmt(detail.sector.rrg4d!.marketCorrelation60)} (n={detail.sector.rrg4d!.correlationObservations})
+        <b style={{ color: detail.color }}>{detail.sector.name}</b> · {detail.snapshot.date} · X {nfmt(detail.snapshot.ratio - 100)} · Y {nfmt(detail.snapshot.momentum - 100)} · Z {nfmt(detail.snapshot.flowShareZ)} · W ρ {nfmt(detail.snapshot.marketCorrelation60)} (n={detail.snapshot.correlationObservations})
       </div>}
     </div>
 
     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "8px 0", fontSize: 10, color: "var(--text-tertiary)" }}>
       <span style={{ color: "#4ade80" }}>● Leading: X&gt;0, Y&gt;0</span><span style={{ color: "#60a5fa" }}>● Improving: X&lt;0, Y&gt;0</span><span style={{ color: "#fbbf24" }}>● Lagging: X&lt;0, Y&lt;0</span><span>● Weakening: X&gt;0, Y&lt;0</span>
-      <span style={{ marginLeft: "auto" }}>Snapshot tuần đã đóng · Z là trục không gian thứ ba · W là màu tương quan 60 phiên với VNINDEX</span>
+      <span style={{ marginLeft: "auto" }}>Snapshot tuần đã đóng · Z là trục không gian thứ ba · W là màu tương quan 60 phiên với VNINDEX · khung {frameDate ?? "hiện tại"}</span>
     </div>
     <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto", border: "1px solid var(--bg-surface-2)", borderRadius: 8 }}>
       <table data-testid="rrg4d-data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, minWidth: 680 }}>
         <caption style={{ textAlign: "left", padding: "7px 9px", color: "var(--text-secondary)", fontWeight: 700 }}>Ngành và tọa độ 4D · chọn dòng để mở phân tích ngành</caption>
         <thead><tr style={{ color: "var(--text-tertiary)", textAlign: "left", position: "sticky", top: 0, background: "var(--bg-surface-1, #0b1220)" }}>
-          <th scope="col" style={{ padding: 6 }}>Mã / ngành</th><th scope="col" style={{ padding: 6 }}>X · RS-Ratio</th><th scope="col" style={{ padding: 6 }}>Y · RS-Momentum</th><th scope="col" style={{ padding: 6 }}>Z · thị phần GTGD</th><th scope="col" style={{ padding: 6 }}>W · ρ VNINDEX</th><th scope="col" style={{ padding: 6 }}>n phiên</th>
+          <th scope="col" style={{ padding: 6 }}>Mã / ngành</th><th scope="col" style={{ padding: 6 }}>Tuần</th><th scope="col" style={{ padding: 6 }}>X · RS-Ratio</th><th scope="col" style={{ padding: 6 }}>Y · RS-Momentum</th><th scope="col" style={{ padding: 6 }}>Z · thị phần GTGD</th><th scope="col" style={{ padding: 6 }}>W · ρ VNINDEX</th><th scope="col" style={{ padding: 6 }}>n phiên</th>
         </tr></thead>
-        <tbody>{eligible.map((sector) => {
+        <tbody>{points.map((point) => {
+          const { sector, snapshot } = point;
           const active = selectedSector === sector.code;
-          const label = `${sector.name}; X RS-Ratio ${nfmt(sector.latestClosed.ratio - 100)}; Y RS-Momentum ${nfmt(sector.latestClosed.momentum - 100)}; Z thị phần GTGD ${nfmt(sector.rrg4d!.flowShareZ)}; W tương quan ${nfmt(sector.rrg4d!.marketCorrelation60)}; n=${sector.rrg4d!.correlationObservations}`;
+          const label = `${sector.name}; tuần ${snapshot.week}; X RS-Ratio ${nfmt(snapshot.ratio - 100)}; Y RS-Momentum ${nfmt(snapshot.momentum - 100)}; Z thị phần GTGD ${nfmt(snapshot.flowShareZ)}; W tương quan ${nfmt(snapshot.marketCorrelation60)}; n=${snapshot.correlationObservations}`;
           return <tr key={sector.code} data-testid={`rrg4d-row-${sector.code}`} style={{ borderTop: "1px solid var(--bg-surface-2)", background: active ? "rgba(56,189,248,.08)" : undefined }}>
-            <th scope="row" style={{ padding: 5, textAlign: "left" }}><button type="button" data-testid={`rrg4d-sector-${sector.code}`} aria-label={label} aria-pressed={onSelectSector ? active : undefined} onMouseEnter={() => setHoveredCode(sector.code)} onMouseLeave={() => setHoveredCode(null)} onClick={() => { setHoveredCode(sector.code); onSelectSector?.(sector.code); }} style={{ border: 0, padding: 0, background: "transparent", color: correlationColor(sector.rrg4d!.marketCorrelation60!), cursor: onSelectSector ? "pointer" : "default", font: "inherit", textAlign: "left" }}>{sector.code} · {sector.name}</button></th>
-            <td style={{ padding: 5 }}>{nfmt(sector.latestClosed.ratio - 100)}</td><td style={{ padding: 5 }}>{nfmt(sector.latestClosed.momentum - 100)}</td><td style={{ padding: 5 }}>{nfmt(sector.rrg4d!.flowShareZ)}</td>
-            <td style={{ padding: 5, color: correlationColor(sector.rrg4d!.marketCorrelation60!) }}>{nfmt(sector.rrg4d!.marketCorrelation60)}</td><td style={{ padding: 5 }}>{sector.rrg4d!.correlationObservations}</td>
+            <th scope="row" style={{ padding: 5, textAlign: "left" }}><button type="button" data-testid={`rrg4d-sector-${sector.code}`} aria-label={label} aria-pressed={onSelectSector ? active : undefined} onMouseEnter={() => setHoveredCode(sector.code)} onMouseLeave={() => setHoveredCode(null)} onClick={() => { setHoveredCode(sector.code); onSelectSector?.(sector.code); }} style={{ border: 0, padding: 0, background: "transparent", color: correlationColor(snapshot.marketCorrelation60!), cursor: onSelectSector ? "pointer" : "default", font: "inherit", textAlign: "left" }}>{sector.code} · {sector.name}</button></th>
+            <td style={{ padding: 5 }}>{snapshot.week}</td><td style={{ padding: 5 }}>{nfmt(snapshot.ratio - 100)}</td><td style={{ padding: 5 }}>{nfmt(snapshot.momentum - 100)}</td><td style={{ padding: 5 }}>{nfmt(snapshot.flowShareZ)}</td>
+            <td style={{ padding: 5, color: correlationColor(snapshot.marketCorrelation60!) }}>{nfmt(snapshot.marketCorrelation60)}</td><td style={{ padding: 5 }}>{snapshot.correlationObservations}</td>
           </tr>;
         })}</tbody>
       </table>
     </div>
-    <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "7px 0 0" }}>Kéo hoặc chạm-kéo để đổi góc nhìn; cuộn để zoom. Màu W mô tả tương quan, không phải độ an toàn hay tín hiệu mua. Ngành thiếu mẫu tương quan không xuất hiện trên đồ thị và được giải thích bằng số lượng ngành đủ mẫu.</p>
+    <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "7px 0 0" }}>Kéo hoặc chạm-kéo để đổi góc nhìn; cuộn để zoom. Quỹ đạo nối các tuần có dữ liệu đồng bộ thực tế, không nội suy. Màu W mô tả tương quan, không phải độ an toàn hay tín hiệu mua. Lịch sử ngành được tái dựng theo universe/phân loại hiện tại; chưa có snapshot thành phần ngành point-in-time, nên không so sánh như một rổ lịch sử bất biến.</p>
   </section>;
 }
