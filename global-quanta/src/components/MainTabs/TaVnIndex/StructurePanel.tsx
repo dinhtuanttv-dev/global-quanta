@@ -344,10 +344,17 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
             ))}
           </ol>
           {doc.stageOdds && (
-            <p className="mt-1 text-[9px] text-slate-400 leading-snug">
-              Khung ngày {STAGE_SHORT[doc.stageOdds.stage]} đã {doc.stageOdds.age} phiên{doc.stageOdds.typical && ` (điển hình ${doc.stageOdds.typical.median}, 75% ≤ ${doc.stageOdds.typical.p75})`}
-              {doc.stageOdds.up != null && <> · P(sang tăng ≤ 10 phiên) <b>{Math.round(doc.stageOdds.up * 100)}%</b> · P(sang giảm) <b>{Math.round((doc.stageOdds.down ?? 0) * 100)}%</b></>} <EvidenceChip label={doc.stageOdds.label} />
-            </p>
+            <div className="mt-1 text-[9px] text-slate-400 leading-snug" data-testid="structure-stage-odds">
+              <p>
+                Xác suất chuyển pha · khung ngày {STAGE_SHORT[doc.stageOdds.stage]} đã {doc.stageOdds.age} phiên{doc.stageOdds.typical && ` (thời lượng điển hình ${doc.stageOdds.typical.median}, 75% ≤ ${doc.stageOdds.typical.p75})`}
+                {" · "}<EvidenceChip label={doc.stageOdds.label} title="Kết quả T3/HMM về chuyển trạng thái, không phải xác suất sinh lời hay xác suất thắng giao dịch." />
+              </p>
+              <p className="mt-0.5">
+                P(chuyển sang tăng trong ≤ {doc.stageOdds.horizon ?? 10} phiên): <b className="text-emerald-300">{doc.stageOdds.up != null && Number.isFinite(doc.stageOdds.up) ? `${Math.round(doc.stageOdds.up * 100)}%` : "—"}</b>
+                {" · "}P(chuyển sang giảm trong ≤ {doc.stageOdds.horizon ?? 10} phiên): <b className="text-rose-300">{doc.stageOdds.down != null && Number.isFinite(doc.stageOdds.down) ? `${Math.round(doc.stageOdds.down * 100)}%` : "—"}</b>
+              </p>
+              <p className="mt-0.5 text-slate-500">Đây là xác suất của hai sự kiện chuyển pha riêng, không phải hai phía cộng thành 100%; không dự báo trực tiếp lợi suất và không phải khuyến nghị giao dịch.</p>
+            </div>
           )}
           <p className="mt-1 text-[8.5px] text-slate-500">Đoạn đã kết thúc ngắn hơn {tfa.tf === "H1" ? 8 : tfa.tf === "D" ? 5 : 3} nến được gộp để dễ đọc (như tài liệu); giai đoạn hiện tại luôn là trạng thái thực.</p>
         </Card>

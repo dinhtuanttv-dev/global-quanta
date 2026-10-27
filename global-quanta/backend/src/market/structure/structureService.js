@@ -205,13 +205,17 @@ export function createStructureService({ service, taSeries, corporateActions, no
       const t = dBars.length - 1, x = features(u, t);
       cone = forecastCone(V, symbol, dBars[t].close, x, await ledger.offsets());
       if (cone) delete cone.raw;
-      if (V.meta?.model) {
+      if (V.meta?.verdict === "PASS" && V.meta?.model) {
         const z = x.map((v, j) => (v - V.meta.model.mu[j]) / (V.meta.model.sd[j] || 1));
         probability = { value: r2(applyIsotonic(V.meta.model.iso, logisticAt(V.meta.model.w, z))), baseRate: V.meta.baseRate, label: "ĐÃ KIỂM ĐỊNH", horizon: 20 };
       } else if (V.meta) probability = { value: null, baseRate: V.meta.baseRate, label: "THỰC NGHIỆM", note: V.meta.note ?? null };
       const ty = V.stageModel?.typical?.[u.a.stage[t]] ?? null;
-      stageOdds = { stage: u.a.stage[t], age: u.a.stageAge[t], typical: ty, up: null, down: null, label: V.stageModel?.model ? "ĐÃ KIỂM ĐỊNH" : "MÔ TẢ" };
-      if (V.stageModel?.model) {
+      const stageModelPassed = V.stageModel?.verdict === "PASS"
+        && V.stageModel?.up === "PASS"
+        && V.stageModel?.down === "PASS"
+        && !!V.stageModel?.model;
+      stageOdds = { stage: u.a.stage[t], age: u.a.stageAge[t], typical: ty, up: null, down: null, horizon: 10, label: stageModelPassed ? "ĐÃ KIỂM ĐỊNH" : V.stageModel?.model ? "THỰC NGHIỆM" : "MÔ TẢ" };
+      if (stageModelPassed) {
         const SM = V.stageModel.model, feat = (i) => {
           const c = dBars[i].close, pc = dBars[i - 1].close, atr = Math.max(u.a.atr[i], 1e-9), cap = (v) => Math.max(-8, Math.min(8, Number.isFinite(v) ? v : 0));
           return [cap((c - pc) / atr), cap(u.a.dev[i]), cap(u.a.slope[i] * 10), cap(u.a.spread[i])].map((v, j) => (v - SM.st.mu[j]) / (SM.st.sd[j] || 1));
