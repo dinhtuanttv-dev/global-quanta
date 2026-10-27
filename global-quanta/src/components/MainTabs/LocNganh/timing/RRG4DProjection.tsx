@@ -1,4 +1,4 @@
-import type { KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEvent } from "react";
 import type { GatewaySectorRrg } from "../../../../lib/locnganh/types";
 
 type Props = {
@@ -7,10 +7,9 @@ type Props = {
   onSelectSector?: (code: string) => void;
 };
 
-const W = 1120;
-const H = 580;
-const PLOT = { left: 110, right: 1010, top: 105, bottom: 465 };
-const ORIGIN = { x: 560, y: 290 };
+const W = 1000;
+const H = 600;
+const CENTER = { x: 500, y: 298 };
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const nfmt = (v: number | null | undefined, digits = 2) =>
   v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: digits });
@@ -20,167 +19,226 @@ const correlationColor = (value: number) => {
   return `rgb(${a.map((c, i) => Math.round(c + (b[i] - c) * t)).join(",")})`;
 };
 
-type ProjectedPoint = {
-  sector: GatewaySectorRrg;
-  dx: number;
-  dy: number;
-  z: number;
-  px: number;
-  py: number;
-  labelX: number;
-  labelY: number;
-  labelAnchor: "start" | "end";
-};
+type Rotation = { yaw: number; pitch: number; zoom: number };
+type Point3 = { x: number; y: number; z: number };
+type ProjectedPoint = { sector: GatewaySectorRrg; x: number; y: number; depth: number; color: string };
+type DragState = { x: number; y: number; moved: boolean };
 
-/**
- * Responsive isometric view of four observed dimensions. RS-Ratio and RS-Momentum
- * remain the canonical RRG axes; traded-value-share z-score is the projected depth;
- * market correlation to VNINDEX is color only. No trade score is encoded.
- */
+function project(point: Point3, rotation: Rotation): { x: number; y: number; depth: number } {
+  const cy = Math.cos(rotation.yaw), sy = Math.sin(rotation.yaw);
+  const cp = Math.cos(rotation.pitch), sp = Math.sin(rotation.pitch);
+  const x1 = point.x * cy - point.z * sy;
+  const z1 = point.x * sy + point.z * cy;
+  const y2 = point.y * cp - z1 * sp;
+  const z2 = point.y * sp + z1 * cp;
+  const perspective = 4 / (4 + z2);
+  return {
+    x: CENTER.x + x1 * 220 * rotation.zoom * perspective,
+    y: CENTER.y - y2 * 190 * rotation.zoom * perspective,
+    depth: z2,
+  };
+}
+
+/** Three spatial RRG dimensions are projected from an interactive 3D camera; W is color. */
 export default function RRG4DProjection({ sectors, selectedSector, onSelectSector }: Props) {
-  const eligible = sectors.filter((s) =>
+  const [rotation, setRotation] = useState<Rotation>({ yaw: 0.62, pitch: -0.38, zoom: 1 });
+  const [hoveredCode, setHoveredCode] = useState<string | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+
+  const eligible = useMemo(() => sectors.filter((s) =>
     s.rrg4d?.correlationStatus === "ready"
     && s.rrg4d.flowShareZ != null
     && s.rrg4d.marketCorrelation60 != null
     && Number.isFinite(s.latestClosed.ratio)
     && Number.isFinite(s.latestClosed.momentum)
-  );
+  ), [sectors]);
+
+  const domain = useMemo(() => Math.max(1.5, ...eligible.flatMap((s) => [
+    Math.abs(s.latestClosed.ratio - 100), Math.abs(s.latestClosed.momentum - 100),
+  ])), [eligible]);
+
+  const points = useMemo<ProjectedPoint[]>(() => eligible.map((sector) => {
+    const p = project({
+      x: (sector.latestClosed.ratio - 100) / domain,
+      y: (sector.latestClosed.momentum - 100) / domain,
+      z: clamp(sector.rrg4d!.flowShareZ! / 3, -1, 1),
+    }, rotation);
+    return { sector, ...p, color: correlationColor(sector.rrg4d!.marketCorrelation60!) };
+  }), [eligible, domain, rotation]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !eligible.length) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#0b1424"); bg.addColorStop(1, "#080d18");
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+    const p = (v: Point3) => project(v, rotation);
+    const path3 = (vertices: Point3[], close = false) => {
+      const projected = vertices.map(p);
+      ctx.beginPath();
+      projected.forEach((v, i) => i ? ctx.lineTo(v.x, v.y) : ctx.moveTo(v.x, v.y));
+      if (close) ctx.closePath();
+      return projected;
+    };
+
+    // RRG base plane (Z=0) and a wireframe cube establish actual 3D depth.
+    path3([{ x: -1, y: -1, z: 0 }, { x: 1, y: -1, z: 0 }, { x: 1, y: 1, z: 0 }, { x: -1, y: 1, z: 0 }], true);
+    ctx.fillStyle = "rgba(14,165,233,.07)"; ctx.fill();
+    ctx.strokeStyle = "rgba(56,189,248,.32)"; ctx.lineWidth = 1; ctx.stroke();
+    ctx.setLineDash([3, 6]); ctx.strokeStyle = "rgba(148,163,184,.17)";
+    for (const t of [-0.5, 0, 0.5]) {
+      path3([{ x: t, y: -1, z: 0 }, { x: t, y: 1, z: 0 }]); ctx.stroke();
+      path3([{ x: -1, y: t, z: 0 }, { x: 1, y: t, z: 0 }]); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    const cube = [-1, 1].flatMap((x) => [-1, 1].flatMap((y) => [-1, 1].map((z) => ({ x, y, z }))));
+    ctx.strokeStyle = "rgba(100,116,139,.24)"; ctx.lineWidth = 1;
+    for (const a of cube) for (const b of cube) {
+      const changed = Number(a.x !== b.x) + Number(a.y !== b.y) + Number(a.z !== b.z);
+      if (changed === 1 && (a.x < b.x || a.y < b.y || a.z < b.z)) {
+        const pa = p(a), pb = p(b); ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+      }
+    }
+
+    // Three independently visible, labeled axes.
+    const axes: { end: Point3; color: string; label: string; positive: string }[] = [
+      { end: { x: 1.18, y: 0, z: 0 }, color: "#60a5fa", label: "X · RS-Ratio − 100", positive: "RS mạnh hơn" },
+      { end: { x: 0, y: 1.18, z: 0 }, color: "#4ade80", label: "Y · RS-Momentum − 100", positive: "động lượng tăng" },
+      { end: { x: 0, y: 0, z: 1.18 }, color: "#fbbf24", label: "Z · z-score thị phần GTGD", positive: "dòng tiền cao hơn nền" },
+    ];
+    for (const axis of axes) {
+      const start = p({ x: 0, y: 0, z: 0 }), end = p(axis.end);
+      ctx.beginPath(); ctx.moveTo(start.x, start.y); ctx.lineTo(end.x, end.y);
+      ctx.strokeStyle = axis.color; ctx.lineWidth = 2; ctx.stroke();
+      const angle = Math.atan2(end.y - start.y, end.x - start.x);
+      ctx.beginPath(); ctx.moveTo(end.x, end.y);
+      ctx.lineTo(end.x - 9 * Math.cos(angle - 0.4), end.y - 9 * Math.sin(angle - 0.4));
+      ctx.lineTo(end.x - 9 * Math.cos(angle + 0.4), end.y - 9 * Math.sin(angle + 0.4));
+      ctx.closePath(); ctx.fillStyle = axis.color; ctx.fill();
+      ctx.font = "600 11px system-ui, sans-serif"; ctx.fillStyle = axis.color;
+      ctx.fillText(axis.label, end.x + (end.x >= start.x ? 8 : -8), end.y + (end.y >= start.y ? 16 : -8));
+    }
+
+    // Points are drawn back-to-front. Size stays fixed so the map encodes exactly X/Y/Z/W.
+    for (const point of [...points].sort((a, b) => b.depth - a.depth)) {
+      const active = selectedSector === point.sector.code || hoveredCode === point.sector.code;
+      ctx.beginPath(); ctx.arc(point.x, point.y, active ? 8 : 6, 0, Math.PI * 2);
+      ctx.fillStyle = point.color; ctx.fill();
+      ctx.lineWidth = active ? 2.5 : 1; ctx.strokeStyle = active ? "#fff" : "rgba(7,12,22,.95)"; ctx.stroke();
+      if (active) {
+        ctx.beginPath(); ctx.arc(point.x, point.y, 12, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+      ctx.font = active ? "700 10px system-ui, sans-serif" : "600 9px system-ui, sans-serif";
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.fillStyle = "#e2e8f0"; ctx.fillText(point.sector.code, point.x, point.y + 10);
+    }
+  }, [eligible.length, points, rotation, selectedSector, hoveredCode]);
+
+  const canvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return { x: (event.clientX - rect.left) * W / rect.width, y: (event.clientY - rect.top) * H / rect.height };
+  };
+  const onPointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
+    const pos = canvasPoint(event);
+    dragRef.current = { ...pos, moved: false };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const onPointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
+    const pos = canvasPoint(event);
+    const drag = dragRef.current;
+    if (drag && (event.buttons & 1) === 1) {
+      const dx = pos.x - drag.x, dy = pos.y - drag.y;
+      if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+      if (drag.moved) setRotation((r) => ({ ...r, yaw: r.yaw + dx * 0.008, pitch: clamp(r.pitch + dy * 0.008, -1.25, 1.25) }));
+      drag.x = pos.x; drag.y = pos.y;
+      return;
+    }
+    const nearest = points.reduce<{ code: string; distance: number } | null>((best, point) => {
+      const distance = Math.hypot(point.x - pos.x, point.y - pos.y);
+      return distance < 18 && (!best || distance < best.distance) ? { code: point.sector.code, distance } : best;
+    }, null);
+    setHoveredCode(nearest?.code ?? null);
+  };
+  const onPointerUp = (event: PointerEvent<HTMLCanvasElement>) => {
+    const drag = dragRef.current;
+    dragRef.current = null;
+    if (!drag?.moved) {
+      const pos = canvasPoint(event);
+      const nearest = points.reduce<ProjectedPoint | null>((best, point) => {
+        const distance = Math.hypot(point.x - pos.x, point.y - pos.y);
+        return distance < 18 && (!best || distance < Math.hypot(best.x - pos.x, best.y - pos.y)) ? point : best;
+      }, null);
+      if (nearest) { setHoveredCode(nearest.sector.code); onSelectSector?.(nearest.sector.code); }
+    }
+  };
+  const onWheel = (event: WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    setRotation((r) => ({ ...r, zoom: clamp(r.zoom * (event.deltaY < 0 ? 1.08 : 0.93), 0.65, 1.8) }));
+  };
+
   if (!eligible.length) {
     return <div data-testid="rrg4d-insufficient" role="status" style={{ padding: 12, color: "var(--text-tertiary)", fontSize: 11 }}>
       Chưa đủ lịch sử đồng bộ để dựng bản đồ 4D. Cần tối thiểu 30 phiên ghép cặp cho tương quan; không tạo dữ liệu thay thế.
     </div>;
   }
 
-  // Fit the observed RRG range to the plot while keeping equal units on X/Y.
-  // The prior fixed 1x scale left ordinary observations clustered at the origin.
-  const maxDeviation = Math.max(0.6, ...eligible.flatMap((s) => [
-    Math.abs(s.latestClosed.ratio - 100), Math.abs(s.latestClosed.momentum - 100),
-  ]));
-  const xyScale = Math.min((PLOT.right - PLOT.left) * 0.28, (PLOT.bottom - PLOT.top) * 0.46) / maxDeviation;
-  const rawPoints = eligible.map((sector) => {
-    const dx = sector.latestClosed.ratio - 100;
-    const dy = sector.latestClosed.momentum - 100;
-    const z = clamp(sector.rrg4d!.flowShareZ!, -3, 3);
-    // A fixed isometric depth vector makes Z visible without changing the canonical X/Y values.
-    const px = ORIGIN.x + dx * xyScale + z * 26;
-    const py = ORIGIN.y - dy * xyScale - z * 20;
-    return { sector, dx, dy, z, px, py };
-  });
-
-  // Direct labels collided in the previous view. Route them into left/right label rails,
-  // with deterministic vertical spacing and leader lines back to the true point.
-  const labelPoints: ProjectedPoint[] = rawPoints.map((point) => ({
-    ...point,
-    labelX: point.px < ORIGIN.x ? 76 : 1044,
-    labelY: clamp(point.py, PLOT.top + 14, PLOT.bottom - 8),
-    labelAnchor: point.px < ORIGIN.x ? "end" : "start",
-  }));
-  for (const side of ["left", "right"] as const) {
-    const group = labelPoints.filter((point) => (side === "left") === (point.labelAnchor === "end"));
-    group.sort((a, b) => a.py - b.py || a.sector.code.localeCompare(b.sector.code));
-    const gap = 24;
-    for (let i = 1; i < group.length; i++) group[i].labelY = Math.max(group[i].labelY, group[i - 1].labelY + gap);
-    const overflow = group.length ? group[group.length - 1].labelY - (PLOT.bottom - 8) : 0;
-    if (overflow > 0) for (const point of group) point.labelY -= overflow;
-    for (let i = group.length - 2; i >= 0; i--) group[i].labelY = Math.min(group[i].labelY, group[i + 1].labelY - gap);
-    const underflow = group.length ? PLOT.top + 14 - group[0].labelY : 0;
-    if (underflow > 0) for (const point of group) point.labelY += underflow;
-  }
-
-  const activateOnKey = (event: KeyboardEvent<SVGGElement>, code: string) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      onSelectSector?.(code);
-    }
-  };
-  const handleSelect = (code: string) => onSelectSector?.(code);
+  const detail = points.find((point) => point.sector.code === (hoveredCode ?? selectedSector)) ?? null;
+  const reset = () => { setRotation({ yaw: 0.62, pitch: -0.38, zoom: 1 }); setHoveredCode(null); };
 
   return <section data-testid="rrg4d-projection" aria-label="Bản đồ RRG 4D nghiên cứu" style={{ width: "100%" }}>
-    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "6px 14px", padding: "8px 10px", border: "1px solid var(--bg-surface-2)", borderRadius: 8, marginBottom: 8, fontSize: 10, color: "var(--text-secondary)" }}>
-      <span><b>X</b> RS-Ratio − 100</span>
-      <span><b>Y</b> RS-Momentum − 100</span>
-      <span><b>Z</b> lệch chuẩn thị phần GTGD (σ)</span>
-      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><b>W / màu</b><i aria-hidden="true" style={{ display: "inline-block", width: 92, height: 7, borderRadius: 8, background: `linear-gradient(90deg, ${correlationColor(-1)}, ${correlationColor(0)}, ${correlationColor(1)})` }} />−1 nghịch chiều · 0 ít tương quan tuyến tính · +1 đồng biến mạnh</span>
-      <span style={{ marginLeft: "auto", color: "var(--text-tertiary)" }}>{eligible.length}/{sectors.length} ngành đủ chất lượng · điểm tròn cùng kích thước</span>
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "7px 16px", padding: "9px 11px", border: "1px solid var(--bg-surface-2)", borderRadius: 8, marginBottom: 8, fontSize: 10, color: "var(--text-secondary)" }}>
+      <span><b style={{ color: "#60a5fa" }}>X</b> RS-Ratio − 100</span>
+      <span><b style={{ color: "#4ade80" }}>Y</b> RS-Momentum − 100</span>
+      <span><b style={{ color: "#fbbf24" }}>Z</b> z-score thị phần GTGD</span>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><b>W / màu</b><i aria-hidden="true" style={{ display: "inline-block", width: 82, height: 7, borderRadius: 8, background: `linear-gradient(90deg, ${correlationColor(-1)}, ${correlationColor(0)}, ${correlationColor(1)})` }} />−1 nghịch chiều · 0 ít tương quan tuyến tính · +1 đồng biến mạnh</span>
+      <span style={{ marginLeft: "auto", color: "var(--text-tertiary)" }}>{eligible.length}/{sectors.length} ngành đủ mẫu · điểm cùng kích thước</span>
     </div>
 
-    <div style={{ width: "100%", overflowX: "auto", border: "1px solid var(--bg-surface-2)", borderRadius: 10, background: "radial-gradient(ellipse at 50% 49%, rgba(14,165,233,.075), transparent 64%)" }}>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby="rrg4d-title rrg4d-desc" style={{ display: "block", width: "100%", minWidth: 760, height: "auto" }}>
-        <title id="rrg4d-title">Bản đồ ngành RRG 4D</title>
-        <desc id="rrg4d-desc">Trục ngang và dọc là độ lệch RS-Ratio và RS-Momentum so với 100. Độ sâu chéo là z-score thị phần giá trị giao dịch. Màu biểu thị tương quan lợi suất ngày với VNINDEX. Nhãn được tách khỏi điểm để không chồng lấn.</desc>
-        <defs>
-          <linearGradient id="rrg4d-depth" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#64748b" stopOpacity=".02"/><stop offset="100%" stopColor="#38bdf8" stopOpacity=".16"/></linearGradient>
-        </defs>
-        <rect x={PLOT.left} y={PLOT.top} width={PLOT.right - PLOT.left} height={PLOT.bottom - PLOT.top} rx="10" fill="url(#rrg4d-depth)" stroke="rgba(100,116,139,.18)" />
-        <rect x={ORIGIN.x} y={PLOT.top} width={PLOT.right - ORIGIN.x} height={ORIGIN.y - PLOT.top} fill="rgba(34,197,94,.035)" />
-        <rect x={PLOT.left} y={PLOT.top} width={ORIGIN.x - PLOT.left} height={ORIGIN.y - PLOT.top} fill="rgba(56,189,248,.035)" />
-        <rect x={PLOT.left} y={ORIGIN.y} width={ORIGIN.x - PLOT.left} height={PLOT.bottom - ORIGIN.y} fill="rgba(245,158,11,.035)" />
-        <rect x={ORIGIN.x} y={ORIGIN.y} width={PLOT.right - ORIGIN.x} height={PLOT.bottom - ORIGIN.y} fill="rgba(148,163,184,.025)" />
-
-        {[0.5, 1].map((fraction) => <g key={fraction} aria-hidden="true">
-          <line x1={ORIGIN.x - (ORIGIN.x - PLOT.left) * fraction} y1={PLOT.top} x2={ORIGIN.x - (ORIGIN.x - PLOT.left) * fraction} y2={PLOT.bottom} stroke="rgba(100,116,139,.18)" strokeDasharray="3 6" />
-          <line x1={ORIGIN.x + (PLOT.right - ORIGIN.x) * fraction} y1={PLOT.top} x2={ORIGIN.x + (PLOT.right - ORIGIN.x) * fraction} y2={PLOT.bottom} stroke="rgba(100,116,139,.18)" strokeDasharray="3 6" />
-          <line x1={PLOT.left} y1={ORIGIN.y - (ORIGIN.y - PLOT.top) * fraction} x2={PLOT.right} y2={ORIGIN.y - (ORIGIN.y - PLOT.top) * fraction} stroke="rgba(100,116,139,.18)" strokeDasharray="3 6" />
-          <line x1={PLOT.left} y1={ORIGIN.y + (PLOT.bottom - ORIGIN.y) * fraction} x2={PLOT.right} y2={ORIGIN.y + (PLOT.bottom - ORIGIN.y) * fraction} stroke="rgba(100,116,139,.18)" strokeDasharray="3 6" />
-        </g>)}
-
-        <line x1={PLOT.left} y1={ORIGIN.y} x2={PLOT.right} y2={ORIGIN.y} stroke="#94a3b8" strokeOpacity=".75" strokeWidth="1.2" />
-        <line x1={ORIGIN.x} y1={PLOT.bottom} x2={ORIGIN.x} y2={PLOT.top} stroke="#94a3b8" strokeOpacity=".75" strokeWidth="1.2" />
-        <line x1={ORIGIN.x - 78} y1={ORIGIN.y + 60} x2={ORIGIN.x + 78} y2={ORIGIN.y - 60} stroke="#38bdf8" strokeOpacity=".75" strokeWidth="2" />
-        <text x={PLOT.left + 12} y={PLOT.top + 20} fill="#7dd3fc" fontSize="11" fontWeight="700">IMPROVING · RS yếu đi, momentum hồi phục</text>
-        <text x={PLOT.right - 12} y={PLOT.top + 20} textAnchor="end" fill="#4ade80" fontSize="11" fontWeight="700">LEADING · RS và momentum mạnh</text>
-        <text x={PLOT.left + 12} y={PLOT.bottom - 12} fill="#fbbf24" fontSize="11" fontWeight="700">LAGGING · RS và momentum yếu</text>
-        <text x={PLOT.right - 12} y={PLOT.bottom - 12} textAnchor="end" fill="#cbd5e1" fontSize="11" fontWeight="700">WEAKENING · RS mạnh, momentum giảm</text>
-
-        {[-1, 0, 1].map((tick) => <g key={`x${tick}`} aria-hidden="true">
-          <line x1={ORIGIN.x + tick * xyScale} y1={ORIGIN.y - 5} x2={ORIGIN.x + tick * xyScale} y2={ORIGIN.y + 5} stroke="#cbd5e1" />
-          <text x={ORIGIN.x + tick * xyScale} y={ORIGIN.y + 19} textAnchor="middle" fill="var(--text-tertiary)" fontSize="9">{tick > 0 ? "+" : ""}{tick}</text>
-          <line x1={ORIGIN.x - 5} y1={ORIGIN.y - tick * xyScale} x2={ORIGIN.x + 5} y2={ORIGIN.y - tick * xyScale} stroke="#cbd5e1" />
-          <text x={ORIGIN.x + 9} y={ORIGIN.y - tick * xyScale - 4} fill="var(--text-tertiary)" fontSize="9">{tick > 0 ? "+" : ""}{tick}</text>
-        </g>)}
-        <text x={PLOT.right - 10} y={ORIGIN.y + 35} textAnchor="end" fill="var(--text-secondary)" fontSize="11" fontWeight="700">RS-Ratio lệch khỏi 100 →</text>
-        <text x={ORIGIN.x + 12} y={PLOT.top + 38} fill="var(--text-secondary)" fontSize="11" fontWeight="700">RS-Momentum lệch khỏi 100 ↑</text>
-        <text x={ORIGIN.x + 88} y={ORIGIN.y - 67} fill="#7dd3fc" fontSize="10" fontWeight="700">Z thị phần GTGD</text>
-
-        {labelPoints.map((point) => {
-          const { sector, px, py, labelX, labelY, labelAnchor } = point;
-          const corr = sector.rrg4d!.marketCorrelation60!;
-          const active = selectedSector === sector.code;
-          const leaderEndX = labelAnchor === "start" ? labelX - 7 : labelX + 7;
-          const label = `${sector.name}; RS-Ratio ${nfmt(sector.latestClosed.ratio)}; RS-Momentum ${nfmt(sector.latestClosed.momentum)}; thị phần GTGD z ${nfmt(sector.rrg4d!.flowShareZ)}; tương quan VNINDEX ${nfmt(corr)}; n=${sector.rrg4d!.correlationObservations}`;
-          return <g key={sector.code} data-testid={`rrg4d-sector-${sector.code}`} role={onSelectSector ? "button" : undefined} tabIndex={onSelectSector ? 0 : undefined}
-            aria-label={label} aria-pressed={onSelectSector ? active : undefined}
-            onClick={() => handleSelect(sector.code)} onKeyDown={(event) => activateOnKey(event, sector.code)}
-            style={{ cursor: onSelectSector ? "pointer" : undefined, opacity: selectedSector && !active ? 0.3 : 1 }}>
-            <title>{label}</title>
-            <line x1={px} y1={py} x2={leaderEndX} y2={labelY - 2} stroke={active ? "#fff" : "#64748b"} strokeOpacity=".6" strokeWidth=".8" />
-            <circle cx={px} cy={py} r={active ? 8 : 6} fill={correlationColor(corr)} stroke={active ? "#fff" : "#0f172a"} strokeWidth={active ? 2.5 : 1.5} />
-            <circle cx={px} cy={py} r="10" fill="transparent" stroke={active ? "#fff" : "transparent"} strokeWidth="1" />
-            <text x={labelX} y={labelY} textAnchor={labelAnchor} fill={active ? "#fff" : "var(--text-primary)"} fontSize="11" fontWeight={active ? "800" : "650"} paintOrder="stroke" stroke="var(--bg-surface-1, #0b1220)" strokeWidth="4" strokeLinejoin="round">{sector.name}</text>
-          </g>;
-        })}
-        <text x={W / 2} y={H - 15} textAnchor="middle" fill="var(--text-tertiary)" fontSize="10">Vị trí điểm = snapshot tuần đã đóng · chiều sâu Z dùng trục chiếu chéo · màu W là tương quan 60 phiên</text>
-      </svg>
+    <div style={{ position: "relative", width: "100%", overflow: "hidden", border: "1px solid var(--bg-surface-2)", borderRadius: 10, background: "#080d18" }}>
+      <canvas ref={canvasRef} data-testid="rrg4d-canvas" width={W} height={H}
+        role="img" aria-label="Đồ thị không gian 3D: X là RS-Ratio, Y là RS-Momentum, Z là z-score thị phần giao dịch; màu W là tương quan với VNINDEX. Kéo để xoay, cuộn để phóng to. Dữ liệu chính xác nằm trong bảng bên dưới."
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={() => { dragRef.current = null; }} onPointerLeave={() => { if (!dragRef.current) setHoveredCode(null); }} onWheel={onWheel}
+        style={{ display: "block", width: "100%", height: "auto", aspectRatio: `${W} / ${H}`, cursor: dragRef.current ? "grabbing" : "grab", touchAction: "none" }} />
+      <div style={{ position: "absolute", top: 9, left: 10, display: "flex", alignItems: "center", gap: 6, pointerEvents: "none", fontSize: 10, color: "#cbd5e1", background: "rgba(5,10,20,.76)", padding: "5px 8px", borderRadius: 6 }}>
+        <span>3D · kéo để xoay · cuộn để zoom</span><span style={{ color: "#64748b" }}>·</span><span>{Math.round(rotation.zoom * 100)}%</span>
+      </div>
+      <button type="button" onClick={reset} style={{ position: "absolute", right: 10, top: 8, border: "1px solid #334155", borderRadius: 6, color: "#cbd5e1", background: "rgba(5,10,20,.84)", fontSize: 10, padding: "5px 8px", cursor: "pointer" }}>Đặt lại góc nhìn</button>
+      {detail && <div aria-live="polite" style={{ position: "absolute", left: 10, bottom: 10, maxWidth: "min(390px, calc(100% - 20px))", padding: "8px 10px", border: "1px solid #334155", borderRadius: 8, background: "rgba(5,10,20,.9)", color: "#e2e8f0", fontSize: 10, pointerEvents: "none" }}>
+        <b style={{ color: detail.color }}>{detail.sector.name}</b> · X {nfmt(detail.sector.latestClosed.ratio - 100)} · Y {nfmt(detail.sector.latestClosed.momentum - 100)} · Z {nfmt(detail.sector.rrg4d!.flowShareZ)} · W ρ {nfmt(detail.sector.rrg4d!.marketCorrelation60)} (n={detail.sector.rrg4d!.correlationObservations})
+      </div>}
     </div>
 
-    <div style={{ overflowX: "auto", marginTop: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "8px 0", fontSize: 10, color: "var(--text-tertiary)" }}>
+      <span style={{ color: "#4ade80" }}>● Leading: X&gt;0, Y&gt;0</span><span style={{ color: "#60a5fa" }}>● Improving: X&lt;0, Y&gt;0</span><span style={{ color: "#fbbf24" }}>● Lagging: X&lt;0, Y&lt;0</span><span>● Weakening: X&gt;0, Y&lt;0</span>
+      <span style={{ marginLeft: "auto" }}>Snapshot tuần đã đóng · Z là trục không gian thứ ba · W là màu tương quan 60 phiên với VNINDEX</span>
+    </div>
+    <div style={{ overflowX: "auto", maxHeight: 260, overflowY: "auto", border: "1px solid var(--bg-surface-2)", borderRadius: 8 }}>
       <table data-testid="rrg4d-data-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 10, minWidth: 680 }}>
-        <caption style={{ textAlign: "left", padding: "5px 8px", color: "var(--text-secondary)", fontWeight: 700 }}>Giá trị chính xác của các chiều RRG 4D · chọn ngành để đồng bộ vùng phân tích</caption>
-        <thead><tr style={{ color: "var(--text-tertiary)", textAlign: "left" }}>
-          <th scope="col" style={{ padding: 6 }}>Ngành</th><th scope="col" style={{ padding: 6 }}>RS-Ratio</th><th scope="col" style={{ padding: 6 }}>RS-Momentum</th><th scope="col" style={{ padding: 6 }}>Z thị phần GTGD</th><th scope="col" style={{ padding: 6 }}>ρ với VNINDEX</th><th scope="col" style={{ padding: 6 }}>n phiên</th>
+        <caption style={{ textAlign: "left", padding: "7px 9px", color: "var(--text-secondary)", fontWeight: 700 }}>Ngành và tọa độ 4D · chọn dòng để mở phân tích ngành</caption>
+        <thead><tr style={{ color: "var(--text-tertiary)", textAlign: "left", position: "sticky", top: 0, background: "var(--bg-surface-1, #0b1220)" }}>
+          <th scope="col" style={{ padding: 6 }}>Mã / ngành</th><th scope="col" style={{ padding: 6 }}>X · RS-Ratio</th><th scope="col" style={{ padding: 6 }}>Y · RS-Momentum</th><th scope="col" style={{ padding: 6 }}>Z · thị phần GTGD</th><th scope="col" style={{ padding: 6 }}>W · ρ VNINDEX</th><th scope="col" style={{ padding: 6 }}>n phiên</th>
         </tr></thead>
-        <tbody>{labelPoints.map(({ sector }) => {
+        <tbody>{eligible.map((sector) => {
           const active = selectedSector === sector.code;
+          const label = `${sector.name}; X RS-Ratio ${nfmt(sector.latestClosed.ratio - 100)}; Y RS-Momentum ${nfmt(sector.latestClosed.momentum - 100)}; Z thị phần GTGD ${nfmt(sector.rrg4d!.flowShareZ)}; W tương quan ${nfmt(sector.rrg4d!.marketCorrelation60)}; n=${sector.rrg4d!.correlationObservations}`;
           return <tr key={sector.code} data-testid={`rrg4d-row-${sector.code}`} style={{ borderTop: "1px solid var(--bg-surface-2)", background: active ? "rgba(56,189,248,.08)" : undefined }}>
-            <th scope="row" style={{ padding: 5, textAlign: "left" }}><button type="button" onClick={() => handleSelect(sector.code)} aria-pressed={onSelectSector ? active : undefined} style={{ border: 0, padding: 0, background: "transparent", color: "var(--text-primary)", cursor: onSelectSector ? "pointer" : "default", font: "inherit", textAlign: "left" }}>{sector.name}</button></th>
-            <td style={{ padding: 5 }}>{nfmt(sector.latestClosed.ratio)}</td><td style={{ padding: 5 }}>{nfmt(sector.latestClosed.momentum)}</td><td style={{ padding: 5 }}>{nfmt(sector.rrg4d!.flowShareZ)}</td>
+            <th scope="row" style={{ padding: 5, textAlign: "left" }}><button type="button" data-testid={`rrg4d-sector-${sector.code}`} aria-label={label} aria-pressed={onSelectSector ? active : undefined} onMouseEnter={() => setHoveredCode(sector.code)} onMouseLeave={() => setHoveredCode(null)} onClick={() => { setHoveredCode(sector.code); onSelectSector?.(sector.code); }} style={{ border: 0, padding: 0, background: "transparent", color: correlationColor(sector.rrg4d!.marketCorrelation60!), cursor: onSelectSector ? "pointer" : "default", font: "inherit", textAlign: "left" }}>{sector.code} · {sector.name}</button></th>
+            <td style={{ padding: 5 }}>{nfmt(sector.latestClosed.ratio - 100)}</td><td style={{ padding: 5 }}>{nfmt(sector.latestClosed.momentum - 100)}</td><td style={{ padding: 5 }}>{nfmt(sector.rrg4d!.flowShareZ)}</td>
             <td style={{ padding: 5, color: correlationColor(sector.rrg4d!.marketCorrelation60!) }}>{nfmt(sector.rrg4d!.marketCorrelation60)}</td><td style={{ padding: 5 }}>{sector.rrg4d!.correlationObservations}</td>
           </tr>;
         })}</tbody>
       </table>
     </div>
-    <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "7px 0 0" }}>
-      Z là z-score thị phần GTGD so lịch sử 250 phiên. Màu chỉ mô tả tương quan, không phải độ an toàn hay tín hiệu mua; dữ liệu tương quan thiếu mẫu sẽ không được vẽ.
-    </p>
+    <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "7px 0 0" }}>Kéo hoặc chạm-kéo để đổi góc nhìn; cuộn để zoom. Màu W mô tả tương quan, không phải độ an toàn hay tín hiệu mua. Ngành thiếu mẫu tương quan không xuất hiện trên đồ thị và được giải thích bằng số lượng ngành đủ mẫu.</p>
   </section>;
 }
