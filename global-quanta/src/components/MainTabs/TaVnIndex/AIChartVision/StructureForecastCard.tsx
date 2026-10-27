@@ -1,9 +1,21 @@
+import { useEffect } from "react";
 import { useStructure } from "../../../../hooks/useStructure";
+import type { StructureDoc } from "../../../../hooks/useStructure";
 import { isMarketGatewayEnabled } from "../../../../services/marketDataClient";
+
+export interface StructureModelGateStatus {
+  engine: string;
+  prereg: string;
+  asOf: string;
+  summary: string | null;
+  probabilityNote: string | null;
+  coneNote: string | null;
+}
 
 interface Props {
   symbol: string;
   isIndex: boolean;
+  onModelGateStatus: (status: StructureModelGateStatus | null) => void;
 }
 
 const VERIFIED = "ĐÃ KIỂM ĐỊNH";
@@ -13,9 +25,43 @@ const fmt = (value: number | null | undefined, digits = 2) =>
     : value.toLocaleString("vi-VN", { maximumFractionDigits: digits });
 
 /** Forecast output from the existing MTF Structure Gateway model; not an AI-CV score. */
-export default function StructureForecastCard({ symbol, isIndex }: Props) {
+function hasPublishableOutput(doc: StructureDoc | undefined): boolean {
+  const probability = doc?.probability;
+  const validProbability = probability?.label === VERIFIED && probability.value != null && Number.isFinite(probability.value);
+  const cone = doc?.cone;
+  const validCone = cone?.label === VERIFIED && Object.keys(cone.horizons).length > 0;
+  return !!(validProbability || validCone);
+}
+
+export default function StructureForecastCard({ symbol, isIndex, onModelGateStatus }: Props) {
   const gatewayEnabled = isMarketGatewayEnabled();
   const { data, error, isLoading } = useStructure(gatewayEnabled && !isIndex ? symbol : null);
+  const matchesSymbol = data?.symbol.toUpperCase() === symbol.toUpperCase();
+  const hasForecast = matchesSymbol && hasPublishableOutput(data);
+
+  useEffect(() => {
+    if (!gatewayEnabled || isIndex) {
+      onModelGateStatus(null);
+      return;
+    }
+    if (!data || !matchesSymbol) return;
+    if (hasForecast) {
+      onModelGateStatus(null);
+      return;
+    }
+    onModelGateStatus({
+      engine: data.version,
+      prereg: data.evidence.prereg,
+      asOf: data.asOf,
+      summary: data.evidence.summary,
+      probabilityNote: data.probability?.note ?? null,
+      coneNote: data.evidence.coneNote ?? data.cone?.note ?? null,
+    });
+  }, [data, gatewayEnabled, hasForecast, isIndex, matchesSymbol, onModelGateStatus]);
+
+  // A ticker-specific forecast card is useful only when the corresponding output passed its gate.
+  // Otherwise the shared model status is presented once by AIChartVisionPanel.
+  if (!gatewayEnabled || isIndex || (data && matchesSymbol && !hasForecast)) return null;
 
   return (
     <section
@@ -31,22 +77,18 @@ export default function StructureForecastCard({ symbol, isIndex }: Props) {
         <span className="text-[8px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-400">
           MTF Structure · {symbol}
         </span>
-        {data && (
+        {data && matchesSymbol && (
           <span className={`ml-auto text-[8px] ${data.evidence.verdictValidated ? "text-emerald-300" : "text-amber-300"}`}>
             {data.evidence.verdictValidated ? "Bằng chứng đạt cổng" : "Chưa đạt cổng kết luận"}
           </span>
         )}
       </header>
 
-      {!gatewayEnabled ? (
-        <p className="text-[10px] text-slate-500">Market Gateway chưa bật; dự báo không khả dụng.</p>
-      ) : isIndex ? (
-        <p className="text-[10px] text-slate-500">Mô hình dự báo này áp dụng cho cổ phiếu, không áp dụng cho chỉ số.</p>
-      ) : isLoading && !data ? (
+      {isLoading && !data ? (
         <p className="text-[10px] text-slate-400" role="status">Đang tải dự báo cho {symbol}…</p>
       ) : error ? (
         <p className="text-[10px] text-amber-300" role="status">Chưa tải được dự báo: {error.message}</p>
-      ) : !data || data.symbol.toUpperCase() !== symbol.toUpperCase() ? (
+      ) : !data || !matchesSymbol ? (
         <p className="text-[10px] text-slate-500">Gateway chưa có snapshot dự báo hợp lệ cho mã này.</p>
       ) : (
         <>

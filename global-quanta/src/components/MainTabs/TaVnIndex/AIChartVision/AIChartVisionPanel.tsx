@@ -2,14 +2,14 @@
 // Thay pipeline cũ (POST /api/scan trên Vercel: chỉ phân tích khung đầu tiên, chọn 1h -> "Chưa cấu hình/nối được nguồn dữ liệu
 // lịch sử thật"; thiếu khóa AI -> lỗi tổng hợp). Mọi con số tính từ nến thật, tổng hợp theo quy tắc minh bạch (EXPERIMENTAL).
 // Kết nối bộ lọc: hiện các bộ lọc đang chứa mã (bấm để mở bộ lọc đó); các bảng phụ của bộ lọc có nút "AI Chart Vision" mở thẳng tab này.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertCircle, ArrowDownRight, ArrowUpRight, Check, Cpu, Layers, Minus, RefreshCw, X } from "lucide-react";
 import { isMarketGatewayEnabled } from "../../../../services/marketDataClient";
 import { useChartVision, usePatternGeometry, type CvFrame, type CvTimeframe } from "../../../../hooks/useChartVision";
 import { Card, Tile } from "../ScreenerDeepPanel";
 import VisionSketch, { DEFAULT_LAYERS, type SketchLayers } from "./VisionSketch";
 import type { AIChartVisionPanelProps } from "./types";
-import StructureForecastCard from "./StructureForecastCard";
+import StructureForecastCard, { type StructureModelGateStatus } from "./StructureForecastCard";
 
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("vi-VN") : v.toLocaleString("vi-VN", { maximumFractionDigits: 2 }));
 const fmtN = (v?: number | null, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -102,6 +102,7 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
   const [symbol, setSymbol] = useState((ticker ?? "VNINDEX").toUpperCase());
   const [tf, setTf] = useState<CvTimeframe>("D");
   const [layers, setLayers] = useState<SketchLayers>(DEFAULT_LAYERS);
+  const [structureModelGate, setStructureModelGate] = useState<StructureModelGateStatus | null>(null);
   useEffect(() => { if (ticker) { setInput(ticker.toUpperCase()); setSymbol(ticker.toUpperCase()); } }, [ticker]);
   const gateway = isMarketGatewayEnabled();
   const { data, error, isLoading, isValidating, refresh } = useChartVision(gateway ? symbol : null);
@@ -115,6 +116,13 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
   };
 
   const syn = data?.synthesis;
+  const onStructureModelGateStatus = useCallback((status: StructureModelGateStatus | null) => {
+    setStructureModelGate((current) => {
+      if (current?.engine === status?.engine && current?.prereg === status?.prereg && current?.asOf === status?.asOf
+        && current?.summary === status?.summary && current?.probabilityNote === status?.probabilityNote && current?.coneNote === status?.coneNote) return current;
+      return status;
+    });
+  }, []);
   const frame = data?.frames.find((f) => f.tf === tf);
   const geoPatterns = tf === "D" ? geo.data?.daily ?? [] : tf === "W" ? geo.data?.weekly ?? [] : [];
   const alignTone = syn?.alignment.key === "ALIGNED_UP" ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
@@ -170,7 +178,21 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
             </div>
           </section>
 
-          <StructureForecastCard symbol={data.symbol} isIndex={data.isIndex} />
+          {!data.isIndex && structureModelGate && (
+            <section className="rounded-lg border border-amber-500/25 bg-amber-500/[0.035] px-2.5 py-2" data-testid="cv-structure-model-gate" role="note">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-[10px] font-bold text-amber-200">Dự báo MTF chưa có đầu ra qua kiểm định</span>
+                <span className="text-[8px] text-slate-500">{structureModelGate.engine} · {structureModelGate.prereg} · as-of {structureModelGate.asOf}</span>
+              </div>
+              <details className="mt-1">
+                <summary className="w-fit cursor-pointer text-[9px] text-slate-400">Xem lý do</summary>
+                <p className="mt-1 text-[9px] leading-snug text-slate-400">
+                  {[structureModelGate.probabilityNote, structureModelGate.coneNote, structureModelGate.summary].filter(Boolean).join(" ") || "Các đầu ra dự báo chưa đạt cổng kiểm định ngoài mẫu; không hiển thị xác suất hoặc dải giá."}
+                </p>
+              </details>
+            </section>
+          )}
+          <StructureForecastCard symbol={data.symbol} isIndex={data.isIndex} onModelGateStatus={onStructureModelGateStatus} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {data.frames.map((f) => <FrameCard key={f.tf} f={f} partial={f.tf === "W" ? data.partial.week : f.tf === "M" ? data.partial.month : false} />)}
