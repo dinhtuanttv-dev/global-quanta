@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { fetchMarketJson } from "../../../services/marketDataClient";
+import EliteSignalAmplifierPanel from "./EliteSignalAmplifierPanel";
 
 type EventReaction = {
   kind: string; symbol: string; eventDate: string; eventLabel: string; status: string;
@@ -89,6 +90,8 @@ export default function QuantEdgeLab({ defaultTicker }: { defaultTicker: string 
         </div>
         <span className="rounded border border-amber-700/60 px-2 py-1 text-[10px] text-amber-300">RESEARCH ONLY</span>
       </div>
+
+      <EliteSignalAmplifierPanel symbol={symbol} />
 
       <div className={panel}>
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">

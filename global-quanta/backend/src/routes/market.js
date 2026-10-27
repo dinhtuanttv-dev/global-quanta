@@ -37,6 +37,7 @@ import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTrackin
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 import { opsReport } from "../market/tradingMatrix/matrixOps.js";
 import { buildEventReactionStudy, buildLeadershipStudy } from "../market/research/quantEdgeStudies.js";
+import { buildEsaEarlySignal } from "../market/research/esaEarlySignal.js";
 import { ValidationError } from "../market/errors.js";
 
 
@@ -61,6 +62,23 @@ const handle = (fn) => async (req, res) => {
 };
 
 const service = () => getMarketRuntime().service;
+
+// ESA R0: anomaly research from Gateway minute bars. This endpoint does not
+// emit a return forecast, calibrated probability, or trading recommendation.
+router.get("/research/esa/:symbol", handle(async (req, res) => {
+  const symbol = canonicalSymbol(req.params.symbol);
+  if (!isValidSymbol(symbol) || isIndexSymbol(symbol)) throw new ValidationError("ESA cần mã cổ phiếu hợp lệ.");
+  const rt = getMarketRuntime();
+  const data = await service().cache.wrap(`esa:early:${symbol}`, 30_000, async () => {
+    const [sessions, radar] = await Promise.all([
+      getIntradaySessions(rt.service, symbol),
+      rt.eventRadar.list({ ticker: symbol, limit: 10 }).catch(() => ({ events: [] })),
+    ]);
+    return buildEsaEarlySignal({ symbol, sessions, events: radar.events ?? [] });
+  });
+  res.set("Cache-Control", "private, max-age=15");
+  res.json(data);
+}));
 
 function shiftDate(date, days) {
   const d = new Date(`${date}T12:00:00.000Z`);
