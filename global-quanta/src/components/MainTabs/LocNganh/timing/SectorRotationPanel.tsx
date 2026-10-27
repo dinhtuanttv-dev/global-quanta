@@ -10,6 +10,7 @@ import { RRGClockTimeline, type SectorRRGHistory } from "./RRGClockTimeline";
 import { SectorScreenerCells } from "./SectorScreenerCells";
 import { SectorDeepPanel } from "./SectorDeepPanel";
 import { QUADRANT_VI } from "./quadrant";
+import RRG4DProjection from "./RRG4DProjection";
 
 const QUADRANT_COLOR: Record<Quadrant, string> = { LEADING: "var(--positive)", IMPROVING: "var(--gold)", WEAKENING: "var(--warning)", LAGGING: "var(--text-tertiary)" };
 export const STATE_COLOR: Record<SectorStateKey, string> = { GROWTH: "var(--positive)", ACCUMULATION: "var(--gold)", BOTTOMING: "#38bdf8", DISTRIBUTION: "var(--warning)", DECLINE: "var(--negative)", NEUTRAL: "var(--text-tertiary)" };
@@ -84,6 +85,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
   const timing = useSectorTimingSignals();
   const [level, setLevel] = useState<2 | 3>(2);
   const [open, setOpen] = useState<string | null>(null);
+  const [show4D, setShow4D] = useState(false);
   const bySector = timing.bySector as ReadonlyMap<string, SectorTimingSignalV2>;
   const sectors = useMemo(() => (rrg.data?.sectors ?? []).filter((s) => s.level === level), [rrg.data, level]);
   const clock = useMemo<SectorRRGHistory[]>(() => sectors.map((s) => ({
@@ -108,6 +110,14 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
         <b style={{ color: "var(--gold)" }}>Xoay vòng ngành ICB · dòng tiền · RRG tuần (JdK)</b>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "var(--gold)" }} title={evidence?.reason}>{evidence?.label ?? "EXPERIMENTAL"}</span>
         <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+          <button type="button" onClick={() => { void rrg.refresh(); }} disabled={rrg.isValidating} aria-label="Tải lại snapshot xoay vòng ngành" data-testid="sector-rrg-refresh"
+            style={{ fontSize: 10, padding: "3px 8px", borderRadius: 8, cursor: rrg.isValidating ? "wait" : "pointer", border: "1px solid var(--bg-surface-2)", background: "transparent", color: "var(--text-secondary)" }}>
+            {rrg.isValidating ? "Đang tải…" : "Tải lại snapshot"}
+          </button>
+          <button type="button" aria-expanded={show4D} data-testid="rrg4d-toggle" onClick={() => setShow4D((v) => !v)}
+            style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid rgba(56,189,248,.35)", background: show4D ? "rgba(56,189,248,.14)" : "var(--bg-surface-2)", color: "var(--text-secondary)" }}>
+            {show4D ? "Ẩn bản đồ 4D" : "Mở bản đồ 4D"}
+          </button>
           {([2, 3] as const).map((l) => (
             <button key={l} type="button" onClick={() => { setLevel(l); setOpen(null); }} aria-pressed={level === l} data-testid={`sector-level-${l}`}
               style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "none", background: level === l ? "var(--gold)" : "var(--bg-surface-2)", color: level === l ? "#0a0a0a" : "var(--text-secondary)" }}>
@@ -128,6 +138,13 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
       {timing.status === "error" && <div className="t1-state-msg t1-error">Không tải được tín hiệu thời điểm ngành: {timing.error?.message}</div>}
       {sectors.length > 0 && (
         <>
+          {show4D && <div className="panel-block" style={{ marginBottom: 12 }} data-testid="rrg4d-panel">
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+              <b style={{ color: "var(--text-secondary)", fontSize: 11 }}>RRG 4D · nghiên cứu, snapshot tuần đã đóng</b>
+              <span style={{ color: "var(--text-tertiary)", fontSize: 10 }}>3 trục không gian + màu tương quan · không phải xác suất</span>
+            </div>
+            <RRG4DProjection sectors={sectors} selectedSector={selectedSector} onSelectSector={toggle} />
+          </div>}
           <FlowMap sectors={sectors} rotation={rrg.data?.rotation?.[String(level) as "2" | "3"]} />
           <div style={{ display: "grid", gap: 12 }}>
             <div style={{ maxWidth: 520, width: "100%", margin: "0 auto" }}>

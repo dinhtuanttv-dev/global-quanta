@@ -12,6 +12,36 @@ export const SECTOR_RRG_ENGINE = "sector-rrg/L5";
 export const SECTOR_RRG_KV = "sectors:rrg";
 export const SECTOR_RRG_HISTORY_KV = "sectors:rrg:history";
 
+/** Pearson correlation of aligned daily returns; null until there are enough paired observations. */
+export function rollingMarketCorrelation(indexSeries, benchmarkBars, { lookback = 60, minObservations = 30 } = {}) {
+  const benchmarkByDate = new Map((benchmarkBars ?? []).map((bar) => [bar.date, Number(bar.close)]));
+  const indexByDate = new Map((indexSeries ?? []).map((bar) => [bar.date, Number(bar.close)]));
+  const dates = [...benchmarkByDate.keys()].sort();
+  const sectorReturns = [], benchmarkReturns = [];
+  for (let i = 1; i < dates.length; i++) {
+    const previous = dates[i - 1], current = dates[i];
+    const sectorPrev = indexByDate.get(previous), sectorNow = indexByDate.get(current);
+    const benchmarkPrev = benchmarkByDate.get(previous), benchmarkNow = benchmarkByDate.get(current);
+    // Do not bridge a missing sector-index observation across multiple benchmark sessions.
+    if (sectorPrev > 0 && sectorNow > 0 && benchmarkPrev > 0 && benchmarkNow > 0) {
+      sectorReturns.push(sectorNow / sectorPrev - 1);
+      benchmarkReturns.push(benchmarkNow / benchmarkPrev - 1);
+    }
+  }
+  const x = sectorReturns.slice(-lookback), y = benchmarkReturns.slice(-lookback), n = x.length;
+  if (n < minObservations) return { value: null, observations: n, lookback, status: "insufficient_history" };
+  const mx = x.reduce((sum, value) => sum + value, 0) / n;
+  const my = y.reduce((sum, value) => sum + value, 0) / n;
+  let covariance = 0, varianceX = 0, varianceY = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = x[i] - mx, dy = y[i] - my;
+    covariance += dx * dy; varianceX += dx * dx; varianceY += dy * dy;
+  }
+  const denominator = Math.sqrt(varianceX * varianceY);
+  if (!(denominator > 0)) return { value: null, observations: n, lookback, status: "zero_variance" };
+  return { value: Math.max(-1, Math.min(1, covariance / denominator)), observations: n, lookback, status: "ready" };
+}
+
 /**
  * @param universe  [{ ticker, name?, sector? }]
  * @param icb       { levels, symbols } (icbTaxonomy.js)
@@ -44,6 +74,7 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
       const lastInto = (q) => [...tr].reverse().find((x) => x.to === q) ?? null;
       const w = idx.rebalances.at(-1)?.weights ?? {};
       const flow = sectorFlow({ members, index: idx.series, dates, totals, rs, tagsOf });
+      const marketCorrelation = rollingMarketCorrelation(idx.series, benchBars);
       sectors.push({
         code: it.code, level, name: it.name, en: it.en, parent: it.parent, universeMembers: members.length, indexMembers: idx.series.at(-1)?.n ?? 0,
         thin: (idx.series.at(-1)?.n ?? 0) < INDEX_PARAMS.thinBelow,
@@ -54,6 +85,17 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
         weeksSinceImproving: lastInto("IMPROVING") ? rrg.filter((r) => r.week > lastInto("IMPROVING").week && (!closedThrough || r.week <= closedThrough)).length : null,
         historyWeeks: rrg.length, from: idx.series[0].date,
         flow, state: sectorState(flow, lastClosed.quadrant),
+        // 4D research extension: canonical RRG axes + observed turnover-share anomaly + actual market correlation.
+        // `flow.share.z` is the existing point-in-time z-score of sector traded-value share, not synthetic volume.
+        rrg4d: {
+          version: "sector-rrg-4d/v1",
+          asOf: lastDate,
+          flowShareZ: Number.isFinite(flow?.share?.z) ? flow.share.z : null,
+          marketCorrelation60: marketCorrelation.value,
+          correlationObservations: marketCorrelation.observations,
+          correlationStatus: marketCorrelation.status,
+          method: "x/y=weekly JdK RS-Ratio/RS-Momentum; z=250-session z-score of traded-value share; color=Pearson correlation of daily sector/VNINDEX returns over up to 60 paired sessions",
+        },
       });
       history[it.code] = { code: it.code, level, name: it.name, rrg, transitions: tr, index: idx.series.map((b) => [b.date, b.close, b.n]), rebalances: idx.rebalances.slice(-3) };
     }

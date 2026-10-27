@@ -40,13 +40,13 @@ export interface Top20Response {
   evidence?: { label: string; reason: string };
 }
 
-export function useTop20Radar(sectorKey: string | null) {
+export function useTop20Radar(sectorKey: string | null, enabled = true) {
   const url = sectorKey
     ? `${API_BASE}/api/sector-filter/top20?sectorKey=${encodeURIComponent(sectorKey)}`
     : `${API_BASE}/api/sector-filter/top20`;
 
   const { data, error, isLoading, mutate } = useSWR<Top20Response>(
-    url, fetcher,
+    enabled ? url : null, fetcher,
     { revalidateOnFocus: false, dedupingInterval: 15 * 60 * 1000 }
   );
   return { top20Data: data, error, isLoading, refresh: mutate };

@@ -31,7 +31,7 @@ import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { patternDetail } from "../market/strategies/patternScan.js";
 import { chartVision, screenerIndex } from "../market/chartVision/chartVision.js";
 import { isIndexSymbol, canonicalSymbol, isValidSymbol } from "../market/normalizer.js";
-import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRotation.js";
+import { SECTOR_RRG_ENGINE, SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRotation.js";
 import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
@@ -323,7 +323,10 @@ router.get("/chart-vision/:symbol", handle(async (req, res) => {
 // 15:50 ghi KV; chưa có -> chạy một lần (cache 10 phút). Không gọi SSI.
 async function sectorDoc(rt, key) {
   let doc = (await rt.store.getKv(key))?.value ?? null;
-  if (!doc) {
+  // Migrate only the summary snapshot; the historical detail KV has a different schema.
+  const needs4d = key === SECTOR_RRG_KV && doc?.engine === SECTOR_RRG_ENGINE
+    && (doc.sectors ?? []).some((sector) => !sector.rrg4d?.version);
+  if (!doc || needs4d) {
     await rt.service.cache.wrap("sectors:build", 10 * 60_000, () => rt.jobs.buildSectorRotation());
     doc = (await rt.store.getKv(key))?.value ?? null;
   }

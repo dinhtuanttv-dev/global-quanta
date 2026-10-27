@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "../../../../test/rtl-lite";
 import fixture from "../__fixtures__/sector-rotation.json";
 import type { GatewaySectorRrgDoc, SectorCycleDetail, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
+import RRG4DProjection from "./RRG4DProjection";
 
 const rrg = fixture.rrg as unknown as GatewaySectorRrgDoc;
 const signals = fixture.timing.signals as unknown as SectorTimingSignalV2[];
@@ -24,6 +25,27 @@ const { default: LocNganhPanel } = await import("../LocNganhPanel");
 afterEach(cleanup);
 
 describe("Xoay vòng ngành ICB (L4–L5)", () => {
+  it("bản đồ 4D chỉ vẽ snapshot đủ correlation và chọn ngành được bằng click", () => {
+    const sector = rrg.sectors.find((s) => s.level === 2)!;
+    const enriched = { ...sector, rrg4d: {
+      version: "sector-rrg-4d/v1", asOf: rrg.dataAsOf, flowShareZ: 0.8, marketCorrelation60: 0.35,
+      correlationObservations: 60, correlationStatus: "ready" as const, method: "fixture",
+    } };
+    const selected: string[] = [];
+    render(<RRG4DProjection sectors={[enriched]} onSelectSector={(code) => selected.push(code)} />);
+    expect(screen.getByTestId(`rrg4d-sector-${sector.code}`)).toBeTruthy();
+    expect(screen.getByTestId("rrg4d-projection").textContent).toContain("ít đồng biến");
+    fireEvent.click(screen.getByTestId(`rrg4d-sector-${sector.code}`));
+    expect(selected).toEqual([sector.code]);
+  });
+
+  it("không tạo điểm 4D giả khi thiếu snapshot hoặc sample correlation", () => {
+    const sector = rrg.sectors.find((s) => s.level === 2)!;
+    render(<RRG4DProjection sectors={[sector]} />);
+    expect(screen.getByTestId("rrg4d-insufficient").textContent).toContain("không tạo dữ liệu thay thế");
+    expect(screen.queryByTestId("rrg4d-projection")).toBeNull();
+  });
+
   it("L5: bản đồ dòng tiền (dịch chuyển 4 tuần, thay đổi thị phần, tích lũy/phân phối âm thầm), cột Trạng thái & Dòng tiền, bằng chứng L3", () => {
     render(<SectorRotationPanel />);
     const l2 = rrg.sectors.filter((s) => s.level === 2);

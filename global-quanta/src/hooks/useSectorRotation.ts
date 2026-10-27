@@ -12,8 +12,10 @@ const get = async <T,>(url: string): Promise<T> => {
 const OPTS = { revalidateOnFocus: false, dedupingInterval: 10 * 60_000 };
 
 export function useSectorRrg() {
-  const { data, error, isLoading } = useSWR<GatewaySectorRrgDoc>(marketUrl("/api/market/sectors/rrg"), get, OPTS);
-  return { data, error: error as Error | undefined, isLoading };
+  const { data, error, isLoading, isValidating, mutate } = useSWR<GatewaySectorRrgDoc>(marketUrl("/api/market/sectors/rrg"), get, {
+    ...OPTS, refreshInterval: 5 * 60_000, keepPreviousData: true, shouldRetryOnError: false,
+  });
+  return { data, error: error as Error | undefined, isLoading, isValidating, refresh: mutate };
 }
 
 export function useSectorTaxonomy() {

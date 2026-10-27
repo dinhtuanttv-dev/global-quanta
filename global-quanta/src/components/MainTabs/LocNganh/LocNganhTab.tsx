@@ -31,8 +31,17 @@ export default function LocNganhTab() {
 
   // L5: ma trận RRG cũ (Yahoo, 1 mã đại diện, 8 ngành) đã gỡ — ngành chọn ở bảng Xoay vòng ngành ICB (mã ICB 4 số)
   const sectorRrg = useSectorRrg();
-  const alpha = useAlphaTop20(subTab === "rrg");
-  const { top20Data, error: top20Error, isLoading: top20Loading } = useTop20Radar(selectedSectorKey);
+  const selectedSector = useMemo(() => {
+    if (!selectedSectorKey) return null;
+    const s = sectorRrg.data?.sectors.find((x) => x.code === selectedSectorKey);
+    if (s?.level === 3 && s.parent) {
+      const parent = sectorRrg.data?.sectors.find((x) => x.level === 2 && x.code === s.parent);
+      return { code: s.parent, name: `${s.name} · lọc theo ICB cấp 2: ${parent?.name ?? s.parent}` };
+    }
+    return { code: selectedSectorKey, name: s?.name ?? selectedSectorKey };
+  }, [selectedSectorKey, sectorRrg.data]);
+  const alpha = useAlphaTop20(subTab === "rrg" && radar === "v2");
+  const { top20Data, error: top20Error, isLoading: top20Loading } = useTop20Radar(selectedSector?.code ?? null, subTab === "rrg" && radar === "confluence");
 
   // L4: tín hiệu thời điểm của ngành ICB (cấp 2) chứa từng mã trong Top 20
   const gateway = isMarketGatewayEnabled();
@@ -42,12 +51,6 @@ export default function LocNganhTab() {
 
   const isLoading = top20Loading;
   const error = top20Error;
-  const selectedSector = useMemo(() => {
-    if (!selectedSectorKey) return null;
-    const s = sectorRrg.data?.sectors.find((x) => x.code === selectedSectorKey);
-    return { code: selectedSectorKey, name: s?.name ?? selectedSectorKey };
-  }, [selectedSectorKey, sectorRrg.data]);
-
   const filteredTop20 = useMemo(() => {
     const raw = top20Data?.top20 ?? [];
     return raw.filter((s) => {
@@ -95,7 +98,8 @@ export default function LocNganhTab() {
             <button type="button" className={`cf-chip ${radar === "confluence" ? "cf-chip--active" : ""}`} aria-pressed={radar === "confluence"} data-testid="radar-confluence" onClick={() => setRadar("confluence")}>Điểm hội tụ dòng tiền (cũ)</button>
           </div>
           {radar === "v2" && (alpha.data
-            ? <Top20V2Panel data={alpha.data} selectedSector={selectedSector} onClearSector={() => setSelectedSectorKey(null)} onSelectTicker={selectTicker} />
+            ? <Top20V2Panel data={alpha.data} selectedSector={selectedSector} onClearSector={() => setSelectedSectorKey(null)} onSelectTicker={selectTicker}
+              onRefresh={() => { void alpha.refresh(); }} refreshing={alpha.isValidating} />
             : <div className="t1-state-msg">{alpha.error ? `Không tải được Top 20 v2: ${alpha.error.message}` : "Đang tải Top 20 v2…"}</div>)}
           {radar === "confluence" && error && <div className="t1-state-msg t1-error">Không tải được Top 20: {String(error)}</div>}
           {radar === "confluence" && !error && (

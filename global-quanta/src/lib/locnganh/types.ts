@@ -206,6 +206,11 @@ export interface GatewaySectorRrg {
   constituents: { ticker: string; weight: number }[]; quadrant: Quadrant; liveQuadrant: Quadrant;
   tail: { week: string; date: string; ratio: number; momentum: number; quadrant: Quadrant }[];
   latestClosed: { ratio: number; momentum: number; heading: number | null; velocity: number | null };
+  /** Optional, additive 4D research coordinates. Missing fields are never synthesized in the client. */
+  rrg4d?: {
+    version: string; asOf: string | null; flowShareZ: number | null; marketCorrelation60: number | null;
+    correlationObservations: number; correlationStatus: "ready" | "insufficient_history" | "zero_variance"; method: string;
+  };
   transitions: number; weeksSinceImproving: number | null; historyWeeks: number; from: string;
   flow?: SectorFlow; state?: { key: SectorStateKey; label: string; why: string[] };
 }

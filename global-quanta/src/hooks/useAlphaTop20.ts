@@ -10,8 +10,9 @@ const fetcher = async (url: string): Promise<AlphaTop20Response> => {
 };
 
 export function useAlphaTop20(enabled = true) {
-  const { data, error, isLoading } = useSWR<AlphaTop20Response, Error>(enabled ? marketUrl('/api/market/alpha/top20') : null, fetcher, {
-    revalidateOnFocus: false, dedupingInterval: 10 * 60_000, shouldRetryOnError: false,
+  const { data, error, isLoading, isValidating, mutate } = useSWR<AlphaTop20Response, Error>(enabled ? marketUrl('/api/market/alpha/top20') : null, fetcher, {
+    revalidateOnFocus: false, dedupingInterval: 10 * 60_000, refreshInterval: 15 * 60_000,
+    keepPreviousData: true, shouldRetryOnError: false,
   });
-  return { data, error, isLoading };
+  return { data, error, isLoading, isValidating, refresh: mutate };
 }

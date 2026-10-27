@@ -85,8 +85,9 @@ function Detail({ s, onClose }: { s: AlphaStock; onClose: () => void }) {
   );
 }
 
-export default function Top20V2Panel({ data, selectedSector, onClearSector, onSelectTicker }: {
+export default function Top20V2Panel({ data, selectedSector, onClearSector, onSelectTicker, onRefresh, refreshing = false }: {
   data: AlphaTop20Response; selectedSector: { code: string; name: string } | null; onClearSector: () => void; onSelectTicker: (t: string) => void;
+  onRefresh?: () => void; refreshing?: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
   const [showWeights, setShowWeights] = useState(false);
@@ -107,6 +108,10 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
           {selectedSector && <> · Lọc theo ngành: <b style={{ color: 'var(--gold)' }}>{selectedSector.name}</b>{' '}
             <button type="button" onClick={onClearSector} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 11 }}>✕ bỏ lọc</button></>}
         </span>
+        {onRefresh && <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Tải lại snapshot Top 20" data-testid="alpha-refresh"
+          style={{ marginLeft: 'auto', background: 'var(--bg-surface-2)', border: '1px solid rgba(148,163,184,.2)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-secondary)', cursor: refreshing ? 'wait' : 'pointer', fontSize: 10 }}>
+          {refreshing ? 'Đang tải…' : 'Tải lại snapshot'}
+        </button>}
       </div>
 
       <div className="cf-evidence" role="note" data-testid="alpha-evidence">
@@ -123,6 +128,9 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
       <p data-testid="alpha-source" style={{ fontSize: 10.5, color: 'var(--text-tertiary)', margin: '6px 0 8px' }}>
         Mô hình {data.model} · trọng số từ IC {data.icHistoryDays} ngày (36 tháng, co 50% về đều) · giá điều chỉnh cộng dồn (Gateway) · BCTC, khối ngoại, vốn hoá: VNDirect ({data.vnd.tickers} mã, cập nhật {fmtDate(data.vnd.fetchedAt)}) · tối đa 4 mã / ngành.{' '}
         <button type="button" onClick={() => setShowWeights((v) => !v)} data-testid="alpha-weights-toggle" style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 10.5, padding: 0 }}>{showWeights ? 'Ẩn trọng số' : 'Xem trọng số 18 yếu tố'}</button>
+      </p>
+      <p data-testid="alpha-asof" style={{ fontSize: 10, color: 'var(--text-tertiary)', margin: '-4px 0 8px' }}>
+        Snapshot {fmtDate(data.dataAsOf)} · dựng lúc {fmtDate(data.builtAt)} · kết quả ledger là theo dõi đã chấm, không phải hiệu suất đảm bảo.
       </p>
       {showWeights && (
         <div data-testid="alpha-weights" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '2px 14px', fontSize: 11, margin: '0 0 10px' }}>

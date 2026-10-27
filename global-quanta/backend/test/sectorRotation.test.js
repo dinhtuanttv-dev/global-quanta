@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { buildIcbTaxonomy } from "../src/market/sectors/icbTaxonomy.js";
 import { buildSectorIndex, computeRrg, hysteresisQuadrant, quadrantTransitions, rawQuadrant, weeklyCloses } from "../src/market/sectors/rrg.js";
-import { buildSectorRotation } from "../src/market/sectors/sectorRotation.js";
+import { buildSectorRotation, rollingMarketCorrelation } from "../src/market/sectors/sectorRotation.js";
 
 // lịch phiên: thứ Hai–thứ Sáu từ 2022-01-03
 const DATES = (() => { const out = []; const d = new Date(Date.UTC(2022, 0, 3)); while (out.length < 900) { const w = d.getUTCDay(); if (w >= 1 && w <= 5) out.push(d.toISOString().slice(0, 10)); d.setUTCDate(d.getUTCDate() + 1); } return out; })();
@@ -11,6 +11,39 @@ const bars = (fn, { value = 5e9 } = {}) => DATES.map((date, i) => ({ date, close
 const bench = bars((i) => 1000 * (1 + 0.0002 * i));
 // ngành xoay vòng: lợi suất tương đối hình sin chu kỳ ~ 40 tuần
 const cyc = (i, ph = 0) => 1000 * (1 + 0.0002 * i) * Math.exp(0.08 * Math.sin((2 * Math.PI * i) / 200 + ph));
+
+test("RRG 4D: market correlation uses aligned daily returns and reports coverage", () => {
+  const returns = Array.from({ length: 45 }, (_, i) => 0.004 * Math.sin(i * 0.71) + 0.001 * Math.cos(i * 0.19));
+  const series = (rates, count = rates.length + 1) => {
+    let close = 100;
+    return DATES.slice(0, count).map((date, i) => {
+      if (i > 0) close *= 1 + rates[i - 1];
+      return { date, close };
+    });
+  };
+  const benchmark = series(returns);
+  const aligned = series(returns);
+  const positive = rollingMarketCorrelation(aligned, benchmark);
+  assert.equal(positive.status, "ready");
+  assert.equal(positive.observations, 45);
+  assert.ok(Math.abs(positive.value - 1) < 1e-10);
+
+  const inverse = series(returns.map((r) => -r));
+  assert.ok(Math.abs(rollingMarketCorrelation(inverse, benchmark).value + 1) < 1e-10);
+
+  const short = rollingMarketCorrelation(aligned.slice(0, 20), benchmark.slice(0, 20));
+  assert.equal(short.value, null);
+  assert.equal(short.status, "insufficient_history");
+
+  const flat = benchmark.map((b) => ({ ...b, close: 100 }));
+  const zeroVariance = rollingMarketCorrelation(flat, benchmark);
+  assert.equal(zeroVariance.value, null);
+  assert.equal(zeroVariance.status, "zero_variance");
+
+  const missing = aligned.filter((_, i) => i !== 20);
+  const noBridge = rollingMarketCorrelation(missing, benchmark, { lookback: 60, minObservations: 30 });
+  assert.equal(noBridge.observations, 43, "missing sector index rows must not be bridged into multi-session returns");
+});
 
 test("ICB VNDirect: mã -> cấp 1/2/3, đệm mã 4 chữ số, điền cấp cha còn thiếu", () => {
   const icb = buildIcbTaxonomy({
