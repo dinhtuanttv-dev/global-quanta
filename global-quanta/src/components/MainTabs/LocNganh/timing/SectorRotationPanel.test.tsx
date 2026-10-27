@@ -34,7 +34,8 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     const selected: string[] = [];
     render(<RRG4DProjection sectors={[enriched]} onSelectSector={(code) => selected.push(code)} />);
     expect(screen.getByTestId(`rrg4d-sector-${sector.code}`)).toBeTruthy();
-    expect(screen.getByTestId("rrg4d-projection").textContent).toContain("ít đồng biến");
+    expect(screen.getByTestId("rrg4d-projection").textContent).toContain("ít tương quan tuyến tính");
+    expect(screen.getByTestId("rrg4d-data-table")).toBeTruthy();
     fireEvent.click(screen.getByTestId(`rrg4d-sector-${sector.code}`));
     expect(selected).toEqual([sector.code]);
   });
