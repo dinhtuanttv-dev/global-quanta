@@ -9,6 +9,7 @@ import { useChartVision, usePatternGeometry, type CvFrame, type CvTimeframe } fr
 import { Card, Tile } from "../ScreenerDeepPanel";
 import VisionSketch, { DEFAULT_LAYERS, type SketchLayers } from "./VisionSketch";
 import type { AIChartVisionPanelProps } from "./types";
+import StructureForecastCard from "./StructureForecastCard";
 
 const fmtP = (v?: number | null) => (v == null || !Number.isFinite(v) ? "—" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("vi-VN") : v.toLocaleString("vi-VN", { maximumFractionDigits: 2 }));
 const fmtN = (v?: number | null, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -168,6 +169,8 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
               <Tile label="Trọng số" value={Object.entries(syn.weights).map(([k, v]) => `${k} ${Math.round((v ?? 0) * 100)}`).join(" · ")} sub="hợp lưu theo khung (%)" />
             </div>
           </section>
+
+          <StructureForecastCard symbol={data.symbol} isIndex={data.isIndex} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
             {data.frames.map((f) => <FrameCard key={f.tf} f={f} partial={f.tf === "W" ? data.partial.week : f.tf === "M" ? data.partial.month : false} />)}
