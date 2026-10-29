@@ -1,12 +1,13 @@
 // Elite 10 — trung tâm ra quyết định (E4–E6 2026-10-17). Tab con:
 //   1. Bảng quyết định hôm nay — danh mục Elite 10, trọng số tín hiệu theo bằng chứng, sổ theo dõi tiến (Gateway /api/elite/*).
-//   2. Hồ sơ 360° — mọi tín hiệu của một mã từ 7 tab + phân tích kỹ thuật thật (E0).
+//   2. Hồ sơ 360° — mọi tín hiệu của một mã từ 7 tab + phân tích kỹ thuật thật (E0); chế độ 🔎 Bộ lọc Elite lọc cả vũ trụ (30/10).
 //   3. Phòng họp AI — tranh luận Claude ↔ Gemini có trọng tài, bản tin phiên, hỏi đáp (E5).
 //   4. Bằng chứng & sổ theo dõi — IC từng tín hiệu theo kỳ hạn, bậc, sổ theo dõi tiến (E6).
 //   5. Rủi ro danh mục — Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, căng thẳng (E6).
 import { useRef, useState, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
+import EliteScreener from "./center/EliteScreener";
 import TimingSimPanel from "./timing/TimingSimPanel";
 import EliteNewsPanel from "./news/EliteNewsPanel";
 import EliteAiRoom from "./center/EliteAiRoom";
@@ -26,11 +27,13 @@ const SUBS: { id: Sub; label: string }[] = [
 
 export default function Elite10Hub() {
   const globalTicker = useAppStore((s) => s.selectedTicker);
-  const [sub, setSub] = useState<Sub>("board");
+  const fromLink = typeof window !== "undefined" && window.location.hash.includes("elite-filter=");
+  const [sub, setSub] = useState<Sub>(fromLink ? "profile" : "board");
+  const [mode, setMode] = useState<"profile" | "screener">(fromLink ? "screener" : "profile");
   const [ticker, setTicker] = useState<string | null>(null);
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
   const current = ticker ?? globalTicker ?? "VNINDEX";
-  const open = (t: string) => { setTicker(t); setSub("profile"); };
+  const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     const i = SUBS.findIndex((s) => s.id === sub);
     const n = e.key === "ArrowRight" ? (i + 1) % SUBS.length : e.key === "ArrowLeft" ? (i - 1 + SUBS.length) % SUBS.length : -1;
@@ -62,11 +65,25 @@ export default function Elite10Hub() {
         {sub === "risk" && <RiskTab />}
         {sub === "profile" && (
           <>
-            <SignalProfileCard ticker={current} />
-            {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD (chart chính mới; chart kỹ thuật cũ chuyển sau nút tạm ở CH6). */}
-            <TimingSimPanel ticker={current} />
-            <EliteNewsPanel ticker={current} onTicker={open} />
-            <TaVnIndexTab ticker={current} onTickerChange={setTicker} />
+            <div className="tw-scope flex flex-wrap gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
+              {([["profile", `Hồ sơ ${current}`], ["screener", "🔎 Bộ lọc Elite"]] as const).map(([m, l]) => (
+                <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} data-testid={`elite-mode-${m}`}
+                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
+              ))}
+            </div>
+            {mode === "screener" ? (
+              <section className="tw-scope rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 text-slate-200">
+                <EliteScreener onOpenTicker={open} refTicker={ticker} />
+              </section>
+            ) : (
+              <>
+                <SignalProfileCard ticker={current} />
+                {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD (chart chính mới; chart kỹ thuật cũ chuyển sau nút tạm ở CH6). */}
+                <TimingSimPanel ticker={current} />
+                <EliteNewsPanel ticker={current} onTicker={open} />
+                <TaVnIndexTab ticker={current} onTickerChange={setTicker} />
+              </>
+            )}
           </>
         )}
       </section>

@@ -35,6 +35,8 @@ import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
 import { createAuthRouter } from "./routes/auth.js";
 import { createHeapProfileRouter } from "./routes/heapProfile.js";
+import { createUserFilters } from "./market/elite/userFilters.js";
+import { SPEC_BY_ID } from "./market/elite/signalRegistry.js";
 
 const app = express();
 
@@ -152,7 +154,14 @@ const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: 
 // E3: Điểm Elite + danh mục Elite 10 + sổ theo dõi tiến (E3-prereg.md).
 let eliteDecision = null;
 const vnIndexCloses = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
-const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), vnIndex: vnIndexCloses }));
+// Bộ lọc Elite theo tài khoản + sổ theo dõi tiến (30/10/2026). Điều kiện "_buyzone" = vùng mua ĐẠT KIỂM ĐỊNH đang mở / ≤ 10 phiên (Timeline Gateway).
+let userFilters = null;
+const getUserFilters = () => (userFilters ??= createUserFilters({ store: getMarketRuntime().store }));
+const validatedBuyZone = async () => {
+  const t = await getGatewayTimeline()();
+  return new Set((t?.rows ?? []).filter((r) => r.tier === "VALIDATED" && (r.status === "IN_WINDOW" || (r.status === "UPCOMING" && r.sessionsToEntry <= 10))).map((r) => r.ticker));
+};
+const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
@@ -181,7 +190,8 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones }));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getUserFilters,
+  verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   // Mỗi phiên dựng một lần; lần dựng LỖI (VD kho dữ liệu tạm khoá) được thử lại sau 30 phút thay vì bỏ cả ngày.

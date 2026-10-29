@@ -13,7 +13,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
  * @param {{ store: any, panel: { panel: (d?: string|null) => Promise<any> }, evidence: { evidence: () => Promise<any> },
  *   vnIndex: () => Promise<[string, number][]>, now?: () => number, log?: any }} deps
  */
-export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -91,6 +91,11 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
           delete e.universe;
         }
       }
+      // "Elite 10 · bộ lọc của tôi": sổ theo dõi tiến theo tài khoản (cùng giá / lịch / VN-Index với sổ chính thức).
+      if (userFilters) {
+        try { await userFilters.updateLedgers({ panel: p, doc, prices, px, cal, vn, buyZone: (await buyZone?.().catch(() => null)) ?? new Set() }); }
+        catch (e) { log.warn?.(`[elite] sổ bộ lọc cá nhân: ${e.message}`); }
+      }
       ledger.version = E3_VERSION;
       ledger.summary = summarizeLedger(ledger.entries);
       ledger.updatedAt = new Date(now()).toISOString();
@@ -145,7 +150,19 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     return value;
   }
 
-  return { build, decision, ledger, rankHistory };
+  /** Danh mục từ bộ lọc của một tài khoản trên phiên quyết định mới nhất (tính khi được hỏi; không ghi sổ). */
+  async function personalPortfolio(filter, prevHoldings = []) {
+    if (!userFilters) return null;
+    const p = await panel.panel();
+    const doc = await decision();
+    if (!p || !doc) return null;
+    const zone = (await buyZone?.().catch(() => null)) ?? new Set();
+    const pre = userFilters.personal({ filter, panel: p, doc, prices: new Map(), buyZone: zone });
+    const prices = await loadPrices([...new Set([...pre.pass, ...CAL_SYMBOLS])], doc.date);
+    return { date: doc.date, ...userFilters.personal({ filter, panel: p, doc, prices, buyZone: zone, prevHoldings }) };
+  }
+
+  return { build, decision, ledger, rankHistory, personalPortfolio };
 }
 
 /** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */
