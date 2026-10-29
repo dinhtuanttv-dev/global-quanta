@@ -66,6 +66,12 @@ const netOf = (car: (number | null)[], offsets: number[], a: number, b: number, 
  * Dựng các dải 3D. `bars` = nến ngày tăng dần (Gateway). `todayOff` = phiên hôm nay so với sự kiện sắp tới (null = không rõ).
  * `entry`/`exit` = cửa sổ đang xem (tô thắng / thua).
  */
+/** Phiên (so với sự kiện) của nến ngày cuối: chưa có nến hôm nay (trước giờ mở cửa) -> hôm qua = todayOff − 1. */
+export function lastBarOffset(bars: DailyBar[], todayOff: number | null, today: string | null): number | null {
+  if (todayOff == null || !bars.length) return null;
+  return today && bars[bars.length - 1].date < today ? todayOff - 1 : todayOff;
+}
+
 /**
  * Đường lợi suất vượt VN-Index của KỲ TỚI từ giá đóng cửa: CAR(k) = ln(P_k/P_đầu) − ln(I_k/I_đầu), mốc đầu = offsets[0] (cùng neo 0 với v3).
  * Chỉ tính TRƯỚC sự kiện (chưa qua GDKHQ nên giá đóng cửa = giá tổng lợi suất); thiếu VN-Index cùng ngày -> bỏ mốc đó.
@@ -83,7 +89,7 @@ export function currentPathFromBars(offs: number[], bars: DailyBar[], indexBars:
   });
 }
 
-export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: number | null, win: { entryTo: number; exitOffset: number } | null, today: string | null = null, indexBars: DailyBar[] = []): TimingSpace {
+export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: number | null, win: { entryTo: number; exitOffset: number } | null, today: string | null = null, indexBars: DailyBar[] = [], extraRets: number[] = []): TimingSpace {
   const offs = es.offsets, x0 = Math.min(offs[0], todayOff ?? offs[0]), x1 = Math.max(offs[offs.length - 1], todayOff ?? offs[0]);
   const carPts = (car: (number | null)[]) => car.flatMap((v, i) => (v == null ? [] : [{ offset: offs[i], ret: Math.expm1(v) }]));
   const cellsAround = (center: number, from: number, to: number): SpaceCell[] => {
@@ -111,7 +117,7 @@ export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: num
   // Kỳ hiện tại: đường CAR tới hôm nay + thảm W từ mốc đầu tới phiên cuối có nến (chưa có nến hôm nay -> phiên cuối = hôm qua).
   if (es.upcoming) {
     const last = bars.length - 1;
-    const lastOff = todayOff == null || last < 0 ? null : today && bars[last].date < today ? todayOff - 1 : todayOff;
+    const lastOff = lastBarOffset(bars, todayOff, today);
     const cells: SpaceCell[] = [];
     if (lastOff != null) {
       for (let k = Math.max(offs[0], lastOff - last); k <= Math.min(lastOff, x1); k++) {
@@ -124,7 +130,7 @@ export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: num
     const derived = !own.length && lastOff != null && lastOff - (bars.length - 1) <= offs[0] ? currentPathFromBars(offs, bars, indexBars, lastOff) : [];
     ribbons.push({ key: "current", label: d ? `Kỳ tới ${d.slice(8, 10)}/${d.slice(5, 7)}` : "Kỳ tới", kind: "current", eventDate: d || null, points: own.length ? own : derived, cells, windowNet: null, derived: !own.length && derived.length > 0 });
   }
-  const rets = ribbons.flatMap((r) => r.points.map((p) => p.ret));
+  const rets = [...ribbons.flatMap((r) => r.points.map((p) => p.ret)), ...extraRets];
   const lo = Math.min(0, ...rets), hi = Math.max(0, ...rets), pad = (hi - lo) * 0.06 || 0.02;
   const all = ribbons.flatMap((r) => r.cells);
   return { ribbons, x0, x1, yMin: lo - pad, yMax: hi + pad, anomalies: all.filter((c) => c.esa.level !== "none").length, cellsWithEsa: all.filter((c) => c.esa.z != null).length };

@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen } from "../../../test/rtl-lite";
 import div from "../../../lib/elite10/__fixtures__/event-study-FPT-dividend.json";
 import earn from "../../../lib/elite10/__fixtures__/event-study-FPT-earnings.json";
 import fptBars from "../../../lib/elite10/__fixtures__/ohlcv-FPT-5y.json";
+import vniBars from "../../../lib/elite10/__fixtures__/ohlcv-VNINDEX-5y.json";
 
 let buyRows: Record<string, unknown>[] = [];
 // Dòng Timeline thật của FPT ngày 29/10/2026 (Gateway /api/elite/buy-timing).
@@ -25,7 +26,7 @@ vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({
   buyTimingFreshness: () => ({ text: "Gateway tự tính · dữ liệu 29/10", stale: false }),
 }));
 const ohlcvCalls: (string | null)[] = [];
-vi.mock("../../../hooks/useOhlcvData", () => ({ useOhlcvData: (t: string | null) => { ohlcvCalls.push(t); return { bars: t ? fptBars : [], isLoading: false, error: null }; } }));
+vi.mock("../../../hooks/useOhlcvData", () => ({ useOhlcvData: (t: string | null) => { ohlcvCalls.push(t); return { bars: t === "VNINDEX" ? vniBars : t ? fptBars : [], isLoading: false, error: null }; } }));
 vi.mock("../../../hooks/elite10/useEsaSnapshot", () => ({ useEsaSnapshot: () => ({ esa: null, loading: false, error: null }) }));
 
 import TimingSimPanel from "./TimingSimPanel";
@@ -106,12 +107,17 @@ describe("TimingSimPanel — Timeline điểm mua + 3D", () => {
     expect(screen.getByTestId("timing-timeline-empty").textContent).toContain("chưa có vùng mua cổ tức cho FPT");
   });
 
-  it("2D mặc định trên màn hẹp, không tải nến; bật 3D -> tải nến ngày + dựng không gian 4D có bảng số liệu", () => {
+  it("2D mặc định trên màn hẹp: đường kỳ tới + quạt dự phóng + thẻ dự phóng; bật 3D -> không gian 4D có bảng số liệu", () => {
     buyRows = [FPT_TL];
     render(<TimingSimPanel ticker="FPT" />);
-    expect(ohlcvCalls.every((t) => t === null)).toBe(true);
-    fireEvent.click(screen.getByTestId("timing-view-3D"));
     expect(ohlcvCalls.slice(-2)).toEqual(["FPT", "VNINDEX"]);
+    expect(screen.getByTestId("event-study-current-derived")).toBeTruthy();
+    expect(screen.getByTestId("event-study-fan")).toBeTruthy();
+    const card = screen.getByTestId("analog-fan-card").textContent ?? "";
+    expect(card).toContain("Tới THOÁT (phiên +3)");
+    expect(card).toMatch(/P\(lãi ròng > 0 nếu mua hôm nay\): \d+%/);
+    expect(card).toMatch(/thô \d+% → sau hiệu chỉnh CQR \d+%/);
+    fireEvent.click(screen.getByTestId("timing-view-3D"));
     expect(screen.getByTestId("timing-space-3d")).toBeTruthy();
     expect(screen.getByTestId("space-esa-summary").textContent).toMatch(/ESA ngày: \d+ phiên bất thường \/ \d+ phiên/);
     const rows = screen.getByTestId("space-table").querySelectorAll("tbody tr");
