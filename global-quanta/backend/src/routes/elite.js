@@ -105,6 +105,13 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     res.json({ date: doc.date, version: doc.version, icComb: doc.icComb, weights: doc.weights, inPortfolio: doc.portfolio.some((x) => x.ticker === ticker), universe: doc.universe, ...score });
   }));
 
+  router.get("/rank-history", wrap(async (req, res) => {
+    const h = getDecision?.().rankHistory ? await getDecision().rankHistory(req.query.days) : null;
+    if (!h?.dates.length) return missing(res, "Chưa có lịch sử quyết định Elite 10.");
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(h);
+  }));
+
   router.get("/ledger", wrap(async (req, res) => {
     const l = getDecision ? await getDecision().ledger() : null;
     if (!l) return missing(res, "Sổ theo dõi chưa có bản ghi.");

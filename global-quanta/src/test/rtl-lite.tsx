@@ -54,4 +54,11 @@ export const fireEvent = {
   // React gắn onMouseEnter/onMouseLeave qua mouseover/mouseout ở root (giống testing-library)
   mouseEnter: (el: Element) => fire(el, "mouseover", { relatedTarget: document.body }),
   mouseLeave: (el: Element) => fire(el, "mouseout", { relatedTarget: document.body }),
+  /** Đổi giá trị ô nhập / thanh trượt như người dùng: setter gốc của value (React theo dõi) + sự kiện input & change. */
+  change: (el: Element, { target: { value } }: { target: { value: string } }) => act(() => {
+    const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value")?.set;
+    if (setter) setter.call(el, value); else (el as HTMLInputElement).value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }),
 };

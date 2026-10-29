@@ -11,6 +11,7 @@ import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGat
 import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
 import { BuyTimingCell, fmtDate, num, price, SectionControls, signed } from "./boardParts";
 import { useBoardSection } from "./boardPrefs";
+import PortfolioRadar from "./PortfolioRadar";
 import EliteCandidates from "./EliteCandidates";
 
 const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
@@ -96,6 +97,10 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
             ))}
           </p>
         ) : (<>
+        <PortfolioRadar d={d} buyCells={buyCells} secName={secName} drivers={drivers} onOpenTicker={onOpenTicker} compact={pf.compact} />
+        {/* Bảng số liệu đầy đủ (dạng bảng truy cập được bằng trình đọc màn hình) — thu lại mặc định, Radar ở trên là chế độ chính. */}
+        <details className="mt-1" data-testid="elite-portfolio-table-details">
+          <summary className="cursor-pointer text-[10.5px] text-slate-400 hover:text-slate-200">☰ Bảng số liệu danh mục</summary>
         <div className="overflow-x-auto" id="elite-portfolio-table">
           <table className="w-full text-[11px]" style={{ minWidth: pf.compact ? 560 : 900, borderCollapse: "collapse" }}>
             <thead>
@@ -134,6 +139,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
             </tbody>
           </table>
         </div>
+        </details>
         <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
           ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
           (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).{" "}
