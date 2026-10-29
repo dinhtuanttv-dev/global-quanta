@@ -64,4 +64,6 @@ test("N0: lợi suất an toàn ngày quyền — thưởng CP 10% (HOSE): dùng
   near(sessionReturn({ close: 10200, refPrice: 10050, exchange: "UPCOM" }, { close: 10000 }), Math.log(10200 / 10000), 1e-12, "UPCOM thường");
   near(sessionReturn({ close: 9300, refPrice: 9091, exchange: "UPCOM" }, { close: 10000 }), Math.log(9300 / 9091), 1e-12, "UPCOM ngày quyền");
   near(sessionReturn({ close: 105 }, { close: 100 }), Math.log(1.05), 1e-12, "không có tham chiếu");
+  // ngày thường HOSE: tham chiếu lệch nhỏ do nguồn -> vẫn đóng cửa so đóng cửa (không thêm nhiễu)
+  near(sessionReturn({ close: 102, refPrice: 100.4, exchange: "HOSE" }, { close: 100 }), Math.log(1.02), 1e-12, "HOSE ngày thường");
 });

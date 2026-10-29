@@ -23,15 +23,16 @@ export function ols(xs, ys) {
 const valueOf = (r) => (Number(r.value) > 0 ? Number(r.value) : Number(r.volume) > 0 && Number(r.close) > 0 ? Number(r.volume) * Number(r.close) : null);
 const priceOf = (r) => Number(r.closeAdj ?? r.close_adj ?? r.close) || null;
 /**
- * Lợi suất log phiên `r` so phiên `prev`, an toàn với ngày GDKHQ / thưởng cổ phiếu: giá THAM CHIẾU của sàn đã điều chỉnh ngày đó.
- * HOSE/HNX: tham chiếu = giá đóng cửa trước (đã điều chỉnh) -> ln(close/ref). UPCOM: tham chiếu = giá bình quân phiên trước nên giữ
- * đóng-cửa-so-đóng-cửa, trừ khi tham chiếu lệch > 4% so đóng cửa trước (dấu hiệu sự kiện quyền) -> dùng tham chiếu.
+ * Lợi suất log phiên `r` so phiên `prev`, an toàn với ngày GDKHQ / thưởng cổ phiếu. Ngày thường: đóng cửa (điều chỉnh) so phiên trước
+ * như cũ. CHỈ khi giá THAM CHIẾU của sàn lệch rõ so đóng cửa trước (> 1% HOSE/HNX, > 4% UPCOM vì tham chiếu UPCOM = giá bình quân) —
+ * dấu hiệu ngày quyền — mới dùng ln(close/ref). (Đo 29/10/2026: dùng tham chiếu cho MỌI phiên làm σ lợi suất HPG tăng 1,29% -> 1,58%
+ * do tham chiếu trong kho có phiên lệch nguồn — nên chỉ dùng ở ngày quyền.)
  */
 export function sessionReturn(r, prev) {
   const close = Number(r?.close), ref = Number(r?.refPrice ?? r?.ref_price), pc = Number(prev?.close);
-  if (close > 0 && ref > 0) {
-    const jump = pc > 0 ? Math.abs(Math.log(ref / pc)) : Infinity;
-    if (String(r.exchange ?? "").toUpperCase() !== "UPCOM" || jump > 0.04) return Math.log(close / ref);
+  if (close > 0 && ref > 0 && pc > 0) {
+    const jump = Math.abs(Math.log(ref / pc)), lim = String(r.exchange ?? "").toUpperCase() === "UPCOM" ? 0.04 : 0.01;
+    if (jump > lim) return Math.log(close / ref);
   }
   const a = priceOf(r), b = prev ? priceOf(prev) : null;
   return a && b ? Math.log(a / b) : null;
