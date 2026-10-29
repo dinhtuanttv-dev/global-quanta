@@ -1,0 +1,60 @@
+{
+ "prereg": "SEAS-prereg-v2",
+ "lockedAt": "2026-10-29T09:48:10.243Z",
+ "sign": 1,
+ "dataCutoff": "2019-12-31",
+ "engine": {
+  "version": "SEAS-v1.1",
+  "years": 5,
+  "monthEndMinDay": 20,
+  "roundTripCost": 0.004,
+  "permutations": 2000,
+  "fdrQ": 0.1,
+  "level": 0.9,
+  "priorStrength": 10,
+  "minSectorPeers": 3,
+  "lowSampleN": 4
+ },
+ "trainStartYear": 2013,
+ "minTrainYears": 3,
+ "maxTrainYears": 5,
+ "testYears": [
+  2016,
+  2017,
+  2018,
+  2019
+ ],
+ "testEnd": "2019-12",
+ "minCrossSection": 30,
+ "sectorMinCrossSection": 12,
+ "quantiles": 5,
+ "bootstrap": {
+  "iters": 10000,
+  "seed": 20261030,
+  "level": 0.9
+ },
+ "thresholds": {
+  "tMin": 2,
+  "yearsPositiveMin": 3
+ },
+ "reconciliation": {
+  "corr": 0.99104,
+  "medianAbsDiff": 0.0000118,
+  "shareOver1pct": 0.0328,
+  "pairs": 20622,
+  "tickers": 281
+ },
+ "data": {
+  "sha256": "d3c9808146a7b5fb78c832000c80e97c2a11a08b3aacbe437d2767a2db682af2",
+  "fetchedAt": "2026-10-29T09:44:50.924Z",
+  "tickers": 1188,
+  "delistedKept": 135,
+  "source": {
+   "prices": "https://api-finfo.vndirect.com.vn/v4/stock_prices (adClose, nmValue)",
+   "taxonomy": "2026-10-22T22:38:07.665Z",
+   "delisted": 453,
+   "delistedWithSector": 430
+  }
+ },
+ "sha256": "3862d2e5f32c8a018048cbae4b09930955ca8b8a9399280f623441d564b29082"
+}
