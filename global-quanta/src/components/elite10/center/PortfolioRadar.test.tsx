@@ -161,3 +161,27 @@ describe("PortfolioRadar — ⏱ ĐIỂM MUA 10 PHIÊN TỚI (vùng tối ưu t�
     expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("Chưa có vùng mùa vụ có lợi thế · mở cửa 30/10, giữ tới 12/11");
   });
 });
+
+describe("PortfolioRadar — canvas không bao giờ ném lỗi (30/10/2026: bán kính −215 làm sập tab)", () => {
+  // ctx giả: arc ném IndexSizeError khi bán kính âm — đúng như trình duyệt thật
+  const fakeCanvas = () => {
+    const calls: number[] = [];
+    const ctx = new Proxy({ arc: (_x: number, _y: number, r: number) => { calls.push(r); if (r < 0) throw new DOMException("radius negative", "IndexSizeError"); } } as Record<string, unknown>, {
+      get: (o, k) => (k in o ? o[k as string] : k === "createLinearGradient" ? () => ({ addColorStop() {} }) : k === "measureText" ? () => ({ width: 30 }) : () => {}),
+      set: () => true,
+    });
+    const cv = { getContext: () => ctx, clientWidth: 200, clientHeight: 38, width: 0, height: 0 } as unknown as HTMLCanvasElement;
+    return { cv, calls };
+  };
+  it("vẽ tĩnh (t = 0) với ping cũ (t0 lớn) / tỷ trọng thiếu -> không ném, mọi bán kính > 0", async () => {
+    const { drawTrack, safeR } = await import("./PortfolioRadar");
+    const { cv, calls } = fakeCanvas();
+    const row = { pick: { ticker: "VPI", weight: Number.NaN, pOutperform: 0.52 }, z: 2.3, trail: [2.1], topTier: true, stealth: { dir: 1, z: 2 }, buy: null, rim: "#34d399", hot: true } as never;
+    expect(() => drawTrack(cv, row, [0, 3], 0, null, true, { t0: 151_000 })).not.toThrow();
+    expect(() => drawTrack(cv, row, [0, 3], 151_200, 0.5, true, { t0: 151_000 })).not.toThrow();
+    expect(calls.every((r) => r > 0)).toBe(true);
+    expect(safeR(-215.004)).toBe(0.1);
+    expect(safeR(Number.NaN)).toBe(0.1);
+    expect(safeR(7)).toBe(7);
+  });
+});

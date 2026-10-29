@@ -6,10 +6,10 @@ import useSWR from "swr";
 import type { ResearchOverview } from "../../../hooks/useResearch";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
-import { TIER_TITLE, type PortfolioPick, type Tier } from "../../../lib/elite10/decisionTypes";
+import { TIER_TITLE, type Tier } from "../../../lib/elite10/decisionTypes";
 import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
-import { BuyTimingCell, fmtDate, num, price, SectionControls, signed } from "./boardParts";
+import { fmtDate, num, SectionControls, signed } from "./boardParts";
 import { useBoardSection } from "./boardPrefs";
 import PortfolioRadar from "./PortfolioRadar";
 import EliteCandidates from "./EliteCandidates";
@@ -52,7 +52,6 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
     const sc = d.scores.find((x) => x.ticker === ticker);
     return (sc?.contributions ?? []).filter((c) => c.contribution > 0.05).sort((a, b) => b.contribution - a.contribution).slice(0, 2).map((c) => byId.get(c.id)?.labelVi ?? c.id);
   };
-  const maxW = Math.max(...d.portfolio.map((p) => p.weight), 0.01);
   const buyCells = buyTimingCells(d.portfolio.map((p) => p.ticker), buy.data?.rows ?? null, d.date, buy.sessions);
   const secName = (k: string | null) => (k ? sectorName.get(k) ?? k : "—");
   const buyAge = buy.meta?.fetchedAt ? new Date(buy.meta.fetchedAt).toLocaleString("vi-VN", { hour12: false }) : null;
@@ -97,49 +96,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
             ))}
           </p>
         ) : (<>
-        <PortfolioRadar d={d} buyCells={buyCells} secName={secName} drivers={drivers} onOpenTicker={onOpenTicker} compact={pf.compact} />
-        {/* Bảng số liệu đầy đủ (dạng bảng truy cập được bằng trình đọc màn hình) — thu lại mặc định, Radar ở trên là chế độ chính. */}
-        <details className="mt-1" data-testid="elite-portfolio-table-details">
-          <summary className="cursor-pointer text-[10.5px] text-slate-400 hover:text-slate-200">☰ Bảng số liệu danh mục</summary>
-        <div className="overflow-x-auto" id="elite-portfolio-table">
-          <table className="w-full text-[11px]" style={{ minWidth: pf.compact ? 560 : 900, borderCollapse: "collapse" }}>
-            <thead>
-              <tr className="text-slate-500">
-                <th className="text-left font-normal py-1">Mã</th><th className="text-left font-normal">Ngành</th><th className="text-left font-normal">Tỷ trọng</th>
-                <th className="text-left font-normal pr-2" data-testid="elite-buy-col" title={`Thời điểm mua tốt nhất trong kỳ nắm giữ ${ELITE_HOLD_SESSIONS} phiên: vùng mua mùa vụ ĐẠT KIỂM ĐỊNH (Timeline điểm mua — cổ tức / KQKD) nếu có, ngược lại quy tắc danh mục (mở cửa phiên kế tiếp)`}>⏱ Điểm mua</th>
-                <th className="font-normal" title="Điểm Elite chuẩn hoá trên toàn vũ trụ">Z</th>
-                {!pf.compact && <th className="font-normal" title="Lợi suất vượt kỳ vọng 5 phiên = IC × σ5 × Z (Grinold–Kahn)">α 5 phiên</th>}
-                <th className="font-normal" title="Xác suất vượt trung vị vũ trụ trong 5 phiên">P vượt</th>
-                {!pf.compact && <th className="font-normal" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)">Rủi ro</th>}
-                <th className="whitespace-nowrap pl-2 text-right font-normal">Giá</th><th className="whitespace-nowrap pl-2 text-right font-normal">Cắt lỗ</th>
-                {!pf.compact && <th className="whitespace-nowrap pl-2 text-right font-normal">Mục tiêu</th>}
-                {!pf.compact && <th className="text-left font-normal pl-3">Động lực chính</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {d.portfolio.map((p: PortfolioPick) => (
-                <tr key={p.ticker} className="border-t border-white/5" data-testid={`elite-pick-${p.ticker}`}>
-                  <td className="py-1.5 whitespace-nowrap"><button type="button" onClick={() => onOpenTicker(p.ticker)} className="font-bold text-cyan-300 hover:underline">{p.ticker}</button>{p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[8.5px] text-slate-400">giữ</span>}</td>
-                  <td className="text-slate-400">{secName(p.sectorKey)}</td>
-                  <td className="whitespace-nowrap">
-                    <span aria-hidden="true" className="mr-1.5 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${(p.weight / maxW) * 48}px` }} />
-                    <b>{num(p.weight * 100)}%</b>
-                  </td>
-                  <td className="pr-2 py-1" data-testid={`elite-buy-${p.ticker}`}><BuyTimingCell cell={buyCells.get(p.ticker)} compact={pf.compact} /></td>
-                  <td className="whitespace-nowrap px-1 text-center font-mono">{num(p.Z, 2)}</td>
-                  {!pf.compact && <td className="whitespace-nowrap px-1 text-center font-mono text-emerald-300">{signed(p.alpha5Pct, 2)}%</td>}
-                  <td className="whitespace-nowrap px-1 text-center font-mono">{num(p.pOutperform * 100, 1)}%</td>
-                  {!pf.compact && <td className="whitespace-nowrap px-1 text-center font-mono text-slate-300">{p.riskContribution != null ? `${num(p.riskContribution * 100)}%` : "—"}</td>}
-                  <td className="whitespace-nowrap pl-2 text-right font-mono">{price(p.close)}</td>
-                  <td className="whitespace-nowrap pl-2 text-right font-mono text-rose-300">{price(p.stop)}</td>
-                  {!pf.compact && <td className="whitespace-nowrap pl-2 text-right font-mono text-emerald-300">{price(p.target)}</td>}
-                  {!pf.compact && <td className="pl-3 text-slate-400">{drivers(p.ticker).join(" · ") || "—"}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        </details>
+        <div id="elite-portfolio-table"><PortfolioRadar d={d} buyCells={buyCells} secName={secName} drivers={drivers} onOpenTicker={onOpenTicker} compact={pf.compact} /></div>
         <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
           ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
           (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).{" "}

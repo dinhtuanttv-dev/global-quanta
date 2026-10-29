@@ -44,8 +44,11 @@ interface RowView {
   stealth: { dir: number; z: number | null } | null; buy: RadarBuyInfo | null; rim: string | null; hot: boolean;
 }
 
+/** Bán kính an toàn cho ctx.arc: số âm ném IndexSizeError (30/10/2026: ping với t = 0 khi vẽ tĩnh ra bán kính −215 -> sập tab). */
+export const safeR = (r: number) => (Number.isFinite(r) && r > 0 ? r : 0.1);
+
 /** Vẽ một rãnh canvas (thuần, gọi trong vòng rAF chung). */
-function drawTrack(cv: HTMLCanvasElement, r: RowView, dom: [number, number], t: number, sweep: number | null, edge: boolean, ping: { t0: number } | undefined) {
+export function drawTrack(cv: HTMLCanvasElement, r: RowView, dom: [number, number], t: number, sweep: number | null, edge: boolean, ping: { t0: number } | undefined) {
   const ctx = cv.getContext("2d");
   if (!ctx) return;
   const dpr = Math.min(window.devicePixelRatio || 1, 2), w = cv.clientWidth || 200, h = cv.clientHeight || 40;
@@ -70,29 +73,29 @@ function drawTrack(cv: HTMLCanvasElement, r: RowView, dom: [number, number], t: 
     const col = r.trail[r.trail.length - 1] < r.z ? UP : r.trail[r.trail.length - 1] > r.z ? DOWN : "#94a3b8";
     ctx.setLineDash([3, 2]); ctx.strokeStyle = col; ctx.globalAlpha = 0.55; ctx.beginPath();
     r.trail.forEach((z, i) => (i ? ctx.lineTo(X(z), cy) : ctx.moveTo(X(z), cy))); ctx.lineTo(x, cy); ctx.stroke(); ctx.setLineDash([]);
-    r.trail.forEach((z, i) => { ctx.globalAlpha = 0.2 + (0.5 * (i + 1)) / r.trail.length; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(z), cy, 2, 0, Math.PI * 2); ctx.fill(); });
+    r.trail.forEach((z, i) => { ctx.globalAlpha = 0.2 + (0.5 * (i + 1)) / r.trail.length; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X(z), cy, safeR(2), 0, Math.PI * 2); ctx.fill(); });
     ctx.globalAlpha = 1;
   }
-  const dot = 5 + Math.min(6, r.pick.weight * 40);
+  const dot = 5 + Math.min(6, Math.max(0, Number.isFinite(r.pick.weight) ? r.pick.weight * 40 : 0));
   // ping khi vạch quét đi qua
-  if (ping) { const k = (t - ping.t0) / 700; if (k < 1) { ctx.strokeStyle = r.topTier ? AMBER : CYAN; ctx.globalAlpha = 1 - k; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, cy, dot + 2 + k * 14, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; } }
+  if (ping) { const k = (t - ping.t0) / 700; if (k >= 0 && k < 1) { ctx.strokeStyle = r.topTier ? AMBER : CYAN; ctx.globalAlpha = 1 - k; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.arc(x, cy, safeR(dot + 2 + k * 14), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; } }
   // tin quan trọng 24 giờ: vòng nhấp nháy
-  if (r.hot) { const k = (t % 1800) / 1800; ctx.strokeStyle = r.rim ?? AMBER; ctx.globalAlpha = 0.9 * (1 - k); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, cy, dot + 4 + k * 8, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+  if (r.hot) { const k = (t % 1800) / 1800; ctx.strokeStyle = r.rim ?? AMBER; ctx.globalAlpha = 0.9 * (1 - k); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, cy, safeR(dot + 4 + k * 8), 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
   // ⏱ vòng điểm mua
   if (r.buy) {
     const ring = r.buy.ring;
     ctx.strokeStyle = RING_COLOR[ring]; ctx.lineWidth = ring === "in" ? 1.8 : ring === "soon" ? 1.5 : 1;
     ctx.setLineDash(ring === "near" ? [2, 2] : ring === "later" ? [1, 3] : []);
     ctx.globalAlpha = ring === "in" ? 0.6 + 0.35 * Math.abs(Math.sin(t / 700)) : ring === "near" || ring === "later" ? 0.6 : 0.95;
-    ctx.beginPath(); ctx.arc(x, cy, dot + 5.5, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.arc(x, cy, safeR(dot + 5.5), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
   // chấm: 3 hạng đầu = vàng (như Core của Radar), còn lại cyan
-  if (r.topTier) { ctx.fillStyle = "rgba(245,158,11,0.18)"; ctx.beginPath(); ctx.arc(x, cy, dot + 4, 0, Math.PI * 2); ctx.fill(); }
+  if (r.topTier) { ctx.fillStyle = "rgba(245,158,11,0.18)"; ctx.beginPath(); ctx.arc(x, cy, safeR(dot + 4), 0, Math.PI * 2); ctx.fill(); }
   ctx.fillStyle = r.topTier ? "#0d111a" : `rgba(56,189,248,${(0.35 + Math.min(0.55, Math.max(0, (r.pick.pOutperform - 0.49) * 20))).toFixed(2)})`;
-  ctx.beginPath(); ctx.arc(x, cy, dot, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x, cy, safeR(dot), 0, Math.PI * 2); ctx.fill();
   ctx.strokeStyle = r.topTier ? AMBER : r.rim ?? "transparent"; ctx.lineWidth = r.topTier ? 2 : 1.4;
   if (r.topTier || r.rim) ctx.stroke();
-  if (r.topTier && r.rim) { ctx.strokeStyle = r.rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, cy, dot + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+  if (r.topTier && r.rim) { ctx.strokeStyle = r.rim; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(x, cy, safeR(dot + 2.5), 0, Math.PI * 2); ctx.stroke(); }
   // ◆ Stealth 20
   if (r.stealth) {
     const c = r.stealth.dir > 0 ? UP : DOWN, sx = x - dot - 4, sy = cy - dot + 1;
@@ -225,6 +228,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   // Một vòng rAF cho mọi rãnh: vạch quét chung (4 giây / lượt), ping khi quét qua chấm; ~30 khung/giây; dừng khi khuất / giảm chuyển động.
   const canv = useRef(new Map<string, HTMLCanvasElement>());
   const pings = useRef(new Map<string, { t0: number }>());
+  const warned = useRef(false);
   const rowsRef = useRef(rows); rowsRef.current = rows;
   const domRef = useRef(dom); domRef.current = dom;
   const animate = onScreen && !reduced;
@@ -237,10 +241,12 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
           const w = cv.clientWidth || 200, x = (14 + ((r.z - domRef.current[0]) / (domRef.current[1] - domRef.current[0] || 1)) * (w - 28)) / w;
           if (prevSweep <= x && x < sweep) pings.current.set(r.pick.ticker, { t0: t });
         }
-        drawTrack(cv, r, domRef.current, t, sweep, edge, pings.current.get(r.pick.ticker));
+        // Lỗi vẽ canvas không bao giờ được lan lên React (chỉ bỏ qua khung hình đó).
+        try { drawTrack(cv, r, domRef.current, t, sweep, edge, sweep == null ? undefined : pings.current.get(r.pick.ticker)); }
+        catch (e) { if (!warned.current) { warned.current = true; console.warn("[Radar Elite 10] lỗi vẽ rãnh:", e); } }
       }
     };
-    if (!animate) { paint(0, null, null); return; }
+    if (!animate) { pings.current.clear(); paint(0, null, null); return; }
     let raf = 0, last = 0, prev: number | null = null;
     const loop = (t: number) => {
       raf = requestAnimationFrame(loop);
@@ -315,6 +321,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                 <div className="whitespace-nowrap">
                   <span aria-hidden="true" className="mr-1 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${Math.min(40, p.weight * 200)}px` }} />
                   <b>{num(p.weight * 100)}%</b>
+                  {!replay && p.riskContribution != null && <div className="text-[9px] text-slate-500" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)" data-testid={`elite-radar-risk-${p.ticker}`}>rủi ro {num(p.riskContribution * 100)}%</div>}
                 </div>
                 <div>{replay || !axis.dates.length ? <span className="text-slate-500">—</span> : <BuyZoneStrip ticker={p.ticker} lane={buyLane(p.ticker, zoneRows, axis)} axis={axis} cell={buyCells.get(p.ticker)} width={laneW} head={headlineZone(p.ticker, zoneRows)} />}</div>
                 <div className="leading-tight font-mono">
