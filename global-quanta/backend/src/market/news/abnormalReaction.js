@@ -22,6 +22,20 @@ export function ols(xs, ys) {
 
 const valueOf = (r) => (Number(r.value) > 0 ? Number(r.value) : Number(r.volume) > 0 && Number(r.close) > 0 ? Number(r.volume) * Number(r.close) : null);
 const priceOf = (r) => Number(r.closeAdj ?? r.close_adj ?? r.close) || null;
+/**
+ * Lợi suất log phiên `r` so phiên `prev`, an toàn với ngày GDKHQ / thưởng cổ phiếu: giá THAM CHIẾU của sàn đã điều chỉnh ngày đó.
+ * HOSE/HNX: tham chiếu = giá đóng cửa trước (đã điều chỉnh) -> ln(close/ref). UPCOM: tham chiếu = giá bình quân phiên trước nên giữ
+ * đóng-cửa-so-đóng-cửa, trừ khi tham chiếu lệch > 4% so đóng cửa trước (dấu hiệu sự kiện quyền) -> dùng tham chiếu.
+ */
+export function sessionReturn(r, prev) {
+  const close = Number(r?.close), ref = Number(r?.refPrice ?? r?.ref_price), pc = Number(prev?.close);
+  if (close > 0 && ref > 0) {
+    const jump = pc > 0 ? Math.abs(Math.log(ref / pc)) : Infinity;
+    if (String(r.exchange ?? "").toUpperCase() !== "UPCOM" || jump > 0.04) return Math.log(close / ref);
+  }
+  const a = priceOf(r), b = prev ? priceOf(prev) : null;
+  return a && b ? Math.log(a / b) : null;
+}
 
 /** Phiên phản ứng đầu tiên của tin: tin trước 15:00 ngày giao dịch -> chính phiên đó; sau 15:00 / ngày nghỉ -> phiên kế tiếp. */
 export function reactionIndex(rows, publishedAt) {
@@ -45,9 +59,9 @@ export function abnormalReaction(item, rows, market, p = AR_PARAMS) {
   const est = [];
   for (let i = Math.max(1, e0 + p.estFrom); i <= e0 + p.estTo && i < rows.length; i++) {
     const r = rows[i], prev = rows[i - 1], m = market.get(r.date), mp = market.get(prev.date);
-    const v = valueOf(r), pr = priceOf(r), pp = priceOf(prev);
-    if (!m || !mp || !(m.value > 0) || !v || !pr || !pp || !(m.close > 0) || !(mp.close > 0)) continue;
-    est.push({ v: Math.log1p(v), mv: Math.log1p(m.value), r: Math.log(pr / pp), rm: Math.log(m.close / mp.close) });
+    const v = valueOf(r), ret = sessionReturn(r, prev);
+    if (!m || !mp || !(m.value > 0) || !v || ret == null || !(m.close > 0) || !(mp.close > 0)) continue;
+    est.push({ v: Math.log1p(v), mv: Math.log1p(m.value), r: ret, rm: Math.log(m.close / mp.close) });
   }
   if (est.length < p.minEst) return { ...base, classification: "insufficient", estimation: { n: est.length, need: p.minEst } };
   const vm = ols(est.map((x) => x.mv), est.map((x) => x.v));
@@ -57,10 +71,10 @@ export function abnormalReaction(item, rows, market, p = AR_PARAMS) {
   const avs = [], ars = [], days = [];
   for (let i = e0; i < Math.min(rows.length, e0 + p.horizon); i++) {
     const r = rows[i], prev = rows[i - 1], m = market.get(r.date), mp = prev ? market.get(prev.date) : null;
-    const v = valueOf(r), pr = priceOf(r), pp = prev ? priceOf(prev) : null;
+    const v = valueOf(r), ret = prev ? sessionReturn(r, prev) : null;
     if (!m || !(m.value > 0) || !v) break;
     avs.push(Math.log1p(v) - (vm.a + vm.b * Math.log1p(m.value)));
-    ars.push(mp && pr && pp && m.close > 0 && mp.close > 0 ? Math.log(pr / pp) - (rmod.a + rmod.b * Math.log(m.close / mp.close)) : 0);
+    ars.push(mp && ret != null && m.close > 0 && mp.close > 0 ? ret - (rmod.a + rmod.b * Math.log(m.close / mp.close)) : 0);
     days.push(r.date);
   }
   const k = avs.length;

@@ -1,7 +1,14 @@
 import useSWR from "swr";
 import { fetchMarketJson, isMarketGatewayEnabled } from "../services/marketDataClient";
 
-export interface NewsReaction { sessions: number; ret: number | null; excess: number | null; volumeRatio: number | null; from?: string; to?: string }
+/** N0: ESA tin tức — Campbell–Wasley (log giá trị GD, mô hình thị trường) + lợi suất bất thường theo mô hình thị trường. */
+export interface NewsAbnormal {
+  method: string; sessions: number; from?: string; to?: string;
+  classification: "repricing" | "absorption" | "price_only" | "ignored" | "pending" | "insufficient";
+  estimation?: { n: number; beta?: number | null; volumeBeta?: number | null; sigmaVolume?: number | null; sigmaReturn?: number | null; need?: number };
+  sav0?: number | null; volumeMultiple0?: number | null; cav?: number | null; zVolume?: number | null; car?: number | null; zReturn?: number | null;
+}
+export interface NewsReaction { sessions: number; ret: number | null; excess: number | null; volumeRatio: number | null; from?: string; to?: string; abnormal?: NewsAbnormal | null }
 export interface SmartNewsItem {
   id: string; title: string; summary: string; url: string | null; attachment: string | null;
   publishedAt: string | null; source: "DISCLOSURE" | "VNDIRECT_NEWS" | "VIETSTOCK" | "CAFEF" | string; sourceLabel: string;

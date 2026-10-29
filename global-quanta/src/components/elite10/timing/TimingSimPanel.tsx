@@ -4,10 +4,18 @@
 // CH3D (29/10/2026): gắn "Timeline điểm mua tối ưu" (Gateway, cùng engine v3 — khớp theo windowId) thành dải vùng mua theo NGÀY THẬT;
 // thêm chế độ "Không gian 4D" (TimingSpace3D: X phiên · Y lợi suất · Z đợt · W ESA ngày + điểm ESA intraday trực tiếp).
 // Mặc định 3D trên màn ≥ 768 px, 2D trên điện thoại (3D vẫn bật được).
+// N3 + N2 (29/10/2026): NẾN NGÀY thời gian thực (nến hôm nay từ luồng giá SSI, không dùng nến phút) dưới chart + trên mặt kỳ tới của 3D;
+// cờ tin của mã; VÒNG SÁNG ESA từ lúc ra tin (tin trong phiên hôm nay) — bấm để xem khối lượng đột biến.
 import { useMemo, useState } from "react";
+import { useSmartNews } from "../../../hooks/useSmartNews";
+import { useLiveDaily } from "../../../hooks/elite10/useLiveDaily";
+import { candlesInCar, liveBarFromQuote, mergeLiveBar, mergeLiveIndex } from "../../../lib/elite10/liveDaily";
+import LiveDailyStrip from "./LiveDailyStrip";
+import EsaSincePopover from "./EsaSincePopover";
 import { useEventStudy } from "../../../hooks/elite10/useEventStudy";
 import { useEsaSnapshot } from "../../../hooks/elite10/useEsaSnapshot";
 import { useOhlcvData } from "../../../hooks/useOhlcvData";
+import { useAdjustedDaily } from "../../../hooks/elite10/useAdjustedDaily";
 import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { useVnTradingCalendar } from "../../../lib/cotuc/vn-holidays";
 import { todayOffset, tradingSessions, type EventStudyWindow } from "../../../lib/elite10/timingSim";
@@ -20,6 +28,13 @@ import EventStudyChart from "./EventStudyChart";
 import TimingSpace3D from "./TimingSpace3D";
 
 const vnToday = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+const vnMinutes = () => { const d = new Date(Date.now() + 7 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+/** Tin ra TRONG phiên hôm nay (09:00–15:00 giờ VN). */
+const inSessionToday = (iso: string | null, today: string) => {
+  if (!iso) return false;
+  const v = new Date(Date.parse(iso) + 7 * 3_600_000), m = v.getUTCHours() * 60 + v.getUTCMinutes();
+  return v.toISOString().slice(0, 10) === today && m >= 9 * 60 && m < 15 * 60;
+};
 const pct = (x: number | null | undefined, d = 1) => (x == null || !Number.isFinite(x) ? "—" : `${x >= 0 ? "+" : ""}${(x * 100).toFixed(d)}%`);
 const dm = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—");
 const wide = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 768px)").matches;
@@ -49,9 +64,19 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const tl = useMemo(() => timelineRowFor(buy.data?.rows ?? [], ticker, kind), [buy.data, ticker, kind]);
   const fresh = buyTimingFreshness(buy.meta);
   // Nến ngày cần cho cả hai chế độ (đường kỳ tới + quạt dự phóng); 3D dùng thêm cho ESA ngày.
-  const daily = useOhlcvData(es ? ticker : null, "5y", 1300);
+  // Giá ĐIỀU CHỈNH cổ tức / thưởng CP (cùng cơ sở "giá tổng lợi suất" của v3) — /ohlcv chưa điều chỉnh kịp (FPT thưởng 10% 21/09/2026).
+  const daily = useAdjustedDaily(es ? ticker : null);
   const vni = useOhlcvData(es ? "VNINDEX" : null, "5y", 1300);
-  const { esa } = useEsaSnapshot(ticker, view === "3D" && !!es);
+  const isStock = /^[A-Z][A-Z0-9]{2}$/.test(ticker);
+  // N2: tin của mã (cờ trên nến) + tin mới nhất ra trong phiên hôm nay -> ESA từ lúc ra tin.
+  const tickerNews = useSmartNews(isStock && es ? [ticker] : []);
+  const news = useMemo(() => (tickerNews.data?.items ?? []).filter((n) => n.tickers.includes(ticker)), [tickerNews.data, ticker]);
+  const sinceItem = useMemo(() => news.filter((n) => inSessionToday(n.publishedAt, today)).sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)))[0] ?? null, [news, today]);
+  const { esa } = useEsaSnapshot(ticker, !!es && (view === "3D" || !!sinceItem), sinceItem?.publishedAt ?? null);
+  const since = esa?.sinceNews ?? null;
+  const [esaOpen, setEsaOpen] = useState(false);
+  // N3: nến ngày hôm nay từ luồng giá (chỉ ngày giao dịch, từ 09:00) — các phiên trước là nến chính thức của Gateway.
+  const live = useLiveDaily(isStock && es ? ticker : null, true);
 
   const todayOff = useMemo(() => {
     const d = es?.upcoming?.date ?? null;
@@ -62,7 +87,10 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const windows = useMemo(() => [...(es?.windows ?? [])].sort((a, b) => Number(b.selected) - Number(a.selected) || b.netExpectancyLcb - a.netExpectancyLcb), [es]);
   // Mặc định: cửa sổ của Timeline điểm mua (cùng engine) -> rồi cửa sổ đạt kiểm định / kỳ vọng cao nhất.
   const win: EventStudyWindow | null = windows.find((w) => w.id === winId) ?? windows.find((w) => w.id === tl?.windowId) ?? windows[0] ?? null;
-  const bars = useMemo(() => (daily.bars ?? []) as DailyBar[], [daily.bars]), vniBars = useMemo(() => (vni.bars ?? []) as DailyBar[], [vni.bars]);
+  const tradingNow = cal.isTradingDay(Date.parse(`${today}T00:00:00Z`) / 86_400_000) && vnMinutes() >= 9 * 60;
+  const liveBar = tradingNow ? liveBarFromQuote(live.quote, today) : null;
+  const bars = useMemo(() => mergeLiveBar((daily.bars ?? []) as DailyBar[], liveBar), [daily.bars, liveBar?.close, liveBar?.high, liveBar?.low, liveBar?.value]); // eslint-disable-line react-hooks/exhaustive-deps
+  const vniBars = useMemo(() => (tradingNow ? mergeLiveIndex((vni.bars ?? []) as DailyBar[], live.index, today) : (vni.bars ?? []) as DailyBar[]), [vni.bars, live.index, tradingNow, today]);
   const lastOff = useMemo(() => lastBarOffset(bars, todayOff, today), [bars, todayOff, today]);
   const current = useMemo(() => (es && lastOff != null && !es.currentPath ? currentPathFromBars(es.offsets, bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
   const fan = useMemo(() => (es && lastOff != null && lastOff <= 0 ? analogFan(es, bars, vniBars, lastOff, win?.exitOffset ?? null, { today }) : null), [es, bars, vniBars, lastOff, win, today]);
@@ -76,6 +104,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
     if (next.has(d)) next.delete(d); else next.add(d);
     setCustomSel({ key: selKey, set: next });
   };
+  const candles = useMemo(() => (es && lastOff != null ? candlesInCar(es.offsets[0], bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
   const eventWord = kind === "DIVIDEND" ? "GDKHQ" : `Công bố KQKD${es?.quarter ? ` Q${es.quarter}` : ""}`;
 
   return (
@@ -147,9 +176,14 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
             onPreset={choosePreset} onToggle={toggleEvent} total={es.events.length} />
           <div className="mt-2">
             {view === "3D"
-              ? <TimingSpace3D es={es} bars={bars} indexBars={vniBars} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} fan={fan} visibleEvents={visibleEvents} />
+              ? <TimingSpace3D es={es} bars={bars} indexBars={vniBars} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} fan={fan} visibleEvents={visibleEvents} candles={candles} since={since} onEsaClick={() => setEsaOpen((v) => !v)} />
               : <EventStudyChart es={es} window={win} todayOff={todayOff} timeline={tl} current={current} fan={fan} visibleEvents={visibleEvents} />}
           </div>
+          {lastOff != null && lastOff <= 0 && (
+            <LiveDailyStrip es={es} bars={bars} indexBars={vniBars} corporateActions={daily.corporateActions} lastOff={lastOff} todayOff={todayOff} news={news} since={since} sinceItem={sinceItem}
+              sessionLive={tradingNow && live.sessionLive} onRing={() => setEsaOpen((v) => !v)} />
+          )}
+          {esaOpen && since?.status === "research_only" && <EsaSincePopover since={since} item={sinceItem} onClose={() => setEsaOpen(false)} />}
           <AnalogFanCard fan={fan} window={win} eventWord={eventWord} loading={daily.isLoading || vni.isLoading} />
           <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
             Đường mảnh = từng đợt {eventWord.toLowerCase()} lịch sử, đường xanh đậm = trung vị, dải = tứ phân vị (lợi suất vượt VN-Index tích luỹ, giá tổng lợi suất).

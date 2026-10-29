@@ -27,13 +27,28 @@ vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({
 }));
 const ohlcvCalls: (string | null)[] = [];
 vi.mock("../../../hooks/useOhlcvData", () => ({ useOhlcvData: (t: string | null) => { ohlcvCalls.push(t); return { bars: t === "VNINDEX" ? vniBars : t ? fptBars : [], isLoading: false, error: null }; } }));
-vi.mock("../../../hooks/elite10/useEsaSnapshot", () => ({ useEsaSnapshot: () => ({ esa: null, loading: false, error: null }) }));
+vi.mock("../../../hooks/elite10/useAdjustedDaily", () => ({ useAdjustedDaily: (t: string | null) => { ohlcvCalls.push(t); return { bars: t ? fptBars : [], corporateActions: [{ date: "2026-09-21", factor: 0.909091, label: "Thưởng CP 10%" }], priceBasis: "ADJUSTED_CUMULATIVE", isLoading: false, error: null }; } }));
+const esaCalls: (string | null)[] = [];
+const SINCE = { status: "research_only", sinceIso: "2026-10-29T03:00:00Z", reason: null, sinceMinute: "10:00", observedMinute: "10:00", currentVolume: 2_480_000,
+  medianSameWindow: 800_000, p90SameWindow: 1_300_000, relativeVolume: 3.1, robustZ: 5.6, priceChangeSincePct: 1.8, sampleSize: 118,
+  alert: { severity: "high_anomaly", triggeredBy: ["same_window_relative_volume>=2", "robust_z>=3"] } };
+let sinceOn = false;
+vi.mock("../../../hooks/elite10/useEsaSnapshot", () => ({
+  useEsaSnapshot: (_t: string, _on: boolean, since: string | null = null) => { esaCalls.push(since); return { esa: since && sinceOn ? { status: "research_only", sinceNews: SINCE } : null, loading: false, error: null }; },
+}));
+let newsItems: Record<string, unknown>[] = [];
+vi.mock("../../../hooks/useSmartNews", () => ({ useSmartNews: (t: string[]) => ({ data: t.length ? { items: newsItems } : undefined, error: null, isLoading: false, enabled: true }) }));
+let liveQuote: Record<string, unknown> | null = null;
+vi.mock("../../../hooks/elite10/useLiveDaily", () => ({ useLiveDaily: () => ({ quote: liveQuote, index: liveQuote ? { code: "VNINDEX", value: 1760, totalValue: 1.2e13 } : null, status: { session: "LO" }, sessionLive: Boolean(liveQuote) }) }));
+const NEWS_TODAY = { id: "n1", title: "FPT ký hợp đồng 200 triệu USD", summary: "", url: "https://example.com/n1", attachment: null, publishedAt: "2026-10-29T03:00:00Z",
+  source: "CAFEF", sourceLabel: "CafeF", alsoIn: [], corroboration: 1, tickers: ["FPT"], eventType: "CONTRACT", eventLabel: "Hợp đồng", sentiment: 0.6, sentimentHits: [],
+  reaction: null, insight: null, importance: 70 };
 
 import TimingSimPanel from "./TimingSimPanel";
 
 const setWide = (on: boolean) => { window.matchMedia = ((q: string) => ({ matches: on, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia; };
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-29T03:00:00Z")); calls.length = 0; ohlcvCalls.length = 0; buyRows = []; setWide(false); window.localStorage.clear(); });
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-29T03:00:00Z")); calls.length = 0; ohlcvCalls.length = 0; buyRows = []; setWide(false); window.localStorage.clear(); esaCalls.length = 0; sinceOn = false; newsItems = []; liveQuote = null; });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("TimingSimPanel", () => {
@@ -121,7 +136,7 @@ describe("TimingSimPanel — Timeline điểm mua + 3D", () => {
     expect(card).toMatch(/thô \d+% → sau hiệu chỉnh CQR \d+%/);
     fireEvent.click(screen.getByTestId("timing-view-3D"));
     expect(screen.getByTestId("timing-space-3d")).toBeTruthy();
-    expect(screen.getByTestId("space-esa-summary").textContent).toMatch(/ESA ngày: \d+ phiên bất thường \/ \d+ phiên/);
+    expect(screen.getByTestId("space-esa-summary").textContent).toMatch(/ESA ngày \(đã trừ thị trường\): \d+ phiên bất thường \/ \d+ phiên/);
     const rows = screen.getByTestId("space-table").querySelectorAll("tbody tr");
     expect(rows.length).toBe(10); // 9 đợt + kỳ tới
     expect(screen.queryByTestId("event-study-chart")).toBeNull();
@@ -170,5 +185,40 @@ describe("TimingSimPanel — N4 đường lịch sử", () => {
     r.unmount?.(); cleanup();
     render(<TimingSimPanel ticker="FPT" />);
     expect(screen.getByTestId("hist-preset-wins").getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
+describe("TimingSimPanel — N3 nến ngày thời gian thực + N2 vòng sáng ESA từ tin", () => {
+  it("dải nến ngày: nến hôm nay từ luồng giá (đang hình thành), cờ tin tại phiên phản ứng", () => {
+    liveQuote = { symbol: "FPT", price: 53100, open: 52800, high: 53400, low: 52500, totalVolume: 4_200_000, totalValue: 222e9 };
+    newsItems = [NEWS_TODAY];
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(screen.getByTestId("live-daily-strip")).toBeTruthy();
+    expect(screen.getByTestId("live-candle-today").textContent).toContain("đang hình thành");
+    expect(screen.getByTestId("live-daily-strip").textContent).toContain("TRỰC TIẾP");
+    expect(document.querySelectorAll("[data-testid=live-candle]").length).toBeGreaterThan(50);
+    expect(document.querySelectorAll("[data-testid=live-news-flag]").length).toBe(1);
+  });
+  it("tin trong phiên hôm nay -> gọi ESA từ lúc ra tin; đột biến -> vòng sáng; bấm -> bảng khối lượng đột biến", () => {
+    newsItems = [NEWS_TODAY]; sinceOn = true;
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(esaCalls).toContain("2026-10-29T03:00:00Z");
+    const ring = screen.getByTestId("esa-news-ring");
+    expect(ring.querySelector(".esa-ring-glow")).toBeTruthy();
+    expect(screen.queryByTestId("esa-since-popover")).toBeNull();
+    fireEvent.click(ring);
+    const pop = screen.getByTestId("esa-since-popover").textContent ?? "";
+    expect(pop).toContain("KHỐI LƯỢNG ĐỘT BIẾN SAU TIN · MỨC CAO");
+    expect(pop).toContain("FPT ký hợp đồng 200 triệu USD");
+    expect(pop).toContain("Từ 10:00 (ra tin)");
+    expect(pop).toContain("3.10×");
+    expect(pop).toContain("+5.60");
+    expect(pop).toContain("118 phiên");
+  });
+  it("không có tin trong phiên -> không gọi ESA theo tin, không có vòng sáng", () => {
+    newsItems = [{ ...NEWS_TODAY, publishedAt: "2026-10-27T03:00:00Z" }];
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(esaCalls.every((x) => x === null)).toBe(true);
+    expect(screen.queryByTestId("esa-news-ring")).toBeNull();
   });
 });
