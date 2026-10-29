@@ -29,3 +29,22 @@ test("N5: khoá đệm lịch sử nến phút giống nhau trước giờ mở 
   assert.equal(hist[0], hist[1]);
   assert.match(hist[0], /2026-10-30$/); // thứ Sáu
 });
+
+test("Radar danh mục: rankHistory gọn — N phiên gần nhất, danh mục + hạng/Z toàn vũ trụ của mọi mã từng vào danh mục", async () => {
+  const { createDecisionService, DECISION_KV: K } = await import("../src/market/elite/decisionService.js");
+  const doc = (date, pf, scores) => ({ date, portfolio: pf, scores });
+  const kv = new Map([
+    [K.index, { dates: ["2026-10-27", "2026-10-28", "2026-10-29"] }],
+    [K.decision("2026-10-27"), doc("2026-10-27", [{ ticker: "AAA", rank: 1, Z: 2.5, weight: 0.5 }], [{ ticker: "AAA", rank: 1, Z: 2.5 }, { ticker: "BBB", rank: 9, Z: 1.1 }, { ticker: "ZZZ", rank: 200, Z: -1 }])],
+    [K.decision("2026-10-28"), doc("2026-10-28", [{ ticker: "AAA", rank: 2, Z: 2.2, weight: 0.5 }, { ticker: "BBB", rank: 3, Z: 2.0, weight: 0.5, retained: true }], [{ ticker: "AAA", rank: 2, Z: 2.2 }, { ticker: "BBB", rank: 3, Z: 2.0 }])],
+    [K.decision("2026-10-29"), doc("2026-10-29", [{ ticker: "BBB", rank: 1, Z: 2.7, weight: 1 }], [{ ticker: "AAA", rank: 30, Z: 0.9 }, { ticker: "BBB", rank: 1, Z: 2.7 }])],
+  ]);
+  const store = { getKv: async (k) => (kv.has(k) ? { value: kv.get(k) } : null) };
+  const svc = createDecisionService({ store, panel: {}, evidence: {}, vnIndex: {} });
+  const h = await svc.rankHistory(2);
+  assert.deepEqual(h.dates, ["2026-10-28", "2026-10-29"]);
+  assert.deepEqual(h.sessions[1].portfolio, [{ ticker: "BBB", rank: 1, Z: 2.7, weight: 1, retained: false }]);
+  assert.deepEqual(h.sessions[1].ranks.AAA, { rank: 30, Z: 0.9 }); // AAA đã ra khỏi danh mục nhưng vẫn có hạng vũ trụ
+  assert.equal(h.sessions[0].ranks.ZZZ, undefined); // mã chưa từng vào danh mục không gửi
+  assert.equal((await svc.rankHistory(99)).dates.length, 3);
+});

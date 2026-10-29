@@ -122,7 +122,30 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     return { version: l.version, updatedAt: l.updatedAt, summary: l.summary, entries: l.entries.map(({ z, universe, ...rest }) => ({ ...rest, universeSize: rest.universeSize ?? universe?.length ?? null })) };
   }
 
-  return { build, decision, ledger };
+  // Radar danh mục Elite 10 (30/10/2026): lịch sử hạng GỌN của N phiên gần nhất — danh mục + hạng / Z toàn vũ trụ của mọi mã từng vào
+  // danh mục trong cửa sổ (để vẽ vệt hạng / Z, mũi tên lên-xuống hạng, sự kiện vào-ra, tua lại). ~2 KB/phiên thay vì ~170 KB tài liệu đủ.
+  let rhMemo = null;
+  async function rankHistory(days = 6) {
+    const n = Math.max(2, Math.min(15, Math.round(Number(days) || 6)));
+    const idx = (await kv(DECISION_KV.index))?.dates ?? [];
+    const key = `${idx[idx.length - 1] ?? ""}|${n}`;
+    if (rhMemo?.key === key) return rhMemo.value;
+    const docs = (await Promise.all(idx.slice(-n).map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.portfolio);
+    const tickers = new Set(docs.flatMap((d) => d.portfolio.map((p) => p.ticker)));
+    const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
+    const value = {
+      dates: docs.map((d) => d.date),
+      sessions: docs.map((d) => ({
+        date: d.date,
+        portfolio: d.portfolio.map((p) => ({ ticker: p.ticker, rank: p.rank ?? null, Z: r3(p.Z), weight: r3(p.weight), retained: Boolean(p.retained) })),
+        ranks: Object.fromEntries((d.scores ?? []).filter((x) => tickers.has(x.ticker)).map((x) => [x.ticker, { rank: x.rank ?? null, Z: r3(x.Z) }])),
+      })),
+    };
+    rhMemo = { key, value };
+    return value;
+  }
+
+  return { build, decision, ledger, rankHistory };
 }
 
 /** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */
