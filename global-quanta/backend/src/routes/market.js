@@ -738,9 +738,15 @@ router.get("/radar/signals", handle(async (req, res) => {
 
 // Lịch sử giá DANH NGHĨA dài hạn từ SSI (kho bền vững) + gợi ý sự kiện quyền từ giá tham chiếu — nguồn giá chính cho
 // Timing Engine cổ tức ở Project A (Project A tự điều chỉnh bằng sự kiện quyền VCI). GET /ohlcv/nominal-history?ticker=VNM&years=5
+// MV0b: ngân sách tải đầy đủ + nhật ký theo nơi gọi (chỉ đọc, không chứa dữ liệu người dùng).
+router.get("/ohlcv/nominal-history/status", (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json(getMarketRuntime().nominalHistory.status());
+});
+
 router.get("/ohlcv/nominal-history", handle(async (req, res) => {
   const rt = getMarketRuntime();
-  const r = await rt.nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years });
+  const r = await rt.nominalHistory.get(req.query.ticker ?? req.query.symbol, { years: req.query.years, caller: `route:${String(req.get("user-agent") ?? "").slice(0, 24)}` });
   res.set("Cache-Control", "private, max-age=600");
   res.json({
     symbol: r.symbol, priceType: "NOMINAL", isIndex: Boolean(r.index), referenceBase: r.base,

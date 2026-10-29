@@ -118,3 +118,24 @@ test("MV0: yêu cầu ngắn hơn (APPEND) KHÔNG cắt lịch sử dài đã l�
   assert.notEqual((await h.get("NEW", { years: 10 })).refresh, "FULL");
   assert.equal(calls, 4); // VNM FULL + APPEND, NEW FULL + 1 APPEND/CACHE-kiểm tra đuôi
 });
+
+test("MV0b: SSI không trả lịch sử -> tạm dừng 6 giờ (không đốt lượt mỗi lần gọi); status ghi nơi gọi + kết quả", async () => {
+  const { createMemoryStore } = await import("../src/market/store/memoryStore.js");
+  const { createAdjustedHistory: create } = await import("../src/market/adjusted/adjustedHistory.js");
+  let calls = 0, t = Date.parse("2026-10-26T03:00:00Z");
+  const service = { router: { run: async () => { calls++; return { source: "ssi", data: [] }; } } };
+  const h = create({ service, store: createMemoryStore(), now: () => t, fullRefetchPerHour: 40 });
+  await assert.rejects(h.get("DEAD", { years: 10, caller: "test" }), /không trả giá/);
+  for (let i = 0; i < 5; i++) await assert.rejects(h.get("DEAD", { years: 10 }), /chưa trả được lịch sử/);
+  assert.equal(calls, 1, "chỉ một lần gọi SSI");
+  const st = h.status();
+  assert.equal(st.usedLastHour, 1);
+  assert.equal(st.fullFailed, 1);
+  assert.equal(st.cooldownRejected, 5);
+  assert.deepEqual(st.coolingDown, ["DEAD"]);
+  assert.equal(st.recent[0].caller, "test");
+  assert.equal(st.recent[0].outcome, "FAILED");
+  t += 6 * 3_600_000 + 1;
+  await assert.rejects(h.get("DEAD", { years: 10 }), /không trả giá/);
+  assert.equal(calls, 2, "hết thời gian tạm dừng -> thử lại");
+});
