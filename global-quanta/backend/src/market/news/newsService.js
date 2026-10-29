@@ -12,6 +12,8 @@ import { canonicalSymbol, isValidSymbol, isIndexSymbol } from "../normalizer.js"
 import { ValidationError } from "../errors.js";
 import { addDays, mapLimit } from "../util.js";
 import { classifyEvent, extractTickers, jaccard, sentiment, stripHtml, titleTokens } from "./newsNlp.js";
+import { resolveEntities } from "./entityResolver.js";
+import { stockNameIndexFor } from "./stockNames.js";
 
 export const MAX_NEWS_TICKERS = 60;
 const UA = "Mozilla/5.0 (compatible; GlobalQuanta/1.0)";
@@ -119,11 +121,12 @@ export async function fetchRssFeeds({ fetchImpl = globalThis.fetch, feeds = RSS_
  * Gắn mã, khử trùng lặp (cùng mã + tiêu đề Jaccard ≥ 0,6 trong 3 ngày → gộp, đếm số nguồn xác nhận),
  * phân loại, chấm cảm xúc. Chỉ giữ tin có mã thuộc `wanted`.
  */
-export function enrichAndDedupe(raw, { wanted, symbols }) {
+export function enrichAndDedupe(raw, { wanted, symbols, entityIndex = null }) {
   const items = [];
   for (const r of raw) {
     const text = `${r.title}. ${r.summary ?? ""}`;
-    const found = r.tickers.length ? r.tickers : extractTickers(text, symbols);
+    // EV1: tên công ty / thương hiệu + mã (entityResolver); chưa có chỉ mục -> chỉ mã như trước.
+    const found = r.tickers.length ? r.tickers : entityIndex ? resolveEntities(text, entityIndex).map((e) => e.code) : extractTickers(text, symbols);
     const tickers = found.filter((t) => wanted.has(t));
     if (!tickers.length) continue;
     // Loại sự kiện theo TIÊU ĐỀ trước; tiêu đề không rõ mới xét tóm tắt (tránh từ khoá lẻ trong thân bài).
@@ -237,7 +240,8 @@ export async function getNewsForTickers(service, rawTickers, { days = 14, fetchI
 
   const cutoff = now() - days * 86_400_000;
   const raw = [...vnd, ...rss.items].filter((r) => !r.publishedAt || Date.parse(r.publishedAt) >= cutoff);
-  const items = enrichAndDedupe(raw, { wanted, symbols });
+  const entityIndex = await stockNameIndexFor(store, { fetchImpl, now }).index(symbols).catch(() => null);
+  const items = enrichAndDedupe(raw, { wanted, symbols, entityIndex });
 
   // Phản ứng giá: dữ liệu ngày SSI đã lưu + VN-Index (bảng trạng thái thị trường).
   const dates = await store.getMarketDailyDates();
