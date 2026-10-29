@@ -49,6 +49,7 @@ vi.mock("swr", async (orig) => {
   return { ...real, default: (key: unknown, ...rest: unknown[]) => (key === "research-overview" ? { data: { currentRegime: { date: "2026-10-16", regime: "SIDEWAY", impulseScore: 39.3, breadthPct: 41.1 } } } : (real.default as never as (...a: unknown[]) => unknown)(key, ...rest)) };
 });
 
+vi.mock("../../../hooks/elite10/useEliteBuyZones", () => ({ useEliteBuyZones: () => ({ zones: null, error: null, isLoading: false }) }));
 import DecisionBoard from "./DecisionBoard";
 import SignalProfileCard, { percentile } from "./SignalProfileCard";
 import { readBoardPrefs } from "./boardPrefs";
@@ -56,6 +57,8 @@ import { readBoardPrefs } from "./boardPrefs";
 beforeEach(() => { try { localStorage.clear(); } catch { /* không có storage */ } });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const heads = (id: string) => [...screen.getByTestId(id).querySelectorAll(`#${id}-table thead th`)].map((th) => th.textContent);
+// Radar Elite 10 (thay bảng cũ): tiêu đề cột của hàng đầu
+const radarHeads = () => [...document.querySelectorAll("[data-testid=elite-radar] [role=list] > div:first-child > span")].map((e) => (e.textContent ?? "").replace(/^(⏱ Vùng mua · \d+ phiên).*$/, "$1"));
 
 describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
   it("bảng quyết định: nhãn THĂM DÒ, bối cảnh, danh mục, trọng số chỉ A/B, bấm mã mở hồ sơ", () => {
@@ -64,28 +67,29 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-label").textContent).toContain("THĂM DÒ");
     expect(screen.getByTestId("elite-context").textContent).toContain("Căng thẳng");
     expect(screen.getByTestId("elite-context").textContent).toContain("Đi ngang");
-    const row = screen.getByTestId("elite-pick-ORS").textContent ?? "";
+    const row = screen.getByTestId("elite-radar-row-ORS").textContent ?? "";
     expect(row).toContain("Dịch vụ tài chính");
     expect(row).toContain("14,0%");
     expect(row).toContain("Stealth 20");
     expect(row).toContain("giữ");
-    expect(row).toContain("10,0%");
+    expect(screen.getByTestId("elite-radar-risk-ORS").textContent).toBe("rủi ro 10,0%");
+    expect(screen.queryByTestId("elite-portfolio-table-details")).toBeNull(); // bảng số liệu cũ đã bỏ
     expect(screen.getByTestId("elite-portfolio").textContent).toContain("cân bằng đóng góp rủi ro (ERC)");
     expect(screen.getByTestId("elite-portfolio").textContent).toContain("vòng quay 42%");
     expect(screen.getByTestId("elite-weighting-note").textContent).toContain("119 mã");
     expect(screen.getByTestId("elite-weights").textContent).toContain("chưa đo");
-    fireEvent.click(screen.getByTestId("elite-pick-ORS").querySelector("button")!);
+    fireEvent.click(screen.getByTestId("elite-radar-open-ORS"));
     expect(opened).toEqual(["ORS"]);
     expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
   });
 
   it("B2: cột số 4 '⏱ Điểm mua' — vùng mua đạt kiểm định hiển thị trong ô, ghi chú nguồn + thời điểm lấy Timeline", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
-    const headers = [...screen.getByTestId("elite-portfolio").querySelectorAll("thead th")].map((th) => th.textContent);
-    expect(headers[3]).toBe("⏱ Điểm mua");
-    const cell = screen.getByTestId("elite-buy-ORS");
-    expect(cell.textContent).toContain("Mua ngay");
-    expect(cell.querySelector("[data-kind]")?.getAttribute("data-kind")).toBe("in");
+    expect(radarHeads()[4]).toMatch(/^⏱ Vùng mua · \d+ phiên$/);
+    expect(screen.getByTestId("buy-zone-pill-ORS").textContent).toBe("● ĐANG TRONG VÙNG MUA");
+    expect(screen.getByTestId("buy-zone-tier-ORS").textContent).toBe("✓ ĐẠT");
+    expect(screen.getByTestId("buy-zone-detail-ORS").textContent).toBe("cổ tức W1 15/10→21/10 · thoát 27/10");
+    expect([...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent)).toEqual(["● ORS CT trong vùng"]);
     expect(screen.getByTestId("elite-buy-note").textContent).toContain("lấy lúc");
     expect(screen.getByTestId("elite-buy-note").textContent).toContain("Gateway tự tính · dữ liệu 16/10");
   });
@@ -120,14 +124,17 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
 
   it("C2: Gọn / Thu gọn — ẩn cột phụ, lưu theo tài khoản, hai bảng độc lập", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(radarHeads()).toContain("P vượt · α5");
     fireEvent.click(screen.getByTestId("elite-portfolio-compact"));
-    const h = heads("elite-portfolio");
-    expect(h).toEqual(["Mã", "Ngành", "Tỷ trọng", "⏱ Điểm mua", "Z", "P vượt", "Giá", "Cắt lỗ"]);
+    const h = radarHeads();
+    expect(h).not.toContain("P vượt · α5");
+    expect(h).not.toContain("Động lực chính");
+    expect(h.slice(0, 4)).toEqual(["Hạng", "Mã", "Rãnh Z · vệt 5 phiên", "Tỷ trọng"]);
     fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
     expect(heads("elite-candidates")).toContain("α 5 phiên"); // bảng ứng viên giữ chế độ riêng (đầy đủ)
     fireEvent.click(screen.getByTestId("elite-portfolio-toggle"));
     expect(screen.getByTestId("elite-portfolio-summary").textContent).toContain("ORS");
-    expect(screen.queryByTestId("elite-pick-ORS")).toBeNull();
+    expect(screen.queryByTestId("elite-radar-row-ORS")).toBeNull();
     expect(readBoardPrefs()).toEqual({ portfolio: { open: false, compact: true }, candidates: { open: true, compact: null } });
     cleanup();
     render(<DecisionBoard onOpenTicker={() => {}} />);
@@ -141,7 +148,7 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     decision.candidates = undefined;
     try {
       render(<DecisionBoard onOpenTicker={() => {}} />);
-      expect(heads("elite-portfolio")).toEqual(["Mã", "Ngành", "Tỷ trọng", "⏱ Điểm mua", "Z", "P vượt", "Giá", "Cắt lỗ"]);
+      expect(radarHeads()).not.toContain("P vượt · α5");
       expect(screen.getByTestId("elite-portfolio-compact").getAttribute("aria-pressed")).toBe("true");
       fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
       expect(screen.getByTestId("elite-cand-reason-DSE").textContent).toBe("Hạng 2");

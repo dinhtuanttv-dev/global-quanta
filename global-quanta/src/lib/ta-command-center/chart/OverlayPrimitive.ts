@@ -128,7 +128,7 @@ class Renderer implements IPrimitivePaneRenderer {
       const x = o.x(it.t), y = o.y(it.price);
       if (x === null || y === null) return;
       dash([]); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
-      ctx.beginPath(); ctx.arc(x, y, it.r ?? 5, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, Math.max(0.5, Number.isFinite(it.r) ? it.r! : 5), 0, Math.PI * 2); ctx.stroke();
       if (y >= 0 && y <= H) addLabel(it.label, x + (it.r ?? 5) + 3, y + 3);
     } else if (it.kind === "text") {
       const x = o.x(it.t), y = o.y(it.price);
