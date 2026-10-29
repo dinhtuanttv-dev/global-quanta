@@ -58,9 +58,9 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
       {es && (
         <>
           <p className="mt-1 text-[10.5px] text-slate-400" data-testid="timing-sim-upcoming">
-            {eventWord} sắp tới: <b className="text-slate-100">{dm(es.upcoming?.date ?? null)}</b>{" "}
+            {eventWord} {es.upcoming?.date && es.upcoming.date < today ? "kỳ gần nhất" : "sắp tới"}: <b className="text-slate-100">{dm(es.upcoming?.date ?? null)}</b>{" "}
             {es.upcoming && <span className={`ml-1 rounded border px-1.5 py-0.5 text-[9px] font-bold ${es.upcoming.status === "CONFIRMED" || es.upcoming.status === "ANNOUNCED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{STATUS_VI[es.upcoming.status] ?? es.upcoming.status}</span>}
-            {todayOff != null && <> · hôm nay ở phiên <b className="text-amber-300">{todayOff > 0 ? `+${todayOff}` : todayOff}</b>{todayOff > 0 ? " (sự kiện đã qua)" : ""}</>}
+            {todayOff != null && <> · hôm nay ở phiên <b className="text-amber-300">{todayOff > 0 ? `+${todayOff}` : todayOff}</b>{todayOff > 0 ? " (đã qua — chờ cập nhật kỳ kế tiếp)" : ""}</>}
             {" "}· {es.events.length} đợt lịch sử
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5" role="listbox" aria-label="Cửa sổ v3">
