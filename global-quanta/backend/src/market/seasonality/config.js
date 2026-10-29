@@ -1,6 +1,6 @@
-// MV1 — cấu hình phương pháp mùa vụ tháng `SEAS-v1` (đã duyệt 25/10/2026: DEC-1…DEC-3). Đổi bất kỳ hằng số nào = phiên bản mới.
+// MV1 — cấu hình phương pháp mùa vụ tháng `SEAS-v1.1` (v1.1 29/10: đích co gồm chính mã — xem analyze.js) (đã duyệt 25/10/2026: DEC-1…DEC-3). Đổi bất kỳ hằng số nào = phiên bản mới.
 export const SEAS = Object.freeze({
-  version: "SEAS-v1",
+  version: "SEAS-v1.1",
   /** "5 năm gần nhất" = 5 năm DƯƠNG LỊCH đã hoàn tất trước năm của ngày dữ liệu (DEC-2). */
   years: 5,
   /** Phiên cuối tháng phải rơi từ ngày 20 trở đi (tháng có dữ liệu tới cuối tháng; Tết / tạm ngừng giao dịch dài -> bỏ tháng). */

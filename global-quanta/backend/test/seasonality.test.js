@@ -106,7 +106,7 @@ test("analyzeSeasonality: 5 năm dương lịch hoàn tất, n/5, năm nay + MTD
   seriesOf.set("NEW", series("2023-01-02", "2026-10-28", () => 0.01));
   sectorOf.set("NEW", "Y");
   const res = analyzeSeasonality({ seriesOf, benchBars: bench, sectorOf, asOf: "2026-10-29", cfg: { ...(awaitCfg()), permutations: 299 } });
-  assert.equal(res.version, "SEAS-v1");
+  assert.equal(res.version, "SEAS-v1.1");
   assert.deepEqual(res.years, [2021, 2022, 2023, 2024, 2025]);
   const aaa = res.items.find((i) => i.ticker === "AAA");
   const apr = aaa.months[3], dec = aaa.months[11];
@@ -127,7 +127,7 @@ test("analyzeSeasonality: 5 năm dương lịch hoàn tất, n/5, năm nay + MTD
   assert.ok(["CLEAR", "WEAK", "NOISE", "INSUFFICIENT"].includes(aaa.strength.label));
 });
 
-function awaitCfg() { return { version: "SEAS-v1", years: 5, monthEndMinDay: 20, roundTripCost: 0.004, permutations: 299, fdrQ: 0.1, level: 0.9, priorStrength: 10, minSectorPeers: 3, lowSampleN: 4 }; }
+function awaitCfg() { return { version: "SEAS-v1.1", years: 5, monthEndMinDay: 20, roundTripCost: 0.004, permutations: 299, fdrQ: 0.1, level: 0.9, priorStrength: 10, minSectorPeers: 3, lowSampleN: 4 }; }
 
 test("ORACLE: engine JS khớp bản Python độc lập (scripts/seasonality-oracle.py, Beta = scipy betaincinv) trên 14 mã × 12 tháng", async () => {
   const fs = await import("node:fs");
@@ -156,4 +156,26 @@ test("ORACLE: engine JS khớp bản Python độc lập (scripts/seasonality-or
   }
   assert.ok(checks > 2500);
   assert.deepEqual(bad, []);
+});
+
+test("v1.1 HỒI QUY: co rút KHÔNG đảo hạng — tín hiệu rõ giữ hạng thô; co toàn phần -> dự báo PHẲNG (v1: ngược hạng)", async () => {
+  const { spearman } = await import("../src/market/seasonality/validate.js");
+  const { mulberry32 } = await import("../src/market/seasonality/strength.js");
+  const run = (scale, vol, seed) => {
+    const rng = mulberry32(seed);
+    const g = () => { const u = Math.max(1e-12, rng()), v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+    const mk = (fx) => { const out = []; let px = 50; for (let d = new Date("2020-11-02T00:00:00Z"); d <= new Date("2026-01-10T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) { const w = d.getUTCDay(); if (w === 0 || w === 6) continue; px *= Math.exp(fx(d.getUTCMonth()) / 21 + vol * g()); out.push({ date: d.toISOString().slice(0, 10), close: px }); } return out; };
+    // 30 mã KHÔNG có ngành (phạm vi toàn universe — đúng trường hợp chỉ số ngành), hiệu ứng tháng 3 riêng từng mã.
+    const effects = Array.from({ length: 30 }, () => scale * g());
+    const seriesOf = new Map(effects.map((e, i) => [`T${i}`, mk((m) => (m === 2 ? e : 0))]));
+    const res = analyzeSeasonality({ seriesOf, benchBars: mk(() => 0), sectorOf: null, asOf: "2026-01-15", cfg: { ...awaitCfg(), permutations: 0 } });
+    return { effects, raw: res.items.map((i) => i.months[2].excess.mean), shrunk: res.items.map((i) => i.months[2].shrunkExcess), w: res.items.map((i) => i.months[2].shrinkWeight) };
+  };
+  const clear = run(0.08, 0.005, 77); // hiệu ứng lớn, nhiễu nhỏ -> τ² > 0
+  assert.ok(clear.w.every((w) => w > 0.5));
+  assert.ok(spearman(clear.raw, clear.shrunk) > 0.99, `giữ hạng thô (ρ = ${spearman(clear.raw, clear.shrunk)})`);
+  assert.ok(spearman(clear.effects, clear.shrunk) > 0.9, "cùng chiều hiệu ứng thật");
+  const noisy = run(0.005, 0.03, 78); // nhiễu át hiệu ứng -> co toàn phần
+  assert.ok(noisy.w.every((w) => w === 0));
+  assert.ok(Math.max(...noisy.shrunk) - Math.min(...noisy.shrunk) < 1e-12, "co toàn phần: mọi dự báo bằng nhau (không mang hạng ngược)");
 });

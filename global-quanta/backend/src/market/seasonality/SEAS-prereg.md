@@ -51,3 +51,15 @@ Ngành cho IC **âm có ý nghĩa** (tháng mạnh lịch sử của ngành kém
 làm tín hiệu; nếu muốn dùng phải đăng ký trước một giả thuyết đảo chiều riêng và kiểm định trên dữ liệu mới.
 Chỉ 18/34 ngành ICB cấp 2 có rổ đủ điều kiện chỉ số (GTGD ≥ 300 triệu, ≥ 2 mã) trong universe 286 mã.
 **Hệ quả:** mùa vụ tháng (mã và ngành) hiển thị như **bối cảnh lịch sử**, nhãn THĂM DÒ; không có bậc ĐẠT/GẦN ĐẠT trong Lịch thời điểm.
+
+## ⚠ THU HỒI KẾT QUẢ (29/10/2026) — kiểm định KHÔNG HỢP LỆ do lỗi engine
+Khi thử bộ kiểm định SEAS-REV trên dữ liệu giả lập, phát hiện engine **SEAS-v1** co excess về **TB các mã KHÁC** (bỏ chính mã). Với n 3–5
+năm, mức co gần toàn phần nên dự báo ≈ (tổng − x_i)/(n − 1), tức **ngược hạng với chính lịch sử của mã**. Dự báo đưa vào kiểm định vì vậy
+không đo "mùa vụ có lặp lại không" mà đo một đại lượng đảo dấu. Oracle Python không bắt được vì cài lại cùng đặc tả sai.
+- Bảng KẾT QUẢ ở trên (và `seas-prereg-report.json`) **giữ nguyên để minh bạch** nhưng **không có giá trị kết luận** — cả "KHÔNG ĐẠT"
+  của mã lẫn IC ngành −0,115 (nhiều khả năng là ảo giác của lỗi; có thể thực chất là mùa vụ LẶP LẠI). Không kiểm lại trên dữ liệu
+  2024–2026 để "xác nhận" — dữ liệu đó đã bị nhìn.
+- Sửa: **SEAS-v1.1** — đích co = TB cả nhóm GỒM chính mã (James–Stein chuẩn); thêm test hồi quy (co toàn phần -> dự báo phẳng; tín hiệu
+  rõ -> giữ hạng thô) — test này FAIL trên v1.
+- Giả thuyết "đảo chiều mùa vụ ngành" (SEAS-REV) **bị huỷ** vì tiền đề là ảo giác.
+- Kiểm định lại MỘT lần trên dữ liệu **chưa từng nhìn** (VNDirect 2013–2019): `SEAS-prereg-v2.md`.

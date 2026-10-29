@@ -97,13 +97,17 @@ export function analyzeSeasonality({ seriesOf, benchBars, sectorOf = null, asOf,
     const within = it.withinVar ?? typicalWithin;
     const months = it.raw.map((c, m) => {
       const { scope, peers } = peersFor(it, m);
-      const peerMeans = peers.map((p) => p.raw[m].exMean);
-      const priorMean = peerMeans.length ? mean(peerMeans) : 0;
-      // τ² (phương sai thật giữa các mã cùng tháng) = phương sai TB của peers − nhiễu mẫu trung bình của chúng (mô-men, sàn 0).
+      // SEAS-v1.1 (29/10/2026): đích co = TB của CẢ NHÓM, GỒM chính mã (James–Stein chuẩn: cùng một đích cho mọi mã trong nhóm).
+      // v1 co về TB các mã KHÁC (bỏ chính mã): khi co gần toàn phần (n 3–5 năm), dự báo ≈ (tổng − x_i)/(n−1) — NGƯỢC HẠNG với chính
+      // lịch sử của mã -> dự báo đảo dấu (kiểm định SEAS-prereg-v1 vô hiệu). Prior Beta (xác suất) vẫn bỏ chính mã để không đếm trùng.
+      const group = c.exN > 0 ? [...peers, it] : peers;
+      const groupMeans = group.map((p) => p.raw[m].exMean);
+      const priorMean = groupMeans.length ? mean(groupMeans) : 0;
+      // τ² (phương sai thật giữa các mã cùng tháng) = phương sai TB của nhóm − nhiễu mẫu trung bình của chúng (mô-men, sàn 0).
       let tau2 = 0;
-      if (peerMeans.length >= 2) {
-        const v = peerMeans.reduce((a, x) => a + (x - priorMean) ** 2, 0) / (peerMeans.length - 1);
-        const noise = mean(peers.map((p) => (p.withinVar ?? typicalWithin) / p.raw[m].exN));
+      if (groupMeans.length >= 2) {
+        const v = groupMeans.reduce((a, x) => a + (x - priorMean) ** 2, 0) / (groupMeans.length - 1);
+        const noise = mean(group.map((p) => (p.withinVar ?? typicalWithin) / p.raw[m].exN));
         tau2 = Math.max(0, v - noise);
       }
       const shrunk = c.exN > 0 ? priorMean + (tau2 / (tau2 + within / c.exN || 1)) * (c.exMean - priorMean) : null;
