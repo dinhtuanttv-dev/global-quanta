@@ -147,3 +147,47 @@ export function buildEsaEarlySignal({ symbol, sessions, events = [], now = new D
     evaluatedAt: now.toISOString(),
   };
 }
+
+// N0 (29/10/2026) — ESA TỪ LÚC RA TIN (vòng sáng trên chart nến ngày Elite 10): khối lượng cộng dồn hôm nay trong khung
+// [phút ra tin, phút mới nhất] so với CÙNG KHUNG PHÚT của các phiên trước (trung vị + 1,4826·MAD như ESA R0; p90 để so trực quan).
+// Bất thường khi z ≥ 3 VÀ gấp ≥ 2 lần trung vị; z ≥ 5 = mức cao. Chỉ cho tin ra TRONG phiên hôm nay. Mô tả, không phải dự báo.
+function quantile(sorted, q) {
+  if (!sorted.length) return null;
+  const pos = (sorted.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+function windowVolume(bars, from, to) {
+  return bars.reduce((t, b) => { const m = minuteOf(b); return m !== null && m >= from && m <= to ? t + Math.max(0, Number(b.volume) || 0) : t; }, 0);
+}
+const hhmm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+export function buildEsaSince({ sessions, sinceIso, now = new Date() }) {
+  const out = { status: "not_applicable", sinceIso, reason: null, alert: null };
+  const t = Date.parse(sinceIso ?? "");
+  if (!Number.isFinite(t)) return { ...out, reason: "Thời điểm tin không hợp lệ." };
+  const vn = new Date(t + 7 * 3_600_000), day = vn.toISOString().slice(0, 10), sinceMinute = vn.getUTCHours() * 60 + vn.getUTCMinutes();
+  const current = sessions?.todaySession;
+  if (!sessions?.sessionLive || !current || current.date !== day) return { ...out, reason: "Tin không ra trong phiên đang mở hôm nay." };
+  const bars = (current.bars ?? []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const latest = minuteOf(bars.at(-1));
+  if (latest === null || latest < sinceMinute) return { ...out, status: "waiting", reason: "Chưa có nến sau thời điểm ra tin." };
+  const from = Math.max(sinceMinute, 9 * 60);
+  const cur = windowVolume(bars, from, latest);
+  const hist = (sessions.trainSessions ?? []).map((s) => windowVolume(s.bars ?? [], from, latest)).filter((v) => v > 0).sort((a, b) => a - b);
+  if (hist.length < MIN_HISTORY_SESSIONS) return { ...out, status: "insufficient_data", reason: `Cần ≥ ${MIN_HISTORY_SESSIONS} phiên có khối lượng cùng khung; có ${hist.length}.` };
+  const med = median(hist), mad = median(hist.map((v) => Math.abs(v - med)));
+  const z = mad > 0 ? (cur - med) / (1.4826 * mad) : null, rv = med > 0 ? cur / med : null;
+  const before = bars.filter((b) => { const m = minuteOf(b); return m !== null && m < sinceMinute && Number(b.close) > 0; }).at(-1);
+  const basePrice = Number(before?.close) || Number(current.refPrice) || null, last = Number(bars.at(-1)?.close) || null;
+  const hit = z !== null && rv !== null && z >= 3 && rv >= 2;
+  return {
+    status: "research_only", sinceIso, reason: null,
+    sinceMinute: hhmm(sinceMinute), observedMinute: hhmm(latest),
+    currentVolume: Math.round(cur), medianSameWindow: Math.round(med), p90SameWindow: Math.round(quantile(hist, 0.9)),
+    relativeVolume: rv === null ? null : Number(rv.toFixed(2)), robustZ: z === null ? null : Number(z.toFixed(2)),
+    priceChangeSincePct: basePrice && last ? Number(((last / basePrice - 1) * 100).toFixed(2)) : null,
+    sampleSize: hist.length,
+    alert: hit ? { severity: z >= 5 ? "high_anomaly" : "unusual_activity", triggeredBy: ["same_window_relative_volume>=2", "robust_z>=3"] } : null,
+    evaluatedAt: now.toISOString(),
+  };
+}

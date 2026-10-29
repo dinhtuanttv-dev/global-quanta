@@ -14,10 +14,12 @@ const fmt = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 type Pt = { offset: number; ret: number };
-export default function EventStudyChart({ es, window: win, todayOff, timeline = null, current = [], fan = null }: {
+export default function EventStudyChart({ es, window: win, todayOff, timeline = null, current = [], fan = null, visibleEvents = null }: {
   es: EventStudy; window: EventStudyWindow | null; todayOff: number | null; timeline?: TimelineRow | null;
   /** Kỳ hiện tại (tự tính từ giá đóng cửa khi engine chưa có) + quạt dự phóng có điều kiện (CH3). */
   current?: Pt[]; fan?: AnalogFan | null;
+  /** N4: chỉ vẽ các đợt này (null = mọi đợt). Trung vị / dải vẫn tính trên đủ đợt. */
+  visibleEvents?: Set<string> | null;
 }) {
   const bands = useMemo(() => pathBands(es), [es]);
   const eventWord = es.kind === "DIVIDEND" ? "GDKHQ" : "Công bố KQKD";
@@ -75,7 +77,7 @@ export default function EventStudyChart({ es, window: win, todayOff, timeline = 
           </g>
         )}
         {bandPath && <path d={bandPath} className="fill-cyan-400/10" />}
-        {es.events.map((e) => (
+        {es.events.filter((e) => !visibleEvents || visibleEvents.has(e.eventDate)).map((e) => (
           <path key={e.eventDate} d={line(e.car)} fill="none" className="stroke-slate-400/35 hover:stroke-slate-100" strokeWidth={1} data-testid="event-study-path">
             <title>{`${eventWord} ${e.eventDate}: ${e.car.map((v, i) => (v == null ? null : `${es.offsets[i]}: ${fmt(pct(v))}`)).filter(Boolean).join(" · ")}`}</title>
           </path>

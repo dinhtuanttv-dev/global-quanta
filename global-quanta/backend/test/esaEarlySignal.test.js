@@ -71,3 +71,23 @@ test("ESA: chỉ coi là phiên đang mở khi ngày giao dịch, sau 9:00 và p
   assert.equal(isSessionLive(new Date("2026-10-29T10:30:00Z")), false); // 17:30 đã đóng
   assert.equal(isSessionLive(new Date("2026-10-31T03:00:00Z")), false); // thứ Bảy
 });
+
+test("N0 ESA từ lúc ra tin: KL cộng dồn từ phút tin so cùng khung phút các phiên trước; ngoài phiên / khác ngày -> không áp dụng", async () => {
+  const { buildEsaSince } = await import("../src/market/research/esaEarlySignal.js");
+  // tin 09:16 giờ VN (02:16Z) hôm nay; khung [09:16, 09:16]: hôm nay 400 vs lịch sử 80–120
+  const hit = buildEsaSince({ sessions: liveSessions(), sinceIso: "2026-10-27T02:16:00Z" });
+  assert.equal(hit.status, "research_only");
+  assert.equal(hit.sinceMinute, "09:16");
+  assert.equal(hit.currentVolume, 400);
+  assert.ok(hit.relativeVolume >= 3);
+  assert.ok(hit.robustZ >= 5);
+  assert.equal(hit.alert.severity, "high_anomaly");
+  assert.ok(hit.p90SameWindow >= hit.medianSameWindow);
+  assert.equal(hit.priceChangeSincePct, 1); // 100 trước tin -> 101
+  const calm = buildEsaSince({ sessions: liveSessions({ currentMinuteVolume: 100 }), sinceIso: "2026-10-27T02:16:00Z" });
+  assert.equal(calm.alert, null);
+  assert.equal(buildEsaSince({ sessions: liveSessions(), sinceIso: "2026-10-26T02:16:00Z" }).status, "not_applicable");
+  assert.equal(buildEsaSince({ sessions: { ...liveSessions(), sessionLive: false }, sinceIso: "2026-10-27T02:16:00Z" }).status, "not_applicable");
+  assert.equal(buildEsaSince({ sessions: liveSessions(), sinceIso: "2026-10-27T03:30:00Z" }).status, "waiting"); // 10:30 > nến cuối
+  assert.equal(buildEsaSince({ sessions: liveSessions(), sinceIso: "rác" }).status, "not_applicable");
+});

@@ -50,9 +50,11 @@ function retAt(r: SpaceRibbon, o: number): number | null {
 type Props = {
   es: EventStudy; bars: DailyBar[]; indexBars?: DailyBar[]; barsLoading?: boolean; window: EventStudyWindow | null; todayOff: number | null; today: string;
   timeline: TimelineRow | null; esa: EsaLive | null; fan?: AnalogFan | null;
+  /** N4: chỉ vẽ các đợt này (null = mọi đợt); vị trí Z của mỗi đợt giữ nguyên để không "nhảy" khi bật / tắt. */
+  visibleEvents?: Set<string> | null;
 };
 
-export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa, fan = null }: Props) {
+export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa, fan = null, visibleEvents = null }: Props) {
   const [rot, setRot] = useState<Rotation>(DEFAULT_ROT);
   const [showEsa, setShowEsa] = useState(true);
   const [showOutcome, setShowOutcome] = useState(true);
@@ -131,6 +133,7 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
     // Vẽ từng đợt từ sau ra trước (độ sâu của tâm dải).
     const order = space.ribbons.map((r, i) => ({ r, i, d: P({ x: 0, y: -1, z: Z(i) }).depth })).sort((a, b) => b.d - a.d);
     for (const { r, i } of order) {
+      if (r.kind === "event" && visibleEvents && !visibleEvents.has(r.key)) continue;
       const z = Z(i);
       // W — thảm ESA ngày trên sàn.
       if (showEsa) for (const c of r.cells) {
@@ -225,7 +228,7 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
     ctx.font = font(9); ctx.fillStyle = "#64748b"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     for (const r of [space.yMin, 0, space.yMax]) { const v = P({ x: -1, y: Y(r), z: 1 + dz }); ctx.fillText(`${(r * 100).toFixed(0)}%`, v.x - 6, v.y); }
     hits.current = hitList;
-  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK, fan]);
+  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK, fan, visibleEvents]);
 
   const at = (e: PointerEvent<HTMLCanvasElement>) => { const b = e.currentTarget.getBoundingClientRect(); return { x: (e.clientX - b.left) * W / b.width, y: (e.clientY - b.top) * H / b.height }; };
   const nearest = (p: { x: number; y: number }) => hits.current.reduce<Hit | null>((best, h) => { const d = Math.hypot(h.x - p.x, h.y - p.y); return d < 22 && (!best || d < Math.hypot(best.x - p.x, best.y - p.y)) ? h : best; }, null);

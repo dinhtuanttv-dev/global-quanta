@@ -14,6 +14,7 @@ import { addDays, mapLimit } from "../util.js";
 import { classifyEvent, extractTickers, jaccard, sentiment, stripHtml, titleTokens } from "./newsNlp.js";
 import { resolveEntities } from "./entityResolver.js";
 import { stockNameIndexFor } from "./stockNames.js";
+import { abnormalReaction } from "./abnormalReaction.js";
 
 export const MAX_NEWS_TICKERS = 60;
 const UA = "Mozilla/5.0 (compatible; GlobalQuanta/1.0)";
@@ -203,7 +204,10 @@ export function importance(item, nowMs, reaction) {
   const src = SOURCE_WEIGHT[item.source] ?? 0.6;
   const sent = 0.7 + 0.3 * Math.abs(item.sentiment);
   const corr = 1 + 0.15 * Math.min(3, item.corroboration - 1);
-  const vol = reaction?.volumeRatio ? Math.min(1.3, 1 + Math.max(0, reaction.volumeRatio - 1.5) * 0.15) : 1;
+  // N0: ưu tiên z khối lượng bất thường (Campbell–Wasley, đã trừ yếu tố thị trường); chưa có -> tỷ lệ KL/TB20 như cũ.
+  const zV = reaction?.abnormal?.zVolume;
+  const vol = zV != null ? Math.min(1.3, 1 + Math.max(0, zV - 2) * 0.1)
+    : reaction?.volumeRatio ? Math.min(1.3, 1 + Math.max(0, reaction.volumeRatio - 1.5) * 0.15) : 1;
   const direct = item.direct ? 1 : 0.7;
   return Math.round(100 * Math.min(1, item.eventWeight * src * recency * sent * corr * vol * direct * 1.25));
 }
@@ -245,7 +249,8 @@ export async function getNewsForTickers(service, rawTickers, { days = 14, fetchI
 
   // Phản ứng giá: dữ liệu ngày SSI đã lưu + VN-Index (bảng trạng thái thị trường).
   const dates = await store.getMarketDailyDates();
-  const from = addDays(new Date(cutoff).toISOString().slice(0, 10), -40);
+  // N0: cửa sổ ước lượng [−120, −11] phiên trước tin -> cần ~200 ngày lịch trước tin cũ nhất.
+  const from = addDays(new Date(cutoff).toISOString().slice(0, 10), -200);
   const involved = [...new Set(items.flatMap((i) => i.tickers))];
   const daily = new Map();
   if (involved.length && dates.length) {
@@ -259,11 +264,19 @@ export async function getNewsForTickers(service, rawTickers, { days = 14, fetchI
     const rows = typeof store.selectRows === "function" ? await store.selectRows("market_regime_daily", { gte: { trading_date: from }, select: "trading_date,close" }) : [];
     indexClose = new Map(rows.map((r) => [r.trading_date, Number(r.close)]));
   } catch { /* bỏ qua: không có VN-Index thì không tính phần vượt */ }
+  // N0: VN-Index giá + GIÁ TRỊ GD toàn sàn (mô hình thị trường cho khối lượng) — cùng nguồn /api/market/ohlcv.
+  const market = new Map();
+  try {
+    const vni = await service.cache.wrap("news:vnindex-1y", 10 * 60_000, () => service.getOhlcv({ symbol: "VNINDEX", range: "1y", limit: 400 }));
+    for (const b of vni?.bars ?? []) if (b.date >= from) market.set(b.date, { close: Number(b.close), value: Number(b.value) || null });
+  } catch { /* không có giá trị toàn sàn -> abnormal = insufficient, vẫn giữ phản ứng cũ */ }
 
   const nowMs = now();
   const out = items.map((it) => {
     const primary = it.tickers[0];
-    const reaction = priceReaction(it, primary, daily, indexClose);
+    const base = priceReaction(it, primary, daily, indexClose);
+    const abnormal = abnormalReaction(it, daily.get(primary), market);
+    const reaction = base ? { ...base, abnormal } : abnormal ? { sessions: abnormal.sessions, ret: null, excess: null, volumeRatio: null, abnormal } : null;
     return {
       id: it.id, title: it.title, summary: it.summary, url: it.url, attachment: it.attachment,
       publishedAt: it.publishedAt, source: it.source, sourceLabel: it.sourceLabel, alsoIn: it.alsoIn, corroboration: it.corroboration,
