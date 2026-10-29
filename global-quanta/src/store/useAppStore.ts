@@ -82,7 +82,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     return r;
   },
   restoreAuthSession: async () => {
-    const ok = await api.restoreSession();
+    // Lỗi tạm khi đổi token (Gateway chậm / mất mạng) vẫn cho vào ứng dụng với phiên đang có; lần gọi API sau tự thử đổi lại.
+    const state = await api.restoreSessionState();
+    const ok = state !== 'invalid';
     set({ isAuthenticated: ok });
     return ok;
   },

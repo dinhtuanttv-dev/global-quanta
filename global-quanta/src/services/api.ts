@@ -120,41 +120,52 @@ export function hasAuthSession(): boolean {
   return Boolean(session && session.expires_at > Date.now());
 }
 
-let refreshInFlight: Promise<boolean> | null = null;
+/**
+ * Trạng thái phiên: 'ok' (dùng được) · 'invalid' (không có / bị thu hồi -> phải đăng nhập) · 'transient' (máy chủ chậm / lỗi tạm
+ * khi đổi token -> GIỮ phiên, thử lại sau). 30/10/2026: trước đây lệnh đổi token không có hạn chờ — Gateway chậm là màn hình đen mãi.
+ */
+export type SessionState = 'ok' | 'invalid' | 'transient';
+export const REFRESH_TIMEOUT_MS = 8_000;
+let refreshInFlight: Promise<SessionState> | null = null;
 
-/** Phiên còn dùng được (tự đổi access token khi sắp hết hạn bằng refresh token). */
-export async function restoreSession(): Promise<boolean> {
-  if (!isAuthConfigured()) return false;
+export async function restoreSessionState(): Promise<SessionState> {
+  if (!isAuthConfigured()) return 'invalid';
   const session = readAuthSession();
-  if (!session) return false;
-  if (session.expires_at > Date.now() + 60_000) return true;
+  if (!session) return 'invalid';
+  if (session.expires_at > Date.now() + 60_000) return 'ok';
 
   if (!refreshInFlight) {
-    refreshInFlight = (async () => {
+    refreshInFlight = (async (): Promise<SessionState> => {
       try {
         const response = await fetch(marketUrl('/api/auth/refresh'), {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ refresh_token: session.refresh_token }),
+          signal: AbortSignal.timeout(REFRESH_TIMEOUT_MS),
         });
         if (response.status === 401) {
           clearAuthSession();
-          return false;
+          return 'invalid';
         }
-        if (!response.ok) return false; // lỗi tạm (mạng / 5xx): giữ phiên, thử lại lần sau
+        if (!response.ok) return 'transient'; // lỗi tạm (5xx): giữ phiên, thử lại lần sau
         const refreshed = await response.json() as AuthTokenResponse;
         if (!validTokenResponse(refreshed)) {
           clearAuthSession();
-          return false;
+          return 'invalid';
         }
         saveAuthSession(refreshed);
-        return true;
+        return 'ok';
       } catch {
-        return false;
+        return 'transient'; // mạng / hết hạn chờ
       }
     })().finally(() => { refreshInFlight = null; });
   }
   return refreshInFlight;
+}
+
+/** Phiên còn dùng được ngay (tự đổi access token khi sắp hết hạn bằng refresh token). */
+export async function restoreSession(): Promise<boolean> {
+  return (await restoreSessionState()) === 'ok';
 }
 
 /** Access token còn hạn (tự làm mới nếu sắp hết) — để gọi API cần đăng nhập. */

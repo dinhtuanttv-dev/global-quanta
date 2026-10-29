@@ -66,3 +66,24 @@ describe('đăng nhập qua Gateway (Railway)', () => {
     expect(api.hasAuthSession()).toBe(false);
   });
 });
+
+describe('30/10/2026 — không bao giờ đứng màn hình đen khi đổi token', () => {
+  it('đổi token quá hạn chờ / lỗi mạng / 5xx -> "transient" (giữ phiên); 401 -> "invalid"; đổi được -> "ok"', async () => {
+    const expired = () => localStorage.setItem('gq_session_v2', JSON.stringify({ access_token: 'old', refresh_token: 'r', expires_at: Date.now() - 1000, user: tokenRes().user }));
+    expired();
+    let sig: AbortSignal | undefined;
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init?: RequestInit) => { sig = init?.signal ?? undefined; throw new DOMException('timeout', 'TimeoutError'); }));
+    expect(await api.restoreSessionState()).toBe('transient');
+    expect(sig).toBeTruthy(); // có hạn chờ (AbortSignal.timeout)
+    expect(localStorage.getItem('gq_session_v2')).not.toBeNull();
+    expect(api.REFRESH_TIMEOUT_MS).toBeLessThanOrEqual(10_000);
+    vi.stubGlobal('fetch', vi.fn(async () => json(502, {})));
+    expect(await api.restoreSessionState()).toBe('transient');
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, tokenRes())));
+    expect(await api.restoreSessionState()).toBe('ok');
+    expired();
+    vi.stubGlobal('fetch', vi.fn(async () => json(401, {})));
+    expect(await api.restoreSessionState()).toBe('invalid');
+    expect(await api.restoreSessionState()).toBe('invalid'); // không còn phiên
+  });
+});
