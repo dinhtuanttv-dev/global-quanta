@@ -74,10 +74,11 @@ export default function EventStudyChart({ es, window: win, todayOff }: { es: Eve
           </g>
         )}
       </svg>
-      <table className="sr-only">
+      {/* sr-only bọc ngoài: đặt thẳng lên <table> thì bảng vẫn giãn theo nội dung -> tràn ngang 390 px. */}
+      <div className="sr-only"><table>
         <caption>Trung vị lợi suất vượt VN-Index tích luỹ theo phiên tương đối ({es.events.length} đợt)</caption>
         <tbody>{bands.map((b) => <tr key={b.offset}><th>{b.offset}</th><td>{b.median == null ? "—" : fmt(pct(b.median))}</td><td>n {b.n}</td></tr>)}</tbody>
-      </table>
+      </table></div>
     </figure>
   );
 }

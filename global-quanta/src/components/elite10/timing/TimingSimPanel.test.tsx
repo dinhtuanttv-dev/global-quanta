@@ -58,3 +58,14 @@ describe("TimingSimPanel", () => {
     expect(screen.queryByTestId("event-study-chart")).toBeNull();
   });
 });
+
+describe("TimingSimPanel — mốc đã qua", () => {
+  it("KQKD dự kiến đã qua ngày (24/10 < 29/10) -> ghi 'kỳ gần nhất', không ghi 'sắp tới'", () => {
+    render(<TimingSimPanel ticker="FPT" />);
+    fireEvent.click(screen.getByTestId("timing-kind-EARNINGS"));
+    const t = screen.getByTestId("timing-sim-upcoming").textContent ?? "";
+    expect(t).toContain("kỳ gần nhất");
+    expect(t).not.toContain("sắp tới");
+    expect(t).toContain("đã qua");
+  });
+});
