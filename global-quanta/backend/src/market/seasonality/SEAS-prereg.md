@@ -39,3 +39,15 @@ Long-only ngũ phân vị cao nhất sau phí 0,40% so VN-Index (TB + KTC 90%); 
 - ĐẠT → mùa vụ (mã/ngành tương ứng) được bậc **ĐẠT KIỂM ĐỊNH / GẦN ĐẠT** trong "⏱ Lịch thời điểm" theo bảng §2.5 phương án v2.
 - KHÔNG ĐẠT → nhãn **THĂM DÒ**, mọi dòng mùa vụ chỉ ở bậc **BỐI CẢNH** (ẩn mặc định). Kết quả công bố nguyên trạng dù đạt hay không.
 - Sổ theo dõi tiến (MV3) vẫn ghi dự báo mỗi đầu tháng để đánh giá hiệu chuẩn độc lập với kiểm định lịch sử này.
+
+## KẾT QUẢ (chạy một lần 29/10/2026 — `seas-prereg-report.json`)
+| | C1 IC (t) | C2 năm IC > 0 | C3 long–short sau phí [KTC 90%] | C4 placebo | Kết luận |
+|---|---|---|---|---|---|
+| **H1 Mã** (33 tháng, ~270 mã/tháng) | +0,009 (t 0,45) ✖ | 2/3 (2024 −0,012 · 2025 +0,019 · 2026 +0,025) ✔ | −0,13% [−1,17; +0,92] ✖ | hạng 4/12 ✖ | **KHÔNG ĐẠT → THĂM DÒ** |
+| **H2 Ngành** (33 tháng, 18 ngành) | −0,115 (t −2,13) ✖ | 0/3 ✖ | −4,07% [−6,06; −2,15] ✖ | hạng 12/12 ✖ | **KHÔNG ĐẠT → THĂM DÒ** |
+
+Mô tả thêm: long-only ngũ phân vị cao nhất sau phí — mã −0,34%/tháng [−1,56; +0,90], ngành −2,22% [−3,49; −0,97].
+Ngành cho IC **âm có ý nghĩa** (tháng mạnh lịch sử của ngành kém năm sau). Đây là quan sát SAU kiểm định — không đảo dấu để dùng
+làm tín hiệu; nếu muốn dùng phải đăng ký trước một giả thuyết đảo chiều riêng và kiểm định trên dữ liệu mới.
+Chỉ 18/34 ngành ICB cấp 2 có rổ đủ điều kiện chỉ số (GTGD ≥ 300 triệu, ≥ 2 mã) trong universe 286 mã.
+**Hệ quả:** mùa vụ tháng (mã và ngành) hiển thị như **bối cảnh lịch sử**, nhãn THĂM DÒ; không có bậc ĐẠT/GẦN ĐẠT trong Lịch thời điểm.
