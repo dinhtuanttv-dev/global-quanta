@@ -63,3 +63,11 @@ test("ESA không phát cảnh báo từ nến stale", () => {
   assert.equal(result.status, "stale");
   assert.equal(result.alert, null);
 });
+
+test("ESA: chỉ coi là phiên đang mở khi ngày giao dịch, sau 9:00 và phiên chưa đóng (ngoài phiên route trả ngay market_closed)", async () => {
+  const { isSessionLive } = await import("../src/market/scanner/intradayService.js");
+  assert.equal(isSessionLive(new Date("2026-10-29T03:00:00Z")), true); // thứ Năm 10:00
+  assert.equal(isSessionLive(new Date("2026-10-29T01:00:00Z")), false); // 8:00 chưa mở
+  assert.equal(isSessionLive(new Date("2026-10-29T10:30:00Z")), false); // 17:30 đã đóng
+  assert.equal(isSessionLive(new Date("2026-10-31T03:00:00Z")), false); // thứ Bảy
+});

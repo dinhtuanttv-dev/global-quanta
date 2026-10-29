@@ -50,6 +50,11 @@ export function groupSessions(bars) {
   return out;
 }
 
+/** Phiên đang mở (ngày giao dịch, sau 9:00, phiên hôm nay chưa đóng) — cùng điều kiện getIntradaySessions dùng. */
+export function isSessionLive(nowDate = new Date()) {
+  return isTradingDay(nowDate) && vnParts(nowDate).minutes >= 9 * 60 && lastCompletedSessionDate(nowDate) < vnDate(nowDate);
+}
+
 /**
  * Nến phút lịch sử (120 phiên, lưu đệm tới hết ngày) + phiên đang xem, dùng chung cho
  * Nhịp khối lượng, dòng phụ phân tích KL và IFE (không gọi SSI lặp lại).
@@ -67,7 +72,7 @@ export async function getIntradaySessions(service, rawSymbol, { now = Date.now }
   const nowDate = new Date(now());
   const today = vnDate(nowDate);
   const lastClosed = lastCompletedSessionDate(nowDate);
-  const sessionLive = isTradingDay(nowDate) && vnParts(nowDate).minutes >= 9 * 60 && lastClosed < today;
+  const sessionLive = isSessionLive(nowDate);
   const historyEnd = sessionLive ? addDays(today, -1) : lastClosed;
   const historyDates = tradingDatesBack(historyEnd, HISTORY_SESSIONS);
 
