@@ -11,6 +11,11 @@ export interface DailyBar { date: string; volume: number; value?: number | null;
 export interface EsaDaily { date: string; z: number | null; rv: number | null; level: "none" | "unusual" | "high" }
 
 export const ESA_DAILY = { lookback: 20, minObs: 15, z: 3, rv: 2, zHigh: 5 } as const;
+/** N0 (29/10/2026): bản ĐÃ TRỪ YẾU TỐ THỊ TRƯỜNG — x = ln(giá trị GD mã) − ln(giá trị GD toàn sàn), so 60 phiên trước (trung vị + 1,4826·MAD);
+ *  bội số = exp(x − trung vị). Phiên cả sàn cùng bùng khối lượng không còn hiện "bất thường" ở mọi mã. Cùng chuẩn ESA tin tức (N0). */
+export const ESA_DAILY_MKT = { lookback: 60, minObs: 40, z: 3, rv: 2, zHigh: 5 } as const;
+/** Giá trị GD toàn sàn theo ngày (từ nến VN-Index). */
+export type MarketValue = Map<string, number>;
 
 const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b), m = s.length >> 1;
@@ -19,9 +24,20 @@ const median = (xs: number[]) => {
 const amount = (b: DailyBar) => (b.value != null && b.value > 0 ? b.value : b.volume > 0 ? b.volume * (b.close ?? 1) : 0);
 
 /** ESA ngày tại phiên `i` (chỉ dùng phiên TRƯỚC i — không nhìn trước). */
-export function esaDailyAt(bars: DailyBar[], i: number, p = ESA_DAILY): EsaDaily | null {
+export function esaDailyAt(bars: DailyBar[], i: number, p = ESA_DAILY, market: MarketValue | null = null): EsaDaily | null {
   const bar = bars[i];
   if (!bar) return null;
+  if (market) {
+    const q = ESA_DAILY_MKT;
+    const xOf = (b: DailyBar) => { const v = amount(b), m = market.get(b.date); return v > 0 && m != null && m > 0 ? Math.log(v) - Math.log(m) : null; };
+    const prior = bars.slice(Math.max(0, i - q.lookback), i).map(xOf).filter((x): x is number => x != null);
+    const cur = xOf(bar);
+    if (prior.length < q.minObs || cur == null) return { date: bar.date, z: null, rv: null, level: "none" };
+    const med = median(prior)!, mad = median(prior.map((v) => Math.abs(v - med)))!;
+    const z = mad > 0 ? (cur - med) / (1.4826 * mad) : null, rv = Math.exp(cur - med);
+    const hit = z != null && z >= q.z && rv >= q.rv;
+    return { date: bar.date, z, rv, level: !hit ? "none" : z! >= q.zHigh ? "high" : "unusual" };
+  }
   const prior = bars.slice(Math.max(0, i - p.lookback), i).map(amount).filter((v) => v > 0);
   const cur = amount(bar);
   if (prior.length < p.minObs || !(cur > 0)) return { date: bar.date, z: null, rv: null, level: "none" };
@@ -55,6 +71,8 @@ export interface SpaceRibbon {
 export interface TimingSpace {
   ribbons: SpaceRibbon[]; x0: number; x1: number; yMin: number; yMax: number;
   anomalies: number; cellsWithEsa: number;
+  /** ESA ngày đã trừ yếu tố thị trường (đủ giá trị GD toàn sàn) hay chưa. */
+  marketAdjusted: boolean;
 }
 
 const netOf = (car: (number | null)[], offsets: number[], a: number, b: number, cost: number) => {
@@ -91,11 +109,12 @@ export function currentPathFromBars(offs: number[], bars: DailyBar[], indexBars:
 
 export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: number | null, win: { entryTo: number; exitOffset: number } | null, today: string | null = null, indexBars: DailyBar[] = [], extraRets: number[] = []): TimingSpace {
   const offs = es.offsets, x0 = Math.min(offs[0], todayOff ?? offs[0]), x1 = Math.max(offs[offs.length - 1], todayOff ?? offs[0]);
+  const mkt = marketValueMap(bars, indexBars);
   const carPts = (car: (number | null)[]) => car.flatMap((v, i) => (v == null ? [] : [{ offset: offs[i], ret: Math.expm1(v) }]));
   const cellsAround = (center: number, from: number, to: number): SpaceCell[] => {
     if (center < 0) return [];
     const out: SpaceCell[] = [];
-    for (let k = from; k <= to; k++) { const i = center + k; const esa = esaDailyAt(bars, i); if (esa) out.push({ offset: k, date: bars[i].date, esa }); }
+    for (let k = from; k <= to; k++) { const i = center + k; const esa = esaDailyAt(bars, i, ESA_DAILY, mkt); if (esa) out.push({ offset: k, date: bars[i].date, esa }); }
     return out;
   };
   const ribbons: SpaceRibbon[] = [...es.events].sort((a, b) => a.eventDate.localeCompare(b.eventDate)).map((e) => {
@@ -121,7 +140,7 @@ export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: num
     const cells: SpaceCell[] = [];
     if (lastOff != null) {
       for (let k = Math.max(offs[0], lastOff - last); k <= Math.min(lastOff, x1); k++) {
-        const i = last - (lastOff - k); const esa = esaDailyAt(bars, i);
+        const i = last - (lastOff - k); const esa = esaDailyAt(bars, i, ESA_DAILY, mkt);
         if (esa) cells.push({ offset: k, date: bars[i].date, esa });
       }
     }
@@ -133,7 +152,7 @@ export function buildTimingSpace(es: EventStudy, bars: DailyBar[], todayOff: num
   const rets = [...ribbons.flatMap((r) => r.points.map((p) => p.ret)), ...extraRets];
   const lo = Math.min(0, ...rets), hi = Math.max(0, ...rets), pad = (hi - lo) * 0.06 || 0.02;
   const all = ribbons.flatMap((r) => r.cells);
-  return { ribbons, x0, x1, yMin: lo - pad, yMax: hi + pad, anomalies: all.filter((c) => c.esa.level !== "none").length, cellsWithEsa: all.filter((c) => c.esa.z != null).length };
+  return { ribbons, x0, x1, yMin: lo - pad, yMax: hi + pad, anomalies: all.filter((c) => c.esa.level !== "none").length, cellsWithEsa: all.filter((c) => c.esa.z != null).length, marketAdjusted: mkt != null };
 }
 
 /** Dòng Timeline điểm mua của mã + loại sự kiện: ưu tiên ĐANG TRONG VÙNG, rồi SẮP TỚI gần nhất, rồi đã qua gần nhất. */
@@ -141,4 +160,12 @@ export function timelineRowFor(rows: TimelineRow[], ticker: string, kind: "DIVID
   const mine = rows.filter((r) => r.ticker === ticker && r.kind === kind);
   const rank = (r: TimelineRow) => (r.status === "IN_WINDOW" ? 0 : r.status === "UPCOMING" ? 1 : 2);
   return mine.sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? b.sessionsToEntry - a.sessionsToEntry : a.sessionsToEntry - b.sessionsToEntry))[0] ?? null;
+}
+
+/** Giá trị GD toàn sàn theo ngày nếu phủ ≥ 90% số phiên của mã (không trộn hai cách chấm trong một thảm), ngược lại null. */
+export function marketValueMap(bars: DailyBar[], indexBars: DailyBar[]): MarketValue | null {
+  if (!bars.length || !indexBars.length) return null;
+  const m: MarketValue = new Map(indexBars.filter((b) => (b.value ?? 0) > 0).map((b) => [b.date, b.value!]));
+  const covered = bars.filter((b) => m.has(b.date)).length;
+  return covered / bars.length >= 0.9 ? m : null;
 }

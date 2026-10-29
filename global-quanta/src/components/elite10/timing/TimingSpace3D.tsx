@@ -7,7 +7,8 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent, type WheelEven
 import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
 import type { EventStudy, EventStudyWindow } from "../../../lib/elite10/timingSim";
 import { ESA_DAILY, buildTimingSpace, type DailyBar, type SpaceCell, type SpaceRibbon } from "../../../lib/elite10/timingSpace";
-import type { EsaLive } from "../../../hooks/elite10/useEsaSnapshot";
+import type { EsaLive, EsaSince } from "../../../hooks/elite10/useEsaSnapshot";
+import type { CarCandle } from "../../../lib/elite10/liveDaily";
 import type { AnalogFan, FanPoint } from "../../../lib/elite10/analogFan";
 
 const W = 1000, H = 560, CENTER = { x: 520, y: 292 };
@@ -52,12 +53,24 @@ type Props = {
   timeline: TimelineRow | null; esa: EsaLive | null; fan?: AnalogFan | null;
   /** N4: chỉ vẽ các đợt này (null = mọi đợt); vị trí Z của mỗi đợt giữ nguyên để không "nhảy" khi bật / tắt. */
   visibleEvents?: Set<string> | null;
+  /** N3: nến ngày kỳ hiện tại (thang lợi suất vượt) trên mặt kỳ tới; N2: ESA từ lúc ra tin -> vòng sáng tại HÔM NAY, bấm để mở chi tiết. */
+  candles?: CarCandle[]; since?: EsaSince | null; onEsaClick?: () => void;
 };
 
-export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa, fan = null, visibleEvents = null }: Props) {
+export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa, fan = null, visibleEvents = null, candles = [], since = null, onEsaClick }: Props) {
   const [rot, setRot] = useState<Rotation>(DEFAULT_ROT);
   const [showEsa, setShowEsa] = useState(true);
   const [showOutcome, setShowOutcome] = useState(true);
+  const [showCandles, setShowCandles] = useState(true);
+  const todayMark = useRef<{ x: number; y: number } | null>(null);
+  // Vòng sáng nhấp nháy (canvas không có CSS animation): đổi pha ~0,7 giây chỉ khi đang có cảnh báo ESA từ tin.
+  const sinceAlert = since?.status === "research_only" ? since.alert : null;
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    if (!sinceAlert || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const t = window.setInterval(() => setPhase((v) => (v + 1) % 2), 700);
+    return () => window.clearInterval(t);
+  }, [sinceAlert]);
   const [hover, setHover] = useState<Hit | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drag = useRef<{ x: number; y: number; moved: boolean } | null>(null);
@@ -185,6 +198,18 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
       const fr = { ...space.ribbons[curIdx], label: "Dự phóng (trung vị)", windowNet: null };
       for (const p of fan.points) { const v = P({ x: X(p.offset), y: Y(p.mid), z: zc }); hitList.push({ x: v.x, y: v.y, ribbon: fr, offset: p.offset, ret: p.mid, cell: null }); }
     }
+    // N3: nến ngày của kỳ hiện tại trên mặt kỳ tới (thân nến nằm trong mặt XY của dải; nến hôm nay viền chấm = đang hình thành).
+    if (showCandles && candles.length && curIdx >= 0) {
+      const zc = Z(curIdx), half = 0.34; // nửa bề rộng thân nến = 0,34 phiên
+      for (const c of candles) {
+        const up = c.c >= c.o, col = up ? "#22c55e" : "#f43f5e";
+        const w0 = X(c.offset - half), w1 = X(c.offset + half), xm = X(c.offset);
+        poly([{ x: xm, y: Y(c.l), z: zc }, { x: xm, y: Y(c.h), z: zc }]); ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.stroke();
+        poly([{ x: w0, y: Y(c.o), z: zc }, { x: w1, y: Y(c.o), z: zc }, { x: w1, y: Y(c.c), z: zc }, { x: w0, y: Y(c.c), z: zc }], true);
+        if (up) { ctx.fillStyle = col; ctx.fill(); }
+        ctx.setLineDash(c.partial ? [2, 2] : []); ctx.strokeStyle = col; ctx.lineWidth = 1.1; ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
     // Sự kiện (mặt x = 0) và HÔM NAY (trên dải kỳ tới) + điểm ESA LIVE.
     const xs0 = X(0);
     poly([{ x: xs0, y: -1, z: -1 - dz }, { x: xs0, y: -1, z: 1 + dz }, { x: xs0, y: 1, z: 1 + dz }, { x: xs0, y: 1, z: -1 - dz }], true);
@@ -198,11 +223,16 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
       const b = P({ x: xt, y: -1, z: zi }), t = P({ x: xt, y: Y(rr), z: zi });
       ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(t.x, t.y); ctx.strokeStyle = "#f59e0b"; ctx.lineWidth = 1.4; ctx.stroke(); ctx.setLineDash([]);
       const live = esa?.status === "research_only" && esa.observation;
-      const sev = esa?.alert?.severity;
-      const ring = sev === "high_anomaly" ? "#f43f5e" : sev === "unusual_activity" ? "#f97316" : live ? "#fbbf24" : "#64748b";
+      const sinceOn = since?.status === "research_only";
+      // Ưu tiên ESA TỪ LÚC RA TIN (N2) — không có tin trong phiên thì dùng ESA R0 cả phiên.
+      const sev = sinceOn ? since!.alert?.severity : esa?.alert?.severity;
+      const ring = sev === "high_anomaly" ? "#f43f5e" : sev === "unusual_activity" ? "#f97316" : live || sinceOn ? "#fbbf24" : "#64748b";
+      if (sev && sinceOn) { ctx.save(); ctx.shadowColor = ring; ctx.shadowBlur = phase ? 22 : 10; }
       ctx.beginPath(); ctx.arc(t.x, t.y, 7, 0, Math.PI * 2); ctx.fillStyle = "rgba(5,10,20,.9)"; ctx.fill(); ctx.lineWidth = 2.4; ctx.strokeStyle = ring; ctx.stroke();
-      if (sev) { ctx.beginPath(); ctx.arc(t.x, t.y, 12, 0, Math.PI * 2); ctx.lineWidth = 1; ctx.strokeStyle = ring; ctx.stroke(); }
-      const txt = `HÔM NAY (${todayOff > 0 ? "+" : ""}${todayOff})${live ? ` · ESA ${num(esa!.observation!.relativeVolume, 2)}×${sev ? " BẤT THƯỜNG" : ""}` : ""}`;
+      if (sev) { ctx.beginPath(); ctx.arc(t.x, t.y, sinceOn ? (phase ? 16 : 12) : 12, 0, Math.PI * 2); ctx.lineWidth = sinceOn ? 1.8 : 1; ctx.strokeStyle = ring; ctx.stroke(); }
+      if (sev && sinceOn) ctx.restore();
+      todayMark.current = sinceOn ? { x: t.x, y: t.y } : null;
+      const txt = `HÔM NAY (${todayOff > 0 ? "+" : ""}${todayOff})${sinceOn ? ` · ESA từ tin ${since!.sinceMinute} ${num(since!.relativeVolume, 2)}×${sev ? " ĐỘT BIẾN" : ""}` : live ? ` · ESA ${num(esa!.observation!.relativeVolume, 2)}×${sev ? " BẤT THƯỜNG" : ""}` : ""}`;
       ctx.font = font(10, 700); const tw = ctx.measureText(txt).width + 10;
       const lx = clamp(t.x - tw / 2, 4, W - tw - 4), ly = clamp(t.y - 30 * fontK, 4, H - 20);
       ctx.fillStyle = "rgba(5,10,20,.88)"; ctx.fillRect(lx, ly, tw, 18 * fontK); ctx.strokeStyle = ring; ctx.lineWidth = 1; ctx.strokeRect(lx, ly, tw, 18 * fontK);
@@ -228,7 +258,7 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
     ctx.font = font(9); ctx.fillStyle = "#64748b"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     for (const r of [space.yMin, 0, space.yMax]) { const v = P({ x: -1, y: Y(r), z: 1 + dz }); ctx.fillText(`${(r * 100).toFixed(0)}%`, v.x - 6, v.y); }
     hits.current = hitList;
-  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK, fan, visibleEvents]);
+  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK, fan, visibleEvents, candles, showCandles, since, phase]);
 
   const at = (e: PointerEvent<HTMLCanvasElement>) => { const b = e.currentTarget.getBoundingClientRect(); return { x: (e.clientX - b.left) * W / b.width, y: (e.clientY - b.top) * H / b.height }; };
   const nearest = (p: { x: number; y: number }) => hits.current.reduce<Hit | null>((best, h) => { const d = Math.hypot(h.x - p.x, h.y - p.y); return d < 22 && (!best || d < Math.hypot(best.x - p.x, best.y - p.y)) ? h : best; }, null);
@@ -243,7 +273,13 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
     }
     setHover(nearest(p));
   };
-  const onUp = (e: PointerEvent<HTMLCanvasElement>) => { const d = drag.current; drag.current = null; if (!d?.moved) setHover(nearest(at(e))); };
+  const onUp = (e: PointerEvent<HTMLCanvasElement>) => {
+    const d = drag.current; drag.current = null;
+    if (d?.moved) return;
+    const p = at(e), m = todayMark.current;
+    if (m && onEsaClick && Math.hypot(m.x - p.x, m.y - p.y) <= 18) { onEsaClick(); return; } // bấm vòng sáng -> bảng khối lượng sau tin
+    setHover(nearest(p));
+  };
   const onWheel = (e: WheelEvent<HTMLCanvasElement>) => { e.preventDefault(); setRot((r) => ({ ...r, zoom: clamp(r.zoom * (e.deltaY < 0 ? 1.08 : 0.93), 0.6, 1.9) })); };
 
   const evRibbons = space.ribbons.filter((r) => r.kind === "event");
@@ -255,9 +291,11 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
       <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-slate-400">
         <button type="button" className={btn(showEsa)} aria-pressed={showEsa} onClick={() => setShowEsa((v) => !v)} data-testid="space-toggle-esa">W · Thảm ESA ngày</button>
         <button type="button" className={btn(showOutcome)} aria-pressed={showOutcome} onClick={() => setShowOutcome((v) => !v)} data-testid="space-toggle-outcome">Tô thắng / thua cửa sổ</button>
+        {candles.length > 0 && <button type="button" className={btn(showCandles)} aria-pressed={showCandles} onClick={() => setShowCandles((v) => !v)} data-testid="space-toggle-candles">🕯 Nến ngày kỳ tới</button>}
+        {since?.status === "research_only" && onEsaClick && <button type="button" className={btn(Boolean(since.alert))} onClick={onEsaClick} data-testid="space-esa-since">◉ ESA từ tin {since.sinceMinute}{since.alert ? " · ĐỘT BIẾN" : ""}</button>}
         <button type="button" className={btn(false)} onClick={() => { setRot(DEFAULT_ROT); setHover(null); }}>Đặt lại góc nhìn</button>
         <span className="ml-auto" data-testid="space-esa-summary">
-          {barsLoading && !bars.length ? "Đang tải nến ngày cho ESA…" : `ESA ngày: ${space.anomalies} phiên bất thường / ${space.cellsWithEsa} phiên chấm được`}
+          {barsLoading && !bars.length ? "Đang tải nến ngày cho ESA…" : `ESA ngày${space.marketAdjusted ? " (đã trừ thị trường)" : ""}: ${space.anomalies} phiên bất thường / ${space.cellsWithEsa} phiên chấm được`}
         </span>
       </div>
       <div className="relative overflow-hidden rounded-lg border border-white/10 bg-[#080d18]">
@@ -298,10 +336,10 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
         </div>
       </details>
       <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
-        W = <b>ESA ngày</b>: giá trị giao dịch phiên so với 20 phiên liền trước (trung vị + 1,4826 × MAD như ESA R0; bất thường khi z ≥ {ESA_DAILY.z} và ≥ {ESA_DAILY.rv}× trung vị) — mô tả hoạt động quanh sự kiện, <b>chưa kiểm định</b> khả năng dự báo lợi suất.
+        W = <b>ESA ngày</b>: {space.marketAdjusted ? "giá trị giao dịch của mã so với giá trị GD toàn sàn, đối chiếu 60 phiên trước (đã trừ yếu tố thị trường; " : "giá trị giao dịch phiên so với 20 phiên liền trước (chưa trừ yếu tố thị trường — thiếu giá trị GD toàn sàn; "}trung vị + 1,4826 × MAD như ESA R0; bất thường khi z ≥ {ESA_DAILY.z} và ≥ {ESA_DAILY.rv}× trung vị) — mô tả hoạt động quanh sự kiện, <b>chưa kiểm định</b> khả năng dự báo lợi suất.
         Điểm tròn HÔM NAY = <b>ESA intraday R0</b> trực tiếp ({esa ? esa.status === "research_only" ? `${esa.method.version}, ${esa.observation?.observedMinute ?? ""}` : esa.reason ?? esa.status : "chưa tải"}).
         Đường giữa hai mốc v3 là nối thẳng; chấm ESA đặt theo nội suy chỉ để định vị.
-        {space.ribbons.some((r) => r.derived) && <> Đường KỲ TỚI tự tính từ giá đóng cửa so VN-Index (neo 0 tại phiên {es.offsets[0]}, chưa qua {eventWord} nên chưa có cổ tức xen giữa).</>}
+        {space.ribbons.some((r) => r.derived) && <> Đường KỲ TỚI tự tính từ giá đóng cửa ĐIỀU CHỈNH cổ tức / thưởng CP so VN-Index (neo 0 tại phiên {es.offsets[0]}).</>}
       </p>
     </div>
   );

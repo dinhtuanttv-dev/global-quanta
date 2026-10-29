@@ -54,3 +54,14 @@ test("N0: OLS cơ bản", () => {
   const { a, b } = ols([1, 2, 3, 4], [3, 5, 7, 9]);
   near(a, 1, 1e-12, "a"); near(b, 2, 1e-12, "b");
 });
+
+test("N0: lợi suất an toàn ngày quyền — thưởng CP 10% (HOSE): dùng giá tham chiếu đã điều chỉnh, không tạo cú giảm −9% giả", async () => {
+  const { sessionReturn } = await import("../src/market/news/abnormalReaction.js");
+  const prev = { close: 71700, exchange: "HOSE" };
+  const exDay = { close: 66400, refPrice: 65182, exchange: "HOSE" }; // 71.700 / 1,1
+  near(sessionReturn(exDay, prev), Math.log(66400 / 65182), 1e-12, "HOSE ngày quyền");
+  // UPCOM: tham chiếu = giá bình quân phiên trước -> giữ đóng cửa so đóng cửa; lệch > 4% -> sự kiện quyền -> dùng tham chiếu
+  near(sessionReturn({ close: 10200, refPrice: 10050, exchange: "UPCOM" }, { close: 10000 }), Math.log(10200 / 10000), 1e-12, "UPCOM thường");
+  near(sessionReturn({ close: 9300, refPrice: 9091, exchange: "UPCOM" }, { close: 10000 }), Math.log(9300 / 9091), 1e-12, "UPCOM ngày quyền");
+  near(sessionReturn({ close: 105 }, { close: 100 }), Math.log(1.05), 1e-12, "không có tham chiếu");
+});

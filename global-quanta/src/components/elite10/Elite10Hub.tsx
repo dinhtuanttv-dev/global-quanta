@@ -8,6 +8,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
 import TimingSimPanel from "./timing/TimingSimPanel";
+import EliteNewsPanel from "./news/EliteNewsPanel";
 import EliteAiRoom from "./center/EliteAiRoom";
 import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
@@ -64,6 +65,7 @@ export default function Elite10Hub() {
             <SignalProfileCard ticker={current} />
             {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD (chart chính mới; chart kỹ thuật cũ chuyển sau nút tạm ở CH6). */}
             <TimingSimPanel ticker={current} />
+            <EliteNewsPanel ticker={current} onTicker={open} />
             <TaVnIndexTab ticker={current} onTickerChange={setTicker} />
           </>
         )}
