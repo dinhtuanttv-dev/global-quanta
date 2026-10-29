@@ -227,9 +227,26 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
   }).sort((a, b) => b.Z - a.Z);
   scores.forEach((x, i) => { x.rank = i + 1; });
 
+  const { portfolio, construction } = constructPortfolio({ scores, prices, date, prevHoldings });
+  return {
+    version: E3_VERSION, date, icComb, sigma5: sig5, weights,
+    signalWeighting: { method: adj.method, corr: adj.corr ?? null, noteVi: adj.noteVi ?? null },
+    construction,
+    universe: { panel: tickers.length, eligible: eligibleNames.length },
+    portfolio, scores,
+  };
+}
+
+/**
+ * Dựng danh mục từ bảng điểm đã xếp (E3-v3) — tách khỏi buildDecision (30/10/2026) để "Elite 10 · bộ lọc của tôi" dùng ĐÚNG thuật toán
+ * chính thức trên tập mã đã lọc: vùng đệm (mã phiên trước còn trong top 20 đủ điều kiện được giữ), lấp theo Z giảm dần, trần 3 mã /
+ * ngành ICB cấp 2, tỷ trọng ERC trên hiệp phương sai Ledoit–Wolf 120 phiên (thiếu dữ liệu -> ∝ 1/max(σ20, 1%)), trần 20%.
+ * `scores`: [{ticker, Z, rank, eligible, sigma20, sectorKey, close, alpha5Pct, pOutperform}] (không cần đã sắp xếp).
+ */
+export function constructPortfolio({ scores, prices, date, prevHoldings = [] }) {
   // Danh mục (E3-v3): vùng đệm — mã phiên trước còn trong top 20 đủ điều kiện được giữ; lấp phần còn lại theo Z giảm dần;
   // trần 3 mã / ngành ICB cấp 2.
-  const ranked = scores.filter((x) => x.eligible && x.sigma20 > 0);
+  const ranked = scores.filter((x) => x.eligible && x.sigma20 > 0).slice().sort((a, b) => b.Z - a.Z);
   const bufferSet = new Set(ranked.slice(0, PORTFOLIO.bufferRank).map((x) => x.ticker));
   const prevSet = new Set((prevHoldings ?? []).map((h) => h.ticker));
   const picks = [];
@@ -271,13 +288,7 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
       retained: retained.has(x.ticker), riskContribution: rc ? rc[i] : null,
     };
   });
-  return {
-    version: E3_VERSION, date, icComb, sigma5: sig5, weights,
-    signalWeighting: { method: adj.method, corr: adj.corr ?? null, noteVi: adj.noteVi ?? null },
-    construction: { method, sessions: R.length, retained: retained.size, previous: prevSet.size, turnover },
-    universe: { panel: tickers.length, eligible: eligibleNames.length },
-    portfolio, scores,
-  };
+  return { portfolio, construction: { method, sessions: R.length, retained: retained.size, previous: prevSet.size, turnover } };
 }
 
 /** Cắt lỗ / mục tiêu = dải 2σ / 3σ của 5 phiên (σ = max(σ20, 1%)·√5) — MỘT công thức cho danh mục và ứng viên. */

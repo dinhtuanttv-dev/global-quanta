@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -52,6 +52,31 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     if (!body) return res.status(503).json({ error: "Kho Cổ tức chưa có dữ liệu." });
     res.set("Cache-Control", "public, max-age=120");
     res.json(body);
+  }));
+  // Bộ lọc Elite theo tài khoản (30/10/2026): GET / PUT /my-filter · GET /my-portfolio (danh mục từ bộ lọc, cùng thuật toán chính thức).
+  const authed = (fn) => async (req, res) => {
+    try {
+      if (!verifyUser || !getUserFilters) return res.status(404).json({ error: "Chưa bật bộ lọc theo tài khoản." });
+      const uid = await verifyUser(req.headers.authorization);
+      res.set("Cache-Control", "no-store");
+      await fn(uid, req, res);
+    } catch (e) {
+      const code = Number(e?.statusCode ?? e?.status) || 500;
+      res.status(code >= 400 && code < 600 ? code : 500).json({ error: String(e?.message ?? e).slice(0, 300) });
+    }
+  };
+  router.get("/my-filter", authed(async (uid, req, res) => { res.json(await getUserFilters().get(uid)); }));
+  router.put("/my-filter", authed(async (uid, req, res) => {
+    if (JSON.stringify(req.body ?? {}).length > 20_000) return res.status(413).json({ error: "Bộ lọc quá lớn." });
+    res.json(await getUserFilters().save(uid, req.body ?? {}, knownSignals));
+  }));
+  router.get("/my-portfolio", authed(async (uid, req, res) => {
+    const saved = await getUserFilters().get(uid);
+    if (!saved.filter) return res.status(404).json({ error: "Chưa lưu bộ lọc." });
+    const last = saved.ledger?.entries?.[saved.ledger.entries.length - 1] ?? null;
+    const r = getDecision ? await getDecision().personalPortfolio(saved.filter, last?.holdings ?? []) : null;
+    if (!r) return missing(res, "Chưa có quyết định Elite 10.");
+    res.json({ ...r, filter: saved.filter, active: saved.active, savedAt: saved.savedAt, ledger: saved.ledger });
   }));
   router.get("/buy-timing/status", (req, res) => {
     res.set("Cache-Control", "no-store");

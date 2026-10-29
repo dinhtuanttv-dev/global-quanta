@@ -25,7 +25,7 @@ export function useEliteTicker(ticker: string | null) {
 
 /** Bảng tín hiệu đầy đủ của phiên mới nhất (để tính phân vị của một mã trong vũ trụ). */
 export function useElitePanel() {
-  return useSWR<{ date: string; rows: { ticker: string; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);
+  return useSWR<{ date: string; rows: { ticker: string; icb?: { l1?: string; l2?: string; l3?: string } | null; sector?: string | null; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);
 }
 
 export function useEliteRisk() {

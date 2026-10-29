@@ -162,6 +162,9 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-sig-top20_alpha").textContent).toContain("—");
     expect(screen.getByTestId("elite-sig-smart_score").textContent).toContain("Bậc C");
     expect(screen.getByTestId("elite-profile").textContent).toContain("cotuc");
+    expect(screen.getByTestId("elite-profile").textContent).toContain("3 tín hiệu từ 2 tab");
+    expect(screen.getByTestId("elite-contrib-stealth20").textContent).toContain("+1,2");
+    expect(screen.getByTestId("elite-profile-gap").textContent).toContain("Đang trong danh mục Elite 10");
     cleanup();
     render(<SignalProfileCard ticker="VNINDEX" />);
     expect(screen.getByTestId("elite-profile-missing").textContent).toContain("VNINDEX");
