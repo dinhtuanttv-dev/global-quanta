@@ -1,0 +1,48 @@
+{
+ "prereg": "SEAS-prereg-v1",
+ "lockedAt": "2026-10-29T09:24:22.989Z",
+ "engine": {
+  "version": "SEAS-v1",
+  "years": 5,
+  "monthEndMinDay": 20,
+  "roundTripCost": 0.004,
+  "permutations": 2000,
+  "fdrQ": 0.1,
+  "level": 0.9,
+  "priorStrength": 10,
+  "minSectorPeers": 3,
+  "lowSampleN": 4
+ },
+ "trainStartYear": 2021,
+ "minTrainYears": 3,
+ "maxTrainYears": 5,
+ "testYears": [
+  2024,
+  2025,
+  2026
+ ],
+ "testEnd": "2026-09",
+ "minCrossSection": 30,
+ "sectorMinCrossSection": 15,
+ "quantiles": 5,
+ "bootstrap": {
+  "iters": 10000,
+  "seed": 20261029,
+  "level": 0.9
+ },
+ "thresholds": {
+  "tMin": 2,
+  "yearsPositiveMin": 2
+ },
+ "data": {
+  "sha256": "a25a67a1ed8d74e13d1e05453120197240dd40473490d5a8da36c44a45e0c0b3",
+  "fetchedAt": "2026-10-29T09:23:37.924Z",
+  "tickers": 286,
+  "source": {
+   "gateway": "https://gateway-production-1da0.up.railway.app",
+   "events": "https://tuan-quant-scanner-psi.vercel.app/api/cotuc/events",
+   "taxonomy": "2026-10-22T22:38:07.665Z"
+  }
+ },
+ "sha256": "4c9adcf80dc337fbfcf33c6c0e8c8b48fa0946b57cd5eb13331c63b982728ed0"
+}
