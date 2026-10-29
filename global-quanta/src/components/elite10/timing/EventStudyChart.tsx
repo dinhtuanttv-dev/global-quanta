@@ -3,13 +3,16 @@
 // dải = tứ phân vị; vùng xanh = vùng mua của cửa sổ đang xem (đặc = ĐẠT KIỂM ĐỊNH v3, chấm = chưa đạt); con trỏ HÔM NAY.
 // SVG thuần (≤ 15 đường) — nhẹ, sắc nét mọi độ phân giải; có bảng tương đương cho trình đọc màn hình.
 import { useMemo } from "react";
+import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
 import { pathBands, type EventStudy, type EventStudyWindow } from "../../../lib/elite10/timingSim";
 
 const W = 720, H = 260, M = { l: 44, r: 14, t: 18, b: 30 };
 const pct = (car: number) => Math.expm1(car);
 const fmt = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
 
-export default function EventStudyChart({ es, window: win, todayOff }: { es: EventStudy; window: EventStudyWindow | null; todayOff: number | null }) {
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+export default function EventStudyChart({ es, window: win, todayOff, timeline = null }: { es: EventStudy; window: EventStudyWindow | null; todayOff: number | null; timeline?: TimelineRow | null }) {
   const bands = useMemo(() => pathBands(es), [es]);
   const eventWord = es.kind === "DIVIDEND" ? "GDKHQ" : "Công bố KQKD";
   const { x, y, yTicks, x0, x1 } = useMemo(() => {
@@ -31,6 +34,7 @@ export default function EventStudyChart({ es, window: win, todayOff }: { es: Eve
     car.forEach((v, i) => { if (v == null) { pen = false; return; } d += `${pen ? "L" : "M"}${x(es.offsets[i]).toFixed(1)},${y(pct(v)).toFixed(1)}`; pen = true; });
     return d;
   };
+  const tlDates = timeline && win && timeline.windowId === win.id ? timeline : null;
   const med = bands.filter((b) => b.median != null);
   const band = bands.filter((b) => b.q25 != null && b.q75 != null);
   const bandPath = band.length > 1 ? `M${band.map((b) => `${x(b.offset)},${y(pct(b.q75!))}`).join("L")}L${[...band].reverse().map((b) => `${x(b.offset)},${y(pct(b.q25!))}`).join("L")}Z` : "";
@@ -53,8 +57,13 @@ export default function EventStudyChart({ es, window: win, todayOff }: { es: Eve
             <rect x={x(win.entryFrom)} width={Math.max(2, x(win.entryTo) - x(win.entryFrom))} y={M.t} height={H - M.t - M.b}
               className={win.selected ? "fill-emerald-500/15 stroke-emerald-400/60" : "fill-sky-400/5 stroke-sky-300/50"} strokeDasharray={win.selected ? undefined : "4 3"} />
             <line x1={x(win.exitOffset)} x2={x(win.exitOffset)} y1={M.t} y2={H - M.b} className="stroke-rose-400/70" strokeDasharray="3 3" />
-            <text x={x(win.entryFrom) + 3} y={M.t + 10} className={win.selected ? "fill-emerald-300" : "fill-sky-300"} fontSize={9}>VÙNG MUA {win.selected ? "· ĐẠT KIỂM ĐỊNH" : "· chưa đạt"}</text>
-            <text x={x(win.exitOffset) + 3} y={M.t + 10} className="fill-rose-300" fontSize={9}>THOÁT</text>
+            <text x={x(win.entryFrom) + 3} y={M.t + 10} className={win.selected ? "fill-emerald-300" : "fill-sky-300"} fontSize={9}>
+              VÙNG MUA{tlDates ? ` ${dm(tlDates.entryFromDate)}–${dm(tlDates.entryToDate)}` : ""} {win.selected ? "· ĐẠT KIỂM ĐỊNH" : "· chưa đạt"}
+            </text>
+            {/* sát mép phải -> neo chữ về bên trái đường thoát (không bị cắt) */}
+            <text x={x(win.exitOffset) + (x(win.exitOffset) > W - M.r - 70 ? -3 : 3)} y={M.t + 22} textAnchor={x(win.exitOffset) > W - M.r - 70 ? "end" : "start"} className="fill-rose-300" fontSize={9}>
+              THOÁT{tlDates ? ` ${dm(tlDates.exitDate)}` : ""}
+            </text>
           </g>
         )}
         {bandPath && <path d={bandPath} className="fill-cyan-400/10" />}

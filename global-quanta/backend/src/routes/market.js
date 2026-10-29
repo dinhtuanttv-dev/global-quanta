@@ -13,7 +13,7 @@ import { KV } from "../market/scanner/scannerJobs.js";
 import { expectsLiveTicks, lastCompletedSessionDate, vnDate } from "../market/calendar.js";
 import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
-import { getIntradayCycle, getIntradaySessions } from "../market/scanner/intradayService.js";
+import { getIntradayCycle, getIntradaySessions, isSessionLive } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
@@ -63,18 +63,31 @@ const handle = (fn) => async (req, res) => {
 
 const service = () => getMarketRuntime().service;
 
+const ESA_WAIT_MS = Math.max(2_000, Number(process.env.ESA_WAIT_MS) || 20_000);
 // ESA R0: anomaly research from Gateway minute bars. This endpoint does not
 // emit a return forecast, calibrated probability, or trading recommendation.
 router.get("/research/esa/:symbol", handle(async (req, res) => {
   const symbol = canonicalSymbol(req.params.symbol);
   if (!isValidSymbol(symbol) || isIndexSymbol(symbol)) throw new ValidationError("ESA cần mã cổ phiếu hợp lệ.");
   const rt = getMarketRuntime();
+  const radarEvents = () => rt.eventRadar.list({ ticker: symbol, limit: 10 }).then((r) => r.events ?? []).catch(() => []);
+  // Ngoài phiên ESA chỉ trả "market_closed" -> không dựng 120 phiên nến phút SSI (trước đây treo nhiều phút với mã chưa có đệm).
+  if (!isSessionLive()) {
+    res.set("Cache-Control", "private, max-age=60");
+    return res.json(buildEsaEarlySignal({ symbol, sessions: { sessionLive: false }, events: await radarEvents() }));
+  }
   const data = await service().cache.wrap(`esa:early:${symbol}`, 30_000, async () => {
-    const [sessions, radar] = await Promise.all([
-      getIntradaySessions(rt.service, symbol),
-      rt.eventRadar.list({ ticker: symbol, limit: 10 }).catch(() => ({ events: [] })),
+    // Trong phiên: chờ tối đa 20 giây; lịch sử nến phút lần đầu tiếp tục dựng nền (đệm 12 giờ) cho lần gọi sau.
+    const sessions = await Promise.race([
+      getIntradaySessions(rt.service, symbol).catch((error) => ({ error })),
+      new Promise((resolve) => setTimeout(() => resolve({ building: true }), ESA_WAIT_MS)),
     ]);
-    return buildEsaEarlySignal({ symbol, sessions, events: radar.events ?? [] });
+    const events = await radarEvents();
+    if (sessions.building || sessions.error) {
+      const base = buildEsaEarlySignal({ symbol, sessions: { sessionLive: true, trainSessions: [] }, events });
+      return { ...base, reason: sessions.building ? "Đang dựng lịch sử nến phút cho mã này (lần đầu có thể mất vài phút); thử lại sau." : `Nguồn nến phút lỗi: ${sessions.error.message}` };
+    }
+    return buildEsaEarlySignal({ symbol, sessions, events });
   });
   res.set("Cache-Control", "private, max-age=15");
   res.json(data);
