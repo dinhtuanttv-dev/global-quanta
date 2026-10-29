@@ -42,3 +42,15 @@ liệu) nằm trong `seas-prereg-v2-config.json`, **commit trước khi chạy**
 - ĐẠT (mã và/hoặc ngành) → bậc **GẦN ĐẠT** trong "⏱ Lịch thời điểm" cho phần tương ứng; lên **ĐẠT KIỂM ĐỊNH** chỉ khi sổ theo dõi tiến (R3,
   từ 11/2026) đạt ở mốc 12/24/36 tháng.
 - KHÔNG ĐẠT → giữ **THĂM DÒ**, mùa vụ chỉ là **BỐI CẢNH**; không có lần chạy lại trên dữ liệu này.
+
+## KẾT QUẢ (chạy một lần 29/10/2026 — `seas-prereg-v2-report.json`)
+| | C1 IC (t) | C2 năm IC > 0 | C3 long–short sau phí [KTC 90%] | C4 placebo | C5 long-only sau phí [KTC 90%] | Kết luận |
+|---|---|---|---|---|---|---|
+| **H1 Mã** (48 tháng, ~806 mã/tháng, 1.069 chuỗi) | +0,013 (1,56) ✖ | 3/4 ✔ | −0,13% [−0,58; +0,33] ✖ | 2/12 ✖ | −0,41% [−0,73; −0,10] ✖ | **KHÔNG ĐẠT** |
+| **H2 Ngành** (45 tháng, ~18 ngành) | +0,040 (1,08) ✖ | 2/4 ✖ | −0,81% [−1,94; +0,31] ✖ | 1/12 ✔ | −0,47% [−1,33; +0,42] ✖ | **KHÔNG ĐẠT** |
+
+- Cơ chế: IC riêng phần sau kiểm soát đà 12 tháng + tháng trước — mã +0,010 (t 1,24), ngành +0,024 (t 0,68).
+- Đọc kết quả: có **dấu hiệu lặp lại yếu, cùng chiều** (IC dương ở cả mã và ngành) — khác hẳn "đảo chiều" của v1 lỗi — nhưng **quá nhỏ để
+  dùng sau chi phí**: nhóm mã mùa vụ tốt nhất còn thua bình quân đều sau phí 0,40% (C5 âm có ý nghĩa).
+- **Hệ quả:** mùa vụ tháng (mã và ngành) giữ **THĂM DÒ**, chỉ là **BỐI CẢNH** trong Lịch thời điểm. Không chạy lại trên dữ liệu này. Sổ theo dõi
+  tiến (R3, từ 11/2026) vẫn ghi để đánh giá độc lập.
