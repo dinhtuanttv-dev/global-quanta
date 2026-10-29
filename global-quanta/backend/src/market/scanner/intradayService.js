@@ -9,7 +9,6 @@ import { buildIntradayCycle, sessionToBuckets } from "./intradayModel.js";
 import { canonicalSymbol, isValidSymbol, isIndexSymbol } from "../normalizer.js";
 import { ValidationError } from "../errors.js";
 import { expectsLiveTicks, isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
-import { addDays } from "../util.js";
 import { tradingDatesBack } from "./scannerJobs.js";
 
 export const HISTORY_SESSIONS = Number(process.env.INTRADAY_CYCLE_SESSIONS) || 120;
@@ -73,7 +72,9 @@ export async function getIntradaySessions(service, rawSymbol, { now = Date.now }
   const today = vnDate(nowDate);
   const lastClosed = lastCompletedSessionDate(nowDate);
   const sessionLive = isSessionLive(nowDate);
-  const historyEnd = sessionLive ? addDays(today, -1) : lastClosed;
+  // Lịch sử = tới phiên ĐÃ ĐÓNG gần nhất (trong phiên đó là phiên giao dịch trước). Trước đây trong phiên dùng "hôm qua" theo LỊCH ->
+  // thứ Hai ra khoá đệm Chủ nhật, lệch khoá dựng trước giờ mở cửa (thứ Sáu) -> nạp sẵn (N5) bị trượt, phải tải lại 120 phiên SSI.
+  const historyEnd = lastClosed;
   const historyDates = tradingDatesBack(historyEnd, HISTORY_SESSIONS);
 
   const history = await service.cache.wrap(`intraday-cycle-hist:${symbol}:${historyEnd}`, 12 * 60 * 60_000, () => withSlot(async () => {
