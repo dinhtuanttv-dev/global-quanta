@@ -13,7 +13,7 @@ import { KV } from "../market/scanner/scannerJobs.js";
 import { expectsLiveTicks, lastCompletedSessionDate, vnDate } from "../market/calendar.js";
 import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
 import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
-import { getIntradayCycle, getIntradaySessions, isSessionLive } from "../market/scanner/intradayService.js";
+import { getEsaSessions, getIntradayCycle, getIntradaySessions, isSessionLive } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
 import { scoreCustomTickers, parseTickers } from "../market/scanner/customScan.js";
@@ -78,7 +78,7 @@ router.get("/research/esa/:symbol", handle(async (req, res) => {
   }
   // Trong phiên: chờ tối đa 20 giây; lịch sử nến phút lần đầu tiếp tục dựng nền (đệm 12 giờ) cho lần gọi sau.
   const sessions = await service().cache.wrap(`esa:sessions:${symbol}`, 30_000, () => Promise.race([
-    getIntradaySessions(rt.service, symbol).catch((error) => ({ error })),
+    getEsaSessions(rt.service, symbol).catch((error) => ({ error })), // lịch sử GỌN (~0,35 MB/mã) — không giữ nguyên nến phút
     new Promise((resolve) => setTimeout(() => resolve({ building: true }), ESA_WAIT_MS)),
   ]));
   const data = await service().cache.wrap(`esa:early:${symbol}`, 30_000, async () => {

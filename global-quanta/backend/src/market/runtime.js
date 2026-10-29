@@ -39,7 +39,7 @@ import { createElliottLedger } from "./elliott/scenarioLedger.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 import { createEventRadar } from "./news/eventRadar.js";
-import { getIntradaySessions } from "./scanner/intradayService.js";
+import { getEsaSessions } from "./scanner/intradayService.js";
 import { eliteWarmTickers } from "./elite/decisionService.js";
 
 let runtime;
@@ -121,13 +121,13 @@ export function getMarketRuntime() {
     const tickers = await eliteWarmTickers(store);
     const out = { tickers: tickers.length, warmed: [], failed: [] };
     for (const t of tickers) {
-      try { await getIntradaySessions(service, t); out.warmed.push(t); } catch (error) { out.failed.push(`${t}: ${error.message}`); }
+      try { await getEsaSessions(service, t); out.warmed.push(t); } catch (error) { out.failed.push(`${t}: ${error.message}`); } // chỉ bản gọn
     }
     return out;
   };
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }] }); // warmEliteIntraday TẠM TẮT lịch (29/10/2026): giữ đủ nến phút 120 phiên × 10 mã trong đệm đẩy heap 57 -> ~400/489 MB.
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
