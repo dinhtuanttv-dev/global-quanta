@@ -118,3 +118,58 @@ export async function getIntradayCycle(service, rawSymbol, { now = Date.now } = 
     disclaimer: "Xác suất là tần suất lịch sử có điều kiện đã làm mượt và kiểm định walk-forward; không phải dự báo chắc chắn.",
   };
 }
+
+// ---------- Lịch sử GỌN cho ESA (29/10/2026) ----------
+// ESA R0 + ESA từ lúc ra tin chỉ cần khối lượng CỘNG DỒN theo phút của các phiên trước, không cần nguyên nến phút.
+// Mỗi phiên -> Float64Array(361) khối lượng cộng dồn từ 09:00 tới 15:00 (~2,9 KB; 120 phiên ≈ 0,35 MB/mã) thay vì ~33 MB nến phút
+// giữ trong đệm 12 giờ (đo production 29/10: nạp nguyên 10 mã đẩy heap 57 -> ~400/489 MB).
+export const ESA_MIN0 = 9 * 60, ESA_SPAN = 6 * 60 + 1;
+
+/** Phiên nến phút -> { date, refPrice, cum } (cum[i] = KL cộng dồn tới phút 09:00 + i, gồm cả phút đó). */
+export function compactSession(session) {
+  const vol = new Float64Array(ESA_SPAN);
+  for (const b of session.bars ?? []) {
+    const m = String(b.date).match(/T(\d{2}):(\d{2})/);
+    if (!m) continue;
+    const i = Number(m[1]) * 60 + Number(m[2]) - ESA_MIN0;
+    if (i >= 0 && i < ESA_SPAN) vol[i] += Math.max(0, Number(b.volume) || 0);
+  }
+  for (let i = 1; i < ESA_SPAN; i++) vol[i] += vol[i - 1];
+  const closes = (session.bars ?? []).map((b) => Number(b.close)).filter((v) => v > 0);
+  return { date: session.date, refPrice: session.refPrice ?? null, close: closes.length ? closes[closes.length - 1] : null, cum: vol };
+}
+
+/**
+ * Như getIntradaySessions nhưng lịch sử ở dạng GỌN (chỉ cho ESA). Dùng lại lịch sử đầy đủ nếu đang có sẵn trong đệm; không có thì tải
+ * SSI rồi chỉ giữ bản gọn (nến phút thô được giải phóng ngay).
+ */
+export async function getEsaSessions(service, rawSymbol, { now = Date.now } = {}) {
+  const symbol = canonicalSymbol(rawSymbol);
+  if (!isValidSymbol(symbol) || isIndexSymbol(symbol)) throw new ValidationError("Mã cổ phiếu không hợp lệ.");
+  const provider = service.router.providers?.ssiFcV2;
+  if (!provider?.isConfigured?.() || typeof provider.getIntradayRange !== "function") {
+    const error = new Error("Chưa cấu hình SSI FC Data cho nến phút.");
+    error.statusCode = 503;
+    throw error;
+  }
+  const nowDate = new Date(now());
+  const today = vnDate(nowDate);
+  const historyEnd = lastCompletedSessionDate(nowDate);
+  const sessionLive = isSessionLive(nowDate);
+  const fullKey = `intraday-cycle-hist:${symbol}:${historyEnd}`;
+  const history = await service.cache.wrap(`esa-hist:${symbol}:${historyEnd}`, 12 * 60 * 60_000, async () => {
+    const full = typeof service.cache.get === "function" ? service.cache.get(fullKey) : undefined;
+    if (full) return full.map(compactSession);
+    const dates = tradingDatesBack(historyEnd, HISTORY_SESSIONS);
+    return withSlot(async () => groupSessions(await provider.getIntradayRange(symbol, dates[0], historyEnd)).map(compactSession));
+  });
+  const viewDate = sessionLive ? today : historyEnd;
+  let todaySession = null;
+  if (sessionLive) {
+    const bars = (await service.cache.wrap(`intraday-cycle-today:${symbol}:${today}`, expectsLiveTicks(nowDate) ? 60_000 : 5 * 60_000,
+      () => provider.getIntradayOhlcv(symbol, today).catch(() => []))).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    const ref = [...history].reverse().find((s) => s.close > 0);
+    todaySession = { date: today, refPrice: ref?.close ?? null, bars };
+  }
+  return { symbol, sessionLive, today, viewDate, trainSessions: sessionLive ? history : history.filter((s) => s.date < viewDate), todaySession };
+}

@@ -17,6 +17,15 @@ function minuteOf(bar) {
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
 }
 
+/** KL cộng dồn tới `minute` của một phiên lịch sử: dạng gọn (cum, getEsaSessions) hoặc nến phút (bars). */
+function sessionCumAt(session, minute) {
+  if (session?.cum) {
+    if (minute < 540) return 0;
+    return session.cum[Math.min(session.cum.length - 1, minute - 540)];
+  }
+  return cumulativeVolumeAt(session?.bars ?? [], minute);
+}
+
 function cumulativeVolumeAt(bars, minute) {
   return bars.reduce((total, bar) => {
     const at = minuteOf(bar);
@@ -54,7 +63,7 @@ export function buildEsaEarlySignal({ symbol, sessions, events = [], now = new D
   const current = sessions?.todaySession;
   const bars = (current?.bars ?? []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const context = eventContext(events);
-  const history = (sessions?.trainSessions ?? []).filter((session) => session?.bars?.length);
+  const history = (sessions?.trainSessions ?? []).filter((session) => session?.cum || session?.bars?.length);
   const base = {
     symbol,
     status: "insufficient_data",
@@ -98,7 +107,7 @@ export function buildEsaEarlySignal({ symbol, sessions, events = [], now = new D
   }
 
   const historicalVolumes = history
-    .map((session) => cumulativeVolumeAt(session.bars, latestMinute))
+    .map((session) => sessionCumAt(session, latestMinute))
     .filter((value) => Number.isFinite(value) && value > 0);
   if (historicalVolumes.length < MIN_HISTORY_SESSIONS) {
     return { ...base, reason: `Chỉ ${historicalVolumes.length}/${history.length} phiên có khối lượng tại cùng mốc thời gian.` };
@@ -173,7 +182,7 @@ export function buildEsaSince({ sessions, sinceIso, now = new Date() }) {
   if (latest === null || latest < sinceMinute) return { ...out, status: "waiting", reason: "Chưa có nến sau thời điểm ra tin." };
   const from = Math.max(sinceMinute, 9 * 60);
   const cur = windowVolume(bars, from, latest);
-  const hist = (sessions.trainSessions ?? []).map((s) => windowVolume(s.bars ?? [], from, latest)).filter((v) => v > 0).sort((a, b) => a - b);
+  const hist = (sessions.trainSessions ?? []).map((s) => (s.cum ? sessionCumAt(s, latest) - sessionCumAt(s, from - 1) : windowVolume(s.bars ?? [], from, latest))).filter((v) => v > 0).sort((a, b) => a - b);
   if (hist.length < MIN_HISTORY_SESSIONS) return { ...out, status: "insufficient_data", reason: `Cần ≥ ${MIN_HISTORY_SESSIONS} phiên có khối lượng cùng khung; có ${hist.length}.` };
   const med = median(hist), mad = median(hist.map((v) => Math.abs(v - med)));
   const z = mad > 0 ? (cur - med) / (1.4826 * mad) : null, rv = med > 0 ? cur / med : null;

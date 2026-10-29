@@ -91,3 +91,38 @@ test("N0 ESA từ lúc ra tin: KL cộng dồn từ phút tin so cùng khung ph�
   assert.equal(buildEsaSince({ sessions: liveSessions(), sinceIso: "2026-10-27T03:30:00Z" }).status, "waiting"); // 10:30 > nến cuối
   assert.equal(buildEsaSince({ sessions: liveSessions(), sinceIso: "rác" }).status, "not_applicable");
 });
+
+test("ESA lịch sử GỌN: kết quả ESA R0 + ESA từ tin GIỐNG HỆT bản nến phút; mỗi phiên chỉ là Float64Array(361)", async () => {
+  const { compactSession } = await import("../src/market/scanner/intradayService.js");
+  const { buildEsaSince } = await import("../src/market/research/esaEarlySignal.js");
+  const full = liveSessions();
+  const compact = { ...full, trainSessions: full.trainSessions.map(compactSession) };
+  assert.ok(compact.trainSessions[0].cum instanceof Float64Array);
+  assert.equal(compact.trainSessions[0].cum.length, 361);
+  const a = buildEsaEarlySignal({ symbol: "FPT", sessions: full, now: new Date("2026-10-27T02:16:30Z") });
+  const b = buildEsaEarlySignal({ symbol: "FPT", sessions: compact, now: new Date("2026-10-27T02:16:30Z") });
+  assert.deepEqual(b.observation, a.observation);
+  assert.deepEqual(b.alert, a.alert);
+  const s1 = buildEsaSince({ sessions: full, sinceIso: "2026-10-27T02:16:00Z", now: new Date("2026-10-27T02:16:30Z") });
+  const s2 = buildEsaSince({ sessions: compact, sinceIso: "2026-10-27T02:16:00Z", now: new Date("2026-10-27T02:16:30Z") });
+  assert.deepEqual(s2, s1);
+});
+
+test("getEsaSessions: tải SSI -> chỉ giữ bản gọn (không đưa nến phút đầy đủ vào đệm); có lịch sử đầy đủ sẵn -> dùng lại, không gọi SSI", async () => {
+  const { getEsaSessions } = await import("../src/market/scanner/intradayService.js");
+  const { TtlCache } = await import("../src/market/util.js");
+  let ssiCalls = 0;
+  const bars = [{ date: "2026-10-30T09:15:00+07:00", close: 100, volume: 1000 }, { date: "2026-10-30T10:00:00+07:00", close: 101, volume: 500 }];
+  const mk = (cache) => ({ cache, router: { providers: { ssiFcV2: { isConfigured: () => true, getIntradayRange: async () => { ssiCalls++; return bars; }, getIntradayOhlcv: async () => [] } } } });
+  const c1 = new TtlCache();
+  const r = await getEsaSessions(mk(c1), "FPT", { now: () => Date.parse("2026-11-02T01:40:00Z") }); // thứ Hai 08:40
+  assert.equal(ssiCalls, 1);
+  assert.deepEqual([...c1.entries.keys()], ["esa-hist:FPT:2026-10-30"]);
+  assert.equal(r.trainSessions.length, 0); // ngoài phiên: phiên xem = 30/10 -> lịch sử trước đó
+  const c2 = new TtlCache();
+  c2.set("intraday-cycle-hist:FPT:2026-10-30", [{ date: "2026-10-29", refPrice: 100, bars }], 60_000);
+  const r2 = await getEsaSessions(mk(c2), "FPT", { now: () => Date.parse("2026-11-02T03:00:00Z") }); // 10:00 trong phiên
+  assert.equal(ssiCalls, 1);
+  assert.equal(r2.sessionLive, true);
+  assert.equal(r2.trainSessions[0].cum[60], 1500); // 10:00 = phút 60 sau 09:00: 1000 + 500
+});
