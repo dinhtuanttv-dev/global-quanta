@@ -8,6 +8,7 @@ import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
 import type { EventStudy, EventStudyWindow } from "../../../lib/elite10/timingSim";
 import { ESA_DAILY, buildTimingSpace, type DailyBar, type SpaceCell, type SpaceRibbon } from "../../../lib/elite10/timingSpace";
 import type { EsaLive } from "../../../hooks/elite10/useEsaSnapshot";
+import type { AnalogFan, FanPoint } from "../../../lib/elite10/analogFan";
 
 const W = 1000, H = 560, CENTER = { x: 520, y: 292 };
 type Rotation = { yaw: number; pitch: number; zoom: number };
@@ -48,10 +49,10 @@ function retAt(r: SpaceRibbon, o: number): number | null {
 
 type Props = {
   es: EventStudy; bars: DailyBar[]; indexBars?: DailyBar[]; barsLoading?: boolean; window: EventStudyWindow | null; todayOff: number | null; today: string;
-  timeline: TimelineRow | null; esa: EsaLive | null;
+  timeline: TimelineRow | null; esa: EsaLive | null; fan?: AnalogFan | null;
 };
 
-export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa }: Props) {
+export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, window: win, todayOff, today, timeline, esa, fan = null }: Props) {
   const [rot, setRot] = useState<Rotation>(DEFAULT_ROT);
   const [showEsa, setShowEsa] = useState(true);
   const [showOutcome, setShowOutcome] = useState(true);
@@ -61,7 +62,8 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
   const hits = useRef<Hit[]>([]);
   const [fontK, setFontK] = useState(1);
 
-  const space = useMemo(() => buildTimingSpace(es, bars, todayOff, win, today, indexBars), [es, bars, todayOff, win, today, indexBars]);
+  const fanRets = useMemo(() => (fan ? fan.points.flatMap((p) => [p.loAdj ?? p.lo, p.hiAdj ?? p.hi]) : []), [fan]);
+  const space = useMemo(() => buildTimingSpace(es, bars, todayOff, win, today, indexBars, fanRets), [es, bars, todayOff, win, today, indexBars, fanRets]);
   const eventWord = es.kind === "DIVIDEND" ? "GDKHQ" : "công bố KQKD";
   // Vùng mua hiển thị: Timeline (nếu cùng cửa sổ) quyết định nhãn ngày thật; hình học lấy từ cửa sổ đang xem.
   const tlMatch = timeline && win && timeline.windowId === win.id ? timeline : null;
@@ -165,6 +167,21 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
       else ctx.fillText(r.label, clamp(lp.x + 6, 4, W - 90 * fontK), lp.y + (r.kind === "median" ? -7 : 7) * fontK);
     }
 
+    // Quạt dự phóng có điều kiện trên dải KỲ TỚI (mặt z của kỳ tới): dải ngoài CQR, dải trong HD có trọng số, đường giữa chấm.
+    const curIdx = space.ribbons.findIndex((r) => r.kind === "current");
+    if (fan && fan.points.length && curIdx >= 0) {
+      const zc = Z(curIdx), s0 = { x: X(fan.todayOff), y: Y(Math.expm1(fan.anchorCar)), z: zc };
+      const sheet = (lo: (p: FanPoint) => number, hi: (p: FanPoint) => number, fill: string) => {
+        poly([s0, ...fan.points.map((p) => ({ x: X(p.offset), y: Y(hi(p)), z: zc })), ...[...fan.points].reverse().map((p) => ({ x: X(p.offset), y: Y(lo(p)), z: zc }))], true);
+        ctx.fillStyle = fill; ctx.fill();
+      };
+      if (fan.points[0].loAdj != null) sheet((p) => p.loAdj!, (p) => p.hiAdj!, "rgba(252,211,77,.10)");
+      sheet((p) => p.lo, (p) => p.hi, "rgba(252,211,77,.22)");
+      poly([s0, ...fan.points.map((p) => ({ x: X(p.offset), y: Y(p.mid), z: zc }))]);
+      ctx.setLineDash([5, 3]); ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.8; ctx.stroke(); ctx.setLineDash([]);
+      const fr = { ...space.ribbons[curIdx], label: "Dự phóng (trung vị)", windowNet: null };
+      for (const p of fan.points) { const v = P({ x: X(p.offset), y: Y(p.mid), z: zc }); hitList.push({ x: v.x, y: v.y, ribbon: fr, offset: p.offset, ret: p.mid, cell: null }); }
+    }
     // Sự kiện (mặt x = 0) và HÔM NAY (trên dải kỳ tới) + điểm ESA LIVE.
     const xs0 = X(0);
     poly([{ x: xs0, y: -1, z: -1 - dz }, { x: xs0, y: -1, z: 1 + dz }, { x: xs0, y: 1, z: 1 + dz }, { x: xs0, y: 1, z: -1 - dz }], true);
@@ -208,7 +225,7 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
     ctx.font = font(9); ctx.fillStyle = "#64748b"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     for (const r of [space.yMin, 0, space.yMax]) { const v = P({ x: -1, y: Y(r), z: 1 + dz }); ctx.fillText(`${(r * 100).toFixed(0)}%`, v.x - 6, v.y); }
     hits.current = hitList;
-  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK]);
+  }, [space, rot, showEsa, showOutcome, win, tlMatch, todayOff, esa, eventWord, es.offsets, fontK, fan]);
 
   const at = (e: PointerEvent<HTMLCanvasElement>) => { const b = e.currentTarget.getBoundingClientRect(); return { x: (e.clientX - b.left) * W / b.width, y: (e.clientY - b.top) * H / b.height }; };
   const nearest = (p: { x: number; y: number }) => hits.current.reduce<Hit | null>((best, h) => { const d = Math.hypot(h.x - p.x, h.y - p.y); return d < 22 && (!best || d < Math.hypot(best.x - p.x, best.y - p.y)) ? h : best; }, null);

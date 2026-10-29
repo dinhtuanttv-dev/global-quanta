@@ -11,7 +11,9 @@ import { useOhlcvData } from "../../../hooks/useOhlcvData";
 import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { useVnTradingCalendar } from "../../../lib/cotuc/vn-holidays";
 import { todayOffset, tradingSessions, type EventStudyWindow } from "../../../lib/elite10/timingSim";
-import { timelineRowFor, type DailyBar } from "../../../lib/elite10/timingSpace";
+import { currentPathFromBars, lastBarOffset, timelineRowFor, type DailyBar } from "../../../lib/elite10/timingSpace";
+import { analogFan } from "../../../lib/elite10/analogFan";
+import AnalogFanCard from "./AnalogFanCard";
 import EventStudyChart from "./EventStudyChart";
 import TimingSpace3D from "./TimingSpace3D";
 
@@ -41,8 +43,9 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const [view, setView] = useState<"2D" | "3D">(() => (wide() ? "3D" : "2D"));
   const tl = useMemo(() => timelineRowFor(buy.data?.rows ?? [], ticker, kind), [buy.data, ticker, kind]);
   const fresh = buyTimingFreshness(buy.meta);
-  const daily = useOhlcvData(view === "3D" && es ? ticker : null, "5y", 1300);
-  const vni = useOhlcvData(view === "3D" && es ? "VNINDEX" : null, "1y", 300);
+  // Nến ngày cần cho cả hai chế độ (đường kỳ tới + quạt dự phóng); 3D dùng thêm cho ESA ngày.
+  const daily = useOhlcvData(es ? ticker : null, "5y", 1300);
+  const vni = useOhlcvData(es ? "VNINDEX" : null, "5y", 1300);
   const { esa } = useEsaSnapshot(ticker, view === "3D" && !!es);
 
   const todayOff = useMemo(() => {
@@ -54,6 +57,10 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const windows = useMemo(() => [...(es?.windows ?? [])].sort((a, b) => Number(b.selected) - Number(a.selected) || b.netExpectancyLcb - a.netExpectancyLcb), [es]);
   // Mặc định: cửa sổ của Timeline điểm mua (cùng engine) -> rồi cửa sổ đạt kiểm định / kỳ vọng cao nhất.
   const win: EventStudyWindow | null = windows.find((w) => w.id === winId) ?? windows.find((w) => w.id === tl?.windowId) ?? windows[0] ?? null;
+  const bars = useMemo(() => (daily.bars ?? []) as DailyBar[], [daily.bars]), vniBars = useMemo(() => (vni.bars ?? []) as DailyBar[], [vni.bars]);
+  const lastOff = useMemo(() => lastBarOffset(bars, todayOff, today), [bars, todayOff, today]);
+  const current = useMemo(() => (es && lastOff != null && !es.currentPath ? currentPathFromBars(es.offsets, bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
+  const fan = useMemo(() => (es && lastOff != null && lastOff <= 0 ? analogFan(es, bars, vniBars, lastOff, win?.exitOffset ?? null, { today }) : null), [es, bars, vniBars, lastOff, win, today]);
   const eventWord = kind === "DIVIDEND" ? "GDKHQ" : `Công bố KQKD${es?.quarter ? ` Q${es.quarter}` : ""}`;
 
   return (
@@ -123,9 +130,10 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
           </div>
           <div className="mt-2">
             {view === "3D"
-              ? <TimingSpace3D es={es} bars={(daily.bars ?? []) as DailyBar[]} indexBars={(vni.bars ?? []) as DailyBar[]} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} />
-              : <EventStudyChart es={es} window={win} todayOff={todayOff} timeline={tl} />}
+              ? <TimingSpace3D es={es} bars={bars} indexBars={vniBars} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} fan={fan} />
+              : <EventStudyChart es={es} window={win} todayOff={todayOff} timeline={tl} current={current} fan={fan} />}
           </div>
+          <AnalogFanCard fan={fan} window={win} eventWord={eventWord} loading={daily.isLoading || vni.isLoading} />
           <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
             Đường mảnh = từng đợt {eventWord.toLowerCase()} lịch sử, đường xanh đậm = trung vị, dải = tứ phân vị (lợi suất vượt VN-Index tích luỹ, giá tổng lợi suất).
             Vùng mua ĐẠT = cửa sổ qua cổng thống kê v3 (≥ 8 đợt, FDR, cận dưới lợi nhuận ròng {">"} 0, ngoài mẫu); "chưa đạt" chỉ để quan sát.

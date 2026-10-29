@@ -4,6 +4,7 @@
 // SVG thuần (≤ 15 đường) — nhẹ, sắc nét mọi độ phân giải; có bảng tương đương cho trình đọc màn hình.
 import { useMemo } from "react";
 import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
+import type { AnalogFan, FanPoint } from "../../../lib/elite10/analogFan";
 import { pathBands, type EventStudy, type EventStudyWindow } from "../../../lib/elite10/timingSim";
 
 const W = 720, H = 260, M = { l: 44, r: 14, t: 18, b: 30 };
@@ -12,12 +13,19 @@ const fmt = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(1)}%`;
 
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
-export default function EventStudyChart({ es, window: win, todayOff, timeline = null }: { es: EventStudy; window: EventStudyWindow | null; todayOff: number | null; timeline?: TimelineRow | null }) {
+type Pt = { offset: number; ret: number };
+export default function EventStudyChart({ es, window: win, todayOff, timeline = null, current = [], fan = null }: {
+  es: EventStudy; window: EventStudyWindow | null; todayOff: number | null; timeline?: TimelineRow | null;
+  /** Kỳ hiện tại (tự tính từ giá đóng cửa khi engine chưa có) + quạt dự phóng có điều kiện (CH3). */
+  current?: Pt[]; fan?: AnalogFan | null;
+}) {
   const bands = useMemo(() => pathBands(es), [es]);
   const eventWord = es.kind === "DIVIDEND" ? "GDKHQ" : "Công bố KQKD";
   const { x, y, yTicks, x0, x1 } = useMemo(() => {
     const vals = es.events.flatMap((e) => e.car.filter((v): v is number => v != null).map(pct));
     if (es.currentPath) vals.push(...es.currentPath.filter((v): v is number => v != null).map(pct));
+    vals.push(...current.map((p) => p.ret));
+    if (fan) for (const p of fan.points) vals.push(p.loAdj ?? p.lo, p.hiAdj ?? p.hi);
     const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), pad = (hi - lo) * 0.08 || 0.02;
     const y0 = lo - pad, y1 = hi + pad;
     const a = Math.min(es.offsets[0], todayOff ?? es.offsets[0]), b = Math.max(es.offsets[es.offsets.length - 1], todayOff ?? es.offsets[es.offsets.length - 1]);
@@ -27,7 +35,7 @@ export default function EventStudyChart({ es, window: win, todayOff, timeline = 
     const ticks: number[] = [];
     for (let t = Math.ceil(y0 / nice) * nice; t <= y1 + 1e-12; t += nice) ticks.push(Math.round(t / nice) * nice);
     return { x: xs, y: ys, yTicks: ticks, x0: a, x1: b };
-  }, [es, todayOff]);
+  }, [es, todayOff, current, fan]);
 
   const line = (car: (number | null)[]) => {
     let d = "", pen = false;
@@ -73,6 +81,18 @@ export default function EventStudyChart({ es, window: win, todayOff, timeline = 
           </path>
         ))}
         {med.length > 1 && <path d={`M${med.map((b) => `${x(b.offset)},${y(pct(b.median!))}`).join("L")}`} fill="none" className="stroke-cyan-300" strokeWidth={2} data-testid="event-study-median" />}
+        {fan && fan.points.length > 0 && (() => {
+          // quạt bắt đầu tại điểm neo HÔM NAY; dải ngoài = sau hiệu chỉnh CQR, dải trong = phân vị HD có trọng số
+          const s0 = `${x(fan.todayOff)},${y(Math.expm1(fan.anchorCar))}`;
+          const band = (lo: (p: FanPoint) => number, hi: (p: FanPoint) => number) =>
+            `M${s0}L${fan.points.map((p) => `${x(p.offset)},${y(hi(p))}`).join("L")}L${[...fan.points].reverse().map((p) => `${x(p.offset)},${y(lo(p))}`).join("L")}Z`;
+          return <g data-testid="event-study-fan">
+            {fan.points[0].loAdj != null && <path d={band((p) => p.loAdj!, (p) => p.hiAdj!)} className="fill-amber-300/10" />}
+            <path d={band((p) => p.lo, (p) => p.hi)} className="fill-amber-300/20" />
+            <path d={`M${s0}L${fan.points.map((p) => `${x(p.offset)},${y(p.mid)}`).join("L")}`} fill="none" className="stroke-amber-200" strokeWidth={1.6} strokeDasharray="5 3" />
+          </g>;
+        })()}
+        {current.length > 1 && <path d={`M${current.map((p) => `${x(p.offset).toFixed(1)},${y(p.ret).toFixed(1)}`).join("L")}`} fill="none" className="stroke-amber-300" strokeWidth={2.2} data-testid="event-study-current-derived" />}
         {es.currentPath && <path d={line(es.currentPath)} fill="none" className="stroke-amber-300" strokeWidth={2} strokeDasharray="5 3" data-testid="event-study-current" />}
         <line x1={x(0)} x2={x(0)} y1={M.t} y2={H - M.b} className="stroke-slate-300" strokeWidth={1.2} />
         <text x={x(0) + 3} y={H - M.b - 4} className="fill-slate-300" fontSize={9}>{eventWord}</text>
