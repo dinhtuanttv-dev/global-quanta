@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { fetchRssFeeds, fetchVndirectNews, RSS_FEEDS } from "./newsService.js";
 import { classifyEvent, extractTickers, fold, jaccard, sentiment, stripHtml, titleTokens } from "./newsNlp.js";
 import { createEventRadarRepository } from "./eventRadarRepository.js";
+import { resolveEntities } from "./entityResolver.js";
+import { stockNameIndexFor } from "./stockNames.js";
 
 const HEALTH_KEY = "event-radar:source-health:v1";
 const EVENT_RETENTION = 2500;
@@ -54,11 +56,27 @@ function stableEventId(item) {
   return `evt_${hash(identity).slice(0, 24)}`;
 }
 
-function makeDocument(item, firstSeenAt, symbols) {
+// EV1: cách gắn mã -> nhãn + độ tin (nguồn gắn sẵn > tiêu đề công bố / "HOSE: X" > mã đứng riêng > tên công ty / thương hiệu).
+const ENTITY_RANK = [
+  ["provider_tagged", 0.95], ["exchange_tag", 0.9], ["symbol_dictionary_match", 0.72], ["company_name_match", 0.7],
+];
+function entityMatchOf(tagged, entities) {
+  if (tagged.length) return ENTITY_RANK[0];
+  if (entities.some((e) => e.via === "disclosure_title" || e.via === "exchange_tag")) return ENTITY_RANK[1];
+  if (entities.some((e) => e.via === "code")) return ENTITY_RANK[2];
+  if (entities.length) return ENTITY_RANK[3];
+  return ["market_wide_or_unmatched", 0.35];
+}
+
+function makeDocument(item, firstSeenAt, symbols, entityIndex = null) {
   const title = stripHtml(item.title).slice(0, 500);
   const summary = stripHtml(item.summary).slice(0, 600);
   const tagged = (item.tickers ?? []).map((value) => String(value).toUpperCase()).filter((value) => symbols.has(value));
-  const tickers = [...new Set([...tagged, ...extractTickers(`${title} ${summary}`, symbols)])];
+  const entities = entityIndex
+    ? resolveEntities(`${title} ${summary}`, entityIndex).filter((e) => symbols.has(e.code))
+    : extractTickers(`${title} ${summary}`, symbols).map((code) => ({ code, via: "code" }));
+  const tickers = [...new Set([...tagged, ...entities.map((e) => e.code)])];
+  const [entityMatch, entityConfidence] = entityMatchOf(tagged, entities);
   const classification = classifyRadarEvent({ ...item, title, summary });
   const sentimentResult = sentiment(`${title}. ${summary}`);
   const severity = severityFor(classification.id, title, summary);
@@ -68,7 +86,7 @@ function makeDocument(item, firstSeenAt, symbols) {
     title, summary, url: item.url ?? null, attachment: item.attachment ?? null,
     publishedAt: iso(item.publishedAt), source: item.source ?? null, sourceLabel: item.sourceLabel ?? null,
     authority, usageTermsStatus: item.usageTermsStatus ?? "review_required", eventType: classification.id,
-    tickers: [...new Set([...tagged, ...extractTickers(`${title} ${summary}`, symbols)])].sort(),
+    tickers: [...tickers].sort(),
   }));
   return {
     eventId,
@@ -91,8 +109,9 @@ function makeDocument(item, firstSeenAt, symbols) {
     eventType: classification.id,
     eventLabel: classification.label,
     tickers,
-    entityMatch: tagged.length ? "provider_tagged" : tickers.length ? "symbol_dictionary_match" : "market_wide_or_unmatched",
-    entityConfidence: tagged.length ? 0.95 : tickers.length ? 0.72 : 0.35,
+    entityMatch,
+    entityConfidence,
+    entities: entities.slice(0, 12),
     severity: severity.level,
     severityScore: severity.score,
     sentiment: sentimentResult.score,
@@ -256,7 +275,9 @@ export function createEventRadar({ service, repository = createEventRadarReposit
     const [rssResult, disclosureResult] = await Promise.all([rssPromise, disclosurePromise]);
     const firstSeenAt = new Date(now()).toISOString();
     const raw = [...rssResult.items, ...disclosureResult.items];
-    const documents = raw.map((item) => makeDocument(item, firstSeenAt, symbols));
+    const names = stockNameIndexFor(store, { fetchImpl, now });
+    const entityIndex = await names.index(symbols).catch(() => null);
+    const documents = raw.map((item) => makeDocument(item, firstSeenAt, symbols, entityIndex));
     const dedupedById = new Map();
     for (const doc of documents) {
       const prior = dedupedById.get(doc.eventId);
@@ -272,7 +293,7 @@ export function createEventRadar({ service, repository = createEventRadarReposit
       ok: !disclosureResult.error,
       items: disclosureResult.items.length,
       error: disclosureResult.error,
-      coverage: { symbolsRequested: active.length, universeSize: allSecurities.length, capped: allSecurities.length > active.length, selectionBasis: hasLiquidityRank ? "avgValue20_then_symbol" : "symbol" },
+      coverage: { symbolsRequested: active.length, universeSize: allSecurities.length, capped: allSecurities.length > active.length, selectionBasis: hasLiquidityRank ? "avgValue20_then_symbol" : "symbol", entityNames: names.meta() },
     } };
     latestHealth = { generatedAt: firstSeenAt, sources };
     await repository.setHealth(latestHealth);
