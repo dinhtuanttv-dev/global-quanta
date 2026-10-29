@@ -5,7 +5,7 @@
 import json, math, sys
 import pandas as pd
 
-CFG = dict(version="SEAS-v1", years=5, monthEndMinDay=20, roundTripCost=0.004, fdrQ=0.1, level=0.9, priorStrength=10, minSectorPeers=3, lowSampleN=4)
+CFG = dict(version="SEAS-v1.1", years=5, monthEndMinDay=20, roundTripCost=0.004, fdrQ=0.1, level=0.9, priorStrength=10, minSectorPeers=3, lowSampleN=4)
 Z90 = 1.6448536269514722
 
 def month_ends(bars):
@@ -180,12 +180,14 @@ def main():
       sec = [p for p in items if p is not it and p["sector"] == it["sector"] and p["raw"][m]["exN"] > 0]
       if len(sec) >= CFG["minSectorPeers"]: scope, peers = "SECTOR", sec
       else: scope, peers = "UNIVERSE", [p for p in items if p is not it and p["raw"][m]["exN"] > 0]
-      pm = [p["raw"][m]["exMean"] for p in peers]
+      # SEAS-v1.1: đích co = TB cả nhóm GỒM chính mã (James–Stein); prior Beta vẫn bỏ chính mã.
+      group = peers + ([it] if c["exN"] > 0 else [])
+      pm = [p["raw"][m]["exMean"] for p in group]
       prior_mean = sum(pm) / len(pm) if pm else 0.0
       tau2 = 0.0
       if len(pm) >= 2:
         v = sum((x - prior_mean) ** 2 for x in pm) / (len(pm) - 1)
-        noise = sum((p["within"] if p["within"] is not None else typical) / p["raw"][m]["exN"] for p in peers) / len(peers)
+        noise = sum((p["within"] if p["within"] is not None else typical) / p["raw"][m]["exN"] for p in group) / len(group)
         tau2 = max(0.0, v - noise)
       shrunk = None
       if c["exN"] > 0:
