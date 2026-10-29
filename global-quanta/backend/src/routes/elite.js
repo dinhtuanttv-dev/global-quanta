@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -42,6 +42,16 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     const doc = await getBuyTiming().get({ tickers });
     res.set("Cache-Control", "public, max-age=120");
     res.json(doc);
+  }));
+  // Elite 10 (30/10/2026): vùng mua TỐI ƯU của từng mã từ kho Cổ tức (đạt kiểm định / gần đạt / thăm dò, giữ cả vùng đã qua).
+  router.get("/buy-zones", wrap(async (req, res) => {
+    if (!getEliteZones) return res.status(404).json({ error: "Chưa bật vùng mua Elite qua Gateway." });
+    const tickers = String(req.query.tickers ?? "").split(",").map((t) => t.trim().toUpperCase()).filter((t) => /^[A-Z][A-Z0-9]{2}$/.test(t)).slice(0, 40);
+    if (!tickers.length) return res.status(400).json({ error: "Cần ?tickers=A,B" });
+    const body = await getEliteZones()(tickers);
+    if (!body) return res.status(503).json({ error: "Kho Cổ tức chưa có dữ liệu." });
+    res.set("Cache-Control", "public, max-age=120");
+    res.json(body);
   }));
   router.get("/buy-timing/status", (req, res) => {
     res.set("Cache-Control", "no-store");

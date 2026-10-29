@@ -3,6 +3,7 @@
 // Timeline: Gateway đọc cùng dữ liệu đầu vào từ kho Cổ tức (cotucStore) và tính ra CÙNG kết quả — có test đối chiếu khớp từng
 // dòng với bản TypeScript (test/fixtures/buy-timeline-parity.json). Không thêm / bớt quy tắc nào: sửa ở đây phải sửa cả hai nơi.
 
+const TIER_ORDER = { VALIDATED: 0, NEAR: 1, EXPLORATORY: 2 };
 export const DEFAULT_GATING = Object.freeze({ minEvents: 8, maxFdrQValue: 0.1, minOosMeanNetIfAvailable: 0 });
 
 const DAY = 86_400_000;
@@ -61,7 +62,20 @@ function sessionsBetween(from, to, cal) {
   return n;
 }
 
-/** { today, cal: { isTradingDay(dayNumber) }, decisions, seasonality, sectors: Map, horizonDays? } -> TimelineRow[] */
+/**
+ * Elite 10 (30/10/2026): cửa sổ "tối ưu nhất" khi KHÔNG có cửa sổ đạt / gần đạt — cận dưới lợi nhuận ròng cao nhất trong các cửa sổ có
+ * kỳ vọng ròng > 0 và ≥ 4 đợt. Gắn bậc "EXPLORATORY" (thăm dò, chưa qua kiểm định). Không có -> null (không bịa vùng mua).
+ */
+export function bestExploratoryWindow(windows) {
+  return windows.filter((w) => !w.selected && w.netExpectancy > 0 && w.nEvents >= 4)
+    .sort((a, b) => b.netExpectancyLcb - a.netExpectancyLcb || b.winRate - a.winRate)[0] ?? null;
+}
+
+/**
+ * { today, cal: { isTradingDay(dayNumber) }, decisions, seasonality, sectors: Map, horizonDays?, optimal?, keepPassed? } -> TimelineRow[]
+ * optimal: thêm bậc EXPLORATORY khi không có cửa sổ đạt / gần đạt (chỉ dùng cho Elite 10, Timeline tab Cổ tức giữ nguyên).
+ * keepPassed: giữ cả vùng đã qua phiên thoát (để hiển thị "đã qua").
+ */
 export function buildBuyTimeline(input) {
   const { today, cal, sectors } = input;
   const horizon = dayNumberToIso(toDayNumber(today) + (input.horizonDays ?? 180));
@@ -71,7 +85,7 @@ export function buildBuyTimeline(input) {
     const entryFromDate = addTradingDays(anchor, base.entryFrom, cal);
     const entryToDate = addTradingDays(anchor, base.entryTo, cal);
     const exitDate = addTradingDays(anchor, base.exitOffset, cal);
-    if (exitDate < today || entryFromDate > horizon) return;
+    if ((!input.keepPassed && exitDate < today) || entryFromDate > horizon) return;
     const status = today < entryFromDate ? "UPCOMING" : today <= entryToDate ? "IN_WINDOW" : "PASSED";
     rows.push({ ...base, status, entryFromDate, entryToDate, exitDate, sessionsToEntry: sessionsBetween(today, entryFromDate, cal) });
   };
@@ -81,11 +95,12 @@ export function buildBuyTimeline(input) {
     const anchor = d.exDate.value;
     const selected = d.windows.find((w) => w.selected) ?? null;
     const near = selected ? null : bestNearWindow(d.windows);
-    const w = selected ?? near;
+    const explo = selected || near || !input.optimal ? null : bestExploratoryWindow(d.windows);
+    const w = selected ?? near ?? explo;
     if (!w) continue;
     push({
       id: `${d.ticker}:DIV:${w.id}:${anchor}`, ticker: d.ticker, sector: sectors.get(d.ticker) ?? null, kind: "DIVIDEND",
-      tier: selected ? "VALIDATED" : "NEAR", eventLabel: "GDKHQ", eventDate: anchor, eventDateBasis: d.exDate.status,
+      tier: selected ? "VALIDATED" : near ? "NEAR" : "EXPLORATORY", eventLabel: "GDKHQ", eventDate: anchor, eventDateBasis: d.exDate.status,
       windowId: w.id, windowLabel: w.label, entryFrom: w.entryFrom, entryTo: w.entryTo, exitOffset: w.exitOffset,
       nEvents: w.nEvents, winRate: w.winRate, probability: selected ? d.dividendProbability : null,
       netExpectancy: w.netExpectancy, netExpectancyLcb: w.netExpectancyLcb, fdrQValue: w.fdrQValue,
@@ -101,11 +116,13 @@ export function buildBuyTimeline(input) {
     if (!st) continue;
     const day0 = firstTradingOnOrAfter(e.expectedAnnounce.date, cal);
     const selected = st.selectedWindowId ? st.windows.find((w) => w.id === st.selectedWindowId && w.selected) ?? null : null;
-    const w = selected ?? bestNearWindow(st.windows);
+    const nearE = selected ? null : bestNearWindow(st.windows);
+    const exploE = selected || nearE || !input.optimal ? null : bestExploratoryWindow(st.windows);
+    const w = selected ?? nearE ?? exploE;
     if (!w) continue;
     push({
       id: `${s.ticker}:EARN:${e.quarterLabel}:${w.id}`, ticker: s.ticker, sector: sectors.get(s.ticker) ?? null, kind: "EARNINGS",
-      tier: selected ? "VALIDATED" : "NEAR", eventLabel: `Công bố KQKD ${e.quarterLabel}`, eventDate: day0, eventDateBasis: e.expectedAnnounce.method,
+      tier: selected ? "VALIDATED" : nearE ? "NEAR" : "EXPLORATORY", eventLabel: `Công bố KQKD ${e.quarterLabel}`, eventDate: day0, eventDateBasis: e.expectedAnnounce.method,
       windowId: w.id, windowLabel: w.label, entryFrom: w.entryFrom, entryTo: w.entryTo, exitOffset: w.exitOffset,
       nEvents: w.nEvents, winRate: w.winRate, probability: st.reactionProbability?.mean ?? null,
       netExpectancy: w.netExpectancy, netExpectancyLcb: w.netExpectancyLcb, fdrQValue: w.fdrQValue,
@@ -117,7 +134,7 @@ export function buildBuyTimeline(input) {
   return rows.sort((a, b) =>
     order[a.status] - order[b.status]
     || a.entryFromDate.localeCompare(b.entryFromDate)
-    || (a.tier === b.tier ? 0 : a.tier === "VALIDATED" ? -1 : 1)
+    || (TIER_ORDER[a.tier] - TIER_ORDER[b.tier])
     || b.netExpectancyLcb - a.netExpectancyLcb);
 }
 
@@ -136,6 +153,15 @@ export function timelineInputs(decisionRows, seasonRows) {
 }
 
 /** Thân phản hồi cùng hợp đồng /api/cotuc/buy-timeline. */
+/** Elite 10: vùng mua TỐI ƯU của các mã chỉ định (đủ 3 bậc, giữ cả vùng đã qua, chân trời 400 ngày) — cùng dữ liệu + hàm Timeline. */
+export function eliteZonesBody({ today, cal, decisionRows, seasonRows, sectors, tickers }) {
+  const want = new Set(tickers);
+  const { decisions, seasonality } = timelineInputs(decisionRows.filter((r) => want.has(r.ticker)), seasonRows.filter((r) => want.has(r.ticker)));
+  const rows = buildBuyTimeline({ today, cal, decisions, seasonality, sectors, optimal: true, keepPassed: true, horizonDays: 400 });
+  const covered = new Set([...decisionRows, ...seasonRows].map((r) => r.ticker));
+  return { today, tickers: [...want], rows, notInUniverse: [...want].filter((t) => !covered.has(t)) };
+}
+
 export function timelineBody({ today, cal, decisionRows, seasonRows, sectors, universeSize }) {
   const { decisions, seasonality } = timelineInputs(decisionRows, seasonRows);
   const rows = buildBuyTimeline({ today, cal, decisions, seasonality, sectors });

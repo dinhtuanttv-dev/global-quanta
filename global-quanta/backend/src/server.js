@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { createBuyTimingService } from "./market/elite/buyTiming.js";
 import { createCotucStore } from "./market/cotuc/cotucStore.js";
-import { createGatewayTimeline } from "./market/cotuc/gatewayTimeline.js";
+import { createGatewayEliteZones, createGatewayTimeline } from "./market/cotuc/gatewayTimeline.js";
 import { createCotucStoreRouter } from "./routes/cotucStore.js";
 import express from "express";
 import v8 from "node:v8";
@@ -165,6 +165,8 @@ let eliteRetro = null;
 let cotucStore = null, gatewayTimeline = null;
 const getCotucStore = () => (cotucStore ??= createCotucStore({ store: getMarketRuntime().store }));
 const getGatewayTimeline = () => (gatewayTimeline ??= createGatewayTimeline({ cotucStore: getCotucStore() }));
+let eliteZones = null;
+const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore: getCotucStore() }));
 let eliteBuyTiming = null;
 const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store, localTimeline: () => getGatewayTimeline()() }));
 const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
@@ -179,7 +181,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming }));
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   // Mỗi phiên dựng một lần; lần dựng LỖI (VD kho dữ liệu tạm khoá) được thử lại sau 30 phút thay vì bỏ cả ngày.

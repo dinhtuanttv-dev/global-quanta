@@ -19,7 +19,9 @@ import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { buyWindowEvents, pickRadarBuyRows, SOON_SESSIONS, type RadarBuyInfo, type RadarBuyRing } from "../../../lib/radarTimeline";
 import { browserNotify } from "../../../lib/priceAlerts";
 import BuyZoneStrip, { BuyZoneAxis } from "./BuyZoneStrip";
-import { buyLane, laneAxis } from "../../../lib/elite10/buyZoneLane";
+import { buyLane, headlineZone, laneAxis, zoneChips, zoneRing, type LaneRow, type ZoneRing } from "../../../lib/elite10/buyZoneLane";
+import { useEliteBuyZones } from "../../../hooks/elite10/useEliteBuyZones";
+import { TIER_TAG } from "./BuyZoneStrip";
 import type { BuyCell } from "../../../lib/elite10/buyTimingCell";
 
 const UP = "#34d399", DOWN = "#fb7185", AMBER = "#f59e0b", CYAN = "#38bdf8", VIOLET = "#a78bfa";
@@ -104,6 +106,22 @@ function drawTrack(cv: HTMLCanvasElement, r: RowView, dom: [number, number], t: 
   const label = `Z ${r.z.toFixed(2)}`, lw = ctx.measureText(label).width, right = x + dot + 7 + lw <= w - 2;
   ctx.textAlign = right ? "left" : "right";
   ctx.fillText(label, right ? x + dot + 7 : x - dot - (r.stealth ? 12 : 6), cy);
+}
+
+const ZONE_COLOR: Record<ZoneRing, string> = { in: UP, soon: AMBER, near: "#94a3b8", later: CYAN, explo: "#7dd3fc" };
+/** Chip vùng mua (như "⏱ ĐIỂM MUA 10 PHIÊN TỚI" của Elite Command Radar): màu theo vòng, nét đứt = gần đạt, chấm = thăm dò. */
+function ZoneChip({ r, onOpen }: { r: LaneRow; onOpen: (t: string) => void }) {
+  const ring = zoneRing(r), col = ZONE_COLOR[ring];
+  const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
+  return (
+    <button type="button" onClick={() => onOpen(r.ticker)} data-testid="elite-buy-chip" data-tier={r.tier}
+      title={`${r.ticker} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel} · vùng mua ${dm(r.entryFromDate)}→${dm(r.entryToDate)}, thoát ${dm(r.exitDate)} · thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} đợt · ${TIER_TAG[r.tier].title}${r.missing.length ? ` · còn thiếu: ${r.missing.join("; ")}` : ""}`}
+      className="rounded border px-1.5 py-0.5 font-mono text-[10px] hover:bg-white/5"
+      style={{ color: col, borderColor: `${col}66`, borderStyle: r.tier === "NEAR" ? "dashed" : r.tier === "EXPLORATORY" ? "dotted" : "solid" }}>
+      {r.status === "IN_WINDOW" ? "●" : "⏱"} {r.ticker} {r.kind === "DIVIDEND" ? "CT" : "KQ"} {r.status === "IN_WINDOW" ? "trong vùng" : r.sessionsToEntry <= 10 ? `${r.sessionsToEntry}p` : `${dm(r.entryFromDate)}${r.entryFromDate.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? `/${r.entryFromDate.slice(2, 4)}` : ""} · ${r.sessionsToEntry}p`}
+      {r.tier !== "VALIDATED" && <span className="ml-1 text-[8.5px] opacity-80">{r.tier === "NEAR" ? "gần đạt" : "thăm dò"}</span>}
+    </button>
+  );
 }
 
 export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTicker, compact }: {
@@ -242,6 +260,10 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   const laneW = compact ? 210 : 270;
   const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
   const axis = useMemo(() => laneAxis(buy.sessions ?? [], d.date, today), [buy.sessions, d.date, today]);
+  // Vùng mua TỐI ƯU từ kho Cổ tức (đạt / gần đạt / thăm dò, kể cả đã qua) — chưa có endpoint thì dùng Timeline điểm mua.
+  const zonesQ = useEliteBuyZones(replay ? [] : tickers);
+  const zoneRows: LaneRow[] = useMemo(() => (zonesQ.zones?.rows ?? (buy.data?.rows ?? []) as LaneRow[]), [zonesQ.zones, buy.data]);
+  const chips = useMemo(() => zoneChips(tickers, zoneRows, 10), [tickers, zoneRows]);
   const cols = `64px 92px ${trackW}px 78px ${laneW}px 112px ${compact ? "" : "74px "}96px${compact ? "" : " minmax(110px,1fr)"}`;
 
   return (
@@ -294,7 +316,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   <span aria-hidden="true" className="mr-1 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${Math.min(40, p.weight * 200)}px` }} />
                   <b>{num(p.weight * 100)}%</b>
                 </div>
-                <div>{replay || !axis.dates.length ? <span className="text-slate-500">—</span> : <BuyZoneStrip ticker={p.ticker} lane={buyLane(p.ticker, buy.data?.rows ?? [], axis)} axis={axis} cell={buyCells.get(p.ticker)} width={laneW} />}</div>
+                <div>{replay || !axis.dates.length ? <span className="text-slate-500">—</span> : <BuyZoneStrip ticker={p.ticker} lane={buyLane(p.ticker, zoneRows, axis)} axis={axis} cell={buyCells.get(p.ticker)} width={laneW} head={headlineZone(p.ticker, zoneRows)} />}</div>
                 <div className="leading-tight font-mono">
                   <span className="text-slate-100">{replay ? "—" : price(q?.price ?? p.close)}</span>
                   {!replay && q?.changePct != null && <span className="ml-1 text-[9.5px]" style={{ color: q.changePct >= 0 ? UP : DOWN }}>{q.changePct >= 0 ? "+" : ""}{num(q.changePct, 2)}%</span>}
@@ -315,6 +337,27 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
           })}
         </div>
       </div>
+
+      {!replay && (
+        <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(52,211,153,0.04)", border: "1px solid rgba(52,211,153,0.2)" }} aria-label="Điểm mua 10 phiên tới của danh mục Elite 10" data-testid="elite-buy-strip">
+          <div className="flex items-baseline justify-between gap-2">
+            <div className="text-[9px] font-semibold tracking-wider text-emerald-300">⏱ ĐIỂM MUA 10 PHIÊN TỚI · DANH MỤC ELITE 10</div>
+            <span className="shrink-0 text-[9px] text-slate-500">vùng mua tối ưu từ dữ liệu tab Cổ tức{zonesQ.zones ? "" : " (Timeline)"}</span>
+          </div>
+          {chips.near.length ? (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {chips.near.map((r) => <ZoneChip key={r.id} r={r} onOpen={onOpenTicker} />)}
+            </div>
+          ) : <div className="mt-1 text-[10px] text-slate-500" data-testid="elite-buy-strip-empty">Không mã nào trong danh mục Elite 10 có vùng mua trong 10 phiên tới{chips.later.length ? ` (${chips.later.length} mã có vùng mua xa hơn)` : ""}.</div>}
+          {chips.later.length > 0 && (
+            <div className="mt-1 flex flex-wrap items-center gap-1" data-testid="elite-buy-strip-later">
+              <span className="text-[9px] text-slate-500">Xa hơn:</span>
+              {chips.later.map((r) => <ZoneChip key={r.id} r={r} onOpen={onOpenTicker} />)}
+            </div>
+          )}
+          {zonesQ.zones?.notInUniverse.length ? <div className="mt-0.5 text-[9px] text-slate-500">Ngoài danh mục theo dõi của tab Cổ tức: {zonesQ.zones.notInUniverse.join(", ")}.</div> : null}
+        </div>
+      )}
 
       {history && pastDates.length > 0 && (
         <div className="flex items-center gap-2 rounded border border-cyan-400/15 bg-cyan-400/[0.03] px-2 py-1 text-[10px]" data-testid="elite-radar-history">
@@ -346,7 +389,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
         <span>Vệt đứt = Z 5 phiên trước (<span style={{ color: UP }}>xanh</span> mạnh lên / <span style={{ color: DOWN }}>đỏ</span> yếu đi)</span>
         <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 {!sig ? "(đang tải bằng chứng kiểm định…)" : edge ? <>— <b className="text-emerald-300">đã kiểm định có lợi thế</b> toàn giai đoạn{regimeEdge === false ? <span className="text-amber-300"> · chưa có lợi thế ở chế độ thị trường hiện tại</span> : null}</> : "(rỗng = chưa đạt kiểm định)"}</span>
         <span>⏱ vòng <span style={{ color: UP }}>xanh</span> = trong vùng mua · <span style={{ color: AMBER }}>vàng</span> = ≤ {SOON_SESSIONS} phiên · nét đứt = gần đạt kiểm định</span>
-        <span data-testid="elite-radar-buy-legend">⏱ Dải vùng mua: <span className="text-emerald-300">▬ xanh đặc</span> = vùng ĐẠT KIỂM ĐỊNH (sáng = đang trong vùng) · <span className="text-slate-300">┅ xám nét đứt</span> = gần đạt · mờ = đã qua · <span style={{ color: "#22d3ee" }}>◆</span> GDKHQ / <span style={{ color: VIOLET }}>◆</span> công bố KQKD · <span className="text-rose-300">│</span> thoát · <span className="text-cyan-300">▲</span> vào theo quy tắc (mở cửa phiên kế) · <span className="text-cyan-300">━</span> kỳ nắm giữ 10 phiên · <span className="text-amber-300">┊</span> hôm nay · C = cổ tức, K = KQKD</span>
+        <span data-testid="elite-radar-buy-legend">⏱ Dải vùng mua: <span className="text-emerald-300">▬ xanh đặc</span> = vùng ĐẠT KIỂM ĐỊNH (sáng = đang trong vùng) · <span className="text-slate-300">┅ xám nét đứt</span> = gần đạt · <span className="text-sky-300">┈ xanh chấm</span> = thăm dò (vùng tối ưu nhất, chưa qua kiểm định) · mờ = đã qua · <span style={{ color: "#22d3ee" }}>◆</span> GDKHQ / <span style={{ color: VIOLET }}>◆</span> công bố KQKD · <span className="text-rose-300">│</span> thoát · <span className="text-cyan-300">▲</span> vào theo quy tắc (mở cửa phiên kế) · <span className="text-cyan-300">━</span> kỳ nắm giữ 10 phiên · <span className="text-amber-300">┊</span> hôm nay · C = cổ tức, K = KQKD</span>
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày · vòng nhấp nháy = tin quan trọng 24 giờ (mô tả)</span>
         <span>● Trực tiếp = xếp theo vượt VN-Index từ lúc dựng (theo dõi, không đổi hạng chính thức)</span>
       </div>

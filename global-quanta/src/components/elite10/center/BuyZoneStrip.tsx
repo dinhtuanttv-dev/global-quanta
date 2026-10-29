@@ -3,7 +3,7 @@
 // SVG theo trục PHIÊN GIAO DỊCH thật, dùng chung cho mọi hàng (đầu bảng có trục ngày) — nhìn ngang là thấy vùng mua nằm ở đâu so với HÔM NAY
 // và kỳ nắm giữ 10 phiên của danh mục.
 import type { BuyCell } from "../../../lib/elite10/buyTimingCell";
-import type { BuyLane, LaneAxis, LaneZone } from "../../../lib/elite10/buyZoneLane";
+import type { BuyLane, LaneAxis, LaneRow, LaneZone } from "../../../lib/elite10/buyZoneLane";
 
 const H = 22, TOP = 5, BAR = 12;
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -41,34 +41,41 @@ export function BuyZoneAxis({ axis, width }: { axis: LaneAxis; width: number }) 
 }
 
 const ZONE_STATUS = (z: LaneZone) => z.row.status === "IN_WINDOW" ? "đang trong vùng" : z.row.status === "UPCOMING" ? `còn ${z.row.sessionsToEntry} phiên` : "đã qua";
+export const TIER_TAG: Record<LaneRow["tier"], { t: string; c: string; title: string }> = {
+  VALIDATED: { t: "✓ ĐẠT", c: "text-emerald-300 border-emerald-400/50", title: "Đạt kiểm định: ≥ 8 đợt, q-value FDR, cận dưới lợi nhuận ròng > 0, kiểm tra ngoài mẫu" },
+  NEAR: { t: "GẦN ĐẠT", c: "text-slate-300 border-slate-400/40", title: "Gần đạt: chưa qua đủ cổng thống kê" },
+  EXPLORATORY: { t: "THĂM DÒ", c: "text-sky-300 border-sky-400/40 border-dotted", title: "Thăm dò: cửa sổ tối ưu nhất (cận dưới cao nhất, kỳ vọng ròng > 0) nhưng CHƯA qua kiểm định" },
+};
 const zoneTitle = (z: LaneZone) => {
   const r = z.row;
-  return `${r.tier === "VALIDATED" ? "✓ Đạt kiểm định" : "Gần đạt (chưa qua kiểm định)"} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel}\n`
+  return `${r.tier === "VALIDATED" ? "✓ Đạt kiểm định" : r.tier === "NEAR" ? "Gần đạt (chưa qua kiểm định)" : "Thăm dò — vùng tối ưu nhất, chưa qua kiểm định"} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel}\n`
     + `Vùng mua ${dm(r.entryFromDate)} → ${dm(r.entryToDate)} (${ZONE_STATUS(z)}) · thoát ${dm(r.exitDate)} · ${r.eventLabel} ${dm(r.eventDate)}\n`
     + `Thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} đợt · kỳ vọng ròng ${pct(r.netExpectancy)} (cận dưới ${pct(r.netExpectancyLcb)})${r.missing.length ? ` · còn thiếu: ${r.missing.join("; ")}` : ""}`;
 };
 
 /** Một hàng: dòng trạng thái (cùng ngôn ngữ tab Cổ tức) + dải SVG. */
-export default function BuyZoneStrip({ ticker, lane, axis, cell, width }: { ticker: string; lane: BuyLane; axis: LaneAxis; cell: BuyCell | undefined; width: number }) {
+export default function BuyZoneStrip({ ticker, lane, axis, cell, width, head = null }: { ticker: string; lane: BuyLane; axis: LaneAxis; cell: BuyCell | undefined; width: number; head?: LaneRow | null }) {
   const { cw, x } = cellX(axis, width);
   const main = lane.zones[0] ?? null;
   const far = lane.far.find((f) => f.side === "after") ?? null;
-  // Dòng trạng thái: ưu tiên vùng ĐẠT KIỂM ĐỊNH (cùng quy tắc cột ⏱ Điểm mua), không có thì quy tắc danh mục.
+  // Dòng trạng thái = VÙNG MUA TỐI ƯU của mã (tab Cổ tức: đạt kiểm định > gần đạt > thăm dò); không có vùng -> quy tắc danh mục.
   const kind = cell?.kind ?? "rule";
-  const pill = kind === "in" ? { t: "● ĐANG TRONG VÙNG MUA", c: "text-emerald-300 border-emerald-400/60 bg-emerald-400/15 shadow-[0_0_10px_rgba(52,211,153,0.45)]" }
-    : kind === "soon" || kind === "wait" ? { t: `⏱ SẮP TỚI · ${cell?.row?.sessionsToEntry ?? ""} phiên`, c: "text-amber-300 border-amber-400/50 bg-amber-400/10" }
-    : kind === "near" ? { t: "◌ GẦN ĐẠT", c: "text-slate-300 border-dashed border-slate-400/50" }
-    : { t: "→ QUY TẮC", c: "text-cyan-200 border-cyan-400/30 bg-cyan-400/5" };
   const entryDate = axis.entryIdx != null ? axis.dates[axis.entryIdx] : null, holdEnd = axis.holdTo != null ? axis.dates[axis.holdTo] : null;
-  const detail = cell?.row && (kind === "in" || kind === "soon" || kind === "wait")
-    ? `${KIND[cell.row.kind].text} ${dm(cell.row.entryFromDate)}→${dm(cell.row.entryToDate)} · thoát ${dm(cell.row.exitDate)}`
-    : `${entryDate ? `Mở cửa ${dm(entryDate)}` : "Mở cửa phiên tới"}${holdEnd ? ` · giữ tới ${dm(holdEnd)}` : ""}`;
-  const label = `${ticker}: ${pill.t}. ${detail}.${main ? ` Vùng mua ${dm(main.row.entryFromDate)}–${dm(main.row.entryToDate)} (${main.row.tier === "VALIDATED" ? "đạt kiểm định" : "gần đạt"}, ${ZONE_STATUS(main)}).` : ""}${far ? ` Vùng tiếp theo ${dm(far.row.entryFromDate)} sau ${far.row.sessionsToEntry} phiên.` : ""}`;
+  const yy = (d: string) => (d.slice(0, 4) !== (axis.dates[0] ?? d).slice(0, 4) ? `/${d.slice(2, 4)}` : "");
+  const pill = !head ? { t: "→ QUY TẮC", c: "text-cyan-200 border-cyan-400/30 bg-cyan-400/5" }
+    : head.status === "IN_WINDOW" ? { t: "● ĐANG TRONG VÙNG MUA", c: head.tier === "VALIDATED" ? "text-emerald-300 border-emerald-400/60 bg-emerald-400/15 shadow-[0_0_10px_rgba(52,211,153,0.45)]" : "text-emerald-200 border-dashed border-emerald-400/40 bg-emerald-400/5" }
+    : head.status === "UPCOMING" ? { t: head.sessionsToEntry <= 10 ? `⏱ SẮP TỚI · ${head.sessionsToEntry} phiên` : `⏭ XA · ${head.sessionsToEntry} phiên`, c: head.sessionsToEntry <= 10 ? "text-amber-300 border-amber-400/50 bg-amber-400/10" : "text-slate-300 border-white/15" }
+    : { t: "ĐÃ QUA VÙNG MUA", c: "text-slate-500 border-white/10" };
+  const detail = head
+    ? `${KIND[head.kind].text} ${head.windowId.toUpperCase()} ${dm(head.entryFromDate)}${yy(head.entryFromDate)}→${dm(head.entryToDate)}${yy(head.entryToDate)} · thoát ${dm(head.exitDate)}${yy(head.exitDate)}`
+    : `Chưa có vùng mùa vụ có lợi thế · mở cửa ${entryDate ? dm(entryDate) : "phiên tới"}${holdEnd ? `, giữ tới ${dm(holdEnd)}` : ""}`;
+  const label = `${ticker}: ${pill.t}. ${detail}.${main ? ` Vùng mua ${dm(main.row.entryFromDate)}–${dm(main.row.entryToDate)} (${main.row.tier === "VALIDATED" ? "đạt kiểm định" : main.row.tier === "NEAR" ? "gần đạt" : "thăm dò"}, ${ZONE_STATUS(main)}).` : ""}${far ? ` Vùng tiếp theo ${dm(far.row.entryFromDate)} sau ${far.row.sessionsToEntry} phiên.` : ""}`;
 
   return (
     <div className="leading-tight" data-testid={`buy-zone-${ticker}`} title={cell?.tooltip}>
       <div className="flex items-center gap-1 whitespace-nowrap">
         <span className={`rounded border px-1 text-[8.5px] font-bold ${pill.c}`} data-testid={`buy-zone-pill-${ticker}`}>{pill.t}</span>
+        {head && <span title={TIER_TAG[head.tier].title} className={`rounded border px-1 text-[8px] font-bold ${TIER_TAG[head.tier].c}`} data-testid={`buy-zone-tier-${ticker}`}>{TIER_TAG[head.tier].t}</span>}
         <span className="truncate text-[9.5px] text-slate-300" data-testid={`buy-zone-detail-${ticker}`}>{detail}</span>
       </div>
       <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img" aria-label={label} className="mt-0.5 block overflow-visible">
@@ -79,13 +86,13 @@ export default function BuyZoneStrip({ ticker, lane, axis, cell, width }: { tick
           </rect>
         )}
         {[...lane.zones].reverse().map((z) => {
-          const ok = z.row.tier === "VALIDATED", passed = z.row.status === "PASSED", live = z.row.status === "IN_WINDOW";
-          const col = ok ? "#34d399" : "#94a3b8";
+          const ok = z.row.tier === "VALIDATED", explo = z.row.tier === "EXPLORATORY", passed = z.row.status === "PASSED", live = z.row.status === "IN_WINDOW";
+          const col = ok ? "#34d399" : explo ? "#38bdf8" : "#94a3b8";
           return (
             <g key={z.row.id} opacity={passed ? 0.4 : 1} data-testid={`buy-zone-bar-${ticker}`} data-tier={z.row.tier} data-status={z.row.status}>
               <title>{zoneTitle(z)}</title>
               <rect x={x(z.i0) + 0.5} y={TOP} width={Math.max(2, (z.i1 - z.i0 + 1) * cw - 1)} height={BAR} rx={3}
-                fill={ok ? "rgba(52,211,153,.55)" : "rgba(148,163,184,.18)"} stroke={col} strokeWidth={live ? 1.6 : 1} strokeDasharray={ok ? undefined : "3 2"}
+                fill={ok ? "rgba(52,211,153,.55)" : explo ? "rgba(56,189,248,.14)" : "rgba(148,163,184,.18)"} stroke={col} strokeWidth={live ? 1.6 : 1} strokeDasharray={ok ? undefined : explo ? "1.5 2" : "3 2"}
                 className={live && ok ? "buy-zone-live" : undefined} style={live && ok ? { filter: "drop-shadow(0 0 4px rgba(52,211,153,.8))" } : undefined} />
               {z.clipLeft && <path d={`M${x(z.i0) + 1},${TOP + BAR / 2}l4,-3v6z`} fill={col} />}
               {z.clipRight && <path d={`M${x(z.i1) + cw - 1},${TOP + BAR / 2}l-4,-3v6z`} fill={col} />}
@@ -98,7 +105,7 @@ export default function BuyZoneStrip({ ticker, lane, axis, cell, width }: { tick
             </g>
           );
         })}
-        {kind === "rule" || kind === "near" ? (axis.entryIdx != null && <path d={`M${x(axis.entryIdx) + cw / 2},${TOP + BAR + 5}l-3.5,4.5h7z`} fill="#38bdf8"><title>{`Vào theo quy tắc danh mục: mở cửa ${entryDate ? dm(entryDate) : ""}`}</title></path>) : null}
+        {!head || head.tier !== "VALIDATED" || kind === "rule" || kind === "near" ? (axis.entryIdx != null && <path d={`M${x(axis.entryIdx) + cw / 2},${TOP + BAR + 5}l-3.5,4.5h7z`} fill="#38bdf8"><title>{`Vào theo quy tắc danh mục: mở cửa ${entryDate ? dm(entryDate) : ""}`}</title></path>) : null}
         {axis.todayIdx != null && <line x1={x(axis.todayIdx) + cw / 2} x2={x(axis.todayIdx) + cw / 2} y1={0} y2={H} stroke="#f59e0b" strokeWidth={1.2} strokeDasharray="2 1.5"><title>Hôm nay</title></line>}
         {far && (
           <text x={width - 1} y={TOP + BAR - 2} textAnchor="end" fontSize={8} className="fill-slate-400" data-testid={`buy-zone-far-${ticker}`}>

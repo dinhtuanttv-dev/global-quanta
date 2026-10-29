@@ -3,14 +3,19 @@
 // tắc), các vùng mua của Timeline (cổ tức / KQKD; Đạt kiểm định đặc, Gần đạt nét đứt, Đã qua mờ), mốc sự kiện (GDKHQ / công bố KQKD),
 // mốc thoát của vùng, HÔM NAY. Vùng ngoài trục -> ghi ngày + số phiên. Hàm thuần (có test); chỉ hiển thị, không đổi cách chọn mã.
 import type { TimelineRow } from "../cotuc/buy-timeline";
+
 import { ELITE_HOLD_SESSIONS, nextSessionAfter } from "./buyTimingCell";
+
+/** Dòng vùng mua: dòng Timeline (tab Cổ tức) hoặc vùng tối ưu Elite (thêm bậc EXPLORATORY = thăm dò). */
+export type LaneRow = Omit<TimelineRow, "tier"> & { tier: "VALIDATED" | "NEAR" | "EXPLORATORY" };
+const TIER_RANK: Record<string, number> = { VALIDATED: 0, NEAR: 1, EXPLORATORY: 2 };
 
 export interface LaneAxis { dates: string[]; todayIdx: number | null; entryIdx: number | null; holdTo: number | null }
 export interface LaneZone {
-  row: TimelineRow; i0: number; i1: number; clipLeft: boolean; clipRight: boolean;
+  row: LaneRow; i0: number; i1: number; clipLeft: boolean; clipRight: boolean;
   eventIdx: number | null; exitIdx: number | null;
 }
-export interface LaneFar { row: TimelineRow; side: "before" | "after" }
+export interface LaneFar { row: LaneRow; side: "before" | "after" }
 export interface BuyLane { zones: LaneZone[]; far: LaneFar[] }
 
 /** Trục chung: từ `before` phiên trước phiên vào tới `after` phiên sau (cắt theo lịch có sẵn). */
@@ -33,9 +38,9 @@ export function dateIndex(dates: readonly string[], d: string | null | undefined
 }
 
 /** Vùng mua của MỘT mã trên trục (mọi vùng Timeline của mã, cả hai loại sự kiện), thứ tự: trong vùng -> sắp tới -> đã qua. */
-export function buyLane(ticker: string, rows: readonly TimelineRow[], axis: LaneAxis): BuyLane {
+export function buyLane(ticker: string, rows: readonly LaneRow[], axis: LaneAxis): BuyLane {
   const dates = axis.dates, first = dates[0], last = dates[dates.length - 1];
-  const rank = (r: TimelineRow) => (r.status === "IN_WINDOW" ? 0 : r.status === "UPCOMING" ? 1 : 2) * 10 + (r.tier === "VALIDATED" ? 0 : 1);
+  const rank = (r: LaneRow) => (r.status === "IN_WINDOW" ? 0 : r.status === "UPCOMING" ? 1 : 2) * 10 + (TIER_RANK[r.tier] ?? 3);
   const mine = rows.filter((r) => r.ticker === ticker.toUpperCase()).sort((a, b) => rank(a) - rank(b) || a.entryFromDate.localeCompare(b.entryFromDate));
   const zones: LaneZone[] = [], far: LaneFar[] = [];
   for (const r of mine) {
@@ -47,4 +52,33 @@ export function buyLane(ticker: string, rows: readonly TimelineRow[], axis: Lane
     zones.push({ row: r, i0, i1, clipLeft: r.entryFromDate < first, clipRight: r.entryToDate > last, eventIdx: dateIndex(dates, r.eventDate), exitIdx: dateIndex(dates, r.exitDate) });
   }
   return { zones, far };
+}
+
+/**
+ * Vùng mua TIÊU ĐỀ của một mã (vùng tối ưu nhất để hiển thị): đang trong vùng (bậc cao trước) -> sắp tới gần nhất (cùng ngày: bậc cao
+ * trước) -> đã qua gần nhất. Không có vùng -> null.
+ */
+export function headlineZone(ticker: string, rows: readonly LaneRow[]): LaneRow | null {
+  const mine = rows.filter((r) => r.ticker === ticker.toUpperCase());
+  const tier = (r: LaneRow) => TIER_RANK[r.tier] ?? 3;
+  const pick = (st: LaneRow["status"], cmp: (a: LaneRow, b: LaneRow) => number) => mine.filter((r) => r.status === st).sort(cmp)[0] ?? null;
+  return pick("IN_WINDOW", (a, b) => tier(a) - tier(b) || a.entryToDate.localeCompare(b.entryToDate))
+    ?? pick("UPCOMING", (a, b) => a.sessionsToEntry - b.sessionsToEntry || tier(a) - tier(b))
+    ?? pick("PASSED", (a, b) => b.exitDate.localeCompare(a.exitDate) || tier(a) - tier(b));
+}
+
+export type ZoneRing = "in" | "soon" | "near" | "later" | "explo";
+/** Vòng / màu như "⏱ ĐIỂM MUA 10 PHIÊN TỚI" của Elite Command Radar; bậc thăm dò có màu riêng. */
+export function zoneRing(r: LaneRow, soon = 5): ZoneRing {
+  if (r.tier === "EXPLORATORY") return "explo";
+  if (r.tier === "NEAR") return "near";
+  return r.status === "IN_WINDOW" ? "in" : r.sessionsToEntry <= soon ? "soon" : "later";
+}
+
+/** Chip "điểm mua N phiên tới": mỗi mã một vùng (tiêu đề) đang mở hoặc bắt đầu trong ≤ `maxSessions` phiên; + danh sách xa hơn. */
+export function zoneChips(tickers: readonly string[], rows: readonly LaneRow[], maxSessions = 10): { near: LaneRow[]; later: LaneRow[] } {
+  const heads = tickers.map((t) => headlineZone(t, rows)).filter((r): r is LaneRow => r != null && r.status !== "PASSED");
+  const within = (r: LaneRow) => r.status === "IN_WINDOW" || r.sessionsToEntry <= maxSessions;
+  const order = (a: LaneRow, b: LaneRow) => (a.status === "IN_WINDOW" ? -1 : 0) - (b.status === "IN_WINDOW" ? -1 : 0) || a.sessionsToEntry - b.sessionsToEntry || (TIER_RANK[a.tier] ?? 3) - (TIER_RANK[b.tier] ?? 3);
+  return { near: heads.filter(within).sort(order), later: heads.filter((r) => !within(r)).sort(order) };
 }

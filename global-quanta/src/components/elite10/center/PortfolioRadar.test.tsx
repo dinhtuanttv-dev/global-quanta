@@ -31,6 +31,8 @@ vi.mock("../../../hooks/useRadarSignals", () => ({
 }));
 vi.mock("../../../hooks/useSmartNews", () => ({ useSmartNews: () => ({ data: { items: [{ tickers: ["AAS"], publishedAt: new Date().toISOString(), sentiment: 0.6, importance: 80 }] } }) }));
 let buyRows: Record<string, unknown>[] = [];
+let zoneData: { rows: Record<string, unknown>[]; notInUniverse: string[] } | null = null;
+vi.mock("../../../hooks/elite10/useEliteBuyZones", () => ({ useEliteBuyZones: () => ({ zones: zoneData, error: null, isLoading: false }) }));
 let buySessions: string[] = [];
 vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ useGatewayBuyTimeline: () => ({ data: { rows: buyRows }, sessions: buySessions, meta: null, loading: false, error: null }) }));
 
@@ -39,7 +41,7 @@ import PortfolioRadar from "./PortfolioRadar";
 const props = (o = {}) => ({ d, buyCells: new Map(), secName: () => "Dịch vụ tài chính", drivers: () => ["Stealth 20"], onOpenTicker: () => {}, compact: false, ...o });
 const order = () => [...document.querySelectorAll("[data-testid^=elite-radar-row-]")].map((e) => e.getAttribute("data-testid")!.slice(16));
 
-beforeEach(() => { quotes = {}; liveSession = false; buyRows = []; buySessions = []; vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-30T01:00:00Z")); try { localStorage.clear(); } catch { /* bỏ qua */ } });
+beforeEach(() => { quotes = {}; liveSession = false; buyRows = []; buySessions = []; zoneData = null; vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-30T01:00:00Z")); try { localStorage.clear(); } catch { /* bỏ qua */ } });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("PortfolioRadar", () => {
@@ -112,12 +114,15 @@ describe("PortfolioRadar — ⏱ dải vùng mua", () => {
     expect(screen.getByTestId("buy-zone-axis")).toBeTruthy();
     expect(screen.getByTestId("elite-radar-buy-head").textContent).toContain("⏱ Vùng mua · 21 phiên");
     expect(screen.getByTestId("buy-zone-pill-VPI").textContent).toBe("● ĐANG TRONG VÙNG MUA");
-    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức 29/10→04/11 · thoát 11/11");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức W2 29/10→04/11 · thoát 11/11");
+    expect(screen.getByTestId("buy-zone-tier-VPI").textContent).toBe("✓ ĐẠT");
     const bar = screen.getByTestId("buy-zone-bar-VPI");
     expect(bar.getAttribute("data-tier")).toBe("VALIDATED");
     expect(bar.querySelector(".buy-zone-live")).toBeTruthy();
-    expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("→ QUY TẮC");
-    expect(screen.getByTestId("buy-zone-detail-IDC").textContent).toBe("Mở cửa 30/10 · giữ tới 12/11");
+    expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("ĐÃ QUA VÙNG MUA");
+    expect(screen.getByTestId("buy-zone-tier-IDC").textContent).toBe("GẦN ĐẠT");
+    expect(screen.getByTestId("buy-zone-detail-IDC").textContent).toBe("KQKD W2 22/10→27/10 · thoát 03/11");
+    expect(screen.getByTestId("buy-zone-pill-AAS").textContent).toBe("⏭ XA · 58 phiên");
     expect(screen.getByTestId("buy-zone-bar-IDC").getAttribute("data-status")).toBe("PASSED");
     expect(screen.getByTestId("buy-zone-far-AAS").textContent).toContain("→ K 21/01/27 · 58p");
     expect(screen.getByTestId("elite-radar-buy-legend").textContent).toContain("vùng ĐẠT KIỂM ĐỊNH");
@@ -125,5 +130,34 @@ describe("PortfolioRadar — ⏱ dải vùng mua", () => {
   it("không có lịch phiên -> không vẽ dải (không đoán ngày)", () => {
     render(<PortfolioRadar {...props()} />);
     expect(screen.queryByTestId("buy-zone-axis")).toBeNull();
+  });
+});
+
+describe("PortfolioRadar — ⏱ ĐIỂM MUA 10 PHIÊN TỚI (vùng tối ưu từ tab Cổ tức)", () => {
+  const S = ["2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"];
+  const z = (o: Record<string, unknown>) => ({ id: `${o.ticker}${o.kind ?? "D"}`, sector: null, kind: "DIVIDEND", tier: "EXPLORATORY", status: "UPCOMING", eventLabel: "GDKHQ", eventDate: "2026-11-13",
+    eventDateBasis: "ESTIMATED", windowId: "w3", windowLabel: "W3 · Trước GDKHQ", entryFrom: -6, entryTo: -2, exitOffset: 3, entryFromDate: "2026-11-05", entryToDate: "2026-11-11", exitDate: "2026-11-18",
+    sessionsToEntry: 4, nEvents: 7, winRate: 0.71, probability: null, netExpectancy: 0.02, netExpectancyLcb: -0.003, fdrQValue: 0.4, decisionLevel: null, missing: ["q-value 0,40 > 0,1"], ...o });
+  it("chip trong 10 phiên (THĂM DÒ chấm, GẦN ĐẠT nét đứt) + 'xa hơn'; mỗi hàng hiện vùng tối ưu; mã ngoài danh mục theo dõi Cổ tức được ghi rõ", () => {
+    buySessions = S;
+    zoneData = { rows: [z({ ticker: "VPI" }), z({ ticker: "IDC", tier: "NEAR", status: "IN_WINDOW", sessionsToEntry: 0, entryFromDate: "2026-10-28", entryToDate: "2026-11-03" }), z({ ticker: "AAS", kind: "EARNINGS", tier: "NEAR", entryFromDate: "2027-01-21", entryToDate: "2027-01-26", exitDate: "2027-02-02", sessionsToEntry: 58 })], notInUniverse: ["HHP"] };
+    const opened: string[] = [];
+    render(<PortfolioRadar {...props({ onOpenTicker: (t: string) => opened.push(t) })} />);
+    const chips = [...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent);
+    expect(chips).toEqual(["● IDC CT trong vùnggần đạt", "⏱ VPI CT 4pthăm dò", "⏱ AAS KQ 21/01/27 · 58pgần đạt"]);
+    expect(screen.getByTestId("elite-buy-strip-later").textContent).toContain("Xa hơn");
+    expect(screen.getByTestId("elite-buy-strip").textContent).toContain("Ngoài danh mục theo dõi của tab Cổ tức: HHP");
+    expect(screen.getByTestId("buy-zone-pill-VPI").textContent).toBe("⏱ SẮP TỚI · 4 phiên");
+    expect(screen.getByTestId("buy-zone-tier-VPI").textContent).toBe("THĂM DÒ");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức W3 05/11→11/11 · thoát 18/11");
+    expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("● ĐANG TRONG VÙNG MUA");
+    fireEvent.click(document.querySelector("[data-testid=elite-buy-chip]")!);
+    expect(opened).toEqual(["IDC"]);
+  });
+  it("không có vùng trong 10 phiên -> câu báo như Radar", () => {
+    buySessions = S; zoneData = { rows: [], notInUniverse: [] };
+    render(<PortfolioRadar {...props()} />);
+    expect(screen.getByTestId("elite-buy-strip-empty").textContent).toContain("Không mã nào trong danh mục Elite 10 có vùng mua trong 10 phiên tới");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("Chưa có vùng mùa vụ có lợi thế · mở cửa 30/10, giữ tới 12/11");
   });
 });
