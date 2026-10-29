@@ -14,6 +14,8 @@ import { todayOffset, tradingSessions, type EventStudyWindow } from "../../../li
 import { currentPathFromBars, lastBarOffset, timelineRowFor, type DailyBar } from "../../../lib/elite10/timingSpace";
 import { analogFan } from "../../../lib/elite10/analogFan";
 import AnalogFanCard from "./AnalogFanCard";
+import HistoryToggles from "./HistoryToggles";
+import { presetEvents, readPreset, writePreset, type HistPreset } from "../../../lib/elite10/historyPreset";
 import EventStudyChart from "./EventStudyChart";
 import TimingSpace3D from "./TimingSpace3D";
 
@@ -40,6 +42,9 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const cal = useVnTradingCalendar();
   const today = vnToday();
   const [winId, setWinId] = useState<string | null>(null);
+  // N4: đợt lịch sử hiển thị — bộ chọn nhanh (nhớ theo trình duyệt) hoặc tự chọn (đặt lại khi đổi mã / loại sự kiện).
+  const [preset, setPresetState] = useState<HistPreset>(() => readPreset());
+  const [customSel, setCustomSel] = useState<{ key: string; set: Set<string> } | null>(null);
   const [view, setView] = useState<"2D" | "3D">(() => (wide() ? "3D" : "2D"));
   const tl = useMemo(() => timelineRowFor(buy.data?.rows ?? [], ticker, kind), [buy.data, ticker, kind]);
   const fresh = buyTimingFreshness(buy.meta);
@@ -61,6 +66,16 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const lastOff = useMemo(() => lastBarOffset(bars, todayOff, today), [bars, todayOff, today]);
   const current = useMemo(() => (es && lastOff != null && !es.currentPath ? currentPathFromBars(es.offsets, bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
   const fan = useMemo(() => (es && lastOff != null && lastOff <= 0 ? analogFan(es, bars, vniBars, lastOff, win?.exitOffset ?? null, { today }) : null), [es, bars, vniBars, lastOff, win, today]);
+  const selKey = `${ticker}:${kind}`;
+  const presetSet = useMemo(() => (es ? presetEvents(preset, es, fan, win) : new Set<string>()), [preset, es, fan, win]);
+  const custom = customSel?.key === selKey ? customSel.set : null;
+  const visibleEvents = custom ?? presetSet;
+  const choosePreset = (p: HistPreset) => { setPresetState(p); writePreset(p); setCustomSel(null); };
+  const toggleEvent = (d: string) => {
+    const next = new Set(visibleEvents);
+    if (next.has(d)) next.delete(d); else next.add(d);
+    setCustomSel({ key: selKey, set: next });
+  };
   const eventWord = kind === "DIVIDEND" ? "GDKHQ" : `Công bố KQKD${es?.quarter ? ` Q${es.quarter}` : ""}`;
 
   return (
@@ -128,10 +143,12 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
               </button>
             ))}
           </div>
+          <HistoryToggles dates={[...es.events].map((e) => e.eventDate).sort()} visible={visibleEvents} preset={preset} custom={custom != null}
+            onPreset={choosePreset} onToggle={toggleEvent} total={es.events.length} />
           <div className="mt-2">
             {view === "3D"
-              ? <TimingSpace3D es={es} bars={bars} indexBars={vniBars} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} fan={fan} />
-              : <EventStudyChart es={es} window={win} todayOff={todayOff} timeline={tl} current={current} fan={fan} />}
+              ? <TimingSpace3D es={es} bars={bars} indexBars={vniBars} barsLoading={daily.isLoading} window={win} todayOff={todayOff} today={today} timeline={tl} esa={esa} fan={fan} visibleEvents={visibleEvents} />
+              : <EventStudyChart es={es} window={win} todayOff={todayOff} timeline={tl} current={current} fan={fan} visibleEvents={visibleEvents} />}
           </div>
           <AnalogFanCard fan={fan} window={win} eventWord={eventWord} loading={daily.isLoading || vni.isLoading} />
           <p className="mt-1 text-[10px] leading-relaxed text-slate-500">

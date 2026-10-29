@@ -33,12 +33,13 @@ import TimingSimPanel from "./TimingSimPanel";
 
 const setWide = (on: boolean) => { window.matchMedia = ((q: string) => ({ matches: on, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia; };
 
-beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-29T03:00:00Z")); calls.length = 0; ohlcvCalls.length = 0; buyRows = []; setWide(false); });
+beforeEach(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-29T03:00:00Z")); calls.length = 0; ohlcvCalls.length = 0; buyRows = []; setWide(false); window.localStorage.clear(); });
 afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("TimingSimPanel", () => {
   it("cổ tức FPT: 9 đường + trung vị, GDKHQ ước tính 20/11, HÔM NAY ở phiên âm (trước sự kiện), cửa sổ v3", () => {
     render(<TimingSimPanel ticker="FPT" />);
+    fireEvent.click(screen.getByTestId("hist-preset-all"));
     expect(screen.getAllByTestId("event-study-path")).toHaveLength(9);
     expect(screen.getByTestId("event-study-median")).toBeTruthy();
     const up = screen.getByTestId("timing-sim-upcoming").textContent ?? "";
@@ -54,6 +55,7 @@ describe("TimingSimPanel", () => {
     render(<TimingSimPanel ticker="FPT" />);
     fireEvent.click(screen.getByTestId("timing-kind-EARNINGS"));
     expect(calls[calls.length - 1]).toBe("FPT:EARNINGS");
+    fireEvent.click(screen.getByTestId("hist-preset-all"));
     expect(screen.getAllByTestId("event-study-path")).toHaveLength(6);
     expect(screen.getByTestId("timing-sim-upcoming").textContent).toContain("Công bố KQKD Q3");
     const opt = document.querySelectorAll("[role=option]")[1] as HTMLElement;
@@ -134,5 +136,39 @@ describe("TimingSimPanel — màn rộng", () => {
     expect(screen.getByTestId("timing-space-3d")).toBeTruthy();
     fireEvent.click(screen.getByTestId("timing-view-2D"));
     expect(screen.getByTestId("event-study-chart")).toBeTruthy();
+  });
+});
+
+describe("TimingSimPanel — N4 đường lịch sử", () => {
+  const paths = () => document.querySelectorAll("[data-testid=event-study-path]").length;
+  it("mặc định: 3 đợt giống nhất (trọng số analog) + trung vị; thống kê vẫn trên đủ 9 đợt", () => {
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(paths()).toBe(3);
+    expect(screen.getByTestId("hist-preset-analog3").getAttribute("aria-pressed")).toBe("true");
+    // FPT 29/10: nặng nhất 01/12/25 (20%), 12/06/25 (19%), 28/05/26 (16%)
+    for (const d of ["2025-12-01", "2025-06-12", "2026-05-28"]) expect(screen.getByTestId(`hist-event-${d}`).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("hist-event-2022-06-13").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByTestId("history-toggles").textContent).toContain("đang hiện 3/9 đợt");
+    expect(screen.getByTestId("event-study-median")).toBeTruthy();
+    expect(screen.getByTestId("timing-window-w3").textContent).toContain("7/9 thắng");
+  });
+  it("bấm từng đợt -> tự chọn; Ẩn lịch sử -> 0 đường, vẫn còn trung vị + quạt", () => {
+    render(<TimingSimPanel ticker="FPT" />);
+    fireEvent.click(screen.getByTestId("hist-event-2022-06-13"));
+    expect(paths()).toBe(4);
+    expect(screen.getByTestId("history-toggles").textContent).toContain("tự chọn");
+    fireEvent.click(screen.getByTestId("hist-preset-none"));
+    expect(paths()).toBe(0);
+    expect(screen.getByTestId("event-study-median")).toBeTruthy();
+    expect(screen.getByTestId("event-study-fan")).toBeTruthy();
+  });
+  it("bộ chọn nhanh được nhớ theo trình duyệt", () => {
+    const r = render(<TimingSimPanel ticker="FPT" />);
+    fireEvent.click(screen.getByTestId("hist-preset-wins"));
+    expect(window.localStorage.getItem("elite10:timing-hist-preset")).toBe("wins");
+    expect(paths()).toBe(7); // w3: 7/9 đợt thắng
+    r.unmount?.(); cleanup();
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(screen.getByTestId("hist-preset-wins").getAttribute("aria-pressed")).toBe("true");
   });
 });

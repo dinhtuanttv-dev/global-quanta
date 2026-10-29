@@ -37,7 +37,7 @@ import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTrackin
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 import { opsReport } from "../market/tradingMatrix/matrixOps.js";
 import { buildEventReactionStudy, buildLeadershipStudy } from "../market/research/quantEdgeStudies.js";
-import { buildEsaEarlySignal } from "../market/research/esaEarlySignal.js";
+import { buildEsaEarlySignal, buildEsaSince } from "../market/research/esaEarlySignal.js";
 import { ValidationError } from "../market/errors.js";
 
 
@@ -76,12 +76,12 @@ router.get("/research/esa/:symbol", handle(async (req, res) => {
     res.set("Cache-Control", "private, max-age=60");
     return res.json(buildEsaEarlySignal({ symbol, sessions: { sessionLive: false }, events: await radarEvents() }));
   }
+  // Trong phiên: chờ tối đa 20 giây; lịch sử nến phút lần đầu tiếp tục dựng nền (đệm 12 giờ) cho lần gọi sau.
+  const sessions = await service().cache.wrap(`esa:sessions:${symbol}`, 30_000, () => Promise.race([
+    getIntradaySessions(rt.service, symbol).catch((error) => ({ error })),
+    new Promise((resolve) => setTimeout(() => resolve({ building: true }), ESA_WAIT_MS)),
+  ]));
   const data = await service().cache.wrap(`esa:early:${symbol}`, 30_000, async () => {
-    // Trong phiên: chờ tối đa 20 giây; lịch sử nến phút lần đầu tiếp tục dựng nền (đệm 12 giờ) cho lần gọi sau.
-    const sessions = await Promise.race([
-      getIntradaySessions(rt.service, symbol).catch((error) => ({ error })),
-      new Promise((resolve) => setTimeout(() => resolve({ building: true }), ESA_WAIT_MS)),
-    ]);
     const events = await radarEvents();
     if (sessions.building || sessions.error) {
       const base = buildEsaEarlySignal({ symbol, sessions: { sessionLive: true, trainSessions: [] }, events });
@@ -89,8 +89,11 @@ router.get("/research/esa/:symbol", handle(async (req, res) => {
     }
     return buildEsaEarlySignal({ symbol, sessions, events });
   });
+  // N0: ?since=<ISO thời điểm ra tin> -> khối lượng từ lúc ra tin so cùng khung phút các phiên trước (vòng sáng Elite 10).
+  const since = typeof req.query.since === "string" ? req.query.since.slice(0, 40) : null;
+  const sinceNews = since && !sessions.building && !sessions.error ? buildEsaSince({ sessions, sinceIso: since }) : null;
   res.set("Cache-Control", "private, max-age=15");
-  res.json(data);
+  res.json(since ? { ...data, sinceNews } : data);
 }));
 
 function shiftDate(date, days) {
