@@ -39,6 +39,8 @@ import { createElliottLedger } from "./elliott/scenarioLedger.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 import { createEventRadar } from "./news/eventRadar.js";
+import { getIntradaySessions } from "./scanner/intradayService.js";
+import { eliteWarmTickers } from "./elite/decisionService.js";
 
 let runtime;
 
@@ -113,9 +115,19 @@ export function getMarketRuntime() {
     if (!store.readInner) return { skipped: "Không có kho Supabase phía sau." };
     return importSupabaseUserData({ store, readInner: (t, q) => store.readInner(t, q), supabaseUsers: await listSupabaseUsers() });
   };
+  // N5 (29/10/2026): nạp sẵn nến phút 120 phiên cho các mã danh mục Elite 10 trước giờ mở cửa -> ESA (vòng sáng "từ lúc ra tin" ở
+  // Hồ sơ 360°) trả lời ngay trong phiên thay vì chờ vài phút dựng lần đầu. Tuần tự (withSlot giới hạn 2 luồng SSI).
+  jobs.warmEliteIntraday = async () => {
+    const tickers = await eliteWarmTickers(store);
+    const out = { tickers: tickers.length, warmed: [], failed: [] };
+    for (const t of tickers) {
+      try { await getIntradaySessions(service, t); out.warmed.push(t); } catch (error) { out.failed.push(`${t}: ${error.message}`); }
+    }
+    return out;
+  };
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }] });
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] });
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });

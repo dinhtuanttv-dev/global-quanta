@@ -124,3 +124,11 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
 
   return { build, decision, ledger };
 }
+
+/** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */
+export async function eliteWarmTickers(store, limit = 12) {
+  const idx = (await store.getKv(DECISION_KV.index).catch(() => null))?.value?.dates ?? [];
+  const d = idx[idx.length - 1];
+  const doc = d ? (await store.getKv(DECISION_KV.decision(d)).catch(() => null))?.value : null;
+  return [...new Set((doc?.portfolio ?? []).map((p) => String(p.ticker ?? "").toUpperCase()).filter((t) => /^[A-Z][A-Z0-9]{2}$/.test(t)))].slice(0, limit);
+}
