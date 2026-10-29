@@ -30,15 +30,17 @@ vi.mock("../../../hooks/useRadarSignals", () => ({
     items: { VPI: { stealth20: { on: true, direction: 1, z: 2.1 } }, IDC: { stealth20: { on: false, direction: 0, z: 0.3 } } } } }),
 }));
 vi.mock("../../../hooks/useSmartNews", () => ({ useSmartNews: () => ({ data: { items: [{ tickers: ["AAS"], publishedAt: new Date().toISOString(), sentiment: 0.6, importance: 80 }] } }) }));
-vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ useGatewayBuyTimeline: () => ({ data: { rows: [] }, sessions: [], meta: null, loading: false, error: null }) }));
+let buyRows: Record<string, unknown>[] = [];
+let buySessions: string[] = [];
+vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ useGatewayBuyTimeline: () => ({ data: { rows: buyRows }, sessions: buySessions, meta: null, loading: false, error: null }) }));
 
 import PortfolioRadar from "./PortfolioRadar";
 
 const props = (o = {}) => ({ d, buyCells: new Map(), secName: () => "Dịch vụ tài chính", drivers: () => ["Stealth 20"], onOpenTicker: () => {}, compact: false, ...o });
 const order = () => [...document.querySelectorAll("[data-testid^=elite-radar-row-]")].map((e) => e.getAttribute("data-testid")!.slice(16));
 
-beforeEach(() => { quotes = {}; liveSession = false; try { localStorage.clear(); } catch { /* bỏ qua */ } });
-afterEach(() => cleanup());
+beforeEach(() => { quotes = {}; liveSession = false; buyRows = []; buySessions = []; vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-30T01:00:00Z")); try { localStorage.clear(); } catch { /* bỏ qua */ } });
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("PortfolioRadar", () => {
   it("xếp theo hạng Elite: #1 = hạng vũ trụ cao nhất; ▲ lên hạng so phiên trước; MỚI cho mã mới vào", () => {
@@ -89,5 +91,39 @@ describe("PortfolioRadar", () => {
     expect(lg).toContain("đã kiểm định có lợi thế");
     expect(lg).toContain("chưa có lợi thế ở chế độ thị trường hiện tại");
     expect(lg).toContain("(mô tả)");
+  });
+});
+
+describe("PortfolioRadar — ⏱ dải vùng mua", () => {
+  const S = ["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06",
+    "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24"];
+  const tl = (o: Record<string, unknown>) => ({ id: String(o.ticker) + o.status, sector: null, kind: "DIVIDEND", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-11-06",
+    eventDateBasis: "CONFIRMED", windowId: "w2", windowLabel: "W2 · Trước GDKHQ", entryFrom: -6, entryTo: -2, exitOffset: 3, entryFromDate: "2026-10-29", entryToDate: "2026-11-04", exitDate: "2026-11-11",
+    sessionsToEntry: 0, nEvents: 10, winRate: 0.8, probability: null, netExpectancy: 0.03, netExpectancyLcb: 0.01, fdrQValue: 0.02, decisionLevel: null, missing: [], ...o });
+  const cell = (kind: string, row: unknown = null) => ({ kind, text: "", sub: "", date: null, tooltip: "t", dashed: false, row });
+  it("trục phiên chung + mỗi hàng: trạng thái cùng ngôn ngữ tab Cổ tức, thanh vùng mua theo bậc, vùng xa ghi ngày + số phiên", () => {
+    buySessions = S;
+    const vpi = tl({ ticker: "VPI" });
+    const idc = tl({ ticker: "IDC", kind: "EARNINGS", tier: "NEAR", status: "PASSED", entryFromDate: "2026-10-22", entryToDate: "2026-10-27", eventDate: "2026-10-29", exitDate: "2026-11-03", missing: ["q-value 0,2 > 0,1"] });
+    const aas = tl({ ticker: "AAS", kind: "EARNINGS", tier: "NEAR", status: "UPCOMING", entryFromDate: "2027-01-21", entryToDate: "2027-01-26", sessionsToEntry: 58 });
+    buyRows = [vpi, idc, aas];
+    const cells = new Map([["VPI", cell("in", vpi)], ["IDC", cell("rule")], ["AAS", cell("rule")]]);
+    render(<PortfolioRadar {...props({ buyCells: cells })} />);
+    expect(screen.getByTestId("buy-zone-axis")).toBeTruthy();
+    expect(screen.getByTestId("elite-radar-buy-head").textContent).toContain("⏱ Vùng mua · 21 phiên");
+    expect(screen.getByTestId("buy-zone-pill-VPI").textContent).toBe("● ĐANG TRONG VÙNG MUA");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức 29/10→04/11 · thoát 11/11");
+    const bar = screen.getByTestId("buy-zone-bar-VPI");
+    expect(bar.getAttribute("data-tier")).toBe("VALIDATED");
+    expect(bar.querySelector(".buy-zone-live")).toBeTruthy();
+    expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("→ QUY TẮC");
+    expect(screen.getByTestId("buy-zone-detail-IDC").textContent).toBe("Mở cửa 30/10 · giữ tới 12/11");
+    expect(screen.getByTestId("buy-zone-bar-IDC").getAttribute("data-status")).toBe("PASSED");
+    expect(screen.getByTestId("buy-zone-far-AAS").textContent).toContain("→ K 21/01/27 · 58p");
+    expect(screen.getByTestId("elite-radar-buy-legend").textContent).toContain("vùng ĐẠT KIỂM ĐỊNH");
+  });
+  it("không có lịch phiên -> không vẽ dải (không đoán ngày)", () => {
+    render(<PortfolioRadar {...props()} />);
+    expect(screen.queryByTestId("buy-zone-axis")).toBeNull();
   });
 });

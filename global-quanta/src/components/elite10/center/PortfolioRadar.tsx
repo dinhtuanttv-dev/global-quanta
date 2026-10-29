@@ -18,7 +18,8 @@ import { useOhlcvData } from "../../../hooks/useOhlcvData";
 import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { buyWindowEvents, pickRadarBuyRows, SOON_SESSIONS, type RadarBuyInfo, type RadarBuyRing } from "../../../lib/radarTimeline";
 import { browserNotify } from "../../../lib/priceAlerts";
-import { BuyTimingCell } from "./boardParts";
+import BuyZoneStrip, { BuyZoneAxis } from "./BuyZoneStrip";
+import { buyLane, laneAxis } from "../../../lib/elite10/buyZoneLane";
 import type { BuyCell } from "../../../lib/elite10/buyTimingCell";
 
 const UP = "#34d399", DOWN = "#fb7185", AMBER = "#f59e0b", CYAN = "#38bdf8", VIOLET = "#a78bfa";
@@ -237,6 +238,11 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
 
   const isLive = live.sessionLive && !replay;
   const trackW = compact ? 170 : 230;
+  // ⏱ Dải vùng mua: trục phiên thật chung cho mọi hàng (5 phiên trước phiên vào -> 15 phiên sau).
+  const laneW = compact ? 210 : 270;
+  const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const axis = useMemo(() => laneAxis(buy.sessions ?? [], d.date, today), [buy.sessions, d.date, today]);
+  const cols = `64px 92px ${trackW}px 78px ${laneW}px 112px ${compact ? "" : "74px "}96px${compact ? "" : " minmax(110px,1fr)"}`;
 
   return (
     <div ref={wrapRef} className="space-y-2" data-testid="elite-radar">
@@ -254,10 +260,10 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
       </div>
 
       <div className="overflow-x-auto">
-        <div style={{ minWidth: compact ? 720 : 1000 }} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
+        <div style={{ minWidth: compact ? 800 : 1140 }} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
           <div className="grid items-center gap-2 border-b border-white/5 pb-1 text-[9.5px] text-slate-500"
-            style={{ gridTemplateColumns: `64px 92px ${trackW}px 78px 128px 112px ${compact ? "" : "74px "}96px${compact ? "" : " minmax(110px,1fr)"}` }}>
-            <span>Hạng</span><span>Mã</span><span title="Trục Điểm Elite Z: chấm = hôm nay, vệt = 5 phiên trước">Rãnh Z · vệt 5 phiên</span><span>Tỷ trọng</span><span>⏱ Điểm mua</span>
+            style={{ gridTemplateColumns: cols }}>
+            <span>Hạng</span><span>Mã</span><span title="Trục Điểm Elite Z: chấm = hôm nay, vệt = 5 phiên trước">Rãnh Z · vệt 5 phiên</span><span>Tỷ trọng</span><span className="leading-tight" data-testid="elite-radar-buy-head"><span title="Vùng mua của Timeline điểm mua tối ưu (tab Cổ tức) trên trục phiên giao dịch thật; dải xanh mảnh = kỳ nắm giữ 10 phiên">⏱ Vùng mua · {axis.dates.length} phiên</span>{axis.dates.length > 0 && <BuyZoneAxis axis={axis} width={laneW} />}</span>
             <span title="Giá khớp · % trong phiên · lợi suất VƯỢT VN-Index từ giá lúc dựng danh mục">Giá · vượt VNI</span>{!compact && <span>P vượt · α5</span>}<span title="Vị trí giá trong dải cắt lỗ (trái) → mục tiêu (phải)">Cắt lỗ → mục tiêu</span>{!compact && <span>Động lực chính</span>}
           </div>
           {rows.map((r, i) => {
@@ -267,7 +273,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
             return (
               <div key={p.ticker} ref={(el) => { if (el) rowEls.current.set(p.ticker, el); else rowEls.current.delete(p.ticker); }} role="listitem" data-testid={`elite-radar-row-${p.ticker}`}
                 className="grid items-center gap-2 border-b border-white/5 py-1 text-[11px]"
-                style={{ gridTemplateColumns: `64px 92px ${trackW}px 78px 128px 112px ${compact ? "" : "74px "}96px${compact ? "" : " minmax(110px,1fr)"}` }}>
+                style={{ gridTemplateColumns: cols }}>
                 <div className="leading-tight">
                   <b className={`font-mono text-[15px] ${r.topTier ? "text-amber-300" : "text-slate-100"}`} data-testid={`elite-radar-pos-${p.ticker}`}>#{i + 1}</b>
                   <div className="text-[9px] text-slate-500">hạng {p.rank}
@@ -288,7 +294,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   <span aria-hidden="true" className="mr-1 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${Math.min(40, p.weight * 200)}px` }} />
                   <b>{num(p.weight * 100)}%</b>
                 </div>
-                <div>{replay ? <span className="text-slate-500">—</span> : <BuyTimingCell cell={buyCells.get(p.ticker)} compact />}</div>
+                <div>{replay || !axis.dates.length ? <span className="text-slate-500">—</span> : <BuyZoneStrip ticker={p.ticker} lane={buyLane(p.ticker, buy.data?.rows ?? [], axis)} axis={axis} cell={buyCells.get(p.ticker)} width={laneW} />}</div>
                 <div className="leading-tight font-mono">
                   <span className="text-slate-100">{replay ? "—" : price(q?.price ?? p.close)}</span>
                   {!replay && q?.changePct != null && <span className="ml-1 text-[9.5px]" style={{ color: q.changePct >= 0 ? UP : DOWN }}>{q.changePct >= 0 ? "+" : ""}{num(q.changePct, 2)}%</span>}
@@ -340,6 +346,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
         <span>Vệt đứt = Z 5 phiên trước (<span style={{ color: UP }}>xanh</span> mạnh lên / <span style={{ color: DOWN }}>đỏ</span> yếu đi)</span>
         <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 {!sig ? "(đang tải bằng chứng kiểm định…)" : edge ? <>— <b className="text-emerald-300">đã kiểm định có lợi thế</b> toàn giai đoạn{regimeEdge === false ? <span className="text-amber-300"> · chưa có lợi thế ở chế độ thị trường hiện tại</span> : null}</> : "(rỗng = chưa đạt kiểm định)"}</span>
         <span>⏱ vòng <span style={{ color: UP }}>xanh</span> = trong vùng mua · <span style={{ color: AMBER }}>vàng</span> = ≤ {SOON_SESSIONS} phiên · nét đứt = gần đạt kiểm định</span>
+        <span data-testid="elite-radar-buy-legend">⏱ Dải vùng mua: <span className="text-emerald-300">▬ xanh đặc</span> = vùng ĐẠT KIỂM ĐỊNH (sáng = đang trong vùng) · <span className="text-slate-300">┅ xám nét đứt</span> = gần đạt · mờ = đã qua · <span style={{ color: "#22d3ee" }}>◆</span> GDKHQ / <span style={{ color: VIOLET }}>◆</span> công bố KQKD · <span className="text-rose-300">│</span> thoát · <span className="text-cyan-300">▲</span> vào theo quy tắc (mở cửa phiên kế) · <span className="text-cyan-300">━</span> kỳ nắm giữ 10 phiên · <span className="text-amber-300">┊</span> hôm nay · C = cổ tức, K = KQKD</span>
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày · vòng nhấp nháy = tin quan trọng 24 giờ (mô tả)</span>
         <span>● Trực tiếp = xếp theo vượt VN-Index từ lúc dựng (theo dõi, không đổi hạng chính thức)</span>
       </div>
