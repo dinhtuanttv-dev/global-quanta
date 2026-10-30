@@ -40,7 +40,7 @@ function ctxOf(bars: OhlcvBar[], tf: Timeframe): Ctx {
 
 function baseItems(b: Base3View, c: Ctx, deep: boolean): SceneItem[] {
   const t1 = c.map(b.from) ?? c.first, t2 = c.map(b.to) ?? c.last, out: SceneItem[] = [];
-  out.push({ kind: "zone", t1, t2, top: b.leftHigh, bottom: b.low, fill: rgba(GQ_COLORS.cyan, 0.04), stroke: rgba(GQ_COLORS.cyan, 0.4), dash: [2, 2],
+  out.push({ kind: "zone", t1, t2, top: b.leftHigh, bottom: b.low, fill: rgba(GQ_COLORS.cyan, b.valid ? 0.04 : 0.015), stroke: rgba(GQ_COLORS.cyan, b.valid ? 0.4 : 0.15), dash: [2, 2],
     label: { text: `${b.patternLabel} · ${b.footprint}${b.valid ? "" : " · chưa đạt chuẩn"}`, color: GQ_COLORS.cyan, priority: P.base } });
   const tp = c.map(b.pivotDate) ?? t1;
   out.push({ kind: "hline", t1: tp, t2: null, price: b.pivot, color: rgba(GQ_COLORS.amber, 0.85), dash: [5, 3], width: 1.2, label: { text: `Pivot ${fmtPrice(b.pivot)}`, color: GQ_COLORS.amber, priority: P.base + 3 } });
@@ -88,8 +88,9 @@ export function structure3SceneItems(bars: OhlcvBar[], timeframe: Timeframe, doc
     items.push({ kind: "hline", t1: t, t2: null, price: ctx3.pullbackHigh, color: rgba(GQ_COLORS.bear, 0.85), dash: [6, 3], width: 1.3, label: { text: `Đỉnh hồi ${fmtPrice(ctx3.pullbackHigh)}`, color: GQ_COLORS.bear, priority: P.protect } });
   }
   // 4. nền giá + pivot (khung ngày / tuần)
+  // nền chưa đạt chuẩn (quá sâu / chữ V…) chỉ hiện ở Chuyên sâu, dạng khung mờ không nhịp co — tránh rối biểu đồ
   const base = key === "D" ? doc.bases?.D : key === "W" ? doc.bases?.W : null;
-  if (base) items.push(...baseItems(base, c, deep));
+  if (base && (base.valid || deep)) items.push(...baseItems(base, c, deep && base.valid));
   // 5. kế hoạch (khung ngày) — chỉ khi có thiết lập
   const plan = doc.decision?.plan;
   if (key === "D" && plan && doc.decision?.active) {

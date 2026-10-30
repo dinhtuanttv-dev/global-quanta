@@ -19,7 +19,7 @@ import BasePanel from "./BasePanel";
 export interface ReplayControl { index: number | null; min: number; max: number; date: string | null; available: boolean; onChange: (i: number | null) => void }
 type TabKey = "overview" | "trend" | "elliott" | "bases" | "evidence";
 const TABS: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "Tổng quan" }, { key: "trend", label: "Xu hướng · Dow" }, { key: "elliott", label: "Elliott" }, { key: "bases", label: "Nền · mức giá" }, { key: "evidence", label: "Kiểm định" },
+  { key: "overview", label: "Tóm tắt" }, { key: "trend", label: "Xu hướng · Dow" }, { key: "elliott", label: "Elliott" }, { key: "bases", label: "Nền · mức giá" }, { key: "evidence", label: "Kiểm định" },
 ];
 const TAB_KEY = "gq:mtf3Tab";
 const TF_NAME: Record<Tf3, string> = { D: "Ngày", W: "Tuần", M: "Tháng" };
@@ -128,10 +128,13 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
         <Layers3 className="w-3.5 h-3.5 text-cyan-300" />
         <span className="text-[11px] font-bold text-slate-200 mr-1" data-testid="mtf3-title">Cấu trúc MTF v3</span>
         <span className="text-[9px] text-slate-500 mr-1">Ngày · Tuần · Tháng · EMA21/50/100 · MA200 · Dow · Minervini · Elliott</span>
-        {STRUCTURE_MODES.map((m) => (
-          <button key={m.key} type="button" onClick={() => onModeChange(m.key)} title={`Lớp vẽ trên biểu đồ: ${m.hint}`} aria-pressed={mode === m.key} data-structure-mode={m.key}
-            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition ${mode === m.key ? "text-cyan-200 border-cyan-400/50 bg-cyan-500/10" : "text-slate-400 border-slate-700/60 bg-slate-900/50"}`}>{m.label}</button>
-        ))}
+        <span className="inline-flex items-center gap-1 rounded-md border border-slate-700/60 bg-slate-900/50 p-0.5" role="group" aria-label="Mức chi tiết lớp vẽ trên biểu đồ">
+          <span className="px-1 text-[9px] text-slate-500">Lớp vẽ:</span>
+          {STRUCTURE_MODES.map((m) => (
+            <button key={m.key} type="button" onClick={() => onModeChange(m.key)} title={`Lớp vẽ trên biểu đồ: ${m.hint}`} aria-pressed={mode === m.key} data-structure-mode={m.key}
+              className={`px-2 py-0.5 rounded text-[9.5px] font-bold transition ${mode === m.key ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400 hover:text-slate-200"}`}>{m.label}</button>
+          ))}
+        </span>
         <span className="ml-auto text-[9px] text-slate-500">{replaying ? `phát lại ${doc.asOf}` : doc.asOf} · engine {doc.version}</span>
       </header>
       {replay && <ReplayBar r={replay} />}
