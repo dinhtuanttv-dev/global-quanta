@@ -76,3 +76,19 @@ Không chạy lại với tham số khác; nếu sửa engine sau khi chạy, ph
    gọi engine ở mọi phiên × mọi mã 14 năm ước tính ~15 giờ. Sự kiện H6 = phiên kiểm tra mà kịch bản chính là "Sóng 3" tăng có mốc kết
    thúc sóng 2 trùng đáy vừa xác nhận. (b) Dữ liệu tải từ 2012-06-01 chỉ để làm nóng EMA / MA200; sự kiện vẫn tính từ 2013-01-01.
    (c) Giá ≥ 5.000 dùng giá đóng cửa DANH NGHĨA của VNDirect (close × 1.000); lợi suất dùng giá điều chỉnh.
+
+## Kết quả (2026-10-30, chạy MỘT lần bằng scripts/mtf3-validate.mjs; dữ liệu sha256 c187ab349320254c…; số liệu: MTF-v3-report.json, validation3.js)
+546 mã (12 đã huỷ niêm yết). **Không giả thuyết nào ĐẠT** → toàn bộ MTF v3 là MÔ TẢ.
+
+| GT | Phán quyết | Ngoài mẫu (sau phí) [KTC 95%] | Trong mẫu | q (BH) |
+|---|---|---|---|---|
+| H1 | FAIL | +1,03% [-0,47%; +2,64%] n 845, p 0.093 | +1,45% (n 409) | 0.558 |
+| H2 | FAIL | -1,81% [-5,42%; +1,49%] n 47, p 0.857 | -4,44% (n 17) | 0.989 |
+| H3 | FAIL | -2,80% [-5,31%; -0,46%] n 76, p 0.989 | -1,66% (n 22) | 0.989 |
+| H4 | FAIL | +0,08% [-0,71%; +0,86%] n 1058, p 0.405 | +0,86% (n 426) | 0.989 |
+| H5 | FAIL | bị cấm − được phép +0,86% [-0,40%; +2,16%] (n 565/672) | +2,02% | 0.989 |
+| H6 | FAIL | -2,61% [-5,24%; +0,22%] n 45, p 0.962 | +1,68% (n 22) | 0.989 |
+
+Mô tả — lợi suất vượt trội 20 phiên theo giai đoạn ngày (TB, IS / OOS): S1 +0,29% / -0,04% · S2 +0,61% / +0,17% · S3 -0,78% / -0,19% · S4 -0,93% / -0,14%.
+Đọc: vào giai đoạn 2 dương ở cả hai giai đoạn nhưng chưa đủ ý nghĩa; phá vỡ nền giai đoạn 2 ÂM có ý nghĩa ngoài mẫu; cổng cấm vào (quá đà, cản khung lớn,
+dải mở hết, ngược tuần) KHÔNG làm tốt hơn — nhóm bị cấm còn tốt hơn (cùng chiều với kết quả MTF v2: đà tăng tiếp diễn ở cổ phiếu VN).

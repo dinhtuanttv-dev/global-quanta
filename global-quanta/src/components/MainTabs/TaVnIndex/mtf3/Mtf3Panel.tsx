@@ -9,7 +9,7 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, History, Layers3 } from "lucide-react";
 import type { Structure3Doc, Tf3 } from "../../../../hooks/useStructure3";
 import type { StructureMomentumStats } from "../../../../hooks/useStructure";
-import { STRUCTURE_MODES, type StructureMode } from "../../../../lib/ta-command-center/chart/structureScene";
+import { STRUCTURE_MODES, type StructureMode } from "../../../../lib/ta-command-center/chart/structure3Scene";
 import DecisionCard from "./DecisionCard";
 import RibbonStrip from "./RibbonStrip";
 import StructureFrames, { STAGE_STYLE } from "./StructureFrames";
@@ -76,7 +76,7 @@ const PREREG: { key: string; text: string }[] = [
   { key: "H2", text: "Chân dưới đổi theo chân trên: Tuần tăng + Ngày CHoCH↑ sau khi chạm dải EMA21–50 — 20 phiên" },
   { key: "H3", text: "Phá vỡ nền (VCP / nền phẳng) trong giai đoạn 2, nền ≤ 3 — 20 phiên" },
   { key: "H4", text: "Nén → mở rộng theo xếp lớp tăng, Tuần không giảm — 20 phiên" },
-  { key: "H5", text: "Cổng cấm vào có giá trị: nhóm bị chặn kém hơn nhóm được phép" },
+  { key: "H5", text: "Cổng cấm vào có giá trị: nhóm bị chặn kém hơn nhóm được phép (cột số = bị chặn − được phép)" },
   { key: "H6", text: "Hợp lưu Elliott: sóng 2 kết thúc trong Fib và dải EMA50–100 — 20 phiên" },
 ];
 
@@ -87,7 +87,7 @@ function Overview({ doc }: { doc: Structure3Doc }) {
   const phase: Record<string, string> = { squeeze: "Nén", expanding: "Đang mở rộng", extended: "Mở hết", normal: "Bình thường", na: "—" };
   return (
     <div className="space-y-2">
-      {doc.decision && <DecisionCard d={doc.decision} />}
+      {doc.decision && <DecisionCard d={doc.decision} evidence={doc.evidence} />}
       {st && rb && (
         <div className="overflow-x-auto">
           <table className="w-full text-[10px]" style={{ borderCollapse: "collapse", minWidth: 420 }} data-testid="mtf3-matrix">
@@ -157,10 +157,31 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
         {tab === "bases" && doc.bases && <BasePanel D={doc.bases.D} W={doc.bases.W} levels={doc.bases.levels} close={doc.ribbon?.context?.D.close ?? null} />}
         {tab === "evidence" && (
           <div className="space-y-2" data-testid="mtf3-evidence">
-            <p className="text-[10px] text-slate-400 leading-snug">Kiểm định đặt trước <b className="text-slate-200">MTF-v3</b> (viết TRƯỚC khi có dữ liệu): VNDirect 2013 → 2026 kể cả mã đã huỷ niêm yết, trong mẫu ≤ 2020, ngoài mẫu ≥ 2021, phí 0,6%, BH-FDR q = 0,10. Chỉ thành phần ĐẠT mới được gắn nhãn “ĐÃ KIỂM ĐỊNH”.</p>
-            <ul className="space-y-0.5">
-              {PREREG.map((h) => <li key={h.key} className="flex gap-2 text-[10px]"><b className="w-6 text-slate-300">{h.key}</b><span className="flex-1 text-slate-400">{h.text}</span><span className="text-amber-300">chưa chạy (S7)</span></li>)}
-            </ul>
+            <p className="text-[10px] text-slate-400 leading-snug">Kiểm định đặt trước <b className="text-slate-200">MTF-v3</b> (viết TRƯỚC khi có dữ liệu, chạy một lần{doc.evidence.ranAt ? ` ${doc.evidence.ranAt.split("-").reverse().join("/")}` : ""}): VNDirect 2013 → 2026{doc.evidence.universe ? `, ${doc.evidence.universe.symbols} mã kể cả ${doc.evidence.universe.delisted} mã đã huỷ niêm yết` : ""}, trong mẫu ≤ 2020, ngoài mẫu ≥ 2021, phí 0,6%, BH-FDR q = 0,10. Chỉ thành phần ĐẠT mới được gắn nhãn “ĐÃ KIỂM ĐỊNH”.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10px]" style={{ borderCollapse: "collapse", minWidth: 480 }} data-testid="mtf3-prereg-table">
+                <thead><tr className="text-left text-[9px] text-slate-500"><th className="py-1 pr-2">GT</th><th className="pr-2">Nội dung</th><th className="pr-2">Ngoài mẫu (sau phí)</th><th className="pr-2">Trong mẫu</th><th>Kết quả</th></tr></thead>
+                <tbody>
+                  {PREREG.map((h) => {
+                    const e = doc.evidence.H?.[h.key], v = e?.verdict;
+                    const o = e?.OOS, i = e?.IS;
+                    return (
+                      <tr key={h.key} className="border-t border-white/5" data-testid={`prereg-${h.key}`}>
+                        <td className="py-1 pr-2 font-bold text-slate-300">{h.key}</td>
+                        <td className="pr-2 text-slate-400">{h.text}</td>
+                        <td className="pr-2 font-mono whitespace-nowrap">{o?.mean != null ? <>{pctS(o.mean)} <span className="text-slate-500">[{pctS(o.ci?.[0])}; {pctS(o.ci?.[1])}] n {h.key === "H5" ? `${o.nF}/${o.nA}` : o.n}</span></> : "—"}</td>
+                        <td className="pr-2 font-mono">{pctS(i?.mean)}</td>
+                        <td className={v === "PASS" ? "text-emerald-300 font-bold" : v === "FAIL" ? "text-rose-300 font-bold" : "text-amber-300"}>{v === "PASS" ? "ĐẠT" : v === "FAIL" ? "KHÔNG ĐẠT" : "chưa chạy"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {doc.evidence.note && <p className="text-[10px] text-amber-200/90 leading-snug" data-testid="mtf3-evidence-summary">{doc.evidence.note}</p>}
+            {doc.evidence.stageTable && (
+              <p className="text-[10px] text-slate-400" data-testid="mtf3-stage-table">Lợi suất vượt trội 20 phiên theo giai đoạn ngày (trong / ngoài mẫu): {(["S1", "S2", "S3", "S4"] as const).map((g) => <span key={g} className="mr-2 whitespace-nowrap"><b className="text-slate-300">{STAGE_STYLE[g].short}</b> {pctS(doc.evidence.stageTable?.[g]?.IS?.mean)} / {pctS(doc.evidence.stageTable?.[g]?.OOS?.mean)}</span>)} — chỉ MÔ TẢ.</p>
+            )}
             <MomentumLedgerCard m={momentum} />
           </div>
         )}

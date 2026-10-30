@@ -452,18 +452,6 @@ router.get("/structure-ledger", handle(async (req, res) => {
   res.json(await getMarketRuntime().structure.ledgerStats());
 }));
 
-// Cấu trúc thị trường đa khung (T4) — Tuần / Ngày / 1 giờ cho một mã. ?h1=0 để bỏ khung 1 giờ.
-router.get("/structure/:symbol", handle(async (req, res) => {
-  const rt = getMarketRuntime();
-  const symbol = String(req.params.symbol || "").toUpperCase();
-  if (!/^[A-Z0-9]{3,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
-  const h1 = String(req.query.h1 ?? "1") !== "0";
-  const live = expectsLiveTicks();
-  const data = await rt.service.cache.wrap(`structure:${symbol}:${h1 ? 1 : 0}`, live ? 60_000 : 10 * 60_000, () => rt.structure.analyze(symbol, { h1 }));
-  res.set("Cache-Control", live ? "private, max-age=30" : "private, max-age=300");
-  res.json(data);
-}));
-
 // MTF v3 (30/10/2026) — Ngày · Tuần · Tháng, không khung 1 giờ (MTF-v3-prereg.md).
 router.get("/structure3/:symbol", handle(async (req, res) => {
   const rt = getMarketRuntime();

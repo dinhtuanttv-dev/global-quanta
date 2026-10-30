@@ -3571,120 +3571,6 @@ var TF_PARAMS = {
   W: { tf: "W", ...SRC, maFast: 10, maSlow: 40, maCtx: null, slopeLen: 3, levelLookback: 260, breakBars: 30, cooldown: 6, minStageBars: 3 }
 };
 
-// src/lib/quant-core/mtf/compact.ts
-var r2 = (x) => x == null || !Number.isFinite(x) ? null : Math.round(x * 100) / 100;
-function displaySegments(a, t = a.bars.length - 1) {
-  const d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
-  let segs = [];
-  for (let i = 0; i <= t; i++) {
-    const s = a.stage[i], cur = segs[segs.length - 1];
-    if (cur && cur.stage === s) {
-      cur.to = d(i);
-      cur.bars++;
-    } else segs.push({ stage: s, label: STAGE_LABEL[s], from: d(i), to: d(i), bars: 1 });
-  }
-  for (let pass = 0; pass < 2; pass++) {
-    const out = [];
-    segs.forEach((s, k) => {
-      const prev = out[out.length - 1];
-      if (prev && k > 0 && k < segs.length - 1 && s.bars < a.params.minStageBars) {
-        prev.to = s.to;
-        prev.bars += s.bars;
-        return;
-      }
-      if (prev && prev.stage === s.stage) {
-        prev.to = s.to;
-        prev.bars += s.bars;
-        return;
-      }
-      out.push({ ...s });
-    });
-    segs = out;
-  }
-  return segs;
-}
-function compactTf(a, { segments = 16, signals = 24, swings = 24, maSeriesBars = 240 } = {}) {
-  const t = a.bars.length - 1, d = (i) => a.bars[Math.max(0, Math.min(t, i))].date;
-  const segs = displaySegments(a, t);
-  const pats = a.patterns.map((p) => ({ p, status: patternStatusAt(p, t) })).filter(({ p, status }) => status && (status !== "failed" || t - (p.failIndex ?? 0) <= 10) && p.start >= t - a.params.levelLookback).slice(-8).map(({ p, status }) => ({
-    type: p.type,
-    name: PATTERN_NAME[p.type],
-    dir: p.dir,
-    status,
-    context: p.context,
-    contextLabel: PATTERN_CONTEXT_TEXT[p.context].short,
-    contextText: PATTERN_CONTEXT_TEXT[p.context].text,
-    followDate: p.followIndex != null && p.followIndex <= t ? d(p.followIndex) : null,
-    points: p.points.map((x) => ({ date: d(x.index), price: r2(x.price), label: x.label })),
-    neck: { d0: d(p.neck.i0), p0: r2(p.neck.p0), d1: d(p.neck.i1), p1: r2(p.neck.p1) },
-    confirmedDate: d(p.confirmedIndex),
-    breakDate: p.breakIndex != null ? d(p.breakIndex) : null,
-    failDate: p.failIndex != null && p.failIndex <= t ? d(p.failIndex) : null,
-    target: r2(p.target),
-    height: r2(p.height)
-  }));
-  return {
-    tf: a.tf,
-    asOf: d(t),
-    close: r2(a.bars[t]?.close),
-    stage: a.stage[t],
-    stageLabel: STAGE_LABEL[a.stage[t]],
-    stageText: STAGE_TEXT[a.stage[t]],
-    stageAge: a.stageAge[t],
-    dow: a.dow[t],
-    ext: a.ext[t] ?? 0,
-    ma: { fast: a.params.maFast, slow: a.params.maSlow, ctx: a.params.maCtx, fastValue: r2(a.maFast[t]), slowValue: r2(a.maSlow[t]), ctxValue: a.maCtx ? r2(a.maCtx[t]) : null },
-    rrNow: a.rrNow ? { entry: r2(a.rrNow.entry), stop: r2(a.rrNow.stop), target: r2(a.rrNow.target), targetBasis: a.rrNow.targetBasis, rr: r2(a.rrNow.rr), ok: a.rrNow.ok } : null,
-    dev: r2(a.dev[t]),
-    slope: r2(a.slope[t]),
-    spread: r2(a.spread[t]),
-    atr: r2(a.atr[t]),
-    segments: segs.slice(-segments),
-    zones: a.zones.map((z) => ({ ...z, lo: r2(z.lo), hi: r2(z.hi), mid: r2(z.mid), strength: r2(z.strength) })),
-    base: a.base ? { ...a.base, from: d(a.base.start), to: d(a.base.end), lo: r2(a.base.lo), hi: r2(a.base.hi), rangeAtr: r2(a.base.rangeAtr) } : null,
-    patterns: pats,
-    signals: a.signals.slice(-signals).map((s) => ({ date: d(s.index), code: s.code, side: s.side, price: r2(s.price), note: s.note })),
-    swings: a.swings.mid.filter((s) => s.confirmedIndex <= t).slice(-swings).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price), confirmedDate: d(s.confirmedIndex) })),
-    /** Sóng "mức 4 giờ" (sóng lớn, 4 ATR) — đỉnh / đáy mà tài liệu gọi là "điểm cắt giá ở mức 4 giờ". */
-    swingsLarge: a.swings.large.filter((s) => s.confirmedIndex <= t).slice(-12).map((s) => ({ date: d(s.index), kind: s.kind, price: r2(s.price), confirmedDate: d(s.confirmedIndex) })),
-    checklistBuy: a.checklistBuy,
-    checklistSell: a.checklistSell,
-    /** Chuỗi MA nhanh / chậm / bối cảnh của N nến cuối (biểu đồ khung nhỏ thường tải ít nến hơn chu kỳ MA80 / MA100). */
-    maSeries: (() => {
-      const from = Math.max(0, t + 1 - maSeriesBars);
-      const pick = (arr) => arr ? arr.slice(from, t + 1).map((v) => r2(v)) : null;
-      return { dates: a.bars.slice(from, t + 1).map((b) => b.date), fast: pick(a.maFast), slow: pick(a.maSlow), ctx: pick(a.maCtx) };
-    })()
-  };
-}
-function compactStructure(m) {
-  const d = m.tfs.D, h = m.tfs.H1, w = m.tfs.W;
-  let dayContextOnH1 = null;
-  if (h && m.dayStageOnH1) {
-    dayContextOnH1 = [];
-    m.dayStageOnH1.forEach((s, i) => {
-      const cur = dayContextOnH1[dayContextOnH1.length - 1], dt = h.bars[i].date;
-      if (cur && cur.stage === s) cur.to = dt;
-      else dayContextOnH1.push({ stage: s, label: s ? STAGE_LABEL[s] : null, from: dt, to: dt });
-    });
-  }
-  return {
-    version: m.version,
-    asOf: m.asOf,
-    context: m.context,
-    ext: m.ext,
-    align: m.align,
-    checklist: m.checklist,
-    rrNow: m.rrNow ? { entry: r2(m.rrNow.entry), stop: r2(m.rrNow.stop), target: r2(m.rrNow.target), targetBasis: m.rrNow.targetBasis, rr: r2(m.rrNow.rr), ok: m.rrNow.ok } : null,
-    scenarios: m.scenarios.map((s) => ({ ...s, trigger: r2(s.trigger), entry: r2(s.entry), stop: r2(s.stop), targets: s.targets.map((x) => r2(x)), rr: r2(s.rr) })),
-    tfs: { ...w ? { W: compactTf(w, { segments: 10 }) } : {}, D: compactTf(d), ...h ? { H1: compactTf(h) } : {} },
-    annotations: m.annotations.map((a) => ({ tf: a.tf, kind: a.kind, date: a.date, price: r2(a.price), text: a.text, detail: a.detail, tone: a.tone })),
-    timeline: m.timeline.map((r) => ({ tf: r.tf, segments: r.segments.slice(-40).map((s) => ({ stage: s.stage, label: s.label, from: s.from, to: s.to })) })),
-    dayContextOnH1,
-    narrative: m.narrative
-  };
-}
-
 // src/lib/quant-core/mtf/index.ts
 var MTF_STRUCTURE_VERSION = "2.0.0";
 function analyzeTf(bars, tf, over = {}) {
@@ -3933,13 +3819,13 @@ function classifyMotive(p, position = "unknown") {
   if (p.length < 6) return [];
   const s = dirOf(p[0], p[1]);
   const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
-  const r25 = w[1] / w[0], r4 = w[3] / w[2];
+  const r24 = w[1] / w[0], r4 = w[3] / w[2];
   const w3Shortest = w[2] < w[0] && w[2] < w[4];
   const overlap = s * (p[4].price - p[1].price) <= 0;
   const w3Beyond = s * (p[3].price - p[1].price) > 0;
   const w5Beyond = s * (p[5].price - p[3].price) > 0;
   const base = [
-    { id: "w2-origin", severity: "hard", pass: r25 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r25)})` },
+    { id: "w2-origin", severity: "hard", pass: r24 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r24)})` },
     { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
     { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
   ];
@@ -3959,7 +3845,7 @@ function classifyMotive(p, position = "unknown") {
     { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
     { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
     { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
-    { id: "diag-deep", severity: "soft", pass: r25 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+    { id: "diag-deep", severity: "soft", pass: r24 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
   ];
   if (position !== "middle") {
     if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
@@ -5069,7 +4955,7 @@ function compactStructure3(a, opts = {}) {
 
 // src/lib/quant-core/mtf3/elliott3.ts
 var ELLIOTT3 = { w2Retrace: [0.382, 0.786], w4Retrace: [0.236, 0.618], bandAtr: 0.5, minBars: 60 };
-var r22 = (x) => Math.round(x * 100) / 100;
+var r2 = (x) => Math.round(x * 100) / 100;
 var candlesOf = (bars) => bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
 function primaryOf(bars) {
   if (bars.length < ELLIOTT3.minBars) return null;
@@ -5107,12 +4993,12 @@ function elliott3(daily, a) {
       const band = [e1, e2, at2].every(Number.isFinite) ? [Math.min(e1, e2) - ELLIOTT3.bandAtr * at2, Math.max(e1, e2) + ELLIOTT3.bandAtr * at2] : null;
       waveEnd = {
         wave: isW2 ? "2" : "4",
-        price: r22(e.price),
+        price: r2(e.price),
         date: ti >= 0 ? daily[ti].date : null,
-        retrace: retrace == null ? null : r22(retrace),
+        retrace: retrace == null ? null : r2(retrace),
         inFibZone: retrace == null ? null : retrace >= lo && retrace <= hi,
         inEmaBand: band ? e.price >= band[0] && e.price <= band[1] : null,
-        band: band ? [r22(band[0]), r22(band[1])] : null,
+        band: band ? [r2(band[0]), r2(band[1])] : null,
         bandName: isW2 ? "EMA50\u2013EMA100" : "EMA21\u2013EMA50"
       };
     }
@@ -5121,9 +5007,9 @@ function elliott3(daily, a) {
   const nested3 = day?.template === "wave3" && week?.template === "wave3" && day.dir === week.dir ? day.dir : null;
   const relation = !day?.dir || !week?.dir ? "unclear" : day.dir === week.dir ? "aligned" : week.template === "wave3" || week.template === "wave5" ? "pullback" : "counter";
   const relationText = relation === "aligned" ? `Ng\xE0y v\xE0 Tu\u1EA7n c\xF9ng chi\u1EC1u ${day.dir === "up" ? "t\u0103ng" : "gi\u1EA3m"}` : relation === "pullback" ? "Ng\xE0y \u0111ang \u0111i\u1EC1u ch\u1EC9nh ng\u01B0\u1EE3c chi\u1EC1u s\xF3ng \u0111\u1EA9y c\u1EE7a Tu\u1EA7n" : relation === "counter" ? "Ng\xE0y ng\u01B0\u1EE3c chi\u1EC1u Tu\u1EA7n" : "Ch\u01B0a \u0111\u1EE7 k\u1ECBch b\u1EA3n \u1EDF m\u1ED9t trong hai khung";
-  const inv = sc ? { price: r22(sc.invalidation.price), side: sc.dir > 0 ? "below" : "above", reason: sc.invalidation.text } : null;
+  const inv = sc ? { price: r2(sc.invalidation.price), side: sc.dir > 0 ? "below" : "above", reason: sc.invalidation.text } : null;
   const pl = a.D.dow.protectedLow[t], at = R2.atr[t];
-  const stopAgreement = inv && inv.side === "below" && Number.isFinite(pl) && at > 0 ? { elliott: inv.price, dow: r22(pl), gapAtr: r22((pl - inv.price) / at) } : null;
+  const stopAgreement = inv && inv.side === "below" && Number.isFinite(pl) && at > 0 ? { elliott: inv.price, dow: r2(pl), gapAtr: r2((pl - inv.price) / at) } : null;
   return {
     day,
     week,
@@ -5132,10 +5018,10 @@ function elliott3(daily, a) {
     nested3,
     waveEnd,
     confluence,
-    trigger: sc ? { price: r22(sc.trigger.price), text: sc.trigger.text } : null,
+    trigger: sc ? { price: r2(sc.trigger.price), text: sc.trigger.text } : null,
     invalidation: inv,
     stopAgreement,
-    targets: (sc?.targets ?? []).slice(0, 3).map((x) => ({ label: x.label, price: r22(x.price) }))
+    targets: (sc?.targets ?? []).slice(0, 3).map((x) => ({ label: x.label, price: r2(x.price) }))
   };
 }
 
@@ -5175,9 +5061,9 @@ function levelsAt(a, t) {
     const highs = c.filter((p) => p.kind === "H").length, lows = c.length - highs;
     const flipped = role2 === "support" && highs > 0 && highs >= lows || role2 === "resistance" && lows > 0 && lows >= highs;
     out.push({
-      price: r23(price),
-      lo: r23(Math.min(...c.map((p) => p.price))),
-      hi: r23(Math.max(...c.map((p) => p.price))),
+      price: r22(price),
+      lo: r22(Math.min(...c.map((p) => p.price))),
+      hi: r22(Math.max(...c.map((p) => p.price))),
       strength,
       touches: c.length,
       frames: [...new Set(c.map((p) => p.tf))].sort(),
@@ -5194,7 +5080,7 @@ function htfResistanceNear(levels, close, atr3, atrs = 1) {
   return levels.filter((l) => l.role === "resistance" && (l.frames.includes("W") || l.frames.includes("M")) && l.touches >= 2 && l.lo > close && l.lo <= close + atrs * atr3).sort((x, y) => x.lo - y.lo)[0] ?? null;
 }
 var avg = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
-var r23 = (x) => Math.round(x * 100) / 100;
+var r22 = (x) => Math.round(x * 100) / 100;
 
 // src/lib/quant-core/mtf3/bases.ts
 var BASE = {
@@ -5386,7 +5272,7 @@ var GATE_LABEL = {
   spent: "D\u1EA3i MA \u0111\xE3 m\u1EDF h\u1EBFt (\u2265 90%) v\xE0 x\u1EBFp l\u1EDBp \u2265 40 phi\xEAn",
   againstWeek: "Ng\u01B0\u1EE3c khung Tu\u1EA7n (Tu\u1EA7n gi\u1EA3m / t\u0103ng \u0111\xE3 g\xE3y)"
 };
-var r24 = (x) => Math.round(x * 100) / 100;
+var r23 = (x) => Math.round(x * 100) / 100;
 function decisionAt(a, t, elliottTarget = null) {
   const D = a.D, R2 = D.r, c = R2.bars[t].close, atr3 = R2.atr[t];
   const wi = a.ribbon.wIdx[t] ?? -1, wState = wi >= 0 ? a.W.dow.state[wi] : null;
@@ -5408,15 +5294,15 @@ function decisionAt(a, t, elliottTarget = null) {
   const reversal = choch && D.stage.stage[t] === "S1" && wState !== "DOWN";
   const setups = [
     { key: "pullback", on: pullback, why: trig.side === "L" ? touched ? "Tu\u1EA7n t\u0103ng + Ng\xE0y \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191, v\u1EEBa ch\u1EA1m d\u1EA3i EMA21\u201350" : "C\xF3 \u0111\u1ED3ng pha nh\u01B0ng ch\u01B0a v\u1EC1 d\u1EA3i EMA21\u201350" : "Ch\u01B0a c\xF3 \u0111\u1ED3ng pha Tu\u1EA7n \xD7 Ng\xE0y" },
-    { key: "breakout", on: breakout, why: !base ? "Ch\u01B0a c\xF3 n\u1EC1n" : freshBreak ? D.stage.stage[t] !== "S2" ? "Ph\xE1 v\u1EE1 nh\u01B0ng kh\xF4ng \u1EDF giai \u0111o\u1EA1n 2" : base.valid ? `Ph\xE1 v\u1EE1 ${base.footprint}` : `N\u1EC1n ch\u01B0a \u0111\u1EA1t: ${base.reasons.join(", ")}` : `\u0110ang trong n\u1EC1n \u2014 pivot ${r24(base.pivot)}` },
+    { key: "breakout", on: breakout, why: !base ? "Ch\u01B0a c\xF3 n\u1EC1n" : freshBreak ? D.stage.stage[t] !== "S2" ? "Ph\xE1 v\u1EE1 nh\u01B0ng kh\xF4ng \u1EDF giai \u0111o\u1EA1n 2" : base.valid ? `Ph\xE1 v\u1EE1 ${base.footprint}` : `N\u1EC1n ch\u01B0a \u0111\u1EA1t: ${base.reasons.join(", ")}` : `\u0110ang trong n\u1EC1n \u2014 pivot ${r23(base.pivot)}` },
     { key: "expansion", on: expansion, why: exp ? "D\u1EA3i EMA v\u1EEBa tho\xE1t n\xE9n v\xE0 m\u1EDF r\u1ED9ng theo x\u1EBFp l\u1EDBp t\u0103ng" : `D\u1EA3i ${R2.phase[t] === "squeeze" ? "\u0111ang n\xE9n \u2014 ch\u1EDD bung" : "ch\u01B0a c\xF3 s\u1EF1 ki\u1EC7n m\u1EDF r\u1ED9ng"}` },
     { key: "reversal", on: reversal, why: choch ? `\u0110\u1ED5i t\xEDnh ch\u1EA5t \u2191 khi giai \u0111o\u1EA1n ${D.stage.stage[t]}` : "Ch\u01B0a \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191" }
   ].map((s) => ({ ...s, label: SETUP_LABEL[s.key] }));
   const active = setups.find((s) => s.on)?.key ?? null;
   const lv = levelsAt(a, t), res = Number.isFinite(atr3) ? htfResistanceNear(lv, c, atr3, DECISION.htfAtr) : null;
   const gates = [
-    { key: "over", hit: R2.dev50[t] >= DECISION.overAtr, detail: Number.isFinite(R2.dev50[t]) ? `l\u1EC7ch ${r24(R2.dev50[t])} ATR` : null },
-    { key: "htfResistance", hit: !!res, detail: res ? `${res.frames.join("/")} ${r24(res.price)} (${res.touches} l\u1EA7n ch\u1EA1m)` : null },
+    { key: "over", hit: R2.dev50[t] >= DECISION.overAtr, detail: Number.isFinite(R2.dev50[t]) ? `l\u1EC7ch ${r23(R2.dev50[t])} ATR` : null },
+    { key: "htfResistance", hit: !!res, detail: res ? `${res.frames.join("/")} ${r23(res.price)} (${res.touches} l\u1EA7n ch\u1EA1m)` : null },
     { key: "spent", hit: (R2.widthPct[t] ?? 0) >= DECISION.extendedPct && R2.orderAge[t] >= DECISION.extendedAge, detail: R2.widthPct[t] != null ? `d\u1EA3i ${Math.round(R2.widthPct[t])}% \xB7 x\u1EBFp l\u1EDBp ${R2.orderAge[t]} phi\xEAn` : null },
     { key: "againstWeek", hit: wState === "DOWN" || wState === "BROKEN_UP", detail: wState }
   ].map((g) => ({ ...g, label: GATE_LABEL[g.key] }));
@@ -5428,9 +5314,9 @@ function decisionAt(a, t, elliottTarget = null) {
     if (Number.isFinite(stopRef)) {
       const stop = Math.min(stopRef - DECISION.stopBufAtr * atr3, c - DECISION.minStopAtr * atr3), risk = c - stop;
       const lvT = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => x.lo - y.lo)[0] ?? null;
-      const [target1, t1Basis] = lvT ? [lvT.lo, `kh\xE1ng c\u1EF1 ${lvT.frames.join("/")} ${r24(lvT.price)}`] : [c + 2 * risk, "2R (kh\xF4ng c\xF3 m\u1EE9c c\u1EA3n ph\xEDa tr\xEAn)"];
-      const rr1 = r24(risk > 0 ? (target1 - c) / risk : 0);
-      plan = { entry: r24(c), stop: r24(stop), stopBasis, target1: r24(target1), target1Basis: t1Basis, target2: elliottTarget != null && elliottTarget > target1 ? r24(elliottTarget) : r24(c + 3 * risk), rr1, ok: rr1 >= DECISION.minRr, trail: Number.isFinite(pl) ? r24(pl) : null };
+      const [target1, t1Basis] = lvT ? [lvT.lo, `kh\xE1ng c\u1EF1 ${lvT.frames.join("/")} ${r23(lvT.price)}`] : [c + 2 * risk, "2R (kh\xF4ng c\xF3 m\u1EE9c c\u1EA3n ph\xEDa tr\xEAn)"];
+      const rr1 = r23(risk > 0 ? (target1 - c) / risk : 0);
+      plan = { entry: r23(c), stop: r23(stop), stopBasis, target1: r23(target1), target1Basis: t1Basis, target2: elliottTarget != null && elliottTarget > target1 ? r23(elliottTarget) : r23(c + 3 * risk), rr1, ok: rr1 >= DECISION.minRr, trail: Number.isFinite(pl) ? r23(pl) : null };
     }
   }
   const trigPrice = active === "breakout" && base ? base.pivot : D.dow.lastHigh[t];
@@ -5489,21 +5375,21 @@ export {
   analyzeStructureMtf,
   analyzeTf as analyzeStructureTf,
   analyzeTfSeries as analyzeStructureTfSeries,
+  baseAt2 as base3At,
   buildStructure3,
   buildWaveTree,
   closedHtfIndex,
   clusterLevels,
   compactBases3,
   compactRibbon3,
-  compactStructure,
   compactStructure3,
-  compactTf as compactStructureTf,
   context3At,
   convergenceAt,
   decisionAt as decision3At,
   elliott3,
   evaluateLifecycle,
   minutesToH1,
+  mtfTriggerAt as mtf3TriggerAt,
   patternStatusAt,
   randomWalkHitProb,
   recentBuy,

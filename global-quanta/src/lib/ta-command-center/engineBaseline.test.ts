@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { analyze } from "../quant-core";
 import { AnalysisController } from "./AnalysisController";
 import { buildScene } from "./chart/buildScene";
-import { structureSceneItems, structureMarkers, structureLevels } from "./chart/structureScene";
+import { structure3SceneItems as structureSceneItems, structure3Markers as structureMarkers, structure3Levels as structureLevels } from "./chart/structure3Scene";
 import { elliottProSummary } from "./chart/elliottProScene";
 import { DEFAULT_LAYER_STATE, type LayerState } from "./LayerManager";
 import { aggregateToWeekly } from "./TimeframeController";
@@ -18,9 +18,9 @@ import { calculateADX, calculateMACD, calculateRSI } from "./detectors/technical
 import { elliottMtf } from "../quant-core/elliott/mtf";
 import { buildWaveTree } from "../quant-core/elliott/v3/waveTree";
 import { evaluateLifecycle, scenariosFromTree } from "../quant-core/elliott/v3/scenarios";
-import { analyzeStructureMtf, compactStructure } from "../quant-core/mtf";
+import { buildStructure3 } from "../quant-core/mtf3/doc";
 import type { OhlcvBar } from "./types";
-import type { StructureDoc } from "../../hooks/useStructure";
+import type { Structure3Doc } from "../../hooks/useStructure3";
 
 type Row = [string, number, number, number, number, number];
 const fx = JSON.parse(readFileSync(path.resolve(process.cwd(), "src/lib/ta-command-center/__fixtures__/ssiDaily800.json"), "utf8")) as Record<"FPT" | "VNINDEX", { bars: Row[] }>;
@@ -59,13 +59,14 @@ function fingerprint(symbol: "FPT" | "VNINDEX", tf: "D" | "W") {
     bars, smc, wyckoff: wy, layers: ALL_ON, primitives: [], draft: null, elliottDraft: [], fibExtension: false, highlight: null,
     profile: a.profile ?? null, avwap: a.avwap ?? null, elliott: ell, pring: null, elliottPro: pro,
   });
-  const doc = compactStructure(analyzeStructureMtf({ d: daily })) as unknown as StructureDoc;
+  // 30/10/2026 (MTF v3 S7, anh duyệt S0–S7): lớp Cấu trúc v2 được thay bằng v3 — cập nhật bản ghi nền cho các khoá structure*.
+  const doc = { ...buildStructure3(daily, { elliott: false }), symbol, priceBasis: null, evidence: { label: "", note: "" } } as unknown as Structure3Doc;
   const st = Object.fromEntries((["overview", "trade", "deep"] as const).map((m) => [m, fp(structureSceneItems(bars, tf, doc, m))]));
   ctl.destroy();
   return {
     counts: {
       bars: bars.length, scene: countBy(scene.items, (i) => i.kind), smc: smc.totals, vsa: vsa.length, wyckoffPhase: wy.phase,
-      elliottDayPoints: mtf.day?.scenario?.points?.length ?? 0, chochN: a.backtest.chochBull.n + a.backtest.chochBear.n, v3Scenarios: scenarios.length, structureStage: doc.tfs[tf]?.stage ?? null,
+      elliottDayPoints: mtf.day?.scenario?.points?.length ?? 0, chochN: a.backtest.chochBull.n + a.backtest.chochBear.n, v3Scenarios: scenarios.length, structureStage: doc.structure?.context?.[tf === "W" ? "W" : "D"]?.stage ?? null,
     },
     hash: {
       analyze: fp(a), smc: fp(smc), vsa: fp(vsa), wyckoff: fp(wy), backtest: fp(a.backtest), oscillators: fp([rsi, macd, adx]),

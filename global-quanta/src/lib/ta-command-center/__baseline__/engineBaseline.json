@@ -26,7 +26,7 @@
    "elliottDayPoints": 6,
    "chochN": 16,
    "v3Scenarios": 0,
-   "structureStage": "DOWN"
+   "structureStage": "S4"
   },
   "hash": {
    "analyze": "37b357b3b49deddc",
@@ -40,14 +40,14 @@
    "scenarios": "4f53cda18c2baa0c",
    "elliottProSummary": "cfeebd3730d782cc",
    "scene": "c1bc1c834cce0379",
-   "structureDoc": "c69b3caaa63d0b15",
+   "structureDoc": "d7f4e6b62f913f60",
    "structureScene": {
-    "overview": "198ec49fdc88578d",
-    "trade": "e541f3980b150e90",
-    "deep": "8b70eabebbfbd7c0"
+    "overview": "2dde3ff2dfe06c4f",
+    "trade": "0e1b485af2fbc842",
+    "deep": "1a9e7c9573484a88"
    },
-   "structureMarkers": "4cfd74f8dc77a6e1",
-   "structureLevels": "6eca8d0604d4d974"
+   "structureMarkers": "c53137efe22613c4",
+   "structureLevels": "367b83fa949a4da5"
   }
  },
  "FPT_W": {
@@ -76,7 +76,7 @@
    "elliottDayPoints": 6,
    "chochN": 3,
    "v3Scenarios": 2,
-   "structureStage": "DOWN"
+   "structureStage": "NA"
   },
   "hash": {
    "analyze": "5473e57a6c418b45",
@@ -90,14 +90,14 @@
    "scenarios": "6929e398bc84611b",
    "elliottProSummary": "a195392fe77c21ae",
    "scene": "79ab2c1bb0231cda",
-   "structureDoc": "c69b3caaa63d0b15",
+   "structureDoc": "d7f4e6b62f913f60",
    "structureScene": {
-    "overview": "92858e8c625c160c",
-    "trade": "81e0559318164f1a",
-    "deep": "71ca574bc024f751"
+    "overview": "e10b06eb45f849b2",
+    "trade": "740a20075e8e43f0",
+    "deep": "b41ef5e8b7075cbf"
    },
-   "structureMarkers": "4e64078115f2d219",
-   "structureLevels": "6eca8d0604d4d974"
+   "structureMarkers": "1d81171f362241f7",
+   "structureLevels": "367b83fa949a4da5"
   }
  },
  "VNINDEX_D": {
@@ -126,7 +126,7 @@
    "elliottDayPoints": 6,
    "chochN": 19,
    "v3Scenarios": 1,
-   "structureStage": "DOWN"
+   "structureStage": "S1"
   },
   "hash": {
    "analyze": "be2d350bfd8e158f",
@@ -140,14 +140,14 @@
    "scenarios": "92a0abc6cde9cc10",
    "elliottProSummary": "d36b5bba35fbc75c",
    "scene": "78f71780efe99b4b",
-   "structureDoc": "f66a271aa4b20fea",
+   "structureDoc": "65c561ce1ddb96a5",
    "structureScene": {
-    "overview": "a840e622bee716fd",
-    "trade": "8f28a78545ede950",
-    "deep": "be98dd1c887672b3"
+    "overview": "3389d0ee8341bb16",
+    "trade": "f1aad223f6cb3db4",
+    "deep": "3987ecea44406940"
    },
-   "structureMarkers": "b29ab2db315c45d2",
-   "structureLevels": "76c5a77c11f28f81"
+   "structureMarkers": "61430f365bf70c8f",
+   "structureLevels": "8e06efe7305808e3"
   }
  },
  "VNINDEX_W": {
@@ -177,7 +177,7 @@
    "elliottDayPoints": 6,
    "chochN": 2,
    "v3Scenarios": 3,
-   "structureStage": "D"
+   "structureStage": "NA"
   },
   "hash": {
    "analyze": "bc848b1108848b94",
@@ -191,14 +191,14 @@
    "scenarios": "6d32012f42c86381",
    "elliottProSummary": "4aeb5cf4c7956d5b",
    "scene": "241d8b6bc3d30fb2",
-   "structureDoc": "f66a271aa4b20fea",
+   "structureDoc": "65c561ce1ddb96a5",
    "structureScene": {
-    "overview": "dd5fc895a3a8e57f",
-    "trade": "6a76872832ad2e3a",
-    "deep": "54bd1c96ae6a3110"
+    "overview": "c5e343d6f893b42d",
+    "trade": "3364a18df5cb3ae7",
+    "deep": "374f535afeb9b033"
    },
-   "structureMarkers": "33c0f1788e12b54e",
-   "structureLevels": "76c5a77c11f28f81"
+   "structureMarkers": "2efebe86d874a0de",
+   "structureLevels": "8e06efe7305808e3"
   }
  }
 }

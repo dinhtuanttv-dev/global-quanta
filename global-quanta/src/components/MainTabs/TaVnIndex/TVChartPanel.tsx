@@ -50,8 +50,7 @@ import type { AnalysisController as Controller } from "../../../lib/ta-command-c
 import type { LayerState, LayerKey } from "../../../lib/ta-command-center/LayerManager";
 import { usePatternDetail } from "../../../hooks/usePatterns";
 import { toChartWeekly } from "../../../lib/ta-command-center/chart/pringScene";
-import type { StructureMode } from "../../../lib/ta-command-center/chart/structureScene";
-import { structure3Levels, structure3Markers, structure3SceneItems, structure3TfFor } from "../../../lib/ta-command-center/chart/structure3Scene";
+import { structure3Levels, structure3Markers, structure3SceneItems, structure3TfFor, type StructureMode } from "../../../lib/ta-command-center/chart/structure3Scene";
 import { useStructureSummary } from "../../../hooks/useStructure";
 import { useStructure3, type Structure3Doc } from "../../../hooks/useStructure3";
 import Mtf3Panel from "./mtf3/Mtf3Panel";

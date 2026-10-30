@@ -10,7 +10,15 @@ import type { ChartMarkerInput } from "../TVChartManager";
 import type { Base3View, DowEvent, Stage4, Structure3Doc, Tf3 } from "../../../hooks/useStructure3";
 import { GQ_COLORS, rgba, type SceneItem } from "./scene";
 import { mondayOf } from "./pringScene";
-import { fmtPrice, type PriceLevel, type StructureMode } from "./structureScene";
+
+export type StructureMode = "overview" | "trade" | "deep";
+export const STRUCTURE_MODES: { key: StructureMode; label: string; hint: string }[] = [
+  { key: "overview", label: "Tổng quan", hint: "Dải giai đoạn S1–S4 + hỗ trợ / kháng cự gần nhất" },
+  { key: "trade", label: "Giao dịch", hint: "Thêm đáy bảo vệ / đỉnh hồi, nền giá + pivot, kế hoạch, mốc CHoCH / BOS" },
+  { key: "deep", label: "Chuyên sâu", hint: "Thêm mọi mức giá, đường sóng, nhịp co của nền, kết thúc sóng 2 / 4" },
+];
+export const fmtPrice = (v: number) => (Math.abs(v) >= 1000 ? Math.round(v).toLocaleString("vi-VN") : v.toLocaleString("vi-VN", { maximumFractionDigits: 2 }));
+export interface PriceLevel { price: number; color: string; title: string }
 
 const STAGE_FILL: Record<Stage4, string | null> = { S1: rgba(GQ_COLORS.cyan, 0.035), S2: rgba(GQ_COLORS.bull, 0.05), S3: rgba(GQ_COLORS.amber, 0.06), S4: rgba(GQ_COLORS.bear, 0.06), NA: null };
 const STAGE_COLOR: Record<Stage4, string> = { S1: GQ_COLORS.cyan, S2: GQ_COLORS.bull, S3: GQ_COLORS.amber, S4: GQ_COLORS.bear, NA: GQ_COLORS.text2 };
