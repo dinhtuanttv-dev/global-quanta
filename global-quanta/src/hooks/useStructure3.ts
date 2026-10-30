@@ -13,10 +13,29 @@ export interface RibbonSnapshot {
 }
 export interface RibbonContext { D: RibbonSnapshot; W: RibbonSnapshot; M: RibbonSnapshot; align: number; nested: "up" | "down" | null }
 export interface RibbonLines { dates: string[]; ema21: (number | null)[]; ema50: (number | null)[]; ema100: (number | null)[]; ma200: (number | null)[] }
+export type Stage4 = "S1" | "S2" | "S3" | "S4" | "NA";
+export type DowState = "UP" | "UP_WEAK" | "BROKEN_UP" | "DOWN" | "DOWN_WEAK" | "BROKEN_DOWN" | "RANGE";
+export type DowEvent = "CHOCH_UP" | "CHOCH_DOWN" | "BOS_UP" | "BOS_DOWN" | "BREAK_PROTECTED_LOW" | "BREAK_PULLBACK_HIGH";
+export interface FrameSnapshot {
+  tf: Tf3; date: string | null; dow: DowState; dowLabel: string;
+  protectedLow: number | null; pullbackHigh: number | null; lastHigh: number | null; lastLow: number | null;
+  lastEvent: { type: DowEvent; label: string; ago: number; date: string; close: number } | null;
+  stage: Stage4; stageLabel: string; stageAge: number; templateScore: number; template: { key: string; ok: boolean | null; text: string }[];
+}
+export interface MtfTrigger { side: "L" | "S" | null; steps: { key: string; ok: boolean; text: string }[]; ago: number | null }
+export interface Context3 { ribbon: RibbonContext; D: FrameSnapshot; W: FrameSnapshot; M: FrameSnapshot; trigger: MtfTrigger }
+export interface FrameDraw {
+  swings: { kind: "H" | "L"; date: string; price: number; confirmedDate: string }[];
+  swingsMajor: { kind: "H" | "L"; date: string; price: number; confirmedDate: string }[];
+  events: { date: string; type: DowEvent; label: string; close: number | null }[];
+  segments: { stage: Stage4; from: string; to: string; bars: number }[];
+}
 export interface Structure3Doc {
   version: string; symbol: string; asOf: string; priceBasis: string | null;
   bars: Record<Tf3, number>;
   ribbon: { context: RibbonContext | null; lines: Record<Tf3, RibbonLines> };
+  /** S2: Dow + giai đoạn + "chân dưới đổi theo chân trên". */
+  structure?: { context: Context3 | null; frames: Record<Tf3, FrameDraw> };
   evidence: { label: string; note: string };
 }
 

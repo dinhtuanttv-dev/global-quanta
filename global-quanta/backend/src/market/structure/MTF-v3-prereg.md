@@ -67,3 +67,7 @@ Không chạy lại với tham số khác; nếu sửa engine sau khi chạy, ph
    nến ĐẦU TIÊN đủ điều kiện (không lặp trong 10 nến) và cần độ rộng dải ≥ 0,5 ATR tại nến đó. Lý do: test tổng hợp cho thấy định nghĩa
    gốc phát 3 nến liền nhau và bắt cả nhiễu khi ba EMA gần trùng (rộng 0,08 ATR). "Xếp lớp tăng" cho sự kiện = τ thứ tự = +1 trên các
    đường đã có giá trị (21/50/100, cộng MA200 nếu đủ 200 nến).
+2. (2026-10-30, khi viết S2 — TRƯỚC khi tải dữ liệu, chưa có kết quả nào) Giai đoạn S2: đã ở S2 thì GIỮ S2 khi close > MA200, MA200 dốc
+   lên (20 phiên) và EMA50 > MA200 dù tạm mất điều kiện (4)/(5)/(7) — vào S2 lần đầu vẫn cần đủ 7 điều kiện. Lý do: test tổng hợp cho thấy
+   định nghĩa gốc gắn nhịp điều chỉnh bình thường trong xu hướng tăng (giá dưới EMA50, trên MA200 đang lên) là "S1 tích lũy" — sai với
+   Minervini (nền giá hình thành ngay trong giai đoạn 2). H1 (vào giai đoạn 2) không đổi vì chỉ tính lần CHUYỂN sang S2.

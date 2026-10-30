@@ -109,3 +109,28 @@ describe("MTF — sổ thời gian thực M1 'đà tăng tiếp diễn'", () => 
     expect(card.querySelector("[role=progressbar]")!.getAttribute("aria-valuenow")).toBe("10");
   });
 });
+
+describe("MTF v3 — dải EMA + cấu trúc ba khung trong bảng (sửa lỗi S1: replay luôn được truyền)", () => {
+  it("hiện khi KHÔNG phát lại (replay.index = null), ẩn khi đang phát lại", async () => {
+    const snap = (tf: string) => ({ tf, date: "2026-10-29", bars: 300, close: 100, ema21: 98, ema50: 95, ema100: 90, ma200: 85, order: 1, orderAge: 3, width: 1, widthPct: 50, dev50: 1, gap: 1, slope: { e21: 0, e50: 0, e100: 0, ma200: 0 }, phase: "normal", over: 0, lastExpand: null, inBand: false });
+    const fr = (tf: string) => ({ tf, date: "2026-10-29", dow: "UP", dowLabel: "", protectedLow: 90, pullbackHigh: null, lastHigh: 110, lastLow: 95, lastEvent: null, stage: "S2", stageLabel: "", stageAge: 5, templateScore: 7, template: [] });
+    const ribbon = { D: snap("D"), W: snap("W"), M: snap("M"), align: 3, nested: null };
+    const s3 = { version: "3.0.0-s2", symbol: "FPT", asOf: "2026-10-29", priceBasis: null, bars: { D: 1, W: 1, M: 1 }, evidence: { label: "", note: "" },
+      ribbon: { context: ribbon, lines: {} }, structure: { context: { ribbon, D: fr("D"), W: fr("W"), M: fr("M"), trigger: { side: null, ago: null, steps: [] } }, frames: {} } };
+    vi.stubGlobal("fetch", vi.fn(async (u: string) => ({ ok: true, status: 200, json: async () => (String(u).includes("/structure3/") ? s3 : { rows: [] }) })));
+    const el = document.createElement("div"); document.body.appendChild(el); root = createRoot(el);
+    const doc = { ...docOf(), symbol: "FPT" };
+    const render = (index: number | null) => act(async () => {
+      root!.render(<SWRConfig value={{ provider: () => new Map() }}>
+        <StructurePanel doc={doc} isLoading={false} mode="trade" onModeChange={() => {}} timeframeKey="D" bars={bars} timeframe="D"
+          replay={{ index, min: 10, max: 100, date: null, available: true, onChange: () => {} }} />
+      </SWRConfig>);
+      await new Promise((r) => setTimeout(r, 30));
+    });
+    await render(null);
+    expect(el.querySelector("[data-testid=ribbon-strip]")).not.toBeNull();
+    expect(el.querySelector("[data-testid=structure-frames]")).not.toBeNull();
+    await render(50);
+    expect(el.querySelector("[data-testid=ribbon-strip]")).toBeNull();
+  });
+});
