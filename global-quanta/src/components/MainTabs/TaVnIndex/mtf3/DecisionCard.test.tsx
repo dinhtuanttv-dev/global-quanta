@@ -31,5 +31,20 @@ describe("DecisionCard", () => {
     expect(screen.getByTestId("decision3-rr").textContent).toBe("1 : 0,57");
     expect(screen.getByTestId("decision3-plan").textContent).toContain("không đạt");
     expect(screen.getByTestId("decision3").textContent).not.toMatch(/\bMUA\b|\bBÁN\b/);
+    expect(screen.getByTestId("decision3-evidence").textContent).toBe("MÔ TẢ · chưa kiểm định");
+  });
+
+  it("có kết quả kiểm định: nhãn KHÔNG ĐẠT, số ngoài mẫu cạnh thiết lập, ghi chú H5 khi nhóm bị chặn tốt hơn", () => {
+    const ev = {
+      label: "MÔ TẢ", note: "…", verdicts: { H1: "FAIL", H2: "FAIL", H3: "FAIL", H4: "FAIL", H5: "FAIL", H6: "FAIL" } as const,
+      H: {
+        H3: { verdict: "FAIL" as const, q: 0.9, IS: null, OOS: { n: 76, mean: -2.8, ci: [-5.3, -0.46] as [number, number], p: 0.98 } },
+        H5: { verdict: "FAIL" as const, q: 0.9, IS: null, OOS: { n: 1237, nF: 565, nA: 672, mean: 0.86, ci: [-0.4, 2.16] as [number, number], p: 0.9 } },
+      },
+    };
+    render(<DecisionCard d={base} evidence={ev} />);
+    expect(screen.getByTestId("decision3-evidence").textContent).toContain("KHÔNG ĐẠT");
+    expect(screen.getByTestId("setup-breakout").textContent).toContain("H3 -2,8%");
+    expect(screen.getByTestId("decision3-h5").textContent).toContain("TỐT hơn");
   });
 });

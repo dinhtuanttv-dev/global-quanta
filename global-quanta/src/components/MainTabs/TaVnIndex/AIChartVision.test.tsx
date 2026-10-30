@@ -16,9 +16,9 @@ vi.mock("../../../hooks/useChartVision", async (orig) => ({
   useChartVision: (s: string | null) => { requested.push(s); return { data: s ? doc : undefined, error: undefined, isLoading: false, isValidating: false, refresh: () => {} }; },
   usePatternGeometry: () => ({ data: undefined, error: undefined }),
 }));
-vi.mock("../../../hooks/useStructure", async (orig) => ({
-  ...(await orig<typeof import("../../../hooks/useStructure")>()),
-  useStructure: () => ({ data: undefined, error: undefined, isLoading: false }),
+vi.mock("../../../hooks/useStructure3", async (orig) => ({
+  ...(await orig<typeof import("../../../hooks/useStructure3")>()),
+  useStructure3: () => ({ data: undefined, error: undefined, isLoading: false }),
 }));
 vi.mock("../../../services/marketDataClient", async (orig) => ({ ...(await orig<typeof import("../../../services/marketDataClient")>()), isMarketGatewayEnabled: () => true }));
 const sepaDoc = sepaFixture.doc as unknown as SepaDoc;

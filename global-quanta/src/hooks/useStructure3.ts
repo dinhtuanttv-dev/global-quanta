@@ -42,7 +42,7 @@ export interface Structure3Doc {
   bases?: { D: Base3View | null; W: Base3View | null; levels: Level3View[] };
   /** S5: lớp quyết định (mô tả). */
   decision?: Decision3View;
-  evidence: { label: string; note: string };
+  evidence: Evidence3;
 }
 export interface Elliott3 {
   day: { label: string; position: string; template: string | null; dir: "up" | "down" | null; provisional: boolean } | null;
@@ -85,4 +85,13 @@ export interface Decision3View {
   active: SetupKey | null; late: boolean;
   plan: { entry: number; stop: number; stopBasis: string; target1: number; target1Basis: string; target2: number | null; rr1: number; ok: boolean; trail: number | null } | null;
   state: "setup" | "blocked" | "wait"; headline: string;
+}
+
+export interface EvStat { n: number; nF?: number | null; nA?: number | null; mean: number | null; ci: [number, number] | null; p: number | null }
+export interface Evidence3 {
+  label: string; note: string; prereg?: string; ranAt?: string;
+  verdicts?: Record<"H1" | "H2" | "H3" | "H4" | "H5" | "H6", "PASS" | "FAIL">;
+  H?: Record<string, { verdict: "PASS" | "FAIL"; q: number | null; IS: EvStat | null; OOS: EvStat | null }>;
+  stageTable?: Record<string, { IS: EvStat | null; OOS: EvStat | null }>;
+  universe?: { symbols: number; delisted: number };
 }
