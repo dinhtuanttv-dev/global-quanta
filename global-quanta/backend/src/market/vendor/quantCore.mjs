@@ -4551,6 +4551,9 @@ var EP2_PREREG = {
   note: "Ch\u01B0a \u0111\u1EE7 100 k\u1ECBch b\u1EA3n k\u1EBFt th\xFAc th\xEC ghi 'ch\u01B0a \u0111\u1EE7 m\u1EABu'; kh\xF4ng \u0111\u1ED5i ti\xEAu ch\xED sau khi xem d\u1EEF li\u1EC7u."
 };
 
+// src/lib/quant-core/mtf3/version.ts
+var MTF3_VERSION = "3.0.0-s6";
+
 // src/lib/quant-core/mtf3/series.ts
 function ema(values, period) {
   const out = new Array(values.length).fill(NaN);
@@ -5439,8 +5442,30 @@ function decisionAt(a, t, elliottTarget = null) {
   return { setups, gates, active, late, plan, state, headline };
 }
 
-// src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s5";
+// src/lib/quant-core/mtf3/doc.ts
+function buildStructure3(daily, opts = {}) {
+  const win = opts.window ?? 260;
+  const a = analyze3(daily), r = a.ribbon, t = daily.length - 1;
+  let ew = null;
+  if (opts.elliott !== false) {
+    try {
+      ew = elliott3(daily, a);
+    } catch (e) {
+      ew = { error: e.message };
+    }
+  }
+  const target = ew && !("error" in ew) && ew.day?.dir === "up" ? ew.targets[0]?.price ?? null : null;
+  return {
+    version: MTF3_VERSION,
+    asOf: daily[t].date,
+    bars: { D: r.D.bars.length, W: r.W.bars.length, M: r.M.bars.length },
+    ribbon: compactRibbon3(r, { window: win }),
+    structure: compactStructure3(a, { window: win }),
+    elliott: ew,
+    bases: compactBases3(a),
+    decision: decisionAt(a, t, target)
+  };
+}
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -5464,6 +5489,7 @@ export {
   analyzeStructureMtf,
   analyzeTf as analyzeStructureTf,
   analyzeTfSeries as analyzeStructureTfSeries,
+  buildStructure3,
   buildWaveTree,
   closedHtfIndex,
   clusterLevels,
