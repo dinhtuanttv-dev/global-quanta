@@ -4726,8 +4726,319 @@ function compactRibbon3(r, opts = {}) {
   return { context: t >= 0 ? contextAt(r, t) : null, lines: { D: lines(r.D), W: lines(r.W), M: lines(r.M) } };
 }
 
+// src/lib/quant-core/mtf3/structure.ts
+var STRUCT = { kMinor: 2, kMajor: 3.5, hiLoWindow: 252, stageHold: 3, stageS3Lookback: 60, ma200Flat: 5e-3, slope200Len: 20 };
+function swings3(bars, atr3, k) {
+  const out = [], n = bars.length;
+  let dir = 0;
+  let hiI = -1, hiP = -Infinity, loI = -1, loP = Infinity;
+  for (let i = 0; i < n; i++) {
+    const a = atr3[i];
+    const b = bars[i];
+    if (b.high > hiP && dir >= 0) {
+      hiP = b.high;
+      hiI = i;
+    }
+    if (b.low < loP && dir <= 0) {
+      loP = b.low;
+      loI = i;
+    }
+    if (!(a > 0)) continue;
+    const th = k * a;
+    if (dir >= 0 && hiI >= 0 && b.close <= hiP - th && (dir === 1 || hiI > loI || loI < 0)) {
+      out.push({ kind: "H", index: hiI, price: hiP, confirmedIndex: i });
+      dir = -1;
+      loP = Infinity;
+      loI = -1;
+      for (let j = hiI + 1; j <= i; j++) if (bars[j].low < loP) {
+        loP = bars[j].low;
+        loI = j;
+      }
+      continue;
+    }
+    if (dir <= 0 && loI >= 0 && b.close >= loP + th && (dir === -1 || loI > hiI || hiI < 0)) {
+      out.push({ kind: "L", index: loI, price: loP, confirmedIndex: i });
+      dir = 1;
+      hiP = -Infinity;
+      hiI = -1;
+      for (let j = loI + 1; j <= i; j++) if (bars[j].high > hiP) {
+        hiP = bars[j].high;
+        hiI = j;
+      }
+    }
+  }
+  return out;
+}
+var isUp = (s) => s === "UP" || s === "UP_WEAK";
+var isDown = (s) => s === "DOWN" || s === "DOWN_WEAK";
+function dowSeries3(bars, sw) {
+  const n = bars.length;
+  const state = new Array(n).fill("RANGE"), event = new Array(n).fill(null);
+  const protectedLow = new Array(n).fill(NaN), pullbackHigh = new Array(n).fill(NaN);
+  const lastHigh = new Array(n).fill(NaN), lastLow = new Array(n).fill(NaN);
+  const H = [], L = [];
+  let k = 0, st = "RANGE", pLow = NaN, pHigh = NaN;
+  let crossedH = -1, crossedL = -1;
+  for (let i = 0; i < n; i++) {
+    while (k < sw.length && sw[k].confirmedIndex === i) {
+      const s = sw[k++];
+      if (s.kind === "H") {
+        const prev = H[H.length - 1];
+        H.push(s);
+        if (prev) {
+          if (s.price > prev.price) {
+            const lb = L.filter((x) => x.index < s.index).pop();
+            if (lb) pLow = lb.price;
+            const lPrev = L.length >= 2 ? L[L.length - 2] : null, lLast = L[L.length - 1];
+            if (lLast && lPrev && lLast.price > lPrev.price) st = "UP";
+            else if (st === "UP_WEAK") st = "UP";
+          } else if (isUp(st)) st = "UP_WEAK";
+          else if (st === "BROKEN_UP" || st === "RANGE" || isDown(st) || st === "BROKEN_DOWN") {
+            const lLast = L[L.length - 1], lPrev = L.length >= 2 ? L[L.length - 2] : null;
+            if (lLast && lPrev && lLast.price < lPrev.price) st = "DOWN";
+          }
+        }
+      } else {
+        const prev = L[L.length - 1];
+        L.push(s);
+        if (prev) {
+          if (s.price < prev.price) {
+            const hb = H.filter((x) => x.index < s.index).pop();
+            if (hb) pHigh = hb.price;
+            const hPrev = H.length >= 2 ? H[H.length - 2] : null, hLast = H[H.length - 1];
+            if (hLast && hPrev && hLast.price < hPrev.price) st = "DOWN";
+            else if (st === "DOWN_WEAK") st = "DOWN";
+          } else if (isDown(st)) st = "DOWN_WEAK";
+          else if (st === "BROKEN_DOWN" || st === "RANGE" || isUp(st) || st === "BROKEN_UP") {
+            const hLast = H[H.length - 1], hPrev = H.length >= 2 ? H[H.length - 2] : null;
+            if (hLast && hPrev && hLast.price > hPrev.price) st = "UP";
+          }
+        }
+      }
+    }
+    const c = bars[i].close, lh = H[H.length - 1], ll = L[L.length - 1];
+    const higherLow = L.length >= 2 && L[L.length - 1].price > L[L.length - 2].price;
+    const lowerHigh = H.length >= 2 && H[H.length - 1].price < H[H.length - 2].price;
+    const newHigh = lh && c > lh.price && crossedH !== lh.index, newLow = ll && c < ll.price && crossedL !== ll.index;
+    if (isUp(st)) {
+      if (Number.isFinite(pLow) && c < pLow) {
+        st = "BROKEN_UP";
+        event[i] = "BREAK_PROTECTED_LOW";
+      } else if (newHigh) event[i] = "BOS_UP";
+    } else if (isDown(st)) {
+      if (Number.isFinite(pHigh) && c > pHigh) {
+        if (higherLow) {
+          event[i] = "CHOCH_UP";
+          st = "UP";
+          pLow = ll.price;
+        } else {
+          st = "BROKEN_DOWN";
+          event[i] = "BREAK_PULLBACK_HIGH";
+        }
+      } else if (newLow) event[i] = "BOS_DOWN";
+    } else {
+      if (newHigh && higherLow) {
+        event[i] = "CHOCH_UP";
+        st = "UP";
+        pLow = ll.price;
+      } else if (newLow && lowerHigh) {
+        event[i] = "CHOCH_DOWN";
+        st = "DOWN";
+        pHigh = lh.price;
+      }
+    }
+    if (newHigh) crossedH = lh.index;
+    if (newLow) crossedL = ll.index;
+    state[i] = st;
+    protectedLow[i] = isUp(st) ? pLow : NaN;
+    pullbackHigh[i] = isDown(st) ? pHigh : NaN;
+    lastHigh[i] = lh ? lh.price : NaN;
+    lastLow[i] = ll ? ll.price : NaN;
+  }
+  return { state, event, protectedLow, pullbackHigh, lastHigh, lastLow };
+}
+function trendTemplateAt(r, t) {
+  const b = r.bars, c = b[t].close, e21 = r.ema21[t], e50 = r.ema50[t], e100 = r.ema100[t], m200 = r.ma200[t];
+  const m200p = t >= STRUCT.slope200Len ? r.ma200[t - STRUCT.slope200Len] : NaN;
+  let hi = -Infinity, lo = Infinity;
+  const from = Math.max(0, t - STRUCT.hiLoWindow + 1);
+  for (let j = from; j <= t; j++) {
+    hi = Math.max(hi, b[j].high);
+    lo = Math.min(lo, b[j].low);
+  }
+  const enough = t - from + 1 >= 120;
+  const f = (x) => Number.isFinite(x);
+  const ok = (cond, ...need) => need.every(f) ? cond : null;
+  return [
+    { key: "c1", ok: ok(c > e100 && c > m200, e100, m200), text: "Gi\xE1 tr\xEAn EMA100 v\xE0 MA200" },
+    { key: "c2", ok: ok(e100 > m200, e100, m200), text: "EMA100 tr\xEAn MA200" },
+    { key: "c3", ok: ok(m200 > m200p, m200, m200p), text: "MA200 d\u1ED1c l\xEAn (so v\u1EDBi 20 phi\xEAn tr\u01B0\u1EDBc)" },
+    { key: "c4", ok: ok(e21 > e50 && e50 > e100 && e100 > m200, e21, e50, e100, m200), text: "X\u1EBFp l\u1EDBp EMA21 > EMA50 > EMA100 > MA200" },
+    { key: "c5", ok: ok(c > e50, e50), text: "Gi\xE1 tr\xEAn EMA50" },
+    { key: "c6", ok: enough ? c >= 1.3 * lo : null, text: "Cao h\u01A1n \u0111\xE1y 52 tu\u1EA7n \u2265 30%" },
+    { key: "c7", ok: enough ? c >= 0.75 * hi : null, text: "C\xE1ch \u0111\u1EC9nh 52 tu\u1EA7n \u2264 25%" }
+  ];
+}
+function stageSeries(r) {
+  const n = r.bars.length;
+  const stage = new Array(n).fill("NA"), stageAge = new Array(n).fill(0), templateScore = new Array(n).fill(0);
+  let cur = "NA", age = 0, cand = null, candN = 0, lastS2 = -1e9;
+  for (let t = 0; t < n; t++) {
+    const m200 = r.ma200[t], m200p = t >= STRUCT.slope200Len ? r.ma200[t - STRUCT.slope200Len] : NaN, c = r.bars[t].close;
+    let raw = "NA";
+    if (Number.isFinite(m200) && Number.isFinite(m200p) && Number.isFinite(r.ema100[t])) {
+      const tpl = trendTemplateAt(r, t);
+      const score = tpl.filter((x) => x.ok).length;
+      templateScore[t] = score;
+      const slope2 = m200 / m200p - 1;
+      if (tpl.every((x) => x.ok === true)) raw = "S2";
+      else if (cur === "S2" && c > m200 && slope2 > 0 && r.ema50[t] > m200) raw = "S2";
+      else if (c < m200 && slope2 < 0 && r.ema50[t] < m200) raw = "S4";
+      else if (t - lastS2 <= STRUCT.stageS3Lookback && (Math.abs(slope2) < STRUCT.ma200Flat || c < r.ema100[t])) raw = "S3";
+      else raw = "S1";
+    }
+    if (raw === "S2") lastS2 = t;
+    if (raw !== cur) {
+      const immediate = cur === "NA" || cur === "S2" && (raw === "S3" || raw === "S4") && Number.isFinite(m200) && c < m200;
+      if (raw === cand) candN++;
+      else {
+        cand = raw;
+        candN = 1;
+      }
+      if (immediate || candN >= STRUCT.stageHold) {
+        cur = raw;
+        age = 0;
+        cand = null;
+        candN = 0;
+      }
+    } else {
+      cand = null;
+      candN = 0;
+    }
+    stage[t] = cur;
+    stageAge[t] = ++age;
+  }
+  return { stage, stageAge, templateScore };
+}
+var STAGE4_LABEL = { S1: "Giai \u0111o\u1EA1n 1 \xB7 T\xEDch l\u0169y n\u1EC1n", S2: "Giai \u0111o\u1EA1n 2 \xB7 T\u0103ng gi\xE1", S3: "Giai \u0111o\u1EA1n 3 \xB7 Ph\xE2n ph\u1ED1i", S4: "Giai \u0111o\u1EA1n 4 \xB7 Gi\u1EA3m gi\xE1", NA: "Ch\u01B0a \u0111\u1EE7 d\u1EEF li\u1EC7u" };
+var DOW_LABEL = {
+  UP: "T\u0103ng (\u0111\u1EC9nh v\xE0 \u0111\xE1y cao d\u1EA7n)",
+  UP_WEAK: "T\u0103ng suy y\u1EBFu (\u0111\u1EC9nh th\u1EA5p h\u01A1n, ch\u01B0a th\u1EE7ng \u0111\xE1y b\u1EA3o v\u1EC7)",
+  BROKEN_UP: "Xu h\u01B0\u1EDBng t\u0103ng \u0111\xE3 g\xE3y (th\u1EE7ng \u0111\xE1y b\u1EA3o v\u1EC7)",
+  DOWN: "Gi\u1EA3m (\u0111\u1EC9nh v\xE0 \u0111\xE1y th\u1EA5p d\u1EA7n)",
+  DOWN_WEAK: "Gi\u1EA3m suy y\u1EBFu (\u0111\xE1y cao h\u01A1n, ch\u01B0a v\u01B0\u1EE3t \u0111\u1EC9nh h\u1ED3i)",
+  BROKEN_DOWN: "Xu h\u01B0\u1EDBng gi\u1EA3m \u0111\xE3 g\xE3y (v\u01B0\u1EE3t \u0111\u1EC9nh h\u1ED3i)",
+  RANGE: "\u0110i ngang / ch\u01B0a r\xF5 c\u1EA5u tr\xFAc"
+};
+var DOW_EVENT_LABEL = {
+  CHOCH_UP: "\u0110\u1ED5i t\xEDnh ch\u1EA5t \u2191 (\u0111\xE1y cao h\u01A1n + v\u01B0\u1EE3t \u0111\u1EC9nh s\xF3ng)",
+  CHOCH_DOWN: "\u0110\u1ED5i t\xEDnh ch\u1EA5t \u2193 (\u0111\u1EC9nh th\u1EA5p h\u01A1n + th\u1EE7ng \u0111\xE1y s\xF3ng)",
+  BOS_UP: "Ph\xE1 c\u1EA5u tr\xFAc \u2191 (thu\u1EADn xu h\u01B0\u1EDBng)",
+  BOS_DOWN: "Ph\xE1 c\u1EA5u tr\xFAc \u2193 (thu\u1EADn xu h\u01B0\u1EDBng)",
+  BREAK_PROTECTED_LOW: "Th\u1EE7ng \u0111\xE1y b\u1EA3o v\u1EC7 (\u62BC\u3057\u5B89\u5024)",
+  BREAK_PULLBACK_HIGH: "V\u01B0\u1EE3t \u0111\u1EC9nh h\u1ED3i (\u623B\u308A\u9AD8\u5024)"
+};
+
+// src/lib/quant-core/mtf3/frame.ts
+function frameOf(r) {
+  const minor = swings3(r.bars, r.atr, STRUCT.kMinor), major = swings3(r.bars, r.atr, STRUCT.kMajor);
+  return { tf: r.tf, r, minor, major, dow: dowSeries3(r.bars, minor), stage: stageSeries(r) };
+}
+function analyze3(daily) {
+  const ribbon = ribbon3(daily);
+  return { ribbon, D: frameOf(ribbon.D), W: frameOf(ribbon.W), M: frameOf(ribbon.M) };
+}
+var px2 = (x) => Number.isFinite(x) ? Math.round(x * 100) / 100 : null;
+function frameSnapshot(f, i) {
+  if (i < 0 || i >= f.r.bars.length) {
+    return { tf: f.tf, date: null, dow: "RANGE", dowLabel: DOW_LABEL.RANGE, protectedLow: null, pullbackHigh: null, lastHigh: null, lastLow: null, lastEvent: null, stage: "NA", stageLabel: STAGE4_LABEL.NA, stageAge: 0, templateScore: 0, template: [] };
+  }
+  let lastEvent = null;
+  for (let j = i; j >= Math.max(0, i - 20); j--) {
+    const e = f.dow.event[j];
+    if (e) {
+      lastEvent = { type: e, label: DOW_EVENT_LABEL[e], ago: i - j, date: f.r.bars[j].date, close: px2(f.r.bars[j].close) };
+      break;
+    }
+  }
+  const st = f.dow.state[i], sg = f.stage.stage[i];
+  return {
+    tf: f.tf,
+    date: f.r.bars[i].date,
+    dow: st,
+    dowLabel: DOW_LABEL[st],
+    protectedLow: px2(f.dow.protectedLow[i]),
+    pullbackHigh: px2(f.dow.pullbackHigh[i]),
+    lastHigh: px2(f.dow.lastHigh[i]),
+    lastLow: px2(f.dow.lastLow[i]),
+    lastEvent,
+    stage: sg,
+    stageLabel: STAGE4_LABEL[sg],
+    stageAge: f.stage.stageAge[i],
+    templateScore: f.stage.templateScore[i],
+    template: Number.isFinite(f.r.ma200[i]) ? trendTemplateAt(f.r, i) : []
+  };
+}
+function mtfTriggerAt(a, t) {
+  const wi = a.ribbon.wIdx[t] ?? -1, W2 = a.W, D = a.D;
+  const wUp = wi >= 0 && W2.dow.state[wi] === "UP" && W2.r.bars[wi].close > W2.r.ema50[wi] && W2.r.ema21[wi] > W2.r.ema50[wi];
+  const wDn = wi >= 0 && W2.dow.state[wi] === "DOWN" && W2.r.bars[wi].close < W2.r.ema50[wi] && W2.r.ema21[wi] < W2.r.ema50[wi];
+  let up = null, dn = null;
+  for (let j = t; j >= Math.max(0, t - 5); j--) {
+    if (up == null && D.dow.event[j] === "CHOCH_UP") up = t - j;
+    if (dn == null && D.dow.event[j] === "CHOCH_DOWN") dn = t - j;
+  }
+  const side = wUp && up != null ? "L" : wDn && dn != null ? "S" : null;
+  const lookUp = side !== "S";
+  return {
+    side,
+    ago: side === "L" ? up : side === "S" ? dn : null,
+    steps: lookUp ? [
+      { key: "w", ok: wUp, text: "Ch\xE2n tr\xEAn (Tu\u1EA7n) t\u0103ng: Dow tu\u1EA7n t\u0103ng, gi\xE1 tr\xEAn EMA50 tu\u1EA7n, EMA21 > EMA50 tu\u1EA7n" },
+      { key: "d", ok: up != null, text: "Ch\xE2n d\u01B0\u1EDBi (Ng\xE0y) \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191 trong 5 phi\xEAn: \u0111\xE1y cao h\u01A1n + \u0111\xF3ng c\u1EEDa v\u01B0\u1EE3t \u0111\u1EC9nh h\u1ED3i" }
+    ] : [
+      { key: "w", ok: wDn, text: "Ch\xE2n tr\xEAn (Tu\u1EA7n) gi\u1EA3m: Dow tu\u1EA7n gi\u1EA3m, gi\xE1 d\u01B0\u1EDBi EMA50 tu\u1EA7n, EMA21 < EMA50 tu\u1EA7n" },
+      { key: "d", ok: dn != null, text: "Ch\xE2n d\u01B0\u1EDBi (Ng\xE0y) \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2193 trong 5 phi\xEAn: \u0111\u1EC9nh th\u1EA5p h\u01A1n + \u0111\xF3ng c\u1EEDa th\u1EE7ng \u0111\xE1y s\xF3ng" }
+    ]
+  };
+}
+function context3At(a, t) {
+  return {
+    ribbon: contextAt(a.ribbon, t),
+    D: frameSnapshot(a.D, t),
+    W: frameSnapshot(a.W, a.ribbon.wIdx[t] ?? -1),
+    M: frameSnapshot(a.M, a.ribbon.mIdx[t] ?? -1),
+    trigger: mtfTriggerAt(a, t)
+  };
+}
+function stageSegments3(f, from) {
+  const out = [];
+  for (let i = Math.max(0, from); i < f.r.bars.length; i++) {
+    const s = f.stage.stage[i], last = out[out.length - 1];
+    if (last && last.stage === s) {
+      last.to = f.r.bars[i].date;
+      last.bars++;
+    } else out.push({ stage: s, from: f.r.bars[i].date, to: f.r.bars[i].date, bars: 1 });
+  }
+  return out;
+}
+function compactStructure3(a, opts = {}) {
+  const t = a.D.r.bars.length - 1, win = opts.window ?? 260;
+  const frame = (f) => {
+    const from = Math.max(0, f.r.bars.length - win);
+    const sw = (x) => x.filter((s) => s.index >= from).map((s) => ({ kind: s.kind, date: f.r.bars[s.index].date, price: px2(s.price), confirmedDate: f.r.bars[s.confirmedIndex].date }));
+    const events = [];
+    for (let i = from; i < f.r.bars.length; i++) {
+      const e = f.dow.event[i];
+      if (e) events.push({ date: f.r.bars[i].date, type: e, label: DOW_EVENT_LABEL[e], close: px2(f.r.bars[i].close) });
+    }
+    return { swings: sw(f.minor), swingsMajor: sw(f.major), events, segments: stageSegments3(f, from) };
+  };
+  return { context: t >= 0 ? context3At(a, t) : null, frames: { D: frame(a.D), W: frame(a.W), M: frame(a.M) } };
+}
+
 // src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s1";
+var MTF3_VERSION = "3.0.0-s2";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -4747,6 +5058,7 @@ export {
   WAVE_TREE_VERSION,
   WYCKOFF_DEFAULT_ENGINE,
   alignMatrix,
+  analyze3 as analyzeMtf3,
   analyzeStructureMtf,
   analyzeTf as analyzeStructureTf,
   analyzeTfSeries as analyzeStructureTfSeries,
@@ -4755,7 +5067,9 @@ export {
   clusterLevels,
   compactRibbon3,
   compactStructure,
+  compactStructure3,
   compactTf as compactStructureTf,
+  context3At,
   convergenceAt,
   evaluateLifecycle,
   minutesToH1,

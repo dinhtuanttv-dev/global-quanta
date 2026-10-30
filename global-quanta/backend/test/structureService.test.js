@@ -155,5 +155,10 @@ test("MTF v3 S1 (/structure3): Ngày · Tuần · Tháng từ cùng chuỗi nế
   assert.ok(Math.abs(c.align) <= 3);
   assert.equal(r.ribbon.lines.D.dates.length, 260);
   assert.equal(calls.range.length, 0, "v3 không dùng khung 1 giờ");
+  const st = r.structure.context;
+  assert.ok(["S1", "S2", "S3", "S4", "NA"].includes(st.D.stage));
+  assert.ok(st.W.date < series.FPT.at(-1).date);
+  assert.ok(Array.isArray(st.trigger.steps) && st.trigger.steps.length === 2);
+  assert.equal(r.structure.frames.D.segments.reduce((n, s) => n + s.bars, 0), 260);
   await assert.rejects(svc.analyze3("??"), /không hợp lệ/);
 });
