@@ -3933,13 +3933,13 @@ function classifyMotive(p, position = "unknown") {
   if (p.length < 6) return [];
   const s = dirOf(p[0], p[1]);
   const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
-  const r24 = w[1] / w[0], r4 = w[3] / w[2];
+  const r25 = w[1] / w[0], r4 = w[3] / w[2];
   const w3Shortest = w[2] < w[0] && w[2] < w[4];
   const overlap = s * (p[4].price - p[1].price) <= 0;
   const w3Beyond = s * (p[3].price - p[1].price) > 0;
   const w5Beyond = s * (p[5].price - p[3].price) > 0;
   const base = [
-    { id: "w2-origin", severity: "hard", pass: r24 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r24)})` },
+    { id: "w2-origin", severity: "hard", pass: r25 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r25)})` },
     { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
     { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
   ];
@@ -3959,7 +3959,7 @@ function classifyMotive(p, position = "unknown") {
     { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
     { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
     { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
-    { id: "diag-deep", severity: "soft", pass: r24 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+    { id: "diag-deep", severity: "soft", pass: r25 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
   ];
   if (position !== "middle") {
     if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
@@ -5187,6 +5187,9 @@ function levelsAt(a, t) {
   const pickSide = (side) => out.filter((l) => l.role === side).sort((x, y) => y.strength - x.strength || Math.abs(x.price - close) - Math.abs(y.price - close)).slice(0, half);
   return [...pickSide("resistance"), ...pickSide("support")].sort((x, y) => y.price - x.price);
 }
+function htfResistanceNear(levels, close, atr3, atrs = 1) {
+  return levels.filter((l) => l.role === "resistance" && (l.frames.includes("W") || l.frames.includes("M")) && l.touches >= 2 && l.lo > close && l.lo <= close + atrs * atr3).sort((x, y) => x.lo - y.lo)[0] ?? null;
+}
 var avg = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
 var r23 = (x) => Math.round(x * 100) / 100;
 
@@ -5366,8 +5369,78 @@ function compactBases3(a) {
   };
 }
 
+// src/lib/quant-core/mtf3/decision3.ts
+var DECISION = { overAtr: 3, htfAtr: 1, extendedPct: 90, extendedAge: 40, lateAtr: 1.5, stopBufAtr: 0.25, minStopAtr: 1, minRr: 2, bandAtr: 0.25, bandLookback: 10, breakoutFresh: 3 };
+var SETUP_LABEL = {
+  pullback: "Mua \u0111i\u1EC1u ch\u1EC9nh \u2014 ch\xE2n d\u01B0\u1EDBi \u0111\u1ED5i theo ch\xE2n tr\xEAn",
+  breakout: "Ph\xE1 v\u1EE1 n\u1EC1n trong giai \u0111o\u1EA1n 2",
+  expansion: "N\xE9n \u2192 m\u1EDF r\u1ED9ng theo x\u1EBFp l\u1EDBp",
+  reversal: "\u0110\u1EA3o chi\u1EC1u \u2014 \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191 sau n\u1EC1n"
+};
+var GATE_LABEL = {
+  over: "Qu\xE1 \u0111\xE0: l\u1EC7ch \u2265 3 ATR tr\xEAn EMA50",
+  htfResistance: "Kh\xE1ng c\u1EF1 Tu\u1EA7n / Th\xE1ng ngay ph\xEDa tr\xEAn (\u2264 1 ATR)",
+  spent: "D\u1EA3i MA \u0111\xE3 m\u1EDF h\u1EBFt (\u2265 90%) v\xE0 x\u1EBFp l\u1EDBp \u2265 40 phi\xEAn",
+  againstWeek: "Ng\u01B0\u1EE3c khung Tu\u1EA7n (Tu\u1EA7n gi\u1EA3m / t\u0103ng \u0111\xE3 g\xE3y)"
+};
+var r24 = (x) => Math.round(x * 100) / 100;
+function decisionAt(a, t, elliottTarget = null) {
+  const D = a.D, R2 = D.r, c = R2.bars[t].close, atr3 = R2.atr[t];
+  const wi = a.ribbon.wIdx[t] ?? -1, wState = wi >= 0 ? a.W.dow.state[wi] : null;
+  const trig = mtfTriggerAt(a, t);
+  let touched = false;
+  for (let j = Math.max(0, t - DECISION.bandLookback); j <= t && !touched; j++) {
+    const top = Math.max(R2.ema21[j], R2.ema50[j]);
+    if (Number.isFinite(top) && R2.bars[j].low <= top + DECISION.bandAtr * R2.atr[j]) touched = true;
+  }
+  const pullback = trig.side === "L" && touched;
+  const base = baseAt2(D, t);
+  const freshBreak = !!base?.breakout && t - base.breakout.index <= DECISION.breakoutFresh;
+  const breakout = D.stage.stage[t] === "S2" && !!base && base.valid && (base.baseCount ?? 1) <= 3 && freshBreak && (base.vcp || base.depth <= 0.15);
+  let exp = false;
+  for (let j = Math.max(0, t - 3); j <= t; j++) if (R2.expand[j] === 1) exp = true;
+  const expansion = exp && wState !== "DOWN" && wState !== "BROKEN_UP";
+  let choch = false;
+  for (let j = Math.max(0, t - 5); j <= t; j++) if (D.dow.event[j] === "CHOCH_UP") choch = true;
+  const reversal = choch && D.stage.stage[t] === "S1" && wState !== "DOWN";
+  const setups = [
+    { key: "pullback", on: pullback, why: trig.side === "L" ? touched ? "Tu\u1EA7n t\u0103ng + Ng\xE0y \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191, v\u1EEBa ch\u1EA1m d\u1EA3i EMA21\u201350" : "C\xF3 \u0111\u1ED3ng pha nh\u01B0ng ch\u01B0a v\u1EC1 d\u1EA3i EMA21\u201350" : "Ch\u01B0a c\xF3 \u0111\u1ED3ng pha Tu\u1EA7n \xD7 Ng\xE0y" },
+    { key: "breakout", on: breakout, why: !base ? "Ch\u01B0a c\xF3 n\u1EC1n" : freshBreak ? D.stage.stage[t] !== "S2" ? "Ph\xE1 v\u1EE1 nh\u01B0ng kh\xF4ng \u1EDF giai \u0111o\u1EA1n 2" : base.valid ? `Ph\xE1 v\u1EE1 ${base.footprint}` : `N\u1EC1n ch\u01B0a \u0111\u1EA1t: ${base.reasons.join(", ")}` : `\u0110ang trong n\u1EC1n \u2014 pivot ${r24(base.pivot)}` },
+    { key: "expansion", on: expansion, why: exp ? "D\u1EA3i EMA v\u1EEBa tho\xE1t n\xE9n v\xE0 m\u1EDF r\u1ED9ng theo x\u1EBFp l\u1EDBp t\u0103ng" : `D\u1EA3i ${R2.phase[t] === "squeeze" ? "\u0111ang n\xE9n \u2014 ch\u1EDD bung" : "ch\u01B0a c\xF3 s\u1EF1 ki\u1EC7n m\u1EDF r\u1ED9ng"}` },
+    { key: "reversal", on: reversal, why: choch ? `\u0110\u1ED5i t\xEDnh ch\u1EA5t \u2191 khi giai \u0111o\u1EA1n ${D.stage.stage[t]}` : "Ch\u01B0a \u0111\u1ED5i t\xEDnh ch\u1EA5t \u2191" }
+  ].map((s) => ({ ...s, label: SETUP_LABEL[s.key] }));
+  const active = setups.find((s) => s.on)?.key ?? null;
+  const lv = levelsAt(a, t), res = Number.isFinite(atr3) ? htfResistanceNear(lv, c, atr3, DECISION.htfAtr) : null;
+  const gates = [
+    { key: "over", hit: R2.dev50[t] >= DECISION.overAtr, detail: Number.isFinite(R2.dev50[t]) ? `l\u1EC7ch ${r24(R2.dev50[t])} ATR` : null },
+    { key: "htfResistance", hit: !!res, detail: res ? `${res.frames.join("/")} ${r24(res.price)} (${res.touches} l\u1EA7n ch\u1EA1m)` : null },
+    { key: "spent", hit: (R2.widthPct[t] ?? 0) >= DECISION.extendedPct && R2.orderAge[t] >= DECISION.extendedAge, detail: R2.widthPct[t] != null ? `d\u1EA3i ${Math.round(R2.widthPct[t])}% \xB7 x\u1EBFp l\u1EDBp ${R2.orderAge[t]} phi\xEAn` : null },
+    { key: "againstWeek", hit: wState === "DOWN" || wState === "BROKEN_UP", detail: wState }
+  ].map((g) => ({ ...g, label: GATE_LABEL[g.key] }));
+  let plan = null;
+  if (Number.isFinite(atr3) && atr3 > 0) {
+    const pl = D.dow.protectedLow[t], lastLow = D.dow.lastLow[t];
+    const baseStop = active === "breakout" && base?.contractions.length ? base.contractions[base.contractions.length - 1].lo : NaN;
+    const [stopRef, stopBasis] = Number.isFinite(baseStop) ? [baseStop, "\u0111\xE1y nh\u1ECBp co cu\u1ED1i c\u1EE7a n\u1EC1n"] : Number.isFinite(pl) && pl < c ? [pl, "\u0111\xE1y b\u1EA3o v\u1EC7 (\u62BC\u3057\u5B89\u5024)"] : Number.isFinite(lastLow) && lastLow < c ? [lastLow, "\u0111\xE1y s\xF3ng g\u1EA7n nh\u1EA5t"] : [NaN, ""];
+    if (Number.isFinite(stopRef)) {
+      const stop = Math.min(stopRef - DECISION.stopBufAtr * atr3, c - DECISION.minStopAtr * atr3), risk = c - stop;
+      const lvT = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => x.lo - y.lo)[0] ?? null;
+      const [target1, t1Basis] = lvT ? [lvT.lo, `kh\xE1ng c\u1EF1 ${lvT.frames.join("/")} ${r24(lvT.price)}`] : [c + 2 * risk, "2R (kh\xF4ng c\xF3 m\u1EE9c c\u1EA3n ph\xEDa tr\xEAn)"];
+      const rr1 = r24(risk > 0 ? (target1 - c) / risk : 0);
+      plan = { entry: r24(c), stop: r24(stop), stopBasis, target1: r24(target1), target1Basis: t1Basis, target2: elliottTarget != null && elliottTarget > target1 ? r24(elliottTarget) : r24(c + 3 * risk), rr1, ok: rr1 >= DECISION.minRr, trail: Number.isFinite(pl) ? r24(pl) : null };
+    }
+  }
+  const trigPrice = active === "breakout" && base ? base.pivot : D.dow.lastHigh[t];
+  const late = !!active && Number.isFinite(trigPrice) && Number.isFinite(atr3) && c - trigPrice > DECISION.lateAtr * atr3;
+  const blocked = gates.some((g) => g.hit) || plan != null && !plan.ok || late;
+  const state = active ? blocked ? "blocked" : "setup" : "wait";
+  const firstGate = gates.find((g) => g.hit);
+  const headline = state === "setup" ? `\u0110\u1EE7 \u0111i\u1EC1u ki\u1EC7n m\xF4 t\u1EA3: ${SETUP_LABEL[active]}` : state === "blocked" ? `C\xF3 thi\u1EBFt l\u1EADp nh\u01B0ng KH\xD4NG n\xEAn v\xE0o: ${firstGate ? firstGate.label : late ? "\u0111\xE3 qu\xE1 mu\u1ED9n (> 1,5 ATR kh\u1ECFi \u0111i\u1EC3m k\xEDch ho\u1EA1t)" : `R:R ${plan?.rr1 ?? "\u2014"} < 2`}` : "Ch\u1EDD \u2014 ch\u01B0a c\xF3 thi\u1EBFt l\u1EADp n\xE0o";
+  return { setups, gates, active, late, plan, state, headline };
+}
+
 // src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s4";
+var MTF3_VERSION = "3.0.0-s5";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -5401,6 +5474,7 @@ export {
   compactTf as compactStructureTf,
   context3At,
   convergenceAt,
+  decisionAt as decision3At,
   elliott3,
   evaluateLifecycle,
   minutesToH1,

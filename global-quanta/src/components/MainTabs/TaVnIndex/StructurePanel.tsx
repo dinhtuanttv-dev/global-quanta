@@ -9,6 +9,7 @@ import RibbonStrip from "./mtf3/RibbonStrip";
 import StructureFrames from "./mtf3/StructureFrames";
 import ElliottConfluence from "./mtf3/ElliottConfluence";
 import BasePanel from "./mtf3/BasePanel";
+import DecisionCard from "./mtf3/DecisionCard";
 import { useStructure3 } from "../../../hooks/useStructure3";
 import { ShieldAlert, ShieldCheck, Layers3, History, ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
 import type { EvidenceLabel, StructureDoc, StructureLedgerStats, StructureMomentumStats, StructureStage, StructureStat, StructureStatPair, StructureTfKey, StructureTransition } from "../../../hooks/useStructure";
@@ -275,6 +276,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
           SSI · {doc.dataSource.daily.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : doc.dataSource.daily.priceBasis} · {doc.asOf} · engine {doc.version}
         </span>
       </header>
+      {s3.data?.decision && replay?.index == null && <DecisionCard d={s3.data.decision} />}
       {s3.data?.ribbon?.context && replay?.index == null && <RibbonStrip ctx={s3.data.ribbon.context} />}
       {s3.data?.structure?.context && replay?.index == null && <StructureFrames ctx={s3.data.structure.context} />}
       {s3.data?.elliott && !("error" in s3.data.elliott) && replay?.index == null && <ElliottConfluence e={s3.data.elliott} />}
