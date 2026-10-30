@@ -24,7 +24,7 @@ import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
 import ImpactBoard from "./ImpactBoard";
 import WorldTodayStrip from "./WorldTodayStrip";
-import EventRadarPanel from "./EventRadarPanel";
+import EventRadarWorkspace from "./EventRadarWorkspace";
 
 type SubTab = "macro" | "impact" | "catalyst" | "radar" | "chat";
 // Z3 (2026-10-17): thêm "Tác động ngành & cổ phiếu" (ghép chiến lược thế giới + hàng hoá + xúc tác theo ICB) — đầu mối từ vĩ mô tới mã.
@@ -92,7 +92,7 @@ export default function ChatXucTacTab() {
         {activeSubTab === "impact" && <ImpactBoard onAsk={askAi} />}
         {activeSubTab === "catalyst" && <CatalystContent />}
         {/* Event Radar: tổng hợp tin & công bố gắn nguồn, phân tích phản ứng H1 */}
-        {activeSubTab === "radar" && <EventRadarPanel />}
+        {activeSubTab === "radar" && <EventRadarWorkspace />}
         {/* X4/Z2: Claude hoặc Gemini + công cụ vĩ mô, thế giới, ngành ICB (Gateway) & xúc tác (snapshot engine) */}
         {activeSubTab === "chat" && <CatalystChatPanel seedQuestion={seed} onSeedConsumed={() => setSeed(null)} />}
       </section>
