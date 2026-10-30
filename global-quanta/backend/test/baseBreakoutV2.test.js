@@ -94,10 +94,10 @@ test("Volume Profile: POC ở vùng giá giao dịch nhiều nhất, VAL ≤ POC
   assert.ok(vp.val <= vp.poc && vp.poc <= vp.vah);
 });
 
-test("yếu tố M: VN-Index trên MA20, chỉ dùng dữ liệu đến ngày đó; tổng hợp lệnh", () => {
+test("yếu tố M: VN-Index trên EMA21, chỉ dùng dữ liệu đến ngày đó; tổng hợp lệnh", () => {
   const idx = Array.from({ length: 30 }, (_, i) => ({ date: day(i), close: i < 25 ? 1000 + i : 900 }));
   const m = marketContext(idx);
-  assert.equal(m.marketUp(day(10)), null, "chưa đủ 20 phiên");
+  assert.equal(m.marketUp(day(10)), null, "chưa đủ 21 phiên");
   assert.equal(m.marketUp(day(24)), true);
   assert.equal(m.marketUp(day(29)), false);
   const s = summarizeTrades([{ netPct: 4, R: 1, bars: 5, reason: "TARGET" }, { netPct: -2, R: -0.5, bars: 3, reason: "STOP" }]);

@@ -90,3 +90,18 @@ test("M: ngày phân phối = giảm ≥ 0,2% với KL cao hơn phiên trước,
   const n = m.distributionDays(day(39));
   assert.ok(n >= 12 && n <= 13, `${n}`);
 });
+
+test("M (30/10/2026): VN-Index trên EMA21 (hạt giống SMA) + xếp lớp EMA21/50/100/MA200, chỉ dùng dữ liệu đến ngày đó", () => {
+  const up = Array.from({ length: 260 }, (_, i) => ({ date: day(i), close: 1000 + i * 2, volume: 1000 }));
+  const m = marketContextM(up);
+  assert.equal(m.marketUp(day(19)), null, "chưa đủ 21 phiên");
+  assert.equal(m.marketUp(day(100)), true);
+  assert.equal(m.ribbon(day(98)), null, "chưa đủ EMA100");
+  assert.equal(m.ribbon(day(150)).ma200, null, "MA200 để trống khi chưa đủ 200 phiên");
+  assert.equal(m.ribbon(day(259)).state, "up");
+  assert.equal(m.ribbon(day(259)).aboveMa200, true);
+  const down = [...up, ...Array.from({ length: 30 }, (_, i) => ({ date: day(260 + i), close: 1500 - i * 20, volume: 1000 }))];
+  const m2 = marketContextM(down);
+  assert.equal(m2.marketUp(day(289)), false);
+  assert.deepEqual(marketContextM(down.slice(0, 200)).ribbon(day(199)), m2.ribbon(day(199)), "không nhìn trước");
+});

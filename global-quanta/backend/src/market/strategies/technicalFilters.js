@@ -150,7 +150,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
       const sp = scanSepa({ loaded, eligible, indexBars, faMap, dataAsOf });
       out.sepa = {
         strategy, engine: STRATEGY_ENGINE.sepa, ...(withEvidence ? { evidence: sp.evidence } : {}),
-        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20", sepa: sp.sepaMarket },
+        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên EMA21", ribbon: market.ribbon?.(dataAsOf) ?? null, sepa: sp.sepaMarket },
         lists: sp.lists, sectors: sp.sectors, equityRef: sp.equityRef, risk: sp.risk,
         fundamentalsCoverage: { withData: [...faMap.values()].filter((f) => f?.income?.quarters?.length).length, withInventory: [...faMap.values()].filter((f) => f?.balance?.quarters?.some((q) => q.inventory != null)).length },
         generatedAt, dataAsOf, source: "SSI Market Gateway · giá điều chỉnh cộng dồn · BCTC VCI", criteria, priceBasis,
@@ -166,7 +166,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
       const pt = scanPatternUniverse({ eligible });
       out.patterns = {
         strategy, engine: STRATEGY_ENGINE.patterns, ...(withEvidence ? { evidence: PATTERN_EVIDENCE } : {}),
-        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20" },
+        market: { indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên EMA21", ribbon: market.ribbon?.(dataAsOf) ?? null },
         timeframes: ["D", "W"], counts: pt.counts,
         generatedAt, dataAsOf, source: "SSI Market Gateway · giá điều chỉnh cộng dồn", criteria, priceBasis,
         universeCount: universe.length, scannedCount: eligible.length - pt.errors.length, resultCount: pt.results.length,
@@ -204,7 +204,7 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
       engine: STRATEGY_ENGINE[strategy],
       ...(evidence ? { evidence } : {}),
       market: {
-        indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên MA20",
+        indexAsOf: market.lastDate, up: market.marketUp(dataAsOf), rule: "VN-Index đóng cửa trên EMA21", ribbon: market.ribbon?.(dataAsOf) ?? null,
         ...(strategy === "camslim" ? { distributionDays: canslim.market.distributionDays(dataAsOf) } : {}),
       },
       ...(strategy === "camslim" ? { fundamentalsCoverage: { withData: [...canslim.faMap.values()].filter((f) => f?.income?.quarters?.length).length, with12Quarters: [...canslim.faMap.values()].filter((f) => (f?.income?.quarters?.length ?? 0) >= 12).length } } : {}),

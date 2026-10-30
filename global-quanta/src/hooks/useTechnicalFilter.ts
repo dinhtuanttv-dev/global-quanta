@@ -156,7 +156,9 @@ export interface TechnicalFilterResponse {
   results: TechnicalFilterResult[];
   engine?: string;
   evidence?: TechnicalFilterEvidence;
-  market?: { indexAsOf: string | null; up: boolean | null; rule: string; distributionDays?: number | null };
+  market?: { indexAsOf: string | null; up: boolean | null; rule: string; distributionDays?: number | null;
+    /** 30/10/2026: xếp lớp EMA21 · EMA50 · EMA100 · MA200 của VN-Index (mô tả). */
+    ribbon?: { state: "up" | "down" | "mixed"; aboveMa200: boolean | null; ema21: number; ema50: number; ema100: number; ma200: number | null } | null };
   fundamentalsCoverage?: { withData: number; with12Quarters: number };
   liveTracking?: LiveTracking;
   criteria?: TechnicalFilterCriteria;

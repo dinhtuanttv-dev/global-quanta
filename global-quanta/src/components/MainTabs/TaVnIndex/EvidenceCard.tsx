@@ -111,8 +111,8 @@ export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { e
         )}
         {evidence.byMarket && (
           <div className="grid grid-cols-2 gap-1.5">
-            <Cell title="VN-Index trên MA20 (M thuận)" s={evidence.byMarket.up} />
-            <Cell title="VN-Index dưới MA20 (M chưa thuận)" s={evidence.byMarket.down} />
+            <Cell title="VN-Index trên EMA21 (M thuận)" s={evidence.byMarket.up} />
+            <Cell title="VN-Index dưới EMA21 (M chưa thuận)" s={evidence.byMarket.down} />
           </div>
         )}
         {v && (

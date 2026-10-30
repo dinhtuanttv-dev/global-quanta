@@ -141,3 +141,19 @@ test("h1FromCache: neo nến 1 giờ danh nghĩa theo đóng cửa ngày (điề
   assert.equal(out[1].close, 10);
   assert.equal(out[0].open, 5);
 });
+
+test("MTF v3 S1 (/structure3): Ngày · Tuần · Tháng từ cùng chuỗi nến ngày, không tải nến phút, khung lớn chỉ dùng kỳ đã đóng", async () => {
+  const { svc, calls, series } = fixture();
+  const r = await svc.analyze3("FPT");
+  assert.match(r.version, /^3\./);
+  assert.equal(r.asOf, series.FPT.at(-1).date);
+  assert.ok(r.bars.W > 130 && r.bars.M > 30);
+  const c = r.ribbon.context;
+  assert.equal(c.D.date, series.FPT.at(-1).date);
+  assert.ok(c.W.date < series.FPT.at(-1).date, "tuần đang chạy không được dùng");
+  assert.equal(c.W.ma200, null, "MA200 tuần để trống khi < 200 tuần");
+  assert.ok(Math.abs(c.align) <= 3);
+  assert.equal(r.ribbon.lines.D.dates.length, 260);
+  assert.equal(calls.range.length, 0, "v3 không dùng khung 1 giờ");
+  await assert.rejects(svc.analyze3("??"), /không hợp lệ/);
+});

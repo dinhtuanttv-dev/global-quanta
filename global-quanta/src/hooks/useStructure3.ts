@@ -1,0 +1,34 @@
+// MTF v3 (30/10/2026) — đọc Gateway /api/market/structure3/:symbol: Ngày · Tuần · Tháng (không khung 1 giờ), MTF-v3-prereg.md.
+import useSWR from "swr";
+import { marketUrl } from "../services/marketDataClient";
+
+export type Tf3 = "D" | "W" | "M";
+export type RibbonPhase = "squeeze" | "expanding" | "extended" | "normal" | "na";
+export interface RibbonSnapshot {
+  tf: Tf3; date: string | null; bars: number;
+  close: number | null; ema21: number | null; ema50: number | null; ema100: number | null; ma200: number | null;
+  order: number | null; orderAge: number; width: number | null; widthPct: number | null; dev50: number | null; gap: number | null;
+  slope: { e21: number | null; e50: number | null; e100: number | null; ma200: number | null };
+  phase: RibbonPhase; over: number; lastExpand: { ago: number; dir: number } | null; inBand: boolean | null;
+}
+export interface RibbonContext { D: RibbonSnapshot; W: RibbonSnapshot; M: RibbonSnapshot; align: number; nested: "up" | "down" | null }
+export interface RibbonLines { dates: string[]; ema21: (number | null)[]; ema50: (number | null)[]; ema100: (number | null)[]; ma200: (number | null)[] }
+export interface Structure3Doc {
+  version: string; symbol: string; asOf: string; priceBasis: string | null;
+  bars: Record<Tf3, number>;
+  ribbon: { context: RibbonContext | null; lines: Record<Tf3, RibbonLines> };
+  evidence: { label: string; note: string };
+}
+
+const fetcher = async (url: string): Promise<Structure3Doc> => {
+  const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error || `Gateway trả HTTP ${r.status}`);
+  return r.json();
+};
+
+/** Cấu trúc MTF v3 của một mã — làm mới 60 giây trong phiên (Gateway đệm 60 giây). */
+export function useStructure3(symbol: string | null) {
+  const key = symbol ? marketUrl(`/api/market/structure3/${encodeURIComponent(symbol.toUpperCase())}`) : null;
+  const { data, error, isLoading } = useSWR<Structure3Doc>(key, fetcher, { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000 });
+  return { data, error: error as Error | undefined, isLoading };
+}

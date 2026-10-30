@@ -134,7 +134,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
       {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} live={data.liveTracking} />}
       {isCamSlim && data?.market && (
         <p className="text-[9px] text-slate-500" data-testid="canslim-context">
-          M: VN-Index {data.market.up ? "trên" : data.market.up === false ? "dưới" : "chưa rõ so với"} MA20 · {data.market.distributionDays ?? "—"} ngày phân phối / 25 phiên
+          M: VN-Index {data.market.up ? "trên" : data.market.up === false ? "dưới" : "chưa rõ so với"} EMA21{data.market.ribbon ? ` · dải EMA21/50/100${data.market.ribbon.ma200 != null ? "/MA200" : ""} ${data.market.ribbon.state === "up" ? "xếp lớp tăng" : data.market.ribbon.state === "down" ? "xếp lớp giảm" : "đan xen"}${data.market.ribbon.aboveMa200 == null ? "" : data.market.ribbon.aboveMa200 ? " · trên MA200" : " · dưới MA200"}` : ""} · {data.market.distributionDays ?? "—"} ngày phân phối / 25 phiên
           {data.fundamentalsCoverage && data.fundamentalsCoverage.with12Quarters < 0.8 * data.fundamentalsCoverage.withData && (
             <span className="text-amber-300/80"> · BCTC đủ 12 quý: {data.fundamentalsCoverage.with12Quarters}/{data.fundamentalsCoverage.withData} mã (đang bổ sung — yếu tố A chưa đủ)</span>
           )}
