@@ -52,7 +52,7 @@ export interface EmergingSourceSummary {
 
 export interface MoverItem {
   rank: number;
-  prevRank: number;
+  prevRank: number | null;
   ticker: string;
   label: string;
   compositeScore: number;

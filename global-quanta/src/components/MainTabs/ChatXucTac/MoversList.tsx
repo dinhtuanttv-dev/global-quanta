@@ -1,7 +1,8 @@
 import type { MoverItem } from "../../../types/catalyst";
 
 function MoverRow({ item, positive }: { item: MoverItem; positive: boolean }) {
-  const rankChange = item.prevRank - item.rank;
+  // Chưa có hạng trước (mã mới vào bảng, hoặc lượt quét đầu): prevRank null -> không hiện mũi tên, thay vì tính như từ hạng 0.
+  const rankChange = item.prevRank == null ? 0 : item.prevRank - item.rank;
 
   return (
     <div style={{
