@@ -71,3 +71,8 @@ Không chạy lại với tham số khác; nếu sửa engine sau khi chạy, ph
    lên (20 phiên) và EMA50 > MA200 dù tạm mất điều kiện (4)/(5)/(7) — vào S2 lần đầu vẫn cần đủ 7 điều kiện. Lý do: test tổng hợp cho thấy
    định nghĩa gốc gắn nhịp điều chỉnh bình thường trong xu hướng tăng (giá dưới EMA50, trên MA200 đang lên) là "S1 tích lũy" — sai với
    Minervini (nền giá hình thành ngay trong giai đoạn 2). H1 (vào giai đoạn 2) không đổi vì chỉ tính lần CHUYỂN sang S2.
+3. (2026-10-30, khi viết S7 — dữ liệu ĐANG được tải, CHƯA tính bất kỳ thống kê / lợi suất nào) (a) H6: engine Elliott Pro v3 chỉ được gọi
+   tại các phiên vừa xác nhận một đáy sóng nhỏ khung ngày (trong ≤ 5 phiên) — điều kiện CẦN vì "kết thúc sóng 2" là một đáy đã xác nhận;
+   gọi engine ở mọi phiên × mọi mã 14 năm ước tính ~15 giờ. Sự kiện H6 = phiên kiểm tra mà kịch bản chính là "Sóng 3" tăng có mốc kết
+   thúc sóng 2 trùng đáy vừa xác nhận. (b) Dữ liệu tải từ 2012-06-01 chỉ để làm nóng EMA / MA200; sự kiện vẫn tính từ 2013-01-01.
+   (c) Giá ≥ 5.000 dùng giá đóng cửa DANH NGHĨA của VNDirect (close × 1.000); lợi suất dùng giá điều chỉnh.
