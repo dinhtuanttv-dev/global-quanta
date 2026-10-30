@@ -36,7 +36,19 @@ export interface Structure3Doc {
   ribbon: { context: RibbonContext | null; lines: Record<Tf3, RibbonLines> };
   /** S2: Dow + giai đoạn + "chân dưới đổi theo chân trên". */
   structure?: { context: Context3 | null; frames: Record<Tf3, FrameDraw> };
+  /** S3: hợp lưu Elliott Pro × dải EMA (error nếu engine Elliott không chạy được). */
+  elliott?: Elliott3 | { error: string } | null;
   evidence: { label: string; note: string };
+}
+export interface Elliott3 {
+  day: { label: string; wave: string; dir: "up" | "down" | null; degree: string | null; weight: number | null } | null;
+  week: { label: string; wave: string; dir: "up" | "down" | null; partial: boolean } | null;
+  relation: string; relationText: string; nested3: "up" | "down" | null;
+  waveEnd: { wave: "2" | "4"; price: number; date: string | null; retrace: number | null; inFibZone: boolean | null; inEmaBand: boolean | null; band: [number, number] | null; bandName: string } | null;
+  confluence: "strong" | "partial" | "none";
+  invalidation: { price: number; side: "above" | "below"; reason: string } | null;
+  stopAgreement: { elliott: number; dow: number; gapAtr: number } | null;
+  targets: { label: string; price: number }[];
 }
 
 const fetcher = async (url: string): Promise<Structure3Doc> => {

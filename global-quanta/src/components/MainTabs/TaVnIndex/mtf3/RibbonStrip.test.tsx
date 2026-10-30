@@ -24,7 +24,8 @@ describe("RibbonStrip", () => {
     expect(screen.getByTestId("ribbon-order-M").textContent).toContain("Xếp lớp giảm · 4 tháng");
     expect(screen.getByTestId("ribbon-phase-D").textContent).toContain("Đang mở rộng · 34%");
     expect(screen.getByTestId("ribbon-phase-M").textContent).toContain("Nén");
-    expect(screen.getByTestId("ribbon-tf-W").textContent).toContain("Quá đà");
+    expect(screen.getByTestId("ribbon-tf-W").textContent).toContain("Quá đà tăng");
+    expect(screen.getByTestId("ribbon-tf-D").textContent).toContain("phiên 30/10/2026");
     expect(screen.getByTestId("ribbon-tf-W").textContent).toContain("chưa đủ 200 tuần (180)");
     expect(screen.getByTestId("ribbon-align").textContent).toBe("+1");
     expect(screen.getByTestId("ribbon-nested").textContent).toContain("↑");

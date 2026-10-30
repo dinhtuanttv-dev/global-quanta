@@ -160,5 +160,7 @@ test("MTF v3 S1 (/structure3): Ngày · Tuần · Tháng từ cùng chuỗi nế
   assert.ok(st.W.date < series.FPT.at(-1).date);
   assert.ok(Array.isArray(st.trigger.steps) && st.trigger.steps.length === 2);
   assert.equal(r.structure.frames.D.segments.reduce((n, s) => n + s.bars, 0), 260);
+  assert.ok(!r.elliott.error, r.elliott.error);
+  assert.ok(["strong", "partial", "none"].includes(r.elliott.confluence));
   await assert.rejects(svc.analyze3("??"), /không hợp lệ/);
 });

@@ -1824,14 +1824,14 @@ function analyzeWyckoff(candles, userOpts = {}) {
 }
 function planForPhase(phase, direction = "long") {
   const L = direction === "long";
-  const P = {
+  const P2 = {
     A: { action: "\u0110\u1EE9ng ngo\xE0i", detail: "Wyckoffian kh\xF4ng giao d\u1ECBch \u1EDF Phase A (ch\u1EDD ST x\xE1c nh\u1EADn bi\xEAn TR)." },
     B: { action: L ? "Mua k\xEAnh d\u01B0\u1EDBi, b\xE1n k\xEAnh tr\xEAn" : "B\xE1n k\xEAnh tr\xEAn, mua k\xEAnh d\u01B0\u1EDBi", detail: "Nhi\u1EC1u false break hai ph\xEDa (UTA/SOW trong B). R\u1EE7i ro cao; m\u1EE5c ti\xEAu ch\xEDnh l\xE0 quan s\xE1t c\u1EA1n cung/c\u1EA7u." },
     C: { action: L ? "Mua b\xECnh qu\xE2n xu\u1ED1ng" : "B\xE1n b\xECnh qu\xE2n l\xEAn", detail: L ? "Spring/Shakeout r\u1ED3i Test. POE#1 sau khi test th\xE0nh c\xF4ng (50% v\u1ECB th\u1EBF chu\u1EA9n)." : "Upthrust/UTAD r\u1ED3i Test. T\xECm \u0111i\u1EC3m b\xE1n sau x\xE1c nh\u1EADn." },
     D: { action: L ? "Mua b\xECnh qu\xE2n l\xEAn" : "B\xE1n b\xECnh qu\xE2n xu\u1ED1ng", detail: L ? "POE#2 (breakout, 30%), LPS, POE#3 (breakout kh\u1ECFi BUA, 20%); d\u1EDDi SL l\xEAn \u0111\xE1y BUA." : "LPSY l\xE0 \u0111i\u1EC3m v\xE0o b\xE1n t\u1ED1t; ch\u1EC9 b\xE1n th\xEAm n\u1EBFu c\xE1c v\u1ECB th\u1EBF \u0111\u1EA7u \u0111\xE3 c\xF3 l\xE3i." },
     E: { action: L ? "\u0110i theo xu h\u01B0\u1EDBng t\u0103ng" : "\u0110i theo xu h\u01B0\u1EDBng gi\u1EA3m", detail: "Theo d\xF5i h\xE0nh vi kh\u1ED1i l\u01B0\u1EE3ng (volumeBehavior): t\u0103ng s\u1ED1c = c\u1EA3nh b\xE1o \u0111\u1EA3o chi\u1EC1u ng\u1EAFn h\u1EA1n; t\u0103ng r\u1ED3i gi\u1EA3m = nh\u1ECBp s\u1EAFp k\u1EBFt th\xFAc." }
   };
-  return { phase, direction, ...P[phase] || { action: "Ch\u01B0a x\xE1c \u0111\u1ECBnh", detail: "" } };
+  return { phase, direction, ...P2[phase] || { action: "Ch\u01B0a x\xE1c \u0111\u1ECBnh", detail: "" } };
 }
 function timeframeAdvice(tf) {
   const t = String(tf).toUpperCase();
@@ -3652,8 +3652,8 @@ function compactTf(a, { segments = 16, signals = 24, swings = 24, maSeriesBars =
     /** Chuỗi MA nhanh / chậm / bối cảnh của N nến cuối (biểu đồ khung nhỏ thường tải ít nến hơn chu kỳ MA80 / MA100). */
     maSeries: (() => {
       const from = Math.max(0, t + 1 - maSeriesBars);
-      const pick = (arr) => arr ? arr.slice(from, t + 1).map((v) => r2(v)) : null;
-      return { dates: a.bars.slice(from, t + 1).map((b) => b.date), fast: pick(a.maFast), slow: pick(a.maSlow), ctx: pick(a.maCtx) };
+      const pick2 = (arr) => arr ? arr.slice(from, t + 1).map((v) => r2(v)) : null;
+      return { dates: a.bars.slice(from, t + 1).map((b) => b.date), fast: pick2(a.maFast), slow: pick2(a.maSlow), ctx: pick2(a.maCtx) };
     })()
   };
 }
@@ -3829,6 +3829,61 @@ function minutesToH1(minutes) {
 }
 
 // src/lib/quant-core/elliott/elliottGet.js
+var FIB = {
+  w2: [0.5, 0.62],
+  // T-33
+  w3: [1.62, 2.62, 4.25],
+  // T-34 (phổ biến nhất 1.62 & 2.62)
+  w4: [0.24, 0.38, 0.5],
+  // T-34 (phổ biến nhất 0.24 & 0.38)
+  w5Extended: [1, 1.62, 2.62],
+  // T-35: Sóng 3 > 1.62×S1 → nhân với độ dài sóng 1
+  w5Over: [0.62, 1, 1.62],
+  // T-35/T-42: Sóng 3 < 1.62×S1 → nhân với độ dài 0→3
+  zzB: 0.5,
+  zzBmax: 0.75,
+  zzC: [1, 1.62, 2.62],
+  // T-27
+  irrB: [1.15, 1.25],
+  irrC: [1.62, 2.62]
+  // T-29
+};
+var DEFAULTS2 = {
+  fast: 5,
+  slow: 35,
+  zigzag: { pct: 0.03, atrPeriod: 14, atrMult: 0 },
+  // atrMult>0 thì dùng ATR thay %
+  fineFactor: 0.4,
+  // ngưỡng zigzag "mịn" để phân loại bên trong sóng 2/4
+  bands: { pct: 0.8, lookback: 100 },
+  market: "cash",
+  // 'cash' (không cho chồng lấn) | 'futures' (cho 10–15%)
+  overlapTolerance: { cash: 0, futures: 0.15 },
+  osc: { minPullback: 0.9, maxOpposite: 0.38, bandMargin: 0.1 },
+  // T-15, T-16, T-20
+  strictOsc: false,
+  // true: vi phạm điều kiện dao động → loại cấu trúc
+  requireNewExtreme5: true,
+  // sóng 5 phải vượt đỉnh/đáy sóng 3
+  maxPivotsBack: 60,
+  flatTol: 0.05
+};
+var sma = (a, n) => {
+  const out = new Array(a.length).fill(NaN);
+  let s = 0;
+  for (let i = 0; i < a.length; i++) {
+    s += a[i];
+    if (i >= n) s -= a[i - n];
+    if (i >= n - 1) out[i] = s / n;
+  }
+  return out;
+};
+var merge2 = (a, b) => {
+  const o = { ...a };
+  for (const k in b) o[k] = b[k] && typeof b[k] === "object" && !Array.isArray(b[k]) ? merge2(a[k] || {}, b[k]) : b[k];
+  return o;
+};
+var nearest = (v, arr) => arr.reduce((b, x) => Math.abs(x - v) < Math.abs(b - v) ? x : b, arr[0]);
 function atr(c, n = 14) {
   const out = new Array(c.length).fill(NaN);
   let sum = 0, prev = NaN;
@@ -3846,6 +3901,26 @@ function atr(c, n = 14) {
     }
   }
   return out;
+}
+function elliottOscillator(c, fast = 5, slow = 35) {
+  const m = c.map((x) => (x.high + x.low) / 2);
+  const f = sma(m, fast), s = sma(m, slow);
+  return m.map((_, i) => isNaN(s[i]) ? NaN : f[i] - s[i]);
+}
+function breakoutBands(osc, { pct: pct3 = 0.8, lookback = 100 } = {}) {
+  const up = [], lo = [];
+  for (let i = 0; i < osc.length; i++) {
+    let mx = 0, mn = 0;
+    for (let j = Math.max(0, i - lookback); j < i; j++) {
+      const v = osc[j];
+      if (isNaN(v)) continue;
+      if (v > mx) mx = v;
+      if (v < mn) mn = v;
+    }
+    up.push(mx * pct3);
+    lo.push(mn * pct3);
+  }
+  return { up, lo };
 }
 function zigzag(c, { pct: pct3 = 0.03, atrPeriod = 14, atrMult = 0 } = {}) {
   const n = c.length;
@@ -3889,8 +3964,611 @@ function zigzag(c, { pct: pct3 = 0.03, atrPeriod = 14, atrMult = 0 } = {}) {
   if (dir !== 0) out.push(mk(ext, dir === 1 ? "H" : "L", false));
   return out;
 }
+var wave3Targets = (p0, p1, p2) => {
+  const s = p1 > p0 ? 1 : -1, w1 = Math.abs(p1 - p0);
+  return FIB.w3.map((r) => ({ ratio: r, price: p2 + s * r * w1 }));
+};
+var wave4Zones = (p2, p3) => {
+  const s = p3 > p2 ? 1 : -1, w3 = Math.abs(p3 - p2);
+  return FIB.w4.map((r) => ({ ratio: r, price: p3 - s * r * w3 }));
+};
+function wave5Targets(p0, p1, p2, p3, p4) {
+  const s = p1 > p0 ? 1 : -1, w1 = Math.abs(p1 - p0), w3 = Math.abs(p3 - p2), len03 = Math.abs(p3 - p0);
+  const r31 = w3 / w1, extended = r31 > 1.62;
+  const lv = (ratios, len2) => ratios.map((r) => ({ ratio: r, price: p4 + s * r * len2 }));
+  return {
+    mode: extended ? "wave3-extended (theo s\xF3ng 1)" : "wave5-over-extends (theo 0\u21923)",
+    ratio31: r31,
+    levels: extended ? lv(FIB.w5Extended, w1) : lv(FIB.w5Over, len03),
+    // T-43: kể cả khi sóng 3 kéo dài, sóng 5 thường kết thúc trong cửa sổ 62%–100% của 0→3
+    window03: { low: p4 + s * 0.62 * len03, high: p4 + s * 1 * len03 }
+  };
+}
+function statWave2(r) {
+  if (r <= 0.38) return { bucket: "\u226438%", pct: 12 };
+  if (r < 0.5) return { bucket: "38\u201350%", pct: null };
+  if (r <= 0.6) return { bucket: "50\u201360%", pct: 73 };
+  if (r <= 0.62) return { bucket: "60\u201362%", pct: null };
+  return { bucket: ">62%", pct: 15 };
+}
+function statWave3(r) {
+  if (r < 1) return { bucket: "<1\xD7S1", pct: 2 };
+  if (r < 1.6) return { bucket: "1\u20131.6\xD7S1", pct: 15 };
+  if (r < 1.75) return { bucket: "1.6\u20131.75\xD7S1", pct: 45 };
+  if (r <= 2.62) return { bucket: "1.75\u20132.62\xD7S1", pct: 30 };
+  return { bucket: ">2.62\xD7S1", pct: 8 };
+}
+function statWave4(r) {
+  if (r < 0.24) return { bucket: "<24%", pct: null };
+  if (r < 0.3) return { bucket: "24\u201330%", pct: 15 };
+  if (r <= 0.5) return { bucket: "30\u201350%", pct: 60 };
+  if (r <= 0.62) return { bucket: "50\u201362%", pct: 15 };
+  return { bucket: ">62%", pct: 10 };
+}
+function elliottChannel(p1, p2, p3, p4) {
+  const slope2 = (p4.price - p2.price) / (p4.i - p2.i);
+  return { slope: slope2, anchors: { lower: p2, upperW1: p1, upperW3: p3 }, preferred: null };
+}
+var channelValue = (ch, name, i) => {
+  const a = ch.anchors[name];
+  return a.price + ch.slope * (i - a.i);
+};
+function detectTriangle(t) {
+  if (t.length < 5) return { valid: false };
+  const [a, b, c, d, e] = t;
+  const L = [b.price - a.price, c.price - b.price, d.price - c.price, e.price - d.price].map(Math.abs);
+  const contracting = L[1] < L[0] && L[2] < L[1] && L[3] < L[2];
+  const hiSet = a.type === "H" ? [a, c, e] : [b, d], loSet = a.type === "H" ? [b, d] : [a, c, e];
+  const sl = (s) => (s[s.length - 1].price - s[0].price) / (s[s.length - 1].i - s[0].i);
+  const convergent = sl(hiSet) < sl(loSet);
+  return {
+    valid: contracting && convergent,
+    points: t,
+    upper: [hiSet[0], hiSet[hiSet.length - 1]],
+    lower: [loSet[0], loSet[loSet.length - 1]]
+  };
+}
+function classifyABC(start, A, B, C, s, o = {}) {
+  const tol = o.flatTol ?? 0.05;
+  const lenA = s * (start.price - A.price);
+  if (lenA <= 0) return { kind: "invalid" };
+  const bRatio = s * (B.price - A.price) / lenA;
+  const res = { bRatio, lenA };
+  if (C) {
+    res.cRatio = s * (B.price - C.price) / lenA;
+    res.cBeyondA = s * C.price < s * A.price;
+  }
+  if (bRatio <= FIB.zzBmax) res.kind = C && !res.cBeyondA ? "unconfirmed" : "zigzag";
+  else if (bRatio <= 1 + tol) res.kind = "flat";
+  else res.kind = "irregular";
+  res.family = res.kind === "zigzag" ? "simple" : res.kind === "flat" || res.kind === "irregular" ? "complex" : "unknown";
+  const cRatios = res.kind === "zigzag" ? FIB.zzC : res.kind === "irregular" ? FIB.irrC : [1];
+  res.bFibNearest = res.kind === "zigzag" ? FIB.zzB : res.kind === "irregular" ? nearest(bRatio, FIB.irrB) : 1;
+  res.cTargets = cRatios.map((r) => ({ ratio: r, price: B.price - s * r * lenA }));
+  if (C) res.cFibNearest = nearest(res.cRatio, cRatios);
+  return res;
+}
+function classifySegment(c, pa, pb, s, o) {
+  const seg = c.slice(pa.i, pb.i + 1);
+  if (seg.length < 5) return { family: "unknown" };
+  const zz = o.zigzag;
+  const pv = zigzag(seg, { pct: zz.pct * o.fineFactor, atrPeriod: zz.atrPeriod, atrMult: zz.atrMult * o.fineFactor }).filter((p) => p.i > 0 && p.i < seg.length - 1).map((p) => ({ ...p, i: p.i + pa.i }));
+  if (pv.length === 2) return { ...classifyABC(pa, pv[0], pv[1], pb, s, o), kindSource: "fine-zigzag" };
+  if (pv.length === 4) {
+    const tri = detectTriangle([...pv, pb]);
+    if (tri.valid) return { kind: "triangle", family: "complex", triangle: tri };
+  }
+  return pv.length > 2 ? { kind: "complex-other", family: "complex" } : { family: "unknown" };
+}
+function subwaveCount(c, pa, pb, o) {
+  const seg = c.slice(pa.i, pb.i + 1);
+  if (seg.length < 5) return null;
+  const zz = o.zigzag;
+  const inner = zigzag(seg, { pct: zz.pct * o.fineFactor, atrPeriod: zz.atrPeriod, atrMult: zz.atrMult * o.fineFactor }).filter((p) => p.i > 0 && p.i < seg.length - 1 && p.confirmed);
+  return inner.length + 1;
+}
+function analyzeCorrection(c, osc, pivots2, k5, s, o) {
+  const start = pivots2[k5], A = pivots2[k5 + 1];
+  if (!A) return null;
+  const triPts = pivots2.slice(k5 + 2, k5 + 7);
+  if (triPts.length === 5 && triPts.every((p) => p.confirmed)) {
+    const tri = detectTriangle([A, ...triPts.slice(0, 4)]);
+    if (tri.valid) {
+      const C2 = pivots2[k5 + 7];
+      return {
+        kind: "triangle-B",
+        family: "complex",
+        triangle: tri,
+        lenA: s * (start.price - A.price),
+        thrust: { direction: s > 0 ? "down" : "up", note: "Tam gi\xE1c \u1EDF s\xF3ng B: thrust c\xF9ng h\u01B0\u1EDBng s\xF3ng A (T-30)" },
+        C: C2 ?? null,
+        aWaves: subwaveCount(c, start, A, o),
+        structureOk: null,
+        cDivergence: null
+      };
+    }
+  }
+  const B = pivots2[k5 + 2], C0 = pivots2[k5 + 3];
+  if (!B) return null;
+  const C = C0 && C0.confirmed ? C0 : void 0;
+  const res = classifyABC(start, A, B, C, s, o);
+  const aWaves = subwaveCount(c, start, A, o);
+  res.aWaves = aWaves;
+  res.structureOk = aWaves == null || aWaves !== 3 && aWaves !== 5 ? null : res.kind === "zigzag" ? aWaves === 5 : res.kind === "flat" || res.kind === "irregular" ? aWaves === 3 : null;
+  if (C) {
+    const oscA = osExt(osc, -s, start.i, A.i, "max"), oscC = osExt(osc, -s, B.i, C.i, "max");
+    res.cDivergence = res.cBeyondA && !isNaN(oscA.v) && !isNaN(oscC.v) ? { pass: oscC.v < oscA.v, oscA: oscA.v, oscC: oscC.v, note: "Gi\xE1 C v\u01B0\u1EE3t cu\u1ED1i A nh\u01B0ng dao \u0111\u1ED9ng y\u1EBFu h\u01A1n \u2014 d\u1EA5u hi\u1EC7u k\u1EBFt th\xFAc \u0111i\u1EC1u ch\u1EC9nh (T-27)" } : null;
+  } else res.cDivergence = null;
+  return res;
+}
+function alternation(f2, f4) {
+  if (f2 === "unknown" || f4 === "unknown") return { ok: null, note: "kh\xF4ng \u0111\u1EE7 d\u1EEF li\u1EC7u \u0111\u1EC3 ph\xE2n lo\u1EA1i" };
+  return { ok: f2 !== f4, expected: f2 === "simple" ? "complex" : "simple" };
+}
+function osExt(osc, s, i0, i1, mode) {
+  let b = NaN, bi = -1;
+  for (let i = i0; i <= i1; i++) {
+    const x = s * osc[i];
+    if (isNaN(x)) continue;
+    if (isNaN(b) || (mode === "max" ? x > b : x < b)) {
+      b = x;
+      bi = i;
+    }
+  }
+  return { v: b, i: bi };
+}
+function evaluateImpulse(c, osc, bands, pts2, o) {
+  const s = pts2[0].type === "L" ? 1 : -1;
+  const P2 = pts2.map((p) => p.price), d = P2.map((x) => s * x), I = pts2.map((p) => p.i);
+  const full = pts2.length === 6, v = [];
+  const w1 = d[1] - d[0], w3 = d[3] - d[2], w5 = full ? d[5] - d[4] : null;
+  const tol = o.market === "futures" ? o.overlapTolerance.futures : o.overlapTolerance.cash;
+  if (w1 <= 0) v.push("S\xF3ng 1 sai h\u01B0\u1EDBng");
+  if (d[2] <= d[0]) v.push("S\xF3ng 2 t\u1EA1o \u0111\u1EC9nh/\u0111\xE1y m\u1EDBi (v\u01B0\u1EE3t \u0111i\u1EC3m b\u1EAFt \u0111\u1EA7u s\xF3ng 1)");
+  if (d[3] <= d[1]) v.push("S\xF3ng 3 kh\xF4ng v\u01B0\u1EE3t \u0111\u1EC9nh/\u0111\xE1y s\xF3ng 1");
+  if (d[4] >= d[3] || d[4] <= d[2]) v.push("S\xF3ng 4 kh\xF4ng h\u1EE3p l\u1EC7 v\u1EC1 v\u1ECB tr\xED");
+  if (d[4] < d[1] - tol * w1) v.push("S\xF3ng 4 ch\u1ED3ng l\u1EA5n s\xF3ng 1 (quy t\u1EAFc 2, T-26)");
+  if (full) {
+    if (w5 <= 0) v.push("S\xF3ng 5 sai h\u01B0\u1EDBng");
+    if (o.requireNewExtreme5 && d[5] <= d[3]) v.push("S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3");
+    if (w3 < w1 && w3 < w5) v.push("S\xF3ng 3 l\xE0 s\xF3ng ng\u1EAFn nh\u1EA5t (quy t\u1EAFc 1, T-26)");
+  }
+  const checks = {};
+  const pk3 = osExt(osc, s, I[2], I[3], "max");
+  if (!isNaN(pk3.v) && pk3.v > 0) {
+    const b = s > 0 ? bands.up[pk3.i] : -bands.lo[pk3.i];
+    checks.wave3Band = { pass: b > 0 && pk3.v > b * (1 + o.osc.bandMargin), osc: pk3.v, band: b };
+    const pk1 = osExt(osc, s, I[0], I[1], "max");
+    checks.wave3Strongest = { pass: isNaN(pk1.v) || pk3.v > pk1.v, peak1: pk1.v, peak3: pk3.v };
+    const tr4 = osExt(osc, s, I[3], I[4], "min");
+    if (!isNaN(tr4.v)) {
+      const pullback = (pk3.v - tr4.v) / pk3.v, opposite = tr4.v < 0 ? -tr4.v / pk3.v : 0;
+      checks.wave4Osc = { pass: pullback >= o.osc.minPullback && opposite <= o.osc.maxOpposite, pullback, opposite };
+    }
+    if (full) {
+      const pk5 = osExt(osc, s, I[4], I[5], "max");
+      checks.wave5Divergence = { pass: !isNaN(pk5.v) && pk5.v < pk3.v, peak3: pk3.v, peak5: pk5.v };
+    }
+  } else checks.insufficientOscData = { pass: false };
+  if (o.strictOsc) {
+    for (const [k, ch] of Object.entries(checks)) if (!ch.pass) v.push(`Dao \u0111\u1ED9ng kh\xF4ng \u0111\u1EA1t: ${k}`);
+  }
+  const ratios = { w2: (d[1] - d[2]) / w1, w3: w3 / w1, w4: (d[3] - d[4]) / w3 };
+  const stats = { w2: statWave2(ratios.w2), w3: statWave3(ratios.w3), w4: statWave4(ratios.w4) };
+  if (full) {
+    ratios.w5OverW1 = w5 / w1;
+    ratios.w5Over03 = w5 / (d[3] - d[0]);
+  }
+  const targets = { wave5: wave5Targets(P2[0], P2[1], P2[2], P2[3], P2[4]) };
+  const channel = elliottChannel(pts2[1], pts2[2], pts2[3], pts2[4]);
+  channel.preferred = ratios.w3 > 1.62 ? "upperW1" : "upperW3";
+  const afterWave5 = { firstTarget: P2[4] };
+  let score = Object.values(checks).filter((x) => x.pass).length;
+  if (ratios.w2 >= 0.5 && ratios.w2 <= 0.62) score++;
+  if (ratios.w3 >= 1.6 && ratios.w3 <= 1.75) score++;
+  if (ratios.w4 >= 0.3 && ratios.w4 <= 0.5) score++;
+  return {
+    dir: s > 0 ? "up" : "down",
+    status: full ? "complete" : "wave5-forming",
+    points: pts2,
+    valid: v.length === 0,
+    violations: v,
+    checks,
+    ratios,
+    stats,
+    targets,
+    channel,
+    afterWave5,
+    score
+  };
+}
+function findImpulses(c, osc, bands, pv, o, keepInvalid = false) {
+  const out = [], st0 = Math.max(0, pv.length - o.maxPivotsBack);
+  const push = (e) => {
+    if (e.valid || keepInvalid) out.push(e);
+  };
+  for (let st = st0; st + 5 <= pv.length; st++) {
+    const forming = pv.length - st === 5;
+    push(evaluateImpulse(c, osc, bands, pv.slice(st, st + (forming ? 5 : 6)), o));
+    if (st + 9 <= pv.length) {
+      const tri = detectTriangle(pv.slice(st + 4, st + 9));
+      if (tri.valid) {
+        const f2 = pv.length === st + 9;
+        const pts2 = [...pv.slice(st, st + 4), pv[st + 8], ...f2 ? [] : [pv[st + 9]]];
+        const e = evaluateImpulse(c, osc, bands, pts2, o);
+        e.wave4Type = "triangle";
+        e.triangle = tri;
+        e.thrust = { direction: e.dir, note: "Tam gi\xE1c \u1EDF s\xF3ng 4: thrust c\xF9ng h\u01B0\u1EDBng s\xF3ng 3" };
+        push(e);
+      }
+    }
+  }
+  return out;
+}
+function liveSignals(c, osc, bands, pv, o) {
+  const out = [], n = c.length;
+  if (pv.length < 4) return out;
+  const [p0, p1, p2, p3] = pv.slice(-4);
+  const s = p0.type === "L" ? 1 : -1;
+  if (!(s * p2.price > s * p0.price && s * p3.price > s * p1.price && s * p2.price < s * p1.price)) return out;
+  let gaps = 0;
+  for (let i = p2.i + 1; i <= p3.i; i++) if (s > 0 ? c[i].low > c[i - 1].high : c[i].high < c[i - 1].low) gaps++;
+  const pk = osExt(osc, s, p2.i, n - 1, "max");
+  const band = s > 0 ? bands.up[pk.i] : -bands.lo[pk.i];
+  out.push({
+    type: "wave3",
+    dir: s > 0 ? "up" : "down",
+    gaps,
+    oscAboveBand: !isNaN(pk.v) && band > 0 && pk.v > band * (1 + o.osc.bandMargin),
+    targets: wave3Targets(p0.price, p1.price, p2.price),
+    wave4Zones: wave4Zones(p2.price, p3.price)
+  });
+  if (pk.v > 0) {
+    const now = s * osc[n - 1];
+    if (!isNaN(now) && n - 1 > p3.i && (pk.v - now) / pk.v >= o.osc.minPullback && -now / pk.v <= o.osc.maxOpposite)
+      out.push({ type: "wave4-oscillator-pulled-to-zero", note: "\u1EE8ng vi\xEAn k\u1EBFt th\xFAc s\xF3ng 4 (c\u1EA7n gi\xE1 x\xE1c nh\u1EADn quay l\u1EA1i)" });
+  }
+  return out;
+}
+function analyze(candles, userOpts = {}) {
+  const o = merge2(DEFAULTS2, userOpts);
+  const osc = elliottOscillator(candles, o.fast, o.slow);
+  const bands = breakoutBands(osc, o.bands);
+  const pivots2 = zigzag(candles, o.zigzag);
+  const impulses = findImpulses(candles, osc, bands, pivots2, o, !!userOpts.keepInvalid);
+  const ranked = impulses.filter((x) => x.valid).sort((a, b) => b.points[b.points.length - 1].i - a.points[a.points.length - 1].i || b.score - a.score);
+  const best = ranked[0] || null;
+  let correction = null;
+  if (best && best.status === "complete") {
+    const s = best.dir === "up" ? 1 : -1, k = pivots2.findIndex((p) => p.i === best.points[5].i);
+    correction = analyzeCorrection(candles, osc, pivots2, k, s, o);
+  }
+  if (best) {
+    const s = best.dir === "up" ? 1 : -1, p = best.points;
+    const f2 = classifySegment(candles, p[1], p[2], s, o);
+    const f4 = best.wave4Type === "triangle" ? { family: "complex", kind: "triangle" } : classifySegment(candles, p[3], p[4], s, o);
+    best.alternation = { wave2: f2, wave4: f4, ...alternation(f2.family, f4.family) };
+  }
+  return {
+    options: o,
+    osc,
+    bands,
+    pivots: pivots2,
+    impulses: ranked,
+    best,
+    correction,
+    signals: liveSignals(candles, osc, bands, pivots2, o)
+  };
+}
+var DEGREES = [
+  { name: "minor", k: 0.5 },
+  { name: "intermediate", k: 1 },
+  { name: "major", k: 2 },
+  { name: "primary", k: 4 }
+];
+function findScenarios(c, osc, bands, pv, o, keepInvalid = false) {
+  const out = findImpulses(c, osc, bands, pv, o, keepInvalid);
+  const st0 = Math.max(0, pv.length - o.maxPivotsBack);
+  for (let st = st0; st + 6 === pv.length; st++) {
+    if (!pv[st + 4].confirmed || pv[st + 5].confirmed) continue;
+    if (out.some((e2) => e2.valid && e2.points.length === 6 && e2.points[0].i === pv[st].i)) continue;
+    const e = evaluateImpulse(c, osc, bands, pv.slice(st, st + 5), o);
+    e.provisional = pv[st + 5];
+    if (e.valid || keepInvalid) out.push(e);
+  }
+  return out;
+}
+var isWave5Live = (sc) => sc.points[4].confirmed && (!!sc.provisional || sc.points.length === 6 && !sc.points[5].confirmed);
+function nestingScore(sc, lower) {
+  const p = sc.points, waves = [[0, 1, "m"], [1, 2, "c"], [2, 3, "m"], [3, 4, "c"]];
+  if (p.length === 6) waves.push([4, 5, "m"]);
+  let motive = 0, covered = 0, conflicts = 0;
+  for (const [a, b, kind] of waves) {
+    const i0 = p[a].i, i1 = p[b].i, len2 = i1 - i0;
+    if (len2 <= 0) continue;
+    const hit = lower.some((x) => {
+      if (x.dir !== sc.dir) return false;
+      const f = x.points[0].i, l = x.points[x.points.length - 1].i;
+      return f >= i0 - 0.15 * len2 && l <= i1 + 0.15 * len2 && (Math.min(i1, l) - Math.max(i0, f)) / len2 >= 0.6;
+    });
+    if (kind === "m") {
+      motive++;
+      if (hit) covered++;
+    } else if (hit) conflicts++;
+  }
+  const score = motive ? Math.max(0, Math.min(1, covered / motive - 0.25 * conflicts)) : 0.5;
+  return { score, covered, motive, conflicts };
+}
+function multiDegreeScenarios(c, osc, bands, o, degrees = DEGREES) {
+  const per = degrees.map((d) => {
+    const zz = { ...o.zigzag, pct: o.zigzag.pct * d.k, atrMult: o.zigzag.atrMult ? o.zigzag.atrMult * d.k : 0 };
+    const pivots2 = zigzag(c, zz), idx2 = new Map(pivots2.map((p, k) => [p.i, k]));
+    const scenarios2 = findScenarios(c, osc, bands, pivots2, o).filter((x) => x.valid).map((sc) => {
+      sc.degree = d.name;
+      sc.degreeK = d.k;
+      sc.pivotsAfter = pivots2.length - 1 - idx2.get(sc.points[sc.points.length - 1].i);
+      if (sc.points.length === 6 && sc.points[5].confirmed) {
+        const k = idx2.get(sc.points[5].i), s = sc.dir === "up" ? 1 : -1;
+        sc.correction = analyzeCorrection(c, osc, pivots2, k, s, o);
+      }
+      return sc;
+    });
+    return { degree: d.name, k: d.k, pivots: pivots2, scenarios: scenarios2 };
+  });
+  per.forEach((dg, di) => {
+    const lower = per.slice(0, di).flatMap((x) => x.scenarios);
+    dg.scenarios.forEach((sc) => {
+      sc.nesting = di === 0 ? { score: null } : nestingScore(sc, lower);
+    });
+  });
+  return per;
+}
+var STAT_TABLES = {
+  w2: [{ max: 0.38, p: 0.12 }, { max: 0.5, p: null }, { max: 0.6, p: 0.73 }, { max: 0.62, p: null }, { max: Infinity, p: 0.15 }],
+  // T-37: 73% là 50–60%
+  w3: [{ max: 1, p: 0.02 }, { max: 1.6, p: 0.15 }, { max: 1.75, p: 0.45 }, { max: 2.62, p: 0.3 }, { max: Infinity, p: 0.08 }],
+  w4: [{ max: 0.24, p: null }, { max: 0.3, p: 0.15 }, { max: 0.5, p: 0.6 }, { max: 0.62, p: 0.15 }, { max: Infinity, p: 0.1 }]
+};
 var DEFAULT_MODEL = { bias: 0, logp: 1, osc: 1.5, nest: 1, alt: 0.5 };
+function probOf(table, r, nullP = 0.05, floor = 0.01) {
+  const b = table.find((x) => r <= x.max) || table[table.length - 1];
+  return Math.max(floor, b.p == null ? nullP : b.p);
+}
+function scenarioFeatures(c, sc, tables = STAT_TABLES, o = DEFAULTS2) {
+  const lg = (t, r) => Math.log(probOf(t, r));
+  const logp = (lg(tables.w2, sc.ratios.w2) + lg(tables.w3, sc.ratios.w3) + lg(tables.w4, sc.ratios.w4)) / 3;
+  const ch = Object.values(sc.checks).filter((x) => "pass" in x);
+  const osc = ch.length ? ch.filter((x) => x.pass).length / ch.length : 0;
+  const s = sc.dir === "up" ? 1 : -1, p = sc.points;
+  const f2 = classifySegment(c, p[1], p[2], s, o);
+  const f4 = sc.wave4Type === "triangle" ? { family: "complex" } : classifySegment(c, p[3], p[4], s, o);
+  const al = alternation(f2.family, f4.family);
+  return { logp, osc, nest: sc.nesting?.score ?? 0.5, alt: al.ok === null ? 0.5 : al.ok ? 1 : 0, alternation: al };
+}
+function invalidationOf(sc) {
+  const s = sc.dir === "up" ? 1 : -1, p = sc.points;
+  if (isWave5Live(sc) || sc.status === "wave5-forming")
+    return { price: p[4].price, side: s > 0 ? "below" : "above", reason: "Th\u1EE7ng c\u1EF1c tr\u1ECB s\xF3ng 4 \u2192 s\xF3ng 4 ch\u01B0a xong / c\xE1ch \u0111\u1EBFm sai", overlapLevel: p[1].price };
+  return { price: p[5].price, side: s > 0 ? "above" : "below", reason: "V\u01B0\u1EE3t c\u1EF1c tr\u1ECB s\xF3ng 5 \u2192 s\xF3ng 5 ch\u01B0a k\u1EBFt th\xFAc", overlapLevel: p[1].price };
+}
+function rankScenarios(c, per, o, pro = {}) {
+  const tables = pro.statTables || STAT_TABLES, m = { ...DEFAULT_MODEL, ...pro.model || {} };
+  const topN = pro.topN ?? 5, T = pro.temperature ?? 1, maxAfter = pro.maxPivotsAfter ?? 3;
+  const all = per.flatMap((dg) => dg.scenarios).filter((sc) => sc.pivotsAfter <= maxAfter);
+  if (!all.length) return [];
+  all.forEach((sc) => {
+    const f = scenarioFeatures(c, sc, tables, o);
+    sc.features = f;
+    sc.modelScore = m.bias + m.logp * f.logp + m.osc * f.osc + m.nest * f.nest + m.alt * f.alt;
+    sc.invalidation = invalidationOf(sc);
+  });
+  const mx = Math.max(...all.map((x) => x.modelScore));
+  const Z = all.reduce((a, x) => a + Math.exp((x.modelScore - mx) / T), 0);
+  all.forEach((x) => {
+    x.weight = Math.exp((x.modelScore - mx) / T) / Z;
+  });
+  return all.sort((a, b) => b.weight - a.weight).slice(0, topN);
+}
+function fibConfluence(scenarios2, { tolPct = 5e-3, horizonI = null } = {}) {
+  const L = [], add = (price, w, src, deg) => {
+    if (isFinite(price)) L.push({ price, w, src, deg });
+  };
+  for (const sc of scenarios2) {
+    const w = sc.weight ?? 1, deg = sc.degree || "main";
+    if (isWave5Live(sc) || sc.status === "wave5-forming") {
+      sc.targets.wave5.levels.forEach((l) => add(l.price, w, `${deg} S5 \xD7${l.ratio}`, deg));
+      add(sc.targets.wave5.window03.low, w * 0.5, `${deg} S5 c\u1EEDa s\u1ED5 62% 0\u21923`, deg);
+      add(sc.targets.wave5.window03.high, w * 0.5, `${deg} S5 c\u1EEDa s\u1ED5 100% 0\u21923`, deg);
+      if (horizonI != null) {
+        add(channelValue(sc.channel, sc.channel.preferred, horizonI), w * 0.6, `${deg} k\xEAnh ${sc.channel.preferred}`, deg);
+      }
+    } else {
+      add(sc.afterWave5.firstTarget, w * 0.7, `${deg} \u0111\xE1y/\u0111\u1EC9nh s\xF3ng 4 (m\u1EE5c ti\xEAu \u0111\u1EA7u ti\xEAn)`, deg);
+      if (sc.correction && sc.correction.cTargets && sc.correction.cFibNearest === void 0)
+        sc.correction.cTargets.forEach((t) => add(t.price, w * 0.6, `${deg} C \xD7${t.ratio}`, deg));
+    }
+  }
+  L.sort((a, b) => a.price - b.price);
+  const clusters = [];
+  for (const x of L) {
+    const cl = clusters[clusters.length - 1];
+    if (cl && Math.abs(x.price - cl.price) <= tolPct * x.price) {
+      cl.price = (cl.price * cl.weight + x.price * x.w) / (cl.weight + x.w);
+      cl.weight += x.w;
+      cl.count++;
+      cl.sources.push(x.src);
+      cl.degrees.add(x.deg);
+      cl.low = Math.min(cl.low, x.price);
+      cl.high = Math.max(cl.high, x.price);
+    } else clusters.push({ price: x.price, weight: x.w, count: 1, sources: [x.src], degrees: /* @__PURE__ */ new Set([x.deg]), low: x.price, high: x.price });
+  }
+  return clusters.map((cl) => ({ ...cl, degrees: [...cl.degrees] })).sort((a, b) => b.weight - a.weight);
+}
+function analyzePro(candles, userOpts = {}) {
+  const base = analyze(candles, userOpts), o = base.options, pro = userOpts.pro || {};
+  const per = multiDegreeScenarios(candles, base.osc, base.bands, o, pro.degrees || DEGREES);
+  const scenarios2 = rankScenarios(candles, per, o, pro);
+  const horizonI = candles.length - 1 + (pro.projectBars ?? 20), tol = pro.confluenceTol ?? 5e-3;
+  const confluence = fibConfluence(scenarios2, { tolPct: tol, horizonI });
+  return {
+    ...base,
+    degrees: per.map((d) => ({ degree: d.degree, k: d.k, pivots: d.pivots, scenarioCount: d.scenarios.length })),
+    scenarios: scenarios2,
+    confluence,
+    confluenceTol: tol
+  };
+}
+var hasVolume2 = (c) => c.length > 0 && c.every((x) => Number.isFinite(x.volume));
+function legStats(c, i0, i1) {
+  const bars = i1 - i0;
+  if (bars <= 0) return null;
+  let sum = 0;
+  for (let j = i0 + 1; j <= i1; j++) sum += c[j].volume;
+  return { bars, sum, avg: sum / bars };
+}
+function baselineVol(c, i, n = 50) {
+  const a = Math.max(0, i - n + 1);
+  let s = 0;
+  for (let j = a; j <= i; j++) s += c[j].volume;
+  return s / (i - a + 1);
+}
+function scenarioVolume(c, sc, endI, { spike = 1.5, minBars5 = 3 } = {}) {
+  if (!hasVolume2(c)) return { has: false, score: null, checks: {} };
+  const p = sc.points, s = sc.dir === "up" ? 1 : -1, base = baselineVol(c, p[0].i, 50) || 1;
+  const end5 = p.length === 6 ? p[5].i : Math.min(endI, c.length - 1);
+  const L = [
+    null,
+    legStats(c, p[0].i, p[1].i),
+    legStats(c, p[1].i, p[2].i),
+    legStats(c, p[2].i, p[3].i),
+    legStats(c, p[3].i, p[4].i),
+    legStats(c, p[4].i, end5)
+  ];
+  const rel = L.map((x) => x ? x.avg / base : null), checks = {};
+  if (L[1] && L[3]) checks.wave3GteWave1 = { pass: L[3].avg >= L[1].avg, w1: rel[1], w3: rel[3] };
+  if (L[2] && L[1]) checks.wave2Contracts = { pass: L[2].avg < L[1].avg, w1: rel[1], w2: rel[2] };
+  if (L[4] && L[3]) checks.wave4Contracts = { pass: L[4].avg < L[3].avg, w3: rel[3], w4: rel[4] };
+  if (L[5] && L[5].bars >= minBars5 && L[3]) checks.wave5WeakerThanWave3 = { pass: L[5].avg < L[3].avg, w3: rel[3], w5: rel[5] };
+  let j = -1;
+  for (let k = p[2].i + 1; k <= p[3].i; k++) if (s * c[k].close > s * p[1].price) {
+    j = k;
+    break;
+  }
+  if (j > 0) {
+    let mx = 0;
+    for (let k = Math.max(0, j - 1); k <= Math.min(c.length - 1, j + 2); k++) mx = Math.max(mx, c[k].volume);
+    checks.breakoutSpike = { pass: mx / base >= spike, ratio: mx / base };
+  }
+  const v = Object.values(checks);
+  return {
+    has: true,
+    base,
+    legs: L.slice(1).map((x, k) => x && { wave: k + 1, bars: x.bars, avg: x.avg, rel: rel[k + 1] }),
+    checks,
+    score: v.length ? v.filter((x) => x.pass).length / v.length : null
+  };
+}
+var TIME_RATIOS = [0.382, 0.5, 0.618, 0.786, 1, 1.272, 1.618, 2.618];
+var _nullCache = /* @__PURE__ */ new Map();
+function timeNullCoverage(tol = 0.15, lo = 0.25, hi = 4) {
+  const key = `${tol}|${lo}|${hi}`;
+  if (_nullCache.has(key)) return _nullCache.get(key);
+  let hit = 0;
+  const N = 4e3, a = Math.log(lo), b = Math.log(hi);
+  for (let k = 0; k < N; k++) {
+    const r = Math.exp(a + (b - a) * (k + 0.5) / N);
+    if (TIME_RATIOS.some((f) => Math.abs(r / f - 1) <= tol)) hit++;
+  }
+  const v = hit / N;
+  _nullCache.set(key, v);
+  return v;
+}
+function timeRatio(dur, base, tol = 0.15) {
+  if (!(dur > 0) || !(base > 0)) return null;
+  const ratio = dur / base, nearestR = TIME_RATIOS.reduce((b, f) => Math.abs(Math.log(ratio / f)) < Math.abs(Math.log(ratio / b)) ? f : b, TIME_RATIOS[0]);
+  const err = ratio / nearestR - 1;
+  return { ratio, nearest: nearestR, err, within: Math.abs(err) <= tol };
+}
+function timeProfile(sc, endI, { tol = 0.15 } = {}) {
+  const p = sc.points, d = [null];
+  for (let k = 1; k <= 4; k++) d[k] = p[k].i - p[k - 1].i;
+  if (p.length === 6 && p[5].confirmed) d[5] = p[5].i - p[4].i;
+  const defs = [["S2/S1", 2, 1], ["S3/S1", 3, 1], ["S4/S2", 4, 2], ["S4/S3", 4, 3], ["S5/S1", 5, 1], ["S5/S3", 5, 3]];
+  const pairs = defs.filter(([, a, b]) => d[a] > 0 && d[b] > 0).map(([name, a, b]) => ({ name, ...timeRatio(d[a], d[b], tol) }));
+  const cov = timeNullCoverage(tol), score = pairs.length ? pairs.filter((x) => x.within).length / pairs.length : null;
+  return {
+    durations: d.slice(1),
+    pairs,
+    score,
+    nullCoverage: cov,
+    edge: score == null ? null : score - cov,
+    elapsedWave5: p.length === 5 || p.length === 6 && !p[5].confirmed ? endI - p[4].i : null
+  };
+}
+function timeTargets(sc, endI) {
+  const p = sc.points;
+  if (!(isWave5Live(sc) || sc.status === "wave5-forming")) return null;
+  const d1 = p[1].i - p[0].i, d3 = p[3].i - p[2].i, st = p[4].i;
+  const mk = (r, base, name) => ({ bar: Math.round(st + r * base), ratio: r, basis: name });
+  const levels = [...[0.618, 1, 1.618].map((r) => mk(r, d1, "s\xF3ng 1")), ...[0.382, 0.618, 1].map((r) => mk(r, d3, "s\xF3ng 3"))].sort((a, b) => a.bar - b.bar);
+  const elapsed = endI - st, first = levels[0].bar - st, last = levels[levels.length - 1].bar - st;
+  return { levels, elapsed, stage: elapsed < first ? "tr\u01B0\u1EDBc c\u1EEDa s\u1ED5" : elapsed <= last ? "trong c\u1EEDa s\u1ED5" : "qu\xE1 c\u1EEDa s\u1ED5" };
+}
+function timeConfluence(scenarios2, { tolBars = 3 } = {}) {
+  const L = [];
+  scenarios2.forEach((sc) => {
+    const w = sc.weight ?? 1;
+    (sc.timeTargets ? sc.timeTargets.levels : []).forEach((l) => L.push({ bar: l.bar, w, src: `${sc.degree || "main"} \xD7${l.ratio} ${l.basis}` }));
+  });
+  L.sort((a, b) => a.bar - b.bar);
+  const cl = [];
+  for (const x of L) {
+    const c = cl[cl.length - 1];
+    if (c && Math.abs(x.bar - c.bar) <= tolBars) {
+      c.bar = (c.bar * c.weight + x.bar * x.w) / (c.weight + x.w);
+      c.weight += x.w;
+      c.count++;
+      c.sources.push(x.src);
+    } else cl.push({ bar: x.bar, weight: x.w, count: 1, sources: [x.src] });
+  }
+  return cl.sort((a, b) => b.weight - a.weight);
+}
+function timePriceCells(priceClusters, timeClusters, topN = 5) {
+  const out = [];
+  priceClusters.slice(0, 6).forEach((pc) => timeClusters.slice(0, 6).forEach((tc) => out.push({ price: pc.price, bar: Math.round(tc.bar), weight: pc.weight * tc.weight, priceSources: pc.sources, timeSources: tc.sources })));
+  return out.sort((a, b) => b.weight - a.weight).slice(0, topN);
+}
 var DEFAULT_MODEL_FULL = { ...DEFAULT_MODEL, vol: 0.5, time: 0.3 };
+function analyzeFull(candles, userOpts = {}) {
+  const pro0 = userOpts.pro || {}, topN = pro0.topN ?? 5, T = pro0.temperature ?? 1;
+  const pr = analyzePro(candles, { ...userOpts, pro: { ...pro0, topN: Math.max(20, topN * 4) } });
+  const endI = candles.length - 1, m = { ...DEFAULT_MODEL_FULL, ...pro0.model || {} }, vol = hasVolume2(candles);
+  const tol = pro0.time && pro0.time.tol != null ? pro0.time.tol : 0.15;
+  pr.scenarios.forEach((sc) => {
+    sc.volume = vol ? scenarioVolume(candles, sc, endI) : { has: false, score: null, checks: {} };
+    sc.time = timeProfile(sc, endI, { tol });
+    sc.timeTargets = timeTargets(sc, endI);
+    const f = sc.features;
+    f.vol = sc.volume.score ?? 0.5;
+    f.time = sc.time.score ?? 0.5;
+    sc.modelScore = m.bias + m.logp * f.logp + m.osc * f.osc + m.nest * f.nest + m.alt * f.alt + m.vol * f.vol + m.time * f.time;
+  });
+  if (pr.scenarios.length) {
+    const mx = Math.max(...pr.scenarios.map((x) => x.modelScore));
+    const Z = pr.scenarios.reduce((a, x) => a + Math.exp((x.modelScore - mx) / T), 0);
+    pr.scenarios.forEach((x) => {
+      x.weight = Math.exp((x.modelScore - mx) / T) / Z;
+    });
+    pr.scenarios.sort((a, b) => b.weight - a.weight);
+    pr.scenarios.length = Math.min(topN, pr.scenarios.length);
+  }
+  const horizonI = endI + (pro0.projectBars ?? 20);
+  pr.confluence = fibConfluence(pr.scenarios, { tolPct: pr.confluenceTol, horizonI });
+  pr.timeConfluence = timeConfluence(pr.scenarios, { tolBars: pro0.timeTolBars ?? 3 });
+  pr.timePriceCells = timePriceCells(pr.confluence, pr.timeConfluence);
+  pr.hasVolume = vol;
+  return pr;
+}
 
 // src/lib/quant-core/elliott/patterns.ts
 var PATTERN_NAME2 = {
@@ -3933,13 +4611,13 @@ function classifyMotive(p, position = "unknown") {
   if (p.length < 6) return [];
   const s = dirOf(p[0], p[1]);
   const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
-  const r22 = w[1] / w[0], r4 = w[3] / w[2];
+  const r23 = w[1] / w[0], r4 = w[3] / w[2];
   const w3Shortest = w[2] < w[0] && w[2] < w[4];
   const overlap = s * (p[4].price - p[1].price) <= 0;
   const w3Beyond = s * (p[3].price - p[1].price) > 0;
   const w5Beyond = s * (p[5].price - p[3].price) > 0;
   const base = [
-    { id: "w2-origin", severity: "hard", pass: r22 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r22)})` },
+    { id: "w2-origin", severity: "hard", pass: r23 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r23)})` },
     { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
     { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
   ];
@@ -3959,7 +4637,7 @@ function classifyMotive(p, position = "unknown") {
     { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
     { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
     { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
-    { id: "diag-deep", severity: "soft", pass: r22 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+    { id: "diag-deep", severity: "soft", pass: r23 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
   ];
   if (position !== "middle") {
     if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
@@ -4009,6 +4687,29 @@ function classifyThreeLeg(start, A, B, C, sub = {}) {
   ], ["0", "W", "X", "Y"]));
   return rankFits(out);
 }
+function classifySevenLeg(p) {
+  if (p.length < 8) return [];
+  const first = rankFits(classifyThreeLeg(p[0], p[1], p[2], p[3]))[0];
+  const second = rankFits(classifyThreeLeg(p[4], p[5], p[6], p[7]))[0];
+  const s = dirOf(p[0], p[1]);
+  const xR = len(p[3], p[4]) / len(p[0], p[3]);
+  const progress = s * (p[7].price - p[3].price) > 0;
+  const zz = (f) => !!f && f.valid && f.tag === "ZZ";
+  return rankFits([
+    fit("DZ", [
+      { id: "dz-w", severity: "hard", pass: zz(first), text: "W l\xE0 zigzag" },
+      { id: "dz-y", severity: "hard", pass: zz(second), text: "Y l\xE0 zigzag" },
+      { id: "dz-x", severity: "hard", pass: xR < 1, text: `X kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u W (X h\u1ED3i ${pct2(xR)})` },
+      { id: "dz-progress", severity: "soft", pass: progress, text: "Y \u0111i xa h\u01A1n W (zigzag k\xE9p \u0111\u1EA9y gi\xE1 th\xEAm)" }
+    ], ["0", "a", "b", "W", "X", "a", "b", "Y"]),
+    fit("D3", [
+      { id: "d3-w", severity: "hard", pass: !!first?.valid, text: `W l\xE0 \u0111i\u1EC1u ch\u1EC9nh h\u1EE3p l\u1EC7 (${first?.tag ?? "\u2014"})` },
+      { id: "d3-y", severity: "hard", pass: !!second?.valid, text: `Y l\xE0 \u0111i\u1EC1u ch\u1EC9nh h\u1EE3p l\u1EC7 (${second?.tag ?? "\u2014"})` },
+      { id: "d3-x", severity: "hard", pass: xR < 1, text: `X kh\xF4ng v\u01B0\u1EE3t \u0111i\u1EC3m \u0111\u1EA7u W (X h\u1ED3i ${pct2(xR)})` },
+      { id: "d3-mix", severity: "soft", pass: !!first && !!second && first.tag !== second.tag, text: "W v\xE0 Y kh\xE1c d\u1EA1ng (vd. zigzag + flat) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a W-X-Y" }
+    ], ["0", "a", "b", "W", "X", "a", "b", "Y"])
+  ]);
+}
 function classifyTriangle(p) {
   if (p.length < 6) return [];
   const [o, a, b, c, d, e] = p;
@@ -4042,6 +4743,11 @@ function classifyTriangle(p) {
     ], labels)
   ]);
 }
+function alternationTag(fit0, retrace) {
+  if (fit0?.valid && (fit0.tag === "ZZ" || fit0.tag === "DZ")) return "Sharp";
+  if (fit0?.valid && ["FL", "EX-FL", "RFL", "TR", "RTR", "ETR", "D3", "T3"].includes(fit0.tag)) return "Sideways";
+  return retrace >= 0.5 ? "Sharp" : "Sideways";
+}
 function innerPivots(candles, a, b, pct3) {
   const seg = candles.slice(a.i, b.i + 1);
   if (seg.length < 5) return [a, b];
@@ -4053,6 +4759,22 @@ function innerPivots(candles, a, b, pct3) {
     else out.push(p);
   }
   return out;
+}
+var SEGMENT_PCT_LADDER = [1, 0.6, 0.35, 1.6, 2.5];
+function classifyCorrectionSegment(candles, a, b, pct3) {
+  for (const m of SEGMENT_PCT_LADDER) {
+    const q = pct3 * m;
+    const pts2 = innerPivots(candles, a, b, q);
+    const legs = pts2.length - 1;
+    const subCount = (x, y) => {
+      const n = innerPivots(candles, x, y, q * 0.5).length - 1;
+      return n >= 3 ? n >= 5 ? 5 : 3 : null;
+    };
+    if (legs === 3) return { fits: classifyThreeLeg(pts2[0], pts2[1], pts2[2], pts2[3], { aWaves: subCount(pts2[0], pts2[1]), cWaves: subCount(pts2[2], pts2[3]) }), points: pts2, pct: q };
+    if (legs === 5) return { fits: classifyTriangle(pts2), points: pts2, pct: q };
+    if (legs === 7) return { fits: classifySevenLeg(pts2), points: pts2, pct: q };
+  }
+  return { fits: [], points: [a, b], pct: null };
 }
 
 // src/lib/quant-core/elliott/v3/waveTree.ts
@@ -4370,8 +5092,8 @@ function scenarioFromNode(n, prev, role2, symbol = "") {
   if (tri && k >= 4) {
     const A = L(p[0], p[1]), thrust = -s;
     const B = p[2], D = p[4], last = p[Math.min(k, 5)];
-    const opp = [p[3], p[5]].filter(Boolean).map((x) => x.price);
-    const inv = thrust > 0 ? Math.min(...opp) : Math.max(...opp);
+    const opp2 = [p[3], p[5]].filter(Boolean).map((x) => x.price);
+    const inv = thrust > 0 ? Math.min(...opp2) : Math.max(...opp2);
     return finish({
       template: "triangleThrust",
       role: role2,
@@ -4539,7 +5261,7 @@ function ema(values, period) {
   }
   return out;
 }
-function sma(values, period) {
+function sma2(values, period) {
   const out = new Array(values.length).fill(NaN);
   let s = 0;
   for (let i = 0; i < values.length; i++) {
@@ -4620,7 +5342,7 @@ function orderTau(vals) {
 }
 function ribbonSeries(bars, tf) {
   const n = bars.length, C = bars.map((b) => b.close);
-  const e21 = ema(C, 21), e50 = ema(C, 50), e100 = ema(C, 100), m200 = sma(C, RIBBON.ma), a = atr2(bars, RIBBON.atr);
+  const e21 = ema(C, 21), e50 = ema(C, 50), e100 = ema(C, 100), m200 = sma2(C, RIBBON.ma), a = atr2(bars, RIBBON.atr);
   const order = new Array(n).fill(NaN), orderAge = new Array(n).fill(0);
   const width = new Array(n).fill(NaN), dev50 = new Array(n).fill(NaN), gap = new Array(n).fill(NaN);
   const L = RIBBON.slopeLen, mk = () => new Array(n).fill(NaN);
@@ -4720,8 +5442,8 @@ function compactRibbon3(r, opts = {}) {
   const t = r.D.bars.length - 1, win = opts.window ?? 260;
   const lines = (s) => {
     const from = Math.max(0, s.bars.length - win);
-    const pick = (x) => x.slice(from).map(px);
-    return { dates: s.bars.slice(from).map((b) => b.date), ema21: pick(s.ema21), ema50: pick(s.ema50), ema100: pick(s.ema100), ma200: pick(s.ma200) };
+    const pick2 = (x) => x.slice(from).map(px);
+    return { dates: s.bars.slice(from).map((b) => b.date), ema21: pick2(s.ema21), ema50: pick2(s.ema50), ema100: pick2(s.ema100), ma200: pick2(s.ma200) };
   };
   return { context: t >= 0 ? contextAt(r, t) : null, lines: { D: lines(r.D), W: lines(r.W), M: lines(r.M) } };
 }
@@ -5037,8 +5759,563 @@ function compactStructure3(a, opts = {}) {
   return { context: t >= 0 ? context3At(a, t) : null, frames: { D: frame(a.D), W: frame(a.W), M: frame(a.M) } };
 }
 
+// src/lib/cotuc/vn-trading-calendar.ts
+var TZ = 7;
+var INT = Math.floor;
+function jdFromDate(dd, mm, yy) {
+  const a = INT((14 - mm) / 12);
+  const y = yy + 4800 - a;
+  const m = mm + 12 * a - 3;
+  let jd = dd + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - INT(y / 100) + INT(y / 400) - 32045;
+  if (jd < 2299161) jd = dd + INT((153 * m + 2) / 5) + 365 * y + INT(y / 4) - 32083;
+  return jd;
+}
+function jdToDate(jd) {
+  let b, c;
+  if (jd > 2299160) {
+    const a = jd + 32044;
+    b = INT((4 * a + 3) / 146097);
+    c = a - INT(b * 146097 / 4);
+  } else {
+    b = 0;
+    c = jd + 32082;
+  }
+  const d = INT((4 * c + 3) / 1461);
+  const e = c - INT(1461 * d / 4);
+  const m = INT((5 * e + 2) / 153);
+  return [e - INT((153 * m + 2) / 5) + 1, m + 3 - 12 * INT(m / 10), b * 100 + d - 4800 + INT(m / 10)];
+}
+function newMoon(k) {
+  const T = k / 1236.85;
+  const T2 = T * T;
+  const T3 = T2 * T;
+  const dr = Math.PI / 180;
+  let Jd1 = 241502075933e-5 + 29.53058868 * k + 1178e-7 * T2 - 155e-9 * T3;
+  Jd1 += 33e-5 * Math.sin((166.56 + 132.87 * T - 9173e-6 * T2) * dr);
+  const M = 359.2242 + 29.10535608 * k - 333e-7 * T2 - 347e-8 * T3;
+  const Mpr = 306.0253 + 385.81691806 * k + 0.0107306 * T2 + 1236e-8 * T3;
+  const F = 21.2964 + 390.67050646 * k - 16528e-7 * T2 - 239e-8 * T3;
+  let C1 = (0.1734 - 393e-6 * T) * Math.sin(M * dr) + 21e-4 * Math.sin(2 * dr * M);
+  C1 = C1 - 0.4068 * Math.sin(Mpr * dr) + 0.0161 * Math.sin(dr * 2 * Mpr);
+  C1 = C1 - 4e-4 * Math.sin(dr * 3 * Mpr);
+  C1 = C1 + 0.0104 * Math.sin(dr * 2 * F) - 51e-4 * Math.sin(dr * (M + Mpr));
+  C1 = C1 - 74e-4 * Math.sin(dr * (M - Mpr)) + 4e-4 * Math.sin(dr * (2 * F + M));
+  C1 = C1 - 4e-4 * Math.sin(dr * (2 * F - M)) - 6e-4 * Math.sin(dr * (2 * F + Mpr));
+  C1 = C1 + 1e-3 * Math.sin(dr * (2 * F - Mpr)) + 5e-4 * Math.sin(dr * (2 * Mpr + M));
+  const deltat = T < -11 ? 1e-3 + 839e-6 * T + 2261e-7 * T2 - 845e-8 * T3 - 81e-9 * T * T3 : -278e-6 + 265e-6 * T + 262e-6 * T2;
+  return Jd1 + C1 - deltat;
+}
+function sunLongitude(jdn) {
+  const T = (jdn - 2451545) / 36525;
+  const T2 = T * T;
+  const dr = Math.PI / 180;
+  const M = 357.5291 + 35999.0503 * T - 1559e-7 * T2 - 48e-8 * T * T2;
+  const L0 = 280.46645 + 36000.76983 * T + 3032e-7 * T2;
+  let DL = (1.9146 - 4817e-6 * T - 14e-6 * T2) * Math.sin(dr * M);
+  DL = DL + (0.019993 - 101e-6 * T) * Math.sin(dr * 2 * M) + 29e-5 * Math.sin(dr * 3 * M);
+  let L = (L0 + DL) * dr;
+  L = L - Math.PI * 2 * INT(L / (Math.PI * 2));
+  return L;
+}
+var getNewMoonDay = (k) => INT(newMoon(k) + 0.5 + TZ / 24);
+var getSunLongitudeSector = (dayNumber) => INT(sunLongitude(dayNumber - 0.5 - TZ / 24) / Math.PI * 6);
+function getLunarMonth11(yy) {
+  const off = jdFromDate(31, 12, yy) - 2415021;
+  const k = INT(off / 29.530588853);
+  let nm = getNewMoonDay(k);
+  if (getSunLongitudeSector(nm) >= 9) nm = getNewMoonDay(k - 1);
+  return nm;
+}
+function getLeapMonthOffset(a11) {
+  const k = INT((a11 - 2415021076998695e-9) / 29.530588853 + 0.5);
+  let last;
+  let i = 1;
+  let arc = getSunLongitudeSector(getNewMoonDay(k + i));
+  do {
+    last = arc;
+    i++;
+    arc = getSunLongitudeSector(getNewMoonDay(k + i));
+  } while (arc !== last && i < 14);
+  return i - 1;
+}
+function lunarToSolar(lunarDay, lunarMonth, lunarYear, lunarLeap = false) {
+  let a11, b11;
+  if (lunarMonth < 11) {
+    a11 = getLunarMonth11(lunarYear - 1);
+    b11 = getLunarMonth11(lunarYear);
+  } else {
+    a11 = getLunarMonth11(lunarYear);
+    b11 = getLunarMonth11(lunarYear + 1);
+  }
+  const k = INT(0.5 + (a11 - 2415021076998695e-9) / 29.530588853);
+  let off = lunarMonth - 11;
+  if (off < 0) off += 12;
+  if (b11 - a11 > 365) {
+    const leapOff = getLeapMonthOffset(a11);
+    let leapMonth = leapOff - 2;
+    if (leapMonth < 0) leapMonth += 12;
+    if (lunarLeap && lunarMonth !== leapMonth) return null;
+    if (lunarLeap || off >= leapOff) off += 1;
+  }
+  return jdToDate(getNewMoonDay(k + off) + lunarDay - 1);
+}
+var pad = (n) => String(n).padStart(2, "0");
+var ymd = ([d, m, y]) => `${y}-${pad(m)}-${pad(d)}`;
+var tetDate = (year) => ymd(lunarToSolar(1, 1, year));
+var hungKingsDate = (year) => ymd(lunarToSolar(10, 3, year));
+var toJd = (iso) => jdFromDate(Number(iso.slice(8, 10)), Number(iso.slice(5, 7)), Number(iso.slice(0, 4)));
+var fromJd = (jd) => ymd(jdToDate(jd));
+var weekdayJd = (jd) => (jd + 1) % 7;
+var isWeekendJd = (jd) => weekdayJd(jd) === 0 || weekdayJd(jd) === 6;
+function tetClosure(year) {
+  const center = toJd(tetDate(year)) + 1;
+  const days = [];
+  for (let d = center - 8; d <= center + 8; d++) if (!isWeekendJd(d)) days.push(d);
+  days.sort((a, b) => Math.abs(a - center) - Math.abs(b - center) || a - b);
+  return days.slice(0, 5);
+}
+function sept2Adjacent(year) {
+  const d2 = toJd(`${year}-09-02`);
+  const wd = weekdayJd(d2);
+  return wd === 1 || wd === 4 || wd === 0 ? d2 + 1 : d2 - 1;
+}
+function ruleHolidays(year) {
+  const out = /* @__PURE__ */ new Map();
+  const add = (jd, reason) => {
+    if (!isWeekendJd(jd) && !out.has(jd)) out.set(jd, reason);
+  };
+  for (const d of tetClosure(year)) add(d, "T\u1EBFt Nguy\xEAn \u0111\xE1n");
+  const singles = [
+    [toJd(`${year}-01-01`), "T\u1EBFt D\u01B0\u01A1ng l\u1ECBch"],
+    [toJd(hungKingsDate(year)), "Gi\u1ED7 T\u1ED5 H\xF9ng V\u01B0\u01A1ng"],
+    [toJd(`${year}-04-30`), "Ng\xE0y Th\u1ED1ng nh\u1EA5t"],
+    [toJd(`${year}-05-01`), "Qu\u1ED1c t\u1EBF Lao \u0111\u1ED9ng"],
+    [toJd(`${year}-09-02`), "Qu\u1ED1c kh\xE1nh"]
+  ];
+  if (year >= 2021) singles.push([sept2Adjacent(year), "Qu\u1ED1c kh\xE1nh (ng\xE0y li\u1EC1n k\u1EC1)"]);
+  singles.sort((a, b) => a[0] - b[0]);
+  const taken = new Set(singles.map(([d]) => d));
+  for (const [d, reason] of singles) {
+    if (!isWeekendJd(d)) {
+      add(d, reason);
+      continue;
+    }
+    let c = d + 1;
+    while (isWeekendJd(c) || out.has(c) || taken.has(c) && c !== d) c++;
+    add(c, `${reason} (ngh\u1EC9 b\xF9)`);
+  }
+  return [...out.entries()].sort((a, b) => a[0] - b[0]).map(([jd, reason]) => ({ date: fromJd(jd), reason }));
+}
+function ruleHolidaySet(fromYear, toYear) {
+  const m = /* @__PURE__ */ new Map();
+  for (let y = fromYear; y <= toYear; y++) for (const h of ruleHolidays(y)) m.set(h.date, h.reason);
+  return m;
+}
+
+// src/lib/ta-command-center/TimeframeController.ts
+function aggregate2(dailyBars, keyOf2) {
+  const groups = /* @__PURE__ */ new Map();
+  for (const bar of dailyBars) {
+    const key = keyOf2(bar.date);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(bar);
+  }
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, bars]) => ({
+    date: key,
+    open: bars[0].open,
+    high: Math.max(...bars.map((b) => b.high)),
+    low: Math.min(...bars.map((b) => b.low)),
+    close: bars[bars.length - 1].close,
+    volume: bars.reduce((s, b) => s + b.volume, 0)
+  }));
+}
+function aggregateToWeekly(dailyBars) {
+  return aggregate2(dailyBars, (d) => {
+    const date = /* @__PURE__ */ new Date(d + "T00:00:00Z");
+    const day = date.getUTCDay();
+    date.setUTCDate(date.getUTCDate() + (day === 0 ? -6 : 1 - day));
+    return date.toISOString().slice(0, 10);
+  });
+}
+
+// src/lib/quant-core/elliott/vnValidation.ts
+var ELLIOTT_VN_TABLES = {
+  w2: [{ max: 0.38, p: 0.115 }, { max: 0.5, p: 0.142 }, { max: 0.6, p: 0.182 }, { max: 0.62, p: 0.031 }, { max: Infinity, p: 0.53 }],
+  w3: [{ max: 1, p: 0.116 }, { max: 1.6, p: 0.338 }, { max: 1.75, p: 0.086 }, { max: 2.62, p: 0.289 }, { max: Infinity, p: 0.171 }],
+  w4: [{ max: 0.24, p: 0.089 }, { max: 0.3, p: 0.13 }, { max: 0.5, p: 0.606 }, { max: 0.62, p: 0.135 }, { max: Infinity, p: 0.04 }]
+};
+
+// src/lib/quant-core/elliott/index.ts
+var ELLIOTT_BAR_LIMIT = 500;
+var P = (p) => ({ i: p.i, price: p.price, time: String(p.time) });
+var pick = (fits, points) => ({ best: fits.find((f) => f.valid) ?? null, fits, points });
+function patternsOf(sc, pivots2, candles, basePct) {
+  const k = sc.degreeK ?? 1;
+  const fine = basePct * k * 0.4;
+  const pts2 = sc.points.map(P);
+  const motivePts = pts2.length === 6 ? pts2 : null;
+  const extremeRule = () => {
+    const bad = [];
+    for (let k2 = 1; k2 < pts2.length - 1; k2++) {
+      const up = pts2[k2].price > pts2[k2 - 1].price;
+      for (let i = pts2[k2 - 1].i + 1; i < pts2[k2 + 1].i; i++) {
+        const c = candles[i];
+        if (!c) continue;
+        if (up ? c.high > pts2[k2].price * (1 + 1e-9) : c.low < pts2[k2].price * (1 - 1e-9)) {
+          bad.push(String(k2));
+          break;
+        }
+      }
+    }
+    return {
+      id: "pivot-extreme",
+      severity: "hard",
+      pass: bad.length === 0,
+      text: bad.length ? `\u0110\u1EC9nh/\u0111\xE1y s\xF3ng ${bad.join(", ")} kh\xF4ng ph\u1EA3i c\u1EF1c tr\u1ECB c\u1EE7a \u0111o\u1EA1n k\u1EC1 b\xEAn \u2014 c\xE1ch \u0111\u1EBFm kh\xF4ng nh\u1EA5t qu\xE1n` : "M\u1ED7i \u0111\u1EC9nh/\u0111\xE1y s\xF3ng l\xE0 c\u1EF1c tr\u1ECB c\u1EE7a \u0111o\u1EA1n k\u1EC1 b\xEAn"
+    };
+  };
+  const ext = extremeRule();
+  const withExt = (fits) => rankFits(fits.map((f) => ({ ...f, rules: [ext, ...f.rules], valid: f.valid && ext.pass !== false })));
+  const motive = motivePts ? pick(withExt(classifyMotive(motivePts, "unknown")), motivePts) : null;
+  const corrSeg = (a, b, prevLen) => {
+    const r = classifyCorrectionSegment(candles, a, b, fine);
+    const best = r.fits.find((f) => f.valid) ?? null;
+    const retrace = Math.abs(b.price - a.price) / prevLen;
+    return { ...pick(r.fits, r.points), alt: alternationTag(best, retrace), retrace };
+  };
+  const wave2 = pts2.length >= 3 ? corrSeg(pts2[1], pts2[2], Math.abs(pts2[1].price - pts2[0].price)) : null;
+  const wave4 = pts2.length >= 5 ? corrSeg(pts2[3], pts2[4], Math.abs(pts2[3].price - pts2[2].price)) : null;
+  let correction = null;
+  const p5 = sc.points[5];
+  if (p5?.confirmed) {
+    const after = pivots2.filter((x) => x.i > p5.i && x.ci != null).map(P);
+    const seq = [P(p5), ...after];
+    if (seq.length >= 8) correction = pick(classifySevenLeg(seq.slice(0, 8)), seq.slice(0, 8));
+    else if (seq.length >= 6) correction = pick(classifyTriangle(seq.slice(0, 6)), seq.slice(0, 6));
+    else if (seq.length >= 3) {
+      const C = seq[3] ?? null;
+      correction = pick(classifyThreeLeg(seq[0], seq[1], seq[2], C), seq.slice(0, 4));
+    }
+  }
+  return { motive, wave2, wave4, alternationOk: wave2 && wave4 ? wave2.alt !== wave4.alt : null, correction, consistent: ext.pass !== false };
+}
+var toCandles = (bars) => bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+var DEGREE_VI = { minor: "b\u1EADc nh\u1ECF", intermediate: "b\u1EADc trung", major: "b\u1EADc l\u1EDBn", primary: "b\u1EADc ch\xEDnh" };
+function describe(sc, pivots2) {
+  const r = describeRaw(sc, pivots2);
+  const deg = sc.degree ? DEGREE_VI[sc.degree] ?? sc.degree : null;
+  return { ...r, label: deg ? `${r.label} \xB7 ${deg}` : r.label };
+}
+function describeRaw(sc, pivots2) {
+  const dirText = sc.dir === "up" ? "t\u0103ng" : "gi\u1EA3m";
+  if (sc.status === "wave5-forming") return { wave: "5", label: `S\xF3ng 5 (${dirText}) \u0111ang h\xECnh th\xE0nh` };
+  const p5 = sc.points[5];
+  if (!p5.confirmed) return { wave: "5", label: `S\xF3ng 5 (${dirText}) \u0111ang ch\u1EA1y \u2014 ch\u01B0a x\xE1c nh\u1EADn ${sc.dir === "up" ? "\u0111\u1EC9nh" : "\u0111\xE1y"}` };
+  const after = pivots2.filter((p) => p.i > p5.i && p.ci != null).length;
+  if (after === 0) return { wave: "A", label: `S\xF3ng A \u0111i\u1EC1u ch\u1EC9nh \u0111ang h\xECnh th\xE0nh (sau 5 s\xF3ng ${dirText})` };
+  if (after === 1) return { wave: "B", label: `S\xF3ng B \u0111i\u1EC1u ch\u1EC9nh \u0111ang h\xECnh th\xE0nh (sau 5 s\xF3ng ${dirText})` };
+  if (after === 2) return { wave: "C", label: `S\xF3ng C \u0111i\u1EC1u ch\u1EC9nh \u0111ang h\xECnh th\xE0nh (sau 5 s\xF3ng ${dirText})` };
+  return { wave: "post", label: `\u0110\xE3 qua \u0111i\u1EC1u ch\u1EC9nh ABC sau 5 s\xF3ng ${dirText}` };
+}
+function levelsOf(sc) {
+  const out = [];
+  if (sc.status === "wave5-forming") {
+    for (const l of sc.targets.wave5.levels) out.push({ label: `M\u1EE5c ti\xEAu s\xF3ng 5 \xD7${String(l.ratio).replace(".", ",")}`, price: l.price });
+    out.push({ label: "C\u1EEDa s\u1ED5 s\xF3ng 5 (s\xE1ch): 62% c\u1EE7a 0\u21923", price: sc.targets.wave5.window03.low });
+    out.push({ label: "C\u1EEDa s\u1ED5 s\xF3ng 5 (s\xE1ch): 100% c\u1EE7a 0\u21923", price: sc.targets.wave5.window03.high });
+  } else {
+    out.push({ label: "M\u1EE5c ti\xEAu \u0111\u1EA7u ti\xEAn c\u1EE7a \u0111i\u1EC1u ch\u1EC9nh (\u0111\xE1y/\u0111\u1EC9nh s\xF3ng 4)", price: sc.points[4].price });
+    const [p0, , , , , p5] = sc.points;
+    const len2 = p5.price - p0.price;
+    for (const r of [0.382, 0.5, 0.618]) out.push({ label: `H\u1ED3i ${(r * 100).toFixed(1).replace(".0", "").replace(".", ",")}% c\u1EE7a 0\u21925`, price: p5.price - r * len2 });
+  }
+  return out;
+}
+function elliottState(bars, opts = {}) {
+  if (bars.length < 60) return null;
+  const window = bars.slice(-ELLIOTT_BAR_LIMIT);
+  const zz = opts.zigzagPct != null ? { zigzag: { pct: opts.zigzagPct } } : {};
+  const candles = toCandles(window);
+  const res = analyzeFull(candles, { ...zz, pro: { topN: 3, statTables: ELLIOTT_VN_TABLES, ...opts.degrees ? { degrees: opts.degrees } : {} } });
+  const asOf = window[window.length - 1].date;
+  const sc = res.scenarios[0];
+  const stateOf = (x) => {
+    const inv = invalidationOf(x);
+    return {
+      ...describe(x, res.pivots),
+      dir: x.dir,
+      degree: x.degree ? DEGREE_VI[x.degree] ?? x.degree : null,
+      weight: x.weight ?? null,
+      scenario: x,
+      alternatives: [],
+      invalidation: inv ? { price: inv.price, side: inv.side, reason: inv.reason } : null,
+      levels: levelsOf(x),
+      patterns: patternsOf(x, res.pivots, candles, opts.zigzagPct ?? 0.03),
+      pivots: res.pivots,
+      asOf,
+      barCount: window.length,
+      zigzagPct: opts.zigzagPct ?? 0.03
+    };
+  };
+  if (sc) {
+    const alts = res.scenarios.slice(1, 3).map(stateOf);
+    return { ...stateOf(sc), alternatives: alts.map((a) => ({ label: a.label, weight: a.weight })), alternates: alts };
+  }
+  const w3 = res.signals?.find((x) => x.type === "wave3");
+  if (w3) {
+    const dirText = w3.dir === "up" ? "t\u0103ng" : "gi\u1EA3m";
+    return {
+      wave: "3",
+      label: `C\xF3 th\u1EC3 \u0111ang \u1EDF s\xF3ng 3 (${dirText}) \u2014 ch\u01B0a \u0111\u1EE7 5 s\xF3ng \u0111\u1EC3 x\u1EBFp h\u1EA1ng`,
+      dir: w3.dir ?? null,
+      degree: "b\u1EADc trung",
+      weight: null,
+      scenario: null,
+      alternatives: [],
+      invalidation: null,
+      levels: [
+        ...(w3.targets ?? []).map((t) => ({ label: `M\u1EE5c ti\xEAu s\xF3ng 3 \xD7${String(t.ratio).replace(".", ",")} s\xF3ng 1`, price: t.price })),
+        ...(w3.wave4Zones ?? []).map((z) => ({ label: `V\xF9ng s\xF3ng 4 t\u01B0\u01A1ng lai ${String(z.ratio).replace(".", ",")}`, price: z.price }))
+      ],
+      pivots: res.pivots,
+      asOf,
+      barCount: window.length
+    };
+  }
+  return {
+    wave: "none",
+    label: "Ch\u01B0a c\xF3 c\u1EA5u tr\xFAc 5 s\xF3ng r\xF5 r\xE0ng \u1EDF c\xE1c b\u1EADc g\u1EA7n \u0111\xE2y",
+    dir: null,
+    degree: null,
+    weight: null,
+    scenario: null,
+    alternatives: [],
+    invalidation: null,
+    levels: [],
+    pivots: res.pivots,
+    asOf,
+    barCount: window.length
+  };
+}
+
+// src/lib/quant-core/elliott/oscCount.ts
+var OSC_COUNT = { lookback: 150, retrace: 0.9, wave4Start: 0.5, maxOpposite: 0.38 };
+var NONE = { wave: "none", dir: null, label: "Dao \u0111\u1ED9ng ch\u01B0a c\xF3 \u0111\u1EC9nh s\xF3ng 3 v\u01B0\u1EE3t d\u1EA3i 80%", w3: null, w4: null, w5: null, divergence: null, oscRatio: null };
+function oscillatorCount(bars) {
+  const n = bars.length;
+  if (n < 60) return NONE;
+  const c = bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+  const osc = elliottOscillator(c, 5, 35), band = breakoutBands(osc, { pct: 0.8, lookback: 100 });
+  let k3 = -1;
+  for (let i = Math.max(35, n - OSC_COUNT.lookback); i < n; i++) {
+    const v = osc[i];
+    if (!Number.isFinite(v)) continue;
+    const b = v > 0 ? band.up[i] : band.lo[i];
+    if (!(b !== 0 && Math.abs(v) > Math.abs(b))) continue;
+    if (k3 < 0 || Math.abs(v) > Math.abs(osc[k3])) k3 = i;
+  }
+  if (k3 < 0) return NONE;
+  const s = osc[k3] > 0 ? 1 : -1, dir = s > 0 ? "up" : "down", dv = s > 0 ? "t\u0103ng" : "gi\u1EA3m";
+  const pk = s * osc[k3], so = (i) => s * osc[i];
+  const ext = (i) => s > 0 ? bars[i].high : bars[i].low, opp2 = (i) => s > 0 ? bars[i].low : bars[i].high;
+  const better = (a, b) => s * a > s * b;
+  let z = k3;
+  while (z > 0 && so(z - 1) > 0) z--;
+  let e4 = n;
+  for (let i = k3 + 1; i < n; i++) if (so(i) < OSC_COUNT.wave4Start * pk) {
+    e4 = i;
+    break;
+  }
+  let w3i = z;
+  for (let i = z; i < Math.min(n, e4 + 1); i++) if (better(ext(i), ext(w3i))) w3i = i;
+  const P2 = (i) => ({ date: bars[i].date, i, price: i === w3i ? ext(i) : opp2(i), osc: osc[i] });
+  const w3 = { date: bars[w3i].date, i: w3i, price: ext(w3i), osc: osc[k3] };
+  const ratio = so(n - 1) / pk;
+  const base = { dir, w3, divergence: null, oscRatio: ratio };
+  if (e4 >= n) return { ...base, wave: "3", label: `Theo dao \u0111\u1ED9ng: s\xF3ng 3 ${dv} (dao \u0111\u1ED9ng c\xF2n ${Math.round(ratio * 100)}% \u0111\u1EC9nh)`, w4: null, w5: null };
+  let r = -1, worst = Infinity;
+  for (let i = k3 + 1; i < n; i++) {
+    worst = Math.min(worst, so(i));
+    if (worst < -OSC_COUNT.maxOpposite * pk) return { ...NONE, label: `Dao \u0111\u1ED9ng sang ph\xEDa ng\u01B0\u1EE3c l\u1EA1i > 38% sau \u0111\u1EC9nh s\xF3ng 3 ${dv} \u2014 c\xE1ch \u0111\u1EBFm kh\xF4ng c\xF2n`, oscRatio: ratio };
+    if (r < 0 && so(i) <= (1 - OSC_COUNT.retrace) * pk) r = i;
+    if (r >= 0 && i > r && so(i) > so(i - 1) && so(i - 1) <= so(r)) break;
+  }
+  let w4i = w3i;
+  for (let i = w3i; i < n; i++) {
+    if (better(opp2(w4i), opp2(i))) w4i = i;
+    if (r >= 0 && i > r && better(ext(i), ext(w3i))) break;
+  }
+  const w4 = P2(w4i);
+  if (r < 0) return { ...base, wave: "4", label: `Theo dao \u0111\u1ED9ng: s\xF3ng 4 (\u0111i\u1EC1u ch\u1EC9nh sau s\xF3ng 3 ${dv}) \u2014 dao \u0111\u1ED9ng m\u1EDBi v\u1EC1 ${Math.round((1 - ratio) * 100)}%, ch\u01B0a \u0111\u1EE7 90%`, w4, w5: null };
+  let up = -1;
+  for (let i = Math.max(r, w4i) + 1; i < n; i++) if (so(i) > so(i - 1) && better(ext(i), ext(i - 1)) && better(bars[i].close, opp2(w4i))) {
+    up = i;
+    break;
+  }
+  if (up < 0) return { ...base, wave: "4", label: `Theo dao \u0111\u1ED9ng: s\xF3ng 4 (sau s\xF3ng 3 ${dv}) \u0111\xE3 k\xE9o dao \u0111\u1ED9ng v\u1EC1 \u2265 90% \u2014 ch\u1EDD gi\xE1 b\u1EADt l\xEAn (s\xF3ng 5)`, w4, w5: null };
+  let w5i = up, pk5 = -Infinity;
+  for (let i = up; i < n; i++) {
+    if (better(ext(i), ext(w5i))) w5i = i;
+    pk5 = Math.max(pk5, so(i));
+  }
+  const divergence = pk5 < pk;
+  const w5 = { date: bars[w5i].date, i: w5i, price: ext(w5i), osc: osc[w5i] };
+  let sameSide = false;
+  for (let i = up; i <= w5i; i++) if (so(i) > 0) {
+    sameSide = true;
+    break;
+  }
+  for (let i = w5i + 1; i < n; i++) {
+    if (so(i) > 0) sameSide = true;
+    else if (sameSide && so(i) < 0)
+      return { ...base, wave: "post", label: `Theo dao \u0111\u1ED9ng: \u0111\xE3 qua s\xF3ng 5 ${dv} \u2014 dao \u0111\u1ED9ng \u0111\u1ED5i chi\u1EC1u qua 0 sau ${s > 0 ? "\u0111\u1EC9nh" : "\u0111\xE1y"} s\xF3ng 5`, w4, w5, divergence };
+    const b = s > 0 ? band.lo[i] : band.up[i];
+    if (b !== 0 && s * osc[i] < 0 && Math.abs(osc[i]) > Math.abs(b))
+      return { ...base, wave: "post", label: `Theo dao \u0111\u1ED9ng: \u0111\xE3 qua s\xF3ng 5 ${dv} \u2014 dao \u0111\u1ED9ng v\u01B0\u1EE3t d\u1EA3i ph\xEDa ng\u01B0\u1EE3c l\u1EA1i (\u0111i\u1EC1u ch\u1EC9nh A)`, w4, w5, divergence };
+    if (!better(opp2(i), w4.price))
+      return { ...base, wave: "post", label: `Theo dao \u0111\u1ED9ng: \u0111\xE3 qua s\xF3ng 5 ${dv} \u2014 gi\xE1 v\u1EC1 l\u1EA1i c\u1EF1c tr\u1ECB s\xF3ng 4 (\u0111i\u1EC1u ch\u1EC9nh)`, w4, w5, divergence };
+  }
+  return { ...base, wave: "5", label: `Theo dao \u0111\u1ED9ng: s\xF3ng 5 ${dv}${divergence ? " \u2014 c\xF3 ph\xE2n k\u1EF3 so v\u1EDBi s\xF3ng 3" : " \u2014 dao \u0111\u1ED9ng ch\u01B0a ph\xE2n k\u1EF3"}`, w4, w5, divergence };
+}
+function oscAgreement(osc, geo) {
+  if (!geo || osc.wave === "none" || geo.wave === "none" || !geo.dir) return "na";
+  const g = ["A", "B", "C", "post"].includes(geo.wave) ? "post" : geo.wave;
+  return g === osc.wave && geo.dir === osc.dir ? "match" : "differ";
+}
+
+// src/lib/quant-core/elliott/mtf.ts
+var ELLIOTT_MIN_WEEKS = 60;
+var ELLIOTT_WEEK_ZIGZAG = 0.06;
+var ELLIOTT_WEEK_DEGREES = [{ name: "intermediate", k: 1 }, { name: "major", k: 2 }, { name: "primary", k: 4 }];
+var MOTIVE = /* @__PURE__ */ new Set(["3", "5"]);
+function lastWeekPartial(daily) {
+  const last = daily[daily.length - 1].date, d = /* @__PURE__ */ new Date(last + "T00:00:00Z");
+  const u0 = d.getUTCDay();
+  if (u0 === 0 || u0 === 6) return false;
+  const hol = ruleHolidaySet(d.getUTCFullYear(), d.getUTCFullYear() + 1);
+  for (let u = u0 + 1; u <= 5; u++) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    if (!hol.has(d.toISOString().slice(0, 10))) return true;
+  }
+  return false;
+}
+function weekExtremes(daily) {
+  const out = /* @__PURE__ */ new Map();
+  for (const b of daily) {
+    const dt = /* @__PURE__ */ new Date(b.date + "T00:00:00Z"), u = dt.getUTCDay();
+    dt.setUTCDate(dt.getUTCDate() + (u === 0 ? -6 : 1 - u));
+    const k = dt.toISOString().slice(0, 10), w = out.get(k);
+    if (!w) {
+      out.set(k, { hi: b.date, lo: b.date, h: b.high, l: b.low });
+      continue;
+    }
+    if (b.high > w.h) {
+      w.h = b.high;
+      w.hi = b.date;
+    }
+    if (b.low < w.l) {
+      w.l = b.low;
+      w.lo = b.date;
+    }
+  }
+  return out;
+}
+var dirVi = (d) => d === "up" ? "t\u0103ng" : d === "down" ? "gi\u1EA3m" : "";
+var opp = (d) => d === "up" ? "down" : d === "down" ? "up" : null;
+function moveOf(s) {
+  if (s.wave === "3" || s.wave === "5" || s.wave === "B") return s.dir;
+  if (s.wave === "4" || s.wave === "A" || s.wave === "C") return opp(s.dir);
+  return null;
+}
+function phrase(s) {
+  if (MOTIVE.has(s.wave)) return `s\xF3ng ${s.wave} ${dirVi(s.dir)}`;
+  if (s.wave === "4") return `s\xF3ng 4 (\u0111i\u1EC1u ch\u1EC9nh ${dirVi(moveOf(s))} trong xung l\u1EF1c ${dirVi(s.dir)})`;
+  if (s.wave === "A" || s.wave === "B" || s.wave === "C") return `s\xF3ng ${s.wave} (\u0111i ${dirVi(moveOf(s))}, \u0111i\u1EC1u ch\u1EC9nh sau 5 s\xF3ng ${dirVi(s.dir)})`;
+  return s.wave === "post" ? `\u0111\xE3 qua ABC sau 5 s\xF3ng ${dirVi(s.dir)}` : "ch\u01B0a r\xF5";
+}
+function mtfRelation(week, day) {
+  if (!week || !day || week.wave === "none" || day.wave === "none" || !week.dir || !day.dir)
+    return { relation: "unclear", text: "Ch\u01B0a \u0111\u1EE7 c\u1EA5u tr\xFAc \u1EDF m\u1ED9t trong hai khung \u0111\u1EC3 \u0111\u1ED1i chi\u1EBFu." };
+  const wm = moveOf(week), dm = moveOf(day);
+  const T = `Tu\u1EA7n: ${phrase(week)}; ng\xE0y: ${phrase(day)}`;
+  if (!wm || !dm) return { relation: "unclear", text: `${T} \u2014 ch\u01B0a x\xE1c \u0111\u1ECBnh \u0111\u01B0\u1EE3c quan h\u1EC7.` };
+  if (wm === dm) return { relation: "aligned", text: `${T} \u2014 hai khung c\xF9ng \u0111i ${dirVi(wm)}.` };
+  if (MOTIVE.has(week.wave)) return { relation: "pullback", text: `${T} \u2014 khung ng\xE0y \u0111ang \u0111i\u1EC1u ch\u1EC9nh b\xEAn trong s\xF3ng ${week.wave} tu\u1EA7n.` };
+  return { relation: "counter", text: `${T} \u2014 khung ng\xE0y \u0111i ng\u01B0\u1EE3c h\u01B0\u1EDBng khung tu\u1EA7n.` };
+}
+function elliottMtf(daily) {
+  const day = elliottState(daily);
+  const weekly = daily.length ? aggregateToWeekly(daily) : [];
+  const ws = weekly.length >= ELLIOTT_MIN_WEEKS ? elliottState(weekly, { zigzagPct: ELLIOTT_WEEK_ZIGZAG, degrees: ELLIOTT_WEEK_DEGREES }) : null;
+  const week = ws ? { ...ws, label: `${ws.label} \xB7 khung tu\u1EA7n`, partial: lastWeekPartial(daily) } : null;
+  const ext = weekExtremes(daily);
+  const weekPivotsOnDaily = (week?.scenario?.points ?? []).map((p) => {
+    const e = ext.get(String(p.time));
+    return { ...p, dayDate: e ? p.type === "H" ? e.hi : e.lo : String(p.time) };
+  });
+  const r = mtfRelation(week, day);
+  const dOsc = oscillatorCount(daily.slice(-500)), wOsc = weekly.length >= ELLIOTT_MIN_WEEKS ? oscillatorCount(weekly.slice(-500)) : null;
+  const osc = { day: { ...dOsc, agree: oscAgreement(dOsc, day) }, week: wOsc ? { ...wOsc, agree: oscAgreement(wOsc, week) } : null };
+  return { week, day, relation: r.relation, relationText: r.text, weekPivotsOnDaily, osc };
+}
+
+// src/lib/quant-core/mtf3/elliott3.ts
+var ELLIOTT3 = { w2Retrace: [0.382, 0.786], w4Retrace: [0.236, 0.618], bandAtr: 0.5 };
+var r22 = (x) => Math.round(x * 100) / 100;
+function elliott3(daily, a) {
+  const t = daily.length - 1;
+  const em = elliottMtf(daily);
+  const d = em.day, w = em.week, R2 = a.D.r;
+  const atr3 = R2.atr[t] > 0 ? R2.atr[t] : NaN;
+  let waveEnd = null;
+  const pat = d?.patterns ?? null;
+  const pick2 = (seg, wave) => {
+    if (!seg.points?.length) return null;
+    const end = seg.points[seg.points.length - 1];
+    const ti = t - (d.barCount - 1 - end.i);
+    const [lo, hi] = wave === "2" ? ELLIOTT3.w2Retrace : ELLIOTT3.w4Retrace;
+    const retrace = Number.isFinite(seg.retrace) ? seg.retrace : null;
+    const e1 = wave === "2" ? R2.ema50[ti] : R2.ema21[ti], e2 = wave === "2" ? R2.ema100[ti] : R2.ema50[ti], at = R2.atr[ti];
+    const band = [e1, e2, at].every(Number.isFinite) ? [Math.min(e1, e2) - ELLIOTT3.bandAtr * at, Math.max(e1, e2) + ELLIOTT3.bandAtr * at] : null;
+    return {
+      wave,
+      price: r22(end.price),
+      date: ti >= 0 && ti <= t ? daily[ti].date : end.time ?? null,
+      retrace: retrace == null ? null : r22(retrace),
+      inFibZone: retrace == null ? null : retrace >= lo && retrace <= hi,
+      inEmaBand: band ? end.price >= band[0] && end.price <= band[1] : null,
+      band: band ? [r22(band[0]), r22(band[1])] : null,
+      bandName: wave === "2" ? "EMA50\u2013EMA100" : "EMA21\u2013EMA50"
+    };
+  };
+  if (d && pat) {
+    if (d.wave === "3" && pat.wave2) waveEnd = pick2(pat.wave2, "2");
+    else if ((d.wave === "5" || d.wave === "4") && pat.wave4) waveEnd = pick2(pat.wave4, "4");
+    else if (pat.wave2) waveEnd = pick2(pat.wave2, "2");
+  }
+  const confluence = waveEnd && waveEnd.inFibZone && waveEnd.inEmaBand ? "strong" : waveEnd && (waveEnd.inFibZone || waveEnd.inEmaBand) ? "partial" : "none";
+  const nested3 = d && w && d.wave === "3" && w.wave === "3" && d.dir === w.dir ? d.dir : null;
+  const pl = a.D.dow.protectedLow[t];
+  const inv = d?.invalidation ?? null;
+  const stopAgreement = inv && Number.isFinite(pl) && Number.isFinite(atr3) && inv.side === "below" ? { elliott: r22(inv.price), dow: r22(pl), gapAtr: r22((pl - inv.price) / atr3) } : null;
+  const close = daily[t].close;
+  const targets = (d?.levels ?? []).filter((l) => d?.dir === "down" ? l.price < close : l.price > close).sort((x, y) => Math.abs(x.price - close) - Math.abs(y.price - close)).slice(0, 3).map((l) => ({ label: l.label, price: r22(l.price) }));
+  return {
+    day: d ? { label: d.label, wave: d.wave, dir: d.dir, degree: d.degree, weight: d.weight } : null,
+    week: w ? { label: w.label, wave: w.wave, dir: w.dir, partial: w.partial } : null,
+    relation: em.relation,
+    relationText: em.relationText,
+    nested3: nested3 ?? null,
+    waveEnd,
+    confluence,
+    invalidation: inv,
+    stopAgreement,
+    targets
+  };
+}
+
 // src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s2";
+var MTF3_VERSION = "3.0.0-s3";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -5071,6 +6348,7 @@ export {
   compactTf as compactStructureTf,
   context3At,
   convergenceAt,
+  elliott3,
   evaluateLifecycle,
   minutesToH1,
   patternStatusAt,

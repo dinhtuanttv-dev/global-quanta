@@ -9,5 +9,5 @@ export type { MtfStructure, TfAnalysis as StructureTfAnalysis, Annotation as Str
 export { buildWaveTree, WAVE_TREE_VERSION } from "./elliott/v3/waveTree";
 export { scenariosFromTree, evaluateLifecycle, scoreLedger, randomWalkHitProb, EP2_PREREG, SCENARIO_ENGINE_VERSION, STATE_LABEL as EW_STATE_LABEL, TEMPLATE_TITLE as EW_TEMPLATE_TITLE } from "./elliott/v3/scenarios";
 export type { EwScenario, ScenarioLifecycle, ScenarioState } from "./elliott/v3/scenarios";
-// MTF v3 (30/10/2026): cấu trúc Ngày · Tuần · Tháng — S1 dải EMA21/50/100 + MA200, S2 sóng / Dow / giai đoạn S1–S4.
-export { MTF3_VERSION, ribbon3, contextAt as ribbonContextAt, compactRibbon3, ribbonSeries, analyze3 as analyzeMtf3, context3At, compactStructure3 } from "./mtf3";
+// MTF v3 (30/10/2026): cấu trúc Ngày · Tuần · Tháng — S1 dải EMA21/50/100 + MA200, S2 sóng / Dow / giai đoạn S1–S4, S3 hợp lưu Elliott × EMA.
+export { MTF3_VERSION, ribbon3, contextAt as ribbonContextAt, compactRibbon3, ribbonSeries, analyze3 as analyzeMtf3, context3At, compactStructure3, elliott3 } from "./mtf3";
