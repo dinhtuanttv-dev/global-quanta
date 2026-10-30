@@ -63,7 +63,7 @@ function Levels({ levels, close }: { levels: Level3View[]; close: number | null 
             <li key={`${l.price}-${l.role}`} className="flex items-center gap-1.5 text-[9.5px]" data-testid="level3-row">
               <span className={`w-14 rounded px-1 text-center ${l.role === "resistance" ? "bg-rose-500/10 text-rose-200" : "bg-emerald-500/10 text-emerald-200"}`}>{l.role === "resistance" ? "Kháng cự" : "Hỗ trợ"}</span>
               <b className="w-16 font-mono text-slate-100">{price(l.price)}</b>
-              <span className="text-slate-500">{close ? `${(((l.price / close) - 1) * 100).toFixed(1).replace(".", ",")}%` : ""}</span>
+              <span className="text-slate-500">{close ? `${l.price > close ? "+" : ""}${(((l.price / close) - 1) * 100).toFixed(1).replace(".", ",")}%` : ""}</span>
               <span className="flex gap-0.5">{l.frames.map((f) => <i key={f} className="not-italic rounded border border-slate-600/60 px-1 text-[8.5px] text-slate-300">{f === "D" ? "N" : f === "W" ? "T" : "Th"}</i>)}</span>
               <span className="text-slate-500">{l.touches} lần chạm</span>
               {l.flipped && <span className="text-amber-200" title="Từng là kháng cự nay thành hỗ trợ (hoặc ngược lại)">đổi vai</span>}
