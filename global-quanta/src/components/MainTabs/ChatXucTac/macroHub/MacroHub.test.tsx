@@ -14,6 +14,7 @@ vi.mock("swr", () => ({ default: (key: string[]) => ({
   data: key[0] === "macro-pulse" ? res : { mode: "real", asOf: "2026-10-31", caveat: "Ước tính.", events: [
     { id: "b", kind: "release", title: "GSO công bố CPI", date: "2026-11-06", daysRemaining: 6, estimated: true },
     { id: "a", kind: "fomc", title: "FOMC", date: "2026-12-09", daysRemaining: 39, estimated: false },
+    { id: "al", kind: "alert", title: "CPI cao bất thường", date: "2026-10-31", daysRemaining: 0, estimated: false },
     { id: "old", kind: "fomc", title: "Đã qua", date: "2026-10-28", daysRemaining: -3 },
   ] }, error: undefined, isLoading: false }) }));
 vi.mock("../../../../services/marketDataClient", () => ({ fetchMarketJson: async () => ({}), isMarketGatewayEnabled: () => true }));
@@ -55,8 +56,9 @@ describe("Trung tâm vĩ mô — giao diện", () => {
   it("Lịch phân biệt ngày ước tính / chính thức", () => {
     render(<MacroUpcoming />);
     const rows = screen.getAllByTestId("macro-upcoming-row").map((r) => r.textContent ?? "");
-    expect(rows).toHaveLength(2);
-    expect(rows[0]).toContain("Ngày ước tính");
-    expect(rows[1]).toContain("Ngày chính thức");
+    expect(rows).toHaveLength(3);
+    expect(rows[0]).toContain("Tín hiệu từ số liệu");
+    expect(rows[1]).toContain("Ngày ước tính");
+    expect(rows[2]).toContain("Ngày chính thức");
   });
 });

@@ -1165,7 +1165,7 @@ function resolveShocks(shocks, transforms) {
       warnings.push(`B\u1ECF qua c\xFA s\u1ED1c ${s.factor}: bi\u1EBFn n\xE0y kh\xF4ng c\xF3 trong m\xF4 h\xECnh.`);
       continue;
     }
-    const compatible = s.unit === "pct" && t === "logdiff" || s.unit === "pp" && t === "diff";
+    const compatible = s.unit === "pct" && t === "logdiff" || s.unit === "pp" && (t === "diff" || t === "level");
     if (!compatible) {
       warnings.push(`B\u1ECF qua c\xFA s\u1ED1c ${s.factor}: \u0111\u01A1n v\u1ECB '${s.unit}' kh\xF4ng kh\u1EDBp ph\xE9p bi\u1EBFn \u0111\u1ED5i '${t}'.`);
       continue;

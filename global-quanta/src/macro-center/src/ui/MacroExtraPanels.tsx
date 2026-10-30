@@ -80,7 +80,7 @@ export function RegimePanel({ client, asOf, factors, targets, names, enabled }: 
     return (
       <div>
         <p className="state" role="alert">{regime.error}</p>
-        <p className="muted">Nhận diện chế độ cần ít nhất một trong lãi suất liên ngân hàng (IR), CPI hoặc M2 với số liệu thật — các chuỗi này phải nạp CSV.</p>
+        <p className="muted">Nhận diện chế độ cần ít nhất một trong lãi suất liên ngân hàng (IR), CPI hoặc M2 với số liệu thật — CPI lấy tự động từ IMF; IR và M2 phải nạp CSV.</p>
       </div>
     );
   }
@@ -112,7 +112,7 @@ export function RegimePanel({ client, asOf, factors, targets, names, enabled }: 
             <label>Biến <select value={f} onChange={(e) => setFactor(e.target.value)}>{factors.map((id) => <option key={id} value={id}>{names[id] ?? id}</option>)}</select></label>
             <label>Chỉ số <select value={t} onChange={(e) => setTarget(e.target.value)}>{targets.map((id) => <option key={id} value={id}>{names[id] ?? id}</option>)}</select></label>
           </div>
-          {ri.error && <p className="state" role="alert">{ri.error}</p>}
+          {ri.error && (/cần ít nhất|một chế độ/i.test(ri.error) ? <p className="muted" role="note">Chưa so sánh được độ nhạy giữa các chế độ: {ri.error}</p> : <p className="state" role="alert">{ri.error}</p>)}
           {ri.data && (
             <>
               <table className="ds-table">

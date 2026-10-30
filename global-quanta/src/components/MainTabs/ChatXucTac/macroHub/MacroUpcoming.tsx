@@ -6,6 +6,7 @@ const whenVi = (d: number) => d === 0 ? "Hôm nay" : d === 1 ? "Ngày mai" : `C�
 const dateVi = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 function Row({ e }: { e: MacroCalendarItem }) {
+  const signal = e.kind === "alert" || e.kind === "regime"; // tín hiệu từ số liệu thật, không phải lịch công bố
   return (
     <li className="flex items-start gap-3 border-t border-white/5 py-2 first:border-t-0" data-testid="macro-upcoming-row">
       <div className="w-12 shrink-0 text-center">
@@ -14,7 +15,7 @@ function Row({ e }: { e: MacroCalendarItem }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] leading-snug text-slate-100">{e.title}</p>
-        <p className={`mt-0.5 text-[9px] ${e.estimated ? "text-amber-300/90" : "text-emerald-300/90"}`}>{e.estimated ? "Ngày ước tính" : "Ngày chính thức"}{e.country ? ` · ${e.country}` : ""}</p>
+        <p className={`mt-0.5 text-[9px] ${signal ? "text-rose-300/90" : e.estimated ? "text-amber-300/90" : "text-emerald-300/90"}`}>{signal ? "Tín hiệu từ số liệu" : e.estimated ? "Ngày ước tính" : "Ngày chính thức"}{e.country ? ` · ${e.country}` : ""}</p>
       </div>
     </li>
   );

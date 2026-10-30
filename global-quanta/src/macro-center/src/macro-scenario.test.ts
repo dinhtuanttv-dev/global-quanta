@@ -165,3 +165,12 @@ describe('backtest gate', () => {
     expect(backtestMacroScore({ y: y.slice(0, 80), factors: { X: x.slice(0, 80) }, lag: 1 })).toBe(null);
   });
 });
+
+describe('resolveShocks — chuỗi tỷ lệ giữ nguyên mức', () => {
+  it("pp hợp lệ với 'level' (CPI so cùng kỳ); pct với 'level' vẫn bị bỏ", () => {
+    expect(resolveShocks([{ factor: 'CPI', amount: 1, unit: 'pp' }], { CPI: 'level' })).toEqual({ vector: { CPI: 1 }, warnings: [] });
+    const r = resolveShocks([{ factor: 'DXY', amount: 1, unit: 'pct' }], { DXY: 'level' });
+    expect(r.vector).toEqual({});
+    expect(r.warnings).toHaveLength(1);
+  });
+});

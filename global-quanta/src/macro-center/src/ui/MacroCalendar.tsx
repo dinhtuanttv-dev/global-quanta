@@ -2,11 +2,13 @@ import type { AlertsPayload, CalendarPayload } from './types';
 
 const LEVEL_VI = { high: 'Cao', warn: 'Lưu ý', info: 'Thông tin' } as const;
 
-export function MacroCalendar({ calendar, alerts, calendarError, alertsError }: {
+export function MacroCalendar({ calendar, alerts, calendarError, alertsError, hideReleases = false }: {
   calendar: CalendarPayload | null;
   alerts: AlertsPayload | null;
   calendarError?: string | null;
   alertsError?: string | null;
+  /** Trung tâm vĩ mô đã có một lịch hợp nhất (MacroUpcoming) — không hiện lịch thứ hai. */
+  hideReleases?: boolean;
 }) {
   return (
     <div>
@@ -18,6 +20,7 @@ export function MacroCalendar({ calendar, alerts, calendarError, alertsError }: 
           {alerts.alerts.map((a) => (<li key={a.id} data-level={a.level}><strong>{LEVEL_VI[a.level]}.</strong> {a.messageVi}</li>))}
         </ul>
       )}
+      {!hideReleases && <>
       <h2 style={{ marginTop: 16 }}>Lịch công bố số liệu</h2>
       {calendarError ? <p className="state" role="alert">{calendarError}</p> : !calendar ? <p className="state" role="status">Đang tải lịch…</p> : (
         <>
@@ -33,6 +36,7 @@ export function MacroCalendar({ calendar, alerts, calendarError, alertsError }: 
           <p className="muted">{calendar.caveat}</p>
         </>
       )}
+      </>}
     </div>
   );
 }
