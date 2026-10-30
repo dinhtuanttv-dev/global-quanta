@@ -1,4 +1,4 @@
-// X4/Z3 — "Hỏi đáp xúc tác": Claude (Opus 5.5) hoặc Gemini, hoặc SO SÁNH hai mô hình cạnh nhau — cùng bộ công cụ vĩ mô (Gateway),
+// X4/Z3 — "Hỏi đáp vĩ mô & thị trường" (trước 31/10/2026: Hỏi đáp xúc tác): Claude (Opus 5.5) hoặc Gemini, hoặc SO SÁNH hai mô hình cạnh nhau — cùng bộ công cụ vĩ mô (Gateway),
 // Kết nối thế giới (world_*), ngành thế giới → ngành ICB VN (ws_*: chiến lược, ngành, hàng hoá, phơi nhiễm cổ phiếu) và xúc tác.
 // Trung thực theo thiết kế: biểu ngữ notice (dữ liệu mô phỏng/cũ) đứng ĐẦU câu trả lời; thẻ kết quả lấy từ chính tool_result;
 // con số không truy được tới công cụ -> cảnh báo hiển thị; không khuyến nghị mua/bán.
@@ -36,7 +36,6 @@ export const SUGGESTIONS = [
   "HPG chịu tác động thế giới thế nào? Hàng hoá nào dẫn dắt?",
   "Dầu Brent tăng thì ngành và cổ phiếu Việt Nam nào bị ảnh hưởng?",
   "Vĩ mô đang thuận lợi hay bất lợi cho VN-Index?",
-  "Đang có chất xúc tác gì nổi bật? Ngành nào hưởng lợi?",
   "Sắp có số liệu vĩ mô hay sự kiện gì cần chú ý?",
   "Bối cảnh trung hạn của ngành ngân hàng ra sao (thế giới, RRG, truyền dẫn)?",
   "Giá gạo Việt Nam và quặng sắt đang ở đâu so với 5 năm?",
@@ -119,7 +118,7 @@ export function historyFor(turns: Turn[], provider: ChatProvider): { role: "user
   return out;
 }
 
-export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, suggestions = SUGGESTIONS, title = "Hỏi đáp xúc tác" }: { seedQuestion?: string | null; onSeedConsumed?: () => void; suggestions?: string[]; title?: string } = {}) {
+export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, suggestions = SUGGESTIONS, title = "Hỏi đáp vĩ mô & thị trường" }: { seedQuestion?: string | null; onSeedConsumed?: () => void; suggestions?: string[]; title?: string } = {}) {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -196,7 +195,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
             </button>
           ))}
         </div>
-        <span>· công cụ Elite 10 + vĩ mô + thế giới + ngành ICB + hàng hoá + xúc tác</span>
+        <span>· công cụ Elite 10 + vĩ mô + thế giới + ngành ICB + hàng hoá</span>
         {meta?.macroMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta?.worldMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới đang dùng dữ liệu MÔ PHỎNG</span>}
         {meta && <span style={{ marginLeft: "auto" }}>Còn {meta.remaining} câu hôm nay</span>}
@@ -228,12 +227,12 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
 
       <div style={{ display: "flex", gap: 6, alignItems: "flex-end", position: "sticky", bottom: 0, background: "var(--bg-base, #0a0d12)", paddingTop: 6 }}>
         <textarea
-          aria-label="Câu hỏi về chất xúc tác hoặc vĩ mô"
+          aria-label="Câu hỏi về vĩ mô hoặc thị trường"
           value={input}
           onChange={(e) => setInput(e.target.value.slice(0, 2000))}
           onKeyDown={onKey}
           rows={2}
-          placeholder="Hỏi về chất xúc tác, ngành, mã, hàng hoá hoặc vĩ mô… (Enter để gửi)"
+          placeholder="Hỏi về vĩ mô, ngành, mã hoặc hàng hoá… (Enter để gửi)"
           style={{ flex: 1, minWidth: 0, resize: "vertical", fontSize: 12.5, padding: "8px 10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--bg-surface)", color: "var(--text-primary)", fontFamily: "inherit" }}
         />
         {busy ? (
