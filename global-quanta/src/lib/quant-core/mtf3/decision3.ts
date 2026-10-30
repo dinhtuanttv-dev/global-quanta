@@ -7,7 +7,7 @@ import { mtfTriggerAt } from "./frame";
 import { baseAt } from "./bases";
 import { htfResistanceNear, levelsAt, type Level3 } from "./levels";
 
-export const DECISION = { overAtr: 3, htfAtr: 1, extendedPct: 90, extendedAge: 40, lateAtr: 1.5, stopBufAtr: 0.25, minRr: 2, bandAtr: 0.25, bandLookback: 10, breakoutFresh: 3 } as const;
+export const DECISION = { overAtr: 3, htfAtr: 1, extendedPct: 90, extendedAge: 40, lateAtr: 1.5, stopBufAtr: 0.25, minStopAtr: 1, minRr: 2, bandAtr: 0.25, bandLookback: 10, breakoutFresh: 3 } as const;
 
 export type SetupKey = "pullback" | "breakout" | "expansion" | "reversal";
 export const SETUP_LABEL: Record<SetupKey, string> = {
@@ -75,9 +75,10 @@ export function decisionAt(a: Analysis3, t: number, elliottTarget: number | null
     const baseStop = active === "breakout" && base?.contractions.length ? base.contractions[base.contractions.length - 1].lo : NaN;
     const [stopRef, stopBasis] = Number.isFinite(baseStop) ? [baseStop, "đáy nhịp co cuối của nền"] : Number.isFinite(pl) && pl < c ? [pl, "đáy bảo vệ (押し安値)"] : Number.isFinite(lastLow) && lastLow < c ? [lastLow, "đáy sóng gần nhất"] : [NaN, ""];
     if (Number.isFinite(stopRef)) {
-      const stop = stopRef - DECISION.stopBufAtr * atr, risk = c - stop;
-      const above = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => (y.frames.includes("M") || y.frames.includes("W") ? 1 : 0) - (x.frames.includes("M") || x.frames.includes("W") ? 1 : 0) || x.lo - y.lo);
-      const lvT = above.find((l) => l.lo - c >= risk) ?? above[0] ?? null;
+      // cắt lỗ dưới mức kỹ thuật, nhưng cách giá vào tối thiểu 1 ATR (không đặt trong vùng dao động bình thường của một phiên)
+      const stop = Math.min(stopRef - DECISION.stopBufAtr * atr, c - DECISION.minStopAtr * atr), risk = c - stop;
+      // mục tiêu 1 = kháng cự GẦN NHẤT phía trên ("mục tiêu chốt lời đầu tiên") — quá gần thì R:R không đạt (K8: không vào sát dưới cản)
+      const lvT = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => x.lo - y.lo)[0] ?? null;
       const [target1, t1Basis] = lvT ? [lvT.lo, `kháng cự ${lvT.frames.join("/")} ${r2(lvT.price)}`] : [c + 2 * risk, "2R (không có mức cản phía trên)"];
       const rr1 = r2(risk > 0 ? (target1 - c) / risk : 0); // cổng R:R xét trên đúng con số hiển thị
       plan = { entry: r2(c), stop: r2(stop), stopBasis, target1: r2(target1), target1Basis: t1Basis, target2: elliottTarget != null && elliottTarget > target1 ? r2(elliottTarget) : r2(c + 3 * risk), rr1, ok: rr1 >= DECISION.minRr, trail: Number.isFinite(pl) ? r2(pl) : null };

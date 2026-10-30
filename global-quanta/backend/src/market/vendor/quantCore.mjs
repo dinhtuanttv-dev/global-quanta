@@ -5370,7 +5370,7 @@ function compactBases3(a) {
 }
 
 // src/lib/quant-core/mtf3/decision3.ts
-var DECISION = { overAtr: 3, htfAtr: 1, extendedPct: 90, extendedAge: 40, lateAtr: 1.5, stopBufAtr: 0.25, minRr: 2, bandAtr: 0.25, bandLookback: 10, breakoutFresh: 3 };
+var DECISION = { overAtr: 3, htfAtr: 1, extendedPct: 90, extendedAge: 40, lateAtr: 1.5, stopBufAtr: 0.25, minStopAtr: 1, minRr: 2, bandAtr: 0.25, bandLookback: 10, breakoutFresh: 3 };
 var SETUP_LABEL = {
   pullback: "Mua \u0111i\u1EC1u ch\u1EC9nh \u2014 ch\xE2n d\u01B0\u1EDBi \u0111\u1ED5i theo ch\xE2n tr\xEAn",
   breakout: "Ph\xE1 v\u1EE1 n\u1EC1n trong giai \u0111o\u1EA1n 2",
@@ -5423,9 +5423,8 @@ function decisionAt(a, t, elliottTarget = null) {
     const baseStop = active === "breakout" && base?.contractions.length ? base.contractions[base.contractions.length - 1].lo : NaN;
     const [stopRef, stopBasis] = Number.isFinite(baseStop) ? [baseStop, "\u0111\xE1y nh\u1ECBp co cu\u1ED1i c\u1EE7a n\u1EC1n"] : Number.isFinite(pl) && pl < c ? [pl, "\u0111\xE1y b\u1EA3o v\u1EC7 (\u62BC\u3057\u5B89\u5024)"] : Number.isFinite(lastLow) && lastLow < c ? [lastLow, "\u0111\xE1y s\xF3ng g\u1EA7n nh\u1EA5t"] : [NaN, ""];
     if (Number.isFinite(stopRef)) {
-      const stop = stopRef - DECISION.stopBufAtr * atr3, risk = c - stop;
-      const above = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => (y.frames.includes("M") || y.frames.includes("W") ? 1 : 0) - (x.frames.includes("M") || x.frames.includes("W") ? 1 : 0) || x.lo - y.lo);
-      const lvT = above.find((l) => l.lo - c >= risk) ?? above[0] ?? null;
+      const stop = Math.min(stopRef - DECISION.stopBufAtr * atr3, c - DECISION.minStopAtr * atr3), risk = c - stop;
+      const lvT = lv.filter((l) => l.role === "resistance" && l.lo > c).sort((x, y) => x.lo - y.lo)[0] ?? null;
       const [target1, t1Basis] = lvT ? [lvT.lo, `kh\xE1ng c\u1EF1 ${lvT.frames.join("/")} ${r24(lvT.price)}`] : [c + 2 * risk, "2R (kh\xF4ng c\xF3 m\u1EE9c c\u1EA3n ph\xEDa tr\xEAn)"];
       const rr1 = r24(risk > 0 ? (target1 - c) / risk : 0);
       plan = { entry: r24(c), stop: r24(stop), stopBasis, target1: r24(target1), target1Basis: t1Basis, target2: elliottTarget != null && elliottTarget > target1 ? r24(elliottTarget) : r24(c + 3 * risk), rr1, ok: rr1 >= DECISION.minRr, trail: Number.isFinite(pl) ? r24(pl) : null };

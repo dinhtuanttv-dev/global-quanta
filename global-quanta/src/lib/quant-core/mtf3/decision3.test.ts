@@ -42,6 +42,7 @@ describe("MTF v3 · S5 lớp quyết định", () => {
       if (d.state === "blocked") blockedDays++;
       if (d.plan) {
         expect(d.plan.stop).toBeLessThan(d.plan.entry);
+        expect(d.plan.entry - d.plan.stop).toBeGreaterThanOrEqual(DECISION.minStopAtr * a.D.r.atr[t] - 0.02);
         expect(d.plan.target1).toBeGreaterThan(d.plan.entry);
         expect(d.plan.ok).toBe(d.plan.rr1 >= DECISION.minRr);
         expect(Math.abs(d.plan.rr1 - (d.plan.target1 - d.plan.entry) / (d.plan.entry - d.plan.stop))).toBeLessThan(0.02);
