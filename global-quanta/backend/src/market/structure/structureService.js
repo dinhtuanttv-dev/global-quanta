@@ -253,6 +253,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
    * khung lớn chỉ dùng kỳ đã đóng. S1: dải EMA21 · EMA50 · EMA100 · MA200 từng khung + đồng thuận ba khung. S2: sóng xác nhận bằng
    * đóng cửa, Dow (đáy bảo vệ / đỉnh hồi, CHoCH / BOS), giai đoạn Minervini S1–S4, "chân dưới đổi theo chân trên". S3: hợp lưu
    * Elliott Pro (đếm ngày + tuần) × dải EMA (sóng 2 / 4 kết thúc trong dải, sóng 3 lồng sóng 3, mức vô hiệu so với đáy bảo vệ).
+   * S4: nền giá Ngày / Tuần (VCP, nhịp co, KL cạn, pivot, phá vỡ, rũ bỏ, mô hình) + mức hỗ trợ / kháng cự ba khung.
    */
   async function analyze3(symbolRaw) {
     const symbol = canonicalSymbol(symbolRaw);
@@ -267,6 +268,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
       ribbon: Q.compactRibbon3(r, { window: 260 }),
       structure: Q.compactStructure3(a, { window: 260 }),
       elliott: (() => { try { return Q.elliott3(dBars, a); } catch (e) { return { error: e.message }; } })(),
+      bases: Q.compactBases3(a),
       evidence: { label: "THỰC NGHIỆM", note: "Dải MA là thành phần mô tả; kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
     };
   }

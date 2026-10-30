@@ -38,6 +38,8 @@ export interface Structure3Doc {
   structure?: { context: Context3 | null; frames: Record<Tf3, FrameDraw> };
   /** S3: hợp lưu Elliott Pro × dải EMA (error nếu engine Elliott không chạy được). */
   elliott?: Elliott3 | { error: string } | null;
+  /** S4: nền giá Ngày / Tuần + mức hỗ trợ / kháng cự ba khung. */
+  bases?: { D: Base3View | null; W: Base3View | null; levels: Level3View[] };
   evidence: { label: string; note: string };
 }
 export interface Elliott3 {
@@ -64,3 +66,12 @@ export function useStructure3(symbol: string | null) {
   const { data, error, isLoading } = useSWR<Structure3Doc>(key, fetcher, { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000 });
   return { data, error: error as Error | undefined, isLoading };
 }
+
+export type BasePattern = "VCP" | "FLAT" | "CUP_HANDLE" | "DOUBLE_BOTTOM" | "TRIANGLE" | "RECTANGLE" | "GENERIC";
+export interface Base3View {
+  from: string; to: string; bars: number; weeks: number; leftHigh: number; low: number; lowDate: string; depthPct: number;
+  contractions: { hiDate: string; hi: number; loDate: string; lo: number; depthPct: number }[];
+  vcp: boolean; footprint: string; pivot: number; pivotDate: string; dryUp: number | null; dry: boolean; undercuts: string[]; vShape: boolean;
+  valid: boolean; reasons: string[]; pattern: BasePattern; patternLabel: string; baseCount: number | null; breakout: { date: string; volRatio: number } | null;
+}
+export interface Level3View { price: number; lo: number; hi: number; strength: number; touches: number; frames: Tf3[]; role: "support" | "resistance"; flipped: boolean; lastTouch: string }
