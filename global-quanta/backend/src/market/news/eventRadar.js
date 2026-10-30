@@ -351,7 +351,7 @@ export function createEventRadar({ service, repository = createEventRadarReposit
           // Keep original first-seen timestamp and revision for unchanged documents.
           event.firstSeenAt = old.payload?.firstSeenAt ?? event.firstSeenAt;
           event.revision = Number(old.revision) || 1;
-        } else if (onlyClassificationChanged(old.payload, event)) {
+        } else if (old && onlyClassificationChanged(old.payload, event)) {
           // Đổi quy tắc phân loại (RADAR_CLASSIFIER_VERSION) không phải bản sửa của nguồn: giữ phiên bản + trạng thái xác minh.
           event.firstSeenAt = old.payload?.firstSeenAt ?? event.firstSeenAt;
           event.revision = Number(old.revision) || 1;
