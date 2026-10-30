@@ -755,9 +755,9 @@ function wyckoffEvidence(bars, range, events) {
   const toLine = (ps, br) => {
     const used = (br ? ps.filter((p) => p.ci < br.index) : ps).slice(-LINE_POINTS);
     if (used.length < 2) return null;
-    const points = used.map((p) => ({ index: p.index, date: bars[p.index].date, price: p.price }));
-    if (br) points.push({ index: br.index, date: br.date, price: br.level });
-    return { points };
+    const points2 = used.map((p) => ({ index: p.index, date: bars[p.index].date, price: p.price }));
+    if (br) points2.push({ index: br.index, date: br.date, price: br.level });
+    return { points: points2 };
   };
   if (up) breaks.push(up);
   if (dn) breaks.push(dn);
@@ -813,11 +813,11 @@ function findTradingRange(bars) {
   const fallback = scan(0);
   return fallback ? { high: fallback.high, low: fallback.low, startIdx: fallback.startIdx, endIdx: fallback.endIdx } : null;
 }
-function isSpike(volume, avg) {
-  return volume > avg * 2;
+function isSpike(volume, avg3) {
+  return volume > avg3 * 2;
 }
-function isLow(volume, avg) {
-  return volume < avg * 0.6;
+function isLow(volume, avg3) {
+  return volume < avg3 * 0.6;
 }
 function classifyWyckoffPhase(bars) {
   const base = {
@@ -3933,13 +3933,13 @@ function classifyMotive(p, position = "unknown") {
   if (p.length < 6) return [];
   const s = dirOf(p[0], p[1]);
   const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
-  const r23 = w[1] / w[0], r4 = w[3] / w[2];
+  const r24 = w[1] / w[0], r4 = w[3] / w[2];
   const w3Shortest = w[2] < w[0] && w[2] < w[4];
   const overlap = s * (p[4].price - p[1].price) <= 0;
   const w3Beyond = s * (p[3].price - p[1].price) > 0;
   const w5Beyond = s * (p[5].price - p[3].price) > 0;
   const base = [
-    { id: "w2-origin", severity: "hard", pass: r23 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r23)})` },
+    { id: "w2-origin", severity: "hard", pass: r24 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r24)})` },
     { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
     { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
   ];
@@ -3959,7 +3959,7 @@ function classifyMotive(p, position = "unknown") {
     { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
     { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
     { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
-    { id: "diag-deep", severity: "soft", pass: r23 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+    { id: "diag-deep", severity: "soft", pass: r24 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
   ];
   if (position !== "middle") {
     if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
@@ -5136,8 +5136,238 @@ function elliott3(daily, a) {
   };
 }
 
+// src/lib/quant-core/mtf3/levels.ts
+var LEVELS = { tolAtr: 0.6, weight: { D: 1, W: 2, M: 3 }, maxLevels: 8, lookbackD: 500 };
+function points(f, upTo, fromDate) {
+  const out = [];
+  for (const s of f.minor) {
+    if (s.confirmedIndex > upTo) continue;
+    const date = f.r.bars[s.index].date;
+    if (fromDate && date < fromDate) continue;
+    out.push({ price: s.price, kind: s.kind, tf: f.tf, date });
+  }
+  return out;
+}
+function levelsAt(a, t) {
+  const D = a.D, atr3 = D.r.atr[t], close = D.r.bars[t].close;
+  if (!(atr3 > 0)) return [];
+  const fromD = D.r.bars[Math.max(0, t - LEVELS.lookbackD)].date;
+  const wi = a.ribbon.wIdx[t] ?? -1, mi = a.ribbon.mIdx[t] ?? -1;
+  const pts2 = [
+    ...points(D, t, fromD),
+    ...wi >= 0 ? points(a.W, wi, null) : [],
+    ...mi >= 0 ? points(a.M, mi, null) : []
+  ].sort((x, y) => x.price - y.price);
+  const tol = LEVELS.tolAtr * atr3, clusters = [];
+  for (const p of pts2) {
+    const c = clusters[clusters.length - 1];
+    if (c && Math.abs(p.price - avg(c.map((x) => x.price))) <= tol) c.push(p);
+    else clusters.push([p]);
+  }
+  const out = [];
+  for (const c of clusters) {
+    const strength = c.reduce((s, p) => s + LEVELS.weight[p.tf], 0);
+    if (c.length < 2 && !c.some((p) => p.tf === "M")) continue;
+    const price = avg(c.map((p) => p.price)), role2 = price < close ? "support" : "resistance";
+    const highs = c.filter((p) => p.kind === "H").length, lows = c.length - highs;
+    const flipped = role2 === "support" && highs > 0 && highs >= lows || role2 === "resistance" && lows > 0 && lows >= highs;
+    out.push({
+      price: r23(price),
+      lo: r23(Math.min(...c.map((p) => p.price))),
+      hi: r23(Math.max(...c.map((p) => p.price))),
+      strength,
+      touches: c.length,
+      frames: [...new Set(c.map((p) => p.tf))].sort(),
+      role: role2,
+      flipped,
+      lastTouch: c.map((p) => p.date).sort().pop()
+    });
+  }
+  const half = LEVELS.maxLevels / 2;
+  const pickSide = (side) => out.filter((l) => l.role === side).sort((x, y) => y.strength - x.strength || Math.abs(x.price - close) - Math.abs(y.price - close)).slice(0, half);
+  return [...pickSide("resistance"), ...pickSide("support")].sort((x, y) => y.price - x.price);
+}
+var avg = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
+var r23 = (x) => Math.round(x * 100) / 100;
+
+// src/lib/quant-core/mtf3/bases.ts
+var BASE = {
+  minBars: 15,
+  maxBars: 325,
+  minDepth: 0.08,
+  maxDepth: 0.35,
+  maxDepthFirst: 0.5,
+  vcpRatio: 0.75,
+  dryUp: 0.75,
+  breakoutVol: 1.4,
+  volAvg: 50,
+  dryWindow: 10,
+  flatDepth: 0.15,
+  vRecover: 0.8,
+  vTimeFrac: 0.25,
+  undercutBars: 3,
+  breakoutLookback: 10
+};
+var BASE_PATTERN_LABEL = {
+  VCP: "VCP \xB7 thu h\u1EB9p bi\u1EBFn \u0111\u1ED9ng",
+  FLAT: "N\u1EC1n ph\u1EB3ng",
+  CUP_HANDLE: "C\u1ED1c tay c\u1EA7m",
+  DOUBLE_BOTTOM: "\u0110\xE1y \u0111\xF4i (W)",
+  TRIANGLE: "Tam gi\xE1c h\u1ED9i t\u1EE5",
+  RECTANGLE: "H\u1ED9p ch\u1EEF nh\u1EADt",
+  GENERIC: "N\u1EC1n gi\xE1"
+};
+var avg2 = (xs) => xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : NaN;
+function volAvgAt(bars, i, n) {
+  const from = Math.max(0, i - n + 1);
+  return avg2(bars.slice(from, i + 1).map((b) => b.volume));
+}
+function leftHighAt(bars, minor, t) {
+  let best = null, maxAfter = -Infinity;
+  const hs = minor.filter((s) => s.kind === "H" && s.confirmedIndex <= t);
+  let k = t;
+  for (let h = hs.length - 1; h >= 0; h--) {
+    const s = hs[h];
+    if (t - s.index + 1 > BASE.maxBars) break;
+    for (; k > s.index; k--) maxAfter = Math.max(maxAfter, bars[k].high);
+    if (s.price >= maxAfter && (!best || s.price > best.price)) best = s;
+  }
+  return best;
+}
+function classify(bars, b) {
+  if (b.vcp) return "VCP";
+  const seg = bars.slice(b.start, b.end + 1), n = seg.length;
+  if (b.depth <= BASE.flatDepth) {
+    const top = b.leftHigh, bot = b.low;
+    const nearTop = b.contractions.filter((c) => c.hi >= top * 0.985).length, nearBot = b.contractions.filter((c) => c.lo <= bot * 1.015).length;
+    return nearTop >= 2 && nearBot >= 2 ? "RECTANGLE" : "FLAT";
+  }
+  const pos = (b.lowIndex - b.start) / Math.max(1, n - 1);
+  const last = b.contractions[b.contractions.length - 1];
+  if (pos > 0.25 && pos < 0.75 && last && last.hiIndex > b.lowIndex && last.hi >= b.leftHigh * 0.85 && last.depth <= 0.12 && last.lo > (b.leftHigh + b.low) / 2) return "CUP_HANDLE";
+  const lows = [...b.contractions].sort((x, y) => x.lo - y.lo);
+  if (lows.length >= 2 && Math.abs(lows[1].lo / lows[0].lo - 1) <= 0.03 && Math.abs(lows[1].loIndex - lows[0].loIndex) >= 10) return "DOUBLE_BOTTOM";
+  const cs = b.contractions;
+  if (cs.length >= 3 && cs.every((c, i) => i === 0 || c.hi < cs[i - 1].hi && c.lo > cs[i - 1].lo)) return "TRIANGLE";
+  return "GENERIC";
+}
+function baseAt2(f, t) {
+  const bars = f.r.bars;
+  if (t < BASE.minBars) return null;
+  const lh = leftHighAt(bars, f.minor, t);
+  if (lh) return baseCore(f, lh, t, t);
+  for (let j = t - 1; j >= Math.max(BASE.minBars, t - BASE.breakoutLookback); j--) {
+    const lj = leftHighAt(bars, f.minor, j);
+    if (!lj) continue;
+    const b = baseCore(f, lj, j, t);
+    return b.breakout ? b : null;
+  }
+  return null;
+}
+function baseCore(f, lh, end, scanTo) {
+  const bars = f.r.bars, t = end;
+  const start = lh.index, nb = end - start + 1;
+  let low = Infinity, lowIndex = start;
+  for (let i = start; i <= end; i++) if (bars[i].low < low) {
+    low = bars[i].low;
+    lowIndex = i;
+  }
+  const depth = (lh.price - low) / lh.price;
+  const sw = f.minor.filter((s) => s.index >= start && s.confirmedIndex <= t);
+  const contractions = [];
+  for (let k = 0; k < sw.length - 1; k++) {
+    if (sw[k].kind === "H" && sw[k + 1].kind === "L") contractions.push({ hiIndex: sw[k].index, hi: sw[k].price, loIndex: sw[k + 1].index, lo: sw[k + 1].price, depth: (sw[k].price - sw[k + 1].price) / sw[k].price });
+  }
+  const vcp = contractions.length >= 2 && contractions.every((c, i) => i === 0 || c.depth <= BASE.vcpRatio * contractions[i - 1].depth);
+  const lastC = contractions[contractions.length - 1];
+  const pivotIdx = lastC ? lastC.hiIndex : start, pivot = lastC ? lastC.hi : lh.price;
+  const v50 = volAvgAt(bars, end, BASE.volAvg), v10 = volAvgAt(bars, end, BASE.dryWindow);
+  const dryUp = v50 > 0 ? v10 / v50 : null;
+  const undercuts = [];
+  const lowsIn = sw.filter((s) => s.kind === "L");
+  for (const L of lowsIn) {
+    for (let i = L.confirmedIndex + 1; i <= end; i++) {
+      if (bars[i].low < L.price) {
+        for (let j = i; j <= Math.min(end, i + BASE.undercutBars); j++) if (bars[j].close > L.price) {
+          undercuts.push(i);
+          break;
+        }
+        break;
+      }
+    }
+  }
+  const recovered = (bars[end].close - low) / Math.max(1e-9, lh.price - low);
+  const vShape = recovered > BASE.vRecover && end - lowIndex < BASE.vTimeFrac * nb;
+  const weeks = Math.round(nb / 5);
+  const lastDepth = lastC ? lastC.depth : depth;
+  const footprint = `${weeks}W ${Math.round(depth * 100)}/${Math.round(lastDepth * 100)} ${contractions.length}T`;
+  const core = { start, end, bars: nb, weeks, leftHigh: lh.price, low, lowIndex, depth, contractions, vcp, footprint, pivot, pivotIndex: pivotIdx, dryUp: dryUp == null ? null : Math.round(dryUp * 100) / 100, dry: dryUp != null && dryUp <= BASE.dryUp, undercuts, vShape };
+  let baseCount = null;
+  if (f.stage.stage[t] === "S2") {
+    let s2 = t;
+    while (s2 > 0 && f.stage.stage[s2 - 1] === "S2") s2--;
+    let n = 0;
+    for (const h of f.minor) if (h.kind === "H" && h.confirmedIndex <= t && h.index >= s2 && h.index < start) n++;
+    baseCount = Math.min(n, 9) + 1;
+  }
+  const maxDepth = baseCount === 1 ? BASE.maxDepthFirst : BASE.maxDepth;
+  const reasons = [];
+  if (nb < BASE.minBars) reasons.push(`n\u1EC1n m\u1EDBi ${nb} phi\xEAn (< ${BASE.minBars})`);
+  if (nb > BASE.maxBars) reasons.push("n\u1EC1n qu\xE1 d\xE0i");
+  if (depth < BASE.minDepth) reasons.push(`n\xF4ng ${Math.round(depth * 100)}% (< 8%)`);
+  if (depth > maxDepth) reasons.push(`s\xE2u ${Math.round(depth * 100)}% (> ${Math.round(maxDepth * 100)}%)`);
+  if (vShape) reasons.push("n\xE9n th\u1EDDi gian ch\u1EEF V");
+  let breakout = null;
+  for (let i = Math.max(pivotIdx + 1, scanTo - BASE.breakoutLookback); i <= scanTo; i++) {
+    const va = volAvgAt(bars, i - 1, BASE.volAvg);
+    if (bars[i].close > pivot && bars[i - 1].close <= pivot && va > 0 && bars[i].volume >= BASE.breakoutVol * va) {
+      breakout = { index: i, volRatio: Math.round(bars[i].volume / va * 100) / 100 };
+      break;
+    }
+  }
+  return { ...core, valid: reasons.length === 0, reasons, pattern: classify(bars, core), baseCount, breakout };
+}
+var px3 = (x) => Math.round(x * 100) / 100;
+function compactBase(f, b) {
+  if (!b) return null;
+  const d = (i) => f.r.bars[i].date;
+  return {
+    from: d(b.start),
+    to: d(b.end),
+    bars: b.bars,
+    weeks: b.weeks,
+    leftHigh: px3(b.leftHigh),
+    low: px3(b.low),
+    lowDate: d(b.lowIndex),
+    depthPct: Math.round(b.depth * 1e3) / 10,
+    contractions: b.contractions.map((c) => ({ hiDate: d(c.hiIndex), hi: px3(c.hi), loDate: d(c.loIndex), lo: px3(c.lo), depthPct: Math.round(c.depth * 1e3) / 10 })),
+    vcp: b.vcp,
+    footprint: b.footprint,
+    pivot: px3(b.pivot),
+    pivotDate: d(b.pivotIndex),
+    dryUp: b.dryUp,
+    dry: b.dry,
+    undercuts: b.undercuts.map(d),
+    vShape: b.vShape,
+    valid: b.valid,
+    reasons: b.reasons,
+    pattern: b.pattern,
+    patternLabel: BASE_PATTERN_LABEL[b.pattern],
+    baseCount: b.baseCount,
+    breakout: b.breakout ? { date: d(b.breakout.index), volRatio: b.breakout.volRatio } : null
+  };
+}
+function compactBases3(a) {
+  const t = a.D.r.bars.length - 1, wi = a.ribbon.wIdx[t] ?? -1;
+  return {
+    D: t >= 0 ? compactBase(a.D, baseAt2(a.D, t)) : null,
+    W: wi >= 0 ? compactBase(a.W, baseAt2(a.W, wi)) : null,
+    levels: t >= 0 ? levelsAt(a, t) : []
+  };
+}
+
 // src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s3";
+var MTF3_VERSION = "3.0.0-s4";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -5164,6 +5394,7 @@ export {
   buildWaveTree,
   closedHtfIndex,
   clusterLevels,
+  compactBases3,
   compactRibbon3,
   compactStructure,
   compactStructure3,
