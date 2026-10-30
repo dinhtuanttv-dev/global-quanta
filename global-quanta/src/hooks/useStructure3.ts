@@ -40,6 +40,8 @@ export interface Structure3Doc {
   elliott?: Elliott3 | { error: string } | null;
   /** S4: nền giá Ngày / Tuần + mức hỗ trợ / kháng cự ba khung. */
   bases?: { D: Base3View | null; W: Base3View | null; levels: Level3View[] };
+  /** S5: lớp quyết định (mô tả). */
+  decision?: Decision3View;
   evidence: { label: string; note: string };
 }
 export interface Elliott3 {
@@ -75,3 +77,12 @@ export interface Base3View {
   valid: boolean; reasons: string[]; pattern: BasePattern; patternLabel: string; baseCount: number | null; breakout: { date: string; volRatio: number } | null;
 }
 export interface Level3View { price: number; lo: number; hi: number; strength: number; touches: number; frames: Tf3[]; role: "support" | "resistance"; flipped: boolean; lastTouch: string }
+export type SetupKey = "pullback" | "breakout" | "expansion" | "reversal";
+export type GateKey = "over" | "htfResistance" | "spent" | "againstWeek";
+export interface Decision3View {
+  setups: { key: SetupKey; label: string; on: boolean; why: string }[];
+  gates: { key: GateKey; label: string; hit: boolean; detail: string | null }[];
+  active: SetupKey | null; late: boolean;
+  plan: { entry: number; stop: number; stopBasis: string; target1: number; target1Basis: string; target2: number | null; rr1: number; ok: boolean; trail: number | null } | null;
+  state: "setup" | "blocked" | "wait"; headline: string;
+}

@@ -254,6 +254,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
    * đóng cửa, Dow (đáy bảo vệ / đỉnh hồi, CHoCH / BOS), giai đoạn Minervini S1–S4, "chân dưới đổi theo chân trên". S3: hợp lưu
    * Elliott Pro (đếm ngày + tuần) × dải EMA (sóng 2 / 4 kết thúc trong dải, sóng 3 lồng sóng 3, mức vô hiệu so với đáy bảo vệ).
    * S4: nền giá Ngày / Tuần (VCP, nhịp co, KL cạn, pivot, phá vỡ, rũ bỏ, mô hình) + mức hỗ trợ / kháng cự ba khung.
+   * S5: lớp quyết định MÔ TẢ — 4 thiết lập, 4 cổng cấm vào, kế hoạch cắt lỗ / mục tiêu / R:R ≥ 2, vào muộn.
    */
   async function analyze3(symbolRaw) {
     const symbol = canonicalSymbol(symbolRaw);
@@ -262,13 +263,15 @@ export function createStructureService({ service, taSeries, corporateActions, no
     if (daily.bars.length < 60) { const e = new Error(`${symbol} chưa đủ lịch sử nến ngày (${daily.bars.length} phiên).`); e.statusCode = 404; throw e; }
     const dBars = daily.bars.map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0 }));
     const a = Q.analyzeMtf3(dBars), r = a.ribbon;
+    const ew = (() => { try { return Q.elliott3(dBars, a); } catch (e) { return { error: e.message }; } })();
     return {
       version: Q.MTF3_VERSION, symbol, asOf: dBars[dBars.length - 1].date, priceBasis: daily.priceBasis ?? null,
       bars: { D: r.D.bars.length, W: r.W.bars.length, M: r.M.bars.length },
       ribbon: Q.compactRibbon3(r, { window: 260 }),
       structure: Q.compactStructure3(a, { window: 260 }),
-      elliott: (() => { try { return Q.elliott3(dBars, a); } catch (e) { return { error: e.message }; } })(),
+      elliott: ew,
       bases: Q.compactBases3(a),
+      decision: Q.decision3At(a, dBars.length - 1, ew && !ew.error && ew.day?.dir === "up" ? ew.targets?.[0]?.price ?? null : null),
       evidence: { label: "THỰC NGHIỆM", note: "Dải MA là thành phần mô tả; kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
     };
   }

@@ -163,6 +163,9 @@ test("MTF v3 S1 (/structure3): Ngày · Tuần · Tháng từ cùng chuỗi nế
   assert.ok(!r.elliott.error, r.elliott.error);
   assert.ok(["strong", "partial", "none"].includes(r.elliott.confluence));
   assert.ok(Array.isArray(r.bases.levels));
+  assert.ok(["setup", "blocked", "wait"].includes(r.decision.state));
+  assert.equal(r.decision.setups.length, 4);
+  assert.equal(r.decision.gates.length, 4);
   for (const l of r.bases.levels) assert.equal(l.role, l.price < r.ribbon.context.D.close ? "support" : "resistance");
   await assert.rejects(svc.analyze3("??"), /không hợp lệ/);
 });
