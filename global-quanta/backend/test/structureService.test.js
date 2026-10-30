@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createStructureService, STRUCTURE_SCHEDULE, summaryRow } from "../src/market/structure/structureService.js";
-import { createH1Cache } from "../src/market/structure/h1Cache.js";
+import { createStructureDisk, pruneLegacyH1 } from "../src/market/structure/structureDisk.js";
 import { rng } from "../src/market/structure/ml.js";
 
 const NOW = Date.parse("2026-10-21T10:00:00Z"); // 17:00 giờ VN, Thứ Tư — phiên đã đóng
@@ -49,7 +49,7 @@ function fixture() {
   const service = { store, router: { providers: { ssiFcV2: provider } }, cache: { wrap: (_k, _t, fn) => fn() }, async getIndexComponents(code) { return { symbols: code === "VN30" ? ["FPT"] : ["FPT", "HPG"] }; } };
   const taSeries = { async get({ symbol }) { return { priceBasis: symbol === "VNINDEX" ? "INDEX_POINTS" : "ADJUSTED_CUMULATIVE", bars: series[symbol], corporateActions: [] }; } };
   const seriesSource = { async prepare() { return async (t) => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: series[t] }); } };
-  const svc = createStructureService({ service, taSeries, corporateActions: null, now: () => NOW, h1Cache: createH1Cache({ dir, log: { warn() {} } }), seriesSource });
+  const svc = createStructureService({ service, taSeries, corporateActions: null, now: () => NOW, disk: createStructureDisk({ dir, log: { warn() {}, info() {} } }), seriesSource });
   return { svc, calls, dir, series };
 }
 
@@ -103,4 +103,18 @@ test("MTF v3 S1 (/structure3): Ngày · Tuần · Tháng từ cùng chuỗi nế
   assert.equal(r.decision.gates.length, 4);
   for (const l of r.bases.levels) assert.equal(l.role, l.price < r.ribbon.context.D.close ? "support" : "resistance");
   await assert.rejects(svc.analyze3("??"), /không hợp lệ/);
+});
+
+test("dọn kho nến 1 giờ cũ (MTF v2): xoá thư mục h1/ một lần khi khởi tạo, giữ tệp tóm tắt; gọi lại không lỗi", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gq-structure-prune-"));
+  fs.mkdirSync(path.join(dir, "h1"));
+  for (const s of ["FPT", "HPG", "VCB"]) fs.writeFileSync(path.join(dir, "h1", `${s}.json.gz`), "x".repeat(100));
+  fs.writeFileSync(path.join(dir, "summary.json.gz"), "keep");
+  const d = createStructureDisk({ dir, log: { warn() {}, info() {} } });
+  assert.equal(d.stats().prunedH1, 3);
+  assert.equal(fs.existsSync(path.join(dir, "h1")), false);
+  assert.equal(fs.existsSync(path.join(dir, "summary.json.gz")), true);
+  assert.equal(pruneLegacyH1(dir, { info() {} }), 0);
+  assert.equal(await d.writeJson("x", { a: 1 }), true);
+  assert.deepEqual(await d.readJson("x"), { a: 1 });
 });

@@ -28,9 +28,9 @@ export const SIG_META: Record<string, SigMeta> = {
   rrg_quadrant: { kind: "ordinal", higherBetter: true, labels: L({ 2: "Dẫn dắt", 1: "Cải thiện", [-1]: "Suy yếu", [-2]: "Tụt hậu" }) },
   catalyst_impact: { kind: "numeric", higherBetter: true },
   cotuc_decision: { kind: "ordinal", higherBetter: true, labels: L({ 1: "Thuận lợi", 0: "Theo dõi", [-1]: "Tránh" }) },
-  structure_stage: { kind: "ordinal", higherBetter: true, labels: L({ 2: "Tăng", 1.5: "B · tái tích luỹ", 1: "A · tích luỹ", 0: "Đi ngang", [-0.5]: "C", [-1]: "B′", [-1.5]: "D · phân phối", [-2]: "Giảm" }) },
+  structure_stage: { kind: "ordinal", higherBetter: true, labels: L({ 2: "GĐ 2 · Tăng", 0: "GĐ 1 · Tích luỹ", [-1]: "GĐ 3 · Phân phối", [-2]: "GĐ 4 · Giảm" }) },
   structure_score: { kind: "numeric", higherBetter: true },
-  structure_verdict: { kind: "ordinal", higherBetter: true, labels: L({ 2: "MUA", 1: "CHỜ MUA", 0: "ĐỨNG NGOÀI", [-1]: "GIẢM TỶ TRỌNG", [-2]: "BÁN" }) },
+  structure_verdict: { kind: "ordinal", higherBetter: true, labels: L({ 2: "Dow tăng", 1: "Tăng suy yếu / giảm đã gãy", 0: "Đi ngang", [-1]: "Giảm suy yếu / tăng đã gãy", [-2]: "Dow giảm" }) },
 };
 export const metaOf = (id: string): SigMeta => SIG_META[id] ?? { kind: "numeric", higherBetter: true };
 export const labelOf = (id: string, v: number | null | undefined) => (v == null ? null : metaOf(id).labels?.[String(v)] ?? null);
@@ -52,9 +52,9 @@ export const CHIPS: Chip[] = [
   { id: "pring", group: "Kỹ thuật (TA VN-Index)", sig: "pattern_state", label: "Mô hình Pring tăng", cond: { sig: "pattern_state", op: ">=", val: 0.5 } },
   { id: "conv", group: "Kỹ thuật (TA VN-Index)", sig: "convergence", label: "Hợp lưu mua ≥ hạng B", cond: { sig: "convergence", op: ">=", val: 2 } },
   { id: "bb", group: "Kỹ thuật (TA VN-Index)", sig: "base_breakout", label: "Base Breakout ≥ hạng B", cond: { sig: "base_breakout", op: ">=", val: 2 } },
-  { id: "stage", group: "Kỹ thuật (TA VN-Index)", sig: "structure_stage", label: "Cấu trúc ngày: Tăng / tái tích luỹ", cond: { sig: "structure_stage", op: "in", val: [1.5, 2] } },
-  { id: "sscore", group: "Kỹ thuật (TA VN-Index)", sig: "structure_score", label: "Bảng kiểm kỹ thuật ≥ 6/8", cond: { sig: "structure_score", op: ">=", val: 6 } },
-  { id: "verdict", group: "Kỹ thuật (TA VN-Index)", sig: "structure_verdict", label: "Đa khung: MUA / CHỜ MUA", cond: { sig: "structure_verdict", op: "in", val: [1, 2] } },
+  { id: "stage", group: "Kỹ thuật (TA VN-Index)", sig: "structure_stage", label: "Giai đoạn 2 Minervini (MTF v3)", cond: { sig: "structure_stage", op: "==", val: 2 } },
+  { id: "sscore", group: "Kỹ thuật (TA VN-Index)", sig: "structure_score", label: "Trend Template ≥ 6/7", cond: { sig: "structure_score", op: ">=", val: 6 } },
+  { id: "verdict", group: "Kỹ thuật (TA VN-Index)", sig: "structure_verdict", label: "Dow khung Ngày tăng", cond: { sig: "structure_verdict", op: "==", val: 2 } },
   { id: "smart60", group: "Điểm tổng hợp", sig: "smart_score", label: "Smart Score ≥ 60", cond: { sig: "smart_score", op: ">=", val: 60 } },
   { id: "rs80", group: "Điểm tổng hợp", sig: "rs_rating", label: "Sức mạnh giá RS ≥ 80", cond: { sig: "rs_rating", op: ">=", val: 80 } },
   { id: "fa60", group: "Điểm tổng hợp", sig: "fa_score", label: "Điểm cơ bản ≥ 60", cond: { sig: "fa_score", op: ">=", val: 60 } },
@@ -68,7 +68,7 @@ export const CHIPS: Chip[] = [
 /** Điều kiện LOẠI TRỪ gợi ý (bấm nút lần 2 trên chip thường cũng thành loại trừ). */
 export const EXCLUDE_CHIPS: Chip[] = [
   { id: "x_dist", group: "Loại trừ", sig: "stealth20", label: "Loại: Stealth 20 phân phối (≤ −1,5)", cond: { sig: "stealth20", op: "<=", val: -1.5 } },
-  { id: "x_down", group: "Loại trừ", sig: "structure_stage", label: "Loại: cấu trúc D / Giảm", cond: { sig: "structure_stage", op: "<=", val: -1.5 } },
+  { id: "x_down", group: "Loại trừ", sig: "structure_stage", label: "Loại: giai đoạn 4 (giảm)", cond: { sig: "structure_stage", op: "<=", val: -2 } },
   { id: "x_lag", group: "Loại trừ", sig: "rrg_quadrant", label: "Loại: ngành Tụt hậu", cond: { sig: "rrg_quadrant", op: "==", val: -2 } },
   { id: "x_weak", group: "Loại trừ", sig: "rs_rating", label: "Loại: RS ≤ 30 (yếu)", cond: { sig: "rs_rating", op: "<=", val: 30 } },
 ];
