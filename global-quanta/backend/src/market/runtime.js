@@ -132,7 +132,10 @@ export function getMarketRuntime() {
   // ngành (trước: cron Vercel 09:20 UTC), sau job ngành 15:50 của Gateway.
   const qmsJobs = createQmsJobs();
   jobs.qmsSectorTiming = () => qmsJobs.call("/api/cron/sector-timing-scan");
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  // Chất xúc tác (31/10/2026): quét trên Gateway, nguồn tin Event Radar, lưu Railway Volume — hết phụ thuộc Neon. 4 lượt/ngày, gồm cuối tuần (tin vẫn ra).
+  const CATALYST_SCANS = ["08:35", "11:35", "15:15", "20:30"].map((at, i) => ({ name: `catalystScan${i + 1}`, at, tradingDayOnly: false }));
+  for (const c of CATALYST_SCANS) jobs[c.name] = () => qmsJobs.call("/api/catalysts/scan");
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -163,6 +166,13 @@ export function startMarketIngestor() {
   rt.scheduler.start({ runOnStart });
   rt.tickRecorder.start();
   rt.cotucScanner.start();
+  // Chất xúc tác: khởi động lại mà chưa có snapshot hoặc snapshot đã cũ (lỡ lượt quét) -> quét bù một lần sau 2 phút, không chờ tới giờ.
+  setTimeout(() => {
+    fetch(`http://127.0.0.1:${process.env.PORT || 4000}/api/catalysts/latest`, { signal: AbortSignal.timeout(30_000) })
+      .then((r) => r.json())
+      .then((d) => { if (!d?.scannedAt || d.isStale) return rt.scheduler.run("catalystScan1", "startup"); return null; })
+      .catch((e) => console.warn(`[catalysts] quét bù lỗi: ${e.message}`));
+  }, 120_000).unref?.();
   rt.elliottAlerts.start();
   // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
   if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();

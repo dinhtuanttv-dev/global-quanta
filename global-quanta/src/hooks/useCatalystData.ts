@@ -1,8 +1,9 @@
 import useSWR from "swr";
 import type { CatalystSnapshot, CatalystErrorResponse } from "../types/catalyst";
+import { getMarketGateway } from "../config/marketGateway";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-const ENDPOINT = `${API_BASE}/api/catalysts/latest`;
+// 31/10/2026: snapshot nằm trên Market Gateway (quét bằng Event Radar, lưu Railway Volume), không còn qua Project A.
+const ENDPOINT = `${getMarketGateway().baseUrl}/api/catalysts/latest`;
 
 // Phase 1 (tich hop tu goi ban giao Chat Xuc Tac 2.0): them timeout + retry
 // backoff cho fetch - ban goc chi fetch().then(r=>r.json()) tran, khong co

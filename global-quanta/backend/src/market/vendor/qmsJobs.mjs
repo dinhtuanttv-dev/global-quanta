@@ -1,40 +1,33 @@
-// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: quant-macro-scanner lib/jobs (commit 4e68987). Tạo lại: node scripts/bundle-gateway-jobs.mjs <ra>
+// FILE SINH TỰ ĐỘNG — KHÔNG SỬA TAY. Nguồn: quant-macro-scanner lib/jobs (commit ec2b127). Tạo lại: node scripts/bundle-gateway-jobs.mjs <ra>
 import { createRequire as __qmsCreateRequire } from "node:module"; const require = __qmsCreateRequire(import.meta.url);
-var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getProtoOf = Object.getPrototypeOf;
-var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
   try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
   } catch (e) {
-    throw mod = 0, e;
+    throw err = [e], e;
   }
 };
-var __copyProps = (to, from, except, desc) => {
-  if (from && typeof from === "object" || typeof from === "function") {
-    for (let key of __getOwnPropNames(from))
-      if (!__hasOwnProp.call(to, key) && key !== except)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
-  }
-  return to;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
 };
-var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
-  // If the importer is in node compatibility mode or this is not an ESM
-  // file that has been converted to a CommonJS file using a Babel-
-  // compatible transform (i.e. "__esModule" has not been set), then set
-  // "default" to the CommonJS "module.exports" for node compatibility.
-  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
-  mod
-));
 
 // stub:no-prisma
-var require_no_prisma = __commonJS({
+var no_prisma_exports = {};
+__export(no_prisma_exports, {
+  prisma: () => prisma
+});
+var no2, prisma;
+var init_no_prisma = __esm({
   "stub:no-prisma"() {
     "use strict";
-    throw new Error("Prisma/Neon kh\xF4ng c\xF3 tr\xEAn Market Gateway");
+    no2 = () => {
+      throw new Error("Prisma/Neon kh\xF4ng c\xF3 tr\xEAn Market Gateway");
+    };
+    prisma = new Proxy({}, { get: no2 });
   }
 });
 
@@ -140,12 +133,12 @@ var subtle = nodeCrypto.webcrypto?.subtle || {};
 
 // ../quant-macro-scanner/node_modules/@upstash/redis/chunk-2X4SLXT7.mjs
 var __defProp2 = Object.defineProperty;
-var __export = (target, all) => {
+var __export2 = (target, all) => {
   for (var name in all)
     __defProp2(target, name, { get: all[name], enumerable: true });
 };
 var error_exports = {};
-__export(error_exports, {
+__export2(error_exports, {
   UpstashError: () => UpstashError,
   UpstashJSONParseError: () => UpstashJSONParseError,
   UrlError: () => UrlError
@@ -3753,35 +3746,35 @@ var EXCLUDE_COMMANDS = /* @__PURE__ */ new Set([
   "exec"
 ]);
 function createAutoPipelineProxy(_redis, namespace = "root") {
-  const redis = _redis;
-  if (!redis.autoPipelineExecutor) {
-    redis.autoPipelineExecutor = new AutoPipelineExecutor(redis);
+  const redis2 = _redis;
+  if (!redis2.autoPipelineExecutor) {
+    redis2.autoPipelineExecutor = new AutoPipelineExecutor(redis2);
   }
-  return new Proxy(redis, {
-    get: (redis2, command) => {
+  return new Proxy(redis2, {
+    get: (redis22, command) => {
       if (command === "pipelineCounter") {
-        return redis2.autoPipelineExecutor.pipelineCounter;
+        return redis22.autoPipelineExecutor.pipelineCounter;
       }
       if (namespace === "root" && command === "json") {
-        return createAutoPipelineProxy(redis2, "json");
+        return createAutoPipelineProxy(redis22, "json");
       }
       if (namespace === "root" && command === "functions") {
-        return createAutoPipelineProxy(redis2, "functions");
+        return createAutoPipelineProxy(redis22, "functions");
       }
       if (namespace === "root") {
-        const commandInRedisButNotPipeline = command in redis2 && !(command in redis2.autoPipelineExecutor.pipeline);
+        const commandInRedisButNotPipeline = command in redis22 && !(command in redis22.autoPipelineExecutor.pipeline);
         const isCommandExcluded = EXCLUDE_COMMANDS.has(command);
         if (commandInRedisButNotPipeline || isCommandExcluded) {
-          return redis2[command];
+          return redis22[command];
         }
       }
-      const pipeline = redis2.autoPipelineExecutor.pipeline;
+      const pipeline = redis22.autoPipelineExecutor.pipeline;
       const targetFunction = namespace === "json" ? pipeline.json[command] : namespace === "functions" ? pipeline.functions[command] : pipeline[command];
       const isFunction = typeof targetFunction === "function";
       if (isFunction) {
         return (...args) => {
           const commandMode = READ_COMMANDS.has(command) ? "read" : "write";
-          return redis2.autoPipelineExecutor.withAutoPipeline(commandMode, (pipeline2) => {
+          return redis22.autoPipelineExecutor.withAutoPipeline(commandMode, (pipeline2) => {
             const targetFunction2 = namespace === "json" ? pipeline2.json[command] : namespace === "functions" ? pipeline2.functions[command] : pipeline2[command];
             targetFunction2(...args);
           });
@@ -3802,9 +3795,9 @@ var AutoPipelineExecutor = class {
   // only to make sure that proxy can work
   pipelineCounter = 0;
   // to keep track of how many times a pipeline was executed
-  constructor(redis) {
-    this.redis = redis;
-    this.pipeline = redis.pipeline();
+  constructor(redis2) {
+    this.redis = redis2;
+    this.pipeline = redis2.pipeline();
   }
   async withAutoPipeline(commandMode, executeWithPipeline) {
     const isRead = commandMode === "read";
@@ -4046,8 +4039,8 @@ var Script = class {
   sha1;
   initPromise;
   redis;
-  constructor(redis, script) {
-    this.redis = redis;
+  constructor(redis2, script) {
+    this.redis = redis2;
     this.script = script;
     this.sha1 = "";
     void this.init(script);
@@ -4115,8 +4108,8 @@ var ScriptRO = class {
   sha1;
   initPromise;
   redis;
-  constructor(redis, script) {
-    this.redis = redis;
+  constructor(redis2, script) {
+    this.redis = redis2;
     this.sha1 = "";
     this.script = script;
     void this.init(script);
@@ -8919,10 +8912,10 @@ function groupConfluence(rows, symbols) {
 }
 async function confluenceBySector(symbols) {
   try {
-    const { prisma } = await Promise.resolve().then(() => __toESM(require_no_prisma()));
-    const latest = await prisma.sectorTop20Entry.findFirst({ orderBy: { generatedAt: "desc" }, select: { generatedAt: true } });
+    const { prisma: prisma2 } = await Promise.resolve().then(() => (init_no_prisma(), no_prisma_exports));
+    const latest = await prisma2.sectorTop20Entry.findFirst({ orderBy: { generatedAt: "desc" }, select: { generatedAt: true } });
     if (!latest) return /* @__PURE__ */ new Map();
-    const rows = await prisma.sectorTop20Entry.findMany({ where: { generatedAt: latest.generatedAt }, select: { ticker: true, confluenceScore: true } });
+    const rows = await prisma2.sectorTop20Entry.findMany({ where: { generatedAt: latest.generatedAt }, select: { ticker: true, confluenceScore: true } });
     return groupConfluence(rows, symbols);
   } catch {
     return /* @__PURE__ */ new Map();
@@ -9087,7 +9080,994 @@ async function runSectorTimingScan() {
     return jobFail({ error: String(err) });
   }
 }
+
+// lib/catalyst/engine/EdgeIndex.ts
+var EdgeIndex = class {
+  constructor(edges) {
+    this.edges = edges;
+    this.byTicker = null;
+    this.bySector = null;
+    this.bySourceId = null;
+  }
+  // Idempotent: goi nhieu lan chi build dung 1 lan (kiem tra byTicker !== null)
+  ensureBuilt() {
+    if (this.byTicker !== null) return;
+    const byTicker = /* @__PURE__ */ new Map();
+    const bySector = /* @__PURE__ */ new Map();
+    const bySourceId = /* @__PURE__ */ new Map();
+    for (const edge of this.edges) {
+      const targetMap = edge.targetType === "ticker" ? byTicker : bySector;
+      const targetList = targetMap.get(edge.targetId);
+      if (targetList) {
+        targetList.push(edge);
+      } else {
+        targetMap.set(edge.targetId, [edge]);
+      }
+      const sourceList = bySourceId.get(edge.sourceId);
+      if (sourceList) {
+        sourceList.push(edge);
+      } else {
+        bySourceId.set(edge.sourceId, [edge]);
+      }
+    }
+    this.byTicker = byTicker;
+    this.bySector = bySector;
+    this.bySourceId = bySourceId;
+  }
+  getByTicker(ticker) {
+    this.ensureBuilt();
+    return this.byTicker.get(ticker) ?? [];
+  }
+  getBySector(sector) {
+    this.ensureBuilt();
+    return this.bySector.get(sector) ?? [];
+  }
+  getBySourceId(sourceId) {
+    this.ensureBuilt();
+    return this.bySourceId.get(sourceId) ?? [];
+  }
+  // Lay nhieu ticker cung luc, dung cho getImpactForTickers() batch -
+  // van la O(1) x N (N = so ticker can tra cuu), khong duyet lai edges.
+  getByTickers(tickers) {
+    this.ensureBuilt();
+    const result = /* @__PURE__ */ new Map();
+    for (const ticker of tickers) {
+      result.set(ticker, this.byTicker.get(ticker) ?? []);
+    }
+    return result;
+  }
+  getAllTickers() {
+    this.ensureBuilt();
+    return Array.from(this.byTicker.keys());
+  }
+  getAllSectors() {
+    this.ensureBuilt();
+    return Array.from(this.bySector.keys());
+  }
+  // Prefix search cho Instant Impact Search - tim moi ticker bat dau bang query.
+  // Van O(T) voi T = so ticker duy nhat (thuong <200), khong phai O(E) - vi da
+  // co san danh sach key cua Map, khong can duyet lai toan bo edges.
+  searchTickersByPrefix(query, limit = 10) {
+    this.ensureBuilt();
+    const upperQuery = query.trim().toUpperCase();
+    if (!upperQuery) return [];
+    const matches = [];
+    for (const ticker of this.byTicker.keys()) {
+      if (ticker.startsWith(upperQuery)) {
+        matches.push(ticker);
+        if (matches.length >= limit) break;
+      }
+    }
+    return matches;
+  }
+};
+
+// lib/catalyst/engine/computeTrustScore.ts
+var WEIGHTS = {
+  corroboration: 0.4,
+  credibility: 0.35,
+  recency: 0.25
+};
+var CORROBORATION_SATURATION = 5;
+var RECENCY_DECAY_DAYS = 30;
+function corroborationFactor(count) {
+  return Math.min(1, count / CORROBORATION_SATURATION);
+}
+function credibilityFactor(credibility) {
+  return credibility === "confirmed" ? 1 : 0.5;
+}
+function recencyFactor(firstDetectedAt) {
+  const daysSince = (Date.now() - firstDetectedAt.getTime()) / (1e3 * 3600 * 24);
+  return Math.exp(-Math.max(0, daysSince) / RECENCY_DECAY_DAYS);
+}
+function computeTrustScore(input) {
+  const weighted = corroborationFactor(input.corroborationCount) * WEIGHTS.corroboration + credibilityFactor(input.sourceCredibility) * WEIGHTS.credibility + recencyFactor(input.firstDetectedAt) * WEIGHTS.recency;
+  return Math.round(weighted * 100);
+}
+
+// lib/catalyst/engine/computeCredibilityWeight.ts
+var RUMOR_BASE = 0.5;
+var RUMOR_CONVERGENCE_CAP = 0.9;
+var GROWTH_RATE = 3;
+function computeCredibilityWeight(sourceCredibility, corroborationCount) {
+  if (sourceCredibility === "confirmed") {
+    return 1;
+  }
+  const n = Math.max(1, corroborationCount);
+  const convergenceProgress = 1 - Math.exp(-(n - 1) / GROWTH_RATE);
+  return RUMOR_BASE + (RUMOR_CONVERGENCE_CAP - RUMOR_BASE) * convergenceProgress;
+}
+
+// lib/catalyst/engine/computeFreshnessScore.ts
+var FRESHNESS_HALF_LIFE_HOURS = 2;
+function computeFreshnessScore(firstDetectedAt) {
+  const hoursElapsed = (Date.now() - firstDetectedAt.getTime()) / (1e3 * 3600);
+  if (hoursElapsed < 0) return 1;
+  const score = Math.pow(0.5, hoursElapsed / FRESHNESS_HALF_LIFE_HOURS);
+  return Math.round(score * 1e3) / 1e3;
+}
+function isConsideredNew(firstDetectedAt) {
+  const hoursElapsed = (Date.now() - firstDetectedAt.getTime()) / (1e3 * 3600);
+  return hoursElapsed <= 2;
+}
+
+// lib/catalyst/CatalystEngine.ts
+var CONFIDENCE_BASE = {
+  direct: 1,
+  upstream: 0.5,
+  downstream: 0.5,
+  competitor: 0.5,
+  commodity: 0.3
+};
+var HOP_DECAY = 0.6;
+var ANTICIPATION_WINDOW_DAYS = 30;
+var CatalystEngine = class {
+  constructor(sources, edges, marketSignals, calibration, previousRanks = /* @__PURE__ */ new Map()) {
+    this.sources = sources;
+    this.edges = edges;
+    this.marketSignals = marketSignals;
+    this.calibration = calibration;
+    this.previousRanks = previousRanks;
+    this.index = null;
+  }
+  getIndex() {
+    if (!this.index) this.index = new EdgeIndex(this.edges);
+    return this.index;
+  }
+  sourceById(id) {
+    return this.sources.find((s) => s.id === id);
+  }
+  confidenceMultiplier(edge) {
+    const base = CONFIDENCE_BASE[edge.propagationDistance];
+    const hopPenalty = Math.pow(HOP_DECAY, edge.hopCount - 1);
+    return base * hopPenalty;
+  }
+  calculateEdgeImpact(edge, source, now) {
+    const confidence = this.confidenceMultiplier(edge);
+    const credibilityWeight = computeCredibilityWeight(source.sourceCredibility, source.corroborationCount);
+    const sign = edge.direction === "benefit" ? 1 : -1;
+    let magnitude;
+    if (source.executionDate) {
+      const execTime = source.executionDate.getTime();
+      if (now < execTime) {
+        const daysRemaining = (execTime - now) / (1e3 * 3600 * 24);
+        const progress = 1 - Math.min(1, daysRemaining / ANTICIPATION_WINDOW_DAYS);
+        magnitude = edge.baseWeight * Math.max(0, progress);
+      } else {
+        const daysSinceExec = (now - execTime) / (1e3 * 3600 * 24);
+        magnitude = edge.baseWeight * Math.exp(-edge.decayRate * daysSinceExec);
+      }
+    } else {
+      const daysSincePublish = (now - source.publishedDate.getTime()) / (1e3 * 3600 * 24);
+      magnitude = edge.baseWeight * Math.exp(-edge.decayRate * Math.max(0, daysSincePublish));
+    }
+    return magnitude * confidence * credibilityWeight * sign;
+  }
+  daysRemainingFor(source, now) {
+    if (!source.executionDate) return null;
+    const diff = (source.executionDate.getTime() - now) / (1e3 * 3600 * 24);
+    return diff > 0 ? diff : 0;
+  }
+  getWinRate(category, propagationDistance) {
+    const entry = this.calibration.find(
+      (c) => c.category === category && c.propagationDistance === propagationDistance
+    );
+    return entry?.historicalWinRate ?? 50;
+  }
+  calculateCompositeScore(params) {
+    let score = Math.min(50, params.absImpact * 5);
+    if (params.priceInStatus === "not_reflected") score += 15;
+    if (params.volumeFlag === "confirmed") score += 10;
+    if (params.volumeFlag === "suspicious") score -= 8;
+    score += Math.min(10, params.corroborationCount * 2.5);
+    score += (params.winRate - 50) * 0.2;
+    const flowAligned = params.direction === "benefit" && params.foreignFlowDirection === "buy" || params.direction === "harm" && params.foreignFlowDirection === "sell";
+    if (flowAligned) score += 8;
+    else if (params.foreignFlowDirection !== "none") score -= 5;
+    return Math.max(0, Math.min(100, Math.round(score)));
+  }
+  buildTickerCards(edgesForTargetType, now) {
+    const byTicker = /* @__PURE__ */ new Map();
+    for (const e of edgesForTargetType) {
+      const list = byTicker.get(e.targetId) ?? [];
+      list.push(e);
+      byTicker.set(e.targetId, list);
+    }
+    const cards = [];
+    for (const [ticker, edgeList] of byTicker.entries()) {
+      let netSignedImpact = 0;
+      const signs = /* @__PURE__ */ new Set();
+      for (const e of edgeList) {
+        const source2 = this.sourceById(e.sourceId);
+        if (!source2) continue;
+        netSignedImpact += this.calculateEdgeImpact(e, source2, now);
+        signs.add(e.direction);
+      }
+      const isConflicted = signs.size > 1;
+      const primaryEdge = edgeList.reduce((best, e) => {
+        const source2 = this.sourceById(e.sourceId);
+        if (!source2) return best;
+        const impact = Math.abs(this.calculateEdgeImpact(e, source2, now));
+        const bestSource = this.sourceById(best.sourceId);
+        const bestImpact = bestSource ? Math.abs(this.calculateEdgeImpact(best, bestSource, now)) : -1;
+        return impact > bestImpact ? e : best;
+      }, edgeList[0]);
+      const source = this.sourceById(primaryEdge.sourceId);
+      if (!source) continue;
+      const signal = this.marketSignals.get(ticker);
+      const winRate = this.getWinRate(source.category, primaryEdge.propagationDistance);
+      const direction = netSignedImpact >= 0 ? "benefit" : "harm";
+      const compositeScore = this.calculateCompositeScore({
+        absImpact: Math.abs(netSignedImpact),
+        priceInStatus: signal?.priceInStatus ?? "not_reflected",
+        volumeFlag: signal?.volumeFlag ?? "none",
+        corroborationCount: source.corroborationCount,
+        winRate,
+        foreignFlowDirection: signal?.foreignFlowDirection ?? "none",
+        direction
+      });
+      const trustScore = computeTrustScore({
+        corroborationCount: source.corroborationCount,
+        sourceCredibility: source.sourceCredibility,
+        firstDetectedAt: source.firstDetectedAt
+      });
+      const valuationAdj = 1 - (signal?.valuationPercentile ?? 0.5);
+      const liquidityAdj = signal?.liquidityScore ?? 0.5;
+      const opportunityScore = netSignedImpact * (0.5 + 0.5 * valuationAdj) * (0.5 + 0.5 * liquidityAdj);
+      cards.push({
+        ticker,
+        sourceId: source.id,
+        sourceTitle: source.title,
+        direction,
+        netSignedImpact,
+        propagationDistance: primaryEdge.propagationDistance,
+        hopCount: primaryEdge.hopCount,
+        horizon: primaryEdge.horizon,
+        scheduled: !!source.executionDate && now < source.executionDate.getTime(),
+        daysRemaining: this.daysRemainingFor(source, now),
+        corroborationCount: source.corroborationCount,
+        historicalWinRate: winRate,
+        priceInStatus: signal?.priceInStatus ?? "not_reflected",
+        volumeFlag: signal?.volumeFlag ?? "none",
+        foreignFlowDirection: signal?.foreignFlowDirection ?? "none",
+        foreignFlowValue: signal?.foreignFlowValue,
+        opportunityScore,
+        isBestPickInGroup: false,
+        isConflicted,
+        isWatchlisted: signal?.isWatchlisted ?? false,
+        compositeScore,
+        trustScore
+      });
+    }
+    const bySource = /* @__PURE__ */ new Map();
+    for (const c of cards) {
+      const list = bySource.get(c.sourceId) ?? [];
+      list.push(c);
+      bySource.set(c.sourceId, list);
+    }
+    for (const group of bySource.values()) {
+      if (group.length < 2) continue;
+      const best = group.reduce((a, b) => Math.abs(b.opportunityScore) > Math.abs(a.opportunityScore) ? b : a);
+      best.isBestPickInGroup = true;
+    }
+    return cards.sort((a, b) => Math.abs(b.netSignedImpact) - Math.abs(a.netSignedImpact));
+  }
+  getSectorRankings() {
+    const now = Date.now();
+    const index = this.getIndex();
+    const sectors = index.getAllSectors();
+    const results = [];
+    for (const sector of sectors) {
+      const edgesForSector = index.getBySector(sector);
+      let netScore = 0;
+      let isNew = false;
+      let maxFreshness = 0;
+      for (const e of edgesForSector) {
+        const source = this.sourceById(e.sourceId);
+        if (!source) continue;
+        netScore += this.calculateEdgeImpact(e, source, now);
+        if (isConsideredNew(source.firstDetectedAt)) isNew = true;
+        const freshness = computeFreshnessScore(source.firstDetectedAt);
+        if (freshness > maxFreshness) maxFreshness = freshness;
+      }
+      const sourceIds = new Set(edgesForSector.map((e) => e.sourceId));
+      const tickerEdges = [];
+      const cascadeEdges = [];
+      for (const sourceId of sourceIds) {
+        const edgesOfSource = index.getBySourceId(sourceId);
+        for (const e of edgesOfSource) {
+          if (e.targetType !== "ticker") continue;
+          if (e.hopCount === 1) tickerEdges.push(e);
+          else if (e.hopCount === 2) cascadeEdges.push(e);
+        }
+      }
+      const primaryCards = this.buildTickerCards(tickerEdges, now);
+      const cascadeCards = this.buildTickerCards(cascadeEdges, now);
+      const opportunityScore = primaryCards.reduce((sum, c) => sum + c.opportunityScore, 0) / (primaryCards.length || 1);
+      results.push({
+        sector,
+        netScore,
+        opportunityScore,
+        tickerCount: primaryCards.length,
+        isNew,
+        freshnessScore: Math.round(maxFreshness * 1e3) / 1e3,
+        primaryCards,
+        cascadeCards
+      });
+    }
+    return results.sort((a, b) => b.netScore - a.netScore);
+  }
+  getTopMovers(direction, limit = 10) {
+    const now = Date.now();
+    const index = this.getIndex();
+    const allTickers = index.getAllTickers();
+    const tickerEdges = [];
+    for (const ticker of allTickers) tickerEdges.push(...index.getByTicker(ticker));
+    const allCards = this.buildTickerCards(tickerEdges, now).filter((c) => c.direction === direction);
+    const sorted = allCards.sort((a, b) => b.compositeScore - a.compositeScore).slice(0, limit);
+    return sorted.map((c, i) => ({
+      rank: i + 1,
+      prevRank: this.previousRanks.get(c.ticker) ?? null,
+      ticker: c.ticker,
+      label: c.sourceTitle,
+      compositeScore: c.compositeScore,
+      isWatchlisted: c.isWatchlisted
+    }));
+  }
+  getEmergingSources(withinMinutes = 120) {
+    const now = Date.now();
+    const index = this.getIndex();
+    return this.sources.filter((s) => (now - s.firstDetectedAt.getTime()) / 6e4 <= withinMinutes).map((s) => ({
+      sourceId: s.id,
+      title: s.title,
+      category: s.category,
+      corroborationCount: s.corroborationCount,
+      affectedTargetCount: index.getBySourceId(s.id).length
+    }));
+  }
+  getActiveAlerts(config) {
+    const alerts = [];
+    const sectorRankings = this.getSectorRankings();
+    for (const s of sectorRankings) {
+      if (Math.abs(s.netScore) >= config.minSectorNetScore) {
+        alerts.push({
+          type: "sector_threshold",
+          targetId: s.sector,
+          message: `Nganh ${s.sector} da vuot nguong net score (${s.netScore.toFixed(1)})`
+        });
+      }
+    }
+    const now = Date.now();
+    for (const source of this.sources) {
+      if (!source.executionDate) continue;
+      const daysRemaining = (source.executionDate.getTime() - now) / (1e3 * 3600 * 24);
+      if (daysRemaining > 0 && daysRemaining <= config.maxDaysBeforeExecutionForAlert) {
+        alerts.push({
+          type: "execution_window",
+          targetId: source.id,
+          message: `"${source.title}" sap thuc thi trong ${Math.round(daysRemaining)} ngay`
+        });
+      }
+      if (source.corroborationCount < config.minCorroborationCount) {
+        alerts.push({
+          type: "low_corroboration_warning",
+          targetId: source.id,
+          message: `"${source.title}" chi co ${source.corroborationCount} nguon xac nhan - duoi nguong toi thieu`
+        });
+      }
+    }
+    return alerts;
+  }
+  getUpcomingMacroEvents(limit = 5) {
+    const now = Date.now();
+    const index = this.getIndex();
+    const upcoming = this.sources.filter((s) => s.executionDate && s.executionDate.getTime() > now).map((s) => {
+      const daysRemaining = (s.executionDate.getTime() - now) / (1e3 * 3600 * 24);
+      const sourceEdges = index.getBySourceId(s.id);
+      const netImpact = sourceEdges.reduce((sum, e) => sum + this.calculateEdgeImpact(e, s, now), 0);
+      return {
+        sourceId: s.id,
+        title: s.title,
+        executionDate: s.executionDate.toISOString(),
+        daysRemaining: Math.round(daysRemaining * 10) / 10,
+        direction: netImpact >= 0 ? "benefit" : "harm",
+        category: s.category
+      };
+    }).sort((a, b) => a.daysRemaining - b.daysRemaining);
+    return upcoming.slice(0, limit);
+  }
+  getImpactForTicker(ticker) {
+    const now = Date.now();
+    const index = this.getIndex();
+    const edgesForTicker = index.getByTicker(ticker);
+    if (edgesForTicker.length === 0) return { direction: "none", compositeScore: 0 };
+    const cards = this.buildTickerCards(edgesForTicker, now);
+    const card = cards.find((c) => c.ticker === ticker);
+    if (!card) return { direction: "none", compositeScore: 0 };
+    return { direction: card.direction, compositeScore: card.compositeScore };
+  }
+  getImpactForTickers(tickers) {
+    const now = Date.now();
+    const index = this.getIndex();
+    const edgesByTicker = index.getByTickers(tickers);
+    const result = {};
+    for (const ticker of tickers) {
+      const edges = edgesByTicker.get(ticker) ?? [];
+      if (edges.length === 0) {
+        result[ticker] = { direction: "none", compositeScore: 0 };
+        continue;
+      }
+      const cards = this.buildTickerCards(edges, now);
+      const card = cards.find((c) => c.ticker === ticker);
+      result[ticker] = card ? { direction: card.direction, compositeScore: card.compositeScore } : { direction: "none", compositeScore: 0 };
+    }
+    return result;
+  }
+  searchTickerImpact(query, limit = 10) {
+    const now = Date.now();
+    const index = this.getIndex();
+    const matchedTickers = index.searchTickersByPrefix(query, limit);
+    const edges = [];
+    for (const ticker of matchedTickers) edges.push(...index.getByTicker(ticker));
+    return this.buildTickerCards(edges, now);
+  }
+};
+
+// lib/catalyst/calendar/staticMacroCalendar.ts
+function nextMonthlyDate(day, fromYear, fromMonth, monthsAhead) {
+  const dates = [];
+  for (let i = 0; i < monthsAhead; i++) {
+    const d = new Date(Date.UTC(fromYear, fromMonth - 1 + i, day));
+    dates.push(d);
+  }
+  return dates;
+}
+var FOMC_2026_DATES = [
+  "2026-01-28",
+  "2026-03-18",
+  "2026-04-29",
+  "2026-06-17",
+  "2026-07-29",
+  "2026-09-16",
+  "2026-10-28",
+  "2026-12-09"
+];
+function buildStaticMacroCalendar(now = /* @__PURE__ */ new Date()) {
+  const events = [];
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() + 1;
+  nextMonthlyDate(29, year, month, 3).forEach((d) => {
+    events.push({ id: `vn-cpi-${d.toISOString().slice(0, 10)}`, title: "GSO cong bo CPI & so lieu xuat nhap khau", category: "macro", executionDate: d, country: "VN" });
+  });
+  nextMonthlyDate(2, year, month, 3).forEach((d) => {
+    events.push({ id: `vn-pmi-${d.toISOString().slice(0, 10)}`, title: "S&P Global cong bo PMI san xuat Viet Nam", category: "macro", executionDate: d, country: "VN" });
+  });
+  FOMC_2026_DATES.forEach((dateStr) => {
+    const d = /* @__PURE__ */ new Date(dateStr + "T19:00:00Z");
+    if (d.getTime() > now.getTime()) {
+      events.push({ id: `us-fomc-${dateStr}`, title: "Fed cong bo quyet dinh lai suat (FOMC)", category: "macro", executionDate: d, country: "US" });
+    }
+  });
+  return events.filter((e) => e.executionDate.getTime() > now.getTime());
+}
+
+// lib/catalyst/engine/SignalLedger.ts
+var LEDGER_KEY = "catalyst:signal-ledger";
+function makeRecordId(sourceId, ticker) {
+  return `${sourceId}::${ticker}`;
+}
+async function recordNewSignal(redis2, params) {
+  const id = makeRecordId(params.sourceId, params.ticker);
+  const existing = await redis2.hget(LEDGER_KEY, id);
+  if (existing) return;
+  const record = {
+    id,
+    ...params,
+    priceAtSignal: null,
+    scannedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    evaluatedAt: null,
+    priceAtEvaluation: null,
+    won: null
+  };
+  await redis2.hset(LEDGER_KEY, { [id]: record });
+}
+
+// lib/catalyst/engine/SnapshotStore.ts
+var LATEST_KEY = "catalyst:snapshot:latest";
+var HISTORY_KEY = "catalyst:snapshot:history";
+var MAX_HISTORY_ENTRIES = 96;
+async function writeSnapshotSafe(redis2, snapshot) {
+  await redis2.set(LATEST_KEY, snapshot);
+  const historyEntry = {
+    scannedAt: snapshot.scannedAt,
+    sectorCount: snapshot.sectors?.length ?? 0,
+    totalBenefitCount: snapshot.totalBenefitCount ?? 0,
+    totalHarmCount: snapshot.totalHarmCount ?? 0,
+    upcomingEventCount: snapshot.upcomingEvents?.length ?? 0
+  };
+  await redis2.zadd(HISTORY_KEY, {
+    score: Date.now(),
+    member: JSON.stringify(historyEntry)
+  });
+  await redis2.zremrangebyrank(HISTORY_KEY, 0, -(MAX_HISTORY_ENTRIES + 1));
+}
+
+// lib/catalyst/engine/SectorRegistry.ts
+var redis = new Redis2({
+  url: process.env.KV_REST_API_URL,
+  token: process.env.KV_REST_API_TOKEN
+});
+var STANDARD_SECTORS = /* @__PURE__ */ new Set();
+var RAW_SECTOR_MAP = {
+  banking: "Ngan hang",
+  realestate: "Bat dong san",
+  steel: "Thep",
+  oilgas: "Dau khi",
+  securities: "Chung khoan",
+  exporttextile: "Det may",
+  technology: "Cong nghe",
+  agriculture: "Nong san",
+  // FIX (2026-09-11): PHAT HIEN LOI THAT - hose-ingest.ts dung findSector()
+  // lay thang nhan "sector" tu stockUniverse (lib/quant-data.ts) roi truyen
+  // qua resolveSectorName() giong het cac tin RSS thuong (qua classifier.ts).
+  // Nhung 2 nguon nay dung TU VUNG KHAC NHAU: classifier.ts sinh key kieu
+  // tieng Anh ("Banking", "Steel"...), con stockUniverse dung thang nhan
+  // tieng Viet khong dau ("Ngan hang", "Cao su"...) - lam MOI nhan tu HOSE
+  // deu roi vao quarantine oan, du la nhan da CHUAN, khong can dich them.
+  // Them toan bo 19 nganh THAT trong stockUniverse (khong chi 2 nganh dang
+  // thay tren UI - de tranh cac nganh HOSE khac tiep tuc bi bao "chua anh
+  // xa" oan trong tuong lai). Anh xa "chinh no" vi da la nhan chuan.
+  "cong nghe": "Cong nghe",
+  "dau khi": "Dau khi",
+  "ngan hang": "Ngan hang",
+  "van tai bien": "Van tai bien",
+  "hoa chat": "Hoa chat",
+  "cao su": "Cao su",
+  "ban le": "Ban le",
+  "bat dong san": "Bat dong san",
+  "thep": "Thep",
+  "chung khoan": "Chung khoan",
+  "phan bon/hoa chat": "Phan bon/Hoa chat",
+  "nang luong/dien": "Nang luong/Dien",
+  "hang khong": "Hang khong",
+  "khu cong nghiep": "Khu cong nghiep",
+  "det may": "Det may",
+  "xuat khau (go, thuy san)": "Xuat khau (Go, Thuy san)",
+  "duoc pham": "Duoc pham",
+  "nong nghiep": "Nong nghiep",
+  "vat lieu xay dung": "Vat lieu xay dung"
+};
+var SENTINEL_VALUES = /* @__PURE__ */ new Set(["macrogeneral", "unknown", "n/a", "none", ""]);
+function normalizeKey(raw) {
+  return raw.toLowerCase().replace(/[_\s-]+/g, "");
+}
+var normalizedMapCache = null;
+function getNormalizedMap() {
+  if (normalizedMapCache) return normalizedMapCache;
+  normalizedMapCache = /* @__PURE__ */ new Map();
+  for (const [key, value] of Object.entries(RAW_SECTOR_MAP)) {
+    normalizedMapCache.set(normalizeKey(key), value);
+  }
+  return normalizedMapCache;
+}
+for (const name of Object.values(RAW_SECTOR_MAP)) STANDARD_SECTORS.add(name);
+function resolveSectorNameSync(rawKey) {
+  const normalized = normalizeKey(rawKey);
+  if (SENTINEL_VALUES.has(normalized)) return null;
+  const map = getNormalizedMap();
+  const hit = map.get(normalized);
+  if (hit) return hit;
+  return null;
+}
+
+// lib/catalyst/gatewaySignals.ts
+var num = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
+function parseGatewayInputs(body) {
+  const b = body ?? {};
+  const rows = Array.isArray(b.tickers) ? b.tickers : [];
+  const tickers = /* @__PURE__ */ new Map();
+  for (const r of rows) {
+    if (typeof r?.ticker !== "string") continue;
+    tickers.set(r.ticker, {
+      ticker: r.ticker,
+      rs3m: num(r.rs3m),
+      volumeSpikeRatio: num(r.volumeSpikeRatio),
+      avgValue60: num(r.avgValue60),
+      liquid: r.liquid === true,
+      stale: r.stale === true,
+      lastDate: typeof r.lastDate === "string" ? r.lastDate : null
+    });
+  }
+  const withValue = [...tickers.values()].filter((t) => t.avgValue60 != null && t.avgValue60 > 0).sort((a, b2) => a.avgValue60 - b2.avgValue60);
+  const liquidityRank = /* @__PURE__ */ new Map();
+  withValue.forEach((t, i) => liquidityRank.set(t.ticker, withValue.length > 1 ? Math.round(i / (withValue.length - 1) * 1e3) / 1e3 : 0.5));
+  return { ok: tickers.size > 0, dataAsOf: typeof b.dataAsOf === "string" ? b.dataAsOf : null, tickers, liquidityRank, error: tickers.size ? void 0 : "Gateway tr\u1EA3 danh s\xE1ch r\u1ED7ng" };
+}
+async function fetchGatewaySignalInputs({ fetchImpl = fetch, timeoutMs = 45e3 } = {}) {
+  try {
+    const res = await fetchImpl(`${MARKET_GATEWAY_URL}/api/market/top20/inputs`, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+    if (!res.ok) return { ok: false, dataAsOf: null, tickers: /* @__PURE__ */ new Map(), liquidityRank: /* @__PURE__ */ new Map(), error: `Gateway HTTP ${res.status}` };
+    return parseGatewayInputs(await res.json());
+  } catch (e) {
+    return { ok: false, dataAsOf: null, tickers: /* @__PURE__ */ new Map(), liquidityRank: /* @__PURE__ */ new Map(), error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+// lib/catalyst/marketSignals.ts
+init_no_prisma();
+function inferPriceInStatus(rs3m) {
+  if (rs3m === null) return "not_reflected";
+  return rs3m > 5 ? "reflected" : "not_reflected";
+}
+function inferVolumeFlag(volumeSpikeRatio) {
+  if (volumeSpikeRatio === null) return "none";
+  return volumeSpikeRatio >= 1.5 ? "confirmed" : "none";
+}
+async function fetchForeignNetBuySet() {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT tickers FROM hose_foreign_net_buy WHERE id = 'latest' LIMIT 1
+    `;
+    const tickers = rows[0]?.tickers;
+    if (Array.isArray(tickers)) return new Set(tickers.map((t) => String(t)));
+    return /* @__PURE__ */ new Set();
+  } catch (err) {
+    console.error("[marketSignals] Loi doc hose_foreign_net_buy (bo qua, dung Set rong):", err);
+    return /* @__PURE__ */ new Set();
+  }
+}
+function buildMarketSignals(tickers, inputs, foreignNetBuySet) {
+  const map = /* @__PURE__ */ new Map();
+  for (const ticker of tickers) {
+    const g = inputs.tickers.get(ticker);
+    const usable = g && !g.stale;
+    map.set(ticker, {
+      ticker,
+      priceInStatus: inferPriceInStatus(usable ? g.rs3m : null),
+      volumeFlag: inferVolumeFlag(usable ? g.volumeSpikeRatio : null),
+      foreignFlowDirection: foreignNetBuySet.has(ticker) ? "buy" : "none",
+      valuationPercentile: 0.5,
+      liquidityScore: inputs.liquidityRank.get(ticker) ?? 0.5,
+      isWatchlisted: false
+    });
+  }
+  return map;
+}
+async function fetchMarketSignalsReal(tickers, inputs) {
+  if (tickers.length === 0) return /* @__PURE__ */ new Map();
+  const [g, foreignNetBuySet] = await Promise.all([inputs ? Promise.resolve(inputs) : fetchGatewaySignalInputs(), fetchForeignNetBuySet()]);
+  if (!g.ok) console.error("[marketSignals] Gateway kh\xF4ng tr\u1EA3 \u0111\u1EA7u v\xE0o \u2014 d\xF9ng m\u1EB7c \u0111\u1ECBnh trung l\u1EADp:", g.error);
+  return buildMarketSignals(tickers, g, foreignNetBuySet);
+}
+
+// lib/macro/classifier.ts
+var SECTOR_KEYWORDS = {
+  Banking: ["ngan hang", "lai suat", "tin dung", "bank", "interest rate"],
+  RealEstate: ["bat dong san", "chung cu", "real estate", "property"],
+  Steel: ["thep", "steel", "hoa phat", "iron ore"],
+  Oil_Gas: ["dau khi", "xang dau", "oil", "opec", "brent", "wti"],
+  Securities: ["chung khoan", "cong ty chung khoan", "margin", "brokerage"],
+  Export_Textile: ["det may", "textile", "garment", "xuat khau"],
+  Technology: ["cong nghe", "semiconductor", "chip", "technology"],
+  Agriculture: ["nong san", "lua gao", "ca phe", "agriculture", "commodity"]
+};
+var HIGH_IMPACT_KEYWORDS = ["khung hoang", "crisis", "sup do", "collapse", "chien tranh", "war", "sanction", "cam van", "pha san", "default", "fed", "fomc", "ngan hang nha nuoc"];
+var MEDIUM_IMPACT_KEYWORDS = ["tang truong", "growth", "loi nhuan", "earnings", "xuat khau", "export", "fdi", "dau tu", "investment"];
+function normalize(text) {
+  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+function classifySectors(content) {
+  const lower = normalize(content);
+  const matched = [];
+  for (const [sector, keywords] of Object.entries(SECTOR_KEYWORDS)) {
+    if (keywords.some((kw) => lower.includes(normalize(kw)))) {
+      matched.push(sector);
+    }
+  }
+  return matched.length > 0 ? matched : ["Macro_General"];
+}
+function classifyImpact(content) {
+  const lower = normalize(content);
+  const isNegative = /(giam|sut|khung hoang|crisis|sup do|collapse|pha san|default|cam van|sanction)/i.test(lower);
+  let magnitude = 3;
+  if (HIGH_IMPACT_KEYWORDS.some((kw) => lower.includes(normalize(kw)))) magnitude = 8;
+  else if (MEDIUM_IMPACT_KEYWORDS.some((kw) => lower.includes(normalize(kw)))) magnitude = 5;
+  return isNegative ? -magnitude : magnitude;
+}
+function toSeverity(rawImpact) {
+  const abs = Math.abs(rawImpact);
+  if (abs >= 8) return "critical";
+  if (abs >= 5) return "high";
+  if (abs >= 3) return "medium";
+  return "low";
+}
+
+// lib/catalyst/radarIngestion.ts
+var MIN_SENTIMENT = 0.3;
+var GRAPH_RETENTION_DAYS = 120;
+var MAX_COMPANY_TICKERS = 3;
+var CATEGORY = {
+  EARNINGS: "earnings",
+  MNA: "ma",
+  LEGAL: "regulatory",
+  RATING: "rating",
+  CONTRACT: "contract",
+  INSIDER: "insider",
+  MONETARY_POLICY: "regulatory",
+  FISCAL_POLICY: "regulatory",
+  MARKET_STRUCTURE: "regulatory",
+  MACRO_DATA: "macro",
+  MACRO_NEWS: "macro",
+  SYSTEMIC_STRESS: "macro"
+};
+var COMPANY_TYPES = /* @__PURE__ */ new Set(["EARNINGS", "MNA", "LEGAL", "RATING", "CONTRACT", "INSIDER"]);
+var RADAR_CATALYST_TYPES = Object.keys(CATEGORY);
+var fold = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+var POLICY_POSITIVE = /(giam lai suat|ha lai suat|giam thue|mien thue|gian thue|giam phi|bom rong|bom tien|noi long|ho tro thanh khoan|nang hang thi truong|nang hang chung khoan|tang room tin dung|mo room)/;
+var POLICY_NEGATIVE = /(tang lai suat|tang thue|thue doi ung|thue quan|siet|that chat|hut rong|cam van|vo no|khung hoang|chien tranh|thien tai|dong dat)/;
+var EARN_NEG = /(bao lo|lo rong|thua lo|lo quy|lo \d|lo sau thue|lo truoc thue|(loi nhuan|lai rong|lai truoc thue|lai sau thue|doanh thu)[^,:.]{0,20}(giam|sut|lao doc|di lui)|(giam|sut)[^,:.]{0,15}(loi nhuan|lai rong|doanh thu))/;
+var EARN_POS = /(giam lo|co lai tro lai|bao lai|lap dinh|ky luc|vuot ke hoach|(loi nhuan|lai rong|lai truoc thue|lai sau thue|doanh thu|\blai\b)[^,:.]{0,30}(tang|vuot|gap|dot bien)|(tang|vuot)[^,:.]{0,25}(loi nhuan|lai rong|lai truoc thue|lai sau thue|doanh thu))/;
+var RATING_POS = /(nang xep hang|nang hang|nang muc tin nhiem|khuyen nghi mua|outperform|tang gia muc tieu)/;
+var RATING_NEG = /(ha xep hang|ha hang|ha muc tin nhiem|khuyen nghi ban|underperform|giam gia muc tieu)/;
+var LEGAL_NEG = /(xu phat|bi phat|phat tien|khoi to|bat giu|bat tam giam|dieu tra|thanh tra|cuong che|huy niem yet|dien canh bao|dien kiem soat|dinh chi|tam ngung giao dich|truy thu|cham nop|no xau)/;
+var INSIDER_BUY = /(dang ky mua|da mua|mua vao|gom them|mua them|tro thanh co dong)/;
+var INSIDER_SELL = /(dang ky ban|da ban|ban ra|ban bot|thoai von)/;
+function directionOf(title, sentiment, eventType) {
+  const t = fold(title);
+  if (eventType === "EARNINGS") {
+    if (/\bcap nhat\b/.test(t)) return null;
+    if (/giam lo/.test(t)) return "benefit";
+    const p = EARN_POS.test(t), n = EARN_NEG.test(t);
+    return p === n ? null : p ? "benefit" : "harm";
+  }
+  if (eventType === "RATING") {
+    const p = RATING_POS.test(t), n = RATING_NEG.test(t);
+    return p === n ? null : p ? "benefit" : "harm";
+  }
+  if (eventType === "LEGAL") return LEGAL_NEG.test(t) ? "harm" : null;
+  if (eventType === "INSIDER") {
+    const b = INSIDER_BUY.test(t), s2 = INSIDER_SELL.test(t);
+    return b === s2 ? null : b ? "benefit" : "harm";
+  }
+  const pos = POLICY_POSITIVE.test(t), neg = POLICY_NEGATIVE.test(t);
+  if (pos !== neg) return pos ? "benefit" : "harm";
+  if (pos && neg) return null;
+  const s = Number(sentiment);
+  if (!Number.isFinite(s) || Math.abs(s) < MIN_SENTIMENT) return null;
+  return s > 0 ? "benefit" : "harm";
+}
+function decayOf(severity) {
+  switch (severity) {
+    case "critical":
+      return { decayRate: 0.05, horizon: "long" };
+    case "high":
+      return { decayRate: 0.08, horizon: "long" };
+    case "low":
+      return { decayRate: 0.25, horizon: "short" };
+    default:
+      return { decayRate: 0.15, horizon: "medium" };
+  }
+}
+function radarEventsToGraph(events, sectorOf = () => null) {
+  const sources = [];
+  const edges = [];
+  let skippedCount = 0, unmappedSectorCount = 0;
+  for (const e of events) {
+    const category = CATEGORY[e.eventType];
+    const direction = category ? directionOf(e.title, e.sentiment, e.eventType) : null;
+    if (!category || !direction) {
+      skippedCount++;
+      continue;
+    }
+    const disclosure = e.sourceAuthority === "disclosure_tagged_aggregator" || e.sourceAuthority === "configured_official_feed";
+    const tickers = [...new Set(disclosure ? e.tickers ?? [] : e.titleTickers ?? [])];
+    if (COMPANY_TYPES.has(e.eventType) && tickers.length > MAX_COMPANY_TICKERS) {
+      skippedCount++;
+      continue;
+    }
+    const titleSectors = [];
+    for (const raw of classifySectors(e.title)) {
+      const name = resolveSectorNameSync(raw);
+      if (name) titleSectors.push(name);
+      else if (raw !== "Macro_General") unmappedSectorCount++;
+    }
+    if (COMPANY_TYPES.has(e.eventType) ? !tickers.length : !tickers.length && !titleSectors.length) {
+      skippedCount++;
+      continue;
+    }
+    const magnitude = Math.max(Math.abs(classifyImpact(e.title)), [0, 2, 3, 5, 8][Number(e.severityScore) || 0] ?? 0);
+    const { decayRate, horizon } = decayOf(toSeverity(magnitude));
+    const strength = 0.5 + 0.5 * Math.min(1, Math.abs(Number(e.sentiment) || 0));
+    const baseWeight = Math.max(1, Math.min(10, Math.round(magnitude * strength * 100) / 100));
+    const corroborationCount = Math.max(1, Number(e.corroborationCount) || 1);
+    const publishedDate = new Date(e.publishedAt ?? e.firstSeenAt);
+    if (!Number.isFinite(publishedDate.getTime())) {
+      skippedCount++;
+      continue;
+    }
+    sources.push({
+      id: e.eventId,
+      title: e.title,
+      category,
+      sourceCredibility: disclosure || corroborationCount >= 2 ? "confirmed" : "rumor",
+      publishedDate,
+      executionDate: null,
+      firstDetectedAt: new Date(e.firstSeenAt),
+      corroborationCount,
+      sourceUrl: e.url ?? null
+    });
+    const edge = (targetType, targetId, hopCount, propagationDistance) => edges.push({ id: `${e.eventId}:${targetType}:${targetId}`, sourceId: e.eventId, targetType, targetId, direction, propagationDistance, hopCount, baseWeight, decayRate, horizon });
+    for (const s of new Set(titleSectors)) edge("sector", s, 1, "direct");
+    for (const t of tickers) edge("ticker", t, 1, "direct");
+    for (const s of new Set(tickers.map(sectorOf).filter((x) => !!x && !titleSectors.includes(x)))) edge("sector", s, 2, "downstream");
+  }
+  return { sources, edges, stats: { convertedCount: sources.length, skippedCount, errorCount: 0, unmappedSectorCount } };
+}
+function reviveGraph(raw) {
+  const g = raw ?? {};
+  const date = (v) => v ? new Date(v) : null;
+  return {
+    edges: g.edges ?? [],
+    sources: (g.sources ?? []).map((s) => ({ ...s, publishedDate: date(s.publishedDate), firstDetectedAt: date(s.firstDetectedAt), executionDate: date(s.executionDate) }))
+  };
+}
+function mergeGraph(old, next, now = Date.now()) {
+  const cutoff = now - GRAPH_RETENTION_DAYS * 864e5;
+  const sources = new Map(old.sources.map((s) => [s.id, s]));
+  for (const s of next.sources) sources.set(s.id, s);
+  const kept = [...sources.values()].filter((s) => (s.executionDate ?? s.publishedDate).getTime() >= cutoff);
+  const ids = new Set(kept.map((s) => s.id));
+  const replaced = new Set(next.sources.map((s) => s.id));
+  const edges = new Map(old.edges.filter((e) => ids.has(e.sourceId) && !replaced.has(e.sourceId)).map((e) => [e.id, e]));
+  for (const e of next.edges) if (ids.has(e.sourceId)) edges.set(e.id, e);
+  return { sources: kept, edges: [...edges.values()] };
+}
+
+// lib/jobs/catalyst-scan.ts
+var DEFAULT_ALERT_CONFIG = { minSectorNetScore: 6, maxDaysBeforeExecutionForAlert: 3, minCorroborationCount: 2 };
+var MAX_HISTORY = 96;
+var kvGet = async (key) => (await storeList("catkv", { keys: [key], fields: ["value"] }))[0]?.value ?? null;
+var kvSet = (key, value) => storeUpsert("catkv", [{ key, value: JSON.parse(JSON.stringify(value)) }]);
+function createStoreRedis(ledger) {
+  let history = null;
+  return {
+    set: (key, value) => kvSet(key, value),
+    hget: async (_k, f) => ledger[f] ?? null,
+    hset: async (_k, v) => {
+      Object.assign(ledger, v);
+      return 1;
+    },
+    zadd: async (_k, e) => {
+      history = [...await kvGet("history") ?? [], e].slice(-MAX_HISTORY);
+      return kvSet("history", history);
+    },
+    zremrangebyrank: async () => 0
+  };
+}
+async function loadRadarEvents() {
+  const lists = await Promise.all(RADAR_CATALYST_TYPES.map(async (category) => {
+    const res = await fetch(`${MARKET_GATEWAY_URL}/api/market/event-radar?limit=250&category=${category}`, { signal: AbortSignal.timeout(3e4) });
+    if (!res.ok) throw new Error(`Event Radar HTTP ${res.status}`);
+    return (await res.json()).events ?? [];
+  }));
+  return lists.flat();
+}
+async function loadSectorOf() {
+  const known = new Map(stockUniverse.map((s) => [s.ticker, s.sector]));
+  const fold2 = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D");
+  try {
+    const meta = await storeList("meta", { keys: ["universe"] });
+    for (const [t, s] of meta[0]?.tickers ?? []) if (s && !known.has(t)) known.set(t, fold2(s));
+  } catch {
+  }
+  return (t) => {
+    const s = known.get(t);
+    if (!s) return null;
+    return STANDARD_SECTORS.has(s) ? s : resolveSectorNameSync(s);
+  };
+}
+function calendarSources(now) {
+  return buildStaticMacroCalendar(now).map((ev) => ({
+    id: ev.id,
+    title: ev.title,
+    category: ev.category,
+    sourceCredibility: "confirmed",
+    publishedDate: now,
+    firstDetectedAt: now,
+    executionDate: ev.executionDate,
+    corroborationCount: 1,
+    sourceUrl: null
+  }));
+}
+async function runCatalystScan() {
+  try {
+    const now = /* @__PURE__ */ new Date();
+    const [events, sectorOf, rawGraph] = await Promise.all([loadRadarEvents(), loadSectorOf(), kvGet("graph")]);
+    const converted = radarEventsToGraph(events, sectorOf);
+    const incoming = { sources: [...converted.sources, ...calendarSources(now)], edges: converted.edges };
+    const graph = mergeGraph(reviveGraph(rawGraph), incoming, now.getTime());
+    await kvSet("graph", graph);
+    const { sources, edges } = graph;
+    const allTickers = [...new Set(edges.filter((e) => e.targetType === "ticker").map((e) => e.targetId))];
+    const gatewayInputs = await fetchGatewaySignalInputs();
+    const universe = gatewayInputs.ok ? [.../* @__PURE__ */ new Set([...gatewayInputs.tickers.keys(), ...stockUniverse.map((s) => s.ticker)])] : stockUniverse.map((s) => s.ticker);
+    const [marketSignals, previousRanksRaw, ledger] = await Promise.all([
+      fetchMarketSignalsReal(allTickers, gatewayInputs),
+      kvGet("ranks"),
+      kvGet("ledger")
+    ]);
+    const engine = new CatalystEngine(sources, edges, marketSignals, [], new Map(Object.entries(previousRanksRaw ?? {})));
+    const upMovers = engine.getTopMovers("benefit", 20);
+    const downMovers = engine.getTopMovers("harm", 20);
+    const snapshot = {
+      scannedAt: now.toISOString(),
+      ingestResult: converted.stats,
+      sectors: engine.getSectorRankings(),
+      emerging: engine.getEmergingSources(120),
+      marketData: { source: gatewayInputs.ok ? "gateway" : "unavailable", dataAsOf: gatewayInputs.dataAsOf, universeSize: universe.length, error: gatewayInputs.error ?? null },
+      newsSource: "event-radar",
+      upMovers,
+      downMovers,
+      totalBenefitCount: edges.filter((e) => e.targetType === "ticker" && e.direction === "benefit").length,
+      totalHarmCount: edges.filter((e) => e.targetType === "ticker" && e.direction === "harm").length,
+      activeAlerts: engine.getActiveAlerts(DEFAULT_ALERT_CONFIG),
+      upcomingEvents: engine.getUpcomingMacroEvents(10),
+      tickerImpacts: engine.getImpactForTickers(universe)
+    };
+    const ledgerMap = ledger ?? {};
+    const redis2 = createStoreRedis(ledgerMap);
+    const bySource = new Map(sources.map((s) => [s.id, s]));
+    for (const e of edges) {
+      const source = bySource.get(e.sourceId);
+      if (e.targetType === "ticker" && source) {
+        await recordNewSignal(redis2, { ticker: e.targetId, category: source.category, propagationDistance: e.propagationDistance, direction: e.direction, sourceId: e.sourceId });
+      }
+    }
+    await kvSet("ledger", ledgerMap);
+    await writeSnapshotSafe(redis2, snapshot);
+    const nextRanks = {};
+    for (const m of [...upMovers, ...downMovers]) nextRanks[m.ticker] = m.rank;
+    await kvSet("ranks", nextRanks);
+    return jobOk({
+      ok: true,
+      scannedAt: snapshot.scannedAt,
+      ingestResult: snapshot.ingestResult,
+      radarEvents: events.length,
+      sources: sources.length,
+      edges: edges.length,
+      sectorCount: snapshot.sectors.length,
+      upcomingEventCount: snapshot.upcomingEvents.length,
+      benefit: snapshot.totalBenefitCount,
+      harm: snapshot.totalHarmCount,
+      ledger: Object.keys(ledgerMap).length
+    });
+  } catch (err) {
+    console.error("[catalyst-scan]", err);
+    return jobFail({ error: `Kh\xF4ng qu\xE9t \u0111\u01B0\u1EE3c Ch\u1EA5t x\xFAc t\xE1c: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}` });
+  }
+}
 export {
+  runCatalystScan,
   runEarningsSeasonalityScan,
   runSectorTimingScan,
   runTimingSignalsScan

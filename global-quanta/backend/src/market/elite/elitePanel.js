@@ -32,7 +32,7 @@ async function getJson(fetchImpl, url, timeoutMs) {
  * @param {{ store: any, wsStrategy: () => Promise<any>, rrgDoc: () => Promise<any>, taxonomy: () => Promise<any>,
  *   fetchImpl?: typeof fetch, projectABase?: string, now?: () => number, log?: { warn: Function } }} deps
  */
-export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, structureSummary = async () => null, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
+export function createElitePanelService({ catalystSnapshot = null, store, wsStrategy, rrgDoc, taxonomy, structureSummary = async () => null, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
   const base = (projectABase ?? process.env.LEGACY_MARKET_API_BASE ?? "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "");
   let memo = null; // { date, doc }
   let building = null;
@@ -62,7 +62,7 @@ export function createElitePanelService({ store, wsStrategy, rrgDoc, taxonomy, s
       rrgDoc().catch(() => null),
       taxonomy().catch(() => null),
       wsStrategy().catch((e) => { log.warn?.(`[elite] worldStrategy: ${e.message}`); return null; }),
-      getJson(fetchImpl, `${base}/api/catalysts/latest`, 20_000),
+      catalystSnapshot ? catalystSnapshot().catch((e) => { log.warn?.(`[elite] catalyst: ${e.message}`); return null; }) : getJson(fetchImpl, `${base}/api/catalysts/latest`, 20_000),
       getJson(fetchImpl, `${base}/api/cotuc/decision-states`, 20_000),
       structureSummary().catch(() => null),
       ...PANEL_STRATEGIES.map((id) => kv(strategyKvKey(id))),
