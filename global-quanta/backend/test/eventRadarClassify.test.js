@@ -34,6 +34,8 @@ test("EV-R2: chuyên mục vĩ mô — tin không gắn mã -> Tin kinh tế vĩ
   assert.equal(macro("Techcombank bổ nhiệm thêm nữ Phó Tổng Giám đốc", ["TCB"]), "PERSONNEL");
   assert.equal(macro("TPBank lãi trước thuế gần 7.500 tỷ đồng sau 9 tháng"), "EARNINGS");
   assert.equal(macro("Thủ tướng: Việt Nam quyết tâm đạt tăng trưởng GDP trên 10%"), "MACRO_DATA");
+  // Tóm tắt nhắc tên ngân hàng -> bộ ghép mã gắn mã; tin chuyên mục vĩ mô không phải tin doanh nghiệp rõ loại vẫn là vĩ mô.
+  assert.equal(macro("Dân giữ 500 tấn vàng, gửi ngân hàng 11,2 triệu tỷ, vốn vẫn không vào sản xuất", ["VCB", "BID"]), "MACRO_NEWS");
   // Nguồn ngoài chuyên mục vĩ mô: tin chung không gắn mã vẫn là tin doanh nghiệp / khác như trước.
   assert.equal(kind("Chuyên gia World Bank: Mô hình cũ không thể giúp Việt Nam 'giàu'"), "OTHER");
 });

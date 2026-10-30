@@ -45,7 +45,9 @@ export function classifyRadarEvent(item) {
   const system = SYSTEM_EVENT_RULES.find((rule) => rule.re.test(title));
   const company = classifyEvent(item.title);
   const noTicker = !(item.tickers?.length);
-  const macroSection = item.feedSection === "macro" && noTicker;
+  // Chuyên mục vĩ mô: không đòi "không gắn mã" — tóm tắt tin vĩ mô hay nhắc tên ngân hàng / doanh nghiệp nên bộ ghép mã vẫn gắn mã
+  // (production 30/10: 0/120 tin chuyên mục vĩ mô thành MACRO_NEWS). Tin doanh nghiệp rõ loại vẫn thắng ở dòng dưới.
+  const macroSection = item.feedSection === "macro";
   // "Chủ tịch nước / Chủ tịch UBCKNN", "nghị quyết" (Trung ương / Quốc hội) không gắn mã -> không phải nhân sự / ĐHĐCĐ doanh nghiệp.
   if (COMPANY_FIRST.has(company.id) && !(noTicker && (company.id === "AGM" || company.id === "PERSONNEL"))) return company;
   if (system) return { id: system.id, label: system.label, weight: system.id === "SYSTEMIC_STRESS" ? 1 : 0.8 };
