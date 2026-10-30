@@ -5,6 +5,8 @@
 //   → dự báo / sổ thực tế / giải thích. Kết luận hiển thị bằng LỜI MÔ TẢ khi kiểm định chưa đạt (MTF-v2-prereg.md).
 // Di động: thẻ chỉ số + kết luận trước, các phần còn lại xếp một cột.
 import { useMemo, useState } from "react";
+import RibbonStrip from "./mtf3/RibbonStrip";
+import { useStructure3 } from "../../../hooks/useStructure3";
 import { ShieldAlert, ShieldCheck, Layers3, History, ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
 import type { EvidenceLabel, StructureDoc, StructureLedgerStats, StructureMomentumStats, StructureStage, StructureStat, StructureStatPair, StructureTfKey, StructureTransition } from "../../../hooks/useStructure";
 import { STAGE_SHORT, STAGE_TONE, VERDICT_TONE, useStructureSummary, verdictText } from "../../../hooks/useStructure";
@@ -229,6 +231,7 @@ interface Props {
 
 export default function StructurePanel({ doc, isLoading, error, mode, onModeChange, timeframeKey, replay, onOpenChart, bars, timeframe }: Props) {
   const summary = useStructureSummary(true);
+  const s3 = useStructure3(doc?.symbol ?? null);
   const ledger = summary.data?.ledger && !("error" in summary.data.ledger) ? summary.data.ledger : null;
   const momentum = summary.data?.momentum && !("error" in summary.data.momentum) ? summary.data.momentum : null;
   const [side, setSide] = useState<"buy" | "sell">("buy");
@@ -269,6 +272,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
           SSI · {doc.dataSource.daily.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : doc.dataSource.daily.priceBasis} · {doc.asOf} · engine {doc.version}
         </span>
       </header>
+      {s3.data?.ribbon?.context && !replay && <RibbonStrip ctx={s3.data.ribbon.context} />}
       {replay && <ReplayBar r={replay} />}
       {replay?.index != null && (
         <p className="text-[10px] text-amber-200/90 rounded-lg px-2 py-1 bg-amber-500/5" data-testid="structure-replay-note">

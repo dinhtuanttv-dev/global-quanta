@@ -63,4 +63,7 @@ Thành phần ĐẠT → nhãn "ĐÃ KIỂM ĐỊNH" + được dùng xếp hạ
 Không chạy lại với tham số khác; nếu sửa engine sau khi chạy, phải ghi "Sửa đổi" và chạy lại toàn bộ một lần, báo cả hai kết quả.
 
 ## Sửa đổi
-(chưa có)
+1. (2026-10-30, khi viết S1 — TRƯỚC khi tải dữ liệu kiểm định, chưa có kết quả nào) Sự kiện "nén → mở rộng" (H4 / K5): chỉ tính ở
+   nến ĐẦU TIÊN đủ điều kiện (không lặp trong 10 nến) và cần độ rộng dải ≥ 0,5 ATR tại nến đó. Lý do: test tổng hợp cho thấy định nghĩa
+   gốc phát 3 nến liền nhau và bắt cả nhiễu khi ba EMA gần trùng (rộng 0,08 ATR). "Xếp lớp tăng" cho sự kiện = τ thứ tự = +1 trên các
+   đường đã có giá trị (21/50/100, cộng MA200 nếu đủ 200 nến).

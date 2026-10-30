@@ -37,7 +37,7 @@ export interface PatternValidation {
 }
 export interface PatternsDoc {
   strategy: "patterns"; engine: string; evidence?: { label: string; reason: string; validation?: PatternValidation };
-  market: { indexAsOf: string | null; up: boolean | null; rule: string };
+  market: { indexAsOf: string | null; up: boolean | null; rule: string; ribbon?: { state: "up" | "down" | "mixed"; aboveMa200: boolean | null; ema21: number; ema50: number; ema100: number; ma200: number | null } | null };
   timeframes: PatternTf[]; counts: { byState: Record<string, number>; byFamily: Record<string, number>; byTimeframe: Record<PatternTf, number>; bull: number; bear: number };
   generatedAt: string; dataAsOf: string; source: string; criteria: TechnicalFilterCriteria;
   universeCount: number; scannedCount: number; resultCount: number; results: PatternRow[]; disclaimer: string; liveTracking?: LiveTracking;

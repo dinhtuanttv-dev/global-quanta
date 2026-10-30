@@ -10,26 +10,26 @@ function trueRange(bars, i) {
 function atrSeries(bars, period = 14) {
   const out = new Array(bars.length).fill(0);
   let sum = 0;
-  let atr2 = 0;
+  let atr3 = 0;
   for (let i = 0; i < bars.length; i++) {
     const tr = trueRange(bars, i);
     if (i < period) {
       sum += tr;
-      atr2 = sum / (i + 1);
+      atr3 = sum / (i + 1);
     } else {
-      atr2 = (atr2 * (period - 1) + tr) / period;
+      atr3 = (atr3 * (period - 1) + tr) / period;
     }
-    out[i] = atr2;
+    out[i] = atr3;
   }
   return out;
 }
 function emaSeries(values, period) {
   const out = new Array(values.length).fill(NaN);
   const k = 2 / (period + 1);
-  let ema = NaN;
+  let ema2 = NaN;
   for (let i = 0; i < values.length; i++) {
-    ema = i === 0 ? values[0] : values[i] * k + ema * (1 - k);
-    out[i] = ema;
+    ema2 = i === 0 ? values[0] : values[i] * k + ema2 * (1 - k);
+    out[i] = ema2;
   }
   return out;
 }
@@ -87,7 +87,7 @@ function detectPivots(bars, left = 5, right = 5) {
 }
 function computeStructure(bars, params = {}) {
   const p = { ...DEFAULT_STRUCTURE, ...params };
-  const atr2 = atrSeries(bars, p.atrPeriod);
+  const atr3 = atrSeries(bars, p.atrPeriod);
   const lv = logVolumes(bars);
   const pivots2 = detectPivots(bars, p.left, p.right);
   const events = [];
@@ -110,7 +110,7 @@ function computeStructure(bars, params = {}) {
       for (let j = pv.index; j <= i; j++) {
         if (dir === "bullish" ? bars[j].low < bars[legStart].low : bars[j].high > bars[legStart].high) legStart = j;
       }
-      const a = atr2[i] > 0 ? atr2[i] : 1;
+      const a = atr3[i] > 0 ? atr3[i] : 1;
       const body = Math.abs(b.close - b.open) / a;
       let run = 0;
       for (let j = i; j >= Math.max(0, i - 2); j--) {
@@ -137,12 +137,12 @@ function computeStructure(bars, params = {}) {
       else activeLow = null;
     }
   }
-  return { pivots: pivots2, events, trend, atr: atr2 };
+  return { pivots: pivots2, events, trend, atr: atr3 };
 }
 
 // src/lib/quant-core/zones.ts
 var OB_EXPIRY_BARS = 120;
-function detectOrderBlocks(bars, events, atr2) {
+function detectOrderBlocks(bars, events, atr3) {
   const seen = /* @__PURE__ */ new Set();
   const out = [];
   for (const ev of events) {
@@ -158,7 +158,7 @@ function detectOrderBlocks(bars, events, atr2) {
     if (seen.has(j)) continue;
     seen.add(j);
     const c = bars[j];
-    const a = atr2[ev.index] > 0 ? atr2[ev.index] : 1;
+    const a = atr3[ev.index] > 0 ? atr3[ev.index] : 1;
     let top = Math.max(c.open, c.close);
     let bottom = Math.min(c.open, c.close);
     if (top - bottom < 0.1 * a) {
@@ -210,13 +210,13 @@ function detectOrderBlocks(bars, events, atr2) {
   }
   return out.sort((a, b) => a.confirmedIndex - b.confirmedIndex);
 }
-function detectFVG(bars, atr2, params = {}) {
+function detectFVG(bars, atr3, params = {}) {
   const p = { minATR: 0.25, minTicks: 2, limitPct: 0.07, isIndex: false, ...params };
   const out = [];
   for (let i = 2; i < bars.length; i++) {
     const c1 = bars[i - 2];
     const c3 = bars[i];
-    const a = atr2[i] > 0 ? atr2[i] : 0;
+    const a = atr3[i] > 0 ? atr3[i] : 0;
     const minGap = Math.max(p.minATR * a, p.minTicks * tickSize(c3.close, p.isIndex));
     let dir = null;
     let top = 0;
@@ -316,8 +316,8 @@ var SWING_LOOKBACK = 10;
 function detectVsa(bars) {
   const lv = logVolumes(bars);
   const sp = spreads(bars);
-  const ema = emaSeries(bars.map((b) => b.close), 20);
-  const atr2 = atrSeries(bars, 14);
+  const ema2 = emaSeries(bars.map((b) => b.close), 20);
+  const atr3 = atrSeries(bars, 14);
   const out = [];
   for (let i = W; i < bars.length; i++) {
     const zV = trailingZ(lv, i, W);
@@ -326,7 +326,7 @@ function detectVsa(bars) {
     const b = bars[i];
     const prev = bars[i - 1];
     const c = clv(b);
-    const slope2 = i >= 6 ? ema[i - 1] / ema[i - 6] - 1 : 0;
+    const slope2 = i >= 6 ? ema2[i - 1] / ema2[i - 6] - 1 : 0;
     const up = slope2 > 0;
     const down = slope2 < 0;
     const isUpBar = b.close > prev.close;
@@ -346,7 +346,7 @@ function detectVsa(bars) {
     else if (b.low < swingLow && b.close > swingLow && c >= 0.65 && zV >= 1) type = "Shakeout";
     else if (isDownBar && zS <= -0.5 && lowEffort && up) type = "No Supply";
     else if (isUpBar && zS <= -0.5 && lowEffort && down) type = "No Demand";
-    else if (zV >= 1.5 && Math.abs(b.close - prev.close) <= 0.3 * (atr2[i] || Infinity)) type = "Absorption";
+    else if (zV >= 1.5 && Math.abs(b.close - prev.close) <= 0.3 * (atr3[i] || Infinity)) type = "Absorption";
     if (!type) continue;
     let v20 = 0;
     let s20 = 0;
@@ -553,9 +553,9 @@ var avgBefore = (xs, i, w) => {
   }
   return c ? s / c : 0;
 };
-function classifySpringBar(bars, k, ci, level, side, atr2, forcedKind) {
+function classifySpringBar(bars, k, ci, level, side, atr3, forcedKind) {
   const E = WYCKOFF_EVIDENCE;
-  const A = atr2 ?? atrSeries(bars, 14);
+  const A = atr3 ?? atrSeries(bars, 14);
   const vols = bars.map((b) => b.volume);
   const av = avgBefore(vols, k, E.avgWindow) || 1;
   const a = A[k] || 1;
@@ -631,7 +631,7 @@ function levelAt(pts2, x, dir) {
   return dir === 1 ? Math.max(a, b) : Math.min(a, b);
 }
 var BREAK_HORIZON = 40;
-function lineBreak(bars, range, pts2, dir, atr2) {
+function lineBreak(bars, range, pts2, dir, atr3) {
   const E = WYCKOFF_EVIDENCE;
   const spreads2 = bars.map((x) => x.high - x.low);
   const vols = bars.map((x) => x.volume);
@@ -664,7 +664,7 @@ function lineBreak(bars, range, pts2, dir, atr2) {
     }
     let backup = null, failed = null;
     for (let j = x + 1; j <= Math.min(n - 1, x + E.buecBars); j++) {
-      const b = bars[j], a = atr2[j] || 1;
+      const b = bars[j], a = atr3[j] || 1;
       if (dir === 1 ? b.close < mid : b.close > mid) {
         failed = { index: j, date: b.date, price: b.close };
         break;
@@ -733,13 +733,13 @@ function rangeLean(bars, range) {
 }
 var V3_KIND = { SPRING_3: 3, UT_3: 3, SPRING_2: 2, UT_2: 2, SHAKEOUT: 1, UTAD: 1 };
 function wyckoffEvidence(bars, range, events) {
-  const atr2 = atrSeries(bars, 14);
+  const atr3 = atrSeries(bars, 14);
   const springs = [];
   const confirmations = [];
   for (const e of events) {
     if ((e.event === "Spring" || e.event === "UT" || e.event === "UTAD") && e.confirmedIndex != null) {
       const forced = e.label ? V3_KIND[e.label] : void 0;
-      springs.push(classifySpringBar(bars, e.index, e.confirmedIndex, e.event === "Spring" ? range.low : range.high, e.event === "Spring" ? "spring" : "ut", atr2, forced));
+      springs.push(classifySpringBar(bars, e.index, e.confirmedIndex, e.event === "Spring" ? range.low : range.high, e.event === "Spring" ? "spring" : "ut", atr3, forced));
     }
     if (e.event === "SOS" || e.event === "SOW") {
       const k = Math.max(e.index, e.confirmedIndex ?? e.index);
@@ -750,8 +750,8 @@ function wyckoffEvidence(bars, range, events) {
   const hp = pivots(bars, range.start, range.end, "high").filter((p) => p.price >= mid);
   const lp = pivots(bars, range.start, range.end, "low").filter((p) => p.price <= mid);
   const breaks = [];
-  const up = hp.length >= 2 ? lineBreak(bars, range, hp, 1, atr2) : null;
-  const dn = lp.length >= 2 ? lineBreak(bars, range, lp, -1, atr2) : null;
+  const up = hp.length >= 2 ? lineBreak(bars, range, hp, 1, atr3) : null;
+  const dn = lp.length >= 2 ? lineBreak(bars, range, lp, -1, atr3) : null;
   const toLine = (ps, br) => {
     const used = (br ? ps.filter((p) => p.ci < br.index) : ps).slice(-LINE_POINTS);
     if (used.length < 2) return null;
@@ -996,7 +996,7 @@ var avgVolBefore = (bars, i, w = 20) => {
 function classifyWyckoffV2(bars) {
   const base = { ...classifyWyckoffPhase([]), engine: "v2", asOf: bars.length ? bars[bars.length - 1].date : null };
   if (bars.length < WYCKOFF_RANGE.minBars + 20) return { ...base, status: "insufficient", statusReason: `C\u1EA7n \u2265 ${WYCKOFF_RANGE.minBars + 20} n\u1EBFn, c\xF3 ${bars.length}.` };
-  const atr2 = atrSeries(bars, 14);
+  const atr3 = atrSeries(bars, 14);
   const range = findTradingRange2(bars);
   if (!range) return { ...base, status: "insufficient", statusReason: "Kh\xF4ng t\xECm th\u1EA5y trading range (bi\xEAn \u2264 8\xD7 ATR, 30\u201380 n\u1EBFn, trong 120 n\u1EBFn g\u1EA7n nh\u1EA5t)." };
   const n = bars.length;
@@ -1020,7 +1020,7 @@ function classifyWyckoffV2(bars) {
     if (at >= 0) events.splice(at, 1);
     return push(event, k, price, strength);
   };
-  const a = (k) => atr2[k] || 1;
+  const a = (k) => atr3[k] || 1;
   const backInsideAt = (k, side) => {
     for (let j = k; j <= Math.min(n - 1, k + 3); j++) {
       if (side === "low" ? bars[j].close > range.low : bars[j].close < range.high) return j;
@@ -1275,7 +1275,7 @@ function atrSeries2(c, n = 14) {
 }
 var hasVolume = (c) => c.length > 0 && c.every((x) => Number.isFinite(x.volume));
 function barMetrics(c, o = DEFAULTS) {
-  const n = c.length, atr2 = atrSeries2(c, o.atrN), hv = hasVolume(c);
+  const n = c.length, atr3 = atrSeries2(c, o.atrN), hv = hasVolume(c);
   const volRel = new Array(n).fill(1), spreadRel = new Array(n).fill(1), clv2 = new Array(n).fill(0), body = new Array(n).fill(0);
   for (let i = 0; i < n; i++) {
     if (hv) {
@@ -1286,12 +1286,12 @@ function barMetrics(c, o = DEFAULTS) {
         volRel[i] = c[i].volume / (t / cnt || 1);
       }
     }
-    const rng = c[i].high - c[i].low, ref = i > 0 && isFinite(atr2[i - 1]) ? atr2[i - 1] : atr2[i];
+    const rng = c[i].high - c[i].low, ref = i > 0 && isFinite(atr3[i - 1]) ? atr3[i - 1] : atr3[i];
     spreadRel[i] = ref > 0 ? rng / ref : 1;
     clv2[i] = rng > 0 ? (2 * c[i].close - c[i].high - c[i].low) / rng : 0;
     body[i] = rng > 0 ? Math.abs(c[i].close - c[i].open) / rng : 0;
   }
-  return { atr: atr2, volRel, spreadRel, clv: clv2, body, hasVolume: hv };
+  return { atr: atr3, volRel, spreadRel, clv: clv2, body, hasVolume: hv };
 }
 var er = (c, i, L) => {
   let path = 0;
@@ -1432,7 +1432,7 @@ function runB2E(c, m, tr, o, endI) {
   };
   const buf = (i2, p) => stopBuf(m, o, i2, p);
   const poe = (n, i2, entry, stop, note) => poes.push({ poe: n, i: i2, time: c[i2].time, entry, stop, sizePct: o.poeSizes[n - 1], note });
-  const fin = (x) => ({ events: ev, poes, ...x });
+  const fin2 = (x) => ({ events: ev, poes, ...x });
   let i = tr.iStart + 1, phase = "B", spring = null, springType = null, test = null, testRev = -1, springHigh = -Infinity;
   let sos = -1, sosWeak = false, status = "active", endIndex = endI, noSpringPath = false;
   while (i <= endI) {
@@ -1447,7 +1447,7 @@ function runB2E(c, m, tr, o, endI) {
       }
       if (!ep.recovered) {
         add("BREAKDOWN", ep.iLow, ep.low, { ci: ep.at, closesBelow: ep.n, note: "kh\xF4ng quay l\u1EA1i TR \u2192 kh\xF4ng ph\u1EA3i Spring; c\u1EA5u tr\xFAc t\xEDch l\u0169y b\u1ECB ph\xE1 v\u1EE1" });
-        return fin({ phase, status: "broken-down", endIndex: ep.at });
+        return fin2({ phase, status: "broken-down", endIndex: ep.at });
       }
       if (i - tr.iStart < o.minBarsB) {
         add("SOW_B", ep.iLow, ep.low, { ci: ep.iRec, closesBelow: ep.n, volMean: R(ep.volMean) });
@@ -1491,7 +1491,7 @@ function runB2E(c, m, tr, o, endI) {
       const bk = c[k];
       if (bk.close < sup && bk.low < spring.low) {
         add("SPRING_FAIL", k, bk.low, { note: "th\u1EE7ng \u0111\xE1y Spring \u2192 Spring th\u1EA5t b\u1EA1i (SOW)" });
-        return fin({ phase, status: "failed", endIndex: k, spring, springType });
+        return fin2({ phase, status: "failed", endIndex: k, spring, springType });
       }
       if (bk.close > res) break;
       if (cand < 0) {
@@ -1515,7 +1515,7 @@ function runB2E(c, m, tr, o, endI) {
       if (c[q].close > res) break;
       if (c[q].close < spring.low) {
         add("SPRING_FAIL", q, c[q].low, { note: "\u0111\xF3ng c\u1EEDa d\u01B0\u1EDBi \u0111\xE1y Spring \u2192 Spring th\u1EA5t b\u1EA1i" });
-        return fin({ phase, status: "failed", endIndex: q, spring, springType });
+        return fin2({ phase, status: "failed", endIndex: q, spring, springType });
       }
     }
     const lowRef = test != null && test >= 0 ? c[test].low : spring.low;
@@ -1553,13 +1553,13 @@ function runB2E(c, m, tr, o, endI) {
     phase = "D";
     for (let k = sos + 1; k <= Math.min(endI, sos + o.sosHold); k++) if (c[k].close < sup + o.sosFailFrac * h) {
       add("SOS_FAIL", k, c[k].close, { note: "SOS th\u1EA5t b\u1EA1i: quay s\xE2u v\xE0o TR \u2192 Spring/SOS kh\xF4ng th\xE0nh (SOW), h\u01B0\u1EDBng t\xEDch l\u0169y b\u1ECB v\xF4 hi\u1EC7u" });
-      return fin({ phase, status: "failed", endIndex: k, spring, springType, sos });
+      return fin2({ phase, status: "failed", endIndex: k, spring, springType, sos });
     }
     let iPeak = sos, peak = c[sos].high;
     for (let k = sos + 1; k <= endI; k++) {
       if (c[k].close < sup + o.sosFailFrac * h) {
         add("STRUCTURE_FAIL", k, c[k].close, { note: "\u0111\xF3ng c\u1EEDa s\xE2u v\xE0o TR (d\u01B0\u1EDBi gi\u1EEFa TR) sau SOS \u2192 ph\xE1 v\u1EE1 th\u1EA5t b\u1EA1i, c\u1EA5u tr\xFAc t\xEDch l\u0169y b\u1ECB v\xF4 hi\u1EC7u" });
-        return fin({ phase, status: "failed", endIndex: k, spring, springType, sos });
+        return fin2({ phase, status: "failed", endIndex: k, spring, springType, sos });
       }
       if (c[k].close > peak) {
         if (k - iPeak >= 2) {
@@ -1589,7 +1589,7 @@ function runB2E(c, m, tr, o, endI) {
   }
   const out = { phase, status: e5 >= 0 ? "completed" : status, endIndex: e5 >= 0 ? e5 : endI, spring, springType, test, sos: sos >= 0 ? sos : null, bua: buaInfo, e5, noSpringPath };
   ev.sort((a, b) => a.i - b.i);
-  return fin(out);
+  return fin2(out);
 }
 function buaStats(c, m, i0, i1, peak, res, o) {
   let lo = Infinity, iLow = i0, vs = 0;
@@ -1600,9 +1600,9 @@ function buaStats(c, m, i0, i1, peak, res, o) {
     }
     vs += m.volRel[k];
   }
-  const n = i1 - i0 + 1, atr2 = m.atr[i1] || 1, volMean = vs / n, range = peak - lo;
-  const type = lo < res ? "deep-into-TR" : n >= o.buaMinBars && range <= o.buaMaxRangeATR * atr2 ? "mini-TR" : "shallow-pullback";
-  return { n, low: lo, iLow, volMean, type, rangeATR: range / atr2, duration: volMean < 1 ? "ng\u1EAFn (KLGD th\u1EA5p)" : volMean >= o.highVol ? "d\xE0i (KLGD l\u1EDBn)" : "trung b\xECnh" };
+  const n = i1 - i0 + 1, atr3 = m.atr[i1] || 1, volMean = vs / n, range = peak - lo;
+  const type = lo < res ? "deep-into-TR" : n >= o.buaMinBars && range <= o.buaMaxRangeATR * atr3 ? "mini-TR" : "shallow-pullback";
+  return { n, low: lo, iLow, volMean, type, rangeATR: range / atr3, duration: volMean < 1 ? "ng\u1EAFn (KLGD th\u1EA5p)" : volMean >= o.highVol ? "d\xE0i (KLGD l\u1EDBn)" : "trung b\xECnh" };
 }
 function classifyVariant(c, m, tr, run, o) {
   const h = tr.res - tr.sup, a = tr.iStart, b = run.spring ? run.spring.iLow : run.sos != null ? run.sos : c.length - 1;
@@ -2063,8 +2063,8 @@ var fmt = (v) => Math.round(v).toLocaleString("vi-VN");
 var pct = (v) => `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
 var idxOf = (bars, date) => date ? bars.findIndex((b) => b.date === date) : -1;
 var lineAt = (l, x) => l.ap + (l.bp - l.ap) * (x - l.ai) / (l.bi - l.ai);
-function trendChannel(bars, start, kind, atr2) {
-  const A = atr2 ?? atrSeries(bars, 14);
+function trendChannel(bars, start, kind, atr3) {
+  const A = atr3 ?? atrSeries(bars, 14);
   const n = bars.length, last = n - 1;
   const from = Math.max(3, start - WYCKOFF_TESTS.priorBars);
   const side = kind === "down" ? "high" : "low";
@@ -2145,7 +2145,7 @@ function wyckoffNineTests(bars, w, benchmark) {
   const buy = w.phase === "accumulation" || w.phase === "spring" || w.phase === "test" || w.phase === "markup";
   const side = buy ? "buy" : "sell";
   const n = bars.length, last = n - 1;
-  const atr2 = atrSeries(bars, 14);
+  const atr3 = atrSeries(bars, 14);
   const H = w.rangeHigh, Lo = w.rangeLow, height = Math.max(1e-9, H - Lo);
   const close = bars[last].close;
   const ev = new Set(w.events.map((e) => e.event));
@@ -2192,7 +2192,7 @@ function wyckoffNineTests(bars, w, benchmark) {
     rs ? buy ? rs.diffPct > 0 : rs.diffPct < 0 : null,
     rs ? `${rs.bars} phi\xEAn: m\xE3 ${pct(rs.stockPct)} \xB7 VN-Index ${pct(rs.indexPct)}${rs.stockHigherLow && rs.indexLowerLow ? " \xB7 m\xE3 gi\u1EEF \u0111\xE1y cao h\u01A1n khi ch\u1EC9 s\u1ED1 t\u1EA1o \u0111\xE1y th\u1EA5p h\u01A1n" : ""}` : "ch\u01B0a c\xF3 d\u1EEF li\u1EC7u ch\u1EC9 s\u1ED1 (ch\u1EC9 khung D, m\xE3 c\u1ED5 phi\u1EBFu)"
   );
-  const channel = trendChannel(bars, start, buy ? "down" : "up", atr2);
+  const channel = trendChannel(bars, start, buy ? "down" : "up", atr3);
   add(
     "trendline",
     buy ? "\u0110\xE3 ph\xE1 \u0111\u01B0\u1EDDng cung c\u1EE7a xu h\u01B0\u1EDBng gi\u1EA3m" : "\u0110\xE3 ph\xE1 \u0111\u01B0\u1EDDng c\u1EA7u c\u1EE7a xu h\u01B0\u1EDBng t\u0103ng",
@@ -2217,7 +2217,7 @@ function wyckoffNineTests(bars, w, benchmark) {
   );
   const len2 = endR - start + 1;
   add("base", buy ? "\u0110\xE3 h\xECnh th\xE0nh n\u1EC1n \u0111i ngang (\u2265 20 n\u1EBFn)" : "\u0110\xE3 h\xECnh th\xE0nh v\xF9ng \u0111\u1EC9nh \u0111i ngang (\u2265 20 n\u1EBFn)", len2 >= 20, `${len2} n\u1EBFn`);
-  const a = atr2[last] || 1;
+  const a = atr3[last] || 1;
   const spring = w.events.filter((e) => e.event === (buy ? "Spring" : "UT")).pop();
   const stop = buy ? Math.min(Lo, spring?.price ?? Lo) - 0.5 * a : Math.max(H, spring?.price ?? H) + 0.5 * a;
   const target = buy ? H + height : Lo - height;
@@ -2307,8 +2307,8 @@ function tradePlan3(bars, w) {
   if ((w.status ?? "active") !== "active" || w.phase === "undetermined" || w.rangeHigh == null || w.rangeLow == null || !bars.length) return null;
   const long = w.phase === "accumulation" || w.phase === "spring" || w.phase === "test" || w.phase === "markup";
   const last = bars.length - 1;
-  const atr2 = atrSeries(bars, 14);
-  const a = atr2[last] || 0;
+  const atr3 = atrSeries(bars, 14);
+  const a = atr3[last] || 0;
   const H = w.rangeHigh, L = w.rangeLow;
   const ev = w.evidence ?? null;
   const tranches = [];
@@ -2562,8 +2562,8 @@ function convergenceAt(bars, benchmark, opts = {}) {
   const dir = buy ? "bullish" : "bearish";
   const last = bars.length - 1;
   const close = bars[last].close;
-  const atr2 = atrSeries(bars, 14);
-  const a = atr2[last] || close * 0.02;
+  const atr3 = atrSeries(bars, 14);
+  const a = atr3[last] || close * 0.02;
   const W2 = CONVERGENCE.weights;
   const comp = [];
   const add = (key, label, max, frac, value) => comp.push({ key, label, max, points: Math.round(max * Math.max(0, Math.min(1, frac)) * 10) / 10, ok: frac >= 0.5, value });
@@ -2700,7 +2700,7 @@ function contextOf(dir, lowIdx, ready, bars, x, dow) {
   if (dir === 1) return x.slope[lowIdx] > 0 ? "reaccum" : "reversal";
   return x.slope[ready] > 0 && bars[ready].close > x.maSlow[ready] && dow[ready] === 1 ? "countertrend" : "reversal";
 }
-function detectPatterns(bars, atr2, mid, x, dow, p) {
+function detectPatterns(bars, atr3, mid, x, dow, p) {
   const n = bars.length;
   const close = bars.map((b) => b.close);
   const found = [];
@@ -2708,7 +2708,7 @@ function detectPatterns(bars, atr2, mid, x, dow, p) {
     const last = mid[j];
     const dir = last.kind === "L" ? 1 : -1;
     const seq = mid.slice(Math.max(0, j - 4), j + 1);
-    const a = Math.max(atr2[last.index], 1e-9);
+    const a = Math.max(atr3[last.index], 1e-9);
     const tol = p.patternTol * a;
     let pat = null;
     if (seq.length === 5 && seq[0].kind === last.kind && seq[2].kind === last.kind) {
@@ -2957,7 +2957,7 @@ var fmt2 = (x) => Math.abs(x) >= 100 ? x.toLocaleString("vi-VN", { maximumFracti
 function scenarios(a, extraZones = []) {
   const t = a.bars.length - 1;
   if (t < 1) return [];
-  const c = a.bars[t].close, atr2 = Math.max(a.atr[t], 1e-9);
+  const c = a.bars[t].close, atr3 = Math.max(a.atr[t], 1e-9);
   const zones = [...a.zones, ...extraZones].filter((z) => z.strength >= 0.25);
   const above = zones.filter((z) => z.lo > c).sort((x, y) => x.mid - y.mid);
   const below = zones.filter((z) => z.hi < c).sort((x, y) => y.mid - x.mid);
@@ -2968,8 +2968,8 @@ function scenarios(a, extraZones = []) {
   const bull = pats.filter((p) => p.dir === 1).pop();
   const bear = pats.filter((p) => p.dir === -1).pop();
   const out = [];
-  const trigL = above[0] ? above[0].hi : c + atr2;
-  const stopL = below[0] ? Math.min(below[0].lo - 0.5 * atr2, trigL - atr2) : trigL - 2 * atr2;
+  const trigL = above[0] ? above[0].hi : c + atr3;
+  const stopL = below[0] ? Math.min(below[0].lo - 0.5 * atr3, trigL - atr3) : trigL - 2 * atr3;
   const tgL = above.slice(1, 3).map((z) => z.mid);
   if (bull) tgL.push(bull.target);
   const targetsL = [...new Set(tgL.filter((x) => x > trigL).map((x) => +x.toFixed(4)))].sort((x, y) => x - y).slice(0, 3);
@@ -2986,8 +2986,8 @@ function scenarios(a, extraZones = []) {
     targetBasis: basisL,
     text: `N\u1EBFu gi\xE1 \u0110\xD3NG C\u1EECA tr\xEAn ${fmt2(trigL)}${bull ? ` (x\xE1c nh\u1EADn ${PATTERN_NAME[bull.type]})` : ""}: m\u1EE5c ti\xEAu ${targetsL.map(fmt2).join(" \u2192 ")}${basisL === "R-multiple" ? " (\u0111o theo 2R \u2014 ph\xEDa tr\xEAn kh\xF4ng c\xF2n v\xF9ng c\u1EA3n \u0111\xE3 bi\u1EBFt)" : ""}; c\u1EAFt l\u1ED7 d\u01B0\u1EDBi ${fmt2(stopL)}. Ch\u1ED1t m\u1ED9t n\u1EEDa \u1EDF m\u1EE5c ti\xEAu \u0111\u1EA7u.`
   });
-  const trigS = below[0] ? below[0].lo : c - atr2;
-  const stopS = above[0] ? Math.max(above[0].hi + 0.5 * atr2, trigS + atr2) : trigS + 2 * atr2;
+  const trigS = below[0] ? below[0].lo : c - atr3;
+  const stopS = above[0] ? Math.max(above[0].hi + 0.5 * atr3, trigS + atr3) : trigS + 2 * atr3;
   const tgS = below.slice(1, 3).map((z) => z.mid);
   if (bear) tgS.push(bear.target);
   const targetsS = [...new Set(tgS.filter((x) => x < trigS && x > 0).map((x) => +x.toFixed(4)))].sort((x, y) => y - x).slice(0, 3);
@@ -3023,14 +3023,14 @@ function indicators(bars, p) {
   const close = bars.map((b) => b.close);
   const maFast = smaSeries(close, p.maFast);
   const maSlow = smaSeries(close, p.maSlow);
-  const atr2 = atrSeries(bars, p.atr);
+  const atr3 = atrSeries(bars, p.atr);
   const n = bars.length;
   const slope2 = new Array(n).fill(NaN);
   const slopeFast = new Array(n).fill(NaN);
   const dev = new Array(n).fill(NaN);
   const spread = new Array(n).fill(NaN);
   for (let i = 0; i < n; i++) {
-    const a = atr2[i] > 0 ? atr2[i] : NaN;
+    const a = atr3[i] > 0 ? atr3[i] : NaN;
     if (i >= p.slopeLen) {
       slope2[i] = (maSlow[i] - maSlow[i - p.slopeLen]) / (p.slopeLen * a);
       slopeFast[i] = (maFast[i] - maFast[i - p.slopeLen]) / (p.slopeLen * a);
@@ -3039,16 +3039,16 @@ function indicators(bars, p) {
     spread[i] = (maFast[i] - maSlow[i]) / a;
   }
   const volAvg = smaSeries(bars.map((b) => b.volume), 20);
-  return { maFast, maSlow, atr: atr2, slope: slope2, slopeFast, dev, spread, volAvg };
+  return { maFast, maSlow, atr: atr3, slope: slope2, slopeFast, dev, spread, volAvg };
 }
-function zigzagSwings(bars, atr2, k, level, start = 0) {
+function zigzagSwings(bars, atr3, k, level, start = 0) {
   const out = [];
   const n = bars.length;
   if (n === 0 || start >= n) return out;
   let dir = 0;
   let extI = start, extP = bars[start].high, loI = start, loP = bars[start].low;
   for (let i = start + 1; i < n; i++) {
-    const a = Number.isFinite(atr2[i]) && atr2[i] > 0 ? atr2[i] : atr2[start];
+    const a = Number.isFinite(atr3[i]) && atr3[i] > 0 ? atr3[i] : atr3[start];
     const th = k * a, b = bars[i];
     if (dir >= 0) {
       if (b.high > extP) {
@@ -3121,7 +3121,7 @@ function stageMachine(bars, ind, patterns, large, p) {
   const stage = new Array(n).fill("RANGE");
   const stageAge = new Array(n).fill(0);
   const C = bars.map((b) => b.close), Lo = bars.map((b) => b.low), Hi = bars.map((b) => b.high);
-  const { maFast: ma1, maSlow: ma4, atr: atr2, slope: slope2, slopeFast, dev, spread } = ind;
+  const { maFast: ma1, maSlow: ma4, atr: atr3, slope: slope2, slopeFast, dev, spread } = ind;
   const horizon = 3 * p.maFast;
   const bullBrk = new Array(n).fill(-1e9), bearBrk = new Array(n).fill(-1e9);
   const topForming = new Array(n).fill(false);
@@ -3145,9 +3145,9 @@ function stageMachine(bars, ind, patterns, large, p) {
   let prev = "";
   let cur = "RANGE", age = 0;
   for (let i = 0; i < n; i++) {
-    const valid = Number.isFinite(ma4[i]) && Number.isFinite(atr2[i]) && Number.isFinite(slope2[i]);
+    const valid = Number.isFinite(ma4[i]) && Number.isFinite(atr3[i]) && Number.isFinite(slope2[i]);
     if (valid) {
-      const a = atr2[i], t = p.touchAtr * a;
+      const a = atr3[i], t = p.touchAtr * a;
       const up = C[i] > ma4[i] && ma1[i] > ma4[i] && slope2[i] > 0;
       const down = C[i] < ma4[i] && ma1[i] < ma4[i] && slope2[i] < 0;
       const war = Math.abs(spread[i]) < p.warAtr;
@@ -3314,7 +3314,7 @@ function volumePoc(bars, from, t, step) {
 }
 function zonesAt(bars, ind, swings, patterns, t, p, maxZones = 8) {
   if (t < 1) return [];
-  const atr2 = Math.max(ind.atr[t], 1e-9);
+  const atr3 = Math.max(ind.atr[t], 1e-9);
   const from = Math.max(0, t - p.levelLookback);
   const close = bars[t].close;
   const cands = [];
@@ -3335,10 +3335,10 @@ function zonesAt(bars, ind, swings, patterns, t, p, maxZones = 8) {
   }
   if (Number.isFinite(ind.maFast[t])) cands.push({ price: ind.maFast[t], w: 1.5, src: "MA" });
   if (Number.isFinite(ind.maSlow[t])) cands.push({ price: ind.maSlow[t], w: 2.5, src: "MA" });
-  const poc = volumePoc(bars, from, t, 0.25 * atr2);
+  const poc = volumePoc(bars, from, t, 0.25 * atr3);
   if (poc != null) cands.push({ price: poc, w: 2, src: "Kh\u1ED1i l\u01B0\u1EE3ng" });
   if (cands.length === 0) return [];
-  const h = 0.5 * atr2;
+  const h = 0.5 * atr3;
   const lo = Math.min(...cands.map((c) => c.price)) - 2 * h;
   const hi = Math.max(...cands.map((c) => c.price)) + 2 * h;
   const step = h / 4;
@@ -3400,13 +3400,13 @@ function bbwPercentile(bars, t, look = 250) {
   return cnt ? Math.round(below / cnt * 100) : null;
 }
 function baseAt(bars, ind, small, t, p, maxRangeAtr = 6) {
-  const atr2 = Math.max(ind.atr[t], 1e-9);
+  const atr3 = Math.max(ind.atr[t], 1e-9);
   let best = null;
   let lo = Infinity, hi = -Infinity;
   for (let s = t; s >= Math.max(0, t - 120); s--) {
     lo = Math.min(lo, bars[s].low);
     hi = Math.max(hi, bars[s].high);
-    if ((hi - lo) / atr2 > maxRangeAtr) break;
+    if ((hi - lo) / atr3 > maxRangeAtr) break;
     if (t - s + 1 >= 15) best = { s, lo, hi };
   }
   if (!best) return null;
@@ -3428,9 +3428,9 @@ function baseAt(bars, ind, small, t, p, maxRangeAtr = 6) {
     lo: best.lo,
     hi: best.hi,
     bars: t - best.s + 1,
-    rangeAtr: (best.hi - best.lo) / atr2,
+    rangeAtr: (best.hi - best.lo) / atr3,
     contractions,
-    tight: (thi - tlo) / atr2 <= 1.5,
+    tight: (thi - tlo) / atr3 <= 1.5,
     positionPct: best.hi > best.lo ? Math.round((bars[t].close - best.lo) / (best.hi - best.lo) * 100) : 50,
     bbwPct: bbwPercentile(bars, t),
     maConverged: Number.isFinite(sp) && Math.abs(sp) <= p.warAtr
@@ -4523,6 +4523,207 @@ var EP2_PREREG = {
   zPass: 1.96,
   note: "Ch\u01B0a \u0111\u1EE7 100 k\u1ECBch b\u1EA3n k\u1EBFt th\xFAc th\xEC ghi 'ch\u01B0a \u0111\u1EE7 m\u1EABu'; kh\xF4ng \u0111\u1ED5i ti\xEAu ch\xED sau khi xem d\u1EEF li\u1EC7u."
 };
+
+// src/lib/quant-core/mtf3/series.ts
+function ema(values, period) {
+  const out = new Array(values.length).fill(NaN);
+  if (values.length < period) return out;
+  const k = 2 / (period + 1);
+  let e = 0;
+  for (let i = 0; i < period; i++) e += values[i];
+  e /= period;
+  out[period - 1] = e;
+  for (let i = period; i < values.length; i++) {
+    e = values[i] * k + e * (1 - k);
+    out[i] = e;
+  }
+  return out;
+}
+function sma(values, period) {
+  const out = new Array(values.length).fill(NaN);
+  let s = 0;
+  for (let i = 0; i < values.length; i++) {
+    s += values[i];
+    if (i >= period) s -= values[i - period];
+    if (i >= period - 1) out[i] = s / period;
+  }
+  return out;
+}
+function atr2(bars, period = 14) {
+  const n = bars.length, out = new Array(n).fill(NaN);
+  if (n < period) return out;
+  const tr = bars.map((b, i) => i === 0 ? b.high - b.low : Math.max(b.high - b.low, Math.abs(b.high - bars[i - 1].close), Math.abs(b.low - bars[i - 1].close)));
+  let a = 0;
+  for (let i = 0; i < period; i++) a += tr[i];
+  a /= period;
+  out[period - 1] = a;
+  for (let i = period; i < n; i++) {
+    a = (a * (period - 1) + tr[i]) / period;
+    out[i] = a;
+  }
+  return out;
+}
+var monthKey = (date) => date.slice(0, 7);
+var keyOf = { W: weekKey, M: monthKey };
+function aggregate(daily, tf) {
+  const key = keyOf[tf], out = [];
+  let cur = "";
+  for (const b of daily) {
+    const k = key(b.date), last = out[out.length - 1];
+    if (k !== cur || !last) {
+      out.push({ ...b });
+      cur = k;
+      continue;
+    }
+    last.high = Math.max(last.high, b.high);
+    last.low = Math.min(last.low, b.low);
+    last.close = b.close;
+    last.volume += b.volume;
+    last.date = b.date;
+  }
+  return out;
+}
+function closedIndex(daily, htf, tf) {
+  const key = keyOf[tf], hk = htf.map((b) => key(b.date)), out = new Array(daily.length).fill(-1);
+  let j = -1;
+  for (let i = 0; i < daily.length; i++) {
+    const k = key(daily[i].date);
+    while (j + 1 < htf.length && hk[j + 1] < k) j++;
+    out[i] = j;
+  }
+  return out;
+}
+function trailingPct(x, i, window) {
+  if (!Number.isFinite(x[i])) return null;
+  let below = 0, eq = 0, n = 0;
+  for (let j = Math.max(0, i - window); j < i; j++) {
+    const v = x[j];
+    if (!Number.isFinite(v)) continue;
+    n++;
+    if (v < x[i]) below++;
+    else if (v === x[i]) eq++;
+  }
+  return n >= window / 2 ? (below + eq / 2) / n * 100 : null;
+}
+
+// src/lib/quant-core/mtf3/ribbon.ts
+var RIBBON = { periods: [21, 50, 100], ma: 200, atr: 14, slopeLen: 5, pctWindow: 120, squeezePct: 20, extendedPct: 90, overAtr: 3, expandBars: 3, squeezeLookback: 10, minExpandWidth: 0.5 };
+function orderTau(vals) {
+  const v = vals.filter((x) => Number.isFinite(x));
+  if (v.length < 2) return null;
+  let c = 0, d = 0;
+  for (let i = 0; i < v.length; i++) for (let j = i + 1; j < v.length; j++) {
+    if (v[i] > v[j]) c++;
+    else if (v[i] < v[j]) d++;
+  }
+  return (c - d) / (v.length * (v.length - 1) / 2);
+}
+function ribbonSeries(bars, tf) {
+  const n = bars.length, C = bars.map((b) => b.close);
+  const e21 = ema(C, 21), e50 = ema(C, 50), e100 = ema(C, 100), m200 = sma(C, RIBBON.ma), a = atr2(bars, RIBBON.atr);
+  const order = new Array(n).fill(NaN), orderAge = new Array(n).fill(0);
+  const width = new Array(n).fill(NaN), dev50 = new Array(n).fill(NaN), gap = new Array(n).fill(NaN);
+  const L = RIBBON.slopeLen, mk = () => new Array(n).fill(NaN);
+  const slope2 = { e21: mk(), e50: mk(), e100: mk(), ma200: mk() };
+  for (let i = 0; i < n; i++) {
+    const at = a[i] > 0 ? a[i] : NaN;
+    const tau = orderTau([e21[i], e50[i], e100[i], m200[i]]);
+    order[i] = Number.isFinite(e100[i]) && tau != null ? tau : NaN;
+    orderAge[i] = Math.abs(order[i]) === 1 ? i > 0 && order[i - 1] === order[i] ? orderAge[i - 1] + 1 : 1 : 0;
+    if (Number.isFinite(e100[i])) width[i] = (Math.max(e21[i], e50[i], e100[i]) - Math.min(e21[i], e50[i], e100[i])) / at;
+    dev50[i] = (C[i] - e50[i]) / at;
+    gap[i] = (e21[i] - e100[i]) / at;
+    if (i >= L) {
+      slope2.e21[i] = (e21[i] - e21[i - L]) / (L * at);
+      slope2.e50[i] = (e50[i] - e50[i - L]) / (L * at);
+      slope2.e100[i] = (e100[i] - e100[i - L]) / (L * at);
+      slope2.ma200[i] = (m200[i] - m200[i - L]) / (L * at);
+    }
+  }
+  const widthPct = width.map((_, i) => trailingPct(width, i, RIBBON.pctWindow));
+  const phase = new Array(n).fill("na"), expand = new Array(n).fill(0), over = new Array(n).fill(0);
+  for (let i = 0; i < n; i++) {
+    const p = widthPct[i];
+    if (p == null) continue;
+    let squeezedRecently = false;
+    for (let j = Math.max(0, i - RIBBON.squeezeLookback); j < i; j++) if ((widthPct[j] ?? 101) <= RIBBON.squeezePct) {
+      squeezedRecently = true;
+      break;
+    }
+    let rising = i >= RIBBON.expandBars;
+    for (let k = 0; k < RIBBON.expandBars && rising; k++) rising = width[i - k] > width[i - k - 1];
+    const opening = squeezedRecently && rising && p > RIBBON.squeezePct;
+    phase[i] = p <= RIBBON.squeezePct ? "squeeze" : opening ? "expanding" : p >= RIBBON.extendedPct ? "extended" : "normal";
+    if (opening && width[i] >= RIBBON.minExpandWidth) {
+      const dir = order[i] === 1 && C[i] > e21[i] ? 1 : order[i] === -1 && C[i] < e21[i] ? -1 : 0;
+      let fresh = true;
+      for (let j = Math.max(0, i - RIBBON.squeezeLookback); j < i && fresh; j++) if (expand[j] === dir) fresh = false;
+      if (dir !== 0 && fresh) expand[i] = dir;
+    }
+    over[i] = dev50[i] >= RIBBON.overAtr && order[i] > 0 ? 1 : dev50[i] <= -RIBBON.overAtr && order[i] < 0 ? -1 : 0;
+  }
+  return { tf, bars, ema21: e21, ema50: e50, ema100: e100, ma200: m200, atr: a, order, orderAge, width, widthPct, dev50, gap, slope: slope2, phase, expand, over };
+}
+var fin = (x) => Number.isFinite(x) ? Math.round(x * 1e3) / 1e3 : null;
+var px = (x) => Number.isFinite(x) ? Math.round(x * 100) / 100 : null;
+function snapshotAt(s, i) {
+  const empty = { e21: null, e50: null, e100: null, ma200: null };
+  if (i < 0 || i >= s.bars.length) {
+    return { tf: s.tf, date: null, bars: 0, close: null, ema21: null, ema50: null, ema100: null, ma200: null, order: null, orderAge: 0, width: null, widthPct: null, dev50: null, gap: null, slope: empty, phase: "na", over: 0, lastExpand: null, inBand: null };
+  }
+  let lastExpand = null;
+  for (let j = i; j >= Math.max(0, i - 60); j--) if (s.expand[j] !== 0) {
+    lastExpand = { ago: i - j, dir: s.expand[j] };
+    break;
+  }
+  const c = s.bars[i].close, lo = Math.min(s.ema21[i], s.ema50[i]), hi = Math.max(s.ema21[i], s.ema50[i]);
+  return {
+    tf: s.tf,
+    date: s.bars[i].date,
+    bars: i + 1,
+    close: px(c),
+    ema21: px(s.ema21[i]),
+    ema50: px(s.ema50[i]),
+    ema100: px(s.ema100[i]),
+    ma200: px(s.ma200[i]),
+    order: fin(s.order[i]),
+    orderAge: s.orderAge[i],
+    width: fin(s.width[i]),
+    widthPct: s.widthPct[i] == null ? null : Math.round(s.widthPct[i]),
+    dev50: fin(s.dev50[i]),
+    gap: fin(s.gap[i]),
+    slope: { e21: fin(s.slope.e21[i]), e50: fin(s.slope.e50[i]), e100: fin(s.slope.e100[i]), ma200: fin(s.slope.ma200[i]) },
+    phase: s.phase[i],
+    over: s.over[i],
+    lastExpand,
+    inBand: Number.isFinite(lo) && Number.isFinite(hi) ? c >= lo && c <= hi : null
+  };
+}
+function ribbon3(daily) {
+  const wBars = aggregate(daily, "W"), mBars = aggregate(daily, "M");
+  return { D: ribbonSeries(daily, "D"), W: ribbonSeries(wBars, "W"), M: ribbonSeries(mBars, "M"), wIdx: closedIndex(daily, wBars, "W"), mIdx: closedIndex(daily, mBars, "M") };
+}
+function contextAt(r, t) {
+  const D = snapshotAt(r.D, t), W2 = snapshotAt(r.W, r.wIdx[t] ?? -1), M = snapshotAt(r.M, r.mIdx[t] ?? -1);
+  const sg = (x) => x == null ? 0 : x > 0 ? 1 : x < 0 ? -1 : 0;
+  const align = sg(D.order) + sg(W2.order) + sg(M.order);
+  const dExp = D.lastExpand && D.lastExpand.ago <= 5 ? D.lastExpand.dir : 0;
+  const wOpen = (dir) => W2.order === dir && (W2.phase === "expanding" || W2.phase === "normal" || W2.phase === "extended");
+  const nested = dExp > 0 && wOpen(1) ? "up" : dExp < 0 && wOpen(-1) ? "down" : null;
+  return { D, W: W2, M, align, nested };
+}
+function compactRibbon3(r, opts = {}) {
+  const t = r.D.bars.length - 1, win = opts.window ?? 260;
+  const lines = (s) => {
+    const from = Math.max(0, s.bars.length - win);
+    const pick = (x) => x.slice(from).map(px);
+    return { dates: s.bars.slice(from).map((b) => b.date), ema21: pick(s.ema21), ema50: pick(s.ema50), ema100: pick(s.ema100), ma200: pick(s.ma200) };
+  };
+  return { context: t >= 0 ? contextAt(r, t) : null, lines: { D: lines(r.D), W: lines(r.W), M: lines(r.M) } };
+}
+
+// src/lib/quant-core/mtf3/index.ts
+var MTF3_VERSION = "3.0.0-s1";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -4530,6 +4731,7 @@ export {
   EP2_PREREG,
   STATE_LABEL as EW_STATE_LABEL,
   TEMPLATE_TITLE as EW_TEMPLATE_TITLE,
+  MTF3_VERSION,
   MTF_STRUCTURE_VERSION,
   PATTERN_CONTEXT_TEXT,
   PATTERN_NAME,
@@ -4547,6 +4749,7 @@ export {
   buildWaveTree,
   closedHtfIndex,
   clusterLevels,
+  compactRibbon3,
   compactStructure,
   compactTf as compactStructureTf,
   convergenceAt,
@@ -4555,6 +4758,9 @@ export {
   patternStatusAt,
   randomWalkHitProb,
   recentBuy,
+  ribbon3,
+  contextAt as ribbonContextAt,
+  ribbonSeries,
   scenariosFromTree,
   scoreLedger,
   rrNowAt as structureRrNowAt,

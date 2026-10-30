@@ -248,8 +248,28 @@ export function createStructureService({ service, taSeries, corporateActions, no
     return value;
   }
 
+  /**
+   * MTF v3 (MTF-v3-prereg.md) — Ngày · Tuần · Tháng, KHÔNG khung 1 giờ. Tuần / tháng gộp từ cùng chuỗi nến ngày của biểu đồ;
+   * khung lớn chỉ dùng kỳ đã đóng. S1: dải EMA21 · EMA50 · EMA100 · MA200 từng khung + đồng thuận ba khung.
+   */
+  async function analyze3(symbolRaw) {
+    const symbol = canonicalSymbol(symbolRaw);
+    if (!isValidSymbol(symbol)) throw new ValidationError("Mã chứng khoán không hợp lệ.");
+    const daily = await dailyBars(symbol);
+    if (daily.bars.length < 60) { const e = new Error(`${symbol} chưa đủ lịch sử nến ngày (${daily.bars.length} phiên).`); e.statusCode = 404; throw e; }
+    const dBars = daily.bars.map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0 }));
+    const r = Q.ribbon3(dBars);
+    return {
+      version: Q.MTF3_VERSION, symbol, asOf: dBars[dBars.length - 1].date, priceBasis: daily.priceBasis ?? null,
+      bars: { D: r.D.bars.length, W: r.W.bars.length, M: r.M.bars.length },
+      ribbon: Q.compactRibbon3(r, { window: 260 }),
+      evidence: { label: "THỰC NGHIỆM", note: "Dải MA là thành phần mô tả; kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
+    };
+  }
+
   return {
     analyze,
+    analyze3,
     summary: readSummary,
     ledgerStats: () => ledger.stats(),
     momentumStats: () => momentum.stats(),

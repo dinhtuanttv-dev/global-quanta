@@ -464,6 +464,17 @@ router.get("/structure/:symbol", handle(async (req, res) => {
   res.json(data);
 }));
 
+// MTF v3 (30/10/2026) — Ngày · Tuần · Tháng, không khung 1 giờ (MTF-v3-prereg.md).
+router.get("/structure3/:symbol", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const symbol = String(req.params.symbol || "").toUpperCase();
+  if (!/^[A-Z0-9]{3,10}$/.test(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  const live = expectsLiveTicks();
+  const data = await rt.service.cache.wrap(`structure3:${symbol}`, live ? 60_000 : 10 * 60_000, () => rt.structure.analyze3(symbol));
+  res.set("Cache-Control", live ? "private, max-age=30" : "private, max-age=300");
+  res.json(data);
+}));
+
 // Cycle Fingerprint v2 (CF4) — sổ theo dõi thực tế (bản chụp dự báo 20 phiên hằng ngày, chấm khi đủ 21 phiên).
 router.get("/cycles-ledger", handle(async (req, res) => {
   res.set("Cache-Control", "public, max-age=300");

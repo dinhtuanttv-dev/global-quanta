@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const BaseBreakout = require("./baseBreakout.cjs");
 import { VN_RULES, baselineReturns, evidenceFromTrades, simulateVnTrade, smaOf } from "./vnBacktest.js";
+import { marketContextM } from "./marketGate.js";
 
 // Ngưỡng đơn vị của preset gốc tắt — cổng giá/thanh khoản VND áp ở technicalFilters.js.
 const FEATURE_OPTIONS = Object.freeze({ minPrice: 0, maxPrice: 0, minAvgVol: 0, minAvgValue: 0, minVol0: 0, minVol1: 0, minVol2: 0, minValue0: 0 });
@@ -64,7 +65,7 @@ const clamp01 = (x) => Math.max(0, Math.min(1, x));
 
 /**
  * Đánh giá phiên t: { status: BREAKOUT|SETUP|null, grade, score, components, plan, metrics }.
- * ctx.marketUp(date) -> true/false/null: VN-Index trên MA20 tại ngày đó (yếu tố M).
+ * ctx.marketUp(date) -> true/false/null: VN-Index trên EMA21 tại ngày đó (yếu tố M).
  */
 export function evaluateV2(S, t, ctx = {}) {
   const r = BaseBreakout.evaluateAt(S, t, FEATURE_OPTIONS);
@@ -87,7 +88,7 @@ export function evaluateV2(S, t, ctx = {}) {
   const comp = [];
   const add = (key, label, max, frac, value) => comp.push({ key, label, max, points: max ? Math.round(max * clamp01(frac) * 10) / 10 : 0, value, ok: frac >= 0.5 });
   add("moneyFlow", "MFI tăng & ≥ 50", 30, c.moneyFlow ? 1 : m.mfi >= 50 ? 0.5 : 0, m.mfi);
-  add("market", "VN-Index trên MA20", 20, market === true ? 1 : 0, market);
+  add("market", "VN-Index trên EMA21", 20, market === true ? 1 : 0, market);
   add("dayGain", "Tăng trong phiên ≤ 6%", 15, c.dayGain ? 1 : 0, m.rate);
   add("volume", "KL so với TB20", 15, Number.isFinite(m.volRatio) ? (m.volRatio - 1) / 1.5 : 0, m.volRatio); // 2,5× = đủ điểm
   add("volumeProfile", "Vượt VAH/POC nền 60 phiên", 10, vp ? (m.close > vp.vah ? 1 : m.close > vp.poc ? 0.5 : 0) : 0, vp ? m.close / vp.vah - 1 : null);
@@ -184,15 +185,8 @@ export function liquidityAt(bars, minAvgValue20) {
   return (t) => !(avg20[t] < minAvgValue20);
 }
 
-/** Yếu tố M: VN-Index đóng cửa trên MA20 tại từng ngày (chỉ dùng dữ liệu đến ngày đó). */
+/** Yếu tố M: VN-Index đóng cửa trên EMA21 tại từng ngày (30/10/2026 thay MA20 — bộ MA thống nhất; dùng chung với CAN SLIM). */
 export function marketContext(indexBars) {
-  const up = new Map();
-  let s = 0;
-  const bars = (indexBars ?? []).filter((b) => b.close > 0);
-  for (let i = 0; i < bars.length; i++) {
-    s += bars[i].close;
-    if (i >= 20) s -= bars[i - 20].close;
-    if (i >= 19) up.set(bars[i].date, bars[i].close > s / 20);
-  }
-  return { marketUp: (date) => (up.has(date) ? up.get(date) : null), lastDate: bars.at(-1)?.date ?? null };
+  const m = marketContextM(indexBars);
+  return { marketUp: m.marketUp, ribbon: m.ribbon, lastDate: m.lastDate };
 }

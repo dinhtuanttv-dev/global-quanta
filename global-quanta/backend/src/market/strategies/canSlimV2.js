@@ -13,6 +13,7 @@ import { hoseTick } from "../adjusted/adjustedHistory.js";
 import { baselineReturns, evidenceFromTrades, simulateVnTrade, smaOf } from "./vnBacktest.js";
 import { liquidityAt } from "./baseBreakoutV2.js";
 import { handleConfluence } from "./handleConfluence.js";
+import { marketContextM } from "./marketGate.js";
 
 export const CS = Object.freeze({
   cupMin: 35, cupMax: 325, depthMin: 0.12, depthMax: 0.4, priorRise: 0.25, priorLookback: 130,
@@ -152,25 +153,8 @@ export function buildRsTable(seriesBySymbol) {
 
 // ------------------------------------------------------------------ M: thị trường chung
 
-/** VN-Index trên MA20 + số ngày phân phối (giảm ≥ 0,2% với KL cao hơn phiên trước) trong 25 phiên. */
-export function marketContextM(indexBars) {
-  const bars = (indexBars ?? []).filter((b) => b.close > 0);
-  const up = new Map(), dist = new Map();
-  let s = 0;
-  const flags = bars.map((b, i) => i > 0 && b.close / bars[i - 1].close - 1 <= -0.002 && (b.volume ?? 0) > (bars[i - 1].volume ?? 0));
-  let d = 0;
-  for (let i = 0; i < bars.length; i++) {
-    s += bars[i].close; if (i >= 20) s -= bars[i - 20].close;
-    d += flags[i] ? 1 : 0; if (i >= 25) d -= flags[i - 25] ? 1 : 0;
-    if (i >= 19) up.set(bars[i].date, bars[i].close > s / 20);
-    if (i >= 24) dist.set(bars[i].date, d);
-  }
-  return {
-    marketUp: (date) => (up.has(date) ? up.get(date) : null),
-    distributionDays: (date) => (dist.has(date) ? dist.get(date) : null),
-    lastDate: bars.at(-1)?.date ?? null,
-  };
-}
+// Yếu tố M dùng chung (VN-Index trên EMA21 + ngày phân phối + xếp lớp 4 đường): ./marketGate.js
+export { marketContextM } from "./marketGate.js";
 
 // ------------------------------------------------------------------ chấm điểm
 
@@ -221,7 +205,7 @@ export function evaluateCs(S, t, ctx = {}, weights = WEIGHTS) {
   add("lRs", "L", "RS ≥ 80", rs == null ? 0 : rs >= 80 ? 1 : rs >= 70 ? 0.5 : 0, rs);
   add("lSector", "L", "Ngành top 40%", sector == null ? 0 : sector >= 0.6 ? 1 : 0, sector);
   add("iForeign", "I", "Khối ngoại mua ròng 20 phiên", nf >= 10 ? (f20 > 0 ? 1 : 0) : 0, nf >= 10 ? f20 : null);
-  add("market", "M", "VN-Index trên MA20", mUp === true ? 1 : 0, mUp);
+  add("market", "M", "VN-Index trên EMA21", mUp === true ? 1 : 0, mUp);
   add("mDistribution", "M", "≤ 5 ngày phân phối / 25 phiên", dist == null ? 0 : dist <= 5 ? 1 : 0, dist);
   // S4 — hợp lưu Elliott/Fibonacci của tay cầm: chỉ hiển thị (0 điểm) cho tới khi đủ mẫu kiểm định.
   const handle = handleConfluence(S, p, t);
