@@ -10,7 +10,7 @@ import { canonicalSymbol, isIndexSymbol, isValidSymbol } from "../normalizer.js"
 import { ValidationError } from "../errors.js";
 import { vnDate } from "../calendar.js";
 import { createScreenerSeries } from "../strategies/screenerSeries.js";
-import { createH1Cache } from "./h1Cache.js";
+import { createStructureDisk } from "./structureDisk.js";
 import { STRUCTURE_VALIDATION } from "./validation.js";
 import { STRUCTURE_VALIDATION_V3 as V3 } from "./validation3.js";
 import { createStructureLedger } from "./ledger.js";
@@ -55,11 +55,11 @@ export function summaryRow(ticker, m) {
   };
 }
 
-export function createStructureService({ service, taSeries, corporateActions, now = Date.now, h1Cache = createH1Cache(), seriesSource = null }) {
+export function createStructureService({ service, taSeries, corporateActions, now = Date.now, disk = createStructureDisk(), seriesSource = null }) {
   const store = service.store;
   let summaryMemo = null; // { value, at }
-  const ledger = createStructureLedger({ store: h1Cache, now });
-  const momentum = createMomentumLedger({ disk: h1Cache, now });
+  const ledger = createStructureLedger({ store: disk, now });
+  const momentum = createMomentumLedger({ disk, now });
 
   async function dailyBars(symbol) {
     const r = await taSeries.get({ symbol, range: "5y", limit: 1300 });
@@ -90,8 +90,8 @@ export function createStructureService({ service, taSeries, corporateActions, no
 
   async function readSummary() {
     if (summaryMemo && now() - summaryMemo.at < 10 * 60_000) return summaryMemo.value;
-    let value = await h1Cache.readJson(SUMMARY_FILE);
-    if (!value) { try { value = (await store.getKv(STRUCTURE_SUMMARY_KV))?.value ?? null; if (value) await h1Cache.writeJson(SUMMARY_FILE, value); } catch { value = null; } }
+    let value = await disk.readJson(SUMMARY_FILE);
+    if (!value) { try { value = (await store.getKv(STRUCTURE_SUMMARY_KV))?.value ?? null; if (value) await disk.writeJson(SUMMARY_FILE, value); } catch { value = null; } }
     summaryMemo = { value, at: now() };
     return value;
   }
@@ -126,7 +126,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
     summary: readSummary,
     ledgerStats: () => ledger.stats(),
     momentumStats: () => momentum.stats(),
-    cacheStats: () => h1Cache.stats(),
+    cacheStats: () => disk.stats(),
     jobs: {
       /** 15:47 — v2 khung D (sổ M1) + MTF v3 Ngày · Tuần · Tháng cho toàn universe, dùng chung bộ nhớ đệm chuỗi của job bộ lọc 15:45 (không đọc thêm Supabase). */
       async scanStructure() {
@@ -164,11 +164,11 @@ export function createStructureService({ service, taSeries, corporateActions, no
         } catch (e) { momentumStats = { error: e.message }; }
         const ev = evidence(STRUCTURE_VALIDATION);
         const doc = { engine: Q.MTF_STRUCTURE_VERSION, generatedAt: new Date(now()).toISOString(), asOf, evidence: ev.labels, verdictValidated: ev.verdictValidated, rows, skipped, transitions, ledger: ledgerStats, momentum: momentumStats };
-        const disk = await h1Cache.writeJson(SUMMARY_FILE, doc);
+        const onDisk = await disk.writeJson(SUMMARY_FILE, doc);
         let kv = true;
         try { await store.setKv(STRUCTURE_SUMMARY_KV, doc); } catch { kv = false; }
         summaryMemo = { value: doc, at: now() };
-        return { momentum: momentumStats?.error ?? { recorded: momentumStats?.recordedDays, scored: momentumStats?.scoredDays, on: momentumStats?.lastGroup }, symbols: rows.length, skipped: skipped.length, asOf, disk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
+        return { momentum: momentumStats?.error ?? { recorded: momentumStats?.recordedDays, scored: momentumStats?.scoredDays, on: momentumStats?.lastGroup }, symbols: rows.length, skipped: skipped.length, asOf, disk: onDisk, kv, transitions: transitions.length, ledger: ledgerStats?.coverage ?? ledgerStats, ms: now() - t0 };
       },
       /** 15:40 — làm ấm kho nến 1 giờ cho rổ VN100 + VN30 (phiên đã đóng; lần đầu ~120 phiên / mã, sau đó 1 phiên / ngày). */
     },

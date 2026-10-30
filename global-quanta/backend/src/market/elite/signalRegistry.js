@@ -45,9 +45,9 @@ export const SIGNAL_SPECS = [
 
 // T7 (2026-10-21): Cấu trúc thị trường đa khung — bậc C (chỉ đo IC, không vào điểm Elite cho tới khi engine bằng chứng thăng bậc).
 SIGNAL_SPECS.push(
-  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn cấu trúc khung Ngày (MTF v2)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "MTF v2 V4 không đạt (vào B tái tích lũy −1,37%/20 phiên OOS); từ 24/10/2026 thang giai đoạn v2 (B = tái tích lũy); chỉ đo IC." },
-  { id: "structure_score", tab: "TA VN-Index", labelVi: "Bảng kiểm lợi thế kỹ thuật (8 mục, MTF)", unit: "0–8", level: "stock", tier: "C", evidenceVi: "T2 H3 không đạt (IC OOS −0,032); v2 mục R:R theo tài liệu (≥ 1)." },
-  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Kết luận đa khung R1–R7 (v2, cổng R:R)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "MTF v2 V1 không đạt (L khung 1 giờ −0,72%/10 phiên OOS), V2 cổng R:R +0,25% (KTC chứa 0)." },
+  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn Minervini khung Ngày (MTF v3)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026 đổi sang MTF v3 (S1–S4 trên EMA21/50/100 + MA200; trước đó thang v2). Kiểm định MTF-v3 H1 (vào GĐ2) không đạt: +1,03%/40 phiên OOS, KTC chứa 0; chỉ đo IC." },
+  { id: "structure_score", tab: "TA VN-Index", labelVi: "Trend Template (7 điều kiện, MTF v3)", unit: "0–7", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026: số điều kiện Trend Template đạt (EMA21/50/100 + MA200, 52 tuần); trước đó bảng kiểm v2 0–8. Chưa có lợi thế kiểm định." },
+  { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Cấu trúc Dow khung Ngày (MTF v3)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026: trạng thái Dow (đáy bảo vệ / đỉnh hồi, 3 tiêu chí gãy xu hướng) thay kết luận đa khung v2. MTF-v3 H2 không đạt; chỉ mô tả." },
 );
 
 export const SPEC_BY_ID = new Map(SIGNAL_SPECS.map((s) => [s.id, s]));
@@ -61,8 +61,9 @@ const GRADE = { A: 3, B: 2, C: 1 };
 const QUADRANT = { LEADING: 2, IMPROVING: 1, WEAKENING: -1, LAGGING: -2 };
 const COTUC = { FAVORABLE: 1, WATCH: 0, AVOID: -1 };
 // v2 (24/10/2026): B = tái tích lũy trong xu hướng tăng (trước đây "quá mua") -> xếp giữa UP và A.
-const STRUCT_STAGE = { UP: 2, B: 1.5, A: 1, RANGE: 0, C: -0.5, Bp: -1, D: -1.5, DOWN: -2 };
-const STRUCT_VERDICT = { "MUA": 2, "CHỜ MUA": 1, "ĐỨNG NGOÀI": 0, "GIẢM TỶ TRỌNG": -1, "BÁN": -2 };
+// MTF v3 (30/10/2026): giai đoạn Minervini S1–S4 và trạng thái Dow khung Ngày (trường `s3` của structure-summary).
+const STRUCT_STAGE = { S2: 2, S1: 0, S3: -1, S4: -2 };
+const STRUCT_DOW = { UP: 2, UP_WEAK: 1, BROKEN_DOWN: 1, RANGE: 0, DOWN_WEAK: -1, BROKEN_UP: -1, DOWN: -2 };
 
 /** Ngành ICB cụ thể nhất có trong tập `codes` cho một mã (l3 -> l2 -> l1). */
 export function icbFor(symbolsMap, ticker, codes) {
@@ -160,9 +161,9 @@ export function buildSignalRows(src) {
       rrg_quadrant: rrgIcb ? rrg.get(rrgIcb) ?? null : null,
       catalyst_impact: impacts ? (imp && imp.direction !== "none" ? (imp.direction === "harm" ? -1 : 1) * (num(imp.compositeScore) ?? 0) : 0) : null,
       cotuc_decision: cotuc.size ? cotuc.get(ticker) ?? null : null,
-      structure_stage: structure ? STRUCT_STAGE[structure.get(ticker)?.st] ?? null : null,
-      structure_score: structure ? num(structure.get(ticker)?.sc) : null,
-      structure_verdict: structure ? STRUCT_VERDICT[structure.get(ticker)?.v] ?? null : null,
+      structure_stage: structure ? STRUCT_STAGE[structure.get(ticker)?.s3?.st] ?? null : null,
+      structure_score: structure ? num(structure.get(ticker)?.s3?.tpl) : null,
+      structure_verdict: structure ? STRUCT_DOW[structure.get(ticker)?.s3?.dow] ?? null : null,
     };
     for (const k of Object.keys(values)) values[k] = r4(values[k]);
     return { ticker, icb: symbols?.[ticker] ?? null, sector: it.industry ?? it.sector ?? null, values };

@@ -161,12 +161,17 @@ test("E1 route: danh mục tín hiệu, bảng phiên, tra một mã, admin cầ
 });
 
 test("T7 Cấu trúc MTF: giai đoạn / bảng kiểm / kết luận vào sổ tín hiệu (bậc C — chỉ đo IC); thiếu nguồn -> null + ghi nguồn thiếu", () => {
-  const structure = { asOf: "2026-10-16", rows: [{ t: "HPG", st: "UP", sc: 6, v: "MUA" }, { t: "FPT", st: "DOWN", sc: 1, v: "BÁN" }] };
+  const structure = { asOf: "2026-10-16", rows: [
+    { t: "HPG", st: "UP", sc: 6, v: "MUA", s3: { st: "S2", tpl: 6, dow: "UP" } },
+    { t: "FPT", st: "DOWN", sc: 1, v: "BÁN", s3: { st: "S4", tpl: 1, dow: "DOWN" } },
+    { t: "VIC", st: "UP", sc: 7, v: "MUA" }, // dòng tóm tắt cũ chưa có MTF v3 -> không suy ra từ thang v2
+  ] };
   const { rows, missingSources } = buildSignalRows(sources({ structure }));
   const by = Object.fromEntries(rows.map((r) => [r.ticker, r.values]));
   assert.deepEqual([by.HPG.structure_stage, by.HPG.structure_score, by.HPG.structure_verdict], [2, 6, 2]);
   assert.deepEqual([by.FPT.structure_stage, by.FPT.structure_score, by.FPT.structure_verdict], [-2, 1, -2]);
   assert.equal(by.VIC.structure_stage, null);
+  assert.deepEqual([by.VIC.structure_stage, by.VIC.structure_score, by.VIC.structure_verdict], [null, null, null]);
   assert.ok(!missingSources.includes("structure"));
   for (const id of ["structure_stage", "structure_score", "structure_verdict"]) assert.equal(SIGNAL_SPECS.find((s) => s.id === id)?.tier, "C");
   const none = buildSignalRows(sources());
