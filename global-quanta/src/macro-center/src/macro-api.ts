@@ -378,12 +378,17 @@ export function createMacroApi(deps: MacroApiDeps) {
   const seriesList = (q: Record<string, unknown>) => {
     const asOf = asOfOf(q.asOf);
     const nowPeriod = asOf.slice(0, 7);
+    // tail (0–120): kèm N điểm gần nhất mỗi chuỗi (as-of, point-in-time) — thẻ "Nhịp vĩ mô" vẽ sparkline. Mặc định 0 = như cũ.
+    const tail = optInt(q.tail, 'tail', 0, 120) ?? 0;
     return {
       dataVersion: deps.store.dataVersion(), asOf, notice,
       series: catalog.map((m) => {
         const pts = deps.store.getSeries(m.id, asOf);
         const issues = pts.length ? checkQuality(m.id, pts, m, nowPeriod) : [];
-        return { ...m, n: pts.length, first: pts[0]?.period ?? null, last: pts[pts.length - 1]?.period ?? null, issues };
+        return {
+          ...m, n: pts.length, first: pts[0]?.period ?? null, last: pts[pts.length - 1]?.period ?? null, issues,
+          ...(tail ? { points: pts.slice(-tail).map((p) => ({ period: p.period, value: p.value })) } : {}),
+        };
       }),
       scenarios: NAMED_SCENARIOS,
     };

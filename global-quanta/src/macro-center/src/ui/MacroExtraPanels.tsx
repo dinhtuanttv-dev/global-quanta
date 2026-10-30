@@ -57,8 +57,8 @@ export function DataSourcePanel({ source, sourceError, series }: { source: Sourc
         </div>
       </details>
       <p className="muted">
-        Tự động (tháng đã đóng, 2 lần/ngày): chỉ số HOSE từ Gateway; FED, giá dầu Brent (FRED); DXY, USD/VND thị trường (Yahoo).
-        Biến nội địa (CPI, lãi suất liên ngân hàng, M2, tín dụng, FDI, xuất khẩu, IIP, PMI) không có nguồn mở — quản trị viên nạp CSV qua
+        Tự động (tháng đã đóng, 2 lần/ngày): chỉ số HOSE từ Gateway; CPI Việt Nam (IMF, số liệu Cục Thống kê); FED, giá dầu Brent (FRED); DXY, USD/VND thị trường (Yahoo).
+        Biến nội địa còn lại (lãi suất liên ngân hàng, M2, tín dụng, FDI, xuất khẩu, IIP, PMI) chưa có nguồn mở cập nhật — quản trị viên nạp CSV qua
         <code> POST /api/macro/admin/import</code>. Không bao giờ trộn số liệu thật với số liệu mô phỏng.
       </p>
     </div>

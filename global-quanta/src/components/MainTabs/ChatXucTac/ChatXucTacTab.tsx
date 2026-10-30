@@ -18,12 +18,10 @@ import MarketAnnouncementWatchPanel from "./MarketAnnouncementWatchPanel";
 import CatalystSkeleton from "./CatalystSkeleton";
 import CatalystErrorBoundary from "./CatalystErrorBoundary";
 import RetryButton from "./RetryButton";
-import { MacroCenterTab } from "../../../macro-center/src/ui/MacroCenterTab";
-import { getMarketGateway } from "../../../config/marketGateway";
+import MacroHub from "./macroHub/MacroHub";
 import { CATALYST_EVIDENCE as EV } from "./catalystEvidence";
 import CatalystChatPanel from "./CatalystChatPanel";
 import ImpactBoard from "./ImpactBoard";
-import WorldTodayStrip from "./WorldTodayStrip";
 import EventRadarWorkspace from "./EventRadarWorkspace";
 
 type SubTab = "macro" | "impact" | "catalyst" | "radar" | "chat";
@@ -85,10 +83,7 @@ export default function ChatXucTacTab() {
 
       <section id={`chat-xuc-tac-${activeSubTab}-panel`} role="tabpanel" aria-labelledby={`chat-xuc-tac-${activeSubTab}-tab`} tabIndex={0}>
         {/* X2: API vĩ mô chạy trên Market Gateway (/api/macro/*) */}
-        {activeSubTab === "macro" && <>
-          <WorldTodayStrip onOpenImpact={() => setActiveSubTab("impact")} />
-          <MacroCenterTab baseUrl={getMarketGateway().baseUrl} />
-        </>}
+        {activeSubTab === "macro" && <MacroHub onOpenImpact={() => setActiveSubTab("impact")} onOpenRadar={() => setActiveSubTab("radar")} />}
         {activeSubTab === "impact" && <ImpactBoard onAsk={askAi} />}
         {activeSubTab === "catalyst" && <CatalystContent />}
         {/* Event Radar: tổng hợp tin & công bố gắn nguồn, phân tích phản ứng H1 */}
