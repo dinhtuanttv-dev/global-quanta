@@ -20,10 +20,10 @@ const iso = (value) => {
 // Nhóm vĩ mô / toàn thị trường. 30/10/2026 (EV-R1): siết từ khoá — bản cũ khớp "thue" trong "lãi sau thuế", "lai suat" trong
 // "trái phiếu lãi suất 12,5%", "hose" trong mọi bài nhắc sàn -> phần lớn tin "tài khoá / hạ tầng" thực ra là KQKD doanh nghiệp.
 // Chỉ xét TIÊU ĐỀ (tóm tắt chứa nhiều từ lẻ); tin doanh nghiệp rõ loại (KQKD, pháp lý, cổ tức…) thắng nhóm vĩ mô, trừ cú sốc hệ thống.
-export const RADAR_CLASSIFIER_VERSION = "radar-classify-v2";
+export const RADAR_CLASSIFIER_VERSION = "radar-classify-v3";
 const SYSTEM_EVENT_RULES = [
   { id: "SYSTEMIC_STRESS", label: "Cú sốc / rủi ro hệ thống", re: /(vo no|khung hoang|thien tai|bao so|lu lut|dong dat|mat dien|tan cong mang|su co he thong|chien tranh|cam van|dut gay chuoi cung ung|bank run|khung bo)/ },
-  { id: "MONETARY_POLICY", label: "Chính sách tiền tệ", re: /(lai suat dieu hanh|lai suat tai cap von|lai suat tai chiet khau|lai suat lien ngan hang|lai suat huy dong|lai suat cho vay|mat bang lai suat|ngan hang nha nuoc|\bnhnn\b|tang truong tin dung|room tin dung|han muc tin dung|ty gia|ngoai hoi|du tru bat buoc|tin phieu|bom rong|hut rong|\bfed\b|\becb\b)/ },
+  { id: "MONETARY_POLICY", label: "Chính sách tiền tệ", re: /(lai suat dieu hanh|lai suat tai cap von|lai suat tai chiet khau|lai suat lien ngan hang|lai suat huy dong|lai suat cho vay|mat bang lai suat|giam lai suat|tang lai suat|ngan hang nha nuoc|\bnhnn\b|tang truong tin dung|room tin dung|han muc tin dung|ty gia|ngoai hoi|du tru bat buoc|tin phieu|bom rong|hut rong|\bfed\b|\becb\b)/ },
   { id: "FISCAL_POLICY", label: "Chính sách tài khóa / thuế", re: /(chinh sach thue|thue suat|giam thue|mien thue|gian thue|tang thue|thue gtgt|thue vat|thue thu nhap doanh nghiep|thue tieu thu dac biet|thue doi ung|thue quan|ngan sach nha nuoc|thu ngan sach|chi ngan sach|dau tu cong|giai ngan von|nghi dinh|thong tu|du thao luat|luat sua doi|quoc hoi thong qua)/ },
   { id: "MACRO_DATA", label: "Dữ liệu vĩ mô", re: /(\bgdp\b|\bcpi\b|lam phat|chi so gia|kim ngach xuat khau|kim ngach nhap khau|can can thuong mai|xuat sieu|nhap sieu|\bpmi\b|\bfdi\b|san xuat cong nghiep|\biip\b|tong muc ban le|cuc thong ke|tong cuc thong ke|that nghiep)/ },
   { id: "MARKET_STRUCTURE", label: "Hạ tầng / cấu trúc thị trường", re: /(nang hang thi truong|nang hang chung khoan|\bftse\b|\bmsci\b|\bkrx\b|he thong giao dich|\bvsdc?\b|luu ky|bu tru|ngung giao dich toan|loi giao dich|non-prefunding|ubcknn|uy ban chung khoan)/ },
@@ -39,7 +39,7 @@ export const MACRO_RSS_FEEDS = [
 ];
 const RADAR_FEEDS = [...RSS_FEEDS, ...MACRO_RSS_FEEDS];
 
-/** item: { title, summary?, feedSection?, tickers? } */
+/** item: { title, summary?, feedSection?, tickers?, titleTickers? } — titleTickers = mã ghép được NGAY TRONG TIÊU ĐỀ. */
 export function classifyRadarEvent(item) {
   const title = fold(item.title);
   const system = SYSTEM_EVENT_RULES.find((rule) => rule.re.test(title));
@@ -51,14 +51,18 @@ export function classifyRadarEvent(item) {
   // "Chủ tịch nước / Chủ tịch UBCKNN", "nghị quyết" (Trung ương / Quốc hội) không gắn mã -> không phải nhân sự / ĐHĐCĐ doanh nghiệp.
   if (COMPANY_FIRST.has(company.id) && !(noTicker && (company.id === "AGM" || company.id === "PERSONNEL"))) return company;
   if (system) return { id: system.id, label: system.label, weight: system.id === "SYSTEMIC_STRESS" ? 1 : 0.8 };
-  if (macroSection) return MACRO_NEWS;
+  // v3: doanh nghiệp nêu tên ngay trong tiêu đề (VD "VPBank xây vũ trụ đặc quyền…") là tin doanh nghiệp dù nằm ở chuyên mục vĩ mô;
+  // chỉ nhắc trong tóm tắt thì vẫn là tin vĩ mô.
+  if (macroSection && !(item.titleTickers?.length)) return MACRO_NEWS;
   return company;
 }
 
 /** Đọc ra: phân loại lại sự kiện đã lưu bằng quy tắc hiện hành (nội dung nguồn không đổi). */
 function withCurrentClassification(event) {
   if (event.classifierVersion === RADAR_CLASSIFIER_VERSION) return event;
-  const c = classifyRadarEvent({ title: event.title, summary: event.summary, feedSection: event.feedSection, tickers: event.tickers });
+  // Bản lưu trước v3 chưa có titleTickers: xấp xỉ bằng mã xuất hiện nguyên văn trong tiêu đề (lượt quét kế tiếp ghi lại chính xác).
+  const titleTickers = event.titleTickers ?? (event.tickers ?? []).filter((t) => String(event.title ?? "").toUpperCase().includes(t));
+  const c = classifyRadarEvent({ title: event.title, summary: event.summary, feedSection: event.feedSection, tickers: event.tickers, titleTickers });
   const severity = severityFor(c.id, event.title, event.summary);
   return { ...event, eventType: c.id, eventLabel: c.label, severity: severity.level, severityScore: severity.score, classifierVersion: RADAR_CLASSIFIER_VERSION };
 }
@@ -116,8 +120,11 @@ function makeDocument(item, firstSeenAt, symbols, entityIndex = null) {
     ? resolveEntities(`${title} ${summary}`, entityIndex).filter((e) => symbols.has(e.code))
     : extractTickers(`${title} ${summary}`, symbols).map((code) => ({ code, via: "code" }));
   const tickers = [...new Set([...tagged, ...entities.map((e) => e.code)])];
+  const titleTickers = entityIndex
+    ? [...new Set(resolveEntities(title, entityIndex).filter((e) => symbols.has(e.code)).map((e) => e.code))]
+    : extractTickers(title, symbols);
   const [entityMatch, entityConfidence] = entityMatchOf(tagged, entities);
-  const classification = classifyRadarEvent({ ...item, title, summary, tickers });
+  const classification = classifyRadarEvent({ ...item, title, summary, tickers, titleTickers });
   const sentimentResult = sentiment(`${title}. ${summary}`);
   const severity = severityFor(classification.id, title, summary);
   const eventId = stableEventId(item);
@@ -164,6 +171,7 @@ function makeDocument(item, firstSeenAt, symbols, entityIndex = null) {
     reactionStatus: "not_calculated",
     classifierVersion: RADAR_CLASSIFIER_VERSION,
     feedSection: item.feedSection ?? null,
+    titleTickers,
   };
 }
 

@@ -36,6 +36,9 @@ test("EV-R2: chuyên mục vĩ mô — tin không gắn mã -> Tin kinh tế vĩ
   assert.equal(macro("Thủ tướng: Việt Nam quyết tâm đạt tăng trưởng GDP trên 10%"), "MACRO_DATA");
   // Tóm tắt nhắc tên ngân hàng -> bộ ghép mã gắn mã; tin chuyên mục vĩ mô không phải tin doanh nghiệp rõ loại vẫn là vĩ mô.
   assert.equal(macro("Dân giữ 500 tấn vàng, gửi ngân hàng 11,2 triệu tỷ, vốn vẫn không vào sản xuất", ["VCB", "BID"]), "MACRO_NEWS");
+  // v3: doanh nghiệp nêu tên ngay trong tiêu đề -> tin doanh nghiệp; "giảm lãi suất" -> tiền tệ.
+  assert.equal(kind("Từ G-DRAGON, T1 đến BIGBANG: VPBank đang xây một vũ trụ đặc quyền cho fan", { feedSection: "macro", tickers: ["VPB"], titleTickers: ["VPB"] }), "OTHER");
+  assert.equal(macro("Thêm nhiều ngân hàng giảm lãi suất"), "MONETARY_POLICY");
   // Nguồn ngoài chuyên mục vĩ mô: tin chung không gắn mã vẫn là tin doanh nghiệp / khác như trước.
   assert.equal(kind("Chuyên gia World Bank: Mô hình cũ không thể giúp Việt Nam 'giàu'"), "OTHER");
 });
@@ -43,5 +46,5 @@ test("EV-R2: chuyên mục vĩ mô — tin không gắn mã -> Tin kinh tế vĩ
 test("EV-R2: 3 nguồn chuyên mục vĩ mô được cấu hình; phiên bản bộ phân loại có tên", () => {
   assert.equal(MACRO_RSS_FEEDS.length, 3);
   assert.ok(MACRO_RSS_FEEDS.every((f) => f.section === "macro" && /^https:\/\//.test(f.url)));
-  assert.equal(RADAR_CLASSIFIER_VERSION, "radar-classify-v2");
+  assert.equal(RADAR_CLASSIFIER_VERSION, "radar-classify-v3");
 });
