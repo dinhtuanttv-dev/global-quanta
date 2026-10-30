@@ -35,7 +35,8 @@ export default function EventRadarWorkspace() {
   };
 
   return (
-    <section aria-label="Event Radar và phân tích chuyên sâu" className="space-y-3">
+    // tw-scope: tab Chất xúc tác nằm ngoài vùng Tailwind — reset toàn cục (App.css) xoá padding/margin của mọi phần tử ngoài .tw-scope.
+    <section aria-label="Event Radar và phân tích chuyên sâu" className="tw-scope space-y-3">
       <div role="tablist" aria-label="Các phần Event Radar" className="flex flex-wrap gap-2 border-b border-white/10 pb-2">
         {SECTIONS.map(([id, label]) => (
           <button key={id} id={`event-workspace-${id}-tab`} type="button" role="tab" aria-selected={section === id}
