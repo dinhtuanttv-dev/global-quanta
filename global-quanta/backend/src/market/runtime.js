@@ -17,6 +17,7 @@ import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.j
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
+import { createQmsJobs } from "./cotuc/qmsJobs.js";
 import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
 import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
 import { createCorporateActions } from "./adjusted/corporateActions.js";
@@ -127,13 +128,18 @@ export function getMarketRuntime() {
   };
   jobs.bootstrapLocal = () => localBootstrap.run({ reason: "manual" });
   jobs.pruneLocal = async () => (store.pruneLocal ? store.pruneLocal({ tickKeepDays: 90 }) : { skipped: "không có kho cục bộ" });
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  // Vercel CPU giai đoạn 2 (30/10/2026): job nặng của Project A chạy trên Gateway (qmsJobs.js). Lọc ngành L5 — sổ theo dõi tín hiệu
+  // ngành (trước: cron Vercel 09:20 UTC), sau job ngành 15:50 của Gateway.
+  const qmsJobs = createQmsJobs();
+  jobs.qmsSectorTiming = () => qmsJobs.call("/api/cron/sector-timing-scan");
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
 
-  // Quét liên tục tab Cổ tức (~300 mã): gọi xoay vòng cron theo lô của Project A (cần PROJECT_A_CRON_SECRET).
-  const cotucScanner = createCotucScanner({ store });
+  // Quét liên tục tab Cổ tức (~300 mã): chạy xoay vòng job theo lô của Project A (cần PROJECT_A_CRON_SECRET).
+  // Vercel CPU giai đoạn 2 (30/10/2026): job chạy NGAY TRÊN Gateway (worker_thread, gói vendor/qmsJobs.mjs) thay vì gọi Vercel.
+  const cotucScanner = createCotucScanner({ store, callJob: qmsJobs.call });
 
   // Lịch giao dịch tự vận hành: quan sát phiên VN-Index thật (10 năm) > MARKET_HOLIDAYS > quy tắc âm lịch/BLLĐ.
   const tradingCalendar = createTradingCalendarService({
@@ -143,7 +149,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 

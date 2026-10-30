@@ -14,6 +14,7 @@
 //     trùng cụm cron đêm của Vercel 22:00–23:45 UTC để dùng chung một lần Neon thức) rồi phase=finalize — mỗi ngày một vòng.
 // Lỗi một lô: giữ offset để thử lại; lỗi 3 lần liên tiếp cùng lô thì bỏ qua lô đó (ghi lại) để vòng quét không kẹt.
 // Trạng thái (offset, số vòng) lưu KV để khởi động lại không quét lại từ đầu.
+// 30/10/2026 (Vercel CPU giai đoạn 2): `callJob` (qmsJobs.js) chạy job ngay trên Gateway thay vì gọi HTTP tới Vercel — cùng hợp đồng.
 
 import { expectsLiveTicks, vnDate, vnParts } from "../calendar.js";
 
@@ -69,11 +70,12 @@ function emptyLane() {
     errStreak: 0, trips: 0, pausedUntil: 0 };
 }
 
-export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = Date.now, config = cotucScanConfig() } = {}) {
+export function createCotucScanner({ store, fetchImpl = globalThis.fetch, now = Date.now, config = cotucScanConfig(), callJob = null } = {}) {
   const state = { timing: emptyLane(), seasonality: { ...emptyLane(), lastFinalizeAt: null }, busy: false, startedAt: null, loaded: false };
   let timer;
 
   async function call(path) {
+    if (callJob) return callJob(path);
     const res = await fetchImpl(`${config.base}${path}`, {
       headers: { authorization: `Bearer ${config.secret}`, accept: "application/json" },
       signal: AbortSignal.timeout(config.requestTimeoutMs),
