@@ -22,8 +22,8 @@ describe("Bố cục radar: góc = nhóm ngành, bán kính = điểm hội tụ
 
   it("mỗi mã nằm trong lát ngành của nó và quanh vòng điểm (±10px); Core gần tâm hơn Ring", () => {
     const inputs = [
-      mk("AAA", 4, "Tài chính"), mk("BBB", 4, "Tài chính"), mk("CCC", 1, "Tài chính"), mk("DDD", 0, "Tài chính"),
-      mk("EEE", 3, "Công nghiệp"), mk("FFF", 2, "Công nghiệp"), mk("GGG", 5, "Tiêu dùng"), mk("HHH", 0, "Tiêu dùng"),
+      mk("AAA", 5, "Tài chính"), mk("BBB", 4, "Tài chính"), mk("CCC", 1, "Tài chính"), mk("DDD", 0, "Tài chính"),
+      mk("EEE", 3, "Công nghiệp"), mk("FFF", 2, "Công nghiệp"), mk("GGG", 6, "Tiêu dùng"), mk("HHH", 0, "Tiêu dùng"),
     ];
     const { nodes, slices } = layoutRadar(inputs);
     const sl = new Map(slices.map((s) => [s.group, s]));

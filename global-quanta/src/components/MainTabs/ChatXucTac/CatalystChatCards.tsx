@@ -1,6 +1,7 @@
 // X4 — Thẻ hiển thị kết quả công cụ ngay dưới câu trả lời chat. CHỈ dùng dữ liệu của chính tool_result (không gọi lại API).
 import type { ReactNode } from "react";
 import type { ChatToolResult } from "../../../services/catalystChat";
+import { sectorLabelVi } from "../../../utils/sectorLabelVi";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dữ liệu công cụ là JSON động
 type Obj = Record<string, any>;
@@ -14,6 +15,9 @@ const TOOL_LABEL: Record<string, string> = {
   macro_calendar_alerts: "Lịch & cảnh báo vĩ mô",
   macro_report: "Báo cáo vĩ mô",
   macro_catalyst_calendar: "Lịch vĩ mô sắp tới",
+  catalyst_overview: "Tổng quan xúc tác",
+  catalyst_ticker: "Xúc tác theo mã",
+  catalyst_sector: "Xúc tác theo ngành",
   world_confirmatory: "Cổng xác nhận đặt trước",
   world_links: "Liên kết thế giới → ngành (thăm dò)",
   world_events: "Sự kiện thế giới",
@@ -137,6 +141,26 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
             <span style={{ color: "var(--text-primary)", minWidth: 0 }}>{e.title}{e.estimated ? <em style={{ color: "var(--text-tertiary)" }}> · ước tính</em> : null}</span>
           </div>
         ))}
+      </Shell>
+    );
+  }
+  if (name === "catalyst_overview") {
+    return (
+      <Shell title={`${title} · quét ${new Date(d.scannedAt).toLocaleString("vi-VN")}`}>
+        <Table head={["Ngành", "Điểm ròng", "Số mã"]} rows={(d.topSectors ?? []).map((s: Obj) => [sectorLabelVi(s.sector), <span style={{ color: dirColor(s.netScore >= 0 ? "benefit" : "harm") }}>{fmt(s.netScore)}</span>, s.tickerCount])} />
+      </Shell>
+    );
+  }
+  if ((name === "catalyst_ticker" || name === "catalyst_sector")) {
+    const cards: Obj[] = name === "catalyst_ticker" ? d.cards ?? [] : [...(d.direct ?? []), ...(d.cascade ?? [])];
+    if (!cards.length) return null;
+    return (
+      <Shell title={`${title} · ${name === "catalyst_ticker" ? d.ticker : sectorLabelVi(d.sector)}`}>
+        <Table head={["Mã", "Xúc tác", "Hướng", "Tác động", "Nguồn", "Tỷ lệ thắng LS", "Giá"]} rows={cards.slice(0, 8).map((c) => [
+          c.ticker, <span title={c.catalyst} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "bottom" }}>{c.catalyst}</span>,
+          <span style={{ color: dirColor(c.direction) }}>{c.direction === "benefit" ? "có lợi" : "bất lợi"}</span>, fmt(c.impact), c.corroboration, `${fmt(c.historicalWinRatePct, 0)}%`,
+          c.priceInStatus === "reflected" ? "đã phản ánh" : "chưa",
+        ])} />
       </Shell>
     );
   }

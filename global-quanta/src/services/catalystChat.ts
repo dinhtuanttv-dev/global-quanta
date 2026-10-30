@@ -1,4 +1,4 @@
-// X4 — Client "Hỏi đáp vĩ mô & thị trường": POST {VITE_API_BASE_URL}/api/catalysts/chat (Project A), đọc luồng SSE.
+// X4 — Client "Hỏi đáp xúc tác": POST {VITE_API_BASE_URL}/api/catalysts/chat (Project A), đọc luồng SSE.
 import { getAccessToken } from "./api";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
