@@ -24,7 +24,7 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
   const [alpha] = useState(0.05);
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
   const [selected, setSelected] = useState<{ factor: string; target: string } | null>(null);
-  const [scenarioId, setScenarioId] = useState('easing');
+  const [scenarioId, setScenarioId] = useState(props.embedded ? 'cpi-up' : 'easing');
   const [horizon, setHorizon] = useState(3);
   const [healthRetry, setHealthRetry] = useState(0);
 
@@ -124,7 +124,7 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
           />
         </section>
         <section className="mc-section" aria-labelledby="mc-cal">
-          <MacroCalendar calendar={calendar.data} alerts={alerts.data} calendarError={calendar.error} alertsError={alerts.error} />
+          <MacroCalendar calendar={calendar.data} alerts={alerts.data} calendarError={calendar.error} alertsError={alerts.error} hideReleases={props.embedded} />
         </section>
       </div>
 

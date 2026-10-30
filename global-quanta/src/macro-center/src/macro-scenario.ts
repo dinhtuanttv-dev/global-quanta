@@ -131,7 +131,8 @@ export function resolveShocks(shocks: ShockSpec[], transforms: Record<string, Tr
       warnings.push(`Bỏ qua cú sốc ${s.factor}: biến này không có trong mô hình.`);
       continue;
     }
-    const compatible = (s.unit === 'pct' && t === 'logdiff') || (s.unit === 'pp' && t === 'diff');
+    // pp hợp lệ với cả 'level': chuỗi tỷ lệ % giữ nguyên mức (VD CPI so cùng kỳ) có đơn vị đúng là điểm %.
+    const compatible = (s.unit === 'pct' && t === 'logdiff') || (s.unit === 'pp' && (t === 'diff' || t === 'level'));
     if (!compatible) {
       warnings.push(`Bỏ qua cú sốc ${s.factor}: đơn vị '${s.unit}' không khớp phép biến đổi '${t}'.`);
       continue;
