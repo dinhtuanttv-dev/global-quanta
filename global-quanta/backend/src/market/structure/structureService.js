@@ -251,7 +251,8 @@ export function createStructureService({ service, taSeries, corporateActions, no
   /**
    * MTF v3 (MTF-v3-prereg.md) — Ngày · Tuần · Tháng, KHÔNG khung 1 giờ. Tuần / tháng gộp từ cùng chuỗi nến ngày của biểu đồ;
    * khung lớn chỉ dùng kỳ đã đóng. S1: dải EMA21 · EMA50 · EMA100 · MA200 từng khung + đồng thuận ba khung. S2: sóng xác nhận bằng
-   * đóng cửa, Dow (đáy bảo vệ / đỉnh hồi, CHoCH / BOS), giai đoạn Minervini S1–S4, "chân dưới đổi theo chân trên".
+   * đóng cửa, Dow (đáy bảo vệ / đỉnh hồi, CHoCH / BOS), giai đoạn Minervini S1–S4, "chân dưới đổi theo chân trên". S3: hợp lưu
+   * Elliott Pro (đếm ngày + tuần) × dải EMA (sóng 2 / 4 kết thúc trong dải, sóng 3 lồng sóng 3, mức vô hiệu so với đáy bảo vệ).
    */
   async function analyze3(symbolRaw) {
     const symbol = canonicalSymbol(symbolRaw);
@@ -265,6 +266,7 @@ export function createStructureService({ service, taSeries, corporateActions, no
       bars: { D: r.D.bars.length, W: r.W.bars.length, M: r.M.bars.length },
       ribbon: Q.compactRibbon3(r, { window: 260 }),
       structure: Q.compactStructure3(a, { window: 260 }),
+      elliott: (() => { try { return Q.elliott3(dBars, a); } catch (e) { return { error: e.message }; } })(),
       evidence: { label: "THỰC NGHIỆM", note: "Dải MA là thành phần mô tả; kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
     };
   }

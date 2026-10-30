@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import RibbonStrip from "./mtf3/RibbonStrip";
 import StructureFrames from "./mtf3/StructureFrames";
+import ElliottConfluence from "./mtf3/ElliottConfluence";
 import { useStructure3 } from "../../../hooks/useStructure3";
 import { ShieldAlert, ShieldCheck, Layers3, History, ChevronLeft, ChevronRight, Check, X, Minus } from "lucide-react";
 import type { EvidenceLabel, StructureDoc, StructureLedgerStats, StructureMomentumStats, StructureStage, StructureStat, StructureStatPair, StructureTfKey, StructureTransition } from "../../../hooks/useStructure";
@@ -275,6 +276,7 @@ export default function StructurePanel({ doc, isLoading, error, mode, onModeChan
       </header>
       {s3.data?.ribbon?.context && replay?.index == null && <RibbonStrip ctx={s3.data.ribbon.context} />}
       {s3.data?.structure?.context && replay?.index == null && <StructureFrames ctx={s3.data.structure.context} />}
+      {s3.data?.elliott && !("error" in s3.data.elliott) && replay?.index == null && <ElliottConfluence e={s3.data.elliott} />}
       {replay && <ReplayBar r={replay} />}
       {replay?.index != null && (
         <p className="text-[10px] text-amber-200/90 rounded-lg px-2 py-1 bg-amber-500/5" data-testid="structure-replay-note">

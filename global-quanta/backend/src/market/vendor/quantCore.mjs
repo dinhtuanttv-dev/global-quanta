@@ -3933,13 +3933,13 @@ function classifyMotive(p, position = "unknown") {
   if (p.length < 6) return [];
   const s = dirOf(p[0], p[1]);
   const w = [len(p[0], p[1]), len(p[1], p[2]), len(p[2], p[3]), len(p[3], p[4]), len(p[4], p[5])];
-  const r22 = w[1] / w[0], r4 = w[3] / w[2];
+  const r23 = w[1] / w[0], r4 = w[3] / w[2];
   const w3Shortest = w[2] < w[0] && w[2] < w[4];
   const overlap = s * (p[4].price - p[1].price) <= 0;
   const w3Beyond = s * (p[3].price - p[1].price) > 0;
   const w5Beyond = s * (p[5].price - p[3].price) > 0;
   const base = [
-    { id: "w2-origin", severity: "hard", pass: r22 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r22)})` },
+    { id: "w2-origin", severity: "hard", pass: r23 < 1, text: `S\xF3ng 2 kh\xF4ng v\u01B0\u1EE3t g\u1ED1c s\xF3ng 1 (h\u1ED3i ${pct2(r23)})` },
     { id: "w3-not-shortest", severity: "hard", pass: !w3Shortest, text: "S\xF3ng 3 kh\xF4ng ph\u1EA3i s\xF3ng ng\u1EAFn nh\u1EA5t trong 1-3-5" },
     { id: "w3-beyond-w1", severity: "hard", pass: w3Beyond, text: "S\xF3ng 3 v\u01B0\u1EE3t \u0111i\u1EC3m cu\u1ED1i s\xF3ng 1" }
   ];
@@ -3959,7 +3959,7 @@ function classifyMotive(p, position = "unknown") {
     { id: "diag-overlap", severity: "hard", pass: overlap, text: "S\xF3ng 4 l\u1EA5n v\xE0o v\xF9ng gi\xE1 s\xF3ng 1 (\u0111\u1EB7c tr\u01B0ng c\u1EE7a n\xEAm)" },
     { id: "diag-wedge", severity: "hard", pass: contracting || expanding, text: contracting ? "N\xEAm thu h\u1EB9p: 1 > 3 > 5, 2 > 4, hai \u0111\u01B0\u1EDDng h\u1ED9i t\u1EE5" : expanding ? "N\xEAm m\u1EDF r\u1ED9ng: 1 < 3 < 5, 2 < 4, hai \u0111\u01B0\u1EDDng ph\xE2n k\u1EF3" : "Hai \u0111\u01B0\u1EDDng 1-3 v\xE0 2-4 kh\xF4ng t\u1EA1o h\xECnh n\xEAm" },
     { id: "diag-w5", severity: "soft", pass: w5Beyond, text: w5Beyond ? "S\xF3ng 5 v\u01B0\u1EE3t s\xF3ng 3" : "S\xF3ng 5 kh\xF4ng v\u01B0\u1EE3t s\xF3ng 3 (n\xEAm h\u1EE5t)" },
-    { id: "diag-deep", severity: "soft", pass: r22 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
+    { id: "diag-deep", severity: "soft", pass: r23 >= 0.5 && r4 >= 0.5, text: "S\xF3ng 2 v\xE0 4 h\u1ED3i s\xE2u (\u2265 50%) \u2014 \u0111i\u1EC3n h\xECnh c\u1EE7a n\xEAm" }
   ];
   if (position !== "middle") {
     if (position !== "last") out.push(fit("LD", [...wedge, { id: "ld-pos", severity: "soft", pass: position === "first" ? true : null, text: "N\xEAm m\u1EDF \u0111\u1EA7u \u1EDF s\xF3ng 1 / s\xF3ng A" }], ["0", "1", "2", "3", "4", "5"]));
@@ -4274,6 +4274,33 @@ function buildWaveTree(candles, opts = {}) {
     }
   }
   return { version: WAVE_TREE_VERSION, basePct, pivots: pivots2, levels, position, alternates, dualLabel, asOf: String(c[c.length - 1].time), barCount: c.length };
+}
+var treeCovers = (t) => !!t && t.position.some((n) => (n.kind === "motive" || n.kind === "corrective") && n.children.length >= 2);
+var PATTERN_VI = {
+  IM: "xung l\u1EF1c",
+  LD: "n\xEAm m\u1EDF \u0111\u1EA7u",
+  ED: "n\xEAm k\u1EBFt th\xFAc",
+  ZZ: "zigzag",
+  DZ: "zigzag k\xE9p",
+  FL: "flat",
+  "EX-FL": "flat m\u1EDF r\u1ED9ng",
+  RFL: "flat ch\u1EA1y",
+  TR: "tam gi\xE1c",
+  RTR: "tam gi\xE1c ch\u1EA1y",
+  ETR: "tam gi\xE1c m\u1EDF r\u1ED9ng",
+  D3: "W-X-Y",
+  T3: "W-X-Y-X-Z"
+};
+function describePosition(t) {
+  if (!t || !treeCovers(t)) return "Ch\u01B0a d\u1EF1ng \u0111\u01B0\u1EE3c c\u1EA5u tr\xFAc s\xF3ng.";
+  const parts = [];
+  for (const n of t.position) {
+    if (n.kind === "orphan") continue;
+    const lastLabel = n.childLabels[n.childLabels.length - 1];
+    const what = `${PATTERN_VI[n.pattern ?? ""] ?? n.pattern ?? "c\u1EA5u tr\xFAc"} ${n.dir > 0 ? "t\u0103ng" : "gi\u1EA3m"}`;
+    parts.push(`${lastLabel || "?"} c\u1EE7a ${what}${n.complete ? " (\u0111\xE3 \u0111\u1EE7 s\xF3ng)" : " (\u0111ang ch\u1EA1y)"}`);
+  }
+  return parts.join(" \u2192 ");
 }
 
 // src/lib/quant-core/elliott/v3/scenarios.ts
@@ -5037,8 +5064,80 @@ function compactStructure3(a, opts = {}) {
   return { context: t >= 0 ? context3At(a, t) : null, frames: { D: frame(a.D), W: frame(a.W), M: frame(a.M) } };
 }
 
+// src/lib/quant-core/mtf3/elliott3.ts
+var ELLIOTT3 = { w2Retrace: [0.382, 0.786], w4Retrace: [0.236, 0.618], bandAtr: 0.5, minBars: 60 };
+var r22 = (x) => Math.round(x * 100) / 100;
+var candlesOf = (bars) => bars.map((b) => ({ time: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume }));
+function primaryOf(bars) {
+  if (bars.length < ELLIOTT3.minBars) return null;
+  const candles = candlesOf(bars), tree = buildWaveTree(candles);
+  const scs = scenariosFromTree(tree, candles);
+  return { sc: scs.find((s) => s.role === "primary") ?? scs[0] ?? null, position: describePosition(tree) };
+}
+function viewOf(p) {
+  if (!p) return null;
+  const sc = p.sc;
+  return {
+    label: sc ? `${TEMPLATE_TITLE[sc.template]} ${sc.dir > 0 ? "t\u0103ng" : "gi\u1EA3m"}${sc.provisional ? " (t\u1EA1m)" : ""}` : "Ch\u01B0a c\xF3 k\u1ECBch b\u1EA3n",
+    position: p.position,
+    template: sc?.template ?? null,
+    dir: sc ? sc.dir > 0 ? "up" : "down" : null,
+    provisional: !!sc?.provisional
+  };
+}
+function elliott3(daily, a) {
+  const t = daily.length - 1, R2 = a.D.r;
+  const dp = primaryOf(daily);
+  const wi = a.ribbon.wIdx[t] ?? -1;
+  const wp = wi >= 0 ? primaryOf(a.W.r.bars.slice(0, wi + 1)) : null;
+  const day = viewOf(dp), week = viewOf(wp), sc = dp?.sc ?? null;
+  let waveEnd = null;
+  if (sc && (sc.template === "wave3" || sc.template === "wave5")) {
+    const isW2 = sc.template === "wave3", an = sc.anchors;
+    const e = an[an.length - 1], s0 = an[an.length - 3], s1 = an[an.length - 2];
+    if (e && s0 && s1) {
+      const leg = Math.abs(s1.price - s0.price), retrace = leg > 0 ? Math.abs(s1.price - e.price) / leg : null;
+      const ti = daily.findIndex((b) => b.date === String(e.time).slice(0, 10));
+      const [lo, hi] = isW2 ? ELLIOTT3.w2Retrace : ELLIOTT3.w4Retrace;
+      const i = ti >= 0 ? ti : t;
+      const e1 = isW2 ? R2.ema50[i] : R2.ema21[i], e2 = isW2 ? R2.ema100[i] : R2.ema50[i], at2 = R2.atr[i];
+      const band = [e1, e2, at2].every(Number.isFinite) ? [Math.min(e1, e2) - ELLIOTT3.bandAtr * at2, Math.max(e1, e2) + ELLIOTT3.bandAtr * at2] : null;
+      waveEnd = {
+        wave: isW2 ? "2" : "4",
+        price: r22(e.price),
+        date: ti >= 0 ? daily[ti].date : null,
+        retrace: retrace == null ? null : r22(retrace),
+        inFibZone: retrace == null ? null : retrace >= lo && retrace <= hi,
+        inEmaBand: band ? e.price >= band[0] && e.price <= band[1] : null,
+        band: band ? [r22(band[0]), r22(band[1])] : null,
+        bandName: isW2 ? "EMA50\u2013EMA100" : "EMA21\u2013EMA50"
+      };
+    }
+  }
+  const confluence = waveEnd && waveEnd.inFibZone && waveEnd.inEmaBand ? "strong" : waveEnd && (waveEnd.inFibZone || waveEnd.inEmaBand) ? "partial" : "none";
+  const nested3 = day?.template === "wave3" && week?.template === "wave3" && day.dir === week.dir ? day.dir : null;
+  const relation = !day?.dir || !week?.dir ? "unclear" : day.dir === week.dir ? "aligned" : week.template === "wave3" || week.template === "wave5" ? "pullback" : "counter";
+  const relationText = relation === "aligned" ? `Ng\xE0y v\xE0 Tu\u1EA7n c\xF9ng chi\u1EC1u ${day.dir === "up" ? "t\u0103ng" : "gi\u1EA3m"}` : relation === "pullback" ? "Ng\xE0y \u0111ang \u0111i\u1EC1u ch\u1EC9nh ng\u01B0\u1EE3c chi\u1EC1u s\xF3ng \u0111\u1EA9y c\u1EE7a Tu\u1EA7n" : relation === "counter" ? "Ng\xE0y ng\u01B0\u1EE3c chi\u1EC1u Tu\u1EA7n" : "Ch\u01B0a \u0111\u1EE7 k\u1ECBch b\u1EA3n \u1EDF m\u1ED9t trong hai khung";
+  const inv = sc ? { price: r22(sc.invalidation.price), side: sc.dir > 0 ? "below" : "above", reason: sc.invalidation.text } : null;
+  const pl = a.D.dow.protectedLow[t], at = R2.atr[t];
+  const stopAgreement = inv && inv.side === "below" && Number.isFinite(pl) && at > 0 ? { elliott: inv.price, dow: r22(pl), gapAtr: r22((pl - inv.price) / at) } : null;
+  return {
+    day,
+    week,
+    relation,
+    relationText,
+    nested3,
+    waveEnd,
+    confluence,
+    trigger: sc ? { price: r22(sc.trigger.price), text: sc.trigger.text } : null,
+    invalidation: inv,
+    stopAgreement,
+    targets: (sc?.targets ?? []).slice(0, 3).map((x) => ({ label: x.label, price: r22(x.price) }))
+  };
+}
+
 // src/lib/quant-core/mtf3/index.ts
-var MTF3_VERSION = "3.0.0-s2";
+var MTF3_VERSION = "3.0.0-s3";
 export {
   CONVERGENCE,
   CONVERGENCE_VERSION,
@@ -5071,6 +5170,7 @@ export {
   compactTf as compactStructureTf,
   context3At,
   convergenceAt,
+  elliott3,
   evaluateLifecycle,
   minutesToH1,
   patternStatusAt,
