@@ -262,17 +262,10 @@ export function createStructureService({ service, taSeries, corporateActions, no
     const daily = await dailyBars(symbol);
     if (daily.bars.length < 60) { const e = new Error(`${symbol} chưa đủ lịch sử nến ngày (${daily.bars.length} phiên).`); e.statusCode = 404; throw e; }
     const dBars = daily.bars.map((b) => ({ date: b.date, open: b.open, high: b.high, low: b.low, close: b.close, volume: b.volume ?? 0 }));
-    const a = Q.analyzeMtf3(dBars), r = a.ribbon;
-    const ew = (() => { try { return Q.elliott3(dBars, a); } catch (e) { return { error: e.message }; } })();
+    const doc = Q.buildStructure3(dBars, { window: 260 });
     return {
-      version: Q.MTF3_VERSION, symbol, asOf: dBars[dBars.length - 1].date, priceBasis: daily.priceBasis ?? null,
-      bars: { D: r.D.bars.length, W: r.W.bars.length, M: r.M.bars.length },
-      ribbon: Q.compactRibbon3(r, { window: 260 }),
-      structure: Q.compactStructure3(a, { window: 260 }),
-      elliott: ew,
-      bases: Q.compactBases3(a),
-      decision: Q.decision3At(a, dBars.length - 1, ew && !ew.error && ew.day?.dir === "up" ? ew.targets?.[0]?.price ?? null : null),
-      evidence: { label: "THỰC NGHIỆM", note: "Dải MA là thành phần mô tả; kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
+      ...doc, symbol, priceBasis: daily.priceBasis ?? null,
+      evidence: { label: "THỰC NGHIỆM", note: "Toàn bộ MTF v3 là MÔ TẢ cho tới khi kiểm định đặt trước MTF-v3 (H1–H6) chạy ở bước S7." },
     };
   }
 
