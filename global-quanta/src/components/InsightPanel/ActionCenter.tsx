@@ -102,8 +102,8 @@ export default function ActionCenter() {
   };
   const score = scored?.score ?? null;
   const stateLine = core
-    ? `${core.state === 'stable' ? '🛡' : core.state === 'breakout' ? '⚡' : '⚠'} ${core.stateLabel} · Core ${score}/6`
-    : score !== null ? `Ring · ${score}/6 tiêu chí — còn ${Math.max(0, CORE_MIN - score)} để vào Core` : `Chưa có trong ★ ${radar.listName}`;
+    ? `${core.state === 'stable' ? '🛡' : core.state === 'breakout' ? '⚡' : '⚠'} ${core.stateLabel} · Core ${score}/5`
+    : score !== null ? `Ring · ${score}/5 tiêu chí — còn ${Math.max(0, CORE_MIN - score)} để vào Core` : `Chưa có trong ★ ${radar.listName}`;
   const vsMa = (ma: number | null) => (ma && price ? ((price / ma - 1) * 100) : null);
 
   return (

@@ -31,7 +31,6 @@ const sources = (over = {}) => ({
   wsStrategy: { short: { rows: [{ icb: "1700", alphaBps: 2.1 }, { icb: "1750", alphaBps: 3.47 }, { icb: "9500", alphaBps: -5.29 }] } },
   rrg: { sectors: [{ code: "1700", liveQuadrant: "IMPROVING" }, { code: "9500", quadrant: "LAGGING" }] },
   taxonomy: { symbols: { HPG: { l1: "1000", l2: "1700", l3: "1750" }, FPT: { l1: "9000", l2: "9500" }, VIC: { l2: "8600" } } },
-  catalyst: { tickerImpacts: { FPT: { direction: "benefit", compositeScore: 24 }, HPG: { direction: "none", compositeScore: 0 } } },
   cotuc: null,
   ...over,
 });
@@ -47,14 +46,13 @@ test("E1 buildSignalRows: chuẩn hoá đúng chiều, null khi không có dữ 
   assert.equal(hpg.convergence, 3);
   assert.equal(hpg.rrg_quadrant, 1, "RRG theo ngành có trong tài liệu (1700)");
   assert.equal(hpg.foreign_net_buy, 1);
-  assert.equal(hpg.catalyst_impact, 0);
   assert.equal(hpg.base_breakout, null, "bộ lọc không có tài liệu -> null, không phải 0");
   const fpt = rows.find((r) => r.ticker === "FPT").values;
   assert.equal(fpt.ws_sector_alpha, -5.29);
   assert.equal(fpt.pattern_state, -1, "mô hình giảm -> âm");
   assert.equal(fpt.sepa_s2, 0);
   assert.equal(fpt.stealth20, null, "không có đặc trưng dòng tiền -> null");
-  assert.equal(fpt.catalyst_impact, 24);
+  assert.equal(fpt.catalyst_impact, undefined, "31/10/2026: đã gỡ tín hiệu Chất xúc tác");
   assert.equal(fpt.top20_alpha, null);
   const vic = rows.find((r) => r.ticker === "VIC").values;
   assert.equal(vic.smart_score, null);
@@ -83,7 +81,7 @@ function fakeDeps(store, { calls = { qms: 0 } } = {}) {
     taxonomy: async () => sources().taxonomy,
     fetchImpl: async (url) => {
       calls.qms++;
-      if (url.endsWith("/api/catalysts/latest")) return new Response(JSON.stringify({ scannedAt: "2026-10-10T22:56:25Z", isStale: true, tickerImpacts: { FPT: { direction: "harm", compositeScore: 10 } } }));
+      if (url.endsWith("/api/catalysts/latest")) throw new Error("không được gọi engine Chất xúc tác đã gỡ");
       return new Response("{}", { status: 500 });
     },
     projectABase: "https://pa.test",
@@ -104,8 +102,7 @@ test("E1 dịch vụ: dựng + lưu theo ngày (point-in-time), không dựng l�
   assert.equal(doc.date, "2026-10-16");
   assert.equal(doc.universe, 3);
   assert.equal(doc.rows.find((r) => r.ticker === "HPG").values.stealth20, 1.8);
-  assert.equal(doc.rows.find((r) => r.ticker === "FPT").values.catalyst_impact, -10);
-  assert.equal(doc.asOf.catalystStale, true);
+  assert.equal(doc.asOf.catalystStale, undefined);
   assert.ok(doc.missingSources.includes("cotuc"));
   assert.ok(doc.missingSources.includes("strategies:patterns"));
   assert.deepEqual((await store.getKv(ELITE_KV.index)).value.dates, ["2026-10-16"]);

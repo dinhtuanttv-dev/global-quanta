@@ -109,6 +109,7 @@ export const CONVERGENCE_LABELS = [
   'Kết nối thế giới',
   'Lọc ngành',
   'TA VN-Index',
-  'Chất xúc tác',
   'Cổ tức · điểm mua',
 ];
+/** Bộ 6 tiêu chí của ảnh chụp lịch sử trước phiên bản 3 (31/10/2026 gỡ engine Chất xúc tác). */
+export const LEGACY_CONVERGENCE_LABELS = ['Siêu quét AI', 'Kết nối thế giới', 'Lọc ngành', 'TA VN-Index', 'Chất xúc tác', 'Cổ tức · điểm mua'];

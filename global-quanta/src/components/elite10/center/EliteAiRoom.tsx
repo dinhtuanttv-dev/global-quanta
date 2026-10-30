@@ -3,7 +3,7 @@
 //     world_*, catalyst_*) — hai mô hình khác nhau thật, không phải một mô hình đóng hai vai; sau đó Claude làm trọng tài, gọi công cụ
 //     để kiểm chứng từng luận điểm và kết luận cân bằng. Mọi câu trả lời đều qua bước đối chiếu con số với kết quả công cụ.
 //   - Bản tin phiên: tạo khi bấm (không chạy định kỳ — tránh chi phí API không cần thiết).
-//   - Hỏi đáp tự do: cùng khung Hỏi đáp xúc tác, gợi ý theo Elite 10.
+//   - Hỏi đáp tự do: cùng khung Hỏi đáp vĩ mô & thị trường, gợi ý theo Elite 10.
 import { useEffect, useRef, useState } from "react";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";

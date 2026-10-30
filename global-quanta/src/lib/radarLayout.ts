@@ -11,7 +11,8 @@ export const CY = 190;
 export const R_MAX = 168;
 
 /** Bán kính mục tiêu theo điểm hội tụ (6 → gần tâm, 0 → vòng ngoài). */
-export const radiusForScore = (score: number) => 30 + (6 - Math.max(0, Math.min(6, score))) * 22;
+// Thang 5 tiêu chí (31/10/2026), giữ nguyên bán kính ngoài; điểm 6 của ảnh chụp cũ ghim vào tâm.
+export const radiusForScore = (score: number) => 30 + (5 - Math.max(0, Math.min(5, score))) * 26.4;
 
 export interface LayoutInput { ticker: string; score: number; group: string; smart: number | null; core: boolean }
 export interface LayoutNode extends LayoutInput { x: number; y: number; angle: number; dot: number; showLabel: boolean }
