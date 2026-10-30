@@ -2,7 +2,6 @@ import { Fragment, useState, useMemo, memo, useCallback, useEffect, useRef } fro
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import { ScannerEvidence } from "./ScannerEvidence";
-import { EventPanel } from "./EventPanel";
 import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
@@ -21,7 +20,6 @@ import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
 import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
 import TradingMatrixPanel from "./TradingMatrix/TradingMatrixPanel";
-import QuantEdgeLab from "./QuantEdgeLab";
 
 
 const COLUMN_COUNT = 9;
@@ -396,16 +394,15 @@ export default function SieuQuetAiTab() {
         </div>
       </section>
 
-      {/* SỰ KIỆN + NGUỒN DỮ LIỆU (chuyển từ cột trái cũ) */}
-      {researchUiOn && <QuantEdgeLab defaultTicker={selectedTicker} />}
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2"><EventPanel /></div>
+      {/* 30/10/2026: Quant Edge (H1/H2), ESA và Sự kiện vĩ mô đã chuyển sang Chất xúc tác › Event Radar › Phân tích chuyên sâu.
+          Chỗ này để trống cho nâng cấp sau (theo yêu cầu). */}
+      <section className="grid grid-cols-1 gap-4">
         <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3 h-fit">
           <p className="text-[9px] text-sky-300">
             {gatewayEnabled
               ? <>Giá: SSI realtime qua Market Gateway (● = giá SSI). Điểm số TA/FA, VN-Index đa tầng: quét định kỳ (Yahoo + VCI + VNDirect) cho {items.length} mã.</>
               : <>Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.</>}
-            Sự kiện: AI Discovery (Gemini + Google Search, 3 lần/ngày) + nhập tay, chỉ sự kiện đã xác nhận mới ảnh hưởng Smart Score.
+             Sự kiện đã xác nhận (AI Discovery trên Project A) vẫn vào Smart Score. Nghiên cứu sự kiện, ESA và tin vĩ mô: tab Chất xúc tác › Event Radar.
           </p>
         </div>
       </section>

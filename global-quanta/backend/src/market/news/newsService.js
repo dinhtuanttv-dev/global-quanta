@@ -95,6 +95,7 @@ export function parseRss(xml, feed) {
       sourceLabel: feed.label,
       sourceAuthority: feed.authority ?? null,
       usageTermsStatus: feed.usageTermsStatus ?? "review_required",
+      feedSection: feed.section ?? null,
       tickers: [],
     });
   }

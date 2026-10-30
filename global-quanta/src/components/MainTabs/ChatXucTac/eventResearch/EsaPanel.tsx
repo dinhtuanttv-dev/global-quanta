@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchMarketJson } from "../../../services/marketDataClient";
+import { fetchMarketJson } from "../../../../services/marketDataClient";
 
 type EsaSnapshot = {
   symbol: string;

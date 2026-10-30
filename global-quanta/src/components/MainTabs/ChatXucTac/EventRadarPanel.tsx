@@ -4,19 +4,13 @@ import { fetchMarketJson } from "../../../services/marketDataClient";
 import { getAccessToken } from "../../../services/api";
 import { isTrustedUrl } from "../../../lib/urlSafety";
 import { useEventRadar, type EventRadarEvent } from "../../../hooks/useEventRadar";
-
-type ReactionStudy = {
-  status: string;
-  event: { stockReturn: number | null; excessReturn: number | null; abnormalVolumeRatio: number | null; absorptionInterpretation: string };
-  drift: { horizon: number; excessReturn: number | null; status: string }[];
-  meta: { asOf: string | null; warnings: string[]; methodVersion: string; sourceEventDate?: string | null; eventSessionDate?: string | null; timeMappingReason?: string | null };
-};
+import { ratio, seedFromEvent, signedPct, vnDateTime as asOf, type EventReactionStudy as ReactionStudy } from "./eventResearch/researchFormat";
 
 const EVENT_LABEL: Record<string, string> = {
   MONETARY_POLICY: "Chính sách tiền tệ", FISCAL_POLICY: "Chính sách tài khóa / thuế",
   MACRO_DATA: "Dữ liệu vĩ mô", SYSTEMIC_STRESS: "Cú sốc / rủi ro hệ thống",
   MARKET_STRUCTURE: "Hạ tầng thị trường", LEGAL: "Pháp lý", EARNINGS: "Kết quả kinh doanh",
-  DIVIDEND: "Cổ tức", MNA: "M&A / thoái vốn", ISSUANCE: "Phát hành / tăng vốn",
+  MACRO_NEWS: "Tin kinh tế vĩ mô", DIVIDEND: "Cổ tức", MNA: "M&A / thoái vốn", ISSUANCE: "Phát hành / tăng vốn",
   CONTRACT: "Hợp đồng / dự án", AGM: "ĐHĐCĐ / nghị quyết", OTHER: "Tin doanh nghiệp",
 };
 const STATUS_LABEL: Record<string, string> = {
@@ -27,27 +21,21 @@ const STATUS_LABEL: Record<string, string> = {
 const SEVERITY_LABEL: Record<string, string> = {
   critical_watch: "Cảnh báo cần xác minh", high_attention: "Chú ý cao", material: "Trọng yếu", monitor: "Theo dõi",
 };
-const pct = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? "—" : `${value >= 0 ? "+" : "−"}${Math.abs(value * 100).toFixed(2)}%`;
-const ratio = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? "—" : `${value.toFixed(2)}×`;
-const vnDate = (value: string | null) => value ? new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(value)) : "";
-const asOf = (value: string | null) => value ? new Date(value).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" }) : "Chưa có thời điểm";
+const pct = (value: number | null | undefined) => signedPct(value, 2);
 
 function ReactionDetail({ event }: { event: EventRadarEvent }) {
   const [study, setStudy] = useState<ReactionStudy | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const symbol = event.tickers[0];
-  const eventTimestamp = event.publishedAt ?? event.firstSeenAt;
-  const date = vnDate(eventTimestamp);
+  // Cùng cách dựng tham số với H1 đầy đủ (phần Phân tích chuyên sâu) — mã đầu tiên + thời điểm công bố.
+  const { symbol, eventDate: date, eventTimestamp, eventTimeSource, eventLabel } = seedFromEvent(event);
 
   async function run() {
     if (!symbol || !date) return;
     setLoading(true); setError(""); setStudy(null);
     try {
       const result = await fetchMarketJson<ReactionStudy>("/api/market/research/event-reaction", {
-        symbol, eventDate: date, eventTimestamp,
-        eventTimeSource: event.publishedAt ? "publisher_timestamp" : "gateway_first_seen",
-        eventLabel: event.eventLabel || event.title,
+        symbol, eventDate: date, eventTimestamp, eventTimeSource, eventLabel,
       });
       setStudy(result);
     } catch (cause) {
@@ -55,7 +43,7 @@ function ReactionDetail({ event }: { event: EventRadarEvent }) {
     } finally { setLoading(false); }
   }
 
-  return <div className="mt-3 border-t border-white/10 pt-3">
+  return <div className="min-w-0 flex-1">
     <button type="button" onClick={run} disabled={!symbol || !date || loading}
       className="rounded border border-cyan-700/60 bg-cyan-950/40 px-2.5 py-1.5 text-[10px] font-semibold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40">
       {loading ? "Đang phân tích…" : `Nghiên cứu H1${symbol ? ` · ${symbol}` : ""}`}
@@ -82,7 +70,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded bg-white/[0.035] p-2"><div className="text-[9px] text-slate-500">{label}</div><div className="mt-1 text-xs font-semibold text-slate-200">{value}</div></div>;
 }
 
-function EventCard({ event }: { event: EventRadarEvent }) {
+function EventCard({ event, onAnalyzeEvent }: { event: EventRadarEvent; onAnalyzeEvent?: (event: EventRadarEvent) => void }) {
   const accent = event.severityScore >= 4 ? "border-rose-500/50" : event.severityScore >= 3 ? "border-amber-500/40" : "border-white/10";
   return <article className={`rounded-lg border ${accent} bg-slate-950/65 p-3`}>
     <div className="flex flex-wrap items-center gap-1.5">
@@ -103,7 +91,11 @@ function EventCard({ event }: { event: EventRadarEvent }) {
     {event.sourceDocuments.length > 1 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/5 pt-2">
       {event.sourceDocuments.slice(0, 6).map((source) => isTrustedUrl(source.url) ? <a key={source.eventId} href={source.url!} target="_blank" rel="noopener noreferrer" className="text-[9px] text-sky-300/80 underline">{source.sourceLabel}</a> : null)}
     </div>}
-    <ReactionDetail event={event} />
+    <div className="mt-3 flex flex-wrap items-start gap-2 border-t border-white/10 pt-3">
+      <ReactionDetail event={event} />
+      {onAnalyzeEvent && event.tickers.length > 0 && <button type="button" onClick={() => onAnalyzeEvent(event)}
+        className="rounded border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200 hover:border-cyan-700/60 hover:text-cyan-200">Phân tích chuyên sâu →</button>}
+    </div>
   </article>;
 }
 
@@ -162,7 +154,7 @@ function RadarPlot({ events, selectedId, onSelect }: {
   </div>;
 }
 
-export default function EventRadarPanel() {
+export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (event: EventRadarEvent) => void } = {}) {
   const [tickerInput, setTickerInput] = useState("");
   const [tickerFilter, setTickerFilter] = useState("");
   const [category, setCategory] = useState("");
@@ -227,7 +219,7 @@ export default function EventRadarPanel() {
       <RadarPlot events={events} selectedId={selectedId} onSelect={setSelectedId} />
       <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1" aria-label="Danh sách sự kiện Radar">
         {events.map((event) => <div key={event.eventId} id={`event-${event.eventId}`} className={event.eventId === selectedId ? "rounded-xl ring-1 ring-cyan-400/70" : "rounded-xl"}>
-          <EventCard event={event} />
+          <EventCard event={event} onAnalyzeEvent={onAnalyzeEvent} />
         </div>)}
       </div>
     </div>}

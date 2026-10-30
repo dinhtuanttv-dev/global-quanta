@@ -17,19 +17,63 @@ const iso = (value) => {
   return Number.isFinite(d.getTime()) ? d.toISOString() : null;
 };
 
+// Nhóm vĩ mô / toàn thị trường. 30/10/2026 (EV-R1): siết từ khoá — bản cũ khớp "thue" trong "lãi sau thuế", "lai suat" trong
+// "trái phiếu lãi suất 12,5%", "hose" trong mọi bài nhắc sàn -> phần lớn tin "tài khoá / hạ tầng" thực ra là KQKD doanh nghiệp.
+// Chỉ xét TIÊU ĐỀ (tóm tắt chứa nhiều từ lẻ); tin doanh nghiệp rõ loại (KQKD, pháp lý, cổ tức…) thắng nhóm vĩ mô, trừ cú sốc hệ thống.
+export const RADAR_CLASSIFIER_VERSION = "radar-classify-v3";
 const SYSTEM_EVENT_RULES = [
-  { id: "MONETARY_POLICY", label: "Chính sách tiền tệ", re: /(lai suat dieu hanh|lai suat|tin dung|han muc tin dung|ngan hang nha nuoc|ty gia|ngoai hoi|du tru bat buoc|room tin dung)/ },
-  { id: "FISCAL_POLICY", label: "Chính sách tài khóa / thuế", re: /(thue|ngan sach|dau tu cong|giai ngan|nghi dinh|thong tu|luat moi|chinh sach)/ },
-  { id: "MACRO_DATA", label: "Dữ liệu vĩ mô", re: /(gdp|cpi|lam phat|xuat khau|nhap khau|pmi|fd.i|san xuat cong nghiep|ban le)/ },
   { id: "SYSTEMIC_STRESS", label: "Cú sốc / rủi ro hệ thống", re: /(vo no|khung hoang|thien tai|bao so|lu lut|dong dat|mat dien|tan cong mang|su co he thong|chien tranh|cam van|dut gay chuoi cung ung|bank run|khung bo)/ },
-  { id: "MARKET_STRUCTURE", label: "Hạ tầng / cấu trúc thị trường", re: /(hose|hnx|vsdc|luu ky|bu tru|thanh toan|nang hang|ha tang giao dich|ngung giao dich|loi giao dich)/ },
+  { id: "MONETARY_POLICY", label: "Chính sách tiền tệ", re: /(lai suat dieu hanh|lai suat tai cap von|lai suat tai chiet khau|lai suat lien ngan hang|lai suat huy dong|lai suat cho vay|mat bang lai suat|giam lai suat|tang lai suat|ngan hang nha nuoc|\bnhnn\b|tang truong tin dung|room tin dung|han muc tin dung|ty gia|ngoai hoi|du tru bat buoc|tin phieu|bom rong|hut rong|\bfed\b|\becb\b)/ },
+  { id: "FISCAL_POLICY", label: "Chính sách tài khóa / thuế", re: /(chinh sach thue|thue suat|giam thue|mien thue|gian thue|tang thue|thue gtgt|thue vat|thue thu nhap doanh nghiep|thue tieu thu dac biet|thue doi ung|thue quan|ngan sach nha nuoc|thu ngan sach|chi ngan sach|dau tu cong|giai ngan von|nghi dinh|thong tu|du thao luat|luat sua doi|quoc hoi thong qua)/ },
+  { id: "MACRO_DATA", label: "Dữ liệu vĩ mô", re: /(\bgdp\b|\bcpi\b|lam phat|chi so gia|kim ngach xuat khau|kim ngach nhap khau|can can thuong mai|xuat sieu|nhap sieu|\bpmi\b|\bfdi\b|san xuat cong nghiep|\biip\b|tong muc ban le|cuc thong ke|tong cuc thong ke|that nghiep)/ },
+  { id: "MARKET_STRUCTURE", label: "Hạ tầng / cấu trúc thị trường", re: /(nang hang thi truong|nang hang chung khoan|\bftse\b|\bmsci\b|\bkrx\b|he thong giao dich|\bvsdc?\b|luu ky|bu tru|ngung giao dich toan|loi giao dich|non-prefunding|ubcknn|uy ban chung khoan)/ },
 ];
+const COMPANY_FIRST = new Set(["LEGAL", "EARNINGS", "INSIDER", "MNA", "DIVIDEND", "ISSUANCE", "AGM", "PERSONNEL"]);
+const MACRO_NEWS = { id: "MACRO_NEWS", label: "Tin kinh tế vĩ mô", weight: 0.6 };
 
-function classifyRadarEvent(item) {
-  const text = fold(`${item.title} ${item.summary ?? ""}`);
-  const system = SYSTEM_EVENT_RULES.find((rule) => rule.re.test(text));
+// EV-R2: chuyên mục vĩ mô / tài chính–ngân hàng (nguồn cũ chỉ có chuyên mục cổ phiếu + doanh nghiệp -> gần như không có tin vĩ mô).
+export const MACRO_RSS_FEEDS = [
+  { id: "VIETSTOCK", label: "Vietstock · Vĩ mô", url: "https://vietstock.vn/761/kinh-te/vi-mo.rss", section: "macro" },
+  { id: "CAFEF", label: "CafeF · Vĩ mô – đầu tư", url: "https://cafef.vn/vi-mo-dau-tu.rss", section: "macro" },
+  { id: "CAFEF", label: "CafeF · Tài chính – ngân hàng", url: "https://cafef.vn/tai-chinh-ngan-hang.rss", section: "macro" },
+];
+const RADAR_FEEDS = [...RSS_FEEDS, ...MACRO_RSS_FEEDS];
+
+/** item: { title, summary?, feedSection?, tickers?, titleTickers? } — titleTickers = mã ghép được NGAY TRONG TIÊU ĐỀ. */
+export function classifyRadarEvent(item) {
+  const title = fold(item.title);
+  const system = SYSTEM_EVENT_RULES.find((rule) => rule.re.test(title));
+  const company = classifyEvent(item.title);
+  const noTicker = !(item.tickers?.length);
+  // Chuyên mục vĩ mô: không đòi "không gắn mã" — tóm tắt tin vĩ mô hay nhắc tên ngân hàng / doanh nghiệp nên bộ ghép mã vẫn gắn mã
+  // (production 30/10: 0/120 tin chuyên mục vĩ mô thành MACRO_NEWS). Tin doanh nghiệp rõ loại vẫn thắng ở dòng dưới.
+  const macroSection = item.feedSection === "macro";
+  // "Chủ tịch nước / Chủ tịch UBCKNN", "nghị quyết" (Trung ương / Quốc hội) không gắn mã -> không phải nhân sự / ĐHĐCĐ doanh nghiệp.
+  if (COMPANY_FIRST.has(company.id) && !(noTicker && (company.id === "AGM" || company.id === "PERSONNEL"))) return company;
   if (system) return { id: system.id, label: system.label, weight: system.id === "SYSTEMIC_STRESS" ? 1 : 0.8 };
-  return classifyEvent(item.title);
+  // v3: doanh nghiệp nêu tên ngay trong tiêu đề (VD "VPBank xây vũ trụ đặc quyền…") là tin doanh nghiệp dù nằm ở chuyên mục vĩ mô;
+  // chỉ nhắc trong tóm tắt thì vẫn là tin vĩ mô.
+  if (macroSection && !(item.titleTickers?.length)) return MACRO_NEWS;
+  return company;
+}
+
+/** Đọc ra: phân loại lại sự kiện đã lưu bằng quy tắc hiện hành (nội dung nguồn không đổi). */
+function withCurrentClassification(event) {
+  if (event.classifierVersion === RADAR_CLASSIFIER_VERSION) return event;
+  // Bản lưu trước v3 chưa có titleTickers: xấp xỉ bằng mã xuất hiện nguyên văn trong tiêu đề (lượt quét kế tiếp ghi lại chính xác).
+  const titleTickers = event.titleTickers ?? (event.tickers ?? []).filter((t) => String(event.title ?? "").toUpperCase().includes(t));
+  const c = classifyRadarEvent({ title: event.title, summary: event.summary, feedSection: event.feedSection, tickers: event.tickers, titleTickers });
+  const severity = severityFor(c.id, event.title, event.summary);
+  return { ...event, eventType: c.id, eventLabel: c.label, severity: severity.level, severityScore: severity.score, classifierVersion: RADAR_CLASSIFIER_VERSION };
+}
+
+/** Chỉ phân loại (do đổi quy tắc) khác nhau — nội dung nguồn và mã ghép giữ nguyên -> không phải bản sửa của nguồn. */
+function onlyClassificationChanged(old, event) {
+  if (!old) return false;
+  const same = (k) => (old[k] ?? null) === (event[k] ?? null);
+  const tickers = (e) => [...(e.tickers ?? [])].sort().join(",");
+  return ["title", "summary", "url", "attachment", "publishedAt", "source", "sourceLabel", "sourceAuthority", "usageTermsStatus"].every(same)
+    && tickers(old) === tickers(event);
 }
 
 function sourceAuthority(item) {
@@ -76,8 +120,11 @@ function makeDocument(item, firstSeenAt, symbols, entityIndex = null) {
     ? resolveEntities(`${title} ${summary}`, entityIndex).filter((e) => symbols.has(e.code))
     : extractTickers(`${title} ${summary}`, symbols).map((code) => ({ code, via: "code" }));
   const tickers = [...new Set([...tagged, ...entities.map((e) => e.code)])];
+  const titleTickers = entityIndex
+    ? [...new Set(resolveEntities(title, entityIndex).filter((e) => symbols.has(e.code)).map((e) => e.code))]
+    : extractTickers(title, symbols);
   const [entityMatch, entityConfidence] = entityMatchOf(tagged, entities);
-  const classification = classifyRadarEvent({ ...item, title, summary });
+  const classification = classifyRadarEvent({ ...item, title, summary, tickers, titleTickers });
   const sentimentResult = sentiment(`${title}. ${summary}`);
   const severity = severityFor(classification.id, title, summary);
   const eventId = stableEventId(item);
@@ -122,6 +169,9 @@ function makeDocument(item, firstSeenAt, symbols, entityIndex = null) {
     revision: 1,
     reaction: null,
     reactionStatus: "not_calculated",
+    classifierVersion: RADAR_CLASSIFIER_VERSION,
+    feedSection: item.feedSection ?? null,
+    titleTickers,
   };
 }
 
@@ -266,7 +316,7 @@ export function createEventRadar({ service, repository = createEventRadarReposit
         return { id: `CUSTOM_${id.toUpperCase().replace(/[^A-Z0-9_]/g, "_")}`, label, url: url.toString(), authority, usageTermsStatus: terms };
       } catch { return null; }
     }).filter(Boolean).slice(0, 20);
-    const rssPromise = fetchRssFeeds({ fetchImpl, feeds: [...RSS_FEEDS, ...customFeeds] });
+    const rssPromise = fetchRssFeeds({ fetchImpl, feeds: [...RADAR_FEEDS, ...customFeeds] });
     const disclosurePromise = active.length
       ? fetchVndirectNews(active.map((row) => String(row.symbol).toUpperCase()), { fetchImpl, days: 3 })
           .then((items) => ({ items, error: null }))
@@ -284,7 +334,7 @@ export function createEventRadar({ service, repository = createEventRadarReposit
       if (!prior || doc.contentHash !== prior.contentHash) dedupedById.set(doc.eventId, doc);
     }
     const clustered = clusterDocuments([...dedupedById.values()]);
-    const allFeeds = [...RSS_FEEDS, ...customFeeds];
+    const allFeeds = [...RADAR_FEEDS, ...customFeeds];
     const rssSources = Object.fromEntries(allFeeds.map((feed, index) => {
       const sourceKey = `${feed.id}_${index + 1}`;
       return [sourceKey, { ...rssResult.status[feed.url], label: feed.label, url: feed.url, usageTermsStatus: feed.usageTermsStatus ?? "review_required" }];
@@ -309,6 +359,12 @@ export function createEventRadar({ service, repository = createEventRadarReposit
           // Keep original first-seen timestamp and revision for unchanged documents.
           event.firstSeenAt = old.payload?.firstSeenAt ?? event.firstSeenAt;
           event.revision = Number(old.revision) || 1;
+        } else if (old && onlyClassificationChanged(old.payload, event)) {
+          // Đổi quy tắc phân loại (RADAR_CLASSIFIER_VERSION) không phải bản sửa của nguồn: giữ phiên bản + trạng thái xác minh.
+          event.firstSeenAt = old.payload?.firstSeenAt ?? event.firstSeenAt;
+          event.revision = Number(old.revision) || 1;
+          event.verificationStatus = old.payload?.verificationStatus ?? event.verificationStatus;
+          event.updatedAt = old.payload?.updatedAt ?? null;
         } else if (old) {
           event.firstSeenAt = old.payload?.firstSeenAt ?? event.firstSeenAt;
           event.revision = (Number(old.revision) || 1) + 1;
@@ -352,10 +408,12 @@ export function createEventRadar({ service, repository = createEventRadarReposit
       repository.getHealth(),
     ]);
     const wanted = ticker ? String(ticker).toUpperCase() : null;
-    const matching = rows.map((row) => row.payload).filter(Boolean).filter((event) =>
+    // Nhiều nhóm phân tách bằng dấu phẩy (VD mục Sự kiện vĩ mô) — tin mức "theo dõi" không bị 250 tin chú ý cao đẩy ra ngoài.
+    const categories = category ? new Set(String(category).split(",").map((c) => c.trim()).filter(Boolean).slice(0, 12)) : null;
+    const matching = rows.map((row) => row.payload).filter(Boolean).map(withCurrentClassification).filter((event) =>
       (!wanted || event.tickers?.includes(wanted))
       && (!status || event.verificationStatus === status)
-      && (!category || event.eventType === category));
+      && (!categories || categories.has(event.eventType)));
     const events = collapseClusters(matching).slice(0, Math.min(250, Math.max(1, limit)));
     return {
       generatedAt: storedHealth?.generatedAt ?? latestHealth.generatedAt,
@@ -375,7 +433,7 @@ export function createEventRadar({ service, repository = createEventRadarReposit
     if (!row) return null;
     const revisionResult = await repository.listRevisions(eventId, revisionPage);
     return {
-      event: row.payload,
+      event: row.payload ? withCurrentClassification(row.payload) : row.payload,
       revisions: revisionResult.rows.map((revision) => revision.payload),
       revisionPage: { hasMore: revisionResult.hasMore, nextBefore: revisionResult.nextBefore },
     };
