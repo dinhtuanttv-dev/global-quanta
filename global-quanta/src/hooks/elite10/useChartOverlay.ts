@@ -14,7 +14,7 @@ export function useChartOverlay(ticker: string | null) {
   const { data, error, isLoading } = useSWR<ChartOverlayData>(
     ticker ? `${API_BASE}/api/elite10/chart-overlay/${ticker}` : null,
     fetcher,
-    { refreshInterval: 30 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 }
+    { refreshInterval: 60 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 30 * 60 * 1000 }
   );
   return { overlay: data ?? null, isLoading, error };
 }

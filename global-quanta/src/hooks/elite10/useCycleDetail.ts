@@ -37,7 +37,7 @@ export function useCycleDetail(ticker: string | null) {
   const { data, error, isLoading } = useSWR<CycleDetailData>(
     ticker ? `${API_BASE}/api/elite10/cycle?ticker=${ticker}` : null,
     fetcher,
-    { refreshInterval: 30 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 10 * 60 * 1000 }
+    { refreshInterval: 60 * 60 * 1000, revalidateOnFocus: false, dedupingInterval: 30 * 60 * 1000 }
   );
   return { cycleDetail: data ?? null, isLoading, error };
 }
