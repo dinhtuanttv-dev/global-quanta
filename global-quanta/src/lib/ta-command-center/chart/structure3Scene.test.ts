@@ -58,6 +58,14 @@ describe("structure3Scene", () => {
     for (const t of times(structure3SceneItems(monthly, "M", doc, "deep"))) expect(md.has(t)).toBe(true);
   });
 
+  it("nền chưa đạt chuẩn: không vẽ ở Giao dịch, chỉ khung mờ không nhịp co ở Chuyên sâu", () => {
+    const bad = { ...doc, bases: { ...doc.bases!, D: { ...(doc.bases!.D ?? { from: daily[900].date, to: daily[1249].date, bars: 350, weeks: 70, leftHigh: 30000, low: 15000, lowDate: daily[1000].date, depthPct: 50, contractions: [{ hiDate: daily[900].date, hi: 30000, loDate: daily[1000].date, lo: 15000, depthPct: 50 }], vcp: false, footprint: "70W 50/50 1T", pivot: 30000, pivotDate: daily[900].date, dryUp: 1, dry: false, undercuts: [], vShape: false, pattern: "GENERIC", patternLabel: "Nền giá", baseCount: null, breakout: null }), valid: false, reasons: ["sâu 50%"] } } } as Structure3Doc;
+    const tr = structure3SceneItems(daily, "D", bad, "trade"), dp = structure3SceneItems(daily, "D", bad, "deep");
+    expect(tr.some((x) => x.kind === "zone" && x.label?.text.includes("chưa đạt chuẩn"))).toBe(false);
+    expect(dp.some((x) => x.kind === "zone" && x.label?.text.includes("chưa đạt chuẩn"))).toBe(true);
+    expect(dp.some((x) => x.kind === "poly" && x.color.includes("34, 211, 238") && x.nodeLabels?.some((l) => l.startsWith("−")))).toBe(false);
+  });
+
   it("khung trong ngày chỉ có mức giá; không có tài liệu -> rỗng; thang giá trục phải", () => {
     const items = structure3SceneItems(daily.slice(-50), "15m", doc, "deep");
     expect(items.every((x) => x.kind === "zone")).toBe(true);
