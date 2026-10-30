@@ -400,10 +400,12 @@ export function createEventRadar({ service, repository = createEventRadarReposit
       repository.getHealth(),
     ]);
     const wanted = ticker ? String(ticker).toUpperCase() : null;
+    // Nhiều nhóm phân tách bằng dấu phẩy (VD mục Sự kiện vĩ mô) — tin mức "theo dõi" không bị 250 tin chú ý cao đẩy ra ngoài.
+    const categories = category ? new Set(String(category).split(",").map((c) => c.trim()).filter(Boolean).slice(0, 12)) : null;
     const matching = rows.map((row) => row.payload).filter(Boolean).map(withCurrentClassification).filter((event) =>
       (!wanted || event.tickers?.includes(wanted))
       && (!status || event.verificationStatus === status)
-      && (!category || event.eventType === category));
+      && (!categories || categories.has(event.eventType)));
     const events = collapseClusters(matching).slice(0, Math.min(250, Math.max(1, limit)));
     return {
       generatedAt: storedHealth?.generatedAt ?? latestHealth.generatedAt,

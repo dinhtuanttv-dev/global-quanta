@@ -26,7 +26,7 @@ vi.mock("../../../services/marketDataClient", () => ({
 vi.mock("../../../services/api", async (orig) => ({ ...(await orig<object>()), getAccessToken: async () => null }));
 
 import EventRadarWorkspace from "./EventRadarWorkspace";
-import { macroEvents } from "./eventResearch/MacroEventsPanel";
+import { dailyIntensity, macroEvents } from "./eventResearch/MacroEventsPanel";
 import { seedFromEvent } from "./eventResearch/researchFormat";
 
 beforeEach(() => { calls.length = 0; try { window.localStorage.clear(); } catch { /* */ } });
@@ -63,6 +63,13 @@ describe("Event Radar 2 phần (30/10/2026 — chuyển Quant Edge / ESA / vĩ m
     fireEvent.click(Array.from(document.querySelectorAll("button")).find((b) => b.textContent?.startsWith("Chính sách tiền tệ"))!);
     expect(screen.getAllByTestId("macro-event").map((li) => li.textContent).join()).toContain("Fed giữ nguyên lãi suất");
     expect(screen.getAllByTestId("macro-event").length).toBe(1);
+  });
+
+  it("dải mật độ 7 ngày: đếm theo ngày giờ VN và theo nhóm, ngày cũ -> mới", () => {
+    const rows = dailyIntensity(macroEvents(events), 7, Date.parse("2026-10-30T05:00:00.000Z"));
+    expect(rows.map((r) => r.day)).toEqual(["2026-10-24", "2026-10-25", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30"]);
+    expect(rows[6]).toMatchObject({ total: 2, byType: { MONETARY_POLICY: 1, MACRO_NEWS: 1 } });
+    expect(rows.slice(0, 6).every((r) => r.total === 0)).toBe(true);
   });
 
   it("seedFromEvent: không có giờ đăng -> dùng giờ Gateway phát hiện; ngày theo giờ VN", () => {

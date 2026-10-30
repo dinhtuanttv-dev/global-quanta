@@ -579,7 +579,7 @@ router.get("/event-radar", handle(async (req, res) => {
   if (ticker && !isValidSymbol(ticker)) throw new ValidationError("Mã lọc sự kiện không hợp lệ.");
   const limit = Math.min(250, Math.max(1, Number(req.query.limit) || 100));
   const status = typeof req.query.status === "string" ? req.query.status.slice(0, 60) : null;
-  const category = typeof req.query.category === "string" ? req.query.category.slice(0, 60) : null;
+  const category = typeof req.query.category === "string" ? req.query.category.slice(0, 200) : null;
   const data = await getMarketRuntime().eventRadar.list({ ticker, status, category, limit });
   res.set("Cache-Control", "private, max-age=30");
   res.json(data);
