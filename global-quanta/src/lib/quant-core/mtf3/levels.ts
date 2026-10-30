@@ -57,7 +57,10 @@ export function levelsAt(a: Analysis3, t: number): Level3[] {
       frames: [...new Set(c.map((p) => p.tf))].sort() as Level3["frames"], role, flipped, lastTouch: c.map((p) => p.date).sort().pop()!,
     });
   }
-  return out.sort((x, y) => y.strength - x.strength).slice(0, LEVELS.maxLevels).sort((x, y) => y.price - x.price);
+  // mỗi phía tối đa một nửa số mức (mạnh nhất, ưu tiên gần giá khi bằng sức mạnh) — luôn có cả hỗ trợ lẫn kháng cự nếu tồn tại
+  const half = LEVELS.maxLevels / 2;
+  const pickSide = (side: Level3["role"]) => out.filter((l) => l.role === side).sort((x, y) => y.strength - x.strength || Math.abs(x.price - close) - Math.abs(y.price - close)).slice(0, half);
+  return [...pickSide("resistance"), ...pickSide("support")].sort((x, y) => y.price - x.price);
 }
 
 /** Kháng cự gần nhất của khung Tuần / Tháng phía trên giá trong khoảng `atrs` × ATR ngày (cổng cấm vào (b) của MTF-v3-prereg). */

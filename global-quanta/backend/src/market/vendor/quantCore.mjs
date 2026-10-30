@@ -5183,7 +5183,9 @@ function levelsAt(a, t) {
       lastTouch: c.map((p) => p.date).sort().pop()
     });
   }
-  return out.sort((x, y) => y.strength - x.strength).slice(0, LEVELS.maxLevels).sort((x, y) => y.price - x.price);
+  const half = LEVELS.maxLevels / 2;
+  const pickSide = (side) => out.filter((l) => l.role === side).sort((x, y) => y.strength - x.strength || Math.abs(x.price - close) - Math.abs(y.price - close)).slice(0, half);
+  return [...pickSide("resistance"), ...pickSide("support")].sort((x, y) => y.price - x.price);
 }
 var avg = (xs) => xs.reduce((s, x) => s + x, 0) / xs.length;
 var r23 = (x) => Math.round(x * 100) / 100;
