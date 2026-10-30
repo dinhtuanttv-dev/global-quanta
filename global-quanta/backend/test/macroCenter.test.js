@@ -298,3 +298,15 @@ test("Báo cáo tháng: câu kết luận cổng MacroScore luôn kèm lưu ý c
   assert.equal(r.status, 200);
   assert.match(r.body.markdown, /vượt cổng kiểm định ngoài mẫu[^\n]*Lưu ý: dữ liệu MÔ PHỎNG/);
 });
+
+test("IMF CPI (30/10/2026): CSV SDMX -> tháng; chỉ số -> % so cùng kỳ (đúng t−12, thiếu thì bỏ); asOf = ngày công bố 6", async () => {
+  const { parseImfCsv, toYoY, fetchGlobalFeeds, GLOBAL_FEEDS } = await import("../src/market/macro/macroGlobalFeeds.js");
+  const csv = "DATAFLOW,COUNTRY,TIME_PERIOD,OBS_VALUE\nIMF.STA:CPI,VNM,2025-M09,100\nIMF.STA:CPI,VNM,2025-M10,101\nIMF.STA:CPI,VNM,2026-M09,105.08\nIMF.STA:CPI,VNM,2026-Q3,1\nIMF.STA:CPI,VNM,2026-M10,\n";
+  const pts = parseImfCsv(csv);
+  assert.deepEqual(pts.map((p) => p.date), ["2025-09-01", "2025-10-01", "2026-09-01"]);
+  assert.deepEqual(toYoY(pts), [{ date: "2026-09-01", value: 5.08 }]);
+  const feed = GLOBAL_FEEDS.find((f) => f.seriesId === "CPI");
+  const fetchImpl = async (url, init) => { assert.match(url, /api\.imf\.org.*VNM\.CPI\._T\.IX\.M/); assert.match(init.headers.accept, /sdmx\.data\+csv/); return new Response(csv); };
+  const r = await fetchGlobalFeeds({ todayIso: "2026-10-30", fetchImpl, feeds: [feed] });
+  assert.deepEqual(r.observations, [{ seriesId: "CPI", period: "2026-09", value: 5.08, asOf: "2026-10-06", source: "IMF:CPI VNM (TCTK)" }]);
+});

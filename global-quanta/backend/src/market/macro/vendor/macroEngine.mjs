@@ -2059,6 +2059,7 @@ function createMacroApi(deps) {
   const seriesList = (q) => {
     const asOf = asOfOf(q.asOf);
     const nowPeriod = asOf.slice(0, 7);
+    const tail = optInt(q.tail, "tail", 0, 120) ?? 0;
     return {
       dataVersion: deps.store.dataVersion(),
       asOf,
@@ -2066,7 +2067,14 @@ function createMacroApi(deps) {
       series: catalog.map((m) => {
         const pts = deps.store.getSeries(m.id, asOf);
         const issues = pts.length ? checkQuality(m.id, pts, m, nowPeriod) : [];
-        return { ...m, n: pts.length, first: pts[0]?.period ?? null, last: pts[pts.length - 1]?.period ?? null, issues };
+        return {
+          ...m,
+          n: pts.length,
+          first: pts[0]?.period ?? null,
+          last: pts[pts.length - 1]?.period ?? null,
+          issues,
+          ...tail ? { points: pts.slice(-tail).map((p) => ({ period: p.period, value: p.value })) } : {}
+        };
       }),
       scenarios: NAMED_SCENARIOS
     };

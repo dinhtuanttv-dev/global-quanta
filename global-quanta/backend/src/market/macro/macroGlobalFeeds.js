@@ -3,8 +3,11 @@
 //   OIL  <- FRED DCOILBRENTEU (Brent giao ngay, ngày) -> giá phiên cuối tháng
 //   DXY  <- Yahoo DX-Y.NYB (nến tháng, giá đóng cửa cuối tháng)
 //   EX   <- Yahoo VND=X (tỷ giá USD/VND thị trường, nến tháng) — KHÔNG phải tỷ giá trung tâm NHNN; ghi rõ ở nguồn.
-// asOf = ngày 1 tháng kế tiếp (số liệu tháng đã biết khi tháng khép lại). Biến nội địa (CPI, M2, tín dụng, FDI, XK, IIP, PMI,
-// lãi suất liên ngân hàng VN) không có API miễn phí -> nạp CSV qua POST /api/macro/admin/import.
+//   CPI  <- IMF SDMX (api.imf.org, bộ CPI, VNM.CPI._T.IX.M — chỉ số giá tiêu dùng VN do IMF thu từ Tổng cục Thống kê) -> % so cùng kỳ.
+//          30/10/2026: trước đây CPI rỗng (chờ nạp CSV tay, chưa từng nạp) -> nhiệt kế 1/6 biến, "Chế độ vĩ mô" lỗi 422.
+//          asOf = ngày 6 tháng kế tiếp (lịch công bố CPI của TCTK) — không dùng số liệu trước khi nó có thật.
+// asOf các nguồn khác = ngày 1 tháng kế tiếp (số liệu tháng đã biết khi tháng khép lại). Biến nội địa còn lại (M2, tín dụng, FDI, XK,
+// IIP, PMI, lãi suất liên ngân hàng VN) không có API miễn phí cập nhật -> nạp CSV qua POST /api/macro/admin/import.
 const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
 
 export const GLOBAL_FEEDS = [
@@ -12,6 +15,7 @@ export const GLOBAL_FEEDS = [
   { seriesId: "OIL", source: "FRED:DCOILBRENTEU", kind: "fred", id: "DCOILBRENTEU", reduce: "last" },
   { seriesId: "DXY", source: "Yahoo:DX-Y.NYB", kind: "yahoo", id: "DX-Y.NYB" },
   { seriesId: "EX", source: "Yahoo:VND=X (thị trường)", kind: "yahoo", id: "VND=X" },
+  { seriesId: "CPI", source: "IMF:CPI VNM (TCTK)", kind: "imf", flow: "IMF.STA,CPI", key: "VNM.CPI._T.IX.M", transform: "yoy", releaseDay: 6 },
 ];
 
 const nextMonthFirst = (period) => {
@@ -56,8 +60,40 @@ export function parseYahooMonthly(json) {
   return out;
 }
 
-async function getText(url, fetchImpl) {
-  const r = await fetchImpl(url, { headers: UA, signal: AbortSignal.timeout(45_000) });
+/**
+ * CSV SDMX của IMF -> [{ date: "YYYY-MM-01", value }] (chỉ dòng tháng "YYYY-Mmm"). Cột tìm theo tên tiêu đề (TIME_PERIOD, OBS_VALUE).
+ */
+export function parseImfCsv(text) {
+  const lines = String(text).trim().split(/\r?\n/);
+  const head = (lines[0] ?? "").split(",");
+  const iT = head.indexOf("TIME_PERIOD"), iV = head.indexOf("OBS_VALUE");
+  if (iT < 0 || iV < 0) return [];
+  const out = [];
+  for (const line of lines.slice(1)) {
+    const c = line.split(",");
+    const m = /^(\d{4})-M(\d{2})$/.exec(c[iT] ?? "");
+    const v = Number(c[iV]);
+    if (m && c[iV] !== "" && Number.isFinite(v)) out.push({ date: `${m[1]}-${m[2]}-01`, value: v });
+  }
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/** Chỉ số -> % so cùng kỳ (cần đúng tháng t−12; thiếu thì bỏ kỳ đó, không nội suy). */
+export function toYoY(points) {
+  const by = new Map(points.map((p) => [p.date.slice(0, 7), p.value]));
+  const out = [];
+  for (const p of points) {
+    const [y, m] = p.date.slice(0, 7).split("-");
+    const prev = by.get(`${Number(y) - 1}-${m}`);
+    if (prev > 0) out.push({ date: p.date, value: Math.round((p.value / prev - 1) * 1e4) / 1e2 });
+  }
+  return out;
+}
+
+const withReleaseDay = (months, day) => (day ? months.map((m) => ({ ...m, asOf: `${m.asOf.slice(0, 8)}${String(day).padStart(2, "0")}` })) : months);
+
+async function getText(url, fetchImpl, headers = UA) {
+  const r = await fetchImpl(url, { headers, signal: AbortSignal.timeout(45_000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.text();
 }
@@ -68,10 +104,14 @@ export async function fetchGlobalFeeds({ todayIso, fetchImpl = globalThis.fetch,
   const report = {};
   await Promise.all(feeds.map(async (f) => {
     try {
-      const points = f.kind === "fred"
-        ? parseFredCsv(await getText(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(f.id)}&cosd=2005-01-01`, fetchImpl))
-        : parseYahooMonthly(JSON.parse(await getText(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(f.id)}?range=25y&interval=1mo`, fetchImpl)));
-      const months = toClosedMonths(points, todayIso, f.reduce ?? "last");
+      let points;
+      if (f.kind === "fred") points = parseFredCsv(await getText(`https://fred.stlouisfed.org/graph/fredgraph.csv?id=${encodeURIComponent(f.id)}&cosd=2005-01-01`, fetchImpl));
+      else if (f.kind === "imf") {
+        points = parseImfCsv(await getText(`https://api.imf.org/external/sdmx/2.1/data/${f.flow}/${f.key}?startPeriod=2004-01`, fetchImpl,
+          { ...UA, accept: "application/vnd.sdmx.data+csv;version=1.0.0" }));
+        if (f.transform === "yoy") points = toYoY(points);
+      } else points = parseYahooMonthly(JSON.parse(await getText(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(f.id)}?range=25y&interval=1mo`, fetchImpl)));
+      const months = withReleaseDay(toClosedMonths(points, todayIso, f.reduce ?? "last"), f.releaseDay);
       if (!months.length) throw new Error("nguồn trả rỗng");
       for (const m of months) observations.push({ seriesId: f.seriesId, ...m, source: f.source });
       report[f.seriesId] = { source: f.source, months: months.length, first: months[0].period, last: months.at(-1).period };

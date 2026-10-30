@@ -15,7 +15,7 @@ import type { AlertsPayload, CalendarPayload, CellDetailPayload, HealthPayload, 
 /** 6 biến của bài báo gốc mà MacroScore dùng (macro-api.ts PAPER_FACTORS). */
 const PAPER_FACTORS = ['CPI', 'IR', 'M2', 'EX', 'IO', 'FDI'];
 
-export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; asOf?: string; mainTarget?: string }) {
+export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; asOf?: string; mainTarget?: string; embedded?: boolean }) {
   const client = useMemo(() => props.client ?? createMacroClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
   const asOf = props.asOf;
   const mainTarget = props.mainTarget ?? 'VNINDEX';
@@ -59,7 +59,7 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
   return (
     <div className="mc">
       <header>
-        <h1>Trung tâm vĩ mô</h1>
+        <h1>{props.embedded ? 'Phân tích định lượng' : 'Trung tâm vĩ mô'}</h1>
         <p className="muted">Tác động của biến vĩ mô lên các chỉ số cổ phiếu HOSE. Mọi chuỗi đã kiểm tra tính dừng, sai số chuẩn HAC, kiểm định bội đã hiệu chỉnh.</p>
       </header>
       {notice && <p className="mc-notice" role="note">{notice}</p>}
@@ -74,11 +74,6 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
       )}
 
       {connected && <>
-      <section className="mc-section" aria-labelledby="mc-src">
-        <h2 id="mc-src">Nguồn &amp; chất lượng dữ liệu</h2>
-        <DataSourcePanel source={source.data} sourceError={source.error} series={series.data} />
-      </section>
-
       <section className="mc-section" aria-labelledby="mc-thermo">
         <h2 id="mc-thermo">Nhiệt kế vĩ mô</h2>
         {score.error ? <p className="state" role="alert">{score.error}</p> : score.data ? <MacroThermometer data={score.data} names={names} /> : <p className="state" role="status">Đang tính nhiệt kế vĩ mô…</p>}
@@ -136,6 +131,11 @@ export function MacroCenterTab(props: { client?: MacroClient; baseUrl?: string; 
       <section className="mc-section" aria-labelledby="mc-report">
         <h2 id="mc-report">Báo cáo tháng</h2>
         <ReportPanel client={client} asOf={asOf} enabled={connected} />
+      </section>
+
+      <section className="mc-section" aria-labelledby="mc-src">
+        <h2 id="mc-src">Nguồn &amp; chất lượng dữ liệu</h2>
+        <DataSourcePanel source={source.data} sourceError={source.error} series={series.data} />
       </section>
       </>}
     </div>

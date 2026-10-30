@@ -96,6 +96,9 @@ export default function MacroEventsPanel() {
       {error && <p role="alert" className="text-[11px] text-rose-300">Không tải được sự kiện vĩ mô: {error.message}</p>}
       {isLoading && !data && <div className="space-y-2" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="h-9 animate-pulse rounded bg-white/[0.04]" />)}</div>}
       {data && <>
+        <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px]" data-testid="macro-sources" aria-label="Trạng thái nguồn tin">
+          {Object.entries(data.sources).filter(([, v]) => "label" in v).map(([k, v]) => <span key={k} className={v.ok ? "text-slate-400" : "text-rose-300"} title={v.error}><span className={v.ok ? "text-emerald-400" : ""} aria-hidden>{v.ok ? "●" : "○"}</span> {(v as { label?: string }).label}{v.ok ? "" : " · lỗi"}</span>)}
+        </div>
         <IntensityStrip rows={intensity} active={type} />
         <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Lọc nhóm sự kiện vĩ mô">
           <button type="button" className={chip(type === "")} aria-pressed={type === ""} onClick={() => setType("")}>Tất cả <b className="tabular-nums text-slate-200">{all.length}</b></button>

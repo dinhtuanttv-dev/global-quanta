@@ -131,3 +131,15 @@ describe('cell detail, scenario, score, regime, alerts, calendar', () => {
     expect(c.caveat).toContain('ƯỚC TÍNH');
   });
 });
+
+describe('series tail (Trung tâm vĩ mô · Nhịp vĩ mô, 30/10/2026)', () => {
+  it('mặc định không kèm điểm; tail=N kèm N điểm cuối (as-of); tail ngoài [0,120] -> 400', async () => {
+    const plain = await get('/api/macro/series');
+    expect((plain.body as { series: { points?: unknown }[] }).series.every((s) => s.points === undefined)).toBe(true);
+    const r = await get('/api/macro/series', { tail: '12' });
+    const cpi = (r.body as { series: { id: string; last: string | null; points?: { period: string; value: number }[] }[] }).series.find((s) => s.id === 'CPI')!;
+    expect(cpi.points).toHaveLength(12);
+    expect(cpi.points![11].period).toBe(cpi.last);
+    expect((await get('/api/macro/series', { tail: '500' })).status).toBe(400);
+  });
+});
