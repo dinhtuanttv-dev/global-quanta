@@ -14,6 +14,7 @@ const strategy = {
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: strategy }) }));
 vi.mock("../../../hooks/useWorldSectorScores", () => ({ useWorldSectorScores: () => ({ data: { rows: [{ icb: "1750", drivers: [{ id: "HRC", nameVi: "Thép HRC", sign: 1, short: { z: 1, pct: 5.6 }, medium: null }] }] } }) }));
 vi.mock("../../../hooks/useCommoditySnapshot", () => ({ useCommoditySnapshot: () => ({ data: { items: [] } }) }));
+vi.mock("../../../hooks/useCatalystData", () => ({ useCatalystData: () => ({ snapshot: { scannedAt: "2026-10-10T22:56:25Z", sectors: [{ sector: "Thep", netScore: 1 }], tickerImpacts: { HPG: { direction: "benefit", compositeScore: 20 } } } }) }));
 vi.mock("../KetNoiTheGioi/worldSectors/WorldSectorDrawer", () => ({ default: () => null }));
 
 import ImpactBoard from "./ImpactBoard";
@@ -21,13 +22,14 @@ import ImpactBoard from "./ImpactBoard";
 afterEach(cleanup);
 
 describe("ImpactBoard (Z3)", () => {
-  it("ghép chiến lược + hàng hoá theo ICB, không còn cột xúc tác, nút Hỏi AI gửi câu hỏi mồi", () => {
+  it("ghép chiến lược + hàng hoá + xúc tác theo ICB, báo engine xúc tác cũ, nút Hỏi AI gửi câu hỏi mồi", () => {
     const asks: string[] = [];
     render(<ImpactBoard onAsk={(q) => asks.push(q)} />);
-    expect(screen.queryByTestId("impact-catalyst-stale")).toBeNull();
+    expect(screen.getByTestId("impact-catalyst-stale").textContent).toContain("10/10/2026");
     const steel = screen.getByTestId("impact-row-1750").textContent ?? "";
     expect(steel).toContain("Ưu tiên");
     expect(steel).toContain("Thép HRC");
+    expect(steel).toContain("▲ HPG");
     expect(screen.getByTestId("impact-row-8600").textContent).toContain("Bối cảnh bất lợi");
     fireEvent.click(screen.getByTestId("impact-row-8600").querySelector("button")!);
     expect(asks[0]).toContain("ICB 8600");

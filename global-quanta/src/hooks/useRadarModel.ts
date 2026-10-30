@@ -5,6 +5,7 @@ import { useScannerBasket } from "./useScannerBasket";
 import { useWatchlists } from "./useWatchlists";
 import { useGoldenSepa } from "./useGoldenSepa";
 import { useTop20Radar } from "./useTop20Radar";
+import { useCatalystData } from "./useCatalystData";
 import { useQualityScore } from "./useQualityScore";
 import { useWorldSectorScores } from "./useWorldSectorScores";
 import { fmtZ } from "../lib/worldSectors/types";
@@ -16,7 +17,7 @@ import { buyCriterion } from "../lib/radarTimeline";
 /**
  * ELITE COMMAND RADAR theo ★ Danh mục được chọn cho Radar (mặc định "Danh mục của tôi").
  * Gom dữ liệu thật của 6 tab (Siêu Quét qua Gateway; các tab còn lại cùng nguồn API với tab đó, SWR dùng chung
- * bộ đệm) và chấm hội tụ 5 tiêu chí cho từng mã. Gọi ở cả Radar và Action Center: SWR khử trùng nên không gọi API lặp.
+ * bộ đệm) và chấm hội tụ 6/6 cho từng mã. Gọi ở cả Radar và Action Center: SWR khử trùng nên không gọi API lặp.
  */
 export function useRadarModel(): RadarModel & { listName: string; listId: string; tickers: string[]; loading: boolean } {
   const { radar } = useWatchlists();
@@ -27,6 +28,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
 
   const ta = useGoldenSepa();
   const { top20Data } = useTop20Radar(null);
+  const { snapshot: catalyst } = useCatalystData();
   const { qualityScoreData } = useQualityScore();
   // Tiêu chí 6 "Cổ tức · điểm mua": Timeline điểm mua + DecisionBar (tab Cổ tức) — chỉ xét mã trên Radar.
   const buyTimeline = useGatewayBuyTimeline();
@@ -51,6 +53,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
         }
       }
     }
+    const impacts = catalyst?.tickerImpacts as Record<string, { direction: string; compositeScore: number }> | undefined;
     return {
       scanner: new Map(basket.items.map((i) => [i.ticker, i])),
       world,
@@ -61,10 +64,13 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       ta: ta.doc
         ? new Map(ta.rows.filter((r) => r.sepa.list !== "THEO DÕI").map((r) => [r.sepa.ticker, `SEPA ${r.sepa.list.toLowerCase()}${r.sepa.metrics.pattern ? ` · ${r.sepa.metrics.pattern} ${r.sepa.metrics.footprint ?? ""}`.trimEnd() : ""} · xác nhận ${r.confirms.length}/3${r.confirms.length ? ` (${r.confirms.map((c) => c.label).join(", ")})` : ""}`]))
         : null,
+      catalyst: impacts
+        ? new Map(Object.entries(impacts).filter(([, v]) => v.direction === "benefit" && v.compositeScore > 0).map(([t, v]) => [t, `Chất xúc tác hưởng lợi, điểm ${Math.round(v.compositeScore)}`]))
+        : null,
       dividend: buy ? buy.pass : null,
       dividendFail: buy?.fail,
     };
-  }, [basket.items, ws.data, top20Data, ta.rows, ta.doc, buy]);
+  }, [basket.items, ws.data, catalyst, top20Data, ta.rows, ta.doc, buy]);
 
   const model = useMemo(() => buildRadarModel(tickers, sources, live), [tickers, sources, live]);
   return { ...model, listName: radar.name, listId: radar.id, tickers, loading: isLoading || basket.loading };

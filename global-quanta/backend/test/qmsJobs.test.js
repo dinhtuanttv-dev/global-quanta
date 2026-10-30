@@ -72,7 +72,7 @@ test("gói vendor/qmsJobs.mjs: có đủ 3 hàm job, không kéo next/* hay Pris
   assert.match(src.slice(0, 200), /FILE SINH TỰ ĐỘNG/);
   assert.ok(!/node_modules[\\/](next|@prisma)[\\/]/.test(src), "gói kéo theo next/* hoặc @prisma/*");
   const exported = /export \{([^}]*)\};\s*$/.exec(src)?.[1].split(",").map((s) => s.trim()) ?? [];
-  assert.deepEqual(exported.sort(), ["runEarningsSeasonalityScan", "runSectorTimingScan", "runTimingSignalsScan"]);
+  assert.deepEqual(exported.sort(), ["runCatalystScan", "runEarningsSeasonalityScan", "runSectorTimingScan", "runTimingSignalsScan"]);
 });
 
 test("cotucScanner + callJob: lô timing chạy qua callJob, không gọi fetch", async () => {

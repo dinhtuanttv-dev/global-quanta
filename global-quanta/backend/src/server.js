@@ -3,6 +3,7 @@ import { createBuyTimingService } from "./market/elite/buyTiming.js";
 import { createCotucStore } from "./market/cotuc/cotucStore.js";
 import { createGatewayEliteZones, createGatewayTimeline } from "./market/cotuc/gatewayTimeline.js";
 import { createCotucStoreRouter } from "./routes/cotucStore.js";
+import { createCatalystRouter, readCatalystSnapshot } from "./routes/catalysts.js";
 import express from "express";
 import v8 from "node:v8";
 import cors from "cors";
@@ -145,6 +146,7 @@ app.use("/api/world-sectors", createWorldSectorsRouter({ getService: getWorldSec
 // Elite 10 (E1): sổ đăng ký tín hiệu — gom kết quả mọi tab sau phiên thành bảng mã × tín hiệu (point-in-time, KV theo ngày).
 let elitePanel = null;
 const getElitePanel = () => (elitePanel ??= createElitePanelService({
+  catalystSnapshot: () => readCatalystSnapshot(getCotucStore()),
   store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
   structureSummary: () => getMarketRuntime().structure.summary(),
 }));
@@ -182,6 +184,7 @@ const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarke
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
+app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

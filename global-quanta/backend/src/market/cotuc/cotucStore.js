@@ -21,6 +21,7 @@ export const COTUC_TABLES = Object.freeze({
   sectortrack: { key: (r) => r.id, heavy: [] }, // MV0: SectorSignalTrack (Lọc ngành)
   cycle: { key: (r) => (r.ticker && r.exDate ? `${r.ticker}:${String(r.exDate).slice(0, 10)}` : null), heavy: [] },
   meta: { key: (r) => r.key, heavy: [] },
+  catkv: { key: (r) => r.key, heavy: ["value"] }, // 31/10/2026: Chất xúc tác — đồ thị, snapshot, sổ tín hiệu (thay Neon + Upstash)
 });
 
 const KEY_RE = /^[A-Za-z0-9_:.\-]{1,120}$/;

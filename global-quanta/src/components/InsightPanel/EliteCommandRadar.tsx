@@ -13,11 +13,11 @@ import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
 import { buyTimingFreshness, useGatewayBuyTimeline } from '../../hooks/useGatewayBuyTimeline';
-import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, criteriaOf, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
+import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
-// ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 5 tiêu chí bằng dữ liệu thật.
-//   Góc = nhóm ngành · Bán kính = điểm hội tụ (tâm = 5/5, vùng vàng = Core ≥ 4/5) · Kích thước = Smart Score
+// ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 6 tiêu chí bằng dữ liệu thật.
+//   Góc = nhóm ngành · Bán kính = điểm hội tụ (tâm = 6/6, vùng vàng = Core ≥ 4/6) · Kích thước = Smart Score
 //   Ký hiệu = trạng thái (🛡 ổn định / ⚡ bứt phá / ⚠ cảnh báo) · Viền = cảm xúc tin 3 ngày · Vòng nhấp nháy = tin quan trọng trong 24 giờ.
 // Lịch sử (Supabase qua Gateway): ảnh chụp mỗi ngày giao dịch -> vệt chuyển động 5 ngày, thanh tua lại, sự kiện radar (vào/ra Core…).
 // Lớp tín hiệu dòng tiền (giai đoạn 3): ◆ Stealth 20 (tín hiệu duy nhất đã qua kiểm định có lợi thế, kèm bằng chứng),
@@ -44,7 +44,7 @@ function Evidence({ x }: { x: ScoredTicker }) {
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
         <div className="text-[9px] tracking-wider text-slate-500 font-semibold">GIẢI TRÌNH HỘI TỤ — VÌ SAO TIN MÃ NÀY</div>
-        <div className="font-mono text-[11px] font-semibold text-amber-400">{x.score}/{CONVERGENCE_LABELS.length}</div>
+        <div className="font-mono text-[11px] font-semibold text-amber-400">{x.score}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1.5">
         {x.ticker}
@@ -182,11 +182,11 @@ function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
         <div className="text-[9px] tracking-wider text-slate-500 font-semibold">HỘI TỤ NGÀY {fmtDate(date)}</div>
-        <div className="font-mono text-[11px] font-semibold text-amber-400">{v.s}/{criteriaOf(v.cv).max}</div>
+        <div className="font-mono text-[11px] font-semibold text-amber-400">{v.s}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1">{v.t}</div>
       <ul className="space-y-0.5">
-        {criteriaOf(v.cv).labels.map((label, i) => {
+        {CONVERGENCE_LABELS.map((label, i) => {
           const c = v.pass?.[i] ?? '-';
           // Ảnh chụp trước khi đổi bộ tiêu chí: tiêu chí 6 khi đó là "thuộc rổ 17 mã cổ tức".
           if (i === 5 && (v.cv ?? 1) < 2) label = 'Cổ tức (tiêu chí cũ: thuộc rổ 17 mã)';
@@ -254,7 +254,7 @@ export default function EliteCommandRadar() {
     return m;
   }, [sig]);
 
-  // Lịch sử: chỉ lưu khi đủ nguồn (thiếu nguồn -> điểm thấp giả -> sự kiện "rời Core" giả) và lớp tín hiệu đã tải xong.
+  // Lịch sử: chỉ lưu khi đủ 6 nguồn (thiếu nguồn -> điểm thấp giả -> sự kiện "rời Core" giả) và lớp tín hiệu đã tải xong.
   const snapItems = useMemo(() => toSnapItems(scored, coreSet, live, stealthMap), [scored, coreSet, live, stealthMap]);
   const ready = !model.loading && missingSources.length === 0 && scored.some((x) => x.item) && !signals.isLoading;
   const history = useRadarHistory(listName, snapItems, ready);
@@ -328,7 +328,7 @@ export default function EliteCommandRadar() {
     const rim = ni ? (ni.sentiment >= 0.25 ? UP : ni.sentiment <= -0.25 ? DOWN : null) : null;
     const isSel = selectedTicker === n.ticker;
     const buy = replay ? undefined : buyMap.get(n.ticker);
-    const label = `${n.ticker}: ${v.s}/${criteriaOf(v.cv).max} tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}${buy ? `, điểm mua: ${BUY_STATUS[buy.row.status].toLowerCase()}` : ''}`;
+    const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}${buy ? `, điểm mua: ${BUY_STATUS[buy.row.status].toLowerCase()}` : ''}`;
     const ringR = n.dot + (n.core ? 9 : 5);
     return (
       <g key={n.ticker} transform={`translate(${n.x.toFixed(1)} ${n.y.toFixed(1)})`} role="button" tabIndex={0} aria-label={label} aria-pressed={isSel}
@@ -419,13 +419,13 @@ export default function EliteCommandRadar() {
             </radialGradient>
           </defs>
           <circle cx={CX} cy={CY} r={R_MAX} fill="rgba(56,189,248,0.025)" stroke="rgba(56,189,248,0.18)" />
-          {[0, 1, 2, 3, 5].map((s) => (
+          {[0, 1, 2, 3, 5, 6].map((s) => (
             <circle key={s} cx={CX} cy={CY} r={radiusForScore(s)} fill="none" stroke="rgba(148,163,184,0.10)" strokeDasharray="2 4" />
           ))}
           <circle cx={CX} cy={CY} r={coreR} fill="url(#radarCore)" stroke="rgba(245,158,11,0.45)" strokeDasharray="3 3" />
           <text x={CX} y={CY - coreR + 11} textAnchor="middle" fontSize={8} letterSpacing={3} fill="rgba(245,158,11,0.7)">CORE ≥{CORE_MIN}/6</text>
-          {[5, 4, 2, 0].map((s) => (
-            <text key={s} x={CX + 3} y={CY - radiusForScore(s) - 2} fontSize={7} fill="rgba(148,163,184,0.45)">{s}/{CONVERGENCE_LABELS.length}</text>
+          {[6, 4, 2, 0].map((s) => (
+            <text key={s} x={CX + 3} y={CY - radiusForScore(s) - 2} fontSize={7} fill="rgba(148,163,184,0.45)">{s}/6</text>
           ))}
           {layout.slices.length > 1 && layout.slices.map((sl) => {
             const p = polar(sl.a0, R_MAX);
@@ -484,7 +484,7 @@ export default function EliteCommandRadar() {
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-slate-500 mt-1">
-        <span><span style={{ color: AMBER }}>●</span> Core ≥{CORE_MIN}/{CONVERGENCE_LABELS.length} (vùng vàng)</span>
+        <span><span style={{ color: AMBER }}>●</span> Core ≥{CORE_MIN}/6 (vùng vàng)</span>
         <span>Gần tâm = nhiều tiêu chí</span>
         <span>Góc = nhóm ngành</span>
         <span>To = Smart cao</span>

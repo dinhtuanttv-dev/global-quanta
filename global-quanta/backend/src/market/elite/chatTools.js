@@ -16,7 +16,7 @@ export const ELITE_CHAT_GUIDELINES = `Quy tắc công cụ elite_* (trung tâm q
 3. Chỉ tín hiệu bậc A/B có trọng số. Tín hiệu bậc C (Smart Score, bộ lọc kỹ thuật, RRG, xúc tác, Cổ tức…) chỉ là bối cảnh — được nhắc nhưng phải ghi là chưa kiểm định.
 4. Cắt lỗ / mục tiêu là dải biến động mô tả (2σ / 3σ của 5 phiên), chưa tối ưu — không gọi là "điểm mua chuẩn".
 6. Tỷ trọng là ERC (mỗi mã đóng góp rủi ro như nhau) và có vùng đệm giữ mã — đó là quy tắc xây danh mục, không phải mức độ "tin tưởng" từng mã. α ngành thế giới có tiên nghiệm 0 trong Điểm Elite vì lệch kỳ hạn (nó nhắm phiên ngay sau phiên Mỹ).
-5. Khi phân tích một mã: elite_ticker trước, sau đó ws_stock / macro_* nếu cần bối cảnh. Kết luận theo thứ tự: bằng chứng định lượng -> bối cảnh -> rủi ro.`;
+5. Khi phân tích một mã: elite_ticker trước, sau đó ws_stock / catalyst_* / macro_* nếu cần bối cảnh. Kết luận theo thứ tự: bằng chứng định lượng -> bối cảnh -> rủi ro.`;
 
 function validate(spec, input) {
   const a = input && typeof input === "object" ? input : {};

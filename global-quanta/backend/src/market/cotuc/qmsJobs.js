@@ -36,6 +36,7 @@ export function routeToJob(path) {
       return { fn: "runEarningsSeasonalityScan", params: { phase, offset: n("offset"), limit: n("limit") } };
     }
     case "/api/cron/sector-timing-scan": return { fn: "runSectorTimingScan", params: {} };
+    case "/api/catalysts/scan": return { fn: "runCatalystScan", params: {} };
     default: return null;
   }
 }

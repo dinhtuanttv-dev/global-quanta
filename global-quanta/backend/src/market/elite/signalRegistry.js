@@ -37,6 +37,8 @@ export const SIGNAL_SPECS = [
   { id: "convergence", tab: "TA VN-Index", labelVi: "Hợp lưu v2", unit: "bậc", level: "stock", tier: "C", evidenceVi: "H1–H4: EXPERIMENTAL." },
   { id: "base_breakout", tab: "TA VN-Index", labelVi: "Base Breakout v2", unit: "bậc", level: "stock", tier: "C", evidenceVi: "Sổ theo dõi chưa đủ mẫu." },
   { id: "rrg_quadrant", tab: "Lọc ngành", labelVi: "Góc phần tư RRG của ngành", unit: "bậc", level: "sector", tier: "C", evidenceVi: "L3: không đạt." },
+  { id: "catalyst_impact", tab: "Chất xúc tác", labelVi: "Tác động chất xúc tác", unit: "điểm", level: "stock", tier: "C",
+    evidenceVi: "X6: mẫu sạch dưới ngưỡng đăng ký; chiều tác động chưa kiểm chứng." },
   { id: "cotuc_decision", tab: "Cổ tức", labelVi: "Quyết định Cổ tức (thuận / theo dõi / tránh)", unit: "bậc", level: "stock", tier: "C",
     evidenceVi: "Có sổ theo dõi Brier/CUSUM; chưa có kiểm định đặt trước cho xếp hạng." },
 ];
@@ -82,6 +84,7 @@ export function icbFor(symbolsMap, ticker, codes) {
  * @param {{ short: { rows: any[] } } | null} src.wsStrategy               /api/world-sectors/strategy
  * @param {{ sectors: any[] } | null} src.rrg                              KV sectors:rrg
  * @param {{ symbols: Record<string, {l1?: string, l2?: string, l3?: string}> } | null} src.taxonomy
+ * @param {{ tickerImpacts?: Record<string, { direction: string, compositeScore: number }> } | null} src.catalyst
  * @param {{ states?: any[] } | null} src.cotuc                            Project A /api/cotuc/decision-states
  * @param {{ rows: any[] } | null} [src.structure]                          Gateway structure-summary (T4, job 15:47)
  */
@@ -118,6 +121,8 @@ export function buildSignalRows(src) {
   if (!rrgSectors) missingSources.push("rrg");
   const rrg = new Map((rrgSectors ?? []).map((s) => [s.code, QUADRANT[s.liveQuadrant ?? s.quadrant] ?? null]));
 
+  const impacts = src.catalyst?.tickerImpacts ?? null;
+  if (!impacts) missingSources.push("catalyst");
   const cotuc = new Map();
   if (src.cotuc?.states) {
     for (const s of src.cotuc.states) if (s?.ticker) cotuc.set(String(s.ticker).toUpperCase(), COTUC[s.decision?.level] ?? null);
@@ -133,6 +138,7 @@ export function buildSignalRows(src) {
     const f = src.features?.get(ticker) ?? null;
     const wsIcb = symbols ? icbFor(symbols, ticker, new Set(wsAlpha.keys())) : null;
     const rrgIcb = symbols ? icbFor(symbols, ticker, new Set(rrg.keys())) : null;
+    const imp = impacts?.[ticker];
     const values = {
       ws_sector_alpha: wsIcb ? wsAlpha.get(wsIcb) ?? null : null,
       stealth20: num(f?.stealth20),
@@ -153,6 +159,7 @@ export function buildSignalRows(src) {
       convergence: convergence ? convergence.get(ticker) ?? 0 : null,
       base_breakout: breakout ? breakout.get(ticker) ?? 0 : null,
       rrg_quadrant: rrgIcb ? rrg.get(rrgIcb) ?? null : null,
+      catalyst_impact: impacts ? (imp && imp.direction !== "none" ? (imp.direction === "harm" ? -1 : 1) * (num(imp.compositeScore) ?? 0) : 0) : null,
       cotuc_decision: cotuc.size ? cotuc.get(ticker) ?? null : null,
       structure_stage: structure ? STRUCT_STAGE[structure.get(ticker)?.s3?.st] ?? null : null,
       structure_score: structure ? num(structure.get(ticker)?.s3?.tpl) : null,

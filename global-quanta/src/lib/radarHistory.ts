@@ -1,13 +1,13 @@
 // Lịch sử ELITE COMMAND RADAR: ảnh chụp hằng ngày (rút gọn), so sánh để sinh "sự kiện radar",
 // và quỹ đạo điểm hội tụ theo ngày cho vệt chuyển động. Hàm thuần — lưu/đọc qua Gateway ở useRadarHistory.
 
-import { RADAR_CRITERIA_VERSION, criteriaOf } from "./radarTimeline";
+import { RADAR_CRITERIA_VERSION } from "./radarTimeline";
 import { CORE_MIN, radarState, type RadarState, type ScoredTicker } from "./radarModel";
 
-/** Một mã trong ảnh chụp (khoá ngắn để gói nhỏ): t mã · s điểm 0–5 (ảnh chụp cũ 0–6) · g nhóm ngành · sm Smart · st trạng thái ·
- *  core · pass chuỗi 1/0/- theo từng tiêu chí · p giá · c % thay đổi · sg Stealth 20 đang bật (+1 tích luỹ / −1 phân phối / 0;
+/** Một mã trong ảnh chụp (khoá ngắn để gói nhỏ): t mã · s điểm 0–6 · g nhóm ngành · sm Smart · st trạng thái ·
+ *  core · pass chuỗi 6 ký tự 1/0/- theo 6 tiêu chí · p giá · c % thay đổi · sg Stealth 20 đang bật (+1 tích luỹ / −1 phân phối / 0;
  *  thiếu = ảnh chụp cũ hoặc chưa có dữ liệu dòng tiền). */
-/** cv = phiên bản bộ tiêu chí (thiếu = 1: tiêu chí 6 "thuộc rổ 17 mã"; 2: "Cổ tức · điểm mua"; 3: gỡ Chất xúc tác, còn 5 tiêu chí). */
+/** cv = phiên bản bộ tiêu chí (thiếu = 1: tiêu chí 6 "thuộc rổ 17 mã"; 2: "Cổ tức · điểm mua"). */
 export interface SnapItem { t: string; s: number; g: string | null; sm: number | null; st: RadarState; core: boolean; pass: string | null; p: number | null; c: number | null; sg?: number; cv?: number }
 export interface RadarSnapshot { date: string; items: SnapItem[]; updatedAt?: string | null }
 
@@ -56,10 +56,10 @@ export function radarEvents(prev: SnapItem[] | null | undefined, cur: SnapItem[]
     const sameCriteria = (was.cv ?? 1) === (now.cv ?? 1);
     const inCore = now.s >= CORE_MIN, wasCore = was.s >= CORE_MIN;
     if (!sameCriteria) { /* bỏ qua so sánh điểm */ }
-    else if (inCore && !wasCore) out.push({ kind: "enter_core", ticker: now.t, from: was.s, to: now.s, tone: "up", text: `${now.t} vào Core (${was.s}/${criteriaOf(now.cv).max} → ${now.s}/${criteriaOf(now.cv).max})` });
-    else if (!inCore && wasCore) out.push({ kind: "leave_core", ticker: now.t, from: was.s, to: now.s, tone: "down", text: `${now.t} rời Core (${was.s}/${criteriaOf(now.cv).max} → ${now.s}/${criteriaOf(now.cv).max})` });
-    else if (now.s - was.s >= 2) out.push({ kind: "score_up", ticker: now.t, from: was.s, to: now.s, tone: "up", text: `${now.t} tăng ${now.s - was.s} tiêu chí (${was.s}/${criteriaOf(now.cv).max} → ${now.s}/${criteriaOf(now.cv).max})` });
-    else if (was.s - now.s >= 2) out.push({ kind: "score_down", ticker: now.t, from: was.s, to: now.s, tone: "down", text: `${now.t} giảm ${was.s - now.s} tiêu chí (${was.s}/${criteriaOf(now.cv).max} → ${now.s}/${criteriaOf(now.cv).max})` });
+    else if (inCore && !wasCore) out.push({ kind: "enter_core", ticker: now.t, from: was.s, to: now.s, tone: "up", text: `${now.t} vào Core (${was.s}/6 → ${now.s}/6)` });
+    else if (!inCore && wasCore) out.push({ kind: "leave_core", ticker: now.t, from: was.s, to: now.s, tone: "down", text: `${now.t} rời Core (${was.s}/6 → ${now.s}/6)` });
+    else if (now.s - was.s >= 2) out.push({ kind: "score_up", ticker: now.t, from: was.s, to: now.s, tone: "up", text: `${now.t} tăng ${now.s - was.s} tiêu chí (${was.s}/6 → ${now.s}/6)` });
+    else if (was.s - now.s >= 2) out.push({ kind: "score_down", ticker: now.t, from: was.s, to: now.s, tone: "down", text: `${now.t} giảm ${was.s - now.s} tiêu chí (${was.s}/6 → ${now.s}/6)` });
     if (now.sg !== undefined && was.sg !== undefined && now.sg !== 0 && now.sg !== was.sg) {
       out.push({ kind: "stealth_on", ticker: now.t, from: was.s, to: now.s, tone: now.sg > 0 ? "up" : "down",
         text: `${now.t} bật ◆ Stealth 20: ${now.sg > 0 ? "tích luỹ" : "phân phối"} âm thầm` });

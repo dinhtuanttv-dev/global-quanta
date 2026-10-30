@@ -3,16 +3,16 @@ import { CONVERGENCE_LABELS } from "../types";
 import type { SieuQuetStockItem } from "../hooks/useSieuQuetScanner";
 
 // ELITE COMMAND RADAR tính từ DỮ LIỆU THẬT cho các mã trong một ★ Danh mục (mặc định "Danh mục của tôi").
-// Mỗi mã chấm 5 tiêu chí hội tụ (CONVERGENCE_LABELS):
+// Mỗi mã chấm 6 tiêu chí hội tụ — đúng 6 tab của trang (CONVERGENCE_LABELS):
 //   1 Siêu quét AI     : Smart Score ≥ 60 và không bị loại vì F-Score thấp (Gateway, cả mã ngoài universe)
 //   2 Kết nối thế giới : mã thuộc ngành ICB thuận gió ngắn hạn (ngành thế giới → VN, WS-v1 — cùng phép tính tab Kết nối thế giới)
 //   3 Lọc ngành        : thuộc Top 20 Hội tụ dòng tiền của tab Lọc ngành
 //   4 TA VN-Index      : SEPA Minervini Sẵn sàng / Cảnh báo mua (Golden SEPA, Gateway; SP5 thay Golden Filter ∩ Convergence cũ)
-//   5 Cổ tức · điểm mua: có vùng mua ĐẠT KIỂM ĐỊNH (chu kỳ cổ tức hoặc mùa vụ KQKD — Timeline tab Cổ tức) đang mở hoặc bắt
+//   5 Chất xúc tác     : tác động "hưởng lợi" từ chất xúc tác tin tức, hoặc sự kiện đã xác nhận cho ngành
+//   6 Cổ tức · điểm mua: có vùng mua ĐẠT KIỂM ĐỊNH (chu kỳ cổ tức hoặc mùa vụ KQKD — Timeline tab Cổ tức) đang mở hoặc bắt
 //                        đầu trong ≤ 10 phiên, HOẶC DecisionBar "Thuận lợi". "Gần đạt" KHÔNG tính (chỉ ghi lý do). Từ
 //                        phiên bản tiêu chí 2 (RADAR_CRITERIA_VERSION) — trước đó là "thuộc rổ 17 mã cổ tức".
-//                        Phiên bản 3 (31/10/2026): gỡ tiêu chí Chất xúc tác (engine dừng từ 10/10); Core giữ ngưỡng 4, thành 4/5.
-// Core = ≥ CORE_MIN/5 tiêu chí (tối đa 5 mã); Ring = các mã còn lại có điểm cao nhất (tối đa 11 mã).
+// Core = ≥ CORE_MIN/6 tiêu chí (tối đa 5 mã); Ring = các mã còn lại có điểm cao nhất (tối đa 11 mã).
 
 export const CORE_MIN = 4;
 export const MAX_CORE = 5;
@@ -29,6 +29,7 @@ export interface RadarSources {
   world: Evidence | null;
   sector: Evidence | null;
   ta: Evidence | null;
+  catalyst: Evidence | null;
   dividend: Evidence | null;
   /** Lý do KHÔNG đạt theo từng mã (VD "gần đạt — thiếu q-value") — thay câu chung FAIL_TEXT nếu có. */
   dividendFail?: Map<string, string>;
@@ -52,9 +53,9 @@ const excluded = (i: SieuQuetStockItem) => i.piotroskiFScore !== null && i.piotr
 
 const FAIL_TEXT = [
   "", "Không thuộc nhóm hưởng lợi từ diễn biến ngành Mỹ / Âu / Á", "Ngoài Top 20 Hội tụ dòng tiền (Lọc ngành)",
-  "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có vùng mua cổ tức/KQKD đạt kiểm định trong 10 phiên",
+  "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có chất xúc tác / sự kiện hưởng lợi", "Chưa có vùng mua cổ tức/KQKD đạt kiểm định trong 10 phiên",
 ];
-const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có vùng mua cổ tức/KQKD đạt kiểm định"];
+const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Có vùng mua cổ tức/KQKD đạt kiểm định"];
 const lookup = (e: Evidence, t: string): string | null => (e instanceof Map ? e.get(t) ?? null : e.has(t) ? "" : null);
 
 export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {
@@ -71,13 +72,15 @@ export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {
         : smart >= SMART_MIN ? `Smart ${smart.toFixed(1)} ≥ ${SMART_MIN}` : `Smart ${smart.toFixed(1)} < ${SMART_MIN}`,
     });
   }
-  // 2–5 các tiêu chí còn lại
-  const others: [Evidence | null, number][] = [[s.world, 1], [s.sector, 2], [s.ta, 3], [s.dividend, 4]];
+  // 2–6 các tab còn lại
+  const others: [Evidence | null, number][] = [[s.world, 1], [s.sector, 2], [s.ta, 3], [s.catalyst, 4], [s.dividend, 5]];
   for (const [src, k] of others) {
     if (!src) { evidence.push({ label: CONVERGENCE_LABELS[k], status: "missing", text: "Nguồn chưa tải được" }); continue; }
-    const hit = lookup(src, ticker);
+    let hit = lookup(src, ticker);
+    // Chất xúc tác: sự kiện đã xác nhận cho ngành (Siêu Quét) cũng tính.
+    if (hit === null && k === 4 && item && (item.eventImpactScore ?? 0) > 0) hit = `Sự kiện ngành đã xác nhận (+${item.eventImpactScore})`;
     evidence.push(hit === null
-      ? { label: CONVERGENCE_LABELS[k], status: "fail", text: (k === 4 ? s.dividendFail?.get(ticker) : undefined) ?? FAIL_TEXT[k] }
+      ? { label: CONVERGENCE_LABELS[k], status: "fail", text: (k === 5 ? s.dividendFail?.get(ticker) : undefined) ?? FAIL_TEXT[k] }
       : { label: CONVERGENCE_LABELS[k], status: "pass", text: hit || PASS_TEXT[k] });
   }
   const convergence: number[] = evidence.map((e) => (e.status === "pass" ? 1 : 0));
@@ -182,16 +185,16 @@ export function buildRadarModel(
   // Tóm tắt: mã gần Core nhất và tiêu chí còn thiếu.
   const near = scored.find((x) => !coreSet.has(x.ticker));
   const parts: string[] = [];
-  parts.push(coreList.length ? `Core: ${coreList.map((x) => `${x.ticker} ${x.score}/${CONVERGENCE_LABELS.length}`).join(", ")}.` : `Chưa mã nào đạt Core (≥ ${CORE_MIN}/${CONVERGENCE_LABELS.length}).`);
+  parts.push(coreList.length ? `Core: ${coreList.map((x) => `${x.ticker} ${x.score}/6`).join(", ")}.` : `Chưa mã nào đạt Core (≥ ${CORE_MIN}/6).`);
   if (near) {
     const lack = near.convergence.map((v, i) => (v ? null : CONVERGENCE_LABELS[i])).filter(Boolean).slice(0, 3);
-    parts.push(`${near.ticker} gần Core nhất (${near.score}/${CONVERGENCE_LABELS.length})${lack.length ? `, còn thiếu: ${lack.join(", ")}` : ""}.`);
+    parts.push(`${near.ticker} gần Core nhất (${near.score}/6)${lack.length ? `, còn thiếu: ${lack.join(", ")}` : ""}.`);
   }
   const digest: RadarDigest | null = scored.length ? { text: parts.join(" "), date: today } : null;
 
   const missingSources = [
     s.world ? null : CONVERGENCE_LABELS[1], s.sector ? null : CONVERGENCE_LABELS[2],
-    s.ta ? null : CONVERGENCE_LABELS[3], s.dividend ? null : CONVERGENCE_LABELS[4],
+    s.ta ? null : CONVERGENCE_LABELS[3], s.catalyst ? null : CONVERGENCE_LABELS[4], s.dividend ? null : CONVERGENCE_LABELS[5],
   ].filter((x): x is string => Boolean(x));
 
   return { core, ring, scored, hidden: Math.max(0, scored.length - core.length - ring.length), risk, digest, missingSources };

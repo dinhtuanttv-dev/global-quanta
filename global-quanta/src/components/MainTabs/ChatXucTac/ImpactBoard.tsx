@@ -1,16 +1,17 @@
 // Z3 (2026-10-17) — "Tác động ngành & cổ phiếu": một bảng ghép chiến lược ngành thế giới (Gateway, đã kiểm định ngắn hạn),
-// bối cảnh trung hạn (không dự báo), hàng hoá dẫn dắt theo 22 ngành ICB; tra cứu từng mã
-// qua công cụ ws_stock (cùng công cụ chat AI dùng). Mỗi cột ghi rõ nguồn và ngày.
+// bối cảnh trung hạn (không dự báo), hàng hoá dẫn dắt và chất xúc tác (engine Project A) theo 22 ngành ICB; tra cứu từng mã
+// qua công cụ ws_stock (cùng công cụ chat AI dùng). Mỗi cột ghi rõ nguồn và ngày; engine xúc tác đứng thì báo thẳng.
 import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, MessageSquare } from "lucide-react";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { useWorldSectorScores } from "../../../hooks/useWorldSectorScores";
 import { useCommoditySnapshot } from "../../../hooks/useCommoditySnapshot";
+import { useCatalystData } from "../../../hooks/useCatalystData";
 import { useAppStore } from "../../../store/useAppStore";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { divergingColor, fmtZ } from "../../../lib/worldSectors/types";
 import { MEDIUM_STANCE_VI, QUADRANT_VI, SHORT_STANCE_VI, type MediumStance, type ShortStance } from "../../../lib/worldSectors/strategyTypes";
-import { askSector, askTicker } from "../../../lib/catalyst/impactBoard";
+import { ageDays, askSector, askTicker, catalystByIcb } from "../../../lib/catalyst/impactBoard";
 import EvidenceTag from "../KetNoiTheGioi/EvidenceTag";
 import WorldSectorDrawer from "../KetNoiTheGioi/worldSectors/WorldSectorDrawer";
 
@@ -49,7 +50,7 @@ interface WsStock {
   drivers: { id: string; nameVi: string; sign: 1 | -1 }[]; note: string | null;
 }
 
-function StockLookup({ onAsk, commodityPct }: { onAsk: (q: string) => void; commodityPct: Map<string, { pct: number | null; basisVi: string }> }) {
+function StockLookup({ onAsk, commodityPct, catalyst }: { onAsk: (q: string) => void; commodityPct: Map<string, { pct: number | null; basisVi: string }>; catalyst: Record<string, { direction: string; compositeScore: number }> }) {
   const selectTicker = useAppStore((s) => s.selectTicker);
   const [q, setQ] = useState("");
   const [state, setState] = useState<{ loading: boolean; data: WsStock | null; error: string | null; guidance: string[] }>({ loading: false, data: null, error: null, guidance: [] });
@@ -68,6 +69,7 @@ function StockLookup({ onAsk, commodityPct }: { onAsk: (q: string) => void; comm
     }
   };
   const d = state.data;
+  const cat = d ? catalyst[d.ticker] : undefined;
   return (
     <Card title="Tra cứu tác động lên một cổ phiếu" testId="impact-stock-lookup">
       <form onSubmit={submit} className="flex gap-2">
@@ -115,12 +117,13 @@ function StockLookup({ onAsk, commodityPct }: { onAsk: (q: string) => void; comm
                   <br />Giá: 1 phiên {fmtZ(d.stockExposure.d1Pct, 1)}% · 1 tháng {fmtZ(d.stockExposure.m1Pct, 1)}% · 3 tháng {fmtZ(d.stockExposure.m3Pct, 1)}%
                 </p>
               ) : <p style={muted}>{d.note ?? "Mã không nằm trong nhóm thành phần lớn — tác động suy từ ngành."}</p>}
-              <p className="text-[9px] font-bold uppercase pt-1" style={muted}>Hàng hoá dẫn dắt</p>
+              <p className="text-[9px] font-bold uppercase pt-1" style={muted}>Hàng hoá dẫn dắt · chất xúc tác</p>
               <p style={{ color: "var(--text-secondary)" }}>
                 {d.drivers.length ? d.drivers.map((x) => {
                   const c = commodityPct.get(x.id);
                   return `${x.nameVi}${x.sign < 0 ? " (chiều ngược)" : ""}${c?.pct != null ? ` ${fmtZ(c.pct, 1)}% ${c.basisVi}` : ""}`;
                 }).join(" · ") : "Không có hàng hoá dẫn dắt trực tiếp."}
+                <br />Xúc tác: {cat && cat.direction !== "none" ? <b style={{ color: cat.direction === "benefit" ? "var(--positive)" : "var(--negative)" }}>{cat.direction === "benefit" ? "tích cực" : "tiêu cực"} (điểm {cat.compositeScore}, thử nghiệm)</b> : "không có tin tác động trong lần quét gần nhất"}
               </p>
             </div>
           </div>
@@ -135,11 +138,16 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
   const { data: strategy, error: stErr } = useWorldStrategy();
   const { data: scores } = useWorldSectorScores();
   const { data: commodities } = useCommoditySnapshot();
+  const { snapshot } = useCatalystData();
   const [open, setOpen] = useState<string | null>(null);
 
+  const constituents = useMemo(() => new Map((strategy?.short.rows ?? []).map((r) => [r.icb, r.constituents.map((c) => c.ticker)])), [strategy]);
+  const cat = useMemo(() => catalystByIcb(snapshot, constituents), [snapshot, constituents]);
   const medium = useMemo(() => new Map((strategy?.medium ?? []).map((m) => [m.icb, m])), [strategy]);
   const wsRows = useMemo(() => new Map((scores?.rows ?? []).map((r) => [r.icb, r])), [scores]);
   const commodityPct = useMemo(() => new Map((commodities?.items ?? []).filter((i) => i.available && i.change).map((i) => [i.id, i.change!])), [commodities]);
+  const catAge = ageDays(snapshot?.scannedAt);
+  const catalystStale = catAge != null && catAge >= 2;
   const lastDaily = useMemo(() => (commodities?.items ?? []).filter((i) => i.freq === "day" && i.period).map((i) => i.period!).sort().pop() ?? null, [commodities]);
 
   if (stErr) return <p className="text-xs" style={{ color: "var(--negative)" }}>Không tải được chiến lược ngành: {stErr.message}</p>;
@@ -151,20 +159,29 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
     <div className="tw-scope space-y-3" data-testid="impact-board">
       <div>
         <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Tác động tới ngành & cổ phiếu Việt Nam</p>
-        <p className="text-[9.5px]" style={muted}>Ghép chiến lược ngành thế giới · hàng hoá theo 22 ngành ICB. Bấm một ngành để xem phân tích chuyên sâu, hoặc “Hỏi AI” để Claude/Gemini phân tích bằng công cụ.</p>
+        <p className="text-[9.5px]" style={muted}>Ghép chiến lược ngành thế giới · hàng hoá · chất xúc tác theo 22 ngành ICB. Bấm một ngành để xem phân tích chuyên sâu, hoặc “Hỏi AI” để Claude/Gemini phân tích bằng công cụ.</p>
       </div>
 
       <div className="flex flex-wrap gap-1.5 text-[9.5px]" data-testid="impact-freshness">
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Chiến lược thế giới: phiên VN {fmtDate(strategy?.vnLast)}</span>
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Hàng hoá: phiên {fmtDate(lastDaily)}</span>
+        <span className="px-2 py-0.5 rounded" style={{ background: catalystStale ? "rgba(245,158,11,0.12)" : "rgba(148,163,184,0.08)", color: catalystStale ? "var(--gold, #fbbf24)" : "var(--text-secondary)" }}>
+          Chất xúc tác: quét {fmtDate(snapshot?.scannedAt)}{catAge != null ? ` (${catAge === 0 ? "hôm nay" : `${catAge} ngày trước`})` : ""}
+        </span>
       </div>
+      {catalystStale && (
+        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" data-testid="impact-catalyst-stale" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold, #fbbf24)" }}>
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          Engine chất xúc tác chưa quét lại từ {fmtDate(snapshot?.scannedAt)} — cột “Xúc tác” là kết quả lần quét cuối. Chiến lược thế giới, hàng hoá và vĩ mô vẫn cập nhật bình thường (Market Gateway).
+        </p>
+      )}
       {strategy?.regime.stressed && (
         <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold, #fbbf24)" }}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> VIX {num(strategy.regime.vix, 2)} ({fmtZ(strategy.regime.vixChg, 1)}% phiên {fmtDate(strategy.regime.date)}). {strategy.regime.noteVi}
         </p>
       )}
 
-      <StockLookup onAsk={onAsk} commodityPct={commodityPct} />
+      <StockLookup onAsk={onAsk} commodityPct={commodityPct} catalyst={snapshot?.tickerImpacts ?? {}} />
 
       <Card title="Bảng tác động theo ngành ICB" testId="impact-sector-board"
         tag={strategy && <EvidenceTag kind={strategy.evidence.short.label === "EVIDENCE" ? "evidence" : "heuristic"} title={`Ngắn hạn: ${strategy.evidence.short.version}, IC ${strategy.evidence.short.ic}. Trung hạn: ${strategy.evidence.medium.reasonVi} Xúc tác: chiều tác động chưa kiểm chứng đủ mẫu (thử nghiệm).`} />}>
@@ -177,6 +194,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
                   <th className="font-normal" title="Đã kiểm định đặt trước — lợi thế nhỏ">Ngắn hạn · α (đcb/phiên)</th>
                   <th className="font-normal" title="Bối cảnh 1–3 tháng — không dự báo">Trung hạn</th>
                   <th className="text-left font-normal">Hàng hoá dẫn dắt</th>
+                  <th className="text-left font-normal" title="Engine xúc tác — chiều chưa kiểm chứng (thử nghiệm)">Xúc tác</th>
                   <th className="text-left font-normal">Mã lớn nhất</th>
                   <th />
                 </tr>
@@ -184,6 +202,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
               <tbody>
                 {rows.map((r) => {
                   const m = medium.get(r.icb);
+                  const c = cat.get(r.icb);
                   const drivers = wsRows.get(r.icb)?.drivers ?? [];
                   return (
                     <tr key={r.icb} onClick={() => wsRows.has(r.icb) && setOpen(r.icb)} data-testid={`impact-row-${r.icb}`} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: wsRows.has(r.icb) ? "pointer" : "default" }}>
@@ -203,6 +222,15 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
                           return <span key={x.id} className="mr-1.5 whitespace-nowrap" title={`${commodityPct.get(x.id)?.basisVi ?? "phiên gần nhất"} · ${x.sign < 0 ? "chiều ngược: giá tăng là bất lợi cho ngành" : "cùng chiều"}`}>{x.nameVi} <b style={{ color: eff == null || eff === 0 ? "var(--text-secondary)" : eff > 0 ? "var(--positive)" : "var(--negative)" }}>{fmtZ(pct, 1)}%</b></span>;
                         }) : <span style={muted}>—</span>}
                       </td>
+                      <td style={{ color: "var(--text-secondary)" }}>
+                        {c ? (
+                          <>
+                            {c.sectors.length > 0 && Math.abs(c.netScore) >= 0.05 && <span className="mr-1">điểm {fmtZ(c.netScore, 1)}</span>}
+                            {c.benefit.length > 0 && <span className="mr-1" style={{ color: "var(--positive)" }}>▲ {c.benefit.slice(0, 3).join(", ")}</span>}
+                            {c.harm.length > 0 && <span style={{ color: "var(--negative)" }}>▼ {c.harm.slice(0, 3).join(", ")}</span>}
+                          </>
+                        ) : <span style={muted}>—</span>}
+                      </td>
                       <td style={{ color: "var(--gold, #f59e0b)" }} className="font-bold text-[9.5px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
                       <td className="text-right"><AskButton onClick={() => onAsk(askSector(r.nameVi, r.icb))} /></td>
                     </tr>
@@ -214,7 +242,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
         )}
         <p className="text-[9px] leading-relaxed" style={muted}>
           Ngắn hạn: α = IC × σ × z, xếp hạng ngành đã kiểm định đặt trước (IC ≈ {strategy?.evidence.short.ic ?? "0,02"} — lợi thế nhỏ, P vượt ≈ 50–55%). Trung hạn chỉ là bối cảnh (kiểm định không đạt).
-          Hàng hoá: biến động phiên/kỳ gần nhất, màu theo chiều tác động lên ngành. Tham khảo — không phải khuyến nghị đầu tư.
+          Hàng hoá: biến động phiên/kỳ gần nhất, màu theo chiều tác động lên ngành. Xúc tác: engine tin tức, chiều chưa kiểm chứng đủ mẫu. Tham khảo — không phải khuyến nghị đầu tư.
         </p>
       </Card>
       {open && drawerRow && <WorldSectorDrawer icb={open} row={drawerRow} onClose={() => setOpen(null)} />}

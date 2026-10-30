@@ -1,4 +1,3 @@
-import { CONVERGENCE_LABELS, LEGACY_CONVERGENCE_LABELS } from "../types";
 // Tích hợp "⏱ Timeline điểm mua" (tab Cổ tức) vào ELITE COMMAND RADAR — hàm thuần.
 // QUY TẮC: chỉ mã ĐANG CÓ trên Radar (★ danh mục Radar đang hiển thị) mới nhận dữ liệu Timeline; mã có trong Timeline nhưng
 // không có trên Radar bị bỏ qua hoàn toàn (không vẽ, không gợi ý thêm, không thông báo).
@@ -83,12 +82,7 @@ export function buyWindowEvents(map: Map<string, RadarBuyInfo>): BuyEvent[] {
 // ---------------------------------------------------------------------------
 // Tiêu chí 6 của Radar "Cổ tức · điểm mua" (phiên bản tiêu chí 2)
 // ---------------------------------------------------------------------------
-export const RADAR_CRITERIA_VERSION = 3; // 3 (31/10/2026): gỡ tiêu chí Chất xúc tác — còn 5 tiêu chí
-/** Nhãn + thang điểm theo phiên bản bộ tiêu chí của ảnh chụp (cv < 3: 6 tiêu chí cũ). */
-export const criteriaOf = (cv: number | undefined) => {
-  const labels: readonly string[] = (cv ?? 1) < 3 ? LEGACY_CONVERGENCE_LABELS : CONVERGENCE_LABELS;
-  return { labels, max: labels.length };
-};
+export const RADAR_CRITERIA_VERSION = 2;
 export const CRITERION_SESSIONS = 10;
 
 export interface DecisionLite { ticker: string; level: 'FAVORABLE' | 'WATCH' | 'AVOID'; combinedProbability: number }
