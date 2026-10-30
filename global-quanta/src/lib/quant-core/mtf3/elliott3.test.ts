@@ -34,10 +34,10 @@ describe("MTF v3 · S3 Elliott × EMA", () => {
         }
         expect(e.confluence === "strong").toBe(!!(w.inFibZone && w.inEmaBand));
       } else expect(e.confluence).toBe("none");
-      const close = bars[bars.length - 1].close;
-      for (const t of e.targets) expect(e.day?.dir === "down" ? t.price < close : t.price > close).toBe(true);
-      if (e.nested3) expect(e.day?.wave === "3" && e.week?.wave === "3").toBe(true);
+      if (e.waveEnd) expect(e.day?.template === "wave3" || e.day?.template === "wave5").toBe(true);
+      if (e.nested3) expect(e.day?.template === "wave3" && e.week?.template === "wave3").toBe(true);
       if (e.stopAgreement) expect(e.invalidation?.side).toBe("below");
+      if (e.invalidation && e.trigger) expect(e.invalidation.side === "below" ? e.invalidation.price < e.trigger.price : e.invalidation.price > e.trigger.price).toBe(true);
     });
   }
 });

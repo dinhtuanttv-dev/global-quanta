@@ -41,9 +41,10 @@ export interface Structure3Doc {
   evidence: { label: string; note: string };
 }
 export interface Elliott3 {
-  day: { label: string; wave: string; dir: "up" | "down" | null; degree: string | null; weight: number | null } | null;
-  week: { label: string; wave: string; dir: "up" | "down" | null; partial: boolean } | null;
+  day: { label: string; position: string; template: string | null; dir: "up" | "down" | null; provisional: boolean } | null;
+  week: { label: string; position: string; template: string | null; dir: "up" | "down" | null; provisional: boolean } | null;
   relation: string; relationText: string; nested3: "up" | "down" | null;
+  trigger: { price: number; text: string } | null;
   waveEnd: { wave: "2" | "4"; price: number; date: string | null; retrace: number | null; inFibZone: boolean | null; inEmaBand: boolean | null; band: [number, number] | null; bandName: string } | null;
   confluence: "strong" | "partial" | "none";
   invalidation: { price: number; side: "above" | "below"; reason: string } | null;

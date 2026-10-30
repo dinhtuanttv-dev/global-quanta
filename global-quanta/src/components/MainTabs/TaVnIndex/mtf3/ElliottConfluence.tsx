@@ -1,4 +1,4 @@
-// MTF v3 · S3 — hợp lưu Elliott Pro × dải EMA × đáy bảo vệ Dow: sóng 2 / 4 kết thúc trong vùng Fib VÀ trong dải EMA, sóng 3 lồng
+// MTF v3 · S3 — hợp lưu Elliott Pro v3 (kịch bản chính Ngày / Tuần) × dải EMA × đáy bảo vệ Dow: sóng 2 / 4 kết thúc trong vùng Fib VÀ trong dải EMA, sóng 3 lồng
 // sóng 3 (Tuần × Ngày), mức vô hiệu Elliott so với đáy bảo vệ, mục tiêu Fib gần nhất. MÔ TẢ tới khi H6 được kiểm định.
 import type { Elliott3 } from "../../../../hooks/useStructure3";
 
@@ -29,8 +29,8 @@ export default function ElliottConfluence({ e }: { e: Elliott3 }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px] text-slate-300">
         <div className="space-y-0.5">
           <div className="text-[9px] uppercase text-slate-500">Bản đếm</div>
-          <div data-testid="elliott-day">Ngày: <b className="text-slate-100">{e.day?.label ?? "chưa đếm được"}</b>{e.day?.degree ? <span className="text-slate-500"> · bậc {e.day.degree}</span> : null}</div>
-          <div>Tuần: <b className="text-slate-100">{e.week?.label ?? "chưa đủ 60 tuần"}</b></div>
+          <div data-testid="elliott-day" title={e.day?.position}>Ngày: <b className="text-slate-100">{e.day?.label ?? "chưa đếm được"}</b></div>
+          <div title={e.week?.position}>Tuần: <b className="text-slate-100">{e.week?.label ?? "chưa đủ 60 tuần đã đóng"}</b></div>
           <div className="text-slate-400">{e.relationText}</div>
         </div>
         <div className="space-y-0.5" data-testid="elliott-wave-end">
@@ -45,6 +45,7 @@ export default function ElliottConfluence({ e }: { e: Elliott3 }) {
         </div>
         <div className="space-y-0.5">
           <div className="text-[9px] uppercase text-slate-500">Điểm sai · mục tiêu</div>
+          {e.trigger && <div>Kích hoạt <b className="text-slate-100">{price(e.trigger.price)}</b></div>}
           {e.invalidation ? <div>Vô hiệu {e.invalidation.side === "below" ? "dưới" : "trên"} <b className="text-rose-200">{price(e.invalidation.price)}</b></div> : <div className="text-slate-500">Chưa có mức vô hiệu.</div>}
           {e.stopAgreement && (
             <div className="text-slate-400" data-testid="elliott-stop" title="Đáy bảo vệ Dow khung ngày so với mức vô hiệu Elliott (theo ATR)">

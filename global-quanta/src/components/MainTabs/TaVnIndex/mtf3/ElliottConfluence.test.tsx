@@ -8,9 +8,9 @@ describe("ElliottConfluence", () => {
   afterEach(() => cleanup());
   it("sóng 2 kết thúc trong vùng Fib và dải EMA50–100 = hợp lưu mạnh; sóng 3 lồng sóng 3; mức vô hiệu + đáy bảo vệ + mục tiêu", () => {
     const e: Elliott3 = {
-      day: { label: "Sóng 3 (tăng) đang hình thành", wave: "3", dir: "up", degree: "trung", weight: 0.6 },
-      week: { label: "Sóng 3 (tăng) · khung tuần", wave: "3", dir: "up", partial: true },
-      relation: "aligned", relationText: "Hai khung cùng chiều tăng", nested3: "up",
+      day: { label: "Sóng 3 tăng", position: "3 của sóng đẩy tăng (đang chạy)", template: "wave3", dir: "up", provisional: false },
+      week: { label: "Sóng 3 tăng", position: "(3) của sóng đẩy tăng (đang chạy)", template: "wave3", dir: "up", provisional: false },
+      relation: "aligned", relationText: "Hai khung cùng chiều tăng", nested3: "up", trigger: { price: 27000, text: "vượt đỉnh sóng 1" },
       waveEnd: { wave: "2", price: 25000, date: "2026-09-15", retrace: 0.5, inFibZone: true, inEmaBand: true, band: [24500, 26000], bandName: "EMA50–EMA100" },
       confluence: "strong", invalidation: { price: 22000, side: "below", reason: "gốc sóng 1" },
       stopAgreement: { elliott: 22000, dow: 25000, gapAtr: 3 }, targets: [{ label: "1,618", price: 34000 }],
