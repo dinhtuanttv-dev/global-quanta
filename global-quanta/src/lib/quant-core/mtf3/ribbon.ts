@@ -48,10 +48,14 @@ export function ribbonSeries(bars: Bar[], tf: Tf3): RibbonSeries {
   for (let i = 0; i < n; i++) {
     const at = a[i] > 0 ? a[i] : NaN;
     const tau = orderTau([e21[i], e50[i], e100[i], m200[i]]);
-    // chỉ coi là có thứ tự khi ít nhất 3 đường (21/50/100) đã có giá trị
-    order[i] = Number.isFinite(e100[i]) && tau != null ? tau : NaN;
+    // D / W: chỉ coi là có thứ tự khi đủ 3 đường 21/50/100. Tháng (≈ 5–6 năm dữ liệu) chỉ có EMA21/50 ý nghĩa -> dùng các đường đang có.
+    const core = tf === "M" ? Number.isFinite(e50[i]) : Number.isFinite(e100[i]);
+    order[i] = core && tau != null ? tau : NaN;
     orderAge[i] = Math.abs(order[i]) === 1 ? (i > 0 && order[i - 1] === order[i] ? orderAge[i - 1] + 1 : 1) : 0;
-    if (Number.isFinite(e100[i])) width[i] = (Math.max(e21[i], e50[i], e100[i]) - Math.min(e21[i], e50[i], e100[i])) / at;
+    if (core) {
+      const ls = [e21[i], e50[i], e100[i]].filter((x) => Number.isFinite(x));
+      width[i] = (Math.max(...ls) - Math.min(...ls)) / at;
+    }
     dev50[i] = (C[i] - e50[i]) / at;
     gap[i] = (e21[i] - e100[i]) / at;
     if (i >= L) {

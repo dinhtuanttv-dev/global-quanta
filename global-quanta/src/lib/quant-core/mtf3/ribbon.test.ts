@@ -49,6 +49,9 @@ describe("MTF v3 · S1 dải MA", () => {
     expect(Number.isFinite(r.W.ma200[r.W.bars.length - 1])).toBe(true);
     expect(r.M.bars.length).toBeLessThan(100);
     expect(r.M.ema100.every((x) => Number.isNaN(x))).toBe(true);
+    // tháng vẫn có thứ tự xếp lớp trên EMA21 / EMA50
+    expect(Number.isFinite(r.M.order[r.M.bars.length - 1])).toBe(true);
+    expect(Math.abs(r.M.order[r.M.bars.length - 1])).toBe(1);
     const short = ribbon3(bars.slice(0, 600)); // ~120 tuần
     expect(short.W.ma200.every((x) => Number.isNaN(x))).toBe(true);
     expect(contextAt(short, 599).W.ma200).toBeNull();
