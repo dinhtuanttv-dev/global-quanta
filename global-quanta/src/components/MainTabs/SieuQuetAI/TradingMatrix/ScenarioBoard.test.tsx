@@ -15,6 +15,13 @@ const sc = (id: Scenario["id"], state: Scenario["state"], displayState: string):
 });
 
 describe("Trading Matrix M3", () => {
+  it("SC3 chỉ có độ rộng rơi thì không gọi là cú sốc biến động", async () => {
+    const d = { scope: { label: "Toàn sàn HOSE" }, neutral: { active: false, reasons: [] }, scenarios: [{ ...sc("SC3", "WATCH", "Theo dõi"), title: "Cú sốc biến động", groups: { volatility: false, breadth: true } }] } as unknown as MatrixOverview;
+    await render(<ScenarioBoard d={d} />);
+    expect(el.textContent).toContain("Độ rộng rơi nhanh");
+    expect(el.textContent).not.toContain("Cú sốc biến động");
+  });
+
   it("kịch bản: đủ điều kiện quy tắc (không gọi Xác nhận khi chưa đạt), bằng chứng ✓ / mâu thuẫn ✗, kết quả kiểm định, chuyển pha", async () => {
     const d = { scope: { label: "Toàn sàn HOSE" }, scenarios: [sc("SC1", "CONFIRMED", "Đủ điều kiện quy tắc"), sc("SC2", "WATCH", "Theo dõi"), sc("SC3", "INACTIVE", "Không hoạt động")], neutral: { active: false, reasons: [] } } as unknown as MatrixOverview;
     await render(<ScenarioBoard d={d} />);
@@ -23,8 +30,8 @@ describe("Trading Matrix M3", () => {
     expect(t).not.toContain("Xác nhận");
     expect(t).toContain("✓ VN-Index xu hướng tăng");
     expect(t).toContain("✗ biến động cao");
-    expect(t).toContain("Kiểm định: Chưa đủ mẫu");
-    expect(t).toContain("THỰC NGHIỆM");
+    expect(t).not.toContain("Kiểm định:");
+    expect(t).not.toContain("THỰC NGHIỆM");
     expect(el.querySelector("[data-testid=mx-scenario-SC0]")?.textContent).toContain("Không áp dụng");
   });
 
@@ -35,7 +42,7 @@ describe("Trading Matrix M3", () => {
       { id: "RF5", title: "Kế hoạch", severity: "INFO", status: "CHECKLIST", detail: "ghi mức vô hiệu", label: "QUY TRÌNH" },
     ]} />);
     const t = el.textContent ?? "";
-    expect(t).toContain("không phải lệnh mua / bán");
+    expect(t).toContain("Cờ cần xem xét");
     expect(t).toContain("Đang bật"); expect(t).toContain("Chưa có nguồn"); expect(t).toContain("Tự kiểm tra");
     expect(t).toContain("Bật khi: A · Tắt khi: B");
     el.remove();

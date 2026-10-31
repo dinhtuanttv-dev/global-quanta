@@ -66,8 +66,12 @@ function attachRelated(scenarios, links) {
     return { ...sc, related: related && related.items.length ? related : null };
   });
 }
+import { buildStateSeries as buildMarketState, neffByDate, panelByDate, stateDoc } from "./marketState.js";
+import { M4_RULE_VERSION, M4_SCENARIOS, runM4Lifecycle } from "./scenarioM4.js";
 export const MATRIX_SCOPES = { VNINDEX: "Toàn sàn HOSE", VN30: "Rổ VN30", UNIVERSE: "Universe Siêu Quét" };
 export const SNAPSHOT_TABLE = "market_matrix_snapshot";
+export const M4_SIGNAL_TABLE = "market_matrix_signal_m4";
+export const M4_OUTCOME_TABLE = "market_matrix_outcome_m4";
 const HISTORY = 260;
 
 export const LIVE_IMPACT_TTL_MS = 5 * 60_000;
@@ -258,6 +262,24 @@ export function createMatrixService({ service, store, getStructure = () => null,
     return v;
   }
 
+  /** Chuỗi trạng thái MS-r1, đệm theo phiên. Số trụ hiệu dụng tính trên toàn HOSE cho mọi phạm vi vì đó là đại lượng của VN-Index. */
+  const stateMemo = new Map();
+  async function stateSeriesFor(scope, d, expected, idxBars, intel) {
+    const key = `${scope}|${d.asOf}|${d.span.length}|${intel?.asOf ?? ""}`;
+    if (stateMemo.has(key)) return stateMemo.get(key);
+    let neff = null;
+    try {
+      const hose = scope === "VNINDEX" ? d : await dailyScope("VNINDEX", expected);
+      const sh = await sharesFor([...hose.bySymbol.keys()]);
+      neff = neffByDate(hose.bySymbol, d.span, sh.map);
+    } catch (e) { log.warn?.(`[matrix] số trụ hiệu dụng: ${e.message}`); }
+    const ldZ = new Map((intel?.series ?? []).filter((x) => Number.isFinite(x.zLd5)).map((x) => [x.date, x.zLd5]));
+    const series = buildMarketState({ panel: panelByDate(d.bySymbol, d.span), indexBars: idxBars, neff, ldZ: ldZ.size ? ldZ : null });
+    for (const k of stateMemo.keys()) if (k.startsWith(`${scope}|`)) stateMemo.delete(k);
+    stateMemo.set(key, series);
+    return series;
+  }
+
   /** M5: mô hình đang chạy = ghi đè rollback (KV) nếu hợp lệ, ngược lại champion của sổ đăng ký. */
   async function activeModel() {
     const override = (await store.getKv(ACTIVE_MODEL_KV).catch(() => null))?.value?.id ?? null;
@@ -365,6 +387,12 @@ export function createMatrixService({ service, store, getStructure = () => null,
         out.riskFlags = riskFlags({ day: v.day, flow: out.flow, links: out.links, events: await confirmedEvents() });
         out.scenarios = attachRelated(out.scenarios, out.links);
         out.forecast = forecastOf(await activeModel(), states, idxBars.filter((b) => b.date <= d.asOf));
+        out.scenarioTimeline = lc.timeline.slice(-30).map((t) => ({ date: t.date, SC1: t.SC1?.state ?? null, SC2: t.SC2?.state ?? null, SC3: t.SC3?.state ?? null }));
+        const series = await stateSeriesFor(scope, d, expected, idxBars.filter((b) => b.date <= d.asOf), intel);
+        out.state = stateDoc({ series, regimeLabel: out.regime.label });
+        const regimeAt = new Map(states.map((x) => [x.date, x.regime]));
+        const m4 = runM4Lifecycle(series.map((x) => ({ ...x, regime: regimeAt.get(x.date) ?? null })));
+        out.m4 = { rule: m4.rule, asOf: m4.asOf, current: m4.current, timeline: m4.timeline.slice(-30), episodes: m4.episodes.length };
       } catch (e) { log.warn?.(`[matrix] kịch bản: ${e.message}`); }
     }
     if (!out.riskFlags.length) out.riskFlags = riskFlags({ day: null, flow: out.flow, links: null, events: await confirmedEvents() });
@@ -387,9 +415,17 @@ export function createMatrixService({ service, store, getStructure = () => null,
     ]);
     // Smart Score chỉ ghép khi lần quét CÙNG phiên (không trộn thời điểm).
     const smart = scan?.dataAsOf === d.asOf ? new Map((scan.items ?? []).map((i) => [i.ticker, i.smartScore])) : new Map();
+    const stats = sectorStats({ bySymbol: d.bySymbol, asOf: d.asOf, indexBars: idx, taxonomy: tax, smart });
+    // Đuôi 5 phiên: mỗi điểm tính lại chỉ với dữ liệu đến phiên đó.
+    const trails = new Map();
+    for (const day of d.span.slice(-5)) {
+      const past = day === d.asOf ? stats : sectorStats({ bySymbol: new Map([...d.bySymbol].map(([s, rows]) => [s, rows.filter((r) => r.date <= day)])), asOf: day, indexBars: idx.filter((b) => b.date <= day), taxonomy: tax });
+      for (const x of past.sectors) { if (!trails.has(x.industry)) trails.set(x.industry, []); trails.get(x.industry).push({ date: day, rs: x.rs, breadth: x.breadth }); }
+    }
+    for (const x of stats.sectors) x.trail = trails.get(x.industry) ?? [];
     return {
       version: MATRIX_VERSION, scope: { id: scope, label: MATRIX_SCOPES[scope] },
-      ...sectorStats({ bySymbol: d.bySymbol, asOf: d.asOf, indexBars: idx, taxonomy: tax, smart }),
+      ...stats,
       smartAsOf: scan?.dataAsOf ?? null, smartMatched: smart.size > 0,
       taxonomySource: "scanner:taxonomy (cùng phân ngành với bộ lọc ngành của bảng)",
     };
@@ -408,8 +444,10 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const r = await service.getOhlcv({ symbol: "VNINDEX", limit: 600 });
     const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0);
     const idx = new Map(bars.map((b, i) => [b.date, i])), c = bars.map((b) => b.close);
-    const rows = await store.selectRows(SIGNAL_TABLE, { eq: { state: "CONFIRMED" } });
-    const done = new Set((await store.selectRows(OUTCOME_TABLE, {})).map((x) => `${x.scope}|${x.scenario}|${x.signal_date}|${x.horizon}`));
+    let scored = 0;
+    for (const [sigTable, outTable] of [[SIGNAL_TABLE, OUTCOME_TABLE], [M4_SIGNAL_TABLE, M4_OUTCOME_TABLE]]) {
+    const rows = await store.selectRows(sigTable, { eq: { state: "CONFIRMED" } });
+    const done = new Set((await store.selectRows(outTable, {})).map((x) => `${x.scope}|${x.scenario}|${x.signal_date}|${x.horizon}`));
     const add = [];
     for (const s of rows) {
       const i = idx.get(s.signal_date);
@@ -422,8 +460,10 @@ export function createMatrixService({ service, store, getStructure = () => null,
         add.push({ scope: s.scope, scenario: s.scenario, signal_date: s.signal_date, horizon: h, ret: Math.round(ret * 1000) / 1000, excess: Math.round((ret - base) * 1000) / 1000, scored_at: new Date(now()).toISOString() });
       }
     }
-    if (add.length) await store.upsertRows(OUTCOME_TABLE, add, "scope,scenario,signal_date,horizon");
-    return { scored: add.length };
+    if (add.length) await store.upsertRows(outTable, add, "scope,scenario,signal_date,horizon");
+    scored += add.length;
+    }
+    return { scored };
   }
 
   /** M6: chấm dự báo đã đủ 10 phiên; Brier 60 phiên thực tế so holdout (+0,03) -> trôi hiệu chỉnh (2 lần liên tiếp -> cảnh báo). */
@@ -489,7 +529,11 @@ export function createMatrixService({ service, store, getStructure = () => null,
         return [h, { n: xs.length, meanExcess: xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null }];
       }));
     }
-    return { version: MATRIX_VERSION, scope, ruleVersion: RULE_VERSION, recent: sig.map((s) => ({ scenario: s.scenario, date: s.signal_date, state: s.state, evidence: s.evidence, health: s.health })),
+    const m4Sig = await store.selectRows(M4_SIGNAL_TABLE, { eq: { scope }, order: "signal_date.desc", limit }).catch(() => []);
+    const m4Out = await store.selectRows(M4_OUTCOME_TABLE, { eq: { scope } }).catch(() => []);
+    const m4Live = Object.fromEntries(Object.keys(M4_SCENARIOS).map((id) => { const xs = m4Out.filter((o) => o.scenario === id && o.horizon === 10).map((o) => o.excess); return [id, { n: xs.length, meanExcess: xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null }]; }));
+    const m4 = { rule: M4_RULE_VERSION, recent: m4Sig.map((s) => ({ scenario: s.scenario, date: s.signal_date, state: s.state })), live: m4Live };
+    return { version: MATRIX_VERSION, scope, ruleVersion: RULE_VERSION, m4, recent: sig.map((s) => ({ scenario: s.scenario, date: s.signal_date, state: s.state, evidence: s.evidence, health: s.health })),
       live, validation: { prereg: MATRIX_VALIDATION.prereg, verdicts: MATRIX_VALIDATION.verdicts, summary: MATRIX_VALIDATION.summary, stats: MATRIX_VALIDATION.stats },
       note: "Kết quả thực tế chỉ tính khi đã đủ kỳ hạn; tín hiệu đang theo dõi không được tính như kết quả hoàn tất." };
   }
@@ -519,6 +563,8 @@ export function createMatrixService({ service, store, getStructure = () => null,
             evidence: sc.evidence, contradictions: sc.contradictions, inputs: o.stateVector, coverage: o.breadth.daily?.coverage ?? null, health: o.dataHealth.status });
         }
         if (sig.length) await store.upsertRows(SIGNAL_TABLE, sig, "scope,scenario,signal_date");
+        const m4Sig = (o.m4?.current ?? []).filter((x) => x.since === date && LEDGER_STATES.has(x.state)).map((x) => ({ scope, scenario: x.id, signal_date: date, state: x.state, rule_version: M4_RULE_VERSION, created_at: o.asOf, inputs: o.state?.current ?? null, health: o.dataHealth.status }));
+        if (m4Sig.length) await store.upsertRows(M4_SIGNAL_TABLE, m4Sig, "scope,scenario,signal_date");
         // M5/M6: ghi dự báo của mô hình đang chạy để chấm hiệu chỉnh thực tế sau 10 phiên.
         if (o.forecast && o.forecast.date === date) await store.upsertRows(FORECAST_TABLE, [{ scope, trading_date: date, model_id: o.forecast.modelId, p: o.forecast.p, y: null }], "scope,trading_date");
         // M6: nguồn bắt buộc hỏng 2 phiên liên tiếp -> cảnh báo vận hành.

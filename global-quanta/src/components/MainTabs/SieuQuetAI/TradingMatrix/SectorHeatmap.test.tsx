@@ -40,12 +40,11 @@ describe("Trading Matrix M2", () => {
     expect(el.textContent).toContain("VN-Index -2");
   });
 
-  it("mã biến động đáng chú ý: ghi rõ KHÔNG phải đóng góp chỉ số; bấm mã chọn toàn trang", async () => {
+  it("mã biến động đáng chú ý: bấm mã chọn toàn trang", async () => {
     const m = (symbol: string, ret: number) => ({ symbol, industry: "Ngân hàng", close: 10, ret, value: 5e11, valueRatio: 2.5, avgValue20: 2e11, atCeiling: ret > 6, atFloor: false, foreignNet: 0 });
     const mv: MatrixMovers = { version: "v", scope: { id: "VN30", label: "Rổ VN30" }, asOf: "2026-10-21", eligible: 30, liquidityFloor: 3e11, gainers: [m("VCB", 6.9)], losers: [m("HPG", -2)], valueSpikes: [m("SSI", 1)], label: "Mã biến động đáng chú ý", note: "KHÔNG phải mức đóng góp vào VN-Index." };
     const onSelect = vi.fn();
     await render(<NotableMovers data={mv} onSelect={onSelect} />);
-    expect(el.textContent).toContain("KHÔNG phải mức đóng góp");
     expect(el.textContent).toContain("trần");
     await act(async () => (el.querySelector('button[aria-label="Chọn HPG"]') as HTMLButtonElement).click());
     expect(onSelect).toHaveBeenCalledWith("HPG");

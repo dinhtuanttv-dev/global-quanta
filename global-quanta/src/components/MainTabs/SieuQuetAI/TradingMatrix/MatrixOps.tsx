@@ -15,7 +15,7 @@ export function ForecastBlock({ f }: { f: Forecast | null | undefined }) {
       </div>
       <div className="text-[15px] font-semibold text-violet-200">{vn(f.p * 100, 0)}% <span className="text-[10px] text-slate-400 font-normal">· tỷ lệ nền {vn(f.baseRate * 100, 0)}% · kỳ hạn {f.horizon} phiên</span></div>
       <p className="text-slate-400">Mô hình {f.modelId} · huấn luyện {f.trainN} phiên · holdout {f.holdout.n} phiên (Brier {vn(f.holdout.brier ?? null, 3)}, nền {vn(f.holdout.baseRate * 100, 0)}%) · cổng: {f.gate === "PROMOTE" ? "thăng hạng" : "giữ champion"} · {when(f.date)}</p>
-      <p className="text-[9px] text-amber-200/80">{f.note}</p>
+      <p className="text-[11px] text-slate-400">{f.note}</p>
     </div>
   );
 }

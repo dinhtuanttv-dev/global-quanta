@@ -21,14 +21,19 @@ export function RelatedChips({ tickers = [], sectors = [], onSelectTicker, onInd
   );
 }
 
+/** SC3 đang theo dõi chỉ vì độ rộng rơi thì gọi đúng như vậy; quy tắc M3-r1 giữ nguyên để so sánh. */
+export function scenarioTitle(s: Pick<Scenario, "id" | "title" | "groups">) {
+  return s.id === "SC3" && s.groups?.breadth && !s.groups?.volatility ? "Độ rộng rơi nhanh" : s.title;
+}
+
 function ScenarioCard({ s, onSelectTicker, onIndustry }: { s: Scenario } & LinkHandlers) {
   const st = STATE_STYLE[s.state], t = TONE[st.tone];
   const active = s.state === "CONFIRMED" || s.state === "WATCH";
   return (
     <div className={`rounded-lg border ${t.bd} ${active ? t.bg : ""} p-2 space-y-1 min-w-0`} data-testid={`mx-scenario-${s.id}`}>
       <div className="flex items-start justify-between gap-2">
-        <span className="text-[11px] font-semibold text-slate-100 leading-tight">{s.title}</span>
-        <span className="text-[8px] px-1 rounded text-amber-300 bg-amber-500/10 shrink-0" title={s.validation.summary}>{s.validation.label}</span>
+        <span className="text-[12px] font-semibold text-slate-100 leading-tight">{scenarioTitle(s)}</span>
+        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-500/40 text-[9.5px] font-bold text-amber-300" title={s.validation.summary}>C</span>
       </div>
       <div className={`text-[11px] font-semibold ${t.fg}`}><span aria-hidden>{st.glyph}</span> {s.displayState}{s.since ? <span className="text-[9px] text-slate-500 font-normal"> · từ {when(s.since)}</span> : null}</div>
       <p className="text-[9.5px] text-slate-400 leading-snug">{s.meaning}</p>
@@ -40,8 +45,7 @@ function ScenarioCard({ s, onSelectTicker, onIndustry }: { s: Scenario } & LinkH
           <RelatedChips tickers={s.related.kind === "tickers" ? s.related.items : []} sectors={s.related.kind === "sectors" ? s.related.items : []} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />
         </div>
       )}
-      <p className="text-[9px] text-amber-200/80 leading-snug border-t border-white/5 pt-1">Kiểm định: {s.validation.summary}</p>
-    </div>
+          </div>
   );
 }
 
@@ -51,7 +55,6 @@ export function ScenarioBoard({ d, onSelectTicker, onIndustry }: { d: MatrixOver
     <div className="space-y-1.5" data-testid="mx-scenarios">
       <div className="flex flex-wrap items-baseline gap-2">
         <h3 className="text-[10px] font-bold text-slate-300">Kịch bản thị trường · {d.scope.label}</h3>
-        <span className="text-[9px] text-slate-500">Quy tắc {d.scenarios[0].ruleVersion} · ≥ 2 nhóm bằng chứng độc lập (giá chỉ số / độ rộng / biến động) · THỰC NGHIỆM</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
         {d.scenarios.map((s) => <ScenarioCard key={s.id} s={s} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />)}
@@ -73,7 +76,7 @@ const FLAG_GLYPH: Record<RiskFlag["status"], { g: string; text: string; cls: str
 export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: RiskFlag[] } & LinkHandlers) {
   return (
     <div className="space-y-1 min-w-0" data-testid="mx-risk">
-      <h3 className="text-[10px] font-bold text-slate-300">Cờ rủi ro cần xem xét <span className="font-normal text-slate-500">(không phải lệnh mua / bán)</span></h3>
+      <h3 className="text-[12px] font-bold text-slate-200">Cờ cần xem xét</h3>
       <ul className="space-y-1">
         {flags.map((f) => {
           const g = FLAG_GLYPH[f.status];
@@ -86,7 +89,6 @@ export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: Ri
                 {f.status === "ON" && f.evidence?.length ? <span className="block text-[9px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
                 {f.related && f.status === "ON" && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
                 {f.trigger && <span className="block text-[9px] text-slate-500">Bật khi: {f.trigger}{f.close ? ` · Tắt khi: ${f.close}` : ""}</span>}
-                {f.validation && <span className="block text-[9px] text-amber-200/70">{f.validation}</span>}
               </span>
             </li>
           );
@@ -120,7 +122,6 @@ export function SignalJournal({ data }: { data: MatrixSignals | undefined }) {
       {data.recent.length > 0 ? (
         <ul className="text-[9.5px] text-slate-400 space-y-0.5">{data.recent.slice(0, 6).map((r) => <li key={`${r.scenario}${r.date}`}>{when(r.date)} · {r.scenario} → {r.state}</li>)}</ul>
       ) : <p className="text-[9.5px] text-slate-500">Sổ bắt đầu ghi từ phiên đầu tiên sau triển khai (16:50).</p>}
-      <p className="text-[9px] text-slate-500">{data.note} Kết quả so với nền = TB lợi suất cùng kỳ hạn 250 phiên trước.</p>
     </div>
   );
 }

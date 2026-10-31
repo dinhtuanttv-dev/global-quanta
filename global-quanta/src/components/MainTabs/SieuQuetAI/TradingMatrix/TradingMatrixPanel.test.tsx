@@ -7,7 +7,7 @@ import type { MatrixOverview } from "../../../../hooks/useTradingMatrix";
 
 const state: { data?: MatrixOverview; error?: Error; isLoading: boolean; calls: string[] } = { isLoading: false, calls: [] };
 vi.mock("../../../../hooks/useTradingMatrix", () => ({
-  useTradingMatrix: (scope: string) => { state.calls.push(scope); return { data: state.data, error: state.error, isLoading: state.isLoading }; },
+  useTradingMatrix: (scope: string, enabled = true) => { if (!enabled) return { data: undefined, error: undefined, isLoading: false }; state.calls.push(scope); return { data: state.data, error: state.error, isLoading: state.isLoading }; },
   useMatrixSectors: () => ({ data: undefined, error: undefined, isLoading: true }),
   useMatrixMovers: () => ({ data: undefined, error: undefined, isLoading: false }),
   useMatrixImpact: () => ({ data: undefined, error: undefined, isLoading: false }),
@@ -41,74 +41,110 @@ const render = async () => { el = document.createElement("div"); document.body.a
 beforeEach(() => { state.data = undefined; state.error = undefined; state.isLoading = false; state.calls = []; try { localStorage.clear(); } catch { /* jsdom */ } });
 afterEach(() => { el?.remove(); });
 
-describe("Trading Matrix M1", () => {
-  it("6 ô có mẫu số, ngày / trong phiên tách riêng, nhãn + ký hiệu (không chỉ màu), thiếu nguồn ghi rõ", async () => {
-    state.data = fixture();
+const pt = (date: string, x: number, y: number, o: Record<string, number> = {}) => ({ date, x, y, b20: 34.7, b50: 28.8, b200: 40, mo: -80, moZ: -1, pg5: 1, db5: -21, idx1: -0.8, idx5: -1.8, idx20: 0.2, sigma: 13.9, yzPct: 10, fnr1: -3, fnr5: -2.5, fnrZ: -2, ldZ: -3, flow: -2.5, foreign: -6e11, value: 1e13, neff: 42, n: 430, ...o });
+const withState = (over: Partial<MatrixOverview> = {}) => fixture({
+  state: { rule: "MS-r1", asOf: "2026-10-30", x: -1.5, y: -0.6, zone: { side: "down", stress: "low", id: "down-low" }, zoneChanged: true, zonePrev: { id: "mid-low" },
+    headline: [{ key: "trend", tab: "scenario", text: "Xu hướng giảm" }, { key: "vol", tab: "scenario", text: "biến động thấp" }, { key: "breadth", tab: "sectors", text: "độ rộng 34,7%" }, { key: "flow", tab: "flow", text: "khối ngoại bán ròng" }],
+    current: pt("2026-10-30", -1.5, -0.6) as never, previous: pt("2026-10-29", -1, -0.5, { b20: 45.6 }) as never,
+    deltas: { b20: -10.9, b50: -3, mo: -20, sigma: 0.5, fnr5: -0.5, neff: 2, x: -0.5, y: -0.1 },
+    path: [pt("2026-10-28", -0.5, 0.4), pt("2026-10-29", -1, -0.5, { b20: 45.6 }), pt("2026-10-30", -1.5, -0.6)] as never, method: { sigma: "YZ", zWindow: 250, buffer: 0.25 } },
+  m4: { rule: "M4-r1", asOf: "2026-10-30", episodes: 0, current: [{ id: "SC4", title: "Độ rộng rơi nhanh", state: "WATCH", since: "2026-10-30" }], timeline: [{ date: "2026-10-30", SC1: "INACTIVE", SC2: "INACTIVE", SC3: "INACTIVE", SC4: "WATCH" } as never] },
+  scenarioTimeline: [{ date: "2026-10-30", SC1: "INACTIVE", SC2: "COOLDOWN", SC3: "WATCH" }],
+  ...over,
+});
+const click = async (sel: string) => { await act(async () => (el.querySelector(sel) as HTMLElement).click()); };
+const openDetail = async () => act(async () => (Array.from(el.querySelectorAll("button")).find((b) => b.textContent?.includes("Chi tiết")) as HTMLButtonElement).click());
+
+describe("Trạng thái thị trường", () => {
+  it("thu gọn: một dòng kết luận và 4 chỉ số; không còn câu giải thích hay thuật ngữ nội bộ", async () => {
+    state.data = withState();
     await render();
     const t = el.textContent ?? "";
-    for (const id of ["mx-regime", "mx-breadth", "mx-flow", "mx-vol", "mx-session", "mx-health"]) expect(el.querySelector(`[data-testid=${id}]`)).toBeTruthy();
-    expect(t).toContain("◆ Chuyển pha");
-    expect(t).toContain("54,3% trên MA20");
-    expect(t).toContain("n = 372/401 mã · loại 29");
-    expect(t).toContain("Trong phiên: ↑147 ↓164 =57");
-    expect(t).toContain("(thiếu nguồn)");
-    expect(t).toContain("Thiếu một phần");
-    expect(t).toContain("Nghiên cứu VN-Index");
+    expect(el.querySelector("[data-testid=mx-headline]")?.textContent).toContain("Xu hướng giảm");
+    for (const id of ["mx-tile-breadth", "mx-tile-flow", "mx-tile-vol", "mx-tile-neff"]) expect(el.querySelector(`[data-testid=${id}]`)).toBeTruthy();
+    expect(el.querySelector("[data-testid=mx-tile-breadth]")?.textContent).toContain("34,7%");
+    expect(el.querySelector("[data-testid=mx-tile-vol]")?.textContent).toContain("Thấp");
+    expect(el.querySelector("[data-testid=mx-tile-neff]")?.textContent).toContain("42 trụ");
+    for (const word of ["Gateway", "HMM", "z5", "champion", "Brier", "holdout", "THỰC NGHIỆM", "Kiểm định"]) expect(t).not.toContain(word);
+    expect(el.querySelector("[data-testid=mx-state-map]")).toBeNull();
   });
 
-  it("thiếu dữ liệu -> 'Chưa đủ dữ liệu', không giả trung tính; lỗi toàn bộ -> báo không khả dụng nhưng không chặn bảng", async () => {
-    state.data = fixture({ regime: { label: "UNKNOWN", horizon: "daily", probabilities: null, probabilityGap: null, hmmAsOf: null, stageOdds: null, reason: "Chưa đủ 60 phiên VN-Index." }, volatility: null, flow: { state: "UNKNOWN", sources: [], partial: true, note: "", foreign: null, ife: null } });
+  it("lỗi toàn bộ thì báo không khả dụng; thiếu trạng thái thì nói chưa đủ dữ liệu, không đoán", async () => {
+    state.data = fixture();
     await render();
-    expect(el.textContent).toContain("? Chưa đủ dữ liệu");
-    expect(el.textContent).toContain("Chưa đủ 60 phiên VN-Index.");
-    expect(el.textContent).toContain("Chưa có nguồn");
+    expect(el.querySelector("[data-testid=mx-headline]")?.textContent).toContain("Chưa đủ dữ liệu");
     el.remove();
     state.data = undefined; state.error = new Error("HTTP 502");
     await render();
-    expect(el.querySelector("[role=alert]")?.textContent).toContain("Bảng Siêu Quét bên dưới vẫn hoạt động");
+    expect(el.querySelector("[role=alert]")?.textContent).toContain("Không khả dụng");
   });
 
-  it("đổi phạm vi gọi lại dữ liệu theo phạm vi; Chi tiết hiện xu hướng độ rộng, nguồn, xác suất chuyển giai đoạn có nhãn kiểm định", async () => {
-    state.data = fixture();
+  it("đổi phạm vi gọi lại dữ liệu theo phạm vi; nguồn lỗi hiện cảnh báo gọn mở tab Bằng chứng", async () => {
+    state.data = withState();
     await render();
-    await act(async () => (el.querySelector("[data-mx-scope=VN30]") as HTMLButtonElement).click());
-    expect(state.calls[state.calls.length - 1]).toBe("VN30");
-    await act(async () => (Array.from(el.querySelectorAll("button")).find((b) => b.textContent?.includes("Chi tiết")) as HTMLButtonElement).click());
-    const d = el.querySelector("[data-testid=mx-details]")!;
-    expect(d.textContent).toContain("Đỉnh / đáy 52 tuần mới");
-    expect(d.textContent).toContain("ĐÃ KIỂM ĐỊNH");
-    expect(d.textContent).toContain("Tự doanh: không có nguồn dữ liệu");
+    await click("[data-mx-scope=VN30]");
+    expect(state.calls).toContain("VN30");
+    await click("[data-testid=mx-health-warn]");
+    expect(el.querySelector("[data-testid=mx-tab-evidence]")).toBeTruthy();
     expect(el.querySelectorAll("[data-testid=mx-sources] li").length).toBe(2);
-    expect(el.querySelectorAll("figure svg rect").length).toBe(20);
-    expect(el.querySelector("[data-testid=mx-sector-row]")?.textContent).toContain("Heatmap ngành");
+    expect(el.querySelectorAll("[data-testid=mx-grade]").length).toBeGreaterThan(5);
+    expect(el.querySelector("[data-testid=mx-tab-evidence]")?.textContent).toContain("Tự doanh: chưa có nguồn");
+  });
+
+  it("mở Chi tiết: bản đồ 2D, xem lại theo phiên đổi được số, đúng 7 tab", async () => {
+    state.data = withState();
+    await render();
+    await openDetail();
+    expect(el.querySelector("[data-testid=mx-state-map]")).toBeTruthy();
+    expect(Array.from(el.querySelectorAll("[data-mx-tab]")).map((b) => b.textContent)).toEqual(["Thay đổi", "Trụ chỉ số", "Ngành", "Mã nổi bật", "Kịch bản", "Dòng tiền", "Bằng chứng"]);
+    expect(el.querySelector("[data-testid=mx-asof]")?.textContent).toContain("30/10");
+    const range = el.querySelector("[data-testid=mx-replay]") as HTMLInputElement;
+    await act(async () => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(range, "1"); range.dispatchEvent(new Event("input", { bubbles: true })); });
+    expect(el.querySelector("[data-testid=mx-asof]")?.textContent).toContain("29/10");
+    expect(el.querySelector("[data-testid=mx-asof]")?.textContent).toContain("đang xem lại");
+    expect(el.querySelector("[data-testid=mx-tile-breadth]")?.textContent).toContain("45,6%");
+  });
+
+  it("các tab: thay đổi có trước và nay; dòng tiền vẽ cột; kịch bản có thanh theo ngày; bấm cụm kết luận mở đúng tab", async () => {
+    state.data = withState();
+    await render();
+    await openDetail();
+    expect(el.querySelector("[data-testid=mx-chg-b20]")?.textContent).toContain("45,6%");
+    expect(el.querySelector("[data-testid=mx-chg-b20]")?.textContent).toContain("−10,9");
+    expect(el.querySelector("[data-testid=mx-tab-change]")?.textContent).toContain("đổi từ");
+    await click("[data-testid=mx-hl-flow]");
+    expect(el.querySelector("[data-testid=mx-flow-bars]")).toBeTruthy();
+    await click("[data-mx-tab=scenario]");
+    expect(el.querySelector("[data-testid=mx-strip]")).toBeTruthy();
+    await click("[data-mx-tab=evidence]");
+    expect(el.querySelector("[data-testid=mx-strip-m4]")).toBeTruthy();
+  });
+
+  it("Thay đổi: bấm trụ chọn mã; Kịch bản: bấm mã liên quan chọn mã", async () => {
+    const picked: string[] = [];
+    state.data = withState({
+      links: { impact: { date: "2026-10-21", check: null, up: [{ symbol: "VCB", points: 9.1, changePct: 4.2, industry: "Ngân hàng" }], down: [{ symbol: "VHM", points: -2.3, changePct: -1.1, industry: "Bất động sản" }], top5Share: 48 }, sectors: null, lastSignal: null },
+      scenarios: [{ id: "SC2", title: "Chỉ số dẫn dắt", meaning: "m", state: "WATCH", since: "2026-10-21", displayState: "Theo dõi", evidence: [], contradictions: [], groups: {}, ruleVersion: "M3-r1", validation: { verdict: "FAIL", summary: "OOS không đạt", label: "THỰC NGHIỆM" }, related: { kind: "tickers", note: "Trụ kéo chỉ số", items: ["VCB"] } }],
+    });
+    el = document.createElement("div"); document.body.appendChild(el);
+    await act(async () => createRoot(el).render(<TradingMatrixPanel onSelectTicker={(t) => picked.push(t)} />));
+    await openDetail();
+    await click("[data-testid=mx-chg-pillars] [aria-label='Chọn VCB']");
+    await click("[data-mx-tab=scenario]");
+    await click("[data-testid=mx-scenario-SC2] [aria-label='Chọn VCB']");
+    expect(picked).toEqual(["VCB", "VCB"]);
   });
 });
 
-describe("Trading Matrix — luồng liên kết (snapshot tổng hợp)", () => {
-  it("dòng liên kết dưới 6 ô: bấm trụ chỉ số -> chọn mã; bấm ngành dẫn -> lọc bảng; kịch bản có mã liên quan", async () => {
-    const picked: string[] = [], industries: (string | null)[] = [];
-    state.data = fixture({
-      links: {
-        impact: { date: "2026-10-21", check: { predictedPoints: 46.6, actualPoints: 46.7, predictedPct: 2.77, actualPct: 2.76, diffPp: 0.01, status: "MATCH" }, up: [{ symbol: "VCB", points: 9.1, changePct: 4.2, industry: "Ngân hàng" }], down: [{ symbol: "VHM", points: -2.3, changePct: -1.1, industry: "Bất động sản" }], top5Share: 48 },
-        sectors: { asOf: "2026-10-21", leaders: [{ industry: "Ngân hàng", rs5: 2.1, breadth: 70 }], laggards: [{ industry: "Bất động sản", rs5: -1.5, breadth: 30 }], flagged: [] },
-        lastSignal: null,
-      },
-      scenarios: [{ id: "SC2", title: "Chỉ số dẫn dắt, thị trường phân hoá", meaning: "m", state: "WATCH", since: "2026-10-21", displayState: "Theo dõi", evidence: [], contradictions: [], groups: {}, ruleVersion: "M3-r1",
-        validation: { verdict: "FAIL", summary: "OOS không đạt", label: "THỰC NGHIỆM" }, related: { kind: "tickers", note: "Trụ kéo chỉ số", items: ["VCB"] } }],
-    });
-    el = document.createElement("div"); document.body.appendChild(el);
-    await act(async () => createRoot(el).render(<TradingMatrixPanel onSelectTicker={(t) => picked.push(t)} onIndustry={(n) => industries.push(n)} />));
-    const links = el.querySelector("[data-testid=mx-links]")!;
-    expect(links.textContent).toContain("5 mã = 48% biến động");
-    await act(async () => (links.querySelector("[aria-label='Chọn VCB']") as HTMLButtonElement).click());
-    await act(async () => (Array.from(links.querySelectorAll("button")).find((b) => b.textContent === "Ngân hàng") as HTMLButtonElement).click());
-    expect(picked).toEqual(["VCB"]);
-    expect(industries).toEqual(["Ngân hàng"]);
-    await act(async () => (Array.from(el.querySelectorAll("button")).find((b) => b.textContent?.includes("Chi tiết")) as HTMLButtonElement).click());
-    const sc = el.querySelector("[data-testid=mx-scenario-SC2]")!;
-    expect(sc.textContent).toContain("Trụ kéo chỉ số");
-    await act(async () => (sc.querySelector("[aria-label='Chọn VCB']") as HTMLButtonElement).click());
-    expect(picked).toEqual(["VCB", "VCB"]);
-    expect(el.querySelector("[data-mx-view=impact]")?.textContent).toBe("Tác động VN-Index");
+describe("Thác nước VN-Index", () => {
+  it("bắc cầu đúng: các cột cộng dồn bằng tổng, phần còn lại không mất điểm", async () => {
+    const { buildWaterfall } = await import("./StateCharts");
+    const items = [["A", 3], ["B", 2], ["C", -4], ["D", -1], ["E", 0.5], ["F", -0.25]].map(([symbol, points]) => ({ symbol, points })) as never;
+    const { bars, total } = buildWaterfall(items, 2);
+    expect(total).toBeCloseTo(0.25);
+    expect(bars.map((b) => b.key)).toEqual(["A", "B", "C", "D", "__rest"]);
+    expect(bars[bars.length - 1].v).toBeCloseTo(0.25);
+    bars.forEach((b, i) => { if (i) expect(b.from).toBeCloseTo(bars[i - 1].to); });
+    expect(bars[bars.length - 1].to).toBeCloseTo(total);
   });
 });

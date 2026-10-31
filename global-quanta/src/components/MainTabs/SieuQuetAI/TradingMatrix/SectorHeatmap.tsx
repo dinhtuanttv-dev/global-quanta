@@ -52,7 +52,7 @@ export default function SectorHeatmap({ data, active, onIndustry }: Props) {
       </div>
 
       {/* Desktop: biểu đồ toạ độ */}
-      <svg viewBox={`0 0 ${W} ${H}`} className="hidden sm:block w-full h-auto" role="img" aria-label={`Heatmap ngành: sức mạnh tương đối ${h} phiên và độ rộng ngành`}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="hidden sm:block w-full h-auto" style={{ maxWidth: 880, margin: "0 auto" }} role="img" aria-label={`Heatmap ngành: sức mạnh tương đối ${h} phiên và độ rộng ngành`}>
         <rect x={PAD.l} y={PAD.t} width={W - PAD.l - PAD.r} height={H - PAD.t - PAD.b} fill="rgba(2,6,15,0.35)" />
         <line x1={X(0)} x2={X(0)} y1={PAD.t} y2={H - PAD.b} stroke="rgba(148,163,184,0.35)" />
         <line x1={PAD.l} x2={W - PAD.r} y1={Y(50)} y2={Y(50)} stroke="rgba(148,163,184,0.35)" />
@@ -63,9 +63,11 @@ export default function SectorHeatmap({ data, active, onIndustry }: Props) {
         {[...rows].sort((a, b) => b.value20 - a.value20).map((s) => {
           const q = quadrantOf(s.rs[h], s.breadth)!, cx = X(s.rs[h] as number), cy = Y(s.breadth as number), r = R(s.value20);
           const on = active.has(s.industry), flag = s.flags.length > 0;
+          const tail = (s.trail ?? []).filter((t) => t.rs?.[h] != null && t.breadth != null);
           return (
             <g key={s.industry} role="button" tabIndex={0} aria-pressed={on} aria-label={`${s.industry}: RS ${vn(s.rs[h], 2)}, độ rộng ${vn(s.breadth)}%`}
               onClick={() => click(s)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); click(s); } }} className="cursor-pointer focus:outline-none">
+              {tail.length > 1 && <polyline points={tail.map((t) => `${X(t.rs[h] as number)},${Y(t.breadth as number)}`).join(" ")} fill="none" stroke={QUADRANT[q].fill} strokeOpacity={on ? 0.9 : 0.4} strokeWidth={1.2} data-testid="mx-trail" />}
               <circle cx={cx} cy={cy} r={r} fill={QUADRANT[q].fill} fillOpacity={on ? 0.75 : 0.35} stroke={on ? "#f8fafc" : flag ? "#fbbf24" : "#0f1420"} strokeWidth={on ? 2 : flag ? 1.5 : 2} strokeDasharray={flag && !on ? "3 2" : undefined} />
               <title>{`${s.group} › ${s.industry}\nRS ${h} phiên: ${vn(s.rs[h], 2)} điểm % · trung vị lợi suất ${vn(s.medianReturn[h], 2)}%\nĐộ rộng: ${vn(s.breadth)}% (${s.eligible}/${s.count} mã)\nGTGD TB20: ${fmtBn(s.value20)} · NN 5 phiên: ${fmtBn(s.foreign5)}\nSmart Score TB: ${s.avgSmart ?? "—"}${s.flags.length ? `\n⚠ ${s.flags.map((f) => f.text).join("; ")}` : ""}`}</title>
               {(labelled.has(s.industry) || on) && (
@@ -100,7 +102,6 @@ export default function SectorHeatmap({ data, active, onIndustry }: Props) {
         ))}
         <li className="text-slate-500">◌ viền đứt ⚠ = cờ biến động / độ rộng giảm mạnh · kích thước = GTGD TB20</li>
       </ul>
-      <p className="text-[9px] text-slate-500">{data.definition} {data.smartMatched ? "" : "Smart Score: lần quét chưa cùng phiên — không ghép."}</p>
 
       <table className="sr-only">
         <caption>Thống kê ngành {h} phiên</caption>
