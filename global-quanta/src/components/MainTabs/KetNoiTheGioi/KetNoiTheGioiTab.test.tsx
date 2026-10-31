@@ -13,6 +13,8 @@ vi.mock("./WorldConfirmatoryPanel", () => stub("f-confirm"));
 vi.mock("./WorldSourcePanel", () => stub("f-source"));
 vi.mock("./center/SectorMap2D", () => stub("f-map"));
 vi.mock("./center/TransmissionMap2D", () => stub("f-trans"));
+vi.mock("./center/MarketMonitor", () => stub("f-monitor"));
+vi.mock("./center/WorldNewsPanel", () => stub("f-news"));
 vi.mock("../ChatXucTac/WorldTodayStrip", () => stub("f-today"));
 vi.mock("../../../macro-center/src/ui/world/WorldTab", () => ({ WorldTab: ({ only }: { only: string }) => <div data-testid={`f-engine-${only}`} /> }));
 vi.mock("../../../hooks/useGlobalStream", () => ({
@@ -39,7 +41,7 @@ describe("Trung tâm kinh tế thế giới — đủ tính năng ở đúng tab
   it("5 tab một tầng; mở đầu bằng Tổng quan, Risk-On không nằm ở đầu", () => {
     render(<KetNoiTheGioiTab />);
     expect(Array.from(document.querySelectorAll('[role="tab"]')).map((b) => b.textContent?.trim())).toEqual(["Tổng quan", "Ngành Việt Nam", "Hàng hoá & thị trường", "Cổ phiếu & kịch bản", "Bằng chứng & nguồn"]);
-    for (const id of ["f-today", "f-engine-overview", "f-map", "f-trans"]) expect(has(id)).toBe(true);
+    for (const id of ["f-today", "f-news", "f-engine-overview", "f-map", "f-trans"]) expect(has(id)).toBe(true);
     expect(document.body.textContent).not.toContain("Risk-On Index");
   });
 
@@ -49,8 +51,7 @@ describe("Trung tâm kinh tế thế giới — đủ tính năng ở đúng tab
     for (const id of ["f-strategy", "f-sectors", "f-engine-matrix"]) expect(has(id)).toBe(true);
     expect(has("f-map")).toBe(false);
     open(/Hàng hoá/);
-    for (const id of ["f-commodity", "f-engine-events", "f-engine-connect"]) expect(has(id)).toBe(true);
-    expect(document.body.textContent).toContain("S&P 500");
+    for (const id of ["f-monitor", "f-commodity", "f-engine-events", "f-engine-connect"]) expect(has(id)).toBe(true);
     open(/Cổ phiếu/);
     for (const id of ["f-stocks", "f-ai", "f-engine-scenario", "f-engine-stock"]) expect(has(id)).toBe(true);
     open(/Bằng chứng/);

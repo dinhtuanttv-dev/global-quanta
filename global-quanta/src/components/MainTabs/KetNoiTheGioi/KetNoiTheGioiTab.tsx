@@ -1,5 +1,5 @@
 import { useRef, useState, type KeyboardEvent } from "react";
-import { Globe2, Zap, WifiOff, AlertTriangle, TrendingUp, TrendingDown, LayoutDashboard, Factory, Package, BriefcaseBusiness, ShieldCheck, type LucideIcon } from "lucide-react";
+import { Globe2, Zap, WifiOff, LayoutDashboard, Factory, Package, BriefcaseBusiness, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useGlobalStream } from "../../../hooks/useGlobalStream";
 import CommodityPulseSubTab from "./CommodityPulseSubTab";
 import StockImpactTable from "./StockImpactTable";
@@ -16,6 +16,8 @@ import EvidenceLedgerPanel from "./strategy/EvidenceLedgerPanel";
 import WorldTodayStrip from "../ChatXucTac/WorldTodayStrip";
 import SectorMap2D from "./center/SectorMap2D";
 import TransmissionMap2D from "./center/TransmissionMap2D";
+import MarketMonitor from "./center/MarketMonitor";
+import WorldNewsPanel from "./center/WorldNewsPanel";
 import "./world-gq.css";
 import { getMarketGateway } from "../../../config/marketGateway";
 
@@ -84,7 +86,6 @@ function Engine({ only, hideStock }: { only: "overview" | "matrix" | "events" | 
  */
 export default function KetNoiTheGioiTab() {
   const { data, connected, source: pulseSource, monthlyFromProjectA } = useGlobalStream();
-  const [showAllMarkets, setShowAllMarkets] = useState(false);
   const [tab, setTabState] = useState<TabId>(readTab);
   const refs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const setTab = (next: TabId) => {
@@ -105,8 +106,8 @@ export default function KetNoiTheGioiTab() {
     () => fetchMarketJson("/api/world/stock/HPG").then(() => true, () => false), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
   const stockProfileReady = stockProbe === true;
   const macro = data?.macro ?? null;
-  const markets = data?.markets ?? [];
-  const displayedMarkets = showAllMarkets ? markets : markets.slice(0, 6);
+  const { data: spill } = useSWR<{ spillover?: { total: number } }>(tab === "markets" ? "world-overview-spill" : null,
+    () => fetchMarketJson("/api/world/overview"), { revalidateOnFocus: false, dedupingInterval: 10 * 60_000 });
 
   return (
     <div style={{ background: `linear-gradient(165deg, ${T.bgSurface} 0%, ${T.bgSurface2} 100%)`, border: "1px solid rgba(148,163,184,0.1)", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}
@@ -145,6 +146,7 @@ export default function KetNoiTheGioiTab() {
       {tab === "overview" && (
         <div className="tw-scope space-y-4" data-testid="world-overview">
           <WorldTodayStrip onOpenImpact={() => setTab("sectors")} />
+          <WorldNewsPanel />
           <Engine only="overview" />
           <SectorMap2D />
           <TransmissionMap2D />
@@ -162,57 +164,7 @@ export default function KetNoiTheGioiTab() {
 
       {tab === "markets" && (
         <>
-      {!data && (
-        <div className="flex items-center gap-2 text-xs py-10 justify-center" style={{ color: T.textSecondary }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
-          Đang tải dữ liệu vĩ mô...
-        </div>
-      )}
-
-      {data && !macro && (
-        <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)" }}
-          className="rounded-xl p-4 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: T.gold }} />
-          <p className="text-xs" style={{ color: T.gold }}>
-            Chưa có dữ liệu vĩ mô. Cron <code>/api/cron/refresh-macro</code> có thể chưa chạy lần nào — cần chờ lịch cron
-            (2 lần/ngày) hoặc gọi thủ công để khởi tạo dữ liệu đầu tiên.
-          </p>
-        </div>
-      )}
-
-          {data && (
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Nhịp Đập Thị Trường Thế Giới</p>
-              <EvidenceTag kind="data" />
-            </div>
-            {markets.length === 0 ? (
-              <p className="text-xs italic py-4 text-center" style={{ color: T.textTertiary }}>Không có dữ liệu thị trường.</p>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {displayedMarkets.map((m) => (
-                    <div key={m.symbol} style={{ background: "rgba(148,163,184,0.04)" }} className="rounded-lg p-2.5">
-                      <p className="text-[9px] truncate" style={{ color: T.textTertiary }} title={m.source ? `${m.source}${m.date ? `, phiên ${m.date}` : ""}` : undefined}>{m.name}{m.date ? ` · ${m.date.split("-").reverse().slice(0, 2).join("/")}` : ""}</p>
-                      <p className="text-sm font-black" style={{ color: "#f1f5f9" }}>{m.value.toLocaleString("vi-VN")}</p>
-                      <p className="text-[10px] font-bold flex items-center gap-0.5" style={{ color: m.change_percent >= 0 ? T.positive : T.negative }}>
-                        {m.change_percent >= 0 ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
-                        {m.change_percent >= 0 ? "+" : ""}{m.change_percent.toFixed(2)}%
-                      </p>
-                    </div>
-                  ))}
-                </div>
-                {markets.length > 6 && (
-                  <button onClick={() => setShowAllMarkets(!showAllMarkets)}
-                    className="text-[10px] mt-2 hover:underline" style={{ color: T.gold }}>
-                    {showAllMarkets ? "Thu gọn" : `Xem thêm ${markets.length - 6} thị trường`}
-                  </button>
-                )}
-              </>
-            )}
-          </div>
-
-          )}
+          <MarketMonitor spillover={spill?.spillover?.total ?? null} />
           <CommodityPulseSubTab />
           <Engine only="events" />
           <Engine only="connect" />
