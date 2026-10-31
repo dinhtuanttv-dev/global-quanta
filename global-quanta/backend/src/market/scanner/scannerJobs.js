@@ -78,7 +78,27 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       }
     }
     await store.upsertMarketDaily(today.rows);
+    if (detectAdjustments) await repairForeign({ except: date }).catch((e) => console.warn(`[scanner] khối ngoại: ${e.message}`));
     return { date, rows: today.rows.length, requests, adjustedSymbols: adjusted };
+  }
+
+  /** SSI có lúc công bố khối ngoại sau giờ job chạy, kho lưu 0 cho cả phiên. Lấy lại, chỉ ghi các trường khối ngoại. */
+  async function repairForeign({ sessions = 30, except = null } = {}) {
+    const dates = (await store.getMarketDailyDates()).slice(-sessions);
+    const repaired = [];
+    for (const date of dates) {
+      if (date === except) continue;
+      const rows = await store.getMarketDailyByDate(date);
+      if (rows.length < 50 || rows.some((r) => r.foreignBuyVal || r.foreignSellVal)) continue;
+      const fresh = new Map((await fetchDay(date)).rows.map((r) => [r.symbol, r]));
+      if (![...fresh.values()].some((r) => r.foreignBuyVal || r.foreignSellVal)) continue;
+      await store.upsertMarketDaily(rows.map((r) => {
+        const f = fresh.get(r.symbol);
+        return f ? { ...r, foreignBuyVol: f.foreignBuyVol, foreignSellVol: f.foreignSellVol, foreignBuyVal: f.foreignBuyVal, foreignSellVal: f.foreignSellVal } : r;
+      }));
+      repaired.push(date);
+    }
+    return { checked: dates.length, repaired };
   }
 
   /**
@@ -118,6 +138,7 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
   }
 
   const jobs = {
+    repairForeign,
     /**
      * Chỉ làm mới phân ngành (không đổi danh sách universe): cập nhật KV phân ngành và gắn ngành /
      * nhóm ngành cho các mã trong universe hiện tại. Chạy trước scanUniverse để bảng có ngành mới.

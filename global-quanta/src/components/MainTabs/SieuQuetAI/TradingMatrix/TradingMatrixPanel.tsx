@@ -138,6 +138,8 @@ function ScenarioTab({ d, onSelect, onIndustry }: { d: MatrixOverview; onSelect:
 
 function FlowTab({ d }: { d: MatrixOverview }) {
   const path = d.state?.path ?? [], rows = path.slice(-30), f = d.flow, c = d.state?.current;
+  const peak = rows.reduce<StatePoint | null>((a, r) => (ok(r.fnr1) && Math.abs(r.fnr1) > Math.abs(a?.fnr1 ?? 0) ? r : a), null);
+  const single = peak?.fgnTop && ok(peak.foreign) && Math.abs(peak.fgnTop.v) >= 0.5 * Math.abs(peak.foreign) && Math.abs(peak.fnr1 ?? 0) >= 15 ? peak : null;
   return (
     <div className="space-y-3" data-testid="mx-tab-flow">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[12px]">
@@ -147,6 +149,7 @@ function FlowTab({ d }: { d: MatrixOverview }) {
         <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">Lệnh chủ động</span><b className="font-mono text-slate-100">{ok(c?.ldZ) ? `${sgn(c?.ldZ, 1)} σ` : "—"}</b> <span className="text-[11px] text-slate-400">{f.foreign?.streak ? `chuỗi ${f.foreign.streak > 0 ? "mua" : "bán"} ${Math.abs(f.foreign.streak)}` : ""}</span></div>
       </div>
       <SignedBars rows={rows.map((r) => ({ date: r.date, v: r.fnr1 }))} label="Khối ngoại ròng / giá trị giao dịch, từng phiên" testId="mx-flow-bars" />
+      {single?.fgnTop && <p className="text-[11px] text-amber-300" data-testid="mx-flow-top">Phiên {when(single.date)}: {single.fgnTop.s} {bn(single.fgnTop.v)}, chiếm phần lớn khối ngoại ròng toàn phạm vi</p>}
       <SignedBars rows={rows.map((r) => ({ date: r.date, v: r.ldZ }))} unit=" σ" digits={1} label="Lệnh chủ động, chuẩn hoá trung vị" testId="mx-flow-ld" height={76} />
     </div>
   );

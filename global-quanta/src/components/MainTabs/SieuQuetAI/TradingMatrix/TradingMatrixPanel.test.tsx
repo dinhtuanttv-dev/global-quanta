@@ -114,6 +114,7 @@ describe("Trạng thái thị trường", () => {
     expect(el.querySelector("[data-testid=mx-tab-change]")?.textContent).toContain("đổi từ");
     await click("[data-testid=mx-hl-flow]");
     expect(el.querySelector("[data-testid=mx-flow-bars]")).toBeTruthy();
+    expect(el.querySelector("[data-testid=mx-flow-top]")).toBeNull();
     await click("[data-mx-tab=scenario]");
     expect(el.querySelector("[data-testid=mx-strip]")).toBeTruthy();
     await click("[data-mx-tab=evidence]");
