@@ -78,7 +78,7 @@ function TargetPlot({ t, pick }: { t: BrokerDoc["targets"]; pick: (q: Cited) => 
   if (!items.length) return <p className="text-[12px] text-slate-400">Chưa có báo cáo nêu mục tiêu VN-Index kèm câu trích.</p>;
   const vals = [...items.map((x) => x.value), ...(t.indexClose ? [t.indexClose] : [])];
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max(40, (hi - lo) * 0.1);
-  const W = 560, L = 118, R = 18, RH = 24, T = 22, H = T + items.length * RH + 22;
+  const W = 560, L = 118, R = 54, RH = 24, T = 22, H = T + items.length * RH + 22;
   const X = (v: number) => L + ((v - (lo - pad)) / (hi - lo + 2 * pad)) * (W - L - R);
   const COLOR = { base: "#fcd34d", bull: "#7cb4f5", bear: "#f09595" };
   return (
@@ -112,14 +112,14 @@ function SectorBars({ rows, pick }: { rows: BrokerDoc["sectors"]; pick: (q: Cite
         const w = Math.abs(s.net) * 50;
         const zw = s.quantZ == null ? 0 : Math.min(1, Math.abs(s.quantZ) / 2) * 50;
         return <li key={s.icb}>
-          <button type="button" onClick={() => pick(s.items[0])} className="grid w-full grid-cols-[minmax(92px,150px)_minmax(0,1fr)_auto] items-center gap-2 rounded px-1 py-0.5 text-left text-[11px] hover:bg-white/5" data-testid={`bc-sector-${s.icb}`}>
+          <button type="button" onClick={() => pick(s.items[0])} className="grid w-full grid-cols-[minmax(92px,150px)_minmax(0,1fr)] items-center gap-x-2 rounded sm:grid-cols-[minmax(92px,150px)_minmax(0,1fr)_190px] px-1 py-0.5 text-left text-[11px] hover:bg-white/5" data-testid={`bc-sector-${s.icb}`}>
             <span className="truncate text-slate-200" title={s.nameVi}>{s.nameVi}</span>
             <span aria-hidden className="relative h-4 rounded bg-white/5">
               <i className="absolute left-1/2 top-0 h-full w-px bg-slate-500" />
               <i className="absolute top-0 h-2 rounded-sm" style={{ left: s.net >= 0 ? "50%" : `${50 - w}%`, width: `${w}%`, background: s.net >= 0 ? "#7cb4f5" : "#f09595" }} />
               {s.quantZ != null && <i className="absolute bottom-0 h-1.5 rounded-sm" style={{ left: s.quantZ >= 0 ? "50%" : `${50 - zw}%`, width: `${zw}%`, background: "#fcd34d" }} />}
             </span>
-            <span className="whitespace-nowrap font-mono text-slate-300">{s.n} CTCK {sgn(s.net, 2)}{s.quantZ != null ? ` · z ${sgn(s.quantZ, 2)}` : ""}{s.diverges ? <span className="ml-1 font-sans text-amber-300" data-testid="bc-diverges">Lệch</span> : null}</span>
+            <span className="col-span-2 whitespace-nowrap font-mono text-slate-300 sm:col-span-1">{s.n} CTCK {sgn(s.net, 2)}{s.quantZ != null ? ` · z ${sgn(s.quantZ, 2)}` : ""}{s.diverges ? <span className="ml-1 font-sans text-amber-300" data-testid="bc-diverges">Lệch</span> : null}</span>
           </button>
         </li>;
       })}
@@ -152,7 +152,7 @@ export default function BrokerConsensus() {
         </div>
         {d.view.items.length > 0 && <ul className="flex flex-wrap gap-1.5" data-testid="bc-views">{d.view.items.map((x) => <li key={x.broker}><button type="button" onClick={() => setQ(x)} className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] hover:border-amber-400/50" style={{ background: ST[x.stance].bg, color: ST[x.stance].color }}>{ST[x.stance].glyph} {x.broker} · {day(x.date)}</button></li>)}</ul>}
         {q && <QuoteBox q={q} onClose={() => setQ(null)} />}
-        <div className="grid gap-2.5 xl:grid-cols-2">
+        <div className="grid gap-2.5 2xl:grid-cols-2">
           <div className={box}><h5 className="mb-1.5 text-[12px] font-semibold text-slate-200">Quan điểm theo chủ đề</h5><Matrix d={d} pick={setQ} /></div>
           <div className={box}><h5 className="mb-1.5 text-[12px] font-semibold text-slate-200">Mục tiêu VN-Index</h5><TargetPlot t={d.targets} pick={setQ} /></div>
           <div className={box}><h5 className="mb-1.5 text-[12px] font-semibold text-slate-200">Ngành: CTCK so với mô hình</h5><p className="mb-1 text-[11px] text-slate-400">Thanh trên: đồng thuận CTCK. Thanh vàng: điểm z định lượng.</p><SectorBars rows={d.sectors} pick={setQ} /></div>
