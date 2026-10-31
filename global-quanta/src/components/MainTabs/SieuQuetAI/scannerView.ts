@@ -76,17 +76,18 @@ export const COLUMN_HELP: Record<string, string> = {
   ram: "Lợi suất trung bình 64 phiên chia độ lệch chuẩn, nhân căn 252 (dạng Sharpe, năm hoá).",
 };
 
-const SESSION_VI: Record<string, string> = { ATO: "Phiên ATO", ATC: "Phiên ATC", LO: "Khớp lệnh liên tục", PT: "Thoả thuận", C: "Thoả thuận" };
-/** Trạng thái phiên lấy trực tiếp từ giá trên bảng. Chưa có phiên thì ghi ngày dữ liệu mới nhất, không đoán. */
-export function boardSession(quotes: Record<string, Pick<MarketQuote, "session" | "time">>): { live: boolean; label: string } | null {
+const SESSION_VI: Record<string, string> = { PRE_OPEN: "Trước phiên", ATO: "Phiên ATO", LO: "Khớp lệnh liên tục", BREAK: "Nghỉ trưa", ATC: "Phiên ATC", PT: "Thoả thuận" };
+const vnToday = (nowMs: number) => new Date(nowMs + 7 * 3_600_000).toISOString().slice(0, 10);
+/** Trạng thái phiên lấy từ giá trên bảng, cùng mã phiên với backend. Mã lạ, hoặc dữ liệu không phải hôm nay, đều coi là ngoài phiên; không đoán. */
+export function boardSession(quotes: Record<string, Pick<MarketQuote, "session" | "time">>, nowMs: number = Date.now()): { live: boolean; label: string } | null {
   const qs = Object.values(quotes);
   if (!qs.length) return null;
-  const counts = new Map<string, number>();
-  for (const q of qs) if (q.session) counts.set(q.session, (counts.get(q.session) ?? 0) + 1);
-  const top = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
-  if (top) return { live: true, label: SESSION_VI[top] ?? `Phiên ${top}` };
   const times = qs.map((q) => q.time ?? "").sort();
   const last = times[times.length - 1]?.slice(0, 10);
+  const counts = new Map<string, number>();
+  for (const q of qs) if (q.session && SESSION_VI[q.session] && q.time?.slice(0, 10) === vnToday(nowMs)) counts.set(q.session, (counts.get(q.session) ?? 0) + 1);
+  const top = [...counts].sort((a, b) => b[1] - a[1])[0]?.[0];
+  if (top) return { live: top !== "PRE_OPEN", label: SESSION_VI[top] };
   return { live: false, label: last ? `Ngoài phiên · dữ liệu ${last.split("-").reverse().slice(0, 2).join("/")}` : "Ngoài phiên" };
 }
 
@@ -131,8 +132,8 @@ export type Fit = "wide" | "mid" | "tight";
 /** Mức chữ theo bề rộng bảng. Bảng giá 23 cột cần nhiều chỗ hơn nên ngưỡng cao hơn. */
 export function fitOf(width: number, mode: "scanner" | "board"): Fit {
   if (!width) return "wide";
-  if (mode === "board") return width >= 1320 ? "wide" : width >= 1040 ? "mid" : "tight";
-  return width >= 1060 ? "wide" : width >= 860 ? "mid" : "tight";
+  if (mode === "board") return width >= 1400 ? "wide" : width >= 1180 ? "mid" : "tight";
+  return width >= 1240 ? "wide" : width >= 1040 ? "mid" : "tight";
 }
 /** Đo khung bảng. Bảng vừa khung thì dùng chung thanh cuộn của trang; chưa vừa mới bật khung cuộn riêng để giữ được tiêu đề và cột Mã. */
 export function useTableFit(ref: RefObject<HTMLElement | null>, mode: "scanner" | "board", dep: unknown) {
