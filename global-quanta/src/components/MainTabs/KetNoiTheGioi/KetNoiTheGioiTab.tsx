@@ -17,6 +17,15 @@ import TransmissionMap2D from "./center/TransmissionMap2D";
 import MarketMonitor from "./center/MarketMonitor";
 import WorldNewsPanel from "./center/WorldNewsPanel";
 import AiBriefPanel from "./center/AiBriefPanel";
+
+/** Sang tab Phân tích vĩ mô bằng đúng cơ chế back/forward của thanh điều hướng, rồi cuộn tới bản tin. */
+function openMacroBrief() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("tab", "phan-tich-vi-mo");
+  window.history.pushState(null, "", url);
+  window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+  window.setTimeout(() => document.getElementById("mh-brief")?.scrollIntoView({ block: "start" }), 400);
+}
 import "./world-gq.css";
 import { getMarketGateway } from "../../../config/marketGateway";
 import { WorldNavContext } from "./worldNav";
@@ -149,7 +158,7 @@ export default function KetNoiTheGioiTab() {
       {tab === "overview" && (
         <div className="tw-scope space-y-4" data-testid="world-overview">
           <WorldTodayStrip onOpenImpact={() => setTab("sectors")} />
-          <AiBriefPanel />
+          <AiBriefPanel compact onOpenFull={openMacroBrief} />
           <WorldNewsPanel />
           <Engine only="overview" />
           <SectorMap2D />

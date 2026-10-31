@@ -13,6 +13,8 @@ import marketRouter from "./routes/market.js";
 import { createMacroRouter } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
 import { createWorldRouter, defaultPulse } from "./routes/world.js";
+import { createBrokerViews } from "./market/brokerViews/brokerViewsService.js";
+import { createBrokerViewsRouter } from "./routes/brokerViews.js";
 import { createWorldStrategyService } from "./market/worldSectors/worldStrategyService.js";
 import { createWsChatTools } from "./market/worldSectors/chatTools.js";
 import { ICB_KV } from "./market/sectors/icbTaxonomy.js";
@@ -115,11 +117,33 @@ const getWorldNews = () => {
   return worldNews;
 };
 const worldMonitor = createWorldMonitor();
+let brokerViews = null;
+const getBrokerViews = () => {
+  if (!brokerViews) {
+    brokerViews = createBrokerViews({
+      store: getMarketRuntime().store, callModel: callGeminiJSON,
+      getIndexBars: () => getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 300 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0)),
+      getQuant: () => getWorldStrategy().strategy().then((s) => (s?.short?.rows ?? []).map((r) => ({ icb: r.icb, nameVi: r.nameVi, z: r.zx }))),
+    });
+    if (process.env.GEMINI_API_KEY) brokerViews.startTimer();
+  }
+  return brokerViews;
+};
+const VN_MACRO_CATEGORIES = "MONETARY_POLICY,FISCAL_POLICY,MACRO_DATA,MARKET_STRUCTURE";
+/** Bằng chứng Việt Nam cho bản tin AI. Từng nguồn lỗi thì bản tin vẫn chạy với phần còn lại. */
+async function vnBriefEvidence() {
+  const [macro, radar, broker] = await Promise.all([
+    getMacroService().handle({ method: "GET", path: "/api/macro/series", query: { tail: "3" } }).then((r) => (r.status === 200 ? r.body : null)).catch(() => null),
+    getMarketRuntime().eventRadar.list({ category: VN_MACRO_CATEGORIES, limit: 20 }).then((d) => d.events ?? []).catch(() => []),
+    getBrokerViews().forBrief().catch(() => null),
+  ]);
+  return { macro, radar, broker };
+}
 let worldBrief = null;
 const getWorldBrief = () => {
   if (!worldBrief) {
     worldBrief = createWorldBrief({
-      store: getMarketRuntime().store, getMonitor: () => worldMonitor.get(), getNews: (o) => getWorldNews().get(o), getStrategy: () => getWorldStrategy().strategy(),
+      store: getMarketRuntime().store, getMonitor: () => worldMonitor.get(), getNews: (o) => getWorldNews().get(o), getStrategy: () => getWorldStrategy().strategy(), getVn: vnBriefEvidence,
       callModel: callGeminiJSON,
     });
     if (process.env.GEMINI_API_KEY) worldBrief.startTimer();
@@ -127,7 +151,8 @@ const getWorldBrief = () => {
   return worldBrief;
 };
 // Lịch tự động không phụ thuộc việc có người mở tab.
-if (process.env.GEMINI_API_KEY) setTimeout(() => getWorldBrief(), 120_000).unref?.();
+if (process.env.GEMINI_API_KEY) setTimeout(() => { getWorldBrief(); getBrokerViews(); }, 120_000).unref?.();
+app.use("/api/broker-views", createBrokerViewsRouter({ getService: getBrokerViews }));
 app.use("/api/world", createWorldRouter({ getService: getWorldService, getMonitor: () => worldMonitor, getNews: getWorldNews, getBrief: getWorldBrief }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;

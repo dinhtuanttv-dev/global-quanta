@@ -20,7 +20,7 @@ export const AUTO_SLOTS = [[7, 45], [15, 30]];
 const vnDay = (ms) => new Date(ms + TZ_OFFSET_MS).toISOString().slice(0, 10);
 
 /** Gom bằng chứng, mỗi mục có mã ổn định để AI trích dẫn và code kiểm tra. */
-export function buildEvidence({ monitor, news, strategy, nowMs }) {
+export function buildEvidence({ monitor, news, strategy, nowMs, vn = null }) {
   const items = [];
   const movers = (monitor?.items ?? []).filter((i) => i.available && !i.stale && i.change != null);
   const picked = [...movers].sort((a, b) => Math.abs(b.z ?? 0) - Math.abs(a.z ?? 0)).slice(0, 14);
@@ -35,8 +35,25 @@ export function buildEvidence({ monitor, news, strategy, nowMs }) {
     const med = (strategy.medium ?? []).find((x) => x.icb === r.icb);
     items.push({ ref: `S:${r.icb}`, kind: "sector", icb: r.icb, z: r.zx, nameVi: r.nameVi, text: `Ngành ${r.nameVi} (ICB ${r.icb}): z ngắn hạn ${round(r.zx)}, lợi suất tương đối kỳ vọng ${round(r.alphaBps)} điểm cơ bản/phiên, tư thế ${STANCE_VI[r.stance] ?? r.stance}${med ? `, bối cảnh trung hạn ${STANCE_VI[med.stance] ?? med.stance}` : ""}`, numbers: [r.zx, r.alphaBps, r.pOutperform == null ? null : r.pOutperform * 100], source: "Chiến lược ngành Gateway", at: strategy.vnLast });
   }
+  // Việt Nam: số liệu vĩ mô, tin chính sách từ Event Radar, nhận định CTCK đã kiểm chứng câu trích.
+  for (const s of vn?.macro?.series ?? []) {
+    const pts = s.points ?? [], last = pts[pts.length - 1], prev = pts[pts.length - 2];
+    if (s.role !== "factor" || !last || monthsAgo(last.period, nowMs) > 3) continue;
+    items.push({ ref: `V:${s.id}`, kind: "macro", text: `${s.nameVi}: ${round(last.value)}${s.unit ? ` ${s.unit}` : ""}, kỳ ${last.period}${prev ? `, kỳ trước ${round(prev.value)}` : ""}`, numbers: [last.value, prev?.value, prev ? last.value - prev.value : null, prev?.value ? (last.value / prev.value - 1) * 100 : null], source: s.source ?? "Trung tâm vĩ mô", at: last.period });
+  }
+  (vn?.radar ?? []).slice(0, 15).forEach((e, i) => { if (nowMs - Date.parse(e.publishedAt) <= NEWS_WINDOW_MS) items.push({ ref: `R:${i + 1}`, kind: "news", text: `${e.title} (${e.sourceLabel}, single)`, numbers: numbersIn(e.title), source: e.sourceLabel, at: e.publishedAt, url: e.url ?? null, verification: "single" }); });
+  const view = vn?.broker?.view;
+  if (view?.n) items.push({ ref: "C:view", kind: "broker", text: `Đồng thuận ${view.n} CTCK có quan điểm: điểm ${round(view.score)} trên thang −1 đến +1, bất đồng ${round(view.disagreement)} trên thang 0 đến 1`, numbers: [view.n, view.score, view.disagreement], source: "Sổ nhận định CTCK", at: view.items[0]?.date ?? null });
+  (vn?.broker?.reports ?? []).forEach((r, i) => {
+    const add = (k, what, c) => items.push({ ref: `B:${i + 1}.${k}`, kind: "broker", text: `${r.brokerName}, ${r.publishedAt}, ${what}: "${c.quote}"`, numbers: numbersIn(c.quote), source: r.brokerName, at: r.publishedAt, url: r.url });
+    if (r.marketView) add("q", `quan điểm ${r.marketView.stance}`, r.marketView);
+    (r.targets ?? []).slice(0, 2).forEach((t, k) => add(`t${k}`, `mục tiêu VN-Index ${t.value}`, t));
+    (r.topics ?? []).slice(0, 3).forEach((t, k) => add(`c${k}`, `${t.topic} ${t.stance}`, t));
+    (r.sectors ?? []).slice(0, 2).forEach((t, k) => add(`n${k}`, `ngành ICB ${t.icb} ${t.stance}`, t));
+  });
   return items;
 }
+const monthsAgo = (period, nowMs) => { const [y, m] = String(period).split("-").map(Number); const d = new Date(nowMs); return (d.getUTCFullYear() - y) * 12 + (d.getUTCMonth() + 1 - m); };
 const STANCE_VI = { overweight: "nghiêng tích cực", underweight: "nghiêng tiêu cực", neutral: "trung tính" };
 const round = (v) => (v == null || !Number.isFinite(v) ? "n/a" : Number(v.toFixed(2)));
 
@@ -94,10 +111,11 @@ Mỗi câu phải trích dẫn mã bằng chứng trong refs. Mọi con số tro
 Viết số kiểu Việt Nam, dấu phẩy thập phân (2,4%), không dấu cách trước %. Viết "giảm 3,29%", không viết "giảm -3,29%". Không dùng từ tiếng Anh như overweight, underweight. Ghi ngày dạng 30/10.
 Câu về ngành phải nêu nguyên nhân: nếu có giá hoặc tin liên quan rõ ràng thì trích thêm M: hoặc N: và nói mối liên hệ; không chỉ lặp lại z và lợi suất kỳ vọng. Không có mối liên hệ rõ thì bỏ ngành đó.
 Tóm tắt phải dùng cả tin N: quan trọng nếu có, không chỉ liệt kê giá.
+Mục B: là nhận định của từng công ty chứng khoán: luôn viết "theo <tên công ty>", không biến thành sự thật. Chỉ nói về đồng thuận khi trích C:view. Tóm tắt nên có cả bối cảnh Việt Nam (V:, R:) và quan điểm CTCK (B:) khi có.
 Tin tức chỉ cho biết điều đã được đưa tin; nếu tin thuộc mức "single" thì viết "theo <nguồn>", không khẳng định.
 Trả về đúng một đối tượng JSON, không kèm chữ nào khác:
 {"summary":[{"text":"...","refs":["M:..."]}],"sectors":[{"icb":"0500","direction":"bullish|bearish|neutral","text":"...","refs":["S:0500","N:1"]}]}
-summary tối đa 5 câu nêu điều đáng chú ý nhất. sectors tối đa 8 ngành có bằng chứng rõ, phải trích S:<icb> của ngành đó.`;
+summary tối đa 6 câu nêu điều đáng chú ý nhất. sectors tối đa 8 ngành có bằng chứng rõ, phải trích S:<icb> của ngành đó.`;
 
 const LINE = { type: "OBJECT", properties: { text: { type: "STRING" }, refs: { type: "ARRAY", items: { type: "STRING" } } }, required: ["text", "refs"] };
 export const BRIEF_SCHEMA = { type: "OBJECT", properties: {
@@ -124,7 +142,7 @@ export function verifyBrief(raw, evidence) {
   const rejected = [];
   const view = (refs) => refs.map((r) => { const e = byRef.get(r); return { ref: r, kind: e.kind, label: e.kind === "news" ? e.text : e.text, source: e.source, at: e.at, url: safeUrl(e.url), verification: e.verification ?? null }; });
   const summary = [];
-  for (const s of Array.isArray(raw?.summary) ? raw.summary.slice(0, 5) : []) {
+  for (const s of Array.isArray(raw?.summary) ? raw.summary.slice(0, 6) : []) {
     const why = checkSentence(s?.text, s?.refs, byRef);
     if (why) rejected.push({ text: String(s?.text ?? "").slice(0, 200), reason: why });
     else summary.push({ text: tidy(s.text), citations: view(s.refs) });
@@ -141,7 +159,7 @@ export function verifyBrief(raw, evidence) {
   return { summary, sectors, rejected };
 }
 
-export function createWorldBrief({ store = null, getMonitor, getNews, getStrategy, callModel, now = Date.now, log = console } = {}) {
+export function createWorldBrief({ store = null, getMonitor, getNews, getStrategy, getVn = async () => null, callModel, now = Date.now, log = console } = {}) {
   let state = null, loaded = false, inflight = null;
   async function load() {
     if (loaded) return;
@@ -154,8 +172,8 @@ export function createWorldBrief({ store = null, getMonitor, getNews, getStrateg
   async function run(trigger) {
     const t = now();
     state.attempts = [...(state.attempts ?? []).filter((x) => t - x < 3 * 86_400_000), t];
-    const [monitor, news, strategy] = await Promise.all([getMonitor(), getNews({ limit: 200 }), getStrategy()]);
-    const evidence = buildEvidence({ monitor, news, strategy, nowMs: t });
+    const [monitor, news, strategy, vn] = await Promise.all([getMonitor(), getNews({ limit: 200 }), getStrategy(), getVn().catch(() => null)]);
+    const evidence = buildEvidence({ monitor, news, strategy, nowMs: t, vn });
     if (!evidence.length) throw new Error("Không có bằng chứng để phân tích.");
     const user = `Thời điểm: ${new Date(t).toISOString()}\nBẰNG CHỨNG:\n${evidence.map((e) => `[${e.ref}] ${e.text}`).join("\n")}`;
     const res = await Promise.race([
@@ -165,7 +183,7 @@ export function createWorldBrief({ store = null, getMonitor, getNews, getStrateg
     const checked = verifyBrief(res.json, evidence);
     // Không câu nào đạt thì giữ bản tin trước, không đè bằng bản rỗng.
     if (!checked.summary.length && !checked.sectors.length) throw new Error(`Không câu nào đạt kiểm chứng (loại ${checked.rejected.length} câu); giữ bản tin trước.`);
-    const doc = { id: `${t}`, generatedAt: new Date(t).toISOString(), trigger, model: res.modelUsed ?? null, tokens: res.usage?.totalTokenCount ?? null, ...checked, inputCounts: { market: evidence.filter((e) => e.kind === "market").length, news: evidence.filter((e) => e.kind === "news").length, sector: evidence.filter((e) => e.kind === "sector").length } };
+    const doc = { id: `${t}`, generatedAt: new Date(t).toISOString(), trigger, model: res.modelUsed ?? null, tokens: res.usage?.totalTokenCount ?? null, ...checked, inputCounts: { market: evidence.filter((e) => e.kind === "market").length, news: evidence.filter((e) => e.kind === "news").length, sector: evidence.filter((e) => e.kind === "sector").length, macro: evidence.filter((e) => e.kind === "macro").length, broker: evidence.filter((e) => e.kind === "broker").length } };
     state.runs = [doc, ...state.runs].slice(0, KEEP_RUNS);
     state.lastError = null;
     return doc;
