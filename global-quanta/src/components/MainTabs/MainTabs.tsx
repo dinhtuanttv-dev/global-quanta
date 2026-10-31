@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+﻿import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { mutate } from "swr";
 import { ChartCandlestick, ChevronLeft, ChevronRight, FileChartColumn, Globe2, Landmark, Layers3, LayoutDashboard, RotateCw, Target, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
@@ -48,6 +48,18 @@ export default function MainTabs() {
     window.history.pushState({ gqIdx: next.idx }, "", urlFor(tabName));
     update(next);
   }, [update]);
+
+  // Bộ lọc tab Cổ tức ghi URL bằng replaceState(null, ...), làm mất vị trí lịch sử và tên trang. Giữ lại hai thông tin đó tại đây để không phải sửa tab Cổ tức.
+  useLayoutEffect(() => {
+    const original = window.history.replaceState;
+    window.history.replaceState = function patched(state, unused, url) {
+      const cur = navRef.current;
+      const parsed = url == null ? null : new URL(String(url), window.location.href);
+      if (parsed && !parsed.searchParams.has("tab")) parsed.searchParams.set("tab", slugOf(cur.stack[cur.idx]));
+      original.call(window.history, { ...(state ?? {}), gqIdx: state?.gqIdx ?? cur.idx }, unused, parsed ? parsed.pathname + parsed.search + parsed.hash : url);
+    };
+    return () => { window.history.replaceState = original; };
+  }, []);
 
   useEffect(() => {
     window.history.replaceState({ ...window.history.state, gqIdx: navRef.current.idx }, "", urlFor(navRef.current.stack[navRef.current.idx], window.location.search));
