@@ -1,10 +1,9 @@
 // Nguồn báo cáo công khai của công ty chứng khoán (31/10/2026). Chỉ đọc trang công khai trong danh sách, không vượt đăng nhập hay chặn truy cập.
-// MBS (chặn truy cập tự động) và VNDirect (403) không có trong danh sách vì lý do đó.
+// Không có trong danh sách: MBS (chặn truy cập tự động), VNDirect (403), BVSC (PDF mở qua JavaScript nội bộ, không có link công khai).
 export const BROKERS = Object.freeze({
   SSI: { name: "SSI Research" },
   KBSV: { name: "KB Securities VN" },
   ACBS: { name: "ACBS" },
-  BVSC: { name: "Chứng khoán Bảo Việt" },
 });
 export const ALLOWED_HOSTS = new Set(["www.ssi.com.vn", "ssi.com.vn", "www.kbsec.com.vn", "kbsec.com.vn", "acbs.com.vn", "www.acbs.com.vn", "bvsc.com.vn", "www.bvsc.com.vn"]);
 
@@ -74,5 +73,4 @@ export const SOURCES = Object.freeze([
   { id: "KBSV-CL", broker: "KBSV", type: "strategy", url: "https://www.kbsec.com.vn/vi/bao-cao-chien-luoc-thi-truong.htm", parse: parseKbsv },
   { id: "KBSV-VM", broker: "KBSV", type: "macro", url: "https://www.kbsec.com.vn/vi/bao-cao-trien-vong-kinh-te-vi-mo.htm", parse: parseKbsv },
   { id: "ACBS", broker: "ACBS", type: "market", url: "https://acbs.com.vn/trung-tam-phan-tich", parse: parseAcbs },
-  { id: "BVSC-VM", broker: "BVSC", type: "macro", url: "https://bvsc.com.vn/danhmuc/phan-tich/bao-cao-chi-tiet-bvsc/bao-cao-vi-mo-thi-truong/?danhmucID=6390", parse: parseBvsc },
 ]);
