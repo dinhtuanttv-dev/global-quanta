@@ -56,8 +56,14 @@ describe("Định dạng không đổi giá trị", () => {
 
 describe("Trạng thái phiên", () => {
   it("lấy phiên phổ biến nhất; ngoài phiên thì ghi ngày dữ liệu, không đoán", () => {
-    expect(boardSession({ A: { session: "LO", time: "" }, B: { session: "LO", time: "" }, C: { session: "ATC", time: "" } } as never)).toEqual({ live: true, label: "Khớp lệnh liên tục" });
-    expect(boardSession({ A: { session: null, time: "2026-10-30T00:00:00+07:00" } } as never)).toEqual({ live: false, label: "Ngoài phiên · dữ liệu 30/10" });
+    const now = Date.parse("2026-11-02T03:00:00Z");
+    const today = "2026-11-02T10:00:00+07:00";
+    expect(boardSession({ A: { session: "LO", time: today }, B: { session: "LO", time: today }, C: { session: "ATC", time: today } } as never, now)).toEqual({ live: true, label: "Khớp lệnh liên tục" });
+    expect(boardSession({ A: { session: "BREAK", time: today } } as never, now)).toEqual({ live: true, label: "Nghỉ trưa" });
+    expect(boardSession({ A: { session: null, time: "2026-10-30T00:00:00+07:00" } } as never, now)).toEqual({ live: false, label: "Ngoài phiên · dữ liệu 30/10" });
+    // Tin cuối phiên hôm trước, hoặc mã phiên lạ, không được báo là đang giao dịch.
+    expect(boardSession({ A: { session: "LO", time: "2026-10-30T14:45:00+07:00" } } as never, now)).toEqual({ live: false, label: "Ngoài phiên · dữ liệu 30/10" });
+    expect(boardSession({ A: { session: "C", time: today } } as never, now)).toEqual({ live: false, label: "Ngoài phiên · dữ liệu 02/11" });
     expect(boardSession({})).toBeNull();
   });
 });
@@ -71,9 +77,10 @@ describe("Tuỳ chọn và bề rộng", () => {
   });
   it("mức chữ theo bề rộng", () => {
     expect(fitOf(1450, "board")).toBe("wide");
-    expect(fitOf(1100, "board")).toBe("mid");
+    expect(fitOf(1250, "board")).toBe("mid");
     expect(fitOf(956, "board")).toBe("tight");
     expect(fitOf(1450, "scanner")).toBe("wide");
-    expect(fitOf(956, "scanner")).toBe("mid");
+    expect(fitOf(1100, "scanner")).toBe("mid");
+    expect(fitOf(956, "scanner")).toBe("tight");
   });
 });

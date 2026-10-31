@@ -50,8 +50,8 @@ function Trend({ tag }: { tag: string | null }) {
 }
 function Signals({ item }: { item: SieuQuetStockItem }) {
   return <span className="scan-signals">
-    {item.breakoutBoostBadge && <span className="scan-sig amber">⚡Breakout</span>}
-    {item.foreignNetBuyFlag && <span className="scan-sig cyan" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)">🌍NN mua ròng</span>}
+    {item.breakoutBoostBadge && <span className="scan-sig amber" title="Breakout">⚡<span className="sig-txt">Breakout</span></span>}
+    {item.foreignNetBuyFlag && <span className="scan-sig cyan" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)">🌍<span className="sig-txt">NN mua ròng</span></span>}
   </span>;
 }
 const rrTitle = (item: SieuQuetStockItem) => (item.riskRewardBasis ? `Hỗ trợ ${fmtKPrice(item.riskRewardBasis.support)} · kháng cự ${fmtKPrice(item.riskRewardBasis.resistance)} (engine cấu trúc, khung ngày, ${item.riskRewardBasis.asOf})` : "Chưa có vùng hỗ trợ / kháng cự bao quanh giá");
