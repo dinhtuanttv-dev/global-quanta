@@ -6,7 +6,7 @@ import { groupStats } from "./scannerTaxonomy";
 export type GroupBy = "none" | "group" | "industry";
 
 const seg = (on: boolean) =>
-  `px-2 py-1 text-[10px] transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${on ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`;
+  `px-2 py-1 text-[11px] whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${on ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`;
 const fmt1 = (v: number | null) => (v === null ? "—" : v.toFixed(1));
 
 /** Bộ lọc ngành 2 cấp (Nhóm ngành -> Ngành): đếm số mã + Smart Score TB trong rổ đang xem. */
@@ -38,7 +38,7 @@ function SectorFilter({ items, selected, onChange }: { items: SieuQuetStockItem[
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="dialog" aria-expanded={open}
-        className={`text-[10px] bg-black/40 border rounded px-2 py-1 max-w-[160px] truncate ${selected.size ? "border-cyan-500/50 text-cyan-200" : "border-white/10 text-slate-300"}`}
+        className={`text-[11px] bg-black/40 border rounded px-2 py-1 max-w-[160px] truncate ${selected.size ? "border-cyan-500/50 text-cyan-200" : "border-white/10 text-slate-300"}`}
         title="Lọc theo nhóm ngành / ngành">
         {label} ▾
       </button>
@@ -90,7 +90,7 @@ export interface ScannerToolbarProps {
 /** Góc phải Bảng Siêu Quét: rổ (Tất cả / VN30 / Danh mục), lọc ngành 2 cấp, gom nhóm. */
 export default function ScannerToolbar({ basket, onBasket, watchlistCount, gatewayReady, items, industries, onIndustries, groupBy, onGroupBy }: ScannerToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center justify-end gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <div role="tablist" aria-label="Rổ cổ phiếu" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
         <button role="tab" aria-selected={basket === "ALL"} className={seg(basket === "ALL")} onClick={() => onBasket("ALL")}>Tất cả</button>
         <button role="tab" aria-selected={basket === "VN30"} className={seg(basket === "VN30")} onClick={() => onBasket("VN30")}
@@ -100,7 +100,7 @@ export default function ScannerToolbar({ basket, onBasket, watchlistCount, gatew
       </div>
       <SectorFilter items={items} selected={industries} onChange={onIndustries} />
       <select value={groupBy} onChange={(e) => onGroupBy(e.target.value as GroupBy)} aria-label="Gom nhóm"
-        className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-300">
+        className="text-[11px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-300">
         <option value="none">Không gom nhóm</option>
         <option value="group">Gom theo nhóm ngành</option>
         <option value="industry">Gom theo ngành</option>
