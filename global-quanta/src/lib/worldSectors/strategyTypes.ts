@@ -21,6 +21,8 @@ export interface MediumRow {
   constituents: { ticker: string; weight: number }[];
 }
 export interface Forward {
+  /** Phiên VN không có bản ghi (không ghi bù). */
+  missing?: string[];
   since: string | null; recorded: number; evaluated: number; meanIc: number | null; t: number | null; p: number | null; hitRate: number | null;
   cumSpreadPct: number | null; curve: [string, number][]; days: { date: string; next: string; ic: number | null; spreadPct: number; n: number }[];
   statusVi: string; methodVi: string;

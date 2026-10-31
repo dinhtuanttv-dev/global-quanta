@@ -183,7 +183,12 @@ export function evaluateLedger(ledger, series, vnIndex) {
   const st = nw(ics);
   let cum = 0;
   const curve = days.map((d) => [d.next, ROUND((cum += d.spreadPct / 100) * 100, 4)]);
+  // Phiên không có bản ghi: KHÔNG ghi bù (sẽ thành nhìn trước kết quả), chỉ báo rõ để đọc đúng mẫu.
+  const firstDate = ledger?.[0]?.date ?? null;
+  const have = new Set((ledger ?? []).map((e) => e.date));
+  const missing = firstDate ? vDates.filter((d, i) => d > firstDate && i < vDates.length - 1 && !have.has(d)) : [];
   return {
+    missing,
     since: ledger?.[0]?.date ?? null, recorded: (ledger ?? []).length, evaluated: days.length,
     meanIc: ROUND(st.mean, 4), t: ROUND(st.t, 2), p: ROUND(st.p, 4),
     hitRate: days.length ? ROUND(days.filter((d) => d.spreadPct > 0).length / days.length, 4) : null,

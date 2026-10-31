@@ -9,6 +9,7 @@ import { divergingColor, fmtZ, REGION_ORDER, REGION_SHORT } from "../../../../li
 import { MEDIUM_STANCE_VI, QUADRANT_VI, SHORT_STANCE_VI, type MediumRow, type MediumStance, type ShortRow } from "../../../../lib/worldSectors/strategyTypes";
 import EvidenceTag from "../EvidenceTag";
 import WorldSectorDrawer from "../worldSectors/WorldSectorDrawer";
+import { basketConcentration, isConcentrated } from "../center/world2d";
 
 const muted = { color: "var(--text-tertiary)" };
 const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -37,6 +38,14 @@ function AlphaBar({ a, max }: { a: number | null; max: number }) {
   );
 }
 
+/** Rổ tập trung vào 1–2 mã: tín hiệu ngành thực chất là tín hiệu của cổ phiếu đó (31/10/2026: Y tế có DCL 97%). */
+function ConcentrationFlag({ constituents }: { constituents: ShortRow["constituents"] }) {
+  const c = basketConcentration(constituents);
+  if (!isConcentrated(c) || !c) return null;
+  return <span data-testid="strategy-concentrated" className="ml-1 text-[8.5px] font-bold px-1 rounded whitespace-nowrap" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}
+    title={`${c.top.ticker} chiếm ${Math.round(c.topShare * 100)}% rổ, tương đương ${num(c.nEff)} mã hiệu dụng (1/Σw²). Tín hiệu của dòng này chủ yếu phản ánh cổ phiếu đó, không phải cả ngành.`}>⚠ {c.top.ticker} {Math.round(c.topShare * 100)}%</span>;
+}
+
 function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) => void }) {
   const selectTicker = useAppStore((s) => s.selectTicker);
   const max = Math.max(5, ...rows.map((r) => Math.abs(r.alphaBps ?? 0)));
@@ -47,7 +56,7 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
         <tbody>
           {rows.map((r) => (
             <tr key={r.icb} onClick={() => onOpen(r.icb)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} title={`${r.icBasisVi} σ tương đối ${num(r.sigmaBps)} đcb/phiên.`}>
-              <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[8.5px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
+              <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[8.5px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
               <td className="text-center"><span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
               <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "#f1f5f9" }}>{fmtZ(r.alphaBps, 1)}</b></td>
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
