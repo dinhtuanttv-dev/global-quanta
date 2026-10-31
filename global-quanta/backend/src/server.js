@@ -17,6 +17,7 @@ import { createWorldStrategyService } from "./market/worldSectors/worldStrategyS
 import { createWsChatTools } from "./market/worldSectors/chatTools.js";
 import { ICB_KV } from "./market/sectors/icbTaxonomy.js";
 import { createWorldService } from "./market/world/worldService.js";
+import { createWorldNews } from "./market/world/worldNews.js";
 import { createCommodityService } from "./market/commodities/commodityService.js";
 import { createCommoditiesRouter } from "./routes/commodities.js";
 import { createWorldSectorService } from "./market/worldSectors/worldSectorService.js";
@@ -105,7 +106,12 @@ const getWorldService = () => (worldService ??= createWorldService({
   macroObservations: () => getMacroService().observations(),
   sectorIndices,
 }));
-app.use("/api/world", createWorldRouter({ getService: getWorldService }));
+let worldNews = null;
+const getWorldNews = () => {
+  if (!worldNews) { worldNews = createWorldNews({ store: getMarketRuntime().store }); worldNews.startTimer(); }
+  return worldNews;
+};
+app.use("/api/world", createWorldRouter({ getService: getWorldService, getNews: getWorldNews }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;
 const getCommodityService = () => (commodityService ??= createCommodityService({

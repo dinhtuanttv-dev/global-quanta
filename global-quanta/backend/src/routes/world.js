@@ -4,14 +4,18 @@
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 import { createWorldPulse } from "../market/world/worldPulse.js";
+import { createWorldMonitor } from "../market/world/worldMonitor.js";
+import { TOPICS } from "../market/world/worldNews.js";
 
 const strQuery = (q) => Object.fromEntries(Object.entries(q ?? {}).filter(([, v]) => typeof v === "string"));
 let pulse = null;
 /** Nhịp đập thế giới dùng chung (route /pulse + chiến lược ngành). */
 export const defaultPulse = () => (pulse ??= createWorldPulse());
+let monitor = null;
+const defaultMonitor = () => (monitor ??= createWorldMonitor());
 const HEAVY = /^\/(matrix|scenario|connectedness|overview|confirmatory)$/;
 
-export function createWorldRouter({ getService, getPulse = defaultPulse, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
+export function createWorldRouter({ getService, getPulse = defaultPulse, getMonitor = defaultMonitor, getNews = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
   const router = Router();
   const readRl = createRateLimiter({ limit: readLimit, now });
   const computeRl = createRateLimiter({ limit: computeLimit, now });
@@ -28,6 +32,21 @@ export function createWorldRouter({ getService, getPulse = defaultPulse, adminTo
   router.get("/pulse", readRl, wrap(async (req, res) => {
     res.set("Cache-Control", "public, max-age=60");
     res.json(await getPulse().get());
+  }));
+
+  // Giám sát thị trường (U1): một kho giá cho chỉ số, vĩ mô, hàng hoá, kèm nguồn, ngày, z và cờ dữ liệu cũ.
+  router.get("/monitor", readRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(await getMonitor().get());
+  }));
+
+  // Tin kinh tế thế giới (U1): nguồn chính thức và báo chí có danh tính, kèm thời gian đăng và mức xác nhận.
+  router.get("/news", readRl, wrap(async (req, res) => {
+    if (!getNews) return res.status(503).json({ error: "Tin thế giới chưa bật." });
+    const topic = typeof req.query.topic === "string" && Object.hasOwn(TOPICS, req.query.topic) ? req.query.topic : null;
+    const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 60));
+    res.set("Cache-Control", "public, max-age=60");
+    res.json(await getNews().get({ topic, limit }));
   }));
 
   router.get("/source", readRl, wrap(async (req, res) => {
