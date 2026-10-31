@@ -43,16 +43,17 @@ export class GeminiAllModelsFailedError extends Error {
  * @param {string} params.systemPrompt
  * @param {Array<{ text?: string, inlineData?: { mimeType: string, data: string } }>} params.parts - nội dung gửi (text và/hoặc ảnh base64)
  * @param {string} [params.model] - ép dùng đúng 1 model, bỏ qua fallback chain (dùng khi test)
+ * @param {string[]} [params.models] - thay danh sách model mặc định
  * @param {object} [params.generationConfig] - ghép thêm vào cấu hình sinh (temperature, responseSchema...)
  * @param {number} [params.timeoutMs] - giới hạn thời gian cho mỗi model
  * @returns {Promise<{ json: object, modelUsed: string, usage: object | null }>}
  */
-export async function callGeminiJSON({ systemPrompt, parts, model, generationConfig = {}, timeoutMs = 120_000, retryMs = 2_500 }) {
+export async function callGeminiJSON({ systemPrompt, parts, model, models, generationConfig = {}, timeoutMs = 120_000, retryMs = 2_500 }) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Thiếu GEMINI_API_KEY trong .env.");
   }
 
-  const modelsToTry = model ? [model] : buildModelChain();
+  const modelsToTry = model ? [model] : models?.length ? models : buildModelChain();
   const attempts = [];
 
   // Hai vòng: 429/503 thường là quá tải tạm thời, chờ rồi thử lại các model vừa gặp lỗi đó.

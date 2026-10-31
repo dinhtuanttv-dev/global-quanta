@@ -4,10 +4,12 @@ import MacroEventsPanel from "../eventResearch/MacroEventsPanel";
 import WorldTodayStrip from "../WorldTodayStrip";
 import MacroPulse from "./MacroPulse";
 import MacroUpcoming from "./MacroUpcoming";
+import BrokerConsensus from "./BrokerConsensus";
+import AiBriefPanel from "../../KetNoiTheGioi/center/AiBriefPanel";
 
 // Mục lục: mh-* (tổng quan) + mc-* (id tiêu đề có sẵn của phần phân tích định lượng).
 const SECTIONS: readonly [string, string][] = [
-  ["mh-pulse", "Nhịp vĩ mô"], ["mh-news", "Tin vĩ mô"], ["mh-calendar", "Lịch"], ["mc-thermo", "Nhiệt kế"], ["mc-matrix", "Ma trận tác động"],
+  ["mh-pulse", "Nhịp vĩ mô"], ["mh-brief", "Bản tin & đồng thuận"], ["mh-news", "Tin vĩ mô"], ["mh-calendar", "Lịch"], ["mc-thermo", "Nhiệt kế"], ["mc-matrix", "Ma trận tác động"],
   ["mc-regime", "Chế độ"], ["mc-scn", "Kịch bản"], ["mc-report", "Báo cáo tháng"], ["mc-src", "Nguồn dữ liệu"],
 ];
 
@@ -32,6 +34,10 @@ export default function MacroHub({ onOpenImpact, onOpenRadar }: { onOpenImpact: 
           </nav>
         </header>
         <MacroPulse />
+        <div id="mh-brief" className="min-w-0 scroll-mt-4 space-y-4">
+          <AiBriefPanel />
+          <BrokerConsensus />
+        </div>
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
           <div id="mh-news" className="min-w-0 scroll-mt-4">
             <MacroEventsPanel />

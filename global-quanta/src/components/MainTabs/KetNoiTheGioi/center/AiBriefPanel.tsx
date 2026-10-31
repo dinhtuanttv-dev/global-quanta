@@ -9,10 +9,10 @@ import { useAppStore } from "../../../../store/useAppStore";
 import { fmtAgo, fmtSigned, fmtVnTime } from "../../../../lib/world/monitor";
 import WorldSectorDrawer from "../worldSectors/WorldSectorDrawer";
 
-interface Citation { ref: string; kind: "market" | "news" | "sector"; label: string; source: string; at: string | null; url: string | null; verification: string | null }
+interface Citation { ref: string; kind: "market" | "news" | "sector" | "macro" | "broker"; label: string; source: string; at: string | null; url: string | null; verification: string | null }
 interface BriefLine { text: string; citations: Citation[] }
 interface BriefSector extends BriefLine { icb: string; nameVi: string; direction: "bullish" | "bearish" | "neutral"; quantZ: number }
-interface BriefRun { id: string; generatedAt: string; trigger: string; model?: string | null; summary: BriefLine[]; sectors: BriefSector[]; rejected: { text: string; reason: string }[]; inputCounts: { market: number; news: number; sector: number } }
+interface BriefRun { id: string; generatedAt: string; trigger: string; model?: string | null; summary: BriefLine[]; sectors: BriefSector[]; rejected: { text: string; reason: string }[]; inputCounts: { market: number; news: number; sector: number; macro?: number; broker?: number } }
 interface BriefDoc { latest: BriefRun | null; runs: { id: string; generatedAt: string }[]; running: boolean; lastError: { at: string; message: string } | null; nextManualAt: string | null; capReached: boolean; schedule: string[]; configured?: boolean }
 
 const STALE_HOURS = 36;
@@ -34,7 +34,7 @@ function Citations({ items }: { items: Citation[] }) {
 }
 
 /** Bản tin AI có kiểm chứng: thay cho Bảng tác động và khối Phân tích AI. Mỗi câu kèm trích dẫn; không có xác suất do AI tự chấm. */
-export default function AiBriefPanel() {
+export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?: boolean; onOpenFull?: () => void } = {}) {
   const [runId, setRunId] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -86,13 +86,14 @@ export default function AiBriefPanel() {
       {run && <>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px]" style={muted} data-testid="brief-meta">
           <CheckCircle2 className="h-3 w-3" style={{ color: "var(--positive, #34d399)" }} aria-hidden />
-          Tạo lúc {fmtVnTime(run.generatedAt)} ({fmtAgo(run.generatedAt, now)}) · {run.summary.length + run.sectors.length} câu đạt kiểm chứng{run.rejected.length ? `, loại ${run.rejected.length} câu` : ""} · dùng {run.inputCounts.market} dòng giá, {run.inputCounts.news} tin, {run.inputCounts.sector} ngành{run.model ? ` · ${run.model}` : ""}
+          Tạo lúc {fmtVnTime(run.generatedAt)} ({fmtAgo(run.generatedAt, now)}) · {run.summary.length + run.sectors.length} câu đạt kiểm chứng{run.rejected.length ? `, loại ${run.rejected.length} câu` : ""} · dùng {run.inputCounts.market} dòng giá, {run.inputCounts.news} tin, {run.inputCounts.sector} ngành{run.inputCounts.macro ? `, ${run.inputCounts.macro} số liệu Việt Nam` : ""}{run.inputCounts.broker ? `, ${run.inputCounts.broker} nhận định CTCK` : ""}{run.model ? ` · ${run.model}` : ""}
         </p>
         {ageH != null && ageH > STALE_HOURS && !runId && <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]" role="note" style={{ background: "rgba(245,158,11,0.08)", color: "var(--gold, #f59e0b)" }}>Bản tin đã {Math.floor(ageH / 24) || 1} ngày, không phản ánh thị trường hiện tại.</p>}
         <ul className="mt-2 space-y-1.5" data-testid="brief-summary">
-          {run.summary.map((s, i) => <li key={i} className="text-[11.5px] leading-relaxed" style={{ color: "#e2e8f0" }}>{s.text}<Citations items={s.citations} /></li>)}
+          {(compact ? run.summary.slice(0, 3) : run.summary).map((s, i) => <li key={i} className="text-[11.5px] leading-relaxed" style={{ color: "#e2e8f0" }}>{s.text}<Citations items={s.citations} /></li>)}
         </ul>
-        {run.sectors.length > 0 && <>
+        {compact && onOpenFull && <button type="button" onClick={onOpenFull} className="mt-2 text-[11px] text-sky-300 underline decoration-sky-300/30 hover:decoration-sky-300" data-testid="brief-open-full">Xem bản tin đầy đủ và đồng thuận CTCK trong Phân tích vĩ mô →</button>}
+        {!compact && run.sectors.length > 0 && <>
           <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="Lọc theo chiều">
             {(["all", "bullish", "bearish", "neutral"] as Filter[]).map((k) => {
               const n = k === "all" ? run.sectors.length : run.sectors.filter((s) => s.direction === k).length;
@@ -113,7 +114,7 @@ export default function AiBriefPanel() {
             })}
           </div>
         </>}
-        {run.rejected.length > 0 && <details className="mt-2 text-[11px]" style={muted} data-testid="brief-rejected"><summary style={{ cursor: "pointer" }}>Xem {run.rejected.length} câu bị loại và lý do</summary><ul className="mt-1 space-y-0.5">{run.rejected.map((r, i) => <li key={i}>{r.reason}: {r.text}</li>)}</ul></details>}
+        {!compact && run.rejected.length > 0 && <details className="mt-2 text-[11px]" style={muted} data-testid="brief-rejected"><summary style={{ cursor: "pointer" }}>Xem {run.rejected.length} câu bị loại và lý do</summary><ul className="mt-1 space-y-0.5">{run.rejected.map((r, i) => <li key={i}>{r.reason}: {r.text}</li>)}</ul></details>}
         <p className="mt-2 text-[11px]" style={muted}>Suy luận của AI, có thể sai. Chiều ngành chưa được kiểm định thống kê riêng. Không phải khuyến nghị đầu tư.</p>
       </>}
       {row && <WorldSectorDrawer icb={row.icb} row={row} onClose={() => setOpen(null)} />}
