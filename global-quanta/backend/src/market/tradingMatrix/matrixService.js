@@ -253,7 +253,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
     const foreign = [];
     for (const d of span.slice(-20)) {
       let net = 0, n = 0;
-      for (const list of bySymbol.values()) { const r = list.find((x) => x.date === d); if (r) { net += (r.foreignBuyVal ?? 0) - (r.foreignSellVal ?? 0); n++; } }
+      for (const list of bySymbol.values()) { const r = list.find((x) => x.date === d); if (r && (r.foreignBuyVal || r.foreignSellVal)) { net += (r.foreignBuyVal ?? 0) - (r.foreignSellVal ?? 0); n++; } }
       if (n) foreign.push({ date: d, net });
     }
     const v = { asOf, bySymbol, foreign, span, scopeSource: source };
@@ -264,6 +264,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
 
   /** Chuỗi trạng thái MS-r1, đệm theo phiên. Số trụ hiệu dụng tính trên toàn HOSE cho mọi phạm vi vì đó là đại lượng của VN-Index. */
   const stateMemo = new Map();
+  const clearMemo = () => { memo.clear(); stateMemo.clear(); };
   async function stateSeriesFor(scope, d, expected, idxBars, intel) {
     const key = `${scope}|${d.asOf}|${d.span.length}|${intel?.asOf ?? ""}`;
     if (stateMemo.has(key)) return stateMemo.get(key);
@@ -539,7 +540,7 @@ export function createMatrixService({ service, store, getStructure = () => null,
   }
 
   return {
-    overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay, impact: impactFor, impactLive,
+    clearMemo, overview, sectors, movers, signals, scoreSignals, scoreForecasts, modelStatus, replay, impact: impactFor, impactLive,
     /** M5: quay lại / chọn phiên bản mô hình trong sổ đăng ký (admin). */
     async setActiveModel(id) {
       if (!MATRIX_MODELS.models.some((m) => m.id === id)) throw Object.assign(new Error("Không có mô hình " + id + " trong sổ đăng ký."), { statusCode: 400 });

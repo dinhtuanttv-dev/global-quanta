@@ -176,6 +176,7 @@ export function startMarketIngestor() {
   rt.elliottAlerts.start();
   // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
   if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();
+  if (rt.store.localFirst) setTimeout(() => { rt.jobs.repairForeign().then((r) => { console.log(`[foreign-repair] ${JSON.stringify(r)}`); if (r.repaired.length) rt.matrix.clearMemo(); }).catch((e) => console.warn(`[foreign-repair] ${e.message}`)); }, 90_000).unref?.();
   console.log(`[market] Ingestor đã bật (store=${rt.store.kind}).`);
   return rt;
 }

@@ -88,7 +88,7 @@ export function effectiveCount(contributions) {
 
 /** Bảng theo ngày của một phạm vi. Cùng điều kiện với dailyBreadth: có giao dịch tại t và từ 50 phiên lịch sử trở lên. */
 export function panelByDate(bySymbol, dates) {
-  const at = new Map(dates.map((d) => [d, { date: d, n: 0, up20: 0, up50: 0, n200: 0, up200: 0, adv: 0, dec: 0, r5: [], value: 0, foreign: 0 }]));
+  const at = new Map(dates.map((d) => [d, { date: d, n: 0, up20: 0, up50: 0, n200: 0, up200: 0, adv: 0, dec: 0, r5: [], value: 0, foreign: 0, fgnRows: 0, fgnTop: null }]));
   const px = (r) => r.closeAdj ?? r.close;
   for (const rows of bySymbol.values()) {
     let s20 = 0, s50 = 0, s200 = 0;
@@ -101,7 +101,10 @@ export function panelByDate(bySymbol, dates) {
       const a = at.get(r.date);
       if (!a) return;
       a.value += r.value ?? r.close * (r.volume ?? 0);
-      a.foreign += (r.foreignBuyVal ?? 0) - (r.foreignSellVal ?? 0);
+      const fgn = (r.foreignBuyVal ?? 0) - (r.foreignSellVal ?? 0);
+      a.foreign += fgn;
+      if (r.foreignBuyVal || r.foreignSellVal) a.fgnRows++;
+      if (Math.abs(fgn) > Math.abs(a.fgnTop?.v ?? 0)) a.fgnTop = { s: r.symbol, v: fgn };
       if (i >= 5 && px(rows[i - 5]) > 0) a.r5.push((p / px(rows[i - 5]) - 1) * 100);
       if (i + 1 < MIN_HISTORY) return;
       a.n++;
@@ -112,7 +115,8 @@ export function panelByDate(bySymbol, dates) {
       if (ref > 0) { const ret = r.close / ref - 1; if (ret > 1e-9) a.adv++; else if (ret < -1e-9) a.dec++; }
     });
   }
-  return dates.map((d) => at.get(d));
+  // Cả phiên không có khối ngoại nghĩa là thiếu dữ liệu, không phải bằng 0.
+  return dates.map((d) => { const a = at.get(d); if (!a.fgnRows) a.foreign = null; return a; });
 }
 
 /** Số trụ hiệu dụng theo ngày, trên toàn bộ mã HOSE có số cổ phiếu. Dùng số cổ phiếu mới nhất cho cả chuỗi. */
@@ -150,7 +154,8 @@ export function buildStateSeries({ panel, indexBars, neff = null, ldZ = null }) 
   const pg5 = idx5.map((v, i) => (num(v) && num(med5[i]) ? v - med5[i] : null));
   const fnr = (h) => panel.map((_, i) => {
     if (i < h - 1) return null;
-    const w = panel.slice(i - h + 1, i + 1);
+    const w = panel.slice(i - h + 1, i + 1).filter((x) => num(x.foreign));
+    if (w.length < Math.ceil(h * 0.6)) return null;
     const val = w.reduce((a, x) => a + x.value, 0);
     return val > 0 ? (w.reduce((a, x) => a + x.foreign, 0) / val) * 100 : null;
   });
@@ -168,7 +173,7 @@ export function buildStateSeries({ panel, indexBars, neff = null, ldZ = null }) 
     const flow = avgAtLeast([zFnr[i], zLd[i]], 1);
     return {
       date: p.date, n: p.n, b20: b20[i], b50: b50[i], b200: b200[i], mo: mo[i], moZ: zMo[i], db5: db5[i], ddb: ddb[i], med5: med5[i], pg5: pg5[i], pgPct: pgPct[i],
-      idx1: idx1[i], idx5: idx5[i], idx20: idx20[i], sigma: sigma[i], yzPct: yzPct[i], fnr1: fnr1[i], fnr5: fnr5[i], foreign: p.foreign, value: p.value, fnrZ: zFnr[i], ldZ: zLd[i], flow,
+      idx1: idx1[i], idx5: idx5[i], idx20: idx20[i], sigma: sigma[i], yzPct: yzPct[i], fnr1: fnr1[i], fnr5: fnr5[i], fgnTop: p.fgnTop ?? null, foreign: p.foreign, value: p.value, fnrZ: zFnr[i], ldZ: zLd[i], flow,
       neff: neffM ? neffM[i] : null,
       neff1: neff ? neff[i] : null,
       x: avgAtLeast([zIdx[i], zB[i], zMo[i], flow], 3),
@@ -203,7 +208,7 @@ export function headlineOf({ regimeLabel, s, fnrIsForeign = true }) {
 const slim = (s) => ({
   date: s.date, x: round(s.x), y: round(s.y), b20: round(s.b20, 1), b50: round(s.b50, 1), b200: round(s.b200, 1), mo: round(s.mo, 1), moZ: round(s.moZ), pg5: round(s.pg5), db5: round(s.db5, 1),
   idx1: round(s.idx1), idx5: round(s.idx5), idx20: round(s.idx20), sigma: round(s.sigma, 1), yzPct: round(s.yzPct, 0), fnr1: round(s.fnr1), fnr5: round(s.fnr5), fnrZ: round(s.fnrZ), ldZ: round(s.ldZ), flow: round(s.flow),
-  foreign: s.foreign == null ? null : Math.round(s.foreign), value: s.value == null ? null : Math.round(s.value), neff: round(s.neff, 1), neff1: round(s.neff1, 1), n: s.n,
+  fgnTop: s.fgnTop ? { s: s.fgnTop.s, v: Math.round(s.fgnTop.v) } : null, foreign: s.foreign == null ? null : Math.round(s.foreign), value: s.value == null ? null : Math.round(s.value), neff: round(s.neff, 1), neff1: round(s.neff1, 1), n: s.n,
 });
 
 /** Tài liệu gửi giao diện. changes so hai phiên gần nhất, chỉ gồm số có đủ ở cả hai phiên. */

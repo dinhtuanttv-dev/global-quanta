@@ -48,13 +48,16 @@ export function StateMap({ path, index, others = [] }: { path: StatePoint[]; ind
 /** Cột dấu theo thời gian, cùng trục 0. Dùng cho dòng tiền. */
 export function SignedBars({ rows, height = 92, unit = "%", digits = 2, label, testId }: { rows: { date: string; v: number | null }[]; height?: number; unit?: string; digits?: number; label: string; testId?: string }) {
   const W = 640, T = 6, B = 16, vals = rows.map((r) => r.v).filter(ok);
-  const max = Math.max(1e-9, ...vals.map(Math.abs));
+  const abs = vals.map(Math.abs).filter((v) => v > 0).sort((a, b) => a - b);
+  const max = Math.max(1e-9, ...abs);
+  // Một phiên đột biến không được làm phẳng các cột còn lại: chặn thang đo ở 4 lần trung vị, số thật vẫn ở chú thích.
+  const scale = Math.min(max, Math.max(1e-9, 4 * (abs[abs.length >> 1] ?? max)));
   const mid = T + (height - T - B) / 2, half = (height - T - B) / 2, bw = W / Math.max(1, rows.length);
   return (
     <figure className="min-w-0" data-testid={testId}>
       <svg viewBox={`0 0 ${W} ${height}`} className="block w-full h-auto" style={{ maxWidth: 900 }} role="img" aria-label={label}>
         <line x1={0} x2={W} y1={mid} y2={mid} stroke={AXIS} />
-        {rows.map((r, i) => ok(r.v) && <rect key={r.date} x={i * bw + 1} y={r.v >= 0 ? mid - (r.v / max) * half : mid} width={Math.max(1.5, bw - 2)} height={Math.max(0.5, (Math.abs(r.v) / max) * half)} rx={1} fill={r.v >= 0 ? UP : DOWN} fillOpacity={i === rows.length - 1 ? 1 : 0.65}><title>{`${when(r.date)}: ${sign(r.v, digits)}${unit}`}</title></rect>)}
+        {rows.map((r, i) => ok(r.v) && <rect key={r.date} x={i * bw + 1} y={r.v >= 0 ? mid - (Math.min(r.v, scale) / scale) * half : mid} width={Math.max(1.5, bw - 2)} height={Math.max(0.5, (Math.min(Math.abs(r.v), scale) / scale) * half)} rx={1} fill={r.v >= 0 ? UP : DOWN} fillOpacity={i === rows.length - 1 ? 1 : 0.65}><title>{`${when(r.date)}: ${sign(r.v, digits)}${unit}`}</title></rect>)}
       </svg>
       <figcaption className="text-[11px] text-slate-400">{label} · {when(rows[0]?.date)}–{when(rows[rows.length - 1]?.date)} · cao nhất {vn(max, digits)}{unit}</figcaption>
     </figure>

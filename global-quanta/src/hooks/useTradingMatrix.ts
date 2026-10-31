@@ -18,7 +18,7 @@ export interface IntradayBreadth { index: string; advancers: number; decliners: 
 export interface StatePoint {
   date: string; x: number | null; y: number | null; b20: number | null; b50: number | null; b200: number | null; mo: number | null; moZ: number | null; pg5: number | null; db5: number | null;
   idx1: number | null; idx5: number | null; idx20: number | null; sigma: number | null; yzPct: number | null; fnr1: number | null; fnr5: number | null; fnrZ: number | null; ldZ: number | null; flow: number | null;
-  foreign: number | null; value: number | null; neff: number | null; n: number;
+  fgnTop?: { s: string; v: number } | null; foreign: number | null; value: number | null; neff: number | null; n: number;
 }
 export interface MarketState {
   rule: string; asOf: string; x: number | null; y: number | null; zone: { side: string; stress: string; id: string } | null; zoneChanged: boolean; zonePrev: { id: string } | null;
