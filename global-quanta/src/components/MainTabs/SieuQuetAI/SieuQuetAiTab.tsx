@@ -1,8 +1,9 @@
-import { Fragment, useState, useMemo, memo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
-import { ScannerEvidence } from "./ScannerEvidence";
-import { useMarketQuotesStream, type LiveQuote } from "../../../hooks/useMarketQuotesStream";
+import { ScannerEvidence, ScannerEvidenceChip } from "./ScannerEvidence";
+import { useMarketQuotesStream } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import VnIndexAiPanel from "./VnIndexAiPanel";
@@ -20,27 +21,10 @@ import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
 import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
 import TradingMatrixPanel from "./TradingMatrix/TradingMatrixPanel";
+import ScannerTable, { SCANNER_COLUMNS } from "./ScannerTable";
+import { boardSession, nextSort, sortItems, useIsNarrow, useTableFit, useViewPrefs, type SortKey, type SortState } from "./scannerView";
+import "./ScannerTables.css";
 
-
-const COLUMN_COUNT = 9;
-
-// Mau sac theo statusCode Confluence - dung DUNG bang mau da duyet trong
-// prototype HTML goc (frontend/index.html, bien CONF_COLOR).
-const CONF_COLOR: Record<string, string> = {
-  THUAN_XU_HUONG_MANH: "bg-emerald-950 text-emerald-400 border-emerald-700",
-  THUAN_XU_HUONG: "bg-emerald-950/60 text-emerald-400 border-emerald-800",
-  DONG_THUAN_TICH_LUY: "bg-cyan-950 text-cyan-400 border-cyan-700",
-  PHONG_THU_CHUAN: "bg-blue-950 text-blue-400 border-blue-700",
-  THUAN_PHONG_THU: "bg-blue-950/60 text-blue-400 border-blue-800",
-  DAN_DAT_NGUOC_DONG: "bg-purple-950 text-purple-400 border-purple-700",
-  TRUNG_LAP: "bg-slate-800 text-slate-400 border-slate-600",
-  NGHICH_XU_HUONG: "bg-rose-950 text-rose-400 border-rose-700",
-};
-
-function fmt(n: number | null | undefined, d = 1): string {
-  if (n === null || n === undefined || Number.isNaN(n)) return "—";
-  return n.toFixed(d);
-}
 
 /** Khối kỹ thuật + khối Impulse/dòng tiền lấy thêm giá đóng cửa và Market Intelligence từ tổng quan nghiên cứu (SWR dùng chung). */
 function TechnicalConnected({ state }: { state: ReturnType<typeof useSieuQuetScanner>["indexState"] }) {
@@ -52,21 +36,15 @@ function ImpulseConnected({ score }: { score: number | null }) {
   return <ImpulseFlowPanel score={score} intel={data?.intel} />;
 }
 
-function sourceLabel(source: string): string {
-  if (source === "SSI_STREAM") return "SSI realtime";
-  if (source.startsWith("SSI")) return "SSI";
-  return "nguồn dự phòng";
-}
-
 /** Dòng phụ: chỉ cuộn vào tầm nhìn MỘT lần khi vừa mở (không cuộn lại mỗi lần giá realtime cập nhật). */
-function DetailRow({ ticker, colSpan = COLUMN_COUNT }: { ticker: string; colSpan?: number }) {
+function DetailRow({ ticker, colSpan = SCANNER_COLUMNS }: { ticker: string; colSpan?: number }) {
   const rowRef = useRef<HTMLTableRowElement | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => rowRef.current?.previousElementSibling?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
     return () => cancelAnimationFrame(id);
   }, []);
   return (
-    <tr ref={rowRef} className="border-b border-cyan-900/40" style={{ scrollMarginTop: 32 }}>
+    <tr ref={rowRef} className="border-b border-cyan-900/40" style={{ scrollMarginTop: 110 }}>
       <td colSpan={colSpan} className="p-0">
         {isMarketGatewayEnabled()
           ? <VolumeAnalysisPanel symbol={ticker} />
@@ -75,90 +53,6 @@ function DetailRow({ ticker, colSpan = COLUMN_COUNT }: { ticker: string; colSpan
     </tr>
   );
 }
-
-interface StockRowProps {
-  item: SieuQuetStockItem;
-  live?: LiveQuote;
-  expanded: boolean;
-  onToggle: (ticker: string) => void;
-  observe: (el: HTMLTableRowElement | null, ticker: string) => void;
-  starred: boolean;
-  onStar: (ticker: string) => void;
-  selected: boolean;
-  onSelect: (ticker: string) => void;
-}
-
-// memo: khi giá realtime đổi, chỉ dòng của mã đó vẽ lại (bảng tới ~300 dòng).
-const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observe, starred, onStar, selected, onSelect }: StockRowProps) {
-  // Giá/% ưu tiên SSI qua Market Gateway; điểm số vẫn là kết quả quét định kỳ của Project A.
-  const price = live?.price ?? item.price;
-  const changePct = live ? live.changePct : item.changePct;
-  const priceTitle = live
-    ? `Giá ${sourceLabel(live.source)}${live.asOf ? ` · ${live.asOf}` : ""}`
-    : `Giá chốt lúc quét (${item.computedAt}) — Project A`;
-  const confClass = (item.confluenceStatusCode && CONF_COLOR[item.confluenceStatusCode]) ?? "bg-slate-800 text-slate-400 border-slate-600";
-  const excluded = item.piotroskiFScore !== null && item.piotroskiFScore <= Math.floor(item.fScoreMax * 3 / 9);
-
-  return (
-    <>
-    <tr
-      ref={(el) => observe(el, item.ticker)}
-      data-ticker={item.ticker}
-      style={{ scrollMarginTop: 32 }}
-      className={`border-b border-white/5 hover:bg-white/5 cursor-pointer select-none ${excluded ? "opacity-40" : ""} ${expanded ? "bg-cyan-950/30" : ""} ${selected ? "shadow-[inset_3px_0_0_#f59e0b]" : ""}`}
-      aria-selected={selected}
-      onClick={() => onSelect(item.ticker)}
-      tabIndex={0}
-      aria-expanded={expanded}
-      title="Bấm để chọn mã (Action Center, Radar…) · nhấn đúp (hoặc Enter) để xem phân tích khối lượng"
-      onDoubleClick={() => onToggle(item.ticker)}
-      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onToggle(item.ticker); } }}
-    >
-      <td className="py-2 pr-3 text-slate-100 font-semibold whitespace-nowrap">
-        <button type="button" aria-pressed={starred} aria-label={starred ? `Bỏ ${item.ticker} khỏi danh mục` : `Thêm ${item.ticker} vào danh mục`}
-          title={starred ? "Bỏ khỏi danh mục đang chọn" : "Thêm vào danh mục đang chọn"}
-          onClick={(e) => { e.stopPropagation(); onStar(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()}
-          className={`mr-1 font-sans ${starred ? "text-amber-400" : "text-slate-600 hover:text-amber-300"}`}>{starred ? "★" : "☆"}</button>
-        {item.ticker}
-        {item.inUniverse === false && <span className="ml-1 text-[8px] font-normal font-sans text-violet-300 border border-violet-500/40 rounded px-0.5" title="Ngoài universe: chấm theo cùng công thức và bối cảnh của lần quét">ngoài DS</span>}
-        <div className="text-[9px] text-slate-500 font-sans font-normal" title={item.sectorGroup ? `${item.sectorGroup} › ${industryOf(item)}` : undefined}>{industryOf(item)}</div>
-      </td>
-      <td className="text-right pr-3" title={priceTitle}>
-        {fmt(price, 0)}
-        {live && live.source.startsWith("SSI") && <span className="ml-1 text-[8px] text-emerald-500">●</span>}
-        <div className={`text-[9px] ${(changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-          {(changePct ?? 0) >= 0 ? "+" : ""}{fmt(changePct, 2)}%
-        </div>
-      </td>
-      <td className="text-right pr-3 font-semibold text-amber-400">{fmt(item.smartScore, 1)}</td>
-      <td className="text-right pr-3">{fmt(item.rsRating, 1)}</td>
-      <td className="pr-3">
-        <span className={`px-1.5 py-0.5 rounded border text-[9px] whitespace-nowrap ${confClass}`}>{item.confluenceStatusLabel ?? "—"}</span>
-        {item.breakoutBoostBadge && <span className="ml-1 px-1 py-0.5 rounded bg-amber-950 text-amber-400 border border-amber-700 text-[9px]">⚡Breakout</span>}
-        {item.foreignNetBuyFlag && <span className="ml-1 px-1 py-0.5 rounded bg-cyan-950 text-cyan-400 border border-cyan-700 text-[9px]" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)">🌍NN mua ròng</span>}
-      </td>
-      <td className="pr-3 text-slate-300">{item.trendTag ?? "—"}</td>
-      <td className="pr-3">
-        {item.fScoreApplicable === false ? (
-          <span className="px-1.5 py-0.5 rounded border text-[9px] bg-slate-800/60 text-slate-400 border-slate-600" title="F-Score không áp dụng cho ngân hàng / chứng khoán / bảo hiểm (mẫu BCTC không có lợi nhuận gộp, TSNH, nợ ngắn hạn)">
-            F-Score N/A
-          </span>
-        ) : (
-          <span className={`px-1.5 py-0.5 rounded border text-[9px] ${excluded ? "bg-rose-950 text-rose-400 border-rose-700" : item.piotroskiFScore === null ? "bg-slate-800/60 text-slate-400 border-slate-600" : "bg-emerald-950/40 text-emerald-400 border-emerald-800"}`}
-            title={item.piotroskiFScore === null ? "Chưa đủ BCTC để đánh giá (cần ≥ 4/6 tiêu chí)" : undefined}>
-            F-Score {item.piotroskiFScore ?? "—"}/{item.fScoreMax}
-          </span>
-        )}
-      </td>
-      <td className="text-right pr-3" title={item.riskRewardBasis ? `Hỗ trợ ${fmt(item.riskRewardBasis.support, 0)} · kháng cự ${fmt(item.riskRewardBasis.resistance, 0)} (engine cấu trúc, khung ngày, ${item.riskRewardBasis.asOf})` : "Chưa có vùng hỗ trợ / kháng cự bao quanh giá"}>
-        {item.riskRewardRatio !== null && item.riskRewardRatio !== undefined ? fmt(item.riskRewardRatio, 2) : "—"}
-      </td>
-      <td className="text-right pr-3">{fmt(item.riskAdjustedMomentum, 2)}</td>
-    </tr>
-    {expanded && <DetailRow ticker={item.ticker} />}
-    </>
-  );
-});
 
 export default function SieuQuetAiTab() {
   const { indexState, items, isLoading, error, dataAsOf, generatedAt, usedSource, universeSize, validation } = useSieuQuetScanner();
@@ -194,7 +88,7 @@ export default function SieuQuetAiTab() {
         if (e.isIntersecting) visibleSet.current.add(t); else visibleSet.current.delete(t);
       }
       scheduleFlush();
-    }, { root: scrollRef.current, rootMargin: "200px 0px" });
+    }, { rootMargin: "200px 0px" });
     // Các dòng có thể đã gắn vào DOM trước khi observer được tạo (dữ liệu từ cache).
     scrollRef.current?.querySelectorAll<HTMLTableRowElement>("tr[data-ticker]").forEach((el) => observerRef.current?.observe(el));
     return () => observerRef.current?.disconnect();
@@ -217,6 +111,14 @@ export default function SieuQuetAiTab() {
   const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(mode === "scanner" ? streamTickers : []);
   const board = useBoardQuotes(mode === "board" ? streamTickers : [], { enabled: mode === "board" });
   const [researchUiOn] = useResearchUi();
+  const [view, setView] = useViewPrefs();
+  const narrow = useIsNarrow();
+  const [showSources, setShowSources] = useState(false);
+  // Sắp xếp riêng từng bảng; mặc định null = giữ thứ tự máy quét. Bảng giá chỉ sắp theo mã và Smart vì giá realtime chỉ có ở dòng đang hiển thị.
+  const [scanSort, setScanSort] = useState<SortState | null>(null);
+  const [boardSort, setBoardSort] = useState<SortState | null>(null);
+  const onScanSort = useCallback((k: SortKey) => setScanSort((cur) => nextSort(cur, k)), []);
+  const onBoardSort = useCallback((k: SortKey) => setBoardSort((cur) => nextSort(cur, k)), []);
 
   // Rổ (Tất cả / VN30 / Danh mục), lọc ngành 2 cấp, gom nhóm — lựa chọn rổ nhớ theo trình duyệt.
   const [basket, setBasketState] = useState<Basket>(() => {
@@ -237,13 +139,15 @@ export default function SieuQuetAiTab() {
   const effectiveBasket: Basket = !gatewayReady && basket === "VN30" ? "ALL" : basket;
   const basketData = useScannerBasket(items, effectiveBasket, watchlists.active.tickers);
   const pinnedSet = useMemo(() => new Set(watchlists.active.pinned ?? []), [watchlists.active.pinned]);
+  const activeSort = mode === "board" ? boardSort : scanSort;
   const filteredItems = useMemo(() => {
     const list = industries.size ? basketData.items.filter((i) => industries.has(industryOf(i))) : basketData.items;
+    if (activeSort) return sortItems(list, activeSort);
     // Danh mục: mã đã ghim lên đầu (giữ thứ tự Siêu Quét trong từng phần).
     return effectiveBasket === "WATCHLIST" && pinnedSet.size
       ? [...list.filter((i) => pinnedSet.has(i.ticker)), ...list.filter((i) => !pinnedSet.has(i.ticker))]
       : list;
-  }, [basketData.items, industries, effectiveBasket, pinnedSet]);
+  }, [basketData.items, industries, effectiveBasket, pinnedSet, activeSort]);
 
   // Tìm mã trên thanh trên -> đưa mã vào tầm nhìn: nếu đang bị lọc thì về "Tất cả"; mã ngoài danh sách quét CHỈ được
   // thêm vào danh mục khi người dùng chọn rõ "＋ Thêm vào ★ Danh mục" (TOPBAR T3); rồi mở phân tích khối lượng của mã.
@@ -273,6 +177,10 @@ export default function SieuQuetAiTab() {
     const rank = (k: string) => (GROUP_ORDER.indexOf(k) === -1 ? 99 : GROUP_ORDER.indexOf(k));
     return [...m].sort((a, b) => (groupBy === "group" ? rank(a[0]) - rank(b[0]) : b[1].length - a[1].length) || a[0].localeCompare(b[0], "vi"));
   }, [filteredItems, groupBy]);
+  const { fit, overflow } = useTableFit(scrollRef, mode, `${narrow}|${view.levels}|${isLoading}|${Boolean(error)}`);
+  const session = useMemo(() => (mode === "board" ? boardSession(board.quotes) : null), [mode, board.quotes]);
+  const emptyText = effectiveBasket === "WATCHLIST" && watchlists.active.tickers.length === 0 ? "Danh mục trống — thêm mã ở ô phía trên." : "Không có mã nào khớp bộ lọc.";
+  const renderDetail = useCallback((ticker: string, colSpan: number) => <DetailRow ticker={ticker} colSpan={colSpan} />, []);
   const basketTitle = effectiveBasket === "VN30" ? "Rổ VN30" : effectiveBasket === "WATCHLIST" ? `★ ${watchlists.active.name}` : "Bộ lọc ngành";
 
   if (isLoading) return <div className="p-6 text-center text-slate-500 text-sm">Đang tải dữ liệu Siêu Quét AI...</div>;
@@ -287,125 +195,88 @@ export default function SieuQuetAiTab() {
   return (
     <div className="tw-scope flex flex-col gap-4 py-1">
       {/* DẢI VN-INDEX (thu gọn được) — nhường toàn bộ bề ngang cho bảng */}
-      <VnIndexBand
+      {!view.focus && <VnIndexBand
         indexState={indexState}
         technical={<TechnicalConnected state={indexState} />}
         impulse={<ImpulseConnected score={indexState?.impulseScore ?? null} />}
         aiPanel={researchUiOn ? <VnIndexAiPanel /> : null}
         toggle={<ResearchUiToggle />}
-      />
+      />}
 
       {/* TRADING MATRIX (M1–M2) — trạng thái thị trường đa nguồn; heatmap ngành lọc CÙNG state ngành của bảng, bấm mã chọn toàn trang */}
-      <TradingMatrixPanel activeIndustries={industries} onSelectTicker={onSelect}
-        onIndustry={(name) => setIndustries(name ? new Set([name]) : new Set())} />
+      {!view.focus && <TradingMatrixPanel activeIndustries={industries} onSelectTicker={onSelect}
+        onIndustry={(name) => setIndustries(name ? new Set([name]) : new Set())} />}
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
       <section className="flex flex-col gap-4 min-w-0">
-        <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className="rounded-xl p-4 flex-1">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div role="tablist" aria-label="Chế độ hiển thị" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
-                  {([["scanner", "Siêu Quét AI"], ["board", "Bảng giá"]] as const).map(([m, label]) => (
-                    <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}
-                      className={`px-2.5 py-1 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${mode === m ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <h2 className="text-sm font-semibold text-cyan-400">
-                  ({filteredItems.length} mã){effectiveBasket !== "ALL" && <span className="ml-1 text-[11px] text-cyan-200/80 font-normal">· {basketTitle}</span>}
-                </h2>
-              </div>
-              {(dataAsOf || generatedAt) && (
-                <div className="text-[9px] text-slate-500">
-                  {usedSource === "gateway"
-                    ? <>Điểm số tính trên dữ liệu SSI phiên {dataAsOf} · {universeSize ?? items.length} mã · cập nhật {generatedAt ? new Date(generatedAt).toLocaleString("vi-VN") : "—"}</>
-                    : <>Điểm số từ Project A (mỗi mã có thời điểm tính riêng, xem tooltip cột Giá)</>}
-                  {mode === "board"
-                    ? " · Bảng giá: giá × 1.000đ, KL cổ phiếu, realtime SSI · nhấn đúp một dòng để xem phân tích khối lượng"
-                    : " · nhấn đúp một dòng để xem phân tích khối lượng"}
-                </div>
-              )}
-              {usedSource === "gateway" && <ScannerEvidence validation={validation} />}
+        <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className={`scan-panel rounded-xl p-4 flex-1 ${narrow ? "scan-narrow" : ""}`} data-density={view.density} data-testid="scan-panel">
+          <div className="scan-cmd" data-testid="scan-cmd">
+            <div role="tablist" aria-label="Chế độ hiển thị" className="scan-seg">
+              {([["scanner", "Siêu Quét AI"], ["board", "Bảng giá"]] as const).map(([m, label]) => (
+                <button key={m} role="tab" aria-selected={mode === m} onClick={() => setMode(m)}>{label}</button>
+              ))}
             </div>
+            <span className="scan-count">{filteredItems.length} mã{effectiveBasket !== "ALL" && <span> · {basketTitle}</span>}</span>
             <ScannerToolbar basket={effectiveBasket} onBasket={setBasket} watchlistCount={watchlists.active.tickers.length} gatewayReady={gatewayReady}
               items={basketData.items} industries={industries} onIndustries={setIndustries} groupBy={groupBy} onGroupBy={setGroupBy} />
+            <div className="scan-tools">
+              {!narrow && <div className="scan-seg" role="group" aria-label="Mật độ dòng">
+                <button type="button" aria-pressed={view.density === "compact"} onClick={() => setView({ density: "compact" })}>Gọn</button>
+                <button type="button" aria-pressed={view.density === "comfortable"} onClick={() => setView({ density: "comfortable" })}>Thoáng</button>
+              </div>}
+              {mode === "board" && !narrow && <div className="scan-seg" role="group" aria-label="Số bước giá">
+                <button type="button" aria-pressed={view.levels === 3} onClick={() => setView({ levels: 3 })} title="Hiện đủ 3 bước giá mua và bán">3 bước</button>
+                <button type="button" aria-pressed={view.levels === 1} onClick={() => setView({ levels: 1 })} title="Chỉ hiện bước giá tốt nhất">1 bước</button>
+              </div>}
+              <button type="button" className="scan-tool" aria-pressed={view.focus} onClick={() => setView({ focus: !view.focus })} data-testid="scan-focus"
+                title={view.focus ? "Hiện lại dải VN-Index và Trading Matrix" : "Thu dải VN-Index và Trading Matrix để bảng chiếm gần hết màn hình"}>
+                {view.focus ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}{view.focus ? "Thoát tập trung" : "Tập trung"}
+              </button>
+            </div>
           </div>
+          <div className="scan-status" data-testid="scan-status">
+            {usedSource === "gateway" && <ScannerEvidenceChip validation={validation} />}
+            {mode === "board" && session && <span className={`scan-chip ${session.live ? "live" : "off"}`} data-testid="board-session">{session.label}</span>}
+            {(dataAsOf || generatedAt) && <span>{usedSource === "gateway" ? <>SSI · điểm số phiên {dataAsOf} · cập nhật {generatedAt ? new Date(generatedAt).toLocaleString("vi-VN") : "—"}</> : <>Điểm số từ Project A, thời điểm tính theo từng mã</>}</span>}
+            {mode === "board" && !narrow && <span className="scan-legend" aria-label="Chú giải màu">
+              <span><i style={{ background: "#e879f9" }} />Trần</span><span><i style={{ background: "#22d3ee" }} />Sàn</span><span><i style={{ background: "#facc15" }} />TC</span><span><i style={{ background: "#22c55e" }} />Tăng</span><span><i style={{ background: "#f43f5e" }} />Giảm</span>
+            </span>}
+            <button type="button" className="scan-info" aria-expanded={showSources} onClick={() => setShowSources((v) => !v)} data-testid="scan-info">Nguồn và cách đọc</button>
+          </div>
+          {showSources && <div className="scan-infobox" data-testid="scan-infobox">
+            {usedSource === "gateway" && <ScannerEvidence validation={validation} />}
+            <p>{gatewayEnabled
+              ? <>Giá: SSI realtime qua Market Gateway (● = giá SSI). Điểm số TA/FA, VN-Index đa tầng: quét định kỳ (Yahoo + VCI + VNDirect) cho {items.length} mã.</>
+              : <>Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.</>}
+              {" "}Sự kiện đã xác nhận (AI Discovery trên Project A) vẫn vào Smart Score. Nghiên cứu sự kiện, ESA và tin vĩ mô: trang PHÂN TÍCH VĨ MÔ › Event Radar.</p>
+            <p>Giá hiển thị theo nghìn đồng (148.70 = 148.700đ), khối lượng theo cổ phiếu. Bấm một dòng để chọn mã; bấm › hoặc nhấn đúp để xem phân tích khối lượng; ↑↓ chuyển dòng. Bấm tiêu đề cột để sắp xếp, bấm lần ba để về thứ tự mặc định.{mode === "board" ? " Bảng giá sắp xếp theo mã hoặc Smart vì giá realtime chỉ tải cho các dòng đang hiển thị." : " Điểm số không đổi khi giá realtime nhảy, nên thứ tự theo giá dùng giá lúc quét."}</p>
+            <p>Khối lượng có thể rút gọn trên màn hình hẹp (1.13M); rê chuột vào ô để xem số đầy đủ. Thanh nền trong ô KL so sánh các bước giá trong cùng một dòng.</p>
+          </div>}
           {effectiveBasket === "WATCHLIST" && (
             <WatchlistBar notFound={basketData.notFound} insufficient={basketData.insufficient} loading={basketData.loading} gatewayReady={gatewayReady} />
           )}
           {(effectiveBasket !== "ALL" || industries.size > 0) && <BasketSummary items={filteredItems} title={basketTitle} />}
           {effectiveBasket === "VN30" && basketData.loading && <div className="text-[10px] text-slate-500 mb-2">Đang tải rổ VN30…</div>}
           {basketData.customError ? <div className="text-[10px] text-rose-400 mb-2">Không chấm điểm được mã ngoài universe: {basketData.customError instanceof Error ? basketData.customError.message : String(basketData.customError)}</div> : null}
-          <div ref={scrollRef} className="overflow-x-auto overflow-y-auto max-h-[640px]">
+          <div ref={scrollRef} className={`scan-frame ${overflow ? "is-overflow" : ""}`} data-fit={fit} data-testid="scan-frame">
             {mode === "board" ? (
               <PricingBoard
                 sections={sections ?? [["", filteredItems]]} grouped={Boolean(sections)}
                 quotes={board.quotes} flash={board.flash} now={board.now}
                 expandedTicker={expandedTicker} starred={starredSet} onToggle={toggleRow} onStar={onStar} observe={observe}
-                selectedTicker={selectedTicker} onSelect={onSelect}
-                renderDetail={(ticker, colSpan) => <DetailRow ticker={ticker} colSpan={colSpan} />}
-                emptyText={effectiveBasket === "WATCHLIST" && watchlists.active.tickers.length === 0 ? "Danh mục trống — thêm mã ở ô phía trên." : "Không có mã nào khớp bộ lọc."}
+                selectedTicker={selectedTicker} onSelect={onSelect} renderDetail={renderDetail} emptyText={emptyText}
+                fit={fit} levels={narrow ? 3 : view.levels} narrow={narrow} sort={boardSort} onSort={onBoardSort}
               />
             ) : (
-            <table className="w-full text-[10px] font-mono">
-              <thead className="text-slate-500 border-b border-white/10 sticky top-0 z-10" style={{ background: "#0f1420" }}>
-                <tr>
-                  <th className="text-left py-2 pr-3">Mã</th>
-                  <th className="text-right pr-3">Giá</th>
-                  <th className="text-right pr-3">Smart Score</th>
-                  <th className="text-right pr-3">RS</th>
-                  <th className="text-left pr-3">Đồng Thuận</th>
-                  <th className="text-left pr-3">Trend</th>
-                  <th className="text-left pr-3">Chất lượng BCTC</th>
-                  <th className="text-right pr-3" title="R/R = (kháng cự − giá) / (giá − hỗ trợ), vùng gần nhất của engine cấu trúc (khung ngày)">R/R</th>
-                  <th className="text-right pr-3">Risk-Adj Mom.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(sections ?? [["", filteredItems] as [string, SieuQuetStockItem[]]]).map(([name, list]) => (
-                  <Fragment key={name || "all"}>
-                    {sections && (
-                      <tr className="bg-white/[0.03] border-b border-white/10">
-                        <td colSpan={COLUMN_COUNT} className="py-1 px-1 font-sans text-[10px]">
-                          <span className="text-cyan-200 font-semibold">{name}</span>
-                          <span className="text-slate-400"> · {list.length} mã · Smart TB {(list.reduce((a, i) => a + (i.smartScore ?? 0), 0) / list.length).toFixed(1)} · ▲ {list.filter((i) => i.trendTag === "Up-Trend").length} Up-Trend</span>
-                        </td>
-                      </tr>
-                    )}
-                    {list.map((item) => (
-                      <StockRow key={item.ticker} item={item} live={liveQuotes[item.ticker.toUpperCase()]}
-                        expanded={expandedTicker === item.ticker} onToggle={toggleRow} observe={observe}
-                        starred={starredSet.has(item.ticker)} onStar={onStar}
-                        selected={selectedTicker === item.ticker} onSelect={onSelect} />
-                    ))}
-                  </Fragment>
-                ))}
-                {filteredItems.length === 0 && !basketData.loading && (
-                  <tr><td colSpan={COLUMN_COUNT} className="py-6 text-center text-slate-500 font-sans text-[10px]">
-                    {effectiveBasket === "WATCHLIST" && watchlists.active.tickers.length === 0 ? "Danh mục trống — thêm mã ở ô phía trên." : "Không có mã nào khớp bộ lọc."}
-                  </td></tr>
-                )}
-              </tbody>
-            </table>
+              <ScannerTable sections={sections ?? [["", filteredItems]]} grouped={Boolean(sections)} liveQuotes={liveQuotes} expandedTicker={expandedTicker}
+                starred={starredSet} selectedTicker={selectedTicker} onToggle={toggleRow} onStar={onStar} onSelect={onSelect} observe={observe}
+                sort={scanSort} onSort={onScanSort} narrow={narrow} renderDetail={renderDetail}
+                emptyText={filteredItems.length === 0 && !basketData.loading ? emptyText : null} />
             )}
           </div>
         </div>
       </section>
 
-      {/* 30/10/2026: Quant Edge (H1/H2), ESA và Sự kiện vĩ mô đã chuyển sang Chất xúc tác › Event Radar › Phân tích chuyên sâu.
-          Chỗ này để trống cho nâng cấp sau (theo yêu cầu). */}
-      <section className="grid grid-cols-1 gap-4">
-        <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-xl p-3 h-fit">
-          <p className="text-[9px] text-sky-300">
-            {gatewayEnabled
-              ? <>Giá: SSI realtime qua Market Gateway (● = giá SSI). Điểm số TA/FA, VN-Index đa tầng: quét định kỳ (Yahoo + VCI + VNDirect) cho {items.length} mã.</>
-              : <>Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.</>}
-             Sự kiện đã xác nhận (AI Discovery trên Project A) vẫn vào Smart Score. Nghiên cứu sự kiện, ESA và tin vĩ mô: tab Chất xúc tác › Event Radar.
-          </p>
-        </div>
-      </section>
     </div>
   );
 }

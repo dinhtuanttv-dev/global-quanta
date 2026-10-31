@@ -3,6 +3,14 @@ import type { ScannerValidation } from "../../../hooks/useSieuQuetScanner";
 
 const pct3 = (x: number | null | undefined) => (x === null || x === undefined ? "—" : x.toLocaleString("vi-VN", { minimumFractionDigits: 3, maximumFractionDigits: 3 }));
 
+/** Nhãn gọn trên thanh trạng thái: luôn hiện kết luận kiểm định; số liệu đầy đủ ở "Nguồn và cách đọc" và trong chú thích. */
+export function ScannerEvidenceChip({ validation }: { validation: ScannerValidation | null }) {
+  const done = validation?.status === "DONE";
+  const pass = done && validation!.verdicts.smartScore === "PASS";
+  const label = !done ? "Smart Score chưa kiểm định" : pass ? "Smart Score đã kiểm định" : "Smart Score chưa đạt kiểm định · xếp hạng mô tả, không phải tín hiệu dự báo";
+  return <span className={`scan-chip ${pass ? "ok" : "warn"}`} data-testid="sq-evidence-chip">{label}</span>;
+}
+
 /** Nhãn bằng chứng của Smart Score theo kiểm định đặt trước (SQ-prereg.md): hiện công khai, không ẩn bảng. */
 export function ScannerEvidence({ validation }: { validation: ScannerValidation | null }) {
   if (!validation || validation.status !== "DONE") {
