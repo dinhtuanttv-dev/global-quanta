@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
-import { ScannerEvidence, ScannerEvidenceChip } from "./ScannerEvidence";
+import { ScannerEvidence } from "./ScannerEvidence";
 import { useMarketQuotesStream } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
@@ -235,7 +235,6 @@ export default function SieuQuetAiTab() {
             </div>
           </div>
           <div className="scan-status" data-testid="scan-status">
-            {usedSource === "gateway" && <ScannerEvidenceChip validation={validation} />}
             {mode === "board" && session && <span className={`scan-chip ${session.live ? "live" : "off"}`} data-testid="board-session">{session.label}</span>}
             {(dataAsOf || generatedAt) && <span>{usedSource === "gateway" ? <>SSI · điểm số phiên {dataAsOf} · cập nhật {generatedAt ? new Date(generatedAt).toLocaleString("vi-VN") : "—"}</> : <>Điểm số từ Project A, thời điểm tính theo từng mã</>}</span>}
             {mode === "board" && !narrow && <span className="scan-legend" aria-label="Chú giải màu">
