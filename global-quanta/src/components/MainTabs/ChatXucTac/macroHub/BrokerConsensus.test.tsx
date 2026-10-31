@@ -56,6 +56,13 @@ describe("Đồng thuận công ty chứng khoán", () => {
     expect(screen).toBeTruthy();
   });
 
+  it("một CTCK thì không gọi là đồng thuận", () => {
+    state.data = { ...doc, view: { ...doc.view, n: 1, items: [doc.view.items[1]], score: -1, disagreement: 0 } };
+    render(<BrokerConsensus />);
+    expect(q("bc-headline")?.textContent).toContain("Chưa đủ CTCK");
+    expect(q("bc-headline")?.textContent).not.toContain("thận trọng (");
+  });
+
   it("nhãn đồng thuận theo ngưỡng cố định", () => {
     expect([viewLabel(0.5), viewLabel(0), viewLabel(-0.5), viewLabel(null)]).toEqual(["Nghiêng tích cực", "Trung lập", "Nghiêng thận trọng", "Chưa đủ dữ liệu"]);
     expect([disagreementLabel(0.1), disagreementLabel(0.5), disagreementLabel(0.9)]).toEqual(["thấp", "vừa", "cao"]);

@@ -14,6 +14,11 @@ const MAX_ATTEMPTS = 4;
 // Báo cáo chỉ đọc một lần nên không dùng bản lite: model bận thì để lượt sau, tránh kết quả nghèo được lưu vĩnh viễn.
 const EXTRACT_MODELS = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.6-flash"];
 const UA = "Mozilla/5.0 (compatible; DinhTuanResearchBot/1.0)";
+/** Quá tải, hết hạn mức, hết giờ là lỗi tạm thời: thử lại lượt sau, không tính vào số lần hỏng của báo cáo. */
+export function isTransient(e) {
+  if (e?.attempts?.length) return e.attempts.every((a) => a.status === 429 || a.status >= 500 || /abort|timeout|fetch failed/i.test(a.error ?? ""));
+  return /abort|timeout|fetch failed/i.test(e?.message ?? "");
+}
 const vnDay = (ms) => new Date(ms + 7 * 3_600_000).toISOString().slice(0, 10);
 
 /** Chỉ trang trong danh sách nguồn, sau chuyển hướng vẫn phải đúng host. */
@@ -97,9 +102,11 @@ export function createBrokerViews({ store = null, callModel, getIndexBars = asyn
         state.seen[key] = { status: r.status, at: new Date(now()).toISOString() };
         if (r.report) { if (!(r.report.publishedAt && r.report.publishedAt < cutoff)) state.reports = [r.report, ...state.reports.filter((x) => x.id !== r.report.id)].slice(0, 200); done++; }
       } catch (e) {
-        const prev = state.seen[key]?.attempts ?? 0;
-        state.seen[key] = { status: "error", attempts: prev + 1, at: new Date(now()).toISOString(), error: String(e.message).slice(0, 120) };
+        const prev = state.seen[key]?.attempts ?? 0, transient = isTransient(e);
+        state.seen[key] = { status: "error", attempts: transient ? prev : prev + 1, at: new Date(now()).toISOString(), error: String(e.message).slice(0, 120) };
         log.warn?.(`[broker-views] ${it.broker} ${String(it.title).slice(0, 50)}: ${e.message}`);
+        // Mọi model đều báo hết hạn mức thì dừng lượt này, để dành hạn mức cho bản tin.
+        if (e?.attempts?.some((a) => a.status === 429) && transient) { await persist(); break; }
       }
       await persist();
       await pause();
@@ -126,7 +133,7 @@ export function createBrokerViews({ store = null, callModel, getIndexBars = asyn
           verified: state.reports.reduce((a, r) => a + (r.marketView ? 1 : 0) + (r.targets?.length ?? 0) + (r.topics?.length ?? 0) + (r.sectors?.length ?? 0), 0),
           rejected: state.reports.reduce((a, r) => a + (r.rejected?.length ?? 0), 0), skippedNoText: seen.filter((s) => s.status === "no_text").length,
         },
-        sources: state.sources,
+        sources: Object.fromEntries(sources.map((s) => [s.id, state.sources[s.id]]).filter(([, v]) => v)),
         reports: state.reports.slice(0, 12).map(({ rejected, pdfUrl, ...r }) => ({ id: r.id, broker: r.broker, brokerName: r.brokerName, title: r.title, type: r.type, publishedAt: r.publishedAt, url: r.url, rejected: rejected?.length ?? 0 })),
         ...buildConsensus({ reports: usable, nowMs: now(), indexBars: bars, quant: new Map(quant.map((x) => [x.icb, x])) }),
       };
@@ -135,7 +142,7 @@ export function createBrokerViews({ store = null, callModel, getIndexBars = asyn
     async forBrief() {
       await load();
       const cons = buildConsensus({ reports: state.reports, nowMs: now() });
-      return { view: cons.view, reports: state.reports.filter((r) => r.publishedAt && now() - Date.parse(r.publishedAt) <= 45 * 86_400_000).slice(0, 8) };
+      return { view: cons.view.n >= 2 ? cons.view : { n: 0, items: [] }, reports: state.reports.filter((r) => r.publishedAt && now() - Date.parse(r.publishedAt) <= 45 * 86_400_000).slice(0, 8) };
     },
     /** Có việc tồn thì chạy tiếp mỗi lượt; không thì 6 giờ quét danh sách một lần. */
     async tick() {
