@@ -146,5 +146,6 @@ describe("Thác nước VN-Index", () => {
     expect(bars[bars.length - 1].v).toBeCloseTo(0.25);
     bars.forEach((b, i) => { if (i) expect(b.from).toBeCloseTo(bars[i - 1].to); });
     expect(bars[bars.length - 1].to).toBeCloseTo(total);
+    expect(buildWaterfall(items, 2, 0.5).total).toBeCloseTo(0.5);
   });
 });

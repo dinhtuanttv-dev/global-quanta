@@ -158,7 +158,9 @@ export function buildStateSeries({ panel, indexBars, neff = null, ldZ = null }) 
   const z = (arr) => robustZSeries(arr);
   const zIdx = z(idx20), zB = z(b20), zMo = z(mo), zSigma = z(sigma), zDrop = z(db5.map((v) => (num(v) ? -v : null))), zFnr = z(fnr5);
   const zLd = ldZ ? z(panel.map((p) => ldZ.get(p.date) ?? null)) : panel.map(() => null);
-  const conc = neff ? panel.map((_, i) => (num(neff[i]) && neff[i] > 0 ? 1 / neff[i] : null)) : panel.map(() => null);
+  // Trung vị 5 phiên: một mã tỷ trọng lớn (VIC ~22%) đổi giá là số của từng phiên nhảy từ 3 lên 30.
+  const neffM = neff ? neff.map((_, i) => { const w = neff.slice(Math.max(0, i - 4), i + 1).filter(num).sort((a, b) => a - b); return w.length >= 3 ? (w[(w.length - 1) >> 1] + w[w.length >> 1]) / 2 : null; }) : null;
+  const conc = neffM ? panel.map((_, i) => (num(neffM[i]) && neffM[i] > 0 ? 1 / neffM[i] : null)) : panel.map(() => null);
   const zConc = z(conc);
   const yzPct = priorPercentile(sigma);
   const pgPct = priorPercentile(pg5);
@@ -167,7 +169,8 @@ export function buildStateSeries({ panel, indexBars, neff = null, ldZ = null }) 
     return {
       date: p.date, n: p.n, b20: b20[i], b50: b50[i], b200: b200[i], mo: mo[i], moZ: zMo[i], db5: db5[i], ddb: ddb[i], med5: med5[i], pg5: pg5[i], pgPct: pgPct[i],
       idx1: idx1[i], idx5: idx5[i], idx20: idx20[i], sigma: sigma[i], yzPct: yzPct[i], fnr1: fnr1[i], fnr5: fnr5[i], foreign: p.foreign, value: p.value, fnrZ: zFnr[i], ldZ: zLd[i], flow,
-      neff: neff ? neff[i] : null,
+      neff: neffM ? neffM[i] : null,
+      neff1: neff ? neff[i] : null,
       x: avgAtLeast([zIdx[i], zB[i], zMo[i], flow], 3),
       y: avgAtLeast([zSigma[i], zDrop[i], zConc[i]], 2),
     };
@@ -200,7 +203,7 @@ export function headlineOf({ regimeLabel, s, fnrIsForeign = true }) {
 const slim = (s) => ({
   date: s.date, x: round(s.x), y: round(s.y), b20: round(s.b20, 1), b50: round(s.b50, 1), b200: round(s.b200, 1), mo: round(s.mo, 1), moZ: round(s.moZ), pg5: round(s.pg5), db5: round(s.db5, 1),
   idx1: round(s.idx1), idx5: round(s.idx5), idx20: round(s.idx20), sigma: round(s.sigma, 1), yzPct: round(s.yzPct, 0), fnr1: round(s.fnr1), fnr5: round(s.fnr5), fnrZ: round(s.fnrZ), ldZ: round(s.ldZ), flow: round(s.flow),
-  foreign: s.foreign == null ? null : Math.round(s.foreign), value: s.value == null ? null : Math.round(s.value), neff: round(s.neff, 1), n: s.n,
+  foreign: s.foreign == null ? null : Math.round(s.foreign), value: s.value == null ? null : Math.round(s.value), neff: round(s.neff, 1), neff1: round(s.neff1, 1), n: s.n,
 });
 
 /** Tài liệu gửi giao diện. changes so hai phiên gần nhất, chỉ gồm số có đủ ở cả hai phiên. */

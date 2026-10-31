@@ -31,15 +31,15 @@ export function StateMap({ path, index, others = [] }: { path: StatePoint[]; ind
       <rect x={sx(0)} y={sy(0)} width={W - R - sx(0)} height={H - B - sy(0)} fill="rgba(52,211,153,0.05)" />
       <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke={AXIS} />
       <line x1={L} x2={W - R} y1={sy(0)} y2={sy(0)} stroke={AXIS} />
-      <text x={L + 6} y={T + 13} fontSize={9.5} fill={TXT}>Giảm, căng</text>
-      <text x={W - R - 6} y={T + 13} fontSize={9.5} fill={TXT} textAnchor="end">Tăng, căng</text>
-      <text x={L + 6} y={H - B - 6} fontSize={9.5} fill={TXT}>Giảm, yên</text>
-      <text x={W - R - 6} y={H - B - 6} fontSize={9.5} fill={TXT} textAnchor="end">Tăng, yên</text>
-      <text x={(L + W - R) / 2} y={H - 6} fontSize={9.5} fill={TXT} textAnchor="middle">Xu hướng và tham gia</text>
-      <text transform={`translate(11 ${(T + H - B) / 2}) rotate(-90)`} fontSize={9.5} fill={TXT} textAnchor="middle">Căng thẳng</text>
+      <text x={L + 6} y={T + 13} fontSize={11} fill={TXT}>Giảm, căng</text>
+      <text x={W - R - 6} y={T + 13} fontSize={11} fill={TXT} textAnchor="end">Tăng, căng</text>
+      <text x={L + 6} y={H - B - 6} fontSize={11} fill={TXT}>Giảm, yên</text>
+      <text x={W - R - 6} y={H - B - 6} fontSize={11} fill={TXT} textAnchor="end">Tăng, yên</text>
+      <text x={(L + W - R) / 2} y={H - 6} fontSize={11} fill={TXT} textAnchor="middle">Xu hướng và tham gia</text>
+      <text transform={`translate(11 ${(T + H - B) / 2}) rotate(-90)`} fontSize={11} fill={TXT} textAnchor="middle">Căng thẳng</text>
       {d && <path d={d} fill="none" stroke={GOLD} strokeOpacity={0.55} strokeWidth={1.4} />}
       {shown.slice(0, -1).map((p, i) => <circle key={p.date} cx={sx(p.x as number)} cy={sy(p.y as number)} r={1.7} fill={GOLD} fillOpacity={0.25 + (0.5 * i) / Math.max(1, shown.length)}><title>{`${when(p.date)}: X ${vn(p.x, 2)}, Y ${vn(p.y, 2)}`}</title></circle>)}
-      {others.filter((o) => ok(o.x) && ok(o.y)).map((o) => <g key={o.scope}><circle cx={sx(o.x as number)} cy={sy(o.y as number)} r={4.5} fill={SCOPE_COLOR[o.scope]} stroke="#0b1220" strokeWidth={1.2} /><text x={sx(o.x as number) + 7} y={sy(o.y as number) + 3.5} fontSize={9.5} fill={INK}>{SCOPE_VI[o.scope]}</text></g>)}
+      {others.filter((o) => ok(o.x) && ok(o.y)).map((o) => <g key={o.scope}><circle cx={sx(o.x as number)} cy={sy(o.y as number)} r={4.5} fill={SCOPE_COLOR[o.scope]} stroke="#0b1220" strokeWidth={1.2} /><text x={sx(o.x as number) + 7} y={sy(o.y as number) + 3.5} fontSize={11} fill={INK}>{SCOPE_VI[o.scope]}</text></g>)}
       {cur && ok(cur.x) && ok(cur.y) && <circle cx={sx(cur.x)} cy={sy(cur.y)} r={5.5} fill={GOLD} stroke="#0b1220" strokeWidth={1.5} data-testid="mx-state-dot"><title>{`${when(cur.date)}: X ${vn(cur.x, 2)}, Y ${vn(cur.y, 2)}`}</title></circle>}
     </svg>
   );
@@ -55,10 +55,8 @@ export function SignedBars({ rows, height = 92, unit = "%", digits = 2, label, t
       <svg viewBox={`0 0 ${W} ${height}`} className="block w-full h-auto" style={{ maxWidth: 900 }} role="img" aria-label={label}>
         <line x1={0} x2={W} y1={mid} y2={mid} stroke={AXIS} />
         {rows.map((r, i) => ok(r.v) && <rect key={r.date} x={i * bw + 1} y={r.v >= 0 ? mid - (r.v / max) * half : mid} width={Math.max(1.5, bw - 2)} height={Math.max(0.5, (Math.abs(r.v) / max) * half)} rx={1} fill={r.v >= 0 ? UP : DOWN} fillOpacity={i === rows.length - 1 ? 1 : 0.65}><title>{`${when(r.date)}: ${sign(r.v, digits)}${unit}`}</title></rect>)}
-        <text x={0} y={height - 3} fontSize={10} fill={TXT}>{when(rows[0]?.date)}</text>
-        <text x={W} y={height - 3} fontSize={10} fill={TXT} textAnchor="end">{when(rows[rows.length - 1]?.date)}</text>
       </svg>
-      <figcaption className="text-[11px] text-slate-400">{label} · cao nhất {vn(max, digits)}{unit}</figcaption>
+      <figcaption className="text-[11px] text-slate-400">{label} · {when(rows[0]?.date)}–{when(rows[rows.length - 1]?.date)} · cao nhất {vn(max, digits)}{unit}</figcaption>
     </figure>
   );
 }
@@ -72,11 +70,13 @@ export function Spark({ values, color = "#cbd5e1", w = 76, h = 22, zero = false 
 }
 
 /** Thác nước điểm VN-Index: các trụ kéo, các trụ đè, phần còn lại, đến tổng điểm. */
-export function buildWaterfall(items: ImpactItem[], top = 7) {
+export function buildWaterfall(items: ImpactItem[], top = 7, exactTotal?: number | null) {
   const up = [...items].filter((x) => x.points > 0).sort((a, b) => b.points - a.points).slice(0, top);
   const down = [...items].filter((x) => x.points < 0).sort((a, b) => a.points - b.points).slice(0, top);
   const shown = new Set([...up, ...down].map((x) => x.symbol));
-  const rest = items.filter((x) => !shown.has(x.symbol)).reduce((a, x) => a + x.points, 0);
+  const shownSum = [...up, ...down].reduce((a, x) => a + x.points, 0);
+  // Điểm từng mã đã làm tròn; có tổng chính xác thì phần còn lại lấy theo tổng đó để khớp dòng đối chiếu.
+  const rest = exactTotal != null ? exactTotal - shownSum : items.filter((x) => !shown.has(x.symbol)).reduce((a, x) => a + x.points, 0);
   const bars: { key: string; label: string; v: number; from: number; to: number; ticker: boolean }[] = [];
   let run = 0;
   for (const x of [...up, ...down]) { bars.push({ key: x.symbol, label: x.symbol, v: x.points, from: run, to: run + x.points, ticker: true }); run += x.points; }
@@ -87,7 +87,7 @@ export function buildWaterfall(items: ImpactItem[], top = 7) {
 
 export function IndexWaterfall({ data, onSelect }: { data: IndexImpactDoc; onSelect: (t: string) => void }) {
   if (!data.items?.length) return null;
-  const { bars, total } = buildWaterfall(data.items);
+  const { bars, total } = buildWaterfall(data.items, 7, data.check?.predictedPoints);
   const W = 720, H = 190, L = 34, R = 8, T = 10, B = 28;
   const all = bars.flatMap((b) => [b.from, b.to]).concat(0, total);
   const lo = Math.min(...all), hi = Math.max(...all), span = hi - lo || 1;
@@ -96,22 +96,22 @@ export function IndexWaterfall({ data, onSelect }: { data: IndexImpactDoc; onSel
   const ticks = [lo, 0, hi].filter((v, i, a) => a.indexOf(v) === i);
   return (
     <div className="overflow-x-auto" data-testid="mx-waterfall">
-      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto" style={{ minWidth: 560, maxWidth: 1000, margin: "0 auto" }} role="img" aria-label={`Thác nước đóng góp vào VN-Index phiên ${data.date}, tổng ${vn(total, 2)} điểm`}>
-        {ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke={v === 0 ? AXIS : GRID} /><text x={L - 4} y={Y(v) + 3} fontSize={10} fill={TXT} textAnchor="end">{sign(v, 1)}</text></g>)}
+      <svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto" style={{ minWidth: 720, maxWidth: 860, margin: "0 auto" }} role="img" aria-label={`Thác nước đóng góp vào VN-Index phiên ${data.date}, tổng ${vn(total, 2)} điểm`}>
+        {ticks.map((v) => <g key={v}><line x1={L} x2={W - R} y1={Y(v)} y2={Y(v)} stroke={v === 0 ? AXIS : GRID} /><text x={L - 4} y={Y(v) + 3} fontSize={11} fill={TXT} textAnchor="end">{sign(v, 1)}</text></g>)}
         {bars.map((b, i) => {
           const x = L + i * bw, y = Y(Math.max(b.from, b.to)), h = Math.max(1, Math.abs(Y(b.from) - Y(b.to)));
           const body = <>
             <rect x={x + 2} y={y} width={bw - 4} height={h} rx={1.5} fill={b.v >= 0 ? UP : DOWN} fillOpacity={b.ticker ? 0.85 : 0.45}><title>{`${b.label}: ${sign(b.v)} điểm`}</title></rect>
-            <text x={x + bw / 2} y={H - 15} fontSize={9.5} fill={b.ticker ? "#fcd34d" : TXT} textAnchor="middle">{b.label}</text>
-            <text x={x + bw / 2} y={H - 4} fontSize={9} fill={TXT} textAnchor="middle">{sign(b.v, 2)}</text>
+            <text x={x + bw / 2} y={H - 15} fontSize={11} fill={b.ticker ? "#fcd34d" : TXT} textAnchor="middle">{b.label}</text>
+            <text x={x + bw / 2} y={H - 3} fontSize={11} fill={TXT} textAnchor="middle">{sign(b.v, 2)}</text>
           </>;
           return b.ticker
             ? <g key={b.key} role="button" tabIndex={0} aria-label={`Chọn ${b.label}, ${sign(b.v)} điểm`} style={{ cursor: "pointer" }} data-testid={`mx-wf-${b.key}`} onClick={() => onSelect(b.label)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSelect(b.label); } }}>{body}</g>
             : <g key={b.key}>{body}</g>;
         })}
         <rect x={L + bars.length * bw + 2} y={Y(Math.max(0, total))} width={bw - 4} height={Math.max(1, Math.abs(Y(0) - Y(total)))} rx={1.5} fill={GOLD} fillOpacity={0.8}><title>{`Tổng ${sign(total)} điểm`}</title></rect>
-        <text x={L + bars.length * bw + bw / 2} y={H - 15} fontSize={9.5} fontWeight={700} fill={INK} textAnchor="middle">Tổng</text>
-        <text x={L + bars.length * bw + bw / 2} y={H - 4} fontSize={9} fill={INK} textAnchor="middle">{sign(total, 2)}</text>
+        <text x={L + bars.length * bw + bw / 2} y={H - 15} fontSize={11} fontWeight={700} fill={INK} textAnchor="middle">Tổng</text>
+        <text x={L + bars.length * bw + bw / 2} y={H - 3} fontSize={11} fill={INK} textAnchor="middle">{sign(total, 2)}</text>
       </svg>
     </div>
   );
@@ -127,13 +127,13 @@ export function ScenarioStrip({ rows, ids, names, testId }: { rows: Record<strin
   const W = 720, L = 150, RH = 18, H = ids.length * RH + 18, bw = (W - L) / rows.length;
   return (
     <div data-testid={testId}>
-      <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto" style={{ minWidth: 520, maxWidth: 1000 }} role="img" aria-label={`Trạng thái kịch bản ${rows.length} phiên`}>
+      <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block w-full h-auto" style={{ minWidth: 720, maxWidth: 860 }} role="img" aria-label={`Trạng thái kịch bản ${rows.length} phiên`}>
         {ids.map((id, r) => <g key={id}>
-          <text x={0} y={r * RH + 12} fontSize={10.5} fill={INK}>{names[id]}</text>
+          <text x={0} y={r * RH + 12} fontSize={11} fill={INK}>{names[id]}</text>
           {rows.map((d, c) => { const st = CELL[d[id] ?? ""] ?? CELL.INACTIVE; return <rect key={String(d.date)} x={L + c * bw + 0.5} y={r * RH + 1} width={Math.max(1, bw - 1)} height={RH - 3} rx={1.5} fill={st.fill}><title>{`${names[id]} · ${when(String(d.date))}: ${st.vi}`}</title></rect>; })}
         </g>)}
-        <text x={L} y={H - 3} fontSize={10} fill={TXT}>{when(String(rows[0].date))}</text>
-        <text x={W} y={H - 3} fontSize={10} fill={TXT} textAnchor="end">{when(String(rows[rows.length - 1].date))}</text>
+        <text x={L} y={H - 3} fontSize={11} fill={TXT}>{when(String(rows[0].date))}</text>
+        <text x={W} y={H - 3} fontSize={11} fill={TXT} textAnchor="end">{when(String(rows[rows.length - 1].date))}</text>
       </svg></div>
       <ul className="flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-slate-400" aria-label="Chú giải">
         {(["CONFIRMED", "WATCH", "INVALIDATED", "COOLDOWN"] as const).map((k) => <li key={k} className="flex items-center gap-1"><i className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: CELL[k].fill }} />{CELL[k].vi}</li>)}
