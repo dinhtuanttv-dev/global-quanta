@@ -52,7 +52,7 @@ export default function EvidenceLedgerPanel() {
         {!f ? <p className="text-[10px] italic" style={muted}>Đang tải…</p> : (
           <>
             <p className="text-[10.5px]" style={{ color: "var(--text-secondary)" }}>
-              {f.statusVi} Bắt đầu ghi {f.since ? f.since.split("-").reverse().join("/") : "—"} · {f.recorded} phiên đã ghi · {f.evaluated} phiên đã chấm
+              {f.statusVi}{f.missing?.length ? ` Thiếu ${f.missing.length} phiên không ghi được (${f.missing.map((d) => d.slice(5).split("-").reverse().join("/")).join(", ")}), không ghi bù để tránh nhìn trước kết quả.` : ""} Bắt đầu ghi {f.since ? f.since.split("-").reverse().join("/") : "—"} · {f.recorded} phiên đã ghi · {f.evaluated} phiên đã chấm
               {f.evaluated > 0 && <> · IC TB {fmtZ(f.meanIc, 3)}{f.t != null ? ` (t ${fmtZ(f.t, 2)})` : ""} · nhóm đầu thắng nhóm cuối {f.hitRate == null ? "—" : `${Math.round(f.hitRate * 100)}%`} số phiên · cộng dồn {fmtZ(f.cumSpreadPct, 2)}%</>}
             </p>
             {f.curve.length > 1 && (
