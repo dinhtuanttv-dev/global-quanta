@@ -143,10 +143,12 @@ export default function BrokerConsensus() {
       {d && !d.coverage.reports && <p className="mt-2 text-[12px] text-slate-400" data-testid="bc-empty">{d.running || d.backlog ? "Đang đọc báo cáo, kết quả sẽ hiện dần." : "Chưa có báo cáo nào đọc xong."}</p>}
       {d && d.coverage.reports > 0 && <div className="mt-2 space-y-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-2.5 py-1.5 text-[13px] font-semibold text-slate-100" data-testid="bc-headline">
-          <span>{viewLabel(d.view.score)}{d.view.score != null ? ` (${sgn(d.view.score, 2)})` : ""}</span>
-          <span className="text-[12px] font-normal text-slate-300">Bất đồng {disagreementLabel(d.view.disagreement)}{d.view.disagreement != null ? ` (${nf(d.view.disagreement, 2)})` : ""}</span>
+          {d.view.n >= 2 ? <>
+            <span>{viewLabel(d.view.score)} ({sgn(d.view.score ?? 0, 2)})</span>
+            <span className="text-[12px] font-normal text-slate-300">Bất đồng {disagreementLabel(d.view.disagreement)} ({nf(d.view.disagreement ?? 0, 2)})</span>
+          </> : <span>Chưa đủ CTCK để tính đồng thuận{d.view.items[0] ? `: mới có ${d.view.items[0].broker} nêu rõ quan điểm` : ""}</span>}
           {d.targets.median != null && <span className="text-[12px] font-normal text-slate-300">Mục tiêu trung vị {nf(d.targets.median)}{d.targets.upsidePct != null ? ` (${sgn(d.targets.upsidePct)}%)` : ""}, kỳ {horizonVi(d.targets.horizon)}</span>}
-          {d.view.n > 0 && <span className="text-[12px] font-normal text-slate-300">{d.view.n} CTCK có quan điểm</span>}
+          {d.view.n >= 2 && <span className="text-[12px] font-normal text-slate-300">{d.view.n} CTCK có quan điểm</span>}
         </div>
         {d.view.items.length > 0 && <ul className="flex flex-wrap gap-1.5" data-testid="bc-views">{d.view.items.map((x) => <li key={x.broker}><button type="button" onClick={() => setQ(x)} className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] hover:border-amber-400/50" style={{ background: ST[x.stance].bg, color: ST[x.stance].color }}>{ST[x.stance].glyph} {x.broker} · {day(x.date)}</button></li>)}</ul>}
         {q && <QuoteBox q={q} onClose={() => setQ(null)} />}

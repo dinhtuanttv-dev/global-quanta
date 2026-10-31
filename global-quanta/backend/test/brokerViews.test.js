@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { parseAcbs, parseBvsc, parseDetail, parseKbsv, parseSsi, wanted } from "../src/market/brokerViews/brokerSources.js";
 import { compact, locateQuote, verifyExtract } from "../src/market/brokerViews/brokerExtract.js";
 import { buildConsensus, sectorConsensus, scoreLedger, targetStats, viewChanges, viewConsensus } from "../src/market/brokerViews/brokerConsensus.js";
-import { allowedUrl, createBrokerViews } from "../src/market/brokerViews/brokerViewsService.js";
+import { allowedUrl, createBrokerViews, isTransient } from "../src/market/brokerViews/brokerViewsService.js";
 
 const NOW = Date.parse("2026-10-31T00:00:00Z");
 const rep = (broker, publishedAt, o = {}) => ({ id: `${broker}${publishedAt}`, broker, title: "t", publishedAt, url: "u", topics: [], sectors: [], targets: [], ...o });
@@ -22,6 +22,27 @@ test("đọc danh sách từng CTCK", () => {
   assert.equal(parseDetail(`<a href="/m/a.pdf">x</a><meta property="article:published_time" content="2026-10-09T15:05:54">`, "https://acbs.com.vn/x").pdfUrl, "https://acbs.com.vn/m/a.pdf");
   assert.equal(wanted("Bản tin chứng khoán 30.10.2026"), false);
   assert.equal(wanted("Cập nhật Vĩ mô tháng 9"), true);
+});
+
+test("hết hạn mức và hết giờ không làm mất báo cáo", async () => {
+  assert.equal(isTransient({ attempts: [{ status: 429 }, { status: 503 }] }), true);
+  assert.equal(isTransient({ attempts: [{ status: 400 }] }), false);
+  assert.equal(isTransient(new Error("The operation was aborted due to timeout")), true);
+  assert.equal(isTransient(new Error("HTTP 404")), false);
+  let calls = 0, fail = true;
+  const item = (n) => ({ title: `Vĩ mô ${n}`, pdfUrl: `https://acbs.com.vn/${n}.pdf`, publishedAt: "2026-10-20", pageUrl: `https://acbs.com.vn/${n}.pdf` });
+  const svc = createBrokerViews({
+    sources: [{ id: "T", broker: "ACBS", type: "macro", url: "https://acbs.com.vn/list", parse: () => [item("a"), item("b")] }], pauseMs: 0, now: () => NOW, log: {}, getQuant: async () => [],
+    fetchImpl: async () => ({ ok: true, url: "https://acbs.com.vn/x.pdf", headers: { get: () => null }, arrayBuffer: async () => new TextEncoder().encode("%PDF-x").buffer, text: async () => "x" }),
+    readPdf: async () => ({ numPages: 1, pages: ["", "x"], chars: 900 }),
+    callModel: async () => { calls++; if (fail) throw Object.assign(new Error("quota"), { attempts: [{ status: 429 }] }); return { json: { marketView: { stance: "none" }, targets: [], topics: [], sectors: [] } }; },
+  });
+  await svc.get();
+  for (let i = 0; i < 6; i++) await svc.runOnce();
+  assert.equal(calls, 6, "dừng ngay sau báo cáo đầu mỗi lượt, không bỏ báo cáo sau 4 lần");
+  fail = false;
+  const r = await svc.runOnce();
+  assert.equal(r.done, 2);
 });
 
 test("chỉ tải từ host trong danh sách", () => {
