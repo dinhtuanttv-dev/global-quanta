@@ -15,7 +15,7 @@ let monitor = null;
 const defaultMonitor = () => (monitor ??= createWorldMonitor());
 const HEAVY = /^\/(matrix|scenario|connectedness|overview|confirmatory)$/;
 
-export function createWorldRouter({ getService, getPulse = defaultPulse, getMonitor = defaultMonitor, getNews = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
+export function createWorldRouter({ getService, getPulse = defaultPulse, getMonitor = defaultMonitor, getNews = null, getBrief = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "", readLimit = 120, computeLimit = 30, now } = {}) {
   const router = Router();
   const readRl = createRateLimiter({ limit: readLimit, now });
   const computeRl = createRateLimiter({ limit: computeLimit, now });
@@ -47,6 +47,20 @@ export function createWorldRouter({ getService, getPulse = defaultPulse, getMoni
     const limit = Math.min(200, Math.max(1, Number.parseInt(req.query.limit, 10) || 60));
     res.set("Cache-Control", "public, max-age=60");
     res.json(await getNews().get({ topic, limit }));
+  }));
+
+  // Bản tin AI có kiểm chứng (U4). Chạy tay qua giãn cách và trần lượt theo ngày ở dịch vụ, nên công khai vẫn không vượt chi phí.
+  router.get("/brief", readRl, wrap(async (req, res) => {
+    if (!getBrief) return res.status(503).json({ error: "Bản tin AI chưa bật." });
+    const runId = typeof req.query.runId === "string" && /^\d{1,16}$/.test(req.query.runId) ? req.query.runId : null;
+    res.set("Cache-Control", "no-store");
+    res.json({ ...(await getBrief().get({ runId })), configured: !!process.env.GEMINI_API_KEY });
+  }));
+  router.post("/brief/run", computeRl, wrap(async (req, res) => {
+    if (!getBrief) return res.status(503).json({ error: "Bản tin AI chưa bật." });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "Gateway chưa có khoá Gemini." });
+    res.set("Cache-Control", "no-store");
+    res.json(await getBrief().runManual());
   }));
 
   router.get("/source", readRl, wrap(async (req, res) => {

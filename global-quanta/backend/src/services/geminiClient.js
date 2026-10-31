@@ -64,6 +64,7 @@ export async function callGeminiJSON({ systemPrompt, parts, model }) {
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ parts }],
+            generationConfig: { responseMimeType: "application/json" },
           }),
         }
       );

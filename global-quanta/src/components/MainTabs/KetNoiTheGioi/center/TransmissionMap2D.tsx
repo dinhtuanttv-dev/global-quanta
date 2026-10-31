@@ -62,7 +62,7 @@ export default function TransmissionMap2D() {
       </label>}
       {data && edges.length === 0 && <p className="mt-2 text-[11px]" style={muted}>Chưa có liên kết bậc A/B ở mức lệch hiện tại.</p>}
       {edges.length > 0 && <>
-        <div className="mt-2 overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 520 }} role="group" aria-label={`${edges.length} liên kết từ ${factors.length} yếu tố tới ${sectors.length} ngành`} onMouseLeave={() => setFocus(null)}>
+        <div className="mt-2 overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 520, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`${edges.length} liên kết từ ${factors.length} yếu tố tới ${sectors.length} ngành`} onMouseLeave={() => setFocus(null)}>
           <text x={LX} y={13} textAnchor="end" fontSize={9.5} fill="#64748b">Yếu tố thế giới · độ lệch tháng {period}</text>
           <text x={RX} y={13} fontSize={9.5} fill="#64748b">Ngành Việt Nam · chiều theo lịch sử</text>
           {edges.map((e) => {

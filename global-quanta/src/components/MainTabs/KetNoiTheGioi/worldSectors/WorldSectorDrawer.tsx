@@ -9,6 +9,7 @@ import { useAppStore } from "../../../../store/useAppStore";
 import { fmtZ, labelVi, REGION_ORDER, REGION_SHORT, type WsDetail, type WsRelation, type WsRow } from "../../../../lib/worldSectors/types";
 import EvidenceTag from "../EvidenceTag";
 import LineChart, { SERIES_COLORS, type ChartSeries } from "../commodity/LineChart";
+import SectorDossierExtras from "./SectorDossierExtras";
 
 const muted = { color: "var(--text-tertiary)" };
 const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d })}%`);
@@ -107,6 +108,8 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
               {m.gap3m != null && ` Khoảng chênh 3 tháng (thế giới − ngành VN): ${fmtZ(m.gap3m, 2)} — ${m.gap3m > 0 ? "VN đang đi sau ngành thế giới" : "VN đang đi trước ngành thế giới"} (mô tả, không phải tín hiệu đã kiểm định).`}
             </p>
           </Section>
+
+          <SectorDossierExtras icb={icb} />
 
           {data?.available && (
             <>

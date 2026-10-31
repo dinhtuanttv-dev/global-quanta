@@ -51,7 +51,7 @@ export default function SectorMap2D() {
       {error && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative)" }}>Không tải được dữ liệu ngành: {error.message}</p>}
       {!strategy && !error && <div className="mt-2 h-60 animate-pulse rounded-lg" style={{ background: "rgba(148,163,184,0.05)" }} aria-busy="true" />}
       {strategy && <div className="relative mt-2">
-        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560 }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
+        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
           <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
           <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
           <line x1={L} x2={W - R} y1={sy(0)} y2={sy(0)} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />

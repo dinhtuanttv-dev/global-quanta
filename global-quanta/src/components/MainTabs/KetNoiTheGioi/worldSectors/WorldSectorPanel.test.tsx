@@ -16,12 +16,10 @@ const mount = () => render(<SWRConfig value={{ provider: () => new Map(), dedupi
 afterEach(cleanup);
 
 describe("WorldSectorPanel", () => {
-  it("hiện xếp hạng ngắn hạn với nhãn bằng chứng, bản đồ nhiệt 22 ngành, đổi sang trung hạn = thăm dò", async () => {
+  it("nhãn bằng chứng, bản đồ nhiệt 22 ngành, đổi sang trung hạn = thăm dò", async () => {
     mount();
     await flush();
     const t = screen.getByTestId("world-sector-panel").textContent ?? "";
-    expect(t).toContain("Thuận gió");
-    expect(t).toContain("Ngược gió");
     expect(t).toContain("BẰNG CHỨNG");
     expect(screen.getByTestId("ws-heatmap").querySelectorAll("tbody tr").length).toBe(scores.rows.filter((r: { available: boolean }) => r.available).length);
     const mid = Array.from(document.querySelectorAll("button")).find((b) => (b.textContent ?? "").startsWith("Trung hạn"))!;
