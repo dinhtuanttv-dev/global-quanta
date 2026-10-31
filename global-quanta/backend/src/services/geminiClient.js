@@ -16,10 +16,9 @@ const DEFAULT_PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 
 // Danh sách dự phòng theo thứ tự ưu tiên, cấu hình được qua env (phân
 // tách bằng dấu phẩy) để không phải sửa code khi Google đổi model line-up.
-// ⚠️ Cần rà soát lại danh sách này sau 16/10/2026 (ngày gemini-2.5-flash
-// chính thức tắt) — xem changelog: https://ai.google.dev/gemini-api/docs/changelog
+// gemini-2.5-flash đã tắt (404, kiểm tra 31/10/2026). Changelog: https://ai.google.dev/gemini-api/docs/changelog
 const DEFAULT_FALLBACKS = (
-  process.env.GEMINI_MODEL_FALLBACKS || "gemini-flash-latest,gemini-2.5-flash,gemini-3.1-flash-lite"
+  process.env.GEMINI_MODEL_FALLBACKS || "gemini-flash-latest,gemini-3.5-flash,gemini-3.6-flash,gemini-flash-lite-latest"
 )
   .split(",")
   .map((s) => s.trim())
@@ -44,9 +43,11 @@ export class GeminiAllModelsFailedError extends Error {
  * @param {string} params.systemPrompt
  * @param {Array<{ text?: string, inlineData?: { mimeType: string, data: string } }>} params.parts - nội dung gửi (text và/hoặc ảnh base64)
  * @param {string} [params.model] - ép dùng đúng 1 model, bỏ qua fallback chain (dùng khi test)
- * @returns {Promise<{ json: object, modelUsed: string }>}
+ * @param {object} [params.generationConfig] - ghép thêm vào cấu hình sinh (temperature, responseSchema...)
+ * @param {number} [params.timeoutMs] - giới hạn thời gian cho mỗi model
+ * @returns {Promise<{ json: object, modelUsed: string, usage: object | null }>}
  */
-export async function callGeminiJSON({ systemPrompt, parts, model }) {
+export async function callGeminiJSON({ systemPrompt, parts, model, generationConfig = {}, timeoutMs = 120_000, retryMs = 2_500 }) {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("Thiếu GEMINI_API_KEY trong .env.");
   }
@@ -54,28 +55,37 @@ export async function callGeminiJSON({ systemPrompt, parts, model }) {
   const modelsToTry = model ? [model] : buildModelChain();
   const attempts = [];
 
-  for (const candidateModel of modelsToTry) {
+  // Hai vòng: 429/503 thường là quá tải tạm thời, chờ rồi thử lại các model vừa gặp lỗi đó.
+  const queue = modelsToTry.map((m) => ({ model: m, retried: false }));
+  while (queue.length) {
+    const job = queue.shift();
+    const candidateModel = job.model;
+    if (job.retried && retryMs > 0) await new Promise((r) => setTimeout(r, retryMs));
     try {
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          // Khoá đi bằng header để không lọt vào URL trong log.
+          headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY },
+          signal: AbortSignal.timeout(timeoutMs),
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: systemPrompt }] },
             contents: [{ parts }],
-            generationConfig: { responseMimeType: "application/json" },
+            generationConfig: { responseMimeType: "application/json", ...generationConfig },
           }),
         }
       );
 
       if (!response.ok) {
-        attempts.push({ model: candidateModel, error: `HTTP ${response.status}` });
+        attempts.push({ model: candidateModel, error: `HTTP ${response.status}`, status: response.status });
+        if ((response.status === 429 || response.status === 503) && !job.retried) queue.push({ model: candidateModel, retried: true });
         continue; // thử model tiếp theo trong chain
       }
 
       const data = await response.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      // Model có suy luận trả nhiều phần; chỉ ghép phần nội dung.
+      const text = (data.candidates?.[0]?.content?.parts ?? []).filter((p) => !p.thought).map((p) => p.text ?? "").join("").replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, "");
       if (!text) {
         attempts.push({ model: candidateModel, error: "Response rỗng/không có text" });
         continue;
@@ -87,7 +97,7 @@ export async function callGeminiJSON({ systemPrompt, parts, model }) {
           `Gemini: model chính lỗi (${attempts.map((a) => a.model).join(", ")}), đã tự chuyển sang "${candidateModel}".`
         );
       }
-      return { json, modelUsed: candidateModel };
+      return { json, modelUsed: candidateModel, usage: data.usageMetadata ?? null };
     } catch (err) {
       attempts.push({ model: candidateModel, error: err.message });
       continue;

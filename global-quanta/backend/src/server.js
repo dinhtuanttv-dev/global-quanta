@@ -126,6 +126,8 @@ const getWorldBrief = () => {
   }
   return worldBrief;
 };
+// Lịch tự động không phụ thuộc việc có người mở tab.
+if (process.env.GEMINI_API_KEY) setTimeout(() => getWorldBrief(), 120_000).unref?.();
 app.use("/api/world", createWorldRouter({ getService: getWorldService, getMonitor: () => worldMonitor, getNews: getWorldNews, getBrief: getWorldBrief }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;
