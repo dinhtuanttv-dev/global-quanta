@@ -55,7 +55,7 @@ export default function AiAnalysisPanel() {
                     {s.verified ? <CheckCircle2 className="inline w-3 h-3 mr-1" style={{ color: T.positive }} /> : <AlertTriangle className="inline w-3 h-3 mr-1" style={{ color: T.gold }} />}
                     {s.sectorNameVi ?? sectorNameOf(s.sectorKey)}
                   </p>
-                  <span className="text-[10px] font-bold shrink-0" style={{ color: DIR[s.direction].color }}>{DIR[s.direction].vi} · {Math.round(s.confidence * 100)}%</span>
+                  <span className="text-[10px] font-bold shrink-0" style={{ color: DIR[s.direction].color }}>{DIR[s.direction].vi}<span className="font-normal" style={{ color: T.textTertiary }}> · {s.verified ? "khớp số liệu" : "có điểm lệch"}</span></span>
                 </div>
                 <p className="text-[10px] mt-1" style={{ color: T.textSecondary }}>{s.reasoningVi}</p>
                 {s.quant && <p className="text-[9px] mt-1" style={{ color: T.textTertiary }}>Điểm định lượng: ngắn hạn {fmtZ(s.quant.shortScore, 2)} σ · trung hạn {fmtZ(s.quant.mediumScore, 2)} σ</p>}

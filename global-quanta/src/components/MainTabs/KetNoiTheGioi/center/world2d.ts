@@ -95,3 +95,14 @@ export function pickLabels(items: LabelCandidate[], limit: number, charW = 5, li
   }
   return out;
 }
+
+/** Tách liên kết đã qua hiệu chỉnh (A/B) khỏi liên kết thăm dò (C). */
+export function splitByTier(edges: TransEdge[]): { confirmed: TransEdge[]; exploratory: TransEdge[] } {
+  return { confirmed: edges.filter((e) => e.tier !== "C"), exploratory: edges.filter((e) => e.tier === "C") };
+}
+
+/** "2026-09" -> "09/2026"; thiếu thì ghi rõ chưa rõ kỳ, không đoán. */
+export function fmtPeriod(period: string | null | undefined): string {
+  const m = /^(\d{4})-(\d{2})/.exec(period ?? "");
+  return m ? `${m[2]}/${m[1]}` : "chưa rõ";
+}
