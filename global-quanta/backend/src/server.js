@@ -18,6 +18,9 @@ import { createWsChatTools } from "./market/worldSectors/chatTools.js";
 import { ICB_KV } from "./market/sectors/icbTaxonomy.js";
 import { createWorldService } from "./market/world/worldService.js";
 import { createWorldNews } from "./market/world/worldNews.js";
+import { createWorldBrief } from "./market/world/worldBrief.js";
+import { callGeminiJSON } from "./services/geminiClient.js";
+import { createWorldMonitor } from "./market/world/worldMonitor.js";
 import { createCommodityService } from "./market/commodities/commodityService.js";
 import { createCommoditiesRouter } from "./routes/commodities.js";
 import { createWorldSectorService } from "./market/worldSectors/worldSectorService.js";
@@ -111,7 +114,19 @@ const getWorldNews = () => {
   if (!worldNews) { worldNews = createWorldNews({ store: getMarketRuntime().store }); worldNews.startTimer(); }
   return worldNews;
 };
-app.use("/api/world", createWorldRouter({ getService: getWorldService, getNews: getWorldNews }));
+const worldMonitor = createWorldMonitor();
+let worldBrief = null;
+const getWorldBrief = () => {
+  if (!worldBrief) {
+    worldBrief = createWorldBrief({
+      store: getMarketRuntime().store, getMonitor: () => worldMonitor.get(), getNews: (o) => getWorldNews().get(o), getStrategy: () => getWorldStrategy().strategy(),
+      callModel: callGeminiJSON,
+    });
+    if (process.env.GEMINI_API_KEY) worldBrief.startTimer();
+  }
+  return worldBrief;
+};
+app.use("/api/world", createWorldRouter({ getService: getWorldService, getMonitor: () => worldMonitor, getNews: getWorldNews, getBrief: getWorldBrief }));
 // Nhịp đập hàng hoá (C1): Yahoo (ngày) + World Bank Pink Sheet (tháng), mỗi số kèm kỳ + nguồn.
 let commodityService = null;
 const getCommodityService = () => (commodityService ??= createCommodityService({

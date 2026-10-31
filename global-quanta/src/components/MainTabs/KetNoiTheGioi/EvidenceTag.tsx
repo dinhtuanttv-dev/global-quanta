@@ -4,6 +4,8 @@
  * - heuristic: luật/ánh xạ đặt tay; "failed" = đã kiểm định đặt trước và KHÔNG đạt.
  * - evidence: kết quả kiểm định ngoài mẫu của engine Truyền dẫn & bằng chứng.
  */
+import { useWorldNav } from "./worldNav";
+
 export type EvidenceKind = "data" | "heuristic" | "failed" | "evidence";
 
 const STYLE: Record<EvidenceKind, { label: string; color: string; bg: string; title: string }> = {
@@ -15,8 +17,11 @@ const STYLE: Record<EvidenceKind, { label: string; color: string; bg: string; ti
 
 export default function EvidenceTag({ kind, title }: { kind: EvidenceKind; title?: string }) {
   const s = STYLE[kind];
+  const nav = useWorldNav();
+  const cls = "text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0";
+  if (nav) return <button type="button" onClick={(e) => { e.stopPropagation(); nav.openEvidence(); }} title={`${title ?? s.title} Bấm để mở Bằng chứng.`} className={cls} style={{ background: s.bg, color: s.color, cursor: "pointer" }}>{s.label}</button>;
   return (
-    <span title={title ?? s.title} className="text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0"
+    <span title={title ?? s.title} className={cls}
       style={{ background: s.bg, color: s.color }}>
       {s.label}
     </span>

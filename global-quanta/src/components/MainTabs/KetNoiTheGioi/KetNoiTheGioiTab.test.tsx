@@ -7,8 +7,7 @@ vi.mock("./strategy/StrategyPanel", () => stub("f-strategy"));
 vi.mock("./strategy/EvidenceLedgerPanel", () => stub("f-ledger"));
 vi.mock("./worldSectors/WorldSectorPanel", () => stub("f-sectors"));
 vi.mock("./CommodityPulseSubTab", () => stub("f-commodity"));
-vi.mock("./StockImpactTable", () => stub("f-stocks"));
-vi.mock("./AiAnalysisPanel", () => stub("f-ai"));
+vi.mock("./center/AiBriefPanel", () => stub("f-ai"));
 vi.mock("./WorldConfirmatoryPanel", () => stub("f-confirm"));
 vi.mock("./WorldSourcePanel", () => stub("f-source"));
 vi.mock("./center/SectorMap2D", () => stub("f-map"));
@@ -40,20 +39,20 @@ afterEach(cleanup);
 describe("Trung tâm kinh tế thế giới — đủ tính năng ở đúng tab", () => {
   it("5 tab một tầng; mở đầu bằng Tổng quan, Risk-On không nằm ở đầu", () => {
     render(<KetNoiTheGioiTab />);
-    expect(Array.from(document.querySelectorAll('[role="tab"]')).map((b) => b.textContent?.trim())).toEqual(["Tổng quan", "Ngành Việt Nam", "Hàng hoá & thị trường", "Cổ phiếu & kịch bản", "Bằng chứng & nguồn"]);
-    for (const id of ["f-today", "f-news", "f-engine-overview", "f-map", "f-trans"]) expect(has(id)).toBe(true);
+    expect(Array.from(document.querySelectorAll('[role="tab"]')).map((b) => b.textContent?.trim())).toEqual(["Tổng quan", "Ngành Việt Nam", "Thị trường & rủi ro", "Truyền dẫn & kịch bản", "Bằng chứng & nguồn"]);
+    for (const id of ["f-today", "f-ai", "f-news", "f-engine-overview", "f-map"]) expect(has(id)).toBe(true);
     expect(document.body.textContent).not.toContain("Risk-On Index");
   });
 
   it("mỗi tính năng cũ có mặt trong đúng một tab, tab chỉ tải khi mở, nhớ tab đang mở", () => {
     render(<KetNoiTheGioiTab />);
     open(/Ngành Việt Nam/);
-    for (const id of ["f-strategy", "f-sectors", "f-engine-matrix"]) expect(has(id)).toBe(true);
+    for (const id of ["f-strategy", "f-sectors"]) expect(has(id)).toBe(true);
     expect(has("f-map")).toBe(false);
-    open(/Hàng hoá/);
-    for (const id of ["f-monitor", "f-commodity", "f-engine-events", "f-engine-connect"]) expect(has(id)).toBe(true);
-    open(/Cổ phiếu/);
-    for (const id of ["f-stocks", "f-ai", "f-engine-scenario", "f-engine-stock"]) expect(has(id)).toBe(true);
+    open(/Thị trường/);
+    for (const id of ["f-monitor", "f-commodity", "f-engine-connect"]) expect(has(id)).toBe(true);
+    open(/Truyền dẫn/);
+    for (const id of ["f-trans", "f-engine-matrix", "f-engine-events", "f-engine-scenario", "f-engine-stock"]) expect(has(id)).toBe(true);
     open(/Bằng chứng/);
     for (const id of ["f-ledger", "f-confirm", "f-source"]) expect(has(id)).toBe(true);
     expect(document.body.textContent).toContain("Risk-On Index");

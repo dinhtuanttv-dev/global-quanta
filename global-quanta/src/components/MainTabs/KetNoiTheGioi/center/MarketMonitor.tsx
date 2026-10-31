@@ -94,7 +94,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
           <Stat label="Lan truyền giữa các thị trường" value={spillover == null ? "—" : `${spillover.toFixed(0)}%`} note="Diebold–Yilmaz, gần đây" />
         </div>
         <div className="relative mt-3">
-          <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560 }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
+          <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
             <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
             <rect x={L} y={T} width={sx(-2) - L} height={H - T - B} fill="rgba(230,103,103,0.05)" />
             <rect x={sx(2)} y={T} width={W - R - sx(2)} height={H - T - B} fill="rgba(57,135,229,0.05)" />

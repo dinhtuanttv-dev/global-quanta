@@ -12,53 +12,6 @@ const HEAT_LABEL: Record<HeatKey, string> = { new: "Phiên mới", w1: "1 tuần
 const muted = { color: "var(--text-tertiary)" };
 const fmtDate = (d: string | null | undefined) => (d ? d.split("-").reverse().slice(0, 2).join("/") : "—");
 
-function ScoreBar({ z }: { z: number | null }) {
-  const w = z == null ? 0 : Math.min(1, Math.abs(z) / 2.5) * 50;
-  return (
-    <span aria-hidden="true" style={{ position: "relative", display: "inline-block", width: 72, height: 6, background: "rgba(148,163,184,0.12)", borderRadius: 3 }}>
-      <span style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "rgba(148,163,184,0.5)" }} />
-      {z != null && <span style={{ position: "absolute", top: 0, height: 6, borderRadius: 3, background: divergingColor(z >= 0 ? 2.5 : -2.5), left: z >= 0 ? "50%" : `${50 - w}%`, width: `${w}%` }} />}
-    </span>
-  );
-}
-
-function RankList({ title, items, rows, horizon, onOpen, tone }: { title: string; items: { icb: string; nameVi: string; score: number }[]; rows: Map<string, WsRow>; horizon: Horizon; onOpen: (icb: string) => void; tone: "pos" | "neg" }) {
-  return (
-    <div>
-      <p className="text-[9.5px] font-bold uppercase mb-1.5" style={{ color: "var(--text-secondary)" }}>
-        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: divergingColor(tone === "pos" ? 2.5 : -2.5), marginRight: 6 }} />{title}
-      </p>
-      {items.length === 0 && <p className="text-[10px] italic" style={muted}>Không có ngành nào vượt ngưỡng ±0,5.</p>}
-      <div className="space-y-1.5">
-        {items.map((it) => {
-          const r = rows.get(it.icb)!;
-          const h = horizon === "short" ? r.short : r.medium;
-          const regions = REGION_ORDER.filter((x) => h.sectors.byRegion[x]);
-          return (
-            <button key={it.icb} type="button" onClick={() => onOpen(it.icb)} data-testid={`ws-rank-${horizon}-${it.icb}`}
-              className="w-full text-left rounded-lg px-2.5 py-2" style={{ background: "rgba(148,163,184,0.05)" }}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-[11px] font-bold truncate" style={{ color: "#f1f5f9" }}>{r.nameVi} <span className="font-normal" style={muted}>ICB {r.icb}</span></span>
-                <span className="flex items-center gap-1.5 shrink-0"><ScoreBar z={it.score} /><b className="text-[11px]" style={{ color: "#f1f5f9" }}>{fmtZ(it.score, 2)}</b></span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1 mt-1">
-                {regions.map((x) => <span key={x} className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>{REGION_SHORT[x]} {fmtZ(h.sectors.byRegion[x]!.z)}</span>)}
-                {h.commodity != null && <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>Hàng hoá {fmtZ(h.commodity)}</span>}
-                {horizon === "short" && r.short.evidence.label === "EVIDENCE" && <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>BẰNG CHỨNG CẤP NGÀNH</span>}
-                {horizon === "medium" && r.medium.gap3m != null && Math.abs(r.medium.gap3m) >= 1 && (
-                  <span className="text-[9px] px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }} title="Điểm thế giới 3 tháng trừ z 3 tháng của chính ngành VN">
-                    {r.medium.gap3m > 0 ? "VN đi sau thế giới" : "VN đi trước thế giới"} {fmtZ(r.medium.gap3m)}
-                  </span>
-                )}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function WorldSectorPanel() {
   const { data, error } = useWorldSectorScores();
   const [horizon, setHorizon] = useState<Horizon>("short");
@@ -67,7 +20,6 @@ export default function WorldSectorPanel() {
   if (error) return <p className="text-xs" style={{ color: "var(--negative)" }}>Không tải được ngành thế giới: {error.message}</p>;
   if (!data) return <p className="text-xs italic py-4 text-center" style={muted}>Đang tính ngành thế giới → ngành Việt Nam…</p>;
   const rows = new Map(data.rows.filter((r) => r.available).map((r) => [r.icb, r]));
-  const rk = data.rankings[horizon];
   const ev = horizon === "short" ? data.evidence.short : data.evidence.medium;
   const sorted = [...rows.values()].sort((a, b) => ((horizon === "short" ? b.short.score : b.medium.score) ?? -9) - ((horizon === "short" ? a.short.score : a.medium.score) ?? -9));
   const vnLast = sorted[0]?.vnLast ?? null;
@@ -76,7 +28,7 @@ export default function WorldSectorPanel() {
     <div className="tw-scope rounded-xl p-3.5 space-y-3" data-testid="world-sector-panel" style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }}>
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Ngành thế giới → ngành Việt Nam (ICB)</p>
+          <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Ngành Việt Nam × khu vực thế giới</p>
           <p className="text-[9.5px]" style={muted}>74 ETF ngành Mỹ · STOXX 600 · TOPIX-17 · KODEX · Đài · TQ, ánh xạ theo mã ICB · phiên VN gần nhất {fmtDate(vnLast)}</p>
         </div>
         <EvidenceTag kind={ev.label === "EVIDENCE" ? "evidence" : "heuristic"} title={`${data.evidence.version} · ${data.evidence.sample}: ${ev.labelVi}`} />
@@ -94,11 +46,6 @@ export default function WorldSectorPanel() {
       <p className="text-[9.5px]" style={muted}>
         {ev.labelVi}{ev.ic != null ? ` (IC ${fmtZ(ev.ic, 3)}${ev.t != null ? `, t ${fmtZ(ev.t, 2)}` : ""})` : ""}. Điểm = độ lệch chuẩn; ±0,5 là ngưỡng thuận/ngược gió. Bấm một ngành để xem phân tích chuyên sâu.
       </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <RankList title="Thuận gió" items={rk.tailwind} rows={rows} horizon={horizon} onOpen={setOpen} tone="pos" />
-        <RankList title="Ngược gió" items={rk.headwind} rows={rows} horizon={horizon} onOpen={setOpen} tone="neg" />
-      </div>
 
       <div>
         <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
