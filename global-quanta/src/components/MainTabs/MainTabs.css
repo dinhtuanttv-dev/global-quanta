@@ -1,6 +1,6 @@
 /* Thanh điều hướng chính (31/10/2026). Ngoài .tw-scope, nên đặt khoảng cách bằng CSS thuần. */
 .main-nav {
-  position: sticky; top: 0; z-index: 30; container-type: inline-size;
+  position: sticky; top: -24px; z-index: 30; container-type: inline-size;
   display: flex; align-items: stretch; gap: 12px;
   margin: -24px -24px 18px; padding: 10px 24px 0;
   background: linear-gradient(180deg, var(--bg-surface, #0e1626) 0%, var(--bg-base, #0a0e17) 100%);

@@ -56,6 +56,22 @@ describe("Thanh điều hướng chính", () => {
     expect(window.location.search).toContain("min=1");
     await backOrForward("nav-back");
     expect(screen.queryByTestId("p-tongquan")).not.toBeNull();
+    await backOrForward("nav-forward");
+    expect(screen.queryByTestId("p-coban")).not.toBeNull();
+    expect(window.location.search).toContain("tab=phan-tich-co-ban");
+  });
+
+  it("forward vào trang vừa bị bộ lọc ghi đè vẫn đi đúng hướng", async () => {
+    render(<MainTabs />);
+    fireEvent.click(tab("Loc nganh"));
+    fireEvent.click(tab("Co tuc"));
+    await backOrForward("nav-back");
+    await backOrForward("nav-forward");
+    window.history.replaceState(null, "", "/?min=2");
+    await backOrForward("nav-back");
+    await backOrForward("nav-forward");
+    expect(screen.queryByTestId("p-coban")).not.toBeNull();
+    expect(window.location.search).toContain("tab=phan-tich-co-ban");
   });
 
   it("mở bằng đường dẫn đúng trang; đặt tiêu đề trang", () => {
