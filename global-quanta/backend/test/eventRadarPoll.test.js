@@ -8,6 +8,7 @@ import path from "node:path";
 import { createEventRadar, MACRO_RSS_FEEDS } from "../src/market/news/eventRadar.js";
 import { createEventRadarRepository } from "../src/market/news/eventRadarRepository.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
+import { KV } from "../src/market/scanner/scannerJobs.js";
 
 const rss = (items) => `<?xml version="1.0"?><rss><channel>${items.map((i) => `<item><title>${i.title}</title><link>${i.link}</link><description>${i.summary ?? ""}</description><pubDate>Thu, 30 Oct 2026 08:00:00 +0700</pubDate></item>`).join("")}</channel></rss>`;
 
@@ -45,4 +46,19 @@ test("EV-R hồi quy (30/10/2026): lượt quét với sự kiện MỚI không 
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("Công bố gắn mã: lấy mã thanh khoản cao trước (danh mục Siêu Quét), không theo chữ cái", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "radar-"));
+  try {
+    const store = createMemoryStore();
+    await store.setKv(KV.universe, { tickers: [{ ticker: "VCB", avgValue20: 9e11 }, { ticker: "ZZZ", avgValue20: 5e11 }] });
+    const service = { store, getUniverse: async () => ({ tickers: [{ ticker: "AAA" }, { ticker: "BBB" }, { ticker: "VCB" }, { ticker: "ZZZ" }] }) };
+    const asked = [];
+    const inner = fakeFetch();
+    const fetchImpl = async (url, init) => { const m = /tagCodes:([A-Z0-9,]+)/.exec(String(url)); if (m) asked.push(...m[1].split(",")); return inner(url, init); };
+    const radar = createEventRadar({ service, repository: createEventRadarRepository({ dataDir: dir }), fetchImpl, now: () => Date.parse("2026-10-31T02:00:00Z"), enabled: true });
+    await radar.poll({ force: true });
+    assert.deepEqual(asked.slice(0, 2), ["VCB", "ZZZ"]);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
