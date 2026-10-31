@@ -41,7 +41,7 @@ function ScenarioCard({ s, onSelectTicker, onIndustry }: { s: Scenario } & LinkH
       {active && s.contradictions.length > 0 && <ul className="text-[9.5px] text-slate-400 space-y-0.5">{s.contradictions.map((e) => <li key={e}><span className="text-rose-400" aria-label="mâu thuẫn">✗</span> {e}</li>)}</ul>}
       {s.related && (
         <div className="text-[9px] text-slate-400">
-          {s.related.note}
+          {s.related.note.replace(/\d{4}-(\d\d)-(\d\d)/, "$2/$1").replace(/(\d+)\.(\d+)%/, "$1,$2%")}
           <RelatedChips tickers={s.related.kind === "tickers" ? s.related.items : []} sectors={s.related.kind === "sectors" ? s.related.items : []} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />
         </div>
       )}
@@ -88,7 +88,6 @@ export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: Ri
                 {f.detail && <span className="block text-[9px] text-slate-400">{f.detail}</span>}
                 {f.status === "ON" && f.evidence?.length ? <span className="block text-[9px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
                 {f.related && f.status === "ON" && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
-                {f.trigger && <span className="block text-[9px] text-slate-500">Bật khi: {f.trigger}{f.close ? ` · Tắt khi: ${f.close}` : ""}</span>}
               </span>
             </li>
           );

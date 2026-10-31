@@ -134,3 +134,13 @@ test("M4: cần giữ 2 phiên mới vào CONFIRMED; đợt tính ở phiên th�
   assert.equal(M4_RULES.confirmSessions, 2);
   assert.equal(lc.current.length, 4);
 });
+
+test("số trụ hiệu dụng là trung vị 5 phiên, giữ số từng phiên ở neff1", () => {
+  const bars = Array.from({ length: 30 }, (_, i) => ({ date: `2026-01-${String(i + 1).padStart(2, "0")}`, open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i }));
+  const panel = bars.map((b) => ({ date: b.date, n: 100, up20: 50, up50: 50, n200: 0, up200: 0, adv: 50, dec: 50, r5: [], value: 1, foreign: 0 }));
+  const neff = bars.map((_, i) => (i === 29 ? 3 : 30));
+  const s = buildStateSeries({ panel, indexBars: bars, neff });
+  assert.equal(s[29].neff1, 3);
+  assert.equal(s[29].neff, 30);
+  assert.equal(s[1].neff, null);
+});

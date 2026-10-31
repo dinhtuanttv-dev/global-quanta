@@ -44,7 +44,7 @@ describe("Trading Matrix M3", () => {
     const t = el.textContent ?? "";
     expect(t).toContain("Cờ cần xem xét");
     expect(t).toContain("Đang bật"); expect(t).toContain("Chưa có nguồn"); expect(t).toContain("Tự kiểm tra");
-    expect(t).toContain("Bật khi: A · Tắt khi: B");
+    expect(t).not.toContain("Bật khi");
     el.remove();
     const data: MatrixSignals = { version: "v", scope: "VNINDEX", ruleVersion: "M3-r1", note: "Chỉ tính khi đủ kỳ hạn.", recent: [{ scenario: "SC1", date: "2026-10-21", state: "CONFIRMED", evidence: [], health: "LIVE" }],
       live: { SC1: { "10": { n: 0, meanExcess: null } } },

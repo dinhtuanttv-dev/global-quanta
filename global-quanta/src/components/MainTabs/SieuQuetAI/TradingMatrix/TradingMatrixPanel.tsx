@@ -33,9 +33,9 @@ export function Grade({ g }: { g: "A" | "B" | "C" }) {
 
 function Tile({ title, value, sub, onClick, testId, children }: { title: string; value: string; sub: string; onClick: () => void; testId: string; children?: React.ReactNode }) {
   return (
-    <button type="button" onClick={onClick} data-testid={testId} className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1.5 text-left hover:border-amber-400/40 min-w-0">
+    <button type="button" onClick={onClick} data-testid={testId} className="rounded-lg border border-white/10 bg-white/[0.02] px-2.5 py-1 sm:py-1.5 text-left hover:border-amber-400/40 min-w-0">
       <span className="block truncate text-[11px] text-slate-400">{title}</span>
-      <span className="flex items-center justify-between gap-2"><b className="text-[15px] leading-tight text-slate-100 truncate">{value}</b>{children}</span>
+      <span className="flex items-center justify-between gap-2"><b className="text-[15px] leading-tight text-slate-100 truncate">{value}</b><span className="hidden sm:inline-flex shrink-0">{children}</span></span>
       <span className="block truncate text-[11px] text-slate-400">{sub}</span>
     </button>
   );
@@ -45,11 +45,11 @@ function Tiles({ p, path, open }: { p: StatePoint; path: StatePoint[]; open: (t:
   const tail = path.slice(-20);
   return <>
     <Tile title="Độ rộng" value={ok(p.b20) ? `${vn(p.b20)}%` : "—"} sub={`MA50 ${ok(p.b50) ? `${vn(p.b50, 0)}%` : "—"} · MA200 ${ok(p.b200) ? `${vn(p.b200, 0)}%` : "—"}`} onClick={() => open("sectors")} testId="mx-tile-breadth"><Spark values={tail.map((x) => x.b20)} color="#7cb4f5" /></Tile>
-    <Tile title="Khối ngoại / thanh khoản, 5 phiên" value={ok(p.fnr5) ? `${sgn(p.fnr5)}%` : "—"} sub={`Chủ động ${ok(p.ldZ) ? sgn(p.ldZ, 1) : "—"} σ`} onClick={() => open("flow")} testId="mx-tile-flow"><Spark values={tail.map((x) => x.fnr5)} color={ok(p.fnr5) && p.fnr5 >= 0 ? "#34d399" : "#fb7185"} zero /></Tile>
+    <Tile title="Khối ngoại / GTGD, 5 phiên" value={ok(p.fnr5) ? `${sgn(p.fnr5)}%` : "—"} sub={`Chủ động ${ok(p.ldZ) ? sgn(p.ldZ, 1) : "—"} σ`} onClick={() => open("flow")} testId="mx-tile-flow"><Spark values={tail.map((x) => x.fnr5)} color={ok(p.fnr5) && p.fnr5 >= 0 ? "#34d399" : "#fb7185"} zero /></Tile>
     <Tile title="Biến động" value={volVi(p.yzPct)} sub={`${ok(p.sigma) ? `${vn(p.sigma)}%/năm` : "—"} · phân vị ${ok(p.yzPct) ? vn(p.yzPct, 0) : "—"}`} onClick={() => open("scenario")} testId="mx-tile-vol">
       {ok(p.yzPct) && <span aria-hidden className="relative h-1.5 w-[76px] shrink-0 rounded bg-white/10"><i className="absolute -top-0.5 h-2.5 w-1 rounded-sm bg-slate-200" style={{ left: `calc(${p.yzPct}% - 2px)` }} /></span>}
     </Tile>
-    <Tile title="Tập trung chỉ số" value={ok(p.neff) ? `${vn(p.neff, 0)} trụ` : "—"} sub={ok(p.idx1) ? `VN-Index ${sgn(p.idx1)}%` : "—"} onClick={() => open("index")} testId="mx-tile-neff"><Spark values={tail.map((x) => x.neff)} color="#fcd34d" /></Tile>
+    <Tile title="Tập trung chỉ số, 5 phiên" value={ok(p.neff) ? `${vn(p.neff, 0)} trụ` : "—"} sub={ok(p.idx1) ? `VN-Index ${sgn(p.idx1)}%` : "—"} onClick={() => open("index")} testId="mx-tile-neff"><Spark values={tail.map((x) => x.neff)} color="#fcd34d" /></Tile>
   </>;
 }
 
@@ -68,8 +68,8 @@ function ChangeTab({ d, scope, onIndustry, onSelect }: { d: MatrixOverview; scop
     { k: "b50", label: "Độ rộng MA50", a: pv?.b50, b: c.b50, d: s.deltas.b50, unit: "%", dig: 1, max: 15 },
     { k: "mo", label: "McClellan", a: pv?.mo, b: c.mo, d: s.deltas.mo, unit: "", dig: 0, max: 150 },
     { k: "sigma", label: "Biến động, %/năm", a: pv?.sigma, b: c.sigma, d: s.deltas.sigma, unit: "", dig: 1, max: 5 },
-    { k: "fnr5", label: "Khối ngoại / thanh khoản", a: pv?.fnr5, b: c.fnr5, d: s.deltas.fnr5, unit: "%", dig: 2, max: 2 },
-    { k: "neff", label: "Số trụ hiệu dụng", a: pv?.neff, b: c.neff, d: s.deltas.neff, unit: "", dig: 0, max: 30 },
+    { k: "fnr5", label: "Khối ngoại / GTGD, 5 phiên", a: pv?.fnr5, b: c.fnr5, d: s.deltas.fnr5, unit: "%", dig: 2, max: 2 },
+    { k: "neff", label: "Số trụ hiệu dụng, 5 phiên", a: pv?.neff, b: c.neff, d: s.deltas.neff, unit: "", dig: 0, max: 10 },
   ];
   const up = d.links?.impact?.up?.slice(0, 3) ?? [], dn = d.links?.impact?.down?.slice(0, 3) ?? [];
   return (
@@ -143,7 +143,7 @@ function FlowTab({ d }: { d: MatrixOverview }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[12px]">
         <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">Khối ngoại, phiên cuối</span><b className="font-mono text-slate-100">{bn(f.foreign?.net)}</b></div>
         <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">Khối ngoại, 5 phiên</span><b className="font-mono text-slate-100">{bn(f.foreign?.net5)}</b></div>
-        <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">% thanh khoản, 5 phiên</span><b className="font-mono text-slate-100">{ok(c?.fnr5) ? `${sgn(c?.fnr5)}%` : "—"}</b> <span className="text-[11px] text-slate-400">{ok(c?.fnrZ) ? `${sgn(c?.fnrZ, 1)} σ` : ""}</span></div>
+        <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">% GTGD, 5 phiên</span><b className="font-mono text-slate-100">{ok(c?.fnr5) ? `${sgn(c?.fnr5)}%` : "—"}</b> <span className="text-[11px] text-slate-400">{ok(c?.fnrZ) ? `${sgn(c?.fnrZ, 1)} σ` : ""}</span></div>
         <div className="rounded border border-white/10 px-2.5 py-1.5"><span className="block text-[11px] text-slate-400">Lệnh chủ động</span><b className="font-mono text-slate-100">{ok(c?.ldZ) ? `${sgn(c?.ldZ, 1)} σ` : "—"}</b> <span className="text-[11px] text-slate-400">{f.foreign?.streak ? `chuỗi ${f.foreign.streak > 0 ? "mua" : "bán"} ${Math.abs(f.foreign.streak)}` : ""}</span></div>
       </div>
       <SignedBars rows={rows.map((r) => ({ date: r.date, v: r.fnr1 }))} label="Khối ngoại ròng / giá trị giao dịch, từng phiên" testId="mx-flow-bars" />
@@ -188,6 +188,7 @@ function EvidenceTab({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
           {r.stageOdds && <p>Cấu trúc ngày {r.stageOdds.stage}, {r.stageOdds.age} phiên{r.stageOdds.up != null ? `: P(sang tăng trong 10 phiên) ${vn(r.stageOdds.up * 100, 0)}%, P(sang giảm) ${vn((r.stageOdds.down ?? 0) * 100, 0)}%` : ""}. {r.stageOdds.label}.</p>}
           <p>{d.flow.note} Tự doanh: chưa có nguồn.</p>
           <p>X = trung bình z của lợi suất 20 phiên, độ rộng MA20, McClellan, dòng tiền. Y = trung bình z của biến động, độ rộng giảm 5 phiên, độ tập trung trụ. Vùng đệm ±0,25.</p>
+          <p>Số trụ hiệu dụng lấy trung vị 5 phiên vì mã có tỷ trọng lớn làm số từng phiên dao động mạnh.</p>
           <p>Kịch bản M3-r1 hiện hành; M4-r1 chạy song song, sổ riêng. {d.version}.</p>
         </div>
       </div>
@@ -222,8 +223,8 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
   const compared = compare ? [o1, o2].flatMap((o, i) => (o.data?.state ? [{ scope: others[i], x: o.data.state.x, y: o.data.state.y }] : [])) : [];
 
   return (
-    <section className="rounded-xl px-3 py-2.5" style={box} aria-label="Trạng thái thị trường" data-testid="trading-matrix">
-      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+    <section className="rounded-xl px-3 py-2" style={box} aria-label="Trạng thái thị trường" data-testid="trading-matrix">
+      <div className="flex flex-wrap items-center gap-2 mb-1">
         <h2 className="text-sm font-semibold text-slate-100 flex items-center gap-1.5"><Grid3x3 className="w-3.5 h-3.5 text-amber-300" aria-hidden /> Trạng thái thị trường</h2>
         <div role="group" aria-label="Phạm vi" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
           {SCOPES.map((s) => <button key={s.id} type="button" aria-pressed={scope === s.id} onClick={() => setScope(s.id)} data-mx-scope={s.id} className={`px-2 py-0.5 text-[11px] font-semibold ${scope === s.id ? "bg-amber-400/15 text-amber-200" : "text-slate-400 hover:text-slate-200"}`}>{s.label}</button>)}
@@ -238,8 +239,8 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
         <div className={`h-[92px] rounded-lg bg-slate-800/20 ${isLoading ? "animate-pulse" : ""}`} aria-hidden />
       ) : (
         <>
-          <div className="mb-1.5 flex flex-wrap items-center gap-x-1.5 rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-2.5 py-1 text-[13px] font-semibold text-slate-100" data-testid="mx-headline">
-            {(data.state?.headline ?? []).map((h, i) => <span key={h.key} className="inline-flex items-center gap-1.5">{i > 0 && <span className="text-slate-500" aria-hidden>·</span>}<button type="button" className="hover:text-amber-200" onClick={() => openTab(isTab(h.tab) ? h.tab : "change")} data-testid={`mx-hl-${h.key}`}>{h.text}</button></span>)}
+          <div className="mb-1 flex flex-wrap items-center gap-x-1.5 rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-2.5 py-1 text-[13px] font-semibold text-slate-100" data-testid="mx-headline">
+            {(data.state?.headline ?? []).map((h, i) => <span key={h.key} className={`${i >= 3 ? "hidden sm:inline-flex" : "inline-flex"} items-center gap-1.5`}>{i > 0 && <span className="text-slate-500" aria-hidden>·</span>}<button type="button" className="hover:text-amber-200" onClick={() => openTab(isTab(h.tab) ? h.tab : "change")} data-testid={`mx-hl-${h.key}`}>{h.text}</button></span>)}
             {!data.state && <span className="text-slate-400">Chưa đủ dữ liệu</span>}
           </div>
           {point ? (
@@ -254,14 +255,14 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
                 </div>
                 <div className="grid grid-cols-2 gap-2 min-w-0 content-start"><Tiles p={point} path={path.slice(0, idx + 1)} open={openTab} /></div>
               </div>
-            ) : <div className="grid grid-cols-2 xl:grid-cols-4 gap-2" data-testid="mx-tiles"><Tiles p={point} path={path} open={openTab} /></div>
+            ) : <div className="grid grid-cols-2 xl:grid-cols-4 gap-1.5 sm:gap-2" data-testid="mx-tiles"><Tiles p={point} path={path} open={openTab} /></div>
           ) : null}
           {open && (
             <div id="mx-detail" className="mt-2">
               <div role="tablist" aria-label="Chi tiết trạng thái thị trường" className="flex gap-1 overflow-x-auto border-b border-white/10">
                 {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-mx-tab={t.id} className={`shrink-0 whitespace-nowrap border-b-2 px-2.5 py-1 text-[12px] font-semibold ${tab === t.id ? "border-amber-400 text-amber-200" : "border-transparent text-slate-400 hover:text-slate-200"}`}>{t.label}</button>)}
               </div>
-              <div role="tabpanel" className="max-h-[420px] overflow-y-auto pt-2 pr-1" data-testid="mx-tabpanel">
+              <div role="tabpanel" className="relative max-h-[420px] overflow-y-auto pt-2 pr-1" data-testid="mx-tabpanel">
                 {tab === "change" && <ChangeTab d={data} scope={scope} onIndustry={onIndustry} onSelect={onSelectTicker} />}
                 {tab === "index" && <IndexTab onSelect={onSelectTicker} onIndustry={onIndustry} />}
                 {tab === "sectors" && <SectorsTab scope={scope} active={activeIndustries} onIndustry={onIndustry} />}
