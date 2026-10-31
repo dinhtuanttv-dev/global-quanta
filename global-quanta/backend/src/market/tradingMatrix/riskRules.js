@@ -10,7 +10,7 @@ export function riskFlags({ day, flow, links = null, events = null }) {
   const imp = links?.impact && !links.impact.error ? links.impact : null;
   const sx = links?.sectors && !links.sectors.error ? links.sectors : null;
   out.push({
-    id: "RF3", title: "Chỉ số vs độ rộng phân kỳ", severity: sc2?.state === "CONFIRMED" ? "CAUTION" : "INFO",
+    id: "RF3", title: "Chỉ số vs độ rộng phân kỳ", severity: "INFO", // kiểm định M3: sau tín hiệu này VN-Index không giảm, nên không gọi là cảnh báo
     status: sc2?.state === "CONFIRMED" ? "ON" : "OFF",
     trigger: "VN-Index tăng > 0,5%/5 phiên trong khi trung vị cổ phiếu ≤ 0 và độ rộng giảm",
     close: "VN-Index 5 phiên ≤ 0, hoặc cổ phiếu hồi lại (trung vị > 0 và độ rộng không giảm)",

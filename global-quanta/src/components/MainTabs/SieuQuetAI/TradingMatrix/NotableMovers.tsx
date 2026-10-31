@@ -37,7 +37,6 @@ export default function NotableMovers({ data, onSelect }: { data: MatrixMovers; 
         <List title="Giảm mạnh nhất" rows={data.losers} onSelect={onSelect} kind="down" />
         <List title="GTGD đột biến (≥ 2× TB20)" rows={data.valueSpikes} onSelect={onSelect} kind="spike" />
       </div>
-      <p className="text-[9px] text-amber-300/80">{data.note}</p>
       <p className="text-[9px] text-slate-500">{data.scope.label} · phiên đã chốt {data.asOf.slice(8, 10)}/{data.asOf.slice(5, 7)} · {data.eligible} mã · lọc thanh khoản ≥ {data.liquidityFloor ? `${vn(data.liquidityFloor / 1e9, 0)} tỷ/phiên` : "—"}</p>
     </div>
   );

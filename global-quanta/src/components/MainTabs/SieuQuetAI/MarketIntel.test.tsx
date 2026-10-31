@@ -108,16 +108,16 @@ describe("Market Intelligence VN-Index", () => {
     expect(el.textContent).toContain("P(VN-Index tăng sau T+5) = 62%");
   });
 
-  it("dòng tóm tắt dải VN-Index: đọc vị trong một dòng (trạng thái, HMM, rủi ro dòng tiền rút, tay to)", async () => {
+  it("dải VN-Index chỉ giữ rủi ro dòng tiền rút; trạng thái, HMM, tay to nằm ở Trạng thái thị trường", async () => {
     vi.stubEnv("VITE_MARKET_GATEWAY_ENABLED", "true");
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({
       index: { current: { date: "2026-10-02", close: 1737.7, regime: "SIDEWAY", streak: 27 } }, intel: intelFixture(), performance: [], signalLabels: {},
     }) })));
     const el = await render(<VnIndexBand indexState={state} technical={null} impulse={null} aiPanel={null} toggle={null} />);
     const t = el.textContent ?? "";
-    expect(t).toContain("■ Sideway · 27 phiên");
-    expect(t).toContain("▼ Giảm 99%");
+    expect(t).not.toContain("■ Sideway");
+    expect(t).not.toContain("▼ Giảm 99%");
     expect(t).toContain("Rủi ro dòng tiền rút85 · Cao");
-    expect(t).toContain("z −1.27");
+    expect(t).not.toContain("z −1.27");
   });
 });

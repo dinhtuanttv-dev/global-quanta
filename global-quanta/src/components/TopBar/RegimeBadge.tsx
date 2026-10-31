@@ -4,7 +4,7 @@ import Popover, { PopTrigger, usePopover } from './Popover';
 import { describeMeta } from './StatusTag';
 import type { Block, RegimeData } from '../../hooks/useTopbar';
 
-const LABEL: Record<RegimeData['state'], string> = { RISK_ON: 'RISK-ON', RISK_OFF: 'RISK-OFF', NEUTRAL: 'TRUNG LẬP', UNKNOWN: 'CHƯA XÁC ĐỊNH' };
+const LABEL: Record<RegimeData['state'], string> = { RISK_ON: 'THẾ GIỚI RISK-ON', RISK_OFF: 'THẾ GIỚI RISK-OFF', NEUTRAL: 'THẾ GIỚI TRUNG LẬP', UNKNOWN: 'CHƯA XÁC ĐỊNH' };
 
 export default function RegimeBadge({ block }: { block: Block<RegimeData> }) {
   const pop = usePopover();

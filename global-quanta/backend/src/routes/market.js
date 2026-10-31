@@ -417,6 +417,7 @@ router.get("/trading-matrix/signals", handle(async (req, res) => {
 }));
 // Trading Matrix (M6) — báo cáo vận hành: dữ liệu thiếu, sức khoẻ nguồn, khối lượng cảnh báo, độ trôi mô hình, kho cục bộ, nhật ký quy tắc.
 router.get("/trading-matrix/ops", handle(async (req, res) => {
+  if (!isAdmin(req)) { res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }); return; }
   const rt = getMarketRuntime();
   res.set("Cache-Control", "no-store");
   res.json(await opsReport({ store: rt.store, matrix: rt.matrix }));

@@ -15,6 +15,18 @@ export interface DailyBreadth {
   excluded: { suspended: number; shortHistory: number }; scopeSize: number; coverage: number | null;
 }
 export interface IntradayBreadth { index: string; advancers: number; decliners: number; unchanged: number; ceilings: number; floors: number; observedCount: number | null; asOf: string | null; source: string | null; note: string | null }
+export interface StatePoint {
+  date: string; x: number | null; y: number | null; b20: number | null; b50: number | null; b200: number | null; mo: number | null; moZ: number | null; pg5: number | null; db5: number | null;
+  idx1: number | null; idx5: number | null; idx20: number | null; sigma: number | null; yzPct: number | null; fnr1: number | null; fnr5: number | null; fnrZ: number | null; ldZ: number | null; flow: number | null;
+  foreign: number | null; value: number | null; neff: number | null; n: number;
+}
+export interface MarketState {
+  rule: string; asOf: string; x: number | null; y: number | null; zone: { side: string; stress: string; id: string } | null; zoneChanged: boolean; zonePrev: { id: string } | null;
+  headline: { key: string; tab: string; text: string }[]; current: StatePoint; previous: StatePoint | null;
+  deltas: { b20: number | null; b50: number | null; mo: number | null; sigma: number | null; fnr5: number | null; neff: number | null; x: number | null; y: number | null };
+  path: StatePoint[]; method: { sigma: string; zWindow: number; buffer: number };
+}
+export interface MatrixM4 { rule: string; asOf: string | null; current: { id: string; title: string; state: ScenarioState; since: string | null }[]; timeline: ({ date: string } & Record<string, string>)[]; episodes: number }
 export interface MatrixOverview {
   version: string; asOf: string; horizon: string;
   session: { phase: string; label: string; tradingDate: string; live: boolean };
@@ -34,6 +46,9 @@ export interface MatrixOverview {
   scenarios: Scenario[]; riskFlags: RiskFlag[];
   neutral?: { active: boolean; reasons: string[] } | null;
   stateVector?: Record<string, number | string | null> | null;
+  state?: MarketState | null;
+  m4?: MatrixM4 | null;
+  scenarioTimeline?: { date: string; SC1: string | null; SC2: string | null; SC3: string | null }[];
   forecast?: Forecast | null;
   /** Snapshot tổng hợp: trụ chỉ số (Index Impact), ngành dẫn dắt / tụt hậu / cảnh báo, tín hiệu gần nhất. */
   links?: MatrixLinks | null;
@@ -47,8 +62,8 @@ const fetcher = async <T,>(url: string): Promise<T> => {
   return r.json();
 };
 
-export function useTradingMatrix(scope: MatrixScope) {
-  const { data, error, isLoading } = useSWR<MatrixOverview>(marketUrl(`/api/market/trading-matrix/overview?scope=${scope}`), fetcher, {
+export function useTradingMatrix(scope: MatrixScope, enabled = true) {
+  const { data, error, isLoading } = useSWR<MatrixOverview>(enabled ? marketUrl(`/api/market/trading-matrix/overview?scope=${scope}`) : null, fetcher, {
     refreshInterval: (d) => (d?.session?.live ? 20_000 : 5 * 60_000), revalidateOnFocus: false, dedupingInterval: 10_000, keepPreviousData: true,
   });
   return { data, error: error as Error | undefined, isLoading };
@@ -61,6 +76,7 @@ export interface SectorStat {
   rs: Record<string, number | null>; medianReturn: Record<string, number | null>;
   breadth: number | null; breadth5: number | null; value20: number; foreign5: number;
   avgSmart: number | null; smartCoverage: number | null; rangeRatio: number | null; flags: { id: string; text: string }[];
+  trail?: { date: string; rs: Record<string, number | null>; breadth: number | null }[];
 }
 export interface MatrixSectors {
   version: string; scope: { id: MatrixScope; label: string }; asOf: string; horizons: Horizon[]; indexReturn: Record<string, number | null>;
@@ -115,6 +131,7 @@ export interface Scenario {
 export interface RiskFlag { id: string; title: string; severity: "INFO" | "CAUTION" | "WARNING" | "HIGH"; status: "ON" | "OFF" | "UNAVAILABLE" | "CHECKLIST"; detail?: string; trigger?: string; close?: string; evidence?: string[]; validation?: string; label: string; related?: { tickers: string[]; sectors: string[] } | null }
 export interface MatrixSignals {
   version: string; scope: string; ruleVersion: string; note: string;
+  m4?: { rule: string; recent: { scenario: string; date: string; state: string }[]; live: Record<string, { n: number; meanExcess: number | null }> };
   recent: { scenario: string; date: string; state: ScenarioState; evidence: string[]; health: string }[];
   live: Record<string, Record<string, { n: number; meanExcess: number | null }>>;
   validation: { prereg: string; verdicts: Record<string, string>; summary: Record<string, string>; stats: Record<string, { episodes: { IS: number; OOS: number }; IS: { n: number; mean: number | null; ci: [number, number] | null }; OOS: { n: number; mean: number | null; ci: [number, number] | null } }> };

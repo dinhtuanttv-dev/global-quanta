@@ -46,24 +46,15 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
         <span className="text-sm font-semibold text-cyan-400">VN-Index</span>
         {s ? (
           <>
-            <Chip label="Xu hướng" value={s.trendLabel} color={BIAS_COLOR[s.trendBias]} />
+            <Chip label="Cấu trúc MA" value={s.trendLabel} color={BIAS_COLOR[s.trendBias]} />
             <Chip label="Impulse" value={s.impulseScore.toFixed(1)} color={impulseColor} title="Market Impulse Gauge (0–100)" />
-            <Chip label="Độ rộng" value={`${s.marketBreadthPct.toFixed(1)}%`} title="% mã trên MA20" />
             <Chip label="RSI14" value={s.rsi14.toFixed(1)} />
             <Chip label="Nén–bứt phá" value={`${s.breakoutProbability.toFixed(0)}/100`} title="Công thức: 100 − ATR percentile − |50 − độ rộng|. Không phải xác suất, chưa kiểm định." />
           </>
         ) : <span className="text-slate-500">Đang tải dữ liệu VN-Index…</span>}
-        {cur && st && (
-          <Chip label="Trạng thái" value={`${st.glyph} ${REGIME_LABEL[cur.regime]} · ${cur.streak} phiên`} color={st.color} title="AI phân tích VN-Index" />
-        )}
-        {intel && <HmmBar c={intel} compact />}
         {intel?.risk !== null && intel?.risk !== undefined && (
           <Chip label="Rủi ro dòng tiền rút" value={`${intel.risk} · ${risk.label}`} color={risk.color}
             title="Phân vị ngày phân phối, dấu chân tay to âm, độ rộng thấp, P(HMM Giảm) — chỉ số mô tả" />
-        )}
-        {intel?.zLd5 !== null && intel?.zLd5 !== undefined && (
-          <Chip label="Tay to" value={`z ${intel.zLd5 >= 0 ? "+" : "−"}${Math.abs(intel.zLd5).toFixed(2)}`} color={intel.zLd5 >= 0 ? "#10b981" : "#f43f5e"}
-            title="Dấu chân lệnh tay to toàn thị trường, 5 phiên, z so 60 phiên trước" />
         )}
         <div className="ml-auto flex items-center gap-3">
           {toggle}

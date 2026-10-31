@@ -67,7 +67,6 @@ export default function IndexImpactTable({ data, onSelect, onIndustry }: { data:
         {data.coverage.symbols}/{data.coverage.of} mã HOSE có số cổ phiếu ({data.sharesSource}{data.sharesAsOf ? `, ${when(data.sharesAsOf.slice(0, 10))}` : ""}){data.coverage.missing.length ? ` · thiếu: ${data.coverage.missing.slice(0, 6).join(", ")}${data.coverage.missing.length > 6 ? "…" : ""}` : ""}
         {data.sharesWarning ? ` · dùng bản lưu (${data.sharesWarning})` : ""}
       </p>
-      <p className="text-[9px] text-slate-500">{data.method} {data.vn30Note}</p>
     </div>
   );
 }
