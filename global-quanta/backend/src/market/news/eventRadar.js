@@ -4,6 +4,7 @@ import { classifyEvent, extractTickers, fold, jaccard, sentiment, stripHtml, tit
 import { createEventRadarRepository } from "./eventRadarRepository.js";
 import { resolveEntities } from "./entityResolver.js";
 import { stockNameIndexFor } from "./stockNames.js";
+import { KV as SCANNER_KV } from "../scanner/scannerJobs.js";
 
 const HEALTH_KEY = "event-radar:source-health:v1";
 const EVENT_RETENTION = 2500;
@@ -296,6 +297,13 @@ export function createEventRadar({ service, repository = createEventRadarReposit
     const securities = (await store.getSecurities())?.rows ?? [];
     const universe = await service.getUniverse().catch(() => ({ tickers: [] }));
     const liquidity = new Map((universe.tickers ?? []).map((row) => [String(row.ticker).toUpperCase(), Number(row.avgValue20 ?? 0)]));
+    // 31/10/2026: service.getUniverse() không có avgValue20 -> mọi mã bằng 0 -> trước đây lấy công bố theo thứ tự CHỮ CÁI (A…, bỏ sót VCB, VNM).
+    // Thanh khoản thật nằm ở danh mục Siêu Quét.
+    const scannerUniverse = (await store.getKv(SCANNER_KV.universe).catch(() => null))?.value?.tickers ?? [];
+    for (const row of scannerUniverse) {
+      const symbol = String(row.ticker ?? "").toUpperCase();
+      if (symbol && Number(row.avgValue20) > 0) liquidity.set(symbol, Number(row.avgValue20));
+    }
     const securityBySymbol = new Map(securities.map((row) => [String(row.symbol ?? "").toUpperCase(), row]));
     for (const row of universe.tickers ?? []) {
       const symbol = String(row.ticker ?? "").toUpperCase();

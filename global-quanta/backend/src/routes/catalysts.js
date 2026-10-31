@@ -3,7 +3,7 @@
 import express from "express";
 
 export const CATALYST_SNAPSHOT_KEY = "catalyst:snapshot:latest";
-/** Quét 4 lần/ngày, khoảng nghỉ đêm dài nhất ~12 giờ: quá 13 giờ nghĩa là lượt quét đã lỗi. */
+/** Lượt cuối 20:30, lượt đầu 08:35 -> khoảng nghỉ đêm dài nhất ~12 giờ: quá 13 giờ nghĩa là lượt quét đã lỗi. */
 export const CATALYST_STALE_MINUTES = 13 * 60;
 
 export async function readCatalystSnapshot(store, now = Date.now()) {
