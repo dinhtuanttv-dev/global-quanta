@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { newestFirst } from "../../../../macro-center/src/ui/world/WorldTab";
 import { basketConcentration, fmtPeriod, isConcentrated, pickLabels, splitByTier, sectorPoints, sectorPressure, transmissionEdges, type MatrixCell } from "./world2d";
 
 describe("Độ tập trung rổ ngành", () => {
@@ -59,6 +60,12 @@ describe("Chọn nhãn bản đồ", () => {
     expect([...pickLabels([c("a", 0, 0), c("b", 200, 0)], 5)]).toEqual(["a", "b"]);
     expect([...pickLabels([c("a", 0, 0), c("b", 20, 0)], 5)]).toEqual(["b"]);
     expect([...pickLabels([c("a", 0, 0), c("b", 200, 0), c("d", 400, 0)], 2)]).toEqual(["a", "b"]);
+  });
+});
+
+describe("Danh sách sự kiện", () => {
+  it("mới nhất lên đầu, chưa có phiên đứng trước", () => {
+    expect(newestFirst([{ sessionDate: "2023-02-02" }, { sessionDate: null }, { sessionDate: "2026-09-17" }]).map((x) => x.sessionDate)).toEqual([null, "2026-09-17", "2023-02-02"]);
   });
 });
 

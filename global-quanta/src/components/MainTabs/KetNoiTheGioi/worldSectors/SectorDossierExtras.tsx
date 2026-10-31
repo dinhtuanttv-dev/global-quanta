@@ -16,7 +16,7 @@ const VOTE_VI = ["Điểm 3 tháng thế giới", "Chu kỳ RRG Lọc ngành", "
 /** Ngành ICB -> chủ đề tin. Ánh xạ đặt tay theo nội dung ngành, chỉ để lọc tin, không kết luận tác động. */
 export const ICB_NEWS_TOPICS: Record<string, string[]> = {
   "0500": ["energy"], "1300": ["energy", "china"], "1700": ["metals", "china"], "1750": ["metals", "china", "trade"], "2300": ["metals", "rates"], "2700": ["trade", "growth"], "2770": ["trade", "energy"],
-  "3300": ["trade", "growth"], "3500": ["growth"], "3570": ["growth"], "3700": ["growth", "china"], "4500": ["growth"], "5300": ["growth"], "5700": ["growth", "energy"], "6500": ["chips", "china"],
+  "3300": ["trade", "growth"], "3500": ["growth"], "3570": ["growth"], "3700": ["growth", "china"], "5300": ["growth"], "5700": ["growth", "energy"], "6500": ["chips", "china"],
   "7500": ["energy"], "7530": ["energy"], "8300": ["rates", "usd"], "8500": ["rates"], "8600": ["rates"], "8700": ["rates", "em"], "9500": ["chips", "trade"],
 };
 

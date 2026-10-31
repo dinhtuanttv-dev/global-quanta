@@ -26,6 +26,12 @@ interface OverviewPayload { notice?: string; pulse: PulseItem[]; tierCounts: Rec
 
 const CHANNELS: Record<string, string> = { commodity: 'Hàng hoá', fx_rates: 'Tỷ giá, lãi suất', capital_flow: 'Dòng vốn', export_demand: 'Cầu xuất khẩu', risk_sentiment: 'Tâm lý rủi ro', policy_trade: 'Chính sách thương mại' };
 
+const EVENT_PAGE = 10;
+/** Mới nhất lên đầu; sự kiện chưa có phiên (đang chờ đo) đứng trước. */
+export function newestFirst<T extends { sessionDate: string | null }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => (b.sessionDate ?? '9999').localeCompare(a.sessionDate ?? '9999'));
+}
+
 /** Import './world.css' once in your app entry. theme: 'light' | 'dark' | 'auto' (follows the OS). */
 /** hideHeader: ẩn tiêu đề khi nhúng trong một tab đã có tiêu đề riêng (Global Quanta). hideStock: ẩn hồ sơ cổ phiếu khi chưa có dữ liệu phơi nhiễm thật. */
 /** only: chỉ hiện đúng một phần, bỏ thanh tab trong (Trung tâm kinh tế thế giới xếp từng phần vào tab con riêng). */
@@ -49,6 +55,8 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
   const scenario = useAsync((s) => client.scenario<import('./ScenarioStock').ScenarioPayload>({ scenarioId, horizon }, s), [client, scenarioId, horizon], tab === 'scenario');
   const stock = useAsync((s) => client.stock<import('./ScenarioStock').StockProfilePayload>(stockCode, s), [client, stockCode], tab === 'stock');
 
+  const [eventLimit, setEventLimit] = useState(EVENT_PAGE);
+  const sortedEvents = useMemo(() => newestFirst(events.data?.events ?? []), [events.data]);
   const view = useMemo(() => (matrix.data ? buildWorldMatrixView(matrix.data, filter) : null), [matrix.data, filter]);
   const picked = cell && view ? view.cells[cell] : undefined;
   const notice = overview.data?.notice ?? matrix.data?.notice ?? series.data?.notice;
@@ -130,7 +138,10 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
           {!events.data && !events.error && <p className="state" role="status">Đang đo phản ứng của các sự kiện…</p>}
           {events.data && (
             <div className="two">
-              <EventList events={events.data.events} selected={eventId} onSelect={setEventId} />
+              <div>
+                <EventList events={sortedEvents.slice(0, eventLimit)} selected={eventId} onSelect={setEventId} />
+                {sortedEvents.length > eventLimit && <button type="button" className="btn" onClick={() => setEventLimit((n) => n + EVENT_PAGE)} data-testid="events-more">Xem thêm {Math.min(EVENT_PAGE, sortedEvents.length - eventLimit)} sự kiện (còn {sortedEvents.length - eventLimit})</button>}
+              </div>
               <aside aria-label="Chi tiết sự kiện đã chọn">
                 {detail.error && <p className="state alert" role="alert">{detail.error}</p>}
                 {eventId && detail.data ? <EventDetail d={detail.data} /> : <p className="state">{eventId && detail.loading ? 'Đang tải…' : 'Chọn một sự kiện để xem đường lợi suất bất thường.'}</p>}
