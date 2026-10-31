@@ -39,7 +39,7 @@ export function StateMap({ path, index, others = [] }: { path: StatePoint[]; ind
       <text transform={`translate(11 ${(T + H - B) / 2}) rotate(-90)`} fontSize={11} fill={TXT} textAnchor="middle">Căng thẳng</text>
       {d && <path d={d} fill="none" stroke={GOLD} strokeOpacity={0.55} strokeWidth={1.4} />}
       {shown.slice(0, -1).map((p, i) => <circle key={p.date} cx={sx(p.x as number)} cy={sy(p.y as number)} r={1.7} fill={GOLD} fillOpacity={0.25 + (0.5 * i) / Math.max(1, shown.length)}><title>{`${when(p.date)}: X ${vn(p.x, 2)}, Y ${vn(p.y, 2)}`}</title></circle>)}
-      {others.filter((o) => ok(o.x) && ok(o.y)).map((o) => <g key={o.scope}><circle cx={sx(o.x as number)} cy={sy(o.y as number)} r={4.5} fill={SCOPE_COLOR[o.scope]} stroke="#0b1220" strokeWidth={1.2} /><text x={sx(o.x as number) + 7} y={sy(o.y as number) + 3.5} fontSize={11} fill={INK}>{SCOPE_VI[o.scope]}</text></g>)}
+      {others.filter((o) => ok(o.x) && ok(o.y)).map((o, i) => <g key={o.scope}><circle cx={sx(o.x as number)} cy={sy(o.y as number)} r={4.5} fill={SCOPE_COLOR[o.scope]} stroke="#0b1220" strokeWidth={1.2}><title>{SCOPE_VI[o.scope]}</title></circle><circle cx={W / 2 - 62 + i * 76} cy={T + 12} r={4} fill={SCOPE_COLOR[o.scope]} /><text x={W / 2 - 55 + i * 76} y={T + 16} fontSize={11} fill={INK} data-testid="mx-compare-legend">{SCOPE_VI[o.scope]}</text></g>)}
       {cur && ok(cur.x) && ok(cur.y) && <circle cx={sx(cur.x)} cy={sy(cur.y)} r={5.5} fill={GOLD} stroke="#0b1220" strokeWidth={1.5} data-testid="mx-state-dot"><title>{`${when(cur.date)}: X ${vn(cur.x, 2)}, Y ${vn(cur.y, 2)}`}</title></circle>}
     </svg>
   );
@@ -50,8 +50,9 @@ export function SignedBars({ rows, height = 92, unit = "%", digits = 2, label, t
   const W = 640, T = 6, B = 16, vals = rows.map((r) => r.v).filter(ok);
   const abs = vals.map(Math.abs).filter((v) => v > 0).sort((a, b) => a - b);
   const max = Math.max(1e-9, ...abs);
-  // Một phiên đột biến không được làm phẳng các cột còn lại: chặn thang đo ở 4 lần trung vị, số thật vẫn ở chú thích.
-  const scale = Math.min(max, Math.max(1e-9, 4 * (abs[abs.length >> 1] ?? max)));
+  // Chỉ khi có điểm đột biến mới chặn thang đo, để các cột còn lại đọc được; số thật vẫn ở chú thích.
+  const q90 = abs[Math.floor(abs.length * 0.9)] ?? max;
+  const scale = max > 2.5 * q90 ? Math.max(1e-9, 1.5 * q90) : max;
   const mid = T + (height - T - B) / 2, half = (height - T - B) / 2, bw = W / Math.max(1, rows.length);
   return (
     <figure className="min-w-0" data-testid={testId}>
