@@ -72,6 +72,7 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
       {tab === 'overview' && (
         <section className="panel" aria-labelledby="wd-ov">
           <h2 id="wd-ov">Nhịp đập thế giới</h2>
+          {matrix.data?.lastPeriod && <p className="muted">Số liệu tháng {matrix.data.lastPeriod.slice(5, 7)}/{matrix.data.lastPeriod.slice(0, 4)}, so với lịch sử của chính yếu tố đó. Không phải biến động hôm nay.</p>}
           {overview.error && <p className="state alert" role="alert">{overview.error}</p>}
           {!overview.data && !overview.error && <p className="state" role="status">Đang tải tổng quan…</p>}
           {overview.data && (

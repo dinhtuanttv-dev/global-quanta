@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { basketConcentration, isConcentrated, pickLabels, sectorPoints, sectorPressure, transmissionEdges, type MatrixCell } from "./world2d";
+import { basketConcentration, fmtPeriod, isConcentrated, pickLabels, splitByTier, sectorPoints, sectorPressure, transmissionEdges, type MatrixCell } from "./world2d";
 
 describe("Độ tập trung rổ ngành", () => {
   it("số mã hiệu dụng 1/Σw² trên trọng số chuẩn hoá; cờ khi một mã ≥ 50% hoặc dưới 2,5 mã", () => {
@@ -59,5 +59,16 @@ describe("Chọn nhãn bản đồ", () => {
     expect([...pickLabels([c("a", 0, 0), c("b", 200, 0)], 5)]).toEqual(["a", "b"]);
     expect([...pickLabels([c("a", 0, 0), c("b", 20, 0)], 5)]).toEqual(["b"]);
     expect([...pickLabels([c("a", 0, 0), c("b", 200, 0), c("d", 400, 0)], 2)]).toEqual(["a", "b"]);
+  });
+});
+
+describe("Trung thực về bậc và kỳ dữ liệu", () => {
+  it("tách bậc C khỏi A/B; kỳ tháng hiển thị đúng, thiếu thì không đoán", () => {
+    const e = (tier: string) => ({ factor: "F", sector: "S", tier, t: 3, lag: 1, sign: 1 as const, pressure: 1, beta: 1 });
+    const s = splitByTier([e("A"), e("B"), e("C"), e("C")]);
+    expect(s.confirmed.map((x) => x.tier)).toEqual(["A", "B"]);
+    expect(s.exploratory).toHaveLength(2);
+    expect(fmtPeriod("2026-09")).toBe("09/2026");
+    expect(fmtPeriod(null)).toBe("chưa rõ");
   });
 });

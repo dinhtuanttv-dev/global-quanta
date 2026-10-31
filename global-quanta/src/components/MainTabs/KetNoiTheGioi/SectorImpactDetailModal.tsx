@@ -70,7 +70,6 @@ export default function SectorImpactDetailModal({ sector, onClose }: Props) {
             <div className="flex items-center gap-1.5 mt-1">
               <meta.Icon className="w-3.5 h-3.5" style={{ color: meta.color }} />
               <span className="text-xs font-bold" style={{ color: meta.color }}>{meta.label}</span>
-              <span className="text-xs" style={{ color: T.textTertiary }}>· {Math.round(sector.confidence * 100)}% tin cậy</span>
             </div>
           </div>
           <button onClick={onClose} aria-label="Đóng" className="p-1 rounded hover:bg-white/5">
@@ -115,7 +114,7 @@ export default function SectorImpactDetailModal({ sector, onClose }: Props) {
         )}
 
         <p className="text-[9px] italic mt-3 pt-3" style={{ color: T.textTertiary, borderTop: "1px solid rgba(148,163,184,0.08)" }}>
-          Kết luận từ AI, không phải khuyến nghị đầu tư. Đã qua kiểm chứng chéo (Evidence Agent){sector.sourceCategory ? "." : "."}
+          Suy luận của AI, có thể sai; chiều tác động chưa được kiểm định thống kê. Không phải khuyến nghị đầu tư.
         </p>
       </div>
     </div>

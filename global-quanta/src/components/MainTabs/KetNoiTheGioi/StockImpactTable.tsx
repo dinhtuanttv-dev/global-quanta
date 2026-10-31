@@ -165,7 +165,7 @@ export default function StockImpactTable() {
                   style={{ background: meta.bg, border: `1px solid ${meta.color}22` }}>
                   <div className="flex items-center justify-between mb-1">
                     <meta.Icon className="w-3.5 h-3.5 shrink-0" style={{ color: meta.color }} />
-                    <span className="text-[9px] font-bold" style={{ color: meta.color }}>{Math.round(sector.confidence * 100)}%</span>
+                    <span className="text-[9px]" style={{ color: T.textTertiary }}>{sector.evidenceRefs.length} dẫn chứng</span>
                   </div>
                   <p className="text-[10px] font-bold leading-tight mb-1.5 line-clamp-2" style={{ color: "#f1f5f9" }}>
                     {sectorNameOf(sector.sectorKey)}
