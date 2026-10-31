@@ -66,7 +66,7 @@ export const TREND_META: Record<string, { glyph: string; color: string; title: s
 export const COLUMN_HELP: Record<string, string> = {
   price: "Giá theo nghìn đồng. Chấm xanh: giá SSI realtime.",
   changePct: "Thay đổi so với giá tham chiếu.",
-  smartScore: "Xếp hạng tổng hợp 0–100: 40% cơ bản + 35% kỹ thuật + 25% sự kiện, nhân hệ số đồng thuận. Chỉ là xếp hạng mô tả, xem nhãn kiểm định phía trên.",
+  smartScore: "Xếp hạng tổng hợp 0–100: 40% cơ bản + 35% kỹ thuật + 25% sự kiện, nhân hệ số đồng thuận. Kết quả kiểm định xem ở Nguồn và cách đọc.",
   rsRating: "Sức mạnh tương đối 1–99: thứ hạng lợi suất 64 phiên so với toàn bộ mã trong danh sách quét.",
   confluence: "Mức đồng thuận giữa xu hướng VN-Index, xu hướng mã, RS và chất lượng.",
   signals: "Breakout và top 5 khối ngoại mua ròng trong ngày.",
