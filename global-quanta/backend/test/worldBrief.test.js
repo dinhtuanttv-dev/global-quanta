@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildEvidence, checkSector, checkSentence, createWorldBrief, MANUAL_COOLDOWN_MS, numberMatches, numbersIn, verifyBrief } from "../src/market/world/worldBrief.js";
+import { buildEvidence, checkSector, checkSentence, createWorldBrief, MANUAL_COOLDOWN_MS, numberMatches, numbersIn, verifyBrief, publicError } from "../src/market/world/worldBrief.js";
 
 const NOW = Date.parse("2026-11-02T01:00:00Z"); // 08:00 thứ Hai giờ Việt Nam
 const monitor = { items: [
@@ -117,4 +117,58 @@ test("AI lỗi: báo lỗi thật, không tạo bản giả", async () => {
   const d = await svc.get();
   assert.equal(d.latest, null);
   assert.match(d.lastError.message, /hết hạn mức/);
+});
+
+test("bản tin rỗng sau kiểm chứng không đè bản trước; lỗi công khai không lộ chi tiết", async () => {
+  const evidence = { monitor: { items: [{ id: "x", available: true, stale: false, change: 1, value: 2, z: 1, nameVi: "X", unit: "USD", date: "2026-10-30", sourceVi: "Y" }] }, strategy: {} };
+  let answer = { summary: [{ text: "X đổi 1", refs: ["M:x"] }], sectors: [] }, t0 = Date.parse("2026-10-30T03:00:00Z");
+  const b = createWorldBrief({ getMonitor: async () => evidence.monitor, getNews: async () => ({ items: [] }), getStrategy: async () => evidence.strategy, callModel: async () => ({ json: answer, modelUsed: "m", usage: { totalTokenCount: 9 } }), now: () => t0, log: {} });
+  await b.runManual();
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal((await b.get()).latest.tokens, 9);
+  answer = { summary: [{ text: "X đổi 77", refs: ["M:x"] }], sectors: [] };
+  t0 += 46 * 60_000;
+  await b.runManual();
+  await new Promise((r) => setTimeout(r, 5));
+  const d = await b.get();
+  assert.equal(d.latest.summary[0].text, "X đổi 1");
+  assert.match(d.lastError.message, /giữ bản tin trước/);
+  assert.match(publicError({ attempts: [{ status: 403 }] }), /Khoá Gemini/);
+  assert.match(publicError({ attempts: [{ status: 429 }] }), /hạn mức/);
+});
+
+test("chạy tay chừa lượt cho lịch tự động", async () => {
+  let t0 = Date.parse("2026-10-30T03:00:00Z");
+  const b = createWorldBrief({ getMonitor: async () => ({ items: [{ id: "x", available: true, stale: false, change: 1, value: 2, z: 1, nameVi: "X", unit: "USD", date: "2026-10-30", sourceVi: "Y" }] }), getNews: async () => ({ items: [] }), getStrategy: async () => ({}), callModel: async () => ({ json: { summary: [{ text: "X đổi 1", refs: ["M:x"] }], sectors: [] } }), now: () => t0, log: {} });
+  const seen = [];
+  for (let i = 0; i < 5; i++) { seen.push((await b.runManual()).status); await new Promise((r) => setTimeout(r, 5)); t0 += 46 * 60_000; }
+  assert.deepEqual(seen, ["started", "started", "started", "started", "cap"]);
+});
+
+test("không phát link citation khác http", () => {
+  const ev = [{ ref: "N:1", kind: "news", text: "a", numbers: [], source: "s", at: "t", url: "javascript:alert(1)" }];
+  assert.equal(verifyBrief({ summary: [{ text: "tin", refs: ["N:1"] }] }, ev).summary[0].citations[0].url, null);
+});
+
+test("lượt tự động gặp lỗi được thử lại trong khung giờ, tối đa 3 lần", async () => {
+  let t0 = Date.parse("2026-10-30T01:00:00Z"), calls = 0; // 08:00 giờ Việt Nam, thứ Sáu
+  const b = createWorldBrief({ getMonitor: async () => ({ items: [{ id: "x", available: true, stale: false, change: 1, value: 2, z: 1, nameVi: "X", unit: "USD", date: "2026-10-30", sourceVi: "Y" }] }), getNews: async () => ({ items: [] }), getStrategy: async () => ({}), callModel: async () => { calls++; throw new Error("quá tải"); }, now: () => t0, log: {} });
+  await b.tick();
+  assert.equal(calls, 1);
+  t0 += 5 * 60_000; await b.tick();
+  assert.equal(calls, 1);
+  t0 += 11 * 60_000; await b.tick();
+  assert.equal(calls, 2);
+  t0 += 16 * 60_000; await b.tick();
+  assert.equal(calls, 3);
+  t0 += 16 * 60_000; await b.tick();
+  assert.equal(calls, 3);
+});
+
+test("ngày ISO và tên chỉ số không bị coi là số liệu; làm sạch dấu trong câu", () => {
+  const ev = [{ ref: "M:x", kind: "market", text: "x", numbers: [2.12], source: "s", at: "t" }];
+  const r = verifyBrief({ summary: [{ text: "Phiên 2026-10-30, Nikkei 225 giảm -2,12 %", refs: ["M:x"] }] }, ev);
+  assert.deepEqual(r.rejected, []);
+  assert.equal(r.summary[0].text, "Phiên 2026-10-30, Nikkei 225 giảm 2,12%");
+  assert.equal(verifyBrief({ summary: [{ text: "Nikkei 225 giảm 9,9%", refs: ["M:x"] }] }, ev).rejected.length, 1);
 });
