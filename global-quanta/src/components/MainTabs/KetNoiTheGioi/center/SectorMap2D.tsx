@@ -4,7 +4,7 @@ import { useWorldSectorScores } from "../../../../hooks/useWorldSectorScores";
 import { fmtZ } from "../../../../lib/worldSectors/types";
 import WorldSectorDrawer from "../worldSectors/WorldSectorDrawer";
 import EvidenceTag from "../EvidenceTag";
-import { sectorPoints, type SectorPoint } from "./world2d";
+import { pickLabels, sectorPoints, type SectorPoint } from "./world2d";
 
 const W = 720, H = 400, L = 44, R = 16, T = 18, B = 40;
 // Màu theo tư thế (cố định, đã dùng ở bảng chiến lược); nhãn và ký hiệu đi kèm nên không phụ thuộc riêng vào màu.
@@ -32,11 +32,12 @@ export default function SectorMap2D() {
   const row = open ? scores?.rows.find((r) => r.icb === open) : undefined;
 
   const xMax = Math.max(1, ...pts.map((p) => Math.abs(p.x))) * 1.12;
-  const yMax = Math.max(1, ...pts.map((p) => Math.abs(p.y))) * 1.12;
+  // Chừa khoảng trên và dưới để điểm ở rìa không đè lên nhãn góc phần tư.
+  const yMax = Math.max(1, ...pts.map((p) => Math.abs(p.y))) * 1.25;
   const sx = (v: number) => L + ((v + xMax) / (2 * xMax)) * (W - L - R);
   const sy = (v: number) => T + ((yMax - v) / (2 * yMax)) * (H - T - B);
   // Chỉ ghi tên các ngành nổi bật (xa gốc nhất) để không rối; các ngành còn lại xem qua rê chuột / bảng chiến lược.
-  const labeled = useMemo(() => new Set([...pts].sort((a, b) => Math.hypot(b.x, b.y) - Math.hypot(a.x, a.y)).slice(0, 10).map((p) => p.icb)), [pts]);
+  const labeled = pickLabels([...pts].sort((a, b) => Math.hypot(b.x, b.y) - Math.hypot(a.x, a.y)).map((p) => ({ id: p.icb, text: p.nameVi, x: sx(p.x), y: sy(p.y), toLeft: p.x > xMax * 0.55 })), 12);
 
   return (
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="sector-map">
@@ -50,7 +51,7 @@ export default function SectorMap2D() {
       {error && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative)" }}>Không tải được dữ liệu ngành: {error.message}</p>}
       {!strategy && !error && <div className="mt-2 h-60 animate-pulse rounded-lg" style={{ background: "rgba(148,163,184,0.05)" }} aria-busy="true" />}
       {strategy && <div className="relative mt-2">
-        <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
+        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560 }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
           <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
           <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
           <line x1={L} x2={W - R} y1={sy(0)} y2={sy(0)} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
@@ -70,7 +71,7 @@ export default function SectorMap2D() {
               {labeled.has(p.icb) && <text x={sx(p.x) + (p.x > xMax * 0.55 ? -9 : 9)} y={sy(p.y) + 3.5} textAnchor={p.x > xMax * 0.55 ? "end" : "start"} fontSize={9.5} fill="#cbd5e1">{p.nameVi}</text>}
             </g>;
           })}
-        </svg>
+        </svg></div>
         {hover && <div className="pointer-events-none absolute z-10 rounded-lg px-2.5 py-1.5 text-[10px]" role="status" data-testid="sector-tip"
           style={{ left: `${Math.min(68, (sx(hover.x) / W) * 100)}%`, top: `${Math.max(2, (sy(hover.y) / H) * 100 - 20)}%`, background: "#0f172a", border: "1px solid rgba(148,163,184,0.3)", color: "#e2e8f0" }}>
           <b>{hover.nameVi}</b> · {stanceOf(hover.stance).label}<br />

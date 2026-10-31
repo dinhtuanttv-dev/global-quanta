@@ -109,15 +109,15 @@ export default function KetNoiTheGioiTab() {
   const displayedMarkets = showAllMarkets ? markets : markets.slice(0, 6);
 
   return (
-    <div style={{ background: `linear-gradient(165deg, ${T.bgSurface} 0%, ${T.bgSurface2} 100%)`, border: "1px solid rgba(148,163,184,0.1)" }}
-      className="rounded-2xl p-5 shadow-xl space-y-4" data-testid="world-center">
+    <div style={{ background: `linear-gradient(165deg, ${T.bgSurface} 0%, ${T.bgSurface2} 100%)`, border: "1px solid rgba(148,163,184,0.1)", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}
+      className="rounded-2xl shadow-xl" data-testid="world-center">
 
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "#f1f5f9" }}>
             <Globe2 className="w-4 h-4" style={{ color: T.gold }} /> Trung tâm kinh tế thế giới
           </h3>
-          <p className="mt-0.5 text-[10px]" style={{ color: T.textTertiary }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
+          <p className="text-[10px]" style={{ color: T.textTertiary, marginTop: 3 }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
         </div>
         {connected ? (
           <span className="flex items-center gap-1 text-[10px]" style={{ color: T.positive }}>
@@ -134,14 +134,14 @@ export default function KetNoiTheGioiTab() {
         {TABS.map((t) => {
           const on = tab === t.id;
           return <button key={t.id} ref={(el) => { refs.current[t.id] = el; }} id={`world-${t.id}-tab`} type="button" role="tab" aria-selected={on} aria-controls={`world-${t.id}-panel`} tabIndex={on ? 0 : -1}
-            onClick={() => setTab(t.id)} onKeyDown={onKey} className="text-[11px] font-semibold px-3 py-2 flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            style={{ color: on ? T.goldBright : T.textSecondary, borderBottom: on ? `2px solid ${T.gold}` : "2px solid transparent" }}>
+            onClick={() => setTab(t.id)} onKeyDown={onKey} className="text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            style={{ padding: "9px 12px", color: on ? T.goldBright : T.textSecondary, borderBottom: on ? `2px solid ${T.gold}` : "2px solid transparent" }}>
             <t.icon className="w-3.5 h-3.5" aria-hidden /> {t.label}
           </button>;
         })}
       </div>
 
-      <div id={`world-${tab}-panel`} role="tabpanel" aria-labelledby={`world-${tab}-tab`} className="space-y-4">
+      <div id={`world-${tab}-panel`} role="tabpanel" aria-labelledby={`world-${tab}-tab`} className={tab === "sectors" ? "space-y-4" : "tw-scope space-y-4"}>
       {tab === "overview" && (
         <div className="tw-scope space-y-4" data-testid="world-overview">
           <WorldTodayStrip onOpenImpact={() => setTab("sectors")} />

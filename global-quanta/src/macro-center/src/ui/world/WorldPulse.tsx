@@ -16,7 +16,7 @@ export function WorldPulse({ pulse }: { pulse: PulseItem[] }) {
               <span className="pulse-zero" />
               <span className="pulse-bar" style={{ left: `${p.z >= 0 ? 50 : 50 - mag}%`, width: `${mag}%` }} />
             </span>
-            <span className="muted">{p.links} ngành có liên kết</span>
+            <span className="muted">{p.links} liên kết bậc A/B</span>
           </li>
         );
       })}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { basketConcentration, isConcentrated, sectorPoints, sectorPressure, transmissionEdges, type MatrixCell } from "./world2d";
+import { basketConcentration, isConcentrated, pickLabels, sectorPoints, sectorPressure, transmissionEdges, type MatrixCell } from "./world2d";
 
 describe("Độ tập trung rổ ngành", () => {
   it("số mã hiệu dụng 1/Σw² trên trọng số chuẩn hoá; cờ khi một mã ≥ 50% hoặc dưới 2,5 mã", () => {
@@ -50,5 +50,14 @@ describe("Bản đồ truyền dẫn", () => {
     const p = sectorPressure(transmissionEdges(matrix, pulse));
     expect(p.get("S_OIL")).toBe(6);
     expect(p.get("S_BANK")).toBe(-2.5);
+  });
+});
+
+describe("Chọn nhãn bản đồ", () => {
+  const c = (id: string, x: number, y: number) => ({ id, text: "Ngành dài", x, y, toLeft: false });
+  it("bỏ nhãn đè nhãn khác hoặc đè điểm; giữ thứ tự ưu tiên và giới hạn", () => {
+    expect([...pickLabels([c("a", 0, 0), c("b", 200, 0)], 5)]).toEqual(["a", "b"]);
+    expect([...pickLabels([c("a", 0, 0), c("b", 20, 0)], 5)]).toEqual(["b"]);
+    expect([...pickLabels([c("a", 0, 0), c("b", 200, 0), c("d", 400, 0)], 2)]).toEqual(["a", "b"]);
   });
 });

@@ -74,3 +74,24 @@ export function sectorPressure(edges: TransEdge[]): Map<string, number> {
   for (const e of edges) out.set(e.sector, (out.get(e.sector) ?? 0) + e.sign * e.pressure);
   return out;
 }
+
+export interface LabelCandidate { id: string; text: string; x: number; y: number; toLeft: boolean }
+/** Chọn nhãn theo thứ tự ưu tiên, bỏ nhãn sẽ đè lên nhãn hoặc điểm khác; các ngành còn lại xem khi rê chuột. */
+export function pickLabels(items: LabelCandidate[], limit: number, charW = 5, lineH = 12): Set<string> {
+  const placed: { l: number; r: number; t: number; b: number }[] = [];
+  const out = new Set<string>();
+  const boxOf = (c: LabelCandidate) => {
+    const w = c.text.length * charW;
+    return { l: c.toLeft ? c.x - 9 - w : c.x + 9, r: c.toLeft ? c.x - 9 : c.x + 9 + w, t: c.y - lineH / 2, b: c.y + lineH / 2 };
+  };
+  for (const c of items) {
+    if (out.size >= limit) break;
+    const b = boxOf(c);
+    const hitsLabel = placed.some((p) => b.l < p.r && b.r > p.l && b.t < p.b && b.b > p.t);
+    const hitsPoint = items.some((o) => o.id !== c.id && o.x + 6 > b.l && o.x - 6 < b.r && o.y + 6 > b.t && o.y - 6 < b.b);
+    if (hitsLabel || hitsPoint) continue;
+    placed.push(b);
+    out.add(c.id);
+  }
+  return out;
+}
