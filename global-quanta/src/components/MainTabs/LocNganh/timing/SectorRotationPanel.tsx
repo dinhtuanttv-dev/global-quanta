@@ -1,23 +1,19 @@
 // Lọc ngành (L4–L5) — Xoay vòng ngành ICB: bản đồ dòng tiền dịch chuyển giữa các ngành (4 tuần), tích lũy / phân phối âm thầm,
-// RRG Clock (vệt 12 tuần), bảng toàn bộ ngành: Trạng thái (Tăng trưởng / Tích lũy / Tích lũy đáy / Phân phối / Suy thoái), Giai đoạn,
+// RRG 4D (mặc định nhìn phẳng), bảng toàn bộ ngành: Trạng thái (Tăng trưởng / Tích lũy / Tích lũy đáy / Phân phối / Suy thoái), Giai đoạn,
 // Dòng tiền (thị phần GTGD, CMF), Góc RRG, 4 cột thời điểm của engine, Quyết định; bấm ngành -> bảng phụ phân tích chuyên sâu.
 // Nguồn: Gateway sector-rrg/L5 + Project A locnganh-timing/L2. EXPERIMENTAL (kiểm định L3 không đạt).
 import { useMemo, useState } from "react";
 import { useSectorRrg } from "../../../../hooks/useSectorRotation";
 import { useSectorTimingSignals } from "../../../../hooks/useSectorTimingSignals";
-import type { GatewaySectorRrg, Quadrant, SectorRotation, SectorStateKey, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
-import { RRGClockTimeline, type SectorRRGHistory } from "./RRGClockTimeline";
+import type { GatewaySectorRrg, SectorRotation, SectorStateKey, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
 import { SectorScreenerCells } from "./SectorScreenerCells";
 import { SectorDeepPanel } from "./SectorDeepPanel";
-import { QUADRANT_VI } from "./quadrant";
+import { QUADRANT_COLORS, QUADRANT_VI } from "./quadrant";
 import RRG4DProjection from "./RRG4DProjection";
 
-const QUADRANT_COLOR: Record<Quadrant, string> = { LEADING: "var(--positive)", IMPROVING: "var(--gold)", WEAKENING: "var(--warning)", LAGGING: "var(--text-tertiary)" };
 export const STATE_COLOR: Record<SectorStateKey, string> = { GROWTH: "var(--positive)", ACCUMULATION: "var(--gold)", BOTTOMING: "#38bdf8", DISTRIBUTION: "var(--warning)", DECLINE: "var(--negative)", NEUTRAL: "var(--text-tertiary)" };
 const STATE_RANK: Record<SectorStateKey, number> = { GROWTH: 0, ACCUMULATION: 1, BOTTOMING: 2, NEUTRAL: 3, DISTRIBUTION: 4, DECLINE: 5 };
 const FLOW_VI = { INFLOW: "Tiền vào mạnh", RISING: "Tiền vào", FALLING: "Tiền ra", OUTFLOW: "Tiền ra mạnh" } as const;
-/** Tên ngành rút gọn cho nhãn trên đồng hồ (≤ 2 từ đầu, bỏ phần sau "&"). */
-const shortName = (n: string) => { const h = n.split(/\s*[&,]\s*/)[0]; const w = h.split(" "); return w.length > 2 ? w.slice(0, 2).join(" ") : h; };
 const LEVEL_VI = { FAVORABLE: "Thuận lợi", WATCH: "Quan sát", AVOID: "Chưa nên" } as const;
 const LEVEL_RANK = { FAVORABLE: 0, WATCH: 1, AVOID: 2 } as const;
 const ACTION_VI: Record<string, string> = { NO_DATE: "Chưa từng vào Cải thiện", NO_SIGNAL: "Chưa đủ bằng chứng", TOO_EARLY: "Chưa tới vùng mua", IN_WINDOW: "Trong vùng mua", WINDOW_PASSED: "Qua vùng mua", POST_EX: "Hết chu kỳ" };
@@ -85,15 +81,9 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
   const timing = useSectorTimingSignals();
   const [level, setLevel] = useState<2 | 3>(2);
   const [open, setOpen] = useState<string | null>(null);
-  const [show4D, setShow4D] = useState(false);
   const bySector = timing.bySector as ReadonlyMap<string, SectorTimingSignalV2>;
   const sectors = useMemo(() => (rrg.data?.sectors ?? []).filter((s) => s.level === level), [rrg.data, level]);
-  const clock = useMemo<SectorRRGHistory[]>(() => sectors.map((s) => ({
-    sectorKey: s.code, sectorLabel: s.name, shortLabel: shortName(s.name),
-    points: s.tail.map((p) => ({ sectorKey: s.code, sectorLabel: s.name, rsRatio: p.ratio, rsMomentum: p.momentum, quadrant: p.quadrant, asOf: p.date })),
-    reactionProbabilityMean: bySector.get(s.code)?.reactionProbability?.mean ?? null,
-    isFreshlyInTarget: s.quadrant === "IMPROVING" && (s.weeksSinceImproving ?? 99) <= 2,
-  })), [sectors, bySector]);
+  const probabilities = useMemo(() => new Map(sectors.map((s) => [s.code, bySector.get(s.code)?.reactionProbability?.mean ?? null])), [sectors, bySector]);
   const rows = useMemo(() => [...sectors].sort((a, b) => {
     const sa = bySector.get(a.code), sb = bySector.get(b.code);
     return (LEVEL_RANK[sa?.decision.level ?? "AVOID"] - LEVEL_RANK[sb?.decision.level ?? "AVOID"])
@@ -113,10 +103,6 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
           <button type="button" onClick={() => { void rrg.refresh(); }} disabled={rrg.isValidating} aria-label="Tải lại snapshot xoay vòng ngành" data-testid="sector-rrg-refresh"
             style={{ fontSize: 10, padding: "3px 8px", borderRadius: 8, cursor: rrg.isValidating ? "wait" : "pointer", border: "1px solid var(--bg-surface-2)", background: "transparent", color: "var(--text-secondary)" }}>
             {rrg.isValidating ? "Đang tải…" : "Tải lại snapshot"}
-          </button>
-          <button type="button" aria-expanded={show4D} data-testid="rrg4d-toggle" onClick={() => setShow4D((v) => !v)}
-            style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid rgba(56,189,248,.35)", background: show4D ? "rgba(56,189,248,.14)" : "var(--bg-surface-2)", color: "var(--text-secondary)" }}>
-            {show4D ? "Ẩn bản đồ 4D" : "Mở bản đồ 4D"}
           </button>
           {([2, 3] as const).map((l) => (
             <button key={l} type="button" onClick={() => { setLevel(l); setOpen(null); }} aria-pressed={level === l} data-testid={`sector-level-${l}`}
@@ -138,18 +124,15 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
       {timing.status === "error" && <div className="t1-state-msg t1-error">Không tải được tín hiệu thời điểm ngành: {timing.error?.message}</div>}
       {sectors.length > 0 && (
         <>
-          {show4D && <div className="panel-block" style={{ marginBottom: 12 }} data-testid="rrg4d-panel">
+          <div className="panel-block" style={{ marginBottom: 12 }} data-testid="rrg4d-panel">
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
-              <b style={{ color: "var(--text-secondary)", fontSize: 11 }}>RRG 4D · nghiên cứu, snapshot tuần đã đóng</b>
-              <span style={{ color: "var(--text-tertiary)", fontSize: 10 }}>3 trục không gian + màu tương quan · không phải xác suất</span>
+              <b style={{ color: "var(--text-secondary)", fontSize: 12 }}>RRG 4D · tuần đã đóng</b>
+              <span style={{ color: "var(--text-tertiary)", fontSize: 11 }}>RS-Ratio, RS-Momentum, dòng tiền, tương quan · không phải xác suất</span>
             </div>
-            <RRG4DProjection sectors={sectors} selectedSector={selectedSector} onSelectSector={toggle} />
-          </div>}
+            <RRG4DProjection sectors={sectors} selectedSector={selectedSector} openSector={open} onSelectSector={toggle} probabilities={probabilities} />
+          </div>
           <FlowMap sectors={sectors} rotation={rrg.data?.rotation?.[String(level) as "2" | "3"]} />
           <div style={{ display: "grid", gap: 12 }}>
-            <div style={{ maxWidth: 520, width: "100%", margin: "0 auto" }}>
-              <RRGClockTimeline sectors={clock} tailLength={12} onSelectSector={toggle} />
-            </div>
             <div style={{ overflowX: "auto" }}>
               <style>{".ln-sector-table th,.ln-sector-table td{padding-left:6px;padding-right:6px}.ln-sector-table th:first-child,.ln-sector-table td:first-child{padding-left:0}"}</style>
               <table className="ln-sector-table" style={{ width: "100%", fontSize: 12, borderCollapse: "collapse", minWidth: 1000 }} data-testid="sector-table">
@@ -186,7 +169,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
                             <span style={{ display: "block", fontSize: 9, color: "var(--text-tertiary)" }}>{FLOW_VI[f.share.state]} · CMF {signed(f.money.cmf20, 2)}{f.money.stealthAccumulation ? " · ✦ âm thầm" : ""}</span>
                           </> : "—"}
                         </td>
-                        <td style={{ color: QUADRANT_COLOR[s.quadrant], fontWeight: 600, fontSize: 11 }}>
+                        <td style={{ color: QUADRANT_COLORS[s.quadrant], fontWeight: 600, fontSize: 11 }}>
                           {QUADRANT_VI[s.quadrant]}
                           <span style={{ display: "block", fontSize: 9, color: "var(--text-tertiary)", fontWeight: 400 }}>{num(s.latestClosed.ratio)} / {num(s.latestClosed.momentum)}</span>
                         </td>
