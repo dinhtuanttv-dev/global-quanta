@@ -7,17 +7,17 @@ export interface PreopenScenario {
   id: ScenarioId; name: string; trigger: string; esAnchor: number | null; open: { lo: number; mid: number; hi: number } | null; day: { lo: number; hi: number }; n: number;
   posture: string; probability: number | null; confirm: string; invalid: string; action: string;
 }
-export interface PreopenWorld { group: "us" | "futures" | "asia"; name: string; price: number | null; at: string | null; changePct: number | null }
+export interface PreopenWorld { group: "us" | "futures" | "asia"; name: string; price: number | null; at: string | null; changePct: number | null; fresh?: boolean }
 export interface PreopenDoc {
   version: string; rule: string; asOf: string; phase: "pre" | "session" | "post" | "closed"; session: string; prevDate: string;
-  es: { movePct: number | null; price: number | null; refPrice: number | null; at: string | null };
-  lead: ScenarioId; scenarios: PreopenScenario[]; trainDays: number; trainFrom: string | null; trainTo: string | null; scale: number | null;
+  es: { movePct: number | null; livePct?: number | null; price: number | null; refPrice: number | null; at: string | null; fresh?: boolean; frozenAt?: string | null };
+  lead: ScenarioId | null; scenarios: PreopenScenario[]; trainDays: number; trainFrom: string | null; trainTo: string | null; esSd?: number | null; above?: boolean | null; volNext?: { ms: number | null; ew: number | null };
   tracking: { open: number; last: number; gapPct: number; movePct: number; inOpen: boolean | null; inDay: boolean | null; invalidated: boolean; current: ScenarioId } | null;
   levels: { close: number; ma20: number | null; ma50: number | null; ma200: number | null };
   risk: { label: "calm" | "volatile"; probCalm: number; probVolatile: number; volAnnualPct: number; grade: string; asOf: string } | null;
   world: PreopenWorld[];
-  evidence: { rule: string; openBand: boolean; dayBand: boolean; probabilities: boolean; noPanicSell: boolean; noChase: boolean; sample: { tested: number; from: string; to: string }; openCoverage: number; dayCoverage: number; brierSkill: number; history: { id: ScenarioId; label: string; n: number; gap: number; oc: number; cc: number }[] };
-  timeline: { slot: string; lead: ScenarioId; es: number | null }[];
+  evidence: { rule: string; openBand: boolean; dayBand: boolean; dayModel?: string; probabilities: boolean; noPanicSell: boolean; noChase: boolean; defensive?: boolean; sample: { tested: number; from: string; to: string }; openCoverage: number; dayCoverage: number; brierSkill: number; history: { id: ScenarioId; label: string; n: number; gap: number; oc: number; cc: number }[] };
+  timeline: { slot: string; lead: ScenarioId | null; es: number | null; at?: string }[];
   ledger: { days: number; scored: number; openCoverage: number | null; dayCoverage: number | null; leadHit: number | null };
 }
 

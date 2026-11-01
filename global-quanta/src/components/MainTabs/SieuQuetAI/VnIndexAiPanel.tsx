@@ -33,9 +33,9 @@ export default function VnIndexAiPanel() {
   const { data, error, isLoading, enabled } = useResearchOverview();
   if (!enabled) return null;
   const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
-  if (isLoading) return <div style={box} className="rounded-xl p-4 text-[10px] text-slate-500">Đang tải phân tích AI VN-Index…</div>;
+  if (isLoading) return <div style={box} className="rounded-xl p-4 text-[11px] text-slate-500">Đang tải phân tích AI VN-Index…</div>;
   const a = data?.index;
-  if (error || !a) return <div style={box} className="rounded-xl p-4 text-[10px] text-slate-500">Chưa có phân tích AI VN-Index (Gateway chưa chạy job nghiên cứu).</div>;
+  if (error || !a) return <div style={box} className="rounded-xl p-4 text-[11px] text-slate-500">Chưa có phân tích AI VN-Index (Gateway chưa chạy job nghiên cứu).</div>;
 
   const cur = a.current;
   const st = REGIME_STYLE[cur.regime];
@@ -48,19 +48,19 @@ export default function VnIndexAiPanel() {
       <div className="min-w-0">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-semibold text-violet-300">AI phân tích VN-Index</h2>
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-semibold" style={{ color: st.color, border: `1px solid ${st.color}` }}
+        <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold" style={{ color: st.color, border: `1px solid ${st.color}` }}
           title="Uptrend: giá > MA50, MA20 > MA50, MA50 dốc lên 10 phiên · Downtrend: ngược lại · còn lại: Sideway">
           {st.glyph} {REGIME_LABEL[cur.regime]} · {cur.streak} phiên
         </span>
       </div>
 
-      <div className="text-[9px] text-slate-400 mb-1.5">
+      <div className="text-[11px] text-slate-400 mb-1.5">
         Phiên {cur.date}: VN-Index {cur.close.toLocaleString("vi-VN")} · {[maPos(cur.ma20, "MA20"), maPos(cur.ma50, "MA50"), maPos(cur.ma200, "MA200")].filter(Boolean).join(" · ")}
-        {" · "}độ rộng {cur.breadthPct ?? "—"}% · Impulse {cur.impulseScore ?? "—"} (job nghiên cứu)
+        {" · "}độ rộng {cur.breadthPct ?? "—"}% · Impulse {cur.impulseScore ?? "—"} (cả hai theo job nghiên cứu)
       </div>
 
       {/* Dải trạng thái 60 phiên gần nhất */}
-      <div className="text-[8.5px] text-slate-500 mb-0.5">Trạng thái 60 phiên gần nhất</div>
+      <div className="text-[11px] text-slate-500 mb-0.5">Trạng thái 60 phiên gần nhất</div>
       <div className="flex gap-px mb-2" role="img" aria-label={`Trạng thái 60 phiên: hiện ${REGIME_LABEL[cur.regime]} ${cur.streak} phiên liên tiếp`}>
         {a.history.map((h) => (
           <div key={h.date} className="flex-1 h-3 rounded-sm" style={{ background: REGIME_STYLE[h.regime].color, opacity: h.date === cur.date ? 1 : 0.6 }}
@@ -69,8 +69,8 @@ export default function VnIndexAiPanel() {
       </div>
 
       {/* VN-Index sau T+h theo trạng thái */}
-      <div className="text-[8.5px] text-slate-500 mb-0.5">VN-Index sau T+h phiên theo trạng thái: P(tăng) · lợi suất TB</div>
-      <table className="w-full text-[9px] font-mono mb-2">
+      <div className="text-[11px] text-slate-500 mb-0.5">VN-Index sau T+h phiên theo trạng thái: P(tăng) · lợi suất TB</div>
+      <table className="w-full text-[11px] font-mono mb-2">
         <thead className="text-slate-500">
           <tr><th className="text-left font-normal px-1">Trạng thái</th><th className="text-right font-normal px-1">T+3</th><th className="text-right font-normal px-1">T+5</th><th className="text-right font-normal px-1">T+10</th></tr>
         </thead>
@@ -96,8 +96,8 @@ export default function VnIndexAiPanel() {
       </table>
 
       {/* Theo vùng Market Impulse */}
-      <div className="text-[8.5px] text-slate-500 mb-0.5">Theo vùng Market Impulse</div>
-      <table className="w-full text-[9px] font-mono mb-2">
+      <div className="text-[11px] text-slate-500 mb-0.5">Theo vùng Market Impulse</div>
+      <table className="w-full text-[11px] font-mono mb-2">
         <tbody>
           {(["LOW", "MID", "HIGH"] as const).map((z) => {
             const g = a.byImpulse[z];
@@ -113,8 +113,8 @@ export default function VnIndexAiPanel() {
       </table>
 
       {/* Chấm điểm tín hiệu Market Impulse */}
-      <div className="text-[8.5px] text-slate-500 mb-0.5">Tín hiệu Impulse (≥ 60 mua / ≤ 40 bán) đã chấm: trúng / nền · z (đã tính chồng lấn)</div>
-      <div className="grid grid-cols-3 gap-1 text-[9px] mb-1">
+      <div className="text-[11px] text-slate-500 mb-0.5">Tín hiệu Impulse (≥ 60 mua / ≤ 40 bán) đã chấm: trúng / nền · z (đã tính chồng lấn)</div>
+      <div className="grid grid-cols-3 gap-1 text-[11px] mb-1">
         {[3, 5, 10].map((h) => {
           const r = impulseRows.find((x) => x.horizon === h);
           const v = r ? VERDICT[r.verdict] : null;
@@ -131,14 +131,14 @@ export default function VnIndexAiPanel() {
           );
         })}
       </div>
-      <div className="text-[8.5px] text-slate-500">
+      <div className="text-[11px] text-slate-500">
         Dữ liệu {a.from} → {a.to}. {a.note} Chỉ số AI của từng mã: nhấn đúp một dòng trong Bảng Siêu Quét.
       </div>
       </div>
       <FoldSection id="marketIntel" title="Market Intelligence · HMM · Bayes · dòng tiền lớn" summary={data.intel?.current ? <span data-testid="mi-summary">Giảm {(Number(data.intel.current.pBear ?? 0) * 100).toFixed(0)}% · đi ngang {(Number(data.intel.current.pNeutral ?? 0) * 100).toFixed(0)}% · tăng {(Number(data.intel.current.pBull ?? 0) * 100).toFixed(0)}% · rủi ro dòng tiền rút {data.intel.current.risk ?? "—"}</span> : "Chưa có dữ liệu"}>
         {data.intel
           ? <IntelAiSections intel={data.intel} performance={data.performance ?? []} signalLabels={data.signalLabels ?? {}} />
-          : <div className="text-[10px] text-slate-500">Lớp Market Intelligence sẽ hiện sau lần chạy job nghiên cứu kế tiếp (researchSignals).</div>}
+          : <div className="text-[11px] text-slate-500">Lớp Market Intelligence sẽ hiện sau lần chạy job nghiên cứu kế tiếp (researchSignals).</div>}
       </FoldSection>
       </div>
     </div>
