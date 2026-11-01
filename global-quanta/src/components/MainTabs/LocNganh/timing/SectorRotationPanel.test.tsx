@@ -4,7 +4,7 @@ import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "../../../../test/rtl-lite";
 import fixture from "../__fixtures__/sector-rotation.json";
-import type { GatewaySectorRrgDoc, SectorCycleDetail, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
+import type { GatewaySectorRrg, GatewaySectorRrgDoc, Quadrant, SectorCycleDetail, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
 import RRG4DProjection from "./RRG4DProjection";
 
 const rrg = fixture.rrg as unknown as GatewaySectorRrgDoc;
@@ -100,11 +100,13 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     expect(filtered).toEqual(["8300"]);
   });
 
-  it("đồng hồ RRG + bảng đủ ngành cấp 2; mỗi dòng có 4 cột thời điểm và quyết định; EXPERIMENTAL", () => {
+  it("không còn đồng hồ 2D; RRG 4D luôn mở; bảng đủ ngành cấp 2; mỗi dòng có 4 cột thời điểm và quyết định; EXPERIMENTAL", () => {
     render(<SectorRotationPanel />);
     const l2 = rrg.sectors.filter((s) => s.level === 2);
     expect(screen.getAllByTestId("sector-row")).toHaveLength(l2.length);
-    for (const s of l2) expect(screen.getByTestId(`rrg-sector-${s.code}`)).toBeTruthy();
+    expect(screen.queryByTestId("rrg-clock-detail")).toBeNull();
+    expect(screen.queryByTestId("rrg4d-toggle")).toBeNull();
+    expect(screen.getByTestId("rrg4d-panel")).toBeTruthy();
     expect(screen.getAllByTestId("sector-window-cell")).toHaveLength(l2.length);
     expect(screen.getAllByTestId("sector-prob-cell")).toHaveLength(l2.length);
     expect(screen.getAllByTestId("sector-decision")).toHaveLength(l2.length);
@@ -126,9 +128,38 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     expect(screen.queryByTestId("sector-deep-panel")).toBeNull();
   });
 
-  it("chấm ngành trên đồng hồ cũng mở bảng phụ", () => {
+  const with4d = (s: GatewaySectorRrg, weeks: [string, number, number, Quadrant][]) => ({ ...s, rrg4d: { version: "sector-rrg-4d/v1", asOf: "2026-10-23", flowShareZ: 0.5, marketCorrelation60: 0.3, correlationObservations: 60, correlationStatus: "ready" as const, method: "fixture" }, rrg4dTrail: { version: "sector-rrg-4d-trail/v1", cadence: "weekly_closed" as const, historyWeeks: weeks.length, compositionBasis: "current_universe_reconstructed" as const, points: weeks.map(([week, ratio, momentum, quadrant]) => ({ week, date: week, ratio, momentum, quadrant, flowShareZ: 0.5, flowShareObservations: 50, flowShareStatus: "ready" as const, marketCorrelation60: 0.3, correlationObservations: 60, correlationStatus: "ready" as const, quality: "complete" as const })) } });
+
+  it("mặc định nhìn phẳng, chuyển được 3D và tô màu; vừa vào Cải thiện có dấu riêng; thiếu dữ liệu ghi rõ", () => {
+    const l2 = rrg.sectors.filter((s) => s.level === 2);
+    const fresh = with4d(l2[0], [["2026-10-16", 99, 99, "LAGGING"], ["2026-10-23", 99.5, 100.4, "IMPROVING"]]);
+    render(<RRG4DProjection sectors={[fresh, l2[1]]} probabilities={new Map([[l2[0].code, 0.62]])} />);
+    expect(screen.getByTestId("rrg4d-view-flat").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("rrg4d-canvas").getAttribute("data-view")).toBe("flat");
+    expect(screen.getByTestId("rrg4d-fresh").textContent).toContain(l2[0].name);
+    expect(screen.getByTestId("rrg4d-missing").textContent).toContain(l2[1].name);
+    expect(screen.getByTestId("rrg4d-detail").textContent).toContain("Di chuột");
+    fireEvent.click(screen.getByTestId("rrg4d-view-3d"));
+    expect(screen.getByTestId("rrg4d-canvas").getAttribute("data-view")).toBe("3d");
+    fireEvent.click(screen.getByTestId("rrg4d-view-flat"));
+    fireEvent.click(screen.getByTestId("rrg4d-color-correlation"));
+    expect(screen.getByTestId("rrg4d-color-correlation").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(screen.getByTestId("rrg4d-color-quadrant"));
+    window.localStorage.clear();
+  });
+
+  it("P(outperform) chỉ hiện dạng số ở ô chi tiết, kèm nhãn thử nghiệm; ngành đang mở được tô đậm", () => {
+    const s = with4d(rrg.sectors.filter((x) => x.level === 2)[0], [["2026-10-16", 100.2, 100.4, "LEADING"], ["2026-10-23", 100.4, 100.5, "LEADING"]]);
+    render(<RRG4DProjection sectors={[s]} openSector={s.code} probabilities={new Map([[s.code, 0.62]])} />);
+    expect(screen.getByTestId("rrg4d-prob").textContent).toContain("62%");
+    expect(screen.getByTestId("rrg4d-prob").textContent).toContain("thử nghiệm");
+    expect(screen.getByTestId(`rrg4d-sector-${s.code}`).getAttribute("aria-pressed")).toBeNull();
+    expect(screen.getByTestId(`rrg4d-row-${s.code}`).getAttribute("style")).toContain("background");
+  });
+
+  it("bấm hàng trong bảng cũng mở bảng phụ", () => {
     render(<SectorRotationPanel />);
-    fireEvent.click(screen.getByTestId("rrg-sector-8300"));
+    fireEvent.click(screen.getAllByTestId("sector-row").find((r) => r.textContent?.includes("Ngân hàng"))!);
     expect(screen.getByTestId("sector-deep-panel")).toBeTruthy();
   });
 
