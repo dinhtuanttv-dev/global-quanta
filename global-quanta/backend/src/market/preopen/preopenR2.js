@@ -102,11 +102,13 @@ export function buildScenariosR2({ rows, es, prevClose, levels = {}, volNow, evi
     const openBand = evidence.openBand && o ? { lo: px(o.lo), mid: px(o.mid), hi: px(o.hi) } : null;
     const pv = state.probs(anchor, above)[id];
     const edge = round(Z_T * s, 2);
+    // Mốc kỹ thuật chỉ dùng khi nằm trong dải của kịch bản; ngoài dải thì về giá đóng cửa phiên trước.
+    const lower = below != null && below >= day.lo ? below : null, upper = over != null && over <= day.hi ? over : null;
     return {
       id, name: NAMES[id], esAnchor: round(anchor, 2), open: openBand, day, n: train.filter((r) => zBucket(r.es, s) === id).length, posture: POSTURE[id], probability: evidence.probabilities ? round(pv * 100, 0) : null,
       shadowOpen: o ? { lo: px(o.lo), mid: px(o.mid), hi: px(o.hi) } : null, shadowProbability: round(pv * 100, 0),
       trigger: id === "neg" ? `ES từ lúc VN đóng cửa ≤ −${vi(edge, 2)}% (−1σ)` : id === "pos" ? `ES từ lúc VN đóng cửa ≥ +${vi(edge, 2)}% (+1σ)` : `ES trong ±${vi(edge, 2)}% (±1σ)`,
-      confirm: id === "neg" ? `Dưới ${vi(below ?? prevClose)} sau 10:00` : id === "pos" ? `Trên ${vi(over ?? prevClose)} sau 10:00` : `Trong ${vi(below ?? day.lo)}–${vi(over ?? day.hi)} đến 10:00`,
+      confirm: id === "neg" ? `Dưới ${vi(lower ?? prevClose)} sau 10:00` : id === "pos" ? `Trên ${vi(upper ?? prevClose)} sau 10:00` : `Trong ${vi(lower ?? day.lo)}–${vi(upper ?? day.hi)} đến 10:00`,
       invalid: id === "neg" ? `Lấy lại ${vi(prevClose)}` : id === "pos" ? `Về dưới ${vi(prevClose)}` : `Ra ngoài ${vi(day.lo)}–${vi(day.hi)}`,
       action: id === "neg" ? (evidence.noPanicSell ? "Lịch sử: giảm từ đầu phiên rồi hồi, không bán đuổi lúc mở." : "Chờ phản ứng sau 10:00. Quy tắc hành động chưa có bằng chứng.")
         : id === "pos" ? (evidence.noChase ? "Lịch sử: mở cao rồi hụt lại, không mua đuổi lúc mở." : "Chờ giữ được đà sau mở cửa. Quy tắc hành động chưa có bằng chứng.") : "Giữ tỷ trọng theo kế hoạch.",
