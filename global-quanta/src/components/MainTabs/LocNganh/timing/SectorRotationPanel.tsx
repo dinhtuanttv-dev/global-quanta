@@ -3,13 +3,14 @@
 // Dòng tiền (thị phần GTGD, CMF), Góc RRG, 4 cột thời điểm của engine, Quyết định; bấm ngành -> bảng phụ phân tích chuyên sâu.
 // Nguồn: Gateway sector-rrg/L5 + Project A locnganh-timing/L2. EXPERIMENTAL (kiểm định L3 không đạt).
 import { useMemo, useState } from "react";
-import { useSectorRrg } from "../../../../hooks/useSectorRotation";
+import { useSectorLadder, useSectorRrg } from "../../../../hooks/useSectorRotation";
 import { useSectorTimingSignals } from "../../../../hooks/useSectorTimingSignals";
 import type { GatewaySectorRrg, SectorRotation, SectorStateKey, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
 import { SectorScreenerCells } from "./SectorScreenerCells";
 import { SectorDeepPanel } from "./SectorDeepPanel";
 import { QUADRANT_COLORS, QUADRANT_VI } from "./quadrant";
 import RRG4DProjection from "./RRG4DProjection";
+import SectorLadderGrid from "./SectorLadderGrid";
 
 export const STATE_COLOR: Record<SectorStateKey, string> = { GROWTH: "var(--positive)", ACCUMULATION: "var(--gold)", BOTTOMING: "#38bdf8", DISTRIBUTION: "var(--warning)", DECLINE: "var(--negative)", NEUTRAL: "var(--text-tertiary)" };
 const STATE_RANK: Record<SectorStateKey, number> = { GROWTH: 0, ACCUMULATION: 1, BOTTOMING: 2, NEUTRAL: 3, DISTRIBUTION: 4, DECLINE: 5 };
@@ -78,6 +79,7 @@ function FlowMap({ sectors, rotation }: { sectors: GatewaySectorRrg[]; rotation:
 
 export default function SectorRotationPanel({ selectedSector = null, onFilterSector }: { selectedSector?: string | null; onFilterSector?: (code: string) => void } = {}) {
   const rrg = useSectorRrg();
+  const ladder = useSectorLadder();
   const timing = useSectorTimingSignals();
   const [level, setLevel] = useState<2 | 3>(2);
   const [open, setOpen] = useState<string | null>(null);
@@ -131,6 +133,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
             </div>
             <RRG4DProjection sectors={sectors} selectedSector={selectedSector} openSector={open} onSelectSector={toggle} probabilities={probabilities} />
           </div>
+          {ladder.data && <SectorLadderGrid doc={ladder.data} level={level} openSector={open} onSelectSector={toggle} />}
           <FlowMap sectors={sectors} rotation={rrg.data?.rotation?.[String(level) as "2" | "3"]} />
           <div style={{ display: "grid", gap: 12 }}>
             <div style={{ overflowX: "auto" }}>

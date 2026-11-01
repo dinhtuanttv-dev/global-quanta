@@ -5,6 +5,7 @@ import { mapLimit } from "../util.js";
 import { createScreenerSeries } from "../strategies/screenerSeries.js";
 import { fetchIcbTaxonomy, ICB_KV, ICB_MAX_AGE_MS } from "./icbTaxonomy.js";
 import { buildSectorRotation, SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./sectorRotation.js";
+import { SECTOR_LADDER_KV } from "./ladder.js";
 
 /** Nhãn bộ lọc Gateway đang chứa mã (đọc KV strategies:<id>) — gắn cho cổ phiếu dẫn dắt của ngành. */
 export async function screenerTags(store) {
@@ -55,9 +56,11 @@ export function createSectorJobs({ service, corporateActions, now = Date.now, fe
       });
       const benchBars = (await loadSeries.index("VNINDEX")).filter((b) => !b.partial && b.close > 0);
       if (benchBars.length < 200) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
-      const { summary, history } = buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf: await screenerTags(store), now });
+      const scannerMap = (await store.getKv("scanner:taxonomy"))?.value?.map ?? {};
+      const { summary, history, ladder } = buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf: await screenerTags(store), scannerMap, now });
       await store.setKv(SECTOR_RRG_KV, summary);
       await store.setKv(SECTOR_RRG_HISTORY_KV, history);
+      await store.setKv(SECTOR_LADDER_KV, ladder);
       return { sectors: summary.sectors.length, dataAsOf: summary.dataAsOf, closedThrough: summary.closedThrough, coverage: summary.coverage };
     },
   };

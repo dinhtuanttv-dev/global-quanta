@@ -12,6 +12,7 @@ const signals = fixture.timing.signals as unknown as SectorTimingSignalV2[];
 const cycle = fixture.cycle8300 as unknown as SectorCycleDetail;
 vi.mock("../../../../hooks/useSectorRotation", () => ({
   useSectorRrg: () => ({ data: rrg, error: undefined, isLoading: false }),
+  useSectorLadder: () => ({ data: undefined, error: undefined }),
   useSectorTaxonomy: () => ({ VCB: { l2: "8300" }, HPG: { l2: "1700" } }),
   useSectorCycle: (code: string | null) => ({ data: code === "8300" ? cycle : undefined, error: undefined, isLoading: false }),
   useSectorTracking: () => ({ data: fixture.tracking, error: undefined }),
