@@ -52,6 +52,8 @@ import { usePatternDetail } from "../../../hooks/usePatterns";
 import { toChartWeekly } from "../../../lib/ta-command-center/chart/pringScene";
 import { structure3Levels, structure3Markers, structure3SceneItems, structure3TfFor, type StructureMode } from "../../../lib/ta-command-center/chart/structure3Scene";
 import { useStructureSummary } from "../../../hooks/useStructure";
+import { useMsGarchBands } from "../../../hooks/useMsGarchBands";
+import MsGarchCard from "./MsGarchCard";
 import { useStructure3, type Structure3Doc } from "../../../hooks/useStructure3";
 import Mtf3Panel from "./mtf3/Mtf3Panel";
 import { STAGE_STYLE } from "./mtf3/StructureFrames";
@@ -102,6 +104,9 @@ interface Props {
   /** Super Chart SC4: khoanh vùng mẫu hình được chọn ở bộ lọc (Pattern Scanner v2). */
   highlight?: ChartHighlight | null;
 }
+
+/** Kết quả MSG-prereg.md, xem backend/src/market/volatility/MSG-results.md. */
+const MS_GARCH_VALIDATION = "Kiểm định đặt trước không đạt: dải phủ 81,7% giá thực tế, nhưng không thắng mô hình đơn giản (3.535 dự báo).";
 
 export interface ChartHighlight { start: string; end: string; label: string; n: number }
 const DOCK_TABS: { id: DockTab; label: string }[] = [
@@ -582,6 +587,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     ] : null);
   }, [tvApi, stValues]);
   const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues), [maValues, ichiValues, bbValues, stValues]);
+  // MS-GARCH là dải từ hiện tại nên chỉ có ở khung ngày, không vẽ khi đang xem lại lịch sử.
+  const msgarchOn = Boolean(layerState?.msgarch);
+  const msgarchApplies = timeframe === "D" && replayIdxDeferred == null;
+  const msgarch = useMsGarchBands(msgarchOn && msgarchApplies ? ticker : null);
+  const msgarchBands = msgarchOn && msgarchApplies && msgarch.doc?.available ? msgarch.doc.bands ?? null : null;
 
   // ---- R4: pane MACD / ADX (khung phụ, bật/tắt bằng lớp macd / adx) ----
   useEffect(() => {
@@ -669,8 +679,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives: visiblePrims, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, bollinger: bbValues, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, bbValues, elliottScene, pringScene, elliottProInput]);
+    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, bollinger: bbValues, msGarch: msgarchBands, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, bbValues, msgarchBands, elliottScene, pringScene, elliottProInput]);
   // SC3: hình đang chọn — vòng tròn ở các điểm neo (vàng = đã khoá).
   const selectionItems = useMemo((): SceneItem[] => {
     const p = primitives.find((x) => x.id === selectedId);
@@ -1223,7 +1233,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <OrderFlowPanel enabled={flowEnabled} loading={flow.isLoading} error={flow.error} orderFlow={orderFlow}
         largePrintThreshold={flow.data?.largePrintThreshold ?? null} foreign={flow.data?.foreign ?? []} coverage={flow.data?.coverage ?? null} foreignNote={foreignNote} />
     ),
-    indicators: <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} params={ind} />,
+    indicators: <div className="space-y-2">
+      <OscillatorPanel rsi={rsiResult} macd={macdResult} adx={adxResult} context={{ bars: currentBars.length, timeframe, basis: basisShort }} params={ind} />
+      <MsGarchCard on={msgarchOn} onEnable={() => toggleLayer("msgarch")} doc={msgarch.doc} error={msgarch.error} loading={msgarch.isLoading} dailyOnly={!msgarchApplies} close={currentBars[currentBars.length - 1]?.close ?? null} validation={MS_GARCH_VALIDATION} />
+    </div>,
     backtest: (<>
       <ChartSignalsValidation />
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
