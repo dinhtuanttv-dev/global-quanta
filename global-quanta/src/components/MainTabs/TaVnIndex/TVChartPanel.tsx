@@ -580,12 +580,6 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       { id: "lower", color: BB_COLORS.lower, values: bbValues.lower },
     ] : null);
   }, [tvApi, bbValues]);
-  useEffect(() => {
-    tvApi?.setOverlayLines("st", stValues ? [
-      { id: "up", color: ST_COLORS.up, width: 2, values: stValues.up },
-      { id: "down", color: ST_COLORS.down, width: 2, values: stValues.down },
-    ] : null);
-  }, [tvApi, stValues]);
   const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues), [maValues, ichiValues, bbValues, stValues]);
   // MS-GARCH là dải từ hiện tại nên chỉ có ở khung ngày, không vẽ khi đang xem lại lịch sử.
   const msgarchOn = Boolean(layerState?.msgarch);
@@ -679,8 +673,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives: visiblePrims, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, bollinger: bbValues, msGarch: msgarchBands, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, bbValues, msgarchBands, elliottScene, pringScene, elliottProInput]);
+    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, bollinger: bbValues, superTrend: stValues, msGarch: msgarchBands, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, bbValues, stValues, msgarchBands, elliottScene, pringScene, elliottProInput]);
   // SC3: hình đang chọn — vòng tròn ở các điểm neo (vàng = đã khoá).
   const selectionItems = useMemo((): SceneItem[] => {
     const p = primitives.find((x) => x.id === selectedId);
@@ -702,6 +696,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     // EP3: mọi đường tương lai của scene (Elliott Pro, kịch bản cũ…) — chừa đủ chỗ (≤ 60 nến).
     const lastIdx = currentBars.length - 1;
     const futureK = Math.max(0, ...baseScene.items.flatMap((it) => (it.kind === "future" ? it.points.map((q) => q.k)
+      : it.kind === "cone" ? it.steps.map((s) => s.k)
       : it.kind === "cloud" ? [Math.max(0, (it.points[it.points.length - 1]?.k ?? 0) - lastIdx)] : [])));
     const projRoom = Math.min(60, Math.max(proj?.legs.length ? proj.legs[proj.legs.length - 1].k + 4 : 0, futureK ? futureK + 4 : 0));
     tv.setRightOffset(Math.max(structureRoom, projRoom));

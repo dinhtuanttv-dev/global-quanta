@@ -8,6 +8,7 @@ import type { DomainPoint, DrawingToolType, DrawnPrimitive } from "../DrawingMan
 import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
+import { ST_COLORS } from "../detectors/bandsTrend";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 import { ELLIOTT_PRO_LABEL_BUDGET, elliottProItems, type ElliottProInput } from "./elliottProScene";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
@@ -33,6 +34,8 @@ export interface SceneInput {
   ichimoku?: Pick<IchimokuResult, "spanA" | "spanB" | "shift"> | null;
   /** Nền mờ giữa hai dải Bollinger; ba đường vẽ bằng series để đọc được theo crosshair. */
   bollinger?: { upper: (number | null)[]; lower: (number | null)[] } | null;
+  /** SuperTrend vẽ từng đoạn cùng chiều: series đường của thư viện nối qua khoảng trống nên sẽ tạo đường chéo khi đổi chiều. */
+  superTrend?: { up: (number | null)[]; down: (number | null)[] } | null;
   /** Dải MS-GARCH theo tỷ lệ so với nến cuối. Không truyền ở khung khác ngày hoặc khi xem lại. */
   msGarch?: { day: number; p10: number; p50: number; p90: number }[] | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
@@ -221,6 +224,14 @@ export function buildScene(inp: SceneInput): Scene {
     const { upper, lower } = inp.bollinger;
     const points = upper.flatMap((a, k) => (a != null && lower[k] != null ? [{ k, a, b: lower[k] as number }] : []));
     if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.cyan, 0.05), down: rgba(GQ_COLORS.cyan, 0.05), lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
+  }
+  if (layers?.supertrend && inp.superTrend) {
+    for (const [values, color] of [[inp.superTrend.up, ST_COLORS.up], [inp.superTrend.down, ST_COLORS.down]] as const) {
+      let run: { t: string; price: number }[] = [];
+      const flush = () => { if (run.length > 1) items.push({ kind: "poly", points: run, color, width: 2 }); run = []; };
+      for (let i = 0; i < bars.length; i++) { const v = values[i]; if (v == null) flush(); else run.push({ t: bars[i].date, price: v }); }
+      flush();
+    }
   }
   if (layers?.msgarch && inp.msGarch?.length && bars.length) {
     const last = bars[bars.length - 1], end = inp.msGarch[inp.msGarch.length - 1];

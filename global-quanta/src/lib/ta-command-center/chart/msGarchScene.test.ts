@@ -24,6 +24,18 @@ describe("Lớp MS-GARCH và Bollinger trên scene", () => {
     const on = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, msgarch: true }, msGarch: null });
     expect(on.items.some((x) => x.kind === "cone")).toBe(false);
   });
+  it("SuperTrend: mỗi đoạn một chiều, không có đường nối qua chỗ đổi chiều", () => {
+    const n = bars.length, up: (number | null)[] = new Array(n).fill(null), down = [...up];
+    for (let i = 2; i < 10; i++) up[i] = 90 + i;
+    for (let i = 10; i < 20; i++) down[i] = 150 - i;
+    for (let i = 20; i < n; i++) up[i] = 100 + i;
+    const on = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, supertrend: true }, superTrend: { up, down } });
+    const polys = on.items.filter((x) => x.kind === "poly");
+    expect(polys.length).toBe(3);
+    const counts = polys.map((p) => (p.kind === "poly" ? p.points.length : 0)).sort((a, b) => a - b);
+    expect(counts).toEqual([8, 10, 10]);
+    expect(buildScene({ ...base, layers: DEFAULT_LAYER_STATE, superTrend: { up, down } }).items.some((x) => x.kind === "poly")).toBe(false);
+  });
   it("bật Bollinger: nền chỉ giữa các nến có đủ hai dải", () => {
     const on = buildScene({ ...base, layers: { ...DEFAULT_LAYER_STATE, bollinger: true }, bollinger: { upper: [null, 110, 112], lower: [null, 90, 88] } });
     const c = on.items.find((x) => x.kind === "cloud");
