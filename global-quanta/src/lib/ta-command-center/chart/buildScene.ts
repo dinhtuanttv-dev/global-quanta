@@ -33,6 +33,8 @@ export interface SceneInput {
   ichimoku?: Pick<IchimokuResult, "spanA" | "spanB" | "shift"> | null;
   /** Nền mờ giữa hai dải Bollinger; ba đường vẽ bằng series để đọc được theo crosshair. */
   bollinger?: { upper: (number | null)[]; lower: (number | null)[] } | null;
+  /** Dải MS-GARCH theo tỷ lệ so với nến cuối. Không truyền ở khung khác ngày hoặc khi xem lại. */
+  msGarch?: { day: number; p10: number; p50: number; p90: number }[] | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
   /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
@@ -219,6 +221,11 @@ export function buildScene(inp: SceneInput): Scene {
     const { upper, lower } = inp.bollinger;
     const points = upper.flatMap((a, k) => (a != null && lower[k] != null ? [{ k, a, b: lower[k] as number }] : []));
     if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.cyan, 0.05), down: rgba(GQ_COLORS.cyan, 0.05), lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
+  }
+  if (layers?.msgarch && inp.msGarch?.length && bars.length) {
+    const last = bars[bars.length - 1], end = inp.msGarch[inp.msGarch.length - 1];
+    items.push({ kind: "cone", from: last.date, fromPrice: last.close, steps: inp.msGarch.map((b) => ({ k: b.day, lo: last.close * b.p10, mid: last.close * b.p50, hi: last.close * b.p90 })), fill: rgba(GQ_COLORS.uv, 0.1), stroke: rgba(GQ_COLORS.uv, 0.7), midColor: rgba(GQ_COLORS.uv, 0.45),
+      labels: [{ k: end.day, price: last.close * end.p90, label: { text: "MS-GARCH P90", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.liquidity } }, { k: end.day, price: last.close * end.p10, label: { text: "P10", color: GQ_COLORS.uv, priority: LABEL_PRIORITY.liquidity } }] });
   }
   if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj || layers?.elliottGuide || layers?.elliottSub || layers?.elliottMine || inp.elliott.mine?.editing))
     items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj, guide: !!layers?.elliottGuide, sub: !!layers?.elliottSub, mine: !!layers?.elliottMine } }));

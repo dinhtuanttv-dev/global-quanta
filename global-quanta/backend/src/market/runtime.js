@@ -23,6 +23,7 @@ import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
 import { createCorporateActions } from "./adjusted/corporateActions.js";
 import { fetchVndEvents } from "./adjusted/vndirectEvents.js";
 import { createTaSeries } from "./adjusted/taSeries.js";
+import { createMsGarchService } from "./volatility/msGarchService.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
@@ -84,6 +85,7 @@ export function getMarketRuntime() {
   // Mã Project A không có (Neon khoá -> chỉ 17 mã) hoặc Project A lỗi -> sự kiện quyền trực tiếp từ VNDirect finfo.
   const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fallback: (symbols) => fetchVndEvents(symbols) });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
+  const msGarch = createMsGarchService({ getBars: (symbol) => taSeries.get({ symbol, range: "5y", limit: 800 }).then((r) => r.bars ?? []) });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
   const cycles = createCycleService({ service, corporateActions, taSeries });
@@ -152,7 +154,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { msGarch, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 

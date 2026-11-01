@@ -62,7 +62,7 @@ export const PARITY_MANIFEST = [
   // ---- Pane + lớp phủ + engine
   LAYER("volume", "Pane Khối lượng", "Lớp & pane", true), LAYER("rsi", "Pane RSI 14", "Lớp & pane", true),
   LAYER("macd", "Pane MACD 12/26/9 (R4)", "Lớp & pane", true),
-  LAYER("maSet", "EMA 21 · 50 · 100 + MA 200 (25/10)", "Lớp & pane"), LAYER("ichimoku", "Mây Ichimoku 9/26/52 (25/10)", "Lớp & pane"), LAYER("bollinger", "Bollinger Bands", "Lớp & pane"), LAYER("supertrend", "SuperTrend", "Lớp & pane"), LAYER("adx", "Pane ADX · DI± (R4)", "Lớp & pane", true),
+  LAYER("maSet", "EMA 21 · 50 · 100 + MA 200 (25/10)", "Lớp & pane"), LAYER("ichimoku", "Mây Ichimoku 9/26/52 (25/10)", "Lớp & pane"), LAYER("bollinger", "Bollinger Bands", "Lớp & pane"), LAYER("supertrend", "SuperTrend", "Lớp & pane"), LAYER("msgarch", "Dải rủi ro MS-GARCH", "Lớp & pane"), LAYER("adx", "Pane ADX · DI± (R4)", "Lớp & pane", true),
   LAYER("orderflow", "Pane Order Flow (delta / CVD)", "Lớp & pane"), LAYER("foreign", "Pane Khối ngoại", "Lớp & pane"),
   LAYER("vprofile", "Volume Profile", "Lớp & pane"), LAYER("avwap", "Anchored VWAP", "Lớp & pane"),
   LAYER("smc", "SMC (OB, FVG, BOS/CHoCH, thanh khoản, premium/discount)", "Lớp & pane"), LAYER("vsa", "VSA", "Lớp & pane"),

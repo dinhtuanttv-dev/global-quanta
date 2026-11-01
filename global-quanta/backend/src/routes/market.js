@@ -26,6 +26,7 @@ import { getHistory, saveSnapshot } from "../market/radar/radarHistory.js";
 import { getRadarSignals, parseSignalTickers } from "../market/radar/radarSignals.js";
 import { createTaIntraday } from "../market/adjusted/taIntraday.js";
 import { createTaFlow } from "../market/adjusted/taFlow.js";
+import { MsGarchBusyError } from "../market/volatility/msGarchService.js";
 import { runTechnicalFilters, STRATEGY_ENGINE, STRATEGY_IDS, strategyKvKey } from "../market/strategies/technicalFilters.js";
 import { createScreenerSeries } from "../market/strategies/screenerSeries.js";
 import { patternDetail } from "../market/strategies/patternScan.js";
@@ -454,6 +455,20 @@ router.get("/structure-ledger", handle(async (req, res) => {
 }));
 
 // MTF v3 (30/10/2026) — Ngày · Tuần · Tháng, không khung 1 giờ (MTF-v3-prereg.md).
+// MS-GARCH: dải rủi ro 20 phiên, chỉ tính khi có người bật lớp trên chart.
+router.get("/ms-garch/:symbol", async (req, res) => {
+  const symbol = canonicalSymbol(req.params.symbol);
+  if (!isValidSymbol(symbol)) { res.status(400).json({ error: "Mã không hợp lệ." }); return; }
+  try {
+    const doc = await getMarketRuntime().msGarch.get(symbol);
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(doc);
+  } catch (e) {
+    if (e instanceof MsGarchBusyError) { res.set("Retry-After", "60"); res.status(429).json({ error: e.message }); return; }
+    sendError(res, e);
+  }
+});
+
 router.get("/structure3/:symbol", handle(async (req, res) => {
   const rt = getMarketRuntime();
   const symbol = String(req.params.symbol || "").toUpperCase();
