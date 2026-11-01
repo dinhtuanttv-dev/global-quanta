@@ -341,7 +341,7 @@ async function runViewport(b: Browser, tag: keyof typeof VIEWPORTS) {
   await p.fill("#login-email", EMAIL); await p.fill("#login-password", PW); await p.click(".login-btn");
   await p.waitForSelector(".m-tab", { timeout: 30_000 });
   await p.evaluate(() => { try { for (const k of Object.keys(localStorage)) if (k.startsWith("gq.ta.workspace.v1")) localStorage.removeItem(k); } catch { /* bỏ qua */ } });
-  await p.locator(".m-tab", { hasText: /TA VN-Index/i }).first().click();
+  await p.locator('[data-tab="TA VN-Index"]').first().click();
   await p.locator(CHART).waitFor({ state: "visible", timeout: 90_000 }); await p.waitForTimeout(4000);
   const before = await metrics(p);
   await p.screenshot({ path: path.join(OUT, `parity-${tag}-top.png`) });
