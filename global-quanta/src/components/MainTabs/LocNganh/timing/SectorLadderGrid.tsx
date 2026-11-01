@@ -40,21 +40,20 @@ export default function SectorLadderGrid({ doc, level, openSector = null, onSele
         <span style={{ color: "var(--text-tertiary)", fontSize: 11 }} data-testid="ladder-asof">Phiên {doc.asOf} · chỉ mô tả, không phải dự báo</span>
       </div>
       <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", minWidth: 760, fontSize: 12, borderCollapse: "collapse" }}>
+        <table style={{ width: "100%", minWidth: 560, fontSize: 12, borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ color: "var(--text-tertiary)", fontSize: 11 }}>
-              <th scope="col" style={{ textAlign: "left", padding: "4px 6px 4px 0", position: "sticky", left: 0, background: "var(--bg-surface-1, #0b1220)" }}>Ngành</th>
-              <th scope="col" style={{ textAlign: "left", padding: "4px 6px" }}><button type="button" onClick={() => setSortH(null)} aria-pressed={sortH == null} style={{ all: "unset", cursor: "pointer", fontWeight: sortH == null ? 700 : 400 }}>Cấu trúc</button></th>
+              <th scope="col" style={{ textAlign: "left", padding: "4px 6px 4px 0", position: "sticky", left: 0, background: "var(--bg-surface-1, #0b1220)", zIndex: 1 }}><button type="button" data-testid="ladder-sort-structure" onClick={() => setSortH(null)} aria-pressed={sortH == null} style={{ all: "unset", cursor: "pointer", fontWeight: sortH == null ? 700 : 400 }}>Ngành · cấu trúc</button></th>
               {COLS.map((c) => <th key={c.h} scope="col" style={{ textAlign: "right", padding: "4px 6px" }}><button type="button" data-testid={`ladder-sort-${c.h}`} onClick={() => setSortH(c.h)} aria-pressed={sortH === c.h} style={{ all: "unset", cursor: "pointer", fontWeight: sortH === c.h ? 700 : 400 }}>{c.label}</button></th>)}
             </tr>
           </thead>
           <tbody>
             {rows.map((s) => (
               <tr key={s.code} data-testid={`ladder-row-${s.code}`} style={{ borderTop: "1px solid var(--bg-surface-2)", outline: openSector === s.code ? "1px solid var(--gold)" : undefined }}>
-                <th scope="row" style={{ textAlign: "left", padding: "4px 6px 4px 0", fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-surface-1, #0b1220)", zIndex: 1 }}>
-                  <button type="button" onClick={() => onSelectSector?.(s.code)} data-testid={`ladder-sector-${s.code}`} style={{ all: "unset", cursor: onSelectSector ? "pointer" : "default", color: "var(--gold)" }}>{s.name}</button>
+                <th scope="row" style={{ textAlign: "left", padding: "4px 6px 4px 0", fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-surface-1, #0b1220)", zIndex: 1, width: "clamp(124px, 26vw, 250px)", minWidth: 124 }}>
+                  <button type="button" onClick={() => onSelectSector?.(s.code)} data-testid={`ladder-sector-${s.code}`} style={{ all: "unset", cursor: onSelectSector ? "pointer" : "default", color: "var(--gold)", display: "block" }}>{s.name}</button>
+                  <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: STRUCTURE_COLOR[s.structure.key] }} data-testid="ladder-structure">{s.structure.label}</span>
                 </th>
-                <td style={{ padding: "4px 6px", whiteSpace: "nowrap", fontSize: 11, fontWeight: 600, color: STRUCTURE_COLOR[s.structure.key] }} data-testid="ladder-structure">{s.structure.label}</td>
                 {COLS.map((c) => <Cell key={c.h} r={s.rungs.find((r) => r.h === c.h)} muted={c.h === 1} />)}
               </tr>
             ))}
