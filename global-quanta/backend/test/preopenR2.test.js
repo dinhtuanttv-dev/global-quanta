@@ -44,14 +44,15 @@ test("xác suất co về nền khi ô ít mẫu, luôn cộng bằng 1", () => 
 });
 
 test("thiếu ES thì không có kịch bản dẫn đầu; không đạt thì ẩn; số ẩn vẫn có cho sổ tiến", () => {
-  const base = { rows: rowsOf(), prevClose: 1000, levels: { ma20: 990, ma50: 1020, ma200: 1050 }, volNow: { ew: 1, ms: 1 } };
+  const base = { rows: rowsOf(), prevClose: 1000, levels: { ma20: 997, ma50: 1040, ma200: 1050 }, volNow: { ew: 1, ms: 1 } };
   assert.equal(buildScenariosR2({ ...base, es: null, evidence: OFF }).lead, null);
   const off = buildScenariosR2({ ...base, es: -3, evidence: OFF });
   assert.equal(off.lead, "neg");
   for (const s of off.scenarios) { assert.equal(s.open, null); assert.equal(s.probability, null); assert.ok(s.shadowOpen); assert.ok(Number.isFinite(s.shadowProbability)); assert.doesNotMatch(s.posture + s.action, /\bMUA\b|\bBÁN\b/); }
   assert.deepEqual(off.scenarios[0].day, off.scenarios[2].day, "dải không điều kiện giống nhau ở 3 thẻ");
-  assert.match(off.scenarios[0].confirm, /Dưới 990/);
-  assert.match(off.scenarios[2].confirm, /Trên 1\.020/);
+  assert.match(off.scenarios[0].confirm, /Dưới 997/);
+  assert.match(off.scenarios[2].confirm, /Trên 1\.000/, "MA50 ngoài dải thì về giá đóng cửa");
+  assert.match(buildScenariosR2({ ...base, levels: { ma20: 997, ma50: 1003, ma200: 1050 }, es: 3, evidence: OFF }).scenarios[2].confirm, /Trên 1\.003/);
   const on = buildScenariosR2({ ...base, es: -3, evidence: { ...OFF, openBand: true, probabilities: true, dayBand: true, dayModel: "ms", noPanicSell: true } });
   assert.ok(on.scenarios[0].open && Number.isFinite(on.scenarios[0].probability));
   assert.match(on.scenarios[0].action, /không bán đuổi/);
