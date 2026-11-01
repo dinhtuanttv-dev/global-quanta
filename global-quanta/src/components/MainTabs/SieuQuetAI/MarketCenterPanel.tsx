@@ -38,7 +38,7 @@ function PriceMap({ d, s }: { d: PreopenDoc; s: PreopenScenario }) {
   const levels = [["MA20", d.levels.ma20], ["MA50", d.levels.ma50], ["MA200", d.levels.ma200]] as const;
   const vals = [s.day.lo, s.day.hi, d.levels.close, ...(s.open ? [s.open.lo, s.open.hi] : []), ...levels.flatMap(([, v]) => (v == null ? [] : [v])), ...(d.tracking ? [d.tracking.last] : [])];
   const lo = Math.min(...vals), hi = Math.max(...vals), pad = Math.max(5, (hi - lo) * 0.06);
-  const W = 640, L = 12, R = 12, X = (v: number) => L + ((v - (lo - pad)) / (hi - lo + 2 * pad)) * (W - L - R);
+  const W = 640, L = 40, R = 40, X = (v: number) => L + ((v - (lo - pad)) / (hi - lo + 2 * pad)) * (W - L - R);
   const step = Math.max(10, Math.ceil((hi - lo) / 5 / 10) * 10), first = Math.ceil((lo - pad) / step) * step;
   const ticks = Array.from({ length: 8 }, (_, i) => first + i * step).filter((v) => v <= hi + pad);
   const c = COLOR[s.id];
@@ -119,6 +119,7 @@ export default function MarketCenterPanel() {
         </div>
         <div className="min-w-0 rounded-lg border border-white/10 p-2">
           <h3 className="text-[12px] font-semibold text-slate-200">Đêm qua → sáng nay</h3>
+          <p className="text-[11px] text-slate-500">% so với phiên trước của từng thị trường, nên ES ở đây khác số tính từ lúc VN đóng cửa ở dòng kết luận.</p>
           <div className="mt-1 grid grid-cols-1 gap-2 md:grid-cols-3" data-testid="mc-world">
             {groups.map(([title, g]) => <WorldLane key={g} title={title} rows={d.world.filter((w) => w.group === g)} />)}
           </div>

@@ -85,7 +85,8 @@ export const pinball = (y, band) => pin(y, band.lo, 0.1) + pin(y, band.mid, 0.5)
 
 const NAMES = { neg: "Tiêu cực", mid: "Trung tính", pos: "Tích cực" };
 const POSTURE = { neg: "Thận trọng, chờ xác nhận", mid: "Chọn lọc, giữ kế hoạch", pos: "Ưu tiên giải ngân theo kế hoạch" };
-const TRIGGER = { neg: `ES từ lúc VN đóng cửa ≤ −${ES_T}%`, mid: `ES từ lúc VN đóng cửa trong ±${ES_T}%`, pos: `ES từ lúc VN đóng cửa ≥ +${ES_T}%` };
+const vi = (v) => v.toLocaleString("vi-VN", { maximumFractionDigits: 1 });
+const TRIGGER = { neg: `ES từ lúc VN đóng cửa ≤ −${vi(ES_T)}%`, mid: `ES từ lúc VN đóng cửa trong ±${vi(ES_T)}%`, pos: `ES từ lúc VN đóng cửa ≥ +${vi(ES_T)}%` };
 const round = (v, d = 1) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 
 /** Dựng 3 kịch bản từ giá đóng cửa phiên trước. evidence quyết định có hiện xác suất và lời khuyên hành động hay không. */
@@ -100,8 +101,8 @@ export function buildScenarios({ rows, es, prevClose, evidence }) {
     return {
       id, name: NAMES[id], trigger: TRIGGER[id], esAnchor: round(anchor, 2), open: openBand, day: dayBand, n: b.n, posture: POSTURE[id],
       probability: evidence.probabilities ? round(b.probs[id] * 100, 0) : null,
-      confirm: id === "neg" ? `Dưới ${prevClose} sau 10:00` : id === "pos" ? `Trên ${prevClose} sau 10:00` : `Trong ${dayBand.lo}–${dayBand.hi} đến 10:00`,
-      invalid: id === "neg" ? `Lấy lại ${prevClose}` : id === "pos" ? `Về dưới ${prevClose}` : `Ra ngoài ${dayBand.lo}–${dayBand.hi}`,
+      confirm: id === "neg" ? `Dưới ${vi(prevClose)} sau 10:00` : id === "pos" ? `Trên ${vi(prevClose)} sau 10:00` : `Trong ${vi(dayBand.lo)}–${vi(dayBand.hi)} đến 10:00`,
+      invalid: id === "neg" ? `Lấy lại ${vi(prevClose)}` : id === "pos" ? `Về dưới ${vi(prevClose)}` : `Ra ngoài ${vi(dayBand.lo)}–${vi(dayBand.hi)}`,
       action: id === "neg" ? (evidence.noPanicSell ? "Lịch sử: giảm từ đầu phiên rồi hồi, không bán đuổi lúc mở." : "Chờ phản ứng sau 10:00. Quy tắc hành động chưa có bằng chứng.")
         : id === "pos" ? (evidence.noChase ? "Lịch sử: mở cao rồi hụt lại, không mua đuổi lúc mở." : "Chờ giữ được vùng mở cửa. Quy tắc hành động chưa có bằng chứng.")
         : "Giữ tỷ trọng theo kế hoạch.",
