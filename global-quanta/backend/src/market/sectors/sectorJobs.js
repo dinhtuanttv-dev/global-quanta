@@ -1,8 +1,7 @@
 // Lọc ngành (L1) — job của Gateway:
 //   refreshIcbTaxonomy   03:20 hằng đêm  — phân ngành ICB VNDirect (chỉ tải lại khi bản lưu > 7 ngày hoặc force)
 //   buildSectorRotation  15:50 ngày GD   — chỉ số ngành + RRG tuần cho mọi ngành ICB cấp 2/3 (chỉ đọc kho), lưu KV
-import { mapLimit } from "../util.js";
-import { createScreenerSeries } from "../strategies/screenerSeries.js";
+import { loadAdjustedUniverse } from "../universeSeries.js";
 import { fetchIcbTaxonomy, ICB_KV, ICB_MAX_AGE_MS } from "./icbTaxonomy.js";
 import { buildSectorRotation, SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./sectorRotation.js";
 import { SECTOR_LADDER_KV } from "./ladder.js";
@@ -21,7 +20,7 @@ export async function screenerTags(store) {
 
 export const SECTOR_HISTORY_DAYS = 1826; // ~5 năm lịch (kho có bao nhiêu dùng bấy nhiêu)
 
-export function createSectorJobs({ service, corporateActions, now = Date.now, fetchImpl = globalThis.fetch }) {
+export function createSectorJobs({ service, corporateActions, taSeries = null, now = Date.now, fetchImpl = globalThis.fetch }) {
   const store = service.store;
   async function taxonomy({ force = false } = {}) {
     const stored = (await store.getKv(ICB_KV))?.value ?? null;
@@ -43,25 +42,15 @@ export function createSectorJobs({ service, corporateActions, now = Date.now, fe
     },
     async buildSectorRotation() {
       const icb = await taxonomy();
-      const universe = (await store.getKv("scanner:universe"))?.value?.tickers ?? [];
-      if (!universe.length) throw new Error("Chưa có universe.");
-      const loadSeries = await createScreenerSeries({ store, corporateActions, historyDays: SECTOR_HISTORY_DAYS }).prepare(universe.map((u) => u.ticker));
-      const seriesOf = new Map();
-      await mapLimit(universe, 6, async (u) => {
-        try {
-          const s = await loadSeries(u.ticker);
-          const bars = (s?.bars ?? []).filter((b) => !b.partial && b.close > 0);
-          if (bars.length) seriesOf.set(u.ticker, bars);
-        } catch { /* bỏ mã lỗi */ }
-      });
-      const benchBars = (await loadSeries.index("VNINDEX")).filter((b) => !b.partial && b.close > 0);
+      // Chỉ nhận giá điều chỉnh cộng dồn, cùng bộ nạp với Cycle Fingerprint và Top 20, để cổ tức không tạo bước nhảy giả trong chỉ số ngành.
+      const { universe, seriesOf, benchBars, skipped, viaTaSeries } = await loadAdjustedUniverse({ store, corporateActions, taSeries, historyDays: SECTOR_HISTORY_DAYS });
       if (benchBars.length < 200) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
       const scannerMap = (await store.getKv("scanner:taxonomy"))?.value?.map ?? {};
       const { summary, history, ladder } = buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf: await screenerTags(store), scannerMap, now });
       await store.setKv(SECTOR_RRG_KV, summary);
       await store.setKv(SECTOR_RRG_HISTORY_KV, history);
       await store.setKv(SECTOR_LADDER_KV, ladder);
-      return { sectors: summary.sectors.length, dataAsOf: summary.dataAsOf, closedThrough: summary.closedThrough, coverage: summary.coverage };
+      return { sectors: summary.sectors.length, dataAsOf: summary.dataAsOf, closedThrough: summary.closedThrough, coverage: summary.coverage, skipped, viaTaSeries };
     },
   };
 }
