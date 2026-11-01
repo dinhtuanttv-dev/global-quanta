@@ -22,7 +22,11 @@ const IND_LIMITS = {
   macd: { fast: [2, 50, 12], slow: [3, 200, 26], signal: [2, 50, 9] },
   adx: { period: [2, 100, 14], threshold: [10, 60, 25] },
   vprofile: { bars: [20, 500, 60] },
+  bollinger: { period: [5, 100, 20], mult: [0.5, 5, 2] },
+  supertrend: { period: [2, 100, 10], mult: [0.5, 10, 3] },
 };
+/** Hệ số cho phép một chữ số thập phân. */
+const IND_DECIMAL = new Set(["mult"]);
 const IND_ENUMS = { rsi: { method: ["wilder", "cutler"] }, vprofile: { method: ["triangular", "uniform"] } };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}(T[0-9:.+Z-]{4,20})?$/;
 const TICKER_RE = /^[A-Z0-9]{2,12}$/;
@@ -33,7 +37,7 @@ export function sanitizeIndicators(raw) {
   for (const [sec, fields] of Object.entries(IND_LIMITS)) {
     const src = raw[sec] && typeof raw[sec] === "object" ? raw[sec] : {};
     out[sec] = {};
-    for (const [f, [lo, hi, d]] of Object.entries(fields)) out[sec][f] = Number.isFinite(Number(src[f])) ? Math.min(hi, Math.max(lo, Math.round(Number(src[f])))) : d;
+    for (const [f, [lo, hi, d]] of Object.entries(fields)) out[sec][f] = Number.isFinite(Number(src[f])) ? Math.min(hi, Math.max(lo, IND_DECIMAL.has(f) ? Math.round(Number(src[f]) * 10) / 10 : Math.round(Number(src[f])))) : d;
     for (const [f, allowed] of Object.entries(IND_ENUMS[sec] ?? {})) out[sec][f] = allowed.includes(src[f]) ? src[f] : allowed[0];
   }
   if (out.macd.fast >= out.macd.slow) { out.macd.fast = 12; out.macd.slow = 26; }

@@ -4,19 +4,19 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_INDICATORS, INDICATOR_LIMITS, isDefaultSection, sanitizeIndicators, type IndicatorSettings } from "./indicatorSettings";
 
-type Section = "rsi" | "macd" | "adx" | "vprofile" | "avwap";
+type Section = "rsi" | "macd" | "adx" | "bollinger" | "supertrend" | "vprofile" | "avwap";
 const SECTIONS: { id: Section; label: string }[] = [
-  { id: "rsi", label: "RSI" }, { id: "macd", label: "MACD" }, { id: "adx", label: "ADX" }, { id: "vprofile", label: "Profile" }, { id: "avwap", label: "AVWAP" },
+  { id: "rsi", label: "RSI" }, { id: "macd", label: "MACD" }, { id: "adx", label: "ADX" }, { id: "bollinger", label: "Bollinger" }, { id: "supertrend", label: "SuperTrend" }, { id: "vprofile", label: "Profile" }, { id: "avwap", label: "AVWAP" },
 ];
 
-function NumField({ label, value, range, onCommit, testid }: { label: string; value: number; range: readonly [number, number]; onCommit: (v: number) => void; testid: string }) {
+function NumField({ label, value, range, onCommit, testid, step }: { step?: number; label: string; value: number; range: readonly [number, number]; onCommit: (v: number) => void; testid: string }) {
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
   const commit = () => { const n = Number(text); if (Number.isFinite(n) && n !== value) onCommit(n); else setText(String(value)); };
   return (
     <label className="flex items-center justify-between gap-2 text-[10px] text-slate-300">
       <span>{label} <span className="text-slate-500">({range[0]}–{range[1]})</span></span>
-      <input type="number" inputMode="numeric" min={range[0]} max={range[1]} value={text} data-testid={testid}
+      <input type="number" inputMode={step ? "decimal" : "numeric"} step={step} min={range[0]} max={range[1]} value={text} data-testid={testid}
         onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } }}
         className="w-16 rounded-md bg-slate-900 border border-slate-700 px-1.5 py-1 text-right font-mono text-slate-100 focus:outline-none focus:border-cyan-500" />
     </label>
@@ -76,6 +76,14 @@ export default function IndicatorSettingsForm({ value, onChange, ticker, anchor,
           {open === "adx" && <>
             <NumField label="Chu kỳ" value={value.adx.period} range={L.adx.period} onCommit={(v) => set("adx", { period: v })} testid="set-adx-period" />
             <NumField label="Ngưỡng xu hướng" value={value.adx.threshold} range={L.adx.threshold} onCommit={(v) => set("adx", { threshold: v })} testid="set-adx-threshold" />
+          </>}
+          {open === "bollinger" && <>
+            <NumField label="Chu kỳ" value={value.bollinger.period} range={L.bollinger.period} onCommit={(v) => set("bollinger", { period: v })} testid="set-bb-period" />
+            <NumField label="Số độ lệch chuẩn" step={0.1} value={value.bollinger.mult} range={L.bollinger.mult} onCommit={(v) => set("bollinger", { mult: v })} testid="set-bb-mult" />
+          </>}
+          {open === "supertrend" && <>
+            <NumField label="Chu kỳ ATR" value={value.supertrend.period} range={L.supertrend.period} onCommit={(v) => set("supertrend", { period: v })} testid="set-st-period" />
+            <NumField label="Hệ số ATR" step={0.1} value={value.supertrend.mult} range={L.supertrend.mult} onCommit={(v) => set("supertrend", { mult: v })} testid="set-st-mult" />
           </>}
           {open === "vprofile" && <>
             <NumField label="Số nến (khung D/W/M)" value={value.vprofile.bars} range={L.vprofile.bars} onCommit={(v) => set("vprofile", { bars: v })} testid="set-vp-bars" />
