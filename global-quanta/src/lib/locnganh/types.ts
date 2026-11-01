@@ -227,6 +227,18 @@ export interface GatewaySectorRrg {
   transitions: number; weeksSinceImproving: number | null; historyWeeks: number; from: string;
   flow?: SectorFlow; state?: { key: SectorStateKey; label: string; why: string[] };
 }
+export type SectorStructureKey = "UP_ALIGNED" | "DOWN_ALIGNED" | "BOUNCE" | "PULLBACK" | "MIXED" | "INSUFFICIENT";
+export interface SectorLadderRung { h: number; rs: number | null; z: number | null; beat: number | null; n: number; lo: number | null; hi: number | null }
+export interface SectorLadderRow {
+  code: string; level: number; name: string; parent: string | null; tickers: string[]; asOf: string | null; sigmaDailyPct: number | null;
+  rungs: SectorLadderRung[];
+  structure: { key: SectorStructureKey; label: string; short: number | null; mid: number | null; long: number | null };
+}
+export interface SectorLadderDoc {
+  engine: string; generatedAt: string; asOf: string | null; horizons: number[]; sectors: SectorLadderRow[];
+  crosswalk: { classified: number; withScanner: number; sectors: { code: string; name: string; scanner: { industry: string; count: number }[] }[] };
+}
+
 export interface GatewaySectorRrgDoc {
   engine: string; dataAsOf: string; closedThrough: string | null; partialWeek: boolean; method: string;
   coverage: { l2Total: number; l2Covered: number; missing: { code: string; name: string; reason: string }[]; classified: number; withSeries: number };

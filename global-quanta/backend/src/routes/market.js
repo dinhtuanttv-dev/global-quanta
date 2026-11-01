@@ -34,6 +34,7 @@ import { chartVision, screenerIndex } from "../market/chartVision/chartVision.js
 import { isIndexSymbol, canonicalSymbol, isValidSymbol } from "../market/normalizer.js";
 import { SECTOR_RRG_ENGINE, SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "../market/sectors/sectorRotation.js";
 import { ICB_KV } from "../market/sectors/icbTaxonomy.js";
+import { SECTOR_LADDER_KV } from "../market/sectors/ladder.js";
 import { liveTracking, PERFORMANCE_KV } from "../market/strategies/signalTracking.js";
 import { CONVERGENCE_EVIDENCE_KV, convergenceEvidenceFresh } from "../market/strategies/convergenceV2.js";
 import { opsReport } from "../market/tradingMatrix/matrixOps.js";
@@ -355,6 +356,13 @@ router.get("/sectors/rrg", handle(async (req, res) => {
   const level = Number(req.query.level) || null;
   res.set("Cache-Control", "public, max-age=120");
   res.json(level ? { ...doc, sectors: doc.sectors.filter((s) => s.level === level) } : doc);
+}));
+// Thang kỳ hạn ngành (LD1): 1, 5, 20 phiên và 8, 13, 26 tuần, kèm bảng đối chiếu với bộ phân ngành Siêu Quét.
+router.get("/sectors/ladder", handle(async (req, res) => {
+  const doc = await sectorDoc(getMarketRuntime(), SECTOR_LADDER_KV);
+  if (!doc) { res.status(503).json({ error: "Chưa dựng được thang kỳ hạn ngành." }); return; }
+  res.set("Cache-Control", "public, max-age=120");
+  res.json(doc);
 }));
 router.get("/sectors/taxonomy", handle(async (req, res) => {
   const doc = (await getMarketRuntime().store.getKv(ICB_KV))?.value ?? null;

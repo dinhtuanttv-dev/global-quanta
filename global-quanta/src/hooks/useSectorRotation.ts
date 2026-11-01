@@ -1,7 +1,7 @@
 // Lọc ngành (L4) — dữ liệu xoay vòng ngành: RRG tuần ICB (Gateway), phân ngành mã -> ICB (Gateway), chi tiết một ngành (Project A).
 import useSWR from "swr";
 import { marketUrl } from "../services/marketDataClient";
-import type { GatewaySectorRrgDoc, SectorCycleDetail, SectorTrackingSummary } from "../lib/locnganh/types";
+import type { GatewaySectorRrgDoc, SectorCycleDetail, SectorLadderDoc, SectorTrackingSummary } from "../lib/locnganh/types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 const get = async <T,>(url: string): Promise<T> => {
@@ -16,6 +16,12 @@ export function useSectorRrg() {
     ...OPTS, refreshInterval: 5 * 60_000, keepPreviousData: true, shouldRetryOnError: false,
   });
   return { data, error: error as Error | undefined, isLoading, isValidating, refresh: mutate };
+}
+
+/** Thang kỳ hạn ngành: dùng chung cho tab Phân tích ngành và Tổng quan. */
+export function useSectorLadder() {
+  const { data, error } = useSWR<SectorLadderDoc>(marketUrl("/api/market/sectors/ladder"), get, { ...OPTS, refreshInterval: 5 * 60_000, keepPreviousData: true, shouldRetryOnError: false });
+  return { data, error: error as Error | undefined };
 }
 
 export function useSectorTaxonomy() {

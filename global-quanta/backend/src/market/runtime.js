@@ -97,7 +97,7 @@ export function getMarketRuntime() {
   const alpha = createAlphaService({ service, corporateActions, taSeries });
   // Cấu trúc thị trường đa khung (T4): SSI /ta-series + nến phút SSI; kho nến 1 giờ trên Railway Volume.
   const structure = createStructureService({ service, taSeries, corporateActions });
-  const jobs = { ...createJobs(service), ...createScannerJobs(service, { corporateActions }), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
+  const jobs = { ...createJobs(service), ...createScannerJobs(service, { corporateActions }), ...createResearchJobs(service), ...createStrategyJobs({ service, corporateActions }), ...createSectorJobs({ service, corporateActions, taSeries }), ...cycles.jobs, ...top20.jobs, ...alpha.jobs, ...structure.jobs };
   // M0: kho cục bộ (Railway Volume) — tự dựng lại từ SSI/VCI khi thiếu; dọn dòng lệnh theo phút cũ mỗi đêm.
   const localBootstrap = createLocalBootstrap({ jobs, store });
   // Trading Matrix (M1): snapshot trạng thái thị trường từ các nguồn sẵn có; lưu bảng cục bộ 16:50.

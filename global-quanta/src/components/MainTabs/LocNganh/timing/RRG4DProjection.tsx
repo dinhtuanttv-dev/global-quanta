@@ -354,7 +354,7 @@ export default function RRG4DProjection({ sectors, selectedSector = null, openSe
 
     <div data-testid="rrg4d-playback" style={{ display: "grid", gridTemplateColumns: "auto minmax(150px, 1fr)", alignItems: "center", gap: "8px 12px", padding: "9px 11px", border: "1px solid var(--bg-surface-2)", borderRadius: 8, marginBottom: 8, background: "rgba(15,23,42,.55)", fontSize: 11 }}>
       <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
-        <b style={{ color: "#cbd5e1", marginRight: 3 }}>Quỹ đạo lịch sử</b>
+        <b style={{ color: "#cbd5e1", marginRight: 3 }}>Độ dài quỹ đạo</b>
         {([8, 13, 26] as const).map((weeks) => <button key={weeks} type="button" aria-pressed={trailWeeks === weeks} onClick={() => setWindow(weeks)} style={btn(trailWeeks === weeks)}>{weeks} tuần</button>)}
         <button type="button" aria-label="Lùi một tuần" disabled={activeWeeks.length < 2 || frameIndex <= 0} onClick={() => step(-1)} style={btn(false)}>◀</button>
         <button type="button" aria-label={playing ? "Tạm dừng phát lại" : "Phát lại lịch sử"} disabled={activeWeeks.length < 2} onClick={() => (playing ? setPlaying(false) : startPlayback())} style={btn(true, "#0e7490")}>{playing ? "Ⅱ Tạm dừng" : "▶ Phát"}</button>
