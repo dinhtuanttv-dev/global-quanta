@@ -68,6 +68,7 @@ import { lastBarForming, seriesFreshness } from "../../../lib/ta-command-center/
 import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
 import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
+import { BB_COLORS, ST_COLORS, bollingerBands, superTrend, type BollingerResult, type SuperTrendResult } from "../../../lib/ta-command-center/detectors/bandsTrend";
 import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
 import type { CorporateActionMark, PriceBasis } from "../../../hooks/useTaSeries";
 import { useTaIntraday } from "../../../hooks/useTaIntraday";
@@ -565,7 +566,22 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       { id: "chikou", color: ICHI_COLORS.chikou, dashed: true, values: ichiValues.chikou },
     ] : null);
   }, [tvApi, ichiValues]);
-  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues), [maValues, ichiValues]);
+  const bbValues = useMemo(() => (layerState?.bollinger ? bollingerBands(currentBars, ind.bollinger) : null), [layerState?.bollinger, currentBars, ind.bollinger]);
+  const stValues = useMemo(() => (layerState?.supertrend ? superTrend(currentBars, ind.supertrend) : null), [layerState?.supertrend, currentBars, ind.supertrend]);
+  useEffect(() => {
+    tvApi?.setOverlayLines("bb", bbValues ? [
+      { id: "upper", color: BB_COLORS.upper, values: bbValues.upper },
+      { id: "mid", color: BB_COLORS.mid, dashed: true, values: bbValues.mid },
+      { id: "lower", color: BB_COLORS.lower, values: bbValues.lower },
+    ] : null);
+  }, [tvApi, bbValues]);
+  useEffect(() => {
+    tvApi?.setOverlayLines("st", stValues ? [
+      { id: "up", color: ST_COLORS.up, width: 2, values: stValues.up },
+      { id: "down", color: ST_COLORS.down, width: 2, values: stValues.down },
+    ] : null);
+  }, [tvApi, stValues]);
+  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues), [maValues, ichiValues, bbValues, stValues]);
 
   // ---- R4: pane MACD / ADX (khung phụ, bật/tắt bằng lớp macd / adx) ----
   useEffect(() => {
@@ -653,8 +669,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const baseScene = useMemo(() => buildScene({
     bars: currentBars, smc, wyckoff: wyckoffResult, layers: layerState, primitives: visiblePrims, draft: draftPrimitive,
     elliottDraft, fibExtension: fibExtensionMode, highlight: highlightRange,
-    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
-  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, elliottScene, pringScene, elliottProInput]);
+    profile: sceneProfile, avwap: sceneAvwap, ichimoku: ichiValues, bollinger: bbValues, elliott: elliottScene, pring: pringScene, elliottPro: elliottProInput,
+  }), [currentBars, smc, wyckoffResult, layerState, visiblePrims, draftPrimitive, elliottDraft, fibExtensionMode, highlightRange, sceneProfile, sceneAvwap, ichiValues, bbValues, elliottScene, pringScene, elliottProInput]);
   // SC3: hình đang chọn — vòng tròn ở các điểm neo (vàng = đã khoá).
   const selectionItems = useMemo((): SceneItem[] => {
     const p = primitives.find((x) => x.id === selectedId);
@@ -1452,7 +1468,7 @@ function closeOpenPopovers() {
 export const ICHI_COLORS = { tenkan: "#2dd4bf", kijun: "#f97316", chikou: "rgba(148,163,184,0.75)" } as const;
 
 /** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
-export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null) {
+export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null) {
   const f = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: v >= 1000 ? 0 : 2 }));
   return (i: number): { label: string; color: string; value: string }[] => {
     const out: { label: string; color: string; value: string }[] = [];
@@ -1462,6 +1478,8 @@ export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null
       out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]) }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]) },
         { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—" });
     }
+    if (bb) out.push({ label: "BB", color: BB_COLORS.upper, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}` });
+    if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? ST_COLORS.down : ST_COLORS.up, value: f(st.line[i]) });
     return out;
   };
 }

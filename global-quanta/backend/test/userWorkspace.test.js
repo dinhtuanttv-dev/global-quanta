@@ -39,7 +39,7 @@ test("R5 sanitizeIndicators: kẹp miền, MACD nhanh < chậm, enum lạ -> m�
   });
   assert.deepEqual(s, {
     rsi: { period: 100, upper: 80, lower: 5, method: "wilder" }, macd: { fast: 12, slow: 26, signal: 9 }, adx: { period: 14, threshold: 60 },
-    vprofile: { bars: 20, method: "uniform" }, avwap: { anchors: { FPT: "2026-03-02" } },
+    vprofile: { bars: 20, method: "uniform" }, bollinger: { period: 20, mult: 2 }, supertrend: { period: 10, mult: 3 }, avwap: { anchors: { FPT: "2026-03-02" } },
   });
   assert.equal(sanitizeIndicators(null), undefined);
   assert.deepEqual(sanitizeWorkspace({ indicators: { rsi: { period: 21 } } }).indicators.rsi, { period: 21, upper: 70, lower: 30, method: "wilder" });

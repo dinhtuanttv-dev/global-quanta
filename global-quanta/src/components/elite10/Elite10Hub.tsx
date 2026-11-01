@@ -1,10 +1,10 @@
 // Elite 10 — trung tâm ra quyết định (E4–E6 2026-10-17). Tab con:
 //   1. Bảng quyết định hôm nay — danh mục Elite 10, trọng số tín hiệu theo bằng chứng, sổ theo dõi tiến (Gateway /api/elite/*).
-//   2. Hồ sơ 360° — mọi tín hiệu của một mã từ 7 tab + phân tích kỹ thuật thật (E0); chế độ 🔎 Bộ lọc Elite lọc cả vũ trụ (30/10).
+//   2. Hồ sơ 360° — mọi tín hiệu của một mã từ 7 tab; chart kỹ thuật ở tab Phân tích kỹ thuật; chế độ 🔎 Bộ lọc Elite lọc cả vũ trụ (30/10).
 //   3. Phòng họp AI — tranh luận Claude ↔ Gemini có trọng tài, bản tin phiên, hỏi đáp (E5).
 //   4. Bằng chứng & sổ theo dõi — IC từng tín hiệu theo kỳ hạn, bậc, sổ theo dõi tiến (E6).
 //   5. Rủi ro danh mục — Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, căng thẳng (E6).
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
 import EliteScreener from "./center/EliteScreener";
@@ -13,7 +13,7 @@ import EliteNewsPanel from "./news/EliteNewsPanel";
 import EliteAiRoom from "./center/EliteAiRoom";
 import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
-import { TaVnIndexTab } from "./TaVnIndexTab";
+import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
 
 type Sub = "board" | "profile" | "ai" | "evidence" | "risk";
@@ -34,6 +34,17 @@ export default function Elite10Hub() {
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
   const current = ticker ?? globalTicker ?? "VNINDEX";
   const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
+  const goTab = useTabNavigation();
+  const selectGlobal = useAppStore((s) => s.selectTicker);
+  const [pick, setPick] = useState("");
+  const pickTicker = (e: FormEvent) => {
+    e.preventDefault();
+    const t = pick.trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,12}$/.test(t)) return;
+    setTicker(t);
+    setPick("");
+  };
+  const openChart = () => { selectGlobal(current); goTab?.("TA VN-Index"); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     const i = SUBS.findIndex((s) => s.id === sub);
     const n = e.key === "ArrowRight" ? (i + 1) % SUBS.length : e.key === "ArrowLeft" ? (i - 1 + SUBS.length) % SUBS.length : -1;
@@ -65,11 +76,18 @@ export default function Elite10Hub() {
         {sub === "risk" && <RiskTab />}
         {sub === "profile" && (
           <>
-            <div className="tw-scope flex flex-wrap gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
+            <div className="tw-scope flex flex-wrap items-center gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
               {([["profile", `Hồ sơ ${current}`], ["screener", "🔎 Bộ lọc Elite"]] as const).map(([m, l]) => (
                 <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} data-testid={`elite-mode-${m}`}
                   className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
               ))}
+              {mode === "profile" && <>
+                <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
+                  <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={12} data-testid="elite-pick"
+                    className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none" />
+                </form>
+                <button type="button" onClick={openChart} data-testid="elite-open-chart" className="min-h-[28px] rounded border border-amber-400/40 px-3 font-bold text-amber-200 hover:bg-amber-400/10">Mở chart {current} trong Phân tích kỹ thuật →</button>
+              </>}
             </div>
             {mode === "screener" ? (
               <section className="tw-scope rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 text-slate-200">
@@ -78,10 +96,9 @@ export default function Elite10Hub() {
             ) : (
               <>
                 <SignalProfileCard ticker={current} />
-                {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD (chart chính mới; chart kỹ thuật cũ chuyển sau nút tạm ở CH6). */}
+                {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD. */}
                 <TimingSimPanel ticker={current} />
                 <EliteNewsPanel ticker={current} onTicker={open} />
-                <TaVnIndexTab ticker={current} onTickerChange={setTicker} />
               </>
             )}
           </>

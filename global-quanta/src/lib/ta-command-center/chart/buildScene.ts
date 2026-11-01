@@ -31,6 +31,8 @@ export interface SceneInput {
   avwap?: { anchorDate: string; points: VwapPoint[]; manual?: boolean } | null;
   /** 25/10: Ichimoku của khung đang xem — mây Senkou A/B dịch +shift kỳ (vẽ khi bật lớp ichimoku). */
   ichimoku?: Pick<IchimokuResult, "spanA" | "spanB" | "shift"> | null;
+  /** Nền mờ giữa hai dải Bollinger; ba đường vẽ bằng series để đọc được theo crosshair. */
+  bollinger?: { upper: (number | null)[]; lower: (number | null)[] } | null;
   /** E5: đếm sóng Elliott tự động của khung đang xem (+ đếm tuần trên khung D) — vẽ khi bật lớp elliottAuto. */
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
   /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
@@ -212,6 +214,11 @@ export function buildScene(inp: SceneInput): Scene {
     const { spanA, spanB, shift } = inp.ichimoku;
     const points = spanA.flatMap((a, i) => (a != null && spanB[i] != null ? [{ k: i + shift, a, b: spanB[i] as number }] : []));
     if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.bull, 0.12), down: rgba(GQ_COLORS.bear, 0.12), lineA: rgba(GQ_COLORS.bull, 0.65), lineB: rgba(GQ_COLORS.bear, 0.65) });
+  }
+  if (layers?.bollinger && inp.bollinger) {
+    const { upper, lower } = inp.bollinger;
+    const points = upper.flatMap((a, k) => (a != null && lower[k] != null ? [{ k, a, b: lower[k] as number }] : []));
+    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.cyan, 0.05), down: rgba(GQ_COLORS.cyan, 0.05), lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
   }
   if (inp.elliott && (layers?.elliottAuto || layers?.elliottFib || layers?.elliottProj || layers?.elliottGuide || layers?.elliottSub || layers?.elliottMine || inp.elliott.mine?.editing))
     items.push(...elliottSceneItems({ bars, ...inp.elliott, show: { count: !!layers?.elliottAuto, fib: !!layers?.elliottFib, proj: !!layers?.elliottProj, guide: !!layers?.elliottGuide, sub: !!layers?.elliottSub, mine: !!layers?.elliottMine } }));
