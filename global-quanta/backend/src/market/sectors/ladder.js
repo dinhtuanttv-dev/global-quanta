@@ -121,8 +121,6 @@ export function computeSectorLadder({ indexSeries, members, benchBars, smartOf =
   const asOf = benchBars[t]?.date ?? null;
   const context = memberContext(members, asOf, smartOf);
   const flags = [];
-  const t20 = rungs.find((r) => r.h === 20)?.trail ?? [], prev = t20[t20.length - 2], cur = t20[t20.length - 1];
-  if (prev?.beat != null && cur?.beat != null && prev.beat - cur.beat >= 25) flags.push({ id: "BREADTH_DROP", text: `Độ tham gia 20 phiên giảm ${r2(prev.beat - cur.beat)} điểm trong 5 phiên` });
   if (context.rangeRatio != null && context.rangeRatio >= 2) flags.push({ id: "RANGE_EXPANSION", text: `Biên độ phiên gấp ${context.rangeRatio} lần TB 20 phiên (trung vị)` });
   // Đi qua các phiên gần đây để vùng đệm có trạng thái trước đó; luôn cùng độ dài nên kết quả tái lập được.
   let short = 0, mid = 0, long = 0, last = null;
@@ -138,6 +136,25 @@ export function computeSectorLadder({ indexSeries, members, benchBars, smartOf =
     asOf, ...context, flags, sigmaDailyPct: r2(sigma == null ? null : sigma * 100), rungs,
     structure: { key, label: STRUCTURE_VI[key], short: ok ? short : null, mid: ok ? mid : null, long: ok ? long : null },
   };
+}
+
+/**
+ * Cờ độ tham gia giảm nhanh, so với các ngành cùng cấp: mức giảm trong 5 phiên từ 25 điểm trở lên VÀ hơn trung vị ít nhất 15 điểm.
+ * Khi cả thị trường cùng giảm thì đó là biến động chung, không phải dấu hiệu riêng của ngành. Sửa trực tiếp `flags` của từng dòng.
+ */
+export function applyBreadthFlags(rows, { minDrop = 25, minExcess = 15 } = {}) {
+  const fmt = (v) => String(Math.round(v)).replace("-", "−");
+  for (const level of new Set(rows.map((r) => r.level))) {
+    const items = rows.filter((r) => r.level === level).map((r) => {
+      const t = r.rungs.find((x) => x.h === 20)?.trail ?? [], a = t[t.length - 2], b = t[t.length - 1];
+      return { r, drop: a?.beat != null && b?.beat != null ? a.beat - b.beat : null };
+    }).filter((x) => x.drop != null);
+    const mid = median(items.map((x) => x.drop));
+    for (const { r, drop } of items) {
+      if (drop >= minDrop && drop - mid >= minExcess) r.flags.push({ id: "BREADTH_DROP", text: `Độ tham gia 20 phiên giảm ${fmt(drop)} điểm trong 5 phiên, trung vị các ngành ${fmt(mid)} điểm` });
+    }
+  }
+  return rows;
 }
 
 /** Bảng đối chiếu: mỗi ngành ICB cấp 2 gồm những ngành nào của bộ phân ngành Siêu Quét, để lọc bảng theo đúng danh sách mã. */

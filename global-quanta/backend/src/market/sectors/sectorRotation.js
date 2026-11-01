@@ -6,7 +6,7 @@
 import { isPartialWeek } from "../strategies/patternScan.js";
 import { buildSectorIndex, computeRrg, INDEX_PARAMS, quadrantTransitions, RRG_PARAMS, weeklyCloses } from "./rrg.js";
 import { SECTOR_VALIDATION } from "./validation.js";
-import { buildCrosswalk, computeSectorLadder, LADDER_ENGINE, LADDER_HORIZONS } from "./ladder.js";
+import { applyBreadthFlags, buildCrosswalk, computeSectorLadder, LADDER_ENGINE, LADDER_HORIZONS } from "./ladder.js";
 import { rotationMatrix, rsPercentiles, sectorFlow, sectorShareZHistory, sectorState, totalValueByDate } from "./flow.js";
 
 export const SECTOR_RRG_ENGINE = "sector-rrg/L5";
@@ -132,6 +132,6 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
     evidence: { label: SECTOR_VALIDATION.label, reason: SECTOR_VALIDATION.conclusion, validation: SECTOR_VALIDATION },
     sectors,
   };
-  const ladder = { engine: LADDER_ENGINE, generatedAt: summary.generatedAt, asOf: lastDate, horizons: [...LADDER_HORIZONS], sectors: ladderRows, crosswalk: buildCrosswalk({ tickers, icb, scannerMap }) };
+  const ladder = { engine: LADDER_ENGINE, generatedAt: summary.generatedAt, asOf: lastDate, horizons: [...LADDER_HORIZONS], sectors: applyBreadthFlags(ladderRows), crosswalk: buildCrosswalk({ tickers, icb, scannerMap }) };
   return { summary, history: { engine: SECTOR_RRG_ENGINE, dataAsOf: lastDate, closedThrough, sectors: history }, ladder };
 }
