@@ -10,9 +10,10 @@ import { pickTop, spearman } from "./validate.js";
 import { ALPHA_VALIDATION } from "./validation.js";
 import { fetchVndRecent } from "./vndirectData.js";
 import { loadAdjustedUniverse } from "../universeSeries.js";
+import { alertMissingSessions, assertLatestSession, loadLedgerIndex, missingSessions } from "../ledgerIndex.js";
 
 export const ALPHA_ENGINE = "alpha/M1";
-export const ALPHA_KV = { top20: "alpha:top20", vnd: "alpha:vnd", ic: "alpha:ic", snapIndex: "alpha:snap:index", snap: (d) => `alpha:snap:${d}` };
+export const ALPHA_KV = { top20: "alpha:top20", vnd: "alpha:vnd", ic: "alpha:ic", snapIndex: "alpha:snap:index", snapPrefix: "alpha:snap:", snap: (d) => `alpha:snap:${d}` };
 const readJson = (f) => JSON.parse(fs.readFileSync(fileURLToPath(new URL(f, import.meta.url)), "utf8"));
 const CONFIG = readJson("./t3-config.json");
 const SEED = readJson("./ic-history-seed.json");
@@ -123,7 +124,8 @@ export function createAlphaService({ service, corporateActions, taSeries = null,
     const sectorNames = new Map((icb?.levels?.[2] ?? []).map((s) => [s.code, s.name]));
     const { doc, snapshot, data } = buildLiveTop20({ seriesOf, benchBars, sectorOf, vnd, icHistory: icHist.dates, sectorNames, now });
     // ---- sổ theo dõi: chấm các bản chụp đã đủ 21 phiên, nối IC vào lịch sử (một lần / bản chụp)
-    const idx = (await store.getKv(ALPHA_KV.snapIndex))?.value ?? { dates: [], scored: {} };
+    const loaded = await loadLedgerIndex(store, ALPHA_KV.snapIndex, ALPHA_KV.snapPrefix);
+    const idx = { scored: {}, ...loaded.doc, dates: loaded.dates };
     const known = new Set(icHist.dates.map((x) => x.date));
     for (const d of idx.dates) {
       if (idx.scored[d]) continue;
@@ -139,14 +141,15 @@ export function createAlphaService({ service, corporateActions, taSeries = null,
     if (!idx.dates.includes(snapshot.date)) { await store.setKv(ALPHA_KV.snap(snapshot.date), snapshot); idx.dates = [...idx.dates, snapshot.date].sort().slice(-400); }
     await store.setKv(ALPHA_KV.snapIndex, idx);
     await store.setKv(ALPHA_KV.ic, icHist);
-    const full = { ...doc, ledger: { snapshots: idx.dates.length, firstDate: idx.dates[0] ?? null, ...ledgerSummary(idx.dates.map((d) => idx.scored[d])) } };
+    const full = { ...doc, ledger: { snapshots: idx.dates.length, firstDate: idx.dates[0] ?? null, ...ledgerSummary(idx.dates.map((d) => idx.scored[d])), missingSessions: missingSessions(idx.dates, data.cal.dates) } };
     await store.setKv(ALPHA_KV.top20, full);
+    alertMissingSessions("Top 20 v2", full.ledger.missingSessions);
     return full;
   }
   const run = () => (inflight ??= build().finally(() => { inflight = null; }));
   return {
     jobs: {
-      buildAlphaTop20: async () => { const d = await run(); return { dataAsOf: d.dataAsOf, liquid: d.liquid, top: d.top20.map((x) => x.ticker).join(","), ledger: d.ledger.snapshots }; },
+      buildAlphaTop20: async () => { const d = await run(); assertLatestSession(d.dataAsOf, "buildAlphaTop20", now()); return { dataAsOf: d.dataAsOf, liquid: d.liquid, top: d.top20.map((x) => x.ticker).join(","), ledger: d.ledger.snapshots }; },
       refreshAlphaVnd: async () => { const tickers = ((await store.getKv("scanner:universe"))?.value?.tickers ?? []).map((u) => u.ticker); const v = await refreshVnd(tickers); return { tickers: Object.keys(v.fund).length, failed: v.failed.length }; },
     },
     async top20() { return (await store.getKv(ALPHA_KV.top20))?.value ?? run(); },

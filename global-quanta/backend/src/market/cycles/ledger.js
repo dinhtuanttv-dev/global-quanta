@@ -3,9 +3,11 @@
 // Không sửa bản chụp đã ghi. Thước đo giống CF3: IC hạng theo ngày, đúng hướng, Brier, độ phủ khoảng 80%, nhóm 20% cao − thấp sau phí.
 import { spearman } from "./core.js";
 import { excessLog } from "./library.js";
+import { loadLedgerIndex } from "../ledgerIndex.js";
 
 export const LEDGER_INDEX_KV = "cycles:ledger:index";
-export const ledgerKv = (date) => `cycles:ledger:${date}`;
+export const LEDGER_PREFIX = "cycles:ledger:";
+export const ledgerKv = (date) => `${LEDGER_PREFIX}${date}`;
 const MAX_DATES = 400;
 const H = 20, COST = 0.003, MIN_PER_DATE = 20;
 const r4 = (x) => (x == null || !Number.isFinite(x) ? null : Math.round(x * 1e4) / 1e4);
@@ -20,8 +22,11 @@ export function snapshotRow(symbol, q) {
 
 /** Ghi bản chụp cho ngày `date` nếu chưa có. Trả { written, rows }. */
 export async function recordSnapshot(store, { date, engine, sha256, rows }) {
-  const idx = (await store.getKv(LEDGER_INDEX_KV))?.value ?? { dates: [] };
-  if (idx.dates.includes(date)) return { written: false, rows: 0 };
+  const idx = await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX);
+  if (idx.dates.includes(date)) {
+    if (idx.healed) await store.setKv(LEDGER_INDEX_KV, { dates: idx.dates.slice(-MAX_DATES), updatedAt: new Date().toISOString() });
+    return { written: false, rows: 0 };
+  }
   await store.setKv(ledgerKv(date), { date, engine, sha256, recordedAt: new Date().toISOString(), rows });
   const dates = [...idx.dates, date].sort().slice(-MAX_DATES);
   await store.setKv(LEDGER_INDEX_KV, { dates, updatedAt: new Date().toISOString() });

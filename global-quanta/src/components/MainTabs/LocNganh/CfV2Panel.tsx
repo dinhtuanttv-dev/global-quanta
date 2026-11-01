@@ -110,6 +110,7 @@ function LedgerPanel({ ledger, symbol }: { ledger: CycleV2Ledger | null; symbol:
   return (
     <section className="cf2-ledger" data-testid="cf2-ledger">
       <h4>Sổ theo dõi thực tế (dự báo 20 phiên, mọi mã)</h4>
+      {(ledger.missingSessions?.length ?? 0) > 0 && <p className="cf-note" data-testid="cf2-ledger-gaps">Sổ không có bản chụp của phiên {ledger.missingSessions?.map(fmtCfDate).join(', ')}. Các phiên này không được bù.</p>}
       {ledger.maturedDates === 0 ? (
         <p className="cf-note" data-testid="cf2-ledger-empty">
           {started ? `Sổ bắt đầu ghi từ ${fmtCfDate(started)} (${ledger.snapshots} bản chụp, ${ledger.pendingRows} dự báo đang chờ).` : 'Sổ bắt đầu ghi từ phiên giao dịch tới (16:05 hằng ngày).'}

@@ -91,6 +91,7 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
       if (r !== undefined) kvMiss.set(key, now()); // Supabase trả lời "không có" (không phải lỗi)
       return null;
     },
+    listKv: (prefix) => local.listKv(prefix),
     async setKv(key, value) { kvMiss.delete(key); await local.setKv(key, value); if (!isLocalOnlyKv(key)) replicate(() => inner.setKv(key, value)); },
 
     // ---------- BCTC ----------

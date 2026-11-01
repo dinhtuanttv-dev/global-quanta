@@ -48,6 +48,7 @@ export interface CycleV2Ledger {
   horizon: number;
   snapshots: number;
   firstDate: string | null;
+  missingSessions?: string[];
   lastDate: string | null;
   maturedDates: number;
   scoredRows: number;

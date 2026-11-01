@@ -184,6 +184,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
 
       <section data-testid="alpha-ledger" style={{ marginTop: 12 }}>
         <h4 style={{ margin: '0 0 4px' }}>Sổ theo dõi thực tế (Top 20 v2, 20 phiên)</h4>
+        {(L.missingSessions?.length ?? 0) > 0 && <p className="cf-note" data-testid="alpha-ledger-gaps">Sổ không có bản chụp của phiên {L.missingSessions?.map(fmtDate).join(', ')}. Các phiên này không được bù.</p>}
         {L.maturedDates === 0 ? (
           <p className="cf-note" data-testid="alpha-ledger-empty">Sổ bắt đầu ghi từ {fmtDate(L.firstDate)} ({L.snapshots} bản chụp). Mỗi bản chụp được chấm sau đủ 21 phiên — chưa có kết quả thực tế.</p>
         ) : (

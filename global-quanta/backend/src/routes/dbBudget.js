@@ -1,6 +1,7 @@
 // D0/D1 (2026-10-20) — sức khoẻ hạn mức kho dữ liệu.
 //   GET  /api/health/db-budget                 egress Supabase hôm nay theo job/route/bảng, dự báo tháng, trạng thái kho đệm
 //   POST /api/health/db-budget/reset-warehouse  xoá sạch kho đệm (admin) — sau khi sửa dữ liệu Supabase từ ngoài Gateway
+//   GET  /api/health/db-budget/ledgers-export   xuất sổ theo dõi dạng NDJSON để sao lưu ngoài Railway (admin)
 import express from "express";
 import { isAdmin } from "./macro.js";
 import { notifyOps } from "../market/alerts.js";
@@ -22,6 +23,20 @@ export function createDbBudgetRouter({ getStore, meter, adminToken = () => proce
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
     getStore().resetWarehouse?.();
     res.json({ ok: true, warehouse: getStore().warehouseInfo?.() ?? null });
+  });
+  router.get("/ledgers-export", async (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    res.set("Cache-Control", "no-store");
+    res.type("application/x-ndjson");
+    const store = getStore();
+    // Đọc và ghi từng khoá để không giữ cả sổ trong bộ nhớ.
+    for (const prefix of ["cycles:ledger:", "alpha:snap:", "alpha:ic"]) {
+      for (const key of (await store.listKv?.(prefix)) ?? []) {
+        const doc = await store.getKv(key);
+        if (doc) res.write(`${JSON.stringify({ key, value: doc.value, updatedAt: doc.updatedAt ?? null })}\n`);
+      }
+    }
+    res.end();
   });
   return router;
 }
