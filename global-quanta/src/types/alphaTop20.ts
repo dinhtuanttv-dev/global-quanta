@@ -27,7 +27,7 @@ export interface AlphaEvidence {
 }
 
 export interface AlphaLedger {
-  snapshots: number; firstDate: string | null; maturedDates: number;
+  snapshots: number; firstDate: string | null; maturedDates: number; missingSessions?: string[];
   meanScoreIc: number | null; positiveIcShare: number | null; meanSpreadPct: number | null; beatUniverseShare: number | null;
   recent: { date: string; scoreIc: number | null; top20ExcessPct: number | null; universeExcessPct: number | null; spreadPct: number | null; n: number }[];
 }

@@ -111,6 +111,7 @@ export function createLocalStore({ dir = null, ramMb = 96, log = console, now = 
     async getKv(key) { const v = seg.get(`kv/${key}`); return v ? structuredClone(v) : null; },
     async setKv(key, value, updatedAt = new Date(now()).toISOString()) { seg.put(`kv/${key}`, { value: structuredClone(value), updatedAt }); },
     hasKv(key) { return seg.get(`kv/${key}`) !== undefined; },
+    async listKv(prefix) { return seg.list("kv").filter((k) => k.startsWith(prefix)); },
 
     async getFundamentals(tickers) {
       const out = new Map();

@@ -8,7 +8,8 @@ import { buildCalendar, buildLibrary, eligiblePrefix, HORIZONS, prepareSeries, w
 import { absoluteSimilarity, candidatePool, forecastFromPool } from "./engine.js";
 import { hashConfig } from "./validate.js";
 import { CYCLE_VALIDATION } from "./validation.js";
-import { LEDGER_INDEX_KV, ledgerKv, recordSnapshot, scoreLedger, snapshotRow } from "./ledger.js";
+import { LEDGER_INDEX_KV, LEDGER_PREFIX, ledgerKv, recordSnapshot, scoreLedger, snapshotRow } from "./ledger.js";
+import { alertMissingSessions, assertLatestSession, loadLedgerIndex, missingSessions } from "../ledgerIndex.js";
 
 export const CYCLE_ENGINE = "cycles/CF2";
 const CONFIG = JSON.parse(fs.readFileSync(fileURLToPath(new URL("./cf3-config.json", import.meta.url)), "utf8"));
@@ -100,7 +101,7 @@ export function createCycleService({ service, corporateActions, taSeries = null,
   }
   async function loadLedger(c) {
     if (ledgerDocs?.builtAt === c.builtAt) return ledgerDocs.docs;
-    const dates = ((await store.getKv(LEDGER_INDEX_KV))?.value?.dates ?? []).slice(-120);
+    const dates = (await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX)).dates.slice(-120);
     const docs = [];
     for (const d of dates) { const v = (await store.getKv(ledgerKv(d)))?.value; if (v?.rows) docs.push(v); }
     ledgerDocs = { builtAt: c.builtAt, docs };
@@ -116,7 +117,8 @@ export function createCycleService({ service, corporateActions, taSeries = null,
   }
   async function ledgerFor(symbol = null) {
     const c = await ensure();
-    return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, ...scoreLedger(c, await loadLedger(c), { symbol }) };
+    const docs = await loadLedger(c);
+    return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, ...scoreLedger(c, docs, { symbol }), missingSessions: missingSessions(docs.map((d) => d.date), c.cal.dates) };
   }
   const ensure = () => (ctx ? Promise.resolve(ctx) : (inflight ??= build().then(() => ctx).finally(() => { inflight = null; })));
   return {
@@ -126,6 +128,8 @@ export function createCycleService({ service, corporateActions, taSeries = null,
         const info = await (inflight ??= build().finally(() => { inflight = null; }));
         const snap = await snapshot(ctx);
         ledgerDocs = null;
+        alertMissingSessions("Cycle Fingerprint", missingSessions((await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX)).dates, ctx.cal.dates));
+        assertLatestSession(info.dataAsOf, "buildCycleLibrary", now());
         return { ...info, ledger: snap };
       },
     },
