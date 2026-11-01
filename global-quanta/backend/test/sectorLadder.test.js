@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildCrosswalk, computeSectorLadder, LADDER_HORIZONS, nextLeg, structureKey, wilson } from "../src/market/sectors/ladder.js";
+import { applyBreadthFlags, buildCrosswalk, computeSectorLadder, LADDER_HORIZONS, nextLeg, structureKey, wilson } from "../src/market/sectors/ladder.js";
 
 const dates = (n) => Array.from({ length: n }, (_, i) => new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10));
 /** Chuỗi từ lợi suất log từng phiên; có nhiễu xác định để σ > 0. */
@@ -79,6 +79,23 @@ test("xu hướng thật cho nhãn đúng trên chuỗi tổng hợp", () => {
   assert.equal(up.structure.key, "UP_ALIGNED");
   const bounce = computeSectorLadder({ indexSeries: curve(ds, (i) => (i < 390 ? -0.002 : 0.012) + wig(i)), members: [], benchBars: bench });
   assert.equal(bounce.structure.key, "BOUNCE");
+});
+
+test("cờ độ tham gia: chỉ gắn khi giảm hơn hẳn các ngành cùng cấp, không gắn khi cả thị trường cùng giảm", () => {
+  const row = (code, a, b, level = 2) => ({ code, level, flags: [], rungs: [{ h: 20, trail: [{ beat: a }, { beat: b }] }] });
+  const allDown = [row("A", 70, 35), row("B", 70, 40), row("C", 70, 38)];
+  applyBreadthFlags(allDown);
+  assert.equal(allDown.flatMap((r) => r.flags).length, 0, "giảm đồng loạt");
+  const one = [row("A", 70, 30), row("B", 60, 58), row("C", 50, 49), row("D", 60, 55)];
+  applyBreadthFlags(one);
+  assert.deepEqual(one.filter((r) => r.flags.length).map((r) => r.code), ["A"]);
+  assert.match(one[0].flags[0].text, /giảm 40 điểm/);
+  const levels = [row("A", 70, 30), row("D", 60, 58), row("E", 60, 59), row("B", 70, 32, 3), row("C", 70, 30, 3)];
+  applyBreadthFlags(levels);
+  assert.equal(levels[0].flags.length, 1, "so trong cùng cấp");
+  assert.equal(levels[3].flags.length, 0);
+  const thin = [row("A", 50, null), row("B", 60, 58)];
+  assert.doesNotThrow(() => applyBreadthFlags(thin));
 });
 
 test("bảng đối chiếu: một ngành ICB gom nhiều ngành Siêu Quét, đếm đúng", () => {

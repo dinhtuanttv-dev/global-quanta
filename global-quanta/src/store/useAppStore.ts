@@ -41,6 +41,12 @@ interface AppState {
   // ===== TÌM MÃ (thanh trên) -> mở mã trong Bảng Siêu Quét =====
   /** Yêu cầu Bảng Siêu Quét cuộn tới + mở chi tiết một mã; `nonce` để tìm lại cùng mã vẫn kích hoạt. */
   scannerFocus: { ticker: string; nonce: number; addToWatchlist?: boolean } | null;
+  /** Mở một ngành ở tab Phân tích ngành (từ Tổng quan). */
+  sectorFocus: { code: string; nonce: number } | null;
+  focusSector: (code: string) => void;
+  /** Lọc bảng Siêu Quét theo một ngành ICB (từ Phân tích ngành). */
+  scanSectorFocus: { code: string; nonce: number } | null;
+  focusScanSector: (code: string) => void;
   focusTickerInScanner: (ticker: string, opts?: { addToWatchlist?: boolean }) => void;
 
   // ===== TRẠNG THÁI NGUỒN GIÁ (MarketFeed -> đèn trên thanh trên) =====
@@ -160,6 +166,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   scannerFocus: null,
+  sectorFocus: null,
+  focusSector: (code) => set((s) => ({ sectorFocus: { code, nonce: (s.sectorFocus?.nonce ?? 0) + 1 } })),
+  scanSectorFocus: null,
+  focusScanSector: (code) => set((s) => ({ scanSectorFocus: { code, nonce: (s.scanSectorFocus?.nonce ?? 0) + 1 } })),
   focusTickerInScanner: (ticker, opts) => {
     const t = ticker.trim().toUpperCase();
     if (!t) return;

@@ -58,29 +58,70 @@ function zAt(C, i, h, sigma) {
   return Number.isFinite(rs) ? rs / (sigma * Math.sqrt(h)) : null;
 }
 const avg2 = (a, b) => (a == null || b == null ? null : (a + b) / 2);
+const median = (xs) => { const v = xs.filter(Number.isFinite).sort((a, b) => a - b); if (!v.length) return null; const m = v.length >> 1; return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2; };
+
+/** GTGD TB 20 phiên, khối ngoại 5 phiên, biên độ phiên so TB 20 phiên, Smart Score TB: bối cảnh để đọc bản đồ. */
+function memberContext(members, asOf, smartOf) {
+  let value20 = 0, foreign5 = null;
+  const ranges = [], smarts = [];
+  let active = 0;
+  for (const m of members) {
+    const bars = m.bars, i = bars.length - 1;
+    if (i < 20 || bars[i].date !== asOf) continue;
+    active++;
+    const last20 = bars.slice(-20).map((b) => (Number(b.value) > 0 ? Number(b.value) : b.close * (b.volume ?? 0)));
+    value20 += last20.reduce((a, b) => a + b, 0) / 20;
+    for (const b of bars.slice(-5)) if (Number.isFinite(b.foreignNet)) foreign5 = (foreign5 ?? 0) + b.foreignNet;
+    const rangeAvg = bars.slice(-21, -1).reduce((a, b) => a + (b.close > 0 ? (b.high - b.low) / b.close : 0), 0) / 20;
+    if (rangeAvg > 0 && bars[i].close > 0) ranges.push((bars[i].high - bars[i].low) / bars[i].close / rangeAvg);
+    const sm = smartOf?.get?.(m.ticker);
+    if (Number.isFinite(sm)) smarts.push(sm);
+  }
+  return { value20: Math.round(value20), foreign5: foreign5 == null ? null : Math.round(foreign5), rangeRatio: r2(median(ranges)), avgSmart: smarts.length ? Math.round((smarts.reduce((a, b) => a + b, 0) / smarts.length) * 10) / 10 : null, smartCoverage: active ? r2(smarts.length / active) : null };
+}
 
 /**
  * @param indexSeries [{date, close}] chỉ số ngành (cùng chỉ số của RRG)
  * @param members     [{ticker, bars}] giá điều chỉnh
  * @param benchBars   nến VN-Index cũ -> mới
+ * @param smartOf     Map(mã -> Smart Score) của lần quét cùng phiên (có thể null)
  */
-export function computeSectorLadder({ indexSeries, members, benchBars, p = LADDER_PARAMS }) {
+export function computeSectorLadder({ indexSeries, members, benchBars, smartOf = null, p = LADDER_PARAMS }) {
   const C = relativeCurve(indexSeries, benchBars), t = benchBars.length - 1;
   const sigma = t >= 0 ? sigmaAt(C, t, p) : null;
   const closes = members.map((m) => new Map(m.bars.map((b) => [b.date, Number(b.close)])));
-  const rungs = LADDER_HORIZONS.map((h) => {
-    const rs = t - h >= 0 ? C[t] - C[t - h] : NaN;
+  const breadthAt = (i, h) => {
     let k = 0, n = 0;
-    if (t - h >= 0) {
-      const dNow = benchBars[t].date, dThen = benchBars[t - h].date, bench = Math.log(benchBars[t].close / benchBars[t - h].close);
+    if (i - h >= 0) {
+      const dNow = benchBars[i].date, dThen = benchBars[i - h].date, bench = Math.log(benchBars[i].close / benchBars[i - h].close);
       for (const m of closes) {
         const a = m.get(dNow), b = m.get(dThen);
         if (a > 0 && b > 0) { n++; if (Math.log(a / b) > bench) k++; }
       }
     }
+    return { k, n };
+  };
+  const rungs = LADDER_HORIZONS.map((h) => {
+    const rs = t - h >= 0 ? C[t] - C[t - h] : NaN;
+    const { k, n } = breadthAt(t, h);
     const enough = n >= p.minBreadth, ci = enough ? wilson(k, n) : { lo: null, hi: null };
-    return { h, rs: Number.isFinite(rs) ? r2(rs * 100) : null, z: r2(zAt(C, t, h, sigma)), beat: enough ? r2((k / n) * 100) : null, n, lo: ci.lo, hi: ci.hi };
+    // Quỹ đạo: 5 điểm tới hôm nay; 5 phiên lấy theo ngày, kỳ dài lấy theo tuần. 1 phiên không có quỹ đạo vì là nhịp ngắn.
+    const trail = [];
+    if (h > 1) {
+      const step = h === 5 ? 1 : 5;
+      for (let back = 4; back >= 0; back--) {
+        const i = t - back * step;
+        if (i - h < 0) continue;
+        const b = breadthAt(i, h), s = sigmaAt(C, i, p);
+        trail.push({ date: benchBars[i].date, z: r2(zAt(C, i, h, s)), beat: b.n >= p.minBreadth ? r2((b.k / b.n) * 100) : null });
+      }
+    }
+    return { h, rs: Number.isFinite(rs) ? r2(rs * 100) : null, z: r2(zAt(C, t, h, sigma)), beat: enough ? r2((k / n) * 100) : null, n, lo: ci.lo, hi: ci.hi, trail };
   });
+  const asOf = benchBars[t]?.date ?? null;
+  const context = memberContext(members, asOf, smartOf);
+  const flags = [];
+  if (context.rangeRatio != null && context.rangeRatio >= 2) flags.push({ id: "RANGE_EXPANSION", text: `Biên độ phiên gấp ${context.rangeRatio} lần TB 20 phiên (trung vị)` });
   // Đi qua các phiên gần đây để vùng đệm có trạng thái trước đó; luôn cùng độ dài nên kết quả tái lập được.
   let short = 0, mid = 0, long = 0, last = null;
   for (let i = Math.max(0, t - p.warm + 1); i <= t; i++) {
@@ -92,9 +133,28 @@ export function computeSectorLadder({ indexSeries, members, benchBars, p = LADDE
   const ok = last && last.vs != null && last.vm != null && last.vl != null;
   const key = ok ? structureKey(short, mid, long) : "INSUFFICIENT";
   return {
-    asOf: benchBars[t]?.date ?? null, sigmaDailyPct: r2(sigma == null ? null : sigma * 100), rungs,
+    asOf, ...context, flags, sigmaDailyPct: r2(sigma == null ? null : sigma * 100), rungs,
     structure: { key, label: STRUCTURE_VI[key], short: ok ? short : null, mid: ok ? mid : null, long: ok ? long : null },
   };
+}
+
+/**
+ * Cờ độ tham gia giảm nhanh, so với các ngành cùng cấp: mức giảm trong 5 phiên từ 25 điểm trở lên VÀ hơn trung vị ít nhất 15 điểm.
+ * Khi cả thị trường cùng giảm thì đó là biến động chung, không phải dấu hiệu riêng của ngành. Sửa trực tiếp `flags` của từng dòng.
+ */
+export function applyBreadthFlags(rows, { minDrop = 25, minExcess = 15 } = {}) {
+  const fmt = (v) => String(Math.round(v)).replace("-", "−");
+  for (const level of new Set(rows.map((r) => r.level))) {
+    const items = rows.filter((r) => r.level === level).map((r) => {
+      const t = r.rungs.find((x) => x.h === 20)?.trail ?? [], a = t[t.length - 2], b = t[t.length - 1];
+      return { r, drop: a?.beat != null && b?.beat != null ? a.beat - b.beat : null };
+    }).filter((x) => x.drop != null);
+    const mid = median(items.map((x) => x.drop));
+    for (const { r, drop } of items) {
+      if (drop >= minDrop && drop - mid >= minExcess) r.flags.push({ id: "BREADTH_DROP", text: `Độ tham gia 20 phiên giảm ${fmt(drop)} điểm trong 5 phiên, trung vị các ngành ${fmt(mid)} điểm` });
+    }
+  }
+  return rows;
 }
 
 /** Bảng đối chiếu: mỗi ngành ICB cấp 2 gồm những ngành nào của bộ phân ngành Siêu Quét, để lọc bảng theo đúng danh sách mã. */

@@ -27,6 +27,7 @@ import { createMsGarchService } from "./volatility/msGarchService.js";
 import { createPreopenService } from "./preopen/preopenService.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
+import { createLedgerBackup, LEDGER_BACKUP_SCHEDULE } from "./ledgerBackup.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
 import { createTop20Service, TOP20_SCHEDULE } from "./top20/top20Jobs.js";
 import { createAlphaService, ALPHA_SCHEDULE } from "./alpha/alphaService.js";
@@ -139,7 +140,10 @@ export function getMarketRuntime() {
   // Chất xúc tác (31/10/2026): quét trên Gateway, nguồn tin Event Radar, lưu Railway Volume — hết phụ thuộc Neon. 8 lượt/ngày (Hobby, 31/10/2026), gồm cuối tuần (tin vẫn ra).
   const CATALYST_SCANS = ["08:35", "09:35", "10:35", "11:35", "13:35", "14:35", "15:15", "20:30"].map((at, i) => ({ name: `catalystScan${i + 1}`, at, tradingDayOnly: false }));
   for (const c of CATALYST_SCANS) jobs[c.name] = () => qmsJobs.call("/api/catalysts/scan");
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  const ledgerBackup = createLedgerBackup({ store });
+  jobs.backupLedgers = () => ledgerBackup.backup();
+  jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
+  const scheduler = createScheduler(jobs, { extraSchedule: [...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });

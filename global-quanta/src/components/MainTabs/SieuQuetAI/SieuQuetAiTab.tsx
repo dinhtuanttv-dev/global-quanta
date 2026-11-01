@@ -1,3 +1,6 @@
+import { useSectorLadder } from "../../../hooks/useSectorRotation";
+import { useTabNavigation } from "../../../lib/TabNavigationContext";
+import type { SectorLadderRow } from "../../../lib/locnganh/types";
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
@@ -128,7 +131,23 @@ export default function SieuQuetAiTab() {
     setBasketState(b);
     try { window.localStorage.setItem("gq.scannerBasket", b); } catch { /* bỏ qua */ }
   }, []);
-  const [industries, setIndustries] = useState<Set<string>>(() => new Set());
+  const [industries, setIndustriesState] = useState<Set<string>>(() => new Set());
+  // Lọc theo ngành ICB (bản đồ Ngành): đúng danh sách mã của ngành, loại trừ với bộ lọc ngành của thanh công cụ.
+  const [sectorScope, setSectorScope] = useState<{ code: string; name: string; tickers: Set<string> } | null>(null);
+  const setIndustries = useCallback((next: Set<string>) => { setIndustriesState(next); if (next.size) setSectorScope(null); }, []);
+  const pickSector = useCallback((s: SectorLadderRow | null) => { setSectorScope(s ? { code: s.code, name: s.name, tickers: new Set(s.tickers) } : null); if (s) setIndustriesState(new Set()); }, []);
+  const ladder = useSectorLadder();
+  const scanSectorFocus = useAppStore((s) => s.scanSectorFocus);
+  const handledScanSector = useRef<number | null>(null);
+  useEffect(() => {
+    if (!scanSectorFocus || !ladder.data || handledScanSector.current === scanSectorFocus.nonce) return;
+    handledScanSector.current = scanSectorFocus.nonce;
+    pickSector(ladder.data.sectors.find((x) => x.code === scanSectorFocus.code) ?? null);
+    setBasket("ALL");
+  }, [scanSectorFocus, ladder.data, pickSector, setBasket]);
+  const navigateTab = useTabNavigation();
+  const focusSector = useAppStore((s) => s.focusSector);
+  const openSector = useCallback((code: string) => { focusSector(code); navigateTab?.("Loc nganh"); }, [focusSector, navigateTab]);
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const watchlists = useWatchlists();
   const toggleStar = watchlists.toggle;
@@ -141,13 +160,13 @@ export default function SieuQuetAiTab() {
   const pinnedSet = useMemo(() => new Set(watchlists.active.pinned ?? []), [watchlists.active.pinned]);
   const activeSort = mode === "board" ? boardSort : scanSort;
   const filteredItems = useMemo(() => {
-    const list = industries.size ? basketData.items.filter((i) => industries.has(industryOf(i))) : basketData.items;
+    const list = sectorScope ? basketData.items.filter((i) => sectorScope.tickers.has(i.ticker)) : industries.size ? basketData.items.filter((i) => industries.has(industryOf(i))) : basketData.items;
     if (activeSort) return sortItems(list, activeSort);
     // Danh mục: mã đã ghim lên đầu (giữ thứ tự Siêu Quét trong từng phần).
     return effectiveBasket === "WATCHLIST" && pinnedSet.size
       ? [...list.filter((i) => pinnedSet.has(i.ticker)), ...list.filter((i) => !pinnedSet.has(i.ticker))]
       : list;
-  }, [basketData.items, industries, effectiveBasket, pinnedSet, activeSort]);
+  }, [basketData.items, industries, sectorScope, effectiveBasket, pinnedSet, activeSort]);
 
   // Tìm mã trên thanh trên -> đưa mã vào tầm nhìn: nếu đang bị lọc thì về "Tất cả"; mã ngoài danh sách quét CHỈ được
   // thêm vào danh mục khi người dùng chọn rõ "＋ Thêm vào ★ Danh mục" (TOPBAR T3); rồi mở phân tích khối lượng của mã.
@@ -159,6 +178,7 @@ export default function SieuQuetAiTab() {
     const t = scannerFocus.ticker;
     if (!filteredItems.some((i) => i.ticker === t)) {
       setIndustries(new Set());
+      setSectorScope(null);
       if (items.some((i) => i.ticker === t)) setBasket("ALL");
       else if (scannerFocus.addToWatchlist) { watchlists.add([t]); setBasket("WATCHLIST"); }
     }
@@ -167,7 +187,7 @@ export default function SieuQuetAiTab() {
     setTimeout(() => {
       scrollRef.current?.querySelector<HTMLElement>(`tr[data-ticker="${CSS.escape(t)}"]`)?.scrollIntoView({ block: "start", behavior: "smooth" });
     }, 150);
-  }, [scannerFocus, isLoading, filteredItems, items, watchlists, setBasket]);
+  }, [scannerFocus, isLoading, filteredItems, items, watchlists, setBasket, setIndustries]);
   // Gom nhóm: các đoạn theo nhóm ngành (thứ tự cố định) hoặc theo ngành (nhiều mã trước).
   const sections = useMemo(() => {
     if (groupBy === "none") return null;
@@ -204,7 +224,7 @@ export default function SieuQuetAiTab() {
       />}
 
       {/* TRADING MATRIX (M1–M2) — trạng thái thị trường đa nguồn; heatmap ngành lọc CÙNG state ngành của bảng, bấm mã chọn toàn trang */}
-      {!view.focus && <TradingMatrixPanel activeIndustries={industries} onSelectTicker={onSelect}
+      {!view.focus && <TradingMatrixPanel onSelectTicker={onSelect} activeSector={sectorScope?.code ?? null} onSector={pickSector} onOpenSector={openSector}
         onIndustry={(name) => setIndustries(name ? new Set([name]) : new Set())} />}
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
@@ -254,7 +274,8 @@ export default function SieuQuetAiTab() {
           {effectiveBasket === "WATCHLIST" && (
             <WatchlistBar notFound={basketData.notFound} insufficient={basketData.insufficient} loading={basketData.loading} gatewayReady={gatewayReady} />
           )}
-          {(effectiveBasket !== "ALL" || industries.size > 0) && <BasketSummary items={filteredItems} title={basketTitle} />}
+          {sectorScope && <button type="button" onClick={() => setSectorScope(null)} data-testid="scan-sector-chip" className="text-[11px] px-2 py-0.5 rounded border border-amber-400/40 text-amber-200 bg-amber-500/10 mb-2">✕ Đang lọc ngành ICB: {sectorScope.name}</button>}
+          {(effectiveBasket !== "ALL" || industries.size > 0 || sectorScope) && <BasketSummary items={filteredItems} title={basketTitle} />}
           {effectiveBasket === "VN30" && basketData.loading && <div className="text-[10px] text-slate-500 mb-2">Đang tải rổ VN30…</div>}
           {basketData.customError ? <div className="text-[10px] text-rose-400 mb-2">Không chấm điểm được mã ngoài universe: {basketData.customError instanceof Error ? basketData.customError.message : String(basketData.customError)}</div> : null}
           <div ref={scrollRef} className={`scan-frame ${overflow ? "is-overflow" : ""}`} data-fit={fit} data-testid="scan-frame">

@@ -8,6 +8,8 @@ import { RiskChecklist, ScenarioBoard, SignalJournal } from "./ScenarioBoard";
 import IndexImpactTable from "./IndexImpactTable";
 import { ForecastBlock } from "./MatrixOps";
 import SectorHeatmap, { quadrantOf, QUADRANT } from "./SectorHeatmap";
+import { useSectorLadder } from "../../../../hooks/useSectorRotation";
+import type { SectorLadderRow } from "../../../../lib/locnganh/types";
 import NotableMovers from "./NotableMovers";
 import { HEALTH_VI, TONE, bn, vn, when } from "./MatrixCards";
 import { IndexWaterfall, ScenarioStrip, SignedBars, Spark, StateMap, ZONE_VI } from "./StateCharts";
@@ -53,15 +55,15 @@ function Tiles({ p, path, open }: { p: StatePoint; path: StatePoint[]; open: (t:
   </>;
 }
 
-function ChangeTab({ d, scope, onIndustry, onSelect }: { d: MatrixOverview; scope: MatrixScope; onIndustry: (n: string | null) => void; onSelect: (t: string) => void }) {
-  const sectors = useMatrixSectors(scope, true);
+function ChangeTab({ d, onSector, onSelect }: { d: MatrixOverview; onSector: (s: SectorLadderRow | null) => void; onSelect: (t: string) => void }) {
+  const ladder = useSectorLadder();
   const s = d.state, c = s?.current, pv = s?.previous;
-  const flips = useMemo(() => (sectors.data?.sectors ?? []).flatMap((x) => {
-    const t = x.trail ?? [], a = t[t.length - 2], b = t[t.length - 1];
+  const flips = useMemo(() => (ladder.data?.sectors ?? []).filter((x) => x.level === 2).flatMap((x) => {
+    const t = x.rungs.find((r) => r.h === 5)?.trail ?? [], a = t[t.length - 2], b = t[t.length - 1];
     if (!a || !b) return [];
-    const q0 = quadrantOf(a.rs?.[5] ?? null, a.breadth), q1 = quadrantOf(b.rs?.[5] ?? null, b.breadth);
-    return q0 && q1 && q0 !== q1 ? [{ industry: x.industry, q0, q1 }] : [];
-  }), [sectors.data]);
+    const q0 = quadrantOf(a.z, a.beat), q1 = quadrantOf(b.z, b.beat);
+    return q0 && q1 && q0 !== q1 ? [{ sector: x, q0, q1 }] : [];
+  }), [ladder.data]);
   if (!s || !c) return <p className="text-[12px] text-slate-400">Chưa có dữ liệu.</p>;
   const rows: { k: string; label: string; a: number | null | undefined; b: number | null | undefined; d: number | null; unit: string; dig: number; max: number }[] = [
     { k: "b20", label: "Độ rộng MA20", a: pv?.b20, b: c.b20, d: s.deltas.b20, unit: "%", dig: 1, max: 15 },
@@ -86,8 +88,8 @@ function ChangeTab({ d, scope, onIndustry, onSelect }: { d: MatrixOverview; scop
         <p className="text-slate-200">Vùng: <b>{s.zone ? ZONE_VI[s.zone.id] : "—"}</b>{s.zoneChanged && s.zonePrev ? <span className="text-amber-300"> · đổi từ {ZONE_VI[s.zonePrev.id]}</span> : ""}</p>
         {(up.length > 0 || dn.length > 0) && <p className="text-slate-300" data-testid="mx-chg-pillars">Trụ phiên {when(d.links?.impact?.date)}: {up.map((x) => <button key={x.symbol} type="button" aria-label={`Chọn ${x.symbol}`} onClick={() => onSelect(x.symbol)} className="mr-1 font-mono text-emerald-300 hover:underline">{x.symbol} {sgn(x.points)}</button>)}{dn.map((x) => <button key={x.symbol} type="button" aria-label={`Chọn ${x.symbol}`} onClick={() => onSelect(x.symbol)} className="mr-1 font-mono text-rose-300 hover:underline">{x.symbol} {sgn(x.points)}</button>)}</p>}
         <div>
-          <p className="text-slate-400">Ngành đổi góc, RS 5 phiên {sectors.isLoading && !sectors.data ? "…" : `(${flips.length})`}</p>
-          <ul className="flex flex-wrap gap-1 pt-1" data-testid="mx-flips">{flips.slice(0, 12).map((f) => <li key={f.industry}><button type="button" onClick={() => onIndustry(f.industry)} className="rounded border border-white/10 px-1.5 py-0.5 text-[11px] text-slate-200 hover:border-amber-400/40">{f.industry}: <span className={QUADRANT[f.q0].text}>{QUADRANT[f.q0].label}</span> → <span className={QUADRANT[f.q1].text}>{QUADRANT[f.q1].label}</span></button></li>)}</ul>
+          <p className="text-slate-400">Ngành đổi vùng, 5 phiên {!ladder.data && !ladder.error ? "…" : `(${flips.length})`}</p>
+          <ul className="flex flex-wrap gap-1 pt-1" data-testid="mx-flips">{flips.slice(0, 12).map((f) => <li key={f.sector.code}><button type="button" onClick={() => onSector(f.sector)} className="rounded border border-white/10 px-1.5 py-0.5 text-[11px] text-slate-200 hover:border-amber-400/40">{f.sector.name}: <span className={QUADRANT[f.q0].text}>{QUADRANT[f.q0].label}</span> → <span className={QUADRANT[f.q1].text}>{QUADRANT[f.q1].label}</span></button></li>)}</ul>
         </div>
       </div>
     </div>
@@ -110,11 +112,11 @@ function IndexTab({ onSelect, onIndustry }: { onSelect: (t: string) => void; onI
   );
 }
 
-function SectorsTab({ scope, active, onIndustry }: { scope: MatrixScope; active: Set<string>; onIndustry: (n: string | null) => void }) {
-  const sectors = useMatrixSectors(scope, true);
-  if (sectors.error && !sectors.data) return <p className="text-[12px] text-rose-300" role="alert">Không khả dụng: {sectors.error.message}</p>;
-  if (!sectors.data) return <p className="text-[12px] text-slate-400">Đang tải…</p>;
-  return <SectorHeatmap data={sectors.data} active={active} onIndustry={onIndustry} />;
+function SectorsTab({ active, onSector, onOpenSector }: { active: string | null; onSector: (s: SectorLadderRow | null) => void; onOpenSector?: (code: string) => void }) {
+  const ladder = useSectorLadder();
+  if (ladder.error && !ladder.data) return <p className="text-[12px] text-rose-300" role="alert">Không khả dụng: {ladder.error.message}</p>;
+  if (!ladder.data) return <p className="text-[12px] text-slate-400">Đang tải…</p>;
+  return <SectorHeatmap doc={ladder.data} active={active} onSector={onSector} onOpenSector={onOpenSector} />;
 }
 function MoversTab({ scope, onSelect }: { scope: MatrixScope; onSelect: (t: string) => void }) {
   const m = useMatrixMovers(scope, true);
@@ -199,12 +201,12 @@ function EvidenceTab({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
   );
 }
 
-const NO_SET = new Set<string>();
 const NOOP = () => {};
 
-export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndustry = NOOP, onSelectTicker = NOOP }: {
+export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker = NOOP, activeSector = null, onSector = NOOP, onOpenSector }: {
   /** Bộ lọc ngành hiện tại của bảng (cùng state với ScannerToolbar). */
-  activeIndustries?: Set<string>; onIndustry?: (name: string | null) => void; onSelectTicker?: (ticker: string) => void;
+  onIndustry?: (name: string | null) => void; onSelectTicker?: (ticker: string) => void;
+  activeSector?: string | null; onSector?: (s: SectorLadderRow | null) => void; onOpenSector?: (code: string) => void;
 } = {}) {
   const [open, setOpenState] = useState(() => { try { return window.localStorage.getItem(KEY_OPEN) === "1"; } catch { return false; } });
   const [scope, setScopeState] = useState<MatrixScope>(() => { try { const v = window.localStorage.getItem(KEY_SCOPE); return v === "VN30" || v === "UNIVERSE" ? v : "VNINDEX"; } catch { return "VNINDEX"; } });
@@ -265,10 +267,10 @@ export default function TradingMatrixPanel({ activeIndustries = NO_SET, onIndust
               <div role="tablist" aria-label="Chi tiết trạng thái thị trường" className="flex gap-1 overflow-x-auto border-b border-white/10">
                 {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-mx-tab={t.id} className={`shrink-0 whitespace-nowrap border-b-2 px-2.5 py-1 text-[12px] font-semibold ${tab === t.id ? "border-amber-400 text-amber-200" : "border-transparent text-slate-400 hover:text-slate-200"}`}>{t.label}</button>)}
               </div>
-              <div role="tabpanel" className="relative max-h-[420px] overflow-y-auto pt-2 pr-1" data-testid="mx-tabpanel">
-                {tab === "change" && <ChangeTab d={data} scope={scope} onIndustry={onIndustry} onSelect={onSelectTicker} />}
+              <div role="tabpanel" className={`relative max-h-[420px] overflow-y-auto pt-2 pr-1 ${tab === "sectors" ? "sm:max-h-none" : ""}`} data-testid="mx-tabpanel">
+                {tab === "change" && <ChangeTab d={data} onSector={onSector} onSelect={onSelectTicker} />}
                 {tab === "index" && <IndexTab onSelect={onSelectTicker} onIndustry={onIndustry} />}
-                {tab === "sectors" && <SectorsTab scope={scope} active={activeIndustries} onIndustry={onIndustry} />}
+                {tab === "sectors" && <SectorsTab active={activeSector} onSector={onSector} onOpenSector={onOpenSector} />}
                 {tab === "movers" && <MoversTab scope={scope} onSelect={onSelectTicker} />}
                 {tab === "scenario" && <ScenarioTab d={data} onSelect={onSelectTicker} onIndustry={onIndustry} />}
                 {tab === "flow" && <FlowTab d={data} />}

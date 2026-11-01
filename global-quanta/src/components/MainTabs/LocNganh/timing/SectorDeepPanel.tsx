@@ -85,7 +85,7 @@ function LeadersTable({ sector }: { sector: GatewaySectorRrg }) {
   );
 }
 
-export function SectorDeepPanel({ code, sector, onClose, onFilterSector, filtered = false }: { code: string; sector: GatewaySectorRrg | undefined; onClose: () => void; onFilterSector?: (code: string) => void; filtered?: boolean }) {
+export function SectorDeepPanel({ code, sector, onClose, onFilterSector, filtered = false, onOpenScanner }: { code: string; sector: GatewaySectorRrg | undefined; onClose: () => void; onOpenScanner?: (code: string) => void; onFilterSector?: (code: string) => void; filtered?: boolean }) {
   const { data, error, isLoading } = useSectorCycle(code);
   const tracking = useSectorTracking();
   return (
@@ -101,6 +101,7 @@ export function SectorDeepPanel({ code, sector, onClose, onFilterSector, filtere
             {filtered ? "Đang lọc Top 20 theo ngành này" : "Lọc Top 20 theo ngành này"}
           </button>
         )}
+        {onOpenScanner && <button type="button" onClick={() => onOpenScanner(code)} data-testid="sector-open-scanner" style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid var(--bg-surface-2)", background: "transparent", color: "var(--text-secondary)" }}>Xem các mã ở Siêu Quét →</button>}
         <button type="button" onClick={onClose} aria-label="Đóng phân tích ngành" style={{ marginLeft: "auto", background: "none", border: "none", color: "var(--text-tertiary)", cursor: "pointer", fontSize: 14 }}>✕</button>
       </div>
       {sector && (
