@@ -1,7 +1,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { SWRConfig } from "swr";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import { ImpulseFlowPanel, IntelAiSections, TechnicalTiles } from "./MarketIntel";
 import VnIndexBand from "./VnIndexBand";
 import type { MarketIntel, PerformanceRow } from "../../../hooks/useResearch";
@@ -59,6 +59,8 @@ async function render(node: React.ReactNode) {
   return el;
 }
 
+beforeEach(() => { try { localStorage.setItem("gq.fold.t5Model", "1"); } catch { /* bỏ qua */ } });
+
 describe("Market Intelligence VN-Index", () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetResearchUiForTest(); document.body.innerHTML = ""; });
 
@@ -74,7 +76,7 @@ describe("Market Intelligence VN-Index", () => {
     const el = await render(<ImpulseFlowPanel score={35} intel={intelFixture()} />);
     const t = el.textContent ?? "";
     expect(t).toContain("35.0");
-    expect(t).toContain("Tích lũy an toàn");
+    expect(t).toContain("Trung tính");
     expect(t).toContain("Impulse 2.0");
     expect(t).toContain("−1.27");
     expect(t).toContain("▼ tay to xả mạnh");

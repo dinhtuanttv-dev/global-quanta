@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import type { SieuQuetIndexState } from "../../../hooks/useSieuQuetScanner";
 import { REGIME_LABEL, useResearchOverview } from "../../../hooks/useResearch";
-import { HmmBar, riskLevel } from "./MarketIntel";
+import { riskLevel } from "./MarketIntel";
+import MarketCenterPanel from "./MarketCenterPanel";
 
 const BIAS_COLOR: Record<string, string> = {
   uptrend: "#10b981", accumulation: "#f59e0b", defensive: "#60a5fa", distribution: "#f43f5e", downtrend: "#f43f5e",
@@ -47,7 +48,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
         {s ? (
           <>
             <Chip label="Cấu trúc MA" value={s.trendLabel} color={BIAS_COLOR[s.trendBias]} />
-            <Chip label="Impulse" value={s.impulseScore.toFixed(1)} color={impulseColor} title="Market Impulse Gauge (0–100)" />
+            <Chip label="Impulse" value={s.impulseScore.toFixed(1)} color={impulseColor} title="Market Impulse Gauge (0–100), theo bảng quét. Khối AI bên dưới dùng số của job nghiên cứu nên có thể khác." />
             <Chip label="RSI14" value={s.rsi14.toFixed(1)} />
             <Chip label="Nén–bứt phá" value={`${s.breakoutProbability.toFixed(0)}/100`} title="Công thức: 100 − ATR percentile − |50 − độ rộng|. Không phải xác suất, chưa kiểm định." />
           </>
@@ -64,6 +65,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
           </button>
         </div>
       </div>
+      <MarketCenterPanel />
       {open && (
         <div id="vn-band-detail" className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-12 gap-4 px-4 pb-4">
           <div className="rounded-xl p-4 2xl:col-span-3" style={box}>

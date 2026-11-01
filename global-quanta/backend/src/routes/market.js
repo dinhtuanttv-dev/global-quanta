@@ -455,6 +455,12 @@ router.get("/structure-ledger", handle(async (req, res) => {
 }));
 
 // MTF v3 (30/10/2026) — Ngày · Tuần · Tháng, không khung 1 giờ (MTF-v3-prereg.md).
+// Trung tâm thị trường: 3 kịch bản VN-Index, chỉ trả số đã đạt kiểm định (PO-prereg.md).
+router.get("/preopen", handle(async (req, res) => {
+  res.set("Cache-Control", "public, max-age=60");
+  res.json(await getMarketRuntime().preopen.get());
+}));
+
 // MS-GARCH: dải rủi ro 20 phiên, chỉ tính khi có người bật lớp trên chart.
 router.get("/ms-garch/:symbol", async (req, res) => {
   const symbol = canonicalSymbol(req.params.symbol);

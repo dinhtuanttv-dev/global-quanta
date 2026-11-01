@@ -1,3 +1,4 @@
+import FoldSection from "./FoldSection";
 import { useState } from "react";
 import type { SieuQuetIndexState } from "../../../hooks/useSieuQuetScanner";
 import type { MarketIntel, PerformanceRow } from "../../../hooks/useResearch";
@@ -122,7 +123,7 @@ function ZSpark({ values, label }: { values: (number | null)[]; label: string })
 /** Market Impulse (giữ đồng hồ cũ) + Impulse 2.0 + dấu chân tay to + khối ngoại + ngày phân phối + VSA + rủi ro phân phối. */
 export function ImpulseFlowPanel({ score, intel }: { score: number | null; intel: MarketIntel | null | undefined }) {
   const zoneColor = !isNum(score) ? MUTED : score < 35 ? DOWN : score <= 65 ? AMBER : UP;
-  const zoneLabel = !isNum(score) ? "" : score < 35 ? "Rủi ro cao" : score <= 65 ? "Tích lũy an toàn" : "Hưng phấn / Mở rộng";
+  const zoneLabel = !isNum(score) ? "" : score < 35 ? "Rủi ro cao" : score <= 65 ? "Trung tính" : "Hưng phấn / Mở rộng";
   const c = intel?.current;
   const series = intel?.series.slice(-60) ?? [];
   const last25 = intel?.series.slice(-25) ?? [];
@@ -302,6 +303,7 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
 
       {/* Mô hình tổng hợp */}
       {m && (
+        <FoldSection id="t5Model" title={`Mô hình tổng hợp T+${h} · logistic Bayes, walk-forward có purge`} summary={m.passed ? "Đạt kiểm định" : "Chưa đạt kiểm định"}>
         <div className="rounded-lg p-2 border" style={{ borderColor: m.passed ? `${UP}55` : "rgba(255,255,255,0.08)", background: "rgba(167,139,250,0.04)" }}>
           <div className="flex items-baseline justify-between gap-2 mb-1">
             <span className="text-[9.5px] font-semibold" style={{ color: VIOLET }}>MÔ HÌNH TỔNG HỢP T+{h} · logistic Bayes, walk-forward có purge</span>
@@ -321,6 +323,7 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
           <div className="text-[9px] text-slate-500 mt-1 mb-0.5">Trọng số học được (đặc trưng chuẩn hoá) · KTC 95% bootstrap khối · xám = KTC chứa 0</div>
           <div className="space-y-0.5">{m.weights.map((w) => <WeightRow key={w.name} w={w} />)}</div>
         </div>
+        </FoldSection>
       )}
 
       {/* Kiểm định tín hiệu mới */}

@@ -1,3 +1,4 @@
+import FoldSection from "./FoldSection";
 import { REGIME_LABEL, useResearchOverview, type ForwardStats, type PerformanceRow } from "../../../hooks/useResearch";
 import { IntelAiSections } from "./MarketIntel";
 
@@ -43,7 +44,7 @@ export default function VnIndexAiPanel() {
 
   return (
     <div style={box} className="rounded-xl p-4">
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-3">
       <div className="min-w-0">
       <div className="flex items-center justify-between mb-2">
         <h2 className="text-sm font-semibold text-violet-300">AI phân tích VN-Index</h2>
@@ -55,7 +56,7 @@ export default function VnIndexAiPanel() {
 
       <div className="text-[9px] text-slate-400 mb-1.5">
         Phiên {cur.date}: VN-Index {cur.close.toLocaleString("vi-VN")} · {[maPos(cur.ma20, "MA20"), maPos(cur.ma50, "MA50"), maPos(cur.ma200, "MA200")].filter(Boolean).join(" · ")}
-        {" · "}độ rộng {cur.breadthPct ?? "—"}% · Impulse {cur.impulseScore ?? "—"}
+        {" · "}độ rộng {cur.breadthPct ?? "—"}% · Impulse {cur.impulseScore ?? "—"} (job nghiên cứu)
       </div>
 
       {/* Dải trạng thái 60 phiên gần nhất */}
@@ -134,12 +135,11 @@ export default function VnIndexAiPanel() {
         Dữ liệu {a.from} → {a.to}. {a.note} Chỉ số AI của từng mã: nhấn đúp một dòng trong Bảng Siêu Quét.
       </div>
       </div>
-      <div className="min-w-0 xl:border-l xl:border-white/5 xl:pl-4">
-        <h3 className="text-[11px] font-semibold text-violet-300 mb-1.5">Market Intelligence · HMM · Bayes · dòng tiền lớn</h3>
+      <FoldSection id="marketIntel" title="Market Intelligence · HMM · Bayes · dòng tiền lớn" summary={data.intel?.current ? <span data-testid="mi-summary">Giảm {(Number(data.intel.current.pBear ?? 0) * 100).toFixed(0)}% · đi ngang {(Number(data.intel.current.pNeutral ?? 0) * 100).toFixed(0)}% · tăng {(Number(data.intel.current.pBull ?? 0) * 100).toFixed(0)}% · rủi ro dòng tiền rút {data.intel.current.risk ?? "—"}</span> : "Chưa có dữ liệu"}>
         {data.intel
           ? <IntelAiSections intel={data.intel} performance={data.performance ?? []} signalLabels={data.signalLabels ?? {}} />
           : <div className="text-[10px] text-slate-500">Lớp Market Intelligence sẽ hiện sau lần chạy job nghiên cứu kế tiếp (researchSignals).</div>}
-      </div>
+      </FoldSection>
       </div>
     </div>
   );
