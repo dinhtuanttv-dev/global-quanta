@@ -132,12 +132,13 @@ const getBrokerViews = () => {
 const VN_MACRO_CATEGORIES = "MONETARY_POLICY,FISCAL_POLICY,MACRO_DATA,MARKET_STRUCTURE";
 /** Bằng chứng Việt Nam cho bản tin AI. Từng nguồn lỗi thì bản tin vẫn chạy với phần còn lại. */
 async function vnBriefEvidence() {
-  const [macro, radar, broker] = await Promise.all([
+  const [macro, radar, broker, preopen] = await Promise.all([
     getMacroService().handle({ method: "GET", path: "/api/macro/series", query: { tail: "3" } }).then((r) => (r.status === 200 ? r.body : null)).catch(() => null),
     getMarketRuntime().eventRadar.list({ category: VN_MACRO_CATEGORIES, limit: 20 }).then((d) => d.events ?? []).catch(() => []),
     getBrokerViews().forBrief().catch(() => null),
+    getMarketRuntime().preopen.get().catch(() => null),
   ]);
-  return { macro, radar, broker };
+  return { macro, radar, broker, preopen };
 }
 let worldBrief = null;
 const getWorldBrief = () => {

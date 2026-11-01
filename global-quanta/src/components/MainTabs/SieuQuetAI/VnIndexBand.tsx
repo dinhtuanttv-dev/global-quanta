@@ -60,7 +60,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
         <div className="ml-auto flex items-center gap-3">
           {toggle}
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="vn-band-detail"
-            className="text-[10.5px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40">
+            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40">
             {open ? "Thu gọn ▴" : "Chi tiết ▾"}
           </button>
         </div>
@@ -76,7 +76,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
             <h2 className="text-sm font-semibold text-blue-400 mb-3">Market Impulse Gauge & Dòng tiền lớn</h2>
             {impulse}
           </div>
-          <div className="min-w-0 lg:col-span-2 2xl:col-span-6">{aiPanel ?? <div className="rounded-xl p-4 text-[10px] text-slate-500" style={box}>AI phân tích VN-Index đang ẩn (bật công tắc "AI nghiên cứu").</div>}</div>
+          <div className="min-w-0 lg:col-span-2 2xl:col-span-6">{aiPanel ?? <div className="rounded-xl p-4 text-[11px] text-slate-500" style={box}>AI phân tích VN-Index đang ẩn (bật công tắc "AI nghiên cứu").</div>}</div>
         </div>
       )}
     </section>

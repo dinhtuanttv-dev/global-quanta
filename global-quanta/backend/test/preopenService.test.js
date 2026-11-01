@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createPreopenService, vnClock } from "../src/market/preopen/preopenService.js";
+import { createPreopenService, esIsFresh, vnClock, worldFresh } from "../src/market/preopen/preopenService.js";
 
 // Dữ liệu giả: 180 phiên đến 30/10/2026 (thứ Sáu), ES theo giờ cùng kỳ.
 const end = Date.parse("2026-10-30T00:00:00Z");
@@ -29,6 +29,7 @@ test("trước giờ giao dịch: dùng phiên trước làm mốc, chưa đạt
   assert.equal(d.levels.close, Math.round(BARS.at(-1).close * 10) / 10);
   assert.equal(d.scenarios.length, 3);
   assert.ok(d.scenarios.every((s) => s.probability === null && s.open === null));
+  assert.ok(d.volNext.ew > 0);
   assert.equal(d.tracking, null);
   assert.equal(d.risk.label, "calm");
   assert.equal(d.evidence.probabilities, false);
@@ -58,7 +59,7 @@ test("sổ tiến: ghi số bị ẩn một lần mỗi mốc, chấm lúc 15:05
   const day = store.kv.get("preopen:ledger:v1").days["2026-11-02"];
   assert.ok(day.slots["07:15"].shadow.every((x) => x.open && Number.isFinite(x.probability)));
   assert.equal(day.prevClose, BARS.at(-1).close);
-  t.v = Date.parse("2026-11-02T08:06:00Z");
+  t.v = Date.parse("2026-11-02T08:16:00Z");
   await s.tick();
   const sc = store.kv.get("preopen:ledger:v1").days["2026-11-02"].score;
   assert.equal(sc.outcome, "neg");
@@ -67,6 +68,45 @@ test("sổ tiến: ghi số bị ẩn một lần mỗi mốc, chấm lúc 15:05
   const d = await s.get();
   assert.equal(d.ledger.scored, 1);
   assert.equal(d.phase, "post");
+});
+
+test("ES đóng băng trong giờ giao dịch thì không kết luận; cuối tuần giá cũ là bình thường", async () => {
+  assert.equal(esIsFresh("2026-11-02T00:00:00Z", Date.parse("2026-11-02T01:30:00Z")), true);
+  assert.equal(esIsFresh("2026-10-30T21:00:00Z", Date.parse("2026-11-02T01:30:00Z")), false);
+  assert.equal(esIsFresh("2026-10-30T21:00:00Z", Date.parse("2026-10-31T10:00:00Z")), true);
+  assert.equal(esIsFresh(null, Date.parse("2026-10-31T10:00:00Z")), false);
+  const stale = await make({ v: Date.parse("2026-11-02T01:30:00Z") }, { world: async () => [{ group: "futures", symbol: "ES=F", name: "ES", price: 4900, at: "2026-10-30T21:00:00Z", changePct: -1 }] }).get();
+  assert.equal(stale.lead, null);
+  assert.equal(stale.es.movePct, null);
+  assert.equal(stale.es.fresh, false);
+  const missing = await make({ v: Date.parse("2026-11-02T01:30:00Z") }, { world: async () => [] }).get();
+  assert.equal(missing.lead, null);
+});
+
+test("số châu Á chưa mở hôm nay bị đánh dấu phiên trước", () => {
+  const now = Date.parse("2026-11-02T00:15:00Z");
+  assert.equal(worldFresh({ group: "asia", at: "2026-10-30T08:08:00Z" }, now), false);
+  assert.equal(worldFresh({ group: "asia", at: "2026-11-02T00:10:00Z" }, now), true);
+  assert.equal(worldFresh({ group: "us", at: "2026-11-01T21:00:00Z" }, now), true);
+  assert.equal(worldFresh({ group: "us", at: null }, now), false);
+});
+
+test("trong phiên giữ nguyên kịch bản của ảnh chụp cuối, ES đang chạy không đổi kết luận", async () => {
+  const store = memStore(), t = { v: Date.parse("2026-11-02T01:50:00Z") }, ref = [...ES].filter((b) => b.t + 3600 <= Date.parse("2026-10-30T08:00:00Z") / 1000).at(-1).close;
+  const at = (price) => async () => [{ group: "futures", symbol: "ES=F", name: "ES", price, at: new Date(t.v - 60_000).toISOString(), changePct: -1 }];
+  let w = at(ref * 0.9);
+  const bars = [...BARS, { date: "2026-11-02", open: BARS.at(-1).close * 0.99, high: 0, low: 0, close: BARS.at(-1).close * 0.985 }];
+  const s = createPreopenService({ getVnBars: async () => bars, esHours: async () => ES, world: () => w(), now: () => t.v, tradingDay: () => true, store, log: {} });
+  await s.tick();
+  t.v = Date.parse("2026-11-02T03:30:00Z");
+  w = at(ref * 1.2);
+  const d = await s.get();
+  assert.equal(d.phase, "session");
+  assert.equal(d.lead, "neg");
+  assert.equal(d.es.frozenAt, "08:50");
+  assert.ok(d.es.livePct > 10);
+  assert.ok(d.tracking);
+  assert.ok(d.scenarios.every((x) => !("shadowOpen" in x) && !("shadowProbability" in x)), "không lộ số ẩn qua API");
 });
 
 test("ngày nghỉ không ghi ảnh chụp", async () => {

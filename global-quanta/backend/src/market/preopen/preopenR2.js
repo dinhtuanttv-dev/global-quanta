@@ -43,9 +43,9 @@ export function msVol(closes, start = FIT_WINDOW + 1) {
 }
 
 /** Gắn biến kỹ thuật và σ̂ vào hàng đã ghép theo ngày. */
-export function enrich(rows, bars, { useMs = true } = {}) {
+export function enrich(rows, bars, { useMs = true, msStart = null } = {}) {
   const closes = bars.map((b) => b.close), idx = new Map(bars.map((b, i) => [String(b.date).slice(0, 10), i]));
-  const ew = ewmaVol(closes), ms = useMs ? msVol(closes, Math.min(120, closes.length)) : null;
+  const ew = ewmaVol(closes), ms = useMs ? msVol(closes, msStart ?? Math.min(120, closes.length)) : null;
   return rows.map((r) => {
     const i = idx.get(r.date);
     const p = i - 1;

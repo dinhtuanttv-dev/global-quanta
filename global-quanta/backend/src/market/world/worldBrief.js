@@ -42,6 +42,8 @@ export function buildEvidence({ monitor, news, strategy, nowMs, vn = null }) {
     items.push({ ref: `V:${s.id}`, kind: "macro", text: `${s.nameVi}: ${round(last.value)}${s.unit ? ` ${s.unit}` : ""}, kỳ ${last.period}${prev ? `, kỳ trước ${round(prev.value)}` : ""}`, numbers: [last.value, prev?.value, prev ? last.value - prev.value : null, prev?.value ? (last.value / prev.value - 1) * 100 : null], source: s.source ?? "Trung tâm vĩ mô", at: last.period });
   }
   (vn?.radar ?? []).slice(0, 15).forEach((e, i) => { if (nowMs - Date.parse(e.publishedAt) <= NEWS_WINDOW_MS) items.push({ ref: `R:${i + 1}`, kind: "news", text: `${e.title} (${e.sourceLabel}, single)`, numbers: numbersIn(e.title), source: e.sourceLabel, at: e.publishedAt, url: e.url ?? null, verification: "single" }); });
+  const po = vn?.preopen;
+  if (po?.lead) { const s = po.scenarios.find((x) => x.id === po.lead); items.push({ ref: "P:lead", kind: "macro", text: `Tình huống dẫn đầu cho phiên ${po.session}: ${s.name}, ES ${round(po.es.movePct)}% từ lúc VN đóng cửa, dải cả phiên ${s.day.lo} đến ${s.day.hi} điểm. Không phải dự báo chiều giá.`, numbers: [po.es.movePct, s.day.lo, s.day.hi], source: "Trung tâm thị trường", at: po.asOf }); }
   const view = vn?.broker?.view;
   if (view?.n) items.push({ ref: "C:view", kind: "broker", text: `Đồng thuận ${view.n} CTCK có quan điểm: điểm ${round(view.score)} trên thang −1 đến +1, bất đồng ${round(view.disagreement)} trên thang 0 đến 1`, numbers: [view.n, view.score, view.disagreement], source: "Sổ nhận định CTCK", at: view.items[0]?.date ?? null });
   (vn?.broker?.reports ?? []).forEach((r, i) => {

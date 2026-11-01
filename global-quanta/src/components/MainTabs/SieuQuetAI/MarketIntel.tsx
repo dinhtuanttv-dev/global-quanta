@@ -52,7 +52,7 @@ function Tile({ label, value, color, children, title }: { label: string; value: 
   return (
     <div className="rounded-lg px-2 py-1.5 bg-white/[0.03] border border-white/5" title={title}>
       <div className="flex items-baseline justify-between gap-1">
-        <span className="text-[9.5px] text-slate-500">{label}</span>
+        <span className="text-[11px] text-slate-500">{label}</span>
         <b className="font-mono text-[11px]" style={{ color: color ?? "#e2e8f0" }}>{value}</b>
       </div>
       {children}
@@ -64,13 +64,13 @@ const BIAS_COLOR: Record<string, string> = { uptrend: UP, accumulation: AMBER, d
 
 /** Phân tích kỹ thuật đa tầng — giữ đủ chỉ số cũ, trình bày thành ô có thanh so ngưỡng. */
 export function TechnicalTiles({ state, close }: { state: SieuQuetIndexState | null; close: number | null }) {
-  if (!state) return <div className="text-[10px] text-slate-500">Đang tải dữ liệu VN-Index...</div>;
+  if (!state) return <div className="text-[11px] text-slate-500">Đang tải dữ liệu VN-Index...</div>;
   const vs = (ma: number) => (close && ma ? (close / ma - 1) * 100 : null);
   const maTile = (label: string, ma: number) => {
     const d = vs(ma);
     return (
       <Tile key={label} label={label} value={fx(ma)} title={d === null ? undefined : `VN-Index ${d >= 0 ? "trên" : "dưới"} ${label} ${Math.abs(d).toFixed(1)}%`}>
-        {d !== null && <div className="text-[9px] font-mono" style={{ color: d >= 0 ? UP : DOWN }}>{d >= 0 ? "▲ trên" : "▼ dưới"} {Math.abs(d).toFixed(1)}%</div>}
+        {d !== null && <div className="text-[11px] font-mono" style={{ color: d >= 0 ? UP : DOWN }}>{d >= 0 ? "▲ trên" : "▼ dưới"} {Math.abs(d).toFixed(1)}%</div>}
       </Tile>
     );
   };
@@ -78,7 +78,7 @@ export function TechnicalTiles({ state, close }: { state: SieuQuetIndexState | n
   return (
     <div className="space-y-1.5 text-xs">
       <div className="flex justify-between items-baseline">
-        <span className="text-slate-500 text-[10.5px]">Xu hướng</span>
+        <span className="text-slate-500 text-[11px]">Xu hướng</span>
         <span className="font-semibold text-[11.5px]" style={{ color: BIAS_COLOR[state.trendBias] ?? "#e2e8f0" }}>{state.trendLabel}</span>
       </div>
       <div className="grid grid-cols-3 gap-1">{[maTile("MA20", state.ma20), maTile("MA50", state.ma50), maTile("MA200", state.ma200)]}</div>
@@ -87,9 +87,9 @@ export function TechnicalTiles({ state, close }: { state: SieuQuetIndexState | n
           <Meter value={state.rsi14} marks={[30, 70]} color={rsiColor === "#e2e8f0" ? "#94a3b8" : rsiColor} />
         </Tile>
         <Tile label="MACD Hist." value={fx(state.macdHistogram, 2)} color={state.macdHistogram >= 0 ? UP : DOWN}>
-          <div className="text-[9px]" style={{ color: state.macdHistogram >= 0 ? UP : DOWN }}>{state.macdHistogram >= 0 ? "▲ động lượng dương" : "▼ động lượng âm"}</div>
+          <div className="text-[11px]" style={{ color: state.macdHistogram >= 0 ? UP : DOWN }}>{state.macdHistogram >= 0 ? "▲ động lượng dương" : "▼ động lượng âm"}</div>
         </Tile>
-        <Tile label="Breadth" value={`${fx(state.marketBreadthPct)}%`} color={state.marketBreadthPct >= 50 ? UP : DOWN} title="% mã trên MA20 · vạch 50%">
+        <Tile label="Độ rộng (Universe)" value={`${fx(state.marketBreadthPct)}%`} color={state.marketBreadthPct >= 50 ? UP : DOWN} title="% mã trên MA20 · vạch 50%">
           <Meter value={state.marketBreadthPct} marks={[50]} color={state.marketBreadthPct >= 50 ? UP : DOWN} />
         </Tile>
         <Tile label="Phân kỳ" value={state.divergence} />
@@ -100,7 +100,7 @@ export function TechnicalTiles({ state, close }: { state: SieuQuetIndexState | n
           <Meter value={state.breakoutProbability} marks={[50]} color={state.breakoutProbability >= 50 ? UP : "#94a3b8"} />
         </Tile>
       </div>
-      <p className="text-slate-400 text-[10px] pt-1.5 border-t border-white/10 leading-snug">{state.narrative}</p>
+      <p className="text-slate-400 text-[11px] pt-1.5 border-t border-white/10 leading-snug">{state.narrative}</p>
     </div>
   );
 }
@@ -135,28 +135,28 @@ export function ImpulseFlowPanel({ score, intel }: { score: number | null; intel
         <div className="text-3xl font-mono font-semibold" style={{ color: zoneColor }}>{fx(score)}</div>
         <div className="flex-1">
           <Meter value={score} marks={[35, 65]} color={zoneColor} />
-          <div className="text-[10px] mt-1" style={{ color: zoneColor }}>{zoneLabel}</div>
+          <div className="text-[11px] mt-1" style={{ color: zoneColor }}>{zoneLabel}</div>
         </div>
       </div>
-      {!c ? <div className="text-[10px] text-slate-500">Lớp dòng tiền lớn sẽ hiện sau lần chạy job nghiên cứu kế tiếp.</div> : (
+      {!c ? <div className="text-[11px] text-slate-500">Lớp dòng tiền lớn sẽ hiện sau lần chạy job nghiên cứu kế tiếp.</div> : (
         <>
           <Tile label="Impulse 2.0 (lọc dòng tiền lớn)" value={fx(i2)} color={!isNum(i2) ? MUTED : i2 < 35 ? DOWN : i2 <= 65 ? AMBER : UP}
             title="75% Impulse cũ + 25% điểm dấu chân tay to (z 5 phiên). Đang được chấm điểm trong vòng phản hồi.">
             <Meter value={i2} marks={[35, 65]} color={!isNum(i2) ? MUTED : i2 < 35 ? DOWN : i2 <= 65 ? AMBER : UP} />
           </Tile>
           <div className="rounded-lg px-2 py-1.5 bg-white/[0.03] border border-white/5">
-            <div className="flex items-baseline justify-between text-[9.5px]">
+            <div className="flex items-baseline justify-between text-[11px]">
               <span className="text-slate-500">Dấu chân tay to toàn thị trường (z 5 phiên)</span>
               <b className="font-mono text-[11px]" style={{ color: (c.zLd5 ?? 0) >= 0 ? UP : DOWN }}>{signed(c.zLd5)}</b>
             </div>
             <ZSpark values={series.map((d) => d.zLd5)} label={`Dấu chân tay to 60 phiên, hiện ${signed(c.zLd5)}`} />
-            <div className="flex justify-between text-[9.5px] text-slate-500">
+            <div className="flex justify-between text-[11px] text-slate-500">
               <span>{isNum(c.zLd5) && c.zLd5 <= -1 ? "▼ tay to xả mạnh" : isNum(c.zLd5) && c.zLd5 >= 1 ? "▲ tay to gom mạnh" : "trung tính"}</span>
               <span>Khối ngoại ròng z <b className="font-mono" style={{ color: (c.zFr5 ?? 0) >= 0 ? UP : DOWN }}>{signed(c.zFr5)}</b></span>
             </div>
           </div>
           <div className="rounded-lg px-2 py-1.5 bg-white/[0.03] border border-white/5">
-            <div className="flex items-baseline justify-between text-[9.5px]">
+            <div className="flex items-baseline justify-between text-[11px]">
               <span className="text-slate-500">Ngày phân phối / tích luỹ (25 phiên)</span>
               <b className="font-mono text-[11px]"><span style={{ color: DOWN }}>{c.dist25}</span> / <span style={{ color: UP }}>{c.acc25}</span></b>
             </div>
@@ -166,13 +166,13 @@ export function ImpulseFlowPanel({ score, intel }: { score: number | null; intel
                   style={{ background: d.isDist ? DOWN : "rgba(148,163,184,0.18)", outline: d.effortNoResult ? `1px solid ${AMBER}` : undefined }} />
               ))}
             </div>
-            <div className="text-[9px] text-slate-500 mt-0.5">
+            <div className="text-[11px] text-slate-500 mt-0.5">
               {isNum(c.distPct) ? `Cao hơn ${pct(c.distPct)} các phiên trong 250 phiên trước` : ""}{c.effortNoResult ? " · ⚠ hôm nay: KL lớn nhưng giá đi ít (VSA)" : ""}
             </div>
           </div>
           <div className="flex items-center justify-between rounded-lg px-2 py-1.5" style={{ border: `1px solid ${risk.color}55`, background: `${risk.color}12` }}
             title="Trung bình của: phân vị ngày phân phối, dấu chân tay to âm, độ rộng thấp, P(HMM Giảm). Chỉ số mô tả, không phải dự báo.">
-            <span className="text-[10px] text-slate-300">Rủi ro dòng tiền rút (Distribution)</span>
+            <span className="text-[11px] text-slate-300">Rủi ro dòng tiền rút (Distribution)</span>
             <b className="font-mono text-[12px]" style={{ color: risk.color }}>{c.risk ?? "—"} · {risk.label}</b>
           </div>
         </>
@@ -189,7 +189,7 @@ const xPos = (v: number) => `${Math.min(100, Math.max(0, ((v - AXIS[0]) / (AXIS[
 function ForestRow({ label, value, mean, lo, hi, base, n, nEff }: { label: string; value: string; mean: number | null; lo: number | null; hi: number | null; base: number | null; n: number; nEff: number }) {
   const color = !isNum(mean) || !isNum(base) ? MUTED : isNum(lo) && lo > base ? UP : isNum(hi) && hi < base ? DOWN : "#cbd5e1";
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_6.3rem] items-center gap-2 text-[9.5px]" title={`${label}: ${value} · ${n} phiên (hiệu dụng ≈ ${nEff})`}>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_6.3rem] items-center gap-2 text-[11px]" title={`${label}: ${value} · ${n} phiên (hiệu dụng ≈ ${nEff})`}>
       <span className="text-slate-400 leading-tight">{label}: <span className="text-slate-200">{value}</span></span>
       <span className="relative h-3">
         <span className="absolute inset-x-0 top-1/2 h-px bg-white/10" />
@@ -209,7 +209,7 @@ function WeightRow({ w }: { w: { label: string; coef: number | null; lo: number 
   const sig = isNum(w.lo) && isNum(w.hi) && (w.lo > 0 || w.hi < 0);
   const color = !sig ? MUTED : (w.coef ?? 0) > 0 ? UP : DOWN;
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_3.2rem] items-center gap-2 text-[9.5px]" title={`${w.label}: ${signed(w.coef)} [${signed(w.lo)}, ${signed(w.hi)}]${sig ? "" : " — KTC chứa 0"}`}>
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(5rem,7rem)_3.2rem] items-center gap-2 text-[11px]" title={`${w.label}: ${signed(w.coef)} [${signed(w.lo)}, ${signed(w.hi)}]${sig ? "" : " — KTC chứa 0"}`}>
       <span className="text-slate-400 leading-tight">{w.label}</span>
       <span className="relative h-3">
         <span className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-400/50" />
@@ -247,12 +247,12 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
     <div className="space-y-2.5">
       {/* HMM */}
       <div>
-        <div className="flex items-baseline justify-between text-[9px] text-slate-500 mb-0.5">
+        <div className="flex items-baseline justify-between text-[11px] text-slate-500 mb-0.5">
           <span>Chế độ thị trường HMM (3 trạng thái, fit lại mỗi 20 phiên trên dữ liệu quá khứ)</span>
           {intel.hmm?.trainedThrough && <span className="font-mono">fit tới {intel.hmm.trainedThrough}</span>}
         </div>
         <HmmBar c={c} />
-        <div className="flex justify-between text-[9px] font-mono mt-0.5">
+        <div className="flex justify-between text-[11px] font-mono mt-0.5">
           <span style={{ color: DOWN }}>▼ Giảm {pct(c.pBear)}</span><span style={{ color: AMBER }}>■ Đi ngang {pct(c.pNeutral)}</span><span style={{ color: UP }}>▲ Tăng {pct(c.pBull)}</span>
         </div>
         <div className="flex gap-px mt-1" role="img" aria-label="Chế độ HMM 60 phiên gần nhất">
@@ -263,7 +263,7 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
           })}
         </div>
         {intel.hmm && (
-          <div className="text-[9px] text-slate-500 mt-0.5">
+          <div className="text-[11px] text-slate-500 mt-0.5">
             {intel.hmm.states.map((s, k) => <span key={s.label} className="mr-2">{["▼", "■", "▲"][k]} {s.label}: 5 phiên {signed(s.ret5, 1)}% · biến động {fx(s.vol20, 2)}%/phiên · giữ {pct(s.stay)}</span>)}
           </div>
         )}
@@ -272,11 +272,11 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
       {/* Bayes */}
       <div>
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 mb-1">
-          <span className="text-[9px] text-slate-500 min-w-0 flex-1">Xác suất Bayes VN-Index tăng sau T+{h} theo điều kiện hiện tại · KTC 95% · vạch đứt = mức nền</span>
+          <span className="text-[11px] text-slate-500 min-w-0 flex-1">Xác suất Bayes VN-Index tăng sau T+{h} theo điều kiện hiện tại · KTC 95% · vạch đứt = mức nền</span>
           <span className="inline-flex shrink-0 rounded border border-white/10 overflow-hidden" role="tablist" aria-label="Kỳ hạn">
             {["3", "5", "10"].map((k) => (
               <button key={k} type="button" role="tab" aria-selected={h === k} onClick={() => setH(k)}
-                className={`text-[9.5px] px-1.5 py-px ${h === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>T+{k}</button>
+                className={`text-[11px] px-1.5 py-px ${h === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>T+{k}</button>
             ))}
           </span>
         </div>
@@ -286,13 +286,13 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
             {b.rows.map((r) => <ForestRow key={r.id} label={r.label} value={r.value} mean={r.mean} lo={r.lo} hi={r.hi} base={b.base.p} n={r.n} nEff={r.nEff} />)}
           </div>
         )}
-        <div className="text-[9px] text-slate-500 mt-0.5">
+        <div className="text-[11px] text-slate-500 mt-0.5">
           Chấm xanh/đỏ = KTC nằm hẳn trên/dưới mức nền; xám = chưa khác mức nền. {c.regime && ctx[c.regime] ? `Với trạng thái hiện tại, "tăng" nghĩa là ${ctx[c.regime]}.` : ""}
         </div>
       </div>
 
       {/* Phân kỳ */}
-      <div className="text-[9.5px]">
+      <div className="text-[11px]">
         <span className="text-slate-500">Phân kỳ đa khung (5/20/60 phiên): </span>
         {divs.length ? divs.map((d) => (
           <span key={`${d.indicator}-${d.window}`} className="inline-block mr-1 px-1 rounded border" style={{ color: d.type === "bullish" ? UP : DOWN, borderColor: d.type === "bullish" ? `${UP}66` : `${DOWN}66` }}>
@@ -306,21 +306,21 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
         <FoldSection id="t5Model" title={`Mô hình tổng hợp T+${h} · logistic Bayes, walk-forward có purge`} summary={m.passed ? "Đạt kiểm định" : "Chưa đạt kiểm định"}>
         <div className="rounded-lg p-2 border" style={{ borderColor: m.passed ? `${UP}55` : "rgba(255,255,255,0.08)", background: "rgba(167,139,250,0.04)" }}>
           <div className="flex items-baseline justify-between gap-2 mb-1">
-            <span className="text-[9.5px] font-semibold" style={{ color: VIOLET }}>MÔ HÌNH TỔNG HỢP T+{h} · logistic Bayes, walk-forward có purge</span>
-            <span className="text-[9px] px-1 rounded border shrink-0" style={{ color: m.passed ? UP : MUTED, borderColor: m.passed ? `${UP}66` : "rgba(148,163,184,0.4)" }}>
+            <span className="text-[11px] font-semibold" style={{ color: VIOLET }}>MÔ HÌNH TỔNG HỢP T+{h} · logistic Bayes, walk-forward có purge</span>
+            <span className="text-[11px] px-1 rounded border shrink-0" style={{ color: m.passed ? UP : MUTED, borderColor: m.passed ? `${UP}66` : "rgba(148,163,184,0.4)" }}>
               {m.passed ? "✓ ĐẠT KIỂM ĐỊNH" : "CHƯA ĐẠT KIỂM ĐỊNH"}
             </span>
           </div>
-          <div className="text-[9.5px] text-slate-400">
+          <div className="text-[11px] text-slate-400">
             Brier skill ngoài mẫu <b className="font-mono" style={{ color: (m.oos.skill ?? 0) > 0 ? UP : DOWN }}>{signed(m.oos.skill, 3)}</b>
             {" "}KTC 95% [{signed(m.oos.lo, 3)}, {signed(m.oos.hi, 3)}] · {m.oos.n} dự báo (hiệu dụng ≈ {m.oos.nEff ?? "—"}) · đúng chiều {pct(m.oos.hitRate)}
           </div>
-          <div className="text-[10px] mt-0.5">
+          <div className="text-[11px] mt-0.5">
             {m.passed
               ? <>P(VN-Index tăng sau T+{h}) = <b className="font-mono" style={{ color: VIOLET }}>{pct(m.prob)}</b> <span className="text-slate-500">(mức nền {pct(m.baseRate)})</span></>
               : <span className="text-slate-500">Chưa hơn mức nền một cách đáng tin cậy (cận dưới KTC ≤ 0) → không hiển thị xác suất của mô hình.</span>}
           </div>
-          <div className="text-[9px] text-slate-500 mt-1 mb-0.5">Trọng số học được (đặc trưng chuẩn hoá) · KTC 95% bootstrap khối · xám = KTC chứa 0</div>
+          <div className="text-[11px] text-slate-500 mt-1 mb-0.5">Trọng số học được (đặc trưng chuẩn hoá) · KTC 95% bootstrap khối · xám = KTC chứa 0</div>
           <div className="space-y-0.5">{m.weights.map((w) => <WeightRow key={w.name} w={w} />)}</div>
         </div>
         </FoldSection>
@@ -328,8 +328,8 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
 
       {/* Kiểm định tín hiệu mới */}
       <div>
-        <div className="text-[9px] text-slate-500 mb-0.5">Kiểm định tín hiệu mới trong vòng phản hồi (trúng / nền · z cụm) — tín hiệu chưa có lợi thế chỉ để tham khảo</div>
-        <table className="w-full table-fixed text-[9px] font-mono">
+        <div className="text-[11px] text-slate-500 mb-0.5">Kiểm định tín hiệu mới trong vòng phản hồi (trúng / nền · z cụm) — tín hiệu chưa có lợi thế chỉ để tham khảo</div>
+        <table className="w-full table-fixed text-[11px] font-mono">
           <colgroup><col className="w-[34%]" /><col /><col /><col /></colgroup>
           <tbody>
             {INTEL_SIGNALS.map((sig) => (
@@ -349,7 +349,7 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
           </tbody>
         </table>
       </div>
-      <div className="text-[8.5px] text-slate-500">{intel.notes} Dữ liệu dòng tiền {intel.coverage.footprintDays} phiên; VN-Index {intel.coverage.indexDays} phiên.</div>
+      <div className="text-[11px] text-slate-500">{intel.notes} Dữ liệu dòng tiền {intel.coverage.footprintDays} phiên; VN-Index {intel.coverage.indexDays} phiên.</div>
     </div>
   );
 }

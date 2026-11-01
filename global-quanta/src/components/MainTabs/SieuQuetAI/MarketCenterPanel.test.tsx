@@ -7,13 +7,14 @@ const sc = (id: "neg" | "mid" | "pos", name: string, lo: number, hi: number) => 
 const doc: PreopenDoc = {
   version: "preopen/1", rule: "PO-r1", asOf: "2026-11-02T01:30:00Z", phase: "pre", session: "2026-11-02", prevDate: "2026-10-30",
   es: { movePct: -1.25, price: 7500, refPrice: 7600, at: "2026-11-02T01:29:00Z" }, lead: "neg", scenarios: [sc("neg", "Tiêu cực", 1700, 1745), sc("mid", "Trung tính", 1718, 1765), sc("pos", "Tích cực", 1735, 1780)],
-  trainDays: 250, trainFrom: "2025-10-01", trainTo: "2026-10-30", scale: 1, tracking: null, levels: { close: 1741.6, ma20: 1736.7, ma50: 1773.1, ma200: 1795.1 },
+  trainDays: 250, trainFrom: "2025-10-01", trainTo: "2026-10-30", tracking: null, levels: { close: 1741.6, ma20: 1736.7, ma50: 1773.1, ma200: 1795.1 },
   risk: { label: "calm", probCalm: 0.94, probVolatile: 0.06, volAnnualPct: 14.6, grade: "C", asOf: "2026-10-30" },
   world: [{ group: "us", name: "S&P 500", price: 7000, at: "2026-10-30T20:00:00Z", changePct: -1.5 }, { group: "futures", name: "ES", price: 7500, at: "2026-11-02T01:00:00Z", changePct: -1 }, { group: "asia", name: "Hang Seng", price: null, at: null, changePct: null }],
   evidence: { rule: "PO-r1", openBand: false, dayBand: false, probabilities: false, noPanicSell: false, noChase: false, sample: { tested: 376, from: "2025-04-29", to: "2026-10-30" }, openCoverage: 82.2, dayCoverage: 66.8, brierSkill: 0, history: [{ id: "neg", label: "ES ≤ −0,8%", n: 36, gap: -0.27, oc: -0.15, cc: -0.42 }] },
   timeline: [{ slot: "07:15", lead: "neg", es: -1 }], ledger: { days: 1, scored: 0, openCoverage: null, dayCoverage: null, leadHit: null },
 };
 const state: { data: PreopenDoc | undefined; error: Error | undefined } = { data: doc, error: undefined };
+vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
 vi.mock("../../../hooks/usePreopen", () => ({ usePreopen: () => ({ data: state.data, error: state.error, isLoading: false }) }));
 import MarketCenterPanel from "./MarketCenterPanel";
 import FoldSection from "./FoldSection";
@@ -24,7 +25,8 @@ afterEach(() => { cleanup(); state.data = doc; state.error = undefined; try { lo
 describe("Trung tâm thị trường", () => {
   it("chưa đạt kiểm định: có kết luận và 3 thẻ, không có %, vùng mở cửa ghi rõ, dải có cảnh báo", () => {
     render(<MarketCenterPanel />);
-    expect(q("mc-verdict")?.textContent).toContain("Tiêu cực: Thận trọng, chờ xác nhận");
+    expect(q("mc-verdict")?.textContent).toContain("Tiêu cực");
+    expect(q("mc-verdict")?.textContent).toContain("Tham khảo: Thận trọng, chờ xác nhận");
     expect(q("mc-verdict")?.textContent).toContain("−1,25%");
     expect(q("mc-no-evidence")).toBeTruthy();
     expect(document.querySelectorAll('[data-testid^="mc-card-"]').length).toBe(3);
@@ -55,6 +57,21 @@ describe("Trung tâm thị trường", () => {
     expect(q("mc-tracking")?.textContent).toContain("đã vô hiệu");
     expect(q("mc-live-dot")).toBeTruthy();
   });
+  it("thiếu ES thì không kết luận; dải đạt kiểm định thì ghi rõ; số cũ màu xám; bấm mốc xem lại; thu gọn được", async () => {
+    state.data = { ...doc, lead: null, es: { ...doc.es, movePct: null, fresh: false, at: "2026-10-30T21:00:00Z" }, evidence: { ...doc.evidence, dayBand: true, dayCoverage: 80.1 }, world: doc.world.map((w) => ({ ...w, fresh: w.name !== "Hang Seng" })) };
+    render(<MarketCenterPanel />);
+    expect(q("mc-no-es")?.textContent).toContain("Chưa kết luận");
+    expect(q("mc-verdict")?.textContent).not.toContain("đang dẫn đầu");
+    expect(q("mc-day-ok")?.textContent).toContain("80,1%");
+    expect(q("mc-stale-note")).toBeTruthy();
+    expect(q("mc-world-Hang Seng")?.querySelector('[data-stale="1"]')).toBeTruthy();
+    await act(async () => (q("mc-slot-07:15") as HTMLElement).click());
+    expect(q("mc-slot-view")?.textContent).toContain("Bản 07:15");
+    await act(async () => (q("mc-toggle") as HTMLElement).click());
+    expect(q("mc-cards")).toBeNull();
+    expect(q("mc-verdict")).toBeTruthy();
+  });
+
   it("lỗi tải báo rõ; thiếu dữ liệu không vỡ giao diện", () => {
     state.data = undefined; state.error = new Error("HTTP 502");
     render(<MarketCenterPanel />);
