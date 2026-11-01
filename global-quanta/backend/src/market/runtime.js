@@ -24,6 +24,7 @@ import { createCorporateActions } from "./adjusted/corporateActions.js";
 import { fetchVndEvents } from "./adjusted/vndirectEvents.js";
 import { createTaSeries } from "./adjusted/taSeries.js";
 import { createMsGarchService } from "./volatility/msGarchService.js";
+import { createPreopenService } from "./preopen/preopenService.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
@@ -86,6 +87,7 @@ export function getMarketRuntime() {
   const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fallback: (symbols) => fetchVndEvents(symbols) });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
   const msGarch = createMsGarchService({ getBars: (symbol) => taSeries.get({ symbol, range: "5y", limit: 800 }).then((r) => r.bars ?? []) });
+  const preopen = createPreopenService({ store, getVnBars: () => service.getOhlcv({ symbol: "VNINDEX", limit: 800 }).then((r) => r.bars ?? []), getMsGarch: () => msGarch.get("VNINDEX") });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
   const cycles = createCycleService({ service, corporateActions, taSeries });
@@ -154,7 +156,7 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { msGarch, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -176,6 +178,7 @@ export function startMarketIngestor() {
       .catch((e) => console.warn(`[catalysts] quét bù lỗi: ${e.message}`));
   }, 120_000).unref?.();
   rt.elliottAlerts.start();
+  rt.preopen.startTimer();
   // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
   if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();
   if (rt.store.localFirst) setTimeout(() => { rt.jobs.repairForeign().then((r) => { console.log(`[foreign-repair] ${JSON.stringify(r)}`); if (r.repaired.length) rt.matrix.clearMemo(); }).catch((e) => console.warn(`[foreign-repair] ${e.message}`)); }, 90_000).unref?.();

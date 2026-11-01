@@ -97,11 +97,10 @@ export function buildScenarios({ rows, es, prevClose, evidence }) {
     const b = fit.buckets[id], anchor = id === lead && es != null ? es : b.esMedian, o = open.predict(anchor);
     const openBand = evidence.openBand ? { lo: px(o.lo), mid: px(o.mid), hi: px(o.hi) } : null;
     const dayBand = { lo: px(b.dayLo), hi: px(b.dayHi) };
-    const ref = openBand ?? { lo: px(b.dayLo * 0.4), hi: px(b.dayHi * 0.4) };
     return {
       id, name: NAMES[id], trigger: TRIGGER[id], esAnchor: round(anchor, 2), open: openBand, day: dayBand, n: b.n, posture: POSTURE[id],
       probability: evidence.probabilities ? round(b.probs[id] * 100, 0) : null,
-      confirm: id === "neg" ? `Dưới ${ref.lo} sau 10:00` : id === "pos" ? `Giữ trên ${ref.lo} qua 10:00` : `Giữ quanh ${prevClose} đến 10:00`,
+      confirm: id === "neg" ? `Dưới ${prevClose} sau 10:00` : id === "pos" ? `Trên ${prevClose} sau 10:00` : `Trong ${dayBand.lo}–${dayBand.hi} đến 10:00`,
       invalid: id === "neg" ? `Lấy lại ${prevClose}` : id === "pos" ? `Về dưới ${prevClose}` : `Ra ngoài ${dayBand.lo}–${dayBand.hi}`,
       action: id === "neg" ? (evidence.noPanicSell ? "Lịch sử: giảm từ đầu phiên rồi hồi, không bán đuổi lúc mở." : "Chờ phản ứng sau 10:00. Quy tắc hành động chưa có bằng chứng.")
         : id === "pos" ? (evidence.noChase ? "Lịch sử: mở cao rồi hụt lại, không mua đuổi lúc mở." : "Chờ giữ được vùng mở cửa. Quy tắc hành động chưa có bằng chứng.")
