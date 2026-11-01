@@ -2,7 +2,9 @@
 // RRG 4D (mặc định nhìn phẳng), bảng toàn bộ ngành: Trạng thái (Tăng trưởng / Tích lũy / Tích lũy đáy / Phân phối / Suy thoái), Giai đoạn,
 // Dòng tiền (thị phần GTGD, CMF), Góc RRG, 4 cột thời điểm của engine, Quyết định; bấm ngành -> bảng phụ phân tích chuyên sâu.
 // Nguồn: Gateway sector-rrg/L5 + Project A locnganh-timing/L2. EXPERIMENTAL (kiểm định L3 không đạt).
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAppStore } from "../../../../store/useAppStore";
+import { useTabNavigation } from "../../../../lib/TabNavigationContext";
 import { useSectorLadder, useSectorRrg } from "../../../../hooks/useSectorRotation";
 import { useSectorTimingSignals } from "../../../../hooks/useSectorTimingSignals";
 import type { GatewaySectorRrg, SectorRotation, SectorStateKey, SectorTimingSignalV2 } from "../../../../lib/locnganh/types";
@@ -93,6 +95,21 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
       || ((b.flow?.share.changePct ?? 0) - (a.flow?.share.changePct ?? 0));
   }), [sectors, bySector]);
   const toggle = (code: string) => setOpen((c) => (c === code ? null : code));
+  // Đến từ bản đồ Ngành ở Tổng quan: chọn đúng cấp, mở đúng ngành, cuộn tới lưới kỳ hạn.
+  const sectorFocus = useAppStore((s) => s.sectorFocus);
+  const handledFocus = useRef<number | null>(null);
+  useEffect(() => {
+    if (!sectorFocus || !rrg.data || handledFocus.current === sectorFocus.nonce) return;
+    handledFocus.current = sectorFocus.nonce;
+    const target = rrg.data.sectors.find((s) => s.code === sectorFocus.code);
+    if (!target) return;
+    setLevel(target.level === 3 ? 3 : 2);
+    setOpen(target.code);
+    setTimeout(() => document.querySelector('[data-testid="sector-ladder"]')?.scrollIntoView?.({ block: "start", behavior: "smooth" }), 200);
+  }, [sectorFocus, rrg.data]);
+  const navigateTab = useTabNavigation();
+  const focusScanSector = useAppStore((s) => s.focusScanSector);
+  const openInScanner = (code: string) => { focusScanSector(code); navigateTab?.("Sieu quet AI"); };
   const data = timing.data as (typeof timing.data & { market?: { riskOnScore: number | null; macroRegime: string; riskOnRegime?: string; riskOnInDecision?: boolean }; evidence?: { label: string; reason: string } }) | null;
   const evidence = rrg.data?.evidence ?? data?.evidence;
 
@@ -192,7 +209,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
           </div>
         </>
       )}
-      {open && <SectorDeepPanel code={open} sector={sectors.find((s) => s.code === open)} onClose={() => setOpen(null)} onFilterSector={onFilterSector} filtered={selectedSector === open} />}
+      {open && <SectorDeepPanel code={open} sector={sectors.find((s) => s.code === open)} onClose={() => setOpen(null)} onFilterSector={onFilterSector} filtered={selectedSector === open} onOpenScanner={openInScanner} />}
     </div>
   );
 }

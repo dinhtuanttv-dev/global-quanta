@@ -50,7 +50,7 @@ export function rollingMarketCorrelation(indexSeries, benchmarkBars, { lookback 
  * @param seriesOf  Map(ticker -> bars) giá điều chỉnh
  * @param benchBars nến ngày VN-Index
  */
-export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf = () => [], scannerMap = {}, now = Date.now }) {
+export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf = () => [], scannerMap = {}, smartOf = null, now = Date.now }) {
   const dates = benchBars.map((b) => b.date);
   const benchWeekly = weeklyCloses(benchBars.map((b) => ({ date: b.date, close: b.close })));
   const lastDate = dates.at(-1) ?? null;
@@ -118,7 +118,7 @@ export function buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf
           compositionBasis: "current_universe_reconstructed", points: rrg4dTrailPoints,
         },
       });
-      ladderRows.push({ code: it.code, level, name: it.name, parent: it.parent ?? null, tickers: members.map((m) => m.ticker), ...computeSectorLadder({ indexSeries: idx.series, members, benchBars }) });
+      ladderRows.push({ code: it.code, level, name: it.name, parent: it.parent ?? null, tickers: members.map((m) => m.ticker), ...computeSectorLadder({ indexSeries: idx.series, members, benchBars, smartOf }) });
       history[it.code] = { code: it.code, level, name: it.name, rrg, transitions: tr, index: idx.series.map((b) => [b.date, b.close, b.n]), rebalances: idx.rebalances.slice(-3) };
     }
   }

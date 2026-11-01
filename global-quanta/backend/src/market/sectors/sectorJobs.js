@@ -46,7 +46,10 @@ export function createSectorJobs({ service, corporateActions, taSeries = null, n
       const { universe, seriesOf, benchBars, skipped, viaTaSeries } = await loadAdjustedUniverse({ store, corporateActions, taSeries, historyDays: SECTOR_HISTORY_DAYS });
       if (benchBars.length < 200) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
       const scannerMap = (await store.getKv("scanner:taxonomy"))?.value?.map ?? {};
-      const { summary, history, ladder } = buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf: await screenerTags(store), scannerMap, now });
+      // Smart Score chỉ ghép khi lần quét cùng phiên, không trộn thời điểm.
+      const scan = (await store.getKv("scanner:latest"))?.value ?? null;
+      const smartOf = scan?.dataAsOf === benchBars.at(-1)?.date ? new Map((scan.items ?? []).map((i) => [i.ticker, i.smartScore])) : null;
+      const { summary, history, ladder } = buildSectorRotation({ universe, icb, seriesOf, benchBars, tagsOf: await screenerTags(store), scannerMap, smartOf, now });
       await store.setKv(SECTOR_RRG_KV, summary);
       await store.setKv(SECTOR_RRG_HISTORY_KV, history);
       await store.setKv(SECTOR_LADDER_KV, ladder);

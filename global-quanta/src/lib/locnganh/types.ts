@@ -228,9 +228,10 @@ export interface GatewaySectorRrg {
   flow?: SectorFlow; state?: { key: SectorStateKey; label: string; why: string[] };
 }
 export type SectorStructureKey = "UP_ALIGNED" | "DOWN_ALIGNED" | "BOUNCE" | "PULLBACK" | "MIXED" | "INSUFFICIENT";
-export interface SectorLadderRung { h: number; rs: number | null; z: number | null; beat: number | null; n: number; lo: number | null; hi: number | null }
+export interface SectorLadderRung { h: number; rs: number | null; z: number | null; beat: number | null; n: number; lo: number | null; hi: number | null; trail?: { date: string; z: number | null; beat: number | null }[] }
 export interface SectorLadderRow {
   code: string; level: number; name: string; parent: string | null; tickers: string[]; asOf: string | null; sigmaDailyPct: number | null;
+  value20?: number; foreign5?: number | null; rangeRatio?: number | null; avgSmart?: number | null; smartCoverage?: number | null; flags?: { id: string; text: string }[];
   rungs: SectorLadderRung[];
   structure: { key: SectorStructureKey; label: string; short: number | null; mid: number | null; long: number | null };
 }
