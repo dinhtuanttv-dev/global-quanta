@@ -267,7 +267,7 @@ export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker =
               <div role="tablist" aria-label="Chi tiết trạng thái thị trường" className="flex gap-1 overflow-x-auto border-b border-white/10">
                 {TABS.map((t) => <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-mx-tab={t.id} className={`shrink-0 whitespace-nowrap border-b-2 px-2.5 py-1 text-[12px] font-semibold ${tab === t.id ? "border-amber-400 text-amber-200" : "border-transparent text-slate-400 hover:text-slate-200"}`}>{t.label}</button>)}
               </div>
-              <div role="tabpanel" className="relative max-h-[420px] overflow-y-auto pt-2 pr-1" data-testid="mx-tabpanel">
+              <div role="tabpanel" className={`relative max-h-[420px] overflow-y-auto pt-2 pr-1 ${tab === "sectors" ? "sm:max-h-none" : ""}`} data-testid="mx-tabpanel">
                 {tab === "change" && <ChangeTab d={data} onSector={onSector} onSelect={onSelectTicker} />}
                 {tab === "index" && <IndexTab onSelect={onSelectTicker} onIndustry={onIndustry} />}
                 {tab === "sectors" && <SectorsTab active={activeSector} onSector={onSector} onOpenSector={onOpenSector} />}

@@ -39,11 +39,11 @@ export default function SectorHeatmap({ doc, active, onSector, onOpenSector }: P
   const rows = useMemo(() => doc.sectors.filter((s) => s.level === level && rungOf(s, h)?.z != null), [doc, level, h]);
   const ranked = useMemo(() => [...rows].sort((a, b) => (rungOf(b, h)?.z ?? 0) - (rungOf(a, h)?.z ?? 0)), [rows, h]);
   const activeRow = doc.sectors.find((s) => s.code === active) ?? null;
-  const W = 640, H = 340, PAD = { l: 46, r: 14, t: 12, b: 36 };
+  const W = 640, H = 350, PAD = { l: 46, r: 14, t: 12, b: 36 }, INSET = 18; // chừa chỗ để bong bóng ở sát 0% và 100% không bị cắt
   const zMax = Math.max(2, ...rows.map((s) => Math.abs(rungOf(s, h)?.z ?? 0))) * 1.1;
   const vMax = Math.max(1, ...rows.map((s) => s.value20 ?? 0));
   const X = (v: number) => PAD.l + ((v + zMax) / (2 * zMax)) * (W - PAD.l - PAD.r);
-  const Y = (v: number) => PAD.t + (1 - v / 100) * (H - PAD.t - PAD.b);
+  const Y = (v: number) => PAD.t + INSET + (1 - v / 100) * (H - PAD.t - PAD.b - 2 * INSET);
   const R = (v: number) => 4 + Math.sqrt(v / vMax) * 13;
   const pts = rows.filter((s) => rungOf(s, h)?.beat != null).map((s) => { const r = rungOf(s, h)!; return { s, r, cx: X(r.z!), cy: Y(r.beat!), rad: R(s.value20 ?? 0), q: quadrantOf(r.z, r.beat)! }; });
   const labelBoxes = useMemo(() => {
