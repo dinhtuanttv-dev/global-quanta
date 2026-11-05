@@ -8,6 +8,7 @@ import { buildCalendar, buildLibrary, eligiblePrefix, HORIZONS, prepareSeries, w
 import { absoluteSimilarity, candidatePool, forecastFromPool } from "./engine.js";
 import { hashConfig } from "./validate.js";
 import { CYCLE_VALIDATION } from "./validation.js";
+import { analogSummary } from "./analogStats.js";
 import { LEDGER_INDEX_KV, LEDGER_PREFIX, ledgerKv, recordSnapshot, scoreLedger, snapshotRow } from "./ledger.js";
 import { alertMissingSessions, assertLatestSession, loadLedgerIndex, missingSessions } from "../ledgerIndex.js";
 
@@ -134,6 +135,16 @@ export function createCycleService({ service, corporateActions, taSeries = null,
       },
     },
     ledger: ledgerFor,
+    /** Tóm tắt giai đoạn tương tự cho nhiều mã (bảng Top 20). Dùng lại kết quả truy vấn đã lưu đệm; mã ngoài thư viện thì bỏ. */
+    async summary(symbols) {
+      const out = [];
+      for (const s of symbols) {
+        const doc = await this.query(s).catch(() => null);
+        if (doc) out.push(analogSummary(doc));
+      }
+      const c = await ensure();
+      return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, method: "trung vị và dải 10–90% có trọng số của lợi suất vượt VN-Index 20 phiên sau 30 giai đoạn tương tự", rows: out };
+    },
     async query(symbol) {
       const c = await ensure();
       const key = `${c.builtAt}:${symbol}`;

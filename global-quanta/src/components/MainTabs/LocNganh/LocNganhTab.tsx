@@ -2,7 +2,10 @@ import { useState, useMemo } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import { CycleFingerprintTab } from "./CfTab";
 import SectorRotationPanel from "./timing/SectorRotationPanel";
-import { useSectorRrg } from "../../../hooks/useSectorRotation";
+import { useSectorLadder, useSectorRrg } from "../../../hooks/useSectorRotation";
+import { useSectorTimingSignals } from "../../../hooks/useSectorTimingSignals";
+import { useCycleSummary } from "../../../hooks/useCycleSummary";
+import type { SectorTimingSignalV2 } from "../../../lib/locnganh/types";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import Top20V2Panel from "./Top20V2Panel";
 import { useAlphaTop20 } from "../../../hooks/useAlphaTop20";
@@ -29,6 +32,20 @@ export default function LocNganhTab() {
   }, [selectedSectorKey, sectorRrg.data]);
   const alpha = useAlphaTop20(subTab === "rrg");
   const gateway = isMarketGatewayEnabled();
+  // Giai đoạn C: bối cảnh cho từng mã Top 20 (không cộng vào điểm).
+  const ladder = useSectorLadder();
+  const timing = useSectorTimingSignals({ enabled: gateway && subTab === "rrg" });
+  const topTickers = useMemo(() => (subTab === "rrg" ? (alpha.data?.top20 ?? []).map((s) => s.ticker) : []), [alpha.data, subTab]);
+  const cycles = useCycleSummary(topTickers);
+  const ctx = useMemo(() => ({
+    rrgOf: new Map((sectorRrg.data?.sectors ?? []).map((s) => [s.code, s])),
+    ladderOf: new Map((ladder.data?.sectors ?? []).map((s) => [s.code, s])),
+    timingOf: timing.bySector as ReadonlyMap<string, SectorTimingSignalV2>,
+    cycleOf: new Map((cycles.data?.rows ?? []).map((r) => [r.symbol, r])),
+    cycleLoading: cycles.isLoading,
+  }), [sectorRrg.data, ladder.data, timing.bySector, cycles.data, cycles.isLoading]);
+  const focusSector = useAppStore((s) => s.focusSector);
+  const openCycle = (ticker: string) => { selectTicker(ticker); setSubTab("fingerprint"); };
 
   return (
     <div className="loc-nganh-tab">
@@ -63,7 +80,8 @@ export default function LocNganhTab() {
           {gateway && <SectorRotationPanel selectedSector={selectedSectorKey} onFilterSector={(code) => setSelectedSectorKey(code === selectedSectorKey ? null : code)} />}
           {alpha.data
             ? <Top20V2Panel data={alpha.data} selectedSector={selectedSector} onClearSector={() => setSelectedSectorKey(null)} onSelectTicker={selectTicker}
-              onRefresh={() => { void alpha.refresh(); }} refreshing={alpha.isValidating} />
+              onRefresh={() => { void alpha.refresh(); }} refreshing={alpha.isValidating}
+              ctx={ctx} onOpenSector={focusSector} onOpenCycle={openCycle} />
             : <div className="t1-state-msg">{alpha.error ? `Không tải được Top 20: ${alpha.error.message}` : "Đang tải Top 20…"}</div>}
         </>
       )}

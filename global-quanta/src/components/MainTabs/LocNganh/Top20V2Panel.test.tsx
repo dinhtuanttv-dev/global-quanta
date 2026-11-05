@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "../../../test/rtl-lite";
 import fixture from "./__fixtures__/alpha-top20.json";
-import Top20V2Panel, { fmtRaw } from "./Top20V2Panel";
+import Top20V2Panel, { fmtRaw, type Top20Context } from "./Top20V2Panel";
 import type { AlphaTop20Response } from "../../../types/alphaTop20";
 
 const data = fixture as unknown as AlphaTop20Response;
@@ -46,6 +46,33 @@ describe("Radar Top 20 v2 (T4)", () => {
     show({ code, name: "X" });
     const rows = screen.getAllByTestId("alpha-row");
     expect(rows.length).toBe(data.top20.filter((s) => s.sector === code).length);
+  });
+
+  it("bối cảnh từng mã: vùng RRG, cấu trúc kỳ hạn, thời điểm ngành, trung vị Cycle, thanh khoản; thẻ có ba khối và hai liên kết", () => {
+    const s0 = data.top20[0], code = s0.sector!;
+    const ctx = {
+      rrgOf: new Map([[code, { code, quadrant: "LEADING", latestClosed: { ratio: 100.5, momentum: 101.2 } }]]),
+      ladderOf: new Map([[code, { code, structure: { key: "UP_ALIGNED", label: "Đồng thuận tăng" }, rungs: [{ h: 20, rs: 2.1 }, { h: 65, rs: 5.4 }] }]]),
+      timingOf: new Map([[code, { decision: { level: "WATCH", headline: "Chờ xác nhận" } }]]),
+      cycleOf: new Map([[s0.ticker, { symbol: s0.ticker, median: 1.234, p10: -5, p90: 8, shareUp: 0.57, n: 30, mismatched: 4, neighbors: 30 }]]),
+    } as unknown as Top20Context;
+    const opened: string[] = [];
+    render(<Top20V2Panel data={data} selectedSector={null} onClearSector={() => {}} onSelectTicker={() => {}} ctx={ctx} onOpenSector={(c) => opened.push(`s:${c}`)} onOpenCycle={(t) => opened.push(`c:${t}`)} />);
+    const row = screen.getAllByTestId("alpha-row")[0];
+    expect(row.querySelector('[data-testid="alpha-sector-cell"]')!.textContent).toContain("Dẫn dắt");
+    expect(row.querySelector('[data-testid="alpha-sector-cell"]')!.textContent).toContain("Đồng thuận tăng");
+    expect(row.querySelector('[data-testid="alpha-timing-cell"]')!.textContent).toBe("Quan sát");
+    expect(row.querySelector('[data-testid="alpha-cycle-cell"]')!.textContent).toBe("+1,2% ⚠");
+    expect(row.querySelector('[data-testid="alpha-liquidity-cell"]')!.textContent).toContain("tỷ");
+    expect(screen.getAllByTestId("alpha-row")[1].querySelector('[data-testid="alpha-cycle-cell"]')!.textContent).toBe("—");
+    fireEvent.click(row);
+    for (const id of ["alpha-ctx-sector", "alpha-ctx-cycle", "alpha-ctx-liquidity"]) expect(screen.getByTestId(id)).toBeTruthy();
+    expect(screen.getByTestId("alpha-ctx-cycle").textContent).toContain("không phải dự báo");
+    expect(screen.getAllByTestId("alpha-factor-row")).toHaveLength(18);
+    fireEvent.click(screen.getByTestId("alpha-open-sector"));
+    fireEvent.click(screen.getByTestId("alpha-open-cycle"));
+    expect(opened).toEqual([`s:${code}`, `c:${s0.ticker}`]);
+    expect(screen.getByTestId("alpha-context-note").textContent).toContain("không cộng vào điểm");
   });
 
   it("định dạng giá trị thô theo đơn vị của từng yếu tố", () => {
