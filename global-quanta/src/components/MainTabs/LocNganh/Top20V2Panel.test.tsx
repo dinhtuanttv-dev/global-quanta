@@ -68,6 +68,9 @@ describe("Radar Top 20 v2 (T4)", () => {
     fireEvent.click(row);
     for (const id of ["alpha-ctx-sector", "alpha-ctx-cycle", "alpha-ctx-liquidity"]) expect(screen.getByTestId(id)).toBeTruthy();
     expect(screen.getByTestId("alpha-ctx-cycle").textContent).toContain("không phải dự báo");
+    // VIC: σ 2,45%/ngày, GTGD TB60 ≈ 1.044 tỷ -> lệnh 1 tỷ ≈ 2,45% × √(1/1.044) ≈ 0,08%
+    expect(screen.getByTestId("alpha-impact").textContent).toContain("σ 2,5%/ngày");
+    expect(screen.getByTestId("alpha-impact").textContent).toContain("lệnh 1 tỷ ≈ 0,08%");
     expect(screen.getAllByTestId("alpha-factor-row")).toHaveLength(18);
     fireEvent.click(screen.getByTestId("alpha-open-sector"));
     fireEvent.click(screen.getByTestId("alpha-open-cycle"));
