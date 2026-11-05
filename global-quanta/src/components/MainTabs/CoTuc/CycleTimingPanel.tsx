@@ -41,7 +41,7 @@ export function CycleTimingPanel({ ticker }: { ticker: string }) {
     return (
       <div className="text-center py-8">
         <p className="text-[10px] text-cf-tertiary">Chưa đủ lịch sử sự kiện cổ tức để phân tích xác suất.</p>
-        <p className="text-[9px] text-cf-tertiary mt-1">Dữ liệu được quét dần theo vòng xoay hàng tuần — vui lòng quay lại sau.</p>
+        <p className="text-[10px] text-cf-tertiary mt-1">Dữ liệu được quét dần theo vòng xoay hàng tuần — vui lòng quay lại sau.</p>
       </div>
     );
   }
@@ -49,7 +49,7 @@ export function CycleTimingPanel({ ticker }: { ticker: string }) {
   return (
     <div className="space-y-3">
       <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-lg p-2.5">
-        <p className="text-[9px] text-sky-300">
+        <p className="text-[10px] text-sky-300">
           Phân tích xác suất từ <b>{cycleData.totalEvents} đợt cổ tức lịch sử</b> của mã này (5 năm gần nhất) — % lợi nhuận đã trừ chi phí giao dịch 0.15%.
           Đây là <b>thống kê lịch sử, không phải khuyến nghị đầu tư</b> — quá khứ không đảm bảo tương lai.
         </p>
@@ -57,7 +57,7 @@ export function CycleTimingPanel({ ticker }: { ticker: string }) {
 
       {cycleData.bestWindow && cycleData.bestWindow.n > 0 && (
         <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)" }} className="rounded-lg p-3">
-          <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">⭐ Cửa sổ tốt nhất (theo lịch sử)</p>
+          <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">⭐ Cửa sổ tốt nhất (theo lịch sử)</p>
           <p className="text-sm font-black text-cf-gold">{cycleData.bestWindow.label}</p>
           <p className="text-[10px] text-cf-secondary mt-1">
             Lợi nhuận TB {fmtPct2(cycleData.bestWindow.mean)} · Tỷ lệ thắng {Math.round((cycleData.bestWindow.winRate ?? 0) * 100)}% ·
@@ -69,7 +69,7 @@ export function CycleTimingPanel({ ticker }: { ticker: string }) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-cf-border text-[9px] text-cf-tertiary uppercase">
+            <tr className="border-b border-cf-border text-[10px] text-cf-tertiary uppercase">
               <th className="py-1.5 text-left">Cửa sổ</th>
               <th className="py-1.5 text-right">TB</th>
               <th className="py-1.5 text-right">Thắng</th>
@@ -91,7 +91,7 @@ export function CycleTimingPanel({ ticker }: { ticker: string }) {
         <div className="overflow-x-auto mt-2">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-cf-border text-[9px] text-cf-tertiary uppercase">
+              <tr className="border-b border-cf-border text-[10px] text-cf-tertiary uppercase">
                 <th className="py-1 text-left">Ngày GDKHQ</th>
                 <th className="py-1 text-left">Loại</th>
                 <th className="py-1 text-right">W1</th>

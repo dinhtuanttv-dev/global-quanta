@@ -40,7 +40,7 @@ function Badge({ children, tone, title }: { children: React.ReactNode; tone: 'cy
     muted: 'text-slate-500 border-white/10 bg-white/[0.02]',
     neon: 'text-emerald-200 border-emerald-400/60 bg-emerald-400/20 shadow-[0_0_10px_rgba(52,211,153,0.35)]',
   }[tone];
-  return <span title={title} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-[1px] text-[9.5px] font-semibold ${cls}`}>{children}</span>;
+  return <span title={title} className={`inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-1.5 py-[1px] text-[10px] font-semibold ${cls}`}>{children}</span>;
 }
 
 function DateCell({ date, kind }: { date: string; kind: 'ex' | 'pay' | 'agm' }) {
@@ -51,8 +51,8 @@ function DateCell({ date, kind }: { date: string; kind: 'ex' | 'pay' | 'agm' }) 
   return (
     <div className="leading-tight">
       <span className={`font-mono tabular-nums text-[10.5px] ${color} ${soon ? 'font-semibold' : ''}`}>{date.slice(0, 5)}<span className="text-slate-600">{date.slice(5)}</span></span>
-      {d !== null && d >= 0 && <span className="block font-mono tabular-nums text-[9.5px] text-slate-500">còn {d} ngày</span>}
-      {d !== null && d < -60 && kind === 'ex' && <span className="block text-[9.5px] text-slate-600">đợt cũ</span>}
+      {d !== null && d >= 0 && <span className="block font-mono tabular-nums text-[10px] text-slate-500">còn {d} ngày</span>}
+      {d !== null && d < -60 && kind === 'ex' && <span className="block text-[10px] text-slate-600">đợt cũ</span>}
     </div>
   );
 }
@@ -72,7 +72,7 @@ const LEVEL = {
   AVOID: { text: 'Chưa nên', tone: 'muted' as const },
 };
 
-const TH = 'sticky z-10 bg-[#0b0f17] px-2 py-1.5 text-[9.5px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 whitespace-nowrap';
+const TH = 'sticky z-10 bg-[#0b0f17] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 whitespace-nowrap';
 const TD = 'px-2 py-1.5 border-b border-white/[0.05] align-middle';
 
 function SortHead({ field, label, sortField, sortAsc, onSort, right, title }: { field: SortField; label: string; sortField: string; sortAsc: boolean; onSort: (f: SortField) => void; right?: boolean; title?: string }) {
@@ -80,7 +80,7 @@ function SortHead({ field, label, sortField, sortAsc, onSort, right, title }: { 
   return (
     <th className={`${TH} top-[25px] ${right ? 'text-right' : 'text-left'}`} title={title} aria-sort={active ? (sortAsc ? 'ascending' : 'descending') : 'none'}>
       <button type="button" onClick={() => onSort(field)} className={`inline-flex items-center gap-1 uppercase ${active ? 'text-cyan-300' : 'hover:text-slate-300'}`}>
-        {label}<span aria-hidden className="text-[8px]">{active ? (sortAsc ? '▲' : '▼') : '↕'}</span>
+        {label}<span aria-hidden className="text-[10px]">{active ? (sortAsc ? '▲' : '▼') : '↕'}</span>
       </button>
     </th>
   );
@@ -146,17 +146,17 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                 </td>
                 <td className={TD}>
                   <span className="font-mono text-[12px] font-semibold text-cyan-200">{s.ticker}</span>
-                  <span className="block max-w-[8.5rem] truncate text-[9.5px] text-slate-500" title={s.sector}>{s.sector}</span>
+                  <span className="block max-w-[8.5rem] truncate text-[10px] text-slate-500" title={s.sector}>{s.sector}</span>
                 </td>
                 <td className={`${TD} text-right`}>
                   <span className={`font-mono tabular-nums text-[11.5px] rounded px-0.5 transition-colors ${flashing ? (fl.dir === 'up' ? 'bg-emerald-400/25' : 'bg-rose-400/25') : ''} ${chg == null ? 'text-slate-200' : chg >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtPriceK(price)}</span>
-                  {typeof chg === 'number' && <span className={`block font-mono tabular-nums text-[9.5px] ${chg >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>{chg >= 0 ? '+' : '−'}{Math.abs(chg).toFixed(2)}%</span>}
+                  {typeof chg === 'number' && <span className={`block font-mono tabular-nums text-[10px] ${chg >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>{chg >= 0 ? '+' : '−'}{Math.abs(chg).toFixed(2)}%</span>}
                 </td>
                 <td className={`${TD} text-right border-l border-white/[0.04]`}>
                   {s.dividendYield > 0
                     ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}</span>
                     : <Badge tone="muted" title="Không có cổ tức tiền mặt trong 12 tháng gần nhất">0%</Badge>}
-                  <span className="block font-mono tabular-nums text-[9.5px] text-slate-500">
+                  <span className="block font-mono tabular-nums text-[10px] text-slate-500">
                     {s.dividendAmount > 0 ? `${fmtVnd(s.dividendAmount)} đ/cp` : '—'}
                     {s.specialDividend && <span className="ml-1 text-amber-300" title="Có đợt chi lớn bất thường trong 12 tháng (≥ 2× mức thường lệ) — tỷ suất có thể không lặp lại">ĐB</span>}
                   </span>
@@ -179,14 +179,14 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   {sig ? (
                     <div className="leading-tight">
                       <Badge tone={ACTION[sig.action].tone} title={ACTION[sig.action].title}>{ACTION[sig.action].text}</Badge>
-                      {sig.window && <span className="block font-mono tabular-nums text-[9.5px] text-slate-500">{fmtOffset(sig.window.entryFrom)}…{fmtOffset(sig.window.entryTo)}{sig.tdToEx !== null && sig.tdToEx >= 0 ? ` · GDKHQ còn ${sig.tdToEx} phiên` : ''}</span>}
+                      {sig.window && <span className="block font-mono tabular-nums text-[10px] text-slate-500">{fmtOffset(sig.window.entryFrom)}…{fmtOffset(sig.window.entryTo)}{sig.tdToEx !== null && sig.tdToEx >= 0 ? ` · GDKHQ còn ${sig.tdToEx} phiên` : ''}</span>}
                     </div>
                   ) : <Badge tone="muted" title={phase.label}>{phase.icon} {phase.label}</Badge>}
                 </td>
                 <td className={`${TD} text-right`}>
                   {sig?.expectedNetReturn != null
                     ? <div className="leading-tight"><span className={`font-mono tabular-nums font-semibold ${sig.expectedNetReturn >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtRatioPct(sig.expectedNetReturn, { signed: true })}</span>
-                        {sig.nEvents != null && <span className="block font-mono tabular-nums text-[9.5px] text-slate-500">{sig.nEvents} đợt{sig.confidence ? ` · ${sig.confidence === 'HIGH' ? 'cao' : sig.confidence === 'MEDIUM' ? 'TB' : 'thấp'}` : ''}</span>}</div>
+                        {sig.nEvents != null && <span className="block font-mono tabular-nums text-[10px] text-slate-500">{sig.nEvents} đợt{sig.confidence ? ` · ${sig.confidence === 'HIGH' ? 'cao' : sig.confidence === 'MEDIUM' ? 'TB' : 'thấp'}` : ''}</span>}</div>
                     : <Badge tone="muted" title="Chưa có cửa sổ qua kiểm định">—</Badge>}
                 </td>
                 <td className={`${TD} text-right border-l border-white/[0.04]`}>

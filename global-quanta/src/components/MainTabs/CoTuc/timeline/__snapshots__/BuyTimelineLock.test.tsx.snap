@@ -1,0 +1,52 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`F0 — khoá Timeline điểm mua > nội dung hiển thị không đổi (thứ tự dòng, trạng thái, bậc, chữ) — bản chụp cố định > headings 1`] = `
+[
+  "⏱ Timeline điểm mua tối ưu",
+]
+`;
+
+exports[`F0 — khoá Timeline điểm mua > nội dung hiển thị không đổi (thứ tự dòng, trạng thái, bậc, chữ) — bản chụp cố định > rows-default 1`] = `
+[
+  {
+    "status": "IN_WINDOW",
+    "text": "BMPCông nghệMùa vụ KQKD✓ Đạt kiểm địnhE2 · Nắm qua công bốCông bố KQKD Q3/2026 19/10 · ước theo độ trễ lịch sử05/10 → 15/10T−5…T−2 · thoát 25/11Thắng 78%9 đợt · xác suất 64%+2.4%cận dưới +1.7%—ĐANG TRONG VÙNG MUA",
+    "tier": "VALIDATED",
+  },
+  {
+    "status": "UPCOMING",
+    "text": "FPTCông nghệChu kỳ cổ tứcGần đạtW3 · Trước GDKHQ (an toàn)GDKHQ 20/11 · ước tính theo chu kỳCòn thiếu: q-value 0.11 > 0.116/10 → 30/10T−25…T−15 · thoát 25/11Thắng 78%9 đợt+2.4%cận dưới +1.7%—SẮP TỚI ĐIỂM MUAQuyết định: Chưa nên",
+    "tier": "NEAR",
+  },
+  {
+    "status": "UPCOMING",
+    "text": "VNMThực phẩmChu kỳ cổ tứcGần đạtW3 · Trước GDKHQ (an toàn)GDKHQ 10/12 · đã công bốCòn thiếu: q-value 0.11 > 0.105/11 → 19/11T−25…T−15 · thoát 15/12Thắng 60%9 đợt−0.4%cận dưới −1.0%—SẮP TỚI ĐIỂM MUAQuyết định: Quan sát",
+    "tier": "NEAR",
+  },
+]
+`;
+
+exports[`F0 — khoá Timeline điểm mua > nội dung hiển thị không đổi (thứ tự dòng, trạng thái, bậc, chữ) — bản chụp cố định > rows-with-passed 1`] = `
+[
+  {
+    "status": "IN_WINDOW",
+    "text": "BMPCông nghệMùa vụ KQKD✓ Đạt kiểm địnhE2 · Nắm qua công bốCông bố KQKD Q3/2026 19/10 · ước theo độ trễ lịch sử05/10 → 15/10T−5…T−2 · thoát 25/11Thắng 78%9 đợt · xác suất 64%+2.4%cận dưới +1.7%—ĐANG TRONG VÙNG MUA",
+    "tier": "VALIDATED",
+  },
+  {
+    "status": "UPCOMING",
+    "text": "FPTCông nghệChu kỳ cổ tứcGần đạtW3 · Trước GDKHQ (an toàn)GDKHQ 20/11 · ước tính theo chu kỳCòn thiếu: q-value 0.11 > 0.116/10 → 30/10T−25…T−15 · thoát 25/11Thắng 78%9 đợt+2.4%cận dưới +1.7%—SẮP TỚI ĐIỂM MUAQuyết định: Chưa nên",
+    "tier": "NEAR",
+  },
+  {
+    "status": "UPCOMING",
+    "text": "VNMThực phẩmChu kỳ cổ tứcGần đạtW3 · Trước GDKHQ (an toàn)GDKHQ 10/12 · đã công bốCòn thiếu: q-value 0.11 > 0.105/11 → 19/11T−25…T−15 · thoát 15/12Thắng 60%9 đợt−0.4%cận dưới −1.0%—SẮP TỚI ĐIỂM MUAQuyết định: Quan sát",
+    "tier": "NEAR",
+  },
+  {
+    "status": "PASSED",
+    "text": "MWGCông nghệChu kỳ cổ tứcGần đạtW3 · Trước GDKHQ (an toàn)GDKHQ 20/11 · ước tính theo chu kỳCòn thiếu: q-value 0.11 > 0.131/08 → 16/09T−25…T−15 · thoát 12/10Thắng 78%9 đợt+2.4%cận dưới +1.7%—ĐÃ QUA VÙNG MUA",
+    "tier": "NEAR",
+  },
+]
+`;

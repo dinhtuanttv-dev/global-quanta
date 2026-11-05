@@ -41,14 +41,15 @@
    trong CotucTab.tsx thanh class dat ten ro nghia - GIU DUNG gia tri
    mau/opacity hien co (khong doi 1 pixel nao), chi doi cach khai bao
    de dong bo he thong token + de bao tri/doi theme sau nay. */
-.cf-panel { background-color: rgba(2,6,15,0.6); border: 1px solid rgba(148,163,184,0.08); }
-.cf-panel-soft { background-color: rgba(2,6,15,0.4); border: 1px solid rgba(148,163,184,0.08); }
-.cf-panel-muted { background-color: rgba(2,6,15,0.3); }
-.cf-panel-calendar { background-color: rgba(2,6,15,0.5); border: 1px solid rgba(148,163,184,0.08); }
-.cf-panel-strong { background-color: rgba(2,6,15,0.7); border: 1px solid rgba(148,163,184,0.1); }
-.cf-panel-input { background-color: rgba(2,6,15,0.7); border: 1px solid rgba(148,163,184,0.15); }
-.cf-surface-gradient { background: linear-gradient(165deg,#0e1626 0%,#0a1020 100%); border: 1px solid rgba(148,163,184,0.1); }
-.cf-surface-gradient-strong { background: linear-gradient(165deg,#0e1626 0%,#0a1020 100%); border: 1px solid rgba(148,163,184,0.15); }
+/* F2 (06/11/2026, QUANTA FLUENT-DARK): thẻ theo tầng độ sâu — L1 thẻ, L2 thẻ nhấn / ô nhập, viền mảnh, bo 8px. */
+.cf-panel { background-color: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-md, 8px); }
+.cf-panel-soft { background-color: var(--bg-surface); border: 1px solid var(--border); }
+.cf-panel-muted { background-color: color-mix(in srgb, var(--bg-surface) 70%, transparent); }
+.cf-panel-calendar { background-color: var(--bg-surface); border: 1px solid var(--border); }
+.cf-panel-strong { background-color: var(--bg-surface-2); border: 1px solid var(--border); }
+.cf-panel-input { background-color: var(--bg-surface-2); border: 1px solid var(--border-strong); }
+.cf-surface-gradient { background: var(--bg-surface); border: 1px solid var(--border); }
+.cf-surface-gradient-strong { background: var(--bg-surface); border: 1px solid var(--border-strong); }
 .cf-tab-active-gold { background: linear-gradient(135deg,#fbbf24,#f59e0b); }
 /* font-display khong phai utility co san cua Tailwind v4 (khong co
    tailwind.config @theme dinh nghia) - tu dinh nghia lai tro ve dung
@@ -56,17 +57,35 @@
    de panel chinh (khong doi noi dung/kich thuoc chu). */
 .font-display { font-family: var(--font-display); }
 
-.cf-banner-neutral { background-color: rgba(148,163,184,0.05); border: 1px solid rgba(148,163,184,0.15); }
-.cf-banner-sky { background-color: rgba(56,189,248,0.06); border-bottom: 1px solid rgba(56,189,248,0.2); }
-.cf-banner-positive { background-color: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.2); }
-.cf-banner-negative { background-color: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); }
-.cf-banner-warning { background-color: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.3); }
-.cf-banner-warning-soft { background-color: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.25); }
-.cf-chip-gold { background-color: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); }
-.cf-banner-gold-soft { background-color: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.15); }
+/* F2: banner gom 3 cấp — trung tính / tích cực / cảnh báo — cộng cấp "khẩn" (đỏ, ngày GDKHQ rất gần) giữ nguyên nghĩa. */
+.cf-banner-neutral, .cf-banner-sky { background-color: var(--bg-surface-2); border: 1px solid var(--border); }
+.cf-banner-positive { background-color: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); }
+.cf-banner-warning, .cf-banner-warning-soft, .cf-chip-gold, .cf-banner-gold-soft { background-color: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+.cf-banner-negative { background-color: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.3); }
 .cf-box-hairline { border: 1px solid rgba(148,163,184,0.1); }
 
 /* Bang Screener: sticky header + zebra + hover toan dong (Phuong an C) -
    KHONG doi logic sort/filter, chi CSS. */
-.cf-table-sticky-head th { position: sticky; top: 0; background-color: #0b1220; z-index: 1; }
+.cf-table-sticky-head th { position: sticky; top: 0; background-color: var(--bg-surface); z-index: 1; }
 .cf-table-zebra tbody tr:nth-child(even) { background-color: rgba(255,255,255,0.015); }
+
+/* F1/F2 (06/11/2026): thanh 3 tab con (Kết quả kinh doanh · Cổ tức · Timeline điểm mua) kiểu Fluent + mục bên trong. */
+.cotuc-nav { display: grid; gap: 8px; margin-top: 8px; }
+.cotuc-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cotuc-group { display: grid; gap: 2px; text-align: left; padding: 10px 14px; border-radius: var(--radius-md, 8px); cursor: pointer;
+  background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); position: relative;
+  transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
+.cotuc-group:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.cotuc-group.is-active { background: rgba(232,184,75,0.12); border-color: rgba(232,184,75,0.4); color: var(--gold-bright); box-shadow: inset 0 -2px 0 var(--gold); }
+.cotuc-group:focus-visible, .cotuc-view:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cotuc-group-title { font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
+.cotuc-group-sub { font-size: 10.5px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cotuc-count { font-size: 11px; font-weight: 700; padding: 0 6px; border-radius: 999px; background: rgba(232,184,75,0.15); color: var(--gold); }
+.cotuc-views { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: var(--radius-md, 8px); background: var(--bg-surface); border: 1px solid var(--border); }
+.cotuc-view { padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary); cursor: pointer; background: transparent; border: 0; }
+.cotuc-view:hover { background: var(--bg-surface-2); color: var(--text-primary); }
+.cotuc-view.is-active { background: var(--bg-surface-2); color: var(--gold-bright); box-shadow: inset 0 0 0 1px rgba(232,184,75,0.3); }
+@media (max-width: 720px) {
+  .cotuc-groups { grid-template-columns: 1fr; }
+  .cotuc-group-sub { white-space: normal; }
+}

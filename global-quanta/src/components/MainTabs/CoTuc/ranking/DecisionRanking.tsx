@@ -25,7 +25,7 @@ export function rankDecisions(states: DecisionSnapshot[]): DecisionSnapshot[] {
     || a.ticker.localeCompare(b.ticker));
 }
 
-const TH = 'sticky top-0 z-10 bg-[#0b0f17] px-2 py-1.5 text-[9.5px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 whitespace-nowrap';
+const TH = 'sticky top-0 z-10 bg-[#0b0f17] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 whitespace-nowrap';
 const TD = 'px-2 py-1.5 border-b border-white/[0.05] align-middle';
 
 export function DecisionRanking({ onSelectTicker }: { onSelectTicker?: (t: string) => void }) {
@@ -70,7 +70,7 @@ export function DecisionRanking({ onSelectTicker }: { onSelectTicker?: (t: strin
                 <tr key={s.ticker} data-testid="ranking-row" className="cursor-pointer hover:bg-cyan-400/[0.05]" onClick={() => onSelectTicker?.(s.ticker)}>
                   <td className={`${TD} font-mono tabular-nums text-slate-500`}>{i + 1}</td>
                   <td className={`${TD} font-mono font-semibold text-cyan-200`}>{s.ticker}</td>
-                  <td className={TD}><span className={`rounded-md border px-1.5 py-[1px] text-[9.5px] font-semibold ${LEVEL[s.decision.level].cls}`}>{LEVEL[s.decision.level].text}</span></td>
+                  <td className={TD}><span className={`rounded-md border px-1.5 py-[1px] text-[10px] font-semibold ${LEVEL[s.decision.level].cls}`}>{LEVEL[s.decision.level].text}</span></td>
                   <td className={`${TD} text-right font-mono tabular-nums font-semibold text-amber-300`}>{Math.round(s.decision.combinedProbability * 100)}%</td>
                   <td className={`${TD} text-slate-300`}>{ACTION[s.recommendation.action]}</td>
                   <td className={`${TD} font-mono tabular-nums text-slate-400`}>{s.recommendation.window ? `${s.recommendation.window.id.toUpperCase()} ${fmtOffset(s.recommendation.window.entryFrom)}…${fmtOffset(s.recommendation.window.entryTo)}` : '—'}</td>

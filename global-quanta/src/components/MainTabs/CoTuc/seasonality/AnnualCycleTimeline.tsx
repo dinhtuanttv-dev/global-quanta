@@ -240,7 +240,7 @@ export function AnnualCycleTimeline({ calendar, currentMonth, currentDay = 15, c
       <div data-testid="annual-timeline-info" aria-live="polite" className="min-h-[36px] text-[11px] text-slate-300 px-0.5 py-1.5 leading-snug">
         {activeQuarter ? describeQuarter(activeQuarter) : 'Di chuột, chạm hoặc dùng Tab để xem chi tiết từng quý.'}
       </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-slate-500 px-0.5">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 px-0.5">
         <span>Độ đậm dải = xác suất phản ứng dương (trung bình Bayes)</span>
         <span>Đường cong = xác suất dự báo NGÀY công bố (Student-t; thanh dưới = khoảng tin cậy 90%)</span>
         <span>Độ rộng = độ bất định thời điểm công bố</span>
