@@ -25,7 +25,9 @@ export interface LedgerHorizon {
   n: number; meanExcess: number | null; hitRate: number | null; excessCi95: [number, number] | null; meanPortfolioNet: number | null; meanVnIndex: number | null;
   ic: { n: number; mean: number | null; t: number | null }; curve: [string, number][];
 }
-export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criteria: { icPass: boolean; excessPass: boolean; sessions: number }; label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string }
+/** R3: chấm thực tế kiểu Việt Nam (mô tả) theo kỳ hạn -> quy mô vốn (đồng, dạng chuỗi). */
+export interface RealisticSummary { version: string; horizons: Record<string, Record<string, { n: number; meanExcess: number | null; meanOfficialExcess: number | null; meanImpactBps: number | null; fillRate: number | null; delayedExits: number; meanInvested: number | null }>> }
+export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criteria: { icPass: boolean; excessPass: boolean; sessions: number }; label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string; realistic?: RealisticSummary }
 
 /** C1: ứng viên xếp sau danh mục + lý do chưa vào (Gateway phát lại thuật toán dựng danh mục trên tài liệu đã lưu). */
 export type CandidateReason = "sector_cap" | "full" | "below";
@@ -86,7 +88,7 @@ export interface EliteRetro {
   period: { from: string | null; to: string | null; sessions: number };
   criteria: { icPass: boolean; excessPass: boolean; sessions: number };
   horizons: Record<string, LedgerHorizon>;
-  descriptive: { nonOverlapping10: { n: number; mean: number | null; ci95: [number, number] | null }; annualisedExcess: number | null; dailyTurnover: number | null; tierDays: Record<string, Record<Tier, number>> };
+  descriptive: { nonOverlapping10: { n: number; mean: number | null; ci95: [number, number] | null }; annualisedExcess: number | null; dailyTurnover: number | null; tierDays: Record<string, Record<Tier, number>>; realistic?: RealisticSummary };
   lastWeights: { id: string; tier: Tier; w: number; icPost: number }[];
 }
 
