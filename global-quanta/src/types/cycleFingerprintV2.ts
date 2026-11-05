@@ -21,6 +21,9 @@ export interface CycleV2Neighbor {
   forward: number[];
 }
 
+export interface CycleSummaryRow { symbol: string; asOf: string; n: number; median: number | null; p10: number | null; p90: number | null; shareUp: number | null; move: number | null; mismatched: number; neighbors: number; nEff: number | null }
+export interface CycleSummaryDoc { engine: string; dataAsOf: string; horizon: number; method: string; rows: CycleSummaryRow[] }
+
 export interface CycleV2Horizon { h: number; excessPct: number | null; rawPct: number | null; baselinePct: number | null; pOutperform: number | null }
 
 export interface CycleV2Check { id: number; name: string; pass: boolean }

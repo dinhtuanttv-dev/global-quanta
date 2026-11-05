@@ -499,6 +499,14 @@ router.get("/cycles-ledger", handle(async (req, res) => {
   res.json(await getMarketRuntime().cycles.ledger());
 }));
 
+// Tóm tắt Cycle Fingerprint cho nhiều mã (bảng Top 20): ?symbols=A,B,... tối đa 40 mã.
+router.get("/cycles-summary", handle(async (req, res) => {
+  const symbols = [...new Set(String(req.query.symbols || "").toUpperCase().split(",").map((s) => s.trim()).filter((s) => /^[A-Z0-9]{3,10}$/.test(s)))];
+  if (!symbols.length || symbols.length > 40) { res.status(400).json({ error: "Cần 1–40 mã hợp lệ." }); return; }
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().cycles.summary(symbols));
+}));
+
 // Cycle Fingerprint v2 (CF2) — 30 giai đoạn tương tự toàn universe cho cửa sổ 30 phiên gần nhất + dự báo vượt VN-Index (EXPERIMENTAL theo CF3).
 router.get("/cycles/:symbol", handle(async (req, res) => {
   const symbol = String(req.params.symbol || "").toUpperCase();
