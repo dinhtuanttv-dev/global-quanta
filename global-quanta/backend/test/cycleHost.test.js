@@ -73,3 +73,13 @@ test("chưa nạp thì báo lỗi rõ; lưu file mới thì xoá file cũ", asyn
     assert.deepEqual(fs.readdirSync(dir), ["ctx-2099-01-01-abcdef01.bin"]);
   } finally { host.close(); fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("job hằng ngày dùng lại thư viện đã nạp khi đã dựng sau giờ chốt dữ liệu của chính phiên đó", async () => {
+  const { libraryIsCurrent } = await import("../src/market/cycles/cycleService.js");
+  const lib = (dataAsOf, builtAtUtc) => ({ dataAsOf, builtAt: builtAtUtc });
+  assert.equal(libraryIsCurrent(lib("2026-11-05", "2026-11-05T09:43:53Z"), "2026-11-05"), true, "16:43 VN cùng phiên");
+  assert.equal(libraryIsCurrent(lib("2026-11-05", "2026-11-05T08:30:00Z"), "2026-11-05"), false, "15:30 VN, trước đối soát");
+  assert.equal(libraryIsCurrent(lib("2026-11-04", "2026-11-04T09:10:00Z"), "2026-11-05"), false, "đã có phiên mới");
+  assert.equal(libraryIsCurrent(lib("2026-11-05", "2026-11-06T01:00:00Z"), "2026-11-05"), true, "dựng sáng hôm sau, chưa có phiên mới");
+  assert.equal(libraryIsCurrent(null, "2026-11-05"), false);
+});

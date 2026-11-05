@@ -91,6 +91,16 @@ export function queryCycles(ctx, symbol, external = null) {
   };
 }
 
+/**
+ * Thư viện đã nạp còn dùng được cho job hằng ngày không: cùng ngày dữ liệu với VN-Index mới nhất và được dựng sau giờ chốt
+ * dữ liệu của chính phiên đó (đối soát 15:50 + 5 phút). Khi đó job chạy bù sau khởi động chỉ ghi sổ, không dựng lại thư viện.
+ */
+export function libraryIsCurrent(loaded, latestDate) {
+  if (!loaded?.builtAt || !latestDate || loaded.dataAsOf !== latestDate) return false;
+  const vn = new Date(Date.parse(loaded.builtAt) + 7 * 3_600_000).toISOString();
+  return vn.slice(0, 10) > latestDate || (vn.slice(0, 10) === latestDate && vn.slice(11, 16) >= "15:55");
+}
+
 export function createCycleService({ service, corporateActions, taSeries = null, now = Date.now, host = createCycleHost() }) {
   const store = service.store;
   let ensuring = null, building = null, ledgerDocs = null;
@@ -137,7 +147,9 @@ export function createCycleService({ service, corporateActions, taSeries = null,
     jobs: {
       // 16:05 ngày giao dịch: dựng thư viện rồi ghi bản chụp sổ theo dõi (bỏ qua nếu ngày đó đã ghi)
       buildCycleLibrary: async () => {
-        const info = await build();
+        const current = await ensure().catch(() => null);
+        const latest = (await service.getOhlcv({ symbol: "VNINDEX", limit: 5 }).catch(() => null))?.bars?.filter((b) => !b.partial && b.close > 0).pop()?.date ?? null;
+        const info = libraryIsCurrent(current, latest) ? { windows: current.windows, tickers: current.tickers, dataAsOf: current.dataAsOf, reused: true, host: host.status() } : await build();
         const loaded = host.loaded();
         const snap = await snapshot(loaded);
         ledgerDocs = null;
