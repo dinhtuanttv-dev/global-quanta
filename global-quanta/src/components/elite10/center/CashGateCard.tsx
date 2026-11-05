@@ -24,7 +24,7 @@ export default function CashGateCard() {
         <p className="text-[10px] font-bold uppercase text-slate-500">Tỷ lệ cổ phiếu</p>
         <span className="rounded border border-slate-500/40 px-1.5 text-[10px] font-bold text-slate-400" title="Cổng tiền mặt CG-r1 không đạt kiểm định đăng ký trước: trạng thái chỉ để mô tả, không đổi danh mục">CỔNG CG-r1 · MÔ TẢ</span>
       </div>
-      <p data-testid="elite-cash-gate-official"><b className="text-slate-100">{pct(g?.official.equityShare ?? 1)}</b> — {g?.official.reasonVi ?? "chưa có tín hiệu định thời thị trường nào đạt kiểm định, nên không đề xuất tỷ lệ tiền mặt."}</p>
+      <p data-testid="elite-cash-gate-official"><b className="text-slate-100">{pct(g?.official.equityShare ?? 1)}</b> — {g?.official.reasonVi ? g.official.reasonVi.replace(/^\d+%:\s*/, "") : "chưa có tín hiệu định thời thị trường nào đạt kiểm định, nên không đề xuất tỷ lệ tiền mặt."}</p>
       {isLoading && !g ? <p className="text-[10px] italic text-slate-500">Đang tải trạng thái cổng…</p> : !g ? (
         <p className="text-[10px] text-slate-500">Chưa lấy được trạng thái Cổng tiền mặt.</p>
       ) : (

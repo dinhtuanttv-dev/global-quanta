@@ -98,6 +98,7 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
     const card = screen.getByTestId("elite-cash-gate");
     expect(screen.getByTestId("elite-cash-gate-official").textContent).toContain("100%");
+    expect(screen.getByTestId("elite-cash-gate-official").textContent).not.toMatch(/100%.*100%/);
     expect(card.textContent).toContain("CỔNG CG-r1 · MÔ TẢ");
     expect(screen.getByTestId("elite-cash-gate-inputs").textContent).toContain("Xu hướng giảm");
     const rules = screen.getByTestId("elite-cash-gate-rules").textContent ?? "";
