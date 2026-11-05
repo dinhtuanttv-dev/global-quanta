@@ -36,6 +36,7 @@ import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
 import { createRiskService } from "./market/elite/riskService.js";
 import { createRetroService } from "./market/elite/retroService.js";
+import { createCashGateService } from "./market/cashGate/cashGateService.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
@@ -229,6 +230,12 @@ const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore
 let eliteBuyTiming = null;
 const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store, localTimeline: () => getGatewayTimeline()() }));
 const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
+// CG-r1: Cổng tiền mặt (đăng ký trước, KHÔNG ĐẠT -> chỉ mô tả) + sổ tiến bóng.
+let cashGate = null;
+const getCashGate = () => (cashGate ??= createCashGateService({
+  store: getMarketRuntime().store,
+  vnIndexBars: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 800 })).bars.filter((b) => !b.partial && b.close > 0),
+}));
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
@@ -241,13 +248,14 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
   // Mỗi phiên dựng một lần; lần dựng LỖI (VD kho dữ liệu tạm khoá) được thử lại sau 30 phút thay vì bỏ cả ngày.
   const ELITE_RETRY_MS = 30 * 60_000;
   const tried = { evidence: null, decision: null }; // { date, at, ok }
+  let cashGateRecorded = null;
   const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
   const eliteTick = async () => {
     try {
@@ -270,6 +278,10 @@ if (process.env.NODE_ENV !== "test") {
         const dec = await getEliteDecision().build();
         tried.decision.ok = true;
         console.log(`[elite] Elite 10 ${dec.date}: ${dec.portfolio.map((x) => x.ticker).join(", ")} · ${dec.ledgerSummary?.label}`);
+      }
+      // CG-r1: ghi sổ tiến bóng cho phiên đã đóng (một lần mỗi phiên; lỗi nguồn không chặn phần còn lại).
+      if (panelDate && cashGateRecorded !== panelDate) {
+        await getCashGate().status({ refresh: true, recordLedger: true }).then(() => { cashGateRecorded = panelDate; }).catch((e) => console.warn(`[elite] cash gate: ${e.message}`));
       }
     } catch (e) {
       console.warn(`[elite] ${e.message}`);

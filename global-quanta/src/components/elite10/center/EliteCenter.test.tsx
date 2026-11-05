@@ -30,7 +30,18 @@ const panelTicker = {
     { id: "smart_score", tab: "Siêu quét AI", labelVi: "Smart Score", unit: "0–100", level: "stock", tier: "C" },
   ],
 };
+const holdRule = (o: Record<string, unknown>) => ({ cagr: 0.17, mdd: -0.34, sharpe: 0.9, deltaSharpe: 0.1, pHolm: 0.59, pctReduced: 0.04, episodes: 10, criteria: { C1: false, C2: true, C3: true, C4: true }, pass: false, ...o });
+const cashGate = {
+  version: "CG-r1 (prereg 2026-11-05)", generatedAt: "2026-11-05T12:00:00Z", asOf: "2026-11-05",
+  inputs: { regime: "DOWNTREND", vix: 16.61, vix3m: 18.8, volSlope: -0.1165, volAnnual: 0.142, volTargetAnnual: 0.155 },
+  rules: { H1: { target: 1, active: false }, H1b: { target: 1, active: false }, H2: { target: 0.8, active: true }, H3: { target: 1, active: false } },
+  official: { equityShare: 1, reasonVi: "100%: Cổng tiền mặt KHÔNG ĐẠT kiểm định đăng ký trước CG-r1." },
+  holdout: { version: "CG-r1", ranAt: "2026-11-05", prereg: "x", period: { from: "2014-12-30", to: "2021-10-29", sessions: 1706 }, summaryVi: "KHÔNG ĐẠT.", base: { cagr: 0.164, mdd: -0.477, sharpe: 0.82 },
+    rules: { H1: holdRule({}), H1b: holdRule({ mdd: -0.383 }), H2: holdRule({ criteria: { C1: false, C2: true, C3: false, C4: false } }), H3: holdRule({}) }, passed: [] },
+  ledger: { entries: 1, first: "2026-11-05", last: "2026-11-05" },
+};
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
+  useCashGate: () => ({ data: cashGate, isLoading: false }),
   useEliteDecision: () => ({ data: decision, error: null, isLoading: false }),
   useEliteEvidence: () => ({ data: { signals: [{ id: "stealth20", tier: "A" }, { id: "top20_alpha", tier: "B" }, { id: "smart_score", tier: "C" }] } }),
   useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
@@ -81,6 +92,21 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     fireEvent.click(screen.getByTestId("elite-radar-open-ORS"));
     expect(opened).toEqual(["ORS"]);
     expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
+  });
+
+  it("CG-r1: ô Tỷ lệ cổ phiếu — chính thức 100%, trạng thái cổng hôm nay (mô tả), kết quả kiểm định KHÔNG ĐẠT kèm tiêu chí", () => {
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    const card = screen.getByTestId("elite-cash-gate");
+    expect(screen.getByTestId("elite-cash-gate-official").textContent).toContain("100%");
+    expect(card.textContent).toContain("CỔNG CG-r1 · MÔ TẢ");
+    expect(screen.getByTestId("elite-cash-gate-inputs").textContent).toContain("Xu hướng giảm");
+    const rules = screen.getByTestId("elite-cash-gate-rules").textContent ?? "";
+    expect(rules).toContain("H1 DOWNTREND + VIX > 25 → 30% (quy tắc chính)");
+    expect(rules).toContain("kích hoạt · 80%");
+    const ho = screen.getByTestId("elite-cash-gate-holdout").textContent ?? "";
+    expect(ho).toContain("KHÔNG ĐẠT");
+    expect(ho).toContain("1.706 phiên");
+    expect(ho).toContain("C1✗ C2✓ C3✓ C4✓");
   });
 
   it("B2: cột số 4 '⏱ Điểm mua' — vùng mua đạt kiểm định hiển thị trong ô, ghi chú nguồn + thời điểm lấy Timeline", () => {
