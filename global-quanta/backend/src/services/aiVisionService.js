@@ -12,7 +12,6 @@
 
 import { callGeminiJSON, GeminiAllModelsFailedError } from "./geminiClient.js";
 
-const USE_MOCK = process.env.USE_MOCK_DATA !== "false";
 
 const SYSTEM_PROMPT = `Bạn là chuyên gia định lượng dữ liệu và phân tích kỹ thuật thị trường tài chính.
 Chỉ phân tích dựa trên dữ liệu trực quan hiện hữu trên hình ảnh, tuyệt đối
@@ -61,8 +60,9 @@ macro_layer, đặt "market_cycle_phase": "undetermined" và các field còn l�
 là null thay vì tự bịa.`;
 
 export async function analyzeChartsWithAI({ images, timeframes, symbol, model }) {
-  if (USE_MOCK || (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY)) {
-    return mockVisionAnalysis(symbol, timeframes);
+  // Không có khoá AI -> báo lỗi cấu hình (503), không trả số giả. Bỏ mockVisionAnalysis (mức giá kiểu Bitcoin) 05/11/2026.
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.GEMINI_API_KEY) {
+    throw Object.assign(new Error("Chưa cấu hình ANTHROPIC_API_KEY hoặc GEMINI_API_KEY cho AI Vision."), { code: "NO_AI_KEY" });
   }
 
   const [claudeResult, geminiResult] = await Promise.allSettled([
@@ -182,30 +182,3 @@ async function callGeminiVision({ images, timeframes, symbol }) {
   return callGeminiJSON({ systemPrompt: SYSTEM_PROMPT, parts });
 }
 
-function mockVisionAnalysis(symbol, timeframes) {
-  const mk = (trend, support, resistance, signal) => ({ trend, support, resistance, signal });
-  return {
-    tactical_layer: {
-      daily: mk("Bullish macro", 62800, 69000, "Trend chính ủng hộ Long"),
-      "4h": mk("Uptrend trung hạn", 62800, 69000, "Giữ vị thế, nâng Stoploss"),
-      "1h": mk("Uptrend ngắn hạn", 64200, 67500, "Canh mua (Long pullback)"),
-      "15m": mk("Sideway / Hồi phục ngắn", 65100, 66400, "Chờ test hỗ trợ"),
-    },
-    macro_layer: {
-      monthly: {
-        market_cycle_phase: "Markup",
-        major_structure: "Higher-High-Higher-Low (Bull Structure)",
-        key_monthly_level: { support: 52000, resistance: 78000 },
-        cycle_position_pct: 0.62,
-      },
-      weekly: {
-        structural_bias: "Bullish continuation",
-        distribution_accumulation_zone: [64000, 68000],
-        weekly_momentum: "RSI Weekly 58 - chưa quá mua",
-        volume_profile_poc: 65400,
-      },
-    },
-    ensemble_agreement: null,
-    vision_models_used: ["mock"],
-  };
-}

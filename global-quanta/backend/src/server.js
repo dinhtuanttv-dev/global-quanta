@@ -79,7 +79,6 @@ app.use((req, res, next) => withDbTag(`http:${req.path.split("/").slice(0, 4).jo
 function healthHandler(req, res) {
   res.json({
     status: "ok",
-    mock_mode: process.env.USE_MOCK_DATA !== "false",
     time: new Date().toISOString(),
     // Theo dõi heap (Gateway từng OOM 23/10/2026): MB đang dùng / trần heap V8 / RSS.
     memory: (() => { const m = process.memoryUsage(), mb = (b) => Math.round(b / 1048576); return { heapUsedMb: mb(m.heapUsed), heapLimitMb: mb(v8.getHeapStatistics().heap_size_limit), rssMb: mb(m.rss) }; })(),
@@ -293,7 +292,6 @@ app.use((req, res) => {
 
 app.listen(PORT, () => {
   console.log(`AI Chart Vision backend đang chạy tại http://localhost:${PORT}`);
-  console.log(`Mock mode: ${process.env.USE_MOCK_DATA !== "false" ? "BẬT (không cần API key)" : "TẮT (dùng API thật)"}`);
   // Đồng bộ dữ liệu SSI vào kho theo lịch (chỉ khi MARKET_INGESTOR_ENABLED=true).
   startMarketIngestor();
   if (process.env.NODE_ENV !== "test") startDbBudgetPersistence({ getStore: () => getMarketRuntime().store, meter: sharedEgressMeter() });

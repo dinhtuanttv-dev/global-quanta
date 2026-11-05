@@ -2,9 +2,10 @@
 // KHÔNG trộn thật/mô phỏng:
 //   - "real": có dữ liệu ngày thật (thị trường + ngành, >= MIN_DAYS phiên). Ma trận/kịch bản cần thêm >= 60 tháng chung của
 //     yếu tố thế giới và ngành — thiếu thì API trả 422 đúng nghĩa (không lấp bằng số mô phỏng).
-//   - "synthetic": chưa có dữ liệu ngày thật -> bộ mô phỏng của gói + WORLD_SYNTHETIC_NOTICE trên mọi phản hồi.
+//   - "insufficient": chưa đủ dữ liệu ngày thật -> engine vẫn chạy trên dữ liệu thật đang có (có thể rỗng); phép tính thiếu số
+//     liệu trả 422 kèm lý do. Không bao giờ dựng thế giới mô phỏng (bỏ makeSyntheticWorld 05/11/2026).
 import {
-  createWorldApi, makeSyntheticWorld, InMemoryVintageStore, WORLD_CATALOG, WORLD_SYNTHETIC_NOTICE, validateWorldEvent,
+  createWorldApi, InMemoryVintageStore, WORLD_CATALOG, validateWorldEvent,
   VN_SECTORS, WORLD_MARKETS, WORLD_FACTOR_IDS, createWorldChatTools, WORLD_TOOL_SPECS, WORLD_CHAT_GUIDELINES, toAnthropicTools,
 } from "../macro/vendor/macroEngine.mjs";
 
@@ -86,9 +87,11 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
   function build(payload) {
     const daily = payload?.daily ?? null;
     if (!dailyOk(daily)) {
-      const syn = makeSyntheticWorld();
-      const api = createWorldApi({ world: syn.data, store: syn.store, catalog: syn.catalog, today, notice: WORLD_SYNTHETIC_NOTICE });
-      state = { mode: "synthetic", api, coverage: [], events: { accepted: syn.data.events.length, rejected: [] }, meta: payload?.meta ?? null };
+      const have = daily?.tradingDays?.length ?? 0;
+      const world = { tradingDays: [], markets: {}, sectors: {}, events: [], plantedEventEffects: {}, exposures: [], stockBetas: {} };
+      const api = createWorldApi({ world, store: new InMemoryVintageStore(), catalog: WORLD_CATALOG, today });
+      state = { mode: "insufficient", api, coverage: [], events: { accepted: 0, rejected: [] }, meta: payload?.meta ?? null,
+        reason: `Chưa đủ dữ liệu thực tế: cần ≥ ${MIN_DAYS} phiên đầy đủ cho mọi thị trường và ngành (hiện ${have}). Không kích hoạt mô phỏng.` };
       return;
     }
     const observations = payload.observations ?? [];
@@ -124,7 +127,8 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
     source() {
       return {
         mode: state.mode,
-        notice: state.mode === "synthetic" ? WORLD_SYNTHETIC_NOTICE : null,
+        notice: null,
+        reason: state.reason ?? null,
         minMonths: MIN_MONTHS,
         coverage: state.coverage,
         events: state.events,
@@ -133,7 +137,7 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
     },
     handle: coreHandle,
     toolSpecs() {
-      return { specs: WORLD_TOOL_SPECS, anthropic: toAnthropicTools(WORLD_TOOL_SPECS), guidelines: WORLD_CHAT_GUIDELINES, mode: state.mode, notice: state.mode === "synthetic" ? WORLD_SYNTHETIC_NOTICE : null };
+      return { specs: WORLD_TOOL_SPECS, anthropic: toAnthropicTools(WORLD_TOOL_SPECS), guidelines: WORLD_CHAT_GUIDELINES, mode: state.mode, notice: null };
     },
     runTool(name, args) {
       return createWorldChatTools({ handle: coreHandle }).run(name, args);
@@ -141,7 +145,7 @@ export function createWorldCore({ today = () => new Date(Date.now() + 7 * 3600_0
     /** Tín hiệu bối cảnh thế giới theo ngành (bộ máy quyết định Lọc ngành). Chế độ mô phỏng -> không có tín hiệu nào dùng được. */
     async sectorSignals() {
       const base = { mode: state.mode, deadband: WORLD_SIGNAL_DEADBAND, probabilityBounds: WORLD_SIGNAL_PROB_BOUNDS };
-      if (state.mode !== "real") return { ...base, sectors: [], reason: "Dữ liệu mô phỏng — không đưa vào bộ máy quyết định." };
+      if (state.mode !== "real") return { ...base, sectors: [], reason: state.reason ?? "Chưa đủ dữ liệu thật — không đưa vào bộ máy quyết định." };
       // W3: chỉ cặp đạt BẬC XÁC NHẬN A của bộ 12 cặp đăng ký trước mới vào tín hiệu (không dùng bậc A của ma trận thăm dò).
       const cf = await coreHandle({ method: "GET", path: "/api/world/confirmatory", query: {}, body: {} });
       if (cf.status !== 200) return { ...base, sectors: [], reason: String(cf.body?.error ?? "Chưa tính được cổng xác nhận.") };

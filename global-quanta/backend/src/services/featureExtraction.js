@@ -1,38 +1,34 @@
-// Feature Extraction Service — Vision-to-Quant Indicator Mapping (Mục 4.2)
-// và Market Microstructure Layer (Mục 6).
-//
-// Đây là nơi kết nối dữ liệu thô từ API sàn (Binance/DNSE/SSI...) để tính
-// Order Flow Imbalance, Volume Profile POC, Liquidity Pool Mapping và
-// Cross-Asset Correlation. Bản MVP trả về dữ liệu mock có cấu trúc đúng
-// schema — thay các hàm bên dưới bằng lệnh gọi API sàn thật khi triển khai.
+// Lớp định lượng của /api/scan (chế độ vision) — chỉ tính từ nến THẬT đã lấy ở bước trước.
+// Volume Profile POC: mức giá có khối lượng lớn nhất trong 120 phiên gần nhất (40 vùng giá, khối lượng mỗi nến chia đều theo
+// biên độ cao–thấp của nến). Dòng lệnh chủ động, vùng thanh khoản, tương quan liên thị trường: chưa có nguồn -> null, ghi rõ lý do.
+// Trước 05/11/2026 file này sinh các giá trị đó bằng Math.random() — đã bỏ.
 
-export async function extractQuantFeatures(symbol) {
-  // TODO (production): gọi API sàn thật, ví dụ:
-  //   const orderBook = await fetch(`https://api.exchange.com/depth?symbol=${symbol}`)
-  //   const cvd = computeCumulativeVolumeDelta(orderBook)
+const LOOKBACK = 120;
+const BINS = 40;
+
+/** POC theo khối lượng phân bổ đều trên biên độ của từng nến. Trả null khi thiếu dữ liệu. */
+export function volumeProfilePoc(candles, { lookback = LOOKBACK, bins = BINS } = {}) {
+  const rows = (candles ?? []).slice(-lookback).filter((c) => c.high > 0 && c.low > 0 && c.high >= c.low && c.volume > 0);
+  if (rows.length < 20) return null;
+  const lo = Math.min(...rows.map((c) => c.low)), hi = Math.max(...rows.map((c) => c.high));
+  if (!(hi > lo)) return null;
+  const step = (hi - lo) / bins, vol = new Float64Array(bins);
+  for (const c of rows) {
+    const a = Math.min(bins - 1, Math.floor((c.low - lo) / step)), b = Math.min(bins - 1, Math.floor((c.high - lo) / step));
+    const share = c.volume / (b - a + 1);
+    for (let k = a; k <= b; k++) vol[k] += share;
+  }
+  let best = 0;
+  for (let k = 1; k < bins; k++) if (vol[k] > vol[best]) best = k;
+  return Math.round((lo + (best + 0.5) * step) * 100) / 100;
+}
+
+export function extractQuantFeatures(candles) {
   return {
-    order_flow_bias: mockOrderFlowBias(),
-    liquidity_pools: mockLiquidityPools(),
-    correlation_flag: mockCorrelationFlag(),
-    volume_profile_poc: mockPOC(),
+    volume_profile_poc: volumeProfilePoc(candles),
+    order_flow_bias: null,
+    liquidity_pools: null,
+    correlation_flag: null,
+    source: "Nến ngày thật (Gateway): POC 120 phiên. Dòng lệnh chủ động, vùng thanh khoản, tương quan liên thị trường: chưa có nguồn, để trống.",
   };
-}
-
-function mockOrderFlowBias() {
-  const options = ["Bullish CVD", "Bearish CVD", "Neutral"];
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-function mockLiquidityPools() {
-  const base = 1200 + Math.round(Math.random() * 50);
-  return [base, base + 30, base + 65];
-}
-
-function mockCorrelationFlag() {
-  const options = ["Aligned with macro", "Conflicting with DXY", "Neutral correlation"];
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-function mockPOC() {
-  return 1225 + Math.round(Math.random() * 20);
 }

@@ -197,8 +197,8 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
           ))}
         </div>
         <span>· công cụ Elite 10 + vĩ mô + thế giới + ngành ICB + hàng hoá + xúc tác</span>
-        {meta?.macroMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô đang dùng dữ liệu MÔ PHỎNG</span>}
-        {meta?.worldMode === "synthetic" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới đang dùng dữ liệu MÔ PHỎNG</span>}
+        {meta?.macroMode && meta.macroMode !== "real" && <span style={{ color: "var(--warning, #f59e0b)" }}>· vĩ mô chưa đủ dữ liệu thật, các phép tính vĩ mô tạm báo thiếu</span>}
+        {meta?.worldMode && meta.worldMode !== "real" && <span style={{ color: "var(--warning, #f59e0b)" }}>· Kết nối thế giới chưa đủ dữ liệu thật, các phép tính tạm báo thiếu</span>}
         {meta && <span style={{ marginLeft: "auto" }}>Còn {meta.remaining} câu hôm nay</span>}
       </div>
 
