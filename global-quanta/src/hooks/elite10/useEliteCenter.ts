@@ -49,3 +49,10 @@ export function useCashGate() {
     try { return await fetchMarketJson("/api/elite/cash-gate"); } catch { return null; }
   }, OPTS);
 }
+
+/** E7-v3: chưa chạy / lỗi -> null. */
+export function useEliteRetroV3() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRetroV3 | null>("elite-retro-v3", async () => {
+    try { return await fetchMarketJson("/api/elite/retro-v3"); } catch { return null; }
+  }, OPTS);
+}

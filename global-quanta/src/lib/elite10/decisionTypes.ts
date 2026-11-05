@@ -101,3 +101,13 @@ export interface CashGateStatus {
   holdout: { version: string; ranAt: string; prereg: string; period: { from: string; to: string; sessions: number }; summaryVi: string; base: { cagr: number; mdd: number; sharpe: number }; rules: Record<CashGateRuleId, CashGateHoldoutRule>; passed: CashGateRuleId[] } | null;
   ledger: { entries: number; first: string | null; last: string | null };
 }
+
+/** E7-v3 (Gateway /api/elite/retro-v3): hồi cứu có hiệu chỉnh quá khớp. */
+export interface EliteRetroV3 {
+  version: string; period: { from: string; to: string; sessions: number; dailyN: number };
+  criteria: { icPass: boolean; excessPass: boolean; dsrPass: boolean; pboPass: boolean }; pass: boolean; label: string; verdictVi: string;
+  horizons: Record<string, { n: number; meanExcess: number | null; excessCi95: [number, number] | null; ic: { n: number; mean: number | null; t: number | null } }>;
+  deflatedSharpe: { dsr: number; sr: number; sr0: number; N: number; T: number; sensitivityN24: number };
+  pbo: { pbo: number; splits: number; blockLength: number };
+  grid: { id: string; size: number; bufferRank: number; weighting: string; primary: boolean; sharpeAnnual: number; annualExcess: number }[];
+}

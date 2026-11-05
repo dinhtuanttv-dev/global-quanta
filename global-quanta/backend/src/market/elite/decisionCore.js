@@ -251,16 +251,20 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
  * ngành ICB cấp 2, tỷ trọng ERC trên hiệp phương sai Ledoit–Wolf 120 phiên (thiếu dữ liệu -> ∝ 1/max(σ20, 1%)), trần 20%.
  * `scores`: [{ticker, Z, rank, eligible, sigma20, sectorKey, close, alpha5Pct, pOutperform}] (không cần đã sắp xếp).
  */
-export function constructPortfolio({ scores, prices, date, prevHoldings = [] }) {
+export function constructPortfolio({ scores, prices, date, prevHoldings = [], config = null }) {
+  // E7-v3: cấu hình thay thế cho lưới kiểm định quá khớp (số mã, vùng đệm, cách chia tỷ trọng); mặc định = E3-v3.
+  const size = config?.size ?? PORTFOLIO.size;
+  const bufferRank = config?.bufferRank === undefined ? PORTFOLIO.bufferRank : config.bufferRank;
+  const weighting = config?.weighting ?? "erc";
   // Danh mục (E3-v3): vùng đệm — mã phiên trước còn trong top 20 đủ điều kiện được giữ; lấp phần còn lại theo Z giảm dần;
   // trần 3 mã / ngành ICB cấp 2.
   const ranked = scores.filter((x) => x.eligible && x.sigma20 > 0).slice().sort((a, b) => b.Z - a.Z);
-  const bufferSet = new Set(ranked.slice(0, PORTFOLIO.bufferRank).map((x) => x.ticker));
+  const bufferSet = new Set(bufferRank ? ranked.slice(0, bufferRank).map((x) => x.ticker) : []);
   const prevSet = new Set((prevHoldings ?? []).map((h) => h.ticker));
   const picks = [];
   const perSector = new Map();
   const take = (x) => {
-    if (picks.length >= PORTFOLIO.size || picks.includes(x)) return;
+    if (picks.length >= size || picks.includes(x)) return;
     const key = x.sectorKey ?? `?${x.ticker}`;
     if ((perSector.get(key) ?? 0) >= PORTFOLIO.maxPerSector) return;
     perSector.set(key, (perSector.get(key) ?? 0) + 1);
@@ -272,9 +276,9 @@ export function constructPortfolio({ scores, prices, date, prevHoldings = [] }) 
   picks.sort((a, b) => b.Z - a.Z);
 
   // Tỷ trọng (E3-v3): ERC trên hiệp phương sai Ledoit–Wolf 120 phiên; thiếu dữ liệu -> ∝ 1/max(σ20, 1%). Sau đó trần 20%.
-  const R = picks.length > 1 ? alignedReturns(prices, picks.map((x) => x.ticker), date, ERC.window) : [];
+  const R = weighting === "erc" && picks.length > 1 ? alignedReturns(prices, picks.map((x) => x.ticker), date, ERC.window) : [];
   let method = "inverse-vol", rawW = picks.map((x) => 1 / Math.max(x.sigma20, SIGMA_FLOOR)), cov = null;
-  if (R.length >= ERC.minSessions) {
+  if (weighting === "erc" && R.length >= ERC.minSessions) {
     cov = ledoitWolf(R).sigma;
     rawW = ercWeights(cov);
     method = "erc";

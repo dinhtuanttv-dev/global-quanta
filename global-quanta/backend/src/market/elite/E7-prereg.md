@@ -53,3 +53,40 @@ danh mục, số phiên mỗi tín hiệu ở từng bậc.
 
 E3 được nâng lên E3-v3 (xem E3-prereg.md). Kiểm định hồi cứu gọi **đúng hàm `buildDecision` hiện hành (E3-v3)**, truyền danh mục
 của phiên walk-forward liền trước làm vùng đệm giữ mã. Mọi điều khác của E7 giữ nguyên.
+
+## Sửa đổi E7-v3 (2026-11-06) — hiệu chỉnh quá khớp: Deflated Sharpe, PBO, khoảng đệm thời gian
+
+Ghi **trước khi** chạy E7-v3. Lần chạy E7-v2 thật đầu tiên (05/11/2026, 210 phiên 30/12/2025–05/11/2026) đã công khai: IC h5 đạt,
+lợi suất vượt h10 KHÔNG ĐẠT. E7-v3 bổ sung câu hỏi: kết quả có sống sót sau hiệu chỉnh cho số cấu hình đã thử (quá khớp) không.
+
+**Giữ nguyên**: 5 tín hiệu dòng tiền, quy trình walk-forward, bậc theo luật E2, hàm `buildDecision`, tiêu chí 1–2 của E7.
+
+**Thêm**:
+
+1. **Khoảng đệm (embargo) 5 phiên**: IC(d, h) chỉ được dùng ở phiên D khi d + 1 + h + 5 ≤ D (thay cho d + 1 + h ≤ D), để kết quả đo
+   gần nhất không chồng lên kỳ nắm giữ mới (López de Prado 2018, §7.4).
+2. **Lợi nhuận theo ngày**: danh mục dựng tại D được giữ từ đóng cửa D+1 tới đóng cửa D+2, tái cân bằng mỗi ngày theo danh mục mới.
+   Phí theo vòng quay: mua 0,15%, bán 0,15% + thuế 0,1%. Mốc: rổ đều tỷ trọng vũ trụ đủ điều kiện, không phí. Chuỗi lợi suất vượt ngày
+   = danh mục − mốc.
+3. **Lưới 12 cấu hình cố định** (cùng tín hiệu, cùng walk-forward): số mã {5, 10, 20} × vùng đệm {không, gấp đôi số mã} × tỷ trọng
+   {ERC Ledoit–Wolf, nghịch biến động}. **Cấu hình chính** = 10 mã, vùng đệm 20, ERC (đúng lõi E3-v3).
+4. **Deflated Sharpe Ratio** (Bailey & López de Prado 2014) cho cấu hình chính trên chuỗi lợi suất vượt ngày:
+   `DSR = Φ((SR̂ − SR₀)·√(T−1) / √(1 − γ₃·SR̂ + (γ₄ − 1)/4·SR̂²))`, SR̂ theo ngày (không quy năm), γ₃ độ lệch, γ₄ độ nhọn (không trừ 3);
+   `SR₀ = √V·[(1 − γ)·Φ⁻¹(1 − 1/N) + γ·Φ⁻¹(1 − 1/(N·e))]`, γ = 0,5772 (hằng Euler–Mascheroni), N = 12 cấu hình, V = phương sai SR̂ của
+   12 cấu hình. Báo cáo thêm độ nhạy N = 24 (tính cả các phiên bản E3 và bộ lọc đã thử).
+5. **Xác suất quá khớp PBO** bằng CSCV (Bailey, Borwein, López de Prado & Zhu 2017): chia chuỗi ngày thành S = 10 khối liên tiếp bằng
+   nhau, xét mọi C(10, 5) = 252 cách chọn 5 khối làm trong mẫu; chọn cấu hình có SR trong mẫu cao nhất, tính hạng tương đối ω của nó
+   ngoài mẫu, logit λ = ln(ω / (1 − ω)); PBO = tỷ lệ λ ≤ 0.
+
+**Tiêu chí E7-v3** (đạt khi đủ cả bốn):
+
+1. IC hạng của Z ở h = 5 > 0, t Newey–West ≥ 2 (như E7).
+2. Lợi suất vượt rổ đều sau phí ở h = 10: trung bình > 0, cận dưới KTC 95% bootstrap khối > 0 (như E7).
+3. **DSR ≥ 0,95** cho cấu hình chính (N = 12).
+4. **PBO < 0,5**.
+
+**Diễn giải đã cam kết trước**: không đạt thì Elite 10 giữ nhãn THĂM DÒ, không chỉnh lưới hay tham số để "cứu" kết quả. Đạt thì đó là
+bằng chứng hồi cứu cho phần mô hình (5 tín hiệu dòng tiền), **không** thay cho sổ tiến E3; phiên hồi cứu không bao giờ cộng vào sổ tiến.
+
+**Giới hạn**: chỉ khoảng 200 phiên (lịch sử dòng tiền từ 19/11/2025); một chế độ thị trường chủ đạo; 12 cấu hình tương quan cao với
+nhau nên PBO có thể thấp giả tạo. Quy tắc RRG của E3-v4 không có lịch sử nên không có trong E7.

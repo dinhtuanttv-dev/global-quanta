@@ -189,6 +189,17 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     res.set("Cache-Control", "public, max-age=3600");
     res.json(r);
   }));
+  router.get("/retro-v3", wrap(async (req, res) => {
+    const r = getRetro?.().resultV3 ? await getRetro().resultV3() : null;
+    if (!r) return missing(res, "Chưa chạy kiểm định hồi cứu E7-v3.");
+    res.set("Cache-Control", "public, max-age=3600");
+    res.json(r);
+  }));
+  router.post("/admin/retro-v3", admin, wrap(async (req, res) => {
+    if (!getRetro?.().runV3) return res.status(503).json({ error: "Chưa cấu hình kiểm định hồi cứu." });
+    const r = await getRetro().runV3();
+    res.json({ version: r.version, period: r.period, criteria: r.criteria, verdictVi: r.verdictVi, dsr: r.deflatedSharpe.dsr, pbo: r.pbo.pbo, runtimeMs: r.runtimeMs, data: r.data });
+  }));
   router.post("/admin/retro", admin, wrap(async (req, res) => {
     if (!getRetro) return res.status(503).json({ error: "Chưa cấu hình kiểm định hồi cứu." });
     const r = await getRetro().run();
