@@ -94,6 +94,23 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
   });
 
+  it("E3-v4: dòng giải thích quy tắc RRG + nhãn 'Tụt hậu −30%' ở mã bị phạt; bản cũ không hiện", () => {
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("elite-rrg-rule")).toBeNull();
+    cleanup();
+    const keep = { version: decision.version, p: { ...decision.portfolio[0] }, s: { ...decision.scores[0] } };
+    Object.assign(decision, { version: "E3-v4 (prereg 2026-10-17, sửa đổi 2026-11-05)" });
+    Object.assign(decision.portfolio[0], { rrgPenalty: true, zModel: 3.2, rrgQuadrant: -2 });
+    Object.assign(decision.scores[0], { rrgPenalty: true });
+    try {
+      render(<DecisionBoard onOpenTicker={() => {}} />);
+      expect(screen.getByTestId("elite-rrg-rule").textContent).toContain("1 mã đủ điều kiện đang bị phạt");
+      expect(screen.getByTestId("elite-radar-rrg-ORS").textContent).toBe("Tụt hậu −30%");
+    } finally {
+      Object.assign(decision, { version: keep.version }); Object.assign(decision.portfolio[0], keep.p, { rrgPenalty: undefined }); Object.assign(decision.scores[0], keep.s, { rrgPenalty: undefined });
+    }
+  });
+
   it("CG-r1: ô Tỷ lệ cổ phiếu — chính thức 100%, trạng thái cổng hôm nay (mô tả), kết quả kiểm định KHÔNG ĐẠT kèm tiêu chí", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
     const card = screen.getByTestId("elite-cash-gate");

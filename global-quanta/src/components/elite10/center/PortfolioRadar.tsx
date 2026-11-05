@@ -314,6 +314,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                 <div className="min-w-0 leading-tight">
                   <button type="button" onClick={() => onOpenTicker(p.ticker)} data-testid={`elite-radar-open-${p.ticker}`} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline">{p.ticker}</button>
                   {p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[10px] text-slate-400">giữ</span>}
+                  {p.rrgPenalty && <span title={`E3-v4: ngành đang ở góc Tụt hậu trên RRG -> Z xếp hạng trừ 30% (mô hình ${p.zModel?.toFixed(2)} → ${p.Z.toFixed(2)}). Quy tắc người dùng đặt, chưa kiểm định.`} data-testid={`elite-radar-rrg-${p.ticker}`} className="ml-1 rounded border border-rose-400/40 px-1 text-[10px] text-rose-300">Tụt hậu −30%</span>}
                   <div className="truncate text-[10px] text-slate-500" title={secName(p.sectorKey)}>{replay ? "" : secName(p.sectorKey)}</div>
                 </div>
                 <canvas ref={(el) => { if (el) canv.current.set(p.ticker, el); else canv.current.delete(p.ticker); }} aria-hidden="true" style={{ width: trackW, height: 38, display: "block" }}

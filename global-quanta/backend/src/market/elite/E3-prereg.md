@@ -92,3 +92,22 @@ bản ghi duy nhất của E3-v1 (16/10, chưa chấm) được lưu trữ riên
    IC dương theo đúng cách vào lệnh của danh mục. Bậc bằng chứng của nó trong E2 không đổi.
 
 Sổ E3-v2 (1 bản ghi 16/10, chưa chấm) được lưu trữ nguyên vẹn; sổ E3-v3 bắt đầu lại. Tiêu chí thành công không đổi.
+
+## Sửa đổi E3-v4 (2026-11-05) — Cộng hưởng sóng ngành (RRG), quy tắc do người dùng đặt
+
+**Lý do**: người dùng quyết định đưa điều kiện bắt buộc "Cộng hưởng sóng ngành" vào danh mục chính thức (05/11/2026). Đây là
+**quy tắc đặt tay**, không dựa trên bằng chứng: góc phần tư RRG đang ở bậc C trong E2 (L3 không đạt), chưa có lịch sử point-in-time
+đủ để kiểm định. Người dùng đã được báo trước hệ quả (sổ tiến chạy lại, mốc 60 phiên lùi lại) và vẫn chọn đưa vào chính thức.
+
+**Thay đổi** (mọi điều khác của E3-v3 giữ nguyên):
+
+1. Góc phần tư RRG của ngành ICB cấp 2 lấy từ **bảng tín hiệu E1 của phiên d** (giá trị `rrg_quadrant` ghi lúc dựng, 17:00: Dẫn
+   dắt 2, Cải thiện 1, Suy yếu −1, Tụt hậu −2). Không đọc lại về sau.
+2. Mã thuộc ngành **Tụt hậu**: điểm quyết định `Z_qđ = Z − 0,3·|Z|` (trừ 30% độ lớn, luôn là phạt kể cả khi Z âm). Ngành Dẫn dắt,
+   Cải thiện, Suy yếu hoặc thiếu dữ liệu: `Z_qđ = Z`. Nhờ vậy mã của ngành Dẫn dắt / Cải thiện được ưu tiên tương đối.
+3. Xếp hạng, vùng đệm giữ mã (top 20), chọn 10 mã và trần 3 mã/ngành dùng `Z_qđ`. α kỳ vọng và xác suất vượt vẫn tính từ Z của mô
+   hình (quy tắc không có IC); cả hai giá trị được lưu.
+4. Sổ theo dõi tiến: sổ E3-v3 (10 bản ghi từ 23/10/2026) được lưu trữ nguyên vẹn; sổ E3-v4 bắt đầu từ phiên dựng đầu tiên sau triển
+   khai. Tiêu chí thành công không đổi (≥ 60 phiên tiến, IC h5 t ≥ 2 và lợi suất vượt h10 sau phí có cận dưới KTC 95% > 0). IC của
+   sổ tiến đo trên `Z_qđ`.
+5. Kiểm định hồi cứu E7 không có lịch sử góc phần tư RRG, nên quy tắc không tác động lên E7 (E7 tiếp tục đo phần mô hình).

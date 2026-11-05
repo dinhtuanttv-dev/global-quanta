@@ -1,10 +1,15 @@
 // Elite 10 E3 — lõi thuần của engine quyết định, đúng E3-prereg.md (ghi trước khi tính bất kỳ điểm nào).
 // E3-v3 (sửa đổi 2026-10-18): trọng số tín hiệu theo tương quan (C̃⁻¹·IC), IC tổng đúng của tổ hợp, vùng đệm giữ mã, tỷ trọng ERC
 // trên hiệp phương sai Ledoit–Wolf.
+// E3-v4 (sửa đổi 2026-11-05, quy tắc người dùng đặt): mã thuộc ngành RRG Tụt hậu (bảng E1 phiên d) bị trừ 30% độ lớn Z khi xếp hạng.
 import { averageRanks, dailyIc, normCdf, summarize } from "./icCore.js";
 import { ledoitWolf } from "./riskCore.js";
 
-export const E3_VERSION = "E3-v3 (prereg 2026-10-17, sửa đổi 2026-10-18)";
+export const E3_VERSION = "E3-v4 (prereg 2026-10-17, sửa đổi 2026-11-05)";
+/** E3-v4: cộng hưởng sóng ngành — góc phần tư RRG (mã hoá bảng E1: Dẫn dắt 2, Cải thiện 1, Suy yếu −1, Tụt hậu −2). */
+export const RRG_RULE = Object.freeze({ laggingCode: -2, penalty: 0.3 });
+/** Z quyết định: ngành Tụt hậu -> Z − 0,3·|Z| (luôn là phạt); còn lại giữ nguyên. */
+export const rrgAdjust = (Z, quadrant) => (quadrant === RRG_RULE.laggingCode ? Z - RRG_RULE.penalty * Math.abs(Z) : Z);
 export const N0 = 60;
 export const PRIOR_IC = { A: 0.02, B: 0.01 };
 /**
@@ -214,13 +219,16 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
   const sig5 = sigma5(prices, eligibleNames, cal, date);
   const rowBy = new Map(panel.rows.map((r) => [r.ticker, r]));
   const scores = tickers.map((t) => {
-    const Z = (raw.get(t) - m) / s;
+    const zModel = (raw.get(t) - m) / s;
+    const rrgQuadrant = rowBy.get(t)?.values?.rrg_quadrant ?? null;
+    const Z = rrgAdjust(zModel, rrgQuadrant);
     const st = stats.get(t) ?? { eligible: false, reason: "không có giá" };
-    const alpha5 = sig5 != null ? icComb * sig5 * Z : null;
-    const pOut = normCdf((icComb * Z) / Math.sqrt(Math.max(1e-9, 1 - icComb * icComb)));
+    // α và xác suất vượt theo Z của MÔ HÌNH (quy tắc RRG đặt tay, không có IC).
+    const alpha5 = sig5 != null ? icComb * sig5 * zModel : null;
+    const pOut = normCdf((icComb * zModel) / Math.sqrt(Math.max(1e-9, 1 - icComb * icComb)));
     const contributions = weights.map((w) => ({ id: w.id, z: zBy.get(w.id).get(t) ?? null, contribution: w.w * (zBy.get(w.id).get(t) ?? 0) }));
     return {
-      ticker: t, Z, alpha5Pct: alpha5 == null ? null : alpha5 * 100, pOutperform: pOut, eligible: st.eligible, reason: st.reason ?? null,
+      ticker: t, Z, zModel, rrgQuadrant, rrgPenalty: Z !== zModel, alpha5Pct: alpha5 == null ? null : alpha5 * 100, pOutperform: pOut, eligible: st.eligible, reason: st.reason ?? null,
       close: st.close ?? null, advBn: st.adv != null ? st.adv / 1e9 : null, sigma20: st.sigma20 ?? null,
       sectorKey: rowBy.get(t)?.icb?.l2 ?? rowBy.get(t)?.sector ?? null, contributions,
     };
@@ -284,6 +292,7 @@ export function constructPortfolio({ scores, prices, date, prevHoldings = [] }) 
   const portfolio = picks.map((x, i) => {
     return {
       ticker: x.ticker, weight: w[i], Z: x.Z, rank: x.rank, alpha5Pct: x.alpha5Pct, pOutperform: x.pOutperform, sectorKey: x.sectorKey,
+      ...(x.zModel !== undefined ? { zModel: x.zModel, rrgQuadrant: x.rrgQuadrant ?? null, rrgPenalty: Boolean(x.rrgPenalty) } : {}),
       close: x.close, ...stopTarget(x.close, x.sigma20), holdSessions: PORTFOLIO.holdSessions,
       retained: retained.has(x.ticker), riskContribution: rc ? rc[i] : null,
     };

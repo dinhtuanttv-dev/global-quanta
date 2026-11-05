@@ -65,6 +65,11 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
           <p className="text-[10.5px] text-slate-400">
             Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ 10 tỷ, giá ≥ 5.000đ, giá không bị neo) · {d.version}
           </p>
+          {d.version.startsWith("E3-v4") && (
+            <p className="text-[10.5px] text-slate-400" data-testid="elite-rrg-rule">
+              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ 30% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
+            </p>
+          )}
         </div>
         <span title={lab?.labelVi} className={`rounded border px-2 py-1 text-[10px] font-bold ${lab?.label === "EVIDENCE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`} data-testid="elite-label">
           {lab?.label === "EVIDENCE" ? "ĐẠT TIÊU CHÍ ĐĂNG KÝ TRƯỚC" : "THĂM DÒ"}
