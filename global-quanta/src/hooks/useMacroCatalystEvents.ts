@@ -16,7 +16,7 @@ export interface GatewayMacroEvent {
 }
 
 export interface MacroCatalystEventsResponse {
-  mode: "real" | "synthetic";
+  mode: "real" | "insufficient" | "synthetic";
   notice: string | null;
   asOf: string;
   horizonDays: number;

@@ -60,40 +60,39 @@ test("mergeObservations: chỉ-thêm theo (series, kỳ, asOf); bản sửa cùn
   assert.equal(r2.list.find((o) => o.period === "2020-02").value, 2.5);
 });
 
-test("Chưa có số liệu thật -> chế độ MÔ PHỎNG, mọi phản hồi mang biểu ngữ; công cụ chat cũng vậy", async () => {
+test("Chưa có số liệu thật -> chế độ THIẾU DỮ LIỆU: không mô phỏng, phép tính trả 422 kèm lý do; công cụ chat cũng vậy", async () => {
   const svc = createMacroService({ globalFeeds: null, store: memKv(), inline: true, now: () => NOW });
   const src = await svc.source();
-  assert.equal(src.mode, "synthetic");
-  assert.equal(src.notice, SYNTHETIC_NOTICE);
+  assert.equal(src.mode, "insufficient");
+  assert.equal(src.notice, null);
+  assert.match(src.reason, /Không kích hoạt mô phỏng/);
   const score = await svc.handle({ method: "POST", path: "/api/macro/score", query: {}, body: { target: "VNINDEX" } });
-  assert.equal(score.status, 200);
-  assert.equal(score.body.notice, SYNTHETIC_NOTICE);
-  assert.equal(score.body.usableForDecisions, false);
-  assert.equal(score.body.evidence, "SYNTHETIC");
+  assert.equal(score.status, 422);
+  assert.match(score.body.error, /Chưa có dữ liệu/);
+  const series = await svc.handle({ method: "GET", path: "/api/macro/series", query: {}, body: undefined });
+  assert.equal(series.status, 200, "danh mục chuỗi vẫn phục vụ");
   const tool = await svc.runTool("macro_overview", { target: "VN30" });
-  assert.equal(tool.ok, true);
-  assert.equal(tool.notice, SYNTHETIC_NOTICE);
-  assert.equal(tool.data.usableForDecisions, false);
-  assert.ok(tool.guidance.some((g) => /KHÔNG đưa khuyến nghị/.test(g)));
+  assert.equal(tool.ok, false, JSON.stringify(tool).slice(0, 200));
   const bad = await svc.runTool("khong_co", {});
   assert.equal(bad.ok, false);
 });
 
-test("Chỉ có chỉ số thật (chưa có biến vĩ mô thật) -> vẫn MÔ PHỎNG, KHÔNG trộn chỉ số thật với biến mô phỏng", async () => {
+test("Chỉ có chỉ số thật (chưa có biến vĩ mô thật) -> THIẾU DỮ LIỆU, chỉ dùng chuỗi thật, không có chuỗi mô phỏng nào", async () => {
   const kv = memKv();
   const history = { get: async () => ({ bars: dailyBars(100, (i) => 600 + i * 3 + 20 * Math.sin(i)) }) };
   const svc = createMacroService({ globalFeeds: null, store: kv, history, inline: true, now: () => NOW });
   const r = await svc.refreshAutoFeeds({ force: true });
   assert.equal(r.report.VNINDEX.months, 100);
   const src = await svc.source();
-  assert.equal(src.mode, "synthetic");
+  assert.equal(src.mode, "insufficient");
   assert.deepEqual(src.usableTargets.sort(), ["VN100", "VN30", "VNALLSHARE", "VNINDEX", "VNMIDCAP", "VNSMALLCAP"]);
   assert.equal(src.usableFactors.length, 0);
   assert.equal(src.bySource["gateway-hose"], 600);
   assert.equal(kv.m.get(MACRO_KV_KEY).observations.length, 600);
-  // mô phỏng: chuỗi VNINDEX trả về là seed (bắt đầu 2008), không phải chuỗi thật (2018)
+  // chuỗi VNINDEX trả về là chuỗi thật (không phải seed mô phỏng bắt đầu 2008); biến vĩ mô không có số nào
   const series = await svc.handle({ method: "GET", path: "/api/macro/series", query: {}, body: undefined });
-  assert.equal(series.body.series.find((s) => s.id === "VNINDEX").first, "2008-01");
+  assert.notEqual(series.body.series.find((s) => s.id === "VNINDEX").first, "2008-01");
+  assert.equal(series.body.series.find((s) => s.id === "CPI").n ?? 0, 0);
 });
 
 test("Nạp CSV biến vĩ mô thật đủ 60 tháng -> chế độ THẬT, không biểu ngữ; dữ liệu bền qua khởi động lại (KV)", async () => {
@@ -111,7 +110,7 @@ test("Nạp CSV biến vĩ mô thật đủ 60 tháng -> chế độ THẬT, kh�
   const dry = await svc.importCsv({ seriesId: "CPI", csv, dryRun: true });
   assert.equal(dry.written, false);
   assert.equal(dry.rows, 100);
-  assert.equal((await svc.source()).mode, "synthetic");
+  assert.equal((await svc.source()).mode, "insufficient");
   const w = await svc.importCsv({ seriesId: "CPI", csv, source: "GSO" });
   assert.equal(w.written, true, JSON.stringify(w));
   assert.equal(w.added, 100);
@@ -142,7 +141,7 @@ test("Worker thread: kết quả giống hệt chạy trực tiếp", async () =
   try {
     const req = { method: "GET", path: "/api/macro/regime", query: { asOf: "2025-06-30" }, body: undefined };
     const [a, b] = await Promise.all([w.handle(req), i.handle(req)]);
-    assert.equal(a.status, 200);
+    assert.equal(a.status, 422, "không có số liệu thật -> 422 ở cả hai nơi");
     assert.deepEqual(a, b);
   } finally {
     await w.close();
@@ -174,16 +173,16 @@ test("router: route engine, nguồn, công cụ, admin cần token", async () =>
   try {
     const cal = await fetch(`${base}/calendar`);
     assert.equal(cal.status, 200);
-    assert.equal((await cal.json()).notice, SYNTHETIC_NOTICE);
+    assert.equal((await cal.json()).notice, undefined);
     assert.equal((await fetch(`${base}/khong-co`)).status, 404);
     const src = await (await fetch(`${base}/source`)).json();
-    assert.equal(src.mode, "synthetic");
+    assert.equal(src.mode, "insufficient");
     const tools = await (await fetch(`${base}/tools`)).json();
     assert.equal(tools.anthropic.length, tools.specs.length);
     const run = await (await fetch(`${base}/tools/macro_calendar_alerts`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
     assert.equal(run.ok, true, JSON.stringify(run));
     const sc = await fetch(`${base}/score`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ target: "VN30" }) });
-    assert.equal(sc.status, 200);
+    assert.equal(sc.status, 422);
     const noAuth = await fetch(`${base}/admin/import`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
     assert.equal(noAuth.status, 401);
     const bad = await fetch(`${base}/admin/import`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer secret-token" }, body: JSON.stringify({ seriesId: "NOPE", csv: "x" }) });
@@ -219,10 +218,10 @@ test("X3 FOMC: chỉ ngày tương lai trong cửa sổ; cảnh báo/chế độ
   assert.match(real[1].title, /Thắt chặt.*9\/2026.*90%/);
 });
 
-test("X3 dịch vụ: catalystEvents ở chế độ mô phỏng chỉ có lịch (không cảnh báo)", async () => {
+test("X3 dịch vụ: catalystEvents khi thiếu dữ liệu thật chỉ có lịch công bố (không cảnh báo, không số mô phỏng)", async () => {
   const svc = createMacroService({ globalFeeds: null, store: memKv(), inline: true, now: () => NOW });
   const r = await svc.catalystEvents({ horizonDays: 45 });
-  assert.equal(r.mode, "synthetic");
+  assert.equal(r.mode, "insufficient");
   assert.equal(r.asOf, "2026-10-16");
   assert.ok(r.events.length > 0);
   assert.ok(r.events.every((e) => e.kind === "release" || e.kind === "fomc"));
@@ -292,11 +291,15 @@ test("Chuỗi ngừng cập nhật (VD chỉ số đổi mã) bị loại: khôn
   assert.equal(coverageOf(st, "2025-06-01").series.find((s) => s.id === "VNMIDCAP").stale, false);
 });
 
-test("Báo cáo tháng: câu kết luận cổng MacroScore luôn kèm lưu ý chỉ tham khảo / mô phỏng", async () => {
+test("Báo cáo tháng: thiếu dữ liệu thật -> 422 (không báo cáo mô phỏng); có báo cáo thì câu kết luận cổng luôn kèm lưu ý chỉ tham khảo", async () => {
   const svc = createMacroService({ globalFeeds: null, store: memKv(), inline: true, now: () => NOW });
   const r = await svc.handle({ method: "GET", path: "/api/macro/report", query: {}, body: undefined });
-  assert.equal(r.status, 200);
-  assert.match(r.body.markdown, /vượt cổng kiểm định ngoài mẫu[^\n]*Lưu ý: dữ liệu MÔ PHỎNG/);
+  assert.equal(r.status, 422);
+  assert.doesNotMatch(JSON.stringify(r.body), /MÔ PHỎNG/);
+  const { referenceOnly } = await import("../src/market/macro/macroCore.js");
+  const md = referenceOnly({ status: 200, body: { markdown: "MacroScore vượt cổng kiểm định ngoài mẫu (IC 0,05)." } }, "real");
+  assert.match(md.body.markdown, /Lưu ý: MacroScore CHỈ ĐỂ THAM KHẢO/);
+  assert.doesNotMatch(md.body.markdown, /MÔ PHỎNG/);
 });
 
 test("IMF CPI (30/10/2026): CSV SDMX -> tháng; chỉ số -> % so cùng kỳ (đúng t−12, thiếu thì bỏ); asOf = ngày công bố 6", async () => {

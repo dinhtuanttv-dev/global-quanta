@@ -113,25 +113,3 @@ function average(arr) {
 function round1(n) {
   return Math.round(n * 10) / 10;
 }
-
-/**
- * Sinh dữ liệu nến lịch sử GIẢ LẬP chỉ để demo pipeline khi chưa nối API
- * dữ liệu lịch sử thật. KHÔNG dùng số liệu này để ra quyết định thật.
- * Production: thay bằng dữ liệu lịch sử thật (Binance klines, SSI, DNSE...).
- */
-export function generateMockHistoricalCandles(numBars = 500, startPrice = 1200) {
-  const candles = [];
-  let price = startPrice;
-  const start = Date.now() - numBars * 24 * 60 * 60 * 1000;
-
-  for (let i = 0; i < numBars; i++) {
-    const changePct = (Math.random() - 0.48) * 3; // random walk có thiên hướng tăng nhẹ
-    const open = price;
-    price = price * (1 + changePct / 100);
-    const close = price;
-    const high = Math.max(open, close) * (1 + Math.random() * 0.005);
-    const low = Math.min(open, close) * (1 - Math.random() * 0.005);
-    candles.push({ time: start + i * 24 * 60 * 60 * 1000, open, high, low, close });
-  }
-  return candles;
-}

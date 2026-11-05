@@ -2,9 +2,10 @@
 // Nguyên tắc dữ liệu: KHÔNG BAO GIỜ trộn số liệu thật với số liệu mô phỏng.
 //   - Chế độ "real": chỉ khi kho số liệu THẬT (nạp CSV qua route admin + chuỗi chỉ số HOSE lấy từ Gateway) có >= 1 biến vĩ mô
 //     VÀ >= 1 chỉ số với tối thiểu 60 tháng. Engine chỉ thấy kho thật, không có biểu ngữ mô phỏng.
-//   - Ngược lại: chế độ "synthetic" — kho mô phỏng tất định (seed 2024), MỌI phản hồi mang SYNTHETIC_NOTICE.
+//   - Ngược lại: chế độ "insufficient" — engine vẫn chạy trên kho THẬT (có thể rỗng), phép tính thiếu số liệu trả 422 kèm lý do.
+//     Không bao giờ dựng kho mô phỏng (bỏ makeSyntheticStore 05/11/2026): thà báo thiếu dữ liệu còn hơn hiện số giả.
 import {
-  createMacroApi, createMacroChatTools, makeSyntheticStore, InMemoryVintageStore, VN_CATALOG, SYNTHETIC_NOTICE,
+  createMacroApi, createMacroChatTools, InMemoryVintageStore, VN_CATALOG, SYNTHETIC_NOTICE,
   importSeriesCsv, checkQuality, catalogById, MACRO_TOOL_SPECS, MACRO_CHAT_SYSTEM_PROMPT, toAnthropicTools,
 } from "./vendor/macroEngine.mjs";
 
@@ -64,17 +65,15 @@ export function referenceOnly(res, mode) {
   const b = res?.body;
   // báo cáo tháng (Markdown) được dựng trong engine, không đi qua lớp này -> sửa câu kết luận cổng ngay trong văn bản
   if (b && typeof b === "object" && typeof b.markdown === "string") {
-    const note = mode === "synthetic" ? "dữ liệu MÔ PHỎNG — kết quả cổng không có giá trị thực tế; MacroScore chỉ minh hoạ." : "MacroScore CHỈ ĐỂ THAM KHẢO (chưa qua kiểm định đặt trước), không dùng cho quyết định.";
+    const note = "MacroScore CHỈ ĐỂ THAM KHẢO (chưa qua kiểm định đặt trước), không dùng cho quyết định.";
     return { ...res, body: { ...b, markdown: b.markdown.replace(/MacroScore (CHƯA )?vượt cổng kiểm định ngoài mẫu[^.\n]*\./g, (m) => `${m} Lưu ý: ${note}`) } };
   }
   if (!b || typeof b !== "object" || !("usableForDecisions" in b)) return res;
   const passed = !!b.backtest?.gate?.pass;
-  const gateNote = mode === "synthetic"
-    ? "Dữ liệu MÔ PHỎNG — kết quả cổng kiểm định không có giá trị thực tế. MacroScore chỉ minh hoạ."
-    : passed
+  const gateNote = passed
       ? "MacroScore vượt cổng kiểm định ngoài mẫu của gói, nhưng CHỈ ĐỂ THAM KHẢO — chưa qua kiểm định đặt trước, không đưa vào quyết định."
       : "MacroScore CHƯA vượt cổng kiểm định; chỉ dùng để tham khảo, không đưa vào bộ máy quyết định.";
-  return { ...res, body: { ...b, usableForDecisions: false, gatePassed: passed, gateNote, evidence: mode === "synthetic" ? "SYNTHETIC" : "REFERENCE_ONLY" } };
+  return { ...res, body: { ...b, usableForDecisions: false, gatePassed: passed, gateNote, evidence: "REFERENCE_ONLY" } };
 }
 
 /** Ngày hiện tại theo giờ Việt Nam (UTC+7) — asOf mặc định của engine. */
@@ -93,10 +92,10 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
     const stale = new Set(coverage.staleSeries);
     const fresh = real.filter((o) => !stale.has(o.seriesId));
     if (fresh.length) realStore.upsert(fresh);
-    const mode = coverage.realReady ? "real" : "synthetic";
-    const store = mode === "real" ? realStore : makeSyntheticStore();
+    const mode = coverage.realReady ? "real" : "insufficient";
+    const store = realStore;
     // Dữ liệu chỉ đổi khi nạp (dataVersion đổi) -> TTL dài; tính lại chỉ khi đổi dữ liệu hoặc ngày asOf.
-    const raw = createMacroApi({ store, today, cacheTtlMs: 12 * 3600_000, maxCacheEntries: 400, notice: mode === "synthetic" ? SYNTHETIC_NOTICE : undefined });
+    const raw = createMacroApi({ store, today, cacheTtlMs: 12 * 3600_000, maxCacheEntries: 400, notice: undefined });
     const api = { ...raw, handle: async (req) => referenceOnly(await raw.handle(req), mode) };
     state = { mode, api, tools: createMacroChatTools(api), coverage, realCount: real.length };
   }
@@ -111,7 +110,8 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
     source() {
       return {
         mode: state.mode,
-        notice: state.mode === "synthetic" ? SYNTHETIC_NOTICE : null,
+        notice: null,
+        reason: state.mode === "real" ? null : `Chưa đủ dữ liệu thực tế để tính mô hình vĩ mô: cần ≥ 1 biến vĩ mô và ≥ 1 chỉ số có tối thiểu ${MIN_MONTHS} tháng còn cập nhật. Không kích hoạt mô phỏng.`,
         realObservations: state.realCount,
         minMonths: MIN_MONTHS,
         ...state.coverage,
@@ -124,7 +124,7 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
       return state.tools.run(name, args);
     },
     toolSpecs() {
-      return { specs: MACRO_TOOL_SPECS, anthropic: toAnthropicTools(), systemPrompt: MACRO_CHAT_SYSTEM_PROMPT, mode: state.mode, notice: state.mode === "synthetic" ? SYNTHETIC_NOTICE : null };
+      return { specs: MACRO_TOOL_SPECS, anthropic: toAnthropicTools(), systemPrompt: MACRO_CHAT_SYSTEM_PROMPT, mode: state.mode, notice: null };
     },
   };
 }

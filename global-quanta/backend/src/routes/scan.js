@@ -174,13 +174,13 @@ async function runVisionMode({ symbol, timeframes, timeframe, candles, isMock, s
   }
   const dataCompleteness = images.every((i) => i) ? "FULL" : "DEGRADED_MODE";
 
-  const quant = await extractQuantFeatures(symbol);
+  const quant = extractQuantFeatures(candles);
 
   let vision;
   try {
     vision = await withRetry(() => analyzeChartsWithAI({ images, timeframes, symbol, model: ai_model }));
   } catch (err) {
-    return { error: "Lỗi khi AI đọc ảnh biểu đồ (AI Vision).", detail: err.message, status: 502 };
+    return { error: "Lỗi khi AI đọc ảnh biểu đồ (AI Vision).", detail: err.message, status: err.code === "NO_AI_KEY" ? 503 : 502 };
   }
 
   const macroAligned = (vision.macro_layer?.weekly?.structural_bias ?? "").toLowerCase().includes("bullish");
@@ -202,7 +202,8 @@ async function runVisionMode({ symbol, timeframes, timeframe, candles, isMock, s
       order_flow_bias: quant.order_flow_bias,
       liquidity_pools: quant.liquidity_pools,
       correlation_flag: quant.correlation_flag,
-      source: "MOCK — chưa nối API sàn thật (Binance/SSI/DNSE), không dùng để ra quyết định thật",
+      volume_profile_poc: quant.volume_profile_poc,
+      source: quant.source,
     },
   };
 

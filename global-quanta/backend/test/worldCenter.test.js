@@ -74,10 +74,15 @@ function realPayload(n = 520) {
   return { daily: { tradingDays: days, markets, sectors }, observations: [], events: REAL_WORLD_EVENTS, meta: { builtAt: "x" } };
 }
 
-test("worldCore: chưa có dữ liệu ngày -> MÔ PHỎNG (biểu ngữ); có dữ liệu ngày -> THẬT; thiếu 60 tháng -> ma trận 422 chứ không lấp số mô phỏng", async () => {
+test("worldCore: chưa có dữ liệu ngày -> THIẾU DỮ LIỆU (không mô phỏng, phép tính 422); có dữ liệu ngày -> THẬT; thiếu 60 tháng -> ma trận 422", async () => {
   const core = createWorldCore({ today: () => "2026-10-16" });
-  assert.equal(core.source().mode, "synthetic");
-  assert.match(core.source().notice, /MÔ PHỎNG/);
+  assert.equal(core.source().mode, "insufficient");
+  assert.equal(core.source().notice, null);
+  assert.match(core.source().reason, /cần ≥ 300 phiên.*Không kích hoạt mô phỏng/);
+  const mx0 = await core.handle({ method: "POST", path: "/api/world/matrix", query: {}, body: {} });
+  assert.equal(mx0.status, 422);
+  const ev0 = await core.handle({ method: "GET", path: "/api/world/events", query: {}, body: undefined });
+  assert.deepEqual(ev0.body.events, [], "không có sự kiện mô phỏng");
   core.setData(realPayload());
   const src = core.source();
   assert.equal(src.mode, "real");
@@ -151,7 +156,7 @@ test("worldService: dựng đủ -> lưu KV + chế độ THẬT, kèm báo cáo
   const r2 = await svc2.refresh({ force: true });
   assert.equal(r2.complete, false);
   assert.equal(kv2.m.has(WORLD_KV_KEY), false, "bản thiếu không được lưu");
-  assert.equal(r2.source.mode, "synthetic");
+  assert.equal(r2.source.mode, "insufficient");
   // bản chưa đủ: request kế tiếp KHÔNG được kích hoạt dựng lại ngay (không đốt ngân sách tải lịch sử)
   assert.equal((await svc2.refresh()).skipped, "retry-later");
   await svc2.close();
@@ -168,8 +173,8 @@ test("router: route engine, nguồn, admin cần token, route lạ 404", async (
   try {
     const s = await (await fetch(`${base}/series`)).json();
     assert.equal(s.factors.length, 13);
-    assert.equal((await (await fetch(`${base}/source`)).json()).mode, "synthetic");
-    assert.equal((await fetch(`${base}/events/ev1`)).status, 200);
+    assert.equal((await (await fetch(`${base}/source`)).json()).mode, "insufficient");
+    assert.equal((await fetch(`${base}/events/ev1`)).status, 404, "không còn sự kiện mô phỏng ev1");
     assert.equal((await fetch(`${base}/nope`)).status, 404);
     assert.equal((await fetch(`${base}/admin/refresh`, { method: "POST" })).status, 401);
     assert.equal((await fetch(`${base}/admin/refresh`, { method: "POST", headers: { authorization: "Bearer t0k" } })).status, 200);
@@ -191,19 +196,20 @@ test("worldSignalFromScore: chỉ dùng khi có liên kết bậc A VÀ cổng n
   assert.equal(worldSignalFromScore({ thermometer: { value: 0.9 }, backtest: { ic: 0.4, hitRate: 0.9, gate: pass } }, ["DXY"]).probability, 0.7);
 });
 
-test("worldCore: công cụ chat world_* chạy qua engine; tín hiệu ngành ở chế độ mô phỏng = không dùng được", async () => {
+test("worldCore: công cụ chat world_* chạy qua engine; khi thiếu dữ liệu thật thì tín hiệu ngành rỗng, không có sự kiện mô phỏng", async () => {
   const core = createWorldCore({ today: () => "2026-10-16" });
   const specs = core.toolSpecs();
   assert.equal(specs.anthropic.length, 6);
   assert.ok(specs.anthropic.some((t) => t.name === "world_confirmatory"));
   assert.match(specs.guidelines, /bậc C/);
+  assert.equal(specs.notice, null);
   const ev = await core.runTool("world_events", {});
-  assert.equal(ev.ok, true);
-  assert.match(ev.notice, /MÔ PHỎNG/);
+  assert.doesNotMatch(JSON.stringify(ev), /MÔ PHỎNG/);
   assert.equal((await core.runTool("world_nope", {})).ok, false);
   const sig = await core.sectorSignals();
-  assert.equal(sig.mode, "synthetic");
+  assert.equal(sig.mode, "insufficient");
   assert.deepEqual(sig.sectors, []);
+  assert.match(sig.reason, /Không kích hoạt mô phỏng/);
   core.setData(realPayload());
   const real = await core.sectorSignals();
   assert.equal(real.mode, "real");

@@ -33,7 +33,7 @@ export type { CellLike };
 // ── Gateway (/api/macro/source) và các route chưa có trên UI gốc ──
 export interface SourceSeries { id: string; nameVi: string; role: 'factor' | 'target'; n: number; first: string | null; last: string | null; stale: boolean; sources: string[] }
 export interface SourcePayload {
-  mode: 'real' | 'synthetic'; notice: string | null; minMonths: number; realObservations: number;
+  mode: 'real' | 'insufficient' | 'synthetic'; reason?: string | null; notice: string | null; minMonths: number; realObservations: number;
   series: SourceSeries[]; usableFactors: string[]; usableTargets: string[]; staleSeries: string[];
 }
 export interface RegimeState { state: number; label: string; expectedDurationMonths: number; stationaryShare: number; meansByFeature: Record<string, number> }

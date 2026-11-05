@@ -5,7 +5,8 @@ import { fetchMarketJson } from "../../../services/marketDataClient";
 
 interface CoverageRow { id: string; nameVi: string; role: "factor" | "sector"; n: number; first: string | null; last: string | null; stale: boolean; sources: string[]; usable: boolean }
 interface WorldSource {
-  mode: "real" | "synthetic";
+  mode: "real" | "insufficient" | "synthetic";
+  reason?: string | null;
   notice: string | null;
   minMonths: number;
   coverage: CoverageRow[];
@@ -36,10 +37,10 @@ export default function WorldSourcePanel() {
     <div className="rounded-xl p-3 text-[10.5px] space-y-2" style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", color: "var(--text-secondary)" }}>
       <p>
         Chế độ dữ liệu:{" "}
-        <b style={{ color: data.mode === "real" ? "var(--positive)" : "var(--warning, #f59e0b)" }}>{data.mode === "real" ? "SỐ LIỆU THẬT" : "MÔ PHỎNG"}</b>
+        <b style={{ color: data.mode === "real" ? "var(--positive)" : "var(--warning, #f59e0b)" }}>{data.mode === "real" ? "SỐ LIỆU THẬT" : "CHƯA ĐỦ DỮ LIỆU THẬT"}</b>
         {data.meta && <> · dựng lúc {new Date(data.meta.builtAt).toLocaleString("vi-VN")}</>}
         {data.mode === "real" && <> · biến thế giới đủ {data.minMonths} tháng: {factors.filter((f) => f.usable).map((f) => f.id).join(", ") || "—"}</>}
-        {data.mode === "synthetic" && <> · đang dựng dữ liệu thật lần đầu (lịch sử 6 năm cho rổ ngành) — tự cập nhật khi xong.</>}
+        {data.mode !== "real" && <> · {data.reason ?? "đang dựng dữ liệu thật lần đầu"} Các phép tính cần dữ liệu này tạm báo thiếu; không dùng số mô phỏng. Tự cập nhật khi dựng xong.</>}
       </p>
       {r && Object.keys(r.missingFactors).length > 0 && (
         <p>
