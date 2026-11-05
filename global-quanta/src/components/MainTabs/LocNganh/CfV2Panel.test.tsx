@@ -37,11 +37,17 @@ describe("Cycle Fingerprint v2 (CF4)", () => {
     expect(screen.queryAllByTestId("cf-forward-path")).toHaveLength(0);
   });
 
-  it("dự báo vượt VN-Index 4 kỳ hạn; dải 80% ghi rõ CHƯA hiệu chỉnh (phủ 73% ngoài mẫu)", () => {
+  it("hiện trung vị và dải phân bố 4 kỳ hạn, nói rõ không phải dự báo; không còn số dự báo điểm", () => {
     show();
-    expect(screen.getByTestId("cf2-forecast").textContent).toContain("Vượt VN-Index 20 phiên");
-    expect(screen.getByTestId("cf2-interval").textContent).toContain("CHƯA hiệu chỉnh");
+    const d = screen.getByTestId("cf2-distribution").textContent ?? "";
+    expect(d).toContain("Trung vị vượt VN-Index");
+    expect(d).toContain("Dải 10–90%");
+    expect(screen.getByTestId("cf2-not-forecast").textContent).toContain("không phải dự báo");
     expect(document.querySelectorAll(".cf2-horizons tbody tr")).toHaveLength(4);
+    const panel = screen.getByTestId("cf2-panel").textContent ?? "";
+    expect(panel).not.toContain("Dự báo vượt VN-Index");
+    expect(panel).not.toContain("đã co về nền");
+    expect(screen.getAllByTestId("cf2-neighbor-move")).toHaveLength(30);
   });
 
   it("bấm một giai đoạn -> thẻ chi tiết (không mở biểu đồ); bấm lại -> đóng", () => {

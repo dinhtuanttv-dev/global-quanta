@@ -59,12 +59,6 @@ interface AppState {
   // ===== SECTOR FILTER (tab Loc nganh) =====
   selectedSectorKey: string | null;
   setSelectedSectorKey: (key: string | null) => void;
-  selectedQuadrant: "Leading" | "Improving" | "Weakening" | "Lagging" | null;
-  setSelectedQuadrant: (q: "Leading" | "Improving" | "Weakening" | "Lagging" | null) => void;
-  minRsScore: number;
-  setMinRsScore: (v: number) => void;
-  minVolumeScore: number;
-  setMinVolumeScore: (v: number) => void;
   resetSectorFilters: () => void;
 
   // ===== RADAR =====
@@ -183,13 +177,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   selectedSectorKey: null,
   setSelectedSectorKey: (key) => set({ selectedSectorKey: key }),
-  selectedQuadrant: null,
-  setSelectedQuadrant: (q) => set({ selectedQuadrant: q }),
-  minRsScore: 0,
-  setMinRsScore: (v) => set({ minRsScore: v }),
-  minVolumeScore: 0,
-  setMinVolumeScore: (v) => set({ minVolumeScore: v }),
-  resetSectorFilters: () => set({ selectedSectorKey: null, selectedQuadrant: null, minRsScore: 0, minVolumeScore: 0 }),
+  resetSectorFilters: () => set({ selectedSectorKey: null }),
 
   radarCore: [],
   radarRing: [],
