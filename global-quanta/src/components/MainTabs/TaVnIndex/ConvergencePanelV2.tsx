@@ -32,7 +32,7 @@ function Chip<T extends string>({ value, current, onChange, children, testId }: 
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[9px] px-2 py-0.5 rounded-full border transition ${on ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -100,7 +100,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
         </button>
       </header>
 
-      <p className="text-[9px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
+      <p className="text-[10px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
         <Info className="w-3 h-3 shrink-0 mt-px" />
         <span className="flex-1 min-w-[14rem]">
           Chỉ mã có cấu trúc Wyckoff ĐANG HOẠT ĐỘNG; mọi thành phần tính CÙNG CHIỀU với Wyckoff. Trọng số đặt trước, chưa có lợi thế đã kiểm định —
@@ -109,7 +109,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
         {data && <span className="w-full sm:w-auto sm:ml-auto text-slate-400" data-testid="convergence-asof">Gateway · phiên {data.dataAsOf} · quét {fmtTime(data.generatedAt)} · {data.resultCount}/{data.scannedCount} mã <ScanAge dataAsOf={data.dataAsOf} generatedAt={data.generatedAt} /></span>}
       </p>
       {data?.evidence && (data.evidence.label === "PENDING"
-        ? <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>
+        ? <p className="text-[10px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>
         : <EvidenceCard evidence={data.evidence as TechnicalFilterEvidence} marketUp={data.market?.up} live={data.liveTracking} />)}
 
       {data && (
@@ -168,18 +168,18 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                         title={`Phân tích chuyên sâu ${r.ticker} (bấm lại hoặc Esc để đóng)`} aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}
                       </button>
-                      <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
+                      <span className="block text-[10px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                   <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
                     <td className="py-1.5">
                       <span className={r.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{r.side === "buy" ? "▲ Mua" : "▼ Bán"}</span>
                       <span className="text-violet-300"> · Phase {r.wyckoff.cyclePhase ?? "?"}</span>
-                      {r.wyckoff.tranche && <span className="block text-[8px] text-slate-500">lần {r.wyckoff.tranche.n} khớp {r.wyckoff.tranche.date?.slice(5).split("-").reverse().join("/")}</span>}
+                      {r.wyckoff.tranche && <span className="block text-[10px] text-slate-500">lần {r.wyckoff.tranche.n} khớp {r.wyckoff.tranche.date?.slice(5).split("-").reverse().join("/")}</span>}
                     </td>
                     <td className="py-1.5 text-right" title={r.components.map((c) => `${c.label}: ${c.points}/${c.max}`).join("\n")}>
                       <span className="font-mono font-bold text-slate-200">{r.metrics.score}</span>
-                      <span className={`ml-1 text-[8px] px-1 py-0.5 rounded border font-black ${GRADE_STYLE[r.grade]}`}>{r.grade}</span>
+                      <span className={`ml-1 text-[10px] px-1 py-0.5 rounded border font-black ${GRADE_STYLE[r.grade]}`}>{r.grade}</span>
                     </td>
                     <td className="py-1.5 pl-3">
                       {r.zone ? (
@@ -188,7 +188,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                           <span className={r.zone.kinds.length >= 2 ? "text-amber-200 font-semibold" : "text-slate-400"}>
                             {r.zone.kinds.map((k) => KIND_SHORT[k] ?? k).join(" + ")}{r.zone.kinds.length < 2 ? " · 1 mức" : ""}
                           </span>
-                          <span className="block text-[8px] text-slate-500 font-mono">
+                          <span className="block text-[10px] text-slate-500 font-mono">
                             {Math.round(r.zone.low) === Math.round(r.zone.high) ? fmtP(r.zone.low) : `${fmtP(r.zone.low)}–${fmtP(r.zone.high)}`} · {fmtPct(r.zone.distancePct)}
                           </span>
                         </>
@@ -197,7 +197,7 @@ export default function ConvergencePanelV2({ onSelectTicker, onOpenVision }: { o
                     <td className="py-1.5 text-right text-slate-300 hidden sm:table-cell">{r.wyckoff.testsPassed != null ? `${r.wyckoff.testsPassed}/${r.wyckoff.testsAvail}` : "—"}</td>
                     <td className="py-1.5 text-right font-mono text-slate-300 hidden sm:table-cell">{fmtP(r.metrics.close)}</td>
                     <td className="py-1.5 text-right">
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${r.status === "READY" ? "bg-amber-500/15 text-amber-200" : "bg-slate-500/10 text-slate-400"}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${r.status === "READY" ? "bg-amber-500/15 text-amber-200" : "bg-slate-500/10 text-slate-400"}`}>
                         {r.status === "READY" ? "READY" : "Theo dõi"}
                       </span>
                     </td>

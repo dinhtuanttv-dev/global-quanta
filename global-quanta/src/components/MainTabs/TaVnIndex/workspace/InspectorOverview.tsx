@@ -30,12 +30,12 @@ export default function InspectorOverview(p: Props) {
     <div className="space-y-1.5" data-testid="inspector-overview">
       {cards.map((c) => (
         <button key={c.testid} type="button" onClick={() => p.onOpen(c.tab)} data-testid={c.testid} className="ws-card w-full text-left">
-          <span className="text-[9px] uppercase tracking-wide text-slate-500">{c.title}</span>
+          <span className="text-[10px] uppercase tracking-wide text-slate-500">{c.title}</span>
           <span className="block text-[12px] font-bold text-slate-100 truncate">{c.value}</span>
-          {c.sub && <span className="block text-[9.5px] text-slate-400 truncate">{c.sub}</span>}
+          {c.sub && <span className="block text-[10px] text-slate-400 truncate">{c.sub}</span>}
         </button>
       ))}
-      <p className="text-[9px] text-slate-500 leading-snug">Tóm tắt mô tả từ chính kết quả đang vẽ trên biểu đồ. Nhãn kiểm định và chi tiết ở dock bên dưới.</p>
+      <p className="text-[10px] text-slate-500 leading-snug">Tóm tắt mô tả từ chính kết quả đang vẽ trên biểu đồ. Nhãn kiểm định và chi tiết ở dock bên dưới.</p>
     </div>
   );
 }

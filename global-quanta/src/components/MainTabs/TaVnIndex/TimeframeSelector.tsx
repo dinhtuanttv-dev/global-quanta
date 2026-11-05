@@ -24,7 +24,7 @@ export default function TimeframeSelector({ current, onChange, loadingIntraday =
     <button key={tf} type="button" onClick={() => onChange(tf)} aria-pressed={current === tf} data-tf={tf} disabled={locked(tf)}
       title={locked(tf) ? `Nến phút của mã này chỉ có độ phân giải ~${minIntraday} — khung ${tf} sẽ là nến giả, đã khoá` : undefined}
       style={current === tf
-        ? { background: "rgba(34,211,238,0.15)", border: "1px solid rgba(34,211,238,0.4)", color: "#22d3ee" }
+        ? { background: "rgba(232,184,75,0.14)", border: "1px solid rgba(232,184,75,0.4)", color: "#F5CE72" }
         : { background: "rgba(2,6,15,0.5)", border: "1px solid rgba(148,163,184,0.15)", color: "#94a3b8" }}
       className={`${compact ? "px-2 py-1" : "px-2.5 py-1.5"} rounded-lg text-[11px] font-semibold font-mono transition disabled:opacity-35 disabled:cursor-not-allowed disabled:line-through`}>
       {tf}
@@ -35,13 +35,13 @@ export default function TimeframeSelector({ current, onChange, loadingIntraday =
       {INTRADAY.map(btn)}
       <span className="w-px h-5 bg-white/10 mx-1" aria-hidden />
       {SWING.map(btn)}
-      {!compact && <span className="text-[9px] text-slate-500 ml-1" data-testid="tf-note">
+      {!compact && <span className="text-[10px] text-slate-500 ml-1" data-testid="tf-note">
         {loadingIntraday ? "Đang tải nến phút SSI…"
           : intradayError ? <span className="text-amber-400">⚠ {intradayError}</span>
           : INTRADAY.includes(current) ? `Nến phút SSI · ${intradaySessions} phiên gần nhất · giờ VN`
           : "W/M gộp từ nến D điều chỉnh"}
       </span>}
-      {compact && loadingIntraday && <span className="text-[9px] text-cyan-300 animate-pulse" role="status" aria-label="Đang tải nến phút SSI" title="Đang tải nến phút SSI…">●</span>}
+      {compact && loadingIntraday && <span className="text-[10px] text-cyan-300 animate-pulse" role="status" aria-label="Đang tải nến phút SSI" title="Đang tải nến phút SSI…">●</span>}
       {compact && intradayError && <span className="text-[10px] text-amber-400" role="status" aria-label={`Lỗi nến phút: ${intradayError}`} title={intradayError}>⚠</span>}
     </div>
   );

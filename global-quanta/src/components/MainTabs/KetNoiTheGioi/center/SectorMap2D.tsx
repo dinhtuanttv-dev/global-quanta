@@ -9,8 +9,8 @@ import { pickLabels, sectorPoints, type SectorPoint } from "./world2d";
 const W = 720, H = 400, L = 44, R = 16, T = 18, B = 40;
 // Màu theo tư thế (cố định, đã dùng ở bảng chiến lược); nhãn và ký hiệu đi kèm nên không phụ thuộc riêng vào màu.
 const STANCE = {
-  overweight: { color: "#3987e5", label: "Ưu tiên" },
-  underweight: { color: "#e66767", label: "Giảm tỷ trọng" },
+  overweight: { color: "#10B981", label: "Ưu tiên" },
+  underweight: { color: "#F43F5E", label: "Giảm tỷ trọng" },
   neutral: { color: "#94a3b8", label: "Trung lập" },
   na: { color: "#64748b", label: "Chưa có" },
 } as const;
@@ -78,7 +78,7 @@ export default function SectorMap2D() {
           α {fmtZ(hover.alphaBps, 1)} đcb/phiên · 3 tháng {fmtZ(hover.y, 2)}
           {hover.concentrated && <><br /><span style={{ color: "#fbbf24" }}>Tập trung: {hover.note}</span></>}
         </div>}
-        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9.5px]" style={{ color: "var(--text-secondary)" }} aria-label="Chú giải">
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--text-secondary)" }} aria-label="Chú giải">
           {(["overweight", "neutral", "underweight"] as const).map((k) => <span key={k}><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{ background: STANCE[k].color }} />{STANCE[k].label}</span>)}
           <span><i className="mr-1 inline-block h-2 w-2 rounded-full" style={{ border: "1.5px solid #94a3b8" }} />Vòng rỗng: rổ tập trung vào 1–2 mã</span>
           <span className="ml-auto" style={muted}>Tham khảo, không phải khuyến nghị đầu tư.</span>

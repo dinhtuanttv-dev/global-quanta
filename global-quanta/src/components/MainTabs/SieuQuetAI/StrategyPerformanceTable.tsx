@@ -41,22 +41,22 @@ function Cell({ r }: { r: PerformanceRow | undefined }) {
 export default function StrategyPerformanceTable({ activeSignals = [] }: { activeSignals?: string[] }) {
   const { data, error, isLoading } = useResearchOverview();
   const [regime, setRegime] = useState("ALL");
-  if (isLoading) return <div className="text-[9px] text-slate-500">Đang tải hiệu suất…</div>;
-  if (error || !data?.performance) return <div className="text-[9px] text-slate-500">Chưa có bảng hiệu suất.</div>;
+  if (isLoading) return <div className="text-[10px] text-slate-500">Đang tải hiệu suất…</div>;
+  if (error || !data?.performance) return <div className="text-[10px] text-slate-500">Chưa có bảng hiệu suất.</div>;
   const rows = data.performance.filter((r) => r.regime === regime);
   const find = (signal: string, h: number) => rows.find((r) => r.signal === (signal === "ADAPTIVE_T5" ? `ADAPTIVE_T${h}` : signal) && r.horizon === h);
   return (
     <div>
       <div className="flex items-center justify-between mb-0.5">
-        <div className="text-[8.5px] text-slate-500">Hiệu suất tín hiệu: trúng / nền · z (đã tính chồng lấn)</div>
+        <div className="text-[10px] text-slate-500">Hiệu suất tín hiệu: trúng / nền · z (đã tính chồng lấn)</div>
         <select value={regime} onChange={(e) => setRegime(e.target.value)} aria-label="Trạng thái thị trường"
-          className="text-[8.5px] bg-black/40 border border-white/10 rounded px-1 text-slate-300">
+          className="text-[10px] bg-black/40 border border-white/10 rounded px-1 text-slate-300">
           {["ALL", "UPTREND", "SIDEWAY", "DOWNTREND"].map((r) => (
             <option key={r} value={r}>{REGIME_LABEL[r]}{data.currentRegime?.regime === r ? " (hiện tại)" : ""}</option>
           ))}
         </select>
       </div>
-      <table className="w-full text-[9px] font-mono">
+      <table className="w-full text-[10px] font-mono">
         <thead className="text-slate-500">
           <tr>
             <th className="text-left font-normal px-1">Tín hiệu</th>

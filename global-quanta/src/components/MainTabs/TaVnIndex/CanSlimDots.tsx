@@ -26,7 +26,7 @@ export default function CanSlimDots({ components }: { components: TechnicalFilte
         const detail = components.filter((c) => c.factor === f).map((c) => `${c.ok ? "✓" : "✗"} ${c.label}`).join("\n");
         return (
           <span key={f} data-state={st} title={`${f} — ${NAMES[f]}\n${detail}`}
-            className={`w-3.5 h-3.5 rounded-[3px] border text-[8px] font-black leading-[12px] text-center ${STYLE[st]}`}>
+            className={`w-3.5 h-3.5 rounded-[3px] border text-[10px] font-black leading-[12px] text-center ${STYLE[st]}`}>
             {f}
           </span>
         );

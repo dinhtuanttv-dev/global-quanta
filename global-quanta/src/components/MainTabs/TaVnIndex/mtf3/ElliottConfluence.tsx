@@ -17,24 +17,24 @@ export default function ElliottConfluence({ e }: { e: Elliott3 }) {
     <section className="rounded-lg p-2 space-y-1.5" style={{ background: "rgba(15,23,42,0.55)", border: "1px solid rgba(148,163,184,0.12)" }} data-testid="elliott-confluence" aria-label="Hợp lưu Elliott và dải EMA">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Elliott × dải EMA</span>
-        <span className={`rounded border px-1.5 py-0.5 text-[9.5px] font-bold ${c.cls}`} data-testid="elliott-confluence-level">{c.text}</span>
+        <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${c.cls}`} data-testid="elliott-confluence-level">{c.text}</span>
         {e.nested3 && (
-          <span className={`rounded border px-1.5 py-0.5 text-[9.5px] ${e.nested3 === "up" ? "border-emerald-400/50 text-emerald-200" : "border-rose-400/50 text-rose-200"}`}
+          <span className={`rounded border px-1.5 py-0.5 text-[10px] ${e.nested3 === "up" ? "border-emerald-400/50 text-emerald-200" : "border-rose-400/50 text-rose-200"}`}
             title="Sóng 3 khung Tuần và sóng 3 khung Ngày cùng chiều — bắt sóng 3 của chân trên bằng sóng 3 của chân dưới" data-testid="elliott-nested3">
             Sóng 3 lồng sóng 3 {e.nested3 === "up" ? "↑" : "↓"}
           </span>
         )}
-        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[9.5px] text-slate-400" title="Engine Elliott Pro: walk-forward EP5 có lợi thế nhỏ trước phí; hợp lưu với EMA (H6) kiểm định ở S7">MÔ TẢ</span>
+        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[10px] text-slate-400" title="Engine Elliott Pro: walk-forward EP5 có lợi thế nhỏ trước phí; hợp lưu với EMA (H6) kiểm định ở S7">MÔ TẢ</span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px] text-slate-300">
         <div className="space-y-0.5">
-          <div className="text-[9px] uppercase text-slate-500">Bản đếm</div>
+          <div className="text-[10px] uppercase text-slate-500">Bản đếm</div>
           <div data-testid="elliott-day" title={e.day?.position}>Ngày: <b className="text-slate-100">{e.day?.label ?? "chưa đếm được"}</b></div>
           <div title={e.week?.position}>Tuần: <b className="text-slate-100">{e.week?.label ?? "chưa đủ 60 tuần đã đóng"}</b></div>
           <div className="text-slate-400">{e.relationText}</div>
         </div>
         <div className="space-y-0.5" data-testid="elliott-wave-end">
-          <div className="text-[9px] uppercase text-slate-500">Kết thúc sóng điều chỉnh</div>
+          <div className="text-[10px] uppercase text-slate-500">Kết thúc sóng điều chỉnh</div>
           {w ? (
             <>
               <div>Sóng {w.wave} tại <b className="text-slate-100">{price(w.price)}</b>{w.date ? ` (${w.date.split("-").reverse().join("/")})` : ""}</div>
@@ -44,7 +44,7 @@ export default function ElliottConfluence({ e }: { e: Elliott3 }) {
           ) : <div className="text-slate-500">Bản đếm chưa có sóng 2 / sóng 4 đã kết thúc.</div>}
         </div>
         <div className="space-y-0.5">
-          <div className="text-[9px] uppercase text-slate-500">Điểm sai · mục tiêu</div>
+          <div className="text-[10px] uppercase text-slate-500">Điểm sai · mục tiêu</div>
           {e.trigger && <div>Kích hoạt <b className="text-slate-100">{price(e.trigger.price)}</b></div>}
           {e.invalidation ? <div>Vô hiệu {e.invalidation.side === "below" ? "dưới" : "trên"} <b className="text-rose-200">{price(e.invalidation.price)}</b></div> : <div className="text-slate-500">Chưa có mức vô hiệu.</div>}
           {e.stopAgreement && (

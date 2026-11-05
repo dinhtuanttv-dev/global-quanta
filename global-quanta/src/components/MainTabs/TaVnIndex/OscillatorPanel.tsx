@@ -57,7 +57,7 @@ export default function OscillatorPanel({ rsi, macd, adx, context, params = DEFA
         <p className="text-lg font-bold font-mono" style={{ color: rsiInfo.color }}>
           {rsi.latest !== null ? rsi.latest.toFixed(1) : "-"}
         </p>
-        <p className="text-[9px] text-slate-500 mt-1" data-testid="rsi-state">{rsiInfo.text} · ngưỡng {P.rsi.upper} / {P.rsi.lower}</p>
+        <p className="text-[10px] text-slate-500 mt-1" data-testid="rsi-state">{rsiInfo.text} · ngưỡng {P.rsi.upper} / {P.rsi.lower}</p>
       </div>
 
       <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3">
@@ -67,7 +67,7 @@ export default function OscillatorPanel({ rsi, macd, adx, context, params = DEFA
         <p className="text-lg font-bold font-mono" style={{ color: macdInfo.color }}>
           {macd.latest.histogram !== null ? macd.latest.histogram.toFixed(2) : "-"}
         </p>
-        <p className="text-[9px] text-slate-500 mt-1">
+        <p className="text-[10px] text-slate-500 mt-1">
           {macdInfo.text} · MACD {macd.latest.macd?.toFixed(2) ?? "-"} / Signal {macd.latest.signal?.toFixed(2) ?? "-"}
         </p>
       </div>
@@ -79,12 +79,12 @@ export default function OscillatorPanel({ rsi, macd, adx, context, params = DEFA
         <p className="text-lg font-bold font-mono" style={{ color: adxInfo.color }}>
           {adx.latest !== null ? adx.latest.toFixed(1) : "-"}
         </p>
-        <p className="text-[9px] text-slate-500 mt-1" data-testid="adx-state">
+        <p className="text-[10px] text-slate-500 mt-1" data-testid="adx-state">
           {adx.trendStrength === "chua_du" ? `${adxInfo.text} — cần ≥ ${adx.needBars} nến (không phải "trend yếu")` : `${adxInfo.text} · nhãn theo quy ước Wilder >25 mạnh, >50 rất mạnh${P.adx.threshold !== 25 ? ` · vạch trên pane: ${P.adx.threshold}` : ""}`}
         </p>
       </div>
       {context && (
-        <p className="md:col-span-3 text-[9px] text-slate-500" data-testid="osc-context">
+        <p className="md:col-span-3 text-[10px] text-slate-500" data-testid="osc-context">
           Tính trên {context.bars} nến khung {context.timeframe}{context.basis ? ` · ${context.basis}` : ""} · công thức {P.rsi.method === "cutler" ? "Cutler (RSI)" : "Wilder (RSI)"}, Wilder (ADX), EMA (MACD). Ngưỡng là quy ước mô tả — kiểm định R6 (VN100, ngoài mẫu 2025–2026): tín hiệu RSI / MACD / ADX {anyChartSignalPassed ? "xem tab Backtest" : "KHÔNG ĐẠT"} — chỉ mô tả, không phải lợi thế.
         </p>
       )}

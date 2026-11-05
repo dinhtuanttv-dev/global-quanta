@@ -63,7 +63,7 @@ function LeadersTable({ sector }: { sector: GatewaySectorRrg }) {
       {L.length ? (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", fontSize: 11, borderCollapse: "collapse", minWidth: 380 }}>
-            <thead><tr style={{ color: "var(--text-tertiary)", fontSize: 9, textTransform: "uppercase" }}><th style={{ textAlign: "left" }}>Mã</th><th style={{ textAlign: "right", paddingLeft: 8 }}>RS</th><th style={{ textAlign: "right", paddingLeft: 8 }}>3T</th><th style={{ textAlign: "right", paddingLeft: 8 }}>Cách đỉnh</th><th style={{ textAlign: "left", paddingLeft: 8 }}>Tiêu chí · bộ lọc</th></tr></thead>
+            <thead><tr style={{ color: "var(--text-tertiary)", fontSize: 10, textTransform: "uppercase" }}><th style={{ textAlign: "left" }}>Mã</th><th style={{ textAlign: "right", paddingLeft: 8 }}>RS</th><th style={{ textAlign: "right", paddingLeft: 8 }}>3T</th><th style={{ textAlign: "right", paddingLeft: 8 }}>Cách đỉnh</th><th style={{ textAlign: "left", paddingLeft: 8 }}>Tiêu chí · bộ lọc</th></tr></thead>
             <tbody>
               {L.map((l) => (
                 <tr key={l.ticker} style={{ borderTop: "1px solid var(--bg-surface-2)" }} data-testid="sector-leader-row">
@@ -80,7 +80,7 @@ function LeadersTable({ sector }: { sector: GatewaySectorRrg }) {
           </table>
         </div>
       ) : <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Chưa có mã đủ 1 năm dữ liệu.</span>}
-      <p style={{ fontSize: 9, color: "var(--text-tertiary)", margin: "6px 0 0" }}>★ = RS ≥ 70 (kiểu IBD, phân vị universe), trên MA200, đạt ≥ 5/6 tiêu chí: trên MA50/MA200, cách đỉnh 52 tuần ≤ 15%, mạnh hơn ngành 3 tháng, GTGD tăng &gt; giảm.</p>
+      <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "6px 0 0" }}>★ = RS ≥ 70 (kiểu IBD, phân vị universe), trên MA200, đạt ≥ 5/6 tiêu chí: trên MA50/MA200, cách đỉnh 52 tuần ≤ 15%, mạnh hơn ngành 3 tháng, GTGD tăng &gt; giảm.</p>
     </div>
   );
 }

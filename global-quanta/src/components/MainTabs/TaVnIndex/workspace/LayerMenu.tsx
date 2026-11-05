@@ -29,7 +29,7 @@ export default function LayerMenu({ state, onToggle, dense = false, settings }: 
         <section key={g.id} aria-label={g.label}>
           <div className="flex items-baseline justify-between gap-2 mb-1">
             <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-300">{g.label}</h3>
-            {!dense && <span className="text-[9px] text-slate-500 truncate">{g.hint}</span>}
+            {!dense && <span className="text-[10px] text-slate-500 truncate">{g.hint}</span>}
           </div>
           <div className="grid grid-cols-2 gap-1">
             {g.keys.map((key) => (
@@ -43,8 +43,8 @@ export default function LayerMenu({ state, onToggle, dense = false, settings }: 
         </section>
       ))}
       {settings && <IndicatorSettingsForm {...settings} />}
-      <p className="text-[9px] text-slate-500">Mặc định mọi lớp tắt. Preset chỉ đổi lớp hiển thị — không xoá hình vẽ hay kết quả phân tích.</p>
-      <p className="text-[9px] text-slate-500" data-testid="pit-legend">Point-in-time: phần <b>mờ, nét đứt</b> của vùng OB / FVG / thanh khoản là đoạn TRƯỚC khi tín hiệu được xác nhận (lúc đó chưa biết); marker "Div · sau N nến" đặt tại nến xác nhận.</p>
+      <p className="text-[10px] text-slate-500">Mặc định mọi lớp tắt. Preset chỉ đổi lớp hiển thị — không xoá hình vẽ hay kết quả phân tích.</p>
+      <p className="text-[10px] text-slate-500" data-testid="pit-legend">Point-in-time: phần <b>mờ, nét đứt</b> của vùng OB / FVG / thanh khoản là đoạn TRƯỚC khi tín hiệu được xác nhận (lúc đó chưa biết); marker "Div · sau N nến" đặt tại nến xác nhận.</p>
     </div>
   );
 }

@@ -43,7 +43,7 @@ function Evidence({ x }: { x: ScoredTicker }) {
   return (
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
-        <div className="text-[9px] tracking-wider text-slate-500 font-semibold">GIẢI TRÌNH HỘI TỤ — VÌ SAO TIN MÃ NÀY</div>
+        <div className="text-[10px] tracking-wider text-slate-500 font-semibold">GIẢI TRÌNH HỘI TỤ — VÌ SAO TIN MÃ NÀY</div>
         <div className="font-mono text-[11px] font-semibold text-amber-400">{x.score}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1.5">
@@ -116,7 +116,7 @@ function SignalLayer({ x, sig }: { x: RadarSignalItem | null; sig: RadarSignals 
   const edge = sig.evidence.STEALTH_20.verdict === 'edge';
   return (
     <div className="mt-2 pt-2 border-t border-white/5">
-      <div className="text-[9px] tracking-wider font-semibold mb-1" style={{ color: VIOLET }}>LỚP TÍN HIỆU DÒNG TIỀN (AI)</div>
+      <div className="text-[10px] tracking-wider font-semibold mb-1" style={{ color: VIOLET }}>LỚP TÍN HIỆU DÒNG TIỀN (AI)</div>
       {!x ? <div className="text-[10px] text-slate-500">Chưa có dữ liệu dòng tiền cho mã này (tầng nghiên cứu bổ sung dần mỗi đêm).</div> : (
         <ul className="space-y-0.5 text-[10.5px]">
           <li>
@@ -155,8 +155,8 @@ function BuyLayer({ info }: { info: RadarBuyInfo }) {
   return (
     <div className="mt-2 pt-2 border-t border-white/5" aria-label="Điểm mua tối ưu" data-testid="radar-buy-layer">
       <div className="flex items-baseline justify-between gap-2">
-        <div className="text-[9px] tracking-wider font-semibold" style={{ color }}>⏱ ĐIỂM MUA TỐI ƯU · {BUY_KIND[r.kind].toUpperCase()}</div>
-        <span className="text-[9px] font-semibold" style={{ color }}>{BUY_STATUS[r.status]}</span>
+        <div className="text-[10px] tracking-wider font-semibold" style={{ color }}>⏱ ĐIỂM MUA TỐI ƯU · {BUY_KIND[r.kind].toUpperCase()}</div>
+        <span className="text-[10px] font-semibold" style={{ color }}>{BUY_STATUS[r.status]}</span>
       </div>
       <div className="text-[10.5px] text-slate-200 mt-0.5">
         {r.windowLabel} — vùng mua <b className="font-mono">{fmtDate(r.entryFromDate)} → {fmtDate(r.entryToDate)}</b>
@@ -181,7 +181,7 @@ function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
   return (
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
-        <div className="text-[9px] tracking-wider text-slate-500 font-semibold">HỘI TỤ NGÀY {fmtDate(date)}</div>
+        <div className="text-[10px] tracking-wider text-slate-500 font-semibold">HỘI TỤ NGÀY {fmtDate(date)}</div>
         <div className="font-mono text-[11px] font-semibold text-amber-400">{v.s}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1">{v.t}</div>
@@ -483,7 +483,7 @@ export default function EliteCommandRadar() {
         })()}
       </div>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-slate-500 mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 mt-1">
         <span><span style={{ color: AMBER }}>●</span> Core ≥{CORE_MIN}/6 (vùng vàng)</span>
         <span>Gần tâm = nhiều tiêu chí</span>
         <span>Góc = nhóm ngành</span>
@@ -497,11 +497,11 @@ export default function EliteCommandRadar() {
       {!replay && tickers.length > 0 && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.2)' }} aria-label="Điểm mua sắp tới" data-testid="radar-buy-strip">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[9px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · ★ {listName}</div>
-            <span className="text-[9px] text-slate-500 shrink-0">Timeline tab Cổ tức · chỉ mã trên Radar</span>
+            <div className="text-[10px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · ★ {listName}</div>
+            <span className="text-[10px] text-slate-500 shrink-0">Timeline tab Cổ tức · chỉ mã trên Radar</span>
           </div>
           {timeline.data && buyTimingFreshness(timeline.meta) && (
-            <div className={`text-[9px] mt-0.5 ${timeline.meta?.stale ? 'text-amber-300' : 'text-slate-500'}`} data-testid="radar-buy-source">{buyTimingFreshness(timeline.meta)!.text}</div>
+            <div className={`text-[10px] mt-0.5 ${timeline.meta?.stale ? 'text-amber-300' : 'text-slate-500'}`} data-testid="radar-buy-source">{buyTimingFreshness(timeline.meta)!.text}</div>
           )}
           {timeline.loading && !timeline.data ? <div className="text-[10px] text-slate-500 mt-1">Đang tải Timeline điểm mua…</div>
             : timeline.error && !timeline.data ? <div className="text-[10px] text-amber-300/80 mt-1" data-testid="radar-buy-error" title={timeline.error}>Timeline điểm mua tạm thời không tải được — không có nghĩa là không có điểm mua.</div>
@@ -534,12 +534,12 @@ export default function EliteCommandRadar() {
       {sig && !replay && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(167,139,250,0.05)', border: '1px solid rgba(167,139,250,0.22)' }} aria-label="Tín hiệu dòng tiền">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[9px] tracking-wider font-semibold" style={{ color: VIOLET }}>
-              TÍN HIỆU DÒNG TIỀN · ◆ STEALTH 20 {stealthEdge && <span className="ml-1 px-1 rounded text-[8.5px] text-emerald-300 border border-emerald-500/40">ĐÃ KIỂM ĐỊNH</span>}
+            <div className="text-[10px] tracking-wider font-semibold" style={{ color: VIOLET }}>
+              TÍN HIỆU DÒNG TIỀN · ◆ STEALTH 20 {stealthEdge && <span className="ml-1 px-1 rounded text-[10px] text-emerald-300 border border-emerald-500/40">ĐÃ KIỂM ĐỊNH</span>}
             </div>
-            {sig.asOf && <span className="text-[9px] text-slate-500 font-mono shrink-0">phiên {fmtDate(sig.asOf)}</span>}
+            {sig.asOf && <span className="text-[10px] text-slate-500 font-mono shrink-0">phiên {fmtDate(sig.asOf)}</span>}
           </div>
-          <div className="text-[9.5px] text-slate-400 mt-0.5 leading-snug">{stealthProof(sig)}.</div>
+          <div className="text-[10px] text-slate-400 mt-0.5 leading-snug">{stealthProof(sig)}.</div>
           {stealthOn.length ? (
             <div className="flex flex-wrap gap-1 mt-1">
               {stealthOn.map(([t, v]) => (
@@ -551,7 +551,7 @@ export default function EliteCommandRadar() {
               ))}
             </div>
           ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong ★ {listName} đang bật Stealth 20 ({sig.freshFrom ? `từ ${fmtDate(sig.freshFrom)}` : '3 phiên gần nhất'}).</div>}
-          <div className="text-[9.5px] text-slate-500 mt-1 leading-snug">
+          <div className="text-[10px] text-slate-500 mt-1 leading-snug">
             ◐ Ý đồ HMM: <span style={{ color: UP }}>Gom {intents.filter((v) => v!.intent!.direction > 0).length}</span> · <span style={{ color: DOWN }}>Xả {intents.filter((v) => v!.intent!.direction < 0).length}</span> mã — chỉ tham khảo (chưa có lợi thế thống kê).
             {' '}✦ Mô hình thích ứng: {sig.adaptiveModels.some((m) => m.active)
               ? `đang dùng T+${sig.adaptiveModels.filter((m) => m.active).map((m) => m.horizon).join('/')}`
@@ -560,12 +560,12 @@ export default function EliteCommandRadar() {
           </div>
         </div>
       )}
-      {signals.error && !replay && <div className="mt-1 text-[9.5px] text-slate-500">Lớp tín hiệu dòng tiền tạm thời không tải được.</div>}
+      {signals.error && !replay && <div className="mt-1 text-[10px] text-slate-500">Lớp tín hiệu dòng tiền tạm thời không tải được.</div>}
 
       {history.enabled && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(56,189,248,0.04)', border: '1px solid rgba(56,189,248,0.15)' }}>
           <div className="flex items-center gap-2 text-[10px]">
-            <span className="text-[9px] tracking-wider text-slate-500 font-semibold shrink-0">LỊCH SỬ</span>
+            <span className="text-[10px] tracking-wider text-slate-500 font-semibold shrink-0">LỊCH SỬ</span>
             {pastDates.length > 0 ? (
               <>
                 <button type="button" onClick={() => { if (playing) setPlaying(false); else { setViewDate(null); setPlaying(true); } }}
@@ -579,7 +579,7 @@ export default function EliteCommandRadar() {
               </>
             ) : <span className="flex-1 text-slate-500">Lịch sử bắt đầu từ hôm nay — mỗi ngày giao dịch lưu 1 ảnh chụp.</span>}
           </div>
-          <div className="text-[9px] text-slate-500 mt-0.5">
+          <div className="text-[10px] text-slate-500 mt-0.5">
             {history.error ? <span className="text-rose-300">Không tải được lịch sử: {history.error}</span>
               : history.saveError ? <span className="text-rose-300">Chưa lưu được ảnh chụp: {history.saveError}</span>
               : history.saving ? 'Đang lưu ảnh chụp hôm nay…'
@@ -594,7 +594,7 @@ export default function EliteCommandRadar() {
 
       {history.enabled && (replay || ready) && (
         <div className="mt-2">
-          <div className="text-[9px] tracking-wider text-slate-500 font-semibold mb-0.5">
+          <div className="text-[10px] tracking-wider text-slate-500 font-semibold mb-0.5">
             SỰ KIỆN RADAR {prevSnap ? <span className="font-normal tracking-normal">· {replay ? fmtDate(replay.date) : 'hiện tại'} so với {fmtDate(prevSnap.date)}</span> : null}
           </div>
           {events.length ? (
@@ -607,7 +607,7 @@ export default function EliteCommandRadar() {
                   </button>
                 </li>
               ))}
-              {events.length > 8 && <li className="text-[9.5px] text-slate-500">+{events.length - 8} sự kiện khác</li>}
+              {events.length > 8 && <li className="text-[10px] text-slate-500">+{events.length - 8} sự kiện khác</li>}
             </ul>
           ) : (
             <div className="text-[10px] text-slate-500">{prevSnap ? 'Không có thay đổi đáng kể (vào/ra Core, ±2 tiêu chí, đổi trạng thái).' : 'Chưa có ảnh chụp ngày trước để so sánh.'}</div>
@@ -633,7 +633,7 @@ export default function EliteCommandRadar() {
         </div>
       )}
       {digest && <div className="mt-2 text-[10.5px] text-slate-300 leading-snug">{digest.text}</div>}
-      {missingSources.length > 0 && <div className="mt-1 text-[9.5px] text-slate-500">Đang chờ dữ liệu: {missingSources.join(', ')} (chưa tính là "không đạt").</div>}
+      {missingSources.length > 0 && <div className="mt-1 text-[10px] text-slate-500">Đang chờ dữ liệu: {missingSources.join(', ')} (chưa tính là "không đạt").</div>}
     </Card>
   );
 }

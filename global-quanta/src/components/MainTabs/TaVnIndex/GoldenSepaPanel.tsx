@@ -21,7 +21,7 @@ function Chip<T extends string | number>({ value, current, onChange, children, t
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[9px] px-2 py-0.5 rounded-full border transition ${on ? "border-amber-500/50 bg-amber-500/10 text-amber-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-amber-500/50 bg-amber-500/10 text-amber-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -73,7 +73,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
         </h2>
         <button type="button" onClick={refresh} aria-label="Làm mới Golden SEPA" className="text-slate-400 hover:text-slate-200"><RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} /></button>
       </header>
-      <p className="text-[9px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
+      <p className="text-[10px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
         <Info className="w-3 h-3 shrink-0 mt-px" />
         <span className="flex-1 min-w-[14rem]">
           Thay cho Golden Filter × Top 20 Kỹ thuật cũ. Mã thuộc 3 danh sách SEPA (Sẵn sàng / Cảnh báo / Theo dõi), kèm xác nhận chéo của các bộ lọc khác trên
@@ -88,10 +88,10 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
           <Chip value={0 as MinConfirm} current={min} onChange={setMin} testId="golden-min-0">Tất cả {rows.length}</Chip>
           <Chip value={1 as MinConfirm} current={min} onChange={setMin} testId="golden-min-1">≥ 1 xác nhận {n1}</Chip>
           <Chip value={2 as MinConfirm} current={min} onChange={setMin} testId="golden-min-2">≥ 2 xác nhận {n2}</Chip>
-          {doc.market?.sepa && <span className="text-[9px] text-slate-500 ml-auto">Thị trường: <b className="text-slate-300">{doc.market.sepa.danh_gia}</b></span>}
+          {doc.market?.sepa && <span className="text-[10px] text-slate-500 ml-auto">Thị trường: <b className="text-slate-300">{doc.market.sepa.danh_gia}</b></span>}
         </div>
       )}
-      {partial && doc && <p className="text-[9px] text-amber-300/80" data-testid="golden-sepa-partial">Một số bộ lọc xác nhận chưa tải xong — cột xác nhận có thể thiếu.</p>}
+      {partial && doc && <p className="text-[10px] text-amber-300/80" data-testid="golden-sepa-partial">Một số bộ lọc xác nhận chưa tải xong — cột xác nhận có thể thiếu.</p>}
       {error && <div role="alert" className="flex items-center gap-1.5 text-[10px] text-red-300 py-2"><AlertCircle className="w-3.5 h-3.5 shrink-0" /> Không tải được Golden SEPA: {error.message}</div>}
       {isLoading && !doc && <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400 py-5"><RefreshCw className="w-3 h-3 animate-spin" /> Đang tải từ Gateway…</div>}
       {doc && shown.length === 0 && <p className="text-[10px] text-slate-500 italic py-4 text-center">Không có mã nào khớp bộ lọc đang chọn.</p>}
@@ -120,22 +120,22 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 font-black text-amber-400 hover:text-amber-300" aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}
                       </button>
-                      <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
+                      <span className="block text-[10px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                   <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
-                    <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span>{isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300">S2 · đạt OOS*</span>}</td>
+                    <td className="py-1.5"><span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span>{isS2Signal(r) && <span className="block mt-0.5 text-[10px] text-emerald-300">S2 · đạt OOS*</span>}</td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12 }}>{r.score.toFixed(1).replace(".", ",")}</td>
                     <td className="py-1.5" data-testid="golden-sepa-confirms">
                       <span className="font-mono text-slate-300 mr-1">{confirms.length}/{GOLDEN_SOURCES}</span>
-                      {confirms.map((c) => <span key={c.key} title={`${c.label}: ${c.detail}`} className="inline-block mr-0.5 text-[8px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-200">{CONFIRM_SHORT[c.key]}</span>)}
+                      {confirms.map((c) => <span key={c.key} title={`${c.label}: ${c.detail}`} className="inline-block mr-0.5 text-[10px] px-1 py-0.5 rounded border border-amber-500/40 text-amber-200">{CONFIRM_SHORT[c.key]}</span>)}
                     </td>
-                    <td className="py-1.5 hidden sm:table-cell">{r.metrics.pattern ? <><span className="text-slate-200">{r.metrics.pattern}</span><span className="block text-[9px] font-mono text-amber-200/90">{r.metrics.footprint}</span></> : <span className="text-slate-600">—</span>}</td>
-                    <td className="py-1.5 text-right"><span className="text-[8px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/10 text-slate-300 whitespace-nowrap">{r.status ? STATUS_VI[r.status] ?? r.status : "—"}</span></td>
+                    <td className="py-1.5 hidden sm:table-cell">{r.metrics.pattern ? <><span className="text-slate-200">{r.metrics.pattern}</span><span className="block text-[10px] font-mono text-amber-200/90">{r.metrics.footprint}</span></> : <span className="text-slate-600">—</span>}</td>
+                    <td className="py-1.5 text-right"><span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/10 text-slate-300 whitespace-nowrap">{r.status ? STATUS_VI[r.status] ?? r.status : "—"}</span></td>
                   </tr>
                   {open === r.ticker && (
                     <DeepRow width={frameW}>
-                      <div className="px-3 pt-2 flex flex-wrap gap-1.5 text-[9px]" data-testid="golden-sepa-confirm-strip">
+                      <div className="px-3 pt-2 flex flex-wrap gap-1.5 text-[10px]" data-testid="golden-sepa-confirm-strip">
                         <span className="text-slate-500">Xác nhận chéo:</span>
                         {confirms.length ? confirms.map((c) => <span key={c.key} className="px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-200">{c.label} · {c.detail}</span>) : <span className="text-slate-400">chưa có bộ lọc nào khác xác nhận</span>}
                       </div>
@@ -150,7 +150,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
         </div>
         </>
       )}
-      <p className="text-[9px] text-slate-600">CS = CAN SLIM · BB = Base Breakout · HL = Hợp lưu v2 (phía mua) · MH = mô hình giá Pring tăng đang hiệu lực (EXPERIMENTAL, kiểm định P3 chưa đạt) · {doc?.disclaimer}</p>
+      <p className="text-[10px] text-slate-600">CS = CAN SLIM · BB = Base Breakout · HL = Hợp lưu v2 (phía mua) · MH = mô hình giá Pring tăng đang hiệu lực (EXPERIMENTAL, kiểm định P3 chưa đạt) · {doc?.disclaimer}</p>
     </section>
   );
 }

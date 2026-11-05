@@ -74,9 +74,9 @@ export default function BuyZoneStrip({ ticker, lane, axis, cell, width, head = n
   return (
     <div className="leading-tight" data-testid={`buy-zone-${ticker}`} title={cell?.tooltip}>
       <div className="flex items-center gap-1 whitespace-nowrap">
-        <span className={`rounded border px-1 text-[8.5px] font-bold ${pill.c}`} data-testid={`buy-zone-pill-${ticker}`}>{pill.t}</span>
-        {head && <span title={TIER_TAG[head.tier].title} className={`rounded border px-1 text-[8px] font-bold ${TIER_TAG[head.tier].c}`} data-testid={`buy-zone-tier-${ticker}`}>{TIER_TAG[head.tier].t}</span>}
-        <span className="truncate text-[9.5px] text-slate-300" data-testid={`buy-zone-detail-${ticker}`}>{detail}</span>
+        <span className={`rounded border px-1 text-[10px] font-bold ${pill.c}`} data-testid={`buy-zone-pill-${ticker}`}>{pill.t}</span>
+        {head && <span title={TIER_TAG[head.tier].title} className={`rounded border px-1 text-[10px] font-bold ${TIER_TAG[head.tier].c}`} data-testid={`buy-zone-tier-${ticker}`}>{TIER_TAG[head.tier].t}</span>}
+        <span className="truncate text-[10px] text-slate-300" data-testid={`buy-zone-detail-${ticker}`}>{detail}</span>
       </div>
       <svg width={width} height={H} viewBox={`0 0 ${width} ${H}`} role="img" aria-label={label} className="mt-0.5 block overflow-visible">
         <rect x={0} y={TOP + 2} width={width} height={BAR - 4} rx={2} fill="rgba(148,163,184,.06)" />

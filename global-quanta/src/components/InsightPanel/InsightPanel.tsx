@@ -10,7 +10,7 @@ export default function InsightPanel() {
         <EliteCommandRadar />
         <ActionCenter />
         <NewsFeed />
-        <p className="text-[9.5px] text-slate-500 px-1 pb-2">
+        <p className="text-[10px] text-slate-500 px-1 pb-2">
           Thông tin mang tính tham khảo, không phải khuyến nghị đầu tư. Dữ liệu cập nhật theo thời gian thực, có thể trễ.
         </p>
       </div>

@@ -2,20 +2,20 @@
    cùng một trình duyệt 1440px nhưng có thanh Elite bên phải -> workspace ~1000px vẫn chọn bố cục đúng.
    ≥ 1100px: bảng chi tiết cố định bên phải · 760–1099px: bảng chi tiết dạng ngăn kéo phủ · < 760px: thanh hành động dưới + bảng trượt. */
 .ws { container-type: inline-size; container-name: ws; position: relative; display: flex; flex-direction: column; gap: 6px; }
-.ws:fullscreen { background: #050a14; padding: 8px; overflow: auto; }
+.ws:fullscreen { background: var(--bg-base); padding: 8px; overflow: auto; }
 
 .ws-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
 .ws-head { padding: 2px 0; }
-.ws-tools { padding: 4px; border-radius: 10px; background: rgba(2, 6, 15, 0.55); border: 1px solid rgba(148, 163, 184, 0.1); }
-.ws-group { display: inline-flex; align-items: center; gap: 2px; padding-right: 4px; margin-right: 2px; border-right: 1px solid rgba(148, 163, 184, 0.12); }
+.ws-tools { padding: 4px; border-radius: 10px; background: var(--bg-surface); border: 1px solid var(--border); }
+.ws-group { display: inline-flex; align-items: center; gap: 2px; padding-right: 4px; margin-right: 2px; border-right: 1px solid var(--border); }
 .ws-group:last-child { border-right: 0; }
 
 .ws-btn { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 7px; font-size: 10.5px; font-weight: 600;
   color: #94a3b8; border: 1px solid transparent; background: transparent; white-space: nowrap; transition: background .12s, color .12s, border-color .12s; }
 .ws-btn:hover:not(:disabled) { background: rgba(148, 163, 184, 0.1); color: #e2e8f0; }
-.ws-btn:focus-visible, .ws-icon-btn:focus-visible, .ws-toggle:focus-visible, .ws-tab:focus-visible { outline: 2px solid rgba(34, 211, 238, 0.7); outline-offset: 1px; }
+.ws-btn:focus-visible, .ws-icon-btn:focus-visible, .ws-toggle:focus-visible, .ws-tab:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 .ws-btn:disabled { opacity: .35; cursor: not-allowed; }
-.ws-btn-on, .ws-btn[aria-pressed="true"] { color: #67e8f9; background: rgba(34, 211, 238, 0.12); border-color: rgba(34, 211, 238, 0.35); }
+.ws-btn-on, .ws-btn[aria-pressed="true"] { color: var(--gold-bright); background: rgba(232, 184, 75, 0.12); border-color: rgba(232, 184, 75, 0.35); }
 .ws-btn-danger { color: #fecdd3; background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.4); }
 .ws-btn-amber[aria-pressed="true"] { color: #fcd34d; background: rgba(245, 158, 11, 0.14); border-color: rgba(245, 158, 11, 0.4); }
 .ws-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 6px; color: #94a3b8; }
@@ -24,12 +24,12 @@
 
 .ws-toggle { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 6px; border-radius: 7px; font-size: 10.5px; font-weight: 600; color: #94a3b8;
   background: rgba(2, 6, 15, 0.5); border: 1px solid rgba(148, 163, 184, 0.12); text-align: left; }
-.ws-toggle-on { color: #7dd3fc; background: rgba(56, 189, 248, 0.1); border-color: rgba(56, 189, 248, 0.35); }
+.ws-toggle-on { color: var(--gold-bright); background: rgba(232, 184, 75, 0.1); border-color: rgba(232, 184, 75, 0.35); }
 .ws-switch { position: relative; width: 22px; height: 12px; border-radius: 99px; background: rgba(100, 116, 139, 0.45); flex: none; }
 .ws-switch > span { position: absolute; top: 1px; left: 1px; width: 10px; height: 10px; border-radius: 99px; background: #fff; transition: left .12s; }
-.ws-toggle-on .ws-switch { background: #38bdf8; } .ws-toggle-on .ws-switch > span { left: 11px; }
+.ws-toggle-on .ws-switch { background: var(--gold); } .ws-toggle-on .ws-switch > span { left: 11px; }
 
-.ws-pop { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; background: rgba(9, 14, 26, 0.98); color: #e2e8f0; padding: 10px;
+.ws-pop { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 12px; background: var(--bg-surface-3); color: #e2e8f0; padding: 10px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); overflow: auto; }
 .ws-pop:popover-open { display: block; }
 
@@ -37,22 +37,22 @@
 .ws-body[data-inspector="docked"] { grid-template-columns: minmax(0, 1fr) 292px; }
 .ws-stage { position: relative; min-width: 0; height: clamp(360px, calc(100dvh - 300px), 900px); }
 .ws:fullscreen .ws-stage { height: calc(100dvh - 150px); }
-.ws-inspector { min-width: 0; display: flex; flex-direction: column; border-radius: 12px; background: rgba(2, 6, 15, 0.6); border: 1px solid rgba(148, 163, 184, 0.1); overflow: hidden; }
+.ws-inspector { min-width: 0; display: flex; flex-direction: column; border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border); overflow: hidden; }
 .ws-inspector[data-mode="drawer"] { position: absolute; top: 0; right: 0; bottom: 0; width: min(320px, 92%); z-index: 30; box-shadow: -12px 0 40px rgba(0, 0, 0, .5); }
 .ws-inspector-body { padding: 8px; overflow: auto; flex: 1; }
 .ws-tabs { display: flex; gap: 2px; padding: 4px; border-bottom: 1px solid rgba(148, 163, 184, 0.1); overflow-x: auto; scrollbar-width: thin; }
 .ws-tab { flex: none; height: 26px; padding: 0 9px; border-radius: 7px; font-size: 10.5px; font-weight: 700; color: #94a3b8; white-space: nowrap; }
-.ws-tab[aria-selected="true"] { color: #e0f2fe; background: rgba(34, 211, 238, 0.14); }
+.ws-tab[aria-selected="true"] { color: var(--gold-bright); background: rgba(232, 184, 75, 0.14); }
 .ws-card { display: block; padding: 7px 8px; border-radius: 9px; background: rgba(255, 255, 255, 0.025); border: 1px solid rgba(255, 255, 255, 0.07); }
-.ws-card:hover { border-color: rgba(34, 211, 238, 0.35); }
+.ws-card:hover { border-color: rgba(232, 184, 75, 0.35); }
 
 .ws-legend { position: absolute; top: 6px; left: 8px; z-index: 12; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; max-width: calc(100% - 120px);
   font: 10px/1.35 'IBM Plex Mono', monospace; color: #94a3b8; pointer-events: none; text-shadow: 0 1px 2px rgba(0, 0, 0, .9); }
 .ws-legend b { font-weight: 600; color: #cbd5e1; }
 .ws-chip-warn { pointer-events: auto; padding: 0 5px; border-radius: 99px; background: rgba(245, 158, 11, .15); color: #fcd34d; }
-.ws-pane-title { position: absolute; left: 8px; z-index: 12; display: flex; align-items: center; gap: 4px; font: 9.5px 'IBM Plex Mono', monospace; color: #94a3b8;
+.ws-pane-title { position: absolute; left: 8px; z-index: 12; display: flex; align-items: center; gap: 4px; font: 10px 'IBM Plex Mono', monospace; color: #94a3b8;
   padding: 1px 4px; border-radius: 5px; background: rgba(2, 6, 15, .65); }
-.ws-fresh { font-size: 9px; } .ws-fresh-live { color: #34d399; } .ws-fresh-closed { color: #94a3b8; } .ws-fresh-stale, .ws-fresh-unknown { color: #fbbf24; }
+.ws-fresh { font-size: 10px; } .ws-fresh-live { color: #34d399; } .ws-fresh-closed { color: #94a3b8; } .ws-fresh-stale, .ws-fresh-unknown { color: #fbbf24; }
 .ws-legend-extras { display: inline-flex; flex-wrap: wrap; gap: 2px 8px; flex-basis: 100%; }
 .ws-legend-extras b { color: inherit; }
 .ws-pane-title { max-width: calc(100% - 72px); overflow: hidden; }
@@ -62,17 +62,17 @@
 .ws-pane-title > span ~ span { flex-shrink: 2; min-width: 64px; } /* ghi chú nguồn ("ƯỚC LƯỢNG…") không bao giờ bị ẩn hẳn */
 .ws-pane-title button { pointer-events: auto; color: #64748b; } .ws-pane-title button:hover { color: #f1f5f9; }
 .ws-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
-  padding: 5px 10px; border-radius: 10px; font-size: 10.5px; color: #a5f3fc; background: rgba(9, 14, 26, .92); border: 1px solid rgba(34, 211, 238, .35); }
+  padding: 5px 10px; border-radius: 10px; font-size: 10.5px; color: var(--gold-bright); background: var(--bg-surface-3); border: 1px solid rgba(232, 184, 75, .35); }
 .ws-chips { position: absolute; top: 26px; left: 8px; right: 8px; z-index: 11; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .ws-chips > * { pointer-events: auto; }
 
-.ws-dock { border-radius: 12px; background: rgba(2, 6, 15, 0.45); border: 1px solid rgba(148, 163, 184, 0.1); display: flex; flex-direction: column; min-height: 0; }
+.ws-dock { border-radius: 12px; background: var(--bg-surface); border: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .ws-dock-body { overflow: auto; padding: 8px; }
 .ws-dock-resize { height: 8px; cursor: row-resize; touch-action: none; display: flex; align-items: center; justify-content: center; }
 .ws-dock-resize::after { content: ""; width: 44px; height: 3px; border-radius: 99px; background: rgba(148, 163, 184, .3); }
-.ws-dock-resize:hover::after, .ws-dock-resize:focus-visible::after { background: rgba(34, 211, 238, .7); }
+.ws-dock-resize:hover::after, .ws-dock-resize:focus-visible::after { background: rgba(232, 184, 75, .7); }
 
-.ws-dialog { margin: auto; padding: 0; border: 1px solid rgba(148, 163, 184, .22); border-radius: 14px; background: #0a1020; color: #e2e8f0; width: min(440px, calc(100vw - 24px)); max-height: 86dvh; }
+.ws-dialog { margin: auto; padding: 0; border: 1px solid rgba(148, 163, 184, .22); border-radius: 14px; background: var(--bg-surface-3); color: #e2e8f0; width: min(440px, calc(100vw - 24px)); max-height: 86dvh; }
 .ws-dialog-wide { width: min(640px, calc(100vw - 24px)); }
 .ws-dialog::backdrop { background: rgba(2, 6, 15, .65); backdrop-filter: blur(2px); }
 .ws-dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 6px; }
@@ -86,8 +86,8 @@
 
 .ws-toasts { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 80; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .ws-toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-radius: 10px; font-size: 11px; color: #e2e8f0;
-  background: rgba(9, 14, 26, .96); border: 1px solid rgba(148, 163, 184, .25); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
-.ws-toast button { color: #67e8f9; font-weight: 700; }
+  background: var(--bg-surface-3); border: 1px solid rgba(148, 163, 184, .25); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+.ws-toast button { color: var(--gold-bright); font-weight: 700; }
 
 .ws-mobile-bar { display: none; }
 /* Workspace hẹp: ẩn chữ trên nút công cụ (còn icon + aria-label + tooltip). */
@@ -96,9 +96,9 @@
 @container ws (max-width: 759px) {
   .ws-tools { display: none; }
   .ws-mobile-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: rgba(2, 6, 15, .75); border: 1px solid rgba(148, 163, 184, .12); }
-  .ws-mobile-bar .ws-btn { height: 44px; flex-direction: column; justify-content: center; gap: 1px; font-size: 9.5px; padding: 0 2px; }
+  .ws-mobile-bar .ws-btn { height: 44px; flex-direction: column; justify-content: center; gap: 1px; font-size: 10px; padding: 0 2px; }
   .ws-stage { height: clamp(320px, 62dvh, 640px); }
-  .ws-legend { font-size: 9px; max-width: calc(100% - 64px); }
+  .ws-legend { font-size: 10px; max-width: calc(100% - 64px); }
 }
 /* Cảm ứng: vùng chạm ≥ 44px (WCAG 2.5.5). */
 /* A6 (C-09): vùng chạm tối thiểu — CSS toàn cục đè padding Tailwind của nút khung thời gian / chỉ số nhanh (đo được 9×19 px). */

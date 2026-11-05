@@ -79,18 +79,18 @@ export default function Elite10Hub() {
             <div className="tw-scope flex flex-wrap items-center gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
               {([["profile", `Hồ sơ ${current}`], ["screener", "🔎 Bộ lọc Elite"]] as const).map(([m, l]) => (
                 <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} data-testid={`elite-mode-${m}`}
-                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
+                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
               ))}
               {mode === "profile" && <>
                 <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
                   <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={12} data-testid="elite-pick"
-                    className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-cyan-400/60 focus:outline-none" />
+                    className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-[#E8B84B]/60 focus:outline-none" />
                 </form>
                 <button type="button" onClick={openChart} data-testid="elite-open-chart" className="min-h-[28px] rounded border border-amber-400/40 px-3 font-bold text-amber-200 hover:bg-amber-400/10">Mở chart {current} trong Phân tích kỹ thuật →</button>
               </>}
             </div>
             {mode === "screener" ? (
-              <section className="tw-scope rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 text-slate-200">
+              <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 text-slate-200">
                 <EliteScreener onOpenTicker={open} refTicker={ticker} />
               </section>
             ) : (

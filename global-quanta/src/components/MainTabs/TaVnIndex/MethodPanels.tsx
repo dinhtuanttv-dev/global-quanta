@@ -28,16 +28,16 @@ export function SMCPanel({ obs, fvgs, bos, choch, totals, barCount }: {
       <p className="text-sm font-bold font-mono text-slate-100">
         {totals.obs} OB · {totals.fvgs} FVG · {totals.bos} BOS · {totals.choch} CHoCH
       </p>
-      <p className="text-[9px] text-slate-500 mt-0.5">
+      <p className="text-[10px] text-slate-500 mt-0.5">
         Toàn bộ {barCount} nến · {totals.sweeps} Liquidity Sweep · vẽ {Math.min(totals.obs, SMC_DISPLAY_LIMIT.obs)} OB / {Math.min(totals.fvgs, SMC_DISPLAY_LIMIT.fvgs)} FVG gần nhất
       </p>
       {lastShift && (
-        <p className="text-[9px] mt-1" style={{ color: lastShift.type === "bullish" ? "#34d399" : "#f43f5e" }}>
+        <p className="text-[10px] mt-1" style={{ color: lastShift.type === "bullish" ? "#34d399" : "#f43f5e" }}>
           {isChoch ? "CHoCH (Structural Shift)" : "BOS"} {lastShift.type === "bullish" ? "▲" : "▼"} {lastShift.date} · phá {fmt(lastShift.brokenLevel)}{lastShift.displaced ? " · displacement" : ""}
         </p>
       )}
       {lastOB && (
-        <p className="text-[9px] text-slate-500 mt-0.5 font-mono">
+        <p className="text-[10px] text-slate-500 mt-0.5 font-mono">
           OB gần nhất {lastOB.type === "bullish" ? "▲" : "▼"} {fmt(lastOB.bottom)}–{fmt(lastOB.top)} · {lastOB.status === "ACTIVE" ? "chưa test" : lastOB.status === "MITIGATED" ? "mitigated (50%)" : lastOB.status === "BREAKER" ? "Breaker Block" : "hết hạn"}
         </p>
       )}
@@ -60,10 +60,10 @@ export function VSAPanel({ signals }: { signals: VSASignal[] }) {
           <p className="text-sm font-bold text-slate-100" style={dir ? { color: dir === "▲" ? "#34d399" : "#f43f5e" } : undefined}>
             {dir ? `${dir} ` : ""}{last.type}
           </p>
-          <p className="text-[9px] text-slate-500 mt-1 font-mono">
+          <p className="text-[10px] text-slate-500 mt-1 font-mono">
             zV {last.zV} · zS {last.zS} · CLV {last.clv} · {last.date}
           </p>
-          {!dir && <p className="text-[9px] text-slate-600 mt-0.5">Absorption: effort lớn, result nhỏ — trung tính về hướng.</p>}
+          {!dir && <p className="text-[10px] text-slate-600 mt-0.5">Absorption: effort lớn, result nhỏ — trung tính về hướng.</p>}
         </>
       ) : <p className="text-[10px] text-slate-600 italic">Chưa có tín hiệu VSA trong 8 tín hiệu gần nhất.</p>}
     </div>
@@ -98,12 +98,12 @@ export function WyckoffEvidenceBlock({ ev, current }: { ev: WyckoffEvidence; cur
   if (!has) return null;
   const dim = current ? "text-slate-300" : "text-slate-500";
   return (
-    <details className="text-[9px] text-slate-400" data-testid="wyckoff-evidence" open={current}>
+    <details className="text-[10px] text-slate-400" data-testid="wyckoff-evidence" open={current}>
       <summary className="cursor-pointer">Bằng chứng VSA (theo tài liệu Wyckoff/VSA){current ? "" : " · cấu trúc lịch sử"}</summary>
       <ul className="pt-1 space-y-1">
         {ev.springs.map((sp) => (
           <li key={`sp-${sp.index}`} className={`${dim} leading-snug`} data-testid="wyckoff-ev-spring">
-            <span className={`inline-block mr-1.5 px-1 rounded border text-[8px] ${sp.actionable ? "border-emerald-500/30 text-emerald-300" : "border-amber-500/30 text-amber-300"}`}>
+            <span className={`inline-block mr-1.5 px-1 rounded border text-[10px] ${sp.actionable ? "border-emerald-500/30 text-emerald-300" : "border-amber-500/30 text-amber-300"}`}>
               {sp.side === "spring" ? "Spring" : "UT"} #{sp.kind} · {sp.actionable ? "đủ điều kiện" : "chờ Test"}
             </span>
             {sp.note.replace(/^(Spring|UT) #\d: /, "")}
@@ -140,7 +140,7 @@ export function WyckoffEvidenceBlock({ ev, current }: { ev: WyckoffEvidence; cur
 export function WyckoffTestsBlock({ t, open = false }: { t: WyckoffTests; open?: boolean }) {
   const f = (v: number) => Math.round(v).toLocaleString("vi-VN");
   return (
-    <details className="text-[9px] text-slate-400" data-testid="wyckoff-tests" open={open}>
+    <details className="text-[10px] text-slate-400" data-testid="wyckoff-tests" open={open}>
       <summary className="cursor-pointer">
         9 phép thử {t.side === "buy" ? "mua" : "bán"}: <span className="text-slate-200 font-semibold">{t.passed}/{t.avail}</span> đạt
         {t.avail < 9 ? ` (${9 - t.avail} chưa đo được)` : ""} · không phải xác suất
@@ -202,7 +202,7 @@ export function WyckoffCycleMap({ kind, current }: { kind: "accumulation" | "dis
           <text key={t.acc} x={t.x} y={flip(t.y) + ((t.peak !== (kind === "distribution")) ? -3 : 7)} textAnchor="middle" fontSize={5.5} fill="#94a3b8">{kind === "accumulation" ? t.acc : t.dis}</text>
         ))}
       </svg>
-      <figcaption className="text-[9px] text-slate-400">{current ? PHASE_VI[current] : "Chưa xác định Phase A–E"} · sơ đồ mẫu, không theo tỷ lệ giá</figcaption>
+      <figcaption className="text-[10px] text-slate-400">{current ? PHASE_VI[current] : "Chưa xác định Phase A–E"} · sơ đồ mẫu, không theo tỷ lệ giá</figcaption>
     </figure>
   );
 }
@@ -211,7 +211,7 @@ export function WyckoffCycleMap({ kind, current }: { kind: "accumulation" | "dis
 export function WyckoffPlanBlock({ plan, open = false }: { plan: TradePlan3; open?: boolean }) {
   const f = (v: number | null) => (v == null ? "—" : Math.round(v).toLocaleString("vi-VN"));
   return (
-    <details className="text-[9px] text-slate-400" data-testid="wyckoff-plan3" open={open}>
+    <details className="text-[10px] text-slate-400" data-testid="wyckoff-plan3" open={open}>
       <summary className="cursor-pointer">{plan.title} · minh hoạ, không phải khuyến nghị</summary>
       <ol className="pt-1 space-y-0.5">
         {plan.tranches.map((t) => (
@@ -237,16 +237,16 @@ export function WyckoffPlanBlock({ plan, open = false }: { plan: TradePlan3; ope
 export function WyckoffSignalsBlock({ signals }: { signals: WyckoffSignal[] }) {
   if (!signals.length) return null;
   return (
-    <div className="text-[9px] space-y-1 rounded-lg border border-white/5 p-1.5" data-testid="wyckoff-signals">
-      <p className="text-slate-400 font-semibold uppercase tracking-wide text-[8.5px]">Tín hiệu Wyckoff · chưa đạt kiểm định</p>
+    <div className="text-[10px] space-y-1 rounded-lg border border-white/5 p-1.5" data-testid="wyckoff-signals">
+      <p className="text-slate-400 font-semibold uppercase tracking-wide text-[10px]">Tín hiệu Wyckoff · chưa đạt kiểm định</p>
       <ul className="space-y-1">
         {signals.map((x) => (
           <li key={x.key} className="leading-snug" data-testid={`wyckoff-signal-${x.key}`}>
             <span className={x.side === "buy" ? "text-emerald-300" : "text-rose-300"}>{x.side === "buy" ? "▲" : "▼"}</span>{" "}
             <span className="text-slate-200">{x.label}</span>{" "}
             <span className="font-mono text-slate-500">{x.knownDate}{x.knownDate !== x.date ? ` (xảy ra ${x.date})` : ""}</span>
-            {x.fresh && <span className="ml-1 px-1 rounded border border-violet-400/40 text-violet-300 text-[8px]">mới · {x.ageBars} nến</span>}
-            <span className={`ml-1 px-1 rounded border text-[8px] ${x.validation.adverse ? "border-rose-500/40 text-rose-300" : "border-slate-500/40 text-slate-400"}`}>
+            {x.fresh && <span className="ml-1 px-1 rounded border border-violet-400/40 text-violet-300 text-[10px]">mới · {x.ageBars} nến</span>}
+            <span className={`ml-1 px-1 rounded border text-[10px] ${x.validation.adverse ? "border-rose-500/40 text-rose-300" : "border-slate-500/40 text-slate-400"}`}>
               {x.validation.status === "VALIDATED" ? "đã kiểm định" : x.validation.adverse ? "⚠ ngoài mẫu ngược kỳ vọng" : "chưa đạt kiểm định"}
             </span>
             <span className="block text-slate-500 pl-3">{x.validation.summary}</span>
@@ -275,34 +275,34 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
     <div style={CARD} className="rounded-xl p-3 space-y-1.5" data-testid="wyckoff-panel" data-status={status}>
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-wrap">
         Wyckoff Cycle <ProvenanceBadge kind="INFERRED" />
-        <span className={`ml-auto normal-case text-[8.5px] px-1.5 py-0.5 rounded border ${ui.cls}`} data-testid="wyckoff-status">{ui.text}</span>
+        <span className={`ml-auto normal-case text-[10px] px-1.5 py-0.5 rounded border ${ui.cls}`} data-testid="wyckoff-status">{ui.text}</span>
       </p>
       <p className="text-sm font-bold text-violet-300" data-testid="wyckoff-phase">
         {isCurrent ? WYCKOFF_PHASE_LABEL[result.phase] : status === "historical" ? "Chưa xác định pha hiện tại" : WYCKOFF_PHASE_LABEL[result.phase]}
         {isCurrent && result.wyckoffPhase && <span className="text-[10px] text-violet-300/70 font-semibold"> · Phase {result.wyckoffPhase}</span>}
       </p>
-      {result.statusReason && <p className="text-[9px] text-slate-400 leading-snug" data-testid="wyckoff-reason">{result.statusReason}</p>}
+      {result.statusReason && <p className="text-[10px] text-slate-400 leading-snug" data-testid="wyckoff-reason">{result.statusReason}</p>}
       {result.status == null && result.phase === "undetermined" && result.rangeLow == null && (
-        <p className="text-[9px] text-slate-500">Chưa tìm thấy trading range: {describeRangeCriteria(barCount)}.</p>
+        <p className="text-[10px] text-slate-500">Chưa tìm thấy trading range: {describeRangeCriteria(barCount)}.</p>
       )}
 
       {result.rangeLow != null && result.rangeHigh != null && (
-        <p className={`text-[9px] font-mono ${isCurrent ? "text-slate-400" : "text-slate-500"}`} data-testid="wyckoff-range">
+        <p className={`text-[10px] font-mono ${isCurrent ? "text-slate-400" : "text-slate-500"}`} data-testid="wyckoff-range">
           {isCurrent ? "Range" : "Range lịch sử"} {fmtP(result.rangeLow)}–{fmtP(result.rangeHigh)} · {result.rangeStartDate} → {result.rangeEndDate ?? "nay"}
         </p>
       )}
       {result.historical && (
-        <p className="text-[9px] text-amber-300/80 leading-snug" data-testid="wyckoff-historical">
+        <p className="text-[10px] text-amber-300/80 leading-snug" data-testid="wyckoff-historical">
           Cấu trúc gần nhất: {WYCKOFF_PHASE_LABEL[result.historical.phase]}{result.historical.wyckoffPhase ? `, Phase ${result.historical.wyckoffPhase}` : ""}
           {result.statusReason?.includes(result.historical.reason) ? "" : ` — ${result.historical.reason}`}
         </p>
       )}
-      {result.phaseC && isCurrent && <p className="text-[9px] text-violet-300/80">{result.phaseC}</p>}
+      {result.phaseC && isCurrent && <p className="text-[10px] text-violet-300/80">{result.phaseC}</p>}
       {isCurrent && result.signals && <WyckoffSignalsBlock signals={result.signals} />}
-      {result.phaseE && <p className="text-[9px] text-amber-300/80" data-testid="wyckoff-location">{result.phaseE}</p>}
+      {result.phaseE && <p className="text-[10px] text-amber-300/80" data-testid="wyckoff-location">{result.phaseE}</p>}
 
       {events.length > 0 && (
-        <ul className="text-[9px] font-mono space-y-0.5" data-testid="wyckoff-events">
+        <ul className="text-[10px] font-mono space-y-0.5" data-testid="wyckoff-events">
           {events.map((e, i) => {
             const pending = e.confirmedIndex === null;
             const later = e.confirmedDate && e.confirmedDate !== e.date;
@@ -325,7 +325,7 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
       {isCurrent && result.tranches && <WyckoffPlanBlock plan={result.tranches} />}
 
       {checks.length > 0 && (
-        <details className="text-[9px] text-slate-400" data-testid="wyckoff-checks">
+        <details className="text-[10px] text-slate-400" data-testid="wyckoff-checks">
           <summary className="cursor-pointer">Tiêu chí: {okN}/{avail} đạt (đếm tiêu chí, không phải xác suất)</summary>
           <ul className="pt-1 space-y-0.5">
             {checks.map((c) => <li key={c.label}>{c.ok === true ? "✓" : c.ok === false ? "✗" : "–"} {c.label}</li>)}
@@ -333,25 +333,25 @@ export function WyckoffPanel({ result, barCount, compare, timeframe }: { result:
         </details>
       )}
       {result.status == null && (
-        <p className="text-[9px] text-slate-600" title="Tỷ lệ sự kiện mẫu chuẩn đã xuất hiện — không phải xác suất">
+        <p className="text-[10px] text-slate-600" title="Tỷ lệ sự kiện mẫu chuẩn đã xuất hiện — không phải xác suất">
           Sự kiện khớp mẫu: {result.confidenceScore}% (không phải xác suất)
         </p>
       )}
       {(result.caveats?.length ?? 0) > 0 && (
-        <details className="text-[9px] text-slate-500" data-testid="wyckoff-caveats">
+        <details className="text-[10px] text-slate-500" data-testid="wyckoff-caveats">
           <summary className="cursor-pointer">Vì sao kết luận có thể sai</summary>
           <ul className="pt-1 space-y-0.5 list-disc pl-3">{result.caveats!.map((c) => <li key={c}>{c}</li>)}</ul>
         </details>
       )}
       {compare && (
-        <p className="text-[9px] text-slate-500 border-t border-white/5 pt-1" data-testid="wyckoff-compare">
+        <p className="text-[10px] text-slate-500 border-t border-white/5 pt-1" data-testid="wyckoff-compare">
           Engine {compare.engine} (thử nghiệm, chưa đạt tiêu chí làm mặc định):{" "}
           <span className="text-slate-300">
             {compare.status === "active" && compare.phase !== "undetermined" ? `${WYCKOFF_PHASE_LABEL[compare.phase]}${compare.wyckoffPhase ? ` · Phase ${compare.wyckoffPhase}` : ""}` : compare.status === "historical" ? "chưa xác định (cấu trúc cũ hết hiệu lực)" : "chưa đủ bằng chứng"}
           </span>
         </p>
       )}
-      <p className="text-[8.5px] text-slate-600">
+      <p className="text-[10px] text-slate-600">
         Engine {result.engine ?? "v1"} · dữ liệu tới {result.asOf ?? "—"} · {barCount} nến{timeframe ? ` · khung ${timeframe}` : ""} · kiểm định 10/2024–10/2026: nhãn pha chưa có lợi thế dự báo nhất quán
       </p>
     </div>
@@ -362,7 +362,7 @@ export function ElliottWavePanelPlaceholder() {
   return (
     <div style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-3 opacity-60">
       <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1 flex items-center gap-1">
-        Elliott Wave <span className="ml-auto flex items-center gap-0.5 text-[8.5px] text-amber-400"><Clock className="w-2.5 h-2.5" />Giai đoạn 2</span>
+        Elliott Wave <span className="ml-auto flex items-center gap-0.5 text-[10px] text-amber-400"><Clock className="w-2.5 h-2.5" />Giai đoạn 2</span>
       </p>
       <p className="text-[10px] text-slate-600 italic">Đếm sóng mang tính chủ quan cao — dùng công cụ vẽ Elliott (có kiểm tra quy tắc) hoặc gợi ý Zigzag.</p>
     </div>

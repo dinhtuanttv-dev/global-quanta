@@ -45,7 +45,7 @@ function Sparkline({ closes, ma20, stop }: { closes: number[]; ma20: number | nu
 function Level({ label, value, hint, color }: { label: string; value: string; hint?: string; color?: string }) {
   return (
     <div className="rounded px-1.5 py-1" style={{ background: 'rgba(255,255,255,0.03)' }} title={hint}>
-      <div className="text-[9px] text-slate-500">{label}</div>
+      <div className="text-[10px] text-slate-500">{label}</div>
       <div className="font-mono text-[11px]" style={{ color: color ?? '#e2e8f0' }}>{value}</div>
     </div>
   );
@@ -131,11 +131,11 @@ export default function ActionCenter() {
           ✕ Loại bỏ
         </button>
       </div>
-      <div className="text-[9.5px] text-slate-500 mt-1">Quan tâm / Loại bỏ = thêm / bỏ mã khỏi ★ {radar.listName} (Radar, tin tức, giá realtime đổi theo).</div>
+      <div className="text-[10px] text-slate-500 mt-1">Quan tâm / Loại bỏ = thêm / bỏ mã khỏi ★ {radar.listName} (Radar, tin tức, giá realtime đổi theo).</div>
 
       {levels && (
         <>
-          <div className="mt-2.5 text-[9.5px] text-slate-500 flex justify-between">
+          <div className="mt-2.5 text-[10px] text-slate-500 flex justify-between">
             <span>60 phiên · <span className="text-sky-400">- - MA20</span> · <span className="text-rose-400">- - dừng lỗ gợi ý</span></span>
             <button type="button" onClick={() => focusTickerInScanner(ticker)} className="text-cyan-300 hover:text-cyan-200">Mở phân tích ↗</button>
           </div>
@@ -155,7 +155,7 @@ export default function ActionCenter() {
       )}
 
       <div className="mt-2.5 rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="text-[9.5px] tracking-wider text-slate-500 font-semibold mb-1">MÁY TÍNH KHỐI LƯỢNG THEO RỦI RO</div>
+        <div className="text-[10px] tracking-wider text-slate-500 font-semibold mb-1">MÁY TÍNH KHỐI LƯỢNG THEO RỦI RO</div>
         <div className="grid grid-cols-3 gap-1.5 text-[10px]">
           <label className="flex flex-col gap-0.5 text-slate-500">Vốn (đ)
             <input inputMode="numeric" value={capital.toLocaleString('vi-VN')} aria-label="Vốn"

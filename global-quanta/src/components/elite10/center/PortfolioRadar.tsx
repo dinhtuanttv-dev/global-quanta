@@ -122,7 +122,7 @@ function ZoneChip({ r, onOpen }: { r: LaneRow; onOpen: (t: string) => void }) {
       className="rounded border px-1.5 py-0.5 font-mono text-[10px] hover:bg-white/5"
       style={{ color: col, borderColor: `${col}66`, borderStyle: r.tier === "NEAR" ? "dashed" : r.tier === "EXPLORATORY" ? "dotted" : "solid" }}>
       {r.status === "IN_WINDOW" ? "●" : "⏱"} {r.ticker} {r.kind === "DIVIDEND" ? "CT" : "KQ"} {r.status === "IN_WINDOW" ? "trong vùng" : r.sessionsToEntry <= 10 ? `${r.sessionsToEntry}p` : `${dm(r.entryFromDate)}${r.entryFromDate.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? `/${r.entryFromDate.slice(2, 4)}` : ""} · ${r.sessionsToEntry}p`}
-      {r.tier !== "VALIDATED" && <span className="ml-1 text-[8.5px] opacity-80">{r.tier === "NEAR" ? "gần đạt" : "thăm dò"}</span>}
+      {r.tier !== "VALIDATED" && <span className="ml-1 text-[10px] opacity-80">{r.tier === "NEAR" ? "gần đạt" : "thăm dò"}</span>}
     </button>
   );
 }
@@ -275,11 +275,11 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   return (
     <div ref={wrapRef} className="space-y-2" data-testid="elite-radar">
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
-        <b className="mr-1 tracking-wider text-cyan-300">📡 RADAR ELITE 10</b>
+        <b className="mr-1 tracking-wider text-[#F5CE72]">📡 RADAR ELITE 10</b>
         <div className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Xếp hạng theo">
           {SORTS.map((s) => (
             <button key={s.id} type="button" title={s.title} aria-pressed={mode === s.id} data-testid={`elite-radar-sort-${s.id}`} onClick={() => setMode(s.id)}
-              className={`min-h-[24px] rounded px-2 ${mode === s.id ? "bg-cyan-500/20 font-bold text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>{s.label}</button>
+              className={`min-h-[24px] rounded px-2 ${mode === s.id ? "bg-[#E8B84B]/20 font-bold text-[#F5CE72]" : "text-slate-400 hover:text-slate-200"}`}>{s.label}</button>
           ))}
         </div>
         {isLive ? <span className="rounded border border-emerald-400/40 px-1.5 text-emerald-300" data-testid="elite-radar-live">● TRỰC TIẾP · SSI</span>
@@ -289,7 +289,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
 
       <div className="overflow-x-auto">
         <div style={{ minWidth: compact ? 800 : 1140 }} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
-          <div className="grid items-center gap-2 border-b border-white/5 pb-1 text-[9.5px] text-slate-500"
+          <div className="grid items-center gap-2 border-b border-white/5 pb-1 text-[10px] text-slate-500"
             style={{ gridTemplateColumns: cols }}>
             <span>Hạng</span><span>Mã</span><span title="Trục Điểm Elite Z: chấm = hôm nay, vệt = 5 phiên trước">Rãnh Z · vệt 5 phiên</span><span>Tỷ trọng</span><span className="leading-tight" data-testid="elite-radar-buy-head"><span title="Vùng mua của Timeline điểm mua tối ưu (tab Cổ tức) trên trục phiên giao dịch thật; dải xanh mảnh = kỳ nắm giữ 10 phiên">⏱ Vùng mua · {axis.dates.length} phiên</span>{axis.dates.length > 0 && <BuyZoneAxis axis={axis} width={laneW} />}</span>
             <span title="Giá khớp · % trong phiên · lợi suất VƯỢT VN-Index từ giá lúc dựng danh mục">Giá · vượt VNI</span>{!compact && <span>P vượt · α5</span>}<span title="Vị trí giá trong dải cắt lỗ (trái) → mục tiêu (phải)">Cắt lỗ → mục tiêu</span>{!compact && <span>Động lực chính</span>}
@@ -304,7 +304,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                 style={{ gridTemplateColumns: cols }}>
                 <div className="leading-tight">
                   <b className={`font-mono text-[15px] ${r.topTier ? "text-amber-300" : "text-slate-100"}`} data-testid={`elite-radar-pos-${p.ticker}`}>#{i + 1}</b>
-                  <div className="text-[9px] text-slate-500">hạng {p.rank}
+                  <div className="text-[10px] text-slate-500">hạng {p.rank}
                     {mv?.isNew ? <span className="ml-1 font-bold text-emerald-300" data-testid={`elite-radar-new-${p.ticker}`}>MỚI</span>
                       : mv?.delta ? <span className={`ml-1 font-bold ${mv.delta > 0 ? "text-emerald-300" : "text-rose-300"}`} data-testid={`elite-radar-delta-${p.ticker}`} title={`Phiên trước: hạng ${mv.prevRank}`}>{mv.delta > 0 ? `▲${mv.delta}` : `▼${-mv.delta}`}</span>
                       : mv?.prevRank ? <span className="ml-1 text-slate-500">=</span> : null}
@@ -312,31 +312,31 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   </div>
                 </div>
                 <div className="min-w-0 leading-tight">
-                  <button type="button" onClick={() => onOpenTicker(p.ticker)} data-testid={`elite-radar-open-${p.ticker}`} className="font-mono text-[12px] font-bold text-cyan-300 hover:underline">{p.ticker}</button>
-                  {p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[8.5px] text-slate-400">giữ</span>}
-                  <div className="truncate text-[9px] text-slate-500" title={secName(p.sectorKey)}>{replay ? "" : secName(p.sectorKey)}</div>
+                  <button type="button" onClick={() => onOpenTicker(p.ticker)} data-testid={`elite-radar-open-${p.ticker}`} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline">{p.ticker}</button>
+                  {p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[10px] text-slate-400">giữ</span>}
+                  <div className="truncate text-[10px] text-slate-500" title={secName(p.sectorKey)}>{replay ? "" : secName(p.sectorKey)}</div>
                 </div>
                 <canvas ref={(el) => { if (el) canv.current.set(p.ticker, el); else canv.current.delete(p.ticker); }} aria-hidden="true" style={{ width: trackW, height: 38, display: "block" }}
                   title={`Z ${num(r.z, 2)}${r.trail.length ? ` · ${r.trail.length} phiên trước: ${r.trail.map((z) => num(z, 2)).join(" → ")}` : ""}${r.stealth ? ` · ◆ Stealth 20 ${r.stealth.dir > 0 ? "tích luỹ" : "phân phối"} (z ${num(r.stealth.z, 2)})` : ""}${r.hot ? " · tin quan trọng 24 giờ" : ""}`} />
                 <div className="whitespace-nowrap">
                   <span aria-hidden="true" className="mr-1 inline-block h-1.5 rounded bg-cyan-400/70 align-middle" style={{ width: `${Math.min(40, p.weight * 200)}px` }} />
                   <b>{num(p.weight * 100)}%</b>
-                  {!replay && p.riskContribution != null && <div className="text-[9px] text-slate-500" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)" data-testid={`elite-radar-risk-${p.ticker}`}>rủi ro {num(p.riskContribution * 100)}%</div>}
+                  {!replay && p.riskContribution != null && <div className="text-[10px] text-slate-500" title="Đóng góp rủi ro Euler trong danh mục (ERC: các mã bằng nhau trước khi áp trần)" data-testid={`elite-radar-risk-${p.ticker}`}>rủi ro {num(p.riskContribution * 100)}%</div>}
                 </div>
                 <div>{replay || !axis.dates.length ? <span className="text-slate-500">—</span> : <BuyZoneStrip ticker={p.ticker} lane={buyLane(p.ticker, zoneRows, axis)} axis={axis} cell={buyCells.get(p.ticker)} width={laneW} head={headlineZone(p.ticker, zoneRows)} />}</div>
                 <div className="leading-tight font-mono">
                   <span className="text-slate-100">{replay ? "—" : price(q?.price ?? p.close)}</span>
-                  {!replay && q?.changePct != null && <span className="ml-1 text-[9.5px]" style={{ color: q.changePct >= 0 ? UP : DOWN }}>{q.changePct >= 0 ? "+" : ""}{num(q.changePct, 2)}%</span>}
-                  <div className="text-[9.5px]" data-testid={`elite-radar-ex-${p.ticker}`} style={{ color: ex == null ? "#64748b" : ex >= 0 ? UP : DOWN }} title="Lợi suất vượt VN-Index từ giá lúc dựng danh mục">vượt {sgnPct(ex)}</div>
+                  {!replay && q?.changePct != null && <span className="ml-1 text-[10px]" style={{ color: q.changePct >= 0 ? UP : DOWN }}>{q.changePct >= 0 ? "+" : ""}{num(q.changePct, 2)}%</span>}
+                  <div className="text-[10px]" data-testid={`elite-radar-ex-${p.ticker}`} style={{ color: ex == null ? "#64748b" : ex >= 0 ? UP : DOWN }} title="Lợi suất vượt VN-Index từ giá lúc dựng danh mục">vượt {sgnPct(ex)}</div>
                 </div>
-                {!compact && <div className="font-mono leading-tight">{replay ? "—" : `${num(p.pOutperform * 100, 1)}%`}<div className="text-[9.5px] text-emerald-300">{p.alpha5Pct != null ? `${p.alpha5Pct >= 0 ? "+" : ""}${num(p.alpha5Pct, 2)}%` : ""}</div></div>}
+                {!compact && <div className="font-mono leading-tight">{replay ? "—" : `${num(p.pOutperform * 100, 1)}%`}<div className="text-[10px] text-emerald-300">{p.alpha5Pct != null ? `${p.alpha5Pct >= 0 ? "+" : ""}${num(p.alpha5Pct, 2)}%` : ""}</div></div>}
                 <div title={replay ? "" : `Cắt lỗ ${price(p.stop)} · giá ${price(q?.price ?? p.close)} · mục tiêu ${price(p.target)}`} data-testid={`elite-radar-gauge-${p.ticker}`}>
                   {pos == null ? <span className="text-slate-500">—</span> : (
                     <div className="relative h-2 rounded" style={{ background: "linear-gradient(90deg, rgba(251,113,133,.45), rgba(148,163,184,.18) 50%, rgba(52,211,153,.45))" }}>
                       <span className="absolute -top-0.5 h-3 w-0.5 rounded bg-slate-100" style={{ left: `${Math.max(0, Math.min(100, pos * 100))}%` }} />
                     </div>
                   )}
-                  {!replay && <div className="mt-0.5 flex justify-between font-mono text-[8.5px] text-slate-500"><span className="text-rose-300">{price(p.stop)}</span><span className="text-emerald-300">{price(p.target)}</span></div>}
+                  {!replay && <div className="mt-0.5 flex justify-between font-mono text-[10px] text-slate-500"><span className="text-rose-300">{price(p.stop)}</span><span className="text-emerald-300">{price(p.target)}</span></div>}
                 </div>
                 {!compact && <div className="truncate text-[10px] text-slate-400" title={drivers(p.ticker).join(" · ")}>{replay ? "" : drivers(p.ticker).join(" · ") || "—"}</div>}
               </div>
@@ -348,8 +348,8 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
       {!replay && (
         <div className="rounded-lg px-2 py-1.5" style={{ background: "rgba(52,211,153,0.04)", border: "1px solid rgba(52,211,153,0.2)" }} aria-label="Điểm mua 10 phiên tới của danh mục Elite 10" data-testid="elite-buy-strip">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[9px] font-semibold tracking-wider text-emerald-300">⏱ ĐIỂM MUA 10 PHIÊN TỚI · DANH MỤC ELITE 10</div>
-            <span className="shrink-0 text-[9px] text-slate-500">vùng mua tối ưu từ dữ liệu tab Cổ tức{zonesQ.zones ? "" : " (Timeline)"}</span>
+            <div className="text-[10px] font-semibold tracking-wider text-emerald-300">⏱ ĐIỂM MUA 10 PHIÊN TỚI · DANH MỤC ELITE 10</div>
+            <span className="shrink-0 text-[10px] text-slate-500">vùng mua tối ưu từ dữ liệu tab Cổ tức{zonesQ.zones ? "" : " (Timeline)"}</span>
           </div>
           {chips.near.length ? (
             <div className="mt-1 flex flex-wrap gap-1">
@@ -358,28 +358,28 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
           ) : <div className="mt-1 text-[10px] text-slate-500" data-testid="elite-buy-strip-empty">Không mã nào trong danh mục Elite 10 có vùng mua trong 10 phiên tới{chips.later.length ? ` (${chips.later.length} mã có vùng mua xa hơn)` : ""}.</div>}
           {chips.later.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1" data-testid="elite-buy-strip-later">
-              <span className="text-[9px] text-slate-500">Xa hơn:</span>
+              <span className="text-[10px] text-slate-500">Xa hơn:</span>
               {chips.later.map((r) => <ZoneChip key={r.id} r={r} onOpen={onOpenTicker} />)}
             </div>
           )}
-          {zonesQ.zones?.notInUniverse.length ? <div className="mt-0.5 text-[9px] text-slate-500">Ngoài danh mục theo dõi của tab Cổ tức: {zonesQ.zones.notInUniverse.join(", ")}.</div> : null}
+          {zonesQ.zones?.notInUniverse.length ? <div className="mt-0.5 text-[10px] text-slate-500">Ngoài danh mục theo dõi của tab Cổ tức: {zonesQ.zones.notInUniverse.join(", ")}.</div> : null}
         </div>
       )}
 
       {history && pastDates.length > 0 && (
         <div className="flex items-center gap-2 rounded border border-cyan-400/15 bg-cyan-400/[0.03] px-2 py-1 text-[10px]" data-testid="elite-radar-history">
-          <span className="text-[9px] font-semibold tracking-wider text-slate-500">LỊCH SỬ</span>
-          <button type="button" onClick={() => { if (playing) setPlaying(false); else { setViewDate(null); setPlaying(true); } }} aria-label={playing ? "Dừng tua" : "Tua lại các phiên đã lưu"} className="w-4 text-cyan-300">{playing ? "⏸" : "▶"}</button>
+          <span className="text-[10px] font-semibold tracking-wider text-slate-500">LỊCH SỬ</span>
+          <button type="button" onClick={() => { if (playing) setPlaying(false); else { setViewDate(null); setPlaying(true); } }} aria-label={playing ? "Dừng tua" : "Tua lại các phiên đã lưu"} className="w-4 text-[#F5CE72]">{playing ? "⏸" : "▶"}</button>
           <input type="range" min={0} max={pastDates.length} step={1} aria-label="Tua lại lịch sử danh mục" value={replay ? pastDates.indexOf(replay.date) : pastDates.length}
             aria-valuetext={replay ? `Phiên ${fmtDate(replay.date)}` : "Hiện tại"} onChange={(e) => { setPlaying(false); const i = Number(e.target.value); setViewDate(i >= pastDates.length ? null : pastDates[i]); }}
-            className="min-w-0 flex-1 accent-cyan-400" />
+            className="min-w-0 flex-1 accent-[#E8B84B]" />
           <span className="w-14 text-right font-mono text-slate-300">{replay ? fmtDate(replay.date) : "Hiện tại"}</span>
         </div>
       )}
 
       {(events.length > 0 || buyEvents.length > 0) && (
         <div data-testid="elite-radar-events">
-          <div className="mb-0.5 text-[9px] font-semibold tracking-wider text-slate-500">SỰ KIỆN DANH MỤC · {replay ? fmtDate(replay.date) : "hiện tại"} so với phiên trước</div>
+          <div className="mb-0.5 text-[10px] font-semibold tracking-wider text-slate-500">SỰ KIỆN DANH MỤC · {replay ? fmtDate(replay.date) : "hiện tại"} so với phiên trước</div>
           <ul className="flex flex-wrap gap-x-3 gap-y-0.5">
             {events.slice(0, 10).map((e) => (
               <li key={`${e.kind}-${e.ticker}`}><button type="button" onClick={() => onOpenTicker(e.ticker)} className="text-left text-[10.5px] hover:underline" style={{ color: e.tone === "up" ? UP : e.tone === "down" ? DOWN : "#cbd5e1" }}>
@@ -390,13 +390,13 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
         </div>
       )}
 
-      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9.5px] text-slate-500" data-testid="elite-radar-legend">
+      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500" data-testid="elite-radar-legend">
         <span><span style={{ color: AMBER }}>●</span> 3 hạng đầu</span>
         <span>Chấm to = tỷ trọng lớn · đậm = P vượt cao</span>
         <span>Vệt đứt = Z 5 phiên trước (<span style={{ color: UP }}>xanh</span> mạnh lên / <span style={{ color: DOWN }}>đỏ</span> yếu đi)</span>
         <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 {!sig ? "(đang tải bằng chứng kiểm định…)" : edge ? <>— <b className="text-emerald-300">đã kiểm định có lợi thế</b> toàn giai đoạn{regimeEdge === false ? <span className="text-amber-300"> · chưa có lợi thế ở chế độ thị trường hiện tại</span> : null}</> : "(rỗng = chưa đạt kiểm định)"}</span>
         <span>⏱ vòng <span style={{ color: UP }}>xanh</span> = trong vùng mua · <span style={{ color: AMBER }}>vàng</span> = ≤ {SOON_SESSIONS} phiên · nét đứt = gần đạt kiểm định</span>
-        <span data-testid="elite-radar-buy-legend">⏱ Dải vùng mua: <span className="text-emerald-300">▬ xanh đặc</span> = vùng ĐẠT KIỂM ĐỊNH (sáng = đang trong vùng) · <span className="text-slate-300">┅ xám nét đứt</span> = gần đạt · <span className="text-sky-300">┈ xanh chấm</span> = thăm dò (vùng tối ưu nhất, chưa qua kiểm định) · mờ = đã qua · <span style={{ color: "#22d3ee" }}>◆</span> GDKHQ / <span style={{ color: VIOLET }}>◆</span> công bố KQKD · <span className="text-rose-300">│</span> thoát · <span className="text-cyan-300">▲</span> vào theo quy tắc (mở cửa phiên kế) · <span className="text-cyan-300">━</span> kỳ nắm giữ 10 phiên · <span className="text-amber-300">┊</span> hôm nay · C = cổ tức, K = KQKD</span>
+        <span data-testid="elite-radar-buy-legend">⏱ Dải vùng mua: <span className="text-emerald-300">▬ xanh đặc</span> = vùng ĐẠT KIỂM ĐỊNH (sáng = đang trong vùng) · <span className="text-slate-300">┅ xám nét đứt</span> = gần đạt · <span className="text-sky-300">┈ xanh chấm</span> = thăm dò (vùng tối ưu nhất, chưa qua kiểm định) · mờ = đã qua · <span style={{ color: "#22d3ee" }}>◆</span> GDKHQ / <span style={{ color: VIOLET }}>◆</span> công bố KQKD · <span className="text-rose-300">│</span> thoát · <span className="text-[#F5CE72]">▲</span> vào theo quy tắc (mở cửa phiên kế) · <span className="text-[#F5CE72]">━</span> kỳ nắm giữ 10 phiên · <span className="text-amber-300">┊</span> hôm nay · C = cổ tức, K = KQKD</span>
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày · vòng nhấp nháy = tin quan trọng 24 giờ (mô tả)</span>
         <span>● Trực tiếp = xếp theo vượt VN-Index từ lúc dựng (theo dõi, không đổi hạng chính thức)</span>
       </div>

@@ -30,7 +30,7 @@ function Spark({ pts }: { pts: [string, number][] }) {
   const vals = pts.map((p) => p[1]);
   const lo = Math.min(...vals), hi = Math.max(...vals), span = hi - lo || 1;
   const d = vals.map((v, i) => `${i ? "L" : "M"}${(i / (vals.length - 1)) * 70},${18 - ((v - lo) / span) * 16}`).join(" ");
-  return <svg viewBox="0 0 70 20" width={70} height={20} aria-hidden className="inline-block"><path d={d} fill="none" stroke={vals[vals.length - 1] >= vals[0] ? "#3987e5" : "#e66767"} strokeWidth={1.3} /></svg>;
+  return <svg viewBox="0 0 70 20" width={70} height={20} aria-hidden className="inline-block"><path d={d} fill="none" stroke={vals[vals.length - 1] >= vals[0] ? "#10B981" : "#F43F5E"} strokeWidth={1.3} /></svg>;
 }
 
 function ZBar({ z }: { z: number | null | undefined }) {
@@ -38,7 +38,7 @@ function ZBar({ z }: { z: number | null | undefined }) {
   const w = (Math.min(Math.abs(z), ZMAX) / ZMAX) * 50;
   return <span className="inline-flex items-center gap-1.5" title={`${fmtSigned(z, 2)} độ lệch chuẩn so với 60 phiên trước`}>
     <span aria-hidden style={{ position: "relative", display: "inline-block", width: 56, height: 6, borderRadius: 3, background: "rgba(148,163,184,0.12)" }}>
-      <span style={{ position: "absolute", top: 0, height: 6, borderRadius: 3, background: z >= 0 ? "#3987e5" : "#e66767", left: z >= 0 ? "50%" : `${50 - w}%`, width: `${w}%` }} />
+      <span style={{ position: "absolute", top: 0, height: 6, borderRadius: 3, background: z >= 0 ? "#10B981" : "#F43F5E", left: z >= 0 ? "50%" : `${50 - w}%`, width: `${w}%` }} />
       <span style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "rgba(148,163,184,0.5)" }} />
     </span>
     <span style={{ color: Math.abs(z) >= 2 ? "var(--gold-bright, #fbbf24)" : "var(--text-secondary, #94a3b8)", minWidth: 32, textAlign: "right" }}>{fmtSigned(z, 1)}</span>
@@ -57,9 +57,9 @@ function RangeBar({ pct }: { pct: number | null | undefined }) {
 
 function Stat({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "warn" }) {
   return <div className="rounded-lg px-3 py-2" style={{ background: "rgba(148,163,184,0.04)" }}>
-    <p className="text-[9.5px]" style={muted}>{label}</p>
+    <p className="text-[10px]" style={muted}>{label}</p>
     <p className="text-sm font-bold" style={{ color: tone === "warn" ? "var(--gold-bright, #fbbf24)" : "#f1f5f9" }}>{value}</p>
-    {note && <p className="text-[9px]" style={muted}>{note}</p>}
+    {note && <p className="text-[10px]" style={muted}>{note}</p>}
   </div>;
 }
 
@@ -119,7 +119,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
             {fmtValue(hover.value)} {hover.unit} · {fmtChange(hover)} · z {fmtSigned(hover.z, 2)}<br />
             <span style={muted}>Phiên {hover.date?.split("-").reverse().join("/")} · {hover.sourceVi}</span>
           </div>}
-          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9.5px]" style={{ color: "var(--text-secondary, #94a3b8)" }} aria-label="Chú giải">
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--text-secondary, #94a3b8)" }} aria-label="Chú giải">
             {(Object.keys(GROUP) as MonitorGroup[]).map((k) => <span key={k} className="inline-flex items-center gap-1"><svg width={12} height={12} aria-hidden><Mark x={6} y={6} group={k} r={3.5} unusual={false} /></svg>{GROUP[k].label}</span>)}
             <span style={muted}>Viền sáng: |z| ≥ {data.method.abnormalZ}. Vùng tô: ngoài ±{data.method.abnormalZ}.</span>
           </div>

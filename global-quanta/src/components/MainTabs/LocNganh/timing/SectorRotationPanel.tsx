@@ -46,7 +46,7 @@ function FlowMap({ sectors, rotation }: { sectors: GatewaySectorRrg[]; rotation:
             ))}
           </ul>
         ) : <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>Chưa đủ lịch sử thị phần.</span>}
-        <p style={{ fontSize: 9, color: "var(--text-tertiary)", margin: "6px 0 0" }} title={rotation?.note}>Điểm % thị phần GTGD (TB 20 phiên) — ước lượng phân bổ, không phải dòng tiền khớp lệnh thực.</p>
+        <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "6px 0 0" }} title={rotation?.note}>Điểm % thị phần GTGD (TB 20 phiên) — ước lượng phân bổ, không phải dòng tiền khớp lệnh thực.</p>
       </div>
       <div className="panel-block" style={{ padding: 10 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", marginBottom: 6 }}>Thị phần GTGD thay đổi (TB20 so TB60)</div>
@@ -73,7 +73,7 @@ function FlowMap({ sectors, rotation }: { sectors: GatewaySectorRrg[]; rotation:
           <span style={{ color: "var(--text-tertiary)" }}>Phân phối: </span>
           {dist.length ? dist.map((s) => <span key={s.code} style={{ marginRight: 6, color: "var(--warning)", fontWeight: 600 }}>{s.name}{s.flow?.money.stealthDistribution ? " (âm thầm)" : ""}</span>) : "—"}
         </div>
-        <p style={{ fontSize: 9, color: "var(--text-tertiary)", margin: "6px 0 0" }}>Tích lũy âm thầm = giá chỉ số ngành đi ngang, biến động co lại, CMF-20 &gt; 0, GTGD phiên tăng &gt; giảm, thị phần GTGD tăng.</p>
+        <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "6px 0 0" }}>Tích lũy âm thầm = giá chỉ số ngành đi ngang, biến động co lại, CMF-20 &gt; 0, GTGD phiên tăng &gt; giảm, thị phần GTGD tăng.</p>
       </div>
     </div>
   );
@@ -179,19 +179,19 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
                         style={{ cursor: "pointer", borderTop: "1px solid var(--bg-surface-2)", background: open === s.code ? "var(--bg-surface-2)" : selectedSector === s.code ? "rgba(245,158,11,0.06)" : undefined }}>
                         <td style={{ padding: "6px 0" }}>
                           <b style={{ color: "var(--gold)" }}>{s.name}</b>
-                          <span style={{ display: "block", fontSize: 9, color: "var(--text-tertiary)" }}>{s.code} · {s.indexMembers} mã{s.thin ? " · rổ mỏng" : ""}</span>
+                          <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)" }}>{s.code} · {s.indexMembers} mã{s.thin ? " · rổ mỏng" : ""}</span>
                         </td>
                         <td>{s.state ? <Chip color={STATE_COLOR[s.state.key]} title={s.state.why.join(" · ")} testId="sector-state">{s.state.label}</Chip> : "—"}</td>
                         <td style={{ textAlign: "center", fontSize: 11 }} title={f?.stage?.label}>{f?.stage?.stage ?? "—"}</td>
                         <td style={{ fontSize: 11 }} data-testid="sector-flow-cell">
                           {f ? <>
                             <span style={{ color: f.share.changePct >= 0 ? "var(--positive)" : "var(--negative)", fontWeight: 600 }}>{signed(f.share.changePct)}%</span>
-                            <span style={{ display: "block", fontSize: 9, color: "var(--text-tertiary)" }}>{FLOW_VI[f.share.state]} · CMF {signed(f.money.cmf20, 2)}{f.money.stealthAccumulation ? " · ✦ âm thầm" : ""}</span>
+                            <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)" }}>{FLOW_VI[f.share.state]} · CMF {signed(f.money.cmf20, 2)}{f.money.stealthAccumulation ? " · ✦ âm thầm" : ""}</span>
                           </> : "—"}
                         </td>
                         <td style={{ color: QUADRANT_COLORS[s.quadrant], fontWeight: 600, fontSize: 11 }}>
                           {QUADRANT_VI[s.quadrant]}
-                          <span style={{ display: "block", fontSize: 9, color: "var(--text-tertiary)", fontWeight: 400 }}>{num(s.latestClosed.ratio)} / {num(s.latestClosed.momentum)}</span>
+                          <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)", fontWeight: 400 }}>{num(s.latestClosed.ratio)} / {num(s.latestClosed.momentum)}</span>
                         </td>
                         <td style={{ textAlign: "right", fontSize: 11 }}>{sig?.tdSinceTransition ?? "—"}</td>
                         {sig ? <SectorScreenerCells signal={sig} /> : <td colSpan={4} style={{ fontSize: 11, color: "var(--text-tertiary)" }}>{timing.status === "loading" ? "Đang tính…" : "—"}</td>}

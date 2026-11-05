@@ -112,7 +112,7 @@ export default function LiveDailyStrip({ es, bars, indexBars, corporateActions =
         <text x={x(today.k)} y={H - 3} textAnchor="middle" fontSize={8.5} className="fill-amber-300">{today.bar.partial && sessionLive ? "HÔM NAY · đang hình thành" : `phiên ${today.k}`}</text>
         <text x={M.l} y={H - 3} fontSize={8.5} className="fill-slate-500">{cells[0].k}</text>
       </svg>
-      {sinceItem && !ringOn && since && <p className="text-[9.5px] text-slate-500">ESA từ lúc ra tin: {since.reason ?? since.status}</p>}
+      {sinceItem && !ringOn && since && <p className="text-[10px] text-slate-500">ESA từ lúc ra tin: {since.reason ?? since.status}</p>}
       <style>{`.esa-ring-glow{animation:esaGlow 1.4s ease-in-out infinite}.esa-ring-pulse{animation:esaPulse 1.4s ease-out infinite;transform-box:fill-box;transform-origin:center}
 @keyframes esaGlow{50%{stroke-opacity:.45}}@keyframes esaPulse{from{transform:scale(.7);opacity:.9}to{transform:scale(1.35);opacity:0}}
 @media (prefers-reduced-motion: reduce){.esa-ring-glow,.esa-ring-pulse{animation:none}}`}</style>

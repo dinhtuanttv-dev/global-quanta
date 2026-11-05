@@ -11,7 +11,7 @@ export function ForecastBlock({ f }: { f: Forecast | null | undefined }) {
     <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-2 space-y-1 text-[10px]" data-testid="mx-forecast">
       <div className="flex items-center justify-between gap-2">
         <span className="font-bold text-slate-200">Xác suất {f.target.toLowerCase()}</span>
-        <span className={`text-[8px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`}>{f.label}</span>
+        <span className={`text-[10px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`}>{f.label}</span>
       </div>
       <div className="text-[15px] font-semibold text-violet-200">{vn(f.p * 100, 0)}% <span className="text-[10px] text-slate-400 font-normal">· tỷ lệ nền {vn(f.baseRate * 100, 0)}% · kỳ hạn {f.horizon} phiên</span></div>
       <p className="text-slate-400">Mô hình {f.modelId} · huấn luyện {f.trainN} phiên · holdout {f.holdout.n} phiên (Brier {vn(f.holdout.brier ?? null, 3)}, nền {vn(f.holdout.baseRate * 100, 0)}%) · cổng: {f.gate === "PROMOTE" ? "thăng hạng" : "giữ champion"} · {when(f.date)}</p>
@@ -49,7 +49,7 @@ export function OpsPanel() {
           <div className="space-y-0.5">
             <p className="font-bold text-slate-300">Diễn tập sự cố</p>
             <ul className="space-y-0.5">{data.drills.map((d) => <li key={d.id} className="text-slate-400"><span className="text-slate-200">{d.scenario}:</span> {d.expect}</li>)}</ul>
-            <p className="text-[9px] text-slate-500 pt-1">Lưu giữ: {Object.values(data.retention).join(" · ")}</p>
+            <p className="text-[10px] text-slate-500 pt-1">Lưu giữ: {Object.values(data.retention).join(" · ")}</p>
           </div>
         </div>
       )}

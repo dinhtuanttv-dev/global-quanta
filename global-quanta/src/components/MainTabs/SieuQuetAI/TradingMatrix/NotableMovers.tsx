@@ -14,9 +14,9 @@ function List({ title, rows, onSelect, kind }: { title: string; rows: Mover[]; o
               <tr key={m.symbol} className="border-b border-white/5">
                 <td className="py-0.5">
                   <button type="button" onClick={() => onSelect(m.symbol)} className="font-sans font-bold text-amber-300 hover:text-amber-200" aria-label={`Chọn ${m.symbol}`}>{m.symbol}</button>
-                  {m.atCeiling && <span className="ml-1 text-[8px] text-violet-300 font-sans">trần</span>}
-                  {m.atFloor && <span className="ml-1 text-[8px] text-cyan-300 font-sans">sàn</span>}
-                  <span className="block text-[8px] text-slate-500 font-sans truncate">{m.industry ?? "—"}</span>
+                  {m.atCeiling && <span className="ml-1 text-[10px] text-violet-300 font-sans">trần</span>}
+                  {m.atFloor && <span className="ml-1 text-[10px] text-cyan-300 font-sans">sàn</span>}
+                  <span className="block text-[10px] text-slate-500 font-sans truncate">{m.industry ?? "—"}</span>
                 </td>
                 <td className={`text-right ${m.ret >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{m.ret >= 0 ? "▲ +" : "▼ "}{vn(m.ret, 2)}%</td>
                 <td className="text-right text-slate-400">{kind === "spike" ? `×${vn(m.valueRatio, 1)}` : m.value != null ? `${vn(m.value / 1e9, 0)} tỷ` : "—"}</td>
@@ -37,7 +37,7 @@ export default function NotableMovers({ data, onSelect }: { data: MatrixMovers; 
         <List title="Giảm mạnh nhất" rows={data.losers} onSelect={onSelect} kind="down" />
         <List title="GTGD đột biến (≥ 2× TB20)" rows={data.valueSpikes} onSelect={onSelect} kind="spike" />
       </div>
-      <p className="text-[9px] text-slate-500">{data.scope.label} · phiên đã chốt {data.asOf.slice(8, 10)}/{data.asOf.slice(5, 7)} · {data.eligible} mã · lọc thanh khoản ≥ {data.liquidityFloor ? `${vn(data.liquidityFloor / 1e9, 0)} tỷ/phiên` : "—"}</p>
+      <p className="text-[10px] text-slate-500">{data.scope.label} · phiên đã chốt {data.asOf.slice(8, 10)}/{data.asOf.slice(5, 7)} · {data.eligible} mã · lọc thanh khoản ≥ {data.liquidityFloor ? `${vn(data.liquidityFloor / 1e9, 0)} tỷ/phiên` : "—"}</p>
     </div>
   );
 }

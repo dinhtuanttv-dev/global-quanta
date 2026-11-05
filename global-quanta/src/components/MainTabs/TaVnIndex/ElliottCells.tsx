@@ -25,7 +25,7 @@ export function ElliottCell({ row }: { row: ElliottLatest | undefined }) {
     <span className={`whitespace-nowrap ${active ? "" : "opacity-60"}`} data-testid="elliott-cell"
       title={`${row.title} (bậc ${row.level}) · ${STATE_LABEL[row.state]}${row.triggeredAt ? ` từ ${row.triggeredAt}` : ""} · kích hoạt ${fmt(row.trigger)} · MT1 ${fmt(row.target1)} · vô hiệu ${fmt(row.invalidation)} — Elliott Pro, không phải khuyến nghị`}>
       <span className={`font-bold ${tone}`}>{row.title} {row.dir > 0 ? "↑" : "↓"}</span>
-      <span className={`block text-[8px] ${active ? "text-cyan-300" : "text-slate-500"}`}>{row.state === "triggered" && row.triggeredAt ? `đã kích hoạt ${row.triggeredAt.slice(5)}` : STATE_LABEL[row.state]}</span>
+      <span className={`block text-[10px] ${active ? "text-cyan-300" : "text-slate-500"}`}>{row.state === "triggered" && row.triggeredAt ? `đã kích hoạt ${row.triggeredAt.slice(5)}` : STATE_LABEL[row.state]}</span>
     </span>
   );
 }

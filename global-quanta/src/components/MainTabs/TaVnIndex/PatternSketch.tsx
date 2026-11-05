@@ -173,7 +173,7 @@ export default function PatternSketch({ bars, result, strategy }: { bars: OhlcvB
         ))}
       </svg>
       {hb && (
-        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[9px] font-mono text-slate-200 pointer-events-none"
+        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[10px] font-mono text-slate-200 pointer-events-none"
           style={{ background: "rgba(2,6,15,0.92)", border: "1px solid rgba(148,163,184,0.25)" }} data-testid="sketch-tooltip">
           {hb.date} · O {fmt(hb.open)} H {fmt(hb.high)} L {fmt(hb.low)} C {fmt(hb.close)} · KL {fmt(hb.volume)}
         </div>
@@ -188,7 +188,7 @@ export default function PatternSketch({ bars, result, strategy }: { bars: OhlcvB
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400 mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 mt-1">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: UP }} />Nến tăng</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ border: `1px solid ${DOWN}` }} />Nến giảm</span>
         {cupPath && <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: ACCENT }} />Đường cốc</span>}

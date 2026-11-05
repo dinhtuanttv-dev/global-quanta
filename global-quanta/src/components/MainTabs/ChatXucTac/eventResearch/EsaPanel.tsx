@@ -79,7 +79,7 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
           <p className={`${muted} mt-1`}>Đối chiếu volume lũy kế với cùng thời điểm ở các phiên trước; đây chưa phải dự báo giá.</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded border border-amber-700/60 px-2 py-1 text-[9px] font-semibold text-amber-300">RESEARCH ONLY</span>
+          <span className="rounded border border-amber-700/60 px-2 py-1 text-[10px] font-semibold text-amber-300">RESEARCH ONLY</span>
           <button type="button" onClick={() => void refresh()} disabled={loading || !symbol} className="rounded border border-white/10 px-2 py-1 text-[10px] text-slate-300 disabled:opacity-50">
             {loading ? "Đang cập nhật…" : "Cập nhật"}
           </button>
@@ -120,7 +120,7 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
             </li>)}</ul>
           </div>}
 
-          <p className="border-t border-white/5 pt-2 text-[9px] text-slate-500">
+          <p className="border-t border-white/5 pt-2 text-[10px] text-slate-500">
             {snapshot.method.version} · {snapshot.observation?.source ?? "SSI FC Data qua Market Gateway"} · as-of {snapshot.asOf ?? "—"} · tuổi dữ liệu {snapshot.ageMs == null ? "—" : `${Math.round(snapshot.ageMs / 1000)} giây`} · {snapshot.disclaimer}
           </p>
         </div>
@@ -131,8 +131,8 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
 
 function Metric({ label, value, sub }: { label: string; value: string; sub: string }) {
   return <div className="rounded-lg bg-white/[0.035] p-2.5">
-    <p className="text-[9px] text-slate-400">{label}</p>
+    <p className="text-[10px] text-slate-400">{label}</p>
     <p className="mt-1 text-sm font-semibold tabular-nums text-slate-100">{value}</p>
-    <p className="mt-1 text-[9px] text-slate-500">{sub}</p>
+    <p className="mt-1 text-[10px] text-slate-500">{sub}</p>
   </div>;
 }

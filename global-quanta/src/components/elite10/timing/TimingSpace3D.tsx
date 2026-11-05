@@ -284,7 +284,7 @@ export default function TimingSpace3D({ es, bars, indexBars = [], barsLoading, w
 
   const evRibbons = space.ribbons.filter((r) => r.kind === "event");
   const inWin = (c: SpaceCell) => win != null && c.offset >= win.entryFrom && c.offset <= win.exitOffset;
-  const btn = (on: boolean) => `min-h-[26px] rounded border px-2 text-[10px] ${on ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-200" : "border-white/10 text-slate-400"}`;
+  const btn = (on: boolean) => `min-h-[26px] rounded border px-2 text-[10px] ${on ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400"}`;
 
   return (
     <div data-testid="timing-space-3d">

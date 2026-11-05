@@ -189,7 +189,7 @@ export default function ElliottSketch({ bars, state, higher, ticker, frame, osc:
         ))}
       </svg>
       {hb && (
-        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[9px] font-mono text-slate-200 pointer-events-none"
+        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[10px] font-mono text-slate-200 pointer-events-none"
           style={{ background: "rgba(2,6,15,0.92)", border: "1px solid rgba(148,163,184,0.25)" }} data-testid="elliott-sketch-tooltip">
           {hb.date} · O {fmt(hb.open)} H {fmt(hb.high)} L {fmt(hb.low)} C {fmt(hb.close)}{ho ? ` · DĐ ${ho.osc.toFixed(2)}` : ""}
         </div>
@@ -204,7 +204,7 @@ export default function ElliottSketch({ bars, state, higher, ticker, frame, osc:
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400 mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 mt-1">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2" style={{ borderColor: cc }} />Đếm sóng {frame === "W" ? "tuần" : "ngày"}</span>
         {hPts.length >= 2 && <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: VIOLET }} />(n) đếm sóng tuần</span>}
         <span>● đã xác nhận · ◌? chưa xác nhận</span>
@@ -212,7 +212,7 @@ export default function ElliottSketch({ bars, state, higher, ticker, frame, osc:
         <span>cột đậm = dao động vượt dải 80%</span>
         <span className="ml-auto text-slate-500">{view[0].date} → {view[view.length - 1].date} · {from > 0 ? `${view.length} nến` : "toàn bộ"}</span>
       </div>
-      {hidden.length > 0 && <p className="text-[9px] text-slate-500 mt-0.5">Ngoài khung: {hidden.map((l) => l.label).join(" · ")}</p>}
+      {hidden.length > 0 && <p className="text-[10px] text-slate-500 mt-0.5">Ngoài khung: {hidden.map((l) => l.label).join(" · ")}</p>}
     </div>
   );
 }

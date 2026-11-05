@@ -87,14 +87,14 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-lg font-black text-amber-400 tracking-wide">{row.ticker}</span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${buy ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${buy ? "bg-emerald-500/15 text-emerald-300" : "bg-rose-500/15 text-rose-300"}`}>
               {buy ? "▲ Tích luỹ · phía mua" : "▼ Phân phối · phía bán"}
             </span>
-            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-violet-500/15 text-violet-200" data-testid="deep-phase">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-violet-500/15 text-violet-200" data-testid="deep-phase">
               {w ? WYCKOFF_PHASE_LABEL[w.phase] : row.wyckoff.phase}{cur ? ` · Phase ${cur}` : ""}
             </span>
-            {(conv?.status ?? row.status) === "READY" && <span className="text-[8px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 font-bold">READY · lần mua mới khớp</span>}
-            {evidence && <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${evidence.label === "VALIDATED" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`}>{evidence.label}</span>}
+            {(conv?.status ?? row.status) === "READY" && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-200 font-bold">READY · lần mua mới khớp</span>}
+            {evidence && <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${evidence.label === "VALIDATED" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`}>{evidence.label}</span>}
           </div>
           <div className="text-[10px] text-slate-400 truncate">
             {row.name ?? ""}{row.sector ? ` · ${row.sector}` : ""} · Hợp lưu v2 · Wyckoff {w?.engine ?? row.wyckoff.engine} · dữ liệu tới {conv?.dataAsOf ?? row.date}
@@ -116,7 +116,7 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
       </header>
 
       {differs && (
-        <p className="text-[9px] text-amber-300/80" data-testid="deep-differs">
+        <p className="text-[10px] text-amber-300/80" data-testid="deep-differs">
           Gateway quét phiên {row.date}: {row.metrics.score} điểm · tính lại trên trình duyệt với dữ liệu tới {conv!.dataAsOf}: {conv!.score} điểm (dữ liệu mới hơn lần quét).
         </p>
       )}
@@ -147,7 +147,7 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
         <Card title="Sơ đồ mẫu Wyckoff" right="mẫu chuẩn ↔ thực tế">
           <WyckoffCycleMap kind={buy ? "accumulation" : "distribution"} current={cur} />
           {sequence.length > 0 && (
-            <div className="mt-1.5 text-[9px] text-slate-400 leading-relaxed" data-testid="deep-sequence">
+            <div className="mt-1.5 text-[10px] text-slate-400 leading-relaxed" data-testid="deep-sequence">
               <span className="text-slate-500">Thực tế: </span>
               {sequence.map((e, i) => (
                 <span key={`${e.event}-${e.index}`}>
@@ -158,7 +158,7 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
               ))}
             </div>
           )}
-          {w?.statusReason && <p className="mt-1 text-[9px] text-slate-500">{w.statusReason}</p>}
+          {w?.statusReason && <p className="mt-1 text-[10px] text-slate-500">{w.statusReason}</p>}
         </Card>
       </div>
 
@@ -185,7 +185,7 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
               ))}
             </ul>
           ) : <div className="text-[10px] text-slate-500 py-4">Không có mức giá cùng chiều.</div>}
-          {zone && <p className="pt-1 text-[9px] text-slate-500">Nguồn: {zone.kinds.map((k) => KIND_VI[k] ?? k).join(" ∩ ")} · gom ±1,5%, chỉ mức cùng chiều với Wyckoff.</p>}
+          {zone && <p className="pt-1 text-[10px] text-slate-500">Nguồn: {zone.kinds.map((k) => KIND_VI[k] ?? k).join(" ∩ ")} · gom ±1,5%, chỉ mức cùng chiều với Wyckoff.</p>}
         </Card>
 
         <Card title="Thành phần điểm" right={`${conv?.score ?? row.metrics.score}/100`}>
@@ -197,11 +197,11 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
                   <span className="font-mono text-slate-300 shrink-0">{c.points}/{c.max}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${(c.points / c.max) * 100}%`, background: c.ok ? (buy ? UP : DOWN) : ACCENT }} /></div>
-                <div className="text-[9px] text-slate-500 truncate" title={c.value}>{c.value}</div>
+                <div className="text-[10px] text-slate-500 truncate" title={c.value}>{c.value}</div>
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[9px] text-slate-500">Trọng số đặt trước kiểm định, không tinh chỉnh · không phải xác suất.</p>
+          <p className="mt-1.5 text-[10px] text-slate-500">Trọng số đặt trước kiểm định, không tinh chỉnh · không phải xác suất.</p>
         </Card>
       </div>
 
@@ -215,7 +215,7 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
         <Card title="Tín hiệu & kiểm định" right={evidence?.label === "PENDING" ? "đang chờ job đêm" : evidence?.outOfSample?.n ? `ngoài mẫu PF ${evidence.outOfSample.profitFactor?.toFixed(2).replace(".", ",") ?? "—"}` : undefined}>
           {w?.signals?.length ? <WyckoffSignalsBlock signals={w.signals} /> : <p className="text-[10px] text-slate-500">Chưa có tín hiệu chuyển pha / lần mua khớp.</p>}
           {gradeStats?.n ? (
-            <p className="mt-1.5 text-[9px] text-slate-500 leading-relaxed" data-testid="deep-grade-stats">
+            <p className="mt-1.5 text-[10px] text-slate-500 leading-relaxed" data-testid="deep-grade-stats">
               Lịch sử hạng {grade} của bộ lọc: {gradeStats.n} lệnh · thắng {gradeStats.winRate?.toFixed(0)}% · PF {gradeStats.profitFactor?.toFixed(2).replace(".", ",") ?? "—"} — hạng không phân biệt được lợi suất trong kiểm định.
             </p>
           ) : null}
@@ -235,18 +235,18 @@ export default function ConvergenceDeepPanel({ row, doc, onClose, onOpenChart, o
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]" data-testid="deep-convergence-elliott">
             {([["Tuần", ew.week, ew.osc.week], ["Ngày", ew.day, ew.osc.day]] as const).map(([tag, st, oc]) => (
               <div key={tag} className="space-y-0.5">
-                <div className="text-[9px] text-slate-500">Khung {tag.toLowerCase()}{tag === "Tuần" && ew.week?.partial ? " (tuần chưa hết)" : ""}</div>
+                <div className="text-[10px] text-slate-500">Khung {tag.toLowerCase()}{tag === "Tuần" && ew.week?.partial ? " (tuần chưa hết)" : ""}</div>
                 <div className={`font-semibold ${st?.dir === "up" ? "text-emerald-300" : st?.dir === "down" ? "text-rose-300" : "text-slate-400"}`}>{st?.label ?? "Chưa đủ dữ liệu"}</div>
-                {st?.invalidation && <div className="text-[9px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} {Math.round(st.invalidation.price).toLocaleString("vi-VN")}</div>}
-                {oc && oc.wave !== "none" && <div className="text-[9px] text-slate-500">{oc.label}</div>}
+                {st?.invalidation && <div className="text-[10px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} {Math.round(st.invalidation.price).toLocaleString("vi-VN")}</div>}
+                {oc && oc.wave !== "none" && <div className="text-[10px] text-slate-500">{oc.label}</div>}
               </div>
             ))}
           </div>
-          <p className="text-[9px] text-slate-400 mt-1">{ew.relationText}</p>
-          <p className="text-[8.5px] text-slate-600 mt-0.5">{ELLIOTT_VN_NOTE}</p>
+          <p className="text-[10px] text-slate-400 mt-1">{ew.relationText}</p>
+          <p className="text-[10px] text-slate-600 mt-0.5">{ELLIOTT_VN_NOTE}</p>
         </Card>
       )}
-      <p className="text-[9px] text-slate-600">
+      <p className="text-[10px] text-slate-600">
         Bấm lại mã hoặc Esc để đóng · {doc.disclaimer} · {series.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : series.priceBasis} · cùng engine với Gateway và biểu đồ TA
       </p>
     </div>

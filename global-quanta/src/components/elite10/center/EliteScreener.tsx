@@ -152,9 +152,9 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
       <button key={c.id} type="button" onClick={() => cycle(c.id)} data-testid={`chip-${c.id}`} aria-pressed={on || no} data-state={on ? "on" : no ? "not" : "off"}
         title={`${c.title ?? c.label} · ${tier === "V" ? "vùng mua v3 đạt kiểm định" : tier === "—" ? "điều kiện thanh khoản" : `bậc ${tier}`} · ${n?.alone ?? 0} mã đạt riêng điều kiện này · bấm: yêu cầu → loại trừ → tắt`}
         className={`inline-flex min-h-[26px] items-center gap-1 rounded border px-1.5 text-[10px] ${on ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100" : no ? "border-rose-400/60 bg-rose-500/10 text-rose-200 line-through decoration-rose-300/70" : "border-white/10 text-slate-300 hover:border-white/25"}`}>
-        <span className={`rounded px-1 text-[8.5px] font-bold ${tier === "A" ? "bg-emerald-500/25 text-emerald-200" : tier === "B" ? "bg-sky-500/25 text-sky-200" : tier === "V" ? "bg-amber-500/25 text-amber-200" : "bg-white/10 text-slate-400"}`}>{tier}</span>
+        <span className={`rounded px-1 text-[10px] font-bold ${tier === "A" ? "bg-emerald-500/25 text-emerald-200" : tier === "B" ? "bg-sky-500/25 text-sky-200" : tier === "V" ? "bg-amber-500/25 text-amber-200" : "bg-white/10 text-slate-400"}`}>{tier}</span>
         {c.label}
-        <span className="font-mono text-[9px] text-slate-400" data-testid={`chip-count-${c.id}`}>{on || no ? n?.alone ?? 0 : ui.mode === "all" ? `→${n?.withCurrent ?? 0}` : n?.alone ?? 0}</span>
+        <span className="font-mono text-[10px] text-slate-400" data-testid={`chip-count-${c.id}`}>{on || no ? n?.alone ?? 0 : ui.mode === "all" ? `→${n?.withCurrent ?? 0}` : n?.alone ?? 0}</span>
       </button>
     );
   };
@@ -170,7 +170,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-400">Bộ chọn sẵn:</span>
         {PRESETS.map((p) => (
           <button key={p.id} type="button" title={p.title} data-testid={`preset-${p.id}`} onClick={() => setUi(p.ui)}
-            className={`min-h-[24px] rounded border px-2 ${ui.name === p.ui.name ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{p.label}</button>
+            className={`min-h-[24px] rounded border px-2 ${ui.name === p.ui.name ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{p.label}</button>
         ))}
         <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
           <span className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Cách kết hợp">
@@ -184,20 +184,20 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               <button type="button" aria-label="Tăng k" onClick={() => setUi({ ...ui, k: Math.min(Math.max(1, nConds), ui.k + 1) })} className="h-6 w-6 rounded border border-white/10">+</button>
             </span>
           )}
-          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.neutral} onChange={(e) => setUi({ ...ui, neutral: e.target.checked })} className="accent-cyan-400" data-testid="toggle-neutral" /> Phân vị trung lập ngành</label>
-          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.eligibleOnly} onChange={(e) => setUi({ ...ui, eligibleOnly: e.target.checked })} className="accent-cyan-400" data-testid="toggle-eligible" /> Chỉ mã đủ điều kiện danh mục</label>
+          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.neutral} onChange={(e) => setUi({ ...ui, neutral: e.target.checked })} className="accent-[#E8B84B]" data-testid="toggle-neutral" /> Phân vị trung lập ngành</label>
+          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.eligibleOnly} onChange={(e) => setUi({ ...ui, eligibleOnly: e.target.checked })} className="accent-[#E8B84B]" data-testid="toggle-eligible" /> Chỉ mã đủ điều kiện danh mục</label>
         </span>
       </div>
 
       <div className="grid gap-1.5 md:grid-cols-2">
         {groups.map((g) => (
           <div key={g} className="rounded border border-white/5 bg-white/[0.015] p-1.5">
-            <p className="mb-1 text-[9px] font-bold uppercase text-slate-500">{g}</p>
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">{g}</p>
             <div className="flex flex-wrap gap-1">{CHIPS.filter((c) => c.group === g).map(chipBtn)}</div>
           </div>
         ))}
         <div className="rounded border border-rose-400/15 bg-rose-500/[0.03] p-1.5">
-          <p className="mb-1 text-[9px] font-bold uppercase text-rose-300/80">Loại trừ (bấm chip thường 2 lần cũng thành loại trừ)</p>
+          <p className="mb-1 text-[10px] font-bold uppercase text-rose-300/80">Loại trừ (bấm chip thường 2 lần cũng thành loại trừ)</p>
           <div className="flex flex-wrap gap-1">{EXCLUDE_CHIPS.map(chipBtn)}</div>
         </div>
       </div>
@@ -220,12 +220,12 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-400">Xếp theo:</span>
         {([["z", "Điểm Elite"], ["hits", "Số điều kiện đạt"], ["similar", refTicker ? `Giống ${refTicker}` : "Giống mã (chọn mã ở Hồ sơ)"]] as const).map(([k, l]) => (
           <button key={k} type="button" disabled={k === "similar" && !refTicker} aria-pressed={sort === k} onClick={() => setSort(k)} data-testid={`sort-${k}`}
-            className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-100" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
+            className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
         ))}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="screener-table">
-          <thead><tr className="text-left text-[9.5px] text-slate-500">
+          <thead><tr className="text-left text-[10px] text-slate-500">
             <th className="py-1">#</th><th>Mã</th><th>Hạng · Z</th><th title="Số điều kiện YÊU CẦU đạt">Đạt</th>
             <th title={`Vân tay ${sigOrder.length} tín hiệu theo tab (xanh = mạnh theo đúng chiều tốt, đỏ = yếu; bậc / cờ theo dấu; tối = thiếu dữ liệu)`}>Vân tay {sigOrder.length} tín hiệu</th>
             {sort === "similar" && <th>Giống</th>}
@@ -235,9 +235,9 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               <tr key={x.t} className="border-t border-white/5" data-testid={`scr-row-${x.t}`}>
                 <td className="py-1 pr-1 font-mono text-slate-500">{i + 1}</td>
                 <td className="whitespace-nowrap pr-2">
-                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-cyan-300 hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
+                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-[#F5CE72] hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
                   {pareto.has(x.t) && <span className="ml-1 text-amber-300" title={`Biên Pareto: không mã nào trong kết quả mạnh hơn ở MỌI tiêu chí (${paretoSigs.join(", ")})`} data-testid={`scr-pareto-${x.t}`}>★</span>}
-                  {inElite.has(x.t) && <span className="ml-1 rounded border border-emerald-400/50 px-1 text-[8.5px] text-emerald-300">Elite 10</span>}
+                  {inElite.has(x.t) && <span className="ml-1 rounded border border-emerald-400/50 px-1 text-[10px] text-emerald-300">Elite 10</span>}
                 </td>
                 <td className="whitespace-nowrap pr-2 font-mono">#{x.s?.rank ?? "—"} · {num(x.s?.Z)}</td>
                 <td className="pr-2 font-mono">{x.hits}/{nConds}</td>
@@ -255,12 +255,12 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           </tbody>
         </table>
       </div>
-      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-cyan-300">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
+      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-[#F5CE72]">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
 
       <div className="rounded-md border border-emerald-400/20 bg-emerald-500/[0.03] p-2" data-testid="my-elite">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-[11px] font-bold text-emerald-300">Elite 10 · bộ lọc của tôi</p>
-          <span className="text-[9.5px] text-slate-500">cùng thuật toán danh mục chính thức (Điểm Elite, trần 3 mã / ngành, ERC) trên tập mã đạt bộ lọc ĐÃ LƯU · không thay đổi danh mục chính thức</span>
+          <span className="text-[10px] text-slate-500">cùng thuật toán danh mục chính thức (Điểm Elite, trần 3 mã / ngành, ERC) trên tập mã đạt bộ lọc ĐÃ LƯU · không thay đổi danh mục chính thức</span>
         </div>
         {my.savedError ? <p className="text-[10px] text-slate-500">Đăng nhập để lưu bộ lọc và theo dõi danh mục riêng ({my.savedError}).</p>
           : !my.saved?.filter ? <p className="text-[10px] text-slate-500" data-testid="my-elite-empty">Chưa lưu bộ lọc nào — bấm 💾 Lưu vào tài khoản. Sổ theo dõi bắt đầu từ phiên dựng kế tiếp (không chấm ngược quá khứ).</p>
@@ -280,7 +280,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               </p>
             </>
           ) : <p className="text-[10px] text-amber-300">Không dựng được danh mục từ bộ lọc ({my.portfolioError ?? "—"}).</p>}
-        <p className="mt-1 text-[9.5px] text-slate-500">Bộ lọc chỉ được đưa vào danh mục chính thức khi vượt kiểm định đặt trước (walk-forward, bootstrap khối, FDR qua các bộ lọc đã thử, xác suất overfit) trên sổ theo dõi tiến đủ dài. Tín hiệu bậc C là bối cảnh, chưa có lợi thế đã kiểm định.</p>
+        <p className="mt-1 text-[10px] text-slate-500">Bộ lọc chỉ được đưa vào danh mục chính thức khi vượt kiểm định đặt trước (walk-forward, bootstrap khối, FDR qua các bộ lọc đã thử, xác suất overfit) trên sổ theo dõi tiến đủ dài. Tín hiệu bậc C là bối cảnh, chưa có lợi thế đã kiểm định.</p>
       </div>
     </div>
   );

@@ -50,11 +50,11 @@ export default function SepaIntradayStrip({ onOpen }: { onOpen?: (ticker: string
   const { data, error, live } = useSepaIntraday();
   const rows = (data?.rows ?? []).filter((r) => r.state && r.state !== "BELOW");
   const notify = useBreakoutNotifications(data?.rows ?? [], data?.date);
-  if (error) return <p className="text-[9px] text-slate-500" data-testid="sepa-intraday-error">Cảnh báo trong phiên chưa sẵn sàng: {error.message}</p>;
+  if (error) return <p className="text-[10px] text-slate-500" data-testid="sepa-intraday-error">Cảnh báo trong phiên chưa sẵn sàng: {error.message}</p>;
   if (!data) return null;
   return (
     <div className="rounded-lg border border-emerald-900/50 bg-emerald-950/20 p-2 space-y-1" data-testid="sepa-intraday">
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[9.5px]">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px]">
         <Zap className="w-3 h-3 text-emerald-400" />
         <b className="text-slate-200">Cảnh báo phá vỡ trong phiên</b>
         <span className="text-slate-400" data-testid="sepa-intraday-session">
@@ -62,7 +62,7 @@ export default function SepaIntradayStrip({ onOpen }: { onOpen?: (ticker: string
         </span>
         {notify.supported && (
           <button type="button" onClick={() => void notify.toggle()} aria-pressed={notify.on} data-testid="sepa-intraday-notify"
-            className="ml-auto inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:text-emerald-300">
+            className="ml-auto inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-slate-700 text-slate-300 hover:text-emerald-300">
             {notify.on ? <Bell className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}{notify.on ? "Đang bật thông báo" : "Bật thông báo"}
           </button>
         )}
@@ -72,16 +72,16 @@ export default function SepaIntradayStrip({ onOpen }: { onOpen?: (ticker: string
           {rows.map((r) => (
             <button key={r.ticker} type="button" onClick={() => onOpen?.(r.ticker)} data-testid="sepa-intraday-chip" data-state={r.state ?? ""}
               title={`${r.label} · pivot ${fmtP(r.pivot)} · vùng mua tới ${fmtP(r.buyZoneTop)} · KL ${fmtP(r.totalVolume)} cp${r.projRatio != null ? `, dự phóng ${r.projRatio.toFixed(2)}× TB50` : ""}${r.volumeMissing ? " · nguồn giá chưa trả khối lượng — không ngoại suy" : r.reliable === false ? " · mới mở cửa, ngoại suy kém tin cậy" : ""}`}
-              className={`text-left text-[9px] px-1.5 py-1 rounded-md border ${STYLE[r.state!] ?? ""}`}>
+              className={`text-left text-[10px] px-1.5 py-1 rounded-md border ${STYLE[r.state!] ?? ""}`}>
               <b className="font-black">{r.ticker}</b> <span>{r.label}</span>
-              <span className="block font-mono text-[8.5px] opacity-90">
+              <span className="block font-mono text-[10px] opacity-90">
                 {fmtP(r.price)} · {pct(r.distPct)} so pivot · KL {r.volumeMissing ? "chưa có" : r.projRatio != null ? `${r.projRatio.toFixed(1).replace(".", ",")}×` : "—"}{r.projRatio != null && r.reliable === false ? "*" : ""}{r.since ? ` · từ ${hm(r.since)}` : ""}
               </span>
             </button>
           ))}
         </div>
-      ) : <p className="text-[9px] text-slate-500" data-testid="sepa-intraday-empty">Chưa có mã nào vượt hoặc tiến sát pivot{live ? "" : " (ngoài giờ giao dịch — số liệu là của phiên gần nhất)"}.</p>}
-      <p className="text-[8.5px] text-slate-500">{data.rule}. KL dự phóng = KL hiện tại × 255 / số phút đã giao dịch (s.270); * = dưới 15 phút, kém tin cậy. Chỉ báo hiệu để xem xét — không phải lệnh mua.</p>
+      ) : <p className="text-[10px] text-slate-500" data-testid="sepa-intraday-empty">Chưa có mã nào vượt hoặc tiến sát pivot{live ? "" : " (ngoài giờ giao dịch — số liệu là của phiên gần nhất)"}.</p>}
+      <p className="text-[10px] text-slate-500">{data.rule}. KL dự phóng = KL hiện tại × 255 / số phút đã giao dịch (s.270); * = dưới 15 phút, kém tin cậy. Chỉ báo hiệu để xem xét — không phải lệnh mua.</p>
     </div>
   );
 }

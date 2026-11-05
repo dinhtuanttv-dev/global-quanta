@@ -8,7 +8,7 @@ function Tile({ t }: { t: PulseTile }) {
     <article className="min-w-0 rounded-lg border border-white/10 bg-white/[0.025] p-3" data-testid={`pulse-${t.id}`}>
       <div className="flex items-baseline justify-between gap-2">
         <h4 className="truncate text-[11px] font-semibold text-slate-200">{t.label}</h4>
-        <span className="shrink-0 text-[9px] text-slate-500">{t.sub}</span>
+        <span className="shrink-0 text-[10px] text-slate-500">{t.sub}</span>
       </div>
       <p className="mt-1.5 text-lg font-semibold tabular-nums text-slate-50">{fmtValue(t.value, t.digits)}{t.unit && <span className="ml-0.5 text-xs font-normal text-slate-400">{t.unit}</span>}</p>
       <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] tabular-nums">

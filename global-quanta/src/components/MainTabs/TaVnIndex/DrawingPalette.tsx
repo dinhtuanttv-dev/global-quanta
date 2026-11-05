@@ -39,7 +39,7 @@ export default function DrawingPalette({ activeTool, onSelectTool, fibExtensionM
         title={fibExtensionMode ? "Fib Extension: BẬT (127.2/161.8/261.8%)" : "Fib Extension: TẮT"}
         onClick={onToggleFibExtension} data-testid="fib-ext" aria-pressed={fibExtensionMode}
         style={fibExtensionMode ? { background: "rgba(167,139,250,0.2)", color: "#a78bfa" } : { color: "#64748b" }}
-        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition text-[9px] font-bold">
+        className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-slate-700/40 transition text-[10px] font-bold">
         Ext
       </button>
     </div>

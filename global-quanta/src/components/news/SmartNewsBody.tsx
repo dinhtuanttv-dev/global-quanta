@@ -62,7 +62,7 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
           <span style={{ color: s.c, marginRight: 4 }} title={`${s.t} (${item.sentiment.toFixed(2)})${item.sentimentHits.length ? ` · ${item.sentimentHits.join(', ')}` : ''}`}>{s.g}</span>
           {item.title}
         </div>
-        <div className="news-meta flex flex-wrap gap-x-1.5 gap-y-0.5 items-center text-[9.5px] text-slate-500 mt-1">
+        <div className="news-meta flex flex-wrap gap-x-1.5 gap-y-0.5 items-center text-[10px] text-slate-500 mt-1">
           {rel && <span className={`font-semibold ${rel === 'Core' ? 'text-amber-400' : 'text-sky-400'}`}>● {rel}</span>}
           <span className="text-slate-300">{item.eventLabel}</span>
           <span title={item.alsoIn.length ? `Cũng đưa tin: ${item.alsoIn.join(', ')}` : undefined}>
@@ -166,7 +166,7 @@ export default function SmartNewsBody({ tickers, selectedTicker, onTicker, relev
         </button>
       )}
       {data && (
-        <div className="text-[9.5px] text-slate-500 mt-1">
+        <div className="text-[10px] text-slate-500 mt-1">
           Nguồn: công bố HOSE/HNX/UPCOM, VNDirect, Vietstock, CafeF · {data.days} ngày · {data.items.length} tin sau khi gộp trùng
           {failed ? ` · ${failed} nguồn tạm lỗi` : ''} · cảm xúc theo từ điển tài chính, không phải khuyến nghị.
         </div>

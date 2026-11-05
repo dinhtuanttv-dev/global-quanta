@@ -29,7 +29,7 @@ export default function EsaSincePopover({ since, item, onClose }: { since: EsaSi
         ))}
       </div>
       <p className="mt-1">Gấp <b className="text-slate-100">{since.relativeVolume?.toFixed(2) ?? "—"}×</b> trung vị · z bền <b className="text-slate-100">{sgn(since.robustZ)}</b> · giá từ lúc ra tin <b className="text-slate-100">{sgn(since.priceChangeSincePct)}%</b> · {since.sampleSize} phiên so sánh</p>
-      <p className="mt-1 text-[9.5px] text-slate-500">Bất thường khi z ≥ 3 VÀ gấp ≥ 2 lần trung vị cùng khung phút (trung vị + 1,4826 × MAD, như ESA R0). Mô tả hoạt động sau tin — không phải dự báo giá.</p>
+      <p className="mt-1 text-[10px] text-slate-500">Bất thường khi z ≥ 3 VÀ gấp ≥ 2 lần trung vị cùng khung phút (trung vị + 1,4826 × MAD, như ESA R0). Mô tả hoạt động sau tin — không phải dự báo giá.</p>
     </div>
   );
 }

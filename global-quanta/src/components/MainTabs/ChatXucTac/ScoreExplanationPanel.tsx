@@ -21,7 +21,7 @@ export default function ScoreExplanationPanel({ explanation }: Props) {
               background: c.direction === "positive" ? "var(--positive)" : "var(--negative)",
             }} />
           </div>
-          <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: 0 }}>{c.detail}</p>
+          <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: 0 }}>{c.detail}</p>
         </div>
       ))}
     </div>

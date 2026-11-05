@@ -122,7 +122,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
         </button>
       </header>
 
-      <p className="text-[9px] text-slate-500 leading-relaxed flex items-start gap-1">
+      <p className="text-[10px] text-slate-500 leading-relaxed flex items-start gap-1">
         <Info className="w-3 h-3 shrink-0 mt-px" />
         {data?.disclaimer ?? "Bộ lọc kỹ thuật tham khảo; tín hiệu chưa được xác nhận là có lợi thế sinh lời."}
         {data && (
@@ -133,7 +133,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
       </p>
       {data?.evidence && <EvidenceCard evidence={data.evidence} marketUp={data.market?.up} live={data.liveTracking} />}
       {isCamSlim && data?.market && (
-        <p className="text-[9px] text-slate-500" data-testid="canslim-context">
+        <p className="text-[10px] text-slate-500" data-testid="canslim-context">
           M: VN-Index {data.market.up ? "trên" : data.market.up === false ? "dưới" : "chưa rõ so với"} EMA21{data.market.ribbon ? ` · dải EMA21/50/100${data.market.ribbon.ma200 != null ? "/MA200" : ""} ${data.market.ribbon.state === "up" ? "xếp lớp tăng" : data.market.ribbon.state === "down" ? "xếp lớp giảm" : "đan xen"}${data.market.ribbon.aboveMa200 == null ? "" : data.market.ribbon.aboveMa200 ? " · trên MA200" : " · dưới MA200"}` : ""} · {data.market.distributionDays ?? "—"} ngày phân phối / 25 phiên
           {data.fundamentalsCoverage && data.fundamentalsCoverage.with12Quarters < 0.8 * data.fundamentalsCoverage.withData && (
             <span className="text-amber-300/80"> · BCTC đủ 12 quý: {data.fundamentalsCoverage.with12Quarters}/{data.fundamentalsCoverage.withData} mã (đang bổ sung — yếu tố A chưa đủ)</span>
@@ -142,7 +142,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
         </p>
       )}
       {data?.criteria && (
-        <p className="text-[9px] text-slate-500" data-testid="filter-criteria">
+        <p className="text-[10px] text-slate-500" data-testid="filter-criteria">
           Giá điều chỉnh cộng dồn · {data.criteria.range === "3y" ? "3 năm" : data.criteria.range} · Giá ≥ {formatPrice(data.criteria.minPrice)}đ · GTGD TB20 ≥ {formatBillion(data.criteria.minAvgValue20)}
         </p>
       )}
@@ -168,7 +168,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
       {!!data?.results.length && (
         <div className="flex items-center gap-2">
           <AlignToggle on={alignOn} onChange={setAlignOn} count={data.results.filter((r) => isDayAligned(structure.byTicker.get(r.ticker))).length} />
-          {structure.data && <span className="text-[9px] text-slate-500">Cấu trúc MTF · {structure.data.asOf}</span>}
+          {structure.data && <span className="text-[10px] text-slate-500">Cấu trúc MTF · {structure.data.asOf}</span>}
         </div>
       )}
       {!!data?.results.length && (
@@ -220,10 +220,10 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                       <ChevronRight className={`w-3 h-3 transition-transform ${open === result.ticker ? "rotate-90" : ""}`} />
                       {result.ticker}
                     </button>
-                    <span className="block text-[8px] text-slate-600">{result.date}</span>
+                    <span className="block text-[10px] text-slate-600">{result.date}</span>
                   </td>
                   <td className="py-1.5">
-                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                       result.status === "BREAKOUT"
                         ? "bg-emerald-500/10 text-emerald-400"
                         : "bg-sky-500/10 text-sky-400"
@@ -231,12 +231,12 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                       {result.status === "BREAKOUT" ? "Breakout" : "Setup"}
                     </span>
                     {result.grade && (
-                      <span className={`ml-1 text-[8px] px-1 py-0.5 rounded border font-black ${GRADE_STYLE[result.grade]}`} data-testid="grade">
+                      <span className={`ml-1 text-[10px] px-1 py-0.5 rounded border font-black ${GRADE_STYLE[result.grade]}`} data-testid="grade">
                         {result.grade}
                       </span>
                     )}
                     {result.status === "SETUP" && result.metrics.belowPivotPct != null && (
-                      <span className="block text-[8px] text-slate-500">cách pivot {formatPct(result.metrics.belowPivotPct)}</span>
+                      <span className="block text-[10px] text-slate-500">cách pivot {formatPct(result.metrics.belowPivotPct)}</span>
                     )}
                   </td>
                   <td className="py-1.5 text-[10px]"><StructureCell row={structure.byTicker.get(result.ticker)} /></td>
@@ -247,7 +247,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
                       <td className="py-1.5 pl-3">{result.components ? <CanSlimDots components={result.components} /> : "—"}</td>
                       <td className="py-1.5 text-right text-slate-300 hidden sm:table-cell">
                         {result.pattern ? `${result.pattern.depthPct.toFixed(0)}% · ${result.pattern.cupBars}p` : formatPct(result.metrics.depthPct)}
-                        {result.pattern && <span className="block text-[8px] text-slate-500">tay cầm {result.pattern.handleBars}p · {result.pattern.handleDepthPct.toFixed(0)}%</span>}
+                        {result.pattern && <span className="block text-[10px] text-slate-500">tay cầm {result.pattern.handleBars}p · {result.pattern.handleDepthPct.toFixed(0)}%</span>}
                       </td>
                       <td className="py-1.5 text-right font-mono text-slate-300">{formatPrice(result.metrics.pivot)}</td>
                       <td className={`py-1.5 text-right font-mono ${(result.metrics.rs ?? 0) >= 80 ? "text-emerald-400" : "text-slate-300"}`}>{result.metrics.rs ?? "—"}</td>
@@ -278,7 +278,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
       )}
 
       {data && data.skipped.length > 0 && (
-        <details className="text-[9px] text-slate-500">
+        <details className="text-[10px] text-slate-500">
           <summary className="cursor-pointer">Bỏ qua {data.skipped.length} mã: {skippedSummary(data.skipped)}</summary>
           <p className="pt-1 break-words">
             {data.skipped.map((item) => {

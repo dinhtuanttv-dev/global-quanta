@@ -22,7 +22,7 @@ export default function WorldTodayStrip({ onOpenImpact }: { onOpenImpact: () => 
     <div className="tw-scope rounded-xl p-3 mb-3 space-y-1.5" data-testid="world-today-strip" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Bối cảnh thế giới hôm nay <span className="font-normal normal-case" style={muted}>· phiên VN {fmtDate(st.vnLast)}</span></p>
-        <button type="button" onClick={onOpenImpact} className="text-[9.5px] font-bold px-2 py-0.5 rounded whitespace-nowrap" style={{ border: "1px solid rgba(232,184,75,0.4)", color: "var(--gold-bright, #e8b84b)" }}>
+        <button type="button" onClick={onOpenImpact} className="text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap" style={{ border: "1px solid rgba(232,184,75,0.4)", color: "var(--gold-bright, #e8b84b)" }}>
           Xem tác động ngành & cổ phiếu →
         </button>
       </div>
@@ -42,7 +42,7 @@ export default function WorldTodayStrip({ onOpenImpact }: { onOpenImpact: () => 
           {movers.map((i) => <span key={i.id} className="mr-1.5 inline-block">{i.nameVi} <b style={{ color: i.change!.pct! >= 0 ? "var(--positive)" : "var(--negative)" }}>{fmtZ(i.change!.pct, 1)}%</b></span>)}
         </p>
       </div>
-      <p className="text-[9px]" style={muted}>Xếp hạng ngắn hạn đã kiểm định (lợi thế nhỏ); màu hàng hoá là chiều giá, chưa phải chiều tác động lên ngành. Tham khảo — không phải khuyến nghị đầu tư.</p>
+      <p className="text-[10px]" style={muted}>Xếp hạng ngắn hạn đã kiểm định (lợi thế nhỏ); màu hàng hoá là chiều giá, chưa phải chiều tác động lên ngành. Tham khảo — không phải khuyến nghị đầu tư.</p>
     </div>
   );
 }

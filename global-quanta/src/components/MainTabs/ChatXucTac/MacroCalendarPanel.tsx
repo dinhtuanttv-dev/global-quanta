@@ -50,14 +50,14 @@ function EventRow({ ev }: { ev: UnifiedCalendarEvent }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 8.5, fontWeight: 700, color: accent, letterSpacing: 0.3 }}>{label}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: 0.3 }}>{label}</span>
           {isUrgent && ev.daysRemaining > 0 && (
-            <span style={{ fontSize: 8, fontWeight: 700, color: "var(--warning, #f59e0b)", background: "color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)", padding: "1px 5px", borderRadius: 4 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: "var(--warning, #f59e0b)", background: "color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)", padding: "1px 5px", borderRadius: 4 }}>
               SẮP TỚI
             </span>
           )}
           {ev.estimated && (
-            <span title="Ngày ước tính từ độ trễ và ngày công bố điển hình — đối chiếu lịch chính thức" style={{ fontSize: 8, color: "var(--text-tertiary)", border: "1px solid var(--border)", padding: "0 4px", borderRadius: 4 }}>
+            <span title="Ngày ước tính từ độ trễ và ngày công bố điển hình — đối chiếu lịch chính thức" style={{ fontSize: 10, color: "var(--text-tertiary)", border: "1px solid var(--border)", padding: "0 4px", borderRadius: 4 }}>
               ước tính
             </span>
           )}
@@ -72,7 +72,7 @@ function EventRow({ ev }: { ev: UnifiedCalendarEvent }) {
         <div style={{ fontSize: 10.5, fontWeight: 700, color: isUrgent ? "var(--warning, #f59e0b)" : "var(--text-secondary)" }}>
           {ev.daysRemaining <= 0 ? "Hôm nay" : `${Math.round(ev.daysRemaining)} ngày`}
         </div>
-        <div style={{ fontSize: 9, color: "var(--text-tertiary)", marginTop: 1 }}>
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 1 }}>
           {new Date(ev.date).toLocaleDateString("vi-VN")}
         </div>
       </div>
@@ -96,23 +96,23 @@ export default function MacroCalendarPanel({ events }: { events: MacroCalendarEv
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginTop: 16 }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: "var(--text-secondary)", margin: "0 0 10px", display: "flex", alignItems: "center", gap: 6 }}>
         <Calendar size={13} /> LỊCH VĨ MÔ SẮP TỚI
-        <span style={{ fontWeight: 400, color: "var(--text-tertiary)", fontSize: 9.5, marginLeft: "auto" }}>{merged.length} sự kiện</span>
+        <span style={{ fontWeight: 400, color: "var(--text-tertiary)", fontSize: 10, marginLeft: "auto" }}>{merged.length} sự kiện</span>
       </p>
       {error && (
-        <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "0 0 8px" }}>
+        <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "0 0 8px" }}>
           Không tải được lịch từ Trung tâm vĩ mô — đang hiện lịch dự phòng của engine xúc tác.
         </p>
       )}
 
       {Array.from(groups.entries()).map(([key, monthEvents]) => (
         <div key={key} style={{ marginBottom: 10 }}>
-          <p style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-tertiary)", margin: "0 0 6px", textTransform: "uppercase" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "var(--text-tertiary)", margin: "0 0 6px", textTransform: "uppercase" }}>
             {monthLabel(monthEvents[0].date)}
           </p>
           {monthEvents.map((ev) => <EventRow key={ev.id} ev={ev} />)}
         </div>
       ))}
-      {data?.caveat && <p style={{ fontSize: 9, color: "var(--text-tertiary)", margin: "4px 0 0", lineHeight: 1.4 }}>{data.caveat}</p>}
+      {data?.caveat && <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "4px 0 0", lineHeight: 1.4 }}>{data.caveat}</p>}
     </div>
   );
 }

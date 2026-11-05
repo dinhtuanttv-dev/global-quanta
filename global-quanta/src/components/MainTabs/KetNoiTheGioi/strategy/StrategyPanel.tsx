@@ -42,7 +42,7 @@ function AlphaBar({ a, max }: { a: number | null; max: number }) {
 function ConcentrationFlag({ constituents }: { constituents: ShortRow["constituents"] }) {
   const c = basketConcentration(constituents);
   if (!isConcentrated(c) || !c) return null;
-  return <span data-testid="strategy-concentrated" className="ml-1 text-[8.5px] font-bold px-1 rounded whitespace-nowrap" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}
+  return <span data-testid="strategy-concentrated" className="ml-1 text-[10px] font-bold px-1 rounded whitespace-nowrap" style={{ background: "rgba(245,158,11,0.15)", color: "#fbbf24" }}
     title={`${c.top.ticker} chiếm ${Math.round(c.topShare * 100)}% rổ, tương đương ${num(c.nEff)} mã hiệu dụng (1/Σw²). Tín hiệu của dòng này chủ yếu phản ánh cổ phiếu đó, không phải cả ngành.`}>⚠ {c.top.ticker} {Math.round(c.topShare * 100)}%</span>;
 }
 
@@ -56,13 +56,13 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
         <tbody>
           {rows.map((r) => (
             <tr key={r.icb} onClick={() => onOpen(r.icb)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} title={`${r.icBasisVi} σ tương đối ${num(r.sigmaBps)} đcb/phiên.`}>
-              <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[8.5px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
-              <td className="text-center"><span className="text-[9.5px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
+              <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
+              <td className="text-center"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
               <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "#f1f5f9" }}>{fmtZ(r.alphaBps, 1)}</b></td>
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
               <td className="text-center" style={muted}>{fmtZ(r.zx, 2)}</td>
               <td style={muted}>{REGION_ORDER.filter((x) => r.byRegion[x]).map((x) => `${REGION_SHORT[x]} ${fmtZ(r.byRegion[x]!.z)}`).join(" · ")}{r.commodity != null ? ` · HH ${fmtZ(r.commodity)}` : ""}</td>
-              <td>{r.constituents.slice(0, 3).map((c) => <button key={c.ticker} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(c.ticker); }} className="text-[9.5px] font-black mr-1" style={{ color: "var(--gold, #f59e0b)" }}>{c.ticker}</button>)}</td>
+              <td>{r.constituents.slice(0, 3).map((c) => <button key={c.ticker} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(c.ticker); }} className="text-[10px] font-black mr-1" style={{ color: "var(--gold, #f59e0b)" }}>{c.ticker}</button>)}</td>
             </tr>
           ))}
         </tbody>
@@ -76,18 +76,18 @@ function MediumCard({ r, onOpen }: { r: MediumRow; onOpen: (icb: string) => void
     <button type="button" onClick={() => onOpen(r.icb)} className="w-full text-left rounded-lg p-2.5 space-y-1" style={{ background: "rgba(148,163,184,0.05)" }} data-testid={`strategy-medium-${r.icb}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-bold truncate" style={{ color: "#f1f5f9" }}>{r.nameVi} <span className="font-normal" style={muted}>ICB {r.icb}</span></span>
-        <span className="text-[9px] shrink-0" style={muted} title="Phiếu: điểm 3 tháng ngành thế giới · chu kỳ RRG · áp lực yếu tố truyền dẫn">{r.votes.map(VOTE).join(" ")}</span>
+        <span className="text-[10px] shrink-0" style={muted} title="Phiếu: điểm 3 tháng ngành thế giới · chu kỳ RRG · áp lực yếu tố truyền dẫn">{r.votes.map(VOTE).join(" ")}</span>
       </div>
-      <div className="flex flex-wrap gap-1 text-[9px]">
+      <div className="flex flex-wrap gap-1 text-[10px]">
         <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>Thế giới 3T {fmtZ(r.ws.score, 2)}</span>
         {r.rrg && <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>RRG {QUADRANT_VI[r.rrg.quadrant] ?? r.rrg.quadrant}{r.rrg.state ? ` · ${r.rrg.state}` : ""}</span>}
         {r.factorPressure.score != null && <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>Truyền dẫn {fmtZ(r.factorPressure.score, 2)}</span>}
         {r.rrg?.accumulation != null && <span className="px-1.5 py-0.5 rounded" style={{ background: "rgba(2,6,15,0.6)", color: "var(--text-secondary)" }}>Tích luỹ {r.rrg.accumulation}</span>}
       </div>
-      {r.factorPressure.links.length > 0 && <p className="text-[9px]" style={muted}>Liên kết: {r.factorPressure.links.map((l) => `${l.factor} β ${num(l.beta, 2)} (bậc ${l.tier}, z ${fmtZ(l.z)})`).join(" · ")}</p>}
-      {r.confirm.length > 0 && <p className="text-[9px]" style={muted}>Cổng W3: {r.confirm.map((c) => `${c.id} ${c.factor} ${c.confirmed ? "đã xác nhận" : c.signOk === false ? "ngược chiều" : "chưa xác nhận"}`).join(" · ")}</p>}
+      {r.factorPressure.links.length > 0 && <p className="text-[10px]" style={muted}>Liên kết: {r.factorPressure.links.map((l) => `${l.factor} β ${num(l.beta, 2)} (bậc ${l.tier}, z ${fmtZ(l.z)})`).join(" · ")}</p>}
+      {r.confirm.length > 0 && <p className="text-[10px]" style={muted}>Cổng W3: {r.confirm.map((c) => `${c.id} ${c.factor} ${c.confirmed ? "đã xác nhận" : c.signOk === false ? "ngược chiều" : "chưa xác nhận"}`).join(" · ")}</p>}
       {r.scenarios.length > 0 && (
-        <p className="text-[9px]" style={muted}>Kịch bản 3T: {r.scenarios.map((s) => (s.unreliable ? `${s.nameVi} ước tính bất ổn` : `${s.nameVi} ${fmtZ(s.estPct, 1)}%${s.conclusive ? "" : " (chưa kết luận)"}`)).join(" · ")}</p>
+        <p className="text-[10px]" style={muted}>Kịch bản 3T: {r.scenarios.map((s) => (s.unreliable ? `${s.nameVi} ước tính bất ổn` : `${s.nameVi} ${fmtZ(s.estPct, 1)}%${s.conclusive ? "" : " (chưa kết luận)"}`)).join(" · ")}</p>
       )}
     </button>
   );
@@ -107,7 +107,7 @@ export default function StrategyPanel() {
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Chiến lược ngành Việt Nam — ngắn hạn & trung hạn</p>
-          <p className="text-[9.5px]" style={muted}>Ghép Nhịp đập thị trường · Nhịp đập hàng hoá · Truyền dẫn & bằng chứng · chu kỳ RRG Lọc ngành · phiên VN {fmtDate(data.vnLast)} · {data.version}</p>
+          <p className="text-[10px]" style={muted}>Ghép Nhịp đập thị trường · Nhịp đập hàng hoá · Truyền dẫn & bằng chứng · chu kỳ RRG Lọc ngành · phiên VN {fmtDate(data.vnLast)} · {data.version}</p>
         </div>
       </div>
       {data.regime.stressed && (
@@ -117,7 +117,7 @@ export default function StrategyPanel() {
       )}
 
       <Card title="Ngắn hạn — phiên VN kế tiếp" tag={<EvidenceTag kind={data.evidence.short.label === "EVIDENCE" ? "evidence" : "heuristic"} title={`${data.evidence.short.version}: IC ${data.evidence.short.ic}, t ${data.evidence.short.t} · ${data.evidence.short.sample}`} />}>
-        <p className="text-[9.5px]" style={muted}>
+        <p className="text-[10px]" style={muted}>
           α = IC × σ × z (Grinold–Kahn) — lợi suất tương đối kỳ vọng so với VN-Index, điểm cơ bản/phiên. IC xếp hạng đã kiểm định ≈ {data.evidence.short.ic} nên
           <b style={{ color: "var(--text-secondary)" }}> lợi thế rất nhỏ</b> (P vượt ≈ 50–55%): dùng để nghiêng tỷ trọng giữa các ngành, không phải tín hiệu mua/bán đơn lẻ. Bấm một ngành để xem phân tích chuyên sâu.
         </p>
@@ -125,13 +125,13 @@ export default function StrategyPanel() {
       </Card>
 
       <Card title="Trung hạn — bối cảnh 1–3 tháng" tag={<EvidenceTag kind="heuristic" title={data.evidence.medium.reasonVi} />}>
-        <p className="text-[9.5px]" style={muted}>{data.evidence.medium.reasonVi} Phiếu (+/0/−): điểm 3 tháng ngành thế giới · chu kỳ RRG Lọc ngành · áp lực yếu tố truyền dẫn.</p>
+        <p className="text-[10px]" style={muted}>{data.evidence.medium.reasonVi} Phiếu (+/0/−): điểm 3 tháng ngành thế giới · chu kỳ RRG Lọc ngành · áp lực yếu tố truyền dẫn.</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
           {groups.map(([keys, title, tone]) => {
             const items = data.medium.filter((m) => keys.includes(m.stance));
             return (
               <div key={title} className="space-y-1.5">
-                <p className="text-[9.5px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>
+                <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>
                   <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: 2, background: tone === 0 ? "rgba(148,163,184,0.4)" : divergingColor(tone), marginRight: 6 }} />{title} ({items.length})
                 </p>
                 {items.length === 0 && <p className="text-[10px] italic" style={muted}>Không có ngành.</p>}
@@ -141,7 +141,7 @@ export default function StrategyPanel() {
           })}
         </div>
       </Card>
-      <p className="text-[9px] leading-relaxed" style={muted}>{data.method.shortVi} {data.method.mediumVi} Tham khảo — không phải khuyến nghị đầu tư.</p>
+      <p className="text-[10px] leading-relaxed" style={muted}>{data.method.shortVi} {data.method.mediumVi} Tham khảo — không phải khuyến nghị đầu tư.</p>
       {row && <WorldSectorDrawer icb={row.icb} row={row} onClose={() => setOpen(null)} />}
     </div>
   );

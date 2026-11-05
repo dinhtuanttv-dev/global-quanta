@@ -88,7 +88,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
       <div className="relative h-full w-full md:w-[760px] flex flex-col" style={{ background: "var(--bg-surface, #0e1626)", borderLeft: "1px solid rgba(148,163,184,0.15)" }}>
         <header className="flex items-start justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
           <div>
-            <p className="text-[9px] uppercase font-bold" style={muted}>{item.group} · phân tích chuyên sâu</p>
+            <p className="text-[10px] uppercase font-bold" style={muted}>{item.group} · phân tích chuyên sâu</p>
             <h3 className="text-sm font-black" style={{ color: "#f1f5f9" }}>{item.nameVi}</h3>
             {s && <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{fmtPrice(s.last)} {item.unit} · {data?.freq === "month" ? "kỳ" : "phiên"} {fmtPeriod(s.lastDate)}</p>}
           </div>
@@ -113,7 +113,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
               <Section title="Xu hướng giá Việt Nam ↔ thế giới (quy về 100 đầu khung)" tag={<EvidenceTag kind="data" />}>
                 <LineChart testId="cm-chart-price" series={priceSeries} height={240} ariaLabel={`Xu hướng ${item.nameVi} và chuỗi Việt Nam, quy về 100 tại ${fmtPeriod(data.from)}`}
                   refLines={[{ y: 100, label: "100" }]} />
-                <ul className="text-[9.5px] space-y-0.5" style={muted}>
+                <ul className="text-[10px] space-y-0.5" style={muted}>
                   <li>• Giá thế giới: {data.source.symbol ? `${data.source.symbol} — ` : ""}{data.source.labelVi}{data.freq === "month" ? " (trung bình tháng)" : ""}.</li>
                   {data.vnd?.points.length ? <li>• Quy đổi VND = giá thế giới × USD/VND ({data.vnd.source}{data.freq === "month" ? ", trung bình tháng" : ", cùng phiên"}) — KHÔNG phải giá bán lẻ trong nước; mới nhất {num(data.vnd.points[data.vnd.points.length - 1][1], 0)} {data.vnd.labelVi}.</li> : null}
                   {(data.vnSeries ?? []).map((v) => <li key={v.code}>• {v.labelVi} — {v.priceBasis === "INDEX_POINTS" ? "điểm chỉ số" : "giá điều chỉnh theo sự kiện quyền"}, từ {fmtPeriod(v.first)}{data.freq === "month" ? " (giá cuối tháng)" : ""}.</li>)}
@@ -132,7 +132,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {Object.entries(s.changes).map(([k, v]) => (
                       <div key={k} className="rounded-lg p-2" style={{ background: "rgba(148,163,184,0.05)" }}>
-                        <p className="text-[9px]" style={muted}>{CHANGE_LABELS[k] ?? k}</p>
+                        <p className="text-[10px]" style={muted}>{CHANGE_LABELS[k] ?? k}</p>
                         <p className="text-xs font-bold" style={{ color: v == null ? "var(--text-tertiary)" : v >= 0 ? "var(--positive)" : "var(--negative)" }}>{fmtPct(v, 1)}</p>
                       </div>
                     ))}
@@ -155,10 +155,10 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
 
               {s && (
                 <Section title="Biến động & sụt giảm" tag={<EvidenceTag kind="data" />}>
-                  <p className="text-[9.5px]" style={muted}>Biến động thực ({s.vol.unitVi}), đường đứt = trung bình 5 năm.</p>
+                  <p className="text-[10px]" style={muted}>Biến động thực ({s.vol.unitVi}), đường đứt = trung bình 5 năm.</p>
                   <LineChart testId="cm-chart-vol" series={[{ key: "vol", label: "Biến động thực (%)", color: SERIES_COLORS.s1, points: s.volSeries }]} height={130}
                     ariaLabel={`Biến động thực của ${item.nameVi}`} refLines={s.vol.avg5y != null ? [{ y: s.vol.avg5y, label: `TB 5 năm ${num(s.vol.avg5y, 1)}%` }] : []} directLabels={false} />
-                  <p className="text-[9.5px]" style={muted}>Sụt giảm từ đỉnh gần nhất (%).</p>
+                  <p className="text-[10px]" style={muted}>Sụt giảm từ đỉnh gần nhất (%).</p>
                   <LineChart testId="cm-chart-dd" series={[{ key: "dd", label: "Cách đỉnh (%)", color: SERIES_COLORS.s2, points: s.ddSeries }]} height={110}
                     ariaLabel={`Sụt giảm từ đỉnh của ${item.nameVi}`} refLines={[{ y: 0, label: "đỉnh" }]} directLabels={false} />
                 </Section>
@@ -175,14 +175,14 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                           Tương quan {num(r.corr)} (ngưỡng ~95%: ±{num(r.band)}) — <b>{r.significant ? "vượt ngưỡng" : "không khác 0 có ý nghĩa"}</b>;
                           beta {num(r.beta)}; độ trễ có |r| lớn nhất: {r.bestLag?.lag} {unitWord} (r = {num(r.bestLag?.r)}).
                         </p>
-                        <p className="text-[9px]" style={muted}>{r.basisVi} Thăm dò: không phải bằng chứng, không dùng để ra quyết định.</p>
+                        <p className="text-[10px]" style={muted}>{r.basisVi} Thăm dò: không phải bằng chứng, không dùng để ra quyết định.</p>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                           <div>
-                            <p className="text-[9px]" style={muted}>Tương quan theo độ trễ (0 = cùng kỳ; đường đứt = ngưỡng ~95%)</p>
+                            <p className="text-[10px]" style={muted}>Tương quan theo độ trễ (0 = cùng kỳ; đường đứt = ngưỡng ~95%)</p>
                             <LeadLag rel={r} />
                           </div>
                           <div>
-                            <p className="text-[9px]" style={muted}>Tương quan cuộn {r.window} {unitWord}</p>
+                            <p className="text-[10px]" style={muted}>Tương quan cuộn {r.window} {unitWord}</p>
                             <LineChart series={[{ key: "rc", label: "Tương quan cuộn", color: SERIES_COLORS.s3, points: (r.rolling ?? []).filter((p): p is [string, number] => p[1] != null) }]}
                               height={100} yFmt={(v) => num(v, 1)} refLines={[{ y: 0, label: "0" }]} ariaLabel={`Tương quan cuộn giữa ${r.labelVi} và ${item.nameVi}`} directLabels={false} />
                           </div>
@@ -208,7 +208,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                 {item.twoWayVi && <p className="text-[10px] italic" style={muted}>⚠ {item.twoWayVi}</p>}
                 {item.vnTickers.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-1">
-                    <span className="text-[9px]" style={muted}>Mã liên quan (ánh xạ đặt tay, không phải khuyến nghị):</span>
+                    <span className="text-[10px]" style={muted}>Mã liên quan (ánh xạ đặt tay, không phải khuyến nghị):</span>
                     {item.vnTickers.map((t) => <button key={t} type="button" onClick={() => selectTicker(t)} className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--gold, #f59e0b)" }}>{t}</button>)}
                   </div>
                 ) : <p className="text-[10px] italic" style={muted}>Chưa có danh sách mã đại diện đã xác nhận — không bịa mã.</p>}

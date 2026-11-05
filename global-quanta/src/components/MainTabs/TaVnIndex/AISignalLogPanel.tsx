@@ -9,7 +9,7 @@ export default function AISignalLogPanel({ log, engineOn }: { log: SignalLogEntr
     <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" }} className="rounded-xl p-3" data-testid="signal-log">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1">
         <ListChecks className="w-3 h-3" /> Confluence Log ({log.length})
-        <span className={`ml-auto font-mono text-[8.5px] ${engineOn ? "text-emerald-400" : "text-slate-500"}`}>
+        <span className={`ml-auto font-mono text-[10px] ${engineOn ? "text-emerald-400" : "text-slate-500"}`}>
           {engineOn ? "● ENGINE ON" : "○ ENGINE OFF"}
         </span>
       </p>
@@ -29,7 +29,7 @@ export default function AISignalLogPanel({ log, engineOn }: { log: SignalLogEntr
               <span className="flex flex-col items-end gap-1 shrink-0">
                 <ProvenanceBadge kind={entry.dataQuality} className="" />
                 {entry.confidence !== null && (
-                  <span className="text-[9px] font-mono text-amber-400" title="Điểm luật, không phải xác suất">{entry.confidence}/99</span>
+                  <span className="text-[10px] font-mono text-amber-400" title="Điểm luật, không phải xác suất">{entry.confidence}/99</span>
                 )}
               </span>
             </div>

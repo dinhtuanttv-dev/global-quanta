@@ -54,11 +54,11 @@ function IntensityStrip({ rows, active }: { rows: ReturnType<typeof dailyIntensi
                 <div key={t} style={{ flex: r.byType[t], background: MACRO_COLOR[t], opacity: !active || active === t ? 0.9 : 0.18 }} className="min-h-[2px] rounded-[2px]" />
               ))}
             </div>
-            <span className="pointer-events-none absolute -top-4 left-1/2 hidden -translate-x-1/2 text-[9px] text-slate-200 group-hover:block">{r.total}</span>
+            <span className="pointer-events-none absolute -top-4 left-1/2 hidden -translate-x-1/2 text-[10px] text-slate-200 group-hover:block">{r.total}</span>
           </div>
         ))}
       </div>
-      <div className="mt-1 flex gap-1.5">{rows.map((r) => <span key={r.day} className="flex-1 text-center text-[9px] tabular-nums text-slate-500">{dayLabel(r.day)}</span>)}</div>
+      <div className="mt-1 flex gap-1.5">{rows.map((r) => <span key={r.day} className="flex-1 text-center text-[10px] tabular-nums text-slate-500">{dayLabel(r.day)}</span>)}</div>
     </div>
   );
 }
@@ -96,7 +96,7 @@ export default function MacroEventsPanel() {
       {error && <p role="alert" className="text-[11px] text-rose-300">Không tải được sự kiện vĩ mô: {error.message}</p>}
       {isLoading && !data && <div className="space-y-2" aria-busy="true">{[0, 1, 2].map((i) => <div key={i} className="h-9 animate-pulse rounded bg-white/[0.04]" />)}</div>}
       {data && <>
-        <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[9px]" data-testid="macro-sources" aria-label="Trạng thái nguồn tin">
+        <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-[10px]" data-testid="macro-sources" aria-label="Trạng thái nguồn tin">
           {Object.entries(data.sources).filter(([, v]) => "label" in v).map(([k, v]) => <span key={k} className={v.ok ? "text-slate-400" : "text-rose-300"} title={v.error}><span className={v.ok ? "text-emerald-400" : ""} aria-hidden>{v.ok ? "●" : "○"}</span> {(v as { label?: string }).label}{v.ok ? "" : " · lỗi"}</span>)}
         </div>
         <IntensityStrip rows={intensity} active={type} />
@@ -115,7 +115,7 @@ export default function MacroEventsPanel() {
               <ul className="relative mb-2 ml-1.5 border-l border-white/10">
                 {g.items.map((e) => <li key={e.eventId} className="relative py-1.5 pl-4" data-testid="macro-event">
                   <i className="absolute -left-[4.5px] top-3 h-2 w-2 rounded-full ring-2 ring-slate-950" style={{ background: MACRO_COLOR[e.eventType as MacroType] ?? "#94a3b8" }} aria-hidden />
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9px] text-slate-500">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500">
                     <span className="tabular-nums">{timeVn(e)}</span>
                     <span className="text-slate-400">{MACRO_LABEL[e.eventType as MacroType] ?? e.eventLabel}</span>
                     {e.severityScore >= 3 && <span className="rounded bg-rose-950/60 px-1 text-rose-200">chú ý cao</span>}
@@ -127,7 +127,7 @@ export default function MacroEventsPanel() {
               </ul>
             </section>)}
           </div>}
-        <p className="mt-2 text-[9px] leading-relaxed text-slate-500">Phân loại tự động theo tiêu đề (có thể nhầm); chưa đối chiếu nguồn gốc. Thay cho mục "Sự Kiện Vĩ Mô" cũ (AI Discovery + xác nhận tay trên Project A — nguồn đó ngừng từ khi Neon hết hạn mức). Không phải dự báo hay khuyến nghị.</p>
+        <p className="mt-2 text-[10px] leading-relaxed text-slate-500">Phân loại tự động theo tiêu đề (có thể nhầm); chưa đối chiếu nguồn gốc. Thay cho mục "Sự Kiện Vĩ Mô" cũ (AI Discovery + xác nhận tay trên Project A — nguồn đó ngừng từ khi Neon hết hạn mức). Không phải dự báo hay khuyến nghị.</p>
       </>}
     </div>
   );

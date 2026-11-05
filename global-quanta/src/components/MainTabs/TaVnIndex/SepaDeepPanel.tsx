@@ -96,7 +96,7 @@ function detailValue(kind: string, v: unknown): string {
 const SCREEN_VI: Record<string, string> = { loc_xu_huong: "Xu hướng", loc_co_ban: "Cơ bản", loc_mo_hinh: "Mô hình giá", loc_dan_dat: "Dẫn dắt", loc_RS: "RS ≥ 80" };
 
 const Check = ({ ok, bad }: { ok: boolean; bad?: boolean }) => (
-  <span className={`inline-flex w-3.5 h-3.5 shrink-0 rounded-[3px] text-[9px] font-black leading-[14px] justify-center ${ok ? (bad ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300") : "bg-slate-800 text-slate-500"}`}>{ok ? (bad ? "!" : "✓") : "✗"}</span>
+  <span className={`inline-flex w-3.5 h-3.5 shrink-0 rounded-[3px] text-[10px] font-black leading-[14px] justify-center ${ok ? (bad ? "bg-rose-500/20 text-rose-300" : "bg-emerald-500/20 text-emerald-300") : "bg-slate-800 text-slate-500"}`}>{ok ? (bad ? "!" : "✓") : "✗"}</span>
 );
 
 const EQUITY_KEY = "gq_sepa_equity_vnd";
@@ -152,11 +152,11 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-lg font-black text-amber-400 tracking-wide">{row.ticker}</span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${LIST_STYLE[row.list]}`} data-testid="sepa-deep-list">{row.list}</span>
-            {p && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-violet-500/15 text-violet-200">{p.name} · {STATUS_VI[p.status] ?? p.status}</span>}
-            {st && <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/15 text-slate-200">{st.label}{st.stage === 2 ? ` · nền thứ ${st.baseCount + 1}` : ""}</span>}
-            <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300">{doc.evidence?.label === "VALIDATED" ? "VALIDATED" : "EXPERIMENTAL"}</span>
-            {isS2Signal(row) && <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-300" title="Ngoài mẫu: n 37, +3,66%/20 phiên, KTC [0,69; 7,33]; trong mẫu −0,48%" data-testid="sepa-deep-s2">S2 phá vỡ đạt chuẩn · đạt OOS (thận trọng)</span>}
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${LIST_STYLE[row.list]}`} data-testid="sepa-deep-list">{row.list}</span>
+            {p && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-violet-500/15 text-violet-200">{p.name} · {STATUS_VI[p.status] ?? p.status}</span>}
+            {st && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/15 text-slate-200">{st.label}{st.stage === 2 ? ` · nền thứ ${st.baseCount + 1}` : ""}</span>}
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300">{doc.evidence?.label === "VALIDATED" ? "VALIDATED" : "EXPERIMENTAL"}</span>
+            {isS2Signal(row) && <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-300" title="Ngoài mẫu: n 37, +3,66%/20 phiên, KTC [0,69; 7,33]; trong mẫu −0,48%" data-testid="sepa-deep-s2">S2 phá vỡ đạt chuẩn · đạt OOS (thận trọng)</span>}
           </div>
           <div className="text-[10px] text-slate-400 truncate">
             {row.name ?? ""}{row.sector ? ` · ${row.sector}` : ""} · SEPA (Minervini) · engine {doc.engine} · dữ liệu tới {row.date}
@@ -191,8 +191,8 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
           </Card>
           <Card title="Vì sao LOẠI" right={row.stageLabel}>
             <p className="text-[10px] text-slate-300">Chưa qua cổng Trend Template (s.101–102){row.metrics.pattern ? ` — dù có mô hình ${row.metrics.pattern} (${row.metrics.footprint ?? ""})` : ""}.</p>
-            {row.warnings.length > 0 && <ul className="mt-1 text-[9px] text-amber-300/90 list-disc pl-4">{row.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
-            <p className="mt-1 text-[9px] text-slate-500">Dòng LOẠI được lưu rút gọn để bản quét gọn nhẹ; mở biểu đồ TA để xem chi tiết.</p>
+            {row.warnings.length > 0 && <ul className="mt-1 text-[10px] text-amber-300/90 list-disc pl-4">{row.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+            <p className="mt-1 text-[10px] text-slate-500">Dòng LOẠI được lưu rút gọn để bản quét gọn nhẹ; mở biểu đồ TA để xem chi tiết.</p>
           </Card>
         </div>
       )}
@@ -230,7 +230,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                   ))}
                 </dl>
               ) : <p className="text-[10px] text-slate-500">Chưa nhận diện mô hình nền nào ({row.patterns?.filter((x) => !x.detected).map((x) => x.name).join(", ")}).</p>}
-              {p?.notes?.length ? <ul className="mt-1 text-[9px] text-emerald-300/90 list-disc pl-4">{p.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
+              {p?.notes?.length ? <ul className="mt-1 text-[10px] text-emerald-300/90 list-disc pl-4">{p.notes.map((n) => <li key={n}>{n}</li>)}</ul> : null}
             </Card>
           </div>
 
@@ -256,8 +256,8 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                     </li>
                   ))}
                 </ul>
-              ) : <p className="text-[9px] text-slate-500 mt-1">Nền 1–2 tốt nhất, nền 3 còn mua được, nền 4–5 là "nền cuối" dễ thất bại (s.103).</p>}
-              {st?.warnings?.length ? <ul className="mt-1 text-[9px] text-rose-300/90 list-disc pl-4">{st.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
+              ) : <p className="text-[10px] text-slate-500 mt-1">Nền 1–2 tốt nhất, nền 3 còn mua được, nền 4–5 là "nền cuối" dễ thất bại (s.103).</p>}
+              {st?.warnings?.length ? <ul className="mt-1 text-[10px] text-rose-300/90 list-disc pl-4">{st.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
             </Card>
             <Card title="Điểm SEPA · 5 bộ lọc tách biệt" right={`${row.score}/100 · ${row.screensPassed}/5 bộ lọc`}>
               {row.components && (
@@ -275,9 +275,9 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                 </ul>
               )}
               <div className="mt-1.5 flex flex-wrap gap-1">
-                {Object.entries(row.screens).map(([k, ok]) => <span key={k} className={`text-[8.5px] px-1.5 py-0.5 rounded border ${ok ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-500"}`}>{ok ? "✓" : "✗"} {SCREEN_VI[k] ?? k}</span>)}
+                {Object.entries(row.screens).map(([k, ok]) => <span key={k} className={`text-[10px] px-1.5 py-0.5 rounded border ${ok ? "border-emerald-500/40 text-emerald-300" : "border-slate-700 text-slate-500"}`}>{ok ? "✓" : "✗"} {SCREEN_VI[k] ?? k}</span>)}
               </div>
-              <p className="mt-1 text-[9px] text-slate-500">Chạy nhiều bộ lọc tách biệt rồi tổng hợp bằng điểm (s.52) · kiểm định SP3: thứ bậc danh sách và Trend Template chưa có lợi thế ngoài mẫu.</p>
+              <p className="mt-1 text-[10px] text-slate-500">Chạy nhiều bộ lọc tách biệt rồi tổng hợp bằng điểm (s.52) · kiểm định SP3: thứ bậc danh sách và Trend Template chưa có lợi thế ngoài mẫu.</p>
             </Card>
           </div>
 
@@ -289,8 +289,8 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                   <li key={k} className="flex items-center gap-1.5"><Check ok={Boolean(fu!.flags[k])} /><span className={fu!.flags[k] ? "text-slate-200" : "text-slate-400"}>{label}</span></li>
                 ))}
               </ul>
-              {fu?.warnings?.length ? <ul className="mt-1 text-[9px] text-amber-300/90 list-disc pl-4">{fu.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
-              <p className="mt-1 text-[8.5px] text-slate-600">{fu?.source ?? "VCI"} · tăng trưởng đo bằng LNST (EPS của VCI chưa điều chỉnh cổ tức cổ phiếu){fu?.columns && !fu.columns.includes("inventory") ? " · tồn kho/phải thu: chưa có dữ liệu" : ""}.</p>
+              {fu?.warnings?.length ? <ul className="mt-1 text-[10px] text-amber-300/90 list-disc pl-4">{fu.warnings.map((w) => <li key={w}>{w}</li>)}</ul> : null}
+              <p className="mt-1 text-[10px] text-slate-600">{fu?.source ?? "VCI"} · tăng trưởng đo bằng LNST (EPS của VCI chưa điều chỉnh cổ tức cổ phiếu){fu?.columns && !fu.columns.includes("inventory") ? " · tồn kho/phải thu: chưa có dữ liệu" : ""}.</p>
             </Card>
             <Card title="Cổ phiếu dẫn dắt (Chương 9)" right={`${num(lead.diem_dan_dat) ?? "—"}/100`}>
               <ul className="space-y-0.5 text-[10px]" data-testid="sepa-lead">
@@ -299,7 +299,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                 ))}
               </ul>
               {num(lead.chi_so_dieu_chinh) != null && (
-                <p className="mt-1 text-[9px] text-slate-400">Trong 6 tháng: VN-Index điều chỉnh {Math.round(num(lead.chi_so_dieu_chinh)! * 100)}%, {row.ticker} {Math.round((num(lead.cp_dieu_chinh_cung_ky) ?? 0) * 100)}% cùng kỳ · cách đỉnh 52 tuần {Math.round((num(lead.dist_dinh_52t) ?? 0) * 100)}%.</p>
+                <p className="mt-1 text-[10px] text-slate-400">Trong 6 tháng: VN-Index điều chỉnh {Math.round(num(lead.chi_so_dieu_chinh)! * 100)}%, {row.ticker} {Math.round((num(lead.cp_dieu_chinh_cung_ky) ?? 0) * 100)}% cùng kỳ · cách đỉnh 52 tuần {Math.round((num(lead.dist_dinh_52t) ?? 0) * 100)}%.</p>
               )}
             </Card>
             <Card title="Kế hoạch lệnh (Chương 12–13)" right="minh hoạ, không phải khuyến nghị">
@@ -318,7 +318,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                       <dt className="text-slate-500">Rủi ro nếu chạm dừng lỗ</dt><dd className="text-right font-mono text-rose-300">{fmtVnd(sized.riskAmount)} · {(sized.riskPct * 100).toFixed(2).replace(".", ",")}% vốn</dd>
                     </dl>
                   )}
-                  <p className="mt-1 text-[9px] text-slate-500">
+                  <p className="mt-1 text-[10px] text-slate-500">
                     Rủi ro {Math.round(doc.risk.riskPerTrade * 100)}%/lệnh, trần {Math.round(doc.risk.maxPositionPct * 100)}%/vị thế{sized?.capped ? " (trần đang chặn)" : ""} · lãi đạt 3R thì dời dừng lỗ về hoà vốn (s.366){plan.stopTooWide ? " · ⚠ cần dừng lỗ > 10%: sai thời điểm mua (s.356)" : ""}.
                   </p>
                 </>
@@ -334,14 +334,14 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
                   <div className="flex justify-between"><span className="text-slate-500">Squat (đóng cửa dưới pivot)</span><span className="text-slate-200">{row.monitor.squat ? `có · ${row.monitor.squat_bat_day ? "đã bật dậy" : "chưa bật dậy"}` : "không"}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">Phiên đóng cửa dưới MA20</span><span className="font-mono text-slate-200">{String(row.monitor.so_phien_duoi_MA20 ?? 0)}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">"Quả bóng tennis" (s.282)</span><span className="text-slate-200">{row.monitor.qua_bong_tennis ? "có" : "chưa"}</span></div>
-                  {(row.monitor.canh_bao ?? []).length > 0 && <ul className="text-[9px] text-rose-300 list-disc pl-4">{row.monitor.canh_bao!.map((w) => <li key={w}>{w}</li>)}</ul>}
+                  {(row.monitor.canh_bao ?? []).length > 0 && <ul className="text-[10px] text-rose-300 list-disc pl-4">{row.monitor.canh_bao!.map((w) => <li key={w}>{w}</li>)}</ul>}
                 </div>
               ) : <p className="text-[10px] text-slate-500">Điểm mua: vượt pivot với KL tăng đáng kể (≥ 1,4× TB50), không đuổi quá pivot + 5% (s.265, s.270).</p>}
-              {row.warnings.length > 0 && <ul className="mt-1.5 text-[9px] text-amber-300/90 list-disc pl-4" data-testid="sepa-warnings">{row.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
+              {row.warnings.length > 0 && <ul className="mt-1.5 text-[10px] text-amber-300/90 list-disc pl-4" data-testid="sepa-warnings">{row.warnings.map((w) => <li key={w}>{w}</li>)}</ul>}
             </Card>
             <Card title="Toán học của dừng lỗ (Hình 13.2)" right="10 lệnh · lãi/lỗ 2:1">
               <RoiCurve stopPct={plan?.stopPct ?? null} />
-              <p className="mt-1 text-[9px] text-slate-500">Tỷ lệ thắng dưới 50% thì không nới rộng dừng lỗ — đó là thực tế toán học (s.375).</p>
+              <p className="mt-1 text-[10px] text-slate-500">Tỷ lệ thắng dưới 50% thì không nới rộng dừng lỗ — đó là thực tế toán học (s.375).</p>
             </Card>
           </div>
 
@@ -355,7 +355,7 @@ export default function SepaDeepPanel({ row, doc, onClose, onOpenChart, onOpenVi
           </div>
         </>
       )}
-      <p className="text-[9px] text-slate-600">
+      <p className="text-[10px] text-slate-600">
         Bấm lại mã hoặc Esc để đóng · {doc.disclaimer} · {series.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : series.priceBasis} · cùng engine với Gateway (khớp gói Python sepa_screener)
       </p>
     </div>

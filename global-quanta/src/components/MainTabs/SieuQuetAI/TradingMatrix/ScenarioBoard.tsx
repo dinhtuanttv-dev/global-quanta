@@ -15,8 +15,8 @@ export function RelatedChips({ tickers = [], sectors = [], onSelectTicker, onInd
   if (!tickers.length && !sectors.length) return null;
   return (
     <span className="flex flex-wrap gap-1 pt-0.5" data-testid="mx-related">
-      {tickers.map((t) => <button key={t} type="button" onClick={() => onSelectTicker?.(t)} className="text-[9px] px-1 rounded border border-amber-500/30 text-amber-200 hover:bg-amber-500/10" aria-label={`Chọn ${t}`}>{t}</button>)}
-      {sectors.map((n) => <button key={n} type="button" onClick={() => onIndustry?.(n)} className="text-[9px] px-1 rounded border border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10" title={`Lọc bảng theo ${n}`}>{n}</button>)}
+      {tickers.map((t) => <button key={t} type="button" onClick={() => onSelectTicker?.(t)} className="text-[10px] px-1 rounded border border-amber-500/30 text-amber-200 hover:bg-amber-500/10" aria-label={`Chọn ${t}`}>{t}</button>)}
+      {sectors.map((n) => <button key={n} type="button" onClick={() => onIndustry?.(n)} className="text-[10px] px-1 rounded border border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10" title={`Lọc bảng theo ${n}`}>{n}</button>)}
     </span>
   );
 }
@@ -33,14 +33,14 @@ function ScenarioCard({ s, onSelectTicker, onIndustry }: { s: Scenario } & LinkH
     <div className={`rounded-lg border ${t.bd} ${active ? t.bg : ""} p-2 space-y-1 min-w-0`} data-testid={`mx-scenario-${s.id}`}>
       <div className="flex items-start justify-between gap-2">
         <span className="text-[12px] font-semibold text-slate-100 leading-tight">{scenarioTitle(s)}</span>
-        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-500/40 text-[9.5px] font-bold text-amber-300" title={s.validation.summary}>C</span>
+        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-amber-500/40 text-[10px] font-bold text-amber-300" title={s.validation.summary}>C</span>
       </div>
-      <div className={`text-[11px] font-semibold ${t.fg}`}><span aria-hidden>{st.glyph}</span> {s.displayState}{s.since ? <span className="text-[9px] text-slate-500 font-normal"> · từ {when(s.since)}</span> : null}</div>
-      <p className="text-[9.5px] text-slate-400 leading-snug">{s.meaning}</p>
-      {s.evidence.length > 0 && <ul className="text-[9.5px] text-slate-300 space-y-0.5">{s.evidence.map((e) => <li key={e}><span className="text-emerald-400" aria-label="ủng hộ">✓</span> {e}</li>)}</ul>}
-      {active && s.contradictions.length > 0 && <ul className="text-[9.5px] text-slate-400 space-y-0.5">{s.contradictions.map((e) => <li key={e}><span className="text-rose-400" aria-label="mâu thuẫn">✗</span> {e}</li>)}</ul>}
+      <div className={`text-[11px] font-semibold ${t.fg}`}><span aria-hidden>{st.glyph}</span> {s.displayState}{s.since ? <span className="text-[10px] text-slate-500 font-normal"> · từ {when(s.since)}</span> : null}</div>
+      <p className="text-[10px] text-slate-400 leading-snug">{s.meaning}</p>
+      {s.evidence.length > 0 && <ul className="text-[10px] text-slate-300 space-y-0.5">{s.evidence.map((e) => <li key={e}><span className="text-emerald-400" aria-label="ủng hộ">✓</span> {e}</li>)}</ul>}
+      {active && s.contradictions.length > 0 && <ul className="text-[10px] text-slate-400 space-y-0.5">{s.contradictions.map((e) => <li key={e}><span className="text-rose-400" aria-label="mâu thuẫn">✗</span> {e}</li>)}</ul>}
       {s.related && (
-        <div className="text-[9px] text-slate-400">
+        <div className="text-[10px] text-slate-400">
           {s.related.note.replace(/\d{4}-(\d\d)-(\d\d)/, "$2/$1").replace(/(\d+)\.(\d+)%/, "$1,$2%")}
           <RelatedChips tickers={s.related.kind === "tickers" ? s.related.items : []} sectors={s.related.kind === "sectors" ? s.related.items : []} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />
         </div>
@@ -61,7 +61,7 @@ export function ScenarioBoard({ d, onSelectTicker, onIndustry }: { d: MatrixOver
         <div className={`rounded-lg border ${d.neutral?.active ? TONE.neutral.bd : "border-dashed border-slate-700/50"} p-2 space-y-1`} data-testid="mx-scenario-SC0">
           <span className="text-[11px] font-semibold text-slate-100">Chuyển pha / chưa xác định</span>
           <div className={`text-[11px] font-semibold ${d.neutral?.active ? "text-slate-200" : "text-slate-500"}`}>{d.neutral?.active ? "■ Đang áp dụng" : "○ Không áp dụng"}</div>
-          {d.neutral?.reasons?.length ? <ul className="text-[9.5px] text-slate-400">{d.neutral.reasons.map((r) => <li key={r}>• {r}</li>)}</ul> : <p className="text-[9.5px] text-slate-500">Có kịch bản đang theo dõi.</p>}
+          {d.neutral?.reasons?.length ? <ul className="text-[10px] text-slate-400">{d.neutral.reasons.map((r) => <li key={r}>• {r}</li>)}</ul> : <p className="text-[10px] text-slate-500">Có kịch bản đang theo dõi.</p>}
         </div>
       </div>
     </div>
@@ -84,9 +84,9 @@ export function RiskChecklist({ flags, onSelectTicker, onIndustry }: { flags: Ri
             <li key={f.id} className="text-[10px] flex gap-2">
               <span className={`shrink-0 ${g.cls}`} aria-hidden>{g.g}</span>
               <span className="min-w-0 flex-1">
-                <span className="text-slate-200">{f.title}</span> <span className={`text-[9px] ${g.cls}`}>· {g.text}</span>
-                {f.detail && <span className="block text-[9px] text-slate-400">{f.detail}</span>}
-                {f.status === "ON" && f.evidence?.length ? <span className="block text-[9px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
+                <span className="text-slate-200">{f.title}</span> <span className={`text-[10px] ${g.cls}`}>· {g.text}</span>
+                {f.detail && <span className="block text-[10px] text-slate-400">{f.detail}</span>}
+                {f.status === "ON" && f.evidence?.length ? <span className="block text-[10px] text-slate-400">{f.evidence.join(" · ")}</span> : null}
                 {f.related && f.status === "ON" && <RelatedChips tickers={f.related.tickers} sectors={f.related.sectors} onSelectTicker={onSelectTicker} onIndustry={onIndustry} />}
               </span>
             </li>
@@ -103,14 +103,14 @@ export function SignalJournal({ data }: { data: MatrixSignals | undefined }) {
   return (
     <div className="space-y-1.5 min-w-0" data-testid="mx-journal">
       <h3 className="text-[10px] font-bold text-slate-300">Sổ tín hiệu & kiểm định</h3>
-      <table className="w-full text-[9.5px] font-mono">
+      <table className="w-full text-[10px] font-mono">
         <thead><tr className="text-slate-500"><th className="text-left font-normal">Kịch bản</th><th className="text-right font-normal">Lịch sử OOS (10 phiên)</th><th className="text-right font-normal">Thực tế T+10</th></tr></thead>
         <tbody>
           {ids.map((id) => {
             const v = data.validation.stats[id], lv = data.live[id]?.["10"];
             return (
               <tr key={id} className="border-t border-white/5 text-slate-300">
-                <td className="font-sans">{id} <span className="text-[8px] text-amber-300">{data.validation.verdicts[id]}</span></td>
+                <td className="font-sans">{id} <span className="text-[10px] text-amber-300">{data.validation.verdicts[id]}</span></td>
                 <td className="text-right">{v?.OOS?.n ?? 0} đợt · {v?.OOS?.mean != null ? `${v.OOS.mean > 0 ? "+" : ""}${vn(v.OOS.mean, 2)}%` : "—"}</td>
                 <td className="text-right">{lv?.n ? `${lv.n} đợt · ${vn(lv.meanExcess, 2)}%` : "chưa có"}</td>
               </tr>
@@ -119,8 +119,8 @@ export function SignalJournal({ data }: { data: MatrixSignals | undefined }) {
         </tbody>
       </table>
       {data.recent.length > 0 ? (
-        <ul className="text-[9.5px] text-slate-400 space-y-0.5">{data.recent.slice(0, 6).map((r) => <li key={`${r.scenario}${r.date}`}>{when(r.date)} · {r.scenario} → {r.state}</li>)}</ul>
-      ) : <p className="text-[9.5px] text-slate-500">Sổ bắt đầu ghi từ phiên đầu tiên sau triển khai (16:50).</p>}
+        <ul className="text-[10px] text-slate-400 space-y-0.5">{data.recent.slice(0, 6).map((r) => <li key={`${r.scenario}${r.date}`}>{when(r.date)} · {r.scenario} → {r.state}</li>)}</ul>
+      ) : <p className="text-[10px] text-slate-500">Sổ bắt đầu ghi từ phiên đầu tiên sau triển khai (16:50).</p>}
     </div>
   );
 }

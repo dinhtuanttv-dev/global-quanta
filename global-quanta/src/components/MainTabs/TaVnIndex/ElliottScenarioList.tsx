@@ -21,25 +21,25 @@ const ROLE: Record<EwScenario["role"], string> = { primary: "Chính", secondary:
 export interface ScenarioView { sc: EwScenario; lc: ScenarioLifecycle }
 
 export function ElliottScenarioList({ items }: { items: ScenarioView[] }) {
-  if (!items.length) return <p className="text-[9px] text-slate-500" data-testid="elliott-scenarios-empty">Chưa có kịch bản khớp mẫu ở vị trí hiện tại.</p>;
+  if (!items.length) return <p className="text-[10px] text-slate-500" data-testid="elliott-scenarios-empty">Chưa có kịch bản khớp mẫu ở vị trí hiện tại.</p>;
   return (
     <ul className="space-y-1" data-testid="elliott-scenarios">
       {items.map(({ sc, lc }) => (
         <li key={sc.id} className="rounded-md p-1.5 space-y-0.5" style={{ background: "rgba(148,163,184,0.04)" }} data-testid="elliott-scenario">
-          <div className="flex flex-wrap items-center gap-1 text-[9.5px]">
-            <span className="text-[8px] px-1 rounded bg-slate-800 text-slate-300">{sc.provisional ? "Đang hình thành" : ROLE[sc.role]}</span>
+          <div className="flex flex-wrap items-center gap-1 text-[10px]">
+            <span className="text-[10px] px-1 rounded bg-slate-800 text-slate-300">{sc.provisional ? "Đang hình thành" : ROLE[sc.role]}</span>
             <b className={sc.dir > 0 ? "text-emerald-300" : "text-rose-300"}>{sc.title} {sc.dir > 0 ? "↑" : "↓"}</b>
-            <span className="text-[8.5px] text-slate-500">bậc {sc.level}</span>
+            <span className="text-[10px] text-slate-500">bậc {sc.level}</span>
             {sc.provisional
-              ? <span className="text-[8px] px-1 rounded border border-amber-500/40 text-amber-300" title="Chặng cuối đang chạy — chưa xác nhận, không ghi sổ">tạm</span>
-              : <span className={`text-[8px] px-1 rounded border ${STATE_CLS[lc.state]}`} data-testid="elliott-scenario-state">{STATE_LABEL[lc.state]}</span>}
+              ? <span className="text-[10px] px-1 rounded border border-amber-500/40 text-amber-300" title="Chặng cuối đang chạy — chưa xác nhận, không ghi sổ">tạm</span>
+              : <span className={`text-[10px] px-1 rounded border ${STATE_CLS[lc.state]}`} data-testid="elliott-scenario-state">{STATE_LABEL[lc.state]}</span>}
           </div>
-          <p className="text-[9px] text-slate-400 leading-snug">
+          <p className="text-[10px] text-slate-400 leading-snug">
             Kích hoạt: <span className="text-slate-200">{sc.trigger.text}</span> · MT {sc.targets.map((t) => <span key={t.label} className="text-emerald-200" title={t.label}>{fmt(t.price)} </span>)}
             · Vô hiệu: <span className="text-rose-200">{sc.invalidation.text}</span>
           </p>
-          {historyOf(sc.template) && <p className="text-[8.5px] text-slate-500" data-testid="elliott-scenario-history">{historyOf(sc.template)}</p>}
-          {lc.events.length > 0 && <p className="text-[8.5px] text-slate-500">{lc.events.map((e) => `${STATE_LABEL[e.type === "triggered" ? "triggered" : e.type]} ${e.time.slice(5, 10)} (${fmt(e.price)})`).join(" → ")}</p>}
+          {historyOf(sc.template) && <p className="text-[10px] text-slate-500" data-testid="elliott-scenario-history">{historyOf(sc.template)}</p>}
+          {lc.events.length > 0 && <p className="text-[10px] text-slate-500">{lc.events.map((e) => `${STATE_LABEL[e.type === "triggered" ? "triggered" : e.type]} ${e.time.slice(5, 10)} (${fmt(e.price)})`).join(" → ")}</p>}
         </li>
       ))}
     </ul>
@@ -59,7 +59,7 @@ export function ElliottLedgerSummary() {
   if (!data) return null;
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(1).replace(".", ",")}%`);
   return (
-    <div className="text-[8.5px] text-slate-400 leading-snug" data-testid="elliott-ledger-summary"
+    <div className="text-[10px] text-slate-400 leading-snug" data-testid="elliott-ledger-summary"
       title={`Đăng ký trước: ${data.prereg.hypothesis} ĐẠT khi ≥ ${data.prereg.minN} kịch bản kết thúc và z ≥ ${data.prereg.zPass}.`}>
       <span className="text-slate-300 font-semibold">Sổ theo dõi kịch bản</span>{data.firstLogged ? ` (từ ${data.firstLogged})` : ""}: {data.total} kịch bản ·
       {" "}{data.byState.waiting ?? 0} chờ · {data.byState.triggered ?? 0} đã kích hoạt · {(data.byState.target1 ?? 0) + (data.byState.target2 ?? 0)} đạt MT · {data.byState.invalidated ?? 0} vô hiệu ·

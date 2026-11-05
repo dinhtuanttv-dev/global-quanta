@@ -175,7 +175,7 @@ export default function KetNoiTheGioiTab() {
           <Engine only="events" />
           {stockProfileReady
             ? <Engine only="stock" />
-            : <p className="text-[9.5px]" style={{ color: T.textTertiary }}>Hồ sơ phơi nhiễm từng cổ phiếu đang ẩn vì chưa có dữ liệu phơi nhiễm quốc tế thật cho từng mã.</p>}
+            : <p className="text-[10px]" style={{ color: T.textTertiary }}>Hồ sơ phơi nhiễm từng cổ phiếu đang ẩn vì chưa có dữ liệu phơi nhiễm quốc tế thật cho từng mã.</p>}
         </div>
       )}
 
@@ -213,7 +213,7 @@ export default function KetNoiTheGioiTab() {
             ) : (
               <p className="text-[11px]" style={{ color: T.textTertiary }}>Thiếu VIX hoặc VIX3M — chưa xác định cấu trúc kỳ hạn.</p>
             )}
-            <p className="text-[9px] mt-2" style={{ color: T.textTertiary }}>Thay cho Risk-On Index cũ (DXY/VIX/US10Y đặt tay) đã KHÔNG ĐẠT kiểm định đặt trước.</p>
+            <p className="text-[10px] mt-2" style={{ color: T.textTertiary }}>Thay cho Risk-On Index cũ (DXY/VIX/US10Y đặt tay) đã KHÔNG ĐẠT kiểm định đặt trước.</p>
           </div>
           )}
         </div>

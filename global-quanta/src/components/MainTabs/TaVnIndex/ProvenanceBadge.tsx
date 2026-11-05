@@ -5,7 +5,7 @@ export default function ProvenanceBadge({ kind, className = "ml-auto" }: { kind:
   const meta = PROVENANCE_META[kind];
   return (
     <span data-provenance={kind} title={meta.title}
-      className={`${className} font-mono text-[8.5px] font-semibold tracking-wide px-1 rounded border`}
+      className={`${className} font-mono text-[10px] font-semibold tracking-wide px-1 rounded border`}
       style={{ color: meta.color, borderColor: `${meta.color}55`, background: `${meta.color}14` }}>
       {kind}
     </span>

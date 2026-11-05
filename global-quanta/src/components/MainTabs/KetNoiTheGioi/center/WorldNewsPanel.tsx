@@ -45,17 +45,17 @@ export default function WorldNewsPanel() {
       </div>}
       {data && <>
         <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Lọc theo mức xác nhận">
-          {(Object.keys(VERIFICATION_VI) as Verification[]).map((k) => <button key={k} type="button" aria-pressed={level === k} onClick={() => { setLevel(level === k ? null : k); setLimit(PAGE); }} title={VERIFICATION_VI[k].title} className="rounded px-2 py-0.5 text-[9.5px] font-semibold" style={chipBtn(level === k)}>{VERIFICATION_VI[k].label} ({data.counts[k]})</button>)}
+          {(Object.keys(VERIFICATION_VI) as Verification[]).map((k) => <button key={k} type="button" aria-pressed={level === k} onClick={() => { setLevel(level === k ? null : k); setLimit(PAGE); }} title={VERIFICATION_VI[k].title} className="rounded px-2 py-0.5 text-[10px] font-semibold" style={chipBtn(level === k)}>{VERIFICATION_VI[k].label} ({data.counts[k]})</button>)}
         </div>
         <div className="mt-1 flex flex-wrap gap-1" role="group" aria-label="Lọc theo chủ đề">
-          {Object.entries(data.topics).map(([k, v]) => <button key={k} type="button" aria-pressed={topic === k} onClick={() => { setTopic(topic === k ? null : k); setLimit(PAGE); }} className="rounded px-2 py-0.5 text-[9.5px]" style={chipBtn(topic === k)}>{v}</button>)}
+          {Object.entries(data.topics).map(([k, v]) => <button key={k} type="button" aria-pressed={topic === k} onClick={() => { setTopic(topic === k ? null : k); setLimit(PAGE); }} className="rounded px-2 py-0.5 text-[10px]" style={chipBtn(topic === k)}>{v}</button>)}
         </div>
         {items.length === 0 && <p className="mt-3 text-[11px]" style={muted}>Không có tin phù hợp bộ lọc trong 7 ngày gần nhất.</p>}
         <ul className="mt-2" data-testid="news-list">
           {items.slice(0, limit).map((n) => <li key={n.url} className="py-2" style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }} data-testid="news-item">
             <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[11.5px] font-medium hover:underline" style={{ color: "#e2e8f0" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden style={muted} /></a>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[9.5px]" style={muted}>
-              <span className="rounded px-1.5 py-px text-[8.5px] font-bold" title={VERIFICATION_VI[n.verification].title} style={CHIP[n.verification]}>{VERIFICATION_VI[n.verification].label}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]" style={muted}>
+              <span className="rounded px-1.5 py-px text-[10px] font-bold" title={VERIFICATION_VI[n.verification].title} style={CHIP[n.verification]}>{VERIFICATION_VI[n.verification].label}</span>
               <span style={{ color: "var(--text-secondary, #94a3b8)" }}>{n.sourceLabel}</span>
               <time dateTime={n.publishedAt} title={`Hệ thống thấy lần đầu: ${fmtVnTime(n.firstSeenAt)}`}>Đăng {fmtVnTime(n.publishedAt)} ({fmtAgo(n.publishedAt, now)})</time>
               <span>· {n.topics.map((t) => data.topics[t] ?? t).join(", ")}</span>

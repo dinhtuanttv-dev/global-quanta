@@ -50,7 +50,7 @@ export default function CatalystHeatmap({ cells }: { cells: HeatmapCell[] }) {
                       }}>
                         {cell.cardCount === 0 ? "-" : `${(cell.avgImpact * 100).toFixed(1)}%`}
                         {cell.cardCount > 0 && (
-                          <div style={{ fontSize: 8.5, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{cell.cardCount} tin</div>
+                          <div style={{ fontSize: 10, fontWeight: 400, opacity: 0.7, marginTop: 2 }}>{cell.cardCount} tin</div>
                         )}
                       </div>
                     </td>
@@ -61,7 +61,7 @@ export default function CatalystHeatmap({ cells }: { cells: HeatmapCell[] }) {
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: 9, color: "var(--text-tertiary)", marginTop: 8 }}>
+      <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 8 }}>
         Mau dam = tac dong manh hon (xanh: tich cuc, do: tieu cuc). So la trung binh netSignedImpact cac tin trong o.
       </p>
     </div>

@@ -86,9 +86,9 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const busy = phase === "arguing" || phase === "judging";
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Tranh luận có trọng tài</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
           <span className="text-[10px] text-slate-500">Claude phe mua · Gemini phe bán · Claude trọng tài — tính 3 câu vào hạn mức hỏi đáp</span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -97,7 +97,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
             className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-900 px-2.5 py-1.5 text-[11.5px] uppercase text-slate-100 outline-none" />
           {busy
             ? <button type="button" onClick={() => ctrlRef.current?.abort()} className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng</button>
-            : <button type="button" onClick={() => void startDebate()} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-cyan-500/20 px-3 py-1.5 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/30"><Play className="h-3 w-3" />Bắt đầu tranh luận</button>}
+            : <button type="button" onClick={() => void startDebate()} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30"><Play className="h-3 w-3" />Bắt đầu tranh luận</button>}
         </div>
         {(bull || bear) && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -110,18 +110,18 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
         <p className="text-[10px] text-slate-500">Mỗi bên chỉ được dùng số liệu từ công cụ; con số không truy được tới công cụ sẽ bị đánh dấu. Trọng tài gọi lại công cụ để kiểm chứng thay vì tin lời hai bên.</p>
       </section>
 
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Bản tin phiên</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bản tin phiên</h4>
           <button type="button" onClick={() => void makeBrief()} disabled={briefBusy} data-testid="elite-brief-start"
-            className="inline-flex items-center gap-1 rounded-md bg-cyan-500/20 px-3 py-1.5 text-[11px] font-bold text-cyan-200 hover:bg-cyan-500/30 disabled:opacity-50">
+            className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30 disabled:opacity-50">
             <Newspaper className="h-3 w-3" />{briefBusy ? "Đang viết…" : brief ? "Viết lại bản tin" : "Tạo bản tin phiên"}
           </button>
         </div>
         {brief ? <LaneView t={brief} showHeader headerLabel="Bản tin · Claude" /> : <p className="text-[11px] text-slate-500">Claude tổng hợp bối cảnh, danh mục, tín hiệu có trọng số, rủi ro và nhãn bằng chứng của phiên mới nhất — chỉ chạy khi bấm.</p>}
       </section>
 
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3">
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
         <CatalystChatPanel title="Hỏi đáp Elite 10" suggestions={ELITE_SUGGESTIONS} />
       </section>
     </div>

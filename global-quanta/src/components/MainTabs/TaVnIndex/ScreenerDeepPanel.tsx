@@ -55,7 +55,7 @@ export function Card({ title, right, children, className = "" }: { title: string
     <section className={`rounded-lg p-2.5 min-w-0 ${className}`} style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <h3 className="text-[10px] text-slate-300 font-semibold uppercase tracking-wide">{title}</h3>
-        {right && <div className="text-[9px] text-slate-500">{right}</div>}
+        {right && <div className="text-[10px] text-slate-500">{right}</div>}
       </div>
       {children}
     </section>
@@ -65,9 +65,9 @@ export function Card({ title, right, children, className = "" }: { title: string
 export function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
   return (
     <div className="rounded-md px-2 py-1.5" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-[8px] text-slate-500 uppercase tracking-wide">{label}</div>
+      <div className="text-[10px] text-slate-500 uppercase tracking-wide">{label}</div>
       <div className={`text-[13px] font-bold font-mono ${tone === "up" ? "text-emerald-400" : tone === "down" ? "text-rose-400" : "text-slate-100"}`}>{value}</div>
-      {sub && <div className="text-[8px] text-slate-500">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-500">{sub}</div>}
     </div>
   );
 }
@@ -137,7 +137,7 @@ function ComponentList({ components, strategy }: { components: TechnicalFilterCo
     <ul className="space-y-1" data-testid="deep-components">
       {rows.map((c) => (
         <li key={c.key} className="grid grid-cols-[14px_1fr_auto] items-center gap-1.5 text-[10px]">
-          <span className={`w-3.5 h-3.5 rounded-[3px] text-[8px] font-black leading-[14px] text-center ${c.ok ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-500"}`}
+          <span className={`w-3.5 h-3.5 rounded-[3px] text-[10px] font-black leading-[14px] text-center ${c.ok ? "bg-emerald-500/20 text-emerald-300" : "bg-slate-800 text-slate-500"}`}
             title={c.factor ? FACTOR_NAME[c.factor] : "Thông tin"}>{c.factor ?? "i"}</span>
           <span className="text-slate-300 truncate" title={c.label}>{c.ok ? "✓" : "✗"} {c.label}</span>
           <span className="text-slate-400 font-mono text-right whitespace-nowrap">
@@ -206,11 +206,11 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-2">
             <span className="text-lg font-black text-amber-400 tracking-wide">{result.ticker}</span>
-            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold ${result.status === "BREAKOUT" ? "bg-emerald-500/15 text-emerald-300" : "bg-sky-500/15 text-sky-300"}`}>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${result.status === "BREAKOUT" ? "bg-emerald-500/15 text-emerald-300" : "bg-sky-500/15 text-sky-300"}`}>
               {result.status === "BREAKOUT" ? "BREAKOUT" : `SETUP · cách pivot ${fmtPct(result.metrics.belowPivotPct)}`.replace("+", "")}
             </span>
-            {evidence && <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${evidence.label === "VALIDATED" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`}>{evidence.label}</span>}
-            {doc.market?.up === false && <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">M chưa thuận</span>}
+            {evidence && <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${evidence.label === "VALIDATED" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`}>{evidence.label}</span>}
+            {doc.market?.up === false && <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">M chưa thuận</span>}
           </div>
           <div className="text-[10px] text-slate-400 truncate">
             {result.name ?? ""}{result.sector ? ` · ${result.sector}` : ""} · {strategy === "camslim" ? "CAN SLIM · cốc tay cầm" : "Base Breakout"} · tín hiệu {result.date}
@@ -266,7 +266,7 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
             </div>
           )}
           {gradeStats?.n ? (
-            <p className="mt-2 text-[9px] text-slate-500 leading-relaxed">
+            <p className="mt-2 text-[10px] text-slate-500 leading-relaxed">
               Lịch sử hạng {result.grade}: {gradeStats.n} lệnh · thắng {gradeStats.winRate?.toFixed(0)}% · PF {gradeStats.profitFactor?.toFixed(2).replace(".", ",") ?? "—"}
               {evidence && evidence.all.n < 100 ? " · mẫu nhỏ, chỉ tham khảo" : ""}
             </p>
@@ -281,26 +281,26 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
               <div className="text-[12px] font-bold text-cyan-200">{ew.label}</div>
               {ew.weight != null && (
                 <div title="Trọng số tương đối giữa các kịch bản sóng (softmax điểm mô hình) — không phải xác suất xảy ra">
-                  <div className="flex justify-between text-[9px] text-slate-500"><span>Trọng số tương đối (chưa hiệu chỉnh)</span><span className="font-mono text-slate-300">{Math.round(ew.weight * 100)}%</span></div>
+                  <div className="flex justify-between text-[10px] text-slate-500"><span>Trọng số tương đối (chưa hiệu chỉnh)</span><span className="font-mono text-slate-300">{Math.round(ew.weight * 100)}%</span></div>
                   <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full rounded-full" style={{ width: `${Math.round(ew.weight * 100)}%`, background: ACCENT }} /></div>
                 </div>
               )}
               {ew.invalidation && <div className="text-slate-400">Vô hiệu nếu giá {ew.invalidation.side === "below" ? "thủng" : "vượt"} <span className="font-mono text-slate-200">{fmtP(ew.invalidation.price)}</span></div>}
               {ew.alternatives.length > 0 && (
-                <ul className="text-[9px] text-slate-500 space-y-0.5">
+                <ul className="text-[10px] text-slate-500 space-y-0.5">
                   {ew.alternatives.map((a, i) => <li key={i}>Phương án {i + 2}: {a.label}{a.weight != null ? ` · trọng số ${Math.round(a.weight * 100)}%` : ""}</li>)}
                 </ul>
               )}
               {h?.wave && <div className="text-slate-400">Cạnh phải cốc: <span className="text-slate-200">{h.wave.count}</span></div>}
               {mtf?.week && (
                 <div className="rounded px-1.5 py-1 space-y-0.5" style={{ background: "rgba(148,163,184,0.05)" }} data-testid="deep-elliott-week">
-                  <div className="text-[9px] text-slate-500">Khung tuần{mtf.week.partial ? " (tuần chưa hết)" : ""}</div>
+                  <div className="text-[10px] text-slate-500">Khung tuần{mtf.week.partial ? " (tuần chưa hết)" : ""}</div>
                   <div className="text-[10px] font-semibold text-slate-200">{mtf.week.label}</div>
-                  <div className="text-[9px] text-slate-400">{mtf.relationText}</div>
+                  <div className="text-[10px] text-slate-400">{mtf.relationText}</div>
                 </div>
               )}
-              {mtf && mtf.osc.day.wave !== "none" && <div className="text-[9px] text-slate-400" data-testid="deep-elliott-osc">{mtf.osc.day.label}</div>}
-              <p className="text-[8px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. {ELLIOTT_VN_NOTE}</p>
+              {mtf && mtf.osc.day.wave !== "none" && <div className="text-[10px] text-slate-400" data-testid="deep-elliott-osc">{mtf.osc.day.label}</div>}
+              <p className="text-[10px] text-slate-600">Trọng số = so sánh tương đối giữa các kịch bản, không phải xác suất. {ELLIOTT_VN_NOTE}</p>
             </div>
           ) : <div className="text-[10px] text-slate-500 py-4">{series.isLoading ? "Đang đếm sóng…" : "Chưa có kịch bản sóng hợp lệ."}</div>}
         </Card>
@@ -314,21 +314,21 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
                   <span className="font-mono text-slate-200">{fmtP(r.price)}</span>
                 </li>
               ))}
-              {h?.best && <li className="pt-1 text-[9px] text-slate-500">Cụm mạnh nhất: {fmtP(h.best.low)}–{fmtP(h.best.high)} · {h.best.sources.length} nguồn · trọng số {h.best.weight}</li>}
+              {h?.best && <li className="pt-1 text-[10px] text-slate-500">Cụm mạnh nhất: {fmtP(h.best.low)}–{fmtP(h.best.high)} · {h.best.sources.length} nguồn · trọng số {h.best.weight}</li>}
             </ul>
           ) : <div className="text-[10px] text-slate-500 py-4">Không có mức Fibonacci cho tín hiệu này.</div>}
         </Card>
 
         <Card title={strategy === "camslim" ? "CAN SLIM — 7 yếu tố" : "Thành phần điểm"} right={`${result.metrics.score}/100`}>
           {result.components?.length ? <ComponentList components={result.components} strategy={strategy} /> : <div className="text-[10px] text-slate-500">—</div>}
-          {result.fundamentals && <p className="mt-1.5 text-[9px] text-slate-500">BCTC gần nhất đã công bố: {result.fundamentals.latestQuarter} · tăng trưởng đo bằng LNST</p>}
+          {result.fundamentals && <p className="mt-1.5 text-[10px] text-slate-500">BCTC gần nhất đã công bố: {result.fundamentals.latestQuarter} · tăng trưởng đo bằng LNST</p>}
         </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         <Card title="Khối lượng 30 phiên" right={vol ? `KL tăng/giảm 20 phiên ${fmtX(vol.trend.upDownVolumeRatio20)}` : undefined}>
           {vol ? <VolumeBars data={vol.trend} /> : <div className="text-[10px] text-slate-500 py-6 text-center">Đang tải khối lượng…</div>}
-          <div className="flex gap-3 text-[9px] text-slate-400 mt-1">
+          <div className="flex gap-3 text-[10px] text-slate-400 mt-1">
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: UP }} />Phiên tăng</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ border: `1.2px solid ${DOWN}` }} />Phiên giảm</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 border-t border-dashed border-slate-400" />TB20</span>
@@ -336,14 +336,14 @@ export default function ScreenerDeepPanel({ strategy, result, doc, onClose, onOp
         </Card>
         <Card title="Khối ngoại 20 phiên" right={vol ? `5 phiên ${fmtBn(vol.foreign.net5Val)} · 20 phiên ${fmtBn(vol.foreign.net20Val)}` : undefined}>
           {vol ? <ForeignBars series={vol.foreign.netSeries20} /> : <div className="text-[10px] text-slate-500 py-6 text-center">Đang tải khối ngoại…</div>}
-          <div className="flex gap-3 text-[9px] text-slate-400 mt-1">
+          <div className="flex gap-3 text-[10px] text-slate-400 mt-1">
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: UP }} />Mua ròng (trên trục)</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ border: `1.2px solid ${DOWN}` }} />Bán ròng (dưới trục)</span>
             {strategy === "base-breakout" && <span className="text-slate-500">khối ngoại không tính điểm (bằng chứng ngược)</span>}
           </div>
         </Card>
       </div>
-      <p className="text-[9px] text-slate-600">Nhấn đúp vào dòng hoặc Esc để đóng · {doc.disclaimer} · {series.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : series.priceBasis}{series.warnings.length ? ` · ${series.warnings[0]}` : ""}</p>
+      <p className="text-[10px] text-slate-600">Nhấn đúp vào dòng hoặc Esc để đóng · {doc.disclaimer} · {series.priceBasis === "ADJUSTED_CUMULATIVE" ? "giá điều chỉnh cộng dồn" : series.priceBasis}{series.warnings.length ? ` · ${series.warnings[0]}` : ""}</p>
     </div>
   );
 }

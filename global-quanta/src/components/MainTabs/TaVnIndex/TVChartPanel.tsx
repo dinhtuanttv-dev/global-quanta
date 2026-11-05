@@ -1015,7 +1015,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   };
   const fibExtButton = (inSheet: boolean) => (
     <button type="button" onClick={handleToggleFibExtension} aria-pressed={fibExtensionMode} data-testid="fib-ext" className="ws-btn" title={fibExtensionMode ? "Fib mở rộng: BẬT (127,2 / 161,8 / 261,8%)" : "Fib mở rộng: TẮT"} aria-label="Fibonacci mở rộng">
-      <span className="text-[9px] font-black">Ext</span><span className={inSheet ? "" : "ws-btn-text-opt"}>Fib mở rộng</span>
+      <span className="text-[10px] font-black">Ext</span><span className={inSheet ? "" : "ws-btn-text-opt"}>Fib mở rộng</span>
     </button>
   );
   // Yêu cầu 25/10: gộp các công cụ Fibonacci (thoái lui · mở rộng · thời gian) vào MỘT nhóm trên thanh công cụ.
@@ -1029,7 +1029,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     <Popover label={fibActive ? TOOLS.find((t) => t.id === activeTool)?.short ?? "Fib" : "Fibonacci"} icon={<Activity className="w-3.5 h-3.5" />} testid="fib-group-btn" panelTestid="fib-group"
       title="Fibonacci: thoái lui · mở rộng · thời gian" active={fibActive || fibExtensionMode} optionalLabel width={240}>
       <div className="space-y-1.5">
-        <p className="text-[9px] text-slate-500">Bấm công cụ rồi kéo / bấm trên biểu đồ. "Fib mở rộng" thêm mức 127,2 / 161,8 / 261,8% cho hình Fib vẽ sau.</p>
+        <p className="text-[10px] text-slate-500">Bấm công cụ rồi kéo / bấm trên biểu đồ. "Fib mở rộng" thêm mức 127,2 / 161,8 / 261,8% cho hình Fib vẽ sau.</p>
         <div className="flex flex-col gap-1">
           {TOOLS.filter((t) => FIB_IDS.has(t.id)).map((t) => toolButton(t, true, closeOpenPopovers))}
           {fibExtButton(true)}
@@ -1094,7 +1094,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
               {iq && isIntradayTf(timeframe) && <p className={iq.coarse ? "text-amber-300" : "text-slate-400"} data-testid="intraday-quality">Nến phút: {iq.barsPerSession} nến/phiên · khoảng cách trung vị {iq.medianGapMin ?? "—"} phút · {iq.flatPct}% nến phẳng{iq.coarse ? ` — chỉ có độ phân giải ~${iq.effectiveResolution}` : ""}</p>}
               <p className="text-slate-400" data-testid="tf-note">{intraday.isLoading ? "Đang tải nến phút SSI…" : intraday.error ? `⚠ ${intraday.error}` : isIntradayTf(timeframe) ? `Khung ${timeframe}: nến phút SSI · ${intraday.sessions.length} phiên gần nhất · giờ VN` : `Khung ${timeframe}: ${timeframe === "D" ? "nến ngày" : "gộp từ nến D"} điều chỉnh`}</p>
               {dataContext.priceBasis === "ADJUSTED_CUMULATIVE" && <p>{corporateActions.length} sự kiện quyền đã điều chỉnh — bật lớp “Sự kiện quyền” để thấy ■ trên biểu đồ.</p>}
-              {corporateActions.slice(-8).map((c) => <p key={c.date} className="font-mono text-[9.5px] text-slate-400">{c.date} {c.label} (hệ số {c.factor})</p>)}
+              {corporateActions.slice(-8).map((c) => <p key={c.date} className="font-mono text-[10px] text-slate-400">{c.date} {c.label} (hệ số {c.factor})</p>)}
               {dataContext.warnings.map((w) => <p key={w} className="text-amber-300">⚠ {w}</p>)}
             </div>
           </Popover>
@@ -1108,7 +1108,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             <div className="space-y-1">
               {PRESETS.map((p) => (
                 <button key={p.id} type="button" className={`ws-toggle w-full ${ws.preset === p.id ? "ws-toggle-on" : ""}`} data-preset={p.id} onClick={() => applyPreset(p.id)}>
-                  <span className="font-bold">{p.label}</span><span className="text-[9px] text-slate-500 truncate">{p.hint}</span>
+                  <span className="font-bold">{p.label}</span><span className="text-[10px] text-slate-500 truncate">{p.hint}</span>
                 </button>
               ))}
               {ws.mine && <button type="button" className={`ws-toggle w-full ${ws.preset === "mine" ? "ws-toggle-on" : ""}`} data-preset="mine" onClick={() => applyPreset("mine")}><span className="font-bold">Bố cục của tôi</span></button>}
@@ -1182,12 +1182,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         mine={<>
           <div className="flex flex-wrap gap-1">
             <button type="button" onClick={startCountEdit} aria-pressed={countEditing} data-testid="elliott-edit"
-              className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${countEditing ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-300"}`}>
+              className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${countEditing ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-300"}`}>
               <PencilLine className="w-3 h-3" />Chỉnh tay cách đếm
             </button>
             {userCounts.active && (
               <button type="button" onClick={() => toggleLayer("elliottMine")} aria-pressed={!!layerState?.elliottMine} data-testid="elliott-toggle-mine"
-                className={`text-[9px] px-1.5 py-0.5 rounded-md border ${layerState?.elliottMine ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
+                className={`text-[10px] px-1.5 py-0.5 rounded-md border ${layerState?.elliottMine ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
                 {layerState?.elliottMine ? "Ẩn" : "Hiện"} cách đếm của tôi
               </button>
             )}
@@ -1236,7 +1236,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <ChartSignalsValidation />
       {chochBacktest && !isIntradayTf(timeframe) && <BacktestPanel data={chochBacktest} />}
       {isIntradayTf(timeframe) && (
-        <p className="text-[9px] text-slate-500 rounded-xl p-3" style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} data-testid="backtest-intraday-note">
+        <p className="text-[10px] text-slate-500 rounded-xl p-3" style={{ background: "rgba(2,6,15,0.4)", border: "1px solid rgba(148,163,184,0.08)" }} data-testid="backtest-intraday-note">
           Event study chỉ chạy trên khung D/W/M: cổ phiếu mua trong phiên chưa bán được trong ngày (T+2.5), đo lợi suất theo nến phút sẽ sai bản chất.
         </p>
       )}
@@ -1315,7 +1315,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
                 <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
                   {ELLIOTT_PRO_MODES.map((m) => (
                     <button key={m.id} type="button" role="radio" aria-checked={proMode === m.id} onClick={() => setProMode(m.id)} data-testid={`elliott-pro-mode-${m.id}`}
-                      className={`px-1 rounded border text-[9px] ${proMode === m.id ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
+                      className={`px-1 rounded border text-[10px] ${proMode === m.id ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
                   ))}
                 </span>
               </div>

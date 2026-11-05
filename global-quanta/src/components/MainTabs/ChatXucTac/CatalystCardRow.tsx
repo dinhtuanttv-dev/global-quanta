@@ -43,21 +43,21 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
         </span>
         <TrustScoreBadge trustScore={card.trustScore} />
         {card.isConflicted && (
-          <span style={{ fontSize: 9, color: "#fbbf24", fontWeight: 700 }}>⚠ Mâu thuẫn tín hiệu</span>
+          <span style={{ fontSize: 10, color: "#fbbf24", fontWeight: 700 }}>⚠ Mâu thuẫn tín hiệu</span>
         )}
         {/* MOI (2026-09-11): chi hien khi that su "buy" - du lieu that tu ban
             tin HOSE hang ngay (Top 5 CP mua rong). KHONG hien badge "sell"
             vi ban tin HOSE khong cong bo danh sach ban rong tuong ung -
             "none" nghia la KHONG CO TIN HIEU RO RANG, khong phai "dang ban". */}
         {card.foreignFlowDirection === "buy" && (
-          <span style={{ fontSize: 9, color: "#60a5fa", fontWeight: 700, background: "rgba(96,165,250,0.12)", padding: "1px 6px", borderRadius: 8 }}>
+          <span style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, background: "rgba(96,165,250,0.12)", padding: "1px 6px", borderRadius: 8 }}>
             🌐 Khối ngoại mua ròng
           </span>
         )}
         <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700 }}>{card.compositeScore}</span>
       </div>
       <p style={{ fontSize: 11, color: "var(--text-secondary)", margin: 0 }}>{card.sourceTitle}</p>
-      <div style={{ display: "flex", gap: 8, fontSize: 9.5, color: "var(--text-tertiary)", flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, fontSize: 10, color: "var(--text-tertiary)", flexWrap: "wrap", alignItems: "center" }}>
         <span>{HORIZON_LABEL[card.horizon] ?? card.horizon}</span>
         <span>{PRICE_IN_LABEL[card.priceInStatus] ?? card.priceInStatus}</span>
         <span>Xác nhận chéo: {card.corroborationCount} nguồn</span>
@@ -71,7 +71,7 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
             onClick={() => onOpenAnalysis(card)}
             style={{
               marginLeft: "auto", display: "flex", alignItems: "center", gap: 4,
-              fontSize: 9.5, fontWeight: 700, color: "var(--gold-bright)",
+              fontSize: 10, fontWeight: 700, color: "var(--gold-bright)",
               background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)",
               borderRadius: 8, padding: "2px 8px", cursor: "pointer",
             }}

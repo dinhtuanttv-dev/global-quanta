@@ -32,7 +32,7 @@ function Chip<T extends string>({ value, current, onChange, children, testId }: 
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[9px] px-2 py-0.5 rounded-full border transition ${on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -101,7 +101,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
         </button>
       </header>
 
-      <p className="text-[9px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
+      <p className="text-[10px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
         <Info className="w-3 h-3 shrink-0 mt-px" />
         <span className="flex-1 min-w-[14rem]">
           Theo sách "Giao dịch như một phù thủy chứng khoán" (Mark Minervini): cổng Trend Template 8 tiêu chí rồi các bộ lọc tách biệt, tổng hợp bằng điểm.
@@ -111,7 +111,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
       </p>
 
       {mh && (
-        <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 p-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[9.5px]" data-testid="sepa-market">
+        <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 p-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px]" data-testid="sepa-market">
           <span className="text-slate-400">Thị trường chung:</span>
           <span className={`px-1.5 py-0.5 rounded-full border font-bold ${HEALTH_STYLE[mh.danh_gia]}`} data-testid="sepa-market-verdict">{mh.danh_gia}</span>
           <span className="text-slate-300">VN-Index {mh.tren_MA50 ? "✓" : "✗"} MA50 · {mh.tren_MA200 ? "✓" : "✗"} MA200</span>
@@ -122,7 +122,7 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
         </div>
       )}
       {sectors.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-[9px]" data-testid="sepa-sectors">
+        <div className="flex flex-wrap items-center gap-1.5 text-[10px]" data-testid="sepa-sectors">
           <span className="text-slate-500">Ngành dẫn dắt (RS TB, s.199):</span>
           {sectors.map((s) => <span key={s.nganh} className="px-1.5 py-0.5 rounded border border-slate-700 text-slate-300">#{s.hang_nganh} {s.nganh} · {String(s.mean).replace(".", ",")}</span>)}
         </div>
@@ -130,14 +130,14 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
       {data && <SepaIntradayStrip onOpen={(t) => { setList("active"); setPattern("all"); setOpen(t); }} />}
       {data?.evidence && data.evidence.label !== "PENDING" && <SepaEvidenceCard evidence={data.evidence} />}
       {data && (
-        <p className="text-[9px] text-slate-500" data-testid="sepa-live">
+        <p className="text-[10px] text-slate-500" data-testid="sepa-live">
           Theo dõi thực tế (sổ SCR_SEPA_READY / _ALERT / _S2, ghi mỗi phiên quét 15:45, chấm T+3/T+5/T+10 so với VN-Index):{" "}
           {(data.liveTracking?.groups ?? []).some((g) => g.h5)
             ? (data.liveTracking!.groups ?? []).map((g) => g.h5 ? `${g.label} T+5: n ${g.h5.n}, trúng ${Math.round(g.h5.hitRate * 100)}% (nền ${Math.round(g.h5.baseline * 100)}%)` : `${g.label}: chưa đủ mẫu`).join(" · ")
             : "chưa có tín hiệu đủ T+5."}
         </p>
       )}
-      {data?.evidence?.label === "PENDING" && <p className="text-[9px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="sepa-evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>}
+      {data?.evidence?.label === "PENDING" && <p className="text-[10px] text-amber-300/80 rounded-lg border border-slate-800/70 bg-slate-950/40 p-2" data-testid="sepa-evidence-pending">Bằng chứng lịch sử: {data.evidence.reason}</p>}
 
       {data && (
         <div className="flex flex-wrap items-center gap-1.5" data-testid="sepa-filters">
@@ -183,31 +183,31 @@ export default function SepaPanel({ onSelectTicker, onOpenVision }: { onSelectTi
                         title={`Phân tích chuyên sâu ${r.ticker} (bấm lại hoặc Esc để đóng)`} aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}
                       </button>
-                      <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
+                      <span className="block text-[10px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                   <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
-                    <td className="py-1.5"><span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span></td>
+                    <td className="py-1.5"><span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${LIST_STYLE[r.list]}`}>{LIST_SHORT[r.list]}</span></td>
                     <td className="py-1.5 text-right font-mono font-bold text-slate-200 whitespace-nowrap" style={{ paddingRight: 12, width: 64 }} title={r.components ? `Xu hướng ${r.components.trend.toFixed(1)} · cơ bản ${r.components.fund.toFixed(1)} · RS ${r.components.rs.toFixed(1)} · mô hình ${r.components.pattern.toFixed(1)} · dẫn dắt ${r.components.lead.toFixed(1)}${r.components.penalty ? ` · cảnh báo ${r.components.penalty}` : ""}` : undefined}>
                       {r.score.toFixed(1).replace(".", ",")}
-                      <span className="block text-[8px] font-normal text-slate-500">{r.screensPassed}/5 bộ lọc</span>
+                      <span className="block text-[10px] font-normal text-slate-500">{r.screensPassed}/5 bộ lọc</span>
                     </td>
                     <td className="py-1.5" style={{ paddingLeft: 4 }}>
                       {r.metrics.pattern ? (
                         <>
                           <span className="text-slate-200">{PATTERN_SHORT[r.metrics.pattern] ?? r.metrics.pattern}</span>
-                          <span className="block text-[9px] font-mono text-amber-200/90" data-testid="sepa-footprint-cell">{r.metrics.footprint}</span>
+                          <span className="block text-[10px] font-mono text-amber-200/90" data-testid="sepa-footprint-cell">{r.metrics.footprint}</span>
                         </>
                       ) : <span className="text-slate-600">—</span>}
                     </td>
                     <td className="py-1.5 text-right hidden sm:table-cell"><span className={r.trend.passed ? "text-emerald-300" : "text-slate-400"}>{r.trend.score}/8</span><span className="text-slate-500"> · GĐ{r.metrics.stage}{r.metrics.baseNo ? ` · n${r.metrics.baseNo}` : ""}</span></td>
                     <td className="py-1.5 text-right font-mono text-slate-300 hidden sm:table-cell">{r.metrics.rs != null ? Math.round(r.metrics.rs) : "—"}</td>
-                    <td className="py-1.5 text-right font-mono text-slate-300 hidden sm:table-cell">{fmtP(r.metrics.pivot)}<span className="block text-[8px] text-rose-300/80">{r.metrics.stopPct != null ? `−${String(r.metrics.stopPct).replace(".", ",")}%` : ""}</span></td>
+                    <td className="py-1.5 text-right font-mono text-slate-300 hidden sm:table-cell">{fmtP(r.metrics.pivot)}<span className="block text-[10px] text-rose-300/80">{r.metrics.stopPct != null ? `−${String(r.metrics.stopPct).replace(".", ",")}%` : ""}</span></td>
                     <td className="py-1.5 text-right">
-                      <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${r.status === "BREAKOUT" ? "bg-emerald-500/15 text-emerald-300" : r.status === "NEAR_PIVOT" ? "bg-amber-500/15 text-amber-200" : "bg-slate-500/10 text-slate-400"}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold whitespace-nowrap ${r.status === "BREAKOUT" ? "bg-emerald-500/15 text-emerald-300" : r.status === "NEAR_PIVOT" ? "bg-amber-500/15 text-amber-200" : "bg-slate-500/10 text-slate-400"}`}>
                         {r.status ? STATUS_VI[r.status] ?? r.status : "—"}
                       </span>
-                      {isS2Signal(r) && <span className="block mt-0.5 text-[7.5px] text-emerald-300" title="Tín hiệu S2 đạt ngưỡng kiểm định ngoài mẫu (n 37), trong mẫu không có lợi thế" data-testid="sepa-s2">S2 · đạt OOS*</span>}
+                      {isS2Signal(r) && <span className="block mt-0.5 text-[10px] text-emerald-300" title="Tín hiệu S2 đạt ngưỡng kiểm định ngoài mẫu (n 37), trong mẫu không có lợi thế" data-testid="sepa-s2">S2 · đạt OOS*</span>}
                     </td>
                   </tr>
                   {open === r.ticker && (

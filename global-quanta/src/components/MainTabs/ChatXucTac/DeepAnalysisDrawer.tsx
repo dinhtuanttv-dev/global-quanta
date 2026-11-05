@@ -24,7 +24,7 @@ type SubTab = "explain" | "forensics" | "risk";
 const DEFAULT_PORTFOLIO_VALUE = 500_000_000;
 
 const Note = ({ children, warn = false }: { children: ReactNode; warn?: boolean }) => (
-  <p style={{ fontSize: 9.5, color: warn ? "var(--warning, #f59e0b)" : "var(--text-tertiary)", margin: "0 0 8px", lineHeight: 1.45 }}>{children}</p>
+  <p style={{ fontSize: 10, color: warn ? "var(--warning, #f59e0b)" : "var(--text-tertiary)", margin: "0 0 8px", lineHeight: 1.45 }}>{children}</p>
 );
 
 export default function DeepAnalysisDrawer({ card, onClose }: Props) {
@@ -103,7 +103,7 @@ export default function DeepAnalysisDrawer({ card, onClose }: Props) {
 
         {subTab === "risk" && (
           <div>
-            <label style={{ fontSize: 9.5, color: "var(--text-tertiary)", display: "block", marginBottom: 8 }}>
+            <label style={{ fontSize: 10, color: "var(--text-tertiary)", display: "block", marginBottom: 8 }}>
               Giá trị danh mục của bạn (₫)
               <input type="number" min={1_000_000} step={1_000_000} value={portfolioValue}
                 onChange={(e) => setPortfolioValue(Math.max(1_000_000, Number(e.target.value) || DEFAULT_PORTFOLIO_VALUE))}
@@ -138,7 +138,7 @@ export default function DeepAnalysisDrawer({ card, onClose }: Props) {
           </div>
         )}
 
-        <p style={{ fontSize: 8.5, color: "var(--text-tertiary)", marginTop: 16, lineHeight: 1.5 }}>
+        <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 16, lineHeight: 1.5 }}>
           Điểm số, giải thích và các chỉ số rủi ro trên là công cụ hỗ trợ phân tích, không phải khuyến nghị đầu tư.
         </p>
       </div>

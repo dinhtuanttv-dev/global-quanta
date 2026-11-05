@@ -48,7 +48,7 @@ const TIER_STYLE: Record<string, { label: string; color: string }> = {
 };
 const Tier = ({ t }: { t: string }) => {
   const s = TIER_STYLE[t] ?? { label: t, color: "var(--text-tertiary)" };
-  return <span title={t === "C" ? "Chưa đủ bằng chứng / giả thuyết — không phải \"có tác động\"" : undefined} style={{ fontSize: 9.5, fontWeight: 700, color: s.color, border: `1px solid ${s.color}`, borderRadius: 4, padding: "0 4px" }}>{s.label}</span>;
+  return <span title={t === "C" ? "Chưa đủ bằng chứng / giả thuyết — không phải \"có tác động\"" : undefined} style={{ fontSize: 10, fontWeight: 700, color: s.color, border: `1px solid ${s.color}`, borderRadius: 4, padding: "0 4px" }}>{s.label}</span>;
 };
 export const toolLabel = (name: string) => TOOL_LABEL[name] ?? name;
 
@@ -57,7 +57,7 @@ const STATUS_VI: Record<string, string> = { stable: "ổn định", unstable: "k
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "8px 10px", background: "var(--bg-surface)", marginTop: 8, minWidth: 0 }}>
-      <div style={{ fontSize: 9.5, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: 0.3, marginBottom: 6, textTransform: "uppercase" }}>{title}</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--text-tertiary)", letterSpacing: 0.3, marginBottom: 6, textTransform: "uppercase" }}>{title}</div>
       {children}
     </div>
   );

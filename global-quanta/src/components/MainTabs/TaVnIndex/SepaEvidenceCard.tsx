@@ -17,30 +17,30 @@ export default function SepaEvidenceCard({ evidence }: { evidence: NonNullable<S
   return (
     <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 p-2 space-y-1" data-testid="sepa-evidence">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[8.5px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300">{evidence.label}</span>
-        <span className="text-[9.5px] text-slate-300 flex-1 min-w-[14rem]">{evidence.reason}</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300">{evidence.label}</span>
+        <span className="text-[10px] text-slate-300 flex-1 min-w-[14rem]">{evidence.reason}</span>
         {v && (
-          <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className="text-[9px] text-emerald-300 hover:text-emerald-200" data-testid="sepa-evidence-toggle">
+          <button type="button" onClick={() => setOpen((x) => !x)} aria-expanded={open} className="text-[10px] text-emerald-300 hover:text-emerald-200" data-testid="sepa-evidence-toggle">
             {open ? "Ẩn chi tiết" : "Chi tiết kiểm định"}
           </button>
         )}
       </div>
       {open && v && (
         <div className="overflow-x-auto">
-          <p className="text-[9px] text-slate-500">Kiểm định {v.version} · {v.period.sessions} phiên {v.period.from} → {v.period.to} · ngoài mẫu từ {v.period.oosFrom} · {v.rules}</p>
-          <table className="w-full text-[9.5px] mt-1" data-testid="sepa-evidence-table">
+          <p className="text-[10px] text-slate-500">Kiểm định {v.version} · {v.period.sessions} phiên {v.period.from} → {v.period.to} · ngoài mẫu từ {v.period.oosFrom} · {v.rules}</p>
+          <table className="w-full text-[10px] mt-1" data-testid="sepa-evidence-table">
             <thead><tr className="text-slate-500 text-left"><th className="py-0.5">Giả thuyết</th><th>Trong mẫu</th><th>Ngoài mẫu</th><th className="text-right">Kết luận</th></tr></thead>
             <tbody className="divide-y divide-slate-800/40">
               {v.hypotheses.map((h) => (
                 <tr key={h.id} className="align-top">
-                  <td className="py-1 pr-2"><b className="text-slate-200">{h.id}</b> <span className="text-slate-300">{h.label}</span>{h.caveat && <span className="block text-[8.5px] text-amber-300/80">{h.caveat}</span>}</td>
+                  <td className="py-1 pr-2"><b className="text-slate-200">{h.id}</b> <span className="text-slate-300">{h.label}</span>{h.caveat && <span className="block text-[10px] text-amber-300/80">{h.caveat}</span>}</td>
                   <td className="py-1 pr-2 font-mono text-slate-400 whitespace-nowrap">{h.is ? stat(h.is) : "—"}</td>
                   <td className="py-1 pr-2 font-mono text-slate-300">
                     {isStat(h.oos) ? stat(h.oos) : h.oos ? Object.entries(h.oos).map(([k, s]) => (
                       <span key={k} className="block whitespace-nowrap">{k}: {isStat(s) ? stat(s) : Object.entries(s as Record<string, number>).map(([a, b]) => `${a} ${b}`).join(" · ")}</span>
                     )) : "—"}
                   </td>
-                  <td className="py-1 text-right"><span className={`text-[8px] px-1.5 py-0.5 rounded border font-bold whitespace-nowrap ${VERDICT[h.verdict][1]}`}>{VERDICT[h.verdict][0]}</span></td>
+                  <td className="py-1 text-right"><span className={`text-[10px] px-1.5 py-0.5 rounded border font-bold whitespace-nowrap ${VERDICT[h.verdict][1]}`}>{VERDICT[h.verdict][0]}</span></td>
                 </tr>
               ))}
             </tbody>

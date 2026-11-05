@@ -74,7 +74,7 @@ export default function LineChart({ series, height = 220, yFmt = (v: number) => 
       {live.length > 1 && (
         <div className="flex flex-wrap gap-x-3 gap-y-1 mb-1" aria-hidden="true">
           {live.map((s) => (
-            <span key={s.key} className="flex items-center gap-1 text-[9.5px]" style={{ color: "var(--text-secondary)" }}>
+            <span key={s.key} className="flex items-center gap-1 text-[10px]" style={{ color: "var(--text-secondary)" }}>
               <span style={{ width: 12, height: 2, background: s.color, display: "inline-block", borderRadius: 2 }} />{s.label}
             </span>
           ))}

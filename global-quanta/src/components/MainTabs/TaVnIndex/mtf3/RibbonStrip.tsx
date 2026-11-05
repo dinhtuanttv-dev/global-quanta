@@ -48,17 +48,17 @@ function TfCard({ s }: { s: RibbonSnapshot }) {
     <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(15,23,42,0.55)", border: "1px solid rgba(148,163,184,0.12)" }} data-testid={`ribbon-tf-${s.tf}`}>
       <div className="flex items-baseline justify-between gap-1">
         <span className="text-[10px] font-bold text-slate-200">{TF_NAME[s.tf]}</span>
-        <span className="text-[9px] text-slate-500">{s.date ? `${s.tf === "D" ? "phiên" : "kỳ đóng"} ${s.date.split("-").reverse().join("/")}` : "chưa có kỳ đóng"}</span>
+        <span className="text-[10px] text-slate-500">{s.date ? `${s.tf === "D" ? "phiên" : "kỳ đóng"} ${s.date.split("-").reverse().join("/")}` : "chưa có kỳ đóng"}</span>
       </div>
       <div className={`text-[11px] font-bold ${toneCls}`} data-testid={`ribbon-order-${s.tf}`}>{o.text}</div>
       <Ladder s={s} />
-      <div className="flex flex-wrap items-center gap-1 text-[9.5px]">
+      <div className="flex flex-wrap items-center gap-1 text-[10px]">
         <span title={ph.hint} className={`rounded border px-1.5 py-0.5 ${ph.cls}`} data-testid={`ribbon-phase-${s.tf}`}>{ph.text}{s.widthPct != null ? ` · ${s.widthPct}%` : ""}</span>
         <span className="text-slate-400" title="(Giá − EMA50) / ATR của khung">lệch EMA50 <b className="text-slate-200">{vi(s.dev50)} ATR</b></span>
         {s.over !== 0 && <span className="rounded border border-amber-400/50 px-1 text-amber-200" title="Lệch ≥ 3 ATR khỏi EMA50 theo chiều dải — không vào lệnh mới theo hướng này (dễ lấp khoảng lệch)">{s.over > 0 ? "Quá đà tăng" : "Quá đà giảm"}</span>}
         {s.inBand && <span className="rounded border border-slate-500/50 px-1 text-slate-300" title="Giá nằm giữa EMA21 và EMA50 — vùng hai phe giằng co">Trong dải 21–50</span>}
       </div>
-      {s.ma200 == null && s.bars > 0 && <p className="text-[9px] text-slate-500">MA200: chưa đủ 200 {UNIT[s.tf]} ({s.bars}) — để trống, không ước lượng.</p>}
+      {s.ma200 == null && s.bars > 0 && <p className="text-[10px] text-slate-500">MA200: chưa đủ 200 {UNIT[s.tf]} ({s.bars}) — để trống, không ước lượng.</p>}
     </div>
   );
 }
@@ -69,11 +69,11 @@ export default function RibbonStrip({ ctx }: { ctx: RibbonContext }) {
     <section className="space-y-1.5" data-testid="ribbon-strip" aria-label="Dải EMA ba khung">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Dải EMA 21 · 50 · 100 · MA200</span>
-        <span className="flex items-center gap-1.5 text-[9px] text-slate-500">
+        <span className="flex items-center gap-1.5 text-[10px] text-slate-500">
           {(["ema21", "ema50", "ema100", "ma200"] as const).map((k) => <span key={k} className="inline-flex items-center gap-0.5"><i className="inline-block w-2 h-2 rounded-full" style={{ background: RIBBON_COLORS[k] }} />{k === "ma200" ? "MA200" : k.toUpperCase()}</span>)}
           <span className="inline-flex items-center gap-0.5"><i className="inline-block w-0.5 h-2.5 bg-slate-100" />giá</span>
         </span>
-        <span className="ml-auto flex items-center gap-1.5 text-[9.5px]">
+        <span className="ml-auto flex items-center gap-1.5 text-[10px]">
           <span className="text-slate-400" title="Cộng dấu thứ tự xếp lớp của Ngày, Tuần, Tháng (−3 … +3)">Đồng thuận 3 khung <b className={ctx.align > 0 ? "text-emerald-300" : ctx.align < 0 ? "text-rose-300" : "text-slate-200"} data-testid="ribbon-align">{ctx.align > 0 ? "+" : ""}{ctx.align}</b></span>
           {nested && <span className={`rounded border px-1.5 py-0.5 ${nested === "up" ? "border-emerald-400/50 text-emerald-200" : "border-rose-400/50 text-rose-200"}`} title="Dải Ngày vừa thoát nén và mở rộng (≤ 5 phiên) cùng chiều xếp lớp của Tuần — 'hội tụ → mở rộng lồng khung'" data-testid="ribbon-nested">Mở rộng lồng khung {nested === "up" ? "↑" : "↓"}</span>}
           <span className="rounded border border-slate-600/60 px-1.5 py-0.5 text-slate-400" title="Thành phần mô tả — kiểm định đặt trước MTF-v3 chạy ở bước S7">MÔ TẢ</span>

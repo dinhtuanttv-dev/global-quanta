@@ -115,7 +115,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
         <div className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Kiểu biểu đồ">
           {(["2D", "3D"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} data-testid={`timing-view-${v}`} onClick={() => setView(v)}
-              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "bg-cyan-500/20 font-bold text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>
+              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "bg-[#E8B84B]/20 font-bold text-[#F5CE72]" : "text-slate-400 hover:text-slate-200"}`}>
               {v === "2D" ? "2D phân phối" : "3D · 4D không gian"}
             </button>
           ))}
@@ -139,21 +139,21 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
         <>
           <p className="mt-1 text-[10.5px] text-slate-400" data-testid="timing-sim-upcoming">
             {eventWord} {es.upcoming?.date && es.upcoming.date < today ? "kỳ gần nhất" : "sắp tới"}: <b className="text-slate-100">{dm(es.upcoming?.date ?? null)}</b>{" "}
-            {es.upcoming && <span className={`ml-1 rounded border px-1.5 py-0.5 text-[9px] font-bold ${es.upcoming.status === "CONFIRMED" || es.upcoming.status === "ANNOUNCED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{STATUS_VI[es.upcoming.status] ?? es.upcoming.status}</span>}
+            {es.upcoming && <span className={`ml-1 rounded border px-1.5 py-0.5 text-[10px] font-bold ${es.upcoming.status === "CONFIRMED" || es.upcoming.status === "ANNOUNCED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{STATUS_VI[es.upcoming.status] ?? es.upcoming.status}</span>}
             {todayOff != null && <> · hôm nay ở phiên <b className="text-amber-300">{todayOff > 0 ? `+${todayOff}` : todayOff}</b>{todayOff > 0 ? " (đã qua — chờ cập nhật kỳ kế tiếp)" : ""}</>}
             {" "}· {es.events.length} đợt lịch sử
           </p>
           {tl ? (
             <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 rounded border border-emerald-400/20 bg-emerald-500/5 px-2 py-1.5 text-[10.5px]" data-testid="timing-timeline">
               <b className="text-emerald-300">⏱ Timeline điểm mua</b>
-              <span className={`rounded border px-1.5 py-0.5 text-[9.5px] font-bold ${TL_STATUS[tl.status].cls}`}>{TL_STATUS[tl.status].text}</span>
+              <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${TL_STATUS[tl.status].cls}`}>{TL_STATUS[tl.status].text}</span>
               <span className="text-slate-200">{tl.windowLabel}</span>
               <span className="text-slate-300">vào <b className="text-slate-100">{dm(tl.entryFromDate)} → {dm(tl.entryToDate)}</b> · thoát <b className="text-slate-100">{dm(tl.exitDate)}</b></span>
               {tl.status === "UPCOMING" && <span className="text-sky-300">còn {tl.sessionsToEntry} phiên tới vùng mua</span>}
-              <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold ${tl.tier === "VALIDATED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{tl.tier === "VALIDATED" ? "ĐẠT KIỂM ĐỊNH" : "GẦN ĐẠT"}</span>
+              <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${tl.tier === "VALIDATED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{tl.tier === "VALIDATED" ? "ĐẠT KIỂM ĐỊNH" : "GẦN ĐẠT"}</span>
               <span className="text-slate-400">{tl.nEvents} đợt · thắng {Math.round(tl.winRate * 100)}% · ròng {pct(tl.netExpectancy)} (cận dưới {pct(tl.netExpectancyLcb)})</span>
               {tl.missing.length > 0 && <span className="text-amber-300/90">thiếu: {tl.missing.join("; ")}</span>}
-              {fresh && <span className={`ml-auto text-[9.5px] ${fresh.stale ? "text-amber-300" : "text-slate-500"}`}>{fresh.text}</span>}
+              {fresh && <span className={`ml-auto text-[10px] ${fresh.stale ? "text-amber-300" : "text-slate-500"}`}>{fresh.text}</span>}
             </div>
           ) : (
             <p className="mt-2 text-[10.5px] text-slate-500" data-testid="timing-timeline-empty">
@@ -168,7 +168,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
                 <span className="block font-bold text-slate-100">{w.label}</span>
                 <span className="text-slate-400">{w.wins ?? Math.round(w.winRate * w.nEvents)}/{w.nEvents} thắng · ròng {pct(w.netExpectancy)}</span>
                 <span className={`ml-1 font-bold ${w.selected ? "text-emerald-300" : "text-slate-500"}`}>{w.selected ? "ĐẠT" : "chưa đạt"}</span>
-                {tl?.windowId === w.id && <span className="ml-1 rounded bg-emerald-500/20 px-1 text-[9px] font-bold text-emerald-200">TIMELINE</span>}
+                {tl?.windowId === w.id && <span className="ml-1 rounded bg-emerald-500/20 px-1 text-[10px] font-bold text-emerald-200">TIMELINE</span>}
               </button>
             ))}
           </div>

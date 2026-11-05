@@ -20,7 +20,7 @@ const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFin
 const fmtDate = (d: string | null | undefined) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
 const STANCE_BG: Record<ShortStance, string> = { overweight: divergingColor(2.5), underweight: divergingColor(-2.5), neutral: "rgba(148,163,184,0.25)", na: "rgba(148,163,184,0.15)" };
 const MED_TONE: Record<MediumStance, number> = { supportive: 2.5, mixed: 0, neutral: 0, adverse: -2.5 };
-const chip = "text-[9.5px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap";
+const chip = "text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap";
 
 function Card({ title, tag, children, testId }: { title: string; tag?: React.ReactNode; children: React.ReactNode; testId?: string }) {
   return (
@@ -35,7 +35,7 @@ function Card({ title, tag, children, testId }: { title: string; tag?: React.Rea
 
 function AskButton({ onClick, label = "Hỏi AI" }: { onClick: () => void; label?: string }) {
   return (
-    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} className="inline-flex items-center gap-1 text-[9.5px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+    <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
       style={{ border: "1px solid rgba(232,184,75,0.4)", color: "var(--gold-bright, #e8b84b)", background: "transparent" }}>
       <MessageSquare className="w-3 h-3" />{label}
     </button>
@@ -88,20 +88,20 @@ function StockLookup({ onAsk, commodityPct, catalyst }: { onAsk: (q: string) => 
               {d.ticker} <span className="font-normal text-[10.5px]" style={muted}>{d.sector ? `${d.sector.nameVi} · ICB ${d.sector.icb}` : "chưa có ngành trong bảng 22 ngành"}</span>
             </p>
             <div className="flex gap-1.5">
-              <button type="button" onClick={() => selectTicker(d.ticker)} className="text-[9.5px] font-bold px-1.5 py-0.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Mở biểu đồ</button>
+              <button type="button" onClick={() => selectTicker(d.ticker)} className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ border: "1px solid var(--border)", color: "var(--text-secondary)" }}>Mở biểu đồ</button>
               <AskButton onClick={() => onAsk(askTicker(d.ticker))} label="Hỏi AI về mã này" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10.5px]">
             <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.05)" }}>
-              <p className="text-[9px] font-bold uppercase" style={muted}>Ngành — ngắn hạn (đã kiểm định, lợi thế nhỏ)</p>
+              <p className="text-[10px] font-bold uppercase" style={muted}>Ngành — ngắn hạn (đã kiểm định, lợi thế nhỏ)</p>
               {d.sectorShort ? (
                 <p style={{ color: "var(--text-secondary)" }}>
                   <span className={chip} style={{ background: STANCE_BG[d.sectorShort.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[d.sectorShort.stance]}</span>{" "}
                   α <b style={{ color: "#f1f5f9" }}>{fmtZ(d.sectorShort.alphaBps, 1)}</b> đcb/phiên · P vượt VN-Index {d.sectorShort.pOutperform == null ? "—" : `${num(d.sectorShort.pOutperform * 100, 1)}%`}
                 </p>
               ) : <p style={muted}>—</p>}
-              <p className="text-[9px] font-bold uppercase pt-1" style={muted}>Ngành — trung hạn (bối cảnh, không dự báo)</p>
+              <p className="text-[10px] font-bold uppercase pt-1" style={muted}>Ngành — trung hạn (bối cảnh, không dự báo)</p>
               {d.sectorMedium ? (
                 <p style={{ color: "var(--text-secondary)" }}>
                   <span className={chip} style={{ background: MED_TONE[d.sectorMedium.stance] ? divergingColor(MED_TONE[d.sectorMedium.stance]) : "rgba(148,163,184,0.25)", color: "#f1f5f9" }}>{MEDIUM_STANCE_VI[d.sectorMedium.stance]}</span>{" "}
@@ -110,14 +110,14 @@ function StockLookup({ onAsk, commodityPct, catalyst }: { onAsk: (q: string) => 
               ) : <p style={muted}>—</p>}
             </div>
             <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.05)" }}>
-              <p className="text-[9px] font-bold uppercase" style={muted}>Phơi nhiễm của mã (mô tả)</p>
+              <p className="text-[10px] font-bold uppercase" style={muted}>Phơi nhiễm của mã (mô tả)</p>
               {d.stockExposure ? (
                 <p style={{ color: "var(--text-secondary)" }}>
                   Tỷ trọng trong ngành {num(d.stockExposure.weightPct)}% · β với ngành thế giới {num(d.stockExposure.betaPct, 2)} · tương quan {num(d.stockExposure.corr, 2)}
                   <br />Giá: 1 phiên {fmtZ(d.stockExposure.d1Pct, 1)}% · 1 tháng {fmtZ(d.stockExposure.m1Pct, 1)}% · 3 tháng {fmtZ(d.stockExposure.m3Pct, 1)}%
                 </p>
               ) : <p style={muted}>{d.note ?? "Mã không nằm trong nhóm thành phần lớn — tác động suy từ ngành."}</p>}
-              <p className="text-[9px] font-bold uppercase pt-1" style={muted}>Hàng hoá dẫn dắt · chất xúc tác</p>
+              <p className="text-[10px] font-bold uppercase pt-1" style={muted}>Hàng hoá dẫn dắt · chất xúc tác</p>
               <p style={{ color: "var(--text-secondary)" }}>
                 {d.drivers.length ? d.drivers.map((x) => {
                   const c = commodityPct.get(x.id);
@@ -127,7 +127,7 @@ function StockLookup({ onAsk, commodityPct, catalyst }: { onAsk: (q: string) => 
               </p>
             </div>
           </div>
-          {state.guidance.length > 0 && <p className="text-[9px]" style={muted}>{state.guidance.join(" ")}</p>}
+          {state.guidance.length > 0 && <p className="text-[10px]" style={muted}>{state.guidance.join(" ")}</p>}
         </div>
       )}
     </Card>
@@ -159,10 +159,10 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
     <div className="tw-scope space-y-3" data-testid="impact-board">
       <div>
         <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Tác động tới ngành & cổ phiếu Việt Nam</p>
-        <p className="text-[9.5px]" style={muted}>Ghép chiến lược ngành thế giới · hàng hoá · chất xúc tác theo 22 ngành ICB. Bấm một ngành để xem phân tích chuyên sâu, hoặc “Hỏi AI” để Claude/Gemini phân tích bằng công cụ.</p>
+        <p className="text-[10px]" style={muted}>Ghép chiến lược ngành thế giới · hàng hoá · chất xúc tác theo 22 ngành ICB. Bấm một ngành để xem phân tích chuyên sâu, hoặc “Hỏi AI” để Claude/Gemini phân tích bằng công cụ.</p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 text-[9.5px]" data-testid="impact-freshness">
+      <div className="flex flex-wrap gap-1.5 text-[10px]" data-testid="impact-freshness">
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Chiến lược thế giới: phiên VN {fmtDate(strategy?.vnLast)}</span>
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Hàng hoá: phiên {fmtDate(lastDaily)}</span>
         <span className="px-2 py-0.5 rounded" style={{ background: catalystStale ? "rgba(245,158,11,0.12)" : "rgba(148,163,184,0.08)", color: catalystStale ? "var(--gold, #fbbf24)" : "var(--text-secondary)" }}>
@@ -231,7 +231,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
                           </>
                         ) : <span style={muted}>—</span>}
                       </td>
-                      <td style={{ color: "var(--gold, #f59e0b)" }} className="font-bold text-[9.5px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
+                      <td style={{ color: "var(--gold, #f59e0b)" }} className="font-bold text-[10px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
                       <td className="text-right"><AskButton onClick={() => onAsk(askSector(r.nameVi, r.icb))} /></td>
                     </tr>
                   );
@@ -240,7 +240,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
             </table>
           </div>
         )}
-        <p className="text-[9px] leading-relaxed" style={muted}>
+        <p className="text-[10px] leading-relaxed" style={muted}>
           Ngắn hạn: α = IC × σ × z, xếp hạng ngành đã kiểm định đặt trước (IC ≈ {strategy?.evidence.short.ic ?? "0,02"} — lợi thế nhỏ, P vượt ≈ 50–55%). Trung hạn chỉ là bối cảnh (kiểm định không đạt).
           Hàng hoá: biến động phiên/kỳ gần nhất, màu theo chiều tác động lên ngành. Xúc tác: engine tin tức, chiều chưa kiểm chứng đủ mẫu. Tham khảo — không phải khuyến nghị đầu tư.
         </p>

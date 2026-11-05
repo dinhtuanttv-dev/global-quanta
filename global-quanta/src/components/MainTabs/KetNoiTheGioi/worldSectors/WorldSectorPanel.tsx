@@ -29,7 +29,7 @@ export default function WorldSectorPanel() {
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Ngành Việt Nam × khu vực thế giới</p>
-          <p className="text-[9.5px]" style={muted}>74 ETF ngành Mỹ · STOXX 600 · TOPIX-17 · KODEX · Đài · TQ, ánh xạ theo mã ICB · phiên VN gần nhất {fmtDate(vnLast)}</p>
+          <p className="text-[10px]" style={muted}>74 ETF ngành Mỹ · STOXX 600 · TOPIX-17 · KODEX · Đài · TQ, ánh xạ theo mã ICB · phiên VN gần nhất {fmtDate(vnLast)}</p>
         </div>
         <EvidenceTag kind={ev.label === "EVIDENCE" ? "evidence" : "heuristic"} title={`${data.evidence.version} · ${data.evidence.sample}: ${ev.labelVi}`} />
       </div>
@@ -43,16 +43,16 @@ export default function WorldSectorPanel() {
           </button>
         ))}
       </div>
-      <p className="text-[9.5px]" style={muted}>
+      <p className="text-[10px]" style={muted}>
         {ev.labelVi}{ev.ic != null ? ` (IC ${fmtZ(ev.ic, 3)}${ev.t != null ? `, t ${fmtZ(ev.t, 2)}` : ""})` : ""}. Điểm = độ lệch chuẩn; ±0,5 là ngưỡng thuận/ngược gió. Bấm một ngành để xem phân tích chuyên sâu.
       </p>
 
       <div>
         <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
-          <p className="text-[9.5px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Bản đồ nhiệt: ngành VN × khu vực (z, độ lệch chuẩn)</p>
+          <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Bản đồ nhiệt: ngành VN × khu vực (z, độ lệch chuẩn)</p>
           <div className="flex gap-1" role="group" aria-label="Chỉ số bản đồ nhiệt">
             {(Object.keys(HEAT_LABEL) as HeatKey[]).map((k) => (
-              <button key={k} type="button" aria-pressed={heatKey === k} onClick={() => setHeatKey(k)} className="text-[9px] px-2 py-0.5 rounded"
+              <button key={k} type="button" aria-pressed={heatKey === k} onClick={() => setHeatKey(k)} className="text-[10px] px-2 py-0.5 rounded"
                 style={{ background: heatKey === k ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: heatKey === k ? "var(--gold, #f59e0b)" : "var(--text-tertiary)" }}>{HEAT_LABEL[k]}</button>
             ))}
           </div>
@@ -79,14 +79,14 @@ export default function WorldSectorPanel() {
             </tbody>
           </table>
         </div>
-        <div className="flex items-center gap-2 mt-1.5 text-[9px]" style={muted} aria-hidden="true">
+        <div className="flex items-center gap-2 mt-1.5 text-[10px]" style={muted} aria-hidden="true">
           <span>Ngược gió</span>
           <span style={{ width: 120, height: 8, borderRadius: 4, background: `linear-gradient(90deg, ${divergingColor(-2.5)}, ${divergingColor(0)}, ${divergingColor(2.5)})` }} />
           <span>Thuận gió</span>
           <span>· "—" = chưa có phiên mới · "·" = khu vực không có ngành tương ứng</span>
         </div>
       </div>
-      <p className="text-[9px] leading-relaxed" style={muted}>{data.method.vi} Châu Âu (STOXX 600) dùng chính chuẩn ICB nên khớp 1-1; Mỹ/Nhật/Hàn là chuẩn khác (khớp gần/một phần).</p>
+      <p className="text-[10px] leading-relaxed" style={muted}>{data.method.vi} Châu Âu (STOXX 600) dùng chính chuẩn ICB nên khớp 1-1; Mỹ/Nhật/Hàn là chuẩn khác (khớp gần/một phần).</p>
       {open && rows.get(open) && <WorldSectorDrawer icb={open} row={rows.get(open)!} onClose={() => setOpen(null)} />}
     </div>
   );

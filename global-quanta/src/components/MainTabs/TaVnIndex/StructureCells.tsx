@@ -33,8 +33,8 @@ export function StructureCell({ row }: { row: StructureSummaryRow | undefined })
     <span className="whitespace-nowrap" data-testid="structure-cell"
       title={`MTF v3 · Ngày: ${st.short} (${s.age} phiên, Trend Template ${s.tpl}/7) · ${DOW_SHORT[s.dow] ?? s.dow} · Tuần: ${s.ws ? STAGE_STYLE[s.ws].short : "—"}${s.wdow ? ` · ${DOW_SHORT[s.wdow] ?? s.wdow}` : ""} · ${dec.text}${s.setup ? ` (${SETUP[s.setup]})` : ""}${s.base ? ` · ${PATTERN[s.base.p] ?? s.base.p} ${s.base.fp}${s.base.ok ? "" : " (chưa đạt chuẩn)"}` : ""} — MÔ TẢ, kiểm định đặt trước không đạt`}>
       <span className={`font-bold ${st.cls.split(" ")[0]}`}>{st.short}</span>
-      {row.chg && <span className="ml-0.5 text-[8px] text-amber-300">mới</span>}
-      <span className="block text-[8px] text-slate-500"><span className={dec.cls}>{dec.text}</span> · {DOW_SHORT[s.dow] ?? s.dow}</span>
+      {row.chg && <span className="ml-0.5 text-[10px] text-amber-300">mới</span>}
+      <span className="block text-[10px] text-slate-500"><span className={dec.cls}>{dec.text}</span> · {DOW_SHORT[s.dow] ?? s.dow}</span>
     </span>
   );
 }
@@ -43,7 +43,7 @@ export function AlignToggle({ on, onChange, count }: { on: boolean; onChange: (v
   return (
     <button type="button" onClick={() => onChange(!on)} aria-pressed={on} data-testid="structure-align-toggle"
       title="Làm nổi các mã đang ở giai đoạn 2 hoặc có Dow khung Ngày tăng (không ẩn mã khác)"
-      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold border transition ${on ? "text-emerald-300 border-emerald-400/40 bg-emerald-500/10" : "text-slate-400 border-slate-700/60"}`}>
+      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition ${on ? "text-emerald-300 border-emerald-400/40 bg-emerald-500/10" : "text-slate-400 border-slate-700/60"}`}>
       <Layers3 className="w-3 h-3" /> Thuận khung Ngày{count != null ? ` · ${count}` : ""}
     </button>
   );
@@ -58,9 +58,9 @@ export function StructureDeepBlock({ ticker, row, onOpenChart }: { ticker: strin
   return (
     <section className="rounded-lg p-2.5 min-w-0 space-y-1" style={{ background: "rgba(34,211,238,0.04)", border: "1px solid rgba(34,211,238,0.15)" }} data-testid="structure-deep-block">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] uppercase tracking-wide text-cyan-300 font-bold flex items-center gap-1"><Layers3 className="w-3 h-3" /> Cấu trúc MTF v3</span>
+        <span className="text-[10px] uppercase tracking-wide text-cyan-300 font-bold flex items-center gap-1"><Layers3 className="w-3 h-3" /> Cấu trúc MTF v3</span>
         <button type="button" onClick={() => openChartWithStructure(ticker, onOpenChart)} data-testid="structure-open-chart"
-          className="text-[9px] font-bold text-cyan-200 underline decoration-dotted">Mở trên biểu đồ với cấu trúc</button>
+          className="text-[10px] font-bold text-cyan-200 underline decoration-dotted">Mở trên biểu đồ với cấu trúc</button>
       </div>
       {s ? (
         <div className="text-[10px] text-slate-300 leading-relaxed">
@@ -69,7 +69,7 @@ export function StructureDeepBlock({ ticker, row, onOpenChart }: { ticker: strin
           <br />
           <span className={(DEC[s.dec] ?? DEC.wait).cls}>{(DEC[s.dec] ?? DEC.wait).text}</span>{s.setup ? ` · ${SETUP[s.setup]}` : ""}{s.rr != null ? ` · R:R 1:${s.rr.toString().replace(".", ",")}` : ""}
           {s.base && <> · {PATTERN[s.base.p] ?? s.base.p} <span className="font-mono">{s.base.fp}</span>{s.base.ok ? "" : " (chưa đạt chuẩn)"}{s.base.bk ? ` · phá vỡ ${s.base.bk}` : ""}</>}
-          <span className="block text-[9px] text-slate-500">Mô tả — kiểm định đặt trước MTF-v3 (H1–H6) không đạt.</span>
+          <span className="block text-[10px] text-slate-500">Mô tả — kiểm định đặt trước MTF-v3 (H1–H6) không đạt.</span>
         </div>
       ) : <p className="text-[10px] text-slate-500">Chưa có trong bản tóm tắt cấu trúc (job 15:47) — mở biểu đồ để phân tích trực tiếp.</p>}
     </section>

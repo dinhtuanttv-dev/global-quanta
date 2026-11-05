@@ -30,7 +30,7 @@ const volVi = (p: number | null | undefined) => (!ok(p) ? "—" : p < 25 ? "Th�
 /** Cấp bằng chứng: A đã qua kiểm định đặt trước, B đo lường trực tiếp, C chưa kiểm định hoặc không đạt. */
 export function Grade({ g }: { g: "A" | "B" | "C" }) {
   const c = g === "A" ? "text-emerald-300 border-emerald-500/40" : g === "B" ? "text-slate-300 border-slate-500/40" : "text-amber-300 border-amber-500/40";
-  return <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[9.5px] font-bold ${c}`} title={g === "A" ? "Đã qua kiểm định đặt trước" : g === "B" ? "Đo lường trực tiếp" : "Chưa kiểm định hoặc không đạt"} data-testid="mx-grade">{g}</span>;
+  return <span className={`inline-flex h-4 w-4 items-center justify-center rounded-full border text-[10px] font-bold ${c}`} title={g === "A" ? "Đã qua kiểm định đặt trước" : g === "B" ? "Đo lường trực tiếp" : "Chưa kiểm định hoặc không đạt"} data-testid="mx-grade">{g}</span>;
 }
 
 function Tile({ title, value, sub, onClick, testId, children }: { title: string; value: string; sub: string; onClick: () => void; testId: string; children?: React.ReactNode }) {
