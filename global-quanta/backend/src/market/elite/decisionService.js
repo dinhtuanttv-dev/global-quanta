@@ -2,6 +2,7 @@
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
 import { buildCandidates, buildDecision, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger" };
@@ -79,11 +80,22 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       for (const [t, list] of prices) for (const r of list) px.set(`${t}|${r.date}`, r.closeAdj);
       let vn = new Map();
       try { vn = new Map(await vnIndex()); } catch (e) { log.warn?.(`[elite] vnIndex: ${e.message}`); }
+      // R3: chấm thực tế kiểu Việt Nam (mô tả, song song) — sàn niêm yết theo universe Siêu Quét; thiếu -> HOSE.
+      const uni = await kv("scanner:universe");
+      const exch = new Map((uni?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
+      const exchangeOf = (t) => exch.get(t) ?? "HOSE";
       for (const e of ledger.entries) {
         for (const h of LEDGER_HORIZONS) {
-          if (e.results?.[h]) continue;
-          const r = evaluateEntry(e, h, px, cal, vn);
-          if (r) (e.results ??= {})[h] = r;
+          if (!e.results?.[h]) {
+            const r = evaluateEntry(e, h, px, cal, vn);
+            if (r) (e.results ??= {})[h] = r;
+          }
+          const res = e.results?.[h];
+          if (res && !res.realistic) {
+            const real = {};
+            for (const aum of VN_EXEC.aums) { const x = realisticEntry(e, h, aum, { series: prices, cal, exchangeOf, universeNet: res.universeNet }); if (x) real[String(aum)] = x; }
+            if (Object.keys(real).length) res.realistic = real;
+          }
         }
         if (LEDGER_HORIZONS.every((h) => e.results?.[h]) && e.universe) { // đã chấm đủ -> bỏ Z và danh sách vũ trụ để sổ gọn
           e.universeSize = e.universe.length;
@@ -97,7 +109,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         catch (e) { log.warn?.(`[elite] sổ bộ lọc cá nhân: ${e.message}`); }
       }
       ledger.version = E3_VERSION;
-      ledger.summary = summarizeLedger(ledger.entries);
+      ledger.summary = { ...summarizeLedger(ledger.entries), realistic: summarizeRealistic(ledger.entries) };
       ledger.updatedAt = new Date(now()).toISOString();
       await store.setKv(DECISION_KV.ledger, ledger);
       memo = { ...doc, ledgerSummary: ledger.summary };

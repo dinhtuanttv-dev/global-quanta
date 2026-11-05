@@ -3,6 +3,7 @@
 // chấm bằng ĐÚNG evaluateEntry / summarizeLedger. Không có quy tắc nào được viết lại ở đây.
 import { bhQ, dailyIc, decideTier, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
 import { blockBootstrapCi, buildDecision, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 
 export const E7_VERSION = "E7-v2 (prereg 2026-10-17, sửa đổi 2026-10-18)";
 export const RETRO_SIGNALS = { stealth5: "stealth5", stealth20: "stealth20", net_intent: "netIntent", mom5_atr: "mom5Atr", log_rvol: "logRvol" };
@@ -15,7 +16,7 @@ const MIN_PRICE_SESSIONS = 60;
  *   sectors: Map<string, string|null>, vnIndex: Map<string, number> }} p
  *   flow: ngày -> (mã -> features); prices: chuỗi tăng dần theo ngày; sectors: mã -> ICB cấp 2.
  */
-export function runRetro({ cal, flow, prices, sectors, vnIndex }) {
+export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () => "HOSE" }) {
   const pos = new Map(cal.map((d, i) => [d, i]));
   const px = new Map();
   for (const [t, rows] of prices) for (const r of rows) px.set(`${t}|${r.date}`, r.closeAdj);
@@ -82,7 +83,15 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex }) {
   // 3) Chấm bằng đúng hàm của sổ theo dõi E3.
   for (const e of entries) {
     e.results = {};
-    for (const h of LEDGER_HORIZONS) { const r = evaluateEntry(e, h, px, cal, vnIndex); if (r) e.results[h] = r; }
+    for (const h of LEDGER_HORIZONS) {
+      const r = evaluateEntry(e, h, px, cal, vnIndex);
+      if (!r) continue;
+      e.results[h] = r;
+      // R3 (mô tả): chấm thực tế kiểu Việt Nam ở hai quy mô vốn tham chiếu.
+      const real = {};
+      for (const aum of VN_EXEC.aums) { const x = realisticEntry(e, h, aum, { series: prices, cal, exchangeOf, universeNet: r.universeNet }); if (x) real[String(aum)] = x; }
+      if (Object.keys(real).length) r.realistic = real;
+    }
   }
   const summary = summarizeLedger(entries);
 
@@ -116,6 +125,7 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex }) {
       dailyTurnover: turnover,
       ercShare: entries.length ? entries.filter((e) => e.construction?.method === "erc").length / entries.length : null,
       tierDays,
+      realistic: summarizeRealistic(entries),
     },
     lastWeights: entries[entries.length - 1]?.weights ?? [],
     recent: entries.slice(-20).map((e) => ({ date: e.date, holdings: e.holdings.map((h) => h.ticker), r5: e.results[5]?.excess ?? null, r10: e.results[10]?.excess ?? null })),

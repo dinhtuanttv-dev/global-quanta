@@ -91,7 +91,9 @@ export function createRetroService({ store, taxonomy, vnIndex, now = Date.now, l
       let vn = new Map();
       try { vn = new Map(await vnIndex()); } catch (e) { log.warn?.(`[elite] retro vnIndex: ${e.message}`); }
       for (const s of CAL_SYMBOLS) if (!symbols.includes(s)) prices.delete(s);
-      const result = runRetro({ cal, flow, prices, sectors, vnIndex: vn });
+      const uni = await store.getKv("scanner:universe").catch(() => null);
+      const exch = new Map((uni?.value?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
+      const result = runRetro({ cal, flow, prices, sectors, vnIndex: vn, exchangeOf: (t) => exch.get(t) ?? "HOSE" });
       const doc = { ...result, generatedAt: new Date(now()).toISOString(), runtimeMs: now() - t0, data: { flowDates: flow.size, symbols: symbols.length, priceRows: priceRows.length } };
       await store.setKv(RETRO_KV, doc);
       memo = doc;

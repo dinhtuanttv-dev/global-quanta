@@ -12,7 +12,8 @@ const evidence = {
 };
 const ledger = {
   version: "E3-v2", updatedAt: "2026-10-17T09:00:00Z",
-  summary: { label: "EXPERIMENTAL", labelVi: "THĂM DÒ — cần ≥ 60 phiên tiến (hiện 1 phiên)", criteria: { icPass: false, excessPass: false, sessions: 1 }, horizons: { 5: { n: 0, ic: { n: 0 }, curve: [] }, 10: { n: 0, ic: { n: 0 }, curve: [] } } },
+  summary: { label: "EXPERIMENTAL", labelVi: "THĂM DÒ — cần ≥ 60 phiên tiến (hiện 1 phiên)", criteria: { icPass: false, excessPass: false, sessions: 1 }, horizons: { 5: { n: 0, ic: { n: 0 }, curve: [] }, 10: { n: 0, ic: { n: 0 }, curve: [] } },
+    realistic: { version: "R3-exec-v1", horizons: { 5: { "1000000000": { n: 4, meanExcess: 0.0012, meanOfficialExcess: 0.0041, meanImpactBps: 2.4, fillRate: 0.975, delayedExits: 1, meanInvested: 0.97 }, "10000000000": { n: 4, meanExcess: -0.0005, meanOfficialExcess: 0.0041, meanImpactBps: 7.6, fillRate: 0.975, delayedExits: 1, meanInvested: 0.99 } } } } },
   entries: [{ date: "2026-10-16", lockedAt: "x", holdings: [{ ticker: "ORS", weight: 0.14 }], universeSize: null, results: {} }],
 };
 const risk = {
@@ -69,6 +70,17 @@ describe("Elite 10 E6 — Bằng chứng & Rủi ro", () => {
     const grid = screen.getByTestId("elite-retro-v3-grid").textContent ?? "";
     expect(grid).toContain("10 mã · đệm 20 · ERC (chính)");
     expect(grid).toContain("không đệm");
+  });
+
+  it("R3: sổ tiến có bảng chấm thực tế kiểu Việt Nam (chính thức vs thực tế, tác động, tỷ lệ khớp)", () => {
+    render(<EvidenceLedgerTab />);
+    const t = screen.getByTestId("elite-ledger-realistic").textContent ?? "";
+    expect(t).toContain("Chấm thực tế kiểu Việt Nam");
+    expect(t).toContain("5 phiên · 1 tỷ");
+    expect(t).toContain("+0,41%");
+    expect(t).toContain("+0,12%");
+    expect(t).toContain("7,6 bp");
+    expect(t).toContain("98%");
   });
 
   it("rủi ro: chỉ số chính, đóng góp rủi ro, tương quan, căng thẳng, tên ngành", () => {

@@ -2,7 +2,7 @@
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
 import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
-import type { EliteRetroV3 } from "../../../lib/elite10/decisionTypes";
+import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
 import { divergingColor } from "../../../lib/worldSectors/types";
 import type { EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
@@ -80,6 +80,7 @@ function RetroSection({ r }: { r: EliteRetro | null | undefined }) {
       <p className={`font-bold ${ok ? "text-emerald-300" : "text-amber-300"}`}>{r.verdictVi}</p>
       <p className="text-slate-400">{r.version} · {r.period.sessions} phiên walk-forward ({fmtDate(r.period.from)} → {fmtDate(r.period.to)}) · chỉ 5 tín hiệu dòng tiền có lịch sử point-in-time.</p>
       <LedgerSummaryView s={{ horizons: r.horizons, criteria: r.criteria, label: r.label, labelVi: r.verdictVi }} />
+      <RealisticView s={r.descriptive.realistic} testId="elite-retro-realistic" />
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
           <p className="text-[10px] font-bold uppercase text-slate-500">Mẫu không chồng lấn (10 phiên)</p>
@@ -101,6 +102,35 @@ function RetroSection({ r }: { r: EliteRetro | null | undefined }) {
 }
 
 const WEIGHTING_VI: Record<string, string> = { erc: "ERC", "inverse-vol": "nghịch biến động" };
+
+/** R3: lợi suất vượt khi thực thi thật (phí, thuế, chênh lệch giá, tác động √, lô 100, trần/sàn) so với cách chấm chính thức. */
+function RealisticView({ s, testId }: { s: RealisticSummary | undefined; testId: string }) {
+  if (!s) return null;
+  const rows = Object.entries(s.horizons).flatMap(([h, byAum]) => Object.entries(byAum).map(([aum, v]) => ({ h, aum: Number(aum), v })));
+  if (!rows.some((r) => r.v.n > 0)) return <p className="text-[10px] text-slate-500" data-testid={testId}>Chấm thực tế kiểu Việt Nam: chưa có bản ghi đủ kỳ hạn.</p>;
+  return (
+    <div className="space-y-1" data-testid={testId}>
+      <p className="text-[10px] font-bold uppercase text-slate-500">Chấm thực tế kiểu Việt Nam (mô tả, không đổi tiêu chí)</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[460px] text-[10.5px]">
+          <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Kỳ hạn · vốn</th><th className="pr-2 text-right">Vượt (chính thức)</th><th className="pr-2 text-right">Vượt (thực tế)</th><th className="pr-2 text-right">Tác động TB</th><th className="text-right">Khớp mua</th></tr></thead>
+          <tbody className="font-mono">
+            {rows.map(({ h, aum, v }) => (
+              <tr key={`${h}-${aum}`}>
+                <td className="py-0.5 pr-2 font-sans">{h} phiên · {num(aum / 1e9, 0)} tỷ <span className="text-slate-500">(n {v.n})</span></td>
+                <td className="pr-2 text-right">{v.meanOfficialExcess != null ? `${sgn(v.meanOfficialExcess * 100, 2)}%` : "—"}</td>
+                <td className="pr-2 text-right">{v.meanExcess != null ? `${sgn(v.meanExcess * 100, 2)}%` : "—"}</td>
+                <td className="pr-2 text-right">{v.meanImpactBps != null ? `${num(v.meanImpactBps, 1)} bp` : "—"}</td>
+                <td className="text-right">{v.fillRate != null ? `${num(v.fillRate * 100, 0)}%` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10px] text-slate-500">Phí mua 0,15%, bán 0,15% + thuế 0,1%, nửa bước giá mỗi chiều, chi phí tác động σ20·√(lệnh/GTGD TB20) mỗi chiều, lô 100, đóng cửa trần khi mua = không khớp, đóng cửa sàn khi bán = dời tối đa 5 phiên. Mốc: rổ đều vũ trụ trừ 0,40%.</p>
+    </div>
+  );
+}
 
 /** E7-v3: bốn tiêu chí, Deflated Sharpe, PBO và lưới 12 cấu hình (lợi nhuận vượt theo ngày sau phí). */
 function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
@@ -132,7 +162,7 @@ function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
           </tbody>
         </table>
       </div>
-      <p className="text-[10px] text-slate-500">Các cấu hình phụ chỉ để đo quá khớp; chọn lại cấu hình theo bảng này là lọc dữ liệu và phải qua đăng ký trước mới. Phiên hồi cứu không cộng vào sổ tiến.</p>
+      <p className="text-[10px] text-slate-500">Các cấu hình phụ chỉ để đo quá khớp; chọn lại cấu hình theo bảng này là lọc dữ liệu và phải qua đăng ký trước mới. Phiên hồi cứu không cộng vào sổ tiến. Lưu ý thực thi (R3): lợi nhuận theo ngày giả định bán ở phiên kế tiếp — với T+2 ở Việt Nam việc này không thực hiện được, nên các cấu hình không vùng đệm thực tế còn kém hơn.</p>
     </div>
   );
 }
@@ -203,6 +233,7 @@ export default function EvidenceLedgerTab() {
           <>
             <p className={`text-[11px] font-bold ${ledger.summary.label === "EVIDENCE" ? "text-emerald-300" : "text-amber-300"}`}>{ledger.summary.labelVi}</p>
             <LedgerSummaryView s={ledger.summary} />
+            <RealisticView s={ledger.summary.realistic} testId="elite-ledger-realistic" />
             <Curve points={ledger.summary.horizons["10"]?.curve ?? []} />
             <div className="overflow-x-auto">
               <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 620 }}>
