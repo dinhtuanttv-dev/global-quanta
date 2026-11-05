@@ -58,19 +58,6 @@ function RiskStatusBadge({ status }: { status: "RISK_ON" | "NEUTRAL" | "RISK_OFF
   );
 }
 
-function BreakdownBar({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="flex justify-between text-[9px] mb-1" style={{ color: T.textTertiary }}>
-        <span>{label}</span><span>{value}/100</span>
-      </div>
-      <div style={{ background: "rgba(148,163,184,0.1)" }} className="h-1.5 rounded-full overflow-hidden">
-        <div style={{ width: `${value}%`, background: T.gold }} className="h-full rounded-full" />
-      </div>
-    </div>
-  );
-}
-
 type TabId = "overview" | "sectors" | "markets" | "transmission" | "evidence";
 const TABS: { id: TabId; label: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Tổng quan", icon: LayoutDashboard },
@@ -209,22 +196,25 @@ export default function KetNoiTheGioiTab() {
           </details>
 
           {macro && (
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4">
+          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4" data-testid="vol-term-card">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Risk-On Index</p>
-                <EvidenceTag kind="failed" title="Công thức đặt tay (DXY 40% + VIX 30% + US10Y 30%) trên số liệu Yahoo thật. Kiểm định đặt trước 10 năm (124 mẫu không chồng lấn): IC +0,05, KTC95 [−0,10; +0,22] — KHÔNG ĐẠT. Chỉ tham khảo." />
+                <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Cấu trúc kỳ hạn biến động (VIX / VIX3M)</p>
+                <EvidenceTag kind="heuristic" title={macro.vol_term_evidence?.note ?? "Chưa kiểm định đặt trước — chỉ mô tả, không đưa vào quyết định."} />
               </div>
-              <RiskStatusBadge status={macro.risk_status} />
+              {macro.vol_term && <RiskStatusBadge status={macro.vol_term.regime} />}
             </div>
-            <p className="text-3xl font-black mb-3" style={{ color: "#f1f5f9" }}>{macro.risk_on_score}<span className="text-sm" style={{ color: T.textTertiary }}>/100</span></p>
-            <div className="grid grid-cols-3 gap-3 mb-3">
-              <BreakdownBar label="DXY (40%)" value={macro.breakdown.dxyScore} />
-              <BreakdownBar label="VIX (30%)" value={macro.breakdown.vixScore} />
-              <BreakdownBar label="Treasury 10Y (30%)" value={macro.breakdown.treasuryScore} />
-            </div>
+            {macro.vol_term ? (
+              <>
+                <p className="text-3xl font-black mb-1" style={{ color: "#f1f5f9" }}>{(macro.vol_term.slope * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1, signDisplay: "exceptZero" })}%<span className="text-sm ml-2" style={{ color: T.textTertiary }}>VolSlope · {macro.vol_term.stateVi}</span></p>
+                <p className="text-[10px] mb-2" style={{ color: T.textTertiary }}>VIX {macro.vol_term.vix.toFixed(2)} / VIX3M {macro.vol_term.vix3m.toFixed(2)} − 1. Dưới −5% là contango (bình yên), trên +5% là backwardation (căng thẳng ngắn hạn), ở giữa là phẳng.</p>
+                {macro.vol_term_evidence && <p className="text-[10px]" style={{ color: T.textTertiary }}>{macro.vol_term_evidence.history} {macro.vol_term_evidence.note}</p>}
+              </>
+            ) : (
+              <p className="text-[11px]" style={{ color: T.textTertiary }}>Thiếu VIX hoặc VIX3M — chưa xác định cấu trúc kỳ hạn.</p>
+            )}
+            <p className="text-[9px] mt-2" style={{ color: T.textTertiary }}>Thay cho Risk-On Index cũ (DXY/VIX/US10Y đặt tay) đã KHÔNG ĐẠT kiểm định đặt trước.</p>
           </div>
-
           )}
         </div>
       )}

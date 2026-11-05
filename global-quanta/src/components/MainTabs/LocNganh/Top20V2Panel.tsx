@@ -6,6 +6,7 @@ import type { AlphaGroup, AlphaStock, AlphaTop20Response } from '../../../types/
 import type { CycleSummaryRow } from '../../../types/cycleFingerprintV2';
 import type { GatewaySectorRrg, SectorLadderRow, SectorTimingSignalV2 } from '../../../lib/locnganh/types';
 import { QUADRANT_COLORS, QUADRANT_VI } from './timing/quadrant';
+import { IMPACT_ORDER_SIZES, sigmaFromLowVol, sqrtImpact } from '../../../lib/locnganh/impactCost';
 
 /** Bối cảnh mỗi mã, ghép từ các nguồn khác; thiếu nguồn nào thì ô đó ghi rõ. */
 export interface Top20Context {
@@ -97,9 +98,24 @@ function ContextCards({ s, ctx, liquid, onOpenSector, onOpenCycle }: { s: AlphaS
       <ContextBlock title="Thanh khoản" testId="alpha-ctx-liquidity">
         <span>GTGD TB 60 phiên: <b>{bn(s.avgValue60)}</b></span>
         <span>Hạng điểm {s.rank} trong {liquid} mã đủ thanh khoản.</span>
+        <ImpactLine s={s} />
         <span style={{ color: 'var(--text-tertiary)' }}>Phí trong kiểm định T3 chưa tính theo thanh khoản từng mã.</span>
       </ContextBlock>
     </div>
+  );
+}
+
+/** Chi phí tác động ước tính (luật căn bậc hai, Y = 1) cho vài cỡ lệnh — chỉ hiển thị, không vào điểm. */
+function ImpactLine({ s }: { s: AlphaStock }) {
+  const sigma = sigmaFromLowVol(s.factors.find((f) => f.key === 'lowVol60')?.raw);
+  const rows = IMPACT_ORDER_SIZES.map((q) => sqrtImpact(sigma, s.avgValue60, q)).filter((e) => e != null);
+  if (!rows.length) return <span data-testid="alpha-impact">Chi phí tác động: thiếu biến động hoặc thanh khoản.</span>;
+  return (
+    <span data-testid="alpha-impact" title="Ước tính = 1 × σ ngày 60 phiên × √(giá trị lệnh / GTGD TB60). Luật căn bậc hai, chưa hiệu chỉnh cho thị trường Việt Nam; chỉ đúng khi lệnh nhỏ so với thanh khoản. Không đổi điểm hay thứ hạng.">
+      Chi phí tác động ước tính (σ {nf(sigma! * 100, 1)}%/ngày): {rows.map((e, i) => (
+        <Fragment key={e.orderValue}>{i > 0 && ' · '}lệnh {nf(e.orderValue / 1e9, 0)} tỷ ≈ <b style={e.unreliable ? { color: 'var(--warning)' } : undefined}>{nf(e.costPct, 2)}%</b>{e.unreliable && ' (⚠ > 10% GTGD)'}</Fragment>
+      ))}
+    </span>
   );
 }
 

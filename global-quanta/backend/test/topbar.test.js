@@ -99,6 +99,7 @@ test("snapshot: VN-Index + độ rộng cùng một snapshot SSI; giá trị TH�
     "DX-Y.NYB": { value: 101.6, prev: 101.7, time: new Date(now.getTime() - 30 * 60_000).toISOString() },
     "^TNX": { value: 4.95, prev: 5.1, time: new Date(now.getTime() - 3 * 3600_000).toISOString() },
     "^VIX": { value: 19, prev: 18, time: new Date(now.getTime() - 3 * 3600_000).toISOString() },
+    "^VIX3M": { value: 21, prev: 20, time: new Date(now.getTime() - 3 * 3600_000).toISOString() },
   };
   const f = fakes({ snap, quotes });
   const tb = createTopbarService({ ...f, now: () => now.getTime(), tradingDatesBack });
@@ -114,7 +115,10 @@ test("snapshot: VN-Index + độ rộng cùng một snapshot SSI; giá trị TH�
   assert.deepEqual(s.macro.map((m) => m.meta.status), ["delayed", "closed", "error"], "vàng lỗi -> chỉ thẻ vàng lỗi");
   assert.equal(s.macro[2].data, null);
   assert.equal(s.regime.data.label, "MÔ TẢ");
-  assert.equal(s.regime.data.evidence.verdict, "FAIL");
+  assert.equal(s.regime.data.evidence.verdict, "EXPLORATORY");
+  assert.equal(s.regime.data.state, "RISK_ON", "VIX 19 / VIX3M 21 = contango");
+  assert.equal(s.regime.data.volTerm.state, "CONTANGO");
+  assert.equal(s.regime.data.score, null, "không còn điểm Risk-On đặt tay");
   assert.equal(s.sessions.data.VN.phase, "open");
   // Thanh khoản: 10:40 > 10:30 -> có số hiện tại (khối lượng tới 10:30 = 2000), 20 phiên lịch sử.
   assert.equal(s.liquidity.data.measure, "volume");

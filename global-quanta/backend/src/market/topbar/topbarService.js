@@ -6,14 +6,14 @@
 //   macro     DXY / US10Y / vàng — Yahoo qua Gateway (không còn phụ thuộc Project A / Neon)
 //   liquidity lũy kế tới 10:30 so với các phiên trước (cùng khung giờ, ≥ 10 phiên, độ lệch chuẩn MẪU); đo bằng GIÁ TRỊ khi đã
 //             ghi đủ 10 phiên (job 10:31), trước đó bằng KHỐI LƯỢNG khớp từ nến phút SSI — ghi rõ thước đo đang dùng
-//   regime    Risk-On (DXY/VIX/US10Y) — kiểm định đặt trước KHÔNG ĐẠT -> nhãn "MÔ TẢ", không phải tín hiệu
+//   regime    Cấu trúc kỳ hạn biến động VIX/VIX3M (VT1, thay Risk-On đã KHÔNG ĐẠT) -> nhãn "MÔ TẢ", không phải tín hiệu
 // Ngưỡng tươi (duyệt): trong phiên ≤ 60 giây LIVE, ≤ 5 phút DELAYED (CHẬM), quá -> STALE (CŨ); ngoài phiên -> CLOSED.
 import { currentSession, isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
 import { parseQuote } from "../world/worldPulse.js";
-import { riskOnIndex } from "../riskOnValidation/riskOnValidate.js";
+import { VOL_TERM_EVIDENCE, volTermStructure } from "../world/volTerm.js";
 
 /** Kết quả kiểm định đặt trước Risk-On (riskOnValidation/RON-prereg.md): KHÔNG ĐẠT -> chỉ mô tả. */
-export const REGIME_EVIDENCE = { verdict: "FAIL", note: "Risk-On Index (DXY 40% + VIX 30% + US10Y 30%): kiểm định đặt trước 10 năm KHÔNG ĐẠT (IC +0,05, KTC95 [−0,10; +0,22]) — chỉ mô tả, không phải tín hiệu." };
+export const REGIME_EVIDENCE = VOL_TERM_EVIDENCE;
 
 export const TOPBAR_VERSION = "topbar/T1 1.0.0";
 export const FRESH = { liveMs: 60_000, delayedMs: 5 * 60_000 };
@@ -248,25 +248,23 @@ export function createTopbarService({ service, store, fetchImpl = globalThis.fet
     return value;
   }
 
-  /** Risk-On (mô tả) từ DXY / US10Y của khối vĩ mô + VIX; thiếu thành phần -> unknown (không mặc định Trung lập). */
+  /** Chế độ thế giới (mô tả) từ cấu trúc kỳ hạn VIX / VIX3M; thiếu một trong hai -> unknown (không mặc định Trung lập). */
   async function regimeBlock(macro, receivedAt) {
-    const val = (id) => macro.find((m) => m.data?.symbol === id)?.data?.value ?? null;
-    let vix = null, vixAsOf = null;
-    // VIX đệm 5 phút như khối vĩ mô (trước đây gọi Yahoo mỗi lần dựng snapshot -> ~1 giây / lượt).
-    if (vixCache && now() - vixCache.at < 5 * 60_000) ({ vix, vixAsOf } = vixCache);
+    let vix = null, vix3m = null, vixAsOf = null;
+    // VIX, VIX3M đệm 5 phút như khối vĩ mô (không gọi Yahoo mỗi lần dựng snapshot).
+    if (vixCache && now() - vixCache.at < 5 * 60_000) ({ vix, vix3m, vixAsOf } = vixCache);
     else {
-      try { const { q } = await yahooDaily("^VIX"); vix = q?.value ?? null; vixAsOf = q?.time ?? null; } catch { vix = null; }
-      vixCache = { at: now(), vix, vixAsOf };
+      const [a, b] = await Promise.all(["^VIX", "^VIX3M"].map((s) => yahooDaily(s).then((r) => r.q).catch(() => null)));
+      vix = a?.value ?? null; vix3m = b?.value ?? null; vixAsOf = [a?.time, b?.time].filter(Boolean).sort()[0] ?? null;
+      vixCache = { at: now(), vix, vix3m, vixAsOf };
     }
-    const x = { dxy: val("DXY"), vix, treasury10y: val("US10Y") };
-    const asOfs = [...macro.map((m) => m.meta.asOf), vixAsOf].filter(Boolean).sort();
-    if ([x.dxy, x.vix, x.treasury10y].some((v) => v === null)) {
-      return { data: { state: "UNKNOWN", score: null, evidence: REGIME_EVIDENCE }, meta: meta({ source: "Yahoo (DXY, VIX, US10Y)", status: "empty", receivedAt, reason: "Thiếu một trong DXY / VIX / US10Y — chưa xác định." }) };
+    const vt = volTermStructure(vix, vix3m);
+    if (!vt) {
+      return { data: { state: "UNKNOWN", score: null, evidence: REGIME_EVIDENCE }, meta: meta({ source: "Yahoo (^VIX, ^VIX3M)", status: "empty", receivedAt, reason: "Thiếu VIX hoặc VIX3M — chưa xác định chế độ." }) };
     }
-    const ro = riskOnIndex(x);
     return {
-      data: { state: ro.status, score: ro.score, inputs: x, label: "MÔ TẢ", evidence: REGIME_EVIDENCE },
-      meta: meta({ source: "Yahoo (DXY, VIX, US10Y) — Risk-On heuristic", status: "delayed", asOf: asOfs[0] ?? null, receivedAt, reason: REGIME_EVIDENCE.note }),
+      data: { state: vt.regime, score: null, volTerm: vt, label: "MÔ TẢ", evidence: REGIME_EVIDENCE },
+      meta: meta({ source: "Yahoo (^VIX, ^VIX3M) — cấu trúc kỳ hạn biến động", status: "delayed", asOf: vixAsOf, receivedAt, reason: REGIME_EVIDENCE.note }),
     };
   }
 
