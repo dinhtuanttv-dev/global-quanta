@@ -117,12 +117,12 @@ function Detail({ s, ctx, liquid, onClose, onOpenSector, onOpenCycle }: { s: Alp
         <ContextCards s={s} ctx={ctx} liquid={liquid} onOpenSector={onOpenSector} onOpenCycle={onOpenCycle} />
         <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginTop: 4 }}>18 yếu tố · động lực chính: {[...s.factors].sort((a, b) => Math.abs(b.contribution ?? 0) - Math.abs(a.contribution ?? 0)).slice(0, 2).map((d) => `${FACTOR_VI[d.key] ?? d.key} ${fmtRaw(d.key, d.raw)}`).join(' · ')}</div>
         <table style={{ width: '100%', fontSize: 11.5, borderCollapse: 'collapse', marginTop: 6 }}>
-          <thead><tr style={{ color: 'var(--text-tertiary)', fontSize: 10, textTransform: 'uppercase' }}>
+          <thead><tr style={{ color: 'var(--text-tertiary)', fontSize: 11, textTransform: 'uppercase' }}>
             <th style={{ textAlign: 'left' }}>Yếu tố</th><th style={{ textAlign: 'right' }}>Giá trị</th><th style={{ textAlign: 'right' }} title="Hạng chuẩn hoá trong ngày, đã trung hoà ngành">z</th><th style={{ textAlign: 'right' }}>Trọng số</th><th style={{ textAlign: 'left', paddingLeft: 8 }}>Đóng góp</th>
           </tr></thead>
           <tbody>{byGroup.map(({ g, rows }) => (
             <Fragment key={g}>
-              <tr><td colSpan={5} style={{ paddingTop: 6, fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{GROUP_VI[g]} · {sgn(s.groups[g], 3)}</td></tr>
+              <tr><td colSpan={5} style={{ paddingTop: 6, fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>{GROUP_VI[g]} · {sgn(s.groups[g], 3)}</td></tr>
               {rows.map((f) => (
                 <tr key={f.key} style={{ borderTop: '1px solid var(--bg-surface-2)' }} data-testid="alpha-factor-row">
                   <td style={{ padding: '3px 0' }}>{FACTOR_VI[f.key] ?? f.key}</td>
@@ -138,7 +138,7 @@ function Detail({ s, ctx, liquid, onClose, onOpenSector, onOpenCycle }: { s: Alp
             </Fragment>
           ))}</tbody>
         </table>
-        <p style={{ fontSize: 10.5, color: 'var(--text-tertiary)', margin: '6px 0 0' }}>BCTC chỉ dùng quý đã công bố trước hôm nay. Mô hình chưa qua kiểm định đặt trước — dùng để sàng lọc, không phải khuyến nghị.</p>
+        <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '6px 0 0' }}>BCTC chỉ dùng quý đã công bố trước hôm nay. Mô hình chưa qua kiểm định đặt trước — dùng để sàng lọc, không phải khuyến nghị.</p>
       </div>
     </td></tr>
   );
@@ -168,7 +168,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
             <button type="button" onClick={onClearSector} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 11 }}>✕ bỏ lọc</button></>}
         </span>
         {onRefresh && <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Tải lại snapshot Top 20" data-testid="alpha-refresh"
-          style={{ marginLeft: 'auto', background: 'var(--bg-surface-2)', border: '1px solid rgba(148,163,184,.2)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-secondary)', cursor: refreshing ? 'wait' : 'pointer', fontSize: 10 }}>
+          style={{ marginLeft: 'auto', background: 'var(--bg-surface-2)', border: '1px solid rgba(148,163,184,.2)', borderRadius: 6, padding: '4px 8px', color: 'var(--text-secondary)', cursor: refreshing ? 'wait' : 'pointer', fontSize: 11 }}>
           {refreshing ? 'Đang tải…' : 'Tải lại snapshot'}
         </button>}
       </div>
@@ -184,11 +184,11 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
         {ev.notes.map((n) => <p key={n} className="cf-evidence__foot">{n}</p>)}
       </div>
 
-      <p data-testid="alpha-source" style={{ fontSize: 10.5, color: 'var(--text-tertiary)', margin: '6px 0 8px' }}>
+      <p data-testid="alpha-source" style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '6px 0 8px' }}>
         Mô hình {data.model} · trọng số từ IC {data.icHistoryDays} ngày (36 tháng, co 50% về đều) · giá điều chỉnh cộng dồn (Gateway) · BCTC, khối ngoại, vốn hoá: VNDirect ({data.vnd.tickers} mã, cập nhật {fmtDate(data.vnd.fetchedAt)}) · tối đa 4 mã / ngành.{' '}
-        <button type="button" onClick={() => setShowWeights((v) => !v)} data-testid="alpha-weights-toggle" style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 10.5, padding: 0 }}>{showWeights ? 'Ẩn trọng số' : 'Xem trọng số 18 yếu tố'}</button>
+        <button type="button" onClick={() => setShowWeights((v) => !v)} data-testid="alpha-weights-toggle" style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 11, padding: 0 }}>{showWeights ? 'Ẩn trọng số' : 'Xem trọng số 18 yếu tố'}</button>
       </p>
-      <p data-testid="alpha-asof" style={{ fontSize: 10, color: 'var(--text-tertiary)', margin: '-4px 0 8px' }}>
+      <p data-testid="alpha-asof" style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '-4px 0 8px' }}>
         Snapshot {fmtDate(data.dataAsOf)} · dựng lúc {fmtDate(data.builtAt)} · kết quả ledger là theo dõi đã chấm, không phải hiệu suất đảm bảo.
       </p>
       {showWeights && (

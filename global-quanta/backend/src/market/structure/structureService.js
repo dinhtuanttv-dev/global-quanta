@@ -126,6 +126,8 @@ export function createStructureService({ service, taSeries, corporateActions, no
     summary: readSummary,
     ledgerStats: () => ledger.stats(),
     momentumStats: () => momentum.stats(),
+    ledgerDates: () => ledger.dates(),
+    momentumDates: () => momentum.dates(),
     cacheStats: () => disk.stats(),
     jobs: {
       /** 15:47 — v2 khung D (sổ M1) + MTF v3 Ngày · Tuần · Tháng cho toàn universe, dùng chung bộ nhớ đệm chuỗi của job bộ lọc 15:45 (không đọc thêm Supabase). */

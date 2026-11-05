@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchMarketJson } from '../../services/marketDataClient';
+import LedgerHealthPanel, { describeLedgers, type LedgerHealthDoc } from './LedgerHealthPanel';
 
 export interface DbBudget {
   supabaseEgress: {
@@ -61,6 +62,8 @@ export function describeBudget(d: DbBudget): { label: string; tone: keyof typeof
 export default function InfraHealthBadge() {
   const [data, setData] = useState<DbBudget | null>(null);
   const [cotuc, setCotuc] = useState<CotucHealth | null>(null);
+  const [ledgers, setLedgers] = useState<LedgerHealthDoc | null>(null);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -91,14 +94,17 @@ export default function InfraHealthBadge() {
     let alive = true;
     const load = () => fetchMarketJson<DbBudget>('/api/health/db-budget').then((d) => { if (alive) setData(d); }).catch(() => {});
     const loadCotuc = () => fetchMarketJson<CotucHealth>('/api/cotuc-store/health').then((d) => { if (alive && d?.store) setCotuc(d); }).catch(() => {});
-    void load(); void loadCotuc();
-    const id = setInterval(() => { void load(); void loadCotuc(); }, POLL_MS);
+    const loadLedgers = () => fetchMarketJson<LedgerHealthDoc>('/api/market/ledger-health').then((d) => { if (alive && d?.ledgers) setLedgers(d); }).catch(() => {});
+    void load(); void loadCotuc(); void loadLedgers();
+    const id = setInterval(() => { void load(); void loadCotuc(); void loadLedgers(); }, POLL_MS);
     return () => { alive = false; clearInterval(id); };
   }, []);
   if (!data?.supabaseEgress) return null;
   const base = describeBudget(data);
   const ct = cotuc ? describeCotuc(cotuc) : null;
-  const b = ct && !ct.ok && base.tone === 'ok' ? { ...base, tone: 'warn' as const, title: `${base.title} · ${ct.text}` } : ct ? { ...base, title: `${base.title} · ${ct.text}` } : base;
+  const lg = ledgers ? describeLedgers(ledgers) : null;
+  const extra = [ct?.text, lg?.text].filter(Boolean).join(' · ');
+  const b = { ...base, tone: base.tone === 'ok' && ((ct && !ct.ok) || (lg && !lg.ok)) ? ('warn' as const) : base.tone, title: extra ? `${base.title} · ${extra}` : base.title };
   const e = data.supabaseEgress;
   const w = data.warehouse;
   const hitRate = w?.enabled && (w.ramHits ?? 0) + (w.diskHits ?? 0) + (w.misses ?? 0) > 0
@@ -124,10 +130,13 @@ export default function InfraHealthBadge() {
             </div>
           )}
           {ct && <div style={{ marginTop: 4, color: ct.ok ? undefined : TONE.warn }} data-testid="infra-cotuc">{ct.text}</div>}
+          {lg && <div style={{ marginTop: 4, color: lg.ok ? undefined : TONE.warn }} data-testid="infra-ledgers">{lg.text}</div>}
+          <button type="button" onClick={() => { setOpen(false); setLedgerOpen(true); }} data-testid="infra-open-ledgers" style={{ marginTop: 6, width: '100%', background: 'rgba(56,189,248,.12)', border: '1px solid rgba(56,189,248,.4)', borderRadius: 6, color: '#7dd3fc', cursor: 'pointer', fontSize: 12, padding: '4px 8px' }}>Mở trang sức khoẻ sổ theo dõi</button>
           <div style={{ marginTop: 4, color: 'var(--text-tertiary, #9ca3af)' }}>Gói miễn phí: 5 GB/tháng cho cả tổ chức Supabase (Gateway dùng tối đa 3,5 GB).</div>
         </div>,
         document.body,
       )}
+      {ledgerOpen && <LedgerHealthPanel onClose={() => setLedgerOpen(false)} />}
     </span>
   );
 }

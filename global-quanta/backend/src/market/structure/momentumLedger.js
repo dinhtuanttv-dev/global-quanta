@@ -109,6 +109,8 @@ export function createMomentumLedger({ disk, now = Date.now }) {
       return momentumStats(s);
     },
     async stats() { return momentumStats(await load()); },
+    /** Các phiên đã ghi (cho trang sức khoẻ sổ theo dõi). */
+    async dates() { return Object.keys((await load()).days ?? {}).sort(); },
     /** Nhóm BẬT của phiên ghi gần nhất (để giao diện cho biết mã đang nằm trong sổ). */
     async latestOn() { const s = await load(); const k = Object.keys(s.days).sort().pop(); return k ? { d: k, on: s.days[k].on } : null; },
   };

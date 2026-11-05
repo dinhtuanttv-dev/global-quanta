@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { AtrPoint, CycleMatch, PricePoint } from '../../../types/cycleFingerprint';
 import { useCfI18n } from '../../../i18n/CfI18nProvider';
 
@@ -23,11 +23,14 @@ interface MainChartProps {
 }
 
 const WIDTH = 720;
-const HEIGHT = 320;
-const PAD_L = 52;
-const PAD_R = 16;
-const PAD_T = 18;
-const PAD_B = 28;
+/** Cỡ chữ mong muốn trên màn hình (px CSS): biểu đồ co theo bề rộng nên cỡ chữ trong viewBox phải tính ngược theo tỉ lệ. */
+const TEXT_PX = 11.5;
+
+/** Kích thước vùng vẽ theo bề rộng thật: chữ luôn ≈ TEXT_PX trên màn hình, lề đủ chỗ cho nhãn giá; điện thoại dùng khung cao hơn. */
+export function chartLayout(cssWidth: number) {
+  const k = WIDTH / Math.max(240, cssWidth), font = TEXT_PX * k;
+  return { k, font, H: cssWidth < 560 ? 460 : 320, padL: Math.max(52, 8 * k + font * 0.62 * 7), padR: 16 * k, padT: 18 * k, padB: font + 16 * k };
+}
 
 export const matchKey = (m: CycleMatch) => `${m.ticker}:${m.matchStartDate}`;
 
@@ -56,6 +59,17 @@ export const fmtCfDate = (iso: string) => (iso ? iso.slice(0, 10).split('-').rev
 
 export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, highlightedKey, mode, unitLabel }: MainChartProps) {
   const { t } = useCfI18n();
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const [cssWidth, setCssWidth] = useState(WIDTH);
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => { const w = Math.round(e.contentRect.width); if (w > 0) setCssWidth(w); });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const L = useMemo(() => chartLayout(cssWidth), [cssWidth]);
+  const { H: HEIGHT, padL: PAD_L, padR: PAD_R, padT: PAD_T, padB: PAD_B, font, k } = L;
 
   const view = useMemo(() => {
     if (priceSeries.length === 0) return null;
@@ -108,7 +122,7 @@ export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, high
       yTicks: [lo0, (lo0 + hi0) / 2, hi0].map((v) => ({ v, y: y(v) })),
       xTicks: [...new Set([minO, 0, maxO])].map((o) => ({ o, x: x(o) })),
     };
-  }, [priceSeries, topMatches, atrSeries, useAtrAxis, mode]);
+  }, [priceSeries, topMatches, atrSeries, useAtrAxis, mode, HEIGHT, PAD_L, PAD_R, PAD_T, PAD_B]);
 
   if (!view) return null;
   // nhiều đường (engine v2: 30 giai đoạn) -> nhạt hơn để trung vị / đường đang chọn nổi lên
@@ -117,36 +131,36 @@ export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, high
   const wide = (k: string) => (highlightedKey === k ? 2.5 : 1.2);
 
   return (
-    <div className="cf-main-chart" data-testid="cf-main-chart" data-mode={mode}>
+    <div className="cf-main-chart" data-testid="cf-main-chart" data-mode={mode} ref={boxRef}>
       <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img"
         aria-label={mode === 'overlay' ? 'Giá thực tế, các giai đoạn tương tự đặt chồng lên hiện tại và diễn biến 60 phiên sau của chúng' : 'Giá thực tế và hình dạng các giai đoạn tương tự đặt sau hôm nay'}>
         {view.yTicks.map((tk) => (
           <g key={tk.v}>
             <line x1={PAD_L} x2={WIDTH - PAD_R} y1={tk.y} y2={tk.y} stroke="var(--bg-surface-2)" strokeWidth={1} />
-            <text x={PAD_L - 6} y={tk.y + 3} textAnchor="end" fontSize={10} fill="var(--text-tertiary)">{fmtPrice(tk.v)}</text>
+            <text x={PAD_L - 6 * k} y={tk.y + font * 0.35} textAnchor="end" fontSize={font} fill="var(--text-tertiary)">{fmtPrice(tk.v)}</text>
           </g>
         ))}
         {view.xTicks.map((tk) => (
-          <text key={tk.o} x={tk.x} y={HEIGHT - 8} textAnchor={tk.o === 0 ? 'middle' : tk.o < 0 ? 'start' : 'end'} fontSize={10} fill="var(--text-tertiary)">
+          <text key={tk.o} x={tk.x} y={HEIGHT - 6 * k} textAnchor={tk.o === 0 ? 'middle' : tk.o < 0 ? 'start' : 'end'} fontSize={font} fill="var(--text-tertiary)">
             {tk.o === 0 ? 'hôm nay' : `${tk.o > 0 ? '+' : ''}${tk.o} ${unitLabel}`}
           </text>
         ))}
         <line x1={view.x0} x2={view.x0} y1={PAD_T} y2={HEIGHT - PAD_B} stroke="var(--text-tertiary)" strokeWidth={1} strokeDasharray="2 3" data-testid="cf-today-line" />
         {view.matches.map((m) => (
           <g key={m.key} data-testid="cf-match-path">
-            <path d={m.patternD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key)} strokeDasharray={mode === 'overlay' ? '2 3' : '4 3'} opacity={mode === 'overlay' ? dim(m.key) * 0.7 : dim(m.key)}>
+            <path d={m.patternD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key) * k} strokeDasharray={mode === 'overlay' ? '2 3' : '4 3'} opacity={mode === 'overlay' ? dim(m.key) * 0.7 : dim(m.key)}>
               <title>{`Giai đoạn ${m.label}${mode === 'overlay' ? ' — mẫu đặt chồng lên hiện tại' : ' — hình dạng mẫu (không phải dự báo)'}`}</title>
             </path>
             {m.forwardD && (
-              <path d={m.forwardD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key)} strokeDasharray="5 3" opacity={dim(m.key)} data-testid="cf-forward-path">
+              <path d={m.forwardD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key) * k} strokeDasharray="5 3" opacity={dim(m.key)} data-testid="cf-forward-path">
                 <title>{`Giai đoạn ${m.label} — diễn biến thật sau đó`}</title>
               </path>
             )}
           </g>
         ))}
-        {view.medianD && <path d={view.medianD} fill="none" stroke="var(--text-secondary)" strokeWidth={2} data-testid="cf-forward-median"><title>Trung vị diễn biến sau của các giai đoạn</title></path>}
-        <path d={view.price} fill="none" stroke="var(--positive)" strokeWidth={2} />
-        <circle cx={view.x0} cy={view.yToday} r={3.5} fill="var(--positive)" stroke="var(--bg-surface)" strokeWidth={2} />
+        {view.medianD && <path d={view.medianD} fill="none" stroke="var(--text-secondary)" strokeWidth={2 * k} data-testid="cf-forward-median"><title>Trung vị diễn biến sau của các giai đoạn</title></path>}
+        <path d={view.price} fill="none" stroke="var(--positive)" strokeWidth={2 * k} />
+        <circle cx={view.x0} cy={view.yToday} r={3.5 * k} fill="var(--positive)" stroke="var(--bg-surface)" strokeWidth={2 * k} />
       </svg>
       <p className="cf-chart-legend">
         <span className="cf-legend-item"><span className="cf-legend-dot cf-legend-dot--price" />{t('chart.legend.price')}</span>
