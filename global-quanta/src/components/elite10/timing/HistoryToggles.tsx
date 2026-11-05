@@ -7,7 +7,7 @@ export default function HistoryToggles({ dates, visible, preset, custom, onPrese
   dates: string[]; visible: Set<string>; preset: HistPreset; custom: boolean;
   onPreset: (p: HistPreset) => void; onToggle: (date: string) => void; total: number;
 }) {
-  const chip = (on: boolean) => `min-h-[24px] rounded border px-1.5 text-[10px] ${on ? "border-cyan-400/60 bg-cyan-500/10 text-cyan-100" : "border-white/10 text-slate-500 hover:text-slate-300"}`;
+  const chip = (on: boolean) => `min-h-[24px] rounded border px-1.5 text-[10px] ${on ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-500 hover:text-slate-300"}`;
   return (
     <div className="mt-2 flex flex-col gap-1" data-testid="history-toggles">
       <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Chọn nhanh đợt lịch sử hiển thị">
@@ -22,7 +22,7 @@ export default function HistoryToggles({ dates, visible, preset, custom, onPrese
         {dates.map((d) => (
           <button key={d} type="button" aria-pressed={visible.has(d)} data-testid={`hist-event-${d}`} onClick={() => onToggle(d)} className={chip(visible.has(d))}>{dmy(d)}</button>
         ))}
-        <span className="text-[9.5px] text-slate-500">· đang hiện {visible.size}/{total} đợt — trung vị, quạt và xác suất vẫn tính trên đủ {total} đợt</span>
+        <span className="text-[10px] text-slate-500">· đang hiện {visible.size}/{total} đợt — trung vị, quạt và xác suất vẫn tính trên đủ {total} đợt</span>
       </div>
     </div>
   );

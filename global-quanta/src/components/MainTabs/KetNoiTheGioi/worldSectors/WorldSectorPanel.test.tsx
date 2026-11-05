@@ -43,8 +43,8 @@ describe("WorldSectorPanel", () => {
   });
 
   it("màu phân kỳ: dương xanh, âm đỏ, 0 xám, null nền mờ", () => {
-    expect(divergingColor(2.5)).toBe("rgb(57,135,229)");
-    expect(divergingColor(-2.5)).toBe("rgb(230,103,103)");
+    expect(divergingColor(2.5)).toBe("rgb(16,185,129)");
+    expect(divergingColor(-2.5)).toBe("rgb(244,63,94)");
     expect(divergingColor(0)).toBe("rgb(56,56,53)");
     expect(divergingColor(null)).toContain("rgba");
   });

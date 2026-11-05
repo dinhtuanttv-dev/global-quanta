@@ -11,11 +11,11 @@ function Row({ e }: { e: MacroCalendarItem }) {
     <li className="flex items-start gap-3 border-t border-white/5 py-2 first:border-t-0" data-testid="macro-upcoming-row">
       <div className="w-12 shrink-0 text-center">
         <p className="text-xs font-semibold tabular-nums text-slate-100">{dateVi(e.date)}</p>
-        <p className="text-[9px] text-slate-500">{whenVi(e.daysRemaining)}</p>
+        <p className="text-[10px] text-slate-500">{whenVi(e.daysRemaining)}</p>
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-[11px] leading-snug text-slate-100">{e.title}</p>
-        <p className={`mt-0.5 text-[9px] ${signal ? "text-rose-300/90" : e.estimated ? "text-amber-300/90" : "text-emerald-300/90"}`}>{signal ? "Tín hiệu từ số liệu" : e.estimated ? "Ngày ước tính" : "Ngày chính thức"}{e.country ? ` · ${e.country}` : ""}</p>
+        <p className={`mt-0.5 text-[10px] ${signal ? "text-rose-300/90" : e.estimated ? "text-amber-300/90" : "text-emerald-300/90"}`}>{signal ? "Tín hiệu từ số liệu" : e.estimated ? "Ngày ước tính" : "Ngày chính thức"}{e.country ? ` · ${e.country}` : ""}</p>
       </div>
     </li>
   );
@@ -35,7 +35,7 @@ export default function MacroUpcoming() {
       {isLoading && !data && <p className="text-[11px] text-slate-400">Đang tải…</p>}
       {data && rows.length === 0 && <p className="text-[11px] text-slate-400">Chưa có sự kiện trong 60 ngày tới.</p>}
       {rows.length > 0 && <ul>{rows.map((e) => <Row key={e.id} e={e} />)}</ul>}
-      {data?.caveat && <p className="mt-2 text-[9px] leading-relaxed text-slate-500">{data.caveat}</p>}
+      {data?.caveat && <p className="mt-2 text-[10px] leading-relaxed text-slate-500">{data.caveat}</p>}
     </section>
   );
 }

@@ -12,11 +12,11 @@ const pfTone = (v?: number | null) => (v == null ? "text-slate-400" : v >= 1.1 ?
 function Cell({ title, s, base }: { title: string; s?: TradeStats; base?: number | null }) {
   return (
     <div className="rounded-lg bg-slate-900/60 border border-slate-800/70 p-2 min-w-0">
-      <div className="text-[8px] uppercase tracking-wide text-slate-500">{title}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-500">{title}</div>
       {s?.n ? (
         <>
           <div className={`text-sm font-black font-mono ${pfTone(s.profitFactor)}`}>PF {num(s.profitFactor)}</div>
-          <div className="text-[9px] text-slate-400 leading-snug">
+          <div className="text-[10px] text-slate-400 leading-snug">
             {s.n} lệnh · thắng {num(s.winRate)}%
             <br />
             TB <span className={tone(s.avgNetPct)}>{pct(s.avgNetPct)}</span> · trung vị <span className={tone(s.medianNetPct)}>{pct(s.medianNetPct)}</span>
@@ -48,7 +48,7 @@ function LiveCell({ s }: { s: LiveStat | null }) {
   return (
     <td className="px-1 text-right whitespace-nowrap" title={`n=${s.n} · KTC95% ${pct0(s.hitLow)}–${pct0(s.hitHigh)} · z (cụm) ${s.z ?? "—"}`}>
       <span className="font-mono text-slate-200">{pct0(s.hitRate)}</span><span className="text-slate-500"> / {pct0(s.baseline)}</span>
-      <span className={`block text-[8px] ${VERDICT[s.verdict].cls}`}>{VERDICT[s.verdict].text} · n={s.n}</span>
+      <span className={`block text-[10px] ${VERDICT[s.verdict].cls}`}>{VERDICT[s.verdict].text} · n={s.n}</span>
     </td>
   );
 }
@@ -59,11 +59,11 @@ export function LiveTrackingTable({ live }: { live: LiveTracking | undefined }) 
   const has = rows.some((g) => g.h5 || g.h10);
   return (
     <div data-testid="live-tracking">
-      <div className="text-[9px] uppercase tracking-wide text-slate-500 mb-0.5">Theo dõi thực tế (từ ngày triển khai — ngoài mẫu hoàn toàn)</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-500 mb-0.5">Theo dõi thực tế (từ ngày triển khai — ngoài mẫu hoàn toàn)</div>
       {!has ? (
-        <p className="text-[9px] text-slate-500">Đang ghi nhận tín hiệu mỗi phiên lúc 15:45; kết quả T+5 / T+10 được chấm tự động lúc 16:40 so với VN-Index. Cần ≥ 30 tín hiệu để kết luận.</p>
+        <p className="text-[10px] text-slate-500">Đang ghi nhận tín hiệu mỗi phiên lúc 15:45; kết quả T+5 / T+10 được chấm tự động lúc 16:40 so với VN-Index. Cần ≥ 30 tín hiệu để kết luận.</p>
       ) : (
-        <table className="w-full text-[9px]">
+        <table className="w-full text-[10px]">
           <thead className="text-slate-500"><tr><th className="text-left font-normal px-1">Trúng / nền</th><th className="text-right font-normal px-1">T+5</th><th className="text-right font-normal px-1">T+10</th></tr></thead>
           <tbody>
             {rows.map((g) => <tr key={g.key} className="border-t border-white/5"><td className="px-1 text-slate-300">{g.label}</td><LiveCell s={g.h5} /><LiveCell s={g.h10} /></tr>)}
@@ -82,13 +82,13 @@ export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { e
       <summary className="cursor-pointer flex flex-wrap items-center gap-1.5 list-none">
         {validated ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> : <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />}
         <span className="font-bold text-slate-300">Bằng chứng lịch sử</span>
-        <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold ${validated ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`} data-testid="evidence-label">
+        <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${validated ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-300"}`} data-testid="evidence-label">
           {evidence.label}
         </span>
         <span className="text-slate-500">
           {evidence.outOfSample?.n ? `Ngoài mẫu PF ${num(evidence.outOfSample.profitFactor)} · ${evidence.outOfSample.n} lệnh` : evidence.reason}
         </span>
-        {marketUp === false && <span className="text-[8px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">M chưa thuận</span>}
+        {marketUp === false && <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-300 font-bold">M chưa thuận</span>}
       </summary>
       <div className="pt-2 space-y-2">
         <p className="text-slate-400 leading-relaxed">{evidence.reason}</p>
@@ -117,8 +117,8 @@ export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { e
         )}
         {v && (
           <div className="rounded-md p-2 space-y-1" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }} data-testid="evidence-validation">
-            <div className="text-[9px] uppercase tracking-wide text-slate-500">Kiểm định</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[9px] text-slate-400">
+            <div className="text-[10px] uppercase tracking-wide text-slate-500">Kiểm định</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
               <span>KTC 95% lợi nhuận TB ngoài mẫu: <span className="font-mono text-slate-200">{v.ciOutOfSample ? `${pct(v.ciOutOfSample.mean[0])} … ${pct(v.ciOutOfSample.mean[1])}` : "chưa đủ lệnh"}</span></span>
               <span>KTC 95% PF ngoài mẫu: <span className="font-mono text-slate-200">{v.ciOutOfSample ? `${num(v.ciOutOfSample.pf[0])} … ${num(v.ciOutOfSample.pf[1])}` : "—"}</span></span>
               <span>t so với nền (toàn bộ / ngoài mẫu): <span className="font-mono text-slate-200">{num(v.tVsBaseline)} / {num(v.tVsBaselineOos)}</span></span>
@@ -126,7 +126,7 @@ export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { e
             </div>
             {v.periods.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="text-[9px] font-mono w-full">
+                <table className="text-[10px] font-mono w-full">
                   <thead className="text-slate-500"><tr><th className="text-left font-normal pr-2">Nửa năm</th>{v.periods.map((p) => <th key={p.period} className="text-right font-normal px-1">{p.period}</th>)}</tr></thead>
                   <tbody>
                     <tr><td className="text-slate-500 pr-2">PF</td>{v.periods.map((p) => <td key={p.period} className={`text-right px-1 ${pfTone(p.profitFactor)}`}>{num(p.profitFactor)}</td>)}</tr>
@@ -137,8 +137,8 @@ export default function EvidenceCard({ evidence, marketUp, live, liveNote }: { e
             )}
           </div>
         )}
-        {liveNote ? <p className="text-[9px] text-slate-500" data-testid="live-note">{liveNote}</p> : <LiveTrackingTable live={live} />}
-        {evidence.rules && <p className="text-[9px] text-slate-500 leading-relaxed">{evidence.rules}</p>}
+        {liveNote ? <p className="text-[10px] text-slate-500" data-testid="live-note">{liveNote}</p> : <LiveTrackingTable live={live} />}
+        {evidence.rules && <p className="text-[10px] text-slate-500 leading-relaxed">{evidence.rules}</p>}
       </div>
     </details>
   );

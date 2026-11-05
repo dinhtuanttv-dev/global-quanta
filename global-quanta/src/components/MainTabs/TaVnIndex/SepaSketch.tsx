@@ -185,7 +185,7 @@ export default function SepaSketch({ bars, row }: { bars: OhlcvBar[]; row: SepaR
         {view.map((b, i) => <rect key={`h${b.date}`} x={i * bw} y={0} width={bw} height={H} fill="transparent" onMouseEnter={() => setHover(i)} onTouchStart={() => setHover(i)} />)}
       </svg>
       {hb && (
-        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[9px] font-mono text-slate-200 pointer-events-none" style={{ background: "rgba(2,6,15,0.92)", border: "1px solid rgba(148,163,184,0.25)" }} data-testid="sepa-sketch-tooltip">
+        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[10px] font-mono text-slate-200 pointer-events-none" style={{ background: "rgba(2,6,15,0.92)", border: "1px solid rgba(148,163,184,0.25)" }} data-testid="sepa-sketch-tooltip">
           {hb.date} · O {fmt(hb.open)} H {fmt(hb.high)} L {fmt(hb.low)} C {fmt(hb.close)} · KL {fmt(hb.volume)}
           {v50[from + hover!] != null && ` (${(hb.volume / (v50[from + hover!] as number)).toFixed(2).replace(".", ",")}× TB50)`}
         </div>
@@ -200,7 +200,7 @@ export default function SepaSketch({ bars, row }: { bars: OhlcvBar[]; row: SepaR
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400 mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 mt-1">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: UP }} />Nến tăng</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ border: `1px solid ${DOWN}` }} />Nến giảm</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t" style={{ borderColor: MUTED }} />MA50</span>

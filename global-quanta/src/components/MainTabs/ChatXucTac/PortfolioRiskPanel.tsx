@@ -55,7 +55,7 @@ export default function PortfolioRiskPanel({
     background: "var(--bg-surface-2)", border: "1px solid var(--border)",
     borderRadius: 6, color: "var(--text-primary)", outline: "none",
   };
-  const labelStyle: CSSProperties = { fontSize: 9.5, color: "var(--text-tertiary)", display: "block", marginBottom: 8 };
+  const labelStyle: CSSProperties = { fontSize: 10, color: "var(--text-tertiary)", display: "block", marginBottom: 8 };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -82,7 +82,7 @@ export default function PortfolioRiskPanel({
           <div style={{ color: "var(--gold-bright)", fontWeight: 700, marginTop: 2 }}>
             Gợi ý: {(sizing.recommendedPct * 100).toFixed(1)}% NAV ({sizing.recommendedAmount.toLocaleString("vi-VN")}₫)
           </div>
-          {sizing.capped && <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 2 }}>Đã áp trần tối đa 10%/mã</div>}
+          {sizing.capped && <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 2 }}>Đã áp trần tối đa 10%/mã</div>}
         </div>
       </div>
 
@@ -91,8 +91,8 @@ export default function PortfolioRiskPanel({
         <div style={{ fontSize: 11 }}>
           <div>VaR: <b style={{ color: "var(--negative)" }}>{(varResult.varPct * 100).toFixed(2)}%</b> ({varResult.varAmount.toLocaleString("vi-VN")}₫)</div>
           <div>CVaR: <b style={{ color: "var(--negative)" }}>{(varResult.cvarPct * 100).toFixed(2)}%</b> ({varResult.cvarAmount.toLocaleString("vi-VN")}₫)</div>
-          <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 4 }}>Cỡ mẫu: {varResult.sampleSize} phiên</div>
-          {varResult.warning && <div style={{ fontSize: 9.5, color: "#fbbf24", marginTop: 2 }}>{varResult.warning}</div>}
+          <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4 }}>Cỡ mẫu: {varResult.sampleSize} phiên</div>
+          {varResult.warning && <div style={{ fontSize: 10, color: "#fbbf24", marginTop: 2 }}>{varResult.warning}</div>}
         </div>
       </div>
 
@@ -105,7 +105,7 @@ export default function PortfolioRiskPanel({
           }}>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 10.5, fontWeight: 600 }}>{r.scenario.name}</div>
-              <div style={{ fontSize: 9, color: "var(--text-tertiary)" }}>{r.scenario.description}</div>
+              <div style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{r.scenario.description}</div>
             </div>
             <div style={{
               fontSize: 11, fontWeight: 700, whiteSpace: "nowrap",

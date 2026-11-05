@@ -23,7 +23,7 @@ export default function ObjectList(p: Props) {
     <div className="space-y-2" data-testid="object-list">
       <div className="flex items-center gap-1">
         <span className="text-[10px] font-bold text-slate-200">Hình vẽ của tôi · {p.ticker}</span>
-        <span className="text-[9px] text-slate-500 font-mono">({p.primitives.length})</span>
+        <span className="text-[10px] text-slate-500 font-mono">({p.primitives.length})</span>
         <span className="ml-auto flex gap-1">
           <button type="button" className="ws-icon-btn" onClick={p.onUndo} disabled={!p.canUndo} aria-label="Hoàn tác (Ctrl+Z)" title="Hoàn tác (Ctrl+Z)" data-testid="objects-undo"><Undo2 className="w-3.5 h-3.5" /></button>
           <button type="button" className="ws-icon-btn" onClick={p.onRedo} disabled={!p.canRedo} aria-label="Làm lại (Ctrl+Shift+Z)" title="Làm lại (Ctrl+Shift+Z)" data-testid="objects-redo"><Redo2 className="w-3.5 h-3.5" /></button>
@@ -59,7 +59,7 @@ export default function ObjectList(p: Props) {
         </ul>
       )}
       <div className="flex items-center gap-2 pt-1 border-t border-slate-800/80">
-        <span className="text-[9px] text-slate-500" data-testid="drawings-saved-state">{p.saveState === "cloud" ? "☁ Đã lưu theo tài khoản" : p.saveState === "local" ? "Đã lưu trên máy này" : "Hình vẽ lưu theo mã"}</span>
+        <span className="text-[10px] text-slate-500" data-testid="drawings-saved-state">{p.saveState === "cloud" ? "☁ Đã lưu theo tài khoản" : p.saveState === "local" ? "Đã lưu trên máy này" : "Hình vẽ lưu theo mã"}</span>
         {p.primitives.length > 0 && (
           <button type="button" onClick={() => setConfirm(true)} className="ml-auto text-[10px] text-rose-300 hover:text-rose-200 inline-flex items-center gap-1" data-testid="drawings-clear-all">
             <Trash2 className="w-3 h-3" /> Xoá tất cả…

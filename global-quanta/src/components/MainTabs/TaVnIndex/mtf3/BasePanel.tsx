@@ -34,13 +34,13 @@ function BaseCard({ tf, b }: { tf: "Ngày" | "Tuần"; b: Base3View | null }) {
     <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(15,23,42,0.55)", border: "1px solid rgba(148,163,184,0.12)" }} data-testid={`base-${tf === "Ngày" ? "D" : "W"}`}>
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-bold text-slate-200">{tf}</span>
-        <span className={`rounded border px-1.5 py-0.5 text-[9.5px] font-bold ${b.vcp ? "text-emerald-200 border-emerald-400/50 bg-emerald-500/10" : "text-sky-200 border-sky-400/40 bg-sky-500/10"}`} data-testid="base-pattern">{b.patternLabel}</span>
-        <span className="font-mono text-[9.5px] text-slate-400" title="Dấu chân kỹ thuật: số tuần · độ sâu lớn nhất / nhịp cuối (%) · số lần thu hẹp">{b.footprint}</span>
-        {b.breakout && <span className="rounded border border-emerald-400/50 px-1 text-[9.5px] text-emerald-200" data-testid="base-breakout">Phá vỡ {dmy(b.breakout.date)} · KL ×{b.breakout.volRatio.toLocaleString("vi-VN")}</span>}
-        {!b.valid && <span className="rounded border border-amber-400/40 px-1 text-[9.5px] text-amber-200" title={b.reasons.join(" · ")}>Chưa đạt chuẩn nền</span>}
+        <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${b.vcp ? "text-emerald-200 border-emerald-400/50 bg-emerald-500/10" : "text-sky-200 border-sky-400/40 bg-sky-500/10"}`} data-testid="base-pattern">{b.patternLabel}</span>
+        <span className="font-mono text-[10px] text-slate-400" title="Dấu chân kỹ thuật: số tuần · độ sâu lớn nhất / nhịp cuối (%) · số lần thu hẹp">{b.footprint}</span>
+        {b.breakout && <span className="rounded border border-emerald-400/50 px-1 text-[10px] text-emerald-200" data-testid="base-breakout">Phá vỡ {dmy(b.breakout.date)} · KL ×{b.breakout.volRatio.toLocaleString("vi-VN")}</span>}
+        {!b.valid && <span className="rounded border border-amber-400/40 px-1 text-[10px] text-amber-200" title={b.reasons.join(" · ")}>Chưa đạt chuẩn nền</span>}
       </div>
       <Sketch b={b} />
-      <div className="grid grid-cols-2 gap-x-2 text-[9.5px] text-slate-400">
+      <div className="grid grid-cols-2 gap-x-2 text-[10px] text-slate-400">
         <span>Đỉnh trái <b className="text-slate-200">{price(b.leftHigh)}</b> · sâu <b className="text-slate-200">{b.depthPct.toLocaleString("vi-VN")}%</b></span>
         <span>{b.bars} {tf === "Ngày" ? "phiên" : "tuần"} · từ {dmy(b.from)}</span>
         <span title="Độ sâu từng nhịp thu hẹp — VCP khi mỗi nhịp ≤ 0,75 nhịp trước">Nhịp co {depths.length ? depths.map((d) => `−${d.toLocaleString("vi-VN")}%`).join(" → ") : "—"}</span>
@@ -48,7 +48,7 @@ function BaseCard({ tf, b }: { tf: "Ngày" | "Tuần"; b: Base3View | null }) {
         {b.undercuts.length > 0 && <span title="Phiên thủng đáy trước rồi đóng cửa lại trên — dấu hiệu rũ bỏ / gom hàng">Rũ bỏ {b.undercuts.length} lần</span>}
         {b.baseCount != null && <span title="Nền thứ mấy kể từ đầu giai đoạn 2 — nền 1–2 tốt nhất, 4–5 dễ thất bại">Nền thứ <b className={b.baseCount >= 4 ? "text-amber-300" : "text-slate-200"}>{b.baseCount}</b> của GĐ 2</span>}
       </div>
-      {!b.valid && <p className="text-[9px] text-amber-300/80">{b.reasons.join(" · ")}</p>}
+      {!b.valid && <p className="text-[10px] text-amber-300/80">{b.reasons.join(" · ")}</p>}
     </div>
   );
 }
@@ -57,14 +57,14 @@ function Levels({ levels, close }: { levels: Level3View[]; close: number | null 
   return (
     <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(15,23,42,0.55)", border: "1px solid rgba(148,163,184,0.12)" }} data-testid="levels3">
       <div className="text-[10px] font-bold text-slate-200">Mức hỗ trợ / kháng cự <span className="font-normal text-slate-500">· gom đỉnh–đáy sóng Tháng (×3) · Tuần (×2) · Ngày</span></div>
-      {levels.length === 0 ? <p className="text-[9.5px] text-slate-500">Chưa có mức có ≥ 2 lần chạm.</p> : (
+      {levels.length === 0 ? <p className="text-[10px] text-slate-500">Chưa có mức có ≥ 2 lần chạm.</p> : (
         <ul className="space-y-0.5">
           {levels.map((l) => (
-            <li key={`${l.price}-${l.role}`} className="flex items-center gap-1.5 text-[9.5px]" data-testid="level3-row">
+            <li key={`${l.price}-${l.role}`} className="flex items-center gap-1.5 text-[10px]" data-testid="level3-row">
               <span className={`w-14 rounded px-1 text-center ${l.role === "resistance" ? "bg-rose-500/10 text-rose-200" : "bg-emerald-500/10 text-emerald-200"}`}>{l.role === "resistance" ? "Kháng cự" : "Hỗ trợ"}</span>
               <b className="w-16 font-mono text-slate-100">{price(l.price)}</b>
               <span className="text-slate-500">{close ? `${l.price > close ? "+" : ""}${(((l.price / close) - 1) * 100).toFixed(1).replace(".", ",")}%` : ""}</span>
-              <span className="flex gap-0.5">{l.frames.map((f) => <i key={f} className="not-italic rounded border border-slate-600/60 px-1 text-[8.5px] text-slate-300">{f === "D" ? "N" : f === "W" ? "T" : "Th"}</i>)}</span>
+              <span className="flex gap-0.5">{l.frames.map((f) => <i key={f} className="not-italic rounded border border-slate-600/60 px-1 text-[10px] text-slate-300">{f === "D" ? "N" : f === "W" ? "T" : "Th"}</i>)}</span>
               <span className="text-slate-500">{l.touches} lần chạm</span>
               {l.flipped && <span className="text-amber-200" title="Từng là kháng cự nay thành hỗ trợ (hoặc ngược lại)">đổi vai</span>}
             </li>
@@ -80,7 +80,7 @@ export default function BasePanel({ D, W, levels, close }: { D: Base3View | null
     <section className="space-y-1.5" data-testid="base-panel" aria-label="Vùng củng cố và mức giá">
       <div className="flex items-center gap-2">
         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Vùng củng cố · mô hình trên nền</span>
-        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[9.5px] text-slate-400" title="Phá vỡ nền trong giai đoạn 2 (H3) kiểm định ở S7">MÔ TẢ</span>
+        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[10px] text-slate-400" title="Phá vỡ nền trong giai đoạn 2 (H3) kiểm định ở S7">MÔ TẢ</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-1.5">
         <BaseCard tf="Ngày" b={D} /><BaseCard tf="Tuần" b={W} /><Levels levels={levels} close={close} />

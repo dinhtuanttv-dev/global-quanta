@@ -44,14 +44,14 @@ export default function SectorDossierExtras({ icb }: { icb: string }) {
       {links.map((l) => <p key={`${l.factor}-${l.lag}`} className="text-[10.5px]" style={{ color: "var(--text-secondary)" }}>{l.factor} · bậc {l.tier} · β {fmtZ(l.beta, 2)} · trễ {l.lag} tháng{l.z != null ? ` · yếu tố ${fmtZ(l.z, 1)} σ` : ""}</p>)}
       {m.confirm.map((c) => <p key={c.id} className="text-[10.5px]" style={muted}>Cổng xác nhận {c.id} ({c.factor}): {c.confirmed ? "đã xác nhận" : c.signOk === false ? "ngược chiều kỳ vọng" : "chưa xác nhận"}, q {c.q.toFixed(3).replace(".", ",")}</p>)}
       {scenarios.map((s) => <p key={s.id} className="text-[10.5px]" style={{ color: "var(--text-secondary)" }}>Kịch bản {s.nameVi}: {fmtZ(s.estPct, 1)}% ({fmtZ(s.lo, 1)}% đến {fmtZ(s.hi, 1)}%){s.conclusive ? "" : ", khoảng tin cậy chứa 0, chưa kết luận được hướng"}</p>)}
-      <p className="text-[9.5px]" style={muted}>Quan hệ lịch sử theo tháng, không chứng minh nhân quả.</p>
+      <p className="text-[10px]" style={muted}>Quan hệ lịch sử theo tháng, không chứng minh nhân quả.</p>
     </section>}
 
     {topics.length > 0 && <section className="rounded-lg p-3 space-y-1.5" style={box} data-testid="dossier-news">
       <h4 className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Tin cùng chủ đề <span className="font-normal normal-case" style={muted}>· lọc theo chủ đề, chưa chứng minh tác động lên ngành</span></h4>
       {!news && <p className="text-[10.5px]" style={muted}>Đang tải tin…</p>}
       {news && related.length === 0 && <p className="text-[10.5px]" style={muted}>Không có tin cùng chủ đề trong 7 ngày gần nhất.</p>}
-      {related.map((n) => <p key={n.url} className="text-[10.5px]"><a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#e2e8f0" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden /></a><br /><span className="text-[9.5px]" style={muted}>{VERIFICATION_VI[n.verification].label} · {n.sourceLabel} · Đăng {fmtVnTime(n.publishedAt)}</span></p>)}
+      {related.map((n) => <p key={n.url} className="text-[10.5px]"><a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#e2e8f0" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden /></a><br /><span className="text-[10px]" style={muted}>{VERIFICATION_VI[n.verification].label} · {n.sourceLabel} · Đăng {fmtVnTime(n.publishedAt)}</span></p>)}
     </section>}
   </>;
 }

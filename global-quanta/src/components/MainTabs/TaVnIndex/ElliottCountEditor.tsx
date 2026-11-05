@@ -73,21 +73,21 @@ const PATTERNS = Object.keys(PATTERN_NAME) as PatternTag[];
 export function ElliottCountEditor({ points, onChange, placing, onPlace, violations, canUndo, canRedo, onUndo, onRedo, onSave, onCancel, syncing, cloudOk }: EditorProps) {
   const [note, setNote] = useState("");
   const [pattern, setPattern] = useState<PatternTag | null>(null);
-  const btn = "inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-300 hover:text-white disabled:opacity-40";
+  const btn = "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border border-slate-700 text-slate-300 hover:text-white disabled:opacity-40";
   const blocked = blockingIssue(points);
   const nextLabel = COUNT_LABELS[COUNT_LABELS.indexOf((points[points.length - 1]?.label ?? "-1") as (typeof COUNT_LABELS)[number]) + 1];
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (placing != null) ref.current?.scrollIntoView?.({ block: "nearest" }); }, [placing]);
   return (
     <div ref={ref} className="rounded-lg p-2 space-y-1.5" style={{ ...CARD, borderColor: "rgba(34,211,238,0.35)" }} data-testid="elliott-count-editor">
-      <p className="text-[9px] font-semibold text-cyan-300 uppercase flex items-center gap-1">
+      <p className="text-[10px] font-semibold text-cyan-300 uppercase flex items-center gap-1">
         Chỉnh tay cách đếm
-        <span className="ml-auto normal-case text-[8.5px] text-slate-500">{syncing ? "đang lưu…" : cloudOk === false ? "chỉ lưu trên máy này" : cloudOk ? "đồng bộ tài khoản" : ""}</span>
+        <span className="ml-auto normal-case text-[10px] text-slate-500">{syncing ? "đang lưu…" : cloudOk === false ? "chỉ lưu trên máy này" : cloudOk ? "đồng bộ tài khoản" : ""}</span>
       </p>
       {placing != null && (
-        <p className="text-[9px] text-amber-300" data-testid="elliott-placing">Bấm lên biểu đồ để đặt điểm {points[placing]?.label ?? nextLabel} — điểm tự bám đỉnh/đáy nến. <button type="button" className="underline" onClick={() => onPlace(null)}>Huỷ</button></p>
+        <p className="text-[10px] text-amber-300" data-testid="elliott-placing">Bấm lên biểu đồ để đặt điểm {points[placing]?.label ?? nextLabel} — điểm tự bám đỉnh/đáy nến. <button type="button" className="underline" onClick={() => onPlace(null)}>Huỷ</button></p>
       )}
-      <table className="w-full text-[9.5px]">
+      <table className="w-full text-[10px]">
         <tbody>
           {points.map((p, k) => (
             <tr key={k} className={placing === k ? "bg-amber-500/10" : ""} data-testid={`elliott-edit-row-${k}`}>
@@ -108,22 +108,22 @@ export function ElliottCountEditor({ points, onChange, placing, onPlace, violati
         <button type="button" className={btn} onClick={onRedo} disabled={!canRedo} title="Làm lại"><Redo2 className="w-3 h-3" /></button>
       </div>
       {violations.length > 0 ? (
-        <ul className="text-[9px] text-rose-300 space-y-0.5" data-testid="elliott-edit-violations">{violations.map((v) => <li key={v}>✗ {v}</li>)}</ul>
-      ) : points.length >= 2 ? <p className="text-[9px] text-emerald-300" data-testid="elliott-edit-ok">✓ Đạt các quy tắc cứng đã kiểm</p> : null}
+        <ul className="text-[10px] text-rose-300 space-y-0.5" data-testid="elliott-edit-violations">{violations.map((v) => <li key={v}>✗ {v}</li>)}</ul>
+      ) : points.length >= 2 ? <p className="text-[10px] text-emerald-300" data-testid="elliott-edit-ok">✓ Đạt các quy tắc cứng đã kiểm</p> : null}
       <div className="flex flex-wrap gap-1 items-center">
-        <select value={pattern ?? ""} onChange={(e) => setPattern((e.target.value || null) as PatternTag | null)} className="text-[9px] bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-slate-300" aria-label="Thẻ mô hình">
+        <select value={pattern ?? ""} onChange={(e) => setPattern((e.target.value || null) as PatternTag | null)} className="text-[10px] bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-slate-300" aria-label="Thẻ mô hình">
           <option value="">Thẻ mô hình (tuỳ chọn)</option>
           {PATTERNS.map((t) => <option key={t} value={t}>{t} — {PATTERN_NAME[t]}</option>)}
         </select>
-        <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="Ghi chú" className="flex-1 min-w-[120px] text-[9px] bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200" aria-label="Ghi chú" />
+        <input value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="Ghi chú" className="flex-1 min-w-[120px] text-[10px] bg-slate-900 border border-slate-700 rounded px-1.5 py-0.5 text-slate-200" aria-label="Ghi chú" />
       </div>
       <div className="flex flex-wrap gap-1">
         <button type="button" className={btn} disabled={!!blocked} onClick={() => onSave({ note, pattern, confirm: false })} data-testid="elliott-edit-save"><Save className="w-3 h-3" />Lưu phiên bản</button>
         <button type="button" className={btn} disabled={!!blocked} onClick={() => onSave({ note, pattern, confirm: true })} data-testid="elliott-edit-confirm"><Check className="w-3 h-3" />Lưu & xác nhận</button>
         <button type="button" className={btn} onClick={onCancel} data-testid="elliott-edit-cancel"><X className="w-3 h-3" />Đóng</button>
       </div>
-      {blocked ? <p className="text-[9px] text-amber-300" data-testid="elliott-edit-blocked">{blocked}</p>
-        : violations.length > 0 && <p className="text-[8.5px] text-slate-500">Vẫn lưu được — phiên bản sẽ mang cờ vi phạm.</p>}
+      {blocked ? <p className="text-[10px] text-amber-300" data-testid="elliott-edit-blocked">{blocked}</p>
+        : violations.length > 0 && <p className="text-[10px] text-slate-500">Vẫn lưu được — phiên bản sẽ mang cờ vi phạm.</p>}
     </div>
   );
 }
@@ -138,19 +138,19 @@ interface HistoryProps {
 }
 
 export function ElliottCountHistory({ doc, rejected = null, statusOf, onRestore, onDelete, onAuto }: HistoryProps) {
-  if (!doc.versions.length) return rejected ? <p className="text-[9px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p> : null;
-  const btn = "text-[9px] px-1 rounded border border-slate-700 text-slate-400 hover:text-white";
+  if (!doc.versions.length) return rejected ? <p className="text-[10px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p> : null;
+  const btn = "text-[10px] px-1 rounded border border-slate-700 text-slate-400 hover:text-white";
   return (
     <div className="rounded-lg p-2 space-y-1" style={CARD} data-testid="elliott-count-history">
-      <p className="text-[9px] font-semibold text-slate-400 uppercase flex items-center gap-1"><History className="w-3 h-3" />Cách đếm của tôi · lịch sử
+      <p className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1"><History className="w-3 h-3" />Cách đếm của tôi · lịch sử
         {doc.activeId && <button type="button" className={`${btn} ml-auto normal-case`} onClick={onAuto} data-testid="elliott-count-auto"><RotateCcw className="w-3 h-3 inline" /> Về cách đếm tự động</button>}
       </p>
-      {rejected && <p className="text-[9px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p>}
+      {rejected && <p className="text-[10px] text-rose-300" data-testid="elliott-count-rejected">{rejected}</p>}
       <ul className="space-y-0.5">
         {[...doc.versions].reverse().map((v) => {
           const st = statusOf(v);
           return (
-            <li key={v.id} className={`text-[9px] flex items-center gap-1 ${v.id === doc.activeId ? "text-cyan-200" : "text-slate-400"}`} data-testid={`elliott-version-${v.id}`}>
+            <li key={v.id} className={`text-[10px] flex items-center gap-1 ${v.id === doc.activeId ? "text-cyan-200" : "text-slate-400"}`} data-testid={`elliott-version-${v.id}`}>
               <span className="font-mono">{v.createdAt.slice(0, 16).replace("T", " ")}</span>
               <span>{v.points.map((p) => p.label).join("")}</span>
               {v.pattern && <span className="text-amber-300">{v.pattern}</span>}

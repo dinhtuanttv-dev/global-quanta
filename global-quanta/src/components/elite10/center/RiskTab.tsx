@@ -12,7 +12,7 @@ const fmtDate = (d?: string | null) => (d ? d.split("-").reverse().join("/") : "
 function Tile({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-      <p className="text-[9.5px] font-bold uppercase text-slate-500">{label}</p>
+      <p className="text-[10px] font-bold uppercase text-slate-500">{label}</p>
       <p className="font-mono text-[15px] font-bold text-slate-100">{value}</p>
       {sub && <p className="text-[10px] text-slate-500">{sub}</p>}
     </div>
@@ -35,7 +35,7 @@ export default function RiskTab() {
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-risk-tab">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-cyan-300">Rủi ro danh mục Elite 10 — phiên {fmtDate(r.date)}</p>
+          <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục Elite 10 — phiên {fmtDate(r.date)}</p>
           <p className="text-[10.5px] text-slate-400">{r.sessions} phiên ({fmtDate(r.from)} → {fmtDate(r.to)}), tỷ trọng cố định như danh mục đã khoá · mô tả rủi ro, không tối ưu lại danh mục.</p>
         </div>
         <span className="rounded border border-amber-400/50 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300">{r.label === "EVIDENCE" ? "ĐẠT TIÊU CHÍ" : "THĂM DÒ"}</span>
@@ -51,13 +51,13 @@ export default function RiskTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-risk-rc">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Đóng góp rủi ro so với tỷ trọng</h4>
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-rc">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Đóng góp rủi ro so với tỷ trọng</h4>
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
             <tbody>
               {r.holdings!.map((h) => (
                 <tr key={h.ticker} className="border-t border-white/5">
-                  <td className="py-1 w-14 font-bold text-cyan-300">{h.ticker}</td>
+                  <td className="py-1 w-14 font-bold text-[#F5CE72]">{h.ticker}</td>
                   <td>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded bg-slate-400/60" style={{ width: `${(h.weight / maxRc) * 140}px` }} /><span className="text-[10px] text-slate-400">tỷ trọng {pct(h.weight, 1)}</span></div>
@@ -72,10 +72,10 @@ export default function RiskTab() {
           <p className="text-[10px] text-slate-500">Đóng góp rủi ro Euler: wᵢ·(Σw)ᵢ / σp, cộng lại đúng 100%. Thanh cam = đóng góp rủi ro vượt 1,25× tỷ trọng.</p>
         </section>
 
-        <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-risk-corr">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Tương quan (sau co rút)</h4>
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-corr">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tương quan (sau co rút)</h4>
           <div className="overflow-x-auto">
-            <table className="text-[9.5px]" style={{ borderCollapse: "separate", borderSpacing: 2 }}>
+            <table className="text-[10px]" style={{ borderCollapse: "separate", borderSpacing: 2 }}>
               <thead><tr><th />{corr.tickers.map((t) => <th key={t} className="px-1 font-normal text-slate-400">{t}</th>)}</tr></thead>
               <tbody>
                 {corr.matrix.map((row, i) => (
@@ -99,8 +99,8 @@ export default function RiskTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-risk-stress">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Kiểm tra căng thẳng (lịch sử)</h4>
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-stress">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm tra căng thẳng (lịch sử)</h4>
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
             <thead><tr className="text-slate-500"><th className="text-left font-normal">Kịch bản</th><th className="text-right font-normal">VN-Index</th><th className="text-right font-normal">Danh mục</th></tr></thead>
             <tbody>
@@ -114,8 +114,8 @@ export default function RiskTab() {
           </table>
         </section>
 
-        <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-risk-sectors">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Phơi nhiễm ngành & phân phối lợi suất</h4>
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-sectors">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Phơi nhiễm ngành & phân phối lợi suất</h4>
           {r.sectors!.map((s) => (
             <div key={s.key} className="flex items-center gap-2 text-[11px]">
               <span className="w-40 truncate text-slate-300">{sectorName.get(s.key) ?? s.key}</span>

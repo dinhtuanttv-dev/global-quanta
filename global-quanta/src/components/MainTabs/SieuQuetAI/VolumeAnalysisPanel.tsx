@@ -28,9 +28,9 @@ const signed = (v: number | null | undefined, d = 2) => (v === null || v === und
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "up" | "down" }) {
   return (
     <div className="rounded-lg px-2.5 py-2" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
-      <div className="text-[9px] text-slate-500 font-sans">{label}</div>
+      <div className="text-[10px] text-slate-500 font-sans">{label}</div>
       <div className={`text-sm font-semibold ${tone === "up" ? "text-emerald-400" : tone === "down" ? "text-rose-400" : "text-slate-100"}`}>{value}</div>
-      {sub && <div className="text-[9px] text-slate-500 font-sans">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-500 font-sans">{sub}</div>}
     </div>
   );
 }
@@ -40,7 +40,7 @@ function ChartBox({ title, legend, children }: { title: string; legend?: ReactNo
     <div className="rounded-lg p-2.5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] text-slate-300 font-sans font-semibold">{title}</div>
-        {legend && <div className="flex items-center gap-2 text-[9px] text-slate-400 font-sans">{legend}</div>}
+        {legend && <div className="flex items-center gap-2 text-[10px] text-slate-400 font-sans">{legend}</div>}
       </div>
       {children}
     </div>
@@ -162,7 +162,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
     <div className="p-3 font-sans" style={{ background: "rgba(2,132,199,0.04)" }}>
       <div className="flex items-baseline justify-between mb-2">
         <div className="text-[11px] font-semibold text-cyan-300">Phân tích khối lượng · {symbol}</div>
-        <div className="text-[9px] text-slate-500">
+        <div className="text-[10px] text-slate-500">
           Dữ liệu SSI tới phiên {data.asOf}{data.partialToday ? " (hôm nay đang giao dịch)" : ""} · nhấn đúp hoặc Esc để đóng
           <span className="ml-2"><ResearchUiToggle compact /></span>
         </div>
@@ -197,7 +197,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 border-t border-dashed border-slate-400" />TB20</span>
           </>}>
           <VolumeBars data={trend} />
-          <div className="grid grid-cols-3 gap-1 text-[9px] text-slate-400 mt-1">
+          <div className="grid grid-cols-3 gap-1 text-[10px] text-slate-400 mt-1">
             <div>KL tăng/giảm (20p): <b className="text-slate-200">{trend.upDownVolumeRatio20 ?? "—"}</b></div>
             <div>OBV 20p: <b className="text-slate-200">{obvLabel}</b></div>
             <div>CMF20: <b className="text-slate-200">{signed(trend.cmf20, 3)}</b></div>
@@ -209,7 +209,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: DOWN }} />Bán ròng (dưới trục)</span>
           </>}>
           <ForeignBars series={foreign.netSeries20} />
-          <div className="text-[9px] text-slate-400 mt-1">
+          <div className="text-[10px] text-slate-400 mt-1">
             {foreign.streak.sessions > 0
               ? <>Chuỗi {foreign.streak.direction === "buy" ? "mua" : "bán"} ròng: <b className="text-slate-200">{foreign.streak.sessions} phiên</b></>
               : "Không có chuỗi mua/bán ròng"} · Room còn lại: <b className="text-slate-200">{fmtVol(foreign.room)}</b>
@@ -222,7 +222,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
               <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2" style={{ background: "rgba(2,132,199,0.25)" }} />Vùng giá trị 70%</span>
             </>}>
             <Profile profile={profile} price={today.price} />
-            <div className="text-[9px] text-slate-400 mt-1">
+            <div className="text-[10px] text-slate-400 mt-1">
               POC <b className="text-slate-200">{fmtInt(profile.poc)}</b> · Vùng giá trị <b className="text-slate-200">{fmtInt(profile.valueAreaLow)}–{fmtInt(profile.valueAreaHigh)}</b> · Giá đang ở{" "}
               <b className="text-slate-200">{{ above: "trên", below: "dưới", inside: "trong" }[profile.position]}</b> vùng giá trị
             </div>
@@ -231,7 +231,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
         {intraday && (
           <ChartBox title={`Khối lượng trong phiên ${today.date} (khung 15 phút)`}>
             <IntradayBars buckets={intraday.buckets15m} />
-            <div className="text-[9px] text-slate-400 mt-1">
+            <div className="text-[10px] text-slate-400 mt-1">
               ATO <b className="text-slate-200">{intraday.atoSharePct ?? "—"}%</b> · ATC <b className="text-slate-200">{intraday.atcSharePct ?? "—"}%</b>
               {intraday.peak && <> · Đột biến lớn nhất lúc <b className="text-slate-200">{intraday.peak.time}</b> ({fmtVol(intraday.peak.volume)}, {intraday.peak.multipleOfAvgBar}× nến TB)</>}
             </div>
@@ -244,11 +244,11 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
           {data.insights.map((s) => <li key={s}>{s}</li>)}
         </ul>
       )}
-      {trend.divergence && <div className="text-[9px] text-amber-300 mb-1">⚠ {trend.divergence.label}</div>}
+      {trend.divergence && <div className="text-[10px] text-amber-300 mb-1">⚠ {trend.divergence.label}</div>}
 
-      <details className="text-[9px] text-slate-500">
+      <details className="text-[10px] text-slate-500">
         <summary className="cursor-pointer select-none">Bảng số liệu 30 phiên · ghi chú</summary>
-        <table className="mt-1 w-full text-[9px] font-mono">
+        <table className="mt-1 w-full text-[10px] font-mono">
           <thead><tr className="text-slate-500"><th className="text-left">Phiên</th><th className="text-right">Đóng cửa</th><th className="text-right">KL khớp</th><th className="text-right">GT khớp</th><th className="text-left pl-2">Chiều</th></tr></thead>
           <tbody>
             {[...trend.bars30].reverse().map((b) => (

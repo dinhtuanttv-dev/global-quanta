@@ -18,14 +18,14 @@ const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTR
 
 export function TierChip({ tier }: { tier: Tier }) {
   const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-sky-500/15 text-sky-300 border-sky-400/40" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
-  return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[9px] font-bold ${cls}`}>Bậc {tier}</span>;
+  return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>Bậc {tier}</span>;
 }
 
 function Card({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId?: string }) {
   return (
-    <section data-testid={testId} className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
+    <section data-testid={testId} className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">{title}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
         {right}
       </div>
       {children}
@@ -60,7 +60,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-decision-board">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-cyan-300">Bảng quyết định Elite 10 — phiên {fmtDate(d.date)}</p>
+          <p className="text-[13px] font-bold text-[#F5CE72]">Bảng quyết định Elite 10 — phiên {fmtDate(d.date)}</p>
           <p className="text-[10.5px] text-slate-400">
             Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ 10 tỷ, giá ≥ 5.000đ, giá không bị neo) · {d.version}
           </p>
@@ -72,15 +72,15 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3 text-[11px]" data-testid="elite-context">
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Thị trường Việt Nam</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Thị trường Việt Nam</p>
           <p>{regime ? <>Chế độ <b className="text-slate-100">{REGIME_VI[regime.regime] ?? regime.regime}</b> · xung lực {num(regime.impulseScore)} · độ rộng {num(regime.breadthPct)}%</> : "—"}</p>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
           <p>{ws ? <>{ws.regime.stressed ? <b className="text-amber-300">Căng thẳng</b> : <b className="text-slate-100">Bình thường</b>} · VIX {num(ws.regime.vix, 2)} ({signed(ws.regime.vixChg, 1)}%)</> : "—"}</p>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Tỷ lệ cổ phiếu</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Tỷ lệ cổ phiếu</p>
           <p>100% — chưa có tín hiệu định thời thị trường nào đạt kiểm định, nên không đề xuất tỷ lệ tiền mặt.</p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         {!pf.open ? (
           <p className="text-[10.5px] text-slate-400" data-testid="elite-portfolio-summary">
             {d.portfolio.map((p) => (
-              <button key={p.ticker} type="button" onClick={() => onOpenTicker(p.ticker)} className="mr-2 font-bold text-cyan-300 hover:underline">
+              <button key={p.ticker} type="button" onClick={() => onOpenTicker(p.ticker)} className="mr-2 font-bold text-[#F5CE72] hover:underline">
                 {p.ticker} <span className="font-normal text-slate-500">{num(p.weight * 100)}% · {buyCells.get(p.ticker)?.text ?? "—"}</span>
               </button>
             ))}

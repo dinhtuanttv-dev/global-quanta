@@ -75,17 +75,17 @@ export default function ElliottAlertsPanel({ ticker, timeframe, state, mine, dai
   const events = data.events.filter((e) => e.symbol === ticker).slice(0, 8);
   return (
     <div className="rounded-lg p-2 space-y-1.5" style={CARD} data-testid="elliott-alerts">
-      <p className="text-[9px] font-semibold text-slate-400 uppercase flex items-center gap-1">
+      <p className="text-[10px] font-semibold text-slate-400 uppercase flex items-center gap-1">
         {data.unread ? <BellRing className="w-3 h-3 text-amber-300" /> : <Bell className="w-3 h-3" />}Cảnh báo khi giá chạm mốc
-        {data.unread > 0 && <button type="button" onClick={() => void markRead()} className="ml-auto normal-case text-[8.5px] px-1.5 rounded border border-amber-500/40 text-amber-300" data-testid="elliott-alerts-read">{data.unread} chưa đọc · đánh dấu đã đọc</button>}
+        {data.unread > 0 && <button type="button" onClick={() => void markRead()} className="ml-auto normal-case text-[10px] px-1.5 rounded border border-amber-500/40 text-amber-300" data-testid="elliott-alerts-read">{data.unread} chưa đọc · đánh dấu đã đọc</button>}
       </p>
-      {change.notice && <p className="text-[9px] text-amber-200" data-testid="elliott-count-change">{change.notice} <button type="button" className="underline" onClick={change.dismiss}>ẩn</button></p>}
-      {sugg.length === 0 ? <p className="text-[9px] text-slate-500">Cách đếm hiện tại chưa có mốc để đặt cảnh báo.</p> : (
+      {change.notice && <p className="text-[10px] text-amber-200" data-testid="elliott-count-change">{change.notice} <button type="button" className="underline" onClick={change.dismiss}>ẩn</button></p>}
+      {sugg.length === 0 ? <p className="text-[10px] text-slate-500">Cách đếm hiện tại chưa có mốc để đặt cảnh báo.</p> : (
         <ul className="space-y-0.5">
           {sugg.map((s) => {
             const ex = on(s);
             return (
-              <li key={s.key} className="flex items-center gap-1 text-[9.5px]">
+              <li key={s.key} className="flex items-center gap-1 text-[10px]">
                 <button type="button" onClick={() => toggle(s)} aria-pressed={!!ex} data-testid={`elliott-alert-${s.key}`}
                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border ${ex ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-400"}`}>
                   {ex ? <BellRing className="w-3 h-3" /> : <BellOff className="w-3 h-3" />}{ex ? "Đang bật" : "Bật"}
@@ -96,14 +96,14 @@ export default function ElliottAlertsPanel({ ticker, timeframe, state, mine, dai
           })}
         </ul>
       )}
-      {admin && <label className="flex items-center gap-1 text-[9px] text-slate-400"><input type="checkbox" checked={telegram} onChange={(e) => setTelegram(e.target.checked)} />Gửi cả Telegram (bot vận hành) cho cảnh báo bật mới</label>}
-      {mineAlerts.length > 0 && <p className="text-[8.5px] text-slate-500">{mineAlerts.filter((a) => a.enabled).length} cảnh báo đang bật cho {ticker} · kiểm mỗi phút trong phiên · báo một lần rồi tự tắt.</p>}
+      {admin && <label className="flex items-center gap-1 text-[10px] text-slate-400"><input type="checkbox" checked={telegram} onChange={(e) => setTelegram(e.target.checked)} />Gửi cả Telegram (bot vận hành) cho cảnh báo bật mới</label>}
+      {mineAlerts.length > 0 && <p className="text-[10px] text-slate-500">{mineAlerts.filter((a) => a.enabled).length} cảnh báo đang bật cho {ticker} · kiểm mỗi phút trong phiên · báo một lần rồi tự tắt.</p>}
       {events.length > 0 && (
         <ul className="space-y-0.5" data-testid="elliott-alert-events">
-          {events.map((e) => <li key={e.id} className={`text-[9px] ${e.read ? "text-slate-500" : "text-amber-200"}`}>{new Date(e.firedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {e.message}</li>)}
+          {events.map((e) => <li key={e.id} className={`text-[10px] ${e.read ? "text-slate-500" : "text-amber-200"}`}>{new Date(e.firedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {e.message}</li>)}
         </ul>
       )}
-      <p className="text-[8.5px] text-slate-500">{data.disclaimer}</p>
+      <p className="text-[10px] text-slate-500">{data.disclaimer}</p>
     </div>
   );
 }

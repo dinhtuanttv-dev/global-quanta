@@ -60,36 +60,36 @@ function ReactionDetail({ event }: { event: EventRadarEvent }) {
       <div className="flex flex-wrap gap-3 text-[10px] text-slate-400">
         {study.drift.map((row) => <span key={row.horizon}>T+{row.horizon}: <b className="text-slate-200">{pct(row.excessReturn)}</b></span>)}
       </div>
-      <p className="text-[9px] text-slate-500">Phiên đo {study.meta.eventSessionDate ?? study.meta.sourceEventDate ?? date} · as-of {asOf(study.meta.asOf)} · {study.meta.methodVersion} · nghiên cứu mô tả, không phải xác suất hoặc khuyến nghị.</p>
-      {study.meta.warnings.map((warning) => <p key={warning} className="text-[9px] text-amber-300">{warning}</p>)}
+      <p className="text-[10px] text-slate-500">Phiên đo {study.meta.eventSessionDate ?? study.meta.sourceEventDate ?? date} · as-of {asOf(study.meta.asOf)} · {study.meta.methodVersion} · nghiên cứu mô tả, không phải xác suất hoặc khuyến nghị.</p>
+      {study.meta.warnings.map((warning) => <p key={warning} className="text-[10px] text-amber-300">{warning}</p>)}
     </div>}
   </div>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return <div className="rounded bg-white/[0.035] p-2"><div className="text-[9px] text-slate-500">{label}</div><div className="mt-1 text-xs font-semibold text-slate-200">{value}</div></div>;
+  return <div className="rounded bg-white/[0.035] p-2"><div className="text-[10px] text-slate-500">{label}</div><div className="mt-1 text-xs font-semibold text-slate-200">{value}</div></div>;
 }
 
 function EventCard({ event, onAnalyzeEvent }: { event: EventRadarEvent; onAnalyzeEvent?: (event: EventRadarEvent) => void }) {
   const accent = event.severityScore >= 4 ? "border-rose-500/50" : event.severityScore >= 3 ? "border-amber-500/40" : "border-white/10";
   return <article className={`rounded-lg border ${accent} bg-slate-950/65 p-3`}>
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[9px] text-cyan-200">{EVENT_LABEL[event.eventType] ?? event.eventLabel}</span>
-      <span className="rounded bg-amber-950/60 px-1.5 py-0.5 text-[9px] text-amber-200">{SEVERITY_LABEL[event.severity] ?? event.severity}</span>
-      <span className="text-[9px] text-slate-500">{STATUS_LABEL[event.verificationStatus] ?? event.verificationStatus}</span>
-      <span className="ml-auto text-[9px] text-slate-500">Đăng {asOf(event.publishedAt)} · phát hiện {asOf(event.firstSeenAt)}</span>
+      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-cyan-200">{EVENT_LABEL[event.eventType] ?? event.eventLabel}</span>
+      <span className="rounded bg-amber-950/60 px-1.5 py-0.5 text-[10px] text-amber-200">{SEVERITY_LABEL[event.severity] ?? event.severity}</span>
+      <span className="text-[10px] text-slate-500">{STATUS_LABEL[event.verificationStatus] ?? event.verificationStatus}</span>
+      <span className="ml-auto text-[10px] text-slate-500">Đăng {asOf(event.publishedAt)} · phát hiện {asOf(event.firstSeenAt)}</span>
     </div>
     <h3 className="mt-2 text-xs font-semibold leading-relaxed text-slate-100">{event.title}</h3>
     {event.summary && <p className="mt-1.5 text-[10px] leading-relaxed text-slate-400">{event.summary}</p>}
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      {event.tickers.map((ticker) => <span key={ticker} className="rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[9px] text-slate-200">{ticker}</span>)}
-      <span className="text-[9px] text-slate-500">Ghép mã: {Math.round(event.entityConfidence * 100)}% · phiên bản {event.revision}</span>
-      {event.usageTermsStatus !== "approved" && <span className="text-[9px] text-amber-300">Điều khoản lưu/trích dẫn: cần rà soát</span>}
-      {event.corroborationCount > 1 && <span className="text-[9px] text-emerald-300">{event.corroborationCount} nguồn: {event.corroboratingSources.join(", ")}</span>}
-      {isTrustedUrl(event.url) && <a href={event.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-[9px] text-sky-300 underline">Mở nguồn: {event.sourceLabel}</a>}
+      {event.tickers.map((ticker) => <span key={ticker} className="rounded border border-slate-700 px-1.5 py-0.5 font-mono text-[10px] text-slate-200">{ticker}</span>)}
+      <span className="text-[10px] text-slate-500">Ghép mã: {Math.round(event.entityConfidence * 100)}% · phiên bản {event.revision}</span>
+      {event.usageTermsStatus !== "approved" && <span className="text-[10px] text-amber-300">Điều khoản lưu/trích dẫn: cần rà soát</span>}
+      {event.corroborationCount > 1 && <span className="text-[10px] text-emerald-300">{event.corroborationCount} nguồn: {event.corroboratingSources.join(", ")}</span>}
+      {isTrustedUrl(event.url) && <a href={event.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-sky-300 underline">Mở nguồn: {event.sourceLabel}</a>}
     </div>
     {event.sourceDocuments.length > 1 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/5 pt-2">
-      {event.sourceDocuments.slice(0, 6).map((source) => isTrustedUrl(source.url) ? <a key={source.eventId} href={source.url!} target="_blank" rel="noopener noreferrer" className="text-[9px] text-sky-300/80 underline">{source.sourceLabel}</a> : null)}
+      {event.sourceDocuments.slice(0, 6).map((source) => isTrustedUrl(source.url) ? <a key={source.eventId} href={source.url!} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-300/80 underline">{source.sourceLabel}</a> : null)}
     </div>}
     <div className="mt-3 flex flex-wrap items-start gap-2 border-t border-white/10 pt-3">
       <ReactionDetail event={event} />
@@ -111,8 +111,8 @@ function RadarPlot({ events, selectedId, onSelect }: {
   return <div className="overflow-hidden rounded-xl border border-cyan-900/50 bg-[#07111f] p-3 shadow-[inset_0_0_42px_rgba(8,145,178,0.08)]">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div><h3 className="text-xs font-semibold tracking-wide text-cyan-100">RADAR 2D · mức chú ý × đối chiếu nguồn</h3>
-        <p className="mt-1 text-[9px] leading-relaxed text-slate-400">Định vị heuristic để ưu tiên rà soát; không phải xác suất tác động hay dự báo giá. Chọn điểm để mở sự kiện.</p></div>
-      <span className="rounded border border-cyan-800/60 bg-cyan-950/50 px-2 py-1 text-[9px] text-cyan-200">{plotted.length}/{events.length} sự kiện</span>
+        <p className="mt-1 text-[10px] leading-relaxed text-slate-400">Định vị heuristic để ưu tiên rà soát; không phải xác suất tác động hay dự báo giá. Chọn điểm để mở sự kiện.</p></div>
+      <span className="rounded border border-cyan-800/60 bg-cyan-950/50 px-2 py-1 text-[10px] text-cyan-200">{plotted.length}/{events.length} sự kiện</span>
     </div>
     <div className="mt-3 w-full" role="group" aria-label="Biểu đồ radar sự kiện hai chiều">
       <svg viewBox="0 0 540 250" className="h-auto max-h-[290px] w-full" role="group" aria-labelledby="event-radar-plot-title event-radar-plot-desc">
@@ -144,7 +144,7 @@ function RadarPlot({ events, selectedId, onSelect }: {
         })}
       </svg>
     </div>
-    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400" aria-label="Chú giải mức chú ý">
+    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400" aria-label="Chú giải mức chú ý">
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-slate-400"/>Theo dõi</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-400"/>Trọng yếu</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400"/>Chú ý cao</span>
@@ -206,7 +206,7 @@ export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (
       {tickerFilter && <button type="button" onClick={() => { setTickerFilter(""); setTickerInput(""); }} className="text-left text-[10px] text-sky-300">Xóa lọc {tickerFilter}</button>}
     </div>
 
-    {data && <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2.5 text-[9px] text-slate-400">
+    {data && <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2.5 text-[10px] text-slate-400">
       <div className="flex flex-wrap gap-x-4 gap-y-1"><span>Cập nhật nguồn: {asOf(data.generatedAt)}</span><span>Kho: Gateway file · {data.meta.storage.durability === "persistent_volume_required" ? "cần xác nhận volume đã mount" : "đường dẫn volume chưa được xác nhận"}</span><span>{data.meta.disclosureCoverage}</span></div>
       <div className="mt-2 flex flex-wrap gap-2">{Object.entries(data.sources).map(([name, source]) => <span key={name} className={source.ok ? "text-emerald-300" : "text-rose-300"} title={source.error}>{source.ok ? "●" : "○"} {name}{source.items != null ? ` · ${source.items}` : ""}</span>)}</div>
     </div>}
@@ -223,7 +223,7 @@ export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (
         </div>)}
       </div>
     </div>}
-    {data && <p className="text-[9px] leading-relaxed text-slate-500">{data.meta.disclaimer} Việc tin xuất hiện trong Radar không xác nhận nguyên nhân biến động giá. Sự kiện không có mã ghép sẽ không có nghiên cứu H1 theo cổ phiếu.</p>}
+    {data && <p className="text-[10px] leading-relaxed text-slate-500">{data.meta.disclaimer} Việc tin xuất hiện trong Radar không xác nhận nguyên nhân biến động giá. Sự kiện không có mã ghép sẽ không có nghiên cứu H1 theo cổ phiếu.</p>}
   </section>;
 }
 

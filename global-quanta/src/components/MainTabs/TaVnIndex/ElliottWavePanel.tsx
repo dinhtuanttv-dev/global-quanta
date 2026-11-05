@@ -32,7 +32,7 @@ const CHECK_KEYS = Object.keys(CHECK_LABEL) as ElliottCheckKey[];
 function WeightBar({ w }: { w: number }) {
   return (
     <div title="Trọng số tương đối giữa các kịch bản sóng (softmax điểm mô hình) — không phải xác suất xảy ra">
-      <div className="flex justify-between text-[9px] text-slate-500"><span>Trọng số tương đối (chưa hiệu chỉnh)</span><span className="font-mono text-slate-300">{Math.round(w * 100)}%</span></div>
+      <div className="flex justify-between text-[10px] text-slate-500"><span>Trọng số tương đối (chưa hiệu chỉnh)</span><span className="font-mono text-slate-300">{Math.round(w * 100)}%</span></div>
       <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden"><div className="h-full rounded-full bg-cyan-500" style={{ width: `${Math.round(w * 100)}%` }} /></div>
     </div>
   );
@@ -47,7 +47,7 @@ function Checks({ st }: { st: ElliottState }) {
     <ul className="flex flex-wrap gap-1" data-testid="elliott-checks">
       {rows.map((k) => (
         <li key={k} title={`${CHECK_LABEL[k]} — ${oscCheckVnNote(k, st.scenario)}`}
-          className={`text-[8.5px] px-1.5 py-0.5 rounded border ${ch[k]!.pass ? "border-emerald-500/30 text-emerald-300" : "border-slate-700 text-slate-500"}`}>
+          className={`text-[10px] px-1.5 py-0.5 rounded border ${ch[k]!.pass ? "border-emerald-500/30 text-emerald-300" : "border-slate-700 text-slate-500"}`}>
           {ch[k]!.pass ? "✓" : "✗"} {k === "wave3Band" ? "DĐ3 > dải" : k === "wave3Strongest" ? "DĐ3 mạnh nhất" : k === "wave4Osc" ? "DĐ4 về 0" : "PK sóng 5"}
         </li>
       ))}
@@ -64,9 +64,9 @@ const AGREE: Record<"match" | "differ" | "na", { t: string; cls: string }> = {
 function OscLine({ o }: { o: OscRow }) {
   if (!o) return null;
   return (
-    <p className="text-[9px] text-slate-400 leading-snug flex flex-wrap items-center gap-1" data-testid="elliott-osc-count" title="Đếm sóng theo Elliott Oscillator (sách GET): sóng 3 = đỉnh dao động vượt dải, sóng 4 kéo dao động về ≥ 90%, sóng 5 phân kỳ">
+    <p className="text-[10px] text-slate-400 leading-snug flex flex-wrap items-center gap-1" data-testid="elliott-osc-count" title="Đếm sóng theo Elliott Oscillator (sách GET): sóng 3 = đỉnh dao động vượt dải, sóng 4 kéo dao động về ≥ 90%, sóng 5 phân kỳ">
       <span>{o.label}</span>
-      <span className={`text-[8px] px-1 rounded border ${AGREE[o.agree].cls}`}>{AGREE[o.agree].t}</span>
+      <span className={`text-[10px] px-1 rounded border ${AGREE[o.agree].cls}`}>{AGREE[o.agree].t}</span>
     </p>
   );
 }
@@ -75,14 +75,14 @@ function FrameRow({ tag, st, partial, osc }: { tag: string; st: ElliottState | n
   return (
     <div className="rounded-lg p-2 space-y-1" style={{ background: "rgba(148,163,184,0.04)" }} data-testid={`elliott-row-${tag === "Tuần" ? "W" : tag === "Ngày" ? "D" : tag}`}>
       <div className="flex items-center gap-1.5">
-        <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{tag}</span>
-        {partial && <span className="text-[8px] text-amber-300/80" title="Nến tuần cuối chưa đóng — cấu trúc tuần có thể đổi khi hết tuần">tuần chưa hết</span>}
+        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{tag}</span>
+        {partial && <span className="text-[10px] text-amber-300/80" title="Nến tuần cuối chưa đóng — cấu trúc tuần có thể đổi khi hết tuần">tuần chưa hết</span>}
       </div>
       {!st ? <p className="text-[10px] text-slate-500">Chưa đủ dữ liệu (cần ≥ 60 nến).</p> : (
         <>
           <p className={`text-[11px] font-bold leading-snug ${st.dir === "up" ? "text-emerald-300" : st.dir === "down" ? "text-rose-300" : "text-slate-400"}`}>{st.label}</p>
           {st.weight != null && <WeightBar w={st.weight} />}
-          {st.invalidation && <p className="text-[9px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} <span className="font-mono text-slate-200">{fmtP(st.invalidation.price)}</span></p>}
+          {st.invalidation && <p className="text-[10px] text-slate-400">Vô hiệu nếu giá {st.invalidation.side === "below" ? "thủng" : "vượt"} <span className="font-mono text-slate-200">{fmtP(st.invalidation.price)}</span></p>}
           <Checks st={st} />
           <PatternChips st={st} />
         </>
@@ -139,15 +139,15 @@ function TreeRow({ tree, scenarios = [] }: { tree: WaveTree | null; scenarios?: 
   return (
     <div className="rounded-lg p-2 space-y-0.5" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.18)" }} data-testid="elliott-v3-row">
       <div className="flex items-center gap-1.5">
-        <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-200">Elliott Pro v3</span>
-        <span className="text-[8px] text-amber-300/80">beta</span>
-        {tree.dualLabel && <span className="text-[8.5px] px-1 rounded border border-amber-500/40 text-amber-300" title="Hai lời giải tốt nhất khác nhau: sóng đẩy hay sóng điều chỉnh ở bậc lớn">{tree.dualLabel}</span>}
-        <span className="ml-auto text-[8px] text-slate-500">{tree.levels.length - 1} bậc · ngưỡng {(tree.basePct * 100).toFixed(1).replace(".", ",")}%</span>
+        <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-cyan-900/60 text-cyan-200">Elliott Pro v3</span>
+        <span className="text-[10px] text-amber-300/80">beta</span>
+        {tree.dualLabel && <span className="text-[10px] px-1 rounded border border-amber-500/40 text-amber-300" title="Hai lời giải tốt nhất khác nhau: sóng đẩy hay sóng điều chỉnh ở bậc lớn">{tree.dualLabel}</span>}
+        <span className="ml-auto text-[10px] text-slate-500">{tree.levels.length - 1} bậc · ngưỡng {(tree.basePct * 100).toFixed(1).replace(".", ",")}%</span>
       </div>
       <p className={`text-[10px] leading-snug ${treeCovers(tree) ? "text-cyan-100" : "text-slate-500"}`}>{describePosition(tree)}</p>
       <ElliottScenarioList items={scenarios} />
       <ElliottLedgerSummary />
-      <p className="text-[8.5px] text-slate-500 leading-snug">{EP1_VALIDATION.summary}</p>
+      <p className="text-[10px] text-slate-500 leading-snug">{EP1_VALIDATION.summary}</p>
     </div>
   );
 }
@@ -160,12 +160,12 @@ function CountPicker({ options, pick, onPick }: { options: ElliottState[]; pick:
       <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Cách đếm vẽ trên biểu đồ">
         {options.map((o, k) => (
           <button key={k} type="button" role="radio" aria-checked={pick === k} onClick={() => onPick(k)} title={o.label} data-testid={`elliott-pick-${k}`}
-            className={`text-[9px] px-1.5 py-0.5 rounded-md border ${pick === k ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+            className={`text-[10px] px-1.5 py-0.5 rounded-md border ${pick === k ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
             {k === 0 ? "Chính" : `Phương án ${k + 1}`}{o.weight != null ? ` · ${Math.round(o.weight * 100)}%` : ""}
           </button>
         ))}
       </div>
-      {pick > 0 && options[pick] && <p className="text-[9px] text-amber-200/90 leading-snug">Đang vẽ: {options[pick].label}</p>}
+      {pick > 0 && options[pick] && <p className="text-[10px] text-amber-200/90 leading-snug">Đang vẽ: {options[pick].label}</p>}
     </div>
   );
 }
@@ -175,9 +175,9 @@ function ProjectionBasis({ st, lastClose }: { st: ElliottState | null; lastClose
   const pr = st && lastClose != null ? elliottProjection(st, lastClose) : null;
   return (
     <div className="rounded-lg p-2 space-y-0.5" style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.2)" }} data-testid="elliott-projection-basis">
-      {pr ? <ul className="text-[9px] text-slate-300 space-y-0.5">{pr.basis.map((b) => <li key={b}>• {b}</li>)}</ul>
-        : <p className="text-[9px] text-slate-500">Không có đường kịch bản cho trạng thái này (đã qua ABC, chưa rõ cấu trúc, hoặc giá đã vượt mọi mức của engine).</p>}
-      <p className="text-[8.5px] text-slate-500 leading-snug">{PROJECTION_NOTE}</p>
+      {pr ? <ul className="text-[10px] text-slate-300 space-y-0.5">{pr.basis.map((b) => <li key={b}>• {b}</li>)}</ul>
+        : <p className="text-[10px] text-slate-500">Không có đường kịch bản cho trạng thái này (đã qua ABC, chưa rõ cấu trúc, hoặc giá đã vượt mọi mức của engine).</p>}
+      <p className="text-[10px] text-slate-500 leading-snug">{PROJECTION_NOTE}</p>
     </div>
   );
 }
@@ -189,12 +189,12 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
   const cur = isIntra ? intraday : !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
   const drawn = options[pick] ?? cur;
-  const btn = (on: boolean) => `inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
+  const btn = (on: boolean) => `inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
   return (
     <div style={CARD} className="rounded-xl p-3 space-y-1.5" data-testid="elliott-panel">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-wrap">
         Elliott Wave <ProvenanceBadge kind="INFERRED" />
-        <span className="ml-auto normal-case text-[8.5px] px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-300" title={ELLIOTT_VN_NOTE}>EXPERIMENTAL</span>
+        <span className="ml-auto normal-case text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-300" title={ELLIOTT_VN_NOTE}>EXPERIMENTAL</span>
       </p>
       {!mtf ? <p className="text-[10px] text-slate-500">Đang tính…</p> : (
         <>
@@ -203,10 +203,10 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
           {isIntra && (
             <div data-testid="elliott-row-intraday">
               <FrameRow tag={timeframe} st={intraday} />
-              <p className="text-[8.5px] text-slate-500 leading-snug">{intraday ? INTRADAY_NOTE : "Chưa đủ nến trong ngày để đếm sóng (cần ≥ 100 nến 1H / 200 nến 15m)."}</p>
+              <p className="text-[10px] text-slate-500 leading-snug">{intraday ? INTRADAY_NOTE : "Chưa đủ nến trong ngày để đếm sóng (cần ≥ 100 nến 1H / 200 nến 15m)."}</p>
             </div>
           )}
-          <p className="text-[9px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
+          <p className="text-[10px] text-slate-400 leading-snug" data-testid="elliott-relation">{mtf.relationText}</p>
           <TreeRow tree={tree} scenarios={scenarios} />
           {onPick && <CountPicker options={options} pick={pick} onPick={onPick} />}
         </>
@@ -305,12 +305,12 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
       <p className="text-[10px] text-slate-300 leading-snug">{mtf.relationText}</p>
       {oc && (
         <div className="rounded-lg p-2 text-[10px] space-y-0.5" style={CARD} data-testid="elliott-osc-detail">
-          <p className="text-[9px] font-semibold text-slate-400 uppercase">Đếm theo dao động (phương pháp sách) · song song đếm hình học</p>
+          <p className="text-[10px] font-semibold text-slate-400 uppercase">Đếm theo dao động (phương pháp sách) · song song đếm hình học</p>
           <OscLine o={oc} />
-          <p className="text-[9px] text-slate-500 font-mono">
+          <p className="text-[10px] text-slate-500 font-mono">
             {oc.w3 && `Sóng 3 ${oc.w3.date} ${fmtP(oc.w3.price)}`}{oc.w4 && ` · Sóng 4 ${oc.w4.date} ${fmtP(oc.w4.price)}`}{oc.w5 && ` · Sóng 5 ${oc.w5.date} ${fmtP(oc.w5.price)}`}
           </p>
-          <p className="text-[8.5px] text-slate-500">{ELLIOTT_VN_VALIDATION.O3.summary}</p>
+          <p className="text-[10px] text-slate-500">{ELLIOTT_VN_VALIDATION.O3.summary}</p>
         </div>
       )}
 
@@ -324,11 +324,11 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
           </div>
           <div className="space-y-2">
             <div className="rounded-lg p-2" style={CARD}>
-              <p className="text-[9px] font-semibold text-slate-400 uppercase mb-1">Sơ đồ mẫu (sách)</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Sơ đồ mẫu (sách)</p>
               <ElliottSchematic wave={st.wave} dir={st.dir} />
             </div>
             {st.weight != null && <div className="rounded-lg p-2" style={CARD}><WeightBar w={st.weight} />
-              {st.alternatives.length > 0 && <ul className="text-[9px] text-slate-400 mt-1 space-y-0.5">{st.alternatives.map((a) => <li key={a.label}>Phương án khác: {a.label}{a.weight != null ? ` · trọng số ${Math.round(a.weight * 100)}%` : ""}</li>)}</ul>}
+              {st.alternatives.length > 0 && <ul className="text-[10px] text-slate-400 mt-1 space-y-0.5">{st.alternatives.map((a) => <li key={a.label}>Phương án khác: {a.label}{a.weight != null ? ` · trọng số ${Math.round(a.weight * 100)}%` : ""}</li>)}</ul>}
             </div>}
           </div>
           <div className="lg:col-span-3"><PatternRules st={st} /></div>
@@ -338,17 +338,17 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
       {sc && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10px]">
           <div className="rounded-lg p-2 space-y-1" style={CARD} data-testid="elliott-osc-checks">
-            <p className="text-[9px] font-semibold text-slate-400 uppercase">Điều kiện dao động (sách) · tỷ lệ VN</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Điều kiện dao động (sách) · tỷ lệ VN</p>
             {CHECK_KEYS.filter((k) => sc.checks[k]).map((k) => (
               <div key={k}>
                 <span className={sc.checks[k]!.pass ? "text-emerald-300" : "text-slate-500"}>{sc.checks[k]!.pass ? "✓" : "✗"} {CHECK_LABEL[k]}</span>
-                <div className="text-[8.5px] text-slate-500">{oscCheckVnNote(k, sc)}</div>
+                <div className="text-[10px] text-slate-500">{oscCheckVnNote(k, sc)}</div>
               </div>
             ))}
           </div>
           <div className="rounded-lg p-2" style={CARD} data-testid="elliott-ratios">
-            <p className="text-[9px] font-semibold text-slate-400 uppercase mb-1">Tỷ lệ sóng · sách vs VN</p>
-            <table className="w-full text-[9.5px]">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Tỷ lệ sóng · sách vs VN</p>
+            <table className="w-full text-[10px]">
               <thead><tr className="text-slate-500"><th className="text-left font-normal">Sóng</th><th className="text-right font-normal">Tỷ lệ</th><th className="text-right font-normal">Khoảng</th><th className="text-right font-normal">Sách</th><th className="text-right font-normal">VN</th></tr></thead>
               <tbody>
                 {(["w2", "w3", "w4"] as const).map((k) => {
@@ -365,13 +365,13 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
                 })}
               </tbody>
             </table>
-            <p className="text-[8.5px] text-slate-500 mt-1">VN: 1.553 xung lực (225 mã, 2023–2026). Sóng 2 trên VN thường hồi sâu hơn sách.</p>
+            <p className="text-[10px] text-slate-500 mt-1">VN: 1.553 xung lực (225 mã, 2023–2026). Sóng 2 trên VN thường hồi sâu hơn sách.</p>
           </div>
           <div className="rounded-lg p-2 space-y-0.5" style={CARD} data-testid="elliott-levels">
-            <p className="text-[9px] font-semibold text-slate-400 uppercase mb-1">Mức giá</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase mb-1">Mức giá</p>
             {st!.levels.map((l) => <div key={l.label} className="flex justify-between gap-2"><span className="text-slate-400 truncate">{l.label}</span><span className="font-mono text-slate-200">{fmtP(l.price)}</span></div>)}
             {corr && (
-              <p className="text-[9px] text-slate-400 pt-1">
+              <p className="text-[10px] text-slate-400 pt-1">
                 Điều chỉnh: <span className="text-slate-200">{corr.kind}</span>
                 {corr.aWaves != null && ` · sóng A ${corr.aWaves} sóng con`}
                 {corr.structureOk === false && " · cấu trúc A không khớp loại"}
@@ -382,7 +382,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
         </div>
       )}
 
-      <details className="rounded-lg p-2 text-[9.5px]" style={CARD} data-testid="elliott-validation">
+      <details className="rounded-lg p-2 text-[10px]" style={CARD} data-testid="elliott-validation">
         <summary className="cursor-pointer text-slate-300 font-semibold">Kiểm định trên dữ liệu VN (đặt trước) — không tín hiệu nào có lợi thế</summary>
         <ul className="mt-1 space-y-0.5">
           {Object.entries(ELLIOTT_VN_VALIDATION).map(([k, v]) => (
@@ -390,7 +390,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
           ))}
         </ul>
       </details>
-      <p className="text-[8.5px] text-slate-500">{ELLIOTT_VN_NOTE}</p>
+      <p className="text-[10px] text-slate-500">{ELLIOTT_VN_NOTE}</p>
     </div>
   );
 }

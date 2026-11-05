@@ -9,7 +9,7 @@ export default function TopBeneficiariesPanel({ rows }: { rows: TopBeneficiaryRo
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginTop: 16 }}>
       <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border)" }}>
         <p style={{ fontSize: 12, fontWeight: 700, margin: 0 }}>TOP CỔ PHIẾU HƯỞNG LỢI NHIỀU NHẤT</p>
-        <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
+        <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
           Tổng hợp điểm từ tất cả tin tức đang tác động tích cực lên từng mã
         </p>
       </div>
@@ -28,7 +28,7 @@ export default function TopBeneficiariesPanel({ rows }: { rows: TopBeneficiaryRo
               fontSize: 10.5, color: "var(--text-secondary)", margin: 0,
               whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
             }}>{r.topDriver}</p>
-            <p style={{ fontSize: 9, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
+            <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "2px 0 0" }}>
               {r.catalystCount} tin tac dong
             </p>
           </div>

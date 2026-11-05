@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 export const CARD_STYLE = { background: 'rgba(13,17,26,0.75)', border: '1px solid rgba(255,255,255,0.06)' } as const;
 
 export function AiChip() {
-  return <span className="text-[9px] font-semibold px-1.5 py-px rounded border border-violet-500/40 bg-violet-500/15 text-violet-200">AI</span>;
+  return <span className="text-[10px] font-semibold px-1.5 py-px rounded border border-violet-500/40 bg-violet-500/15 text-violet-200">AI</span>;
 }
 
 export default function Card({ id, title, right, children, className = '' }: { id: string; title: ReactNode; right?: ReactNode; children: ReactNode; className?: string }) {

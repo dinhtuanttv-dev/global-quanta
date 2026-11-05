@@ -11,7 +11,7 @@ export function BasketSummary({ items, title }: { items: SieuQuetStockItem[]; ti
   const s = basketSummary(items);
   if (!s.n) return null;
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[9.5px] text-slate-400 mb-2 px-2 py-1 rounded" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.12)" }}>
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mb-2 px-2 py-1 rounded" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.12)" }}>
       <span className="text-cyan-200 font-semibold">{title}</span>
       <span>{s.n} mã{s.outside ? ` (${s.outside} ngoài universe)` : ""}</span>
       <span>Smart TB <b className="text-amber-400">{fmt1(s.avgSmart)}</b></span>
@@ -60,14 +60,14 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
             {wl.lists.map((l) => <option key={l.id} value={l.id}>★ {l.name} ({l.tickers.length})</option>)}
           </select>
         )}
-        <button type="button" className="text-[9.5px] px-1.5 py-1 rounded bg-white/5 text-slate-300 hover:bg-white/10" onClick={() => wl.create(`Danh mục ${wl.lists.length + 1}`)} title="Tạo danh mục mới">＋ Mới</button>
-        <button type="button" className="text-[9.5px] px-1.5 py-1 rounded bg-white/5 text-slate-300 hover:bg-white/10" onClick={() => setRenaming(true)} title="Đổi tên danh mục">Đổi tên</button>
-        <button type="button" className="text-[9.5px] px-1.5 py-1 rounded bg-white/5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
+        <button type="button" className="text-[10px] px-1.5 py-1 rounded bg-white/5 text-slate-300 hover:bg-white/10" onClick={() => wl.create(`Danh mục ${wl.lists.length + 1}`)} title="Tạo danh mục mới">＋ Mới</button>
+        <button type="button" className="text-[10px] px-1.5 py-1 rounded bg-white/5 text-slate-300 hover:bg-white/10" onClick={() => setRenaming(true)} title="Đổi tên danh mục">Đổi tên</button>
+        <button type="button" className="text-[10px] px-1.5 py-1 rounded bg-white/5 text-slate-400 hover:bg-rose-500/20 hover:text-rose-300"
           onClick={() => { if (window.confirm(`Xoá danh mục "${wl.active.name}"?`)) wl.remove(); }} title="Xoá danh mục">Xoá</button>
         <form className="flex items-center gap-1 ml-auto" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Thêm mã: FPT, HPG, VNM…" aria-label="Thêm mã vào danh mục"
             className="text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-200 w-44 outline-none focus:border-cyan-500/50" />
-          <button type="submit" className="text-[9.5px] px-2 py-1 rounded bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30">Thêm</button>
+          <button type="submit" className="text-[10px] px-2 py-1 rounded bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30">Thêm</button>
         </form>
       </div>
       {wl.active.tickers.length > 0 ? (
@@ -77,7 +77,7 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
             const note = wl.active.notes?.[t] ?? null;
             const isPinned = pinned.has(t);
             return (
-              <span key={t} className={`inline-flex items-center gap-1 text-[9.5px] px-1.5 py-0.5 rounded border ${bad ? "border-rose-700/60 text-rose-300" : isPinned ? "border-amber-500/40 text-slate-200" : "border-white/10 text-slate-300"}`}
+              <span key={t} className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${bad ? "border-rose-700/60 text-rose-300" : isPinned ? "border-amber-500/40 text-slate-200" : "border-white/10 text-slate-300"}`}
                 title={[bad, note ? `Ghi chú: ${note}` : null].filter(Boolean).join(" · ") || undefined}>
                 <button type="button" aria-pressed={isPinned} aria-label={isPinned ? `Bỏ ghim ${t}` : `Ghim ${t} lên đầu`} onClick={() => wl.togglePin(t)}
                   className={isPinned ? "text-amber-400" : "text-slate-600 hover:text-amber-300"}>📌</button>
@@ -90,13 +90,13 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
               </span>
             );
           })}
-          {loading && <span className="text-[9.5px] text-slate-500">Đang chấm điểm mã ngoài universe…</span>}
+          {loading && <span className="text-[10px] text-slate-500">Đang chấm điểm mã ngoài universe…</span>}
         </div>
       ) : (
-        <div className="text-[9.5px] text-slate-500 mt-1">Danh mục trống — nhập mã ở ô bên phải, hoặc bấm ☆ cạnh mã bất kỳ trong bảng (tab Tất cả / VN30).</div>
+        <div className="text-[10px] text-slate-500 mt-1">Danh mục trống — nhập mã ở ô bên phải, hoặc bấm ☆ cạnh mã bất kỳ trong bảng (tab Tất cả / VN30).</div>
       )}
-      {msg && <div className="text-[9.5px] text-slate-400 mt-1">{msg}</div>}
-      {!gatewayReady && <div className="text-[9.5px] text-amber-400 mt-1">Mã ngoài universe cần Market Gateway để được chấm điểm.</div>}
+      {msg && <div className="text-[10px] text-slate-400 mt-1">{msg}</div>}
+      {!gatewayReady && <div className="text-[10px] text-amber-400 mt-1">Mã ngoài universe cần Market Gateway để được chấm điểm.</div>}
       <SyncLine />
     </div>
   );
@@ -111,5 +111,5 @@ function SyncLine() {
     : st.mode === 'syncing' ? "☁ Đang đồng bộ danh mục…"
     : st.mode === 'signed-out' ? "Chưa đăng nhập: danh mục chỉ lưu trên máy này"
     : `☁ Chưa đồng bộ được (${st.error ?? "lỗi"}) — sẽ thử lại`;
-  return <div data-testid="watchlist-sync" className={`text-[9.5px] mt-1 ${st.mode === 'error' ? "text-amber-400" : "text-slate-500"}`}>{text}</div>;
+  return <div data-testid="watchlist-sync" className={`text-[10px] mt-1 ${st.mode === 'error' ? "text-amber-400" : "text-slate-500"}`}>{text}</div>;
 }

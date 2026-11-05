@@ -42,14 +42,14 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
   return (
     <section data-testid="elite-candidates" className="rounded-lg border border-cyan-500/15 bg-slate-950/40 p-3 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90">Ứng viên tiếp theo <span className="font-normal normal-case text-slate-500">· {shown.length}/{list.length} mã xếp sau danh mục</span></h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]/90">Ứng viên tiếp theo <span className="font-normal normal-case text-slate-500">· {shown.length}/{list.length} mã xếp sau danh mục</span></h4>
         <SectionControls id="elite-candidates-table" open={open} compact={compact} onToggleOpen={toggleOpen} onToggleCompact={toggleCompact} testid="elite-candidates" />
       </div>
       {!open ? (
         // Thu gọn: một dòng tóm tắt (giữ testid cũ "elite-next").
         <p className="text-[10.5px] text-slate-400" data-testid="elite-next">
           {shown.slice(0, 5).map((c) => (
-            <button key={c.ticker} type="button" onClick={() => onOpenTicker(c.ticker)} className="mr-2 font-bold text-cyan-300/80 hover:underline" title={reasonText(c, sectorName).title}>
+            <button key={c.ticker} type="button" onClick={() => onOpenTicker(c.ticker)} className="mr-2 font-bold text-[#F5CE72]/80 hover:underline" title={reasonText(c, sectorName).title}>
               {c.ticker} <span className="font-normal text-slate-500">Z {num(c.Z, 2)} · {cells.get(c.ticker)?.text ?? "—"}</span>
             </button>
           ))}
@@ -79,9 +79,9 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
                 return (
                   <tr key={c.ticker} className="border-t border-white/5" data-testid={`elite-cand-${c.ticker}`}>
                     <td className="py-1.5 whitespace-nowrap">
-                      <button type="button" onClick={() => onOpenTicker(c.ticker)} className="font-bold text-cyan-300/90 hover:underline">{c.ticker}</button>
-                      <span className="ml-1 text-[9px] text-slate-500">#{c.rank}</span>
-                      {c.inBuffer && <span title="Trong top 20 — nếu đã có trong danh mục thì được giữ (vùng đệm)" className="ml-1 rounded border border-white/15 px-1 text-[8.5px] text-slate-400">đệm</span>}
+                      <button type="button" onClick={() => onOpenTicker(c.ticker)} className="font-bold text-[#F5CE72]/90 hover:underline">{c.ticker}</button>
+                      <span className="ml-1 text-[10px] text-slate-500">#{c.rank}</span>
+                      {c.inBuffer && <span title="Trong top 20 — nếu đã có trong danh mục thì được giữ (vùng đệm)" className="ml-1 rounded border border-white/15 px-1 text-[10px] text-slate-400">đệm</span>}
                     </td>
                     <td className="pr-2 text-slate-400">{sectorName(c.sectorKey)}</td>
                     <td className={`whitespace-nowrap pr-2 ${c.reason === "sector_cap" ? "text-amber-300" : "text-slate-400"}`} title={r.title} data-testid={`elite-cand-reason-${c.ticker}`}>{r.text}</td>

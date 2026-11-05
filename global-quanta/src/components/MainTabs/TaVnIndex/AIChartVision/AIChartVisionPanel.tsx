@@ -65,7 +65,7 @@ function FrameCard({ f, partial }: { f: CvFrame; partial: boolean }) {
       <DivBar value={f.score} />
       <div className="mt-2 space-y-1">
         {f.components && Object.entries(f.components).map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[72px_1fr_34px] items-center gap-1.5 text-[9px]">
+          <div key={k} className="grid grid-cols-[72px_1fr_34px] items-center gap-1.5 text-[10px]">
             <span className="text-slate-500">{COMP_VI[k]}</span><DivBar value={v * 100} h={4} /><span className="text-right font-mono text-slate-300">{sgn(Math.round(v * 100))}</span>
           </div>
         ))}
@@ -136,7 +136,7 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
           <span className="p-1.5 rounded-md bg-sky-500/15 text-sky-300"><Cpu className="w-4 h-4" /></span>
           <div className="min-w-0">
             <h2 className="text-[13px] font-bold text-slate-100 leading-tight">AI Chart Vision</h2>
-            <p className="text-[9px] text-slate-500 leading-tight">Cấu trúc đa khung Ngày · Tuần · Tháng — tính từ nến thật, tổng hợp quy tắc minh bạch</p>
+            <p className="text-[10px] text-slate-500 leading-tight">Cấu trúc đa khung Ngày · Tuần · Tháng — tính từ nến thật, tổng hợp quy tắc minh bạch</p>
           </div>
         </div>
         <form className="flex items-center gap-1.5 ml-auto" onSubmit={(e) => { e.preventDefault(); apply(); }}>
@@ -165,12 +165,12 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="text-lg font-black text-amber-400 tracking-wide">{data.symbol}</span>
                 <span className={`text-[11px] font-bold ${toneOf(syn.score)}`} data-testid="cv-bias">{syn.bias.label}</span>
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${alignTone}`}>{syn.alignment.label}</span>
-                <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300" title={data.method.note}>{data.method.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${alignTone}`}>{syn.alignment.label}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300" title={data.method.note}>{data.method.label}</span>
               </div>
               <p className="text-[11px] text-slate-200">{syn.thesis}</p>
               <p className="text-[10px] text-sky-200/90">{syn.conclusion}</p>
-              <p className="text-[9px] text-slate-500">engine {data.engine} · dữ liệu tới {data.dataAsOf} · {data.isIndex ? "điểm chỉ số" : "giá điều chỉnh cộng dồn"}{data.partial.week ? " · tuần chưa đóng" : ""}{data.partial.month ? " · tháng chưa đóng" : ""}</p>
+              <p className="text-[10px] text-slate-500">engine {data.engine} · dữ liệu tới {data.dataAsOf} · {data.isIndex ? "điểm chỉ số" : "giá điều chỉnh cộng dồn"}{data.partial.week ? " · tuần chưa đóng" : ""}{data.partial.month ? " · tháng chưa đóng" : ""}</p>
             </div>
             <div className="grid grid-cols-2 gap-1.5 w-full sm:w-auto sm:min-w-[240px]">
               <Tile label="Mức vô hiệu" value={fmtP(syn.invalidation)} sub={syn.score >= 0 ? "thủng mức này: kịch bản tăng sai" : "vượt mức này: kịch bản giảm sai"} tone={syn.score >= 0 ? "down" : "up"} />
@@ -182,11 +182,11 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
             <section className="rounded-lg border border-amber-500/25 bg-amber-500/[0.035] px-2.5 py-2" data-testid="cv-structure-model-gate" role="note">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <span className="text-[10px] font-bold text-amber-200">Dự báo MTF chưa có đầu ra qua kiểm định</span>
-                <span className="text-[8px] text-slate-500">{structureModelGate.engine} · {structureModelGate.prereg} · as-of {structureModelGate.asOf}</span>
+                <span className="text-[10px] text-slate-500">{structureModelGate.engine} · {structureModelGate.prereg} · as-of {structureModelGate.asOf}</span>
               </div>
               <details className="mt-1">
-                <summary className="w-fit cursor-pointer text-[9px] text-slate-400">Xem lý do</summary>
-                <p className="mt-1 text-[9px] leading-snug text-slate-400">
+                <summary className="w-fit cursor-pointer text-[10px] text-slate-400">Xem lý do</summary>
+                <p className="mt-1 text-[10px] leading-snug text-slate-400">
                   {[structureModelGate.probabilityNote, structureModelGate.coneNote, structureModelGate.summary].filter(Boolean).join(" ") || "Các đầu ra dự báo chưa đạt cổng kiểm định ngoài mẫu; không hiển thị xác suất hoặc dải giá."}
                 </p>
               </details>
@@ -202,7 +202,7 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
             <div className="flex flex-wrap items-center gap-1">
               {TF_TABS.map((t) => (
                 <button key={t.key} type="button" onClick={() => setTf(t.key)} aria-pressed={tf === t.key} data-testid={`cv-tf-${t.key}`}
-                  className={`text-[9px] px-2 py-0.5 rounded-full border ${tf === t.key ? "border-sky-500/50 bg-sky-500/10 text-sky-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
+                  className={`text-[10px] px-2 py-0.5 rounded-full border ${tf === t.key ? "border-sky-500/50 bg-sky-500/10 text-sky-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
               ))}
             </div>
           }>
@@ -211,17 +211,17 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
               {LAYER_VI.map((l) => (
                 <button key={l.key} type="button" onClick={() => setLayers((s) => ({ ...s, [l.key]: !s[l.key] }))} aria-pressed={layers[l.key]} data-testid={`cv-layer-${l.key}`}
                   disabled={l.key === "patterns" && (tf === "M" || data.isIndex)}
-                  className={`text-[9px] px-2 py-0.5 rounded-full border disabled:opacity-40 ${layers[l.key] ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{l.label}</button>
+                  className={`text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-40 ${layers[l.key] ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{l.label}</button>
               ))}
-              <span className="text-[9px] text-slate-500 sm:ml-auto">Mặc định chỉ hiện vùng hỗ trợ/kháng cự gần nhất</span>
+              <span className="text-[10px] text-slate-500 sm:ml-auto">Mặc định chỉ hiện vùng hỗ trợ/kháng cự gần nhất</span>
             </div>
             <VisionSketch tf={tf} bars={data.bars[tf] ?? []} frame={frame} ma={data.ma?.[tf]} layers={layers} patterns={geoPatterns} />
             {layers.ma && frame?.trend && (
-              <div className="flex flex-wrap gap-3 mt-1 text-[9px] text-slate-400">
+              <div className="flex flex-wrap gap-3 mt-1 text-[10px] text-slate-400">
                 {frame.trend.mas.map((x, k) => <span key={x.n}><span style={{ color: MA_COLOR[k] }}>━</span> MA{x.n} {fmtP(x.value)}{x.distPct != null ? ` (${x.distPct >= 0 ? "+" : ""}${fmtN(x.distPct, 1)}%)` : ""}</span>)}
               </div>
             )}
-            {layers.patterns && geo.error && <p className="text-[9px] text-amber-300/80 mt-1">Chưa tải được hình học mô hình Pring ({geo.error.message}).</p>}
+            {layers.patterns && geo.error && <p className="text-[10px] text-amber-300/80 mt-1">Chưa tải được hình học mô hình Pring ({geo.error.message}).</p>}
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
@@ -260,7 +260,7 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
                         <span className="font-bold text-slate-100 shrink-0">{s.label}</span>
                         <span className="text-slate-300 truncate">{s.status ?? "—"}{s.grade ? ` · ${s.grade}` : ""}{s.side === "sell" ? " · phía bán" : ""}</span>
                         {s.score != null && <span className="ml-auto font-mono text-slate-400">{Math.round(s.score)}</span>}
-                        {s.evidence && <span className="text-[8px] px-1 rounded bg-amber-500/10 text-amber-300">{s.evidence}</span>}
+                        {s.evidence && <span className="text-[10px] px-1 rounded bg-amber-500/10 text-amber-300">{s.evidence}</span>}
                       </button>
                     </li>
                   ))}
@@ -289,8 +289,8 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
             </Card>
           </div>
 
-          <p className="text-[9px] text-slate-500 leading-snug">{data.method.note} Không phải khuyến nghị đầu tư.</p>
-          {data.warnings.length > 0 && <p className="text-[9px] text-amber-300/80">{data.warnings.join(" ")}</p>}
+          <p className="text-[10px] text-slate-500 leading-snug">{data.method.note} Không phải khuyến nghị đầu tư.</p>
+          {data.warnings.length > 0 && <p className="text-[10px] text-amber-300/80">{data.warnings.join(" ")}</p>}
         </>
       )}
     </div>

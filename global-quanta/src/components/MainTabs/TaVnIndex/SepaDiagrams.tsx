@@ -175,7 +175,7 @@ export function QuarterlyGrowth({ np, rev, latest }: { np: (number | null)[]; re
           );
         })}
       </svg>
-      <div className="flex gap-3 text-[9px] text-slate-400">
+      <div className="flex gap-3 text-[10px] text-slate-400">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2 rounded-sm" style={{ background: ACCENT }} />LNST (so cùng kỳ)</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2.5 h-2 rounded-sm" style={{ background: AMBER }} />Doanh thu</span>
       </div>
@@ -246,7 +246,7 @@ export function RoiCurve({ stopPct }: { stopPct: number | null }) {
         {[0, 6, 11, 17].map((i) => <text key={i} x={x(i)} y={H - 8} fontSize={7.5} fill={MUTED} textAnchor="middle">{ROI_PAIRS[i][0]}/{ROI_PAIRS[i][1]}</text>)}
         <text x={(L + W) / 2} y={H - 0.5} fontSize={7.5} fill={DIM} textAnchor="middle">lãi / lỗ (%) — tỷ lệ 2:1</text>
       </svg>
-      <div className="flex flex-wrap gap-3 text-[9px] text-slate-400">
+      <div className="flex flex-wrap gap-3 text-[10px] text-slate-400">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2" style={{ borderColor: AMBER }} />Tỷ lệ thắng 40%</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: ACCENT }} />Tỷ lệ thắng 50%</span>
         {mine != null && <span>│ mức dừng lỗ của kế hoạch ≈ {ROI_PAIRS[mine][1]}%</span>}

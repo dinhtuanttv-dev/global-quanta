@@ -56,7 +56,7 @@ function FollowButton({ sc, ticker, tf }: { sc: EwScenario; ticker: string; tf: 
   };
   return (
     <button type="button" onClick={toggle} aria-pressed={following} data-testid="elliott-follow"
-      className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border ${following ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-300"}`}
+      className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${following ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-300"}`}
       title="Tạo một lần 3 cảnh báo: kích hoạt · mục tiêu 1 · vô hiệu (máy chủ kiểm mỗi phút trong phiên)">
       {following ? <BellRing className="w-3 h-3" /> : <Bell className="w-3 h-3" />}{following ? "Đang theo dõi" : "Theo dõi kịch bản"}
     </button>
@@ -68,12 +68,12 @@ function RuleBlock({ n, title }: { n: WaveNode; title: string }) {
     <div className="space-y-0.5">
       <p className="text-[10px] text-slate-200"><span className="text-slate-400">{title}:</span> <b className="text-amber-300">{n.pattern}</b> {n.pattern ? PATTERN_NAME[n.pattern] : ""} {n.complete ? "" : "(đang hình thành)"}</p>
       {n.fit ? (
-        <ul className="text-[9px] space-y-0.5">{n.fit.rules.map((r) => (
+        <ul className="text-[10px] space-y-0.5">{n.fit.rules.map((r) => (
           <li key={r.id} className={r.pass === false ? (r.severity === "hard" ? "text-rose-300" : "text-slate-500") : r.pass ? "text-emerald-300/90" : "text-slate-500"}>
             {r.pass === false ? "✗" : r.pass ? "✓" : "…"} {r.severity === "hard" ? "[cứng]" : "[mềm]"} {r.text}
           </li>))}
         </ul>
-      ) : <p className="text-[9px] text-slate-500">Cấu trúc đang hình thành: đã qua các quy tắc cứng áp dụng được (sóng 2 không vượt gốc, sóng 3 vượt đỉnh 1, sóng 4 không lấn sóng 1…) và quy tắc cực trị.</p>}
+      ) : <p className="text-[10px] text-slate-500">Cấu trúc đang hình thành: đã qua các quy tắc cứng áp dụng được (sóng 2 không vượt gốc, sóng 3 vượt đỉnh 1, sóng 4 không lấn sóng 1…) và quy tắc cực trị.</p>}
     </div>
   );
 }
@@ -83,11 +83,11 @@ interface LedgerRow { scenario: EwScenario; loggedAt: string; state: keyof typeo
 function SymbolLedger({ ticker }: { ticker: string }) {
   const { data } = useSWR<{ rows: LedgerRow[] } | null>(isMarketGatewayEnabled() ? ["elliott-ledger", ticker] : null,
     () => fetchMarketJson<{ rows: LedgerRow[] }>("/api/market/elliott/ledger", { symbol: ticker }).catch(() => null), { revalidateOnFocus: false });
-  if (!data?.rows.length) return <p className="text-[9px] text-slate-500">Sổ chưa có kịch bản của {ticker} (ghi sổ mỗi phiên sau 16:10).</p>;
+  if (!data?.rows.length) return <p className="text-[10px] text-slate-500">Sổ chưa có kịch bản của {ticker} (ghi sổ mỗi phiên sau 16:10).</p>;
   return (
     <ul className="space-y-0.5" data-testid="elliott-symbol-ledger">
       {data.rows.slice(0, 12).map((r) => (
-        <li key={r.scenario.id} className="text-[9px] text-slate-400">
+        <li key={r.scenario.id} className="text-[10px] text-slate-400">
           <span className="font-mono">{r.loggedAt}</span> · {r.scenario.title} {r.scenario.dir > 0 ? "↑" : "↓"} (bậc {r.scenario.level}) · <span className="text-slate-200">{STATE_LABEL[r.state]}</span>
           {r.outcome && <span className={r.outcome === "hit" ? "text-emerald-300" : "text-rose-300"}> · {r.outcome === "hit" ? "đạt MT1 trước vô hiệu" : "vô hiệu sau kích hoạt"}</span>}
         </li>
@@ -101,8 +101,8 @@ function BacktestTable() {
   const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(1).replace(".", ",")}%`);
   return (
     <div className="space-y-1" data-testid="elliott-backtest">
-      <p className="text-[9px] text-slate-400">{b.summary}</p>
-      <table className="w-full text-[9px]">
+      <p className="text-[10px] text-slate-400">{b.summary}</p>
+      <table className="w-full text-[10px]">
         <thead><tr className="text-slate-500 text-left"><th>Mẫu</th><th className="text-right">Kết thúc</th><th className="text-right">Đạt MT1</th><th className="text-right">Ngẫu nhiên</th><th className="text-right">z</th></tr></thead>
         <tbody>{b.byTemplate.map((r) => (
           <tr key={r.template} className="text-slate-300"><td>{r.title}</td><td className="text-right">{r.n}</td><td className="text-right">{pct(r.hitRate)}</td><td className="text-right">{pct(r.expectedRate)}</td>
@@ -110,7 +110,7 @@ function BacktestTable() {
           <tr className="text-slate-100 font-semibold border-t border-slate-800"><td>Tất cả</td><td className="text-right">{b.all.n}</td><td className="text-right">{pct(b.all.hitRate)}</td><td className="text-right">{pct(b.all.expectedRate)}</td><td className="text-right">{b.all.z == null ? "—" : b.all.z.toFixed(2).replace(".", ",")}</td></tr>
         </tbody>
       </table>
-      <p className="text-[9px]">Kết luận theo đăng ký trước: <b className={b.verdict === "ĐẠT" ? "text-emerald-300" : "text-rose-300"}>{b.verdict}</b></p>
+      <p className="text-[10px]">Kết luận theo đăng ký trước: <b className={b.verdict === "ĐẠT" ? "text-emerald-300" : "text-rose-300"}>{b.verdict}</b></p>
     </div>
   );
 }
@@ -150,15 +150,15 @@ export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, da
     <div style={CARD} className="rounded-xl p-3 space-y-2" data-testid="elliott-pro-panel">
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-[10px] font-semibold text-cyan-300 uppercase tracking-wide">Elliott Pro</span>
-        <span className="text-[8.5px] px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-300" title={EP5_BACKTEST.summary}>{EP5_BACKTEST.label}</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-300" title={EP5_BACKTEST.summary}>{EP5_BACKTEST.label}</span>
         <button type="button" onClick={onToggleLayer} aria-pressed={layerOn} data-testid="elliott-pro-toggle"
-          className={`ml-auto inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md border ${layerOn ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
+          className={`ml-auto inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${layerOn ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
           {layerOn ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}Trên biểu đồ
         </button>
         <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
           {ELLIOTT_PRO_MODES.map((m) => (
             <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} onClick={() => onMode(m.id)} data-testid={`elliott-pro-panel-mode-${m.id}`}
-              className={`text-[9px] px-1.5 py-0.5 rounded border ${mode === m.id ? "border-cyan-400/60 bg-cyan-500/15 text-cyan-200" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
+              className={`text-[10px] px-1.5 py-0.5 rounded border ${mode === m.id ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
           ))}
         </span>
       </div>
@@ -174,15 +174,15 @@ export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, da
           {frames.map((f) => (
             <div key={f.tag} className="rounded-lg p-2" style={{ background: "rgba(148,163,184,0.04)" }}>
               <div className="flex items-center gap-1.5">
-                <span className="text-[8.5px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{f.tag}</span>
-                {f.t?.dualLabel && <span className="text-[8.5px] px-1 rounded border border-amber-500/40 text-amber-300">{f.t.dualLabel}</span>}
-                {f.t && <span className="ml-auto text-[8px] text-slate-500">{f.t.levels.length - 1} bậc · ngưỡng {(f.t.basePct * 100).toFixed(1).replace(".", ",")}%</span>}
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-800 text-slate-300">{f.tag}</span>
+                {f.t?.dualLabel && <span className="text-[10px] px-1 rounded border border-amber-500/40 text-amber-300">{f.t.dualLabel}</span>}
+                {f.t && <span className="ml-auto text-[10px] text-slate-500">{f.t.levels.length - 1} bậc · ngưỡng {(f.t.basePct * 100).toFixed(1).replace(".", ",")}%</span>}
               </div>
               <p className={`text-[10px] leading-snug ${treeCovers(f.t) ? "text-cyan-100" : "text-slate-500"}`}>{f.t ? describePosition(f.t) : "Chưa đủ nến."}</p>
             </div>
           ))}
-          {scenarios[0] && <p className="text-[9px] text-slate-400">Kịch bản chính: <b className="text-slate-200">{scenarios[0].sc.title} {scenarios[0].sc.dir > 0 ? "↑" : "↓"}</b> — {scenarios[0].sc.provisional ? "tạm" : STATE_LABEL[scenarios[0].lc.state]} (xem tab Kịch bản)</p>}
-          <p className="text-[8.5px] text-slate-500 leading-snug">{EP1_VALIDATION.summary}</p>
+          {scenarios[0] && <p className="text-[10px] text-slate-400">Kịch bản chính: <b className="text-slate-200">{scenarios[0].sc.title} {scenarios[0].sc.dir > 0 ? "↑" : "↓"}</b> — {scenarios[0].sc.provisional ? "tạm" : STATE_LABEL[scenarios[0].lc.state]} (xem tab Kịch bản)</p>}
+          <p className="text-[10px] text-slate-500 leading-snug">{EP1_VALIDATION.summary}</p>
         </div>
       )}
 
@@ -190,7 +190,7 @@ export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, da
         <div className="space-y-1.5" data-testid="elliott-pro-scenarios">
           <ElliottScenarioList items={scenarios} />
           {scenarios.filter((v) => !v.sc.provisional && (v.lc.state === "waiting" || v.lc.state === "triggered")).slice(0, 3).map((v) => (
-            <div key={v.sc.id} className="flex items-center gap-1 text-[9px] text-slate-400"><span>{v.sc.title} {v.sc.dir > 0 ? "↑" : "↓"}:</span><FollowButton sc={v.sc} ticker={ticker} tf={tf} /></div>
+            <div key={v.sc.id} className="flex items-center gap-1 text-[10px] text-slate-400"><span>{v.sc.title} {v.sc.dir > 0 ? "↑" : "↓"}:</span><FollowButton sc={v.sc} ticker={ticker} tf={tf} /></div>
           ))}
           <ElliottLedgerSummary />
         </div>
@@ -201,8 +201,8 @@ export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, da
           {shown ? <>
             <RuleBlock n={shown} title={`Bậc ${lv} (đang xem)`} />
             {shown.children.filter((c) => (c.kind === "motive" || c.kind === "corrective") && c.fit).slice(-3).map((c, k) => <RuleBlock key={k} n={c} title={`Sóng con ${shown.childLabels[shown.children.indexOf(c)] ?? ""}`} />)}
-          </> : <p className="text-[9px] text-slate-500">Chưa dựng được cấu trúc ở khung này.</p>}
-          <p className="text-[8.5px] text-slate-500">Quy tắc cứng loại bỏ, hướng dẫn mềm xếp hạng (không phải xác suất). Thêm quy tắc cực trị: mỗi điểm là đỉnh/đáy thật của đoạn kề bên.</p>
+          </> : <p className="text-[10px] text-slate-500">Chưa dựng được cấu trúc ở khung này.</p>}
+          <p className="text-[10px] text-slate-500">Quy tắc cứng loại bỏ, hướng dẫn mềm xếp hạng (không phải xác suất). Thêm quy tắc cực trị: mỗi điểm là đỉnh/đáy thật của đoạn kề bên.</p>
         </div>
       )}
 

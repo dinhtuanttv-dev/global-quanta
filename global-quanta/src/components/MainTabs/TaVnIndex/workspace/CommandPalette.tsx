@@ -41,9 +41,9 @@ export default function CommandPalette({ open, onClose, commands }: { open: bool
         {list.map((c, i) => (
           <li key={c.id} id={`cmd-${c.id}`} role="option" aria-selected={i === sel} onMouseEnter={() => setSel(i)} onClick={() => run(c)} data-testid="command-item"
             className={`flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-[11px] ${i === sel ? "bg-cyan-500/15 text-cyan-100" : "text-slate-300"}`}>
-            <span className="text-[9px] uppercase tracking-wide text-slate-500 w-24 shrink-0 truncate">{c.group}</span>
+            <span className="text-[10px] uppercase tracking-wide text-slate-500 w-24 shrink-0 truncate">{c.group}</span>
             <span className="flex-1 truncate">{c.label}{c.active ? " · đang bật" : ""}</span>
-            {c.keys && <kbd className="text-[9px] text-slate-400 border border-slate-700 rounded px-1">{c.keys}</kbd>}
+            {c.keys && <kbd className="text-[10px] text-slate-400 border border-slate-700 rounded px-1">{c.keys}</kbd>}
           </li>
         ))}
         {!list.length && <li className="text-[11px] text-slate-500 px-2 py-3">Không có lệnh khớp “{q}”.</li>}

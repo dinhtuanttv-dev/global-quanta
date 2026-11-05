@@ -26,14 +26,14 @@ export default function CascadeGroupList({ cards }: { cards: CatalystCard[] }) {
 
   return (
     <div style={{ marginTop: 4 }}>
-      <p style={{ fontSize: 9.5, color: "var(--text-tertiary)", margin: "6px 0 4px" }}>Tác động lan tỏa (gián tiếp)</p>
+      <p style={{ fontSize: 10, color: "var(--text-tertiary)", margin: "6px 0 4px" }}>Tác động lan tỏa (gián tiếp)</p>
       {groups.map((g) => (
         <div key={g.sourceId} style={{
           display: "flex", alignItems: "center", gap: 6, padding: "5px 8px",
           background: "var(--bg-surface)", borderRadius: 6, marginBottom: 4, flexWrap: "wrap",
         }}>
           <span style={{ fontSize: 10, color: "var(--text-secondary)", flex: 1, minWidth: 120 }}>{g.sourceTitle}</span>
-          <span style={{ fontSize: 9, color: "var(--text-tertiary)" }}>→</span>
+          <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>→</span>
           {g.tickers.map((t) => (
             <span key={t} style={{
               fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 4,

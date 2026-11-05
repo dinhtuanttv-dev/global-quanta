@@ -15,7 +15,7 @@ function MoverRow({ item, positive }: { item: MoverItem; positive: boolean }) {
         </span>
         <span style={{ flexShrink: 0, fontWeight: 700, fontSize: 12 }}>{item.ticker}</span>
         {rankChange !== 0 && (
-          <span style={{ flexShrink: 0, fontSize: 9, color: rankChange > 0 ? "var(--positive)" : "var(--negative)" }}>
+          <span style={{ flexShrink: 0, fontSize: 10, color: rankChange > 0 ? "var(--positive)" : "var(--negative)" }}>
             {rankChange > 0 ? "▲" : "▼"}{Math.abs(rankChange)}
           </span>
         )}

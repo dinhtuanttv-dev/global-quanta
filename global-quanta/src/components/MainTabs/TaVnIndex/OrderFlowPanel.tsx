@@ -100,7 +100,7 @@ export default function OrderFlowPanel({ enabled, loading, error, orderFlow, lar
               {fs.last.room !== null && <span className="text-slate-500">room còn {(fs.last.room / 1e6).toFixed(1)}tr cp</span>}
             </div>
           )}
-          <p className="col-span-2 md:col-span-4 text-[8.5px] text-slate-600">
+          <p className="col-span-2 md:col-span-4 text-[10px] text-slate-600">
             Sàn không công bố bên chủ động: Mua/Bán chủ động là ước lượng Lee–Ready (tick, {coverage?.tickSessions ?? 0}/{coverage?.requestedSessions ?? 0} phiên có dữ liệu) hoặc BVC (phiên chưa có tick). Khớp ATO/ATC không có bên chủ động, đã tách riêng.
           </p>
         </div>

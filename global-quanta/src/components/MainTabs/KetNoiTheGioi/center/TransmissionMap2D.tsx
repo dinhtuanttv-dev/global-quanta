@@ -7,7 +7,7 @@ import EvidenceTag from "../EvidenceTag";
 import { fmtPeriod, sectorPressure, splitByTier, transmissionEdges, type MatrixLike, type PulseLike, type TransEdge } from "./world2d";
 
 const W = 760, ROW = 30, TOP = 26, BOTTOM = 10, LX = 186, RX = 574;
-const UP = "#3987e5", DOWN = "#e66767", FLAT = "#94a3b8";
+const UP = "#10B981", DOWN = "#F43F5E", FLAT = "#94a3b8";
 const edgeColor = (e: TransEdge) => (e.sign > 0 ? UP : e.sign < 0 ? DOWN : FLAT);
 const signed = (v: number, d = 1) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(d).replace(".", ",")}`;
 
@@ -85,7 +85,7 @@ export default function TransmissionMap2D() {
             <text x={RX} y={yS(i) + 9} fontSize={8.5} fill="#94a3b8">{p > 0 ? "▲ cùng chiều tăng" : p < 0 ? "▼ cùng chiều giảm" : "cân bằng"} ({signed(p)})</text>
           </g>; })}
         </svg></div>
-        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[9.5px]" style={{ color: "var(--text-secondary)" }}>
+        <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--text-secondary)" }}>
           <span><i className="mr-1 inline-block h-0.5 w-4 align-middle" style={{ background: UP }} />Lịch sử: ngành cùng chiều tăng</span>
           <span><i className="mr-1 inline-block h-0.5 w-4 align-middle" style={{ background: DOWN }} />Lịch sử: ngành cùng chiều giảm</span>
           <span>Nét liền: bậc A/B · Nét đứt: bậc C (thăm dò)</span><span>Dày hơn: |t| × |độ lệch| lớn hơn</span>

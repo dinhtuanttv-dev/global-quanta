@@ -57,15 +57,15 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
   const labelFor = (id: string) => panel.signals.find((s) => s.id === id)?.labelVi ?? id;
 
   return (
-    <section className="tw-scope rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-3 text-slate-200" data-testid="elite-profile">
+    <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-3 text-slate-200" data-testid="elite-profile">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[12px] font-bold text-cyan-300">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
+          <p className="text-[12px] font-bold text-[#F5CE72]">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
           <p className="text-[10.5px] text-slate-400">{panel.signals.length} tín hiệu từ {tabs} tab, chuẩn hoá theo sổ đăng ký E1. Thanh = phân vị trong ~{full?.rows.length ?? "—"} mã cùng phiên, xoay theo chiều tốt của từng tín hiệu (xanh = mạnh, đỏ = yếu, xám = trung tính).</p>
         </div>
         {decision && (
           <div className="flex flex-wrap gap-1.5 text-[10.5px]" data-testid="elite-profile-score">
-            <span className="rounded border border-cyan-400/40 bg-cyan-500/10 px-2 py-0.5">Hạng <b>{decision.rank}</b>/{decision.universe.panel}</span>
+            <span className="rounded border border-[#E8B84B]/40 bg-[#E8B84B]/10 px-2 py-0.5">Hạng <b>{decision.rank}</b>/{decision.universe.panel}</span>
             <span className="rounded border border-white/15 px-2 py-0.5">Z <b>{num(decision.Z)}</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">α 5 phiên <b>{num(decision.alpha5Pct)}%</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">P vượt <b>{num(decision.pOutperform * 100, 1)}%</b></span>
@@ -80,7 +80,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
       {decision && (
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <div className="rounded-md border border-white/10 bg-white/[0.02] p-2" data-testid="elite-profile-waterfall">
-            <p className="mb-1 text-[9.5px] font-bold uppercase text-slate-500">Đóng góp vào Điểm Elite (Z = {num(decision.Z)})</p>
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Đóng góp vào Điểm Elite (Z = {num(decision.Z)})</p>
             {contribs.length === 0 ? <p className="text-[10.5px] text-slate-500">Không tín hiệu bậc A/B nào có giá trị khác 0 ở mã này.</p> : contribs.map((c) => (
               <div key={c.id} className="flex items-center gap-1.5 text-[10.5px]" data-testid={`elite-contrib-${c.id}`}>
                 <span className="w-28 shrink-0 truncate text-slate-300" title={labelFor(c.id)}>{labelFor(c.id)}</span>
@@ -93,7 +93,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
             ))}
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[10.5px]" data-testid="elite-profile-gap">
-            <p className="mb-1 text-[9.5px] font-bold uppercase text-slate-500">Khoảng cách tới Elite 10</p>
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Khoảng cách tới Elite 10</p>
             {decision.inPortfolio ? <p className="text-emerald-300">Đang trong danh mục Elite 10.</p>
               : !decision.eligible ? <p className="text-amber-300">Chưa đủ điều kiện danh mục ({decision.reason}) — Điểm Elite cao cũng không được chọn.</p>
               : gap ? (
@@ -107,7 +107,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {groups.map(([tab, specs]) => (
           <div key={tab} className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-            <p className="mb-1 text-[9.5px] font-bold uppercase text-slate-500">{tab}</p>
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">{tab}</p>
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
               <tbody>
                 {specs.map((s) => {
@@ -134,8 +134,8 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
                       </td>
                       <td className="whitespace-nowrap pl-1 text-right" title={h ? `Kiểm định ${e!.mainH} phiên: IC TB ${num(h.mean, 4)} · t ${num(h.t)} · n ${h.n}${h.stable ? " · ổn định hai nửa" : ""}` : e?.reasonVi}>
                         <TierChip tier={tier} />
-                        {h && <span className="ml-1 font-mono text-[9px] text-slate-500">t {num(h.t, 1)}</span>}
-                        {contrib && contrib.contribution !== 0 && <span className="ml-1 text-[9.5px] text-slate-400">{contrib.contribution > 0 ? "+" : ""}{num(contrib.contribution)}</span>}
+                        {h && <span className="ml-1 font-mono text-[10px] text-slate-500">t {num(h.t, 1)}</span>}
+                        {contrib && contrib.contribution !== 0 && <span className="ml-1 text-[10px] text-slate-400">{contrib.contribution > 0 ? "+" : ""}{num(contrib.contribution)}</span>}
                       </td>
                     </tr>
                   );

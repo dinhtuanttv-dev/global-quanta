@@ -58,10 +58,10 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
             <span className="text-lg font-black text-amber-400 tracking-wide">{row.ticker}</span>
             {p && <>
               <span className={`text-[11px] font-bold ${bull ? "text-emerald-300" : "text-rose-300"}`} data-testid="pattern-deep-label">{p.label}{p.subLabel && p.timeframe === "D" ? ` · ${p.subLabel}` : ""}</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/15 text-slate-200">{p.timeframe === "W" ? "Khung tuần" : "Khung ngày"} · {p.role === "continuation" ? "tiếp diễn" : "đảo chiều"}</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold border ${STATE_STYLE[p.state]}`} data-testid="pattern-deep-state">{p.stateLabel}</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-slate-500/15 text-slate-200">{p.timeframe === "W" ? "Khung tuần" : "Khung ngày"} · {p.role === "continuation" ? "tiếp diễn" : "đảo chiều"}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold border ${STATE_STYLE[p.state]}`} data-testid="pattern-deep-state">{p.stateLabel}</span>
             </>}
-            <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300" title={v?.conclusion}>{doc.evidence?.label ?? "EXPERIMENTAL"}</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/10 text-amber-300" title={v?.conclusion}>{doc.evidence?.label ?? "EXPERIMENTAL"}</span>
           </div>
           <div className="text-[10px] text-slate-400 truncate">{row.name ?? ""}{row.sector ? ` · ${row.sector}` : ""} · Mô hình giá Martin Pring · engine {doc.engine} · dữ liệu tới {data?.dataAsOf ?? row.date}{p?.timeframe === "W" && data?.partialWeek ? " · tuần chưa đóng" : ""}</div>
         </div>
@@ -79,7 +79,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
         <div className="flex flex-wrap gap-1" data-testid="pattern-picker">
           {all.map((x) => (
             <button key={keyOf(x)} type="button" onClick={() => setPick(keyOf(x))} aria-pressed={p && keyOf(p) === keyOf(x)}
-              className={`text-[9px] px-2 py-0.5 rounded-full border ${p && keyOf(p) === keyOf(x) ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+              className={`text-[10px] px-2 py-0.5 rounded-full border ${p && keyOf(p) === keyOf(x) ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
               {x.timeframe === "W" ? "Tuần" : "Ngày"} · {x.label} · {x.stateLabel}
             </button>
           ))}
@@ -103,7 +103,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
             </Card>
             <Card title="Sơ đồ mẫu theo sách" right={p.familyLabel}>
               <PringSchematic type={p.type} dir={p.dir} label={p.label} />
-              <p className="mt-1 text-[9px] text-slate-500 leading-snug">
+              <p className="mt-1 text-[10px] text-slate-500 leading-snug">
                 {p.role === "continuation" ? "Mô hình tiếp diễn: phá vỡ theo hướng xu hướng trước." : "Mô hình đảo chiều: cần có xu hướng trước để đảo chiều."}
                 {" "}Mục tiêu đo bằng chiều cao mô hình, là mức TỐI THIỂU; phá vỡ phải dứt khoát và giữ ≥ 2 thanh (ch6, ch17).
               </p>
@@ -148,7 +148,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
                   <dt className="text-slate-500">Lời / lỗ (R:R)</dt><dd className={`text-right font-mono ${(p.plan.rr ?? 0) >= 3 ? "text-emerald-300" : "text-amber-300"}`}>{fmtN(p.plan.rr, 1)} {(p.plan.rr ?? 0) >= 3 ? "· đạt 3:1" : "· dưới 3:1 (Pring khuyên bỏ qua)"}</dd>
                 </dl>
               ) : <p className="text-[10px] text-slate-500">Chưa có kế hoạch.</p>}
-              <p className="mt-1 text-[9px] text-amber-300/80">Kiểm định P3: mô phỏng lệnh theo kế hoạch này ngoài mẫu có PF {fmtN(v?.trades.oos.profitFactor, 2)} (n {v?.trades.oos.n ?? "—"}) — chưa có lợi thế, chỉ để tham khảo.</p>
+              <p className="mt-1 text-[10px] text-amber-300/80">Kiểm định P3: mô phỏng lệnh theo kế hoạch này ngoài mẫu có PF {fmtN(v?.trades.oos.profitFactor, 2)} (n {v?.trades.oos.n ?? "—"}) — chưa có lợi thế, chỉ để tham khảo.</p>
             </Card>
             <Card title="Kiểm định đặt trước (P3)" right={g ? `${grp} · ${VERDICT_VI[g.verdict] ?? g.verdict}` : undefined}>
               {g ? (
@@ -160,7 +160,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
                     {g.placeboP != null && <><dt className="text-slate-500">Placebo</dt><dd className="text-slate-300">p = {fmtN(g.placeboP, 2)} (ngẫu nhiên cùng mã, cùng tháng)</dd></>}
                     {tg && <><dt className="text-slate-500">Đạt mục tiêu</dt><dd className="text-slate-300">1× {fmtN(tg.t1, 0)}% · 2× {fmtN(tg.t2, 0)}% · 3× {fmtN(tg.t3, 0)}% · thất bại {fmtN(tg.failed, 0)}% (60 phiên, n {tg.n})</dd></>}
                   </dl>
-                  <p className="text-[9px] text-slate-500">{v?.conclusion}</p>
+                  <p className="text-[10px] text-slate-500">{v?.conclusion}</p>
                 </div>
               ) : <p className="text-[10px] text-slate-500">Chưa có kết quả kiểm định.</p>}
             </Card>

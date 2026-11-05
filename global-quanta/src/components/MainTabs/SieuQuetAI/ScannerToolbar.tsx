@@ -48,9 +48,9 @@ function SectorFilter({ items, selected, onChange }: { items: SieuQuetStockItem[
           <div className="flex gap-1 mb-1.5">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm ngành…" aria-label="Tìm ngành"
               className="flex-1 text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-200 outline-none focus:border-cyan-500/50" />
-            <button type="button" onClick={() => onChange(new Set())} className="text-[9.5px] px-2 rounded bg-white/5 text-slate-300 hover:bg-white/10">Tất cả</button>
+            <button type="button" onClick={() => onChange(new Set())} className="text-[10px] px-2 rounded bg-white/5 text-slate-300 hover:bg-white/10">Tất cả</button>
           </div>
-          <div className="text-[8.5px] text-slate-500 mb-1 flex justify-between px-1"><span>Ngành</span><span>số mã · Smart TB</span></div>
+          <div className="text-[10px] text-slate-500 mb-1 flex justify-between px-1"><span>Ngành</span><span>số mã · Smart TB</span></div>
           <div className="max-h-80 overflow-y-auto pr-1">
             {visible.map((g) => {
               const names = g.industries.map((i) => i.name);

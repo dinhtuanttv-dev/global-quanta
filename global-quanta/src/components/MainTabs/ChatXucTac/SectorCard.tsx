@@ -12,7 +12,7 @@ export default function SectorCard({ sector }: { sector: CatalystSector }) {
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 13 }}>{sectorLabelVi(sector.sector)}</span>
-        {sector.isNew && <span style={{ fontSize: 9, color: "var(--gold-bright)", fontWeight: 700 }}>MỚI</span>}
+        {sector.isNew && <span style={{ fontSize: 10, color: "var(--gold-bright)", fontWeight: 700 }}>MỚI</span>}
         <span style={{ marginLeft: "auto", fontSize: 11, color: netPositive ? "var(--positive)" : "var(--negative)", fontWeight: 700 }}>
           Net {netPositive ? "+" : ""}{(sector.netScore * 100).toFixed(2)}%
         </span>

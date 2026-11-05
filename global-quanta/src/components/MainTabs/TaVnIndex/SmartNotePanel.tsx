@@ -91,16 +91,16 @@ export default function SmartNotePanel(props: Props) {
       </div>
 
       {!note && !loading && !error && (
-        <p className="text-[9px] text-slate-500 mb-1.5">AI tóm tắt 3 câu, chỉ từ số liệu đã tính (Wyckoff · SMC · VSA · RSI/MACD/ADX).</p>
+        <p className="text-[10px] text-slate-500 mb-1.5">AI tóm tắt 3 câu, chỉ từ số liệu đã tính (Wyckoff · SMC · VSA · RSI/MACD/ADX).</p>
       )}
-      {error && <p className="text-[9px] text-rose-400 mb-1.5">{error}</p>}
+      {error && <p className="text-[10px] text-rose-400 mb-1.5">{error}</p>}
       {note && (
         <div className="mb-1.5">
           <div className="flex items-start gap-1.5">
             <Bot className="w-3 h-3 text-purple-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-slate-300 leading-relaxed">{note}</p>
           </div>
-          {updatedAt && <p className="text-[8px] text-slate-600 mt-1">Cập nhật {updatedAt}</p>}
+          {updatedAt && <p className="text-[10px] text-slate-600 mt-1">Cập nhật {updatedAt}</p>}
         </div>
       )}
 

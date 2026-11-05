@@ -36,7 +36,7 @@
 .scan-table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: "IBM Plex Mono", monospace; font-size: 12px; color: #d7dfea; }
 .scan-table thead { position: sticky; top: var(--scan-thead-top); z-index: 12; }
 .scan-table thead th { background: var(--scan-head-bg); color: #b4c0d2; font: 600 10.5px/1.25 "Inter", system-ui, sans-serif; padding: 5px 7px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--scan-group); }
-.scan-table thead .th-group th { color: #94a3b8; font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid var(--scan-line); padding-bottom: 3px; }
+.scan-table thead .th-group th { color: #94a3b8; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; border-bottom: 1px solid var(--scan-line); padding-bottom: 3px; }
 .scan-table th.num, .scan-table td.num { text-align: right; }
 .scan-table th.text-center { text-align: center; }
 .scan-table .group-start { border-left: 1px solid var(--scan-group); }
@@ -50,7 +50,8 @@
 .scan-row.is-open > td { background-color: rgba(8, 145, 178, 0.12); }
 .scan-row.is-selected > td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
 .scan-row.is-excluded > td { color: #94a3b8; }
-.scan-row.is-excluded .scan-smart, .scan-row.is-excluded .scan-rs { opacity: 0.75; }
+/* Mã bị loại (F-Score thấp): chỉ làm dịu cột F-Score, mã/giá/điểm khác giữ nguyên độ đọc (05/11/2026). */
+.scan-row.is-excluded .scan-pips { opacity: 0.75; }
 .scan-section td { height: 26px !important; font: 11px "Inter", system-ui, sans-serif; background: rgba(148, 163, 184, 0.06); }
 .scan-empty { padding: 28px 0 !important; text-align: center; color: #a3b1c6; font-family: "Inter", system-ui, sans-serif; }
 
@@ -64,8 +65,8 @@
 .scan-open { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; color: #94a3b8; vertical-align: middle; border-radius: 4px; }
 .scan-open svg { width: 13px; height: 13px; }
 .scan-open:hover { color: #fbbf24; background: rgba(232, 184, 75, 0.12); }
-.scan-outside { margin-left: 5px; padding: 0 3px; font: 9px "Inter", system-ui, sans-serif; color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.45); border-radius: 3px; }
-.scan-live { margin-left: 3px; font-size: 8px; color: #22c55e; vertical-align: 1px; }
+.scan-outside { margin-left: 5px; padding: 0 3px; font: 10px "Inter", system-ui, sans-serif; color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.45); border-radius: 3px; }
+.scan-live { margin-left: 3px; font-size: 10px; color: #22c55e; vertical-align: 1px; }
 .scan-chg { font-size: 10.5px; }
 
 /* Thanh điểm và nhãn */
@@ -85,7 +86,7 @@
 .scan-pips i.on.bad { background: #fb7185; }
 .scan-pips b { margin-left: 5px; font-weight: 500; font-size: 11px; color: #cbd5e1; }
 .scan-na { font-size: 11px; color: #a3b1c6; }
-.scan-excl { margin-left: 6px; padding: 0 4px; font: 700 9.5px "Inter", system-ui, sans-serif; color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.5); border-radius: 3px; }
+.scan-excl { margin-left: 6px; padding: 0 4px; font: 700 10px "Inter", system-ui, sans-serif; color: #fda4af; border: 1px solid rgba(244, 63, 94, 0.5); border-radius: 3px; }
 
 /* Bảng giá */
 .board-table thead .head-bid { color: #86efac; background: #10201c; }
@@ -99,8 +100,8 @@
 .board-table .tint-match { background-color: rgba(250, 204, 21, 0.03); }
 .board-table .board-vol { color: #cbd5e1; }
 .board-table .board-match { font-weight: 700; font-size: 13px; background-color: rgba(250, 204, 21, 0.045); }
-.board-table .board-match[data-dir="up"]::before { content: "▲"; margin-right: 3px; font-size: 8px; vertical-align: 1px; }
-.board-table .board-match[data-dir="down"]::before { content: "▼"; margin-right: 3px; font-size: 8px; vertical-align: 1px; }
+.board-table .board-match[data-dir="up"]::before { content: "▲"; margin-right: 3px; font-size: 10px; vertical-align: 1px; }
+.board-table .board-match[data-dir="down"]::before { content: "▼"; margin-right: 3px; font-size: 10px; vertical-align: 1px; }
 .board-table .board-ticker { padding-left: 0; }
 .board-hl { position: relative; }
 .hl-track { position: absolute; left: 5px; right: 5px; bottom: 3px; height: 2px; background: rgba(148, 163, 184, 0.2); border-radius: 1px; }
@@ -119,13 +120,13 @@
 .scan-frame[data-fit="tight"] .scan-table { font-size: 11px; }
 .scan-frame[data-fit="tight"] .scan-table tbody td, .scan-frame[data-fit="tight"] .scan-table thead th { padding-left: 4px; padding-right: 4px; }
 .scan-frame[data-fit="tight"] .scan-table thead th { white-space: normal; }
-.scan-frame[data-fit="tight"] .scan-sub { display: block; margin: -2px 0 0 44px; font-size: 9.5px; line-height: 1; max-width: 104px; overflow: hidden; text-overflow: ellipsis; }
+.scan-frame[data-fit="tight"] .scan-sub { display: block; margin: -2px 0 0 44px; font-size: 10px; line-height: 1; max-width: 104px; overflow: hidden; text-overflow: ellipsis; }
 .scan-frame[data-fit="tight"] .scan-bar, .scan-frame[data-fit="tight"] .scan-pips i, .scan-frame[data-fit="tight"] .sig-txt { display: none; }
 .scan-frame[data-fit="tight"] .scan-pips b { margin-left: 0; }
 .scan-frame[data-fit="tight"] .scan-conf { max-width: 150px; font-size: 10px; }
 .scan-frame[data-fit="tight"] .board-table { font-size: 10px; }
 .scan-frame[data-fit="tight"] .board-table tbody td, .scan-frame[data-fit="tight"] .board-table thead th { padding-left: 2px; padding-right: 2px; }
-.scan-frame[data-fit="tight"] .board-table thead th { font-size: 9.5px; white-space: nowrap; }
+.scan-frame[data-fit="tight"] .board-table thead th { font-size: 10px; white-space: nowrap; }
 .scan-frame[data-fit="tight"] .board-table .board-match { font-size: 11px; }
 .scan-frame[data-fit="tight"] .board-table .board-match::before { display: none; }
 .scan-frame[data-fit="tight"] .board-table .scan-star { width: 18px; }

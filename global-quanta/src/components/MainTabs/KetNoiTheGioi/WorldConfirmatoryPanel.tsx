@@ -32,7 +32,7 @@ export default function WorldConfirmatoryPanel() {
       </p>
       <div className="overflow-x-auto">
         <table className="w-full" style={{ borderCollapse: "collapse", minWidth: 560 }}>
-          <thead><tr style={{ ...muted, fontSize: 9.5, textTransform: "uppercase" }}>
+          <thead><tr style={{ ...muted, fontSize: 10, textTransform: "uppercase" }}>
             <th className="text-left">Cặp</th><th className="text-left">Kỳ vọng</th><th className="text-right">β (t)</th><th className="text-right">p 1 phía</th>
             <th className="text-right">q</th><th className="text-center">Ổn định</th><th className="text-center">Ngoài mẫu</th><th className="text-left">Kết luận</th>
           </tr></thead>

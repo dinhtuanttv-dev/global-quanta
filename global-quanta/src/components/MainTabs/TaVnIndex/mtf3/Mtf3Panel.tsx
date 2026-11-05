@@ -45,7 +45,7 @@ export function ReplayBar({ r }: { r: ReplayControl }) {
           <input type="range" min={r.min} max={r.max} value={r.index ?? r.max} onChange={(e) => r.onChange(Number(e.target.value))} aria-label="Chọn phiên phát lại" className="w-32 sm:w-56 accent-amber-400" />
           <button type="button" onClick={() => step(1)} aria-label="Tiến 1 phiên" className="text-amber-200"><ChevronRight className="w-3.5 h-3.5" /></button>
           <span className="text-[10px] font-mono text-amber-200">{r.date}</span>
-          <span className="text-[9px] text-slate-500">· chỉ dùng dữ liệu tới phiên này</span>
+          <span className="text-[10px] text-slate-500">· chỉ dùng dữ liệu tới phiên này</span>
         </>
       )}
     </div>
@@ -54,19 +54,19 @@ export function ReplayBar({ r }: { r: ReplayControl }) {
 
 /** Sổ thời gian thực M1 "Đà tăng tiếp diễn" (MTF-momentum-prereg, giữ từ v2 — đang tích luỹ mẫu tới ~05/2027). */
 export function MomentumLedgerCard({ m }: { m: StructureMomentumStats | null }) {
-  if (!m) return <p className="text-[9px] text-slate-500">Sổ “đà tăng tiếp diễn” bắt đầu ghi ở job 15:47 phiên đầu tiên sau triển khai.</p>;
+  if (!m) return <p className="text-[10px] text-slate-500">Sổ “đà tăng tiếp diễn” bắt đầu ghi ở job 15:47 phiên đầu tiên sau triển khai.</p>;
   const prog = Math.min(1, m.scoredDays / m.minDays);
   const tone = m.verdict === "PASS" ? "text-emerald-300" : m.verdict === "FAIL" ? "text-rose-300" : "text-amber-300";
   return (
     <div className="rounded-md p-2 space-y-1" style={{ background: "rgba(245,158,11,0.05)", border: "1px solid rgba(245,158,11,0.18)" }} data-testid="structure-momentum-ledger">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9.5px] font-bold text-amber-200">Sổ thời gian thực · M1 “Đà tăng tiếp diễn”</span>
-        <span className={`text-[8.5px] font-bold ${tone}`} data-testid="structure-momentum-label">{m.label}</span>
+        <span className="text-[10px] font-bold text-amber-200">Sổ thời gian thực · M1 “Đà tăng tiếp diễn”</span>
+        <span className={`text-[10px] font-bold ${tone}`} data-testid="structure-momentum-label">{m.label}</span>
       </div>
-      <p className="text-[9px] text-slate-400 leading-snug">Mỗi phiên, trong các mã đang tăng: nhóm có cờ Quá đà so với nhóm không có — lợi suất vượt trội 20 phiên kế tiếp. Đặt trước, chỉ chấm dữ liệu từ {m.firstDay ?? "phiên đầu tiên"}; chưa dùng vào kết luận.</p>
+      <p className="text-[10px] text-slate-400 leading-snug">Mỗi phiên, trong các mã đang tăng: nhóm có cờ Quá đà so với nhóm không có — lợi suất vượt trội 20 phiên kế tiếp. Đặt trước, chỉ chấm dữ liệu từ {m.firstDay ?? "phiên đầu tiên"}; chưa dùng vào kết luận.</p>
       <div className="h-1.5 rounded bg-slate-800 overflow-hidden" role="progressbar" aria-valuenow={m.scoredDays} aria-valuemax={m.minDays} aria-label="Tiến độ sổ"><div className="h-full bg-amber-400/70" style={{ width: `${prog * 100}%` }} /></div>
-      <div className="text-[9px] text-slate-300 font-mono">{m.scoredDays}/{m.minDays} phiên đã chấm · {m.pendingDays} phiên chờ đủ 20 phiên{m.lastGroup ? ` · hôm ${m.lastGroup.d}: ${m.lastGroup.on} mã BẬT / ${m.lastGroup.off} TẮT` : ""}</div>
-      {m.scoredDays > 0 && <div className="text-[9px] text-slate-300">BẬT − TẮT: <b className="font-mono">{pctS(m.meanS)}</b> {m.ciS ? <span className="text-slate-500">[{pctS(m.ciS[0])}; {pctS(m.ciS[1])}]</span> : null} · sau phí {pctS(m.meanL)} · {m.scoredDays < m.minDays ? "chưa đủ mẫu — không kết luận" : ""}</div>}
+      <div className="text-[10px] text-slate-300 font-mono">{m.scoredDays}/{m.minDays} phiên đã chấm · {m.pendingDays} phiên chờ đủ 20 phiên{m.lastGroup ? ` · hôm ${m.lastGroup.d}: ${m.lastGroup.on} mã BẬT / ${m.lastGroup.off} TẮT` : ""}</div>
+      {m.scoredDays > 0 && <div className="text-[10px] text-slate-300">BẬT − TẮT: <b className="font-mono">{pctS(m.meanS)}</b> {m.ciS ? <span className="text-slate-500">[{pctS(m.ciS[0])}; {pctS(m.ciS[1])}]</span> : null} · sau phí {pctS(m.meanL)} · {m.scoredDays < m.minDays ? "chưa đủ mẫu — không kết luận" : ""}</div>}
     </div>
   );
 }
@@ -91,9 +91,9 @@ function Overview({ doc }: { doc: Structure3Doc }) {
       {st && rb && (
         <div className="overflow-x-auto">
           <table className="w-full text-[10px]" style={{ borderCollapse: "collapse", minWidth: 420 }} data-testid="mtf3-matrix">
-            <thead><tr className="text-left text-[9px] text-slate-500"><th className="py-1 pr-2 font-normal" />{(["D", "W", "M"] as Tf3[]).map((k) => <th key={k} className="pr-2 font-bold text-slate-300">{TF_NAME[k]}</th>)}</tr></thead>
+            <thead><tr className="text-left text-[10px] text-slate-500"><th className="py-1 pr-2 font-normal" />{(["D", "W", "M"] as Tf3[]).map((k) => <th key={k} className="pr-2 font-bold text-slate-300">{TF_NAME[k]}</th>)}</tr></thead>
             <tbody>
-              <tr className="border-t border-white/5"><td className="py-1 pr-2 text-slate-500">Giai đoạn</td>{(["D", "W", "M"] as Tf3[]).map((k) => <td key={k} className="pr-2"><span className={`rounded border px-1.5 py-0.5 text-[9.5px] font-bold ${STAGE_STYLE[st[k].stage].cls}`}>{STAGE_STYLE[st[k].stage].short}</span></td>)}</tr>
+              <tr className="border-t border-white/5"><td className="py-1 pr-2 text-slate-500">Giai đoạn</td>{(["D", "W", "M"] as Tf3[]).map((k) => <td key={k} className="pr-2"><span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${STAGE_STYLE[st[k].stage].cls}`}>{STAGE_STYLE[st[k].stage].short}</span></td>)}</tr>
               <tr className="border-t border-white/5"><td className="py-1 pr-2 text-slate-500">Dow</td>{(["D", "W", "M"] as Tf3[]).map((k) => <td key={k} className="pr-2 text-slate-200" title={st[k].dowLabel}>{st[k].dowLabel.split(" (")[0]}</td>)}</tr>
               <tr className="border-t border-white/5"><td className="py-1 pr-2 text-slate-500">Dải EMA</td>{(["D", "W", "M"] as Tf3[]).map((k) => <td key={k} className={`pr-2 ${rb[k].order === 1 ? "text-emerald-300" : rb[k].order === -1 ? "text-rose-300" : "text-slate-300"}`}>{order(rb[k].order)}</td>)}</tr>
               <tr className="border-t border-white/5"><td className="py-1 pr-2 text-slate-500">Pha dải</td>{(["D", "W", "M"] as Tf3[]).map((k) => <td key={k} className="pr-2 text-slate-300">{phase[rb[k].phase]}{rb[k].over ? (rb[k].over > 0 ? " · quá đà tăng" : " · quá đà giảm") : ""}</td>)}</tr>
@@ -127,15 +127,15 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
       <header className="flex flex-wrap items-center gap-1.5">
         <Layers3 className="w-3.5 h-3.5 text-cyan-300" />
         <span className="text-[11px] font-bold text-slate-200 mr-1" data-testid="mtf3-title">Cấu trúc MTF v3</span>
-        <span className="text-[9px] text-slate-500 mr-1">Ngày · Tuần · Tháng · EMA21/50/100 · MA200 · Dow · Minervini · Elliott</span>
+        <span className="text-[10px] text-slate-500 mr-1">Ngày · Tuần · Tháng · EMA21/50/100 · MA200 · Dow · Minervini · Elliott</span>
         <span className="inline-flex items-center gap-1 rounded-md border border-slate-700/60 bg-slate-900/50 p-0.5" role="group" aria-label="Mức chi tiết lớp vẽ trên biểu đồ">
-          <span className="px-1 text-[9px] text-slate-500">Lớp vẽ:</span>
+          <span className="px-1 text-[10px] text-slate-500">Lớp vẽ:</span>
           {STRUCTURE_MODES.map((m) => (
             <button key={m.key} type="button" onClick={() => onModeChange(m.key)} title={`Lớp vẽ trên biểu đồ: ${m.hint}`} aria-pressed={mode === m.key} data-structure-mode={m.key}
-              className={`px-2 py-0.5 rounded text-[9.5px] font-bold transition ${mode === m.key ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400 hover:text-slate-200"}`}>{m.label}</button>
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${mode === m.key ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400 hover:text-slate-200"}`}>{m.label}</button>
           ))}
         </span>
-        <span className="ml-auto text-[9px] text-slate-500">{replaying ? `phát lại ${doc.asOf}` : doc.asOf} · engine {doc.version}</span>
+        <span className="ml-auto text-[10px] text-slate-500">{replaying ? `phát lại ${doc.asOf}` : doc.asOf} · engine {doc.version}</span>
       </header>
       {replay && <ReplayBar r={replay} />}
       {replaying && <p className="text-[10px] text-amber-200/90 rounded-lg px-2 py-1 bg-amber-500/5" data-testid="structure-replay-note">Đang phát lại tại phiên {doc.asOf}: mọi thứ dưới đây là những gì hệ thống thấy LÚC ĐÓ (tính lại trên trình duyệt, không có Elliott). Nến sau đường “Phát lại” là diễn biến thực tế để đối chiếu.</p>}
@@ -160,7 +160,7 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
             <p className="text-[10px] text-slate-400 leading-snug">Kiểm định đặt trước <b className="text-slate-200">MTF-v3</b> (viết TRƯỚC khi có dữ liệu, chạy một lần{doc.evidence.ranAt ? ` ${doc.evidence.ranAt.split("-").reverse().join("/")}` : ""}): VNDirect 2013 → 2026{doc.evidence.universe ? `, ${doc.evidence.universe.symbols} mã kể cả ${doc.evidence.universe.delisted} mã đã huỷ niêm yết` : ""}, trong mẫu ≤ 2020, ngoài mẫu ≥ 2021, phí 0,6%, BH-FDR q = 0,10. Chỉ thành phần ĐẠT mới được gắn nhãn “ĐÃ KIỂM ĐỊNH”.</p>
             <div className="overflow-x-auto">
               <table className="w-full text-[10px]" style={{ borderCollapse: "collapse", minWidth: 480 }} data-testid="mtf3-prereg-table">
-                <thead><tr className="text-left text-[9px] text-slate-500"><th className="py-1 pr-2">GT</th><th className="pr-2">Nội dung</th><th className="pr-2">Ngoài mẫu (sau phí)</th><th className="pr-2">Trong mẫu</th><th>Kết quả</th></tr></thead>
+                <thead><tr className="text-left text-[10px] text-slate-500"><th className="py-1 pr-2">GT</th><th className="pr-2">Nội dung</th><th className="pr-2">Ngoài mẫu (sau phí)</th><th className="pr-2">Trong mẫu</th><th>Kết quả</th></tr></thead>
                 <tbody>
                   {PREREG.map((h) => {
                     const e = doc.evidence.H?.[h.key], v = e?.verdict;

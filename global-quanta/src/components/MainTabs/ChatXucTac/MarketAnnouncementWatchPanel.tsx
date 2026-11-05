@@ -31,7 +31,7 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
       <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: accent }} />
 
       <span style={{
-        fontSize: 9.5, fontWeight: 700, color: accent, background: `${accent}1a`,
+        fontSize: 10, fontWeight: 700, color: accent, background: `${accent}1a`,
         padding: "3px 8px", borderRadius: 5, display: "inline-block", marginBottom: 8,
       }}>{title}</span>
 
@@ -51,16 +51,16 @@ function FindingCard({ finding }: { finding: MarketAnnouncementFinding }) {
 
       {finding.sourceUrl && isTrustedUrl(finding.sourceUrl) && (
         <a href={finding.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
-          fontSize: 9, color: "var(--text-tertiary)", display: "block", textDecoration: "underline",
+          fontSize: 10, color: "var(--text-tertiary)", display: "block", textDecoration: "underline",
         }}>Nguon: {finding.sourceName ?? finding.sourceUrl}</a>
       )}
       {finding.sourceUrl && !isTrustedUrl(finding.sourceUrl) && (
-        <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block" }}>
+        <span style={{ fontSize: 10, color: "var(--text-tertiary)", display: "block" }}>
           Nguồn: {finding.sourceName ?? "chưa xác thực"} (URL chưa xác thực — đã ẩn liên kết)
         </span>
       )}
 
-      <p style={{ fontSize: 8.5, color: "var(--text-tertiary)", marginTop: 6 }}>
+      <p style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 6 }}>
         Phát hiện tự động bởi AI (Gemini + Google Search) — kiểm tra lại nguồn trước khi ra quyết định.
       </p>
     </div>

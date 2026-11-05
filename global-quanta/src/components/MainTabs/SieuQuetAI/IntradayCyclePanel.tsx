@@ -73,7 +73,7 @@ function ProbRow({ label, prob, baseline, validated }: { label: string; prob: Pr
         <div className="absolute inset-y-0 w-0.5" style={{ left: `calc(${prob.p * 100}% - 1px)`, background: trusted ? "#e2e8f0" : "#64748b" }} />
         <div className="absolute inset-y-0 w-px" style={{ left: `${baseline * 100}%`, background: "#94a3b8" }} title="Mức nền của khung" />
       </div>
-      <div className="text-[8.5px] text-slate-500">
+      <div className="text-[10px] text-slate-500">
         n={prob.n} · khoảng 90%: {pct(prob.low)}–{pct(prob.high)} · nền {pct(baseline)}
         {!prob.enough && " · ít mẫu"}
       </div>
@@ -91,7 +91,7 @@ function PriceVolumeMatrix({ cur }: { cur: NonNullable<IntradayCycle["current"]>
   const max = Math.max(...Object.values(tr.to).map((p) => p.p), 0.01);
   return (
     <div>
-      <table className="w-full text-[9px] font-mono border-separate" style={{ borderSpacing: 2 }}>
+      <table className="w-full text-[10px] font-mono border-separate" style={{ borderSpacing: 2 }}>
         <thead>
           <tr><th />{VOL_COLS.map(([k, l]) => <th key={k} className="text-slate-500 font-sans font-normal">{l}</th>)}</tr>
         </thead>
@@ -115,7 +115,7 @@ function PriceVolumeMatrix({ cur }: { cur: NonNullable<IntradayCycle["current"]>
           ))}
         </tbody>
       </table>
-      <div className="text-[9px] text-slate-400 mt-1">
+      <div className="text-[10px] text-slate-400 mt-1">
         Ô viền = trạng thái khung vừa qua (n={tr.n}). Trong 2 khung tới: vào pha <b className="text-slate-200">KL cao + giá tăng</b> {pct(cur.enterHighUpWithin2)} ·{" "}
         <b className="text-slate-200">KL cao + giá giảm</b> {pct(cur.enterHighDownWithin2)}
       </div>
@@ -142,17 +142,17 @@ export default function IntradayCyclePanel({ symbol }: { symbol: string }) {
       <div className="flex items-baseline justify-between mb-1">
         <div className="text-[10px] font-semibold text-slate-200">
           Nhịp khối lượng trong phiên · {data.viewDate}{" "}
-          <span className={`ml-1 px-1.5 py-0.5 rounded text-[8.5px] ${data.live ? "bg-emerald-950 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
+          <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${data.live ? "bg-emerald-950 text-emerald-300" : "bg-slate-800 text-slate-400"}`}>
             {data.live ? "đang giao dịch" : "phiên đã đóng"}
           </span>
         </div>
-        <div className="text-[8.5px] text-slate-500">Mô hình {data.sessions} phiên ({data.from} → {data.to}) · khung 15'</div>
+        <div className="text-[10px] text-slate-500">Mô hình {data.sessions} phiên ({data.from} → {data.to}) · khung 15'</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2">
         <div className={`${box} lg:col-span-2`} style={boxStyle}>
           <RhythmStrip data={data} />
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[8.5px] text-slate-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400">
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2" style={{ background: "rgba(148,163,184,0.35)" }} />KL điển hình (p25–p75, vạch = trung vị)</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: rvolColor(0.5) }} />Cạn ≤0,5×</span>
             <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: rvolColor(1) }} />Bình thường</span>
@@ -161,12 +161,12 @@ export default function IntradayCyclePanel({ symbol }: { symbol: string }) {
             <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 border" style={{ borderColor: ACCENT }} />Khung kế tiếp</span>
           </div>
           {cur && (
-            <div className="grid grid-cols-3 gap-2 mt-2 text-[9.5px]">
+            <div className="grid grid-cols-3 gap-2 mt-2 text-[10px]">
               <div><div className="text-slate-500">KL lũy kế</div><div className="text-slate-100 font-semibold">{fmtVol(cur.cumVolume)}</div></div>
               <div><div className="text-slate-500">RVOL theo thời điểm</div><div className="font-semibold" style={{ color: rvolColor(cur.timeAdjustedRvol) }}>{cur.timeAdjustedRvol !== null ? `${cur.timeAdjustedRvol.toFixed(2)}×` : "—"}</div></div>
               <div><div className="text-slate-500">{cur.sessionDone ? "KL cả phiên" : "Dự phóng cuối phiên"}</div>
                 <div className="text-slate-100 font-semibold">{cur.sessionDone ? fmtVol(cur.cumVolume) : fmtVol(cur.projectedVolume)}</div>
-                {!cur.sessionDone && cur.projectedRange && <div className="text-slate-500 text-[8.5px]">{fmtVol(cur.projectedRange[0])}–{fmtVol(cur.projectedRange[1])}</div>}
+                {!cur.sessionDone && cur.projectedRange && <div className="text-slate-500 text-[10px]">{fmtVol(cur.projectedRange[0])}–{fmtVol(cur.projectedRange[1])}</div>}
               </div>
             </div>
           )}
@@ -179,18 +179,18 @@ export default function IntradayCyclePanel({ symbol }: { symbol: string }) {
               {cur?.state && (
                 <div className="flex flex-wrap gap-1 mb-2">
                   {[cur.state.priceLabel, cur.state.vwapPos === "Vup" ? "trên VWAP" : "dưới VWAP", cur.state.rvolLabel].map((c) => (
-                    <span key={c} className="px-1.5 py-0.5 rounded bg-white/5 text-[8.5px] text-slate-300">{c}</span>
+                    <span key={c} className="px-1.5 py-0.5 rounded bg-white/5 text-[10px] text-slate-300">{c}</span>
                   ))}
                 </div>
               )}
               <ProbRow label="Bùng nổ KL (≥2× điển hình)" prob={next.surge} baseline={next.baseline.surge} validated={v.validated.surge} />
               <ProbRow label="Cạn KL (≤0,5× điển hình)" prob={next.dry} baseline={next.baseline.dry} validated={v.validated.dry} />
-              <div className="text-[9px] text-slate-400 mt-1">Giá khung tới: tăng {pct(next.up.p)} · giảm {pct(next.down.p)}</div>
+              <div className="text-[10px] text-slate-400 mt-1">Giá khung tới: tăng {pct(next.up.p)} · giảm {pct(next.down.p)}</div>
             </>
           ) : (
             <div className="text-[10px] text-slate-500">{cur?.sessionDone ? "Phiên đã đóng — xác suất khung kế tiếp hiển thị trong giờ giao dịch." : "Chưa có dữ liệu phiên."}</div>
           )}
-          <div className={`mt-2 text-[8.5px] ${v.validated.surge ? "text-emerald-400" : "text-amber-400"}`}>
+          <div className={`mt-2 text-[10px] ${v.validated.surge ? "text-emerald-400" : "text-amber-400"}`}>
             {v.validated.surge
               ? `✓ Đã kiểm định walk-forward ${v.evaluatedSessions} phiên (Brier skill bùng nổ ${v.surge.brierSkill?.toFixed(2)})`
               : `⚠ Chưa đủ tin cậy: mô hình chưa vượt mức nền (${v.surge.brierSkill === null ? `chỉ ${v.surge.events} lần bùng nổ` : `skill ${v.surge.brierSkill.toFixed(2)}`}) — số hiển thị mờ`}
@@ -204,7 +204,7 @@ export default function IntradayCyclePanel({ symbol }: { symbol: string }) {
           <PriceVolumeMatrix cur={cur} />
         </div>
       )}
-      <div className="text-[8.5px] text-slate-500 mt-1">{data.disclaimer}</div>
+      <div className="text-[10px] text-slate-500 mt-1">{data.disclaimer}</div>
     </div>
   );
 }

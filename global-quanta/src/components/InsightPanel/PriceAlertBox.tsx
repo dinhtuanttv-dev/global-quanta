@@ -33,13 +33,13 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
   return (
     <div className="mt-2.5 rounded-lg p-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[9.5px] tracking-wider text-slate-500 font-semibold">⏰ CẢNH BÁO GIÁ</div>
+        <div className="text-[10px] tracking-wider text-slate-500 font-semibold">⏰ CẢNH BÁO GIÁ</div>
         {perm === 'default' && (
-          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[9.5px] text-cyan-300 hover:text-cyan-200">
+          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[10px] text-cyan-300 hover:text-cyan-200">
             Bật thông báo trình duyệt
           </button>
         )}
-        {perm === 'denied' && <span className="text-[9px] text-slate-500">Trình duyệt chặn thông báo — chỉ hiện trên trang</span>}
+        {perm === 'denied' && <span className="text-[10px] text-slate-500">Trình duyệt chặn thông báo — chỉ hiện trên trang</span>}
       </div>
       <div className="flex gap-1.5">
         <input inputMode="numeric" value={input ? fmt(value) : ''} placeholder={price ? `Mức giá, VD ${fmt(roundTick(price * 1.03))}` : 'Mức giá'}
@@ -53,7 +53,7 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
       <div className="flex flex-wrap gap-1 mt-1.5">
         {quick.filter((q) => q.level && q.level > 0).map((q) => (
           <button key={q.label} type="button" onClick={() => add(q.kind, q.level!, q.label)} title={`Báo khi giá ${q.kind === 'above' ? '≥' : '≤'} ${fmt(roundTick(q.level!))}`}
-            className="text-[9.5px] px-1.5 py-0.5 rounded border border-white/10 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200">
+            className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200">
             {q.kind === 'above' ? '↑' : '↓'} {q.label} <span className="font-mono text-slate-500">{fmt(roundTick(q.level!))}</span>
           </button>
         ))}
@@ -71,7 +71,7 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
           ))}
         </ul>
       )}
-      <div className="text-[9px] text-slate-500 mt-1">Theo dõi bằng giá realtime khi trang đang mở; mỗi cảnh báo báo một lần. Lưu trong trình duyệt này.</div>
+      <div className="text-[10px] text-slate-500 mt-1">Theo dõi bằng giá realtime khi trang đang mở; mỗi cảnh báo báo một lần. Lưu trong trình duyệt này.</div>
     </div>
   );
 }

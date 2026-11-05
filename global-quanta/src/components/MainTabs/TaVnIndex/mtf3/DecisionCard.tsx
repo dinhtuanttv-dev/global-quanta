@@ -21,21 +21,21 @@ export default function DecisionCard({ d, evidence }: { d: Decision3View; eviden
       <div className="flex flex-wrap items-center gap-2">
         <span className={`inline-block w-2 h-2 rounded-full ${st.dot}`} />
         <span className="text-[12px] font-bold text-slate-100" data-testid="decision3-headline">{d.headline}</span>
-        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[9.5px] text-slate-400" title={evidence?.note ?? "Thiết lập và cổng chỉ là MÔ TẢ, không phải khuyến nghị"} data-testid="decision3-evidence">{ran ? "MÔ TẢ · kiểm định KHÔNG ĐẠT" : "MÔ TẢ · chưa kiểm định"}</span>
+        <span className="ml-auto rounded border border-slate-600/60 px-1.5 py-0.5 text-[10px] text-slate-400" title={evidence?.note ?? "Thiết lập và cổng chỉ là MÔ TẢ, không phải khuyến nghị"} data-testid="decision3-evidence">{ran ? "MÔ TẢ · kiểm định KHÔNG ĐẠT" : "MÔ TẢ · chưa kiểm định"}</span>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 text-[10px]">
         <div className="space-y-0.5">
-          <div className="text-[9px] uppercase text-slate-500">Thiết lập</div>
+          <div className="text-[10px] uppercase text-slate-500">Thiết lập</div>
           {d.setups.map((s) => (
             <div key={s.key} className="flex gap-1.5" data-testid={`setup-${s.key}`} title={s.why}>
               <span className={s.on ? "text-emerald-300" : "text-slate-600"}>{s.on ? "●" : "○"}</span>
               <span className={s.on ? "text-slate-100 font-bold" : "text-slate-400"}>{s.label}</span>
-              {ev(SETUP_H[s.key]) && <span className={`ml-auto shrink-0 font-mono text-[9px] ${ev(SETUP_H[s.key])!.verdict === "PASS" ? "text-emerald-300" : "text-slate-500"}`} title={`${SETUP_H[s.key]} ngoài mẫu sau phí — ${ev(SETUP_H[s.key])!.verdict === "PASS" ? "ĐẠT" : "KHÔNG ĐẠT"}`}>{SETUP_H[s.key]} {pct(ev(SETUP_H[s.key])!.OOS?.mean)}</span>}
+              {ev(SETUP_H[s.key]) && <span className={`ml-auto shrink-0 font-mono text-[10px] ${ev(SETUP_H[s.key])!.verdict === "PASS" ? "text-emerald-300" : "text-slate-500"}`} title={`${SETUP_H[s.key]} ngoài mẫu sau phí — ${ev(SETUP_H[s.key])!.verdict === "PASS" ? "ĐẠT" : "KHÔNG ĐẠT"}`}>{SETUP_H[s.key]} {pct(ev(SETUP_H[s.key])!.OOS?.mean)}</span>}
             </div>
           ))}
         </div>
         <div className="space-y-0.5">
-          <div className="text-[9px] uppercase text-slate-500">Cổng cấm vào</div>
+          <div className="text-[10px] uppercase text-slate-500">Cổng cấm vào</div>
           {d.gates.map((g) => (
             <div key={g.key} className="flex gap-1.5" data-testid={`gate-${g.key}`}>
               <span className={g.hit ? "text-rose-300" : "text-emerald-300/80"}>{g.hit ? "✗" : "✓"}</span>
@@ -44,13 +44,13 @@ export default function DecisionCard({ d, evidence }: { d: Decision3View; eviden
           ))}
           {d.late && <div className="flex gap-1.5 text-rose-200"><span>✗</span>Đã quá muộn: giá cách điểm kích hoạt &gt; 1,5 ATR</div>}
           {ev("H5") && ev("H5")!.verdict !== "PASS" && (
-            <p className="text-[9px] text-amber-300/80 leading-snug" data-testid="decision3-h5">
+            <p className="text-[10px] text-amber-300/80 leading-snug" data-testid="decision3-h5">
               Kiểm định H5 không đạt{(ev("H5")!.OOS?.mean ?? 0) > 0 ? `: nhóm bị cổng chặn còn TỐT hơn nhóm được phép (${pct(ev("H5")!.OOS?.mean)} ngoài mẫu)` : ""} — cổng chỉ để mô tả rủi ro, không dùng để loại mã.
             </p>
           )}
         </div>
         <div className="space-y-0.5" data-testid="decision3-plan">
-          <div className="text-[9px] uppercase text-slate-500">Kế hoạch nếu vào ở giá hiện tại</div>
+          <div className="text-[10px] uppercase text-slate-500">Kế hoạch nếu vào ở giá hiện tại</div>
           {p ? (
             <>
               <div>Vào <b className="text-slate-100">{price(p.entry)}</b> · cắt lỗ <b className="text-rose-200">{price(p.stop)}</b> <span className="text-slate-500">({p.stopBasis})</span></div>

@@ -19,7 +19,7 @@ export default function AdaptiveModelStrip() {
 
   return (
     <div className="rounded-lg p-2" style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
-      <div className="flex items-center justify-between text-[9.5px] mb-1">
+      <div className="flex items-center justify-between text-[10px] mb-1">
         <span className="text-violet-200 font-semibold">Trọng số học được</span>
         <div className="flex items-center gap-1" role="tablist" aria-label="Kỳ hạn mô hình">
           {[3, 5, 10].map((h) => {
@@ -27,7 +27,7 @@ export default function AdaptiveModelStrip() {
             return (
               <button key={h} role="tab" aria-selected={horizon === h} onClick={() => setHorizon(h)}
                 title={on ? `Mô hình T+${h} đang chạy` : `T+${h}: chưa có mô hình đạt kiểm định`}
-                className={`text-[9px] px-1.5 py-px rounded ${horizon === h ? "bg-violet-500/30 text-violet-100" : "bg-white/5 text-slate-400"}`}>
+                className={`text-[10px] px-1.5 py-px rounded ${horizon === h ? "bg-violet-500/30 text-violet-100" : "bg-white/5 text-slate-400"}`}>
                 T+{h}{on ? " ●" : ""}
               </button>
             );
@@ -37,7 +37,7 @@ export default function AdaptiveModelStrip() {
       </div>
       {model?.holdout ? (
         <>
-          <div className="grid grid-cols-3 gap-1 text-[9px] mb-1.5">
+          <div className="grid grid-cols-3 gap-1 text-[10px] mb-1.5">
             <div title={`Brier skill ngoài mẫu so với dự báo bằng tỷ lệ nền (>0 là tốt hơn)${model.holdout.bootstrap ? ` · KTC90% (bootstrap theo ${model.holdout.bootstrap.days} ngày): ${(model.holdout.bootstrap.brierSkill90[0] * 100).toFixed(2)}% … ${(model.holdout.bootstrap.brierSkill90[1] * 100).toFixed(2)}%` : ""}`}>
               <div className="text-slate-500">Brier skill</div><div className="text-slate-100">{(model.holdout.brierSkill * 100).toFixed(2)}%</div>
             </div>
@@ -50,7 +50,7 @@ export default function AdaptiveModelStrip() {
             </div>
           </div>
           {topWeights.map((w) => (
-            <div key={w.name} className="flex items-center gap-1 text-[9px]">
+            <div key={w.name} className="flex items-center gap-1 text-[10px]">
               <span className="w-36 truncate text-slate-400" title={data.featureLabels[w.name]}>{data.featureLabels[w.name] ?? w.name}</span>
               <div className="flex-1 h-1.5 relative bg-white/5 rounded">
                 <div className="absolute top-0 h-full w-px bg-slate-500" style={{ left: "50%" }} />
@@ -62,15 +62,15 @@ export default function AdaptiveModelStrip() {
               <span className="w-10 text-right text-slate-300">{w.weight >= 0 ? "+" : "−"}{Math.abs(w.weight).toFixed(2)}</span>
             </div>
           ))}
-          <div className="text-[8.5px] text-slate-500 mt-1">
+          <div className="text-[10px] text-slate-500 mt-1">
             Kiểm định {model.holdout.from}→{model.holdout.to} · n={model.holdout.n.toLocaleString("vi-VN")}
             {model.regimeModels.length ? ` · riêng theo: ${model.regimeModels.map((r) => REGIME_LABEL[r]).join(", ")}` : ""}
           </div>
         </>
       ) : (
-        <div className="text-[9px] text-slate-400">{training?.reason ?? "Mô hình chỉ được dùng khi có kỹ năng ngoài mẫu dương; đang tích luỹ dữ liệu."}</div>
+        <div className="text-[10px] text-slate-400">{training?.reason ?? "Mô hình chỉ được dùng khi có kỹ năng ngoài mẫu dương; đang tích luỹ dữ liệu."}</div>
       )}
-      <div className="text-[8.5px] text-slate-500 mt-1">
+      <div className="text-[10px] text-slate-500 mt-1">
         {data.counts ? `${data.counts.signals.toLocaleString("vi-VN")} tín hiệu · ${data.counts.outcomes.toLocaleString("vi-VN")} lần chấm điểm · ` : ""}{data.disclaimer}
       </div>
     </div>

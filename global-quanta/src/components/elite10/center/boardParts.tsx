@@ -14,7 +14,7 @@ export function BuyTimingCell({ cell, compact = false }: { cell?: BuyCell; compa
   return (
     <span title={cell.tooltip} data-kind={cell.kind} className={`inline-flex flex-col leading-tight ${cell.dashed ? "border-b border-dashed border-slate-500/60" : ""}`}>
       <b className={`whitespace-nowrap ${BUY_TONE[cell.kind]}`}>{BUY_ICON[cell.kind]} {cell.text}</b>
-      {!compact && <span className="text-[9.5px] text-slate-500 whitespace-nowrap">{cell.sub}</span>}
+      {!compact && <span className="text-[10px] text-slate-500 whitespace-nowrap">{cell.sub}</span>}
     </span>
   );
 }
@@ -23,7 +23,7 @@ export function BuyTimingCell({ cell, compact = false }: { cell?: BuyCell; compa
 export function SectionControls({ id, open, compact, onToggleOpen, onToggleCompact, testid }: {
   id: string; open: boolean; compact: boolean; onToggleOpen: () => void; onToggleCompact: () => void; testid: string;
 }) {
-  const btn = "min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:border-cyan-400/50 hover:text-cyan-200";
+  const btn = "min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]";
   return (
     <span className="inline-flex items-center gap-1">
       {open && <button type="button" className={btn} aria-pressed={compact} onClick={onToggleCompact} data-testid={`${testid}-compact`}

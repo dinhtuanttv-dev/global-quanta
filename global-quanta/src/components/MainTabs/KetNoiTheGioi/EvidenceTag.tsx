@@ -18,7 +18,7 @@ const STYLE: Record<EvidenceKind, { label: string; color: string; bg: string; ti
 export default function EvidenceTag({ kind, title }: { kind: EvidenceKind; title?: string }) {
   const s = STYLE[kind];
   const nav = useWorldNav();
-  const cls = "text-[8px] font-bold px-1.5 py-0.5 rounded shrink-0";
+  const cls = "text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0";
   if (nav) return <button type="button" onClick={(e) => { e.stopPropagation(); nav.openEvidence(); }} title={`${title ?? s.title} Bấm để mở Bằng chứng.`} className={cls} style={{ background: s.bg, color: s.color, cursor: "pointer" }}>{s.label}</button>;
   return (
     <span title={title ?? s.title} className={cls}
@@ -31,7 +31,7 @@ export default function EvidenceTag({ kind, title }: { kind: EvidenceKind; title
 /** Quy tắc khi các phần heuristic và phần bằng chứng nói khác nhau (W7). */
 export function EvidencePriorityNote() {
   return (
-    <p className="text-[9px] leading-relaxed rounded-lg px-3 py-2"
+    <p className="text-[10px] leading-relaxed rounded-lg px-3 py-2"
       style={{ color: "var(--text-tertiary, #64748b)", background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.1)" }}>
       <b style={{ color: "var(--text-secondary, #94a3b8)" }}>Quy tắc ưu tiên:</b> nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước —
       xếp hạng ngành thuận/ngược gió <b>ngắn hạn</b> (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC

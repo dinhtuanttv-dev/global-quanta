@@ -142,20 +142,20 @@
    ≤ 1280px độ rộng / thanh khoản / phiên chuyển vào "Thị trường ▾"; ≤ 980px vĩ mô cũng vào đó; ≤ 820px thanh 2 hàng
    (hàng 1: logo · VN-Index · nguồn · Thị trường · tài khoản; hàng 2: ô tìm mã toàn chiều rộng).
    ============================================================ */
-.tb-status { font-size: 8.5px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; margin-left: 4px; }
+.tb-status { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; margin-left: 4px; }
 .tb-status.st-live { color: var(--positive, #34D399); }
 .tb-status.st-warn { color: #FBBF24; }
 .tb-status.st-sim { color: #C4B5FD; }
 .tb-status.st-bad { color: var(--negative, #F87171); }
 .tb-status.st-muted { color: var(--text-tertiary, #7d8590); }
-.topbar-pro .regime-tag { font-size: 8px; font-weight: 700; margin-left: 5px; padding: 0 4px; border-radius: 4px; background: rgba(251,191,36,0.12); color: #FBBF24; }
+.topbar-pro .regime-tag { font-size: 10px; font-weight: 700; margin-left: 5px; padding: 0 4px; border-radius: 4px; background: rgba(251,191,36,0.12); color: #FBBF24; }
 .topbar-pro .regime-unknown { background: rgba(148,163,184,0.08); color: var(--text-secondary); border-color: rgba(148,163,184,0.25); }
 .tb-trigger { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; }
 .tb-trigger:focus-visible, .topbar-pro .avatar:focus-visible { outline: 2px solid var(--gold-bright, #E8C170); outline-offset: 2px; border-radius: 6px; }
 .topbar-pro .liq-trigger { padding: 0 6px; }
 .topbar-pro .breadth-bar .breadth-unch { background: rgba(148,163,184,0.45); }
 .topbar-pro .session .sd.mid, .tb-popover .session .sd.mid { background: #FBBF24; }
-.session-phase { margin-left: 4px; font-size: 9.5px; color: var(--text-secondary); white-space: nowrap; }
+.session-phase { margin-left: 4px; font-size: 10px; color: var(--text-secondary); white-space: nowrap; }
 .tb-more { display: none; }
 .tb-more-btn { position: relative; font-size: 10.5px; font-weight: 700; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border-strong, #2E3850); color: var(--text-secondary); min-height: 32px; }
 .tb-more-dot { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: #FBBF24; }
@@ -278,7 +278,7 @@
 .vhd-row-label { font-weight: 600; color: var(--text-secondary); }
 .vhd-row-val { text-align: right; font-family: var(--font-mono); }
 .vhd-row-chg { text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 3px; font-weight: 700; }
-.vhd-row-arrow { font-size: 8px; }
+.vhd-row-arrow { font-size: 10px; }
 
 .vhd-skeleton { display: flex; flex-direction: column; gap: 6px; }
 .vhd-skeleton-row {
@@ -305,7 +305,7 @@
   display: flex;
   gap: 6px;
 }
-.vhd-note-icon { color: var(--gold-bright, #E8C170); flex-shrink: 0; font-size: 8px; margin-top: 2px; }
+.vhd-note-icon { color: var(--gold-bright, #E8C170); flex-shrink: 0; font-size: 10px; margin-top: 2px; }
 
 
 /* ============================================================
@@ -378,7 +378,7 @@
 .liq-bar-up { background: var(--positive); box-shadow: 0 0 8px rgba(52,211,153,0.4); }
 .liq-bar-down { background: var(--negative); box-shadow: 0 0 8px rgba(248,113,113,0.4); }
 .liq-bar-today .liq-bar-track { border-left: 1px dashed rgba(212,166,76,0.3); padding-left: 4px; }
-.liq-bar-label { font-size: 8.5px; color: var(--text-tertiary); font-family: var(--font-mono); }
+.liq-bar-label { font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); }
 .liq-bar-label-today { color: var(--gold-bright, #E8C170); font-weight: 700; }
 
 .liq-panel-stats { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
@@ -399,7 +399,7 @@
 .liq-signal-extreme { background: rgba(248,113,113,0.14); color: var(--negative); animation: liq-pulse 1.6s ease-in-out infinite; }
 
 .liq-panel-note {
-  font-size: 9.5px; color: var(--text-tertiary); line-height: 1.6;
+  font-size: 10px; color: var(--text-tertiary); line-height: 1.6;
   padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06);
 }
 
@@ -409,7 +409,7 @@
 
 
 .vn-hero-gt-estimated { cursor: help; border-bottom: 1px dashed rgba(232,193,112,0.4); }
-.vn-hero-info-icon { font-size: 8px; color: var(--gold-bright, #E8C170); margin-left: 3px; }
+.vn-hero-info-icon { font-size: 10px; color: var(--gold-bright, #E8C170); margin-left: 3px; }
 
 /* Đổi mật khẩu (menu tài khoản / lần đăng nhập đầu) */
 .tb-pw-form { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 8px; font-size: 11px; }

@@ -28,7 +28,7 @@ export default function ChartSignalsValidation() {
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
         Kiểm định tín hiệu chart · VN100 · ngoài mẫu
       </p>
-      <p className="text-[9.5px] text-slate-500 mb-2 leading-relaxed">
+      <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">
         {R.universe} mã, {R.data.from} → {R.data.to}. Trong mẫu ≤ 2024, NGOÀI MẪU 2025–2026. Lợi suất VƯỢT TRỘI so với TB cùng ngày của tập mã,
         vào mở cửa T+1, tín hiệu mua trừ phí 0,6%. Tiêu chí đặt trước: KTC ngoài mẫu không chứa 0, cùng chiều trong mẫu, BH-FDR q ≤ 0,1,
         placebo p ≤ 0,1, ≥ 50% mã cùng chiều. {anyChartSignalPassed ? "" : <b className="text-amber-300">Chưa tín hiệu nào đạt — mọi tín hiệu trên chart chỉ là MÔ TẢ, không phải lợi thế.</b>}
@@ -49,13 +49,13 @@ export default function ChartSignalsValidation() {
                   <span className="text-slate-600"> [{r.OOS.ci ? `${pct(r.OOS.ci[0])}; ${pct(r.OOS.ci[1])}` : "—"}] n {r.OOS.n}</span>
                 </td>
                 <td className="pr-2 text-right font-mono text-slate-400 whitespace-nowrap">{r.q ?? "—"} · {r.placeboP ?? "—"} · {r.stability.share != null ? `${Math.round(r.stability.share * 100)}%` : "—"}</td>
-                <td><span className={`px-1.5 py-0.5 rounded border text-[8.5px] font-bold whitespace-nowrap ${BADGE[r.verdict].cls}`}>{BADGE[r.verdict].text}</span></td>
+                <td><span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold whitespace-nowrap ${BADGE[r.verdict].cls}`}>{BADGE[r.verdict].text}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <p className="text-[8.5px] text-slate-600 mt-2">
+      <p className="text-[10px] text-slate-600 mt-2">
         Cảnh báo (C2): dương = giá vẫn tăng hơn thị trường sau tín hiệu (cảnh báo sai chiều). Tiêu chí: {R.prereg} · chạy {R.generatedAt}.
         Rê chuột lên từng dòng để xem lý do không đạt.
       </p>

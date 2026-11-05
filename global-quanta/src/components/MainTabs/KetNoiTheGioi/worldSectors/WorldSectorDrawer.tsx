@@ -69,7 +69,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
       <div className="relative h-full w-full md:w-[800px] flex flex-col" style={{ background: "var(--bg-surface, #0e1626)", borderLeft: "1px solid rgba(148,163,184,0.15)" }}>
         <header className="flex items-start justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
           <div>
-            <p className="text-[9px] uppercase font-bold" style={muted}>Ngành Việt Nam · ICB {icb} · phân tích tác động thế giới</p>
+            <p className="text-[10px] uppercase font-bold" style={muted}>Ngành Việt Nam · ICB {icb} · phân tích tác động thế giới</p>
             <h3 className="text-sm font-black" style={{ color: "#f1f5f9" }}>{row.nameVi}</h3>
             <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
               Ngắn hạn {fmtZ(s.score, 2)} ({labelVi[s.label]}) · Trung hạn {fmtZ(m.score, 2)} ({labelVi[m.label]}) · phiên VN {fmtDate(row.vnLast)}
@@ -103,7 +103,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                 <tr style={{ borderTop: "1px solid rgba(148,163,184,0.2)" }}><td className="py-1 font-bold" style={{ color: "#f1f5f9" }}>Tổng hợp</td><td className="text-center font-bold">{fmtZ(s.score, 2)}</td><td className="text-center">{fmtZ(s.week?.score ?? null, 2)}</td><td className="text-center font-bold">{fmtZ(m.score, 2)}</td></tr>
               </tbody>
             </table>
-            <p className="text-[9.5px]" style={muted}>
+            <p className="text-[10px]" style={muted}>
               {s.evidence?.labelVi}. Trung hạn: {data?.evidence.medium.labelVi ?? "thăm dò"}.
               {m.gap3m != null && ` Khoảng chênh 3 tháng (thế giới − ngành VN): ${fmtZ(m.gap3m, 2)} — ${m.gap3m > 0 ? "VN đang đi sau ngành thế giới" : "VN đang đi trước ngành thế giới"} (mô tả, không phải tín hiệu đã kiểm định).`}
             </p>
@@ -115,7 +115,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
             <>
               <Section title="Xu hướng: ngành VN ↔ Mỹ / Âu / Á (quy về 100 đầu khung)" tag={<EvidenceTag kind="data" />}>
                 <LineChart testId="ws-chart" series={series} height={240} refLines={[{ y: 100, label: "100" }]} ariaLabel={`Xu hướng ngành ${row.nameVi} so với ngành tương ứng ở Mỹ, châu Âu, châu Á`} />
-                <p className="text-[9.5px]" style={muted}>Chọn mã đại diện tốt nhất mỗi khu vực theo mức khớp rồi tương quan. Giá ETF bằng đồng tiền địa phương (không quy đổi).</p>
+                <p className="text-[10px]" style={muted}>Chọn mã đại diện tốt nhất mỗi khu vực theo mức khớp rồi tương quan. Giá ETF bằng đồng tiền địa phương (không quy đổi).</p>
               </Section>
 
               <Section title="Quan hệ với từng mã nước ngoài" tag={<EvidenceTag kind="heuristic" title={data.evidence.relationsVi} />}>
@@ -139,11 +139,11 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[9.5px]" style={muted}>Tương quan/beta: lợi suất phiên VN với phiên nước ngoài TRƯỚC đó, 250 phiên; * vượt ngưỡng ~95%. "Đồng thời" = cùng phiên (chỉ sàn châu Á giao dịch cùng giờ). Thăm dò — không phải bằng chứng.</p>
+                <p className="text-[10px]" style={muted}>Tương quan/beta: lợi suất phiên VN với phiên nước ngoài TRƯỚC đó, 250 phiên; * vượt ngưỡng ~95%. "Đồng thời" = cùng phiên (chỉ sàn châu Á giao dịch cùng giờ). Thăm dò — không phải bằng chứng.</p>
                 {focus && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <div><p className="text-[9px]" style={muted}>{focus.symbol}: tương quan theo độ trễ (phiên nước ngoài đi trước)</p><LeadLagBars rel={focus} /></div>
-                    <div><p className="text-[9px]" style={muted}>{focus.symbol}: tương quan cuộn 60 phiên</p>
+                    <div><p className="text-[10px]" style={muted}>{focus.symbol}: tương quan theo độ trễ (phiên nước ngoài đi trước)</p><LeadLagBars rel={focus} /></div>
+                    <div><p className="text-[10px]" style={muted}>{focus.symbol}: tương quan cuộn 60 phiên</p>
                       <LineChart series={[{ key: "rc", label: "Tương quan cuộn", color: SERIES_COLORS.s3, points: (focus.rolling ?? []).filter((p): p is [string, number] => p[1] != null) }]} height={96} yFmt={(v) => num(v, 1)} refLines={[{ y: 0, label: "0" }]} ariaLabel={`Tương quan cuộn ${focus.symbol}`} directLabels={false} />
                     </div>
                   </div>
@@ -177,7 +177,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                     </tbody>
                   </table>
                 </div>
-                <p className="text-[9.5px]" style={muted}>{data.stocksNoteVi}</p>
+                <p className="text-[10px]" style={muted}>{data.stocksNoteVi}</p>
               </Section>
             </>
           )}

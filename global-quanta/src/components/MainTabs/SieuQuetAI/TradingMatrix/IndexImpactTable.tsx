@@ -45,7 +45,7 @@ export default function IndexImpactTable({ data, onSelect, onIndustry }: { data:
           ? <>Trong phiên {when(data.date)} · giá lúc {new Date(data.asOf ?? "").toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}{data.refreshing ? " (đang làm mới)" : ""} · so đóng cửa {when(data.prevSession ?? null)}{data.lastError ? <span className="text-amber-300"> · đang dùng bản {Math.round((data.ageSec ?? 0) / 60)} phút trước ({data.lastError})</span> : null}</>
           : <>Phiên {when(data.date)}</>} · Σ đóng góp <b className="font-mono">{c ? `${c.predictedPoints >= 0 ? "+" : ""}${vn(c.predictedPoints, 2)}` : "—"}</b> điểm
         {c?.actualPoints != null && <> · VN-Index thật <b className="font-mono">{c.actualPoints >= 0 ? "+" : ""}{vn(c.actualPoints, 2)}</b> điểm</>}
-        {c && <span className={`ml-1 text-[9px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`} data-testid="mx-impact-check">
+        {c && <span className={`ml-1 text-[10px] px-1 rounded ${ok ? "text-emerald-300 bg-emerald-500/10" : "text-amber-300 bg-amber-500/10"}`} data-testid="mx-impact-check">
           {ok ? `✓ khớp (lệch ${vn(c.diffPp, 3)} điểm %)` : c.status === "NO_INDEX" ? "chưa có VN-Index phiên này" : `⚠ lệch ${vn(c.diffPp, 3)} điểm % — có thể thiếu sự kiện quyền / mã mới`}
         </span>}
       </p>
@@ -57,13 +57,13 @@ export default function IndexImpactTable({ data, onSelect, onIndustry }: { data:
         <div className="flex flex-wrap gap-1" aria-label="Đóng góp theo ngành">
           {sectors.map((s) => (
             <button key={s.industry} type="button" onClick={() => onIndustry(s.industry)} title={`Lọc bảng theo ${s.industry} · ${s.n} mã (${s.up} tăng / ${s.down} giảm)`}
-              className={`text-[9.5px] px-1.5 py-0.5 rounded border ${s.points >= 0 ? "border-emerald-500/30 text-emerald-200" : "border-rose-500/30 text-rose-200"} hover:bg-white/5`}>
+              className={`text-[10px] px-1.5 py-0.5 rounded border ${s.points >= 0 ? "border-emerald-500/30 text-emerald-200" : "border-rose-500/30 text-rose-200"} hover:bg-white/5`}>
               {s.industry} {s.points >= 0 ? "▲ +" : "▼ "}{vn(s.points, 2)}
             </button>
           ))}
         </div>
       )}
-      <p className="text-[9px] text-slate-500">
+      <p className="text-[10px] text-slate-500">
         {data.coverage.symbols}/{data.coverage.of} mã HOSE có số cổ phiếu ({data.sharesSource}{data.sharesAsOf ? `, ${when(data.sharesAsOf.slice(0, 10))}` : ""}){data.coverage.missing.length ? ` · thiếu: ${data.coverage.missing.slice(0, 6).join(", ")}${data.coverage.missing.length > 6 ? "…" : ""}` : ""}
         {data.sharesWarning ? ` · dùng bản lưu (${data.sharesWarning})` : ""}
       </p>

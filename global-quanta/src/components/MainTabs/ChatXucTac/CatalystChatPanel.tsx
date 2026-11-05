@@ -98,7 +98,7 @@ export function LaneView({ t, showHeader, headerLabel }: { t: Lane; showHeader: 
       )}
       {t.error && <Banner tone="warn">{t.error}</Banner>}
       {t.done && !t.error && (
-        <div style={{ fontSize: 9.5, color: "var(--text-tertiary)", marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 4 }}>
           Thông tin tham khảo, không phải khuyến nghị đầu tư.{t.fallback ? " (Trả lời bởi mô hình dự phòng.)" : ""}
         </div>
       )}

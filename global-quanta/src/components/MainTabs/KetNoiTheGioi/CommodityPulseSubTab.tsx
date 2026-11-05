@@ -33,9 +33,9 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
       <div className="flex items-start justify-between gap-2">
         <p className="text-[10px] font-bold" style={{ color: T.textSecondary }}>{c.nameVi}</p>
         <div className="flex items-center gap-1 shrink-0">
-          {c.vnPrice && <span title="Giá xuất khẩu của Việt Nam (không phải giá thế giới quy đổi)" className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>GIÁ VIỆT NAM</span>}
-          {stale !== null && <span title="Nguồn chưa có số mới" className="text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.12)", color: T.gold }}>cũ {stale} ngày</span>}
-          <span className="text-[8px] px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: T.textTertiary }}>{c.freq === "day" ? "NGÀY" : c.freq === "month" ? "THÁNG" : "—"}</span>
+          {c.vnPrice && <span title="Giá xuất khẩu của Việt Nam (không phải giá thế giới quy đổi)" className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(52,211,153,0.1)", color: T.positive }}>GIÁ VIỆT NAM</span>}
+          {stale !== null && <span title="Nguồn chưa có số mới" className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "rgba(245,158,11,0.12)", color: T.gold }}>cũ {stale} ngày</span>}
+          <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: T.textTertiary }}>{c.freq === "day" ? "NGÀY" : c.freq === "month" ? "THÁNG" : "—"}</span>
         </div>
       </div>
       {c.available ? (
@@ -47,8 +47,8 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
             <p className="text-[10px] font-bold" style={{ color: chg == null ? T.textTertiary : chg >= 0 ? T.positive : T.negative }}>
               {fmtPct(chg)} <span className="font-normal" style={{ color: T.textTertiary }}>{c.change?.basisVi}</span>
             </p>
-            {stats?.z != null && <p className="text-[9px]" data-testid={`commodity-z-${c.id}`} style={{ color: stats.unusual ? T.gold : T.textTertiary }} title="So với 60 phiên trước; vị trí trong biên 252 phiên">z {fmtSigned(stats.z, 1)}{stats.rangePct != null ? ` · biên năm ${stats.rangePct.toFixed(0)}%` : ""}</p>}
-            {c.yoyPct != null && <p className="text-[9px]" style={{ color: T.textTertiary }}>So với cùng kỳ năm trước: <b style={{ color: c.yoyPct >= 0 ? T.positive : T.negative }}>{fmtPct(c.yoyPct, 1)}</b></p>}
+            {stats?.z != null && <p className="text-[10px]" data-testid={`commodity-z-${c.id}`} style={{ color: stats.unusual ? T.gold : T.textTertiary }} title="So với 60 phiên trước; vị trí trong biên 252 phiên">z {fmtSigned(stats.z, 1)}{stats.rangePct != null ? ` · biên năm ${stats.rangePct.toFixed(0)}%` : ""}</p>}
+            {c.yoyPct != null && <p className="text-[10px]" style={{ color: T.textTertiary }}>So với cùng kỳ năm trước: <b style={{ color: c.yoyPct >= 0 ? T.positive : T.negative }}>{fmtPct(c.yoyPct, 1)}</b></p>}
           </div>
           <TrendSparkline values={hist.map((h) => h[1])} width={96} height={30}
             label={hist.length ? `${c.nameVi}: ${hist.length} ${c.freq === "day" ? "phiên" : "tháng"}, ${fmtPeriod(hist[0][0])} → ${fmtPeriod(hist[hist.length - 1][0])}` : undefined} />
@@ -56,26 +56,26 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
       ) : (
         <p className="text-xs italic" style={{ color: T.textTertiary }}>{c.reasonVi ?? "Chưa có dữ liệu"}</p>
       )}
-      <p className="text-[8.5px]" style={{ color: T.textTertiary }}>
+      <p className="text-[10px]" style={{ color: T.textTertiary }}>
         {c.available && <>{c.freq === "day" ? "Phiên" : "Kỳ"} {fmtPeriod(c.period)}{hist.length > 1 && ` · xu hướng ${hist.length} ${c.freq === "day" ? "phiên" : "tháng"}`} · </>}
         {c.source.symbol ? `${c.source.symbol} — ` : ""}{c.source.labelVi}
         {c.freq === "month" && c.source.updatedOn && ` (bản công bố ${fmtPeriod(c.source.updatedOn)})`}
       </p>
       {c.vnTickers.length > 0 && (
         <div className="flex flex-wrap items-center gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
-          <span title="Ánh xạ đặt tay mặt hàng → cổ phiếu VN, chưa kiểm định ngoài mẫu" className="text-[8px]" style={{ color: T.textTertiary }}>Mã liên quan (heuristic):</span>
+          <span title="Ánh xạ đặt tay mặt hàng → cổ phiếu VN, chưa kiểm định ngoài mẫu" className="text-[10px]" style={{ color: T.textTertiary }}>Mã liên quan (heuristic):</span>
           {c.vnTickers.map((t) => (
-            <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
+            <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
           ))}
         </div>
       )}
       {c.available && (
-        <p className="text-[9px] flex items-center gap-0.5" style={{ color: T.gold }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
+        <p className="text-[10px] flex items-center gap-0.5" style={{ color: T.gold }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
       )}
       {c.twoWayVi && (
         <div className="flex items-start gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
           <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" style={{ color: T.gold }} />
-          <p className="text-[8px] italic" style={{ color: T.textTertiary }}>{c.twoWayVi}</p>
+          <p className="text-[10px] italic" style={{ color: T.textTertiary }}>{c.twoWayVi}</p>
         </div>
       )}
     </div>
@@ -107,13 +107,13 @@ export default function CommodityPulseSubTab() {
           </div>
           {groups.map(([g, xs]) => (
             <div key={g}>
-              <p className="text-[9px] font-bold uppercase mb-1.5" style={{ color: T.textTertiary }}>{g}</p>
+              <p className="text-[10px] font-bold uppercase mb-1.5" style={{ color: T.textTertiary }}>{g}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {xs.map((c) => <CommodityCard key={c.id} c={c} stats={monitor?.items.find((m) => m.id === c.id)} onOpen={(x) => x.available && setOpen(x)} />)}
               </div>
             </div>
           ))}
-          <p className="text-[9px] italic" style={{ color: T.textTertiary }}>
+          <p className="text-[10px] italic" style={{ color: T.textTertiary }}>
             Giá NGÀY: hợp đồng tương lai kỳ gần trên Yahoo qua Gateway (nối kỳ hạn nên có thể có bước nhảy khi đáo hạn). Giá THÁNG: World Bank
             Pink Sheet — trung bình tháng, công bố đầu tháng sau
             {snap.pinkSheet?.updatedOn ? ` (bản ${fmtPeriod(snap.pinkSheet.updatedOn)}, kỳ mới nhất ${fmtPeriod(snap.pinkSheet.lastPeriod)})` : ""}
@@ -146,7 +146,7 @@ export default function CommodityPulseSubTab() {
               <div key={c.country_code} style={{ background: "rgba(2,6,15,0.6)" }} className="rounded-lg p-2.5">
                 <div className="flex items-center gap-1">
                   <Home className="w-3 h-3" style={{ color: T.textTertiary }} />
-                  <p className="text-[9px]" style={{ color: T.textTertiary }}>{c.country_name} · {c.quarter_label}</p>
+                  <p className="text-[10px]" style={{ color: T.textTertiary }}>{c.country_name} · {c.quarter_label}</p>
                 </div>
                 <p className="text-sm font-black" style={{ color: "#f1f5f9" }}>{c.real_index_value.toFixed(1)}</p>
                 {c.yoy_change_percent !== null && (
@@ -158,7 +158,7 @@ export default function CommodityPulseSubTab() {
             ))}
           </div>
         )}
-        <p className="text-[9px] italic mt-2" style={{ color: T.textTertiary }}>
+        <p className="text-[10px] italic mt-2" style={{ color: T.textTertiary }}>
           Chỉ số thực (đã điều chỉnh lạm phát), năm gốc 2010=100. Nguồn: Bank for International Settlements.
         </p>
       </div>

@@ -204,7 +204,7 @@ export default function WyckoffSketch({ bars, w, conv, obs, fvgs, ticker }: Wyck
         ))}
       </svg>
       {hb && (
-        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[9px] font-mono text-slate-200 pointer-events-none"
+        <div className="absolute top-1 left-1 rounded-md px-2 py-1 text-[10px] font-mono text-slate-200 pointer-events-none"
           style={{ background: "rgba(2,6,15,0.92)", border: "1px solid rgba(148,163,184,0.25)" }} data-testid="wyckoff-sketch-tooltip">
           {hb.date} · O {fmt(hb.open)} H {fmt(hb.high)} L {fmt(hb.low)} C {fmt(hb.close)} · KL {fmt(hb.volume)}
         </div>
@@ -219,7 +219,7 @@ export default function WyckoffSketch({ bars, w, conv, obs, fvgs, ticker }: Wyck
           ))}
         </ul>
       )}
-      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9px] text-slate-400 mt-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400 mt-1">
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ background: UP }} />Nến tăng</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-sm" style={{ border: `1px solid ${DOWN}` }} />Nến giảm</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block w-3 h-2 rounded-sm border border-dashed" style={{ borderColor: ACCENT }} />Range Wyckoff</span>
@@ -231,7 +231,7 @@ export default function WyckoffSketch({ bars, w, conv, obs, fvgs, ticker }: Wyck
         <span>● sự kiện đã xác nhận · ◌? chờ xác nhận</span>
         <span className="ml-auto text-slate-500">{view[0].date} → {view[view.length - 1].date} · {from > 0 ? `${view.length} phiên` : "toàn bộ"}</span>
       </div>
-      {hidden.length > 0 && <p className="text-[9px] text-slate-500 mt-0.5">Ngoài khung: {hidden.map((l) => l.label).join(" · ")}</p>}
+      {hidden.length > 0 && <p className="text-[10px] text-slate-500 mt-0.5">Ngoài khung: {hidden.map((l) => l.label).join(" · ")}</p>}
     </div>
   );
 }

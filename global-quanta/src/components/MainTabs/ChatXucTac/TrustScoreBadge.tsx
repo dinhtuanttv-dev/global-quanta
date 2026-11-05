@@ -11,7 +11,7 @@ export default function TrustScoreBadge({ trustScore }: Props) {
 
   return (
     <span style={{
-      fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 10,
+      fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 10,
       color, background: bg, whiteSpace: "nowrap",
     }} title="Điểm tin cậy — tính từ độ lặp lại nguồn tin và lịch sử chính xác">
       Tin cay {trustScore}

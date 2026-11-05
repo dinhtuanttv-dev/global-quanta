@@ -25,7 +25,7 @@ function Chip<T extends string>({ value, current, onChange, children, testId }: 
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[9px] px-2 py-0.5 rounded-full border transition ${on ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -96,7 +96,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
         </button>
       </header>
 
-      <p className="text-[9px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
+      <p className="text-[10px] text-slate-500 leading-relaxed flex flex-wrap items-start gap-x-1 gap-y-0.5">
         <Info className="w-3 h-3 shrink-0 mt-px" />
         <span className="flex-1 min-w-[14rem]">
           Theo "Martin Pring on Price Patterns" (ch1–17): đỉnh/đáy đôi–ba, vai-đầu-vai, chữ nhật, tam giác, nêm, mở rộng, cờ, đáy/đỉnh tròn, cốc tay cầm, đảo.
@@ -107,11 +107,11 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
 
       {v && (
         <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-2 space-y-1" data-testid="pattern-evidence">
-          <div className="flex flex-wrap items-center gap-2 text-[9.5px]">
-            <span className="text-[8px] px-1.5 py-0.5 rounded font-bold bg-amber-500/15 text-amber-300">{v.label}</span>
+          <div className="flex flex-wrap items-center gap-2 text-[10px]">
+            <span className="text-[10px] px-1.5 py-0.5 rounded font-bold bg-amber-500/15 text-amber-300">{v.label}</span>
             <span className="text-slate-300">Kiểm định đặt trước P3 · {v.period.symbols} mã · {v.period.from} → {v.period.to} · ngoài mẫu từ {v.period.oosFrom}</span>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 text-[9px]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1 text-[10px]">
             {Object.entries(v.H1).map(([k, g]) => (
               <div key={k} className="rounded border border-slate-800 px-1.5 py-1">
                 <div className="flex justify-between gap-1"><span className="text-slate-400 truncate">{k} · {g.label.split(" (")[0]}</span><span className={g.verdict === "PASS" ? "text-emerald-300 font-bold" : "text-rose-300 font-bold"}>{VERDICT_VI[g.verdict]}</span></div>
@@ -119,11 +119,11 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
               </div>
             ))}
           </div>
-          <p className="text-[9px] text-slate-400">{v.conclusion}</p>
+          <p className="text-[10px] text-slate-400">{v.conclusion}</p>
         </div>
       )}
       {data && (
-        <p className="text-[9px] text-slate-500" data-testid="pattern-live">
+        <p className="text-[10px] text-slate-500" data-testid="pattern-live">
           Theo dõi thực tế (sổ SCR_PAT_BUY / _SELL / _W_BUY / _W_SELL, ghi mỗi phiên quét 15:45 khi mô hình được xác nhận, chấm T+3/T+5/T+10 so với VN-Index):{" "}
           {live.some((g) => g.h5) ? live.map((g) => g.h5 ? `${g.label} T+5: n ${g.h5.n}, trúng ${Math.round(g.h5.hitRate * 100)}% (nền ${Math.round(g.h5.baseline * 100)}%)` : `${g.label}: chưa đủ mẫu`).join(" · ") : "chưa có tín hiệu đủ T+5."}
         </p>
@@ -179,17 +179,17 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
                         title={`Phân tích chuyên sâu ${r.ticker} (bấm lại hoặc Esc để đóng)`} aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}
                       </button>
-                      <span className="block text-[8px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
+                      <span className="block text-[10px] text-slate-600 truncate max-w-[9rem]">{r.sector ?? "—"}</span>
                     </td>
                     <td className="py-1.5 text-[10px] hidden sm:table-cell"><StructureCell row={structureRows.byTicker.get(r.ticker)} /></td>
                   <td className="py-1.5 text-[10px] hidden sm:table-cell"><ElliottCell row={elliottLatest[r.ticker]} /></td>
                     <td className="py-1.5">
                       <span className={p.dir === "bull" ? "text-emerald-300" : "text-rose-300"}>{p.label}</span>
-                      <span className="block text-[8px] text-slate-500">{p.timeframe === "W" ? "Tuần" : "Ngày"} · {p.role === "continuation" ? "tiếp diễn" : "đảo chiều"} · {fmtN(p.heightPct, 0)}%</span>
+                      <span className="block text-[10px] text-slate-500">{p.timeframe === "W" ? "Tuần" : "Ngày"} · {p.role === "continuation" ? "tiếp diễn" : "đảo chiều"} · {fmtN(p.heightPct, 0)}%</span>
                     </td>
                     <td className="py-1.5">
-                      <span className={`text-[8.5px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${STATE_STYLE[p.state]}`}>{p.stateLabel}</span>
-                      {p.barWarn.length > 0 && <span className="block text-[7.5px] text-amber-300 mt-0.5">⚠ nến cảnh báo tại phá vỡ</span>}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-bold whitespace-nowrap ${STATE_STYLE[p.state]}`}>{p.stateLabel}</span>
+                      {p.barWarn.length > 0 && <span className="block text-[10px] text-amber-300 mt-0.5">⚠ nến cảnh báo tại phá vỡ</span>}
                     </td>
                     <td className="py-1.5 text-right font-mono text-slate-300 hidden sm:table-cell" title={`Điểm minh bạch ${p.score} (chưa kiểm định — không dùng để xếp hạng)`}>{p.checksOk}/{p.checksTotal}</td>
                     <td className={`py-1.5 text-right font-mono ${(p.distancePct ?? 0) >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{p.distancePct != null ? `${p.distancePct >= 0 ? "+" : ""}${fmtN(p.distancePct, 1)}%` : "—"}</td>

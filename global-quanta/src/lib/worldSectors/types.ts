@@ -46,8 +46,8 @@ export interface WsDetail {
 export const REGION_ORDER: RegionId[] = ["US", "EU", "JP", "KR", "TW", "CN"];
 export const REGION_SHORT: Record<RegionId, string> = { US: "Mỹ", EU: "Âu", JP: "Nhật", KR: "Hàn", TW: "Đài", CN: "TQ/HK" };
 
-/** Màu phân kỳ (dataviz: xanh dương ↔ đỏ, giữa xám) cho z ∈ [−3, 3]. */
-const POS = [57, 135, 229], NEG = [230, 103, 103], MID = [56, 56, 53];
+/** Màu phân kỳ (Emerald ↔ Rose như toàn app, giữa xám trung tính) cho z ∈ [−3, 3]. */
+const POS = [16, 185, 129], NEG = [244, 63, 94], MID = [56, 56, 53];
 export function divergingColor(z: number | null | undefined): string {
   if (z == null || !Number.isFinite(z)) return "rgba(148,163,184,0.06)";
   const t = Math.min(1, Math.abs(z) / 2.5);

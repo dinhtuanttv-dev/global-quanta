@@ -19,7 +19,7 @@ function IcCell({ s, h }: { s: EvidenceSignal; h: string }) {
     <td className="px-1 py-1 text-center" title={`${x.n} ngày (${fmtDate(x.from)} → ${fmtDate(x.to)}) · t ${num(x.t)} · q ${num(x.q, 3)} · ${x.stable ? "ổn định hai nửa" : "không ổn định hai nửa"}`}>
       <div className={`rounded px-1 py-0.5 font-mono text-[10.5px] text-slate-100 ${main ? "ring-1 ring-amber-300/60" : ""}`} style={{ background: divergingColor(x.mean == null ? null : x.mean * 100) }}>
         {sgn(x.mean, 3)}
-        <span className="block text-[9px] text-slate-300/80">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ✓" : ""}</span>
+        <span className="block text-[10px] text-slate-300/80">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ✓" : ""}</span>
       </div>
     </td>
   );
@@ -58,7 +58,7 @@ function LedgerSummaryView({ s }: { s: LedgerSummary }) {
         const x = s.horizons[h];
         return (
           <div key={h} className="rounded-md border border-white/10 bg-white/[0.02] p-2 space-y-0.5">
-            <p className="text-[9.5px] font-bold uppercase text-slate-500">Kỳ hạn {h} phiên · {x?.n ?? 0} phiên đã chấm</p>
+            <p className="text-[10px] font-bold uppercase text-slate-500">Kỳ hạn {h} phiên · {x?.n ?? 0} phiên đã chấm</p>
             <p>Vượt rổ đều (sau phí): <b>{x?.n ? `${sgn((x.meanExcess ?? 0) * 100, 2)}%` : "—"}</b>{x?.excessCi95 ? ` · KTC95 [${sgn(x.excessCi95[0] * 100, 2)}%; ${sgn(x.excessCi95[1] * 100, 2)}%]` : ""}</p>
             <p>Tỷ lệ thắng: {x?.n ? `${num((x.hitRate ?? 0) * 100, 0)}%` : "—"} · VN-Index TB: {x?.meanVnIndex != null ? `${sgn(x.meanVnIndex * 100, 2)}%` : "—"}</p>
             <p>IC của Điểm Elite: {x?.ic?.n ? `${sgn(x.ic.mean, 3)} (t ${num(x.ic.t)}, ${x.ic.n} phiên)` : "—"}</p>
@@ -81,15 +81,15 @@ function RetroSection({ r }: { r: EliteRetro | null | undefined }) {
       <LedgerSummaryView s={{ horizons: r.horizons, criteria: r.criteria, label: r.label, labelVi: r.verdictVi }} />
       <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Mẫu không chồng lấn (10 phiên)</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Mẫu không chồng lấn (10 phiên)</p>
           <p>{r.descriptive.nonOverlapping10.n} mẫu · TB {r.descriptive.nonOverlapping10.mean != null ? `${sgn(r.descriptive.nonOverlapping10.mean * 100, 2)}%` : "—"}</p>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Quy năm · vòng quay</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Quy năm · vòng quay</p>
           <p>Vượt rổ đều ≈ {r.descriptive.annualisedExcess != null ? `${sgn(r.descriptive.annualisedExcess * 100, 1)}%/năm` : "—"} · vòng quay {r.descriptive.dailyTurnover != null ? `${num(r.descriptive.dailyTurnover * 100, 0)}%/phiên` : "—"}</p>
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[9.5px] font-bold uppercase text-slate-500">Số phiên ở bậc A/B/C</p>
+          <p className="text-[10px] font-bold uppercase text-slate-500">Số phiên ở bậc A/B/C</p>
           <p className="text-[10px]">{Object.entries(r.descriptive.tierDays).map(([k, v]) => `${RETRO_LABEL[k] ?? k}: ${v.A}/${v.B}/${v.C}`).join(" · ")}</p>
         </div>
       </div>
@@ -113,9 +113,9 @@ export default function EvidenceLedgerTab() {
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-evidence-tab">
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Bằng chứng từng tín hiệu (E2)</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bằng chứng từng tín hiệu (E2)</h4>
           <span className="text-[10px] text-slate-500">{ev.version} · đo tới phiên {fmtDate(ev.calendarLast)} · {ev.tests} phép thử BH · A {ev.counts.A} · B {ev.counts.B} · C {ev.counts.C}</span>
         </div>
         <p className="text-[10.5px] text-slate-400">
@@ -134,7 +134,7 @@ export default function EvidenceLedgerTab() {
             <tbody>
               {sorted.map((s) => (
                 <tr key={s.id} className="border-t border-white/5" data-testid={`elite-ev-${s.id}`}>
-                  <td className="py-1 pr-2"><span className="text-slate-100">{s.labelVi}</span><span className="block text-[9.5px] text-slate-500">{s.tab} · {s.source}</span></td>
+                  <td className="py-1 pr-2"><span className="text-slate-100">{s.labelVi}</span><span className="block text-[10px] text-slate-500">{s.tab} · {s.source}</span></td>
                   <td className="text-center whitespace-nowrap"><TierChip tier={s.tier} />{s.change !== "none" && <span className={`ml-1 text-[10px] font-bold ${s.change === "up" ? "text-emerald-300" : "text-rose-300"}`}>{s.change === "up" ? "↑" : "↓"} từ {s.priorTier}</span>}</td>
                   {H.map((h) => <IcCell key={h} s={s} h={h} />)}
                   <td className="pl-2 text-[10px] text-slate-400" style={{ maxWidth: 260 }}>{s.reasonVi}<span className="block text-slate-500">{s.priorEvidenceVi}</span></td>
@@ -145,14 +145,14 @@ export default function EvidenceLedgerTab() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Kiểm định hồi cứu walk-forward (E7)</h4>
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm định hồi cứu walk-forward (E7)</h4>
         <RetroSection r={retro} />
       </section>
 
-      <section className="rounded-lg border border-cyan-500/20 bg-slate-950/60 p-3 space-y-2" data-testid="elite-ledger-tab">
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-ledger-tab">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Sổ theo dõi tiến Elite 10 (E3)</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Sổ theo dõi tiến Elite 10 (E3)</h4>
           {ledger && <span className="text-[10px] text-slate-500">{ledger.version} · cập nhật {ledger.updatedAt ? new Date(ledger.updatedAt).toLocaleString("vi-VN", { hour12: false }) : "—"}</span>}
         </div>
         {!ledger ? <p className="text-[11px] text-slate-500">Sổ theo dõi chưa có bản ghi.</p> : (

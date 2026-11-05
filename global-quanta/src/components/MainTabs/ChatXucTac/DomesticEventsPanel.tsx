@@ -22,13 +22,13 @@ function EventCard({ event }: { event: DomesticEvent }) {
       <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "var(--gold-bright)" }} />
 
       <span style={{
-        fontSize: 9.5, fontWeight: 700, color: "var(--gold-bright)", background: "rgba(251,191,36,0.1)",
+        fontSize: 10, fontWeight: 700, color: "var(--gold-bright)", background: "rgba(251,191,36,0.1)",
         padding: "3px 8px", borderRadius: 5, display: "inline-block", marginBottom: 6,
       }}>{TAG_LABEL[event.tag] ?? event.tag}</span>
 
       <p style={{ fontSize: 13.5, fontWeight: 700, margin: "0 0 12px", lineHeight: 1.4 }}>{event.title}</p>
 
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9.5, color: "var(--text-tertiary)", marginBottom: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-tertiary)", marginBottom: 6 }}>
         {event.stages.map((s, i) => (
           <span key={i} style={{
             color: i === event.activeStageIndex ? "var(--gold-bright)" : "var(--text-tertiary)",
@@ -59,10 +59,10 @@ function EventCard({ event }: { event: DomesticEvent }) {
 
       {isTrustedUrl(event.sourceUrl) ? (
         <a href={event.sourceUrl} target="_blank" rel="noopener noreferrer" style={{
-          fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6, textDecoration: "underline",
+          fontSize: 10, color: "var(--text-tertiary)", display: "block", marginTop: 6, textDecoration: "underline",
         }}>Nguon: {event.sourceName}</a>
       ) : (
-        <span style={{ fontSize: 9, color: "var(--text-tertiary)", display: "block", marginTop: 6 }}>
+        <span style={{ fontSize: 10, color: "var(--text-tertiary)", display: "block", marginTop: 6 }}>
           Nguồn: {event.sourceName} (URL chưa xác thực — đã ẩn liên kết)
         </span>
       )}

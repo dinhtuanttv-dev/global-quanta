@@ -48,10 +48,10 @@ function Card({ title, tone, main, children, foot, testId }: { title: string; to
   const t = TONE[tone];
   return (
     <div className={`rounded-lg border ${t.bd} ${t.bg} px-2.5 py-2 min-w-0 flex flex-col gap-0.5`} data-testid={testId}>
-      <div className="text-[9px] uppercase tracking-wide text-slate-500">{title}</div>
+      <div className="text-[10px] uppercase tracking-wide text-slate-500">{title}</div>
       <div className={`text-[13px] font-semibold leading-tight ${t.fg} truncate`}>{main}</div>
       <div className="text-[10px] text-slate-300 leading-snug min-h-[14px]">{children}</div>
-      <div className="text-[9px] text-slate-500 mt-auto truncate">{foot}</div>
+      <div className="text-[10px] text-slate-500 mt-auto truncate">{foot}</div>
     </div>
   );
 }
@@ -87,7 +87,7 @@ export function FlowCard({ f }: { f: MatrixOverview["flow"] }) {
   const s = FLOW_VI[f.state] ?? FLOW_VI.UNKNOWN;
   return (
     <Card title="Dòng tiền" tone={s.tone} testId="mx-flow"
-      main={<><span aria-hidden>{s.glyph}</span> {s.text}{f.partial && f.state !== "UNKNOWN" ? <span className="ml-1 text-[9px] text-amber-300 font-normal">(thiếu nguồn)</span> : null}</>}
+      main={<><span aria-hidden>{s.glyph}</span> {s.text}{f.partial && f.state !== "UNKNOWN" ? <span className="ml-1 text-[10px] text-amber-300 font-normal">(thiếu nguồn)</span> : null}</>}
       foot={<>{f.sources.length ? f.sources.map((x) => (x === "IFE" ? "Dấu chân lệnh" : "Khối ngoại (chốt phiên)")).join(" + ") : "Chưa có nguồn"}</>}>
       {f.foreign ? <span>NN 5 phiên {bn(f.foreign.net5)}{f.foreign.streak ? ` · chuỗi ${f.foreign.streak > 0 ? "mua" : "bán"} ${Math.abs(f.foreign.streak)}` : ""}</span> : <span className="text-slate-500">Khối ngoại: chưa có</span>}
       {f.ife && <span className="block">Dấu chân z5 {f.ife.zLd5 >= 0 ? "+" : "−"}{vn(Math.abs(f.ife.zLd5), 2)}</span>}
