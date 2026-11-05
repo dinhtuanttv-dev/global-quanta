@@ -1,7 +1,8 @@
 // Elite 10 E6 — "Bằng chứng & sổ theo dõi": kết quả engine bằng chứng E2 (IC hạng theo kỳ hạn, t Newey–West, q Benjamini–Hochberg,
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
-import { useEliteEvidence, useEliteLedger, useEliteRetro } from "../../../hooks/elite10/useEliteCenter";
+import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
+import type { EliteRetroV3 } from "../../../lib/elite10/decisionTypes";
 import { divergingColor } from "../../../lib/worldSectors/types";
 import type { EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
@@ -99,10 +100,48 @@ function RetroSection({ r }: { r: EliteRetro | null | undefined }) {
   );
 }
 
+const WEIGHTING_VI: Record<string, string> = { erc: "ERC", "inverse-vol": "nghịch biến động" };
+
+/** E7-v3: bốn tiêu chí, Deflated Sharpe, PBO và lưới 12 cấu hình (lợi nhuận vượt theo ngày sau phí). */
+function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
+  if (!r) return <p className="text-[11px] text-slate-500">Kiểm định E7-v3 chưa chạy.</p>;
+  const c = r.criteria;
+  const mark = (ok: boolean) => <b className={ok ? "text-emerald-300" : "text-rose-300"}>{ok ? "đạt" : "không đạt"}</b>;
+  const h10 = r.horizons["10"];
+  return (
+    <div className="space-y-2 text-[11px]" data-testid="elite-retro-v3">
+      <p className={`font-bold ${r.pass ? "text-emerald-300" : "text-amber-300"}`}>{r.verdictVi}</p>
+      <p className="text-slate-400">{r.version} · {r.period.sessions} phiên walk-forward, {r.period.dailyN} ngày lợi nhuận ({fmtDate(r.period.from)} → {fmtDate(r.period.to)}) · khoảng đệm 5 phiên · phí mua 0,15%, bán 0,25%.</p>
+      <ul className="grid grid-cols-1 gap-1 md:grid-cols-2" data-testid="elite-retro-v3-criteria">
+        <li>1. IC của Z ở 5 phiên: {num(r.horizons["5"]?.ic.mean ?? null, 3)} (t {num(r.horizons["5"]?.ic.t ?? null, 2)}) · {mark(c.icPass)}</li>
+        <li>2. Lợi suất vượt 10 phiên sau phí: {h10?.meanExcess != null ? `${sgn(h10.meanExcess * 100, 2)}%` : "—"}{h10?.excessCi95 ? ` (KTC 95% ${sgn(h10.excessCi95[0] * 100, 2)}% … ${sgn(h10.excessCi95[1] * 100, 2)}%)` : ""} · {mark(c.excessPass)}</li>
+        <li title="Bailey & López de Prado (2014): xác suất Sharpe thật > Sharpe tối đa kỳ vọng do may mắn khi đã thử N cấu hình">3. Deflated Sharpe (N = {r.deflatedSharpe.N}): {num(r.deflatedSharpe.dsr, 3)} (cần ≥ 0,95; N = 24: {num(r.deflatedSharpe.sensitivityN24, 3)}) · {mark(c.dsrPass)}</li>
+        <li title="Bailey và cộng sự (2017), CSCV: xác suất cấu hình tốt nhất trong mẫu lại dưới trung vị ngoài mẫu">4. Xác suất quá khớp PBO: {num(r.pbo.pbo, 3)} ({r.pbo.splits} cách chia, cần &lt; 0,5) · {mark(c.pboPass)}</li>
+      </ul>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] text-[10.5px]" data-testid="elite-retro-v3-grid">
+          <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Cấu hình</th><th className="pr-2 text-right">Sharpe năm</th><th className="text-right">Vượt rổ đều / năm</th></tr></thead>
+          <tbody className="font-mono">
+            {r.grid.map((g) => (
+              <tr key={g.id} className={g.primary ? "text-[#F5CE72]" : "text-slate-300"}>
+                <td className="py-0.5 pr-2 font-sans">{g.size} mã · {g.bufferRank ? `đệm ${g.bufferRank}` : "không đệm"} · {WEIGHTING_VI[g.weighting] ?? g.weighting}{g.primary ? " (chính)" : ""}</td>
+                <td className="pr-2 text-right">{num(g.sharpeAnnual, 2)}</td>
+                <td className="text-right">{sgn(g.annualExcess * 100, 1)}%</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[10px] text-slate-500">Các cấu hình phụ chỉ để đo quá khớp; chọn lại cấu hình theo bảng này là lọc dữ liệu và phải qua đăng ký trước mới. Phiên hồi cứu không cộng vào sổ tiến.</p>
+    </div>
+  );
+}
+
 export default function EvidenceLedgerTab() {
   const { data: ev, error } = useEliteEvidence();
   const { data: ledger } = useEliteLedger();
   const { data: retro } = useEliteRetro();
+  const { data: retroV3 } = useEliteRetroV3();
   const sorted = useMemo(() => {
     const order = { A: 0, B: 1, C: 2 } as const;
     return [...(ev?.signals ?? [])].sort((a, b) => order[a.tier] - order[b.tier] || (b.byH[String(b.mainH)]?.mean ?? -9) - (a.byH[String(a.mainH)]?.mean ?? -9));
@@ -148,6 +187,11 @@ export default function EvidenceLedgerTab() {
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm định hồi cứu walk-forward (E7)</h4>
         <RetroSection r={retro} />
+      </section>
+
+      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Hiệu chỉnh quá khớp (E7-v3)</h4>
+        <RetroV3Section r={retroV3} />
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-ledger-tab">

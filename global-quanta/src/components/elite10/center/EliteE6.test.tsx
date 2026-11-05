@@ -28,8 +28,17 @@ const risk = {
   sectors: [{ key: "8700", weight: 0.6 }, { key: "8300", weight: 0.4 }],
   correlation: { tickers: ["ORS", "NAB"], matrix: [[1, 0.42], [0.42, 1]] },
 };
+const retroV3 = {
+  version: "E7-v3 (prereg 2026-11-06)", period: { from: "2025-12-30", to: "2026-11-05", sessions: 210, dailyN: 208 },
+  criteria: { icPass: true, excessPass: false, dsrPass: false, pboPass: true }, pass: false, label: "EXPERIMENTAL",
+  verdictVi: "KHÔNG ĐẠT: lợi suất vượt 10 phiên sau phí chưa có cận dưới KTC 95% > 0; DSR 0.056 < 0,95.",
+  horizons: { 5: { n: 204, meanExcess: 0.003, excessCi95: null, ic: { n: 204, mean: 0.0315, t: 2.74 } }, 10: { n: 199, meanExcess: 0.0047, excessCi95: [-0.0016, 0.0094], ic: { n: 199, mean: 0.03, t: 2.3 } } },
+  deflatedSharpe: { dsr: 0.056, sr: 0.0257, sr0: 0.1356, N: 12, T: 208, sensitivityN24: 0.025 },
+  pbo: { pbo: 0.004, splits: 252, blockLength: 20 },
+  grid: [{ id: "10-b-erc", size: 10, bufferRank: 20, weighting: "erc", primary: true, sharpeAnnual: 0.41, annualExcess: 0.047 }, { id: "10-n-erc", size: 10, bufferRank: 0, weighting: "erc", primary: false, sharpeAnnual: -1.17, annualExcess: -0.119 }],
+};
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
-  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRisk: () => ({ data: risk, isLoading: false }),
+  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRetroV3: () => ({ data: retroV3 }), useEliteRisk: () => ({ data: risk, isLoading: false }),
 }));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] } } }) }));
 
@@ -48,6 +57,18 @@ describe("Elite 10 E6 — Bằng chứng & Rủi ro", () => {
     expect(rv).toContain("chưa đo");
     expect(screen.getByTestId("elite-ledger-tab").textContent).toContain("chờ");
     expect(screen.getByTestId("elite-ledger-tab").textContent).toContain("Chưa đủ phiên đã chấm");
+  });
+
+  it("E7-v3: kết luận, bốn tiêu chí (DSR, PBO), lưới cấu hình với cấu hình chính", () => {
+    render(<EvidenceLedgerTab />);
+    const box = screen.getByTestId("elite-retro-v3");
+    expect(box.textContent).toContain("KHÔNG ĐẠT");
+    const cr = screen.getByTestId("elite-retro-v3-criteria").textContent ?? "";
+    expect(cr).toContain("Deflated Sharpe (N = 12): 0,056");
+    expect(cr).toContain("PBO: 0,004");
+    const grid = screen.getByTestId("elite-retro-v3-grid").textContent ?? "";
+    expect(grid).toContain("10 mã · đệm 20 · ERC (chính)");
+    expect(grid).toContain("không đệm");
   });
 
   it("rủi ro: chỉ số chính, đóng góp rủi ro, tương quan, căng thẳng, tên ngành", () => {
