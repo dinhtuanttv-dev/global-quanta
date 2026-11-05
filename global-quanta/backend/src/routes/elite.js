@@ -117,8 +117,17 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
   const admin = (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }));
   router.post("/admin/evidence", admin, wrap(async (req, res) => {
     if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
-    const ev = await getEvidence().update();
+    const ev = await getEvidence().update({ retryEmpty: req.query.retryEmpty === "1" });
     res.json({ version: ev.version, calendarLast: ev.calendarLast, tests: ev.tests, counts: ev.counts });
+  }));
+
+  /** Độ phủ dữ liệu bằng chứng (R0): phát hiện khi số ngày đo tụt bất thường. */
+  let coverageMemo = null;
+  router.get("/coverage", wrap(async (req, res) => {
+    if (!getEvidence?.().coverage) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
+    if (!coverageMemo || Date.now() - coverageMemo.at > 10 * 60_000) coverageMemo = { at: Date.now(), doc: await getEvidence().coverage() };
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(coverageMemo.doc);
   }));
 
   router.get("/decision", wrap(async (req, res) => {

@@ -100,3 +100,42 @@ test("E2 engine: đo hồi cứu dòng tiền + tiến từ bảng E1, tăng d�
   assert.equal(flowReads, reads, "lần chạy lại không có ngày mới -> không đọc lại market_flow_daily");
   assert.deepEqual((await eng.evidence()).counts, ev.counts);
 });
+
+test("E2 R0: ngày 'không đo được' được thử lại khi có dữ liệu (7 ngày hoặc admin), độ phủ báo đúng", async () => {
+  const { store, cal, daily, flow } = fixture();
+  await store.upsertMarketDaily(daily);
+  // Lần đầu kho chỉ có dòng tiền 10 phiên cuối (như lúc Railway mới nạp lại) -> các ngày cũ bị đánh dấu rỗng.
+  const recent = new Set(cal.slice(-10));
+  await store.upsertRows("market_flow_daily", flow.filter((r) => recent.has(r.trading_date)), "symbol,trading_date");
+  const panel = { dates: async () => [cal.at(-1)], panel: async () => ({ date: cal.at(-1), rows: [] }) };
+  let t = Date.parse("2026-08-10T12:00:00Z");
+  const eng = createEvidenceEngine({ store, panel, now: () => t, log: { warn() {} } });
+  const n0 = (await eng.update()).signals.find((s) => s.id === "stealth5").byH[5].n;
+  assert.ok(n0 <= 5, `n0=${n0}`);
+  const cov0 = await eng.coverage();
+  assert.equal(cov0.flow.dates, 10);
+  assert.ok(cov0.signals.find((s) => s.id === "stealth5").empty > 50, "ngày cũ đang bị đánh dấu rỗng");
+
+  // Lịch sử được nạp lại.
+  await store.upsertRows("market_flow_daily", flow, "symbol,trading_date");
+  t += 86_400_000; // chưa đủ 7 ngày, không yêu cầu -> giữ nguyên (không đọc lại mỗi đêm)
+  assert.equal((await eng.update()).signals.find((s) => s.id === "stealth5").byH[5].n, n0);
+  const n1 = (await eng.update({ retryEmpty: true })).signals.find((s) => s.id === "stealth5").byH[5].n;
+  assert.ok(n1 >= 80, `admin thử lại -> n=${n1}`);
+  const cov1 = await eng.coverage();
+  assert.equal(cov1.flow.dates, cal.length);
+  assert.equal(cov1.signals.find((s) => s.id === "stealth5").empty, 0);
+  assert.ok(cov1.ic.lastRetried > 50);
+});
+
+test("E2 R0: tự thử lại sau 7 ngày không cần admin", async () => {
+  const { store, cal, daily, flow } = fixture();
+  await store.upsertMarketDaily(daily);
+  const panel = { dates: async () => [cal.at(-1)], panel: async () => ({ date: cal.at(-1), rows: [] }) };
+  let t = Date.parse("2026-08-10T12:00:00Z");
+  const eng = createEvidenceEngine({ store, panel, now: () => t, log: { warn() {} } });
+  assert.equal((await eng.update()).signals.find((s) => s.id === "stealth5").byH[5].n, 0);
+  await store.upsertRows("market_flow_daily", flow, "symbol,trading_date");
+  t += 8 * 86_400_000;
+  assert.ok((await eng.update()).signals.find((s) => s.id === "stealth5").byH[5].n >= 80);
+});

@@ -18,6 +18,9 @@ const CAL_SYMBOLS = ["VNM", "FPT", "HPG", "VCB", "MWG"];
 const MAX_H = Math.max(...HORIZONS);
 const LOOKBACK_DAYS = 420;
 
+const EMPTY_RETRY_MS = 7 * 86_400_000;
+const isEmptyMark = (v) => Array.isArray(v) && v[0] == null && v[1] === 0;
+
 const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 
 /**
@@ -65,10 +68,24 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
     return day;
   }
 
-  /** Tính phần còn thiếu của chuỗi IC. Trả tài liệu IC đã cập nhật. */
-  async function updateIc() {
+  /**
+   * Tính phần còn thiếu của chuỗi IC. Trả tài liệu IC đã cập nhật.
+   * R0 (05/11/2026): ngày từng ghi "không đo được" ([null, 0]) cho tín hiệu dòng tiền được thử lại mỗi 7 ngày hoặc khi admin yêu
+   * cầu (retryEmpty). Trước đây dấu này là vĩnh viễn: khi kho Railway dựng lại lúc bảng dòng tiền chưa nạp xong, gần như toàn bộ
+   * lịch sử bị đánh dấu rỗng và bằng chứng E2 tụt từ ~230 xuống 9 ngày dù dữ liệu đã có lại.
+   */
+  async function updateIc({ retryEmpty = false } = {}) {
     const doc = (await kv(EVIDENCE_KV.ic)) ?? { version: E2_VERSION, series: {}, pending: {}, flowFrom: null };
     if (doc.version !== E2_VERSION) { doc.version = E2_VERSION; doc.series = {}; doc.pending = {}; }
+    const due = !doc.emptyRetryAt || now() - Date.parse(doc.emptyRetryAt) >= EMPTY_RETRY_MS;
+    let retried = 0;
+    if (retryEmpty || due) {
+      for (const sig of Object.keys(FLOW_SIGNALS)) for (const m of Object.values(doc.series?.[sig] ?? {})) {
+        for (const [d, v] of Object.entries(m)) if (isEmptyMark(v)) { delete m[d]; retried++; }
+      }
+      doc.emptyRetryAt = new Date(now()).toISOString();
+    }
+    doc.lastRetried = retried;
     const panelDates = await panel.dates();
     const lastPanel = panelDates[panelDates.length - 1];
     if (!lastPanel) return doc;
@@ -180,10 +197,10 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
     };
   }
 
-  async function update() {
+  async function update(opts = {}) {
     if (running) return running;
     running = (async () => {
-      const icDoc = await updateIc();
+      const icDoc = await updateIc(opts);
       const ev = evaluate(icDoc);
       await store.setKv(EVIDENCE_KV.evidence, ev);
       memo = ev;
@@ -198,6 +215,28 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
     return memo;
   }
 
-  return { update, evidence, evaluate, updateIc };
+  /** Độ phủ dữ liệu (R0): số ngày dòng tiền có đặc trưng, số ngày đo IC từng tín hiệu ở kỳ hạn chính, số dấu "không đo được". */
+  async function coverage() {
+    const icDoc = (await kv(EVIDENCE_KV.ic)) ?? { series: {} };
+    const rows = await store.selectRows(RESEARCH_T.flow, { select: "symbol,trading_date,features" });
+    const perDate = new Map();
+    for (const r of rows ?? []) if (r.features && Number.isFinite(Number(r.features.stealth20))) perDate.set(r.trading_date, (perDate.get(r.trading_date) ?? 0) + 1);
+    const dates = [...perDate.keys()].sort();
+    const counts = dates.map((d) => perDate.get(d)).sort((a, b) => a - b);
+    const signals = SIGNAL_SPECS.map((s) => {
+      const h = s.id === "ws_sector_alpha" ? 1 : 5;
+      const m = icDoc.series?.[s.id]?.[h] ?? {};
+      const vals = Object.values(m);
+      return { id: s.id, mainH: h, measured: vals.filter((v) => v?.[0] != null).length, empty: vals.filter(isEmptyMark).length };
+    });
+    return {
+      generatedAt: new Date(now()).toISOString(),
+      flow: { dates: dates.length, first: dates[0] ?? null, last: dates[dates.length - 1] ?? null, symbolsMedian: counts.length ? counts[counts.length >> 1] : 0, symbolsMin: counts[0] ?? 0 },
+      ic: { updatedAt: icDoc.updatedAt ?? null, emptyRetryAt: icDoc.emptyRetryAt ?? null, lastRetried: icDoc.lastRetried ?? null },
+      signals,
+    };
+  }
+
+  return { update, evidence, evaluate, updateIc, coverage };
 }
 

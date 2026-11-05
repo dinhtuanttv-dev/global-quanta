@@ -2,7 +2,9 @@
 //   researchFlow      16:00 — cô đặc nến phút / tick Lee–Ready mỗi phiên -> market_flow_daily + Volume Profile
 //                            (mã đã có: chỉ phiên mới; mã chưa có: nạp tối đa RESEARCH_FLOW_MAX_BACKFILL mã/lần)
 //   researchBackfill  20:30 — như researchFlow nhưng lô lớn hơn (nạp lịch sử ~1 năm ≈ 100 s/mã từ SSI),
-//                            ngoài giờ giao dịch; tiến độ lưu theo từng mã nên chạy tiếp được sau khi bị ngắt
+//                            ngoài giờ giao dịch; tiến độ lưu theo từng mã nên chạy tiếp được sau khi bị ngắt.
+//                            R0 (05/11/2026): thêm LẤP LỖ HỔNG cho mã đã có dữ liệu (lịch sử mất khi Supabase ngừng): mỗi mã
+//                            thử một lần (KV research:flow-gaps-tried), tối đa RESEARCH_FLOW_GAP_MAX mã/đêm.
 //   researchSignals   16:20 — Regime + Impulse theo ngày, đặc trưng IFE, ghi sổ cái tín hiệu
 //   researchEvaluate  16:40 — chấm T+3/T+5/T+10, tổng hợp hiệu suất, cô đặc/dọn tick, làm mới materialized view
 //   researchTrain     Thứ Bảy 10:30 — tinh chỉnh trọng số (champion / challenger)
@@ -24,6 +26,8 @@ export const RESEARCH_KV = {
   evaluatedThrough: "research:evaluated-through",
   performance: "research:performance",
   model: "research:model",
+  flowGapsTried: "research:flow-gaps-tried",
+  featuresRecompute: "research:features-recompute",
 };
 
 export const T = {
@@ -38,6 +42,8 @@ export const T = {
 const FLOW_SESSIONS = () => Number(process.env.RESEARCH_FLOW_SESSIONS) || 250;
 const MAX_BACKFILL = () => Number(process.env.RESEARCH_FLOW_MAX_BACKFILL) || 20;
 const MAX_BACKFILL_NIGHT = () => Number(process.env.RESEARCH_BACKFILL_MAX) || 90;
+const MAX_GAP_NIGHT = () => Number(process.env.RESEARCH_FLOW_GAP_MAX) || 40;
+const MIN_GAP_SESSIONS = 5;
 const TICK_KEEP_DAYS = () => Number(process.env.RESEARCH_TICK_KEEP_DAYS) || 60;
 const num = (v) => (v === null || v === undefined ? null : Number(v));
 
@@ -104,7 +110,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
   }
 
   /** Cô đặc nến phút từng phiên của universe (gia tăng; nạp lịch sử cho tối đa `maxBackfill` mã chưa có). */
-  async function flowJob({ maxBackfill }) {
+  async function flowJob({ maxBackfill, maxGap = 0 }) {
     const provider = service.router.providers?.ssiFcV2;
     if (!provider?.isConfigured?.()) throw new Error("Chưa cấu hình SSI FC Data cho nến phút.");
     const symbols = await universeTickers();
@@ -119,7 +125,19 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
     const known = symbols.filter((s) => existing.has(s));
     const fresh = symbols.filter((s) => !existing.has(s));
     const batch = [...known, ...fresh.slice(0, maxBackfill)];
-    let sessions = 0, failed = 0, skipped = 0;
+    let sessions = 0, failed = 0, skipped = 0, gapSessions = 0;
+    // Lỗ hổng của mã đã có dữ liệu: phiên trong cửa sổ chưa có dòng, trước phiên cuối đã có. Thử mỗi mã một lần.
+    const tried = maxGap > 0 ? ((await store.getKv(RESEARCH_KV.flowGapsTried))?.value ?? {}) : {};
+    const gapsOf = (symbol) => {
+      const have = existing.get(symbol) ?? [];
+      const last = have.at(-1)?.trading_date ?? null;
+      if (!last) return [];
+      const got = new Set(have.map((r) => r.trading_date));
+      return dates.filter((d) => d < last && !got.has(d));
+    };
+    const gapBatch = maxGap > 0
+      ? known.filter((s) => !tried[s] && gapsOf(s).length >= MIN_GAP_SESSIONS).slice(0, maxGap)
+      : [];
     await mapLimit(batch, 2, async (symbol) => {
       const have = existing.get(symbol) ?? [];
       const last = have.at(-1)?.trading_date ?? null;
@@ -145,7 +163,37 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         console.warn(`[research] researchFlow ${symbol}: ${error.message}`);
       }
     });
+    // Lấp lỗ hổng: ngưỡng p95 chỉ lấy từ các phiên TRƯỚC lỗ hổng (point-in-time, không dùng thông tin về sau).
+    await mapLimit(gapBatch, 2, async (symbol) => {
+      const gaps = gapsOf(symbol);
+      const have = existing.get(symbol) ?? [];
+      try {
+        const from = gaps[0], to = gaps.at(-1);
+        const bars = await provider.getIntradayRange(symbol, from, to);
+        const wanted = new Set(gaps);
+        const grouped = groupSessions(bars).filter((s) => wanted.has(s.date));
+        const ticks = typeof store.getTickFlowRange === "function" ? groupTickRows(await store.getTickFlowRange({ symbol, from, to })) : new Map();
+        const daily = await store.getMarketDailyRange({ from, to, symbols: [symbol] });
+        const refByDate = new Map(daily.filter((r) => r.refPrice > 0).map((r) => [r.date, r.refPrice]));
+        const { flow, profiles } = summarizeSessions(grouped, {
+          priorP95s: have.filter((r) => r.trading_date < from).map((r) => num(r.minute_p95)), tickByDate: ticks, refByDate,
+        });
+        if (flow.length) await store.upsertRows(T.flow, flow.map((f) => flowToRow(symbol, f)), "symbol,trading_date");
+        if (profiles.length) await store.upsertRows(T.profile, profiles.map((p) => profileToRow(symbol, p)), "symbol,trading_date");
+        gapSessions += flow.length;
+        tried[symbol] = { at: new Date(now()).toISOString(), gaps: gaps.length, filled: flow.length };
+      } catch (error) {
+        failed++;
+        console.warn(`[research] flow gap ${symbol}: ${error.message}`);
+      }
+    });
+    if (gapBatch.length) await store.setKv(RESEARCH_KV.flowGapsTried, tried);
+    // Đặc trưng cuộn (VD Stealth 20) của các phiên sau lỗ hổng đã tính trên chuỗi thiếu -> researchSignals tính lại một lần.
+    if (gapSessions > 0) await store.setKv(RESEARCH_KV.featuresRecompute, { at: new Date(now()).toISOString(), sessions: gapSessions });
+    const gapRemaining = maxGap > 0 ? known.filter((s) => !tried[s] && gapsOf(s).length >= MIN_GAP_SESSIONS).length : null;
+
     return {
+      gapFilled: gapBatch.length, gapSessionsWritten: gapSessions, gapRemaining,
       symbols: symbols.length, processed: batch.length, sessionsWritten: sessions, upToDate: skipped, failed,
       backfilled: Math.min(fresh.length, maxBackfill), backfillRemaining: Math.max(0, fresh.length - maxBackfill),
       window: [dates[0], dates.at(-1)],
@@ -154,7 +202,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
 
   const jobs = {
     researchFlow: () => flowJob({ maxBackfill: MAX_BACKFILL() }),
-    researchBackfill: () => flowJob({ maxBackfill: MAX_BACKFILL_NIGHT() }),
+    researchBackfill: () => flowJob({ maxBackfill: MAX_BACKFILL_NIGHT(), maxGap: MAX_GAP_NIGHT() }),
 
     /** Regime + Impulse theo ngày, đặc trưng IFE, sổ cái tín hiệu (gia tăng). */
     async researchSignals() {
@@ -174,6 +222,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
 
       // 2. Đặc trưng + tín hiệu theo mã.
       const through = (await store.getKv(RESEARCH_KV.signalsThrough))?.value?.date ?? null;
+      const recompute = Boolean((await store.getKv(RESEARCH_KV.featuresRecompute))?.value?.at);
       const flowAll = groupBy((await store.selectRows(T.flow, { gte: { trading_date: from }, order: "trading_date.asc" })).map(flowFromRow), "symbol");
       const profAll = groupBy(await store.selectRows(T.profile, { gte: { trading_date: from }, select: "symbol,trading_date,poc,va_low,va_high,vwap,bins" }), "symbol");
       const models = await activeModels();
@@ -188,7 +237,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         for (const f of flow) {
           const day = feats.get(f.date);
           if (!day) continue;
-          if (!f.features || !through || f.date > through) flowUpdates.push(flowToRow(symbol, f, { ...day.features, regime: day.regime }));
+          if (recompute || !f.features || !through || f.date > through) flowUpdates.push(flowToRow(symbol, f, { ...day.features, regime: day.regime }));
           if (through && f.date <= through) continue;
           if (!lastDate || f.date > lastDate) lastDate = f.date;
           const common = { symbol, signal_date: f.date, regime: day.regime };
@@ -234,6 +283,7 @@ export function createResearchJobs(service, { now = Date.now } = {}) {
         console.warn(`[research] marketIntel: ${error.message}`);
       }
       await upsertChunked(store, T.flow, flowUpdates, "symbol,trading_date");
+      if (recompute) await store.setKv(RESEARCH_KV.featuresRecompute, { at: null, doneAt: new Date(now()).toISOString(), rows: flowUpdates.length });
       await upsertChunked(store, T.ledger, ledger, "symbol,signal_date,signal");
       // Ghi bù tín hiệu ngày cũ hơn mốc đã chấm -> lùi mốc để researchEvaluate chấm cả phần bù.
       const evaluated = (await store.getKv(RESEARCH_KV.evaluatedThrough))?.value?.date ?? null;
