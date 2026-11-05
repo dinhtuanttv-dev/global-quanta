@@ -92,7 +92,7 @@ export function DividendTimelinePanel({ events }: { events: DividendLifecycleEve
                           ? { background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.4)" }
                           : { background: "rgba(148,163,184,0.06)", border: "0.5px solid rgba(148,163,184,0.15)" }
                       }
-                      className="w-[19px] h-[19px] rounded-full flex items-center justify-center text-[9px] font-bold text-cf-secondary shrink-0 z-10"
+                      className="w-[19px] h-[19px] rounded-full flex items-center justify-center text-[10px] font-bold text-cf-secondary shrink-0 z-10"
                     >
                       {mi + 1}
                     </div>

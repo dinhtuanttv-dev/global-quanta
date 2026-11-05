@@ -44,16 +44,16 @@ function QuarterTile({ q, stats, active, upcoming, onClick }: { q: QuarterSeason
     <button type="button" onClick={onClick} aria-pressed={active}
       className={`text-left rounded-lg px-2.5 py-2 border transition-colors ${active ? 'border-cyan-500/50 bg-cyan-500/5' : 'border-white/5 bg-white/[0.02] hover:border-white/15'}`}>
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[11px] font-semibold" style={{ color: quarter ? QCOLOR[quarter as Quarter] : undefined }}>Q{quarter}{upcoming && <span className="ml-1 text-[9px] font-normal text-cyan-300">· kỳ tới</span>}</span>
+        <span className="text-[11px] font-semibold" style={{ color: quarter ? QCOLOR[quarter as Quarter] : undefined }}>Q{quarter}{upcoming && <span className="ml-1 text-[10px] font-normal text-cyan-300">· kỳ tới</span>}</span>
         <span className="font-mono tabular-nums text-[10px] text-slate-400">{q ? `Th${q.typicalAnnounceMonth}${q.announceMonthStd > 0.03 ? ` ±${q.announceMonthStd.toFixed(1)}` : ''}` : '—'}</span>
       </div>
       <div className="mt-1 text-[10px] text-slate-500">P(phản ứng +)</div>
       <div className="font-mono tabular-nums text-[13px] font-semibold" style={{ color: rp ? (rp.mean >= 0.5 ? '#34d399' : '#fb7185') : '#64748b' }}>
         {rp ? pct0(rp.mean) : '—'}
-        {rp ? <span className="ml-1 text-[9.5px] font-normal text-slate-500">[{pct0(rp.ci[0])}–{pct0(rp.ci[1])}]</span>
-          : <span className="ml-1.5 font-sans text-[9.5px] font-normal text-slate-500">chưa đủ bằng chứng</span>}
+        {rp ? <span className="ml-1 text-[10px] font-normal text-slate-500">[{pct0(rp.ci[0])}–{pct0(rp.ci[1])}]</span>
+          : <span className="ml-1.5 font-sans text-[10px] font-normal text-slate-500">chưa đủ bằng chứng</span>}
       </div>
-      <div className="text-[9.5px] text-slate-500 truncate">{sel ? `${sel.label} · ${pct(sel.netExpectancy)}` : `${q?.nEvents ?? stats?.windows[0]?.nEvents ?? 0} kỳ lịch sử`}</div>
+      <div className="text-[10px] text-slate-500 truncate">{sel ? `${sel.label} · ${pct(sel.netExpectancy)}` : `${q?.nEvents ?? stats?.windows[0]?.nEvents ?? 0} kỳ lịch sử`}</div>
     </button>
   );
 }
@@ -62,7 +62,7 @@ function WindowsTable({ stats }: { stats: EarningsCycleStatsV3 }) {
   return (
     <table className="w-full text-[10.5px]">
       <thead>
-        <tr className="text-slate-500 text-[9.5px]">
+        <tr className="text-slate-500 text-[10px]">
           <th className="text-left font-normal py-1">Cửa sổ (ngày GD quanh công bố)</th>
           <th className="text-right font-normal">Số kỳ</th>
           <th className="text-right font-normal" title="Lợi nhuận vượt VN-Index trung bình sau phí, thuế">Ròng TB</th>
@@ -80,14 +80,14 @@ function WindowsTable({ stats }: { stats: EarningsCycleStatsV3 }) {
             <tr key={w.id} className={`border-t border-white/5 ${isSel ? 'bg-amber-500/[0.06]' : ''}`}>
               <td className="py-1 pr-2">
                 <div className={isSel ? 'text-amber-300 font-medium' : 'text-slate-200'}>{w.label}</div>
-                <div className="font-mono tabular-nums text-[9.5px] text-slate-500">vào [{w.entryFrom}, {w.entryTo}] → thoát {w.exitOffset >= 0 ? `+${w.exitOffset}` : w.exitOffset}</div>
+                <div className="font-mono tabular-nums text-[10px] text-slate-500">vào [{w.entryFrom}, {w.entryTo}] → thoát {w.exitOffset >= 0 ? `+${w.exitOffset}` : w.exitOffset}</div>
               </td>
               <td className="text-right font-mono tabular-nums text-slate-300">{w.nEvents}</td>
               <td className="text-right font-mono tabular-nums" style={{ color: w.netExpectancy >= 0 ? '#34d399' : '#fb7185' }}>{pct(w.netExpectancy)}</td>
               <td className="text-right font-mono tabular-nums" style={{ color: w.netExpectancyLcb > 0 ? '#34d399' : '#94a3b8' }}>{pct(w.netExpectancyLcb)}</td>
               <td className="text-right font-mono tabular-nums text-slate-300">{pct0(w.winRate)}</td>
               <td className="text-right font-mono tabular-nums" style={{ color: w.fdrQValue <= 0.1 ? '#fbbf24' : '#94a3b8' }}>{w.fdrQValue.toFixed(2)}</td>
-              <td className="text-right"><span className={`inline-block px-1.5 py-px rounded border text-[9px] font-semibold whitespace-nowrap ${v.cls}`}>{v.text}</span></td>
+              <td className="text-right"><span className={`inline-block px-1.5 py-px rounded border text-[10px] font-semibold whitespace-nowrap ${v.cls}`}>{v.text}</span></td>
             </tr>
           );
         })}
@@ -110,7 +110,7 @@ function QuarterCar({ ticker, quarter, todayOffset }: { ticker: string; quarter:
   const paths = useEarningsCyclePaths(ticker, quarter);
   return (
     <div className="rounded-lg p-2 h-full [&_p]:!text-[10.5px] [&_p]:!leading-snug [&_label]:!text-[10.5px] [&_label]:text-slate-400" style={{ background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div className="text-[9.5px] text-slate-500 mb-1">CAR quanh ngày công bố <span style={{ color: QCOLOR[quarter] }}>Q{quarter}</span> — lợi nhuận vượt VN-Index tích luỹ, ngày 0 = phiên đầu tiên sau công bố</div>
+      <div className="text-[10px] text-slate-500 mb-1">CAR quanh ngày công bố <span style={{ color: QCOLOR[quarter] }}>Q{quarter}</span> — lợi nhuận vượt VN-Index tích luỹ, ngày 0 = phiên đầu tiên sau công bố</div>
       {stats.data ? <CycleTimeline stats={stats.data} paths={paths.data} todayOffset={todayOffset} eventLabel="công bố" hideWindowTable />
         : <div className="text-[10.5px] text-slate-500 py-4">{stats.status === 'loading' ? 'Đang tải…' : 'Chưa có dữ liệu.'}</div>}
     </div>
@@ -219,7 +219,7 @@ export function EarningsSeasonalityTab({ ticker, today, className, showTimeline 
         </>
       )}
 
-      <p className="text-[9.5px] text-slate-500 leading-snug">
+      <p className="text-[10px] text-slate-500 leading-snug">
         Giá: SSI (điều chỉnh cổ tức sau thuế 5%, thưởng/cổ tức CP) · Ngày công bố &amp; sự kiện quyền: VNDirect. Xác suất là hậu nghiệm Bayes
         (Beta-Binomial, prior cùng ngành × quý × cửa sổ); một cửa sổ chỉ "ĐẠT" khi đủ ≥ 8 kỳ, q-value FDR ≤ 0,1 trên 16 phép thử và cận dưới
         lợi nhuận ròng &gt; 0. Thông tin định lượng tham khảo, không phải khuyến nghị đầu tư.

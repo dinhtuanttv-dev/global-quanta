@@ -21,7 +21,7 @@ export function CycleRankingPanel({ onSelectTicker }: { onSelectTicker: (ticker:
   return (
     <div className="space-y-3">
       <div style={{ background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)" }} className="rounded-lg p-2.5">
-        <p className="text-[9px] text-sky-300">
+        <p className="text-[10px] text-sky-300">
           Xếp hạng từng mã theo <b>cửa sổ giải ngân tốt nhất của chính mã đó</b> (tính từ lịch sử cổ tức thật, 5 năm gần nhất).
           Bấm vào 1 mã để xem chi tiết 5 cửa sổ trong tab "🎯 Xác Suất Giải Ngân". Đây là <b>thống kê lịch sử, không phải khuyến nghị đầu tư</b>.
         </p>
@@ -33,7 +33,7 @@ export function CycleRankingPanel({ onSelectTicker }: { onSelectTicker: (ticker:
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-cf-border text-[9px] text-cf-tertiary uppercase">
+              <tr className="border-b border-cf-border text-[10px] text-cf-tertiary uppercase">
                 <th className="py-2 text-left">Mã</th>
                 <th className="py-2 text-right">Chu kỳ</th>
                 <th className="py-2 text-left">Cửa sổ tốt nhất</th>

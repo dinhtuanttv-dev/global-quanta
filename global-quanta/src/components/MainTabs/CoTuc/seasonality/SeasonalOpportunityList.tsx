@@ -25,7 +25,7 @@ export function SeasonalOpportunityList({ items, watchlist = [], onSelectTicker,
         <table data-testid="opportunity-table" className="w-full text-[10.5px]">
           <caption className="text-left text-[10px] font-semibold tracking-wider text-amber-300 pb-1">ĐÃ ĐẠT KIỂM ĐỊNH · xếp theo cận dưới khoảng tin cậy</caption>
           <thead>
-            <tr className="text-slate-500 text-[9.5px]">
+            <tr className="text-slate-500 text-[10px]">
               <th className="text-left font-normal">Mã</th><th className="text-left font-normal">Quý</th>
               <th className="text-right font-normal">Cận dưới</th><th className="text-right font-normal">Trung bình</th>
               <th className="text-right font-normal">Kỳ vọng ròng</th><th className="text-right font-normal">Số lần</th><th className="text-left font-normal pl-2">Cửa sổ mua</th>
@@ -58,7 +58,7 @@ export function SeasonalOpportunityList({ items, watchlist = [], onSelectTicker,
                 <td className="text-right font-mono tabular-nums" style={{ color: w.netExpectancy >= 0 ? '#34d399' : '#fb7185' }}>{pct(w.netExpectancy)}</td>
                 <td className="text-right font-mono tabular-nums text-slate-400">thắng {Math.round(w.winRate * 100)}%</td>
                 <td className="text-right font-mono tabular-nums text-slate-400">q {w.fdrQValue.toFixed(2)}</td>
-                <td className="text-right text-[9.5px] text-violet-200 pl-2">{w.missing.join(' · ')}</td>
+                <td className="text-right text-[10px] text-violet-200 pl-2">{w.missing.join(' · ')}</td>
               </tr>
             ))}
           </tbody>
@@ -75,7 +75,7 @@ export function SeasonalOpportunitiesCard({ onSelectTicker }: { onSelectTicker?:
     <section className="tw-scope rounded-xl p-4" style={CARD} aria-label="Cơ hội mùa vụ KQKD toàn danh mục">
       <div className="flex items-baseline justify-between gap-2 mb-2">
         <h3 className="text-sm font-semibold text-cyan-400">🗓️ Cơ hội mùa vụ KQKD · toàn danh mục</h3>
-        {data && <span className="text-[9.5px] text-slate-500">{data.tickers} mã · cập nhật {data.asOf ? new Date(data.asOf).toLocaleDateString('vi-VN') : '—'}</span>}
+        {data && <span className="text-[10px] text-slate-500">{data.tickers} mã · cập nhật {data.asOf ? new Date(data.asOf).toLocaleDateString('vi-VN') : '—'}</span>}
       </div>
       {loading && <p role="status" className="text-[10.5px] text-slate-500">Đang tải…</p>}
       {error && <p role="alert" className="text-[10.5px] text-rose-300">Không tải được: {error}</p>}

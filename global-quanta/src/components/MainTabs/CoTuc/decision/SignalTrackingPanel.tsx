@@ -14,9 +14,9 @@ const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 function Kpi({ label, value, sub, testId, cls = 'text-slate-100' }: { label: string; value: string; sub?: string; testId?: string; cls?: string }) {
   return (
     <div className="rounded-lg px-2.5 py-2 bg-white/[0.02] border border-white/5">
-      <div className="text-[9.5px] text-slate-500">{label}</div>
+      <div className="text-[10px] text-slate-500">{label}</div>
       <div data-testid={testId} className={`font-mono tabular-nums text-base font-semibold ${cls}`}>{value}</div>
-      {sub && <div className="text-[9.5px] text-slate-500 leading-snug">{sub}</div>}
+      {sub && <div className="text-[10px] text-slate-500 leading-snug">{sub}</div>}
     </div>
   );
 }
@@ -66,7 +66,7 @@ export function SignalTrackingPanel({ data, className }: { data: SignalTracking;
       {recent.length > 0 && (
         <table data-testid="tracking-table" className="w-full text-[10.5px]">
           <thead>
-            <tr className="text-slate-500 text-[9.5px]">
+            <tr className="text-slate-500 text-[10px]">
               <th className="text-left font-normal">Mã</th><th className="text-left font-normal">Trạng thái</th>
               <th className="text-right font-normal">Xác suất</th><th className="text-right font-normal">Vào → Thoát</th>
               <th className="text-right font-normal">CAR thực</th><th className="text-right font-normal">Kết quả</th>

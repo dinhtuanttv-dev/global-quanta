@@ -1,6 +1,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import "./cotuc-theme.css";
+import { GROUP_OF, GROUPS, readView, VIEW_KEY, VIEWS, type CotucGroup, type SubView } from "./cotucNav";
 import {
   Coins, Search, RefreshCw,
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
@@ -229,14 +230,14 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
             earningsConflict={modalRec.earningsImpact.conflict}
           />
           <div className="flex-1 min-w-[140px] bg-cf-base/60 rounded-lg p-2 border border-cf-border-strong">
-            <p className="text-[9px] text-cf-tertiary font-bold uppercase">Cổ tức / CP</p>
+            <p className="text-[10px] text-cf-tertiary font-bold uppercase">Cổ tức / CP</p>
             <p className="text-sm font-black text-cf-positive">{fmtVND(s.dividendAmount)}</p>
-            <p className="text-[9px] text-cf-secondary">Yield: {fmtPct(s.dividendYield)}</p>
+            <p className="text-[10px] text-cf-secondary">Yield: {fmtPct(s.dividendYield)}</p>
           </div>
           <div className={`cf-box-hairline flex-1 min-w-[140px] rounded-lg p-2 ${phase.color}`}>
-            <p className="text-[9px] font-bold uppercase opacity-70">Vị thế</p>
+            <p className="text-[10px] font-bold uppercase opacity-70">Vị thế</p>
             <p className="text-xs font-black">{phase.icon} {phase.action}</p>
-            <p className="text-[9px] opacity-70">{phase.safety}</p>
+            <p className="text-[10px] opacity-70">{phase.safety}</p>
           </div>
         </div>
 
@@ -268,7 +269,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   ["Institutional", s.institutionalHold + "%", true],
                 ].map(([label, val, isMock]) => (
                   <div key={label as string} className="cf-panel rounded-lg p-2.5">
-                    <p className="text-[9px] text-cf-tertiary font-bold uppercase flex items-center gap-1">
+                    <p className="text-[10px] text-cf-tertiary font-bold uppercase flex items-center gap-1">
                       {label}
                       {/* PHUONG AN A: cham vang nho danh dau field du lieu mau, khong phai loi */}
                       {isMock && <span title="Dữ liệu mẫu, chưa cập nhật thời gian thực" className="w-1 h-1 rounded-full bg-amber-500 inline-block" />}
@@ -279,18 +280,18 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
               </div>
               {s.agmAgenda && (
                 <div className="cf-panel rounded-lg p-3">
-                  <p className="text-[9px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
+                  <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
                   <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
                 </div>
               )}
               {(s.pros.length > 0 || s.cons.length > 0) ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="cf-banner-positive rounded-lg p-2.5">
-                    <p className="text-[9px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
+                    <p className="text-[10px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
                     {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
                   </div>
                   <div className="cf-banner-negative rounded-lg p-2.5">
-                    <p className="text-[9px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
+                    <p className="text-[10px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
                     {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
                   </div>
                 </div>
@@ -316,7 +317,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   <div key={sc} className="cf-panel rounded-xl p-4 flex items-center justify-between">
                     <div>
                       <p className="text-xs font-black text-cf-primary">{label}</p>
-                      <p className="text-[9px] text-cf-tertiary mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
+                      <p className="text-[10px] text-cf-tertiary mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
                     </div>
                     <div className="text-right">
                       <p className={`text-sm font-black ${sc === "bull" ? "text-cf-positive" : sc === "base" ? "text-cf-gold" : "text-cf-negative"}`}>{fmtVND(val)}</p>
@@ -391,10 +392,18 @@ interface CotucTabProps {
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
   const vnHolidayCalendar = useVnTradingCalendar();
+  // F1 (06/11/2026): 3 tab con — Kết quả kinh doanh · Cổ tức · Timeline điểm mua. Mọi mục cũ giữ nguyên logic, chỉ đổi chỗ.
   // Mặc định mở "Timeline điểm mua" — câu hỏi chính của tab: mã nào sắp/đang vào vùng mua có cơ sở thống kê.
-  const [subTab, setSubTab] = useState<"timeline" | "screener" | "earnings" | "ranking" | "timing-v3" | "calendar-v3" | "legacy">("timeline");
+  const [subTab, setSubTabRaw] = useState<SubView>(() => readView().view);
+  const lastOf = useRef<Record<CotucGroup, SubView>>(readView().last);
+  const setSubTab = useCallback((v: SubView) => {
+    setSubTabRaw(v);
+    lastOf.current = { ...lastOf.current, [GROUP_OF[v]]: v };
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify({ view: v, last: lastOf.current })); } catch { /* không có storage */ }
+  }, []);
+  const group = GROUP_OF[subTab];
   // "🗂 Bản cũ": Lịch GDKHQ v1 và Xếp hạng v2 (engine cũ, 17 mã) — giữ để đối chiếu, không xoá chức năng.
-  const [legacyView, setLegacyView] = useState<"calendar" | "timing">("calendar");
+  const [legacyView, setLegacyView] = useState<"calendar" | "timing" | null>(null);
   const buyTimeline = useBuyTimeline();
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
@@ -647,7 +656,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-cf-border/60">
         <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5 font-display">
-          <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cổ Tức & ĐHCĐ
+          <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cơ Bản <span className="ml-1 text-[11px] font-semibold normal-case text-cf-tertiary">Kết quả kinh doanh · Cổ tức · Timeline điểm mua</span>
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
           {Object.keys(realDatesMap).length > 0
@@ -666,7 +675,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           voi Score tong hop) VAN la mau - se lam o buoc sau. */}
       <div className="cf-banner-neutral rounded-xl p-2.5 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
-        <p className="text-[9px] text-cf-secondary leading-relaxed">
+        <p className="text-[10px] text-cf-secondary leading-relaxed">
           <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
           <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả (Payout Ratio), Tăng trưởng EPS</b>, và
           <b> Dividend Quality Score</b> (4 tầng) hiện là dữ liệu thời gian thực (VCI + Yahoo Finance).
@@ -703,7 +712,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
         )}
         {requested.length > 0 && (
           <div className="pt-1 border-t border-cf-border/60">
-            <p className="text-[9px] text-cf-tertiary mb-1.5">
+            <p className="text-[10px] text-cf-tertiary mb-1.5">
               📋 Đã yêu cầu bổ sung ({requested.length}) — <i>chưa có dữ liệu P/E/ROE/DCF, chỉ là danh sách theo dõi</i>
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -719,7 +728,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       </div>
       {pinnedStocks.length > 0 && (
         <div className="cf-banner-gold-soft rounded-xl p-3">
-          <p className="text-[9px] font-bold text-cf-gold uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
+          <p className="text-[10px] font-bold text-cf-gold uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
           <div className="flex flex-wrap gap-2">
             {pinnedStocks.map((s) => (
               <button key={s.ticker} onClick={() => handleSelect(s)}
@@ -743,28 +752,35 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
           <div key={item.label} className="cf-panel rounded-xl p-3">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">{item.label}</p>
             <p className={`text-xl font-black num ${item.color}`}>{item.value}</p>
-            <p className="text-[9px] text-cf-tertiary mt-0.5">{item.sub}</p>
+            <p className="text-[10px] text-cf-tertiary mt-0.5">{item.sub}</p>
           </div>
         ))}
       </div>
 
-      <div className="cf-panel-strong flex p-1 rounded-xl" role="tablist" aria-label="Chuyển chế độ xem Cổ Tức">
-        {[
-          { id:"timeline" as const, label:"⏱ Timeline Điểm Mua", count: buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null },
-          { id:"screener" as const, label:"📋 Bộ Lọc Cổ Phiếu", count:filtered.length },
-          { id:"calendar-v3" as const, label:"🗓️ Lịch Sự Kiện", count: null },
-          { id:"timing-v3" as const, label:"🧭 Thời Điểm Tối Ưu", count: null },
-          { id:"earnings" as const, label:"📈 KQKD Theo Quý", count: null },
-          { id:"ranking" as const, label:"🎯 Xếp Hạng Xác Suất", count: null },
-          { id:"legacy" as const, label:"🗂 Bản Cũ", count: null },
-        ].map((t) => (
-          <button key={t.id} role="tab" aria-selected={subTab === t.id} onClick={() => setSubTab(t.id)}
-            className={`flex-1 py-2 px-3 rounded-lg text-[10px] font-black transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/60
-              ${subTab === t.id ? "cf-tab-active-gold text-cf-primary" : "text-cf-secondary hover:text-cf-primary"}`}>
-            {t.label}{t.count !== null && <span className={`ml-1 num ${subTab === t.id ? "text-cf-tertiary" : "text-cf-gold"}`}>({t.count})</span>}
-          </button>
-        ))}
-      </div>
+      <nav className="cotuc-nav" aria-label="Phân tích cơ bản">
+        <div className="cotuc-groups" role="tablist" aria-label="Chọn tab con">
+          {GROUPS.map((g) => {
+            const on = group === g.id;
+            const count = g.id === "timeline" ? (buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null) : g.id === "cotuc" ? filtered.length : null;
+            return (
+              <button key={g.id} type="button" role="tab" id={`cotuc-group-${g.id}`} aria-selected={on} data-testid={`cotuc-group-${g.id}`}
+                onClick={() => setSubTab(on ? subTab : lastOf.current[g.id])}
+                className={`cotuc-group${on ? " is-active" : ""}`}>
+                <span className="cotuc-group-title">{g.label}{count !== null && <span className="num cotuc-count">{count}</span>}</span>
+                <span className="cotuc-group-sub">{g.sub}</span>
+              </button>
+            );
+          })}
+        </div>
+        {group !== "timeline" && (
+          <div className="cotuc-views" role="tablist" aria-label={`Mục trong ${GROUPS.find((g) => g.id === group)?.label ?? ""}`}>
+            {VIEWS.filter((v) => GROUP_OF[v.id] === group).map((v) => (
+              <button key={v.id} type="button" role="tab" aria-selected={subTab === v.id} data-testid={`cotuc-view-${v.id}`}
+                onClick={() => setSubTab(v.id)} className={`cotuc-view${subTab === v.id ? " is-active" : ""}`}>{v.label}</button>
+            ))}
+          </div>
+        )}
+      </nav>
 
       {subTab === "timeline" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Timeline điểm mua">
@@ -797,7 +813,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     { label:`F-Score ≥ ${filter.minFscore}/9`, key:"minFscore", min:0, max:9, step:1, val:filter.minFscore },
                   ].map((f) => (
                     <div key={f.key}>
-                      <label className="text-[9px] text-cf-secondary font-bold block mb-1">{f.label}</label>
+                      <label className="text-[10px] text-cf-secondary font-bold block mb-1">{f.label}</label>
                       <input type="range" min={f.min} max={f.max} step={f.step} value={f.val}
                         onChange={(e) => setFilter({ ...filter, [f.key]:parseFloat(e.target.value) })}
                         className="w-full h-1.5 accent-amber-500" />
@@ -871,9 +887,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
 
       {subTab === "legacy" && (
         <div className="tw-scope flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-[10.5px]" style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <span className="text-slate-500">Phiên bản cũ (giữ để đối chiếu):</span>
+          <span className="text-slate-500">Phiên bản cũ (giữ để đối chiếu, chọn để mở):</span>
           {([["calendar", "📅 Lịch GDKHQ & ĐHCĐ (v1)"], ["timing", "🎯 Xếp hạng xác suất (v2 · 17 mã)"]] as const).map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setLegacyView(id)} aria-pressed={legacyView === id}
+            <button key={id} type="button" onClick={() => setLegacyView(legacyView === id ? null : id)} aria-pressed={legacyView === id}
               className={`rounded-md border px-2 py-0.5 font-semibold ${legacyView === id ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{label}</button>
           ))}
           <span className="ml-auto text-slate-600">Bản mới: 🗓️ Lịch Sự Kiện · 🎯 Xếp Hạng Xác Suất (toàn danh mục)</span>
@@ -962,9 +978,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                     earnings={timingV3Earnings}
                     calendar={vnHolidayCalendar}
                   />
-                  <div style={{ marginTop: 16 }}>
-                    <EarningsSeasonalityTab ticker={s.ticker} />
-                  </div>
+                  <button type="button" onClick={() => setSubTab("seasonality")} data-testid="cotuc-goto-seasonality"
+                    className="mt-3 rounded-lg border border-cf-border px-3 py-1.5 text-[11px] font-semibold text-cf-gold hover:bg-white/5">
+                    📊 Xem Mùa vụ KQKD của {s.ticker} → (tab Kết quả kinh doanh)
+                  </button>
                 </div>
               );
             })()}
@@ -976,6 +993,37 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
                 <SignalTrackingCard />
               </ErrorBoundary>
             </div>
+          </div>
+        </ErrorBoundary>
+      )}
+
+      {subTab === "seasonality" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Mùa vụ KQKD">
+          <div className="cf-panel rounded-xl p-4">
+            <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Mùa vụ KQKD</p>
+            <select value={timingV3Ticker ?? ""} onChange={(e) => setTimingV3Ticker(e.target.value || null)} data-testid="cotuc-seasonality-ticker"
+              className="w-full sm:w-64 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm text-cf-primary">
+              <option value="">— Chọn mã —</option>
+              {allStocksWithUniverse.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker}</option>)}
+            </select>
+            {timingV3Ticker ? (
+              <div style={{ marginTop: 16 }}><EarningsSeasonalityTab ticker={timingV3Ticker} /></div>
+            ) : (
+              <p className="mt-3 text-[11px] text-cf-tertiary">Mùa vụ giá quanh ngày công bố KQKD theo từng quý: chu kỳ năm, đường đi trung bình quanh ngày công bố và 4 cửa sổ giao dịch của quý đang xem.</p>
+            )}
+          </div>
+        </ErrorBoundary>
+      )}
+
+      {subTab === "kqkd-calendar" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Lịch công bố KQKD">
+          <div className="cf-panel rounded-xl p-4">
+            <CalendarTabV3
+              initialTab="earnings"
+              dividendItems={allStocksWithUniverse.filter((s) => s.exDividendDate).map((s): DividendCalendarItem => ({ ticker: s.ticker, exDate: toSourcedIso(s.exDividendDate), cashPerShare: s.dividendAmount ?? null }))}
+              earningsItems={earningsSignalsBulk.signals}
+              deps={makeDeps({ cal: vnHolidayCalendar })}
+            />
           </div>
         </ErrorBoundary>
       )}

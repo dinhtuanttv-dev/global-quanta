@@ -56,7 +56,7 @@ function ProbabilityGauge({ p, color }: { p: number; color: string }) {
       <div className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.max(2, Math.min(100, p * 100))}%`, background: color }} />
       {[0.5, 0.6].map((t) => (
         <div key={t} className="absolute -top-1 -bottom-1 w-px bg-slate-400/60" style={{ left: `${t * 100}%` }}>
-          <span className="absolute top-3 -translate-x-1/2 text-[8.5px] font-mono text-slate-500">{t * 100}</span>
+          <span className="absolute top-3 -translate-x-1/2 text-[10px] font-mono text-slate-500">{t * 100}</span>
         </div>
       ))}
     </div>
@@ -105,7 +105,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
               {active && (
                 <div className="mt-1.5 flex items-baseline gap-1.5">
                   <span className="font-mono tabular-nums text-xl font-semibold text-slate-100">{pct0(p)}</span>
-                  <span className="hidden @2xl:inline text-[9.5px] text-slate-500">xác suất tổng hợp</span>
+                  <span className="hidden @2xl:inline text-[10px] text-slate-500">xác suất tổng hợp</span>
                 </div>
               )}
             </div>
@@ -136,7 +136,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
 
       <div className="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
         <div>
-          <div className="text-[9.5px] font-semibold tracking-wider text-slate-500 mb-1">ĐIỀU KIỆN</div>
+          <div className="text-[10px] font-semibold tracking-wider text-slate-500 mb-1">ĐIỀU KIỆN</div>
           <ul className="list-none text-[11px]">
             {state.decision.checks.map((c) => <CheckRow key={c.key} label={c.label} passed={c.passed} detail={c.detail} />)}
           </ul>
@@ -144,7 +144,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
 
         <div className="space-y-3">
           <div>
-            <div className="text-[9.5px] font-semibold tracking-wider text-slate-500 mb-1">BẰNG CHỨNG (cộng log-odds, co về 50%)</div>
+            <div className="text-[10px] font-semibold tracking-wider text-slate-500 mb-1">BẰNG CHỨNG (cộng log-odds, co về 50%)</div>
             <table className="w-full text-[10.5px]">
               <tbody>
                 {state.signals.map((s) => (
@@ -165,7 +165,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
 
           {showPlan && (
             <div data-testid="decision-plan">
-              <div className="text-[9.5px] font-semibold tracking-wider text-slate-500 mb-1">KẾ HOẠCH VÀO LỆNH <span className="font-normal normal-case tracking-normal">· chia đợt, T−n = n phiên trước GDKHQ</span></div>
+              <div className="text-[10px] font-semibold tracking-wider text-slate-500 mb-1">KẾ HOẠCH VÀO LỆNH <span className="font-normal normal-case tracking-normal">· chia đợt, T−n = n phiên trước GDKHQ</span></div>
               <div className="flex flex-wrap gap-1.5">
                 {state.entryPlan.tranches.map((t, i) => (
                   <span key={i} className="rounded-md border border-cyan-400/20 bg-cyan-400/5 px-1.5 py-0.5 text-[10px] text-cyan-200 font-mono tabular-nums">

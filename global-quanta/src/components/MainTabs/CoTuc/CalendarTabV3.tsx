@@ -53,10 +53,12 @@ export interface CalendarTabProps {
   /** Số ngày giao dịch nhìn về phía trước. Mặc định lấy từ deps.cfg.horizonTd (30). */
   horizonTd?: number;
   className?: string;
+  /** F1 (06/11/2026): danh sách mở sẵn — tab Kết quả kinh doanh mở "Sắp KQKD"; mặc định "Sắp GDKHQ" như cũ. */
+  initialTab?: 'dividends' | 'earnings';
 }
 
-export function CalendarTabV3({ dividendItems, earningsItems, deps, horizonTd, className }: CalendarTabProps) {
-  const [tab, setTab] = useState<'dividends' | 'earnings'>('dividends');
+export function CalendarTabV3({ dividendItems, earningsItems, deps, horizonTd, className, initialTab = 'dividends' }: CalendarTabProps) {
+  const [tab, setTab] = useState<'dividends' | 'earnings'>(initialTab);
 
   const upcomingDividends = useMemo(
     () => detectUpcomingDividendEvents(dividendItems, deps, horizonTd),

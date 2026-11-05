@@ -61,14 +61,14 @@ export default function EarningsQuarterPanel({ onSelectTicker }: { onSelectTicke
       )}
       {earningsData?.failedTickers?.length > 0 && (
         <div className="rounded-lg p-2.5 space-y-1" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)" }}>
-          <p className="text-[9px] text-cf-gold/80 italic">
+          <p className="text-[10px] text-cf-gold/80 italic">
             ⚠ {earningsData.failedTickers.length}/{earningsData.totalRequested} mã không lấy được BCTC — endpoint VCI có thể tạm lỗi hoặc đổi cấu trúc.
           </p>
           {/* Chan doan chi tiet: doc mang errors[] tra ve tu route (them 2026-08-25) -
               neu tat ca ma cung 1 ly do giong het nhau -> nhieu kha nang la loi tham
               so chung (VD sai gia tri enum), khong phai loi tung ma rieng le. */}
           {earningsData.errors?.length > 0 && (
-            <details className="text-[9px] text-cf-tertiary">
+            <details className="text-[10px] text-cf-tertiary">
               <summary className="cursor-pointer hover:text-cf-primary">Xem lý do chi tiết ({earningsData.errors.length} mã)</summary>
               <ul className="mt-1 space-y-0.5 font-mono">
                 {earningsData.errors.slice(0, 5).map((e: { ticker: string; reason: string }) => (
@@ -122,7 +122,7 @@ export default function EarningsQuarterPanel({ onSelectTicker }: { onSelectTicke
           </tbody>
         </table>
       </div>
-      <p className="text-[9px] text-cf-tertiary">Điểm KQKD: YoY Doanh thu(30%) + YoY LNST(30%) + QoQ Doanh thu(20%) + QoQ LNST(20%) — ưu tiên YoY để loại trừ tính mùa vụ.</p>
+      <p className="text-[10px] text-cf-tertiary">Điểm KQKD: YoY Doanh thu(30%) + YoY LNST(30%) + QoQ Doanh thu(20%) + QoQ LNST(20%) — ưu tiên YoY để loại trừ tính mùa vụ.</p>
     </div>
   );
 }
