@@ -8,8 +8,9 @@
 //     ảnh khi không hiện trên màn hình. Thêm: giá khớp trực tiếp (SSI), vượt VN-Index từ lúc dựng, vị trí giá trong dải cắt lỗ → mục tiêu.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { EliteDecision, PortfolioPick } from "../../../lib/elite10/decisionTypes";
-import { liveExcess, portfolioEvents, rankMoves, sortPicks, stopTargetPosition, zTrails, type SortMode } from "../../../lib/elite10/portfolioRadar";
+import { liveExcess, pOutperformRange, portfolioEvents, radarLayout, rankMoves, sortPicks, stopTargetPosition, zTrails, type SortMode } from "../../../lib/elite10/portfolioRadar";
 import { useRankHistory } from "../../../hooks/elite10/useRankHistory";
+import { useEliteRetro } from "../../../hooks/elite10/useEliteCenter";
 import { useLiveQuotes } from "../../../hooks/elite10/useLiveQuotes";
 import { useOnScreen } from "../../../hooks/useOnScreen";
 import { useRadarSignals } from "../../../hooks/useRadarSignals";
@@ -136,6 +137,9 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   const [mode, setModeState] = useState<SortMode>(readSort);
   const setMode = (m: SortMode) => { setModeState(m); try { localStorage.setItem(SORT_KEY, m); } catch { /* bỏ qua */ } };
   const { history } = useRankHistory(6);
+  // R4: khoảng 95% của P vượt từ sai số IC đo ngoài mẫu (E7 hồi cứu, kỳ hạn 5 phiên).
+  const { data: retro } = useEliteRetro();
+  const ic5 = retro?.horizons?.["5"]?.ic ?? null;
   const pastDates = useMemo(() => (history?.dates ?? []).filter((x) => x < d.date), [history, d.date]);
   const [viewDate, setViewDate] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
@@ -261,16 +265,29 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   }, [animate, edge, orderKey, rows]);
 
   const isLive = live.sessionLive && !replay;
-  const trackW = compact ? 170 : 230;
+  // R4: bố cục theo bề rộng thật của khung (ResizeObserver), không cuộn ngang ở màn 1366–1440.
+  const [availW, setAvailW] = useState(1200);
+  useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const set = () => setAvailW(el.clientWidth || 1200);
+    set();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const lay = radarLayout(availW, compact);
+  const dense = lay.dense, trackW = lay.trackW;
   // ⏱ Dải vùng mua: trục phiên thật chung cho mọi hàng (5 phiên trước phiên vào -> 15 phiên sau).
-  const laneW = compact ? 210 : 270;
+  const laneW = lay.laneW;
   const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
   const axis = useMemo(() => laneAxis(buy.sessions ?? [], d.date, today), [buy.sessions, d.date, today]);
   // Vùng mua TỐI ƯU từ kho Cổ tức (đạt / gần đạt / thăm dò, kể cả đã qua) — chưa có endpoint thì dùng Timeline điểm mua.
   const zonesQ = useEliteBuyZones(replay ? [] : tickers);
   const zoneRows: LaneRow[] = useMemo(() => (zonesQ.zones?.rows ?? (buy.data?.rows ?? []) as LaneRow[]), [zonesQ.zones, buy.data]);
   const chips = useMemo(() => zoneChips(tickers, zoneRows, 10), [tickers, zoneRows]);
-  const cols = `64px 92px ${trackW}px 78px ${laneW}px 112px ${compact ? "" : "74px "}96px${compact ? "" : " minmax(110px,1fr)"}`;
+  const cols = lay.cols;
 
   return (
     <div ref={wrapRef} className="space-y-2" data-testid="elite-radar">
@@ -288,11 +305,11 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
       </div>
 
       <div className="overflow-x-auto">
-        <div style={{ minWidth: compact ? 800 : 1140 }} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
+        <div style={{ minWidth: lay.minWidth }} data-layout={dense ? "dense" : lay.showDrivers ? "full" : "medium"} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
           <div className="grid items-center gap-2 border-b border-white/5 pb-1 text-[10px] text-slate-500"
             style={{ gridTemplateColumns: cols }}>
             <span>Hạng</span><span>Mã</span><span title="Trục Điểm Elite Z: chấm = hôm nay, vệt = 5 phiên trước">Rãnh Z · vệt 5 phiên</span><span>Tỷ trọng</span><span className="leading-tight" data-testid="elite-radar-buy-head"><span title="Vùng mua của Timeline điểm mua tối ưu (tab Cổ tức) trên trục phiên giao dịch thật; dải xanh mảnh = kỳ nắm giữ 10 phiên">⏱ Vùng mua · {axis.dates.length} phiên</span>{axis.dates.length > 0 && <BuyZoneAxis axis={axis} width={laneW} />}</span>
-            <span title="Giá khớp · % trong phiên · lợi suất VƯỢT VN-Index từ giá lúc dựng danh mục">Giá · vượt VNI</span>{!compact && <span>P vượt · α5</span>}<span title="Vị trí giá trong dải cắt lỗ (trái) → mục tiêu (phải)">Cắt lỗ → mục tiêu</span>{!compact && <span>Động lực chính</span>}
+            <span title="Giá khớp · % trong phiên · lợi suất VƯỢT VN-Index từ giá lúc dựng danh mục">Giá · vượt VNI</span>{!dense && <span>P vượt · α5</span>}<span title="Vị trí giá trong dải cắt lỗ (trái) → mục tiêu (phải)">Cắt lỗ → mục tiêu</span>{lay.showDrivers && <span>Động lực chính</span>}
           </div>
           {rows.map((r, i) => {
             const p = r.pick, mv = moves.get(p.ticker), q = live.quotes[p.ticker], ex = liveEx.get(p.ticker) ?? null;
@@ -316,6 +333,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   {p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[10px] text-slate-400">giữ</span>}
                   {p.rrgPenalty && <span title={`E3-v4: ngành đang ở góc Tụt hậu trên RRG -> Z xếp hạng trừ 30% (mô hình ${p.zModel?.toFixed(2)} → ${p.Z.toFixed(2)}). Quy tắc người dùng đặt, chưa kiểm định.`} data-testid={`elite-radar-rrg-${p.ticker}`} className="ml-1 rounded border border-rose-400/40 px-1 text-[10px] text-rose-300">Tụt hậu −30%</span>}
                   <div className="truncate text-[10px] text-slate-500" title={secName(p.sectorKey)}>{replay ? "" : secName(p.sectorKey)}</div>
+                  {!lay.showDrivers && !dense && !replay && <div className="truncate text-[10px] text-slate-400" title={`Động lực chính: ${drivers(p.ticker).join(" · ") || "—"}`} data-testid={`elite-radar-drivers-${p.ticker}`}>{drivers(p.ticker).join(" · ") || "—"}</div>}
                 </div>
                 <canvas ref={(el) => { if (el) canv.current.set(p.ticker, el); else canv.current.delete(p.ticker); }} aria-hidden="true" style={{ width: trackW, height: 38, display: "block" }}
                   title={`Z ${num(r.z, 2)}${r.trail.length ? ` · ${r.trail.length} phiên trước: ${r.trail.map((z) => num(z, 2)).join(" → ")}` : ""}${r.stealth ? ` · ◆ Stealth 20 ${r.stealth.dir > 0 ? "tích luỹ" : "phân phối"} (z ${num(r.stealth.z, 2)})` : ""}${r.hot ? " · tin quan trọng 24 giờ" : ""}`} />
@@ -330,7 +348,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   {!replay && q?.changePct != null && <span className="ml-1 text-[10px]" style={{ color: q.changePct >= 0 ? UP : DOWN }}>{q.changePct >= 0 ? "+" : ""}{num(q.changePct, 2)}%</span>}
                   <div className="text-[10px]" data-testid={`elite-radar-ex-${p.ticker}`} style={{ color: ex == null ? "#64748b" : ex >= 0 ? UP : DOWN }} title="Lợi suất vượt VN-Index từ giá lúc dựng danh mục">vượt {sgnPct(ex)}</div>
                 </div>
-                {!compact && <div className="font-mono leading-tight">{replay ? "—" : `${num(p.pOutperform * 100, 1)}%`}<div className="text-[10px] text-emerald-300">{p.alpha5Pct != null ? `${p.alpha5Pct >= 0 ? "+" : ""}${num(p.alpha5Pct, 2)}%` : ""}</div></div>}
+                {!dense && (() => { const pr = pOutperformRange(p.zModel ?? p.Z, ic5?.mean, ic5?.t); return <div className="font-mono leading-tight" data-testid={`elite-radar-p-${p.ticker}`} title={pr ? `Xác suất vượt trung vị vũ trụ trong 5 phiên. Khoảng 95%: ${num(pr[0] * 100, 1)}–${num(pr[1] * 100, 1)}% (theo sai số IC hồi cứu E7: ${num(ic5!.mean! , 3)}, t ${num(ic5!.t!, 2)}).` : "Xác suất vượt trung vị vũ trụ trong 5 phiên (theo mô hình)."}>{replay ? "—" : `${num(p.pOutperform * 100, 1)}%`}{pr && !replay && <div className="text-[10px] text-slate-500" data-testid={`elite-radar-prange-${p.ticker}`}>{num(pr[0] * 100, 0)}–{num(pr[1] * 100, 0)}%</div>}<div className="text-[10px] text-emerald-300">{p.alpha5Pct != null ? `${p.alpha5Pct >= 0 ? "+" : ""}${num(p.alpha5Pct, 2)}%` : ""}</div></div>; })()}
                 <div title={replay ? "" : `Cắt lỗ ${price(p.stop)} · giá ${price(q?.price ?? p.close)} · mục tiêu ${price(p.target)}`} data-testid={`elite-radar-gauge-${p.ticker}`}>
                   {pos == null ? <span className="text-slate-500">—</span> : (
                     <div className="relative h-2 rounded" style={{ background: "linear-gradient(90deg, rgba(251,113,133,.45), rgba(148,163,184,.18) 50%, rgba(52,211,153,.45))" }}>
@@ -339,7 +357,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                   )}
                   {!replay && <div className="mt-0.5 flex justify-between font-mono text-[10px] text-slate-500"><span className="text-rose-300">{price(p.stop)}</span><span className="text-emerald-300">{price(p.target)}</span></div>}
                 </div>
-                {!compact && <div className="truncate text-[10px] text-slate-400" title={drivers(p.ticker).join(" · ")}>{replay ? "" : drivers(p.ticker).join(" · ") || "—"}</div>}
+                {lay.showDrivers && <div className="truncate text-[10px] text-slate-400" title={drivers(p.ticker).join(" · ")}>{replay ? "" : drivers(p.ticker).join(" · ") || "—"}</div>}
               </div>
             );
           })}

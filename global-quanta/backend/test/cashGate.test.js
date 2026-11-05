@@ -86,3 +86,24 @@ test("CG-r1 service: trạng thái phiên đã đóng, tỷ lệ chính thức 1
   await svc.status({ refresh: true, recordLedger: true });
   assert.equal((await store.getKv(CASH_GATE_LEDGER_KV)).value.entries.length, 1, "không ghi trùng phiên");
 });
+
+test("CG-r1 service R4: nguồn lỗi khi làm mới -> trả bản gần nhất kèm stale; chưa có bản nào -> báo lỗi", async () => {
+  const { createCashGateService } = await import("../src/market/cashGate/cashGateService.js");
+  const { createMemoryStore } = await import("../src/market/store/memoryStore.js");
+  const dates = [];
+  for (let d = Date.UTC(2025, 0, 1); dates.length < 300; d += 86_400_000) { const wd = new Date(d).getUTCDay(); if (wd && wd !== 6) dates.push(new Date(d).toISOString().slice(0, 10)); }
+  const bars = dates.map((date, i) => ({ date, close: 1500 + i }));
+  const yahoo = { chart: { result: [{ timestamp: dates.map((d) => Date.parse(`${d}T20:00:00Z`) / 1000 - 86_400), indicators: { quote: [{ close: dates.map(() => 18) }] } }] } };
+  let fail = false;
+  const fetchImpl = async () => { if (fail) throw new Error("Yahoo down"); return { ok: true, json: async () => yahoo }; };
+  const svc = createCashGateService({ store: createMemoryStore(), vnIndexBars: async () => bars, fetchImpl, report: null });
+  const ok = await svc.status();
+  assert.equal(ok.stale, undefined);
+  fail = true;
+  const st = await svc.status({ refresh: true });
+  assert.equal(st.stale, true);
+  assert.equal(st.asOf, ok.asOf);
+  assert.match(st.staleReason, /Yahoo down/);
+  const fresh = createCashGateService({ store: createMemoryStore(), vnIndexBars: async () => bars, fetchImpl, report: null });
+  await assert.rejects(() => fresh.status(), /Yahoo down/);
+});

@@ -126,7 +126,7 @@ export function runRetroV3({ cal, flow, prices, sectors, vnIndex, grid = GRID })
   const pbo = pboCscv(grid.map((g) => daily[g.id]), E7V3.pboBlocks);
   const c = { icPass: ledger.criteria.icPass, excessPass: ledger.criteria.excessPass, dsrPass: dsr.dsr >= E7V3.dsrMin, pboPass: pbo.pbo < E7V3.pboMax };
   const pass = c.icPass && c.excessPass && c.dsrPass && c.pboPass;
-  const fails = [!c.icPass && "IC của Z ở 5 phiên chưa đạt t ≥ 2", !c.excessPass && "lợi suất vượt 10 phiên sau phí chưa có cận dưới KTC 95% > 0", !c.dsrPass && `DSR ${dsr.dsr.toFixed(3)} < 0,95`, !c.pboPass && `PBO ${pbo.pbo.toFixed(2)} ≥ 0,5`].filter(Boolean);
+  const fails = [!c.icPass && "IC của Z ở 5 phiên chưa đạt t ≥ 2", !c.excessPass && "lợi suất vượt 10 phiên sau phí chưa có cận dưới KTC 95% > 0", !c.dsrPass && `DSR ${dsr.dsr.toFixed(3).replace(".", ",")} < 0,95`, !c.pboPass && `PBO ${pbo.pbo.toFixed(2).replace(".", ",")} ≥ 0,5`].filter(Boolean);
   return {
     version: E7V3_VERSION, prereg: "backend/src/market/elite/E7-prereg.md (sửa đổi E7-v3)",
     period: { from: days[0]?.date ?? null, to: days.at(-1)?.date ?? null, sessions: days.length, dailyFrom: dates[0] ?? null, dailyTo: dates.at(-1) ?? null, dailyN: dates.length },

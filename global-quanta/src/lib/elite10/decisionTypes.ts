@@ -102,6 +102,8 @@ export interface CashGateStatus {
   official: { equityShare: number; reasonVi: string };
   holdout: { version: string; ranAt: string; prereg: string; period: { from: string; to: string; sessions: number }; summaryVi: string; base: { cagr: number; mdd: number; sharpe: number }; rules: Record<CashGateRuleId, CashGateHoldoutRule>; passed: CashGateRuleId[] } | null;
   ledger: { entries: number; first: string | null; last: string | null };
+  /** R4: nguồn tạm lỗi -> bản gần nhất. */
+  stale?: boolean; staleReason?: string;
 }
 
 /** E7-v3 (Gateway /api/elite/retro-v3): hồi cứu có hiệu chỉnh quá khớp. */

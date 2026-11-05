@@ -29,6 +29,7 @@ export default function CashGateCard() {
         <p className="text-[10px] text-slate-500">Chưa lấy được trạng thái Cổng tiền mặt.</p>
       ) : (
         <>
+          {g.stale && <p className="text-[10px] text-amber-300" data-testid="elite-cash-gate-stale" title={g.staleReason}>Số liệu của lần lấy gần nhất (nguồn tạm lỗi khi làm mới).</p>}
           <p className="text-[10px] text-slate-400" data-testid="elite-cash-gate-inputs">
             Phiên {fmtDate(g.asOf)}: VN-Index <b className="text-slate-200">{REGIME_VI[g.inputs.regime] ?? g.inputs.regime}</b> · VIX {n2(g.inputs.vix)} · VIX/VIX3M {g.inputs.volSlope == null ? "—" : `${g.inputs.volSlope >= 0 ? "+" : ""}${pct(g.inputs.volSlope, 1)}`} · biến động năm {pct(g.inputs.volAnnual, 1)} (mục tiêu {pct(g.inputs.volTargetAnnual, 1)})
           </p>
@@ -47,7 +48,7 @@ export default function CashGateCard() {
             <details className="text-[10px] text-slate-400" data-testid="elite-cash-gate-holdout">
               <summary className="cursor-pointer select-none text-slate-300">Kiểm định đăng ký trước: <b className={ho.passed.length ? "text-emerald-300" : "text-rose-300"}>{ho.passed.length ? `ĐẠT (${ho.passed.join(", ")})` : "KHÔNG ĐẠT"}</b> · {ho.period.sessions.toLocaleString("vi-VN")} phiên {fmtDate(ho.period.from)}–{fmtDate(ho.period.to)}</summary>
               <div className="mt-1 overflow-x-auto">
-                <table className="w-full min-w-[420px] text-[10px]">
+                <table className="w-full table-fixed text-[10px]">
                   <thead><tr className="text-left text-slate-500"><th className="py-0.5 pr-2">Quy tắc</th><th className="pr-2 text-right">Lợi suất năm</th><th className="pr-2 text-right">Sụt giảm tối đa</th><th className="pr-2 text-right">ΔSharpe (p Holm)</th><th className="text-right">Tiêu chí</th></tr></thead>
                   <tbody className="font-mono">
                     <tr><td className="py-0.5 pr-2 font-sans">Luôn 100%</td><td className="pr-2 text-right">{pct(ho.base.cagr, 1)}</td><td className="pr-2 text-right">{pct(ho.base.mdd, 1)}</td><td className="pr-2 text-right">—</td><td /></tr>
