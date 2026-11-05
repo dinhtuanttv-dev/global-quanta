@@ -4,7 +4,7 @@ import { useSieuQuetScanner } from "./useSieuQuetScanner";
 import { useScannerBasket } from "./useScannerBasket";
 import { useWatchlists } from "./useWatchlists";
 import { useGoldenSepa } from "./useGoldenSepa";
-import { useTop20Radar } from "./useTop20Radar";
+import { useAlphaTop20 } from "./useAlphaTop20";
 import { useCatalystData } from "./useCatalystData";
 import { useQualityScore } from "./useQualityScore";
 import { useWorldSectorScores } from "./useWorldSectorScores";
@@ -27,7 +27,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   const live = useAppStore((s) => s.livePrices);
 
   const ta = useGoldenSepa();
-  const { top20Data } = useTop20Radar(null);
+  const { data: top20Data } = useAlphaTop20();
   const { snapshot: catalyst } = useCatalystData();
   const { qualityScoreData } = useQualityScore();
   // Tiêu chí 6 "Cổ tức · điểm mua": Timeline điểm mua + DecisionBar (tab Cổ tức) — chỉ xét mã trên Radar.
@@ -58,7 +58,7 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
       scanner: new Map(basket.items.map((i) => [i.ticker, i])),
       world,
       sector: top20Data?.top20
-        ? new Map(top20Data.top20.map((r, i) => [r.ticker, `Top 20 Hội tụ dòng tiền: hạng ${i + 1}, điểm ${Math.round(r.confluenceScore)}`]))
+        ? new Map(top20Data.top20.map((r, i) => [r.ticker, `Radar Top 20: hạng ${i + 1}${r.score == null ? "" : `, điểm ${r.score.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}`}`]))
         : null,
       // Tiêu chí 4 (SP5): SEPA Sẵn sàng / Cảnh báo mua trên Gateway (Golden SEPA), kèm xác nhận chéo — thay Đồng thuận TA cũ.
       ta: ta.doc

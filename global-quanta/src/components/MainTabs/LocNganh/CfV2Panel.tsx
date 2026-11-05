@@ -1,9 +1,10 @@
-// Cycle Fingerprint v2 (CF4) — giao diện engine CF2: 30 giai đoạn tương tự của NHIỀU mã (thư viện toàn universe, có ngày),
-// dự báo lợi suất VƯỢT VN-Index, nhãn bằng chứng CF3 và sổ theo dõi thực tế. Bấm một giai đoạn -> thẻ chi tiết (không mở biểu đồ).
+// Cycle Fingerprint: 30 giai đoạn tương tự của nhiều mã (thư viện toàn universe, có ngày), phân bố lợi suất vượt VN-Index sau các giai đoạn đó,
+// nhãn bằng chứng CF3 và sổ theo dõi thực tế. Không hiện dự báo điểm vì CF3 không đạt. Bấm một giai đoạn -> thẻ chi tiết (không mở biểu đồ).
 import { useMemo, useState } from 'react';
 import type { CycleMatch, PricePoint } from '../../../types/cycleFingerprint';
 import type { CycleV2Ledger, CycleV2Neighbor, CycleV2Response } from '../../../types/cycleFingerprintV2';
 import { MainChart, fmtCfDate, matchKey, type MatchChartMode } from './MainChart';
+import { amplitudeMismatch, AMPLITUDE_MIN_PCT, AMPLITUDE_RATIO, summarizeAnalogs, windowMovePct, type HorizonKey } from './cycleAnalogStats';
 
 const nf = (x: number | null | undefined, d = 1) => (x == null || !Number.isFinite(x) ? '—' : x.toLocaleString('vi-VN', { minimumFractionDigits: d, maximumFractionDigits: d }));
 const sp = (x: number | null | undefined, d = 1) => (x == null || !Number.isFinite(x) ? '—' : `${x > 0 ? '+' : ''}${nf(x, d)}%`);
@@ -47,24 +48,29 @@ function EvidenceV2({ data }: { data: CycleV2Response }) {
   );
 }
 
-function ForecastTiles({ data }: { data: CycleV2Response }) {
-  const f = data.forecast, h20 = f.horizons.find((h) => h.h === 20);
+/** Điều đã xảy ra sau các giai đoạn tương tự: trung vị và dải 10–90%, không phải dự báo. */
+function AnalogDistribution({ data, currentMove }: { data: CycleV2Response; currentMove: number | null }) {
+  const f = data.forecast;
+  const stat = (h: number) => summarizeAnalogs(data.neighbors, `d${h}` as HorizonKey);
+  const s20 = stat(20), base20 = f.horizons.find((h) => h.h === 20)?.baselinePct;
+  const mismatched = data.neighbors.filter((n) => amplitudeMismatch(currentMove, windowMovePct(n.pattern))).length;
   return (
     <>
-      <div className="cf2-tiles" data-testid="cf2-forecast">
-        <div><span>Vượt VN-Index 20 phiên (đã co về nền)</span><b style={{ color: tone(h20?.excessPct) }}>{sp(h20?.excessPct, 2)}</b></div>
-        <div><span>P(vượt VN-Index)</span><b>{pc(h20?.pOutperform)}</b></div>
-        <div><span>Số mẫu hiệu dụng</span><b>{nf(f.nEff, 1)}</b><em>trên 30 giai đoạn · co {pc(f.shrink)}</em></div>
-        <div><span>Tương đồng TB (tuyệt đối)</span><b>{pc(f.avgSimilarity, 1)}</b><em>giống hơn x% cặp ngẫu nhiên</em></div>
-        <div data-testid="cf2-interval"><span>Dải lịch sử 80% (20 phiên)</span><b>{sp(f.interval80.loPct)} … {sp(f.interval80.hiPct)}</b>
-          <em>{f.interval80.calibrated ? 'đã hiệu chỉnh ngoài mẫu' : `CHƯA hiệu chỉnh — ngoài mẫu chỉ phủ ${pc(f.interval80.oosCoverage)}`}</em></div>
+      <div className="cf2-tiles" data-testid="cf2-distribution">
+        <div><span>Trung vị vượt VN-Index, 20 phiên sau</span><b style={{ color: tone(s20.median) }}>{sp(s20.median, 2)}</b><em>của {s20.n} giai đoạn, có trọng số</em></div>
+        <div data-testid="cf2-band"><span>Dải 10–90% các giai đoạn</span><b>{sp(s20.p10)} … {sp(s20.p90)}</b><em>mức đã xảy ra, không phải khoảng dự báo</em></div>
+        <div><span>Tỷ lệ giai đoạn vượt VN-Index</span><b>{pc(s20.shareUp)}</b><em>chưa hiệu chỉnh</em></div>
+        <div><span>Mức nền toàn thư viện</span><b style={{ color: tone(base20) }}>{sp(base20, 2)}</b><em>trung bình mọi cửa sổ, 20 phiên</em></div>
+        <div><span>Số mẫu hiệu dụng</span><b>{nf(f.nEff, 1)}</b><em>trên 30 giai đoạn</em></div>
       </div>
       <table className="cf-topk-table cf2-horizons">
-        <thead><tr><th>Kỳ hạn</th><th title="Sau khi co về mức nền theo số mẫu hiệu dụng">Dự báo vượt VN-Index</th><th>TB có trọng số 30 giai đoạn</th><th title="TB vô điều kiện của thư viện tại thời điểm">Mức nền</th><th>P(vượt)</th></tr></thead>
-        <tbody>{f.horizons.map((h) => (
-          <tr key={h.h}><td>{h.h} phiên</td><td style={{ color: tone(h.excessPct) }}>{sp(h.excessPct, 2)}</td><td style={{ color: tone(h.rawPct) }}>{sp(h.rawPct, 2)}</td><td>{sp(h.baselinePct, 2)}</td><td>{pc(h.pOutperform)}</td></tr>
-        ))}</tbody>
+        <thead><tr><th>Kỳ hạn</th><th>Trung vị vượt VN-Index</th><th>Dải 10–90%</th><th>Tỷ lệ vượt</th><th title="Trung bình vô điều kiện của thư viện tại thời điểm">Mức nền</th></tr></thead>
+        <tbody>{f.horizons.map((h) => { const s = stat(h.h); return (
+          <tr key={h.h}><td>{h.h} phiên</td><td style={{ color: tone(s.median) }}>{sp(s.median, 2)}</td><td>{sp(s.p10)} … {sp(s.p90)}</td><td>{pc(s.shareUp)}</td><td>{sp(h.baselinePct, 2)}</td></tr>
+        ); })}</tbody>
       </table>
+      <p className="cf-note" data-testid="cf2-not-forecast">Đây là thống kê những gì đã xảy ra sau các giai đoạn có hình dạng giống, không phải dự báo. Kiểm định CF3 không đạt nên không hiện con số dự báo.</p>
+      {mismatched > 0 && <p className="cf-note" data-testid="cf2-amplitude" style={{ color: 'var(--warning)' }}>⚠ {mismatched}/{data.neighbors.length} giai đoạn giống về hình dạng nhưng biên độ khác hẳn: biến động gấp từ {AMPLITUDE_RATIO} lần trở lên và lớn hơn {AMPLITUDE_MIN_PCT}%, trong khi {data.symbol} {sp(currentMove)} trong {data.window} phiên.</p>}
     </>
   );
 }
@@ -109,7 +115,7 @@ function LedgerPanel({ ledger, symbol }: { ledger: CycleV2Ledger | null; symbol:
   const started = ledger.firstDate;
   return (
     <section className="cf2-ledger" data-testid="cf2-ledger">
-      <h4>Sổ theo dõi thực tế (dự báo 20 phiên, mọi mã)</h4>
+      <h4>Sổ theo dõi thực tế (giá trị mô hình 20 phiên, mọi mã)</h4>
       {(ledger.missingSessions?.length ?? 0) > 0 && <p className="cf-note" data-testid="cf2-ledger-gaps">Sổ không có bản chụp của phiên {ledger.missingSessions?.map(fmtCfDate).join(', ')}. Các phiên này không được bù.</p>}
       {ledger.maturedDates === 0 ? (
         <p className="cf-note" data-testid="cf2-ledger-empty">
@@ -128,7 +134,7 @@ function LedgerPanel({ ledger, symbol }: { ledger: CycleV2Ledger | null; symbol:
       )}
       {ledger.mine.length > 0 && (
         <table className="cf-topk-table" data-testid="cf2-ledger-mine">
-          <thead><tr><th>Ngày ghi ({symbol})</th><th>Dự báo vượt VN-Index 20 phiên</th><th>P(vượt)</th><th>Thực tế</th></tr></thead>
+          <thead><tr><th>Ngày ghi ({symbol})</th><th title="Giá trị mô hình đã ghi sổ từ trước, giữ nguyên để chấm điểm">Mô hình ghi sổ, 20 phiên</th><th>P(vượt) ghi sổ</th><th>Thực tế</th></tr></thead>
           <tbody>{ledger.mine.slice().reverse().map((m) => (
             <tr key={m.date}><td>{fmtCfDate(m.date)}</td><td style={{ color: tone(m.excessPct) }}>{sp(m.excessPct, 2)}</td><td>{pc(m.pOutperform)}</td>
               <td style={{ color: tone(m.realizedPct) }}>{m.realizedPct == null ? 'đang chờ' : sp(m.realizedPct, 2)}</td></tr>
@@ -147,6 +153,7 @@ export function CfV2Panel({ data, sectorNames }: { data: CycleV2Response; sector
   const priceSeries: PricePoint[] = useMemo(() => data.current.dates.map((d, i) => ({ date: d, close: { value: data.current.closes[i], source: 'HARD_DATA' } })), [data.current]);
   const sectorName = (c: string | null) => (c ? sectorNames?.get(c) ?? `ICB ${c}` : '—');
   const distinct = new Set(data.neighbors.map((n) => n.ticker)).size;
+  const currentMove = windowMovePct(data.current.pattern);
   const openN = data.neighbors.find((n) => matchKey(matches[data.neighbors.indexOf(n)]) === open) ?? null;
 
   return (
@@ -156,7 +163,7 @@ export function CfV2Panel({ data, sectorNames }: { data: CycleV2Response; sector
         {data.symbol}{data.sector ? ` · ${sectorName(data.sector)}` : ''} · dữ liệu tới {fmtCfDate(data.asOf)} · cửa sổ {data.window} phiên ngày ·
         thư viện {data.library.windows.toLocaleString('vi-VN')} cửa sổ của {data.library.tickers} mã (giá điều chỉnh cộng dồn){data.inLibrary === false ? ' · mã này ngoài thư viện, so với thư viện chung' : ''}.
       </p>
-      <ForecastTiles data={data} />
+      <AnalogDistribution data={data} currentMove={currentMove} />
 
       <div className="cf-mode-toggle" role="group" aria-label="Cách vẽ giai đoạn tương tự">
         {([['overlay', 'Chồng lên hiện tại + 60 phiên sau'], ['shape', 'Hình dạng mẫu (kiểu cũ)']] as const).map(([m, label]) => (
@@ -168,7 +175,7 @@ export function CfV2Panel({ data, sectorNames }: { data: CycleV2Response; sector
       <section className="cf-topk-list">
         <h4>{data.neighbors.length} giai đoạn tương tự nhất · {distinct} mã khác nhau</h4>
         <table className="cf-topk-table" data-testid="cf2-neighbors">
-          <thead><tr><th>#</th><th>Mã</th><th>Ngành</th><th>Giai đoạn</th><th title="Tỷ lệ cặp cửa sổ ngẫu nhiên kém giống hơn">Tương đồng</th><th>Trọng số</th>
+          <thead><tr><th>#</th><th>Mã</th><th>Ngành</th><th>Giai đoạn</th><th title="Tỷ lệ cặp cửa sổ ngẫu nhiên kém giống hơn">Tương đồng</th><th title="Biến động trong cửa sổ của giai đoạn đó">Biên độ</th><th>Trọng số</th>
             {[10, 20, 40, 60].map((h) => <th key={h} title={`Lợi suất vượt VN-Index ${h} phiên SAU giai đoạn`}>Vượt {h}p</th>)}</tr></thead>
           <tbody>{data.neighbors.map((n, i) => {
             const k = matchKey(matches[i]);
@@ -180,6 +187,7 @@ export function CfV2Panel({ data, sectorNames }: { data: CycleV2Response; sector
                 <td>{sectorName(n.sector)}</td>
                 <td data-testid="cf2-neighbor-period">{fmtCfDate(n.start ?? '')} → {fmtCfDate(n.end ?? '')}</td>
                 <td>{simPct(n.similarity)}</td>
+                <td data-testid="cf2-neighbor-move">{sp(windowMovePct(n.pattern), 0)}{amplitudeMismatch(currentMove, windowMovePct(n.pattern)) ? ' ⚠' : ''}</td>
                 <td>{nf(n.weight, 2)}</td>
                 {(['d10', 'd20', 'd40', 'd60'] as const).map((key) => <td key={key} style={{ color: tone(n.excess[key]) }}>{sp(n.excess[key], 1)}</td>)}
               </tr>

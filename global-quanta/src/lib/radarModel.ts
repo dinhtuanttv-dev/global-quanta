@@ -6,7 +6,7 @@ import type { SieuQuetStockItem } from "../hooks/useSieuQuetScanner";
 // Mỗi mã chấm 6 tiêu chí hội tụ — đúng 6 tab của trang (CONVERGENCE_LABELS):
 //   1 Siêu quét AI     : Smart Score ≥ 60 và không bị loại vì F-Score thấp (Gateway, cả mã ngoài universe)
 //   2 Kết nối thế giới : mã thuộc ngành ICB thuận gió ngắn hạn (ngành thế giới → VN, WS-v1 — cùng phép tính tab Kết nối thế giới)
-//   3 Lọc ngành        : thuộc Top 20 Hội tụ dòng tiền của tab Lọc ngành
+//   3 Lọc ngành        : thuộc Radar Top 20 đa yếu tố của tab Phân tích ngành (Gateway alpha/M1)
 //   4 TA VN-Index      : SEPA Minervini Sẵn sàng / Cảnh báo mua (Golden SEPA, Gateway; SP5 thay Golden Filter ∩ Convergence cũ)
 //   5 Chất xúc tác     : tác động "hưởng lợi" từ chất xúc tác tin tức, hoặc sự kiện đã xác nhận cho ngành
 //   6 Cổ tức · điểm mua: có vùng mua ĐẠT KIỂM ĐỊNH (chu kỳ cổ tức hoặc mùa vụ KQKD — Timeline tab Cổ tức) đang mở hoặc bắt
@@ -52,10 +52,10 @@ export interface ScoredTicker {
 const excluded = (i: SieuQuetStockItem) => i.piotroskiFScore !== null && i.piotroskiFScore <= Math.floor(i.fScoreMax * 3 / 9);
 
 const FAIL_TEXT = [
-  "", "Không thuộc nhóm hưởng lợi từ diễn biến ngành Mỹ / Âu / Á", "Ngoài Top 20 Hội tụ dòng tiền (Lọc ngành)",
+  "", "Không thuộc nhóm hưởng lợi từ diễn biến ngành Mỹ / Âu / Á", "Ngoài Radar Top 20 (Phân tích ngành)",
   "Không có trong danh sách đồng thuận kỹ thuật", "Chưa có chất xúc tác / sự kiện hưởng lợi", "Chưa có vùng mua cổ tức/KQKD đạt kiểm định trong 10 phiên",
 ];
-const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Top 20 Hội tụ dòng tiền", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Có vùng mua cổ tức/KQKD đạt kiểm định"];
+const PASS_TEXT = ["", "Hưởng lợi từ diễn biến ngành quốc tế", "Thuộc Radar Top 20", "Trong danh sách đồng thuận kỹ thuật", "Có chất xúc tác hưởng lợi", "Có vùng mua cổ tức/KQKD đạt kiểm định"];
 const lookup = (e: Evidence, t: string): string | null => (e instanceof Map ? e.get(t) ?? null : e.has(t) ? "" : null);
 
 export function scoreTicker(ticker: string, s: RadarSources): ScoredTicker {

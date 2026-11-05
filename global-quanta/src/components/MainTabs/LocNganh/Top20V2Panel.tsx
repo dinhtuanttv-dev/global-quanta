@@ -102,7 +102,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
   return (
     <div className="panel-block" data-testid="alpha-panel">
       <div className="sb-row" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-        <b style={{ color: 'var(--gold)' }}>Radar Top 20 v2 · đa yếu tố</b>
+        <b style={{ color: 'var(--gold)' }}>Radar Top 20 · đa yếu tố</b>
         <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
           {data.liquid} mã đủ thanh khoản · dữ liệu tới {fmtDate(data.dataAsOf)}
           {selectedSector && <> · Lọc theo ngành: <b style={{ color: 'var(--gold)' }}>{selectedSector.name}</b>{' '}

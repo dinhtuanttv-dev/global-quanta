@@ -21,7 +21,6 @@ vi.mock("../../../../hooks/useSectorTimingSignals", () => ({
   useSectorTimingSignals: () => ({ bySector: new Map(signals.map((s) => [s.sectorKey, s])), data: fixture.timing, status: "ready", error: null, isValidating: false, isStale: false, refresh: async () => {} }),
 }));
 const { default: SectorRotationPanel } = await import("./SectorRotationPanel");
-const { default: LocNganhPanel } = await import("../LocNganhPanel");
 
 afterEach(cleanup);
 
@@ -162,15 +161,5 @@ describe("Xoay vòng ngành ICB (L4–L5)", () => {
     render(<SectorRotationPanel />);
     fireEvent.click(screen.getAllByTestId("sector-row").find((r) => r.textContent?.includes("Ngân hàng"))!);
     expect(screen.getByTestId("sector-deep-panel")).toBeTruthy();
-  });
-
-  it("Top 20 có 4 cột thời điểm theo NGÀNH ICB của từng mã (không có tín hiệu thì để trống)", () => {
-    const bank = signals.find((s) => s.sectorKey === "8300")!;
-    const stock = (ticker: string) => ({ ticker, sectorKey: "x", sectorQuadrant: "Leading", rs3m: null, volumeSpikeRatio: null, pvtScore: null, adScore: null, rrgScore: 50, rsScore: 50, volumeScore: 50, pvtScoreNormalized: 50, adScoreNormalized: 50, weightsUsed: { rrg: 0.2, rs: 0.2, volume: 0.2, pvt: 0.2, ad: 0.2 }, confluenceScore: 60 });
-    act(() => {});
-    render(<LocNganhPanel top20={[stock("VCB"), stock("ZZZ")]} totalAnalyzed={2} riskOnScore={50} selectedSector={null} onClearSector={() => {}} onSelectTicker={() => {}}
-      timingOf={(t) => (t === "VCB" ? bank : null)} />);
-    expect(screen.getAllByTestId("sector-window-cell")).toHaveLength(1);
-    expect(screen.getByText("Cửa sổ ngành")).toBeTruthy();
   });
 });
