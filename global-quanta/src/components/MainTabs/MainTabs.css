@@ -58,7 +58,7 @@
 .nav-status:empty { display: none; }
 
 @container (max-width: 1160px) { .main-nav .m-tab { padding: 8px 10px; gap: 5px; font-size: 11px; letter-spacing: 0.02em; } .nav-status { display: none; } }
-@container (max-width: 1000px) { .main-nav .m-tab-icon { display: none; } }
+@container (max-width: 1240px) { .main-nav .m-tab-icon { display: none; } }
 
 @media (max-width: 900px) {
   .main-nav { position: static; margin: -14px -14px 14px; padding: 8px 14px 0; gap: 8px; }

@@ -37,3 +37,9 @@
 .gq-world .wd .ev-B { color: var(--accent); border: 1px solid var(--accentSoft); }
 .gq-world .wd .notice { font-size: 10.5px; border-radius: 8px; }
 .gq-world .wd table { font-size: 10.5px; }
+
+/* Bố cục hai cột (.two) theo bề rộng CHÍNH khung .wd (05/11/2026): gói gốc chuyển theo màn hình ≥ 1000px nên trong khung chính
+   hẹp (màn 1366–1440 có thanh bên phải) bảng cột trái phải cuộn ngang. Dưới 1200px khung -> một cột. */
+.gq-world .wd { container-type: inline-size; }
+.gq-world .wd .two { grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 1200px) { .gq-world .wd .two { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start; } }

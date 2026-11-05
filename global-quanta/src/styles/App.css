@@ -32,9 +32,9 @@ body{
   background:var(--bg-base);
 }
 .topbar{grid-column:1/4;grid-row:1;}
-.main{grid-column:1;grid-row:2;overflow-y:auto;min-width:0;}
+.main{grid-column:1;grid-row:2;overflow-y:auto;min-width:0;position:relative;}
 .panel-resizer{grid-column:2;grid-row:2;}
-.insight{grid-column:3;grid-row:2;overflow-y:auto;display:flex;flex-direction:column;min-width:0;}
+.insight{grid-column:3;grid-row:2;overflow-y:auto;display:flex;flex-direction:column;min-width:0;position:relative;}
 .app[data-insight-collapsed] .insight{display:none;}
 
 /* Vạch kéo đổi bề rộng cột phải */
