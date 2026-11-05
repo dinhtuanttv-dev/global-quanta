@@ -1,4 +1,4 @@
-// TOPBAR — chế độ thị trường (spec §6.1, §7.6): Risk-On Index (DXY / VIX / US10Y) KHÔNG ĐẠT kiểm định đặt trước -> luôn gắn
+// TOPBAR — chế độ thế giới từ cấu trúc kỳ hạn biến động VIX / VIX3M (VT1, thay Risk-On đã KHÔNG ĐẠT); chưa kiểm định đặt trước -> luôn gắn
 // nhãn "MÔ TẢ"; thiếu dữ liệu -> "Chưa xác định" (không mặc định Trung lập). Bấm mở phần giải thích.
 import Popover, { PopTrigger, usePopover } from './Popover';
 import { describeMeta } from './StatusTag';
@@ -14,10 +14,9 @@ export default function RegimeBadge({ block }: { block: Block<RegimeData> }) {
       <PopTrigger pop={pop} label={`Chế độ thị trường: ${LABEL[state]} (mô tả, chưa kiểm định đạt)`} className={`regime-badge regime-${state.toLowerCase()}`}>
         <span className="dot" aria-hidden />{LABEL[state]}<span className="regime-tag">MÔ TẢ</span>
       </PopTrigger>
-      <Popover pop={pop} title="Chế độ thị trường (Risk-On)">
+      <Popover pop={pop} title="Chế độ thế giới (cấu trúc kỳ hạn VIX)">
         <div className="tb-note" data-testid="tb-regime-detail">
-          {block.data?.score != null && <p><b>{LABEL[state]}</b> · điểm {block.data.score}/100 (≥ 65 Risk-On, ≤ 35 Risk-Off)</p>}
-          {block.data?.inputs && <p>DXY {block.data.inputs.dxy.toFixed(2)} · VIX {block.data.inputs.vix.toFixed(2)} · US10Y {block.data.inputs.treasury10y.toFixed(2)}%</p>}
+          {block.data?.volTerm && <p data-testid="tb-volterm"><b>{block.data.volTerm.stateVi}</b> · VIX {block.data.volTerm.vix.toFixed(2)} / VIX3M {block.data.volTerm.vix3m.toFixed(2)} → VolSlope {(block.data.volTerm.slope * 100).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}% (contango dưới −5%, backwardation trên +5%)</p>}
           <p className="tb-warn">{block.data?.evidence.note ?? 'Chưa có dữ liệu.'}</p>
           <p className="tb-muted">{describeMeta(block.meta)}</p>
         </div>

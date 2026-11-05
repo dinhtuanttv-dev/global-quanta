@@ -3,10 +3,12 @@
 // Nó thay cho luồng SSE của Project A (Prisma, có thể trễ hoặc hết quota), hoặc làm dự phòng khi luồng đó lỗi.
 // Risk-On được tính lại theo cùng công thức nhưng gắn nhãn HEURISTIC_FAILED (RON-results.md).
 import { riskOnBreakdown, riskOnIndex } from "../riskOnValidation/riskOnValidate.js";
+import { VOL_TERM_EVIDENCE, volTermStructure } from "./volTerm.js";
 
 export const PULSE_MACRO = {
   dxy: { symbol: "DX-Y.NYB", nameVi: "DXY" },
   vix: { symbol: "^VIX", nameVi: "VIX" },
+  vix3m: { symbol: "^VIX3M", nameVi: "VIX 3 tháng" },
   treasury_10y: { symbol: "^TNX", nameVi: "Lợi suất TPCP Mỹ 10 năm" },
   gold: { symbol: "GC=F", nameVi: "Vàng (HĐ tương lai COMEX kỳ gần)" },
   oil_brent: { symbol: "BZ=F", nameVi: "Brent (HĐ tương lai ICE kỳ gần)" },
@@ -58,6 +60,8 @@ export function createWorldPulse({ fetchImpl = globalThis.fetch, now = Date.now 
       macro = {
         dxy: v("dxy"), vix: v("vix"), treasury_10y: v("treasury_10y"), gold: v("gold"), oil_brent: v("oil_brent"), oil_wti: v("oil_wti"),
         risk_on_score: ro.score, risk_status: ro.status, breakdown: riskOnBreakdown(x), risk_on_evidence: "HEURISTIC_FAILED",
+        // VT1: thay Risk-On trên giao diện; chỉ mô tả. Giữ các trường Risk-On cho nơi đọc cũ.
+        vix3m: v("vix3m"), vol_term: volTermStructure(v("vix"), v("vix3m")), vol_term_evidence: VOL_TERM_EVIDENCE,
         fetched_at: new Date(now()).toISOString(), quotes,
       };
     }

@@ -46,6 +46,10 @@ export interface MacroTrendRow {
   quotes?: Partial<Record<PulseQuoteKey, PulseQuote>>;
   /** W1: Risk-On đã kiểm định đặt trước và không đạt */
   risk_on_evidence?: "HEURISTIC_FAILED";
+  /** VT1: cấu trúc kỳ hạn biến động VIX / VIX3M (thay Risk-On trên giao diện; chỉ mô tả) — chỉ có từ Gateway */
+  vix3m?: number | null;
+  vol_term?: { vix: number; vix3m: number; slope: number; state: "CONTANGO" | "FLAT" | "BACKWARDATION"; stateVi: string; regime: "RISK_ON" | "NEUTRAL" | "RISK_OFF" } | null;
+  vol_term_evidence?: { version: string; verdict: string; label: string; note: string; history: string };
 }
 
 export type PulseQuoteKey = "dxy" | "vix" | "treasury_10y" | "gold" | "oil_brent" | "oil_wti";
@@ -72,7 +76,7 @@ interface StreamPayload {
 /** Gateway /api/world/pulse — một nguồn (Yahoo) cho giá ngày, mỗi số kèm ngày phiên. */
 interface GatewayPulse {
   source: "gateway";
-  macro: Pick<MacroTrendRow, "dxy" | "vix" | "treasury_10y" | "gold" | "oil_brent" | "oil_wti" | "risk_on_score" | "risk_status" | "breakdown" | "fetched_at" | "quotes" | "risk_on_evidence"> | null;
+  macro: Pick<MacroTrendRow, "dxy" | "vix" | "treasury_10y" | "gold" | "oil_brent" | "oil_wti" | "risk_on_score" | "risk_status" | "breakdown" | "fetched_at" | "quotes" | "risk_on_evidence" | "vix3m" | "vol_term" | "vol_term_evidence"> | null;
   markets: MarketPulseRow[];
   timestamp: string;
   missing: string[];

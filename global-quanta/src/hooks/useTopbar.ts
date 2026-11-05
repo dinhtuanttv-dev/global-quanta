@@ -19,7 +19,8 @@ export interface LiquidityData {
   history: { date: string; v: number | null }[]; n: number; mean: number | null; std: number | null; deviationPct: number | null; z: number | null; reason: string | null;
   valueSessionsRecorded?: number;
 }
-export interface RegimeData { state: "RISK_ON" | "RISK_OFF" | "NEUTRAL" | "UNKNOWN"; score: number | null; label?: string; inputs?: { dxy: number; vix: number; treasury10y: number }; evidence: { verdict: string; note: string } }
+export interface RegimeData { state: "RISK_ON" | "RISK_OFF" | "NEUTRAL" | "UNKNOWN"; score: number | null; label?: string; inputs?: { dxy: number; vix: number; treasury10y: number };
+  volTerm?: { vix: number; vix3m: number; slope: number; state: "CONTANGO" | "FLAT" | "BACKWARDATION"; stateVi: string }; evidence: { verdict: string; note: string } }
 export interface TopbarSnapshot {
   version: string; generatedAt: string; freshness: { liveMs: number; delayedMs: number };
   index: Block<IndexData>; breadth: Block<BreadthData>; sessions: Block<{ VN: SessionData; HK: SessionData; US: SessionData }>;
