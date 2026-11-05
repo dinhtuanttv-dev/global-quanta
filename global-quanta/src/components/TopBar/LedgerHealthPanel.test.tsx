@@ -44,6 +44,13 @@ describe("Trang sức khoẻ sổ theo dõi", () => {
     fireEvent.click(screen.getByTestId("ledger-health-close"));
     expect(onClose).toHaveBeenCalled();
   });
+  it("phiên thiếu ở năm khác ghi kèm năm", async () => {
+    const old = { ...doc, ledgers: [item({ id: "signals", status: "gap", missing: ["2025-11-18"] })] };
+    const { fetchMarketJson } = await import("../../services/marketDataClient");
+    (fetchMarketJson as unknown as { mockResolvedValueOnce: (v: unknown) => void }).mockResolvedValueOnce(old);
+    await act(async () => { render(<LedgerHealthPanel onClose={() => {}} />); });
+    expect(screen.getByTestId("ledger-card-signals").querySelector('[data-testid="ledger-missing"]')!.textContent).toBe("18/11/2025");
+  });
   it("dòng tóm tắt cho huy hiệu", () => {
     expect(describeLedgers(doc)).toEqual({ ok: false, text: "Sổ theo dõi: 2/3 cần chú ý" });
     expect(describeLedgers({ ...doc, summary: { ...doc.summary, ok: 3, gap: 0, readError: 0 } }).ok).toBe(true);

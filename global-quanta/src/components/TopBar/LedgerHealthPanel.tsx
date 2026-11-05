@@ -36,7 +36,8 @@ const CELL: Record<LedgerHealthItem['strip'][number]['state'], { color: string; 
   written: { color: '#34d399', label: 'đã ghi' }, missing: { color: '#f87171', label: 'thiếu' },
   none: { color: 'rgba(148,163,184,.28)', label: 'không có tín hiệu' }, before: { color: 'rgba(148,163,184,.10)', label: 'chưa bắt đầu sổ' },
 };
-const dmy = (d?: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : '—');
+/** Ngày ngắn; khác năm hiện tại thì kèm năm để không nhầm với ngày sắp tới. */
+const dmy = (d?: string | null) => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}${d.slice(0, 4) !== String(new Date().getFullYear()) ? `/${d.slice(0, 4)}` : ''}` : '—');
 const hm = (iso?: string | null) => { if (!iso) return '—'; const v = new Date(Date.parse(iso) + 7 * 3_600_000).toISOString(); return `${v.slice(11, 16)} ${v.slice(8, 10)}/${v.slice(5, 7)}`; };
 const daysTo = (d: string, now: number) => Math.ceil((Date.parse(`${d}T09:00:00Z`) - now) / 864e5);
 
