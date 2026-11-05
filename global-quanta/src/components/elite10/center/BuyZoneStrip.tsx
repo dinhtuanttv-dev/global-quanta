@@ -64,7 +64,7 @@ export default function BuyZoneStrip({ ticker, lane, axis, cell, width, head = n
   const yy = (d: string) => (d.slice(0, 4) !== (axis.dates[0] ?? d).slice(0, 4) ? `/${d.slice(2, 4)}` : "");
   const pill = !head ? { t: "→ QUY TẮC", c: "text-cyan-200 border-cyan-400/30 bg-cyan-400/5" }
     : head.status === "IN_WINDOW" ? { t: "● ĐANG TRONG VÙNG MUA", c: head.tier === "VALIDATED" ? "text-emerald-300 border-emerald-400/60 bg-emerald-400/15 shadow-[0_0_10px_rgba(52,211,153,0.45)]" : "text-emerald-200 border-dashed border-emerald-400/40 bg-emerald-400/5" }
-    : head.status === "UPCOMING" ? { t: head.sessionsToEntry <= 10 ? `⏱ SẮP TỚI · ${head.sessionsToEntry} phiên` : `⏭ XA · ${head.sessionsToEntry} phiên`, c: head.sessionsToEntry <= 10 ? "text-amber-300 border-amber-400/50 bg-amber-400/10" : "text-slate-300 border-white/15" }
+    : head.status === "UPCOMING" ? { t: head.sessionsToEntry <= 10 ? `⏱ SẮP TỚI · ${head.sessionsToEntry} phiên` : `⏭ NGOÀI KỲ GIỮ · ${head.sessionsToEntry} phiên`, c: head.sessionsToEntry <= 10 ? "text-amber-300 border-amber-400/50 bg-amber-400/10" : "text-slate-300 border-white/15" }
     : { t: "ĐÃ QUA VÙNG MUA", c: "text-slate-500 border-white/10" };
   const detail = head
     ? `${KIND[head.kind].text} ${head.windowId.toUpperCase()} ${dm(head.entryFromDate)}${yy(head.entryFromDate)}→${dm(head.entryToDate)}${yy(head.entryToDate)} · thoát ${dm(head.exitDate)}${yy(head.exitDate)}`
@@ -74,7 +74,7 @@ export default function BuyZoneStrip({ ticker, lane, axis, cell, width, head = n
   return (
     <div className="leading-tight" data-testid={`buy-zone-${ticker}`} title={cell?.tooltip}>
       <div className="flex items-center gap-1 whitespace-nowrap">
-        <span className={`rounded border px-1 text-[10px] font-bold ${pill.c}`} data-testid={`buy-zone-pill-${ticker}`}>{pill.t}</span>
+        <span className={`rounded border px-1 text-[10px] font-bold ${pill.c}`} data-testid={`buy-zone-pill-${ticker}`} title={head?.status === "UPCOMING" && head.sessionsToEntry > 10 ? `Vùng mua mùa vụ còn ${head.sessionsToEntry} phiên, nằm ngoài kỳ nắm giữ 10 phiên của danh mục: không ảnh hưởng quyết định hôm nay.` : undefined}>{pill.t}</span>
         {head && <span title={TIER_TAG[head.tier].title} className={`rounded border px-1 text-[10px] font-bold ${TIER_TAG[head.tier].c}`} data-testid={`buy-zone-tier-${ticker}`}>{TIER_TAG[head.tier].t}</span>}
         <span className="truncate text-[10px] text-slate-300" data-testid={`buy-zone-detail-${ticker}`}>{detail}</span>
       </div>

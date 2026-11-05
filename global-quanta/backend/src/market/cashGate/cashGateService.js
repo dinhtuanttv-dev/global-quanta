@@ -67,6 +67,16 @@ export function createCashGateService({ store, vnIndexBars, fetchImpl = fetch, n
 
   async function status({ refresh = false, recordLedger = false } = {}) {
     if (!refresh && memo && now() - memo.at < TTL_MS) return memo.doc;
+    try {
+      return await compute(recordLedger);
+    } catch (e) {
+      // R4: nguồn (VN-Index / Yahoo) tạm lỗi -> trả bản lấy được gần nhất, đánh dấu cũ, thay vì để thẻ trống.
+      if (memo) return { ...memo.doc, stale: true, staleReason: String(e?.message ?? e) };
+      throw e;
+    }
+  }
+
+  async function compute(recordLedger) {
     const bars = await vnIndexBars();
     const dates = bars.map((b) => b.date), closes = bars.map((b) => b.close);
     const [vix, vix3m] = await Promise.all([yahooSeries(fetchImpl, "^VIX"), yahooSeries(fetchImpl, "^VIX3M")]);

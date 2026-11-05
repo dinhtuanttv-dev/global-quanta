@@ -14,6 +14,8 @@ import { useBoardSection } from "./boardPrefs";
 import PortfolioRadar from "./PortfolioRadar";
 import EliteCandidates from "./EliteCandidates";
 import CashGateCard from "./CashGateCard";
+import { useRankHistory } from "../../../hooks/elite10/useRankHistory";
+import { portfolioDiff } from "../../../lib/elite10/portfolioRadar";
 
 const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
 
@@ -43,6 +45,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const byId = useMemo(() => new Map((d?.weights ?? []).map((w) => [w.id, w])), [d]);
   const pf = useBoardSection("portfolio");
+  const { history } = useRankHistory(6);
+  const diff = useMemo(() => (d ? portfolioDiff(history, d) : null), [history, d]);
 
   if (error) return <p className="text-xs text-rose-400">Không tải được bảng quyết định: {String(error.message ?? error)}</p>;
   if (isLoading || !d) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tải bảng quyết định Elite 10…</p>;
@@ -76,7 +80,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         </span>
       </div>
 
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-3 text-[11px]" data-testid="elite-context">
+      <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-3 text-[11px]" data-testid="elite-context">
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
           <p className="text-[10px] font-bold uppercase text-slate-500">Thị trường Việt Nam</p>
           <p>{regime ? <>Chế độ <b className="text-slate-100">{REGIME_VI[regime.regime] ?? regime.regime}</b> · xung lực {num(regime.impulseScore)} · độ rộng {num(regime.breadthPct)}%</> : "—"}</p>
@@ -87,6 +91,21 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         </div>
         <CashGateCard />
       </div>
+
+      {diff?.prevDate && (
+        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid="elite-diff">
+          <p className="text-[10px] font-bold uppercase text-slate-500">Hôm nay đổi gì · so với phiên {fmtDate(diff.prevDate)}</p>
+          {!diff.added.length && !diff.removed.length ? (
+            <p className="text-slate-400">Danh mục giữ nguyên {diff.kept} mã; chỉ tỷ trọng có thể thay đổi.</p>
+          ) : (
+            <ul className="mt-0.5 space-y-0.5">
+              {diff.added.map((x) => <li key={`a-${x.ticker}`} data-testid={`elite-diff-add-${x.ticker}`}><b className="text-emerald-300">+ {x.ticker}</b> <span className="text-slate-400">{x.reasonVi}</span></li>)}
+              {diff.removed.map((x) => <li key={`r-${x.ticker}`} data-testid={`elite-diff-remove-${x.ticker}`}><b className="text-rose-300">− {x.ticker}</b> <span className="text-slate-400">{x.reasonVi}</span></li>)}
+              <li className="text-[10px] text-slate-500">Giữ {diff.kept}/{d.portfolio.length} mã{d.construction?.turnover != null ? ` · vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}. Mỗi lần đổi mã tốn khoảng 0,6–0,8% chi phí thực tế (xem chấm thực tế ở tab Bằng chứng).</li>
+            </ul>
+          )}
+        </div>
+      )}
 
       <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>
           <SectionControls id="elite-portfolio-table" open={pf.open} compact={pf.compact} onToggleOpen={pf.toggleOpen} onToggleCompact={pf.toggleCompact} testid="elite-portfolio" /></span>}>

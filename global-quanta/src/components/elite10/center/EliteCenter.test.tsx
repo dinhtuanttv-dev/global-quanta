@@ -42,6 +42,7 @@ const cashGate = {
 };
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useCashGate: () => ({ data: cashGate, isLoading: false }),
+  useEliteRetro: () => ({ data: { horizons: { 5: { ic: { n: 204, mean: 0.031, t: 2.65 } } } } }),
   useEliteDecision: () => ({ data: decision, error: null, isLoading: false }),
   useEliteEvidence: () => ({ data: { signals: [{ id: "stealth20", tier: "A" }, { id: "top20_alpha", tier: "B" }, { id: "smart_score", tier: "C" }] } }),
   useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
@@ -60,12 +61,19 @@ vi.mock("swr", async (orig) => {
   return { ...real, default: (key: unknown, ...rest: unknown[]) => (key === "research-overview" ? { data: { currentRegime: { date: "2026-10-16", regime: "SIDEWAY", impulseScore: 39.3, breadthPct: 41.1 } } } : (real.default as never as (...a: unknown[]) => unknown)(key, ...rest)) };
 });
 
+vi.mock("../../../hooks/elite10/useRankHistory", () => ({
+  useRankHistory: () => ({ history: { dates: ["2026-10-15"], sessions: [{ date: "2026-10-15", portfolio: [{ ticker: "ORS", rank: 1, Z: 2, weight: 0.5, retained: false }, { ticker: "DSE", rank: 2, Z: 1.9, weight: 0.5, retained: false }], ranks: {} }] }, error: null, isLoading: false }),
+}));
 vi.mock("../../../hooks/elite10/useEliteBuyZones", () => ({ useEliteBuyZones: () => ({ zones: null, error: null, isLoading: false }) }));
 import DecisionBoard from "./DecisionBoard";
 import SignalProfileCard, { percentile } from "./SignalProfileCard";
 import { readBoardPrefs } from "./boardPrefs";
 
-beforeEach(() => { try { localStorage.clear(); } catch { /* không có storage */ } });
+beforeEach(() => {
+  try { localStorage.clear(); } catch { /* không có storage */ }
+  // Hook phụ của radar (tin, nến, giá trực tiếp) không gọi mạng thật trong test: nguồn "tạm lỗi" như khi mất kết nối.
+  vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ error: "test" }), { status: 503, headers: { "content-type": "application/json" } }));
+});
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 const heads = (id: string) => [...screen.getByTestId(id).querySelectorAll(`#${id}-table thead th`)].map((th) => th.textContent);
 // Radar Elite 10 (thay bảng cũ): tiêu đề cột của hàng đầu
@@ -109,6 +117,15 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     } finally {
       Object.assign(decision, { version: keep.version }); Object.assign(decision.portfolio[0], keep.p, { rrgPenalty: undefined }); Object.assign(decision.scores[0], keep.s, { rrgPenalty: undefined });
     }
+  });
+
+  it("R4: hôm nay đổi gì — mã ra kèm lý do; P vượt kèm khoảng 95% theo sai số IC hồi cứu", () => {
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    const diff = screen.getByTestId("elite-diff").textContent ?? "";
+    expect(diff).toContain("so với phiên 15/10/2026");
+    expect(screen.getByTestId("elite-diff-remove-DSE").textContent).toContain("đủ 3 mã");
+    expect(diff).toContain("Giữ 1/1 mã");
+    expect(screen.getByTestId("elite-radar-prange-ORS").textContent).toMatch(/^\d+–\d+%$/);
   });
 
   it("CG-r1: ô Tỷ lệ cổ phiếu — chính thức 100%, trạng thái cổng hôm nay (mô tả), kết quả kiểm định KHÔNG ĐẠT kèm tiêu chí", () => {

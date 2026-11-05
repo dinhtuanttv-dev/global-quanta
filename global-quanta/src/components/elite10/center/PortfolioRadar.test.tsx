@@ -122,7 +122,7 @@ describe("PortfolioRadar — ⏱ dải vùng mua", () => {
     expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("ĐÃ QUA VÙNG MUA");
     expect(screen.getByTestId("buy-zone-tier-IDC").textContent).toBe("GẦN ĐẠT");
     expect(screen.getByTestId("buy-zone-detail-IDC").textContent).toBe("KQKD W2 22/10→27/10 · thoát 03/11");
-    expect(screen.getByTestId("buy-zone-pill-AAS").textContent).toBe("⏭ XA · 58 phiên");
+    expect(screen.getByTestId("buy-zone-pill-AAS").textContent).toBe("⏭ NGOÀI KỲ GIỮ · 58 phiên");
     expect(screen.getByTestId("buy-zone-bar-IDC").getAttribute("data-status")).toBe("PASSED");
     expect(screen.getByTestId("buy-zone-far-AAS").textContent).toContain("→ K 21/01/27 · 58p");
     expect(screen.getByTestId("elite-radar-buy-legend").textContent).toContain("vùng ĐẠT KIỂM ĐỊNH");

@@ -86,3 +86,75 @@ export function stopTargetPosition(price: number | null | undefined, stop: numbe
   if (!(Number(price) > 0) || !(target > stop)) return null;
   return (Number(price) - stop) / (target - stop);
 }
+
+/**
+ * R4 (06/11/2026): bố cục radar danh mục theo BỀ RỘNG THẬT của khung (không theo màn hình) để không phải cuộn ngang ở màn 1366–1440.
+ *   ≥ 1000px: đủ cột · 882–999px: bỏ cột "Động lực chính" (đưa vào dòng phụ dưới mã), GIỮ cột P vượt · < 882px hoặc người dùng
+ *   chọn Gọn: chế độ gọn. Rãnh Z và dải vùng mua co giãn trong [140, 230] và [170, 270] px.
+ */
+export const RADAR_GAP = 8;
+export function radarLayout(availW: number, compactPref: boolean) {
+  const FULL_MIN = 1000, MEDIUM_MIN = 882;
+  const dense = compactPref || availW < MEDIUM_MIN;
+  const showDrivers = !dense && availW >= FULL_MIN;
+  const fixed = dense ? [64, 92, 78, 112, 96] : showDrivers ? [64, 92, 78, 112, 74, 96, 110] : [64, 92, 78, 112, 74, 96];
+  const nCols = fixed.length + 2;
+  const flex = Math.max(0, availW - fixed.reduce((a, b) => a + b, 0) - (nCols - 1) * RADAR_GAP);
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.floor(v)));
+  const trackW = clamp(flex * 0.46, 140, 230);
+  const laneW = clamp(flex - trackW, 170, 270);
+  const cols = dense
+    ? `64px 92px ${trackW}px 78px ${laneW}px 112px 96px`
+    : `64px 92px ${trackW}px 78px ${laneW}px 112px 74px 96px${showDrivers ? " minmax(110px,1fr)" : ""}`;
+  const minWidth = fixed.reduce((a, b) => a + b, 0) + trackW + laneW + (nCols - 1) * RADAR_GAP;
+  return { dense, showDrivers, trackW, laneW, cols, minWidth };
+}
+
+/** R4: "Hôm nay đổi gì và vì sao" — so danh mục phiên d với phiên quyết định liền trước (lịch sử hạng gọn). */
+export interface DiffItem { ticker: string; rank: number | null; reasonVi: string }
+export interface PortfolioDiff { prevDate: string | null; added: DiffItem[]; removed: DiffItem[]; kept: number }
+type DiffScore = { ticker: string; rank: number; Z: number; eligible: boolean; reason: string | null; rrgPenalty?: boolean };
+type DiffDecision = { date: string; portfolio: { ticker: string; rank: number; Z: number; retained?: boolean; rrgPenalty?: boolean }[]; scores: DiffScore[]; candidates?: { ticker: string; reason: string }[] };
+export function portfolioDiff(history: RankHistory | null, d: DiffDecision, bufferRank = 20): PortfolioDiff {
+  const prev = history ? [...history.sessions].filter((s) => s.date < d.date).sort((a, b) => a.date.localeCompare(b.date)).pop() ?? null : null;
+  if (!prev) return { prevDate: null, added: [], removed: [], kept: 0 };
+  const before = new Set(prev.portfolio.map((p) => p.ticker));
+  const now = new Set(d.portfolio.map((p) => p.ticker));
+  const score = new Map(d.scores.map((s) => [s.ticker, s]));
+  const cand = new Map((d.candidates ?? []).map((c) => [c.ticker, c.reason]));
+  const fz = (z: number) => z.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const added = d.portfolio.filter((p) => !before.has(p.ticker)).map((p) => ({
+    ticker: p.ticker, rank: p.rank,
+    reasonVi: `vào vì hạng ${p.rank} toàn vũ trụ (Z ${fz(p.Z)})${p.rrgPenalty ? ", dù ngành Tụt hậu bị trừ 30% Z" : ""}`,
+  }));
+  const removed = prev.portfolio.filter((p) => !now.has(p.ticker)).map((p) => {
+    const s = score.get(p.ticker);
+    let reasonVi: string;
+    if (!s) reasonVi = "không còn trong bảng tín hiệu phiên này";
+    else if (!s.eligible) reasonVi = `không còn đủ điều kiện${s.reason ? ` (${s.reason})` : ""}`;
+    else if (s.rrgPenalty && s.rank > bufferRank) reasonVi = `ngành Tụt hậu (Z trừ 30%), rơi xuống hạng ${s.rank}`;
+    else if (s.rank > bufferRank) reasonVi = `rơi khỏi vùng đệm top ${bufferRank} (hạng ${s.rank})`;
+    else if (cand.get(p.ticker) === "sector_cap") reasonVi = `ngành đã đủ 3 mã có Z cao hơn (hạng ${s.rank})`;
+    else reasonVi = `bị mã có Z cao hơn thay chỗ (hạng ${s.rank})`;
+    return { ticker: p.ticker, rank: s?.rank ?? null, reasonVi };
+  });
+  return { prevDate: prev.date, added, removed, kept: d.portfolio.filter((p) => before.has(p.ticker)).length };
+}
+
+/** Hàm phân phối chuẩn (Abramowitz–Stegun 7.1.26, sai số < 1,5e-7). */
+export function normCdf(x: number): number {
+  const t = 1 / (1 + 0.3275911 * Math.abs(x) / Math.SQRT2);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-(x * x) / 2);
+  return x >= 0 ? 0.5 * (1 + y) : 0.5 * (1 - y);
+}
+/**
+ * R4: khoảng 95% của xác suất vượt trung vị vũ trụ, từ sai số IC đo được ngoài mẫu (E7 hồi cứu: IC trung bình và t Newey–West).
+ * P = Φ(IC·Z / √(1 − IC²)); khoảng = P tại IC ± 1,96·(IC / t). Thiếu dữ liệu -> null.
+ */
+export function pOutperformRange(z: number, ic: number | null | undefined, t: number | null | undefined): [number, number] | null {
+  if (ic == null || t == null || !Number.isFinite(ic) || !Number.isFinite(t) || t === 0 || !Number.isFinite(z)) return null;
+  const se = Math.abs(ic / t);
+  const p = (c: number) => normCdf((c * z) / Math.sqrt(Math.max(1e-9, 1 - c * c)));
+  const a = p(ic - 1.96 * se), b = p(ic + 1.96 * se);
+  return [Math.min(a, b), Math.max(a, b)];
+}
