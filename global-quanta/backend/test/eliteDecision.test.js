@@ -189,3 +189,31 @@ test("E3-v3 buildDecision: ERC khi đủ 60 phiên, vùng đệm giữ mã phiê
   assert.equal(alignedReturns(prices, ["T10", "T11"], date, 30).length, 30);
   assert.ok(lw(alignedReturns(prices, ["T10", "T11", "T12"], date, 120)).delta >= 0);
 });
+
+test("E3-v4 RRG: ngành Tụt hậu bị trừ 30% độ lớn Z khi xếp hạng; α / xác suất vượt theo Z mô hình; ngành khác giữ nguyên", async () => {
+  const { rrgAdjust, RRG_RULE } = await import("../src/market/elite/decisionCore.js");
+  assert.equal(rrgAdjust(2, -2), 2 - 0.6);
+  assert.equal(rrgAdjust(-1, -2), -1.3, "Z âm vẫn bị phạt (không được lợi)");
+  for (const q of [2, 1, -1, null, undefined]) assert.equal(rrgAdjust(1.5, q), 1.5);
+  assert.equal(RRG_RULE.penalty, 0.3);
+
+  const { cal, rows, daily } = world();
+  const date = cal[99];
+  const prices = new Map();
+  for (const r of daily) if (r.date <= date) { if (!prices.has(r.symbol)) prices.set(r.symbol, []); prices.get(r.symbol).push(r); }
+  const base = buildDecision({ panel: { date, rows }, evidence, prices, cal: cal.slice(0, 100) });
+  const top = base.portfolio[0].ticker;
+  const lagRows = rows.map((r) => (r.ticker === top ? { ...r, values: { ...r.values, rrg_quadrant: -2 } } : { ...r, values: { ...r.values, rrg_quadrant: 2 } }));
+  const dec = buildDecision({ panel: { date, rows: lagRows }, evidence, prices, cal: cal.slice(0, 100) });
+  const s = dec.scores.find((x) => x.ticker === top);
+  const s0 = base.scores.find((x) => x.ticker === top);
+  assert.ok(Math.abs(s.Z - 0.7 * s0.Z) < 1e-9 && s0.Z > 0);
+  assert.equal(s.zModel, s0.Z);
+  assert.equal(s.rrgPenalty, true);
+  assert.equal(s.alpha5Pct, s0.alpha5Pct, "α theo Z mô hình");
+  assert.ok(s.rank > s0.rank, "tụt hạng sau khi phạt");
+  const others = dec.scores.filter((x) => x.ticker !== top && x.eligible).slice(0, 5);
+  for (const o of others) assert.equal(o.rrgPenalty, false);
+  const p = dec.portfolio.find((x) => x.ticker === top);
+  if (p) assert.equal(p.rrgPenalty, true);
+});

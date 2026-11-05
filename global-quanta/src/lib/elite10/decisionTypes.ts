@@ -8,11 +8,14 @@ export interface SignalWeight { id: string; labelVi: string; tab: string; tier: 
 export interface EliteScore {
   ticker: string; rank: number; Z: number; alpha5Pct: number | null; pOutperform: number; eligible: boolean; reason: string | null;
   close: number | null; advBn: number | null; sigma20: number | null; sectorKey: string | null;
+  /** E3-v4: Z của mô hình trước quy tắc RRG; góc phần tư ngành (2/1/−1/−2); có bị phạt ngành Tụt hậu. */
+  zModel?: number; rrgQuadrant?: number | null; rrgPenalty?: boolean;
   contributions: { id: string; z: number | null; contribution: number }[];
 }
 
 export interface PortfolioPick {
   ticker: string; weight: number; Z: number; rank: number; alpha5Pct: number | null; pOutperform: number; sectorKey: string | null;
+  zModel?: number; rrgQuadrant?: number | null; rrgPenalty?: boolean;
   close: number; stop: number; target: number; holdSessions: number;
   /** E3-v3: giữ từ danh mục phiên trước (vùng đệm) và đóng góp rủi ro Euler trong danh mục. */
   retained?: boolean; riskContribution?: number | null;
