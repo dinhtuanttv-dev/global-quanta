@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -119,6 +119,13 @@ export function createEliteRouter({ getPanel, getEvidence = null, getDecision = 
     if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
     const ev = await getEvidence().update({ retryEmpty: req.query.retryEmpty === "1" });
     res.json({ version: ev.version, calendarLast: ev.calendarLast, tests: ev.tests, counts: ev.counts });
+  }));
+
+  /** Cổng tiền mặt CG-r1: trạng thái phiên đã đóng mới nhất + kết quả kiểm định đăng ký trước + sổ tiến bóng. */
+  router.get("/cash-gate", wrap(async (req, res) => {
+    if (!getCashGate) return res.status(503).json({ error: "Chưa cấu hình Cổng tiền mặt." });
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(await getCashGate().status());
   }));
 
   /** Độ phủ dữ liệu bằng chứng (R0): phát hiện khi số ngày đo tụt bất thường. */

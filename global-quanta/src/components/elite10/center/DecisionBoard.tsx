@@ -13,6 +13,7 @@ import { fmtDate, num, SectionControls, signed } from "./boardParts";
 import { useBoardSection } from "./boardPrefs";
 import PortfolioRadar from "./PortfolioRadar";
 import EliteCandidates from "./EliteCandidates";
+import CashGateCard from "./CashGateCard";
 
 const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
 
@@ -79,10 +80,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
           <p className="text-[10px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
           <p>{ws ? <>{ws.regime.stressed ? <b className="text-amber-300">Căng thẳng</b> : <b className="text-slate-100">Bình thường</b>} · VIX {num(ws.regime.vix, 2)} ({signed(ws.regime.vixChg, 1)}%)</> : "—"}</p>
         </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Tỷ lệ cổ phiếu</p>
-          <p>100% — chưa có tín hiệu định thời thị trường nào đạt kiểm định, nên không đề xuất tỷ lệ tiền mặt.</p>
-        </div>
+        <CashGateCard />
       </div>
 
       <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>

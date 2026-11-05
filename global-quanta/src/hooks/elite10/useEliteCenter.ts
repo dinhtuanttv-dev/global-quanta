@@ -42,3 +42,10 @@ export function useEliteRetro() {
     try { return await fetchMarketJson("/api/elite/retro"); } catch { return null; }
   }, OPTS);
 }
+
+/** CG-r1: trạng thái Cổng tiền mặt + kết quả kiểm định; lỗi nguồn -> null (thẻ ghi rõ). */
+export function useCashGate() {
+  return useSWR<import("../../lib/elite10/decisionTypes").CashGateStatus | null>("elite-cash-gate", async () => {
+    try { return await fetchMarketJson("/api/elite/cash-gate"); } catch { return null; }
+  }, OPTS);
+}

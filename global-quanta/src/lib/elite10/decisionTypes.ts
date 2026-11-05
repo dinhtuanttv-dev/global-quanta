@@ -86,3 +86,15 @@ export interface EliteRetro {
   descriptive: { nonOverlapping10: { n: number; mean: number | null; ci95: [number, number] | null }; annualisedExcess: number | null; dailyTurnover: number | null; tierDays: Record<string, Record<Tier, number>> };
   lastWeights: { id: string; tier: Tier; w: number; icPost: number }[];
 }
+
+/** CG-r1 Cổng tiền mặt (Gateway /api/elite/cash-gate). */
+export type CashGateRuleId = "H1" | "H1b" | "H2" | "H3";
+export interface CashGateHoldoutRule { cagr: number; mdd: number; sharpe: number; deltaSharpe: number; pHolm: number; pctReduced: number; episodes: number; criteria: { C1: boolean; C2: boolean; C3: boolean; C4: boolean }; pass: boolean }
+export interface CashGateStatus {
+  version: string; generatedAt: string; asOf: string;
+  inputs: { regime: string; vix: number | null; vix3m: number | null; volSlope: number | null; volAnnual: number | null; volTargetAnnual: number | null };
+  rules: Record<CashGateRuleId, { target: number; active: boolean }>;
+  official: { equityShare: number; reasonVi: string };
+  holdout: { version: string; ranAt: string; prereg: string; period: { from: string; to: string; sessions: number }; summaryVi: string; base: { cagr: number; mdd: number; sharpe: number }; rules: Record<CashGateRuleId, CashGateHoldoutRule>; passed: CashGateRuleId[] } | null;
+  ledger: { entries: number; first: string | null; last: string | null };
+}
