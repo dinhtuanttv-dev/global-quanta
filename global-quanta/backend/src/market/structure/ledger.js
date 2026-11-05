@@ -109,5 +109,11 @@ export function createStructureLedger({ store: disk, now = Date.now }) {
       return ledgerStats(state);
     },
     async stats() { return ledgerStats(await load()); },
+    /** Các phiên đã ghi trong 13 tháng gần nhất (cho trang sức khoẻ sổ theo dõi). */
+    async dates() {
+      const out = [], d = new Date(`${new Date(now()).toISOString().slice(0, 7)}-01T00:00:00Z`);
+      for (let k = 0; k < 13; k++) { out.push(...Object.keys((await disk.readJson(`ledger-${d.toISOString().slice(0, 7)}`))?.entries ?? {})); d.setUTCMonth(d.getUTCMonth() - 1); }
+      return out.sort();
+    },
   };
 }

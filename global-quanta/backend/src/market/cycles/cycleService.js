@@ -1,5 +1,5 @@
 // Cycle Fingerprint v2 — phục vụ trực tuyến (Gateway). Dựng thư viện theo thời điểm từ KHO (createScreenerSeries — không gọi SSI)
-// cho universe scanner, giữ trong bộ nhớ; truy vấn một mã = cửa sổ 30 phiên gần nhất -> 30 giai đoạn tương tự toàn universe.
+// cho universe scanner, giữ trong worker thread và lưu file trên Railway Volume (khởi động lại chỉ đọc file); truy vấn một mã = cửa sổ 30 phiên gần nhất -> 30 giai đoạn tương tự toàn universe.
 // Cấu hình CHỐT từ CF3 (cf3-config.json, SHA-256) — không chỉnh tay. Nhãn bằng chứng: CYCLE_VALIDATION.
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,8 @@ import { absoluteSimilarity, candidatePool, forecastFromPool } from "./engine.js
 import { hashConfig } from "./validate.js";
 import { CYCLE_VALIDATION } from "./validation.js";
 import { analogSummary } from "./analogStats.js";
-import { LEDGER_INDEX_KV, LEDGER_PREFIX, ledgerKv, recordSnapshot, scoreLedger, snapshotRow } from "./ledger.js";
+import { LEDGER_INDEX_KV, LEDGER_PREFIX, ledgerKv, recordSnapshot } from "./ledger.js";
+import { createCycleHost } from "./cycleHost.js";
 import { alertMissingSessions, assertLatestSession, loadLedgerIndex, missingSessions } from "../ledgerIndex.js";
 
 export const CYCLE_ENGINE = "cycles/CF2";
@@ -90,50 +91,65 @@ export function queryCycles(ctx, symbol, external = null) {
   };
 }
 
-export function createCycleService({ service, corporateActions, taSeries = null, now = Date.now }) {
+export function createCycleService({ service, corporateActions, taSeries = null, now = Date.now, host = createCycleHost() }) {
   const store = service.store;
-  let ctx = null, inflight = null, ledgerDocs = null;
+  let ensuring = null, building = null, ledgerDocs = null;
   const cache = new Map();
   /** Bản chụp dự báo của mọi mã trong thư viện cho ngày dữ liệu hiện tại (ghi một lần / ngày). */
-  async function snapshot(c) {
-    const rows = [];
-    for (const t of c.lib.tickers) { const q = queryCycles(c, t); if (q) rows.push(snapshotRow(t, q)); }
-    return recordSnapshot(store, { date: c.dataAsOf, engine: CYCLE_ENGINE, sha256: CONFIG.sha256, rows });
+  async function snapshot(info) {
+    const rows = await host.run("snapshotRows");
+    return recordSnapshot(store, { date: info.dataAsOf, engine: CYCLE_ENGINE, sha256: CONFIG.sha256, rows });
   }
-  async function loadLedger(c) {
-    if (ledgerDocs?.builtAt === c.builtAt) return ledgerDocs.docs;
+  async function loadLedger(info) {
+    if (ledgerDocs?.builtAt === info.builtAt) return ledgerDocs.docs;
     const dates = (await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX)).dates.slice(-120);
     const docs = [];
     for (const d of dates) { const v = (await store.getKv(ledgerKv(d)))?.value; if (v?.rows) docs.push(v); }
-    ledgerDocs = { builtAt: c.builtAt, docs };
+    ledgerDocs = { builtAt: info.builtAt, docs };
     return docs;
   }
-  async function build() {
-    const { seriesOf, benchBars, sectorOf, skipped, viaTaSeries } = await loadAdjustedUniverse({ store, corporateActions, taSeries, historyDays: HISTORY_DAYS });
-    if (benchBars.length < 400) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
-    const next = buildCycleContext({ seriesOf, benchBars, sectorOf, now });
-    next.skipped = skipped; next.viaTaSeries = viaTaSeries; next.sectorOf = sectorOf;
-    ctx = next; cache.clear();
-    return { windows: next.lib.N, tickers: next.lib.tickers.length, skipped, viaTaSeries, dataAsOf: next.dataAsOf };
+  // Dựng từ kho rồi chuyển sang nơi giữ thư viện (worker); luồng chính không giữ lại ngữ cảnh sau khi chuyển.
+  function build() {
+    return (building ??= (async () => {
+      const t0 = now();
+      const { seriesOf, benchBars, sectorOf, skipped, viaTaSeries } = await loadAdjustedUniverse({ store, corporateActions, taSeries, historyDays: HISTORY_DAYS });
+      if (benchBars.length < 400) throw new Error(`VN-Index chỉ có ${benchBars.length} phiên.`);
+      const next = buildCycleContext({ seriesOf, benchBars, sectorOf, now });
+      next.skipped = skipped; next.viaTaSeries = viaTaSeries; next.sectorOf = sectorOf;
+      const loaded = await host.put(next, { sha256: CONFIG.sha256, engine: CYCLE_ENGINE, dataAsOf: next.dataAsOf, builtAt: next.builtAt });
+      cache.clear(); ledgerDocs = null;
+      return { windows: loaded.windows, tickers: loaded.tickers, skipped, viaTaSeries, dataAsOf: loaded.dataAsOf, buildMs: now() - t0, host: host.status() };
+    })().finally(() => { building = null; }));
+  }
+  /** Thư viện đã nạp; chưa có thì đọc file trên Volume, không có file thì dựng từ kho. */
+  function ensure() {
+    const loaded = host.loaded();
+    if (loaded) return Promise.resolve(loaded);
+    return (ensuring ??= (async () => (await host.loadFromDisk(CONFIG.sha256).catch(() => null)) ?? (await build(), host.loaded()))().finally(() => { ensuring = null; }));
   }
   async function ledgerFor(symbol = null) {
-    const c = await ensure();
-    const docs = await loadLedger(c);
-    return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, ...scoreLedger(c, docs, { symbol }), missingSessions: missingSessions(docs.map((d) => d.date), c.cal.dates) };
+    const info = await ensure();
+    const docs = await loadLedger(info);
+    const scored = await host.run("score", { docs, symbol });
+    return { engine: CYCLE_ENGINE, dataAsOf: info.dataAsOf, horizon: 20, ...scored, missingSessions: missingSessions(docs.map((d) => d.date), info.calDates) };
   }
-  const ensure = () => (ctx ? Promise.resolve(ctx) : (inflight ??= build().then(() => ctx).finally(() => { inflight = null; })));
   return {
     jobs: {
       // 16:05 ngày giao dịch: dựng thư viện rồi ghi bản chụp sổ theo dõi (bỏ qua nếu ngày đó đã ghi)
       buildCycleLibrary: async () => {
-        const info = await (inflight ??= build().finally(() => { inflight = null; }));
-        const snap = await snapshot(ctx);
+        const info = await build();
+        const loaded = host.loaded();
+        const snap = await snapshot(loaded);
         ledgerDocs = null;
-        alertMissingSessions("Cycle Fingerprint", missingSessions((await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX)).dates, ctx.cal.dates));
+        alertMissingSessions("Cycle Fingerprint", missingSessions((await loadLedgerIndex(store, LEDGER_INDEX_KV, LEDGER_PREFIX)).dates, loaded.calDates));
         assertLatestSession(info.dataAsOf, "buildCycleLibrary", now());
         return { ...info, ledger: snap };
       },
     },
+    /** Nạp sẵn thư viện khi khởi động (đọc file trên Volume nếu có), để yêu cầu đầu tiên không phải chờ. */
+    warm: () => ensure().then((i) => ({ dataAsOf: i.dataAsOf, host: host.status() })),
+    status: async () => ({ ...host.status(), worker: await host.workerInfo().catch((e) => ({ error: e.message })) }),
+    close: () => host.close(),
     ledger: ledgerFor,
     /** Tóm tắt giai đoạn tương tự cho nhiều mã (bảng Top 20). Dùng lại kết quả truy vấn đã lưu đệm; mã ngoài thư viện thì bỏ. */
     async summary(symbols) {
@@ -142,23 +158,20 @@ export function createCycleService({ service, corporateActions, taSeries = null,
         const doc = await this.query(s).catch(() => null);
         if (doc) out.push(analogSummary(doc));
       }
-      const c = await ensure();
-      return { engine: CYCLE_ENGINE, dataAsOf: c.dataAsOf, horizon: 20, method: "trung vị và dải 10–90% có trọng số của lợi suất vượt VN-Index 20 phiên sau 30 giai đoạn tương tự", rows: out };
+      const info = await ensure();
+      return { engine: CYCLE_ENGINE, dataAsOf: info.dataAsOf, horizon: 20, method: "trung vị và dải 10–90% có trọng số của lợi suất vượt VN-Index 20 phiên sau 30 giai đoạn tương tự", rows: out };
     },
     async query(symbol) {
-      const c = await ensure();
-      const key = `${c.builtAt}:${symbol}`;
+      const info = await ensure();
+      const key = `${info.builtAt}:${symbol}`;
       if (cache.has(key)) return cache.get(key);
-      let r = queryCycles(c, symbol);
+      let r = await host.run("query", { symbol });
       if (!r && taSeries) { // mã ngoài thư viện: truy vấn bằng chuỗi /ta-series của chính mã (không thêm vào thư viện)
         const ts = await taSeries.get({ symbol, range: "5y", limit: 1400 }).catch(() => null);
-        if (ts?.priceBasis === "ADJUSTED_CUMULATIVE") {
-          const ext = prepareExternal(c, symbol, ts.bars ?? [], c.sectorOf?.get(symbol) ?? null);
-          if (ext) r = { ...queryCycles(c, symbol, ext), inLibrary: false };
-        }
+        if (ts?.priceBasis === "ADJUSTED_CUMULATIVE") r = await host.run("query", { symbol, external: { bars: ts.bars ?? [] } });
       }
       const led = r ? await ledgerFor(symbol).catch(() => null) : null;
-      const doc = r && { engine: CYCLE_ENGINE, ledger: led, builtAt: c.builtAt, dataAsOf: c.dataAsOf, config: { sha256: CONFIG.sha256, lambda: CONFIG.lambda, hMult: CONFIG.hMult, W: CONFIG.W }, evidence: CYCLE_VALIDATION, ...r };
+      const doc = r && { engine: CYCLE_ENGINE, ledger: led, builtAt: info.builtAt, dataAsOf: info.dataAsOf, config: { sha256: CONFIG.sha256, lambda: CONFIG.lambda, hMult: CONFIG.hMult, W: CONFIG.W }, evidence: CYCLE_VALIDATION, ...r };
       if (cache.size > 500) cache.clear();
       cache.set(key, doc);
       return doc;

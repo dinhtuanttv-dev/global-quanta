@@ -28,6 +28,7 @@ import { createPreopenService } from "./preopen/preopenService.js";
 import { createStrategyJobs, STRATEGY_SCHEDULE } from "./strategies/strategyJobs.js";
 import { createSectorJobs, SECTOR_SCHEDULE } from "./sectors/sectorJobs.js";
 import { createLedgerBackup, LEDGER_BACKUP_SCHEDULE } from "./ledgerBackup.js";
+import { createLedgerHealth } from "./ledgerHealth.js";
 import { createCycleService, CYCLE_SCHEDULE } from "./cycles/cycleService.js";
 import { createTop20Service, TOP20_SCHEDULE } from "./top20/top20Jobs.js";
 import { createAlphaService, ALPHA_SCHEDULE } from "./alpha/alphaService.js";
@@ -160,7 +161,9 @@ export function getMarketRuntime() {
   setHolidayProvider(tradingCalendar.isHoliday);
   tradingCalendar.start();
 
-  runtime = { msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
+    getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
+  runtime = { ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -183,6 +186,8 @@ export function startMarketIngestor() {
   }, 120_000).unref?.();
   rt.elliottAlerts.start();
   rt.preopen.startTimer();
+  // Cycle Fingerprint: nạp sẵn thư viện vào worker (đọc file trên Volume nếu có) để yêu cầu đầu tiên không phải chờ dựng lại.
+  setTimeout(() => { rt.cycles.warm().then((r) => console.log(`[cycles] nạp sẵn: ${JSON.stringify(r)}`)).catch((e) => console.warn(`[cycles] nạp sẵn lỗi: ${e.message}`)); }, 5_000).unref?.();
   // M0: kho cục bộ thiếu dữ liệu (lần đầu triển khai / volume mới) -> tự dựng lại từ nguồn gốc sau 60 giây.
   if (rt.store.localFirst) setTimeout(() => { rt.localBootstrap.autoStart().then((r) => console.log(`[local-bootstrap] ${JSON.stringify(r)}`)).catch((e) => console.warn(`[local-bootstrap] ${e.message}`)); }, 60_000).unref?.();
   if (rt.store.localFirst) setTimeout(() => { rt.jobs.repairForeign().then((r) => { console.log(`[foreign-repair] ${JSON.stringify(r)}`); if (r.repaired.length) rt.matrix.clearMemo(); }).catch((e) => console.warn(`[foreign-repair] ${e.message}`)); }, 90_000).unref?.();
@@ -193,6 +198,7 @@ export function startMarketIngestor() {
 export function stopMarketRuntime() {
   if (!runtime) return;
   runtime.scheduler.stop();
+  runtime.cycles?.close?.();
   runtime.cotucScanner.stop();
   runtime.eventRadar.stop();
   runtime.tradingCalendar.stop();

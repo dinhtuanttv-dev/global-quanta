@@ -499,6 +499,14 @@ router.get("/cycles-ledger", handle(async (req, res) => {
   res.json(await getMarketRuntime().cycles.ledger());
 }));
 
+// Sức khoẻ các sổ theo dõi thực tế: phiên đã ghi, phiên thiếu, trễ, lỗi job, ngày chấm đầu tiên, sao lưu; kèm trạng thái thư viện Cycle.
+router.get("/ledger-health", handle(async (req, res) => {
+  const rt = getMarketRuntime();
+  const doc = await rt.service.cache.wrap("ledger-health", 2 * 60_000, async () => ({ ...(await rt.ledgerHealth.report()), cycleLibrary: await rt.cycles.status().catch((e) => ({ error: e.message })) }));
+  res.set("Cache-Control", "no-store");
+  res.json(doc);
+}));
+
 // Tóm tắt Cycle Fingerprint cho nhiều mã (bảng Top 20): ?symbols=A,B,... tối đa 40 mã.
 router.get("/cycles-summary", handle(async (req, res) => {
   const symbols = [...new Set(String(req.query.symbols || "").toUpperCase().split(",").map((s) => s.trim()).filter((s) => /^[A-Z0-9]{3,10}$/.test(s)))];
