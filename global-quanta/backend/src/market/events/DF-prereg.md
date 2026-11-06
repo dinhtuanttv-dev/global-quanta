@@ -35,3 +35,19 @@ Từ lịch sử sự kiện VNDirect của chính mã (từ 2015), dự báo đ
 
 ## Sổ theo dõi tiến (DF-L1)
 Từ khi triển khai, mỗi ngày ghi một lần các dự báo của 60 ngày tới (mã, đợt, ngày dự kiến, dải, xác suất). Khi có GDKHQ thật thì chấm, không sửa bản ghi cũ.
+
+## Kết quả DF-r1 (chạy 07/11/2026, sau khi đăng ký — commit 9488a3a): **KHÔNG ĐẠT**
+Báo cáo: `df-r1-report.json`. Có 177 mã có cổ tức tiền, 90 điểm dự báo, 2.558 chân lý.
+
+| Tiêu chí | Kết quả | Ngưỡng | |
+|---|---|---|---|
+| H1 – MAE DF / ngây thơ | 17,2 / 18,4 ngày, tỷ số 0,935 [0,885; 0,984] | ≤ 0,85 và cận trên < 1 | KHÔNG ĐẠT |
+| H2 – độ phủ P10–P90 | 38,1% | 70–90% | KHÔNG ĐẠT |
+| H3 – Brier skill 120 ngày | 0,057 | ≥ 0,10 | KHÔNG ĐẠT |
+| H4 – hai nửa | 2019–2022: 1,07 (n = 84); 2023–2026: 0,926 | đạt cả hai | KHÔNG ĐẠT |
+
+**Nguyên nhân đo được:** lịch sử cổ tức tiền của VNDirect `/v4/events` thực chất chỉ có từ 2022. Số sự kiện theo năm GDKHQ: 2017–2019 mỗi năm 1, 2021 có 25, 2022–2026 khoảng 145–160 mỗi năm. Giả định "lịch sử từ 2015" trong bản đăng ký không đúng với dữ liệu. Với khoảng 4 năm, σ vòng tròn bị ước lượng quá hẹp, nên dải chỉ phủ 38%.
+
+**Hệ quả theo đăng ký:** không hiển thị xác suất hay dải ngày. Lịch sự kiện chỉ hiển thị "nếp lịch sử" (ngày GDKHQ thường gặp của đợt, k/n năm) với nhãn MÔ TẢ.
+
+**Hướng tiếp (cần đăng ký mới DF-r2):** lấy lịch sử chốt quyền / trả cổ tức dài hơn từ tin doanh nghiệp CafeF (có từ khoảng 2010). Mô hình và tiêu chí giữ nguyên, chỉ thêm dữ liệu.
