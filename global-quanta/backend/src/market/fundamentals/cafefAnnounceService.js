@@ -11,7 +11,7 @@ import { publishDates } from "./earningsCalendar.js";
 
 export const CA_RULES = Object.freeze({ phaseA: "2020-01-01", phaseB: "2013-01-01", minPrecision: 0.9, maxSessions: 1, delayMs: 1000, maxPages: 400, lanes: 3 });
 const UA = "Mozilla/5.0 (compatible; GlobalQuanta/1.0)";
-const KEEP = /(qu[yý]|th[aá]ng|n[aă]m|20\d\d|bctc|t[aà]i ch[ií]nh|k[eế]t qu[aả]|l[aã]i|l[oợ]i nhu[aậ]n|lntt|lnst|doanh thu|l[oỗ]|gi[aả]i tr[iì]nh|b[aá]n ni[eê]n)/i;
+const KEEP = /(qu[yý]|th[aá]ng|n[aă]m|20\d\d|bctc|t[aà]i ch[ií]nh|k[eế]t qu[aả]|l[aã]i|l[oợ]i nhu[aậ]n|lntt|lnst|doanh thu|l[oỗ]|gi[aả]i tr[iì]nh|b[aá]n ni[eê]n|c[oổ] t[uứ]c|đkcc|gdkhq|ch[oố]t|đ[aạ]i h[oộ]i|đhđcđ|quy[eề]n mua|ph[aá]t h[aà]nh|th[uư][oở]ng)/i; // LSK1: giữ cả tin cổ tức / chốt quyền / đại hội để kiểm chéo Lịch sự kiện
 const TICKER_FILE = /^[A-Z0-9]{3,10}\.json\.gz$/;
 const readGz = (f) => { try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString("utf8")); } catch { return null; } };
 const writeGz = (f, o) => { const tmp = `${f}.tmp-${process.pid}`; fs.writeFileSync(tmp, zlib.gzipSync(JSON.stringify(o))); fs.renameSync(tmp, f); };
@@ -145,5 +145,12 @@ export function createCafefAnnounce({ dir, fetchImpl = globalThis.fetch, now = D
     return evalMemo;
   }
 
-  return { crawl, refreshHead, dates, evaluate, hasStarted: () => Object.keys(readState()).length > 0, status: () => ({ version: CA_VERSION, running, last, ...progress(), rules: CA_RULES }) };
+  /** Tin thô đã lưu của một mã ([[ngày, tiêu đề]]) — LSK1 kiểm chéo ngày sự kiện. */
+  const newsMemo = new Map();
+  function news(t) {
+    if (!newsMemo.has(t)) { newsMemo.set(t, readGz(path.join(newsDir, `${t}.json.gz`))?.rows ?? null); while (newsMemo.size > 300) newsMemo.delete(newsMemo.keys().next().value); }
+    return newsMemo.get(t);
+  }
+
+  return { crawl, refreshHead, dates, news, clearNews: () => newsMemo.clear(), evaluate, hasStarted: () => Object.keys(readState()).length > 0, status: () => ({ version: CA_VERSION, running, last, ...progress(), rules: CA_RULES }) };
 }

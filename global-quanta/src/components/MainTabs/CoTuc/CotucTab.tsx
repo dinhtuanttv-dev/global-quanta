@@ -29,9 +29,7 @@ import { assertNoMockInProduction } from "../../../lib/cotuc/observability";
 import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
-import { CalendarTabV3 } from "./CalendarTabV3";
-import { makeDeps } from "../../../lib/quant-cotuc";
-import type { DividendCalendarItem } from "./CalendarTabV3";
+import EventsCalendar from "./events/EventsCalendar";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
 import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
@@ -1036,21 +1034,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       )}
 
       {subTab === "calendar-v3" && (
-        <ErrorBoundary fallbackLabel="Không hiển thị được Lịch Sự Kiện (v3)">
+        <ErrorBoundary fallbackLabel="Không hiển thị được Lịch sự kiện">
           <div className="cf-panel rounded-xl p-4">
-            {Object.keys(realDatesMap).length === 0 && (
-              <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
-                ⚠ Ngày GDKHQ đang là dữ liệu mẫu (VCI tạm lỗi) — danh sách "Sắp GDKHQ" bên dưới chỉ mang tính minh họa.
-              </div>
-            )}
-            <CalendarTabV3
-              dividendItems={allStocksWithUniverse.filter((s) => s.exDividendDate).map((s): DividendCalendarItem => ({
-                ticker: s.ticker,
-                exDate: toSourcedIso(s.exDividendDate),
-                cashPerShare: s.dividendAmount ?? null,
-              }))}
-              deps={makeDeps({ cal: vnHolidayCalendar })}
-            />
+            <EventsCalendar livePrices={livePrices} onSelectTicker={openTicker} pinned={pinned} />
           </div>
         </ErrorBoundary>
       )}

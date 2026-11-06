@@ -734,27 +734,5 @@ export function estimateDividendFrequency(exDates: ISODate[]): DividendFrequency
   };
 }
 
-// ---------------------------------------------------------------------------
-// 9. Phat hien su kien sap toi
-// ---------------------------------------------------------------------------
-
-export interface UpcomingDividend {
-  ticker: string;
-  tdToEx: number;
-  cashPerShare: number | null;
-  status: DataStatus;
-}
-
-export function detectUpcomingDividendEvents(
-  items: { ticker: string; exDate: Sourced<ISODate> | null; cashPerShare: number | null }[],
-  deps: Deps,
-  horizonTd: number = deps.cfg.horizonTd,
-): UpcomingDividend[] {
-  const today = deps.clock.today();
-  return items
-    .map((i) => ({ i, td: tradingDaysBetween(today, i.exDate?.value, deps.cal) }))
-    .filter((x): x is { i: (typeof items)[number]; td: number } => x.td !== null && x.td >= 0 && x.td <= horizonTd)
-    .map(({ i, td }) => ({ ticker: i.ticker, tdToEx: td, cashPerShare: i.cashPerShare, status: i.exDate!.status }))
-    .sort((a, b) => a.tdToEx - b.tdToEx || a.ticker.localeCompare(b.ticker));
-}
+// (9. Phát hiện sự kiện sắp tới: đã chuyển sang Lịch sự kiện trên Gateway — LSK1, 07/11/2026)
 
