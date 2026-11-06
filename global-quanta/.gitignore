@@ -24,3 +24,4 @@ Thumbs.db
 !.env.example
 coverage/
 backend/data/event-radar/
+backend/data/fundamentals/

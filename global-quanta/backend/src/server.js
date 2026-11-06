@@ -38,6 +38,7 @@ import { createRiskService } from "./market/elite/riskService.js";
 import { createRetroService } from "./market/elite/retroService.js";
 import { createCashGateService } from "./market/cashGate/cashGateService.js";
 import { createEarningsQualityService } from "./market/fundamentals/earningsQualityService.js";
+import { createKqkdRouter } from "./routes/kqkd.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
@@ -254,6 +255,8 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
     res.status(503).json({ error: `Kho dữ liệu tạm không đọc được: ${e.message}` });
   }
 });
+// K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
+app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {
