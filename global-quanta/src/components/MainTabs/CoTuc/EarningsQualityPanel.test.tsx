@@ -25,6 +25,17 @@ import EarningsQualityPanel from "./EarningsQualityPanel";
 afterEach(() => cleanup());
 
 describe("F5 — Chất lượng KQKD", () => {
+  it("phân trang: mặc định 50 mã, Xem thêm 50", () => {
+    const many = Array.from({ length: 120 }, (_, i) => row({ ticker: `T${String(i).padStart(3, "0")}`, rank: i + 1, score: 100 - i * 0.5 }));
+    const saved = data.rows; data.rows = many as never;
+    try {
+      render(<EarningsQualityPanel />);
+      expect(screen.getAllByTestId("eq-row")).toHaveLength(50);
+      fireEvent.click(screen.getByTestId("eq-more"));
+      expect(screen.getAllByTestId("eq-row")).toHaveLength(100);
+    } finally { data.rows = saved; }
+  });
+
   it("thẻ tổng quan, xếp hạng theo điểm, mã nền thấp không xếp hạng (ghi chú tăng trưởng thô)", () => {
     const opened: string[] = [];
     render(<EarningsQualityPanel onSelectTicker={(t) => opened.push(t)} sectorOf={(t) => (t === "MWG" ? "Bán lẻ" : null)} />);
