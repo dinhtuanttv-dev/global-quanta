@@ -12,6 +12,7 @@ import { fetchTickerStatements } from "./statementsVnd.js";
 import { LEDGER_VERSION, recordLedger, scoreLedger } from "./kqkdLedger.js";
 import { attainment, sameScope } from "./agmPlans.js";
 import { buildCalendar, publishDates, seasonQuarters } from "./earningsCalendar.js";
+import { auditEventDates, createSeasonalityBundle, SB_VERSION } from "./seasonalityBundle.js";
 
 /** LC4: tin công bố BCTC chính thức của một mã (VNDirect newsType financialstatement) -> [[date, title]]. */
 export async function fetchDisclosures(t, { fetchImpl = globalThis.fetch, since = "2023-01-01" } = {}) {
@@ -58,7 +59,7 @@ function readGz(file) {
   try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString("utf8")); } catch { return null; }
 }
 
-export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, getEventStudy = null, isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
+export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, getEventStudy = null, seasonalityBundle = createSeasonalityBundle({ fetchImpl }), isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const fileOf = (t) => path.join(dir, `${t}.json.gz`);
   const summaryFile = path.join(dir, "summary.json.gz");
@@ -241,11 +242,41 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     return doc;
   }
 
+  /** S7/S3/S5: Mùa vụ KQKD của một mã — gói 9 API Project A + kiểm ngày làm mốc + bối cảnh kỳ tới. */
+  async function seasonality(ticker) {
+    const t = String(ticker ?? "").toUpperCase();
+    if (!TICKER.test(t) || !(await universe()).includes(t)) return null; // chỉ mã thuộc universe (không gọi nguồn ngoài theo tham số tuỳ ý)
+    const b = await seasonalityBundle.get(t);
+    const rec = readGz(fileOf(t));
+    const disc = readGz(discFile)?.byTicker?.[t] ?? [];
+    const px = readGz(path.join(dir, "px", `${t}.json.gz`))?.rows ?? [];
+    const idx = new Map(px.map((r, i) => [r[0], i]));
+    const sessionsOf = (d) => { if (idx.has(d)) return idx.get(d); const i = px.findIndex((r) => r[0] >= d); return i < 0 ? null : i; };
+    const pathsByQ = Object.fromEntries([1, 2, 3, 4].map((q) => [q, b.items[`paths:${q}`]?.body ?? null]));
+    const audit = auditEventDates(pathsByQ, rec, disc, px.length ? sessionsOf : null);
+    // Bối cảnh kỳ tới: dòng lịch (mùa hiện tại nếu chưa công bố, ngược lại mùa kế tiếp), ước tính cả năm, kế hoạch ĐHCĐ, KL/giá 10 phiên.
+    let context = null;
+    try {
+      const cal = await calendar();
+      const cur = cal?.current.rows.find((r) => r.t === t) ?? null, nxt = cal?.next.rows.find((r) => r.t === t) ?? null;
+      const pick = cur && cur.status !== "REPORTED" ? { season: cal.current.quarter, row: cur } : nxt ? { season: cal.next.quarter, row: nxt } : null;
+      const sum = await summary();
+      const row = sum?.rows.find((r) => r.t === t) ?? null;
+      context = {
+        next: pick ? { quarter: pick.season.label, fiscal: pick.season.fiscal, deadlineConsolidated: pick.season.deadlineConsolidated, status: pick.row.status, date: pick.row.date, expected: pick.row.expected, band: pick.row.band, pNext: pick.row.pNext, medianLag: pick.row.medianLag, ownN: pick.row.ownN, lateShare: pick.row.lateShare } : null,
+        last: cur?.status === "REPORTED" ? { quarter: cal.current.quarter.label, date: cur.date, source: cur.source, result: cur.result, reaction: cur.reaction ?? null } : null,
+        nowcast: row?.nowcast ?? null, nowcastLabel: EVIDENCE?.nowcast?.label ?? "MÔ TẢ", plan: row?.plan ?? null,
+        live: getEventStudy?.()?.live?.[t] ?? null,
+      };
+    } catch (e) { log.warn?.(`[kqkd] bối cảnh mùa vụ ${t}: ${e.message}`); }
+    return { version: SB_VERSION, ticker: t, fetchedAt: new Date(b.at).toISOString(), cached: b.cached, stale: b.stale, source: seasonalityBundle.base, items: b.items, audit, context };
+  }
+
   function status() {
     let files = 0;
     try { files = fs.readdirSync(dir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).length; } catch { /* */ }
     return { version: KQ_VERSION, dir: path.basename(dir), files, ...state, failed: state.failed.slice(0, 50), failedCount: state.failed.length };
   }
 
-  return { refresh, summary, detail, status, rebuildSummary, ledger, calendar, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
+  return { refresh, summary, detail, status, rebuildSummary, ledger, calendar, seasonality, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
 }

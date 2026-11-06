@@ -12,6 +12,12 @@ import {
   fetchEarningsCyclePaths,
   fetchEarningsCycleStats,
 } from '../lib/cotuc/seasonality.api';
+import { takePrimed } from '../lib/cotuc/seasonality-bundle';
+
+/** S7: đọc gói Mùa vụ KQKD đã kiểm tra (Gateway, 1 lần gọi) trước; không có thì gọi mạng như cũ. */
+function primedOr<T>(url: string | null, run: () => Promise<T | null>): () => Promise<T | null> {
+  return () => { const p = url ? takePrimed<T>(url) : undefined; return p !== undefined ? Promise.resolve(p) : run(); };
+}
 
 export type SeasonalityStatus = 'idle' | 'loading' | 'ready' | 'empty' | 'error';
 
@@ -60,17 +66,20 @@ function useSeasonalFetch<T>(key: string | null, fetcher: () => Promise<T | null
 export function useEarningsCycleStats(ticker: string | null | undefined, quarter: Quarter, o: SeasonalityHookOptions = {}): SeasonalityResult<EarningsCycleStatsV3> {
   const { baseUrl = defaultBaseUrl(), enabled = true } = o;
   const t = normalizeTicker(ticker);
-  return useSeasonalFetch(enabled && t ? buildEarningsCycleStatsUrl(t, quarter, baseUrl) : null, () => fetchEarningsCycleStats(t as string, quarter, { baseUrl }));
+  const key = enabled && t ? buildEarningsCycleStatsUrl(t, quarter, baseUrl) : null;
+  return useSeasonalFetch(key, primedOr(key, () => fetchEarningsCycleStats(t as string, quarter, { baseUrl })));
 }
 
 export function useEarningsCyclePaths(ticker: string | null | undefined, quarter: Quarter, o: SeasonalityHookOptions = {}): SeasonalityResult<CyclePathsV3> {
   const { baseUrl = defaultBaseUrl(), enabled = true } = o;
   const t = normalizeTicker(ticker);
-  return useSeasonalFetch(enabled && t ? buildEarningsCyclePathsUrl(t, quarter, baseUrl) : null, () => fetchEarningsCyclePaths(t as string, quarter, { baseUrl }));
+  const key = enabled && t ? buildEarningsCyclePathsUrl(t, quarter, baseUrl) : null;
+  return useSeasonalFetch(key, primedOr(key, () => fetchEarningsCyclePaths(t as string, quarter, { baseUrl })));
 }
 
 export function useAnnualEarningsCalendar(ticker: string | null | undefined, o: SeasonalityHookOptions = {}): SeasonalityResult<AnnualEarningsCalendarV3> {
   const { baseUrl = defaultBaseUrl(), enabled = true } = o;
   const t = normalizeTicker(ticker);
-  return useSeasonalFetch(enabled && t ? buildAnnualCalendarUrl(t, baseUrl) : null, () => fetchAnnualEarningsCalendar(t as string, { baseUrl }));
+  const key = enabled && t ? buildAnnualCalendarUrl(t, baseUrl) : null;
+  return useSeasonalFetch(key, primedOr(key, () => fetchAnnualEarningsCalendar(t as string, { baseUrl })));
 }

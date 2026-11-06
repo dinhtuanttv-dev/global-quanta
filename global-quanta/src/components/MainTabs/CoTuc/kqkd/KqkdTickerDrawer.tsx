@@ -21,8 +21,8 @@ const TABS: { id: Tab; label: string }[] = [
 const FLAG_CLS: Record<string, string> = { NON_CORE: "border-sky-400/40 text-sky-300", HIGH_ACCRUAL: "border-amber-400/40 text-amber-300", NEG_CFO: "border-amber-400/40 text-amber-300",
   M_FLAG: "border-amber-400/40 text-amber-300", Z_DISTRESS: "border-rose-400/40 text-rose-300", AUDIT_DIFF: "border-amber-400/40 text-amber-300", SEASON_DEV: "border-white/20 text-slate-300" };
 
-export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile, sectorOf, nextDeadline }: {
-  ticker: string; rows: KqkdRow[]; onClose: () => void; onOpenProfile?: (t: string) => void; sectorOf?: (t: string) => string | null; nextDeadline?: string | null;
+export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile, sectorOf, nextDeadline, onOpenSeasonality }: {
+  ticker: string; rows: KqkdRow[]; onClose: () => void; onOpenProfile?: (t: string) => void; sectorOf?: (t: string) => string | null; nextDeadline?: string | null; onOpenSeasonality?: (t: string) => void;
 }) {
   const { data: d, error, isLoading } = useKqkdTicker(ticker);
   const [tab, setTab] = useState<Tab>("matrix");
@@ -48,6 +48,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
             )}
           </div>
           <span className="rounded border border-slate-500/40 px-2 py-0.5 text-[10px] font-bold text-slate-300" title={d?.method.label}>{d?.version ?? "KQ-v1"} · MÔ TẢ</span>
+          {onOpenSeasonality && <button type="button" onClick={() => { onClose(); onOpenSeasonality(ticker); }} className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:text-slate-100" data-testid="kq-open-season">📊 Mùa vụ</button>}
           {onOpenProfile && <button type="button" onClick={() => onOpenProfile(ticker)} className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-300 hover:text-slate-100">Hồ sơ cổ phiếu ↗</button>}
           <button ref={closeRef} type="button" onClick={onClose} aria-label="Đóng" className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-slate-300 hover:text-slate-100" data-testid="kq-drawer-close">✕</button>
         </header>
