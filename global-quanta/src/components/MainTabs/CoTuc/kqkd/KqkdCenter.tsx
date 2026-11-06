@@ -3,7 +3,7 @@
 //   Piotroski, Altman, Beneish) · SUE · mùa vụ · ước tính cả năm · bản đồ nhiệt 12 quý · bản đồ 3D toàn thị trường · ngăn chi tiết từng mã.
 //   Nguồn: Gateway /api/fundamentals/kqkd/* (BCTC đầy đủ VNDirect trên Railway Volume). Nhãn MÔ TẢ.
 import { useMemo, useState } from "react";
-import { useKqkdSummary } from "../../../../hooks/useKqkd";
+import { useKqkdLedger, useKqkdSummary } from "../../../../hooks/useKqkd";
 import { bn, dmy, fin, growthText, num, pct, pctPlain, summaryCsv, downloadText, TPL_LABEL, TPL_SHORT } from "../../../../lib/kqkd/format";
 import type { KqkdRow, Tpl } from "../../../../lib/kqkd/types";
 import KqkdTickerDrawer from "./KqkdTickerDrawer";
@@ -53,6 +53,7 @@ function Heat({ r, quarters }: { r: KqkdRow; quarters: string[] }) {
 
 export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null }) {
   const { data, error, isLoading } = useKqkdSummary();
+  const { data: ledger } = useKqkdLedger(!!data?.evidence);
   const [filter, setFilter] = useState<Filter>("all");
   const [tpl, setTpl] = useState<Tpl | "all">("all");
   const [sector, setSector] = useState<string>("");
@@ -204,6 +205,25 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
         </button>
         {show3d && <div className="px-3 pb-3"><Market3D rows={base} onPick={setOpen} /></div>}
       </section>
+
+      {ledger && (
+        <section className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px]" data-testid="kq-ledger">
+          <p className="font-bold text-slate-200">📒 Sổ theo dõi tiến — ước tính tăng trưởng cả năm <span className="font-normal text-slate-400">({ledger.version}) · ghi một lần, không sửa · chấm sau 60 phiên</span></p>
+          {ledger.entries === 0 ? (
+            <p className="text-slate-400">Chưa có dòng: lứa đầu ({data.deadline.current?.quarterLabel ?? data.latestQuarter}) được ghi từ hạn nộp BCTC hợp nhất {dmy(data.deadline.current?.deadlineConsolidated ?? null)}; điểm đầu tiên khoảng 60 phiên sau đó.</p>
+          ) : (
+            <div className="mt-1 flex flex-wrap gap-2">
+              {ledger.cohorts.map((c) => (
+                <span key={c.quarter} className="rounded border border-white/10 px-2 py-0.5 text-slate-300" data-testid="kq-ledger-cohort">
+                  {c.quarter}: {c.recorded} mã từ {dmy(c.recordedFrom)} · {c.status === "SCORED" ? <>IC <b className={(c.ic ?? 0) > 0 ? "text-emerald-300" : "text-rose-300"}>{num(c.ic, 3)}</b> · Q5−Q1 {pct(c.spread, 1)}</> : "chờ đủ 60 phiên"}
+                  {c.accuracy && <> · sai số {pctPlain(c.accuracy.medianApe)}, trong dải {pctPlain(c.accuracy.coverage, 0)}</>}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-[10px] text-slate-500">{ledger.rule}</p>
+        </section>
+      )}
 
       <p className="text-[10px] text-slate-500">
         Bấm mã để mở chi tiết: ma trận Q1–Q4 và lũy kế tới 20 năm, thác nước lợi nhuận, chất lượng & sức khoẻ, mùa vụ & ước tính cả năm, 3D/4D, so với ngành.

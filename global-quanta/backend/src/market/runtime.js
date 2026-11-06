@@ -143,7 +143,7 @@ export function getMarketRuntime() {
   const CATALYST_SCANS = ["08:35", "09:35", "10:35", "11:35", "13:35", "14:35", "15:15", "20:30"].map((at, i) => ({ name: `catalystScan${i + 1}`, at, tradingDayOnly: false }));
   for (const c of CATALYST_SCANS) jobs[c.name] = () => qmsJobs.call("/api/catalysts/scan");
   // K0 (06/11/2026): kho BCTC quý đầy đủ (VNDirect, Railway Volume) cho KQKD theo quý — 2 lượt/ngày, cả cuối tuần.
-  const kqkd = createKqkdService({ store });
+  const kqkd = createKqkdService({ store, getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
   const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });

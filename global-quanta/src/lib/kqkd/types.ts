@@ -24,6 +24,9 @@ export interface KqEvidence {
   nowcast: { pass: boolean; label: string; ic: number | null; p: number | null; spread: number | null; cohorts: number };
   accuracy: { pass: boolean; medianApe: number | null; medianApeNaive: number | null; coverage: number | null; target: [number, number]; n: number };
 }
+/** KQ-L1 — sổ theo dõi tiến của tăng trưởng ước tính cả năm. */
+export interface KqLedgerCohort { quarter: string; recorded: number; recordedFrom: string; status: "SCORED" | "PENDING"; withReturn: number; ic: number | null; spread: number | null; accuracy: { n: number; medianApe: number | null; coverage: number | null } | null }
+export interface KqLedger { version: string; asOf: string; entries: number; startedAt: string | null; cohorts: KqLedgerCohort[]; scoredCohorts: number; meanIc: number | null; meanSpread: number | null; rule: string }
 export interface KqkdSummary {
   evidence?: KqEvidence | null;
   version: string; label: string; asOf: string; fetchedAt: string | null; builtAt?: string; source: string;

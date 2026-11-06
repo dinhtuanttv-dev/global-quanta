@@ -43,6 +43,10 @@ export function createKqkdRouter({ getService, adminToken = () => process.env.MA
   });
 
   router.get("/status", (_req, res) => res.json(getService().status()));
+  // KQ-L1: sổ theo dõi tiến của tăng trưởng ước tính cả năm.
+  router.get("/ledger", readRl, async (req, res) => {
+    try { send(req, res, await getService().ledger()); } catch (e) { fail(res, e); }
+  });
 
   router.post("/admin/refresh", (req, res) => {
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });

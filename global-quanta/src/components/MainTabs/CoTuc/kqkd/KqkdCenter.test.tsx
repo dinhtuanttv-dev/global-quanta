@@ -29,6 +29,7 @@ const details: Record<string, KqkdDetail> = Object.fromEntries(recs.map((r) => [
 
 vi.mock("../../../../hooks/useKqkd", () => ({
   useKqkdSummary: () => ({ data: summary, error: null, isLoading: false }),
+  useKqkdLedger: () => ({ data: { version: "KQ-L1", asOf: "2026-11-06", entries: 0, startedAt: null, cohorts: [], scoredCohorts: 0, meanIc: null, meanSpread: null, rule: "r" }, error: null }),
   useKqkdTicker: (t: string | null) => ({ data: t ? details[t] ?? null : null, error: null, isLoading: false }),
 }));
 import KqkdCenter from "./KqkdCenter";
@@ -43,6 +44,7 @@ describe("K1–K6 KQKD theo quý", () => {
     expect(screen.getByTestId("kq-tiles").textContent).toContain("3/3");
     expect(screen.getByTestId("kq-deadline").textContent).toContain("Q3/2026");
     expect(screen.getByTestId("kq-deadline").textContent).toContain("14/11/2026");
+    expect(screen.getByTestId("kq-ledger").textContent).toContain("Chưa có dòng");
     expect(screen.getAllByTestId("kq-row")).toHaveLength(3);
     expect(screen.getByTestId("kq-table").textContent).toContain("9T");
     fireEvent.click(screen.getByTestId("kq-filter-nonCore"));

@@ -46,3 +46,25 @@ test("KQ-r1 báo cáo trong kho -> nhãn: ước tính cả năm THĂM DÒ (H3 �
   assert.ok(e.accuracy.coverage < 0.7);
   assert.equal(rep.frozenSha256.length, 64);
 });
+
+test("KQ-L1 sổ tiến: chỉ ghi khi ≥ ngày vào, ghi một lần, chấm IC/Q5−Q1 sau 60 phiên, độ chính xác khi có cả năm", async () => {
+  const { entryDate, recordLedger, scoreLedger } = await import("../src/market/fundamentals/kqkdLedger.js");
+  assert.equal(entryDate("2026-09-30", "2026-10-29"), "2026-11-14");
+  assert.equal(entryDate("2026-09-30", "2026-11-20"), "2026-11-20");
+  const rows = Array.from({ length: 40 }, (_, i) => ({ t: `T${i}`, tpl: "corp", fiscal: "2026-09-30", quarter: "Q3/2026", created: "2026-10-29", current: true, nowcast: { growth: i / 40, est: 100, lo: 90, hi: 110 } }));
+  rows.push({ t: "LATE", fiscal: "2026-09-30", quarter: "Q3/2026", created: "2026-11-20", current: true, nowcast: { growth: 1, est: 1, lo: 1, hi: 1 } });
+  const L = { entries: [] };
+  assert.equal(recordLedger(L, rows, "2026-11-10"), 0); // trước hạn nộp: chưa ghi
+  assert.equal(recordLedger(L, rows, "2026-11-14"), 40); // LATE chưa tới ngày công bố
+  assert.equal(recordLedger(L, rows, "2026-11-15"), 0); // không ghi trùng
+  const days = Array.from({ length: 90 }, (_, k) => new Date(Date.UTC(2026, 10, 15) + k * 864e5).toISOString().slice(0, 10));
+  const closesOf = (t) => { const i = Number(t.slice(1)); return days.map((d, k) => ({ date: d, close: 10 * (1 + 0.0005 * i * k) })); };
+  const s = scoreLedger(L, { closesOf, fyOf: (t) => (t === "T0" ? 105 : null) });
+  const c = s.cohorts[0];
+  assert.equal(c.status, "SCORED");
+  assert.equal(c.ic, 1);
+  assert.ok(c.spread > 0);
+  assert.deepEqual(c.accuracy, { n: 1, medianApe: 0.0476, coverage: 1 });
+  const pending = scoreLedger(L, { closesOf: () => [], fyOf: () => null });
+  assert.equal(pending.cohorts[0].status, "PENDING");
+});
