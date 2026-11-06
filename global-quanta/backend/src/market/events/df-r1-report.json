@@ -1,0 +1,60 @@
+{
+ "version": "DF-v1 (2026-11-07)",
+ "test": "DF-r1",
+ "ranAt": "2026-11-06T22:45:20.426Z",
+ "tickers": 177,
+ "points": 90,
+ "truths": 2558,
+ "matchedDf": 1403,
+ "matchedNaive": 1208,
+ "H1": {
+  "n": 1172,
+  "maeDf": 17.17,
+  "maeNaive": 18.35,
+  "ratio": 0.935,
+  "ci": [
+   0.885,
+   0.984
+  ],
+  "pass": false
+ },
+ "H2": {
+  "n": 1403,
+  "coverage": 0.381,
+  "pass": false
+ },
+ "H3": {
+  "n": 15930,
+  "baseRate": 0.154,
+  "brier": 0.1227,
+  "brierClim": 0.1301,
+  "skill": 0.057,
+  "pass": false
+ },
+ "H4": {
+  "first": {
+   "n": 84,
+   "maeDf": 18.44,
+   "maeNaive": 17.24,
+   "ratio": 1.07,
+   "ci": [
+    1,
+    1.148
+   ],
+   "pass": false
+  },
+  "second": {
+   "n": 1088,
+   "maeDf": 17.07,
+   "maeNaive": 18.44,
+   "ratio": 0.926,
+   "ci": [
+    0.872,
+    0.982
+   ],
+   "pass": false
+  },
+  "pass": false
+ },
+ "pass": false
+}

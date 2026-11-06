@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { CE_VERSION, crossCheck, diffEvents, keyDate, normalize } from "./corpEvents.js";
+import { DF_VERSION, forecastTicker } from "./divForecast.js";
 
 const UA = "Mozilla/5.0 (compatible; GlobalQuanta/1.0)";
 const readGz = (f) => { try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString("utf8")); } catch { return null; } };
@@ -66,8 +67,31 @@ export function createCorpEvents({ dir, universe, isTradingDay, cafefNews = () =
     return { version: d.version, fetchedAt: d.fetchedAt, asOf: today, from: f, to: t, events, changes: d.changes.filter((c) => c.at >= addDays(today, -30)).slice(0, 200) };
   }
 
+  /**
+   * Nếp lịch sử (MÔ TẢ — DF-r1 KHÔNG ĐẠT nên không có xác suất / dải ngày): mã có đợt GDKHQ cổ tức tiền thường rơi vào [hôm nay, +days]
+   * mà kỳ này chưa công bố. Trả ngày thường gặp của đợt, số năm có trả / số năm quan sát, lần GDKHQ gần nhất của đợt.
+   */
+  function habits({ days = 90 } = {}) {
+    const d = load(); if (!d) return null;
+    const today = vnToday(now()), end = addDays(today, days);
+    const by = new Map();
+    for (const e of d.events) if (e.cat === "CASH" && e.ex) (by.get(e.t) ?? by.set(e.t, []).get(e.t)).push({ ex: e.ex, disclosed: e.disclosed ?? e.ex, cash: e.cash });
+    const upcoming = new Set(d.events.filter((e) => e.cat === "CASH" && e.ex && e.ex >= today).map((e) => e.t));
+    const rows = [];
+    for (const [t, ev] of by) {
+      if (upcoming.has(t)) continue; // đã có lịch công bố
+      for (const f of forecastTicker(ev, today, 0.5)) {
+        if (f.date > end) continue;
+        const last = ev.filter((x) => x.ex === f.lastEx)[0];
+        rows.push({ t, usual: f.date, paidYears: f.paidYears, years: f.years, lastEx: f.lastEx, lastCash: last?.cash ?? null });
+      }
+    }
+    rows.sort((a, b) => a.usual.localeCompare(b.usual) || b.paidYears - a.paidYears);
+    return { version: DF_VERSION, label: "MÔ TẢ", test: "DF-r1 KHÔNG ĐẠT", asOf: today, days, rows };
+  }
+
   /** Toàn bộ lịch sử một mã (ngăn chi tiết, dự báo). */
   function ticker(t) { const d = load(); if (!d) return null; return { version: d.version, fetchedAt: d.fetchedAt, ticker: t, events: d.events.filter((e) => e.t === t) }; }
 
-  return { refresh, window, ticker, hasData: () => fs.existsSync(file), status: () => ({ version: CE_VERSION, running, last, fetchedAt: load()?.fetchedAt ?? null, events: load()?.events?.length ?? 0 }) };
+  return { refresh, window, ticker, habits, hasData: () => fs.existsSync(file), status: () => ({ version: CE_VERSION, running, last, fetchedAt: load()?.fetchedAt ?? null, events: load()?.events?.length ?? 0 }) };
 }

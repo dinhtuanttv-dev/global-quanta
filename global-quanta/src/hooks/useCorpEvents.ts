@@ -16,3 +16,10 @@ export function useCorpEventsTicker(ticker: string | null) {
   const { data } = useSWR<{ ticker: string; events: CorpEvent[] }>(t ? `corp-events:${t}` : null, () => fetchMarketJson(`/api/corp-events/ticker/${encodeURIComponent(t!)}`), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
   return data ?? null;
 }
+
+export interface HabitRow { t: string; usual: string; paidYears: number; years: number; lastEx: string; lastCash: number | null }
+/** Nếp lịch sử (MÔ TẢ): mã thường GDKHQ cổ tức tiền trong khoảng tới nhưng kỳ này chưa công bố. */
+export function useDividendHabits(days: number, enabled = true) {
+  const { data } = useSWR<{ version: string; label: string; test: string; asOf: string; days: number; rows: HabitRow[] }>(enabled ? `corp-events-habits:${days}` : null, () => fetchMarketJson(`/api/corp-events/habits?days=${days}`), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
+  return data ?? null;
+}

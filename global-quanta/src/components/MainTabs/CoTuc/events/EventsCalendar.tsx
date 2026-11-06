@@ -9,6 +9,7 @@ import { tradingDaysBetween } from "../../../../lib/quant-cotuc";
 import { addDays, calendarIcs, type CeGroup, type CorpEvent, filterEvents, GROUP_UI, groupByDay, keyDate, netYield, TRUST, weekday } from "../../../../lib/events/calendar";
 import { dmy, downloadText, pctPlain, toCsv } from "../../../../lib/kqkd/format";
 import { GanttView, MonthGrid, TickerEventsDrawer } from "./EventViews";
+import HabitsPanel from "./HabitsPanel";
 
 type View = "list" | "month" | "gantt";
 const VIEW_KEY = "gq.events.view.v1";
@@ -120,6 +121,7 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
           {!byDay.length && <tbody><tr><td colSpan={5} className="px-2 py-4 text-center text-slate-500">Không có sự kiện nào khớp bộ lọc trong khoảng này.</td></tr></tbody>}
         </table>
       </div>}
+      {view === "list" && groups.has("DIVIDEND") && <HabitsPanel days={days} onTicker={setDrawer} />}
       {drawer && <TickerEventsDrawer ticker={drawer} price={livePrices[drawer]} onClose={() => setDrawer(null)} onOpenProfile={(t) => { setDrawer(null); onSelectTicker(t); }} />}
 
       {data.changes.length > 0 && (
