@@ -4,6 +4,7 @@
 // S3 — kiểm ngày làm mốc: ngày sự kiện Project A dùng cho từng kỳ (eventPaths[].exDate) so với ngày công bố chính xác (tin BCTC chính thức
 // VNDirect, earningsCalendar.publishDates) -> số phiên lệch. Chỉ chú thích, không đổi số.
 import { publishDates, quarterEnd } from "./earningsCalendar.js";
+import { readSeasonItems } from "./seasonStore.js";
 
 export const SB_VERSION = "SB-v1 (2026-11-06)";
 const PATHS = (t) => ({
@@ -39,7 +40,7 @@ export function auditEventDates(pathsByQ, rec, disclosures, sessionsOf = null) {
   return out;
 }
 
-export function createSeasonalityBundle({ base = (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fetchImpl = globalThis.fetch, now = Date.now, ttlMs = 30 * 60_000, max = 120 } = {}) {
+export function createSeasonalityBundle({ base = (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fetchImpl = globalThis.fetch, now = Date.now, ttlMs = 30 * 60_000, max = 120, readLocal = readSeasonItems, log = console } = {}) {
   const memo = new Map(); // t -> { at, items }
   async function one(path) {
     try {
@@ -53,11 +54,13 @@ export function createSeasonalityBundle({ base = (process.env.LEGACY_MARKET_API_
   async function get(t) {
     const hit = memo.get(t);
     if (hit && now() - hit.at < ttlMs) return { ...hit, cached: true };
-    const paths = PATHS(t);
-    const got = Object.fromEntries(await Promise.all(Object.entries(paths).map(async ([k, p]) => [k, await one(p)])));
+    // SD-v1: đọc thẳng kho Gateway (cùng dữ liệu 3 route Project A trả); kho lỗi / chưa gắn -> gọi Project A như cũ.
+    let got = null, origin = "projectA";
+    try { got = await readLocal?.(t); if (got) origin = "store"; } catch (e) { log.warn?.(`[season] kho lỗi ${t}: ${e.message} — dùng Project A`); got = null; }
+    if (!got) got = Object.fromEntries(await Promise.all(Object.entries(PATHS(t)).map(async ([k, p]) => [k, await one(p)])));
     let stale = false;
     for (const [k, v] of Object.entries(got)) if (v.status !== 200 && v.status !== 404 && hit?.items?.[k]?.status === 200) { got[k] = { ...hit.items[k], stale: true }; stale = true; }
-    const doc = { at: now(), items: got, stale };
+    const doc = { at: now(), items: got, stale, origin };
     memo.set(t, doc); memo.delete(t); memo.set(t, doc);
     while (memo.size > max) memo.delete(memo.keys().next().value);
     return { ...doc, cached: false };

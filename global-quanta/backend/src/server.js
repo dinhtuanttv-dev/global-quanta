@@ -39,6 +39,7 @@ import { createRetroService } from "./market/elite/retroService.js";
 import { createCashGateService } from "./market/cashGate/cashGateService.js";
 import { createEarningsQualityService } from "./market/fundamentals/earningsQualityService.js";
 import { createKqkdRouter } from "./routes/kqkd.js";
+import { createSeasonOracle, SEASON_FIELDS, setSeasonReader } from "./market/fundamentals/seasonStore.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
@@ -227,6 +228,10 @@ let eliteRetro = null;
 let cotucStore = null, gatewayTimeline = null;
 const getCotucStore = () => (cotucStore ??= createCotucStore({ store: getMarketRuntime().store }));
 const getGatewayTimeline = () => (gatewayTimeline ??= createGatewayTimeline({ cotucStore: getCotucStore() }));
+// SD-v1: Mùa vụ KQKD đọc thẳng bảng "season" (chỉ đọc) của cùng kho mà job Mùa vụ ghi — không vòng qua Project A.
+setSeasonReader(async (t) => (await getCotucStore().list("season", { tickers: [t], fields: SEASON_FIELDS }))[0] ?? null,
+  async () => (await getCotucStore().list("season", { fields: ["ticker"] })).map((r) => r.ticker));
+const seasonOracle = createSeasonOracle();
 let eliteZones = null;
 const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore: getCotucStore() }));
 let eliteBuyTiming = null;
@@ -256,7 +261,7 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
   }
 });
 // K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
-app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap }));
+app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

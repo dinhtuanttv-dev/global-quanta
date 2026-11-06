@@ -92,6 +92,7 @@ describe("S1/S3/S5/S7 Mùa vụ KQKD", () => {
     expect(el.querySelector('[data-testid="season-map-counts"]')!.textContent).toContain("1 theo dõi");
     await act(async () => { (el.querySelector('[data-testid="season-map-f-ALL"]') as HTMLButtonElement).click(); });
     expect(el.querySelectorAll('[data-testid="season-map-row"]').length).toBe(2);
+    expect(el.querySelector('[data-testid="season-map-open"]')!.textContent).toBe("FPT"); // THEO DÕI 7 kỳ đứng trước
     await act(async () => { (el.querySelector('[data-testid="season-map-f-NEAR8"]') as HTMLButtonElement).click(); });
     expect(el.querySelectorAll('[data-testid="season-map-row"]').length).toBe(1); // FPT sắp công bố Q3, Q3 có 7/8 kỳ (HPG không có lịch)
     await act(async () => { (el.querySelector('[data-testid="season-map-f-SOON"]') as HTMLButtonElement).click(); });
@@ -102,5 +103,14 @@ describe("S1/S3/S5/S7 Mùa vụ KQKD", () => {
     await act(async () => { (el.querySelector('[data-testid="season-map-open"]') as HTMLButtonElement).click(); });
     expect(el.querySelector('[data-testid="season-context"]')).toBeTruthy(); // quay về chế độ theo mã
     delete bundle.context!.pooled; calMock.v = null;
+  });
+});
+
+describe("S2 xếp hạng bản đồ", () => {
+  it("cùng trạng thái: mã nhiều kỳ đứng trước mã ít kỳ dù lợi nhuận thấp hơn", async () => {
+    const { filterSeasonMap } = await import("./SeasonBoards");
+    const q = (n: number, net: number) => ({ n, selected: null, status: "WATCH" as const, best: { id: "e1", net, lcb: 0, q: 0.1 }, windows: [] });
+    const m = { rules: { minEvents: 8 }, rows: { BIG: { months: {}, q: { 1: q(1, 0.39) } }, PVD: { months: {}, q: { 1: q(7, 0.05) } } } } as never;
+    expect(filterSeasonMap(m, { filter: "ALL", quarter: null, soon: new Map(), query: "" }).map((x) => x.t)).toEqual(["PVD", "BIG"]);
   });
 });
