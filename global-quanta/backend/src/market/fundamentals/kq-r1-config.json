@@ -1,0 +1,35 @@
+{
+ "prereg": {
+  "version": "KQ-r1 (2026-11-06)",
+  "horizon": 60,
+  "horizonAlt": 20,
+  "cost": 0.01,
+  "minLiquidity": 1000000000,
+  "liqWindow": 20,
+  "minCohort": 30,
+  "availLagMaxDays": 120,
+  "deadlineDays": 45,
+  "is": [
+   "2013-1",
+   "2019-4"
+  ],
+  "oos": [
+   "2020-1",
+   "2026-1"
+  ],
+  "bootstrap": {
+   "iters": 2000,
+   "block": 4,
+   "seed": 20261106
+  },
+  "alpha": 0.05,
+  "coverage": [
+   0.7,
+   0.9
+  ]
+ },
+ "engine": "KQ-v1 (2026-11-06)",
+ "tickers": 284,
+ "priceTickers": 284,
+ "sha256": "aef0d2289f3057a5cac885fdb2be9bd9f0f4e67476bd880d13540ce21bf51e5f"
+}

@@ -30,6 +30,7 @@ function Shares({ s, title }: { s: Season; title: string }) {
 export default function SeasonNowcast({ d }: { d: KqkdDetail }) {
   const { top, npatParent } = d.seasonality;
   const nc = npatParent.nowcast;
+  const ev = d.evidence ?? null;
   return (
     <div className="space-y-3" data-testid="kq-season">
       <div className="grid gap-3 md:grid-cols-2">
@@ -57,11 +58,14 @@ export default function SeasonNowcast({ d }: { d: KqkdDetail }) {
             ))}
           </div>
           <p className="mt-1 text-[10px] text-slate-500">(quý − cùng kỳ) ÷ độ lệch chuẩn 8 quý trước; |SUE| ≥ 2 là bất ngờ lớn.</p>
+          {ev && <p className="mt-1 text-[10px] text-slate-400" data-testid="kq-ev-sue">Kiểm định {ev.prereg}: SUE cốt lõi <b className={ev.sueCore.pass ? "text-emerald-300" : "text-amber-300"}>{ev.sueCore.pass ? "ĐẠT" : "KHÔNG ĐẠT"}</b> (IC ngoài mẫu {num(ev.sueCore.ic, 3)}, p {num(ev.sueCore.p, 3)}) · không tốt hơn SUE LNST → nhãn {ev.sueCore.label}.</p>}
         </div>
       </div>
       {nc ? (
         <div className="rounded-lg border border-[#E8B84B]/25 bg-[#E8B84B]/[0.05] p-3" data-testid="kq-nowcast">
-          <p className="text-[11px] font-bold text-[#F5CE72]">Ước tính LNST mẹ cả năm {d.latest.quarter.slice(3)} từ lũy kế {nc.through * 3} tháng</p>
+          <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-[#F5CE72]">Ước tính LNST mẹ cả năm {d.latest.quarter.slice(3)} từ lũy kế {nc.through * 3} tháng
+            {ev && <span className={`rounded border px-1.5 text-[10px] ${ev.nowcast.pass ? "border-emerald-400/40 text-emerald-300" : "border-slate-500/40 text-slate-300"}`} data-testid="kq-ev-nowcast" title={ev.note}>{ev.nowcast.label} · {ev.prereg} {ev.nowcast.pass ? "ĐẠT" : "KHÔNG ĐẠT"}</span>}
+          </p>
           <div className="mt-2 flex flex-wrap items-end gap-6">
             <div><p className="text-[10px] uppercase text-slate-500">Ước tính</p><p className="font-mono text-[20px] font-bold tabular-nums text-slate-100">{bn(nc.est)}</p></div>
             <div><p className="text-[10px] uppercase text-slate-500">Dải P10–P90</p><p className="font-mono text-[14px] tabular-nums text-slate-200">{bn(nc.lo, false)} – {bn(nc.hi)}</p></div>
@@ -78,10 +82,16 @@ export default function SeasonNowcast({ d }: { d: KqkdDetail }) {
               </div>
             );
           })()}
+          {ev && (
+            <p className="mt-2 text-[10.5px] text-slate-300" data-testid="kq-ev-detail">
+              Kiểm định đặt trước ngoài mẫu ({ev.nowcast.cohorts} quý, 2020–2026): tăng trưởng ước tính có IC <b className="font-mono">{num(ev.nowcast.ic, 3)}</b> với lợi suất vượt 60 phiên (p {num(ev.nowcast.p, 4)}), nhóm cao nhất − thấp nhất <b className="font-mono">{pct(ev.nowcast.spread, 1)}</b> sau chi phí.
+              {" "}Sai số trung vị {pctPlain(ev.accuracy.medianApe)} (cách ngây thơ {pctPlain(ev.accuracy.medianApeNaive)}) nhưng <b className="text-amber-300">dải P10–P90 chỉ chứa {pctPlain(ev.accuracy.coverage, 0)} kết quả thực tế</b> (cần 70–90%): dải hẹp hơn thực tế, đọc thận trọng.
+            </p>
+          )}
           <p className="mt-2 text-[10px] text-slate-400">{nc.method}. Đây là phép ngoại suy mùa vụ, không phải dự báo của công ty hay đồng thuận CTCK; năm có biến cố bất thường sẽ lệch xa.</p>
         </div>
       ) : <p className="text-[11px] text-slate-500">Không ước tính cả năm (đã đủ 4 quý, hoặc chưa đủ ≥ 5 năm lịch sử dương).</p>}
-      <p className="text-[10px] text-slate-500">MÔ TẢ — mùa vụ đo trên tối đa 10 năm đủ 4 quý dương gần nhất (không gồm năm hiện tại).</p>
+      <p className="text-[10px] text-slate-500">Tỷ trọng mùa vụ: MÔ TẢ. Tăng trưởng ước tính cả năm: {ev?.nowcast.label ?? "MÔ TẢ"} — thăm dò, không phải khuyến nghị. Mùa vụ đo trên tối đa 10 năm đủ 4 quý dương gần nhất (không gồm năm hiện tại).</p>
     </div>
   );
 }

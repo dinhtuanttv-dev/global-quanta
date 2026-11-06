@@ -9,7 +9,11 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { ALPHA_KV } from "../alpha/alphaService.js";
 import { fetchTickerStatements } from "./statementsVnd.js";
-import { buildSummary, buildSummaryRow, buildTickerDetail, KQ_VERSION } from "./kqkdEngine.js";
+import { buildSummary, buildSummaryRow, buildTickerDetail, evidenceFrom, KQ_VERSION } from "./kqkdEngine.js";
+
+// KQ-r1 (06/11/2026): kết quả kiểm định đặt trước, chạy một lần (scripts/kqkd-validate.mjs) — gắn vào API để giao diện ghi đúng nhãn.
+let EVIDENCE = null;
+try { EVIDENCE = evidenceFrom(JSON.parse(fs.readFileSync(new URL("./kq-r1-report.json", import.meta.url), "utf8"))); } catch { /* chưa có báo cáo */ }
 
 const vnToday = (t) => new Date(t + 7 * 3_600_000).toISOString().slice(0, 10);
 const TICKER = /^[A-Z0-9]{3,10}$/;
@@ -64,7 +68,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
       try { rows.push(buildSummaryRow(rec, { today, mcap: mcap.get(t) ?? null })); } catch (e) { log.warn?.(`[kqkd] ${t}: ${e.message}`); }
     }
     const missing = tickers.filter((t) => !fs.existsSync(fileOf(t)));
-    const doc = { ...buildSummary(rows, { today, fetchedAt, failed: [...new Set([...state.failed, ...missing])] }), builtAt: new Date(now()).toISOString(), reason };
+    const doc = { ...buildSummary(rows, { today, fetchedAt, failed: [...new Set([...state.failed, ...missing])] }), builtAt: new Date(now()).toISOString(), reason, evidence: EVIDENCE };
     writeGz(summaryFile, doc);
     summaryMemo = { key: today, doc };
     detailMemo.clear();
@@ -124,7 +128,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     const key = `${t}|${today}|${rec.fetchedAt}`;
     if (detailMemo.has(key)) { const d = detailMemo.get(key); detailMemo.delete(key); detailMemo.set(key, d); return d; }
     const mcap = (await mcapMap()).get(t) ?? null;
-    const doc = { ...buildTickerDetail(rec, { today, fetchedAt: rec.fetchedAt ?? null }), mcap };
+    const doc = { ...buildTickerDetail(rec, { today, fetchedAt: rec.fetchedAt ?? null }), mcap, evidence: EVIDENCE };
     detailMemo.set(key, doc);
     while (detailMemo.size > 24) detailMemo.delete(detailMemo.keys().next().value);
     return doc;

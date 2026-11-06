@@ -17,7 +17,15 @@ export interface KqkdRow {
   nowcast: { growth: number | null; est: number; lo: number; hi: number } | null;
   heat: ([number | null, GrowthStatus] | null)[]; mcap: number | null; flags: FlagId[];
 }
+/** KQ-r1 — kiểm định đặt trước (ngoài mẫu 2020Q1–2026Q1). */
+export interface KqEvidence {
+  prereg: string; ranAt: string; note: string;
+  sueCore: { pass: boolean; label: string; ic: number | null; p: number | null; spread: number | null; cohorts: number; vsNpat: { pass: boolean; diff: number | null; p: number | null } };
+  nowcast: { pass: boolean; label: string; ic: number | null; p: number | null; spread: number | null; cohorts: number };
+  accuracy: { pass: boolean; medianApe: number | null; medianApeNaive: number | null; coverage: number | null; target: [number, number]; n: number };
+}
 export interface KqkdSummary {
+  evidence?: KqEvidence | null;
   version: string; label: string; asOf: string; fetchedAt: string | null; builtAt?: string; source: string;
   latestQuarter: string | null; latestFiscal: string | null; heatQuarters: string[];
   counts: { tickers: number; reportedLatest: number; failed: number; byTemplate: Record<Tpl, number>; nonCore: number; highAccrual: number; mFlag: number; zDistress: number };
@@ -51,6 +59,7 @@ export interface Season {
 }
 export interface TtmPoint { quarter: string; fiscal: string; top: number | null; npatParent: number | null; core: number | null; cfo: number | null; topYoY: number | null; npatYoY: Growth; coreYoY: Growth; netMargin: number | null; roe: number | null }
 export interface KqkdDetail {
+  evidence?: KqEvidence | null;
   version: string; label: string; available: boolean; ticker: string; tpl: Tpl; tplLabel: string; asOf: string; fetchedAt: string | null; mcap?: number | null;
   latest: { fiscal: string; quarter: string; created: string };
   metrics: { key: string; label: string }[]; matrix: Record<string, MatrixRow[]>;

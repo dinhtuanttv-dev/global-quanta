@@ -2,7 +2,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "../../../../test/rtl-lite";
 // Hợp đồng dữ liệu: dựng payload bằng CHÍNH bộ tính của Gateway (KQ-v1) để giao diện và API không lệch nhau.
 // @ts-expect-error — module JS của backend, không có khai báo kiểu
-import { buildSummary, buildSummaryRow, buildTickerDetail } from "../../../../../backend/src/market/fundamentals/kqkdEngine.js";
+import { buildSummary, buildSummaryRow, buildTickerDetail, evidenceFrom } from "../../../../../backend/src/market/fundamentals/kqkdEngine.js";
+import report from "../../../../../backend/src/market/fundamentals/kq-r1-report.json";
 import type { KqkdDetail, KqkdSummary } from "../../../../lib/kqkd/types";
 
 const B = 1e9;
@@ -22,8 +23,9 @@ function corp(ticker: string, k = 1, over: (y: number, q: number) => Record<stri
 }
 const today = "2026-11-06";
 const recs = [corp("AAA"), corp("BBB", 2, (y, q) => (y === 2026 && q === 3 ? { finInc: 4000 * B, pbt: 4200 * B, npat: 3400 * B, npatParent: 3400 * B } : ({} as Record<string, number>))), corp("CCC", 0.5)];
-const summary: KqkdSummary = buildSummary(recs.map((r) => buildSummaryRow(r, { today, mcap: 1e13 })), { today });
-const details: Record<string, KqkdDetail> = Object.fromEntries(recs.map((r) => [r.ticker, buildTickerDetail(r, { today })]));
+const evidence = evidenceFrom(report);
+const summary: KqkdSummary = { ...buildSummary(recs.map((r) => buildSummaryRow(r, { today, mcap: 1e13 })), { today }), evidence };
+const details: Record<string, KqkdDetail> = Object.fromEntries(recs.map((r) => [r.ticker, { ...buildTickerDetail(r, { today }), evidence }]));
 
 vi.mock("../../../../hooks/useKqkd", () => ({
   useKqkdSummary: () => ({ data: summary, error: null, isLoading: false }),
@@ -67,6 +69,9 @@ describe("K1–K6 KQKD theo quý", () => {
     expect(screen.getByTestId("kq-q-altman")).toBeTruthy();
     fireEvent.click(screen.getByTestId("kq-tab-season"));
     expect(screen.getByTestId("kq-nowcast").textContent).toContain("lũy kế 9 tháng");
+    expect(screen.getByTestId("kq-ev-nowcast").textContent).toContain("THĂM DÒ");
+    expect(screen.getByTestId("kq-ev-detail").textContent).toContain("dải P10–P90 chỉ chứa");
+    expect(screen.getByTestId("kq-ev-sue").textContent).toContain("KHÔNG ĐẠT");
     fireEvent.click(screen.getByTestId("kq-tab-space"));
     expect(screen.getByTestId("kq-3d-canvas-surface")).toBeTruthy();
     fireEvent.click(screen.getByTestId("kq-3d-cum-on"));

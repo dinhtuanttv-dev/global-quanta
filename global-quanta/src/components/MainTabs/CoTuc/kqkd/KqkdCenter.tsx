@@ -151,8 +151,8 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
               <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Biên ròng và ROE 4 quý">Biên · ROE</th>
               <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Dòng tiền HĐKD ÷ LNST (4 quý) · dồn tích Sloan">CFO/LN · dồn tích</th>
               <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Piotroski F (0–9) · Altman Z″ (mẫu doanh nghiệp)">F · Z″</th>
-              <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Bất ngờ chuẩn hoá LN cốt lõi">SUE</th>
-              <th className="border-b border-white/10 px-1 py-1.5 text-right" title="LNST 4 quý gần nhất so 4 quý trước đó · ngoại suy mùa vụ LNST cả năm so năm trước">4 quý · ước năm</th>
+              <th className="border-b border-white/10 px-1 py-1.5 text-right" title={`Bất ngờ chuẩn hoá LN cốt lõi${data.evidence ? ` (${data.evidence.sueCore.label}: ${data.evidence.prereg} ${data.evidence.sueCore.pass ? "ĐẠT" : "KHÔNG ĐẠT"})` : ""}`}>SUE</th>
+              <th className="border-b border-white/10 px-1 py-1.5 text-right" title={`LNST 4 quý gần nhất so 4 quý trước đó · ngoại suy mùa vụ LNST cả năm so năm trước${data.evidence ? ` (${data.evidence.nowcast.label}: ${data.evidence.prereg} ${data.evidence.nowcast.pass ? "ĐẠT" : "KHÔNG ĐẠT"})` : ""}`}>4 quý · ước năm{data.evidence?.nowcast.pass ? <span className="ml-0.5 text-emerald-300">ⓣ</span> : null}</th>
               <th className="border-b border-white/10 px-1 py-1.5" title="LNST so cùng kỳ 12 quý (cũ → mới)">12 quý</th>
             </tr>
           </thead>
@@ -208,6 +208,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
       <p className="text-[10px] text-slate-500">
         Bấm mã để mở chi tiết: ma trận Q1–Q4 và lũy kế tới 20 năm, thác nước lợi nhuận, chất lượng & sức khoẻ, mùa vụ & ước tính cả năm, 3D/4D, so với ngành.
         {" "}{data.method.core} Tăng trưởng nền thấp / đổi dấu ghi bằng chữ; giới hạn −100% … +300%. {data.method.pit} {data.method.label}
+        {data.evidence && <> Kiểm định đặt trước {data.evidence.prereg} (ngoài mẫu 2020–2026): ước tính tăng trưởng cả năm <b className="text-emerald-300">{data.evidence.nowcast.pass ? "ĐẠT → THĂM DÒ" : "KHÔNG ĐẠT"}</b> (IC {num(data.evidence.nowcast.ic, 3)}), nhưng dải P10–P90 hẹp hơn thực tế; SUE cốt lõi <b className="text-amber-300">{data.evidence.sueCore.pass ? "ĐẠT" : "KHÔNG ĐẠT"}</b> (giữ MÔ TẢ).</>}
         {data.failed.length > 0 && ` Chưa nạp được: ${data.failed.slice(0, 10).join(", ")}${data.failed.length > 10 ? "…" : ""}.`}
       </p>
       {open && <KqkdTickerDrawer ticker={open} rows={data.rows} onClose={() => setOpen(null)} onOpenProfile={onSelectTicker} sectorOf={sectorOf} nextDeadline={nextDeadline} />}

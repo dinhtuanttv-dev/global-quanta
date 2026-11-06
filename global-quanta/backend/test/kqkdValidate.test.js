@@ -34,3 +34,15 @@ test("KQ-r1 lợi suất vượt = lợi suất mã − bình quân đều các 
   assert.ok(Math.abs(e.x60 - (e.r60 - all.reduce((a, b) => a + b, 0) / all.length)) < 1e-9);
   assert.ok(e.x60 > 0);
 });
+
+test("KQ-r1 báo cáo trong kho -> nhãn: ước tính cả năm THĂM DÒ (H3 đạt), SUE lõi MÔ TẢ (H1 không đạt), dải hẹp hơn thực tế", async () => {
+  const fs = await import("node:fs");
+  const { evidenceFrom } = await import("../src/market/fundamentals/kqkdEngine.js");
+  const rep = JSON.parse(fs.readFileSync(new URL("../src/market/fundamentals/kq-r1-report.json", import.meta.url), "utf8"));
+  const e = evidenceFrom(rep);
+  assert.equal(e.nowcast.label, "THĂM DÒ");
+  assert.equal(e.sueCore.label, "MÔ TẢ");
+  assert.equal(e.accuracy.pass, false);
+  assert.ok(e.accuracy.coverage < 0.7);
+  assert.equal(rep.frozenSha256.length, 64);
+});
