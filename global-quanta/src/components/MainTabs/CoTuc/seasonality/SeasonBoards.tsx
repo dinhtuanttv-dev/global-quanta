@@ -27,7 +27,8 @@ export function filterSeasonMap(m: SeasonMap, { filter, quarter, soon, nextQ = n
     const cells = qs.map((q) => r.q[String(q)]).filter((c): c is SeasonMapQuarter => !!c);
     const top = cells.reduce<SeasonWinStatus>((s, c) => (RANK[c.status] > RANK[s] ? c.status : s), "NONE");
     const bestNet = Math.max(-9, ...cells.map((c) => c.best.net ?? -9));
-    return { t, r, top, bestNet, near8: (() => { const nq = nextQ.get(t); return !!nq && (!quarter || quarter === nq) && r.q[String(nq)]?.n === need - 1; })(), nq: nextQ.get(t) ?? null, soon: soon.get(t) ?? null };
+    const maxN = Math.max(0, ...cells.filter((c) => c.status === top).map((c) => c.n));
+    return { t, r, top, bestNet, maxN, near8: (() => { const nq = nextQ.get(t); return !!nq && (!quarter || quarter === nq) && r.q[String(nq)]?.n === need - 1; })(), nq: nextQ.get(t) ?? null, soon: soon.get(t) ?? null };
   }).filter((x) => {
     if (query && !x.t.includes(query)) return false;
     if (filter === "SELECTED") return x.top === "SELECTED";
@@ -36,7 +37,7 @@ export function filterSeasonMap(m: SeasonMap, { filter, quarter, soon, nextQ = n
     if (filter === "NEAR8") return x.near8;
     return true;
   });
-  out.sort((a, b) => (filter === "SOON" ? (a.soon ?? "").localeCompare(b.soon ?? "") : 0) || RANK[b.top] - RANK[a.top] || b.bestNet - a.bestNet || a.t.localeCompare(b.t));
+  out.sort((a, b) => (filter === "SOON" ? (a.soon ?? "").localeCompare(b.soon ?? "") : 0) || RANK[b.top] - RANK[a.top] || b.maxN - a.maxN || b.bestNet - a.bestNet || a.t.localeCompare(b.t));
   return out;
 }
 
@@ -136,7 +137,7 @@ export function SeasonMapBoard({ onOpen }: { onOpen: (t: string) => void }) {
         <button type="button" disabled={p >= pages - 1} onClick={() => setPage(p + 1)} className="rounded border border-white/10 px-2 py-0.5 disabled:opacity-30">›</button>
         <span className="ml-auto" data-testid="season-map-fresh">dựng {dmy(m.builtAt)} · nguồn Project A {m.sourceAsOf ? dmy(m.sourceAsOf) : "—"}{m.failed ? ` · ${m.failed} mã lỗi lần dựng này` : ""}</span>
       </div>
-      <p className="text-[10px] text-slate-500"><span className="mr-1 rounded border border-sky-400/40 px-1 text-sky-300">MÔ TẢ</span>Ô hiện trạng thái tốt nhất trong 4 cửa sổ của quý và lợi nhuận ròng sau phí ({pctPlain(m.rules.cost, 2)}) của cửa sổ đạt, nếu không có thì cửa sổ ròng cao nhất. Quy tắc giống hệt mục theo mã: ĐẠT cần ≥ {m.rules.minEvents} kỳ, q-value FDR ≤ 0,1 và cận dưới &gt; 0; THEO DÕI = chưa đủ kỳ nhưng q ≤ {num(m.rules.watchQ, 1)} hoặc cận dưới &gt; 0. Nền sáng hơn = loại quý mã sắp công bố. Bấm mã để mở phân tích đầy đủ.</p>
+      <p className="text-[10px] text-slate-500"><span className="mr-1 rounded border border-sky-400/40 px-1 text-sky-300">MÔ TẢ</span>Ô hiện trạng thái tốt nhất trong 4 cửa sổ của quý và lợi nhuận ròng sau phí ({pctPlain(m.rules.cost, 2)}) của cửa sổ đạt, nếu không có thì cửa sổ ròng cao nhất. Quy tắc giống hệt mục theo mã: ĐẠT cần ≥ {m.rules.minEvents} kỳ, q-value FDR ≤ 0,1 và cận dưới &gt; 0; THEO DÕI = chưa đủ kỳ nhưng q ≤ {num(m.rules.watchQ, 1)} hoặc cận dưới &gt; 0. Xếp theo trạng thái, rồi số kỳ nhiều hơn (bằng chứng dày hơn), rồi lợi nhuận. Nền sáng hơn = loại quý mã sắp công bố. Bấm mã để mở phân tích đầy đủ.</p>
     </section>
   );
 }
