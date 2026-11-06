@@ -89,3 +89,36 @@ export function buildUniverseStocks(p: {
   }
   return out;
 }
+
+/**
+ * F3 (06/11/2026) — cảnh báo tỷ suất cổ tức 12 tháng BẤT THƯỜNG (chỉ cảnh báo, KHÔNG đổi số hay kết quả bộ lọc).
+ * Lý do được nêu rõ từ dữ liệu sự kiện: (1) tỷ suất ≥ 15%; (2) cổ tức 12 tháng ≥ 2 lần trung vị 4 năm trước; (3) cửa sổ 12 tháng gộp
+ * đợt của ≥ 2 năm tài chính (VD đợt cuối năm trước trả muộn + đợt 1 năm nay); (4) có chia cổ phiếu / thưởng SAU một đợt tiền mặt trong
+ * cửa sổ (cổ tức cũ tính trên số cổ phiếu trước khi chia). Trả null khi không có dấu hiệu.
+ */
+export interface YieldAnomaly { reasons: string[]; fiscalYears: number[]; payments: number }
+const FY_RE = /(?:đợt\s*\d+\s*\/\s*|năm\s*)(20\d{2})/i;
+export function yieldAnomaly(events: DividendLifecycleEvent[] | undefined, yieldPct: number | null | undefined, today: string): YieldAnomaly | null {
+  if (!events?.length || yieldPct == null) return null;
+  const from = new Date(Date.parse(today) - 365 * 86_400_000).toISOString().slice(0, 10);
+  const seen = new Set<string>();
+  const cash: DividendLifecycleEvent[] = [];
+  for (const e of events) {
+    if (e.eventType !== 'CASH' || !e.exrightDate || !(e.valuePerShare && e.valuePerShare > 0)) continue;
+    const d = e.exrightDate.slice(0, 10);
+    if (d <= from || d > today) continue;
+    const k = `${d}:${e.valuePerShare}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    cash.push(e);
+  }
+  const reasons: string[] = [];
+  if (yieldPct >= 15) reasons.push(`tỷ suất ${yieldPct.toLocaleString('vi-VN')}% ≥ 15%`);
+  if (isSpecialDividend(events, today)) reasons.push('cổ tức 12 tháng ≥ 2 lần trung vị 4 năm trước');
+  const fy = [...new Set(cash.map((e) => Number(FY_RE.exec(e.eventTitleVi ?? '')?.[1])).filter((y) => Number.isFinite(y) && y > 2000))].sort();
+  if (fy.length >= 2) reasons.push(`gộp cổ tức của ${fy.length} năm tài chính (${fy.join(', ')}) trong 12 tháng`);
+  const firstCash = cash.map((e) => e.exrightDate!.slice(0, 10)).sort()[0];
+  const split = firstCash ? events.some((e) => (e.eventType === 'STOCK_DIVIDEND' || e.eventType === 'BONUS_ISSUE') && e.exrightDate && e.exrightDate.slice(0, 10) > firstCash && e.exrightDate.slice(0, 10) <= today) : false;
+  if (split) reasons.push('có chia cổ phiếu / thưởng sau một đợt tiền mặt — cổ tức cũ tính trên số cổ phiếu trước khi chia');
+  return reasons.length ? { reasons, fiscalYears: fy, payments: cash.length } : null;
+}

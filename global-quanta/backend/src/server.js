@@ -37,6 +37,7 @@ import { createEliteChatTools } from "./market/elite/chatTools.js";
 import { createRiskService } from "./market/elite/riskService.js";
 import { createRetroService } from "./market/elite/retroService.js";
 import { createCashGateService } from "./market/cashGate/cashGateService.js";
+import { createEarningsQualityService } from "./market/fundamentals/earningsQualityService.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
@@ -240,6 +241,19 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
 app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore }));
+// F5 (06/11/2026): Chất lượng KQKD (SUE/SUR, tăng trưởng có kiểm soát) cho tab PHÂN TÍCH CƠ BẢN › Kết quả kinh doanh.
+let earningsQuality = null;
+app.get("/api/fundamentals/earnings-quality", async (req, res) => {
+  try {
+    earningsQuality ??= createEarningsQualityService({ store: getMarketRuntime().store });
+    const doc = await earningsQuality.quality();
+    if (!doc) return res.status(503).json({ error: "Chưa có BCTC quý (job alpha chưa chạy)." });
+    res.set("Cache-Control", "public, max-age=900");
+    res.json(doc);
+  } catch (e) {
+    res.status(503).json({ error: `Kho dữ liệu tạm không đọc được: ${e.message}` });
+  }
+});
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

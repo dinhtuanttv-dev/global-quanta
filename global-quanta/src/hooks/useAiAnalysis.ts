@@ -17,8 +17,9 @@ export interface AiAnalysisEntry {
 // P2 (Bo Loc Co Phieu - Nhom B): doc Pros/Cons + Catalyst Score DA QUET
 // SAN tu Database (Cron Job dividend-ai-analysis, vong xoay 15 ma/ngay).
 // Dung CHUNG cho ca 17 ma theo doi goc VA Universe.
-export function useAiAnalysis() {
-  const { data, error, isLoading } = useSWR(`${API_BASE}/api/cotuc/ai-analysis`, fetcher, {
+/** F4: enabled = false -> không gọi. */
+export function useAiAnalysis(enabled = true) {
+  const { data, error, isLoading } = useSWR(enabled ? `${API_BASE}/api/cotuc/ai-analysis` : null, fetcher, {
     refreshInterval: 30 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 10 * 60 * 1000,

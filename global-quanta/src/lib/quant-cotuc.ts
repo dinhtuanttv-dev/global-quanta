@@ -37,6 +37,8 @@ export interface DividendStock {
   fundamentalsReal?: boolean;
   /** Cổ tức 12 tháng gần nhất có đợt chi lớn bất thường (≥ 2× mức thường lệ) — tỷ suất không lặp lại hằng năm. */
   specialDividend?: boolean;
+  /** F3: cảnh báo tỷ suất 12 tháng bất thường (chỉ cảnh báo, không đổi số). */
+  yieldAnomaly?: { reasons: string[]; fiscalYears: number[]; payments: number } | null;
 }
 
 // ============================================================

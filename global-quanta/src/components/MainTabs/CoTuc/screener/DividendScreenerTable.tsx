@@ -72,8 +72,8 @@ const LEVEL = {
   AVOID: { text: 'Chưa nên', tone: 'muted' as const },
 };
 
-const TH = 'sticky z-10 bg-[#0b0f17] px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 whitespace-nowrap';
-const TD = 'px-2 py-1.5 border-b border-white/[0.05] align-middle';
+const TH = 'sticky z-10 bg-[#0b0f17] px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 leading-tight align-bottom';
+const TD = 'px-1.5 py-1.5 border-b border-white/[0.05] align-middle';
 
 function SortHead({ field, label, sortField, sortAsc, onSort, right, title }: { field: SortField; label: string; sortField: string; sortAsc: boolean; onSort: (f: SortField) => void; right?: boolean; title?: string }) {
   const active = sortField === field;
@@ -88,12 +88,13 @@ function SortHead({ field, label, sortField, sortAsc, onSort, right, title }: { 
 
 export function DividendScreenerTable(p: ScreenerTableProps) {
   const groups: [string, number, string][] = [
-    ['', 2, ''], ['Cổ tức & lịch', 5, 'text-cyan-400/80'], ['Định giá', 3, 'text-amber-300/80'],
+    ['', 2, ''], ['Cổ tức & lịch', 4, 'text-cyan-400/80'], ['Định giá', 3, 'text-amber-300/80'],
     ['Chu kỳ & xác suất', 2, 'text-emerald-300/80'], ['KQKD', 1, 'text-violet-300/80'], ['Quyết định', 1, 'text-slate-400'],
   ];
   return (
     <div className="tw-scope max-h-[70vh] overflow-auto rounded-xl border border-white/[0.06] bg-[#0b0f17]">
-      <table className="w-full min-w-[1080px] border-separate border-spacing-0 text-[11px]">
+      {/* F2 (06/11/2026): gộp "Thanh toán" + "ĐHCĐ" thành một cột hai dòng, đệm ô 6px -> bảng vừa khung chính ở màn 1366–1440. */}
+      <table className="w-full min-w-[840px] border-separate border-spacing-0 text-[11px]">
         <thead>
           <tr>
             {groups.map(([g, span, cls], i) => (
@@ -106,8 +107,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
             <SortHead field="price" label="Giá" right {...p} title="Giá khớp trực tiếp SSI (nghìn đồng)" />
             <SortHead field="dividendYield" label="Yield 12T" right {...p} title="Cổ tức tiền 12 tháng gần nhất / giá hiện tại (VNDirect + SSI)" />
             <th className={`${TH} top-[25px] text-left`}>GDKHQ</th>
-            <th className={`${TH} top-[25px] text-left`}>Thanh toán</th>
-            <th className={`${TH} top-[25px] text-left`}>ĐHCĐ</th>
+            <th className={`${TH} top-[25px] text-left`} title="Dòng trên: ngày thanh toán cổ tức · dòng dưới: ngày ĐHCĐ">Thanh toán · ĐHCĐ</th>
             <SortHead field="pe" label="P/E" right {...p} />
             <SortHead field="roe" label="ROE" right {...p} />
             <SortHead field="score" label="Điểm" right {...p} title="Dividend Quality Score (4 tầng) — chỉ có ở mã đủ dữ liệu chất lượng cổ tức" />
@@ -154,7 +154,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                 </td>
                 <td className={`${TD} text-right border-l border-white/[0.04]`}>
                   {s.dividendYield > 0
-                    ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}</span>
+                    ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}{s.yieldAnomaly && <span className="ml-1 cursor-help rounded border border-amber-400/50 bg-amber-400/10 px-1 font-sans text-[10px] font-bold text-amber-300" data-testid={`yield-anomaly-${s.ticker}`} title={`Tỷ suất 12 tháng có thể không đại diện: ${s.yieldAnomaly.reasons.join("; ")}. Số được giữ nguyên, chỉ cảnh báo.`}>⚠</span>}</span>
                     : <Badge tone="muted" title="Không có cổ tức tiền mặt trong 12 tháng gần nhất">0%</Badge>}
                   <span className="block font-mono tabular-nums text-[10px] text-slate-500">
                     {s.dividendAmount > 0 ? `${fmtVnd(s.dividendAmount)} đ/cp` : '—'}
@@ -162,8 +162,12 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   </span>
                 </td>
                 <td className={TD}><DateCell date={s.exDividendDate} kind="ex" /></td>
-                <td className={TD}><DateCell date={s.paymentDate} kind="pay" /></td>
-                <td className={TD}><DateCell date={s.agmDate} kind="agm" /></td>
+                <td className={TD}>
+                  <div className="flex flex-col gap-1">
+                    <span className="flex items-baseline gap-1"><span className="text-[10px] text-slate-500">TT</span><DateCell date={s.paymentDate} kind="pay" /></span>
+                    <span className="flex items-baseline gap-1"><span className="text-[10px] text-slate-500">ĐH</span><DateCell date={s.agmDate} kind="agm" /></span>
+                  </div>
+                </td>
                 <td className={`${TD} text-right border-l border-white/[0.04]`}>
                   {s.fundamentalsReal && s.pe > 0 ? <span className="font-mono tabular-nums text-slate-200">{s.pe.toFixed(1)}x</span> : <Badge tone="muted" title={s.fundamentalsReal ? 'EPS âm hoặc ≈ 0 — P/E không có nghĩa' : 'Chưa có số liệu thật'}>—</Badge>}
                 </td>
