@@ -6,17 +6,22 @@
 //      KL/giá bất thường 10 phiên gần nhất; kỳ vừa công bố: kết quả + phản ứng giá.
 //   S3 kiểm ngày làm mốc: ngày Project A dùng cho từng kỳ so với ngày tin BCTC chính thức — chú thích độ tin cậy, không đổi số.
 import { useEffect, useMemo, useState } from "react";
-import { useKqkdCalendar, useSeasonalityBundle } from "../../../../hooks/useKqkd";
+import { SWRConfig } from "swr";
+import { useKqkdCalendar, useSeasonalityBundle, useSeasonalityX, useSeasonXStatus } from "../../../../hooks/useKqkd";
 import { usePinnedStocks } from "../../../../hooks/usePinnedStocks";
 import { defaultBaseUrl } from "../../../../lib/cotuc/cycle-paths.api";
-import { primeSeasonality } from "../../../../lib/cotuc/seasonality-bundle";
+import { clearPrimed, primeSeasonality } from "../../../../lib/cotuc/seasonality-bundle";
 import { dmy, fin, growthText, num, pct, pctPlain } from "../../../../lib/kqkd/format";
 import type { SeasonalityBundle } from "../../../../lib/kqkd/types";
 import { EarningsSeasonalityTab } from "./EarningsSeasonalityTab";
 import { PooledEvidence, SeasonLedgerView, SeasonMapBoard } from "./SeasonBoards";
+import SeasonXCompare from "./SeasonXCompare";
 
 export const SEASON_TICKER_KEY = "gq.kqkd.season.ticker.v1";
 export const SEASON_MODE_KEY = "gq.kqkd.season.mode.v1";
+export const SEASON_ANCHOR_KEY = "gq.kqkd.season.anchor.v1";
+type Anchor = "official" | "x";
+const readAnchor = (): Anchor => { try { return localStorage.getItem(SEASON_ANCHOR_KEY) === "x" ? "x" : "official"; } catch { return "official"; } };
 type Mode = "ticker" | "map" | "ledger";
 const readMode = (): Mode => { try { const m = localStorage.getItem(SEASON_MODE_KEY); return m === "map" || m === "ledger" ? m : "ticker"; } catch { return "ticker"; } };
 const readLast = () => { try { return localStorage.getItem(SEASON_TICKER_KEY); } catch { return null; } };
@@ -136,15 +141,24 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
   }, [value, tickers, pinned, upcoming, cal, onChange]);
   useEffect(() => { if (value) writeLast(value); }, [value]);
   const { data: b, error, isLoading } = useSeasonalityBundle(value);
+  // S8: bản THĂM DÒ (ngày làm mốc = ngày công bố thật) — hiển thị bằng CHÍNH EarningsSeasonalityTab trong vùng đệm SWR riêng;
+  // kho tạm được nạp lại theo đúng bản đang xem mỗi lần đổi bản / đổi mã (không lẫn dữ liệu giữa hai bản).
+  const { data: xb } = useSeasonalityX(value, mode === "ticker");
+  const [anchorPref, setAnchorPref] = useState<Anchor>(readAnchor);
+  const anchor: Anchor = anchorPref === "x" && xb && xb.ticker === value ? "x" : "official";
+  const xStatus = useSeasonXStatus(anchor === "x");
+  const setAnchor = (a: Anchor) => { setAnchorPref(a); try { localStorage.setItem(SEASON_ANCHOR_KEY, a); } catch { /* không có storage */ } };
+  const xCache = useMemo(() => new Map(), [value, xb?.builtAt]); // eslint-disable-line react-hooks/exhaustive-deps
   const [primed, setPrimed] = useState<string | null>(null);
   useEffect(() => {
     let off = false;
-    if (b && value && b.ticker === value) { void primeSeasonality(value, b.items, defaultBaseUrl()).then(() => { if (!off) setPrimed(value); }); }
+    const items = anchor === "x" ? xb?.items : b && b.ticker === value ? b.items : null;
+    if (value && items) { clearPrimed(); void primeSeasonality(value, items, defaultBaseUrl()).then(() => { if (!off) setPrimed(`${anchor}:${value}`); }); }
     return () => { off = true; };
-  }, [b, value]);
+  }, [b, xb, value, anchor]);
   const i = value ? tickers.indexOf(value) : -1;
   const go = (d: number) => { if (!tickers.length) return; const k = i < 0 ? 0 : (i + d + tickers.length) % tickers.length; onChange(tickers[k]); };
-  const ready = !value ? false : error ? true : primed === value; // gói lỗi -> mở như cũ (gọi thẳng Project A)
+  const ready = !value ? false : anchor === "x" ? primed === `x:${value}` : error ? true : primed === `official:${value}`; // gói lỗi -> mở như cũ (gọi thẳng Project A)
   return (
     <div className="space-y-3" data-testid="season-view">
       <div className="tw-scope flex flex-wrap gap-1" role="tablist" aria-label="Chế độ Mùa vụ KQKD">
@@ -175,7 +189,18 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
       {!value && <p className="text-[11px] text-cf-tertiary">Mùa vụ giá quanh ngày công bố KQKD theo từng quý: chu kỳ năm, đường đi trung bình quanh ngày công bố và 4 cửa sổ giao dịch của quý đang xem.</p>}
       {value && b && <NextContext b={b} />}
       {value && !ready && isLoading && <p role="status" className="text-[10.5px] text-slate-500" data-testid="season-loading">Đang tải Mùa vụ KQKD của {value}…</p>}
-      {value && ready && <EarningsSeasonalityTab ticker={value} />}
+      {value && xb && xb.ticker === value && (
+        <div className="tw-scope flex flex-wrap items-center gap-1.5" role="group" aria-label="Ngày làm mốc" data-testid="season-anchor">
+          <span className="text-[10px] font-bold uppercase text-cf-tertiary">Ngày làm mốc</span>
+          {([["official", "Ngày dữ liệu VNDirect · bản chính"], ["x", "Ngày công bố thật · THĂM DÒ"]] as [Anchor, string][]).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={anchor === k} onClick={() => setAnchor(k)} data-testid={`season-anchor-${k}`}
+              className={`rounded-full border px-2.5 py-1 text-[11px] ${anchor === k ? (k === "x" ? "border-sky-400/60 bg-sky-400/10 text-sky-200" : "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]") : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+          ))}
+        </div>
+      )}
+      {value && anchor === "x" && b && xb && <SeasonXCompare official={b} x={xb} status={xStatus} />}
+      {value && ready && anchor === "official" && <EarningsSeasonalityTab ticker={value} />}
+      {value && ready && anchor === "x" && <SWRConfig value={{ provider: () => xCache }}><EarningsSeasonalityTab key={`x:${value}`} ticker={value} /></SWRConfig>}
       {value && b && <PooledEvidence pooled={b.context?.pooled} ticker={value} nextQuarter={b.context?.next?.quarter ?? null} />}
       {value && b && <DateAudit b={b} />}
       {error && <p className="text-[10px] text-amber-300">Gói Gateway chưa sẵn sàng ({error}) — đang tải trực tiếp từ nguồn.</p>}

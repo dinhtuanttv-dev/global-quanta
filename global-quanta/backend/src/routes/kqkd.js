@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, getSeasonOracle = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, getSeasonOracle = null, getSeasonX = null, getCafef = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -70,6 +70,29 @@ export function createKqkdRouter({ getService, getAgm = null, getEventStudy = nu
     const limit = Number(req.query.limit) > 0 ? Math.min(400, Number(req.query.limit)) : null;
     void o.run({ limit }).catch((e) => console.warn(`[season-oracle] lỗi: ${e.message}`));
     res.status(202).json({ started: true, limit });
+  });
+  // S8: Mùa vụ bản THĂM DÒ (ngày làm mốc = ngày công bố thật CafeF) + trạng thái / tiêu chí đặt trước của ngày CafeF.
+  router.get("/seasonality-x/:ticker", readRl, (req, res) => {
+    const t = String(req.params.ticker ?? "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const d = getSeasonX?.()?.items?.(t);
+    if (!d) return res.status(503).json({ error: "Bản THĂM DÒ chưa dựng (sau khi đọc xong lịch sử CafeF tới 2020).", status: getSeasonX?.()?.status?.() ?? null });
+    const ca = getCafef?.(); const m = ca?.dates?.(t);
+    send(req, res, { ...d, ticker: t, cafef: m ? [...m].map(([fiscal, v]) => ({ fiscal, date: v.date, tier: v.tier, title: v.title })).sort((a, b) => b.fiscal.localeCompare(a.fiscal)) : [] });
+  });
+  router.get("/season-x/status", (_req, res) => { const ca = getCafef?.(); res.json({ seasonX: getSeasonX?.()?.status?.() ?? null, cafef: ca?.status?.() ?? null, evaluate: ca?.evaluate?.() ?? null }); });
+  router.post("/admin/cafef-crawl", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const ca = getCafef?.(); if (!ca) return res.status(503).json({ error: "Chưa bật." });
+    const until = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.until)) ? String(req.query.until) : "2020-01-01";
+    void ca.crawl({ until }).catch((e) => console.warn(`[cafef] admin lỗi: ${e.message}`));
+    res.status(202).json({ started: true, until });
+  });
+  router.post("/admin/season-x", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const sx = getSeasonX?.(); if (!sx) return res.status(503).json({ error: "Chưa bật." });
+    void sx.run({ force: req.query.force === "1" }).then((r) => console.log(`[season-x] admin: ${JSON.stringify(r).slice(0, 300)}`)).catch((e) => console.warn(`[season-x] admin lỗi: ${e.message}`));
+    res.status(202).json({ started: true });
   });
   // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
   router.get("/calendar", readRl, async (req, res) => {

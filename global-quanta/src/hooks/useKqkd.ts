@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { fetchMarketJson } from "../services/marketDataClient";
-import type { KqLedger, KqkdCalendar, KqkdDetail, KqkdSummary, SeasonLedger, SeasonMap, SeasonalityBundle } from "../lib/kqkd/types";
+import type { KqLedger, KqkdCalendar, KqkdDetail, KqkdSummary, SeasonLedger, SeasonMap, SeasonXStatus, SeasonalityBundle, SeasonalityX } from "../lib/kqkd/types";
 
 /** K6 (06/11/2026): KQKD theo quý — bảng toàn thị trường (Gateway /api/fundamentals/kqkd/summary). */
 export function useKqkdSummary(enabled = true) {
@@ -37,6 +37,19 @@ export function useSeasonMap(enabled = true) {
 export function useSeasonLedger(enabled = true) {
   const { data, error, isLoading } = useSWR<SeasonLedger>(enabled ? "kqkd-season-ledger" : null, () => fetchMarketJson<SeasonLedger>("/api/fundamentals/kqkd/season-ledger"), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
   return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}
+
+/** S8: Mùa vụ bản THĂM DÒ (ngày làm mốc = ngày công bố thật) của một mã. */
+export function useSeasonalityX(ticker: string | null, enabled = true) {
+  const t = enabled ? ticker?.toUpperCase() ?? null : null;
+  const { data, error, isLoading } = useSWR<SeasonalityX>(t ? `kqkd-season-x:${t}` : null, () => fetchMarketJson<SeasonalityX>(`/api/fundamentals/kqkd/seasonality-x/${encodeURIComponent(t!)}`), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}
+
+/** S8: tiến độ đọc CafeF + tiêu chí đặt trước. */
+export function useSeasonXStatus(enabled = true) {
+  const { data } = useSWR<SeasonXStatus>(enabled ? "kqkd-season-x-status" : null, () => fetchMarketJson<SeasonXStatus>("/api/fundamentals/kqkd/season-x/status"), { revalidateOnFocus: false, dedupingInterval: 10 * 60_000, shouldRetryOnError: false });
+  return data ?? null;
 }
 
 /** KQ-L1: sổ theo dõi tiến (ghi một lần, chấm sau 60 phiên). */

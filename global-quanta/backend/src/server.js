@@ -230,7 +230,7 @@ const getCotucStore = () => (cotucStore ??= createCotucStore({ store: getMarketR
 const getGatewayTimeline = () => (gatewayTimeline ??= createGatewayTimeline({ cotucStore: getCotucStore() }));
 // SD-v1: Mùa vụ KQKD đọc thẳng bảng "season" (chỉ đọc) của cùng kho mà job Mùa vụ ghi — không vòng qua Project A.
 setSeasonReader(async (t) => (await getCotucStore().list("season", { tickers: [t], fields: SEASON_FIELDS }))[0] ?? null,
-  async () => (await getCotucStore().list("season", { fields: ["ticker"] })).map((r) => r.ticker));
+  async () => (await getCotucStore().list("season", { fields: ["ticker", "sector"] })).map((r) => ({ ticker: r.ticker, sector: r.sector ?? null })));
 const seasonOracle = createSeasonOracle();
 let eliteZones = null;
 const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore: getCotucStore() }));
@@ -261,7 +261,7 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
   }
 });
 // K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
-app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle }));
+app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle, getSeasonX: () => getMarketRuntime().seasonX, getCafef: () => getMarketRuntime().cafefAnnounce }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

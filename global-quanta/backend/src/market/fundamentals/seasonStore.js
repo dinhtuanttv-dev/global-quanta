@@ -7,9 +7,10 @@ export const SD_VERSION = "SD-v1 (2026-11-06)";
 export const SEASON_FIELDS = ["ticker", "calendar", "stats", "paths"];
 
 let reader = null; // (t) => Promise<row | null>, gắn bởi server.js (cùng phiên bản cotucStore mà job QMS ghi vào)
-let lister = null; // () => Promise<string[]> mọi mã có dòng trong bảng
+let lister = null; // () => Promise<{ ticker, sector }[]> mọi dòng của bảng
 export function setSeasonReader(fn, listFn = null) { reader = typeof fn === "function" ? fn : null; lister = typeof listFn === "function" ? listFn : null; }
-export const listSeasonTickers = async () => (lister ? lister() : []);
+export const listSeasonMeta = async () => (lister ? lister() : []);
+export const listSeasonTickers = async () => (await listSeasonMeta()).map((r) => r.ticker);
 export const hasSeasonReader = () => !!reader;
 
 /** Dòng kho -> 9 mục như 9 API Project A (null row = mã chưa có trong danh mục quét: mọi mục 404). */

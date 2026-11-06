@@ -21,6 +21,10 @@ import { createKqkdService, kqkdDirFromEnv } from "./fundamentals/kqkdService.js
 import { createAgmPlansService } from "./fundamentals/agmPlansService.js";
 import { createEventStudyService } from "./fundamentals/eventStudyService.js";
 import { createSeasonMap } from "./fundamentals/seasonMap.js";
+import { CA_RULES, createCafefAnnounce } from "./fundamentals/cafefAnnounceService.js";
+import { createSeasonX } from "./fundamentals/seasonX.js";
+import { listSeasonMeta } from "./fundamentals/seasonStore.js";
+import { qmsJobsConfig, runInWorker } from "./cotuc/qmsJobs.js";
 import { callGeminiJSON } from "../services/geminiClient.js";
 import zlibAgm from "node:zlib";
 import fsAgm from "node:fs";
@@ -160,7 +164,8 @@ export function getMarketRuntime() {
   const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
-    { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false }];
+    { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false },
+    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
   jobs.agmPlans = async () => { if (!process.env.GEMINI_API_KEY) return { skipped: "thiếu GEMINI_API_KEY" }; const r = await agmPlans.run({ limit: 30 }); if (r.processed) await kqkd.rebuildSummary("agm"); return r; };
@@ -170,6 +175,14 @@ export function getMarketRuntime() {
   const seasonMap = createSeasonMap({ dir: kqkdDir, getCalendar: () => kqkd.calendar() });
   jobs.seasonMapBuild = async () => { const m = seasonMap.map(); if (m && Date.now() - Date.parse(m.builtAt) < 6.5 * 86_400_000) return { skipped: "bản đồ chưa quá 6,5 ngày" }; return seasonMap.build(); };
   jobs.seasonLedgerTick = () => seasonMap.ledgerTick();
+  // S8 (06/11/2026): ngày công bố thật từ CafeF (pha A tới 2020 ngay sau khởi động, pha B về 2013 ban đêm) + Mùa vụ bản THĂM DÒ
+  // tính bằng đúng hàm Project A (vendor/seasonCore.mjs, worker riêng), lưu thư mục seasonx/ — bảng "season" và Timeline không đổi.
+  const cafefAnnounce = createCafefAnnounce({ dir: kqkdDir });
+  const sxConfig = qmsJobsConfig();
+  const seasonX = createSeasonX({ dir: kqkdDir, cafef: cafefAnnounce, listMeta: listSeasonMeta, runJob: ({ fn, params, modulePath }) => runInWorker({ fn, params, modulePath, config: { ...sxConfig, timeoutMs: 600_000 } }) });
+  jobs.cafefHead = () => cafefAnnounce.refreshHead();
+  jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
+  jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
@@ -192,7 +205,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, agmPlans, eventStudy, seasonMap, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -217,6 +230,8 @@ export function startMarketIngestor() {
   // K0: kho KQKD chưa có (lần đầu triển khai / volume mới) -> nạp sau 3 phút (bỏ qua mã đã nạp trong 20 giờ).
   // S2: chưa có bản đồ mùa vụ -> dựng sau 20 phút (tuần tự, ~1.420 lần gọi Project A).
   if (!rt.seasonMap.hasData()) setTimeout(() => { rt.seasonMap.build().then(() => rt.seasonMap.ledgerTick()).catch((e) => console.warn(`[season-map] dựng lần đầu lỗi: ${e.message}`)); }, 1_200_000).unref?.();
+  // S8: pha A (tới 2020) sau 4 phút nếu chưa đọc, rồi dựng bản THĂM DÒ (chỉ khi đạt tiêu chí đặt trước).
+  if (!rt.seasonX.status().index) setTimeout(() => { rt.cafefAnnounce.crawl({ until: CA_RULES.phaseA }).then(() => rt.seasonX.run()).then((r) => console.log(`[season-x] lần đầu: ${JSON.stringify(r).slice(0, 300)}`)).catch((e) => console.warn(`[season-x] lần đầu lỗi: ${e.message}`)); }, 240_000).unref?.();
   // LC3: chưa có nghiên cứu sự kiện -> dựng sau 12 phút (sau lượt nạp KQKD đầu).
   if (!rt.eventStudy.hasData()) setTimeout(() => { rt.eventStudy.run().catch((e) => console.warn(`[event-study] dựng lần đầu lỗi: ${e.message}`)); }, 720_000).unref?.();
   if (!rt.kqkd.hasData()) setTimeout(() => { rt.kqkd.refresh({ force: false, reason: "bootstrap" }).catch((e) => console.warn(`[kqkd] nạp lần đầu lỗi: ${e.message}`)); }, 180_000).unref?.();
