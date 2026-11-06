@@ -43,6 +43,10 @@ export function createKqkdRouter({ getService, getAgm = null, adminToken = () =>
   });
 
   router.get("/status", (_req, res) => res.json(getService().status()));
+  // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
+  router.get("/calendar", readRl, async (req, res) => {
+    try { const doc = await getService().calendar(); if (!doc) return res.status(503).json({ error: "Kho KQKD chưa có dữ liệu." }); send(req, res, doc); } catch (e) { fail(res, e); }
+  });
   // KQ-L1: sổ theo dõi tiến của tăng trưởng ước tính cả năm.
   router.get("/ledger", readRl, async (req, res) => {
     try { send(req, res, await getService().ledger()); } catch (e) { fail(res, e); }

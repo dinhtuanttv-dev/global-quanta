@@ -744,12 +744,6 @@ export interface UpcomingDividend {
   cashPerShare: number | null;
   status: DataStatus;
 }
-export interface UpcomingEarnings {
-  ticker: string;
-  tdToEarnings: number;
-  quarterLabel: string;
-  method: AnnounceMethod;
-}
 
 export function detectUpcomingDividendEvents(
   items: { ticker: string; exDate: Sourced<ISODate> | null; cashPerShare: number | null }[],
@@ -764,15 +758,3 @@ export function detectUpcomingDividendEvents(
     .sort((a, b) => a.tdToEx - b.tdToEx || a.ticker.localeCompare(b.ticker));
 }
 
-export function detectUpcomingEarningsEvents(
-  items: EarningsSignal[],
-  deps: Deps,
-  horizonTd: number = deps.cfg.horizonTd,
-): UpcomingEarnings[] {
-  const today = deps.clock.today();
-  return items
-    .map((e) => ({ e, td: tradingDaysBetween(today, e.expectedAnnounce.date, deps.cal) }))
-    .filter((x): x is { e: EarningsSignal; td: number } => x.td !== null && x.td >= 0 && x.td <= horizonTd)
-    .map(({ e, td }) => ({ ticker: e.ticker, tdToEarnings: td, quarterLabel: e.quarterLabel, method: e.expectedAnnounce.method }))
-    .sort((a, b) => a.tdToEarnings - b.tdToEarnings || a.ticker.localeCompare(b.ticker));
-}

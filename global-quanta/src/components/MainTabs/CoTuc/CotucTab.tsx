@@ -42,9 +42,9 @@ import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
 import { ErrorBoundary } from "../../ErrorBoundary";
 import KqkdCenter from "./kqkd/KqkdCenter";
+import EarningsCalendar from "./kqkd/EarningsCalendar";
 import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
 import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
-import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
 import { DecisionBarCard } from "./decision/DecisionBar";
 import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
 import { CotucScanStatusBar } from "./live/CotucScanStatusBar";
@@ -404,7 +404,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   }, []);
   const group = GROUP_OF[subTab];
   // F4 (06/11/2026): tải theo nhu cầu — dữ liệu chỉ phục vụ Bộ lọc / hồ sơ mã / lịch chưa tải khi đang ở Timeline.
-  const [need, setNeed] = useState({ screener: group === "cotuc", calendars: subTab === "calendar-v3" || subTab === "kqkd-calendar" });
+  const [need, setNeed] = useState({ screener: group === "cotuc" });
   // "🗂 Bản cũ": Lịch GDKHQ v1 và Xếp hạng v2 (engine cũ, 17 mã) — giữ để đối chiếu, không xoá chức năng.
   const [legacyView, setLegacyView] = useState<"calendar" | "timing" | null>(null);
   const buyTimeline = useBuyTimeline();
@@ -417,13 +417,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
   // lenh goi mang). byTicker dung de tra cuu O(1) trong bang chinh (DividendScreenerTable).
   const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk({ enabled: need.screener });
-  const earningsSignalsBulk = useEarningsSignalsBulk(need.calendars);
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   useEffect(() => {
-    const screener = group === "cotuc", calendars = subTab === "calendar-v3" || subTab === "kqkd-calendar";
-    if ((screener && !need.screener) || (calendars && !need.calendars)) setNeed((n) => ({ screener: n.screener || screener, calendars: n.calendars || calendars }));
+    const screener = group === "cotuc";
+    if (screener && !need.screener) setNeed((n) => ({ ...n, screener: true }));
     if (screener) onNeedRs?.();
-  }, [group, subTab, need.screener, need.calendars, onNeedRs]);
+  }, [group, need.screener, onNeedRs]);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
   // FIX (2026-09-12): truoc day luu SNAPSHOT object vao state -> neu bam
@@ -1038,14 +1037,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
       {subTab === "kqkd-calendar" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Lịch công bố KQKD">
-          <div className="cf-panel rounded-xl p-4">
-            <CalendarTabV3
-              initialTab="earnings"
-              dividendItems={allStocksWithUniverse.filter((s) => s.exDividendDate).map((s): DividendCalendarItem => ({ ticker: s.ticker, exDate: toSourcedIso(s.exDividendDate), cashPerShare: s.dividendAmount ?? null }))}
-              earningsItems={earningsSignalsBulk.signals}
-              deps={makeDeps({ cal: vnHolidayCalendar })}
-            />
-          </div>
+          <EarningsCalendar onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} />
         </ErrorBoundary>
       )}
 
@@ -1063,10 +1055,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
                 exDate: toSourcedIso(s.exDividendDate),
                 cashPerShare: s.dividendAmount ?? null,
               }))}
-              // "Sap KQKD": EarningsSignal CA danh muc trong 1 request (/api/cotuc/earnings-signals,
-              // Project A doc bang EarningsSeasonalityCache do cron earnings-seasonality-scan ghi;
-              // nham QUY SAP CONG BO, ngay du kien uoc tu do tre lich su cua tung ma).
-              earningsItems={earningsSignalsBulk.signals}
               deps={makeDeps({ cal: vnHolidayCalendar })}
             />
           </div>

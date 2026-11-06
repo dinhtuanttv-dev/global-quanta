@@ -11,6 +11,19 @@ import { ALPHA_KV } from "../alpha/alphaService.js";
 import { fetchTickerStatements } from "./statementsVnd.js";
 import { LEDGER_VERSION, recordLedger, scoreLedger } from "./kqkdLedger.js";
 import { attainment, sameScope } from "./agmPlans.js";
+import { buildCalendar, seasonQuarters } from "./earningsCalendar.js";
+
+/** LC4: tin công bố BCTC chính thức của một mã (VNDirect newsType financialstatement) -> [[date, title]]. */
+export async function fetchDisclosures(t, { fetchImpl = globalThis.fetch, since = "2023-01-01" } = {}) {
+  for (let a = 0; a < 3; a++) {
+    try {
+      const r = await fetchImpl(`https://api-finfo.vndirect.com.vn/v4/news?q=tagCodes:${t}~newsType:financialstatement~newsDate:gte:${since}~locale:VN&size=200&sort=newsDate:asc`, { headers: { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)", accept: "application/json" }, signal: AbortSignal.timeout(30_000) });
+      if (r.ok) return ((await r.json()).data ?? []).map((n) => [String(n.newsDate ?? "").slice(0, 10), String(n.newsTitle ?? "").slice(0, 200)]).filter((x) => x[0]);
+    } catch { /* thử lại */ }
+    await new Promise((res) => setTimeout(res, 1000 * (a + 1)));
+  }
+  return null;
+}
 import { ytdFromStatements } from "./agmPlansService.js";
 
 /** AGM-v1: kế hoạch ĐHĐCĐ đã kiểm + tiến độ hoàn thành cho một mã. */
@@ -45,11 +58,13 @@ function readGz(file) {
   try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString("utf8")); } catch { return null; }
 }
 
-export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null } = {}) {
+export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const fileOf = (t) => path.join(dir, `${t}.json.gz`);
   const summaryFile = path.join(dir, "summary.json.gz");
   const ledgerFile = path.join(dir, "ledger-nowcast.json");
+  const discFile = path.join(dir, "disclosures.json.gz");
+  let calendarMemo = null; // { key, doc }
   const readLedger = () => { try { return JSON.parse(fs.readFileSync(ledgerFile, "utf8")); } catch { return { version: LEDGER_VERSION, startedAt: null, entries: [] }; } };
   let ledgerMemo = null; // { key, doc }
   let summaryMemo = null; // { key, doc }
@@ -63,7 +78,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     const vnd = await vndDoc();
     const fromKv = Object.keys(vnd?.fund ?? {}).filter((t) => TICKER.test(t));
     if (fromKv.length) return fromKv.sort();
-    return fs.readdirSync(dir).filter((f) => f.endsWith(".json.gz") && f !== "summary.json.gz").map((f) => f.slice(0, -8)).sort();
+    return fs.readdirSync(dir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).map((f) => f.slice(0, -8)).sort();
   }
   async function mcapMap() {
     const vnd = await vndDoc();
@@ -123,6 +138,13 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
           state.done += 1;
         }
       }));
+      // LC4: tin công bố BCTC chính thức (lỗi -> giữ bản cũ của mã đó).
+      const disc = readGz(discFile) ?? { fetchedAt: null, byTicker: {} };
+      const dtodo = [...list];
+      await Promise.all(Array.from({ length: concurrency + 1 }, async () => { while (dtodo.length) { const t = dtodo.shift(); const d = await fetchDisc(t, { fetchImpl }); if (d) disc.byTicker[t] = d; } }));
+      disc.fetchedAt = new Date(now()).toISOString();
+      writeGz(discFile, disc);
+      calendarMemo = null;
       const doc = await rebuildSummary(reason);
       log.log?.(`[kqkd] làm mới ${state.done} mã (lỗi ${state.failed.length}), ${doc.counts.reportedLatest}/${doc.counts.tickers} đã có ${doc.latestQuarter}.`);
     } catch (e) {
@@ -187,11 +209,28 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     return doc;
   }
 
+  /** LC4: lịch công bố mùa hiện tại + mùa kế tiếp. */
+  async function calendar() {
+    const today = vnToday(now());
+    const disc = readGz(discFile) ?? { fetchedAt: null, byTicker: {} };
+    const sum = await summary();
+    const key = `${today}|${sum?.fetchedAt ?? ""}|${disc.fetchedAt ?? ""}`;
+    if (calendarMemo?.key === key) return calendarMemo.doc;
+    const recs = (await universe()).map((t) => readGz(fileOf(t))).filter(Boolean);
+    if (!recs.length) return null;
+    const resultOf = new Map((sum?.rows ?? []).map((r) => [r.t, r]));
+    const { current, next } = seasonQuarters(today);
+    const opts = { today, disclosuresOf: (t) => disc.byTicker[t] ?? [], resultOf: (t) => resultOf.get(t) ?? null, isHoliday };
+    const doc = { asOf: today, disclosuresFetchedAt: disc.fetchedAt, current: buildCalendar(recs, { ...opts, fiscal: current }), next: buildCalendar(recs, { ...opts, fiscal: next }) };
+    calendarMemo = { key, doc };
+    return doc;
+  }
+
   function status() {
     let files = 0;
-    try { files = fs.readdirSync(dir).filter((f) => f.endsWith(".json.gz") && f !== "summary.json.gz").length; } catch { /* */ }
+    try { files = fs.readdirSync(dir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).length; } catch { /* */ }
     return { version: KQ_VERSION, dir: path.basename(dir), files, ...state, failed: state.failed.slice(0, 50), failedCount: state.failed.length };
   }
 
-  return { refresh, summary, detail, status, rebuildSummary, ledger, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
+  return { refresh, summary, detail, status, rebuildSummary, ledger, calendar, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
 }

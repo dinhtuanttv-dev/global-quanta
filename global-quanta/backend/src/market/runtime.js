@@ -151,8 +151,8 @@ export function getMarketRuntime() {
   const kqkdDir = kqkdDirFromEnv();
   const readStatementsAgm = (t) => { try { return JSON.parse(zlibAgm.gunzipSync(fsAgm.readFileSync(`${kqkdDir}/${t}.json.gz`)).toString("utf8")); } catch { return null; } };
   const agmPlans = createAgmPlansService({ dir: kqkdDir, callModel: (o) => callGeminiJSON(o), readStatements: readStatementsAgm,
-    universe: async () => fsAgm.readdirSync(kqkdDir).filter((f) => f.endsWith(".json.gz") && f !== "summary.json.gz").map((f) => f.slice(0, -8)).sort() });
-  const kqkd = createKqkdService({ store, getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
+    universe: async () => fsAgm.readdirSync(kqkdDir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).map((f) => f.slice(0, -8)).sort() });
+  const kqkd = createKqkdService({ store, isHoliday: (d) => tradingCalendar.isHoliday(d), getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
   const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });

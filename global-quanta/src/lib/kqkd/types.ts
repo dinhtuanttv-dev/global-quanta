@@ -6,6 +6,22 @@ export type FlagId = "NON_CORE" | "HIGH_ACCRUAL" | "NEG_CFO" | "M_FLAG" | "Z_DIS
 export interface Deadline { quarterLabel: string; quarterEndDate: string; deadlineStandalone: string; deadlineConsolidated: string; daysUntilStandalone: number; daysUntilConsolidated: number; isEstimate: boolean }
 export type Kpi = Record<string, number | null>;
 
+/** LC-v1 — lịch công bố KQKD. */
+export type CalStatus = "REPORTED" | "DISCLOSED" | "UPCOMING" | "OVERDUE";
+export interface CalRow {
+  t: string; tpl: Tpl; status: CalStatus; date: string | null; source: "DISCLOSURE" | "DATA" | null; disclosureTitle: string | null; lagDays: number | null;
+  expected: string | null; band: [string, string] | null; medianLag: number | null; ownN: number; lateShare: number | null; pNext: number | null;
+  history: { q: string; lag: number }[];
+  result: { npatYoY: Growth | null; ytd: Growth | null; sueCore: number | null; sueNpat: number | null; flags: FlagId[] } | null;
+}
+export interface CalSeason {
+  version: string; label: string; asOf: string; method: string;
+  quarter: { fiscal: string; label: string; end: string; deadlineStandalone: string; deadlineConsolidated: string; dayOfSeason: number };
+  rows: CalRow[]; curve: { fiscal: string; label: string; reported: number; curve: (number | null)[] }; prevCurves: { fiscal: string; label: string; reported: number; curve: (number | null)[] }[];
+  stats: { tickers: number; reported: number; disclosed: number; upcoming: number; overdue: number; expectedNext: number | null; horizonDays: number; shareNow: number | null; sharePrevSameDay: number | null; earlyVsLate: { early: number | null; late: number | null; n: number } | null };
+}
+export interface KqkdCalendar { asOf: string; disclosuresFetchedAt: string | null; current: CalSeason; next: CalSeason }
+
 /** AGM-v1 — kế hoạch ĐHĐCĐ. */
 export interface PlanItem { status: "VERIFIED" | "REVIEW" | "ABSENT"; vnd?: number | null; basis?: string; value?: number; unit?: string; rowLabel?: string | null; quote?: string | null; page?: number | null; ratioPrior?: number | null; priorCheck?: { printed: number; statement: number; diff: number; match: boolean } | null; reason?: string | null; sameScope?: boolean }
 export interface PlanView {
