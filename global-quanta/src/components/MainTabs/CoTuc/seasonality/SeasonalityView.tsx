@@ -1,3 +1,4 @@
+// S2/S4/S6: chế độ "Bản đồ toàn thị trường" + "Sổ theo dõi" (SeasonBoards.tsx), bằng chứng gộp theo ngành dưới phân tích theo mã.
 // S1/S3/S5/S7 (06/11/2026) — khung mục 📊 Mùa vụ KQKD. Bọc EarningsSeasonalityTab (GIỮ NGUYÊN công thức, ngưỡng, hiển thị):
 //   S1 mở sẵn một mã (xem gần nhất -> mã ghim -> mã sắp công bố gần nhất), ô tìm có gợi ý, mã trước / sau.
 //   S7 một lần gọi Gateway thay 9 lần gọi Project A (kiểm schema bằng chính hàm cũ, lib/cotuc/seasonality-bundle.ts).
@@ -12,8 +13,12 @@ import { primeSeasonality } from "../../../../lib/cotuc/seasonality-bundle";
 import { dmy, fin, growthText, num, pct, pctPlain } from "../../../../lib/kqkd/format";
 import type { SeasonalityBundle } from "../../../../lib/kqkd/types";
 import { EarningsSeasonalityTab } from "./EarningsSeasonalityTab";
+import { PooledEvidence, SeasonLedgerView, SeasonMapBoard } from "./SeasonBoards";
 
 export const SEASON_TICKER_KEY = "gq.kqkd.season.ticker.v1";
+export const SEASON_MODE_KEY = "gq.kqkd.season.mode.v1";
+type Mode = "ticker" | "map" | "ledger";
+const readMode = (): Mode => { try { const m = localStorage.getItem(SEASON_MODE_KEY); return m === "map" || m === "ledger" ? m : "ticker"; } catch { return "ticker"; } };
 const readLast = () => { try { return localStorage.getItem(SEASON_TICKER_KEY); } catch { return null; } };
 const writeLast = (t: string) => { try { localStorage.setItem(SEASON_TICKER_KEY, t); } catch { /* không có storage */ } };
 const QC = ["#22d3ee", "#34d399", "#fbbf24", "#a78bfa"];
@@ -34,7 +39,7 @@ function NextContext({ b }: { b: SeasonalityBundle }) {
   const liveAlert = live && ((fin(live.av10) && live.av10 >= 2) || (fin(live.scar10) && Math.abs(live.scar10) >= 2));
   const g = growthText(l?.result?.npatYoY ?? null);
   return (
-    <section className="rounded-lg border border-white/10 bg-white/[0.02] p-3" data-testid="season-context">
+    <section className="tw-scope rounded-lg border border-white/10 bg-white/[0.02] p-3" data-testid="season-context">
       <p className="mb-2 text-[11px] font-bold text-slate-200">🧭 Bối cảnh kỳ tới <span className="font-normal text-slate-500">· tổng hợp từ Lịch công bố, KQKD theo quý, kế hoạch ĐHCĐ, phản ứng giá</span></p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
         <div className="rounded-md border border-white/[0.07] px-2 py-1.5" data-testid="season-ctx-date">
@@ -81,7 +86,7 @@ function DateAudit({ b }: { b: SeasonalityBundle }) {
   const checked = qs.reduce((s, x) => s + x.a.checked, 0), off = qs.reduce((s, x) => s + x.a.offBy2, 0);
   const lag = (r: SeasonalityBundle["audit"][string]["rows"][number]) => r.sessions ?? (r.days != null ? Math.round((r.days * 5) / 7) : null);
   return (
-    <details className="rounded-lg border border-white/10 bg-white/[0.02]" data-testid="season-audit">
+    <details className="tw-scope rounded-lg border border-white/10 bg-white/[0.02]" data-testid="season-audit">
       <summary className="cursor-pointer px-3 py-2 text-[11px] text-slate-300">
         <b className="text-slate-100">🔎 Kiểm ngày làm mốc</b> · {checked} kỳ có tin BCTC chính thức để đối chiếu ·{" "}
         <b className={off ? "text-amber-300" : "text-emerald-300"}>{off} kỳ lệch ≥ 2 phiên</b> so ngày công bố thật
@@ -116,6 +121,9 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
   const { pinned } = usePinnedStocks();
   const { data: cal } = useKqkdCalendar(!value);
   const [q, setQ] = useState("");
+  const [mode, setModeRaw] = useState<Mode>(readMode);
+  const setMode = (m: Mode) => { setModeRaw(m); try { localStorage.setItem(SEASON_MODE_KEY, m); } catch { /* không có storage */ } };
+  const openTicker = (t: string) => { onChange(t); setMode("ticker"); };
   const upcoming = useMemo(() => (cal ? [cal.current, cal.next].flatMap((s) => s.rows.filter((r) => r.status === "UPCOMING" && r.expected && r.expected >= cal.asOf).sort((a, b) => a.expected!.localeCompare(b.expected!)).map((r) => r.t)) : []), [cal]);
   // S1: mở sẵn một mã.
   useEffect(() => {
@@ -139,7 +147,16 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
   const ready = !value ? false : error ? true : primed === value; // gói lỗi -> mở như cũ (gọi thẳng Project A)
   return (
     <div className="space-y-3" data-testid="season-view">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="tw-scope flex flex-wrap gap-1" role="tablist" aria-label="Chế độ Mùa vụ KQKD">
+        {([["ticker", "Theo mã"], ["map", "🗺 Bản đồ toàn thị trường"], ["ledger", "📒 Sổ theo dõi"]] as [Mode, string][]).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} data-testid={`season-mode-${k}`}
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${mode === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+        ))}
+      </div>
+      {mode === "map" && <SeasonMapBoard onOpen={openTicker} />}
+      {mode === "ledger" && <SeasonLedgerView onOpen={openTicker} />}
+      {mode === "ticker" && <>
+      <div className="tw-scope flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-bold uppercase text-cf-tertiary">Mã</span>
         <button type="button" onClick={() => go(-1)} aria-label="Mã trước" className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-slate-300 hover:text-slate-100" data-testid="season-prev">‹</button>
         <select value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} data-testid="cotuc-seasonality-ticker"
@@ -159,8 +176,10 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
       {value && b && <NextContext b={b} />}
       {value && !ready && isLoading && <p role="status" className="text-[10.5px] text-slate-500" data-testid="season-loading">Đang tải Mùa vụ KQKD của {value}…</p>}
       {value && ready && <EarningsSeasonalityTab ticker={value} />}
+      {value && b && <PooledEvidence pooled={b.context?.pooled} ticker={value} nextQuarter={b.context?.next?.quarter ?? null} />}
       {value && b && <DateAudit b={b} />}
       {error && <p className="text-[10px] text-amber-300">Gói Gateway chưa sẵn sàng ({error}) — đang tải trực tiếp từ nguồn.</p>}
+      </>}
     </div>
   );
 }

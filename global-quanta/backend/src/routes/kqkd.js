@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -48,6 +48,19 @@ export function createKqkdRouter({ getService, getAgm = null, getEventStudy = nu
     const t = String(req.params.ticker ?? "").toUpperCase();
     if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
     try { const doc = await getService().seasonality(t); if (!doc) return res.status(404).json({ error: `${t} không thuộc danh mục KQKD.` }); send(req, res, doc); } catch (e) { fail(res, e); }
+  });
+  // S2: bản đồ mùa vụ toàn thị trường · S6: sổ theo dõi cửa sổ THEO DÕI / ĐẠT.
+  router.get("/season-map", readRl, (req, res) => {
+    const m = getSeasonMap?.()?.map?.();
+    if (!m) return res.status(503).json({ error: "Bản đồ mùa vụ chưa dựng (20 phút sau khởi động, sau đó mỗi tuần).", status: getSeasonMap?.()?.status?.() ?? null });
+    send(req, res, m);
+  });
+  router.get("/season-ledger", readRl, (_req, res) => { const sm = getSeasonMap?.(); if (!sm) return res.status(503).json({ error: "Chưa bật." }); res.json(sm.ledger()); });
+  router.post("/admin/season-map", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const sm = getSeasonMap?.(); if (!sm) return res.status(503).json({ error: "Chưa bật." });
+    void sm.build().then(() => sm.ledgerTick()).catch((e) => console.warn(`[season-map] admin lỗi: ${e.message}`));
+    res.status(202).json({ started: true });
   });
   // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
   router.get("/calendar", readRl, async (req, res) => {

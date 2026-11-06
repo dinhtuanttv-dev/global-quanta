@@ -73,6 +73,22 @@ export function sueAt(rec, fiscal, date) {
 }
 
 /**
+ * S4 — bằng chứng GỘP (tham chiếu) theo nhóm mã × loại quý: chỉ sự kiện có ngày chính xác (tin BCTC chính thức).
+ * compact: [{ t, q (loại quý 1–4), s (1 = ngày chính xác), sue, pre, ann, post }]. Trả theo quý: số lần, 3 cửa sổ (CI 95%), chênh 1/3 SUE cao − thấp.
+ */
+export function pooledEvidence(compact, members) {
+  const out = {};
+  for (const q of [1, 2, 3, 4]) {
+    const es = compact.filter((e) => e.q === q && e.s === 1 && members.has(e.t));
+    const sues = es.filter((e) => fin(e.sue)).sort((a, b) => a.sue - b.sue), k = Math.floor(sues.length / 3);
+    const hi = k >= 5 ? mean(sues.slice(-k).map((e) => e.ann).filter(fin)) : null, lo = k >= 5 ? mean(sues.slice(0, k).map((e) => e.ann).filter(fin)) : null;
+    out[q] = { n: es.length, tickers: new Set(es.map((e) => e.t)).size, pre: bootCi(es.map((e) => e.pre)), ann: bootCi(es.map((e) => e.ann)), post: bootCi(es.map((e) => e.post)),
+      sueSplit: fin(hi) && fin(lo) ? { high: r4(hi), low: r4(lo), diff: r4(hi - lo), k } : null };
+  }
+  return out;
+}
+
+/**
  * Tổng hợp. events: [{ t, fiscal, date, source, sue, r: eventReaction }]. Trả nhóm ngũ phân vị SUE (theo quý), đường CAR, rò rỉ, theo nguồn ngày.
  */
 export function aggregate(events) {

@@ -13,6 +13,7 @@ import { LEDGER_VERSION, recordLedger, scoreLedger } from "./kqkdLedger.js";
 import { attainment, sameScope } from "./agmPlans.js";
 import { buildCalendar, publishDates, seasonQuarters } from "./earningsCalendar.js";
 import { auditEventDates, createSeasonalityBundle, SB_VERSION } from "./seasonalityBundle.js";
+import { pooledEvidence } from "./eventStudy.js";
 
 /** LC4: tin công bố BCTC chính thức của một mã (VNDirect newsType financialstatement) -> [[date, title]]. */
 export async function fetchDisclosures(t, { fetchImpl = globalThis.fetch, since = "2023-01-01" } = {}) {
@@ -66,6 +67,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
   const ledgerFile = path.join(dir, "ledger-nowcast.json");
   const discFile = path.join(dir, "disclosures.json.gz");
   let calendarMemo = null; // { key, doc }
+  const pooledMemo = new Map(); // `${builtAt}|${l2}` -> kết quả gộp (S4)
   const readLedger = () => { try { return JSON.parse(fs.readFileSync(ledgerFile, "utf8")); } catch { return { version: LEDGER_VERSION, startedAt: null, entries: [] }; } };
   let ledgerMemo = null; // { key, doc }
   let summaryMemo = null; // { key, doc }
@@ -269,6 +271,19 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
         live: getEventStudy?.()?.live?.[t] ?? null,
       };
     } catch (e) { log.warn?.(`[kqkd] bối cảnh mùa vụ ${t}: ${e.message}`); }
+    // S4: bằng chứng gộp (tham chiếu) — cùng ngành ICB cấp 2 × loại quý và toàn thị trường, từ nghiên cứu sự kiện ES-v1.
+    try {
+      const es = getEventStudy?.();
+      if (es?.events?.length && context) {
+        const icb = (await store?.getKv?.("sectors:icb"))?.value ?? null;
+        const l2 = icb?.symbols?.[t]?.l2 ?? null;
+        const pool = (key, members) => { const k = `${es.builtAt}|${key}`; if (!pooledMemo.has(k)) { pooledMemo.set(k, pooledEvidence(es.events, members)); while (pooledMemo.size > 60) pooledMemo.delete(pooledMemo.keys().next().value); } return pooledMemo.get(k); };
+        const members = l2 ? new Set(Object.entries(icb.symbols).filter(([, m]) => m.l2 === l2).map(([s]) => s)) : null;
+        context.pooled = { version: es.version, builtAt: es.builtAt,
+          sector: l2 ? { code: l2, name: icb.levels?.[2]?.find((x) => x.code === l2)?.name ?? l2, byQ: pool(`l2:${l2}`, members) } : null,
+          market: { byQ: pool("all", new Set(es.events.map((e) => e.t))) } };
+      }
+    } catch (e) { log.warn?.(`[kqkd] gộp ngành ${t}: ${e.message}`); }
     return { version: SB_VERSION, ticker: t, fetchedAt: new Date(b.at).toISOString(), cached: b.cached, stale: b.stale, source: seasonalityBundle.base, items: b.items, audit, context };
   }
 
