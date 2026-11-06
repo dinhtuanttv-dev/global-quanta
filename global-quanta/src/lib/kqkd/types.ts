@@ -28,6 +28,20 @@ export interface CalSeason {
 }
 export interface KqkdCalendar { asOf: string; disclosuresFetchedAt: string | null; current: CalSeason; next: CalSeason; eventStudy?: { version: string; builtAt: string; aggregate: EsAggregate } | null }
 
+/** S7/S3/S5 — gói Mùa vụ KQKD. */
+export interface SeasonAuditRow { used: string; fiscal: string; precise: string | null; source: "DISCLOSURE" | "DATA" | null; days: number | null; sessions: number | null }
+export interface SeasonalityBundle {
+  version: string; ticker: string; fetchedAt: string; cached: boolean; stale: boolean; source: string;
+  items: Record<string, { status: number; body: unknown; error?: string; stale?: boolean }>;
+  audit: Record<string, { rows: SeasonAuditRow[]; checked: number; offBy2: number; maxOff: number | null }>;
+  context: {
+    next: { quarter: string; fiscal: string; deadlineConsolidated: string; status: CalStatus; date: string | null; expected: string | null; band: [string, string] | null; pNext: number | null; medianLag: number | null; ownN: number; lateShare: number | null } | null;
+    last: { quarter: string; date: string | null; source: string | null; result: CalRow["result"]; reaction: CalRow["reaction"] | null } | null;
+    nowcast: KqkdRow["nowcast"]; nowcastLabel: string; plan: KqkdRow["plan"] | null;
+    live: { asOf: string; car10: number | null; scar10: number | null; av10: number | null } | null;
+  } | null;
+}
+
 /** AGM-v1 — kế hoạch ĐHĐCĐ. */
 export interface PlanItem { status: "VERIFIED" | "REVIEW" | "ABSENT"; vnd?: number | null; basis?: string; value?: number; unit?: string; rowLabel?: string | null; quote?: string | null; page?: number | null; ratioPrior?: number | null; priorCheck?: { printed: number; statement: number; diff: number; match: boolean } | null; reason?: string | null; sameScope?: boolean }
 export interface PlanView {

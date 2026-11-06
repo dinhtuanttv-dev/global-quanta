@@ -148,7 +148,7 @@ export function calendarIcs(rows: CalRow[], s: CalSeason): string {
   return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//DinhTuan CK//Lich cong bo KQKD//VI", "CALSCALE:GREGORIAN", ...ev, "END:VCALENDAR"].join("\r\n");
 }
 
-export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null }) {
+export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeasonality }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null; onOpenSeasonality?: (t: string) => void }) {
   const { data, error, isLoading } = useKqkdCalendar();
   const { data: summary } = useKqkdSummary();
   const { isPinned } = usePinnedStocks();
@@ -305,7 +305,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
         )}
       </div>
       <p className="text-[10px] text-slate-500">{s.method} Hạn pháp lý: BCTC quý riêng lẻ 20 ngày, hợp nhất 45 ngày sau kết thúc quý. "Tin tốt công bố sớm" là mô tả (Kross 1981; Chambers &amp; Penman 1984), chưa kiểm định cho thị trường Việt Nam.</p>
-      {open && <KqkdTickerDrawer ticker={open} rows={summary?.rows ?? []} onClose={() => setOpen(null)} onOpenProfile={onSelectTicker} sectorOf={sectorOf} nextDeadline={data.next.quarter.deadlineConsolidated} />}
+      {open && <KqkdTickerDrawer ticker={open} rows={summary?.rows ?? []} onClose={() => setOpen(null)} onOpenProfile={onSelectTicker} sectorOf={sectorOf} nextDeadline={data.next.quarter.deadlineConsolidated} onOpenSeasonality={onOpenSeasonality} />}
     </section>
   );
 }

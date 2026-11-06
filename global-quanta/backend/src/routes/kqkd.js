@@ -43,6 +43,12 @@ export function createKqkdRouter({ getService, getAgm = null, getEventStudy = nu
   });
 
   router.get("/status", (_req, res) => res.json(getService().status()));
+  // S7: Mùa vụ KQKD — gói 9 API Project A + kiểm ngày làm mốc (S3) + bối cảnh kỳ tới (S5).
+  router.get("/seasonality/:ticker", readRl, async (req, res) => {
+    const t = String(req.params.ticker ?? "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    try { const doc = await getService().seasonality(t); if (!doc) return res.status(404).json({ error: `${t} không thuộc danh mục KQKD.` }); send(req, res, doc); } catch (e) { fail(res, e); }
+  });
   // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
   router.get("/calendar", readRl, async (req, res) => {
     try { const doc = await getService().calendar(); if (!doc) return res.status(503).json({ error: "Kho KQKD chưa có dữ liệu." }); send(req, res, doc); } catch (e) { fail(res, e); }

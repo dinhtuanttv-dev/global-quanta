@@ -53,7 +53,7 @@ function Heat({ r, quarters }: { r: KqkdRow; quarters: string[] }) {
   );
 }
 
-export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null }) {
+export default function KqkdCenter({ onSelectTicker, sectorOf, onOpenSeasonality }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null; onOpenSeasonality?: (t: string) => void }) {
   const { data, error, isLoading } = useKqkdSummary();
   const { data: ledger } = useKqkdLedger(!!data?.evidence);
   const [filter, setFilter] = useState<Filter>("all");
@@ -233,7 +233,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
         {data.evidence && <> Kiểm định đặt trước {data.evidence.prereg} (ngoài mẫu 2020–2026): ước tính tăng trưởng cả năm <b className="text-emerald-300">{data.evidence.nowcast.pass ? "ĐẠT → THĂM DÒ" : "KHÔNG ĐẠT"}</b> (IC {num(data.evidence.nowcast.ic, 3)}), nhưng dải P10–P90 hẹp hơn thực tế; SUE cốt lõi <b className="text-amber-300">{data.evidence.sueCore.pass ? "ĐẠT" : "KHÔNG ĐẠT"}</b> (giữ MÔ TẢ).</>}
         {data.failed.length > 0 && ` Chưa nạp được: ${data.failed.slice(0, 10).join(", ")}${data.failed.length > 10 ? "…" : ""}.`}
       </p>
-      {open && <KqkdTickerDrawer ticker={open} rows={data.rows} onClose={() => setOpen(null)} onOpenProfile={onSelectTicker} sectorOf={sectorOf} nextDeadline={nextDeadline} />}
+      {open && <KqkdTickerDrawer ticker={open} rows={data.rows} onClose={() => setOpen(null)} onOpenProfile={onSelectTicker} sectorOf={sectorOf} nextDeadline={nextDeadline} onOpenSeasonality={onOpenSeasonality} />}
     </section>
   );
 }

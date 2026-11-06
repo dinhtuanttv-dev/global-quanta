@@ -43,6 +43,7 @@ import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
 import { ErrorBoundary } from "../../ErrorBoundary";
 import KqkdCenter from "./kqkd/KqkdCenter";
 import EarningsCalendar from "./kqkd/EarningsCalendar";
+import SeasonalityView from "./seasonality/SeasonalityView";
 import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
 import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
 import { DecisionBarCard } from "./decision/DecisionBar";
@@ -612,6 +613,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
   // xong, ke ca neu nguoi dung bam vao ma TRUOC KHI fundamentals kip tra
   // ve. Bao gom ca ma tu Universe (goi chung 1 bang theo yeu cau).
+  const seasonalityTickers = useMemo(() => allStocksWithUniverse.map((s) => s.ticker), [allStocksWithUniverse]);
+  // S1: nút "📊 Mùa vụ" trong ngăn KQKD / Lịch công bố -> mở mục Mùa vụ KQKD của mã.
+  const openSeasonality = useCallback((t: string) => { setTimingV3Ticker(t); setSubTab("seasonality"); }, [setSubTab]);
   const sectorByTicker = useMemo(() => new Map(allStocksWithUniverse.map((s) => [s.ticker, s.sector ?? null])), [allStocksWithUniverse]);
   const selected = useMemo(
     () => (selectedTicker ? allStocksWithUniverse.find((s) => s.ticker === selectedTicker) ?? null : null),
@@ -940,7 +944,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
       {subTab === "earnings" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được KQKD theo quý">
-          <KqkdCenter onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} />
+          <KqkdCenter onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} onOpenSeasonality={openSeasonality} />
         </ErrorBoundary>
       )}
 
@@ -1020,24 +1024,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       {subTab === "seasonality" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Mùa vụ KQKD">
           <div className="cf-panel rounded-xl p-4">
-            <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Mùa vụ KQKD</p>
-            <select value={timingV3Ticker ?? ""} onChange={(e) => setTimingV3Ticker(e.target.value || null)} data-testid="cotuc-seasonality-ticker"
-              className="w-full sm:w-64 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm text-cf-primary">
-              <option value="">— Chọn mã —</option>
-              {allStocksWithUniverse.map((s) => <option key={s.ticker} value={s.ticker}>{s.ticker}</option>)}
-            </select>
-            {timingV3Ticker ? (
-              <div style={{ marginTop: 16 }}><EarningsSeasonalityTab ticker={timingV3Ticker} /></div>
-            ) : (
-              <p className="mt-3 text-[11px] text-cf-tertiary">Mùa vụ giá quanh ngày công bố KQKD theo từng quý: chu kỳ năm, đường đi trung bình quanh ngày công bố và 4 cửa sổ giao dịch của quý đang xem.</p>
-            )}
+            <SeasonalityView tickers={seasonalityTickers} value={timingV3Ticker} onChange={setTimingV3Ticker} />
           </div>
         </ErrorBoundary>
       )}
 
       {subTab === "kqkd-calendar" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Lịch công bố KQKD">
-          <EarningsCalendar onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} />
+          <EarningsCalendar onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} onOpenSeasonality={openSeasonality} />
         </ErrorBoundary>
       )}
 
