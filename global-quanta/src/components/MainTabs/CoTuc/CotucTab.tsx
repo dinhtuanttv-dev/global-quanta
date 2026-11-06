@@ -8,8 +8,8 @@ import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
 } from "lucide-react";
 import {
-  DIVIDEND_STOCKS, getTradePhase, calcDividendScore, calcRealDividendQualityScore, isQualityScoreReal, calcCatalystScore,
-  detectRiskFlags, calcDCF, filterAndSortStocks, getDaysUntil,
+  DIVIDEND_STOCKS, getTradePhase, calcRealDividendQualityScore, isQualityScoreReal, calcCatalystScore,
+  detectRiskFlags, riskDataReady, PRICE_TREND_LABEL, filterAndSortStocks, getDaysUntil,
   fmtVND, fmtPct, DEFAULT_FILTER, explainFilter, UPCOMING_WINDOW_DAYS, PE_NO_LIMIT,
   type DividendFilter, type DividendStock,
 } from "../../../lib/quant-cotuc";
@@ -51,6 +51,7 @@ import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
 import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
+import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
 import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
@@ -108,16 +109,9 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   s: DividendStock; onClose: () => void; realRs?: number | null;
   lifecycleEvents?: DividendLifecycleEvent[]; hasRealDates?: boolean;
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "dcf" | "flags" | "timeline" | "timing" | "optimal-timing" | "seasonality">("overview");
+  const [modalTab, setModalTab] = useState<"overview" | "flags" | "timeline" | "timing" | "optimal-timing" | "seasonality">("overview");
   // Lịch nghỉ tự tính (âm lịch + BLLĐ) + lớp phiên thật từ Gateway — không cần nạp danh sách tay.
   const vnHolidayCalendar = useVnTradingCalendar();
-  // FIX: neu Modal DANG MO tab "dcf" va nguoi dung chuyen sang xem 1 ma
-  // KHAC (khong dong Modal truoc) ma ma moi la Universe (khong co tab
-  // dcf), reset ve "overview" - tranh hien noi dung DCF vo nghia (EPS=0)
-  // du nut bam da an.
-  useEffect(() => {
-    if (s.isUniverseOnly && modalTab === "dcf") setModalTab("overview");
-  }, [s.ticker, s.isUniverseOnly, modalTab]);
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -160,9 +154,6 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   const flags = detectRiskFlags(s);
   const score = calcRealDividendQualityScore(s, realRs, flags.length);
   const catalyst = calcCatalystScore(s);
-  const dcfBear = calcDCF(s, "bear");
-  const dcfBase = calcDCF(s, "base");
-  const dcfBull = calcDCF(s, "bull");
 
   // ESC de dong modal
   useEffect(() => {
@@ -199,7 +190,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
             <span id="stock-modal-title" className="text-2xl font-black text-cf-gold">{s.ticker}</span>
             <div>
               <p className="text-xs font-bold text-cf-primary">{s.name}</p>
-              <p className="text-[10px] text-cf-tertiary">{s.sector} · {s.marketCap}-Cap</p>
+              <p className="text-[10px] text-cf-tertiary">{s.sector}</p>
             </div>
             <ScoreBadge score={score} isReal={isQualityScoreReal(s)} />
           </div>
@@ -208,15 +199,6 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
             ✕ Đóng
           </button>
         </div>
-
-        {s.isUniverseOnly && (
-          <div className="cf-banner-sky px-5 py-2 flex items-start gap-2">
-            <Info className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-sky-300">
-              Mã thuộc <b>Universe mở rộng</b> (VN30+VN100, quét tự động) — Dividend Quality Score, P/E, Nợ/VCSH, RSI là dữ liệu thời gian thực. Chưa có F-Score/DCF/phân tích định tính chi tiết như 17 mã theo dõi chính.
-            </p>
-          </div>
-        )}
 
         <div className="flex gap-2 p-4 border-b border-cf-border/60 flex-wrap">
           <DaysChip dateStr={s.agmDate} label="ĐHCĐ" />
@@ -242,13 +224,12 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","dcf","flags","timeline","timing","optimal-timing","seasonality"] as const)
-            .filter((t) => !(t === "dcf" && s.isUniverseOnly)) // DCF dung EPS - vo nghia voi ma Universe (eps=0, khong co du lieu that)
+          {(["overview","flags","timeline","timing","optimal-timing","seasonality"] as const)
             .map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "dcf" ? "💵 DCF 3 Kịch Bản" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : t === "optimal-timing" ? "🧭 Optimal Timing" : "📊 Mùa vụ KQKD"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : t === "optimal-timing" ? "🧭 Optimal Timing" : "📊 Mùa vụ KQKD"}
             </button>
           ))}
         </div>
@@ -257,33 +238,24 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
           {modalTab === "overview" && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  ["P/E", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.pe.toFixed(1) + "x", true],
-                  ["ROE", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : fmtPct(s.roe), true],
-                  ["Tăng trưởng EPS", !isQualityScoreReal(s) ? "Đang tải..." : (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%", false],
-                  ["F-Score (6 tiêu chí)", !isQualityScoreReal(s) ? "Đang tải..." : s.fscore + "/6", false], ["Payout Ratio", !isQualityScoreReal(s) ? "Đang tải..." : fmtPct(s.payoutRatio), false],
-                  ["Debt/Equity", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.debtEquity.toFixed(2) + "x", true], ["RSI", (s.isUniverseOnly && !isQualityScoreReal(s)) ? "Đang tải..." : s.rsi.toFixed(1), true],
-                  ["Catalyst", catalyst + "/10", true],
-                  // RS 3T se het "MAU" khi Phuong an C noi xong realRs that (khong con undefined)
-                  ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : "Đang tải...", realRs === null || realRs === undefined],
-                  ["Institutional", s.institutionalHold + "%", true],
-                ].map(([label, val, isMock]) => (
-                  <div key={label as string} className="cf-panel rounded-lg p-2.5">
-                    <p className="text-[10px] text-cf-tertiary font-bold uppercase flex items-center gap-1">
-                      {label}
-                      {/* PHUONG AN A: cham vang nho danh dau field du lieu mau, khong phai loi */}
-                      {isMock && <span title="Dữ liệu mẫu, chưa cập nhật thời gian thực" className="w-1 h-1 rounded-full bg-amber-500 inline-block" />}
-                    </p>
-                    <p className="text-xs font-black text-cf-primary mt-0.5">{val}</p>
+                {([
+                  ["P/E", s.fundamentalsReal ? s.pe.toFixed(1) + "x" : null],
+                  ["ROE", s.fundamentalsReal ? fmtPct(s.roe) : null],
+                  ["Tăng trưởng LNST", isQualityScoreReal(s) ? (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%" : null],
+                  ["F-Score", isQualityScoreReal(s) && s.fscore > 0 ? s.fscore + "/9" : null],
+                  ["Tỷ lệ chi trả", isQualityScoreReal(s) ? fmtPct(s.payoutRatio) : null],
+                  ["Nợ / VCSH", s.fundamentalsReal ? s.debtEquity.toFixed(2) + "x" : null],
+                  ["RSI 14", s.rsi > 0 ? s.rsi.toFixed(1) : null],
+                  ["Xu hướng giá", s.priceTrend ? PRICE_TREND_LABEL[s.priceTrend] : null],
+                  ["Xúc tác (AI)", catalyst != null ? catalyst + "/10" : null],
+                  ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : null],
+                ] as [string, string | null][]).map(([label, val]) => (
+                  <div key={label} className="cf-panel rounded-lg p-2.5">
+                    <p className="text-[10px] text-cf-tertiary font-bold uppercase">{label}</p>
+                    <p className={`text-xs font-black mt-0.5 ${val == null ? "text-cf-tertiary" : "text-cf-primary"}`}>{val ?? "chưa có"}</p>
                   </div>
                 ))}
               </div>
-              {s.agmAgenda && (
-                <div className="cf-panel rounded-lg p-3">
-                  <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-1">📝 Nghị Quyết ĐHCĐ</p>
-                  <p className="text-xs text-cf-primary">{s.agmAgenda}</p>
-                </div>
-              )}
               {(s.pros.length > 0 || s.cons.length > 0) ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="cf-banner-positive rounded-lg p-2.5">
@@ -295,43 +267,19 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                     {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
                   </div>
                 </div>
-              ) : s.isUniverseOnly ? (
+              ) : (
                 <div className="cf-banner-neutral rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] text-cf-tertiary italic">Mã thuộc Universe mở rộng — chưa có phân tích định tính (ưu/nhược điểm) như 17 mã theo dõi chính.</p>
+                  <p className="text-[10px] text-cf-tertiary italic">Chưa có phân tích định tính (ưu / nhược điểm) do AI tổng hợp từ tin tức cho mã này.</p>
                 </div>
-              ) : null}
+              )}
             </>
-          )}
-
-          {modalTab === "dcf" && (
-            <div className="space-y-3">
-              {/* VA LO HONG #4: banner canh bao DCF dung EPS proxy, khong phai FCF that */}
-              <div className="cf-banner-warning rounded-xl p-3 flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-cf-gold shrink-0 mt-0.5" />
-                <p className="text-[10px] text-cf-gold-bright"><b>Lưu ý quan trọng:</b> DCF này dùng EPS làm proxy thay cho Free Cash Flow thật — kết quả chỉ mang tính tham khảo ước lượng nhanh, KHÔNG phải định giá chính xác. Với mã có Capex cao, sai lệch có thể đáng kể. <b>Giá thị trường dùng để so sánh (% vs thị giá) cũng là số liệu mẫu tĩnh</b>, không phải giá khớp lệnh hiện tại — chênh lệch % dưới đây chỉ mang tính minh họa.</p>
-              </div>
-              {([["bear","🐻 Xấu",dcfBear],["base","⚖️ Cơ Sở",dcfBase],["bull","🐂 Tốt",dcfBull]] as const).map(([sc, label, val]) => {
-                const pct = ((val - s.price) / s.price * 100);
-                const gRate = s.growth * (sc === "bear" ? 0.4 : sc === "bull" ? 1.6 : 1);
-                return (
-                  <div key={sc} className="cf-panel rounded-xl p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-black text-cf-primary">{label}</p>
-                      <p className="text-[10px] text-cf-tertiary mt-0.5">g = {gRate.toFixed(1)}%/năm</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-black ${sc === "bull" ? "text-cf-positive" : sc === "base" ? "text-cf-gold" : "text-cf-negative"}`}>{fmtVND(val)}</p>
-                      <p className={`text-[10px] font-bold ${pct > 0 ? "text-cf-positive" : "text-cf-negative"}`}>{pct > 0 ? "+" : ""}{pct.toFixed(0)}% vs thị giá</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           )}
 
           {modalTab === "flags" && (
             <div className="space-y-3">
-              {flags.length === 0 ? (
+              {flags.length === 0 && !riskDataReady(s) ? (
+                <div className="cf-banner-neutral rounded-xl p-4 text-[11px] text-cf-tertiary">Chưa đủ dữ liệu tài chính thật (P/E, Nợ / VCSH, tỷ lệ chi trả, tăng trưởng) để đánh giá rủi ro.</div>
+              ) : flags.length === 0 ? (
                 <div className="cf-banner-positive rounded-xl p-4 flex items-center gap-2 text-cf-positive">
                   <CheckCircle2 className="w-4 h-4" /><span className="text-xs font-bold">Sạch rủi ro tài chính!</span>
                 </div>
@@ -552,6 +500,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // Danh mục Siêu Quét AI (~300 mã, Gateway) + giá khớp TRỰC TIẾP (REST + stream SSE, như bảng Siêu Quét).
   // Mã ngoài 17 mã gốc dựng từ sự kiện quyền THẬT (/api/cotuc/events, VNDirect); tỷ suất = cổ tức tiền 12 tháng / giá hiện tại.
   const { rows: gatewayUniverse } = useCotucUniverse();
+  // BL0: xu hướng giá THẬT (MA50 / MA200) từ bản quét Gateway (cùng bộ đệm với Siêu Quét / cột phải).
+  const { items: scanItems } = useSieuQuetScanner();
+  const trendByTicker = useMemo(() => new Map(scanItems.map((x) => [x.ticker, x.priceTrend ?? null])), [scanItems]);
   const liveSymbols = useMemo(
     () => [...new Set([...mergedStocks.map((s) => s.ticker), ...universeStocks.map((s) => s.ticker), ...gatewayUniverse.map((u) => u.ticker)])],
     [mergedStocks, universeStocks, gatewayUniverse],
@@ -589,7 +540,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       return {
         ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount,
         pe: real ? f.peRatio ?? 0 : s.pe, roe: real ? f.roe ?? 0 : s.roe, debtEquity: real ? f.debtEquity ?? 0 : s.debtEquity,
-        fundamentalsReal: real, specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, y ?? s.dividendYield, todayIso),
+        fundamentalsReal: real, priceTrend: trendByTicker.get(s.ticker) ?? null, specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, y ?? s.dividendYield, todayIso),
       };
     });
     // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
@@ -693,11 +644,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
         <p className="text-[10px] text-cf-secondary leading-relaxed">
           <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
-          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả (Payout Ratio), Tăng trưởng EPS</b>, và
-          <b> Dividend Quality Score</b> (4 tầng) hiện là dữ liệu thời gian thực (VCI + Yahoo Finance).
-          <b> F-Score</b> hiện tính được <b>6/9 tiêu chí Piotroski</b> (thiếu Dòng tiền HĐKD và Số cổ phiếu
-          lưu hành — chưa xác nhận đủ tin cậy). Riêng <b>DCF, biên lợi nhuận gộp, tỷ lệ sở hữu tổ chức,
-          ưu/nhược điểm</b> vẫn là số liệu mẫu cố định, sẽ được thay bằng dữ liệu thật ở các bước tiếp theo.
+          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả, Tăng trưởng LNST</b>, <b>xu hướng giá (MA50 / MA200)</b> và
+          <b> Dividend Quality Score</b> (4 tầng) đều là dữ liệu thật (VNDirect, SSI qua Gateway).
+          <b> F-Score</b> tính được <b>6/9 tiêu chí Piotroski</b>. Ưu / nhược điểm và điểm xúc tác do AI tổng hợp từ tin tức — mã chưa có sẽ ghi "chưa có".
+          Bộ lọc không còn số liệu mẫu: trường chưa có dữ liệu thật được ghi rõ và tách riêng khi lọc.
         </p>
       </div>
 
@@ -840,6 +790,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
                   {[
                     { label:"👑 Siêu Cổ Tức", f:{ minYield:7, minRoe:12, maxPe:15, maxDebt:0.5, hideRiskFlags:true } },
                     { label:"💎 Kim Cương", f:{ minYield:3, minRoe:20, maxPe:20, maxDebt:0.7 } },
+                    { label:"📈 Xu hướng tăng", f:{ trend:"UP" as const } },
                     { label:"📅 Sắp GDKHQ", f:{ upcomingGDKHQ:true } },
                     { label:"📋 Sắp ĐHCĐ", f:{ upcomingAGM:true } },
                     { label:"🔄 Xóa lọc", f:DEFAULT_FILTER },
@@ -849,6 +800,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
                       {preset.label}
                     </button>
                   ))}
+                  <label className="flex items-center gap-1 text-[10px] text-cf-secondary">
+                    Xu hướng giá
+                    <select value={filter.trend} onChange={(e) => setFilter({ ...filter, trend: e.target.value as typeof filter.trend })} data-testid="filter-trend"
+                      className="cf-panel-input rounded-md px-1.5 py-0.5 text-[10px] text-cf-primary" title="Theo MA50 / MA200 của giá điều chỉnh (Gateway)">
+                      <option value="All">Tất cả</option>
+                      {(Object.keys(PRICE_TREND_LABEL) as (keyof typeof PRICE_TREND_LABEL)[]).map((k) => <option key={k} value={k}>{PRICE_TREND_LABEL[k]}</option>)}
+                    </select>
+                  </label>
                   <label className="flex items-center gap-1 text-[10px] text-cf-secondary cursor-pointer">
                     <input type="checkbox" checked={!filter.hideStaleEvents}
                       onChange={(e) => setFilter({ ...filter, hideStaleEvents: !e.target.checked })}

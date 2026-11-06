@@ -22,6 +22,8 @@ export interface SieuQuetIndexState {
 
 export interface SieuQuetStockItem {
   ticker: string;
+  /** BL0: MA50 / MA200 (giá điều chỉnh) và xu hướng giá — có từ lần quét sau khi triển khai. */
+  ma50?: number | null; ma200?: number | null; priceTrend?: "UP" | "RECOVERING" | "WEAKENING" | "DOWN" | null;
   companyName: string | null;
   sector: string | null;
   price: number | null;

@@ -124,6 +124,21 @@ export function runScan({ universe, barsByTicker, fundamentals, indexBars, event
  * @param bars  nến ngày tăng dần; `closeAdj` (nếu có) là giá đóng cửa điều chỉnh, `close` của nến cuối = giá danh nghĩa hiện tại
  * @param tax   { industry, sectorGroup } để nhận diện ngân hàng / chứng khoán / bảo hiểm khi bản BCTC lưu cũ chưa có `kind`
  */
+/**
+ * BL0 (07/11/2026) — xu hướng giá theo MA50 / MA200 (dùng ở Bộ lọc cổ phiếu tab Cổ tức, thay trường "xu hướng" viết tay).
+ * So giá ĐIỀU CHỈNH phiên cuối với MA của giá điều chỉnh (không lệch sau ngày GDKHQ).
+ *   UP: giá > MA50 > MA200 · DOWN: giá < MA50 < MA200 · RECOVERING: giá > MA50, MA50 ≤ MA200 · WEAKENING: giá < MA50, MA50 ≥ MA200
+ *   null khi chưa đủ 200 phiên.
+ */
+export function priceTrendOf(last, ma50, ma200) {
+  if (!(last > 0) || !(ma50 > 0) || !(ma200 > 0)) return null;
+  if (last > ma50 && ma50 > ma200) return "UP";
+  if (last < ma50 && ma50 < ma200) return "DOWN";
+  if (last > ma50) return "RECOVERING";
+  if (last < ma50) return "WEAKENING";
+  return last >= ma200 ? "RECOVERING" : "WEAKENING";
+}
+
 export function computeTickerData(ticker, bars, fa, tax = {}) {
   const closes = bars.map((b) => b.closeAdj ?? b.close);
   if (closes.length < 50) return { skip: { ticker, reason: "INSUFFICIENT_BARS", bars: closes.length } };
@@ -152,6 +167,7 @@ export function computeTickerData(ticker, bars, fa, tax = {}) {
     growthBasis: m.growthBasis, faPeriod: m.period, kind: m.kind, fScore: m.fScore,
     peer: peerKeyOf({ kind: m.kind, industry: tax.industry ?? null, sectorGroup: tax.sectorGroup ?? null }),
     liquidity, price, changePct, return64d, asOf: bars[bars.length - 1].date,
+    priceTrend: priceTrendOf(closes[closes.length - 1], ma50, ma200),
   } };
 }
 
@@ -182,6 +198,7 @@ export function scoreTickerData(t, ctx) {
     // R/R gắn lúc đọc từ vùng hỗ trợ / kháng cự của engine cấu trúc (attachStructureRr) — engine quét không tự suy.
     rsRating, riskAdjustedMomentum: riskAdjMomentum, riskRewardRatio: null, riskRewardBasis: null,
     trendTag, qualityTag,
+    ma50: t.ma50 != null ? Math.round(t.ma50 * 100) / 100 : null, ma200: t.ma200 != null ? Math.round(t.ma200 * 100) / 100 : null, priceTrend: t.priceTrend ?? null,
     confluenceStatusCode: confl.statusCode, confluenceStatusLabel: confl.statusLabel,
     confluenceBoost: confl.boost, confluenceReasonCodes: confl.reasonCodes, breakoutBoostBadge: confl.breakoutBoostBadge,
     piotroskiFScore: t.fScore.score, fScoreMax: t.fScore.max, fScoreApplicable: t.fScore.applicable, fScoreReason: t.fScore.reason,
