@@ -9,6 +9,7 @@ import { dmy, downloadText, fin, growthText, num, pct, pctPlain, TPL_LABEL, TPL_
 import type { CalRow, CalSeason, CalStatus, Tpl } from "../../../../lib/kqkd/types";
 import { TPL_COLOR } from "./Kqkd3D";
 import KqkdTickerDrawer from "./KqkdTickerDrawer";
+import EventStudyPanel from "./EventStudyPanel";
 
 const DAY = 864e5;
 const ms = (d: string) => Date.parse(`${d}T00:00:00Z`);
@@ -220,6 +221,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
 
       <SeasonCurve s={s} />
       <CalendarGrid s={s} rows={base} selected={day} onSelect={(d) => { setDay(d); setLimit(PAGE); }} today={today} />
+      {data.eventStudy?.aggregate && <EventStudyPanel a={data.eventStudy.aggregate} />}
 
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Lọc trạng thái">
@@ -240,7 +242,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] border-separate border-spacing-0 text-[11px]" data-testid="lc-table">
+        <table className="w-full min-w-[960px] border-separate border-spacing-0 text-[11px]" data-testid="lc-table">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wide text-slate-500">
               <th className="border-b border-white/10 px-1 py-1.5">Mã · ngành</th>
@@ -251,6 +253,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
               <th className="border-b border-white/10 px-1 py-1.5" title="Độ trễ (ngày sau kết thúc quý) các mùa cùng loại quý trước; vạch đỏ = hạn 45 ngày">Lịch sử độ trễ</th>
               <th className="border-b border-white/10 px-1 py-1.5 text-right">LNST YoY · lũy kế</th>
               <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Bất ngờ chuẩn hoá LN cốt lõi">SUE</th>
+              <th className="border-b border-white/10 px-1 py-1.5 text-right" title="Đã công bố: lợi suất vượt 3 phiên từ ngày công bố và z khối lượng. Chưa công bố: lợi suất vượt và z khối lượng 10 phiên gần nhất (giá/KL chạy trước tin)">Phản ứng giá</th>
             </tr>
           </thead>
           <tbody>
@@ -279,6 +282,14 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
                   <td className="border-b border-white/[0.05] px-1 py-1.5"><LagStrip r={r} /></td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums">{r.result ? <><span className={`block ${g.cls}`} title={g.title}>{g.text}</span><span className={`block text-[10px] ${y.cls}`} title={y.title}>{y.text}</span></> : <span className="text-slate-500">—</span>}</td>
                   <td className={`border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums ${!fin(r.result?.sueCore) ? "text-slate-500" : (r.result!.sueCore as number) >= 2 ? "text-emerald-300" : (r.result!.sueCore as number) <= -2 ? "text-rose-300" : "text-slate-200"}`}>{num(r.result?.sueCore ?? null, 1)}</td>
+                  <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums" data-testid="lc-react">{(() => {
+                    const x = r.reaction;
+                    if (!x) return <span className="text-slate-500">—</span>;
+                    if (x.kind === "THIN") return <span className="text-[10px] text-slate-500" title={`Chỉ ${x.nEst} phiên có giao dịch trong cửa sổ ước lượng (cần 60): không ước lượng được mô hình thị trường`}>ít giao dịch</span>;
+                    if (x.kind === "EVENT") return <><span className={`block ${fin(x.scarAnn) && Math.abs(x.scarAnn) >= 2 ? ((x.carAnn ?? 0) > 0 ? "text-emerald-300" : "text-rose-300") : "text-slate-200"}`} title="Lợi suất vượt 3 phiên từ ngày công bố">{x.sessionsAfter >= 2 ? pct(x.carAnn, 1) : "chờ phiên"}</span><span className={`block text-[10px] ${fin(x.avAnn) && x.avAnn >= 2 ? "text-[#F5CE72]" : "text-slate-500"}`} title="z khối lượng 3 phiên">KL z {num(x.avAnn, 1)}</span></>;
+                    const alert = (fin(x.av10) && x.av10 >= 2) || (fin(x.scar10) && Math.abs(x.scar10) >= 2);
+                    return <><span className={`block ${alert ? "text-[#F5CE72]" : "text-slate-300"}`} title={`10 phiên tới ${dmy(x.asOf)}: lợi suất vượt`}>{alert ? "⚡ " : ""}{pct(x.car10, 1)}</span><span className={`block text-[10px] ${fin(x.av10) && x.av10 >= 2 ? "text-[#F5CE72]" : "text-slate-500"}`} title="z khối lượng 10 phiên gần nhất">KL10 z {num(x.av10, 1)}</span></>;
+                  })()}</td>
                 </tr>
               );
             })}

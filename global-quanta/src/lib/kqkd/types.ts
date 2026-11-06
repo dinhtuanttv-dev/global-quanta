@@ -13,14 +13,20 @@ export interface CalRow {
   expected: string | null; band: [string, string] | null; medianLag: number | null; ownN: number; lateShare: number | null; pNext: number | null;
   history: { q: string; lag: number }[];
   result: { npatYoY: Growth | null; ytd: Growth | null; sueCore: number | null; sueNpat: number | null; flags: FlagId[] } | null;
+  reaction?: ({ kind: "THIN"; nEst: number } | { kind: "EVENT"; carAnn: number | null; scarAnn: number | null; avAnn: number | null; carPre: number | null; avPre: number | null; sessionsAfter: number; source: string } | { kind: "LIVE"; asOf: string; car10: number | null; scar10: number | null; av10: number | null }) | null;
 }
+/** LC3 — nghiên cứu sự kiện. */
+export interface EsCi { n: number; mean: number | null; lo: number | null; hi: number | null }
+export interface EsGroup { n: number; pre: EsCi; ann: EsCi; post: EsCi; path: (number | null)[] | null; nPath: number; leakPrice: number | null; leakVolume: number | null; reactVolume: number | null }
+export interface EsAggregate { version: string; label: string; windows: { pre: [number, number]; ann: [number, number]; post: [number, number]; est: [number, number] }; pathFrom: number; events: number; precise: number; quarters: string[]; all: EsGroup; dataDated: EsGroup; quintiles: Record<string, EsGroup>; spread: { pre: number | null; ann: number | null; post: number | null }; baseRate: number; method: string }
+export interface EsEvent { fiscal: string; date: string; source: string; sue: number | null; e0: string; carPre: number | null; carAnn: number | null; carPost: number | null; scarAnn: number | null; avPre: number | null; avAnn: number | null; sessionsAfter: number; path: (number | null)[] }
 export interface CalSeason {
   version: string; label: string; asOf: string; method: string;
   quarter: { fiscal: string; label: string; end: string; deadlineStandalone: string; deadlineConsolidated: string; dayOfSeason: number };
   rows: CalRow[]; curve: { fiscal: string; label: string; reported: number; curve: (number | null)[] }; prevCurves: { fiscal: string; label: string; reported: number; curve: (number | null)[] }[];
   stats: { tickers: number; reported: number; disclosed: number; upcoming: number; overdue: number; expectedNext: number | null; horizonDays: number; shareNow: number | null; sharePrevSameDay: number | null; earlyVsLate: { early: number | null; late: number | null; n: number } | null };
 }
-export interface KqkdCalendar { asOf: string; disclosuresFetchedAt: string | null; current: CalSeason; next: CalSeason }
+export interface KqkdCalendar { asOf: string; disclosuresFetchedAt: string | null; current: CalSeason; next: CalSeason; eventStudy?: { version: string; builtAt: string; aggregate: EsAggregate } | null }
 
 /** AGM-v1 — kế hoạch ĐHĐCĐ. */
 export interface PlanItem { status: "VERIFIED" | "REVIEW" | "ABSENT"; vnd?: number | null; basis?: string; value?: number; unit?: string; rowLabel?: string | null; quote?: string | null; page?: number | null; ratioPrior?: number | null; priorCheck?: { printed: number; statement: number; diff: number; match: boolean } | null; reason?: string | null; sameScope?: boolean }
@@ -88,8 +94,9 @@ export interface TtmPoint { quarter: string; fiscal: string; top: number | null;
 export interface KqkdDetail {
   evidence?: KqEvidence | null;
   plan?: PlanView | null;
+  reactions?: EsEvent[] | null;
   version: string; label: string; available: boolean; ticker: string; tpl: Tpl; tplLabel: string; asOf: string; fetchedAt: string | null; mcap?: number | null;
-  latest: { fiscal: string; quarter: string; created: string };
+  latest: { fiscal: string; quarter: string; created: string; published?: string; publishedSource?: "DISCLOSURE" | "DATA" };
   metrics: { key: string; label: string }[]; matrix: Record<string, MatrixRow[]>;
   ratios: { grossMargin: RatioRow[]; coreMargin: RatioRow[]; netMargin: RatioRow[] };
   ttm: TtmPoint[]; dol: number | null; bridge: { quarter: Bridge; ytd: Bridge; ttm: Bridge | null };

@@ -68,3 +68,15 @@ describe("LC5 thứ tự bảng", () => {
     expect(out).toEqual(["D", "E", "F", "B", "C", "A"]);
   });
 });
+
+describe("LC3 phản ứng giá", () => {
+  it("bảng 5 nhóm SUE + chênh nhóm 5 − nhóm 1; cột phản ứng giá: đã công bố (3 phiên) và chưa công bố (10 phiên, cảnh báo KL)", async () => {
+    const { default: EventStudyPanel } = await import("./EventStudyPanel");
+    const ci = (m: number) => ({ n: 100, mean: m, lo: m - 0.005, hi: m + 0.005 });
+    const g = (m: number) => ({ n: 100, pre: ci(0), ann: ci(m), post: ci(-0.01), path: Array.from({ length: 71 }, (_, k) => (k >= 10 ? m : 0)), nPath: 100, leakPrice: 0.08, leakVolume: 0.2, reactVolume: 0.2 });
+    const a = { version: "ES-v1", label: "MÔ TẢ", windows: { pre: [-10, -1], ann: [0, 2], post: [3, 60], est: [-130, -11] }, pathFrom: -10, events: 500, precise: 500, quarters: ["2024-03-31", "2026-06-30"], all: g(0.003), dataDated: g(0), quintiles: { 1: g(-0.008), 2: g(-0.005), 3: g(0.005), 4: g(0.009), 5: g(0.018) }, spread: { pre: 0.012, ann: 0.026, post: -0.013 }, baseRate: 0.0228, method: "m" };
+    render(<EventStudyPanel a={a as never} />);
+    expect(screen.getByTestId("lc-es-table").textContent).toContain("+2,6%");
+    expect(screen.getByTestId("lc-es-table").textContent).toContain("Nhóm 5");
+  });
+});

@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, getAgm = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -46,6 +46,18 @@ export function createKqkdRouter({ getService, getAgm = null, adminToken = () =>
   // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
   router.get("/calendar", readRl, async (req, res) => {
     try { const doc = await getService().calendar(); if (!doc) return res.status(503).json({ error: "Kho KQKD chưa có dữ liệu." }); send(req, res, doc); } catch (e) { fail(res, e); }
+  });
+  // LC3: phản ứng giá quanh công bố (tổng hợp theo SUE + trạng thái job).
+  router.get("/event-study", readRl, (req, res) => {
+    const es = getEventStudy?.(); const d = es?.doc?.();
+    if (!d) return res.status(503).json({ error: "Nghiên cứu sự kiện chưa dựng (job 19:45 hoặc 12 phút sau khởi động).", status: es?.status?.() ?? null });
+    send(req, res, { version: d.version, builtAt: d.builtAt, asOf: d.asOf, aggregate: d.aggregate });
+  });
+  router.post("/admin/event-study", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const es = getEventStudy?.(); if (!es) return res.status(503).json({ error: "Chưa bật." });
+    void es.run().catch((e) => console.warn(`[event-study] admin lỗi: ${e.message}`));
+    res.status(202).json({ started: true });
   });
   // KQ-L1: sổ theo dõi tiến của tăng trưởng ước tính cả năm.
   router.get("/ledger", readRl, async (req, res) => {

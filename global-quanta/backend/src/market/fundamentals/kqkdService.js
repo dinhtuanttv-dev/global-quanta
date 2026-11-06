@@ -11,7 +11,7 @@ import { ALPHA_KV } from "../alpha/alphaService.js";
 import { fetchTickerStatements } from "./statementsVnd.js";
 import { LEDGER_VERSION, recordLedger, scoreLedger } from "./kqkdLedger.js";
 import { attainment, sameScope } from "./agmPlans.js";
-import { buildCalendar, seasonQuarters } from "./earningsCalendar.js";
+import { buildCalendar, publishDates, seasonQuarters } from "./earningsCalendar.js";
 
 /** LC4: tin công bố BCTC chính thức của một mã (VNDirect newsType financialstatement) -> [[date, title]]. */
 export async function fetchDisclosures(t, { fetchImpl = globalThis.fetch, since = "2023-01-01" } = {}) {
@@ -58,7 +58,7 @@ function readGz(file) {
   try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString("utf8")); } catch { return null; }
 }
 
-export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
+export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, getEventStudy = null, isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const fileOf = (t) => path.join(dir, `${t}.json.gz`);
   const summaryFile = path.join(dir, "summary.json.gz");
@@ -179,7 +179,12 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     const key = `${t}|${today}|${rec.fetchedAt}`;
     if (detailMemo.has(key)) { const d = detailMemo.get(key); detailMemo.delete(key); detailMemo.set(key, d); return d; }
     const mcap = (await mcapMap()).get(t) ?? null;
-    const doc = { ...buildTickerDetail(rec, { today, fetchedAt: rec.fetchedAt ?? null }), mcap, evidence: EVIDENCE };
+    const doc = { ...buildTickerDetail(rec, { today, fetchedAt: rec.fetchedAt ?? null }), mcap, evidence: EVIDENCE, reactions: (getEventStudy?.()?.byTicker?.[t] ?? null)?.filter((e) => !e.insufficient) ?? null };
+    // LC4: ngày công bố thật của quý mới nhất (tin BCTC chính thức sớm hơn ngày dữ liệu vài ngày).
+    if (doc.available) {
+      const pub = publishDates(rec, readGz(discFile)?.byTicker?.[t] ?? []).get(doc.latest.fiscal);
+      if (pub) doc.latest = { ...doc.latest, published: pub.date, publishedSource: pub.source };
+    }
     if (getPlan && doc.available) {
       const year = Number(doc.latest.fiscal.slice(0, 4)), nc = doc.seasonality?.npatParent?.nowcast ?? null;
       doc.plan = planView(getPlan(t, year), rec, { year, cumShare: nc?.cumShare ?? null, nowcastEst: nc?.est ?? null });
@@ -214,7 +219,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     const today = vnToday(now());
     const disc = readGz(discFile) ?? { fetchedAt: null, byTicker: {} };
     const sum = await summary();
-    const key = `${today}|${sum?.fetchedAt ?? ""}|${disc.fetchedAt ?? ""}`;
+    const key = `${today}|${sum?.fetchedAt ?? ""}|${disc.fetchedAt ?? ""}|${getEventStudy?.()?.builtAt ?? ""}`;
     if (calendarMemo?.key === key) return calendarMemo.doc;
     const recs = (await universe()).map((t) => readGz(fileOf(t))).filter(Boolean);
     if (!recs.length) return null;
@@ -222,6 +227,16 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     const { current, next } = seasonQuarters(today);
     const opts = { today, disclosuresOf: (t) => disc.byTicker[t] ?? [], resultOf: (t) => resultOf.get(t) ?? null, isHoliday };
     const doc = { asOf: today, disclosuresFetchedAt: disc.fetchedAt, current: buildCalendar(recs, { ...opts, fiscal: current }), next: buildCalendar(recs, { ...opts, fiscal: next }) };
+    // LC3: phản ứng giá — đã công bố: sự kiện của quý; chưa công bố: KL/giá bất thường 10 phiên gần nhất.
+    const es = getEventStudy?.() ?? null;
+    if (es) {
+      for (const season of [doc.current, doc.next]) for (const r of season.rows) {
+        const ev = (es.byTicker?.[r.t] ?? []).find((e) => e.fiscal === season.quarter.fiscal);
+        r.reaction = ev?.insufficient ? { kind: "THIN", nEst: ev.nEst } : ev ? { kind: "EVENT", carAnn: ev.carAnn, scarAnn: ev.scarAnn, avAnn: ev.avAnn, carPre: ev.carPre, avPre: ev.avPre, sessionsAfter: ev.sessionsAfter, source: ev.source }
+          : r.status !== "REPORTED" && es.live?.[r.t] ? { kind: "LIVE", ...es.live[r.t] } : null;
+      }
+      doc.eventStudy = { version: es.version, builtAt: es.builtAt, aggregate: es.aggregate };
+    }
     calendarMemo = { key, doc };
     return doc;
   }
