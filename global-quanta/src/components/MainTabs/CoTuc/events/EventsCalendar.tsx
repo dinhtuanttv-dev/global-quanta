@@ -8,6 +8,11 @@ import { useVnTradingCalendar } from "../../../../lib/cotuc/vn-holidays";
 import { tradingDaysBetween } from "../../../../lib/quant-cotuc";
 import { addDays, calendarIcs, type CeGroup, type CorpEvent, filterEvents, GROUP_UI, groupByDay, keyDate, netYield, TRUST, weekday } from "../../../../lib/events/calendar";
 import { dmy, downloadText, pctPlain, toCsv } from "../../../../lib/kqkd/format";
+import { GanttView, MonthGrid, TickerEventsDrawer } from "./EventViews";
+
+type View = "list" | "month" | "gantt";
+const VIEW_KEY = "gq.events.view.v1";
+const readView = (): View => { try { const v = localStorage.getItem(VIEW_KEY); return v === "month" || v === "gantt" ? v : "list"; } catch { return "list"; } };
 
 const HORIZONS: [string, number][] = [["2 tuần", 14], ["30 ngày", 30], ["90 ngày", 90], ["12 tháng", 366]];
 const GROUPS: CeGroup[] = ["DIVIDEND", "MEETING", "CAPITAL", "STATUS"];
@@ -18,7 +23,7 @@ function Amount({ e, price }: { e: CorpEvent; price?: number }) {
     const y = netYield(e, price);
     return <span className="font-mono tabular-nums"><b className="text-emerald-300">{e.cash.toLocaleString("vi-VN")} đ</b>{y != null && <span className="ml-1 text-[10px] text-slate-400" title="Sau thuế 5%, theo giá hiện tại">{pctPlain(y, 2)}</span>}</span>;
   }
-  if (e.ratio && ["STOCK", "BONUS", "RIGHTS"].includes(e.cat)) return <span className="font-mono text-cyan-200">{e.ratio.toLocaleString("vi-VN")}%</span>;
+  if (e.ratio && ["STOCK", "BONUS", "RIGHTS"].includes(e.cat)) return <span className="whitespace-nowrap font-mono text-cyan-200" title={e.cat === "RIGHTS" ? "Tỷ lệ quyền mua / phát hành (100:x)" : "Tỷ lệ cổ phiếu nhận thêm (100:x)"}><span className="font-sans text-[10px] text-slate-500">tỷ lệ </span>{e.ratio.toLocaleString("vi-VN")}%</span>;
   return <span className="text-slate-600">—</span>;
 }
 
@@ -36,8 +41,14 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
   const [minYield, setMinYield] = useState<number | null>(null);
   const [onlyPinned, setOnlyPinned] = useState(false);
   const [showPast, setShowPast] = useState(false);
+  const [view, setViewRaw] = useState<View>(readView);
+  const setView = (v: View) => { setViewRaw(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* không có storage */ } };
+  const [day, setDay] = useState<string | null>(null);
+  const [drawer, setDrawer] = useState<string | null>(null);
   const today = data?.asOf ?? new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-  const rows = useMemo(() => (data ? filterEvents(data.events, { groups, from: showPast ? addDays(today, -7) : today, to: addDays(today, days), query, minYield, onlyTickers: onlyPinned ? new Set(pinned) : null }, livePrices) : []), [data, groups, today, days, query, minYield, onlyPinned, pinned, livePrices, showPast]);
+  const base = { groups, query, minYield, onlyTickers: onlyPinned ? new Set(pinned) : null };
+  const rows = useMemo(() => (data ? filterEvents(data.events, { ...base, from: day ?? (showPast ? addDays(today, -7) : today), to: day ?? addDays(today, days) }, livePrices) : []), [data, groups, today, days, query, minYield, onlyPinned, pinned, livePrices, showPast, day]); // eslint-disable-line react-hooks/exhaustive-deps
+  const wide = useMemo(() => (data ? filterEvents(data.events, { ...base, from: "2015-01-01", to: "2099-12-31" }, livePrices) : []), [data, groups, query, minYield, onlyPinned, pinned, livePrices]); // eslint-disable-line react-hooks/exhaustive-deps
   const byDay = useMemo(() => groupByDay(rows), [rows]);
   const kpi = useMemo(() => {
     if (!data) return null;
@@ -61,6 +72,13 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
           <div key={String(l)} className="rounded-md border border-white/[0.07] bg-white/[0.02] px-2 py-1.5"><p className="text-[10px] font-bold uppercase text-slate-500">{l}</p><p className="font-mono text-[15px] font-bold text-slate-100">{v}</p>{s && <p className="text-[10px] text-slate-500">{s}</p>}</div>
         ))}
       </div>
+      <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Chế độ xem">
+        {([["list", "☰ Danh sách"], ["month", "▦ Lịch tháng"], ["gantt", "▬ Gantt mốc"]] as [View, string][]).map(([k, l]) => (
+          <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} data-testid={`ce-view-${k}`}
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${view === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+        ))}
+        {day && <button type="button" onClick={() => setDay(null)} className="ml-2 rounded-full border border-sky-400/50 px-2 py-0.5 text-[11px] text-sky-200" data-testid="ce-day-chip">Ngày {dmy(day)} ✕</button>}
+      </div>
       <div className="flex flex-wrap items-center gap-1.5">
         {GROUPS.map((g) => <button key={g} type="button" aria-pressed={groups.has(g)} onClick={() => toggle(g)} data-testid={`ce-g-${g}`} className={`rounded-full border px-2.5 py-1 text-[11px] ${groups.has(g) ? GROUP_UI[g].cls : "border-white/10 text-slate-500"}`}>{GROUP_UI[g].t}</button>)}
         <span className="mx-1 h-4 w-px bg-white/10" />
@@ -76,7 +94,9 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
         <button type="button" onClick={exportIcs} className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-300" title="Thêm vào Google Calendar / Outlook">.ics</button>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-white/10" data-testid="ce-agenda">
+      {view === "month" && <MonthGrid events={wide} prices={livePrices} today={today} onPickDay={(d) => { setDay(d); setView("list"); }} onTicker={setDrawer} />}
+      {view === "gantt" && <GanttView events={rows} from={day ?? (showPast ? addDays(today, -7) : today)} to={day ?? addDays(today, days)} today={today} onTicker={setDrawer} />}
+      {view === "list" && <div className="overflow-x-auto rounded-lg border border-white/10" data-testid="ce-agenda">
         <table className="w-full min-w-[760px] text-[11px]">
           <thead><tr className="border-b border-white/10 text-left text-[10px] uppercase text-slate-500"><th className="px-2 py-1.5">Mã</th><th className="px-2 py-1.5">Sự kiện</th><th className="px-2 py-1.5 text-right">Cổ tức · lợi suất</th><th className="px-2 py-1.5">Mốc khác</th><th className="px-2 py-1.5">Độ tin cậy</th></tr></thead>
           {byDay.map(({ date, events }) => {
@@ -86,12 +106,12 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
                 <tr className="bg-white/[0.03]"><td colSpan={5} className="px-2 py-1 text-[10.5px] font-bold text-slate-300">{weekday(date)} {dmy(date)} <span className="font-normal text-slate-500">{date < today ? "· đã qua" : td === 0 ? "· hôm nay" : td != null ? `· còn ${td} phiên` : ""}</span></td></tr>
                 {events.map((e) => (
                   <tr key={e.id} className={`border-b border-white/[0.04] ${date < today ? "opacity-60" : ""}`} data-testid="ce-row">
-                    <td className="px-2 py-1"><button type="button" onClick={() => onSelectTicker(e.t)} className="font-mono font-bold text-cf-primary hover:text-[#F5CE72]">{e.t}</button></td>
+                    <td className="px-2 py-1"><button type="button" onClick={() => setDrawer(e.t)} className="font-mono font-bold text-cf-primary hover:text-[#F5CE72]">{e.t}</button></td>
                     <td className="px-2 py-1"><span className={`mr-1.5 rounded border px-1 text-[10px] ${GROUP_UI[e.group].cls}`}>{e.label}</span><span className="text-slate-300">{e.title}</span>
                       {e.changed && <span className="ml-1 rounded border border-amber-400/50 px-1 text-[10px] text-amber-300" title="VNDirect ghi nhận đổi ngày">đổi từ {dmy(e.changed)}</span>}</td>
                     <td className="px-2 py-1 text-right"><Amount e={e} price={livePrices[e.t]} /></td>
                     <td className="px-2 py-1"><Dates e={e} /></td>
-                    <td className="px-2 py-1">{e.check ? <span className={`rounded border px-1 text-[10px] ${TRUST[e.check.level].cls}`} title={`${TRUST[e.check.level].title}${e.check.source ? ` — ${dmy(e.check.source.date)}: ${e.check.source.title}` : ""}`}>{TRUST[e.check.level].t}</span> : <span className="text-[10px] text-slate-600">{e.disclosed ? `công bố ${dmy(e.disclosed).slice(0, 5)}` : ""}</span>}</td>
+                    <td className="whitespace-nowrap px-2 py-1">{e.check ? <span className={`rounded border px-1 text-[10px] ${TRUST[e.check.level].cls}`} title={`${TRUST[e.check.level].title}${e.check.source ? ` — ${dmy(e.check.source.date)}: ${e.check.source.title}` : ""}`}>{TRUST[e.check.level].t}</span> : <span className="text-[10px] text-slate-600">{e.disclosed ? `công bố ${dmy(e.disclosed).slice(0, 5)}` : ""}</span>}</td>
                   </tr>
                 ))}
               </tbody>
@@ -99,13 +119,14 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
           })}
           {!byDay.length && <tbody><tr><td colSpan={5} className="px-2 py-4 text-center text-slate-500">Không có sự kiện nào khớp bộ lọc trong khoảng này.</td></tr></tbody>}
         </table>
-      </div>
+      </div>}
+      {drawer && <TickerEventsDrawer ticker={drawer} price={livePrices[drawer]} onClose={() => setDrawer(null)} onOpenProfile={(t) => { setDrawer(null); onSelectTicker(t); }} />}
 
       {data.changes.length > 0 && (
         <details className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px]" data-testid="ce-changes">
           <summary className="cursor-pointer text-slate-300"><b className="text-slate-100">Nhật ký thay đổi 30 ngày</b> · {data.changes.length} mục (mới công bố, đổi ngày, huỷ)</summary>
           <ul className="mt-1 space-y-0.5">{data.changes.slice(0, 60).map((c, i) => (
-            <li key={i} className="text-slate-400"><span className="font-mono text-slate-500">{dmy(c.at)}</span> <button type="button" onClick={() => onSelectTicker(c.t)} className="font-mono font-bold text-cf-primary">{c.t}</button> · {c.label}: {c.kind === "NEW" ? <span className="text-emerald-300">mới công bố</span> : c.kind === "REMOVED" ? <span className="text-rose-300">không còn trên nguồn</span> : <span className="text-amber-300">{CHANGE_FIELD[c.field ?? ""] ?? c.field} {String(c.from ?? "—")} → {String(c.to ?? "—")}</span>} <span className="text-slate-500">· {c.title.slice(0, 80)}</span></li>
+            <li key={i} className="text-slate-400"><span className="font-mono text-slate-500">{dmy(c.at)}</span> <button type="button" onClick={() => setDrawer(c.t)} className="font-mono font-bold text-cf-primary">{c.t}</button> · {c.label}: {c.kind === "NEW" ? <span className="text-emerald-300">mới công bố</span> : c.kind === "REMOVED" ? <span className="text-rose-300">không còn trên nguồn</span> : <span className="text-amber-300">{CHANGE_FIELD[c.field ?? ""] ?? c.field} {String(c.from ?? "—")} → {String(c.to ?? "—")}</span>} <span className="text-slate-500">· {c.title.slice(0, 80)}</span></li>
           ))}</ul>
         </details>
       )}
