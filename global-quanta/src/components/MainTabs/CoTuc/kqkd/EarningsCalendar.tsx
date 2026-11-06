@@ -242,7 +242,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf }: { onSelec
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] border-separate border-spacing-0 text-[11px]" data-testid="lc-table">
+        <table className="w-full min-w-[930px] border-separate border-spacing-0 text-[11px]" data-testid="lc-table">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wide text-slate-500">
               <th className="border-b border-white/10 px-1 py-1.5">Mã · ngành</th>
