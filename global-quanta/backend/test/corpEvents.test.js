@@ -37,6 +37,11 @@ test("LSK1 kiểm chéo CafeF: trùng ngày / có tin doanh nghiệp / lệch / 
   assert.equal(crossCheck(e, [["2026-10-29", "VNM: 13/11/2026, ngày GDKHQ trả cổ tức bằng tiền"]]).level, "CONFLICT");
   assert.equal(crossCheck(e, [["2026-10-29", "Vinamilk lãi quý 3 tăng"]]).level, "SINGLE");
   assert.equal(crossCheck(e, null).level, "SINGLE");
+  // Sự kiện HỌP không bị coi là lệch bởi tin "ngày GDKHQ tham dự ĐHĐCĐ" (ngày đó thuộc sự kiện chốt quyền)
+  const meet = normalize({ id: "m", code: "TLG", type: "MEETING", effectiveDate: "2026-12-07", disclosureDate: "2026-10-27" }, wk);
+  assert.equal(crossCheck(meet, [["2026-10-28", "TLG: 10.11.2026, ngày GDKHQ tham dự ĐHĐCĐ bất thường năm 2026"]]).level, "SINGLE");
+  const rec = normalize({ id: "r", code: "TLG", type: "meetingRight", effectiveDate: "2026-11-11", actualDate: "2026-12-07", disclosureDate: "2026-10-27" }, wk);
+  assert.equal(crossCheck(rec, [["2026-10-28", "TLG: 10.11.2026, ngày GDKHQ tham dự ĐHĐCĐ bất thường năm 2026"]]).level, "CONFIRMED_2");
 });
 
 test("LSK1 dịch vụ: nạp theo lô mã, phân trang, cửa sổ ngày + nhóm, kiểm chéo sự kiện sắp tới, nhật ký giữa hai lần nạp", async () => {

@@ -100,6 +100,8 @@ export function crossCheck(e, rows) {
     if (d < lo || d > hi) continue;
     const s = strip(title);
     if (!kind.test(s)) continue;
+    // Tin "ngày GDKHQ / ĐKCC tham dự ĐHĐCĐ" thuộc sự kiện chốt quyền họp (AGM_RECORD), không phải ngày họp: bỏ qua cho sự kiện họp.
+    if (e.cat === "AGM" && /(gdkhq|dkcc|chot|dang ky cuoi cung)/.test(s)) continue;
     const ds = datesInTitle(title).filter((x) => x >= anchor.slice(0, 4));
     // Tin công bố của chính doanh nghiệp ("MÃ: …") cùng loại, sát ngày công bố, không ghi ngày -> xác nhận sự kiện có thật (chưa xác nhận ngày).
     if (!ds.length) { if (/^[A-Z0-9]{3,5}\s*:/.test(String(title).trim()) && d >= addDays(anchor, -3) && d <= addDays(anchor, 10) && /(co tuc|dkcc|chot|dai hoi|dhdcd|phat hanh|quyen)/.test(s)) announced ??= { date: d, title }; continue; }
