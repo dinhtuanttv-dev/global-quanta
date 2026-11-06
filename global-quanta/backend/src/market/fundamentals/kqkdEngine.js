@@ -21,7 +21,7 @@
 // K5 Không gian 3D/4D: bề mặt (năm × quý × LNST, màu = biên ròng) và quỹ đạo TTM (tăng trưởng DT × biên ròng × ROE theo thời gian).
 import { robustGrowth, standardizedSurprise } from "./earningsQuality.js";
 
-export const KQ_VERSION = "KQ-v1 (2026-11-06)";
+export const KQ_VERSION = "KQ-v1.1 (2026-11-06)"; // v1.1: ngày công bố quý cũ (ngày nhập liệu VNDirect) ẩn; gắn kết quả kiểm định KQ-r1 (bộ tính tín hiệu không đổi so v1)
 export const KQ = Object.freeze({
   auditDiffRel: 0.02, nonCoreFlag: 0.5, accrualFlag: 0.1, beneishFlag: -1.78, altmanSafe: 2.6, altmanDistress: 1.1,
   seasonYears: 10, seasonMinYears: 5, dolMinGrowth: 0.02, heatQuarters: 12, seriesQuarters: 12, trajectoryQuarters: 40, surfaceYears: 20,
@@ -43,6 +43,8 @@ const yOf = (n) => Math.floor(n / 4);
 const qOf = (n) => (n % 4) + 1;
 const labelN = (n) => `Q${qOf(n)}/${yOf(n)}`;
 const fiscalOf = (n) => { const y = yOf(n), m = qOf(n) * 3; return `${y}-${String(m).padStart(2, "0")}-${m === 3 || m === 12 ? 31 : 30}`; };
+/** Ngày công bố hiển thị: createdDate chỉ là ngày công bố khi trễ 0–120 ngày sau kết thúc quý (trước ~2019 là ngày nhập liệu hàng loạt). */
+const publishedOf = (q) => { if (!q?.created) return null; const lag = (Date.parse(q.created) - Date.parse(q.fiscal)) / 864e5; return lag >= 0 && lag <= 120 ? q.created : null; };
 const isQuarterEnd = (fiscal) => /^\d{4}-(03|06|09|12)-\d{2}$/.test(String(fiscal ?? ""));
 
 /** Chỉ số dẫn xuất của một quý theo mẫu. Chi phí lấy trị tuyệt đối (VNDirect ghi dấu không thống nhất giữa mẫu). */
@@ -153,7 +155,7 @@ export function quarterMatrix(by, key, annual = [], { years = KQ.surfaceYears } 
   for (let y = lastY; y >= Math.max(firstY, lastY - years + 1); y--) {
     const q = [1, 2, 3, 4].map((k) => (fin(val(y, k)) ? val(y, k) : null));
     if (q.every((x) => x == null)) continue;
-    const created = [1, 2, 3, 4].map((k) => by.get(y * 4 + k - 1)?.created ?? null);
+    const created = [1, 2, 3, 4].map((k) => publishedOf(by.get(y * 4 + k - 1)));
     const typ = median(q.map(abs).filter(fin));
     const yoyQ = [1, 2, 3, 4].map((k) => (fin(val(y, k)) && fin(val(y - 1, k)) ? growth(val(y, k), val(y - 1, k), typ) : null));
     const ytd = { h1: cum(y, 2), m9: cum(y, 3), fy: cum(y, 4) };
@@ -409,6 +411,20 @@ export function buildTickerDetail(rec, { today, fetchedAt = null } = {}) {
     metrics, matrix, ratios, ttm, dol, bridge, quality, qualitySeries: series, seasonality: season, surprise, space,
     flags: flagsFor(tpl, latest.d, quality, matrix.npatParent, season.npatParent),
     method: methodNote(tpl),
+  };
+}
+
+/** Kết quả kiểm định đặt trước KQ-r1 (kq-r1-report.json) -> nhãn từng chỉ số cho giao diện. */
+export function evidenceFrom(rep) {
+  if (!rep?.verdict) return null;
+  const o = rep.oos;
+  return {
+    prereg: rep.prereg, ranAt: rep.ranAt,
+    sueCore: { pass: rep.verdict.H1, label: rep.verdict.H1 ? "THĂM DÒ" : "MÔ TẢ", ic: o.sueCore.ic.mean, p: o.sueCore.ic.pOneSided, spread: o.sueCore.spread.mean, cohorts: o.sueCore.cohorts,
+      vsNpat: { pass: rep.verdict.H2, diff: o.h2.mean, p: o.h2.pOneSided } },
+    nowcast: { pass: rep.verdict.H3, label: rep.verdict.H3 ? "THĂM DÒ" : "MÔ TẢ", ic: o.nowcast.ic.mean, p: o.nowcast.ic.pOneSided, spread: o.nowcast.spread.mean, cohorts: o.nowcast.cohorts },
+    accuracy: { pass: rep.verdict.H4, medianApe: o.accuracy.medianApe, medianApeNaive: o.accuracy.medianApeNaive, coverage: o.accuracy.coverage, target: [0.7, 0.9], n: o.accuracy.n },
+    note: "Ngoài mẫu 2020Q1–2026Q1, lợi suất vượt 60 phiên so bình quân đều universe, sau chi phí 1%. ĐẠT = THĂM DÒ, không phải khuyến nghị.",
   };
 }
 
