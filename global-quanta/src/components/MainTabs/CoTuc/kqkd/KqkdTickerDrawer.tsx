@@ -9,11 +9,12 @@ import ProfitBridge from "./ProfitBridge";
 import QualityHealth from "./QualityHealth";
 import SeasonNowcast from "./SeasonNowcast";
 import PeerCompare from "./PeerCompare";
+import AgmPlanPanel from "./AgmPlanPanel";
 import { ProfitSurface3D, Trajectory4D } from "./Kqkd3D";
 
-type Tab = "matrix" | "bridge" | "quality" | "season" | "space" | "peers";
+type Tab = "matrix" | "plan" | "bridge" | "quality" | "season" | "space" | "peers";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "matrix", label: "Ma trận quý & lũy kế" }, { id: "bridge", label: "Phân rã lợi nhuận" }, { id: "quality", label: "Chất lượng & sức khoẻ" },
+  { id: "matrix", label: "Ma trận quý & lũy kế" }, { id: "plan", label: "Kế hoạch ĐHCĐ" }, { id: "bridge", label: "Phân rã lợi nhuận" }, { id: "quality", label: "Chất lượng & sức khoẻ" },
   { id: "season", label: "Mùa vụ & ước tính" }, { id: "space", label: "3D / 4D" }, { id: "peers", label: "So với ngành" },
 ];
 const FLAG_CLS: Record<string, string> = { NON_CORE: "border-sky-400/40 text-sky-300", HIGH_ACCRUAL: "border-amber-400/40 text-amber-300", NEG_CFO: "border-amber-400/40 text-amber-300",
@@ -61,6 +62,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
               ))}
             </nav>
             {tab === "matrix" && <QuarterMatrix d={d} nextDeadline={nextDeadline} />}
+            {tab === "plan" && <AgmPlanPanel d={d} />}
             {tab === "bridge" && <ProfitBridge d={d} />}
             {tab === "quality" && <QualityHealth d={d} />}
             {tab === "season" && <SeasonNowcast d={d} />}

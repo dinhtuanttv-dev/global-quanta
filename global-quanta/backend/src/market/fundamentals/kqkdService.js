@@ -10,6 +10,17 @@ import zlib from "node:zlib";
 import { ALPHA_KV } from "../alpha/alphaService.js";
 import { fetchTickerStatements } from "./statementsVnd.js";
 import { LEDGER_VERSION, recordLedger, scoreLedger } from "./kqkdLedger.js";
+import { attainment, sameScope } from "./agmPlans.js";
+import { ytdFromStatements } from "./agmPlansService.js";
+
+/** AGM-v1: kế hoạch ĐHĐCĐ đã kiểm + tiến độ hoàn thành cho một mã. */
+export function planView(p, rec, { year, cumShare = null, nowcastEst = null }) {
+  if (!p?.plan) return null;
+  const ytd = ytdFromStatements(rec, year);
+  const att = ytd ? attainment(p.plan, { ytd, through: ytd.through, cumShare, nowcastEst }) : null;
+  const items = Object.fromEntries(Object.entries(p.plan.items).map(([k, x]) => [k, x.status === "ABSENT" ? { status: "ABSENT" } : { status: x.status, vnd: x.vnd, basis: x.basis, value: x.value, unit: x.unit, rowLabel: x.rowLabel, quote: x.quote, page: x.page, ratioPrior: x.ratioPrior, priorCheck: x.priorCheck, reason: x.reason, sameScope: sameScope(x) }]));
+  return { year, approved: p.plan.approved, draft: p.plan.draft, doc: p.doc, models: p.models, at: p.at, items, attainment: att };
+}
 import { buildSummary, buildSummaryRow, buildTickerDetail, evidenceFrom, KQ_VERSION } from "./kqkdEngine.js";
 
 // KQ-r1 (06/11/2026): kết quả kiểm định đặt trước, chạy một lần (scripts/kqkd-validate.mjs) — gắn vào API để giao diện ghi đúng nhãn.
@@ -34,7 +45,7 @@ function readGz(file) {
   try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString("utf8")); } catch { return null; }
 }
 
-export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null } = {}) {
+export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const fileOf = (t) => path.join(dir, `${t}.json.gz`);
   const summaryFile = path.join(dir, "summary.json.gz");
@@ -69,7 +80,15 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
       const rec = readGz(fileOf(t));
       if (!rec) continue;
       if (rec.fetchedAt && (!fetchedAt || rec.fetchedAt > fetchedAt)) fetchedAt = rec.fetchedAt;
-      try { rows.push(buildSummaryRow(rec, { today, mcap: mcap.get(t) ?? null })); } catch (e) { log.warn?.(`[kqkd] ${t}: ${e.message}`); }
+      try {
+        const row = buildSummaryRow(rec, { today, mcap: mcap.get(t) ?? null });
+        if (row && getPlan) {
+          const year = Number(row.fiscal.slice(0, 4));
+          const v = planView(getPlan(t, year), rec, { year, cumShare: row.nowcast?.cumShare ?? null, nowcastEst: row.nowcast?.est ?? null });
+          if (v) row.plan = { approved: v.approved, draft: v.draft, metric: v.attainment?.metric ?? null, done: v.attainment?.done ?? null, pace: v.attainment?.pace ?? null, typical: v.attainment?.typical ?? null, nowcastVsPlan: v.attainment?.nowcastVsPlan ?? null, verified: Object.values(v.items).some((x) => x.status === "VERIFIED") };
+        }
+        rows.push(row);
+      } catch (e) { log.warn?.(`[kqkd] ${t}: ${e.message}`); }
     }
     const missing = tickers.filter((t) => !fs.existsSync(fileOf(t)));
     const doc = { ...buildSummary(rows, { today, fetchedAt, failed: [...new Set([...state.failed, ...missing])] }), builtAt: new Date(now()).toISOString(), reason, evidence: EVIDENCE };
@@ -139,6 +158,10 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     if (detailMemo.has(key)) { const d = detailMemo.get(key); detailMemo.delete(key); detailMemo.set(key, d); return d; }
     const mcap = (await mcapMap()).get(t) ?? null;
     const doc = { ...buildTickerDetail(rec, { today, fetchedAt: rec.fetchedAt ?? null }), mcap, evidence: EVIDENCE };
+    if (getPlan && doc.available) {
+      const year = Number(doc.latest.fiscal.slice(0, 4)), nc = doc.seasonality?.npatParent?.nowcast ?? null;
+      doc.plan = planView(getPlan(t, year), rec, { year, cumShare: nc?.cumShare ?? null, nowcastEst: nc?.est ?? null });
+    }
     detailMemo.set(key, doc);
     while (detailMemo.size > 24) detailMemo.delete(detailMemo.keys().next().value);
     return doc;
@@ -170,5 +193,5 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     return { version: KQ_VERSION, dir: path.basename(dir), files, ...state, failed: state.failed.slice(0, 50), failedCount: state.failed.length };
   }
 
-  return { refresh, summary, detail, status, rebuildSummary, ledger, hasData: () => fs.existsSync(summaryFile) };
+  return { refresh, summary, detail, status, rebuildSummary, ledger, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
 }

@@ -26,6 +26,11 @@ const recs = [corp("AAA"), corp("BBB", 2, (y, q) => (y === 2026 && q === 3 ? { f
 const evidence = evidenceFrom(report);
 const summary: KqkdSummary = { ...buildSummary(recs.map((r) => buildSummaryRow(r, { today, mcap: 1e13 })), { today }), evidence };
 const details: Record<string, KqkdDetail> = Object.fromEntries(recs.map((r) => [r.ticker, { ...buildTickerDetail(r, { today }), evidence }]));
+// Kế hoạch ĐHĐCĐ (AGM-v1) của AAA: LNST đã kiểm, LNTT cần soát.
+details.AAA.plan = { year: 2026, approved: true, draft: false, doc: { url: "https://www.vndirect.com.vn/a.pdf", title: "AAA: Nghị quyết ĐHĐCĐ thường niên 2026", date: "2026-04-20", kind: "resolution" }, models: ["gemini-3.5-flash", "gemini-3.1-flash-lite"], at: "2026-11-06T10:00:00Z",
+  items: { revenue: { status: "ABSENT" }, pbt: { status: "REVIEW", vnd: 1e12, basis: "consolidated", reason: "con số không có trong bản chép độc lập thứ hai" }, npat: { status: "VERIFIED", vnd: 900e9, basis: "consolidated", quote: "LNST 900 tỷ đồng", page: 3, ratioPrior: 1.1, priorCheck: null, reason: null } },
+  attainment: { metric: "npat", basis: "consolidated", plan: 900e9, ytd: 700e9, through: 3, done: 0.7778, typical: 0.72, pace: 1.0802, nowcastVsPlan: 1.04 } };
+summary.rows.find((r) => r.t === "AAA")!.plan = { approved: true, draft: false, metric: "npat", done: 0.7778, pace: 1.0802, typical: 0.72, nowcastVsPlan: 1.04, verified: true };
 
 vi.mock("../../../../hooks/useKqkd", () => ({
   useKqkdSummary: () => ({ data: summary, error: null, isLoading: false }),
@@ -45,6 +50,10 @@ describe("K1–K6 KQKD theo quý", () => {
     expect(screen.getByTestId("kq-deadline").textContent).toContain("Q3/2026");
     expect(screen.getByTestId("kq-deadline").textContent).toContain("14/11/2026");
     expect(screen.getByTestId("kq-ledger").textContent).toContain("Chưa có dòng");
+    expect(screen.getAllByTestId("kq-plan-cell")[0].textContent).toBe("KH 78%");
+    fireEvent.click(screen.getByTestId("kq-filter-planAhead"));
+    expect(screen.getAllByTestId("kq-row").map((r) => r.querySelector("button")!.textContent)).toEqual(["AAA"]);
+    fireEvent.click(screen.getByTestId("kq-filter-all"));
     expect(screen.getAllByTestId("kq-row")).toHaveLength(3);
     expect(screen.getByTestId("kq-table").textContent).toContain("9T");
     fireEvent.click(screen.getByTestId("kq-filter-nonCore"));
@@ -64,6 +73,11 @@ describe("K1–K6 KQKD theo quý", () => {
     expect(screen.getByTestId("kq-matrix-table").textContent).toContain("lệch"); // tổng 4 quý 2025 ≠ BCTC năm giả lập
     fireEvent.click(screen.getByTestId("kq-matrix-mode-cumulative"));
     expect(screen.getByTestId("kq-matrix-table").textContent).toContain("Cả năm");
+    fireEvent.click(screen.getByTestId("kq-tab-plan"));
+    expect(screen.getByTestId("agm-attain").textContent).toContain("77,8%");
+    expect(screen.getByTestId("agm-attain").textContent).toContain("nhanh hơn");
+    expect(screen.getByTestId("agm-item-pbt").textContent).toContain("cần soát");
+    expect(screen.getByTestId("agm-item-npat").textContent).toContain("đã kiểm");
     fireEvent.click(screen.getByTestId("kq-tab-bridge"));
     expect(screen.getByTestId("kq-waterfall").getAttribute("aria-label")).toContain("LN cốt lõi");
     fireEvent.click(screen.getByTestId("kq-tab-quality"));
