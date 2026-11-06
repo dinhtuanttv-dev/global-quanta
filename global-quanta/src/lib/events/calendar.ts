@@ -68,3 +68,50 @@ export function calendarIcs(events: CorpEvent[], now = new Date()): string {
   lines.push("END:VCALENDAR");
   return lines.join("\r\n");
 }
+
+// ---- LSK6: lịch tháng, Gantt, lịch sử cổ tức ----
+/** 6 tuần × 7 ngày (thứ 2 đầu tuần) phủ tháng `ym` ("YYYY-MM"). */
+export function monthCells(ym: string): { date: string; inMonth: boolean }[] {
+  const first = `${ym}-01`;
+  const dow = (new Date(`${first}T00:00:00Z`).getUTCDay() + 6) % 7; // 0 = thứ 2
+  const start = addDays(first, -dow);
+  return Array.from({ length: 42 }, (_, i) => { const d = addDays(start, i); return { date: d, inMonth: d.slice(0, 7) === ym }; });
+}
+export const shiftMonth = (ym: string, n: number) => { const [y, m] = ym.split("-").map(Number); const t = y * 12 + (m - 1) + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
+
+/** Gantt: mỗi mã một dòng, các mốc (công bố → GDKHQ → ĐKCC → thanh toán / họp) của sự kiện cổ tức & đại hội trong khoảng. */
+export interface GanttRow { t: string; items: { id: string; label: string; cat: string; date: string; disclosed: string | null; ex: string | null; record: string | null; pay: string | null; meeting: string | null; cash: number | null; ratio: number | null }[] }
+export function ganttRows(events: CorpEvent[]): GanttRow[] {
+  const m = new Map<string, GanttRow>();
+  for (const e of events) {
+    if (e.group !== "DIVIDEND" && e.group !== "MEETING") continue;
+    const r = m.get(e.t) ?? m.set(e.t, { t: e.t, items: [] }).get(e.t)!;
+    r.items.push({ id: e.id, label: e.label, cat: e.cat, date: e.date, disclosed: e.disclosed, ex: e.ex, record: e.record, pay: e.pay, meeting: e.meeting, cash: e.cash, ratio: e.ratio });
+  }
+  return [...m.values()].sort((a, b) => (a.items[0].ex ?? a.items[0].meeting ?? "").localeCompare(b.items[0].ex ?? b.items[0].meeting ?? "") || a.t.localeCompare(b.t));
+}
+
+/** Lịch sử cổ tức theo năm tài chính (divYear; thiếu thì năm GDKHQ): tổng tiền đ/cp, % cổ phiếu, % thưởng, số đợt. */
+export interface DivYear { year: number; cash: number; stockPct: number; bonusPct: number; payments: number }
+export function dividendHistory(events: CorpEvent[]): DivYear[] {
+  const m = new Map<number, DivYear>();
+  for (const e of events) {
+    if (!["CASH", "STOCK", "BONUS"].includes(e.cat)) continue;
+    const y = e.year ?? Number((e.ex ?? e.date).slice(0, 4));
+    const r = m.get(y) ?? m.set(y, { year: y, cash: 0, stockPct: 0, bonusPct: 0, payments: 0 }).get(y)!;
+    if (e.cat === "CASH") r.cash += e.cash ?? 0; else if (e.cat === "STOCK") r.stockPct += e.ratio ?? 0; else r.bonusPct += e.ratio ?? 0;
+    r.payments += 1;
+  }
+  return [...m.values()].sort((a, b) => a.year - b.year);
+}
+
+/** Độ đều đặn: số năm liên tiếp gần nhất có cổ tức tiền; trung vị số ngày từ công bố tới GDKHQ của mã. */
+export function dividendHabits(events: CorpEvent[], thisYear: number): { streak: number; leadDays: number | null; usualMonths: number[] } {
+  const years = new Set(events.filter((e) => e.cat === "CASH" && e.cash).map((e) => e.year ?? Number((e.ex ?? e.date).slice(0, 4))));
+  // Cổ tức năm tài chính N thường trả trong năm N+1: bắt đầu đếm từ năm gần nhất đã trả nếu đó là năm N−1 hoặc N−2.
+  const start = years.has(thisYear - 1) ? thisYear - 1 : years.has(thisYear - 2) ? thisYear - 2 : null;
+  let streak = 0; if (start != null) for (let y = start; years.has(y); y--) streak += 1;
+  const leads = events.filter((e) => e.cat === "CASH" && e.disclosed && e.ex).map((e) => (Date.parse(e.ex!) - Date.parse(e.disclosed!)) / 864e5).sort((a, b) => a - b);
+  const months = new Map<number, number>(); for (const e of events) if (e.cat === "CASH" && e.ex) { const mo = Number(e.ex.slice(5, 7)); months.set(mo, (months.get(mo) ?? 0) + 1); }
+  return { streak, leadDays: leads.length ? leads[leads.length >> 1] : null, usualMonths: [...months.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([mo]) => mo) };
+}
