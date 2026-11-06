@@ -102,12 +102,13 @@ async function fetchAllRs(tickersKey: string): Promise<Record<string, number | n
  * LUU Y: mo rong tu 18 len ~89 request /api/ohlcv moi gio (tang ~5 lan) -
  * giu dedupingInterval dai (60 phut) de giam tai cho Project A/Yahoo.
  */
-export function useRealRsData(extraTickers: string[] = []) {
+/** F4 (06/11/2026): enabled = false -> không gọi (tab Cổ tức chỉ bật khi mở Bộ lọc / hồ sơ mã; ~90 lệnh nến). */
+export function useRealRsData(extraTickers: string[] = [], enabled = true) {
   const baseTickers = DIVIDEND_STOCKS.map((s) => s.ticker);
   const allTickers = Array.from(new Set([...baseTickers, ...extraTickers])).sort();
   const tickersKey = allTickers.join(",");
 
-  const { data, error, isLoading } = useSWR(["cotuc-real-rs-3mo", tickersKey], () => fetchAllRs(tickersKey), {
+  const { data, error, isLoading } = useSWR(enabled ? ["cotuc-real-rs-3mo", tickersKey] : null, () => fetchAllRs(tickersKey), {
     refreshInterval: 60 * 60 * 1000,
     revalidateOnFocus: false,
     dedupingInterval: 60 * 60 * 1000,

@@ -16,8 +16,9 @@ const SWR_OPTS = {
 };
 
 /** EarningsSignal cả danh mục: `byTicker` để tra kỳ KQKD tới của từng mã; `signals` cho mục "Sắp KQKD". */
-export function useEarningsSignalsBulk() {
-  const { data, error, isLoading } = useSWR<EarningsSignalsBulk | null>(buildEarningsSignalsUrl(), () => fetchEarningsSignalsBulk(), SWR_OPTS);
+/** F4: enabled = false -> không gọi (mặc định bật cho các nơi dùng khác). */
+export function useEarningsSignalsBulk(enabled = true) {
+  const { data, error, isLoading } = useSWR<EarningsSignalsBulk | null>(enabled ? buildEarningsSignalsUrl() : null, () => fetchEarningsSignalsBulk(), SWR_OPTS);
   const byTicker = useMemo(() => new Map<string, EarningsSignal>((data?.signals ?? []).map((s) => [s.ticker, s])), [data]);
   return { signals: data?.signals ?? [], byTicker, generatedAt: data?.generatedAt ?? null, loading: isLoading, error: error ? String((error as Error).message ?? error) : null };
 }

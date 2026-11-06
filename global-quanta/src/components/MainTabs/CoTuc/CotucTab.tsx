@@ -52,7 +52,7 @@ import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
-import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct } from "../../../lib/cotuc/universe-stocks";
+import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
 import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
 import { useDecisionStates } from "../../../hooks/useCotucDecision";
 import { useAppStore } from "../../../store/useAppStore";
@@ -390,7 +390,7 @@ interface CotucTabProps {
  * response /api/cotuc/timing-signals (VD ma vua duoc them vao Universe,
  * chua kip tinh o lan cron gan nhat) - KHONG duoc de o trong/crash. */
 
-function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProps) {
+function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: CotucTabProps & { onNeedRs?: () => void }) {
   const vnHolidayCalendar = useVnTradingCalendar();
   // F1 (06/11/2026): 3 tab con — Kết quả kinh doanh · Cổ tức · Timeline điểm mua. Mọi mục cũ giữ nguyên logic, chỉ đổi chỗ.
   // Mặc định mở "Timeline điểm mua" — câu hỏi chính của tab: mã nào sắp/đang vào vùng mua có cơ sở thống kê.
@@ -402,6 +402,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     try { localStorage.setItem(VIEW_KEY, JSON.stringify({ view: v, last: lastOf.current })); } catch { /* không có storage */ }
   }, []);
   const group = GROUP_OF[subTab];
+  // F4 (06/11/2026): tải theo nhu cầu — dữ liệu chỉ phục vụ Bộ lọc / hồ sơ mã / lịch chưa tải khi đang ở Timeline.
+  const [need, setNeed] = useState({ screener: group === "cotuc", calendars: subTab === "calendar-v3" || subTab === "kqkd-calendar" });
   // "🗂 Bản cũ": Lịch GDKHQ v1 và Xếp hạng v2 (engine cũ, 17 mã) — giữ để đối chiếu, không xoá chức năng.
   const [legacyView, setLegacyView] = useState<"calendar" | "timing" | null>(null);
   const buyTimeline = useBuyTimeline();
@@ -413,9 +415,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   // Giai Trinh Timing v3 (Giai doan 5): mot request cho CA vu tru (khong
   // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
   // lenh goi mang). byTicker dung de tra cuu O(1) trong bang chinh (DividendScreenerTable).
-  const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk();
-  const earningsSignalsBulk = useEarningsSignalsBulk();
+  const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk({ enabled: need.screener });
+  const earningsSignalsBulk = useEarningsSignalsBulk(need.calendars);
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
+  useEffect(() => {
+    const screener = group === "cotuc", calendars = subTab === "calendar-v3" || subTab === "kqkd-calendar";
+    if ((screener && !need.screener) || (calendars && !need.calendars)) setNeed((n) => ({ screener: n.screener || screener, calendars: n.calendars || calendars }));
+    if (screener) onNeedRs?.();
+  }, [group, subTab, need.screener, need.calendars, onNeedRs]);
   const [sortField, setSortField] = useState<string>("dividendYield");
   const [sortAsc, setSortAsc] = useState(false);
   // FIX (2026-09-12): truoc day luu SNAPSHOT object vao state -> neu bam
@@ -541,7 +548,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
   // UU TIEN GIU 17 MA GOC (day du F-Score/DCF/pros-cons that) - CHI
   // THEM ma Universe KHONG TRUNG voi 17 ma da co, tranh ghi de du lieu
   // day du bang du lieu rut gon.
-  const { aiAnalysisMap } = useAiAnalysis();
+  const { aiAnalysisMap } = useAiAnalysis(need.screener);
 
   // Danh mục Siêu Quét AI (~300 mã, Gateway) + giá khớp TRỰC TIẾP (REST + stream SSE, như bảng Siêu Quét).
   // Mã ngoài 17 mã gốc dựng từ sự kiện quyền THẬT (/api/cotuc/events, VNDirect); tỷ suất = cổ tức tiền 12 tháng / giá hiện tại.
@@ -583,7 +590,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
       return {
         ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount,
         pe: real ? f.peRatio ?? 0 : s.pe, roe: real ? f.roe ?? 0 : s.roe, debtEquity: real ? f.debtEquity ?? 0 : s.debtEquity,
-        fundamentalsReal: real, specialDividend: isSpecialDividend(ev, todayIso),
+        fundamentalsReal: real, specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, y ?? s.dividendYield, todayIso),
       };
     });
     // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
@@ -609,6 +616,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false }: CotucTabProp
     () => (selectedTicker ? allStocksWithUniverse.find((s) => s.ticker === selectedTicker) ?? null : null),
     [selectedTicker, allStocksWithUniverse]
   );
+  // F4: hồ sơ một mã (mở từ bất kỳ tab con nào, kể cả Timeline) cần RS / AI / tín hiệu thời điểm -> bật tải.
+  useEffect(() => {
+    if (!selectedTicker) return;
+    if (!need.screener) setNeed((n) => ({ ...n, screener: true }));
+    onNeedRs?.();
+  }, [selectedTicker, need.screener, onNeedRs]);
 
   const filtered = useMemo(() =>
     filterAndSortStocks(
@@ -1095,13 +1108,16 @@ export default function CotucTab(props: CotucTabProps) {
   // CotucTabInner, khong ton them request that) de lay danh sach ma
   // Universe, mo rong RS tinh cho CA 71 ma nay (truoc chi tinh cho 17 ma).
   const { universeStocks } = useUniverseScores();
-  const { realRsMap: fetchedRsMap, isRealRsLoading: fetchedLoading } = useRealRsData(universeStocks.map((s) => s.ticker));
+  // F4: RS (~90 lệnh nến) chỉ tải khi tab con Cổ tức hoặc hồ sơ một mã cần (bật một lần thì giữ).
+  const [needRs, setNeedRs] = useState(false);
+  const onNeedRs = useCallback(() => setNeedRs(true), []);
+  const { realRsMap: fetchedRsMap, isRealRsLoading: fetchedLoading } = useRealRsData(universeStocks.map((s) => s.ticker), needRs);
   const realRsMap = props.realRsMap ?? fetchedRsMap;
   const isRealRsLoading = props.isRealRsLoading ?? fetchedLoading;
 
   return (
     <ErrorBoundary fallbackLabel="Tab Cổ Tức gặp lỗi khi hiển thị">
-      <CotucTabInner {...props} realRsMap={realRsMap} isRealRsLoading={isRealRsLoading} />
+      <CotucTabInner {...props} realRsMap={realRsMap} isRealRsLoading={isRealRsLoading} onNeedRs={onNeedRs} />
     </ErrorBoundary>
   );
 }
