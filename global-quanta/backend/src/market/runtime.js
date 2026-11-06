@@ -20,6 +20,7 @@ import { createCotucScanner } from "./cotuc/cotucScanner.js";
 import { createKqkdService, kqkdDirFromEnv } from "./fundamentals/kqkdService.js";
 import { createAgmPlansService } from "./fundamentals/agmPlansService.js";
 import { createEventStudyService } from "./fundamentals/eventStudyService.js";
+import { createSeasonMap } from "./fundamentals/seasonMap.js";
 import { callGeminiJSON } from "../services/geminiClient.js";
 import zlibAgm from "node:zlib";
 import fsAgm from "node:fs";
@@ -158,12 +159,17 @@ export function getMarketRuntime() {
   const kqkd = createKqkdService({ store, getEventStudy: () => eventStudy.doc(), isHoliday: (d) => tradingCalendar.isHoliday(d), getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
   const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
-    { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false }];
+    { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
+    { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
   jobs.agmPlans = async () => { if (!process.env.GEMINI_API_KEY) return { skipped: "thiếu GEMINI_API_KEY" }; const r = await agmPlans.run({ limit: 30 }); if (r.processed) await kqkd.rebuildSummary("agm"); return r; };
   jobs.agmPlansNight = () => jobs.agmPlans();
   jobs.kqkdEventStudy = () => eventStudy.run();
+  // S2/S6 (06/11/2026): bản đồ mùa vụ toàn thị trường (gom Project A mỗi tuần) + sổ theo dõi cửa sổ THEO DÕI / ĐẠT (mỗi ngày, không gọi Project A).
+  const seasonMap = createSeasonMap({ dir: kqkdDir, getCalendar: () => kqkd.calendar() });
+  jobs.seasonMapBuild = async () => { const m = seasonMap.map(); if (m && Date.now() - Date.parse(m.builtAt) < 6.5 * 86_400_000) return { skipped: "bản đồ chưa quá 6,5 ngày" }; return seasonMap.build(); };
+  jobs.seasonLedgerTick = () => seasonMap.ledgerTick();
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
@@ -186,7 +192,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, agmPlans, eventStudy, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, eventStudy, seasonMap, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -209,6 +215,8 @@ export function startMarketIngestor() {
   }, 120_000).unref?.();
   rt.elliottAlerts.start();
   // K0: kho KQKD chưa có (lần đầu triển khai / volume mới) -> nạp sau 3 phút (bỏ qua mã đã nạp trong 20 giờ).
+  // S2: chưa có bản đồ mùa vụ -> dựng sau 20 phút (tuần tự, ~1.420 lần gọi Project A).
+  if (!rt.seasonMap.hasData()) setTimeout(() => { rt.seasonMap.build().then(() => rt.seasonMap.ledgerTick()).catch((e) => console.warn(`[season-map] dựng lần đầu lỗi: ${e.message}`)); }, 1_200_000).unref?.();
   // LC3: chưa có nghiên cứu sự kiện -> dựng sau 12 phút (sau lượt nạp KQKD đầu).
   if (!rt.eventStudy.hasData()) setTimeout(() => { rt.eventStudy.run().catch((e) => console.warn(`[event-study] dựng lần đầu lỗi: ${e.message}`)); }, 720_000).unref?.();
   if (!rt.kqkd.hasData()) setTimeout(() => { rt.kqkd.refresh({ force: false, reason: "bootstrap" }).catch((e) => console.warn(`[kqkd] nạp lần đầu lỗi: ${e.message}`)); }, 180_000).unref?.();

@@ -77,7 +77,9 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
       }
       const agg = aggregate(events);
       // Đường CAR không cần lưu cho từng sự kiện trong tổng hợp; byTicker giữ đường của ≤ 8 sự kiện để vẽ trong ngăn chi tiết.
-      const doc = { version: ES_VERSION, builtAt: new Date(now()).toISOString(), asOf: today, aggregate: agg, byTicker, live, ms: now() - t0 };
+      // S4: danh sách rút gọn mọi sự kiện (không đường CAR) để gộp theo ngành × loại quý.
+      const compact = events.filter((e) => e.r && !e.r.insufficient).map((e) => ({ t: e.t, q: Math.ceil(Number(e.fiscal.slice(5, 7)) / 3), s: e.source === "DISCLOSURE" ? 1 : 0, sue: e.sue == null ? null : Math.round(e.sue * 100) / 100, pre: e.r.carPre, ann: e.r.carAnn, post: e.r.carPost }));
+      const doc = { version: ES_VERSION, builtAt: new Date(now()).toISOString(), asOf: today, aggregate: agg, byTicker, live, events: compact, ms: now() - t0 };
       writeGz(outFile, doc); memo = doc; last = { at: doc.builtAt, events: agg.events, precise: agg.precise, ms: doc.ms };
       log.log?.(`[event-study] ${agg.events} sự kiện (${agg.precise} có tin BCTC chính thức), ${(doc.ms / 1000).toFixed(0)} s.`);
       return last;

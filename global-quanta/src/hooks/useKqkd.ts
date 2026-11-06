@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import { fetchMarketJson } from "../services/marketDataClient";
-import type { KqLedger, KqkdCalendar, KqkdDetail, KqkdSummary, SeasonalityBundle } from "../lib/kqkd/types";
+import type { KqLedger, KqkdCalendar, KqkdDetail, KqkdSummary, SeasonLedger, SeasonMap, SeasonalityBundle } from "../lib/kqkd/types";
 
 /** K6 (06/11/2026): KQKD theo quý — bảng toàn thị trường (Gateway /api/fundamentals/kqkd/summary). */
 export function useKqkdSummary(enabled = true) {
@@ -24,6 +24,18 @@ export function useSeasonalityBundle(ticker: string | null) {
   const { data, error, isLoading } = useSWR<SeasonalityBundle>(t ? `kqkd-season:${t}` : null, () => fetchMarketJson<SeasonalityBundle>(`/api/fundamentals/kqkd/seasonality/${encodeURIComponent(t!)}`), {
     revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false,
   });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}
+
+/** S2: bản đồ mùa vụ toàn thị trường (dựng mỗi tuần trên Gateway). */
+export function useSeasonMap(enabled = true) {
+  const { data, error, isLoading } = useSWR<SeasonMap>(enabled ? "kqkd-season-map" : null, () => fetchMarketJson<SeasonMap>("/api/fundamentals/kqkd/season-map"), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}
+
+/** S6: sổ theo dõi cửa sổ THEO DÕI / ĐẠT (ghi một lần trước kỳ, chấm sau khi đủ phiên). */
+export function useSeasonLedger(enabled = true) {
+  const { data, error, isLoading } = useSWR<SeasonLedger>(enabled ? "kqkd-season-ledger" : null, () => fetchMarketJson<SeasonLedger>("/api/fundamentals/kqkd/season-ledger"), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
   return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
 }
 

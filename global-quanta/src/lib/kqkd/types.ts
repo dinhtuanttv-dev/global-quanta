@@ -39,8 +39,31 @@ export interface SeasonalityBundle {
     last: { quarter: string; date: string | null; source: string | null; result: CalRow["result"]; reaction: CalRow["reaction"] | null } | null;
     nowcast: KqkdRow["nowcast"]; nowcastLabel: string; plan: KqkdRow["plan"] | null;
     live: { asOf: string; car10: number | null; scar10: number | null; av10: number | null } | null;
+    pooled?: SeasonPooled | null;
   } | null;
 }
+
+/** S4 — bằng chứng gộp theo ngành (ES-v1, chỉ kỳ có tin BCTC chính thức). */
+export interface Ci { n: number; mean: number | null; lo: number | null; hi: number | null }
+export interface PooledQ { n: number; tickers: number; pre: Ci; ann: Ci; post: Ci; sueSplit: { high: number; low: number; diff: number; k: number } | null }
+export interface SeasonPooled { version: string; builtAt: string; sector: { code: string; name: string; byQ: Record<string, PooledQ> } | null; market: { byQ: Record<string, PooledQ> } }
+
+/** S2 — bản đồ mùa vụ toàn thị trường (rút gọn earnings-cycle-stats của Project A). */
+export type SeasonWinStatus = "SELECTED" | "WATCH" | "THIN" | "NONE";
+export interface SeasonMapWindow { id: string; label: string; n: number; net: number | null; lcb: number | null; q: number | null; win: number | null; status: SeasonWinStatus }
+export interface SeasonMapQuarter { n: number; selected: string | null; status: SeasonWinStatus; best: { id: string; net: number | null; lcb: number | null; q: number | null }; windows: SeasonMapWindow[] }
+export interface SeasonMap {
+  version: string; builtAt: string; sourceAsOf: string | null; source: string; failed: number; ms: number;
+  rows: Record<string, { months: Record<string, number>; q: Record<string, SeasonMapQuarter | null>; stale?: boolean }>;
+  rules: { minEvents: number; watchQ: number; cost: number; recordAheadDays: [number, number] };
+}
+/** S6 — sổ theo dõi tiến. */
+export interface SeasonLedgerEntry {
+  t: string; fiscal: string; quarter: string; window: string; label: string; status: SeasonWinStatus;
+  backtest: { n: number; net: number | null; lcb: number | null; q: number | null; win: number | null }; expected: string; recordedAt: string; sourceAsOf: string | null;
+  result?: { pending: boolean; need?: number; day0?: string; entry?: string; exit?: string; car?: number; net?: number; published?: string; source?: string };
+}
+export interface SeasonLedger { version: string; startedAt: string | null; entries: SeasonLedgerEntry[]; total: number; scored: number; summary: Record<string, { n: number; hitRate: number; meanNet: number; meanBacktestNet: number }>; rule: string }
 
 /** AGM-v1 — kế hoạch ĐHĐCĐ. */
 export interface PlanItem { status: "VERIFIED" | "REVIEW" | "ABSENT"; vnd?: number | null; basis?: string; value?: number; unit?: string; rowLabel?: string | null; quote?: string | null; page?: number | null; ratioPrior?: number | null; priorCheck?: { printed: number; statement: number; diff: number; match: boolean } | null; reason?: string | null; sameScope?: boolean }
