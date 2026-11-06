@@ -14,7 +14,8 @@ describe("F1 — điều hướng PHÂN TÍCH CƠ BẢN", () => {
     expect(GROUP_OF.earnings).toBe("kqkd");
     expect(GROUP_OF.timeline).toBe("timeline");
     expect(VIEWS.filter((v) => GROUP_OF[v.id] === "timeline")).toHaveLength(0); // Timeline không có mục con mới
-    expect(VIEWS.filter((v) => GROUP_OF[v.id] === "kqkd").map((v) => v.id)).toEqual(["earnings", "seasonality", "kqkd-calendar"]);
+    expect(VIEWS.filter((v) => GROUP_OF[v.id] === "kqkd").map((v) => v.id)).toEqual(["quality", "earnings", "seasonality", "kqkd-calendar"]);
+    expect(DEFAULT_LAST.kqkd).toBe("quality"); // F5: Chất lượng KQKD mở mặc định trong tab Kết quả kinh doanh
     expect(VIEWS.filter((v) => GROUP_OF[v.id] === "cotuc").map((v) => v.id)).toEqual(["screener", "calendar-v3", "timing-v3", "ranking", "legacy"]);
   });
 
@@ -25,7 +26,7 @@ describe("F1 — điều hướng PHÂN TÍCH CƠ BẢN", () => {
     expect(readView(store({ view: "seasonality", last: { kqkd: "seasonality" } })).last.kqkd).toBe("seasonality");
     expect(readView(store({ view: "xyz" })).view).toBe("timeline");
     expect(readView(store("{hỏng")).view).toBe("timeline");
-    expect(readView(store({ view: "ranking", last: { kqkd: "ranking" } })).last.kqkd).toBe("earnings"); // mục sai nhóm bị bỏ
+    expect(readView(store({ view: "ranking", last: { kqkd: "ranking" } })).last.kqkd).toBe("quality"); // mục sai nhóm bị bỏ
     expect(readView({ getItem: () => { throw new Error("chặn storage"); } }).view).toBe("timeline");
   });
 });

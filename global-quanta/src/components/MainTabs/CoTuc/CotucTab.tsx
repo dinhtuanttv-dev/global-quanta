@@ -1,6 +1,7 @@
 
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import "./cotuc-theme.css";
+import EarningsQualityPanel from "./EarningsQualityPanel";
 import { GROUP_OF, GROUPS, readView, VIEW_KEY, VIEWS, type CotucGroup, type SubView } from "./cotucNav";
 import {
   Coins, Search, RefreshCw,
@@ -612,6 +613,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
   // xong, ke ca neu nguoi dung bam vao ma TRUOC KHI fundamentals kip tra
   // ve. Bao gom ca ma tu Universe (goi chung 1 bang theo yeu cau).
+  const sectorByTicker = useMemo(() => new Map(allStocksWithUniverse.map((s) => [s.ticker, s.sector ?? null])), [allStocksWithUniverse]);
   const selected = useMemo(
     () => (selectedTicker ? allStocksWithUniverse.find((s) => s.ticker === selectedTicker) ?? null : null),
     [selectedTicker, allStocksWithUniverse]
@@ -1007,6 +1009,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
               </ErrorBoundary>
             </div>
           </div>
+        </ErrorBoundary>
+      )}
+
+      {subTab === "quality" && (
+        <ErrorBoundary fallbackLabel="Không hiển thị được Chất lượng KQKD">
+          <EarningsQualityPanel onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} />
         </ErrorBoundary>
       )}
 
