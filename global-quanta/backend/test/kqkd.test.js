@@ -141,7 +141,7 @@ test("Dịch vụ: nạp vào thư mục, dựng bảng, chi tiết có đệm, 
   const calls = [];
   const store = { getKv: async () => ({ value: { fund: { AAA: [], BBB: [] }, mcap: { AAA: [["2026-11-05", 5e12]] } } }) };
   const fetchTicker = async (t) => { calls.push(t); return t === "BBB" ? null : { ...corp(2018, 2026, () => ({}), { lastQ: 3 }), ticker: t }; };
-  const svc = createKqkdService({ store, dir, fetchTicker, now: () => Date.parse("2026-11-06T05:00:00Z"), log: { log() {}, warn() {} } });
+  const svc = createKqkdService({ store, dir, fetchTicker, fetchDisc: async () => [["2026-10-21", "AAA: Kết quả kinh doanh 9 tháng năm 2026"]], now: () => Date.parse("2026-11-06T05:00:00Z"), log: { log() {}, warn() {} } });
   assert.equal(await svc.summary(), null);
   const r = await svc.refresh();
   assert.equal(r.failedCount, 1);

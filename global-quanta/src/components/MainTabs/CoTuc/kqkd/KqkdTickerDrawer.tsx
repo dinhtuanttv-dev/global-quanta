@@ -10,12 +10,13 @@ import QualityHealth from "./QualityHealth";
 import SeasonNowcast from "./SeasonNowcast";
 import PeerCompare from "./PeerCompare";
 import AgmPlanPanel from "./AgmPlanPanel";
+import { TickerReactions } from "./EventStudyPanel";
 import { ProfitSurface3D, Trajectory4D } from "./Kqkd3D";
 
-type Tab = "matrix" | "plan" | "bridge" | "quality" | "season" | "space" | "peers";
+type Tab = "matrix" | "plan" | "bridge" | "quality" | "season" | "react" | "space" | "peers";
 const TABS: { id: Tab; label: string }[] = [
   { id: "matrix", label: "Ma trận quý & lũy kế" }, { id: "plan", label: "Kế hoạch ĐHCĐ" }, { id: "bridge", label: "Phân rã lợi nhuận" }, { id: "quality", label: "Chất lượng & sức khoẻ" },
-  { id: "season", label: "Mùa vụ & ước tính" }, { id: "space", label: "3D / 4D" }, { id: "peers", label: "So với ngành" },
+  { id: "season", label: "Mùa vụ & ước tính" }, { id: "react", label: "Phản ứng giá" }, { id: "space", label: "3D / 4D" }, { id: "peers", label: "So với ngành" },
 ];
 const FLAG_CLS: Record<string, string> = { NON_CORE: "border-sky-400/40 text-sky-300", HIGH_ACCRUAL: "border-amber-400/40 text-amber-300", NEG_CFO: "border-amber-400/40 text-amber-300",
   M_FLAG: "border-amber-400/40 text-amber-300", Z_DISTRESS: "border-rose-400/40 text-rose-300", AUDIT_DIFF: "border-amber-400/40 text-amber-300", SEASON_DEV: "border-white/20 text-slate-300" };
@@ -38,7 +39,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
       <div className="tw-scope h-full w-full max-w-[1120px] overflow-y-auto border-l border-white/10 bg-[#0B0F19] p-4 shadow-2xl">
         <header className="mb-3 flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-[16px] font-bold text-[#F5CE72]">{ticker} <span className="text-[12px] font-normal text-slate-400">· KQKD theo quý{d?.available ? ` · ${TPL_LABEL[d.tpl]} · ${d.latest.quarter} (công bố ${dmy(d.latest.created)})` : ""}</span></h3>
+            <h3 className="text-[16px] font-bold text-[#F5CE72]">{ticker} <span className="text-[12px] font-normal text-slate-400">· KQKD theo quý{d?.available ? ` · ${TPL_LABEL[d.tpl]} · ${d.latest.quarter} (công bố ${dmy(d.latest.published ?? d.latest.created)}${d.latest.publishedSource === "DISCLOSURE" ? " · tin BCTC" : ""})` : ""}</span></h3>
             {d?.available && (sectorOf?.(ticker) || d.flags.length > 0) && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {sectorOf?.(ticker) && <span className="rounded border border-white/15 px-1.5 text-[10.5px] text-slate-300">{sectorOf(ticker)}</span>}
@@ -66,6 +67,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
             {tab === "bridge" && <ProfitBridge d={d} />}
             {tab === "quality" && <QualityHealth d={d} />}
             {tab === "season" && <SeasonNowcast d={d} />}
+            {tab === "react" && <TickerReactions events={d.reactions} />}
             {tab === "space" && (
               <div className="space-y-2">
                 <div className="flex gap-1" role="tablist" aria-label="Kiểu 3D">
