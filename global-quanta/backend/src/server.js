@@ -39,6 +39,7 @@ import { createRetroService } from "./market/elite/retroService.js";
 import { createCashGateService } from "./market/cashGate/cashGateService.js";
 import { createEarningsQualityService } from "./market/fundamentals/earningsQualityService.js";
 import { createKqkdRouter } from "./routes/kqkd.js";
+import { createCorpEventsRouter } from "./routes/corpEvents.js";
 import { createSeasonOracle, SEASON_FIELDS, setSeasonReader } from "./market/fundamentals/seasonStore.js";
 import { createEliteRouter } from "./routes/elite.js";
 import { isTradingDay, vnDate } from "./market/calendar.js";
@@ -261,6 +262,7 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
   }
 });
 // K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
+app.use("/api/corp-events", createCorpEventsRouter({ getService: () => getMarketRuntime().corpEvents }));
 app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle, getSeasonX: () => getMarketRuntime().seasonX, getCafef: () => getMarketRuntime().cafefAnnounce }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
