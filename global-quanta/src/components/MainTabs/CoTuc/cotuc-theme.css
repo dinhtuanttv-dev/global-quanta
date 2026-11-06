@@ -1,7 +1,7 @@
 /* cotuc-theme.css — anh xa class Tailwind cung (slate/amber/emerald/red)
    sang DUNG token he thong (tokens.css) da dung nhat quan o LocNganh,
-   KetNoiTheGioi, ChatXucTac. KHONG doi cau truc JSX cua CotucTab.tsx/
-   EarningsQuarterPanel.tsx - chi doi TEN class, giu nguyen moi thu khac. */
+   KetNoiTheGioi, ChatXucTac. KHONG doi cau truc JSX cua CotucTab.tsx
+   - chi doi TEN class, giu nguyen moi thu khac. */
 
 .text-cf-primary { color: var(--text-primary); }
 .text-cf-secondary { color: var(--text-secondary); }

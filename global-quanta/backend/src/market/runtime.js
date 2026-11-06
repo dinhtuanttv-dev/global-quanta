@@ -17,6 +17,7 @@ import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.j
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
+import { createKqkdService } from "./fundamentals/kqkdService.js";
 import { createQmsJobs } from "./cotuc/qmsJobs.js";
 import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
 import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
@@ -141,10 +142,15 @@ export function getMarketRuntime() {
   // Chất xúc tác (31/10/2026): quét trên Gateway, nguồn tin Event Radar, lưu Railway Volume — hết phụ thuộc Neon. 8 lượt/ngày (Hobby, 31/10/2026), gồm cuối tuần (tin vẫn ra).
   const CATALYST_SCANS = ["08:35", "09:35", "10:35", "11:35", "13:35", "14:35", "15:15", "20:30"].map((at, i) => ({ name: `catalystScan${i + 1}`, at, tradingDayOnly: false }));
   for (const c of CATALYST_SCANS) jobs[c.name] = () => qmsJobs.call("/api/catalysts/scan");
+  // K0 (06/11/2026): kho BCTC quý đầy đủ (VNDirect, Railway Volume) cho KQKD theo quý — 2 lượt/ngày, cả cuối tuần.
+  const kqkd = createKqkdService({ store });
+  const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false }];
+  jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
+  jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
-  const scheduler = createScheduler(jobs, { extraSchedule: [...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  const scheduler = createScheduler(jobs, { extraSchedule: [...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -163,7 +169,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -185,6 +191,8 @@ export function startMarketIngestor() {
       .catch((e) => console.warn(`[catalysts] quét bù lỗi: ${e.message}`));
   }, 120_000).unref?.();
   rt.elliottAlerts.start();
+  // K0: kho KQKD chưa có (lần đầu triển khai / volume mới) -> nạp sau 3 phút (bỏ qua mã đã nạp trong 20 giờ).
+  if (!rt.kqkd.hasData()) setTimeout(() => { rt.kqkd.refresh({ force: false, reason: "bootstrap" }).catch((e) => console.warn(`[kqkd] nạp lần đầu lỗi: ${e.message}`)); }, 180_000).unref?.();
   rt.preopen.startTimer();
   // Cycle Fingerprint: nạp sẵn thư viện vào worker (đọc file trên Volume nếu có) để yêu cầu đầu tiên không phải chờ dựng lại.
   setTimeout(() => { rt.cycles.warm().then((r) => console.log(`[cycles] nạp sẵn: ${JSON.stringify(r)}`)).catch((e) => console.warn(`[cycles] nạp sẵn lỗi: ${e.message}`)); }, 5_000).unref?.();
