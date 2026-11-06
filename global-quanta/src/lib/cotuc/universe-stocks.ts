@@ -80,11 +80,9 @@ export function buildUniverseStocks(p: {
     out.push({
       ticker: t, name: u.name || t, sector: u.industry || u.sector || 'Khác', price: price || 0,
       pe: 0, roe: 0, dividendYield: trailingYieldPct(ttm, price) ?? 0, payoutRatio: 0, debtEquity: 0, growth: 0,
-      marketCap: (u.avgValue20 ?? 0) >= 1e11 ? 'Large' : (u.avgValue20 ?? 0) >= 2e10 ? 'Mid' : 'Small',
-      eps: 0, fscore: 0, grossMargin: 0, pros: [], cons: [], technicalTrend: 'Neutral', rsi: 0, revenueGrowthQtr: 0, institutionalHold: 0,
+      fscore: 0, pros: [], cons: [], rsi: 0,
       exDividendDate: isoToVn(dates?.exDate), paymentDate: isoToVn(dates?.paymentDate), dividendAmount: last?.valuePerShare ?? 0,
-      catalystScore: 5, newsSentiment: '', sectorWaveScore: 0, agmDate: isoToVn(dates?.agmDate), agmAgenda: '', insiderStatus: '',
-      macroCatalyst: '', globalIndicator: '', globalTrend: '', isUniverseOnly: true,
+      catalystScore: null, agmDate: isoToVn(dates?.agmDate), isUniverseOnly: true,
     });
   }
   return out;

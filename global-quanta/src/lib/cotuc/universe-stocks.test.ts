@@ -34,8 +34,8 @@ describe('buildUniverseStocks', () => {
     expect(rows.map((r) => r.ticker)).toEqual(['PNJ', 'VIC']);
     const pnj = rows[0];
     expect(pnj).toMatchObject({ name: 'Vàng bạc Phú Nhuận', sector: 'Bán lẻ', price: 80000, dividendYield: 2.5, dividendAmount: 1400,
-      exDividendDate: '20/05/2026', agmDate: '20/04/2026', paymentDate: '05/06/2026', marketCap: 'Large', isUniverseOnly: true });
-    expect(rows[1]).toMatchObject({ dividendYield: 0, exDividendDate: '', marketCap: 'Small' });
+      exDividendDate: '20/05/2026', agmDate: '20/04/2026', paymentDate: '05/06/2026', isUniverseOnly: true });
+    expect(rows[1]).toMatchObject({ dividendYield: 0, exDividendDate: '' });
   });
 });
 
@@ -48,5 +48,34 @@ describe('cổ tức đặc biệt', () => {
   });
   it('thiếu lịch sử -> không gắn cờ', () => {
     expect(isSpecialDividend(ev([['2026-06-01', 9000]]), '2026-10-03')).toBe(false);
+  });
+});
+
+import { calcCatalystScore, DIVIDEND_STOCKS, detectRiskFlags, filterVerdict, DEFAULT_FILTER, getTradePhase, riskDataReady } from '../quant-cotuc';
+describe('BL0 dữ liệu sạch', () => {
+  it('17 mã gốc không còn số liệu viết tay: mọi số = 0 / rỗng, không điểm xúc tác mặc định, không xu hướng', () => {
+    expect(DIVIDEND_STOCKS).toHaveLength(17);
+    for (const s of DIVIDEND_STOCKS) {
+      expect([s.price, s.pe, s.roe, s.dividendYield, s.payoutRatio, s.debtEquity, s.growth, s.fscore, s.rsi, s.dividendAmount]).toEqual([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+      expect([s.pros, s.cons, s.exDividendDate, s.paymentDate, s.agmDate, s.catalystScore, s.priceTrend]).toEqual([[], [], '', '', '', null, null]);
+      expect(Object.keys(s)).not.toEqual(expect.arrayContaining(['agmAgenda']));
+    }
+  });
+  it('không có dữ liệu thật -> không cảnh báo giả, không điểm xúc tác, bộ lọc xu hướng = thiếu dữ liệu', () => {
+    const s = { ...DIVIDEND_STOCKS[0] };
+    expect(riskDataReady(s)).toBe(false);
+    expect(detectRiskFlags(s)).toEqual([]);
+    expect(calcCatalystScore(s)).toBeNull();
+    expect(filterVerdict(s, { ...DEFAULT_FILTER, trend: 'UP', hideStaleEvents: false })).toBe('MISSING_DATA');
+    expect(filterVerdict({ ...s, priceTrend: 'UP' }, { ...DEFAULT_FILTER, trend: 'UP', hideStaleEvents: false })).toBe('PASS');
+    expect(filterVerdict({ ...s, priceTrend: 'DOWN' }, { ...DEFAULT_FILTER, trend: 'UP', hideStaleEvents: false })).toBe('FAIL');
+  });
+  it('cảnh báo chỉ dùng số thật; giai đoạn "tăng nóng" cần xu hướng giá thật', () => {
+    const s = { ...DIVIDEND_STOCKS[0], fundamentalsReal: true, pe: 25, debtEquity: 1.2, rsi: 65 };
+    expect(detectRiskFlags(s)).toEqual(['Đòn bẩy nợ cao (>0.8x)', 'P/E cao hơn trung bình (>18x)']);
+    const d = new Date(Date.now() + 10 * 864e5); const vn = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    expect(getTradePhase({ ...s, exDividendDate: vn, priceTrend: 'UP' }).status).toBe('RUN_UP');
+    expect(getTradePhase({ ...s, exDividendDate: vn, priceTrend: null }).status).toBe('ACCUMULATION');
+    expect(calcCatalystScore({ ...s, catalystScore: 6, priceTrend: 'UP' })).toBe(7.5); // 6 + 1,5 (xu hướng tăng); RSI 65 ngoài 45–62
   });
 });
