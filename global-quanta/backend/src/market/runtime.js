@@ -17,7 +17,11 @@ import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.j
 import { expectsLiveTicks } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
-import { createKqkdService } from "./fundamentals/kqkdService.js";
+import { createKqkdService, kqkdDirFromEnv } from "./fundamentals/kqkdService.js";
+import { createAgmPlansService } from "./fundamentals/agmPlansService.js";
+import { callGeminiJSON } from "../services/geminiClient.js";
+import zlibAgm from "node:zlib";
+import fsAgm from "node:fs";
 import { createQmsJobs } from "./cotuc/qmsJobs.js";
 import { createTradingCalendarService } from "./tradingCalendar/tradingCalendarService.js";
 import { createAdjustedHistory } from "./adjusted/adjustedHistory.js";
@@ -143,10 +147,18 @@ export function getMarketRuntime() {
   const CATALYST_SCANS = ["08:35", "09:35", "10:35", "11:35", "13:35", "14:35", "15:15", "20:30"].map((at, i) => ({ name: `catalystScan${i + 1}`, at, tradingDayOnly: false }));
   for (const c of CATALYST_SCANS) jobs[c.name] = () => qmsJobs.call("/api/catalysts/scan");
   // K0 (06/11/2026): kho BCTC quý đầy đủ (VNDirect, Railway Volume) cho KQKD theo quý — 2 lượt/ngày, cả cuối tuần.
-  const kqkd = createKqkdService({ store });
-  const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false }];
+  // AGM-v1 (06/11/2026): kế hoạch ĐHĐCĐ (nghị quyết scan) — 2 mô hình Gemini chép độc lập + code kiểm; 30 mã/lượt, trần token/ngày.
+  const kqkdDir = kqkdDirFromEnv();
+  const readStatementsAgm = (t) => { try { return JSON.parse(zlibAgm.gunzipSync(fsAgm.readFileSync(`${kqkdDir}/${t}.json.gz`)).toString("utf8")); } catch { return null; } };
+  const agmPlans = createAgmPlansService({ dir: kqkdDir, callModel: (o) => callGeminiJSON(o), readStatements: readStatementsAgm,
+    universe: async () => fsAgm.readdirSync(kqkdDir).filter((f) => f.endsWith(".json.gz") && f !== "summary.json.gz").map((f) => f.slice(0, -8)).sort() });
+  const kqkd = createKqkdService({ store, getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
+  const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
+    { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
+  jobs.agmPlans = async () => { if (!process.env.GEMINI_API_KEY) return { skipped: "thiếu GEMINI_API_KEY" }; const r = await agmPlans.run({ limit: 30 }); if (r.processed) await kqkd.rebuildSummary("agm"); return r; };
+  jobs.agmPlansNight = () => jobs.agmPlans();
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
@@ -169,7 +181,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 

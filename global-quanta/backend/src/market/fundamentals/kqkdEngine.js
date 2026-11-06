@@ -473,7 +473,7 @@ export function buildSummaryRow(rec, { today, mcap = null } = {}) {
     z: q.altman?.z ?? null, zZone: q.altman?.zone ?? null, kpi: q.kpi ?? null,
     sueNpat: r2(standardizedSurprise(key("npatParent"), fiscalOf(last))), sueCore: r2(standardizedSurprise(key("core"), fiscalOf(last))),
     seasonDev: sT.qoq?.deviation ?? null, seasonDevNpat: sN.qoq?.deviation ?? null,
-    nowcast: sN.nowcast ? { growth: sN.nowcast.growth, est: sN.nowcast.est, lo: sN.nowcast.lo, hi: sN.nowcast.hi } : null,
+    nowcast: sN.nowcast ? { growth: sN.nowcast.growth, est: sN.nowcast.est, lo: sN.nowcast.lo, hi: sN.nowcast.hi, cumShare: sN.nowcast.cumShare } : null,
     heat, mcap, flags: flagsFor(tpl, d, q, mNpat, sN).map((f) => f.id),
   };
 }

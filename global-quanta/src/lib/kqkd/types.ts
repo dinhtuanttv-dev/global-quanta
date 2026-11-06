@@ -6,7 +6,15 @@ export type FlagId = "NON_CORE" | "HIGH_ACCRUAL" | "NEG_CFO" | "M_FLAG" | "Z_DIS
 export interface Deadline { quarterLabel: string; quarterEndDate: string; deadlineStandalone: string; deadlineConsolidated: string; daysUntilStandalone: number; daysUntilConsolidated: number; isEstimate: boolean }
 export type Kpi = Record<string, number | null>;
 
+/** AGM-v1 — kế hoạch ĐHĐCĐ. */
+export interface PlanItem { status: "VERIFIED" | "REVIEW" | "ABSENT"; vnd?: number | null; basis?: string; value?: number; unit?: string; rowLabel?: string | null; quote?: string | null; page?: number | null; ratioPrior?: number | null; priorCheck?: { printed: number; statement: number; diff: number; match: boolean } | null; reason?: string | null; sameScope?: boolean }
+export interface PlanView {
+  year: number; approved: boolean; draft: boolean; doc: { url: string; title: string; date: string; kind: string }; models: string[]; at: string;
+  items: Record<"revenue" | "pbt" | "npat", PlanItem>;
+  attainment: { metric: "npat" | "pbt"; basis: string; plan: number; ytd: number; through: number; done: number; typical: number | null; pace: number | null; nowcastVsPlan: number | null } | null;
+}
 export interface KqkdRow {
+  plan?: { approved: boolean; draft: boolean; metric: "npat" | "pbt" | null; done: number | null; pace: number | null; typical: number | null; nowcastVsPlan: number | null; verified: boolean } | null;
   t: string; tpl: Tpl; quarter: string; fiscal: string; created: string; current?: boolean;
   top: number | null; npat: number | null; core: number | null;
   npatYoY: Growth; coreYoY: Growth; topYoY: Growth;
@@ -24,6 +32,9 @@ export interface KqEvidence {
   nowcast: { pass: boolean; label: string; ic: number | null; p: number | null; spread: number | null; cohorts: number };
   accuracy: { pass: boolean; medianApe: number | null; medianApeNaive: number | null; coverage: number | null; target: [number, number]; n: number };
 }
+/** KQ-L1 — sổ theo dõi tiến của tăng trưởng ước tính cả năm. */
+export interface KqLedgerCohort { quarter: string; recorded: number; recordedFrom: string; status: "SCORED" | "PENDING"; withReturn: number; ic: number | null; spread: number | null; accuracy: { n: number; medianApe: number | null; coverage: number | null } | null }
+export interface KqLedger { version: string; asOf: string; entries: number; startedAt: string | null; cohorts: KqLedgerCohort[]; scoredCohorts: number; meanIc: number | null; meanSpread: number | null; rule: string }
 export interface KqkdSummary {
   evidence?: KqEvidence | null;
   version: string; label: string; asOf: string; fetchedAt: string | null; builtAt?: string; source: string;
@@ -60,6 +71,7 @@ export interface Season {
 export interface TtmPoint { quarter: string; fiscal: string; top: number | null; npatParent: number | null; core: number | null; cfo: number | null; topYoY: number | null; npatYoY: Growth; coreYoY: Growth; netMargin: number | null; roe: number | null }
 export interface KqkdDetail {
   evidence?: KqEvidence | null;
+  plan?: PlanView | null;
   version: string; label: string; available: boolean; ticker: string; tpl: Tpl; tplLabel: string; asOf: string; fetchedAt: string | null; mcap?: number | null;
   latest: { fiscal: string; quarter: string; created: string };
   metrics: { key: string; label: string }[]; matrix: Record<string, MatrixRow[]>;

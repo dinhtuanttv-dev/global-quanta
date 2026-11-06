@@ -256,7 +256,7 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
   }
 });
 // K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
-app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd }));
+app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

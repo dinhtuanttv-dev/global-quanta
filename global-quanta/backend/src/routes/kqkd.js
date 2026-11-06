@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -43,7 +43,20 @@ export function createKqkdRouter({ getService, adminToken = () => process.env.MA
   });
 
   router.get("/status", (_req, res) => res.json(getService().status()));
+  // KQ-L1: sổ theo dõi tiến của tăng trưởng ước tính cả năm.
+  router.get("/ledger", readRl, async (req, res) => {
+    try { send(req, res, await getService().ledger()); } catch (e) { fail(res, e); }
+  });
 
+  // AGM-v1: trạng thái + chạy một lượt thu kế hoạch ĐHĐCĐ (admin).
+  router.get("/agm/status", (_req, res) => res.json(getAgm?.()?.status?.() ?? { available: false }));
+  router.post("/admin/agm", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const agm = getAgm?.(); if (!agm) return res.status(503).json({ error: "Chưa bật." });
+    const limit = Math.max(1, Math.min(100, Number(req.query.limit) || 30));
+    void agm.run({ limit }).then(() => getService().rebuildSummary("agm")).catch((e) => console.warn(`[agm] admin lỗi: ${e.message}`));
+    res.status(202).json({ started: true, limit });
+  });
   router.post("/admin/refresh", (req, res) => {
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
     const svc = getService();

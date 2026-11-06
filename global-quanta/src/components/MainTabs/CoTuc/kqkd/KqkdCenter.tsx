@@ -3,15 +3,17 @@
 //   Piotroski, Altman, Beneish) · SUE · mùa vụ · ước tính cả năm · bản đồ nhiệt 12 quý · bản đồ 3D toàn thị trường · ngăn chi tiết từng mã.
 //   Nguồn: Gateway /api/fundamentals/kqkd/* (BCTC đầy đủ VNDirect trên Railway Volume). Nhãn MÔ TẢ.
 import { useMemo, useState } from "react";
-import { useKqkdSummary } from "../../../../hooks/useKqkd";
+import { useKqkdLedger, useKqkdSummary } from "../../../../hooks/useKqkd";
 import { bn, dmy, fin, growthText, num, pct, pctPlain, summaryCsv, downloadText, TPL_LABEL, TPL_SHORT } from "../../../../lib/kqkd/format";
 import type { KqkdRow, Tpl } from "../../../../lib/kqkd/types";
 import KqkdTickerDrawer from "./KqkdTickerDrawer";
 import { Market3D, TPL_COLOR } from "./Kqkd3D";
 
-type Filter = "all" | "ytdUp" | "coreUp" | "nonCore" | "accrual" | "beneish" | "altman" | "nowcastUp" | "notyet";
+type Filter = "all" | "planAhead" | "planBehind" | "ytdUp" | "coreUp" | "nonCore" | "accrual" | "beneish" | "altman" | "nowcastUp" | "notyet";
 const FILTERS: { id: Filter; label: string; test: (r: KqkdRow) => boolean; title: string }[] = [
   { id: "all", label: "Đã công bố", test: (r) => !!r.current, title: "Mã đã công bố quý mới nhất của thị trường" },
+  { id: "planAhead", label: "Nhanh hơn kế hoạch", test: (r) => !!r.current && fin(r.plan?.pace) && (r.plan!.pace as number) >= 1, title: "Lũy kế / kế hoạch ĐHĐCĐ cao hơn tỷ trọng lũy kế mùa vụ thường lệ (kế hoạch đã kiểm)" },
+  { id: "planBehind", label: "Chậm hơn kế hoạch", test: (r) => !!r.current && fin(r.plan?.pace) && (r.plan!.pace as number) < 0.9, title: "Lũy kế / kế hoạch thấp hơn 90% mức mùa vụ thường lệ" },
   { id: "ytdUp", label: "Lũy kế tăng", test: (r) => !!r.current && r.ytd?.growth?.status === "NORMAL" && (r.ytd.growth.value ?? 0) > 0, title: "LNST lũy kế từ đầu năm cao hơn cùng kỳ" },
   { id: "coreUp", label: "Cốt lõi tăng", test: (r) => !!r.current && r.coreYoY.status === "NORMAL" && (r.coreYoY.value ?? 0) > 0, title: "LN cốt lõi quý cao hơn cùng kỳ" },
   { id: "nonCore", label: "Lãi ngoài cốt lõi", test: (r) => !!r.current && r.flags.includes("NON_CORE"), title: "Hơn 50% LNTT quý đến từ ngoài hoạt động cốt lõi" },
@@ -53,6 +55,7 @@ function Heat({ r, quarters }: { r: KqkdRow; quarters: string[] }) {
 
 export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicker?: (t: string) => void; sectorOf?: (t: string) => string | null }) {
   const { data, error, isLoading } = useKqkdSummary();
+  const { data: ledger } = useKqkdLedger(!!data?.evidence);
   const [filter, setFilter] = useState<Filter>("all");
   const [tpl, setTpl] = useState<Tpl | "all">("all");
   const [sector, setSector] = useState<string>("");
@@ -168,7 +171,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
                   </td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums"><span className="block text-slate-200">{bn(r.npat)}</span><span className={`block ${g.cls}`} title={g.title}>{g.text}</span></td>
                   <td className={`border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums ${co.cls}`} title={co.title}>{co.text}</td>
-                  <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums"><span className="block text-slate-200">{r.ytd ? `${r.ytd.to === 4 ? "Năm" : `${r.ytd.to * 3}T`} ${bn(r.ytd.now, false)}` : "—"}</span><span className={`block ${yt.cls}`} title={yt.title}>{yt.text}</span></td>
+                  <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums"><span className="block text-slate-200">{r.ytd ? `${r.ytd.to === 4 ? "Năm" : `${r.ytd.to * 3}T`} ${bn(r.ytd.now, false)}` : "—"}</span><span className={`block ${yt.cls}`} title={yt.title}>{yt.text}</span>{fin(r.plan?.done) && <span className={`block text-[10px] ${fin(r.plan?.pace) && (r.plan!.pace as number) >= 1 ? "text-emerald-300" : "text-amber-300"}`} title={`Kế hoạch ĐHĐCĐ: đạt ${pctPlain(r.plan!.done, 0)}${fin(r.plan?.typical) ? ` (mọi năm thường đạt ${pctPlain(r.plan!.typical, 0)} tới lúc này)` : ""}`} data-testid="kq-plan-cell">KH {pctPlain(r.plan!.done, 0)}</span>}</td>
                   <td className={`border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums ${r.flags.includes("NON_CORE") ? "text-sky-300" : "text-slate-400"}`}>{fin(r.nonCoreShare) ? (r.nonCoreShare > 1 ? "> 100%" : r.nonCoreShare < -1 ? "< −100%" : pctPlain(r.nonCoreShare, 0)) : "—"}</td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums"><span className="block text-slate-200">{pctPlain(r.netMarginTtm)}</span><span className="block text-slate-400">{pctPlain(r.roe)}</span></td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums"><span className={`block ${fin(r.cfoToNpat) && r.cfoToNpat < 0 ? "text-amber-300" : "text-slate-200"}`}>{fin(r.cfoToNpat) ? `${num(r.cfoToNpat, 1)}×` : "—"}</span><span className={`block ${r.flags.includes("HIGH_ACCRUAL") ? "text-amber-300" : "text-slate-400"}`}>{pctPlain(r.accrual)}</span></td>
@@ -204,6 +207,25 @@ export default function KqkdCenter({ onSelectTicker, sectorOf }: { onSelectTicke
         </button>
         {show3d && <div className="px-3 pb-3"><Market3D rows={base} onPick={setOpen} /></div>}
       </section>
+
+      {ledger && (
+        <section className="rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-[11px]" data-testid="kq-ledger">
+          <p className="font-bold text-slate-200">📒 Sổ theo dõi tiến — ước tính tăng trưởng cả năm <span className="font-normal text-slate-400">({ledger.version}) · ghi một lần, không sửa · chấm sau 60 phiên</span></p>
+          {ledger.entries === 0 ? (
+            <p className="text-slate-400">Chưa có dòng: lứa đầu ({data.deadline.current?.quarterLabel ?? data.latestQuarter}) được ghi từ hạn nộp BCTC hợp nhất {dmy(data.deadline.current?.deadlineConsolidated ?? null)}; điểm đầu tiên khoảng 60 phiên sau đó.</p>
+          ) : (
+            <div className="mt-1 flex flex-wrap gap-2">
+              {ledger.cohorts.map((c) => (
+                <span key={c.quarter} className="rounded border border-white/10 px-2 py-0.5 text-slate-300" data-testid="kq-ledger-cohort">
+                  {c.quarter}: {c.recorded} mã từ {dmy(c.recordedFrom)} · {c.status === "SCORED" ? <>IC <b className={(c.ic ?? 0) > 0 ? "text-emerald-300" : "text-rose-300"}>{num(c.ic, 3)}</b> · Q5−Q1 {pct(c.spread, 1)}</> : "chờ đủ 60 phiên"}
+                  {c.accuracy && <> · sai số {pctPlain(c.accuracy.medianApe)}, trong dải {pctPlain(c.accuracy.coverage, 0)}</>}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="mt-1 text-[10px] text-slate-500">{ledger.rule}</p>
+        </section>
+      )}
 
       <p className="text-[10px] text-slate-500">
         Bấm mã để mở chi tiết: ma trận Q1–Q4 và lũy kế tới 20 năm, thác nước lợi nhuận, chất lượng & sức khoẻ, mùa vụ & ước tính cả năm, 3D/4D, so với ngành.
