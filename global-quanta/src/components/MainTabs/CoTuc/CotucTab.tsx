@@ -41,7 +41,7 @@ import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
 import { ErrorBoundary } from "../../ErrorBoundary";
-import EarningsQuarterPanel from "./EarningsQuarterPanel";
+import KqkdCenter from "./kqkd/KqkdCenter";
 import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
 import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
 import { useEarningsSignalsBulk } from "../../../hooks/useCotucSeasonalBulk";
@@ -940,8 +940,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       )}
 
       {subTab === "earnings" && (
-        <ErrorBoundary fallbackLabel="Không hiển thị được bảng KQKD">
-          <EarningsQuarterPanel onSelectTicker={openTicker} />
+        <ErrorBoundary fallbackLabel="Không hiển thị được KQKD theo quý">
+          <KqkdCenter onSelectTicker={openTicker} sectorOf={(t) => sectorByTicker.get(t) ?? null} />
         </ErrorBoundary>
       )}
 
