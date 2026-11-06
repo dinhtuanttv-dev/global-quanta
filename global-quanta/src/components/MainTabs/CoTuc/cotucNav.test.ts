@@ -8,7 +8,7 @@ describe("F1 — điều hướng PHÂN TÍCH CƠ BẢN", () => {
   });
 
   it("giữ đủ 7 mục cũ (không mất tính năng) và đặt đúng chỗ đã duyệt", () => {
-    for (const old of ["timeline", "screener", "calendar-v3", "timing-v3", "earnings", "ranking", "legacy"] as const) expect(old in GROUP_OF).toBe(true);
+    for (const old of ["timeline", "screener", "calendar-v3", "timing-v3", "earnings", "ranking"] as const) expect(old in GROUP_OF).toBe(true);
     expect(GROUP_OF.ranking).toBe("cotuc"); // Xếp hạng xác suất -> Cổ tức (đã duyệt)
     expect(GROUP_OF.seasonality).toBe("kqkd"); // Mùa vụ KQKD -> Kết quả kinh doanh (đã duyệt)
     expect(GROUP_OF.earnings).toBe("kqkd");
@@ -16,7 +16,7 @@ describe("F1 — điều hướng PHÂN TÍCH CƠ BẢN", () => {
     expect(VIEWS.filter((v) => GROUP_OF[v.id] === "timeline")).toHaveLength(0); // Timeline không có mục con mới
     expect(VIEWS.filter((v) => GROUP_OF[v.id] === "kqkd").map((v) => v.id)).toEqual(["quality", "earnings", "seasonality", "kqkd-calendar"]);
     expect(DEFAULT_LAST.kqkd).toBe("quality"); // F5: Chất lượng KQKD mở mặc định trong tab Kết quả kinh doanh
-    expect(VIEWS.filter((v) => GROUP_OF[v.id] === "cotuc").map((v) => v.id)).toEqual(["screener", "calendar-v3", "timing-v3", "ranking", "legacy"]);
+    expect(VIEWS.filter((v) => GROUP_OF[v.id] === "cotuc").map((v) => v.id)).toEqual(["screener", "calendar-v3", "timing-v3", "ranking"]); // LSK7: gỡ "Lưu trữ (bản cũ)"
   });
 
   it("mặc định mở Timeline điểm mua; nhớ mục cuối; dữ liệu lưu hỏng hoặc sai nhóm thì bỏ qua", () => {

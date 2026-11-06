@@ -112,3 +112,28 @@ export function crossCheck(e, rows) {
   if (conflict) return { level: "CONFLICT", source: conflict };
   return announced ? { level: "ANNOUNCED_2", source: announced } : { level: "SINGLE" };
 }
+
+/**
+ * LSK3 bản 1 (07/11/2026) — tin về phương án / kế hoạch cổ tức (tiêu đề tin CafeF, MÔ TẢ). KHÔNG tự tính "còn chưa trả":
+ * tiêu đề thường không ghi rõ năm tài chính và lẫn đề xuất / thông qua / chốt quyền. Trả tiêu đề nguyên văn + phân loại + tỷ lệ đọc được.
+ *   APPROVED: "thông qua", "ĐHCĐ … chia / trả / nâng cổ tức" · PROPOSED: "trình", "dự kiến", "kế hoạch", "đặt mục tiêu", "lên kế hoạch" ·
+ *   RECORD: "chốt quyền / chốt danh sách / GDKHQ / ĐKCC" (đã có lịch — xem Lịch sự kiện).
+ */
+export function dividendPlanNews(rows, since) {
+  const out = [];
+  for (const [date, title] of rows ?? []) {
+    if (since && date < since) continue;
+    const s = strip(title);
+    if (!/co tuc/.test(s)) continue;
+    // % phải đứng sau "cổ tức" (≤ 45 ký tự) và không phải "% lợi nhuận" (tỷ lệ chi trả trên lợi nhuận, không phải % mệnh giá)
+    const pct = /co tuc[^%]{0,45}?(\d{1,3}(?:[.,]\d+)?)\s*%(?!\s*(?:loi nhuan|lnst))/.exec(s), dps = /(\d{1,3}(?:\.\d{3})*|\d+)\s*d(?:ong)?\s*\/\s*cp/.exec(s);
+    if (!pct && !dps && !/khong chia co tuc/.test(s)) continue;
+    const status = /(chot quyen|chot danh sach|gdkhq|dkcc|ngay dang ky)/.test(s) ? "RECORD"
+      : /(thong qua|nang ty le|nang co tuc|tang co tuc|(dhcd|dhdcd)[^,]*:)/.test(s) && !/(trinh|du kien)/.test(s) ? "APPROVED"
+      : /(trinh|du kien|ke hoach|muc tieu|len ke hoach|dat ke hoach)/.test(s) ? "PROPOSED" : "OTHER";
+    const kind = /(co phieu|cp thuong|thuong co phieu)/.test(s) && !/(tien mat|bang tien)/.test(s) ? "STOCK" : /(tien mat|bang tien)/.test(s) ? "CASH" : "UNSPECIFIED";
+    const yr = /nam\s*(20\d{2})/.exec(s);
+    out.push({ date, title: String(title).trim(), status, kind, pct: pct ? Number(pct[1].replace(",", ".")) : null, dps: dps ? Number(dps[1].replace(/\./g, "")) : null, none: /khong chia co tuc/.test(s), yearInTitle: yr ? Number(yr[1]) : null });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date));
+}

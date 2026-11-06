@@ -20,7 +20,6 @@ import { useDividendEvents } from "../../../hooks/useDividendEvents";
 import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
 import { DividendTimelinePanel } from "./DividendTimelinePanel";
 import { CycleTimingPanel } from "./CycleTimingPanel";
-import { CycleRankingPanel } from "./CycleRankingPanel";
 import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
 import { optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
@@ -51,6 +50,7 @@ import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
 import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
+import { useCorpEvents } from "../../../hooks/useCorpEvents";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
@@ -353,7 +353,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // F4 (06/11/2026): tải theo nhu cầu — dữ liệu chỉ phục vụ Bộ lọc / hồ sơ mã / lịch chưa tải khi đang ở Timeline.
   const [need, setNeed] = useState({ screener: group === "cotuc" });
   // "🗂 Bản cũ": Lịch GDKHQ v1 và Xếp hạng v2 (engine cũ, 17 mã) — giữ để đối chiếu, không xoá chức năng.
-  const [legacyView, setLegacyView] = useState<"calendar" | "timing" | null>(null);
   const buyTimeline = useBuyTimeline();
   // Giai Trinh Timing v3 (Giai doan 4): sub-tab moi RIENG, ngang hang
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
@@ -590,27 +589,17 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // Danh sach da ghim luon hien dau, khong phu thuoc bo loc
   const pinnedStocks = useMemo(() => allStocksWithUniverse.filter((s) => pinned.includes(s.ticker)), [allStocksWithUniverse, pinned]);
 
+  // LSK7: "Sắp GDKHQ / Sắp ĐHCĐ" lấy từ kho sự kiện Gateway (mọi sự kiện, cùng nguồn với Lịch sự kiện) thay vì 1 ngày gần nhất mỗi mã.
+  const { data: corpEvents } = useCorpEvents(true);
   const stats = useMemo(() => {
     const yieldAvg = allStocksWithUniverse.reduce((s, x) => s + x.dividendYield, 0) / allStocksWithUniverse.length;
     const highYield = allStocksWithUniverse.filter((x) => x.dividendYield >= 5).length;
-    const upcoming = allStocksWithUniverse.filter((x) => {
-      const d = getDaysUntil(x.exDividendDate);
-      return d !== null && d >= 0 && d <= UPCOMING_WINDOW_DAYS;
-    }).length;
-    const upcomingAGM = allStocksWithUniverse.filter((x) => {
-      const d = getDaysUntil(x.agmDate);
-      return d !== null && d >= 0 && d <= UPCOMING_WINDOW_DAYS;
-    });
-    return { yieldAvg, highYield, upcoming, upcomingAGM };
-  }, [allStocksWithUniverse]);
-
-  const calendarList = useMemo(() =>
-    [...allStocksWithUniverse].sort((a, b) => {
-      const da = getDaysUntil(a.exDividendDate) ?? 9999;
-      const db = getDaysUntil(b.exDividendDate) ?? 9999;
-      return da - db;
-    }), [allStocksWithUniverse]
-  );
+    const lim = new Date(Date.parse(`${todayIso}T00:00:00Z`) + UPCOMING_WINDOW_DAYS * 864e5).toISOString().slice(0, 10);
+    const evs = corpEvents?.events ?? [];
+    const exT = new Set(evs.filter((e) => ["CASH", "STOCK", "BONUS"].includes(e.cat) && e.ex && e.ex >= todayIso && e.ex <= lim).map((e) => e.t));
+    const agm = [...new Set(evs.filter((e) => e.cat === "AGM" && e.meeting && e.meeting >= todayIso && e.meeting <= lim).sort((a, b) => a.meeting!.localeCompare(b.meeting!)).map((e) => e.t))];
+    return { yieldAvg, highYield, upcoming: exT.size, upcomingAGM: agm.map((ticker) => ({ ticker })) };
+  }, [allStocksWithUniverse, corpEvents, todayIso]);
 
   const handleSort = (field: string) => {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -860,44 +849,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         </div>
       )}
 
-      {subTab === "legacy" && (
-        <div className="tw-scope flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 text-[10.5px]" style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <span className="text-slate-500">Phiên bản cũ (giữ để đối chiếu, chọn để mở):</span>
-          {([["calendar", "📅 Lịch GDKHQ & ĐHCĐ (v1)"], ["timing", "🎯 Xếp hạng xác suất (v2 · 17 mã)"]] as const).map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setLegacyView(legacyView === id ? null : id)} aria-pressed={legacyView === id}
-              className={`rounded-md border px-2 py-0.5 font-semibold ${legacyView === id ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{label}</button>
-          ))}
-          <span className="ml-auto text-slate-600">Bản mới: 🗓️ Lịch Sự Kiện · 🎯 Xếp Hạng Xác Suất (toàn danh mục)</span>
-        </div>
-      )}
-
-      {subTab === "legacy" && legacyView === "calendar" && (
-        <div className="space-y-2">
-          {calendarList.map((s) => {
-            const gdkhqDays = getDaysUntil(s.exDividendDate);
-            const past = gdkhqDays !== null && gdkhqDays < 0;
-            const urgent = gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= 7;
-            return (
-              <div key={s.ticker} onClick={() => handleSelect(s)}
-                className={`rounded-xl p-3.5 flex items-center gap-3 cursor-pointer hover:brightness-110 transition ${
-                  urgent ? "cf-banner-negative" : past ? "cf-panel-muted opacity-60" : "cf-panel-calendar"}`}>
-                <div className={`w-14 text-center shrink-0 p-2 rounded-xl border ${urgent ? "border-rose-700 bg-rose-950" : "border-cf-border-strong bg-cf-base/60"}`}>
-                  {past ? <span className="text-xs text-cf-tertiary font-bold">Đã qua</span> : <span className={`text-lg font-black block num ${urgent ? "text-rose-400 animate-pulse" : "text-cf-gold"}`}>{gdkhqDays}</span>}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <span className="font-black text-cf-gold">{s.ticker}</span>
-                  <span className="text-[10px] text-cf-secondary ml-2">{s.name}</span>
-                  <div className="flex flex-wrap gap-3 text-[10px] text-cf-secondary mt-1">
-                    <span>📅 GDKHQ: <b className="text-cf-gold num">{s.exDividendDate}</b></span>
-                    <span>💵 <b className="text-cf-positive num">{fmtVND(s.dividendAmount)}/cp</b></span>
-                  </div>
-                </div>
-                <ScoreBadge score={calcRealDividendQualityScore(s, realRsMap[s.ticker], detectRiskFlags(s).length)} isReal={isQualityScoreReal(s)} />
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {subTab === "earnings" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được KQKD theo quý">
@@ -911,11 +862,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         </ErrorBoundary>
       )}
 
-      {subTab === "legacy" && legacyView === "timing" && (
-        <ErrorBoundary fallbackLabel="Không hiển thị được bảng xếp hạng xác suất (v2)">
-          <CycleRankingPanel onSelectTicker={openTicker} />
-        </ErrorBoundary>
-      )}
 
       {subTab === "timing-v3" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Thời Điểm Tối Ưu (v3)">
@@ -923,7 +869,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
             <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Thời Điểm Tối Ưu (v3)</p>
             {Object.keys(realDatesMap).length === 0 && (
               <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
-                ⚠ Ngày GDKHQ/ĐHCĐ đang là dữ liệu mẫu (VCI tạm lỗi) — kết quả bên dưới chỉ mang tính minh họa.
+                ⚠ Chưa tải được ngày GDKHQ / ĐHCĐ thật (nguồn sự kiện tạm lỗi) — mã chưa có ngày sẽ không có khuyến nghị thời điểm.
               </div>
             )}
             <select

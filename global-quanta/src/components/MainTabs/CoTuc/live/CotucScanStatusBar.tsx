@@ -50,7 +50,7 @@ export function CotucScanStatusBar({ universeCount, className }: { universeCount
               <span className="font-mono tabular-nums text-slate-400">{Math.round(t.progress * 100)}%</span>
             </span>
           )}
-          <span className="text-slate-400">Lô gần nhất <span className="font-mono tabular-nums text-slate-200">{hhmmss(t.lastBatchAt)}</span> <span className="text-slate-500">({ago(t.lastBatchAt, now)})</span></span>
+          {t.lastBatchAt ? <span className="text-slate-400">Lô gần nhất <span className="font-mono tabular-nums text-slate-200">{hhmmss(t.lastBatchAt)}</span> <span className="text-slate-500">({ago(t.lastBatchAt, now)})</span></span> : <span className="text-slate-500">chưa có lô nào trong phiên này</span>}
           {t.lastResult?.liveQuotes != null && <span className="text-slate-500">giá trong phiên: <span className="font-mono tabular-nums">{t.lastResult.liveQuotes}</span> mã</span>}
           {t.lastPassAt && <span className="text-slate-500">hết vòng gần nhất {hhmmss(t.lastPassAt)}</span>}
           {t.lastError && <span className="text-amber-300" title={t.lastError.message}>⚠ lô lỗi lúc {hhmmss(t.lastError.at)} — sẽ thử lại</span>}

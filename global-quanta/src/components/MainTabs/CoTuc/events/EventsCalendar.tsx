@@ -10,6 +10,7 @@ import { addDays, calendarIcs, type CeGroup, type CorpEvent, filterEvents, GROUP
 import { dmy, downloadText, pctPlain, toCsv } from "../../../../lib/kqkd/format";
 import { GanttView, MonthGrid, TickerEventsDrawer } from "./EventViews";
 import HabitsPanel from "./HabitsPanel";
+import { ExStudyMarket } from "./ExDatePanels";
 
 type View = "list" | "month" | "gantt";
 const VIEW_KEY = "gq.events.view.v1";
@@ -122,6 +123,7 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
         </table>
       </div>}
       {view === "list" && groups.has("DIVIDEND") && <HabitsPanel days={days} onTicker={setDrawer} />}
+      {view === "list" && groups.has("DIVIDEND") && <ExStudyMarket />}
       {drawer && <TickerEventsDrawer ticker={drawer} price={livePrices[drawer]} onClose={() => setDrawer(null)} onOpenProfile={(t) => { setDrawer(null); onSelectTicker(t); }} />}
 
       {data.changes.length > 0 && (

@@ -12,7 +12,10 @@ const doc = {
     ev({ t: "IDJ", type: "alert", cat: "WARNING", group: "STATUS", label: "Diện cảnh báo", ex: null, date: "2026-11-20", cash: null })],
   changes: [{ at: "2026-11-06T10:00:00Z", kind: "CHANGED" as const, id: "x", t: "TNG", cat: "CASH", label: "Cổ tức tiền", field: "ex", from: "2026-11-09", to: "2026-11-10", date: "2026-11-10", title: "Trả cổ tức" }],
 };
-vi.mock("../../../../hooks/useCorpEvents", () => ({ useCorpEvents: () => ({ data: doc, error: null, isLoading: false }), useCorpEventsTicker: (t: string | null) => (t ? { ticker: t, events: hist } : null), useDividendHabits: () => ({ version: "DF-v1", label: "MÔ TẢ", test: "DF-r1 KHÔNG ĐẠT", asOf: "2026-11-07", days: 30, rows: [{ t: "BMP", usual: "2026-11-13", paidYears: 4, years: 4, lastEx: "2025-11-17", lastCash: 6500 }, { t: "PLX", usual: "2026-11-09", paidYears: 1, years: 4, lastEx: "2022-11-09", lastCash: 1200 }] }) }));
+vi.mock("../../../../hooks/useCorpEvents", () => ({ useCorpEvents: () => ({ data: doc, error: null, isLoading: false }), useCorpEventsTicker: (t: string | null) => (t ? { ticker: t, events: hist } : null), useExStudyMarket: () => ({ version: "XD-v1", builtAt: "2026-11-06T12:45:00Z", events: 138, aggregate: { all: { n: 138, dropRatioMedian: 1, dropRatio: { n: 138, mean: 0.94, lo: 0.69, hi: 1.18 }, fillWithin20: 0.65, fillDaysMedian: 5, neverFilled60: 0.25, carPre: { n: 138, mean: 0.011, lo: -0.0004, hi: 0.0219 }, carAnn: { n: 138, mean: -0.004, lo: -0.01, hi: 0.003 }, carPost: { n: 129, mean: -0.001, lo: -0.03, hi: 0.03 } }, byYield: {} } }),
+  useExStudyTicker: () => ({ version: "XD-v1", builtAt: "x", summary: { n: 2, dropRatioMedian: 0.9, fillDaysMedian: 4, fillWithin20: 1, events: [{ ex: "2025-06-10", cash: 3000, yieldCum: 0.05, dropRatio: 0.9, fillDays: 4, pending: false, carPre: 0.01, carAnn: -0.02, carPost: 0.03 }] }, market: null }),
+  usePlanNews: () => ({ ticker: "VNM", rows: [{ date: "2026-04-20", title: "ĐHĐCĐ Vinamilk: thông qua cổ tức 40%", status: "APPROVED", kind: "CASH", pct: 40, dps: null, none: false, yearInTitle: null }] }),
+  useDividendHabits: () => ({ version: "DF-v1", label: "MÔ TẢ", test: "DF-r1 KHÔNG ĐẠT", asOf: "2026-11-07", days: 30, rows: [{ t: "BMP", usual: "2026-11-13", paidYears: 4, years: 4, lastEx: "2025-11-17", lastCash: 6500 }, { t: "PLX", usual: "2026-11-09", paidYears: 1, years: 4, lastEx: "2022-11-09", lastCash: 1200 }] }) }));
 const hist = [2022, 2023, 2024, 2025].map((y, i) => ev({ t: "VNM", id: `h${y}`, year: y, ex: `${y + 1}-06-1${i}`, date: `${y + 1}-06-1${i}`, disclosed: `${y + 1}-05-2${i}`, cash: 3000 + i * 500 }));
 import EventsCalendar from "./EventsCalendar";
 
@@ -44,6 +47,7 @@ describe("LSK0/LSK1 Lịch sự kiện", () => {
     expect(el.querySelector('[data-testid="ce-changes"]')!.textContent).toContain("GDKHQ 2026-11-09 → 2026-11-10");
     expect(el.querySelectorAll('[data-testid="ce-habit-row"]').length).toBe(1); // mặc định chỉ mã đã trả ≥ 2 năm
     expect(el.querySelector('[data-testid="ce-habits"]')!.textContent).toContain("MÔ TẢ");
+    expect(el.querySelector('[data-testid="ce-exstudy"]')!.textContent).toContain("138 lần trả tiền mặt");
     await act(async () => { (el.querySelector('[data-testid="ce-h-90"]') as HTMLButtonElement).click(); });
     expect(el.querySelectorAll('[data-testid="ce-row"]').length).toBe(3);
     await act(async () => { (el.querySelector('[data-testid="ce-g-STATUS"]') as HTMLButtonElement).click(); });
@@ -51,6 +55,8 @@ describe("LSK0/LSK1 Lịch sự kiện", () => {
     await act(async () => { (el.querySelectorAll('[data-testid="ce-row"]')[1].querySelector("button") as HTMLButtonElement).click(); });
     const dr = el.querySelector('[data-testid="ce-drawer"]')!;
     expect(dr.textContent).toContain("VNM"); expect(el.querySelector('[data-testid="ce-streak"]')!.textContent).toBe("4");
+    expect(el.querySelector('[data-testid="ce-ex-ticker"]')!.textContent).toContain("4 phiên");
+    expect(el.querySelector('[data-testid="ce-plan-news"]')!.textContent).toContain("Đã thông qua");
     expect(el.querySelector('[data-testid="ce-hist"]')!.textContent).toContain("2025");
     await act(async () => { ([...dr.querySelectorAll("button")].find((b) => b.textContent === "Mở hồ sơ mã") as HTMLButtonElement).click(); });
     expect(opened).toEqual(["VNM"]); expect(el.querySelector('[data-testid="ce-drawer"]')).toBeNull();
