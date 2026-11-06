@@ -47,6 +47,9 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
   const [filter, setFilter] = useState<Filter>("ranked");
   const [sort, setSort] = useState<Sort>("score");
   const [q, setQ] = useState("");
+  // Phân trang: 262 mã cùng lúc = trang ~12.800px; mặc định 50, "Xem thêm" 50 mỗi lần; đổi bộ lọc/sắp xếp/tìm -> về 50.
+  const PAGE = 50;
+  const [limit, setLimit] = useState(PAGE);
   const rows = useMemo(() => {
     if (!data) return [];
     const f = FILTERS.find((x) => x.id === filter)!;
@@ -91,7 +94,7 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
           {FILTERS.map((f) => {
             const n = data.rows.filter(f.test).length;
             return (
-              <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} title={f.title} data-testid={`eq-filter-${f.id}`} onClick={() => setFilter(f.id)}
+              <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} title={f.title} data-testid={`eq-filter-${f.id}`} onClick={() => { setFilter(f.id); setLimit(PAGE); }}
                 className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${filter === f.id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
                 {f.label} <span className="font-mono text-slate-500">{n}</span>
               </button>
@@ -99,11 +102,11 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
           })}
         </div>
         <label className="ml-auto flex items-center gap-1 text-[11px] text-slate-400">Sắp xếp
-          <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-slate-200" data-testid="eq-sort">
+          <select value={sort} onChange={(e) => { setSort(e.target.value as Sort); setLimit(PAGE); }} className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-slate-200" data-testid="eq-sort">
             {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </label>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Lọc mã…" aria-label="Lọc mã" className="w-24 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-slate-200" />
+        <input value={q} onChange={(e) => { setQ(e.target.value); setLimit(PAGE); }} placeholder="Lọc mã…" aria-label="Lọc mã" className="w-24 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-slate-200" />
       </div>
 
       <div className="overflow-x-auto">
@@ -123,7 +126,7 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => {
+            {rows.slice(0, limit).map((r) => {
               const st = STATUS_VI[r.npatStatus];
               return (
                 <tr key={r.ticker} className="align-middle hover:bg-white/[0.03]" data-testid="eq-row">
@@ -157,6 +160,13 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
           </tbody>
         </table>
         {!rows.length && <p className="py-4 text-center text-[11px] text-slate-500">Không có mã nào trong nhóm này.</p>}
+        {rows.length > limit && (
+          <div className="flex items-center justify-center gap-3 py-2 text-[11px] text-slate-400">
+            <span>Đang hiện {limit}/{rows.length} mã</span>
+            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="eq-more" className="rounded-md border border-[#E8B84B]/40 px-3 py-1 font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
+            <button type="button" onClick={() => setLimit(rows.length)} className="rounded-md border border-white/10 px-3 py-1 hover:text-slate-200">Hiện tất cả</button>
+          </div>
+        )}
       </div>
       <p className="text-[10px] text-slate-500">
         Điểm 0–100 = hạng phần trăm có trọng số: SUE 40% · SUR 20% · LNST YoY 20% · DT YoY 10% · Δ biên 10%. Tăng trưởng kỳ gốc dưới 5 tỷ hoặc dưới 10% mức thường lệ (nền thấp), hoặc đổi dấu lỗ/lãi, không dùng để xếp hạng; tăng trưởng giới hạn trong −100% … +300%. Chỉ xếp hạng mã đã công bố {data.latestQuarter}. {data.method.noteVi}
