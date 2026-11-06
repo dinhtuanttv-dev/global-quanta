@@ -143,3 +143,20 @@ export interface KqkdDetail {
   space: { surface: { years: number[]; z: (number | null)[][]; color: (number | null)[][] }; trajectory: { quarter: string; x: number; y: number; z: number; npat: number | null }[] };
   flags: { id: FlagId; text: string }[]; method: { core: string; pit: string; label: string };
 }
+
+/** S8 — Mùa vụ bản THĂM DÒ: ngày làm mốc = ngày công bố thật (tin công bố của doanh nghiệp trên CafeF). */
+export interface SeasonalityX {
+  version: string; builtAt: string; ticker: string; items: SeasonalityBundle["items"];
+  sources: { cafef: number; vnd: number; added: number } | null; announce: Record<string, string[]> | null;
+  cafef: { fiscal: string; date: string; tier: "FILING" | "PRESS"; title: string }[];
+}
+export interface CafefEvaluate {
+  version: string; at: string; official: number; found: number; ok: number; precision: number | null; recall: number | null;
+  byTier: Record<"FILING" | "PRESS", { n: number; ok: number }>; coverage2020: { of: number; found: number; share: number | null };
+  vndLag: { median: number; share2plus: number } | null; pass: boolean; rule: string;
+}
+export interface SeasonXStatus {
+  seasonX: { version: string; running: boolean; progress: { done: number; total: number } | null; index: { builtAt: string; tickers: number; failed: number; sources: { cafef: number; vnd: number; added: number } } | null } | null;
+  cafef: { running: boolean; total: number; reached: number; reached2013: number } | null;
+  evaluate: CafefEvaluate | null;
+}

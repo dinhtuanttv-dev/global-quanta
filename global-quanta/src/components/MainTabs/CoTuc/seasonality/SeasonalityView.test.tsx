@@ -23,7 +23,10 @@ vi.mock("../../../../hooks/useKqkd", () => ({
   useKqkdCalendar: () => ({ data: calMock.v, error: null, isLoading: false }),
   useSeasonMap: () => ({ data: map, error: null, isLoading: false }),
   useSeasonLedger: () => ({ data: ledger, error: null, isLoading: false }),
+  useSeasonalityX: (t: string | null) => ({ data: t === "FPT" ? xMock.v : null, error: null, isLoading: false }),
+  useSeasonXStatus: () => ({ seasonX: null, cafef: null, evaluate: { version: "CA-v1", at: "", official: 400, found: 380, ok: 372, precision: 0.979, recall: 0.95, byTier: { FILING: { n: 380, ok: 372 }, PRESS: { n: 0, ok: 0 } }, coverage2020: { of: 100, found: 90, share: 0.9 }, vndLag: { median: 1, share2plus: 0.37 }, pass: true, rule: "" } }),
 }));
+const xMock: { v: unknown } = { v: null };
 const calMock: { v: unknown } = { v: null };
 const win = (id: string, status: string, n: number, net: number) => ({ id, label: id.toUpperCase(), n, net, lcb: net - 0.02, q: 0.3, win: 0.5, status });
 const quarter = (status: string, n: number, net: number) => ({ n, selected: status === "SELECTED" ? "e2" : null, status, best: { id: "e2", net, lcb: net - 0.02, q: 0.3 }, windows: [win("e1", "THIN", n, -0.01), win("e2", status, n, net)] });
@@ -32,7 +35,7 @@ const map = { version: "SM-v1", builtAt: "2026-11-07T03:20:00Z", sourceAsOf: "20
     HPG: { months: {}, q: { 1: quarter("THIN", 5, 0.0), 2: quarter("THIN", 5, 0.0), 3: quarter("THIN", 5, 0.0), 4: quarter("THIN", 5, 0.0) } } } };
 const ledger = { version: "SM-v1", startedAt: "2026-11-07", total: 1, scored: 0, summary: {}, rule: "Ghi một lần trước kỳ.",
   entries: [{ t: "FPT", fiscal: "2026-12-31", quarter: "Q4/2026", window: "e2", label: "E2", status: "WATCH", backtest: { n: 7, net: 0.031, lcb: 0.01, q: 0.15, win: 0.7 }, expected: "2027-01-26", recordedAt: "2027-01-05", sourceAsOf: "2026-11-06" }] };
-import SeasonalityView, { pickDefaultTicker, SEASON_MODE_KEY, SEASON_TICKER_KEY } from "./SeasonalityView";
+import SeasonalityView, { pickDefaultTicker, SEASON_ANCHOR_KEY, SEASON_MODE_KEY, SEASON_TICKER_KEY } from "./SeasonalityView";
 
 async function mount(node: React.ReactNode) {
   const el = document.createElement("div"); document.body.appendChild(el);
@@ -42,7 +45,7 @@ async function mount(node: React.ReactNode) {
 }
 
 describe("S1/S3/S5/S7 Mùa vụ KQKD", () => {
-  afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = ""; clearPrimed(); try { localStorage.removeItem(SEASON_TICKER_KEY); localStorage.removeItem(SEASON_MODE_KEY); } catch { /* */ } });
+  afterEach(() => { vi.unstubAllGlobals(); document.body.innerHTML = ""; clearPrimed(); try { localStorage.removeItem(SEASON_TICKER_KEY); localStorage.removeItem(SEASON_MODE_KEY); localStorage.removeItem(SEASON_ANCHOR_KEY); } catch { /* */ } });
 
   it("S1 mã mở sẵn: xem gần nhất -> ghim -> sắp công bố -> FPT", () => {
     const list = ["AAA", "FPT", "HPG"];
@@ -103,6 +106,30 @@ describe("S1/S3/S5/S7 Mùa vụ KQKD", () => {
     await act(async () => { (el.querySelector('[data-testid="season-map-open"]') as HTMLButtonElement).click(); });
     expect(el.querySelector('[data-testid="season-context"]')).toBeTruthy(); // quay về chế độ theo mã
     delete bundle.context!.pooled; calMock.v = null;
+  });
+
+  it("S8 ngày làm mốc: đổi sang bản THĂM DÒ hiển thị bằng chính component cũ (đệm riêng), so sánh trạng thái cửa sổ; đổi lại bản chính", async () => {
+    const calls: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => { calls.push(String(url)); return String(url).includes("earnings-signals") ? new Response(JSON.stringify(real.signals), { status: 200 }) : new Response("{}", { status: 500 }); }));
+    const s3 = JSON.parse(JSON.stringify(items["stats:3"].body)) as { windows: { nEvents: number; fdrQValue: number; netExpectancyLcb: number }[] };
+    for (const w of s3.windows) { w.fdrQValue = 0.05; w.netExpectancyLcb = 0.01; }
+    xMock.v = { version: "SX-v1", builtAt: "2026-11-06T18:00:00Z", ticker: "FPT", items: { ...items, "stats:3": { status: 200, body: s3 } }, sources: { cafef: 22, vnd: 7, added: 0 }, announce: null, cafef: [{ fiscal: "2025-09-30", date: "2025-10-21", tier: "FILING", title: "FPT: Kết quả kinh doanh 9 tháng năm 2025" }] };
+    const el = await mount(<SeasonalityView tickers={["FPT"]} value="FPT" onChange={() => {}} />);
+    expect(el.querySelector('[data-testid="season-anchor"]')).toBeTruthy();
+    expect(el.querySelector('[data-testid="season-x-compare"]')).toBeNull();
+    await act(async () => { (el.querySelector('[data-testid="season-anchor-x"]') as HTMLButtonElement).click(); });
+    for (let i = 0; i < 6; i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    const cmp = el.querySelector('[data-testid="season-x-compare"]')!;
+    expect(cmp.textContent).toContain("98%");
+    expect(cmp.textContent).toContain("22/29");
+    expect(Number(el.querySelector('[data-testid="season-x-changed"]')!.textContent!.split("/")[0])).toBeGreaterThan(0);
+    expect(el.textContent).toContain("Mùa vụ KQKD · FPT"); // component cũ vẫn hiển thị
+    expect(localStorage.getItem(SEASON_ANCHOR_KEY)).toBe("x");
+    await act(async () => { (el.querySelector('[data-testid="season-anchor-official"]') as HTMLButtonElement).click(); });
+    for (let i = 0; i < 6; i++) await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(el.querySelector('[data-testid="season-x-compare"]')).toBeNull();
+    expect(calls.filter((u) => /earnings-cycle|annual-earnings-calendar/.test(u))).toEqual([]);
+    xMock.v = null;
   });
 });
 
