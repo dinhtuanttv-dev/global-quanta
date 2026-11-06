@@ -284,7 +284,7 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
           market: { byQ: pool("all", new Set(es.events.map((e) => e.t))) } };
       }
     } catch (e) { log.warn?.(`[kqkd] gộp ngành ${t}: ${e.message}`); }
-    return { version: SB_VERSION, ticker: t, fetchedAt: new Date(b.at).toISOString(), cached: b.cached, stale: b.stale, source: seasonalityBundle.base, items: b.items, audit, context };
+    return { version: SB_VERSION, ticker: t, fetchedAt: new Date(b.at).toISOString(), cached: b.cached, stale: b.stale, source: b.origin === "store" ? "gateway-store" : seasonalityBundle.base, origin: b.origin ?? "projectA", items: b.items, audit, context };
   }
 
   function status() {

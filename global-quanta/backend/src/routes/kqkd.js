@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, getSeasonOracle = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -61,6 +61,15 @@ export function createKqkdRouter({ getService, getAgm = null, getEventStudy = nu
     const sm = getSeasonMap?.(); if (!sm) return res.status(503).json({ error: "Chưa bật." });
     void sm.build().then(() => sm.ledgerTick()).catch((e) => console.warn(`[season-map] admin lỗi: ${e.message}`));
     res.status(202).json({ started: true });
+  });
+  // SD-v1: đối chiếu kho Gateway với 3 route Project A (mọi mã × 9 mục) — chạy nền (admin), xem kết quả công khai.
+  router.get("/season-oracle", (_req, res) => res.json(getSeasonOracle?.()?.status?.() ?? { available: false }));
+  router.post("/admin/season-oracle", (req, res) => {
+    if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+    const o = getSeasonOracle?.(); if (!o) return res.status(503).json({ error: "Chưa bật." });
+    const limit = Number(req.query.limit) > 0 ? Math.min(400, Number(req.query.limit)) : null;
+    void o.run({ limit }).catch((e) => console.warn(`[season-oracle] lỗi: ${e.message}`));
+    res.status(202).json({ started: true, limit });
   });
   // LC4: lịch công bố KQKD (mùa hiện tại + mùa kế tiếp).
   router.get("/calendar", readRl, async (req, res) => {

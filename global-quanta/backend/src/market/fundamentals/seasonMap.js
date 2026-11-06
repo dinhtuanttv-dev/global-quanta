@@ -1,4 +1,5 @@
 // S2 + S6 (06/11/2026) — Mùa vụ KQKD toàn thị trường + sổ theo dõi tiến cho cửa sổ "THEO DÕI" / "ĐẠT".
+//   SD-v1: đọc thẳng kho "season" trên Gateway (seasonStore.js) — Project A chỉ là dự phòng khi kho lỗi.
 //   S2: gom thống kê Project A (earnings-cycle-stats × 4 quý + annual-earnings-calendar) của ~284 mã MỘT LẦN MỖI TUẦN (CN 03:20,
 //       tuần tự 2 luồng, ~1.420 lần gọi/tuần — không gọi lúc người dùng mở trang) -> <dir>/season-map.json.gz. Trạng thái cửa sổ theo
 //       ĐÚNG quy tắc của giao diện Mùa vụ (EarningsSeasonalityTab.verdictOf): ĐẠT = cửa sổ được chọn; THEO DÕI = < 8 kỳ và (q ≤ 0,2
@@ -12,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { publishDates } from "./earningsCalendar.js";
+import { readSeasonItems } from "./seasonStore.js";
 
 export const SM_VERSION = "SM-v1 (2026-11-06)";
 export const SM_RULES = Object.freeze({ minEvents: 8, watchQ: 0.2, cost: 0.002 + 0.0015 + 0.001, recordAheadDays: [1, 25] });
@@ -58,7 +60,7 @@ export function scoreEntry(e, pub, px, vn) {
   return { pending: false, day0: dates[i0], entry: dates[a], exit: dates[b], car: r4(car), net: r4(net) };
 }
 
-export function createSeasonMap({ dir, base = (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, getCalendar = async () => null } = {}) {
+export function createSeasonMap({ dir, base = (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, getCalendar = async () => null, readLocal = readSeasonItems } = {}) {
   const mapFile = path.join(dir, "season-map.json.gz"), ledgerFile = path.join(dir, "season-ledger.json");
   let running = false, memo = null;
   const tickers = () => fs.readdirSync(dir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).map((f) => f.slice(0, -8)).sort();
@@ -75,24 +77,28 @@ export function createSeasonMap({ dir, base = (process.env.LEGACY_MARKET_API_BAS
     running = true; const t0 = now();
     try {
       const old = readGz(mapFile)?.rows ?? {};
-      const rows = {}; let failed = 0, sourceAsOf = null;
+      const rows = {}; let failed = 0, sourceAsOf = null; const origin = { store: 0, projectA: 0 };
       const todo = tickers();
       await Promise.all(Array.from({ length: concurrency }, async () => {
         while (todo.length) {
           const t = todo.shift();
           try {
-            const cal = await getJson(`/api/cotuc/annual-earnings-calendar?ticker=${t}`);
+            // SD-v1: kho Gateway trước (0 lần gọi Project A); kho lỗi / chưa gắn -> Project A như cũ.
+            let local = null;
+            try { local = await readLocal?.(t); } catch { local = null; }
+            const cal = local ? local.calendar.body : await getJson(`/api/cotuc/annual-earnings-calendar?ticker=${t}`);
             const qs = {};
-            for (const q of [1, 2, 3, 4]) qs[q] = compactQuarter(await getJson(`/api/cotuc/earnings-cycle-stats?ticker=${t}&quarter=${q}`));
+            for (const q of [1, 2, 3, 4]) qs[q] = compactQuarter(local ? local[`stats:${q}`].body : await getJson(`/api/cotuc/earnings-cycle-stats?ticker=${t}&quarter=${q}`));
+            origin[local ? "store" : "projectA"] += 1;
             const months = Object.fromEntries((cal?.quarters ?? []).map((x) => [x.quarter, x.typicalAnnounceMonth]));
             if (cal?.asOf && (!sourceAsOf || cal.asOf > sourceAsOf)) sourceAsOf = cal.asOf;
             rows[t] = { months, q: qs };
           } catch { failed += 1; if (old[t]) rows[t] = { ...old[t], stale: true }; }
         }
       }));
-      const doc = { version: SM_VERSION, builtAt: new Date(now()).toISOString(), sourceAsOf, source: base, failed, rows, ms: now() - t0, rules: SM_RULES };
+      const doc = { version: SM_VERSION, builtAt: new Date(now()).toISOString(), sourceAsOf, source: origin.projectA ? base : "gateway-store", origin, failed, rows, ms: now() - t0, rules: SM_RULES };
       writeGz(mapFile, doc); memo = doc;
-      log.log?.(`[season-map] ${Object.keys(rows).length} mã, lỗi ${failed}, ${((now() - t0) / 1000).toFixed(0)} s.`);
+      log.log?.(`[season-map] ${Object.keys(rows).length} mã (kho ${origin.store}, Project A ${origin.projectA}), lỗi ${failed}, ${((now() - t0) / 1000).toFixed(0)} s.`);
       return { tickers: Object.keys(rows).length, failed, ms: doc.ms };
     } finally { running = false; }
   }
