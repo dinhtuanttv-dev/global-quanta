@@ -35,6 +35,11 @@ export function createCorpEventsRouter({ getService, adminToken = () => process.
     const doc = getService()?.ticker(t); if (!doc) return res.status(503).json({ error: "Kho sự kiện chưa có dữ liệu." });
     send(req, res, doc);
   });
+  router.get("/habits", rl, (req, res) => {
+    const days = Math.max(14, Math.min(180, Number(req.query.days) || 90));
+    const doc = getService()?.habits({ days }); if (!doc) return res.status(503).json({ error: "Kho sự kiện chưa có dữ liệu." });
+    send(req, res, doc);
+  });
   router.get("/status", (_req, res) => res.json(getService()?.status() ?? { available: false }));
   router.post("/admin/refresh", (req, res) => {
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });

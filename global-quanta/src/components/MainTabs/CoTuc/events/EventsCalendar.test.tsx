@@ -12,7 +12,7 @@ const doc = {
     ev({ t: "IDJ", type: "alert", cat: "WARNING", group: "STATUS", label: "Diện cảnh báo", ex: null, date: "2026-11-20", cash: null })],
   changes: [{ at: "2026-11-06T10:00:00Z", kind: "CHANGED" as const, id: "x", t: "TNG", cat: "CASH", label: "Cổ tức tiền", field: "ex", from: "2026-11-09", to: "2026-11-10", date: "2026-11-10", title: "Trả cổ tức" }],
 };
-vi.mock("../../../../hooks/useCorpEvents", () => ({ useCorpEvents: () => ({ data: doc, error: null, isLoading: false }), useCorpEventsTicker: (t: string | null) => (t ? { ticker: t, events: hist } : null) }));
+vi.mock("../../../../hooks/useCorpEvents", () => ({ useCorpEvents: () => ({ data: doc, error: null, isLoading: false }), useCorpEventsTicker: (t: string | null) => (t ? { ticker: t, events: hist } : null), useDividendHabits: () => ({ version: "DF-v1", label: "MÔ TẢ", test: "DF-r1 KHÔNG ĐẠT", asOf: "2026-11-07", days: 30, rows: [{ t: "BMP", usual: "2026-11-13", paidYears: 4, years: 4, lastEx: "2025-11-17", lastCash: 6500 }, { t: "PLX", usual: "2026-11-09", paidYears: 1, years: 4, lastEx: "2022-11-09", lastCash: 1200 }] }) }));
 const hist = [2022, 2023, 2024, 2025].map((y, i) => ev({ t: "VNM", id: `h${y}`, year: y, ex: `${y + 1}-06-1${i}`, date: `${y + 1}-06-1${i}`, disclosed: `${y + 1}-05-2${i}`, cash: 3000 + i * 500 }));
 import EventsCalendar from "./EventsCalendar";
 
@@ -42,6 +42,8 @@ describe("LSK0/LSK1 Lịch sự kiện", () => {
     expect(rows[1].textContent).toContain("2.500 đ"); expect(rows[1].textContent).toContain("3,8%");
     expect(rows[1].textContent).toContain("có tin doanh nghiệp");
     expect(el.querySelector('[data-testid="ce-changes"]')!.textContent).toContain("GDKHQ 2026-11-09 → 2026-11-10");
+    expect(el.querySelectorAll('[data-testid="ce-habit-row"]').length).toBe(1); // mặc định chỉ mã đã trả ≥ 2 năm
+    expect(el.querySelector('[data-testid="ce-habits"]')!.textContent).toContain("MÔ TẢ");
     await act(async () => { (el.querySelector('[data-testid="ce-h-90"]') as HTMLButtonElement).click(); });
     expect(el.querySelectorAll('[data-testid="ce-row"]').length).toBe(3);
     await act(async () => { (el.querySelector('[data-testid="ce-g-STATUS"]') as HTMLButtonElement).click(); });

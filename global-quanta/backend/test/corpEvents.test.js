@@ -58,3 +58,28 @@ test("LSK1 dịch vụ: nạp theo lô mã, phân trang, cửa sổ ngày + nhó
   assert.equal(ce.ticker("VNM").events.length, 3);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("LSK2 DF-v1: gom đợt trả theo ngày-trong-năm, bỏ đợt đã trả kỳ này, point-in-time theo ngày công bố; nếp lịch sử (MÔ TẢ)", async () => {
+  const { forecastTicker, payClusters, naiveForecast } = await import("../src/market/events/divForecast.js");
+  const ev = [2022, 2023, 2024, 2025].flatMap((y) => [{ ex: `${y}-06-1${y % 3}`, disclosed: `${y}-05-25` }, { ex: `${y}-11-1${y % 3}`, disclosed: `${y}-10-28` }]);
+  const c = payClusters(ev, "2026-01-05");
+  assert.equal(c.clusters.length, 2);
+  assert.ok(c.clusters.every((x) => x.paidYears === 4 && x.sigma >= 5));
+  const f = forecastTicker(ev, "2026-01-05", 0.5);
+  assert.deepEqual(f.map((x) => x.date.slice(5, 7)), ["06", "11"]);
+  assert.ok(f[0].lo < f[0].date && f[0].hi > f[0].date && f[0].p > 0.8);
+  // đợt tháng 6/2026 đã công bố (trước asOf) -> không dự báo lại
+  const f2 = forecastTicker([...ev, { ex: "2026-06-12", disclosed: "2026-05-28" }], "2026-06-01", 0.5);
+  assert.equal(f2[0].date.slice(0, 7), "2026-11");
+  // chưa công bố tại asOf thì chưa được dùng (không nhìn trước)
+  assert.equal(payClusters([{ ex: "2025-06-10", disclosed: "2025-06-01" }], "2025-05-01").clusters.length, 0);
+  assert.deepEqual(naiveForecast([{ ex: "2025-06-10", disclosed: "2025-05-20" }], "2026-05-01"), ["2026-06-10"]);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hb-"));
+  const raw = ev.map((e, i) => ({ id: `d${i}`, code: "BMP", type: "DIVIDEND", effectiveDate: e.ex, disclosureDate: e.disclosed, dividend: 5000 }));
+  const ce = createCorpEvents({ dir, universe: async () => ["BMP"], isTradingDay: wk, fetchImpl: async () => ({ ok: true, json: async () => ({ data: raw }) }), now: () => Date.parse("2026-10-20T01:00:00Z"), log: { log() {} } });
+  await ce.refresh();
+  const h = ce.habits({ days: 60 });
+  assert.equal(h.label, "MÔ TẢ"); assert.equal(h.rows.length, 1);
+  assert.deepEqual([h.rows[0].t, h.rows[0].usual.slice(0, 7), h.rows[0].paidYears, h.rows[0].lastCash], ["BMP", "2026-11", 4, 5000]);
+  fs.rmSync(dir, { recursive: true, force: true });
+});
