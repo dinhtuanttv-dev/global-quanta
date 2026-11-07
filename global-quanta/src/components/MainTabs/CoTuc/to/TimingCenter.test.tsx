@@ -8,7 +8,7 @@ import type { ToOverview, ToRadarRow, ToSim } from "../../../../lib/cotuc/to";
 const row = (o: Partial<ToRadarRow>): ToRadarRow => ({
   t: "HPA", name: null, sector: "Nguyên vật liệu", ex: "2026-11-11", disclosed: "2026-10-30", check: "CONFIRMED_2", cash: 1800, yieldPre: 0.0657, bucket: "≥5%", yieldNow: 0.065,
   lastPrice: 27.7, lastPriceDate: "2026-11-06", adv: 1.7e9, liquidityOk: true, entryDate: "2026-11-02", limitUpEntry: false, qualifies: true, sessionsSinceAnn: 5,
-  runUp: 0.0203, runUpPct: 0.52, runUpShareOfTypical: 0.77, ranTooFar: false, buyDate: "2026-11-09", lastCumDate: "2026-11-10", sessionsLeft: 1, t2Ok: false,
+  runUp: 0.0203, runUpPct: 0.52, runUpShareOfTypical: 0.77, buyDate: "2026-11-09", lastCumDate: "2026-11-10", sessionsLeft: 1, t2Ok: false,
   expected: { n: 119, mean: 0.0176, ci95: [0.0081, 0.028], hit: 0.647 }, weakSector: false, label: "THĂM DÒ", ...o,
 });
 const overview: ToOverview = {
@@ -16,7 +16,7 @@ const overview: ToOverview = {
   rule: { minYield: 0.05, minAdv: 1e9, costBuy: 0.002, costSell: 0.0025, minHold: 2 }, r1: { start: "2026-11-09", mu0: 0.0176, sigma0: 0.0573, looks: [30, 60] },
   reference: { byBucket: { "<3%": { n: 304, mean: -0.0032, ci95: [-0.011, 0.005], hit: 0.46 }, "3–5%": { n: 160, mean: 0.0083, ci95: [-0.002, 0.018], hit: 0.57 }, "≥5%": { n: 119, mean: 0.0176, ci95: [0.0081, 0.028], hit: 0.647 } },
     rule: { n: 119, mean: 0.0176, ci95: [0.0081, 0.028], hit: 0.647 }, byYear: { 2025: { n: 24, mean: 0.0059, ci95: [-0.012, 0.0215], hit: 0.42 } }, runUp: {}, weakSectors: ["Tiêu dùng"], sectors: {} },
-  radar: { asOf: "2026-11-07", priceAsOf: "2026-11-06", rows: [row({}), row({ t: "VNM", sector: "Tiêu dùng", yieldPre: 0.043, bucket: "3–5%", qualifies: false, weakSector: true, ranTooFar: true, runUpPct: 0.8, sessionsLeft: 3, t2Ok: true, ex: "2026-11-14", lastCumDate: "2026-11-13" })] },
+  radar: { asOf: "2026-11-07", priceAsOf: "2026-11-06", rows: [row({}), row({ t: "VNM", sector: "Tiêu dùng", yieldPre: 0.043, bucket: "3–5%", qualifies: false, weakSector: true, runUpPct: 0.8, sessionsLeft: 3, t2Ok: true, ex: "2026-11-14", lastCumDate: "2026-11-13" })] },
   ledger: { registered: "2026-11-07", start: "2026-11-09", label: "THĂM DÒ", nextLook: 30, looks: [], counts: { open: 1, done: 0, void: 0 }, stats: { n: 0, mean: null, ci95: [null, null], hit: null },
     cusum: { S: 0, alarmed: false, h: 4, k: 0.5, mu0: 0.0176, sigma0: 0.0573, quarters: {} },
     entries: [{ id: "HPA|2026-10-30|1800", t: "HPA", sector: null, disclosed: "2026-10-30", cash: 1800, y: 0.0657, adv: 1.7e9, entryDate: "2026-11-10", ex: "2026-11-11", status: "OPEN", result: null }] },
@@ -40,13 +40,13 @@ async function mount(node: React.ReactNode) { const el = document.createElement(
 
 describe("TO-v1 Thời điểm tối ưu", () => {
   afterEach(() => { document.body.innerHTML = ""; try { localStorage.clear(); } catch { /* */ } });
-  it("Radar: đủ điều kiện, lợi suất theo giá trực tiếp, cảnh báo T+2 / đã chạy xa / ngành yếu; không dùng chữ 'mua'", async () => {
+  it("Radar: đủ điều kiện, lợi suất theo giá trực tiếp, cảnh báo T+2 / ngành yếu, không còn cảnh báo 'đã chạy xa'; không dùng chữ 'mua'", async () => {
     const onSel = vi.fn();
     const el = await mount(<TimingCenter onSelectTicker={onSel} />);
     expect(el.querySelectorAll('[data-testid="to-row"]')).toHaveLength(2);
     expect(el.querySelector('[data-testid="to-q-HPA"]')).not.toBeNull();
     expect(el.querySelector('[data-testid="to-t2-HPA"]')).not.toBeNull();
-    expect(el.querySelector('[data-testid="to-ran-VNM"]')).not.toBeNull();
+    expect(el.textContent).not.toContain("đã chạy xa");
     expect(el.querySelector('[data-testid="to-radar"]')!.textContent).toContain("6,0%"); // 1.800 đ / 30.000 đ
     expect(el.querySelector('[data-testid="to-radar"]')!.textContent).toContain("ngành yếu");
     expect(el.querySelector('[data-testid="to-label"]')!.textContent).toBe("THĂM DÒ");

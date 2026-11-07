@@ -63,7 +63,7 @@ test("referenceStudy + runUpPercentile + radarRow (T+2, đã chạy quá xa, ng�
   assert.ok(runUpPercentile(prof, 3, prof[2].p90 + 0.01) >= 0.9);
   const f = { ex: "2026-02-10", disclosed: "2026-02-02", cash: 600, y: 0.06, bucket: "≥5%", adv: 2e9, check: "CONFIRMED_2", entryDate: "2026-02-03", limitUp: false, qualifies: true, path: [0.01, 0.02, 0.2] };
   const r = radarRow(f, ref, { t: "AAA", sector: "Tiêu dùng", today: "2026-02-05", lastCumDate: "2026-02-09", sessionsUntil: () => 2, lastPrice: 10 });
-  assert.equal(r.t2Ok, true); assert.equal(r.ranTooFar, true); assert.equal(r.weakSector, true); assert.equal(r.yieldNow, 0.06); assert.equal(r.label, "THĂM DÒ");
+  assert.equal(r.t2Ok, true); assert.equal("ranTooFar" in r, false); assert.equal(r.weakSector, true); assert.equal(r.yieldNow, 0.06); assert.equal(r.label, "THĂM DÒ");
   assert.equal(radarRow(f, ref, { t: "AAA", today: "2026-02-06", lastCumDate: "2026-02-09", sessionsUntil: () => 1 }).t2Ok, false);
 });
 
@@ -97,4 +97,22 @@ test("dịch vụ: build + tick ghi lệnh từ ngày bắt đầu, chấm sau p
   const rd = await svc.radar(); assert.equal(rd.rows.length, 1); assert.equal(rd.rows[0].cash, 800); assert.equal(rd.rows[0].qualifies, true);
   const ov = await svc.overview(); assert.equal(ov.reference.rule.n, 2); assert.equal(svc.sim().forward.trades, 2);
   assert.ok(svc.legacy("AAA").pooled.w1);
+});
+
+test("EX-r1: phần giữ qua GDKHQ 5 phiên — gồm cổ tức sau thuế, vượt VN-Index; tham chiếu theo nhóm; lịch sử theo mã", async () => {
+  // Công bố phiên 100, GDKHQ phiên 110 (phiên cuối còn quyền 109). Giá giảm đúng bằng cổ tức trước thuế ở GDKHQ (giá điều chỉnh không đổi) rồi giảm 1%/phiên.
+  const D = DATES[100], E = DATES[110];
+  const s = stockSeries(rows({ a: 109, b: 114, daily: -0.01 }), mkt);
+  const f = eventFacts({ ex: E, cash: 600, disclosed: D }, s, mkt);
+  const expect5 = 0.99 ** 5 * (1 - 0.05 * 600 / (10 * 1000)) - 1;
+  assert.equal(f.postEx5.date, DATES[114]); assert.ok(Math.abs(f.postEx5.excess - expect5) < 1e-4);
+  const ref = referenceStudy([{ ...f, adv: 2e9, outcome: { excess: 0.01 }, sector: "X", qualifies: true }]);
+  assert.equal(ref.postEx["≥5%"].n, 1); assert.ok(ref.postEx["≥5%"].mean < 0);
+  // Dữ liệu chưa tới GDKHQ + 4 -> null
+  assert.equal(eventFacts({ ex: DATES[DATES.length - 2], cash: 600, disclosed: DATES[DATES.length - 10] }, stockSeries(rows(), mkt), mkt).postEx5, null);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "to-h-"));
+  const svc = createDivRunup({ dir, pricesOf: (t) => (t === "VNINDEX" ? DATES.map((d) => [d, 1000, 0]) : t === "AAA" ? rows() : null),
+    getUniverse: async () => ({ tickers: [{ ticker: "AAA", exchange: "HOSE", sectorGroup: "Công nghiệp" }] }), eventsOf: () => [{ cat: "CASH", ex: E, cash: 600, disclosed: D }], log: {} });
+  const h = await svc.tickerHistory("AAA"); assert.equal(h.events.length, 1); assert.equal(h.events[0].qualifies, true); assert.ok("postEx5" in h.events[0]); assert.ok(!("path" in h.events[0]));
+  assert.equal(await svc.tickerHistory("ZZZ"), null);
 });

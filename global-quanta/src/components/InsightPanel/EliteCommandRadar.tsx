@@ -12,7 +12,8 @@ import { browserNotify } from '../../lib/priceAlerts';
 import { CONVERGENCE_LABELS } from '../../types';
 import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
-import { buyTimingFreshness, useGatewayBuyTimeline } from '../../hooks/useGatewayBuyTimeline';
+import { buyTimingFreshness } from '../../hooks/useGatewayBuyTimeline';
+import { useEliteTiming } from '../../hooks/elite10/useEliteTiming';
 import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 
@@ -235,7 +236,7 @@ export default function EliteCommandRadar() {
   const sig = signals.data;
   // Lớp ⏱ Điểm mua — chỉ mã đang có trên Radar (tickers = ★ danh mục Radar đang hiển thị).
   // B3: Timeline qua Gateway (bản gần nhất khi Project A lỗi, số phiên tính lại theo hôm nay).
-  const timeline = useGatewayBuyTimeline();
+  const timeline = useEliteTiming();
   // Hiệu năng (đo 24/10: vạch quét quay vô hạn buộc trình duyệt vẽ lại MỖI khung hình kể cả khi Radar ngoài màn hình -> kéo chart
   // trên điện thoại chậm 4× tụt còn ~15 khung/giây): chỉ chạy animation khi Radar đang hiện trên màn hình và tab trình duyệt đang mở.
   const svgRef = useRef<SVGSVGElement>(null);

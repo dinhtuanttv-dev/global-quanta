@@ -52,7 +52,7 @@ export function AnnouncementTimeline({ onSelectTicker }: { onSelectTicker?: (t: 
                   <circle cx={x(r.disclosed)} cy={mid} r={3.5} fill="#e2e8f0"><title>Công bố {dm(r.disclosed)}</title></circle>
                   <path d={`M${x(sell) - 4},${mid - 6}L${x(sell) + 4},${mid - 6}L${x(sell)},${mid + 1}Z`} fill={tone}><title>Bán {dm(sell)} (phiên cuối còn quyền)</title></path>
                   <line x1={x(r.ex)} x2={x(r.ex)} y1={mid - 7} y2={mid + 7} stroke="#f43f5e" strokeWidth="2"><title>GDKHQ {dm(r.ex)}</title></line>
-                  <text x={Math.min(W - 6, x(r.ex) + 5)} y={mid + 4} fontSize="9" fill="#94a3b8"><tspan fill="#a5f3fc" fontFamily="monospace">{r.t}</tspan>{r.runUp != null ? ` · đã chạy ${pctS(r.runUp)}` : ""}{r.ranTooFar ? " ⚠" : ""}{!r.t2Ok ? " · không kịp T+2" : ""}</text>
+                  <text x={Math.min(W - 6, x(r.ex) + 5)} y={mid + 4} fontSize="9" fill="#94a3b8"><tspan fill="#a5f3fc" fontFamily="monospace">{r.t}</tspan>{r.runUp != null ? ` · đã chạy ${pctS(r.runUp)}` : ""}{!r.t2Ok ? " · không kịp T+2" : ""}</text>
                 </g>
               );
             })}

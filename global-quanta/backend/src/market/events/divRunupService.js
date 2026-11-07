@@ -147,10 +147,16 @@ export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVer
   async function overview() {
     const d = doc();
     return { version: TO_VERSION, label: ledgerSummary().label, rule: TO_RULE, r1: TO_R1, builtAt: d?.builtAt ?? null,
-      reference: d ? { byBucket: d.reference.byBucket, rule: d.reference.rule, byYear: d.reference.byYear, runUp: d.reference.runUp, weakSectors: d.reference.weakSectors, sectors: d.reference.sectors } : null,
+      reference: d ? { byBucket: d.reference.byBucket, rule: d.reference.rule, byYear: d.reference.byYear, runUp: d.reference.runUp, weakSectors: d.reference.weakSectors, sectors: d.reference.sectors, postEx: d.reference.postEx ?? null } : null,
       radar: await radar(), ledger: ledgerSummary() };
+  }
+  /** Hồ sơ 360° (Elite 10): mọi đợt cổ tức tiền của một mã — điều kiện TO-r1, kết quả đến phiên cuối còn quyền, phần sau GDKHQ 5 phiên. */
+  async function tickerHistory(t) {
+    const mkt = market(); const u = (await universe()).find((x) => x.ticker === t); if (!u || !mkt.dates.length) return null;
+    const { facts } = factsOf(u, mkt);
+    return { ticker: t, sector: u.sectorGroup ?? null, events: facts.map(({ path, ...f }) => ({ ...f, runUp: path.length ? path[path.length - 1] : null })).reverse().slice(0, 20) };
   }
   function sim() { const d = doc(); return { history: d?.history ?? null, forward: forwardSim() }; }
   function legacy(t = null) { const lw = doc()?.legacy; if (!lw) return null; return t ? { pooled: lw.pooled, ticker: t, windows: lw.byTicker[t] ?? null, significant: lw.significant, tests: lw.tests } : { pooled: lw.pooled, significant: lw.significant, tests: lw.tests }; }
-  return { build, tick, radar, overview, sim, legacy, doc, ledger: ledgerSummary, hasData: () => fs.existsSync(docFile), status: () => ({ version: TO_VERSION, running, builtAt: doc()?.builtAt ?? null }), _clusterCi: clusterCi };
+  return { build, tick, radar, overview, sim, legacy, tickerHistory, doc, ledger: ledgerSummary, hasData: () => fs.existsSync(docFile), status: () => ({ version: TO_VERSION, running, builtAt: doc()?.builtAt ?? null }), _clusterCi: clusterCi };
 }

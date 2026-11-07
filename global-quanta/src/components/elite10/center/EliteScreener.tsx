@@ -7,7 +7,7 @@
 //     chính thức trên tập mã đạt bộ lọc, có sổ theo dõi tiến riêng — KHÔNG thay đổi danh mục Elite 10 chính thức.
 import { useEffect, useMemo, useState } from "react";
 import { useEliteDecision, useEliteEvidence, useElitePanel } from "../../../hooks/elite10/useEliteCenter";
-import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
+import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
 import { useMyFilter } from "../../../hooks/elite10/useMyFilter";
 import { condBits, condTester, cosine, decodeFilter, encodeFilter, evaluateFilter, paretoFront, percentiles, type Bits, type FCtx } from "../../../lib/elite10/filterEngine";
 import { ALL_CHIPS, CHIPS, CHIP_BY_ID, DEFAULT_UI, EXCLUDE_CHIPS, filterToUi, metaOf, PRESETS, uiToFilter, type FilterUi } from "../../../lib/elite10/signalSemantics";
@@ -45,7 +45,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
   const { data: panel } = useElitePanel();
   const { data: d } = useEliteDecision();
   const { data: ev } = useEliteEvidence();
-  const buy = useGatewayBuyTimeline();
+  const buy = useEliteTiming();
   const my = useMyFilter();
   const [ui, setUi] = useState<FilterUi>(readUi);
   const [sort, setSort] = useState<SortKey>("z");

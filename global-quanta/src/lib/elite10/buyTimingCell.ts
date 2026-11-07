@@ -3,11 +3,12 @@
 // của danh mục Elite (vào lệnh giá mở cửa phiên kế tiếp sau ngày dựng). Không đổi cách chọn mã / tỷ trọng; chỉ hiển thị. Hàm thuần (có test).
 import type { TimelineRow } from '../cotuc/buy-timeline';
 import { pickRadarBuyRows } from '../radarTimeline';
+import { isToRow, toZoneText } from './toTiming';
 
 export const ELITE_HOLD_SESSIONS = 10;
 export const SOON_SESSIONS = 5;
 
-export type BuyCellKind = 'in' | 'soon' | 'wait' | 'near' | 'rule';
+export type BuyCellKind = 'in' | 'soon' | 'wait' | 'near' | 'rule' | 'to';
 export interface BuyCell {
   kind: BuyCellKind;
   /** Dòng chính (ngắn) và dòng phụ. */ text: string; sub: string;
@@ -41,6 +42,15 @@ export function buyTimingCells(tickers: readonly string[], rows: readonly Timeli
   for (const t of tickers) {
     const info = best.get(t.toUpperCase());
     const r: TimelineRow | null = info?.row ?? null;
+    // Elite × TO (07/11/2026): đợt cổ tức tiền ĐỦ ĐIỀU KIỆN TO-r1 (THĂM DÒ) — vùng vào 2 phiên đầu sau công bố, bán phiên cuối còn quyền.
+    const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+    const toR = rows?.find((x) => x.ticker.toUpperCase() === t.toUpperCase() && isToRow(x) && today <= x.exitDate) ?? null;
+    if (toR) {
+      const t2 = toR.missing.some((m) => m.includes('T+2')) ? 'không kịp T+2' : 'kịp T+2';
+      const sub = `THĂM DÒ · bán ${dm(toR.exitDate)} · ${t2}`;
+      if (toR.status === 'IN_WINDOW') { out.set(t, { kind: 'to', text: `Vùng TO → ${dm(toR.entryToDate)}`, sub, date: toR.entryFromDate, tooltip: toZoneText(toR), dashed: true, row: toR }); continue; }
+      if (toR.status === 'UPCOMING') { out.set(t, { kind: 'to', text: `TO từ ${dm(toR.entryFromDate)}`, sub, date: toR.entryFromDate, tooltip: toZoneText(toR), dashed: true, row: toR }); continue; }
+    }
     const ruleTip = `Quy tắc danh mục Elite 10: vào lệnh giá mở cửa phiên kế tiếp sau ngày dựng (${dm(decisionDate)}), nắm giữ ${ELITE_HOLD_SESSIONS} phiên — không phải điểm mua tối ưu đã kiểm định.`;
     if (!rows) { out.set(t, { kind: 'rule', text: ruleText, sub: 'quy tắc Elite · Timeline tạm không có', date: entry, tooltip: ruleTip, dashed: false, row: null }); continue; }
     if (r && r.tier === 'VALIDATED' && r.status === 'IN_WINDOW') {
@@ -57,6 +67,8 @@ export function buyTimingCells(tickers: readonly string[], rows: readonly Timeli
         tooltip: `${ruleTip}\nVùng mùa vụ GẦN ĐẠT (chưa qua kiểm định) — còn thiếu: ${r.missing.join('; ') || '—'} — ${stats(r)}`, dashed: true, row: r });
       continue;
     }
+    if (toR) { out.set(t, { kind: 'rule', text: ruleText, sub: `TO: đã qua vùng vào · bán ${dm(toR.exitDate)}`, date: entry, tooltip: `${ruleTip}
+${toZoneText(toR)}`, dashed: false, row: toR }); continue; }
     const far = r && r.status === 'UPCOMING' ? `vùng ${KIND[r.kind]} xa: ${dm(r.entryFromDate)} (${r.sessionsToEntry} phiên)` : 'chưa có vùng mùa vụ';
     out.set(t, { kind: 'rule', text: ruleText, sub: `quy tắc Elite · ${far}`, date: entry, tooltip: r ? `${ruleTip}\n${stats(r)}` : ruleTip, dashed: false, row: r });
   }

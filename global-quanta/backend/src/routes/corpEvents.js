@@ -74,6 +74,10 @@ export function createCorpEventsRouter({ getService, getExStudy = () => null, ge
   });
   router.get("/to/sim", rl, (req, res) => { const s = getRunup(); if (!s) return res.status(503).json({ error: "Chưa bật." }); send(req, res, s.sim()); });
   router.get("/to/windows", rl, (req, res) => { const s = getRunup(); const v = s?.legacy(); if (!v) return res.status(503).json({ error: "Chưa có dữ liệu." }); send(req, res, v); });
+  router.get("/to/ticker/:t", rl, async (req, res) => {
+    const t = String(req.params.t).toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    try { const v = await getRunup()?.tickerHistory(t); if (!v) return res.status(404).json({ error: "Mã ngoài danh mục." }); send(req, res, v); } catch (e) { res.status(503).json({ error: String(e?.message ?? e) }); }
+  });
   router.get("/to/windows/:t", rl, (req, res) => {
     const t = String(req.params.t).toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
     const v = getRunup()?.legacy(t); if (!v) return res.status(503).json({ error: "Chưa có dữ liệu." }); send(req, res, v);

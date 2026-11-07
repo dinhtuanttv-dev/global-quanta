@@ -49,7 +49,7 @@ describe("DividendScreenerTable", () => {
         <DividendScreenerTable rows={rows} sortField="dividendYield" sortAsc={false} onSort={() => {}} onSelect={onSelect}
           isPinned={() => false} onTogglePin={() => {}} realRsMap={{}} toByTicker={new Map([["DGC", {
             t: "DGC", name: null, sector: "Hóa chất", ex: "2026-11-20", disclosed: "2026-11-05", check: null, cash: 3000, yieldPre: 0.085, bucket: "≥5%", yieldNow: 0.084, lastPrice: 35.5, lastPriceDate: "2026-11-06",
-            adv: 5e10, liquidityOk: true, entryDate: "2026-11-06", limitUpEntry: false, qualifies: true, sessionsSinceAnn: 1, runUp: 0.01, runUpPct: 0.5, runUpShareOfTypical: 0.4, ranTooFar: false,
+            adv: 5e10, liquidityOk: true, entryDate: "2026-11-06", limitUpEntry: false, qualifies: true, sessionsSinceAnn: 1, runUp: 0.01, runUpPct: 0.5, runUpShareOfTypical: 0.4,
             buyDate: "2026-11-09", lastCumDate: "2026-11-19", sessionsLeft: 1, t2Ok: false, expected: { n: 119, mean: 0.0176, ci95: [0.0081, 0.028], hit: 0.647 }, weakSector: false, label: "THĂM DÒ" }]])}
           livePrices={{ DGC: 35500 }} liveChangePct={{ DGC: -1.2 }} flash={{}} now={Date.now()} />,
       );

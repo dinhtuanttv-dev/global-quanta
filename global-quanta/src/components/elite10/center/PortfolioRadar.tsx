@@ -16,7 +16,9 @@ import { useOnScreen } from "../../../hooks/useOnScreen";
 import { useRadarSignals } from "../../../hooks/useRadarSignals";
 import { useSmartNews } from "../../../hooks/useSmartNews";
 import { useOhlcvData } from "../../../hooks/useOhlcvData";
-import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
+import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
+import { exGuards, isToRow, toZoneText, withToRows } from "../../../lib/elite10/toTiming";
+import { ExGuardChip } from "./boardParts";
 import { buyWindowEvents, pickRadarBuyRows, SOON_SESSIONS, type RadarBuyInfo, type RadarBuyRing } from "../../../lib/radarTimeline";
 import { browserNotify } from "../../../lib/priceAlerts";
 import BuyZoneStrip, { BuyZoneAxis } from "./BuyZoneStrip";
@@ -119,7 +121,7 @@ function ZoneChip({ r, onOpen }: { r: LaneRow; onOpen: (t: string) => void }) {
   const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
   return (
     <button type="button" onClick={() => onOpen(r.ticker)} data-testid="elite-buy-chip" data-tier={r.tier}
-      title={`${r.ticker} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel} · vùng mua ${dm(r.entryFromDate)}→${dm(r.entryToDate)}, thoát ${dm(r.exitDate)} · thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} đợt · ${TIER_TAG[r.tier].title}${r.missing.length ? ` · còn thiếu: ${r.missing.join("; ")}` : ""}`}
+      title={isToRow(r) ? `${r.ticker} · ${toZoneText(r)}` : `${r.ticker} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel} · vùng mua ${dm(r.entryFromDate)}→${dm(r.entryToDate)}, thoát ${dm(r.exitDate)} · thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} đợt · ${TIER_TAG[r.tier].title}${r.missing.length ? ` · còn thiếu: ${r.missing.join("; ")}` : ""}`}
       className="rounded border px-1.5 py-0.5 font-mono text-[10px] hover:bg-white/5"
       style={{ color: col, borderColor: `${col}66`, borderStyle: r.tier === "NEAR" ? "dashed" : r.tier === "EXPLORATORY" ? "dotted" : "solid" }}>
       {r.status === "IN_WINDOW" ? "●" : "⏱"} {r.ticker} {r.kind === "DIVIDEND" ? "CT" : "KQ"} {r.status === "IN_WINDOW" ? "trong vùng" : r.sessionsToEntry <= 10 ? `${r.sessionsToEntry}p` : `${dm(r.entryFromDate)}${r.entryFromDate.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? `/${r.entryFromDate.slice(2, 4)}` : ""} · ${r.sessionsToEntry}p`}
@@ -156,7 +158,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   const edge = sig?.evidence.STEALTH_20.verdict === "edge";
   const regimeEdge = sig?.evidence.STEALTH_20.regime?.verdict === "edge";
   const news = useSmartNews(replay ? [] : tickers);
-  const buy = useGatewayBuyTimeline();
+  const buy = useEliteTiming();
   const buyMap = useMemo(() => (replay ? new Map<string, RadarBuyInfo>() : pickRadarBuyRows(buy.data?.rows ?? [], tickers)), [buy.data, tickers, replay]);
   const live = useLiveQuotes(tickers, onScreen && !replay);
   const vni = useOhlcvData("VNINDEX", "3mo", 80);
@@ -285,8 +287,11 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
   const axis = useMemo(() => laneAxis(buy.sessions ?? [], d.date, today), [buy.sessions, d.date, today]);
   // Vùng mua TỐI ƯU từ kho Cổ tức (đạt / gần đạt / thăm dò, kể cả đã qua) — chưa có endpoint thì dùng Timeline điểm mua.
   const zonesQ = useEliteBuyZones(replay ? [] : tickers);
-  const zoneRows: LaneRow[] = useMemo(() => (zonesQ.zones?.rows ?? (buy.data?.rows ?? []) as LaneRow[]), [zonesQ.zones, buy.data]);
+  // Elite × TO: vùng cổ tức W1–W5 của kho Cổ tức thay bằng vùng Săn cổ tức TO (THĂM DÒ); vùng KQKD giữ nguyên.
+  const zoneRows: LaneRow[] = useMemo(() => withToRows(zonesQ.zones?.rows ?? (buy.data?.rows ?? []) as LaneRow[], buy.toRows), [zonesQ.zones, buy.data, buy.toRows]);
   const chips = useMemo(() => zoneChips(tickers, zoneRows, 10), [tickers, zoneRows]);
+  // Elite × TO: vị thế sẽ qua GDKHQ cổ tức tiền trong kỳ nắm giữ 10 phiên -> cảnh báo + phiên cuối còn quyền (EX-r1, MÔ TẢ).
+  const guards = useMemo(() => (replay ? new Map() : exGuards(tickers, buy.toEvents, d.date, buy.sessions ?? [], buy.postEx)), [replay, tickers, buy.toEvents, d.date, buy.sessions, buy.postEx]);
   const cols = lay.cols;
 
   return (
@@ -331,6 +336,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
                 <div className="min-w-0 leading-tight">
                   <button type="button" onClick={() => onOpenTicker(p.ticker)} data-testid={`elite-radar-open-${p.ticker}`} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline">{p.ticker}</button>
                   {p.retained && <span title="Giữ từ danh mục phiên trước (vùng đệm top 20)" className="ml-1 rounded border border-white/15 px-1 text-[10px] text-slate-400">giữ</span>}
+                  {guards.get(p.ticker) && <ExGuardChip g={guards.get(p.ticker)!} />}
                   {p.rrgPenalty && <span title={`E3-v4: ngành đang ở góc Tụt hậu trên RRG -> Z xếp hạng trừ 30% (mô hình ${p.zModel?.toFixed(2)} → ${p.Z.toFixed(2)}). Quy tắc người dùng đặt, chưa kiểm định.`} data-testid={`elite-radar-rrg-${p.ticker}`} className="ml-1 rounded border border-rose-400/40 px-1 text-[10px] text-rose-300">Tụt hậu −30%</span>}
                   <div className="truncate text-[10px] text-slate-500" title={secName(p.sectorKey)}>{replay ? "" : secName(p.sectorKey)}</div>
                   {!lay.showDrivers && !dense && !replay && <div className="truncate text-[10px] text-slate-400" title={`Động lực chính: ${drivers(p.ticker).join(" · ") || "—"}`} data-testid={`elite-radar-drivers-${p.ticker}`}>{drivers(p.ticker).join(" · ") || "—"}</div>}

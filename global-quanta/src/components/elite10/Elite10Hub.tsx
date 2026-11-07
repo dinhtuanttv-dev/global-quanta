@@ -7,6 +7,7 @@
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
+import ToTickerCard from "./center/ToTickerCard";
 import EliteScreener from "./center/EliteScreener";
 import TimingSimPanel from "./timing/TimingSimPanel";
 import EliteNewsPanel from "./news/EliteNewsPanel";
@@ -96,6 +97,8 @@ export default function Elite10Hub() {
             ) : (
               <>
                 <SignalProfileCard ticker={current} />
+                {/* Elite × TO (07/11/2026): sự kiện cổ tức của mã — Săn cổ tức trước GDKHQ (THĂM DÒ). */}
+                <ToTickerCard ticker={current} />
                 {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD. */}
                 <TimingSimPanel ticker={current} />
                 <EliteNewsPanel ticker={current} onTicker={open} />

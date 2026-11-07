@@ -4,7 +4,7 @@ export interface ToRadarRow {
   t: string; name: string | null; sector: string | null; ex: string; disclosed: string; check: string | null; cash: number;
   yieldPre: number; bucket: "<3%" | "3–5%" | "≥5%"; yieldNow: number | null; lastPrice: number | null; lastPriceDate: string | null;
   adv: number | null; liquidityOk: boolean; entryDate: string | null; limitUpEntry: boolean | null; qualifies: boolean; sessionsSinceAnn: number;
-  runUp: number | null; runUpPct: number | null; runUpShareOfTypical: number | null; ranTooFar: boolean;
+  runUp: number | null; runUpPct: number | null; runUpShareOfTypical: number | null;
   buyDate: string; lastCumDate: string | null; sessionsLeft: number | null; t2Ok: boolean; expected: ToStats | null; weakSector: boolean; label: string;
 }
 export interface ToRunUpPoint { k: number; n: number; p25: number; p50: number; p75: number; p90: number }
@@ -19,7 +19,7 @@ export interface ToOverview {
   version: string; label: string; builtAt: string | null;
   rule: { minYield: number; minAdv: number; costBuy: number; costSell: number; minHold: number };
   r1: { start: string; mu0: number; sigma0: number; looks: number[] };
-  reference: { byBucket: Record<string, ToStats>; rule: ToStats; byYear: Record<string, ToStats>; runUp: Record<string, { profile: ToRunUpPoint[]; fullMedian: number | null }>; weakSectors: string[]; sectors: Record<string, ToStats> } | null;
+  reference: { byBucket: Record<string, ToStats>; rule: ToStats; byYear: Record<string, ToStats>; postEx?: Record<string, ToStats> | null; runUp: Record<string, { profile: ToRunUpPoint[]; fullMedian: number | null }>; weakSectors: string[]; sectors: Record<string, ToStats> } | null;
   radar: { asOf: string; priceAsOf: string | null; rows: ToRadarRow[] };
   ledger: ToLedger;
 }
@@ -41,3 +41,9 @@ export const bil = (v: number | null | undefined) => (v == null ? "—" : `${(v 
 export const liveYield = (r: ToRadarRow, live?: number | null) => (live && live > 0 ? r.cash / live : r.yieldNow);
 /** Thay đổi của giá trực tiếp (đồng) so với đóng cửa gần nhất của Gateway (nghìn đồng). */
 export const liveChange = (r: ToRadarRow, live?: number | null) => (live && live > 0 && r.lastPrice ? live / (r.lastPrice * 1000) - 1 : null);
+/** Elite × TO — lịch sử đợt cổ tức tiền của một mã (Gateway /api/corp-events/to/ticker/:t). */
+export interface ToTickerEvent {
+  ex: string; disclosed: string; cash: number; y: number; bucket: ToRadarRow["bucket"]; adv: number | null; entryDate: string | null; limitUp: boolean | null; qualifies: boolean;
+  outcome: { exitDate: string; excess: number; abs: number } | null; postEx5: { date: string; excess: number } | null; runUp: number | null;
+}
+export interface ToTickerHistory { ticker: string; sector: string | null; events: ToTickerEvent[] }

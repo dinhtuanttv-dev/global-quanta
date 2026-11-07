@@ -48,7 +48,7 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
   useEliteTicker: (t: string) => (t === "ORS" ? { decision: { ...decision.scores[0], date: "2026-10-16", version: "E3-v2", icComb: 0.0146, weights: decision.weights, inPortfolio: true, universe: decision.universe }, panel: panelTicker, isLoading: false } : { decision: null, panel: null, isLoading: false }),
 }));
-const buyRow = { id: "ORS-1", ticker: "ORS", sector: null, kind: "DIVIDEND", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-10-22", eventDateBasis: "x",
+const buyRow = { id: "ORS-1", ticker: "ORS", sector: null, kind: "EARNINGS", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-10-22", eventDateBasis: "x",
   windowId: "w1", windowLabel: "Trước GDKHQ 5 phiên", entryFrom: -5, entryTo: -1, exitOffset: 3, entryFromDate: "2026-10-15", entryToDate: "2026-10-21", exitDate: "2026-10-27",
   sessionsToEntry: 0, nEvents: 14, winRate: 0.71, probability: null, netExpectancy: 0.021, netExpectancyLcb: 0.004, fdrQValue: 0.03, decisionLevel: null, missing: [] };
 vi.mock("../../../hooks/useGatewayBuyTimeline", async (orig) => ({
@@ -149,8 +149,8 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(radarHeads()[4]).toMatch(/^⏱ Vùng mua · \d+ phiên$/);
     expect(screen.getByTestId("buy-zone-pill-ORS").textContent).toBe("● ĐANG TRONG VÙNG MUA");
     expect(screen.getByTestId("buy-zone-tier-ORS").textContent).toBe("✓ ĐẠT");
-    expect(screen.getByTestId("buy-zone-detail-ORS").textContent).toBe("cổ tức W1 15/10→21/10 · thoát 27/10");
-    expect([...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent)).toEqual(["● ORS CT trong vùng"]);
+    expect(screen.getByTestId("buy-zone-detail-ORS").textContent).toBe("KQKD W1 15/10→21/10 · thoát 27/10");
+    expect([...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent)).toEqual(["● ORS KQ trong vùng"]);
     expect(screen.getByTestId("elite-buy-note").textContent).toContain("lấy lúc");
     expect(screen.getByTestId("elite-buy-note").textContent).toContain("Gateway tự tính · dữ liệu 16/10");
   });
