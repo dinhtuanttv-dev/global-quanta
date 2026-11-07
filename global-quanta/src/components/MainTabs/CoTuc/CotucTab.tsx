@@ -30,8 +30,8 @@ import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
 import EventsCalendar from "./events/EventsCalendar";
 import DividendQualityPanel from "./screener/DividendQualityPanel";
+import FactorPanel, { FmBadge } from "./screener/FactorPanel";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
-import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
 import { useAiAnalysis } from "../../../hooks/useAiAnalysis";
 import { useRealRsData } from "../../../hooks/useRealRsData";
@@ -152,7 +152,6 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
 
   const phase = getTradePhase(s);
   const flags = detectRiskFlags(s);
-  const score = calcRealDividendQualityScore(s, realRs, flags.length);
   const catalyst = calcCatalystScore(s);
 
   // ESC de dong modal
@@ -192,7 +191,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
               <p className="text-xs font-bold text-cf-primary">{s.name}</p>
               <p className="text-[10px] text-cf-tertiary">{s.sector}</p>
             </div>
-            <ScoreBadge score={score} isReal={isQualityScoreReal(s)} />
+            <FmBadge fm={s.fm} />
           </div>
           <button ref={closeButtonRef} onClick={onClose} aria-label="Đóng cửa sổ chi tiết"
             className="text-cf-tertiary hover:text-cf-primary text-xs px-3 py-1.5 rounded-lg border border-cf-border-strong focus:outline-none focus:ring-2 focus:ring-amber-500">
@@ -256,6 +255,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   </div>
                 ))}
               </div>
+              <FactorPanel fm={s.fm} />
               <DividendQualityPanel dq={s.dq} />
               {(s.pros.length > 0 || s.cons.length > 0) ? (
                 <div className="grid grid-cols-2 gap-2">
@@ -420,7 +420,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
   const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
-  const { qualityScoreMap, isLoading: qualityScoreLoading } = useQualityScore();
   const { universeStocks, entries: universeEntries } = useUniverseScores();
   // FIX: tab Timeline can DividendLifecycleEvent[] day du - lifecycleEventsMap
   // (tu useDividendEvents) CHI CO 17 ma theo doi goc, ma Universe se
@@ -437,14 +436,8 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
   // BL1 (07/11/2026): MỘT nguồn thật duy nhất cho Bộ lọc — Gateway DS-v1 (/api/corp-events/screener): giá, xu hướng, RSI (bản quét),
   // cổ tức (sự kiện VNDirect), P/E, ROE, nợ, tỷ lệ chi trả, tăng trưởng, F-Score (KQKD 4 quý). Thay ghép 5 API Project A + số mẫu.
-  // Tạm giữ: Tier 1–3 của Dividend Quality Score (Project A quality-score / universe-scores) cho cột điểm tới BL3.
+  // BL3: điểm xếp hạng = mô hình nhân tố FM-v1 (DS-v2) — đã gỡ Dividend Quality Score của Project A.
   const { data: dsDoc, error: dsError, isLoading: dsLoading } = useDividendScreener(true);
-  const tierMap = useMemo(() => {
-    const m = new Map<string, { t1: number | null; t2: number | null; t3: number | null }>();
-    for (const u of universeStocks) m.set(u.ticker, { t1: u.qsTier1 ?? null, t2: u.qsTier2 ?? null, t3: u.qsTier3 ?? null });
-    for (const [t, q] of Object.entries(qualityScoreMap)) m.set(t, { t1: q.tier1, t2: q.tier2, t3: q.tier3 });
-    return m;
-  }, [universeStocks, qualityScoreMap]);
   const { aiAnalysisMap } = useAiAnalysis(need.screener);
   const { rows: gatewayUniverse } = useCotucUniverse();
   const liveSymbols = useMemo(() => [...new Set([...(dsDoc?.rows ?? []).map((r) => r.t), ...gatewayUniverse.map((u) => u.ticker)])], [dsDoc, gatewayUniverse]);
@@ -464,18 +457,16 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
   const allStocksWithUniverse = useMemo(() => (dsDoc?.rows ?? []).map((row) => {
     const s = dsToStock(row, livePrices[row.t]);
-    const tier = tierMap.get(row.t);
     const ev = lifecycleEventsMap[row.t];
     const ai = aiAnalysisMap[row.t];
     return {
       ...s,
-      qsTier1: tier?.t1 ?? null, qsTier2: tier?.t2 ?? null, qsTier3: tier?.t3 ?? null,
       // Cờ chỉ cảnh báo (không đổi số): đợt chi lớn bất thường / tỷ suất 12 tháng bất thường — từ lịch sử sự kiện.
       specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, s.dividendYield, todayIso),
       // Ưu / nhược điểm, điểm xúc tác: CHỈ khi AI đã phân tích (không có giá trị mặc định).
       pros: ai?.pros?.length ? ai.pros : [], cons: ai?.cons?.length ? ai.cons : [], catalystScore: ai?.catalystScore ?? null,
     };
-  }), [dsDoc, livePrices, tierMap, lifecycleEventsMap, aiAnalysisMap, todayIso]);
+  }), [dsDoc, livePrices, lifecycleEventsMap, aiAnalysisMap, todayIso]);
   // 17 mã theo dõi gốc (danh sách chọn ở Thời điểm tối ưu) — cùng nguồn DS-v1.
   const mergedStocks = useMemo(() => { const core = new Set(DIVIDEND_STOCKS.map((x) => x.ticker)); return allStocksWithUniverse.filter((x) => core.has(x.ticker)); }, [allStocksWithUniverse]);
 

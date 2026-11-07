@@ -1,6 +1,6 @@
 import { Star } from 'lucide-react';
 import type { DividendStock } from '../../../../lib/quant-cotuc';
-import { calcRealDividendQualityScore, detectRiskFlags, getDaysUntil, getTradePhase, isQualityScoreReal } from '../../../../lib/quant-cotuc';
+import { getDaysUntil, getTradePhase } from '../../../../lib/quant-cotuc';
 import type { TimingSignal } from '../../../../lib/cotuc/timing-types';
 import type { DecisionSnapshot } from '../../../../lib/cotuc/decision';
 import { fmtOffset, fmtPctValue, fmtPriceK, fmtRatioPct, fmtVnd } from '../../../../lib/cotuc/format';
@@ -110,7 +110,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
             <th className={`${TH} top-[25px] text-left`} title="Dòng trên: ngày thanh toán cổ tức · dòng dưới: ngày ĐHCĐ">Thanh toán · ĐHCĐ</th>
             <SortHead field="pe" label="P/E" right {...p} />
             <SortHead field="roe" label="ROE" right {...p} />
-            <SortHead field="score" label="Điểm" right {...p} title="Dividend Quality Score (4 tầng) — chỉ có ở mã đủ dữ liệu chất lượng cổ tức" />
+            <SortHead field="score" label="Hạng NT" right {...p} title="Mô hình nhân tố FM-v1: phân vị 0–100 trong danh mục (6 nhóm: lợi suất, độ bền, tăng trưởng, chất lượng, định giá, rủi ro thấp; chuẩn hoá theo ngành) · Q1–Q5 = ngũ phân vị" />
             <th className={`${TH} top-[25px] text-left`}>Cửa sổ tối ưu</th>
             <th className={`${TH} top-[25px] text-right`} title="Kỳ vọng lợi nhuận ròng (cận dưới 90%) nếu mua trong cửa sổ">Kỳ vọng ròng</th>
             <th className={`${TH} top-[25px] text-right`} title="Tăng trưởng LNST công ty mẹ kỳ vừa công bố so với cùng kỳ">LNST YoY</th>
@@ -129,8 +129,6 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
             const chg = p.liveChangePct[s.ticker];
             const fl = p.flash[s.ticker];
             const flashing = fl && p.now - fl.at < 1200;
-            const scoreReal = isQualityScoreReal(s);
-            const score = calcRealDividendQualityScore(s, p.realRsMap[s.ticker], detectRiskFlags(s).length);
             const phase = getTradePhase(s);
             const growth = sig?.earnings?.profitGrowthYoY ?? null;
             const selected = s.ticker === p.selectedTicker;
@@ -176,9 +174,9 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   {s.fundamentalsReal ? <span className={`font-mono tabular-nums ${s.roe >= 15 ? 'text-emerald-300' : s.roe < 0 ? 'text-rose-300' : 'text-slate-200'}`}>{fmtPctValue(s.roe)}</span> : <Badge tone="muted" title="Chưa có số liệu thật">—</Badge>}
                 </td>
                 <td className={`${TD} text-right`}>
-                  {scoreReal
-                    ? <span className={`font-mono tabular-nums font-semibold ${score >= 80 ? 'text-emerald-300' : score >= 60 ? 'text-amber-300' : 'text-slate-300'}`}>{score}</span>
-                    : <Badge tone="muted" title="Điểm chất lượng cổ tức cần đủ 3 tầng dữ liệu — hiện chỉ có ở danh mục gốc">—</Badge>}
+                  {s.fm
+                    ? <span className="leading-tight" title={`FM-v1: hạng ${s.fm.rank}/${s.fm.of} · Q${s.fm.quintile} · ${s.fm.label === "THĂM DÒ" ? "đã qua kiểm định đặt trước (THĂM DÒ)" : "MÔ TẢ — chưa qua kiểm định dự báo"}`}><span className={`font-mono tabular-nums font-semibold ${s.fm.quintile >= 5 ? 'text-emerald-300' : s.fm.quintile >= 4 ? 'text-amber-300' : 'text-slate-300'}`}>{Math.round(s.fm.pct * 100)}</span><span className="block font-mono text-[10px] text-slate-500">Q{s.fm.quintile}</span></span>
+                    : <Badge tone="muted" title="Chưa đủ 4/6 nhóm nhân tố có dữ liệu">—</Badge>}
                 </td>
                 <td className={`${TD} border-l border-white/[0.04]`}>
                   {sig ? (

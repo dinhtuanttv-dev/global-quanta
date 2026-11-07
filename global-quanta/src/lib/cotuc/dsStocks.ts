@@ -10,6 +10,7 @@ export interface DsRow {
   fund: { quarter: string; tpl: string; pe: number | null; pb: number | null; roe: number | null; de: number | null; interestCover: number | null; netDebtEbitda: number | null; netMargin: number | null; growthTtm: number | null; npatYoY: number | null; epsTtm: number | null; payout: number | null; fcfCover: number | null; cfoToNpat: number | null; accrual: number | null; f: number | null; m: number | null; mFlag: boolean | null; z: number | null; zZone: string | null; flags: string[] } | null;
   ex: { n: number; dropMedian: number | null; fillWithin20: number | null; fillDaysMedian: number | null } | null;
   dq?: DqView | null;
+  fm?: FmView | null;
 }
 /** BL2 — DQ-v1: lợi suất chuẩn hoá, độ bền cổ tức, Lintner, rủi ro giá (MÔ TẢ). */
 export interface DqView {
@@ -22,6 +23,8 @@ export interface DqView {
   risk: { vol1y: number | null; mdd1y: number | null; ret1y: number | null; beta: number | null; sessions: number } | null;
   trap: string[] | null;
 }
+/** BL3 — FM-v1: điểm nhân tố (z theo nhóm ngành), thứ hạng, ngũ phân vị. label theo kiểm định đặt trước BL-r1. */
+export interface FmView { version: string; label: string; score: number; groups: Record<"Y" | "D" | "G" | "Q" | "V" | "R", number | null>; rank: number; of: number; quintile: number; pct: number }
 export interface DsDoc { version: string; today: string; asOf: Record<string, string | null>; count: number; coverage: Record<string, number>; rows: DsRow[] }
 
 const CORE = new Set(DIVIDEND_STOCKS.map((s) => s.ticker));
@@ -43,6 +46,6 @@ export function dsToStock(r: DsRow, livePrice?: number | null): DividendStock & 
     exDividendDate: vn(upcoming ?? r.div?.lastEx), paymentDate: vn(upcoming ? r.div?.nextPay : null), dividendAmount: (upcoming ? r.div?.nextCash : r.div?.lastCash) ?? 0,
     agmDate: vn(r.div?.agmNext), catalystScore: null, priceTrend: r.trend,
     fundamentalsReal: f != null && (f.roe != null || f.epsTtm != null), isUniverseOnly: !CORE.has(r.t),
-    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null,
+    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null, fm: r.fm ?? null,
   };
 }

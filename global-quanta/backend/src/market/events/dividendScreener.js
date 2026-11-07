@@ -6,6 +6,9 @@
 //   giá quanh GDKHQ                                          <- XD-v1
 // Chỉ tính số khi đủ dữ liệu; thiếu -> null (giao diện ghi "chưa có"). Không có giá trị mặc định.
 import { dividendQuality } from "./dividendQuality.js";
+import { FM_VERSION, rankScores, scoreCrossSection } from "./factorModel.js";
+/** BL3: nhãn của điểm FM-v1 theo kết quả kiểm định đặt trước BL-r1 (BL-prereg.md). */
+export const FM_LABEL = "MÔ TẢ"; // BL-r1 KHÔNG ĐẠT (H3 AUC 0,485) — xem BL-prereg.md
 export const DS_VERSION = "DS-v2 (2026-11-07)";
 export const TAX = 0.05;
 
@@ -80,9 +83,13 @@ export function buildScreener({ universe, scanItems, kqRows, eventsByTicker, exB
     const ev = eventsByTicker.get(u.ticker) ?? [];
     return screenerRow({ t: u.ticker, uni: u, scan: scan.get(u.ticker), kq: kq.get(u.ticker), div: dividendProfile(ev, today), ex: exByTicker?.[u.ticker] ?? null, dqBase: dqByTicker?.[u.ticker] ?? null });
   });
+  // BL3: điểm FM-v1 toàn mặt cắt (z theo nhóm ngành), xếp hạng + ngũ phân vị.
+  const sectorOf = new Map((universe ?? []).map((u) => [u.ticker, u.sectorGroup ?? u.industry ?? "?"]));
+  const ranked = rankScores(scoreCrossSection(rows.map((r) => ({ t: r.t, sector: sectorOf.get(r.t), f: dqByTicker?.[r.t]?.fm ?? null }))));
+  for (const r of rows) { const s = ranked.get(r.t); r.fm = s ? { version: FM_VERSION, label: FM_LABEL, score: Math.round(s.score * 1000) / 1000, groups: Object.fromEntries(Object.entries(s.groups).map(([g, v]) => [g, v == null ? null : Math.round(v * 1000) / 1000])), rank: s.rank, of: s.of, quintile: s.quintile, pct: Math.round(s.pct * 1000) / 1000 } : null; }
   const cov = (f) => rows.filter(f).length;
   return { version: DS_VERSION, today, asOf, count: rows.length,
-    coverage: { price: cov((r) => r.price), yield: cov((r) => r.yieldGross != null), pe: cov((r) => r.fund?.pe != null), payout: cov((r) => r.fund?.payout != null), trend: cov((r) => r.trend), f: cov((r) => r.fund?.f != null), fcfCover: cov((r) => r.fund?.fcfCover != null), lintner: cov((r) => r.dq?.lintner?.ok), risk: cov((r) => r.dq?.risk), trap: cov((r) => r.dq?.trap) },
+    coverage: { price: cov((r) => r.price), yield: cov((r) => r.yieldGross != null), pe: cov((r) => r.fund?.pe != null), payout: cov((r) => r.fund?.payout != null), trend: cov((r) => r.trend), f: cov((r) => r.fund?.f != null), fcfCover: cov((r) => r.fund?.fcfCover != null), lintner: cov((r) => r.dq?.lintner?.ok), risk: cov((r) => r.dq?.risk), trap: cov((r) => r.dq?.trap), fm: cov((r) => r.fm) },
     rows };
 }
 

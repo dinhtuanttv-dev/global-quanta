@@ -35,3 +35,13 @@ test("BL1 dịch vụ: ghép đủ danh mục, độ phủ dữ liệu, đệm t
   gen = "g2"; assert.notEqual(await s.get(), a);
   assert.equal(buildScreener({ universe: [], scanItems: [], kqRows: [], eventsByTicker: new Map(), today: "2026-11-07" }).count, 0);
 });
+
+test("BL3 điểm FM-v1 trong DS: xếp hạng toàn mặt cắt, nhãn theo kiểm định", async () => {
+  const { FM_LABEL } = await import("../src/market/events/dividendScreener.js");
+  const f = (i) => ({ yield: 0.02 + 0.01 * i, payout5: 0.5, fcfCover5: 1, streak: 5, cuts10: 0, divCagr3: 0.05, npatGrowth: 0.1, roe: 0.1 + 0.01 * i, cfoToNpat: 1, accrual: 0, earningsYield: 0.08, bookYield: 0.5, vol1y: 0.4 - 0.01 * i, mdd1y: -0.3 });
+  const uni = Array.from({ length: 6 }, (_, i) => ({ ticker: `S${i}`, sectorGroup: "A" }));
+  const doc = buildScreener({ universe: uni, scanItems: [], kqRows: [], eventsByTicker: new Map(), dqByTicker: Object.fromEntries(uni.map((u, i) => [u.ticker, { series: [], risk: null, fm: f(i) }])), today: "2026-11-07" });
+  const s5 = doc.rows.find((r) => r.t === "S5").fm, s0 = doc.rows.find((r) => r.t === "S0").fm;
+  assert.equal(s5.rank, 1); assert.equal(s5.quintile, 5); assert.equal(s0.quintile, 1); assert.equal(s5.label, FM_LABEL); assert.equal(FM_LABEL, "MÔ TẢ");
+  assert.equal(doc.coverage.fm, 6);
+});

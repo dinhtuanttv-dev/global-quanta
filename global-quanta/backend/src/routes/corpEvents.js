@@ -10,7 +10,7 @@ import { createRateLimiter, isAdmin } from "./macro.js";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const GROUPS = new Set(["DIVIDEND", "MEETING", "CAPITAL", "STATUS"]);
-export function createCorpEventsRouter({ getService, getExStudy = () => null, getCafefNews = () => null, getScreener = () => null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createCorpEventsRouter({ getService, getExStudy = () => null, getCafefNews = () => null, getScreener = () => null, getFmLedger = () => null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const rl = createRateLimiter({ limit: 90 });
   const send = (req, res, doc) => {
@@ -66,6 +66,7 @@ export function createCorpEventsRouter({ getService, getExStudy = () => null, ge
     const s = getScreener(); if (!s) return res.status(503).json({ error: "Chưa bật." });
     try { send(req, res, await s.get()); } catch (e) { res.status(503).json({ error: String(e?.message ?? e) }); }
   });
+  router.get("/fm-ledger", (_req, res) => res.json(getFmLedger()?.summary?.() ?? { available: false }));
   router.get("/status", (_req, res) => res.json(getService()?.status() ?? { available: false }));
   router.post("/admin/refresh", (req, res) => {
     if (!isAdmin(req, adminToken())) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });

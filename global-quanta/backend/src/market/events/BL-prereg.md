@@ -48,3 +48,26 @@ Thay "Dividend Quality Score" (Project A) bằng một xếp hạng minh bạch,
 
 ## Sổ theo dõi tiến (BL-L1)
 Từ khi triển khai, mỗi tháng ghi một lần điểm tổng hợp và ngũ phân vị của mọi mã. Chấm sau 12 tháng; không sửa bản ghi cũ.
+
+## Kết quả BL-r1 (chạy 07/11/2026 sau khi đăng ký — commit 51d481d): **KHÔNG ĐẠT** (H3 trượt) → điểm FM-v1 gắn nhãn **MÔ TẢ**
+Báo cáo: `bl-r1-report.json`. 284 mã, 53 mặt cắt tháng (06/2021–10/2025), trung bình 255 mã mỗi mặt cắt.
+
+| Tiêu chí | Kết quả | Ngưỡng | |
+|---|---|---|---|
+| H1 – IC Spearman 12 tháng | 0,142; t Newey–West 4,79 | ≥ 0,03 và t ≥ 2 | ĐẠT |
+| H2 – Ngũ phân vị cao − thấp | +11,95%/năm, CI 95% [6,59%; 20,57%] | > 0, CI không chứa 0 | ĐẠT |
+| H3 – AUC dự đoán cắt cổ tức | 0,485 (386 ca cắt / 482 không cắt) | ≥ 0,60 và ≥ 100 ca | KHÔNG ĐẠT |
+
+H4 (chỉ báo cáo):
+- IC theo nhóm: Y 0,104 · D 0,010 · G −0,001 · Q 0,096 · V 0,087 · R 0,110.
+- IC theo nửa thời gian: 0,095 / 0,188.
+
+**Diễn giải và giới hạn (ghi nhận, không sửa mô hình):**
+1. **Thiên lệch sống sót:** danh mục là 284 mã hiện tại, nên IC và chênh lệch có thể bị thổi phồng. Mã bị huỷ niêm yết / rời danh mục không có trong mẫu.
+2. **"Cắt cổ tức" cấp công ty bị nhiễu:**
+   - cổ tức đã trả theo năm dương lịch lệch năm tài chính;
+   - năm trả bằng cổ phiếu bị tính là cắt.
+   - Tỷ lệ "cắt" 44% cho thấy biến mục tiêu B chưa đo đúng. Muốn kiểm lại cần biến mục tiêu theo cổ tức / cp từng năm tài chính (sự kiện VNDirect chỉ có từ 2022), tức là đăng ký mới BL-r2.
+3. Nhóm D (độ bền) và G (tăng trưởng) gần như không liên quan tới lợi nhuận 12 tháng. Phần lớn sức mạnh đến từ Y, R, Q, V.
+
+**Hệ quả theo đăng ký:** FM-v1 chỉ dùng để sắp xếp **MÔ TẢ**, không gắn nhãn THĂM DÒ. Sổ theo dõi tiến BL-L1 vẫn ghi để kiểm chứng ngoài mẫu.

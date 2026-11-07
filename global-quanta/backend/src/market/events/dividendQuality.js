@@ -6,6 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 
+import { pitFeatures } from "./factorModel.js";
+
 export const DQ_VERSION = "DQ-v1 (2026-11-07)";
 const fin = (x) => typeof x === "number" && Number.isFinite(x);
 const r4 = (x) => (fin(x) ? Math.round(x * 1e4) / 1e4 : null);
@@ -129,14 +131,17 @@ export function createDividendQualityBase({ dir, now = Date.now, log = console }
     if (running) return { running: true };
     running = true; const t0 = now();
     try {
-      const thisYear = Number(new Date(now() + 7 * 3_600_000).toISOString().slice(0, 4));
+      const today = new Date(now() + 7 * 3_600_000).toISOString().slice(0, 10), thisYear = Number(today.slice(0, 4));
       const vn = new Map((readGz(path.join(dir, "px", "VNINDEX.json.gz"))?.rows ?? []).map((r) => [r[0], r[1]]));
       const byTicker = {};
       for (const f of fs.readdirSync(dir).filter((x) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(x))) {
         const t = f.slice(0, -8), rec = readGz(path.join(dir, f)); if (!rec) continue;
         const series = annualSeries(rec.annual, thisYear).slice(-20);
-        const risk = priceRisk(readGz(path.join(dir, "px", f))?.rows ?? [], vn);
-        byTicker[t] = { tpl: rec.tpl ?? null, series, risk };
+        const pxRows = readGz(path.join(dir, "px", f))?.rows ?? [];
+        const risk = priceRisk(pxRows, vn);
+        // BL3: biến FM-v1 tại hôm nay (cùng hàm với kiểm định BL-r1). px store: [ngày, adClose, nmValue, close] -> [ngày, adClose, close].
+        const fm = pitFeatures(rec, pxRows.map((r) => [r[0], r[1], r[3] ?? null]), today);
+        byTicker[t] = { tpl: rec.tpl ?? null, series, risk, fm };
       }
       memo = { version: DQ_VERSION, builtAt: new Date(now()).toISOString(), tickers: Object.keys(byTicker).length, byTicker, ms: now() - t0 };
       writeGz(file, memo);
