@@ -38,7 +38,7 @@ export function ToRadar({ data, onSelectTicker }: { data: ToOverview; onSelectTi
           <thead><tr>
             <th className={TH}>Mã · ngành</th><th className={TH}>Công bố</th><th className={`${TH} text-right`}>Cổ tức · lợi suất</th><th className={`${TH} text-right`}>GTGD 20 phiên</th>
             <th className={`${TH} text-right`} title="Lợi nhuận vượt VN-Index mỗi lệnh (sau phí) của nhóm lợi suất này, 03/2022–nay; khoảng tin cậy 95% bootstrap theo tháng">Kỳ vọng nhóm</th>
-            <th className={TH} title="Vượt VN-Index từ đóng cửa trước công bố tới phiên gần nhất, so với phân bố các đợt cùng nhóm ở cùng số phiên">Đã chạy</th>
+            <th className={TH} title="Vượt VN-Index từ đóng cửa trước công bố tới phiên gần nhất, vị trí trong phân bố các đợt cùng nhóm ở cùng số phiên — chỉ MÔ TẢ (kiểm tra 2022–26: đợt đã chạy nhiều không kém hơn về sau)">Đã chạy</th>
             <th className={TH} title="Phiên cuối còn quyền (liền trước GDKHQ); số phiên sau phiên vào sớm nhất; T+2 = cổ phiếu về kịp để bán">Phiên bán · T+2</th>
             <th className={TH}>TO-r1</th><th className={TH}>Cảnh báo</th>
           </tr></thead>
@@ -60,8 +60,8 @@ export function ToRadar({ data, onSelectTicker }: { data: ToOverview; onSelectTi
                   <td className={TD}>{r.runUp == null ? <span className="text-slate-500">chưa có phiên</span> : <>
                     <span className={`font-mono font-semibold ${r.runUp >= 0 ? "text-emerald-300" : "text-rose-300"}`}>{pctS(r.runUp)}</span>
                     {r.runUpPct != null && <span className="ml-1 text-[10px] text-slate-500">phân vị {Math.round(r.runUpPct * 100)}</span>}
-                    {r.runUpPct != null && <span className="mt-0.5 block h-1.5 w-24 rounded bg-white/[0.06]"><span className={`block h-1.5 rounded ${r.ranTooFar ? "bg-amber-400" : "bg-cyan-400/70"}`} style={{ width: `${Math.round(r.runUpPct * 100)}%` }} /></span>}
-                    {r.ranTooFar && <Chip tone="warn" testid={`to-ran-${r.t}`} title="Đã chạy hơn 75% số đợt cùng nhóm ở cùng số phiên — rủi ro mua đuổi">đã chạy xa</Chip>}</>}</td>
+                    {r.runUpPct != null && <span className="mt-0.5 block h-1.5 w-24 rounded bg-white/[0.06]"><span className={`block h-1.5 rounded bg-cyan-400/70`} style={{ width: `${Math.round(r.runUpPct * 100)}%` }} /></span>}
+                    </>}</td>
                   <td className={TD}><span className="font-mono">{dm(r.lastCumDate)}</span><span className="block text-[10px] text-slate-500">GDKHQ {dm(r.ex)} · còn {r.sessionsLeft ?? "—"} phiên</span>
                     {r.t2Ok ? <Chip tone="ok">kịp T+2</Chip> : <Chip tone="bad" testid={`to-t2-${r.t}`} title={`Vào phiên ${dm(r.buyDate)} thì cổ phiếu chưa về kịp để bán ở phiên cuối còn quyền`}>không kịp T+2</Chip>}</td>
                   <td className={TD}>{r.qualifies ? <Chip tone="ok" testid={`to-q-${r.t}`}>ĐỦ ĐIỀU KIỆN</Chip> : <span className="text-[10px] text-slate-500">{reasons.join(" · ") || "—"}</span>}</td>

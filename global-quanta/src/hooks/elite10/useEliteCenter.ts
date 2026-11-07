@@ -56,3 +56,10 @@ export function useEliteRetroV3() {
     try { return await fetchMarketJson("/api/elite/retro-v3"); } catch { return null; }
   }, OPTS);
 }
+
+/** Elite × TO Giai đoạn II: sổ ảo COMP-r1 / DIV-IC / EX-r1 (THĂM DÒ). Chưa bật / lỗi -> null. */
+export function useEliteToShadow() {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteToShadow | null>("elite-to-shadow", async () => {
+    try { return await fetchMarketJson("/api/elite/to-shadow"); } catch { return null; }
+  }, OPTS);
+}

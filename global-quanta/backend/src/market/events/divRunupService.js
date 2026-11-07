@@ -29,6 +29,10 @@ function lowerAt(rows, level) {
   for (let b = 0; b < 2000; b++) { let s = 0, k = 0; for (let i = 0; i < cl.length; i++) { const v = cl[Math.floor(rnd() * cl.length)]; for (const x of v) { s += x; k++; } } out.push(s / k); }
   out.sort((a, b) => a - b); return r4(out[Math.floor(2000 * (1 - level) / 2)]);
 }
+/** Cận trên khoảng tin cậy mức `level` (bootstrap theo tháng) — lần xem EX-r1 (giả thuyết: giữ qua GDKHQ < 0). */
+function upperAt(rows, level) { const neg = lowerAt(rows.map((r) => ({ m: r.m, x: -r.x })), level); return neg == null ? null : r4(-neg); }
+/** EX-r1 (ELITE-TO-prereg.md): lần xem tại 30 / 60 đợt có phần giữ qua GDKHQ. */
+export const EX_R1 = Object.freeze({ looks: [30, 60], ciLevel: 0.975, ref: { mean: -0.0287, ci95: [-0.0371, -0.0209], n: 129 } });
 
 export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVersion = () => null, isTradingDay = () => true, now = Date.now, log = console } = {}) {
   fs.mkdirSync(dir, { recursive: true });
@@ -83,6 +87,8 @@ export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVer
         if (!f.entryDate || f.entryDate < TO_R1.start) continue;
         let e = byId.get(id);
         if (!e && f.qualifies) { e = { id, t: u.ticker, sector: u.sectorGroup ?? null, disclosed: f.disclosed.slice(0, 10), cash: f.cash, y: f.y, adv: f.adv ? Math.round(f.adv) : null, entryDate: f.entryDate, ex: f.ex, recordedAt: new Date(now()).toISOString(), result: null, status: "OPEN" }; L.entries.push(e); byId.set(id, e); added++; }
+        // EX-r1: phần giữ qua GDKHQ 5 phiên (ghi một lần khi có giá GDKHQ + 4).
+        if (e && !e.post5 && f.postEx5 && e.status !== "VOID") e.post5 = f.postEx5;
         if (e && e.status === "OPEN") { e.ex = f.ex; if (f.outcome) { e.result = { exitDate: f.outcome.exitDate, excess: f.outcome.excess, abs: f.outcome.abs, scoredAt: new Date(now()).toISOString() }; e.status = "DONE"; scored++; } }
       }
     }
@@ -97,6 +103,15 @@ export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVer
         L.looks.push({ n, at: new Date(now()).toISOString(), mean: st.mean, lower975: low, pass: low != null && low > 0 });
       }
     }
+    L.exLooks ??= [];
+    const exRows = L.entries.filter((e) => e.post5 && e.status !== "VOID").sort((a, b) => a.post5.date.localeCompare(b.post5.date));
+    for (const n of EX_R1.looks) {
+      if (exRows.length >= n && !L.exLooks.some((l) => l.n === n)) {
+        const rows = exRows.slice(0, n).map((e) => ({ m: e.ex.slice(0, 7), x: e.post5.excess }));
+        const up = upperAt(rows, EX_R1.ciLevel); const st = blockStats(rows);
+        L.exLooks.push({ n, at: new Date(now()).toISOString(), mean: st.mean, upper975: up, pass: up != null && up < 0 });
+      }
+    }
     writeJson(ledgerFile, L);
     return { added, scored, voided, open: L.entries.filter((e) => e.status === "OPEN").length, done: done.length };
   }
@@ -109,8 +124,17 @@ export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVer
     return { version: L.version, registered: L.registered, start: L.start, looks: L.looks, label: passed ? "ĐẠT TO-r1" : TO_LABEL, nextLook: TO_R1.looks.find((n) => !L.looks.some((l) => l.n === n)) ?? null,
       counts: { open: L.entries.filter((e) => e.status === "OPEN").length, done: done.length, void: L.entries.filter((e) => e.status === "VOID").length },
       stats: blockStats(done.map((e) => ({ m: e.ex.slice(0, 7), x: e.result.excess }))), cusum: { S: cus.S, alarmed: cus.alarmed, h: TO_R1.cusumH, k: TO_R1.cusumK, mu0: TO_R1.mu0, sigma0: TO_R1.sigma0, quarters },
-      entries: [...L.entries].sort((a, b) => b.entryDate.localeCompare(a.entryDate)).slice(0, 60) };
+      entries: [...L.entries].sort((a, b) => b.entryDate.localeCompare(a.entryDate)).slice(0, 60), ex: exSummary(L) };
   }
+  /** EX-r1: phần giữ qua GDKHQ của các lệnh TO-L1. */
+  function exSummary(L = ledger()) {
+    const rows = L.entries.filter((e) => e.post5 && e.status !== "VOID").map((e) => ({ m: e.ex.slice(0, 7), x: e.post5.excess }));
+    const passed = (L.exLooks ?? []).find((l) => l.pass);
+    return { n: rows.length, stats: blockStats(rows), looks: L.exLooks ?? [], nextLook: EX_R1.looks.find((n) => !(L.exLooks ?? []).some((l) => l.n === n)) ?? null, ref: EX_R1.ref, label: passed ? "ĐẠT EX-r1" : TO_LABEL };
+  }
+  /** Elite × TO (sổ ảo): mọi đợt cổ tức tiền của danh mục (không kèm đường giá) + lệnh TO-L1. */
+  async function allFacts() { const mkt = market(); const out = []; for (const u of await universe()) out.push(...factsOf(u, mkt).facts.map(({ path: _p, ...f }) => f)); return out; }
+  const ledgerEntries = async () => ledger().entries;
   function forwardSim() {
     const L = ledger(); const mkt = market(); const tr = L.entries.filter((e) => e.status !== "VOID");
     if (!tr.length || !mkt.dates.length) return { from: TO_R1.start, trades: 0, curve: [] };
@@ -147,10 +171,16 @@ export function createDivRunup({ dir, pricesOf, getUniverse, eventsOf, eventsVer
   async function overview() {
     const d = doc();
     return { version: TO_VERSION, label: ledgerSummary().label, rule: TO_RULE, r1: TO_R1, builtAt: d?.builtAt ?? null,
-      reference: d ? { byBucket: d.reference.byBucket, rule: d.reference.rule, byYear: d.reference.byYear, runUp: d.reference.runUp, weakSectors: d.reference.weakSectors, sectors: d.reference.sectors } : null,
+      reference: d ? { byBucket: d.reference.byBucket, rule: d.reference.rule, byYear: d.reference.byYear, runUp: d.reference.runUp, weakSectors: d.reference.weakSectors, sectors: d.reference.sectors, postEx: d.reference.postEx ?? null } : null,
       radar: await radar(), ledger: ledgerSummary() };
+  }
+  /** Hồ sơ 360° (Elite 10): mọi đợt cổ tức tiền của một mã — điều kiện TO-r1, kết quả đến phiên cuối còn quyền, phần sau GDKHQ 5 phiên. */
+  async function tickerHistory(t) {
+    const mkt = market(); const u = (await universe()).find((x) => x.ticker === t); if (!u || !mkt.dates.length) return null;
+    const { facts } = factsOf(u, mkt);
+    return { ticker: t, sector: u.sectorGroup ?? null, events: facts.map(({ path, ...f }) => ({ ...f, runUp: path.length ? path[path.length - 1] : null })).reverse().slice(0, 20) };
   }
   function sim() { const d = doc(); return { history: d?.history ?? null, forward: forwardSim() }; }
   function legacy(t = null) { const lw = doc()?.legacy; if (!lw) return null; return t ? { pooled: lw.pooled, ticker: t, windows: lw.byTicker[t] ?? null, significant: lw.significant, tests: lw.tests } : { pooled: lw.pooled, significant: lw.significant, tests: lw.tests }; }
-  return { build, tick, radar, overview, sim, legacy, doc, ledger: ledgerSummary, hasData: () => fs.existsSync(docFile), status: () => ({ version: TO_VERSION, running, builtAt: doc()?.builtAt ?? null }), _clusterCi: clusterCi };
+  return { build, tick, radar, overview, sim, legacy, tickerHistory, allFacts, ledgerEntries, exSummary: () => exSummary(), doc, ledger: ledgerSummary, hasData: () => fs.existsSync(docFile), status: () => ({ version: TO_VERSION, running, builtAt: doc()?.builtAt ?? null }), _clusterCi: clusterCi };
 }

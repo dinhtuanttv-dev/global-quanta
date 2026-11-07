@@ -99,7 +99,7 @@ describe("PortfolioRadar", () => {
 describe("PortfolioRadar — ⏱ dải vùng mua", () => {
   const S = ["2026-10-21", "2026-10-22", "2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06",
     "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-23", "2026-11-24"];
-  const tl = (o: Record<string, unknown>) => ({ id: String(o.ticker) + o.status, sector: null, kind: "DIVIDEND", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-11-06",
+  const tl = (o: Record<string, unknown>) => ({ id: String(o.ticker) + o.status, sector: null, kind: "EARNINGS", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-11-06",
     eventDateBasis: "CONFIRMED", windowId: "w2", windowLabel: "W2 · Trước GDKHQ", entryFrom: -6, entryTo: -2, exitOffset: 3, entryFromDate: "2026-10-29", entryToDate: "2026-11-04", exitDate: "2026-11-11",
     sessionsToEntry: 0, nEvents: 10, winRate: 0.8, probability: null, netExpectancy: 0.03, netExpectancyLcb: 0.01, fdrQValue: 0.02, decisionLevel: null, missing: [], ...o });
   const cell = (kind: string, row: unknown = null) => ({ kind, text: "", sub: "", date: null, tooltip: "t", dashed: false, row });
@@ -114,7 +114,7 @@ describe("PortfolioRadar — ⏱ dải vùng mua", () => {
     expect(screen.getByTestId("buy-zone-axis")).toBeTruthy();
     expect(screen.getByTestId("elite-radar-buy-head").textContent).toContain("⏱ Vùng mua · 21 phiên");
     expect(screen.getByTestId("buy-zone-pill-VPI").textContent).toBe("● ĐANG TRONG VÙNG MUA");
-    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức W2 29/10→04/11 · thoát 11/11");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("KQKD W2 29/10→04/11 · thoát 11/11");
     expect(screen.getByTestId("buy-zone-tier-VPI").textContent).toBe("✓ ĐẠT");
     const bar = screen.getByTestId("buy-zone-bar-VPI");
     expect(bar.getAttribute("data-tier")).toBe("VALIDATED");
@@ -135,7 +135,7 @@ describe("PortfolioRadar — ⏱ dải vùng mua", () => {
 
 describe("PortfolioRadar — ⏱ ĐIỂM MUA 10 PHIÊN TỚI (vùng tối ưu từ tab Cổ tức)", () => {
   const S = ["2026-10-23", "2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29", "2026-10-30", "2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-16", "2026-11-17", "2026-11-18", "2026-11-19", "2026-11-20"];
-  const z = (o: Record<string, unknown>) => ({ id: `${o.ticker}${o.kind ?? "D"}`, sector: null, kind: "DIVIDEND", tier: "EXPLORATORY", status: "UPCOMING", eventLabel: "GDKHQ", eventDate: "2026-11-13",
+  const z = (o: Record<string, unknown>) => ({ id: `${o.ticker}${o.kind ?? "D"}`, sector: null, kind: "EARNINGS", tier: "EXPLORATORY", status: "UPCOMING", eventLabel: "GDKHQ", eventDate: "2026-11-13",
     eventDateBasis: "ESTIMATED", windowId: "w3", windowLabel: "W3 · Trước GDKHQ", entryFrom: -6, entryTo: -2, exitOffset: 3, entryFromDate: "2026-11-05", entryToDate: "2026-11-11", exitDate: "2026-11-18",
     sessionsToEntry: 4, nEvents: 7, winRate: 0.71, probability: null, netExpectancy: 0.02, netExpectancyLcb: -0.003, fdrQValue: 0.4, decisionLevel: null, missing: ["q-value 0,40 > 0,1"], ...o });
   it("chip trong 10 phiên (THĂM DÒ chấm, GẦN ĐẠT nét đứt) + 'xa hơn'; mỗi hàng hiện vùng tối ưu; mã ngoài danh mục theo dõi Cổ tức được ghi rõ", () => {
@@ -144,12 +144,12 @@ describe("PortfolioRadar — ⏱ ĐIỂM MUA 10 PHIÊN TỚI (vùng tối ưu t�
     const opened: string[] = [];
     render(<PortfolioRadar {...props({ onOpenTicker: (t: string) => opened.push(t) })} />);
     const chips = [...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent);
-    expect(chips).toEqual(["● IDC CT trong vùnggần đạt", "⏱ VPI CT 4pthăm dò", "⏱ AAS KQ 21/01/27 · 58pgần đạt"]);
+    expect(chips).toEqual(["● IDC KQ trong vùnggần đạt", "⏱ VPI KQ 4pthăm dò", "⏱ AAS KQ 21/01/27 · 58pgần đạt"]);
     expect(screen.getByTestId("elite-buy-strip-later").textContent).toContain("Xa hơn");
     expect(screen.getByTestId("elite-buy-strip").textContent).toContain("Ngoài danh mục theo dõi của tab Cổ tức: HHP");
     expect(screen.getByTestId("buy-zone-pill-VPI").textContent).toBe("⏱ SẮP TỚI · 4 phiên");
     expect(screen.getByTestId("buy-zone-tier-VPI").textContent).toBe("THĂM DÒ");
-    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("cổ tức W3 05/11→11/11 · thoát 18/11");
+    expect(screen.getByTestId("buy-zone-detail-VPI").textContent).toBe("KQKD W3 05/11→11/11 · thoát 18/11");
     expect(screen.getByTestId("buy-zone-pill-IDC").textContent).toBe("● ĐANG TRONG VÙNG MUA");
     fireEvent.click(document.querySelector("[data-testid=elite-buy-chip]")!);
     expect(opened).toEqual(["IDC"]);

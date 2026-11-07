@@ -189,10 +189,9 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                 {show("decision") && (<td className={`${TD} border-l border-white/[0.04]`}>
                   {to ? <div className="flex flex-wrap gap-1">
                       {!to.t2Ok && <Badge tone="rose" title="Vào ở phiên sớm nhất thì cổ phiếu chưa về kịp để bán ở phiên cuối còn quyền">không kịp T+2</Badge>}
-                      {to.ranTooFar && <Badge tone="amber" title="Giá đã chạy hơn 75% số đợt cùng nhóm ở cùng số phiên">đã chạy xa</Badge>}
                       {to.weakSector && <Badge tone="amber" title="Ngành có kết quả lịch sử âm với quy tắc này">ngành yếu</Badge>}
                       {to.limitUpEntry && <Badge tone="rose" title="Phiên đầu sau công bố tăng trần">trần lúc vào</Badge>}
-                      {to.t2Ok && !to.ranTooFar && !to.weakSector && !to.limitUpEntry && <Badge tone="muted">không có</Badge>}
+                      {to.t2Ok && !to.weakSector && !to.limitUpEntry && <Badge tone="muted">không có</Badge>}
                     </div>
                     : <Badge tone="muted">—</Badge>}
                 </td>)}

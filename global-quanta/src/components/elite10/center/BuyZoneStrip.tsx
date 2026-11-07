@@ -4,6 +4,7 @@
 // và kỳ nắm giữ 10 phiên của danh mục.
 import type { BuyCell } from "../../../lib/elite10/buyTimingCell";
 import type { BuyLane, LaneAxis, LaneRow, LaneZone } from "../../../lib/elite10/buyZoneLane";
+import { isToRow, toZoneText } from "../../../lib/elite10/toTiming";
 
 const H = 22, TOP = 5, BAR = 12;
 const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
@@ -48,6 +49,7 @@ export const TIER_TAG: Record<LaneRow["tier"], { t: string; c: string; title: st
 };
 const zoneTitle = (z: LaneZone) => {
   const r = z.row;
+  if (isToRow(r)) return `${toZoneText(r)} (${ZONE_STATUS(z)})`;
   return `${r.tier === "VALIDATED" ? "✓ Đạt kiểm định" : r.tier === "NEAR" ? "Gần đạt (chưa qua kiểm định)" : "Thăm dò — vùng tối ưu nhất, chưa qua kiểm định"} · ${r.kind === "DIVIDEND" ? "Chu kỳ cổ tức" : "Mùa vụ KQKD"} · ${r.windowLabel}\n`
     + `Vùng mua ${dm(r.entryFromDate)} → ${dm(r.entryToDate)} (${ZONE_STATUS(z)}) · thoát ${dm(r.exitDate)} · ${r.eventLabel} ${dm(r.eventDate)}\n`
     + `Thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} đợt · kỳ vọng ròng ${pct(r.netExpectancy)} (cận dưới ${pct(r.netExpectancyLcb)})${r.missing.length ? ` · còn thiếu: ${r.missing.join("; ")}` : ""}`;

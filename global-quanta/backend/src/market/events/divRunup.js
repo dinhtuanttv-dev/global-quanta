@@ -80,6 +80,13 @@ export function eventFacts(ann, s, mkt, { exch = "HOSE" } = {}) {
     const c = TO_RULE.costBuy + TO_RULE.costSell;
     f.outcome = { exitDate: s.dates[lastCum], excess: r4(Math.exp(ls - lb) - 1 - c), abs: r4(Math.exp(ls) - 1 - c) };
   }
+  // Phần SAU (EX-r1): giữ tiếp từ phiên cuối còn quyền tới GDKHQ + 4 phiên (5 phiên), vượt VN-Index, ĐÃ GỒM cổ tức nhận sau thuế 5%.
+  // Không trừ phí: bán ở phiên cuối còn quyền hay 5 phiên sau đều chịu đúng một lần phí bán — đây là phần chênh của việc giữ qua GDKHQ.
+  const post = exI + 4;
+  if (lastCum >= 0 && post < n && s.dates[exI] >= ann.ex && s.raw[lastCum]) {
+    const ls = Math.log(s.adj[post] / s.adj[lastCum]) + Math.log(1 - 0.05 * ann.cash / (s.raw[lastCum] * 1000));
+    f.postEx5 = { date: s.dates[post], excess: r4(Math.exp(ls - Math.log(mkt.get(s.dates[post]) / mkt.get(s.dates[lastCum]))) - 1) };
+  } else f.postEx5 = null;
   return f;
 }
 
@@ -116,7 +123,9 @@ export function referenceStudy(all) {
   const sectors = {};
   for (const sec of [...new Set(rule.map((f) => f.sector).filter(Boolean))]) { const st = blockStats(rule.filter((f) => f.sector === sec).map((f) => ({ m: f.ex.slice(0, 7), x: f.outcome.excess }))); if (st.n >= 8) sectors[sec] = st; }
   const byYear = Object.fromEntries([...new Set(rule.map((f) => f.ex.slice(0, 4)))].sort().map((y) => [y, blockStats(rule.filter((f) => f.ex.startsWith(y)).map((f) => ({ m: f.ex.slice(0, 7), x: f.outcome.excess })))]));
-  return { byBucket, rule: blockStats(rule.map((f) => ({ m: f.ex.slice(0, 7), x: f.outcome.excess }))), byYear, runUp, sectors,
+  // EX-r1 (MÔ TẢ): giữ qua GDKHQ 5 phiên theo nhóm lợi suất — cơ sở cảnh báo GDKHQ của Elite 10.
+  const postEx = Object.fromEntries(YIELD_BUCKETS.map(([b]) => [b, blockStats(all.filter((f) => f.postEx5 && f.bucket === b && (f.adv ?? 0) >= TO_RULE.minAdv).map((f) => ({ m: f.ex.slice(0, 7), x: f.postEx5.excess })))]));
+  return { byBucket, rule: blockStats(rule.map((f) => ({ m: f.ex.slice(0, 7), x: f.outcome.excess }))), byYear, runUp, sectors, postEx,
     weakSectors: Object.entries(sectors).filter(([, s]) => s.mean < 0).map(([k]) => k), events: done.length };
 }
 
@@ -144,7 +153,8 @@ export function radarRow(f, ref, { t, name = null, sector = null, today, lastCum
     t, name, sector, ex: f.ex, disclosed: f.disclosed, check: f.check, cash: f.cash, yieldPre: f.y, bucket: f.bucket,
     yieldNow: lastPrice ? r4(f.cash / (lastPrice * 1000)) : null, lastPrice, lastPriceDate, adv: f.adv ? Math.round(f.adv) : null, liquidityOk: (f.adv ?? 0) >= TO_RULE.minAdv,
     entryDate: f.entryDate, limitUpEntry: f.limitUp, qualifies: f.qualifies, sessionsSinceAnn: k,
-    runUp, runUpPct: pct, runUpShareOfTypical: fin(full) && full > 0 && fin(runUp) ? r4(runUp / full) : null, ranTooFar: pct != null && pct >= 0.75,
+    // Mức đã chạy chỉ MÔ TẢ (07/11/2026: kiểm tra 2022–26 cho thấy đợt đã chạy nhiều KHÔNG kém hơn về sau — đã bỏ cảnh báo "đã chạy xa").
+    runUp, runUpPct: pct, runUpShareOfTypical: fin(full) && full > 0 && fin(runUp) ? r4(runUp / full) : null,
     buyDate: today, lastCumDate, sessionsLeft: left, t2Ok: left != null && left >= TO_RULE.minHold,
     expected: ref?.byBucket?.[f.bucket] ?? null, weakSector: !!(sector && ref?.weakSectors?.includes(sector)), label: TO_LABEL,
   };

@@ -7,7 +7,8 @@ import type { ResearchOverview } from "../../../hooks/useResearch";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { TIER_TITLE, type Tier } from "../../../lib/elite10/decisionTypes";
-import { buyTimingFreshness, useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
+import { buyTimingFreshness } from "../../../hooks/useGatewayBuyTimeline";
+import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
 import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
 import { fmtDate, num, SectionControls, signed } from "./boardParts";
 import { useBoardSection } from "./boardPrefs";
@@ -41,7 +42,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
   // Chế độ thị trường VN: tải trực tiếp (không phụ thuộc công tắc "AI nghiên cứu" của Siêu quét); cùng khoá SWR để dùng chung bộ đệm.
   const { data: research } = useSWR<ResearchOverview>("research-overview", () => fetchMarketJson<ResearchOverview>("/api/market/research/overview"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 });
   const { data: ws } = useWorldStrategy();
-  const buy = useGatewayBuyTimeline();
+  // Elite × TO (07/11/2026): Timeline Gateway với vùng cổ tức W1–W5 cũ thay bằng vùng Săn cổ tức TO (THĂM DÒ); KQKD giữ nguyên.
+  const buy = useEliteTiming();
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const byId = useMemo(() => new Map((d?.weights ?? []).map((w) => [w.id, w])), [d]);
   const pf = useBoardSection("portfolio");

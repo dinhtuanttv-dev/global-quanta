@@ -61,6 +61,12 @@ export function useToSim(enabled = true) {
   const { data } = useSWR<import("../lib/cotuc/to").ToSim>(enabled ? "to-sim" : null, () => fetchMarketJson("/api/corp-events/to/sim"), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
   return data ?? null;
 }
+/** Elite × TO: mọi đợt cổ tức tiền của một mã (điều kiện TO-r1, kết quả tới phiên cuối còn quyền, phần sau GDKHQ 5 phiên). */
+export function useToTicker(ticker: string | null) {
+  const t = ticker && /^[A-Z0-9]{3,10}$/.test(ticker.toUpperCase()) ? ticker.toUpperCase() : null;
+  const { data, error } = useSWR<import("../lib/cotuc/to").ToTickerHistory>(t ? `to-ticker:${t}` : null, () => fetchMarketJson(`/api/corp-events/to/ticker/${encodeURIComponent(t!)}`), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null };
+}
 export function useToWindows(ticker: string | null) {
   const t = ticker?.toUpperCase() ?? null;
   const { data } = useSWR<import("../lib/cotuc/to").ToWindows>(`to-windows:${t ?? "*"}`, () => fetchMarketJson(t ? `/api/corp-events/to/windows/${encodeURIComponent(t)}` : "/api/corp-events/to/windows"), { revalidateOnFocus: false, dedupingInterval: 60 * 60_000, shouldRetryOnError: false });
