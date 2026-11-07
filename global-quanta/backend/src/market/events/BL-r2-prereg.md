@@ -55,3 +55,23 @@ BL-r2 đo lại bằng **cổ tức tiền / cổ phiếu theo năm tài chính*
   - thiên lệch sống sót (danh mục 284 mã hiện tại);
   - chỉ có 3 cặp năm;
   - các đợt cổ tức công bố muộn của năm 2025 có thể chưa có, khiến số ca cắt năm 2025 bị đếm thừa.
+
+## Kết quả BL-r2 (chạy 07/11/2026 sau đăng ký — commit 6db4ebe): **KHÔNG ĐẠT** (H3a trượt) → FM-v1 giữ nhãn **MÔ TẢ**
+Báo cáo: `bl-r2-report.json`. Mẫu: 145 mã có trả tiền ở năm X, 341 quan sát.
+
+| Tiêu chí | Kết quả | Ngưỡng | |
+|---|---|---|---|
+| H3a – AUC dự đoán cắt | 0,580 | ≥ 0,60 | KHÔNG ĐẠT |
+| H3b – số ca cắt | 125 (216 không cắt) | ≥ 100 | ĐẠT |
+| H3c – CI 95% AUC (bootstrap theo mã) | [0,515; 0,646] | cận dưới > 0,50 | ĐẠT |
+
+**Báo cáo thêm:**
+- AUC theo cặp năm: 2022→2023: 0,580 (45/109) · 2023→2024: 0,543 (33/109) · 2024→2025: 0,580 (47/123).
+- Loại các năm có trả cổ phiếu / thưởng: AUC 0,593 (77/236).
+- Riêng nhóm D: AUC 0,520.
+- Tỷ lệ cắt: 36,7%, giảm từ 44% của BL-r1.
+
+**Diễn giải:**
+- Với biến mục tiêu đo đúng, FM-v1 có phân biệt được việc cắt cổ tức, vì khoảng tin cậy nằm trên 0,5, nhưng yếu (AUC 0,58) và chưa qua ngưỡng đặt trước 0,60.
+- Theo đăng ký: không chạy lại, nhãn giữ MÔ TẢ.
+- Sổ theo dõi tiến BL-L1 vẫn ghi để kiểm ngoài mẫu.
