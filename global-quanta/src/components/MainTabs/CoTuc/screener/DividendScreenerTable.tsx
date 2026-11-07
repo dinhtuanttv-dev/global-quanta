@@ -154,10 +154,11 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                 </td>
                 <td className={`${TD} text-right border-l border-white/[0.04]`}>
                   {s.dividendYield > 0
-                    ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}{s.yieldAnomaly && <span className="ml-1 cursor-help rounded border border-amber-400/50 bg-amber-400/10 px-1 font-sans text-[10px] font-bold text-amber-300" data-testid={`yield-anomaly-${s.ticker}`} title={`Tỷ suất 12 tháng có thể không đại diện: ${s.yieldAnomaly.reasons.join("; ")}. Số được giữ nguyên, chỉ cảnh báo.`}>⚠</span>}</span>
+                    ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}{s.yieldAnomaly && <span className="ml-1 cursor-help rounded border border-amber-400/50 bg-amber-400/10 px-1 font-sans text-[10px] font-bold text-amber-300" data-testid={`yield-anomaly-${s.ticker}`} title={`Tỷ suất 12 tháng có thể không đại diện: ${s.yieldAnomaly.reasons.join("; ")}. Số được giữ nguyên, chỉ cảnh báo.`}>⚠</span>}{s.dq?.trap && <span className="ml-1 cursor-help rounded border border-rose-400/50 bg-rose-400/10 px-1 font-sans text-[10px] font-bold text-rose-300" data-testid={`yield-trap-${s.ticker}`} title={`Có dấu hiệu bẫy lợi suất: ${s.dq.trap.join("; ")}`}>bẫy?</span>}</span>
                     : <Badge tone="muted" title="Không có cổ tức tiền mặt trong 12 tháng gần nhất">0%</Badge>}
                   <span className="block font-mono tabular-nums text-[10px] text-slate-500">
                     {s.dividendAmount > 0 ? `${fmtVnd(s.dividendAmount)} đ/cp` : '—'}
+                    {s.dq?.yield.fy != null && <span className="ml-1 text-slate-400" title={`Lợi suất theo cổ tức năm tài chính ${s.dq.yield.fyYear} (không gồm khoản trả dồn)${s.dq.yield.catchUp ? " — 12 tháng gần nhất có trả dồn nhiều năm" : ""}`}>· NTC {fmtPctValue(Math.round(s.dq.yield.fy * 1000) / 10)}{s.dq.yield.catchUp ? "*" : ""}</span>}
                     {s.specialDividend && <span className="ml-1 text-amber-300" title="Có đợt chi lớn bất thường trong 12 tháng (≥ 2× mức thường lệ) — tỷ suất có thể không lặp lại">ĐB</span>}
                   </span>
                 </td>

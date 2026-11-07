@@ -23,6 +23,8 @@ export interface DividendStock {
   priceTrend?: PriceTrend | null;
   /** BL1: tỷ lệ chi trả / tăng trưởng LNST là số thật (DS-v1, KQKD 4 quý). */
   payoutReal?: boolean; growthReal?: boolean;
+  /** BL2: độ bền cổ tức / Lintner / rủi ro / bẫy lợi suất (DS-v2 Gateway). Kiểu chi tiết: DqView (lib/cotuc/dsStocks). */
+  dq?: import("./cotuc/dsStocks").DqView | null;
   // P2: Tier 1-3 cua Dividend Quality Score, merge tu /api/cotuc/quality-score
   // (Tier 4 = RS+RedFlag tinh rieng luc dung, vi can realRsMap theo tung
   // luot goi ham, khong luu san trong object).
@@ -225,6 +227,8 @@ export interface DividendFilter {
   // ma khong con thoi su. Van co the TAT filter nay de xem lai TOAN BO
   // watchlist khi can (khong mat thong tin, chi an mac dinh).
   hideStaleEvents: boolean;
+  /** BL2: ẩn mã bị gắn cờ "bẫy lợi suất" (lợi suất ≥ 8% kèm giá sụp / chi trả vượt lợi nhuận / dòng tiền yếu / LNST giảm mạnh). */
+  hideTraps?: boolean;
 }
 
 /** Ngưỡng "sắp tới" dùng chung cho thẻ KPI, nút lọc nhanh và lịch: 30 ngày. */
@@ -239,7 +243,7 @@ export const isFinancialSector = (sector: string) => /ng[âa]n h[àa]ng|ch[ứu]
 export const DEFAULT_FILTER: DividendFilter = {
   minYield:0, minRoe:0, maxPe:PE_NO_LIMIT, maxDebt:DEBT_NO_LIMIT, minFscore:0,
   trend:"All", phase:"All", upcomingGDKHQ:false, upcomingAGM:false,
-  hideRiskFlags:false, searchQ:"", hideStaleEvents:true,
+  hideRiskFlags:false, searchQ:"", hideStaleEvents:true, hideTraps:false,
 };
 
 export type FilterVerdict = "PASS" | "FAIL" | "MISSING_DATA" | "STALE";
@@ -276,6 +280,7 @@ export function filterVerdict(s: DividendStock, filter: DividendFilter): FilterV
   const agmDays = getDaysUntil(s.agmDate);
   if (filter.upcomingAGM && !(agmDays !== null && agmDays >= 0 && agmDays <= UPCOMING_WINDOW_DAYS)) return "FAIL";
   if (filter.hideRiskFlags && detectRiskFlags(s).length > 2) return "FAIL";
+  if (filter.hideTraps && s.dq?.trap?.length) return "FAIL";
   // Mặc định ẩn mã chỉ có đợt GDKHQ đã qua > 60 ngày (chưa có lịch mới) — xét SAU cùng để đếm đúng số mã bị ẩn vì lý do này.
   if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return "STALE";
   return "PASS";
