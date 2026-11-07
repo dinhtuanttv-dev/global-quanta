@@ -25,6 +25,8 @@ export interface DividendStock {
   payoutReal?: boolean; growthReal?: boolean;
   /** BL2: độ bền cổ tức / Lintner / rủi ro / bẫy lợi suất (DS-v2 Gateway). Kiểu chi tiết: DqView (lib/cotuc/dsStocks). */
   dq?: import("./cotuc/dsStocks").DqView | null;
+  /** BL3: điểm nhân tố FM-v1 (thay Dividend Quality Score của Project A). */
+  fm?: import("./cotuc/dsStocks").FmView | null;
   // P2: Tier 1-3 cua Dividend Quality Score, merge tu /api/cotuc/quality-score
   // (Tier 4 = RS+RedFlag tinh rieng luc dung, vi can realRsMap theo tung
   // luot goi ham, khong luu san trong object).
@@ -306,10 +308,7 @@ export function filterAndSortStocks(
     .filter((s) => filterVerdict(s, filter) === "PASS")
     .sort((a, b) => {
       let va: number, vb: number;
-      if (sortField === "score") {
-        va = calcRealDividendQualityScore(a, realRsMap?.[a.ticker], detectRiskFlags(a).length);
-        vb = calcRealDividendQualityScore(b, realRsMap?.[b.ticker], detectRiskFlags(b).length);
-      }
+      if (sortField === "score") { va = a.fm?.pct ?? -1; vb = b.fm?.pct ?? -1; } // BL3: thứ hạng FM-v1
       else if (sortField === "catalyst") { va = calcCatalystScore(a) ?? -1; vb = calcCatalystScore(b) ?? -1; }
       else {
         const rawA = a[sortField as keyof DividendStock];
