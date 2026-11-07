@@ -23,7 +23,8 @@ export const USER_TABLES = new Set(["market_user_watchlists", "market_user_chart
 export const isLocalOnlyTable = (table) => String(table).startsWith("market_matrix_") || String(table).startsWith("auth_") || USER_TABLES.has(table)
   || String(table).startsWith("market_user_elliott_") // DW8/DW10: cách đếm Elliott chỉnh tay + cảnh báo (mới, không có trên Supabase)
   || String(table).startsWith("market_elliott_") // EP2: sổ theo dõi kịch bản Elliott
-  || table === "market_user_workspace"; // Super Chart SC1: bố cục tab TA theo tài khoản
+  || table === "market_user_workspace" // Super Chart SC1: bố cục tab TA theo tài khoản
+  || table === "market_user_screener"; // BL4: bộ lọc cổ tức đã lưu + cột theo tài khoản
 /** B1: khoá KV `local:*` chỉ ở Railway Volume (bộ đệm dữ liệu ngoài, VD Timeline điểm mua) — không sao / không hỏi Supabase. */
 export const isLocalOnlyKv = (key) => String(key).startsWith("local:");
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);

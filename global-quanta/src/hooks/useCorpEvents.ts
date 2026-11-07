@@ -45,6 +45,13 @@ export function usePlanNews(ticker: string | null) {
   return data ?? null;
 }
 
+/** BL6: sổ theo dõi tiến BL-L1 của mô hình nhân tố FM-v1 — mỗi tháng ghi điểm + ngũ phân vị mọi mã, chấm lợi nhuận sau 12 tháng. */
+export interface FmCohort { month: string; recordedAt: string; n: number; result: { scoredAt: string; n: number; byQuintile: Record<string, number | null>; spread: number | null } | null }
+export function useFmLedger(enabled = true) {
+  const { data } = useSWR<{ version: string; cohorts: FmCohort[] }>(enabled ? "fm-ledger" : null, () => fetchMarketJson("/api/corp-events/fm-ledger"), { revalidateOnFocus: false, dedupingInterval: 60 * 60_000, shouldRetryOnError: false });
+  return data ?? null;
+}
+
 /** BL1: dữ liệu Bộ lọc cổ phiếu (DS-v1, Gateway) — giá, cổ tức, cơ bản, chất lượng, giá quanh GDKHQ cho cả danh mục. */
 export function useDividendScreener(enabled = true) {
   const { data, error, isLoading } = useSWR<import("../lib/cotuc/dsStocks").DsDoc>(enabled ? "dividend-screener" : null, () => fetchMarketJson("/api/corp-events/screener"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000, refreshInterval: 15 * 60_000 });

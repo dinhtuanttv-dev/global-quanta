@@ -85,15 +85,7 @@ export function GanttView({ events, from, to, today, onTicker }: { events: CorpE
 
 /** Ngăn chi tiết mã: thói quen cổ tức, lịch sử theo năm tài chính, mọi sự kiện. */
 export function TickerEventsDrawer({ ticker, price, onClose, onOpenProfile }: { ticker: string; price?: number; onClose: () => void; onOpenProfile: (t: string) => void }) {
-  const d = useCorpEventsTicker(ticker);
   useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [onClose]);
-  const events = d?.events ?? [];
-  const hist = useMemo(() => dividendHistory(events).slice(-11), [events]);
-  const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
-  const habits = useMemo(() => dividendHabits(events, Number(today.slice(0, 4))), [events, today]);
-  const maxCash = Math.max(1, ...hist.map((h) => h.cash));
-  const paid = hist.filter((h) => h.cash > 0); const lastFy = paid[paid.length - 1];
-  const list = [...events].sort((a, b) => keyDate(b).localeCompare(keyDate(a)));
   return (
     <div className="fixed inset-0 z-[60] flex justify-end bg-black/60" role="dialog" aria-modal="true" aria-label={`Sự kiện ${ticker}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="ce-drawer">
       <div className="tw-scope h-full w-full max-w-[880px] overflow-y-auto border-l border-white/10 bg-[#0B0F19] p-4 shadow-2xl">
@@ -102,6 +94,24 @@ export function TickerEventsDrawer({ ticker, price, onClose, onOpenProfile }: { 
           <button type="button" onClick={() => onOpenProfile(ticker)} className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-300">Mở hồ sơ mã</button>
           <button type="button" onClick={onClose} aria-label="Đóng" className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-slate-300">✕</button>
         </header>
+        <TickerEventsBody ticker={ticker} price={price} />
+      </div>
+    </div>
+  );
+}
+
+/** BL5: thân ngăn sự kiện một mã (Gateway VNDirect) — dùng cả ở ngăn Lịch sự kiện và tab "Sự kiện & cổ tức" của hồ sơ mã. */
+export function TickerEventsBody({ ticker, price }: { ticker: string; price?: number }) {
+  const d = useCorpEventsTicker(ticker);
+  const events = d?.events ?? [];
+  const hist = useMemo(() => dividendHistory(events).slice(-11), [events]);
+  const today = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+  const habits = useMemo(() => dividendHabits(events, Number(today.slice(0, 4))), [events, today]);
+  const maxCash = Math.max(1, ...hist.map((h) => h.cash));
+  const paid = hist.filter((h) => h.cash > 0); const lastFy = paid[paid.length - 1];
+  const list = [...events].sort((a, b) => keyDate(b).localeCompare(keyDate(a)));
+  return (
+    <div className="tw-scope" data-testid="ce-body">
         {!d ? <p className="text-[11px] text-slate-500">Đang tải…</p> : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
@@ -142,7 +152,6 @@ export function TickerEventsDrawer({ ticker, price, onClose, onOpenProfile }: { 
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

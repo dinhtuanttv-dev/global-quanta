@@ -8,7 +8,7 @@
 import { dividendQuality } from "./dividendQuality.js";
 import { FM_VERSION, rankScores, scoreCrossSection } from "./factorModel.js";
 /** BL3: nhãn của điểm FM-v1 theo kết quả kiểm định đặt trước BL-r1 (BL-prereg.md). */
-export const FM_LABEL = "MÔ TẢ"; // BL-r1 KHÔNG ĐẠT (H3 AUC 0,485) — xem BL-prereg.md
+export const FM_LABEL = "MÔ TẢ"; // BL-r1 KHÔNG ĐẠT (H3 AUC 0,485); BL-r2 (cổ tức/cp theo năm tài chính) KHÔNG ĐẠT (AUC 0,580 < 0,60) — xem BL-prereg.md
 export const DS_VERSION = "DS-v2 (2026-11-07)";
 export const TAX = 0.05;
 

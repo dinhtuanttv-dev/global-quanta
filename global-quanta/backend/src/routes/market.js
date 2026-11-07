@@ -4,6 +4,7 @@
 import { getUserWatchlists, saveUserWatchlists } from "../market/watchlists/userWatchlists.js";
 import { getUserChartState, normalizeChartSymbol, saveUserChartState } from "../market/watchlists/userChartState.js";
 import { getUserWorkspace, saveUserWorkspace } from "../market/watchlists/userWorkspace.js";
+import { getUserScreenerPrefs, saveUserScreenerPrefs } from "../market/watchlists/userScreenerPrefs.js";
 import { deleteUserElliottCounts, getUserElliottCounts, normalizeCountKey, saveUserElliottCounts } from "../market/watchlists/userElliottCounts.js";
 import { listUserAlerts, markEventsRead, saveUserAlerts } from "../market/watchlists/userElliottAlerts.js";
 import { Router } from "express";
@@ -726,6 +727,19 @@ router.put("/workspace", handle(async (req, res) => {
   const userId = await verifyUser(req.headers.authorization);
   res.set("Cache-Control", "no-store");
   res.json(await saveUserWorkspace(getMarketRuntime().store, userId, req.body ?? {}));
+}));
+
+// BL4: Bộ lọc cổ phiếu cổ tức — bộ lọc đã lưu + cột hiển thị theo tài khoản: GET / PUT /screener-prefs { prefs, baseUpdatedAt }.
+router.get("/screener-prefs", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await getUserScreenerPrefs(getMarketRuntime().store, userId));
+}));
+
+router.put("/screener-prefs", handle(async (req, res) => {
+  const userId = await verifyUser(req.headers.authorization);
+  res.set("Cache-Control", "no-store");
+  res.json(await saveUserScreenerPrefs(getMarketRuntime().store, userId, req.body ?? {}));
 }));
 
 // DW8: cách đếm Elliott chỉnh tay theo tài khoản + mã + khung (lịch sử phiên bản):

@@ -8,7 +8,7 @@ import {
   CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
 } from "lucide-react";
 import {
-  DIVIDEND_STOCKS, getTradePhase, calcRealDividendQualityScore, isQualityScoreReal, calcCatalystScore,
+  DIVIDEND_STOCKS, getTradePhase,
   detectRiskFlags, riskDataReady, PRICE_TREND_LABEL, filterAndSortStocks, getDaysUntil,
   fmtVND, fmtPct, DEFAULT_FILTER, explainFilter, UPCOMING_WINDOW_DAYS, PE_NO_LIMIT,
   type DividendFilter, type DividendStock,
@@ -17,23 +17,20 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useDividendFilterUrl } from "../../../hooks/useDividendFilterUrl";
 import { usePinnedStocks } from "../../../hooks/usePinnedStocks";
 import { useDividendEvents } from "../../../hooks/useDividendEvents";
-import type { DividendLifecycleEvent } from "../../../hooks/useDividendEvents";
-import { DividendTimelinePanel } from "./DividendTimelinePanel";
-import { CycleTimingPanel } from "./CycleTimingPanel";
 import { OptimalTimingTab } from "./OptimalTimingTab";
 import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
-import { optimizeDividendTiming, DEFAULT_CONFIG, systemClock } from "../../../lib/quant-cotuc";
 import { useVnTradingCalendar } from "../../../lib/cotuc/vn-holidays";
-import { assertNoMockInProduction } from "../../../lib/cotuc/observability";
-import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
-import { EventDaysChipsV3 } from "./DaysChipV3";
 import EventsCalendar from "./events/EventsCalendar";
 import DividendQualityPanel from "./screener/DividendQualityPanel";
 import FactorPanel, { FmBadge } from "./screener/FactorPanel";
+import { ScreenerToolbar } from "./screener/ScreenerToolbar";
+import { FmLedgerCard } from "./screener/FmLedgerCard";
+import { TickerEventsBody } from "./events/EventViews";
+import { useScreenerPrefs } from "../../../hooks/useScreenerPrefs";
+import { SCREENER_COLUMNS, savedToFilter } from "../../../lib/cotuc/screenerPrefs";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
-import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
-import { useAiAnalysis } from "../../../hooks/useAiAnalysis";
+import { useUniverseScores } from "../../../hooks/useUniverseScores";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
 import { useRequestedTickers } from "../../../hooks/useRequestedTickers";
@@ -41,7 +38,6 @@ import { ErrorBoundary } from "../../ErrorBoundary";
 import KqkdCenter from "./kqkd/KqkdCenter";
 import EarningsCalendar from "./kqkd/EarningsCalendar";
 import SeasonalityView from "./seasonality/SeasonalityView";
-import { EarningsSeasonalityTab } from "./seasonality/EarningsSeasonalityTab";
 import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
 import { DecisionBarCard } from "./decision/DecisionBar";
 import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
@@ -61,22 +57,6 @@ import { useAppStore } from "../../../store/useAppStore";
 // ============================================================
 // BADGE COMPONENTS
 // ============================================================
-
-function ScoreBadge({ score, isReal = true }: { score: number; isReal?: boolean }) {
-  const color = score >= 80
-    ? "bg-emerald-950 text-cf-positive border-emerald-700"
-    : score >= 60
-    ? "bg-amber-950 text-cf-gold-bright border-amber-700"
-    : "bg-cf-base text-cf-secondary border-cf-border-strong";
-  return (
-    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${color}`}
-      title={isReal ? "Dividend Quality Score - dữ liệu thời gian thực" : "Đang tải dữ liệu thật... (số tạm thời, sẽ tự cập nhật)"}>
-      {score}/100{!isReal && <span className="ml-1 opacity-60">⏳</span>}
-    </span>
-  );
-}
-
-
 
 function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
   const d = getDaysUntil(dateStr);
@@ -105,54 +85,16 @@ function DaysChip({ dateStr, label }: { dateStr: string; label: string }) {
 // STOCK DETAIL MODAL - VA LO HONG #3: Focus Trap + ESC to close
 // ============================================================
 
-function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false }: {
-  s: DividendStock; onClose: () => void; realRs?: number | null;
-  lifecycleEvents?: DividendLifecycleEvent[]; hasRealDates?: boolean;
+function StockModal({ s, onClose, realRs, livePrice }: {
+  s: DividendStock; onClose: () => void; realRs?: number | null; livePrice?: number;
 }) {
-  const [modalTab, setModalTab] = useState<"overview" | "flags" | "timeline" | "timing" | "optimal-timing" | "seasonality">("overview");
-  // Lịch nghỉ tự tính (âm lịch + BLLĐ) + lớp phiên thật từ Gateway — không cần nạp danh sách tay.
-  const vnHolidayCalendar = useVnTradingCalendar();
+  // BL5 (07/11/2026): hồ sơ mã CHỈ dùng dữ liệu thật qua Gateway — đã gỡ Vòng đời cổ tức / Xác suất giải ngân / Optimal Timing /
+  // tín hiệu KQKD / ưu–nhược điểm và điểm xúc tác AI (đều từ Project A). Sự kiện & cổ tức: kho sự kiện VNDirect + nghiên cứu GDKHQ XD-v1.
+  const [modalTab, setModalTab] = useState<"overview" | "flags" | "events" | "seasonality">("overview");
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Tich hop Timing Engine v3 (rieng le, GD 5): tinh "rec"
-  // (TimingRecommendation) de EventDaysChipsV3 co du du lieu (action/
-  // tdToEx/tdToPayment/dateStatus/earningsImpact.conflict) - CHI dung
-  // exDate/agmDate/paymentDate (KHONG can cycle-stats/cycle-paths day
-  // du nhu OptimalTimingTab, vi day chi la 1 chip hien thi ngan gon,
-  // khong phai bang phan tich day du).
-  const { data: modalEarningsSignal } = useEarningsSignalV3(s.ticker);
-  const modalDeps: Deps = useMemo(() => ({ clock: systemClock, cal: vnHolidayCalendar, cfg: DEFAULT_CONFIG }), [vnHolidayCalendar]);
-  const modalRec = useMemo(
-    () =>
-      optimizeDividendTiming(
-        {
-          exDate: toSourcedIso(s.exDividendDate),
-          agmDate: toSourcedIso(s.agmDate),
-          paymentDate: toSourcedIso(s.paymentDate),
-          cycle: null, // Chua co cycle-stats o day (chi dung cho tdToEx/action co ban) - xem OptimalTimingTab cho phan tich day du
-          earnings: modalEarningsSignal,
-        },
-        modalDeps,
-      ),
-    [s.exDividendDate, s.agmDate, s.paymentDate, modalEarningsSignal, modalDeps],
-  );
-
-  // Buoc 4 muc 7 (yeu cau goc): ghi nhan khi Timing Engine v3 (tab
-  // "Optimal Timing") dang tinh tren exDate/agmDate LA DU LIEU MAU
-  // (VCI tam loi 403, xem realDatesMap o CotucTabInner) - CHU DICH
-  // KHONG BAO GIO truyen env="production" that (se lam assertNoMock
-  // InProduction THROW va crash toan bo Modal) - day la FALLBACK CO
-  // CHU DICH (khong phai code demo quen xoa), nen chi ghi log canh
-  // bao, KHONG chan cung. Nguoi dung van thay ro qua banner o tab
-  // "optimal-timing" (xem JSX ben duoi).
-  useEffect(() => {
-    assertNoMockInProduction(`StockModal[${s.ticker}].exDate/agmDate`, !hasRealDates, "development");
-  }, [s.ticker, hasRealDates]);
-
   const phase = getTradePhase(s);
   const flags = detectRiskFlags(s);
-  const catalyst = calcCatalystScore(s);
 
   // ESC de dong modal
   useEffect(() => {
@@ -181,7 +123,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
   return (
     <div className="fixed inset-0 z-50 bg-cf-base/90 flex items-center justify-center p-4 overflow-y-auto"
       role="presentation" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="stock-modal-title"
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="stock-modal-title" data-testid="stock-modal"
         className="cf-surface-gradient-strong w-full max-w-2xl rounded-2xl shadow-2xl my-4">
 
         <div className="flex items-center justify-between p-5 border-b border-cf-border/60">
@@ -201,15 +143,8 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
 
         <div className="flex gap-2 p-4 border-b border-cf-border/60 flex-wrap">
           <DaysChip dateStr={s.agmDate} label="ĐHCĐ" />
-          <EventDaysChipsV3
-            action={modalRec.action}
-            tdToEx={modalRec.tdToEx}
-            tdToPayment={modalRec.tdToPayment}
-            exDateStatus={modalRec.dateStatus}
-            exDateIso={vnDateToIso(s.exDividendDate)}
-            paymentDateIso={vnDateToIso(s.paymentDate)}
-            earningsConflict={modalRec.earningsImpact.conflict}
-          />
+          <DaysChip dateStr={s.exDividendDate} label="GDKHQ" />
+          <DaysChip dateStr={s.paymentDate} label="Thanh toán" />
           <div className="flex-1 min-w-[140px] bg-cf-base/60 rounded-lg p-2 border border-cf-border-strong">
             <p className="text-[10px] text-cf-tertiary font-bold uppercase">Cổ tức / CP</p>
             <p className="text-sm font-black text-cf-positive">{fmtVND(s.dividendAmount)}</p>
@@ -223,12 +158,11 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
         </div>
 
         <div className="flex border-b border-cf-border/60 px-4" role="tablist">
-          {(["overview","flags","timeline","timing","optimal-timing","seasonality"] as const)
-            .map((t) => (
-            <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)}
+          {(["overview", "flags", "events", "seasonality"] as const).map((t) => (
+            <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)} data-testid={`modal-tab-${t}`}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
                 ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
-              {t === "overview" ? "📊 Tổng Quan" : t === "flags" ? "⚠️ Rủi Ro" : t === "timeline" ? "📅 Vòng Đời Cổ Tức" : t === "timing" ? "🎯 Xác Suất Giải Ngân" : t === "optimal-timing" ? "🧭 Optimal Timing" : "📊 Mùa vụ KQKD"}
+              {t === "overview" ? "📊 Tổng Quan" : t === "flags" ? "⚠️ Rủi Ro" : t === "events" ? "📅 Sự kiện & cổ tức" : "📊 Mùa vụ KQKD"}
             </button>
           ))}
         </div>
@@ -246,7 +180,6 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   ["Nợ / VCSH", s.fundamentalsReal ? s.debtEquity.toFixed(2) + "x" : null],
                   ["RSI 14", s.rsi > 0 ? s.rsi.toFixed(1) : null],
                   ["Xu hướng giá", s.priceTrend ? PRICE_TREND_LABEL[s.priceTrend] : null],
-                  ["Xúc tác (AI)", catalyst != null ? catalyst + "/10" : null],
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : null],
                 ] as [string, string | null][]).map(([label, val]) => (
                   <div key={label} className="cf-panel rounded-lg p-2.5">
@@ -257,22 +190,6 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
               </div>
               <FactorPanel fm={s.fm} />
               <DividendQualityPanel dq={s.dq} />
-              {(s.pros.length > 0 || s.cons.length > 0) ? (
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="cf-banner-positive rounded-lg p-2.5">
-                    <p className="text-[10px] text-cf-positive font-bold uppercase mb-1">✅ Ưu điểm</p>
-                    {s.pros.map((p, i) => <p key={i} className="text-[10px] text-cf-primary">• {p}</p>)}
-                  </div>
-                  <div className="cf-banner-negative rounded-lg p-2.5">
-                    <p className="text-[10px] text-cf-negative font-bold uppercase mb-1">❌ Nhược điểm</p>
-                    {s.cons.map((c, i) => <p key={i} className="text-[10px] text-cf-primary">• {c}</p>)}
-                  </div>
-                </div>
-              ) : (
-                <div className="cf-banner-neutral rounded-lg p-2.5 text-center">
-                  <p className="text-[10px] text-cf-tertiary italic">Chưa có phân tích định tính (ưu / nhược điểm) do AI tổng hợp từ tin tức cho mã này.</p>
-                </div>
-              )}
             </>
           )}
 
@@ -290,34 +207,21 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   <p className="text-xs text-cf-gold-bright">{f}</p>
                 </div>
               ))}
+              {s.dq?.trap?.length ? (
+                <div className="cf-banner-warning-soft rounded-xl p-3 text-xs text-cf-gold-bright">🪤 Dấu hiệu bẫy lợi suất: {s.dq.trap.join("; ")}</div>
+              ) : null}
             </div>
           )}
 
-          {modalTab === "timeline" && <DividendTimelinePanel events={lifecycleEvents} />}
-          {modalTab === "timing" && <CycleTimingPanel ticker={s.ticker} />}
-          {modalTab === "seasonality" && (
-            <ErrorBoundary fallbackLabel="Không hiển thị được Mùa vụ KQKD">
-              <EarningsSeasonalityTab ticker={s.ticker} />
+          {modalTab === "events" && (
+            <ErrorBoundary fallbackLabel="Không hiển thị được sự kiện & cổ tức">
+              <TickerEventsBody ticker={s.ticker} price={livePrice ?? (s.price > 0 ? s.price : undefined)} />
             </ErrorBoundary>
           )}
-          {modalTab === "optimal-timing" && (
-            <ErrorBoundary fallbackLabel="Không hiển thị được Optimal Timing">
-              <ErrorBoundary fallbackLabel="Không hiển thị được Trạng thái quyết định">
-                <DecisionBarCard ticker={s.ticker} className="mb-3" />
-              </ErrorBoundary>
-              {!hasRealDates && (
-                <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
-                  ⚠ Ngày GDKHQ/ĐHCĐ đang là dữ liệu mẫu (VCI tạm lỗi) — kết quả Timing bên dưới chỉ mang tính minh họa, chưa dùng để quyết định.
-                </div>
-              )}
-              <OptimalTimingTab
-                ticker={s.ticker}
-                exDate={toSourcedIso(s.exDividendDate)}
-                agmDate={toSourcedIso(s.agmDate)}
-                paymentDate={toSourcedIso(s.paymentDate)}
-                earnings={modalEarningsSignal}
-                calendar={vnHolidayCalendar}
-              />
+          {modalTab === "seasonality" && (
+            <ErrorBoundary fallbackLabel="Không hiển thị được Mùa vụ KQKD">
+              {/* BL5: cùng màn Mùa vụ KQKD của tab Kết quả kinh doanh (Gateway, SD-v1) — giữ nguyên công thức / thiết kế, chỉ khoá vào mã đang xem. */}
+              <SeasonalityView tickers={[s.ticker]} value={s.ticker} onChange={() => {}} />
             </ErrorBoundary>
           )}
         </div>
@@ -420,25 +324,25 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
   const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
-  const { universeStocks, entries: universeEntries } = useUniverseScores();
-  // FIX: tab Timeline can DividendLifecycleEvent[] day du - lifecycleEventsMap
-  // (tu useDividendEvents) CHI CO 17 ma theo doi goc, ma Universe se
-  // undefined neu dung nham nguon do. Tao map RIENG tu universeEntries
-  // (chua bi rut gon qua mapUniverseEntryToStock).
-  const universeLifecycleMap = useMemo(() => {
-    const map: Record<string, DividendLifecycleEvent[]> = {};
-    universeEntries.forEach((e) => {
-      const event = mapUniverseEntryToLifecycleEvent(e);
-      if (event) map[e.ticker] = [event];
-    });
-    return map;
-  }, [universeEntries]);
+  // BL4: bộ lọc đã lưu + cột hiển thị theo tài khoản (Gateway /api/market/screener-prefs).
+  const screenerPrefs = useScreenerPrefs();
+  const hiddenCols = useMemo(() => new Set(SCREENER_COLUMNS.filter((c) => screenerPrefs.prefs.columns[c] === false)), [screenerPrefs.prefs.columns]);
+  const defaultApplied = useRef(false);
+  useEffect(() => {
+    if (defaultApplied.current || !screenerPrefs.loaded) return;
+    defaultApplied.current = true;
+    const def = screenerPrefs.prefs.screens.find((x) => x.name === screenerPrefs.prefs.defaultScreen);
+    // Link chia sẻ có tham số lọc trên URL thì ưu tiên link (không ghi đè bằng bộ lọc mặc định).
+    const urlHasFilter = [...new URLSearchParams(window.location.search).keys()].some((k) => k in DEFAULT_FILTER);
+    if (!def || urlHasFilter) return;
+    setFilterRaw({ ...savedToFilter(def.filter) });
+    if (def.sort) { setSortField(def.sort.field); setSortAsc(def.sort.asc); }
+  }, [screenerPrefs.loaded, screenerPrefs.prefs]);
 
   // BL1 (07/11/2026): MỘT nguồn thật duy nhất cho Bộ lọc — Gateway DS-v1 (/api/corp-events/screener): giá, xu hướng, RSI (bản quét),
   // cổ tức (sự kiện VNDirect), P/E, ROE, nợ, tỷ lệ chi trả, tăng trưởng, F-Score (KQKD 4 quý). Thay ghép 5 API Project A + số mẫu.
   // BL3: điểm xếp hạng = mô hình nhân tố FM-v1 (DS-v2) — đã gỡ Dividend Quality Score của Project A.
   const { data: dsDoc, error: dsError, isLoading: dsLoading } = useDividendScreener(true);
-  const { aiAnalysisMap } = useAiAnalysis(need.screener);
   const { rows: gatewayUniverse } = useCotucUniverse();
   const liveSymbols = useMemo(() => [...new Set([...(dsDoc?.rows ?? []).map((r) => r.t), ...gatewayUniverse.map((u) => u.ticker)])], [dsDoc, gatewayUniverse]);
   const board = useBoardQuotes(liveSymbols, { flushMs: 1000 });
@@ -458,15 +362,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   const allStocksWithUniverse = useMemo(() => (dsDoc?.rows ?? []).map((row) => {
     const s = dsToStock(row, livePrices[row.t]);
     const ev = lifecycleEventsMap[row.t];
-    const ai = aiAnalysisMap[row.t];
     return {
       ...s,
       // Cờ chỉ cảnh báo (không đổi số): đợt chi lớn bất thường / tỷ suất 12 tháng bất thường — từ lịch sử sự kiện.
       specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, s.dividendYield, todayIso),
-      // Ưu / nhược điểm, điểm xúc tác: CHỈ khi AI đã phân tích (không có giá trị mặc định).
-      pros: ai?.pros?.length ? ai.pros : [], cons: ai?.cons?.length ? ai.cons : [], catalystScore: ai?.catalystScore ?? null,
     };
-  }), [dsDoc, livePrices, lifecycleEventsMap, aiAnalysisMap, todayIso]);
+  }), [dsDoc, livePrices, lifecycleEventsMap, todayIso]);
   // 17 mã theo dõi gốc (danh sách chọn ở Thời điểm tối ưu) — cùng nguồn DS-v1.
   const mergedStocks = useMemo(() => { const core = new Set(DIVIDEND_STOCKS.map((x) => x.ticker)); return allStocksWithUniverse.filter((x) => core.has(x.ticker)); }, [allStocksWithUniverse]);
 
@@ -536,19 +437,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         </div>
       </div>
 
-      {/* P2 (2026-09-12): Dividend Quality Score (hien thi dau moi the/
-          trong Modal) GIO DA la du lieu THAT (4 tang: Chat luong co tuc/
-          Tang truong/Dinh gia/Ky thuat) khi API co du du lieu, fallback
-          ve mau chi khi dang tai/loi. LUU Y: field payoutRatio/growth/
-          fscore RIENG LE hien thi trong tab "Tong Quan" cua Modal (khac
-          voi Score tong hop) VAN la mau - se lam o buoc sau. */}
+      {/* BL6: nguồn dữ liệu Bộ lọc — mọi số từ Gateway (VNDirect, SSI); hạng = mô hình nhân tố FM-v1 (MÔ TẢ). */}
       <div className="cf-banner-neutral rounded-xl p-2.5 flex items-start gap-2">
         <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
         <p className="text-[10px] text-cf-secondary leading-relaxed">
           <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
           <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả, Tăng trưởng LNST</b>, <b>xu hướng giá (MA50 / MA200)</b> và
-          <b> Dividend Quality Score</b> (4 tầng) đều là dữ liệu thật (VNDirect, SSI qua Gateway).
-          <b> F-Score</b> tính được <b>6/9 tiêu chí Piotroski</b>. Ưu / nhược điểm và điểm xúc tác do AI tổng hợp từ tin tức — mã chưa có sẽ ghi "chưa có".
+          <b> hạng mô hình nhân tố FM-v1</b> đều là dữ liệu thật (VNDirect, SSI qua Gateway). Hạng FM-v1 là <b>MÔ TẢ</b>: kiểm định đặt trước chưa đạt đủ tiêu chí.
+          <b> F-Score</b> tính được <b>6/9 tiêu chí Piotroski</b>.
           Bộ lọc không còn số liệu mẫu: trường chưa có dữ liệu thật được ghi rõ và tách riêng khi lọc.
         </p>
       </div>
@@ -673,6 +569,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
             {showFilter && (
               <div className="space-y-3">
+                <ScreenerToolbar stocks={allStocksWithUniverse} filter={filter} setFilter={setFilter}
+                  sort={{ field: sortField, asc: sortAsc }} setSort={(x) => { setSortField(x.field); setSortAsc(x.asc); }}
+                  prefs={screenerPrefs.prefs} updatePrefs={screenerPrefs.update} cloud={screenerPrefs.cloud} notice={screenerPrefs.notice}
+                  shown={filtered.length} />
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   {[
                     { label:`Yield ≥ ${fmtPct(filter.minYield)}`, key:"minYield", min:0, max:15, step:0.5, val:filter.minYield },
@@ -689,19 +589,16 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
                   ))}
                 </div>
                 <div className="flex gap-2 flex-wrap items-center">
-                  {[
-                    { label:"👑 Siêu Cổ Tức", f:{ minYield:7, minRoe:12, maxPe:15, maxDebt:0.5, hideRiskFlags:true } },
-                    { label:"💎 Kim Cương", f:{ minYield:3, minRoe:20, maxPe:20, maxDebt:0.7 } },
-                    { label:"📈 Xu hướng tăng", f:{ trend:"UP" as const } },
-                    { label:"📅 Sắp GDKHQ", f:{ upcomingGDKHQ:true } },
-                    { label:"📋 Sắp ĐHCĐ", f:{ upcomingAGM:true } },
-                    { label:"🔄 Xóa lọc", f:DEFAULT_FILTER },
-                  ].map((preset) => (
-                    <button key={preset.label} onClick={() => setFilter({ ...DEFAULT_FILTER, ...preset.f })}
-                      className="cf-chip-gold text-[10px] font-bold text-cf-gold px-2 py-1 rounded-lg hover:brightness-110 transition">
-                      {preset.label}
-                    </button>
-                  ))}
+                  <label className="flex items-center gap-1 text-[10px] text-cf-secondary" title="Ngũ phân vị mô hình nhân tố FM-v1 (MÔ TẢ — chưa qua kiểm định dự báo)">
+                    Hạng NT
+                    <select value={filter.minQuintile ?? 0} onChange={(e) => setFilter({ ...filter, minQuintile: Number(e.target.value) })} data-testid="filter-quintile"
+                      className="cf-panel-input rounded-md px-1.5 py-0.5 text-[10px] text-cf-primary">
+                      <option value={0}>Tất cả</option>
+                      <option value={3}>Q3 trở lên</option>
+                      <option value={4}>Q4 trở lên</option>
+                      <option value={5}>Chỉ Q5</option>
+                    </select>
+                  </label>
                   <label className="flex items-center gap-1 text-[10px] text-cf-secondary">
                     Xu hướng giá
                     <select value={filter.trend} onChange={(e) => setFilter({ ...filter, trend: e.target.value as typeof filter.trend })} data-testid="filter-trend"
@@ -762,7 +659,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
             liveChangePct={liveChangePct}
             flash={board.flash}
             now={board.now}
+            hidden={hiddenCols}
           />
+          <FmLedgerCard />
         </div>
       )}
 
@@ -863,7 +762,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         </ErrorBoundary>
       )}
 
-      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} lifecycleEvents={selected.isUniverseOnly ? (universeLifecycleMap[selected.ticker] ?? lifecycleEventsMap[selected.ticker]) : lifecycleEventsMap[selected.ticker]} hasRealDates={Object.keys(realDatesMap).length > 0} />}
+      {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} livePrice={livePrices[selected.ticker]} />}
     </div>
   );
 }

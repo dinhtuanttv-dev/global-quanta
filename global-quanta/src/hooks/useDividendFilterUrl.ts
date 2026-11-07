@@ -10,7 +10,7 @@ import { DEFAULT_FILTER, type DividendFilter } from "../lib/quant-cotuc";
 
 const FIELD_KEYS: (keyof DividendFilter)[] = [
   "minYield", "minRoe", "maxPe", "maxDebt", "minFscore",
-  "trend", "phase", "upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideTraps", "searchQ",
+  "trend", "phase", "upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideTraps", "minQuintile", "searchQ",
 ];
 
 export function useDividendFilterUrl(filter: DividendFilter, setFilter: (f: DividendFilter) => void) {

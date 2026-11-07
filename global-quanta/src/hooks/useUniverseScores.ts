@@ -70,9 +70,6 @@ export function mapUniverseEntryToStock(e: UniverseEntryRaw): DividendStock {
     dividendAmount: e.valuePerShare ?? 0,
     catalystScore: null, // BL0: chỉ điểm AI thật (useAiAnalysis), không gán 5 mặc định
     agmDate: isoToVn(e.agmDate),
-    qsTier1: e.tier1,
-    qsTier2: e.tier2,
-    qsTier3: e.tier3,
     isUniverseOnly: true,
   };
 }
