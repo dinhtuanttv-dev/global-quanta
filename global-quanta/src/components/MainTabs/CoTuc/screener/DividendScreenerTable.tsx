@@ -1,9 +1,8 @@
 import { Star } from 'lucide-react';
 import type { DividendStock } from '../../../../lib/quant-cotuc';
 import { getDaysUntil, getTradePhase } from '../../../../lib/quant-cotuc';
-import type { TimingSignal } from '../../../../lib/cotuc/timing-types';
-import type { DecisionSnapshot } from '../../../../lib/cotuc/decision';
-import { fmtOffset, fmtPctValue, fmtPriceK, fmtRatioPct, fmtVnd } from '../../../../lib/cotuc/format';
+import { dm, pct as pctTo, pctS, type ToRadarRow } from '../../../../lib/cotuc/to';
+import { fmtPctValue, fmtPriceK, fmtRatioPct, fmtVnd } from '../../../../lib/cotuc/format';
 import type { ScreenerColumn } from '../../../../lib/cotuc/screenerPrefs';
 
 /**
@@ -23,8 +22,8 @@ export interface ScreenerTableProps {
   onTogglePin: (ticker: string) => void;
   selectedTicker?: string | null;
   realRsMap: Record<string, number | null | undefined>;
-  timingByTicker: ReadonlyMap<string, TimingSignal>;
-  decisionsByTicker: ReadonlyMap<string, DecisionSnapshot>;
+  /** TO-v1: đợt cổ tức tiền đang diễn ra của mã (Radar Săn cổ tức, Gateway). Thay tín hiệu W1–W5 / bộ máy quyết định của Project A. */
+  toByTicker?: ReadonlyMap<string, ToRadarRow>;
   livePrices: Record<string, number>;
   liveChangePct: Record<string, number | null | undefined>;
   flash: Record<string, { dir: 'up' | 'down'; at: number }>;
@@ -60,21 +59,6 @@ function DateCell({ date, kind }: { date: string; kind: 'ex' | 'pay' | 'agm' }) 
   );
 }
 
-const ACTION: Record<TimingSignal['action'], { text: string; tone: Parameters<typeof Badge>[0]['tone']; title: string }> = {
-  NO_DATE: { text: 'chưa có lịch', tone: 'muted', title: 'Chưa có ngày GDKHQ (thông báo hoặc ước tính theo chu kỳ)' },
-  POST_EX: { text: 'đã qua GDKHQ', tone: 'muted', title: 'Đợt cổ tức đã qua' },
-  NO_SIGNAL: { text: 'chưa đủ mẫu', tone: 'muted', title: 'Chưa có cửa sổ qua cổng thống kê (≥ 8 đợt, q-value, cận dưới > 0)' },
-  TOO_EARLY: { text: 'chờ vùng mua', tone: 'amber', title: 'Chưa tới vùng mua tối ưu' },
-  IN_WINDOW: { text: 'TRONG VÙNG MUA', tone: 'neon', title: 'Đang trong vùng mua tối ưu' },
-  WINDOW_PASSED: { text: 'đã qua vùng mua', tone: 'muted', title: 'Đã qua vùng mua của đợt này' },
-};
-
-const LEVEL = {
-  FAVORABLE: { text: 'Thuận lợi', tone: 'emerald' as const },
-  WATCH: { text: 'Quan sát', tone: 'amber' as const },
-  AVOID: { text: 'Chưa nên', tone: 'muted' as const },
-};
-
 const TH = 'sticky z-10 bg-[#0b0f17] px-1.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500 border-b border-white/10 leading-tight align-bottom';
 const TD = 'px-1.5 py-1.5 border-b border-white/[0.05] align-middle';
 
@@ -93,7 +77,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
   const show = (c: ScreenerColumn) => !p.hidden?.has(c);
   const GROUPS: [string, ScreenerColumn[], string][] = [
     ['Cổ tức & lịch', ['price', 'yield', 'ex', 'payAgm'], 'text-cyan-400/80'], ['Định giá', ['pe', 'roe', 'fm'], 'text-amber-300/80'],
-    ['Chu kỳ & xác suất', ['window', 'expected'], 'text-emerald-300/80'], ['KQKD', ['growth'], 'text-violet-300/80'], ['Quyết định', ['decision'], 'text-slate-400'],
+    ['Săn cổ tức (TO)', ['window', 'expected'], 'text-emerald-300/80'], ['KQKD', ['growth'], 'text-violet-300/80'], ['Cảnh báo TO', ['decision'], 'text-slate-400'],
   ];
   const groups: [string, number, string][] = [['', 2, ''], ...GROUPS.map(([g, cs, cls]) => [g, cs.filter(show).length, cls] as [string, number, string]).filter((g) => g[1] > 0)];
   const nCols = groups.reduce((n, g) => n + g[1], 0);
@@ -117,10 +101,10 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
             {show('pe') && <SortHead field="pe" label="P/E" right {...p} />}
             {show('roe') && <SortHead field="roe" label="ROE" right {...p} />}
             {show('fm') && <SortHead field="score" label="Hạng NT" right {...p} title="Mô hình nhân tố FM-v1: phân vị 0–100 trong danh mục (6 nhóm: lợi suất, độ bền, tăng trưởng, chất lượng, định giá, rủi ro thấp; chuẩn hoá theo ngành) · Q1–Q5 = ngũ phân vị" />}
-            {show('window') && <th className={`${TH} top-[25px] text-left`}>Cửa sổ tối ưu</th>}
-            {show('expected') && <th className={`${TH} top-[25px] text-right`} title="Kỳ vọng lợi nhuận ròng (cận dưới 90%) nếu mua trong cửa sổ">Kỳ vọng ròng</th>}
-            {show('growth') && <th className={`${TH} top-[25px] text-right`} title="Tăng trưởng LNST công ty mẹ kỳ vừa công bố so với cùng kỳ">LNST YoY</th>}
-            {show('decision') && <th className={`${TH} top-[25px] text-left`}>Trạng thái</th>}
+            {show('window') && <th className={`${TH} top-[25px] text-left`} title="Đợt cổ tức tiền đang chờ GDKHQ: đủ điều kiện quy tắc TO-r1 chưa, phiên bán (cuối còn quyền), kịp T+2 không">Săn cổ tức</th>}
+            {show('expected') && <th className={`${TH} top-[25px] text-right`} title="Lợi nhuận vượt VN-Index mỗi lệnh (sau phí) của nhóm lợi suất này trong quá khứ — MÔ TẢ">Kỳ vọng nhóm</th>}
+            {show('growth') && <th className={`${TH} top-[25px] text-right`} title="Tăng trưởng LNST công ty mẹ quý gần nhất so với cùng kỳ (KQKD Gateway)">LNST YoY</th>}
+            {show('decision') && <th className={`${TH} top-[25px] text-left`}>Cảnh báo</th>}
           </tr>
         </thead>
         <tbody>
@@ -128,15 +112,14 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
             <tr><td colSpan={nCols} className="py-10 text-center text-[11px] text-slate-500">Không có mã nào phù hợp bộ lọc — nới lỏng ngưỡng hoặc bấm “Xóa lọc”.</td></tr>
           )}
           {p.rows.map((s) => {
-            const sig = p.timingByTicker.get(s.ticker);
-            const dec = p.decisionsByTicker.get(s.ticker);
+            const to = p.toByTicker?.get(s.ticker) ?? null;
             const live = p.livePrices[s.ticker];
             const price = live ?? (s.price > 0 ? s.price : null);
             const chg = p.liveChangePct[s.ticker];
             const fl = p.flash[s.ticker];
             const flashing = fl && p.now - fl.at < 1200;
             const phase = getTradePhase(s);
-            const growth = sig?.earnings?.profitGrowthYoY ?? null;
+            const growth = s.npatYoY ?? null;
             const selected = s.ticker === p.selectedTicker;
             return (
               <tr key={s.ticker} onClick={() => p.onSelect(s)} data-testid="screener-row"
@@ -185,28 +168,33 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                     : <Badge tone="muted" title="Chưa đủ 4/6 nhóm nhân tố có dữ liệu">—</Badge>}
                 </td>)}
                 {show("window") && (<td className={`${TD} border-l border-white/[0.04]`}>
-                  {sig ? (
-                    <div className="leading-tight">
-                      <Badge tone={ACTION[sig.action].tone} title={ACTION[sig.action].title}>{ACTION[sig.action].text}</Badge>
-                      {sig.window && <span className="block font-mono tabular-nums text-[10px] text-slate-500">{fmtOffset(sig.window.entryFrom)}…{fmtOffset(sig.window.entryTo)}{sig.tdToEx !== null && sig.tdToEx >= 0 ? ` · GDKHQ còn ${sig.tdToEx} phiên` : ''}</span>}
+                  {to ? (
+                    <div className="leading-tight" data-testid={`to-cell-${s.ticker}`}>
+                      <Badge tone={to.qualifies ? (to.t2Ok ? 'emerald' : 'amber') : 'muted'} title={to.qualifies ? 'Đủ điều kiện quy tắc TO-r1 (THĂM DÒ — chưa phải khuyến nghị)' : 'Chưa đủ điều kiện TO-r1 (lợi suất ≥ 5%, GTGD ≥ 1 tỷ, không trần lúc vào)'}>{to.qualifies ? 'ĐỦ ĐK · THĂM DÒ' : 'chưa đủ ĐK'}</Badge>
+                      <span className="block font-mono tabular-nums text-[10px] text-slate-500">bán {dm(to.lastCumDate)} · còn {to.sessionsLeft ?? '—'} phiên</span>
                     </div>
                   ) : <Badge tone="muted" title={phase.label}>{phase.icon} {phase.label}</Badge>}
                 </td>)}
                 {show("expected") && (<td className={`${TD} text-right`}>
-                  {sig?.expectedNetReturn != null
-                    ? <div className="leading-tight"><span className={`font-mono tabular-nums font-semibold ${sig.expectedNetReturn >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtRatioPct(sig.expectedNetReturn, { signed: true })}</span>
-                        {sig.nEvents != null && <span className="block font-mono tabular-nums text-[10px] text-slate-500">{sig.nEvents} đợt{sig.confidence ? ` · ${sig.confidence === 'HIGH' ? 'cao' : sig.confidence === 'MEDIUM' ? 'TB' : 'thấp'}` : ''}</span>}</div>
-                    : <Badge tone="muted" title="Chưa có cửa sổ qua kiểm định">—</Badge>}
+                  {to?.expected?.mean != null
+                    ? <div className="leading-tight"><span className={`font-mono tabular-nums font-semibold ${to.expected.mean >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{pctS(to.expected.mean, 1)}</span>
+                        <span className="block font-mono tabular-nums text-[10px] text-slate-500">nhóm {to.bucket} · {to.expected.n} lệnh · thắng {pctTo(to.expected.hit, 0)}</span></div>
+                    : <Badge tone="muted" title="Không có đợt cổ tức tiền nào đang chờ GDKHQ">—</Badge>}
                 </td>)}
                 {show("growth") && (<td className={`${TD} text-right border-l border-white/[0.04]`}>
                   {growth != null
-                    ? <span className={`font-mono tabular-nums font-semibold ${growth >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtRatioPct(growth, { digits: 0, signed: true })}
-                        {sig?.earnings?.conflict && sig.earnings.conflict !== 'NONE' && <span className="ml-0.5 text-amber-300" title="KQKD dự kiến sát/nằm trong thời gian nắm giữ">⚡</span>}</span>
+                    ? <span className={`font-mono tabular-nums font-semibold ${growth >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtRatioPct(growth, { digits: 0, signed: true })}</span>
                     : <Badge tone="muted" title="Chưa có BCTC quý so sánh cùng kỳ">—</Badge>}
                 </td>)}
                 {show("decision") && (<td className={`${TD} border-l border-white/[0.04]`}>
-                  {dec ? <Badge tone={LEVEL[dec.decision.level].tone} title={dec.decision.headline}>{LEVEL[dec.decision.level].text} · {Math.round(dec.decision.combinedProbability * 100)}%</Badge>
-                    : <Badge tone="muted" title="Bộ máy quyết định chưa quét tới mã này (Gateway quét xoay vòng)">đang quét</Badge>}
+                  {to ? <div className="flex flex-wrap gap-1">
+                      {!to.t2Ok && <Badge tone="rose" title="Vào ở phiên sớm nhất thì cổ phiếu chưa về kịp để bán ở phiên cuối còn quyền">không kịp T+2</Badge>}
+                      {to.ranTooFar && <Badge tone="amber" title="Giá đã chạy hơn 75% số đợt cùng nhóm ở cùng số phiên">đã chạy xa</Badge>}
+                      {to.weakSector && <Badge tone="amber" title="Ngành có kết quả lịch sử âm với quy tắc này">ngành yếu</Badge>}
+                      {to.limitUpEntry && <Badge tone="rose" title="Phiên đầu sau công bố tăng trần">trần lúc vào</Badge>}
+                      {to.t2Ok && !to.ranTooFar && !to.weakSector && !to.limitUpEntry && <Badge tone="muted">không có</Badge>}
+                    </div>
+                    : <Badge tone="muted">—</Badge>}
                 </td>)}
               </tr>
             );

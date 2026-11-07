@@ -39,7 +39,7 @@ describe("DividendScreenerTable", () => {
   it("badge thay N/A, giá trực tiếp, cờ cổ tức đặc biệt, bấm dòng mở mã", async () => {
     const onSelect = vi.fn();
     const rows = [
-      stock({ ticker: "DGC", sector: "Hóa chất", dividendYield: 31, dividendAmount: 5000, fundamentalsReal: true, pe: 6.3, roe: 13.1, specialDividend: true }),
+      stock({ ticker: "DGC", sector: "Hóa chất", dividendYield: 31, dividendAmount: 5000, fundamentalsReal: true, pe: 6.3, roe: 13.1, specialDividend: true, npatYoY: -0.05 }),
       stock({ ticker: "VIC", sector: "Bất động sản", dividendYield: 0, dividendAmount: 0, isUniverseOnly: true, fundamentalsReal: false, pe: 0, roe: 0 }),
     ];
     const el = document.createElement("div");
@@ -47,17 +47,20 @@ describe("DividendScreenerTable", () => {
     await act(async () => {
       createRoot(el).render(
         <DividendScreenerTable rows={rows} sortField="dividendYield" sortAsc={false} onSort={() => {}} onSelect={onSelect}
-          isPinned={() => false} onTogglePin={() => {}} realRsMap={{}} timingByTicker={new Map([["DGC", {
-            ticker: "DGC", action: "IN_WINDOW", tdToEx: 18, window: { entryFrom: -25, entryTo: -15, exitOffset: 3 }, expectedNetReturn: 0.012,
-            nEvents: 9, fdrQValue: 0.05, confidence: "MEDIUM", dateStatus: "ESTIMATED", earnings: { revenueGrowthYoY: 0.1, profitGrowthYoY: -0.05, conflict: "NONE" } }]])}
-          decisionsByTicker={new Map()} livePrices={{ DGC: 35500 }} liveChangePct={{ DGC: -1.2 }} flash={{}} now={Date.now()} />,
+          isPinned={() => false} onTogglePin={() => {}} realRsMap={{}} toByTicker={new Map([["DGC", {
+            t: "DGC", name: null, sector: "Hóa chất", ex: "2026-11-20", disclosed: "2026-11-05", check: null, cash: 3000, yieldPre: 0.085, bucket: "≥5%", yieldNow: 0.084, lastPrice: 35.5, lastPriceDate: "2026-11-06",
+            adv: 5e10, liquidityOk: true, entryDate: "2026-11-06", limitUpEntry: false, qualifies: true, sessionsSinceAnn: 1, runUp: 0.01, runUpPct: 0.5, runUpShareOfTypical: 0.4, ranTooFar: false,
+            buyDate: "2026-11-09", lastCumDate: "2026-11-19", sessionsLeft: 1, t2Ok: false, expected: { n: 119, mean: 0.0176, ci95: [0.0081, 0.028], hit: 0.647 }, weakSector: false, label: "THĂM DÒ" }]])}
+          livePrices={{ DGC: 35500 }} liveChangePct={{ DGC: -1.2 }} flash={{}} now={Date.now()} />,
       );
     });
     expect(el.querySelectorAll('[data-testid="screener-row"]')).toHaveLength(2);
     expect(el.textContent).toContain("35.50");
-    expect(el.textContent).toContain("TRONG VÙNG MUA");
+    expect(el.textContent).toContain("ĐỦ ĐK · THĂM DÒ");
+    expect(el.textContent).toContain("không kịp T+2");
+    expect(el.textContent).toContain("+1,8%");
+    expect(el.textContent).not.toContain("VÙNG MUA");
     expect(el.textContent).toContain("ĐB");
-    expect(el.textContent).toContain("+1.2%");
     expect(el.textContent).toContain("−5%");
     expect(el.textContent).toContain("6.3x");
     expect(el.textContent).not.toMatch(/N\/A|NaN|undefined|0\/100/);

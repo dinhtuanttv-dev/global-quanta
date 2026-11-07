@@ -52,6 +52,21 @@ export function useFmLedger(enabled = true) {
   return data ?? null;
 }
 
+/** TO-v1: Săn cổ tức trước GDKHQ — radar + tham chiếu + sổ TO-L1 (làm mới 15 phút), mô phỏng danh mục, W1–W5 (MÔ TẢ). */
+export function useToOverview(enabled = true) {
+  const { data, error, isLoading } = useSWR<import("../lib/cotuc/to").ToOverview>(enabled ? "to-overview" : null, () => fetchMarketJson("/api/corp-events/to"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000, refreshInterval: 15 * 60_000, shouldRetryOnError: false });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}
+export function useToSim(enabled = true) {
+  const { data } = useSWR<import("../lib/cotuc/to").ToSim>(enabled ? "to-sim" : null, () => fetchMarketJson("/api/corp-events/to/sim"), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000, shouldRetryOnError: false });
+  return data ?? null;
+}
+export function useToWindows(ticker: string | null) {
+  const t = ticker?.toUpperCase() ?? null;
+  const { data } = useSWR<import("../lib/cotuc/to").ToWindows>(`to-windows:${t ?? "*"}`, () => fetchMarketJson(t ? `/api/corp-events/to/windows/${encodeURIComponent(t)}` : "/api/corp-events/to/windows"), { revalidateOnFocus: false, dedupingInterval: 60 * 60_000, shouldRetryOnError: false });
+  return data ?? null;
+}
+
 /** BL1: dữ liệu Bộ lọc cổ phiếu (DS-v1, Gateway) — giá, cổ tức, cơ bản, chất lượng, giá quanh GDKHQ cho cả danh mục. */
 export function useDividendScreener(enabled = true) {
   const { data, error, isLoading } = useSWR<import("../lib/cotuc/dsStocks").DsDoc>(enabled ? "dividend-screener" : null, () => fetchMarketJson("/api/corp-events/screener"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000, refreshInterval: 15 * 60_000 });

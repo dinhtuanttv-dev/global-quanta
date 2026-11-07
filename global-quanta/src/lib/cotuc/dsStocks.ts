@@ -46,6 +46,6 @@ export function dsToStock(r: DsRow, livePrice?: number | null): DividendStock & 
     exDividendDate: vn(upcoming ?? r.div?.lastEx), paymentDate: vn(upcoming ? r.div?.nextPay : null), dividendAmount: (upcoming ? r.div?.nextCash : r.div?.lastCash) ?? 0,
     agmDate: vn(r.div?.agmNext), catalystScore: null, priceTrend: r.trend,
     fundamentalsReal: f != null && (f.roe != null || f.epsTtm != null), isUniverseOnly: !CORE.has(r.t),
-    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null, fm: r.fm ?? null,
+    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null, fm: r.fm ?? null, npatYoY: f?.npatYoY ?? null,
   };
 }

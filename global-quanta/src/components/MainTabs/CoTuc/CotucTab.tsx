@@ -17,10 +17,6 @@ import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
 import { useDividendFilterUrl } from "../../../hooks/useDividendFilterUrl";
 import { usePinnedStocks } from "../../../hooks/usePinnedStocks";
 import { useDividendEvents } from "../../../hooks/useDividendEvents";
-import { OptimalTimingTab } from "./OptimalTimingTab";
-import { useEarningsSignalV3 } from "../../../hooks/useEarningsSignalV3";
-import { useVnTradingCalendar } from "../../../lib/cotuc/vn-holidays";
-import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import EventsCalendar from "./events/EventsCalendar";
 import DividendQualityPanel from "./screener/DividendQualityPanel";
 import FactorPanel, { FmBadge } from "./screener/FactorPanel";
@@ -29,7 +25,6 @@ import { FmLedgerCard } from "./screener/FmLedgerCard";
 import { TickerEventsBody } from "./events/EventViews";
 import { useScreenerPrefs } from "../../../hooks/useScreenerPrefs";
 import { SCREENER_COLUMNS, savedToFilter } from "../../../lib/cotuc/screenerPrefs";
-import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
 import { useUniverseScores } from "../../../hooks/useUniverseScores";
 import { useRealRsData } from "../../../hooks/useRealRsData";
 import { useUniverseSearch } from "../../../hooks/useUniverseSearch";
@@ -38,20 +33,18 @@ import { ErrorBoundary } from "../../ErrorBoundary";
 import KqkdCenter from "./kqkd/KqkdCenter";
 import EarningsCalendar from "./kqkd/EarningsCalendar";
 import SeasonalityView from "./seasonality/SeasonalityView";
-import { SeasonalOpportunitiesCard } from "./seasonality/SeasonalOpportunityList";
-import { DecisionBarCard } from "./decision/DecisionBar";
-import { SignalTrackingCard } from "./decision/SignalTrackingPanel";
+import TimingCenter from "./to/TimingCenter";
+import type { ToRadarRow } from "../../../lib/cotuc/to";
 import { CotucScanStatusBar } from "./live/CotucScanStatusBar";
-import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
+import { TimelineModes } from "./timeline/TimelineModes";
 import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
-import { useCorpEvents, useDividendScreener } from "../../../hooks/useCorpEvents";
+import { useCorpEvents, useDividendScreener, useToOverview } from "../../../hooks/useCorpEvents";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { isSpecialDividend, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
 import { dsToStock } from "../../../lib/cotuc/dsStocks";
 import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
-import { useDecisionStates } from "../../../hooks/useCotucDecision";
 import { useAppStore } from "../../../store/useAppStore";
 
 // ============================================================
@@ -244,7 +237,6 @@ interface CotucTabProps {
  * chua kip tinh o lan cron gan nhat) - KHONG duoc de o trong/crash. */
 
 function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: CotucTabProps & { onNeedRs?: () => void }) {
-  const vnHolidayCalendar = useVnTradingCalendar();
   // F1 (06/11/2026): 3 tab con — Kết quả kinh doanh · Cổ tức · Timeline điểm mua. Mọi mục cũ giữ nguyên logic, chỉ đổi chỗ.
   // Mặc định mở "Timeline điểm mua" — câu hỏi chính của tab: mã nào sắp/đang vào vùng mua có cơ sở thống kê.
   const [subTab, setSubTabRaw] = useState<SubView>(() => readView().view);
@@ -263,11 +255,12 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   // Screener/Lich/KQKD/Timing cu, can TU CHON ma truoc (OptimalTimingTab
   // can du lieu 1 ma cu the, khac cac sub-tab khac hien thi danh sach).
   const [timingV3Ticker, setTimingV3Ticker] = useState<string | null>(null);
-  const { data: timingV3Earnings } = useEarningsSignalV3(timingV3Ticker);
   // Giai Trinh Timing v3 (Giai doan 5): mot request cho CA vu tru (khong
   // goi optimizeDividendTiming rieng cho tung dong Screener - 70-100+
   // lenh goi mang). byTicker dung de tra cuu O(1) trong bang chinh (DividendScreenerTable).
-  const { byTicker: timingSignalsByTicker } = useTimingSignalsBulk({ enabled: need.screener });
+  // TO-v1: đợt cổ tức tiền đang diễn ra theo mã (Radar Săn cổ tức, Gateway) cho các cột Săn cổ tức / Kỳ vọng nhóm / Cảnh báo của Bộ lọc.
+  const { data: toDoc } = useToOverview(need.screener);
+  const toByTicker = useMemo(() => { const m = new Map<string, ToRadarRow>(); for (const r of toDoc?.radar.rows ?? []) { const cur = m.get(r.t); if (!cur || (r.lastCumDate ?? r.ex) < (cur.lastCumDate ?? cur.ex)) m.set(r.t, r); } return m; }, [toDoc]);
   const [filter, setFilterRaw] = useState<DividendFilter>(DEFAULT_FILTER);
   useEffect(() => {
     const screener = group === "cotuc";
@@ -323,7 +316,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   const effectiveFilter = useMemo(() => ({ ...filter, searchQ: debouncedSearchQ }), [filter, debouncedSearchQ]);
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
-  const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
+  const { lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
   // BL4: bộ lọc đã lưu + cột hiển thị theo tài khoản (Gateway /api/market/screener-prefs).
   const screenerPrefs = useScreenerPrefs();
   const hiddenCols = useMemo(() => new Set(SCREENER_COLUMNS.filter((c) => screenerPrefs.prefs.columns[c] === false)), [screenerPrefs.prefs.columns]);
@@ -356,7 +349,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
     for (const [t, q] of Object.entries(board.quotes)) out[t] = q?.changePct ?? null;
     return out;
   }, [board.quotes]);
-  const decisionStates = useDecisionStates();
   const todayIso = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 
   const allStocksWithUniverse = useMemo(() => (dsDoc?.rows ?? []).map((row) => {
@@ -368,8 +360,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, s.dividendYield, todayIso),
     };
   }), [dsDoc, livePrices, lifecycleEventsMap, todayIso]);
-  // 17 mã theo dõi gốc (danh sách chọn ở Thời điểm tối ưu) — cùng nguồn DS-v1.
-  const mergedStocks = useMemo(() => { const core = new Set(DIVIDEND_STOCKS.map((x) => x.ticker)); return allStocksWithUniverse.filter((x) => core.has(x.ticker)); }, [allStocksWithUniverse]);
 
   // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
@@ -548,7 +538,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
       {subTab === "timeline" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Timeline điểm mua">
-          <BuyTimelineTab onSelectTicker={openTicker} />
+          <TimelineModes onSelectTicker={openTicker} />
         </ErrorBoundary>
       )}
 
@@ -653,8 +643,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
             onTogglePin={togglePin}
             selectedTicker={globalSelectedTicker}
             realRsMap={realRsMap}
-            timingByTicker={timingSignalsByTicker}
-            decisionsByTicker={decisionStates.byTicker}
+            toByTicker={toByTicker}
             livePrices={livePrices}
             liveChangePct={liveChangePct}
             flash={board.flash}
@@ -680,57 +669,9 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
 
       {subTab === "timing-v3" && (
-        <ErrorBoundary fallbackLabel="Không hiển thị được Thời Điểm Tối Ưu (v3)">
-          <div className="cf-panel rounded-xl p-4">
-            <p className="text-[10px] text-cf-tertiary font-bold uppercase mb-2">Chọn mã để xem Thời Điểm Tối Ưu (v3)</p>
-            {Object.keys(realDatesMap).length === 0 && (
-              <div className="mb-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[10px] text-amber-300">
-                ⚠ Chưa tải được ngày GDKHQ / ĐHCĐ thật (nguồn sự kiện tạm lỗi) — mã chưa có ngày sẽ không có khuyến nghị thời điểm.
-              </div>
-            )}
-            <select
-              value={timingV3Ticker ?? ""}
-              onChange={(e) => setTimingV3Ticker(e.target.value || null)}
-              className="w-full sm:w-64 rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-sm text-cf-primary"
-            >
-              <option value="">— Chọn mã —</option>
-              {mergedStocks.map((s) => (
-                <option key={s.ticker} value={s.ticker}>{s.ticker}</option>
-              ))}
-            </select>
-
-            {timingV3Ticker && (() => {
-              const s = mergedStocks.find((x) => x.ticker === timingV3Ticker);
-              if (!s) return null;
-              return (
-                <div style={{ marginTop: 16 }}>
-                  <ErrorBoundary fallbackLabel="Không hiển thị được Trạng thái quyết định">
-                    <DecisionBarCard ticker={s.ticker} className="mb-4" />
-                  </ErrorBoundary>
-                  <OptimalTimingTab
-                    ticker={s.ticker}
-                    exDate={toSourcedIso(s.exDividendDate)}
-                    agmDate={toSourcedIso(s.agmDate)}
-                    paymentDate={toSourcedIso(s.paymentDate)}
-                    earnings={timingV3Earnings}
-                    calendar={vnHolidayCalendar}
-                  />
-                  <button type="button" onClick={() => setSubTab("seasonality")} data-testid="cotuc-goto-seasonality"
-                    className="mt-3 rounded-lg border border-cf-border px-3 py-1.5 text-[11px] font-semibold text-cf-gold hover:bg-white/5">
-                    📊 Xem Mùa vụ KQKD của {s.ticker} → (tab Kết quả kinh doanh)
-                  </button>
-                </div>
-              );
-            })()}
-            <div style={{ marginTop: 16 }}>
-              <SeasonalOpportunitiesCard onSelectTicker={(t) => setTimingV3Ticker(t)} />
-            </div>
-            <div style={{ marginTop: 16 }}>
-              <ErrorBoundary fallbackLabel="Không hiển thị được Theo dõi tín hiệu">
-                <SignalTrackingCard />
-              </ErrorBoundary>
-            </div>
-          </div>
+        <ErrorBoundary fallbackLabel="Không hiển thị được Thời điểm tối ưu (Săn cổ tức)">
+          {/* TO-v1 (07/11/2026): thay engine W1–W5 / bộ máy quyết định của Project A bằng "Săn cổ tức trước GDKHQ" trên Gateway. */}
+          <TimingCenter onSelectTicker={openTicker} />
         </ErrorBoundary>
       )}
 
@@ -765,33 +706,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       {selected && <StockModal s={selected} onClose={() => setSelectedTicker(null)} realRs={realRsMap[selected.ticker]} livePrice={livePrices[selected.ticker]} />}
     </div>
   );
-}
-
-/** Chuyen "YYYY-MM-DD" (VCI) sang "DD/MM/YYYY" (format noi bo cua quant-cotuc.ts) */
-function isoToVnDate(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}/${m}/${y}`;
-}
-
-/** Nguoc lai isoToVnDate - can cho Giai Trinh Timing v3 (Giai doan 4):
- * mergedStocks luu date o format VN, nhung OptimalTimingTab (tu goi
- * cotuc-timing-engine.zip) can dung ISODate "YYYY-MM-DD". */
-function vnDateToIso(vn: string | null | undefined): string | null {
-  if (!vn) return null;
-  const [d, m, y] = vn.split("/");
-  if (!d || !m || !y) return null;
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
-
-/** Boc 1 ngay VN-format thanh Sourced<ISODate> ma cac component Timing
- * Engine v3 can (OptimalTimingTab, EventDaysChipsV3 qua optimizeDividendTiming).
- * status="ESTIMATED" (khong "CONFIRMED") vi mergedStocks KHONG phan biet
- * nguon that (VCI)/mau (mock) sau khi da merge - minh bach, khong bia. */
-function toSourcedIso(vnDate: string | null | undefined): Sourced<ISODate> | null {
-  const iso = vnDateToIso(vnDate);
-  if (!iso) return null;
-  return { value: iso, status: "ESTIMATED", source: "DERIVED", asOf: new Date().toISOString().slice(0, 10) };
 }
 
 // Boc ErrorBoundary o ngoai cung - vas lo hong #8
