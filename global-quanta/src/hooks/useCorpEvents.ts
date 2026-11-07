@@ -44,3 +44,9 @@ export function usePlanNews(ticker: string | null) {
   const { data } = useSWR<{ ticker: string; rows: PlanNews[] }>(t ? `corp-plan-news:${t}` : null, () => fetchMarketJson(`/api/corp-events/plan-news/${encodeURIComponent(t!)}`), { revalidateOnFocus: false, dedupingInterval: 60 * 60_000, shouldRetryOnError: false });
   return data ?? null;
 }
+
+/** BL1: dữ liệu Bộ lọc cổ phiếu (DS-v1, Gateway) — giá, cổ tức, cơ bản, chất lượng, giá quanh GDKHQ cho cả danh mục. */
+export function useDividendScreener(enabled = true) {
+  const { data, error, isLoading } = useSWR<import("../lib/cotuc/dsStocks").DsDoc>(enabled ? "dividend-screener" : null, () => fetchMarketJson("/api/corp-events/screener"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000, refreshInterval: 15 * 60_000 });
+  return { data: data ?? null, error: error ? String((error as Error).message ?? error) : null, isLoading };
+}

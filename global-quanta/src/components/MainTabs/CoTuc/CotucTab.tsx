@@ -30,7 +30,6 @@ import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
 import EventsCalendar from "./events/EventsCalendar";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
-import { useFundamentalsData } from "../../../hooks/useFundamentalsData";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
 import { useAiAnalysis } from "../../../hooks/useAiAnalysis";
@@ -50,10 +49,10 @@ import { BuyTimelineTab } from "./timeline/BuyTimelineTab";
 import { DecisionRanking } from "./ranking/DecisionRanking";
 import { useBuyTimeline } from "../../../hooks/useBuyTimeline";
 import { useCotucUniverse } from "../../../hooks/useCotucUniverse";
-import { useCorpEvents } from "../../../hooks/useCorpEvents";
-import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
+import { useCorpEvents, useDividendScreener } from "../../../hooks/useCorpEvents";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
-import { buildUniverseStocks, isSpecialDividend, trailingCashDividend, trailingYieldPct, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
+import { isSpecialDividend, yieldAnomaly } from "../../../lib/cotuc/universe-stocks";
+import { dsToStock } from "../../../lib/cotuc/dsStocks";
 import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
 import { useDecisionStates } from "../../../hooks/useCotucDecision";
 import { useAppStore } from "../../../store/useAppStore";
@@ -241,9 +240,9 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                 {([
                   ["P/E", s.fundamentalsReal ? s.pe.toFixed(1) + "x" : null],
                   ["ROE", s.fundamentalsReal ? fmtPct(s.roe) : null],
-                  ["Tăng trưởng LNST", isQualityScoreReal(s) ? (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%" : null],
-                  ["F-Score", isQualityScoreReal(s) && s.fscore > 0 ? s.fscore + "/9" : null],
-                  ["Tỷ lệ chi trả", isQualityScoreReal(s) ? fmtPct(s.payoutRatio) : null],
+                  ["Tăng trưởng LNST 12T", s.growthReal ? (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%" : null],
+                  ["F-Score", s.fscore > 0 ? s.fscore + "/9" : null],
+                  ["Tỷ lệ chi trả", s.payoutReal ? fmtPct(s.payoutRatio) : null],
                   ["Nợ / VCSH", s.fundamentalsReal ? s.debtEquity.toFixed(2) + "x" : null],
                   ["RSI 14", s.rsi > 0 ? s.rsi.toFixed(1) : null],
                   ["Xu hướng giá", s.priceTrend ? PRICE_TREND_LABEL[s.priceTrend] : null],
@@ -419,7 +418,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
   const { pinned, togglePin, isPinned } = usePinnedStocks();
   const { realDatesMap, lifecycleEventsMap, isLoading: eventsLoading } = useDividendEvents();
-  const { fundamentalsMap, isLoading: fundamentalsLoading } = useFundamentalsData();
   const { qualityScoreMap, isLoading: qualityScoreLoading } = useQualityScore();
   const { universeStocks, entries: universeEntries } = useUniverseScores();
   // FIX: tab Timeline can DividendLifecycleEvent[] day du - lifecycleEventsMap
@@ -435,77 +433,19 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
     return map;
   }, [universeEntries]);
 
-  // Merge du lieu tinh voi ngay THAT tu VCI Events (neu co) - uu tien du lieu that
-  const mergedStocks = useMemo(() => {
-    return DIVIDEND_STOCKS.map((s) => {
-      const real = realDatesMap[s.ticker];
-      const fund = fundamentalsMap[s.ticker];
-      const qs = qualityScoreMap[s.ticker];
-      let merged = s;
-      if (real) {
-        merged = {
-          ...merged,
-          exDividendDate: real.exDate ? isoToVnDate(real.exDate) : merged.exDividendDate,
-          agmDate: real.agmDate ? isoToVnDate(real.agmDate) : merged.agmDate,
-          // Cot "Thanh Toan" moi o Screener (2026-09-27): uu tien
-          // settlementDate THAT tu VCI khi co, giu nguyen mau tinh
-          // (hardcode trong DIVIDEND_STOCKS) khi chua lay duoc - dung
-          // pattern minh bach giong exDividendDate/agmDate ben tren.
-          paymentDate: real.paymentDate ? isoToVnDate(real.paymentDate) : merged.paymentDate,
-        };
-      }
-      // P0: thay du lieu mau tinh (gia/P-E/ROE/No-VCSH/RSI) bang du lieu
-      // THAT tu VCI + Yahoo Finance - CHI GHI DE khi co gia tri that (!=
-      // null), giu nguyen du lieu mau neu 1 ma nao do chua lay duoc.
-      if (fund) {
-        merged = {
-          ...merged,
-          price: fund.price ?? merged.price,
-          pe: fund.peRatio ?? merged.pe,
-          roe: fund.roe ?? merged.roe,
-          debtEquity: fund.debtEquity ?? merged.debtEquity,
-          rsi: fund.rsi14 ?? merged.rsi,
-        };
-      }
-      // P2: merge Tier 1-3 cua Dividend Quality Score (Tang 4 tinh rieng
-      // luc dung Score, xem calcRealDividendQualityScore).
-      // FIX: dong bo payoutRatio/growth THAT (da co san trong qs.details,
-      // truoc day khong merge - 17 ma van hien MAU trong khi Universe da
-      // co that, gay KHONG DONG BO). Details la Record<string,unknown>,
-      // can kiem tra kieu number truoc khi dung.
-      if (qs) {
-        const payoutRatioReal = typeof qs.details.payoutRatioPct === "number" ? qs.details.payoutRatioPct : null;
-        const growthReal = typeof qs.details.profitGrowthYoY === "number" ? qs.details.profitGrowthYoY : null;
-        const fScoreReal = typeof qs.details.fScore === "number" ? qs.details.fScore : null;
-        merged = {
-          ...merged,
-          qsTier1: qs.tier1, qsTier2: qs.tier2, qsTier3: qs.tier3,
-          payoutRatio: payoutRatioReal ?? merged.payoutRatio,
-          growth: growthReal ?? merged.growth,
-          fscore: fScoreReal ?? merged.fscore,
-        };
-      }
-      return merged;
-    });
-  }, [realDatesMap, fundamentalsMap, qualityScoreMap]);
-
-  // "Gop chung 1 bang" theo yeu cau: them ma tu Universe (VN30+VN100,
-  // 71 ma da loc su kien) VAO CUNG danh sach voi 17 ma theo doi goc.
-  // UU TIEN GIU 17 MA GOC (day du F-Score/DCF/pros-cons that) - CHI
-  // THEM ma Universe KHONG TRUNG voi 17 ma da co, tranh ghi de du lieu
-  // day du bang du lieu rut gon.
+  // BL1 (07/11/2026): MỘT nguồn thật duy nhất cho Bộ lọc — Gateway DS-v1 (/api/corp-events/screener): giá, xu hướng, RSI (bản quét),
+  // cổ tức (sự kiện VNDirect), P/E, ROE, nợ, tỷ lệ chi trả, tăng trưởng, F-Score (KQKD 4 quý). Thay ghép 5 API Project A + số mẫu.
+  // Tạm giữ: Tier 1–3 của Dividend Quality Score (Project A quality-score / universe-scores) cho cột điểm tới BL3.
+  const { data: dsDoc, error: dsError, isLoading: dsLoading } = useDividendScreener(true);
+  const tierMap = useMemo(() => {
+    const m = new Map<string, { t1: number | null; t2: number | null; t3: number | null }>();
+    for (const u of universeStocks) m.set(u.ticker, { t1: u.qsTier1 ?? null, t2: u.qsTier2 ?? null, t3: u.qsTier3 ?? null });
+    for (const [t, q] of Object.entries(qualityScoreMap)) m.set(t, { t1: q.tier1, t2: q.tier2, t3: q.tier3 });
+    return m;
+  }, [universeStocks, qualityScoreMap]);
   const { aiAnalysisMap } = useAiAnalysis(need.screener);
-
-  // Danh mục Siêu Quét AI (~300 mã, Gateway) + giá khớp TRỰC TIẾP (REST + stream SSE, như bảng Siêu Quét).
-  // Mã ngoài 17 mã gốc dựng từ sự kiện quyền THẬT (/api/cotuc/events, VNDirect); tỷ suất = cổ tức tiền 12 tháng / giá hiện tại.
   const { rows: gatewayUniverse } = useCotucUniverse();
-  // BL0: xu hướng giá THẬT (MA50 / MA200) từ bản quét Gateway (cùng bộ đệm với Siêu Quét / cột phải).
-  const { items: scanItems } = useSieuQuetScanner();
-  const trendByTicker = useMemo(() => new Map(scanItems.map((x) => [x.ticker, x.priceTrend ?? null])), [scanItems]);
-  const liveSymbols = useMemo(
-    () => [...new Set([...mergedStocks.map((s) => s.ticker), ...universeStocks.map((s) => s.ticker), ...gatewayUniverse.map((u) => u.ticker)])],
-    [mergedStocks, universeStocks, gatewayUniverse],
-  );
+  const liveSymbols = useMemo(() => [...new Set([...(dsDoc?.rows ?? []).map((r) => r.t), ...gatewayUniverse.map((u) => u.ticker)])], [dsDoc, gatewayUniverse]);
   const board = useBoardQuotes(liveSymbols, { flushMs: 1000 });
   const livePrices = useMemo(() => {
     const out: Record<string, number> = {};
@@ -520,42 +460,22 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   const decisionStates = useDecisionStates();
   const todayIso = new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 
-  const allStocksWithUniverse = useMemo(() => {
-    const existingTickerSet = new Set(mergedStocks.map((s) => s.ticker));
-    const newFromUniverse = universeStocks.filter((s) => !existingTickerSet.has(s.ticker));
-    const known = new Set([...existingTickerSet, ...newFromUniverse.map((s) => s.ticker)]);
-    const fromGateway = buildUniverseStocks({ universe: gatewayUniverse, exclude: known, lifecycleEventsMap, realDatesMap, prices: livePrices, today: todayIso });
-    // Giá trực tiếp + tỷ suất cổ tức THẬT (12 tháng) ghi đè giá/tỷ suất mẫu khi có dữ liệu.
-    const combined = [...mergedStocks, ...newFromUniverse, ...fromGateway].map((s) => {
-      const price = livePrices[s.ticker] ?? s.price;
-      const ev = lifecycleEventsMap[s.ticker];
-      const y = trailingYieldPct(trailingCashDividend(ev, todayIso), price);
-      // Cổ tức/CP của đợt tiền mặt gần nhất (VNDirect) thay số mẫu tĩnh của 17 mã gốc.
-      const lastCash = (ev ?? []).filter((e) => e.eventType === "CASH" && e.valuePerShare && e.exrightDate)
-        .sort((a, b) => (b.exrightDate ?? "").localeCompare(a.exrightDate ?? ""))[0]?.valuePerShare ?? null;
-      // Chỉ số cơ bản THẬT (VNDirect, cả danh mục) thay số mẫu/0; đánh dấu fundamentalsReal để bộ lọc và bảng phân biệt.
-      const f = fundamentalsMap[s.ticker];
-      const real = !!f && f.dataQuality !== "UNAVAILABLE";
-      return {
-        ...s, price, dividendYield: y ?? s.dividendYield, dividendAmount: lastCash ?? s.dividendAmount,
-        pe: real ? f.peRatio ?? 0 : s.pe, roe: real ? f.roe ?? 0 : s.roe, debtEquity: real ? f.debtEquity ?? 0 : s.debtEquity,
-        fundamentalsReal: real, priceTrend: trendByTicker.get(s.ticker) ?? null, specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, y ?? s.dividendYield, todayIso),
-      };
-    });
-    // P2 (Nhom B): merge Pros/Cons/Catalyst Score THAT (AI, dua tren so
-    // lieu dinh luong) cho CA 17 ma va Universe - CHI GHI DE khi da co
-    // ket qua AI (con lai giu mau/mac dinh trong luc cho vong xoay).
-    return combined.map((s) => {
-      const ai = aiAnalysisMap[s.ticker];
-      if (!ai) return s;
-      return {
-        ...s,
-        pros: ai.pros.length > 0 ? ai.pros : s.pros,
-        cons: ai.cons.length > 0 ? ai.cons : s.cons,
-        catalystScore: ai.catalystScore ?? s.catalystScore,
-      };
-    });
-  }, [mergedStocks, universeStocks, aiAnalysisMap, gatewayUniverse, lifecycleEventsMap, realDatesMap, livePrices, todayIso, fundamentalsMap]);
+  const allStocksWithUniverse = useMemo(() => (dsDoc?.rows ?? []).map((row) => {
+    const s = dsToStock(row, livePrices[row.t]);
+    const tier = tierMap.get(row.t);
+    const ev = lifecycleEventsMap[row.t];
+    const ai = aiAnalysisMap[row.t];
+    return {
+      ...s,
+      qsTier1: tier?.t1 ?? null, qsTier2: tier?.t2 ?? null, qsTier3: tier?.t3 ?? null,
+      // Cờ chỉ cảnh báo (không đổi số): đợt chi lớn bất thường / tỷ suất 12 tháng bất thường — từ lịch sử sự kiện.
+      specialDividend: isSpecialDividend(ev, todayIso), yieldAnomaly: yieldAnomaly(ev, s.dividendYield, todayIso),
+      // Ưu / nhược điểm, điểm xúc tác: CHỈ khi AI đã phân tích (không có giá trị mặc định).
+      pros: ai?.pros?.length ? ai.pros : [], cons: ai?.cons?.length ? ai.cons : [], catalystScore: ai?.catalystScore ?? null,
+    };
+  }), [dsDoc, livePrices, tierMap, lifecycleEventsMap, aiAnalysisMap, todayIso]);
+  // 17 mã theo dõi gốc (danh sách chọn ở Thời điểm tối ưu) — cùng nguồn DS-v1.
+  const mergedStocks = useMemo(() => { const core = new Set(DIVIDEND_STOCKS.map((x) => x.ticker)); return allStocksWithUniverse.filter((x) => core.has(x.ticker)); }, [allStocksWithUniverse]);
 
   // FIX: derive "selected" TU allStocksWithUniverse moi nhat (khong luu
   // snapshot tinh) - Modal luon hien dung du lieu that ngay khi fetch
@@ -615,11 +535,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
           <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cơ Bản <span className="ml-1 text-[11px] font-semibold normal-case text-cf-tertiary">Kết quả kinh doanh · Cổ tức · Timeline điểm mua</span>
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
-          {Object.keys(realDatesMap).length > 0
-            ? <span className="flex items-center gap-1 text-[10px] text-cf-positive"><CheckCircle2 className="w-3 h-3" />GDKHQ/ĐHCĐ: Thực (VCI)</span>
-            : eventsLoading
-            ? <span className="text-[10px] text-cf-tertiary animate-pulse">Đang tải sự kiện thực...</span>
-            : <span className="text-[10px] text-cf-gold italic">Dùng data mẫu (VCI tạm lỗi)</span>}
+          {dsDoc
+            ? <span className="flex items-center gap-1 text-[10px] text-cf-positive" title={`Bản quét ${dsDoc.asOf.scannerData ?? "—"} · KQKD ${dsDoc.asOf.kqkd ?? "—"} · sự kiện ${(dsDoc.asOf.events ?? "").slice(0, 16)}`}><CheckCircle2 className="w-3 h-3" />Dữ liệu thật · Gateway ({dsDoc.count} mã)</span>
+            : dsLoading || eventsLoading
+            ? <span className="text-[10px] text-cf-tertiary animate-pulse">Đang tải dữ liệu…</span>
+            : <span className="text-[10px] text-amber-300">Nguồn dữ liệu Bộ lọc tạm lỗi{dsError ? ` (${dsError.slice(0, 60)})` : ""}</span>}
         </div>
       </div>
 

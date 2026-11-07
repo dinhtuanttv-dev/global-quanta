@@ -475,6 +475,8 @@ export function buildSummaryRow(rec, { today, mcap = null } = {}) {
     seasonDev: sT.qoq?.deviation ?? null, seasonDevNpat: sN.qoq?.deviation ?? null,
     nowcast: sN.nowcast ? { growth: sN.nowcast.growth, est: sN.nowcast.est, lo: sN.nowcast.lo, hi: sN.nowcast.hi, cumShare: sN.nowcast.cumShare } : null,
     heat, mcap, flags: flagsFor(tpl, d, q, mNpat, sN).map((f) => f.id),
+    // BL1 (07/11/2026): số 4 quý gần nhất cho Bộ lọc cổ tức (P/E, tỷ lệ chi trả, độ phủ dòng tiền) — chỉ thêm trường, không đổi công thức KQKD.
+    ttm: { npat: npatTtm, top: topTtm, eps: ttmOf(by, last, "eps", "v") ?? ttmOf(by, last, "eps"), cfo: ttmOf(by, last, "cfo"), capex: ttmOf(by, last, "capex") }, equity: stock(by, last, "equity"),
   };
 }
 

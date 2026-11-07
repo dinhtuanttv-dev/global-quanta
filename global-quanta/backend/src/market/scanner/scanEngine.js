@@ -198,6 +198,7 @@ export function scoreTickerData(t, ctx) {
     // R/R gắn lúc đọc từ vùng hỗ trợ / kháng cự của engine cấu trúc (attachStructureRr) — engine quét không tự suy.
     rsRating, riskAdjustedMomentum: riskAdjMomentum, riskRewardRatio: null, riskRewardBasis: null,
     trendTag, qualityTag,
+    rsi14: Number.isFinite(t.rsi) ? Math.round(t.rsi * 10) / 10 : null,
     ma50: t.ma50 != null ? Math.round(t.ma50 * 100) / 100 : null, ma200: t.ma200 != null ? Math.round(t.ma200 * 100) / 100 : null, priceTrend: t.priceTrend ?? null,
     confluenceStatusCode: confl.statusCode, confluenceStatusLabel: confl.statusLabel,
     confluenceBoost: confl.boost, confluenceReasonCodes: confl.reasonCodes, breakoutBoostBadge: confl.breakoutBoostBadge,

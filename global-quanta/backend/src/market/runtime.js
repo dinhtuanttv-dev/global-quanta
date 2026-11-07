@@ -24,6 +24,7 @@ import { createSeasonMap } from "./fundamentals/seasonMap.js";
 import { CA_RULES, createCafefAnnounce } from "./fundamentals/cafefAnnounceService.js";
 import { createSeasonX } from "./fundamentals/seasonX.js";
 import { createCorpEvents } from "./events/corpEventsService.js";
+import { createDividendScreener } from "./events/dividendScreener.js";
 import pathCe from "node:path";
 import { listSeasonMeta } from "./fundamentals/seasonStore.js";
 import { qmsJobsConfig, runInWorker } from "./cotuc/qmsJobs.js";
@@ -191,6 +192,8 @@ export function getMarketRuntime() {
     isTradingDay: (d) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()) && !tradingCalendar.isHoliday(d),
     cafefNews: (t) => cafefAnnounce.news(t) });
   corpEventsRef = corpEvents;
+  // BL1: nguồn dữ liệu Bộ lọc cổ phiếu (ghép bản quét + KQKD + sự kiện + XD-v1 trên Gateway).
+  const dividendScreener = createDividendScreener({ getKv: async (k) => (await store.getKv(k))?.value ?? null, getKqSummary: () => kqkd.summary(), getEvents: () => corpEvents.doc(), getEx: () => eventStudy.exDoc() });
   for (const k of [1, 2, 3, 4]) jobs[`corpEvents${k}`] = () => corpEvents.refresh();
   jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
@@ -216,7 +219,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 

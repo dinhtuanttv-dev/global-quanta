@@ -93,5 +93,5 @@ export function createCorpEvents({ dir, universe, isTradingDay, cafefNews = () =
   /** Toàn bộ lịch sử một mã (ngăn chi tiết, dự báo). */
   function ticker(t) { const d = load(); if (!d) return null; return { version: d.version, fetchedAt: d.fetchedAt, ticker: t, events: d.events.filter((e) => e.t === t) }; }
 
-  return { refresh, window, ticker, habits, hasData: () => fs.existsSync(file), status: () => ({ version: CE_VERSION, running, last, fetchedAt: load()?.fetchedAt ?? null, events: load()?.events?.length ?? 0 }) };
+  return { refresh, window, ticker, habits, doc: () => load(), hasData: () => fs.existsSync(file), status: () => ({ version: CE_VERSION, running, last, fetchedAt: load()?.fetchedAt ?? null, events: load()?.events?.length ?? 0 }) };
 }
