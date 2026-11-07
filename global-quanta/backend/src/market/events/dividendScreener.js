@@ -5,7 +5,8 @@
 //   P/E, P/B, ROE, nợ, chi trả, dòng tiền, F / M / Z        <- KQKD theo quý (BCTC VNDirect, 4 quý gần nhất)
 //   giá quanh GDKHQ                                          <- XD-v1
 // Chỉ tính số khi đủ dữ liệu; thiếu -> null (giao diện ghi "chưa có"). Không có giá trị mặc định.
-export const DS_VERSION = "DS-v1 (2026-11-07)";
+import { dividendQuality } from "./dividendQuality.js";
+export const DS_VERSION = "DS-v2 (2026-11-07)";
 export const TAX = 0.05;
 
 const fin = (x) => typeof x === "number" && Number.isFinite(x);
@@ -41,7 +42,7 @@ export function dividendProfile(events, today) {
 }
 
 /** Một dòng Bộ lọc. scan: mục bản quét; kq: dòng tóm tắt KQKD; div: dividendProfile; ex: tóm tắt XD-v1. */
-export function screenerRow({ t, uni, scan, kq, div, ex }) {
+export function screenerRow({ t, uni, scan, kq, div, ex, dqBase = null }) {
   const price = fin(scan?.price) && scan.price > 0 ? scan.price : null;
   const eps = fin(kq?.ttm?.eps) ? kq.ttm.eps : null;
   const gross = price && div ? div.ttmCash / price : null;
@@ -64,20 +65,24 @@ export function screenerRow({ t, uni, scan, kq, div, ex }) {
       f: kq.f ?? null, m: kq.m ?? null, mFlag: kq.mFlag ?? null, z: kq.z ?? null, zZone: kq.zZone ?? null, flags: kq.flags ?? [],
     } : null,
     ex: ex ? { n: ex.n, dropMedian: ex.dropRatioMedian, fillWithin20: ex.fillWithin20, fillDaysMedian: ex.fillDaysMedian } : null,
+    // BL2: lợi suất chuẩn hoá, độ bền, Lintner, rủi ro, cờ bẫy lợi suất (MÔ TẢ).
+    dq: dqBase ? dividendQuality({ series: dqBase.series ?? [], price, mcap: fin(kq?.mcap) ? kq.mcap : null, ttmCash: div?.ttmCash ?? 0, fy: div, risk: dqBase.risk ?? null,
+      kq: kq ? { cfoToNpat: kq.cfoToNpat ?? null, netDebtEbitda: kq.kpi?.netDebtToEbitda ?? null, growthTtm: kq.ttmGrowth?.value ?? null, nowcastEst: kq.nowcast?.est ?? null } : null,
+      financial: ["bank", "sec", "ins"].includes(kq?.tpl ?? dqBase.tpl) }) : null,
   };
 }
 
 /** Toàn bộ danh mục. */
-export function buildScreener({ universe, scanItems, kqRows, eventsByTicker, exByTicker, today, asOf = {} }) {
+export function buildScreener({ universe, scanItems, kqRows, eventsByTicker, exByTicker, dqByTicker = {}, today, asOf = {} }) {
   const scan = new Map((scanItems ?? []).map((x) => [x.ticker, x]));
   const kq = new Map((kqRows ?? []).map((x) => [x.t, x]));
   const rows = (universe ?? []).map((u) => {
     const ev = eventsByTicker.get(u.ticker) ?? [];
-    return screenerRow({ t: u.ticker, uni: u, scan: scan.get(u.ticker), kq: kq.get(u.ticker), div: dividendProfile(ev, today), ex: exByTicker?.[u.ticker] ?? null });
+    return screenerRow({ t: u.ticker, uni: u, scan: scan.get(u.ticker), kq: kq.get(u.ticker), div: dividendProfile(ev, today), ex: exByTicker?.[u.ticker] ?? null, dqBase: dqByTicker?.[u.ticker] ?? null });
   });
   const cov = (f) => rows.filter(f).length;
   return { version: DS_VERSION, today, asOf, count: rows.length,
-    coverage: { price: cov((r) => r.price), yield: cov((r) => r.yieldGross != null), pe: cov((r) => r.fund?.pe != null), payout: cov((r) => r.fund?.payout != null), trend: cov((r) => r.trend), f: cov((r) => r.fund?.f != null), fcfCover: cov((r) => r.fund?.fcfCover != null) },
+    coverage: { price: cov((r) => r.price), yield: cov((r) => r.yieldGross != null), pe: cov((r) => r.fund?.pe != null), payout: cov((r) => r.fund?.payout != null), trend: cov((r) => r.trend), f: cov((r) => r.fund?.f != null), fcfCover: cov((r) => r.fund?.fcfCover != null), lintner: cov((r) => r.dq?.lintner?.ok), risk: cov((r) => r.dq?.risk), trap: cov((r) => r.dq?.trap) },
     rows };
 }
 
@@ -85,17 +90,17 @@ export function buildScreener({ universe, scanItems, kqRows, eventsByTicker, exB
  * Dịch vụ: ghép khi có yêu cầu, đệm theo mốc cập nhật của từng nguồn (bản quét, KQKD, sự kiện, XD-v1) — đổi nguồn nào thì dựng lại.
  * getKv(key) -> value; getKqSummary() -> doc tóm tắt KQKD; getEvents() -> doc corp-events; getEx() -> doc XD-v1.
  */
-export function createDividendScreener({ getKv, getKqSummary, getEvents, getEx, now = Date.now }) {
+export function createDividendScreener({ getKv, getKqSummary, getEvents, getEx, getDq = () => null, now = Date.now }) {
   let memo = null, memoKey = null;
   async function get() {
     const [uni, scan, kq] = await Promise.all([getKv("scanner:universe"), getKv("scanner:latest"), getKqSummary()]);
-    const ev = getEvents(), ex = getEx();
+    const ev = getEvents(), ex = getEx(), dq = getDq();
     const today = new Date(now() + 7 * 3_600_000).toISOString().slice(0, 10);
-    const key = [today, uni?.builtAt, scan?.generatedAt ?? scan?.computedAt, kq?.builtAt ?? kq?.asOf, ev?.fetchedAt, ex?.builtAt].join("|");
+    const key = [today, uni?.builtAt, scan?.generatedAt ?? scan?.computedAt, kq?.builtAt ?? kq?.asOf, ev?.fetchedAt, ex?.builtAt, dq?.builtAt].join("|");
     if (memo && memoKey === key) return memo;
     const byT = new Map(); for (const e of ev?.events ?? []) (byT.get(e.t) ?? byT.set(e.t, []).get(e.t)).push(e);
-    memo = buildScreener({ universe: uni?.tickers ?? [], scanItems: scan?.items ?? [], kqRows: kq?.rows ?? [], eventsByTicker: byT, exByTicker: ex?.byTicker ?? {}, today,
-      asOf: { scanner: scan?.generatedAt ?? null, scannerData: scan?.dataAsOf ?? null, kqkd: kq?.latestQuarter ?? null, kqkdBuilt: kq?.builtAt ?? null, events: ev?.fetchedAt ?? null, exStudy: ex?.builtAt ?? null } });
+    memo = buildScreener({ universe: uni?.tickers ?? [], scanItems: scan?.items ?? [], kqRows: kq?.rows ?? [], eventsByTicker: byT, exByTicker: ex?.byTicker ?? {}, dqByTicker: dq?.byTicker ?? {}, today,
+      asOf: { scanner: scan?.generatedAt ?? null, scannerData: scan?.dataAsOf ?? null, kqkd: kq?.latestQuarter ?? null, kqkdBuilt: kq?.builtAt ?? null, events: ev?.fetchedAt ?? null, exStudy: ex?.builtAt ?? null, dq: dq?.builtAt ?? null } });
     memoKey = key;
     return memo;
   }

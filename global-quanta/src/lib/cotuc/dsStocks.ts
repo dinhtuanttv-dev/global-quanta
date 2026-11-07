@@ -9,6 +9,18 @@ export interface DsRow {
   div: { ttmCash: number; payments12m: number; stockPct12m: number; lastEx: string | null; lastCash: number | null; nextEx: string | null; nextCash: number | null; nextPay: string | null; nextRecord: string | null; agmNext: string | null; lastFy: number | null; lastFyCash: number | null; streak: number; cagr3: number | null; cuts5: number; years5: number; history: [number, number][] } | null;
   fund: { quarter: string; tpl: string; pe: number | null; pb: number | null; roe: number | null; de: number | null; interestCover: number | null; netDebtEbitda: number | null; netMargin: number | null; growthTtm: number | null; npatYoY: number | null; epsTtm: number | null; payout: number | null; fcfCover: number | null; cfoToNpat: number | null; accrual: number | null; f: number | null; m: number | null; mFlag: boolean | null; z: number | null; zZone: string | null; flags: string[] } | null;
   ex: { n: number; dropMedian: number | null; fillWithin20: number | null; fillDaysMedian: number | null } | null;
+  dq?: DqView | null;
+}
+/** BL2 — DQ-v1: lợi suất chuẩn hoá, độ bền cổ tức, Lintner, rủi ro giá (MÔ TẢ). */
+export interface DqView {
+  version: string;
+  yield: { fy: number | null; fyYear: number | null; median3: number | null; ttm: number | null; catchUp: boolean; company: number | null };
+  company: { years: number; payout5: number | null; fcfCover5: number | null; streak: number; cuts10: number; divCv5: number | null; lossYears10: number; lastYear: number | null; lastD: number | null; lastE: number | null };
+  lintner: { ok: boolean; n: number; from?: number; to?: number; speed?: number | null; targetPayout?: number | null; r2?: number | null; reason: string | null };
+  lintnerNextD: number | null; lintnerNextYield: number | null;
+  checks: { id: string; label: string; pass: boolean | null }[]; checksPassed: number; checksKnown: number;
+  risk: { vol1y: number | null; mdd1y: number | null; ret1y: number | null; beta: number | null; sessions: number } | null;
+  trap: string[] | null;
 }
 export interface DsDoc { version: string; today: string; asOf: Record<string, string | null>; count: number; coverage: Record<string, number>; rows: DsRow[] }
 
@@ -31,6 +43,6 @@ export function dsToStock(r: DsRow, livePrice?: number | null): DividendStock & 
     exDividendDate: vn(upcoming ?? r.div?.lastEx), paymentDate: vn(upcoming ? r.div?.nextPay : null), dividendAmount: (upcoming ? r.div?.nextCash : r.div?.lastCash) ?? 0,
     agmDate: vn(r.div?.agmNext), catalystScore: null, priceTrend: r.trend,
     fundamentalsReal: f != null && (f.roe != null || f.epsTtm != null), isUniverseOnly: !CORE.has(r.t),
-    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r,
+    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null,
   };
 }

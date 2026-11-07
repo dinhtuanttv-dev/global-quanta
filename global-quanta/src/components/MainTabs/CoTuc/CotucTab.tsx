@@ -29,6 +29,7 @@ import type { Deps } from "../../../lib/quant-cotuc";
 import type { Sourced, ISODate } from "../../../lib/cotuc/timing-types";
 import { EventDaysChipsV3 } from "./DaysChipV3";
 import EventsCalendar from "./events/EventsCalendar";
+import DividendQualityPanel from "./screener/DividendQualityPanel";
 import { useTimingSignalsBulk } from "../../../hooks/useTimingSignalsBulk";
 import { useQualityScore } from "../../../hooks/useQualityScore";
 import { useUniverseScores, mapUniverseEntryToLifecycleEvent } from "../../../hooks/useUniverseScores";
@@ -255,6 +256,7 @@ function StockModal({ s, onClose, realRs, lifecycleEvents, hasRealDates = false 
                   </div>
                 ))}
               </div>
+              <DividendQualityPanel dq={s.dq} />
               {(s.pros.length > 0 || s.cons.length > 0) ? (
                 <div className="grid grid-cols-2 gap-2">
                   <div className="cf-banner-positive rounded-lg p-2.5">
@@ -728,6 +730,10 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
                       onChange={(e) => setFilter({ ...filter, hideRiskFlags:e.target.checked })}
                       className="accent-amber-500" />
                     🛡️ Ẩn Red Flag
+                  </label>
+                  <label className="flex items-center gap-1 text-[10px] text-cf-secondary cursor-pointer" title="Ẩn mã lợi suất ≥ 8% kèm giá giảm > 30% / chi trả vượt lợi nhuận / dòng tiền tự do < 50% cổ tức / LNST giảm > 30%">
+                    <input type="checkbox" checked={!!filter.hideTraps} onChange={(e) => setFilter({ ...filter, hideTraps: e.target.checked })} className="accent-amber-500" data-testid="filter-hide-traps" />
+                    🪤 Ẩn bẫy lợi suất
                   </label>
                 </div>
               </div>

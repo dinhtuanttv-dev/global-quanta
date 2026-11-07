@@ -49,7 +49,9 @@ export const ITEMS = Object.freeze({
   },
 });
 /** Chỉ tiêu năm để đối chiếu với tổng 4 quý. */
-export const ANNUAL_ITEMS = Object.freeze({ 21001: "revenue", 23000: "npatParent", 23800: "pbt", 32000: "cfo", 421701: "toi" });
+// BL2 (07/11/2026): thêm cổ tức đã trả (33600, lưu chuyển tiền tệ — gồm cả phần trả cổ đông thiểu số) và capex năm (32100) cho Lintner / độ bền cổ tức.
+export const ANNUAL_ITEMS = Object.freeze({ 21001: "revenue", 23000: "npatParent", 23800: "pbt", 32000: "cfo", 32100: "capex", 33600: "divPaid", 421701: "toi" });
+const ANNUAL_CF = new Set(["cfo", "capex", "divPaid"]);
 
 /** Bảng tra (mẫu, báo cáo, mã) -> tên chuẩn. */
 function mapFor(tpl, part) { return { ...COMMON[part], ...(ITEMS[tpl]?.[part] ?? {}) }; }
@@ -107,8 +109,8 @@ export function groupAnnual(rows, tpl) {
   for (const r of rows ?? []) {
     const m = MODEL[r.modelType]; const key = ANNUAL_ITEMS[r.itemCode];
     if (!m || (tpl && m[0] !== tpl) || !key || !r.fiscalDate || typeof r.numericValue !== "number") continue;
-    if (key === "cfo" && m[1] !== "cf") continue;
-    if (key !== "cfo" && m[1] !== "is") continue;
+    if (ANNUAL_CF.has(key) && m[1] !== "cf") continue;
+    if (!ANNUAL_CF.has(key) && m[1] !== "is") continue;
     const y = r.fiscalDate.slice(0, 4);
     const a = byY.get(y) ?? { year: Number(y), v: {} };
     a.v[key] = r.numericValue;
