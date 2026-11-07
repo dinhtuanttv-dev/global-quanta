@@ -88,7 +88,7 @@ describe("DividendScreenerTable — chọn cột", () => {
     const el = document.createElement("div"); document.body.appendChild(el);
     await act(async () => {
       createRoot(el).render(<DividendScreenerTable rows={stocks} sortField="score" sortAsc={false} onSort={() => {}} onSelect={() => {}} isPinned={() => false} onTogglePin={() => {}}
-        realRsMap={{}} timingByTicker={new Map()} decisionsByTicker={new Map()} livePrices={{}} liveChangePct={{}} flash={{}} now={0} hidden={new Set(["pe", "window", "expected"])} />);
+        realRsMap={{}} livePrices={{}} liveChangePct={{}} flash={{}} now={0} hidden={new Set(["pe", "window", "expected"])} />);
     });
     const heads = [...el.querySelectorAll("thead tr:last-child th")].map((t) => t.textContent ?? "");
     expect(heads.some((h) => h.startsWith("P/E"))).toBe(false);

@@ -101,5 +101,7 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
   }
   function doc() { if (memo) return memo; memo = readGz(outFile); return memo; }
   function exDoc() { if (exMemo) return exMemo; exMemo = readGz(exFile); return exMemo; }
-  return { run, doc, exDoc, status: () => ({ version: ES_VERSION, running, last, hasData: fs.existsSync(outFile) }), hasData: () => fs.existsSync(outFile) };
+  /** TO-v1: đọc giá đã lưu (không tải) — dòng [ngày, giáĐiềuChỉnh, GTGD, giáChưaĐiềuChỉnh]; VN-Index: [ngày, điểm, GTGD]. */
+  const pricesOf = (t) => readGz(path.join(pxDir, `${t}.json.gz`))?.rows ?? null;
+  return { run, doc, exDoc, pricesOf, status: () => ({ version: ES_VERSION, running, last, hasData: fs.existsSync(outFile) }), hasData: () => fs.existsSync(outFile) };
 }

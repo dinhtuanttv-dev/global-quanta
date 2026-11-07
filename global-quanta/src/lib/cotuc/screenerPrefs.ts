@@ -6,7 +6,7 @@ export const SCREENER_COLUMNS = ["price", "yield", "ex", "payAgm", "pe", "roe", 
 export type ScreenerColumn = (typeof SCREENER_COLUMNS)[number];
 export const COLUMN_LABEL: Record<ScreenerColumn, string> = {
   price: "Giá", yield: "Yield 12T", ex: "GDKHQ", payAgm: "Thanh toán · ĐHCĐ", pe: "P/E", roe: "ROE", fm: "Hạng NT",
-  window: "Cửa sổ tối ưu", expected: "Kỳ vọng ròng", growth: "LNST YoY", decision: "Trạng thái",
+  window: "Săn cổ tức", expected: "Kỳ vọng nhóm", growth: "LNST YoY", decision: "Cảnh báo TO",
 };
 export type SortKey = "ticker" | "dividendYield" | "score" | "pe" | "roe" | "price";
 export interface SavedScreen { name: string; filter: Partial<DividendFilter>; sort?: { field: SortKey; asc: boolean } }

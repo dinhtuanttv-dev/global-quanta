@@ -25,6 +25,7 @@ import { CA_RULES, createCafefAnnounce } from "./fundamentals/cafefAnnounceServi
 import { createSeasonX } from "./fundamentals/seasonX.js";
 import { createCorpEvents } from "./events/corpEventsService.js";
 import { createDividendScreener } from "./events/dividendScreener.js";
+import { createDivRunup } from "./events/divRunupService.js";
 import { createDividendQualityBase } from "./events/dividendQuality.js";
 import { createFmLedger } from "./events/factorModel.js";
 import pathCe from "node:path";
@@ -171,7 +172,7 @@ export function getMarketRuntime() {
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
     { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false },
-    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false },
+    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false },
     { name: "corpEvents1", at: "07:40", tradingDayOnly: false }, { name: "corpEvents2", at: "12:10", tradingDayOnly: false }, { name: "corpEvents3", at: "17:40", tradingDayOnly: false }, { name: "corpEvents4", at: "21:05", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
@@ -202,6 +203,11 @@ export function getMarketRuntime() {
   // BL-L1: sổ theo dõi tiến FM-v1 (ghi 1 lần/tháng, chấm sau 12 tháng).
   const fmLedger = createFmLedger({ dir: kqkdDir, getRows: async () => (await dividendScreener.get()).rows });
   jobs.fmLedger = () => fmLedger.tick();
+  // TO-v1: Săn cổ tức trước GDKHQ (radar, sổ TO-L1, mô phỏng, W1–W5 trên Gateway) — dựng 20:25 sau khi giá cập nhật 19:45.
+  const divRunup = createDivRunup({ dir: pathCe.join(kqkdDir, "to"), pricesOf: (t) => eventStudy.pricesOf(t),
+    getUniverse: async () => (await store.getKv("scanner:universe"))?.value ?? null, eventsOf: (t) => corpEvents.ticker(t)?.events ?? [],
+    eventsVersion: () => corpEvents.status().fetchedAt, isTradingDay: (d) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()) && !tradingCalendar.isHoliday(d) });
+  jobs.toBuild = async () => { const b = await divRunup.build(); const t = await divRunup.tick(); return { build: b, ledger: t }; };
   for (const k of [1, 2, 3, 4]) jobs[`corpEvents${k}`] = () => corpEvents.refresh();
   jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
@@ -227,7 +233,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
@@ -253,6 +259,7 @@ export function startMarketIngestor() {
   // S2: chưa có bản đồ mùa vụ -> dựng sau 20 phút (tuần tự, ~1.420 lần gọi Project A).
   if (!rt.seasonMap.hasData()) setTimeout(() => { rt.seasonMap.build().then(() => rt.seasonMap.ledgerTick()).catch((e) => console.warn(`[season-map] dựng lần đầu lỗi: ${e.message}`)); }, 1_200_000).unref?.();
   // BL2: chưa có phần tính sẵn độ bền -> dựng sau 15 phút (sau lượt nạp KQKD đầu).
+  if (!rt.divRunup.hasData()) setTimeout(() => { rt.jobs.toBuild().catch((e) => console.warn(`[to] dựng lần đầu lỗi: ${e.message}`)); }, 1_500_000).unref?.();
   if (!rt.dqBase.hasData()) setTimeout(() => { rt.dqBase.run().catch((e) => console.warn(`[dq] dựng lần đầu lỗi: ${e.message}`)); }, 900_000).unref?.();
   // LSK1: chưa có kho sự kiện -> nạp sau 90 giây.
   if (!rt.corpEvents.hasData()) setTimeout(() => { rt.corpEvents.refresh({ reason: "bootstrap" }).catch((e) => console.warn(`[corp-events] nạp lần đầu lỗi: ${e.message}`)); }, 90_000).unref?.();
