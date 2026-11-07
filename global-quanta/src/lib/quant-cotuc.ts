@@ -21,6 +21,8 @@ export interface DividendStock {
   catalystScore: number | null;
   /** Xu hướng giá thật (MA50 / MA200); null = chưa đủ 200 phiên / chưa có dữ liệu. */
   priceTrend?: PriceTrend | null;
+  /** BL1: tỷ lệ chi trả / tăng trưởng LNST là số thật (DS-v1, KQKD 4 quý). */
+  payoutReal?: boolean; growthReal?: boolean;
   // P2: Tier 1-3 cua Dividend Quality Score, merge tu /api/cotuc/quality-score
   // (Tier 4 = RS+RedFlag tinh rieng luc dung, vi can realRsMap theo tung
   // luot goi ham, khong luu san trong object).
@@ -202,10 +204,10 @@ export function calcCatalystScore(s: DividendStock): number | null {
 }
 
 /** Cảnh báo rủi ro — BL0: chỉ xét trường đã có số THẬT (P/E, Nợ/VCSH: fundamentalsReal; chi trả, tăng trưởng: Tier 1–3 thật; RSI > 0). */
-export function riskDataReady(s: DividendStock): boolean { return s.fundamentalsReal === true || isQualityScoreReal(s); }
+export function riskDataReady(s: DividendStock): boolean { return s.fundamentalsReal === true || s.payoutReal === true || s.growthReal === true || isQualityScoreReal(s); }
 export function detectRiskFlags(s: DividendStock): string[] {
   const flags: string[] = [];
-  const fund = s.fundamentalsReal === true, qs = isQualityScoreReal(s);
+  const fund = s.fundamentalsReal === true, qs = isQualityScoreReal(s) || s.payoutReal === true || s.growthReal === true;
   if (fund && s.debtEquity > 0.8 && !isFinancialSector(s.sector)) flags.push("Đòn bẩy nợ cao (>0.8x)");
   if (qs && s.payoutRatio > 85 && s.growth < 5) flags.push("Cổ tức quá cao so tăng trưởng");
   if (qs && s.growth < 0) flags.push("Tăng trưởng lợi nhuận âm");

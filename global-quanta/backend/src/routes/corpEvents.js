@@ -10,7 +10,7 @@ import { createRateLimiter, isAdmin } from "./macro.js";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const GROUPS = new Set(["DIVIDEND", "MEETING", "CAPITAL", "STATUS"]);
-export function createCorpEventsRouter({ getService, getExStudy = () => null, getCafefNews = () => null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createCorpEventsRouter({ getService, getExStudy = () => null, getCafefNews = () => null, getScreener = () => null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const rl = createRateLimiter({ limit: 90 });
   const send = (req, res, doc) => {
@@ -60,6 +60,11 @@ export function createCorpEventsRouter({ getService, getExStudy = () => null, ge
     const otherCode = (title) => [...String(title).matchAll(/\(([A-Z0-9]{3})\)/g)].some((m) => m[1] !== t);
     const rows = dividendPlanNews(getCafefNews(t) ?? [], since).filter((x) => x.status !== "OTHER" && !otherCode(x.title));
     send(req, res, { ticker: t, label: "MÔ TẢ", source: "Tiêu đề tin doanh nghiệp CafeF", rows });
+  });
+  // BL1: dữ liệu Bộ lọc cổ phiếu (DS-v1) — mọi mã, mọi chỉ số thật kèm mốc cập nhật từng nguồn.
+  router.get("/screener", rl, async (req, res) => {
+    const s = getScreener(); if (!s) return res.status(503).json({ error: "Chưa bật." });
+    try { send(req, res, await s.get()); } catch (e) { res.status(503).json({ error: String(e?.message ?? e) }); }
   });
   router.get("/status", (_req, res) => res.json(getService()?.status() ?? { available: false }));
   router.post("/admin/refresh", (req, res) => {
