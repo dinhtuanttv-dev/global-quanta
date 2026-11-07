@@ -27,12 +27,6 @@ export interface DividendStock {
   dq?: import("./cotuc/dsStocks").DqView | null;
   /** BL3: điểm nhân tố FM-v1 (thay Dividend Quality Score của Project A). */
   fm?: import("./cotuc/dsStocks").FmView | null;
-  // P2: Tier 1-3 cua Dividend Quality Score, merge tu /api/cotuc/quality-score
-  // (Tier 4 = RS+RedFlag tinh rieng luc dung, vi can realRsMap theo tung
-  // luot goi ham, khong luu san trong object).
-  qsTier1?: number | null;
-  qsTier2?: number | null;
-  qsTier3?: number | null;
   /** Mã ngoài 17 mã theo dõi gốc (Universe). BL0: 17 mã gốc cũng KHÔNG còn số liệu viết tay — mọi trường số là 0 tới khi có dữ liệu thật. */
   isUniverseOnly?: boolean;
   /** P/E, ROE, Nợ/VCSH là số THẬT (VNDirect, /api/cotuc/fundamentals) — false/undefined = chưa có (đang là 0 hoặc số mẫu). */
@@ -131,68 +125,6 @@ export function getTradePhase(s: DividendStock): {
   return { status:"ACCUMULATION", label:"Tích Lũy", color:"bg-amber-950 text-amber-400 border-amber-800", icon:"💎", action:"Mua tích lũy", desc:"Nền giá ổn định RSI 43–59. Biên an toàn đủ giải ngân.", safety:"Khuyến nghị (7/10)" };
 }
 
-function scoreRs3mReal(rs3m: number): number {
-  return Math.max(0, Math.min(100, 50 + rs3m * 2));
-}
-
-function scoreRedFlagCountReal(flagCount: number): number {
-  return Math.max(0, 100 - flagCount * 25);
-}
-
-function calcTier4Real(rs3m: number | null | undefined, redFlagCount: number): number {
-  const parts: number[] = [];
-  if (rs3m !== null && rs3m !== undefined) parts.push(scoreRs3mReal(rs3m));
-  parts.push(scoreRedFlagCountReal(redFlagCount));
-  return parts.reduce((a, b) => a + b, 0) / parts.length;
-}
-
-/**
- * Diem Dividend Quality Score THAT (P2) - dung khi da co du Tier 1-3
- * (merge tu API). Neu CHUA CO (dang tai, hoac API loi), FALLBACK ve
- * calcDividendScore() cu (mau) de khong hien "0" gay hoang loan UI
- * trong luc cho tai xong.
- */
-/** Kiem tra Tier 1-3 da merge that chua (khong phai dang fallback ve mau
- * do dang tai/loi API) - dung de hien thi ro rang tren UI, tranh nguoi
- * dung nham lan so mau tam thoi voi so that (da gap that truong hop nay:
- * cung 1 ma nhung 2 noi hien thi khac nhau vi 1 noi doc luc dang tai,
- * 1 noi doc sau khi tai xong). */
-export function isQualityScoreReal(s: DividendStock): boolean {
-  return s.qsTier1 !== null && s.qsTier1 !== undefined
-    && s.qsTier2 !== null && s.qsTier2 !== undefined
-    && s.qsTier3 !== null && s.qsTier3 !== undefined;
-}
-
-export function calcRealDividendQualityScore(
-  s: DividendStock,
-  realRs: number | null | undefined,
-  riskFlagCount: number
-): number {
-  const missingTiers = s.qsTier1 === null || s.qsTier1 === undefined || s.qsTier2 === null || s.qsTier2 === undefined || s.qsTier3 === null || s.qsTier3 === undefined;
-  if (missingTiers) {
-    // FIX QUAN TRONG: neu la ma Universe (khong phai 1 trong 17 ma
-    // theo doi goc), TUYET DOI KHONG fallback ve calcDividendScore (cong
-    // thuc do danh cho DU LIEU MAU HOP LY cua 17 ma - dung payoutRatio/
-    // growth/fscore=0 GIA se tinh RA SO SAI/VO NGHIA, khong phai "diem
-    // thap that"). Tra ve 0 kem co isReal=false (UI da xu ly san) de
-    // hien "dang cho xu ly", KHONG hien nham thanh diem so that.
-    return 0; // BL0: chưa có Tier 1–3 thật -> 0 kèm isQualityScoreReal = false (giao diện ghi "đang tải / chưa có"), không còn điểm tạm
-  }
-  const tier4 = calcTier4Real(realRs, riskFlagCount);
-  const tier1: number = s.qsTier1 as number;
-  const tier2: number = s.qsTier2 as number;
-  const tier3: number = s.qsTier3 as number;
-  const weights: { value: number; weight: number }[] = [
-    { value: tier1, weight: 30 },
-    { value: tier2, weight: 30 },
-    { value: tier3, weight: 25 },
-    { value: tier4, weight: 15 },
-  ];
-  const totalWeight = weights.reduce((sum, w) => sum + w.weight, 0);
-  const overall = weights.reduce((sum, w) => sum + w.value * (w.weight / totalWeight), 0);
-  return Math.round(overall);
-}
-
 /** Điểm xúc tác: CHỈ khi có điểm AI (catalystScore) — điều chỉnh theo xu hướng giá thật, RSI thật, lịch GDKHQ / ĐHCĐ. null = chưa có. */
 export function calcCatalystScore(s: DividendStock): number | null {
   if (s.catalystScore == null) return null;
@@ -207,11 +139,11 @@ export function calcCatalystScore(s: DividendStock): number | null {
   return Math.min(10, Math.max(1, parseFloat(sc.toFixed(1))));
 }
 
-/** Cảnh báo rủi ro — BL0: chỉ xét trường đã có số THẬT (P/E, Nợ/VCSH: fundamentalsReal; chi trả, tăng trưởng: Tier 1–3 thật; RSI > 0). */
-export function riskDataReady(s: DividendStock): boolean { return s.fundamentalsReal === true || s.payoutReal === true || s.growthReal === true || isQualityScoreReal(s); }
+/** Cảnh báo rủi ro — BL0: chỉ xét trường đã có số THẬT (P/E, Nợ/VCSH: fundamentalsReal; chi trả, tăng trưởng: KQKD 4 quý thật — DS-v1; RSI > 0). */
+export function riskDataReady(s: DividendStock): boolean { return s.fundamentalsReal === true || s.payoutReal === true || s.growthReal === true; }
 export function detectRiskFlags(s: DividendStock): string[] {
   const flags: string[] = [];
-  const fund = s.fundamentalsReal === true, qs = isQualityScoreReal(s) || s.payoutReal === true || s.growthReal === true;
+  const fund = s.fundamentalsReal === true, qs = s.payoutReal === true || s.growthReal === true;
   if (fund && s.debtEquity > 0.8 && !isFinancialSector(s.sector)) flags.push("Đòn bẩy nợ cao (>0.8x)");
   if (qs && s.payoutRatio > 85 && s.growth < 5) flags.push("Cổ tức quá cao so tăng trưởng");
   if (qs && s.growth < 0) flags.push("Tăng trưởng lợi nhuận âm");
@@ -231,6 +163,8 @@ export interface DividendFilter {
   hideStaleEvents: boolean;
   /** BL2: ẩn mã bị gắn cờ "bẫy lợi suất" (lợi suất ≥ 8% kèm giá sụp / chi trả vượt lợi nhuận / dòng tiền yếu / LNST giảm mạnh). */
   hideTraps?: boolean;
+  /** BL4: ngũ phân vị FM-v1 tối thiểu (0 = tắt; 4 = Q4–Q5). Mã chưa có điểm -> thiếu dữ liệu. */
+  minQuintile?: number;
 }
 
 /** Ngưỡng "sắp tới" dùng chung cho thẻ KPI, nút lọc nhanh và lịch: 30 ngày. */
@@ -245,7 +179,7 @@ export const isFinancialSector = (sector: string) => /ng[âa]n h[àa]ng|ch[ứu]
 export const DEFAULT_FILTER: DividendFilter = {
   minYield:0, minRoe:0, maxPe:PE_NO_LIMIT, maxDebt:DEBT_NO_LIMIT, minFscore:0,
   trend:"All", phase:"All", upcomingGDKHQ:false, upcomingAGM:false,
-  hideRiskFlags:false, searchQ:"", hideStaleEvents:true, hideTraps:false,
+  hideRiskFlags:false, searchQ:"", hideStaleEvents:true, hideTraps:false, minQuintile:0,
 };
 
 export type FilterVerdict = "PASS" | "FAIL" | "MISSING_DATA" | "STALE";
@@ -272,6 +206,10 @@ export function filterVerdict(s: DividendStock, filter: DividendFilter): FilterV
     if (!s.fscore) return "MISSING_DATA"; // chưa có F-Score thật
     if (s.fscore < filter.minFscore) return "FAIL";
   }
+  if ((filter.minQuintile ?? 0) > 0) {
+    if (!s.fm) return "MISSING_DATA"; // chưa đủ 4/6 nhóm nhân tố
+    if (s.fm.quintile < (filter.minQuintile ?? 0)) return "FAIL";
+  }
   if (filter.trend !== "All") {
     if (!s.priceTrend) return "MISSING_DATA"; // chưa đủ 200 phiên / chưa có dữ liệu giá
     if (s.priceTrend !== filter.trend) return "FAIL";
@@ -295,6 +233,21 @@ export function explainFilter(stocks: DividendStock[], filter: DividendFilter): 
     const v = filterVerdict(s, filter);
     if (v === "PASS") out.pass++; else if (v === "FAIL") out.fail++; else if (v === "MISSING_DATA") out.missingData++; else out.stale++;
   }
+  return out;
+}
+
+/** BL4: điều kiện đang bật và số mã mà RIÊNG điều kiện đó đang loại (đặt về mặc định, giữ các điều kiện khác) — đếm ngay khi chỉnh. */
+export type FilterKey = Exclude<keyof DividendFilter, "searchQ">;
+export function activeFilterKeys(filter: DividendFilter): FilterKey[] {
+  return (Object.keys(DEFAULT_FILTER) as (keyof DividendFilter)[])
+    .filter((k): k is FilterKey => k !== "searchQ" && filter[k] !== undefined && filter[k] !== DEFAULT_FILTER[k]);
+}
+export const countPass = (stocks: DividendStock[], filter: DividendFilter): number =>
+  stocks.reduce((n, s) => n + (filterVerdict(s, filter) === "PASS" ? 1 : 0), 0);
+export function marginalCounts(stocks: DividendStock[], filter: DividendFilter): Partial<Record<FilterKey, number>> {
+  const base = countPass(stocks, filter);
+  const out: Partial<Record<FilterKey, number>> = {};
+  for (const k of activeFilterKeys(filter)) out[k] = countPass(stocks, { ...filter, [k]: DEFAULT_FILTER[k] } as DividendFilter) - base;
   return out;
 }
 
