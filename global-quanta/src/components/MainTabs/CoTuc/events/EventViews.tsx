@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCorpEventsTicker } from "../../../../hooks/useCorpEvents";
 import { addDays, type CorpEvent, dividendHabits, dividendHistory, ganttRows, GROUP_UI, keyDate, monthCells, netYield, shiftMonth, TRUST } from "../../../../lib/events/calendar";
 import { dmy, pctPlain } from "../../../../lib/kqkd/format";
+import { ExStudyTicker } from "./ExDatePanels";
 
 const WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
@@ -125,6 +126,7 @@ export function TickerEventsDrawer({ ticker, price, onClose, onOpenProfile }: { 
                 <p className="mt-1 text-[10px] text-slate-500">Cột xanh = tổng cổ tức tiền đ/cp theo năm tài chính được chia; ô xanh dương = cổ tức cổ phiếu + thưởng (%). Nguồn VNDirect, từ 2015.</p>
               </div>
             )}
+            <ExStudyTicker ticker={ticker} />
             <div className="overflow-x-auto rounded-lg border border-white/10">
               <table className="w-full min-w-[620px] text-[11px]" data-testid="ce-drawer-list">
                 <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="px-2 py-1">Ngày</th><th className="px-2 py-1">Sự kiện</th><th className="px-2 py-1 text-right">Giá trị</th><th className="px-2 py-1">Mốc khác</th></tr></thead>

@@ -88,3 +88,25 @@ test("LSK2 DF-v1: gom đợt trả theo ngày-trong-năm, bỏ đợt đã trả
   assert.deepEqual([h.rows[0].t, h.rows[0].usual.slice(0, 7), h.rows[0].paidYears, h.rows[0].lastCash], ["BMP", "2026-11", 4, 5000]);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("LSK3 tin phương án cổ tức: phân loại thông qua / trình–dự kiến / chốt quyền; % phải gắn với cổ tức; bỏ % lợi nhuận", async () => {
+  const { dividendPlanNews } = await import("../src/market/events/corpEvents.js");
+  const rows = [
+    ["2026-05-06", "ĐHĐCĐ Gemadept: Đổi tên, công bố chiến lược hàng hải mới, chốt cổ tức 22% và bài toán ứng phó"],
+    ["2025-03-12", "ACB đặt mục tiêu lợi nhuận 23.000 tỷ đồng, chia cổ tức tỷ lệ 25%"],
+    ["2026-06-04", "ACB chốt quyền chia cổ tức 20%, trả tiền mặt từ 23/6"],
+    ["2026-05-05", "HPG: 11.5.2026, ngày GDKHQ chi trả cổ tức năm 2025 bằng tiền (500 đ/cp)"],
+    ["2025-11-17", "FPT báo lãi ròng 10 tháng tăng trưởng hơn 19%, cổ đông chuẩn bị nhận cổ tức"],
+    ["2026-04-02", "Vinamilk lên kế hoạch doanh thu 2026 cao kỷ lục, trả cổ tức tối thiểu 50% lợi nhuận"],
+    ["2021-07-02", "MWG thông qua phương án chia cổ tức bằng tiền và cổ phiếu tổng tỷ lệ 60%"],
+  ];
+  const r = dividendPlanNews(rows, "2024-01-01");
+  const by = Object.fromEntries(r.map((x) => [x.date, x]));
+  assert.equal(by["2026-05-06"].status, "APPROVED"); assert.equal(by["2026-05-06"].pct, 22);
+  assert.equal(by["2025-03-12"].status, "PROPOSED"); assert.equal(by["2025-03-12"].pct, 25);
+  assert.equal(by["2026-06-04"].status, "RECORD"); assert.equal(by["2026-06-04"].kind, "CASH");
+  assert.equal(by["2026-05-05"].dps, 500); assert.equal(by["2026-05-05"].yearInTitle, 2025);
+  assert.equal(by["2025-11-17"], undefined); // 19% là tăng trưởng lãi, không phải cổ tức
+  assert.equal(by["2026-04-02"], undefined); // "50% lợi nhuận" không phải % mệnh giá
+  assert.equal(by["2021-07-02"], undefined); // trước mốc thời gian
+});

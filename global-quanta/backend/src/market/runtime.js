@@ -161,7 +161,8 @@ export function getMarketRuntime() {
   const agmPlans = createAgmPlansService({ dir: kqkdDir, callModel: (o) => callGeminiJSON(o), readStatements: readStatementsAgm,
     universe: async () => fsAgm.readdirSync(kqkdDir).filter((f) => /^[A-Z0-9]{3,10}\.json\.gz$/.test(f)).map((f) => f.slice(0, -8)).sort() });
   // LC3 (06/11/2026): phản ứng giá quanh ngày công bố KQKD — job 19:45 hằng ngày (sau lượt làm mới KQKD 19:15).
-  const eventStudy = createEventStudyService({ dir: kqkdDir });
+  let corpEventsRef = null; // LSK5: kho sự kiện (tạo phía dưới) cấp đợt GDKHQ tiền mặt cho XD-v1
+  const eventStudy = createEventStudyService({ dir: kqkdDir, exEvents: (t) => corpEventsRef?.ticker(t)?.events ?? [] });
   const kqkd = createKqkdService({ store, getEventStudy: () => eventStudy.doc(), isHoliday: (d) => tradingCalendar.isHoliday(d), getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
   const KQKD_SCHEDULE = [{ name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
@@ -189,6 +190,7 @@ export function getMarketRuntime() {
     universe: async () => ((await store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker),
     isTradingDay: (d) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()) && !tradingCalendar.isHoliday(d),
     cafefNews: (t) => cafefAnnounce.news(t) });
+  corpEventsRef = corpEvents;
   for (const k of [1, 2, 3, 4]) jobs[`corpEvents${k}`] = () => corpEvents.refresh();
   jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };

@@ -6,6 +6,7 @@ import path from "node:path";
 import zlib from "node:zlib";
 import { publishDates } from "./earningsCalendar.js";
 import { aggregate, eventReaction, ES_VERSION, series, sueAt } from "./eventStudy.js";
+import { cashExEvents, exAggregate, exEventMetrics, tickerSummary, XD_VERSION } from "../events/exDateStudy.js";
 
 const UA = "Mozilla/5.0 (compatible; GlobalQuanta/1.0)";
 const TICKER_FILE = /^[A-Z0-9]{3,10}\.json\.gz$/;
@@ -13,9 +14,11 @@ const vnToday = (t) => new Date(t + 7 * 3_600_000).toISOString().slice(0, 10);
 const readGz = (f) => { try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString("utf8")); } catch { return null; } };
 const writeGz = (f, o) => { const tmp = `${f}.tmp-${process.pid}`; fs.writeFileSync(tmp, zlib.gzipSync(JSON.stringify(o))); fs.renameSync(tmp, f); };
 
-export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now = Date.now, log = console, since = "2020-06-01" } = {}) {
+export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now = Date.now, log = console, since = "2020-06-01", exEvents = null } = {}) {
   const pxDir = path.join(dir, "px");
   const outFile = path.join(dir, "event-study.json.gz");
+  const exFile = path.join(dir, "ex-study.json.gz"); // LSK5 XD-v1
+  let exMemo = null;
   fs.mkdirSync(pxDir, { recursive: true });
   let memo = null, running = false, last = null;
 
@@ -30,12 +33,14 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
   async function prices(t, { code = t, market = false } = {}) {
     const f = path.join(pxDir, `${t}.json.gz`);
     let rows = readGz(f)?.rows ?? [];
+    // LSK5: dòng giá cổ phiếu có thêm giá CHƯA điều chỉnh (cột 4). File định dạng cũ (3 cột) -> nạp lại toàn bộ một lần.
+    if (!market && rows.length && rows[0].length < 4) rows = [];
     const lastDate = rows.at(-1)?.[0] ?? null;
     const from = lastDate ? new Date(Date.parse(`${lastDate}T00:00:00Z`) - 8 * 864e5).toISOString().slice(0, 10) : since;
     const ep = market ? "vnmarket_prices" : "stock_prices";
     const fresh = await getRows(`https://api-finfo.vndirect.com.vn/v4/${ep}?q=code:${code}~date:gte:${from}&size=5000&sort=date:asc`);
     if (!fresh) return rows;
-    const map = (r) => (market ? [r.date, r.close, r.nmValue ?? 0] : [r.date, r.adClose, r.nmValue ?? 0]);
+    const map = (r) => (market ? [r.date, r.close, r.nmValue ?? 0] : [r.date, r.adClose, r.nmValue ?? 0, r.close ?? null]);
     const add = fresh.map(map).filter((r) => r[0] && r[1] > 0);
     // Có điều chỉnh quyền (adClose đổi ở phiên trùng) -> tải lại toàn bộ để chuỗi điều chỉnh nhất quán.
     const old = new Map(rows.map((r) => [r[0], r[1]]));
@@ -55,10 +60,12 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
       const disc = disclosures ?? readGz(path.join(dir, "disclosures.json.gz"))?.byTicker ?? {};
       const tickers = fs.readdirSync(statementsDir).filter((f) => TICKER_FILE.test(f)).map((f) => f.slice(0, -8)).sort();
       const events = [], byTicker = {}, live = {};
+      const exList = [], exByTicker = {};
       const today = vnToday(now());
       for (const t of tickers) {
         const rec = readGz(path.join(statementsDir, `${t}.json.gz`)); if (!rec) continue;
-        const px = series(await prices(t));
+        const rows = await prices(t);
+        const px = series(rows);
         if (!px.dates.length) continue;
         const mine = [];
         for (const [fiscal, p] of publishDates(rec, disc[t] ?? [])) {
@@ -70,6 +77,12 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
           else if (r) mine.push({ fiscal, date: p.date, source: p.source, sue: e.sue == null ? null : Math.round(e.sue * 100) / 100, e0: r.e0, carPre: r.carPre, carAnn: r.carAnn, carPost: r.carPost, scarAnn: r.scarAnn, avPre: r.avPre, avAnn: r.avAnn, sessionsAfter: r.sessionsAfter, path: r.path });
         }
         byTicker[t] = mine.slice(-8);
+        // LSK5: hành vi giá quanh từng lần GDKHQ cổ tức tiền (mô tả).
+        if (exEvents) {
+          const mineX = [];
+          for (const x of cashExEvents(exEvents(t) ?? [])) { const m = exEventMetrics(rows, mkt, x.ex, x.cash); if (m) { mineX.push(m); exList.push({ t, ...m }); } }
+          if (mineX.length) exByTicker[t] = tickerSummary(mineX);
+        }
         // Hiện tại: 10 phiên gần nhất (như cửa sổ "trước tin" nếu ngày mai là ngày công bố).
         const nextDay = new Date(Date.parse(`${px.dates.at(-1)}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
         const lr = eventReaction({ ...px, dates: [...px.dates, nextDay], close: [...px.close, px.close.at(-1)], val: [...px.val, px.val.at(-1)] }, mkt, nextDay);
@@ -80,11 +93,13 @@ export function createEventStudyService({ dir, fetchImpl = globalThis.fetch, now
       // S4: danh sách rút gọn mọi sự kiện (không đường CAR) để gộp theo ngành × loại quý.
       const compact = events.filter((e) => e.r && !e.r.insufficient).map((e) => ({ t: e.t, q: Math.ceil(Number(e.fiscal.slice(5, 7)) / 3), s: e.source === "DISCLOSURE" ? 1 : 0, sue: e.sue == null ? null : Math.round(e.sue * 100) / 100, pre: e.r.carPre, ann: e.r.carAnn, post: e.r.carPost }));
       const doc = { version: ES_VERSION, builtAt: new Date(now()).toISOString(), asOf: today, aggregate: agg, byTicker, live, events: compact, ms: now() - t0 };
-      writeGz(outFile, doc); memo = doc; last = { at: doc.builtAt, events: agg.events, precise: agg.precise, ms: doc.ms };
+      writeGz(outFile, doc); memo = doc;
+      if (exEvents) { const xd = { version: XD_VERSION, builtAt: doc.builtAt, events: exList.length, aggregate: exAggregate(exList), byTicker: exByTicker }; writeGz(exFile, xd); exMemo = xd; } last = { at: doc.builtAt, events: agg.events, precise: agg.precise, ms: doc.ms };
       log.log?.(`[event-study] ${agg.events} sự kiện (${agg.precise} có tin BCTC chính thức), ${(doc.ms / 1000).toFixed(0)} s.`);
       return last;
     } finally { running = false; }
   }
   function doc() { if (memo) return memo; memo = readGz(outFile); return memo; }
-  return { run, doc, status: () => ({ version: ES_VERSION, running, last, hasData: fs.existsSync(outFile) }), hasData: () => fs.existsSync(outFile) };
+  function exDoc() { if (exMemo) return exMemo; exMemo = readGz(exFile); return exMemo; }
+  return { run, doc, exDoc, status: () => ({ version: ES_VERSION, running, last, hasData: fs.existsSync(outFile) }), hasData: () => fs.existsSync(outFile) };
 }

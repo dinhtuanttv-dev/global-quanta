@@ -5,11 +5,12 @@
 //   POST /api/corp-events/admin/refresh      (Bearer MARKET_ADMIN_TOKEN)
 import zlib from "node:zlib";
 import { Router } from "express";
+import { dividendPlanNews } from "../market/events/corpEvents.js";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 const GROUPS = new Set(["DIVIDEND", "MEETING", "CAPITAL", "STATUS"]);
-export function createCorpEventsRouter({ getService, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createCorpEventsRouter({ getService, getExStudy = () => null, getCafefNews = () => null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const rl = createRateLimiter({ limit: 90 });
   const send = (req, res, doc) => {
@@ -39,6 +40,26 @@ export function createCorpEventsRouter({ getService, adminToken = () => process.
     const days = Math.max(14, Math.min(180, Number(req.query.days) || 90));
     const doc = getService()?.habits({ days }); if (!doc) return res.status(503).json({ error: "Kho sự kiện chưa có dữ liệu." });
     send(req, res, doc);
+  });
+  // LSK5: hành vi giá quanh ngày GDKHQ (XD-v1, MÔ TẢ) — dựng cùng job nghiên cứu sự kiện 19:45.
+  router.get("/ex-study", rl, (req, res) => {
+    const d = getExStudy(); if (!d) return res.status(503).json({ error: "Chưa dựng (job 19:45)." });
+    send(req, res, { version: d.version, builtAt: d.builtAt, events: d.events, aggregate: d.aggregate, label: "MÔ TẢ" });
+  });
+  router.get("/ex-study/:ticker", rl, (req, res) => {
+    const t = String(req.params.ticker ?? "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const d = getExStudy(); if (!d) return res.status(503).json({ error: "Chưa dựng (job 19:45)." });
+    send(req, res, { version: d.version, builtAt: d.builtAt, ticker: t, summary: d.byTicker?.[t] ?? null, market: d.aggregate?.all ?? null });
+  });
+  // LSK3 bản 1: tin về phương án / kế hoạch cổ tức 24 tháng (tiêu đề CafeF, MÔ TẢ — không tự tính phần còn chưa trả).
+  router.get("/plan-news/:ticker", rl, (req, res) => {
+    const t = String(req.params.ticker ?? "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const since = new Date(Date.now() - 730 * 864e5).toISOString().slice(0, 10);
+    const otherCode = (title) => [...String(title).matchAll(/\(([A-Z0-9]{3})\)/g)].some((m) => m[1] !== t);
+    const rows = dividendPlanNews(getCafefNews(t) ?? [], since).filter((x) => x.status !== "OTHER" && !otherCode(x.title));
+    send(req, res, { ticker: t, label: "MÔ TẢ", source: "Tiêu đề tin doanh nghiệp CafeF", rows });
   });
   router.get("/status", (_req, res) => res.json(getService()?.status() ?? { available: false }));
   router.post("/admin/refresh", (req, res) => {
