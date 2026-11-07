@@ -1,6 +1,7 @@
 // Elite 10 E6 — "Bằng chứng & sổ theo dõi": kết quả engine bằng chứng E2 (IC hạng theo kỳ hạn, t Newey–West, q Benjamini–Hochberg,
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
+import EliteToShadowCard from "./EliteToShadowCard";
 import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
 import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
 import { divergingColor } from "../../../lib/worldSectors/types";
@@ -182,6 +183,8 @@ export default function EvidenceLedgerTab() {
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-evidence-tab">
+      {/* Elite × TO Giai đoạn II: sổ ảo (THĂM DÒ) — không đổi danh mục chính thức. */}
+      <EliteToShadowCard />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bằng chứng từng tín hiệu (E2)</h4>

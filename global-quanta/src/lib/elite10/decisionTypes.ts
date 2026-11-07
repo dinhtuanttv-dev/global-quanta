@@ -115,3 +115,17 @@ export interface EliteRetroV3 {
   pbo: { pbo: number; splits: number; blockLength: number };
   grid: { id: string; size: number; bufferRank: number; weighting: string; primary: boolean; sharpeAnnual: number; annualExcess: number }[];
 }
+
+/** Elite × TO Giai đoạn II (ELITE-TO-prereg.md): sổ ảo — không đổi danh mục chính thức. */
+export interface EliteToShadowStat { mean: number | null; ci95: [number | null, number | null]; total: number | null }
+export interface EliteToShadow {
+  version: string; start: string; updatedAt: string | null; days: number; from: string | null; to: string | null;
+  nav: { core: number | null; guard: number | null; sleeve: number | null; comp: number | null; vn: number | null };
+  maxDD: { core: number | null; guard: number | null; sleeve: number | null; comp: number | null };
+  delta: { guard: EliteToShadowStat; sleeve: EliteToShadowStat; comp: EliteToShadowStat }; guardDays: number; sleeveDays: number;
+  compVerdict: "CHƯA ĐỦ MẪU" | "ĐẠT" | "KHÔNG ĐẠT"; ic: { days: number; mean: number | null; t: number | null; verdict: string }; label: string;
+  ex: { n: number; stats: { n: number; mean: number | null; ci95: [number | null, number | null]; hit: number | null }; looks: { n: number; mean: number | null; upper975: number | null; pass: boolean }[]; nextLook: number | null; ref: { mean: number; ci95: [number, number]; n: number }; label: string } | null;
+  curve: [string, number, number, number][];
+  recent: { d: string; core: number; guard: number; sleeve: number; comp: number; vn: number; k: number; guarded: string[]; sleeveT: string[] }[];
+  rule: { start: string; minDays: number; sleeveSlot: number; sleeveMax: number };
+}

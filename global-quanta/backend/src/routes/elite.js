@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -77,6 +77,12 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     const r = getDecision ? await getDecision().personalPortfolio(saved.filter, last?.holdings ?? []) : null;
     if (!r) return missing(res, "Chưa có quyết định Elite 10.");
     res.json({ ...r, filter: saved.filter, active: saved.active, savedAt: saved.savedAt, ledger: saved.ledger });
+  }));
+  // Elite × TO Giai đoạn II: sổ ảo COMP-r1 (CORE / GUARD / SLEEVE / COMP) + DIV-IC + EX-r1 — THĂM DÒ, không đổi danh mục.
+  router.get("/to-shadow", wrap(async (req, res) => {
+    if (!getToShadow?.()) return res.status(404).json({ error: "Chưa bật sổ ảo Elite × Săn cổ tức." });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await getToShadow().summary());
   }));
   router.get("/buy-timing/status", (req, res) => {
     res.set("Cache-Control", "no-store");

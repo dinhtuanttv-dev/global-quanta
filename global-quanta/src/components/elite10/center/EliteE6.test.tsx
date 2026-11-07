@@ -39,7 +39,7 @@ const retroV3 = {
   grid: [{ id: "10-b-erc", size: 10, bufferRank: 20, weighting: "erc", primary: true, sharpeAnnual: 0.41, annualExcess: 0.047 }, { id: "10-n-erc", size: 10, bufferRank: 0, weighting: "erc", primary: false, sharpeAnnual: -1.17, annualExcess: -0.119 }],
 };
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
-  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRetroV3: () => ({ data: retroV3 }), useEliteRisk: () => ({ data: risk, isLoading: false }),
+  useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRetroV3: () => ({ data: retroV3 }), useEliteRisk: () => ({ data: risk, isLoading: false }), useEliteToShadow: () => ({ data: null }),
 }));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] } } }) }));
 

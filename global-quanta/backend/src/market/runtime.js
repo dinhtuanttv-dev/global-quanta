@@ -26,6 +26,8 @@ import { createSeasonX } from "./fundamentals/seasonX.js";
 import { createCorpEvents } from "./events/corpEventsService.js";
 import { createDividendScreener } from "./events/dividendScreener.js";
 import { createDivRunup } from "./events/divRunupService.js";
+import { createEliteToShadow } from "./elite/eliteToShadow.js";
+import { DECISION_KV } from "./elite/decisionService.js";
 import { createDividendQualityBase } from "./events/dividendQuality.js";
 import { createFmLedger } from "./events/factorModel.js";
 import pathCe from "node:path";
@@ -172,7 +174,7 @@ export function getMarketRuntime() {
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
     { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false },
-    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false },
+    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false }, { name: "eliteToShadow", at: "20:35", tradingDayOnly: false },
     { name: "corpEvents1", at: "07:40", tradingDayOnly: false }, { name: "corpEvents2", at: "12:10", tradingDayOnly: false }, { name: "corpEvents3", at: "17:40", tradingDayOnly: false }, { name: "corpEvents4", at: "21:05", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
@@ -208,6 +210,11 @@ export function getMarketRuntime() {
     getUniverse: async () => (await store.getKv("scanner:universe"))?.value ?? null, eventsOf: (t) => corpEvents.ticker(t)?.events ?? [],
     eventsVersion: () => corpEvents.status().fetchedAt, isTradingDay: (d) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()) && !tradingCalendar.isHoliday(d) });
   jobs.toBuild = async () => { const b = await divRunup.build(); const t = await divRunup.tick(); return { build: b, ledger: t }; };
+  // Elite × TO Giai đoạn II (ELITE-TO-prereg.md): sổ ảo COMP-r1 / DIV-IC — đọc danh mục Elite chính thức, KHÔNG đổi danh mục.
+  const eliteToShadow = createEliteToShadow({ dir: pathCe.join(kqkdDir, "to"), getKv: async (k) => (await store.getKv(k))?.value ?? null,
+    decisionKey: DECISION_KV.decision, decisionIndexKey: DECISION_KV.index, pricesOf: (t) => eventStudy.pricesOf(t), allFacts: () => divRunup.allFacts(),
+    ledgerEntries: () => divRunup.ledgerEntries(), getUniverse: async () => (await store.getKv("scanner:universe"))?.value ?? null, exSummary: async () => divRunup.exSummary() });
+  jobs.eliteToShadow = () => eliteToShadow.tick();
   for (const k of [1, 2, 3, 4]) jobs[`corpEvents${k}`] = () => corpEvents.refresh();
   jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
@@ -233,7 +240,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, eliteToShadow, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 
