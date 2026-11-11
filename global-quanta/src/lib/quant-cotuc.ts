@@ -29,6 +29,8 @@ export interface DividendStock {
   fm?: import("./cotuc/dsStocks").FmView | null;
   /** LNST công ty mẹ quý gần nhất so với cùng kỳ (tỷ lệ, KQKD Gateway) — cột "LNST YoY" của Bộ lọc. */
   npatYoY?: number | null;
+  /** EPS-v2 (P1): chú thích nguồn + điều chỉnh hồi tố IAS 33 cho ô P/E. */
+  epsNote?: string | null;
   /** Mã ngoài 17 mã theo dõi gốc (Universe). BL0: 17 mã gốc cũng KHÔNG còn số liệu viết tay — mọi trường số là 0 tới khi có dữ liệu thật. */
   isUniverseOnly?: boolean;
   /** P/E, ROE, Nợ/VCSH là số THẬT (VNDirect, /api/cotuc/fundamentals) — false/undefined = chưa có (đang là 0 hoặc số mẫu). */

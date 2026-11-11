@@ -68,7 +68,7 @@ export function screenerRow({ t, uni, scan, kq, div, ex, dqBase = null }) {
       roe: kq.roe ?? null, de: kq.kpi?.debtToEquity ?? null, interestCover: kq.kpi?.interestCover ?? null, netDebtEbitda: kq.kpi?.netDebtToEbitda ?? null,
       netMargin: kq.netMarginTtm ?? null, growthTtm: kq.ttmGrowth?.value ?? null, npatYoY: kq.npatYoY?.value ?? null, epsTtm: eps,
       payout: r4(payout), fcfCover: !fcfNa && paid && fin(fcf) ? r4(fcf / paid) : null, cfoToNpat: fcfNa ? null : kq.cfoToNpat ?? null, accrual: fcfNa ? null : kq.accrual ?? null,
-      epsSource: kq.ttm?.epsSource ?? null, epsCheck: kq.ttm?.epsCheck ?? null, na: fcfNa ? ["fcfCover", "cfoToNpat", "accrual", "f", "m", "z", "de"] : [],
+      epsSource: kq.ttm?.epsSource ?? null, epsCheck: kq.ttm?.epsCheck ?? null, epsAdj: kq.ttm?.epsFactor && kq.ttm.epsFactor !== 1 ? { factor: kq.ttm.epsFactor, epsQ: kq.ttm.epsQ ?? null, actions: kq.ttm.epsActions ?? [] } : null, epsFlags: kq.ttm?.epsFlags ?? [], na: fcfNa ? ["fcfCover", "cfoToNpat", "accrual", "f", "m", "z", "de"] : [],
       f: kq.f ?? null, m: kq.m ?? null, mFlag: kq.mFlag ?? null, z: kq.z ?? null, zZone: kq.zZone ?? null, flags: kq.flags ?? [],
     } : null,
     ex: ex ? { n: ex.n, dropMedian: ex.dropRatioMedian, fillWithin20: ex.fillWithin20, fillDaysMedian: ex.fillDaysMedian } : null,

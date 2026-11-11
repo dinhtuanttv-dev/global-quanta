@@ -124,7 +124,7 @@ export function dividendQuality({ series, price, mcap, ttmCash, fy, kq, risk, fi
 const readGz = (f) => { try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(f)).toString("utf8")); } catch { return null; } };
 const writeGz = (f, o) => { const tmp = `${f}.tmp-${process.pid}`; fs.writeFileSync(tmp, zlib.gzipSync(JSON.stringify(o))); fs.renameSync(tmp, f); };
 
-export function createDividendQualityBase({ dir, now = Date.now, log = console, getSharesEps = null }) {
+export function createDividendQualityBase({ dir, now = Date.now, log = console, getSharesEps = null, getEventsOf = null }) {
   const file = path.join(dir, "dq-base.json.gz");
   let memo = null, running = false;
   async function run() {
@@ -142,7 +142,7 @@ export function createDividendQualityBase({ dir, now = Date.now, log = console, 
         // BL3: biến FM-v1 tại hôm nay (cùng hàm với kiểm định BL-r1). px store: [ngày, adClose, nmValue, close] -> [ngày, adClose, close].
         // EPS-v1: số cổ phiếu lưu hành theo kỳ (VNDirect) cho vốn hoá đúng thời điểm (thay suy ngược LNST / EPS — sai với ngân hàng).
         const sh = getSharesEps?.()?.(t)?.shares ?? null;
-        const fm = pitFeatures(sh?.length ? { ...rec, sharesHist: sh } : rec, pxRows.map((r) => [r[0], r[1], r[3] ?? null]), today);
+        const fm = pitFeatures(sh?.length ? { ...rec, sharesHist: sh, events: getEventsOf?.(t) ?? [] } : rec, pxRows.map((r) => [r[0], r[1], r[3] ?? null]), today);
         byTicker[t] = { tpl: rec.tpl ?? null, series, risk, fm };
       }
       memo = { version: DQ_VERSION, builtAt: new Date(now()).toISOString(), tickers: Object.keys(byTicker).length, byTicker, ms: now() - t0 };

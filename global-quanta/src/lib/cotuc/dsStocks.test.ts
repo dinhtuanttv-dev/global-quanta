@@ -29,3 +29,19 @@ describe('BL1 DS-v1 -> DividendStock', () => {
     expect(filterVerdict(dsToStock(row()), { ...DEFAULT_FILTER, minRoe: 20, maxPe: 12, hideStaleEvents: false })).toBe('PASS');
   });
 });
+
+describe("epsNote (EPS-v2, P1)", () => {
+  it("ghi nguồn, hệ số IAS 33, từng sự kiện, cờ số CP và ghi chú quỹ KTPL; không có nguồn -> null", async () => {
+    const { epsNote } = await import("./dsStocks");
+    const f = { quarter: "Q3/2026", epsSource: "VND_EPS_TR", epsAdj: { factor: 1.5, epsQ: 4042, actions: [{ ex: "2026-10-29", cat: "STOCK", ratio: 50, factor: 1.5, kind: "STOCK" }] }, epsFlags: [] } as never;
+    const s = epsNote(f)!;
+    expect(s).toContain("EPS 4 quý VNDirect (quý Q3/2026)");
+    expect(s).toContain("Điều chỉnh hồi tố IAS 33 ÷ 1,5");
+    expect(s).toContain("4.042 đ");
+    expect(s).toContain("cổ tức CP 50% — GDKHQ 29/10/2026");
+    expect(s).toContain("quỹ khen thưởng phúc lợi");
+    expect(epsNote({ quarter: "Q3/2026", epsSource: "NPAT_SHARES", epsAdj: null, epsFlags: ["SHARES_ANOMALY"] } as never)).toContain("bất thường");
+    expect(epsNote({ quarter: "Q3/2026", epsSource: null } as never)).toBeNull();
+    expect(epsNote(null)).toBeNull();
+  });
+});
