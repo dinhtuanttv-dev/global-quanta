@@ -55,3 +55,13 @@ hai nửa thời gian của giai đoạn quyết định. H5/H6 báo cáo thêm 
 - Không đạt H5/H6 → không thêm tín hiệu vào Điểm Elite; khối "Truyền dẫn thế giới" trong Hồ sơ chỉ mô tả.
 - Độc lập kết quả: α ngành WS-v1 (`ws_sector_alpha`) ghi rõ trong Hồ sơ là "chỉ cho phiên kế tiếp lúc ATO — đã phản ánh khi Elite
   vào lệnh (đóng cửa d+1)" (đúng bằng chứng khám phá ở trên và lý do tiên nghiệm 0 của E3-v3).
+
+## Sửa đổi trước khi chạy (11/11/2026, trước mọi kết quả trên dữ liệu thật)
+
+Kiểm thử đơn vị với dữ liệu giả lập KHÔNG có tín hiệu cho thấy t Newey–West (trễ 10) của H5 bị thổi phồng do X chồng lấp 5 phiên và
+Y chồng lấp 10 phiên trên mẫu hữu hạn (VD |t| 3,3 trong khi t trên mẫu không chồng lấp 1,8). Vì vậy, với **H5 và H6**:
+
+- p một phía dùng để quyết định = 1 − Φ(t_med), trong đó t_med là **trung vị** của 10 thống kê t thông thường tính trên 10 chuỗi IC
+  không chồng lấp (các phiên có chỉ số ≡ o mod 10, o = 0…9, trong giai đoạn quyết định).
+- t Newey–West vẫn báo cáo (mô tả). Mọi phần còn lại (định nghĩa, giai đoạn, Holm, hai nửa) không đổi.
+- H7 (Y một phiên, X một phiên) giữ Newey–West trễ 5.
