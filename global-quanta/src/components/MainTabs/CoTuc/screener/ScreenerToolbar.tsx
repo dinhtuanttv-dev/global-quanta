@@ -80,7 +80,7 @@ export function ScreenerToolbar({ stocks, filter, setFilter, sort, setSort, pref
         {active.map((k) => (
           <button key={k} type="button" data-testid={`chip-${k}`} onClick={() => setFilter({ ...filter, [k]: DEFAULT_FILTER[k] } as DividendFilter)}
             title="Bỏ riêng điều kiện này" className="rounded-md border border-white/10 px-1.5 py-0.5 text-slate-300 hover:border-rose-400/40">
-            {KEY_LABEL[k]} <span className="font-mono tabular-nums text-rose-300">−{marginal[k] ?? 0}</span> ✕
+            {KEY_LABEL[k]} {k === "showUnknown" ? null : <span className="font-mono tabular-nums text-rose-300">−{marginal[k] ?? 0}</span>} ✕
           </button>
         ))}
       </div>
