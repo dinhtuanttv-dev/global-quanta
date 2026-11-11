@@ -13,7 +13,7 @@ const out = arg("--out"), cache = arg("--cache");
 const G = (process.env.MARKET_GATEWAY_URL || "https://gateway-production-1da0.up.railway.app").replace(/\/+$/, "");
 const j = async (u) => { const r = await fetch(G + u); if (!r.ok) throw new Error(`${u} HTTP ${r.status}`); return r.json(); };
 // Lịch sử Yahoo 10 năm (WS-v1 dùng 5 năm) — chỉ kéo dài lịch sử, không đổi công thức.
-const yahoo10y = (u, o) => fetch(String(u).replace(/([?&])range=[^&]+/, "$110y"), o);
+const yahoo10y = (u, o) => fetch(String(u).replace(/([?&])range=[^&]+/, "$1range=10y"), o);
 
 const vnRows = (await j("/api/market/ohlcv?symbol=VNINDEX&range=max")).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
 const days = vnRows.map((r) => r[0]).filter((d) => d >= "2018-06-01");
@@ -22,6 +22,7 @@ const vnMap = new Map(vnRows), vn = Float64Array.from(days, (d) => vnMap.get(d))
 const svc = createWorldSectorService({ fetchImpl: yahoo10y, log: { warn() {} } });
 const ser = await svc.series();
 const instruments = Object.fromEntries(VN_SECTORS.map((s) => [s.icb, instrumentsFor(s.icb).map((i) => ({ region: i.region, match: i.match, p: prepare(ser.get(i.symbol)?.points ?? []) })).filter((i) => i.p.r.length > 300)]));
+if (Object.values(instruments).flat().length < 30) { console.error("Dữ liệu nước ngoài rỗng/thiếu — dừng, không ghi kết quả."); process.exit(2); }
 const cs = createCommodityService({ fetchImpl: yahoo10y, log: { warn() {} } });
 const dailyDrivers = {};
 for (const [icb, list] of Object.entries(COMMODITY_DRIVERS)) for (const [id, sign] of list) {
