@@ -8,6 +8,7 @@ import type { Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
 import LeadershipCard from "./LeadershipCard";
+import WorldTransmissionCard from "./WorldTransmissionCard";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
 
@@ -106,6 +107,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
       )}
 
       <LeadershipCard ticker={ticker} />
+      <WorldTransmissionCard ticker={ticker} />
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {groups.map(([tab, specs]) => (
@@ -126,7 +128,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
                   const flagColor = v == null ? "" : v > 0 ? "text-emerald-300" : v < 0 ? "text-rose-300" : "text-slate-400";
                   return (
                     <tr key={s.id} className="border-t border-white/5" data-testid={`elite-sig-${s.id}`}>
-                      <td className="py-1 pr-1 text-slate-300">{s.labelVi}</td>
+                      <td className="py-1 pr-1 text-slate-300">{s.labelVi}{s.id === "ws_sector_alpha" && <span className="block text-[10px] text-slate-500" data-testid="elite-ws-note">Chỉ cho phiên VN kế tiếp lúc ATO — đã phản ánh khi Elite vào lệnh (đóng cửa d+1), trọng số ≈ 0.</span>}</td>
                       <td className={`whitespace-nowrap px-1 text-right ${label ? `text-[10.5px] ${flagColor}` : "font-mono"}`}>{label ?? num(v)}</td>
                       <td className="w-24 px-1">
                         {pct != null && (

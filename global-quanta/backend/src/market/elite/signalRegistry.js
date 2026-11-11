@@ -13,7 +13,7 @@ export const ELITE_PANEL_VERSION = "E1 (2026-10-17)";
 /** Bậc bằng chứng: A đạt kiểm định đặt trước · B có lợi thế một phần / mẫu mỏng · C thăm dò / chưa kiểm định. */
 export const SIGNAL_SPECS = [
   { id: "ws_sector_alpha", tab: "Kết nối thế giới", labelVi: "α ngắn hạn của ngành (WS-v1)", unit: "đcb/phiên", level: "sector", tier: "A",
-    evidenceVi: "WS-v1 đăng ký trước: IC hạng ngành 0,0203, t 2,53, 942 phiên (phiên VN kế tiếp)." },
+    evidenceVi: "WS-v1 đăng ký trước: IC hạng ngành 0,0203, t 2,53, 942 phiên — CHỈ cho phiên VN kế tiếp lúc ATO; từ đóng cửa phiên đó trở đi ≈ 0 (khám phá 11/11/2026), WS-r2 H5/H6/H7 KHÔNG ĐẠT -> tiên nghiệm 0 trong Điểm Elite." },
   { id: "stealth20", tab: "Siêu quét AI", labelVi: "Stealth 20 (dòng tiền ẩn 20 phiên, z)", unit: "z", level: "stock", tier: "A",
     evidenceVi: "Sổ cái nghiên cứu: tỷ lệ đúng 51,9% vs nền 47,7% (T+3, n≈2.200, z cụm 2,05)." },
   { id: "stealth5", tab: "Siêu quét AI", labelVi: "Stealth 5 (dòng tiền ẩn 5 phiên, z)", unit: "z", level: "stock", tier: "A",
