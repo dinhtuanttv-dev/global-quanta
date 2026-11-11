@@ -1,14 +1,14 @@
 // BL1 (07/11/2026) — DS-v1 (Gateway /api/corp-events/screener) -> DividendStock cho bảng Bộ lọc hiện có.
 // Một nguồn thật duy nhất: giá / xu hướng / RSI (bản quét), cổ tức (sự kiện VNDirect), P/E, ROE, nợ, chi trả, F-Score (KQKD 4 quý).
 // Thiếu số -> 0 kèm cờ (fundamentalsReal / payoutReal…) để giao diện ghi "chưa có"; không có giá trị mặc định.
-import { DIVIDEND_STOCKS, type DividendStock, type PriceTrend } from "../quant-cotuc";
+import { DIVIDEND_STOCKS, type DividendStock, type FieldKey, type FieldStatus, type PriceTrend } from "../quant-cotuc";
 
 export interface DsRow {
   t: string; name: string; sector: string | null; sectorGroup: string | null; price: number | null; changePct: number | null; liquidity20: number | null; mcap: number | null;
   trend: PriceTrend | null; ma50: number | null; ma200: number | null; rsi14: number | null; rsRating: number | null; yieldGross: number | null; yieldNet: number | null;
   div: { ttmCash: number; payments12m: number; stockPct12m: number; lastEx: string | null; lastCash: number | null; nextEx: string | null; nextCash: number | null; nextPay: string | null; nextRecord: string | null; agmNext: string | null; lastFy: number | null; lastFyCash: number | null; streak: number; cagr3: number | null; cuts5: number; years5: number; history: [number, number][] } | null;
   fund: { quarter: string; tpl: string; pe: number | null; pb: number | null; roe: number | null; de: number | null; interestCover: number | null; netDebtEbitda: number | null; netMargin: number | null; growthTtm: number | null; npatYoY: number | null; epsTtm: number | null; payout: number | null; fcfCover: number | null; cfoToNpat: number | null; accrual: number | null; f: number | null; m: number | null; mFlag: boolean | null; z: number | null; zZone: string | null; flags: string[];
-    epsSource?: string | null; epsAdj?: EpsAdj | null; epsFlags?: string[] } | null;
+    epsSource?: string | null; epsAdj?: EpsAdj | null; epsFlags?: string[]; na?: string[] } | null;
   ex: { n: number; dropMedian: number | null; fillWithin20: number | null; fillDaysMedian: number | null } | null;
   dq?: DqView | null;
   fm?: FmView | null;
@@ -45,6 +45,25 @@ export function epsNote(f: DsRow["fund"]): string | null {
   return lines.join("\n");
 }
 
+const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
+/**
+ * P2 (FN-v1): trạng thái từng trường số của một dòng DS. NA = Gateway báo không áp dụng (mẫu BCTC tài chính: `fund.na`) hoặc
+ * Nợ/VCSH của ngân hàng / CK / BH; LOSS = EPS ≤ 0 (P/E không có nghĩa nhưng là số thật).
+ */
+export function fieldStatuses(r: DsRow, price: number): Record<FieldKey, FieldStatus> {
+  const f = r.fund, na = new Set(f?.na ?? []), fin = !!f && f.tpl !== "corp" && !!f.tpl;
+  const st = (v: unknown, naKey?: string): FieldStatus => (naKey && na.has(naKey) ? "NA" : num(v) ? "OK" : "MISSING");
+  return {
+    yield: price > 0 ? "OK" : "MISSING",
+    pe: !num(f?.epsTtm) || !(price > 0) ? "MISSING" : f!.epsTtm! > 0 ? "OK" : "LOSS",
+    roe: st(f?.roe),
+    de: fin || na.has("de") ? "NA" : st(f?.de),
+    fscore: st(f?.f, "f"),
+    payout: st(f?.payout),
+    growth: st(f?.growthTtm),
+  };
+}
+
 export interface DsDoc { version: string; today: string; asOf: Record<string, string | null>; count: number; coverage: Record<string, number>; rows: DsRow[] }
 
 const CORE = new Set(DIVIDEND_STOCKS.map((s) => s.ticker));
@@ -66,6 +85,6 @@ export function dsToStock(r: DsRow, livePrice?: number | null): DividendStock & 
     exDividendDate: vn(upcoming ?? r.div?.lastEx), paymentDate: vn(upcoming ? r.div?.nextPay : null), dividendAmount: (upcoming ? r.div?.nextCash : r.div?.lastCash) ?? 0,
     agmDate: vn(r.div?.agmNext), catalystScore: null, priceTrend: r.trend,
     fundamentalsReal: f != null && (f.roe != null || f.epsTtm != null), isUniverseOnly: !CORE.has(r.t),
-    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null, fm: r.fm ?? null, npatYoY: f?.npatYoY ?? null, epsNote: epsNote(f),
+    payoutReal: f?.payout != null, growthReal: f?.growthTtm != null, ds: r, dq: r.dq ?? null, fm: r.fm ?? null, npatYoY: f?.npatYoY ?? null, epsNote: epsNote(f), fields: fieldStatuses(r, price),
   };
 }

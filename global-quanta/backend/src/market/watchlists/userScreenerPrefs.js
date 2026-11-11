@@ -13,7 +13,7 @@ const ENUM = {
   trend: ["All", "UP", "RECOVERING", "WEAKENING", "DOWN"],
   phase: ["All", "PRE_AGM", "PREPARATION", "ACCUMULATION", "RUN_UP", "DISCOUNT", "EXPIRED"],
 };
-const BOOL = ["upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideStaleEvents", "hideTraps"];
+const BOOL = ["upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideStaleEvents", "hideTraps", "showUnknown"];
 export const SCREENER_COLUMNS = ["price", "yield", "ex", "payAgm", "pe", "roe", "fm", "window", "expected", "growth", "decision"];
 const SORT_FIELDS = ["ticker", "dividendYield", "score", "pe", "roe", "price"];
 

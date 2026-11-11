@@ -18,7 +18,7 @@ const ENUM: Partial<Record<keyof DividendFilter, string[]>> = {
   trend: ["All", "UP", "RECOVERING", "WEAKENING", "DOWN"],
   phase: ["All", "PRE_AGM", "PREPARATION", "ACCUMULATION", "RUN_UP", "DISCOUNT", "EXPIRED"],
 };
-const BOOL: (keyof DividendFilter)[] = ["upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideStaleEvents", "hideTraps"];
+const BOOL: (keyof DividendFilter)[] = ["upcomingGDKHQ", "upcomingAGM", "hideRiskFlags", "hideStaleEvents", "hideTraps", "showUnknown"];
 const SORTS: SortKey[] = ["ticker", "dividendYield", "score", "pe", "roe", "price"];
 
 /** Chỉ giữ trường khác mặc định (không lưu ô tìm kiếm). */

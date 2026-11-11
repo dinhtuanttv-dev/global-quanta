@@ -29,6 +29,8 @@ export interface DividendStock {
   fm?: import("./cotuc/dsStocks").FmView | null;
   /** LNST công ty mẹ quý gần nhất so với cùng kỳ (tỷ lệ, KQKD Gateway) — cột "LNST YoY" của Bộ lọc. */
   npatYoY?: number | null;
+  /** P2 (FN-v1): trạng thái từng trường số — giá trị số của trường KHÔNG "OK" là 0 chỉ để tương thích, không được hiển thị / lọc như số thật. */
+  fields?: Partial<Record<FieldKey, FieldStatus>>;
   /** EPS-v2 (P1): chú thích nguồn + điều chỉnh hồi tố IAS 33 cho ô P/E. */
   epsNote?: string | null;
   /** Mã ngoài 17 mã theo dõi gốc (Universe). BL0: 17 mã gốc cũng KHÔNG còn số liệu viết tay — mọi trường số là 0 tới khi có dữ liệu thật. */
@@ -148,10 +150,11 @@ export function riskDataReady(s: DividendStock): boolean { return s.fundamentals
 export function detectRiskFlags(s: DividendStock): string[] {
   const flags: string[] = [];
   const fund = s.fundamentalsReal === true, qs = s.payoutReal === true || s.growthReal === true;
-  if (fund && s.debtEquity > 0.8 && !isFinancialSector(s.sector)) flags.push("Đòn bẩy nợ cao (>0.8x)");
-  if (qs && s.payoutRatio > 85 && s.growth < 5) flags.push("Cổ tức quá cao so tăng trưởng");
-  if (qs && s.growth < 0) flags.push("Tăng trưởng lợi nhuận âm");
-  if (fund && s.pe > 18) flags.push("P/E cao hơn trung bình (>18x)");
+  if (fund && fieldStatus(s, "de") === "OK" && s.debtEquity > 0.8 && !isFinancialSector(s.sector)) flags.push("Đòn bẩy nợ cao (>0.8x)");
+  const pay = fieldValue(s, "payout"), gr = fieldValue(s, "growth");
+  if (qs && pay !== null && gr !== null && pay > 85 && gr < 5) flags.push("Cổ tức quá cao so tăng trưởng");
+  if (qs && gr !== null && gr < 0) flags.push("Tăng trưởng lợi nhuận âm");
+  if (fund && fieldStatus(s, "pe") === "OK" && s.pe > 18) flags.push("P/E cao hơn trung bình (>18x)");
   if (s.rsi > 70) flags.push("RSI quá mua (>70)");
   return flags;
 }
@@ -169,6 +172,8 @@ export interface DividendFilter {
   hideTraps?: boolean;
   /** BL4: ngũ phân vị FM-v1 tối thiểu (0 = tắt; 4 = Q4–Q5). Mã chưa có điểm -> thiếu dữ liệu. */
   minQuintile?: number;
+  /** P2: hiện cả mã THIẾU số liệu cho tiêu chí đang bật (logic ba giá trị: "chưa biết" — có đánh dấu, không tính là đạt). */
+  showUnknown?: boolean;
 }
 
 /** Ngưỡng "sắp tới" dùng chung cho thẻ KPI, nút lọc nhanh và lịch: 30 ngày. */
@@ -183,61 +188,113 @@ export const isFinancialSector = (sector: string) => /ng[âa]n h[àa]ng|ch[ứu]
 export const DEFAULT_FILTER: DividendFilter = {
   minYield:0, minRoe:0, maxPe:PE_NO_LIMIT, maxDebt:DEBT_NO_LIMIT, minFscore:0,
   trend:"All", phase:"All", upcomingGDKHQ:false, upcomingAGM:false,
-  hideRiskFlags:false, searchQ:"", hideStaleEvents:true, hideTraps:false, minQuintile:0,
+  hideRiskFlags:false, searchQ:"", hideStaleEvents:true, hideTraps:false, minQuintile:0, showUnknown:false,
 };
 
-export type FilterVerdict = "PASS" | "FAIL" | "MISSING_DATA" | "STALE";
-
 /**
- * Kết quả lọc MỘT mã, phân biệt rõ lý do bị ẩn:
- *  - MISSING_DATA: đang bật ngưỡng (ROE/P/E/Nợ/F-Score) nhưng mã CHƯA CÓ số thật cho trường đó — không coi là "đạt" (tránh
- *    lọt mã thiếu dữ liệu vào nhóm "Siêu Cổ Tức") nhưng cũng không trộn với "không đạt"; giao diện đếm riêng.
- *  - STALE: đợt GDKHQ gần nhất đã qua > 60 ngày, chưa có lịch mới (ẩn mặc định, bật lại được).
+ * P2 (FN-v1, 11/11/2026) — trường số có trạng thái thay cho "điền 0":
+ *  OK = số thật · MISSING = chưa có số · NA = không áp dụng (vd F-Score / Nợ/VCSH cho ngân hàng, chứng khoán, bảo hiểm)
+ *  LOSS = P/E của mã đang lỗ (EPS ≤ 0) — là số thật, không phải thiếu.
  */
-export function filterVerdict(s: DividendStock, filter: DividendFilter): FilterVerdict {
-  const q = filter.searchQ.toLowerCase();
-  if (q && !s.ticker.toLowerCase().includes(q) && !s.name.toLowerCase().includes(q)) return "FAIL";
-  if (s.dividendYield < filter.minYield) return "FAIL";
+export type FieldKey = "yield" | "pe" | "roe" | "de" | "fscore" | "payout" | "growth";
+export type FieldStatus = "OK" | "MISSING" | "NA" | "LOSS";
+export const FIELD_LABEL: Record<FieldKey, string> = { yield: "Lợi suất (thiếu giá)", pe: "P/E", roe: "ROE", de: "Nợ/VCSH", fscore: "F-Score", payout: "Tỷ lệ chi trả", growth: "Tăng trưởng LNST" };
+
+/** Trạng thái một trường. Dòng chưa có `fields` (nguồn cũ) -> suy theo cờ cũ (fundamentalsReal / payoutReal / growthReal; F-Score 0 = chưa có). */
+export function fieldStatus(s: DividendStock, k: FieldKey): FieldStatus {
+  const st = s.fields?.[k]; if (st) return st;
   const real = s.fundamentalsReal === true;
-  const roeOn = filter.minRoe > 0;
-  const peOn = filter.maxPe < PE_NO_LIMIT;
-  const debtOn = filter.maxDebt < DEBT_NO_LIMIT && !isFinancialSector(s.sector);
-  if ((roeOn || peOn || debtOn) && !real) return "MISSING_DATA";
-  if (roeOn && s.roe < filter.minRoe) return "FAIL";
-  if (peOn && (!(s.pe > 0) || s.pe > filter.maxPe)) return s.pe > 0 ? "FAIL" : "MISSING_DATA"; // P/E ≤ 0 = lỗ / chưa có EPS
-  if (debtOn && s.debtEquity > filter.maxDebt) return "FAIL";
-  if (filter.minFscore > 0) {
-    if (!s.fscore) return "MISSING_DATA"; // chưa có F-Score thật
-    if (s.fscore < filter.minFscore) return "FAIL";
+  switch (k) {
+    case "yield": return s.price > 0 || s.dividendYield > 0 ? "OK" : "MISSING";
+    case "pe": return real && s.pe > 0 ? "OK" : "MISSING";
+    case "roe": return real ? "OK" : "MISSING";
+    case "de": return isFinancialSector(s.sector) ? "NA" : real ? "OK" : "MISSING";
+    case "fscore": return s.fscore > 0 ? "OK" : "MISSING";
+    case "payout": return s.payoutReal ? "OK" : "MISSING";
+    case "growth": return s.growthReal ? "OK" : "MISSING";
   }
-  if ((filter.minQuintile ?? 0) > 0) {
-    if (!s.fm) return "MISSING_DATA"; // chưa đủ 4/6 nhóm nhân tố
-    if (s.fm.quintile < (filter.minQuintile ?? 0)) return "FAIL";
-  }
-  if (filter.trend !== "All") {
-    if (!s.priceTrend) return "MISSING_DATA"; // chưa đủ 200 phiên / chưa có dữ liệu giá
-    if (s.priceTrend !== filter.trend) return "FAIL";
-  }
-  if (filter.phase !== "All" && getTradePhase(s).status !== filter.phase) return "FAIL";
-  const gdkhqDays = getDaysUntil(s.exDividendDate);
-  if (filter.upcomingGDKHQ && !(gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= UPCOMING_WINDOW_DAYS)) return "FAIL";
-  const agmDays = getDaysUntil(s.agmDate);
-  if (filter.upcomingAGM && !(agmDays !== null && agmDays >= 0 && agmDays <= UPCOMING_WINDOW_DAYS)) return "FAIL";
-  if (filter.hideRiskFlags && detectRiskFlags(s).length > 2) return "FAIL";
-  if (filter.hideTraps && s.dq?.trap?.length) return "FAIL";
-  // Mặc định ẩn mã chỉ có đợt GDKHQ đã qua > 60 ngày (chưa có lịch mới) — xét SAU cùng để đếm đúng số mã bị ẩn vì lý do này.
-  if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return "STALE";
-  return "PASS";
+}
+/** Giá trị số của trường nếu là số thật (OK), ngược lại null. */
+export function fieldValue(s: DividendStock, k: FieldKey): number | null {
+  if (fieldStatus(s, k) !== "OK") return null;
+  const m: Record<FieldKey, number> = { yield: s.dividendYield, pe: s.pe, roe: s.roe, de: s.debtEquity, fscore: s.fscore, payout: s.payoutRatio, growth: s.growth };
+  return m[k];
 }
 
-/** Đếm số mã bị ẩn theo từng lý do (để giao diện ghi rõ thay vì ẩn lặng lẽ). */
-export function explainFilter(stocks: DividendStock[], filter: DividendFilter): { pass: number; fail: number; missingData: number; stale: number } {
-  const out = { pass: 0, fail: 0, missingData: 0, stale: 0 };
+/** Logic ba giá trị (Kleene): T đạt · F không đạt · U chưa biết (kèm trường + lý do). */
+export type Tri = { v: "T" } | { v: "F" } | { v: "U"; field: FieldKey; why: "MISSING" | "NA" };
+const TRI_T: Tri = { v: "T" }, TRI_F: Tri = { v: "F" };
+/** So một trường với ngưỡng: số thật -> T/F; lỗ (P/E) -> F (không thể đạt "P/E ≤ X"); thiếu / không áp dụng -> U. */
+export function triCheck(s: DividendStock, k: FieldKey, ok: (v: number) => boolean): Tri {
+  const st = fieldStatus(s, k);
+  if (st === "LOSS") return TRI_F;
+  if (st !== "OK") return { v: "U", field: k, why: st === "NA" ? "NA" : "MISSING" };
+  return ok(fieldValue(s, k) as number) ? TRI_T : TRI_F;
+}
+
+export type FilterVerdict = "PASS" | "FAIL" | "MISSING_DATA" | "STALE";
+export type UnknownField = { field: FieldKey; why: "MISSING" | "NA" };
+
+/**
+ * Kết quả lọc MỘT mã — P2: hợp các tiêu chí theo logic ba giá trị: có tiêu chí KHÔNG ĐẠT -> FAIL; còn lại có tiêu chí CHƯA BIẾT
+ * (thiếu số / không áp dụng) -> MISSING_DATA (không bao giờ coi là đạt, đếm riêng theo trường); tất cả đạt -> PASS.
+ *  - Nợ/VCSH với ngành tài chính: KHÔNG ÁP DỤNG -> bỏ qua tiêu chí (như trước; đòn bẩy cao là bản chất ngành).
+ *  - STALE: đợt GDKHQ gần nhất đã qua > 60 ngày, chưa có lịch mới (ẩn mặc định, bật lại được).
+ */
+export function filterDetail(s: DividendStock, filter: DividendFilter): { verdict: FilterVerdict; unknown: UnknownField[] } {
+  const q = filter.searchQ.toLowerCase();
+  const fail = { verdict: "FAIL" as FilterVerdict, unknown: [] as UnknownField[] };
+  if (q && !s.ticker.toLowerCase().includes(q) && !s.name.toLowerCase().includes(q)) return fail;
+  const tris: Tri[] = [];
+  if (filter.minYield > 0) tris.push(triCheck(s, "yield", (v) => v >= filter.minYield));
+  if (filter.minRoe > 0) tris.push(triCheck(s, "roe", (v) => v >= filter.minRoe));
+  if (filter.maxPe < PE_NO_LIMIT) tris.push(triCheck(s, "pe", (v) => v > 0 && v <= filter.maxPe));
+  if (filter.maxDebt < DEBT_NO_LIMIT && fieldStatus(s, "de") !== "NA") tris.push(triCheck(s, "de", (v) => v <= filter.maxDebt));
+  if (filter.minFscore > 0) tris.push(triCheck(s, "fscore", (v) => v >= filter.minFscore));
+  if (tris.some((x) => x.v === "F")) return fail;
+  const other: boolean[] = [];
+  if ((filter.minQuintile ?? 0) > 0 && s.fm) other.push(s.fm.quintile >= (filter.minQuintile ?? 0));
+  if (filter.trend !== "All" && s.priceTrend) other.push(s.priceTrend === filter.trend);
+  if (filter.phase !== "All") other.push(getTradePhase(s).status === filter.phase);
+  const gdkhqDays = getDaysUntil(s.exDividendDate);
+  if (filter.upcomingGDKHQ) other.push(gdkhqDays !== null && gdkhqDays >= 0 && gdkhqDays <= UPCOMING_WINDOW_DAYS);
+  const agmDays = getDaysUntil(s.agmDate);
+  if (filter.upcomingAGM) other.push(agmDays !== null && agmDays >= 0 && agmDays <= UPCOMING_WINDOW_DAYS);
+  if (filter.hideRiskFlags) other.push(detectRiskFlags(s).length <= 2);
+  if (filter.hideTraps) other.push(!s.dq?.trap?.length);
+  if (other.includes(false)) return fail;
+  const unknown: UnknownField[] = [];
+  for (const x of tris) if (x.v === "U") unknown.push({ field: x.field, why: x.why });
+  const extraMissing = ((filter.minQuintile ?? 0) > 0 && !s.fm) || (filter.trend !== "All" && !s.priceTrend); // chưa đủ 4/6 nhóm FM / chưa đủ 200 phiên
+  if (unknown.length || extraMissing) return { verdict: "MISSING_DATA", unknown };
+  // Mặc định ẩn mã chỉ có đợt GDKHQ đã qua > 60 ngày (chưa có lịch mới) — xét SAU cùng để đếm đúng số mã bị ẩn vì lý do này.
+  if (filter.hideStaleEvents && gdkhqDays !== null && gdkhqDays < -60) return { verdict: "STALE", unknown: [] };
+  return { verdict: "PASS", unknown: [] };
+}
+export const filterVerdict = (s: DividendStock, filter: DividendFilter): FilterVerdict => filterDetail(s, filter).verdict;
+
+export interface FilterStats { pass: number; fail: number; missingData: number; stale: number; missingBy: Partial<Record<FieldKey, number>>; naBy: Partial<Record<FieldKey, number>>; otherMissing: number }
+/** Đếm số mã bị ẩn theo từng lý do (để giao diện ghi rõ thay vì ẩn lặng lẽ); P2: thiếu số liệu tách theo trường + "không áp dụng". */
+export function explainFilter(stocks: DividendStock[], filter: DividendFilter): FilterStats {
+  const out: FilterStats = { pass: 0, fail: 0, missingData: 0, stale: 0, missingBy: {}, naBy: {}, otherMissing: 0 };
   for (const s of stocks) {
-    const v = filterVerdict(s, filter);
-    if (v === "PASS") out.pass++; else if (v === "FAIL") out.fail++; else if (v === "MISSING_DATA") out.missingData++; else out.stale++;
+    const d = filterDetail(s, filter), v = d.verdict;
+    if (v === "PASS") out.pass++; else if (v === "FAIL") out.fail++; else if (v === "STALE") out.stale++;
+    else {
+      out.missingData++;
+      if (!d.unknown.length) out.otherMissing++;
+      for (const u of d.unknown) { const m = u.why === "NA" ? out.naBy : out.missingBy; m[u.field] = (m[u.field] ?? 0) + 1; }
+    }
   }
   return out;
+}
+/** Câu giải thích "thiếu số liệu" theo trường, vd "ROE 3 · F-Score không áp dụng 26 · khác 2". */
+export function missingSummary(st: FilterStats): string {
+  const parts: string[] = [];
+  for (const [k, n] of Object.entries(st.missingBy)) parts.push(`${FIELD_LABEL[k as FieldKey]} ${n}`);
+  for (const [k, n] of Object.entries(st.naBy)) parts.push(`${FIELD_LABEL[k as FieldKey]} không áp dụng ${n}`);
+  if (st.otherMissing) parts.push(`hạng NT / xu hướng chưa đủ dữ liệu ${st.otherMissing}`);
+  return parts.join(" · ");
 }
 
 /** BL4: điều kiện đang bật và số mã mà RIÊNG điều kiện đó đang loại (đặt về mặc định, giữ các điều kiện khác) — đếm ngay khi chỉnh. */
@@ -255,6 +312,7 @@ export function marginalCounts(stocks: DividendStock[], filter: DividendFilter):
   return out;
 }
 
+const SORT_FIELD: Record<string, FieldKey> = { dividendYield: "yield", pe: "pe", roe: "roe", debtEquity: "de", fscore: "fscore", payoutRatio: "payout", growth: "growth" };
 export function filterAndSortStocks(
   stocks: DividendStock[], filter: DividendFilter,
   sortField: keyof DividendStock | "score" | "catalyst",
@@ -262,8 +320,15 @@ export function filterAndSortStocks(
   realRsMap?: Record<string, number | null>
 ): DividendStock[] {
   return stocks
-    .filter((s) => filterVerdict(s, filter) === "PASS")
+    .filter((s) => { const v = filterVerdict(s, filter); return v === "PASS" || (filter.showUnknown === true && v === "MISSING_DATA"); })
     .sort((a, b) => {
+      // P2: trường chưa có số thật (thiếu / không áp dụng / lỗ) luôn xếp CUỐI, bất kể chiều sắp xếp.
+      const fk = SORT_FIELD[sortField as string];
+      if (fk) {
+        const xa = fieldValue(a, fk), xb = fieldValue(b, fk);
+        if (xa === null || xb === null) return xa === null && xb === null ? 0 : xa === null ? 1 : -1;
+        return sortAsc ? xa - xb : xb - xa;
+      }
       let va: number, vb: number;
       if (sortField === "score") { va = a.fm?.pct ?? -1; vb = b.fm?.pct ?? -1; } // BL3: thứ hạng FM-v1
       else if (sortField === "catalyst") { va = calcCatalystScore(a) ?? -1; vb = calcCatalystScore(b) ?? -1; }

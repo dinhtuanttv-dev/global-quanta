@@ -1,5 +1,6 @@
 import { Star } from 'lucide-react';
-import type { DividendStock } from '../../../../lib/quant-cotuc';
+import type { DividendStock, UnknownField } from '../../../../lib/quant-cotuc';
+import { FIELD_LABEL, fieldStatus, fieldValue } from '../../../../lib/quant-cotuc';
 import { getDaysUntil, getTradePhase } from '../../../../lib/quant-cotuc';
 import { dm, pct as pctTo, pctS, type ToRadarRow } from '../../../../lib/cotuc/to';
 import { fmtPctValue, fmtPriceK, fmtRatioPct, fmtVnd } from '../../../../lib/cotuc/format';
@@ -30,6 +31,8 @@ export interface ScreenerTableProps {
   now: number;
   /** BL4: cột đang ẩn (chọn cột theo tài khoản). Mã · Ngành và nút ghim luôn hiện. */
   hidden?: ReadonlySet<ScreenerColumn>;
+  /** P2: các tiêu chí "chưa biết" (thiếu số / không áp dụng) của mã — chỉ truyền khi đang bật "Hiện mã thiếu số liệu". */
+  unknownOf?: (s: DividendStock) => UnknownField[];
 }
 
 function Badge({ children, tone, title }: { children: React.ReactNode; tone: 'cyan' | 'amber' | 'emerald' | 'rose' | 'violet' | 'muted' | 'neon'; title?: string }) {
@@ -133,6 +136,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                 </td>
                 <td className={TD}>
                   <span className="font-mono text-[12px] font-semibold text-cyan-200">{s.ticker}</span>
+                  {(() => { const u = p.unknownOf?.(s) ?? []; return u.length ? <span data-testid="unknown-mark" className="ml-1 cursor-help rounded border border-slate-500/60 px-1 text-[10px] font-bold text-slate-300" title={`Chưa biết đạt hay không — ${u.map((x) => `${FIELD_LABEL[x.field]}: ${x.why === "NA" ? "không áp dụng" : "chưa có số liệu"}`).join(" · ")}`}>?</span> : null; })()}
                   <span className="block max-w-[8.5rem] truncate text-[10px] text-slate-500" title={s.sector}>{s.sector}</span>
                 </td>
                 {show("price") && (<td className={`${TD} text-right`}>
@@ -140,7 +144,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   {typeof chg === 'number' && <span className={`block font-mono tabular-nums text-[10px] ${chg >= 0 ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>{chg >= 0 ? '+' : '−'}{Math.abs(chg).toFixed(2)}%</span>}
                 </td>)}
                 {show("yield") && (<td className={`${TD} text-right border-l border-white/[0.04]`}>
-                  {s.dividendYield > 0
+                  {fieldStatus(s, "yield") === "MISSING" ? <Badge tone="muted" title="Chưa có giá — không tính được lợi suất">—</Badge> : s.dividendYield > 0
                     ? <span className="font-mono tabular-nums text-[11.5px] font-semibold text-emerald-300">{fmtPctValue(s.dividendYield)}{s.yieldAnomaly && <span className="ml-1 cursor-help rounded border border-amber-400/50 bg-amber-400/10 px-1 font-sans text-[10px] font-bold text-amber-300" data-testid={`yield-anomaly-${s.ticker}`} title={`Tỷ suất 12 tháng có thể không đại diện: ${s.yieldAnomaly.reasons.join("; ")}. Số được giữ nguyên, chỉ cảnh báo.`}>⚠</span>}{s.dq?.trap && <span className="ml-1 cursor-help rounded border border-rose-400/50 bg-rose-400/10 px-1 font-sans text-[10px] font-bold text-rose-300" data-testid={`yield-trap-${s.ticker}`} title={`Có dấu hiệu bẫy lợi suất: ${s.dq.trap.join("; ")}`}>bẫy?</span>}</span>
                     : <Badge tone="muted" title="Không có cổ tức tiền mặt trong 12 tháng gần nhất">0%</Badge>}
                   <span className="block font-mono tabular-nums text-[10px] text-slate-500">
@@ -157,10 +161,10 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   </div>
                 </td>)}
                 {show("pe") && (<td className={`${TD} text-right border-l border-white/[0.04]`}>
-                  {s.fundamentalsReal && s.pe > 0 ? <span className="font-mono tabular-nums text-slate-200" title={s.epsNote ?? undefined} data-testid="pe-cell">{s.pe.toFixed(1)}x{s.epsNote?.includes("IAS 33") ? <sup className="ml-0.5 text-[10px] text-cf-gold" aria-label="EPS đã điều chỉnh hồi tố">đc</sup> : null}</span> : <Badge tone="muted" title={s.fundamentalsReal ? 'EPS âm hoặc ≈ 0 — P/E không có nghĩa' : 'Chưa có số liệu thật'}>—</Badge>}
+                  {fieldStatus(s, "pe") === "LOSS" ? <Badge tone="muted" title={`EPS 12 tháng ≤ 0 (đang lỗ) — P/E không có nghĩa${s.epsNote ? "\n" + s.epsNote : ""}`}>lỗ</Badge> : fieldValue(s, "pe") !== null ? <span className="font-mono tabular-nums text-slate-200" title={s.epsNote ?? undefined} data-testid="pe-cell">{s.pe.toFixed(1)}x{s.epsNote?.includes("IAS 33") ? <sup className="ml-0.5 text-[10px] text-cf-gold" aria-label="EPS đã điều chỉnh hồi tố">đc</sup> : null}</span> : <Badge tone="muted" title={s.fundamentalsReal ? 'EPS âm hoặc ≈ 0 — P/E không có nghĩa' : 'Chưa có số liệu thật'}>—</Badge>}
                 </td>)}
                 {show("roe") && (<td className={`${TD} text-right`}>
-                  {s.fundamentalsReal ? <span className={`font-mono tabular-nums ${s.roe >= 15 ? 'text-emerald-300' : s.roe < 0 ? 'text-rose-300' : 'text-slate-200'}`}>{fmtPctValue(s.roe)}</span> : <Badge tone="muted" title="Chưa có số liệu thật">—</Badge>}
+                  {fieldValue(s, "roe") !== null ? <span className={`font-mono tabular-nums ${s.roe >= 15 ? 'text-emerald-300' : s.roe < 0 ? 'text-rose-300' : 'text-slate-200'}`}>{fmtPctValue(s.roe)}</span> : <Badge tone="muted" title="Chưa có số liệu thật">—</Badge>}
                 </td>)}
                 {show("fm") && (<td className={`${TD} text-right`}>
                   {s.fm
