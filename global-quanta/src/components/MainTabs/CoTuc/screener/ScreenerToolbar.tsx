@@ -14,7 +14,7 @@ import type { PrefsCloud } from "../../../../hooks/useScreenerPrefs";
 const KEY_LABEL: Record<FilterKey, string> = {
   minYield: "Yield", minRoe: "ROE", maxPe: "P/E", maxDebt: "Nợ/VCSH", minFscore: "F-Score", minQuintile: "Hạng NT",
   trend: "Xu hướng", phase: "Vị thế", upcomingGDKHQ: "Sắp GDKHQ", upcomingAGM: "Sắp ĐHCĐ", hideRiskFlags: "Ẩn cờ rủi ro",
-  hideStaleEvents: "Ẩn mã chưa có lịch mới", hideTraps: "Ẩn bẫy lợi suất",
+  hideStaleEvents: "Ẩn mã chưa có lịch mới", hideTraps: "Ẩn bẫy lợi suất", showUnknown: "Hiện mã thiếu số liệu",
 };
 const CLOUD_TEXT: Record<PrefsCloud, string> = { idle: "", saving: "đang lưu…", saved: "đã lưu theo tài khoản", local: "lưu trên máy này" };
 

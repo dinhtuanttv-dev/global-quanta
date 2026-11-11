@@ -10,7 +10,7 @@ import {
 import {
   DIVIDEND_STOCKS, getTradePhase,
   detectRiskFlags, riskDataReady, PRICE_TREND_LABEL, filterAndSortStocks, getDaysUntil,
-  fmtVND, fmtPct, DEFAULT_FILTER, explainFilter, UPCOMING_WINDOW_DAYS, PE_NO_LIMIT,
+  fmtVND, fmtPct, DEFAULT_FILTER, explainFilter, UPCOMING_WINDOW_DAYS, PE_NO_LIMIT, fieldStatus, fieldValue, filterDetail, missingSummary,
   type DividendFilter, type DividendStock,
 } from "../../../lib/quant-cotuc";
 import { useDebouncedValue } from "../../../hooks/useDebouncedValue";
@@ -165,12 +165,12 @@ function StockModal({ s, onClose, realRs, livePrice }: {
             <>
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  ["P/E", s.fundamentalsReal ? s.pe.toFixed(1) + "x" : null],
-                  ["ROE", s.fundamentalsReal ? fmtPct(s.roe) : null],
-                  ["Tăng trưởng LNST 12T", s.growthReal ? (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%" : null],
-                  ["F-Score", s.fscore > 0 ? s.fscore + "/9" : null],
-                  ["Tỷ lệ chi trả", s.payoutReal ? fmtPct(s.payoutRatio) : null],
-                  ["Nợ / VCSH", s.fundamentalsReal ? s.debtEquity.toFixed(2) + "x" : null],
+                  ["P/E", fieldValue(s, "pe") !== null ? s.pe.toFixed(1) + "x" : fieldStatus(s, "pe") === "LOSS" ? "lỗ (EPS ≤ 0)" : null],
+                  ["ROE", fieldValue(s, "roe") !== null ? fmtPct(s.roe) : null],
+                  ["Tăng trưởng LNST 12T", fieldValue(s, "growth") !== null ? (s.growth > 0 ? "+" : "") + s.growth.toFixed(1) + "%" : null],
+                  ["F-Score", fieldValue(s, "fscore") !== null ? s.fscore + "/9" : fieldStatus(s, "fscore") === "NA" ? "không áp dụng" : null],
+                  ["Tỷ lệ chi trả", fieldValue(s, "payout") !== null ? fmtPct(s.payoutRatio) : null],
+                  ["Nợ / VCSH", fieldValue(s, "de") !== null ? s.debtEquity.toFixed(2) + "x" : fieldStatus(s, "de") === "NA" ? "không áp dụng" : null],
                   ["RSI 14", s.rsi > 0 ? s.rsi.toFixed(1) : null],
                   ["Xu hướng giá", s.priceTrend ? PRICE_TREND_LABEL[s.priceTrend] : null],
                   ["RS 3T (VN-Index)", realRs !== null && realRs !== undefined ? (realRs >= 0 ? "+" : "") + realRs + "%" : null],
@@ -627,9 +627,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
               </button>
             )}
             {filterStats.missingData > 0 && (
-              <span title="Ngưỡng ROE / P/E / Nợ / F-Score đang bật nhưng mã chưa có số liệu thật cho trường đó — không tính là đạt">
-                ẩn {filterStats.missingData} mã thiếu số liệu cho ngưỡng đang bật
-              </span>
+              <button type="button" data-testid="filter-unknown" onClick={() => setFilter({ ...filter, showUnknown: !filter.showUnknown })}
+                title={`Logic ba giá trị: tiêu chí đang bật mà mã chưa có số (hoặc không áp dụng) là "chưa biết" — không tính là đạt, cũng không trộn với "không đạt".\n${missingSummary(filterStats)}`}
+                className="text-slate-400 hover:text-cyan-300 underline decoration-dotted">
+                {filter.showUnknown ? "đang hiện" : "ẩn"} {filterStats.missingData} mã thiếu số liệu ({missingSummary(filterStats)}) — {filter.showUnknown ? "ẩn" : "hiện (đánh dấu ?)"}
+              </button>
             )}
             <span className="ml-auto">Giá SSI trực tiếp · chỉ số cơ bản VNDirect · bấm tiêu đề cột để sắp xếp</span>
           </div>
@@ -644,6 +646,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
             selectedTicker={globalSelectedTicker}
             realRsMap={realRsMap}
             toByTicker={toByTicker}
+            unknownOf={effectiveFilter.showUnknown ? (x: DividendStock) => filterDetail(x, effectiveFilter).unknown : undefined}
             livePrices={livePrices}
             liveChangePct={liveChangePct}
             flash={board.flash}

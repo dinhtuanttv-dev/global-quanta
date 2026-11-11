@@ -8,14 +8,14 @@ import { SCREENER_PREFS_TABLE, getUserScreenerPrefs, sanitizeScreenerPrefs, save
 test("sanitizeScreenerPrefs: kẹp miền, bỏ khoá lạ, tên trùng / rỗng, cột lạ", () => {
   const p = sanitizeScreenerPrefs({
     screens: [
-      { name: "  Lợi suất bền  ", filter: { minYield: 99, minRoe: "12", trend: "UP", phase: "X", hideTraps: true, searchQ: "FPT", evil: 1, minQuintile: 4 }, sort: { field: "score", asc: false } },
+      { name: "  Lợi suất bền  ", filter: { minYield: 99, minRoe: "12", trend: "UP", phase: "X", hideTraps: true, showUnknown: true, searchQ: "FPT", evil: 1, minQuintile: 4 }, sort: { field: "score", asc: false } },
       { name: "lợi suất bền", filter: {} }, { name: "", filter: {} }, { name: "B", filter: null, sort: { field: "hack" } },
     ],
     columns: { pe: false, window: false, bogus: true, fm: "no" }, defaultScreen: "B", extra: 1,
   });
   assert.deepEqual(p, {
     schemaVersion: 1,
-    screens: [{ name: "Lợi suất bền", filter: { minYield: 15, minRoe: 12, minQuintile: 4, trend: "UP", hideTraps: true }, sort: { field: "score", asc: false } }, { name: "B", filter: {} }],
+    screens: [{ name: "Lợi suất bền", filter: { minYield: 15, minRoe: 12, minQuintile: 4, trend: "UP", hideTraps: true, showUnknown: true }, sort: { field: "score", asc: false } }, { name: "B", filter: {} }],
     columns: { pe: false, window: false }, defaultScreen: "B",
   });
   assert.throws(() => sanitizeScreenerPrefs(null), /Thiếu/);

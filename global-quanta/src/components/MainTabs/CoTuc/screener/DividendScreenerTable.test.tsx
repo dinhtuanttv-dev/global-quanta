@@ -29,7 +29,7 @@ describe("filterVerdict — thiếu dữ liệu khác với không đạt", () =
   });
   it("đếm riêng mã bị ẩn vì đợt cũ", () => {
     const old = stock({ exDividendDate: "01/01/2020" });
-    expect(explainFilter([old, stock({})], DEFAULT_FILTER)).toEqual({ pass: 1, fail: 0, missingData: 0, stale: 1 });
+    expect(explainFilter([old, stock({})], DEFAULT_FILTER)).toMatchObject({ pass: 1, fail: 0, missingData: 0, stale: 1 });
   });
 });
 
@@ -66,5 +66,29 @@ describe("DividendScreenerTable", () => {
     expect(el.textContent).not.toMatch(/N\/A|NaN|undefined|0\/100/);
     await act(async () => { (el.querySelectorAll('[data-testid="screener-row"]')[1] as HTMLElement).click(); });
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ ticker: "VIC" }));
+  });
+});
+
+describe("DividendScreenerTable — P2 trạng thái trường", () => {
+  afterEach(() => { document.body.innerHTML = ""; });
+  it("P/E lỗ hiện 'lỗ', ROE thiếu hiện '—' (không 0%), mã chưa biết có dấu ?", async () => {
+    const all = { yield: "OK", pe: "OK", roe: "OK", de: "OK", fscore: "OK", payout: "OK", growth: "OK" } as const;
+    const rows = [
+      stock({ ticker: "VDS", price: 9000, dividendYield: 3, fundamentalsReal: true, pe: 0, roe: 0, fields: { ...all, pe: "LOSS", roe: "MISSING" } }),
+      stock({ ticker: "AAA", price: 9000, dividendYield: 3, fundamentalsReal: true, pe: 9, roe: 20, fields: all }),
+    ];
+    const el = document.createElement("div"); document.body.appendChild(el);
+    await act(async () => {
+      createRoot(el).render(
+        <DividendScreenerTable rows={rows} sortField="dividendYield" sortAsc={false} onSort={() => {}} onSelect={() => {}} isPinned={() => false} onTogglePin={() => {}}
+          realRsMap={{}} livePrices={{}} liveChangePct={{}} flash={{}} now={Date.now()} unknownOf={(s) => (s.ticker === "VDS" ? [{ field: "roe", why: "MISSING" }] : [])} />,
+      );
+    });
+    const [vds, aaa] = Array.from(el.querySelectorAll('[data-testid="screener-row"]')) as HTMLElement[];
+    expect(vds.textContent).toContain("lỗ");
+    expect(vds.textContent).not.toContain("0.0%");
+    expect(vds.querySelector('[data-testid="unknown-mark"]')?.getAttribute("title")).toContain("ROE: chưa có số liệu");
+    expect(aaa.querySelector('[data-testid="unknown-mark"]')).toBeNull();
+    expect(aaa.textContent).toContain("9.0x");
   });
 });
