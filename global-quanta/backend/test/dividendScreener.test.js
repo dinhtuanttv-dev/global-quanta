@@ -45,3 +45,17 @@ test("BL3 điểm FM-v1 trong DS: xếp hạng toàn mặt cắt, nhãn theo ki�
   assert.equal(s5.rank, 1); assert.equal(s5.quintile, 5); assert.equal(s0.quintile, 1); assert.equal(s5.label, FM_LABEL); assert.equal(FM_LABEL, "MÔ TẢ");
   assert.equal(doc.coverage.fm, 6);
 });
+
+test("EPS-v1 (P0): số CP lấy trực tiếp; ngân hàng KHÔNG ÁP DỤNG dòng tiền tự do / CFO / accrual; ghi nguồn EPS + đối chiếu", () => {
+  const div = dividendProfile([C("2026-06-10", 500, 2025)], "2026-11-07");
+  const bank = { quarter: "Q3/2026", tpl: "bank", mcap: 118e12, equity: 104e12, roe: 0.165, cfoToNpat: 0.23, accrual: 0.012,
+    ttm: { eps: 2773, npat: 16.096e12, cfo: 3.7e12, capex: -1.2e12, shares: 5804421957, epsSource: "VND_EPS_TR", epsCheck: 0.0001 } };
+  const r = screenerRow({ t: "ACB", uni: {}, scan: { price: 20350 }, kq: bank, div, ex: null });
+  assert.equal(r.fund.pe, 7.3386); assert.equal(r.fund.epsTtm, 2773); assert.equal(r.fund.epsSource, "VND_EPS_TR"); assert.equal(r.fund.epsCheck, 0.0001);
+  assert.deepEqual([r.fund.fcfCover, r.fund.cfoToNpat, r.fund.accrual], [null, null, null]);
+  assert.ok(r.fund.na.includes("fcfCover") && r.fund.na.includes("f"));
+  assert.equal(r.fund.payout, Math.round((500 / 2773) * 1e4) / 1e4);
+  const corp = screenerRow({ t: "AAA", uni: {}, scan: { price: 50000 }, kq: { ...bank, tpl: "corp", ttm: { eps: 5000, npat: 10e12, cfo: 9e12, capex: -3e12, shares: 2.5e9 } }, div, ex: null });
+  // số CP lấy trực tiếp 2,5 tỷ (không suy 10e12 / 5.000 = 2 tỷ): cổ tức trả 500 × 2,5 tỷ = 1,25e12; FCF 6e12 -> 4,8
+  assert.equal(corp.fund.fcfCover, 4.8); assert.deepEqual(corp.fund.na, []);
+});

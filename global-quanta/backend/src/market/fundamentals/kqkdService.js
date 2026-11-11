@@ -37,6 +37,7 @@ export function planView(p, rec, { year, cumShare = null, nowcastEst = null }) {
   return { year, approved: p.plan.approved, draft: p.plan.draft, doc: p.doc, models: p.models, at: p.at, items, attainment: att };
 }
 import { buildSummary, buildSummaryRow, buildTickerDetail, evidenceFrom, KQ_VERSION } from "./kqkdEngine.js";
+import { EPS_VERSION, selectEps } from "./sharesEps.js";
 
 // KQ-r1 (06/11/2026): kết quả kiểm định đặt trước, chạy một lần (scripts/kqkd-validate.mjs) — gắn vào API để giao diện ghi đúng nhãn.
 let EVIDENCE = null;
@@ -60,7 +61,7 @@ function readGz(file) {
   try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(file)).toString("utf8")); } catch { return null; }
 }
 
-export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, getEventStudy = null, seasonalityBundle = createSeasonalityBundle({ fetchImpl }), isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
+export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchImpl = globalThis.fetch, now = Date.now, log = console, concurrency = 2, fetchTicker = fetchTickerStatements, getCloses = null, getPlan = null, getEventStudy = null, getSharesEps = null, seasonalityBundle = createSeasonalityBundle({ fetchImpl }), isHoliday = (d) => [0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()), fetchDisc = fetchDisclosures } = {}) {
   fs.mkdirSync(dir, { recursive: true });
   const fileOf = (t) => path.join(dir, `${t}.json.gz`);
   const summaryFile = path.join(dir, "summary.json.gz");
@@ -105,6 +106,9 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
           const v = planView(getPlan(t, year), rec, { year, cumShare: row.nowcast?.cumShare ?? null, nowcastEst: row.nowcast?.est ?? null });
           if (v) row.plan = { approved: v.approved, draft: v.draft, metric: v.attainment?.metric ?? null, done: v.attainment?.done ?? null, pace: v.attainment?.pace ?? null, typical: v.attainment?.typical ?? null, nowcastVsPlan: v.attainment?.nowcastVsPlan ?? null, verified: Object.values(v.items).some((x) => x.status === "VERIFIED") };
         }
+        // EPS-v1 (P0 kiểm toán BCTC): EPS 12 tháng đúng cho mọi mẫu BCTC (EPS_TR VNDirect đúng quý -> LNST mẹ / số CP hiện hành -> tổng EPS quý).
+        if (row?.ttm) { const h = getSharesEps?.()?.(t); const s = selectEps({ npatTtm: row.ttm.npat, quarterEnd: row.fiscal, epsHist: h?.eps, sharesHist: h?.shares, sumEps: row.ttm.eps, tpl: row.tpl });
+          row.ttm = { ...row.ttm, eps: s.eps, epsSource: s.source, epsCheck: s.check, shares: s.shares, epsVersion: EPS_VERSION }; }
         rows.push(row);
       } catch (e) { log.warn?.(`[kqkd] ${t}: ${e.message}`); }
     }
