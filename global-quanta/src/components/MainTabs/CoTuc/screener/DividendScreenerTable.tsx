@@ -157,7 +157,7 @@ export function DividendScreenerTable(p: ScreenerTableProps) {
                   </div>
                 </td>)}
                 {show("pe") && (<td className={`${TD} text-right border-l border-white/[0.04]`}>
-                  {s.fundamentalsReal && s.pe > 0 ? <span className="font-mono tabular-nums text-slate-200">{s.pe.toFixed(1)}x</span> : <Badge tone="muted" title={s.fundamentalsReal ? 'EPS âm hoặc ≈ 0 — P/E không có nghĩa' : 'Chưa có số liệu thật'}>—</Badge>}
+                  {s.fundamentalsReal && s.pe > 0 ? <span className="font-mono tabular-nums text-slate-200" title={s.epsNote ?? undefined} data-testid="pe-cell">{s.pe.toFixed(1)}x{s.epsNote?.includes("IAS 33") ? <sup className="ml-0.5 text-[10px] text-cf-gold" aria-label="EPS đã điều chỉnh hồi tố">đc</sup> : null}</span> : <Badge tone="muted" title={s.fundamentalsReal ? 'EPS âm hoặc ≈ 0 — P/E không có nghĩa' : 'Chưa có số liệu thật'}>—</Badge>}
                 </td>)}
                 {show("roe") && (<td className={`${TD} text-right`}>
                   {s.fundamentalsReal ? <span className={`font-mono tabular-nums ${s.roe >= 15 ? 'text-emerald-300' : s.roe < 0 ? 'text-rose-300' : 'text-slate-200'}`}>{fmtPctValue(s.roe)}</span> : <Badge tone="muted" title="Chưa có số liệu thật">—</Badge>}

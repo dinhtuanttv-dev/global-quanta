@@ -174,7 +174,9 @@ export function getMarketRuntime() {
   const sharesEps = createSharesEps({ dir: kqkdDir, universe: async () => ((await store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker) });
   jobs.sharesEps = () => sharesEps.refresh();
   jobs.sharesEps2 = () => sharesEps.refresh();
-  const kqkd = createKqkdService({ store, getEventStudy: () => eventStudy.doc(), getSharesEps: () => sharesEps.of, isHoliday: (d) => tradingCalendar.isHoliday(d), getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
+  // EPS-v2 (P1): sự kiện hồi tố + giá CHƯA điều chỉnh phiên trước GDKHQ (px: [ngày, adClose, nmValue, close nghìn đ]) cho quyền mua.
+  const epsActions = (t) => ({ events: corpEventsRef?.ticker(t)?.events ?? [], pcumOf: (ex) => { const rows = eventStudy.pricesOf(t) ?? []; let p = null; for (const r of rows) { if (r[0] >= ex) break; p = r[3] ?? null; } return p > 0 ? p * 1000 : null; } });
+  const kqkd = createKqkdService({ store, getEventStudy: () => eventStudy.doc(), getSharesEps: () => sharesEps.of, getActions: epsActions, isHoliday: (d) => tradingCalendar.isHoliday(d), getPlan: (t, y) => agmPlans.planOf(t, y), getCloses: (t) => taSeries.get({ symbol: t, range: "1y", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => b.close > 0).map((b) => ({ date: b.date, close: b.close }))) });
   const KQKD_SCHEDULE = [{ name: "sharesEps", at: "12:05", tradingDayOnly: false }, { name: "sharesEps2", at: "19:05", tradingDayOnly: false }, { name: "kqkdRefresh", at: "12:15", tradingDayOnly: false }, { name: "kqkdRefreshEvening", at: "19:15", tradingDayOnly: false },
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
@@ -204,7 +206,7 @@ export function getMarketRuntime() {
   corpEventsRef = corpEvents;
   // BL1: nguồn dữ liệu Bộ lọc cổ phiếu (ghép bản quét + KQKD + sự kiện + XD-v1 trên Gateway).
   // BL2: phần tính sẵn của độ bền cổ tức / Lintner / rủi ro giá (BCTC năm + giá điều chỉnh), mỗi tối 20:05.
-  const dqBase = createDividendQualityBase({ dir: kqkdDir, getSharesEps: () => sharesEps.of });
+  const dqBase = createDividendQualityBase({ dir: kqkdDir, getSharesEps: () => sharesEps.of, getEventsOf: (t) => corpEventsRef?.ticker(t)?.events ?? [] });
   jobs.dividendQuality = () => dqBase.run();
   const dividendScreener = createDividendScreener({ getDq: () => dqBase.doc(), getKv: async (k) => (await store.getKv(k))?.value ?? null, getKqSummary: () => kqkd.summary(), getEvents: () => corpEvents.doc(), getEx: () => eventStudy.exDoc() });
   // BL-L1: sổ theo dõi tiến FM-v1 (ghi 1 lần/tháng, chấm sau 12 tháng).
