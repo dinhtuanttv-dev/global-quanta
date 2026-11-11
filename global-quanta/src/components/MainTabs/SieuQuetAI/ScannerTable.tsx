@@ -18,6 +18,7 @@ const CONF_COLOR: Record<string, string> = {
   DAN_DAT_NGUOC_DONG: "bg-purple-950 text-purple-400 border-purple-700",
   TRUNG_LAP: "bg-slate-800 text-slate-400 border-slate-600",
   NGHICH_XU_HUONG: "bg-rose-950 text-rose-400 border-rose-700",
+  DANG_TANG_CHUA_DAN_DAT: "bg-amber-950/60 text-amber-300 border-amber-700",
 };
 
 function fmt(n: number | null | undefined, d = 1): string {

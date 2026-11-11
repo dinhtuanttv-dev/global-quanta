@@ -23,6 +23,11 @@ export function useEliteTicker(ticker: string | null) {
   return { decision: decision.data ?? null, panel: panel.data ?? null, isLoading: decision.isLoading || panel.isLoading, error: decision.error ?? panel.error ?? null };
 }
 
+/** LS-r1: khối "Sức mạnh dẫn dắt" của Hồ sơ 360° (LS-v1, 5 thành phần, trạng thái thị trường, bằng chứng, cổng H4, dòng Siêu quét). */
+export function useEliteLeadership(ticker: string | null) {
+  return useSWR<import("../../lib/elite10/decisionTypes").LeadershipTicker>(ticker ? ["elite-leadership", ticker] : null, () => fetchMarketJson(`/api/elite/leadership/${ticker}`), OPTS);
+}
+
 /** Bảng tín hiệu đầy đủ của phiên mới nhất (để tính phân vị của một mã trong vũ trụ). */
 export function useElitePanel() {
   return useSWR<{ date: string; rows: { ticker: string; icb?: { l1?: string; l2?: string; l3?: string } | null; sector?: string | null; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);

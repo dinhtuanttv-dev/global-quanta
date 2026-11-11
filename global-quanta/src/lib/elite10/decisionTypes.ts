@@ -129,3 +129,16 @@ export interface EliteToShadow {
   recent: { d: string; core: number; guard: number; sleeve: number; comp: number; vn: number; k: number; guarded: string[]; sleeveT: string[] }[];
   rule: { start: string; minDays: number; sleeveSlot: number; sleeveMax: number };
 }
+
+/** LS-r1: GET /api/elite/leadership/:ticker */
+export interface LeadershipTicker {
+  version: string; prereg: string; ticker: string; date: string | null;
+  ls: number | null; pct: number | null; band: string | null;
+  components: { id: string; labelVi: string; value: number | null; pct: number | null }[];
+  market: { regime: "UP" | "ACC" | "WEAK" | null; regimeVi: string | null; bias: string | null; breadth: number | null; guard: boolean } | null;
+  evidence: { tier: "A" | "B" | "C"; reasonVi: string; main: { n: number; mean: number | null; t: number | null; q: number | null; stable: boolean } | null;
+    weighting: { n: number; icDec: number | null; neff: number; icRegime: number | null; neffRegime: number; icRegPost: number | null } | null; icPost: number | null; gateLive: boolean } | null;
+  gate: { pass: boolean; ranAt: string; verdictVi: string } | null;
+  scanner: { dataAsOf: string | null; consensusCode: string | null; consensus: string | null; trendTag: string | null; rsRating: number | null; breakout: boolean;
+    smartScore: number | null; fScore: number | null; fScoreMax: number | null; fScoreApplicable: boolean | null; foreignNetBuy: boolean | null } | null;
+}

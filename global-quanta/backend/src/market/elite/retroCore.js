@@ -4,6 +4,7 @@
 import { bhQ, dailyIc, decideTier, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
 import { blockBootstrapCi, buildDecision, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
+import { lsIcPost, lsWeighting } from "./leadership.js";
 
 export const E7_VERSION = "E7-v2 (prereg 2026-10-17, sửa đổi 2026-10-18)";
 export const RETRO_SIGNALS = { stealth5: "stealth5", stealth20: "stealth20", net_intent: "netIntent", mom5_atr: "mom5Atr", log_rvol: "logRvol" };
@@ -16,7 +17,12 @@ const MIN_PRICE_SESSIONS = 60;
  *   sectors: Map<string, string|null>, vnIndex: Map<string, number> }} p
  *   flow: ngày -> (mã -> features); prices: chuỗi tăng dần theo ngày; sectors: mã -> ICB cấp 2.
  */
-export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () => "HOSE" }) {
+/**
+ * LS-r1 (H4): `extra` = tín hiệu dẫn dắt thêm vào walk-forward theo đúng quy tắc E3-v5 —
+ *   { id, valuesOf(D) -> {mã: v}, ic: {h: {ngày: [IC, n, ngày ra]}}, regimeOf: {ngày: nhóm}, guardOf: {ngày: bool}, cal: lịch giá dài,
+ *     useRegime, useGuard }. Bậc chỉ dùng IC đã chín (ngày ra ≤ D), q BH chung với các tín hiệu khác.
+ */
+export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () => "HOSE", extra = null }) {
   const pos = new Map(cal.map((d, i) => [d, i]));
   const px = new Map();
   for (const [t, rows] of prices) for (const r of rows) px.set(`${t}|${r.date}`, r.closeAdj);
@@ -45,8 +51,8 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () 
   }
 
   // 2) Walk-forward.
-  const tiers = { ...RETRO_PRIOR_TIER };
-  const tierDays = Object.fromEntries(sigIds.map((s) => [s, { A: 0, B: 0, C: 0 }]));
+  const tiers = { ...RETRO_PRIOR_TIER, ...(extra ? { [extra.id]: "C" } : {}) };
+  const tierDays = Object.fromEntries([...sigIds, ...(extra ? [extra.id] : [])].map((s) => [s, { A: 0, B: 0, C: 0 }]));
   const entries = [];
   const pricesUpTo = (D) => new Map([...prices].map(([t, rows]) => [t, rows.filter((r) => r.date <= D)]));
   const firstPriceIdx = MIN_PRICE_SESSIONS;
@@ -63,12 +69,29 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () 
         if (byS[s][h].n >= MIN_DAYS_FDR && byS[s][h].pPos != null) tests.push([s, h]);
       }
     }
+    if (extra) {
+      byS[extra.id] = {};
+      for (const h of HORIZONS) {
+        const series = Object.entries(extra.ic?.[h] ?? {}).filter(([, v]) => v && v[0] != null && v[2] <= D).sort((x, y) => x[0].localeCompare(y[0])).map(([, v]) => v[0]);
+        byS[extra.id][h] = summarize(series, h);
+        if (byS[extra.id][h].n >= MIN_DAYS_FDR && byS[extra.id][h].pPos != null) tests.push([extra.id, h]);
+      }
+    }
     const q = bhQ(tests.map(([s, h]) => byS[s][h].pPos));
     tests.forEach(([s, h], k) => { byS[s][h].q = q[k]; });
     for (const s of sigIds) { tiers[s] = decideTier(tiers[s], byS[s], 5).tier; tierDays[s][tiers[s]]++; }
     const evidence = { signals: sigIds.map((s) => ({ id: s, labelVi: LABEL[s], tab: "Siêu quét AI", tier: tiers[s], mainH: 5, byH: Object.fromEntries(HORIZONS.map((h) => [h, { n: byS[s][h].n, mean: byS[s][h].mean }])) })) };
+    let extraVals = null;
+    if (extra) {
+      tiers[extra.id] = decideTier(tiers[extra.id], byS[extra.id], 5).tier; tierDays[extra.id][tiers[extra.id]]++;
+      const w = lsWeighting(extra.ic?.[5], extra.useRegime ? extra.regimeOf : {}, extra.useRegime ? extra.regimeOf?.[D] ?? null : null, D, extra.cal);
+      const guard = Boolean(extra.useGuard && extra.guardOf?.[D]);
+      evidence.signals.push({ id: extra.id, labelVi: extra.id, tab: "Siêu quét AI", tier: tiers[extra.id], mainH: 5, byH: Object.fromEntries(HORIZONS.map((h) => [h, { n: byS[extra.id][h].n, mean: byS[extra.id][h].mean }])),
+        icPostOverride: lsIcPost({ tier: tiers[extra.id], weighting: w, guard }), neffOverride: w.neff });
+      extraVals = extra.valuesOf(D) ?? null;
+    }
     const day = flow.get(D);
-    const rows = [...day].map(([t, f]) => ({ ticker: t, icb: { l2: sectors.get(t) ?? null }, values: Object.fromEntries(sigIds.map((s) => [s, Number.isFinite(Number(f?.[RETRO_SIGNALS[s]])) ? Number(f[RETRO_SIGNALS[s]]) : null])) }));
+    const rows = [...day].map(([t, f]) => ({ ticker: t, icb: { l2: sectors.get(t) ?? null }, values: { ...Object.fromEntries(sigIds.map((s) => [s, Number.isFinite(Number(f?.[RETRO_SIGNALS[s]])) ? Number(f[RETRO_SIGNALS[s]]) : null])), ...(extra ? { [extra.id]: Number.isFinite(extraVals?.[t]) ? extraVals[t] : null } : {}) } }));
     // E7-v2: truyền danh mục phiên walk-forward liền trước làm vùng đệm giữ mã (E3-v3).
     const dec = buildDecision({ panel: { date: D, rows }, evidence, prices: pricesUpTo(D), cal: cal.slice(0, iD + 1), prevHoldings: entries[entries.length - 1]?.holdings ?? [] });
     if (!dec.portfolio.length) continue;
@@ -128,6 +151,7 @@ export function runRetro({ cal, flow, prices, sectors, vnIndex, exchangeOf = () 
       realistic: summarizeRealistic(entries),
     },
     lastWeights: entries[entries.length - 1]?.weights ?? [],
+    series: entries.map((e) => ({ date: e.date, ex5: e.results[5]?.excess ?? null, ex10: e.results[10]?.excess ?? null, ic5: e.results[5]?.ic ?? null })),
     recent: entries.slice(-20).map((e) => ({ date: e.date, holdings: e.holdings.map((h) => h.ticker), r5: e.results[5]?.excess ?? null, r10: e.results[10]?.excess ?? null })),
   };
 }

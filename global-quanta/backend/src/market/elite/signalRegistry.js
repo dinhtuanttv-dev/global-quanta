@@ -24,6 +24,8 @@ export const SIGNAL_SPECS = [
     evidenceVi: "SP3: OOS n 37, +3,66%/20 phiên nhưng trong mẫu âm." },
   { id: "net_intent", tab: "Siêu quét AI", labelVi: "Ý đồ dòng tiền IFE (tích luỹ − phân phối)", unit: "xác suất", level: "stock", tier: "C",
     evidenceVi: "Sổ cái: không có lợi thế (tỷ lệ đúng ≈ nền)." },
+  { id: "ls_v1", tab: "Siêu quét AI", labelVi: "Điểm dẫn dắt LS-v1 (RS, động lượng riêng, đỉnh 52 tuần, chống chịu, xu hướng)", unit: "z", level: "stock", tier: "C",
+    evidenceVi: "LS-r1 (11/11/2026): bằng chứng hồi cứu từ giá 2021–2026; vào Điểm Elite chỉ khi đạt bậc A/B và cổng H4." },
   { id: "smart_score", tab: "Siêu quét AI", labelVi: "Smart Score", unit: "0–100", level: "stock", tier: "C", evidenceVi: "Chưa có kiểm định đặt trước." },
   { id: "rs_rating", tab: "Siêu quét AI", labelVi: "Sức mạnh giá RS", unit: "0–100", level: "stock", tier: "C", evidenceVi: "Chưa có kiểm định đặt trước." },
   { id: "ta_score", tab: "Siêu quét AI", labelVi: "Điểm kỹ thuật", unit: "0–100", level: "stock", tier: "C", evidenceVi: "Chưa có kiểm định đặt trước." },
@@ -130,6 +132,9 @@ export function buildSignalRows(src) {
     missingSources.push("cotuc");
   }
   if (!src.features) missingSources.push("researchFeatures");
+  // LS-r1: điểm dẫn dắt của CÙNG phiên (giá ngày Gateway) — khác phiên thì để trống.
+  const lsRows = src.leadership?.rows ?? null;
+  if (!lsRows) missingSources.push("leadership");
   const structure = src.structure?.rows ? new Map(src.structure.rows.map((r) => [String(r.t).toUpperCase(), r])) : null;
   if (!structure) missingSources.push("structure");
 
@@ -146,6 +151,7 @@ export function buildSignalRows(src) {
       top20_alpha: top20.get(ticker) ?? null,
       sepa_s2: sepaS2 ? sepaS2.get(ticker) ?? 0 : null,
       net_intent: num(f?.netIntent),
+      ls_v1: lsRows ? num(lsRows[ticker]?.ls) : null,
       smart_score: num(it.smartScore),
       rs_rating: num(it.rsRating),
       ta_score: num(it.taScore),

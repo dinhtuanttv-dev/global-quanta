@@ -172,6 +172,12 @@ export function computeTickerData(ticker, bars, fa, tax = {}) {
 }
 
 
+/** LS-r1: nhãn Đồng thuận hiển thị — tách "Nghịch xu hướng" của mã đang Up-Trend thành "Đang tăng, chưa dẫn dắt". */
+export function consensusDisplay(confl, trendTag) {
+  if (confl.statusCode === "NGHICH_XU_HUONG" && trendTag === "Up-Trend") return { confluenceStatusCode: "DANG_TANG_CHUA_DAN_DAT", confluenceStatusLabel: "Đang tăng, chưa dẫn dắt" };
+  return { confluenceStatusCode: confl.statusCode, confluenceStatusLabel: confl.statusLabel };
+}
+
 /** Bước 3 cho một mã: điểm FA/TA/sự kiện/Smart Score so với phân phối của universe trong `ctx`. */
 export function scoreTickerData(t, ctx) {
   const { bias, breakoutProbability, faUniverse, universeReturns64d, activeEvents, foreignNetBuySet, sectorOf, nameOf, taxOf, computedAt } = ctx;
@@ -200,7 +206,9 @@ export function scoreTickerData(t, ctx) {
     trendTag, qualityTag,
     rsi14: Number.isFinite(t.rsi) ? Math.round(t.rsi * 10) / 10 : null,
     ma50: t.ma50 != null ? Math.round(t.ma50 * 100) / 100 : null, ma200: t.ma200 != null ? Math.round(t.ma200 * 100) / 100 : null, priceTrend: t.priceTrend ?? null,
-    confluenceStatusCode: confl.statusCode, confluenceStatusLabel: confl.statusLabel,
+    // LS-r1 (hiển thị): "Nghịch xu hướng" của mã ĐANG Up-Trend (RS < 90, thị trường yếu) là nhãn gây hiểu ngược -> tách riêng.
+    // Công thức formulas.js (đối chiếu bản gốc), boost và Smart Score KHÔNG đổi.
+    ...consensusDisplay(confl, trendTag),
     confluenceBoost: confl.boost, confluenceReasonCodes: confl.reasonCodes, breakoutBoostBadge: confl.breakoutBoostBadge,
     piotroskiFScore: t.fScore.score, fScoreMax: t.fScore.max, fScoreApplicable: t.fScore.applicable, fScoreReason: t.fScore.reason,
     foreignNetBuyFlag: foreignNetBuySet.has(t.ticker),

@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -211,6 +211,18 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     const r = await getRetro().run();
     res.json({ version: r.version, period: r.period, label: r.label, verdictVi: r.verdictVi, runtimeMs: r.runtimeMs, data: r.data });
   }));
+
+  // LS-r1: điểm dẫn dắt LS-v1 — Hồ sơ 360° (khối "Sức mạnh dẫn dắt"), trạng thái, dựng bằng chứng, cổng H4 (chạy nền một lần).
+  router.get("/leadership/status", wrap(async (req, res) => { if (!getLeadership) return res.status(503).json({ error: "Chưa bật." }); res.json(await getLeadership().status()); }));
+  router.get("/leadership/:ticker", wrap(async (req, res) => {
+    if (!getLeadership) return res.status(503).json({ error: "Chưa bật." });
+    const t = String(req.params.ticker ?? "").toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const ev = getEvidence ? await getEvidence().evidence().catch(() => null) : null;
+    const sc = getScannerItem ? await getScannerItem(t).catch(() => null) : null;
+    res.json({ ...(await getLeadership().ticker(t, { evidence: ev })), scanner: sc });
+  }));
+  router.post("/admin/leadership/build", admin, wrap(async (req, res) => { const d = await getLeadership().build(); res.json({ version: d.version, from: d.from, to: d.to, tickers: d.tickers, ms: d.ms }); }));
+  router.post("/admin/leadership/gate", admin, wrap(async (req, res) => { res.status(202).json(getLeadership().runGate()); }));
 
   router.get("/tools", (req, res) => {
     if (!getChatTools) return res.status(503).json({ error: "Chưa bật công cụ." });

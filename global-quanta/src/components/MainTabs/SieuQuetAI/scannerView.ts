@@ -68,7 +68,7 @@ export const COLUMN_HELP: Record<string, string> = {
   changePct: "Thay đổi so với giá tham chiếu.",
   smartScore: "Xếp hạng tổng hợp 0–100: 40% cơ bản + 35% kỹ thuật + 25% sự kiện, nhân hệ số đồng thuận. Kết quả kiểm định xem ở Nguồn và cách đọc.",
   rsRating: "Sức mạnh tương đối 1–99: thứ hạng lợi suất 64 phiên so với toàn bộ mã trong danh sách quét.",
-  confluence: "Mức đồng thuận giữa xu hướng VN-Index, xu hướng mã, RS và chất lượng.",
+  confluence: "Mức đồng thuận giữa xu hướng VN-Index, xu hướng mã, RS và chất lượng. Khi thị trường yếu: \"Dẫn dắt ngược dòng (Leader)\" = mã Up-Trend có RS ≥ 90; \"Đang tăng, chưa dẫn dắt\" = mã Up-Trend RS < 90; \"Nghịch xu hướng\" = mã không ở Up-Trend.",
   signals: "Breakout và top 5 khối ngoại mua ròng trong ngày.",
   trend: "Theo vị trí giá, MA20 và MA50. Rê chuột vào từng ô để xem định nghĩa.",
   fScore: "F-Score rút gọn từ BCTC. Không áp dụng cho ngân hàng, chứng khoán, bảo hiểm. Mã có điểm từ 1/3 thang trở xuống bị xếp cuối bảng.",

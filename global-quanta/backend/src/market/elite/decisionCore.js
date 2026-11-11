@@ -6,6 +6,8 @@ import { averageRanks, dailyIc, normCdf, summarize } from "./icCore.js";
 import { ledoitWolf } from "./riskCore.js";
 
 export const E3_VERSION = "E3-v4 (prereg 2026-10-17, sửa đổi 2026-11-05)";
+/** LS-r1: E3-v5 = E3-v4 + điểm dẫn dắt LS-v1 — chỉ dùng khi cổng H4 ĐẠT (LS-r1-prereg.md). */
+export const E3_V5 = "E3-v5 (LS-r1 prereg 2026-11-11)";
 /** E3-v4: cộng hưởng sóng ngành — góc phần tư RRG (mã hoá bảng E1: Dẫn dắt 2, Cải thiện 1, Suy yếu −1, Tụt hậu −2). */
 export const RRG_RULE = Object.freeze({ laggingCode: -2, penalty: 0.3 });
 /** Z quyết định: ngành Tụt hậu -> Z − 0,3·|Z| (luôn là phạt); còn lại giữ nguyên. */
@@ -145,10 +147,12 @@ export function signalWeights(evidence) {
   for (const s of evidence?.signals ?? []) {
     if (s.tier !== "A" && s.tier !== "B") continue;
     const main = s.byH?.[s.mainH] ?? s.byH?.[String(s.mainH)] ?? {};
-    const n = main.n ?? 0;
+    let n = main.n ?? 0;
     const icMeas = main.mean ?? 0;
     const icPrior = PRIOR_IC_OVERRIDE[s.id] ?? PRIOR_IC[s.tier];
-    const icPost = (n * icMeas + N0 * icPrior) / (n + N0);
+    let icPost = (n * icMeas + N0 * icPrior) / (n + N0);
+    // LS-r1 (E3-v5): tín hiệu có IC hậu nghiệm tính sẵn (giảm dần theo thời gian + theo trạng thái thị trường); null = không trọng số.
+    if ("icPostOverride" in s) { if (s.icPostOverride == null) continue; icPost = s.icPostOverride; n = s.neffOverride ?? n; }
     rows.push({ id: s.id, labelVi: s.labelVi, tab: s.tab, tier: s.tier, mainH: s.mainH, n, icMeas, icPrior, icPost });
   }
   const pos = rows.reduce((a, r) => a + Math.max(0, r.icPost), 0);
@@ -204,7 +208,7 @@ export function sigma5(prices, names, cal, date) {
  * Dựng quyết định của phiên d.
  * @param {{ panel: any, evidence: any, prices: Map<string, any[]>, cal: string[] }} p
  */
-export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] }) {
+export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [], version = E3_VERSION }) {
   const date = panel.date;
   const tickers = panel.rows.map((r) => r.ticker);
   const base = signalWeights(evidence);
@@ -237,7 +241,7 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [] 
 
   const { portfolio, construction } = constructPortfolio({ scores, prices, date, prevHoldings });
   return {
-    version: E3_VERSION, date, icComb, sigma5: sig5, weights,
+    version, date, icComb, sigma5: sig5, weights,
     signalWeighting: { method: adj.method, corr: adj.corr ?? null, noteVi: adj.noteVi ?? null },
     construction,
     universe: { panel: tickers.length, eligible: eligibleNames.length },
