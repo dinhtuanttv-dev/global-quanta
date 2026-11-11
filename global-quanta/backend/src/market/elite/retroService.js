@@ -108,5 +108,13 @@ export function createRetroService({ store, taxonomy, vnIndex, now = Date.now, l
     return memo;
   }
 
-  return { run, result, runV3, resultV3 };
+  /** LS-r1 H4: dữ liệu E7 dùng chung cho cổng walk-forward (kèm sàn niêm yết). */
+  async function inputs() {
+    const { data, ...rest } = await loadData();
+    const uni = await store.getKv("scanner:universe").catch(() => null);
+    const exch = new Map((uni?.value?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
+    return { ...rest, exchangeOf: (t) => exch.get(t) ?? "HOSE", data };
+  }
+
+  return { run, result, runV3, resultV3, inputs };
 }

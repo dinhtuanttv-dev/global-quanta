@@ -32,6 +32,8 @@ import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
+import { createLeadershipService } from "./market/elite/leadershipService.js";
+import { consensusDisplay } from "./market/scanner/scanEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
 import { createRiskService } from "./market/elite/riskService.js";
@@ -202,10 +204,28 @@ const getElitePanel = () => (elitePanel ??= createElitePanelService({
   catalystSnapshot: () => readCatalystSnapshot(getCotucStore()),
   store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
   structureSummary: () => getMarketRuntime().structure.summary(),
+  leadership: (date) => getEliteLeadership().live(date),
+}));
+// LS-r1: dòng Siêu quét của một mã cho khối "Sức mạnh dẫn dắt" (nhãn Đồng thuận hiển thị tách "Đang tăng, chưa dẫn dắt").
+const eliteScannerItem = async (t) => {
+  const v = (await getMarketRuntime().store.getKv("scanner:latest"))?.value;
+  const it = (v?.items ?? []).find((x) => String(x.ticker).toUpperCase() === t);
+  if (!it) return null;
+  const disp = consensusDisplay({ statusCode: it.confluenceStatusCode, statusLabel: it.confluenceStatusLabel }, it.trendTag);
+  return { dataAsOf: v.dataAsOf ?? null, consensusCode: disp.confluenceStatusCode, consensus: disp.confluenceStatusLabel, trendTag: it.trendTag ?? null, rsRating: it.rsRating ?? null,
+    breakout: Boolean(it.breakoutBoostBadge), smartScore: it.smartScore ?? null, fScore: it.piotroskiFScore ?? null, fScoreMax: it.fScoreMax ?? null, fScoreApplicable: it.fScoreApplicable ?? null, foreignNetBuy: it.foreignNetBuyFlag ?? null };
+};
+// LS-r1: điểm dẫn dắt LS-v1 (Hồ sơ 360° + E3-v5 khi cổng H4 ĐẠT).
+let eliteLeadership = null;
+const getEliteLeadership = () => (eliteLeadership ??= createLeadershipService({
+  store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t),
+  universe: async () => ((await getMarketRuntime().store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker),
+  vnIndexBars: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 500 })).bars.filter((b) => !b.partial && b.close > 0),
+  retroInputs: () => getEliteRetro().inputs(), commit: () => process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
 }));
 // E2: engine bằng chứng — IC hạng từng tín hiệu theo E2-prereg.md, cập nhật tăng dần sau mỗi bảng mới.
 let eliteEvidence = null;
-const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel() }));
+const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel(), leadership: getEliteLeadership() }));
 // E3: Điểm Elite + danh mục Elite 10 + sổ theo dõi tiến (E3-prereg.md).
 let eliteDecision = null;
 const vnIndexCloses = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
@@ -272,7 +292,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.

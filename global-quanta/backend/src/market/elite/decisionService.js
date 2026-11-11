@@ -1,7 +1,7 @@
 // Elite 10 E3 (2026-10-17) — dịch vụ quyết định: Điểm Elite + danh mục Elite 10 mỗi phiên (E3-prereg.md) và SỔ THEO DÕI TIẾN.
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
-import { buildCandidates, buildDecision, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { buildCandidates, buildDecision, E3_V5, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
 
@@ -38,19 +38,22 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       const p = await panel.panel();
       if (!p) throw new Error("Chưa có bảng tín hiệu E1.");
       const index = (await kv(DECISION_KV.index))?.dates ?? [];
-      let ledger = (await kv(DECISION_KV.ledger)) ?? { version: E3_VERSION, entries: [] };
+      // LS-r1: E3-v5 (có điểm dẫn dắt) chỉ khi cổng H4 ĐẠT — bằng chứng E2 mang cờ gateLive.
+      const ev0 = await evidence.evidence();
+      const VER = ev0?.signals?.some((x) => x.id === "ls_v1" && x.gateLive) ? E3_V5 : E3_VERSION;
+      let ledger = (await kv(DECISION_KV.ledger)) ?? { version: VER, entries: [] };
       // Đổi phiên bản E3 (sửa đổi đăng ký trước): lưu trữ sổ cũ nguyên vẹn, sổ mới bắt đầu lại; quyết định phiên hiện tại dựng lại.
       let versionChanged = false;
-      if (ledger.version !== E3_VERSION) {
+      if (ledger.version !== VER) {
         await store.setKv(`elite:ledger:archive:${String(ledger.version).split(" ")[0]}`, { ...ledger, archivedAt: new Date(now()).toISOString() });
-        ledger = { version: E3_VERSION, entries: [], previous: ledger.version };
+        ledger = { version: VER, entries: [], previous: ledger.version };
         versionChanged = true;
       }
       const exists = index.includes(p.date) && !force && !versionChanged;
       const pendingEntries = ledger.entries.filter((e) => e.universe && LEDGER_HORIZONS.some((h) => !e.results?.[h]));
       if (exists && !pendingEntries.length) { memo ??= await kv(DECISION_KV.decision(p.date)); return memo; }
 
-      const ev = await evidence.evidence();
+      const ev = ev0;
       if (!ev) throw new Error("Chưa có kết quả engine bằng chứng E2.");
       const symbols = [...new Set([...p.rows.map((r) => r.ticker), ...CAL_SYMBOLS, ...pendingEntries.flatMap((e) => e.universe)])];
       const prices = await loadPrices(symbols, p.date);
@@ -60,7 +63,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       if (!doc) {
         // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
         const prev = [...ledger.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
-        doc = { ...buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: prev?.holdings ?? [] }), builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version };
+        doc = { ...buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: prev?.holdings ?? [], version: VER }), builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version };
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
         if (!ledger.entries.some((e) => e.date === p.date)) {
@@ -108,7 +111,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         try { await userFilters.updateLedgers({ panel: p, doc, prices, px, cal, vn, buyZone: (await buyZone?.().catch(() => null)) ?? new Set() }); }
         catch (e) { log.warn?.(`[elite] sổ bộ lọc cá nhân: ${e.message}`); }
       }
-      ledger.version = E3_VERSION;
+      ledger.version = VER;
       ledger.summary = { ...summarizeLedger(ledger.entries), realistic: summarizeRealistic(ledger.entries) };
       ledger.updatedAt = new Date(now()).toISOString();
       await store.setKv(DECISION_KV.ledger, ledger);

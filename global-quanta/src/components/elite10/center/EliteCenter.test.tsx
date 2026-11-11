@@ -46,6 +46,7 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useEliteDecision: () => ({ data: decision, error: null, isLoading: false }),
   useEliteEvidence: () => ({ data: { signals: [{ id: "stealth20", tier: "A" }, { id: "top20_alpha", tier: "B" }, { id: "smart_score", tier: "C" }] } }),
   useElitePanel: () => ({ data: { date: "2026-10-16", rows: [{ ticker: "ORS", values: { stealth20: 2.1, smart_score: 70 } }, { ticker: "X", values: { stealth20: 0, smart_score: 90 } }] } }),
+  useEliteLeadership: () => ({ data: null, error: null, isLoading: false }),
   useEliteTicker: (t: string) => (t === "ORS" ? { decision: { ...decision.scores[0], date: "2026-10-16", version: "E3-v2", icComb: 0.0146, weights: decision.weights, inPortfolio: true, universe: decision.universe }, panel: panelTicker, isLoading: false } : { decision: null, panel: null, isLoading: false }),
 }));
 const buyRow = { id: "ORS-1", ticker: "ORS", sector: null, kind: "EARNINGS", tier: "VALIDATED", status: "IN_WINDOW", eventLabel: "GDKHQ", eventDate: "2026-10-22", eventDateBasis: "x",

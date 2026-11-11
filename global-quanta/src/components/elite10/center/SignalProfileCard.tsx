@@ -7,6 +7,7 @@ import { useEliteDecision, useEliteEvidence, useElitePanel, useEliteTicker } fro
 import type { Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
+import LeadershipCard from "./LeadershipCard";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
 
@@ -103,6 +104,8 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
           </div>
         </div>
       )}
+
+      <LeadershipCard ticker={ticker} />
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {groups.map(([tab, specs]) => (

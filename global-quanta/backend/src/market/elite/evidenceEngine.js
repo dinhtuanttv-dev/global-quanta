@@ -9,6 +9,7 @@ import { T as RESEARCH_T } from "../research/researchJobs.js";
 import { SIGNAL_SPECS } from "./signalRegistry.js";
 import { bhQ, dailyIc, decideTier, E2_VERSION, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
 import { noteStoreError } from "./storeHealth.js";
+import { LS_ID, lsIcPost } from "./leadership.js";
 
 export const EVIDENCE_KV = { ic: "elite:ic", evidence: "elite:evidence" };
 
@@ -26,7 +27,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /**
  * @param {{ store: any, panel: { panel: (date?: string|null) => Promise<any>, dates: () => Promise<string[]> }, now?: () => number, log?: any }} deps
  */
-export function createEvidenceEngine({ store, panel, now = Date.now, log = console }) {
+export function createEvidenceEngine({ store, panel, leadership = null, now = Date.now, log = console }) {
   let running = null;
   let memo = null;
 
@@ -64,7 +65,7 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
     const doc = await panel.panel(date);
     if (!doc?.rows) return null;
     const day = {};
-    for (const r of doc.rows) for (const [sig, v] of Object.entries(r.values)) if (v != null && !(sig in FLOW_SIGNALS)) (day[sig] ??= {})[r.ticker] = v;
+    for (const r of doc.rows) for (const [sig, v] of Object.entries(r.values)) if (v != null && !(sig in FLOW_SIGNALS) && sig !== LS_ID) (day[sig] ??= {})[r.ticker] = v;
     return day;
   }
 
@@ -97,7 +98,8 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
 
     // Ngày cần tính: lịch dòng tiền (hồi cứu) + ngày có bảng E1.
     const flowDates = cal.filter((d) => HORIZONS.some((h) => matured(d, h) && Object.keys(FLOW_SIGNALS).some((s) => !done(s, h, d))));
-    const panelSigs = SIGNAL_SPECS.map((s) => s.id).filter((id) => !(id in FLOW_SIGNALS));
+    // LS-r1: LS-v1 có chuỗi hồi cứu riêng từ giá (leadershipService) — không đo lại từ bảng E1.
+    const panelSigs = SIGNAL_SPECS.map((s) => s.id).filter((id) => !(id in FLOW_SIGNALS) && id !== LS_ID);
     const pDates = panelDates.filter((d) => HORIZONS.some((h) => matured(d, h) && panelSigs.some((s) => !done(s, h, d))));
 
     // Giá trị tín hiệu: ưu tiên đệm `pending`, thiếu thì đọc (dòng tiền theo lô ngày, bảng E1 theo ngày).
@@ -159,7 +161,7 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
   }
 
   /** Tổng hợp chuỗi IC -> bậc bằng chứng theo luật prereg. */
-  function evaluate(icDoc) {
+  function evaluate(icDoc, ls = null) {
     const rows = [];
     for (const spec of SIGNAL_SPECS) {
       const byH = {};
@@ -179,10 +181,16 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
       const mainH = spec.id === "ws_sector_alpha" ? 1 : 5;
       const d = decideTier(spec.tier, byH, mainH);
       const r4 = (v) => (v == null ? null : Math.round(v * 1e4) / 1e4);
+      // LS-r1 (E3-v5): trọng số tính sẵn — chỉ khi cổng H4 ĐẠT; ngược lại null (không vào Điểm Elite dù bậc nào).
+      const lsExtra = spec.id === LS_ID ? {
+        weighting: ls?.weighting ?? null, regime: ls?.regime ?? null, guard: ls?.guard ?? null, gateLive: Boolean(ls?.gateLive), gate: ls?.gate ?? null,
+        icPostOverride: ls?.gateLive ? lsIcPost({ tier: d.tier, weighting: ls.weighting, guard: ls.guard }) : null, neffOverride: ls?.weighting?.neff ?? null,
+      } : {};
       return {
+        ...lsExtra,
         id: spec.id, tab: spec.tab, labelVi: spec.labelVi, priorTier: spec.tier, priorEvidenceVi: spec.evidenceVi,
         tier: d.tier, change: d.change, reasonVi: d.reasonVi, mainH,
-        source: spec.id in FLOW_SIGNALS ? "hồi cứu point-in-time (market_flow_daily)" : "tiến từ bảng E1",
+        source: spec.id in FLOW_SIGNALS ? "hồi cứu point-in-time (market_flow_daily)" : spec.id === LS_ID ? `hồi cứu point-in-time từ giá (LS-v1, ${ls?.from ?? "?"} → ${ls?.to ?? "?"})` : "tiến từ bảng E1",
         byH: Object.fromEntries(HORIZONS.map((h) => {
           const s = byH[h];
           return [h, { n: s.n, mean: r4(s.mean), t: r4(s.t), pPos: r4(s.pPos), q: r4(s.q ?? null), stable: s.stable, halves: s.halves?.map(r4) ?? null, from: s.from, to: s.to }];
@@ -201,7 +209,11 @@ export function createEvidenceEngine({ store, panel, now = Date.now, log = conso
     if (running) return running;
     running = (async () => {
       const icDoc = await updateIc(opts);
-      const ev = evaluate(icDoc);
+      // LS-r1: chuỗi IC hồi cứu của LS-v1 (chỉ trong bộ nhớ, không ghi vào elite:ic) + trọng số E3-v5 + cổng H4.
+      let ls = null;
+      if (leadership) { try { await leadership.ensureBuilt(); ls = await leadership.evidenceExtras(icDoc.calendarLast); } catch (e) { log.warn?.(`[elite] LS-v1: ${e.message}`); } }
+      if (ls?.series) icDoc.series = { ...icDoc.series, [LS_ID]: ls.series };
+      const ev = evaluate(icDoc, ls);
       await store.setKv(EVIDENCE_KV.evidence, ev);
       memo = ev;
       return ev;
