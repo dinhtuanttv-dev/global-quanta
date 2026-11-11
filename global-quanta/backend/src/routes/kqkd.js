@@ -7,7 +7,7 @@ import zlib from "node:zlib";
 import { Router } from "express";
 import { createRateLimiter, isAdmin } from "./macro.js";
 
-export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, getSeasonOracle = null, getSeasonX = null, getCafef = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createKqkdRouter({ getService, getAgm = null, getEventStudy = null, getSeasonMap = null, getSeasonOracle = null, getSeasonX = null, getCafef = null, getWarehouse = null, getVciFa = null, adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = Router();
   const readRl = createRateLimiter({ limit: 90 });
   // Gateway không có middleware nén: nén gzip một lần cho mỗi bản tài liệu (đệm theo đối tượng) — bảng ~320 KB -> ~45 KB.
@@ -43,6 +43,13 @@ export function createKqkdRouter({ getService, getAgm = null, getEventStudy = nu
   });
 
   router.get("/status", (_req, res) => res.json(getService().status()));
+  // P3 (FW-v1): kho hợp nhất — trạng thái lần hợp nhất gần nhất (lượt quét SEPA / CAN SLIM) và đối chiếu VNDirect × VCI từng mã.
+  router.get("/warehouse", (_req, res) => { const w = getWarehouse?.(); if (!w) return res.status(503).json({ error: "Chưa bật." }); res.json(w.status()); });
+  router.get("/warehouse/:ticker", readRl, async (req, res) => {
+    const t = String(req.params.ticker ?? "").toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const w = getWarehouse?.(); if (!w) return res.status(503).json({ error: "Chưa bật." });
+    try { res.json(w.ticker(t, (await getVciFa?.(t)) ?? null)); } catch (e) { res.status(500).json({ error: e.message }); }
+  });
   // S7: Mùa vụ KQKD — gói 9 API Project A + kiểm ngày làm mốc (S3) + bối cảnh kỳ tới (S5).
   router.get("/seasonality/:ticker", readRl, async (req, res) => {
     const t = String(req.params.ticker ?? "").toUpperCase();

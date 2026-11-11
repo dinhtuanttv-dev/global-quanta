@@ -185,7 +185,8 @@ const quarterEndIso = (y, qq) => new Date(Date.UTC(y, qq * 3, 0)).toISOString().
  */
 export function vnQuarterly(fa, date, { lagDays = 45, maxQuarters = 20 } = {}) {
   const t = Date.parse(`${date}T00:00:00Z`);
-  const avail = (rows) => (rows ?? []).filter((x) => Date.parse(`${quarterEndIso(x.year, x.quarter)}T00:00:00Z`) + lagDays * DAY <= t);
+  // P3 (FW-v1): quý có `availableAt` (ngày sau ngày công bố thật, kho hợp nhất) -> dùng ngày đó; không có -> ước tính hết quý + lagDays (như cũ).
+  const avail = (rows) => (rows ?? []).filter((x) => (x.availableAt ? x.availableAt <= date : Date.parse(`${quarterEndIso(x.year, x.quarter)}T00:00:00Z`) + lagDays * DAY <= t));
   const inc = avail(fa?.income?.quarters), bal = avail(fa?.balance?.quarters);
   if (!inc.length) return null;
   const key = (y, qq) => y * 4 + (qq - 1);
@@ -201,7 +202,10 @@ export function vnQuarterly(fa, date, { lagDays = 45, maxQuarters = 20 } = {}) {
   }
   const cols = {};
   for (const [k, arr] of Object.entries(C)) if (arr.filter((x) => !Number.isNaN(x)).length >= 5) cols[k] = arr;
-  return { date: date_, cols, latestQuarter: `Q${(hi % 4) + 1}/${Math.floor(hi / 4)}`, source: "VCI · LNST cổ đông công ty mẹ · quý đã công bố (hết quý + 45 ngày)" };
+  const fw = fa?.fw;
+  const source = fw ? `${fw.version} · LNST cổ đông công ty mẹ · nguồn ${fw.sources?.netProfit ?? "?"} · quý dùng được từ ngày sau ngày công bố thật (thiếu: hết quý + 45 ngày)` : "VCI · LNST cổ đông công ty mẹ · quý đã công bố (hết quý + 45 ngày)";
+  const lastInc = inc.reduce((a, x) => (!a || x.year * 4 + x.quarter > a.year * 4 + a.quarter ? x : a), null);
+  return { date: date_, cols, latestQuarter: `Q${(hi % 4) + 1}/${Math.floor(hi / 4)}`, source, availBasis: lastInc?.availBasis ?? "EST45", disclosed: lastInc?.disclosed ?? null };
 }
 
 

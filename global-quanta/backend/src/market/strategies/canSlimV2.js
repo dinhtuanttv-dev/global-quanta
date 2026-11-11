@@ -89,7 +89,8 @@ const quarterEnd = (y, q) => Date.UTC(y, q * 3, 0); // ngày cuối quý
 /** Quý đã công bố tại `date` (ước tính hết quý + 45 ngày), mới nhất trước. */
 export function quartersAvailable(quarters, date, lagDays = CS.reportLagDays) {
   const t = Date.parse(`${date}T00:00:00Z`);
-  return (quarters ?? []).filter((q) => quarterEnd(q.year, q.quarter) + lagDays * DAY <= t)
+  // P3 (FW-v1): quý có `availableAt` (ngày sau ngày công bố thật) -> dùng ngày đó; không có -> ước tính hết quý + lagDays.
+  return (quarters ?? []).filter((q) => (q.availableAt ? q.availableAt <= date : quarterEnd(q.year, q.quarter) + lagDays * DAY <= t))
     .sort((a, b) => b.year - a.year || b.quarter - a.quarter);
 }
 
