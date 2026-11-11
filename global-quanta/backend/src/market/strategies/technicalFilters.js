@@ -123,6 +123,8 @@ export async function runTechnicalFilters(service, { seriesSource, loadSeries, s
   let canslim = null, faMap = null;
   if (strategies.includes("camslim") || strategies.includes("sepa")) {
     faMap = typeof service.store.getFundamentals === "function" ? await service.store.getFundamentals(loaded.map((s) => s.item.ticker)) : new Map();
+    // P3 (FW-v1): hợp nhất VCI với kho KQKD VNDirect + ngày công bố thật (CafeF / VNDirect) — lỗi kho hợp nhất -> giữ VCI như cũ.
+    if (service.fundWarehouse) { try { faMap = service.fundWarehouse.mergeMap(loaded.map((s) => s.item.ticker), faMap); } catch (error) { console.warn(`[fw] hợp nhất lỗi: ${error.message}`); } }
   }
   if (strategies.includes("camslim")) {
     const rsTable = buildRsTable(new Map(loaded.filter((s) => s.bars.length >= 253).map((s) => [s.item.ticker, { bars: s.bars, sector: s.item.sector }])));

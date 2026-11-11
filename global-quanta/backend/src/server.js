@@ -263,7 +263,7 @@ app.get("/api/fundamentals/earnings-quality", async (req, res) => {
 });
 // K0–K6 (06/11/2026): KQKD theo quý — BCTC đầy đủ VNDirect trên Railway Volume.
 app.use("/api/corp-events", createCorpEventsRouter({ getService: () => getMarketRuntime().corpEvents, getExStudy: () => getMarketRuntime().eventStudy?.exDoc?.() ?? null, getCafefNews: (t) => getMarketRuntime().cafefAnnounce?.news?.(t) ?? null, getScreener: () => getMarketRuntime().dividendScreener, getFmLedger: () => getMarketRuntime().fmLedger, getRunup: () => getMarketRuntime().divRunup }));
-app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle, getSeasonX: () => getMarketRuntime().seasonX, getCafef: () => getMarketRuntime().cafefAnnounce }));
+app.use("/api/fundamentals/kqkd", createKqkdRouter({ getService: () => getMarketRuntime().kqkd, getWarehouse: () => getMarketRuntime().fundWarehouse, getVciFa: async (t) => (await getMarketRuntime().store.getFundamentals?.([t]))?.get?.(t) ?? null, getAgm: () => getMarketRuntime().agmPlans, getEventStudy: () => getMarketRuntime().eventStudy, getSeasonMap: () => getMarketRuntime().seasonMap, getSeasonOracle: () => seasonOracle, getSeasonX: () => getMarketRuntime().seasonX, getCafef: () => getMarketRuntime().cafefAnnounce }));
 app.use("/api/cotuc-store", createCotucStoreRouter({
   getStore: getCotucStore, getTimeline: async () => (await getGatewayTimeline()()) ?? { available: false },
   getHealth: async () => {

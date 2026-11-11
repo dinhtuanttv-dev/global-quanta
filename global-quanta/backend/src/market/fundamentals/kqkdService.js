@@ -299,5 +299,5 @@ export function createKqkdService({ store = null, dir = kqkdDirFromEnv(), fetchI
     return { version: KQ_VERSION, dir: path.basename(dir), files, ...state, failed: state.failed.slice(0, 50), failedCount: state.failed.length };
   }
 
-  return { refresh, summary, detail, status, rebuildSummary, ledger, calendar, seasonality, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
+  return { raw: (t) => readGz(fileOf(t)), refresh, summary, detail, status, rebuildSummary, ledger, calendar, seasonality, clearMemo: () => { summaryMemo = null; detailMemo.clear(); }, hasData: () => fs.existsSync(summaryFile) };
 }

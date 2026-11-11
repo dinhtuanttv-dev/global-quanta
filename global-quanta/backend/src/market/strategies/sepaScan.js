@@ -77,7 +77,7 @@ export function scanSepa({ loaded, eligible, indexBars, faMap, dataAsOf, equity 
     eligible: (sym) => elig.has(sym),
     fundamentals: (sym, date) => {
       const q = vnQuarterly(faMap?.get(sym), date);
-      fundMeta.set(sym, q ? { latestQuarter: q.latestQuarter, quarters: q.date.length, columns: Object.keys(q.cols), source: q.source } : { latestQuarter: null, quarters: 0, columns: [], source: "VCI — chưa có BCTC" });
+      fundMeta.set(sym, q ? { latestQuarter: q.latestQuarter, quarters: q.date.length, availBasis: q.availBasis ?? null, disclosed: q.disclosed ?? null, columns: Object.keys(q.cols), source: q.source } : { latestQuarter: null, quarters: 0, columns: [], source: "VCI — chưa có BCTC" });
       return q;
     },
   });
