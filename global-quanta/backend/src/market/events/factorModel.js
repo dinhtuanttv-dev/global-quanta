@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import { valueAsOf } from "../fundamentals/sharesEps.js";
 
 export const FM_VERSION = "FM-v1 (2026-11-07)";
 const fin = (x) => typeof x === "number" && Number.isFinite(x);
@@ -46,7 +47,10 @@ export function pitFeatures(rec, px, t) {
   const npatPrev = ttm(qs.slice(0, -4), "npatParent");
   const eq = fin(qs.at(-1)?.v?.equity) ? qs.at(-1).v.equity : null, eq4 = fin(qs.at(-5)?.v?.equity) ? qs.at(-5).v.equity : null;
   const as = fin(qs.at(-1)?.v?.assets) ? qs.at(-1).v.assets : null, as4 = fin(qs.at(-5)?.v?.assets) ? qs.at(-5).v.assets : null;
-  const shares = fin(npat) && fin(eps) && eps > 0 && npat > 0 ? npat / eps : null;
+  // EPS-v1 (P0 kiểm toán BCTC): số cổ phiếu lưu hành THEO KỲ (rec.sharesHist, VNDirect) tại cuối quý BCTC mới nhất đã công bố — không nhìn trước;
+  // thiếu mới suy LNST / EPS (cách cũ: sai cho ngân hàng / chứng khoán vì thiếu chỉ tiêu EPS quý).
+  const sharesPit = qs.length && rec?.sharesHist?.length ? valueAsOf(rec.sharesHist, qs.at(-1).fiscal) : null;
+  const shares = fin(sharesPit) && sharesPit > 0 ? sharesPit : fin(npat) && fin(eps) && eps > 0 && npat > 0 ? npat / eps : null;
   const mcap = shares ? shares * priceRaw : null;
   // BCTC năm dùng được từ 01/04 năm sau
   const ann = (rec?.annual ?? []).filter((a) => `${a.year + 1}-04-01` <= t).sort((a, b) => a.year - b.year)

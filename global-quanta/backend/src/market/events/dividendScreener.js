@@ -50,7 +50,10 @@ export function screenerRow({ t, uni, scan, kq, div, ex, dqBase = null }) {
   const eps = fin(kq?.ttm?.eps) ? kq.ttm.eps : null;
   const gross = price && div ? div.ttmCash / price : null;
   const payout = eps && eps > 0 && div ? div.ttmCash / eps : null;
-  const shares = eps && eps > 0 && fin(kq?.ttm?.npat) ? kq.ttm.npat / eps : null;
+  // EPS-v1: số cổ phiếu lưu hành lấy trực tiếp (VNDirect, theo kỳ); thiếu mới suy từ LNST / EPS.
+  const shares = fin(kq?.ttm?.shares) && kq.ttm.shares > 0 ? kq.ttm.shares : eps && eps > 0 && fin(kq?.ttm?.npat) ? kq.ttm.npat / eps : null;
+  // P0 kiểm toán BCTC: chỉ số dòng tiền doanh nghiệp KHÔNG ÁP DỤNG cho ngân hàng / chứng khoán / bảo hiểm (tiền gửi, cho vay là hoạt động chính).
+  const fcfNa = kq && kq.tpl && kq.tpl !== "corp";
   const fcf = fin(kq?.ttm?.cfo) ? kq.ttm.cfo - Math.abs(fin(kq?.ttm?.capex) ? kq.ttm.capex : 0) : null;
   const paid = shares && div?.ttmCash > 0 ? div.ttmCash * shares : null;
   return {
@@ -64,7 +67,8 @@ export function screenerRow({ t, uni, scan, kq, div, ex, dqBase = null }) {
       pe: price && eps && eps > 0 ? r4(price / eps) : null, pb: fin(kq.mcap) && fin(kq.equity) && kq.equity > 0 ? r4(kq.mcap / kq.equity) : null,
       roe: kq.roe ?? null, de: kq.kpi?.debtToEquity ?? null, interestCover: kq.kpi?.interestCover ?? null, netDebtEbitda: kq.kpi?.netDebtToEbitda ?? null,
       netMargin: kq.netMarginTtm ?? null, growthTtm: kq.ttmGrowth?.value ?? null, npatYoY: kq.npatYoY?.value ?? null, epsTtm: eps,
-      payout: r4(payout), fcfCover: paid && fin(fcf) ? r4(fcf / paid) : null, cfoToNpat: kq.cfoToNpat ?? null, accrual: kq.accrual ?? null,
+      payout: r4(payout), fcfCover: !fcfNa && paid && fin(fcf) ? r4(fcf / paid) : null, cfoToNpat: fcfNa ? null : kq.cfoToNpat ?? null, accrual: fcfNa ? null : kq.accrual ?? null,
+      epsSource: kq.ttm?.epsSource ?? null, epsCheck: kq.ttm?.epsCheck ?? null, na: fcfNa ? ["fcfCover", "cfoToNpat", "accrual", "f", "m", "z", "de"] : [],
       f: kq.f ?? null, m: kq.m ?? null, mFlag: kq.mFlag ?? null, z: kq.z ?? null, zZone: kq.zZone ?? null, flags: kq.flags ?? [],
     } : null,
     ex: ex ? { n: ex.n, dropMedian: ex.dropRatioMedian, fillWithin20: ex.fillWithin20, fillDaysMedian: ex.fillDaysMedian } : null,
