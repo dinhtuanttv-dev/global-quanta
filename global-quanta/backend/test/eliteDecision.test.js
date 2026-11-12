@@ -127,6 +127,16 @@ test("E4-HL dịch vụ: danh mục chính thức = Elite HL, danh mục dòng t
   await svc.build();
   ledger = (await store.getKv(DECISION_KV.ledger)).value;
   assert.equal(ledger.entries.length, 1, "cùng phiên -> không thêm bản ghi");
+  // Dựng lại cùng phiên khi bản ghi chưa chấm: sổ được đồng bộ theo tài liệu mới (giữ giờ khoá ban đầu), không thêm bản ghi.
+  const stale = (await store.getKv(DECISION_KV.ledger)).value;
+  stale.entries[0].holdings = stale.entries[0].holdings.map(({ ref, ...h }) => h);
+  await store.setKv(DECISION_KV.ledger, stale);
+  await svc.build({ force: true });
+  ledger = (await store.getKv(DECISION_KV.ledger)).value;
+  assert.equal(ledger.entries.length, 1);
+  assert.ok(ledger.entries[0].holdings.every((h) => h.ref > 0), "giá tham chiếu được ghi lại vào sổ");
+  assert.equal(ledger.entries[0].lockedAt, stale.entries[0].lockedAt);
+  assert.ok(ledger.entries[0].rebuiltAt);
   assert.deepEqual(ledger.entries[0].results, {});
 
   await store.upsertMarketDaily(daily.filter((r) => r.date > cal[99] && r.date <= cal[111]));

@@ -90,15 +90,20 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         };
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
-        if (!ledger.entries.some((e) => e.date === p.date)) {
+        {
           // Sổ chính thức (Elite HL): vũ trụ so sánh = mã giao dịch được theo ngưỡng HL; danh mục rỗng (toàn tiền mặt) không cần chấm.
           const uni = doc.scores.filter((x) => !hlTradable(x)).map((x) => x.ticker);
-          ledger.entries.push({
+          const entry = {
             date: p.date, lockedAt: doc.builtAt, cash: doc.hl.cash, rebalance: doc.hl.rebalance,
             holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since, ...(x.hl.ref ? { ref: x.hl.ref } : {}), ...(x.hl.miss ? { miss: x.hl.miss } : {}) })),
             ...(doc.hl.dataGuard.frozen ? { frozen: true } : {}),
             ...(doc.portfolio.length ? { universe: uni } : { universeSize: uni.length, empty: true }), results: {},
-          });
+          };
+          const at = ledger.entries.findIndex((e) => e.date === p.date);
+          if (at < 0) ledger.entries.push(entry);
+          // Dựng lại cùng phiên (admin force / đổi phiên bản) khi bản ghi CHƯA được chấm: sổ phải khớp tài liệu vừa dựng — nếu không,
+          // phiên sau sẽ đọc danh mục cũ (thiếu giá tham chiếu, bộ đếm vắng mặt…). Bản ghi đã có kết quả chấm thì không đụng tới.
+          else if (!Object.keys(ledger.entries[at].results ?? {}).length) ledger.entries[at] = { ...entry, lockedAt: ledger.entries[at].lockedAt ?? entry.lockedAt, rebuiltAt: doc.builtAt };
         }
         if (!flow.entries.some((e) => e.date === p.date)) {
           const eligible = doc.scores.filter((x) => x.eligible);
