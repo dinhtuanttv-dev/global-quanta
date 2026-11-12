@@ -184,7 +184,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     const idx = (await kv(DECISION_KV.index))?.dates ?? [];
     const key = `${idx[idx.length - 1] ?? ""}|${n}`;
     if (rhMemo?.key === key) return rhMemo.value;
-    const docs = (await Promise.all(idx.slice(-n).map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.portfolio);
+    // E4-HL: radar hạng / Z thuộc về danh mục dòng tiền (xếp theo Z) -> dùng flowPortfolio khi tài liệu là bản E4-HL.
+    const docs = (await Promise.all(idx.slice(-n).map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.portfolio).map((d) => (d.flowPortfolio ? { ...d, portfolio: d.flowPortfolio } : d));
     const tickers = new Set(docs.flatMap((d) => d.portfolio.map((p) => p.ticker)));
     const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
     const value = {

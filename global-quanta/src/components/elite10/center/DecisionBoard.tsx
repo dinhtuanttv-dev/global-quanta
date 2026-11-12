@@ -1,6 +1,8 @@
 // Elite 10 E4 (2026-10-17) — "Bảng quyết định hôm nay": danh mục Elite 10 (E3-prereg), trọng số tín hiệu theo bằng chứng (E2),
 // bối cảnh thị trường và sổ theo dõi tiến. Mọi số đến từ Gateway /api/elite/*; nhãn bằng chứng luôn hiển thị cạnh kết quả.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import EliteHlBoard from "./EliteHlBoard";
+import type { EliteDecision } from "../../../lib/elite10/decisionTypes";
 import { useEliteDecision } from "../../../hooks/elite10/useEliteCenter";
 import useSWR from "swr";
 import type { ResearchOverview } from "../../../hooks/useResearch";
@@ -37,8 +39,39 @@ function Card({ title, right, children, testId }: { title: string; right?: React
   );
 }
 
+/** E4-HL: bảng "dòng tiền" (E3) đọc danh mục cũ từ flowPortfolio / sổ riêng của tài liệu mới; tài liệu cũ giữ nguyên. */
+export function flowView(d: EliteDecision | undefined): EliteDecision | undefined {
+  return d?.hl ? { ...d, version: d.flowVersion ?? d.version, portfolio: d.flowPortfolio ?? [], construction: d.flowConstruction, ledgerSummary: d.flowLedgerSummary ?? null } : d;
+}
+type BoardView = "hl" | "flow";
+const VIEW_KEY = "elite.board.view";
+const readView = (): BoardView => { try { return localStorage.getItem(VIEW_KEY) === "flow" ? "flow" : "hl"; } catch { return "hl"; } };
+
+function ViewSwitch({ view, onPick }: { view: BoardView; onPick: (v: BoardView) => void }) {
+  return (
+    <span className="inline-flex overflow-hidden rounded border border-white/15 text-[10px]" role="group" aria-label="Chọn danh mục hiển thị" data-testid="board-view">
+      {([["hl", "Elite HL (chính thức)"], ["flow", "Elite dòng tiền (cũ)"]] as const).map(([v, l]) => (
+        <button key={v} type="button" aria-pressed={view === v} onClick={() => onPick(v)} data-testid={`board-view-${v}`}
+          className={`min-h-[24px] px-2 ${view === v ? "bg-[#E8B84B]/20 font-bold text-[#F5CE72]" : "text-slate-400 hover:text-slate-200"}`}>{l}</button>
+      ))}
+    </span>
+  );
+}
+
+/** Bảng quyết định: mặc định Elite HL (danh mục chính thức từ 12/11/2026); danh mục dòng tiền cũ xem được để so sánh. */
 export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
-  const { data: d, error, isLoading } = useEliteDecision();
+  const { data: d } = useEliteDecision();
+  const [view, setView] = useState<BoardView>(readView);
+  if (!d?.hl) return <FlowBoard onOpenTicker={onOpenTicker} />;
+  const pick = (v: BoardView) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* bộ nhớ trình duyệt bị chặn */ } };
+  const switcher = <ViewSwitch view={view} onPick={pick} />;
+  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
+}
+
+function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode }) {
+  const { data: raw, error, isLoading } = useEliteDecision();
+  const d = useMemo(() => flowView(raw), [raw]);
+  const legacy = Boolean(raw?.hl);
   // Chế độ thị trường VN: tải trực tiếp (không phụ thuộc công tắc "AI nghiên cứu" của Siêu quét); cùng khoá SWR để dùng chung bộ đệm.
   const { data: research } = useSWR<ResearchOverview>("research-overview", () => fetchMarketJson<ResearchOverview>("/api/market/research/overview"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 });
   const { data: ws } = useWorldStrategy();
@@ -67,7 +100,8 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-decision-board">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-[#F5CE72]">Bảng quyết định Elite 10 — phiên {fmtDate(d.date)}</p>
+          <p className="text-[13px] font-bold text-[#F5CE72]">{legacy ? "Elite dòng tiền — danh mục cũ, giữ để so sánh" : "Bảng quyết định Elite 10"} — phiên {fmtDate(d.date)}</p>
+          {legacy && <p className="text-[10.5px] text-amber-300" data-testid="elite-flow-legacy">Từ 12/11/2026 danh mục chính thức là Elite HL. Danh mục này vẫn được dựng và chấm sổ riêng mỗi phiên để đối chiếu.</p>}
           <p className="text-[10.5px] text-slate-400">
             Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ 10 tỷ, giá ≥ 5.000đ, giá không bị neo) · {d.version}
           </p>
@@ -77,6 +111,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
             </p>
           )}
         </div>
+        {switcher}
         <span title={lab?.labelVi} className={`rounded border px-2 py-1 text-[10px] font-bold ${lab?.label === "EVIDENCE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`} data-testid="elite-label">
           {lab?.label === "EVIDENCE" ? "ĐẠT TIÊU CHÍ ĐĂNG KÝ TRƯỚC" : "THĂM DÒ"}
         </span>
@@ -109,7 +144,7 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
         </div>
       )}
 
-      <Card title="Danh mục Elite 10" testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>
+      <Card title={legacy ? "Danh mục Elite dòng tiền (cũ)" : "Danh mục Elite 10"} testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>
           <SectionControls id="elite-portfolio-table" open={pf.open} compact={pf.compact} onToggleOpen={pf.toggleOpen} onToggleCompact={pf.toggleCompact} testid="elite-portfolio" /></span>}>
         {!pf.open ? (
           <p className="text-[10.5px] text-slate-400" data-testid="elite-portfolio-summary">
