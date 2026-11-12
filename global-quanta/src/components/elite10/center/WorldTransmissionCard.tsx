@@ -17,7 +17,7 @@ export interface WsStock {
 }
 
 /** Bằng chứng (cố định theo kết quả đã công bố): WS-v1 H3 và WS-r2 (backend/src/market/worldSectors/WS-r2-result.json). */
-export const WORLD_EVIDENCE_VI = "WS-v1: α ngành dự báo phiên VN kế tiếp lúc ATO (IC 0,020, t 2,53) — từ đóng cửa phiên đó trở đi ≈ 0. WS-r2 (đăng ký trước, kiểm trên 2019–2022): sóng thế giới 5 phiên → 10 phiên KHÔNG ĐẠT (IC 0,032, t 1,15), độ nhạy cổ phiếu × sóng KHÔNG ĐẠT (IC 0,016, t 1,37), vào lệnh ATO theo ngành thuận gió KHÔNG ĐẠT (p 0,027; chênh 0,026%/phiên). Khối này chỉ mô tả, không cộng vào Điểm Elite.";
+export const WORLD_EVIDENCE_VI = "WS-v1: α ngành dự báo phiên VN kế tiếp lúc ATO (IC 0,020, t 2,53) — từ đóng cửa phiên đó trở đi ≈ 0. WS-r2 (đăng ký trước, kiểm trên 2019–2022): sóng thế giới 5 phiên → 10 phiên KHÔNG ĐẠT (IC 0,032, t 1,15), độ nhạy cổ phiếu × sóng KHÔNG ĐẠT (IC 0,016, t 1,37), vào lệnh ATO theo ngành thuận gió KHÔNG ĐẠT (p 0,027; chênh 0,026%/phiên). Khối này chỉ mô tả, không cộng vào Điểm Elite; riêng α ngành WS-v1 là tín hiệu trong sổ Elite với trọng số do bằng chứng E2 quyết định (tiên nghiệm 0).";
 
 const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
 const sgn = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : ""}${num(v, d)}`);
