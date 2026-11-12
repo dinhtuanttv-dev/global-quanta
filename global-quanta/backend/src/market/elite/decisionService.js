@@ -95,7 +95,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
           const uni = doc.scores.filter((x) => !hlTradable(x)).map((x) => x.ticker);
           ledger.entries.push({
             date: p.date, lockedAt: doc.builtAt, cash: doc.hl.cash, rebalance: doc.hl.rebalance,
-            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since, ...(x.hl.miss ? { miss: x.hl.miss } : {}) })),
+            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since, ...(x.hl.ref ? { ref: x.hl.ref } : {}), ...(x.hl.miss ? { miss: x.hl.miss } : {}) })),
             ...(doc.hl.dataGuard.frozen ? { frozen: true } : {}),
             ...(doc.portfolio.length ? { universe: uni } : { universeSize: uni.length, empty: true }), results: {},
           });

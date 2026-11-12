@@ -108,7 +108,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
     // Mã vắng mặt (không có trong bảng / không có giá): chỉ ra khi vắng đủ `missSessions` phiên liên tiếp.
     const miss = !h || !sc || !(sc.close > 0) ? (p.miss ?? 0) + 1 : 0;
     if (why?.code === "no_data" && miss < cfg.missSessions) why = null;
-    if (!why) { held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, status: "HOLD", miss }); continue; }
+    if (!why) { held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, ref: p.ref ?? null, status: "HOLD", miss }); continue; }
     if (why) exits.push({ ticker: p.ticker, weight: r4(p.weight), since: p.since ?? null, ...why, hlRank: h?.rank ?? null, lsPct: r4(h?.lsPct), taCount: h?.taCount ?? null, rrg: h?.rrg ?? null });
   }
   // 2) Phiên cân bằng: mua mã Hợp lưu theo thứ tự xếp hạng, định cỡ theo rủi ro, trong giới hạn tiền mặt / ngành.
@@ -127,7 +127,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
     let w = Math.max(cfg.wMin, Math.min(cfg.wMax, cfg.slotW * sigMed / Math.max(sc.sigma20, cfg.sigmaFloor)));
     w = Math.min(w, 1 - used, cfg.sectorCap - (secW[s] ?? 0));
     if (!(w >= cfg.wDust)) { push(x, "no_room", (secW[s] ?? 0) >= cfg.sectorCap - cfg.wDust ? `Ngành đã chạm trần ${cfg.sectorCap * 100}% tỷ trọng` : "Hết tiền mặt"); continue; }
-    picks.push({ ticker: x.ticker, weight: w, since: date, status: "NEW" }); inSet.add(x.ticker);
+    picks.push({ ticker: x.ticker, weight: w, since: date, ref: sc.close ?? null, status: "NEW" }); inSet.add(x.ticker);
     secN[s] = (secN[s] ?? 0) + 1; secW[s] = (secW[s] ?? 0) + w; used += w;
   }
   // 3) Dòng danh mục (giữ hình dạng danh mục E3 để mọi nơi đang đọc `portfolio` tiếp tục chạy) + chi tiết HL.
@@ -142,6 +142,8 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
       close: sc.close ?? null, stop: sc.close ? sc.close * (1 - cfg.stopK * band(sc.sigma20)) : null, target: sc.close ? sc.close * (1 + cfg.targetK * band(sc.sigma20)) : null,
       holdSessions: null, retained: x.status === "HOLD", riskContribution: riskSum > 0 ? riskRaw[i] / riskSum : null,
       hl: { rank: h.rank, cls: h.cls, t1: h.t1, t2: h.t2, t3: h.t3, lsPct: r4(h.lsPct), lsPts: h.lsPts, taCount: h.taCount, taPts: h.taPts, rrg: h.rrg, status: x.status, since: x.since, advBn: r4(sc.advBn), sigma20: r4(sc.sigma20), exitBufferLs: h.lsPct == null ? null : r4(h.lsPct - cfg.exitLsPct), miss,
+        // N2 "Vì sao": điều kiện tầng 1, phiếu tầng 3, giá tham chiếu phiên khoá và lãi/lỗ từ phiên khoá (giá đóng cửa điều chỉnh).
+        ta: h.ta ?? null, votes: h.votes ?? null, ref: x.ref ?? null, sinceRet: x.ref > 0 && sc.close > 0 ? r4(sc.close / x.ref - 1) : null,
         warnings: frozen ? ["Dữ liệu phiên không đủ — giữ nguyên, chưa xét ngưỡng ra"] : miss > 0 ? [`Không có dữ liệu của mã phiên này (lần ${miss}/${cfg.missSessions}) — chưa ra`] : warnings(h, cfg) },
     };
   }).sort((a, b) => a.hl.rank - b.hl.rank);
