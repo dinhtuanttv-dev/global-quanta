@@ -67,4 +67,24 @@ describe("Bộ lọc Elite", () => {
     expect(screen.getByTestId("my-elite").textContent).toContain("trùng danh mục chính thức 1/2");
     expect(screen.getByTestId("my-elite-ledger").textContent).toContain("bắt đầu từ phiên dựng kế tiếp");
   });
+  it("bộ chọn 'Hợp lưu HL-v1': chỉ mã đạt tầng 1 và RRG ngành ủng hộ (kể cả Cải thiện), xếp theo thứ tự ưu tiên", () => {
+    const keep = panel.rows;
+    const ta = { sepa_state: 2, base_breakout: 3 };
+    panel.rows = [
+      row("A", { ls_v1: 3, ...ta, rrg_quadrant: 1 }), row("B", { ls_v1: 2.9, ...ta, rrg_quadrant: -2 }), row("C", { ls_v1: 2.8, ...ta, structure_score: 7, rrg_quadrant: 2 }),
+      row("D", { ls_v1: 0, ...ta, rrg_quadrant: 2 }), ...Array.from({ length: 11 }, (_, i) => row(`X${i}`, { ls_v1: -1 - i })),
+    ];
+    try {
+      render(<EliteScreener onOpenTicker={() => {}} refTicker={null} />);
+      fireEvent.click(screen.getByTestId("preset-hl"));
+      expect([...document.querySelectorAll('[data-testid^="scr-row-"]')].map((el) => el.getAttribute("data-testid")!.slice(8))).toEqual(["C", "A"]); // C: 3 mô hình TA -> điểm tầng 1 cao hơn; B bị ngành phản đối; D không đủ điều kiện + LS thấp
+      expect(screen.getByTestId("screener-hl-count").textContent).toContain("2 mã đạt Hợp lưu HL-v1");
+      expect(screen.getByTestId("scr-hl-A").textContent).toMatch(/7/);
+      expect(screen.getByTestId("sort-hl").getAttribute("aria-pressed")).toBe("true");
+      fireEvent.click(screen.getByTestId("preset-hl"));
+      // tắt -> trả lại bộ lọc trước đó, bỏ nhãn đếm
+      expect(screen.queryByTestId("screener-hl-count")).toBeNull();
+      expect(screen.getByTestId("sort-hl").getAttribute("aria-pressed")).toBe("false");
+    } finally { panel.rows = keep; }
+  });
 });

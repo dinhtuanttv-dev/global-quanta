@@ -5,7 +5,7 @@
 //   • Phễu, bảng kết quả có VÂN TAY 24 tín hiệu, ★ biên Pareto, xếp theo Điểm Elite / số điều kiện đạt / giống một mã.
 //   • Lưu theo tài khoản (Gateway), link chia sẻ, báo khi có mã mới đạt. "Elite 10 · bộ lọc của tôi" = CÙNG thuật toán dựng danh mục
 //     chính thức trên tập mã đạt bộ lọc, có sổ theo dõi tiến riêng — KHÔNG thay đổi danh mục Elite 10 chính thức.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useEliteDecision, useEliteEvidence, useElitePanel } from "../../../hooks/elite10/useEliteCenter";
 import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
 import { useMyFilter } from "../../../hooks/elite10/useMyFilter";
@@ -14,11 +14,12 @@ import { ALL_CHIPS, CHIPS, CHIP_BY_ID, DEFAULT_UI, EXCLUDE_CHIPS, filterToUi, me
 import { browserNotify } from "../../../lib/priceAlerts";
 import { TierChip } from "./DecisionBoard";
 import type { Tier } from "../../../lib/elite10/decisionTypes";
+import { HL_CLASS_VI, HL_EVIDENCE_VI, hlCompare, hlScores, hlSelected } from "../../../lib/elite10/confluence";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
 const pct = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : `${v >= 0 ? "+" : ""}${(v * 100).toFixed(d).replace(".", ",")}%`);
 const UI_KEY = "elite10:screener-ui", SEEN_KEY = "elite10:screener-seen";
-type SortKey = "z" | "hits" | "similar";
+type SortKey = "z" | "hits" | "similar" | "hl";
 
 /** Màu ô vân tay: số -> phân vị theo chiều tốt (đỏ -> xám -> xanh); bậc / cờ -> dấu; thiếu -> tối. */
 function cellColor(sig: string, v: number | null, p: number | null): string {
@@ -49,6 +50,9 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
   const my = useMyFilter();
   const [ui, setUi] = useState<FilterUi>(readUi);
   const [sort, setSort] = useState<SortKey>("z");
+  // HL-v1: chỉ hiện mã đạt tầng 1 + RRG ủng hộ (quy tắc chủ dự án) — trạng thái giao diện, không nằm trong bộ lọc đã lưu.
+  const [hlOnly, setHlOnly] = useState(false);
+  const prevUi = useRef<FilterUi | null>(null);
   const [limit, setLimit] = useState(30);
   const [msg, setMsg] = useState<string | null>(null);
   useEffect(() => { try { localStorage.setItem(UI_KEY, JSON.stringify(ui)); } catch { /* bỏ qua */ } }, [ui]);
@@ -105,15 +109,17 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
   const pareto = useMemo(() => (result ? paretoFront(result.pass, (t) => paretoSigs.map((s) => pctBy.get(s)?.get(t) ?? null)) : new Set<string>()), [result, paretoSigs, pctBy]);
   const refVec = useMemo(() => (refTicker && ctx ? vecOf(refTicker) : null), [refTicker, ctx, pctBy]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const hl = useMemo(() => (panel ? hlScores(panel.rows) : new Map()), [panel]);
   const rows = useMemo(() => {
     if (!result) return [];
-    const list = result.pass.map((t) => {
+    const list = result.pass.filter((t) => !hlOnly || hlSelected(hl.get(t))).map((t) => {
       const s = scores.get(t);
       return { t, s, hits: (result.hits.get(t) ?? []).filter(Boolean).length, sim: refVec ? cosine(refVec, vecOf(t)) : null };
     });
     const z = (x: (typeof list)[number]) => x.s?.Z ?? -99;
+    if (sort === "hl") return list.sort((a, b) => { const x = hl.get(a.t), y = hl.get(b.t); return x && y ? hlCompare(x, y) : x ? -1 : y ? 1 : 0; });
     return list.sort((a, b) => sort === "hits" ? b.hits - a.hits || z(b) - z(a) : sort === "similar" ? (b.sim ?? -2) - (a.sim ?? -2) : z(b) - z(a));
-  }, [result, scores, sort, refVec]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [result, scores, sort, refVec, hl, hlOnly]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 🔔 báo mã mới đạt bộ lọc (so với lần xem trước của cùng bộ lọc)
   useEffect(() => {
@@ -169,9 +175,12 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
         <span className="text-slate-400">Bộ chọn sẵn:</span>
         {PRESETS.map((p) => (
-          <button key={p.id} type="button" title={p.title} data-testid={`preset-${p.id}`} onClick={() => setUi(p.ui)}
+          <button key={p.id} type="button" title={p.title} data-testid={`preset-${p.id}`} onClick={() => { setUi(p.ui); setHlOnly(false); if (sort === "hl") setSort("z"); }}
             className={`min-h-[24px] rounded border px-2 ${ui.name === p.ui.name ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{p.label}</button>
         ))}
+        <button type="button" data-testid="preset-hl" aria-pressed={hlOnly} title={`Chỉ mã đạt tầng 1 (LS-v1 top 20% + ≥ 2 mô hình TA) và RRG ngành ủng hộ (Cải thiện / Dẫn dắt); xếp theo thứ tự ưu tiên tầng 1 → tầng 2 → tầng 3. ${HL_EVIDENCE_VI}`}
+          onClick={() => { const on = !hlOnly; setHlOnly(on); setSort(on ? "hl" : "z"); if (on) { prevUi.current = ui; setUi({ ...ui, name: "Hợp lưu HL-v1", on: [], not: [], mode: "all", eligibleOnly: false }); } else if (prevUi.current) setUi(prevUi.current); }}
+          className={`min-h-[24px] rounded border px-2 ${hlOnly ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200" : "border-emerald-400/30 text-emerald-300 hover:border-emerald-400/60"}`}>🎯 Hợp lưu HL-v1</button>
         <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
           <span className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Cách kết hợp">
             <button type="button" aria-pressed={ui.mode === "all"} onClick={() => setUi({ ...ui, mode: "all" })} className={`rounded px-2 ${ui.mode === "all" ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400"}`} data-testid="mode-all">Tất cả điều kiện</button>
@@ -208,6 +217,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-300">{nConds ? `${afterRequire} đạt ${ui.mode === "k" ? `≥ ${Math.min(ui.k, nConds)}/${nConds}` : `cả ${nConds}`} điều kiện` : "chưa chọn điều kiện"}</span>
         {ui.not.length > 0 && <><span className="text-slate-600">→</span><span className="text-rose-300">loại {afterRequire - result.pass.length}</span></>}
         <span className="text-slate-600">=</span><b className="text-[12px] text-cyan-200" data-testid="screener-count">{result.pass.length} mã</b>
+        {hlOnly && <span className="text-emerald-300" data-testid="screener-hl-count">→ {rows.length} mã đạt Hợp lưu HL-v1</span>}
         <span className="text-slate-500">· {result.pass.filter((t) => inElite.has(t)).length} đang trong Elite 10 · ★ {pareto.size} trên biên Pareto ({paretoSigs.length} tiêu chí)</span>
         <span className="ml-auto inline-flex gap-1.5">
           <button type="button" onClick={saveToAccount} data-testid="screener-save" className="min-h-[24px] rounded border border-emerald-400/40 px-2 text-emerald-200 hover:bg-emerald-500/10">💾 Lưu vào tài khoản</button>
@@ -218,7 +228,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
         <span className="text-slate-400">Xếp theo:</span>
-        {([["z", "Điểm Elite"], ["hits", "Số điều kiện đạt"], ["similar", refTicker ? `Giống ${refTicker}` : "Giống mã (chọn mã ở Hồ sơ)"]] as const).map(([k, l]) => (
+        {([["z", "Điểm Elite"], ["hl", "Hợp lưu HL-v1"], ["hits", "Số điều kiện đạt"], ["similar", refTicker ? `Giống ${refTicker}` : "Giống mã (chọn mã ở Hồ sơ)"]] as const).map(([k, l]) => (
           <button key={k} type="button" disabled={k === "similar" && !refTicker} aria-pressed={sort === k} onClick={() => setSort(k)} data-testid={`sort-${k}`}
             className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
         ))}
@@ -226,7 +236,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
       <div className="overflow-x-auto">
         <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="screener-table">
           <thead><tr className="text-left text-[10px] text-slate-500">
-            <th className="py-1">#</th><th>Mã</th><th>Hạng · Z</th><th title="Số điều kiện YÊU CẦU đạt">Đạt</th>
+            <th className="py-1">#</th><th>Mã</th><th>Hạng · Z</th><th title="HL-v1: tầng 1 (LS-v1 + mô hình TA, tối đa 10) · tầng 2 (RRG ngành: + ủng hộ / − phản đối) · tầng 3 (tích điểm các tab). Nhãn THĂM DÒ.">Hợp lưu (T1 · T2 · T3)</th><th title="Số điều kiện YÊU CẦU đạt">Đạt</th>
             <th title={`Vân tay ${sigOrder.length} tín hiệu theo tab (xanh = mạnh theo đúng chiều tốt, đỏ = yếu; bậc / cờ theo dấu; tối = thiếu dữ liệu)`}>Vân tay {sigOrder.length} tín hiệu</th>
             {sort === "similar" && <th>Giống</th>}
           </tr></thead>
@@ -240,6 +250,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
                   {inElite.has(x.t) && <span className="ml-1 rounded border border-emerald-400/50 px-1 text-[10px] text-emerald-300">Elite 10</span>}
                 </td>
                 <td className="whitespace-nowrap pr-2 font-mono">#{x.s?.rank ?? "—"} · {num(x.s?.Z)}</td>
+                <td className="whitespace-nowrap pr-2" data-testid={`scr-hl-${x.t}`}>{(() => { const h = hl.get(x.t); if (!h) return "—"; return <><span className={`font-mono ${h.pass1 ? "text-emerald-300" : "text-slate-400"}`}>{h.t1} · {h.t2 > 0 ? "+" : h.t2 < 0 ? "−" : "0"} · {h.t3 > 0 ? `+${h.t3}` : h.t3}</span>{h.cls !== "NOT_T1" && <span className="ml-1 rounded border border-emerald-400/40 px-1 text-[10px] text-emerald-300">{HL_CLASS_VI[h.cls as keyof typeof HL_CLASS_VI]}</span>}</>; })()}</td>
                 <td className="pr-2 font-mono">{x.hits}/{nConds}</td>
                 <td>
                   <svg width={sigOrder.length * 9} height={14} role="img" aria-label={`Vân tay tín hiệu ${x.t}`}>

@@ -8,6 +8,7 @@ import type { Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
 import LeadershipCard from "./LeadershipCard";
+import ConfluenceCard from "./ConfluenceCard";
 import WorldTransmissionCard from "./WorldTransmissionCard";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
@@ -106,6 +107,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
         </div>
       )}
 
+      <ConfluenceCard ticker={ticker} />
       <LeadershipCard ticker={ticker} />
       <WorldTransmissionCard ticker={ticker} />
 
