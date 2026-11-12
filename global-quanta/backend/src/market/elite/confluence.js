@@ -38,6 +38,8 @@ const TA_MODELS = [
   ["sepa_state", (v) => v >= 1], ["base_breakout", (v) => v >= 2], ["convergence", (v) => v >= 2], ["pattern_state", (v) => v >= 0.5],
   ["structure_score", (v) => v >= 6], ["structure_stage", (v) => v === 2], ["structure_verdict", (v) => v === 2],
 ];
+/** Thứ tự phiếu tầng 3 — trùng thứ tự mảng `f` trong hlScores. */
+export const VOTE_IDS = Object.freeze(["stealth20", "stealth5", "net_intent", "foreign_net_buy", "fa_score", "ws_sector_alpha", "top20_alpha", "catalyst_impact", "cotuc_decision"]);
 const lsPoints = (pct) => (pct == null ? 0 : pct >= 80 ? 5 : pct >= 60 ? 3 : pct >= 40 ? 1 : 0);
 const sign = (v, up, down) => (fin(v) ? (up(v) ? 1 : down(v) ? -1 : 0) : null);
 
@@ -51,6 +53,8 @@ export function hlScores(rows) {
   const list = rows.map((r) => {
     const v = r.values ?? {};
     const lsPct = lsP.get(r.ticker) ?? null, lsPts = lsPoints(lsPct);
+    // N2: từng điều kiện tầng 1 (true / false / null = chưa có dữ liệu) và từng phiếu tầng 3 — để giải trình "Vì sao".
+    const ta = Object.fromEntries(TA_MODELS.map(([sig, ok]) => [sig, fin(v[sig]) ? ok(v[sig]) : null]));
     const taCount = TA_MODELS.filter(([sig, ok]) => fin(v[sig]) && ok(v[sig])).length, taPts = Math.min(5, taCount);
     const pass1 = lsPct != null && lsPct >= HL_RULES.lsLeaderPct && taCount >= HL_RULES.taMin;
     const rrg = fin(v.rrg_quadrant) ? v.rrg_quadrant : null;
@@ -64,8 +68,9 @@ export function hlScores(rows) {
       sign(v.catalyst_impact, (x) => x >= 1, (x) => x <= -1), sign(v.cotuc_decision, (x) => x === 1, (x) => x === -1),
     ];
     const t3 = f.reduce((a, x) => a + (x ?? 0), 0);
+    const votes = Object.fromEntries(VOTE_IDS.map((id, i) => [id, f[i]]));
     const cls = !pass1 ? "NOT_T1" : t2 > 0 ? (t3 >= HL_RULES.strongT3 ? "STRONG" : "CONFLUENCE") : t2 < 0 ? "T1_SECTOR_AGAINST" : "T1_SECTOR_NA";
-    return { ticker: r.ticker, lsPct, lsPts, taCount, taPts, t1: lsPts + taPts, pass1, rrg, t2, t3, cls, rank: 0 };
+    return { ticker: r.ticker, lsPct, lsPts, taCount, taPts, t1: lsPts + taPts, pass1, rrg, t2, t3, cls, rank: 0, ta, votes };
   });
   list.sort(hlCompare).forEach((x, i) => { x.rank = i + 1; });
   return list;

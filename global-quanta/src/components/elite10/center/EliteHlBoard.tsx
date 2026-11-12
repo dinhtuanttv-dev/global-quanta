@@ -1,7 +1,8 @@
 // E4-HL (12/11/2026) — BẢNG QUYẾT ĐỊNH ELITE HL: danh mục chính thức dựng trên quy tắc Hợp lưu đa yếu tố HL-v1 (cấu trúc G2r).
 // Bố cục: dải chỉ số -> phễu chọn lọc -> thay đổi hôm nay -> danh mục (ba tầng, ngưỡng ra) -> phân bổ ngành + hàng chờ -> quy tắc,
 // kết quả K0 và sổ theo dõi tiến so với danh mục dòng tiền (cũ). Mọi số đến từ Gateway /api/elite/decision; nhãn THĂM DÒ luôn hiện.
-import { useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { HL_TA_LABELS, HL_VOTE_LABELS } from "../../../lib/elite10/confluence";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import type { EliteDecision, HlClassCode, LedgerSummary, PortfolioPick } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
@@ -46,6 +47,48 @@ function Bar({ value, max, tone = "bg-emerald-400/70", mark, width = 64 }: { val
     </span>
   );
 }
+/** N2 — thẻ "Vì sao": điều kiện tầng 1, phiếu tầng 3, ba ngưỡng ra và lãi/lỗ từ phiên khoá của một vị thế. */
+function HlWhy({ p, exitLsPct, mobile = false }: { p: PortfolioPick; exitLsPct: number; mobile?: boolean }) {
+  const h = p.hl!;
+  const ta = Object.entries(h.ta ?? {}), votes = Object.entries(h.votes ?? {});
+  const voteTone = (v: number | null) => (v == null ? "border-white/10 text-slate-500" : v > 0 ? "border-emerald-400/40 text-emerald-300" : v < 0 ? "border-rose-400/40 text-rose-300" : "border-white/15 text-slate-400");
+  return (
+    <div className="grid grid-cols-1 gap-2 rounded-md border border-[#E8B84B]/25 bg-[#E8B84B]/[0.04] p-2 text-[11px] md:grid-cols-4" data-testid={`hl-why${mobile ? "-m" : ""}-${p.ticker}`}>
+      <div>
+        <p className="text-[10px] font-bold uppercase text-slate-500">Tầng 1 · dẫn dắt + mô hình TA</p>
+        <p className="text-slate-300">LS-v1 phân vị <b className="text-slate-100">{num(h.lsPct, 0)}</b> <span className="text-slate-500">· {h.lsPts} điểm</span></p>
+        {ta.length === 0 ? <p className="text-slate-500">Chưa có chi tiết mô hình TA cho phiên này.</p> : (
+          <ul className="mt-0.5 space-y-0.5">
+            {ta.map(([sig, ok]) => <li key={sig} className={ok === true ? "text-emerald-300" : ok === false ? "text-slate-500" : "text-slate-600"}>{ok === true ? "✓" : ok === false ? "✗" : "·"} {HL_TA_LABELS[sig] ?? sig}{ok === null ? " — chưa có dữ liệu" : ""}</li>)}
+          </ul>
+        )}
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase text-slate-500">Tầng 3 · từng phiếu của các tab</p>
+        {votes.length === 0 ? <p className="text-slate-500">Chưa có chi tiết phiếu cho phiên này.</p> : (
+          <p className="flex flex-wrap gap-1">
+            {votes.map(([id, v]) => <span key={id} title={HL_VOTE_LABELS[id]?.tab} className={`rounded border px-1 py-px text-[10px] ${voteTone(v)}`}>{v == null ? "·" : pts(v)} {HL_VOTE_LABELS[id]?.label ?? id}</span>)}
+          </p>
+        )}
+        <p className="mt-1 text-[10px] text-slate-500">"·" = tab đó chưa có dữ liệu cho mã, không tính điểm.</p>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase text-slate-500">Ba ngưỡng ra</p>
+        <ul className="space-y-0.5 text-slate-300">
+          <li>LS-v1: {h.exitBufferLs == null ? "—" : <>còn cách <b className="text-slate-100">{num(h.exitBufferLs, 0)}</b> điểm phân vị</>} <span className="text-slate-500">(ra khi &lt; {exitLsPct})</span></li>
+          <li>Mô hình TA: đang đạt <b className="text-slate-100">{h.taCount}</b> <span className="text-slate-500">(ra khi còn 0)</span></li>
+          <li>Ngành: <b className={RRG_TONE[String(h.rrg)] ?? "text-slate-300"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</b> <span className="text-slate-500">(ra khi Tụt hậu)</span></li>
+        </ul>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase text-slate-500">Từ phiên khoá</p>
+        <p className="text-slate-300">Vào danh mục: <b className="text-slate-100">{fmtDate(h.since)}</b></p>
+        <p className="text-slate-300">Giá tham chiếu: <span className="font-mono">{price(h.ref)}</span> → <span className="font-mono">{price(p.close)}</span></p>
+        <p className="text-slate-300">Thay đổi: {h.sinceRet == null ? "—" : <b className={h.sinceRet > 0 ? "text-emerald-300" : h.sinceRet < 0 ? "text-rose-300" : "text-slate-100"}>{signed(h.sinceRet * 100, 1)}%</b>} <span className="text-[10px] text-slate-500">(đóng cửa điều chỉnh; khớp thật ở phiên kế tiếp)</span></p>
+      </div>
+    </div>
+  );
+}
 const ledgerLine = (s: LedgerSummary | null | undefined, h: "5" | "10") => {
   const x = s?.horizons?.[h];
   return x && x.n > 0 ? <>{x.n} phiên · vượt rổ đều <b className={x.meanExcess != null && x.meanExcess > 0 ? "text-emerald-300" : "text-rose-300"}>{signed((x.meanExcess ?? 0) * 100, 2)}%</b> · thắng {num((x.hitRate ?? 0) * 100, 0)}%</> : <span className="text-slate-500">chưa có phiên nào đủ kỳ hạn</span>;
@@ -57,6 +100,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const secName = (k: string | null | undefined) => (k ? sectorName.get(k) ?? k : "—");
   const f = hl.funnel, r = hl.rule, ch = hl.changes;
+  const [why, setWhy] = useState<string | null>(null);
+  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
   const steps: [string, number, string][] = [
     ["Bảng tín hiệu", f.panel, "mã có tín hiệu trong phiên"],
     ["Giao dịch được", f.tradable, `GTGD TB20 ≥ ${r.minAdvBn} tỷ, giá ≥ 5.000đ, giá không bị neo`],
@@ -140,6 +185,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/10</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/7)</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
                   {h.warnings.map((w) => <p key={w} className="text-[10px] text-amber-300">⚠ {w}</p>)}
+                  <div className="mt-1">{whyBtn(p.ticker, true)}</div>
+                  {why === p.ticker && <div className="mt-1"><HlWhy p={p} exitLsPct={r.exitLsPct} mobile /></div>}
                 </li>
               );
             })}
@@ -159,10 +206,11 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
                 {d.portfolio.map((p: PortfolioPick) => {
                   const h = p.hl!;
                   return (
-                    <tr key={p.ticker} className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
+                    <Fragment key={p.ticker}>
+                    <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
                       <td className="pr-2">{openBtn(p.ticker)} <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
-                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ</span></td>
+                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ{whyBtn(p.ticker)}</span></td>
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
                         <span className="block text-[10px] text-slate-500">rủi ro {pct(p.riskContribution, 0)}</span></td>
@@ -177,6 +225,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
                       </td>
                       <td className="whitespace-nowrap text-right font-mono">{price(p.close)}<span className="block text-[10px] text-slate-500">{price(p.stop)} – {price(p.target)}</span></td>
                     </tr>
+                    {why === p.ticker && <tr><td colSpan={9} className="pb-2"><HlWhy p={p} exitLsPct={r.exitLsPct} /></td></tr>}
+                    </Fragment>
                   );
                 })}
               </tbody>
