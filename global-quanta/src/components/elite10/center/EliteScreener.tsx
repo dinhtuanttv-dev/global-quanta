@@ -6,6 +6,7 @@
 //   • Lưu theo tài khoản (Gateway), link chia sẻ, báo khi có mã mới đạt. "Elite 10 · bộ lọc của tôi" = CÙNG thuật toán dựng danh mục
 //     chính thức trên tập mã đạt bộ lọc, có sổ theo dõi tiến riêng — KHÔNG thay đổi danh mục Elite 10 chính thức.
 import { useEffect, useMemo, useState, useRef } from "react";
+import HlLedgerNote from "./HlLedgerNote";
 import { useEliteDecision, useEliteEvidence, useElitePanel } from "../../../hooks/elite10/useEliteCenter";
 import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
 import { useMyFilter } from "../../../hooks/elite10/useMyFilter";
@@ -225,6 +226,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         </span>
       </div>
       {msg && <p role="status" className="text-[10px] text-cyan-200" data-testid="screener-msg">{msg}</p>}
+      {hlOnly && <HlLedgerNote />}
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
         <span className="text-slate-400">Xếp theo:</span>

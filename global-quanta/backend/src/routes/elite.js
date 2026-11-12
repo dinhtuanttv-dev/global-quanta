@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -84,6 +84,12 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     res.set("Cache-Control", "public, max-age=300");
     res.json(await getToShadow().summary());
   }));
+  // HL-v1: sổ theo dõi tiến của quy tắc hợp lưu đa yếu tố (THĂM DÒ, không đổi danh mục).
+  router.get("/confluence/ledger", wrap(async (req, res) => {
+    if (!getHlLedger?.()) return res.status(404).json({ error: "Chưa bật sổ theo dõi HL-v1." });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(getHlLedger().summary());
+  }));
   router.get("/buy-timing/status", (req, res) => {
     res.set("Cache-Control", "no-store");
     res.json(getBuyTiming ? getBuyTiming().status() : { enabled: false });
@@ -121,6 +127,10 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
   }));
 
   const admin = (req, res, next) => (isAdmin(req, adminToken()) ? next() : res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." }));
+  router.post("/admin/confluence-ledger", admin, wrap(async (req, res) => {
+    if (!getHlLedger?.()) return res.status(404).json({ error: "Chưa bật sổ theo dõi HL-v1." });
+    res.json(await getHlLedger().tick());
+  }));
   router.post("/admin/evidence", admin, wrap(async (req, res) => {
     if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });
     const ev = await getEvidence().update({ retryEmpty: req.query.retryEmpty === "1" });

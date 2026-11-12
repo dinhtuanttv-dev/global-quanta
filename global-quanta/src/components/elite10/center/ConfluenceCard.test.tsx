@@ -14,6 +14,7 @@ const panel = {
     ...Array.from({ length: 8 }, (_, i) => row(`X${i}`, { ls_v1: -i })),
   ],
 };
+vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useElitePanel: () => ({ data: panel }) }));
 const { default: ConfluenceCard } = await import("./ConfluenceCard");
 

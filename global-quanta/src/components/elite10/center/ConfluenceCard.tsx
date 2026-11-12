@@ -3,6 +3,7 @@
 //   · Tầng 3: tích điểm yếu tố các tab. Nhãn THĂM DÒ; không thay Điểm Elite / Danh mục Elite 10.
 import { useMemo } from "react";
 import { useElitePanel } from "../../../hooks/elite10/useEliteCenter";
+import HlLedgerNote from "./HlLedgerNote";
 import { HL_CLASS_VI, HL_EVIDENCE_VI, HL_RULES, HL_VERSION, hlScores, type HlClass } from "../../../lib/elite10/confluence";
 
 const num = (v: number | null | undefined, d = 0) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
@@ -60,6 +61,7 @@ export default function ConfluenceCard({ ticker }: { ticker: string }) {
         </div>
       </div>
       <p className="mt-1 text-[10px] text-slate-500" data-testid="elite-confluence-evidence">{HL_EVIDENCE_VI}</p>
+      <HlLedgerNote />
     </div>
   );
 }
