@@ -4,8 +4,12 @@
 import { buildCandidates, buildDecision, E3_V5, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
+import { buildHlPortfolio, hlTradable, HL_PF_VERSION, isRebalanceSession } from "./eliteHl.js";
+import { REGIME_VI } from "./leadership.js";
 
-export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger" };
+export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
+// E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
+const HL_MIN_WEIGHT = 0.04;
 const CAL_SYMBOLS = ["VNM", "FPT", "HPG", "VCB", "MWG"];
 const PRICE_DAYS = 140;
 const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
@@ -14,7 +18,10 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
  * @param {{ store: any, panel: { panel: (d?: string|null) => Promise<any> }, evidence: { evidence: () => Promise<any> },
  *   vnIndex: () => Promise<[string, number][]>, now?: () => number, log?: any }} deps
  */
-export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null }) {
+/** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
+const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
+
+export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -40,8 +47,12 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       const index = (await kv(DECISION_KV.index))?.dates ?? [];
       // LS-r1: E3-v5 (có điểm dẫn dắt) chỉ khi cổng H4 ĐẠT — bằng chứng E2 mang cờ gateLive.
       const ev0 = await evidence.evidence();
-      const VER = ev0?.signals?.some((x) => x.id === "ls_v1" && x.gateLive) ? E3_V5 : E3_VERSION;
+      const FLOW_VER = ev0?.signals?.some((x) => x.id === "ls_v1" && x.gateLive) ? E3_V5 : E3_VERSION;
+      // E4-HL (12/11/2026): danh mục chính thức = Elite HL; danh mục E3 "dòng tiền" dựng song song (flowPortfolio) với sổ riêng tiếp nối sổ cũ.
+      const VER = HL_PF_VERSION;
       let ledger = (await kv(DECISION_KV.ledger)) ?? { version: VER, entries: [] };
+      let flow = await kv(DECISION_KV.flowLedger);
+      if (!flow) flow = ledger.version !== VER ? JSON.parse(JSON.stringify(ledger)) : { version: FLOW_VER, entries: [] };
       // Đổi phiên bản E3 (sửa đổi đăng ký trước): lưu trữ sổ cũ nguyên vẹn, sổ mới bắt đầu lại; quyết định phiên hiện tại dựng lại.
       let versionChanged = false;
       if (ledger.version !== VER) {
@@ -50,7 +61,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         versionChanged = true;
       }
       const exists = index.includes(p.date) && !force && !versionChanged;
-      const pendingEntries = ledger.entries.filter((e) => e.universe && LEDGER_HORIZONS.some((h) => !e.results?.[h]));
+      const pendingEntries = [...ledger.entries, ...flow.entries].filter((e) => e.universe && LEDGER_HORIZONS.some((h) => !e.results?.[h]));
       if (exists && !pendingEntries.length) { memo ??= await kv(DECISION_KV.decision(p.date)); return memo; }
 
       const ev = ev0;
@@ -62,15 +73,34 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       let doc = exists ? await kv(DECISION_KV.decision(p.date)) : null;
       if (!doc) {
         // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
-        const prev = [...ledger.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
-        doc = { ...buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: prev?.holdings ?? [], version: VER }), builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version };
+        const lastBefore = (L) => [...L.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
+        const flowPrev = lastBefore(flow), hlPrev = lastBefore(ledger);
+        const base = buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: flowPrev?.holdings ?? [], version: FLOW_VER });
+        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance: isRebalanceSession(p.date, hlPrev?.date ?? null), date: p.date });
+        let market = null;
+        if (leadership) { try { const lv = await leadership.live(p.date); market = { regime: lv.regime, regimeVi: REGIME_VI[lv.regime] ?? null, bias: lv.bias, breadth: lv.breadth, guard: lv.guard }; } catch (e) { log.warn?.(`[elite] trạng thái thị trường LS: ${e.message}`); } }
+        doc = {
+          ...base, version: VER, flowVersion: FLOW_VER, flowPortfolio: base.portfolio, flowConstruction: base.construction,
+          portfolio: H.portfolio, construction: { method: "hl-g2r", sessions: null, retained: H.hl.changes.kept, previous: hlPrev?.holdings?.length ?? 0, turnover: hlPrev ? H.hl.changes.turnover : null },
+          hl: { ...H.hl, market, prevDate: hlPrev?.date ?? null },
+          builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version,
+        };
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
         if (!ledger.entries.some((e) => e.date === p.date)) {
-          const eligible = doc.scores.filter((x) => x.eligible);
+          // Sổ chính thức (Elite HL): vũ trụ so sánh = mã giao dịch được theo ngưỡng HL; danh mục rỗng (toàn tiền mặt) không cần chấm.
+          const uni = doc.scores.filter((x) => !hlTradable(x)).map((x) => x.ticker);
           ledger.entries.push({
+            date: p.date, lockedAt: doc.builtAt, cash: doc.hl.cash, rebalance: doc.hl.rebalance,
+            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since })),
+            ...(doc.portfolio.length ? { universe: uni } : { universeSize: uni.length, empty: true }), results: {},
+          });
+        }
+        if (!flow.entries.some((e) => e.date === p.date)) {
+          const eligible = doc.scores.filter((x) => x.eligible);
+          flow.entries.push({
             date: p.date, lockedAt: doc.builtAt,
-            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: Math.round(x.weight * 1e4) / 1e4 })),
+            holdings: doc.flowPortfolio.map((x) => ({ ticker: x.ticker, weight: Math.round(x.weight * 1e4) / 1e4 })),
             universe: eligible.map((x) => x.ticker),
             z: Object.fromEntries(eligible.map((x) => [x.ticker, Math.round(x.Z * 1e4) / 1e4])),
             results: {},
@@ -87,10 +117,10 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       const uni = await kv("scanner:universe");
       const exch = new Map((uni?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
       const exchangeOf = (t) => exch.get(t) ?? "HOSE";
-      for (const e of ledger.entries) {
+      for (const [e, minW] of [...ledger.entries.map((x) => [x, HL_MIN_WEIGHT]), ...flow.entries.map((x) => [x, 0.5])]) {
         for (const h of LEDGER_HORIZONS) {
-          if (!e.results?.[h]) {
-            const r = evaluateEntry(e, h, px, cal, vn);
+          if (!e.results?.[h] && e.universe) {
+            const r = evaluateEntry(e, h, px, cal, vn, minW);
             if (r) (e.results ??= {})[h] = r;
           }
           const res = e.results?.[h];
@@ -115,7 +145,11 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
       ledger.summary = { ...summarizeLedger(ledger.entries), realistic: summarizeRealistic(ledger.entries) };
       ledger.updatedAt = new Date(now()).toISOString();
       await store.setKv(DECISION_KV.ledger, ledger);
-      memo = { ...doc, ledgerSummary: ledger.summary };
+      flow.version = FLOW_VER;
+      flow.summary = { ...summarizeLedger(flow.entries), realistic: summarizeRealistic(flow.entries) };
+      flow.updatedAt = ledger.updatedAt;
+      await store.setKv(DECISION_KV.flowLedger, flow);
+      memo = { ...doc, candidates: buildCandidates(flowView(doc)), ledgerSummary: ledger.summary, flowLedgerSummary: flow.summary };
       return memo;
     })().finally(() => { building = null; });
     return building;
@@ -129,15 +163,15 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     const doc = await kv(DECISION_KV.decision(d));
     // C1: ứng viên tính khi trả (phát lại thuật toán trên tài liệu đã lưu) — đúng cả cho phiên đã dựng trước khi có tính năng này.
     if (doc && !date) {
-      const ledger = await kv(DECISION_KV.ledger);
-      memo = { ...doc, candidates: buildCandidates(doc), ledgerSummary: ledger?.summary ?? null };
+      const [ledger, flow] = await Promise.all([kv(DECISION_KV.ledger), kv(DECISION_KV.flowLedger)]);
+      memo = { ...doc, candidates: buildCandidates(flowView(doc)), ledgerSummary: ledger?.summary ?? null, flowLedgerSummary: flow?.summary ?? null };
       return memo;
     }
-    return doc ? { ...doc, candidates: buildCandidates(doc) } : doc;
+    return doc ? { ...doc, candidates: buildCandidates(flowView(doc)) } : doc;
   }
 
-  async function ledger() {
-    const l = await kv(DECISION_KV.ledger);
+  async function ledger(book = null) {
+    const l = await kv(book === "flow" ? DECISION_KV.flowLedger : DECISION_KV.ledger);
     if (!l) return null;
     return { version: l.version, updatedAt: l.updatedAt, summary: l.summary, entries: l.entries.map(({ z, universe, ...rest }) => ({ ...rest, universeSize: rest.universeSize ?? universe?.length ?? null })) };
   }
@@ -150,7 +184,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     const idx = (await kv(DECISION_KV.index))?.dates ?? [];
     const key = `${idx[idx.length - 1] ?? ""}|${n}`;
     if (rhMemo?.key === key) return rhMemo.value;
-    const docs = (await Promise.all(idx.slice(-n).map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.portfolio);
+    // E4-HL: radar hạng / Z thuộc về danh mục dòng tiền (xếp theo Z) -> dùng flowPortfolio khi tài liệu là bản E4-HL.
+    const docs = (await Promise.all(idx.slice(-n).map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.portfolio).map((d) => (d.flowPortfolio ? { ...d, portfolio: d.flowPortfolio } : d));
     const tickers = new Set(docs.flatMap((d) => d.portfolio.map((p) => p.ticker)));
     const r3 = (x) => (Number.isFinite(x) ? Math.round(x * 1000) / 1000 : null);
     const value = {

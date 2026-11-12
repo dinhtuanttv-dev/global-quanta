@@ -16,9 +16,32 @@ export interface EliteScore {
 export interface PortfolioPick {
   ticker: string; weight: number; Z: number; rank: number; alpha5Pct: number | null; pOutperform: number; sectorKey: string | null;
   zModel?: number; rrgQuadrant?: number | null; rrgPenalty?: boolean;
-  close: number; stop: number; target: number; holdSessions: number;
+  close: number; stop: number; target: number; holdSessions: number | null;
   /** E3-v3: giữ từ danh mục phiên trước (vùng đệm) và đóng góp rủi ro Euler trong danh mục. */
   retained?: boolean; riskContribution?: number | null;
+  /** E4-HL: chi tiết hợp lưu của vị thế (chỉ có ở danh mục Elite HL). */
+  hl?: HlPosition;
+}
+
+/** E4-HL (12/11/2026): danh mục chính thức dựng trên quy tắc Hợp lưu HL-v1, cấu trúc G2r. */
+export type HlClassCode = "STRONG" | "CONFLUENCE" | "T1_SECTOR_AGAINST" | "T1_SECTOR_NA" | "NOT_T1";
+export interface HlPosition {
+  rank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; lsPts: number; taCount: number; taPts: number; rrg: number | null;
+  status: "NEW" | "HOLD"; since: string | null; advBn: number | null; sigma20: number | null; exitBufferLs: number | null; warnings: string[];
+}
+export interface HlExit { ticker: string; weight: number | null; since: string | null; code: "ls" | "ta" | "rrg" | "no_data"; reasonVi: string; hlRank: number | null; lsPct: number | null; taCount: number | null; rrg: number | null }
+export interface HlQueueItem { ticker: string; hlRank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; taCount: number; rrg: number | null; sectorKey: string | null; advBn: number | null; code: "illiquid" | "wait" | "full" | "sector_cap" | "no_room"; reasonVi: string }
+export interface EliteHlMeta {
+  version: string; ruleVersion: string; date: string; rebalance: boolean; week: string; prevDate: string | null;
+  rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number };
+  k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string };
+  funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number };
+  invested: number; cash: number; sigmaMedian: number | null;
+  changes: { added: string[]; exits: HlExit[]; kept: number; turnover: number | null; costEst: number | null };
+  sectors: { sectorKey: string; weight: number; names: number }[]; queue: HlQueueItem[];
+  against: { ticker: string; hlRank: number; t1: number; rrg: number | null; rrgVi: string | null }[];
+  market: { regime: string; regimeVi: string | null; bias: string | null; breadth: number | null; guard: boolean } | null;
+  labelVi: string;
 }
 
 export interface LedgerHorizon {
@@ -40,8 +63,10 @@ export interface EliteDecision {
   version: string; date: string; builtAt: string; icComb: number; sigma5: number | null; weights: SignalWeight[];
   universe: { panel: number; eligible: number }; portfolio: PortfolioPick[]; scores: EliteScore[]; ledgerSummary: LedgerSummary | null;
   signalWeighting?: { method: "correlation" | "ic"; corr: { ids: string[]; matrix: number[][]; shrink: number; names: number } | null; noteVi: string | null };
-  construction?: { method: "erc" | "inverse-vol"; sessions: number; retained: number; previous: number; turnover: number | null };
+  construction?: { method: "erc" | "inverse-vol" | "hl-g2r"; sessions: number | null; retained: number; previous: number; turnover: number | null };
   candidates?: Candidate[];
+  /** E4-HL: `portfolio` là danh mục Elite HL; danh mục E3 "dòng tiền" (cũ) nằm ở flowPortfolio với sổ riêng. */
+  hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;
 }
 
 export interface EvidenceHorizon { n: number; mean: number | null; t: number | null; pPos: number | null; q: number | null; stable: boolean; halves: [number, number] | null; from: string | null; to: string | null }

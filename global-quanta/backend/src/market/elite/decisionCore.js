@@ -373,14 +373,14 @@ export function capWeights(raw, cap) {
 }
 
 /** Kết quả một bản ghi sổ theo dõi tại kỳ hạn h (giá đóng cửa d+1 -> d+1+h). null nếu thiếu giá. */
-export function evaluateEntry(entry, h, px, cal, vnIndex) {
+export function evaluateEntry(entry, h, px, cal, vnIndex, minWeight = 0.5) {
   const i = cal.indexOf(entry.date);
   if (i < 0 || i + 1 + h >= cal.length) return null;
   const a = cal[i + 1], b = cal[i + 1 + h];
   const ret = (t) => { const x = px.get(`${t}|${a}`), y = px.get(`${t}|${b}`); return x > 0 && y > 0 ? y / x - 1 : null; };
   let port = 0, wsum = 0;
   for (const hl of entry.holdings) { const r = ret(hl.ticker); if (r != null) { port += hl.weight * r; wsum += hl.weight; } }
-  if (wsum < 0.5) return null;
+  if (wsum < minWeight) return null;
   port /= wsum;
   const ur = entry.universe.map(ret).filter((r) => r != null);
   if (ur.length < 30) return null;

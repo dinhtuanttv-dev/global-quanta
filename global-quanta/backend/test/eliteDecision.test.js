@@ -97,8 +97,10 @@ test("E3 sổ theo dõi: chấm sau d+1+h, lợi suất vượt = danh mục −
   assert.match(s.labelVi, /1 phiên/);
 });
 
-test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấm khi có giá mới", async () => {
-  const { cal, rows, daily } = world();
+test("E4-HL dịch vụ: danh mục chính thức = Elite HL, danh mục dòng tiền dựng song song; khoá sổ một lần mỗi phiên, chấm khi có giá mới", async () => {
+  const { cal, rows: rows0, daily } = world();
+  // 12 mã điểm cao nhất có LS-v1 cao + 2 mô hình TA + ngành Dẫn dắt -> đạt Hợp lưu HL-v1.
+  const rows = rows0.map((r, i) => ({ ...r, values: { ...r.values, ls_v1: i, ...(i >= 48 ? { sepa_state: 2, base_breakout: 3, rrg_quadrant: 2 } : {}) } }));
   const store = createMemoryStore();
   const upto = (k) => daily.filter((r) => r.date <= cal[k]);
   await store.upsertMarketDaily(upto(99));
@@ -109,7 +111,15 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
     vnIndex: async () => cal.map((d, i) => [d, 1000 + i]), now: () => Date.parse("2026-08-20T11:00:00Z"), log: { warn() {} },
   });
   const d1 = await svc.build();
-  assert.equal(d1.portfolio.length, 10);
+  assert.match(d1.version, /^E4-HL v1/);
+  assert.equal(d1.flowPortfolio.length, 10, "danh mục dòng tiền E3 vẫn dựng đủ 10 mã");
+  assert.ok(d1.portfolio.length >= 3 && d1.portfolio.length <= 10);
+  assert.ok(d1.portfolio.every((x) => x.hl.cls === "STRONG" || x.hl.cls === "CONFLUENCE"), "danh mục chính thức chỉ gồm mã Hợp lưu");
+  assert.ok(Math.abs(d1.hl.cash + d1.portfolio.reduce((a, x) => a + x.weight, 0) - 1) < 1e-3, "ô trống là tiền mặt");
+  assert.equal(d1.hl.rebalance, true);
+  const flow1 = (await store.getKv(DECISION_KV.flowLedger)).value;
+  assert.equal(flow1.entries.length, 2, "sổ dòng tiền tiếp nối sổ cũ");
+  assert.match(flow1.version, /^E3-v4/);
   let ledger = (await store.getKv(DECISION_KV.ledger)).value;
   assert.equal(ledger.entries.length, 1, "đổi phiên bản -> sổ mới bắt đầu lại");
   assert.equal(ledger.previous, "E3-v1 (prereg 2026-10-17)");
@@ -127,7 +137,11 @@ test("E3 dịch vụ: khoá danh mục vào sổ một lần mỗi phiên, chấ
   const first = ledger.entries[0];
   assert.ok(first.results[5] && first.results[10], "phiên đầu đã chấm đủ 5 và 10 phiên");
   assert.equal(first.z, undefined, "đã chấm đủ -> bỏ Z");
-  assert.equal(first.universeSize, 57);
+  assert.ok(first.universeSize >= 57, "vũ trụ so sánh của HL = mã giao dịch được (≥ 5 tỷ)");
+  assert.equal(first.holdings[0].since, cal[99]);
+  const d2 = await svc.decision();
+  assert.ok(d2.flowLedgerSummary && d2.hl.prevDate === cal[99]);
+  assert.equal((await svc.ledger("flow")).entries.length, 3);
   assert.equal(ledger.summary.horizons[5].n, 1);
   const pub = await svc.ledger();
   assert.equal(pub.entries[0].universe, undefined);
