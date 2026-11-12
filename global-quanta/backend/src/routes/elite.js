@@ -180,7 +180,7 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
   }));
 
   router.get("/ledger", wrap(async (req, res) => {
-    const l = getDecision ? await getDecision().ledger() : null;
+    const l = getDecision ? await getDecision().ledger(req.query.book === "flow" ? "flow" : null) : null;
     if (!l) return missing(res, "Sổ theo dõi chưa có bản ghi.");
     res.set("Cache-Control", "public, max-age=600");
     res.json(l);
@@ -189,7 +189,7 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
   router.post("/admin/decision", admin, wrap(async (req, res) => {
     if (!getDecision) return res.status(503).json({ error: "Engine quyết định chưa cấu hình." });
     const d = await getDecision().build({ force: req.query.force === "1" });
-    res.json({ date: d.date, icComb: d.icComb, universe: d.universe, portfolio: d.portfolio.map((x) => `${x.ticker} ${(x.weight * 100).toFixed(1)}%`), label: d.ledgerSummary?.label });
+    res.json({ date: d.date, icComb: d.icComb, universe: d.universe, version: d.version, portfolio: d.portfolio.map((x) => `${x.ticker} ${(x.weight * 100).toFixed(1)}%`), cash: d.hl?.cash ?? null, flowPortfolio: (d.flowPortfolio ?? []).map((x) => x.ticker), label: d.ledgerSummary?.label });
   }));
 
   router.get("/risk", wrap(async (req, res) => {
