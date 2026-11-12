@@ -33,6 +33,7 @@ import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
+import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
 import { consensusDisplay } from "./market/scanner/scanEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
@@ -216,9 +217,27 @@ const eliteScannerItem = async (t) => {
     breakout: Boolean(it.breakoutBoostBadge), smartScore: it.smartScore ?? null, fScore: it.piotroskiFScore ?? null, fScoreMax: it.fScoreMax ?? null, fScoreApplicable: it.fScoreApplicable ?? null, foreignNetBuy: it.foreignNetBuyFlag ?? null };
 };
 // LS-r1: điểm dẫn dắt LS-v1 (Hồ sơ 360° + E3-v5 khi cổng H4 ĐẠT).
+// 13/11/2026: chuỗi giá ĐIỀU CHỈNH CỘNG DỒN của kho (createScreenerSeries — cùng nguồn với các bộ lọc kỹ thuật) cho LS-v1 và engine
+// quyết định; trả Map(mã -> [[ngày, giá đóng cửa điều chỉnh, GTGD]]). Mã không dựng được chuỗi cộng dồn bị bỏ qua (không trộn cơ sở giá).
+let eliteSeriesSource = null;
+const eliteAdjustedCloses = async (tickers) => {
+  const rt = getMarketRuntime();
+  eliteSeriesSource ??= createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions });
+  const load = await eliteSeriesSource.prepare(tickers);
+  const out = new Map();
+  for (const t of tickers) {
+    try {
+      const r = await load(t);
+      if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") continue;
+      const rows = (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close, Number(b.value) > 0 ? Number(b.value) : b.close * (b.volume ?? 0)]);
+      if (rows.length) out.set(t, rows);
+    } catch { /* mã thiếu dữ liệu */ }
+  }
+  return out;
+};
 let eliteLeadership = null;
 const getEliteLeadership = () => (eliteLeadership ??= createLeadershipService({
-  store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t),
+  store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t), adjustedCloses: eliteAdjustedCloses,
   universe: async () => ((await getMarketRuntime().store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker),
   vnIndexBars: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 500 })).bars.filter((b) => !b.partial && b.close > 0),
   retroInputs: () => getEliteRetro().inputs(), commit: () => process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
@@ -236,7 +255,7 @@ const validatedBuyZone = async () => {
   const t = await getGatewayTimeline()();
   return new Set((t?.rows ?? []).filter((r) => r.tier === "VALIDATED" && (r.status === "IN_WINDOW" || (r.status === "UPCOMING" && r.sessionsToEntry <= 10))).map((r) => r.ticker));
 };
-const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
+const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({

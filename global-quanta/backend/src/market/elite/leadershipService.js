@@ -18,7 +18,7 @@ const r4 = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 
  *   retroInputs?: () => Promise<object>, commit?: () => string|null, now?: () => number, log?: any }} deps
  *   pricesOf: dòng kho px [ngày, adClose, nmValue, close]; VNINDEX: [ngày, close, …].
  */
-export function createLeadershipService({ store, pricesOf, universe, vnIndexBars, retroInputs = null, commit = () => null, now = Date.now, log = console }) {
+export function createLeadershipService({ store, pricesOf, universe, vnIndexBars, adjustedCloses = null, retroInputs = null, commit = () => null, now = Date.now, log = console }) {
   let doc = null, live = null, gate = undefined, building = null, gating = null;
   const kv = async (k) => { try { return (await store.getKv(k))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
@@ -55,13 +55,29 @@ export function createLeadershipService({ store, pricesOf, universe, vnIndexBars
 
   /** LS-v1 của phiên `date` từ giá ngày Gateway. */
   async function computeLive(date) {
-    if (live?.date === date) return live;
+    // 13/11/2026 — GIÁ ĐIỀU CHỈNH CỘNG DỒN. Cột close_adj của market_daily KHÔNG điều chỉnh lùi theo sự kiện quyền (DGC 14/09/2026:
+    // 46.750 -> 37.400 chỉ vì chia cổ phiếu), làm RS 64 phiên / khoảng cách đỉnh 52 tuần / giai đoạn xu hướng của mã có sự kiện quyền
+    // trong 12 tháng bị thấp giả. Nay dùng chuỗi ADJUSTED_CUMULATIVE của kho (cùng nguồn với các bộ lọc kỹ thuật); bản đã lưu tính
+    // trên giá cũ của CÙNG phiên được tính lại. Nguồn điều chỉnh lỗi -> lùi về close_adj và ghi rõ priceBasis.
+    const fresh = (x) => x?.date === date && x.version === LS_VERSION && (!adjustedCloses || x.priceBasis === "ADJUSTED_CUMULATIVE");
+    if (fresh(live)) return live;
     const stored = await kv(LS_KV.live);
-    if (stored?.date === date && stored.version === LS_VERSION) return (live = stored);
+    if (fresh(stored)) return (live = stored);
     const tickers = await universe();
-    const rows = await store.getMarketDailyRange({ from: isoMinusDays(date, LIVE_DAYS), to: date, symbols: tickers, columns: "symbol,trading_date,close_adj,value" });
-    const series = new Map();
-    for (const r of rows) if (r.closeAdj > 0) { if (!series.has(r.symbol)) series.set(r.symbol, []); series.get(r.symbol).push([r.date, r.closeAdj, r.value ?? null]); }
+    let series = null, priceBasis = "SSI_CLOSE_ADJ_LATEST_EVENT";
+    if (adjustedCloses) {
+      try {
+        const m = await adjustedCloses(tickers, date, LIVE_DAYS);
+        if (m && m.size >= 50) { series = new Map([...m].map(([t, rows]) => [t, rows.filter((r) => r[0] <= date && r[1] > 0)])); priceBasis = "ADJUSTED_CUMULATIVE"; }
+      } catch (e) { log.warn?.(`[elite] LS-v1: giá điều chỉnh cộng dồn lỗi (${e.message}) — dùng close_adj`); }
+    }
+    // Mã không dựng được chuỗi cộng dồn (hoặc cả nguồn lỗi): close_adj cho RIÊNG các mã đó — không trộn hai cơ sở giá trong một mã.
+    const lack = series ? tickers.filter((t) => !series.has(t)) : tickers;
+    if (lack.length) {
+      const rows = await store.getMarketDailyRange({ from: isoMinusDays(date, LIVE_DAYS), to: date, symbols: lack, columns: "symbol,trading_date,close_adj,value" });
+      series ??= new Map();
+      for (const r of rows) if (r.closeAdj > 0) { if (!series.has(r.symbol)) series.set(r.symbol, []); series.get(r.symbol).push([r.date, r.closeAdj, r.value ?? null]); }
+    }
     const idx = (await vnIndexBars()).filter((b) => b.date <= date && b.close > 0).map((b) => [b.date, b.close]);
     const M = buildMatrix(series, idx);
     const i = M.pos.get(date);
@@ -69,7 +85,7 @@ export function createLeadershipService({ store, pricesOf, universe, vnIndexBars
     const day = lsDay(M, i), reg = regimeAt(M, i);
     const out = {};
     for (const [t, r] of day) if (r.ls != null) out[t] = { ls: r4(r.ls), comp: Object.fromEntries(COMPONENTS.map((c) => [c, r4(r.comp[c])])), z: Object.fromEntries(COMPONENTS.map((c) => [c, r4(r.z[c])])) };
-    live = { version: LS_VERSION, date, regime: reg.group, bias: reg.bias, breadth: reg.breadth, guard: crashGuard(M, i), names: Object.keys(out).length, rows: out, builtAt: new Date(now()).toISOString() };
+    live = { version: LS_VERSION, date, priceBasis, regime: reg.group, bias: reg.bias, breadth: reg.breadth, guard: crashGuard(M, i), names: Object.keys(out).length, rows: out, builtAt: new Date(now()).toISOString() };
     await store.setKv(LS_KV.live, live);
     return live;
   }
