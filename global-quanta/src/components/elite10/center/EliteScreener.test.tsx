@@ -18,6 +18,7 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useEliteEvidence: () => ({ data: ev }),
   useElitePanel: () => ({ data: panel }),
 }));
+vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ useGatewayBuyTimeline: () => ({ data: null }) }));
 vi.mock("../../../lib/priceAlerts", () => ({ browserNotify: vi.fn() }));
 const save = vi.fn(async () => ({}));

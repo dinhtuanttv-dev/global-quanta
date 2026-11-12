@@ -29,6 +29,8 @@ import { createDividendScreener } from "./events/dividendScreener.js";
 import { createDivRunup } from "./events/divRunupService.js";
 import { createSharesEps } from "./fundamentals/sharesEps.js";
 import { createEliteToShadow } from "./elite/eliteToShadow.js";
+import { createHlLedger } from "./elite/confluence.js";
+import { ELITE_KV } from "./elite/elitePanel.js";
 import { DECISION_KV } from "./elite/decisionService.js";
 import { createDividendQualityBase } from "./events/dividendQuality.js";
 import { createFmLedger } from "./events/factorModel.js";
@@ -182,7 +184,7 @@ export function getMarketRuntime() {
     { name: "agmPlans", at: "21:10", tradingDayOnly: false }, { name: "agmPlansNight", at: "02:10", tradingDayOnly: false },
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
     { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false },
-    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false }, { name: "eliteToShadow", at: "20:35", tradingDayOnly: false },
+    { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false }, { name: "eliteToShadow", at: "20:35", tradingDayOnly: false }, { name: "hlLedger", at: "20:45", tradingDayOnly: false },
     { name: "corpEvents1", at: "07:40", tradingDayOnly: false }, { name: "corpEvents2", at: "12:10", tradingDayOnly: false }, { name: "corpEvents3", at: "17:40", tradingDayOnly: false }, { name: "corpEvents4", at: "21:05", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
@@ -226,6 +228,10 @@ export function getMarketRuntime() {
     decisionKey: DECISION_KV.decision, decisionIndexKey: DECISION_KV.index, pricesOf: (t) => eventStudy.pricesOf(t), allFacts: () => divRunup.allFacts(),
     ledgerEntries: () => divRunup.ledgerEntries(), getUniverse: async () => (await store.getKv("scanner:universe"))?.value ?? null, exSummary: async () => divRunup.exSummary() });
   jobs.eliteToShadow = () => eliteToShadow.tick();
+  // HL-v1 (12/11/2026): sổ theo dõi tiến của quy tắc hợp lưu đa yếu tố — đọc bảng tín hiệu E1 đã lưu, KHÔNG đổi Điểm Elite / danh mục.
+  const hlLedger = createHlLedger({ dir: pathCe.join(kqkdDir, "hl"), getKv: async (k) => (await store.getKv(k))?.value ?? null,
+    panelIndexKey: ELITE_KV.index, panelKey: ELITE_KV.panel, pricesOf: (t) => eventStudy.pricesOf(t) });
+  jobs.hlLedger = () => hlLedger.tick();
   for (const k of [1, 2, 3, 4]) jobs[`corpEvents${k}`] = () => corpEvents.refresh();
   jobs.cafefNight = async () => { const r = await cafefAnnounce.crawl({ until: CA_RULES.phaseB, maxMs: 7 * 3_600_000 }); return r; };
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
@@ -251,7 +257,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, fundWarehouse, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, eliteToShadow, sharesEps, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, fundWarehouse, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, eliteToShadow, hlLedger, sharesEps, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
   return runtime;
 }
 

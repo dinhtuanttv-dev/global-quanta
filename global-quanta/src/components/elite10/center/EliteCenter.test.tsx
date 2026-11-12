@@ -40,6 +40,7 @@ const cashGate = {
     rules: { H1: holdRule({}), H1b: holdRule({ mdd: -0.383 }), H2: holdRule({ criteria: { C1: false, C2: true, C3: false, C4: false } }), H3: holdRule({}) }, passed: [] },
   ledger: { entries: 1, first: "2026-11-05", last: "2026-11-05" },
 };
+vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useCashGate: () => ({ data: cashGate, isLoading: false }),
   useEliteRetro: () => ({ data: { horizons: { 5: { ic: { n: 204, mean: 0.031, t: 2.65 } } } } }),
