@@ -80,6 +80,14 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
         </span>
       </div>
 
+      {hl.dataGuard?.frozen ? (
+        <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-data-guard">
+          <b>Dữ liệu phiên không đủ — danh mục giữ nguyên, không vào và không ra.</b> {hl.dataGuard.reasonsVi.join(" · ")}. Quy tắc sẽ được áp lại ở phiên có đủ dữ liệu.
+        </div>
+      ) : (
+        <p className="text-[10.5px] text-slate-400" data-testid="hl-data-ok"><span className="mr-1 text-emerald-300">●</span>Dữ liệu phiên đủ nguồn: LS-v1, mô hình TA, RRG ngành.</p>
+      )}
+
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" data-testid="hl-kpis">
         <Tile label="Số mã" testId="hl-kpi-names" sub={ch.added.length || ch.exits.length ? `vào ${ch.added.length} · ra ${ch.exits.length} · giữ ${ch.kept}` : `giữ nguyên ${ch.kept} mã`}>{f.held}<span className="text-[12px] font-normal text-slate-500"> / {r.slots}</span></Tile>
         <Tile label="Tỷ lệ cổ phiếu" testId="hl-kpi-invested" sub={<>Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b> — ô trống không lấy mã yếu cho đủ số</>}>
@@ -88,8 +96,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
         <Tile label="Thị trường" testId="hl-kpi-market" sub={hl.market ? <>Độ rộng {num(hl.market.breadth, 0)}%{hl.market.guard ? <b className="text-rose-300"> · chốt chặn sụp đổ đang bật</b> : ""} — chỉ là bối cảnh, không đổi quy tắc</> : "Chưa có trạng thái thị trường của phiên"}>
           <span className={hl.market?.regime === "UP" ? "text-emerald-300" : hl.market?.regime === "WEAK" ? "text-rose-300" : "text-slate-100"}>{hl.market?.regimeVi ?? "—"}</span>
         </Tile>
-        <Tile label="Nhịp cân bằng" testId="hl-kpi-rebalance" sub={hl.rebalance ? "Phiên đầu tuần: được nhận mã mới vào ô trống" : "Mã mới chỉ vào ở phiên đầu tuần kế tiếp; hôm nay chỉ xét ra"}>
-          <span className={hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</span>
+        <Tile label="Nhịp cân bằng" testId="hl-kpi-rebalance" sub={hl.dataGuard?.frozen ? "Chốt dữ liệu đang bật: không vào, không ra" : hl.rebalance ? "Phiên đầu tuần: được nhận mã mới vào ô trống" : "Mã mới chỉ vào ở phiên đầu tuần kế tiếp; hôm nay chỉ xét ra"}>
+          <span className={hl.dataGuard?.frozen ? "text-rose-300" : hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.dataGuard?.frozen ? "Giữ nguyên" : hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</span>
         </Tile>
         <Tile label="Xoay vòng phiên" testId="hl-kpi-turnover" sub={<>Phí ước tính <b className="text-slate-200">{pct(ch.costEst, 2)}</b> giá trị danh mục (mua {pct(r.costBuy, 2)}, bán {pct(r.costSell, 2)})</>}>{ch.turnover == null ? "—" : pct(ch.turnover, 0)}</Tile>
       </div>

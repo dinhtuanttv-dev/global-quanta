@@ -18,7 +18,29 @@ export const HL_PF = Object.freeze({
   minAdvBn: 5, minPrice: 5000, minSigma20: 0.005,
   exitLsPct: 60, exitTaMin: 1, exitRrg: -2, warnLsPct: 70,
   costBuy: 0.002, costSell: 0.0025, stopK: 2, targetK: 3, bandSessions: 20, sigmaFloor: 0.01, queue: 12,
+  // N0 (12/11/2026) — CHỐT DỮ LIỆU: thiếu nguồn thì danh mục GIỮ NGUYÊN (không vào, không ra); mã vắng mặt phải vắng 2 phiên liên tiếp mới ra.
+  guardMinShare: 0.35, guardMinTaPass: 5, missSessions: 2,
 });
+const GUARD_SOURCES = { scanner: "Siêu quét", rrg: "RRG ngành", taxonomy: "phân ngành", "strategies:sepa": "SEPA", "strategies:patterns": "mô hình giá Pring", "strategies:convergence": "Hợp lưu v2", "strategies:base-breakout": "Base Breakout" };
+
+/**
+ * Kiểm tra bảng tín hiệu trước khi áp quy tắc ra / vào. Trả danh sách lý do (rỗng = đủ dữ liệu).
+ * Lý do tồn tại: quy tắc ra dựa trên LS-v1 và số mô hình TA — một phiên lỗi nguồn sẽ làm MỌI mã "chạm ngưỡng ra".
+ */
+export function hlDataGuard({ panelRows, missingSources = [], hl }, cfg = HL_PF) {
+  const why = [];
+  for (const s of missingSources) if (GUARD_SOURCES[s]) why.push(`Thiếu nguồn ${GUARD_SOURCES[s]}`);
+  const cnt = (k) => panelRows.filter((r) => fin(r.values?.[k])).length;
+  // Độ phủ tối thiểu theo tỷ lệ bảng (bình thường ≈ 97%): dưới ngưỡng coi như nguồn hỏng.
+  const need = Math.ceil(panelRows.length * cfg.guardMinShare);
+  for (const [k, name] of [["ls_v1", "LS-v1"], ["structure_score", "Cấu trúc xu hướng"], ["rrg_quadrant", "RRG ngành"]]) {
+    const n = cnt(k);
+    if (n < need) why.push(`${name} chỉ có ${n}/${panelRows.length} mã (cần ≥ ${need})`);
+  }
+  const taPass = hl.filter((x) => x.taCount >= 2).length;
+  if (taPass < cfg.guardMinTaPass) why.push(`Chỉ ${taPass} mã đạt ≥ 2 mô hình TA trên toàn bảng — nghi nguồn TA rỗng`);
+  return why;
+}
 /** Kết quả K0 (cố định theo tệp 10_ELITE_HL_K0.md) — hiển thị cạnh danh mục để không ai hiểu nhầm là đã được chứng minh. */
 export const HL_K0 = Object.freeze({
   period: "28/07/2020 → 05/11/2026", cagr: 0.125, vol: 0.199, maxDd: -0.468, turnover: 6.9, excess20: -0.0002, t: -0.02,
@@ -70,8 +92,10 @@ const warnings = (h, cfg) => {
  * @param prev       danh mục HL đã khoá của phiên liền trước: [{ ticker, weight, since }]
  * @param rebalance  true = phiên cân bằng (được mua mới)
  */
-export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = true, date, cfg = HL_PF }) {
+export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = true, date, cfg = HL_PF, missingSources = [] }) {
   const hl = hlScores(panelRows), hlBy = new Map(hl.map((x) => [x.ticker, x])), scBy = new Map(scores.map((x) => [x.ticker, x]));
+  const guardWhy = hlDataGuard({ panelRows, missingSources, hl }, cfg), frozen = guardWhy.length > 0;
+  if (frozen) rebalance = false;
   const tradable = hl.filter((x) => !hlTradable(scBy.get(x.ticker), cfg));
   const sigMed = median(tradable.map((x) => scBy.get(x.ticker).sigma20)) ?? 0.02;
   const selected = hl.filter((x) => x.cls === "STRONG" || x.cls === "CONFLUENCE");
@@ -79,9 +103,13 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
   // 1) Mã đang giữ: bán (lý do) hoặc giữ nguyên tỷ trọng.
   const exits = [], held = [];
   for (const p of prev) {
-    const h = hlBy.get(p.ticker), sc = scBy.get(p.ticker), why = exitReason(h, sc, cfg);
+    const h = hlBy.get(p.ticker), sc = scBy.get(p.ticker);
+    let why = frozen ? null : exitReason(h, sc, cfg);
+    // Mã vắng mặt (không có trong bảng / không có giá): chỉ ra khi vắng đủ `missSessions` phiên liên tiếp.
+    const miss = !h || !sc || !(sc.close > 0) ? (p.miss ?? 0) + 1 : 0;
+    if (why?.code === "no_data" && miss < cfg.missSessions) why = null;
+    if (!why) { held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, status: "HOLD", miss }); continue; }
     if (why) exits.push({ ticker: p.ticker, weight: r4(p.weight), since: p.since ?? null, ...why, hlRank: h?.rank ?? null, lsPct: r4(h?.lsPct), taCount: h?.taCount ?? null, rrg: h?.rrg ?? null });
-    else held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, status: "HOLD" });
   }
   // 2) Phiên cân bằng: mua mã Hợp lưu theo thứ tự xếp hạng, định cỡ theo rủi ro, trong giới hạn tiền mặt / ngành.
   const picks = [...held], inSet = new Set(picks.map((x) => x.ticker)), queue = [];
@@ -89,7 +117,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
   const secN = {}, secW = {}; let used = 0;
   for (const x of picks) { const s = secOf(x.ticker); secN[s] = (secN[s] ?? 0) + 1; secW[s] = (secW[s] ?? 0) + x.weight; used += x.weight; }
   const push = (x, code, reasonVi) => { if (queue.length < cfg.queue) queue.push({ ticker: x.ticker, hlRank: x.rank, cls: x.cls, t1: x.t1, t2: x.t2, t3: x.t3, lsPct: r4(x.lsPct), taCount: x.taCount, rrg: x.rrg, sectorKey: secOf(x.ticker), advBn: r4(scBy.get(x.ticker)?.advBn), code, reasonVi }); };
-  for (const x of selected) {
+  for (const x of frozen ? [] : selected) {
     if (inSet.has(x.ticker)) continue;
     const sc = scBy.get(x.ticker), bad = hlTradable(sc, cfg), s = secOf(x.ticker);
     if (bad) { push(x, "illiquid", `Chưa giao dịch được: ${bad}`); continue; }
@@ -106,13 +134,15 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
   const riskRaw = picks.map((x) => x.weight * Math.max(scBy.get(x.ticker)?.sigma20 ?? 0, cfg.sigmaFloor)), riskSum = riskRaw.reduce((a, b) => a + b, 0);
   const band = (sig) => Math.max(sig ?? 0, cfg.sigmaFloor) * Math.sqrt(cfg.bandSessions);
   const portfolio = picks.map((x, i) => {
-    const sc = scBy.get(x.ticker) ?? {}, h = hlBy.get(x.ticker);
+    const sc = scBy.get(x.ticker) ?? {}, h = hlBy.get(x.ticker) ?? { rank: 9999, cls: "NOT_T1", t1: 0, t2: 0, t3: 0, lsPct: null, lsPts: 0, taCount: 0, taPts: 0, rrg: null };
+    const miss = x.miss ?? 0;
     return {
       ticker: x.ticker, weight: r4(x.weight), Z: sc.Z ?? null, rank: sc.rank ?? null, alpha5Pct: sc.alpha5Pct ?? null, pOutperform: sc.pOutperform ?? null, sectorKey: sc.sectorKey ?? null,
       ...(sc.zModel !== undefined ? { zModel: sc.zModel, rrgQuadrant: sc.rrgQuadrant ?? null, rrgPenalty: Boolean(sc.rrgPenalty) } : {}),
       close: sc.close ?? null, stop: sc.close ? sc.close * (1 - cfg.stopK * band(sc.sigma20)) : null, target: sc.close ? sc.close * (1 + cfg.targetK * band(sc.sigma20)) : null,
       holdSessions: null, retained: x.status === "HOLD", riskContribution: riskSum > 0 ? riskRaw[i] / riskSum : null,
-      hl: { rank: h.rank, cls: h.cls, t1: h.t1, t2: h.t2, t3: h.t3, lsPct: r4(h.lsPct), lsPts: h.lsPts, taCount: h.taCount, taPts: h.taPts, rrg: h.rrg, status: x.status, since: x.since, advBn: r4(sc.advBn), sigma20: r4(sc.sigma20), exitBufferLs: h.lsPct == null ? null : r4(h.lsPct - cfg.exitLsPct), warnings: warnings(h, cfg) },
+      hl: { rank: h.rank, cls: h.cls, t1: h.t1, t2: h.t2, t3: h.t3, lsPct: r4(h.lsPct), lsPts: h.lsPts, taCount: h.taCount, taPts: h.taPts, rrg: h.rrg, status: x.status, since: x.since, advBn: r4(sc.advBn), sigma20: r4(sc.sigma20), exitBufferLs: h.lsPct == null ? null : r4(h.lsPct - cfg.exitLsPct), miss,
+        warnings: frozen ? ["Dữ liệu phiên không đủ — giữ nguyên, chưa xét ngưỡng ra"] : miss > 0 ? [`Không có dữ liệu của mã phiên này (lần ${miss}/${cfg.missSessions}) — chưa ra`] : warnings(h, cfg) },
     };
   }).sort((a, b) => a.hl.rank - b.hl.rank);
   const invested = portfolio.reduce((a, x) => a + x.weight, 0);
@@ -123,6 +153,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
     portfolio,
     hl: {
       version: HL_PF_VERSION, ruleVersion: HL_VERSION, rule: cfg, k0: HL_K0, date, rebalance, week: isoWeek(date),
+      dataGuard: { frozen, reasonsVi: guardWhy },
       funnel: { panel: panelRows.length, tradable: tradable.length, tier1: hl.filter((x) => x.pass1).length, selected: selected.length, selectedTradable: selected.filter((x) => !hlTradable(scBy.get(x.ticker), cfg)).length, held: portfolio.length },
       invested: r4(invested), cash: r4(1 - invested), sigmaMedian: r4(sigMed),
       changes: { added: picks.filter((x) => x.status === "NEW").map((x) => x.ticker), exits, kept: held.length, turnover: r4((buys + sells) / 2), costEst: r4(buys * cfg.costBuy + sells * cfg.costSell) },

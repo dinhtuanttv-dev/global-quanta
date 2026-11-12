@@ -72,6 +72,14 @@ describe("Bảng quyết định Elite HL", () => {
     expect(text("hl-ledger-hl-5")).toMatch(/chưa có phiên nào/); expect(text("hl-ledger-flow-5")).toMatch(/12 phiên · vượt rổ đều −0,31%/);
   });
 
+  it("N0 chốt dữ liệu: thiếu nguồn -> băng cảnh báo, ô nhịp cân bằng ghi Giữ nguyên; đủ nguồn -> dòng xác nhận", () => {
+    render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, dataGuard: { frozen: true, reasonsVi: ["LS-v1 chỉ có 0/275 mã (cần ≥ 97)"] } } }} onOpenTicker={() => {}} />);
+    expect(text("hl-data-guard")).toMatch(/danh mục giữ nguyên, không vào và không ra.*LS-v1 chỉ có 0\/275 mã/);
+    expect(text("hl-kpi-rebalance")).toMatch(/Giữ nguyên.*Chốt dữ liệu đang bật/);
+    cleanup(); render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, dataGuard: { frozen: false, reasonsVi: [] } } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-data-guard")).toBeNull(); expect(text("hl-data-ok")).toMatch(/đủ nguồn/);
+  });
+
   it("danh mục rỗng -> nói rõ 100% tiền mặt", () => {
     render(<EliteHlBoard d={{ ...decision, portfolio: [], hl: { ...decision.hl!, sectors: [], invested: 0, cash: 1, funnel: { ...decision.hl!.funnel, held: 0 } } }} onOpenTicker={() => {}} />);
     expect(text("hl-empty")).toMatch(/100% tiền mặt/);

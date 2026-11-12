@@ -1,7 +1,9 @@
 // E4-HL — danh mục Elite HL (quy tắc chọn HL-v1 + cấu trúc G2r): hàm thuần với dữ liệu giả.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildHlPortfolio, exitReason, hlTradable, isoWeek, isRebalanceSession, HL_PF } from "../src/market/elite/eliteHl.js";
+import { buildHlPortfolio as buildRaw, exitReason, hlTradable, isoWeek, isRebalanceSession, HL_PF } from "../src/market/elite/eliteHl.js";
+// Dữ liệu giả không có cột cấu trúc xu hướng -> tắt riêng phần độ phủ đó của chốt dữ liệu (test N0 bật lại).
+const buildHlPortfolio = (o) => buildRaw({ cfg: { ...HL_PF, guardMinShare: 0 }, ...o });
 
 const TA2 = { sepa_state: 2, base_breakout: 3 };
 /** 40 mã: T39 có LS cao nhất. 8 mã đầu bảng đạt tầng 1; ngành theo `sec`, RRG theo `rrg`. */
@@ -54,7 +56,7 @@ test("RRG: Cải thiện + Dẫn dắt được mua; Suy yếu / Tụt hậu kh�
 
 test("giữ / bán (G2r): bán chậm — LS < 60, hết TA, ngành Tụt hậu, mất dữ liệu; ngành Suy yếu chỉ cảnh báo; không cân lại tỷ trọng", () => {
   const prev = [{ ticker: "T39", weight: 0.12, since: "2026-11-02" }, { ticker: "T26", weight: 0.1, since: "2026-11-02" }, { ticker: "T20", weight: 0.1, since: "2026-11-02" },
-    { ticker: "T35", weight: 0.08, since: "2026-11-09" }, { ticker: "T34", weight: 0.09, since: "2026-11-09" }, { ticker: "ZZZ", weight: 0.1, since: "2026-11-09" }];
+    { ticker: "T35", weight: 0.08, since: "2026-11-09" }, { ticker: "T34", weight: 0.09, since: "2026-11-09" }, { ticker: "ZZZ", weight: 0.1, since: "2026-11-09", miss: 1 }];
   // T26: LS phân vị 66 nhưng không còn mô hình TA; T20: LS phân vị 51; T35: ngành Tụt hậu; T34: ngành Suy yếu (giữ, cảnh báo).
   const w = world({ rrg: (i) => (i === 35 ? -2 : i === 34 ? -1 : 2) });
   const { portfolio, hl } = buildHlPortfolio({ ...w, prev, rebalance: false, date: "2026-11-13" });
@@ -81,4 +83,37 @@ test("phiên cân bằng: giữ mã cũ, lấp ô trống bằng mã Hợp lưu 
   assert.equal(more.portfolio.length, 8); assert.deepEqual(more.hl.changes.added, ["T34", "T33", "T32"], "mua theo thứ tự xếp hạng"); assert.equal(more.hl.changes.kept, 5);
   assert.ok(more.hl.invested <= 1 + 1e-9);
   assert.deepEqual(more.portfolio.map((x) => x.hl.rank), [...more.portfolio.map((x) => x.hl.rank)].sort((a, b) => a - b), "danh mục xếp theo hạng hợp lưu");
+});
+
+test("N0 chốt dữ liệu: thiếu LS-v1 / nguồn TA / nguồn bị báo thiếu -> danh mục giữ nguyên, không vào, không ra", async () => {
+  const { hlDataGuard } = await import("../src/market/elite/eliteHl.js");
+  const prev = [{ ticker: "T39", weight: 0.12, since: "2026-11-02" }, { ticker: "T20", weight: 0.1, since: "2026-11-02" }];
+  const w = world(); // 40 mã -> hạ ngưỡng chốt cho dữ liệu giả
+  const cfg = { ...HL_PF };
+  w.panelRows = w.panelRows.map((r) => ({ ...r, values: { ...r.values, structure_score: 3 } }));
+  const ok = buildHlPortfolio({ ...w, prev, rebalance: true, date: "2026-11-16", cfg });
+  assert.equal(ok.hl.dataGuard.frozen, false); assert.equal(ok.hl.changes.exits.length, 1, "bình thường: T20 ra vì LS < 60");
+  const noLs = { ...w, panelRows: w.panelRows.map((r) => ({ ...r, values: { ...r.values, ls_v1: null } })) };
+  const a = buildHlPortfolio({ ...noLs, prev, rebalance: true, date: "2026-11-16", cfg });
+  assert.equal(a.hl.dataGuard.frozen, true); assert.match(a.hl.dataGuard.reasonsVi[0], /LS-v1 chỉ có 0\/40 mã/);
+  assert.deepEqual(a.portfolio.map((x) => [x.ticker, x.weight]).sort(), [["T20", 0.1], ["T39", 0.12]], "giữ nguyên cả mã lẽ ra đã ra");
+  assert.equal(a.hl.changes.exits.length, 0); assert.equal(a.hl.changes.added.length, 0); assert.equal(a.hl.rebalance, false, "phiên bị chốt không tính là phiên cân bằng");
+  assert.match(a.portfolio[0].hl.warnings[0], /Dữ liệu phiên không đủ/);
+  const noTa = { ...w, panelRows: w.panelRows.map((r) => ({ ticker: r.ticker, values: { ls_v1: r.values.ls_v1, rrg_quadrant: 2, structure_score: 3, sepa_state: 0, base_breakout: 0 } })) };
+  const b = buildHlPortfolio({ ...noTa, prev, rebalance: false, date: "2026-11-16", cfg });
+  assert.equal(b.hl.dataGuard.frozen, true); assert.match(b.hl.dataGuard.reasonsVi.join(), /nghi nguồn TA rỗng/); assert.equal(b.portfolio.length, 2);
+  const c = buildHlPortfolio({ ...w, prev, rebalance: true, date: "2026-11-16", cfg, missingSources: ["strategies:sepa", "catalyst"] });
+  assert.deepEqual(c.hl.dataGuard.reasonsVi, ["Thiếu nguồn SEPA"], "nguồn tầng 3 thiếu không chốt danh mục"); assert.equal(c.portfolio.length, 2);
+  assert.deepEqual(hlDataGuard({ panelRows: w.panelRows, missingSources: [], hl: ok.portfolio.map(() => ({ taCount: 2 })).concat(Array(5).fill({ taCount: 2 })) }, cfg), []);
+});
+
+test("N0 mã vắng mặt: phiên đầu giữ kèm cảnh báo, vắng 2 phiên liên tiếp mới ra; có lại dữ liệu thì xoá bộ đếm", () => {
+  const cfg = { ...HL_PF, guardMinShare: 0 };
+  const w = world();
+  const d1 = buildHlPortfolio({ ...w, prev: [{ ticker: "ZZZ", weight: 0.1, since: "2026-11-02" }, { ticker: "T39", weight: 0.1, since: "2026-11-02" }], rebalance: false, date: "2026-11-13", cfg });
+  const z1 = d1.portfolio.find((x) => x.ticker === "ZZZ");
+  assert.ok(z1, "vắng lần 1 -> chưa ra"); assert.equal(z1.hl.miss, 1); assert.match(z1.hl.warnings[0], /lần 1\/2/); assert.equal(d1.hl.changes.exits.length, 0);
+  const d2 = buildHlPortfolio({ ...w, prev: [{ ticker: "ZZZ", weight: 0.1, since: "2026-11-02", miss: 1 }, { ticker: "T39", weight: 0.1, since: "2026-11-02", miss: 1 }], rebalance: false, date: "2026-11-16", cfg });
+  assert.deepEqual(d2.hl.changes.exits.map((x) => [x.ticker, x.code]), [["ZZZ", "no_data"]]);
+  assert.equal(d2.portfolio.find((x) => x.ticker === "T39").hl.miss, 0, "có lại dữ liệu -> bộ đếm về 0");
 });
