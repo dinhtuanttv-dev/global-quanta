@@ -27,12 +27,16 @@ export interface PortfolioPick {
 export type HlClassCode = "STRONG" | "CONFLUENCE" | "T1_SECTOR_AGAINST" | "T1_SECTOR_NA" | "NOT_T1";
 export interface HlPosition {
   rank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; lsPts: number; taCount: number; taPts: number; rrg: number | null;
-  status: "NEW" | "HOLD"; since: string | null; advBn: number | null; sigma20: number | null; exitBufferLs: number | null; warnings: string[];
+  status: "NEW" | "HOLD"; since: string | null; advBn: number | null; sigma20: number | null; exitBufferLs: number | null; warnings: string[]; miss?: number;
+  /** N2 "Vì sao": điều kiện tầng 1 theo mã tín hiệu, phiếu tầng 3 (+1 / 0 / −1 / null = chưa có dữ liệu), giá tham chiếu và lãi/lỗ từ phiên khoá. */
+  ta?: Record<string, boolean | null> | null; votes?: Record<string, number | null> | null; ref?: number | null; sinceRet?: number | null;
 }
 export interface HlExit { ticker: string; weight: number | null; since: string | null; code: "ls" | "ta" | "rrg" | "no_data"; reasonVi: string; hlRank: number | null; lsPct: number | null; taCount: number | null; rrg: number | null }
 export interface HlQueueItem { ticker: string; hlRank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; taCount: number; rrg: number | null; sectorKey: string | null; advBn: number | null; code: "illiquid" | "wait" | "full" | "sector_cap" | "no_room"; reasonVi: string }
 export interface EliteHlMeta {
   version: string; ruleVersion: string; date: string; rebalance: boolean; week: string; prevDate: string | null;
+  /** N0: chốt dữ liệu — frozen = bảng tín hiệu thiếu nguồn, danh mục giữ nguyên phiên trước. */
+  dataGuard?: { frozen: boolean; reasonsVi: string[] };
   rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number };
   k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string };
   funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number };

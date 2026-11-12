@@ -100,7 +100,7 @@ test("E3 sổ theo dõi: chấm sau d+1+h, lợi suất vượt = danh mục −
 test("E4-HL dịch vụ: danh mục chính thức = Elite HL, danh mục dòng tiền dựng song song; khoá sổ một lần mỗi phiên, chấm khi có giá mới", async () => {
   const { cal, rows: rows0, daily } = world();
   // 12 mã điểm cao nhất có LS-v1 cao + 2 mô hình TA + ngành Dẫn dắt -> đạt Hợp lưu HL-v1.
-  const rows = rows0.map((r, i) => ({ ...r, values: { ...r.values, ls_v1: i, ...(i >= 48 ? { sepa_state: 2, base_breakout: 3, rrg_quadrant: 2 } : {}) } }));
+  const rows = rows0.map((r, i) => ({ ...r, values: { ...r.values, ls_v1: i, structure_score: 3, rrg_quadrant: i >= 48 ? 2 : -1, ...(i >= 48 ? { sepa_state: 2, base_breakout: 3 } : {}) } }));
   const store = createMemoryStore();
   const upto = (k) => daily.filter((r) => r.date <= cal[k]);
   await store.upsertMarketDaily(upto(99));

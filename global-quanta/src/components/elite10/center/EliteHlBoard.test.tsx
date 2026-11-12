@@ -72,6 +72,30 @@ describe("Bảng quyết định Elite HL", () => {
     expect(text("hl-ledger-hl-5")).toMatch(/chưa có phiên nào/); expect(text("hl-ledger-flow-5")).toMatch(/12 phiên · vượt rổ đều −0,31%/);
   });
 
+  it("N0 chốt dữ liệu: thiếu nguồn -> băng cảnh báo, ô nhịp cân bằng ghi Giữ nguyên; đủ nguồn -> dòng xác nhận", () => {
+    render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, dataGuard: { frozen: true, reasonsVi: ["LS-v1 chỉ có 0/275 mã (cần ≥ 97)"] } } }} onOpenTicker={() => {}} />);
+    expect(text("hl-data-guard")).toMatch(/danh mục giữ nguyên, không vào và không ra.*LS-v1 chỉ có 0\/275 mã/);
+    expect(text("hl-kpi-rebalance")).toMatch(/Giữ nguyên.*Chốt dữ liệu đang bật/);
+    cleanup(); render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, dataGuard: { frozen: false, reasonsVi: [] } } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-data-guard")).toBeNull(); expect(text("hl-data-ok")).toMatch(/đủ nguồn/);
+  });
+
+  it("N2 thẻ Vì sao: điều kiện tầng 1, từng phiếu tầng 3, ba ngưỡng ra và thay đổi từ phiên khoá; bấm lại thì đóng", () => {
+    const d = { ...decision, portfolio: [{ ...decision.portfolio[0], hl: { ...decision.portfolio[0].hl!, ta: { sepa_state: true, base_breakout: false, convergence: null }, votes: { stealth20: 1, fa_score: -1, catalyst_impact: 0, cotuc_decision: null }, ref: 130000, sinceRet: 0.05 } }, decision.portfolio[1]] };
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-why-VJC")).toBeNull();
+    fireEvent.click(screen.getByTestId("hl-why-btn-VJC"));
+    const w = text("hl-why-VJC");
+    expect(w).toMatch(/✓ SEPA gần pivot . phá vỡ.*✗ Base Breakout ≥ hạng B.*· Hợp lưu v2 mua ≥ hạng B — chưa có dữ liệu/);
+    expect(w).toMatch(/[+]1 Stealth 20.*−1 Điểm cơ bản.*0 Chất xúc tác.*· Cổ tức/);
+    expect(w).toMatch(/còn cách 25 điểm phân vị.*ra khi < 60.*đang đạt 5.*ra khi còn 0.*Dẫn dắt.*ra khi Tụt hậu/);
+    expect(w).toMatch(/Vào danh mục: 12.11.2026.*130[.]000 → 100[.]000.*[+]5,0%/);
+    expect(screen.getByTestId("hl-why-btn-VJC").getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByTestId("hl-why-btn-CTD"));
+    expect(screen.queryByTestId("hl-why-VJC")).toBeNull(); expect(text("hl-why-CTD")).toMatch(/Chưa có chi tiết mô hình TA/);
+    fireEvent.click(screen.getByTestId("hl-why-btn-CTD")); expect(screen.queryByTestId("hl-why-CTD")).toBeNull();
+  });
+
   it("danh mục rỗng -> nói rõ 100% tiền mặt", () => {
     render(<EliteHlBoard d={{ ...decision, portfolio: [], hl: { ...decision.hl!, sectors: [], invested: 0, cash: 1, funnel: { ...decision.hl!.funnel, held: 0 } } }} onOpenTicker={() => {}} />);
     expect(text("hl-empty")).toMatch(/100% tiền mặt/);

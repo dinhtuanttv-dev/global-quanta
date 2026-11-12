@@ -4,7 +4,7 @@
 import { buildCandidates, buildDecision, E3_V5, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
-import { buildHlPortfolio, hlTradable, HL_PF_VERSION, isRebalanceSession } from "./eliteHl.js";
+import { buildHlPortfolio, hlTradable, HL_PF_VERSION, isoWeek } from "./eliteHl.js";
 import { REGIME_VI } from "./leadership.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
@@ -76,7 +76,10 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         const lastBefore = (L) => [...L.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
         const flowPrev = lastBefore(flow), hlPrev = lastBefore(ledger);
         const base = buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: flowPrev?.holdings ?? [], version: FLOW_VER });
-        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance: isRebalanceSession(p.date, hlPrev?.date ?? null), date: p.date });
+        // Phiên cân bằng = phiên đầu tiên của tuần ISO mà danh mục được phép nhận mã mới (phiên đầu tuần bị chốt dữ liệu -> dời sang phiên kế).
+        const wk = isoWeek(p.date), rebalance = !ledger.entries.some((e) => e.date < p.date && e.rebalance && isoWeek(e.date) === wk);
+        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance, date: p.date, missingSources: p.missingSources ?? [] });
+        if (H.hl.dataGuard.frozen) log.warn?.(`[elite] HL chốt dữ liệu phiên ${p.date}: ${H.hl.dataGuard.reasonsVi.join("; ")}`);
         let market = null;
         if (leadership) { try { const lv = await leadership.live(p.date); market = { regime: lv.regime, regimeVi: REGIME_VI[lv.regime] ?? null, bias: lv.bias, breadth: lv.breadth, guard: lv.guard }; } catch (e) { log.warn?.(`[elite] trạng thái thị trường LS: ${e.message}`); } }
         doc = {
@@ -92,7 +95,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
           const uni = doc.scores.filter((x) => !hlTradable(x)).map((x) => x.ticker);
           ledger.entries.push({
             date: p.date, lockedAt: doc.builtAt, cash: doc.hl.cash, rebalance: doc.hl.rebalance,
-            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since })),
+            holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since, ...(x.hl.ref ? { ref: x.hl.ref } : {}), ...(x.hl.miss ? { miss: x.hl.miss } : {}) })),
+            ...(doc.hl.dataGuard.frozen ? { frozen: true } : {}),
             ...(doc.portfolio.length ? { universe: uni } : { universeSize: uni.length, empty: true }), results: {},
           });
         }

@@ -52,6 +52,13 @@ const TA_MODELS: { id: string; sig: string; label: string; ok: (v: number) => bo
   { id: "stage", sig: "structure_stage", label: "Giai đoạn 2 Minervini", ok: (v) => v === 2 },
   { id: "dow", sig: "structure_verdict", label: "Dow khung Ngày tăng", ok: (v) => v === 2 },
 ];
+/** Nhãn điều kiện tầng 1 theo mã tín hiệu và nhãn phiếu tầng 3 — dùng cho thẻ "Vì sao" của Bảng quyết định (dữ liệu do Gateway xuất). */
+export const HL_TA_LABELS: Record<string, string> = Object.fromEntries(TA_MODELS.map((m) => [m.sig, m.label]));
+export const HL_VOTE_LABELS: Record<string, { tab: string; label: string }> = {
+  stealth20: { tab: "Tổng quan", label: "Stealth 20" }, stealth5: { tab: "Tổng quan", label: "Stealth 5" }, net_intent: { tab: "Tổng quan", label: "Ý đồ dòng tiền IFE" },
+  foreign_net_buy: { tab: "Tổng quan", label: "Khối ngoại mua ròng" }, fa_score: { tab: "Tổng quan", label: "Điểm cơ bản" }, ws_sector_alpha: { tab: "Kết nối thế giới", label: "α ngành thế giới" },
+  top20_alpha: { tab: "Phân tích ngành", label: "Alpha M1 Top 20" }, catalyst_impact: { tab: "Phân tích vĩ mô", label: "Chất xúc tác" }, cotuc_decision: { tab: "Phân tích cơ bản", label: "Cổ tức" },
+};
 const lsPoints = (pct: number | null) => (pct == null ? 0 : pct >= 80 ? 5 : pct >= 60 ? 3 : pct >= 40 ? 1 : 0);
 const sign = (v: number | null | undefined, up: (x: number) => boolean, down: (x: number) => boolean): -1 | 0 | 1 | null => (num(v) ? (up(v) ? 1 : down(v) ? -1 : 0) : null);
 
