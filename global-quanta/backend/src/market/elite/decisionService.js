@@ -21,12 +21,34 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
   async function loadPrices(symbols, to) {
+    // 13/11/2026: σ20, GTGD và lợi suất chấm sổ phải tính trên giá ĐIỀU CHỈNH CỘNG DỒN — close_adj của market_daily còn nguyên bước
+    // nhảy ở ngày giao dịch không hưởng quyền (một vị thế chia cổ phiếu 20% sẽ bị chấm −17%). Nguồn lỗi -> lùi về close_adj.
+    if (adjustedCloses) {
+      try {
+        const m = await adjustedCloses(symbols, to, PRICE_DAYS);
+        if (m && m.size >= Math.min(50, symbols.length)) {
+          const from = isoMinusDays(to, PRICE_DAYS);
+          const out = new Map([...m].map(([t, rows]) => [t, rows.filter((r) => r[0] >= from && r[0] <= to && r[1] > 0).map((r) => ({ date: r[0], closeAdj: r[1], value: r[2] ?? null }))]).filter(([, list]) => list.length));
+          // Mã không dựng được chuỗi cộng dồn: giữ close_adj cho RIÊNG mã đó (không để vị thế đang giữ bị coi là mất giá).
+          const lack = symbols.filter((t) => !out.has(t));
+          if (lack.length) {
+            for (const r of await store.getMarketDailyRange({ from, to, symbols: lack, columns: "symbol,trading_date,close_adj,value" })) {
+              if (!(r.closeAdj > 0)) continue;
+              if (!out.has(r.symbol)) out.set(r.symbol, []);
+              out.get(r.symbol).push({ date: r.date, closeAdj: r.closeAdj, value: r.value ?? null });
+            }
+            for (const t of lack) out.get(t)?.sort((a, b) => a.date.localeCompare(b.date));
+          }
+          return out;
+        }
+      } catch (e) { log.warn?.(`[elite] giá điều chỉnh cộng dồn lỗi (${e.message}) — dùng close_adj`); }
+    }
     const rows = await store.getMarketDailyRange({ from: isoMinusDays(to, PRICE_DAYS), to, symbols, columns: "symbol,trading_date,close_adj,value" });
     const prices = new Map();
     for (const r of rows) {
