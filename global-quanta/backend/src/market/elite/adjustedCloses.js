@@ -74,3 +74,30 @@ export function createEliteAdjustedCloses({ seriesSource, pricesOf, store, log =
   adjustedCloses.stats = () => lastStats;
   return adjustedCloses;
 }
+
+/**
+ * Chuỗi giá cho các engine Elite dạng Map(mã -> [{ date, closeAdj, value }]) trong [from, to]: giá điều chỉnh đầy đủ khi có; mã không có
+ * chuỗi điều chỉnh (hoặc không có `adjustedCloses`) dùng close_adj của market_daily cho RIÊNG mã đó — không trộn hai cơ sở trong một mã.
+ */
+export async function loadAdjustedSeries({ adjustedCloses = null, store, symbols, from, to, log = console }) {
+  const out = new Map();
+  if (adjustedCloses && symbols.length) {
+    try {
+      const m = await adjustedCloses(symbols, to);
+      for (const [t, rows] of m ?? []) {
+        const list = rows.filter((r) => r[0] >= from && r[0] <= to && r[1] > 0).map((r) => ({ date: r[0], closeAdj: r[1], value: r[2] ?? null }));
+        if (list.length) out.set(t, list);
+      }
+    } catch (e) { log.warn?.(`[elite] giá điều chỉnh lỗi (${e.message}) — dùng close_adj`); }
+  }
+  const lack = symbols.filter((t) => !out.has(t));
+  if (lack.length) {
+    for (const r of await store.getMarketDailyRange({ from, to, symbols: lack, columns: "symbol,trading_date,close_adj,value" })) {
+      if (!(r.closeAdj > 0)) continue;
+      if (!out.has(r.symbol)) out.set(r.symbol, []);
+      out.get(r.symbol).push({ date: r.date, closeAdj: r.closeAdj, value: r.value ?? null });
+    }
+    for (const t of lack) out.get(t)?.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return out;
+}

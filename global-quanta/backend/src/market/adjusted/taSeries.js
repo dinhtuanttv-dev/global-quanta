@@ -14,7 +14,7 @@ const RANGE_YEARS = { "1y": 1, "2y": 2, "3y": 3, "5y": 5 };
 const MAX_FACTOR_DEVIATION = 0.5; // |k − 1| lớn hơn -> dữ liệu lệch ngày/lỗi, không tin
 
 /** Khôi phục OHLC danh nghĩa từ nến SSI + giá đóng cửa danh nghĩa (hàm thuần). */
-export function nominalizeBars(ssiBars, nominalCloseByDate) {
+export function nominalizeBars(ssiBars, nominalCloseByDate, { maxDeviation = MAX_FACTOR_DEVIATION } = {}) {
   let lastK = null;
   let matched = 0;
   const bars = ssiBars.map((b) => {
@@ -22,7 +22,7 @@ export function nominalizeBars(ssiBars, nominalCloseByDate) {
     let k = null;
     if (nominalClose > 0 && b.close > 0) {
       const cand = nominalClose / b.close;
-      if (Math.abs(cand - 1) <= MAX_FACTOR_DEVIATION) { k = cand; matched++; }
+      if (Math.abs(cand - 1) <= maxDeviation) { k = cand; matched++; }
     }
     if (k === null) k = b.partial ? 1 : lastK ?? 1; // nến hôm nay (stream) đã là giá danh nghĩa
     lastK = b.partial ? lastK : k;

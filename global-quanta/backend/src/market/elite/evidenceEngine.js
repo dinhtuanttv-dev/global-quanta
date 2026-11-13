@@ -6,6 +6,7 @@
 // mỗi đêm chỉ đọc đặc trưng dòng tiền của phiên mới + giá đóng cửa điều chỉnh của khoảng ~25 phiên. Lần chạy đầu đọc hồi cứu
 // toàn bộ `market_flow_daily` (một lần).
 import { T as RESEARCH_T } from "../research/researchJobs.js";
+import { loadAdjustedSeries } from "./adjustedCloses.js";
 import { SIGNAL_SPECS } from "./signalRegistry.js";
 import { bhQ, dailyIc, decideTier, E2_VERSION, HORIZONS, MIN_DAYS_FDR, summarize } from "./icCore.js";
 import { noteStoreError } from "./storeHealth.js";
@@ -27,7 +28,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /**
  * @param {{ store: any, panel: { panel: (date?: string|null) => Promise<any>, dates: () => Promise<string[]> }, now?: () => number, log?: any }} deps
  */
-export function createEvidenceEngine({ store, panel, leadership = null, now = Date.now, log = console }) {
+export function createEvidenceEngine({ store, panel, leadership = null, adjustedCloses = null, now = Date.now, log = console }) {
   let running = null;
   let memo = null;
 
@@ -128,8 +129,9 @@ export function createEvidenceEngine({ store, panel, leadership = null, now = Da
       const to = cal[Math.min(last, pos.get(work[work.length - 1]) + 1 + MAX_H)];
       const px = new Map();
       if (from && to && symbols.size) {
-        const rows = await store.getMarketDailyRange({ from, to, symbols: [...symbols], columns: "symbol,trading_date,close_adj" });
-        for (const r of rows) if (r.closeAdj > 0) px.set(`${r.symbol}|${r.date}`, r.closeAdj);
+        // 13/11/2026: lợi suất tương lai của IC tính trên giá ĐIỀU CHỈNH ĐẦY ĐỦ (close_adj còn bước nhảy ở ngày không hưởng quyền).
+        const series = await loadAdjustedSeries({ adjustedCloses, store, symbols: [...symbols], from, to, log });
+        for (const [t, list] of series) for (const r of list) px.set(`${t}|${r.date}`, r.closeAdj);
       }
       for (const d of work) {
         const day = values.get(d);
