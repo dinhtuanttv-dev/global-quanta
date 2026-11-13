@@ -78,15 +78,20 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
       // các mã đó rơi về SSI_LATEST_EVENT_ADJUSTED: chuỗi còn nguyên bước nhảy ở ngày không hưởng quyền và mọi bộ lọc kỹ thuật đọc sai.
       // Khi độ khớp thấp, bổ sung giá đóng cửa danh nghĩa từ kho VNDirect (bản của kho Gateway thắng ở ngày trùng) rồi khôi phục lại.
       let nominalSource = "GATEWAY";
+      // Mã vừa chia tách tỷ lệ lớn (VIC 1:1 ngày 05/12/2025, TCB 3:2 ngày 29/10/2026): nến SSI của MỌI phiên trước đó bị nhân hệ số 0,5–0,67,
+      // tức giá danh nghĩa / giá SSI = 1,5–2 — vượt ngưỡng tin cậy mặc định (|k − 1| ≤ 0,5) nên bị coi là "không khớp". Giá danh nghĩa khớp
+      // đúng ngày là dữ liệu đáng tin, nên khi độ khớp thấp thì thử lại với ngưỡng rộng (k tới 5).
+      const WIDE = { maxDeviation: 4 };
+      const retry = (map, source) => {
+        const again = nominalizeBars(ssiBars, map, WIDE);
+        const cov2 = history.length ? again.matched / history.length : 1;
+        if (cov2 > coverage) { nominal = again; coverage = cov2; nominalSource = source; }
+      };
+      if (coverage < MIN_NOMINAL_COVERAGE && nominalByDate.size) retry(nominalByDate, "GATEWAY");
       if (coverage < MIN_NOMINAL_COVERAGE && nominalFallback) {
         let extra = null;
         try { extra = nominalFallback(symbol); } catch { extra = null; }
-        if (extra?.size) {
-          const merged = new Map([...extra, ...nominalByDate]);
-          const again = nominalizeBars(ssiBars, merged);
-          const cov2 = history.length ? again.matched / history.length : 1;
-          if (cov2 > coverage) { nominal = again; coverage = cov2; nominalSource = nominalByDate.size ? "GATEWAY+VNDIRECT" : "VNDIRECT"; }
-        }
+        if (extra?.size) retry(new Map([...extra, ...nominalByDate]), nominalByDate.size ? "GATEWAY+VNDIRECT" : "VNDIRECT");
       }
 
       const byDate = new Map(nominal.bars.map((b) => [b.date, b]));

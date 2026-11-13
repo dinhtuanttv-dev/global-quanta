@@ -55,3 +55,20 @@ test("kho Gateway đủ lịch sử: không đụng tới nguồn dự phòng; k
   assert.equal(part.priceBasis, "ADJUSTED_CUMULATIVE"); assert.equal(part.nominalSource, "GATEWAY+VNDIRECT"); assert.equal(called, 1); assert.equal(part.nominalCoverage, 1);
   setNominalFallback(null); resetScreenerSeriesMemo();
 });
+
+test("chia tách tỷ lệ lớn (1:1): nến SSI bị nhân 0,5 ở mọi phiên trước ngày quyền vẫn khôi phục được và điều chỉnh liền mạch", async () => {
+  // Giá danh nghĩa 100.000 trước ngày quyền, 50.000 sau; SSI trả 50.000 ở mọi phiên (hệ số đợt gần nhất 0,5).
+  const nom = (i) => (i < 60 ? 100000 : 50000);
+  const ssi = DATES.slice(0, 78).map((date) => ({ date, open: 50000, high: 50500, low: 49500, close: 50000, volume: 1000, value: 5e7 }));
+  const store = {
+    getMarketDailyDates: async () => DATES, getMarketDailyRange: async () => DATES.slice(76).map((date) => ({ symbol: "BIG", date, open: 50000, high: 50500, low: 49500, close: 50000, volume: 1000, value: 5e7 })),
+    getBars: async (_s, from, to) => ssi.filter((b) => b.date >= from && b.date <= to), selectRows: async () => [{ bars: DATES.slice(0, 78).map((d, i) => [d, nom(i)]) }],
+  };
+  const ca = { get: async () => ({ events: [{ exDate: EX, cash: 0, ratio: 1, label: "Thưởng cổ phiếu 1:1" }] }), prefetch: async () => {} };
+  setNominalFallback(null); resetScreenerSeriesMemo();
+  const r = await (await createScreenerSeries({ store, corporateActions: ca, historyDays: 400 }).prepare(["BIG"]))("BIG");
+  assert.equal(r.priceBasis, "ADJUSTED_CUMULATIVE"); assert.equal(r.nominalSource, "GATEWAY"); assert.equal(r.nominalCoverage, 1);
+  assert.equal(r.bars.slice(1).filter((b, i) => Math.abs(b.close / r.bars[i].close - 1) > 0.02).length, 0, "không còn bước nhảy ở ngày quyền");
+  assert.ok(Math.abs(r.bars[0].close - 50000) < 1);
+  resetScreenerSeriesMemo();
+});
