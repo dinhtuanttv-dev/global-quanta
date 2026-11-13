@@ -235,7 +235,7 @@ const getEliteLeadership = () => (eliteLeadership ??= createLeadershipService({
 }));
 // E2: engine bằng chứng — IC hạng từng tín hiệu theo E2-prereg.md, cập nhật tăng dần sau mỗi bảng mới.
 let eliteEvidence = null;
-const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel(), leadership: getEliteLeadership() }));
+const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses }));
 // E3: Điểm Elite + danh mục Elite 10 + sổ theo dõi tiến (E3-prereg.md).
 let eliteDecision = null;
 const vnIndexCloses = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
@@ -267,7 +267,7 @@ let eliteZones = null;
 const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore: getCotucStore() }));
 let eliteBuyTiming = null;
 const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store, localTimeline: () => getGatewayTimeline()() }));
-const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
+const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
 // CG-r1: Cổng tiền mặt (đăng ký trước, KHÔNG ĐẠT -> chỉ mô tả) + sổ tiến bóng.
 let cashGate = null;
 const getCashGate = () => (cashGate ??= createCashGateService({
@@ -276,7 +276,7 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 }));
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
-const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
+const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
 app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore }));
 // F5 (06/11/2026): Chất lượng KQKD (SUE/SUR, tăng trưởng có kiểm soát) cho tab PHÂN TÍCH CƠ BẢN › Kết quả kinh doanh.
 let earningsQuality = null;

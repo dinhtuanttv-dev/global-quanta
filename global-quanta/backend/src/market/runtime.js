@@ -29,6 +29,7 @@ import { createDividendScreener } from "./events/dividendScreener.js";
 import { createDivRunup } from "./events/divRunupService.js";
 import { createSharesEps } from "./fundamentals/sharesEps.js";
 import { createEliteToShadow } from "./elite/eliteToShadow.js";
+import { setNominalFallback, vndNominalMap } from "./strategies/screenerSeries.js";
 import { createHlLedger } from "./elite/confluence.js";
 import { ELITE_KV } from "./elite/elitePanel.js";
 import { DECISION_KV } from "./elite/decisionService.js";
@@ -173,6 +174,8 @@ export function getMarketRuntime() {
   // LC3 (06/11/2026): phản ứng giá quanh ngày công bố KQKD — job 19:45 hằng ngày (sau lượt làm mới KQKD 19:15).
   let corpEventsRef = null; // LSK5: kho sự kiện (tạo phía dưới) cấp đợt GDKHQ tiền mặt cho XD-v1
   const eventStudy = createEventStudyService({ dir: kqkdDir, exEvents: (t) => corpEventsRef?.ticker(t)?.events ?? [] });
+  // 13/11/2026: giá danh nghĩa dự phòng cho kho chuỗi giá của các bộ lọc (mã thiếu lịch sử ở market_adjusted_series) — kho VNDirect.
+  setNominalFallback((t) => vndNominalMap(eventStudy.pricesOf(t)));
   // EPS-v1 (P0 kiểm toán BCTC 07/11/2026): EPS 12 tháng + số cổ phiếu lưu hành theo kỳ (VNDirect ratios) — làm mới 10 phút trước mỗi lượt KQKD.
   const sharesEps = createSharesEps({ dir: kqkdDir, universe: async () => ((await store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker) });
   jobs.sharesEps = () => sharesEps.refresh();
