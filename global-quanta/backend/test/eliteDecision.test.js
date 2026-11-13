@@ -241,3 +241,20 @@ test("E3-v4 RRG: ngành Tụt hậu bị trừ 30% độ lớn Z khi xếp hạn
   const p = dec.portfolio.find((x) => x.ticker === top);
   if (p) assert.equal(p.rrgPenalty, true);
 });
+
+// F03 (13/11/2026): sổ Elite HL không có Z -> tiêu chí IC của E3 không bao giờ tính được; nhãn phải nói đúng là sổ MÔ TẢ.
+import { hlLedgerSummary, HL_LEDGER_BASIS_VI } from "../src/market/elite/decisionService.js";
+test("E4-HL sổ: nhãn THĂM DÒ mô tả (không hứa 'đủ 60 phiên'), kèm cơ sở chấm; số liệu chấm giữ nguyên như summarizeLedger", () => {
+  const res = (ex) => ({ from: "2026-11-13", to: "2026-11-20", portfolioNet: ex, universeNet: 0, excess: ex, vnIndex: 0.01, ic: null, names: 100 });
+  const entries = Array.from({ length: 70 }, (_, i) => ({ date: `d${String(i).padStart(3, "0")}`, holdings: [{ ticker: "A", weight: 0.1 }], results: { 5: res(0.01), 10: res(0.02) } }));
+  const base = summarizeLedger(entries), s = hlLedgerSummary(entries);
+  assert.equal(base.criteria.icPass, false); // không có IC -> tiêu chí E3 không thể đạt dù đã 70 phiên, lợi suất vượt dương
+  assert.match(base.labelVi, /cần ≥ 60 phiên/); // nhãn cũ: lời hứa không có đường thành hiện thực với sổ HL
+  assert.equal(s.kind, "ELITE_HL");
+  assert.equal(s.label, "EXPERIMENTAL");
+  assert.match(s.labelVi, /sổ mô tả của Elite HL \(70 phiên\)/);
+  assert.doesNotMatch(s.labelVi, /cần ≥ 60 phiên/);
+  assert.equal(s.basisVi, HL_LEDGER_BASIS_VI);
+  assert.match(s.basisVi, /không tính phần tiền mặt/);
+  assert.deepEqual(s.horizons, base.horizons);
+});

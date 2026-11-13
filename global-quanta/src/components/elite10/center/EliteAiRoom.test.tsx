@@ -40,7 +40,10 @@ describe("Elite 10 E5 — Phòng họp AI", () => {
     expect(calls).toHaveLength(0);
     await act(async () => { fireEvent.click(screen.getByTestId("elite-brief-start")); });
     expect(calls).toEqual([{ provider: "claude", role: null, content: debateQuestions(null).brief }]);
-    expect(debateQuestions(null).bull).toContain("danh mục Elite 10");
+    // 13/11/2026: danh mục chính thức có thể là Elite HL -> câu hỏi không gọi cứng "Elite 10" mà bảo AI đọc portfolioKind.
+    expect(debateQuestions(null).bull).toContain("danh mục chính thức");
+    expect(debateQuestions(null).bull).toContain("portfolioKind");
+    expect(debateQuestions(null).brief).toContain("tỷ lệ tiền mặt");
     expect(debateQuestions(null).judge("a".repeat(7000), "b").length).toBeLessThan(6500 + 400);
   });
 });

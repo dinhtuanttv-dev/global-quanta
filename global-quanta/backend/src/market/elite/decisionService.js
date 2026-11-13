@@ -10,6 +10,20 @@ import { REGIME_VI } from "./leadership.js";
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
 // E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
 const HL_MIN_WEIGHT = 0.04;
+/** Cơ sở chấm của sổ Elite HL — nói rõ để số "vượt rổ đều" không bị hiểu là lãi / lỗ của danh mục thật. */
+export const HL_LEDGER_BASIS_VI = "Sổ chấm RỔ MÃ ĐANG GIỮ quy về 100% cổ phiếu (không tính phần tiền mặt), kỳ hạn cố định 5 và 10 phiên, so với bình quân đều các mã giao dịch được. Đây chưa phải lãi / lỗ của danh mục thật (có tiền mặt, giữ tới khi chạm ngưỡng ra).";
+/**
+ * Tổng kết sổ Elite HL. Hai tiêu chí E3-prereg (IC của Điểm Elite ≥ 60 phiên, lợi suất vượt 10 phiên) viết cho danh mục xếp theo Z:
+ * bản ghi HL không có Z nên tiêu chí IC không bao giờ tính được. Vì vậy sổ HL luôn là THĂM DÒ / mô tả và nhãn phải nói đúng điều đó
+ * thay vì hứa "đủ 60 phiên sẽ đạt". Không đổi cách chấm, chỉ đổi nhãn.
+ */
+export function hlLedgerSummary(entries) {
+  const s = summarizeLedger(entries);
+  return {
+    ...s, kind: "ELITE_HL", label: "EXPERIMENTAL", basisVi: HL_LEDGER_BASIS_VI,
+    labelVi: `THĂM DÒ — sổ mô tả của Elite HL (${entries.length} phiên). Chưa có tiêu chí đăng ký trước cho danh mục này; tiêu chí IC của Điểm Elite không áp dụng.`,
+  };
+}
 const CAL_SYMBOLS = ["VNM", "FPT", "HPG", "VCB", "MWG"];
 const PRICE_DAYS = 140;
 const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
@@ -173,7 +187,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         catch (e) { log.warn?.(`[elite] sổ bộ lọc cá nhân: ${e.message}`); }
       }
       ledger.version = VER;
-      ledger.summary = { ...summarizeLedger(ledger.entries), realistic: summarizeRealistic(ledger.entries) };
+      ledger.summary = { ...hlLedgerSummary(ledger.entries), realistic: summarizeRealistic(ledger.entries) };
       ledger.updatedAt = new Date(now()).toISOString();
       await store.setKv(DECISION_KV.ledger, ledger);
       flow.version = FLOW_VER;

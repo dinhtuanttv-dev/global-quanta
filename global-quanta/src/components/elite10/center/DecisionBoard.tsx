@@ -60,12 +60,14 @@ function ViewSwitch({ view, onPick }: { view: BoardView; onPick: (v: BoardView) 
 
 /** Bảng quyết định: mặc định Elite HL (danh mục chính thức từ 12/11/2026); danh mục dòng tiền cũ xem được để so sánh. */
 export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
-  const { data: d } = useEliteDecision();
+  const { data: d, error } = useEliteDecision();
   const [view, setView] = useState<BoardView>(readView);
   if (!d?.hl) return <FlowBoard onOpenTicker={onOpenTicker} />;
   const pick = (v: BoardView) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* bộ nhớ trình duyệt bị chặn */ } };
   const switcher = <ViewSwitch view={view} onPick={pick} />;
-  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
+  // Có dữ liệu cũ nhưng lần làm mới gần nhất lỗi: vẫn hiện bảng, kèm cảnh báo rõ là số chưa được cập nhật.
+  const refreshError = error ? String((error as Error).message ?? error) : null;
+  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} refreshError={refreshError} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
 }
 
 function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode }) {

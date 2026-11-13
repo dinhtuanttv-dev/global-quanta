@@ -25,17 +25,28 @@ export default function RiskTab() {
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((x) => [x.icb, x.nameVi])), [ws]);
   if (error) return <p className="text-xs text-rose-400">Không tải được rủi ro danh mục: {String(error.message ?? error)}</p>;
   if (isLoading || !r) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tính rủi ro danh mục…</p>;
-  if (!r.available) return <p className="tw-scope rounded-lg border border-white/10 p-3 text-[11px] text-slate-400" data-testid="elite-risk-na">{r.reasonVi}</p>;
+  const name = r.kind === "ELITE_HL" ? "Elite HL" : "Elite 10";
+  const hasCash = r.cash != null && r.cash > 0.0005;
+  if (!r.available) return (
+    <div className="tw-scope space-y-2 rounded-lg border border-white/10 p-3 text-[11px] text-slate-400" data-testid="elite-risk-na">
+      <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+      <p>{r.reasonVi}</p>
+      <p className="text-[10px] text-slate-400">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
+    </div>
+  );
 
   const v95 = r.var!["0.95"], v99 = r.var!["0.99"];
   const maxRc = Math.max(...r.holdings!.map((h) => Math.max(h.riskContribution, h.weight)), 0.01);
   const corr = r.correlation!;
+  // Đóng góp rủi ro cộng lại 100% phần cổ phiếu -> so với tỷ trọng TRONG phần cổ phiếu (danh mục có tiền mặt thì Σ tỷ trọng < 100%).
+  const inv = r.invested != null && r.invested > 0 ? r.invested : 1;
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-risk-tab">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục Elite 10 — phiên {fmtDate(r.date)}</p>
+          <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+          {hasCash && <p className="text-[10.5px] text-slate-300" data-testid="elite-risk-cash">Cổ phiếu <b className="text-slate-100">{pct(r.invested, 1)}</b> · tiền mặt <b className="text-slate-100">{pct(r.cash, 1)}</b>. Biến động, VaR, beta và sụt giảm tính cho CẢ danh mục (tiền mặt coi như không biến động); số mã hiệu dụng tính trong phần cổ phiếu.</p>}
           <p className="text-[10.5px] text-slate-400">{r.sessions} phiên ({fmtDate(r.from)} → {fmtDate(r.to)}), tỷ trọng cố định như danh mục đã khoá · mô tả rủi ro, không tối ưu lại danh mục.</p>
         </div>
         <span className="rounded border border-amber-400/50 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300">{r.label === "EVIDENCE" ? "ĐẠT TIÊU CHÍ" : "THĂM DÒ"}</span>
@@ -61,7 +72,7 @@ export default function RiskTab() {
                   <td>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded bg-slate-400/60" style={{ width: `${(h.weight / maxRc) * 140}px` }} /><span className="text-[10px] text-slate-400">tỷ trọng {pct(h.weight, 1)}</span></div>
-                      <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded" style={{ width: `${(Math.max(0, h.riskContribution) / maxRc) * 140}px`, background: h.riskContribution > h.weight * 1.25 ? "#f59e0b" : "#38bdf8" }} /><span className="text-[10px] text-slate-300">rủi ro {pct(h.riskContribution, 1)}</span></div>
+                      <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded" style={{ width: `${(Math.max(0, h.riskContribution) / maxRc) * 140}px`, background: h.riskContribution > (h.weight / inv) * 1.25 ? "#f59e0b" : "#38bdf8" }} /><span className="text-[10px] text-slate-300">rủi ro {pct(h.riskContribution, 1)}</span></div>
                     </div>
                   </td>
                   <td className="text-right font-mono text-[10px] text-slate-400">σ năm {pct(h.volAnnual, 0)}</td>
@@ -69,7 +80,7 @@ export default function RiskTab() {
               ))}
             </tbody>
           </table>
-          <p className="text-[10px] text-slate-500">Đóng góp rủi ro Euler: wᵢ·(Σw)ᵢ / σp, cộng lại đúng 100%. Thanh cam = đóng góp rủi ro vượt 1,25× tỷ trọng.</p>
+          <p className="text-[10px] text-slate-500">Đóng góp rủi ro Euler: wᵢ·(Σw)ᵢ / σp, cộng lại đúng 100%. Thanh cam = đóng góp rủi ro vượt 1,25× tỷ trọng của mã trong phần cổ phiếu.</p>
         </section>
 
         <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-corr">
