@@ -59,7 +59,7 @@ export function createLeadershipService({ store, pricesOf, universe, vnIndexBars
     // 46.750 -> 37.400 chỉ vì chia cổ phiếu), làm RS 64 phiên / khoảng cách đỉnh 52 tuần / giai đoạn xu hướng của mã có sự kiện quyền
     // trong 12 tháng bị thấp giả. Nay dùng chuỗi ADJUSTED_CUMULATIVE của kho (cùng nguồn với các bộ lọc kỹ thuật); bản đã lưu tính
     // trên giá cũ của CÙNG phiên được tính lại. Nguồn điều chỉnh lỗi -> lùi về close_adj và ghi rõ priceBasis.
-    const fresh = (x) => x?.date === date && x.version === LS_VERSION && (!adjustedCloses || x.priceBasis === "ADJUSTED_CUMULATIVE");
+    const fresh = (x) => x?.date === date && x.version === LS_VERSION && (!adjustedCloses || (x.priceBasis === "ADJUSTED_CUMULATIVE" && x.priceSources !== undefined)); // bản chưa có priceSources = tính trước khi có nguồn dự phòng VNDirect
     if (fresh(live)) return live;
     const stored = await kv(LS_KV.live);
     if (fresh(stored)) return (live = stored);
