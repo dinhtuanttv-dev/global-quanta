@@ -18,7 +18,7 @@ const r4 = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 
  *   retroInputs?: () => Promise<object>, commit?: () => string|null, now?: () => number, log?: any }} deps
  *   pricesOf: dòng kho px [ngày, adClose, nmValue, close]; VNINDEX: [ngày, close, …].
  */
-export function createLeadershipService({ store, pricesOf, universe, vnIndexBars, adjustedCloses = null, retroInputs = null, commit = () => null, now = Date.now, log = console }) {
+export function createLeadershipService({ store, pricesOf, universe, vnIndexBars, adjustedCloses = null, adjustedStats = () => null, retroInputs = null, commit = () => null, now = Date.now, log = console }) {
   let doc = null, live = null, gate = undefined, building = null, gating = null;
   const kv = async (k) => { try { return (await store.getKv(k))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
@@ -85,7 +85,7 @@ export function createLeadershipService({ store, pricesOf, universe, vnIndexBars
     const day = lsDay(M, i), reg = regimeAt(M, i);
     const out = {};
     for (const [t, r] of day) if (r.ls != null) out[t] = { ls: r4(r.ls), comp: Object.fromEntries(COMPONENTS.map((c) => [c, r4(r.comp[c])])), z: Object.fromEntries(COMPONENTS.map((c) => [c, r4(r.z[c])])) };
-    live = { version: LS_VERSION, date, priceBasis, regime: reg.group, bias: reg.bias, breadth: reg.breadth, guard: crashGuard(M, i), names: Object.keys(out).length, rows: out, builtAt: new Date(now()).toISOString() };
+    live = { version: LS_VERSION, date, priceBasis, priceSources: priceBasis === "ADJUSTED_CUMULATIVE" ? adjustedStats() : null, regime: reg.group, bias: reg.bias, breadth: reg.breadth, guard: crashGuard(M, i), names: Object.keys(out).length, rows: out, builtAt: new Date(now()).toISOString() };
     await store.setKv(LS_KV.live, live);
     return live;
   }
@@ -143,7 +143,7 @@ export function createLeadershipService({ store, pricesOf, universe, vnIndexBars
     return { started: true };
   }
 
-  return { build, ensureBuilt, live: computeLive, evidenceExtras, ticker, runGate, gate: getGate, status: async () => ({ version: LS_VERSION, doc: (await getDoc()) ? { from: doc.from, to: doc.to, builtAt: doc.builtAt, tickers: doc.tickers } : null, live: live ? { date: live.date, names: live.names, regime: live.regime, guard: live.guard } : null, gating: Boolean(gating), gate: (await getGate()) ? { pass: gate.pass, ranAt: gate.ranAt, verdictVi: gate.verdictVi, criteria: gate.criteria } : null }) };
+  return { build, ensureBuilt, live: computeLive, evidenceExtras, ticker, runGate, gate: getGate, status: async () => ({ version: LS_VERSION, doc: (await getDoc()) ? { from: doc.from, to: doc.to, builtAt: doc.builtAt, tickers: doc.tickers } : null, live: live ? { date: live.date, priceBasis: live.priceBasis ?? null, priceSources: live.priceSources ?? null, names: live.names, regime: live.regime, guard: live.guard } : null, gating: Boolean(gating), gate: (await getGate()) ? { pass: gate.pass, ranAt: gate.ranAt, verdictVi: gate.verdictVi, criteria: gate.criteria } : null }) };
 }
 
 export { lsIcPost };

@@ -63,3 +63,38 @@ test("Engine quyết định: σ20 và giá đóng cửa của bảng điểm l�
   assert.ok(s(fixDoc, "T05").close > 0, "mã thiếu chuỗi cộng dồn vẫn có giá (close_adj riêng mã đó)");
   assert.ok((await store.getKv(DECISION_KV.ledger)).value.entries.length >= 1);
 });
+
+import { createEliteAdjustedCloses, vndAdjustedRows } from "../src/market/elite/adjustedCloses.js";
+
+test("vndAdjustedRows: kho VNDirect đã điều chỉnh + nối phiên mới bằng tỷ lệ giá danh nghĩa; kho quá cũ / thiếu phiên cuối -> null", () => {
+  const days = Array.from({ length: 40 }, (_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`).filter((d) => d <= "2026-10-31");
+  // Sau chia cổ phiếu: adClose = 0,8 × giá danh nghĩa ở mọi phiên trong kho.
+  const px = days.map((d, i) => [d, (50 + i) * 0.8, 1e9, 50 + i]);
+  const same = vndAdjustedRows(px, [], "2026-10-31");
+  assert.equal(same.length, 31); assert.deepEqual(same.at(-1), ["2026-10-31", 80 * 0.8 * 1000, 1e9]);
+  const nominal = [{ date: "2026-10-31", close: 80000, value: 1 }, { date: "2026-11-02", close: 82000, value: 2e9 }, { date: "2026-11-03", close: 84000, value: 3e9 }];
+  const ext = vndAdjustedRows(px, nominal, "2026-11-03");
+  assert.equal(ext.length, 33);
+  assert.ok(Math.abs(ext.at(-1)[1] - 84000 * 0.8) < 1e-6, "phiên nối giữ đúng hệ số điều chỉnh của kho");
+  assert.ok(Math.abs(ext.at(-1)[1] / ext.at(-3)[1] - 84 / 80) < 1e-9, "lợi suất phiên nối = lợi suất danh nghĩa");
+  assert.equal(vndAdjustedRows(px, nominal.slice(0, 2), "2026-11-03"), null, "thiếu phiên cuối");
+  assert.equal(vndAdjustedRows(px.slice(0, 10), nominal, "2026-11-03"), null, "kho quá ngắn");
+  assert.equal(vndAdjustedRows(px, Array.from({ length: 9 }, (_, i) => ({ date: `2026-11-${String(i + 2).padStart(2, "0")}`, close: 80000 })), "2026-11-10"), null, "kho cũ quá 6 phiên");
+  assert.equal(vndAdjustedRows(null, nominal, "2026-11-03"), null);
+});
+
+test("createEliteAdjustedCloses: kho Gateway trước, thiếu thì VNDirect, không có thì vắng mặt; có thống kê nguồn", async () => {
+  const to = "2026-10-31", days = Array.from({ length: 31 }, (_, i) => `2026-10-${String(i + 1).padStart(2, "0")}`);
+  const bars = days.map((d, i) => ({ date: d, close: 20000 + i, volume: 1000, value: 0 }));
+  const seriesSource = { prepare: async () => async (t) => (t === "CUM" ? { priceBasis: "ADJUSTED_CUMULATIVE", bars } : t === "OLD" ? { priceBasis: "ADJUSTED_CUMULATIVE", bars: bars.slice(0, 20) } : { priceBasis: "SSI_LATEST_EVENT_ADJUSTED", bars }) };
+  const px = days.map((d, i) => [d, 10 + i * 0.01, 5e8, 12.5 + i * 0.0125]);
+  const f = createEliteAdjustedCloses({ seriesSource, pricesOf: (t) => (t === "VND" || t === "OLD" ? px : null), store: { getMarketDailyRange: async () => [] }, log: { warn() {} } });
+  const m = await f(["CUM", "VND", "OLD", "NONE"], to);
+  assert.deepEqual([...m.keys()].sort(), ["CUM", "OLD", "VND"]);
+  assert.equal(m.get("CUM").at(-1)[1], 20030); assert.equal(m.get("CUM").at(-1)[2], 20030 * 1000, "GTGD = giá × khối lượng khi kho không có GTGD");
+  assert.ok(Math.abs(m.get("VND").at(-1)[1] - 10300) < 1e-6);
+  assert.ok(Math.abs(m.get("OLD").at(-1)[1] - 10300) < 1e-6, "chuỗi kho Gateway chưa tới phiên cần -> dùng VNDirect");
+  assert.deepEqual(f.stats(), { to, requested: 4, warehouse: 1, vndirect: 2, missing: 1 });
+  const broken = createEliteAdjustedCloses({ seriesSource: { prepare: async () => { throw new Error("kho lỗi"); } }, pricesOf: () => px, store: { getMarketDailyRange: async () => [] }, log: { warn() {} } });
+  assert.equal((await broken(["A", "B"], to)).size, 2, "kho Gateway lỗi hẳn -> toàn bộ lấy từ VNDirect");
+});
