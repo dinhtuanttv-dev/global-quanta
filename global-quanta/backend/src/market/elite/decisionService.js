@@ -21,12 +21,34 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
   async function loadPrices(symbols, to) {
+    // 13/11/2026: σ20, GTGD và lợi suất chấm sổ phải tính trên giá ĐIỀU CHỈNH CỘNG DỒN — close_adj của market_daily còn nguyên bước
+    // nhảy ở ngày giao dịch không hưởng quyền (một vị thế chia cổ phiếu 20% sẽ bị chấm −17%). Nguồn lỗi -> lùi về close_adj.
+    if (adjustedCloses) {
+      try {
+        const m = await adjustedCloses(symbols, to, PRICE_DAYS);
+        if (m && m.size >= Math.min(50, symbols.length)) {
+          const from = isoMinusDays(to, PRICE_DAYS);
+          const out = new Map([...m].map(([t, rows]) => [t, rows.filter((r) => r[0] >= from && r[0] <= to && r[1] > 0).map((r) => ({ date: r[0], closeAdj: r[1], value: r[2] ?? null }))]).filter(([, list]) => list.length));
+          // Mã không dựng được chuỗi cộng dồn: giữ close_adj cho RIÊNG mã đó (không để vị thế đang giữ bị coi là mất giá).
+          const lack = symbols.filter((t) => !out.has(t));
+          if (lack.length) {
+            for (const r of await store.getMarketDailyRange({ from, to, symbols: lack, columns: "symbol,trading_date,close_adj,value" })) {
+              if (!(r.closeAdj > 0)) continue;
+              if (!out.has(r.symbol)) out.set(r.symbol, []);
+              out.get(r.symbol).push({ date: r.date, closeAdj: r.closeAdj, value: r.value ?? null });
+            }
+            for (const t of lack) out.get(t)?.sort((a, b) => a.date.localeCompare(b.date));
+          }
+          return out;
+        }
+      } catch (e) { log.warn?.(`[elite] giá điều chỉnh cộng dồn lỗi (${e.message}) — dùng close_adj`); }
+    }
     const rows = await store.getMarketDailyRange({ from: isoMinusDays(to, PRICE_DAYS), to, symbols, columns: "symbol,trading_date,close_adj,value" });
     const prices = new Map();
     for (const r of rows) {
@@ -90,15 +112,20 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
         };
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
-        if (!ledger.entries.some((e) => e.date === p.date)) {
+        {
           // Sổ chính thức (Elite HL): vũ trụ so sánh = mã giao dịch được theo ngưỡng HL; danh mục rỗng (toàn tiền mặt) không cần chấm.
           const uni = doc.scores.filter((x) => !hlTradable(x)).map((x) => x.ticker);
-          ledger.entries.push({
+          const entry = {
             date: p.date, lockedAt: doc.builtAt, cash: doc.hl.cash, rebalance: doc.hl.rebalance,
             holdings: doc.portfolio.map((x) => ({ ticker: x.ticker, weight: x.weight, since: x.hl.since, ...(x.hl.ref ? { ref: x.hl.ref } : {}), ...(x.hl.miss ? { miss: x.hl.miss } : {}) })),
             ...(doc.hl.dataGuard.frozen ? { frozen: true } : {}),
             ...(doc.portfolio.length ? { universe: uni } : { universeSize: uni.length, empty: true }), results: {},
-          });
+          };
+          const at = ledger.entries.findIndex((e) => e.date === p.date);
+          if (at < 0) ledger.entries.push(entry);
+          // Dựng lại cùng phiên (admin force / đổi phiên bản) khi bản ghi CHƯA được chấm: sổ phải khớp tài liệu vừa dựng — nếu không,
+          // phiên sau sẽ đọc danh mục cũ (thiếu giá tham chiếu, bộ đếm vắng mặt…). Bản ghi đã có kết quả chấm thì không đụng tới.
+          else if (!Object.keys(ledger.entries[at].results ?? {}).length) ledger.entries[at] = { ...entry, lockedAt: ledger.entries[at].lockedAt ?? entry.lockedAt, rebuiltAt: doc.builtAt };
         }
         if (!flow.entries.some((e) => e.date === p.date)) {
           const eligible = doc.scores.filter((x) => x.eligible);
