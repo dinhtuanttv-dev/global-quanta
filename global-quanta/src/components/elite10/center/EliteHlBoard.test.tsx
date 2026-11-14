@@ -163,6 +163,10 @@ describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu
     expect(screen.queryByTestId("hl-stale")).toBeNull();
     expect(text("hl-pending")).toContain("dựng sau 17:00");
     cleanup();
+    // chậm 1 phiên nhưng đã quá hạn dựng -> cảnh báo đỏ, không còn là ghi chú "chờ dựng"
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-16", sessionsBehind: 1, overdue: true } }} onOpenTicker={() => {}} />);
+    expect(text("hl-stale")).toContain("Bảng chưa có phiên 16/11/2026"); expect(screen.queryByTestId("hl-pending")).toBeNull();
+    cleanup();
     render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-13", sessionsBehind: 0 } }} onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("hl-stale")).toBeNull();
     expect(screen.queryByTestId("hl-pending")).toBeNull();

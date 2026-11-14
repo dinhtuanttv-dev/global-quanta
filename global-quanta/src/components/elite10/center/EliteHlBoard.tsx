@@ -136,12 +136,17 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <b>Không làm mới được dữ liệu</b> ({refreshError}). Bảng đang hiện bản của phiên {fmtDate(d.date)}, dựng lúc {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} — có thể chưa phải phiên mới nhất.
         </div>
       )}
+      {d.freshness?.sessionsBehind === 1 && d.freshness.overdue && (
+        <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-stale">
+          <b>Bảng chưa có phiên {fmtDate(d.freshness.latestSession)}.</b> Phiên đó đã đóng cửa nhưng bảng quyết định chưa được dựng (thường dựng sau 17:00). Danh mục và các ngưỡng ra bên dưới là của phiên {fmtDate(d.date)}, KHÔNG phản ánh phiên mới nhất.
+        </div>
+      )}
       {d.freshness && d.freshness.sessionsBehind >= 2 && (
         <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-stale">
           <b>Bảng đang chậm {d.freshness.sessionsBehind} phiên.</b> Phiên giao dịch mới nhất là {fmtDate(d.freshness.latestSession)}, nhưng bảng quyết định mới dựng tới phiên {fmtDate(d.date)}. Danh mục và các ngưỡng ra bên dưới KHÔNG phản ánh các phiên sau đó.
         </div>
       )}
-      {d.freshness?.sessionsBehind === 1 && (
+      {d.freshness?.sessionsBehind === 1 && !d.freshness.overdue && (
         <p className="text-[10.5px] text-slate-400" data-testid="hl-pending">Phiên {fmtDate(d.freshness.latestSession)} đã đóng cửa; bảng của phiên đó được dựng sau 17:00. Đang hiện bảng phiên {fmtDate(d.date)}.</p>
       )}
       {hl.dataGuard?.frozen ? (
