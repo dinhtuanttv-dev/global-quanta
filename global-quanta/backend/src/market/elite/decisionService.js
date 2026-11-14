@@ -35,7 +35,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -265,9 +265,15 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
   async function freshness(date) {
     if (!date) return null;
     try {
-      if (!freshMemo || now() - freshMemo.at > 5 * 60_000) freshMemo = { at: now(), dates: (await vnIndex()).map((r) => r[0]).sort() };
+      // Lịch phiên: ưu tiên `sessionDates` (mọi phiên đã đóng, kể cả khi nến chỉ số của phiên đó bị lỗi giá = 0) — sự cố 13/11/2026:
+      // nến VN-Index có khối lượng nhưng giá = 0 nên chuỗi giá đóng cửa bỏ qua phiên đó và bảng chậm một phiên mà không có cảnh báo.
+      if (!freshMemo || now() - freshMemo.at > 5 * 60_000) freshMemo = { at: now(), dates: (sessionDates ? await sessionDates() : (await vnIndex()).map((r) => r[0])).slice().sort() };
       const dates = freshMemo.dates;
-      return { latestSession: dates[dates.length - 1] ?? null, sessionsBehind: dates.filter((d) => d > date).length };
+      const latestSession = dates[dates.length - 1] ?? null;
+      const sessionsBehind = dates.filter((d) => d > date).length;
+      // Quá hạn: phiên mới nhất đã đóng và đã qua 20:00 giờ VN của ngày đó (bảng thường dựng sau 17:00) mà vẫn chưa có bảng.
+      const overdue = sessionsBehind >= 1 && latestSession != null && now() >= Date.parse(`${latestSession}T13:00:00Z`);
+      return { latestSession, sessionsBehind, overdue };
     } catch (e) { log.warn?.(`[elite] độ mới quyết định: ${e.message}`); return null; }
   }
   /** Lớp trình bày cho GET /api/elite/decision: thêm số liệu HIỂN THỊ (không lưu vào KV, không đổi tài liệu đã khoá). */

@@ -88,7 +88,7 @@ export interface EliteDecision {
   /** Số liệu hiển thị do Gateway cấp (không nằm trong tài liệu đã khoá): chi phí sổ, ngưỡng đủ điều kiện của danh mục dòng tiền. */
   display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number; flowRrgPenalty?: number; flowBufferRank?: number; flowMaxPerSector?: number; flowWeightCap?: number };
   /** Độ mới so với lịch phiên thật: số phiên đã đóng sau phiên của tài liệu (0 = mới nhất; ≥ 2 = job dựng lỡ phiên). */
-  freshness?: { latestSession: string | null; sessionsBehind: number } | null;
+  freshness?: { latestSession: string | null; sessionsBehind: number; /** chậm ≥ 1 phiên và đã quá 20:00 giờ VN của phiên mới nhất */ overdue?: boolean } | null;
   hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;
 }
 
