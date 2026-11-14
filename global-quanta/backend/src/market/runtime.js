@@ -243,7 +243,9 @@ export function getMarketRuntime() {
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
   // Bù phiên lỡ (sự cố 13/11/2026): khi khởi động, 06:30 và 18:30 mỗi ngày (cả ngày nghỉ).
-  jobs.sessionCatchUp = createSessionCatchUp({ jobs, store });
+  jobs.sessionCatchUp = createSessionCatchUp({ jobs, store,
+    // Nến VN-Index của phiên đã hợp lệ (giá > 0) — điều kiện để quét lại trạng thái chỉ số.
+    indexReady: async (date) => ((await service.getOhlcv({ symbol: "VNINDEX", limit: 10 })).bars ?? []).some((b) => b.date === date && b.close > 0) });
   jobs.sessionCatchUpLate = jobs.sessionCatchUp;
   const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "sessionCatchUp", at: "06:30", tradingDayOnly: false }, { name: "sessionCatchUpLate", at: "18:30", tradingDayOnly: false }, ...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
