@@ -73,3 +73,17 @@ Không phương án nào đạt → G2r giữ nguyên. Kết quả công bố đ
 - Không đổi tham số `HL_PF`, không đổi quy tắc chọn, không thêm phương án sau khi chạy.
 - Không dùng giai đoạn báo cáo để quyết định.
 - Không chạy lại với lý do "sửa lỗi" mà không ghi lỗi đó vào mục sửa đổi của tệp này trước khi chạy lại.
+
+## 7. Sửa đổi
+
+Mỗi sửa đổi ghi: ngày, nội dung, lý do, đã thấy kết quả HL-r2 hay chưa. Ghi TRƯỚC khi chạy (hoặc chạy lại).
+
+### S1 — 14/11/2026 · mã thiếu điểm LS-v1 của riêng nó không còn bị bán ngay (N0b)
+
+- **Trạng thái:** ĐỀ XUẤT, chờ chủ dự án duyệt (PR #318, commit `bd978b0`). Chỉ có hiệu lực với HL-r2 nếu PR được gộp vào nhánh chạy mô phỏng **trước** khi chạy; nếu không gộp, mục này ghi "không áp dụng".
+- **Nội dung:** trong `exitReason`, vị thế có trong bảng và có giá nhưng `lsPct == null` trước đây rơi vào nhánh bán "ls" (bán ngay, lý do ghi "xuống phân vị —"). Nay được coi là mất dữ liệu: đi qua bộ đếm `missSessions` (giữ 1 phiên, thiếu 2 phiên liên tiếp mới ra). Mã có LS-v1 dưới ngưỡng vẫn bán ngay. Mã thiếu LS-v1 vẫn không được mua.
+- **Không đổi:** `HL_PF` (kể cả `exitLsPct = 60`, `missSessions = 2`), quy tắc chọn tầng 1 / tầng 2 / tầng 3, phí, danh sách phương án, chỉ số và tiêu chí ở mục 5.
+- **Lý do:** lỗi phân loại tìm thấy khi rà soát mã nguồn tab Quyết định (14/11/2026) — "không có số" bị xử lý như "số thấp". Không xuất phát từ kết quả mô phỏng.
+- **Đã thấy kết quả HL-r2 chưa:** người đề xuất chưa thấy kết quả nào của HL-r2 trên giai đoạn quyết định. *(Chủ dự án xác nhận dòng này khi duyệt.)*
+- **Ảnh hưởng tới mô phỏng:** harness gọi thẳng `buildHlPortfolio` nên B, C2, C6, C7 cùng đổi theo. Trong bảng dựng lại, LS-v1 cần ≥ 4/5 thành phần nên mã thiếu lịch sử giá có thể rơi vào trường hợp này; số lần xảy ra chưa đếm — nên báo cáo số lần khi chạy.
+- **Nếu HL-r2 đã chạy trước khi S1 được gộp:** giữ kết quả đã chạy làm kết quả chính; chạy lại với S1 chỉ được báo cáo như phân tích độ nhạy, không dùng để quyết định.
