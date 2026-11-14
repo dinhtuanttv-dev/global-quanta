@@ -105,7 +105,7 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
           <p className="text-[13px] font-bold text-[#F5CE72]">{legacy ? "Elite dòng tiền — danh mục cũ, giữ để so sánh" : "Bảng quyết định Elite 10"} — phiên {fmtDate(d.date)}</p>
           {legacy && <p className="text-[10.5px] text-amber-300" data-testid="elite-flow-legacy">Từ 12/11/2026 danh mục chính thức là Elite HL. Danh mục này vẫn được dựng và chấm sổ riêng mỗi phiên để đối chiếu.</p>}
           <p className="text-[10.5px] text-slate-400">
-            Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ 10 tỷ, giá ≥ 5.000đ, giá không bị neo) · {d.version}
+            Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ {(raw?.display?.flowMinAdvBn ?? 10).toLocaleString("vi-VN")} tỷ, giá ≥ {(raw?.display?.flowMinPrice ?? 5000).toLocaleString("vi-VN")}đ, giá không bị neo) · {d.version}
           </p>
           {d.version.startsWith("E3-v4") && (
             <p className="text-[10.5px] text-slate-400" data-testid="elite-rrg-rule">

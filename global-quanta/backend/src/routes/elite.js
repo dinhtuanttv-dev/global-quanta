@@ -158,7 +158,8 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     const doc = getDecision ? await getDecision().decision(date) : null;
     if (!doc) return missing(res, "Chưa có quyết định Elite 10.");
     res.set("Cache-Control", "public, max-age=300");
-    res.json(doc);
+    // Số liệu hiển thị (ngưỡng tầng 1, chi phí sổ) + độ mới so với lịch phiên — chỉ cho phiên mới nhất mới có ý nghĩa "độ mới".
+    res.json(getDecision().present ? await getDecision().present(doc, { withFreshness: !date }) : doc);
   }));
 
   router.get("/decision/:ticker", wrap(async (req, res) => {

@@ -4,7 +4,7 @@
 // từng tín hiệu (xám = trung tính); bậc kèm IC / t / n ở kỳ hạn chính; thác đóng góp vào Z; khoảng cách tới danh mục Elite 10.
 import { useMemo } from "react";
 import { useEliteDecision, useEliteEvidence, useElitePanel, useEliteTicker } from "../../../hooks/elite10/useEliteCenter";
-import type { Tier } from "../../../lib/elite10/decisionTypes";
+import { hlPicks, type Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
 import LeadershipCard from "./LeadershipCard";
@@ -44,7 +44,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
     if (!hl) return null;
     const q = hl.queue.find((x) => x.ticker === ticker);
     const ag = hl.against.find((x) => x.ticker === ticker);
-    return { held: Boolean(dec?.portfolio.some((p) => p.ticker === ticker)), queue: q ?? null, against: ag ?? null, inFlow: Boolean(dec?.flowPortfolio?.some((p) => p.ticker === ticker)) };
+    return { held: hlPicks(dec).some((p) => p.ticker === ticker), queue: q ?? null, against: ag ?? null, inFlow: Boolean(dec?.flowPortfolio?.some((p) => p.ticker === ticker)) };
   }, [hl, dec, ticker]);
   // Khoảng cách tới danh mục dòng tiền (xếp theo Z): Z của mã yếu nhất trong danh mục đó. Với tài liệu E4-HL dùng flowPortfolio.
   const gap = useMemo(() => {

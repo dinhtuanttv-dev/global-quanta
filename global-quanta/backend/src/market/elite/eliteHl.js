@@ -10,7 +10,7 @@
 //   • BÁN xét MỖI PHIÊN, bán chậm: LS-v1 dưới phân vị 60, HOẶC không còn mô hình TA nào đạt, HOẶC ngành rơi vào góc Tụt hậu,
 //     HOẶC mã không còn dữ liệu. Ngành Suy yếu chưa phải lý do bán (chỉ cảnh báo).
 // K0 KHÔNG cho thấy lợi thế so với thị trường (G2r 12,5%/năm so với VN-Index 13,5%, t ≈ 0) -> nhãn THĂM DÒ; sổ theo dõi tiến quyết định.
-import { hlScores, HL_VERSION } from "./confluence.js";
+import { hlScores, HL_RULES, HL_TA_MODEL_COUNT, HL_VERSION } from "./confluence.js";
 
 export const HL_PF_VERSION = "E4-HL v1 (G2r, 12/11/2026)";
 export const HL_PF = Object.freeze({
@@ -21,6 +21,8 @@ export const HL_PF = Object.freeze({
   // N0 (12/11/2026) — CHỐT DỮ LIỆU: thiếu nguồn thì danh mục GIỮ NGUYÊN (không vào, không ra); mã vắng mặt phải vắng 2 phiên liên tiếp mới ra.
   guardMinShare: 0.35, guardMinTaPass: 5, missSessions: 2,
 });
+/** Ngưỡng tầng 1 của HL-v1 (chỉ để HIỂN THỊ — giao diện dựng câu chữ từ đây thay vì gõ cứng "top 20%", "≥ 2/7", "/10"). */
+export const HL_TIER1 = Object.freeze({ lsLeaderPct: HL_RULES.lsLeaderPct, taMin: HL_RULES.taMin, taModels: HL_TA_MODEL_COUNT, maxScore: 5 + Math.min(5, HL_TA_MODEL_COUNT) });
 const GUARD_SOURCES = { scanner: "Siêu quét", rrg: "RRG ngành", taxonomy: "phân ngành", "strategies:sepa": "SEPA", "strategies:patterns": "mô hình giá Pring", "strategies:convergence": "Hợp lưu v2", "strategies:base-breakout": "Base Breakout" };
 
 /**
@@ -154,7 +156,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
   return {
     portfolio,
     hl: {
-      version: HL_PF_VERSION, ruleVersion: HL_VERSION, rule: cfg, k0: HL_K0, date, rebalance, week: isoWeek(date),
+      version: HL_PF_VERSION, ruleVersion: HL_VERSION, rule: cfg, tier1: HL_TIER1, k0: HL_K0, date, rebalance, week: isoWeek(date),
       dataGuard: { frozen, reasonsVi: guardWhy },
       funnel: { panel: panelRows.length, tradable: tradable.length, tier1: hl.filter((x) => x.pass1).length, selected: selected.length, selectedTradable: selected.filter((x) => !hlTradable(scBy.get(x.ticker), cfg)).length, held: portfolio.length },
       invested: r4(invested), cash: r4(1 - invested), sigmaMedian: r4(sigMed),

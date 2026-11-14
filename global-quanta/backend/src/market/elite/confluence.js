@@ -40,6 +40,8 @@ const TA_MODELS = [
 ];
 /** Thứ tự phiếu tầng 3 — trùng thứ tự mảng `f` trong hlScores. */
 export const VOTE_IDS = Object.freeze(["stealth20", "stealth5", "net_intent", "foreign_net_buy", "fa_score", "ws_sector_alpha", "top20_alpha", "catalyst_impact", "cotuc_decision"]);
+/** Số mô hình TA của tầng 1 — xuất cho giao diện để không gõ cứng "/7". */
+export const HL_TA_MODEL_COUNT = TA_MODELS.length;
 const lsPoints = (pct) => (pct == null ? 0 : pct >= 80 ? 5 : pct >= 60 ? 3 : pct >= 40 ? 1 : 0);
 const sign = (v, up, down) => (fin(v) ? (up(v) ? 1 : down(v) ? -1 : 0) : null);
 

@@ -31,13 +31,24 @@ export interface HlPosition {
   /** N2 "Vì sao": điều kiện tầng 1 theo mã tín hiệu, phiếu tầng 3 (+1 / 0 / −1 / null = chưa có dữ liệu), giá tham chiếu và lãi/lỗ từ phiên khoá. */
   ta?: Record<string, boolean | null> | null; votes?: Record<string, number | null> | null; ref?: number | null; sinceRet?: number | null;
 }
+/**
+ * Vị thế của danh mục Elite HL. Khác PortfolioPick (danh mục dòng tiền): Z / rank / pOutperform / giá CÓ THỂ null — mã đang giữ nhưng vắng
+ * khỏi bảng tín hiệu phiên này vẫn được giữ (bộ đếm vắng mặt) và khi đó không có điểm, không có giá.
+ */
+export type HlPick = Omit<PortfolioPick, "Z" | "rank" | "pOutperform" | "close" | "stop" | "target" | "hl"> & {
+  Z: number | null; rank: number | null; pOutperform: number | null; close: number | null; stop: number | null; target: number | null; hl: HlPosition;
+};
 export interface HlExit { ticker: string; weight: number | null; since: string | null; code: "ls" | "ta" | "rrg" | "no_data"; reasonVi: string; hlRank: number | null; lsPct: number | null; taCount: number | null; rrg: number | null }
 export interface HlQueueItem { ticker: string; hlRank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; taCount: number; rrg: number | null; sectorKey: string | null; advBn: number | null; code: "illiquid" | "wait" | "full" | "sector_cap" | "no_room"; reasonVi: string }
 export interface EliteHlMeta {
   version: string; ruleVersion: string; date: string; rebalance: boolean; week: string; prevDate: string | null;
   /** N0: chốt dữ liệu — frozen = bảng tín hiệu thiếu nguồn, danh mục giữ nguyên phiên trước. */
   dataGuard?: { frozen: boolean; reasonsVi: string[] };
-  rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number };
+  rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number;
+    /** Gateway gửi nguyên HL_PF; các trường dưới chỉ để hiển thị. */
+    minPrice?: number; wDust?: number; missSessions?: number };
+  /** Ngưỡng tầng 1 của HL-v1 (Gateway cũ không gửi -> giao diện dùng mặc định). */
+  tier1?: { lsLeaderPct: number; taMin: number; taModels: number; maxScore: number };
   k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string };
   funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number };
   invested: number; cash: number; sigmaMedian: number | null;
@@ -72,7 +83,19 @@ export interface EliteDecision {
   construction?: { method: "erc" | "inverse-vol" | "hl-g2r"; sessions: number | null; retained: number; previous: number; turnover: number | null };
   candidates?: Candidate[];
   /** E4-HL: `portfolio` là danh mục Elite HL; danh mục E3 "dòng tiền" (cũ) nằm ở flowPortfolio với sổ riêng. */
+  /** Số liệu hiển thị do Gateway cấp (không nằm trong tài liệu đã khoá): chi phí sổ, ngưỡng đủ điều kiện của danh mục dòng tiền. */
+  display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number };
+  /** Độ mới so với lịch phiên thật: số phiên đã đóng sau phiên của tài liệu (0 = mới nhất; ≥ 2 = job dựng lỡ phiên). */
+  freshness?: { latestSession: string | null; sessionsBehind: number } | null;
   hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;
+}
+
+/**
+ * Danh mục Elite HL của một tài liệu E4-HL với kiểu đúng (có null). `portfolio` giữ kiểu PortfolioPick[] vì cùng trường đó là danh mục
+ * dòng tiền ở tài liệu cũ và sau `flowView`; mọi nơi đọc vị thế HL phải đi qua hàm này. Tài liệu không phải E4-HL -> mảng rỗng.
+ */
+export function hlPicks(d: EliteDecision | null | undefined): HlPick[] {
+  return d?.hl ? (d.portfolio as unknown as Partial<HlPick>[]).filter((p): p is HlPick => Boolean(p.hl)) : [];
 }
 
 export interface EvidenceHorizon { n: number; mean: number | null; t: number | null; pPos: number | null; q: number | null; stable: boolean; halves: [number, number] | null; from: string | null; to: string | null }

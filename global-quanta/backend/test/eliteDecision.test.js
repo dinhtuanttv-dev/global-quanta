@@ -258,3 +258,21 @@ test("E4-HL sổ: nhãn THĂM DÒ mô tả (không hứa 'đủ 60 phiên'), kè
   assert.match(s.basisVi, /không tính phần tiền mặt/);
   assert.deepEqual(s.horizons, base.horizons);
 });
+
+// F08 / F11 (13/11/2026): lớp trình bày của GET /api/elite/decision — độ mới theo lịch phiên thật và ngưỡng hiển thị; không ghi vào KV.
+test("E4-HL present(): freshness đếm số phiên đã đóng sau phiên của tài liệu; thêm tier1 + chi phí sổ; nguồn VN-Index lỗi -> null", async () => {
+  const mk = (vnIndex) => createDecisionService({ store: createMemoryStore(), panel: { panel: async () => null }, evidence: { evidence: async () => null }, vnIndex, log: { warn() {} } });
+  const vn = async () => [["2026-11-12", 1200], ["2026-11-13", 1210], ["2026-11-16", 1205], ["2026-11-17", 1215]];
+  const doc = { date: "2026-11-13", version: "E4-HL v1", portfolio: [], hl: { rule: { slots: 10 } } };
+  const p = await mk(vn).present(doc);
+  assert.deepEqual(p.freshness, { latestSession: "2026-11-17", sessionsBehind: 2 });
+  assert.deepEqual(p.hl.tier1, { lsLeaderPct: 80, taMin: 2, taModels: 7, maxScore: 10 });
+  assert.equal(p.display.ledgerCostRoundTrip, COST_ROUND_TRIP);
+  assert.equal(p.display.flowMinAdvBn, 10);
+  assert.equal(doc.freshness, undefined); // tài liệu gốc (bản đã khoá / memo) không bị sửa
+  assert.equal(doc.hl.tier1, undefined);
+  assert.deepEqual((await mk(vn).present({ ...doc, date: "2026-11-17" })).freshness, { latestSession: "2026-11-17", sessionsBehind: 0 });
+  assert.equal((await mk(async () => { throw new Error("nguồn lỗi"); }).present(doc)).freshness, null);
+  assert.equal((await mk(vn).present(doc, { withFreshness: false })).freshness, undefined);
+  assert.equal(await mk(vn).present(null), null);
+});
