@@ -80,8 +80,8 @@ Mỗi sửa đổi ghi: ngày, nội dung, lý do, đã thấy kết quả HL-r2
 
 ### S1 — 14/11/2026 · mã thiếu điểm LS-v1 của riêng nó không còn bị bán ngay (N0b)
 
-- **Trạng thái:** ĐỀ XUẤT, chờ chủ dự án duyệt (PR #318, commit `bd978b0`). Chỉ có hiệu lực với HL-r2 nếu PR được gộp vào nhánh chạy mô phỏng **trước** khi chạy; nếu không gộp, mục này ghi "không áp dụng".
-- **Nội dung:** trong `exitReason`, vị thế có trong bảng và có giá nhưng `lsPct == null` trước đây rơi vào nhánh bán "ls" (bán ngay, lý do ghi "xuống phân vị —"). Nay được coi là mất dữ liệu: đi qua bộ đếm `missSessions` (giữ 1 phiên, thiếu 2 phiên liên tiếp mới ra). Mã có LS-v1 dưới ngưỡng vẫn bán ngay. Mã thiếu LS-v1 vẫn không được mua.
+- **Trạng thái:** ĐÃ DUYỆT — chủ dự án duyệt ngày 14/11/2026 (PR #318, gộp vào `main` cùng ngày). Mọi lần chạy HL-r2 sau thời điểm này dùng engine đã có S1.
+- **Nội dung:** trong `exitReason`, vị thế có trong bảng và có giá nhưng `lsPct == null` trước đây rơi vào nhánh bán "ls" (bán ngay, lý do ghi "xuống phân vị —"). Nay được coi là mất dữ liệu: đi qua bộ đếm `missSessions` (giữ 1 phiên, thiếu 2 phiên liên tiếp mới ra). Trong phiên thiếu LS-v1, điều kiện TA cũng hoãn (cột TA mặc định 0 khi mã thiếu dữ liệu); điều kiện RRG ngành vẫn xét ngay. Mã có LS-v1 dưới ngưỡng vẫn bán ngay. Mã thiếu LS-v1 vẫn không được mua.
 - **Không đổi:** `HL_PF` (kể cả `exitLsPct = 60`, `missSessions = 2`), quy tắc chọn tầng 1 / tầng 2 / tầng 3, phí, danh sách phương án, chỉ số và tiêu chí ở mục 5.
 - **Lý do:** lỗi phân loại tìm thấy khi rà soát mã nguồn tab Quyết định (14/11/2026) — "không có số" bị xử lý như "số thấp". Không xuất phát từ kết quả mô phỏng.
 - **Đã thấy kết quả HL-r2 chưa:** người đề xuất chưa thấy kết quả nào của HL-r2 trên giai đoạn quyết định. *(Chủ dự án xác nhận dòng này khi duyệt.)*
