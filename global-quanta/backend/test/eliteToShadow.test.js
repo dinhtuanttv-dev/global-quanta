@@ -62,3 +62,12 @@ test("dịch vụ: đọc danh mục Elite dựng TRƯỚC phiên, GUARD quanh G
   assert.equal((await svc.tick()).added, 0); // không ghi lại
   const sum = await svc.summary(); assert.equal(sum.compVerdict, "CHƯA ĐỦ MẪU"); assert.equal(sum.curve.length, 25); assert.equal(sum.label, "THĂM DÒ");
 });
+
+// F10 (14/11/2026): lõi CORE là danh mục Elite 10 (E3) như bản đăng ký trước — với tài liệu E4-HL phải lấy flowPortfolio, không phải danh mục HL.
+import { shadowCorePortfolio } from "../src/market/elite/eliteToShadow.js";
+test("lõi CORE của sổ ảo: tài liệu E4-HL -> flowPortfolio; tài liệu cũ -> portfolio; thiếu -> rỗng", () => {
+  const flow = [{ ticker: "ORS", weight: 0.5 }, { ticker: "NAB", weight: 0.5 }], hl = [{ ticker: "FPT", weight: 0.1 }];
+  assert.deepEqual(shadowCorePortfolio({ portfolio: hl, flowPortfolio: flow, hl: {} }), flow);
+  assert.deepEqual(shadowCorePortfolio({ portfolio: flow }), flow);
+  assert.deepEqual(shadowCorePortfolio(null), []);
+});
