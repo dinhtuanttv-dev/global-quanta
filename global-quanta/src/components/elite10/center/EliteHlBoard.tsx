@@ -211,7 +211,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
               );
             })}
           </ul>
-          <div className="hidden overflow-x-auto md:block">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="hidden overflow-x-auto md:block">
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 860 }}>
               <thead>
                 <tr className="text-left text-[10px] text-slate-500">
@@ -297,7 +297,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <p className="mt-1.5 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10.5px] leading-relaxed text-amber-200" data-testid="hl-k0">{hl.k0.noteVi}</p>
         </Panel>
         <Panel title="Sổ theo dõi tiến — Elite HL so với Elite dòng tiền (cũ)" testId="elite-ledger">
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 380 }}>
               <thead><tr className="text-left text-[10px] text-slate-500"><th className="py-1 font-normal">Kỳ hạn</th><th className="font-normal">Elite HL (chính thức)</th><th className="font-normal">Elite dòng tiền (cũ)</th></tr></thead>
               <tbody>

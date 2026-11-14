@@ -121,6 +121,16 @@ describe("Bảng quyết định Elite HL", () => {
     expect(screen.queryByTestId("board-view")).toBeNull(); expect(text("radar-stub")).toBe("DCL,SBT");
     expect(text("elite-decision-board")).toMatch(/Bảng quyết định Elite 10/);
   });
+
+  it("bảng dòng tiền: giới hạn ngành và trần tỷ trọng lấy từ Gateway; Gateway cũ dùng mặc định", () => {
+    localStorage.setItem("elite.board.view", "flow");
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(text("elite-decision-board")).toMatch(/tối đa 3 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 20%/);
+    cleanup();
+    current = { ...decision, display: { ledgerCostRoundTrip: 0.004, flowMinAdvBn: 10, flowMinPrice: 5000, flowRrgPenalty: 0.25, flowBufferRank: 15, flowMaxPerSector: 2, flowWeightCap: 0.15 } };
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(text("elite-decision-board")).toMatch(/tối đa 2 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 15%/);
+  });
 });
 
 // 13/11/2026 — số ngưỡng lấy từ Gateway, cảnh báo độ mới, vị thế thiếu số, gợi ý hiện thành chữ (không chỉ nằm trong title).
