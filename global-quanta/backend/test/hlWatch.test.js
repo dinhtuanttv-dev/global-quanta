@@ -110,3 +110,17 @@ test("dịch vụ: khoá ảnh chụp theo phiên, nhật ký chuyển trạng t
   assert.equal((await svc.snapshot()).date, d2);
 });
 
+
+test("route /hl/watch: tham số ngày hợp lệ được dùng; ngày sai dạng -> phiên mới nhất; nhật ký theo ngày", async () => {
+  const express = (await import("express")).default;
+  const { createEliteRouter } = await import("../src/routes/elite.js");
+  const asked = [];
+  const getHlWatch = () => ({ snapshot: async (d) => { asked.push(d); return { date: d ?? "latest" }; }, log: async (d) => [{ date: d }] });
+  const app = express(); app.use("/api/elite", createEliteRouter({ getHlWatch, getPanel: () => null }));
+  const server = app.listen(0), base = `http://127.0.0.1:${server.address().port}/api/elite`;
+  try {
+    assert.equal((await (await fetch(`${base}/hl/watch?date=2026-11-12`)).json()).date, "2026-11-12");
+    assert.equal((await (await fetch(`${base}/hl/watch?date=12-11-2026`)).json()).date, "latest");
+    assert.deepEqual((await (await fetch(`${base}/hl/watch/log?date=2026-11-13`)).json()).entries, [{ date: "2026-11-13" }]);
+  } finally { server.close(); }
+});
