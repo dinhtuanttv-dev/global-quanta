@@ -538,7 +538,7 @@ async function baselineStats(store, benchClose, dates, indexRows) {
 
 export const RESEARCH_SCHEDULE = [
   { name: "researchFlow", at: "16:00", tradingDayOnly: true },
-  { name: "researchBackfill", at: "20:30", tradingDayOnly: false },
+  { name: "researchBackfill", at: "20:30", tradingDayOnly: false, timeoutMs: 4 * 3_600_000 },
   { name: "researchSignals", at: "16:20", tradingDayOnly: true },
   { name: "researchEvaluate", at: "16:40", tradingDayOnly: true },
   { name: "researchTrain", at: "10:30", weekdays: [6] },

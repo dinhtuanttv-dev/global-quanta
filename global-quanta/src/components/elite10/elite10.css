@@ -1,0 +1,52 @@
+/* Tab QUYẾT ĐỊNH (Elite) — khả năng truy cập dùng chung cho cả 5 tab con (13/11/2026).
+   CSS không nằm trong @layer nên thắng lớp utilities của Tailwind mà không cần !important. */
+
+/* 1. Bàn phím: vòng focus nhìn thấy được trên mọi điều khiển (trước đây chỉ 2 chỗ trong cả thư mục có kiểu focus). */
+.elite10-hub :is(button, input, select, textarea, summary, [role="tab"], a):focus-visible {
+  outline: 2px solid var(--gold-bright, #f5ce72);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* 2. Tương phản: chữ phụ cỡ 10–11px màu slate-500 / slate-600 trên nền #0E131F chỉ đạt khoảng 3,9:1 và 2,5:1 (chuẩn AA cần 4,5:1).
+   Nâng lên slate-400 (#94a3b8, khoảng 7:1). Chỉ đổi màu chữ, không đổi bố cục. */
+.elite10-hub .text-slate-500,
+.elite10-hub .text-slate-600 {
+  color: #94a3b8;
+}
+.elite10-hub ::placeholder {
+  color: #94a3b8;
+  opacity: 1;
+}
+
+/* 3. Vùng chạm trên thiết bị cảm ứng: điều khiển độc lập (tab, nút bật / tắt, nút mở rộng, ô nhập) cao tối thiểu 44px.
+   Nút mã cổ phiếu nằm giữa dòng chữ là liên kết trong văn bản nên không ép chiều cao (sẽ làm vỡ dòng). */
+@media (pointer: coarse) {
+  .elite10-hub :is([role="tab"], button[aria-pressed], button[aria-expanded], button[data-touch], input:not([type="range"]), summary) {
+    min-height: 44px;
+  }
+  .elite10-hub :is(button[aria-pressed], button[aria-expanded], button[data-touch]) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding-inline: 12px;
+  }
+  .elite10-hub input[type="range"] {
+    min-height: 32px;
+  }
+}
+
+/* 4. Dải tab con: cuộn ngang mượt trên màn hẹp, tab đang chọn không bị cắt mép. */
+.elite10-hub [role="tablist"] {
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.elite10-hub [role="tab"] {
+  scroll-snap-align: start;
+}
+
+/* 5. Hàng "Phân bổ ngành" và các hàng thanh ngang khác: cho phép co trên màn 320px thay vì tràn ngang. */
+.elite10-hub [data-testid^="hl-sector-"] > span[aria-hidden="true"] {
+  flex: 0 1 120px;
+  min-width: 40px;
+}

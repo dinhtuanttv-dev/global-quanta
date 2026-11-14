@@ -56,7 +56,7 @@ export default function EliteCandidates({ d, onOpenTicker, sectorName, drivers, 
           {capped > 0 && <span className="text-slate-500">· {capped} mã bị trần ngành</span>}
         </p>
       ) : (
-        <div className="overflow-x-auto" id="elite-candidates-table">
+        <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto" id="elite-candidates-table">
           <table className="w-full text-[11px]" style={{ minWidth: compact ? 560 : 900, borderCollapse: "collapse" }}>
             <thead>
               <tr className="text-slate-500">

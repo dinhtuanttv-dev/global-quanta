@@ -80,6 +80,22 @@ describe("Bảng quyết định Elite HL", () => {
     expect(screen.queryByTestId("hl-data-guard")).toBeNull(); expect(text("hl-data-ok")).toMatch(/đủ nguồn/);
   });
 
+  it("N2 thẻ Vì sao: điều kiện tầng 1, từng phiếu tầng 3, ba ngưỡng ra và thay đổi từ phiên khoá; bấm lại thì đóng", () => {
+    const d = { ...decision, portfolio: [{ ...decision.portfolio[0], hl: { ...decision.portfolio[0].hl!, ta: { sepa_state: true, base_breakout: false, convergence: null }, votes: { stealth20: 1, fa_score: -1, catalyst_impact: 0, cotuc_decision: null }, ref: 130000, sinceRet: 0.05 } }, decision.portfolio[1]] };
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-why-VJC")).toBeNull();
+    fireEvent.click(screen.getByTestId("hl-why-btn-VJC"));
+    const w = text("hl-why-VJC");
+    expect(w).toMatch(/✓ SEPA gần pivot . phá vỡ.*✗ Base Breakout ≥ hạng B.*· Hợp lưu v2 mua ≥ hạng B — chưa có dữ liệu/);
+    expect(w).toMatch(/[+]1 Stealth 20.*−1 Điểm cơ bản.*0 Chất xúc tác.*· Cổ tức/);
+    expect(w).toMatch(/còn cách 25 điểm phân vị.*ra khi < 60.*đang đạt 5.*ra khi còn 0.*Dẫn dắt.*ra khi Tụt hậu/);
+    expect(w).toMatch(/Vào danh mục: 12.11.2026.*130[.]000 → 100[.]000.*[+]5,0%/);
+    expect(screen.getByTestId("hl-why-btn-VJC").getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(screen.getByTestId("hl-why-btn-CTD"));
+    expect(screen.queryByTestId("hl-why-VJC")).toBeNull(); expect(text("hl-why-CTD")).toMatch(/Chưa có chi tiết mô hình TA/);
+    fireEvent.click(screen.getByTestId("hl-why-btn-CTD")); expect(screen.queryByTestId("hl-why-CTD")).toBeNull();
+  });
+
   it("danh mục rỗng -> nói rõ 100% tiền mặt", () => {
     render(<EliteHlBoard d={{ ...decision, portfolio: [], hl: { ...decision.hl!, sectors: [], invested: 0, cash: 1, funnel: { ...decision.hl!.funnel, held: 0 } } }} onOpenTicker={() => {}} />);
     expect(text("hl-empty")).toMatch(/100% tiền mặt/);
@@ -104,5 +120,152 @@ describe("Bảng quyết định Elite HL", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("board-view")).toBeNull(); expect(text("radar-stub")).toBe("DCL,SBT");
     expect(text("elite-decision-board")).toMatch(/Bảng quyết định Elite 10/);
+  });
+
+  it("bảng dòng tiền: giới hạn ngành và trần tỷ trọng lấy từ Gateway; Gateway cũ dùng mặc định", () => {
+    localStorage.setItem("elite.board.view", "flow");
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(text("elite-decision-board")).toMatch(/tối đa 3 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 20%/);
+    cleanup();
+    current = { ...decision, display: { ledgerCostRoundTrip: 0.004, flowMinAdvBn: 10, flowMinPrice: 5000, flowRrgPenalty: 0.25, flowBufferRank: 15, flowMaxPerSector: 2, flowWeightCap: 0.15 } };
+    render(<DecisionBoard onOpenTicker={() => {}} />);
+    expect(text("elite-decision-board")).toMatch(/tối đa 2 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 15%/);
+  });
+});
+
+// 13/11/2026 — số ngưỡng lấy từ Gateway, cảnh báo độ mới, vị thế thiếu số, gợi ý hiện thành chữ (không chỉ nằm trong title).
+describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu dữ liệu", () => {
+  beforeEach(() => { localStorage.clear(); current = decision; });
+  afterEach(() => cleanup());
+
+  it("ngưỡng tầng 1 và chi phí sổ lấy từ Gateway: đổi nguồn thì chữ đổi theo; Gateway cũ dùng mặc định", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 20% và ≥ 2 mô hình TA");
+    expect(text("hl-rules")).toContain("LS-v1 top 20% và ≥ 2/7 mô hình TA");
+    expect(text("hl-funnel-tip-1")).toContain("giá ≥ 5.000đ");
+    expect(text("elite-ledger")).toContain("chi phí giả định 0,40%/vòng");
+    cleanup();
+    const d2: EliteDecision = { ...decision, display: { ledgerCostRoundTrip: 0.0045, flowMinAdvBn: 10, flowMinPrice: 5000 }, hl: { ...decision.hl!, tier1: { lsLeaderPct: 75, taMin: 3, taModels: 8, maxScore: 10 }, rule: { ...decision.hl!.rule, minPrice: 6000 } } };
+    render(<EliteHlBoard d={d2} onOpenTicker={() => {}} />);
+    expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 25% và ≥ 3 mô hình TA");
+    expect(text("hl-rules")).toContain("≥ 3/8 mô hình TA");
+    expect(text("hl-row-VJC")).toContain("TA 5/8");
+    expect(text("hl-funnel-tip-1")).toContain("giá ≥ 6.000đ");
+    expect(text("elite-ledger")).toContain("chi phí giả định 0,45%/vòng");
+  });
+
+  it("độ mới: chậm ≥ 2 phiên -> cảnh báo đỏ; chậm 1 phiên -> ghi chú chờ dựng; mới nhất -> không hiện gì", () => {
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-17", sessionsBehind: 2 } }} onOpenTicker={() => {}} />);
+    expect(text("hl-stale")).toContain("Bảng đang chậm 2 phiên");
+    expect(text("hl-stale")).toContain("17/11/2026");
+    cleanup();
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-16", sessionsBehind: 1 } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-stale")).toBeNull();
+    expect(text("hl-pending")).toContain("dựng sau 17:00");
+    cleanup();
+    // chậm 1 phiên nhưng đã quá hạn dựng -> cảnh báo đỏ, không còn là ghi chú "chờ dựng"
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-16", sessionsBehind: 1, overdue: true } }} onOpenTicker={() => {}} />);
+    expect(text("hl-stale")).toContain("Bảng chưa có phiên 16/11/2026"); expect(screen.queryByTestId("hl-pending")).toBeNull();
+    cleanup();
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-13", sessionsBehind: 0 } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-stale")).toBeNull();
+    expect(screen.queryByTestId("hl-pending")).toBeNull();
+  });
+
+  it("làm mới lỗi khi đang có dữ liệu cũ -> băng cảnh báo, bảng vẫn hiện", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} refreshError="Market API lỗi 503" />);
+    expect(text("hl-refresh-error")).toContain("Không làm mới được dữ liệu");
+    expect(text("hl-refresh-error")).toContain("503");
+    expect(text("hl-row-VJC")).toContain("VJC");
+  });
+
+  it("vị thế đang giữ nhưng vắng dữ liệu phiên này (Z / giá = null): hiện '—', không sập, không ra số 0", () => {
+    const ghost = { ...pick("ABC", 0.08, { rank: 9999, cls: "NOT_T1", t1: 0, t3: 0, lsPct: null, taCount: 0, rrg: null, status: "HOLD", exitBufferLs: null, advBn: null, warnings: ["Không có dữ liệu của mã phiên này (lần 1/2) — chưa ra"] }), Z: null, rank: null, pOutperform: null, close: null, stop: null, target: null, sectorKey: null };
+    render(<EliteHlBoard d={{ ...decision, portfolio: [...decision.portfolio, ghost as unknown as PortfolioPick] }} onOpenTicker={() => {}} />);
+    const row = text("hl-row-ABC");
+    expect(row).toContain("Không có dữ liệu của mã phiên này");
+    expect(row).toContain("—");
+    expect(row).not.toMatch(/(^|[^0-9,.])0 – 0/);
+  });
+
+  it("ghi chú: cơ sở chấm của sổ HL, dải tham chiếu không phải lệnh, tỷ trọng là số lúc vào", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(text("hl-ledger-basis")).toContain("không tính phần tiền mặt");
+    expect(text("hl-sizing-note")).toContain("không phải lệnh cắt lỗ");
+    expect(text("hl-sizing-note")).toContain("số lúc vào");
+  });
+});
+
+// F03 (14/11/2026): dòng "tính cả tiền mặt" chỉ hiện khi Gateway đã có số; không thay số chấm chính thức.
+describe("Bảng quyết định Elite HL — sổ tính cả tiền mặt", () => {
+  afterEach(() => cleanup());
+  it("có cashIncl -> hiện lợi suất danh mục thật kèm tỷ lệ cổ phiếu trung bình; chưa có -> không hiện", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-ledger-cash-5")).toBeNull();
+    cleanup();
+    const s = summary(8, 0.012);
+    const withCash = { ...s, horizons: { ...s.horizons, 5: { ...s.horizons[5], cashIncl: { n: 6, meanPortfolio: 0.0031, meanInvested: 0.24, meanVnIndex: 0.004 } } } };
+    render(<EliteHlBoard d={{ ...decision, ledgerSummary: withCash }} onOpenTicker={() => {}} />);
+    const line = text("hl-ledger-cash-5");
+    expect(line).toContain("6 phiên, cổ phiếu TB 24%");
+    expect(line).toContain("+0,31%");
+    expect(line).toContain("VN-Index +0,40%");
+    expect(text("hl-ledger-hl-5")).toContain("+1,20%"); // số chấm chính thức vẫn nguyên
+  });
+});
+
+// PZ-v2 (14/11/2026) — lớp Vị trí giá: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng ở bảng Theo dõi chờ nền.
+describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
+  beforeEach(() => { localStorage.clear(); current = decision; });
+  afterEach(() => cleanup());
+  const zone = { state: "BUY_ZONE" as const, lane: "CORE" as const, sessions: 3, baseSource: "SEPA" as const, pivot: 98000, stopRef: 94000, zoneLow: 95060, zoneHigh: 102900, x1: 0.0204, risk: 0.06, x2: 1.1, x3: 0.05, x4: false, hotReasons: [], missingVi: [] };
+  const hot = { state: "EXTENDED" as const, lane: "RUNNER" as const, sessions: 2, baseSource: "BOX" as const, pivot: 80000, stopRef: 74000, zoneLow: 77600, zoneHigh: 84000, x1: 0.25, risk: 0.26, x2: 4.8, x3: 0.31, x4: true, hotReasons: ["x1", "risk", "x2", "x3", "x4"], missingVi: ["Chờ lùi ≥ 5,0% từ đỉnh, hoặc đi ngang 3 phiên"], climax: true, hStar: 100000, depth: 0 };
+  const cooling = { state: "COOLING" as const, lane: "WAIT" as const, sessions: 6, hotReasons: [], missingVi: ["Khối lượng 0,92 × TB50 (cần ≤ 0,7)"], rebase: [{ key: "depth" as const, ok: true, vi: "Độ sâu 9%" }, { key: "tight" as const, ok: true, vi: "Biên độ co" }, { key: "dry" as const, ok: false, vi: "Khối lượng 0,92" }, { key: "rs" as const, ok: true, vi: "RS giữ" }], zoneLow: null, zoneHigh: null, hStar: 52000, depth: 0.09 };
+  const withPz = (gate = false): EliteDecision => ({
+    ...decision,
+    portfolio: decision.portfolio.map((p) => ({ ...p, hl: { ...p.hl!, pz: p.ticker === "VJC" ? zone : { ...hot } } })),
+    hl: {
+      ...decision.hl!, funnel: { ...decision.hl!.funnel, inZone: 4 }, changes: { ...decision.hl!.changes, toWatch: ["CTD"], backToZone: [] },
+      queue: decision.hl!.queue.map((q, i) => (i === 0 ? { ...q, pz: { ...zone, lane: null } } : q)),
+      watch: [{ ticker: "CTD", hlRank: 7, cls: "CONFLUENCE", sectorKey: "2300", held: true, weight: 0.091, sinceRet: 0.18, pz: hot }, { ticker: "CAR", hlRank: 20, cls: "STRONG", sectorKey: null, held: false, weight: null, sinceRet: null, pz: cooling }],
+      watchExits: [{ ticker: "NAF", date: "2026-11-12", to: "BUY_ZONE", kindVi: "Về vùng mua", reasonVi: "Nền mới 18 phiên", held: false }],
+      pz: { version: "PZ-v2 (hiển thị, 14/11/2026)", gate, rules: { zoneLow: -0.03, zoneHigh: 0.05, maxRisk: 0.1, x2Hot: 3, x2Cool: 1.5, x2CoolSessions: 3, x3Min: 0.15, x3Pct: 0.9, x4Ret5: 0.15, x4LimitDays: 2, coolPullMin: 0.05, rebaseMaxDepth: 0.25, rebaseAtrRatio: 0.7, rebaseVolDry: 0.7, rebaseMinSessions: 15, expireSessions: 60, heldHotSessions: 2, climaxX2: 4.5 },
+        counts: { BUY_ZONE: 4, IN_BASE: 3, NO_SETUP: 5, UNKNOWN: 0, EXTENDED: 2, COOLING: 1, REBASING: 0, FAILED: 0 }, date: "2026-11-13",
+        coreWeight: 0.15, runnerWeight: 0.091, coreNames: 1, runnerNames: 1, modeVi: gate ? "Cổng vị trí giá: đang bật — chỉ mua mới mã ở Vùng mua." : "Vị trí giá: chỉ hiển thị, chưa ảnh hưởng lệnh mua (chờ kiểm định PZ-r1)." },
+    },
+  });
+
+  it("bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng chuyển sang Chạy lãi, vẫn trong vốn", () => {
+    render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-row-CTD")).toBeNull();
+    expect(screen.getByTestId("hl-row-VJC")).toBeTruthy();
+    expect(text("elite-portfolio")).toMatch(/trong nền và vùng mua \(1 mã\)/);
+    expect(text("hl-runner-note")).toMatch(/1 mã đang giữ đã tăng nóng/);
+    expect(text("hl-kpi-split")).toMatch(/Chính 15,0%.*Chạy lãi 9,1%.*Tiền mặt 75,9%/);
+    expect(text("hl-kpi-lanes")).toBe("1 chính · 1 chạy lãi");
+    expect(text("hl-row-VJC")).toMatch(/Vùng mua/); expect(text("hl-row-VJC")).toMatch(/\+2,0%/); expect(text("hl-row-VJC")).toMatch(/pivot 98\.000 · SEPA/);
+    expect(text("hl-pz-mode")).toMatch(/CHỈ HIỂN THỊ/);
+  });
+
+  it("bảng Theo dõi chờ nền: nhóm Chạy lãi trước, Chờ nền sau; tiến độ dựng nền, còn thiếu, cao trào, mã vừa rời bảng", () => {
+    render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
+    expect(text("hl-watch-runners")).toMatch(/Chạy lãi \(1\)/); expect(text("hl-watch-waiting")).toMatch(/Chờ nền \(1\)/);
+    expect(text("pz-row-CTD")).toMatch(/Tăng nóng/); expect(text("pz-row-CTD")).toMatch(/Cao trào/); expect(text("pz-row-CTD")).toMatch(/đang giữ 9,1%/);
+    expect(text("pz-row-CTD")).toMatch(/5 độ đo vượt ngưỡng/);
+    fireEvent.click(screen.getByTestId("pz-why-btn-CTD"));
+    expect(screen.getAllByTestId("pz-hot-x2")[0].getAttribute("data-on")).toBe("1");
+    expect(text("pz-row-CAR")).toMatch(/Hạ nhiệt/); expect(text("pz-row-CAR")).toMatch(/3\/4/); expect(text("pz-row-CAR")).toMatch(/Khối lượng 0,92/);
+    expect(text("hl-watch-exits")).toMatch(/NAF.*Về vùng mua/);
+    expect(text("hl-pz-changes")).toMatch(/Chuyển sang theo dõi: 1 mã.*CTD/);
+    expect(text("hl-funnel")).toMatch(/Trong vùng mua/);
+    expect(text("hl-rules")).toMatch(/Vị trí giá \(PZ-v2/); expect(text("hl-rules")).toMatch(/Cổng chưa bật/);
+    expect(screen.getByTestId("hl-queue-pz-HDA")).toBeTruthy();
+  });
+
+  it("Gateway chưa gửi vị trí giá -> trang như cũ (không có cột mới, không có bảng theo dõi)", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-watch")).toBeNull(); expect(screen.queryByTestId("hl-pz-mode")).toBeNull();
+    expect(screen.getByTestId("hl-row-CTD")).toBeTruthy();
+    expect(text("elite-portfolio")).toMatch(/Danh mục Elite HL \(2\/10\)/);
   });
 });

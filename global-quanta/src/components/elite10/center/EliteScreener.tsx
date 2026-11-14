@@ -235,7 +235,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
             className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
         ))}
       </div>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
         <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="screener-table">
           <thead><tr className="text-left text-[10px] text-slate-500">
             <th className="py-1">#</th><th>Mã</th><th>Hạng · Z</th><th title="HL-v1: tầng 1 (LS-v1 + mô hình TA, tối đa 10) · tầng 2 (RRG ngành: + ủng hộ / − phản đối) · tầng 3 (tích điểm các tab). Nhãn THĂM DÒ.">Hợp lưu (T1 · T2 · T3)</th><th title="Số điều kiện YÊU CẦU đạt">Đạt</th>

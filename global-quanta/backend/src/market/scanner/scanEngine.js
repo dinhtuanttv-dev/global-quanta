@@ -67,7 +67,8 @@ export function runScan({ universe, barsByTicker, fundamentals, indexBars, event
   if (tickerData.length === 0) throw new Error("Không có mã nào đủ dữ liệu để quét.");
 
   // Bước 2: trạng thái VN-Index
-  if (!indexBars || indexBars.length < 50) throw new Error("Thiếu dữ liệu VN-Index (cần ≥ 50 phiên).");
+  indexBars = (indexBars ?? []).filter((b) => b.close > 0); // nến lỗi giá 0 -> bỏ (phòng thủ, nơi gọi cũng đã lọc)
+  if (indexBars.length < 50) throw new Error("Thiếu dữ liệu VN-Index (cần ≥ 50 phiên).");
   const idxCloses = indexBars.map((b) => b.close);
   const idxMa20 = calculateSMA(idxCloses, 20) ?? idxCloses[idxCloses.length - 1];
   const idxMa50 = calculateSMA(idxCloses, 50) ?? idxCloses[idxCloses.length - 1];

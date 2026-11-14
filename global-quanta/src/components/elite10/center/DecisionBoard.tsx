@@ -60,12 +60,14 @@ function ViewSwitch({ view, onPick }: { view: BoardView; onPick: (v: BoardView) 
 
 /** Bảng quyết định: mặc định Elite HL (danh mục chính thức từ 12/11/2026); danh mục dòng tiền cũ xem được để so sánh. */
 export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
-  const { data: d } = useEliteDecision();
+  const { data: d, error } = useEliteDecision();
   const [view, setView] = useState<BoardView>(readView);
   if (!d?.hl) return <FlowBoard onOpenTicker={onOpenTicker} />;
   const pick = (v: BoardView) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* bộ nhớ trình duyệt bị chặn */ } };
   const switcher = <ViewSwitch view={view} onPick={pick} />;
-  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
+  // Có dữ liệu cũ nhưng lần làm mới gần nhất lỗi: vẫn hiện bảng, kèm cảnh báo rõ là số chưa được cập nhật.
+  const refreshError = error ? String((error as Error).message ?? error) : null;
+  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} refreshError={refreshError} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
 }
 
 function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode }) {
@@ -103,11 +105,11 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
           <p className="text-[13px] font-bold text-[#F5CE72]">{legacy ? "Elite dòng tiền — danh mục cũ, giữ để so sánh" : "Bảng quyết định Elite 10"} — phiên {fmtDate(d.date)}</p>
           {legacy && <p className="text-[10.5px] text-amber-300" data-testid="elite-flow-legacy">Từ 12/11/2026 danh mục chính thức là Elite HL. Danh mục này vẫn được dựng và chấm sổ riêng mỗi phiên để đối chiếu.</p>}
           <p className="text-[10.5px] text-slate-400">
-            Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ 10 tỷ, giá ≥ 5.000đ, giá không bị neo) · {d.version}
+            Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ {(raw?.display?.flowMinAdvBn ?? 10).toLocaleString("vi-VN")} tỷ, giá ≥ {(raw?.display?.flowMinPrice ?? 5000).toLocaleString("vi-VN")}đ, giá không bị neo) · {d.version}
           </p>
           {d.version.startsWith("E3-v4") && (
             <p className="text-[10.5px] text-slate-400" data-testid="elite-rrg-rule">
-              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ 30% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
+              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ {num((raw?.display?.flowRrgPenalty ?? 0.3) * 100, 0)}% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
             </p>
           )}
         </div>
@@ -164,8 +166,8 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
         </p>
         <p className="text-[10px] leading-relaxed text-slate-500">
           {d.construction
-            ? <>Vùng đệm: giữ mã phiên trước còn trong top 20 ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa 3 mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần 20%. </>
-            : <>Chọn theo Z giảm dần, tối đa 3 mã mỗi ngành ICB cấp 2; tỷ trọng tỷ lệ nghịch biến động 20 phiên (trần 20%). </>}
+            ? <>Vùng đệm: giữ mã phiên trước còn trong top {raw?.display?.flowBufferRank ?? 20} ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%. </>
+            : <>Chọn theo Z giảm dần, tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2; tỷ trọng tỷ lệ nghịch biến động 20 phiên (trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%). </>}
           Cắt lỗ / mục tiêu là dải
           2σ / 3σ của 5 phiên, nắm giữ 10 phiên — quy tắc mô tả, chưa tối ưu. Lợi thế kỳ vọng nhỏ (P vượt ≈ 51%): dùng để nghiêng tỷ trọng, không phải tín hiệu chắc thắng.
         </p>
@@ -175,7 +177,7 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Tín hiệu có trọng số (bậc A/B)" testId="elite-weights" right={<span className="text-[10px] text-slate-500" title="IC của tổ hợp = Σw·IC / √(wᵀC̃w) — ước tính mô hình; IC thực đo nằm ở sổ theo dõi">IC tổng (mô hình) ≈ {num(d.icComb, 4)}</span>}>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 420 }}>
               <thead><tr className="text-slate-500"><th className="text-left font-normal">Tín hiệu</th><th className="font-normal">Bậc</th><th className="font-normal" title="IC đo được ở kỳ hạn chính (số ngày)">IC đo</th><th className="font-normal" title="(n·IC đo + 60·tiên nghiệm)/(n + 60)">IC hậu nghiệm</th><th className="font-normal" title="Trọng số nếu chỉ ∝ IC (bỏ qua tương quan giữa tín hiệu)">∝ IC</th><th className="text-left font-normal" title="Trọng số theo tương quan: C̃⁻¹·IC, C̃ = 0,5·C + 0,5·I">Trọng số</th></tr></thead>
               <tbody>

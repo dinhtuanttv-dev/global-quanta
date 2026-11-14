@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -158,7 +158,8 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     const doc = getDecision ? await getDecision().decision(date) : null;
     if (!doc) return missing(res, "Chưa có quyết định Elite 10.");
     res.set("Cache-Control", "public, max-age=300");
-    res.json(doc);
+    // Số liệu hiển thị (ngưỡng tầng 1, chi phí sổ) + độ mới so với lịch phiên — chỉ cho phiên mới nhất mới có ý nghĩa "độ mới".
+    res.json(getDecision().present ? await getDecision().present(doc, { withFreshness: !date }) : doc);
   }));
 
   router.get("/decision/:ticker", wrap(async (req, res) => {
@@ -179,6 +180,21 @@ export function createEliteRouter({ getPanel, getCashGate = null, getEvidence = 
     res.json(h);
   }));
 
+  // PZ-v2: ảnh chụp vị trí giá của phiên (mặc định phiên mới nhất) và nhật ký chuyển trạng thái của bảng Theo dõi chờ nền.
+  const ISO_DATE = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+  router.get("/hl/watch", wrap(async (req, res) => {
+    const d = typeof req.query.date === "string" && ISO_DATE.test(req.query.date) ? req.query.date : null;
+    const s = getHlWatch ? await getHlWatch().snapshot(d) : null;
+    if (!s) return missing(res, "Chưa có dữ liệu vị trí giá.");
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(s);
+  }));
+  router.get("/hl/watch/log", wrap(async (req, res) => {
+    const d = typeof req.query.date === "string" && ISO_DATE.test(req.query.date) ? req.query.date : null;
+    if (!getHlWatch) return missing(res, "Chưa có dữ liệu vị trí giá.");
+    res.set("Cache-Control", "public, max-age=600");
+    res.json({ entries: await getHlWatch().log(d) });
+  }));
   router.get("/ledger", wrap(async (req, res) => {
     const l = getDecision ? await getDecision().ledger(req.query.book === "flow" ? "flow" : null) : null;
     if (!l) return missing(res, "Sổ theo dõi chưa có bản ghi.");

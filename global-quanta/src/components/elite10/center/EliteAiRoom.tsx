@@ -10,10 +10,10 @@ import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } f
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
 
 export const ELITE_SUGGESTIONS = [
-  "Danh mục Elite 10 hôm nay gồm những mã nào, động lực chính là gì và độ tin cậy đến đâu?",
+  "Danh mục chính thức hôm nay gồm những mã nào, vì sao được chọn, tỷ lệ tiền mặt bao nhiêu và độ tin cậy đến đâu?",
   "Tín hiệu nào đang có trọng số trong Điểm Elite và vì sao các tín hiệu khác không có?",
   "Phân tích định lượng HPG: hạng Elite, tín hiệu bậc A/B, bối cảnh ngành thế giới và rủi ro.",
-  "Sổ theo dõi tiến của Elite 10 đang cho kết quả thế nào so với rổ đều và VN-Index?",
+  "Sổ theo dõi tiến của danh mục chính thức đang cho kết quả thế nào, và cách chấm có giới hạn gì?",
   "Vì sao RVOL cao lại là tín hiệu ngược chiều theo engine bằng chứng?",
 ];
 
@@ -22,13 +22,13 @@ const clip = (s: string) => (s.length > JUDGE_MAX ? `${s.slice(0, JUDGE_MAX)}…
 
 /** Câu hỏi cho từng vai trong tranh luận. `subject` = mã cổ phiếu hoặc null (cả danh mục). */
 export function debateQuestions(subject: string | null) {
-  const target = subject ? `mã ${subject}` : "danh mục Elite 10 của phiên mới nhất";
+  const target = subject ? `mã ${subject}` : "danh mục chính thức của phiên mới nhất (xem portfolioKind trong elite_decision)";
   return {
     bull: `Chủ đề tranh luận: ${target}, kỳ hạn 5–10 phiên. Trình bày lập luận phe MUA (nghiêng tỷ trọng tăng). Dùng elite_${subject ? "ticker" : "decision"} trước, sau đó bối cảnh ngành thế giới / vĩ mô / xúc tác nếu cần.`,
     bear: `Chủ đề tranh luận: ${target}, kỳ hạn 5–10 phiên. Trình bày lập luận phe BÁN / thận trọng (không tăng hoặc giảm tỷ trọng). Dùng elite_${subject ? "ticker" : "decision"} và elite_evidence trước, sau đó rủi ro vĩ mô / ngành / xúc tác nếu cần.`,
     judge: (bull: string, bear: string) =>
       `Chủ đề: ${target}, kỳ hạn 5–10 phiên.\n\n=== LẬP LUẬN PHE MUA (Claude) ===\n${clip(bull)}\n\n=== LẬP LUẬN PHE BÁN (Gemini) ===\n${clip(bear)}\n\nHãy làm trọng tài: kiểm chứng bằng công cụ, chấm từng luận điểm và kết luận.`,
-    brief: "Viết bản tin quyết định cho phiên mới nhất của trung tâm Elite 10: (1) bối cảnh thị trường Việt Nam và thế giới, (2) danh mục Elite 10 và động lực chính của từng nhóm, (3) tín hiệu có trọng số và độ tin cậy (IC, bậc), (4) rủi ro chính và điều kiện làm thay đổi đánh giá, (5) nhãn bằng chứng và trạng thái sổ theo dõi. Ngắn gọn, có số liệu từ công cụ.",
+    brief: "Viết bản tin quyết định cho phiên mới nhất của trung tâm Elite 10: (1) bối cảnh thị trường Việt Nam và thế giới, (2) danh mục chính thức (đọc portfolioKind: Elite HL hay Elite dòng tiền), tỷ lệ tiền mặt, thay đổi trong phiên và lý do, (3) tín hiệu có trọng số và độ tin cậy (IC, bậc), (4) rủi ro chính và điều kiện làm thay đổi đánh giá, (5) nhãn bằng chứng và trạng thái sổ theo dõi. Ngắn gọn, có số liệu từ công cụ.",
   };
 }
 
@@ -43,7 +43,8 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const [phase, setPhase] = useState<Phase>("idle");
   const [briefBusy, setBriefBusy] = useState(false);
   const ctrlRef = useRef<AbortController | null>(null);
-  useEffect(() => () => ctrlRef.current?.abort(), []);
+  const briefCtrlRef = useRef<AbortController | null>(null);
+  useEffect(() => () => { ctrlRef.current?.abort(); briefCtrlRef.current?.abort(); }, []);
 
   async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal): Promise<Lane> {
     let lane = newLane(provider);
@@ -79,6 +80,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     if (briefBusy) return;
     setBriefBusy(true);
     const ctrl = new AbortController();
+    briefCtrlRef.current = ctrl;
     await run("claude", null, debateQuestions(null).brief, setBrief, ctrl.signal);
     setBriefBusy(false);
   }
@@ -93,7 +95,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input id="elite-debate-subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={busy} maxLength={10}
-            placeholder="Mã cổ phiếu (để trống = cả danh mục Elite 10)" aria-label="Chủ đề tranh luận"
+            placeholder="Mã cổ phiếu (để trống = cả danh mục chính thức)" aria-label="Chủ đề tranh luận"
             className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-900 px-2.5 py-1.5 text-[11.5px] uppercase text-slate-100 outline-none" />
           {busy
             ? <button type="button" onClick={() => ctrlRef.current?.abort()} className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng</button>
@@ -113,10 +115,12 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bản tin phiên</h4>
-          <button type="button" onClick={() => void makeBrief()} disabled={briefBusy} data-testid="elite-brief-start"
-            className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30 disabled:opacity-50">
-            <Newspaper className="h-3 w-3" />{briefBusy ? "Đang viết…" : brief ? "Viết lại bản tin" : "Tạo bản tin phiên"}
-          </button>
+          {briefBusy
+            ? <button type="button" onClick={() => briefCtrlRef.current?.abort()} data-testid="elite-brief-stop" className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng viết</button>
+            : <button type="button" onClick={() => void makeBrief()} data-testid="elite-brief-start"
+                className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30">
+                <Newspaper className="h-3 w-3" />{brief ? "Viết lại bản tin" : "Tạo bản tin phiên"}
+              </button>}
         </div>
         {brief ? <LaneView t={brief} showHeader headerLabel="Bản tin · Claude" /> : <p className="text-[11px] text-slate-500">Claude tổng hợp bối cảnh, danh mục, tín hiệu có trọng số, rủi ro và nhãn bằng chứng của phiên mới nhất — chỉ chạy khi bấm.</p>}
       </section>
@@ -124,6 +128,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
         <CatalystChatPanel title="Hỏi đáp Elite 10" suggestions={ELITE_SUGGESTIONS} />
       </section>
+      <p className="text-[10px] text-slate-400" data-testid="elite-ai-disclaimer">AI chỉ giải thích và phản biện số liệu từ công cụ; lập luận "phe mua" / "phe bán" là bài tập tranh luận. Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
   );
 }

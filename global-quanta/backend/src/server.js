@@ -33,6 +33,9 @@ import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
+import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
+import { createEliteAdjustedBars, createEliteAdjustedCloses } from "./market/elite/adjustedCloses.js";
+import { createHlWatch } from "./market/elite/hlWatch.js";
 import { consensusDisplay } from "./market/scanner/scanEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
@@ -216,16 +219,24 @@ const eliteScannerItem = async (t) => {
     breakout: Boolean(it.breakoutBoostBadge), smartScore: it.smartScore ?? null, fScore: it.piotroskiFScore ?? null, fScoreMax: it.fScoreMax ?? null, fScoreApplicable: it.fScoreApplicable ?? null, foreignNetBuy: it.foreignNetBuyFlag ?? null };
 };
 // LS-r1: điểm dẫn dắt LS-v1 (Hồ sơ 360° + E3-v5 khi cổng H4 ĐẠT).
+// 13/11/2026: chuỗi giá ĐIỀU CHỈNH ĐẦY ĐỦ cho LS-v1 và engine quyết định — kho Gateway (ADJUSTED_CUMULATIVE), thiếu thì kho VNDirect
+// (xem elite/adjustedCloses.js). Trả Map(mã -> [[ngày, giá đóng cửa điều chỉnh, GTGD]]).
+let eliteAdjusted = null;
+const eliteAdjustedCloses = (tickers, to) => {
+  const rt = getMarketRuntime();
+  eliteAdjusted ??= createEliteAdjustedCloses({ seriesSource: createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }), pricesOf: (t) => rt.eventStudy.pricesOf(t), store: rt.store });
+  return eliteAdjusted(tickers, to);
+};
 let eliteLeadership = null;
 const getEliteLeadership = () => (eliteLeadership ??= createLeadershipService({
-  store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t),
+  store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t), adjustedCloses: eliteAdjustedCloses, adjustedStats: () => eliteAdjusted?.stats() ?? null,
   universe: async () => ((await getMarketRuntime().store.getKv("scanner:universe"))?.value?.tickers ?? []).map((x) => x.ticker),
   vnIndexBars: async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 500 })).bars.filter((b) => !b.partial && b.close > 0),
   retroInputs: () => getEliteRetro().inputs(), commit: () => process.env.RAILWAY_GIT_COMMIT_SHA ?? null,
 }));
 // E2: engine bằng chứng — IC hạng từng tín hiệu theo E2-prereg.md, cập nhật tăng dần sau mỗi bảng mới.
 let eliteEvidence = null;
-const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel(), leadership: getEliteLeadership() }));
+const getEliteEvidence = () => (eliteEvidence ??= createEvidenceEngine({ store: getMarketRuntime().store, panel: getElitePanel(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses }));
 // E3: Điểm Elite + danh mục Elite 10 + sổ theo dõi tiến (E3-prereg.md).
 let eliteDecision = null;
 const vnIndexCloses = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && b.close > 0).map((b) => [b.date, b.close]);
@@ -236,7 +247,21 @@ const validatedBuyZone = async () => {
   const t = await getGatewayTimeline()();
   return new Set((t?.rows ?? []).filter((r) => r.tier === "VALIDATED" && (r.status === "IN_WINDOW" || (r.status === "UPCOMING" && r.sessionsToEntry <= 10))).map((r) => r.ticker));
 };
-const getEliteDecision = () => (eliteDecision ??= createDecisionService({ store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
+// Lịch phiên đã đóng cho cảnh báo độ mới: tính cả phiên mà nến chỉ số bị lỗi giá (đóng cửa = 0) nhưng có khối lượng.
+const vnIndexSessionDates = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && (b.close > 0 || b.volume > 0)).map((b) => b.date);
+// PZ-v2: lớp Vị trí giá + bảng Theo dõi chờ nền của Elite HL (chỉ hiển thị — PZ_GATE = false).
+let eliteHlWatch = null;
+const getEliteHlWatch = () => (eliteHlWatch ??= createHlWatch({
+  store: getMarketRuntime().store,
+  ohlcBars: createEliteAdjustedBars({ seriesSource: createScreenerSeries({ store: getMarketRuntime().store, corporateActions: getMarketRuntime().corporateActions }) }),
+  strategyDocs: async () => {
+    const st = getMarketRuntime().store;
+    const [sepa, baseBreakout] = await Promise.all(["sepa", "base-breakout"].map((k) => st.getKv(`strategies:${k}`).then((x) => x?.value ?? null).catch(() => null)));
+    return { sepa, baseBreakout };
+  },
+  vnIndex: vnIndexCloses,
+}));
+const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, priceWatch: getEliteHlWatch(), store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
@@ -257,7 +282,7 @@ let eliteZones = null;
 const getEliteZones = () => (eliteZones ??= createGatewayEliteZones({ cotucStore: getCotucStore() }));
 let eliteBuyTiming = null;
 const getEliteBuyTiming = () => (eliteBuyTiming ??= createBuyTimingService({ store: getMarketRuntime().store, localTimeline: () => getGatewayTimeline()() }));
-const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses }));
+const getEliteRetro = () => (eliteRetro ??= createRetroService({ store: getMarketRuntime().store, taxonomy, vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
 // CG-r1: Cổng tiền mặt (đăng ký trước, KHÔNG ĐẠT -> chỉ mô tả) + sổ tiến bóng.
 let cashGate = null;
 const getCashGate = () => (cashGate ??= createCashGateService({
@@ -266,7 +291,7 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 }));
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
-const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses }));
+const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
 app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore }));
 // F5 (06/11/2026): Chất lượng KQKD (SUE/SUR, tăng trưởng có kiểm soát) cho tab PHÂN TÍCH CƠ BẢN › Kết quả kinh doanh.
 let earningsQuality = null;
@@ -292,7 +317,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
@@ -301,11 +326,33 @@ if (process.env.NODE_ENV !== "test") {
   const tried = { evidence: null, decision: null }; // { date, at, ok }
   let cashGateRecorded = null;
   const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
+  let pzBackfillTried = null, frozenRetryAt = 0;
   const eliteTick = async () => {
     try {
-      if (!panelDue(Date.now(), isTradingDay)) return;
+      const inWindow = panelDue(Date.now(), isTradingDay);
       const latest = await getElitePanel().panel();
-      if (latest?.date !== vnDate(new Date())) {
+      // Bù phiên (sự cố 13/11/2026): Siêu Quét đã có phiên mới hơn bảng tín hiệu (job bù phiên vừa quét lại phiên lỡ) -> dựng bảng và
+      // quyết định cho phiên đó ngay, kể cả ngoài giờ / ngày nghỉ. Mọi nguồn của bảng lấy ngày từ dữ liệu nên không ghi sai phiên.
+      const scanAsOf = (await getMarketRuntime().store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
+      const catchUp = !inWindow && Boolean(scanAsOf && latest?.date && scanAsOf > latest.date);
+      // Phiên bị CHỐT DỮ LIỆU (thiếu nguồn lúc dựng) -> thử dựng lại tối đa 1 lần / 60 phút khi nguồn có thể đã đủ (VD nến VN-Index lỗi
+      // vừa được vá). Dịch vụ quyết định chỉ thay bản ghi sổ CHƯA chấm; bản ghi đã chấm giữ nguyên.
+      const cur = await getEliteDecision().decision().catch(() => null);
+      if (!catchUp && cur?.hl?.dataGuard?.frozen && cur.date === latest?.date && Date.now() - frozenRetryAt > 60 * 60_000) {
+        frozenRetryAt = Date.now();
+        const p2 = await getElitePanel().build({ force: true });
+        const dec2 = await getEliteDecision().build({ force: true });
+        console.log(`[elite] dựng lại phiên ${dec2.date} bị chốt dữ liệu: thiếu nguồn ${p2.missingSources.join(", ") || "không"} -> ${dec2.hl?.dataGuard?.frozen ? "vẫn chốt (" + dec2.hl.dataGuard.reasonsVi.join("; ") + ")" : "đủ dữ liệu, áp quy tắc"}`);
+        return;
+      }
+      if (!inWindow && !catchUp) {
+        // PZ-v2: tài liệu quyết định đã khoá trước khi có lớp Vị trí giá -> bổ sung trường hiển thị một lần (danh mục không đổi).
+        const dec = await getEliteDecision().decision().catch(() => null);
+        if (dec?.hl && !dec.hl.pz && pzBackfillTried !== dec.date) { pzBackfillTried = dec.date; await getEliteDecision().build(); console.log(`[elite] vị trí giá bổ sung cho phiên ${dec.date}`); }
+        return;
+      }
+      if (catchUp) console.log(`[elite] bù phiên: bảng tín hiệu ${latest.date} -> Siêu Quét ${scanAsOf}`);
+      if (catchUp || latest?.date !== vnDate(new Date())) {
         const doc = await getElitePanel().build();
         console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
       }

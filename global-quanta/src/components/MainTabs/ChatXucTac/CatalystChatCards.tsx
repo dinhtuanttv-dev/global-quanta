@@ -29,7 +29,7 @@ const TOOL_LABEL: Record<string, string> = {
   ws_commodities: "Bảng giá hàng hoá",
   ws_commodity: "Phân tích hàng hoá",
   ws_stock: "Tác động lên cổ phiếu",
-  elite_decision: "Bảng quyết định Elite 10",
+  elite_decision: "Bảng quyết định Elite",
   elite_ticker: "Hồ sơ 360° (Elite 10)",
   elite_evidence: "Bằng chứng tín hiệu (E2)",
 };
@@ -215,6 +215,21 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
           r.name, `${fmt(r.estPct, 1)}%`, `[${fmt(r.ciLowPct, 1)}; ${fmt(r.ciHighPct, 1)}]`, r.conclusive ? "có hướng" : "chưa kết luận",
         ])} />
         {Array.isArray(d.warnings) && d.warnings.length > 0 && <div style={{ fontSize: 10, color: "var(--warning, #f59e0b)", marginTop: 4 }}>{d.warnings.join(" · ")}</div>}
+      </Shell>
+    );
+  }
+  // E4-HL: danh mục chính thức là Elite HL -> hiện lớp hợp lưu / ngưỡng ra / tiền mặt thay cho Z · α · P vượt (không phải lý do chọn mã).
+  if (name === "elite_decision" && Array.isArray(d.portfolio) && d.portfolioKind === "ELITE_HL") {
+    const h: Obj = d.hl ?? {};
+    return (
+      <Shell title={`Bảng quyết định Elite HL · phiên ${d.date} · THĂM DÒ`}>
+        <div style={{ fontSize: 11, color: "var(--text-secondary)", lineHeight: 1.6 }}>
+          {d.portfolio.length} mã · cổ phiếu {fmt(h.investedPct, 1)}% · tiền mặt {fmt(h.cashPct, 1)}%{h.dataGuardFrozen ? " · chốt dữ liệu đang bật (giữ nguyên)" : ""}
+        </div>
+        {d.portfolio.length > 0 && <Table head={["Mã", "Tỷ trọng", "Trạng thái", "Lớp hợp lưu", "LS phân vị", "Mô hình TA", "Ngành (RRG)", "Cách ngưỡng ra"]} rows={d.portfolio.map((p: Obj) => [
+          p.ticker, `${fmt(p.weightPct, 1)}%`, p.status ?? "—", p.hlClass ?? "—", fmt(p.lsPercentile, 0), p.taModelsPassing ?? "—", p.sectorRrg ?? "—", p.exitBufferLsPoints == null ? "—" : sgn(p.exitBufferLsPoints, 0),
+        ])} />}
+        {h.k0NoteVi && <div style={{ fontSize: 10.5, color: "var(--warning, #f59e0b)", marginTop: 4, lineHeight: 1.5 }}>{h.k0NoteVi}</div>}
       </Shell>
     );
   }

@@ -127,6 +127,16 @@ test("E4-HL dịch vụ: danh mục chính thức = Elite HL, danh mục dòng t
   await svc.build();
   ledger = (await store.getKv(DECISION_KV.ledger)).value;
   assert.equal(ledger.entries.length, 1, "cùng phiên -> không thêm bản ghi");
+  // Dựng lại cùng phiên khi bản ghi chưa chấm: sổ được đồng bộ theo tài liệu mới (giữ giờ khoá ban đầu), không thêm bản ghi.
+  const stale = (await store.getKv(DECISION_KV.ledger)).value;
+  stale.entries[0].holdings = stale.entries[0].holdings.map(({ ref, ...h }) => h);
+  await store.setKv(DECISION_KV.ledger, stale);
+  await svc.build({ force: true });
+  ledger = (await store.getKv(DECISION_KV.ledger)).value;
+  assert.equal(ledger.entries.length, 1);
+  assert.ok(ledger.entries[0].holdings.every((h) => h.ref > 0), "giá tham chiếu được ghi lại vào sổ");
+  assert.equal(ledger.entries[0].lockedAt, stale.entries[0].lockedAt);
+  assert.ok(ledger.entries[0].rebuiltAt);
   assert.deepEqual(ledger.entries[0].results, {});
 
   await store.upsertMarketDaily(daily.filter((r) => r.date > cal[99] && r.date <= cal[111]));
@@ -230,4 +240,96 @@ test("E3-v4 RRG: ngành Tụt hậu bị trừ 30% độ lớn Z khi xếp hạn
   for (const o of others) assert.equal(o.rrgPenalty, false);
   const p = dec.portfolio.find((x) => x.ticker === top);
   if (p) assert.equal(p.rrgPenalty, true);
+});
+
+// F03 (13/11/2026): sổ Elite HL không có Z -> tiêu chí IC của E3 không bao giờ tính được; nhãn phải nói đúng là sổ MÔ TẢ.
+import { hlLedgerSummary, HL_LEDGER_BASIS_VI } from "../src/market/elite/decisionService.js";
+test("E4-HL sổ: nhãn THĂM DÒ mô tả (không hứa 'đủ 60 phiên'), kèm cơ sở chấm; số liệu chấm giữ nguyên như summarizeLedger", () => {
+  const res = (ex) => ({ from: "2026-11-13", to: "2026-11-20", portfolioNet: ex, universeNet: 0, excess: ex, vnIndex: 0.01, ic: null, names: 100 });
+  const entries = Array.from({ length: 70 }, (_, i) => ({ date: `d${String(i).padStart(3, "0")}`, holdings: [{ ticker: "A", weight: 0.1 }], results: { 5: res(0.01), 10: res(0.02) } }));
+  const base = summarizeLedger(entries), s = hlLedgerSummary(entries);
+  assert.equal(base.criteria.icPass, false); // không có IC -> tiêu chí E3 không thể đạt dù đã 70 phiên, lợi suất vượt dương
+  assert.match(base.labelVi, /cần ≥ 60 phiên/); // nhãn cũ: lời hứa không có đường thành hiện thực với sổ HL
+  assert.equal(s.kind, "ELITE_HL");
+  assert.equal(s.label, "EXPERIMENTAL");
+  assert.match(s.labelVi, /sổ mô tả của Elite HL \(70 phiên\)/);
+  assert.doesNotMatch(s.labelVi, /cần ≥ 60 phiên/);
+  assert.equal(s.basisVi, HL_LEDGER_BASIS_VI);
+  assert.match(s.basisVi, /không tính phần tiền mặt/);
+  assert.deepEqual(s.horizons, base.horizons);
+});
+
+// F08 / F11 (13/11/2026): lớp trình bày của GET /api/elite/decision — độ mới theo lịch phiên thật và ngưỡng hiển thị; không ghi vào KV.
+test("E4-HL present(): freshness đếm số phiên đã đóng sau phiên của tài liệu; thêm tier1 + chi phí sổ; nguồn VN-Index lỗi -> null", async () => {
+  const mk = (vnIndex, extra = {}) => createDecisionService({ store: createMemoryStore(), panel: { panel: async () => null }, evidence: { evidence: async () => null }, vnIndex, log: { warn() {} }, now: () => Date.parse("2026-11-17T09:00:00Z"), ...extra });
+  const vn = async () => [["2026-11-12", 1200], ["2026-11-13", 1210], ["2026-11-16", 1205], ["2026-11-17", 1215]];
+  const doc = { date: "2026-11-13", version: "E4-HL v1", portfolio: [], hl: { rule: { slots: 10 } } };
+  const p = await mk(vn).present(doc);
+  assert.deepEqual(p.freshness, { latestSession: "2026-11-17", sessionsBehind: 2, overdue: false });
+  assert.deepEqual(p.hl.tier1, { lsLeaderPct: 80, taMin: 2, taModels: 7, maxScore: 10 });
+  assert.equal(p.display.ledgerCostRoundTrip, COST_ROUND_TRIP);
+  assert.equal(p.display.flowMinAdvBn, 10);
+  assert.deepEqual([p.display.flowRrgPenalty, p.display.flowBufferRank, p.display.flowMaxPerSector, p.display.flowWeightCap], [0.3, 20, 3, 0.2]);
+  assert.equal(doc.freshness, undefined); // tài liệu gốc (bản đã khoá / memo) không bị sửa
+  assert.equal(doc.hl.tier1, undefined);
+  assert.deepEqual((await mk(vn).present({ ...doc, date: "2026-11-17" })).freshness, { latestSession: "2026-11-17", sessionsBehind: 0, overdue: false });
+  // Chậm 1 phiên: trước 20:00 giờ VN của phiên mới nhất là chờ dựng bình thường; sau đó là quá hạn.
+  const d16 = { ...doc, date: "2026-11-16" };
+  assert.equal((await mk(vn).present(d16)).freshness.overdue, false);
+  assert.deepEqual((await mk(vn, { now: () => Date.parse("2026-11-17T13:00:00Z") }).present(d16)).freshness, { latestSession: "2026-11-17", sessionsBehind: 1, overdue: true });
+  // Nến chỉ số lỗi giá (bị loại khỏi chuỗi giá đóng cửa) vẫn là một phiên: lịch phiên riêng thắng chuỗi giá.
+  const vnBroken = async () => [["2026-11-12", 1200], ["2026-11-13", 1210]];
+  const sess = async () => ["2026-11-12", "2026-11-13", "2026-11-16"];
+  assert.deepEqual((await mk(vnBroken, { sessionDates: sess }).present(doc)).freshness, { latestSession: "2026-11-16", sessionsBehind: 1, overdue: true });
+  assert.equal((await mk(async () => { throw new Error("nguồn lỗi"); }).present(doc)).freshness, null);
+  assert.equal((await mk(vn).present(doc, { withFreshness: false })).freshness, undefined);
+  assert.equal(await mk(vn).present(null), null);
+});
+
+// F03 (14/11/2026): thêm phép đo "tính cả tiền mặt" — KHÔNG đổi cách chấm chính thức.
+test("sổ theo dõi: danh mục có tiền mặt — chấm chính thức giữ nguyên (quy về 100% cổ phiếu), thêm lợi suất danh mục thật tính cả tiền mặt", () => {
+  const cal = ["d0", "d1", "d2", "d3", "d4", "d5", "d6"], px = new Map();
+  const uni = Array.from({ length: 40 }, (_, i) => `U${i}`);
+  for (const t of [...uni, "A", "B"]) { px.set(`${t}|d1`, 100); px.set(`${t}|d6`, t === "A" ? 110 : t === "B" ? 120 : 100); }
+  const entry = { date: "d0", holdings: [{ ticker: "A", weight: 0.1 }, { ticker: "B", weight: 0.1 }], universe: uni };
+  const r = evaluateEntry(entry, 5, px, cal, new Map([["d1", 1000], ["d6", 1010]]), 0.04);
+  assert.ok(Math.abs(r.excess - 0.15) < 1e-12, "chấm chính thức: (0,1·10% + 0,1·20%) / 0,2 = 15% — không đổi");
+  assert.ok(Math.abs(r.portfolioNet - (0.15 - COST_ROUND_TRIP)) < 1e-12);
+  assert.equal(r.invested, 0.2);
+  assert.ok(Math.abs(r.portfolioCashIncl - 0.03) < 1e-12, "danh mục thật: 80% tiền mặt -> +3%");
+  const s = summarizeLedger([{ ...entry, results: { 5: r } }, { date: "old", holdings: [], results: { 5: { from: "a", to: "b", portfolioNet: 0, universeNet: 0, excess: 0.01, vnIndex: null, ic: null, names: 40 } } }]);
+  assert.equal(s.horizons[5].n, 2);
+  assert.deepEqual(s.horizons[5].cashIncl, { n: 1, meanPortfolio: r.portfolioCashIncl, meanInvested: 0.2, meanVnIndex: r.vnIndex }, "bản ghi cũ không có trường mới -> không tính vào");
+  assert.equal(s.horizons[10].cashIncl, null);
+});
+
+test("PZ-v2 nghiệm thu: có lớp vị trí giá thì danh mục, hàng chờ, thay đổi và sổ chính thức GIỐNG HỆT khi không có; tài liệu cũ được bổ sung một lần", async () => {
+  const { cal, rows: rows0, daily } = world();
+  const rows = rows0.map((r, i) => ({ ...r, values: { ...r.values, ls_v1: i, structure_score: 3, rrg_quadrant: i >= 48 ? 2 : -1, ...(i >= 48 ? { sepa_state: 2, base_breakout: 3 } : {}) } }));
+  const mk = async (priceWatch) => {
+    const store = createMemoryStore();
+    await store.upsertMarketDaily(daily.filter((r) => r.date <= cal[99]));
+    const svc = createDecisionService({ store, panel: { panel: async () => ({ date: cal[99], version: "E1", rows }) }, evidence: { evidence: async () => evidence },
+      vnIndex: async () => cal.map((d, i) => [d, 1000 + i]), now: () => Date.parse("2026-08-20T11:00:00Z"), log: { warn() {} }, priceWatch });
+    return { store, svc };
+  };
+  // Vị trí giá giả: mã lẻ đang Tăng nóng, mã chẵn ở Vùng mua.
+  let runs = 0;
+  const fake = { run: async ({ date, tier1 }) => { runs++; return { version: "PZ-v2", date, records: Object.fromEntries([...tier1].map((t) => [t, { state: Number(t.slice(1)) % 2 ? "EXTENDED" : "BUY_ZONE", from: null, since: date, sessions: 1, hotReasons: [], missingVi: [], measures: {}, base: null }])) }; },
+    recentExits: async () => [] };
+  const A = await mk(null), B = await mk(fake);
+  const a = await A.svc.build(), b = await B.svc.build();
+  assert.ok(runs >= 1);
+  const strip = (d) => ({ portfolio: d.portfolio.map(({ hl: { pz, ...hl }, ...x }) => ({ ...x, hl })), queue: d.hl.queue.map(({ pz, ...q }) => q), changes: { ...d.hl.changes, toWatch: undefined, backToZone: undefined }, cash: d.hl.cash });
+  assert.deepEqual(strip(b), strip(a));
+  assert.deepEqual((await B.store.getKv(DECISION_KV.ledger)).value.entries.map((e) => e.holdings), (await A.store.getKv(DECISION_KV.ledger)).value.entries.map((e) => e.holdings), "sổ chính thức không đổi");
+  assert.ok(b.hl.pz && b.hl.pz.gate === false);
+  assert.ok(b.portfolio.every((x) => x.hl.pz && ["CORE", "RUNNER"].includes(x.hl.pz.lane)));
+  // Tài liệu đã khoá trước khi có PZ (dựng ở A) -> dịch vụ có PZ bổ sung trường hiển thị một lần, không đổi danh mục.
+  const C = createDecisionService({ store: A.store, panel: { panel: async () => ({ date: cal[99], version: "E1", rows }) }, evidence: { evidence: async () => evidence },
+    vnIndex: async () => cal.map((d, i) => [d, 1000 + i]), now: () => Date.parse("2026-08-20T12:00:00Z"), log: { warn() {} }, priceWatch: fake });
+  const c = await C.build();
+  assert.ok(c.hl.pz, "tài liệu cũ được bổ sung vị trí giá");
+  assert.deepEqual(strip(c).portfolio, strip(a).portfolio);
+  assert.ok((await A.store.getKv(DECISION_KV.decision(cal[99]))).value.pzAddedAt);
 });

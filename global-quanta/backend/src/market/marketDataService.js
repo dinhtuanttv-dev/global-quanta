@@ -131,7 +131,18 @@ export function createMarketDataService({ providers, store, router, now = Date.n
     if (!bars.some((b) => b.closeOnly)) return bars;
     const refs = await indexReferences(symbol, from, to);
     return bars.map(({ closeOnly, ...bar }) => {
-      if (!closeOnly || !bar.close) return bar;
+      if (!closeOnly) return bar;
+      // Nến lỗi GIÁ 0 (O=H=L=C=0 nhưng có khối lượng — VN-Index phiên 13/11/2026 từ SSI): lấy cả nến từ nguồn tham chiếu cùng ngày, chỉ khi
+      // khối lượng khớp (lệch ≤ 2%) để chắc là cùng một phiên. Không khớp / không có nguồn -> giữ nguyên (nơi dùng tự bỏ nến giá 0).
+      if (!(bar.close > 0)) {
+        for (const { byDate } of refs) {
+          const ref = byDate.get(bar.date);
+          if (!(ref?.close > 0 && ref.open > 0 && ref.high > 0 && ref.low > 0)) continue;
+          if (bar.volume > 0 && ref.volume > 0 && Math.abs(ref.volume - bar.volume) / bar.volume > 0.02) continue;
+          return { ...bar, open: ref.open, high: ref.high, low: ref.low, close: ref.close, source: "VNDIRECT_FINFO" };
+        }
+        return bar;
+      }
       for (const { tolerance, byDate } of refs) {
         const ref = byDate.get(bar.date);
         if (!ref || Math.abs(ref.close - bar.close) / bar.close >= tolerance) continue;

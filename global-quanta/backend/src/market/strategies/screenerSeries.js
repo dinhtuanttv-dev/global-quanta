@@ -28,6 +28,17 @@ const DAILY_COLS = "symbol,trading_date,open,high,low,close,volume,value,foreign
 // Bộ nhớ đệm cấp tiến trình: { to, from, recentFrom, symbols:Set, daily:Map, series:Map(symbol -> Promise<kết quả>) }
 let memo = null;
 export function resetScreenerSeriesMemo() { memo = null; }
+
+// Nguồn giá đóng cửa DANH NGHĨA dự phòng (mã -> Map(ngày -> giá đồng) | null) — runtime nối vào kho VNDirect sau khi khởi tạo.
+// Đặt ở cấp mô-đun vì createScreenerSeries được dựng ở nhiều nơi (bộ lọc, cấu trúc, ngành, Top 20, Cycle…) và tất cả phải cùng nguồn.
+let nominalFallback = null;
+export function setNominalFallback(fn) { nominalFallback = typeof fn === "function" ? fn : null; memo = null; }
+/** Dòng kho VNDirect [ngày, adClose, nmValue, close danh nghĩa (nghìn đồng)] -> Map(ngày -> giá đóng cửa danh nghĩa, đồng). */
+export function vndNominalMap(rows) {
+  const m = new Map();
+  for (const r of rows ?? []) if (r?.[3] > 0) m.set(r[0], Math.round(r[3] * 1000));
+  return m.size ? m : null;
+}
 export function screenerSeriesMemoInfo() { return memo ? { to: memo.to, from: memo.from, symbols: memo.symbols.size, cached: memo.series.size } : null; }
 
 /** Cắt kết quả chuỗi dài về `from` (giữ nguyên các trường khác). */
@@ -60,8 +71,28 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
         corporateActions.get(symbol).catch(() => null),
       ]);
       const nominalByDate = new Map((adjRows?.[0]?.bars ?? []).map(([d, c]) => [d, c]));
-      const nominal = nominalizeBars(history.map(({ source, ...b }) => b), nominalByDate);
-      const coverage = history.length ? nominal.matched / history.length : 1;
+      const ssiBars = history.map(({ source, ...b }) => b);
+      let nominal = nominalizeBars(ssiBars, nominalByDate);
+      let coverage = history.length ? nominal.matched / history.length : 1;
+      // 13/11/2026 — NGUỒN GIÁ DANH NGHĨA DỰ PHÒNG. Kho market_adjusted_series thiếu lịch sử cho 73/275 mã (FPT, DGC, SSI, VIC…) nên
+      // các mã đó rơi về SSI_LATEST_EVENT_ADJUSTED: chuỗi còn nguyên bước nhảy ở ngày không hưởng quyền và mọi bộ lọc kỹ thuật đọc sai.
+      // Khi độ khớp thấp, bổ sung giá đóng cửa danh nghĩa từ kho VNDirect (bản của kho Gateway thắng ở ngày trùng) rồi khôi phục lại.
+      let nominalSource = "GATEWAY";
+      // Mã vừa chia tách tỷ lệ lớn (VIC 1:1 ngày 05/12/2025, TCB 3:2 ngày 29/10/2026): nến SSI của MỌI phiên trước đó bị nhân hệ số 0,5–0,67,
+      // tức giá danh nghĩa / giá SSI = 1,5–2 — vượt ngưỡng tin cậy mặc định (|k − 1| ≤ 0,5) nên bị coi là "không khớp". Giá danh nghĩa khớp
+      // đúng ngày là dữ liệu đáng tin, nên khi độ khớp thấp thì thử lại với ngưỡng rộng (k tới 5).
+      const WIDE = { maxDeviation: 4 };
+      const retry = (map, source) => {
+        const again = nominalizeBars(ssiBars, map, WIDE);
+        const cov2 = history.length ? again.matched / history.length : 1;
+        if (cov2 > coverage) { nominal = again; coverage = cov2; nominalSource = source; }
+      };
+      if (coverage < MIN_NOMINAL_COVERAGE && nominalByDate.size) retry(nominalByDate, "GATEWAY");
+      if (coverage < MIN_NOMINAL_COVERAGE && nominalFallback) {
+        let extra = null;
+        try { extra = nominalFallback(symbol); } catch { extra = null; }
+        if (extra?.size) retry(new Map([...extra, ...nominalByDate]), nominalByDate.size ? "GATEWAY+VNDIRECT" : "VNDIRECT");
+      }
 
       const byDate = new Map(nominal.bars.map((b) => [b.date, b]));
       for (const b of daily.get(symbol) ?? []) byDate.set(b.date, b); // danh nghĩa của sàn thắng
@@ -72,7 +103,7 @@ export function createScreenerSeries({ store, corporateActions, historyDays = 10
       const finish = (list, priceBasis, extra = {}) => {
         const fix = repairUnexplainedGaps(list);
         if (fix.repaired.length) warnings.push(`Tự điều chỉnh ${fix.repaired.length} khoảng cách giá > 20% chưa có sự kiện quyền (${fix.repaired.map((x) => x.date).join(", ")}).`);
-        return { bars: fix.bars, priceBasis, gapRepairs: fix.repaired, warnings, ...extra };
+        return { bars: fix.bars, priceBasis, gapRepairs: fix.repaired, warnings, nominalSource, nominalCoverage: Math.round(coverage * 1000) / 1000, ...extra };
       };
       if (coverage < MIN_NOMINAL_COVERAGE) {
         warnings.push(`Giá danh nghĩa chỉ khớp ${Math.round(coverage * 100)}% số phiên lịch sử.`);

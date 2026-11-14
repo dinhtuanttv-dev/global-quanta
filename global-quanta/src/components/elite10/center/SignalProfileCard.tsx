@@ -4,7 +4,7 @@
 // từng tín hiệu (xám = trung tính); bậc kèm IC / t / n ở kỳ hạn chính; thác đóng góp vào Z; khoảng cách tới danh mục Elite 10.
 import { useMemo } from "react";
 import { useEliteDecision, useEliteEvidence, useElitePanel, useEliteTicker } from "../../../hooks/elite10/useEliteCenter";
-import type { Tier } from "../../../lib/elite10/decisionTypes";
+import { hlPicks, type Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
 import LeadershipCard from "./LeadershipCard";
@@ -22,7 +22,7 @@ export function percentile(values: number[], v: number): number | null {
 }
 
 export default function SignalProfileCard({ ticker }: { ticker: string }) {
-  const { decision, panel, isLoading } = useEliteTicker(ticker);
+  const { decision, panel, isLoading, error } = useEliteTicker(ticker);
   const { data: full } = useElitePanel();
   const { data: ev } = useEliteEvidence();
   const { data: dec } = useEliteDecision();
@@ -38,15 +38,31 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
     for (const r of full?.rows ?? []) for (const [k, v] of Object.entries(r.values)) if (v != null) { if (!out.has(k)) out.set(k, []); out.get(k)!.push(v); }
     return out;
   }, [full]);
-  // Khoảng cách tới danh mục: Z của mã yếu nhất đang trong Elite 10.
+  // E4-HL: danh mục chính thức là Elite HL (không chọn theo Z) -> vị trí của mã lấy từ hàng chờ / danh sách ngành phản đối của Gateway.
+  const hl = dec?.hl ?? null;
+  const hlPos = useMemo(() => {
+    if (!hl) return null;
+    const q = hl.queue.find((x) => x.ticker === ticker);
+    const ag = hl.against.find((x) => x.ticker === ticker);
+    return { held: hlPicks(dec).some((p) => p.ticker === ticker), queue: q ?? null, against: ag ?? null, inFlow: Boolean(dec?.flowPortfolio?.some((p) => p.ticker === ticker)) };
+  }, [hl, dec, ticker]);
+  // Khoảng cách tới danh mục dòng tiền (xếp theo Z): Z của mã yếu nhất trong danh mục đó. Với tài liệu E4-HL dùng flowPortfolio.
   const gap = useMemo(() => {
-    const pf = dec?.portfolio ?? [];
-    if (!decision || !pf.length || decision.inPortfolio) return null;
+    const pf = hl ? dec?.flowPortfolio ?? [] : dec?.portfolio ?? [];
+    if (!decision || !pf.length || pf.some((p) => p.ticker === ticker)) return null;
     const weakest = pf.reduce((a, b) => (b.Z < a.Z ? b : a));
     return { weakest, dz: weakest.Z - decision.Z };
-  }, [dec, decision]);
+  }, [dec, decision, hl, ticker]);
 
   if (isLoading) return <p className="py-3 text-xs italic text-slate-500">Đang tải hồ sơ tín hiệu {ticker}…</p>;
+  // Lỗi máy chủ / mạng KHÁC với "mã ngoài vũ trụ" (404): không được báo nhầm là mã không có trong danh sách.
+  if (error && !panel) {
+    return (
+      <div role="alert" className="tw-scope rounded-lg border border-rose-400/40 bg-rose-500/[0.06] p-3 text-[11px] text-rose-200" data-testid="elite-profile-error">
+        Không tải được hồ sơ tín hiệu {ticker}: {String((error as Error).message ?? error)}. Đây là lỗi tải dữ liệu, chưa kết luận được mã có trong bảng tín hiệu hay không.
+      </div>
+    );
+  }
   if (!panel) {
     return (
       <div className="tw-scope rounded-lg border border-white/10 bg-slate-950/60 p-3 text-[11px] text-slate-400" data-testid="elite-profile-missing">
@@ -73,7 +89,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
             <span className="rounded border border-white/15 px-2 py-0.5">α 5 phiên <b>{num(decision.alpha5Pct)}%</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">P vượt <b>{num(decision.pOutperform * 100, 1)}%</b></span>
             {decision.inPortfolio
-              ? <span className="rounded border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-300">Trong Elite 10</span>
+              ? <span className="rounded border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-300">{hl ? "Trong Elite HL" : "Trong Elite 10"}</span>
               : !decision.eligible && <span className="rounded border border-amber-400/40 px-2 py-0.5 text-amber-300">Không đủ điều kiện: {decision.reason}</span>}
           </div>
         )}
@@ -96,8 +112,18 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
             ))}
           </div>
           <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[10.5px]" data-testid="elite-profile-gap">
-            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Khoảng cách tới Elite 10</p>
-            {decision.inPortfolio ? <p className="text-emerald-300">Đang trong danh mục Elite 10.</p>
+            {hlPos && (
+              <div className="mb-1.5" data-testid="elite-profile-hl-pos">
+                <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Vị trí so với danh mục Elite HL (chính thức)</p>
+                {hlPos.held ? <p className="text-emerald-300">Đang trong danh mục Elite HL.</p>
+                  : hlPos.queue ? <p className="text-slate-300">Đạt Hợp lưu, hạng hợp lưu <b className="font-mono">{hlPos.queue.hlRank}</b> — chưa vào danh mục: <span className={hlPos.queue.code === "illiquid" ? "text-amber-300" : "text-slate-100"}>{hlPos.queue.reasonVi}</span>.</p>
+                  : hlPos.against ? <p className="text-amber-300">Đạt tầng 1 nhưng ngành ở góc {hlPos.against.rrgVi ?? "phản đối"} trên RRG — quy tắc Elite HL không nhận.</p>
+                  : <p className="text-slate-400">Không nằm trong danh mục và hàng chờ của Elite HL phiên này. Lớp hợp lưu của mã xem ở khối "Hợp lưu đa yếu tố" bên dưới.</p>}
+                <p className="mt-0.5 text-[10px] text-slate-400">Elite HL chọn mã theo quy tắc Hợp lưu, không theo Điểm Elite Z.</p>
+              </div>
+            )}
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">{hl ? "Khoảng cách tới danh mục Elite dòng tiền (cũ, xếp theo Z)" : "Khoảng cách tới Elite 10"}</p>
+            {(hl ? hlPos?.inFlow : decision.inPortfolio) ? <p className="text-emerald-300">{hl ? "Đang trong danh mục Elite dòng tiền (cũ)." : "Đang trong danh mục Elite 10."}</p>
               : !decision.eligible ? <p className="text-amber-300">Chưa đủ điều kiện danh mục ({decision.reason}) — Điểm Elite cao cũng không được chọn.</p>
               : gap ? (
                 <p className="text-slate-300">Mã yếu nhất trong danh mục: <b className="font-mono">{gap.weakest.ticker}</b> Z {num(gap.weakest.Z)} (hạng {gap.weakest.rank}).{" "}
@@ -152,6 +178,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
           </div>
         ))}
       </div>
+      <p className="text-[10px] text-slate-400">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
       <p className="text-[10px] text-slate-500">Chỉ tín hiệu bậc A/B có số đóng góp vào Điểm Elite. Giá trị trống = nguồn không có dữ liệu cho mã này (không điền số giả). Rê chuột lên bậc để xem IC / t / n của kiểm định.</p>
     </section>
   );

@@ -117,3 +117,31 @@ test("N0 mã vắng mặt: phiên đầu giữ kèm cảnh báo, vắng 2 phiên
   assert.deepEqual(d2.hl.changes.exits.map((x) => [x.ticker, x.code]), [["ZZZ", "no_data"]]);
   assert.equal(d2.portfolio.find((x) => x.ticker === "T39").hl.miss, 0, "có lại dữ liệu -> bộ đếm về 0");
 });
+
+// N0b (14/11/2026): mã có trong bảng, có giá, nhưng thiếu LS-v1 của RIÊNG nó — không được bán ngay như "LS < 60".
+test("N0b thiếu LS-v1 của riêng một mã: phiên đầu giữ kèm cảnh báo, 2 phiên liên tiếp mới ra (no_data); có lại LS thì xoá bộ đếm; LS thấp thật vẫn bán ngay", () => {
+  const cfg = { ...HL_PF, guardMinShare: 0 };
+  const gapWorld = () => { const w = world(); w.panelRows.find((r) => r.ticker === "T38").values.ls_v1 = null; return w; };
+  const prev = [{ ticker: "T38", weight: 0.1, since: "2026-11-02" }, { ticker: "T39", weight: 0.1, since: "2026-11-02" }];
+  const d1 = buildHlPortfolio({ ...gapWorld(), prev, rebalance: false, date: "2026-11-13", cfg });
+  assert.equal(d1.hl.dataGuard.frozen, false, "độ phủ cả bảng bình thường -> chốt dữ liệu toàn bảng không bật");
+  assert.equal(d1.hl.changes.exits.length, 0, "thiếu LS lần 1 -> chưa ra");
+  const t38 = d1.portfolio.find((x) => x.ticker === "T38");
+  assert.equal(t38.hl.miss, 1); assert.equal(t38.weight, 0.1); assert.equal(t38.hl.lsPct, null); assert.equal(t38.hl.exitBufferLs, null);
+  assert.match(t38.hl.warnings[0], /Không có điểm LS-v1 của mã phiên này \(lần 1\/2\)/);
+  // Phiên kế vẫn thiếu -> ra, với lý do đúng (mất dữ liệu), không phải "xuống phân vị —".
+  const d2 = buildHlPortfolio({ ...gapWorld(), prev: prev.map((p) => (p.ticker === "T38" ? { ...p, miss: 1 } : p)), rebalance: false, date: "2026-11-16", cfg });
+  assert.deepEqual(d2.hl.changes.exits.map((x) => [x.ticker, x.code]), [["T38", "no_data"]]);
+  assert.match(d2.hl.changes.exits[0].reasonVi, /Không có điểm LS-v1 của mã 2 phiên liên tiếp/);
+  // Có lại LS-v1 ở phiên kế -> giữ, bộ đếm về 0, cảnh báo thường.
+  const d3 = buildHlPortfolio({ ...world(), prev: prev.map((p) => (p.ticker === "T38" ? { ...p, miss: 1 } : p)), rebalance: false, date: "2026-11-16", cfg });
+  assert.equal(d3.hl.changes.exits.length, 0); assert.equal(d3.portfolio.find((x) => x.ticker === "T38").hl.miss, 0);
+  // Quy tắc bán theo LS không đổi: có LS và dưới ngưỡng -> bán ngay; mã thiếu LS không được mua mới.
+  assert.equal(exitReason({ lsPct: 59, taCount: 3, rrg: 2 }, { close: 1 }).code, "ls");
+  assert.equal(exitReason({ lsPct: null, taCount: 3, rrg: 2 }, { close: 1 }).code, "no_data");
+  // Thiếu LS nhưng ngành Tụt hậu: RRG là dữ liệu của ngành -> vẫn ra ngay; TA = 0 khi thiếu LS thì hoãn (không phân biệt được với thiếu số).
+  assert.equal(exitReason({ lsPct: null, taCount: 3, rrg: HL_PF.exitRrg }, { close: 1 }).code, "rrg");
+  assert.equal(exitReason({ lsPct: null, taCount: 0, rrg: 2 }, { close: 1 }).code, "no_data");
+  const buy = buildHlPortfolio({ ...gapWorld(), prev: [], rebalance: true, date: "2026-11-16", cfg });
+  assert.ok(!buy.portfolio.some((x) => x.ticker === "T38"), "thiếu LS -> không đạt tầng 1 -> không mua");
+});

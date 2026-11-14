@@ -309,7 +309,7 @@ export default function PortfolioRadar({ d, buyCells, secName, drivers, onOpenTi
         <span className="ml-auto text-slate-500">Phiên quyết định {fmtDate(d.date)} · hạng = hạng Điểm Elite toàn vũ trụ ({d.universe.eligible} mã)</span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
         <div style={{ minWidth: lay.minWidth }} data-layout={dense ? "dense" : lay.showDrivers ? "full" : "medium"} role="list" aria-label="Danh mục Elite 10 xếp theo hạng">
           <div className="grid items-center gap-2 border-b border-white/5 pb-1 text-[10px] text-slate-500"
             style={{ gridTemplateColumns: cols }}>

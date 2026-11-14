@@ -1,6 +1,7 @@
 // Elite 10 E6 — dịch vụ rủi ro danh mục: áp riskCore lên danh mục Elite 10 đã khoá của phiên mới nhất. Đệm theo ngày quyết định
 // (danh mục không đổi trong phiên) — mỗi phiên đọc ~250 phiên giá của 10 mã một lần.
 import { portfolioRisk } from "./riskCore.js";
+import { loadAdjustedSeries } from "./adjustedCloses.js";
 
 const WINDOW = 250;
 const MIN_SESSIONS = 60;
@@ -21,26 +22,31 @@ export function alignReturns(series, tickers, benchCloses) {
   return { returns: returns.slice(-WINDOW), dates: outDates.slice(-WINDOW), bench: bench.slice(-WINDOW) };
 }
 
-export function createRiskService({ store, decision, vnIndex, log = console }) {
+export function createRiskService({ store, decision, vnIndex, adjustedCloses = null, log = console }) {
   let memo = null;
   let running = null;
 
   async function risk() {
     const d = await decision();
-    if (!d?.portfolio?.length) return null;
+    if (!d?.portfolio) return null;
+    // E4-HL: danh mục chính thức có thể giữ tiền mặt; tỷ trọng cổ phiếu = tổng tỷ trọng các vị thế.
+    const kind = d.hl ? "ELITE_HL" : "ELITE_FLOW";
+    const invested = d.portfolio.reduce((a, p) => a + (Number.isFinite(p.weight) ? p.weight : 0), 0);
+    const head = { date: d.date, version: d.version, kind, label: d.ledgerSummary?.label ?? "EXPERIMENTAL", invested, cash: Math.max(0, 1 - invested) };
+    // Danh mục 100% tiền mặt là trạng thái hợp lệ của Elite HL — không phải lỗi, chỉ là không có gì để đo.
+    if (!d.portfolio.length) return { ...head, generatedAt: new Date().toISOString(), available: false, empty: true, reasonVi: "Danh mục đang 100% tiền mặt — không có vị thế nào để tính rủi ro." };
     if (memo?.date === d.date && memo?.version === d.version) return memo.doc;
     if (running) return running;
     running = (async () => {
       const tickers = d.portfolio.map((p) => p.ticker);
-      const rows = await store.getMarketDailyRange({ from: isoMinusDays(d.date, 400), to: d.date, symbols: tickers, columns: "symbol,trading_date,close_adj" });
-      const series = new Map();
-      for (const r of rows) if (r.closeAdj > 0) { if (!series.has(r.symbol)) series.set(r.symbol, []); series.get(r.symbol).push({ date: r.date, closeAdj: r.closeAdj }); }
+      // 13/11/2026: hiệp phương sai / VaR tính trên giá ĐIỀU CHỈNH ĐẦY ĐỦ — bước nhảy ngày không hưởng quyền của close_adj thổi phồng rủi ro.
+      const series = await loadAdjustedSeries({ adjustedCloses, store, symbols: tickers, from: isoMinusDays(d.date, 400), to: d.date, log });
       let bench = new Map();
       try { bench = new Map(await vnIndex()); } catch (e) { log.warn?.(`[elite] risk vnIndex: ${e.message}`); }
       const aligned = alignReturns(series, tickers, bench);
-      const base = { date: d.date, version: d.version, generatedAt: new Date().toISOString(), label: d.ledgerSummary?.label ?? "EXPERIMENTAL" };
+      const base = { ...head, generatedAt: new Date().toISOString() };
       const doc = aligned.returns.length < MIN_SESSIONS
-        ? { ...base, available: false, reasonVi: `Chỉ có ${aligned.returns.length} phiên giá chung cho cả 10 mã (cần ≥ ${MIN_SESSIONS}).` }
+        ? { ...base, available: false, reasonVi: `Chỉ có ${aligned.returns.length} phiên giá chung cho cả ${tickers.length} mã (cần ≥ ${MIN_SESSIONS}).` }
         : { ...base, available: true, ...portfolioRisk({ tickers, weights: d.portfolio.map((p) => p.weight), sectors: d.portfolio.map((p) => p.sectorKey), ...aligned }) };
       memo = { date: d.date, version: d.version, doc };
       return doc;

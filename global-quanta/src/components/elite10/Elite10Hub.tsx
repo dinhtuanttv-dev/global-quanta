@@ -4,7 +4,7 @@
 //   3. Phòng họp AI — tranh luận Claude ↔ Gemini có trọng tài, bản tin phiên, hỏi đáp (E5).
 //   4. Bằng chứng & sổ theo dõi — IC từng tín hiệu theo kỳ hạn, bậc, sổ theo dõi tiến (E6).
 //   5. Rủi ro danh mục — Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, căng thẳng (E6).
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
 import ToTickerCard from "./center/ToTickerCard";
@@ -16,6 +16,7 @@ import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
 import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
+import "./elite10.css";
 
 type Sub = "board" | "profile" | "ai" | "evidence" | "risk";
 const SUBS: { id: Sub; label: string }[] = [
@@ -32,6 +33,10 @@ export default function Elite10Hub() {
   const [sub, setSub] = useState<Sub>(fromLink ? "profile" : "board");
   const [mode, setMode] = useState<"profile" | "screener">(fromLink ? "screener" : "profile");
   const [ticker, setTicker] = useState<string | null>(null);
+  // Phòng họp AI: dựng khi mở lần đầu rồi GIỮ trong cây (ẩn khi sang tab khác) — rời tab giữa chừng không huỷ tranh luận đang chạy
+  // và không mất kết quả đã tính vào hạn mức hỏi đáp.
+  const [aiOpened, setAiOpened] = useState(false);
+  useEffect(() => { if (sub === "ai") setAiOpened(true); }, [sub]);
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
   const current = ticker ?? globalTicker ?? "VNINDEX";
   const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
@@ -41,7 +46,7 @@ export default function Elite10Hub() {
   const pickTicker = (e: FormEvent) => {
     e.preventDefault();
     const t = pick.trim().toUpperCase();
-    if (!/^[A-Z0-9]{2,12}$/.test(t)) return;
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return; // cùng quy ước với Gateway (/api/elite/panel/:ticker)
     setTicker(t);
     setPick("");
   };
@@ -56,7 +61,7 @@ export default function Elite10Hub() {
   };
 
   return (
-    <div className="flex flex-col gap-3" data-testid="elite10-hub">
+    <div className="elite10-hub flex flex-col gap-3" data-testid="elite10-hub">
       <div role="tablist" aria-label="Elite 10" style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
         {SUBS.map((s) => (
           <button
@@ -72,7 +77,7 @@ export default function Elite10Hub() {
       </div>
       <section id={`elite10-${sub}-panel`} role="tabpanel" aria-labelledby={`elite10-${sub}-tab`} className="flex flex-col gap-3">
         {sub === "board" && <DecisionBoard onOpenTicker={open} />}
-        {sub === "ai" && <EliteAiRoom defaultTicker={ticker} />}
+        {(aiOpened || sub === "ai") && <div hidden={sub !== "ai"} data-testid="elite10-ai-keepalive"><EliteAiRoom defaultTicker={ticker} /></div>}
         {sub === "evidence" && <EvidenceLedgerTab />}
         {sub === "risk" && <RiskTab />}
         {sub === "profile" && (
@@ -84,10 +89,10 @@ export default function Elite10Hub() {
               ))}
               {mode === "profile" && <>
                 <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
-                  <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={12} data-testid="elite-pick"
+                  <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={10} data-testid="elite-pick"
                     className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-[#E8B84B]/60 focus:outline-none" />
                 </form>
-                <button type="button" onClick={openChart} data-testid="elite-open-chart" className="min-h-[28px] rounded border border-amber-400/40 px-3 font-bold text-amber-200 hover:bg-amber-400/10">Mở chart {current} trong Phân tích kỹ thuật →</button>
+                <button type="button" onClick={openChart} data-touch data-testid="elite-open-chart" className="min-h-[28px] rounded border border-amber-400/40 px-3 font-bold text-amber-200 hover:bg-amber-400/10">Mở chart {current} trong Phân tích kỹ thuật →</button>
               </>}
             </div>
             {mode === "screener" ? (
