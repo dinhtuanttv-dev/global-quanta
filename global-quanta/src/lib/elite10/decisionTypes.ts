@@ -76,7 +76,9 @@ export interface EliteHlMeta {
     minPrice?: number; wDust?: number; missSessions?: number };
   /** Ngưỡng tầng 1 của HL-v1 (Gateway cũ không gửi -> giao diện dùng mặc định). */
   tier1?: { lsLeaderPct: number; taMin: number; taModels: number; maxScore: number };
-  k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string };
+  k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string;
+    /** Kiểm định đăng ký trước HL-r2 (14/11/2026). */
+    hlR2?: { ranAt: string; decision: { period: string; cagr: number; maxDd: number; excess20: number; t: number; verdict: string }; outOfSample: { period: string; cagr: number; maxDd: number; excess20: number; t: number }; report: string } };
   funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number; inZone?: number };
   invested: number; cash: number; sigmaMedian: number | null;
   changes: { added: string[]; exits: HlExit[]; kept: number; turnover: number | null; costEst: number | null; toWatch?: string[]; backToZone?: string[] };
