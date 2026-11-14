@@ -326,11 +326,23 @@ if (process.env.NODE_ENV !== "test") {
   const tried = { evidence: null, decision: null }; // { date, at, ok }
   let cashGateRecorded = null;
   const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
+  let pzBackfillTried = null;
   const eliteTick = async () => {
     try {
-      if (!panelDue(Date.now(), isTradingDay)) return;
+      const due = panelDue(Date.now(), isTradingDay);
       const latest = await getElitePanel().panel();
-      if (latest?.date !== vnDate(new Date())) {
+      // Bù phiên (sự cố 13/11/2026): Siêu Quét đã có phiên mới hơn bảng tín hiệu (job bù phiên vừa quét lại phiên lỡ) -> dựng bảng và
+      // quyết định cho phiên đó ngay, kể cả ngoài giờ / ngày nghỉ. Mọi nguồn của bảng lấy ngày từ dữ liệu nên không ghi sai phiên.
+      const scanAsOf = (await getMarketRuntime().store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
+      const catchUp = !due && Boolean(scanAsOf && latest?.date && scanAsOf > latest.date);
+      if (!due && !catchUp) {
+        // PZ-v2: tài liệu quyết định đã khoá trước khi có lớp Vị trí giá -> bổ sung trường hiển thị một lần (danh mục không đổi).
+        const dec = await getEliteDecision().decision().catch(() => null);
+        if (dec?.hl && !dec.hl.pz && pzBackfillTried !== dec.date) { pzBackfillTried = dec.date; await getEliteDecision().build(); console.log(`[elite] vị trí giá bổ sung cho phiên ${dec.date}`); }
+        return;
+      }
+      if (catchUp) console.log(`[elite] bù phiên: bảng tín hiệu ${latest.date} -> Siêu Quét ${scanAsOf}`);
+      if (catchUp || latest?.date !== vnDate(new Date())) {
         const doc = await getElitePanel().build();
         console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
       }
