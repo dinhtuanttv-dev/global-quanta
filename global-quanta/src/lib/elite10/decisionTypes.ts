@@ -30,6 +30,33 @@ export interface HlPosition {
   status: "NEW" | "HOLD"; since: string | null; advBn: number | null; sigma20: number | null; exitBufferLs: number | null; warnings: string[]; miss?: number;
   /** N2 "Vì sao": điều kiện tầng 1 theo mã tín hiệu, phiếu tầng 3 (+1 / 0 / −1 / null = chưa có dữ liệu), giá tham chiếu và lãi/lỗ từ phiên khoá. */
   ta?: Record<string, boolean | null> | null; votes?: Record<string, number | null> | null; ref?: number | null; sinceRet?: number | null;
+  /** PZ-v2: vị trí giá của vị thế (Gateway bản cũ không gửi). */
+  pz?: PzPosition;
+}
+/** PZ-v2 (14/11/2026) — vị trí giá so với nền và ngăn của mã: CORE = danh mục chính, RUNNER = đang giữ đã tăng nóng, WAIT = chưa giữ, chờ nền. */
+export type PzState = "BUY_ZONE" | "IN_BASE" | "NO_SETUP" | "UNKNOWN" | "EXTENDED" | "COOLING" | "REBASING" | "FAILED";
+export type PzLane = "CORE" | "RUNNER" | "WAIT";
+export type PzHotReason = "x1" | "risk" | "sepa_extended" | "x2" | "x3" | "x4";
+export interface PzPosition {
+  state: PzState; lane: PzLane | null; since?: string; sessions?: number; baseSource?: "SEPA" | "BASE_BREAKOUT" | "BOX" | null;
+  pivot?: number | null; stopRef?: number | null; zoneLow?: number | null; zoneHigh?: number | null;
+  /** phân số 0–1 (x1, risk, x3, depth); x2 = bội số ATR */
+  x1?: number | null; risk?: number | null; x2?: number | null; x3?: number | null; x4?: boolean | null;
+  depth?: number | null; volDry?: number | null; atrRatio?: number | null; rsHolds?: boolean | null;
+  hotReasons: PzHotReason[] | string[]; missingVi: string[]; rebase?: { key: "depth" | "tight" | "dry" | "rs"; ok: boolean; vi: string }[] | null;
+  climax?: boolean; boughtOutsideZone?: boolean; hStar?: number | null; reasonVi?: string | null;
+}
+export interface PzWatchRow { ticker: string; hlRank: number | null; cls: HlClassCode | null; sectorKey: string | null; held: boolean; weight: number | null; sinceRet: number | null; pz: PzPosition }
+export interface PzExit { ticker: string; date: string; to: "BUY_ZONE" | "FAILED"; kindVi: string; reasonVi: string | null; held: boolean }
+export interface PzRules {
+  zoneLow: number; zoneHigh: number; maxRisk: number; x2Hot: number; x2Cool: number; x2CoolSessions: number; x3Min: number; x3Pct: number; x4Ret5: number; x4LimitDays: number;
+  coolPullMin: number; rebaseMaxDepth: number; rebaseAtrRatio: number; rebaseVolDry: number; rebaseMinSessions: number; expireSessions: number; heldHotSessions: number; climaxX2: number;
+}
+export interface PzMeta {
+  version: string; gate: boolean; rules: PzRules; stateVi?: Record<PzState, string>; counts: Record<PzState, number>; date: string;
+  baseDates?: { sepa: string | null; baseBreakout: string | null }; sameSession?: { sepa: boolean; baseBreakout: boolean };
+  coverage?: { tracked: number; priced: number; withBase: number; bySource: Record<string, number> };
+  coreWeight: number | null; runnerWeight: number | null; coreNames: number; runnerNames: number; modeVi: string;
 }
 /**
  * Vị thế của danh mục Elite HL. Khác PortfolioPick (danh mục dòng tiền): Z / rank / pOutperform / giá CÓ THỂ null — mã đang giữ nhưng vắng
@@ -39,7 +66,7 @@ export type HlPick = Omit<PortfolioPick, "Z" | "rank" | "pOutperform" | "close" 
   Z: number | null; rank: number | null; pOutperform: number | null; close: number | null; stop: number | null; target: number | null; hl: HlPosition;
 };
 export interface HlExit { ticker: string; weight: number | null; since: string | null; code: "ls" | "ta" | "rrg" | "no_data"; reasonVi: string; hlRank: number | null; lsPct: number | null; taCount: number | null; rrg: number | null }
-export interface HlQueueItem { ticker: string; hlRank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; taCount: number; rrg: number | null; sectorKey: string | null; advBn: number | null; code: "illiquid" | "wait" | "full" | "sector_cap" | "no_room"; reasonVi: string }
+export interface HlQueueItem { ticker: string; hlRank: number; cls: HlClassCode; t1: number; t2: number; t3: number; lsPct: number | null; taCount: number; rrg: number | null; sectorKey: string | null; advBn: number | null; code: "illiquid" | "wait" | "full" | "sector_cap" | "no_room" | "extended" | "in_base" | "no_setup"; reasonVi: string; pz?: PzPosition }
 export interface EliteHlMeta {
   version: string; ruleVersion: string; date: string; rebalance: boolean; week: string; prevDate: string | null;
   /** N0: chốt dữ liệu — frozen = bảng tín hiệu thiếu nguồn, danh mục giữ nguyên phiên trước. */
@@ -50,9 +77,11 @@ export interface EliteHlMeta {
   /** Ngưỡng tầng 1 của HL-v1 (Gateway cũ không gửi -> giao diện dùng mặc định). */
   tier1?: { lsLeaderPct: number; taMin: number; taModels: number; maxScore: number };
   k0: { period: string; cagr: number; vol: number; maxDd: number; turnover: number; vnIndexCagr: number; equalWeightCagr: number; t: number; noteVi: string };
-  funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number };
+  funnel: { panel: number; tradable: number; tier1: number; selected: number; selectedTradable: number; held: number; inZone?: number };
   invested: number; cash: number; sigmaMedian: number | null;
-  changes: { added: string[]; exits: HlExit[]; kept: number; turnover: number | null; costEst: number | null };
+  changes: { added: string[]; exits: HlExit[]; kept: number; turnover: number | null; costEst: number | null; toWatch?: string[]; backToZone?: string[] };
+  /** PZ-v2: vị trí giá — bảng Theo dõi chờ nền (đang giữ đã nóng + chưa giữ chờ nền) và mã vừa rời bảng. */
+  pz?: PzMeta; watch?: PzWatchRow[]; watchExits?: PzExit[];
   sectors: { sectorKey: string; weight: number; names: number }[]; queue: HlQueueItem[];
   against: { ticker: string; hlRank: number; t1: number; rrg: number | null; rrgVi: string | null }[];
   market: { regime: string; regimeVi: string | null; bias: string | null; breadth: number | null; guard: boolean } | null;

@@ -34,7 +34,8 @@ import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js"
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
-import { createEliteAdjustedCloses } from "./market/elite/adjustedCloses.js";
+import { createEliteAdjustedBars, createEliteAdjustedCloses } from "./market/elite/adjustedCloses.js";
+import { createHlWatch } from "./market/elite/hlWatch.js";
 import { consensusDisplay } from "./market/scanner/scanEngine.js";
 import { createDecisionService } from "./market/elite/decisionService.js";
 import { createEliteChatTools } from "./market/elite/chatTools.js";
@@ -248,7 +249,19 @@ const validatedBuyZone = async () => {
 };
 // Lịch phiên đã đóng cho cảnh báo độ mới: tính cả phiên mà nến chỉ số bị lỗi giá (đóng cửa = 0) nhưng có khối lượng.
 const vnIndexSessionDates = async () => (await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", range: "1y" })).bars.filter((b) => !b.partial && (b.close > 0 || b.volume > 0)).map((b) => b.date);
-const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
+// PZ-v2: lớp Vị trí giá + bảng Theo dõi chờ nền của Elite HL (chỉ hiển thị — PZ_GATE = false).
+let eliteHlWatch = null;
+const getEliteHlWatch = () => (eliteHlWatch ??= createHlWatch({
+  store: getMarketRuntime().store,
+  ohlcBars: createEliteAdjustedBars({ seriesSource: createScreenerSeries({ store: getMarketRuntime().store, corporateActions: getMarketRuntime().corporateActions }) }),
+  strategyDocs: async () => {
+    const st = getMarketRuntime().store;
+    const [sepa, baseBreakout] = await Promise.all(["sepa", "base-breakout"].map((k) => st.getKv(`strategies:${k}`).then((x) => x?.value ?? null).catch(() => null)));
+    return { sepa, baseBreakout };
+  },
+  vnIndex: vnIndexCloses,
+}));
+const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, priceWatch: getEliteHlWatch(), store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
@@ -304,7 +317,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.

@@ -213,3 +213,59 @@ describe("Bảng quyết định Elite HL — sổ tính cả tiền mặt", () 
     expect(text("hl-ledger-hl-5")).toContain("+1,20%"); // số chấm chính thức vẫn nguyên
   });
 });
+
+// PZ-v2 (14/11/2026) — lớp Vị trí giá: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng ở bảng Theo dõi chờ nền.
+describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
+  beforeEach(() => { localStorage.clear(); current = decision; });
+  afterEach(() => cleanup());
+  const zone = { state: "BUY_ZONE" as const, lane: "CORE" as const, sessions: 3, baseSource: "SEPA" as const, pivot: 98000, stopRef: 94000, zoneLow: 95060, zoneHigh: 102900, x1: 0.0204, risk: 0.06, x2: 1.1, x3: 0.05, x4: false, hotReasons: [], missingVi: [] };
+  const hot = { state: "EXTENDED" as const, lane: "RUNNER" as const, sessions: 2, baseSource: "BOX" as const, pivot: 80000, stopRef: 74000, zoneLow: 77600, zoneHigh: 84000, x1: 0.25, risk: 0.26, x2: 4.8, x3: 0.31, x4: true, hotReasons: ["x1", "risk", "x2", "x3", "x4"], missingVi: ["Chờ lùi ≥ 5,0% từ đỉnh, hoặc đi ngang 3 phiên"], climax: true, hStar: 100000, depth: 0 };
+  const cooling = { state: "COOLING" as const, lane: "WAIT" as const, sessions: 6, hotReasons: [], missingVi: ["Khối lượng 0,92 × TB50 (cần ≤ 0,7)"], rebase: [{ key: "depth" as const, ok: true, vi: "Độ sâu 9%" }, { key: "tight" as const, ok: true, vi: "Biên độ co" }, { key: "dry" as const, ok: false, vi: "Khối lượng 0,92" }, { key: "rs" as const, ok: true, vi: "RS giữ" }], zoneLow: null, zoneHigh: null, hStar: 52000, depth: 0.09 };
+  const withPz = (gate = false): EliteDecision => ({
+    ...decision,
+    portfolio: decision.portfolio.map((p) => ({ ...p, hl: { ...p.hl!, pz: p.ticker === "VJC" ? zone : { ...hot } } })),
+    hl: {
+      ...decision.hl!, funnel: { ...decision.hl!.funnel, inZone: 4 }, changes: { ...decision.hl!.changes, toWatch: ["CTD"], backToZone: [] },
+      queue: decision.hl!.queue.map((q, i) => (i === 0 ? { ...q, pz: { ...zone, lane: null } } : q)),
+      watch: [{ ticker: "CTD", hlRank: 7, cls: "CONFLUENCE", sectorKey: "2300", held: true, weight: 0.091, sinceRet: 0.18, pz: hot }, { ticker: "CAR", hlRank: 20, cls: "STRONG", sectorKey: null, held: false, weight: null, sinceRet: null, pz: cooling }],
+      watchExits: [{ ticker: "NAF", date: "2026-11-12", to: "BUY_ZONE", kindVi: "Về vùng mua", reasonVi: "Nền mới 18 phiên", held: false }],
+      pz: { version: "PZ-v2 (hiển thị, 14/11/2026)", gate, rules: { zoneLow: -0.03, zoneHigh: 0.05, maxRisk: 0.1, x2Hot: 3, x2Cool: 1.5, x2CoolSessions: 3, x3Min: 0.15, x3Pct: 0.9, x4Ret5: 0.15, x4LimitDays: 2, coolPullMin: 0.05, rebaseMaxDepth: 0.25, rebaseAtrRatio: 0.7, rebaseVolDry: 0.7, rebaseMinSessions: 15, expireSessions: 60, heldHotSessions: 2, climaxX2: 4.5 },
+        counts: { BUY_ZONE: 4, IN_BASE: 3, NO_SETUP: 5, UNKNOWN: 0, EXTENDED: 2, COOLING: 1, REBASING: 0, FAILED: 0 }, date: "2026-11-13",
+        coreWeight: 0.15, runnerWeight: 0.091, coreNames: 1, runnerNames: 1, modeVi: gate ? "Cổng vị trí giá: đang bật — chỉ mua mới mã ở Vùng mua." : "Vị trí giá: chỉ hiển thị, chưa ảnh hưởng lệnh mua (chờ kiểm định PZ-r1)." },
+    },
+  });
+
+  it("bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng chuyển sang Chạy lãi, vẫn trong vốn", () => {
+    render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-row-CTD")).toBeNull();
+    expect(screen.getByTestId("hl-row-VJC")).toBeTruthy();
+    expect(text("elite-portfolio")).toMatch(/trong nền và vùng mua \(1 mã\)/);
+    expect(text("hl-runner-note")).toMatch(/1 mã đang giữ đã tăng nóng/);
+    expect(text("hl-kpi-split")).toMatch(/Chính 15,0%.*Chạy lãi 9,1%.*Tiền mặt 75,9%/);
+    expect(text("hl-kpi-lanes")).toBe("1 chính · 1 chạy lãi");
+    expect(text("hl-row-VJC")).toMatch(/Vùng mua/); expect(text("hl-row-VJC")).toMatch(/\+2,0%/); expect(text("hl-row-VJC")).toMatch(/pivot 98\.000 · SEPA/);
+    expect(text("hl-pz-mode")).toMatch(/CHỈ HIỂN THỊ/);
+  });
+
+  it("bảng Theo dõi chờ nền: nhóm Chạy lãi trước, Chờ nền sau; tiến độ dựng nền, còn thiếu, cao trào, mã vừa rời bảng", () => {
+    render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
+    expect(text("hl-watch-runners")).toMatch(/Chạy lãi \(1\)/); expect(text("hl-watch-waiting")).toMatch(/Chờ nền \(1\)/);
+    expect(text("pz-row-CTD")).toMatch(/Tăng nóng/); expect(text("pz-row-CTD")).toMatch(/Cao trào/); expect(text("pz-row-CTD")).toMatch(/đang giữ 9,1%/);
+    expect(text("pz-row-CTD")).toMatch(/5 độ đo vượt ngưỡng/);
+    fireEvent.click(screen.getByTestId("pz-why-btn-CTD"));
+    expect(screen.getAllByTestId("pz-hot-x2")[0].getAttribute("data-on")).toBe("1");
+    expect(text("pz-row-CAR")).toMatch(/Hạ nhiệt/); expect(text("pz-row-CAR")).toMatch(/3\/4/); expect(text("pz-row-CAR")).toMatch(/Khối lượng 0,92/);
+    expect(text("hl-watch-exits")).toMatch(/NAF.*Về vùng mua/);
+    expect(text("hl-pz-changes")).toMatch(/Chuyển sang theo dõi: 1 mã.*CTD/);
+    expect(text("hl-funnel")).toMatch(/Trong vùng mua/);
+    expect(text("hl-rules")).toMatch(/Vị trí giá \(PZ-v2/); expect(text("hl-rules")).toMatch(/Cổng chưa bật/);
+    expect(screen.getByTestId("hl-queue-pz-HDA")).toBeTruthy();
+  });
+
+  it("Gateway chưa gửi vị trí giá -> trang như cũ (không có cột mới, không có bảng theo dõi)", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-watch")).toBeNull(); expect(screen.queryByTestId("hl-pz-mode")).toBeNull();
+    expect(screen.getByTestId("hl-row-CTD")).toBeTruthy();
+    expect(text("elite-portfolio")).toMatch(/Danh mục Elite HL \(2\/10\)/);
+  });
+});

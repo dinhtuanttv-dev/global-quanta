@@ -52,6 +52,11 @@ export const HL_K0 = Object.freeze({
   noteVi: "Mô phỏng khám phá (K0) với 5 mô hình TA đại diện tính từ giá, có phí và mã tăng sát trần không mua được: 12,5%/năm, sụt giảm lớn nhất −46,8%, xoay vòng 6,9 lần/năm — NGANG thị trường (VN-Index 13,5%/năm; bình quân đều 300 mã 10,9%/năm), chênh lệch không có ý nghĩa thống kê (t ≈ 0).",
 });
 const RRG_VI = { 2: "Dẫn dắt", 1: "Cải thiện", "-1": "Suy yếu", "-2": "Tụt hậu" };
+/** PZ-v2: lý do hàng chờ khi cổng vị trí giá bật. */
+const PZ_QUEUE = {
+  EXTENDED: ["extended", "Đã quá vùng mua, chuyển bảng theo dõi"], COOLING: ["extended", "Đã quá vùng mua, chuyển bảng theo dõi"], REBASING: ["extended", "Đang dựng nền mới, chờ vùng mua"],
+  FAILED: ["extended", "Nền vừa hỏng, chờ nền mới"], IN_BASE: ["in_base", "Đang trong nền, chờ điểm mua"], NO_SETUP: ["no_setup", "Chưa có nền nhận diện được"], UNKNOWN: ["no_setup", "Chưa xác định được vị trí giá"],
+};
 const fin = (v) => typeof v === "number" && Number.isFinite(v);
 const r4 = (x) => (fin(x) ? Math.round(x * 1e4) / 1e4 : null);
 const median = (a) => { const s = a.filter(fin).sort((x, y) => x - y); return s.length ? (s.length % 2 ? s[s.length >> 1] : (s[(s.length >> 1) - 1] + s[s.length >> 1]) / 2) : null; };
@@ -108,8 +113,10 @@ const warnings = (h, cfg) => {
  * @param scores     bảng điểm E3 của phiên: [{ ticker, Z, rank, close, advBn, sigma20, sectorKey, alpha5Pct, pOutperform, … }]
  * @param prev       danh mục HL đã khoá của phiên liền trước: [{ ticker, weight, since }]
  * @param rebalance  true = phiên cân bằng (được mua mới)
+ * @param zoneBy     PZ-v2: Map(mã -> trạng thái vị trí giá) — tuỳ chọn
+ * @param gate       PZ-v2: true = chỉ mua mới mã ở Vùng mua. Mặc định false: KHÔNG đổi gì (nhãn gắn ở lớp ngoài, hlWatch.annotatePz).
  */
-export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = true, date, cfg = HL_PF, missingSources = [] }) {
+export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = true, date, cfg = HL_PF, missingSources = [], zoneBy = null, gate = false }) {
   const hl = hlScores(panelRows), hlBy = new Map(hl.map((x) => [x.ticker, x])), scBy = new Map(scores.map((x) => [x.ticker, x]));
   const guardWhy = hlDataGuard({ panelRows, missingSources, hl }, cfg), frozen = guardWhy.length > 0;
   if (frozen) rebalance = false;
@@ -139,6 +146,10 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
     if (inSet.has(x.ticker)) continue;
     const sc = scBy.get(x.ticker), bad = hlTradable(sc, cfg), s = secOf(x.ticker);
     if (bad) { push(x, "illiquid", `Chưa giao dịch được: ${bad}`); continue; }
+    if (gate && zoneBy) {
+      const st = zoneBy.get(x.ticker) ?? "UNKNOWN";
+      if (st !== "BUY_ZONE") { const [code, vi] = PZ_QUEUE[st] ?? PZ_QUEUE.UNKNOWN; push(x, code, vi); continue; }
+    }
     if (!rebalance) { push(x, "wait", "Chờ phiên cân bằng đầu tuần kế tiếp"); continue; }
     if (picks.length >= cfg.slots) { push(x, "full", `Danh mục đã đủ ${cfg.slots} mã`); continue; }
     if ((secN[s] ?? 0) >= cfg.maxPerSector) { push(x, "sector_cap", `Ngành đã đủ ${cfg.maxPerSector} mã`); continue; }

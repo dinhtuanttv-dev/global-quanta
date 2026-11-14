@@ -101,3 +101,27 @@ export async function loadAdjustedSeries({ adjustedCloses = null, store, symbols
   }
   return out;
 }
+
+/**
+ * PZ-v2 — thanh giá OHLCV ĐIỀU CHỈNH CỘNG DỒN cho lớp Vị trí giá (cần cao / thấp / khối lượng, không chỉ giá đóng cửa).
+ * Chỉ nhận chuỗi priceBasis = ADJUSTED_CUMULATIVE: chuỗi còn bước nhảy quyền sẽ làm sai ATR, SMA50 và pivot — mã đó vắng mặt và
+ * lớp Vị trí giá ghi "Chưa xác định" thay vì đoán. Nến lỗi (giá ≤ 0) bị loại.
+ * @returns (tickers, to) -> Map(mã -> [{ date, open, high, low, close, volume }])
+ */
+export function createEliteAdjustedBars({ seriesSource, log = console }) {
+  return async function adjustedBars(tickers, to) {
+    const out = new Map();
+    let load = null;
+    try { load = await seriesSource.prepare(tickers); } catch (e) { log.warn?.(`[elite] PZ: kho chuỗi giá lỗi: ${e.message}`); return out; }
+    for (const t of tickers) {
+      try {
+        const r = await load(t);
+        if (r?.priceBasis !== "ADJUSTED_CUMULATIVE") continue;
+        const bars = (r.bars ?? []).filter((b) => !b.partial && b.close > 0 && b.high > 0 && b.low > 0 && (!to || b.date <= to))
+          .map((b) => ({ date: b.date, open: b.open > 0 ? b.open : b.close, high: b.high, low: b.low, close: b.close, volume: Number(b.volume) > 0 ? Number(b.volume) : 0 }));
+        if (bars.length) out.set(t, bars);
+      } catch { /* mã thiếu dữ liệu -> vắng mặt */ }
+    }
+    return out;
+  };
+}
