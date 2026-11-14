@@ -280,7 +280,8 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       } else priceBasis.SSI_LATEST_EVENT_ADJUSTED = barsByTicker.size;
       const fundamentals = await store.getFundamentals(universe.map((u) => u.ticker));
       const index = await service.getOhlcv({ symbol: "VNINDEX", limit: 250 });
-      const indexBars = index.bars.filter((b) => !b.partial);
+      // Nến chỉ số lỗi (giá = 0 nhưng có khối lượng — VN-Index phiên 13/11/2026) làm trạng thái VN-Index sai (RSI ≈ 4,7, "Downtrend"): bỏ.
+      const indexBars = index.bars.filter((b) => !b.partial && b.close > 0 && b.high > 0 && b.low > 0);
 
       let events = [];
       let eventsOk = true;

@@ -70,6 +70,7 @@ import { marketConfig } from "./config.js";
 import { createEventRadar } from "./news/eventRadar.js";
 import { getEsaSessions } from "./scanner/intradayService.js";
 import { eliteWarmTickers } from "./elite/decisionService.js";
+import { createSessionCatchUp } from "./sessionCatchUp.js";
 
 let runtime;
 
@@ -188,7 +189,7 @@ export function getMarketRuntime() {
     { name: "kqkdEventStudy", at: "19:45", tradingDayOnly: false },
     { name: "seasonMapBuild", at: "03:20", tradingDayOnly: false }, { name: "seasonLedgerTick", at: "20:20", tradingDayOnly: false },
     { name: "cafefHead", at: "20:40", tradingDayOnly: false }, { name: "dividendQuality", at: "20:05", tradingDayOnly: false }, { name: "fmLedger", at: "20:15", tradingDayOnly: false }, { name: "toBuild", at: "20:25", tradingDayOnly: false }, { name: "eliteToShadow", at: "20:35", tradingDayOnly: false }, { name: "hlLedger", at: "20:45", tradingDayOnly: false },
-    { name: "corpEvents1", at: "07:40", tradingDayOnly: false }, { name: "corpEvents2", at: "12:10", tradingDayOnly: false }, { name: "corpEvents3", at: "17:40", tradingDayOnly: false }, { name: "corpEvents4", at: "21:05", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
+    { name: "corpEvents1", at: "07:40", tradingDayOnly: false }, { name: "corpEvents2", at: "12:10", tradingDayOnly: false }, { name: "corpEvents3", at: "17:40", tradingDayOnly: false }, { name: "corpEvents4", at: "21:05", tradingDayOnly: false }, { name: "cafefNight", at: "22:30", tradingDayOnly: false, timeoutMs: 8 * 3_600_000 }, { name: "seasonXBuild", at: "04:10", tradingDayOnly: false }];
   jobs.kqkdRefresh = () => kqkd.refresh({ reason: "job" });
   jobs.kqkdRefreshEvening = () => kqkd.refresh({ reason: "job" });
   jobs.agmPlans = async () => { if (!process.env.GEMINI_API_KEY) return { skipped: "thiếu GEMINI_API_KEY" }; const r = await agmPlans.run({ limit: 30 }); if (r.processed) await kqkd.rebuildSummary("agm"); return r; };
@@ -241,7 +242,10 @@ export function getMarketRuntime() {
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
-  const scheduler = createScheduler(jobs, { extraSchedule: [...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  // Bù phiên lỡ (sự cố 13/11/2026): khi khởi động, 06:30 và 18:30 mỗi ngày (cả ngày nghỉ).
+  jobs.sessionCatchUp = createSessionCatchUp({ jobs, store });
+  jobs.sessionCatchUpLate = jobs.sessionCatchUp;
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "sessionCatchUp", at: "06:30", tradingDayOnly: false }, { name: "sessionCatchUpLate", at: "18:30", tradingDayOnly: false }, ...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -270,7 +274,7 @@ export function startMarketIngestor() {
   void rt.eventRadar.start();
   if (rt.started || !featureFlags().ingestorEnabled) return rt;
   rt.started = true;
-  const runOnStart = String(process.env.MARKET_RUN_JOBS_ON_START ?? "true").toLowerCase() === "true" ? ["syncSecurities"] : [];
+  const runOnStart = String(process.env.MARKET_RUN_JOBS_ON_START ?? "true").toLowerCase() === "true" ? ["syncSecurities", "sessionCatchUp"] : [];
   rt.scheduler.start({ runOnStart });
   rt.tickRecorder.start();
   rt.cotucScanner.start();
