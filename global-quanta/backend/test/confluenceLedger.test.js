@@ -59,3 +59,26 @@ test("dịch vụ: ghi theo bảng đúng phiên, bỏ phiên trước ngày b�
   assert.equal(s.groups.sel.verdict, "CHƯA ĐỦ MẪU");
   assert.deepEqual(await L.tick(), { added: 0, skipped: 1, scored: 0, days: 2 }); // chạy lại không ghi trùng
 });
+
+test("HL-L1 + PZ: hai nhóm vị trí giá theo ảnh chụp đã khoá cùng phiên; không có ảnh chụp -> không có hai nhóm", () => {
+  const s = hlScores(panelRows());
+  const z = (t) => ({ LEAD: "BUY_ZONE", IMPR: "EXTENDED", AGST: "BUY_ZONE" })[t] ?? null;
+  const g = hlGroups(s, z);
+  assert.deepEqual(g.pzZone, ["LEAD"], "chỉ mã Hợp lưu (AGST ngành phản đối không tính)");
+  assert.deepEqual(g.pzHot, ["IMPR"]);
+  assert.equal(hlGroups(s).pzZone, undefined);
+});
+
+test("dịch vụ HL-L1: phiên có ảnh chụp vị trí giá cùng ngày -> có nhóm pzZone / pzHot; ảnh chụp khác ngày -> bỏ qua", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hlpz-"));
+  const rows = panelRows();
+  const kv = { idx: { dates: ["2026-12-01", "2026-12-02"] }, "p:2026-12-01": { rows }, "p:2026-12-02": { rows },
+    "elite:hl:watch:2026-12-01": { date: "2026-12-01", records: { LEAD: { state: "BUY_ZONE" }, IMPR: { state: "COOLING" } } },
+    "elite:hl:watch:2026-12-02": { date: "2026-12-01", records: { LEAD: { state: "BUY_ZONE" } } } };
+  const L = createHlLedger({ dir, getKv: async (k) => kv[k] ?? null, panelIndexKey: "idx", panelKey: (d) => `p:${d}`, pricesOf: () => [], cfg: { ...HL_LEDGER, start: "2026-12-01", minLs: 10 } });
+  await L.tick();
+  const S = JSON.parse(fs.readFileSync(path.join(dir, "elite-hl-ledger.json"), "utf8"));
+  const e1 = S.entries.find((e) => e.d === "2026-12-01"), e2 = S.entries.find((e) => e.d === "2026-12-02");
+  assert.deepEqual(e1.groups.pzZone, ["LEAD"]); assert.deepEqual(e1.groups.pzHot, ["IMPR"]);
+  assert.equal(e2.groups.pzZone, undefined, "ảnh chụp ghi ngày khác -> không dùng");
+});

@@ -15,7 +15,10 @@ export const HL_LEDGER = Object.freeze({ start: "2026-11-12", horizon: 20, entry
 export const HL_GROUPS = Object.freeze({
   sel: "Hợp lưu (tầng 1 + RRG ủng hộ)", strong: "Hợp lưu mạnh (thêm tầng 3 ≥ +2)", pass1: "Đạt tầng 1 (mọi ngành)",
   lead: "Tầng 1 + ngành Dẫn dắt", impr: "Tầng 1 + ngành Cải thiện", against: "Tầng 1 + ngành phản đối",
+  // PZ-v2 lớp 3 (14/11/2026): Hợp lưu chia theo vị trí giá của ảnh chụp ĐÃ KHOÁ cùng phiên (elite:hl:watch:<ngày>).
+  pzZone: "Hợp lưu trong vùng mua", pzHot: "Hợp lưu tăng nóng / chờ nền",
 });
+const PZ_HOT_STATES = new Set(["EXTENDED", "COOLING", "REBASING"]);
 
 const fin = (v) => typeof v === "number" && Number.isFinite(v);
 const r6 = (x) => (fin(x) ? Math.round(x * 1e6) / 1e6 : null);
@@ -79,13 +82,20 @@ export function hlScores(rows) {
 }
 
 /** Các nhóm ghi sổ của một phiên (mã theo thứ tự xếp hạng). */
-export function hlGroups(scores) {
+export function hlGroups(scores, zoneOf = null) {
   const pick = (f) => scores.filter(f).map((x) => x.ticker);
   const sel = (x) => x.cls === "STRONG" || x.cls === "CONFLUENCE";
   return {
     sel: pick(sel), strong: pick((x) => x.cls === "STRONG"), pass1: pick((x) => x.pass1),
     lead: pick((x) => sel(x) && x.rrg === 2), impr: pick((x) => sel(x) && x.rrg === 1), against: pick((x) => x.cls === "T1_SECTOR_AGAINST"),
+    ...(zoneOf ? { pzZone: pick((x) => sel(x) && zoneOf(x.ticker) === "BUY_ZONE"), pzHot: pick((x) => sel(x) && PZ_HOT_STATES.has(zoneOf(x.ticker))) } : {}),
   };
+}
+/** Trạng thái vị trí giá của phiên d từ ảnh chụp đã khoá; không có ảnh chụp -> null (phiên đó không có hai nhóm PZ). */
+async function pzZoneOf(getKv, d) {
+  const snap = await getKv(`elite:hl:watch:${d}`).catch(() => null);
+  if (!snap?.records || snap.date !== d) return null;
+  return (t) => snap.records[t]?.state ?? null;
 }
 
 /**
@@ -155,7 +165,14 @@ export function createHlLedger({ dir, getKv, panelIndexKey, panelKey, pricesOf, 
         const doc = await getKv(panelKey(d)); const rows = doc?.rows ?? [];
         // Thiếu LS-v1 (tầng 1 không tính được) -> không ghi phiên đó, lần sau thử lại; không ghi sổ rỗng giả.
         if (rows.filter((r) => fin(r.values?.ls_v1)).length < cfg.minLs) { skipped++; continue; }
-        S.entries.push({ d, n: rows.length, groups: hlGroups(hlScores(rows)), all: rows.map((r) => r.ticker), score: null }); added++;
+        S.entries.push({ d, n: rows.length, groups: hlGroups(hlScores(rows), await pzZoneOf(getKv, d)), all: rows.map((r) => r.ticker), score: null }); added++;
+      }
+      // Bản ghi CHƯA CHẤM ghi trước khi có ảnh chụp vị trí giá: bổ sung hai nhóm PZ khi ảnh chụp của đúng phiên đó đã có (vẫn point-in-time).
+      for (const e of S.entries) {
+        if (e.score || e.groups.pzZone || e.d < cfg.start) continue;
+        const z = await pzZoneOf(getKv, e.d); if (!z) continue;
+        const doc = await getKv(panelKey(e.d)); const rows = doc?.rows ?? []; if (!rows.length) continue;
+        const g = hlGroups(hlScores(rows), z); e.groups.pzZone = g.pzZone; e.groups.pzHot = g.pzHot;
       }
       S.entries.sort((a, b) => a.d.localeCompare(b.d));
       const dates = (pricesOf("VNINDEX") ?? []).map((r) => r[0]); const at = new Map(dates.map((x, i) => [x, i]));
