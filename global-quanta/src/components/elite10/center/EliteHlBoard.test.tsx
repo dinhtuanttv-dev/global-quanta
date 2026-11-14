@@ -181,3 +181,21 @@ describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu
     expect(text("hl-sizing-note")).toContain("số lúc vào");
   });
 });
+
+// F03 (14/11/2026): dòng "tính cả tiền mặt" chỉ hiện khi Gateway đã có số; không thay số chấm chính thức.
+describe("Bảng quyết định Elite HL — sổ tính cả tiền mặt", () => {
+  afterEach(() => cleanup());
+  it("có cashIncl -> hiện lợi suất danh mục thật kèm tỷ lệ cổ phiếu trung bình; chưa có -> không hiện", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-ledger-cash-5")).toBeNull();
+    cleanup();
+    const s = summary(8, 0.012);
+    const withCash = { ...s, horizons: { ...s.horizons, 5: { ...s.horizons[5], cashIncl: { n: 6, meanPortfolio: 0.0031, meanInvested: 0.24, meanVnIndex: 0.004 } } } };
+    render(<EliteHlBoard d={{ ...decision, ledgerSummary: withCash }} onOpenTicker={() => {}} />);
+    const line = text("hl-ledger-cash-5");
+    expect(line).toContain("6 phiên, cổ phiếu TB 24%");
+    expect(line).toContain("+0,31%");
+    expect(line).toContain("VN-Index +0,40%");
+    expect(text("hl-ledger-hl-5")).toContain("+1,20%"); // số chấm chính thức vẫn nguyên
+  });
+});

@@ -276,3 +276,20 @@ test("E4-HL present(): freshness đếm số phiên đã đóng sau phiên của
   assert.equal((await mk(vn).present(doc, { withFreshness: false })).freshness, undefined);
   assert.equal(await mk(vn).present(null), null);
 });
+
+// F03 (14/11/2026): thêm phép đo "tính cả tiền mặt" — KHÔNG đổi cách chấm chính thức.
+test("sổ theo dõi: danh mục có tiền mặt — chấm chính thức giữ nguyên (quy về 100% cổ phiếu), thêm lợi suất danh mục thật tính cả tiền mặt", () => {
+  const cal = ["d0", "d1", "d2", "d3", "d4", "d5", "d6"], px = new Map();
+  const uni = Array.from({ length: 40 }, (_, i) => `U${i}`);
+  for (const t of [...uni, "A", "B"]) { px.set(`${t}|d1`, 100); px.set(`${t}|d6`, t === "A" ? 110 : t === "B" ? 120 : 100); }
+  const entry = { date: "d0", holdings: [{ ticker: "A", weight: 0.1 }, { ticker: "B", weight: 0.1 }], universe: uni };
+  const r = evaluateEntry(entry, 5, px, cal, new Map([["d1", 1000], ["d6", 1010]]), 0.04);
+  assert.ok(Math.abs(r.excess - 0.15) < 1e-12, "chấm chính thức: (0,1·10% + 0,1·20%) / 0,2 = 15% — không đổi");
+  assert.ok(Math.abs(r.portfolioNet - (0.15 - COST_ROUND_TRIP)) < 1e-12);
+  assert.equal(r.invested, 0.2);
+  assert.ok(Math.abs(r.portfolioCashIncl - 0.03) < 1e-12, "danh mục thật: 80% tiền mặt -> +3%");
+  const s = summarizeLedger([{ ...entry, results: { 5: r } }, { date: "old", holdings: [], results: { 5: { from: "a", to: "b", portfolioNet: 0, universeNet: 0, excess: 0.01, vnIndex: null, ic: null, names: 40 } } }]);
+  assert.equal(s.horizons[5].n, 2);
+  assert.deepEqual(s.horizons[5].cashIncl, { n: 1, meanPortfolio: r.portfolioCashIncl, meanInvested: 0.2, meanVnIndex: r.vnIndex }, "bản ghi cũ không có trường mới -> không tính vào");
+  assert.equal(s.horizons[10].cashIncl, null);
+});

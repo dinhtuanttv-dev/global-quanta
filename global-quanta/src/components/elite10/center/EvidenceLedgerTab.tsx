@@ -63,6 +63,7 @@ function LedgerSummaryView({ s, showIc = true }: { s: LedgerSummary; showIc?: bo
             <p className="text-[10px] font-bold uppercase text-slate-500">Kỳ hạn {h} phiên · {x?.n ?? 0} phiên đã chấm</p>
             <p>Vượt rổ đều (sau phí): <b>{x?.n ? `${sgn((x.meanExcess ?? 0) * 100, 2)}%` : "—"}</b>{x?.excessCi95 ? ` · KTC95 [${sgn(x.excessCi95[0] * 100, 2)}%; ${sgn(x.excessCi95[1] * 100, 2)}%]` : ""}</p>
             <p>Tỷ lệ thắng: {x?.n ? `${num((x.hitRate ?? 0) * 100, 0)}%` : "—"} · VN-Index TB: {x?.meanVnIndex != null ? `${sgn(x.meanVnIndex * 100, 2)}%` : "—"}</p>
+            {x?.cashIncl && <p data-testid={`ledger-cash-${h}`}>Tính cả tiền mặt ({x.cashIncl.n} phiên, cổ phiếu TB {num(x.cashIncl.meanInvested * 100, 0)}%): danh mục <b>{sgn(x.cashIncl.meanPortfolio * 100, 2)}%</b>{x.cashIncl.meanVnIndex != null ? ` · VN-Index ${sgn(x.cashIncl.meanVnIndex * 100, 2)}%` : ""} — trước phí</p>}
             {showIc && <p>IC của Điểm Elite: {x?.ic?.n ? `${sgn(x.ic.mean, 3)} (t ${num(x.ic.t)}, ${x.ic.n} phiên)` : "—"}</p>}
           </div>
         );

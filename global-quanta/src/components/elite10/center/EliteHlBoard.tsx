@@ -301,9 +301,15 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 380 }}>
               <thead><tr className="text-left text-[10px] text-slate-500"><th className="py-1 font-normal">Kỳ hạn</th><th className="font-normal">Elite HL (chính thức)</th><th className="font-normal">Elite dòng tiền (cũ)</th></tr></thead>
               <tbody>
-                {(["5", "10"] as const).map((h) => (
-                  <tr key={h} className="border-t border-white/5"><td className="py-1 text-slate-400">{h} phiên</td><td data-testid={`hl-ledger-hl-${h}`}>{ledgerLine(d.ledgerSummary, h)}</td><td data-testid={`hl-ledger-flow-${h}`}>{ledgerLine(d.flowLedgerSummary, h)}</td></tr>
-                ))}
+                {(["5", "10"] as const).map((h) => {
+                  const ci = d.ledgerSummary?.horizons?.[h]?.cashIncl;
+                  return (
+                    <tr key={h} className="border-t border-white/5 align-top"><td className="py-1 text-slate-400">{h} phiên</td>
+                      <td data-testid={`hl-ledger-hl-${h}`}>{ledgerLine(d.ledgerSummary, h)}
+                        {ci && <span className="block text-[10px] text-slate-400" data-testid={`hl-ledger-cash-${h}`}>Tính cả tiền mặt ({ci.n} phiên, cổ phiếu TB {num(ci.meanInvested * 100, 0)}%): danh mục <b className="text-slate-200">{signed(ci.meanPortfolio * 100, 2)}%</b>{ci.meanVnIndex != null ? <> · VN-Index {signed(ci.meanVnIndex * 100, 2)}%</> : ""} — trước phí</span>}</td>
+                      <td data-testid={`hl-ledger-flow-${h}`}>{ledgerLine(d.flowLedgerSummary, h)}</td></tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
