@@ -11,12 +11,22 @@ const SCAN_AT_MIN = 15 * 60 + 40; // giờ chạy Siêu Quét theo lịch
  * @param deps.jobs   bảng job của runtime (gọi trực tiếp — job này đã chạy trong hàng đợi, gọi qua scheduler sẽ tự khoá)
  * @param deps.store  getMarketDailyDates, getKv
  */
-export function createSessionCatchUp({ jobs, store, now = Date.now, log = console, chain = CATCH_UP_CHAIN }) {
+export function createSessionCatchUp({ jobs, store, now = Date.now, log = console, chain = CATCH_UP_CHAIN, indexReady = null }) {
   return async function sessionCatchUp() {
     const latestDaily = (await store.getMarketDailyDates()).at(-1) ?? null;
-    const scanAsOf = (await store.getKv("scanner:latest"))?.value?.dataAsOf ?? null;
+    const scan = (await store.getKv("scanner:latest"))?.value ?? null;
+    const scanAsOf = scan?.dataAsOf ?? null;
     if (!latestDaily) return { skipped: "Chưa có dữ liệu ngày" };
-    if (scanAsOf && scanAsOf >= latestDaily) return { skipped: "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf };
+    // Kết quả Siêu Quét đúng phiên nhưng trạng thái VN-Index còn của phiên trước (nến chỉ số lỗi lúc quét, đã được vá sau đó — 13/11/2026):
+    // quét lại riêng Siêu Quét khi nến chỉ số của phiên đó đã hợp lệ.
+    if (scanAsOf && scanAsOf >= latestDaily) {
+      const idxAsOf = scan?.indexState?.dataAsOf ?? null;
+      if (idxAsOf && idxAsOf < scanAsOf && indexReady && (await indexReady(scanAsOf).catch(() => false)) && typeof jobs.scanUniverse === "function") {
+        try { await jobs.scanUniverse(); log.info?.(`[market] Quét lại Siêu Quét ${scanAsOf}: trạng thái VN-Index ${idxAsOf} -> ${scanAsOf}`); return { session: scanAsOf, rescanned: "indexState", indexBefore: idxAsOf }; }
+        catch (e) { return { session: scanAsOf, rescanned: false, error: String(e?.message ?? e).slice(0, 160) }; }
+      }
+      return { skipped: "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf };
+    }
     const d = new Date(now());
     // Phiên hôm nay chưa tới giờ quét theo lịch -> để lịch thường chạy, không chạy sớm.
     if (latestDaily === vnDate(d) && vnParts(d).minutes < SCAN_AT_MIN) return { skipped: "Chưa tới giờ quét của phiên hôm nay", session: latestDaily, scanAsOf };
