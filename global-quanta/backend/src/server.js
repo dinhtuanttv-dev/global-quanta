@@ -326,16 +326,26 @@ if (process.env.NODE_ENV !== "test") {
   const tried = { evidence: null, decision: null }; // { date, at, ok }
   let cashGateRecorded = null;
   const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
-  let pzBackfillTried = null;
+  let pzBackfillTried = null, frozenRetryAt = 0;
   const eliteTick = async () => {
     try {
-      const due = panelDue(Date.now(), isTradingDay);
+      const inWindow = panelDue(Date.now(), isTradingDay);
       const latest = await getElitePanel().panel();
       // Bù phiên (sự cố 13/11/2026): Siêu Quét đã có phiên mới hơn bảng tín hiệu (job bù phiên vừa quét lại phiên lỡ) -> dựng bảng và
       // quyết định cho phiên đó ngay, kể cả ngoài giờ / ngày nghỉ. Mọi nguồn của bảng lấy ngày từ dữ liệu nên không ghi sai phiên.
       const scanAsOf = (await getMarketRuntime().store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
-      const catchUp = !due && Boolean(scanAsOf && latest?.date && scanAsOf > latest.date);
-      if (!due && !catchUp) {
+      const catchUp = !inWindow && Boolean(scanAsOf && latest?.date && scanAsOf > latest.date);
+      // Phiên bị CHỐT DỮ LIỆU (thiếu nguồn lúc dựng) -> thử dựng lại tối đa 1 lần / 60 phút khi nguồn có thể đã đủ (VD nến VN-Index lỗi
+      // vừa được vá). Dịch vụ quyết định chỉ thay bản ghi sổ CHƯA chấm; bản ghi đã chấm giữ nguyên.
+      const cur = await getEliteDecision().decision().catch(() => null);
+      if (!catchUp && cur?.hl?.dataGuard?.frozen && cur.date === latest?.date && Date.now() - frozenRetryAt > 60 * 60_000) {
+        frozenRetryAt = Date.now();
+        const p2 = await getElitePanel().build({ force: true });
+        const dec2 = await getEliteDecision().build({ force: true });
+        console.log(`[elite] dựng lại phiên ${dec2.date} bị chốt dữ liệu: thiếu nguồn ${p2.missingSources.join(", ") || "không"} -> ${dec2.hl?.dataGuard?.frozen ? "vẫn chốt (" + dec2.hl.dataGuard.reasonsVi.join("; ") + ")" : "đủ dữ liệu, áp quy tắc"}`);
+        return;
+      }
+      if (!inWindow && !catchUp) {
         // PZ-v2: tài liệu quyết định đã khoá trước khi có lớp Vị trí giá -> bổ sung trường hiển thị một lần (danh mục không đổi).
         const dec = await getEliteDecision().decision().catch(() => null);
         if (dec?.hl && !dec.hl.pz && pzBackfillTried !== dec.date) { pzBackfillTried = dec.date; await getEliteDecision().build(); console.log(`[elite] vị trí giá bổ sung cho phiên ${dec.date}`); }

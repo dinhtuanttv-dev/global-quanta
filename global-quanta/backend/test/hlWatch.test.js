@@ -102,8 +102,25 @@ test("dịch vụ: khoá ảnh chụp theo phiên, nhật ký chuyển trạng t
   assert.equal(s2.prevDate, d1);
   assert.equal(s2.records.T03.state, "UNKNOWN", "nến giá 0 bị loại -> giá mới tới phiên trước -> Chưa xác định");
   const log = (await store.getKv(PZ_KV.log)).value.entries;
-  assert.ok(log.some((e) => e.ticker === "T02" && e.to === "EXTENDED" && e.date === d1));
+  // Lần chạy đầu phát lại 40 phiên: T02 đã vào Tăng nóng TRƯỚC phiên d1 (trong phần phát lại) nên d1 không phải phiên chuyển trạng thái.
+  assert.equal(s1.warmupSessions, 40); assert.equal(s2.warmupSessions, 0, "phiên sau có ảnh chụp phiên trước -> không phát lại");
+  assert.equal(s1.records.T02.from, "EXTENDED");
   assert.ok(!log.some((e) => e.to === "UNKNOWN"), "Chưa xác định không ghi vào nhật ký chuyển");
   assert.deepEqual((await store.getKv(PZ_KV.index)).value.dates, [d1, d2]);
   assert.equal((await svc.snapshot()).date, d2);
+});
+
+
+test("route /hl/watch: tham số ngày hợp lệ được dùng; ngày sai dạng -> phiên mới nhất; nhật ký theo ngày", async () => {
+  const express = (await import("express")).default;
+  const { createEliteRouter } = await import("../src/routes/elite.js");
+  const asked = [];
+  const getHlWatch = () => ({ snapshot: async (d) => { asked.push(d); return { date: d ?? "latest" }; }, log: async (d) => [{ date: d }] });
+  const app = express(); app.use("/api/elite", createEliteRouter({ getHlWatch, getPanel: () => null }));
+  const server = app.listen(0), base = `http://127.0.0.1:${server.address().port}/api/elite`;
+  try {
+    assert.equal((await (await fetch(`${base}/hl/watch?date=2026-11-12`)).json()).date, "2026-11-12");
+    assert.equal((await (await fetch(`${base}/hl/watch?date=12-11-2026`)).json()).date, "latest");
+    assert.deepEqual((await (await fetch(`${base}/hl/watch/log?date=2026-11-13`)).json()).entries, [{ date: "2026-11-13" }]);
+  } finally { server.close(); }
 });

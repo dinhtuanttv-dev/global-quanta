@@ -8,7 +8,7 @@ import { detectBox, PZ_RULES, PZ_STATES, PZ_STATE_VI, PZ_VERSION, PZ_WATCH, pzPu
 /** Cổng chặn mua ngoài Vùng mua. CHỈ bật sau khi qua kiểm định PZ-r1 (đặc tả mục "Kiểm định trước khi bật cổng"). */
 export const PZ_GATE = false;
 export const PZ_KV = { snapshot: (d) => `elite:hl:watch:${d}`, index: "elite:hl:watch:index", log: "elite:hl:watch:log" };
-const KEEP_SESSIONS = 400, MAX_TICKERS = 150, EXIT_SHOW_SESSIONS = 5;
+const KEEP_SESSIONS = 400, MAX_TICKERS = 150, EXIT_SHOW_SESSIONS = 5, WARMUP_SESSIONS = 40;
 const r4 = (x) => (typeof x === "number" && Number.isFinite(x) ? Math.round(x * 1e4) / 1e4 : null);
 
 /** Nền cùng phiên từ tài liệu chiến lược: SEPA trước, Base Breakout v2 sau. Tài liệu khác ngày của bảng -> bỏ (không trộn hai phiên). */
@@ -67,14 +67,23 @@ export function createHlWatch({ store, ohlcBars, strategyDocs = async () => ({})
       const b = (bars.get(t) ?? []).filter((x) => x.date <= date && x.close > 0 && x.high > 0 && x.low > 0);
       const base = bases.get(t) ?? (b.length ? detectBox(b, cfg) : null);
       const rs = rsIdx ? b.filter((x) => rsIdx.has(x.date)).map((x) => [x.date, x.close / rsIdx.get(x.date)]) : null;
+      // Lần chạy đầu (chưa có ảnh chụp phiên trước): phát lại WARMUP_SESSIONS phiên trước đó (nền = hộp giá của từng phiên, tầng 1 coi như đạt,
+      // trạng thái giữ = hiện tại) để máy trạng thái có lịch sử — nếu không, mã đang giữ đã tăng nóng nhiều tuần vẫn hiện "phiên nóng 1/2".
+      let prev = prevRecs[t] ?? null;
+      if (!prevSnap && b.length > cfg.minBars + 1) {
+        for (let k = Math.max(cfg.minBars, b.length - 1 - WARMUP_SESSIONS); k < b.length - 1; k++) {
+          const bb = b.slice(0, k + 1), d0 = bb.at(-1).date;
+          try { prev = pzStep({ bars: bb, base: detectBox(bb, cfg), prev, ctx: { date: d0, held: held.has(t), tier1: true, exchange: exchangeOf(t), rs: rs ? rs.filter((x) => x[0] <= d0) : null }, cfg }); } catch { /* bỏ phiên lỗi */ }
+        }
+      }
       try {
-        records[t] = pzStep({ bars: b, base, prev: prevRecs[t] ?? null, ctx: { date, held: held.has(t), tier1: tier1.has(t), exchange: exchangeOf(t), rs }, cfg });
+        records[t] = pzStep({ bars: b, base, prev, ctx: { date, held: held.has(t), tier1: tier1.has(t), exchange: exchangeOf(t), rs }, cfg });
       } catch (e) { log.warn?.(`[elite] PZ ${t}: ${e.message}`); }
     }
     const transitions = Object.entries(records).filter(([, r]) => r.from !== r.state && r.state !== "UNKNOWN")
       .map(([ticker, r]) => ({ ticker, date, from: r.from ?? null, to: r.state, reasonVi: r.reasonVi ?? null, held: r.held,
         measures: { x1: r.measures?.x1 ?? null, risk: r.measures?.risk ?? null, x2: r.measures?.x2 ?? null, x3: r.measures?.x3 ?? null, depth: r.measures?.depth ?? null } }));
-    const snap = { version: PZ_VERSION, date, builtAt: new Date(now()).toISOString(), prevDate: prevSnap?.date ?? null, baseDates, sameSession, gate: PZ_GATE,
+    const snap = { version: PZ_VERSION, date, builtAt: new Date(now()).toISOString(), prevDate: prevSnap?.date ?? null, warmupSessions: prevSnap ? 0 : WARMUP_SESSIONS, baseDates, sameSession, gate: PZ_GATE,
       coverage: { tracked: tracked.length, priced: Object.values(records).filter((r) => r.state !== "UNKNOWN").length, withBase: Object.values(records).filter((r) => r.base).length,
         bySource: Object.values(records).reduce((a, r) => { const k = r.base?.source ?? "NONE"; a[k] = (a[k] ?? 0) + 1; return a; }, {}) },
       records };
