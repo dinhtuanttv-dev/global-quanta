@@ -62,6 +62,8 @@ export interface EliteHlMeta {
 export interface LedgerHorizon {
   n: number; meanExcess: number | null; hitRate: number | null; excessCi95: [number, number] | null; meanPortfolioNet: number | null; meanVnIndex: number | null;
   ic: { n: number; mean: number | null; t: number | null }; curve: [string, number][];
+  /** Danh mục THẬT tính cả tiền mặt (tiền mặt sinh lời 0), trước phí — chỉ từ bản ghi chấm sau 14/11/2026; null khi chưa có. */
+  cashIncl?: { n: number; meanPortfolio: number; meanInvested: number; meanVnIndex: number | null } | null;
 }
 /** R3: chấm thực tế kiểu Việt Nam (mô tả) theo kỳ hạn -> quy mô vốn (đồng, dạng chuỗi). */
 export interface RealisticSummary { version: string; horizons: Record<string, Record<string, { n: number; meanExcess: number | null; meanOfficialExcess: number | null; meanImpactBps: number | null; fillRate: number | null; delayedExits: number; meanInvested: number | null }>> }
@@ -186,6 +188,8 @@ export interface EliteToShadow {
   curve: [string, number, number, number][];
   recent: { d: string; core: number; guard: number; sleeve: number; comp: number; vn: number; k: number; guarded: string[]; sleeveT: string[] }[];
   rule: { start: string; minDays: number; sleeveSlot: number; sleeveMax: number };
+  /** Lõi CORE là danh mục nào và các phiên không được tính lại (sau khi danh mục chính thức đổi sang Elite HL). */
+  coreNoteVi?: string;
 }
 
 /** LS-r1: GET /api/elite/leadership/:ticker */

@@ -73,6 +73,15 @@ export function summarizeShadow(days, ic, rule = SHADOW_RULE) {
   };
 }
 
+/**
+ * Lõi CORE của sổ ảo. ELITE-TO-prereg.md (07/11/2026) đăng ký trên "Danh mục Elite 10 chính thức (E3-v4)". Từ 12/11/2026 trường
+ * `portfolio` của tài liệu quyết định là danh mục Elite HL (có tiền mặt, quy tắc khác), còn danh mục E3 nằm ở `flowPortfolio`.
+ * Để thí nghiệm vẫn đo ĐÚNG đối tượng đã đăng ký, lõi lấy `flowPortfolio` khi tài liệu có; tài liệu cũ dùng `portfolio` như trước.
+ */
+export const shadowCorePortfolio = (doc) => doc?.flowPortfolio ?? doc?.portfolio ?? [];
+/** Ghi chú hiển thị cạnh sổ: các ngày đã ghi trước bản sửa 14/11/2026 không được tính lại. */
+export const SHADOW_CORE_NOTE_VI = "Lõi CORE = danh mục Elite 10 dòng tiền (E3) như bản đăng ký trước. Các phiên ghi sổ từ 13/11/2026 tới khi bản sửa 14/11/2026 được triển khai có thể đã dùng danh mục Elite HL làm lõi (do đổi danh mục chính thức ngày 12/11); các phiên đó KHÔNG được tính lại.";
+
 // ---------------------------------------------------------------- dịch vụ
 const lowerBound = (arr, x) => { let lo = 0, hi = arr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m] < x) lo = m + 1; else hi = m; } return lo; };
 const readJson = (f) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return null; } };
@@ -103,7 +112,7 @@ export function createEliteToShadow({ dir, getKv, decisionKey, decisionIndexKey,
       const decCache = new Map();
       const weightsFor = async (d) => {
         const b = builds[lowerBound(builds, d) - 1]; if (!b) return null;
-        if (!decCache.has(b)) { const doc = await getKv(decisionKey(b)); decCache.set(b, Object.fromEntries((doc?.portfolio ?? []).map((p) => [p.ticker, p.weight ?? 0]))); }
+        if (!decCache.has(b)) { const doc = await getKv(decisionKey(b)); decCache.set(b, Object.fromEntries(shadowCorePortfolio(doc).map((p) => [p.ticker, p.weight ?? 0]))); }
         return decCache.get(b);
       };
       const px = new Map(); const adjOf = (t) => { if (!px.has(t)) px.set(t, new Map((pricesOf(t) ?? []).map((r) => [r[0], r[1]]))); return px.get(t); };
@@ -148,7 +157,7 @@ export function createEliteToShadow({ dir, getKv, decisionKey, decisionIndexKey,
   }
   async function summary() {
     const S = load();
-    return { version: SHADOW_VERSION, rule, start: S.start, updatedAt: S.updatedAt ?? null, ...summarizeShadow(S.days, S.ic, rule), ex: await exSummary(),
+    return { version: SHADOW_VERSION, rule, start: S.start, updatedAt: S.updatedAt ?? null, ...summarizeShadow(S.days, S.ic, rule), coreNoteVi: SHADOW_CORE_NOTE_VI, ex: await exSummary(),
       curve: (() => { let c = 1, m = 1, v = 1; return S.days.map((x) => { c *= 1 + x.core; m *= 1 + x.comp; v *= 1 + x.vn; return [x.d, r6(m), r6(v), r6(c)]; }); })(),
       recent: S.days.slice(-15).reverse() };
   }

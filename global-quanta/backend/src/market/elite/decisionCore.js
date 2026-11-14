@@ -381,6 +381,9 @@ export function evaluateEntry(entry, h, px, cal, vnIndex, minWeight = 0.5) {
   let port = 0, wsum = 0;
   for (const hl of entry.holdings) { const r = ret(hl.ticker); if (r != null) { port += hl.weight * r; wsum += hl.weight; } }
   if (wsum < minWeight) return null;
+  // 14/11/2026 (chỉ THÊM, không đổi cách chấm chính thức): lợi suất của danh mục THẬT tính cả phần tiền mặt (tiền mặt sinh lời 0),
+  // và tỷ lệ cổ phiếu có giá. Với danh mục đầu tư đủ 100% hai số này trùng với cách chấm chính thức.
+  const cashIncl = port, invested = wsum;
   port /= wsum;
   const ur = entry.universe.map(ret).filter((r) => r != null);
   if (ur.length < 30) return null;
@@ -390,6 +393,7 @@ export function evaluateEntry(entry, h, px, cal, vnIndex, minWeight = 0.5) {
   return {
     from: a, to: b, portfolioNet: port - COST_ROUND_TRIP, universeNet: univ - COST_ROUND_TRIP, excess: port - univ,
     vnIndex: va > 0 && vb > 0 ? vb / va - 1 : null, ic: ic?.ic ?? null, names: ur.length,
+    invested: Math.round(invested * 1e4) / 1e4, portfolioCashIncl: cashIncl,
   };
 }
 
@@ -424,6 +428,8 @@ export function summarizeLedger(entries) {
       excessCi95: blockBootstrapCi(ex, h), meanPortfolioNet: ev.length ? mean(ev.map((r) => r.portfolioNet)) : null,
       meanVnIndex: ev.filter((r) => r.vnIndex != null).length ? mean(ev.filter((r) => r.vnIndex != null).map((r) => r.vnIndex)) : null,
       ic: { n: icS.n, mean: icS.mean, t: icS.t }, curve,
+      // Mô tả, chỉ từ các bản ghi chấm sau 14/11/2026 (bản ghi cũ không có hai trường này): danh mục thật tính cả tiền mặt, trước phí.
+      cashIncl: (() => { const w = ev.filter((r) => Number.isFinite(r.portfolioCashIncl) && Number.isFinite(r.invested)); return w.length ? { n: w.length, meanPortfolio: mean(w.map((r) => r.portfolioCashIncl)), meanInvested: mean(w.map((r) => r.invested)), meanVnIndex: w.filter((r) => r.vnIndex != null).length ? mean(w.filter((r) => r.vnIndex != null).map((r) => r.vnIndex)) : null } : null; })(),
     };
   }
   const c1 = out[5].ic.n >= 60 && out[5].ic.mean > 0 && (out[5].ic.t ?? 0) >= 2;
