@@ -109,7 +109,7 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
           </p>
           {d.version.startsWith("E3-v4") && (
             <p className="text-[10.5px] text-slate-400" data-testid="elite-rrg-rule">
-              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ 30% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
+              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ {num((raw?.display?.flowRrgPenalty ?? 0.3) * 100, 0)}% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
             </p>
           )}
         </div>
@@ -166,8 +166,8 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
         </p>
         <p className="text-[10px] leading-relaxed text-slate-500">
           {d.construction
-            ? <>Vùng đệm: giữ mã phiên trước còn trong top 20 ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa 3 mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần 20%. </>
-            : <>Chọn theo Z giảm dần, tối đa 3 mã mỗi ngành ICB cấp 2; tỷ trọng tỷ lệ nghịch biến động 20 phiên (trần 20%). </>}
+            ? <>Vùng đệm: giữ mã phiên trước còn trong top {raw?.display?.flowBufferRank ?? 20} ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%. </>
+            : <>Chọn theo Z giảm dần, tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2; tỷ trọng tỷ lệ nghịch biến động 20 phiên (trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%). </>}
           Cắt lỗ / mục tiêu là dải
           2σ / 3σ của 5 phiên, nắm giữ 10 phiên — quy tắc mô tả, chưa tối ưu. Lợi thế kỳ vọng nhỏ (P vượt ≈ 51%): dùng để nghiêng tỷ trọng, không phải tín hiệu chắc thắng.
         </p>

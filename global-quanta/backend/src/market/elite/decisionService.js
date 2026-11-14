@@ -1,7 +1,7 @@
 // Elite 10 E3 (2026-10-17) — dịch vụ quyết định: Điểm Elite + danh mục Elite 10 mỗi phiên (E3-prereg.md) và SỔ THEO DÕI TIẾN.
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
-import { buildCandidates, buildDecision, COST_ROUND_TRIP, E3_V5, E3_VERSION, ELIGIBILITY, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { PORTFOLIO, RRG_RULE, buildCandidates, buildDecision, COST_ROUND_TRIP, E3_V5, E3_VERSION, ELIGIBILITY, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
 import { buildHlPortfolio, hlTradable, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
@@ -276,7 +276,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     return {
       ...doc,
       ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1 } } : {}),
-      display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice },
+      display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice,
+        flowRrgPenalty: RRG_RULE.penalty, flowBufferRank: PORTFOLIO.bufferRank, flowMaxPerSector: PORTFOLIO.maxPerSector, flowWeightCap: PORTFOLIO.weightCap },
       ...(withFreshness ? { freshness: await freshness(doc.date) } : {}),
     };
   }

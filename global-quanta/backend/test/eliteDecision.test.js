@@ -269,6 +269,7 @@ test("E4-HL present(): freshness đếm số phiên đã đóng sau phiên của
   assert.deepEqual(p.hl.tier1, { lsLeaderPct: 80, taMin: 2, taModels: 7, maxScore: 10 });
   assert.equal(p.display.ledgerCostRoundTrip, COST_ROUND_TRIP);
   assert.equal(p.display.flowMinAdvBn, 10);
+  assert.deepEqual([p.display.flowRrgPenalty, p.display.flowBufferRank, p.display.flowMaxPerSector, p.display.flowWeightCap], [0.3, 20, 3, 0.2]);
   assert.equal(doc.freshness, undefined); // tài liệu gốc (bản đã khoá / memo) không bị sửa
   assert.equal(doc.hl.tier1, undefined);
   assert.deepEqual((await mk(vn).present({ ...doc, date: "2026-11-17" })).freshness, { latestSession: "2026-11-17", sessionsBehind: 0 });

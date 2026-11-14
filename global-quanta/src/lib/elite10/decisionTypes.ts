@@ -86,7 +86,7 @@ export interface EliteDecision {
   candidates?: Candidate[];
   /** E4-HL: `portfolio` là danh mục Elite HL; danh mục E3 "dòng tiền" (cũ) nằm ở flowPortfolio với sổ riêng. */
   /** Số liệu hiển thị do Gateway cấp (không nằm trong tài liệu đã khoá): chi phí sổ, ngưỡng đủ điều kiện của danh mục dòng tiền. */
-  display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number };
+  display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number; flowRrgPenalty?: number; flowBufferRank?: number; flowMaxPerSector?: number; flowWeightCap?: number };
   /** Độ mới so với lịch phiên thật: số phiên đã đóng sau phiên của tài liệu (0 = mới nhất; ≥ 2 = job dựng lỡ phiên). */
   freshness?: { latestSession: string | null; sessionsBehind: number } | null;
   hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;
