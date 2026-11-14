@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useEliteRisk } from "../../../hooks/elite10/useEliteCenter";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
+import { heatInk } from "../../../lib/elite10/heatInk";
 import { divergingColor } from "../../../lib/worldSectors/types";
 
 const pct = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : `${(v * 100).toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d })}%`);
@@ -85,19 +86,21 @@ export default function RiskTab() {
 
         <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-corr">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tương quan (sau co rút)</h4>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="text-[10px]" style={{ borderCollapse: "separate", borderSpacing: 2 }}>
               <thead><tr><th />{corr.tickers.map((t) => <th key={t} className="px-1 font-normal text-slate-400">{t}</th>)}</tr></thead>
               <tbody>
                 {corr.matrix.map((row, i) => (
                   <tr key={corr.tickers[i]}>
                     <th className="pr-1 text-left font-normal text-slate-400">{corr.tickers[i]}</th>
-                    {row.map((c, j) => (
-                      <td key={j} title={`${corr.tickers[i]} × ${corr.tickers[j]}: ${num(c)}`} className="h-6 w-8 text-center font-mono text-slate-100"
-                        style={{ background: i === j ? "rgba(148,163,184,0.15)" : divergingColor(c == null ? null : (c - r.shrinkage!.avgCorrelation) * 6) }}>
-                        {i === j ? "" : num(c, 1)}
-                      </td>
-                    ))}
+                    {row.map((c, j) => {
+                      const bg = i === j ? "rgba(148,163,184,0.15)" : divergingColor(c == null ? null : (c - r.shrinkage!.avgCorrelation) * 6);
+                      return (
+                        <td key={j} title={`${corr.tickers[i]} × ${corr.tickers[j]}: ${num(c)}`} className="h-6 w-8 text-center font-mono" style={{ background: bg, color: heatInk(bg) }}>
+                          {i === j ? "" : num(c, 1)}
+                        </td>
+                      );
+                    })}
                   </tr>
                 ))}
               </tbody>

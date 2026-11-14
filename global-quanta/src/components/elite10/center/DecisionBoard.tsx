@@ -177,7 +177,7 @@ function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) 
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Card title="Tín hiệu có trọng số (bậc A/B)" testId="elite-weights" right={<span className="text-[10px] text-slate-500" title="IC của tổ hợp = Σw·IC / √(wᵀC̃w) — ước tính mô hình; IC thực đo nằm ở sổ theo dõi">IC tổng (mô hình) ≈ {num(d.icComb, 4)}</span>}>
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 420 }}>
               <thead><tr className="text-slate-500"><th className="text-left font-normal">Tín hiệu</th><th className="font-normal">Bậc</th><th className="font-normal" title="IC đo được ở kỳ hạn chính (số ngày)">IC đo</th><th className="font-normal" title="(n·IC đo + 60·tiên nghiệm)/(n + 60)">IC hậu nghiệm</th><th className="font-normal" title="Trọng số nếu chỉ ∝ IC (bỏ qua tương quan giữa tín hiệu)">∝ IC</th><th className="text-left font-normal" title="Trọng số theo tương quan: C̃⁻¹·IC, C̃ = 0,5·C + 0,5·I">Trọng số</th></tr></thead>
               <tbody>

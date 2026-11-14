@@ -25,7 +25,7 @@ export default function ToTickerCard({ ticker }: { ticker: string }) {
         </div>
       ) : <p className="mb-2 text-[11px] text-slate-500">Hiện không có đợt cổ tức tiền nào của {ticker} đang chờ GDKHQ.</p>}
       {error ? <p className="text-[11px] text-slate-500">Chưa tải được lịch sử cổ tức.</p> : !hist ? <p className="text-[11px] text-slate-500">Đang tải lịch sử…</p> : done.length === 0 ? <p className="text-[11px] text-slate-500">Chưa có đợt cổ tức tiền nào đủ dữ liệu giá (từ 2022).</p> : (
-        <div className="overflow-x-auto"><table className="w-full min-w-[520px] text-[10.5px]" data-testid="elite-to-history">
+        <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto"><table className="w-full min-w-[520px] text-[10.5px]" data-testid="elite-to-history">
           <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5">GDKHQ</th><th>Cổ tức</th><th>Lợi suất</th><th>TO-r1</th>
             <th className="text-right" title="Vào phiên đầu sau công bố, bán phiên cuối còn quyền; vượt VN-Index sau phí">Công bố → trước GDKHQ</th>
             <th className="text-right" title="Giữ tiếp 5 phiên qua GDKHQ; vượt VN-Index, đã gồm cổ tức nhận sau thuế">Giữ qua GDKHQ 5 phiên</th></tr></thead>

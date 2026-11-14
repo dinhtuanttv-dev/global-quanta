@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import EliteToShadowCard from "./EliteToShadowCard";
 import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
 import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
+import { heatInk } from "../../../lib/elite10/heatInk";
 import { divergingColor } from "../../../lib/worldSectors/types";
 import type { EliteLedger, EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
@@ -17,11 +18,12 @@ function IcCell({ s, h }: { s: EvidenceSignal; h: string }) {
   const x = s.byH[h];
   if (!x || !x.n) return <td className="px-1 py-1 text-center text-[10px] text-slate-600">chưa đo</td>;
   const main = String(s.mainH) === h;
+  const bg = divergingColor(x.mean == null ? null : x.mean * 100);
   return (
     <td className="px-1 py-1 text-center" title={`${x.n} ngày (${fmtDate(x.from)} → ${fmtDate(x.to)}) · t ${num(x.t)} · q ${num(x.q, 3)} · ${x.stable ? "ổn định hai nửa" : "không ổn định hai nửa"}`}>
-      <div className={`rounded px-1 py-0.5 font-mono text-[10.5px] text-slate-100 ${main ? "ring-1 ring-amber-300/60" : ""}`} style={{ background: divergingColor(x.mean == null ? null : x.mean * 100) }}>
+      <div className={`rounded px-1 py-0.5 font-mono text-[10.5px] ${main ? "ring-1 ring-amber-300/60" : ""}`} style={{ background: bg, color: heatInk(bg) }}>
         {sgn(x.mean, 3)}
-        <span className="block text-[10px] text-slate-300/80">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ✓" : ""}</span>
+        <span className="block text-[10px]">t {num(x.t, 1)}{x.q != null ? ` · q ${num(x.q, 2)}` : ""}{x.stable ? " · ✓" : ""}</span>
       </div>
     </td>
   );
@@ -39,7 +41,7 @@ function Curve({ points }: { points: [string, number][] }) {
   const d = points.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(" ");
   const last = points[points.length - 1];
   return (
-    <div className="overflow-x-auto">
+    <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
       <svg viewBox={`0 0 ${W} ${Ht}`} className="w-full" style={{ minWidth: 320 }} role="img" aria-label="Lợi suất vượt tích luỹ của Elite 10 so với rổ đều">
         <line x1={pad} x2={W - pad} y1={y(0)} y2={y(0)} stroke="rgba(148,163,184,0.5)" strokeDasharray="3 3" />
         <text x={4} y={y(0) + 3} fontSize="9" fill="rgba(148,163,184,0.9)">0%</text>
@@ -113,7 +115,7 @@ function RealisticView({ s, testId }: { s: RealisticSummary | undefined; testId:
   return (
     <div className="space-y-1" data-testid={testId}>
       <p className="text-[10px] font-bold uppercase text-slate-500">Chấm thực tế kiểu Việt Nam (mô tả, không đổi tiêu chí)</p>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
         <table className="w-full min-w-[460px] text-[10.5px]">
           <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Kỳ hạn · vốn</th><th className="pr-2 text-right">Vượt (chính thức)</th><th className="pr-2 text-right">Vượt (thực tế)</th><th className="pr-2 text-right">Tác động TB</th><th className="text-right">Khớp mua</th></tr></thead>
           <tbody className="font-mono">
@@ -150,7 +152,7 @@ function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
         <li title="Bailey & López de Prado (2014): xác suất Sharpe thật > Sharpe tối đa kỳ vọng do may mắn khi đã thử N cấu hình">3. Deflated Sharpe (N = {r.deflatedSharpe.N}): {num(r.deflatedSharpe.dsr, 3)} (cần ≥ 0,95; N = 24: {num(r.deflatedSharpe.sensitivityN24, 3)}) · {mark(c.dsrPass)}</li>
         <li title="Bailey và cộng sự (2017), CSCV: xác suất cấu hình tốt nhất trong mẫu lại dưới trung vị ngoài mẫu">4. Xác suất quá khớp PBO: {num(r.pbo.pbo, 3)} ({r.pbo.splits} cách chia, cần &lt; 0,5) · {mark(c.pboPass)}</li>
       </ul>
-      <div className="overflow-x-auto">
+      <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
         <table className="w-full min-w-[420px] text-[10.5px]" data-testid="elite-retro-v3-grid">
           <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Cấu hình</th><th className="pr-2 text-right">Sharpe năm</th><th className="text-right">Vượt rổ đều / năm</th></tr></thead>
           <tbody className="font-mono">
@@ -191,7 +193,7 @@ function LedgerSection({ ledger, error, title, hl, testId }: { ledger: EliteLedg
           <LedgerSummaryView s={ledger.summary} showIc={!hl} />
           <RealisticView s={ledger.summary.realistic} testId={`${testId === "elite-ledger-tab" ? "elite-ledger" : testId}-realistic`} />
           <Curve points={ledger.summary.horizons["10"]?.curve ?? []} />
-          <div className="overflow-x-auto">
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 620 }}>
               <thead><tr className="text-slate-400"><th className="text-left font-normal">Phiên khoá</th><th className="text-left font-normal">Danh mục</th><th className="font-normal">Vượt rổ đều 5p</th><th className="font-normal">Vượt rổ đều 10p</th><th className="font-normal">VN-Index 10p</th></tr></thead>
               <tbody>
@@ -252,7 +254,7 @@ export default function EvidenceLedgerTab() {
           Ô = IC hạng Spearman trung bình theo ngày giữa tín hiệu và lợi suất từ đóng cửa d+1 tới d+1+h; màu xanh = dự báo đúng chiều, đỏ = ngược chiều.
           Khung vàng = kỳ hạn chính dùng để giáng bậc; ✓ = dương ở cả hai nửa thời gian. Luật thăng/giáng và định nghĩa ghi trong bản đăng ký trước E2 (không sửa sau khi đo).
         </p>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="elite-ic-table">
             <thead>
               <tr className="text-slate-500">

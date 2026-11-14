@@ -47,7 +47,7 @@ export default function CashGateCard() {
           {ho && (
             <details className="text-[10px] text-slate-400" data-testid="elite-cash-gate-holdout">
               <summary className="cursor-pointer select-none text-slate-300">Kiểm định đăng ký trước: <b className={ho.passed.length ? "text-emerald-300" : "text-rose-300"}>{ho.passed.length ? `ĐẠT (${ho.passed.join(", ")})` : "KHÔNG ĐẠT"}</b> · {ho.period.sessions.toLocaleString("vi-VN")} phiên {fmtDate(ho.period.from)}–{fmtDate(ho.period.to)}</summary>
-              <div className="mt-1 overflow-x-auto">
+              <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="mt-1 overflow-x-auto">
                 <table className="w-full table-fixed text-[10px]">
                   <thead><tr className="text-left text-slate-500"><th className="py-0.5 pr-2">Quy tắc</th><th className="pr-2 text-right">Lợi suất năm</th><th className="pr-2 text-right">Sụt giảm tối đa</th><th className="pr-2 text-right">ΔSharpe (p Holm)</th><th className="text-right">Tiêu chí</th></tr></thead>
                   <tbody className="font-mono">
