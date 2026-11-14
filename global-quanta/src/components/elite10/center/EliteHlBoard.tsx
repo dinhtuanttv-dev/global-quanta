@@ -94,7 +94,7 @@ const ledgerLine = (s: LedgerSummary | null | undefined, h: "5" | "10") => {
   return x && x.n > 0 ? <>{x.n} phiên · vượt rổ đều <b className={x.meanExcess != null && x.meanExcess > 0 ? "text-emerald-300" : "text-rose-300"}>{signed((x.meanExcess ?? 0) * 100, 2)}%</b> · thắng {num((x.hitRate ?? 0) * 100, 0)}%</> : <span className="text-slate-500">chưa có phiên nào đủ kỳ hạn</span>;
 };
 
-export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode }) {
+export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError = null }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode; refreshError?: string | null }) {
   const hl = d.hl!;
   const { data: ws } = useWorldStrategy();
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
@@ -125,6 +125,11 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
         </span>
       </div>
 
+      {refreshError && (
+        <div role="alert" className="rounded-lg border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11.5px] text-amber-100" data-testid="hl-refresh-error">
+          <b>Không làm mới được dữ liệu</b> ({refreshError}). Bảng đang hiện bản của phiên {fmtDate(d.date)}, dựng lúc {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} — có thể chưa phải phiên mới nhất.
+        </div>
+      )}
       {hl.dataGuard?.frozen ? (
         <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-data-guard">
           <b>Dữ liệu phiên không đủ — danh mục giữ nguyên, không vào và không ra.</b> {hl.dataGuard.reasonsVi.join(" · ")}. Quy tắc sẽ được áp lại ở phiên có đủ dữ liệu.
@@ -235,7 +240,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
           </>
         )}
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
-          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)}, và không cân lại khi đang giữ. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng.
+          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng.
         </p>
       </Panel>
 
@@ -288,6 +293,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher }: { d: EliteDe
             </table>
           </div>
           <p className="mt-1 text-[10px] text-slate-500">Sổ Elite HL bắt đầu từ phiên chuyển đổi; sổ dòng tiền tiếp nối sổ cũ. Cả hai khoá danh mục lúc dựng, chấm ở giá đóng cửa phiên kế tiếp, chi phí giả định 0,40%/vòng.</p>
+          <p className="mt-1 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10px] leading-relaxed text-amber-200" data-testid="hl-ledger-basis">{d.ledgerSummary?.basisVi ?? "Cột Elite HL chấm rổ mã đang giữ quy về 100% cổ phiếu (không tính phần tiền mặt), kỳ hạn cố định 5 và 10 phiên — chưa phải lãi / lỗ của danh mục thật (có tiền mặt, giữ tới khi chạm ngưỡng ra)."}</p>
           <HlLedgerNote />
         </Panel>
       </div>

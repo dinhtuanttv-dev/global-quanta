@@ -5,7 +5,7 @@ import EliteToShadowCard from "./EliteToShadowCard";
 import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
 import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
 import { divergingColor } from "../../../lib/worldSectors/types";
-import type { EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
+import type { EliteLedger, EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
 
 const H = ["1", "5", "10", "20"] as const;
@@ -53,7 +53,7 @@ function Curve({ points }: { points: [string, number][] }) {
   );
 }
 
-function LedgerSummaryView({ s }: { s: LedgerSummary }) {
+function LedgerSummaryView({ s, showIc = true }: { s: LedgerSummary; showIc?: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2 text-[11px]">
       {(["5", "10"] as const).map((h) => {
@@ -63,7 +63,7 @@ function LedgerSummaryView({ s }: { s: LedgerSummary }) {
             <p className="text-[10px] font-bold uppercase text-slate-500">Kỳ hạn {h} phiên · {x?.n ?? 0} phiên đã chấm</p>
             <p>Vượt rổ đều (sau phí): <b>{x?.n ? `${sgn((x.meanExcess ?? 0) * 100, 2)}%` : "—"}</b>{x?.excessCi95 ? ` · KTC95 [${sgn(x.excessCi95[0] * 100, 2)}%; ${sgn(x.excessCi95[1] * 100, 2)}%]` : ""}</p>
             <p>Tỷ lệ thắng: {x?.n ? `${num((x.hitRate ?? 0) * 100, 0)}%` : "—"} · VN-Index TB: {x?.meanVnIndex != null ? `${sgn(x.meanVnIndex * 100, 2)}%` : "—"}</p>
-            <p>IC của Điểm Elite: {x?.ic?.n ? `${sgn(x.ic.mean, 3)} (t ${num(x.ic.t)}, ${x.ic.n} phiên)` : "—"}</p>
+            {showIc && <p>IC của Điểm Elite: {x?.ic?.n ? `${sgn(x.ic.mean, 3)} (t ${num(x.ic.t)}, ${x.ic.n} phiên)` : "—"}</p>}
           </div>
         );
       })}
@@ -168,9 +168,62 @@ function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
   );
 }
 
+/** Sổ Elite HL nhận diện theo phiên bản sổ ("E4-HL …") hoặc cờ kind của Gateway mới. */
+const isHlLedger = (l: EliteLedger | null | undefined) => Boolean(l && (l.summary?.kind === "ELITE_HL" || l.version?.startsWith("E4-HL")));
+const HL_BASIS_VI = "Sổ chấm rổ mã đang giữ quy về 100% cổ phiếu (không tính phần tiền mặt), kỳ hạn cố định 5 và 10 phiên, so với bình quân đều các mã giao dịch được. Đây chưa phải lãi / lỗ của danh mục thật (có tiền mặt, giữ tới khi chạm ngưỡng ra).";
+
+/** Một sổ theo dõi tiến: tổng kết, chấm thực tế, đường lợi suất vượt và 15 phiên khoá gần nhất. */
+function LedgerSection({ ledger, error, title, hl, testId }: { ledger: EliteLedger | undefined; error?: unknown; title: string; hl: boolean; testId: string }) {
+  const recent = [...(ledger?.entries ?? [])].reverse().slice(0, 15);
+  return (
+    <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid={testId}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
+        {ledger && <span className="text-[10px] text-slate-400">{ledger.version} · cập nhật {ledger.updatedAt ? new Date(ledger.updatedAt).toLocaleString("vi-VN", { hour12: false }) : "—"}</span>}
+      </div>
+      {!ledger ? (error
+        ? <p className="text-[11px] text-rose-400" data-testid={`${testId}-error`}>Không tải được sổ theo dõi: {String((error as Error).message ?? error)}</p>
+        : <p className="text-[11px] text-slate-400">Sổ theo dõi chưa có bản ghi.</p>) : (
+        <>
+          <p className={`text-[11px] font-bold ${ledger.summary.label === "EVIDENCE" ? "text-emerald-300" : "text-amber-300"}`}>{hl && ledger.summary.kind !== "ELITE_HL" ? `THĂM DÒ — sổ mô tả của Elite HL (${ledger.entries.length} phiên). Chưa có tiêu chí đăng ký trước cho danh mục này.` : ledger.summary.labelVi}</p>
+          {hl && <p className="rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10.5px] leading-relaxed text-amber-200" data-testid={`${testId}-basis`}>{ledger.summary.basisVi ?? HL_BASIS_VI}</p>}
+          <LedgerSummaryView s={ledger.summary} showIc={!hl} />
+          <RealisticView s={ledger.summary.realistic} testId={`${testId === "elite-ledger-tab" ? "elite-ledger" : testId}-realistic`} />
+          <Curve points={ledger.summary.horizons["10"]?.curve ?? []} />
+          <div className="overflow-x-auto">
+            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 620 }}>
+              <thead><tr className="text-slate-400"><th className="text-left font-normal">Phiên khoá</th><th className="text-left font-normal">Danh mục</th><th className="font-normal">Vượt rổ đều 5p</th><th className="font-normal">Vượt rổ đều 10p</th><th className="font-normal">VN-Index 10p</th></tr></thead>
+              <tbody>
+                {recent.map((e) => {
+                  // Danh mục 100% tiền mặt không có gì để chấm -> ghi rõ, không để "chờ" mãi.
+                  const cashOnly = Boolean(e.empty) || e.holdings.length === 0;
+                  const cell = (h: "5" | "10") => (e.results[h] ? `${sgn(e.results[h].excess * 100, 2)}%` : cashOnly ? "—" : "chờ");
+                  return (
+                    <tr key={e.date} className="border-t border-white/5">
+                      <td className="py-1">{fmtDate(e.date)}{e.frozen && <span className="ml-1 text-[10px] text-rose-300" title="Phiên bị chốt dữ liệu: danh mục giữ nguyên">chốt dữ liệu</span>}</td>
+                      <td className="text-slate-400">{cashOnly ? <span data-testid={`${testId}-cash-${e.date}`}>100% tiền mặt — không chấm</span> : <>{e.holdings.map((h) => h.ticker).join(" ")}{e.cash != null && e.cash > 0.0005 && <span className="ml-1 text-[10px] text-slate-400">· tiền mặt {num(e.cash * 100, 0)}%</span>}</>}</td>
+                      <td className="text-center font-mono">{cell("5")}</td>
+                      <td className="text-center font-mono">{cell("10")}</td>
+                      <td className="text-center font-mono">{e.results["10"]?.vnIndex != null ? `${sgn(e.results["10"].vnIndex * 100, 2)}%` : "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-slate-400">Vào lệnh đóng cửa d+1, ra đóng cửa d+1+h; chi phí 0,40%/vòng cho cả danh mục và rổ đều (lợi suất vượt không đổi khi trừ phí cả hai). Đường cong là xấp xỉ: lợi suất vượt 10 phiên chia đều theo phiên rồi cộng dồn.</p>
+        </>
+      )}
+    </section>
+  );
+}
+
 export default function EvidenceLedgerTab() {
   const { data: ev, error } = useEliteEvidence();
-  const { data: ledger } = useEliteLedger();
+  const { data: ledger, error: ledgerError } = useEliteLedger();
+  const hl = isHlLedger(ledger);
+  // Khi sổ chính thức là Elite HL, sổ của danh mục dòng tiền (E3) vẫn chạy song song — hiện riêng để không mất lịch sử.
+  const { data: flowLedger, error: flowError } = useEliteLedger("flow", hl);
   const { data: retro } = useEliteRetro();
   const { data: retroV3 } = useEliteRetroV3();
   const sorted = useMemo(() => {
@@ -179,10 +232,14 @@ export default function EvidenceLedgerTab() {
   }, [ev]);
   if (error) return <p className="text-xs text-rose-400">Không tải được bằng chứng: {String(error.message ?? error)}</p>;
   if (!ev) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tải bằng chứng…</p>;
-  const recent = [...(ledger?.entries ?? [])].reverse().slice(0, 15);
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-evidence-tab">
+      {hl && (
+        <p className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-100" data-testid="elite-evidence-scope">
+          <b>Phạm vi bằng chứng.</b> Danh mục chính thức hiện là <b>Elite HL</b> (quy tắc do chủ dự án đặt, nhãn THĂM DÒ). Bằng chứng từng tín hiệu (E2) và hai kiểm định hồi cứu E7 / E7-v3 bên dưới thuộc về <b>Điểm Elite và danh mục Elite dòng tiền (cũ)</b> — chúng KHÔNG phải kiểm định của Elite HL. Elite HL hiện chỉ có mô phỏng khám phá K0 (ngang thị trường, xem Bảng quyết định) và sổ theo dõi tiến mô tả ở cuối trang.
+        </p>
+      )}
       {/* Elite × TO Giai đoạn II: sổ ảo (THĂM DÒ) — không đổi danh mục chính thức. */}
       <EliteToShadowCard />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
@@ -218,46 +275,18 @@ export default function EvidenceLedgerTab() {
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm định hồi cứu walk-forward (E7)</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
         <RetroSection r={retro} />
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Hiệu chỉnh quá khớp (E7-v3)</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
         <RetroV3Section r={retroV3} />
       </section>
 
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-ledger-tab">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Sổ theo dõi tiến Elite 10 (E3)</h4>
-          {ledger && <span className="text-[10px] text-slate-500">{ledger.version} · cập nhật {ledger.updatedAt ? new Date(ledger.updatedAt).toLocaleString("vi-VN", { hour12: false }) : "—"}</span>}
-        </div>
-        {!ledger ? <p className="text-[11px] text-slate-500">Sổ theo dõi chưa có bản ghi.</p> : (
-          <>
-            <p className={`text-[11px] font-bold ${ledger.summary.label === "EVIDENCE" ? "text-emerald-300" : "text-amber-300"}`}>{ledger.summary.labelVi}</p>
-            <LedgerSummaryView s={ledger.summary} />
-            <RealisticView s={ledger.summary.realistic} testId="elite-ledger-realistic" />
-            <Curve points={ledger.summary.horizons["10"]?.curve ?? []} />
-            <div className="overflow-x-auto">
-              <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 620 }}>
-                <thead><tr className="text-slate-500"><th className="text-left font-normal">Phiên khoá</th><th className="text-left font-normal">Danh mục</th><th className="font-normal">Vượt rổ đều 5p</th><th className="font-normal">Vượt rổ đều 10p</th><th className="font-normal">VN-Index 10p</th></tr></thead>
-                <tbody>
-                  {recent.map((e) => (
-                    <tr key={e.date} className="border-t border-white/5">
-                      <td className="py-1">{fmtDate(e.date)}</td>
-                      <td className="text-slate-400">{e.holdings.map((h) => h.ticker).join(" ")}</td>
-                      <td className="text-center font-mono">{e.results["5"] ? `${sgn(e.results["5"].excess * 100, 2)}%` : "chờ"}</td>
-                      <td className="text-center font-mono">{e.results["10"] ? `${sgn(e.results["10"].excess * 100, 2)}%` : "chờ"}</td>
-                      <td className="text-center font-mono">{e.results["10"]?.vnIndex != null ? `${sgn(e.results["10"].vnIndex * 100, 2)}%` : "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-[10px] text-slate-500">Vào lệnh đóng cửa d+1, ra đóng cửa d+1+h; chi phí 0,40%/vòng cho cả danh mục và rổ đều (lợi suất vượt không đổi khi trừ phí cả hai). Đường cong là xấp xỉ: lợi suất vượt 10 phiên chia đều theo phiên rồi cộng dồn.</p>
-          </>
-        )}
-      </section>
+      <LedgerSection ledger={ledger} error={ledgerError} hl={hl} testId="elite-ledger-tab" title={hl ? "Sổ theo dõi tiến — Elite HL (danh mục chính thức)" : "Sổ theo dõi tiến Elite 10 (E3)"} />
+      {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (cũ, E3)" />}
+      <p className="text-[10px] text-slate-400" data-testid="elite-evidence-disclaimer">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
   );
 }

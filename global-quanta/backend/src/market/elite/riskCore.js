@@ -130,6 +130,7 @@ export function varSuite(port, level) {
 export function portfolioRisk({ tickers, weights, returns, dates, bench, sectors = [] }) {
   const N = tickers.length, T = returns.length;
   const w = weights;
+  const wSum = w.reduce((a, x) => a + x, 0);
   const { sigma, delta, rBar } = ledoitWolf(returns);
   const Sw = matVec(sigma, w);
   const varP = dot(w, Sw);
@@ -173,7 +174,9 @@ export function portfolioRisk({ tickers, weights, returns, dates, bench, sectors
     shrinkage: { delta, avgCorrelation: rBar, method: "Ledoit–Wolf (2004), mục tiêu tương quan hằng số" },
     volatility: { daily: volP, annual: volP * Math.sqrt(252) },
     holdings: tickers.map((t, i) => ({ ticker: t, weight: w[i], volAnnual: vols[i] * Math.sqrt(252), riskContribution: rc[i] / volP, sector: sectors[i] ?? null })),
-    diversification: { ratio: dot(w, vols) / volP, effectiveN: 1 / dot(w, w), enb, hhi: dot(w, w) },
+    // Số mã hiệu dụng / HHI tính trên tỷ trọng CHUẨN HOÁ trong phần cổ phiếu: danh mục có tiền mặt (Σw < 1) không được thổi phồng
+    // (3 mã × 10% phải ra 3, không phải 33).
+    diversification: { ratio: dot(w, vols) / volP, effectiveN: wSum > 0 ? (wSum * wSum) / dot(w, w) : null, enb, hhi: wSum > 0 ? dot(w, w) / (wSum * wSum) : null },
     var: { 0.95: varSuite(port, 0.95), 0.99: varSuite(port, 0.99), tenDayNoteVi: "Quy đổi 10 phiên ≈ VaR 1 phiên × √10 (giả định lợi suất độc lập, cùng phân phối)." },
     beta, corrWithVnIndex: corr,
     maxDrawdown: { value: mdd, from: mddFrom, to: mddTo },

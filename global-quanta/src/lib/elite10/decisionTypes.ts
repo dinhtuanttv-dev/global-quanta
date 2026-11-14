@@ -54,7 +54,9 @@ export interface LedgerHorizon {
 }
 /** R3: chấm thực tế kiểu Việt Nam (mô tả) theo kỳ hạn -> quy mô vốn (đồng, dạng chuỗi). */
 export interface RealisticSummary { version: string; horizons: Record<string, Record<string, { n: number; meanExcess: number | null; meanOfficialExcess: number | null; meanImpactBps: number | null; fillRate: number | null; delayedExits: number; meanInvested: number | null }>> }
-export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criteria: { icPass: boolean; excessPass: boolean; sessions: number }; label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string; realistic?: RealisticSummary }
+export interface LedgerSummary { horizons: Record<string, LedgerHorizon>; criteria: { icPass: boolean; excessPass: boolean; sessions: number }; label: "EVIDENCE" | "EXPERIMENTAL"; labelVi: string; realistic?: RealisticSummary;
+  /** E4-HL: sổ của danh mục Elite HL — chỉ mô tả; basisVi = cơ sở chấm (rổ mã đang giữ quy về 100% cổ phiếu). */
+  kind?: "ELITE_HL"; basisVi?: string }
 
 /** C1: ứng viên xếp sau danh mục + lý do chưa vào (Gateway phát lại thuật toán dựng danh mục trên tài liệu đã lưu). */
 export type CandidateReason = "sector_cap" | "full" | "below";
@@ -93,11 +95,13 @@ export const TIER_TITLE: Record<Tier, string> = {
 export interface VarBlock { level: number; historical: { var: number; cvar: number }; gaussian: { var: number; cvar: number }; cornishFisher: { var: number }; moments: { mean: number; sd: number; skew: number; exKurt: number } }
 export interface EliteRisk {
   date: string; version: string; generatedAt: string; label: string; available: boolean; reasonVi?: string;
+  /** E4-HL: loại danh mục đang đo, tỷ trọng cổ phiếu / tiền mặt (phân số 0–1); empty = danh mục 100% tiền mặt. */
+  kind?: "ELITE_HL" | "ELITE_FLOW"; invested?: number; cash?: number; empty?: boolean;
   sessions?: number; from?: string; to?: string;
   shrinkage?: { delta: number; avgCorrelation: number; method: string };
   volatility?: { daily: number; annual: number };
   holdings?: { ticker: string; weight: number; volAnnual: number; riskContribution: number; sector: string | null }[];
-  diversification?: { ratio: number; effectiveN: number; enb: number; hhi: number };
+  diversification?: { ratio: number; effectiveN: number | null; enb: number; hhi: number | null };
   var?: { "0.95": VarBlock; "0.99": VarBlock; tenDayNoteVi: string };
   beta?: number | null; corrWithVnIndex?: number | null;
   maxDrawdown?: { value: number; from: string | null; to: string | null };
@@ -108,6 +112,8 @@ export interface EliteRisk {
 
 export interface LedgerEntry {
   date: string; lockedAt: string; holdings: { ticker: string; weight: number }[]; universeSize: number | null;
+  /** E4-HL: tỷ lệ tiền mặt lúc khoá; empty = danh mục 100% tiền mặt (không chấm); frozen = phiên bị chốt dữ liệu. */
+  cash?: number; empty?: boolean; frozen?: boolean; rebalance?: boolean;
   results: Record<string, { from: string; to: string; portfolioNet: number; universeNet: number; excess: number; vnIndex: number | null; ic: number | null; names: number }>;
 }
 export interface EliteLedger { version: string; updatedAt: string; summary: LedgerSummary; entries: LedgerEntry[] }

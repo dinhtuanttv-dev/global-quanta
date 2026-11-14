@@ -37,8 +37,9 @@ export function useEliteRisk() {
   return useSWR<import("../../lib/elite10/decisionTypes").EliteRisk>("elite-risk", () => fetchMarketJson("/api/elite/risk"), OPTS);
 }
 
-export function useEliteLedger() {
-  return useSWR<import("../../lib/elite10/decisionTypes").EliteLedger>("elite-ledger", () => fetchMarketJson("/api/elite/ledger"), OPTS);
+/** Sổ theo dõi tiến: mặc định = sổ chính thức; book "flow" = sổ danh mục Elite dòng tiền (cũ). `enabled = false` -> không gọi. */
+export function useEliteLedger(book: "flow" | null = null, enabled = true) {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteLedger>(!enabled ? null : book ? `elite-ledger-${book}` : "elite-ledger", () => fetchMarketJson(book ? `/api/elite/ledger?book=${book}` : "/api/elite/ledger"), OPTS);
 }
 
 /** E7: kiểm định hồi cứu walk-forward (404 khi chưa chạy -> null). */

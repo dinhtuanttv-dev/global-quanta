@@ -93,3 +93,29 @@ test("E6 căn chuỗi: chỉ giữ phiên mọi mã đều có giá; dịch vụ
   assert.equal(r.available, false);
   assert.match(r.reasonVi, /cần ≥ 60/);
 });
+
+// F02 (13/11/2026): danh mục Elite HL có thể giữ tiền mặt hoặc 100% tiền mặt.
+test("E6 + E4-HL: danh mục 100% tiền mặt -> không phải lỗi; có tiền mặt -> số mã hiệu dụng tính trong phần cổ phiếu", async () => {
+  const svc = createRiskService({ store: createMemoryStore(), vnIndex: async () => [], decision: async () => ({ date: "2026-11-13", version: "E4-HL v1", hl: { cash: 1 }, portfolio: [] }) });
+  const r = await svc.risk();
+  assert.equal(r.available, false);
+  assert.equal(r.empty, true);
+  assert.equal(r.kind, "ELITE_HL");
+  assert.equal(r.cash, 1);
+  assert.match(r.reasonVi, /100% tiền mặt/);
+  assert.equal(await createRiskService({ store: createMemoryStore(), vnIndex: async () => [], decision: async () => null }).risk(), null);
+
+  // 3 mã × 10% (70% tiền mặt): N hiệu dụng phải là 3, HHI 1/3 — trước đây ra 33,3 và 0,03.
+  let seed = 7; const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 - 0.5; };
+  const returns = Array.from({ length: 120 }, () => [rnd() * 0.04, rnd() * 0.04, rnd() * 0.04]);
+  const dates = returns.map((_, i) => `d${String(i).padStart(3, "0")}`), bench = returns.map(() => rnd() * 0.02);
+  const cash = portfolioRisk({ tickers: ["A", "B", "C"], weights: [0.1, 0.1, 0.1], returns, dates, bench });
+  const full = portfolioRisk({ tickers: ["A", "B", "C"], weights: [1 / 3, 1 / 3, 1 / 3], returns, dates, bench });
+  assert.ok(Math.abs(cash.diversification.effectiveN - 3) < 1e-9);
+  assert.ok(Math.abs(cash.diversification.hhi - 1 / 3) < 1e-9);
+  assert.ok(Math.abs(full.diversification.effectiveN - 3) < 1e-9);
+  // Biến động của cả danh mục co theo tỷ lệ cổ phiếu (tiền mặt không biến động); đóng góp rủi ro vẫn cộng lại 100%.
+  assert.ok(Math.abs(cash.volatility.daily - full.volatility.daily * 0.3) < 1e-12);
+  assert.ok(Math.abs(cash.holdings.reduce((a, h) => a + h.riskContribution, 0) - 1) < 1e-9);
+  assert.ok(Math.abs(cash.diversification.ratio - full.diversification.ratio) < 1e-9);
+});
