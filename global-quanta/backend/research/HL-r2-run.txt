@@ -1,0 +1,16 @@
+
+=== DECISION 2014-03-03 → 2019-12-31 (1459 phiên) ===
+VN-Index (giá): 9.4%/năm, sụt giảm -27.1% · Bình quân đều vũ trụ: 2.5%/năm, sụt giảm -34.5%
+B     16.1%/năm · biến động 16.1% · Sharpe 1.01 · sụt giảm -30.3% · mã 7.9 · tiền mặt 23% · xoay 6.4x · vs bình quân đều 1.13%/20p (t 2.13) · vs VN-Index 0.56% (t 1.15) · DSR {"sr":0.06376519179702027,"sr0":0.013001516497964691,"N":4," · chốt 51 · không mua được 10 · không bán được 13
+C2     7.0%/năm · biến động 14.0% · Sharpe 0.55 · sụt giảm -28.5% · mã 5.9 · tiền mặt 41% · xoay 4.5x · vs bình quân đều 0.40%/20p (t 0.78) · vs VN-Index -0.16% (t -0.32) · vs B -0.72% (t -2.11, p 0.035) · DSR {"sr":0.034796631885531705,"sr0":0.013001516497964691,"N":4, · chốt 51 · không mua được 7 · không bán được 9
+C6    13.3%/năm · biến động 15.3% · Sharpe 0.89 · sụt giảm -31.1% · mã 7.0 · tiền mặt 33% · xoay 5.6x · vs bình quân đều 0.91%/20p (t 1.70) · vs VN-Index 0.35% (t 0.65) · vs B -0.22% (t -1.03, p 0.303) · DSR {"sr":0.0564551371514927,"sr0":0.013001516497964691,"N":4,"V · chốt 51 · không mua được 5 · không bán được 12
+C7    13.3%/năm · biến động 16.1% · Sharpe 0.85 · sụt giảm -33.4% · mã 8.3 · tiền mặt 20% · xoay 5.7x · vs bình quân đều 0.94%/20p (t 1.69) · vs VN-Index 0.38% (t 0.71) · vs B -0.19% (t -0.75, p 0.456) · DSR {"sr":0.05404304377869746,"sr0":0.013001516497964691,"N":4," · chốt 51 · không mua được 5 · không bán được 37
+theo năm (B − bình quân đều): 2014 4.1% / 8.4% · 2015 27.4% / -1.6% · 2016 15.8% / -2.8% · 2017 41.4% / 27.8% · 2018 6.4% / -15.8% · 2019 3.6% / 3.0% · 2020 -0.1% / 0.6%
+
+=== REPORT 2020-01-02 → 2026-11-12 (841 phiên) ===
+VN-Index (giá): 3.0%/năm, sụt giảm -40.3% · Bình quân đều vũ trụ: 12.0%/năm, sụt giảm -64.8%
+B      0.8%/năm · biến động 23.2% · Sharpe 0.15 · sụt giảm -52.7% · mã 8.3 · tiền mặt 17% · xoay 6.6x · vs bình quân đều -1.07%/20p (t -1.13) · vs VN-Index -0.08% (t -0.09) · DSR {"sr":0.009559260007575942,"sr0":0.016562045301020033,"N":4, · chốt 0 · không mua được 14 · không bán được 32
+C2     7.8%/năm · biến động 23.4% · Sharpe 0.44 · sụt giảm -51.8% · mã 7.7 · tiền mặt 26% · xoay 5.6x · vs bình quân đều -0.60%/20p (t -0.55) · vs VN-Index 0.38% (t 0.42) · vs B 0.47% (t 0.87, p 0.384) · DSR {"sr":0.02773257235823958,"sr0":0.016562045301020033,"N":4," · chốt 0 · không mua được 12 · không bán được 22
+C6    15.0%/năm · biến động 21.5% · Sharpe 0.76 · sụt giảm -43.3% · mã 7.0 · tiền mặt 31% · xoay 5.0x · vs bình quân đều -0.01%/20p (t -0.01) · vs VN-Index 0.97% (t 0.99) · vs B 1.06% (t 2.07, p 0.039) · DSR {"sr":0.04808831236035187,"sr0":0.016562045301020033,"N":4," · chốt 0 · không mua được 11 · không bán được 16
+C7     8.5%/năm · biến động 23.9% · Sharpe 0.46 · sụt giảm -53.3% · mã 8.6 · tiền mặt 16% · xoay 6.2x · vs bình quân đều -0.45%/20p (t -0.47) · vs VN-Index 0.54% (t 0.58) · vs B 0.62% (t 1.39, p 0.164) · DSR {"sr":0.02914467316781609,"sr0":0.016562045301020033,"N":4," · chốt 0 · không mua được 13 · không bán được 37
+theo năm (B − bình quân đều): 2020 -3.3% / 39.0% · 2021 101.0% / 100.8% · 2022 -47.8% / -54.1% · 2023 1.2% / 14.3%
