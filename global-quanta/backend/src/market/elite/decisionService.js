@@ -1,10 +1,10 @@
 // Elite 10 E3 (2026-10-17) — dịch vụ quyết định: Điểm Elite + danh mục Elite 10 mỗi phiên (E3-prereg.md) và SỔ THEO DÕI TIẾN.
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
-import { buildCandidates, buildDecision, E3_V5, E3_VERSION, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { buildCandidates, buildDecision, COST_ROUND_TRIP, E3_V5, E3_VERSION, ELIGIBILITY, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
-import { buildHlPortfolio, hlTradable, HL_PF_VERSION, isoWeek } from "./eliteHl.js";
+import { buildHlPortfolio, hlTradable, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
 import { REGIME_VI } from "./leadership.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
@@ -257,7 +257,31 @@ export function createDecisionService({ store, panel, evidence, vnIndex, now = D
     return { date: doc.date, ...userFilters.personal({ filter, panel: p, doc, prices, buyZone: zone, prevHoldings }) };
   }
 
-  return { build, decision, ledger, rankHistory, personalPortfolio };
+  /**
+   * Độ mới của quyết định so với lịch phiên thật (VN-Index): số phiên ĐÃ ĐÓNG sau phiên của tài liệu. 0 = mới nhất; 1 = bình thường
+   * trong khoảng từ lúc đóng cửa tới khi bảng dựng xong (sau 17:00); ≥ 2 = job dựng đã lỡ ít nhất một phiên. Lỗi nguồn -> null.
+   */
+  let freshMemo = null;
+  async function freshness(date) {
+    if (!date) return null;
+    try {
+      if (!freshMemo || now() - freshMemo.at > 5 * 60_000) freshMemo = { at: now(), dates: (await vnIndex()).map((r) => r[0]).sort() };
+      const dates = freshMemo.dates;
+      return { latestSession: dates[dates.length - 1] ?? null, sessionsBehind: dates.filter((d) => d > date).length };
+    } catch (e) { log.warn?.(`[elite] độ mới quyết định: ${e.message}`); return null; }
+  }
+  /** Lớp trình bày cho GET /api/elite/decision: thêm số liệu HIỂN THỊ (không lưu vào KV, không đổi tài liệu đã khoá). */
+  async function present(doc, { withFreshness = true } = {}) {
+    if (!doc) return doc;
+    return {
+      ...doc,
+      ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1 } } : {}),
+      display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice },
+      ...(withFreshness ? { freshness: await freshness(doc.date) } : {}),
+    };
+  }
+
+  return { build, decision, ledger, rankHistory, personalPortfolio, present, freshness };
 }
 
 /** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */

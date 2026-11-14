@@ -47,7 +47,7 @@ const score = (ticker: string, inPortfolio: boolean) => ({ ticker, rank: 40, Z: 
 const panelOf = (ticker: string) => ({ date: "2026-11-13", ticker, icb: null, sector: null, values: {}, signals: [], missingSources: [] });
 const hlDecision = {
   date: "2026-11-13", version: "E4-HL v1",
-  portfolio: [{ ticker: "FPT", weight: 0.1, Z: 0.2 }],
+  portfolio: [{ ticker: "FPT", weight: 0.1, Z: 0.2, hl: { status: "HOLD", cls: "CONFLUENCE" } }],
   flowPortfolio: [{ ticker: "ORS", weight: 0.5, Z: 2.2, rank: 1 }, { ticker: "NAB", weight: 0.5, Z: 1.4, rank: 4 }],
   hl: {
     queue: [{ ticker: "MWG", hlRank: 3, code: "wait", reasonVi: "Chờ phiên cân bằng đầu tuần kế tiếp" }],

@@ -122,3 +122,62 @@ describe("Bảng quyết định Elite HL", () => {
     expect(text("elite-decision-board")).toMatch(/Bảng quyết định Elite 10/);
   });
 });
+
+// 13/11/2026 — số ngưỡng lấy từ Gateway, cảnh báo độ mới, vị thế thiếu số, gợi ý hiện thành chữ (không chỉ nằm trong title).
+describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu dữ liệu", () => {
+  beforeEach(() => { localStorage.clear(); current = decision; });
+  afterEach(() => cleanup());
+
+  it("ngưỡng tầng 1 và chi phí sổ lấy từ Gateway: đổi nguồn thì chữ đổi theo; Gateway cũ dùng mặc định", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 20% và ≥ 2 mô hình TA");
+    expect(text("hl-rules")).toContain("LS-v1 top 20% và ≥ 2/7 mô hình TA");
+    expect(text("hl-funnel-tip-1")).toContain("giá ≥ 5.000đ");
+    expect(text("elite-ledger")).toContain("chi phí giả định 0,40%/vòng");
+    cleanup();
+    const d2: EliteDecision = { ...decision, display: { ledgerCostRoundTrip: 0.0045, flowMinAdvBn: 10, flowMinPrice: 5000 }, hl: { ...decision.hl!, tier1: { lsLeaderPct: 75, taMin: 3, taModels: 8, maxScore: 10 }, rule: { ...decision.hl!.rule, minPrice: 6000 } } };
+    render(<EliteHlBoard d={d2} onOpenTicker={() => {}} />);
+    expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 25% và ≥ 3 mô hình TA");
+    expect(text("hl-rules")).toContain("≥ 3/8 mô hình TA");
+    expect(text("hl-row-VJC")).toContain("TA 5/8");
+    expect(text("hl-funnel-tip-1")).toContain("giá ≥ 6.000đ");
+    expect(text("elite-ledger")).toContain("chi phí giả định 0,45%/vòng");
+  });
+
+  it("độ mới: chậm ≥ 2 phiên -> cảnh báo đỏ; chậm 1 phiên -> ghi chú chờ dựng; mới nhất -> không hiện gì", () => {
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-17", sessionsBehind: 2 } }} onOpenTicker={() => {}} />);
+    expect(text("hl-stale")).toContain("Bảng đang chậm 2 phiên");
+    expect(text("hl-stale")).toContain("17/11/2026");
+    cleanup();
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-16", sessionsBehind: 1 } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-stale")).toBeNull();
+    expect(text("hl-pending")).toContain("dựng sau 17:00");
+    cleanup();
+    render(<EliteHlBoard d={{ ...decision, freshness: { latestSession: "2026-11-13", sessionsBehind: 0 } }} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-stale")).toBeNull();
+    expect(screen.queryByTestId("hl-pending")).toBeNull();
+  });
+
+  it("làm mới lỗi khi đang có dữ liệu cũ -> băng cảnh báo, bảng vẫn hiện", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} refreshError="Market API lỗi 503" />);
+    expect(text("hl-refresh-error")).toContain("Không làm mới được dữ liệu");
+    expect(text("hl-refresh-error")).toContain("503");
+    expect(text("hl-row-VJC")).toContain("VJC");
+  });
+
+  it("vị thế đang giữ nhưng vắng dữ liệu phiên này (Z / giá = null): hiện '—', không sập, không ra số 0", () => {
+    const ghost = { ...pick("ABC", 0.08, { rank: 9999, cls: "NOT_T1", t1: 0, t3: 0, lsPct: null, taCount: 0, rrg: null, status: "HOLD", exitBufferLs: null, advBn: null, warnings: ["Không có dữ liệu của mã phiên này (lần 1/2) — chưa ra"] }), Z: null, rank: null, pOutperform: null, close: null, stop: null, target: null, sectorKey: null };
+    render(<EliteHlBoard d={{ ...decision, portfolio: [...decision.portfolio, ghost as unknown as PortfolioPick] }} onOpenTicker={() => {}} />);
+    const row = text("hl-row-ABC");
+    expect(row).toContain("Không có dữ liệu của mã phiên này");
+    expect(row).toContain("—");
+    expect(row).not.toMatch(/(^|[^0-9,.])0 – 0/);
+  });
+
+  it("ghi chú: cơ sở chấm của sổ HL, dải tham chiếu không phải lệnh, tỷ trọng là số lúc vào", () => {
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(text("hl-ledger-basis")).toContain("không tính phần tiền mặt");
+    expect(text("hl-sizing-note")).toContain("không phải lệnh cắt lỗ");
+    expect(text("hl-sizing-note")).toContain("số lúc vào");
+  });
+});

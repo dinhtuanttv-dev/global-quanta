@@ -4,7 +4,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { HL_TA_LABELS, HL_VOTE_LABELS } from "../../../lib/elite10/confluence";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
-import type { EliteDecision, HlClassCode, LedgerSummary, PortfolioPick } from "../../../lib/elite10/decisionTypes";
+import { hlPicks, type EliteDecision, type HlClassCode, type HlPick, type LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
 
@@ -48,8 +48,8 @@ function Bar({ value, max, tone = "bg-emerald-400/70", mark, width = 64 }: { val
   );
 }
 /** N2 — thẻ "Vì sao": điều kiện tầng 1, phiếu tầng 3, ba ngưỡng ra và lãi/lỗ từ phiên khoá của một vị thế. */
-function HlWhy({ p, exitLsPct, mobile = false }: { p: PortfolioPick; exitLsPct: number; mobile?: boolean }) {
-  const h = p.hl!;
+function HlWhy({ p, exitLsPct, mobile = false }: { p: HlPick; exitLsPct: number; mobile?: boolean }) {
+  const h = p.hl;
   const ta = Object.entries(h.ta ?? {}), votes = Object.entries(h.votes ?? {});
   const voteTone = (v: number | null) => (v == null ? "border-white/10 text-slate-500" : v > 0 ? "border-emerald-400/40 text-emerald-300" : v < 0 ? "border-rose-400/40 text-rose-300" : "border-white/15 text-slate-400");
   return (
@@ -100,12 +100,18 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const secName = (k: string | null | undefined) => (k ? sectorName.get(k) ?? k : "—");
   const f = hl.funnel, r = hl.rule, ch = hl.changes;
+  const picks = hlPicks(d);
+  // Ngưỡng tầng 1 và chi phí sổ lấy từ Gateway; mặc định chỉ dùng khi Gateway bản cũ chưa gửi.
+  const t1 = hl.tier1 ?? { lsLeaderPct: 80, taMin: 2, taModels: 7, maxScore: 10 };
+  const lsTop = 100 - t1.lsLeaderPct;
+  const dong = (v: number | undefined) => (v == null ? "5.000" : v.toLocaleString("vi-VN"));
+  const ledgerCost = d.display?.ledgerCostRoundTrip ?? 0.004;
   const [why, setWhy] = useState<string | null>(null);
-  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
+  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
   const steps: [string, number, string][] = [
     ["Bảng tín hiệu", f.panel, "mã có tín hiệu trong phiên"],
-    ["Giao dịch được", f.tradable, `GTGD TB20 ≥ ${r.minAdvBn} tỷ, giá ≥ 5.000đ, giá không bị neo`],
-    ["Đạt tầng 1", f.tier1, "LS-v1 top 20% và ≥ 2 mô hình TA"],
+    ["Giao dịch được", f.tradable, `GTGD TB20 ≥ ${r.minAdvBn} tỷ, giá ≥ ${dong(r.minPrice)}đ, giá không bị neo`],
+    ["Đạt tầng 1", f.tier1, `LS-v1 top ${lsTop}% và ≥ ${t1.taMin} mô hình TA`],
     ["Hợp lưu", f.selected, "tầng 1 + RRG ngành Cải thiện / Dẫn dắt"],
     ["Hợp lưu giao dịch được", f.selectedTradable, "đủ thanh khoản để vào danh mục"],
     ["Danh mục", f.held, `tối đa ${r.slots} mã, ${r.maxPerSector} mã / ngành`],
@@ -129,6 +135,14 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         <div role="alert" className="rounded-lg border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11.5px] text-amber-100" data-testid="hl-refresh-error">
           <b>Không làm mới được dữ liệu</b> ({refreshError}). Bảng đang hiện bản của phiên {fmtDate(d.date)}, dựng lúc {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} — có thể chưa phải phiên mới nhất.
         </div>
+      )}
+      {d.freshness && d.freshness.sessionsBehind >= 2 && (
+        <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-stale">
+          <b>Bảng đang chậm {d.freshness.sessionsBehind} phiên.</b> Phiên giao dịch mới nhất là {fmtDate(d.freshness.latestSession)}, nhưng bảng quyết định mới dựng tới phiên {fmtDate(d.date)}. Danh mục và các ngưỡng ra bên dưới KHÔNG phản ánh các phiên sau đó.
+        </div>
+      )}
+      {d.freshness?.sessionsBehind === 1 && (
+        <p className="text-[10.5px] text-slate-400" data-testid="hl-pending">Phiên {fmtDate(d.freshness.latestSession)} đã đóng cửa; bảng của phiên đó được dựng sau 17:00. Đang hiện bảng phiên {fmtDate(d.date)}.</p>
       )}
       {hl.dataGuard?.frozen ? (
         <div role="alert" className="rounded-lg border border-rose-400/60 bg-rose-500/10 px-3 py-2 text-[11.5px] text-rose-200" data-testid="hl-data-guard">
@@ -158,6 +172,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             <li key={label} title={tip} className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1.5" data-testid={`hl-funnel-${i}`} data-n={n}>
               <p className="text-[10px] text-slate-500">{i + 1}. {label}</p>
               <p className="text-[15px] font-bold text-slate-100">{n}</p>
+              <p className="text-[10px] leading-snug text-slate-400" data-testid={`hl-funnel-tip-${i}`}>{tip}</p>
               <Bar value={n} max={f.panel || 1} tone={i === steps.length - 1 ? "bg-[#E8B84B]/80" : "bg-emerald-400/60"} width={96} />
             </li>
           ))}
@@ -175,11 +190,11 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       </Panel>
 
       <Panel title={`Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
-        {d.portfolio.length === 0 ? <p className="text-[11px] text-slate-400" data-testid="hl-empty">Không có mã nào đạt Hợp lưu và giao dịch được — danh mục đang 100% tiền mặt.</p> : (
+        {picks.length === 0 ? <p className="text-[11px] text-slate-400" data-testid="hl-empty">Không có mã nào đạt Hợp lưu và giao dịch được — danh mục đang 100% tiền mặt.</p> : (
           <>
           <ul className="space-y-1.5 md:hidden" data-testid="hl-cards">
-            {d.portfolio.map((p: PortfolioPick) => {
-              const h = p.hl!;
+            {picks.map((p) => {
+              const h = p.hl;
               return (
                 <li key={p.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`hl-card-${p.ticker}`}>
                   <div className="flex flex-wrap items-center justify-between gap-1">
@@ -187,7 +202,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
                   <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ · giá {price(p.close)}</p>
-                  <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/10</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/7)</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
+                  <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
                   {h.warnings.map((w) => <p key={w} className="text-[10px] text-amber-300">⚠ {w}</p>)}
                   <div className="mt-1">{whyBtn(p.ticker, true)}</div>
@@ -208,8 +223,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                 </tr>
               </thead>
               <tbody>
-                {d.portfolio.map((p: PortfolioPick) => {
-                  const h = p.hl!;
+                {picks.map((p) => {
+                  const h = p.hl;
                   return (
                     <Fragment key={p.ticker}>
                     <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
@@ -219,8 +234,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
                         <span className="block text-[10px] text-slate-500">rủi ro {pct(p.riskContribution, 0)}</span></td>
-                      <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{h.t1}</b><span className="text-slate-500">/10</span> <Bar value={h.t1} max={10} width={56} />
-                        <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/7</span></td>
+                      <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{h.t1}</b><span className="text-slate-500">/{t1.maxScore}</span> <Bar value={h.t1} max={t1.maxScore} width={56} />
+                        <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels}</span></td>
                       <td className="whitespace-nowrap pr-2"><span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "—" : RRG_VI[String(h.rrg)]}</span>
                         <span className="block text-[10px] text-slate-500">{h.t2 > 0 ? "ủng hộ" : h.t2 < 0 ? "phản đối" : "trung tính"}</span></td>
                       <td className="pr-2"><b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></td>
@@ -240,7 +255,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           </>
         )}
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
-          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng.
+          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời.
         </p>
       </Panel>
 
@@ -274,7 +289,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Panel title="Quy tắc vào · giữ · ra" testId="hl-rules">
           <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-slate-300">
-            <li><b>Chọn:</b> tầng 1 (LS-v1 top 20% và ≥ 2/7 mô hình TA) → RRG ngành Cải thiện / Dẫn dắt → tích điểm các tab.</li>
+            <li><b>Chọn:</b> tầng 1 (LS-v1 top {lsTop}% và ≥ {t1.taMin}/{t1.taModels} mô hình TA) → RRG ngành Cải thiện / Dẫn dắt → tích điểm các tab.</li>
             <li><b>Vào:</b> chỉ ở phiên đầu mỗi tuần, theo thứ tự xếp hạng; GTGD TB20 ≥ {r.minAdvBn} tỷ; tối đa {r.slots} mã, {r.maxPerSector} mã và {pct(r.sectorCap, 0)} tỷ trọng mỗi ngành.</li>
             <li><b>Giữ:</b> không cân lại tỷ trọng; ngành chuyển sang Suy yếu chỉ là cảnh báo.</li>
             <li><b>Ra (xét mỗi phiên):</b> LS-v1 dưới phân vị {r.exitLsPct}, hoặc không còn mô hình TA nào đạt, hoặc ngành rơi vào Tụt hậu.</li>
@@ -292,7 +307,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
               </tbody>
             </table>
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">Sổ Elite HL bắt đầu từ phiên chuyển đổi; sổ dòng tiền tiếp nối sổ cũ. Cả hai khoá danh mục lúc dựng, chấm ở giá đóng cửa phiên kế tiếp, chi phí giả định 0,40%/vòng.</p>
+          <p className="mt-1 text-[10px] text-slate-500">Sổ Elite HL bắt đầu từ phiên chuyển đổi; sổ dòng tiền tiếp nối sổ cũ. Cả hai khoá danh mục lúc dựng, chấm ở giá đóng cửa phiên kế tiếp, chi phí giả định {pct(ledgerCost, 2)}/vòng.</p>
           <p className="mt-1 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10px] leading-relaxed text-amber-200" data-testid="hl-ledger-basis">{d.ledgerSummary?.basisVi ?? "Cột Elite HL chấm rổ mã đang giữ quy về 100% cổ phiếu (không tính phần tiền mặt), kỳ hạn cố định 5 và 10 phiên — chưa phải lãi / lỗ của danh mục thật (có tiền mặt, giữ tới khi chạm ngưỡng ra)."}</p>
           <HlLedgerNote />
         </Panel>

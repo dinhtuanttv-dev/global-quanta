@@ -16,6 +16,7 @@ import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
 import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
+import "./elite10.css";
 
 type Sub = "board" | "profile" | "ai" | "evidence" | "risk";
 const SUBS: { id: Sub; label: string }[] = [
@@ -60,7 +61,7 @@ export default function Elite10Hub() {
   };
 
   return (
-    <div className="flex flex-col gap-3" data-testid="elite10-hub">
+    <div className="elite10-hub flex flex-col gap-3" data-testid="elite10-hub">
       <div role="tablist" aria-label="Elite 10" style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
         {SUBS.map((s) => (
           <button
