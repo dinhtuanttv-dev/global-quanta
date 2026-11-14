@@ -9,6 +9,8 @@
 //     tuần làm xoay vòng 21 lần/năm và lỗ). Ô trống = TIỀN MẶT, không lấy mã yếu cho đủ số.
 //   • BÁN xét MỖI PHIÊN, bán chậm: LS-v1 dưới phân vị 60, HOẶC không còn mô hình TA nào đạt, HOẶC ngành rơi vào góc Tụt hậu,
 //     HOẶC mã không còn dữ liệu. Ngành Suy yếu chưa phải lý do bán (chỉ cảnh báo).
+//     N0b (14/11/2026): mã thiếu LS-v1 của RIÊNG nó được coi là mất dữ liệu (giữ 1 phiên, vắng 2 phiên liên tiếp mới ra) — không còn bị
+//     bán ngay như "LS < 60". Ngưỡng, tham số HL_PF và phiên bản không đổi.
 // K0 KHÔNG cho thấy lợi thế so với thị trường (G2r 12,5%/năm so với VN-Index 13,5%, t ≈ 0) -> nhãn THĂM DÒ; sổ theo dõi tiến quyết định.
 import { hlScores, HL_RULES, HL_TA_MODEL_COUNT, HL_VERSION } from "./confluence.js";
 
@@ -72,9 +74,19 @@ export function hlTradable(score, cfg = HL_PF) {
 }
 
 /** Lý do bán của một mã đang giữ theo G2r; null = giữ. */
+/**
+ * N0b (14/11/2026) — mã CÓ trong bảng và có giá nhưng KHÔNG có điểm LS-v1 của riêng nó ở phiên này (LS-v1 cần ≥ 4/5 thành phần;
+ * thiếu lịch sử giá, tạm ngừng giao dịch, lỗi nguồn của riêng mã…). Đây là THIẾU DỮ LIỆU, không phải "sức mạnh dẫn dắt suy yếu":
+ * trước đây điều kiện `lsPct == null` rơi vào nhánh bán "ls" và mã bị bán ngay trong phiên, với lý do sai ("xuống phân vị —").
+ * Chốt dữ liệu toàn bảng (hlDataGuard) không bắt được trường hợp này vì độ phủ cả bảng vẫn bình thường.
+ */
+export const hlLsGap = (h) => Boolean(h) && h.lsPct == null;
+
 export function exitReason(h, score, cfg = HL_PF) {
   if (!h || !score || !(score.close > 0)) return { code: "no_data", reasonVi: "Không còn trong bảng tín hiệu hoặc không có giá" };
-  if (h.lsPct == null || h.lsPct < cfg.exitLsPct) return { code: "ls", reasonVi: `Sức mạnh dẫn dắt LS-v1 xuống phân vị ${h.lsPct == null ? "—" : Math.round(h.lsPct)} (ngưỡng bán < ${cfg.exitLsPct})` };
+  // Thiếu LS-v1 của riêng mã -> cùng nhóm "mất dữ liệu": đi qua bộ đếm vắng mặt (missSessions) thay vì bán ngay.
+  if (hlLsGap(h)) return { code: "no_data", reasonVi: `Không có điểm LS-v1 của mã ${cfg.missSessions} phiên liên tiếp` };
+  if (h.lsPct < cfg.exitLsPct) return { code: "ls", reasonVi: `Sức mạnh dẫn dắt LS-v1 xuống phân vị ${Math.round(h.lsPct)} (ngưỡng bán < ${cfg.exitLsPct})` };
   if (h.taCount < cfg.exitTaMin) return { code: "ta", reasonVi: "Không còn mô hình TA nào đạt" };
   if (h.rrg != null && h.rrg <= cfg.exitRrg) return { code: "rrg", reasonVi: "Ngành rơi vào góc Tụt hậu trên RRG" };
   return null;
@@ -107,10 +119,11 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
   for (const p of prev) {
     const h = hlBy.get(p.ticker), sc = scBy.get(p.ticker);
     let why = frozen ? null : exitReason(h, sc, cfg);
-    // Mã vắng mặt (không có trong bảng / không có giá): chỉ ra khi vắng đủ `missSessions` phiên liên tiếp.
-    const miss = !h || !sc || !(sc.close > 0) ? (p.miss ?? 0) + 1 : 0;
+    // Mã vắng mặt (không có trong bảng / không có giá / không có LS-v1 của riêng mã): chỉ ra khi vắng đủ `missSessions` phiên liên tiếp.
+    const lsGap = hlLsGap(h);
+    const miss = !h || !sc || !(sc.close > 0) || lsGap ? (p.miss ?? 0) + 1 : 0;
     if (why?.code === "no_data" && miss < cfg.missSessions) why = null;
-    if (!why) { held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, ref: p.ref ?? null, status: "HOLD", miss }); continue; }
+    if (!why) { held.push({ ticker: p.ticker, weight: p.weight, since: p.since ?? null, ref: p.ref ?? null, status: "HOLD", miss, lsGap }); continue; }
     if (why) exits.push({ ticker: p.ticker, weight: r4(p.weight), since: p.since ?? null, ...why, hlRank: h?.rank ?? null, lsPct: r4(h?.lsPct), taCount: h?.taCount ?? null, rrg: h?.rrg ?? null });
   }
   // 2) Phiên cân bằng: mua mã Hợp lưu theo thứ tự xếp hạng, định cỡ theo rủi ro, trong giới hạn tiền mặt / ngành.
@@ -146,7 +159,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
       hl: { rank: h.rank, cls: h.cls, t1: h.t1, t2: h.t2, t3: h.t3, lsPct: r4(h.lsPct), lsPts: h.lsPts, taCount: h.taCount, taPts: h.taPts, rrg: h.rrg, status: x.status, since: x.since, advBn: r4(sc.advBn), sigma20: r4(sc.sigma20), exitBufferLs: h.lsPct == null ? null : r4(h.lsPct - cfg.exitLsPct), miss,
         // N2 "Vì sao": điều kiện tầng 1, phiếu tầng 3, giá tham chiếu phiên khoá và lãi/lỗ từ phiên khoá (giá đóng cửa điều chỉnh).
         ta: h.ta ?? null, votes: h.votes ?? null, ref: x.ref ?? null, sinceRet: x.ref > 0 && sc.close > 0 ? r4(sc.close / x.ref - 1) : null,
-        warnings: frozen ? ["Dữ liệu phiên không đủ — giữ nguyên, chưa xét ngưỡng ra"] : miss > 0 ? [`Không có dữ liệu của mã phiên này (lần ${miss}/${cfg.missSessions}) — chưa ra`] : warnings(h, cfg) },
+        warnings: frozen ? ["Dữ liệu phiên không đủ — giữ nguyên, chưa xét ngưỡng ra"] : miss > 0 ? [x.lsGap ? `Không có điểm LS-v1 của mã phiên này (lần ${miss}/${cfg.missSessions}) — giữ nguyên, chưa xét ngưỡng ra` : `Không có dữ liệu của mã phiên này (lần ${miss}/${cfg.missSessions}) — chưa ra`] : warnings(h, cfg) },
     };
   }).sort((a, b) => a.hl.rank - b.hl.rank);
   const invested = portfolio.reduce((a, x) => a + x.weight, 0);
