@@ -3,7 +3,7 @@ import { useHlLedger } from "../../../hooks/elite10/useHlLedger";
 
 const dmy = (d: string | null | undefined) => (d ? d.split("-").reverse().join("/") : "—");
 const pct = (v: number | null) => (v == null ? "—" : `${v > 0 ? "+" : ""}${(v * 100).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`);
-const ORDER = ["sel", "strong", "lead", "impr", "against"] as const;
+const ORDER = ["sel", "strong", "lead", "impr", "against", "pzZone", "pzHot"] as const;
 
 export default function HlLedgerNote() {
   const { data: L } = useHlLedger();
