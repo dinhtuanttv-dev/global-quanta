@@ -302,3 +302,34 @@ test("sổ theo dõi: danh mục có tiền mặt — chấm chính thức giữ
   assert.deepEqual(s.horizons[5].cashIncl, { n: 1, meanPortfolio: r.portfolioCashIncl, meanInvested: 0.2, meanVnIndex: r.vnIndex }, "bản ghi cũ không có trường mới -> không tính vào");
   assert.equal(s.horizons[10].cashIncl, null);
 });
+
+test("PZ-v2 nghiệm thu: có lớp vị trí giá thì danh mục, hàng chờ, thay đổi và sổ chính thức GIỐNG HỆT khi không có; tài liệu cũ được bổ sung một lần", async () => {
+  const { cal, rows: rows0, daily } = world();
+  const rows = rows0.map((r, i) => ({ ...r, values: { ...r.values, ls_v1: i, structure_score: 3, rrg_quadrant: i >= 48 ? 2 : -1, ...(i >= 48 ? { sepa_state: 2, base_breakout: 3 } : {}) } }));
+  const mk = async (priceWatch) => {
+    const store = createMemoryStore();
+    await store.upsertMarketDaily(daily.filter((r) => r.date <= cal[99]));
+    const svc = createDecisionService({ store, panel: { panel: async () => ({ date: cal[99], version: "E1", rows }) }, evidence: { evidence: async () => evidence },
+      vnIndex: async () => cal.map((d, i) => [d, 1000 + i]), now: () => Date.parse("2026-08-20T11:00:00Z"), log: { warn() {} }, priceWatch });
+    return { store, svc };
+  };
+  // Vị trí giá giả: mã lẻ đang Tăng nóng, mã chẵn ở Vùng mua.
+  let runs = 0;
+  const fake = { run: async ({ date, tier1 }) => { runs++; return { version: "PZ-v2", date, records: Object.fromEntries([...tier1].map((t) => [t, { state: Number(t.slice(1)) % 2 ? "EXTENDED" : "BUY_ZONE", from: null, since: date, sessions: 1, hotReasons: [], missingVi: [], measures: {}, base: null }])) }; },
+    recentExits: async () => [] };
+  const A = await mk(null), B = await mk(fake);
+  const a = await A.svc.build(), b = await B.svc.build();
+  assert.ok(runs >= 1);
+  const strip = (d) => ({ portfolio: d.portfolio.map(({ hl: { pz, ...hl }, ...x }) => ({ ...x, hl })), queue: d.hl.queue.map(({ pz, ...q }) => q), changes: { ...d.hl.changes, toWatch: undefined, backToZone: undefined }, cash: d.hl.cash });
+  assert.deepEqual(strip(b), strip(a));
+  assert.deepEqual((await B.store.getKv(DECISION_KV.ledger)).value.entries.map((e) => e.holdings), (await A.store.getKv(DECISION_KV.ledger)).value.entries.map((e) => e.holdings), "sổ chính thức không đổi");
+  assert.ok(b.hl.pz && b.hl.pz.gate === false);
+  assert.ok(b.portfolio.every((x) => x.hl.pz && ["CORE", "RUNNER"].includes(x.hl.pz.lane)));
+  // Tài liệu đã khoá trước khi có PZ (dựng ở A) -> dịch vụ có PZ bổ sung trường hiển thị một lần, không đổi danh mục.
+  const C = createDecisionService({ store: A.store, panel: { panel: async () => ({ date: cal[99], version: "E1", rows }) }, evidence: { evidence: async () => evidence },
+    vnIndex: async () => cal.map((d, i) => [d, 1000 + i]), now: () => Date.parse("2026-08-20T12:00:00Z"), log: { warn() {} }, priceWatch: fake });
+  const c = await C.build();
+  assert.ok(c.hl.pz, "tài liệu cũ được bổ sung vị trí giá");
+  assert.deepEqual(strip(c).portfolio, strip(a).portfolio);
+  assert.ok((await A.store.getKv(DECISION_KV.decision(cal[99]))).value.pzAddedAt);
+});

@@ -6,6 +6,8 @@ import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
 import { buildHlPortfolio, hlTradable, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
 import { REGIME_VI } from "./leadership.js";
+import { hlScores } from "./confluence.js";
+import { annotatePz, PZ_GATE } from "./hlWatch.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
 // E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
@@ -35,7 +37,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null, priceWatch = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -74,6 +76,36 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     return prices;
   }
 
+  // ---------------------------------------------------------------- PZ-v2: vị trí giá + bảng Theo dõi chờ nền (chỉ hiển thị)
+  const lastBefore = (L, date) => [...L.entries].filter((e) => e.date < date).sort((x, y) => x.date.localeCompare(y.date)).pop();
+  /** Chạy máy trạng thái vị trí giá cho phiên của bảng. Lỗi -> null (danh mục chính thức không phụ thuộc lớp này). */
+  async function pricePosition(p, prevHoldings) {
+    if (!priceWatch) return null;
+    try {
+      const rows = hlScores(p.rows);
+      const uni = await kv("scanner:universe");
+      const exch = new Map((uni?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
+      const snap = await priceWatch.run({ date: p.date, tier1: new Set(rows.filter((x) => x.pass1).map((x) => x.ticker)), held: new Set(prevHoldings.map((h) => h.ticker)), exchangeOf: (t) => exch.get(t) ?? "HOSE" });
+      return { snap, rows, exits: await priceWatch.recentExits(p.date).catch(() => []) };
+    } catch (e) { log.warn?.(`[elite] vị trí giá (PZ) phiên ${p.date}: ${e.message}`); return null; }
+  }
+  const applyPz = (doc, pz) => {
+    if (!pz?.snap || !doc?.hl) return doc;
+    const tradable = new Set((doc.scores ?? []).filter((x) => !hlTradable(x)).map((x) => x.ticker));
+    const sec = new Map((doc.scores ?? []).map((x) => [x.ticker, x.sectorKey ?? null]));
+    const a = annotatePz({ portfolio: doc.portfolio, hl: doc.hl }, pz.snap, pz.rows, { exits: pz.exits, gate: PZ_GATE, tradable, sectorOf: (t) => sec.get(t) ?? null });
+    return { ...doc, portfolio: a.portfolio, hl: a.hl };
+  };
+  /** Tài liệu đã khoá trước khi có PZ: CHỈ THÊM trường hiển thị (danh mục, tỷ trọng, lệnh và sổ không đổi), một lần. */
+  async function ensurePz(doc, p, ledger) {
+    if (!priceWatch || !doc?.hl || doc.hl.pz || doc.date !== p.date) return doc;
+    const pz = await pricePosition(p, lastBefore(ledger, p.date)?.holdings ?? []);
+    if (!pz) return doc;
+    const next = { ...applyPz(doc, pz), pzAddedAt: new Date(now()).toISOString() };
+    try { await store.setKv(DECISION_KV.decision(p.date), next); } catch (e) { log.warn?.(`[elite] lưu vị trí giá: ${e.message}`); }
+    return next;
+  }
+
   /** Dựng quyết định cho phiên mới nhất của bảng E1 (đã có thì giữ nguyên — danh mục đã khoá) và chấm sổ theo dõi. */
   async function build({ force = false } = {}) {
     if (building) return building;
@@ -98,7 +130,14 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
       }
       const exists = index.includes(p.date) && !force && !versionChanged;
       const pendingEntries = [...ledger.entries, ...flow.entries].filter((e) => e.universe && LEDGER_HORIZONS.some((h) => !e.results?.[h]));
-      if (exists && !pendingEntries.length) { memo ??= await kv(DECISION_KV.decision(p.date)); return memo; }
+      if (exists && !pendingEntries.length) {
+        const raw = await kv(DECISION_KV.decision(p.date));
+        if (raw?.hl && !raw.hl.pz && priceWatch) {
+          const withPz = await ensurePz(raw, p, ledger);
+          if (withPz !== raw) memo = { ...withPz, candidates: buildCandidates(flowView(withPz)), ledgerSummary: ledger.summary ?? null, flowLedgerSummary: flow.summary ?? null };
+        }
+        memo ??= raw; return memo;
+      }
 
       const ev = ev0;
       if (!ev) throw new Error("Chưa có kết quả engine bằng chứng E2.");
@@ -106,15 +145,17 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
       const prices = await loadPrices(symbols, p.date);
       const cal = [...new Set(CAL_SYMBOLS.flatMap((s) => (prices.get(s) ?? []).map((r) => r.date)))].sort();
 
-      let doc = exists ? await kv(DECISION_KV.decision(p.date)) : null;
+      let doc = exists ? await ensurePz(await kv(DECISION_KV.decision(p.date)), p, ledger) : null;
       if (!doc) {
         // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
-        const lastBefore = (L) => [...L.entries].filter((e) => e.date < p.date).sort((x, y) => x.date.localeCompare(y.date)).pop();
-        const flowPrev = lastBefore(flow), hlPrev = lastBefore(ledger);
+        const flowPrev = lastBefore(flow, p.date), hlPrev = lastBefore(ledger, p.date);
+        // PZ-v2: vị trí giá tính TRƯỚC khi dựng danh mục (cổng cần nó); khi PZ_GATE = false danh mục giống hệt khi không có PZ.
+        const pz = await pricePosition(p, hlPrev?.holdings ?? []);
+        const zoneBy = PZ_GATE && pz?.snap ? new Map(Object.entries(pz.snap.records).map(([t, r]) => [t, r.state])) : null;
         const base = buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: flowPrev?.holdings ?? [], version: FLOW_VER });
         // Phiên cân bằng = phiên đầu tiên của tuần ISO mà danh mục được phép nhận mã mới (phiên đầu tuần bị chốt dữ liệu -> dời sang phiên kế).
         const wk = isoWeek(p.date), rebalance = !ledger.entries.some((e) => e.date < p.date && e.rebalance && isoWeek(e.date) === wk);
-        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance, date: p.date, missingSources: p.missingSources ?? [] });
+        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance, date: p.date, missingSources: p.missingSources ?? [], zoneBy, gate: PZ_GATE && Boolean(zoneBy) });
         if (H.hl.dataGuard.frozen) log.warn?.(`[elite] HL chốt dữ liệu phiên ${p.date}: ${H.hl.dataGuard.reasonsVi.join("; ")}`);
         let market = null;
         if (leadership) { try { const lv = await leadership.live(p.date); market = { regime: lv.regime, regimeVi: REGIME_VI[lv.regime] ?? null, bias: lv.bias, breadth: lv.breadth, guard: lv.guard }; } catch (e) { log.warn?.(`[elite] trạng thái thị trường LS: ${e.message}`); } }
@@ -124,6 +165,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
           hl: { ...H.hl, market, prevDate: hlPrev?.date ?? null },
           builtAt: new Date(now()).toISOString(), evidenceVersion: ev.version, panelVersion: p.version,
         };
+        doc = applyPz(doc, pz);
         await store.setKv(DECISION_KV.decision(p.date), doc);
         await store.setKv(DECISION_KV.index, { dates: [...new Set([...index, p.date])].sort().slice(-400) });
         {
