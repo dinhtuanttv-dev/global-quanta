@@ -139,6 +139,9 @@ test("N0b thiếu LS-v1 của riêng một mã: phiên đầu giữ kèm cảnh 
   // Quy tắc bán theo LS không đổi: có LS và dưới ngưỡng -> bán ngay; mã thiếu LS không được mua mới.
   assert.equal(exitReason({ lsPct: 59, taCount: 3, rrg: 2 }, { close: 1 }).code, "ls");
   assert.equal(exitReason({ lsPct: null, taCount: 3, rrg: 2 }, { close: 1 }).code, "no_data");
+  // Thiếu LS nhưng ngành Tụt hậu: RRG là dữ liệu của ngành -> vẫn ra ngay; TA = 0 khi thiếu LS thì hoãn (không phân biệt được với thiếu số).
+  assert.equal(exitReason({ lsPct: null, taCount: 3, rrg: HL_PF.exitRrg }, { close: 1 }).code, "rrg");
+  assert.equal(exitReason({ lsPct: null, taCount: 0, rrg: 2 }, { close: 1 }).code, "no_data");
   const buy = buildHlPortfolio({ ...gapWorld(), prev: [], rebalance: true, date: "2026-11-16", cfg });
   assert.ok(!buy.portfolio.some((x) => x.ticker === "T38"), "thiếu LS -> không đạt tầng 1 -> không mua");
 });
