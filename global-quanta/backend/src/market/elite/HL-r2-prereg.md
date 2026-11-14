@@ -87,3 +87,11 @@ Mỗi sửa đổi ghi: ngày, nội dung, lý do, đã thấy kết quả HL-r2
 - **Đã thấy kết quả HL-r2 chưa:** người đề xuất chưa thấy kết quả nào của HL-r2 trên giai đoạn quyết định. *(Chủ dự án xác nhận dòng này khi duyệt.)*
 - **Ảnh hưởng tới mô phỏng:** harness gọi thẳng `buildHlPortfolio` nên B, C2, C6, C7 cùng đổi theo. Trong bảng dựng lại, LS-v1 cần ≥ 4/5 thành phần nên mã thiếu lịch sử giá có thể rơi vào trường hợp này; số lần xảy ra chưa đếm — nên báo cáo số lần khi chạy.
 - **Nếu HL-r2 đã chạy trước khi S1 được gộp:** giữ kết quả đã chạy làm kết quả chính; chạy lại với S1 chỉ được báo cáo như phân tích độ nhạy, không dùng để quyết định.
+
+### S2 — 14/11/2026 · sửa lỗi dữ liệu VN-Index trước khi chạy (không đổi quy tắc)
+
+- **Lỗi:** tệp `VNINDEX.json` của bộ dữ liệu dựng lại có 126 phiên 16/07/2019 → 09/01/2020 bị nhân 100 lần (972,53 -> 98.211) do bước tải. VNDirect `vnmarket_prices` cho giá đúng.
+- **Ảnh hưởng:** bảng tín hiệu dựng lại dùng VN-Index cho LS-v1 (sức mạnh tương đối, chống chịu, trạng thái thị trường) và RRG ngành; mốc VN-Index của báo cáo; C6 (trạng thái thị trường) và C7 (RRG tuần đã đóng). Đoạn lỗi nằm trong giai đoạn quyết định.
+- **Phát hiện:** khi chạy PZ-r1 cùng harness (mốc VN-Index ra 140,8%/năm). Lần chạy HL-r2 đầu tiên bị DỪNG trước khi đọc kết quả; chỉ thấy dòng tiến độ (số phiên, thời gian).
+- **Sửa:** thay 126 dòng bằng số VNDirect (bản gốc giữ ở `VNINDEX.orig-2026-11-12.json`); xoá bộ đệm RRG tuần đã đóng; dựng lại bảng tín hiệu 16/07/2019 → 29/01/2021 (đủ một năm sau đoạn lỗi cho các cửa sổ dài nhất). Không đổi phương án, ngưỡng, tiêu chí.
+- **Giới hạn ghi nhận thêm:** vài điểm giá lỗi lẻ ở mã rất nhỏ (MEF 2013–14, TH1 18/05/2018, WTC 2014) — giữ nguyên.

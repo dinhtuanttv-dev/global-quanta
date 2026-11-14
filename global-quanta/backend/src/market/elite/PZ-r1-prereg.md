@@ -61,4 +61,8 @@ Kèm báo cáo: xoay vòng, số lệnh mua bị chặn, số tuần không có 
 
 ## 8. Sửa đổi
 
-(chưa có)
+### S1 — 14/11/2026 · sửa lỗi dữ liệu VN-Index và chạy lại (không đổi quy tắc)
+
+- Lần chạy đầu (cùng ngày) dùng tệp VN-Index có 126 phiên 16/07/2019 → 09/01/2020 bị nhân 100 lần (xem HL-r2-prereg.md, S2). Lỗi lộ ra ở chính kết quả (mốc VN-Index 140,8%/năm), tức là kết quả lần chạy đầu ĐÃ được xem.
+- Sửa dữ liệu và dựng lại bảng 16/07/2019 → 29/01/2021, rồi chạy lại. Không đổi PZ_RULES, phương án, tiêu chí hay giai đoạn.
+- Cả hai lần chạy được công bố (`PZ-r1-results.run1-index-bug.json` và `PZ-r1-results.json`); quyết định theo lần chạy trên dữ liệu đã sửa.

@@ -1,0 +1,16 @@
+
+=== DECISION 2014-03-03 → 2019-12-31 (1459 phiên) ===
+VN-Index: 140.8%/năm · Bình quân đều: 2.5%/năm, sụt giảm -34.5%
+P0   14.4%/năm · Sharpe 0.91 · sụt giảm -30.3% · mã 8.0 · tiền mặt 23% · xoay vòng 6.2 · chặn 0 · tuần không có vùng mua 0/0
+P1   16.0%/năm · Sharpe 1.03 · sụt giảm -24.5% · mã 7.6 · tiền mặt 25% · xoay vòng 5.9 · chặn 308 · tuần không có vùng mua 13/302 · so P0 0.08%/20 phiên, t 0.33, p 0.743
+P2   12.8%/năm · Sharpe 1.24 · sụt giảm -20.9% · mã 4.1 · tiền mặt 50% · xoay vòng 4.0 · chặn 1555 · tuần không có vùng mua 54/302 · so P0 -0.22%/20 phiên, t -0.52, p 0.603
+Lớp 1: NÓNG n=78 vượt -1.15% lỗ sâu TB -10.9% bán sớm 40% · THƯỜNG n=323 vượt 1.46% lỗ sâu TB -5.7% bán sớm 48% · t Welch -1.41 -> KHÔNG ĐẠT
+Tiêu chí P1: 1 ✓ (a ✗ / b ✓) · 2 ✓ (Holm p 0.743) · 3 ✓ (4/6) · 4 ✓ -> ĐẠT
+Tiêu chí P2: 1 ✗ (a ✗ / b ✗) · 2 ✗ (Holm p 1.000) · 3 ✗ (3/6) · 4 ✗ -> KHÔNG ĐẠT
+
+=== REPORT 2020-01-02 → 2026-11-12 (841 phiên) ===
+VN-Index: -73.8%/năm · Bình quân đều: 12.0%/năm, sụt giảm -64.8%
+P0    7.7%/năm · Sharpe 0.44 · sụt giảm -52.7% · mã 7.7 · tiền mặt 23% · xoay vòng 5.8 · chặn 0 · tuần không có vùng mua 0/0
+P1    8.2%/năm · Sharpe 0.47 · sụt giảm -51.5% · mã 7.5 · tiền mặt 24% · xoay vòng 6.3 · chặn 335 · tuần không có vùng mua 27/176 · so P0 0.02%/20 phiên, t 0.03, p 0.974
+P2    3.9%/năm · Sharpe 0.39 · sụt giảm -26.9% · mã 4.3 · tiền mặt 46% · xoay vòng 5.0 · chặn 1363 · tuần không có vùng mua 55/176 · so P0 -0.59%/20 phiên, t -0.57, p 0.567
+Lớp 1: NÓNG n=53 vượt 1.69% lỗ sâu TB -9.7% bán sớm 30% · THƯỜNG n=160 vượt 0.14% lỗ sâu TB -8.7% bán sớm 45% · t Welch 0.51 -> KHÔNG ĐẠT
