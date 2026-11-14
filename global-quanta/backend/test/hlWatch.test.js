@@ -102,8 +102,11 @@ test("dịch vụ: khoá ảnh chụp theo phiên, nhật ký chuyển trạng t
   assert.equal(s2.prevDate, d1);
   assert.equal(s2.records.T03.state, "UNKNOWN", "nến giá 0 bị loại -> giá mới tới phiên trước -> Chưa xác định");
   const log = (await store.getKv(PZ_KV.log)).value.entries;
-  assert.ok(log.some((e) => e.ticker === "T02" && e.to === "EXTENDED" && e.date === d1));
+  // Lần chạy đầu phát lại 40 phiên: T02 đã vào Tăng nóng TRƯỚC phiên d1 (trong phần phát lại) nên d1 không phải phiên chuyển trạng thái.
+  assert.equal(s1.warmupSessions, 40); assert.equal(s2.warmupSessions, 0, "phiên sau có ảnh chụp phiên trước -> không phát lại");
+  assert.equal(s1.records.T02.from, "EXTENDED");
   assert.ok(!log.some((e) => e.to === "UNKNOWN"), "Chưa xác định không ghi vào nhật ký chuyển");
   assert.deepEqual((await store.getKv(PZ_KV.index)).value.dates, [d1, d2]);
   assert.equal((await svc.snapshot()).date, d2);
 });
+

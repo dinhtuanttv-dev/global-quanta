@@ -34,7 +34,7 @@ export function createVndirectIndexProvider({ fetchImpl = globalThis.fetch, time
       for (let p = 1; p <= 20; p++) {
         const { rows, totalPages } = await page(code, from, to, p);
         for (const r of rows) {
-          const bar = { date: String(r.date).slice(0, 10), open: Number(r.open), high: Number(r.high), low: Number(r.low), close: Number(r.close) };
+          const bar = { date: String(r.date).slice(0, 10), open: Number(r.open), high: Number(r.high), low: Number(r.low), close: Number(r.close), ...(Number(r.nmVolume) > 0 ? { volume: Number(r.nmVolume) } : {}) };
           if ([bar.open, bar.high, bar.low, bar.close].every((v) => Number.isFinite(v) && v > 0)) out.push(bar);
         }
         if (p >= totalPages || rows.length < PAGE) break;

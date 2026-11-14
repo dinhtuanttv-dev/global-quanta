@@ -79,13 +79,13 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
   // ---------------------------------------------------------------- PZ-v2: vị trí giá + bảng Theo dõi chờ nền (chỉ hiển thị)
   const lastBefore = (L, date) => [...L.entries].filter((e) => e.date < date).sort((x, y) => x.date.localeCompare(y.date)).pop();
   /** Chạy máy trạng thái vị trí giá cho phiên của bảng. Lỗi -> null (danh mục chính thức không phụ thuộc lớp này). */
-  async function pricePosition(p, prevHoldings) {
+  async function pricePosition(p, prevHoldings, force = false) {
     if (!priceWatch) return null;
     try {
       const rows = hlScores(p.rows);
       const uni = await kv("scanner:universe");
       const exch = new Map((uni?.tickers ?? []).map((x) => [x.ticker, x.exchange]));
-      const snap = await priceWatch.run({ date: p.date, tier1: new Set(rows.filter((x) => x.pass1).map((x) => x.ticker)), held: new Set(prevHoldings.map((h) => h.ticker)), exchangeOf: (t) => exch.get(t) ?? "HOSE" });
+      const snap = await priceWatch.run({ date: p.date, tier1: new Set(rows.filter((x) => x.pass1).map((x) => x.ticker)), held: new Set(prevHoldings.map((h) => h.ticker)), exchangeOf: (t) => exch.get(t) ?? "HOSE", force });
       return { snap, rows, exits: await priceWatch.recentExits(p.date).catch(() => []) };
     } catch (e) { log.warn?.(`[elite] vị trí giá (PZ) phiên ${p.date}: ${e.message}`); return null; }
   }
@@ -150,7 +150,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
         // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
         const flowPrev = lastBefore(flow, p.date), hlPrev = lastBefore(ledger, p.date);
         // PZ-v2: vị trí giá tính TRƯỚC khi dựng danh mục (cổng cần nó); khi PZ_GATE = false danh mục giống hệt khi không có PZ.
-        const pz = await pricePosition(p, hlPrev?.holdings ?? []);
+        const pz = await pricePosition(p, hlPrev?.holdings ?? [], force);
         const zoneBy = PZ_GATE && pz?.snap ? new Map(Object.entries(pz.snap.records).map(([t, r]) => [t, r.state])) : null;
         const base = buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: flowPrev?.holdings ?? [], version: FLOW_VER });
         // Phiên cân bằng = phiên đầu tiên của tuần ISO mà danh mục được phép nhận mã mới (phiên đầu tuần bị chốt dữ liệu -> dời sang phiên kế).
