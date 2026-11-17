@@ -49,7 +49,8 @@ export function hlDataGuard({ panelRows, missingSources = [], hl }, cfg = HL_PF)
 export const HL_K0 = Object.freeze({
   period: "28/07/2020 → 05/11/2026", cagr: 0.125, vol: 0.199, maxDd: -0.468, turnover: 6.9, excess20: -0.0002, t: -0.02,
   vnIndexCagr: 0.135, equalWeightCagr: 0.109,
-  noteVi: "Mô phỏng khám phá (K0) với 5 mô hình TA đại diện tính từ giá, có phí và mã tăng sát trần không mua được: 12,5%/năm, sụt giảm lớn nhất −46,8%, xoay vòng 6,9 lần/năm — NGANG thị trường (VN-Index 13,5%/năm; bình quân đều 300 mã 10,9%/năm), chênh lệch không có ý nghĩa thống kê (t ≈ 0).",
+  noteVi: "Mô phỏng khám phá (K0) với 5 mô hình TA đại diện tính từ giá, có phí và mã tăng sát trần không mua được: 12,5%/năm, sụt giảm lớn nhất −46,8%, xoay vòng 6,9 lần/năm — NGANG thị trường (VN-Index 13,5%/năm; bình quân đều 300 mã 10,9%/năm), chênh lệch không có ý nghĩa thống kê (t ≈ 0). Kiểm định đăng ký trước HL-r2 (14/11/2026, bảng tín hiệu dựng lại): 2014–2019 G2r vượt bình quân đều +1,13%/20 phiên sau phí (t 2,13 — đạt tiêu chí “có lợi thế”), nhưng 2020 → 05/2023 KHÔNG lặp lại (0,8%/năm, kém bình quân đều, t −1,13). Bằng chứng chưa nhất quán nên vẫn là THĂM DÒ.",
+  hlR2: Object.freeze({ ranAt: "2026-11-14", decision: { period: "03/03/2014 → 31/12/2019", cagr: 0.161, maxDd: -0.303, excess20: 0.0113, t: 2.13, verdict: "CÓ LỢI THẾ" }, outOfSample: { period: "02/01/2020 → 18/05/2023", cagr: 0.008, maxDd: -0.527, excess20: -0.0107, t: -1.13 }, report: "backend/research/HL-r2-PZ-r1-report.md (nhánh research/hl-r2-pz-r1)" }),
 });
 const RRG_VI = { 2: "Dẫn dắt", 1: "Cải thiện", "-1": "Suy yếu", "-2": "Tụt hậu" };
 /** PZ-v2: lý do hàng chờ khi cổng vị trí giá bật. */

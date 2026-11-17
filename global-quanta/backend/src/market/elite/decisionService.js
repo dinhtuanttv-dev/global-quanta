@@ -4,7 +4,7 @@
 import { PORTFOLIO, RRG_RULE, buildCandidates, buildDecision, COST_ROUND_TRIP, E3_V5, E3_VERSION, ELIGIBILITY, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
-import { buildHlPortfolio, hlTradable, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
+import { buildHlPortfolio, hlTradable, HL_K0, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
 import { REGIME_VI } from "./leadership.js";
 import { hlScores } from "./confluence.js";
 import { annotatePz, PZ_GATE } from "./hlWatch.js";
@@ -323,7 +323,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     if (!doc) return doc;
     return {
       ...doc,
-      ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1 } } : {}),
+      // K0 luôn là bản mới nhất (thêm kết quả HL-r2 14/11/2026) — ghi chú bằng chứng, không phải một phần danh mục đã khoá.
+      ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1, k0: HL_K0 } } : {}),
       display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice,
         flowRrgPenalty: RRG_RULE.penalty, flowBufferRank: PORTFOLIO.bufferRank, flowMaxPerSector: PORTFOLIO.maxPerSector, flowWeightCap: PORTFOLIO.weightCap },
       ...(withFreshness ? { freshness: await freshness(doc.date) } : {}),

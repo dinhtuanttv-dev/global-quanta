@@ -34,3 +34,12 @@ test("lập lịch: job treo quá thời hạn bị tính là lỗi và hàng đ
   assert.equal(await b, 1);
   assert.deepEqual(ran, ["next"]);
 });
+
+test("bù phiên: kết quả đúng phiên nhưng trạng thái VN-Index cũ hơn -> quét lại khi nến chỉ số đã hợp lệ", async () => {
+  let n = 0; const jobs = { scanUniverse: async () => n++ };
+  const st = { getMarketDailyDates: async () => ["2026-11-13"], getKv: async () => ({ value: { dataAsOf: "2026-11-13", indexState: { dataAsOf: "2026-11-12" } } }) };
+  const notReady = createSessionCatchUp({ jobs, store: st, log: {}, indexReady: async () => false });
+  assert.match((await notReady()).skipped, /đã cập nhật/); assert.equal(n, 0);
+  const ready = createSessionCatchUp({ jobs, store: st, log: {}, indexReady: async (d) => d === "2026-11-13" });
+  assert.equal((await ready()).rescanned, "indexState"); assert.equal(n, 1);
+});

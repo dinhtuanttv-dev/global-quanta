@@ -269,3 +269,17 @@ describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
     expect(text("elite-portfolio")).toMatch(/Danh mục Elite HL \(2\/10\)/);
   });
 });
+
+describe("Elite HL — ghi chú K0 kèm kết quả HL-r2", () => {
+  afterEach(() => cleanup());
+  it("có hlR2 -> bảng trong mẫu / ngoài mẫu; không có -> chỉ ghi chú", () => {
+    const k0 = { ...decision.hl!.k0, hlR2: { ranAt: "2026-11-14", decision: { period: "03/03/2014 → 31/12/2019", cagr: 0.161, maxDd: -0.303, excess20: 0.0113, t: 2.13, verdict: "CÓ LỢI THẾ" }, outOfSample: { period: "02/01/2020 → 18/05/2023", cagr: 0.008, maxDd: -0.527, excess20: -0.0107, t: -1.13 }, report: "r" } };
+    render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, k0 } }} onOpenTicker={() => {}} />);
+    const t = text("hl-k0-r2");
+    expect(t).toMatch(/Quyết định.*\+16,1%.*−30,3%.*\+1,13% \(\+2,13\)/);
+    expect(t).toMatch(/Ngoài mẫu.*\+0,8%.*−52,7%.*−1,07% \(−1,13\)/);
+    cleanup();
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-k0-r2")).toBeNull();
+  });
+});

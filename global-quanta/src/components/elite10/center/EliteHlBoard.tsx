@@ -317,6 +317,18 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             {pz && <PzRulesItems meta={pz} />}
           </ul>
           <p className="mt-1.5 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10.5px] leading-relaxed text-amber-200" data-testid="hl-k0">{hl.k0.noteVi}</p>
+          {hl.k0.hlR2 && (
+            <table className="mt-1 w-full text-[10.5px]" data-testid="hl-k0-r2" style={{ borderCollapse: "collapse" }}>
+              <caption className="pb-0.5 text-left text-[10px] text-slate-400">Kiểm định đăng ký trước HL-r2 ({fmtDate(hl.k0.hlR2.ranAt)}) — G2r so với bình quân đều sau phí</caption>
+              <thead><tr className="text-left text-[10px] text-slate-500"><th className="font-normal">Giai đoạn</th><th className="font-normal">Lợi suất/năm</th><th className="font-normal">Sụt giảm lớn nhất</th><th className="font-normal">Vượt / 20 phiên (t)</th></tr></thead>
+              <tbody>
+                {([["Quyết định", hl.k0.hlR2.decision], ["Ngoài mẫu", hl.k0.hlR2.outOfSample]] as const).map(([label, x]) => (
+                  <tr key={label} className="border-t border-white/5"><td className="py-0.5 text-slate-300">{label} <span className="text-slate-500">{x.period}</span></td><td>{signed(x.cagr * 100, 1)}%</td><td>{signed(x.maxDd * 100, 1)}%</td>
+                    <td className={x.t >= 2 ? "text-emerald-300" : x.t <= -1 ? "text-rose-300" : "text-slate-300"}>{signed(x.excess20 * 100, 2)}% ({signed(x.t, 2)})</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </Panel>
         <Panel title="Sổ theo dõi tiến — Elite HL so với Elite dòng tiền (cũ)" testId="elite-ledger">
           <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
