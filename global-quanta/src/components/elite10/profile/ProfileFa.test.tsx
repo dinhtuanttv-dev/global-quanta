@@ -64,6 +64,9 @@ describe("Hồ sơ 360° · PFA-v1", () => {
     expect(text("pfa-no-cash")).toMatch(/Không trả cổ tức tiền.*cổ tức cổ phiếu 15%/);
     expect(text("pfa-fm")).toMatch(/hạng 250\/280 · nhóm 1\/5/);
     expect(text("pfa-warnings")).toMatch(/⚠ Beneish.*ⓘ GDKHQ/);
+    expect(text("pfa-far1-BENEISH")).toMatch(/FA-r1 V3: chặn mua theo cờ này −0,52% . 20 phiên.*t [-−]2,32.*Ngược chiều/);
+    expect(screen.queryByTestId("pfa-far1-CASH_EX_SOON")).toBeNull();
+    expect(text("pfa-far1")).toMatch(/KHÔNG làm danh mục Elite HL tốt hơn.*KHÔNG ĐẠT/);
     expect(text("pfa-provenance")).toMatch(/khoá theo phiên 17\/11\/2026.*quý công bố sau phiên không được dùng/);
   });
 

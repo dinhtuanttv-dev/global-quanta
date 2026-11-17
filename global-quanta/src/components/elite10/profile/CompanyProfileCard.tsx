@@ -2,6 +2,7 @@
 // khoá theo phiên; số nào chưa có / không áp dụng thì ghi rõ, không điền 0. Nhãn bằng chứng đặt cạnh từng chỉ số.
 import { useProfileFa } from "../../../hooks/elite10/useProfileFa";
 import type { PfaDividend, PfaEarnings } from "../../../lib/elite10/profileFaTypes";
+import { FA_R1 } from "../../../lib/elite10/faR1";
 import { Block, bn, Checklist, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd, WarningList, YoY } from "./pfaParts";
 
 const SRC_VI: Record<string, string> = { DISCLOSURE: "tin công bố chính thức", CAFEF: "CafeF", VND_CREATED: "ngày dữ liệu VNDirect" };
@@ -44,7 +45,7 @@ function Quality({ e }: { e: PfaEarnings }) {
   }
   const p = e.piotroski;
   return (
-    <Block title="Chất lượng lợi nhuận" testId="pfa-quality" right={<Evidence label="MÔ TẢ" title="Các chỉ số sàng lọc kế toán chuẩn; chưa kiểm định khả năng dự báo giá ở thị trường Việt Nam" />}>
+    <Block title="Chất lượng lợi nhuận" testId="pfa-quality" right={<Evidence label="MÔ TẢ" title="Các chỉ số sàng lọc kế toán chuẩn. FA-r1 (2014–2019): dùng chúng để chặn mua không làm Elite HL tốt hơn." />}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <div>
           <p className="text-[10px] text-slate-500">Piotroski F-Score</p>
@@ -110,6 +111,7 @@ export default function CompanyProfileCard({ ticker }: { ticker: string }) {
     <div className="tw-scope space-y-3 text-slate-200" data-testid="pfa-company">
       <Block title="Cảnh báo cơ bản & sự kiện" testId="pfa-warnings-block" right={<span className="text-[10px] text-slate-500">Mô tả — không đổi danh mục</span>}>
         <WarningList items={data.warnings} testId="pfa-warnings" />
+        <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="pfa-far1">{FA_R1.summaryVi}<Evidence label={FA_R1.verdict} title={`FA-r1 · ${FA_R1.period} · chạy ${FA_R1.ranAt}`} /></p>
       </Block>
       {data.earnings && <Earnings e={data.earnings} />}
       {data.earnings && <Quality e={data.earnings} />}

@@ -1,6 +1,7 @@
 // PFA-v1 — phần dùng chung của Hồ sơ 360° · Doanh nghiệp & Sự kiện: định dạng số kiểu Việt Nam, thẻ, nhãn bằng chứng, danh sách cảnh báo.
 import type { ReactNode } from "react";
 import type { PfaWarning, PfaYoY } from "../../../lib/elite10/profileFaTypes";
+import { FA_R1 } from "../../../lib/elite10/faR1";
 
 export const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
 export const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -76,6 +77,7 @@ export function WarningList({ items, compact = false, testId }: { items: PfaWarn
       {items.map((w) => (
         <li key={w.id} className={w.level === "warn" ? "text-amber-200" : "text-slate-300"}>
           <span aria-hidden="true">{w.level === "warn" ? "⚠ " : "ⓘ "}</span>{w.text} <span className="text-[10px] text-slate-500">· {w.source}</span>
+          {FA_R1.gates[w.id] && <span className="block pl-4 text-[10px] text-slate-500" data-testid={`pfa-far1-${w.id}`}>FA-r1 {FA_R1.gates[w.id].gate}: chặn mua theo cờ này {FA_R1.gates[w.id].vsBase20 >= 0 ? "+" : "−"}{Math.abs(FA_R1.gates[w.id].vsBase20 * 100).toFixed(2).replace(".", ",")}% / 20 phiên so với không chặn (t {FA_R1.gates[w.id].t.toLocaleString("vi-VN")}) — {FA_R1.gates[w.id].noteVi}</span>}
         </li>
       ))}
     </ul>
