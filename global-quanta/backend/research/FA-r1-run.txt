@@ -1,0 +1,34 @@
+
+=== DECISION 2014-03-03 → 2019-12-31 (1459 phiên) ===
+VN-Index (giá): 9.4%/năm, sụt giảm -27.1% · Bình quân đều vũ trụ: 2.5%/năm, sụt giảm -34.5%
+B     16.1%/năm · Sharpe 1.01 · sụt giảm -30.3% · mã 7.9 · tiền mặt 23% · xoay 6.4x · vs bình quân đều 1.13% (t 2.13) · DSR 0.95 · lệnh mua 415
+V1    16.0%/năm · Sharpe 1.01 · sụt giảm -29.4% · mã 7.9 · tiền mặt 24% · xoay 6.4x · vs bình quân đều 1.12% (t 2.13) · vs B -0.01% (t -0.19, p 0.849) · Holm không · DSR 0.94 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 12113 lượt
+     chẩn đoán lệnh mua của B: bị chặn 7 (vượt 20p -3.81%) · không chặn 376 (0.99%) · t Welch -1.31 · không có BCTC 32
+V2    20.4%/năm · Sharpe 1.25 · sụt giảm -29.3% · mã 7.7 · tiền mặt 25% · xoay 6.1x · vs bình quân đều 1.42% (t 2.59) · vs B 0.30% (t 1.56, p 0.118) · Holm không · DSR 0.98 · tiêu chí c1✗ c2✗ c3✓ c4✓ c5✗ · chặn 37471 lượt
+     chẩn đoán lệnh mua của B: bị chặn 47 (vượt 20p -0.81%) · không chặn 336 (1.14%) · t Welch -0.93 · không có BCTC 32
+V3     8.6%/năm · Sharpe 0.59 · sụt giảm -30.1% · mã 7.5 · tiền mặt 27% · xoay 6.1x · vs bình quân đều 0.62% (t 1.16) · vs B -0.52% (t -2.32, p 0.020) · Holm không · DSR 0.73 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 59577 lượt
+     chẩn đoán lệnh mua của B: bị chặn 81 (vượt 20p 2.36%) · không chặn 302 (0.51%) · t Welch 1.24 · không có BCTC 32
+V4    10.1%/năm · Sharpe 0.68 · sụt giảm -33.4% · mã 7.5 · tiền mặt 27% · xoay 6.1x · vs bình quân đều 0.70% (t 1.30) · vs B -0.43% (t -1.73, p 0.083) · Holm không · DSR 0.80 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 46731 lượt
+     chẩn đoán lệnh mua của B: bị chặn 72 (vượt 20p 1.17%) · không chặn 311 (0.83%) · t Welch 0.21 · không có BCTC 32
+V5    12.6%/năm · Sharpe 0.83 · sụt giảm -29.5% · mã 7.6 · tiền mặt 26% · xoay 6.3x · vs bình quân đều 0.89% (t 1.67) · vs B -0.24% (t -1.31, p 0.189) · Holm không · DSR 0.88 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 37928 lượt
+     chẩn đoán lệnh mua của B: bị chặn 51 (vượt 20p 0.25%) · không chặn 332 (1.00%) · t Welch -0.55 · không có BCTC 32
+V6     9.6%/năm · Sharpe 0.65 · sụt giảm -32.8% · mã 7.1 · tiền mặt 30% · xoay 5.9x · vs bình quân đều 0.64% (t 1.25) · vs B -0.49% (t -1.85, p 0.064) · Holm không · DSR 0.78 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 103628 lượt
+     chẩn đoán lệnh mua của B: bị chặn 125 (vượt 20p 1.03%) · không chặn 258 (0.83%) · t Welch 0.15 · không có BCTC 32
+theo năm, phương án − B: V1 [14 1%, 15 0%, 16 -0%, 17 -1%, 18 -0%, 19 -1%, 20 -0%] · V2 [14 -1%, 15 11%, 16 4%, 17 -2%, 18 14%, 19 -0%, 20 0%] · V3 [14 -4%, 15 -7%, 16 -21%, 17 -10%, 18 -2%, 19 -0%, 20 -1%] · V4 [14 -5%, 15 -4%, 16 -6%, 17 -16%, 18 -10%, 19 4%, 20 -0%] · V5 [14 -4%, 15 3%, 16 -7%, 17 -13%, 18 1%, 19 -1%, 20 -0%] · V6 [14 -4%, 15 -8%, 16 -19%, 17 -8%, 18 -5%, 19 5%, 20 -0%]
+
+=== REPORT 2020-01-02 → 2025-07-25 (1388 phiên) ===
+VN-Index (giá): 9.0%/năm, sụt giảm -40.3% · Bình quân đều vũ trụ: 13.3%/năm, sụt giảm -64.8%
+B      5.7%/năm · Sharpe 0.37 · sụt giảm -54.9% · mã 8.7 · tiền mặt 16% · xoay 6.5x · vs bình quân đều -0.72% (t -1.14) · DSR 0.70 · lệnh mua 402
+V1     5.9%/năm · Sharpe 0.38 · sụt giảm -58.1% · mã 8.6 · tiền mặt 16% · xoay 6.5x · vs bình quân đều -0.68% (t -1.06) · vs B 0.03% (t 0.13, p 0.899) · Holm không · DSR 0.71 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 35307 lượt
+     chẩn đoán lệnh mua của B: bị chặn 15 (vượt 20p -1.19%) · không chặn 387 (0.04%) · t Welch -0.26 · không có BCTC 0
+V2     6.5%/năm · Sharpe 0.40 · sụt giảm -55.3% · mã 8.7 · tiền mặt 17% · xoay 6.5x · vs bình quân đều -0.62% (t -1.01) · vs B 0.09% (t 0.44, p 0.662) · Holm không · DSR 0.73 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 56980 lượt
+     chẩn đoán lệnh mua của B: bị chặn 46 (vượt 20p 0.26%) · không chặn 356 (-0.04%) · t Welch 0.14 · không có BCTC 0
+V3     1.8%/năm · Sharpe 0.19 · sụt giảm -54.2% · mã 8.6 · tiền mặt 18% · xoay 6.3x · vs bình quân đều -0.99% (t -1.58) · vs B -0.26% (t -0.75, p 0.455) · Holm không · DSR 0.55 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 81868 lượt
+     chẩn đoán lệnh mua của B: bị chặn 79 (vượt 20p 0.54%) · không chặn 323 (-0.14%) · t Welch 0.39 · không có BCTC 0
+V4     4.4%/năm · Sharpe 0.31 · sụt giảm -57.8% · mã 8.7 · tiền mặt 17% · xoay 6.5x · vs bình quân đều -0.79% (t -1.26) · vs B -0.08% (t -0.27, p 0.784) · Holm không · DSR 0.65 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 60080 lượt
+     chẩn đoán lệnh mua của B: bị chặn 59 (vượt 20p -1.10%) · không chặn 343 (0.18%) · t Welch -0.58 · không có BCTC 0
+V5     6.1%/năm · Sharpe 0.39 · sụt giảm -52.3% · mã 8.6 · tiền mặt 18% · xoay 6.5x · vs bình quân đều -0.66% (t -0.98) · vs B 0.05% (t 0.22, p 0.826) · Holm không · DSR 0.72 · tiêu chí c1✗ c2✗ c3✗ c4✓ c5✗ · chặn 73980 lượt
+     chẩn đoán lệnh mua của B: bị chặn 51 (vượt 20p 0.47%) · không chặn 351 (-0.08%) · t Welch 0.20 · không có BCTC 0
+V6     0.8%/năm · Sharpe 0.15 · sụt giảm -62.5% · mã 8.5 · tiền mặt 20% · xoay 6.3x · vs bình quân đều -1.03% (t -1.61) · vs B -0.32% (t -0.74, p 0.461) · Holm không · DSR 0.51 · tiêu chí c1✗ c2✗ c3✗ c4✗ c5✗ · chặn 150581 lượt
+     chẩn đoán lệnh mua của B: bị chặn 127 (vượt 20p 0.26%) · không chặn 275 (-0.13%) · t Welch 0.25 · không có BCTC 0
+theo năm, phương án − B: V1 [20 9%, 21 -6%, 22 -0%, 23 0%, 24 0%, 25 -5%] · V2 [20 6%, 21 -4%, 22 -0%, 23 3%, 24 1%, 25 -4%] · V3 [20 1%, 21 -36%, 22 -1%, 23 3%, 24 -2%, 25 -3%] · V4 [20 8%, 21 -1%, 22 -0%, 23 -6%, 24 -4%, 25 -4%] · V5 [20 3%, 21 -2%, 22 2%, 23 9%, 24 -2%, 25 -12%] · V6 [20 -0%, 21 -26%, 22 -6%, 23 1%, 24 1%, 25 -2%]
