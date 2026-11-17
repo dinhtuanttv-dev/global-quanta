@@ -18,7 +18,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -239,6 +239,24 @@ export function createEliteRouter({ getHlWatch = null, getPanel, getCashGate = n
   }));
 
   // LS-r1: điểm dẫn dắt LS-v1 — Hồ sơ 360° (khối "Sức mạnh dẫn dắt"), trạng thái, dựng bằng chứng, cổng H4 (chạy nền một lần).
+  // PFA-v1 — Hồ sơ 360° · Doanh nghiệp & Sự kiện (chỉ đọc; dữ liệu khoá theo phiên E1, đổi tối đa 1 lần/ngày -> đệm CDN).
+  const pfaDate = (q) => (/^d{4}-d{2}-d{2}$/.test(String(q ?? "")) ? String(q) : null);
+  router.get("/profile-fa/warnings", wrap(async (req, res) => {
+    if (!getProfileFa) return res.status(503).json({ error: "Chưa bật." });
+    const d = await getProfileFa().warnings(pfaDate(req.query.date)); if (!d) return missing(res, "Chưa có hồ sơ của phiên này.");
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(d);
+  }));
+  router.get("/profile-fa/status", (req, res) => { res.set("Cache-Control", "no-store"); res.json(getProfileFa ? getProfileFa().status() : { enabled: false }); });
+  router.get("/profile-fa/:ticker", wrap(async (req, res) => {
+    if (!getProfileFa) return res.status(503).json({ error: "Chưa bật." });
+    const t = String(req.params.ticker ?? "").toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const d = await getProfileFa().ticker(t, pfaDate(req.query.date)); if (!d) return missing(res, "Chưa có hồ sơ của phiên này.");
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(d);
+  }));
+  router.post("/admin/profile-fa", admin, wrap(async (req, res) => {
+    if (!getProfileFa) return res.status(503).json({ error: "Chưa bật." });
+    const d = await getProfileFa().build({ force: req.query.force === "1" }); res.json({ asOf: d.asOf, coverage: d.coverage, ms: d.ms, sources: d.sources });
+  }));
   router.get("/leadership/status", wrap(async (req, res) => { if (!getLeadership) return res.status(503).json({ error: "Chưa bật." }); res.json(await getLeadership().status()); }));
   router.get("/leadership/:ticker", wrap(async (req, res) => {
     if (!getLeadership) return res.status(503).json({ error: "Chưa bật." });

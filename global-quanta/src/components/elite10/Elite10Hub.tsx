@@ -14,6 +14,9 @@ import EliteNewsPanel from "./news/EliteNewsPanel";
 import EliteAiRoom from "./center/EliteAiRoom";
 import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
+import ProfileHeader, { type ProfileView } from "./profile/ProfileHeader";
+import CompanyProfileCard from "./profile/CompanyProfileCard";
+import EventsProfileCard from "./profile/EventsProfileCard";
 import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
 import "./elite10.css";
@@ -33,6 +36,8 @@ export default function Elite10Hub() {
   const [sub, setSub] = useState<Sub>(fromLink ? "profile" : "board");
   const [mode, setMode] = useState<"profile" | "screener">(fromLink ? "screener" : "profile");
   const [ticker, setTicker] = useState<string | null>(null);
+  // PFA-v1 (17/11/2026): góc nhìn của Hồ sơ — "Tổng hợp" là trang hiện có (giữ nguyên), hai góc nhìn mới chỉ bổ sung.
+  const [pview, setPview] = useState<ProfileView>("summary");
   // Phòng họp AI: dựng khi mở lần đầu rồi GIỮ trong cây (ẩn khi sang tab khác) — rời tab giữa chừng không huỷ tranh luận đang chạy
   // và không mất kết quả đã tính vào hạn mức hỏi đáp.
   const [aiOpened, setAiOpened] = useState(false);
@@ -101,12 +106,19 @@ export default function Elite10Hub() {
               </section>
             ) : (
               <>
-                <SignalProfileCard ticker={current} />
-                {/* Elite × TO (07/11/2026): sự kiện cổ tức của mã — Săn cổ tức trước GDKHQ (THĂM DÒ). */}
-                <ToTickerCard ticker={current} />
-                {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD. */}
-                <TimingSimPanel ticker={current} />
-                <EliteNewsPanel ticker={current} onTicker={open} />
+                <ProfileHeader ticker={current} view={pview} onView={setPview} />
+                {pview === "summary" && (
+                  <>
+                    <SignalProfileCard ticker={current} />
+                    {/* Elite × TO (07/11/2026): sự kiện cổ tức của mã — Săn cổ tức trước GDKHQ (THĂM DÒ). */}
+                    <ToTickerCard ticker={current} />
+                    {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD. */}
+                    <TimingSimPanel ticker={current} />
+                    <EliteNewsPanel ticker={current} onTicker={open} />
+                  </>
+                )}
+                {pview === "company" && <CompanyProfileCard ticker={current} />}
+                {pview === "events" && <EventsProfileCard ticker={current} />}
               </>
             )}
           </>
