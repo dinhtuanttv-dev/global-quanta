@@ -31,6 +31,7 @@ import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./market/sectors/sectorRot
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
+import { createProfileFa } from "./market/elite/profileFa.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
@@ -227,6 +228,10 @@ const eliteAdjustedCloses = (tickers, to) => {
   eliteAdjusted ??= createEliteAdjustedCloses({ seriesSource: createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }), pricesOf: (t) => rt.eventStudy.pricesOf(t), store: rt.store });
   return eliteAdjusted(tickers, to);
 };
+// PFA-v1 (17/11/2026): Hồ sơ 360° · Doanh nghiệp & Sự kiện — read-model ghép KQKD, cổ tức, sự kiện, TO-v1 theo phiên E1 (chỉ đọc engine có sẵn).
+let eliteProfileFa = null;
+const getEliteProfileFa = () => (eliteProfileFa ??= createProfileFa({ store: getMarketRuntime().store, panel: getElitePanel(), kqkd: getMarketRuntime().kqkd,
+  dividendScreener: getMarketRuntime().dividendScreener, corpEvents: getMarketRuntime().corpEvents, divRunup: getMarketRuntime().divRunup }));
 let eliteLeadership = null;
 const getEliteLeadership = () => (eliteLeadership ??= createLeadershipService({
   store: getMarketRuntime().store, pricesOf: (t) => getMarketRuntime().eventStudy.pricesOf(t), adjustedCloses: eliteAdjustedCloses, adjustedStats: () => eliteAdjusted?.stats() ?? null,
@@ -317,7 +322,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getProfileFa: getEliteProfileFa, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
@@ -327,6 +332,18 @@ if (process.env.NODE_ENV !== "test") {
   let cashGateRecorded = null;
   const due = (k, date) => { const t = tried[k]; return !t || t.date !== date || (!t.ok && Date.now() - t.at >= ELITE_RETRY_MS); };
   let pzBackfillTried = null, frozenRetryAt = 0;
+  // PFA-v1: dựng hồ sơ Doanh nghiệp & Sự kiện một lần cho phiên E1 mới nhất (vòng riêng, không đụng vòng dựng quyết định).
+  let pfaTriedAt = 0;
+  const pfaTick = async () => {
+    try {
+      const p = await getElitePanel().panel(); if (!p?.date) return;
+      const st = getEliteProfileFa().status(); if (st.asOf === p.date) return;
+      if (Date.now() - pfaTriedAt < 20 * 60_000) return; pfaTriedAt = Date.now();
+      const d = await getEliteProfileFa().build();
+      console.log(`[elite] hồ sơ PFA ${d.asOf}: ${d.coverage.tickers} mã · KQKD ${d.coverage.earnings} · cổ tức ${d.coverage.dividend} · ${d.ms} ms`);
+    } catch (e) { console.warn(`[elite] hồ sơ PFA lỗi: ${e.message}`); }
+  };
+  setTimeout(() => { void pfaTick(); setInterval(() => void pfaTick(), 10 * 60_000).unref?.(); }, 6 * 60_000).unref?.();
   const eliteTick = async () => {
     try {
       const inWindow = panelDue(Date.now(), isTradingDay);

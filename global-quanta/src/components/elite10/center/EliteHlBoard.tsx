@@ -7,6 +7,8 @@ import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { hlPicks, type EliteDecision, type HlClassCode, type HlPick, type LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
+import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
+import { WarningList } from "../profile/pfaParts";
 import { AllocationBar, coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzBadge, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
 
 const CLS_VI: Record<HlClassCode, string> = { STRONG: "Hợp lưu mạnh", CONFLUENCE: "Hợp lưu", T1_SECTOR_AGAINST: "Ngành phản đối", T1_SECTOR_NA: "Chưa có RRG", NOT_T1: "Đã rời tầng 1" };
@@ -98,6 +100,9 @@ const ledgerLine = (s: LedgerSummary | null | undefined, h: "5" | "10") => {
 export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError = null }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode; refreshError?: string | null }) {
   const hl = d.hl!;
   const { data: ws } = useWorldStrategy();
+  // PFA-v1 pha B: cảnh báo cơ bản & sự kiện của từng vị thế — mô tả, KHÔNG đổi danh mục.
+  const { data: pfaW } = useProfileFaWarnings();
+  const pfaOf = (t: string) => (pfaW && pfaW.asOf === d.date ? pfaW.tickers[t] ?? [] : []);
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const secName = (k: string | null | undefined) => (k ? sectorName.get(k) ?? k : "—");
   const f = hl.funnel, r = hl.rule, ch = hl.changes;
@@ -216,6 +221,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
                   <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ · giá {price(p.close)}</p>
+                  {pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
                   {pz && <PzCardLine pz={h.pz} rules={pzRules} />}
@@ -246,7 +252,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
                       <td className="pr-2">{openBtn(p.ticker)} <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
-                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ{whyBtn(p.ticker)}</span></td>
+                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ{whyBtn(p.ticker)}</span>
+                        {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
                         <span className="block text-[10px] text-slate-500">rủi ro {pct(p.riskContribution, 0)}</span></td>

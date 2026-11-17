@@ -36,6 +36,9 @@ vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
 vi.mock("./PortfolioRadar", () => ({ default: ({ d }: { d: EliteDecision }) => <div data-testid="radar-stub">{d.portfolio.map((p) => p.ticker).join(",")}</div> }));
 vi.mock("./EliteCandidates", () => ({ default: () => null }));
 vi.mock("./CashGateCard", () => ({ default: () => null }));
+// PFA-v1 pha B: cảnh báo cơ bản & sự kiện theo mã (chỉ hiện khi đúng phiên của tài liệu quyết định).
+let pfaWarnings: { asOf: string; tickers: Record<string, { id: string; level: "warn" | "info"; text: string; source: string }[]> } | null = null;
+vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFaWarnings: () => ({ data: pfaWarnings }) }));
 
 import DecisionBoard from "./DecisionBoard";
 import EliteHlBoard from "./EliteHlBoard";
@@ -281,5 +284,17 @@ describe("Elite HL — ghi chú K0 kèm kết quả HL-r2", () => {
     cleanup();
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("hl-k0-r2")).toBeNull();
+  });
+
+  it("PFA-v1 pha B: nhãn cảnh báo theo vị thế, chỉ khi cùng phiên; không đổi danh mục", () => {
+    pfaWarnings = { asOf: decision.date, tickers: { VJC: [{ id: "BENEISH", level: "warn", text: "Beneish M", source: "KQKD" }, { id: "KQKD_SOON", level: "info", text: "KQKD sắp có", source: "Lịch" }] } };
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(text("hl-pfa-VJC")).toMatch(/⚠ Beneish.*ⓘ Sắp có KQKD/);
+    expect(screen.queryByTestId("hl-pfa-CTD")).toBeNull();
+    expect(document.querySelectorAll('[data-testid^="hl-row-"]').length).toBe(decision.portfolio.length);
+    cleanup(); pfaWarnings = { ...pfaWarnings, asOf: "2026-11-01" };
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-pfa-VJC")).toBeNull();
+    pfaWarnings = null;
   });
 });
