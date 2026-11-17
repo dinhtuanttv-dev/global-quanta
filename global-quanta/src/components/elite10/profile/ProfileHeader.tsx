@@ -1,4 +1,4 @@
-// PFA-v1 — thanh tiêu đề cố định của Hồ sơ 360°: mã, phiên, vị thế trong danh mục Elite HL, cảnh báo, và công tắc 3 góc nhìn.
+// PFA-v1 — thanh tiêu đề của Hồ sơ 360° (đầu trang hồ sơ; không "dính" khi cuộn vì thanh điều hướng của ứng dụng cố định ở trên): mã, phiên, vị thế trong danh mục Elite HL, cảnh báo, và công tắc 3 góc nhìn.
 // "Tổng hợp" = trang Hồ sơ hiện có, giữ nguyên; "Doanh nghiệp" và "Sự kiện & thời điểm" là hai góc nhìn bổ sung.
 import { useRef, type KeyboardEvent } from "react";
 import { useEliteDecision } from "../../../hooks/elite10/useEliteCenter";
@@ -26,7 +26,7 @@ export default function ProfileHeader({ ticker, view, onView }: { ticker: string
   const warns = fa?.warnings ?? [];
   const nWarn = warns.filter((w) => w.level === "warn").length;
   return (
-    <div className="tw-scope sticky top-0 z-10 rounded-lg border border-white/10 bg-[#0B0F19]/95 px-3 py-2 text-slate-200 backdrop-blur" data-testid="profile-header">
+    <div className="tw-scope rounded-lg border border-white/10 bg-[#0B0F19] px-3 py-2 text-slate-200" data-testid="profile-header">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="text-[15px] font-bold text-[#F5CE72]" data-testid="profile-header-ticker">{ticker}</p>
         <p className="text-[10.5px] text-slate-400">Phiên {fmtDate(d?.date ?? fa?.asOf)}</p>

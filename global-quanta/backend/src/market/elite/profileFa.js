@@ -24,6 +24,8 @@ const CF_FLAGS = new Set(["HIGH_ACCRUAL", "NEG_CFO", "M_FLAG", "Z_DISTRESS"]);
 const STATUS_CATS = { WARNING: "Diện cảnh báo", CONTROL: "Diện kiểm soát", HALT: "Hạn chế / tạm ngừng giao dịch", NOTICE: "Nhắc nhở công bố thông tin", NO_MARGIN: "Không đủ điều kiện ký quỹ", DELIST: "Huỷ niêm yết" };
 const fin = (v) => typeof v === "number" && Number.isFinite(v);
 const r4 = (x) => (fin(x) ? Math.round(x * 1e4) / 1e4 : null);
+/** Số kiểu Việt Nam cho câu cảnh báo: dấu phẩy thập phân, dấu trừ thật (−). */
+const vn = (x, d = 2) => (fin(x) ? x.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", "−") : "—");
 const dayDiff = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
 /** Số phiên giao dịch từ `from` (không tính) tới `to` (tính), bỏ thứ Bảy / Chủ nhật — xấp xỉ (không trừ ngày lễ), ghi rõ ở giao diện. */
 export function weekdaysBetween(from, to) {
@@ -121,9 +123,9 @@ export function pfaWarnings(doc, rules = PFA_RULES) {
     if (fin(e.npatTtm) && e.npatTtm < 0) add("LOSS_TTM", "warn", `Lỗ 4 quý gần nhất (LNST TTM ${Math.round(e.npatTtm / 1e9).toLocaleString("vi-VN")} tỷ)`, `KQKD ${e.quarter}`);
     if (!e.financial) {
       if (e.piotroski && e.piotroski.of >= rules.piotroskiMinTests && e.piotroski.score <= rules.piotroskiLow) add("PIOTROSKI_LOW", "warn", `Piotroski ${e.piotroski.score}/${e.piotroski.of} — sức khoẻ tài chính yếu`, `KQKD ${e.quarter}`);
-      if (e.beneish?.flag) add("BENEISH", "warn", `Beneish M ${e.beneish.m} > −1,78 — cần soát chất lượng số liệu (sàng lọc, không phải kết luận)`, `KQKD ${e.quarter}`);
-      if (e.altman?.zone === "DISTRESS") add("ALTMAN", "warn", `Altman Z″ ${e.altman.z} — vùng rủi ro tài chính`, `KQKD ${e.quarter}`);
-      if (fin(e.accrual) && e.accrual > rules.accrualHigh) add("ACCRUAL", "warn", `Dồn tích cao (${(e.accrual * 100).toFixed(1)}% tài sản) — lợi nhuận chưa thành tiền`, `KQKD ${e.quarter}`);
+      if (e.beneish?.flag) add("BENEISH", "warn", `Beneish M ${vn(e.beneish.m)} > −1,78 — cần soát chất lượng số liệu (sàng lọc, không phải kết luận)`, `KQKD ${e.quarter}`);
+      if (e.altman?.zone === "DISTRESS") add("ALTMAN", "warn", `Altman Z″ ${vn(e.altman.z)} — vùng rủi ro tài chính`, `KQKD ${e.quarter}`);
+      if (fin(e.accrual) && e.accrual > rules.accrualHigh) add("ACCRUAL", "warn", `Dồn tích cao (${vn(e.accrual * 100, 1)}% tài sản) — lợi nhuận chưa thành tiền`, `KQKD ${e.quarter}`);
       if (fin(e.cfoToNpat) && e.cfoToNpat < 0 && fin(e.npatTtm) && e.npatTtm > 0) add("NEG_CFO", "warn", "Có lãi nhưng dòng tiền kinh doanh 4 quý âm", `KQKD ${e.quarter}`);
     }
     if (e.flags.includes("AUDIT_DIFF")) add("AUDIT_DIFF", "info", "Tổng 4 quý lệch BCTC năm kiểm toán > 2%", `KQKD ${e.quarter}`);

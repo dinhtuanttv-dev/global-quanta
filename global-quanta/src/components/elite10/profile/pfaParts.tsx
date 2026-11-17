@@ -4,7 +4,9 @@ import type { PfaWarning, PfaYoY } from "../../../lib/elite10/profileFaTypes";
 import { FA_R1 } from "../../../lib/elite10/faR1";
 
 export const fmtDate = (d?: string | null) => (d ? d.slice(0, 10).split("-").reverse().join("/") : "—");
-export const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
+export const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }).replace("-", "−"));
+/** Hệ số phủ (FCF / cổ tức…): âm = dòng tiền tự do âm; quá lớn = cổ tức gần như bằng 0 — không hiện số vô nghĩa. */
+export const cover = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "—" : v < 0 ? "âm (FCF < 0)" : v > 20 ? "> 20 lần" : `${num(v, 2)} lần`);
 export const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${num(v * 100, d)}%`);
 export const spct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${num(Math.abs(v) * 100, d)}%`);
 /** Tỷ đồng, có dấu khi âm. */
@@ -77,7 +79,7 @@ export function WarningList({ items, compact = false, testId }: { items: PfaWarn
       {items.map((w) => (
         <li key={w.id} className={w.level === "warn" ? "text-amber-200" : "text-slate-300"}>
           <span aria-hidden="true">{w.level === "warn" ? "⚠ " : "ⓘ "}</span>{w.text} <span className="text-[10px] text-slate-500">· {w.source}</span>
-          {FA_R1.gates[w.id] && <span className="block pl-4 text-[10px] text-slate-500" data-testid={`pfa-far1-${w.id}`}>FA-r1 {FA_R1.gates[w.id].gate}: chặn mua theo cờ này {FA_R1.gates[w.id].vsBase20 >= 0 ? "+" : "−"}{Math.abs(FA_R1.gates[w.id].vsBase20 * 100).toFixed(2).replace(".", ",")}% / 20 phiên so với không chặn (t {FA_R1.gates[w.id].t.toLocaleString("vi-VN")}) — {FA_R1.gates[w.id].noteVi}</span>}
+          {FA_R1.gates[w.id] && <span className="block pl-4 text-[10px] text-slate-500" data-testid={`pfa-far1-${w.id}`}>FA-r1 {FA_R1.gates[w.id].gate}: chặn mua theo cờ này {FA_R1.gates[w.id].vsBase20 >= 0 ? "+" : "−"}{Math.abs(FA_R1.gates[w.id].vsBase20 * 100).toFixed(2).replace(".", ",")}% / 20 phiên so với không chặn (t {FA_R1.gates[w.id].t.toLocaleString("vi-VN").replace("-", "−")}) — {FA_R1.gates[w.id].noteVi}</span>}
         </li>
       ))}
     </ul>

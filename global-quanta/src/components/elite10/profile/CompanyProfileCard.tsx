@@ -3,7 +3,7 @@
 import { useProfileFa } from "../../../hooks/elite10/useProfileFa";
 import type { PfaDividend, PfaEarnings } from "../../../lib/elite10/profileFaTypes";
 import { FA_R1 } from "../../../lib/elite10/faR1";
-import { Block, bn, Checklist, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd, WarningList, YoY } from "./pfaParts";
+import { Block, bn, Checklist, cover, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd, WarningList, YoY } from "./pfaParts";
 
 const SRC_VI: Record<string, string> = { DISCLOSURE: "tin công bố chính thức", CAFEF: "CafeF", VND_CREATED: "ngày dữ liệu VNDirect" };
 const ZONE_VI: Record<string, string> = { SAFE: "an toàn", GREY: "vùng xám", DISTRESS: "rủi ro" };
@@ -79,7 +79,7 @@ function Dividend({ v }: { v: PfaDividend }) {
       {!paysCash && <p className="mb-2 text-[11px] text-slate-400" data-testid="pfa-no-cash">Không trả cổ tức tiền trong 12 tháng gần nhất{(v.stockPct12m ?? 0) > 0 ? ` · cổ tức cổ phiếu ${num(v.stockPct12m, 0)}%` : ""}.</p>}
       <div className="grid grid-cols-2 gap-1.5 md:grid-cols-4">
         <Stat label="Lợi suất tiền mặt 12 tháng" testId="pfa-yield" sub={`Sau thuế 5%: ${pct(v.yieldNet)} · ${vnd(v.ttmCash)}/cp`}>{pct(v.yieldGross)}</Stat>
-        <Stat label="Tỷ lệ chi trả · FCF / cổ tức" sub="FCF / cổ tức ≥ 1 = trả bằng tiền tự làm ra">{pct(v.payout, 0)} · {num(v.fcfCover, 2)}</Stat>
+        <Stat label="Tỷ lệ chi trả · FCF / cổ tức" sub="FCF / cổ tức ≥ 1 = trả bằng tiền tự làm ra">{pct(v.payout, 0)} · {cover(v.fcfCover)}</Stat>
         <Stat label="Chuỗi năm trả liên tiếp" sub={`Tăng bình quân 3 năm ${spct(v.cagr3)} · ${v.cuts5 ?? "—"}/${v.years5 ?? "—"} lần cắt trong 5 năm`}>{v.streak ?? "—"} năm</Stat>
         <Stat label="Sau GDKHQ (lịch sử của mã)" testId="pfa-exstudy" sub={v.exStudy ? `${v.exStudy.n} lần · lấp khoảng trong 20 phiên ${pct(v.exStudy.fillWithin20, 0)}` : "Chưa đủ lịch sử"}>
           {v.exStudy?.fillDaysMedian != null ? `${v.exStudy.fillDaysMedian} phiên để lấp` : "—"}
@@ -93,7 +93,7 @@ function Dividend({ v }: { v: PfaDividend }) {
           </div>
           <div className="space-y-1">
             {q.lintner?.ok && <p className="text-[11px] text-slate-300" data-testid="pfa-lintner">Mô hình Lintner: tỷ lệ chi trả mục tiêu {pct(q.lintner.targetPayout, 0)}, tốc độ điều chỉnh {num(q.lintner.speed, 2)} ({q.lintner.n} năm) → lợi suất kỳ tới ước {pct(q.nextYield)}</p>}
-            {q.company && <p className="text-[11px] text-slate-400">{q.company.years ?? "—"} năm lịch sử · chi trả 5 năm {pct(q.company.payout5 ?? null, 0)} lợi nhuận · FCF 5 năm phủ {num(q.company.fcfCover5 ?? null, 2)} lần cổ tức · {q.company.lossYears10 ?? 0} năm lỗ / 10</p>}
+            {q.company && <p className="text-[11px] text-slate-400">{q.company.years ?? "—"} năm lịch sử · chi trả 5 năm {pct(q.company.payout5 ?? null, 0)} lợi nhuận · FCF 5 năm phủ cổ tức {cover(q.company.fcfCover5 ?? null)} · {q.company.lossYears10 ?? 0} năm lỗ / 10</p>}
             {(v.history?.length ?? 0) > 0 && <p className="text-[10.5px] text-slate-500" data-testid="pfa-div-history">Tiền mặt theo năm: {v.history!.map(([y, c]) => `${y}: ${Math.round(c).toLocaleString("vi-VN")}đ`).join(" · ")}</p>}
           </div>
         </div>
