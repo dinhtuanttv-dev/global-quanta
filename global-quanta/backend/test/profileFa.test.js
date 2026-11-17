@@ -90,3 +90,9 @@ test("dịch vụ: dựng một lần cho phiên E1, khoá khoá local:, phiên 
   date = "2026-11-18"; await svc.doc();
   assert.equal(kv.get(PFA_KV.index).dates.length, PFA_KEEP); assert.equal(kv.get(PFA_KV.doc("2026-09-01")), null);
 });
+
+test("câu cảnh báo dùng số kiểu Việt Nam (dấu phẩy, dấu trừ thật)", () => {
+  const doc = buildProfileFa({ ticker: "AAA", asOf: "2026-11-17", kq: { ...corp, accrual: 0.1234 }, detail });
+  const txt = Object.fromEntries(doc.warnings.map((w) => [w.id, w.text]));
+  assert.match(txt.BENEISH, /Beneish M −1,20 > −1,78/); assert.match(txt.ALTMAN, /Altman Z″ 0,90/); assert.match(txt.ACCRUAL, /Dồn tích cao \(12,3% tài sản\)/);
+});
