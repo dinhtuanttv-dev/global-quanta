@@ -29,6 +29,9 @@ const base: ProfileFa = {
 let fa: ProfileFa | null = base;
 const decision = { date: "2026-11-17", hl: { version: "E4-HL v1" }, portfolio: [{ ticker: "VJC", weight: 0.15, hl: { rank: 1, cls: "STRONG", exitBufferLs: 25 } }] };
 vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFa: () => ({ data: fa, error: null, isLoading: false }), useProfileFaWarnings: () => ({ data: null }) }));
+const tlRow = (o: Record<string, unknown>) => ({ ticker: "VJC", kind: "EARNINGS", tier: "VALIDATED", status: "UPCOMING", eventLabel: "KQKD", eventDate: "2027-01-20", eventDateBasis: "ESTIMATED", windowId: "e1", windowLabel: "Trước KQKD", entryFrom: -10, entryTo: -8, exitOffset: 0, entryFromDate: "2027-01-05", entryToDate: "2027-01-07", exitDate: "2027-01-20", sessionsToEntry: 32, nEvents: 12, winRate: 0.75, probability: null, netExpectancy: 0.021, netExpectancyLcb: 0.004, fdrQValue: 0.04, decisionLevel: null, missing: [], ...o });
+let tlRows: unknown[] = [tlRow({}), tlRow({ kind: "DIVIDEND", tier: "EXPLORATORY", windowId: "to", eventDateBasis: "ANNOUNCED", eventDate: "2026-11-26", entryFromDate: "2026-11-18", entryToDate: "2026-11-19", exitDate: "2026-11-25", status: "IN_WINDOW", fdrQValue: 1, missing: ["THĂM DÒ — chờ kiểm định tiến TO-r1"] }), tlRow({ ticker: "HPG" })];
+vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: { rows: tlRows, counts: { validated: 2, near: 163, inWindow: 0, upcoming: 2 }, coverage: { universe: 281, decisions: 281, seasonality: 281 } }, sessions: [], loading: false }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: decision }) }));
 
 import ProfileHeader from "./ProfileHeader";
@@ -94,6 +97,16 @@ describe("Hồ sơ 360° · PFA-v1", () => {
     expect(text("pfa-recent-table")).toMatch(/Không có sự kiện trong 120 ngày/);
   });
 
+  it("T2 · Vùng Timeline của mã: chỉ đọc, đúng mã, bậc ĐẠT / THĂM DÒ, ngày ước tính được gắn nhãn, q của TO không hiện, ghi chú bằng chứng", () => {
+    render(<EventsProfileCard ticker="VJC" />);
+    const t = text("pfa-timeline");
+    expect(screen.getByTestId("pfa-timeline-row-0")).toBeTruthy(); expect(screen.getByTestId("pfa-timeline-row-1")).toBeTruthy(); expect(screen.queryByTestId("pfa-timeline-row-2")).toBeNull();
+    expect(text("pfa-timeline-row-0")).toMatch(/ĐẠT KIỂM ĐỊNH.*Mùa vụ KQKD.*sắp tới.*sau 32 phiên.*(ước tính).*12.*75%.*[+]2,1%.*[+]0,4%.*0,04/);
+    expect(text("pfa-timeline-row-1")).toMatch(/THĂM DÒ.*Săn cổ tức TO-v1.*đang mở.*(đã công bố)/); expect(text("pfa-timeline-row-1")).not.toMatch(/1,00/);
+    expect(t).toMatch(/2 vùng đạt kiểm định trên 281 mã/); expect(t).toMatch(/không phải tín hiệu mua/); expect(t).not.toMatch(/Mua ngay/);
+    expect(text("pfa-timeline-missing")).toMatch(/chờ kiểm định tiến TO-r1/);
+    cleanup(); tlRows = []; render(<EventsProfileCard ticker="VJC" />); expect(text("pfa-timeline-none")).toMatch(/không có vùng Timeline/);
+  });
   it("mã ngoài bảng tín hiệu -> thông báo rõ, không dựng khung rỗng", () => {
     fa = { version: "PFA-v1", asOf: "2026-11-17", ticker: "VNINDEX", missing: true };
     render(<CompanyProfileCard ticker="VNINDEX" />); expect(text("pfa-missing")).toMatch(/không nằm trong bảng tín hiệu.*17\/11\/2026/);

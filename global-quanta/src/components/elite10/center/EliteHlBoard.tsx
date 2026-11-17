@@ -7,6 +7,7 @@ import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { hlPicks, type EliteDecision, type HlClassCode, type HlPick, type LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
+import HlCalendarStrip from "./HlCalendarStrip";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
 import { AllocationBar, coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzBadge, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
@@ -206,6 +207,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <p className="mt-1 text-[11px]" data-testid="hl-pz-changes"><b className="text-violet-200">Chuyển sang theo dõi: {ch.toWatch?.length ?? 0} mã</b>{ch.toWatch?.length ? <span className="text-slate-400"> ({ch.toWatch.join(", ")})</span> : null} · <b className="text-emerald-300">Về vùng mua: {ch.backToZone?.length ?? 0} mã</b>{ch.backToZone?.length ? <span className="text-slate-400"> ({ch.backToZone.join(", ")})</span> : null}</p>
         )}
       </Panel>
+
+      <HlCalendarStrip d={d} onOpenTicker={onOpenTicker} />
 
       <Panel title={pz ? `Danh mục Elite HL · trong nền và vùng mua (${corePicks.length} mã)` : `Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
         {pz && <p className="mb-1.5 text-[10.5px] text-slate-400" data-testid="hl-pz-mode"><span className={`mr-1 rounded border px-1 py-px text-[10px] font-bold ${pz.gate ? "border-emerald-400/60 text-emerald-200" : "border-slate-400/50 text-slate-300"}`}>{pz.gate ? "CỔNG BẬT" : "CHỈ HIỂN THỊ"}</span>{pz.modeVi}</p>}
