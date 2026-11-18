@@ -1,7 +1,7 @@
 // PZ-v2 (14/11/2026) — giao diện lớp VỊ TRÍ GIÁ của Elite HL: nhãn trạng thái, thước vùng mua, thanh phân bổ ba phần
 // (Danh mục chính · Chạy lãi · Tiền mặt) và bảng THEO DÕI CHỜ NỀN. Mọi ngưỡng đọc từ hl.pz.rules; thiếu số hiện "—".
 // Trạng thái phân biệt bằng CHỮ + KÝ HIỆU + KIỂU VIỀN (không chỉ màu). "Tăng nóng" không tô màu tích cực; "Vùng mua" không kèm chữ "nên mua".
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { HlPick, PzExit, PzMeta, PzPosition, PzRules, PzState, PzWatchRow } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
 
@@ -137,7 +137,9 @@ function RebaseChecks({ pz }: { pz: PzPosition }) {
 }
 
 /** Bảng 2 — THEO DÕI CHỜ NỀN: nhóm Đang giữ · Chạy lãi, rồi Chưa giữ · Chờ nền; dải mã vừa rời bảng. */
-export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName }: { rows: PzWatchRow[]; exits: PzExit[]; meta: PzMeta; onOpenTicker: (t: string) => void; secName: (k: string | null | undefined) => string }) {
+export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadge }: { rows: PzWatchRow[]; exits: PzExit[]; meta: PzMeta; onOpenTicker: (t: string) => void; secName: (k: string | null | undefined) => string;
+  /** LQ1: huy hiệu thanh khoản của mã (mobile = thẻ, false = bảng) — chỉ hiển thị. */
+  liqBadge?: (row: PzWatchRow, mobile: boolean) => ReactNode }) {
   const rules = { ...DEFAULT_PZ_RULES, ...(meta.rules ?? {}) };
   const runners = rows.filter((x) => x.held), waiting = rows.filter((x) => !x.held);
   const [open, setOpen] = useState<string | null>(null);
@@ -153,6 +155,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName }: { row
                   <span><button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{x.ticker}</button> {x.held && <span className="ml-1 rounded border border-violet-400/50 px-1 text-[10px] text-violet-200">đang giữ {pctf(x.weight)}</span>}</span>
                   <PzBadge pz={x.pz} />
                 </div>
+                {liqBadge && <p className="mt-0.5 text-[10px] text-slate-500">{liqBadge(x, true)}</p>}
                 <div className="mt-1"><RebaseChecks pz={x.pz} /></div>
                 {x.pz.missingVi.length > 0 && <p className="mt-1 text-[10.5px] text-slate-300">Còn thiếu: {x.pz.missingVi.slice(0, 2).join(" · ")}</p>}
               </li>
@@ -171,7 +174,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName }: { row
                   <tr key={x.ticker} className="border-t border-white/5 align-top" data-testid={`pz-row-${x.ticker}`}>
                     <td className="py-1.5 pr-2">
                       <button type="button" onClick={() => onOpenTicker(x.ticker)} className="font-bold text-[#F5CE72] hover:underline">{x.ticker}</button>
-                      <span className="block text-[10px] text-slate-500">{x.sectorKey ? secName(x.sectorKey) : "—"}</span>
+                      <span className="block text-[10px] text-slate-500">{x.sectorKey ? secName(x.sectorKey) : "—"}{liqBadge && <> · {liqBadge(x, false)}</>}</span>
                       {x.held && <span className="block text-[10px] text-violet-200">đang giữ {pctf(x.weight)}{x.sinceRet ? <> · từ phiên khoá <b className={x.sinceRet >= 0 ? "text-emerald-300" : "text-rose-300"}>{spct(x.sinceRet)}</b></> : null}</span>}
                     </td>
                     <td className="pr-2 font-mono text-slate-300">{x.hlRank ?? "—"}</td>
