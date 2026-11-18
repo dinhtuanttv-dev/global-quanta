@@ -10,6 +10,7 @@ import HlLedgerNote from "./HlLedgerNote";
 import HlCalendarStrip from "./HlCalendarStrip";
 import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
 import DilutionBadge from "./DilutionBadge";
+import CashGateCard from "./CashGateCard";
 import { BINDING_VI, bnText, LQ_DEFAULT, LQ_TIER, portfolioCapacity, reasonText, splitQueue } from "../../../lib/elite10/liquidity";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
@@ -191,6 +192,15 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <span className={hl.dataGuard?.frozen ? "text-rose-300" : hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.dataGuard?.frozen ? "Giữ nguyên" : hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</span>
         </Tile>
         <Tile label="Xoay vòng phiên" testId="hl-kpi-turnover" sub={<>Phí ước tính <b className="text-slate-200">{pct(ch.costEst, 2)}</b> giá trị danh mục (mua {pct(r.costBuy, 2)}, bán {pct(r.costSell, 2)})</>}>{ch.turnover == null ? "—" : pct(ch.turnover, 0)}</Tile>
+      </div>
+
+      {/* G2: bối cảnh chuyển từ bảng Elite 10 cũ — rủi ro toàn cầu và Cổng tiền mặt (R1 KHÔNG ĐẠT, chỉ hiển thị). */}
+      <div className="grid grid-cols-1 items-start gap-2 text-[11px] md:grid-cols-2" data-testid="hl-context">
+        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2" data-testid="hl-context-global">
+          <p className="text-[10px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
+          <p>{ws ? <>{ws.regime.stressed ? <b className="text-amber-300">Căng thẳng</b> : <b className="text-slate-100">Bình thường</b>} · VIX {num(ws.regime.vix, 2)} ({signed(ws.regime.vixChg, 1)}%) <span className="text-slate-500">— bối cảnh, không đổi quy tắc</span></> : "—"}</p>
+        </div>
+        <CashGateCard />
       </div>
 
       <Panel title="Phễu chọn lọc" testId="hl-funnel" right={<span className="text-[10px] text-slate-500">Thứ tự ưu tiên: tầng 1 → RRG ngành → tích điểm các tab</span>}>

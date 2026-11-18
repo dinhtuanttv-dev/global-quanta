@@ -63,13 +63,10 @@ vi.mock("swr", async (orig) => {
   return { ...real, default: (key: unknown, ...rest: unknown[]) => (key === "research-overview" ? { data: { currentRegime: { date: "2026-10-16", regime: "SIDEWAY", impulseScore: 39.3, breadthPct: 41.1 } } } : (real.default as never as (...a: unknown[]) => unknown)(key, ...rest)) };
 });
 
-vi.mock("../../../hooks/elite10/useRankHistory", () => ({
-  useRankHistory: () => ({ history: { dates: ["2026-10-15"], sessions: [{ date: "2026-10-15", portfolio: [{ ticker: "ORS", rank: 1, Z: 2, weight: 0.5, retained: false }, { ticker: "DSE", rank: 2, Z: 1.9, weight: 0.5, retained: false }], ranks: {} }] }, error: null, isLoading: false }),
-}));
 vi.mock("../../../hooks/elite10/useEliteBuyZones", () => ({ useEliteBuyZones: () => ({ zones: null, error: null, isLoading: false }) }));
 import DecisionBoard from "./DecisionBoard";
+import CashGateCard from "./CashGateCard";
 import SignalProfileCard, { percentile } from "./SignalProfileCard";
-import { readBoardPrefs } from "./boardPrefs";
 
 beforeEach(() => {
   try { localStorage.clear(); } catch { /* không có storage */ }
@@ -77,61 +74,17 @@ beforeEach(() => {
   vi.stubGlobal("fetch", async () => new Response(JSON.stringify({ error: "test" }), { status: 503, headers: { "content-type": "application/json" } }));
 });
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
-const heads = (id: string) => [...screen.getByTestId(id).querySelectorAll(`#${id}-table thead th`)].map((th) => th.textContent);
-// Radar Elite 10 (thay bảng cũ): tiêu đề cột của hàng đầu
-const radarHeads = () => [...document.querySelectorAll("[data-testid=elite-radar] [role=list] > div:first-child > span")].map((e) => (e.textContent ?? "").replace(/^(⏱ Vùng mua · \d+ phiên).*$/, "$1"));
 
 describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
-  it("bảng quyết định: nhãn THĂM DÒ, bối cảnh, danh mục, trọng số chỉ A/B, bấm mã mở hồ sơ", () => {
-    const opened: string[] = [];
-    render(<DecisionBoard onOpenTicker={(t) => opened.push(t)} />);
-    expect(screen.getByTestId("elite-label").textContent).toContain("THĂM DÒ");
-    expect(screen.getByTestId("elite-context").textContent).toContain("Căng thẳng");
-    expect(screen.getByTestId("elite-context").textContent).toContain("Đi ngang");
-    const row = screen.getByTestId("elite-radar-row-ORS").textContent ?? "";
-    expect(row).toContain("Dịch vụ tài chính");
-    expect(row).toContain("14,0%");
-    expect(row).toContain("Stealth 20");
-    expect(row).toContain("giữ");
-    expect(screen.getByTestId("elite-radar-risk-ORS").textContent).toBe("rủi ro 10,0%");
-    expect(screen.queryByTestId("elite-portfolio-table-details")).toBeNull(); // bảng số liệu cũ đã bỏ
-    expect(screen.getByTestId("elite-portfolio").textContent).toContain("cân bằng đóng góp rủi ro (ERC)");
-    expect(screen.getByTestId("elite-portfolio").textContent).toContain("vòng quay 42%");
-    expect(screen.getByTestId("elite-weighting-note").textContent).toContain("119 mã");
-    expect(screen.getByTestId("elite-weights").textContent).toContain("chưa đo");
-    fireEvent.click(screen.getByTestId("elite-radar-open-ORS"));
-    expect(opened).toEqual(["ORS"]);
-    expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
-  });
-
-  it("E3-v4: dòng giải thích quy tắc RRG + nhãn 'Tụt hậu −30%' ở mã bị phạt; bản cũ không hiện", () => {
+  it("G1: tài liệu cũ (chưa có Elite HL) -> câu rõ ràng, không dựng bảng Elite 10 cũ", () => {
     render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(screen.queryByTestId("elite-rrg-rule")).toBeNull();
-    cleanup();
-    const keep = { version: decision.version, p: { ...decision.portfolio[0] }, s: { ...decision.scores[0] } };
-    Object.assign(decision, { version: "E3-v4 (prereg 2026-10-17, sửa đổi 2026-11-05)" });
-    Object.assign(decision.portfolio[0], { rrgPenalty: true, zModel: 3.2, rrgQuadrant: -2 });
-    Object.assign(decision.scores[0], { rrgPenalty: true });
-    try {
-      render(<DecisionBoard onOpenTicker={() => {}} />);
-      expect(screen.getByTestId("elite-rrg-rule").textContent).toContain("1 mã đủ điều kiện đang bị phạt");
-      expect(screen.getByTestId("elite-radar-rrg-ORS").textContent).toBe("Tụt hậu −30%");
-    } finally {
-      Object.assign(decision, { version: keep.version }); Object.assign(decision.portfolio[0], keep.p, { rrgPenalty: undefined }); Object.assign(decision.scores[0], keep.s, { rrgPenalty: undefined });
-    }
-  });
-
-  it("R4: hôm nay đổi gì — mã ra kèm lý do; P vượt kèm khoảng 95% theo sai số IC hồi cứu", () => {
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    const diff = screen.getByTestId("elite-diff").textContent ?? "";
-    expect(diff).toContain("so với phiên 15/10/2026");
-    expect(screen.getByTestId("elite-diff-remove-DSE").textContent).toContain("đủ 3 mã");
-    expect(diff).toContain("Giữ 1/1 mã");
-    expect(screen.getByTestId("elite-radar-prange-ORS").textContent).toMatch(/^\d+–\d+%$/);
+    expect(screen.getByTestId("elite-no-hl").textContent).toMatch(/chưa trả danh mục Elite HL/);
+    expect(screen.queryByTestId("elite-decision-board")).toBeNull(); expect(screen.queryByTestId("elite-candidates")).toBeNull();
   });
 
   it("CG-r1: ô Tỷ lệ cổ phiếu — chính thức 100%, trạng thái cổng hôm nay (mô tả), kết quả kiểm định KHÔNG ĐẠT kèm tiêu chí", () => {
-    render(<DecisionBoard onOpenTicker={() => {}} />);
+    // G2: thẻ Cổng tiền mặt chuyển từ bảng Elite 10 cũ sang bảng Elite HL — kiểm trực tiếp thành phần.
+    render(<CashGateCard />);
     const card = screen.getByTestId("elite-cash-gate");
     expect(screen.getByTestId("elite-cash-gate-official").textContent).toContain("100%");
     expect(screen.getByTestId("elite-cash-gate-official").textContent).not.toMatch(/100%.*100%/);
@@ -146,79 +99,6 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(ho).toContain("C1✗ C2✓ C3✓ C4✓");
   });
 
-  it("B2: cột số 4 '⏱ Điểm mua' — vùng mua đạt kiểm định hiển thị trong ô, ghi chú nguồn + thời điểm lấy Timeline", () => {
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(radarHeads()[4]).toMatch(/^⏱ Vùng mua · \d+ phiên$/);
-    expect(screen.getByTestId("buy-zone-pill-ORS").textContent).toBe("● ĐANG TRONG VÙNG MUA");
-    expect(screen.getByTestId("buy-zone-tier-ORS").textContent).toBe("✓ ĐẠT");
-    expect(screen.getByTestId("buy-zone-detail-ORS").textContent).toBe("KQKD W1 15/10→21/10 · thoát 27/10");
-    expect([...document.querySelectorAll("[data-testid=elite-buy-strip] [data-testid=elite-buy-chip]")].map((c) => c.textContent)).toEqual(["● ORS KQ trong vùng"]);
-    expect(screen.getByTestId("elite-buy-note").textContent).toContain("lấy lúc");
-    expect(screen.getByTestId("elite-buy-note").textContent).toContain("Gateway tự tính · dữ liệu 16/10");
-  });
-
-  it("C2: Ứng viên tiếp theo — mặc định thu gọn (dòng tóm tắt), mở ra bảng cùng cấu trúc danh mục + lý do chưa vào", () => {
-    const opened: string[] = [];
-    render(<DecisionBoard onOpenTicker={(t) => opened.push(t)} />);
-    const toggle = screen.getByTestId("elite-candidates-toggle");
-    expect(toggle.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByTestId("elite-next").textContent).toContain("DSE");
-    expect(screen.getByTestId("elite-portfolio-toggle").getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(toggle);
-    expect(screen.getByTestId("elite-candidates-toggle").getAttribute("aria-expanded")).toBe("true");
-    const h = heads("elite-candidates");
-    expect(h.slice(0, 4)).toEqual(["Mã", "Ngành", "Lý do chưa vào", "⏱ Điểm mua"]);
-    expect(h).toContain("σ20");
-    const dse = screen.getByTestId("elite-cand-DSE").textContent ?? "";
-    expect(dse).toContain("#2");
-    expect(dse).toContain("đệm");
-    expect(dse).toContain("Dịch vụ tài chính");
-    expect(dse).toContain("18.803");
-    expect(dse).toContain("23.420");
-    expect(dse).toContain("2,0%");
-    expect(screen.getByTestId("elite-cand-reason-DSE").textContent).toBe("Trần ngành 3/3");
-    expect(screen.getByTestId("elite-cand-reason-PVT").textContent).toBe("Xếp sau 10 mã");
-    expect(screen.getByTestId("elite-cand-PVT").textContent).not.toContain("đệm");
-    expect(screen.getByTestId("elite-cand-buy-DSE").textContent).toContain("Mở cửa 17/10");
-    expect(screen.getByTestId("elite-candidates").textContent).toContain("không phải tín hiệu mua thêm");
-    fireEvent.click(screen.getByTestId("elite-cand-PVT").querySelector("button")!);
-    expect(opened).toEqual(["PVT"]);
-  });
-
-  it("C2: Gọn / Thu gọn — ẩn cột phụ, lưu theo tài khoản, hai bảng độc lập", () => {
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(radarHeads()).toContain("P vượt · α5");
-    fireEvent.click(screen.getByTestId("elite-portfolio-compact"));
-    const h = radarHeads();
-    expect(h).not.toContain("P vượt · α5");
-    expect(h).not.toContain("Động lực chính");
-    expect(h.slice(0, 4)).toEqual(["Hạng", "Mã", "Rãnh Z · vệt 5 phiên", "Tỷ trọng"]);
-    fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
-    expect(heads("elite-candidates")).toContain("α 5 phiên"); // bảng ứng viên giữ chế độ riêng (đầy đủ)
-    fireEvent.click(screen.getByTestId("elite-portfolio-toggle"));
-    expect(screen.getByTestId("elite-portfolio-summary").textContent).toContain("ORS");
-    expect(screen.queryByTestId("elite-radar-row-ORS")).toBeNull();
-    expect(readBoardPrefs()).toEqual({ portfolio: { open: false, compact: true }, candidates: { open: true, compact: null } });
-    cleanup();
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(screen.getByTestId("elite-portfolio-toggle").getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getByTestId("elite-candidates-toggle").getAttribute("aria-expanded")).toBe("true");
-  });
-
-  it("C2: màn hẹp tự dùng chế độ gọn khi người dùng chưa chọn; Gateway cũ (không có candidates) vẫn hiện ứng viên từ scores", () => {
-    vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("max-width"), media: q, addEventListener() {}, removeEventListener() {} }));
-    const saved = decision.candidates;
-    decision.candidates = undefined;
-    try {
-      render(<DecisionBoard onOpenTicker={() => {}} />);
-      expect(radarHeads()).not.toContain("P vượt · α5");
-      expect(screen.getByTestId("elite-portfolio-compact").getAttribute("aria-pressed")).toBe("true");
-      fireEvent.click(screen.getByTestId("elite-candidates-toggle"));
-      expect(screen.getByTestId("elite-cand-reason-DSE").textContent).toBe("Hạng 2");
-      expect(screen.getByTestId("elite-cand-DSE").textContent).toContain("—");
-    } finally { decision.candidates = saved; }
-  });
-
   it("hồ sơ: đủ tín hiệu theo tab, bậc hiện hành, giá trị trống không điền số; mã ngoài vũ trụ báo rõ", () => {
     render(<SignalProfileCard ticker="ORS" />);
     expect(screen.getByTestId("elite-profile-score").textContent).toContain("Trong Elite 10");
@@ -227,7 +107,8 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-profile").textContent).toContain("cotuc");
     expect(screen.getByTestId("elite-profile").textContent).toContain("3 tín hiệu từ 2 tab");
     expect(screen.getByTestId("elite-contrib-stealth20").textContent).toContain("+1,2");
-    expect(screen.getByTestId("elite-profile-gap").textContent).toContain("Đang trong danh mục Elite 10");
+    // G3: khối khoảng cách theo Z (danh mục dòng tiền) đã bỏ; tài liệu cũ không có Elite HL thì không hiện khoảng cách.
+    expect(screen.getByTestId("elite-profile-gap").textContent).not.toMatch(/ΔZ|Elite 10/);
     cleanup();
     render(<SignalProfileCard ticker="VNINDEX" />);
     expect(screen.getByTestId("elite-profile-missing").textContent).toContain("VNINDEX");

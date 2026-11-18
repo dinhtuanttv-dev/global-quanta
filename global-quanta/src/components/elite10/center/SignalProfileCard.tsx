@@ -1,7 +1,8 @@
 // Elite 10 E4 — Hồ sơ 360°: mọi tín hiệu của một mã từ 7 tab (sổ E1), bậc bằng chứng hiện hành (E2), phân vị trong vũ trụ và
 // Điểm Elite (E3). Tín hiệu bậc C hiển thị làm bối cảnh, có nhãn rõ, không cộng vào điểm.
 // 30/10/2026: số tín hiệu đếm theo sổ (24); tín hiệu bậc / cờ hiện NHÃN thay vì thanh phân vị; thanh phân vị theo CHIỀU TỐT của
-// từng tín hiệu (xám = trung tính); bậc kèm IC / t / n ở kỳ hạn chính; thác đóng góp vào Z; khoảng cách tới danh mục Elite 10.
+// từng tín hiệu (xám = trung tính); bậc kèm IC / t / n ở kỳ hạn chính; thác đóng góp vào Z.
+// G3 (18/11/2026): "khoảng cách tới danh mục dòng tiền (Z)" thay bằng "khoảng cách tới danh mục Elite HL" — điều kiện quy tắc Hợp lưu.
 import { useMemo } from "react";
 import { useEliteDecision, useEliteEvidence, useElitePanel, useEliteTicker } from "../../../hooks/elite10/useEliteCenter";
 import { hlPicks, type Tier } from "../../../lib/elite10/decisionTypes";
@@ -11,6 +12,9 @@ import LiquidityBadge from "./LiquidityBadge";
 import { LQ_DEFAULT } from "../../../lib/elite10/liquidity";
 import LeadershipCard from "./LeadershipCard";
 import ConfluenceCard from "./ConfluenceCard";
+import { hlScores } from "../../../lib/elite10/confluence";
+import { hlGap } from "../../../lib/elite10/hlGap";
+import { splitQueue } from "../../../lib/elite10/liquidity";
 import WorldTransmissionCard from "./WorldTransmissionCard";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
@@ -44,17 +48,17 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
   const hl = dec?.hl ?? null;
   const hlPos = useMemo(() => {
     if (!hl) return null;
-    const q = hl.queue.find((x) => x.ticker === ticker);
+    const qs = splitQueue(hl.queue, hl.queueIlliquid);
+    const q = [...qs.tradable, ...qs.illiquid].find((x) => x.ticker === ticker);
     const ag = hl.against.find((x) => x.ticker === ticker);
-    return { held: hlPicks(dec).some((p) => p.ticker === ticker), queue: q ?? null, against: ag ?? null, inFlow: Boolean(dec?.flowPortfolio?.some((p) => p.ticker === ticker)) };
+    return { held: hlPicks(dec).some((p) => p.ticker === ticker), queue: q ?? null, against: ag ?? null };
   }, [hl, dec, ticker]);
-  // Khoảng cách tới danh mục dòng tiền (xếp theo Z): Z của mã yếu nhất trong danh mục đó. Với tài liệu E4-HL dùng flowPortfolio.
+  // G3: điều kiện Hợp lưu của mã tính lại từ bảng E1 cùng phiên (cùng hàm với khối "Hợp lưu đa yếu tố").
   const gap = useMemo(() => {
-    const pf = hl ? dec?.flowPortfolio ?? [] : dec?.portfolio ?? [];
-    if (!decision || !pf.length || pf.some((p) => p.ticker === ticker)) return null;
-    const weakest = pf.reduce((a, b) => (b.Z < a.Z ? b : a));
-    return { weakest, dz: weakest.Z - decision.Z };
-  }, [dec, decision, hl, ticker]);
+    if (!full || !hl) return null;
+    const r = hlScores(full.rows).get(ticker);
+    return hlGap(r, decision ?? null, hl.rule, hl.tier1);
+  }, [full, hl, ticker, decision]);
 
   if (isLoading) return <p className="py-3 text-xs italic text-slate-500">Đang tải hồ sơ tín hiệu {ticker}…</p>;
   // Lỗi máy chủ / mạng KHÁC với "mã ngoài vũ trụ" (404): không được báo nhầm là mã không có trong danh sách.
@@ -125,13 +129,19 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
                 <p className="mt-0.5 text-[10px] text-slate-400">Elite HL chọn mã theo quy tắc Hợp lưu, không theo Điểm Elite Z.</p>
               </div>
             )}
-            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">{hl ? "Khoảng cách tới danh mục Elite dòng tiền (cũ, xếp theo Z)" : "Khoảng cách tới Elite 10"}</p>
-            {(hl ? hlPos?.inFlow : decision.inPortfolio) ? <p className="text-emerald-300">{hl ? "Đang trong danh mục Elite dòng tiền (cũ)." : "Đang trong danh mục Elite 10."}</p>
-              : !decision.eligible ? <p className="text-amber-300">Chưa đủ điều kiện danh mục ({decision.reason}) — Điểm Elite cao cũng không được chọn.</p>
-              : gap ? (
-                <p className="text-slate-300">Mã yếu nhất trong danh mục: <b className="font-mono">{gap.weakest.ticker}</b> Z {num(gap.weakest.Z)} (hạng {gap.weakest.rank}).{" "}
-                  {gap.dz > 0 ? <>{ticker} cần thêm <b className="font-mono">ΔZ ≈ {num(gap.dz)}</b> mới vượt — chưa tính vùng đệm top 20 và trần 3 mã / ngành.</> : <>Z của {ticker} đã cao hơn — đang đứng ngoài vì trần 3 mã / ngành hoặc vùng đệm giữ mã cũ.</>}</p>
-              ) : <p className="text-slate-500">Chưa có danh mục phiên này.</p>}
+            {gap && !hlPos?.held && (
+              <div data-testid="elite-profile-hl-gap">
+                <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Khoảng cách tới danh mục Elite HL</p>
+                <ul className="space-y-0.5">
+                  {gap.conds.map((c) => (
+                    <li key={c.id} data-testid={`hl-gap-${c.id}`} data-ok={String(c.ok)} className={c.ok === false ? "text-amber-200" : c.ok ? "text-slate-300" : "text-slate-500"}>
+                      <span aria-hidden="true" className={c.ok === false ? "text-amber-300" : c.ok ? "text-emerald-300" : "text-slate-500"}>{c.ok === false ? "✗" : c.ok ? "✓" : "?"}</span> {c.text}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-0.5 text-[10px] text-slate-400" data-testid="hl-gap-verdict">{gap.verdictVi} Mô tả theo quy tắc — không phải khuyến nghị mua.</p>
+              </div>
+            )}
           </div>
         </div>
       )}

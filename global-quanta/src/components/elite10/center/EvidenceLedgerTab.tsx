@@ -8,6 +8,7 @@ import { heatInk } from "../../../lib/elite10/heatInk";
 import { divergingColor } from "../../../lib/worldSectors/types";
 import type { EliteLedger, EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
+import FlowBenchmarkPanel from "./FlowBenchmarkPanel";
 
 const H = ["1", "5", "10", "20"] as const;
 const sgn = (v: number | null | undefined, d = 3) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d })}`);
@@ -288,7 +289,8 @@ export default function EvidenceLedgerTab() {
       </section>
 
       <LedgerSection ledger={ledger} error={ledgerError} hl={hl} testId="elite-ledger-tab" title={hl ? "Sổ theo dõi tiến — Elite HL (danh mục chính thức)" : "Sổ theo dõi tiến Elite 10 (E3)"} />
-      {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (cũ, E3)" />}
+      {hl && <FlowBenchmarkPanel />}
+      {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (đối chứng, E3)" />}
       <p className="text-[10px] text-slate-400" data-testid="elite-evidence-disclaimer">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
   );
