@@ -30,11 +30,8 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () =
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "5700", nameVi: "Du lịch & Giải trí" }, { icb: "2300", nameVi: "Xây dựng & Vật liệu" }] }, regime: { stressed: false, vix: 15, vixChg: 0 } } }) }));
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: null }) }));
-vi.mock("../../../hooks/elite10/useRankHistory", () => ({ useRankHistory: () => ({ history: null }) }));
 vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ buyTimingFreshness: () => null }));
 vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
-vi.mock("./PortfolioRadar", () => ({ default: ({ d }: { d: EliteDecision }) => <div data-testid="radar-stub">{d.portfolio.map((p) => p.ticker).join(",")}</div> }));
-vi.mock("./EliteCandidates", () => ({ default: () => null }));
 vi.mock("./CashGateCard", () => ({ default: () => null }));
 // PFA-v1 pha B: cảnh báo cơ bản & sự kiện theo mã (chỉ hiện khi đúng phiên của tài liệu quyết định).
 let pfaWarnings: { asOf: string; tickers: Record<string, { id: string; level: "warn" | "info"; text: string; source: string }[]> } | null = null;
@@ -108,35 +105,19 @@ describe("Bảng quyết định Elite HL", () => {
     expect(text("hl-empty")).toMatch(/100% tiền mặt/);
   });
 
-  it("Bảng quyết định: mặc định Elite HL; chuyển sang danh mục dòng tiền (cũ) dùng flowPortfolio và nhớ lựa chọn", () => {
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(screen.getByTestId("elite-hl-board")).toBeTruthy();
-    expect(screen.getByTestId("board-view-hl").getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(screen.getByTestId("board-view-flow"));
-    expect(screen.queryByTestId("elite-hl-board")).toBeNull();
-    expect(text("elite-decision-board")).toMatch(/Elite dòng tiền — danh mục cũ/); expect(text("elite-flow-legacy")).toMatch(/danh mục chính thức là Elite HL/);
-    expect(text("radar-stub")).toBe("DCL,SBT");
-    expect(text("elite-ledger")).toMatch(/12 phiên đã chấm/);
-    expect(localStorage.getItem("elite.board.view")).toBe("flow");
-    cleanup(); render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(screen.queryByTestId("elite-hl-board")).toBeNull();
-  });
-
-  it("tài liệu cũ (chưa có hl) -> bảng cũ, không có nút chuyển", () => {
-    current = { ...decision, hl: undefined, flowPortfolio: undefined, portfolio: decision.flowPortfolio!, version: decision.flowVersion! };
-    render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(screen.queryByTestId("board-view")).toBeNull(); expect(text("radar-stub")).toBe("DCL,SBT");
-    expect(text("elite-decision-board")).toMatch(/Bảng quyết định Elite 10/);
-  });
-
-  it("bảng dòng tiền: giới hạn ngành và trần tỷ trọng lấy từ Gateway; Gateway cũ dùng mặc định", () => {
+  it("G1–G2: Bảng quyết định luôn là Elite HL, không còn nút chuyển sang danh mục cũ, kể cả khi trình duyệt còn lưu lựa chọn cũ", () => {
     localStorage.setItem("elite.board.view", "flow");
     render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(text("elite-decision-board")).toMatch(/tối đa 3 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 20%/);
-    cleanup();
-    current = { ...decision, display: { ledgerCostRoundTrip: 0.004, flowMinAdvBn: 10, flowMinPrice: 5000, flowRrgPenalty: 0.25, flowBufferRank: 15, flowMaxPerSector: 2, flowWeightCap: 0.15 } };
+    expect(screen.getByTestId("elite-hl-board")).toBeTruthy();
+    expect(screen.queryByTestId("board-view")).toBeNull(); expect(screen.queryByTestId("elite-decision-board")).toBeNull();
+    expect(screen.queryByTestId("elite-candidates")).toBeNull(); expect(screen.queryByTestId("elite-buy-note")).toBeNull();
+    expect(text("hl-context-global")).toMatch(/Rủi ro toàn cầu.*VIX/);
+  });
+
+  it("G1: tài liệu cũ (chưa có hl) -> câu rõ ràng thay vì bảng Elite 10 cũ", () => {
+    current = { ...decision, hl: undefined, flowPortfolio: undefined, portfolio: decision.flowPortfolio!, version: decision.flowVersion! };
     render(<DecisionBoard onOpenTicker={() => {}} />);
-    expect(text("elite-decision-board")).toMatch(/tối đa 2 mã mỗi ngành/); expect(text("elite-decision-board")).toMatch(/trần 15%/);
+    expect(text("elite-no-hl")).toMatch(/chưa trả danh mục Elite HL/); expect(screen.queryByTestId("radar-stub")).toBeNull();
   });
 });
 

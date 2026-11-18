@@ -68,11 +68,9 @@ describe("Hồ sơ 360° với danh mục Elite HL", () => {
     expect(pos).toContain("hạng hợp lưu 3");
     expect(pos).toContain("Chờ phiên cân bằng đầu tuần kế tiếp");
     expect(pos).toContain("không theo Điểm Elite Z");
-    // Phần so Z được ghi rõ là của danh mục dòng tiền (cũ), tính trên flowPortfolio (mã yếu nhất NAB), không phải trên danh mục HL.
+    // G3: không còn so Z với danh mục dòng tiền (cũ); khoảng cách đo bằng điều kiện quy tắc Elite HL.
     const gap = text("elite-profile-gap");
-    expect(gap).toContain("Khoảng cách tới danh mục Elite dòng tiền (cũ, xếp theo Z)");
-    expect(gap).toContain("NAB");
-    expect(gap).not.toContain("FPT");
+    expect(gap).not.toContain("dòng tiền"); expect(gap).not.toMatch(/ΔZ/); expect(gap).not.toContain("NAB");
   });
 
   it("mã đang giữ / ngành phản đối / ngoài hàng chờ", () => {
@@ -125,7 +123,7 @@ describe("Bằng chứng & sổ theo dõi với sổ Elite HL", () => {
     expect(hl).toContain("tiền mặt 90%");
     expect(hl.match(/chờ/g)?.length).toBe(2); // chỉ phiên 13/11 (hai kỳ hạn); phiên toàn tiền mặt không "chờ"
     const flow = text("elite-ledger-flow");
-    expect(flow).toContain("Elite dòng tiền (cũ, E3)");
+    expect(flow).toContain("Elite dòng tiền (đối chứng, E3)");
     expect(flow).toContain("IC của Điểm Elite");
     expect(flow).toContain("ORS");
     expect(S.ledgerCalls).toContainEqual(["flow", true]);

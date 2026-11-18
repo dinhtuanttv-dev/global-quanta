@@ -1,229 +1,25 @@
-// Elite 10 E4 (2026-10-17) — "Bảng quyết định hôm nay": danh mục Elite 10 (E3-prereg), trọng số tín hiệu theo bằng chứng (E2),
-// bối cảnh thị trường và sổ theo dõi tiến. Mọi số đến từ Gateway /api/elite/*; nhãn bằng chứng luôn hiển thị cạnh kết quả.
-import { useMemo, useState } from "react";
+// Bảng quyết định hôm nay — danh mục chính thức Elite HL (E4-HL, từ 12/11/2026). Mọi số đến từ Gateway /api/elite/decision.
+// G1–G2 (18/11/2026): gỡ bảng Elite 10 dòng tiền cũ (FlowBoard), bảng "Ứng viên tiếp theo" theo Z và cột ⏱ Timeline khỏi Bảng quyết định;
+// danh mục dòng tiền (E3) chỉ còn làm ĐỐI CHỨNG ở tab "4. Bằng chứng & sổ theo dõi" (FlowBenchmarkPanel). Không đổi danh mục.
 import EliteHlBoard from "./EliteHlBoard";
-import type { EliteDecision } from "../../../lib/elite10/decisionTypes";
 import { useEliteDecision } from "../../../hooks/elite10/useEliteCenter";
-import useSWR from "swr";
-import type { ResearchOverview } from "../../../hooks/useResearch";
-import { fetchMarketJson } from "../../../services/marketDataClient";
-import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { TIER_TITLE, type Tier } from "../../../lib/elite10/decisionTypes";
-import { buyTimingFreshness } from "../../../hooks/useGatewayBuyTimeline";
-import { useEliteTiming } from "../../../hooks/elite10/useEliteTiming";
-import { buyTimingCells, ELITE_HOLD_SESSIONS } from "../../../lib/elite10/buyTimingCell";
-import { fmtDate, num, SectionControls, signed } from "./boardParts";
-import { useBoardSection } from "./boardPrefs";
-import PortfolioRadar from "./PortfolioRadar";
-import EliteCandidates from "./EliteCandidates";
-import CashGateCard from "./CashGateCard";
-import { useRankHistory } from "../../../hooks/elite10/useRankHistory";
-import { portfolioDiff } from "../../../lib/elite10/portfolioRadar";
-
-const REGIME_VI: Record<string, string> = { UPTREND: "Xu hướng tăng", DOWNTREND: "Xu hướng giảm", SIDEWAY: "Đi ngang" };
 
 export function TierChip({ tier }: { tier: Tier }) {
   const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-sky-500/15 text-sky-300 border-sky-400/40" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
   return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>Bậc {tier}</span>;
 }
 
-function Card({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId?: string }) {
-  return (
-    <section data-testid={testId} className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
-        {right}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-/** E4-HL: bảng "dòng tiền" (E3) đọc danh mục cũ từ flowPortfolio / sổ riêng của tài liệu mới; tài liệu cũ giữ nguyên. */
-export function flowView(d: EliteDecision | undefined): EliteDecision | undefined {
-  return d?.hl ? { ...d, version: d.flowVersion ?? d.version, portfolio: d.flowPortfolio ?? [], construction: d.flowConstruction, ledgerSummary: d.flowLedgerSummary ?? null } : d;
-}
-type BoardView = "hl" | "flow";
-const VIEW_KEY = "elite.board.view";
-const readView = (): BoardView => { try { return localStorage.getItem(VIEW_KEY) === "flow" ? "flow" : "hl"; } catch { return "hl"; } };
-
-function ViewSwitch({ view, onPick }: { view: BoardView; onPick: (v: BoardView) => void }) {
-  return (
-    <span className="inline-flex overflow-hidden rounded border border-white/15 text-[10px]" role="group" aria-label="Chọn danh mục hiển thị" data-testid="board-view">
-      {([["hl", "Elite HL (chính thức)"], ["flow", "Elite dòng tiền (cũ)"]] as const).map(([v, l]) => (
-        <button key={v} type="button" aria-pressed={view === v} onClick={() => onPick(v)} data-testid={`board-view-${v}`}
-          className={`min-h-[24px] px-2 ${view === v ? "bg-[#E8B84B]/20 font-bold text-[#F5CE72]" : "text-slate-400 hover:text-slate-200"}`}>{l}</button>
-      ))}
-    </span>
-  );
-}
-
-/** Bảng quyết định: mặc định Elite HL (danh mục chính thức từ 12/11/2026); danh mục dòng tiền cũ xem được để so sánh. */
 export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
-  const { data: d, error } = useEliteDecision();
-  const [view, setView] = useState<BoardView>(readView);
-  if (!d?.hl) return <FlowBoard onOpenTicker={onOpenTicker} />;
-  const pick = (v: BoardView) => { setView(v); try { localStorage.setItem(VIEW_KEY, v); } catch { /* bộ nhớ trình duyệt bị chặn */ } };
-  const switcher = <ViewSwitch view={view} onPick={pick} />;
+  const { data: d, error, isLoading } = useEliteDecision();
+  if (!d) {
+    if (error) return <p className="tw-scope text-xs text-rose-400" data-testid="elite-decision-error">Không tải được bảng quyết định: {String((error as Error).message ?? error)}</p>;
+    return <p className="tw-scope py-6 text-center text-xs italic text-slate-500" data-testid="elite-decision-loading">{isLoading ? "Đang tải Bảng quyết định Elite HL…" : "Chưa có bảng quyết định."}</p>;
+  }
+  if (!d.hl) {
+    return <p className="tw-scope rounded-lg border border-amber-400/30 p-3 text-xs text-amber-200" data-testid="elite-no-hl">Gateway chưa trả danh mục Elite HL cho phiên {d.date} (tài liệu cũ). Bảng sẽ hiện khi phiên kế tiếp được dựng.</p>;
+  }
   // Có dữ liệu cũ nhưng lần làm mới gần nhất lỗi: vẫn hiện bảng, kèm cảnh báo rõ là số chưa được cập nhật.
   const refreshError = error ? String((error as Error).message ?? error) : null;
-  return view === "hl" ? <EliteHlBoard d={d} onOpenTicker={onOpenTicker} switcher={switcher} refreshError={refreshError} /> : <FlowBoard onOpenTicker={onOpenTicker} switcher={switcher} />;
-}
-
-function FlowBoard({ onOpenTicker, switcher }: { onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode }) {
-  const { data: raw, error, isLoading } = useEliteDecision();
-  const d = useMemo(() => flowView(raw), [raw]);
-  const legacy = Boolean(raw?.hl);
-  // Chế độ thị trường VN: tải trực tiếp (không phụ thuộc công tắc "AI nghiên cứu" của Siêu quét); cùng khoá SWR để dùng chung bộ đệm.
-  const { data: research } = useSWR<ResearchOverview>("research-overview", () => fetchMarketJson<ResearchOverview>("/api/market/research/overview"), { revalidateOnFocus: false, dedupingInterval: 5 * 60_000 });
-  const { data: ws } = useWorldStrategy();
-  // Elite × TO (07/11/2026): Timeline Gateway với vùng cổ tức W1–W5 cũ thay bằng vùng Săn cổ tức TO (THĂM DÒ); KQKD giữ nguyên.
-  const buy = useEliteTiming();
-  const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
-  const byId = useMemo(() => new Map((d?.weights ?? []).map((w) => [w.id, w])), [d]);
-  const pf = useBoardSection("portfolio");
-  const { history } = useRankHistory(6);
-  const diff = useMemo(() => (d ? portfolioDiff(history, d) : null), [history, d]);
-
-  if (error) return <p className="text-xs text-rose-400">Không tải được bảng quyết định: {String(error.message ?? error)}</p>;
-  if (isLoading || !d) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tải bảng quyết định Elite 10…</p>;
-
-  const lab = d.ledgerSummary;
-  const regime = research?.currentRegime;
-  const drivers = (ticker: string) => {
-    const sc = d.scores.find((x) => x.ticker === ticker);
-    return (sc?.contributions ?? []).filter((c) => c.contribution > 0.05).sort((a, b) => b.contribution - a.contribution).slice(0, 2).map((c) => byId.get(c.id)?.labelVi ?? c.id);
-  };
-  const buyCells = buyTimingCells(d.portfolio.map((p) => p.ticker), buy.data?.rows ?? null, d.date, buy.sessions);
-  const secName = (k: string | null) => (k ? sectorName.get(k) ?? k : "—");
-  const buyAge = buy.meta?.fetchedAt ? new Date(buy.meta.fetchedAt).toLocaleString("vi-VN", { hour12: false }) : null;
-
-  return (
-    <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-decision-board">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-[13px] font-bold text-[#F5CE72]">{legacy ? "Elite dòng tiền — danh mục cũ, giữ để so sánh" : "Bảng quyết định Elite 10"} — phiên {fmtDate(d.date)}</p>
-          {legacy && <p className="text-[10.5px] text-amber-300" data-testid="elite-flow-legacy">Từ 12/11/2026 danh mục chính thức là Elite HL. Danh mục này vẫn được dựng và chấm sổ riêng mỗi phiên để đối chiếu.</p>}
-          <p className="text-[10.5px] text-slate-400">
-            Dựng {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · {d.universe.eligible}/{d.universe.panel} mã đủ điều kiện (GTGD TB20 ≥ {(raw?.display?.flowMinAdvBn ?? 10).toLocaleString("vi-VN")} tỷ, giá ≥ {(raw?.display?.flowMinPrice ?? 5000).toLocaleString("vi-VN")}đ, giá không bị neo) · {d.version}
-          </p>
-          {d.version.startsWith("E3-v4") && (
-            <p className="text-[10.5px] text-slate-400" data-testid="elite-rrg-rule">
-              Cộng hưởng sóng ngành (E3-v4, quy tắc người dùng đặt, chưa kiểm định): mã thuộc ngành ở góc <b className="text-rose-300">Tụt hậu</b> trên RRG bị trừ {num((raw?.display?.flowRrgPenalty ?? 0.3) * 100, 0)}% Z khi xếp hạng; α và xác suất vượt vẫn theo mô hình. {d.scores.filter((x) => x.eligible && x.rrgPenalty).length} mã đủ điều kiện đang bị phạt.
-            </p>
-          )}
-        </div>
-        {switcher}
-        <span title={lab?.labelVi} className={`rounded border px-2 py-1 text-[10px] font-bold ${lab?.label === "EVIDENCE" ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-300" : "border-amber-400/50 bg-amber-500/10 text-amber-300"}`} data-testid="elite-label">
-          {lab?.label === "EVIDENCE" ? "ĐẠT TIÊU CHÍ ĐĂNG KÝ TRƯỚC" : "THĂM DÒ"}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-3 text-[11px]" data-testid="elite-context">
-        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Thị trường Việt Nam</p>
-          <p>{regime ? <>Chế độ <b className="text-slate-100">{REGIME_VI[regime.regime] ?? regime.regime}</b> · xung lực {num(regime.impulseScore)} · độ rộng {num(regime.breadthPct)}%</> : "—"}</p>
-        </div>
-        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
-          <p>{ws ? <>{ws.regime.stressed ? <b className="text-amber-300">Căng thẳng</b> : <b className="text-slate-100">Bình thường</b>} · VIX {num(ws.regime.vix, 2)} ({signed(ws.regime.vixChg, 1)}%)</> : "—"}</p>
-        </div>
-        <CashGateCard />
-      </div>
-
-      {diff?.prevDate && (
-        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid="elite-diff">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Hôm nay đổi gì · so với phiên {fmtDate(diff.prevDate)}</p>
-          {!diff.added.length && !diff.removed.length ? (
-            <p className="text-slate-400">Danh mục giữ nguyên {diff.kept} mã; chỉ tỷ trọng có thể thay đổi.</p>
-          ) : (
-            <ul className="mt-0.5 space-y-0.5">
-              {diff.added.map((x) => <li key={`a-${x.ticker}`} data-testid={`elite-diff-add-${x.ticker}`}><b className="text-emerald-300">+ {x.ticker}</b> <span className="text-slate-400">{x.reasonVi}</span></li>)}
-              {diff.removed.map((x) => <li key={`r-${x.ticker}`} data-testid={`elite-diff-remove-${x.ticker}`}><b className="text-rose-300">− {x.ticker}</b> <span className="text-slate-400">{x.reasonVi}</span></li>)}
-              <li className="text-[10px] text-slate-500">Giữ {diff.kept}/{d.portfolio.length} mã{d.construction?.turnover != null ? ` · vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}. Mỗi lần đổi mã tốn khoảng 0,6–0,8% chi phí thực tế (xem chấm thực tế ở tab Bằng chứng).</li>
-            </ul>
-          )}
-        </div>
-      )}
-
-      <Card title={legacy ? "Danh mục Elite dòng tiền (cũ)" : "Danh mục Elite 10"} testId="elite-portfolio" right={<span className="inline-flex flex-wrap items-center gap-2"><span className="text-[10px] text-slate-500">Khoá lúc dựng · chấm sau 5 và 10 phiên trong sổ theo dõi</span>
-          <SectionControls id="elite-portfolio-table" open={pf.open} compact={pf.compact} onToggleOpen={pf.toggleOpen} onToggleCompact={pf.toggleCompact} testid="elite-portfolio" /></span>}>
-        {!pf.open ? (
-          <p className="text-[10.5px] text-slate-400" data-testid="elite-portfolio-summary">
-            {d.portfolio.map((p) => (
-              <button key={p.ticker} type="button" onClick={() => onOpenTicker(p.ticker)} className="mr-2 font-bold text-[#F5CE72] hover:underline">
-                {p.ticker} <span className="font-normal text-slate-500">{num(p.weight * 100)}% · {buyCells.get(p.ticker)?.text ?? "—"}</span>
-              </button>
-            ))}
-          </p>
-        ) : (<>
-        <div id="elite-portfolio-table"><PortfolioRadar d={d} buyCells={buyCells} secName={secName} drivers={drivers} onOpenTicker={onOpenTicker} compact={pf.compact} /></div>
-        <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
-          ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
-          (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).{" "}
-          {buy.data ? <>Timeline: {buyTimingFreshness(buy.meta)?.text ?? "—"}, lấy lúc {buyAge}{buy.meta?.stale ? <b className="text-amber-300"> · đang dùng bản gần nhất (số phiên đã tính lại theo hôm nay)</b> : ""}.</>
-            : buy.loading ? "Đang tải Timeline…" : <b className="text-amber-300">Timeline điểm mua tạm không có ({buy.meta?.lastError ?? buy.error ?? "lỗi"}) — cột dùng quy tắc danh mục.</b>}
-        </p>
-        <p className="text-[10px] leading-relaxed text-slate-500">
-          {d.construction
-            ? <>Vùng đệm: giữ mã phiên trước còn trong top {raw?.display?.flowBufferRank ?? 20} ({d.construction.retained}/{d.construction.previous} mã được giữ{d.construction.turnover != null ? `, vòng quay ${num(d.construction.turnover * 100, 0)}%` : ""}), lấp phần còn lại theo Z; tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2. Tỷ trọng {d.construction.method === "erc" ? `cân bằng đóng góp rủi ro (ERC) trên hiệp phương sai Ledoit–Wolf ${d.construction.sessions} phiên` : "tỷ lệ nghịch biến động 20 phiên (chưa đủ dữ liệu cho ERC)"}, trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%. </>
-            : <>Chọn theo Z giảm dần, tối đa {raw?.display?.flowMaxPerSector ?? 3} mã mỗi ngành ICB cấp 2; tỷ trọng tỷ lệ nghịch biến động 20 phiên (trần {num((raw?.display?.flowWeightCap ?? 0.2) * 100, 0)}%). </>}
-          Cắt lỗ / mục tiêu là dải
-          2σ / 3σ của 5 phiên, nắm giữ 10 phiên — quy tắc mô tả, chưa tối ưu. Lợi thế kỳ vọng nhỏ (P vượt ≈ 51%): dùng để nghiêng tỷ trọng, không phải tín hiệu chắc thắng.
-        </p>
-        </>)}
-        <EliteCandidates d={d} onOpenTicker={onOpenTicker} sectorName={secName} drivers={drivers} buyRows={buy.data?.rows ?? null} sessions={buy.sessions} />
-      </Card>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Card title="Tín hiệu có trọng số (bậc A/B)" testId="elite-weights" right={<span className="text-[10px] text-slate-500" title="IC của tổ hợp = Σw·IC / √(wᵀC̃w) — ước tính mô hình; IC thực đo nằm ở sổ theo dõi">IC tổng (mô hình) ≈ {num(d.icComb, 4)}</span>}>
-          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
-            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 420 }}>
-              <thead><tr className="text-slate-500"><th className="text-left font-normal">Tín hiệu</th><th className="font-normal">Bậc</th><th className="font-normal" title="IC đo được ở kỳ hạn chính (số ngày)">IC đo</th><th className="font-normal" title="(n·IC đo + 60·tiên nghiệm)/(n + 60)">IC hậu nghiệm</th><th className="font-normal" title="Trọng số nếu chỉ ∝ IC (bỏ qua tương quan giữa tín hiệu)">∝ IC</th><th className="text-left font-normal" title="Trọng số theo tương quan: C̃⁻¹·IC, C̃ = 0,5·C + 0,5·I">Trọng số</th></tr></thead>
-              <tbody>
-                {d.weights.map((w) => (
-                  <tr key={w.id} className="border-t border-white/5">
-                    <td className="py-1"><span className="text-slate-100">{w.labelVi}</span> <span className="text-slate-500">· {w.tab}</span></td>
-                    <td className="text-center"><TierChip tier={w.tier} /></td>
-                    <td className="whitespace-nowrap text-center font-mono" title={w.icPrior === 0 ? "Tiên nghiệm 0: tín hiệu nhắm phiên VN ngay sau phiên Mỹ, đã qua khi danh mục vào lệnh (E3-v3)" : undefined}>{w.n ? `${signed(w.icMeas, 4)} (${w.n} ngày)` : w.icPrior === 0 ? "chưa đo · tiên nghiệm 0" : "chưa đo"}</td>
-                    <td className="whitespace-nowrap px-1 text-center font-mono">{num(w.icPost, 4)}</td>
-                    <td className="whitespace-nowrap px-1 text-center font-mono text-slate-500">{w.wNaive != null ? `${num(w.wNaive * 100, 0)}%` : "—"}</td>
-                    <td className="whitespace-nowrap"><span aria-hidden="true" className="mr-1.5 inline-block h-1.5 rounded bg-emerald-400/70 align-middle" style={{ width: `${w.w * 80}px` }} />{num(w.w * 100)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {d.signalWeighting?.method === "correlation" && (
-            <p className="text-[10px] text-slate-400" data-testid="elite-weighting-note">
-              Trọng số tính đến tương quan giữa các tín hiệu trên {d.signalWeighting.corr?.names} mã (co rút {num((d.signalWeighting.corr?.shrink ?? 0) * 100, 0)}% về độc lập): tín hiệu trùng thông tin (VD Stealth 5 và Stealth 20) không bị đếm hai lần.
-            </p>
-          )}
-          <p className="text-[10px] text-slate-500">Tín hiệu bậc C (Smart Score, bộ lọc kỹ thuật, RRG, xúc tác…) chỉ làm bối cảnh trong Hồ sơ 360°, không có trọng số — theo E2/E3 đăng ký trước.</p>
-        </Card>
-
-        <Card title="Sổ theo dõi tiến" testId="elite-ledger">
-          {lab ? (
-            <div className="space-y-1.5 text-[11px]">
-              <p className="text-slate-300">{lab.labelVi}</p>
-              {(["5", "10"] as const).map((h) => {
-                const x = lab.horizons[h];
-                return (
-                  <p key={h} className="text-slate-400">
-                    Kỳ hạn {h} phiên: {x && x.n > 0
-                      ? <>{x.n} phiên đã chấm · vượt rổ đều TB <b className="text-slate-100">{signed((x.meanExcess ?? 0) * 100, 2)}%</b> · tỷ lệ thắng {num((x.hitRate ?? 0) * 100, 0)}% · IC TB {signed(x.ic.mean, 3)}</>
-                      : "chưa có phiên nào đủ kỳ hạn để chấm."}
-                  </p>
-                );
-              })}
-              <p className="text-[10px] text-slate-500">
-                Tiêu chí (E3-prereg): IC TB của Z ở 5 phiên &gt; 0 với t ≥ 2, và lợi suất vượt rổ đều sau phí ở 10 phiên &gt; 0 với cận dưới KTC 95% &gt; 0, sau ≥ 60 phiên tiến. Chi phí giả định 0,40%/vòng.
-              </p>
-            </div>
-          ) : <p className="text-[11px] text-slate-500">Sổ theo dõi chưa có bản ghi.</p>}
-        </Card>
-      </div>
-      <p className="text-[10px] text-slate-500">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
-    </div>
-  );
+  return <EliteHlBoard d={d} onOpenTicker={onOpenTicker} refreshError={refreshError} />;
 }
