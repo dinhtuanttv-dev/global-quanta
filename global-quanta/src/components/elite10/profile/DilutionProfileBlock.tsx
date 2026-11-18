@@ -18,16 +18,24 @@ function Lifecycle({ p, asOf }: { p: DilutionPhase; asOf: string }) {
   ];
   const t0 = Date.parse(pts[0].d) - 5 * 864e5, t1 = Date.parse(p.until) + 2 * 864e5;
   const x = (d: string) => Math.min(100, Math.max(0, ((Date.parse(d) - t0) / (t1 - t0)) * 100));
+  // Vạch trên trục không mang chữ (các mốc có thể cách nhau 1 phiên — chữ sẽ chồng); ngày ghi ở dòng chú giải bên dưới, đánh số theo vạch.
+  const dashed = (k: string) => k === "list" && p.listingBasis !== "ANNOUNCED";
   return (
-    <div className="relative mx-4 mb-8 mt-4 h-2 rounded-full bg-white/10" data-testid="px-lifecycle" role="img" aria-label={pts.map((q) => `${q.label} ${fmtDate(q.d)}`).join(", ")}>
-      <div className="absolute inset-y-0 left-0 rounded-full bg-orange-400/40" style={{ width: `${x(asOf)}%` }} />
-      {pts.map((q) => (
-        <div key={q.k} className="absolute -top-1 -translate-x-1/2" style={{ left: `${x(q.d)}%` }}>
-          <div className={`mx-auto h-4 w-1 rounded ${q.k === "list" && p.listingBasis !== "ANNOUNCED" ? "border border-dashed border-orange-300" : "bg-orange-300"}`} />
-          <p className="mt-0.5 whitespace-nowrap text-center text-[10px] leading-tight text-slate-400">{q.label}<br /><span className="font-mono text-slate-300">{fmtDate(q.d).slice(0, 5)}</span></p>
-        </div>
-      ))}
-      <div className="absolute -top-3 -translate-x-1/2 text-[10px] font-bold text-[#F5CE72]" style={{ left: `${x(asOf)}%` }} title={`Hôm nay ${fmtDate(asOf)}`}>▼</div>
+    <div className="mb-1 mt-3" data-testid="px-lifecycle" role="img" aria-label={pts.map((q) => `${q.label} ${fmtDate(q.d)}`).join(", ")}>
+      <div className="relative mx-2 h-2 rounded-full bg-white/10">
+        <div className="absolute inset-y-0 left-0 rounded-full bg-orange-400/40" style={{ width: `${x(asOf)}%` }} />
+        {pts.map((q, i) => (
+          <div key={q.k} className="absolute -top-1.5 -translate-x-1/2" style={{ left: `${x(q.d)}%` }} title={`${q.label} ${fmtDate(q.d)}`}>
+            <div className={`mx-auto h-5 w-1 rounded ${dashed(q.k) ? "border border-dashed border-orange-300" : "bg-orange-300"}`} />
+            <span className="block text-center text-[9px] font-bold leading-none text-orange-200" style={{ marginLeft: i % 2 ? 6 : -6 }}>{i + 1}</span>
+          </div>
+        ))}
+        <div className="absolute -top-4 -translate-x-1/2 text-[10px] font-bold text-[#F5CE72]" style={{ left: `${x(asOf)}%` }} title={`Hôm nay ${fmtDate(asOf)}`}>▼</div>
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400" data-testid="px-lifecycle-legend">
+        {pts.map((q, i) => <li key={q.k}><b className="text-orange-200">{i + 1}</b> {q.label} <span className="font-mono text-slate-200">{fmtDate(q.d).slice(0, 5)}</span></li>)}
+        <li><b className="text-[#F5CE72]">▼</b> Hôm nay <span className="font-mono text-slate-200">{fmtDate(asOf).slice(0, 5)}</span></li>
+      </ul>
     </div>
   );
 }

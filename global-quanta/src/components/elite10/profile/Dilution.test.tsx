@@ -42,6 +42,8 @@ describe("PX0 — Hồ sơ · Vòng đời đợt pha loãng", () => {
     render(<DilutionProfileBlock ticker="BMI" />);
     expect(text("px-current")).toMatch(/HẬU GDKHQ · CP 10% · phiên 5\/≈28/);
     expect(screen.getByTestId("px-lifecycle").getAttribute("aria-label")).toBe("GDKHQ 11/11/2026, ĐKCC 12/11/2026, CP mới GD ≈ 21/12/2026, Hết theo dõi 28/12/2026");
+    // Chú giải tách khỏi trục (không chồng chữ khi hai mốc cách nhau 1 phiên).
+    expect([...screen.getByTestId("px-lifecycle-legend").querySelectorAll("li")].map((li) => li.textContent)).toEqual(["1 GDKHQ 11/11", "2 ĐKCC 12/11", "3 CP mới GD ≈ 21/12", "4 Hết theo dõi 28/12", "▼ Hôm nay 18/11"]);
     expect(text("px-lags")).toMatch(/của BMI 35 · 28 · 26 phiên \(3 đợt gần nhất\).*trung vị 27 phiên \(25–75%: 22–34, 612 đợt\)/);
     expect(text("px-history")).toMatch(/13\/10\/2025.*Cổ tức CP 13,5%.*18\/11\/2025 \(26 phiên\).*\+2,1%.*−1,2%.*\+0,4%.*−3,1%/);
     expect(text("px-evidence")).toMatch(/nửa 06\/2023–2026 \+0,4%/);
