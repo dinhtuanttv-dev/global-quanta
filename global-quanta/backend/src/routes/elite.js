@@ -7,6 +7,8 @@
 //     POST /api/elite/admin/evidence  cập nhật chuỗi IC + bậc (admin)
 // E3: GET  /api/elite/decision        Điểm Elite + danh mục Elite 10 phiên mới nhất (?date=) — E3-prereg.md
 //     GET  /api/elite/decision/:ticker điểm và đóng góp từng tín hiệu của một mã
+//     GET  /api/elite/dilution/:ticker  PX0: vòng đời đợt pha loãng ≥ 10% của một mã (pha, lịch sử, độ trễ niêm yết) — mô tả
+//     GET  /api/elite/px-ledger         PX-L: sổ theo dõi tiến các đợt pha loãng (THĂM DÒ)
 //     GET  /api/elite/liquidity/:ticker LQ-v1: số đo thanh khoản + chuỗi GTGD 60 phiên (mô tả, không đổi danh mục)
 //     GET  /api/elite/ledger          sổ theo dõi tiến của danh mục (khoá lúc dựng, chấm sau d+1+h)
 //     POST /api/elite/admin/decision  dựng quyết định + chấm sổ (admin)
@@ -19,7 +21,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -161,6 +163,18 @@ export function createEliteRouter({ getProfileFa = null, getHlWatch = null, getP
     res.set("Cache-Control", "public, max-age=300");
     // Số liệu hiển thị (ngưỡng tầng 1, chi phí sổ) + độ mới so với lịch phiên — chỉ cho phiên mới nhất mới có ý nghĩa "độ mới".
     res.json(getDecision().present ? await getDecision().present(doc, { withFreshness: !date }) : doc);
+  }));
+
+  // PX0 / PX-L: vòng đời đợt pha loãng (chỉ hiển thị; PX-r1 KHÔNG ĐẠT) và sổ theo dõi tiến.
+  router.get("/px-ledger", wrap(async (req, res) => {
+    if (!getDilution) return res.status(503).json({ error: "Chưa bật." });
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(await getDilution().ledger());
+  }));
+  router.get("/dilution/:ticker", wrap(async (req, res) => {
+    if (!getDilution) return res.status(503).json({ error: "Chưa bật." });
+    const t = String(req.params.ticker ?? "").toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const d = await getDilution().ticker(t); if (!d) return missing(res, "Chưa có bảng tín hiệu.");
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(d);
   }));
 
   // LQ-v1: số đo thanh khoản + chuỗi GTGD 60 phiên của một mã (Hồ sơ 360°) — mô tả, không đổi danh mục.

@@ -3,10 +3,11 @@
 // CHỈ HIỂN THỊ — không đổi danh mục / tỷ trọng. Vùng Timeline chỉ hiện khi đạt kiểm định (KQKD) hoặc là cửa sổ TO (THĂM DÒ). Hàm thuần.
 import type { TimelineRow } from "../cotuc/buy-timeline";
 import type { ProfileFa } from "./profileFaTypes";
+import type { DilutionPhase } from "./decisionTypes";
 import { isToRow } from "./toTiming";
 
 export const HL_CAL_HORIZON = 10;
-export type CalKind = "EX_CASH" | "EX_STOCK" | "RIGHTS" | "MEETING" | "LISTING" | "OTHER" | "KQKD" | "TO" | "SEASON";
+export type CalKind = "EX_CASH" | "EX_STOCK" | "RIGHTS" | "MEETING" | "LISTING" | "OTHER" | "KQKD" | "TO" | "SEASON" | "NEW_SHARES";
 export type CalBasis = "ANNOUNCED" | "EXPECTED" | "EXPLORATORY" | "VALIDATED_ESTIMATED" | "VALIDATED";
 export interface CalItem {
   date: string; ticker: string; inPortfolio: boolean; kind: CalKind; label: string; detail: string;
@@ -41,9 +42,9 @@ const EVENT: Record<string, [CalKind, (e: ProfileFaEvent) => string]> = {
 };
 type ProfileFaEvent = NonNullable<ProfileFa["events"]>["upcoming"][number];
 
-export function buildHlCalendar({ asOf, sessions, portfolio, queue, profiles, timeline, horizon = HL_CAL_HORIZON }: {
+export function buildHlCalendar({ asOf, sessions, portfolio, queue, profiles, timeline, dilution = null, horizon = HL_CAL_HORIZON }: {
   asOf: string; sessions: readonly string[]; portfolio: readonly string[]; queue: readonly string[];
-  profiles: ReadonlyMap<string, ProfileFa | null>; timeline: readonly TimelineRow[] | null; horizon?: number;
+  profiles: ReadonlyMap<string, ProfileFa | null>; timeline: readonly TimelineRow[] | null; dilution?: Readonly<Record<string, DilutionPhase>> | null; horizon?: number;
 }): HlCalendar {
   const endDate = calendarEnd(asOf, sessions, horizon);
   const inP = new Set(portfolio), all = [...new Set([...portfolio, ...queue])];
@@ -69,6 +70,12 @@ export function buildHlCalendar({ asOf, sessions, portfolio, queue, profiles, ti
       if (start > endDate) continue;
       push({ date: start, ticker: t, kind: "KQKD", label: "KQKD dự kiến công bố", detail: `khoảng ${dm(c.band[0])}–${dm(c.band[1])}`, basis: "EXPECTED" });
     }
+  }
+  // PX0: ngày cổ phiếu mới (đợt pha loãng ≥ 10%) giao dịch được — nguồn cung về; đã công bố hoặc ước tính theo độ trễ lịch sử.
+  for (const t of all) {
+    const p = dilution?.[t]; if (!p || p.listed) continue;
+    const cat = p.cat === "STOCK" ? "cổ tức CP" : p.cat === "BONUS" ? "CP thưởng" : "quyền mua";
+    push({ date: p.listing, ticker: t, kind: "NEW_SHARES", label: `Cổ phiếu mới (${cat} ${p.ratio}%) giao dịch được`, detail: `GDKHQ ${dm(p.ex)}${p.listingBasis === "ANNOUNCED" ? "" : ` · ước tính theo ${p.listingBasis === "ESTIMATED_OWN" ? "các đợt trước của mã" : "thị trường"}`}`, basis: p.listingBasis === "ANNOUNCED" ? "ANNOUNCED" : "EXPECTED" });
   }
   // Nguồn thời điểm Elite: Săn cổ tức TO-v1 (THĂM DÒ) và vùng mùa vụ KQKD ĐẠT KIỂM ĐỊNH; vùng "gần đạt" không hiện.
   for (const r of timeline ?? []) {

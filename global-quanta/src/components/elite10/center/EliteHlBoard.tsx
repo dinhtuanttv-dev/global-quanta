@@ -9,6 +9,7 @@ import { fmtDate, num, price, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
 import HlCalendarStrip from "./HlCalendarStrip";
 import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
+import DilutionBadge from "./DilutionBadge";
 import { BINDING_VI, bnText, LQ_DEFAULT, LQ_TIER, portfolioCapacity, reasonText, splitQueue } from "../../../lib/elite10/liquidity";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
@@ -114,6 +115,9 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const scoreBy = new Map(d.scores.map((s) => [s.ticker, s]));
   const liqOf = (t: string) => scoreBy.get(t)?.liq ?? null;
   const queues = splitQueue(hl.queue, hl.queueIlliquid);
+  // PX0: pha đợt pha loãng ≥ 10% (chỉ hiển thị, PX-r1 KHÔNG ĐẠT).
+  const pxOf = (t: string) => d.dilution?.byTicker?.[t] ?? null;
+  const pxBadge = (t: string, id: string) => (pxOf(t) ? <> <DilutionBadge p={pxOf(t)} pxR1={d.dilution?.pxR1} testId={id} /></> : null);
   const picks = hlPicks(d);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
@@ -231,7 +235,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{p.ticker}</button> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
-                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}</p>
+                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}{pxBadge(p.ticker, `hl-px-m-${p.ticker}`)}</p>
                   {pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
@@ -264,6 +268,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
                       <td className="pr-2">{openBtn(p.ticker)} <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
                         <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}</span>
+                        {pxOf(p.ticker) && <span className="mt-0.5 block"><DilutionBadge p={pxOf(p.ticker)} pxR1={d.dilution?.pxR1} testId={`hl-px-${p.ticker}`} /></span>}
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
@@ -297,7 +302,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       </Panel>
 
       {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName}
-        liqBadge={(x, mobile) => <LiquidityBadge liq={liqOf(x.ticker)} rules={lq} sigma20={scoreBy.get(x.ticker)?.sigma20} weight={x.held ? x.weight ?? null : null} held={x.held} fallbackAdvBn={scoreBy.get(x.ticker)?.advBn ?? null} testId={`pz-liq-${mobile ? "m-" : ""}${x.ticker}`} />} />}
+        liqBadge={(x, mobile) => <LiquidityBadge liq={liqOf(x.ticker)} rules={lq} sigma20={scoreBy.get(x.ticker)?.sigma20} weight={x.held ? x.weight ?? null : null} held={x.held} fallbackAdvBn={scoreBy.get(x.ticker)?.advBn ?? null} testId={`pz-liq-${mobile ? "m-" : ""}${x.ticker}`} />} pxBadge={(x, mobile) => pxBadge(x.ticker, `pz-px-${mobile ? "m-" : ""}${x.ticker}`)} />}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Panel title="Phân bổ ngành" testId="hl-sectors" right={<span className="text-[10px] text-slate-500">Trần {pct(r.sectorCap, 0)} mỗi ngành</span>}>
@@ -318,7 +323,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           {queues.tradable.length === 0 ? <p className="text-[11px] text-slate-500">{queues.illiquid.length ? "Không còn mã Hợp lưu nào giao dịch được ngoài danh mục." : "Không còn mã Hợp lưu nào ngoài danh mục."}</p> : (
             <ul className="space-y-0.5 text-[11px]">
               {queues.tradable.map((q) => (
-                <li key={q.ticker} data-testid={`hl-queue-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} <span className="text-slate-500">T1 {q.t1} · {q.rrg == null ? "—" : RRG_VI[String(q.rrg)]} · T3 {pts(q.t3)}</span> — <span className={q.code === "illiquid" ? "text-amber-300" : "text-slate-300"}>{q.reasonVi}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-pz-${q.ticker}`} /></span>}</li>
+                <li key={q.ticker} data-testid={`hl-queue-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} <span className="text-slate-500">T1 {q.t1} · {q.rrg == null ? "—" : RRG_VI[String(q.rrg)]} · T3 {pts(q.t3)}</span> — <span className={q.code === "illiquid" ? "text-amber-300" : "text-slate-300"}>{q.reasonVi}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-pz-${q.ticker}`} /></span>}{pxBadge(q.ticker, `hl-queue-px-${q.ticker}`)}</li>
               ))}
             </ul>
           )}

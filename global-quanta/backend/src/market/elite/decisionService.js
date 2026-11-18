@@ -9,6 +9,7 @@ import { REGIME_VI } from "./leadership.js";
 import { hlScores } from "./confluence.js";
 import { annotatePz, PZ_GATE } from "./hlWatch.js";
 import { liquiditySeries, liquidityStats, lqPublicRules } from "./liquidity.js";
+import { PX_R1, PX_RULES, PX_VERSION } from "./dilution.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
 // E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
@@ -38,7 +39,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null, priceWatch = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null, priceWatch = null, dilution = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -353,6 +354,8 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     const doc = withFreshness ? await withLiquidity(doc0) : doc0;
     return {
       ...doc, liquidity: lqPublicRules(),
+      // PX0: pha vòng đời đợt pha loãng của các mã trong bảng (tính khi trả, không ghi vào tài liệu đã khoá).
+      ...(dilution ? { dilution: await (async () => { try { return { version: PX_VERSION, rules: PX_RULES, pxR1: PX_R1, byTicker: await dilution(doc.date, doc.scores.map((s) => s.ticker)) }; } catch (e) { log.warn?.(`[elite] PX0: ${e.message}`); return null; } })() } : {}),
       // K0 luôn là bản mới nhất (thêm kết quả HL-r2 14/11/2026) — ghi chú bằng chứng, không phải một phần danh mục đã khoá.
       ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1, k0: HL_K0 } } : {}),
       display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice,

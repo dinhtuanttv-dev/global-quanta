@@ -17,7 +17,7 @@ const BASIS: Record<CalBasis, { text: string; cls: string; title: string }> = {
   VALIDATED_ESTIMATED: { text: "đạt kiểm định · ngày ước tính", cls: "text-sky-300", title: "Vùng Timeline đạt kiểm định nhưng neo ngày sự kiện ƯỚC TÍNH" },
   VALIDATED: { text: "đạt kiểm định", cls: "text-sky-300", title: "Vùng Timeline đạt kiểm định" },
 };
-const ICON: Record<CalItem["kind"], string> = { EX_CASH: "₫", EX_STOCK: "◫", RIGHTS: "◫", MEETING: "◷", LISTING: "◫", OTHER: "·", KQKD: "▤", TO: "◎", SEASON: "◎" };
+const ICON: Record<CalItem["kind"], string> = { EX_CASH: "₫", EX_STOCK: "◫", RIGHTS: "◫", MEETING: "◷", LISTING: "◫", OTHER: "·", KQKD: "▤", TO: "◎", SEASON: "◎", NEW_SHARES: "⊕" };
 
 export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision; onOpenTicker: (t: string) => void }) {
   const portfolio = useMemo(() => d.portfolio.map((p) => p.ticker), [d.portfolio]);
@@ -28,8 +28,8 @@ export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision;
     return new Map(tickers.map((t, i) => [t, got[i]] as const));
   }, { revalidateOnFocus: false, dedupingInterval: 10 * 60_000 });
   const timing = useEliteTiming();
-  const cal = useMemo(() => (profiles ? buildHlCalendar({ asOf: d.date, sessions: timing.sessions ?? [], portfolio, queue, profiles, timeline: timing.data?.rows ?? null }) : null),
-    [profiles, d.date, timing.sessions, timing.data, portfolio, queue]);
+  const cal = useMemo(() => (profiles ? buildHlCalendar({ asOf: d.date, sessions: timing.sessions ?? [], portfolio, queue, profiles, timeline: timing.data?.rows ?? null, dilution: d.dilution?.byTicker ?? null }) : null),
+    [profiles, d.date, timing.sessions, timing.data, portfolio, queue, d.dilution]);
   const byDate = useMemo(() => {
     const m = new Map<string, CalItem[]>(); for (const it of cal?.items ?? []) (m.get(it.date) ?? m.set(it.date, []).get(it.date)!).push(it); return [...m];
   }, [cal]);

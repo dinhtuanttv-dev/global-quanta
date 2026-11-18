@@ -4,6 +4,7 @@ import { useProfileFa } from "../../../hooks/elite10/useProfileFa";
 import type { PfaEvent } from "../../../lib/elite10/profileFaTypes";
 import { Block, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd } from "./pfaParts";
 import TimelineZonesBlock from "./TimelineZonesBlock";
+import DilutionProfileBlock from "./DilutionProfileBlock";
 
 const detailOf = (e: PfaEvent) =>
   e.cat === "CASH" ? `${vnd(e.cash)}/cp${e.pay ? ` · trả ${fmtDate(e.pay)}` : ""}`
@@ -63,6 +64,8 @@ export default function EventsProfileCard({ ticker }: { ticker: string }) {
           Ngày GDKHQ ở Việt Nam thường chỉ được công bố trước khoảng 2 tuần (trung vị 14 ngày lịch). Hồ sơ vì vậy <b>không chấm điểm theo khoảng cách tới GDKHQ ước tính</b>: ngày ước tính theo chu kỳ lệch tới hàng chục phiên, còn dùng ngày thật trước khi công bố là nhìn trước.
         </p>
       </Block>
+
+      <DilutionProfileBlock ticker={ticker} />
 
       <TimelineZonesBlock ticker={ticker} />
 
