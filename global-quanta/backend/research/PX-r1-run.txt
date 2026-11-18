@@ -1,0 +1,18 @@
+=== PX-r1 · GDKHQ 2020-01-02 → 2026-11-12 · pha loãng ≥ 10% · vào đóng cửa ex+1, giữ 30 phiên, so đối chứng cùng ngày ===
+Toàn giai đoạn: n 520 · TB -0.57% · trung vị -1.34% · dương 46% · t(tháng) -0.65 (77 tháng)
+Nửa 1 (< 2023-06-01): n 262 · TB -1.54% · trung vị -2.13% · dương 44% · t(tháng) -0.63 (40 tháng)
+Nửa 2 (≥ 2023-06-01): n 258 · TB 0.42% · trung vị -0.62% · dương 48% · t(tháng) -0.15 (37 tháng)
+Tiêu chí: 1 TB ≤ −1,0% ✗ · 2 t ≤ −2 ✗ · 3 âm ở cả hai nửa ✗ -> KHÔNG ĐẠT
+Phụ (không quyết định):
+  ex+1·10p                         n 520 · TB -0.28% · trung vị -0.61% · dương 47% · t(tháng) -1.58 (77 tháng)
+  ex+1·20p                         n 520 · TB 0.03% · trung vị -0.93% · dương 45% · t(tháng) 0.05 (77 tháng)
+  ex+1·30p                         n 520 · TB -0.57% · trung vị -1.34% · dương 46% · t(tháng) -0.65 (77 tháng)
+  ex+5·10p                         n 520 · TB 0.07% · trung vị -0.58% · dương 46% · t(tháng) 0.33 (77 tháng)
+  ex+5·20p                         n 520 · TB 0.11% · trung vị -0.96% · dương 45% · t(tháng) 0.49 (77 tháng)
+  ex+5·30p                         n 520 · TB -0.21% · trung vị -0.72% · dương 47% · t(tháng) 0.16 (77 tháng)
+  ex+10·10p                        n 520 · TB 0.18% · trung vị -0.39% · dương 48% · t(tháng) 0.90 (77 tháng)
+  ex+10·20p                        n 520 · TB -0.28% · trung vị -0.88% · dương 45% · t(tháng) -0.04 (77 tháng)
+  ex+10·30p                        n 519 · TB -0.44% · trung vị -1.02% · dương 46% · t(tháng) 0.39 (77 tháng)
+  động lượng mạnh (phần ba trên)   n 172 · TB -1.80% · trung vị -0.91% · dương 47% · t(tháng) -0.70 (61 tháng)
+  động lượng còn lại               n 344 · TB 0.08% · trung vị -1.34% · dương 45% · t(tháng) -0.63 (70 tháng)
+  "siêu cổ phiếu" (X > +20%): 5.19%
