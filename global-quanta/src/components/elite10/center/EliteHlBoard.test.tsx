@@ -317,3 +317,15 @@ describe("LQ1 — huy hiệu thanh khoản trong bảng Theo dõi chờ nền", 
     expect(screen.getByTestId("pz-liq-CAR").textContent).toMatch(/^GTGD/);
   });
 });
+
+describe("PX0 — huy hiệu đợt pha loãng trên bảng Elite HL", () => {
+  it("mã trong danh mục và mã ở bảng Theo dõi chờ nền có huy hiệu; mã không có đợt thì không", () => {
+    const px = { phase: "POST_EX" as const, day: 3, listed: false, ex: "2026-11-11", cat: "STOCK" as const, ratio: 20, record: "2026-11-12", disclosed: "2026-11-02", listing: "2026-12-21", listingBasis: "ESTIMATED_OWN" as const, lag: 28, until: "2026-12-28", ownLag: 28, nOwn: 3 };
+    const d = { ...withPzLq(), dilution: { version: "PX-v0", rules: {}, pxR1: { verdict: "KHÔNG ĐẠT", ranAt: "2026-11-18", period: "x", n: 520, mean30: -0.0057, t: -0.65, median30: -0.0134, half1: -0.0154, half2: 0.0042, superShare: 0.05, textVi: "PX-r1 KHÔNG ĐẠT" },
+      byTicker: { VJC: px, CTD: { ...px, phase: "PRE_EX" as const, sessionsTo: 4 } } } };
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(text("hl-px-VJC")).toBe("HẬU GDKHQ · CP 20% · phiên 3/≈28");
+    expect(text("pz-px-CTD")).toBe("SẮP GDKHQ · CP 20% · 4 phiên");
+    expect(screen.queryByTestId("pz-px-CAR")).toBeNull();
+  });
+});

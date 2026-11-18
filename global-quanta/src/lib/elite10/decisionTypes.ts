@@ -20,6 +20,12 @@ export interface LqRules {
   stressRet: number; stressFrac: number; holdWarnFrac: number; dtlWarn: number; win: number; win60: number; minObs: number;
   medMin: number; p10Min: number; dayMin: number;
 }
+/** PX0 (18/11/2026): vòng đời đợt pha loãng ≥ 10% — CHỈ HIỂN THỊ (PX-r1 KHÔNG ĐẠT). */
+export interface DilutionPhase {
+  phase: "PRE_EX" | "POST_EX"; ex: string; cat: "STOCK" | "BONUS" | "RIGHTS"; ratio: number; record: string | null; disclosed: string | null;
+  sessionsTo?: number; day?: number; listed?: boolean; listing: string; listingBasis: "ANNOUNCED" | "ESTIMATED_OWN" | "ESTIMATED_MARKET"; lag: number; until: string; ownLag: number | null; nOwn: number;
+}
+export interface PxR1 { verdict: string; ranAt: string; period: string; n: number; mean30: number; t: number; median30: number; half1: number; half2: number; superShare: number; textVi: string }
 export interface EliteScore {
   ticker: string; rank: number; Z: number; alpha5Pct: number | null; pOutperform: number; eligible: boolean; reason: string | null;
   close: number | null; advBn: number | null; sigma20: number | null; sectorKey: string | null; liq?: LiqStats | null;
@@ -137,6 +143,8 @@ export interface EliteDecision {
   display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number; flowRrgPenalty?: number; flowBufferRank?: number; flowMaxPerSector?: number; flowWeightCap?: number };
   /** Độ mới so với lịch phiên thật: số phiên đã đóng sau phiên của tài liệu (0 = mới nhất; ≥ 2 = job dựng lỡ phiên). */
   freshness?: { latestSession: string | null; sessionsBehind: number; /** chậm ≥ 1 phiên và đã quá 20:00 giờ VN của phiên mới nhất */ overdue?: boolean } | null;
+  /** PX0: pha đợt pha loãng theo mã (chỉ mã có pha) — Gateway tính khi trả. */
+  dilution?: { version: string; rules: Record<string, number>; pxR1: PxR1; byTicker: Record<string, DilutionPhase> } | null;
   /** LQ-v1: ngưỡng thanh khoản công khai (Gateway cấp khi trả). */
   liquidity?: LqRules;
   hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;

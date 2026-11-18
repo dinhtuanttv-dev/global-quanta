@@ -32,6 +32,7 @@ import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createProfileFa } from "./market/elite/profileFa.js";
+import { createDilution } from "./market/elite/dilutionService.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
@@ -228,6 +229,11 @@ const eliteAdjustedCloses = (tickers, to) => {
   eliteAdjusted ??= createEliteAdjustedCloses({ seriesSource: createScreenerSeries({ store: rt.store, corporateActions: rt.corporateActions }), pricesOf: (t) => rt.eventStudy.pricesOf(t), store: rt.store });
   return eliteAdjusted(tickers, to);
 };
+// PX0 + PX-L (18/11/2026): vòng đời đợt pha loãng ≥ 10% (chỉ hiển thị; PX-r1 KHÔNG ĐẠT) + sổ theo dõi tiến.
+let eliteDilution = null;
+const getEliteDilution = () => (eliteDilution ??= createDilution({ store: getMarketRuntime().store, corpEvents: getMarketRuntime().corpEvents, panel: getElitePanel(),
+  adjustedCloses: eliteAdjustedCloses, pricesOf: (t) => getMarketRuntime().eventStudy?.pricesOf?.(t) ?? null,
+  isTradingDay: (d) => ![0, 6].includes(new Date(`${d}T00:00:00Z`).getUTCDay()) && !(getMarketRuntime().tradingCalendar?.isHoliday?.(d) ?? false) }));
 // PFA-v1 (17/11/2026): Hồ sơ 360° · Doanh nghiệp & Sự kiện — read-model ghép KQKD, cổ tức, sự kiện, TO-v1 theo phiên E1 (chỉ đọc engine có sẵn).
 let eliteProfileFa = null;
 const getEliteProfileFa = () => (eliteProfileFa ??= createProfileFa({ store: getMarketRuntime().store, panel: getElitePanel(), kqkd: getMarketRuntime().kqkd,
@@ -266,7 +272,8 @@ const getEliteHlWatch = () => (eliteHlWatch ??= createHlWatch({
   },
   vnIndex: vnIndexCloses,
 }));
-const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, priceWatch: getEliteHlWatch(), store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone }));
+const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, priceWatch: getEliteHlWatch(), store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone,
+  dilution: (date, tickers) => getEliteDilution().phases(date, tickers) }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
@@ -322,7 +329,7 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getProfileFa: getEliteProfileFa, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
@@ -344,6 +351,16 @@ if (process.env.NODE_ENV !== "test") {
     } catch (e) { console.warn(`[elite] hồ sơ PFA lỗi: ${e.message}`); }
   };
   setTimeout(() => { void pfaTick(); setInterval(() => void pfaTick(), 10 * 60_000).unref?.(); }, 6 * 60_000).unref?.();
+  // PX-L: ghi đợt pha loãng mới + chấm kết quả, một lần cho mỗi phiên E1 (vòng riêng).
+  let pxDate = null, pxTriedAt = 0;
+  const pxTick = async () => {
+    try {
+      const p = await getElitePanel().panel(); if (!p?.date || p.date === pxDate) return;
+      if (Date.now() - pxTriedAt < 20 * 60_000) return; pxTriedAt = Date.now();
+      const r = await getEliteDilution().tick(); if (r) { pxDate = r.date; console.log(`[elite] sổ PX-L ${r.date}: ${r.entries} đợt · chấm ${r.due}`); }
+    } catch (e) { console.warn(`[elite] sổ PX-L lỗi: ${e.message}`); }
+  };
+  setTimeout(() => { void pxTick(); setInterval(() => void pxTick(), 10 * 60_000).unref?.(); }, 7 * 60_000).unref?.();
   const eliteTick = async () => {
     try {
       const inWindow = panelDue(Date.now(), isTradingDay);
