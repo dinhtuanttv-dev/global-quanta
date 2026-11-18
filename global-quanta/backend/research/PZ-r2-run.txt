@@ -1,0 +1,6 @@
+=== KIỂM ĐỊNH 2023-05-19 → 2026-11-12 (870 phiên) ===
+VN-Index: 15.0%/năm, sụt giảm -18.1% · Bình quân đều: 3.5%/năm, sụt giảm -25.1%
+P0    5.1%/năm · Sharpe 0.36 · sụt giảm -25.3% · mã 9.2 · tiền mặt 15% · xoay vòng 7.1 · chặn 0 · tuần không có vùng mua 0/0
+P2    1.1%/năm · Sharpe 0.15 · sụt giảm -24.8% · mã 6.9 · tiền mặt 24% · xoay vòng 6.9 · chặn 1602 · tuần không có vùng mua 9/181 · so P0 -0.40%/20 phiên, t -0.64
+Tiêu chí: 1 sụt giảm ✗ (0.6%) · 2 lợi suất ✗ (-4.0%) · 3 Sharpe ✗ · 4 t ✓ (-0.64) · 5 hai nửa ✓ (-18.2% / -13.6% · -25.3% / -20.0%) · tiền mặt ✓ -> KHÔNG ĐẠT
+theo năm (P2 − P0): 2023 16.3% · 2024 -0.7% · 2025 -32.8% · 2026 1.2%
