@@ -296,7 +296,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         </p>
       </Panel>
 
-      {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName} />}
+      {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName}
+        liqBadge={(x, mobile) => <LiquidityBadge liq={liqOf(x.ticker)} rules={lq} sigma20={scoreBy.get(x.ticker)?.sigma20} weight={x.held ? x.weight ?? null : null} held={x.held} fallbackAdvBn={scoreBy.get(x.ticker)?.advBn ?? null} testId={`pz-liq-${mobile ? "m-" : ""}${x.ticker}`} />} />}
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <Panel title="Phân bổ ngành" testId="hl-sectors" right={<span className="text-[10px] text-slate-500">Trần {pct(r.sectorCap, 0)} mỗi ngành</span>}>

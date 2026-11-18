@@ -41,6 +41,8 @@ let pfaWarnings: { asOf: string; tickers: Record<string, { id: string; level: "w
 vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFaWarnings: () => ({ data: pfaWarnings }) }));
 
 import DecisionBoard from "./DecisionBoard";
+// LQ1: dựng trong khối PZ-v2 (dùng withPz), dùng ở khối LQ1 cuối tệp.
+let withPzLq: () => EliteDecision;
 import EliteHlBoard from "./EliteHlBoard";
 
 const text = (id: string) => screen.getByTestId(id).textContent ?? "";
@@ -240,6 +242,10 @@ describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
     },
   });
 
+  // LQ1: thêm số đo thanh khoản cho CTD (đang giữ, làn Chạy lãi); CAR không có điểm -> chữ cũ.
+  withPzLq = () => { const d = withPz(); return { ...d, scores: [...d.scores.filter((s) => s.ticker !== "CTD"), { ticker: "CTD", rank: 50, Z: 0, alpha5Pct: null, pOutperform: 0.5, eligible: true, reason: null, close: 40000, advBn: 8.3, sigma20: 0.042, sectorKey: "2300", contributions: [],
+    liq: { version: "LQ-v1", tier: "L3" as const, reasons: ["MED" as const, "P10" as const, "STRESS" as const], n20: 20, n60: 60, med20: 6.98, mean20: 8.28, p10: 0.052, min20: 0.34, max20: 22, density: 15, maxShare: 0.13, illiq: 0.56, stressDays: 1, capacityBn: 0.03, capitalMaxBn: 0.21, binding: "out" as const, impactPct: 1.1, dtl: 72 } }] }; };
+
   it("bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng chuyển sang Chạy lãi, vẫn trong vốn", () => {
     render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("hl-row-CTD")).toBeNull();
@@ -298,5 +304,16 @@ describe("Elite HL — ghi chú K0 kèm kết quả HL-r2", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("hl-pfa-VJC")).toBeNull();
     pfaWarnings = null;
+  });
+});
+
+describe("LQ1 — huy hiệu thanh khoản trong bảng Theo dõi chờ nền", () => {
+  it("mã đang giữ ở làn Chạy lãi có huy hiệu + cờ; mã chưa giữ có huy hiệu, không cờ; thiếu số đo -> giữ chữ GTGD cũ", () => {
+    const base = withPzLq();
+    render(<EliteHlBoard d={base} onOpenTicker={() => {}} />);
+    const ctd = screen.getByTestId("pz-liq-CTD");
+    expect(ctd.getAttribute("data-tier")).toBe("L3"); expect(ctd.textContent).toMatch(/L3GTGD 6,98 tỷmỏng⚠/);
+    expect(ctd.getAttribute("title")).toMatch(/Đang giữ: 1 phiên giảm sâu mà cạn cầu/);
+    expect(screen.getByTestId("pz-liq-CAR").textContent).toMatch(/^GTGD/);
   });
 });
