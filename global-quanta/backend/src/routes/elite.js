@@ -7,6 +7,7 @@
 //     POST /api/elite/admin/evidence  cập nhật chuỗi IC + bậc (admin)
 // E3: GET  /api/elite/decision        Điểm Elite + danh mục Elite 10 phiên mới nhất (?date=) — E3-prereg.md
 //     GET  /api/elite/decision/:ticker điểm và đóng góp từng tín hiệu của một mã
+//     GET  /api/elite/liquidity/:ticker LQ-v1: số đo thanh khoản + chuỗi GTGD 60 phiên (mô tả, không đổi danh mục)
 //     GET  /api/elite/ledger          sổ theo dõi tiến của danh mục (khoá lúc dựng, chấm sau d+1+h)
 //     POST /api/elite/admin/decision  dựng quyết định + chấm sổ (admin)
 // E5: GET  /api/elite/tools           công cụ chat elite_* cho Claude/Gemini (Project A) — cùng hợp đồng /api/world-sectors/tools
@@ -162,10 +163,20 @@ export function createEliteRouter({ getProfileFa = null, getHlWatch = null, getP
     res.json(getDecision().present ? await getDecision().present(doc, { withFreshness: !date }) : doc);
   }));
 
+  // LQ-v1: số đo thanh khoản + chuỗi GTGD 60 phiên của một mã (Hồ sơ 360°) — mô tả, không đổi danh mục.
+  router.get("/liquidity/:ticker", wrap(async (req, res) => {
+    const ticker = String(req.params.ticker || "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(ticker)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const d = getDecision?.().liquidity ? await getDecision().liquidity(ticker) : null;
+    if (!d) return missing(res, "Chưa có quyết định Elite.");
+    res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(d);
+  }));
+
   router.get("/decision/:ticker", wrap(async (req, res) => {
     const ticker = String(req.params.ticker || "").toUpperCase();
     if (!/^[A-Z0-9]{3,10}$/.test(ticker)) return res.status(400).json({ error: "Mã không hợp lệ." });
-    const doc = getDecision ? await getDecision().decision() : null;
+    const doc0 = getDecision ? await getDecision().decision() : null;
+    const doc = doc0 && getDecision().withLiquidity ? await getDecision().withLiquidity(doc0) : doc0;
     if (!doc) return missing(res, "Chưa có quyết định Elite 10.");
     const score = doc.scores.find((x) => x.ticker === ticker);
     if (!score) return res.status(404).json({ error: `${ticker} không nằm trong vũ trụ phiên ${doc.date}.` });

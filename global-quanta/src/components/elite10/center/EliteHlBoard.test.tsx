@@ -68,7 +68,9 @@ describe("Bảng quyết định Elite HL", () => {
   it("phân bổ ngành, hàng chờ có lý do, mã bị ngành phản đối, ghi chú K0 và sổ so sánh hai danh mục", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
     expect(text("hl-sector-5700")).toMatch(/Du lịch & Giải trí.*15%.*1 mã/); expect(text("hl-sectors")).toMatch(/Tiền mặt.*76%/);
-    expect(text("hl-queue-HDA")).toMatch(/GTGD TB20 < 5 tỷ/); expect(text("hl-queue-NKG")).toMatch(/Chờ phiên cân bằng/);
+    // LQ1: mã chưa giao dịch được tách khỏi hàng chờ (Gateway cũ để chung, code "illiquid").
+    expect(screen.queryByTestId("hl-queue-HDA")).toBeNull(); expect(text("hl-queue-ill-HDA")).toMatch(/GTGD TB20 < 5 tỷ/);
+    expect(text("hl-queue-illiquid")).toMatch(/chưa giao dịch được [(]1[)].*không chiếm suất hàng chờ/); expect(text("hl-queue-NKG")).toMatch(/Chờ phiên cân bằng/);
     expect(text("hl-against")).toContain("MSB (Tụt hậu)");
     expect(text("hl-k0")).toMatch(/NGANG thị trường/);
     expect(text("hl-rules")).toMatch(/Ra \(xét mỗi phiên\):.*phân vị 60.*Tụt hậu/);
@@ -262,7 +264,7 @@ describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
     expect(text("hl-pz-changes")).toMatch(/Chuyển sang theo dõi: 1 mã.*CTD/);
     expect(text("hl-funnel")).toMatch(/Trong vùng mua/);
     expect(text("hl-rules")).toMatch(/Vị trí giá \(PZ-v2/); expect(text("hl-rules")).toMatch(/Cổng chưa bật/);
-    expect(screen.getByTestId("hl-queue-pz-HDA")).toBeTruthy();
+    expect(screen.getByTestId("hl-queue-ill-pz-HDA")).toBeTruthy();
   });
 
   it("Gateway chưa gửi vị trí giá -> trang như cũ (không có cột mới, không có bảng theo dõi)", () => {

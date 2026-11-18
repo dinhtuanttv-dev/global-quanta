@@ -4,6 +4,7 @@
 // E3-v4 (sửa đổi 2026-11-05, quy tắc người dùng đặt): mã thuộc ngành RRG Tụt hậu (bảng E1 phiên d) bị trừ 30% độ lớn Z khi xếp hạng.
 import { averageRanks, dailyIc, normCdf, summarize } from "./icCore.js";
 import { ledoitWolf } from "./riskCore.js";
+import { liquidityStats } from "./liquidity.js";
 
 export const E3_VERSION = "E3-v4 (prereg 2026-10-17, sửa đổi 2026-11-05)";
 /** LS-r1: E3-v5 = E3-v4 + điểm dẫn dắt LS-v1 — chỉ dùng khi cổng H4 ĐẠT (LS-r1-prereg.md). */
@@ -184,7 +185,8 @@ export function priceStats(prices, date) {
       : adv == null || adv < ELIGIBILITY.minValueVnd ? "GTGD TB20 < 10 tỷ"
         : last.closeAdj < ELIGIBILITY.minPrice ? "giá < 5.000đ"
           : sigma20 == null || sigma20 < ELIGIBILITY.minSigma20 ? "giá bị neo (σ20 < 0,5%/ngày)" : null;
-    out.set(t, { eligible: !reason, reason, close: last.closeAdj, adv, sigma20 });
+    // LQ-v1: số đo thanh khoản MÔ TẢ — không tham gia `eligible` (đổi cổng cần đăng ký trước LQ-r1).
+    out.set(t, { eligible: !reason, reason, close: last.closeAdj, adv, sigma20, liq: liquidityStats(upto, sigma20) });
   }
   return out;
 }
@@ -233,7 +235,7 @@ export function buildDecision({ panel, evidence, prices, cal, prevHoldings = [],
     const contributions = weights.map((w) => ({ id: w.id, z: zBy.get(w.id).get(t) ?? null, contribution: w.w * (zBy.get(w.id).get(t) ?? 0) }));
     return {
       ticker: t, Z, zModel, rrgQuadrant, rrgPenalty: Z !== zModel, alpha5Pct: alpha5 == null ? null : alpha5 * 100, pOutperform: pOut, eligible: st.eligible, reason: st.reason ?? null,
-      close: st.close ?? null, advBn: st.adv != null ? st.adv / 1e9 : null, sigma20: st.sigma20 ?? null,
+      close: st.close ?? null, advBn: st.adv != null ? st.adv / 1e9 : null, sigma20: st.sigma20 ?? null, liq: st.liq ?? null,
       sectorKey: rowBy.get(t)?.icb?.l2 ?? rowBy.get(t)?.sector ?? null, contributions,
     };
   }).sort((a, b) => b.Z - a.Z);

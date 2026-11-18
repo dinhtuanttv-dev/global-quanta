@@ -18,6 +18,8 @@ export const HL_PF_VERSION = "E4-HL v1 (G2r, 12/11/2026)";
 export const HL_PF = Object.freeze({
   slots: 10, slotW: 0.1, wMin: 0.05, wMax: 0.15, wDust: 0.02, sectorCap: 0.3, maxPerSector: 3,
   minAdvBn: 5, minPrice: 5000, minSigma20: 0.005,
+  // LQ1 (18/11/2026): mã Hợp lưu chưa giao dịch được KHÔNG chiếm suất hàng chờ — danh sách riêng, chỉ hiển thị.
+  queueIlliquid: 5,
   exitLsPct: 60, exitTaMin: 1, exitRrg: -2, warnLsPct: 70,
   costBuy: 0.002, costSell: 0.0025, stopK: 2, targetK: 3, bandSessions: 20, sigmaFloor: 0.01, queue: 12,
   // N0 (12/11/2026) — CHỐT DỮ LIỆU: thiếu nguồn thì danh mục GIỮ NGUYÊN (không vào, không ra); mã vắng mặt phải vắng 2 phiên liên tiếp mới ra.
@@ -138,11 +140,11 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
     if (why) exits.push({ ticker: p.ticker, weight: r4(p.weight), since: p.since ?? null, ...why, hlRank: h?.rank ?? null, lsPct: r4(h?.lsPct), taCount: h?.taCount ?? null, rrg: h?.rrg ?? null });
   }
   // 2) Phiên cân bằng: mua mã Hợp lưu theo thứ tự xếp hạng, định cỡ theo rủi ro, trong giới hạn tiền mặt / ngành.
-  const picks = [...held], inSet = new Set(picks.map((x) => x.ticker)), queue = [];
+  const picks = [...held], inSet = new Set(picks.map((x) => x.ticker)), queue = [], queueIlliquid = [];
   const secOf = (t) => scBy.get(t)?.sectorKey ?? "?";
   const secN = {}, secW = {}; let used = 0;
   for (const x of picks) { const s = secOf(x.ticker); secN[s] = (secN[s] ?? 0) + 1; secW[s] = (secW[s] ?? 0) + x.weight; used += x.weight; }
-  const push = (x, code, reasonVi) => { if (queue.length < cfg.queue) queue.push({ ticker: x.ticker, hlRank: x.rank, cls: x.cls, t1: x.t1, t2: x.t2, t3: x.t3, lsPct: r4(x.lsPct), taCount: x.taCount, rrg: x.rrg, sectorKey: secOf(x.ticker), advBn: r4(scBy.get(x.ticker)?.advBn), code, reasonVi }); };
+  const push = (x, code, reasonVi) => { const ill = code === "illiquid", list = ill ? queueIlliquid : queue; if (list.length < (ill ? cfg.queueIlliquid ?? 5 : cfg.queue)) list.push({ ticker: x.ticker, hlRank: x.rank, cls: x.cls, t1: x.t1, t2: x.t2, t3: x.t3, lsPct: r4(x.lsPct), taCount: x.taCount, rrg: x.rrg, sectorKey: secOf(x.ticker), advBn: r4(scBy.get(x.ticker)?.advBn), code, reasonVi }); };
   for (const x of frozen ? [] : selected) {
     if (inSet.has(x.ticker)) continue;
     const sc = scBy.get(x.ticker), bad = hlTradable(sc, cfg), s = secOf(x.ticker);
@@ -189,7 +191,7 @@ export function buildHlPortfolio({ panelRows, scores, prev = [], rebalance = tru
       funnel: { panel: panelRows.length, tradable: tradable.length, tier1: hl.filter((x) => x.pass1).length, selected: selected.length, selectedTradable: selected.filter((x) => !hlTradable(scBy.get(x.ticker), cfg)).length, held: portfolio.length },
       invested: r4(invested), cash: r4(1 - invested), sigmaMedian: r4(sigMed),
       changes: { added: picks.filter((x) => x.status === "NEW").map((x) => x.ticker), exits, kept: held.length, turnover: r4((buys + sells) / 2), costEst: r4(buys * cfg.costBuy + sells * cfg.costSell) },
-      sectors, queue,
+      sectors, queue, queueIlliquid,
       against: hl.filter((x) => x.cls === "T1_SECTOR_AGAINST").slice(0, 8).map((x) => ({ ticker: x.ticker, hlRank: x.rank, t1: x.t1, rrg: x.rrg, rrgVi: RRG_VI[x.rrg] ?? null })),
       labelVi: "THĂM DÒ — quy tắc chọn do chủ dự án đặt; K0 cho kết quả ngang thị trường; hiệu quả thật đo bằng sổ theo dõi tiến.",
     },

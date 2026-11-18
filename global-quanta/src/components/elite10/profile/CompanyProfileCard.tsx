@@ -1,6 +1,7 @@
 // PFA-v1 — Hồ sơ 360° · góc DOANH NGHIỆP: kết quả kinh doanh, chất lượng lợi nhuận, cổ tức. Mọi số từ engine có sẵn trên Gateway,
 // khoá theo phiên; số nào chưa có / không áp dụng thì ghi rõ, không điền 0. Nhãn bằng chứng đặt cạnh từng chỉ số.
 import { useProfileFa } from "../../../hooks/elite10/useProfileFa";
+import LiquidityProfileBlock from "./LiquidityProfileBlock";
 import type { PfaDividend, PfaEarnings } from "../../../lib/elite10/profileFaTypes";
 import { FA_R1 } from "../../../lib/elite10/faR1";
 import { Block, bn, Checklist, cover, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd, WarningList, YoY } from "./pfaParts";
@@ -113,6 +114,7 @@ export default function CompanyProfileCard({ ticker }: { ticker: string }) {
         <WarningList items={data.warnings} testId="pfa-warnings" />
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="pfa-far1">{FA_R1.summaryVi}<Evidence label={FA_R1.verdict} title={`FA-r1 · ${FA_R1.period} · chạy ${FA_R1.ranAt}`} /></p>
       </Block>
+      <LiquidityProfileBlock ticker={ticker} />
       {data.earnings && <Earnings e={data.earnings} />}
       {data.earnings && <Quality e={data.earnings} />}
       {data.dividend && <Dividend v={data.dividend} />}

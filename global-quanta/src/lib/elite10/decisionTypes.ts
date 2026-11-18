@@ -5,9 +5,24 @@ export interface SignalSpec { id: string; tab: string; labelVi: string; unit: st
 
 export interface SignalWeight { id: string; labelVi: string; tab: string; tier: Tier; mainH: number; n: number; icMeas: number; icPrior: number; icPost: number; w: number; wNaive?: number }
 
+/** LQ-v1 (18/11/2026): số đo thanh khoản MÔ TẢ (khớp lệnh) — không đổi `eligible` / danh mục. Đơn vị GTGD: tỷ đồng. */
+export type LqTier = "L1" | "L2" | "L3" | "L4" | "NA";
+export type LqReason = "MED_ABS" | "ILLIQ_MAX" | "MED" | "P10" | "DENSITY" | "ILLIQ" | "SPIKE" | "STRESS" | "NO_DATA";
+export interface LiqStats {
+  version: string; tier: LqTier; reasons: LqReason[]; n20: number; n60: number;
+  med20?: number | null; mean20?: number | null; p10?: number | null; min20?: number | null; max20?: number | null;
+  density?: number; maxShare?: number | null; illiq?: number | null; stressDays?: number;
+  capacityBn?: number | null; capitalMaxBn?: number | null; binding?: "in" | "out" | "impact"; impactPct?: number | null; dtl?: number | null;
+}
+export interface LqRules {
+  version: string; capitalBn: number; wRef: number; wMax: number; rhoIn: number; rhoOut: number; exitDays: number; impactY: number; impactMax: number; sigmaFloor: number;
+  absMinMedBn: number; illiqWarn: number; illiqMax: number; densityMin: number; maxShareWarn: number; l1MedBn: number; l1Illiq: number;
+  stressRet: number; stressFrac: number; holdWarnFrac: number; dtlWarn: number; win: number; win60: number; minObs: number;
+  medMin: number; p10Min: number; dayMin: number;
+}
 export interface EliteScore {
   ticker: string; rank: number; Z: number; alpha5Pct: number | null; pOutperform: number; eligible: boolean; reason: string | null;
-  close: number | null; advBn: number | null; sigma20: number | null; sectorKey: string | null;
+  close: number | null; advBn: number | null; sigma20: number | null; sectorKey: string | null; liq?: LiqStats | null;
   /** E3-v4: Z của mô hình trước quy tắc RRG; góc phần tư ngành (2/1/−1/−2); có bị phạt ngành Tụt hậu. */
   zModel?: number; rrgQuadrant?: number | null; rrgPenalty?: boolean;
   contributions: { id: string; z: number | null; contribution: number }[];
@@ -85,6 +100,8 @@ export interface EliteHlMeta {
   /** PZ-v2: vị trí giá — bảng Theo dõi chờ nền (đang giữ đã nóng + chưa giữ chờ nền) và mã vừa rời bảng. */
   pz?: PzMeta; watch?: PzWatchRow[]; watchExits?: PzExit[];
   sectors: { sectorKey: string; weight: number; names: number }[]; queue: HlQueueItem[];
+  /** LQ1: mã Hợp lưu chưa giao dịch được — danh sách riêng, không chiếm suất hàng chờ (Gateway cũ: nằm trong `queue` với code "illiquid"). */
+  queueIlliquid?: HlQueueItem[];
   against: { ticker: string; hlRank: number; t1: number; rrg: number | null; rrgVi: string | null }[];
   market: { regime: string; regimeVi: string | null; bias: string | null; breadth: number | null; guard: boolean } | null;
   labelVi: string;
@@ -120,6 +137,8 @@ export interface EliteDecision {
   display?: { ledgerCostRoundTrip: number; flowMinAdvBn: number; flowMinPrice: number; flowRrgPenalty?: number; flowBufferRank?: number; flowMaxPerSector?: number; flowWeightCap?: number };
   /** Độ mới so với lịch phiên thật: số phiên đã đóng sau phiên của tài liệu (0 = mới nhất; ≥ 2 = job dựng lỡ phiên). */
   freshness?: { latestSession: string | null; sessionsBehind: number; /** chậm ≥ 1 phiên và đã quá 20:00 giờ VN của phiên mới nhất */ overdue?: boolean } | null;
+  /** LQ-v1: ngưỡng thanh khoản công khai (Gateway cấp khi trả). */
+  liquidity?: LqRules;
   hl?: EliteHlMeta; flowVersion?: string; flowPortfolio?: PortfolioPick[]; flowConstruction?: EliteDecision["construction"]; flowLedgerSummary?: LedgerSummary | null;
 }
 

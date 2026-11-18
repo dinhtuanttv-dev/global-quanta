@@ -8,6 +8,7 @@ import { buildHlPortfolio, hlTradable, HL_K0, HL_PF_VERSION, HL_TIER1, isoWeek }
 import { REGIME_VI } from "./leadership.js";
 import { hlScores } from "./confluence.js";
 import { annotatePz, PZ_GATE } from "./hlWatch.js";
+import { liquiditySeries, liquidityStats, lqPublicRules } from "./liquidity.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
 // E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
@@ -318,11 +319,40 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
       return { latestSession, sessionsBehind, overdue };
     } catch (e) { log.warn?.(`[elite] độ mới quyết định: ${e.message}`); return null; }
   }
+  // LQ-v1: phiên đã khoá trước khi có số đo thanh khoản -> tính khi trả (không ghi vào tài liệu đã khoá, không đổi danh mục).
+  let liqMemo = null;
+  async function liquidityMap(doc) {
+    if (liqMemo?.date === doc.date && liqMemo.n === doc.scores.length) return liqMemo.map;
+    const prices = await loadPrices(doc.scores.map((s) => s.ticker), doc.date);
+    const map = new Map();
+    for (const s of doc.scores) {
+      const rows = (prices.get(s.ticker) ?? []).filter((r) => r.date <= doc.date && r.closeAdj > 0);
+      if (rows.length && rows[rows.length - 1].date === doc.date) map.set(s.ticker, liquidityStats(rows, s.sigma20 ?? null));
+    }
+    liqMemo = { date: doc.date, n: doc.scores.length, map };
+    return map;
+  }
+  async function withLiquidity(doc) {
+    if (!doc?.scores?.length || doc.scores.every((s) => s.liq)) return doc;
+    try { const m = await liquidityMap(doc); return { ...doc, scores: doc.scores.map((s) => (s.liq ? s : { ...s, liq: m.get(s.ticker) ?? null })) }; }
+    catch (e) { log.warn?.(`[elite] số đo thanh khoản: ${e.message}`); return doc; }
+  }
+  /** Hồ sơ 360°: số đo + chuỗi 60 phiên của một mã, tại phiên quyết định mới nhất. */
+  async function liquidity(ticker) {
+    const doc = await decision();
+    if (!doc) return null;
+    const rows = ((await loadPrices([ticker], doc.date)).get(ticker) ?? []).filter((r) => r.date <= doc.date && r.closeAdj > 0);
+    if (!rows.length) return { date: doc.date, ticker, missing: true, rules: lqPublicRules() };
+    const sc = doc.scores.find((s) => s.ticker === ticker);
+    return { date: doc.date, ticker, inPanel: Boolean(sc), sigma20: sc?.sigma20 ?? null, liq: liquidityStats(rows, sc?.sigma20 ?? null), series: liquiditySeries(rows), rules: lqPublicRules() };
+  }
+
   /** Lớp trình bày cho GET /api/elite/decision: thêm số liệu HIỂN THỊ (không lưu vào KV, không đổi tài liệu đã khoá). */
-  async function present(doc, { withFreshness = true } = {}) {
-    if (!doc) return doc;
+  async function present(doc0, { withFreshness = true } = {}) {
+    if (!doc0) return doc0;
+    const doc = withFreshness ? await withLiquidity(doc0) : doc0;
     return {
-      ...doc,
+      ...doc, liquidity: lqPublicRules(),
       // K0 luôn là bản mới nhất (thêm kết quả HL-r2 14/11/2026) — ghi chú bằng chứng, không phải một phần danh mục đã khoá.
       ...(doc.hl ? { hl: { ...doc.hl, tier1: doc.hl.tier1 ?? HL_TIER1, k0: HL_K0 } } : {}),
       display: { ledgerCostRoundTrip: COST_ROUND_TRIP, flowMinAdvBn: ELIGIBILITY.minValueVnd / 1e9, flowMinPrice: ELIGIBILITY.minPrice,
@@ -331,7 +361,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     };
   }
 
-  return { build, decision, ledger, rankHistory, personalPortfolio, present, freshness };
+  return { build, decision, ledger, rankHistory, personalPortfolio, present, freshness, liquidity, withLiquidity };
 }
 
 /** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */
