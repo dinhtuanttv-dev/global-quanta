@@ -135,6 +135,7 @@ export function annotatePz({ portfolio, hl }, snap, hlRows, { exits = [], gate =
     return { ...x, hl: { ...x.hl, pz } };
   });
   const queue = (hl.queue ?? []).map((q) => { const p = pub(q.ticker, false, false); return p ? { ...q, pz: p } : q; });
+  const queueIlliquid = (hl.queueIlliquid ?? []).map((q) => { const p = pub(q.ticker, false, false); return p ? { ...q, pz: p } : q; });
   const order = { REBASING: 0, COOLING: 1, EXTENDED: 2, FAILED: 3 };
   const watch = [
     ...portfolio2.filter((x) => x.hl.pz.lane === "RUNNER").map((x) => ({ ticker: x.ticker, hlRank: x.hl.rank, cls: x.hl.cls, sectorKey: x.sectorKey, held: true, weight: x.weight, sinceRet: x.hl.sinceRet ?? null, pz: x.hl.pz })),
@@ -152,7 +153,7 @@ export function annotatePz({ portfolio, hl }, snap, hlRows, { exits = [], gate =
   return {
     portfolio: portfolio2,
     hl: {
-      ...hl, queue, watch, watchExits: exits,
+      ...hl, queue, ...(hl.queueIlliquid ? { queueIlliquid } : {}), watch, watchExits: exits,
       funnel: { ...hl.funnel, inZone: [...selectedTradable].filter((t) => recs[t]?.state === "BUY_ZONE").length },
       changes: { ...hl.changes, toWatch, backToZone },
       pz: {

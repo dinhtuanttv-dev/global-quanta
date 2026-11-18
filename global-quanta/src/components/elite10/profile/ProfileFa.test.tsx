@@ -32,6 +32,7 @@ vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFa: () => ({ d
 const tlRow = (o: Record<string, unknown>) => ({ ticker: "VJC", kind: "EARNINGS", tier: "VALIDATED", status: "UPCOMING", eventLabel: "KQKD", eventDate: "2027-01-20", eventDateBasis: "ESTIMATED", windowId: "e1", windowLabel: "Trước KQKD", entryFrom: -10, entryTo: -8, exitOffset: 0, entryFromDate: "2027-01-05", entryToDate: "2027-01-07", exitDate: "2027-01-20", sessionsToEntry: 32, nEvents: 12, winRate: 0.75, probability: null, netExpectancy: 0.021, netExpectancyLcb: 0.004, fdrQValue: 0.04, decisionLevel: null, missing: [], ...o });
 let tlRows: unknown[] = [tlRow({}), tlRow({ kind: "DIVIDEND", tier: "EXPLORATORY", windowId: "to", eventDateBasis: "ANNOUNCED", eventDate: "2026-11-26", entryFromDate: "2026-11-18", entryToDate: "2026-11-19", exitDate: "2026-11-25", status: "IN_WINDOW", fdrQValue: 1, missing: ["THĂM DÒ — chờ kiểm định tiến TO-r1"] }), tlRow({ ticker: "HPG" })];
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: { rows: tlRows, counts: { validated: 2, near: 163, inWindow: 0, upcoming: 2 }, coverage: { universe: 281, decisions: 281, seasonality: 281 } }, sessions: [], loading: false }) }));
+vi.mock("../../../hooks/elite10/useEliteLiquidity", () => ({ useEliteLiquidity: () => ({ data: null, error: null, isLoading: false }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: decision }) }));
 
 import ProfileHeader from "./ProfileHeader";

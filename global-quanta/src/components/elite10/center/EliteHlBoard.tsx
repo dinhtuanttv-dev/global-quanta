@@ -8,6 +8,8 @@ import { hlPicks, type EliteDecision, type HlClassCode, type HlPick, type Ledger
 import { fmtDate, num, price, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
 import HlCalendarStrip from "./HlCalendarStrip";
+import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
+import { BINDING_VI, bnText, LQ_DEFAULT, LQ_TIER, portfolioCapacity, reasonText, splitQueue } from "../../../lib/elite10/liquidity";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
 import { AllocationBar, coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzBadge, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
@@ -107,6 +109,11 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const sectorName = useMemo(() => new Map((ws?.short.rows ?? []).map((r) => [r.icb, r.nameVi])), [ws]);
   const secName = (k: string | null | undefined) => (k ? sectorName.get(k) ?? k : "—");
   const f = hl.funnel, r = hl.rule, ch = hl.changes;
+  // LQ1: số đo thanh khoản (mô tả) theo mã, ngưỡng công khai của Gateway; hàng chờ tách mã chưa giao dịch được.
+  const lq = d.liquidity ?? LQ_DEFAULT;
+  const scoreBy = new Map(d.scores.map((s) => [s.ticker, s]));
+  const liqOf = (t: string) => scoreBy.get(t)?.liq ?? null;
+  const queues = splitQueue(hl.queue, hl.queueIlliquid);
   const picks = hlPicks(d);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
@@ -212,6 +219,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
 
       <Panel title={pz ? `Danh mục Elite HL · trong nền và vùng mua (${corePicks.length} mã)` : `Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
         {pz && <p className="mb-1.5 text-[10.5px] text-slate-400" data-testid="hl-pz-mode"><span className={`mr-1 rounded border px-1 py-px text-[10px] font-bold ${pz.gate ? "border-emerald-400/60 text-emerald-200" : "border-slate-400/50 text-slate-300"}`}>{pz.gate ? "CỔNG BẬT" : "CHỈ HIỂN THỊ"}</span>{pz.modeVi}</p>}
+        <PortfolioLiquidityLine rows={picks.map((p) => ({ ticker: p.ticker, weight: p.weight, liq: liqOf(p.ticker), sigma20: p.hl.sigma20 }))} rules={lq} />
         {picks.length === 0 ? <p className="text-[11px] text-slate-400" data-testid="hl-empty">Không có mã nào đạt Hợp lưu và giao dịch được — danh mục đang 100% tiền mặt.</p> : (
           <>
           <ul className="space-y-1.5 md:hidden" data-testid="hl-cards">
@@ -223,7 +231,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{p.ticker}</button> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
-                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ · giá {price(p.close)}</p>
+                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}</p>
                   {pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
@@ -255,7 +263,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
                       <td className="pr-2">{openBtn(p.ticker)} <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
-                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · GTGD {num(h.advBn, 0)} tỷ{whyBtn(p.ticker)}</span>
+                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}</span>
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
@@ -306,12 +314,24 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           )}
         </Panel>
         <Panel title="Hàng chờ — mã Hợp lưu chưa vào danh mục" testId="hl-queue">
-          {hl.queue.length === 0 ? <p className="text-[11px] text-slate-500">Không còn mã Hợp lưu nào ngoài danh mục.</p> : (
+          {queues.tradable.length === 0 ? <p className="text-[11px] text-slate-500">{queues.illiquid.length ? "Không còn mã Hợp lưu nào giao dịch được ngoài danh mục." : "Không còn mã Hợp lưu nào ngoài danh mục."}</p> : (
             <ul className="space-y-0.5 text-[11px]">
-              {hl.queue.map((q) => (
+              {queues.tradable.map((q) => (
                 <li key={q.ticker} data-testid={`hl-queue-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} <span className="text-slate-500">T1 {q.t1} · {q.rrg == null ? "—" : RRG_VI[String(q.rrg)]} · T3 {pts(q.t3)}</span> — <span className={q.code === "illiquid" ? "text-amber-300" : "text-slate-300"}>{q.reasonVi}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-pz-${q.ticker}`} /></span>}</li>
               ))}
             </ul>
+          )}
+          {queues.illiquid.length > 0 && (
+            <details className="mt-1.5 rounded border border-amber-400/20 bg-amber-500/[0.04] px-2 py-1 text-[11px]" data-testid="hl-queue-illiquid">
+              <summary className="cursor-pointer text-amber-200">Đạt Hợp lưu nhưng chưa giao dịch được ({queues.illiquid.length}) — không chiếm suất hàng chờ</summary>
+              <ul className="mt-1 space-y-0.5">
+                {queues.illiquid.map((q) => {
+                  const l = liqOf(q.ticker), why = l && l.tier !== "NA" && l.reasons.length ? reasonText(l.reasons[0], l, lq) : q.reasonVi;
+                  return <li key={q.ticker} data-testid={`hl-queue-ill-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} {l ? <LiquidityBadge liq={l} rules={lq} sigma20={scoreBy.get(q.ticker)?.sigma20} fallbackAdvBn={q.advBn} /> : null} <span className="text-amber-300">— {why}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-ill-pz-${q.ticker}`} /></span>}</li>;
+                })}
+              </ul>
+              <p className="mt-1 text-[10px] text-slate-500">Cổng vào hiện hành vẫn là GTGD trung bình 20 phiên ≥ {num(r.minAdvBn, 0)} tỷ; lý do ghi theo số đo LQ-v1 (trung vị, phiên thấp, trượt giá).</p>
+            </details>
           )}
           {hl.against.length > 0 && <p className="mt-1.5 text-[10px] text-slate-500" data-testid="hl-against">Đạt tầng 1 nhưng ngành phản đối (không vào): {hl.against.map((x) => `${x.ticker} (${x.rrgVi ?? "—"})`).join(" · ")}</p>}
         </Panel>

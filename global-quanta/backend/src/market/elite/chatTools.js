@@ -73,6 +73,7 @@ export function createEliteChatTools({ decision, panel, evidence }) {
               rule: rule ? { slots: rule.slots, maxPerSector: rule.maxPerSector, sectorCapPct: P(rule.sectorCap, 0), minAdvBn: rule.minAdvBn, exitLsPercentile: rule.exitLsPct, warnLsPercentile: rule.warnLsPct, exitWhenTaModelsBelow: rule.exitTaMin, costBuyPct: P(rule.costBuy, 2), costSellPct: P(rule.costSell, 2), bandSessions: rule.bandSessions } : null,
               changes: { added: hl.changes?.added ?? [], kept: hl.changes?.kept ?? null, exits: (hl.changes?.exits ?? []).map((x) => ({ ticker: x.ticker, weightPct: P(x.weight, 1), reasonVi: x.reasonVi })), costEstPct: P(hl.changes?.costEst, 2) },
               queue: (hl.queue ?? []).slice(0, 8).map((q) => ({ ticker: q.ticker, hlRank: q.hlRank, reasonVi: q.reasonVi })),
+              queueIlliquid: (hl.queueIlliquid ?? []).slice(0, 5).map((q) => ({ ticker: q.ticker, hlRank: q.hlRank, reasonVi: q.reasonVi })),
               sectorAgainst: (hl.against ?? []).map((x) => ({ ticker: x.ticker, sectorRrg: x.rrgVi ?? null })),
               k0NoteVi: hl.k0?.noteVi ?? null,
             },

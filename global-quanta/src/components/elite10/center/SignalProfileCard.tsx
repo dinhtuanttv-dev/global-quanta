@@ -7,6 +7,8 @@ import { useEliteDecision, useEliteEvidence, useElitePanel, useEliteTicker } fro
 import { hlPicks, type Tier } from "../../../lib/elite10/decisionTypes";
 import { labelOf, metaOf } from "../../../lib/elite10/signalSemantics";
 import { TierChip } from "./DecisionBoard";
+import LiquidityBadge from "./LiquidityBadge";
+import { LQ_DEFAULT } from "../../../lib/elite10/liquidity";
 import LeadershipCard from "./LeadershipCard";
 import ConfluenceCard from "./ConfluenceCard";
 import WorldTransmissionCard from "./WorldTransmissionCard";
@@ -88,6 +90,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
             <span className="rounded border border-white/15 px-2 py-0.5">Z <b>{num(decision.Z)}</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">α 5 phiên <b>{num(decision.alpha5Pct)}%</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">P vượt <b>{num(decision.pOutperform * 100, 1)}%</b></span>
+            {decision.liq && <span className="rounded border border-white/15 px-2 py-0.5"><LiquidityBadge liq={decision.liq} rules={dec?.liquidity ?? LQ_DEFAULT} sigma20={decision.sigma20} testId="elite-profile-liq" /></span>}
             {decision.inPortfolio
               ? <span className="rounded border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-300">{hl ? "Trong Elite HL" : "Trong Elite 10"}</span>
               : !decision.eligible && <span className="rounded border border-amber-400/40 px-2 py-0.5 text-amber-300">Không đủ điều kiện: {decision.reason}</span>}

@@ -50,7 +50,9 @@ test("RRG: Cải thiện + Dẫn dắt được mua; Suy yếu / Tụt hậu kh�
   const { portfolio, hl } = buildHlPortfolio({ ...w, prev: [], rebalance: true, date: "2026-11-16" });
   const t = portfolio.map((x) => x.ticker);
   assert.ok(t.includes("T39"), "ngành Cải thiện = ủng hộ"); assert.ok(!t.includes("T38") && !t.includes("T37")); assert.ok(!t.includes("T36"));
-  assert.deepEqual(hl.queue.map((q) => [q.ticker, q.code]), [["T36", "illiquid"]]);
+  // LQ1: mã chưa giao dịch được nằm ở danh sách riêng, không chiếm suất hàng chờ.
+  assert.deepEqual(hl.queue, []);
+  assert.deepEqual(hl.queueIlliquid.map((q) => [q.ticker, q.code]), [["T36", "illiquid"]]);
   assert.deepEqual(hl.against.map((x) => x.ticker).sort(), ["T37", "T38"]);
 });
 
@@ -144,4 +146,17 @@ test("N0b thiếu LS-v1 của riêng một mã: phiên đầu giữ kèm cảnh 
   assert.equal(exitReason({ lsPct: null, taCount: 0, rrg: 2 }, { close: 1 }).code, "no_data");
   const buy = buildHlPortfolio({ ...gapWorld(), prev: [], rebalance: true, date: "2026-11-16", cfg });
   assert.ok(!buy.portfolio.some((x) => x.ticker === "T38"), "thiếu LS -> không đạt tầng 1 -> không mua");
+});
+
+test("LQ1: mã kém thanh khoản không chiếm 12 suất hàng chờ; danh sách riêng tối đa 5 mã", () => {
+  const n = 30, rows = [], scores = [];
+  for (let i = 0; i < n; i++) {
+    const t = `Q${String(i).padStart(2, "0")}`;
+    rows.push({ ticker: t, icb: { l2: `S${i}` }, values: { ls_v1: 99 - i * 0.1, sepa_state: 1, base_breakout: 1, convergence: 1, pattern_state: 1, structure_score: 1, structure_stage: 2, structure_verdict: 1, rrg_quadrant: 2, sepa_s2: 1 } });
+    scores.push({ ticker: t, Z: 1, rank: i + 1, close: 20000, advBn: i % 2 ? 2 : 50, sigma20: 0.02, sectorKey: `S${i}` });
+  }
+  const { hl } = buildHlPortfolio({ panelRows: rows, scores, prev: [], rebalance: false, date: "2026-11-18" });
+  assert.ok(hl.queue.every((q) => q.code !== "illiquid"), "hàng chờ chỉ có mã giao dịch được");
+  assert.ok(hl.queueIlliquid.length <= HL_PF.queueIlliquid && hl.queueIlliquid.every((q) => q.code === "illiquid"));
+  assert.ok(hl.queue.length > 0);
 });
