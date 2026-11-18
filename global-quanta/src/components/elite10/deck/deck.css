@@ -1,0 +1,17 @@
+/* Command Deck (A2, 18/11/2026) — token tầng 2 + chuyển động. Tầng 1 = Quanta Fluent-Dark (src/styles/tokens.css).
+   Không hoạt ảnh lặp vô hạn; tắt toàn bộ khi người dùng chọn giảm chuyển động. */
+:root{
+  --deck-grid:rgba(232,184,75,.035);
+  --deck-hair:rgba(232,184,75,.28);
+  --deck-inner:inset 0 1px 0 rgba(255,255,255,.05);
+  --deck-live:#10B981;
+  --info:#38BDF8;
+  --rrg-lead:#10B981;--rrg-improve:#2DD4BF;--rrg-weak:#F59E0B;--rrg-lag:#F43F5E;--rrg-na:#475569;
+}
+.deck-cmd{background:linear-gradient(180deg,rgba(232,184,75,.06),rgba(232,184,75,0) 70%),var(--bg-surface);border:1px solid var(--deck-hair);box-shadow:var(--deck-inner)}
+.deck-panel{background:var(--bg-surface);border:1px solid var(--border);box-shadow:var(--deck-inner)}
+.deck-live{background:var(--deck-live);animation:deck-live 2.4s ease-out 3}
+@keyframes deck-live{0%{box-shadow:0 0 0 0 rgba(16,185,129,.55)}100%{box-shadow:0 0 0 8px rgba(16,185,129,0)}}
+.deck-grow{transform-origin:left center;animation:deck-grow .9s cubic-bezier(.2,.8,.2,1) 1 both}
+@keyframes deck-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.deck-live,.deck-grow{animation:none!important}}
