@@ -92,7 +92,7 @@ export interface EliteHlMeta {
   version: string; ruleVersion: string; date: string; rebalance: boolean; week: string; prevDate: string | null;
   /** N0: chốt dữ liệu — frozen = bảng tín hiệu thiếu nguồn, danh mục giữ nguyên phiên trước. */
   dataGuard?: { frozen: boolean; reasonsVi: string[] };
-  rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number;
+  rule: { slots: number; slotW: number; wMin: number; wMax: number; sectorCap: number; maxPerSector: number; minAdvBn: number; exitLsPct: number; exitTaMin: number; warnLsPct: number; costBuy: number; costSell: number; bandSessions: number; stopK?: number; targetK?: number; sigmaFloor?: number;
     /** Gateway gửi nguyên HL_PF; các trường dưới chỉ để hiển thị. */
     minPrice?: number; wDust?: number; missSessions?: number };
   /** Ngưỡng tầng 1 của HL-v1 (Gateway cũ không gửi -> giao diện dùng mặc định). */

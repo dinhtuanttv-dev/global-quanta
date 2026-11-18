@@ -1,4 +1,6 @@
 // E4-HL (12/11/2026) — BẢNG QUYẾT ĐỊNH ELITE HL: danh mục chính thức dựng trên quy tắc Hợp lưu đa yếu tố HL-v1 (cấu trúc G2r).
+// Command Deck (18/11/2026, A1–A6): thanh lệnh + 4 đồng hồ + dải Hôm nay + radar ngưỡng bán + phễu + Không gian quy tắc 2D/3D +
+// hàng chờ dạng thẻ + tường bằng chứng; bảng danh mục nâng cấp tại chỗ (thanh LS, chấm TA, dải biến động, rủi ro Euler). Chỉ giao diện.
 // Bố cục: dải chỉ số -> phễu chọn lọc -> thay đổi hôm nay -> danh mục (ba tầng, ngưỡng ra) -> phân bổ ngành + hàng chờ -> quy tắc,
 // kết quả K0 và sổ theo dõi tiến so với danh mục dòng tiền (cũ). Mọi số đến từ Gateway /api/elite/decision; nhãn THĂM DÒ luôn hiện.
 import { Fragment, useMemo, useState } from "react";
@@ -11,10 +13,18 @@ import HlCalendarStrip from "./HlCalendarStrip";
 import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
 import DilutionBadge from "./DilutionBadge";
 import CashGateCard from "./CashGateCard";
-import { BINDING_VI, bnText, LQ_DEFAULT, LQ_TIER, portfolioCapacity, reasonText, splitQueue } from "../../../lib/elite10/liquidity";
+import { LQ_DEFAULT } from "../../../lib/elite10/liquidity";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
-import { AllocationBar, coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzBadge, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
+import { coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
+import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
+import { ExitRadar, FunnelBars } from "../deck/DeckSide";
+import QueueDeck from "../deck/QueueDeck";
+import RuleSpace from "../deck/RuleSpace";
+import EvidenceWall from "../deck/EvidenceWall";
+import { LsGauge, TaDots, VolCorridor } from "../deck/parts";
+import { corridorPos, deckInvariants, eulerBy } from "../../../lib/elite10/deckModel";
+import { useDeckPanel, useDeckRisk, useEvidenceRegistry } from "../../../hooks/elite10/useDeckData";
 
 const CLS_VI: Record<HlClassCode, string> = { STRONG: "Hợp lưu mạnh", CONFLUENCE: "Hợp lưu", T1_SECTOR_AGAINST: "Ngành phản đối", T1_SECTOR_NA: "Chưa có RRG", NOT_T1: "Đã rời tầng 1" };
 const CLS_TONE: Record<HlClassCode, string> = {
@@ -115,7 +125,14 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const lq = d.liquidity ?? LQ_DEFAULT;
   const scoreBy = new Map(d.scores.map((s) => [s.ticker, s]));
   const liqOf = (t: string) => scoreBy.get(t)?.liq ?? null;
-  const queues = splitQueue(hl.queue, hl.queueIlliquid);
+  // Command Deck: rủi ro danh mục (Euler), bảng tín hiệu (Không gian quy tắc), sổ bằng chứng — nguồn thiếu thì khối tự ẩn / hiện "—".
+  const { data: risk } = useDeckRisk();
+  const { data: panel } = useDeckPanel();
+  const { data: registry } = useEvidenceRegistry();
+  const euler = useMemo(() => eulerBy(risk), [risk]);
+  const invariants = useMemo(() => deckInvariants(d, risk), [d, risk]);
+  const heldSet = useMemo(() => new Set(hlPicks(d).map((p) => p.ticker)), [d]);
+  const queuedSet = useMemo(() => new Set([...hl.queue, ...(hl.queueIlliquid ?? [])].map((q) => q.ticker)), [hl.queue, hl.queueIlliquid]);
   // PX0: pha đợt pha loãng ≥ 10% (chỉ hiển thị, PX-r1 KHÔNG ĐẠT).
   const pxOf = (t: string) => d.dilution?.byTicker?.[t] ?? null;
   const pxBadge = (t: string, id: string) => (pxOf(t) ? <> <DilutionBadge p={pxOf(t)} pxR1={d.dilution?.pxR1} testId={id} /></> : null);
@@ -143,16 +160,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-hl-board">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <p className="text-[14px] font-bold text-[#F5CE72]">Bảng quyết định Elite HL — phiên {fmtDate(d.date)}</p>
-          <p className="text-[10.5px] text-slate-400">Danh mục chính thức dựng trên Hợp lưu đa yếu tố · {hl.version} · khoá lúc {new Date(d.builtAt).toLocaleString("vi-VN", { hour12: false })} · khớp tham chiếu ở giá đóng cửa phiên kế tiếp</p>
-        </div>
-        <span className="flex flex-wrap items-center gap-2">
-          {switcher}
-          <span title={hl.labelVi} className="rounded border border-amber-400/50 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300" data-testid="elite-label">THĂM DÒ</span>
-        </span>
-      </div>
+      <CommandBar d={d} />
+      {switcher}
 
       {refreshError && (
         <div role="alert" className="rounded-lg border border-amber-400/60 bg-amber-500/10 px-3 py-2 text-[11.5px] text-amber-100" data-testid="hl-refresh-error">
@@ -180,42 +189,13 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         <p className="text-[10.5px] text-slate-400" data-testid="hl-data-ok"><span className="mr-1 text-emerald-300">●</span>Dữ liệu phiên đủ nguồn: LS-v1, mô hình TA, RRG ngành.</p>
       )}
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-5" data-testid="hl-kpis">
-        <Tile label="Số mã" testId="hl-kpi-names" sub={<>{pz ? <span className="block" data-testid="hl-kpi-lanes">{pz.coreNames} chính · {pz.runnerNames} chạy lãi</span> : null}{ch.added.length || ch.exits.length ? `vào ${ch.added.length} · ra ${ch.exits.length} · giữ ${ch.kept}` : `giữ nguyên ${ch.kept} mã`}</>}>{f.held}<span className="text-[12px] font-normal text-slate-500"> / {r.slots}</span></Tile>
-        <Tile label="Tỷ lệ cổ phiếu" testId="hl-kpi-invested" sub={pz ? <span data-testid="hl-kpi-split">Chính <b className="text-[#F5CE72]">{pct(pz.coreWeight)}</b> · Chạy lãi <b className="text-violet-200">{pct(pz.runnerWeight)}</b> · Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b><AllocationBar core={pz.coreWeight ?? 0} runner={pz.runnerWeight ?? 0} cash={hl.cash} testId="hl-alloc" /></span> : <>Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b> — ô trống không lấy mã yếu cho đủ số</>}>
-          {pct(hl.invested)} {!pz && <Bar value={hl.invested} max={1} tone="bg-[#E8B84B]/80" width={56} />}
-        </Tile>
-        <Tile label="Thị trường" testId="hl-kpi-market" sub={hl.market ? <>Độ rộng {num(hl.market.breadth, 0)}%{hl.market.guard ? <b className="text-rose-300"> · chốt chặn sụp đổ đang bật</b> : ""} — chỉ là bối cảnh, không đổi quy tắc</> : "Chưa có trạng thái thị trường của phiên"}>
-          <span className={hl.market?.regime === "UP" ? "text-emerald-300" : hl.market?.regime === "WEAK" ? "text-rose-300" : "text-slate-100"}>{hl.market?.regimeVi ?? "—"}</span>
-        </Tile>
-        <Tile label="Nhịp cân bằng" testId="hl-kpi-rebalance" sub={hl.dataGuard?.frozen ? "Chốt dữ liệu đang bật: không vào, không ra" : hl.rebalance ? "Phiên đầu tuần: được nhận mã mới vào ô trống" : "Mã mới chỉ vào ở phiên đầu tuần kế tiếp; hôm nay chỉ xét ra"}>
-          <span className={hl.dataGuard?.frozen ? "text-rose-300" : hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.dataGuard?.frozen ? "Giữ nguyên" : hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</span>
-        </Tile>
-        <Tile label="Xoay vòng phiên" testId="hl-kpi-turnover" sub={<>Phí ước tính <b className="text-slate-200">{pct(ch.costEst, 2)}</b> giá trị danh mục (mua {pct(r.costBuy, 2)}, bán {pct(r.costSell, 2)})</>}>{ch.turnover == null ? "—" : pct(ch.turnover, 0)}</Tile>
-      </div>
+      <MissionMeters d={d} ws={ws} risk={risk} />
+      <TodayRibbon d={d} />
+      {invariants.length > 0 && <p role="status" className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10.5px] text-amber-200" data-testid="deck-invariants">Kiểm tra nhất quán dữ liệu chưa đạt: {invariants.join(" · ")}.</p>}
 
-      {/* G2: bối cảnh chuyển từ bảng Elite 10 cũ — rủi ro toàn cầu và Cổng tiền mặt (R1 KHÔNG ĐẠT, chỉ hiển thị). */}
-      <div className="grid grid-cols-1 items-start gap-2 text-[11px] md:grid-cols-2" data-testid="hl-context">
-        <div className="rounded-md border border-white/10 bg-white/[0.02] p-2" data-testid="hl-context-global">
-          <p className="text-[10px] font-bold uppercase text-slate-500">Rủi ro toàn cầu</p>
-          <p>{ws ? <>{ws.regime.stressed ? <b className="text-amber-300">Căng thẳng</b> : <b className="text-slate-100">Bình thường</b>} · VIX {num(ws.regime.vix, 2)} ({signed(ws.regime.vixChg, 1)}%) <span className="text-slate-500">— bối cảnh, không đổi quy tắc</span></> : "—"}</p>
-        </div>
-        <CashGateCard />
-      </div>
-
-      <Panel title="Phễu chọn lọc" testId="hl-funnel" right={<span className="text-[10px] text-slate-500">Thứ tự ưu tiên: tầng 1 → RRG ngành → tích điểm các tab</span>}>
-        <ol className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-          {steps.map(([label, n, tip], i) => (
-            <li key={label} title={tip} className="rounded-md border border-white/10 bg-white/[0.02] px-2 py-1.5" data-testid={`hl-funnel-${i}`} data-n={n}>
-              <p className="text-[10px] text-slate-500">{i + 1}. {label}</p>
-              <p className="text-[15px] font-bold text-slate-100">{n}</p>
-              <p className="text-[10px] leading-snug text-slate-400" data-testid={`hl-funnel-tip-${i}`}>{tip}</p>
-              <Bar value={n} max={f.panel || 1} tone={i === steps.length - 1 ? "bg-[#E8B84B]/80" : "bg-emerald-400/60"} width={96} />
-            </li>
-          ))}
-        </ol>
-      </Panel>
-
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-3">
+        <ExitRadar picks={picks} rule={r} missSessions={r.missSessions ?? 2} onOpenTicker={onOpenTicker} />
+        <FunnelBars steps={steps} total={f.panel} />
       <Panel title={`Thay đổi hôm nay${hl.prevDate ? ` · so với phiên ${fmtDate(hl.prevDate)}` : " · phiên dựng đầu tiên"}`} testId="hl-changes">
         {!ch.added.length && !ch.exits.length ? <p className="text-[11px] text-slate-400">Danh mục giữ nguyên {ch.kept} mã. Tỷ trọng mã đang giữ không bị cân lại.</p> : (
           <ul className="space-y-1 text-[11px]">
@@ -228,6 +208,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <p className="mt-1 text-[11px]" data-testid="hl-pz-changes"><b className="text-violet-200">Chuyển sang theo dõi: {ch.toWatch?.length ?? 0} mã</b>{ch.toWatch?.length ? <span className="text-slate-400"> ({ch.toWatch.join(", ")})</span> : null} · <b className="text-emerald-300">Về vùng mua: {ch.backToZone?.length ?? 0} mã</b>{ch.backToZone?.length ? <span className="text-slate-400"> ({ch.backToZone.join(", ")})</span> : null}</p>
         )}
       </Panel>
+      </div>
 
       <HlCalendarStrip d={d} onOpenTicker={onOpenTicker} />
 
@@ -249,6 +230,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                   {pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
+                  <div className="flex flex-wrap items-center gap-3"><TaDots n={h.taCount} of={t1.taModels} />{(() => { const c = corridorPos(p, r); return <VolCorridor ret={c.ret} band={c.band} testId={`hl-corridor-m-${p.ticker}`} />; })()}
+                    {euler.get(p.ticker) && <span className="text-[10px] text-slate-500">rủi ro <b className="text-slate-300">{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</span>}</div>
                   {pz && <PzCardLine pz={h.pz} rules={pzRules} />}
                   {h.warnings.map((w) => <p key={w} className="text-[10px] text-amber-300">⚠ {w}</p>)}
                   <div className="mt-1">{whyBtn(p.ticker, true)}</div>
@@ -258,7 +241,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             })}
           </ul>
           <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="hidden overflow-x-auto md:block">
-            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: pz ? 1180 : 860 }}>
+            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: pz ? 1260 : 940 }}>
               <thead>
                 <tr className="text-left text-[10px] text-slate-500">
                   <th className="py-1 font-normal">Hạng</th><th className="font-normal">Mã · ngành</th><th className="font-normal">Trạng thái</th><th className="font-normal">Tỷ trọng</th>
@@ -266,7 +249,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                   <th className="font-normal" title="Góc phần tư RRG của ngành">Tầng 2 · RRG</th><th className="font-normal" title="Tổng điểm +1 / −1 từ các tab khác">Tầng 3</th>
                   <th className="font-normal" title={`Ra khi LS-v1 xuống dưới phân vị ${r.exitLsPct}, không còn mô hình TA, hoặc ngành Tụt hậu`}>Cách ngưỡng ra</th>
                   {pz && <><th className="font-normal" title="Vị trí giá so với nền (PZ-v2)">Vị trí giá</th><th className="font-normal" title={`Vùng mua: ${num(pzRules.zoneLow * 100, 0)}% tới +${num(pzRules.zoneHigh * 100, 0)}% quanh pivot`}>So với pivot</th><th className="font-normal" title={`Cảnh báo khi vượt ${num(pzRules.maxRisk * 100, 0)}%`}>Rủi ro tới đáy nền</th></>}
-                  <th className="text-right font-normal" title={`Dải tham chiếu ${r.bandSessions} phiên theo biến động — không phải lệnh`}>Giá · dải tham chiếu</th>
+                  <th className="text-right font-normal" title={`Dải tham chiếu ${r.bandSessions} phiên theo biến động — không phải lệnh. Hình: vị trí giá hiện tại so với giá lúc vào, đo bằng dải max(σ20, 1%)·√${r.bandSessions}`}>Giá · dải tham chiếu · từ lúc vào</th>
                 </tr>
               </thead>
               <tbody>
@@ -282,9 +265,10 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
-                        <span className="block text-[10px] text-slate-500">rủi ro {pct(p.riskContribution, 0)}</span></td>
+                        <span className="block text-[10px] text-slate-500" data-testid={`hl-risk-${p.ticker}`} title={euler.get(p.ticker) ? "Đóng góp Euler vào biến động danh mục (hiệp phương sai Ledoit–Wolf), cộng lại = 100%" : "Ước lượng thô w·σ20 / Σ (bỏ qua tương quan) — chưa có số Euler"}>{euler.get(p.ticker) ? <>rủi ro <b className={euler.get(p.ticker)!.riskContribution > p.weight * 2 ? "text-amber-300" : "text-slate-300"}>{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</> : <>rủi ro ~{pct(p.riskContribution, 0)} (thô)</>}</span></td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{h.t1}</b><span className="text-slate-500">/{t1.maxScore}</span> <Bar value={h.t1} max={t1.maxScore} width={56} />
-                        <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels}</span></td>
+                        <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels}</span>
+                        <LsGauge ls={h.lsPct} exit={r.exitLsPct} warn={r.warnLsPct} /><TaDots n={h.taCount} of={t1.taModels} /></td>
                       <td className="whitespace-nowrap pr-2"><span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "—" : RRG_VI[String(h.rrg)]}</span>
                         <span className="block text-[10px] text-slate-500">{h.t2 > 0 ? "ủng hộ" : h.t2 < 0 ? "phản đối" : "trung tính"}</span></td>
                       <td className="pr-2"><b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></td>
@@ -293,7 +277,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                         {h.warnings.map((w) => <span key={w} className="block text-[10px] text-amber-300" data-testid={`hl-warn-${p.ticker}`}>⚠ {w}</span>)}
                       </td>
                       {pz && <PzCells pz={h.pz} rules={pzRules} />}
-                      <td className="whitespace-nowrap text-right font-mono">{price(p.close)}<span className="block text-[10px] text-slate-500">{price(p.stop)} – {price(p.target)}</span></td>
+                      <td className="whitespace-nowrap text-right font-mono">{price(p.close)}<span className="block text-[10px] text-slate-500">{price(p.stop)} – {price(p.target)}</span>
+                        {(() => { const c = corridorPos(p, r); return <span className="flex justify-end"><VolCorridor ret={c.ret} band={c.band} testId={`hl-corridor-${p.ticker}`} /></span>; })()}</td>
                     </tr>
                     {why === p.ticker && <tr><td colSpan={pz ? 12 : 9} className="pb-2"><HlWhy p={p} exitLsPct={r.exitLsPct} /></td></tr>}
                     </Fragment>
@@ -307,14 +292,20 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         {pz && runnerCount > 0 && <p className="mt-1.5 text-[10.5px] text-violet-200" data-testid="hl-runner-note">{runnerCount} mã đang giữ đã tăng nóng nằm ở bảng <a href="#hl-watch" className="underline decoration-dotted hover:text-[#F5CE72]">Theo dõi chờ nền</a> — vẫn là vị thế, vẫn tính vào {pct(pz.runnerWeight)} vốn.</p>}
         {pz && picks.length > 0 && corePicks.length === 0 && <p className="text-[11px] text-slate-400" data-testid="hl-core-empty">Không có mã đang giữ nào ở trong nền hoặc vùng mua.</p>}
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
-          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời.
+          Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời. Hình dải biến động: vạch xám = giá lúc vào, vạch đỏ đứt = −2 dải tính từ giá lúc vào, chấm = giá hiện tại (xanh / đỏ = trên / dưới giá lúc vào).
         </p>
       </Panel>
+
+      <RuleSpace rows={panel?.rows} panelDate={panel?.date ? fmtDate(panel.date) : null} held={heldSet} queued={queuedSet} rule={r} tier1={t1} funnel={f} />
 
       {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName}
         liqBadge={(x, mobile) => <LiquidityBadge liq={liqOf(x.ticker)} rules={lq} sigma20={scoreBy.get(x.ticker)?.sigma20} weight={x.held ? x.weight ?? null : null} held={x.held} fallbackAdvBn={scoreBy.get(x.ticker)?.advBn ?? null} testId={`pz-liq-${mobile ? "m-" : ""}${x.ticker}`} />} pxBadge={(x, mobile) => pxBadge(x.ticker, `pz-px-${mobile ? "m-" : ""}${x.ticker}`)} />}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+      <QueueDeck d={d} onOpenTicker={onOpenTicker} liqOf={liqOf} sigmaOf={(t) => scoreBy.get(t)?.sigma20} lq={lq} pxBadge={pxBadge} />
+
+      <EvidenceWall ledger={d.ledgerSummary} registry={registry} k0Note={hl.k0?.noteVi ?? null} />
+
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <Panel title="Phân bổ ngành" testId="hl-sectors" right={<span className="text-[10px] text-slate-500">Trần {pct(r.sectorCap, 0)} mỗi ngành</span>}>
           {hl.sectors.length === 0 ? <p className="text-[11px] text-slate-500">Chưa có vị thế.</p> : (
             <ul className="space-y-1 text-[11px]">
@@ -329,28 +320,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             </ul>
           )}
         </Panel>
-        <Panel title="Hàng chờ — mã Hợp lưu chưa vào danh mục" testId="hl-queue">
-          {queues.tradable.length === 0 ? <p className="text-[11px] text-slate-500">{queues.illiquid.length ? "Không còn mã Hợp lưu nào giao dịch được ngoài danh mục." : "Không còn mã Hợp lưu nào ngoài danh mục."}</p> : (
-            <ul className="space-y-0.5 text-[11px]">
-              {queues.tradable.map((q) => (
-                <li key={q.ticker} data-testid={`hl-queue-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} <span className="text-slate-500">T1 {q.t1} · {q.rrg == null ? "—" : RRG_VI[String(q.rrg)]} · T3 {pts(q.t3)}</span> — <span className={q.code === "illiquid" ? "text-amber-300" : "text-slate-300"}>{q.reasonVi}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-pz-${q.ticker}`} /></span>}{pxBadge(q.ticker, `hl-queue-px-${q.ticker}`)}</li>
-              ))}
-            </ul>
-          )}
-          {queues.illiquid.length > 0 && (
-            <details className="mt-1.5 rounded border border-amber-400/20 bg-amber-500/[0.04] px-2 py-1 text-[11px]" data-testid="hl-queue-illiquid">
-              <summary className="cursor-pointer text-amber-200">Đạt Hợp lưu nhưng chưa giao dịch được ({queues.illiquid.length}) — không chiếm suất hàng chờ</summary>
-              <ul className="mt-1 space-y-0.5">
-                {queues.illiquid.map((q) => {
-                  const l = liqOf(q.ticker), why = l && l.tier !== "NA" && l.reasons.length ? reasonText(l.reasons[0], l, lq) : q.reasonVi;
-                  return <li key={q.ticker} data-testid={`hl-queue-ill-${q.ticker}`}><span className="mr-1 font-mono text-slate-500">{q.hlRank}</span>{openBtn(q.ticker)} {l ? <LiquidityBadge liq={l} rules={lq} sigma20={scoreBy.get(q.ticker)?.sigma20} fallbackAdvBn={q.advBn} /> : null} <span className="text-amber-300">— {why}</span>{q.pz && <span className="ml-1 align-middle"><PzBadge pz={q.pz} compact testId={`hl-queue-ill-pz-${q.ticker}`} /></span>}</li>;
-                })}
-              </ul>
-              <p className="mt-1 text-[10px] text-slate-500">Cổng vào hiện hành vẫn là GTGD trung bình 20 phiên ≥ {num(r.minAdvBn, 0)} tỷ; lý do ghi theo số đo LQ-v1 (trung vị, phiên thấp, trượt giá).</p>
-            </details>
-          )}
-          {hl.against.length > 0 && <p className="mt-1.5 text-[10px] text-slate-500" data-testid="hl-against">Đạt tầng 1 nhưng ngành phản đối (không vào): {hl.against.map((x) => `${x.ticker} (${x.rrgVi ?? "—"})`).join(" · ")}</p>}
-        </Panel>
+        <CashGateCard />
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">

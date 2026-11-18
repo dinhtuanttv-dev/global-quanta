@@ -7,6 +7,7 @@
 //     POST /api/elite/admin/evidence  cập nhật chuỗi IC + bậc (admin)
 // E3: GET  /api/elite/decision        Điểm Elite + danh mục Elite 10 phiên mới nhất (?date=) — E3-prereg.md
 //     GET  /api/elite/decision/:ticker điểm và đóng góp từng tín hiệu của một mã
+//     GET  /api/elite/evidence-registry  A4: phán quyết kiểm định của từng lớp Elite HL (chỉ đọc, có nguồn commit)
 //     GET  /api/elite/dilution/:ticker  PX0: vòng đời đợt pha loãng ≥ 10% của một mã (pha, lịch sử, độ trễ niêm yết) — mô tả
 //     GET  /api/elite/px-ledger         PX-L: sổ theo dõi tiến các đợt pha loãng (THĂM DÒ)
 //     GET  /api/elite/liquidity/:ticker LQ-v1: số đo thanh khoản + chuỗi GTGD 60 phiên (mô tả, không đổi danh mục)
@@ -17,6 +18,7 @@
 // E7: GET  /api/elite/retro           kiểm định hồi cứu walk-forward (E7-prereg.md); POST /admin/retro chạy lại (admin)
 // E6: GET  /api/elite/risk            rủi ro danh mục Elite 10 (Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, beta, ENB, căng thẳng)
 import express from "express";
+import { evidenceRegistry } from "../market/elite/evidenceRegistry.js";
 import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
@@ -164,6 +166,9 @@ export function createEliteRouter({ getDilution = null, getProfileFa = null, get
     // Số liệu hiển thị (ngưỡng tầng 1, chi phí sổ) + độ mới so với lịch phiên — chỉ cho phiên mới nhất mới có ý nghĩa "độ mới".
     res.json(getDecision().present ? await getDecision().present(doc, { withFreshness: !date }) : doc);
   }));
+
+  // A4: sổ bằng chứng của từng lớp (tĩnh, có nguồn) — Tường bằng chứng của Bảng quyết định.
+  router.get("/evidence-registry", (req, res) => { res.set("Cache-Control", "public, max-age=3600, s-maxage=86400"); res.json(evidenceRegistry()); });
 
   // PX0 / PX-L: vòng đời đợt pha loãng (chỉ hiển thị; PX-r1 KHÔNG ĐẠT) và sổ theo dõi tiến.
   router.get("/px-ledger", wrap(async (req, res) => {
