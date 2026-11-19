@@ -54,12 +54,33 @@ export function parseYahooMonthly(json) {
   const r = json?.chart?.result?.[0];
   const ts = r?.timestamp ?? [];
   const close = r?.indicators?.quote?.[0]?.close ?? [];
+  const toDate = localDateFn(r?.meta?.exchangeTimezoneName);
   const out = [];
   ts.forEach((t, i) => {
     const v = close[i];
-    if (typeof v === "number" && Number.isFinite(v) && v > 0) out.push({ date: new Date(t * 1000).toISOString().slice(0, 10), value: Math.round(v * 1e4) / 1e4 });
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out.push({ date: toDate(t), value: Math.round(v * 1e4) / 1e4 });
   });
   return out;
+}
+
+/**
+ * V0 (19/11/2026): ngày của nến theo MÚI GIỜ CỦA SÀN, không theo UTC. Yahoo đánh mốc nến bằng 00:00 giờ sàn: tỷ giá (Europe/London)
+ * trong giờ mùa hè có mốc "30/09 23:00 UTC" cho nến THÁNG 10 -> đọc theo UTC thì nến tháng 10 rơi vào tháng 9 (giá tháng sau đè lên
+ * tháng trước = nhìn trước 1 tháng cho các tháng 3–9, và mất tháng 10). Múi giờ không hợp lệ/thiếu -> UTC như cũ.
+ */
+const DATE_FMT = new Map();
+export function localDateFn(tz) {
+  if (!tz) return (t) => new Date(t * 1000).toISOString().slice(0, 10);
+  let f = DATE_FMT.get(tz);
+  if (!f) {
+    try {
+      f = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+    } catch {
+      f = null;
+    }
+    DATE_FMT.set(tz, f);
+  }
+  return f ? (t) => f.format(new Date(t * 1000)) : (t) => new Date(t * 1000).toISOString().slice(0, 10);
 }
 
 /**

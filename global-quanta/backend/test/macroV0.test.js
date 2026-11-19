@@ -120,3 +120,15 @@ test("nến chỉ số: cửa sổ bắt đầu hoặc kết thúc GIỮA đoạ
   assert.equal(r2.repaired.from, "2019-07-16");
   assert.ok(r2.bars.every((b) => b.close < 1100));
 });
+
+test("Yahoo theo múi giờ sàn: nến tháng 10 của VND=X (mốc 30/09 23:00 UTC, giờ London) thuộc tháng 10, không đè lên tháng 9", async () => {
+  const { parseYahooMonthly, toClosedMonths } = await import("../src/market/macro/macroGlobalFeeds.js");
+  // dấu thời gian GỐC của Yahoo VND=X (range=2y, interval=1mo), đọc 19/11/2026
+  const raw = [["2025-08-31T23:00:00Z", 26414], ["2025-09-30T23:00:00Z", 26315], ["2025-11-01T00:00:00Z", 26372], ["2026-02-01T00:00:00Z", 26030], ["2026-03-01T00:00:00Z", 26335], ["2026-03-31T23:00:00Z", 26355]];
+  const json = { chart: { result: [{ meta: { exchangeTimezoneName: "Europe/London" }, timestamp: raw.map(([d]) => Date.parse(d) / 1000), indicators: { quote: [{ close: raw.map(([, v]) => v) }] } }] } };
+  const m = Object.fromEntries(toClosedMonths(parseYahooMonthly(json), "2026-11-19").map((x) => [x.period, x.value]));
+  assert.deepEqual(m, { "2025-09": 26414, "2025-10": 26315, "2025-11": 26372, "2026-02": 26030, "2026-03": 26335, "2026-04": 26355 });
+  // không có meta múi giờ -> giữ cách đọc UTC như cũ (tương thích)
+  delete json.chart.result[0].meta;
+  assert.equal(parseYahooMonthly(json)[1].date, "2025-09-30");
+});
