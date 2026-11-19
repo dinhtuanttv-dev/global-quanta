@@ -70,7 +70,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
         <header className="flex items-start justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
           <div>
             <p className="text-[10px] uppercase font-bold" style={muted}>Ngành Việt Nam · ICB {icb} · phân tích tác động thế giới</p>
-            <h3 className="text-sm font-black" style={{ color: "#f1f5f9" }}>{row.nameVi}</h3>
+            <h3 className="text-sm font-black" style={{ color: "var(--text-primary)" }}>{row.nameVi}</h3>
             <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
               Ngắn hạn {fmtZ(s.score, 2)} ({labelVi[s.label]}) · Trung hạn {fmtZ(m.score, 2)} ({labelVi[m.label]}) · phiên VN {fmtDate(row.vnLast)}
             </p>
@@ -100,7 +100,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                   </tr>
                 ))}
                 <tr style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}><td className="py-1" style={{ color: "var(--text-secondary)" }}>Hàng hoá dẫn dắt</td><td className="text-center">{fmtZ(s.commodity, 2)}</td><td /><td className="text-center">{fmtZ(m.commodity, 2)}</td></tr>
-                <tr style={{ borderTop: "1px solid rgba(148,163,184,0.2)" }}><td className="py-1 font-bold" style={{ color: "#f1f5f9" }}>Tổng hợp</td><td className="text-center font-bold">{fmtZ(s.score, 2)}</td><td className="text-center">{fmtZ(s.week?.score ?? null, 2)}</td><td className="text-center font-bold">{fmtZ(m.score, 2)}</td></tr>
+                <tr style={{ borderTop: "1px solid rgba(148,163,184,0.2)" }}><td className="py-1 font-bold" style={{ color: "var(--text-primary)" }}>Tổng hợp</td><td className="text-center font-bold">{fmtZ(s.score, 2)}</td><td className="text-center">{fmtZ(s.week?.score ?? null, 2)}</td><td className="text-center font-bold">{fmtZ(m.score, 2)}</td></tr>
               </tbody>
             </table>
             <p className="text-[10px]" style={muted}>
@@ -127,7 +127,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                         const c = data.components.find((x) => x.symbol === r.symbol);
                         return (
                           <tr key={r.symbol} onClick={() => setRelPick(r.symbol)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer", background: focus?.symbol === r.symbol ? "rgba(245,158,11,0.06)" : undefined }}>
-                            <td className="py-1" style={{ color: "#f1f5f9" }}>{r.symbol} <span style={muted}>{r.nameVi} · {r.regionVi}</span></td>
+                            <td className="py-1" style={{ color: "var(--text-primary)" }}>{r.symbol} <span style={muted}>{r.nameVi} · {r.regionVi}</span></td>
                             <td className="text-center" style={muted} title={r.matchVi}>{r.match === "exact" ? "chuẩn" : r.match === "close" ? "gần" : "một phần"}</td>
                             <td className="text-center" style={{ color: r.significant ? "#f1f5f9" : "var(--text-tertiary)" }}>{r.unavailable ? "—" : `${num(r.corr)}${r.significant ? "*" : ""}`}</td>
                             <td className="text-center">{num(r.beta)}</td>

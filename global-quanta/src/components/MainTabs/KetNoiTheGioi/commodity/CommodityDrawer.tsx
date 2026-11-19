@@ -90,7 +90,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
         <header className="flex items-start justify-between gap-2 px-4 py-3 border-b" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
           <div>
             <p className="text-[10px] uppercase font-bold" style={muted}>{item.group} · phân tích chuyên sâu</p>
-            <h3 className="text-sm font-black" style={{ color: "#f1f5f9" }}>{item.nameVi}</h3>
+            <h3 className="text-sm font-black" style={{ color: "var(--text-primary)" }}>{item.nameVi}</h3>
             {s && <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>{fmtPrice(s.last)} {item.unit} · {data?.freq === "month" ? "kỳ" : "phiên"} {fmtPeriod(s.lastDate)}</p>}
           </div>
           <button ref={closeRef} type="button" onClick={onClose} aria-label="Đóng bảng phân tích" className="p-1.5 rounded" style={{ color: "var(--text-secondary)" }}><X className="w-4 h-4" /></button>
@@ -147,7 +147,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                         ["Cách đỉnh 5 năm", fmtPct(s.drawdown5y, 1)],
                         [`Biến động thực (${s.vol.unitVi})`, `${num(s.vol.now, 1)}% · TB 5 năm ${num(s.vol.avg5y, 1)}%`],
                       ].map(([k, v]) => (
-                        <tr key={k} style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}><td className="py-1" style={muted}>{k}</td><td className="py-1 text-right" style={{ color: "#f1f5f9" }}>{v}</td></tr>
+                        <tr key={k} style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}><td className="py-1" style={muted}>{k}</td><td className="py-1 text-right" style={{ color: "var(--text-primary)" }}>{v}</td></tr>
                       ))}
                     </tbody>
                   </table>
@@ -169,7 +169,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                 {(data.relations ?? []).length === 0 && <p className="text-[10px] italic" style={muted}>Không có chuỗi Việt Nam để so sánh.</p>}
                 {(data.relations ?? []).map((r) => (
                   <div key={r.code} className="space-y-1.5 pt-1">
-                    <p className="text-[10.5px] font-bold" style={{ color: "#f1f5f9" }}>{r.labelVi}</p>
+                    <p className="text-[10.5px] font-bold" style={{ color: "var(--text-primary)" }}>{r.labelVi}</p>
                     {r.unavailable ? <p className="text-[10px] italic" style={muted}>Chưa đủ dữ liệu chung để tính.</p> : (
                       <>
                         <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>

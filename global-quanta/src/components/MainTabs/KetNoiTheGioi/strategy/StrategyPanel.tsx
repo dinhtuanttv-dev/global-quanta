@@ -58,9 +58,9 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
         <tbody>
           {rows.map((r) => (
             <tr key={r.icb} onClick={() => onOpen(r.icb)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} title={`${r.icBasisVi} σ tương đối ${num(r.sigmaBps)} đcb/phiên.`}>
-              <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
+              <td className="py-1.5" style={{ color: "var(--text-primary)" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
               <td className="text-center"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={STANCE_CHIP[r.stance]} data-stance={r.stance}>{SHORT_STANCE_VI[r.stance]}</span></td>
-              <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "#f1f5f9" }}>{fmtZ(r.alphaBps, 1)}</b></td>
+              <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "var(--text-primary)" }}>{fmtZ(r.alphaBps, 1)}</b></td>
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
               <td className="text-center" style={muted}>{fmtZ(r.zx, 2)}</td>
               <td style={muted}>{REGION_ORDER.filter((x) => r.byRegion[x]).map((x) => `${REGION_SHORT[x]} ${fmtZ(r.byRegion[x]!.z)}`).join(" · ")}{r.commodity != null ? ` · HH ${fmtZ(r.commodity)}` : ""}</td>
@@ -77,7 +77,7 @@ function MediumCard({ r, onOpen }: { r: MediumRow; onOpen: (icb: string) => void
   return (
     <button type="button" onClick={() => onOpen(r.icb)} className="w-full text-left rounded-lg p-2.5 space-y-1" style={{ background: "rgba(148,163,184,0.05)" }} data-testid={`strategy-medium-${r.icb}`}>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-bold truncate" style={{ color: "#f1f5f9" }}>{r.nameVi} <span className="font-normal" style={muted}>ICB {r.icb}</span></span>
+        <span className="text-[11px] font-bold truncate" style={{ color: "var(--text-primary)" }}>{r.nameVi} <span className="font-normal" style={muted}>ICB {r.icb}</span></span>
         <span className="text-[10px] shrink-0" style={muted} title="Phiếu: điểm 3 tháng ngành thế giới · chu kỳ RRG · áp lực yếu tố truyền dẫn">{r.votes.map(VOTE).join(" ")}</span>
       </div>
       <div className="flex flex-wrap gap-1 text-[10px]">

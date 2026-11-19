@@ -51,7 +51,7 @@ export default function SectorDossierExtras({ icb }: { icb: string }) {
       <h4 className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Tin cùng chủ đề <span className="font-normal normal-case" style={muted}>· lọc theo chủ đề, chưa chứng minh tác động lên ngành</span></h4>
       {!news && <p className="text-[10.5px]" style={muted}>Đang tải tin…</p>}
       {news && related.length === 0 && <p className="text-[10.5px]" style={muted}>Không có tin cùng chủ đề trong 7 ngày gần nhất.</p>}
-      {related.map((n) => <p key={n.url} className="text-[10.5px]"><a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "#e2e8f0" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden /></a><br /><span className="text-[10px]" style={muted}>{VERIFICATION_VI[n.verification].label} · {n.sourceLabel} · Đăng {fmtVnTime(n.publishedAt)}</span></p>)}
+      {related.map((n) => <p key={n.url} className="text-[10.5px]"><a href={n.url} target="_blank" rel="noopener noreferrer" className="hover:underline" style={{ color: "var(--text-primary)" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden /></a><br /><span className="text-[10px]" style={muted}>{VERIFICATION_VI[n.verification].label} · {n.sourceLabel} · Đăng {fmtVnTime(n.publishedAt)}</span></p>)}
     </section>}
   </>;
 }

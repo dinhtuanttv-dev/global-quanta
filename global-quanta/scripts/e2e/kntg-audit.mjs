@@ -17,7 +17,7 @@ const GW = /gateway-production-1da0\.up\.railway\.app/;
 const USER = /\/api\/(auth\/|market\/(watchlists|chart-state|elliott\/counts|elliott\/alerts|radar(?!\/signals)|workspace|screener-prefs))/;
 const TABS = ["overview", "sectors", "markets", "transmission", "evidence"];
 // Ngưỡng nghiệm thu (tệp 06). height390: chiều cao CẢ TRANG ở khổ 390 khi mặc định.
-export const THRESHOLDS = { under10: 0, lowContrast: 0, smallTargets: 0, nSizes: 5, nColors: 6, nRadii: 4, overflow: 0, pageErrors: 0,
+export const THRESHOLDS = { under10: 0, lowContrast: 0, smallTargets: 0, nSizes: 5, nColors: 4, nRadii: 4, overflow: 0, pageErrors: 0,
   height390: { overview: 3000, markets: 4000, transmission: 3500 } };
 const store = STORE ? JSON.parse(fs.readFileSync(STORE, "utf8")) : null;
 const keyOf = (req) => { const u = new URL(req.url()); for (const p of ["_", "t", "ts", "nocache"]) u.searchParams.delete(p); return `${req.method()} ${u.pathname}${u.search} ${req.method() === "POST" ? (req.postData() ?? "") : ""}`; };
@@ -70,8 +70,11 @@ for (const W of [1440, 390]) {
       }
       const uniq = (xs) => [...new Set(xs)];
       const sizes = uniq(textEls.map((e) => getComputedStyle(e).fontSize));
-      const colors = uniq(textEls.filter((e) => !e.closest("svg")).map((e) => getComputedStyle(e).color));
-      const radii = uniq(els.map((e) => getComputedStyle(e).borderTopLeftRadius).filter((r) => r !== "0px" && r !== "50%"));
+      // G3: chỉ đếm màu XÁM trung tính (màu ngữ nghĩa — tăng/giảm, vàng nhấn, dấu bằng chứng — được miễn)
+      const neutral = (c) => { const ok = c.match(/oklch\(([\d.]+)\s+([\d.]+)/); if (ok) return parseFloat(ok[2]) < 0.05; const v = parse(c); return v ? Math.max(v.r, v.g, v.b) - Math.min(v.r, v.g, v.b) < 48 : false; };
+      const colors = uniq(textEls.filter((e) => !e.closest("svg") && !e.closest("[data-kntg-ink]")).map((e) => getComputedStyle(e).color).filter(neutral));
+      // G3: bo góc của khối / thẻ / nút (cả hai chiều ≥ 16px); vạch dữ liệu (thanh, chấm) theo quy cách biểu đồ, không tính
+      const radii = uniq(els.filter((e) => { if (e.matches(".sb, .col, .ci-track, .pulse-bar, .cell, [data-kntg-ink]")) return false; const r = e.getBoundingClientRect(); return r.width >= 16 && r.height >= 16; }).map((e) => getComputedStyle(e).borderTopLeftRadius).filter((r) => r !== "0px" && r !== "50%" && !/e\+|9999/.test(r)));
       const inter = [...root.querySelectorAll("button, a[href], select, input, [role=button], summary")].filter((e) => e.getClientRects().length > 0);
       // liên kết nằm trong câu văn được miễn (WCAG 2.5.8 ngoại lệ inline)
       // ô chọn nằm trong <label>: vùng bấm là cả nhãn (WCAG 2.5.8)
@@ -100,7 +103,7 @@ console.log("tab-khổ".padEnd(18), "kết quả so với ngưỡng");
 for (const [k, m] of Object.entries(report.tabs)) {
   const [T, W] = k.split("-");
   const cells = [row("chữ<10", m.under10, THRESHOLDS.under10), row("tương phản", m.lowContrast, THRESHOLDS.lowContrast), row("vùng bấm", m.smallTargets, THRESHOLDS.smallTargets),
-    row("cỡ chữ", m.nSizes, THRESHOLDS.nSizes), row("màu chữ", m.nColors, THRESHOLDS.nColors), row("bo góc", m.nRadii, THRESHOLDS.nRadii), row("tràn", m.overflow, THRESHOLDS.overflow)];
+    row("cỡ chữ", m.nSizes, THRESHOLDS.nSizes), row("xám", m.nColors, THRESHOLDS.nColors), row("bo góc", m.nRadii, THRESHOLDS.nRadii), row("tràn", m.overflow, THRESHOLDS.overflow)];
   if (W === "390" && THRESHOLDS.height390[T]) cells.push(row("cao trang", m.pageHeight, THRESHOLDS.height390[T]));
   console.log(k.padEnd(18), cells.join(" · "));
 }

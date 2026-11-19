@@ -68,11 +68,11 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="ai-brief">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#f1f5f9" }}><Sparkles className="h-3.5 w-3.5" style={{ color: "var(--gold, #f59e0b)" }} aria-hidden />Bản tin AI có kiểm chứng</h4>
+          <h4 className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text-primary)" }}><Sparkles className="h-3.5 w-3.5" style={{ color: "var(--gold, #f59e0b)" }} aria-hidden />Bản tin AI có kiểm chứng</h4>
           <p className="text-[11px]" style={muted}>AI chỉ diễn giải số liệu và tin đã có. Code kiểm tra từng câu: trích dẫn có thật, con số khớp bằng chứng, chiều ngành không trái điểm định lượng. {data?.schedule ? `Tự chạy ${data.schedule.join(" và ")} ngày làm việc.` : ""}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          {(data?.runs.length ?? 0) > 1 && <select aria-label="Xem lần chạy" value={runId ?? ""} onChange={(e) => setRunId(e.target.value || null)} className="rounded px-1.5 py-1 text-[11px]" style={{ background: "#0b1220", color: "#e2e8f0", border: "1px solid rgba(148,163,184,0.2)" }}>
+          {(data?.runs.length ?? 0) > 1 && <select aria-label="Xem lần chạy" value={runId ?? ""} onChange={(e) => setRunId(e.target.value || null)} className="rounded px-1.5 py-1 text-[11px]" style={{ background: "#0b1220", color: "var(--text-primary)", border: "1px solid rgba(148,163,184,0.2)" }}>
             {data!.runs.map((r, i) => <option key={r.id} value={i === 0 ? "" : r.id}>{fmtVnTime(r.generatedAt)}{i === 0 ? " (mới nhất)" : ""}</option>)}
           </select>}
           <button type="button" onClick={start} disabled={blocked} title={data?.nextManualAt ? `Lượt tiếp theo sau ${fmtVnTime(data.nextManualAt)}` : "Gọi Gemini, tốn phí mỗi lần; có giãn cách và trần lượt theo ngày"} className="rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "rgba(245,158,11,0.15)", color: "var(--gold-bright, #fbbf24)", border: "1px solid rgba(245,158,11,0.35)" }} data-testid="brief-run">{data?.running ? "Đang phân tích…" : "Cập nhật ngay"}</button>
@@ -90,7 +90,7 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
         </p>
         {ageH != null && ageH > STALE_HOURS && !runId && <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]" role="note" style={{ background: "rgba(245,158,11,0.08)", color: "var(--gold, #f59e0b)" }}>Bản tin đã {Math.floor(ageH / 24) || 1} ngày, không phản ánh thị trường hiện tại.</p>}
         <ul className="mt-2 space-y-1.5" data-testid="brief-summary">
-          {(compact ? run.summary.slice(0, 3) : run.summary).map((s, i) => <li key={i} className="text-[11.5px] leading-relaxed" style={{ color: "#e2e8f0" }}>{s.text}<Citations items={s.citations} /></li>)}
+          {(compact ? run.summary.slice(0, 3) : run.summary).map((s, i) => <li key={i} className="text-[11.5px] leading-relaxed" style={{ color: "var(--text-primary)" }}>{s.text}<Citations items={s.citations} /></li>)}
         </ul>
         {compact && onOpenFull && <button type="button" onClick={onOpenFull} className="mt-2 text-[11px] text-sky-300 underline decoration-sky-300/30 hover:decoration-sky-300" data-testid="brief-open-full">Xem bản tin đầy đủ và đồng thuận CTCK trong Phân tích vĩ mô →</button>}
         {!compact && run.sectors.length > 0 && <>
@@ -105,7 +105,7 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
               const tickers = strategy?.short.rows.find((r) => r.icb === s.icb)?.constituents?.slice(0, 4) ?? [];
               return <div key={s.icb} className="rounded-lg p-2.5" style={{ background: DIR[s.direction].bg, border: "1px solid rgba(148,163,184,0.08)" }}>
                 <div className="flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => setOpen(s.icb)} className="text-[11px] font-bold hover:underline" style={{ color: "#f1f5f9" }} data-testid={`brief-sector-${s.icb}`}>{s.nameVi}</button>
+                  <button type="button" onClick={() => setOpen(s.icb)} className="text-[11px] font-bold hover:underline" style={{ color: "var(--text-primary)" }} data-testid={`brief-sector-${s.icb}`}>{s.nameVi}</button>
                   <span className="shrink-0 text-[11px] font-bold" style={{ color: DIR[s.direction].color }}>{DIR[s.direction].vi}<span className="font-normal" style={muted}> · z {fmtSigned(s.quantZ, 2)}</span></span>
                 </div>
                 <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--text-secondary, #94a3b8)" }}>{s.text}<Citations items={s.citations} /></p>

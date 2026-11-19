@@ -28,7 +28,7 @@ export default function WorldNewsPanel() {
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="world-news">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Tin kinh tế thế giới</h4>
+          <h4 className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Tin kinh tế thế giới</h4>
           <p className="text-[10px]" style={muted}>{data?.noteVi ?? "Tin từ nguồn có danh tính, kèm giờ đăng và mức xác nhận."}</p>
         </div>
         {data && health && <button type="button" onClick={() => setShowSources((v) => !v)} aria-expanded={showSources} className="flex items-center gap-1 text-[10px]" style={{ color: health.failed.length ? "var(--gold, #f59e0b)" : "var(--text-secondary, #94a3b8)" }} data-testid="news-health">
@@ -40,7 +40,7 @@ export default function WorldNewsPanel() {
       {data && showSources && <div className="mt-2 overflow-x-auto rounded-lg" style={{ background: "rgba(148,163,184,0.04)" }} data-testid="news-sources">
         <table className="w-full text-[10px]" style={{ minWidth: 480, color: "var(--text-secondary, #94a3b8)" }}>
           <thead><tr style={muted}><th className="px-2 py-1 text-left font-normal">Nguồn</th><th className="px-2 py-1 text-left font-normal">Loại</th><th className="px-2 py-1 text-left font-normal">Trạng thái</th><th className="px-2 py-1 text-right font-normal">Tin phù hợp</th><th className="px-2 py-1 text-right font-normal">Tin mới nhất</th></tr></thead>
-          <tbody>{data.sources.map((s) => <tr key={s.label}><td className="px-2 py-0.5" style={{ color: "#e2e8f0" }}>{s.label}</td><td className="px-2 py-0.5">{s.authority === "official" ? "Chính thức" : "Báo chí"}</td><td className="px-2 py-0.5" style={{ color: s.ok ? "var(--positive, #34d399)" : "var(--negative, #f87171)" }}>{s.ok ? "Hoạt động" : `Lỗi lúc ${fmtVnTime(s.checkedAt)}`}</td><td className="px-2 py-0.5 text-right">{s.items}</td><td className="px-2 py-0.5 text-right">{fmtVnTime(s.newestAt)}</td></tr>)}</tbody>
+          <tbody>{data.sources.map((s) => <tr key={s.label}><td className="px-2 py-0.5" style={{ color: "var(--text-primary)" }}>{s.label}</td><td className="px-2 py-0.5">{s.authority === "official" ? "Chính thức" : "Báo chí"}</td><td className="px-2 py-0.5" style={{ color: s.ok ? "var(--positive, #34d399)" : "var(--negative, #f87171)" }}>{s.ok ? "Hoạt động" : `Lỗi lúc ${fmtVnTime(s.checkedAt)}`}</td><td className="px-2 py-0.5 text-right">{s.items}</td><td className="px-2 py-0.5 text-right">{fmtVnTime(s.newestAt)}</td></tr>)}</tbody>
         </table>
       </div>}
       {data && <>
@@ -53,7 +53,7 @@ export default function WorldNewsPanel() {
         {items.length === 0 && <p className="mt-3 text-[11px]" style={muted}>Không có tin phù hợp bộ lọc trong 7 ngày gần nhất.</p>}
         <ul className="mt-2" data-testid="news-list">
           {items.slice(0, limit).map((n) => <li key={n.url} className="py-2" style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }} data-testid="news-item">
-            <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[11.5px] font-medium hover:underline" style={{ color: "#e2e8f0" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden style={muted} /></a>
+            <a href={n.url} target="_blank" rel="noopener noreferrer" className="text-[11.5px] font-medium hover:underline" style={{ color: "var(--text-primary)" }}>{n.title} <ExternalLink className="inline h-2.5 w-2.5" aria-hidden style={muted} /></a>
             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px]" style={muted}>
               <span className="rounded px-1.5 py-px text-[10px] font-bold" title={VERIFICATION_VI[n.verification].title} style={CHIP[n.verification]}>{VERIFICATION_VI[n.verification].label}</span>
               <span style={{ color: "var(--text-secondary, #94a3b8)" }}>{n.sourceLabel}</span>

@@ -1,0 +1,43 @@
+{
+ "_note": "G1+G2 (nhãn trục L7, câu L6) + G3: thêm dòng mô tả khối (thu gọn trong chỗ) và câu tóm tắt ma trận L12. Không con số dữ liệu nào đổi.",
+ "evidence": {
+  "remove": [
+   "10/2026",
+   "11/2026",
+   "11/2026",
+   "11/2026",
+   "11/2026",
+   "nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước — xếp hạng ngành thuận/ngược gió (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với tab , chỉ liên kết mới được ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và nên không dùng trong quyết định Lọc ngành.",
+   "svg:10/2026",
+   "svg:11/2026",
+   "svg:11/2026",
+   "svg:11/2026",
+   "svg:11/2026"
+  ],
+  "add": [
+   "01/11",
+   "07/11",
+   "13/11",
+   "19/11",
+   "26/10",
+   "nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước — xếp hạng ngành thuận/ngược gió (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với ma trận ở tab , chỉ liên kết mới được ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và nên không dùng trong quyết định Lọc ngành.",
+   "svg:01/11",
+   "svg:07/11",
+   "svg:13/11",
+   "svg:19/11",
+   "svg:26/10"
+  ]
+ },
+ "overview": {
+  "remove": [],
+  "add": [
+   "Ngành Việt Nam: ngắn hạn × 3 tháng"
+  ]
+ },
+ "transmission": {
+  "remove": [],
+  "add": [
+   "100 liên kết, 0 đạt bậc A/B. Bấm để xem các giả thuyết bậc C (thăm dò, không dùng để quyết định)."
+  ]
+ }
+}
