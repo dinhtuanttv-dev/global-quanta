@@ -339,14 +339,17 @@ export interface QualityIssue {
  * Robust z-score: (v - median) / (MAD / 0.6745). When more than half of the values equal the
  * median (MAD = 0) fall back to 1.2533 × mean absolute deviation; all-equal input gives zeros.
  */
-function robustZ(values: number[]): number[] {
+function robustZ(values: number[], floor = 0): number[] {
   const sorted = [...values].sort((a, b) => a - b);
   const med = sorted[Math.floor(sorted.length / 2)];
   const dev = values.map((v) => Math.abs(v - med));
   const mad = [...dev].sort((a, b) => a - b)[Math.floor(dev.length / 2)];
   let scale = mad / 0.6745;
   if (scale < 1e-12) scale = 1.2533 * (dev.reduce((s, d) => s + d, 0) / dev.length);
-  if (scale < 1e-12) return values.map(() => 0);
+  if (scale < 1e-12 && floor <= 0) return values.map(() => 0);
+  // V1: sàn độ phân tán — chuỗi gần như không đổi mỗi tháng (lãi suất Fed hiệu dụng xê dịch 0,01) làm MAD rất nhỏ, khiến một lần
+  // tăng 0,25 điểm % bình thường thành "robust z = 25". Sàn đặt theo đơn vị của chuỗi để chỉ biến động thực sự lớn mới bị cảnh báo.
+  scale = Math.max(scale, floor);
   return values.map((v) => (v - med) / scale);
 }
 
@@ -369,7 +372,9 @@ export function checkQuality(seriesId: string, pts: { period: string; value: num
     const diffs = base.slice(1).map((v, i) => v - base[i]);
     // step-like series (e.g. a policy rate held for months) have no meaningful "outlier" notion
     const stepwise = diffs.filter((d) => Math.abs(d) < 1e-12).length / diffs.length > 0.4;
-    const z = stepwise ? diffs.map(() => 0) : robustZ(diffs);
+    // sàn: chuỗi tỷ lệ 0,1 điểm %/tháng; chuỗi mức (sai phân log) 1%/tháng
+    const floor = meta?.kind === 'rate' ? 0.1 : base === vals ? 0 : 0.01;
+    const z = stepwise ? diffs.map(() => 0) : robustZ(diffs, floor);
     z.forEach((v, i) => {
       if (Math.abs(v) > 8) issues.push({ seriesId, code: 'outlier', severity: 'warn', message: `Biến động bất thường tại ${pts[i + 1].period} (robust z = ${v.toFixed(1)}); kiểm tra lỗi nhập hoặc đơn vị.`, period: pts[i + 1].period });
     });

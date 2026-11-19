@@ -1045,14 +1045,15 @@ function toMacroSeries(ds, catalog, ids, opts = {}) {
     pubLagMonths: opts.ignorePubLag ? 0 : by[id].pubLagMonths
   }));
 }
-function robustZ(values) {
+function robustZ(values, floor = 0) {
   const sorted = [...values].sort((a, b) => a - b);
   const med = sorted[Math.floor(sorted.length / 2)];
   const dev = values.map((v) => Math.abs(v - med));
   const mad = [...dev].sort((a, b) => a - b)[Math.floor(dev.length / 2)];
   let scale = mad / 0.6745;
   if (scale < 1e-12) scale = 1.2533 * (dev.reduce((s, d) => s + d, 0) / dev.length);
-  if (scale < 1e-12) return values.map(() => 0);
+  if (scale < 1e-12 && floor <= 0) return values.map(() => 0);
+  scale = Math.max(scale, floor);
   return values.map((v) => (v - med) / scale);
 }
 function checkQuality(seriesId, pts, meta, nowPeriod) {
@@ -1072,7 +1073,8 @@ function checkQuality(seriesId, pts, meta, nowPeriod) {
     const base = meta && meta.kind !== "rate" && vals.every((v) => v > 0) ? vals.map(Math.log) : vals;
     const diffs = base.slice(1).map((v, i) => v - base[i]);
     const stepwise = diffs.filter((d) => Math.abs(d) < 1e-12).length / diffs.length > 0.4;
-    const z = stepwise ? diffs.map(() => 0) : robustZ(diffs);
+    const floor = meta?.kind === "rate" ? 0.1 : base === vals ? 0 : 0.01;
+    const z = stepwise ? diffs.map(() => 0) : robustZ(diffs, floor);
     z.forEach((v, i) => {
       if (Math.abs(v) > 8) issues.push({ seriesId, code: "outlier", severity: "warn", message: `Bi\u1EBFn \u0111\u1ED9ng b\u1EA5t th\u01B0\u1EDDng t\u1EA1i ${pts[i + 1].period} (robust z = ${v.toFixed(1)}); ki\u1EC3m tra l\u1ED7i nh\u1EADp ho\u1EB7c \u0111\u01A1n v\u1ECB.`, period: pts[i + 1].period });
     });

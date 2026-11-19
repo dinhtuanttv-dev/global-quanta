@@ -31,12 +31,20 @@ export interface AlertsPayload extends Notice { alerts: { id: string; level: 'in
 export type { CellLike };
 
 // ── Gateway (/api/macro/source) và các route chưa có trên UI gốc ──
-export interface SourceSeries { id: string; nameVi: string; role: 'factor' | 'target'; n: number; first: string | null; last: string | null; stale: boolean; sources: string[] }
+export interface SourceSeries {
+  id: string; nameVi: string; role: 'factor' | 'target'; n: number; first: string | null; last: string | null; stale: boolean; sources: string[];
+  /** V1: hạn công bố kỳ kế tiếp và số ngày quá hạn (Gateway mới; bản cũ không có). */
+  release?: { nextPeriod: string; expected: string; overdueDays: number } | null;
+}
 export interface SourcePayload {
   mode: 'real' | 'insufficient' | 'synthetic'; reason?: string | null; notice: string | null; minMonths: number; realObservations: number;
   series: SourceSeries[]; usableFactors: string[]; usableTargets: string[]; staleSeries: string[];
   /** V0: điểm lệch thang đo bị cách ly khỏi phân tích (Gateway mới; bản cũ không có trường này). */
   quarantined?: { seriesId: string; period: string; value: number; seriesMedian: number; source: string | null; reason: string }[];
+  /** V1: số kỳ đã được nguồn công bố lại (có hơn một vintage), theo chuỗi. */
+  vintages?: Record<string, number>;
+  /** V1: kỳ mà hai nguồn trở lên cho giá trị lệch nhau. */
+  conflicts?: { seriesId: string; period: string; values: Record<string, number> }[];
 }
 export interface RegimeState { state: number; label: string; expectedDurationMonths: number; stationaryShare: number; meansByFeature: Record<string, number> }
 export interface RegimePayload extends Notice {

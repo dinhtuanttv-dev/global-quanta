@@ -16,21 +16,77 @@ export const isLevelSeries = (id) => ["level", "index"].includes(BY_ID[id]?.kind
 const BY_ID = catalogById(VN_CATALOG);
 const obsKey = (o) => `${o.seriesId}|${o.period}|${o.asOf}`;
 
-/** Gộp quan sát mới vào danh sách cũ theo (seriesId, period, asOf) — chỉ-thêm: bản sửa mới là một vintage mới. */
-export function mergeObservations(existing, incoming) {
+const spKey = (o) => `${o.seriesId}|${o.period}`;
+const pick = (o, asOf = o.asOf) => ({ seriesId: o.seriesId, period: o.period, value: o.value, asOf, ...(o.source ? { source: o.source } : {}) });
+
+/**
+ * Gộp quan sát mới vào danh sách cũ.
+ * V1 (19/11/2026): trước đây khoá (seriesId, period, asOf) với asOf SUY TỪ kỳ -> nguồn công bố lại một con số thì bản cũ bị GHI ĐÈ
+ * (mất lịch sử "biết gì, vào ngày nào"). Nay với nguồn có công bố lại (`revisable(o)`: IMF CPI, FRED FEDFUNDS, CSV) và `todayIso`:
+ * giá trị khác bản mới nhất của kỳ -> thêm VINTAGE mới với asOf = hôm nay (ngày Gateway thấy nó lần đầu); bản cũ giữ nguyên, engine
+ * truy vấn theo asOf vẫn thấy đúng con số đã biết ở quá khứ. Nguồn không công bố lại (giá thị trường) -> ghi đè như cũ (thay đổi = sửa lỗi).
+ * Không truyền opts -> hành vi cũ.
+ */
+export function mergeObservations(existing, incoming, { revisable = null, todayIso = null, correction = false } = {}) {
   const map = new Map(existing.map((o) => [obsKey(o), o]));
+  const latest = new Map();
+  for (const o of existing) {
+    const l = latest.get(spKey(o));
+    if (!l || o.asOf > l.asOf) latest.set(spKey(o), o);
+  }
   let added = 0;
   let changed = 0;
+  let revised = 0;
   for (const o of incoming) {
+    const cur = latest.get(spKey(o));
+    // sửa LỖI NHẬP: thay hẳn bản mới nhất của kỳ (kể cả khi asOf khác) — bản sai không được giữ làm vintage
+    if (correction && cur) {
+      if (cur.value === o.value && cur.asOf === o.asOf) continue;
+      map.delete(obsKey(cur));
+      const rec = pick(o);
+      map.set(obsKey(rec), rec);
+      latest.set(spKey(rec), rec);
+      changed++;
+      continue;
+    }
+    if (revisable && todayIso && cur && revisable(o)) {
+      if (cur.value === o.value) continue;
+      const rec = pick(o, todayIso > o.asOf ? todayIso : o.asOf);
+      if (map.get(obsKey(rec))?.value === rec.value) continue;
+      map.set(obsKey(rec), rec);
+      latest.set(spKey(rec), rec);
+      revised++;
+      continue;
+    }
     const k = obsKey(o);
     const prev = map.get(k);
     if (!prev) added++;
     else if (prev.value !== o.value) changed++;
     else continue;
-    map.set(k, { seriesId: o.seriesId, period: o.period, value: o.value, asOf: o.asOf, ...(o.source ? { source: o.source } : {}) });
+    map.set(k, pick(o));
+    if (!cur || o.asOf >= cur.asOf) latest.set(spKey(o), map.get(k));
   }
   const list = [...map.values()].sort((a, b) => (a.seriesId < b.seriesId ? -1 : a.seriesId > b.seriesId ? 1 : a.period < b.period ? -1 : a.period > b.period ? 1 : a.asOf < b.asOf ? -1 : 1));
-  return { list, added, changed };
+  return { list, added, changed, revised };
+}
+
+/** Bản mới nhất của mỗi (seriesId, period) — cho bên dùng cần một giá trị/kỳ (Kết nối thế giới, đếm độ phủ). */
+export function latestPerPeriod(list) {
+  const latest = new Map();
+  for (const o of list) {
+    const l = latest.get(spKey(o));
+    if (!l || o.asOf > l.asOf) latest.set(spKey(o), o);
+  }
+  return [...latest.values()];
+}
+
+/** Số kỳ có hơn một vintage (đã được nguồn công bố lại) theo chuỗi. */
+export function vintageCounts(list) {
+  const per = new Map();
+  for (const o of list) per.set(spKey(o), (per.get(spKey(o)) ?? 0) + 1);
+  const out = {};
+  for (const [k, n] of per) if (n > 1) { const id = k.split("|")[0]; out[id] = (out[id] ?? 0) + 1; }
+  return out;
 }
 
 const monthsBetween = (a, b) => {
