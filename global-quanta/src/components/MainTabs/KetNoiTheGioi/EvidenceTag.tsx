@@ -35,7 +35,7 @@ export function EvidencePriorityNote() {
       style={{ color: "var(--text-tertiary, #64748b)", background: "rgba(148,163,184,0.05)", border: "1px solid rgba(148,163,184,0.1)" }}>
       <b style={{ color: "var(--text-secondary, #94a3b8)" }}>Quy tắc ưu tiên:</b> nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước —
       xếp hạng ngành thuận/ngược gió <b>ngắn hạn</b> (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC
-      (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với tab <i>Truyền dẫn &amp; bằng chứng</i>, chỉ liên kết <b>bậc A/B</b> mới được
+      (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với ma trận ở tab <i>Truyền dẫn &amp; kịch bản</i>, chỉ liên kết <b>bậc A/B</b> mới được
       ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và <b>không đạt</b> nên không dùng trong quyết định Lọc ngành.
     </p>
   );

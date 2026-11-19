@@ -3,7 +3,7 @@
    Màu tăng/giảm theo QUANTA FLUENT-DARK (05/11/2026): tăng = Emerald, giảm = Rose như toàn app; số luôn kèm dấu +/− nên không chỉ dựa vào màu. */
 .gq-world .wd[data-theme] {
   --ground: var(--bg-base); --panel: var(--bg-surface); --surface: rgba(148, 163, 184, 0.05); --track: rgba(148, 163, 184, 0.12);
-  --ink: #f1f5f9; --ink2: #94a3b8; --ink3: #64748b; --rule: var(--border);
+  --ink: #f1f5f9; --ink2: #94a3b8; --ink3: var(--text-tertiary, #748299); --rule: var(--border);
   --accent: var(--gold); --accentHover: var(--gold-bright); --onAccent: var(--bg-base); --accentSoft: rgba(232, 184, 75, 0.35);
   --up3: #10B981; --up3fg: #f1f5f9; --up2: #059669; --up2fg: #f1f5f9; --up1: #064E3B; --up1fg: #f1f5f9;
   --down3: #F43F5E; --down3fg: #f1f5f9; --down2: #E11D48; --down2fg: #f1f5f9; --down1: #881337; --down1fg: #f1f5f9;
@@ -43,3 +43,15 @@
 .gq-world .wd { container-type: inline-size; }
 .gq-world .wd .two { grid-template-columns: minmax(0, 1fr); }
 @container (min-width: 1200px) { .gq-world .wd .two { grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); align-items: start; } }
+
+/* G1 (19/11/2026) — Giao-dien-KNTG/03 mục 5. --ink3 đổi sang --text-tertiary (#748299, 4,8:1; trước #64748b chỉ 3,9:1).
+   Vùng bấm tối thiểu trong cả tab: 24×24 (WCAG 2.5.8), 32 trên màn cảm ứng. Liên kết nằm trong câu văn được miễn (ngoại lệ "inline"). */
+.kntg-root :is(button, select, summary, [role="button"]):not(.cell):not([role="tab"]) { min-height: 24px; min-width: 24px; }
+.kntg-root a:is([class*="rounded"], [class*="border"]) { min-height: 24px; }
+.kntg-root a:is([class*="rounded"], [class*="border"]):not([class*="flex"]):not([class*="block"]):not([class*="grid"]) { display: inline-flex; align-items: center; }
+.kntg-root label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; }
+.kntg-root input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); }
+@media (pointer: coarse) {
+  .kntg-root :is(button, select, summary, [role="button"]):not(.cell):not([role="tab"]),
+  .kntg-root a:is([class*="rounded"], [class*="border"]), .kntg-root label:has(> input[type="checkbox"]) { min-height: 32px; }
+}

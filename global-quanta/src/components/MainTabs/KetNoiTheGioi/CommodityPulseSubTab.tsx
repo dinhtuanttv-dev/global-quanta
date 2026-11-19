@@ -97,7 +97,7 @@ export default function CommodityPulseSubTab() {
       {!snap && !snapError && (
         <div className="flex items-center gap-2 text-xs py-6 justify-center" style={{ color: T.textSecondary }}>
           <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
-          Đang tải dữ liệu hàng hóa...
+          Đang tải dữ liệu hàng hoá…
         </div>
       )}
       {snapError && <p className="text-xs" style={{ color: T.negative }}>Không tải được dữ liệu hàng hoá từ Gateway: {snapError.message}</p>}
@@ -105,7 +105,7 @@ export default function CommodityPulseSubTab() {
       {snap && (
         <div className="space-y-3">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Hàng Hóa Chiến Lược</p>
+            <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Hàng hoá chiến lược</p>
             <EvidenceTag kind="data" title="Giá thị trường thật — mỗi mặt hàng một nguồn, kèm phiên/kỳ" />
           </div>
           {groups.map(([g, xs]) => (
@@ -131,7 +131,7 @@ export default function CommodityPulseSubTab() {
       {/* GIA NHA THE GIOI - tan suat thap (quy), SWR rieng */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Xu Hướng Giá Nhà Thế Giới</p>
+          <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Xu hướng giá nhà thế giới</p>
           <EvidenceTag kind="data" title="Bank for International Settlements — số liệu thật theo quý" />
         </div>
         {housingLoading && (

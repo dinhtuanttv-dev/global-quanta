@@ -62,9 +62,9 @@ export default function TransmissionMap2D() {
       </label>}
       {data && edges.length === 0 && <p className="mt-2 text-[11px]" style={muted}>Chưa có liên kết bậc A/B ở mức lệch hiện tại.</p>}
       {edges.length > 0 && <>
-        <div className="mt-2 overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 520, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`${edges.length} liên kết từ ${factors.length} yếu tố tới ${sectors.length} ngành`} onMouseLeave={() => setFocus(null)}>
-          <text x={LX} y={13} textAnchor="end" fontSize={9.5} fill="#64748b">Yếu tố thế giới · độ lệch tháng {period}</text>
-          <text x={RX} y={13} fontSize={9.5} fill="#64748b">Ngành Việt Nam · chiều theo lịch sử</text>
+        <div className="mt-2 overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`${edges.length} liên kết từ ${factors.length} yếu tố tới ${sectors.length} ngành`} onMouseLeave={() => setFocus(null)}>
+          <text x={LX} y={13} textAnchor="end" fontSize={10} fill="#94a3b8">Yếu tố thế giới · độ lệch tháng {period}</text>
+          <text x={RX} y={13} fontSize={10} fill="#94a3b8">Ngành Việt Nam · chiều theo lịch sử</text>
           {edges.map((e) => {
             const y1 = yF(factors.findIndex((f) => f.id === e.factor)), y2 = yS(sectors.indexOf(e.sector));
             const mid = (LX + RX) / 2;
@@ -76,13 +76,13 @@ export default function TransmissionMap2D() {
           })}
           {factors.map((f, i) => { const z = zOf(f.id); return <g key={f.id} onMouseEnter={() => setFocus(f.id)} style={{ cursor: "default" }}>
             <text x={LX} y={yF(i) - 2} textAnchor="end" fontSize={10.5} fill={!focus || focus === f.id ? "#e2e8f0" : "#64748b"}>{f.nameVi.length > 28 ? `${f.nameVi.slice(0, 27)}…` : f.nameVi}</text>
-            <text x={LX} y={yF(i) + 9} textAnchor="end" fontSize={8.5} fill={Math.abs(z) >= 2 ? "#fbbf24" : "#64748b"}>{signed(z)} σ{f.channelVi ? ` · ${f.channelVi}` : ""}</text>
+            <text x={LX} y={yF(i) + 9} textAnchor="end" fontSize={10} fill={Math.abs(z) >= 2 ? "#fbbf24" : "#94a3b8"}>{signed(z)} σ{f.channelVi ? ` · ${f.channelVi}` : ""}</text>
             <circle cx={LX + 6} cy={yF(i)} r={3.5} fill="#cbd5e1" />
           </g>; })}
           {sectors.map((s, i) => { const p = pressure.get(s) ?? 0; return <g key={s} onMouseEnter={() => setFocus(s)} style={{ cursor: "default" }}>
             <circle cx={RX - 6} cy={yS(i)} r={3.5} fill={p > 0 ? UP : p < 0 ? DOWN : FLAT} />
             <text x={RX} y={yS(i) - 2} fontSize={10.5} fill={!focus || focus === s ? "#e2e8f0" : "#64748b"}>{sName(s)}</text>
-            <text x={RX} y={yS(i) + 9} fontSize={8.5} fill="#94a3b8">{p > 0 ? "▲ cùng chiều tăng" : p < 0 ? "▼ cùng chiều giảm" : "cân bằng"} ({signed(p)})</text>
+            <text x={RX} y={yS(i) + 9} fontSize={10} fill="#94a3b8">{p > 0 ? "▲ cùng chiều tăng" : p < 0 ? "▼ cùng chiều giảm" : "cân bằng"} ({signed(p)})</text>
           </g>; })}
         </svg></div>
         <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: "var(--text-secondary)" }}>
