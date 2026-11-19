@@ -15,7 +15,7 @@ import ConfluenceCard from "./ConfluenceCard";
 import { hlScores } from "../../../lib/elite10/confluence";
 import { hlGap } from "../../../lib/elite10/hlGap";
 import { splitQueue } from "../../../lib/elite10/liquidity";
-import WorldTransmissionCard from "./WorldTransmissionCard";
+import StockImpactCard from "./StockImpactCard";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
 
@@ -148,7 +148,7 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
 
       <ConfluenceCard ticker={ticker} />
       <LeadershipCard ticker={ticker} />
-      <WorldTransmissionCard ticker={ticker} />
+      <StockImpactCard ticker={ticker} />
 
       <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
         {groups.map(([tab, specs]) => (

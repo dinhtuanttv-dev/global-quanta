@@ -23,7 +23,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getImpact = null, getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -169,6 +169,13 @@ export function createEliteRouter({ getDilution = null, getProfileFa = null, get
 
   // A4: sổ bằng chứng của từng lớp (tĩnh, có nguồn) — Tường bằng chứng của Bảng quyết định.
   router.get("/evidence-registry", (req, res) => { res.set("Cache-Control", "public, max-age=3600, s-maxage=86400"); res.json(evidenceRegistry()); });
+
+  // D4: Tác động lên cổ phiếu (Hồ sơ 360° › Tổng hợp) — chỉ gom, dấu lấy từ sổ bằng chứng, không cộng vào Điểm Elite.
+  router.get("/impact/:ticker", wrap(async (req, res) => {
+    if (!getImpact) return res.status(503).json({ error: "Chưa bật." });
+    const t = String(req.params.ticker ?? "").toUpperCase(); if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    res.set("Cache-Control", "public, max-age=300, s-maxage=300"); res.json(await getImpact().ticker(t));
+  }));
 
   // PX0 / PX-L: vòng đời đợt pha loãng (chỉ hiển thị; PX-r1 KHÔNG ĐẠT) và sổ theo dõi tiến.
   router.get("/px-ledger", wrap(async (req, res) => {
