@@ -41,7 +41,8 @@ for (const W of [1440, 390]) {
   await p.waitForSelector('[data-testid="world-transmission"]', { timeout: 60_000 });
   const tabs0 = await p.locator('[role="tab"]').count();
   // G3: trên điện thoại các khối thu gọn trong chỗ (KntgSection) — mở hết các khối cần kiểm
-  const openSections = async () => { for (const bar of await p.locator('.kntg-section:not([open]) > summary').all()) { if (await bar.isVisible()) { await bar.click(); await p.waitForTimeout(300); } } };
+  // bấm thanh ĐẦU TIÊN còn đóng cho tới khi hết (danh sách theo vị trí đổi sau mỗi lần mở)
+  const openSections = async () => { for (let i = 0; i < 12; i++) { const bar = p.locator('.kntg-section:not([open]) > summary').first(); if (!(await bar.count()) || !(await bar.isVisible())) break; await bar.click(); await p.waitForTimeout(300); } };
   await openSections();
   // W1: so sánh kịch bản
   await p.locator('[data-testid="sc-mode-compare"]').click();
