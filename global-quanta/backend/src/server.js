@@ -4,6 +4,8 @@ import { createCotucStore } from "./market/cotuc/cotucStore.js";
 import { createGatewayEliteZones, createGatewayTimeline } from "./market/cotuc/gatewayTimeline.js";
 import { createCotucStoreRouter } from "./routes/cotucStore.js";
 import { createCatalystRouter, readCatalystSnapshot } from "./routes/catalysts.js";
+import { createCatalystChat } from "./market/catalystChat/chatService.js";
+import { domesticEventsWithCountdown } from "./market/catalystChat/domesticEvents.js";
 import express from "express";
 import v8 from "node:v8";
 import cors from "cors";
@@ -304,7 +306,23 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
-app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore }));
+// V4 (19/11/2026): "Hỏi đáp xúc tác" + "Sự kiện trong nước" chuyển từ Project A về Gateway; công cụ gọi thẳng dịch vụ trong tiến trình.
+let catalystChat = null;
+const getCatalystChat = () => (catalystChat ??= createCatalystChat({
+  verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null,
+  store: getMarketRuntime().store,
+  sources: {
+    macro: () => getMacroService().toolSpecs(), world: () => getWorldService().toolSpecs(),
+    ws: () => getWsChatTools().specs(), elite: () => getEliteChatTools().specs(),
+  },
+  run: {
+    macro: (n, a) => getMacroService().runTool(n, a), world: (n, a) => getWorldService().runTool(n, a),
+    ws: (n, a) => getWsChatTools().run(n, a), elite: (n, a) => getEliteChatTools().run(n, a),
+  },
+  getSnapshot: () => readCatalystSnapshot(getCotucStore()),
+  calendar: (horizonDays) => getMacroService().catalystEvents({ horizonDays }),
+}));
+app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore, getChat: getCatalystChat, getDomesticEvents: domesticEventsWithCountdown }));
 // F5 (06/11/2026): Chất lượng KQKD (SUE/SUR, tăng trưởng có kiểm soát) cho tab PHÂN TÍCH CƠ BẢN › Kết quả kinh doanh.
 let earningsQuality = null;
 app.get("/api/fundamentals/earnings-quality", async (req, res) => {

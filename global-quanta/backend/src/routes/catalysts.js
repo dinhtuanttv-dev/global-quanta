@@ -14,8 +14,28 @@ export async function readCatalystSnapshot(store, now = Date.now()) {
   return { ...snapshot, isStale: ageMinutes > CATALYST_STALE_MINUTES, ageMinutes };
 }
 
-export function createCatalystRouter({ getStore, now = Date.now }) {
+export function createCatalystRouter({ getStore, getChat = null, getDomesticEvents = null, now = Date.now }) {
   const router = express.Router();
+  // V4 (19/11/2026): hai route chuyển từ Project A về Gateway, cùng hợp đồng.
+  if (getDomesticEvents) {
+    router.get("/domestic-events", (req, res) => {
+      res.set("Cache-Control", "public, max-age=3600");
+      res.json({ events: getDomesticEvents(now()) });
+    });
+  }
+  if (getChat) {
+    router.get("/chat/config", (req, res) => {
+      res.set("Cache-Control", "public, max-age=60");
+      res.json(getChat().config());
+    });
+    router.post("/chat", (req, res) => {
+      getChat().handle(req, res).catch((e) => {
+        console.warn(`[catalyst-chat] ${e?.message}`);
+        if (!res.headersSent) res.status(500).json({ error: "Lỗi Hỏi đáp xúc tác." });
+        else res.end();
+      });
+    });
+  }
   router.get("/latest", async (req, res) => {
     try {
       const snapshot = await readCatalystSnapshot(getStore(), now());
