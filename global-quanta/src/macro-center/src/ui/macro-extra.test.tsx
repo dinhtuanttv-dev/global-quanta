@@ -73,3 +73,35 @@ describe('V0 — trung thực về dữ liệu', () => {
     expect(t).not.toMatch(/xác suất lọc 100%/);
   });
 });
+
+describe('V1 — hạn công bố, công bố lại, lệch nguồn', () => {
+  const v1 = {
+    ...src,
+    series: [
+      { id: 'CPI', nameVi: 'Lạm phát (CPI, so cùng kỳ)', role: 'factor' as const, n: 261, first: '2005-01', last: '2026-09', stale: false, sources: ['IMF:CPI VNM (TCTK)'], release: { nextPeriod: '2026-10', expected: '2026-11-06', overdueDays: 10 } },
+      { id: 'EX', nameVi: 'Tỷ giá USD/VND (thị trường)', role: 'factor' as const, n: 275, first: '2003-12', last: '2026-10', stale: false, sources: ['Yahoo:VND=X (thị trường)'], release: { nextPeriod: '2026-11', expected: '2026-12-01', overdueDays: 0 } },
+      { id: 'M2', nameVi: 'Cung tiền M2', role: 'factor' as const, n: 0, first: null, last: null, stale: false, sources: [], release: null },
+    ],
+    vintages: { CPI: 2 },
+    conflicts: [{ seriesId: 'CPI', period: '2026-09', values: { 'IMF:CPI VNM (TCTK)': 5.08, 'csv:TCTK': 5.2 } }],
+  };
+  it('dòng tóm tắt hiện ngay (không cần mở chi tiết): chuỗi quá hạn + số kỳ lệch nguồn', () => {
+    const { container } = render(<DataSourcePanel source={v1} sourceError={null} series={null} />);
+    const t = container.querySelector('[data-testid="mc-health-summary"]')?.textContent ?? '';
+    expect(t).toContain('Quá hạn công bố: Lạm phát (CPI, so cùng kỳ) kỳ 2026-10 (10 ngày)');
+    expect(t).toContain('1 kỳ lệch giữa các nguồn');
+    expect(t).not.toContain('Tỷ giá');
+  });
+  it('bảng chi tiết: hạn công bố từng chuỗi, số kỳ công bố lại, khối lệch nguồn', () => {
+    const { container } = render(<DataSourcePanel source={v1} sourceError={null} series={null} />);
+    expect(container.querySelector('[data-testid="mc-release-CPI"]')?.textContent).toBe('Kỳ 2026-10 quá hạn 10 ngày (dự kiến 06/11/2026)');
+    expect(container.querySelector('[data-testid="mc-release-EX"]')?.textContent).toBe('Kỳ 2026-11 dự kiến 01/12/2026');
+    expect(container.querySelector('[data-testid="mc-release-M2"]')).toBeNull();
+    expect(container.textContent).toContain('2 kỳ đã được nguồn công bố lại');
+    expect(container.querySelector('[data-testid="mc-conflicts"]')?.textContent).toContain('CPI 2026-09: IMF:CPI VNM (TCTK) 5,08 · CSV · TCTK 5,20');
+  });
+  it('Gateway cũ (không có trường V1) -> không có dòng tóm tắt, không lỗi', () => {
+    const { container } = render(<DataSourcePanel source={src} sourceError={null} series={null} />);
+    expect(container.querySelector('[data-testid="mc-health-summary"]')).toBeNull();
+  });
+});

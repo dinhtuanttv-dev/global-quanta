@@ -5,13 +5,71 @@
 //     macroGlobalFeeds.js. Biến nội địa VN (CPI, M2, tín dụng, ...): CSV nạp qua route admin.
 //   - Chưa đủ số liệu thật (>= 1 biến vĩ mô và >= 1 chỉ số, 60 tháng) -> engine dùng kho MÔ PHỎNG, có biểu ngữ. Không trộn.
 import { createInlineProxy, createWorkerProxy } from "./workerProxy.js";
-import { createMacroCore, mergeObservations, parseSeriesCsv, vnToday } from "./macroCore.js";
+import { createMacroCore, latestPerPeriod, mergeObservations, parseSeriesCsv, vintageCounts, vnToday, VN_CATALOG } from "./macroCore.js";
 import { buildMacroCatalystEvents } from "./catalystEvents.js";
 import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
 
 export const MACRO_KV_KEY = "macro:observations";
 // Mã chỉ số trong danh mục MacroCenter -> mã chỉ số của Gateway.
-export const HOSE_TARGETS = { VNINDEX: "VNINDEX", VN30: "VN30", VN100: "VN100", VNMIDCAP: "VNMID", VNSMALLCAP: "VNSML", VNALLSHARE: "VNALLSHARE" };
+// V1 (19/11/2026): từ 06/05/2025 SSI đổi mã (VNMID -> VNMIDCAP, VNSML -> VNSMALLCAP, VNALL -> VNALLSHARE). Đã đối chiếu chỗ nối
+// (VNMID 1.755,42 ngày 29/04/2025 -> VNMIDCAP 1.787,57 ngày 06/05/2025): cùng một chỉ số đổi tên -> nối mã cũ + mã mới (mã mới ưu tiên).
+export const HOSE_TARGETS = { VNINDEX: ["VNINDEX"], VN30: ["VN30"], VN100: ["VN100"], VNMIDCAP: ["VNMID", "VNMIDCAP"], VNSMALLCAP: ["VNSML", "VNSMALLCAP"], VNALLSHARE: ["VNALL", "VNALLSHARE"] };
+/** Chuỗi chỉ số được công bố lại (sửa số) -> lưu thành vintage mới. Giá thị trường không được "sửa": thay đổi là do sửa lỗi dữ liệu -> ghi đè. */
+export const REVISABLE_SOURCE = /^(IMF:|FRED:FEDFUNDS|csv)/;
+
+const periodIdx = (p) => Number(p.slice(0, 4)) * 12 + Number(p.slice(5, 7)) - 1;
+const periodOf = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+const DAY = 86_400_000;
+/** Ân hạn trước khi coi là quá hạn công bố (ngày công bố thực tế lệch vài ngày so với ngày điển hình). */
+export const OVERDUE_GRACE_DAYS = 3;
+
+/**
+ * V1: hạn công bố của kỳ KẾ TIẾP mỗi chuỗi và số ngày quá hạn. Kỳ P công bố vào tháng P + max(1, độ trễ công bố), ngày điển hình
+ * của danh mục (CPI tháng 10 -> 06/11). Chuỗi chưa có số liệu -> không tính (đã báo "chưa có số liệu thật").
+ */
+export function releaseStatus(meta, lastPeriod, todayIso) {
+  if (!lastPeriod) return null;
+  const next = periodOf(periodIdx(lastPeriod) + 1);
+  const relMonth = periodOf(periodIdx(next) + Math.max(1, meta.pubLagMonths ?? 0));
+  const day = String(Math.min(Math.max(meta.typicalReleaseDay ?? 1, 1), 28)).padStart(2, "0");
+  const expected = `${relMonth}-${day}`;
+  const late = Math.round((Date.parse(`${todayIso}T00:00:00Z`) - Date.parse(`${expected}T00:00:00Z`)) / DAY) - OVERDUE_GRACE_DAYS;
+  return { nextPeriod: next, expected, overdueDays: late > 0 ? late : 0 };
+}
+
+/**
+ * V1: các kỳ mà HAI nguồn trở lên cho giá trị lệch nhau (VD CPI nạp tay từ TCTK và CPI qua IMF). So bản mới nhất của từng nguồn.
+ * Ngưỡng: chuỗi tỷ lệ 0,05 điểm %; chuỗi mức 0,5%.
+ */
+export function sourceConflicts(list, catalog = VN_CATALOG) {
+  const kind = Object.fromEntries(catalog.map((m) => [m.id, m.kind]));
+  const per = new Map();
+  for (const o of list) {
+    const k = `${o.seriesId}|${o.period}`;
+    const bySrc = per.get(k) ?? new Map();
+    const src = o.source ?? "csv";
+    const prev = bySrc.get(src);
+    if (!prev || o.asOf > prev.asOf) bySrc.set(src, o);
+    per.set(k, bySrc);
+  }
+  const out = [];
+  for (const [k, bySrc] of per) {
+    if (bySrc.size < 2) continue;
+    const vals = [...bySrc.values()];
+    const lo = Math.min(...vals.map((v) => v.value)), hi = Math.max(...vals.map((v) => v.value));
+    const [seriesId, period] = k.split("|");
+    const tooFar = kind[seriesId] === "rate" ? hi - lo > 0.05 : lo > 0 ? hi / lo - 1 > 0.005 : hi !== lo;
+    if (tooFar) out.push({ seriesId, period, values: Object.fromEntries(vals.map((v) => [v.source ?? "csv", v.value])) });
+  }
+  return out.sort((a, b) => (a.seriesId < b.seriesId ? -1 : a.seriesId > b.seriesId ? 1 : a.period < b.period ? -1 : 1));
+}
+
+/** Nối nến ngày của nhiều mã (theo thứ tự cũ -> mới); ngày trùng thì lấy mã mới hơn. */
+export function stitchBars(lists) {
+  const by = new Map();
+  for (const bars of lists) for (const b of bars ?? []) if (b?.date) by.set(b.date, b);
+  return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+}
 const HOSE_SOURCE = "gateway-hose";
 const FEED_REFRESH_MS = 12 * 3600_000;
 const CALL_TIMEOUT_MS = 90_000;
@@ -103,10 +161,12 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
   async function hoseObservations(report) {
     const out = [];
     if (!history?.get) return out;
-    for (const [seriesId, symbol] of Object.entries(HOSE_TARGETS)) {
+    for (const [seriesId, symbols] of Object.entries(HOSE_TARGETS)) {
       try {
-        const months = monthlyCloses((await history.get(symbol, { years: 10 }))?.bars, todayIso());
-        report[seriesId] = { source: HOSE_SOURCE, months: months.length, first: months[0]?.period ?? null, last: months.at(-1)?.period ?? null };
+        const lists = [];
+        for (const symbol of symbols) lists.push((await history.get(symbol, { years: 10 }).catch(() => null))?.bars ?? []);
+        const months = monthlyCloses(stitchBars(lists), todayIso());
+        report[seriesId] = { source: HOSE_SOURCE, codes: symbols, months: months.length, first: months[0]?.period ?? null, last: months.at(-1)?.period ?? null };
         for (const m of months) out.push({ seriesId, ...m, source: HOSE_SOURCE });
       } catch (e) {
         report[seriesId] = { source: HOSE_SOURCE, error: e.message };
@@ -131,9 +191,9 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       const incoming = [...hose, ...global.observations];
       if (!incoming.length) return { report, added: 0, changed: 0 };
       return serialized(async () => {
-        const { list, added, changed } = mergeObservations(observations, incoming);
-        if (added || changed) await persist(list);
-        return { report, added, changed };
+        const { list, added, changed, revised } = mergeObservations(observations, incoming, { revisable: (o) => REVISABLE_SOURCE.test(o.source ?? "csv"), todayIso: todayIso() });
+        if (added || changed || revised) await persist(list);
+        return { report, added, changed, revised };
       });
     })().finally(() => {
       feedsPending = null;
@@ -150,10 +210,10 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       refreshInBackground();
       return engine.handle(req);
     },
-    /** Quan sát thật hiện có (chỉ đọc) — Kết nối thế giới dùng lại FED/DXY/OIL. */
+    /** Quan sát thật hiện có (chỉ đọc), bản MỚI NHẤT mỗi kỳ — Kết nối thế giới dùng lại FED/DXY/OIL (hợp đồng một giá trị/kỳ giữ nguyên). */
     async observations() {
       await init();
-      return observations;
+      return latestPerPeriod(observations);
     },
     async source() {
       await init();
@@ -166,7 +226,14 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
         bySource[src] = (bySource[src] ?? 0) + 1;
         (seriesSources[o.seriesId] ??= new Set()).add(src);
       }
-      return { ...s, bySource, series: s.series.map((x) => ({ ...x, sources: [...(seriesSources[x.id] ?? [])] })) };
+      const meta = Object.fromEntries(VN_CATALOG.map((m) => [m.id, m]));
+      const today = todayIso();
+      return {
+        ...s, bySource,
+        vintages: vintageCounts(observations),
+        conflicts: sourceConflicts(observations),
+        series: s.series.map((x) => ({ ...x, sources: [...(seriesSources[x.id] ?? [])], release: meta[x.id] ? releaseStatus(meta[x.id], x.last, today) : null })),
+      };
     },
     async runTool(name, args) {
       await init();
@@ -177,7 +244,11 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       return engine.toolSpecs();
     },
     /** Nạp CSV một chuỗi. dryRun -> chỉ báo cáo. Có lỗi chất lượng mức "error" -> từ chối trừ khi force. */
-    async importCsv({ seriesId, csv, locale, delimiter, hasHeader, monthly, asOf, source, dryRun = false, force = false }) {
+    /**
+     * mode "revision" (mặc định): số khác bản đang có = nguồn công bố lại -> vintage mới (asOf hôm nay), giữ bản cũ.
+     * mode "correction": sửa lỗi nhập trước đó -> ghi đè đúng (kỳ, asOf).
+     */
+    async importCsv({ seriesId, csv, locale, delimiter, hasHeader, monthly, asOf, source, dryRun = false, force = false, mode = "revision" }) {
       await init();
       const parsed = parseSeriesCsv({ seriesId, csv, locale, delimiter, hasHeader, monthly, asOf, today: todayIso() });
       const base = { seriesId, rows: parsed.observations.length, rejectedRows: parsed.rejectedRows, first: parsed.observations[0]?.period ?? null, last: parsed.observations.at(-1)?.period ?? null, issues: parsed.issues, hasErrors: parsed.hasErrors };
@@ -186,9 +257,10 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       if (parsed.hasErrors && !force) return { ...base, written: false, reason: "Có lỗi chất lượng mức error — sửa dữ liệu hoặc gửi force=true." };
       const tag = typeof source === "string" && source.trim() ? `csv:${source.trim().slice(0, 40)}` : "csv";
       return serialized(async () => {
-        const { list, added, changed } = mergeObservations(observations, parsed.observations.map((o) => ({ ...o, source: tag })));
-        if (added || changed) await persist(list);
-        return { ...base, written: true, added, changed, source: await engine.source() };
+        const opts = mode === "correction" ? { correction: true } : { revisable: () => true, todayIso: todayIso() };
+        const { list, added, changed, revised } = mergeObservations(observations, parsed.observations.map((o) => ({ ...o, source: tag })), opts);
+        if (added || changed || revised) await persist(list);
+        return { ...base, written: true, mode: mode === "correction" ? "correction" : "revision", added, changed, revised, source: await engine.source() };
       });
     },
     /** X3: lịch xúc tác vĩ mô hợp nhất (công bố số liệu ước tính, FOMC, cảnh báo/chế độ khi có số liệu thật). */

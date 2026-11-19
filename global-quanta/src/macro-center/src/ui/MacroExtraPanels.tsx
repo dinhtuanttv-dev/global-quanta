@@ -12,6 +12,7 @@ const pct = (x: number) => `${Math.round(x * 100)}%`;
 const pctProb = (x: number) => (x >= 0.995 ? '> 99%' : x <= 0.005 ? '< 1%' : pct(x));
 const SOURCE_VI: Record<string, string> = { 'gateway-hose': 'HOSE (lịch sử giá Gateway)', csv: 'CSV nạp tay' };
 const sourceLabel = (s: string) => SOURCE_VI[s] ?? s.replace(/^csv:/, 'CSV · ');
+const fmtDay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 /** Nguồn dữ liệu, độ phủ, trạng thái từng chuỗi và lỗi chất lượng — để người dùng biết phân tích đang dựa trên gì. */
 export function DataSourcePanel({ source, sourceError, series }: { source: SourcePayload | null; sourceError: string | null; series: SeriesPayload | null }) {
@@ -32,6 +33,19 @@ export function DataSourcePanel({ source, sourceError, series }: { source: Sourc
           ? <> · biến vĩ mô đang dùng: {source.usableFactors.join(', ') || '—'} · chỉ số: {source.usableTargets.join(', ') || '—'}</>
           : <> · cần ít nhất 1 biến vĩ mô và 1 chỉ số thật đủ {source.minMonths} tháng để chuyển sang số liệu thật.</>}
       </p>
+      {(() => {
+        const late = source.series.filter((s) => s.n > 0 && !s.stale && (s.release?.overdueDays ?? 0) > 0);
+        const nConf = source.conflicts?.length ?? 0, nQ = source.quarantined?.length ?? 0;
+        if (!late.length && !nConf && !nQ) return null;
+        return (
+          <p className="muted" role="note" data-testid="mc-health-summary">
+            {late.length > 0 && <>Quá hạn công bố: {late.map((s) => `${s.nameVi} kỳ ${s.release!.nextPeriod} (${s.release!.overdueDays} ngày)`).join('; ')}. </>}
+            {nConf > 0 && <>{nConf} kỳ lệch giữa các nguồn. </>}
+            {nQ > 0 && <>{nQ} điểm bị cách ly vì lệch thang đo. </>}
+            Xem chi tiết bên dưới.
+          </p>
+        );
+      })()}
       <details>
         <summary>Chi tiết {source.series.length} chuỗi (nguồn, kỳ, chất lượng)</summary>
         <div className="ds-wrap">
@@ -47,8 +61,16 @@ export function DataSourcePanel({ source, sourceError, series }: { source: Sourc
                   <td>{s.sources.length ? s.sources.map(sourceLabel).join(', ') : '—'}</td>
                   <td>{s.first ? `${s.first} → ${s.last}` : '—'}</td>
                   <td>{s.n || '—'}</td>
-                  <td data-tone={st.tone}>
+                  <td data-tone={s.release && s.release.overdueDays > 0 && s.n > 0 && !s.stale ? 'warn' : st.tone}>
                     {st.text}
+                    {s.release && s.n > 0 && !s.stale && (
+                      <div className="muted" data-testid={`mc-release-${s.id}`}>
+                        {s.release.overdueDays > 0
+                          ? <>Kỳ {s.release.nextPeriod} quá hạn {s.release.overdueDays} ngày (dự kiến {fmtDay(s.release.expected)})</>
+                          : <>Kỳ {s.release.nextPeriod} dự kiến {fmtDay(s.release.expected)}</>}
+                      </div>
+                    )}
+                    {(source.vintages?.[s.id] ?? 0) > 0 && <div className="muted">{source.vintages![s.id]} kỳ đã được nguồn công bố lại — giữ cả bản cũ theo ngày biết</div>}
                     {issues.map((i) => <div key={i.message} className="muted" data-severity={i.severity}>{i.severity === 'error' ? '⚠ ' : ''}{i.message}</div>)}
                   </td>
                 </tr>
@@ -57,6 +79,16 @@ export function DataSourcePanel({ source, sourceError, series }: { source: Sourc
           </tbody>
         </table>
         </div>
+        {(source.conflicts?.length ?? 0) > 0 && (
+          <div className="ds-quarantine" data-testid="mc-conflicts">
+            <p><b>{source.conflicts!.length} kỳ có hai nguồn cho số khác nhau</b> — phân tích dùng bản công bố mới nhất; cần đối chiếu:</p>
+            <ul>
+              {source.conflicts!.map((c) => (
+                <li key={`${c.seriesId}|${c.period}`}>{c.seriesId} {c.period}: {Object.entries(c.values).map(([k, v]) => `${sourceLabel(k)} ${fmt(v, 2)}`).join(' · ')}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         {(source.quarantined?.length ?? 0) > 0 && (
           <div className="ds-quarantine" data-testid="mc-quarantine">
             <p><b>Đã cách ly {source.quarantined!.length} điểm lệch thang đo</b> — không đưa vào phân tích, không tự sửa, không nội suy:</p>

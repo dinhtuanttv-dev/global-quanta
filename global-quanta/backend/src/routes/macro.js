@@ -80,7 +80,7 @@ export function createMacroRouter({ getService, adminToken = () => process.env.M
     res.set("Cache-Control", "no-store");
     res.json(await getService().importCsv({
       seriesId: b.seriesId, csv: b.csv, locale: b.locale, delimiter: b.delimiter, hasHeader: b.hasHeader, monthly: b.monthly,
-      asOf: b.asOf, source: b.source, dryRun: b.dryRun === true, force: b.force === true,
+      asOf: b.asOf, source: b.source, dryRun: b.dryRun === true, force: b.force === true, mode: b.mode === "correction" ? "correction" : "revision",
     }));
   }));
 
