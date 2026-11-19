@@ -258,6 +258,13 @@ export function createMarketDataService({ providers, store, router, now = Date.n
     // V0: nến chỉ số lệch thang ×100 (SSI FC v2, 07/2019–01/2020) -> đưa về thang đúng, ghi rõ vào provenance.repaired
     const scale = isIndexSymbol(symbol) ? repairIndexScale(bars) : { bars, repaired: null };
     bars = scale.bars;
+    // V3: SSI có lúc trả nến chỉ số của phiên đang diễn ra với close = 0 (đo 19/11/2026: VNSI, VNALLSHARE) -> bỏ, không vẽ/tính về 0
+    let droppedInvalid = 0;
+    if (isIndexSymbol(symbol)) {
+      const kept = bars.filter((b) => b.partial || b.close > 0);
+      droppedInvalid = bars.length - kept.length;
+      bars = kept;
+    }
     const partial = !isIndexSymbol(symbol) && !params.from && !params.to ? partialTodayBar(symbol, bars.at(-1)?.date ?? "") : null;
     if (partial) bars.push(partial);
     if (limit) bars = bars.slice(-limit);
@@ -286,6 +293,7 @@ export function createMarketDataService({ providers, store, router, now = Date.n
         sources: out.sources,
         partialToday: Boolean(partial),
         ...(scale.repaired ? { repaired: scale.repaired } : {}),
+        ...(droppedInvalid ? { droppedInvalid } : {}),
       },
     };
   };

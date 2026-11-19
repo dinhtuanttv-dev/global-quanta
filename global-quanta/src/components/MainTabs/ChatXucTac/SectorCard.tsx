@@ -14,7 +14,8 @@ export default function SectorCard({ sector }: { sector: CatalystSector }) {
         <span style={{ fontWeight: 700, fontSize: 13 }}>{sectorLabelVi(sector.sector)}</span>
         {sector.isNew && <span style={{ fontSize: 10, color: "var(--gold-bright)", fontWeight: 700 }}>MỚI</span>}
         <span style={{ marginLeft: "auto", fontSize: 11, color: netPositive ? "var(--positive)" : "var(--negative)", fontWeight: 700 }}>
-          Net {netPositive ? "+" : ""}{(sector.netScore * 100).toFixed(2)}%
+          {/* V3 (19/11/2026): netScore là điểm ròng (tổng tác động có dấu), KHÔNG phải tỷ lệ — trước đây nhân 100 và gắn % (36,16 -> "+3616%") */}
+          Điểm ròng {netPositive ? "+" : "−"}{Math.abs(sector.netScore).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </span>
         <span style={{ fontSize: 10, color: "var(--text-tertiary)" }}>{sector.tickerCount} mã</span>
       </div>

@@ -10,7 +10,15 @@ const PRICE_IN_LABEL: Record<string, string> = {
 // Nguong 55% lay theo TAI-LIEU-NANG-CAP-CHAT-XUC-TAC.md - duoi nguong nay
 // ty le thang gan bang tung dong xu (50%), can canh bao ro rang thay vi
 // chim trong text phu.
+/**
+ * V3 (19/11/2026): engine xúc tác trả ĐÚNG 50 khi chưa có số liệu hiệu chỉnh cho nhóm tín hiệu (getWinRate ?? 50) — đo 19/11: 95/95 thẻ.
+ * Hiện "50%" là gây hiểu nhầm như một kết quả đo được -> ghi "chưa đủ mẫu".
+ */
+export const isDefaultWinRate = (winRate: number | null | undefined) => winRate == null || winRate === 50;
+export const winRateText = (winRate: number | null | undefined) => (isDefaultWinRate(winRate) ? "chưa đủ mẫu" : `${winRate}%`);
+
 function winRateColor(winRate: number): { bg: string; text: string } {
+  if (isDefaultWinRate(winRate)) return { bg: "rgba(148,163,184,0.12)", text: "var(--text-secondary)" };
   if (winRate < 55) return { bg: "rgba(251,191,36,0.15)", text: "#fbbf24" };
   return { bg: "rgba(148,163,184,0.12)", text: "var(--text-secondary)" };
 }
@@ -61,10 +69,10 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
         <span>{HORIZON_LABEL[card.horizon] ?? card.horizon}</span>
         <span>{PRICE_IN_LABEL[card.priceInStatus] ?? card.priceInStatus}</span>
         <span>Xác nhận chéo: {card.corroborationCount} nguồn</span>
-        <span style={{
+        <span title={isDefaultWinRate(card.historicalWinRate) ? "Nhóm tín hiệu này chưa có số liệu đối chiếu giá đủ để tính tỷ lệ thắng." : "Tỷ lệ tăng giá thô 5 phiên của nhóm tín hiệu cùng loại, không phải lợi suất vượt trội."} style={{
           background: wr.bg, color: wr.text, fontWeight: 700, padding: "1px 6px", borderRadius: 8,
         }}>
-          Tỷ lệ thắng: {card.historicalWinRate}%
+          Tỷ lệ thắng: {winRateText(card.historicalWinRate)}
         </span>
         {onOpenAnalysis && (
           <button

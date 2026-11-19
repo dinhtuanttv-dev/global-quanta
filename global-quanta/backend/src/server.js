@@ -117,6 +117,10 @@ app.use("/api/auth", createAuthRouter({ getAuth: () => getMarketRuntime().auth }
 let macroService = null;
 const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));
 app.use("/api/macro", createMacroRouter({ getService: getMacroService }));
+// V3 (19/11/2026): nạp nguồn vĩ mô CHỦ ĐỘNG — 3 phút sau khởi động rồi mỗi 30 phút kiểm; chỉ gọi nguồn ngoài khi lần nạp gần nhất
+// đã cũ quá 12 giờ (refreshAutoFeeds tự bỏ qua khi còn mới). Trước đây chỉ nạp khi có người mở tab.
+const macroTick = () => getMacroService().refreshAutoFeeds().catch((e) => console.warn(`[macro] nạp theo lịch lỗi: ${e?.message}`));
+setTimeout(() => { void macroTick(); setInterval(() => void macroTick(), 30 * 60_000).unref?.(); }, 3 * 60_000).unref?.();
 // Kết nối thế giới (engine world của gói macro-center 1.2): dữ liệu thật dựng 2 lần/ngày, engine trong worker thread.
 let worldService = null;
 const getWorldService = () => (worldService ??= createWorldService({

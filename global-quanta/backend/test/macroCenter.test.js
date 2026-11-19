@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import { createMacroService, monthlyCloses, MACRO_KV_KEY } from "../src/market/macro/macroService.js";
-import { mergeObservations, SYNTHETIC_NOTICE } from "../src/market/macro/macroCore.js";
+import { mergeObservations } from "../src/market/macro/macroCore.js";
 import { createMacroRouter, createRateLimiter } from "../src/routes/macro.js";
 
 // KV giả CÙNG hợp đồng với kho Gateway (memoryStore/supabaseStore): getKv trả { value, updatedAt }; m giữ giá trị thô để kiểm tra

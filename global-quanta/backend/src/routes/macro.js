@@ -7,11 +7,17 @@ import { timingSafeEqual } from "node:crypto";
 
 const ENGINE_ROUTES = new Set(["health", "series", "impact", "cell", "scenario", "score", "regime", "regime-impact", "report", "alerts", "calendar"]);
 
+/**
+ * IP người gọi: phần tử CUỐI của X-Forwarded-For (do proxy Railway thêm, trình duyệt không giả được) — cùng cách với đăng nhập
+ * (routes/auth.js ipOf). V3 (19/11/2026): trước đây lấy phần tử ĐẦU, client tự đặt được -> đổi IP giả để vượt giới hạn.
+ */
+export const clientIp = (req) => String(req.headers?.["x-forwarded-for"] ?? "").split(",").map((x) => x.trim()).filter(Boolean).pop() || req.ip || req.socket?.remoteAddress || "?";
+
 /** Giới hạn tần suất cửa sổ cố định theo IP (bộ nhớ trong; một instance Gateway). */
 export function createRateLimiter({ limit, windowMs = 60_000, now = Date.now }) {
   const hits = new Map();
   return (req, res, next) => {
-    const ip = String(req.get("x-forwarded-for") || req.ip || "?").split(",")[0].trim();
+    const ip = clientIp(req);
     const t = now();
     let h = hits.get(ip);
     if (!h || t - h.start >= windowMs) {

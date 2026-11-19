@@ -24,12 +24,6 @@ function mulberry32(seed) {
     return ((t ^ t >>> 14) >>> 0) / 4294967296;
   };
 }
-function randn(rng) {
-  let u = 0;
-  while (u === 0) u = rng();
-  const v = rng();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-}
 var LANCZOS = [
   0.9999999999998099,
   676.5203681218851,
@@ -2114,75 +2108,6 @@ function createMacroApi(deps) {
   return { handle, cacheStats: () => ({ entries: cache.size, hits, misses }), clearCache: () => cache.clear() };
 }
 
-// src/macro-center/src/macro-seed.ts
-var SYNTHETIC_NOTICE = "D\u1EEE LI\u1EC6U M\xD4 PH\u1ECENG \u2014 kh\xF4ng ph\u1EA3i s\u1ED1 li\u1EC7u th\u1EF1c c\u1EE7a GSO/NHNN/HOSE.";
-var TRUE_EFFECTS = {
-  VNINDEX: { CPI: -3, IR: -2, M2: 1.2, PMI: 0.75, DXY: -0.6 },
-  VN30: { CPI: -2.3, IR: -1.6, M2: 0.9, PMI: 0.75, DXY: -0.45 },
-  VNMIDCAP: { CPI: -3.8, IR: -2.2, M2: 1.35, PMI: 0.75, DXY: -0.6 },
-  VNSMALLCAP: { CPI: -5.3, IR: -2.8, M2: 1.8, PMI: 0.6, DXY: -0.75 },
-  VN100: { CPI: -2.85, IR: -1.9, M2: 1.1, PMI: 0.75, DXY: -0.6 },
-  VNALLSHARE: { CPI: -3, IR: -2, M2: 1.2, PMI: 0.75, DXY: -0.6 }
-};
-function makeSyntheticStore(seed = 2024, start = "2008-01", months = 222) {
-  const rng = mulberry32(seed);
-  const n = months;
-  const ar = (phi, mu, sd, x0, floor = -Infinity) => {
-    const y = [x0];
-    for (let i = 1; i < n; i++) y.push(Math.max(floor, mu + phi * (y[i - 1] - mu) + sd * randn(rng)));
-    return y;
-  };
-  const level = (g, sd, x0, extra) => {
-    const y = [x0];
-    for (let i = 1; i < n; i++) y.push(y[i - 1] * Math.exp((g + sd * randn(rng) + (extra ? extra(i) : 0)) / 100));
-    return y;
-  };
-  const cpi = ar(0.95, 5, 0.35, 5, -1);
-  const ir = ar(0.93, 5, 0.6, 5, 0.2);
-  const m2 = level(1.2, 1, 4e6);
-  const credit = level(1.1, 0.5, 3e6);
-  const ex = level(0.15, 0.25, 16e3);
-  const fdi = Array.from({ length: n }, (_, i) => 1500 * Math.exp(4e-3 * i + 0.25 * randn(rng)));
-  const exportV = level(0.8, 3, 4e3);
-  const io = level(0.6, 2, 100);
-  const pmi = ar(0.7, 51, 1.2, 51);
-  const dxy = level(0, 1.5, 85);
-  const fed = ar(0.985, 2, 0.12, 2, 0);
-  const oil = level(0, 8, 80);
-  const dd = (x) => x.map((v, i) => i === 0 ? 0 : v - x[i - 1]);
-  const ld = (x) => x.map((v, i) => i === 0 ? 0 : 100 * Math.log(v / x[i - 1]));
-  const stat = { CPI: dd(cpi), IR: dd(ir), M2: ld(m2), PMI: pmi.map((v) => v - 51), DXY: ld(dxy) };
-  const pub = Object.fromEntries(Object.entries(catalogById()).map(([id, m]) => [id, m.pubLagMonths]));
-  const market = Array.from({ length: n }, () => 2.4 * randn(rng));
-  const raw = { CPI: cpi, IR: ir, M2: m2, CREDIT: credit, EX: ex, FDI: fdi, EXPORT: exportV, IO: io, PMI: pmi, DXY: dxy, FED: fed, OIL: oil };
-  for (const [id, eff] of Object.entries(TRUE_EFFECTS)) {
-    const ret = new Array(n).fill(0);
-    for (let t = 1; t < n; t++) {
-      let r = 0.5 + market[t] + 1.2 * randn(rng);
-      for (const [f, b] of Object.entries(eff)) {
-        const src = t - 1 - (pub[f] ?? 0);
-        if (src >= 0) r += b * stat[f][src];
-      }
-      ret[t] = r;
-    }
-    const idx = [1e3];
-    for (let t = 1; t < n; t++) idx.push(idx[t - 1] * Math.exp(ret[t] / 100));
-    raw[id] = idx;
-  }
-  const store = new InMemoryVintageStore();
-  const obs = [];
-  for (const meta of VN_CATALOG) {
-    const v = raw[meta.id];
-    if (!v) continue;
-    for (let i = 0; i < n; i++) {
-      const period = addMonths(start, i);
-      obs.push({ seriesId: meta.id, period, value: v[i], asOf: estimateAsOf(period, meta.pubLagMonths, meta.typicalReleaseDay) });
-    }
-  }
-  store.upsert(obs);
-  return store;
-}
-
 // src/macro-center/src/macro-chat-tools.ts
 var factorIds = VN_CATALOG.filter((m) => m.role === "factor").map((m) => m.id);
 var targetIds = VN_CATALOG.filter((m) => m.role === "target").map((m) => m.id);
@@ -3321,203 +3246,7 @@ function createWorldApi(deps) {
 }
 
 // src/macro-center/src/world-seed.ts
-var EVENT_SCALE = 1.9;
-var WORLD_SYNTHETIC_NOTICE = "D\u1EEE LI\u1EC6U M\xD4 PH\u1ECENG \u2014 th\u1EBF gi\u1EDBi, ng\xE0nh v\xE0 c\u1ED5 phi\u1EBFu trong b\u1EA3n n\xE0y kh\xF4ng ph\u1EA3i s\u1ED1 li\u1EC7u th\u1EADt.";
-var TRUE_WORLD_EFFECTS = {
-  S_PORT: { CONTAINER: 0.35, PMI_CN: 1 },
-  S_SEAFOOD: { TARIFF: -0.5, CONTAINER: -0.15 },
-  S_TEXTILE: { TARIFF: -0.5 },
-  S_STEEL: { STEEL: 0.45, PMI_CN: 1.2, TARIFF: -0.2 },
-  S_OIL: { OIL: 0.35 },
-  S_BANK: { FED: -4, VIX: -0.25 },
-  S_SEC: { VIX: -0.4, EM_FLOWS: 0.6 },
-  S_RE: { FED: -5 },
-  S_TECH: { SEMI: 0.4, VIX: -0.3 },
-  S_POWER: {}
-};
 var WORLD_CATALOG = [...VN_CATALOG, ...WORLD_EXTRA_FACTORS, ...SECTOR_TARGETS];
-function weekdays(start, n) {
-  const out = [];
-  const d = /* @__PURE__ */ new Date(`${start}T00:00:00Z`);
-  while (out.length < n) {
-    const dow = d.getUTCDay();
-    if (dow !== 0 && dow !== 6) out.push(d.toISOString().slice(0, 10));
-    d.setUTCDate(d.getUTCDate() + 1);
-  }
-  return out;
-}
-function makeSyntheticWorld(seed = 11) {
-  const rng = mulberry32(seed);
-  const N = 1600;
-  const tradingDays = weekdays("2020-01-01", N);
-  const ids = WORLD_MARKETS.map((m) => m.id);
-  const K = ids.length;
-  const A = Array.from({ length: K }, () => new Array(K).fill(0));
-  for (let i = 0; i < K; i++) A[i][i] = 0.05;
-  const fromUs = [0.02, 0.1, 0.25, 0.2, 0.15, 0.18];
-  fromUs.forEach((v, i) => A[i][0] = i === 0 ? 0.05 : v);
-  A[5][1] = 0.08;
-  A[5][3] = 0.05;
-  A[5][4] = 0.04;
-  const sd = [1, 1.2, 1.1, 1.3, 1.1, 1.2];
-  const R = [new Array(K).fill(0)];
-  for (let t = 1; t < N; t++) {
-    const common = randn(rng);
-    R.push(R[t - 1].map((_, i) => A[i].reduce((s, a, j) => s + a * R[t - 1][j], 0) + sd[i] * (0.92 * randn(rng) + 0.39 * common)));
-  }
-  const markets = {};
-  ids.forEach((id, i) => markets[id] = R.map((r) => r[i]));
-  const specs = [
-    { idx: 320, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [1]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.6, S_TEXTILE: -2.2 }, llm: 0.86 },
-    { idx: 520, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [2]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.8, S_TEXTILE: -2 }, llm: 0.9 },
-    { idx: 700, kind: "surprise", type: "trade_policy", title: "Th\xF4ng b\xE1o thu\u1EBF quan m\u1EDBi c\u1EE7a M\u1EF9 [3]", region: "US", hint: ["S_SEAFOOD", "S_TEXTILE"], pol: -1, effects: { S_SEAFOOD: -2.4, S_TEXTILE: -2.4, S_STEEL: -1 }, llm: 0.88 },
-    { idx: 400, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [1]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_BANK: -1.5, S_RE: -1.8, S_SEC: -1.2 } },
-    { idx: 600, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [2]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_BANK: -1.4, S_RE: -2 } },
-    { idx: 800, kind: "scheduled", type: "monetary_policy", title: "H\u1ECDp ch\xEDnh s\xE1ch c\u1EE7a Fed [3]", region: "US", hint: ["S_BANK", "S_RE"], pol: -1, effects: { S_RE: -1.7, S_SEC: -1.5 } },
-    { idx: 450, kind: "scheduled", type: "macro_release", title: "C\xF4ng b\u1ED1 PMI s\u1EA3n xu\u1EA5t Trung Qu\u1ED1c [1]", region: "CN", hint: ["S_STEEL", "S_PORT"], pol: 1, effects: { S_STEEL: 1.4, S_PORT: 1.2 } },
-    { idx: 650, kind: "scheduled", type: "macro_release", title: "C\xF4ng b\u1ED1 PMI s\u1EA3n xu\u1EA5t Trung Qu\u1ED1c [2]", region: "CN", hint: ["S_STEEL", "S_PORT"], pol: 1, effects: { S_STEEL: 1.2, S_PORT: 1 } },
-    { idx: 900, kind: "surprise", type: "commodity_shock", title: "Bi\u1EBFn \u0111\u1ED9ng m\u1EA1nh c\u1EE7a gi\xE1 d\u1EA7u", region: "GLOBAL", hint: ["S_OIL"], pol: 1, effects: {}, llm: 0.8 },
-    { idx: 1e3, kind: "surprise", type: "geopolitical", title: "S\u1EF1 ki\u1EC7n \u0111\u1ECBa ch\xEDnh tr\u1ECB [1]", region: "GLOBAL", hint: ["S_SEC"], pol: -1, effects: {}, llm: 0.75 },
-    { idx: 1100, kind: "scheduled", type: "macro_release", title: "S\u1ED1 li\u1EC7u vi\u1EC7c l\xE0m M\u1EF9", region: "US", hint: ["S_SEC"], pol: -1, effects: {} },
-    { idx: N - 2, kind: "scheduled", type: "index_reclassification", title: "\u0110\xE1nh gi\xE1 ph\xE2n lo\u1EA1i th\u1ECB tr\u01B0\u1EDDng c\u1EE7a t\u1ED5 ch\u1EE9c ch\u1EC9 s\u1ED1", region: "GLOBAL", hint: ["S_SEC", "S_BANK"], pol: 1, effects: {} }
-  ];
-  const events = [];
-  const plantedEventEffects = {};
-  specs.forEach((s, k) => {
-    const id = `ev${k + 1}`;
-    const prev = tradingDays[s.idx - 1];
-    events.push({
-      id,
-      kind: s.kind,
-      type: s.type,
-      titleVi: s.title,
-      tsUtc: `${prev}T09:30:00Z`,
-      region: s.region,
-      sectorsHint: s.hint,
-      polarityHint: s.pol,
-      source: { name: "[t\xEAn ngu\u1ED3n]", url: "[\u0111\u01B0\u1EDDng d\u1EABn]" },
-      extraction: s.llm ? { method: "llm", confidence: s.llm, reviewed: true } : { method: "manual", confidence: 1, reviewed: true }
-    });
-    plantedEventEffects[id] = Object.fromEntries(Object.entries(s.effects).map(([k2, v]) => [k2, Math.round(v * EVENT_SCALE * 10) / 10]));
-  });
-  const betaMkt = { S_BANK: 1.2, S_SEC: 1.4, S_RE: 1.3, S_STEEL: 1.1, S_OIL: 0.9, S_SEAFOOD: 0.8, S_TEXTILE: 0.9, S_PORT: 1, S_TECH: 1.1, S_POWER: 0.7 };
-  const sectors = {};
-  VN_SECTORS.forEach((s) => sectors[s.id] = markets.VN.map((m) => betaMkt[s.id] * m + 0.55 * randn(rng)));
-  specs.forEach((s, k) => {
-    for (const sec of Object.keys(s.effects)) {
-      const eff = plantedEventEffects[`ev${k + 1}`][sec];
-      sectors[sec][s.idx] += eff;
-      if (s.idx + 1 < N) sectors[sec][s.idx + 1] += eff * 0.5;
-    }
-  });
-  const exposures = [];
-  const stockBetas = { TARIFF: [], CONTAINER: [] };
-  const plan = [
-    // sector, prefix, count, US share, sector beta TARIFF, sector beta CONTAINER, tau
-    ["S_SEAFOOD", "SEA", 6, 35, -1.8, -0.2, 0.5],
-    ["S_TEXTILE", "TEX", 6, 40, -1.6, -0.1, 0.5],
-    ["S_STEEL", "STL", 5, 8, -0.5, 0, 0.25],
-    ["S_PORT", "PRT", 5, 12, -0.3, 1.4, 0.4],
-    ["S_OIL", "OIL", 4, 3, 0, 0, 0.2],
-    ["S_BANK", "BNK", 6, 0, -0.1, 0, 0.15],
-    ["S_TECH", "TCH", 4, 25, -0.3, 0.1, 0.3]
-  ];
-  for (const [sec, pre, n2, us, bT, bC, tau] of plan) {
-    for (let i = 0; i < n2; i++) {
-      const code = `${pre}${i + 1}`;
-      const usShare = Math.max(0, Math.min(70, Math.round(us * (0.6 + 0.8 * rng()))));
-      const eu = Math.round((100 - usShare) * (us > 0 ? 0.25 : 0.05) * (0.6 + 0.8 * rng()));
-      const cn = Math.round((100 - usShare - eu) * 0.12);
-      const vn = 100 - usShare - eu - cn;
-      exposures.push({
-        code,
-        sectorId: sec,
-        revenueByRegion: { VN: vn, US: usShare, EU: eu, CN: cn },
-        commodityCostShare: Math.round((0.15 + 0.4 * rng()) * 100) / 100,
-        fxRevenueShare: Math.round((100 - vn) / 100 * 100) / 100,
-        fxDebtShare: Math.round(0.35 * rng() * 100) / 100,
-        asOfPeriod: "2026-03",
-        sourceRef: "BCTC [k\u1EF3], thuy\u1EBFt minh [m\u1EE5c]"
-      });
-      const se = 0.35 + 0.9 * rng();
-      stockBetas.TARIFF.push({ code, sectorId: sec, beta: bT + tau * randn(rng) + se * randn(rng), se });
-      const se2 = 0.35 + 0.9 * rng();
-      stockBetas.CONTAINER.push({ code, sectorId: sec, beta: bC + tau * randn(rng) + se2 * randn(rng), se: se2 });
-    }
-  }
-  const store = new InMemoryVintageStore();
-  const n = 222;
-  const start = "2008-01";
-  const ar = (phi, mu, s, x0, floor = -Infinity) => {
-    const y = [x0];
-    for (let i = 1; i < n; i++) y.push(Math.max(floor, mu + phi * (y[i - 1] - mu) + s * randn(rng)));
-    return y;
-  };
-  const lvl = (s, x0) => {
-    const y = [x0];
-    for (let i = 1; i < n; i++) y.push(y[i - 1] * Math.exp(s * randn(rng) / 100));
-    return y;
-  };
-  const raw = {
-    FED: ar(0.985, 2, 0.35, 2, 0),
-    DXY: lvl(1.5, 85),
-    OIL: lvl(8, 80),
-    CNY: lvl(0.6, 7),
-    STEEL: lvl(5, 600),
-    CONTAINER: lvl(5, 1500),
-    PMI_CN: ar(0.7, 50, 1.2, 50),
-    PMI_US: ar(0.7, 52, 1.4, 52),
-    SEMI: lvl(4, 100),
-    VIX: ar(0.8, 18, 3, 18, 9),
-    EM_FLOWS: ar(0.5, 0, 2, 0),
-    TARIFF: lvl(6, 100),
-    MSCI_EM: lvl(4.5, 1e3)
-  };
-  const ld = (x) => x.map((v, i) => i === 0 ? 0 : 100 * Math.log(v / x[i - 1]));
-  const dd = (x) => x.map((v, i) => i === 0 ? 0 : v - x[i - 1]);
-  const stat = {
-    FED: dd(raw.FED),
-    DXY: ld(raw.DXY),
-    OIL: ld(raw.OIL),
-    CNY: ld(raw.CNY),
-    STEEL: ld(raw.STEEL),
-    CONTAINER: ld(raw.CONTAINER),
-    PMI_CN: raw.PMI_CN.map((v) => v - 50),
-    PMI_US: raw.PMI_US.map((v) => v - 52),
-    SEMI: ld(raw.SEMI),
-    VIX: raw.VIX.map((v) => v - 18),
-    EM_FLOWS: raw.EM_FLOWS.slice(),
-    TARIFF: ld(raw.TARIFF),
-    MSCI_EM: ld(raw.MSCI_EM)
-  };
-  const pub = Object.fromEntries(Object.entries(catalogById(WORLD_CATALOG)).map(([id, m]) => [id, m.pubLagMonths]));
-  const market = Array.from({ length: n }, () => 2.4 * randn(rng));
-  for (const [sec, eff] of Object.entries(TRUE_WORLD_EFFECTS)) {
-    const ret = new Array(n).fill(0);
-    for (let t = 1; t < n; t++) {
-      let r = 0.5 + market[t] + 1.2 * randn(rng);
-      for (const [f, b] of Object.entries(eff)) {
-        const src = t - 1 - (pub[f] ?? 0);
-        if (src >= 0) r += b * stat[f][src];
-      }
-      ret[t] = r;
-    }
-    const idx = [1e3];
-    for (let t = 1; t < n; t++) idx.push(idx[t - 1] * Math.exp(ret[t] / 100));
-    raw[sec] = idx;
-  }
-  const obs = [];
-  for (const meta of [...WORLD_EXTRA_FACTORS, ...SECTOR_TARGETS, ...VN_CATALOG.filter((m) => ["FED", "DXY", "OIL"].includes(m.id))]) {
-    const v = raw[meta.id];
-    if (!v) continue;
-    for (let i = 0; i < n; i++) {
-      const period = addMonths(start, i);
-      obs.push({ seriesId: meta.id, period, value: v[i], asOf: estimateAsOf(period, meta.pubLagMonths, meta.typicalReleaseDay) });
-    }
-  }
-  store.upsert(obs);
-  return { data: { tradingDays, markets, sectors, events, plantedEventEffects, exposures, stockBetas }, store, catalog: WORLD_CATALOG };
-}
 
 // src/macro-center/src/world-chat-tools.ts
 var factorIds2 = WORLD_FACTOR_IDS;
@@ -3658,7 +3387,6 @@ export {
   InMemoryVintageStore,
   MACRO_CHAT_SYSTEM_PROMPT,
   MACRO_TOOL_SPECS,
-  SYNTHETIC_NOTICE,
   VN_CATALOG,
   VN_SECTORS,
   WORLD_CATALOG,
@@ -3670,7 +3398,6 @@ export {
   WORLD_PREREG_PAIRS,
   WORLD_PREREG_VERSION,
   WORLD_SCENARIOS,
-  WORLD_SYNTHETIC_NOTICE,
   WORLD_TOOL_SPECS,
   catalogById,
   checkQuality,
@@ -3679,8 +3406,6 @@ export {
   createWorldApi,
   createWorldChatTools,
   importSeriesCsv,
-  makeSyntheticStore,
-  makeSyntheticWorld,
   normalizePeriod,
   runConfirmatory,
   toAnthropicTools,

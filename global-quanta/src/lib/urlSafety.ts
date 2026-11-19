@@ -19,6 +19,13 @@ const TRUSTED_DOMAINS = [
   "bloomberg.com",
   "fiinpro.com",
   "vietstock.vn",
+  // V3 (19/11/2026): nguồn chính thức của sự kiện cơ cấu thị trường / vĩ mô (trước đây nguồn LSEG bị ẩn liên kết "URL chưa xác thực")
+  "lseg.com",
+  "ftserussell.com",
+  "msci.com",
+  "gso.gov.vn",
+  "federalreserve.gov",
+  "imf.org",
 ];
 
 export function isTrustedUrl(url: string | null | undefined): boolean {
