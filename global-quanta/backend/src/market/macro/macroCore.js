@@ -8,8 +8,11 @@ import {
   createMacroApi, createMacroChatTools, InMemoryVintageStore, VN_CATALOG, SYNTHETIC_NOTICE,
   importSeriesCsv, checkQuality, catalogById, MACRO_TOOL_SPECS, MACRO_CHAT_SYSTEM_PROMPT, toAnthropicTools,
 } from "./vendor/macroEngine.mjs";
+import { quarantineScale } from "./scaleCheck.js";
 
 export const MIN_MONTHS = 60;
+/** Chuỗi mức dương (giá, chỉ số, tỷ giá, sản lượng) — áp kiểm tra lệch thang đo; chuỗi tỷ lệ (%, điểm PMI) không áp. */
+export const isLevelSeries = (id) => ["level", "index"].includes(BY_ID[id]?.kind);
 const BY_ID = catalogById(VN_CATALOG);
 const obsKey = (o) => `${o.seriesId}|${o.period}|${o.asOf}`;
 
@@ -84,20 +87,23 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
   let state = null;
 
   function rebuild() {
+    // V0: cổng chất lượng — điểm lệch thang đo (×100, ÷10.000…) của chuỗi mức bị cách ly khỏi engine, công bố ở /source.quarantined
+    const gate = quarantineScale(real, isLevelSeries);
+    const clean = gate.keep;
     const all = new InMemoryVintageStore();
-    if (real.length) all.upsert(real);
+    if (clean.length) all.upsert(clean);
     const coverage = coverageOf(all, today());
     // engine chỉ thấy các chuỗi còn cập nhật
     const realStore = new InMemoryVintageStore();
     const stale = new Set(coverage.staleSeries);
-    const fresh = real.filter((o) => !stale.has(o.seriesId));
+    const fresh = clean.filter((o) => !stale.has(o.seriesId));
     if (fresh.length) realStore.upsert(fresh);
     const mode = coverage.realReady ? "real" : "insufficient";
     const store = realStore;
     // Dữ liệu chỉ đổi khi nạp (dataVersion đổi) -> TTL dài; tính lại chỉ khi đổi dữ liệu hoặc ngày asOf.
     const raw = createMacroApi({ store, today, cacheTtlMs: 12 * 3600_000, maxCacheEntries: 400, notice: undefined });
     const api = { ...raw, handle: async (req) => referenceOnly(await raw.handle(req), mode) };
-    state = { mode, api, tools: createMacroChatTools(api), coverage, realCount: real.length };
+    state = { mode, api, tools: createMacroChatTools(api), coverage, realCount: real.length, quarantined: gate.held };
   }
   rebuild();
 
@@ -115,6 +121,7 @@ export function createMacroCore({ today = () => vnToday() } = {}) {
         realObservations: state.realCount,
         minMonths: MIN_MONTHS,
         ...state.coverage,
+        quarantined: state.quarantined,
       };
     },
     handle(req) {

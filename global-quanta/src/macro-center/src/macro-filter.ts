@@ -92,7 +92,16 @@ export function buildMatrixView(payload: ImpactPayloadLike, filter: FilterState)
 
 export function fmtNum(v: number, digits = 2): string {
   if (!Number.isFinite(v)) return '–';
-  return v.toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  // V0: làm tròn trước để số rất nhỏ âm không hiện "-0,00"
+  const r = Number(v.toFixed(digits)) || 0;
+  return r.toLocaleString('vi-VN', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+
+/** Số có dấu: "+1,35" / "-0,42" / "0,00" (không còn "+-0,00"). */
+export function fmtSigned(v: number, digits = 2): string {
+  if (!Number.isFinite(v)) return '–';
+  const r = Number(v.toFixed(digits)) || 0;
+  return `${r > 0 ? '+' : ''}${fmtNum(r, digits)}`;
 }
 
 export function fmtQ(q: number): string {

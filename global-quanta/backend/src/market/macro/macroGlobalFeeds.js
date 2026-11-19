@@ -8,7 +8,9 @@
 //          asOf = ngày 6 tháng kế tiếp (lịch công bố CPI của TCTK) — không dùng số liệu trước khi nó có thật.
 // asOf các nguồn khác = ngày 1 tháng kế tiếp (số liệu tháng đã biết khi tháng khép lại). Biến nội địa còn lại (M2, tín dụng, FDI, XK,
 // IIP, PMI, lãi suất liên ngân hàng VN) không có API miễn phí cập nhật -> nạp CSV qua POST /api/macro/admin/import.
-const UA = { "user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
+import { scaleOutliers } from "./scaleCheck.js";
+
+const UA = {"user-agent": "Mozilla/5.0 (compatible; GlobalQuanta/1.0)" };
 
 export const GLOBAL_FEEDS = [
   { seriesId: "FED", source: "FRED:FEDFUNDS", kind: "fred", id: "FEDFUNDS", reduce: "avg-published" },
@@ -52,12 +54,33 @@ export function parseYahooMonthly(json) {
   const r = json?.chart?.result?.[0];
   const ts = r?.timestamp ?? [];
   const close = r?.indicators?.quote?.[0]?.close ?? [];
+  const toDate = localDateFn(r?.meta?.exchangeTimezoneName);
   const out = [];
   ts.forEach((t, i) => {
     const v = close[i];
-    if (typeof v === "number" && Number.isFinite(v) && v > 0) out.push({ date: new Date(t * 1000).toISOString().slice(0, 10), value: Math.round(v * 1e4) / 1e4 });
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) out.push({ date: toDate(t), value: Math.round(v * 1e4) / 1e4 });
   });
   return out;
+}
+
+/**
+ * V0 (19/11/2026): ngày của nến theo MÚI GIỜ CỦA SÀN, không theo UTC. Yahoo đánh mốc nến bằng 00:00 giờ sàn: tỷ giá (Europe/London)
+ * trong giờ mùa hè có mốc "30/09 23:00 UTC" cho nến THÁNG 10 -> đọc theo UTC thì nến tháng 10 rơi vào tháng 9 (giá tháng sau đè lên
+ * tháng trước = nhìn trước 1 tháng cho các tháng 3–9, và mất tháng 10). Múi giờ không hợp lệ/thiếu -> UTC như cũ.
+ */
+const DATE_FMT = new Map();
+export function localDateFn(tz) {
+  if (!tz) return (t) => new Date(t * 1000).toISOString().slice(0, 10);
+  let f = DATE_FMT.get(tz);
+  if (!f) {
+    try {
+      f = new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" });
+    } catch {
+      f = null;
+    }
+    DATE_FMT.set(tz, f);
+  }
+  return f ? (t) => f.format(new Date(t * 1000)) : (t) => new Date(t * 1000).toISOString().slice(0, 10);
 }
 
 /**
@@ -90,7 +113,39 @@ export function toYoY(points) {
   return out;
 }
 
-const withReleaseDay = (months, day) => (day ? months.map((m) => ({ ...m, asOf: `${m.asOf.slice(0, 8)}${String(day).padStart(2, "0")}` })) : months);
+const periodIdx = (p) => Number(p.slice(0, 4)) * 12 + Number(p.slice(5, 7)) - 1;
+const periodOf = (i) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+
+/** Các kỳ tháng bị thiếu giữa kỳ đầu và kỳ cuối của chuỗi. */
+export function missingPeriods(months) {
+  const have = new Set(months.map((m) => m.period));
+  const out = [];
+  if (!months.length) return out;
+  for (let i = periodIdx(months[0].period); i <= periodIdx(months.at(-1).period); i++) if (!have.has(periodOf(i))) out.push(periodOf(i));
+  return out;
+}
+
+/**
+ * Thay/điền các kỳ `need` bằng giá cuối tháng từ nến ngày — chỉ khi giá ngày không lệch thang so với trung vị của chuỗi tháng
+ * (nến ngày cũng có thể lỗi). Kỳ không dựng được thì bỏ hẳn (để trống, không nội suy). Điểm dựng lại gắn `daily: true`.
+ */
+export function fillFromDaily(months, dailyMonths, need) {
+  const want = new Set(need);
+  const byDaily = new Map(dailyMonths.map((m) => [m.period, m]));
+  const good = months.filter((m) => !want.has(m.period));
+  const filled = [];
+  for (const p of want) {
+    const d = byDaily.get(p);
+    if (!d) continue;
+    const probe = [...good, { period: p, value: d.value }].sort((a, b) => (a.period < b.period ? -1 : 1));
+    if (scaleOutliers(probe).has(p)) continue;
+    good.push({ period: p, value: d.value, asOf: nextMonthFirst(p), daily: true });
+    filled.push(p);
+  }
+  return { months: good.sort((a, b) => (a.period < b.period ? -1 : 1)), filled: filled.sort() };
+}
+
+const withReleaseDay =(months, day) => (day ? months.map((m) => ({ ...m, asOf: `${m.asOf.slice(0, 8)}${String(day).padStart(2, "0")}` })) : months);
 
 async function getText(url, fetchImpl, headers = UA) {
   const r = await fetchImpl(url, { headers, signal: AbortSignal.timeout(45_000) });
@@ -111,10 +166,26 @@ export async function fetchGlobalFeeds({ todayIso, fetchImpl = globalThis.fetch,
           { ...UA, accept: "application/vnd.sdmx.data+csv;version=1.0.0" }));
         if (f.transform === "yoy") points = toYoY(points);
       } else points = parseYahooMonthly(JSON.parse(await getText(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(f.id)}?range=25y&interval=1mo`, fetchImpl)));
-      const months = withReleaseDay(toClosedMonths(points, todayIso, f.reduce ?? "last"), f.releaseDay);
+      let months = withReleaseDay(toClosedMonths(points, todayIso, f.reduce ?? "last"), f.releaseDay);
       if (!months.length) throw new Error("nguồn trả rỗng");
-      for (const m of months) observations.push({ seriesId: f.seriesId, ...m, source: f.source });
-      report[f.seriesId] = { source: f.source, months: months.length, first: months[0].period, last: months.at(-1).period };
+      let filled = [];
+      // V0: nến THÁNG của Yahoo thiếu kỳ (VND=X thiếu tháng 10 nhiều năm) hoặc lệch thang (÷10.000) -> dựng giá cuối tháng từ nến NGÀY
+      if (f.kind === "yahoo") {
+        const need = [...missingPeriods(months), ...scaleOutliers(months).keys()];
+        if (need.length) {
+          try {
+            const daily = parseYahooMonthly(JSON.parse(await getText(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(f.id)}?range=25y&interval=1d`, fetchImpl)));
+            ({ months, filled } = fillFromDaily(months, toClosedMonths(daily, todayIso, "last"), need));
+          } catch (e) {
+            report[`${f.seriesId}:daily`] = { error: e.message };
+          }
+        }
+      }
+      for (const m of months) {
+        const { daily, ...obs } = m;
+        observations.push({ seriesId: f.seriesId, ...obs, source: daily ? `${f.source} · nến ngày` : f.source });
+      }
+      report[f.seriesId] = { source: f.source, months: months.length, first: months[0].period, last: months.at(-1).period, ...(filled.length ? { filledFromDaily: filled } : {}) };
     } catch (e) {
       report[f.seriesId] = { source: f.source, error: e.message };
     }

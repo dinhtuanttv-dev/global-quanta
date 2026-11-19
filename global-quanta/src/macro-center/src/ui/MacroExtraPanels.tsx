@@ -8,6 +8,8 @@ import type { RegimeImpactPayload, RegimePayload, ReportPayload, SeriesPayload, 
 
 const fmt = (x: number, d = 2) => x.toLocaleString('vi-VN', { maximumFractionDigits: d, minimumFractionDigits: d });
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+/** Xác suất lọc của HMM: không hiện "100%" tuyệt đối — mô hình 1–3 biến không chắc chắn tới mức đó. */
+const pctProb = (x: number) => (x >= 0.995 ? '> 99%' : x <= 0.005 ? '< 1%' : pct(x));
 const SOURCE_VI: Record<string, string> = { 'gateway-hose': 'HOSE (lịch sử giá Gateway)', csv: 'CSV nạp tay' };
 const sourceLabel = (s: string) => SOURCE_VI[s] ?? s.replace(/^csv:/, 'CSV · ');
 
@@ -55,6 +57,16 @@ export function DataSourcePanel({ source, sourceError, series }: { source: Sourc
           </tbody>
         </table>
         </div>
+        {(source.quarantined?.length ?? 0) > 0 && (
+          <div className="ds-quarantine" data-testid="mc-quarantine">
+            <p><b>Đã cách ly {source.quarantined!.length} điểm lệch thang đo</b> — không đưa vào phân tích, không tự sửa, không nội suy:</p>
+            <ul>
+              {source.quarantined!.map((q) => (
+                <li key={`${q.seriesId}|${q.period}`}>{q.seriesId} {q.period}: {fmt(q.value, q.value < 100 ? 4 : 0)} ({q.reason}{q.source ? `; nguồn ${sourceLabel(q.source)}` : ''})</li>
+              ))}
+            </ul>
+          </div>
+        )}
       </details>
       <p className="muted">
         Tự động (tháng đã đóng, 2 lần/ngày): chỉ số HOSE từ Gateway; CPI Việt Nam (IMF, số liệu Cục Thống kê); FED, giá dầu Brent (FRED); DXY, USD/VND thị trường (Yahoo).
@@ -90,12 +102,21 @@ export function RegimePanel({ client, asOf, factors, targets, names, enabled }: 
   return (
     <div className="rg">
       <p>
-        Hiện tại: <b>{r.current.label}</b> (xác suất {pct(Math.max(...r.current.probs))}, kỳ {r.lastPeriod}) · {r.K} chế độ chọn theo BIC trên {r.features.join(', ')}.
+        Hiện tại: <b>{r.current.label}</b> (xác suất lọc {pctProb(Math.max(...r.current.probs))}, kỳ {r.lastPeriod}) · {r.K} chế độ chọn theo BIC trên {r.features.join(', ')}.
       </p>
+      {r.features.length === 1 && (
+        <p className="muted" role="note" data-testid="mc-regime-single">
+          Mô hình đang chạy trên <b>1 biến ({r.features[0]})</b> — {r.features[0] === 'CPI' ? 'thực chất là chế độ lạm phát' : `thực chất là chế độ của ${r.features[0]}`}, chưa phải chế độ vĩ mô đầy đủ
+          (thiết kế gồm lãi suất liên ngân hàng, CPI và M2; hai biến còn lại chưa có số liệu thật).
+        </p>
+      )}
+      {r.bicByK && r.bicByK.length > 1 && r.bicByK[r.bicByK.length - 1].K === r.K && r.bicByK[r.bicByK.length - 1].bic < r.bicByK[r.bicByK.length - 2].bic && (
+        <p className="muted" role="note" data-testid="mc-regime-kcap">Số chế độ {r.K} là mức trần được thử; BIC vẫn còn giảm nên con số này không phải do dữ liệu tự chọn.</p>
+      )}
       <div className="rg-strip" role="img" aria-label={`Chế độ 36 tháng gần nhất, kết thúc ${r.lastPeriod}`}>
         {recent.map((h) => {
           const st = h.probs.indexOf(Math.max(...h.probs));
-          return <i key={h.period} data-state={st} title={`${h.period}: ${r.summary[st]?.label ?? st} (${pct(Math.max(...h.probs))})`} />;
+          return <i key={h.period} data-state={st} title={`${h.period}: ${r.summary[st]?.label ?? st} (${pctProb(Math.max(...h.probs))})`} />;
         })}
       </div>
       <ul className="rg-legend">

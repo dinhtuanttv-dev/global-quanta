@@ -228,7 +228,8 @@ export function generateAlerts(args: {
     const name = args.factorNamesVi?.[f] ?? f;
     alerts.push({
       id: `z:${f}`, kind: 'factor-extreme', level: Math.abs(z) >= zHigh ? 'high' : 'warn',
-      messageVi: `${name} đang ${z > 0 ? 'cao' : 'thấp'} bất thường: lệch ${z > 0 ? '+' : ''}${z.toFixed(1)} độ lệch chuẩn so với lịch sử.`,
+      // V0: "bất thường" chỉ khi |z| ≥ 2 (≈ 5% hai đuôi); 1,5–2 là "hơn thường lệ". Số thập phân kiểu Việt Nam.
+      messageVi: `${name} đang ${z > 0 ? 'cao' : 'thấp'} ${Math.abs(z) >= 2 ? 'bất thường' : 'hơn thường lệ'}: lệch ${z > 0 ? '+' : ''}${z.toFixed(1).replace('.', ',')} độ lệch chuẩn so với lịch sử.`,
     });
   }
   if (args.regime) {

@@ -35,10 +35,12 @@ export interface SourceSeries { id: string; nameVi: string; role: 'factor' | 'ta
 export interface SourcePayload {
   mode: 'real' | 'insufficient' | 'synthetic'; reason?: string | null; notice: string | null; minMonths: number; realObservations: number;
   series: SourceSeries[]; usableFactors: string[]; usableTargets: string[]; staleSeries: string[];
+  /** V0: điểm lệch thang đo bị cách ly khỏi phân tích (Gateway mới; bản cũ không có trường này). */
+  quarantined?: { seriesId: string; period: string; value: number; seriesMedian: number; source: string | null; reason: string }[];
 }
 export interface RegimeState { state: number; label: string; expectedDurationMonths: number; stationaryShare: number; meansByFeature: Record<string, number> }
 export interface RegimePayload extends Notice {
-  asOf: string; firstPeriod: string; lastPeriod: string; features: string[]; K: number;
+  asOf: string; firstPeriod: string; lastPeriod: string; features: string[]; K: number; bicByK?: { K: number; bic: number }[];
   summary: RegimeState[]; current: { probs: number[]; state: number; label: string }; history: { period: string; probs: number[] }[]; note?: string;
 }
 export interface RegimeImpactPayload extends Notice {
