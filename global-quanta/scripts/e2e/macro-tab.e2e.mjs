@@ -1,5 +1,5 @@
 // V6 (19/11/2026) — Kiểm tra giao diện tab PHÂN TÍCH VĨ MÔ trên một bản dựng thật (dinhtuan-ck hoặc vite preview).
-// Chạy: E2E_EMAIL=... E2E_PASSWORD=... npx -y -p playwright@1.49.1 node scripts/e2e/macro-tab.e2e.mjs https://dinhtuan-ck.vercel.app
+// Chạy: E2E_EMAIL=... E2E_PASSWORD=... [E2E_AUTH_GATEWAY=http://localhost:8787] npx -y -p playwright@1.49.1 node scripts/e2e/macro-tab.e2e.mjs https://dinhtuan-ck.vercel.app
 //       (lần đầu cần: npx -y playwright@1.49.1 install chromium). Không chứa thông tin đăng nhập trong mã.
 // Kiểm ở 2 khổ (1440, 390): đủ 5 tab con, số tab không đổi khi chuyển, 0 tràn ngang, 0 lỗi trang, 0 chữ < 10px trong tab,
 // nhãn trung thực (không "liên ngân hàng" cho tỷ giá Yahoo, không "+-0,00", không "Net +…%" cho điểm ròng, không "Tỷ lệ thắng: 50%"),
@@ -16,6 +16,18 @@ const check = (w, ok, msg) => { console.log(`${ok ? "✔" : "✖"} [${w}] ${msg}
 const browser = await chromium.launch();
 for (const W of [1440, 390]) {
   const ctx = await browser.newContext({ viewport: { width: W, height: W < 768 ? 844 : 1000 } });
+  // Tuỳ chọn: E2E_AUTH_GATEWAY=http://localhost:8787 -> chuyển các route đăng nhập/dữ liệu người dùng sang một Gateway cục bộ (tài khoản thử),
+  // mọi dữ liệu thị trường vẫn lấy từ Gateway production. Dùng khi không có tài khoản thật.
+  if (process.env.E2E_AUTH_GATEWAY) {
+    const USER = /\/api\/(auth\/|market\/(watchlists|chart-state|elliott\/counts|elliott\/alerts|radar(?!\/signals)|workspace|screener-prefs))/;
+    await ctx.route(/gateway-production-1da0\.up\.railway\.app/, async (route) => {
+      const req = route.request();
+      const cors = { "access-control-allow-origin": req.headers().origin ?? "*", "access-control-allow-credentials": "true", "access-control-allow-headers": req.headers()["access-control-request-headers"] ?? "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS" };
+      if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
+      const url = USER.test(req.url()) ? req.url().replace(/^https:\/\/[^/]+/, process.env.E2E_AUTH_GATEWAY) : req.url();
+      try { const r = await route.fetch({ url, headers: { ...req.headers(), origin: BASE } }); await route.fulfill({ response: r, headers: { ...r.headers(), ...cors } }); } catch { await route.abort().catch(() => {}); }
+    });
+  }
   const p = await ctx.newPage();
   const errs = [];
   p.on("pageerror", (e) => errs.push(e.message));
