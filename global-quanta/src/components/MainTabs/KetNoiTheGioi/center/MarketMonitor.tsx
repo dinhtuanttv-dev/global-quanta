@@ -94,14 +94,14 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
           <Stat label="Lan truyền giữa các thị trường" value={spillover == null ? "—" : `${spillover.toFixed(0)}%`} note="Diebold–Yilmaz, gần đây" />
         </div>
         <div className="relative mt-3">
-          <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
+          <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
             <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
             <rect x={L} y={T} width={sx(-2) - L} height={H - T - B} fill="rgba(230,103,103,0.05)" />
             <rect x={sx(2)} y={T} width={W - R - sx(2)} height={H - T - B} fill="rgba(57,135,229,0.05)" />
             <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
             <line x1={L} x2={W - R} y1={sy(50)} y2={sy(50)} stroke="rgba(148,163,184,0.2)" strokeDasharray="3 4" />
-            {[-4, -2, 0, 2, 4].map((v) => <text key={v} x={sx(v)} y={H - B + 13} textAnchor="middle" fontSize={9} fill="#64748b">{v > 0 ? `+${v}` : v === 0 ? "0" : `−${-v}`}</text>)}
-            {[0, 50, 100].map((v) => <text key={v} x={L - 6} y={sy(v) + 3} textAnchor="end" fontSize={9} fill="#64748b">{v}%</text>)}
+            {[-4, -2, 0, 2, 4].map((v) => <text key={v} x={sx(v)} y={H - B + 13} textAnchor="middle" fontSize={10} fill="#94a3b8">{v > 0 ? `+${v}` : v === 0 ? "0" : `−${-v}`}</text>)}
+            {[0, 50, 100].map((v) => <text key={v} x={L - 6} y={sy(v) + 3} textAnchor="end" fontSize={10} fill="#94a3b8">{v}%</text>)}
             <text x={(L + W - R) / 2} y={H - 6} textAnchor="middle" fontSize={10} fill="#94a3b8">Biến động phiên gần nhất (z, độ lệch chuẩn). Ngoài ±4 đặt ở rìa</text>
             <text x={12} y={(T + H - B) / 2} textAnchor="middle" fontSize={10} fill="#94a3b8" transform={`rotate(-90 12 ${(T + H - B) / 2})`}>Vị trí trong biên 1 năm</text>
             {plotted.map((i) => {
@@ -110,7 +110,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
               return <g key={i.id} tabIndex={0} aria-label={`${i.nameVi}: ${fmtChange(i)}, z ${fmtSigned(i.z, 2)}, vị trí biên ${i.rangePct!.toFixed(0)}%`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onFocus={() => setHover(i)} onBlur={() => setHover(null)} style={{ outline: "none" }} data-testid={`monitor-pt-${i.id}`}>
                 <circle cx={x} cy={y} r={12} fill="transparent" />
                 <Mark x={x} y={y} group={i.group} r={hover?.id === i.id ? 6.5 : 4.5} unusual={!!i.unusual} />
-                {labeled.has(i.id) && <text x={x + (toLeft ? -9 : 9)} y={y + 3.5} textAnchor={toLeft ? "end" : "start"} fontSize={9.5} fill="#cbd5e1">{i.nameVi}</text>}
+                {labeled.has(i.id) && <text x={x + (toLeft ? -9 : 9)} y={y + 3.5} textAnchor={toLeft ? "end" : "start"} fontSize={10} fill="#cbd5e1">{i.nameVi}</text>}
               </g>;
             })}
           </svg></div>

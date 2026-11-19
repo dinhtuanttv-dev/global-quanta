@@ -6,6 +6,7 @@ import { useWorldStrategy } from "../../../../hooks/useWorldStrategy";
 import { useWorldSectorScores } from "../../../../hooks/useWorldSectorScores";
 import { useAppStore } from "../../../../store/useAppStore";
 import { divergingColor, fmtZ, REGION_ORDER, REGION_SHORT } from "../../../../lib/worldSectors/types";
+import { TONE_CHIP } from "../ui/contrast";
 import { MEDIUM_STANCE_VI, QUADRANT_VI, SHORT_STANCE_VI, type MediumRow, type MediumStance, type ShortRow } from "../../../../lib/worldSectors/strategyTypes";
 import EvidenceTag from "../EvidenceTag";
 import WorldSectorDrawer from "../worldSectors/WorldSectorDrawer";
@@ -14,7 +15,8 @@ import { basketConcentration, isConcentrated } from "../center/world2d";
 const muted = { color: "var(--text-tertiary)" };
 const num = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d }));
 const fmtDate = (d: string | null | undefined) => (d ? d.split("-").reverse().join("/") : "—");
-const STANCE_COLOR = { overweight: divergingColor(2.5), underweight: divergingColor(-2.5), neutral: "rgba(148,163,184,0.25)", na: "rgba(148,163,184,0.15)" } as const;
+// G1/L2: nhãn tư thế nền nhạt + chữ màu (trước: chữ trắng trên nền đặc, "Ưu tiên" 2,32:1).
+const STANCE_CHIP = { overweight: TONE_CHIP.up, underweight: TONE_CHIP.down, neutral: TONE_CHIP.neutral, na: TONE_CHIP.none } as const;
 const VOTE = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "0");
 
 function Card({ title, tag, children }: { title: string; tag?: React.ReactNode; children: React.ReactNode }) {
@@ -57,7 +59,7 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
           {rows.map((r) => (
             <tr key={r.icb} onClick={() => onOpen(r.icb)} style={{ borderTop: "1px solid rgba(148,163,184,0.08)", cursor: "pointer" }} title={`${r.icBasisVi} σ tương đối ${num(r.sigmaBps)} đcb/phiên.`}>
               <td className="py-1.5" style={{ color: "#f1f5f9" }}>{r.parent ? "· " : ""}{r.nameVi}<ConcentrationFlag constituents={r.constituents} />{r.evidence?.label === "EVIDENCE" && <span className="ml-1 text-[10px] font-bold px-1 rounded" style={{ background: "rgba(52,211,153,0.12)", color: "var(--positive)" }}>ĐẠT CẤP NGÀNH</span>}</td>
-              <td className="text-center"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: STANCE_COLOR[r.stance], color: "#f1f5f9" }}>{SHORT_STANCE_VI[r.stance]}</span></td>
+              <td className="text-center"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={STANCE_CHIP[r.stance]} data-stance={r.stance}>{SHORT_STANCE_VI[r.stance]}</span></td>
               <td className="text-center whitespace-nowrap"><AlphaBar a={r.alphaBps} max={max} /> <b style={{ color: "#f1f5f9" }}>{fmtZ(r.alphaBps, 1)}</b></td>
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
               <td className="text-center" style={muted}>{fmtZ(r.zx, 2)}</td>

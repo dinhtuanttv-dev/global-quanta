@@ -74,9 +74,12 @@ for (const W of [1440, 390]) {
       const radii = uniq(els.map((e) => getComputedStyle(e).borderTopLeftRadius).filter((r) => r !== "0px" && r !== "50%"));
       const inter = [...root.querySelectorAll("button, a[href], select, input, [role=button], summary")].filter((e) => e.getClientRects().length > 0);
       // liên kết nằm trong câu văn được miễn (WCAG 2.5.8 ngoại lệ inline)
-      const small = inter.filter((e) => { if (e.tagName === "A" && e.closest("p, li") && !e.matches("[class*='rounded'], [class*='border']")) return false; const r = e.getBoundingClientRect(); return r.width > 0 && (r.height < 24 || r.width < 24); });
-      const under10 = textEls.filter((e) => parseFloat(getComputedStyle(e).fontSize) < 10);
-      return { height: root.scrollHeight, under10: under10.length, under10Samples: uniq(under10.map((e) => `${getComputedStyle(e).fontSize} ${e.textContent.trim().slice(0, 24)}`)).slice(0, 8),
+      // ô chọn nằm trong <label>: vùng bấm là cả nhãn (WCAG 2.5.8)
+      const targetRect = (e) => (e.tagName === "INPUT" && e.closest("label") ? e.closest("label") : e).getBoundingClientRect();
+      const small = inter.filter((e) => { if (e.tagName === "A" && e.closest("p, li") && !e.matches("[class*='rounded'], [class*='border']")) return false; const r = targetRect(e); return r.width > 0 && (r.height < 24 || r.width < 24); });
+      const shown = (e) => { const svg = e.closest("svg"); const fs = parseFloat(getComputedStyle(e).fontSize); if (!svg || !svg.viewBox?.baseVal?.width) return fs; return fs * svg.getBoundingClientRect().width / svg.viewBox.baseVal.width; };
+      const under10 = textEls.filter((e) => shown(e) < 9.95);
+      return { height: root.scrollHeight, under10: under10.length, under10Samples: uniq(under10.map((e) => `${shown(e).toFixed(1)}px ${e.textContent.trim().slice(0, 24)}`)).slice(0, 8),
         lowContrast: low.length, lowSamples: low.slice(0, 6), smallTargets: small.length, smallSamples: small.slice(0, 6).map((e) => `${(e.textContent || e.getAttribute("aria-label") || e.tagName).trim().slice(0, 22)} ${Math.round(e.getBoundingClientRect().width)}×${Math.round(e.getBoundingClientRect().height)}`),
         nSizes: sizes.length, sizes, nColors: colors.length, nRadii: radii.length, radii };
     }, T);

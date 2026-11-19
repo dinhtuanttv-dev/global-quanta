@@ -7,6 +7,17 @@ export const SERIES_COLORS = { s1: "#3987e5", s2: "#d95926", s3: "#199e70", s4: 
 export interface ChartSeries { key: string; label: string; color: string; points: [string, number][] }
 
 const toMs = (d: string) => (d.length === 7 ? Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)) - 1, 15) : Date.parse(`${d}T00:00:00Z`));
+/**
+ * G2/L7 (19/11/2026): mốc trục thời gian. Khoảng ≤ 120 ngày ghi ngày/tháng, dài hơn ghi tháng/năm; bỏ mốc trùng nhãn
+ * (trước đây 5 mốc cách đều luôn ghi tháng/năm -> chuỗi 4 tuần hiện "10/2026, 11/2026, 11/2026, 11/2026, 11/2026").
+ */
+export function xTicks(x0: number, x1: number, n = 5): { ms: number; label: string }[] {
+  const short = (x1 - x0) / 86_400_000 <= 120;
+  const fmt = (ms: number) => { const d = new Date(ms).toISOString(); return short ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : `${d.slice(5, 7)}/${d.slice(0, 4)}`; };
+  const out: { ms: number; label: string }[] = [];
+  for (let i = 0; i < n; i++) { const ms = x0 + ((x1 - x0) * i) / (n - 1 || 1); const label = fmt(ms); if (!out.some((t) => t.label === label)) out.push({ ms, label }); }
+  return out;
+}
 const fmtDate = (d: string) => (d.length === 7 ? `${d.slice(5, 7)}/${d.slice(0, 4)}` : `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`);
 
 function niceTicks(lo: number, hi: number, n = 4): number[] {
@@ -57,7 +68,7 @@ export default function LineChart({ series, height = 220, yFmt = (v: number) => 
   if (!geo) return <p className="text-[10px] italic" style={{ color: "var(--text-tertiary)" }}>Chưa đủ dữ liệu để vẽ.</p>;
   const { sx, sy, x0, x1, H } = geo;
   const yt = niceTicks(geo.y0, geo.y1);
-  const xt = Array.from({ length: 5 }, (_, i) => x0 + ((x1 - x0) * i) / 4);
+  const xt = xTicks(x0, x1);
   const path = (pts: [string, number][]) => pts.map((p, i) => `${i ? "L" : "M"}${sx(toMs(p[0])).toFixed(1)},${sy(p[1]).toFixed(1)}`).join("");
   // nhãn trực tiếp: tránh chồng (giãn tối thiểu 12px)
   const ends = live.map((s) => ({ s, y: sy(s.points[s.points.length - 1][1]) })).sort((a, b) => a.y - b.y);
@@ -84,25 +95,25 @@ export default function LineChart({ series, height = 220, yFmt = (v: number) => 
         {yt.map((v) => (
           <g key={v}>
             <line x1={M.l} x2={width - M.r} y1={sy(v)} y2={sy(v)} stroke="rgba(148,163,184,0.12)" />
-            <text x={M.l - 6} y={sy(v) + 3} textAnchor="end" fontSize="9" fill="var(--text-tertiary)">{yFmt(v)}</text>
+            <text x={M.l - 6} y={sy(v) + 3} textAnchor="end" fontSize="10" fill="var(--text-tertiary)">{yFmt(v)}</text>
           </g>
         ))}
-        {xt.map((ms, i) => (
-          <text key={i} x={sx(ms)} y={height - 6} textAnchor={i === 0 ? "start" : i === 4 ? "end" : "middle"} fontSize="9" fill="var(--text-tertiary)">
-            {new Date(ms).toISOString().slice(0, 7).split("-").reverse().join("/")}
+        {xt.map((t, i) => (
+          <text key={t.label} x={sx(t.ms)} y={height - 6} textAnchor={i === 0 ? "start" : i === xt.length - 1 ? "end" : "middle"} fontSize="10" fill="var(--text-tertiary)">
+            {t.label}
           </text>
         ))}
         {refLines.map((r) => (
           <g key={r.label}>
             <line x1={M.l} x2={width - M.r} y1={sy(r.y)} y2={sy(r.y)} stroke="rgba(148,163,184,0.55)" strokeDasharray="4 3" />
-            <text x={M.l + 4} y={sy(r.y) - 3} textAnchor="start" fontSize="8.5" fill="var(--text-tertiary)">{r.label}</text>
+            <text x={M.l + 4} y={sy(r.y) - 3} textAnchor="start" fontSize="10" fill="var(--text-tertiary)">{r.label}</text>
           </g>
         ))}
         {live.map((s) => <path key={s.key} d={path(s.points)} fill="none" stroke={s.color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />)}
         {showLabels && ends.map(({ s, y }) => (
           <g key={s.key}>
             <circle cx={sx(toMs(s.points[s.points.length - 1][0]))} cy={sy(s.points[s.points.length - 1][1])} r={3} fill={s.color} stroke="#0b1220" strokeWidth={2} />
-            <text x={width - M.r + 6} y={y + 3} fontSize="9" fill="var(--text-secondary)">{yFmt(s.points[s.points.length - 1][1])} · {s.label.split(" (")[0].slice(0, 12)}</text>
+            <text x={width - M.r + 6} y={y + 3} fontSize="10" fill="var(--text-secondary)">{yFmt(s.points[s.points.length - 1][1])} · {s.label.split(" (")[0].slice(0, 12)}</text>
           </g>
         ))}
         {hx != null && (

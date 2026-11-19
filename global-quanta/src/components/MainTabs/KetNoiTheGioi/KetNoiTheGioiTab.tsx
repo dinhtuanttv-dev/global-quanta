@@ -104,6 +104,9 @@ export default function KetNoiTheGioiTab() {
     () => fetchMarketJson("/api/world/stock/HPG").then(() => true, () => false), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
   const stockProfileReady = stockProbe === true;
   const macro = data?.macro ?? null;
+  // giờ của dữ liệu giá thế giới (giờ Việt Nam), lấy từ chính payload — không phải đồng hồ máy
+  const feedIso = (data as { timestamp?: string } | null)?.timestamp ?? (macro as { fetched_at?: string } | null)?.fetched_at ?? null;
+  const feedTime = feedIso && !Number.isNaN(Date.parse(feedIso)) ? new Date(Date.parse(feedIso) + 7 * 3600_000).toISOString().slice(11, 16) : null;
   const { data: spill } = useSWR<{ spillover?: { total: number } }>(tab === "markets" ? "world-overview-spill" : null,
     () => fetchMarketJson("/api/world/overview"), { revalidateOnFocus: false, dedupingInterval: 10 * 60_000 });
 
@@ -116,7 +119,7 @@ export default function KetNoiTheGioiTab() {
   return (
     <WorldNavContext.Provider value={nav}>
     <div style={{ background: `linear-gradient(165deg, ${T.bgSurface} 0%, ${T.bgSurface2} 100%)`, border: "1px solid rgba(148,163,184,0.1)", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}
-      className="rounded-2xl shadow-xl" data-testid="world-center">
+      className="kntg-root rounded-2xl shadow-xl" data-testid="world-center">
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
@@ -125,13 +128,14 @@ export default function KetNoiTheGioiTab() {
           </h3>
           <p className="text-[10px]" style={{ color: T.textTertiary, marginTop: 3 }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
         </div>
+        {/* G2/L5: ghi rõ LUỒNG nào (giá thế giới của tab này) + giờ dữ liệu, để không mâu thuẫn với đèn kết nối của thanh trên cùng (luồng giá VN). */}
         {connected ? (
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: T.positive }}>
-            <Zap className="w-3 h-3" /> Đang kết nối trực tiếp
+          <span className="flex items-center gap-1 text-[10px]" style={{ color: T.positive }} data-testid="world-feed-status" title="Luồng giá thế giới của tab này (Gateway). Đèn kết nối ở thanh trên cùng là luồng giá Việt Nam, độc lập.">
+            <Zap className="w-3 h-3" aria-hidden /> Giá thế giới{feedTime ? ` · cập nhật ${feedTime}` : " · đã kết nối"}
           </span>
         ) : (
-          <span className="flex items-center gap-1 text-[10px]" style={{ color: T.textTertiary }}>
-            <WifiOff className="w-3 h-3 animate-pulse" /> Đang kết nối lại...
+          <span className="flex items-center gap-1 text-[10px]" style={{ color: T.textTertiary }} data-testid="world-feed-status">
+            <WifiOff className="w-3 h-3 animate-pulse" aria-hidden /> Giá thế giới: đang kết nối lại…
           </span>
         )}
       </div>

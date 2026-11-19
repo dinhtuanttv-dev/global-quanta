@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useWorldSectorScores } from "../../../../hooks/useWorldSectorScores";
 import { divergingColor, fmtZ, labelVi, REGION_ORDER, REGION_SHORT, type RegionId, type WsRow } from "../../../../lib/worldSectors/types";
+import { inkOn } from "../ui/contrast";
 import EvidenceTag from "../EvidenceTag";
 import WorldSectorDrawer from "./WorldSectorDrawer";
 
@@ -66,11 +67,11 @@ export default function WorldSectorPanel() {
                 return (
                   <tr key={r.icb} onClick={() => setOpen(r.icb)} style={{ cursor: "pointer" }}>
                     <td className="py-0.5 pr-2 truncate" style={{ color: "#f1f5f9", maxWidth: 170 }}>{r.parent ? "· " : ""}{r.nameVi}</td>
-                    <td className="text-center rounded" style={{ background: divergingColor(score), color: "#f1f5f9", minWidth: 44 }} title={`${r.nameVi}: ${labelVi[horizon === "short" ? r.short.label : r.medium.label]}`}>{fmtZ(score)}</td>
+                    <td className="text-center rounded" style={{ background: divergingColor(score), color: inkOn(divergingColor(score)), minWidth: 44 }} title={`${r.nameVi}: ${labelVi[horizon === "short" ? r.short.label : r.medium.label]}`}>{fmtZ(score)}</td>
                     {REGION_ORDER.map((reg: RegionId) => {
                       const h = r.heat[reg];
                       const z = h ? h[heatKey] : null;
-                      return <td key={reg} className="text-center rounded" style={{ background: divergingColor(z), color: z == null ? "var(--text-tertiary)" : "#f1f5f9", minWidth: 40 }}
+                      return <td key={reg} className="text-center rounded" style={{ background: divergingColor(z), color: z == null ? "var(--text-tertiary)" : inkOn(divergingColor(z)), minWidth: 40 }}
                         title={h ? `${r.nameVi} ← ${REGION_SHORT[reg]} (${h.n} mã, khớp tốt nhất: ${h.best}) · ${HEAT_LABEL[heatKey]}: ${fmtZ(z, 2)}` : `${REGION_SHORT[reg]}: không có ngành tương ứng`}>{h ? fmtZ(z) : "·"}</td>;
                     })}
                   </tr>

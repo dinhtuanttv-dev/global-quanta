@@ -51,11 +51,11 @@ export default function SectorMap2D() {
       {error && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative)" }}>Không tải được dữ liệu ngành: {error.message}</p>}
       {!strategy && !error && <div className="mt-2 h-60 animate-pulse rounded-lg" style={{ background: "rgba(148,163,184,0.05)" }} aria-busy="true" />}
       {strategy && <div className="relative mt-2">
-        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: 560, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
+        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
           <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
           <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
           <line x1={L} x2={W - R} y1={sy(0)} y2={sy(0)} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
-          {QUADRANTS.map((q) => <text key={q.text} x={q.x ? W - R - 8 : L + 8} y={q.y ? H - B - 8 : T + 14} textAnchor={q.anchor} fontSize={9} fill="rgba(148,163,184,0.5)">{q.text}</text>)}
+          {QUADRANTS.map((q) => <text key={q.text} x={q.x ? W - R - 8 : L + 8} y={q.y ? H - B - 8 : T + 14} textAnchor={q.anchor} fontSize={10} fill="rgba(148,163,184,0.75)">{q.text}</text>)}
           <text x={(L + W - R) / 2} y={H - 8} textAnchor="middle" fontSize={10} fill="#94a3b8">Ngắn hạn: z so với các ngành</text>
           <text x={12} y={(T + H - B) / 2} textAnchor="middle" fontSize={10} fill="#94a3b8" transform={`rotate(-90 12 ${(T + H - B) / 2})`}>Điểm 3 tháng</text>
           {pts.map((p) => {
@@ -68,7 +68,7 @@ export default function SectorMap2D() {
               <circle cx={sx(p.x)} cy={sy(p.y)} r={13} fill="transparent" />
               {/* Rổ tập trung vào 1–2 mã: vòng rỗng — tín hiệu thực chất là của cổ phiếu đó, không phải cả ngành */}
               <circle cx={sx(p.x)} cy={sy(p.y)} r={active ? 7.5 : 5.5} fill={p.concentrated ? "#0b1220" : c.color} stroke={p.concentrated ? c.color : active ? "#f1f5f9" : "#0b1220"} strokeWidth={p.concentrated ? 2.2 : 1.5} />
-              {labeled.has(p.icb) && <text x={sx(p.x) + (p.x > xMax * 0.55 ? -9 : 9)} y={sy(p.y) + 3.5} textAnchor={p.x > xMax * 0.55 ? "end" : "start"} fontSize={9.5} fill="#cbd5e1">{p.nameVi}</text>}
+              {labeled.has(p.icb) && <text x={sx(p.x) + (p.x > xMax * 0.55 ? -9 : 9)} y={sy(p.y) + 3.5} textAnchor={p.x > xMax * 0.55 ? "end" : "start"} fontSize={10} fill="#cbd5e1">{p.nameVi}</text>}
             </g>;
           })}
         </svg></div>
