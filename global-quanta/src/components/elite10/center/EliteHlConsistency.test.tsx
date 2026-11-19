@@ -21,7 +21,7 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: null }) }));
 vi.mock("./ConfluenceCard", () => ({ default: () => null }));
 vi.mock("./LeadershipCard", () => ({ default: () => null }));
-vi.mock("./WorldTransmissionCard", () => ({ default: () => null }));
+vi.mock("./StockImpactCard", () => ({ default: () => null }));
 vi.mock("./EliteToShadowCard", () => ({ default: () => null }));
 // Hub: chỉ kiểm cơ chế giữ Phòng họp AI trong cây -> các tab con thay bằng khối giả.
 const aiMounts = vi.hoisted(() => ({ n: 0, unmounts: 0 }));

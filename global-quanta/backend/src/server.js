@@ -36,6 +36,8 @@ import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
 import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
 import { createProfileFa } from "./market/elite/profileFa.js";
 import { createDilution } from "./market/elite/dilutionService.js";
+import { createImpactProfile } from "./market/elite/impactProfile.js";
+import { runCatalystTool } from "./market/catalystChat/catalystTools.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
@@ -392,7 +394,18 @@ app.use("/api/cotuc-store", createCotucStoreRouter({
     return { store: await getCotucStore().status(), buyTiming: getEliteBuyTiming().status(), scanner: scan ? { enabled: scan.enabled, timing: lane(scan.timing), seasonality: lane(scan.seasonality) } : null };
   },
 }));
-app.use("/api/elite", createEliteRouter({ getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+// D4 (19/11/2026): khối "Tác động lên cổ phiếu" — gom lớp tác động từ dịch vụ sẵn có, dấu từ sổ bằng chứng (impactProfile.js).
+let eliteImpact = null;
+const getEliteImpact = () => (eliteImpact ??= createImpactProfile({ sources: {
+  fa: (t) => getEliteProfileFa().ticker(t),
+  commodities: () => getCommodityService().snapshot(),
+  ws: (t) => getWsChatTools().run("ws_stock", { ticker: t }),
+  catalyst: async (t) => runCatalystTool("catalyst_ticker", { ticker: t }, await readCatalystSnapshot(getCotucStore())),
+  x6: () => getCatalystLedger().progress(),
+  radar: (t) => getMarketRuntime().eventRadar.list({ ticker: t, limit: 250 }),
+  dilution: (t) => getEliteDilution().ticker(t),
+} }));
+app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
