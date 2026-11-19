@@ -53,6 +53,7 @@ describe("StockImpactCard (D4)", () => {
     expect(t).toContain("Ước tính LNST cả năm 12.000 tỷ (+18,0% so với năm trước)");
     expect(t).toContain("Quặng sắt 62% Fe: 90,72 USD/tấn · +0,15% so với phiên trước · phản ánh chậm (~1 tháng)");
     expect(t).toContain("Giá thép châu Á (đại diện)");
+    expect(t).not.toContain("(đại diện) (đại diện)");
     expect(t).toContain("RRG Tụt hậu");
     expect(el.querySelector('[data-testid="impact-progress-catalyst"]')?.textContent).toBe("0/30 tín hiệu đủ 20 phiên · dự kiến đủ 30/11/2026");
     expect(el.querySelector('[data-testid="impact-progress-events"]')?.textContent).toBe("chấm sớm nhất 20/05/2027");

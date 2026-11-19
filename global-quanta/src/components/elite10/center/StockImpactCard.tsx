@@ -57,7 +57,7 @@ export function layerText(l: ImpactLayer): React.ReactNode {
       return <>Ước tính LNST cả năm <b>{ty(v.est)}</b> ({pct(v.nowcastYoY)} so với năm trước) · khoảng {ty(v.lo)}–{ty(v.hi)} · đã có {pct(v.cumShare, 0).replace("+", "")} luỹ kế · BCTC {v.quarter ?? "—"}</>;
     case "commodity":
       return <ul className="space-y-0.5">{(v.items ?? []).map((i: any) => (
-        <li key={i.id} data-testid={`impact-commodity-${i.id}`}>{i.nameVi}{i.proxy ? " (đại diện)" : ""}: {i.available ? <>{num(i.value, 2)} {i.unit ?? ""} · {sgn(i.changePct, 2)}% {i.basisVi ?? ""}</> : "chưa có giá"} · <span className="text-slate-400">{SPEED_SHORT[i.speed] ?? i.speed}</span></li>
+        <li key={i.id} data-testid={`impact-commodity-${i.id}`}>{i.nameVi}{i.proxy && !/đại diện/i.test(i.nameVi) ? " (đại diện)" : ""}: {i.available ? <>{num(i.value, 2)} {i.unit ?? ""} · {sgn(i.changePct, 2)}% {i.basisVi ?? ""}</> : "chưa có giá"} · <span className="text-slate-400">{SPEED_SHORT[i.speed] ?? i.speed}</span></li>
       ))}</ul>;
     case "world_short":
       return <>{SHORT_STANCE_VI[v.stance as ShortStance] ?? v.stance} · α {sgn(v.alphaBps)} đcb · P vượt VN-Index {fin(v.pOutperform) ? `${num(v.pOutperform * 100)}%` : "—"} · {v.sector}</>;

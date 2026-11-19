@@ -37,14 +37,15 @@ for (const W of [1440, 390]) {
     await p.fill("#login-email", EMAIL); await p.fill("#login-password", PASSWORD); await p.click(".login-btn"); await p.waitForTimeout(2000);
   }
   await p.waitForSelector('[data-testid="elite10-hub"]', { timeout: 60_000 });
-  const tabs0 = await p.locator('[role="tab"]').count();
   await p.locator("#elite10-profile-tab").click(); await p.waitForTimeout(1500);
+  let tabs0 = null; // đếm sau khi Hồ sơ đã mở mã đầu tiên (Hồ sơ có nút góc nhìn riêng)
   for (const T of TICKERS) {
     await p.fill('[data-testid="elite-pick"]', T); await p.press('[data-testid="elite-pick"]', "Enter");
     const ok = await p.waitForSelector('[data-testid="elite-impact"]', { timeout: 60_000 }).then(() => true).catch(() => false);
     check(W, ok, `${T}: có khối Tác động lên cổ phiếu`);
     if (!ok) continue;
     await p.waitForTimeout(800);
+    tabs0 ??= await p.locator('[role="tab"]').count();
     check(W, (await p.locator('[data-testid="elite-world"]').count()) === 0, `${T}: không còn khối "Truyền dẫn thế giới" riêng`);
     const rows = p.locator('[data-testid^="impact-layer-"]'), n = await rows.count();
     let sealed = 0; for (let i = 0; i < n; i++) if (await rows.nth(i).locator('[data-testid^="impact-seal-"]').count()) sealed++;
