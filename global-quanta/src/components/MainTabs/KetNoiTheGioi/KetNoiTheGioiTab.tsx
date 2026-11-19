@@ -17,6 +17,8 @@ import TransmissionMap2D from "./center/TransmissionMap2D";
 import MarketMonitor from "./center/MarketMonitor";
 import WorldNewsPanel from "./center/WorldNewsPanel";
 import AiBriefPanel from "./center/AiBriefPanel";
+import WorldStockLookup from "./center/WorldStockLookup";
+import { prefetchWorld } from "../../../macro-center/src/world-client";
 
 /** Sang tab Phân tích vĩ mô bằng đúng cơ chế back/forward của thanh điều hướng, rồi cuộn tới bản tin. */
 function openMacroBrief() {
@@ -106,6 +108,10 @@ export default function KetNoiTheGioiTab() {
     () => fetchMarketJson("/api/world/overview"), { revalidateOnFocus: false, dedupingInterval: 10 * 60_000 });
 
   const nav = useMemo(() => ({ openEvidence: () => setTab("evidence") }), []);
+  // W4: tải trước dữ liệu engine thế giới khi rê chuột / focus vào tab con (bộ đệm 5 phút của world-client, lỗi bỏ qua).
+  const prefetchPart = (id: TabId) => {
+    if (id === "overview" || id === "transmission" || id === "markets") prefetchWorld(getMarketGateway().baseUrl, id);
+  };
 
   return (
     <WorldNavContext.Provider value={nav}>
@@ -134,7 +140,8 @@ export default function KetNoiTheGioiTab() {
         {TABS.map((t) => {
           const on = tab === t.id;
           return <button key={t.id} ref={(el) => { refs.current[t.id] = el; }} id={`world-${t.id}-tab`} type="button" role="tab" aria-selected={on} aria-controls={`world-${t.id}-panel`} tabIndex={on ? 0 : -1}
-            onClick={() => setTab(t.id)} onKeyDown={onKey} className="text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            onClick={() => setTab(t.id)} onKeyDown={onKey}
+            onMouseEnter={() => prefetchPart(t.id)} onFocus={() => prefetchPart(t.id)} className="text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0"
             style={{ padding: "9px 12px", color: on ? T.goldBright : T.textSecondary, borderBottom: on ? `2px solid ${T.gold}` : "2px solid transparent" }}>
             <t.icon className="w-3.5 h-3.5" aria-hidden /> {t.label}
           </button>;
@@ -173,9 +180,8 @@ export default function KetNoiTheGioiTab() {
           <Engine only="scenario" />
           <Engine only="matrix" />
           <Engine only="events" />
-          {stockProfileReady
-            ? <Engine only="stock" />
-            : <p className="text-[10px]" style={{ color: T.textTertiary }}>Hồ sơ phơi nhiễm từng cổ phiếu đang ẩn vì chưa có dữ liệu phơi nhiễm quốc tế thật cho từng mã.</p>}
+          {/* W3: khi chưa có dữ liệu phơi nhiễm BCTC thật -> tra cứu mã bằng khối Tác động lên cổ phiếu (D4) + cảnh báo thanh khoản LQ-v1 */}
+          {stockProfileReady ? <Engine only="stock" /> : <WorldStockLookup />}
         </div>
       )}
 
@@ -189,7 +195,7 @@ export default function KetNoiTheGioiTab() {
             <summary style={{ cursor: "pointer", fontWeight: 700 }}>Phương pháp và cách đọc bậc bằng chứng</summary>
             <div className="space-y-1.5 pt-2" style={{ color: T.textTertiary }}>
               <p><b>Bậc A</b>: vượt hiệu chỉnh kiểm định bội, ổn định và vượt kiểm định ngoài mẫu. <b>Bậc B</b>: có ý nghĩa sau hiệu chỉnh. <b>Bậc C</b>: giả thuyết hoặc chưa đủ bằng chứng, không có nghĩa là có tác động.</p>
-              <p>Ma trận gồm 13 yếu tố × 10 rổ ngành theo tháng, chọn trễ tốt nhất 0–6, chỉ để thăm dò. Rổ ngành ánh xạ sang ICB: Ngân hàng 8300, Chứng khoán 8700, BĐS 8600, Thép 1750, Dầu khí 0500, Cảng 2770, Công nghệ 9500, Điện 7530. Quyết định Lọc ngành chỉ dùng cổng xác nhận đặt trước.</p>
+              <p>Ma trận gồm tối đa 13 yếu tố × 10 rổ ngành theo tháng, chọn trễ tốt nhất 0–6, chỉ để thăm dò. Yếu tố chưa có nguồn số liệu (hiện là cước container, PMI Trung Quốc, dòng vốn thị trường mới nổi) không xuất hiện trong ma trận. Rổ ngành ánh xạ sang ICB: Ngân hàng 8300, Chứng khoán 8700, BĐS 8600, Thép 1750, Dầu khí 0500, Cảng 2770, Công nghệ 9500, Điện 7530. Quyết định Lọc ngành chỉ dùng cổng xác nhận đặt trước.</p>
               <p>Kịch bản dùng local projection theo tháng; ước tính vượt ±50% trong 3 tháng là bất ổn về số và không được dùng.</p>
               <p>Giá ngày lấy từ {pulseSource === "project-a" ? <b style={{ color: T.gold }}>nguồn dự phòng Project A, có thể trễ</b> : "Gateway (Yahoo Finance), mỗi số kèm ngày phiên"}. Cao su, urê, BDI, cước container và quặng sắt là số liệu tháng hoặc proxy từ Project A{monthlyFromProjectA ? "" : ", hiện chưa lấy được"}. Baltic Dry Index {macro?.baltic_dry_index != null ? <b>{macro.baltic_dry_index}</b> : "chưa có vì cần OILPRICEAPI_KEY"}.</p>
             </div>

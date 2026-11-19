@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import './world.css';
 import { fmtNum, fmtQ } from '../../macro-filter';
 import { createWorldClient, type WorldClient } from '../../world-client';
@@ -10,9 +10,18 @@ import { ScenarioStockImports } from './imports';
 import { WorldFilterBar, WorldMatrix } from './WorldMatrix';
 import { WorldPulse, type PulseItem } from './WorldPulse';
 import { EvidenceChip, Notice } from './shared';
+import { ScenarioCompare } from './ScenarioCompare';
+import { DEFAULT_EVENT_FILTER, EventFilterBar, EventTimeline, filterEvents, isEventFilter } from './EventTimeline';
+import { PERSIST_KEYS, useDebounced, usePersistedState } from './persist';
 import type { EvidenceTier } from '../../world-types';
 
 const { WorldScenario, StockProfile } = ScenarioStockImports;
+
+/** W4: bộ lọc ma trận đọc lại từ localStorage phải đúng dạng, sai thì dùng mặc định. */
+export const isWorldFilter = (v: unknown): v is WorldFilter => !!v && typeof v === 'object'
+  && Array.isArray((v as WorldFilter).factors) && Array.isArray((v as WorldFilter).sectors) && Array.isArray((v as WorldFilter).tiers)
+  && typeof (v as WorldFilter).channel === 'string' && ['all', '+', '-'].includes((v as WorldFilter).direction);
+const isMode = (v: unknown): v is 'single' | 'compare' => v === 'single' || v === 'compare';
 
 export type TabId = 'overview' | 'matrix' | 'events' | 'connect' | 'scenario' | 'stock';
 const TABS: { id: TabId; label: string }[] = [
@@ -38,7 +47,10 @@ export function newestFirst<T extends { sessionDate: string | null }>(rows: T[])
 export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?: 'light' | 'dark' | 'auto'; initialStock?: string; hideHeader?: boolean; hideStock?: boolean; only?: TabId }) {
   const client = useMemo(() => props.client ?? createWorldClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
   const [tab, setTab] = useState<TabId>(props.only ?? 'overview');
-  const [filter, setFilter] = useState<WorldFilter>(DEFAULT_WORLD_FILTER);
+  const [filter, setFilter] = usePersistedState<WorldFilter>(PERSIST_KEYS.matrixFilter, DEFAULT_WORLD_FILTER, isWorldFilter);
+  const [evFilter, setEvFilter] = usePersistedState(PERSIST_KEYS.eventFilter, DEFAULT_EVENT_FILTER, isEventFilter);
+  const [scMode, setScMode] = usePersistedState<'single' | 'compare'>('gq.world.scenario.mode.v1', 'single', isMode);
+  const detailRef = useRef<HTMLElement | null>(null);
   const [cell, setCell] = useState<string | null>(null);
   const [eventId, setEventId] = useState<string | null>(null);
   const [scenarioId, setScenarioId] = useState('usd-strong'); // DXY có số liệu thật; TARIFF chưa có nguồn
@@ -52,11 +64,19 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
   const conn = useAsync((s) => client.connectedness<ConnectednessPayload>({}, s), [client], tab === 'connect');
   const events = useAsync((s) => client.events<{ events: EventRow[] }>(s), [client], tab === 'events');
   const detail = useAsync((s) => client.event<EventDetailPayload>(eventId as string, s), [client, eventId], tab === 'events' && !!eventId);
-  const scenario = useAsync((s) => client.scenario<import('./ScenarioStock').ScenarioPayload>({ scenarioId, horizon }, s), [client, scenarioId, horizon], tab === 'scenario');
-  const stock = useAsync((s) => client.stock<import('./ScenarioStock').StockProfilePayload>(stockCode, s), [client, stockCode], tab === 'stock');
+  const scenario = useAsync((s) => client.scenario<import('./ScenarioStock').ScenarioPayload>({ scenarioId, horizon }, s), [client, scenarioId, horizon], tab === 'scenario' && scMode === 'single');
+  const stockQ = useDebounced(stockCode, 400); // W3: không gọi Gateway theo từng phím gõ
+  const stock = useAsync((s) => client.stock<import('./ScenarioStock').StockProfilePayload>(stockQ, s), [client, stockQ], tab === 'stock' && /^[A-Z0-9]{3,10}$/.test(stockQ));
 
   const [eventLimit, setEventLimit] = useState(EVENT_PAGE);
-  const sortedEvents = useMemo(() => newestFirst(events.data?.events ?? []), [events.data]);
+  const allEvents = useMemo(() => newestFirst(events.data?.events ?? []), [events.data]);
+  const sortedEvents = useMemo(() => filterEvents(allEvents, evFilter), [allEvents, evFilter]);
+  const regions = useMemo(() => [...new Set(allEvents.map((e) => e.region))].sort(), [allEvents]);
+  // W4: trên màn hẹp khung chi tiết nằm dưới ma trận -> cuộn tới khi chọn ô
+  const pickCell = (f: string, s: string) => {
+    setCell(worldCellKey(f, s));
+    if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 999px)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+  };
   const view = useMemo(() => (matrix.data ? buildWorldMatrixView(matrix.data, filter) : null), [matrix.data, filter]);
   const picked = cell && view ? view.cells[cell] : undefined;
   const notice = overview.data?.notice ?? matrix.data?.notice ?? series.data?.notice;
@@ -106,10 +126,10 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
             <div className="two">
               <div>
                 <WorldFilterBar state={filter} onChange={(f) => { setFilter(f); setCell(null); }} channels={Object.entries(CHANNELS).map(([id, label]) => ({ id, label }))} />
-                <WorldMatrix view={view} selected={cell} onSelect={(f, s) => setCell(worldCellKey(f, s))} />
+                <WorldMatrix view={view} selected={cell} onSelect={pickCell} />
                 <details><summary>Lưu ý phương pháp ({matrix.data.warnings.length})</summary><ul>{matrix.data.warnings.map((w) => (<li key={w} className="muted">{w}</li>))}</ul></details>
               </div>
-              <aside aria-label="Chi tiết liên kết đã chọn" className="detail">
+              <aside aria-label="Chi tiết liên kết đã chọn" className="detail" ref={detailRef} data-testid="matrix-detail">
                 {picked ? (
                   <>
                     <h3 className="h3">{factorName(picked.factor)} → {sectorName(picked.sector)}</h3>
@@ -139,6 +159,8 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
           {events.data && (
             <div className="two">
               <div>
+                <EventFilterBar state={evFilter} onChange={(f) => { setEvFilter(f); setEventLimit(EVENT_PAGE); }} regions={regions} shown={sortedEvents.length} total={allEvents.length} />
+                <EventTimeline events={sortedEvents} selected={eventId} onSelect={setEventId} />
                 <EventList events={sortedEvents.slice(0, eventLimit)} selected={eventId} onSelect={setEventId} />
                 {sortedEvents.length > eventLimit && <button type="button" className="btn" onClick={() => setEventLimit((n) => n + EVENT_PAGE)} data-testid="events-more">Xem thêm {Math.min(EVENT_PAGE, sortedEvents.length - eventLimit)} sự kiện (còn {sortedEvents.length - eventLimit})</button>}
               </div>
@@ -163,10 +185,18 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
       {tab === 'scenario' && (
         <section className="panel" aria-labelledby="wd-sc">
           <h2 id="wd-sc">Kịch bản</h2>
+          <div className="chips sc-mode" role="group" aria-label="Cách xem kịch bản">
+            <button type="button" className="chip" aria-pressed={scMode === 'single'} onClick={() => setScMode('single')} data-testid="sc-mode-single">Một kịch bản</button>
+            <button type="button" className="chip" aria-pressed={scMode === 'compare'} onClick={() => setScMode('compare')} data-testid="sc-mode-compare">So sánh kịch bản</button>
+          </div>
+          {scMode === 'compare' ? (
+            <ScenarioCompare client={client} scenarios={series.data?.scenarios ?? []} horizon={horizon} onHorizon={setHorizon} onPick={(id, sector) => { setScenarioId(id); setFocus(sector); setScMode('single'); }} />
+          ) : (
           <WorldScenario
             scenarios={series.data?.scenarios ?? []} selectedId={scenarioId} onSelect={setScenarioId} horizon={horizon} onHorizon={setHorizon}
             result={scenario.data} loading={scenario.loading && !scenario.data} error={scenario.error} focusSector={focus} onFocus={setFocus}
           />
+          )}
         </section>
       )}
 

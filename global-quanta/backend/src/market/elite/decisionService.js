@@ -339,9 +339,19 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     catch (e) { log.warn?.(`[elite] số đo thanh khoản: ${e.message}`); return doc; }
   }
   /** Hồ sơ 360°: số đo + chuỗi 60 phiên của một mã, tại phiên quyết định mới nhất. */
+  // W5 (19/11/2026): đệm theo (phiên quyết định, mã) — số đo chỉ đổi khi có phiên mới; trước đây mỗi lần gọi nạp lại chuỗi giá (~1,7 s).
+  const liqTickerMemo = new Map();
   async function liquidity(ticker) {
     const doc = await decision();
     if (!doc) return null;
+    const mk = `${doc.date}|${ticker}`;
+    if (liqTickerMemo.has(mk)) return liqTickerMemo.get(mk);
+    const out = await liquidityFresh(doc, ticker);
+    if (liqTickerMemo.size > 400) liqTickerMemo.delete(liqTickerMemo.keys().next().value);
+    liqTickerMemo.set(mk, out);
+    return out;
+  }
+  async function liquidityFresh(doc, ticker) {
     const rows = ((await loadPrices([ticker], doc.date)).get(ticker) ?? []).filter((r) => r.date <= doc.date && r.closeAdj > 0);
     if (!rows.length) return { date: doc.date, ticker, missing: true, rules: lqPublicRules() };
     const sc = doc.scores.find((s) => s.ticker === ticker);

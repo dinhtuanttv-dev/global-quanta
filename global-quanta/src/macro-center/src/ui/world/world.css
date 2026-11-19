@@ -129,3 +129,31 @@
 .wd .s-shrunk { position: absolute; top: 6px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); transform: translateX(-8px); }
 .wd details { margin-top: 12px; }
 @media (max-width: 640px) { .wd { padding: 12px; } .wd .shrink li, .wd .sector-bars li, .wd .sector-bars.wide li { grid-template-columns: 1fr; } }
+
+/* W1 (19/11/2026): bảng nhiệt so sánh kịch bản — dùng lại thang màu ô của ma trận (up/down l1–l3, sọc = chưa kết luận). */
+.wd .sc-heat { border-collapse: separate; border-spacing: 2px; min-width: 100%; }
+.wd .sc-heat th { font-size: 0.75rem; font-weight: 600; color: var(--ink2); text-align: left; padding: 4px 6px; vertical-align: bottom; }
+.wd .sc-heat thead th { min-width: 92px; }
+.wd .sc-heat .sc-sub { display: block; font-weight: 400; font-size: 0.6875rem; }
+.wd .sc-heat .cell { min-height: 40px; justify-content: center; }
+.wd .sc-heat .sc-val { font-size: 0.8125rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.wd .sc-mode { margin-bottom: 10px; }
+
+/* W2: dòng thời gian sự kiện ngang. Chiều rộng cố định để chữ trục không bị co dưới 10px trên điện thoại (cuộn ngang trong khung). */
+.wd .ev-tl { display: block; width: 100%; min-width: 720px; height: auto; margin: 4px 0; }
+.wd .ev-tl-axis { stroke: var(--rule); stroke-width: 1.5; }
+.wd .ev-tl-tick { stroke: var(--rule); stroke-dasharray: 2 3; }
+.wd .ev-tl-label { fill: var(--ink3); font-size: 11px; }
+.wd .ev-tl-stem { stroke: var(--ink3); stroke-width: 1; opacity: 0.5; }
+.wd .ev-tl-hit { fill: transparent; cursor: pointer; }
+.wd .ev-tl-dot { fill: var(--accent); stroke: var(--panel); stroke-width: 2; }
+.wd .ev-tl-pt.t-C .ev-tl-dot { fill: var(--panel); stroke: var(--ink2); stroke-width: 1.5; }
+.wd .ev-tl-pt.t-pending .ev-tl-dot { fill: var(--panel); stroke: var(--ink3); stroke-dasharray: 2 2; }
+.wd .ev-tl-pt.sel .ev-tl-dot { stroke: var(--warnmark); stroke-width: 3; }
+.wd .ev-tl-pt:focus-visible { outline: none; }
+.wd .ev-tl-pt:focus-visible .ev-tl-dot { stroke: var(--accent); stroke-width: 3; }
+
+/* W4: chuyển cảnh nhẹ khi mở một phần (CSS thuần, không thêm thư viện); tắt khi người dùng chọn giảm chuyển động. */
+@keyframes wd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.wd .panel, .wd .detail { animation: wd-in 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .wd .panel, .wd .detail { animation: none; } }

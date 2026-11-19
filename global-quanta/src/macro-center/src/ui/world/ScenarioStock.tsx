@@ -6,7 +6,7 @@ import type { EvidenceTier } from '../../world-types';
 export interface ScenarioPayload {
   scenario: { id: string; nameVi: string; descriptionVi: string };
   horizon: number;
-  sectors: { sector: string; nameVi: string; irf: { h: number; est: number; lo: number; hi: number }[]; est: number; lo: number; hi: number; conclusive: boolean }[];
+  sectors: { sector: string; nameVi: string; irf: { h: number; est: number; lo: number; hi: number }[]; est: number; lo: number; hi: number; conclusive: boolean; unstable?: boolean }[];
   stocks: { code: string; sectorName: string; beta: number; ownWeight: number; est: number; tier: EvidenceTier }[];
   stockFactor: string | null;
   conclusiveCount: number;
@@ -29,7 +29,8 @@ export function WorldScenario(props: {
 }) {
   const r = props.result;
   const cur = props.scenarios.find((s) => s.id === props.selectedId);
-  const range = r ? Math.max(5, ...r.sectors.flatMap((s) => [Math.abs(s.lo), Math.abs(s.hi)])) : 5;
+  // W5: ngành bất ổn (vượt ±50% trong 3 tháng) không được kéo giãn thang của các ngành còn lại
+  const range = r ? Math.max(5, ...r.sectors.filter((s) => !s.unstable).flatMap((s) => [Math.abs(s.lo), Math.abs(s.hi)])) : 5;
   const focus = r?.sectors.find((s) => s.sector === props.focusSector) ?? r?.sectors[0];
   return (
     <div>
@@ -52,8 +53,8 @@ export function WorldScenario(props: {
             {r.sectors.map((s) => (
               <li key={s.sector} className={focus?.sector === s.sector ? 'sel' : undefined}>
                 <button type="button" className="link" onClick={() => props.onFocus(s.sector)} aria-pressed={focus?.sector === s.sector}>{s.nameVi}</button>
-                <CiTrack est={s.est} lo={s.lo} hi={s.hi} range={range} label={`${s.nameVi}: ${fmtSigned(s.est, 1, '%')}${s.conclusive ? '' : ', chưa kết luận hướng'}`} />
-                <strong>{fmtSigned(s.est, 1, '%')}{s.conclusive ? '' : ' ?'}</strong>
+                {s.unstable ? <span className="muted" data-testid={`sc-unstable-${s.sector}`}>bất ổn về số — không dùng</span> : <CiTrack est={s.est} lo={s.lo} hi={s.hi} range={range} label={`${s.nameVi}: ${fmtSigned(s.est, 1, '%')}${s.conclusive ? '' : ', chưa kết luận hướng'}`} />}
+                <strong>{s.unstable ? 'bất ổn' : <>{fmtSigned(s.est, 1, '%')}{s.conclusive ? '' : ' ?'}</>}</strong>
               </li>
             ))}
           </ul>

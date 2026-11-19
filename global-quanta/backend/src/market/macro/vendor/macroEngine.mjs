@@ -2898,6 +2898,10 @@ var ApiError2 = class extends Error {
     this.status = status;
   }
 };
+var SCENARIO_UNSTABLE = { maxAbsPct: 50, months: 3 };
+function scenarioUnstable(irf) {
+  return irf.some((p) => p.h <= SCENARIO_UNSTABLE.months && Number.isFinite(p.est) && Math.abs(p.est) > SCENARIO_UNSTABLE.maxAbsPct);
+}
 function createWorldApi(deps) {
   const { world, store, catalog } = deps;
   const today = deps.today ?? (() => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
@@ -3167,9 +3171,12 @@ function createWorldApi(deps) {
     const xs = names.map((id) => m.prep.factors[id]);
     const mx = await matrix(asOf, 6);
     const sectors = m.targets.map((sec) => {
-      const irf = localProjectionIRF({ y: m.prep.targets[sec], xs, shock: shockVec, horizon, arLags: 1, level: 0.9 });
+      const full = localProjectionIRF({ y: m.prep.targets[sec], xs, shock: shockVec, horizon: Math.max(horizon, SCENARIO_UNSTABLE.months), arLags: 1, level: 0.9 });
+      const irf = full.filter((p) => p.h <= horizon);
       const at = irf[irf.length - 1];
-      return { sector: sec, nameVi: sectorName[sec], irf, est: at?.est ?? NaN, lo: at?.lo ?? NaN, hi: at?.hi ?? NaN, conclusive: !!at && (at.lo > 0 || at.hi < 0) };
+      const unstable = scenarioUnstable(full);
+      if (unstable) warnings.push(`${sectorName[sec]}: \u01B0\u1EDBc t\xEDnh v\u01B0\u1EE3t \xB1${SCENARIO_UNSTABLE.maxAbsPct}% trong ${SCENARIO_UNSTABLE.months} th\xE1ng \u2014 b\u1EA5t \u1ED5n v\u1EC1 s\u1ED1 (m\u1EABu th\xE1ng ng\u1EAFn), kh\xF4ng d\xF9ng \u0111\u1EC3 k\u1EBFt lu\u1EADn h\u01B0\u1EDBng.`);
+      return { sector: sec, nameVi: sectorName[sec], irf, est: at?.est ?? NaN, lo: at?.lo ?? NaN, hi: at?.hi ?? NaN, conclusive: !unstable && !!at && (at.lo > 0 || at.hi < 0), unstable };
     });
     sectors.sort((a, b) => a.est - b.est);
     const lead = shocks.find((s) => world.stockBetas[s.factor]);

@@ -62,6 +62,16 @@ export interface WorldApiDeps {
   notice?: string;
 }
 
+/**
+ * W5 (19/11/2026) — quy tắc bất ổn của kịch bản (đã ghi trong phần Phương pháp từ trước nhưng chưa được cài vào engine):
+ * ước tính tích luỹ của một ngành vượt ±50% ở bất kỳ tháng nào trong 3 tháng đầu -> bất ổn về số, KHÔNG kết luận hướng.
+ * Mẫu tháng chung chỉ ~47 quan sát cho ~10 yếu tố, nên local projection có thể nổ (VD Thép dưới cú sốc dầu: +98% sau 3 tháng).
+ */
+export const SCENARIO_UNSTABLE = { maxAbsPct: 50, months: 3 } as const;
+export function scenarioUnstable(irf: { h: number; est: number }[]): boolean {
+  return irf.some((p) => p.h <= SCENARIO_UNSTABLE.months && Number.isFinite(p.est) && Math.abs(p.est) > SCENARIO_UNSTABLE.maxAbsPct);
+}
+
 export function createWorldApi(deps: WorldApiDeps) {
   const { world, store, catalog } = deps;
   const today = deps.today ?? (() => new Date().toISOString().slice(0, 10));
@@ -295,9 +305,13 @@ export function createWorldApi(deps: WorldApiDeps) {
     const xs = names.map((id) => m.prep.factors[id]);
     const mx = await matrix(asOf, 6);
     const sectors = m.targets.map((sec) => {
-      const irf = localProjectionIRF({ y: m.prep.targets[sec], xs, shock: shockVec, horizon, arLags: 1, level: 0.9 });
+      // W5 (19/11/2026): luôn ước lượng tới ít nhất 3 tháng để áp quy tắc bất ổn, rồi chỉ trả đường tới đúng tầm nhìn đã chọn.
+      const full = localProjectionIRF({ y: m.prep.targets[sec], xs, shock: shockVec, horizon: Math.max(horizon, SCENARIO_UNSTABLE.months), arLags: 1, level: 0.9 });
+      const irf = full.filter((p) => p.h <= horizon);
       const at = irf[irf.length - 1];
-      return { sector: sec, nameVi: sectorName[sec], irf, est: at?.est ?? NaN, lo: at?.lo ?? NaN, hi: at?.hi ?? NaN, conclusive: !!at && (at.lo > 0 || at.hi < 0) };
+      const unstable = scenarioUnstable(full);
+      if (unstable) warnings.push(`${sectorName[sec]}: ước tính vượt ±${SCENARIO_UNSTABLE.maxAbsPct}% trong ${SCENARIO_UNSTABLE.months} tháng — bất ổn về số (mẫu tháng ngắn), không dùng để kết luận hướng.`);
+      return { sector: sec, nameVi: sectorName[sec], irf, est: at?.est ?? NaN, lo: at?.lo ?? NaN, hi: at?.hi ?? NaN, conclusive: !unstable && !!at && (at.lo > 0 || at.hi < 0), unstable };
     });
     sectors.sort((a, b) => a.est - b.est);
     const lead = shocks.find((s) => world.stockBetas[s.factor]);

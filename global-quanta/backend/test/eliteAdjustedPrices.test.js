@@ -98,3 +98,23 @@ test("createEliteAdjustedCloses: kho Gateway trước, thiếu thì VNDirect, kh
   const broken = createEliteAdjustedCloses({ seriesSource: { prepare: async () => { throw new Error("kho lỗi"); } }, pricesOf: () => px, store: { getMarketDailyRange: async () => [] }, log: { warn() {} } });
   assert.equal((await broken(["A", "B"], to)).size, 2, "kho Gateway lỗi hẳn -> toàn bộ lấy từ VNDirect");
 });
+
+test("W5: số đo thanh khoản một mã được đệm theo (phiên, mã) — gọi lại không nạp lại chuỗi giá, kết quả giống hệt", async () => {
+  const w = world(320), date = w.cal.at(-1), store = createMemoryStore();
+  await store.upsertMarketDaily(w.raw.map((r) => ({ ...r, close: r.closeAdj })));
+  const rows = w.names.map((t, i) => ({ ticker: t, icb: { l2: `S${i % 8}` }, values: { stealth20: i, ls_v1: i, structure_score: 3, rrg_quadrant: 2 } }));
+  const evidence = { version: "E2-v1", signals: [{ id: "stealth20", tier: "A", mainH: 5, byH: { 5: { n: 200, mean: 0.016 } } }] };
+  let loads = 0;
+  const svc = createDecisionService({ store, panel: { panel: async () => ({ date, version: "E1", rows }) }, evidence: { evidence: async () => evidence }, vnIndex: async () => w.idx.map((b) => [b.date, b.close]),
+    adjustedCloses: async (tickers) => { loads++; return new Map([...w.adj].filter(([t]) => tickers.includes(t))); }, log: { warn() {} } });
+  await svc.build({ force: true });
+  const t = w.names[3];
+  const before = loads;
+  const a = await svc.liquidity(t);
+  const afterFirst = loads;
+  const b = await svc.liquidity(t);
+  assert.ok(a?.liq, "có số đo");
+  assert.ok(afterFirst > before, "lần đầu nạp chuỗi giá");
+  assert.equal(loads, afterFirst, "lần hai dùng đệm");
+  assert.deepEqual(b, a);
+});
