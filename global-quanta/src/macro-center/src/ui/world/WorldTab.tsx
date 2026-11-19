@@ -72,10 +72,15 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
   const allEvents = useMemo(() => newestFirst(events.data?.events ?? []), [events.data]);
   const sortedEvents = useMemo(() => filterEvents(allEvents, evFilter), [allEvents, evFilter]);
   const regions = useMemo(() => [...new Set(allEvents.map((e) => e.region))].sort(), [allEvents]);
-  // W4: trên màn hẹp khung chi tiết nằm dưới ma trận -> cuộn tới khi chọn ô
+  // W4: khi khung chi tiết nằm ngoài màn hình (bố cục một cột — quyết định bởi bề rộng KHUNG, không phải màn hình) -> cuộn tới.
+  // Trước đây chỉ xét màn hình ≤ 999px, nên ở 1440 với khung chính ~940px (một cột) chi tiết hiện dưới mép màn hình.
   const pickCell = (f: string, s: string) => {
     setCell(worldCellKey(f, s));
-    if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 999px)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
+    if (typeof window === 'undefined') return;
+    requestAnimationFrame(() => {
+      const el = detailRef.current, r = el?.getBoundingClientRect?.();
+      if (el && r && (r.top < 0 || r.bottom > window.innerHeight)) el.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    });
   };
   const view = useMemo(() => (matrix.data ? buildWorldMatrixView(matrix.data, filter) : null), [matrix.data, filter]);
   const picked = cell && view ? view.cells[cell] : undefined;
