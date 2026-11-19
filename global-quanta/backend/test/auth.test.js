@@ -166,6 +166,7 @@ test("nhập dữ liệu Supabase cũ: ghép theo email, đổi sang mã mới, 
 
 test("IP cho giới hạn dò mật khẩu = giá trị CUỐI của X-Forwarded-For (proxy Railway), không tin giá trị client tự gửi", async () => {
   const { ipOf } = await import("../src/routes/auth.js");
-  assert.equal(ipOf({ headers: { "x-forwarded-for": "6.6.6.6, 203.0.113.9" }, socket: {} }), "203.0.113.9");
+  // hình dạng header đo trên production 19/11/2026: X-Real-IP = người dùng (Railway đặt lại), XFF cuối = máy biên Railway
+  assert.equal(ipOf({ headers: { "x-real-ip": "14.180.11.5", "x-forwarded-for": "14.180.11.5, 79.127.228.3" }, socket: {} }), "14.180.11.5");
   assert.equal(ipOf({ headers: {}, socket: { remoteAddress: "10.0.0.1" } }), "10.0.0.1");
 });
