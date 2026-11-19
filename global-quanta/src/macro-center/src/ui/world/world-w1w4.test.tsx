@@ -69,6 +69,21 @@ describe('W1 so sánh kịch bản', () => {
     expect(c.textContent).toBe('bất ổn'); expect(c.getAttribute('data-unstable')).toBe('true'); expect(c.getAttribute('data-level')).toBe('0');
     expect(c.textContent).not.toContain('98');
   });
+  it('mọi kịch bản lỗi (VD 429) -> báo lỗi rõ ràng + nút thử lại gọi lại Gateway', async () => {
+    let fail = true;
+    const scenario = vi.fn(async () => { if (fail) throw new Error('Lỗi 429'); return USD; });
+    const client = { scenario } as unknown as ReturnType<typeof createWorldClient>;
+    window.localStorage.setItem(PERSIST_KEYS.scenarioCompare, JSON.stringify(['usd-strong']));
+    const el = await mount(<ScenarioCompare client={client} scenarios={SERIES.scenarios} horizon={3} onPick={() => {}} />);
+    expect(el.querySelector('[data-testid="scenario-compare-error"]')?.textContent).toContain('Gateway đang giới hạn số lần tính');
+    expect(el.querySelector('[data-testid="scenario-heat"]')).toBeNull();
+    fail = false;
+    await act(async () => { (el.querySelector('[data-testid="scenario-compare-retry"]') as HTMLButtonElement).click(); });
+    await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+    expect(scenario).toHaveBeenCalledTimes(2);
+    expect(el.querySelector('[data-testid="scenario-heat"]')).not.toBeNull();
+    expect(el.querySelector('[data-testid="scenario-compare-error"]')).toBeNull();
+  });
   it('gộp hàng theo ngành của mọi cột', () => {
     const rows = compareRows([{ id: 'a', nameVi: 'A', result: USD, error: null }, { id: 'b', nameVi: 'B', result: null, error: 'x' }]);
     expect(rows).toHaveLength(10); expect(rows[0].cells[1]).toBeNull();
