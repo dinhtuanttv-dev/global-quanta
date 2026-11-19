@@ -1,5 +1,6 @@
 // Bảng phân tích chuyên sâu một mặt hàng (C3): xu hướng giá Việt Nam ↔ thế giới (quy về 100, một trục), biến động, sụt giảm,
 // bảng số liệu, quan hệ VN ↔ thế giới (THĂM DÒ), cổng xác nhận W3 nếu có, khối truyền dẫn (HEURISTIC). Dữ liệu: Gateway C2.
+import TransmissionBadge from "./TransmissionBadge";
 import { useEffect, useRef, useState } from "react";
 import useSWR from "swr";
 import { X } from "lucide-react";
@@ -206,6 +207,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
               <Section title="Truyền dẫn tới Việt Nam" tag={<EvidenceTag kind="heuristic" />}>
                 {mapping && <p className="text-[10.5px]" style={{ color: "var(--text-secondary)" }}>{mapping.transmissionNote}</p>}
                 {item.twoWayVi && <p className="text-[10px] italic" style={muted}>⚠ {item.twoWayVi}</p>}
+                <TransmissionBadge item={item} withNote />
                 {item.vnTickers.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-1">
                     <span className="text-[10px]" style={muted}>Mã liên quan (ánh xạ đặt tay, không phải khuyến nghị):</span>

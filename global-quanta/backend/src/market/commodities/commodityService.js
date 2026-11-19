@@ -102,7 +102,7 @@ export function createCommodityService({ store = null, fetchImpl = globalThis.fe
   async function snapshot() {
     const ps = await pinkSheet().catch(() => null);
     const items = await Promise.all(COMMODITIES.map(async (c) => {
-      const base = { id: c.id, nameVi: c.nameVi, group: c.group, unit: c.unit, sectorKey: c.sectorKey ?? null, vnPrice: !!c.vnPrice, twoWayVi: c.twoWayVi ?? null, vnTickers: c.vn?.tickers ?? [] };
+      const base = { id: c.id, nameVi: c.nameVi, group: c.group, unit: c.unit, sectorKey: c.sectorKey ?? null, vnPrice: !!c.vnPrice, twoWayVi: c.twoWayVi ?? null, vnTickers: c.vn?.tickers ?? [], transmission: c.vn?.transmission ?? null, proxy: !!c.proxy };
       if (c.source.kind === "none") return { ...base, available: false, freq: null, source: { kind: "none", labelVi: c.source.labelVi }, reasonVi: c.source.labelVi };
       if (c.source.kind === "wb") {
         const s = ps?.series?.[c.source.column];

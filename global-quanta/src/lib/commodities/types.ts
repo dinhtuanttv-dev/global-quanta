@@ -10,6 +10,8 @@ export interface CommoditySource {
   fetchedAt?: string | null;
 }
 
+export type TransmissionSpeed = "immediate" | "slow" | "none" | "unmeasured";
+
 export interface CommodityItem {
   id: string;
   nameVi: string;
@@ -19,6 +21,10 @@ export interface CommodityItem {
   vnPrice: boolean;
   twoWayVi: string | null;
   vnTickers: string[];
+  /** D7′ (19/11/2026): tốc độ giá cổ phiếu VN phản ánh mặt hàng này (khám phá trong mẫu 2013–2019). Gateway cũ không có. */
+  transmission?: { speed: TransmissionSpeed; noteVi: string } | null;
+  /** Mục ĐẠI DIỆN (VD cổ phiếu Baosteel cho giá thép châu Á), không phải giá hàng hoá. */
+  proxy?: boolean;
   available: boolean;
   freq: CommodityFreq | null;
   source: CommoditySource;

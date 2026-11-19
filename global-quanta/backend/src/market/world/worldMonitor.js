@@ -24,7 +24,7 @@ const MACRO_META = {
 export function monitorCatalog() {
   const out = PULSE_MARKETS.map(([symbol, nameVi]) => ({ id: symbol, symbol, nameVi, group: "index", unit: "điểm", sourceVi: "Yahoo Finance" }));
   for (const [key, m] of Object.entries(MACRO_META)) out.push({ id: key, symbol: PULSE_MACRO[key].symbol, nameVi: m.nameVi, group: "macro", unit: m.unit, changeIn: m.changeIn ?? "pct", sourceVi: "Yahoo Finance" });
-  for (const c of COMMODITIES) if (c.source?.kind === "yahoo") out.push({ id: c.id, symbol: c.source.symbol, nameVi: c.nameVi, group: "commodity", unit: c.unit, sourceVi: `Yahoo Finance, ${c.source.labelVi}` });
+  for (const c of COMMODITIES) if (c.source?.kind === "yahoo" && !c.proxy) out.push({ id: c.id, symbol: c.source.symbol, nameVi: c.nameVi, group: "commodity", unit: c.unit, sourceVi: `Yahoo Finance, ${c.source.labelVi}` });
   return out;
 }
 

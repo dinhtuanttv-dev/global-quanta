@@ -168,6 +168,29 @@ export function createEventRadarRepository({ dataDir = process.env.EVENT_RADAR_D
         return { events: events.length, revisions: revisions.length };
       });
     },
+    /**
+     * I0-G2 (19/11/2026): lấy RA (xoá khỏi tệp sổ) các bản sửa quan sát trước `cutoffIso` của những sự kiện KHÔNG còn trong danh sách
+     * hiển thị — để chuyển sang kho lưu trữ nén theo tháng. Sổ bản sửa trước đây tăng mãi trong một tệp JSON nạp toàn bộ vào bộ nhớ.
+     * Không động tới bản sửa của sự kiện đang hiển thị (lịch sử bản sửa trên giao diện vẫn đủ).
+     */
+    async takeRevisionsBefore(cutoffIso) {
+      return mutate((state) => {
+        const live = new Set(state.events.map((row) => row.event_id));
+        const taken = [], kept = [];
+        for (const row of state.revisions) (String(row.observed_at ?? "") < cutoffIso && !live.has(row.event_id) ? taken : kept).push(row);
+        if (taken.length) state.revisions = kept;
+        return taken.map((row) => structuredClone(row));
+      });
+    },
+    /** Trả lại các bản sửa (khi ghi kho lưu trữ lỗi) — không để mất dữ liệu. */
+    async restoreRevisions(rows = []) {
+      return mutate((state) => {
+        const ids = new Set(state.revisions.map((row) => row.revision_id));
+        for (const row of rows) if (!ids.has(row.revision_id)) { state.revisions.push(structuredClone(row)); ids.add(row.revision_id); }
+        return rows.length;
+      });
+    },
+    get directory() { return directory; },
     async getHealth() {
       const state = await load();
       return state.health ? structuredClone(state.health) : null;

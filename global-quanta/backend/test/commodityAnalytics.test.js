@@ -106,6 +106,13 @@ test("C4 quality: khoảng trống dài nhất + số kỳ biến động lớn;
   assert.equal(quality([["2026-01", 1]], "month"), null);
   const keys = COMMODITIES.filter((c) => c.source.kind !== "none").map((c) => c.source.symbol ?? c.source.column);
   assert.equal(new Set(keys).size, keys.length);
-  assert.equal(COMMODITIES.length, 20);
+  // D7′ (19/11/2026): +STEEL_ASIA (đại diện, proxy) +COTTON
+  assert.equal(COMMODITIES.length, 22);
+  const speeds = new Set(["immediate", "slow", "none", "unmeasured"]);
+  for (const c of COMMODITIES) if (c.vn?.transmission) { assert.ok(speeds.has(c.vn.transmission.speed), c.id); assert.match(c.vn.transmission.noteVi, /chưa kiểm định ngoài mẫu/, c.id); }
+  assert.deepEqual(COMMODITIES.find((c) => c.id === "HRC").vn.tickers, [], "HRC Mỹ đứng giá -> không làm biến dẫn dắt thép VN");
+  assert.equal(COMMODITIES.find((c) => c.id === "IRON_ORE").vn.transmission.speed, "slow");
+  assert.equal(COMMODITIES.find((c) => c.id === "STEEL_ASIA").proxy, true);
+  assert.equal(COMMODITIES.find((c) => c.id === "GOLD").vn.transmission.speed, "none");
   assert.equal(COMMODITIES.find((c) => c.id === "HRC").worldFactor, "STEEL");
 });

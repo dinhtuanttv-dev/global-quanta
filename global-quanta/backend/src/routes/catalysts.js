@@ -14,8 +14,29 @@ export async function readCatalystSnapshot(store, now = Date.now()) {
   return { ...snapshot, isStale: ageMinutes > CATALYST_STALE_MINUTES, ageMinutes };
 }
 
-export function createCatalystRouter({ getStore, getChat = null, getDomesticEvents = null, now = Date.now }) {
+export function createCatalystRouter({ getStore, getChat = null, getDomesticEvents = null, getLedger = null, isAdmin = () => false, now = Date.now }) {
   const router = express.Router();
+  // I0-G1 (19/11/2026): tiến độ kiểm định tiến X6-F — SỔ BỊT MẮT: chỉ số đếm, không có lợi suất trước ngày chấm theo đăng ký trước.
+  if (getLedger) {
+    router.get("/ledger/progress", async (req, res) => {
+      try {
+        res.set("Cache-Control", "public, max-age=300");
+        res.json(await getLedger().progress());
+      } catch (e) {
+        console.warn(`[catalyst-ledger] ${e?.message}`);
+        res.status(503).json({ error: "Chưa đọc được sổ tín hiệu." });
+      }
+    });
+    router.post("/ledger/evaluate", async (req, res) => {
+      if (!isAdmin(req)) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+      try {
+        res.set("Cache-Control", "no-store");
+        res.json(await getLedger().run());
+      } catch (e) {
+        res.status(500).json({ error: `Chấm sổ lỗi: ${e?.message}` });
+      }
+    });
+  }
   // V4 (19/11/2026): hai route chuyển từ Project A về Gateway, cùng hợp đồng.
   if (getDomesticEvents) {
     router.get("/domestic-events", (req, res) => {
