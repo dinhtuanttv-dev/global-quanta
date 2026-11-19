@@ -7,7 +7,14 @@
 import { VN_CATALOG } from "./macroCore.js";
 
 // Ngày quyết định (ngày thứ 2 của cuộc họp), giờ công bố 14:00 ET ~ 18:00/19:00 UTC.
-export const FOMC_DECISION_DATES = ["2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09"];
+// 2027 + 01/2028: lịch Fed công bố (federalreserve.gov/monetarypolicy/fomccalendars.htm, đọc 19/11/2026). Fed ghi mỗi ngày họp là DỰ KIẾN
+// cho tới khi được xác nhận ở cuộc họp liền trước -> gắn tentative. Năm 2027 Fed xếp 8 cuộc họp, cuộc cuối 16–17/11 (không có tháng 12).
+export const FOMC_DECISION_DATES = ["2026-01-28", "2026-03-18", "2026-04-29", "2026-06-17", "2026-07-29", "2026-09-16", "2026-10-28", "2026-12-09",
+  "2027-01-27", "2027-03-17", "2027-04-28", "2027-06-09", "2027-07-28", "2027-09-15", "2027-10-27", "2027-11-17", "2028-01-26"];
+/** Ngày cuối đã được Fed xác nhận; các ngày sau đó là lịch dự kiến. */
+export const FOMC_CONFIRMED_THROUGH = "2026-12-09";
+/** Cảnh báo khi lịch FOMC còn ít hơn số ngày này — phải nhập lịch năm sau từ trang Fed. */
+export const FOMC_MIN_COVERAGE_DAYS = 120;
 const RELEASE_SOURCES = new Set(["GSO", "NHNN", "S&P Global"]);
 const SOURCE_VI = { GSO: "Cục Thống kê (GSO)", NHNN: "NHNN", "S&P Global": "S&P Global" };
 const DAY_MS = 86_400_000;
@@ -65,7 +72,20 @@ export function releaseSchedule(todayIso, horizonDays = 60, catalog = VN_CATALOG
 export function fomcEvents(todayIso, horizonDays = 60, dates = FOMC_DECISION_DATES) {
   return dates
     .filter((d) => d >= todayIso && daysBetween(todayIso, d) <= horizonDays)
-    .map((d) => ({ id: `fomc:${d}`, kind: "fomc", title: "Fed công bố quyết định lãi suất (FOMC)", date: d, daysRemaining: daysBetween(todayIso, d), country: "US", estimated: false, evidence: "OFFICIAL_SCHEDULE" }));
+    .map((d) => {
+      const tentative = d > FOMC_CONFIRMED_THROUGH;
+      return {
+        id: `fomc:${d}`, kind: "fomc", title: `Fed công bố quyết định lãi suất (FOMC)${tentative ? " — lịch dự kiến của Fed" : ""}`, date: d,
+        daysRemaining: daysBetween(todayIso, d), country: "US", estimated: false, ...(tentative ? { tentative: true } : {}), evidence: "OFFICIAL_SCHEDULE",
+      };
+    });
+}
+
+/** Lịch FOMC còn phủ tới ngày nào; cảnh báo khi sắp hết (nhập lịch năm sau từ trang Fed). */
+export function fomcCoverage(todayIso, dates = FOMC_DECISION_DATES) {
+  const until = dates.at(-1) ?? null;
+  const daysLeft = until ? daysBetween(todayIso, until) : 0;
+  return { until, daysLeft, warning: daysLeft < FOMC_MIN_COVERAGE_DAYS ? `Lịch FOMC chỉ còn tới ${until ?? "—"}; cần nhập lịch năm sau từ trang Fed.` : null };
 }
 
 /** Sự kiện từ phân tích vĩ mô (cảnh báo, đổi chế độ) — chỉ ở chế độ số liệu thật. */
@@ -108,6 +128,7 @@ export async function buildMacroCatalystEvents(service, { todayIso, horizonDays 
     asOf: todayIso,
     horizonDays,
     caveat: "Ngày công bố số liệu VN là ƯỚC TÍNH (độ trễ + ngày điển hình); đối chiếu lịch chính thức. Cảnh báo/chế độ chỉ phát khi có số liệu thật.",
+    fomcCoverage: fomcCoverage(todayIso),
     events,
   };
 }

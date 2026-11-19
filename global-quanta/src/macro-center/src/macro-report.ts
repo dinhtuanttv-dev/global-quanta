@@ -3,7 +3,7 @@
  * Pure function: same input → same text, so reports can be archived and diffed month to month.
  * Convert to PDF/DOCX with any Markdown tool (pandoc, the app's export, ...).
  */
-import { fmtNum, fmtQ } from './macro-filter';
+import { fmtNum, fmtQ, fmtSigned } from './macro-filter';
 
 export interface ReportInput {
   asOf: string;
@@ -57,7 +57,7 @@ export function buildMonthlyReport(inp: ReportInput): string {
     if (inp.score.thermometer) {
       out.push(`Điểm ${fmtNum(inp.score.thermometer.value, 2)} (thang −1 đến +1) cho kỳ ${inp.score.thermometer.period}: **${inp.score.thermometer.bandVi}**.`);
       if (inp.score.thermometer.topContributors.length)
-        out.push(table(['Yếu tố', 'Đóng góp vào lợi suất kỳ vọng (%/tháng)'], inp.score.thermometer.topContributors.map((c) => [n(c.factor), `${c.contribution >= 0 ? '+' : ''}${fmtNum(c.contribution, 2)}`])));
+        out.push(table(['Yếu tố', 'Đóng góp vào lợi suất kỳ vọng (%/tháng)'], inp.score.thermometer.topContributors.map((c) => [n(c.factor), fmtSigned(c.contribution, 2)])));
     } else out.push('Chưa đủ dữ liệu để tính điểm.');
     out.push(`**Kiểm định ngoài mẫu:** ${inp.score.gateNote}${inp.score.backtest ? ` IC = ${fmtNum(inp.score.backtest.ic, 2)}, p = ${fmtNum(inp.score.backtest.icP, 3)}, đúng hướng ${fmtNum(inp.score.backtest.hitRate * 100, 0)}%.` : ''}`);
     if (inp.score.backtest && !inp.score.backtest.gate.pass) out.push(inp.score.backtest.gate.reasons.map((r) => `- ${r}`).join('\n'));

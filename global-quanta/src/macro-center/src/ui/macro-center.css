@@ -152,6 +152,8 @@
 .mc .ds-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .mc .ds-table th, .mc .ds-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
 .mc .ds-table thead th { color: var(--ink-3); font-weight: 600; white-space: nowrap; }
+.mc .ds-quarantine { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--rule); border-radius: 6px; font-size: 12px; }
+.mc .ds-quarantine ul { margin: 4px 0 0; padding-left: 18px; }
 .mc .ds-table tbody th { font-weight: 600; }
 .mc .ds-table tbody th small { color: var(--ink-3); font-weight: 400; }
 .mc .ds-table td[data-tone='ok'] { color: var(--up); }

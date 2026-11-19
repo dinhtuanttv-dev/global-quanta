@@ -847,13 +847,13 @@ var VN_CATALOG = [
   { id: "IR", nameVi: "L\xE3i su\u1EA5t li\xEAn ng\xE2n h\xE0ng 1 th\xE1ng", role: "factor", kind: "rate", unit: "%/n\u0103m", source: "NHNN", pubLagMonths: 0, typicalReleaseDay: 1, group: "money" },
   { id: "M2", nameVi: "Cung ti\u1EC1n M2", role: "factor", kind: "level", unit: "t\u1EF7 VND", source: "NHNN", pubLagMonths: 2, typicalReleaseDay: 15, group: "money" },
   { id: "CREDIT", nameVi: "D\u01B0 n\u1EE3 t\xEDn d\u1EE5ng", role: "factor", kind: "level", unit: "t\u1EF7 VND", source: "NHNN", pubLagMonths: 1, typicalReleaseDay: 10, group: "money" },
-  { id: "EX", nameVi: "T\u1EF7 gi\xE1 USD/VND (li\xEAn ng\xE2n h\xE0ng)", role: "factor", kind: "level", unit: "VND", source: "NHNN", pubLagMonths: 0, typicalReleaseDay: 1, group: "external" },
+  { id: "EX", nameVi: "T\u1EF7 gi\xE1 USD/VND (th\u1ECB tr\u01B0\u1EDDng)", role: "factor", kind: "level", unit: "VND", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "external" },
   { id: "FDI", nameVi: "FDI gi\u1EA3i ng\xE2n", role: "factor", kind: "level", unit: "tri\u1EC7u USD", source: "GSO", pubLagMonths: 1, typicalReleaseDay: 6, group: "external" },
   { id: "EXPORT", nameVi: "Kim ng\u1EA1ch xu\u1EA5t kh\u1EA9u", role: "factor", kind: "level", unit: "tri\u1EC7u USD", source: "GSO", pubLagMonths: 1, typicalReleaseDay: 6, group: "external" },
   { id: "IO", nameVi: "Ch\u1EC9 s\u1ED1 s\u1EA3n xu\u1EA5t c\xF4ng nghi\u1EC7p (IIP)", role: "factor", kind: "level", unit: "ch\u1EC9 s\u1ED1", source: "GSO", pubLagMonths: 1, typicalReleaseDay: 6, group: "activity" },
   { id: "PMI", nameVi: "PMI s\u1EA3n xu\u1EA5t", role: "factor", kind: "rate", unit: "\u0111i\u1EC3m", source: "S&P Global", pubLagMonths: 1, typicalReleaseDay: 1, group: "activity" },
   { id: "DXY", nameVi: "Ch\u1EC9 s\u1ED1 USD (DXY)", role: "factor", kind: "level", unit: "\u0111i\u1EC3m", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
-  { id: "FED", nameVi: "L\xE3i su\u1EA5t \u0111i\u1EC1u h\xE0nh Fed", role: "factor", kind: "rate", unit: "%/n\u0103m", source: "Fed", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
+  { id: "FED", nameVi: "L\xE3i su\u1EA5t qu\u1EF9 Fed hi\u1EC7u d\u1EE5ng (b\xECnh qu\xE2n th\xE1ng)", role: "factor", kind: "rate", unit: "%/n\u0103m", source: "Fed", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
   { id: "OIL", nameVi: "Gi\xE1 d\u1EA7u Brent", role: "factor", kind: "level", unit: "USD/th\xF9ng", source: "th\u1ECB tr\u01B0\u1EDDng", pubLagMonths: 0, typicalReleaseDay: 1, group: "global" },
   { id: "VNINDEX", nameVi: "VN-Index", role: "target", kind: "index", unit: "\u0111i\u1EC3m", source: "HOSE", pubLagMonths: 0, typicalReleaseDay: 1, group: "market", capGroup: "broad" },
   { id: "VN30", nameVi: "VN30", role: "target", kind: "index", unit: "\u0111i\u1EC3m", source: "HOSE", pubLagMonths: 0, typicalReleaseDay: 1, group: "market", capGroup: "large" },
@@ -1216,7 +1216,8 @@ function generateAlerts(args) {
       id: `z:${f}`,
       kind: "factor-extreme",
       level: Math.abs(z) >= zHigh ? "high" : "warn",
-      messageVi: `${name} \u0111ang ${z > 0 ? "cao" : "th\u1EA5p"} b\u1EA5t th\u01B0\u1EDDng: l\u1EC7ch ${z > 0 ? "+" : ""}${z.toFixed(1)} \u0111\u1ED9 l\u1EC7ch chu\u1EA9n so v\u1EDBi l\u1ECBch s\u1EED.`
+      // V0: "bất thường" chỉ khi |z| ≥ 2 (≈ 5% hai đuôi); 1,5–2 là "hơn thường lệ". Số thập phân kiểu Việt Nam.
+      messageVi: `${name} \u0111ang ${z > 0 ? "cao" : "th\u1EA5p"} ${Math.abs(z) >= 2 ? "b\u1EA5t th\u01B0\u1EDDng" : "h\u01A1n th\u01B0\u1EDDng l\u1EC7"}: l\u1EC7ch ${z > 0 ? "+" : ""}${z.toFixed(1).replace(".", ",")} \u0111\u1ED9 l\u1EC7ch chu\u1EA9n so v\u1EDBi l\u1ECBch s\u1EED.`
     });
   }
   if (args.regime) {
@@ -1632,7 +1633,13 @@ function regimeConditionalBeta(args) {
 // src/macro-center/src/macro-filter.ts
 function fmtNum(v, digits = 2) {
   if (!Number.isFinite(v)) return "\u2013";
-  return v.toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const r = Number(v.toFixed(digits)) || 0;
+  return r.toLocaleString("vi-VN", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+}
+function fmtSigned(v, digits = 2) {
+  if (!Number.isFinite(v)) return "\u2013";
+  const r = Number(v.toFixed(digits)) || 0;
+  return `${r > 0 ? "+" : ""}${fmtNum(r, digits)}`;
 }
 function fmtQ(q) {
   if (!Number.isFinite(q)) return "\u2013";
@@ -1665,7 +1672,7 @@ function buildMonthlyReport(inp) {
     if (inp.score.thermometer) {
       out.push(`\u0110i\u1EC3m ${fmtNum(inp.score.thermometer.value, 2)} (thang \u22121 \u0111\u1EBFn +1) cho k\u1EF3 ${inp.score.thermometer.period}: **${inp.score.thermometer.bandVi}**.`);
       if (inp.score.thermometer.topContributors.length)
-        out.push(table(["Y\u1EBFu t\u1ED1", "\u0110\xF3ng g\xF3p v\xE0o l\u1EE3i su\u1EA5t k\u1EF3 v\u1ECDng (%/th\xE1ng)"], inp.score.thermometer.topContributors.map((c) => [n(c.factor), `${c.contribution >= 0 ? "+" : ""}${fmtNum(c.contribution, 2)}`])));
+        out.push(table(["Y\u1EBFu t\u1ED1", "\u0110\xF3ng g\xF3p v\xE0o l\u1EE3i su\u1EA5t k\u1EF3 v\u1ECDng (%/th\xE1ng)"], inp.score.thermometer.topContributors.map((c) => [n(c.factor), fmtSigned(c.contribution, 2)])));
     } else out.push("Ch\u01B0a \u0111\u1EE7 d\u1EEF li\u1EC7u \u0111\u1EC3 t\xEDnh \u0111i\u1EC3m.");
     out.push(`**Ki\u1EC3m \u0111\u1ECBnh ngo\xE0i m\u1EABu:** ${inp.score.gateNote}${inp.score.backtest ? ` IC = ${fmtNum(inp.score.backtest.ic, 2)}, p = ${fmtNum(inp.score.backtest.icP, 3)}, \u0111\xFAng h\u01B0\u1EDBng ${fmtNum(inp.score.backtest.hitRate * 100, 0)}%.` : ""}`);
     if (inp.score.backtest && !inp.score.backtest.gate.pass) out.push(inp.score.backtest.gate.reasons.map((r) => `- ${r}`).join("\n"));
