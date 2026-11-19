@@ -158,7 +158,7 @@ export function ToolResultCard({ name, result }: { name: string; result: ChatToo
       <Shell title={`${title} · ${name === "catalyst_ticker" ? d.ticker : sectorLabelVi(d.sector)}`}>
         <Table head={["Mã", "Xúc tác", "Hướng", "Tác động", "Nguồn", "Tỷ lệ thắng LS", "Giá"]} rows={cards.slice(0, 8).map((c) => [
           c.ticker, <span title={c.catalyst} style={{ display: "inline-block", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "bottom" }}>{c.catalyst}</span>,
-          <span style={{ color: dirColor(c.direction) }}>{c.direction === "benefit" ? "có lợi" : "bất lợi"}</span>, fmt(c.impact), c.corroboration, `${fmt(c.historicalWinRatePct, 0)}%`,
+          <span style={{ color: dirColor(c.direction) }}>{c.direction === "benefit" ? "có lợi" : "bất lợi"}</span>, fmt(c.impact), c.corroboration, c.historicalWinRatePct === 50 || c.historicalWinRatePct == null ? "chưa đủ mẫu" : `${fmt(c.historicalWinRatePct, 0)}%`,
           c.priceInStatus === "reflected" ? "đã phản ánh" : "chưa",
         ])} />
       </Shell>

@@ -5,7 +5,7 @@
 //   - Ngược lại: chế độ "insufficient" — engine vẫn chạy trên kho THẬT (có thể rỗng), phép tính thiếu số liệu trả 422 kèm lý do.
 //     Không bao giờ dựng kho mô phỏng (bỏ makeSyntheticStore 05/11/2026): thà báo thiếu dữ liệu còn hơn hiện số giả.
 import {
-  createMacroApi, createMacroChatTools, InMemoryVintageStore, VN_CATALOG, SYNTHETIC_NOTICE,
+  createMacroApi, createMacroChatTools, InMemoryVintageStore, VN_CATALOG,
   importSeriesCsv, checkQuality, catalogById, MACRO_TOOL_SPECS, MACRO_CHAT_SYSTEM_PROMPT, toAnthropicTools,
 } from "./vendor/macroEngine.mjs";
 import { quarantineScale } from "./scaleCheck.js";
@@ -203,4 +203,4 @@ export function parseSeriesCsv({ seriesId, csv, locale, delimiter, hasHeader, mo
   return { meta, observations, rejectedRows, issues, hasErrors: issues.some((i) => i.severity === "error") };
 }
 
-export { VN_CATALOG, SYNTHETIC_NOTICE };
+export { VN_CATALOG };

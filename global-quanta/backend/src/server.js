@@ -12,7 +12,7 @@ import cors from "cors";
 import scanRouter from "./routes/scan.js";
 import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
-import { createMacroRouter } from "./routes/macro.js";
+import { clientIp, createMacroRouter, isAdmin } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
 import { createWorldRouter, defaultPulse } from "./routes/world.js";
 import { createBrokerViews } from "./market/brokerViews/brokerViewsService.js";
@@ -108,6 +108,17 @@ app.get("/api/health", healthHandler);
 // D0/D1: băng thông Supabase hôm nay + dự báo tháng, trạng thái kho đệm.
 app.use("/api/health/db-budget", createDbBudgetRouter({ getStore: () => getMarketRuntime().store, meter: sharedEgressMeter() }));
 app.use("/api/health/heap-profile", createHeapProfileRouter());
+// V3 (19/11/2026): chẩn đoán header chuyển tiếp mà Gateway thực nhận sau proxy Railway — CHỈ quản trị viên. Dùng để chọn header IP
+// mà client không giả được cho giới hạn tần suất / chống dò mật khẩu. Không trả gì khác ngoài các header này.
+app.get("/api/health/client-ip", (req, res) => {
+  if (!isAdmin(req, process.env.MARKET_ADMIN_TOKEN || "")) return res.status(401).json({ error: "Cần MARKET_ADMIN_TOKEN hợp lệ." });
+  const pickH = (k) => req.headers[k] ?? null;
+  res.set("Cache-Control", "no-store").json({
+    xForwardedFor: pickH("x-forwarded-for"), xRealIp: pickH("x-real-ip"), xEnvoyExternalAddress: pickH("x-envoy-external-address"),
+    forwarded: pickH("forwarded"), cfConnectingIp: pickH("cf-connecting-ip"), trueClientIp: pickH("true-client-ip"),
+    socket: req.socket?.remoteAddress ?? null, reqIp: req.ip ?? null, clientIpUsed: clientIp(req),
+  });
+});
 
 app.use("/api", scanRouter);
 app.use("/api/ssi", ssiRouter);
@@ -117,6 +128,10 @@ app.use("/api/auth", createAuthRouter({ getAuth: () => getMarketRuntime().auth }
 let macroService = null;
 const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));
 app.use("/api/macro", createMacroRouter({ getService: getMacroService }));
+// V3 (19/11/2026): nạp nguồn vĩ mô CHỦ ĐỘNG — 3 phút sau khởi động rồi mỗi 30 phút kiểm; chỉ gọi nguồn ngoài khi lần nạp gần nhất
+// đã cũ quá 12 giờ (refreshAutoFeeds tự bỏ qua khi còn mới). Trước đây chỉ nạp khi có người mở tab.
+const macroTick = () => getMacroService().refreshAutoFeeds().catch((e) => console.warn(`[macro] nạp theo lịch lỗi: ${e?.message}`));
+setTimeout(() => { void macroTick(); setInterval(() => void macroTick(), 30 * 60_000).unref?.(); }, 3 * 60_000).unref?.();
 // Kết nối thế giới (engine world của gói macro-center 1.2): dữ liệu thật dựng 2 lần/ngày, engine trong worker thread.
 let worldService = null;
 const getWorldService = () => (worldService ??= createWorldService({

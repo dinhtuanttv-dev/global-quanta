@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { notifyOps } from "./alerts.js";
 
-export const LEDGER_BACKUP_PREFIXES = Object.freeze(["cycles:ledger:", "alpha:snap:", "alpha:ic"]);
+// V3 (19/11/2026): thêm "macro:" — số liệu vĩ mô nạp CSV và lịch sử vintage (bản đã được công bố lại) KHÔNG tải lại được từ nguồn.
+export const LEDGER_BACKUP_PREFIXES = Object.freeze(["cycles:ledger:", "alpha:snap:", "alpha:ic", "macro:"]);
 export const LEDGER_BACKUP_STATE_KV = "local:ledger-backup";
 const REMOTE = (key) => `gq:ledger:${key}`;
 const MAX_BYTES = 900_000; // dưới giới hạn một yêu cầu của gói miễn phí

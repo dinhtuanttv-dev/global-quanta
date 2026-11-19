@@ -7,11 +7,19 @@ import { timingSafeEqual } from "node:crypto";
 
 const ENGINE_ROUTES = new Set(["health", "series", "impact", "cell", "scenario", "score", "regime", "regime-impact", "report", "alerts", "calendar"]);
 
+/**
+ * IP thật của người gọi = X-Real-IP do biên Railway ĐẶT LẠI (đo trên production 19/11/2026 qua /api/health/client-ip:
+ * client gửi X-Real-IP / X-Forwarded-For giả đều bị Railway ghi đè; X-Forwarded-For = "<IP người dùng>, <IP máy biên Railway>").
+ * Trước đây: phần tử ĐẦU X-Forwarded-For (giả được) rồi phần tử CUỐI (là IP máy biên -> mọi người dùng qua cùng máy biên chung một
+ * hạn mức). Không có X-Real-IP (chạy cục bộ, test) -> địa chỉ socket.
+ */
+export const clientIp = (req) => String(req.headers?.["x-real-ip"] ?? "").trim() || req.ip || req.socket?.remoteAddress || "?";
+
 /** Giới hạn tần suất cửa sổ cố định theo IP (bộ nhớ trong; một instance Gateway). */
 export function createRateLimiter({ limit, windowMs = 60_000, now = Date.now }) {
   const hits = new Map();
   return (req, res, next) => {
-    const ip = String(req.get("x-forwarded-for") || req.ip || "?").split(",")[0].trim();
+    const ip = clientIp(req);
     const t = now();
     let h = hits.get(ip);
     if (!h || t - h.start >= windowMs) {

@@ -5,10 +5,11 @@
 //   GET /admin/users · POST /admin/users {email,password,admin,mustChange} · POST /admin/users/reset {email,password,mustChange}
 //   POST /admin/users/disable {email,disabled} · POST /admin/users/revoke {email}
 import express from "express";
-import { isAdmin } from "./macro.js";
+import { clientIp, isAdmin } from "./macro.js";
 
-// IP của proxy Railway nối vào CUỐI X-Forwarded-For; các giá trị đầu do client tự gửi được (giả mạo để né giới hạn) -> lấy giá trị cuối.
-export const ipOf = (req) => String(req.headers["x-forwarded-for"] ?? "").split(",").map((x) => x.trim()).filter(Boolean).pop() || req.socket?.remoteAddress || "?";
+// V3 (19/11/2026): IP thật = X-Real-IP do biên Railway đặt lại (client không giả được). Trước đây lấy phần tử CUỐI X-Forwarded-For —
+// đo trên production đó là IP MÁY BIÊN Railway, nên giới hạn dò mật khẩu tính chung cho mọi người dùng qua cùng máy biên. Xem clientIp.
+export const ipOf = (req) => clientIp(req);
 
 export function createAuthRouter({ getAuth }) {
   const router = express.Router();

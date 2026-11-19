@@ -10,6 +10,8 @@ import { buildMacroCatalystEvents } from "./catalystEvents.js";
 import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
 
 export const MACRO_KV_KEY = "macro:observations";
+/** V3: báo cáo lần nạp nguồn tự động gần nhất (bền qua khởi động lại; sao lưu cùng tiền tố macro:). */
+export const MACRO_REFRESH_KV_KEY = "macro:last-refresh";
 // Mã chỉ số trong danh mục MacroCenter -> mã chỉ số của Gateway.
 // V1 (19/11/2026): từ 06/05/2025 SSI đổi mã (VNMID -> VNMIDCAP, VNSML -> VNSMALLCAP, VNALL -> VNALLSHARE). Đã đối chiếu chỗ nối
 // (VNMID 1.755,42 ngày 29/04/2025 -> VNMIDCAP 1.787,57 ngày 06/05/2025): cùng một chỉ số đổi tên -> nối mã cũ + mã mới (mã mới ưu tiên).
@@ -121,6 +123,7 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
   let writeChain = Promise.resolve();
   let feedsAt = 0;
   let feedsPending = null;
+  let lastRefresh = null;
 
   const todayIso = () => vnToday(now());
 
@@ -137,6 +140,9 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
           // getKv của kho Gateway trả { value, updatedAt } (memoryStore và supabaseStore) — đọc .value
           const saved = store?.getKv ? (await store.getKv(MACRO_KV_KEY))?.value ?? null : null;
           observations = Array.isArray(saved?.observations) ? saved.observations : [];
+          lastRefresh = store?.getKv ? (await store.getKv(MACRO_REFRESH_KV_KEY).catch(() => null))?.value ?? null : null;
+          // lần nạp gần nhất còn mới -> không nạp lại ngay sau khởi động (tiết kiệm gọi nguồn ngoài)
+          if (lastRefresh?.at) feedsAt = Math.max(feedsAt, Date.parse(lastRefresh.at) || 0);
         } catch (e) {
           log.warn?.(`[macro] không đọc được ${MACRO_KV_KEY}: ${e.message}`);
           observations = [];
@@ -176,8 +182,10 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
   }
 
   /** Nạp mọi nguồn tự động (chỉ số HOSE + biến toàn cầu), tối đa 2 lần/ngày; lỗi một nguồn không chặn nguồn khác. */
-  function refreshAutoFeeds({ force = false } = {}) {
-    if (!force && now() - feedsAt < FEED_REFRESH_MS) return Promise.resolve({ skipped: "fresh" });
+  async function refreshAutoFeeds({ force = false } = {}) {
+    // V3: đọc kho (gồm mốc lần nạp gần nhất) TRƯỚC khi xét "còn mới" — nếu không, mỗi lần khởi động lại đều gọi lại nguồn ngoài
+    await init().catch(() => {});
+    if (!force && now() - feedsAt < FEED_REFRESH_MS) return { skipped: "fresh" };
     if (feedsPending) return feedsPending;
     feedsPending = (async () => {
       await init();
@@ -189,12 +197,16 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       Object.assign(report, global.report);
       feedsAt = now();
       const incoming = [...hose, ...global.observations];
-      if (!incoming.length) return { report, added: 0, changed: 0 };
-      return serialized(async () => {
+      const result = !incoming.length ? { report, added: 0, changed: 0, revised: 0 } : await serialized(async () => {
         const { list, added, changed, revised } = mergeObservations(observations, incoming, { revisable: (o) => REVISABLE_SOURCE.test(o.source ?? "csv"), todayIso: todayIso() });
         if (added || changed || revised) await persist(list);
         return { report, added, changed, revised };
       });
+      // tóm tắt gọn từng nguồn (không lưu cả mảng tháng) — để biết nguồn nào đang lỗi mà không cần đọc log
+      const feeds = Object.fromEntries(Object.entries(report).map(([k, v]) => [k, v?.error ? { error: String(v.error).slice(0, 160) } : { months: v?.months ?? null, last: v?.last ?? null, ...(v?.filledFromDaily?.length ? { filledFromDaily: v.filledFromDaily.length } : {}) }]));
+      lastRefresh = { at: new Date(feedsAt).toISOString(), added: result.added, changed: result.changed, revised: result.revised ?? 0, failed: Object.keys(feeds).filter((k) => feeds[k].error), feeds };
+      if (store?.setKv) await store.setKv(MACRO_REFRESH_KV_KEY, lastRefresh).catch((e) => log.warn?.(`[macro] không lưu được báo cáo nạp: ${e.message}`));
+      return result;
     })().finally(() => {
       feedsPending = null;
     });
@@ -231,6 +243,7 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
       return {
         ...s, bySource,
         vintages: vintageCounts(observations),
+        lastRefresh,
         conflicts: sourceConflicts(observations),
         series: s.series.map((x) => ({ ...x, sources: [...(seriesSources[x.id] ?? [])], release: meta[x.id] ? releaseStatus(meta[x.id], x.last, today) : null })),
       };
