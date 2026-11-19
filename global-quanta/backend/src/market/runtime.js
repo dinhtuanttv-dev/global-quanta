@@ -68,6 +68,8 @@ import { createElliottLedger } from "./elliott/scenarioLedger.js";
 import { tradingDatesBack } from "./scanner/scannerJobs.js";
 import { marketConfig } from "./config.js";
 import { createEventRadar } from "./news/eventRadar.js";
+import { createEventRadarRepository } from "./news/eventRadarRepository.js";
+import { createEventArchive } from "./news/eventArchive.js";
 import { getEsaSessions } from "./scanner/intradayService.js";
 import { eliteWarmTickers } from "./elite/decisionService.js";
 import { createSessionCatchUp } from "./sessionCatchUp.js";
@@ -85,7 +87,10 @@ export function getMarketRuntime() {
   };
   const store = createStore();
   const service = createMarketDataService({ providers, store });
-  const eventRadar = createEventRadar({ service });
+  // I0-G2 (19/11/2026): giữ tham chiếu repository để chuyển bản sửa cũ sang kho lưu trữ nén theo tháng (03:55 hằng ngày).
+  const eventRadarRepository = createEventRadarRepository();
+  const eventRadar = createEventRadar({ service, repository: eventRadarRepository });
+  const eventArchive = createEventArchive({ repository: eventRadarRepository });
 
   let downSince = null;
   const hub = new StreamHub({
@@ -241,13 +246,14 @@ export function getMarketRuntime() {
   jobs.seasonXBuild = async () => { const i = seasonX.status().index; if (i && Date.now() - Date.parse(i.builtAt) < 6.5 * 86_400_000) return { skipped: "bản THĂM DÒ chưa quá 6,5 ngày" }; return seasonX.run(); };
   const ledgerBackup = createLedgerBackup({ store });
   jobs.backupLedgers = () => ledgerBackup.backup();
+  jobs.archiveEventRadar = () => eventArchive.rotate();
   jobs.restoreLedgers = () => ledgerBackup.restoreMissing();
   // Bù phiên lỡ (sự cố 13/11/2026): khi khởi động, 06:30 và 18:30 mỗi ngày (cả ngày nghỉ).
   jobs.sessionCatchUp = createSessionCatchUp({ jobs, store,
     // Nến VN-Index của phiên đã hợp lệ (giá > 0) — điều kiện để quét lại trạng thái chỉ số.
     indexReady: async (date) => ((await service.getOhlcv({ symbol: "VNINDEX", limit: 10 })).bars ?? []).some((b) => b.date === date && b.close > 0) });
   jobs.sessionCatchUpLate = jobs.sessionCatchUp;
-  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "sessionCatchUp", at: "06:30", tradingDayOnly: false }, { name: "sessionCatchUpLate", at: "18:30", tradingDayOnly: false }, ...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
+  const scheduler = createScheduler(jobs, { extraSchedule: [{ name: "sessionCatchUp", at: "06:30", tradingDayOnly: false }, { name: "sessionCatchUpLate", at: "18:30", tradingDayOnly: false }, ...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "archiveEventRadar", at: "03:55", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
   const tickRecorder = createTickRecorder({ hub, store });
@@ -266,7 +272,7 @@ export function getMarketRuntime() {
 
   const ledgerHealth = createLedgerHealth({ store, structure, scheduler,
     getCalendar: () => service.getOhlcv({ symbol: "VNINDEX", limit: 400 }).then((r) => (r.bars ?? []).filter((b) => !b.partial && b.close > 0).map((b) => b.date)) });
-  runtime = { kqkd, fundWarehouse, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, eliteToShadow, hlLedger, sharesEps, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, started: false };
+  runtime = { kqkd, fundWarehouse, agmPlans, eventStudy, seasonMap, cafefAnnounce, seasonX, corpEvents, dividendScreener, dqBase, fmLedger, divRunup, eliteToShadow, hlLedger, sharesEps, ledgerHealth, msGarch, preopen, providers, store, service, hub, jobs, scheduler, tickRecorder, cotucScanner, qmsJobs, tradingCalendar, nominalHistory, taSeries, corporateActions, cycles, top20, alpha, localBootstrap, structure, matrix, topbar, auth, elliottAlerts, elliottLedger, eventRadar, eventRadarRepository, eventArchive, started: false };
   return runtime;
 }
 

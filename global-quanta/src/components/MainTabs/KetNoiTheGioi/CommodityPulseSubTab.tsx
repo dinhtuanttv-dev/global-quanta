@@ -1,3 +1,4 @@
+import TransmissionBadge from "./commodity/TransmissionBadge";
 import { useState } from "react";
 import { AlertTriangle, ChevronRight, Home } from "lucide-react";
 import { useAppStore } from "../../../store/useAppStore";
@@ -67,8 +68,10 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
           {c.vnTickers.map((t) => (
             <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
           ))}
+          <TransmissionBadge item={c} />
         </div>
       )}
+      {c.vnTickers.length === 0 && c.transmission && <div className="pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}><TransmissionBadge item={c} withNote /></div>}
       {c.available && (
         <p className="text-[10px] flex items-center gap-0.5" style={{ color: T.gold }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
       )}

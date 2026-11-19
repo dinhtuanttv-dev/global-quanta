@@ -6,6 +6,7 @@ import { createCotucStoreRouter } from "./routes/cotucStore.js";
 import { createCatalystRouter, readCatalystSnapshot } from "./routes/catalysts.js";
 import { createCatalystChat } from "./market/catalystChat/chatService.js";
 import { domesticEventsWithCountdown } from "./market/catalystChat/domesticEvents.js";
+import { createLedgerEvaluator, EVAL_META_KEY } from "./market/catalystLedger/ledgerEvaluator.js";
 import express from "express";
 import v8 from "node:v8";
 import cors from "cors";
@@ -337,7 +338,36 @@ const getCatalystChat = () => (catalystChat ??= createCatalystChat({
   getSnapshot: () => readCatalystSnapshot(getCotucStore()),
   calendar: (horizonDays) => getMacroService().catalystEvents({ horizonDays }),
 }));
-app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore, getChat: getCatalystChat, getDomesticEvents: domesticEventsWithCountdown }));
+// I0-G1 (19/11/2026): chấm sổ tín hiệu xúc tác theo giao thức X6 (khoá riêng ledger-eval / ledger-context), mỗi ngày sau 15:30 giờ VN.
+let catalystLedger = null;
+const catKv = {
+  get: async (key) => (await getCotucStore().list("catkv", { keys: [key], fields: ["value"] }))[0]?.value ?? null,
+  set: (key, value) => getCotucStore().upsert("catkv", [{ key, value: JSON.parse(JSON.stringify(value)) }]),
+};
+const getCatalystLedger = () => (catalystLedger ??= createLedgerEvaluator({
+  kvGet: catKv.get, kvSet: catKv.set,
+  // cổ phiếu: giá điều chỉnh theo sự kiện quyền (tránh tụt giá do GDKHQ); VN-Index: điểm chỉ số
+  getBars: async (symbol, from) => (await getMarketRuntime().service.getOhlcv({ symbol, from, to: new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10), ...(symbol === "VNINDEX" ? {} : { adjusted: "true" }) })).bars,
+  // ngữ cảnh: sự kiện còn trong danh sách; nếu đã rời danh sách thì lấy bản sửa SỚM NHẤT còn trong sổ (gần thời điểm tín hiệu nhất)
+  getRadarEvent: async (id) => {
+    if (!id) return null;
+    const rt = getMarketRuntime();
+    const ev = (await rt.eventRadar.getEvent(id).catch(() => null))?.event;
+    if (ev) return ev;
+    const revs = await rt.eventRadarRepository.listRevisions(id, { limit: 500 }).catch(() => null);
+    return revs?.rows?.[0]?.payload ?? null;
+  },
+}));
+const ledgerTick = async () => {
+  const vn = new Date(Date.now() + 7 * 3600_000);
+  if (vn.getUTCHours() * 60 + vn.getUTCMinutes() < 15 * 60 + 30) return;
+  const last = (await catKv.get(EVAL_META_KEY).catch(() => null))?.ranAt;
+  if (last && new Date(Date.parse(last) + 7 * 3600_000).toISOString().slice(0, 10) === vn.toISOString().slice(0, 10)) return;
+  await getCatalystLedger().run().catch((e) => console.warn(`[catalyst-ledger] chấm lỗi: ${e?.message}`));
+};
+setTimeout(() => { void ledgerTick(); setInterval(() => void ledgerTick(), 30 * 60_000).unref?.(); }, 4 * 60_000).unref?.();
+app.use("/api/catalysts", createCatalystRouter({ getStore: getCotucStore, getChat: getCatalystChat, getDomesticEvents: domesticEventsWithCountdown,
+  getLedger: getCatalystLedger, isAdmin: (req) => isAdmin(req, process.env.MARKET_ADMIN_TOKEN || "") }));
 // F5 (06/11/2026): Chất lượng KQKD (SUE/SUR, tăng trưởng có kiểm soát) cho tab PHÂN TÍCH CƠ BẢN › Kết quả kinh doanh.
 let earningsQuality = null;
 app.get("/api/fundamentals/earnings-quality", async (req, res) => {
