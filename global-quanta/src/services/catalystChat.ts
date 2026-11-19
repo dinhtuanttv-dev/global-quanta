@@ -1,5 +1,8 @@
-// X4 — Client "Hỏi đáp xúc tác": POST {VITE_API_BASE_URL}/api/catalysts/chat (Project A), đọc luồng SSE.
+// X4 — Client "Hỏi đáp xúc tác", đọc luồng SSE.
+// V4 (19/11/2026): gọi Market Gateway trước (POST {gateway}/api/catalysts/chat). Gateway trả 503 code "provider-not-configured" khi chưa
+// có khoá cho mô hình được chọn -> gọi Project A ({VITE_API_BASE_URL}) như cũ trong giai đoạn chuyển tiếp. Cùng hợp đồng SSE ở cả hai nơi.
 import { getAccessToken } from "./api";
+import { getMarketGateway } from "../config/marketGateway";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -17,7 +20,7 @@ export interface ChatToolResult {
 }
 
 export type ChatStreamEvent =
-  | { type: "meta"; remaining: number; macroMode: "real" | "insufficient" | "synthetic" | null; worldMode?: "real" | "insufficient" | "synthetic" | null; provider?: ChatProvider; model?: string }
+  | { type: "meta"; remaining: number; macroMode: "real" | "insufficient" | "synthetic" | null; worldMode?: "real" | "insufficient" | "synthetic" | null; provider?: ChatProvider; model?: string; host?: "gateway" | "project-a" }
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: unknown }
   | { type: "tool_result"; id: string; name: string; result: ChatToolResult }
@@ -58,12 +61,23 @@ export async function streamCatalystChat(
 ): Promise<void> {
   const token = await getAccessToken();
   if (!token) throw new ChatHttpError(401, "Cần đăng nhập để dùng Hỏi đáp xúc tác.");
-  const res = await fetch(`${API_BASE}/api/catalysts/chat`, {
+  const init: RequestInit = {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify(role ? { messages, provider, role } : { messages, provider }),
     signal,
-  });
+  };
+  const urls = chatUrls();
+  let res = await fetch(urls.gateway, init);
+  let host: "gateway" | "project-a" = "gateway";
+  if (res.status === 503 && urls.projectA) {
+    const b = await res.clone().json().catch(() => ({}));
+    if ((b as { code?: string }).code === "provider-not-configured") {
+      res = await fetch(urls.projectA, init);
+      host = "project-a";
+    }
+  }
+  const tag = (e: ChatStreamEvent) => onEvent(e.type === "meta" ? { ...e, host: e.host ?? host } : e);
   if (!res.ok || !res.body) {
     const b = await res.json().catch(() => ({}));
     throw new ChatHttpError(res.status, (b as { error?: string }).error ?? `Lỗi ${res.status}`);
@@ -77,8 +91,13 @@ export async function streamCatalystChat(
     buf += dec.decode(value, { stream: true });
     const { events, rest } = parseSseChunk(buf);
     buf = rest;
-    events.forEach(onEvent);
+    events.forEach(tag);
   }
   const { events } = parseSseChunk(`${buf}\n\n`);
-  events.forEach(onEvent);
+  events.forEach(tag);
+}
+
+/** Gateway là nơi chính; Project A chỉ còn làm đường lùi khi Gateway chưa có khoá cho mô hình được chọn. */
+export function chatUrls(): { gateway: string; projectA: string | null } {
+  return { gateway: `${getMarketGateway().baseUrl}/api/catalysts/chat`, projectA: API_BASE ? `${API_BASE}/api/catalysts/chat` : null };
 }

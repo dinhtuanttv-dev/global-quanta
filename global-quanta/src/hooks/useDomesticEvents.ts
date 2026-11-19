@@ -1,13 +1,12 @@
 ﻿import useSWR from "swr";
 import type { DomesticEvent } from "../types/catalyst";
+import { fetchMarketJson } from "../services/marketDataClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
-
+// V4 (19/11/2026): đọc từ Market Gateway (trước đây Project A). Có timeout và kiểm mã lỗi qua fetchMarketJson.
 export function useDomesticEvents() {
   const { data, error, isLoading } = useSWR<{ events: DomesticEvent[] }>(
-    `${API_BASE}/api/catalysts/domestic-events`,
-    fetcher,
+    "/api/catalysts/domestic-events",
+    () => fetchMarketJson<{ events: DomesticEvent[] }>("/api/catalysts/domestic-events"),
     { revalidateOnFocus: false, dedupingInterval: 5 * 60 * 1000 }
   );
   return { events: data?.events ?? [], isLoading, error };
