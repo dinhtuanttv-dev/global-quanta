@@ -1,7 +1,7 @@
 // W1 (19/11/2026) — so sánh tối đa 4 kịch bản trên cùng bảng nhiệt ngành × kịch bản. Dùng nguyên engine kịch bản của Gateway
 // (POST /api/world/scenario, mỗi kịch bản một lần gọi, có đệm). Không tính lại gì: ô = ước tính điểm của engine sau `horizon` tháng.
 // Ô có khoảng tin cậy 90% chứa 0 (engine trả conclusive=false) hiển thị sọc + "?" — chưa kết luận được hướng, không tô màu hướng.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { fmtSigned } from '../../world-view';
 import { useAsync } from '../useMacro';
 import type { WorldClient } from '../../world-client';
@@ -9,6 +9,8 @@ import type { ScenarioInfo, ScenarioPayload } from './ScenarioStock';
 import { PERSIST_KEYS, usePersistedState } from './persist';
 
 export const MAX_COMPARE = 4;
+/** Câu lỗi cho người xem: 429 = Gateway đang giới hạn số lần tính. */
+export const compareErrorVi = (e: string) => (/429|quá nhiều|too many/i.test(e) ? 'Gateway đang giới hạn số lần tính kịch bản, thử lại sau ít phút.' : e);
 export const DEFAULT_COMPARE = ['usd-strong', 'oil-spike', 'fed-cut', 'risk-off'];
 const isIdList = (v: unknown): v is string[] => Array.isArray(v) && v.length <= MAX_COMPARE && v.every((x) => typeof x === 'string');
 
@@ -32,10 +34,11 @@ export function ScenarioCompare(props: { client: WorldClient; scenarios: Scenari
   const [ids, setIds] = usePersistedState<string[]>(PERSIST_KEYS.scenarioCompare, DEFAULT_COMPARE, isIdList);
   const known = useMemo(() => new Set(props.scenarios.map((s) => s.id)), [props.scenarios]);
   const picked = ids.filter((id) => known.has(id));
+  const [retry, setRetry] = useState(0);
   const runs = useAsync(async (signal) => {
     const out = await Promise.allSettled(picked.map((scenarioId) => props.client.scenario<ScenarioPayload>({ scenarioId, horizon: props.horizon }, signal)));
     return out.map((r, i) => ({ id: picked[i], result: r.status === 'fulfilled' ? r.value : null, error: r.status === 'rejected' ? String((r.reason as Error)?.message ?? r.reason) : null }));
-  }, [props.client, picked.join(','), props.horizon], picked.length > 0);
+  }, [props.client, picked.join(','), props.horizon, retry], picked.length > 0);
   const cols: Col[] = (runs.data ?? []).map((r) => ({ ...r, nameVi: props.scenarios.find((s) => s.id === r.id)?.nameVi ?? r.id }));
   const rows = compareRows(cols);
   const toggle = (id: string) => setIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : cur.length >= MAX_COMPARE ? cur : [...cur, id]));
@@ -60,6 +63,12 @@ export function ScenarioCompare(props: { client: WorldClient; scenarios: Scenari
       {picked.length === 0 && <p className="state">Chưa chọn kịch bản nào.</p>}
       {runs.loading && !runs.data && <p className="state" role="status">Đang mô phỏng {picked.length} kịch bản…</p>}
       {runs.error && <p className="state alert" role="alert">{runs.error}</p>}
+      {runs.data && rows.length === 0 && cols.some((c) => c.error) && (
+        <div className="state alert" role="alert" data-testid="scenario-compare-error">
+          Không mô phỏng được kịch bản nào: {compareErrorVi(cols.find((c) => c.error)?.error ?? '')}{' '}
+          <button type="button" className="chip" onClick={() => setRetry((n) => n + 1)} data-testid="scenario-compare-retry">Thử lại</button>
+        </div>
+      )}
       {rows.length > 0 && (
         <div className="scroll">
           <table className="sc-heat" data-testid="scenario-heat">
@@ -67,7 +76,7 @@ export function ScenarioCompare(props: { client: WorldClient; scenarios: Scenari
             <thead>
               <tr>
                 <th scope="col">Ngành</th>
-                {cols.map((c) => <th key={c.id} scope="col">{c.nameVi}{c.error && <span className="chip-warn" title={c.error}> lỗi</span>}{c.result && <span className="muted sc-sub">{c.result.conclusiveCount}/{c.result.sectors.length} kết luận</span>}</th>)}
+                {cols.map((c) => <th key={c.id} scope="col">{c.nameVi}{c.error && <span className="chip-warn" title={compareErrorVi(c.error)}> lỗi</span>}{c.result && <span className="muted sc-sub">{c.result.conclusiveCount}/{c.result.sectors.length} kết luận</span>}</th>)}
               </tr>
             </thead>
             <tbody>
