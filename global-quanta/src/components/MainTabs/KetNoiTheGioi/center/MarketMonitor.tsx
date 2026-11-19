@@ -58,7 +58,7 @@ function RangeBar({ pct }: { pct: number | null | undefined }) {
 function Stat({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "warn" }) {
   return <div className="rounded-lg px-3 py-2" style={{ background: "rgba(148,163,184,0.04)" }}>
     <p className="text-[10px]" style={muted}>{label}</p>
-    <p className="text-sm font-bold" style={{ color: tone === "warn" ? "var(--gold-bright, #fbbf24)" : "#f1f5f9" }}>{value}</p>
+    <p className="text-sm font-bold" style={{ color: tone === "warn" ? "var(--gold-bright, #fbbf24)" : "var(--text-primary)" }}>{value}</p>
     {note && <p className="text-[10px]" style={muted}>{note}</p>}
   </div>;
 }
@@ -78,7 +78,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
     <section className="rounded-xl p-3.5" style={card} data-testid="market-monitor">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Giám sát thị trường &amp; rủi ro</h4>
+          <h4 className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Giám sát thị trường &amp; rủi ro</h4>
           <p className="text-[10px]" style={muted}>{data?.method.noteVi ?? "Một kho giá cho chỉ số, vĩ mô và hàng hoá."}{data ? ` Tính lúc ${fmtVnTime(data.generatedAt)}.` : ""}</p>
         </div>
         <EvidenceTag kind="data" />
@@ -94,7 +94,8 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
           <Stat label="Lan truyền giữa các thị trường" value={spillover == null ? "—" : `${spillover.toFixed(0)}%`} note="Diebold–Yilmaz, gần đây" />
         </div>
         <div className="relative mt-3">
-          <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
+          <p className="text-[10px] md:hidden" style={{ color: "var(--text-secondary)" }} data-testid="kntg-swipe-hint">Vuốt ngang trong khung để xem hết biểu đồ.</p>
+        <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${plotted.length} thị trường: biến động phiên theo trục ngang, vị trí biên năm theo trục dọc`} data-testid="monitor-map">
             <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
             <rect x={L} y={T} width={sx(-2) - L} height={H - T - B} fill="rgba(230,103,103,0.05)" />
             <rect x={sx(2)} y={T} width={W - R - sx(2)} height={H - T - B} fill="rgba(57,135,229,0.05)" />
@@ -114,7 +115,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
               </g>;
             })}
           </svg></div>
-          {hover && <div className="pointer-events-none absolute right-2 top-2 z-10 rounded-lg px-2.5 py-1.5 text-[10px]" role="status" data-testid="monitor-tip" style={{ background: "#0b1220", border: "1px solid rgba(148,163,184,0.25)", color: "#e2e8f0" }}>
+          {hover && <div className="pointer-events-none absolute right-2 top-2 z-10 rounded-lg px-2.5 py-1.5 text-[10px]" role="status" data-testid="monitor-tip" style={{ background: "#0b1220", border: "1px solid rgba(148,163,184,0.25)", color: "var(--text-primary)" }}>
             <b>{hover.nameVi}</b> · {GROUP[hover.group].label}<br />
             {fmtValue(hover.value)} {hover.unit} · {fmtChange(hover)} · z {fmtSigned(hover.z, 2)}<br />
             <span style={muted}>Phiên {hover.date?.split("-").reverse().join("/")} · {hover.sourceVi}</span>
@@ -128,9 +129,9 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
           <table className="w-full text-[10.5px]" style={{ minWidth: 640 }} data-testid="monitor-table">
             <thead><tr style={muted}>{["Thị trường", "Giá", "Thay đổi", "z", "Biên 1 năm", "60 phiên", "Phiên"].map((h, i) => <th key={h} className={`px-2 py-1 font-normal ${i === 0 ? "text-left" : i < 3 ? "text-right" : "text-center"}`}>{h}</th>)}</tr></thead>
             <tbody>{table.map((i) => <tr key={i.id} style={{ borderTop: "1px solid rgba(148,163,184,0.07)" }} data-testid={`monitor-row-${i.id}`}>
-              <td className="px-2 py-1" style={{ color: "#e2e8f0" }} title={i.sourceVi}>{i.nameVi}</td>
-              <td className="px-2 py-1 text-right font-semibold" style={{ color: "#f1f5f9" }}>{i.available ? fmtValue(i.value) : "—"}</td>
-              <td className="px-2 py-1 text-right" style={{ color: i.change == null ? undefined : i.change >= 0 ? "#7cb4f5" : "#f09595" }}>{i.available ? fmtChange(i) : "—"}</td>
+              <td className="px-2 py-1" style={{ color: "var(--text-primary)" }} title={i.sourceVi}>{i.nameVi}</td>
+              <td className="px-2 py-1 text-right font-semibold" style={{ color: "var(--text-primary)" }}>{i.available ? fmtValue(i.value) : "—"}</td>
+              <td className="px-2 py-1 text-right" style={{ color: i.change == null ? undefined : i.change >= 0 ? "var(--positive, #10B981)" : "var(--negative, #F43F5E)" }}>{i.available ? fmtChange(i) : "—"}</td>
               <td className="px-2 py-1 text-center"><ZBar z={i.z} /></td>
               <td className="px-2 py-1 text-center"><RangeBar pct={i.rangePct} /></td>
               <td className="px-2 py-1 text-center"><Spark pts={i.spark ?? []} /></td>

@@ -128,6 +128,11 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
           {matrix.error && <p className="state alert" role="alert">{matrix.error}</p>}
           {!matrix.data && !matrix.error && <p className="state" role="status">Đang ước lượng ma trận…</p>}
           {matrix.data && view && (
+            // G3/L12 (19/11/2026): khi chưa có liên kết bậc A/B, ma trận mặc định thu gọn — tóm tắt trước, bức tường ô sọc sau.
+            <details className="mx-wrap" open={matrix.data.counts.A + matrix.data.counts.B > 0 || undefined} data-testid="matrix-wrap">
+            <summary className="mx-summary" data-testid="matrix-summary">
+              {matrix.data.cells.length} liên kết, {matrix.data.counts.A + matrix.data.counts.B} đạt bậc A/B.{matrix.data.counts.A + matrix.data.counts.B === 0 ? ' Bấm để xem các giả thuyết bậc C (thăm dò, không dùng để quyết định).' : ' Bấm để thu gọn.'}
+            </summary>
             <div className="two">
               <div>
                 <WorldFilterBar state={filter} onChange={(f) => { setFilter(f); setCell(null); }} channels={Object.entries(CHANNELS).map(([id, label]) => ({ id, label }))} />
@@ -152,6 +157,7 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
                 ) : (<p className="state">Chọn một ô để xem bằng chứng và độ ổn định.</p>)}
               </aside>
             </div>
+            </details>
           )}
         </section>
       )}

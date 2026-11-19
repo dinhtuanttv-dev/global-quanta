@@ -43,7 +43,7 @@ export default function SectorMap2D() {
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="sector-map">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Bản đồ ngành Việt Nam</h4>
+          <h4 className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Bản đồ ngành Việt Nam</h4>
           <p className="text-[10px]" style={muted}>Trục ngang: tín hiệu ngắn hạn đã kiểm định (lợi thế nhỏ). Trục dọc: bối cảnh 3 tháng, chỉ để tham khảo. Bấm một điểm để xem phân tích ngành.</p>
         </div>
         <EvidenceTag kind="heuristic" title="Vị trí trên bản đồ là mô tả. Chỉ trục ngang có kiểm định đặt trước (WS-v1); trục dọc không đạt kiểm định." />
@@ -51,6 +51,7 @@ export default function SectorMap2D() {
       {error && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative)" }}>Không tải được dữ liệu ngành: {error.message}</p>}
       {!strategy && !error && <div className="mt-2 h-60 animate-pulse rounded-lg" style={{ background: "rgba(148,163,184,0.05)" }} aria-busy="true" />}
       {strategy && <div className="relative mt-2">
+        <p className="text-[10px] md:hidden" style={{ color: "var(--text-secondary)" }} data-testid="kntg-swipe-hint">Vuốt ngang trong khung để xem hết biểu đồ.</p>
         <div className="overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`Bản đồ ${pts.length} ngành: ngắn hạn theo trục ngang, ba tháng theo trục dọc`}>
           <rect x={L} y={T} width={W - L - R} height={H - T - B} rx={8} fill="rgba(148,163,184,0.025)" stroke="rgba(148,163,184,0.12)" />
           <line x1={sx(0)} x2={sx(0)} y1={T} y2={H - B} stroke="rgba(148,163,184,0.28)" strokeDasharray="3 4" />
@@ -73,7 +74,7 @@ export default function SectorMap2D() {
           })}
         </svg></div>
         {hover && <div className="pointer-events-none absolute z-10 rounded-lg px-2.5 py-1.5 text-[10px]" role="status" data-testid="sector-tip"
-          style={{ left: `${Math.min(68, (sx(hover.x) / W) * 100)}%`, top: `${Math.max(2, (sy(hover.y) / H) * 100 - 20)}%`, background: "#0f172a", border: "1px solid rgba(148,163,184,0.3)", color: "#e2e8f0" }}>
+          style={{ left: `${Math.min(68, (sx(hover.x) / W) * 100)}%`, top: `${Math.max(2, (sy(hover.y) / H) * 100 - 20)}%`, background: "#0f172a", border: "1px solid rgba(148,163,184,0.3)", color: "var(--text-primary)" }}>
           <b>{hover.nameVi}</b> · {stanceOf(hover.stance).label}<br />
           α {fmtZ(hover.alphaBps, 1)} đcb/phiên · 3 tháng {fmtZ(hover.y, 2)}
           {hover.concentrated && <><br /><span style={{ color: "#fbbf24" }}>Tập trung: {hover.note}</span></>}

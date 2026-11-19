@@ -40,6 +40,9 @@ for (const W of [1440, 390]) {
   await p.locator("#world-transmission-tab").click();
   await p.waitForSelector('[data-testid="world-transmission"]', { timeout: 60_000 });
   const tabs0 = await p.locator('[role="tab"]').count();
+  // G3: trên điện thoại các khối thu gọn trong chỗ (KntgSection) — mở hết các khối cần kiểm
+  const openSections = async () => { for (const bar of await p.locator('.kntg-section:not([open]) > summary').all()) { if (await bar.isVisible()) { await bar.click(); await p.waitForTimeout(300); } } };
+  await openSections();
   // W1: so sánh kịch bản
   await p.locator('[data-testid="sc-mode-compare"]').click();
   const heat = await p.waitForSelector('[data-testid="scenario-heat"]', { timeout: 90_000 }).then(() => true).catch(() => false);
@@ -62,11 +65,14 @@ for (const W of [1440, 390]) {
     check(W, !/Chọn một sự kiện để xem/.test(await p.locator('[aria-label="Chi tiết sự kiện đã chọn"]').innerText()), "W2: bấm điểm mở chi tiết sự kiện");
     await p.selectOption("#wd-ev-kind", "surprise"); await p.waitForTimeout(500);
     const cnt = await p.locator('[data-testid="event-filter-count"]').innerText();
-    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForSelector('[data-testid="event-filter-count"]', { timeout: 90_000 });
+    await p.reload({ waitUntil: "domcontentloaded" }); await p.waitForSelector("#world-transmission-tab", { timeout: 90_000 }); await openSections(); await p.waitForSelector('[data-testid="event-filter-count"]', { timeout: 90_000 });
     check(W, (await p.locator('[data-testid="event-filter-count"]').innerText()) === cnt && (await p.inputValue("#wd-ev-kind")) === "surprise", "W2: bộ lọc sự kiện được nhớ sau tải lại (" + cnt + ")");
     await p.selectOption("#wd-ev-kind", "all");
   }
   // W4: ma trận — chọn ô thì khung chi tiết hiện trong khung nhìn
+  await openSections();
+  // G3/L12: ma trận thu gọn khi chưa có liên kết A/B -> mở tóm tắt trước
+  if (await p.locator('[data-testid="matrix-wrap"]:not([open])').count()) { await p.locator('[data-testid="matrix-summary"]').click(); await p.waitForTimeout(400); }
   const mcell = p.locator(".wd .wm button.cell").first();
   if (await mcell.count()) {
     await mcell.scrollIntoViewIfNeeded(); await mcell.click(); await p.waitForTimeout(900);

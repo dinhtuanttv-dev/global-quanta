@@ -42,7 +42,7 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
       {c.available ? (
         <div className="flex items-end justify-between gap-2">
           <div>
-            <p className="text-lg font-black" style={{ color: "#f1f5f9" }}>
+            <p className="text-lg font-black" style={{ color: "var(--text-primary)" }}>
               {fmtPrice(c.value)} <span className="text-[10px] font-normal" style={{ color: T.textTertiary }}>{c.unit}</span>
             </p>
             <p className="text-[10px] font-bold" style={{ color: chg == null ? T.textTertiary : chg >= 0 ? T.positive : T.negative }}>
@@ -151,7 +151,7 @@ export default function CommodityPulseSubTab() {
                   <Home className="w-3 h-3" style={{ color: T.textTertiary }} />
                   <p className="text-[10px]" style={{ color: T.textTertiary }}>{c.country_name} · {c.quarter_label}</p>
                 </div>
-                <p className="text-sm font-black" style={{ color: "#f1f5f9" }}>{c.real_index_value.toFixed(1)}</p>
+                <p className="text-sm font-black" style={{ color: "var(--text-primary)" }}>{c.real_index_value.toFixed(1)}</p>
                 {c.yoy_change_percent !== null && (
                   <p className="text-[10px] font-bold" style={{ color: c.yoy_change_percent >= 0 ? T.positive : T.negative }}>
                     {c.yoy_change_percent >= 0 ? "+" : ""}{c.yoy_change_percent.toFixed(1)}% YoY

@@ -3,7 +3,7 @@
    Màu tăng/giảm theo QUANTA FLUENT-DARK (05/11/2026): tăng = Emerald, giảm = Rose như toàn app; số luôn kèm dấu +/− nên không chỉ dựa vào màu. */
 .gq-world .wd[data-theme] {
   --ground: var(--bg-base); --panel: var(--bg-surface); --surface: rgba(148, 163, 184, 0.05); --track: rgba(148, 163, 184, 0.12);
-  --ink: #f1f5f9; --ink2: #94a3b8; --ink3: var(--text-tertiary, #748299); --rule: var(--border);
+  --ink: var(--text-primary, #f8fafc); --ink2: var(--text-secondary, #94a3b8); --ink3: var(--text-tertiary, #748299); --rule: var(--border);
   --accent: var(--gold); --accentHover: var(--gold-bright); --onAccent: var(--bg-base); --accentSoft: rgba(232, 184, 75, 0.35);
   --up3: #10B981; --up3fg: #f1f5f9; --up2: #059669; --up2fg: #f1f5f9; --up1: #064E3B; --up1fg: #f1f5f9;
   --down3: #F43F5E; --down3fg: #f1f5f9; --down2: #E11D48; --down2fg: #f1f5f9; --down1: #881337; --down1fg: #f1f5f9;
@@ -14,7 +14,7 @@
 .gq-world .wd h1 { display: none; }
 .gq-world .wd h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink2); margin: 0 0 8px; }
 .gq-world .wd .h3 { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--ink2); margin: 12px 0 6px; }
-.gq-world .wd p, .gq-world .wd .muted { font-size: 10.5px; }
+.gq-world .wd p, .gq-world .wd .muted { font-size: 11px; }
 .gq-world .wd .panel { border: 1px solid var(--rule); border-top: 1px solid var(--rule); border-radius: 12px; padding: 12px; background: var(--panel); }
 .gq-world .wd .tabs { gap: 4px 8px; border-bottom: 1px solid var(--rule); }
 .gq-world .wd .tabs button { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 8px 10px; min-height: 32px; border-bottom-width: 2px; color: var(--ink3); }
@@ -32,11 +32,11 @@
 .gq-world .wd .cell { min-height: 34px; border-radius: 6px; font-size: 10px; }
 .gq-world .wd .cell .arrow { font-size: 13px; }
 .gq-world .wd .legend { font-size: 10px; }
-.gq-world .wd .ev { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; }
+.gq-world .wd .ev { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
 .gq-world .wd .ev-A { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: transparent; }
 .gq-world .wd .ev-B { color: var(--accent); border: 1px solid var(--accentSoft); }
 .gq-world .wd .notice { font-size: 10.5px; border-radius: 8px; }
-.gq-world .wd table { font-size: 10.5px; }
+.gq-world .wd table { font-size: 11px; }
 
 /* Bố cục hai cột (.two) theo bề rộng CHÍNH khung .wd (05/11/2026): gói gốc chuyển theo màn hình ≥ 1000px nên trong khung chính
    hẹp (màn 1366–1440 có thanh bên phải) bảng cột trái phải cuộn ngang. Dưới 1200px khung -> một cột. */
@@ -55,3 +55,37 @@
   .kntg-root :is(button, select, summary, [role="button"]):not(.cell):not([role="tab"]),
   .kntg-root a:is([class*="rounded"], [class*="border"]), .kntg-root label:has(> input[type="checkbox"]) { min-height: 32px; }
 }
+
+/* G3 (19/11/2026) — Giao-dien-KNTG/03 mục 2–3, 5. Thang chữ 10 / 11 / 12 / 14 / 18 (+ tiêu đề nhỏ 10px in hoa theo quy ước chung của app).
+   Cỡ lẻ quy về thang: 10,5 → 11; 11,5 → 12; 13 (rem của engine) → 12. Màu xám trung tính quy về 4 mức:
+   --text-primary #F8FAFC · #CBD5E1 (nhãn trung tính) · --text-secondary #94A3B8 · --text-tertiary #748299. Màu ngữ nghĩa giữ nguyên. */
+.kntg-root .text-\[10\.5px\] { font-size: 11px; }
+.kntg-root .text-\[11\.5px\] { font-size: 12px; }
+.kntg-root :is(.text-\[9px\], .text-\[9\.5px\]) { font-size: 10px; }
+.gq-world .wd :is(.spill, .tails, .ev-table td, .stock-table td, .stock-table tbody th, .sector-bars, .callout, .rev-legend, .shrink li, .cap, .wm tbody th, .kv, .link) { font-size: 12px; }
+.gq-world .wd :is(.ev-table th, .stock-table th, .chip-plain, .chip-warn, .sc-heat th) { font-size: 11px; }
+.kntg-root :is(.text-slate-100, .text-slate-200, .text-white) { color: var(--text-primary, #f8fafc); }
+.kntg-root .text-slate-400 { color: var(--text-secondary, #94a3b8); }
+.kntg-root .text-slate-500 { color: var(--text-tertiary, #748299); }
+/* Bo góc 3 mức (6 / 8 / 12) + tròn hẳn cho huy hiệu đếm; vạch dữ liệu (thanh, chấm) giữ bo nhỏ theo quy cách biểu đồ. */
+.kntg-root .rounded:not([class*="h-1"]):not([class*="h-2"]) { border-radius: 6px; }
+.kntg-root .rounded-sm { border-radius: 6px; }
+.kntg-root .rounded-md { border-radius: 6px; }
+.kntg-root :is(.rounded-lg, .rounded-xl) { border-radius: 8px; }
+.kntg-root section.rounded-xl, .kntg-root [data-kntg-block] { border-radius: 12px; }
+.gq-world .wd :is(.pulse-card, .stats li) { border-radius: 8px; }
+
+/* G3: thu gọn trong chỗ (ui/KntgSection.tsx). Máy tính: không có thanh; điện thoại: thanh 1 dòng mô tả. */
+.kntg-section > .kntg-section-bar { display: none; }
+.kntg-section > .kntg-section-bar::-webkit-details-marker { display: none; }
+@media (max-width: 767px) {
+  .kntg-section > .kntg-section-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; cursor: pointer;
+    min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-surface-2, #161D2E); }
+  .kntg-section[open] > .kntg-section-bar { margin-bottom: 8px; }
+  .kntg-section-title { display: block; font-size: 12px; font-weight: 700; color: var(--text-primary, #f8fafc); }
+  .kntg-section-sub { display: block; font-size: 10px; color: var(--text-secondary, #94a3b8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kntg-section-chev { width: 16px; height: 16px; flex: none; color: var(--text-secondary, #94a3b8); transition: transform 180ms ease-out; }
+  .kntg-section[open] .kntg-section-chev { transform: rotate(180deg); }
+}
+@media (prefers-reduced-motion: reduce) { .kntg-section-chev { transition: none; } }
+.gq-world .wd .spill td { border-radius: 6px; }

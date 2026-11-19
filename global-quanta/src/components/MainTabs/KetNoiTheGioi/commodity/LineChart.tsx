@@ -127,7 +127,7 @@ export default function LineChart({ series, height = 220, yFmt = (v: number) => 
       </svg>
       {hx != null && hv.length > 0 && (
         <div role="status" className="text-[10px] rounded-md px-2 py-1.5"
-          style={{ position: "absolute", top: 18, left: Math.min(Math.max(hx + 10, 0), width - 190), width: 180, background: "rgba(2,6,15,0.95)", border: "1px solid rgba(148,163,184,0.25)", color: "#f1f5f9", pointerEvents: "none" }}>
+          style={{ position: "absolute", top: 18, left: Math.min(Math.max(hx + 10, 0), width - 190), width: 180, background: "rgba(2,6,15,0.95)", border: "1px solid rgba(148,163,184,0.25)", color: "var(--text-primary)", pointerEvents: "none" }}>
           <div style={{ color: "var(--text-tertiary)" }}>{fmtDate(hv[0].p![0])}</div>
           {hv.map(({ s, p }) => (
             <div key={s.key} className="flex items-center justify-between gap-2">

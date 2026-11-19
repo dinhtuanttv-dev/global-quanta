@@ -18,6 +18,7 @@ import MarketMonitor from "./center/MarketMonitor";
 import WorldNewsPanel from "./center/WorldNewsPanel";
 import AiBriefPanel from "./center/AiBriefPanel";
 import WorldStockLookup from "./center/WorldStockLookup";
+import KntgSection from "./ui/KntgSection";
 import { prefetchWorld } from "../../../macro-center/src/world-client";
 
 /** Sang tab Phân tích vĩ mô bằng đúng cơ chế back/forward của thanh điều hướng, rồi cuộn tới bản tin. */
@@ -123,7 +124,7 @@ export default function KetNoiTheGioiTab() {
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "#f1f5f9" }}>
+          <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
             <Globe2 className="w-4 h-4" style={{ color: T.gold }} /> Trung tâm kinh tế thế giới
           </h3>
           <p className="text-[10px]" style={{ color: T.textTertiary, marginTop: 3 }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
@@ -156,36 +157,37 @@ export default function KetNoiTheGioiTab() {
       {tab === "overview" && (
         <div className="tw-scope space-y-4" data-testid="world-overview">
           <WorldTodayStrip onOpenImpact={() => setTab("sectors")} />
-          <AiBriefPanel compact onOpenFull={openMacroBrief} />
-          <WorldNewsPanel />
-          <Engine only="overview" />
-          <SectorMap2D />
+          {/* G3/K5: điện thoại chỉ mở sẵn khối đầu; máy tính luôn mở (ui/KntgSection) */}
+          <KntgSection id="ov-brief" title="Bản tin AI có kiểm chứng" summary="Diễn giải số liệu và tin đã có, mỗi câu được kiểm" openOnMobile><AiBriefPanel compact onOpenFull={openMacroBrief} /></KntgSection>
+          <KntgSection id="ov-news" title="Tin kinh tế thế giới" summary="Tin theo nguồn, kèm mức xác nhận"><WorldNewsPanel /></KntgSection>
+          <KntgSection id="ov-pulse" title="Nhịp đập thế giới" summary="Độ lệch của các yếu tố thế giới so với lịch sử (số liệu tháng)"><Engine only="overview" /></KntgSection>
+          <KntgSection id="ov-map" title="Bản đồ gói ngành" summary="Ngành Việt Nam: ngắn hạn × 3 tháng"><SectorMap2D /></KntgSection>
         </div>
       )}
 
       {tab === "sectors" && (
         <div className="space-y-3" data-testid="td-root">
           <StrategyPanel />
-          <WorldSectorPanel />
+          <KntgSection id="se-region" title="Ngành Việt Nam × khu vực thế giới" summary="Bản đồ nhiệt z theo khu vực, bấm ngành để xem chi tiết"><WorldSectorPanel /></KntgSection>
         </div>
       )}
 
       {tab === "markets" && (
         <>
           <MarketMonitor spillover={spill?.spillover?.total ?? null} />
-          <CommodityPulseSubTab />
-          <Engine only="connect" />
+          <KntgSection id="mk-commodity" title="Hàng hoá chiến lược" summary="Giá hàng hoá thế giới và tốc độ phản ánh vào cổ phiếu Việt Nam"><CommodityPulseSubTab /></KntgSection>
+          <KntgSection id="mk-connect" title="Kết nối thị trường" summary="Mức lan truyền biến động giữa các thị trường"><Engine only="connect" /></KntgSection>
         </>
       )}
 
       {tab === "transmission" && (
         <div className="space-y-4" data-testid="world-transmission">
           <TransmissionMap2D />
-          <Engine only="scenario" />
-          <Engine only="matrix" />
-          <Engine only="events" />
+          <KntgSection id="tr-scenario" title="Kịch bản" summary="Ngành Việt Nam phản ứng thế nào nếu một yếu tố thế giới đổi" openOnMobile><Engine only="scenario" /></KntgSection>
+          <KntgSection id="tr-matrix" title="Ma trận yếu tố → ngành" summary="Thăm dò: liên kết lịch sử kèm bậc bằng chứng"><Engine only="matrix" /></KntgSection>
+          <KntgSection id="tr-events" title="Sự kiện và phản ứng" summary="Phản ứng của ngành Việt Nam với sự kiện thế giới"><Engine only="events" /></KntgSection>
           {/* W3: khi chưa có dữ liệu phơi nhiễm BCTC thật -> tra cứu mã bằng khối Tác động lên cổ phiếu (D4) + cảnh báo thanh khoản LQ-v1 */}
-          {stockProfileReady ? <Engine only="stock" /> : <WorldStockLookup />}
+          <KntgSection id="tr-stock" title="Cổ phiếu: tác động và thanh khoản" summary="Tra một mã: các lớp tác động kèm dấu bằng chứng">{stockProfileReady ? <Engine only="stock" /> : <WorldStockLookup />}</KntgSection>
         </div>
       )}
 
@@ -216,7 +218,7 @@ export default function KetNoiTheGioiTab() {
             </div>
             {macro.vol_term ? (
               <>
-                <p className="text-3xl font-black mb-1" style={{ color: "#f1f5f9" }}>{(macro.vol_term.slope * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1, signDisplay: "exceptZero" })}%<span className="text-sm ml-2" style={{ color: T.textTertiary }}>VolSlope · {macro.vol_term.stateVi}</span></p>
+                <p className="text-3xl font-black mb-1" style={{ color: "var(--text-primary)" }}>{(macro.vol_term.slope * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1, signDisplay: "exceptZero" })}%<span className="text-sm ml-2" style={{ color: T.textTertiary }}>VolSlope · {macro.vol_term.stateVi}</span></p>
                 <p className="text-[10px] mb-2" style={{ color: T.textTertiary }}>VIX {macro.vol_term.vix.toFixed(2)} / VIX3M {macro.vol_term.vix3m.toFixed(2)} − 1. Dưới −5% là contango (bình yên), trên +5% là backwardation (căng thẳng ngắn hạn), ở giữa là phẳng.</p>
                 {macro.vol_term_evidence && <p className="text-[10px]" style={{ color: T.textTertiary }}>{macro.vol_term_evidence.history} {macro.vol_term_evidence.note}</p>}
               </>

@@ -49,7 +49,7 @@ export default function TransmissionMap2D() {
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="trans-map">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="text-xs font-semibold" style={{ color: "#f1f5f9" }}>Bản đồ truyền dẫn: thế giới → ngành Việt Nam</h4>
+          <h4 className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Bản đồ truyền dẫn: thế giới → ngành Việt Nam</h4>
           <p className="text-[10px]" style={muted}>Mức lệch của yếu tố ở tháng {period} và quan hệ lịch sử với ngành. Số liệu tháng, không phải hôm nay. Rê chuột để lọc, bấm một đường để xem số liệu.</p>
         </div>
         <EvidenceTag kind="heuristic" title="Quan hệ thống kê tháng. Đa số là bậc C: chưa vượt hiệu chỉnh kiểm định bội. Cổng xác nhận đặt trước đang 0/12 cặp, nên bản đồ KHÔNG đi vào quyết định." />
@@ -62,6 +62,7 @@ export default function TransmissionMap2D() {
       </label>}
       {data && edges.length === 0 && <p className="mt-2 text-[11px]" style={muted}>Chưa có liên kết bậc A/B ở mức lệch hiện tại.</p>}
       {edges.length > 0 && <>
+        <p className="text-[10px] md:hidden" style={{ color: "var(--text-secondary)" }} data-testid="kntg-swipe-hint">Vuốt ngang trong khung để xem hết biểu đồ.</p>
         <div className="mt-2 overflow-x-auto"><svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" style={{ minWidth: W, maxWidth: 1040, margin: "0 auto" }} role="group" aria-label={`${edges.length} liên kết từ ${factors.length} yếu tố tới ${sectors.length} ngành`} onMouseLeave={() => setFocus(null)}>
           <text x={LX} y={13} textAnchor="end" fontSize={10} fill="#94a3b8">Yếu tố thế giới · độ lệch tháng {period}</text>
           <text x={RX} y={13} fontSize={10} fill="#94a3b8">Ngành Việt Nam · chiều theo lịch sử</text>
@@ -90,7 +91,7 @@ export default function TransmissionMap2D() {
           <span><i className="mr-1 inline-block h-0.5 w-4 align-middle" style={{ background: DOWN }} />Lịch sử: ngành cùng chiều giảm</span>
           <span>Nét liền: bậc A/B · Nét đứt: bậc C (thăm dò)</span><span>Dày hơn: |t| × |độ lệch| lớn hơn</span>
         </div>
-        {picked && <p className="mt-2 rounded-lg px-2.5 py-1.5 text-[10.5px]" role="status" data-testid="trans-detail" style={{ background: "rgba(148,163,184,0.06)", color: "#e2e8f0" }}>
+        {picked && <p className="mt-2 rounded-lg px-2.5 py-1.5 text-[10.5px]" role="status" data-testid="trans-detail" style={{ background: "rgba(148,163,184,0.06)", color: "var(--text-primary)" }}>
           <b>{fName(picked.factor)} → {sName(picked.sector)}</b> · bậc {picked.tier} · β {signed(picked.beta, 2)} · t {signed(picked.t)} · trễ {picked.lag} tháng · yếu tố {signed(zOf(picked.factor))} σ (tháng {period}).{" "}
           <span style={muted}>Quan hệ lịch sử, không chứng minh nhân quả.</span>
         </p>}

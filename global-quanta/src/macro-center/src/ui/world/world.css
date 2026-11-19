@@ -157,3 +157,10 @@
 @keyframes wd-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .wd .panel, .wd .detail { animation: wd-in 160ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .wd .panel, .wd .detail { animation: none; } }
+
+/* G3/L12: tóm tắt ma trận khi thu gọn */
+.wd .mx-summary { cursor: pointer; padding: 8px 10px; border: 1px dashed var(--rule); border-radius: 8px; color: var(--ink2); font-size: 0.75rem; list-style: none; }
+.wd .mx-summary::-webkit-details-marker { display: none; }
+.wd .mx-summary::before { content: '▸ '; }
+.wd .mx-wrap[open] > .mx-summary { margin-bottom: 10px; }
+.wd .mx-wrap[open] > .mx-summary::before { content: '▾ '; }

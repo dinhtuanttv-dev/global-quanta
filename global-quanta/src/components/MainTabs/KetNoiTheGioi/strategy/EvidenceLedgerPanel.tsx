@@ -38,7 +38,7 @@ export default function EvidenceLedgerPanel() {
           <tbody>
             {PREREG_TESTS.map((t) => (
               <tr key={t.id} style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }} title={`${t.doc} · ${t.date}`}>
-                <td className="py-1.5" style={{ color: "#f1f5f9" }}><span style={muted}>{t.id}</span> {t.nameVi}</td>
+                <td className="py-1.5" style={{ color: "var(--text-primary)" }}><span style={muted}>{t.id}</span> {t.nameVi}</td>
                 <td className="text-center"><span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: VERDICT[t.verdict].bg, color: VERDICT[t.verdict].fg }}>{VERDICT[t.verdict].vi}</span></td>
                 <td style={{ color: "var(--text-secondary)" }}>{t.resultVi}</td>
                 <td style={muted}>{t.useVi}</td>
