@@ -82,6 +82,17 @@ test("dịch vụ: nguồn lỗi / treo không làm hỏng route; bộ nhớ đ�
   await svc.ticker("HPG"); assert.equal(calls, 1);
 });
 
+test("dịch vụ: kết quả có nguồn lỗi chỉ đệm ngắn, lần sau tự lấy lại", async () => {
+  let t = NOW, wsCalls = 0;
+  const svc = createImpactProfile({ now: () => t, timeoutMs: 30, failTtlMs: 30_000, log: { warn() {} }, sources: {
+    ws: () => (++wsCalls === 1 ? new Promise(() => {}) : Promise.resolve(ws)), x6: async () => x6,
+  } });
+  assert.equal((await svc.ticker("HPG")).layers.find((l) => l.id === "world_short").available, false);
+  t += 10_000; await svc.ticker("HPG"); assert.equal(wsCalls, 1, "còn trong 30 giây: dùng đệm");
+  t += 25_000; assert.equal((await svc.ticker("HPG")).layers.find((l) => l.id === "world_short").available, true);
+  t += 60_000; await svc.ticker("HPG"); assert.equal(wsCalls, 2, "kết quả đủ nguồn: đệm 5 phút");
+});
+
 test("route GET /api/elite/impact/:ticker: hợp đồng JSON + kiểm mã", async () => {
   const svc = createImpactProfile({ now: () => NOW, sources: { fa: async () => fa, commodities: async () => commodities, ws: async () => ws, catalyst: async () => catalyst, x6: async () => x6, radar: async () => radar, dilution: async () => dilution } });
   const app = express(); app.use("/api/elite", createEliteRouter({ getImpact: () => svc, getPanel: () => null }));

@@ -130,12 +130,13 @@ const withTimeout = (p, ms, label) => Promise.race([Promise.resolve().then(p), n
  * Nguồn (đều tuỳ chọn; thiếu nguồn -> lớp đó available=false kèm lý do):
  *   fa(t) Hồ sơ PFA · commodities() snapshot hàng hoá · ws(t) ws_stock · catalyst(t) catalyst_ticker · x6() tiến độ X6-F · radar(t) Event Radar · dilution(t) PX0
  */
-export function createImpactProfile({ sources, now = Date.now, ttlMs = 5 * 60_000, timeoutMs = 12_000, log = console }) {
+export function createImpactProfile({ sources, now = Date.now, ttlMs = 5 * 60_000, failTtlMs = 30_000, timeoutMs = 12_000, log = console }) {
   const memo = new Map();
   let comMemo = null;
+  let failed = 0; // số lần nguồn lỗi/treo — kết quả có nguồn lỗi chỉ đệm failTtlMs (VD lần gọi đầu sau khởi động, chiến lược ngành đang dựng)
   const safe = async (name, fn) => {
     if (!fn) return null;
-    try { return await withTimeout(fn, timeoutMs, name); } catch (e) { log.warn?.(`[elite-impact] ${name}: ${e?.message}`); return null; }
+    try { return await withTimeout(fn, timeoutMs, name); } catch (e) { failed++; log.warn?.(`[elite-impact] ${name}: ${e?.message}`); return null; }
   };
   const commodities = () => {
     if (comMemo && now() - comMemo.at < ttlMs) return comMemo.value;
@@ -145,7 +146,8 @@ export function createImpactProfile({ sources, now = Date.now, ttlMs = 5 * 60_00
   };
   async function ticker(t) {
     const hit = memo.get(t);
-    if (hit && now() - hit.at < ttlMs) return hit.doc;
+    if (hit && now() - hit.at < hit.ttl) return hit.doc;
+    const failedBefore = failed;
     const [fa, com, ws, catalyst, x6, radar, dilution] = await Promise.all([
       safe("fa", sources.fa && (() => sources.fa(t))), commodities(), safe("ws", sources.ws && (() => sources.ws(t))),
       safe("catalyst", sources.catalyst && (() => sources.catalyst(t))), safe("x6", sources.x6), safe("radar", sources.radar && (() => sources.radar(t))),
@@ -153,7 +155,7 @@ export function createImpactProfile({ sources, now = Date.now, ttlMs = 5 * 60_00
     ]);
     const doc = buildImpactProfile({ ticker: t, nowMs: now(), fa, commodities: com, ws, catalyst, x6, radar, dilution });
     if (memo.size > 300) memo.delete(memo.keys().next().value);
-    memo.set(t, { at: now(), doc });
+    memo.set(t, { at: now(), doc, ttl: failed > failedBefore ? failTtlMs : ttlMs });
     return doc;
   }
   return { ticker };
