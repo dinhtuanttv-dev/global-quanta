@@ -11,6 +11,7 @@ import { CORE_MIN } from '../../lib/radarModel';
 import { keyLevels, positionSize, tickSize } from '../../lib/tradeLevels';
 import Card, { AiChip } from './Card';
 import PriceAlertBox from './PriceAlertBox';
+import { ELITE_HL_LIST_ID } from '../../lib/radarSource';
 
 // ACTION CENTER — mã đang chọn (Radar / Bảng Siêu Quét / ô tìm mã):
 //   Quan tâm / Loại bỏ (thêm / bỏ khỏi ★ Danh mục của Radar), mức giá then chốt tính từ dữ liệu thật (MA20/50,
@@ -92,6 +93,8 @@ export default function ActionCenter() {
     );
   }
 
+  // RD-4: khi Radar hiện danh mục Elite HL (do quy tắc chọn) thì không thêm / bỏ mã bằng tay.
+  const hlSource = radar.listId === ELITE_HL_LIST_ID;
   const onInterest = () => {
     if (addTo(radar.listId, ticker)) showToast(`Đã thêm ${ticker} vào ★ ${radar.listName}`);
     else showToast(`${ticker} đã có trong ★ ${radar.listName} (hoặc danh mục đã đủ 60 mã)`);
@@ -122,16 +125,16 @@ export default function ActionCenter() {
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 mt-2.5">
-        <button type="button" onClick={onInterest} disabled={inList} aria-pressed={inList}
+        <button type="button" onClick={onInterest} disabled={inList || hlSource} aria-pressed={inList}
           className={`py-2 rounded-lg text-[11.5px] font-semibold border transition-colors ${inList ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200/70 cursor-default' : 'border-cyan-500/50 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'}`}>
           {inList ? '★ Đang quan tâm' : '☆ Quan tâm'}
         </button>
-        <button type="button" onClick={onRemove} disabled={!inList}
+        <button type="button" onClick={onRemove} disabled={!inList || hlSource}
           className={`py-2 rounded-lg text-[11.5px] font-semibold border transition-colors ${inList ? 'border-rose-500/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20' : 'border-white/10 text-slate-600 cursor-not-allowed'}`}>
           ✕ Loại bỏ
         </button>
       </div>
-      <div className="text-[10px] text-slate-500 mt-1">Quan tâm / Loại bỏ = thêm / bỏ mã khỏi ★ {radar.listName} (Radar, tin tức, giá realtime đổi theo).</div>
+      <div className="text-[10px] text-slate-500 mt-1" data-testid="action-list-note">{hlSource ? <>Radar đang hiện {radar.listName} — danh mục do quy tắc HL chọn, không thêm / bỏ mã bằng tay. Đổi nguồn ở ô chọn của Radar để dùng ★ danh mục của anh.</> : <>Quan tâm / Loại bỏ = thêm / bỏ mã khỏi ★ {radar.listName} (Radar, tin tức, giá realtime đổi theo).</>}</div>
 
       {levels && (
         <>

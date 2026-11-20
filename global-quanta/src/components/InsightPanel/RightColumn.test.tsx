@@ -8,6 +8,9 @@ import { keyLevels, positionSize, tickSize } from "../../lib/tradeLevels";
 import { resetWatchlistsForTest } from "../../hooks/useWatchlists";
 import { useAppStore } from "../../store/useAppStore";
 import { readAlerts, resetPriceAlertsForTest } from "../../lib/priceAlerts";
+import { setRadarSource } from "../../lib/radarSource";
+// RD-4 (20/11/2026): danh mục Elite HL làm nguồn Radar — bảng quyết định giả lập (1 mã đang giữ AAA).
+const hlDecision = { date: "2026-10-02", hl: { k0: {} }, portfolio: [{ ticker: "AAA", weight: 0.1, hl: { rank: 1 } }, { ticker: "ZZZ", weight: 0, hl: undefined }] };
 
 vi.mock("../../services/api", async (orig) => ({ ...(await orig<typeof import("../../services/api")>()), getAccessToken: async () => "tok" }));
 
@@ -62,6 +65,7 @@ async function mount(node: React.ReactNode, tickers: string[]) {
     calls.push({ url: u, init });
     if (u.includes("/api/market/radar/history")) return { ok: true, status: 200, json: async () => history };
     if (u.includes("/api/market/radar/signals")) return { ok: true, status: 200, json: async () => signals };
+    if (u.includes("/api/elite/decision")) return { ok: true, status: 200, json: async () => hlDecision };
     if (u.includes("/api/market/scanner") && !u.includes("custom")) return { ok: true, status: 200, json: async () => scan };
     if (u.includes("/api/market/ohlcv")) return { ok: true, status: 200, json: async () => ({ bars }) };
     return { ok: false, status: 404, json: async () => ({ error: "không có" }) };
@@ -196,5 +200,36 @@ describe("Cột phải: Radar + Action Center thế hệ mới", () => {
     expect(useAppStore.getState().selectedTicker).toBe("AAA");
     expect(el.textContent).toContain("LỚP TÍN HIỆU DÒNG TIỀN (AI)");
     expect(el.textContent).toContain("Gom chủ động 86%");
+  });
+});
+
+// RD-1…RD-4 (20/11/2026, tài liệu 20)
+describe("ELITE COMMAND RADAR — nhãn trung thực và nguồn danh mục Elite HL", () => {
+  afterEach(() => {
+    act(() => { for (const r of roots.splice(0)) r.unmount(); });
+    vi.unstubAllGlobals(); vi.unstubAllEnvs(); window.localStorage.clear(); resetWatchlistsForTest(); resetPriceAlertsForTest(); document.body.innerHTML = "";
+    calls.length = 0; setRadarSource("watchlist");
+    useAppStore.setState({ selectedTicker: null, toast: null });
+  });
+  it("mặc định (★ danh mục): không gọi /api/elite/decision; Core có nhãn MÔ TẢ; ghi chú Timeline; lịch sử ghi 'kho Gateway', không còn 'Supabase'", async () => {
+    const el = await mount(<EliteCommandRadar />, ["AAA", "BBB"]);
+    expect(calls.some((c) => c.url.includes("/api/elite/decision"))).toBe(false);
+    expect(el.querySelector('[data-testid="radar-core-desc"]')!.textContent).toBe("MÔ TẢ");
+    expect(el.querySelector('[data-testid="radar-timeline-note"]')!.textContent).toMatch(/tỷ lệ đạt ngang dữ liệu giả/);
+    expect(el.textContent).not.toMatch(/Supabase/);
+    expect((el.querySelector('[data-testid="radar-source"]') as HTMLSelectElement).value).toBe("default");
+  });
+  it("chọn ◆ Danh mục Elite HL: Radar lấy mã đang giữ từ bảng quyết định (chỉ mã có hl), tín hiệu gọi đúng mã đó; Action Center khoá thêm / bỏ tay", async () => {
+    setRadarSource("elite-hl");
+    const el = await mount(<><EliteCommandRadar /><ActionCenter /></>, ["BBB"]);
+    await act(async () => { await new Promise((r) => setTimeout(r, 30)); });
+    expect(calls.some((c) => c.url.includes("/api/elite/decision"))).toBe(true);
+    expect((el.querySelector('[data-testid="radar-source"]') as HTMLSelectElement).value).toBe("__elite_hl__");
+    expect(el.textContent).toMatch(/Danh mục Elite HL: 1 mã/);
+    expect(calls.some((c) => c.url.includes("/api/market/radar/signals") && c.url.includes("tickers=AAA") && !c.url.includes("BBB"))).toBe(true);
+    await act(async () => { useAppStore.setState({ selectedTicker: "AAA" }); });
+    expect(el.querySelector('[data-testid="action-list-note"]')!.textContent).toMatch(/do quy tắc HL chọn, không thêm \/ bỏ mã bằng tay/);
+    const btns = [...el.querySelectorAll("button")].filter((b) => /quan tâm|loại bỏ/i.test(b.textContent ?? ""));
+    expect(btns.length).toBe(2); expect(btns.every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
   });
 });
