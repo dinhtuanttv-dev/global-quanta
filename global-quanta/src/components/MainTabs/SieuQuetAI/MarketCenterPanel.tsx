@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { useTabNavigation } from "../../../lib/TabNavigationContext";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { usePreopen, type PreopenDoc, type PreopenScenario, type PreopenWorld, type ScenarioId } from "../../../hooks/usePreopen";
+import { CiBar, StaleNotice, postureAllowed, vnWhen } from "./marketQuality";
 
 // Trung tâm thị trường: kết luận → 3 kịch bản → bản đồ giá, thế giới, lịch sử → sổ tiến. Chỉ hiện phần đã đạt kiểm định; phần chưa đạt nói rõ.
 const COLOR: Record<ScenarioId, string> = { neg: "#f47a84", mid: "#aab6c8", pos: "#4fd6a2" };
@@ -16,15 +17,17 @@ const ddmm = (s: string | null | undefined) => (s ? `${s.slice(8, 10)}/${s.slice
 const vnTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "—");
 
 function ScenarioCard({ s, lead, selected, onSelect, ev }: { s: PreopenScenario; lead: boolean; selected: boolean; onSelect: () => void; ev: PreopenDoc["evidence"] }) {
-  const c = COLOR[s.id];
+  const c = COLOR[s.id], allowed = postureAllowed(s.id, ev);
   return (
-    <button type="button" aria-pressed={selected} onClick={onSelect} data-testid={`mc-card-${s.id}`} className="grid min-w-0 content-start gap-1.5 rounded-lg border bg-white/[0.02] p-2.5 text-left hover:bg-white/[0.04]"
-      style={{ borderColor: selected ? c : "rgba(255,255,255,0.1)", borderTop: `3px solid ${c}` }}>
+    <button type="button" aria-pressed={selected} onClick={onSelect} data-testid={`mc-card-${s.id}`} className="grid min-w-0 content-start gap-1.5 rounded-lg border bg-white/[0.02] p-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
+      style={{ borderColor: selected ? c : "rgba(255,255,255,0.1)", borderTop: `3px solid ${c}`, boxShadow: selected ? `0 0 0 1px ${c}33, 0 6px 18px -10px ${c}` : undefined }}>
       <span className="flex items-baseline justify-between gap-2">
-        <b className="text-[13px] text-slate-100">{s.name}{lead && <span className="ml-1.5 rounded-full border px-1.5 text-[11px] font-semibold" style={{ color: c, borderColor: c }}>đang dẫn đầu</span>}</b>
+        <b className="text-[13px] text-slate-100">{s.name}{lead && <span className="ml-1.5 rounded-full border px-1.5 text-[11px] font-semibold" style={{ color: c, borderColor: c }} data-testid={`mc-match-${s.id}`}>khớp ES</span>}</b>
         {s.probability != null && <b className="font-mono text-[15px]" style={{ color: c }} data-testid={`mc-prob-${s.id}`}>{s.probability}%</b>}
       </span>
-      <span className="text-[12px] font-semibold" style={{ color: c }}>{s.posture}</span>
+      {allowed
+        ? <span className="text-[12px] font-semibold" style={{ color: c }} data-testid={`mc-posture-${s.id}`}>{s.posture}</span>
+        : <span className="text-[11px] text-slate-500" data-testid={`mc-posture-off-${s.id}`}>Tư thế: chưa đạt kiểm định</span>}
       <span className="text-[11px] text-slate-400">Kích hoạt: {s.trigger}</span>
       <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
         <dt className="text-slate-500">Vùng mở cửa</dt><dd className="m-0 text-right font-mono text-slate-200" data-testid={`mc-open-${s.id}`}>{s.open ? `${nf(s.open.lo)}–${nf(s.open.hi)}` : "Đang đo, chưa đạt"}</dd>
@@ -32,8 +35,29 @@ function ScenarioCard({ s, lead, selected, onSelect, ev }: { s: PreopenScenario;
         <dt className="text-slate-500">Xác nhận</dt><dd className="m-0 text-right font-mono text-slate-200">{s.confirm}</dd>
         <dt className="text-slate-500">Vô hiệu</dt><dd className="m-0 text-right font-mono text-slate-200">{s.invalid}</dd>
       </dl>
-      <span className="text-[11px] text-slate-400">{s.action}</span>
+      {allowed && <span className="text-[11px] text-slate-400">{s.action}</span>}
     </button>
+  );
+}
+
+/** Một cổng kiểm định: ký hiệu + chữ, không dựa vào màu. */
+function Gate({ ok, label }: { ok: boolean; label: string }) {
+  return <span className={`block ${ok ? "text-emerald-300" : "text-amber-300"}`} data-gate={ok ? "pass" : "fail"}><span aria-hidden>{ok ? "✓" : "✕"}</span> {label}: {ok ? "đạt" : "chưa đạt"}</span>;
+}
+
+/** Vị trí giá hiện tại trong dải cả phiên của kịch bản khớp: 0% là đáy dải, 100% là đỉnh dải. */
+function BandMeter({ last, lo, hi, color }: { last: number; lo: number; hi: number; color: string }) {
+  if (!(hi > lo) || !Number.isFinite(last)) return null;
+  const raw = ((last - lo) / (hi - lo)) * 100, pos = Math.min(100, Math.max(0, raw)), out = raw < 0 ? "dưới dải" : raw > 100 ? "trên dải" : null;
+  return (
+    <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="mc-band-meter" role="img" aria-label={out ? `Giá đang ${out} cả phiên ${nf(lo)}–${nf(hi)}` : `Giá ở ${nf(raw, 0)}% của dải cả phiên ${nf(lo)}–${nf(hi)}`}>
+      <span className="font-mono text-slate-500">{nf(lo)}</span>
+      <span aria-hidden className="relative h-2 flex-1 rounded-full" style={{ background: `linear-gradient(90deg, ${color}22, ${color}55, ${color}22)` }}>
+        <i className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0b1120]" style={{ left: `${pos}%`, background: out ? "#f5b942" : "#e2e8f0" }} />
+      </span>
+      <span className="font-mono text-slate-500">{nf(hi)}</span>
+      <b className={`font-mono ${out ? "text-amber-300" : "text-slate-200"}`} data-testid="mc-band-pos">{out ?? `${nf(raw, 0)}%`}</b>
+    </div>
   );
 }
 
@@ -70,7 +94,8 @@ function WorldLane({ title, rows }: { title: string; rows: PreopenWorld[] }) {
       <div className="flex justify-between gap-2 text-[11px]"><b className="font-medium text-slate-300">{title}</b><span className="font-mono text-slate-500">{live ? vnTime(live) : "phiên trước"}</span></div>
       {rows.map((r) => {
         const v = r.changePct, w = Math.min(50, (Math.abs(v ?? 0) / 2.5) * 50), up = (v ?? 0) >= 0, old = r.fresh === false;
-        return <div key={r.name} className="mt-1 grid grid-cols-[64px_minmax(0,1fr)_52px] items-center gap-1.5 text-[11px]" data-testid={`mc-world-${r.name}`}>
+        const sr = `${r.name}: ${v == null ? "không có số" : `${sg(v, 1)}%`}${old ? ", số phiên trước" : ""}${r.at ? `, chốt ${vnWhen(r.at)}` : ""}`;
+        return <div key={r.name} role="group" aria-label={sr} className="mt-1 grid grid-cols-[64px_minmax(0,1fr)_52px] items-center gap-1.5 text-[11px]" data-testid={`mc-world-${r.name}`}>
           <span className="truncate text-slate-300" title={r.at ? `Chốt ${vnTime(r.at)}` : "Không có số"}>{r.name}</span>
           <span aria-hidden className="relative h-1.5 rounded bg-white/5"><i className="absolute inset-y-0 rounded" style={{ left: up ? "50%" : `${50 - w}%`, width: `${w}%`, background: old ? "#475569" : up ? COLOR.pos : COLOR.neg }} /><i className="absolute -inset-y-0.5 left-1/2 w-px bg-slate-500" /></span>
           <span className={`text-right font-mono ${old ? "text-slate-500" : "text-slate-200"}`} data-stale={old ? "1" : "0"} title={old ? `Số phiên trước, chốt ${vnTime(r.at)}` : undefined}>{v == null ? "—" : `${sg(v, 1)}%`}</span>
@@ -116,31 +141,41 @@ export default function MarketCenterPanel() {
         <span className="rounded border border-white/10 px-1.5 text-[11px] text-slate-300" data-testid="mc-phase">{PHASE[d.phase]}</span>
         <span className="text-[11px] text-slate-400">Cho phiên {ddmm(d.session)} · cập nhật {vnTime(d.asOf)}</span>
         <div className="ml-auto flex flex-wrap gap-1" aria-label="Các mốc ghi hôm nay" data-testid="mc-timeline">
-          {SLOT_TIMES.map((slot) => { const x = d.timeline.find((y) => y.slot === slot), col = x?.lead ? COLOR[x.lead] : "#64748b"; return <button key={slot} type="button" disabled={!x} aria-pressed={slotView === slot} onClick={() => setSlotView(slotView === slot ? null : slot)} data-testid={`mc-slot-${slot}`} className="rounded border border-white/10 px-1.5 font-mono text-[11px] disabled:cursor-default" style={{ color: col, borderColor: x ? col : undefined, background: slotView === slot ? `${col}22` : undefined }} title={x ? `ES ${sg(x.es)}%` : "Chưa đến mốc"}>{slot}</button>; })}
+          {SLOT_TIMES.map((slot) => { const x = d.timeline.find((y) => y.slot === slot), col = x?.lead ? COLOR[x.lead] : "#64748b"; return <button key={slot} type="button" disabled={!x} aria-pressed={slotView === slot}
+            aria-label={x ? `Mốc ${slot}: ${x.lead ? d.scenarios.find((s) => s.id === x.lead)?.name ?? x.lead : "chưa kết luận"}, ES ${sg(x.es)}%` : `Mốc ${slot}: chưa có bản ghi`} onClick={() => setSlotView(slotView === slot ? null : slot)} data-testid={`mc-slot-${slot}`} className="rounded border border-white/10 px-1.5 font-mono text-[11px] disabled:cursor-default" style={{ color: col, borderColor: x ? col : undefined, background: slotView === slot ? `${col}22` : undefined }} title={x ? `ES ${sg(x.es)}%` : "Chưa đến mốc"}>{slot}</button>; })}
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="mc-toggle" className="rounded border border-white/10 px-2 text-[11px] text-cyan-300">{open ? "Thu gọn ▴" : "Mở ▾"}</button>
         </div>
       </div>
 
       <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-0.5 rounded-lg px-3 py-2" style={{ borderLeft: `3px solid ${c}`, background: `linear-gradient(90deg, ${c}22, transparent)` }} data-testid="mc-verdict">
         {lead ? <>
-          <span className="text-[12px] text-slate-400">Tình huống đang dẫn đầu</span>
+          <span className="text-[12px] text-slate-400">Điều kiện ES khớp</span>
           <b className="text-[15px] text-slate-50">{lead.name}</b>
-          <span className="text-[12px] text-slate-200">Tham khảo: {lead.posture}</span>
+          {postureAllowed(lead.id, ev) && <span className="text-[12px] text-slate-200" data-testid="mc-verdict-posture">Tham khảo: {lead.posture}</span>}
           <span className="text-[12px] text-slate-300">ES {sg(d.es.movePct)}% từ lúc VN đóng cửa {ddmm(d.prevDate)}{d.es.frozenAt ? `, chốt lúc ${d.es.frozenAt}` : ""}</span>
+          {d.es.at && <span className="text-[11px] text-slate-500" data-testid="mc-es-at">giá ES lúc {vnWhen(d.es.at)}{d.phase === "closed" ? " · thị trường đang nghỉ" : ""}</span>}
         </> : <b className="text-[14px] text-amber-200" data-testid="mc-no-es">Chưa kết luận: {d.es.at ? `giá ES chưa cập nhật từ ${vnTime(d.es.at)}` : "thiếu giá ES"}</b>}
         {!ev.probabilities && <span className="rounded border border-amber-400/40 px-1.5 text-[11px] text-amber-300" data-testid="mc-no-evidence">Chưa có bằng chứng dự báo chiều giá</span>}
         {viewed && <span className="w-full text-[11px] text-slate-400" data-testid="mc-slot-view">Bản {viewed.slot}: {viewed.lead ? d.scenarios.find((s) => s.id === viewed.lead)?.name : "chưa kết luận"}, ES {sg(viewed.es)}%</span>}
       </div>
+      <StaleNotice error={error && d ? error : null} asOf={d.asOf} testId="mc-stale" />
       {open && <>
 
-      {open && t && <p className={`mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${t.invalidated ? "border-amber-400/40 text-amber-200" : "border-white/10 text-slate-200"}`} data-testid="mc-tracking">
-        Mở {nf(t.open, 1)} ({sg(t.gapPct)}%), hiện {nf(t.last, 1)} ({sg(t.movePct)}%). {t.invalidated ? `Kịch bản ${lead?.name} đã vô hiệu.` : `Kịch bản ${lead?.name} còn hiệu lực.`}
-      </p>}
+      {open && t && <div className={`mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${t.invalidated ? "border-amber-400/40 text-amber-200" : "border-white/10 text-slate-200"}`} data-testid="mc-tracking">
+        <p>Mở {nf(t.open, 1)} ({sg(t.gapPct)}%), hiện {nf(t.last, 1)} ({sg(t.movePct)}%). {t.invalidated ? `Kịch bản ${lead?.name} đã vô hiệu.` : `Kịch bản ${lead?.name} còn hiệu lực.`}</p>
+        {lead && <BandMeter last={t.last} lo={lead.day.lo} hi={lead.day.hi} color={COLOR[lead.id]} />}
+        <p className="text-[11px] text-slate-500">Giá trong phiên làm mới tối đa mỗi 5 phút.</p>
+      </div>}
 
       <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3" data-testid="mc-cards">
         {d.scenarios.map((s) => <ScenarioCard key={s.id} s={s} lead={s.id === d.lead} selected={s.id === selected.id} onSelect={() => setPick(s.id)} ev={ev} />)}
       </div>
-      {ev.dayBand ? <p className="mt-1 text-[11px] text-slate-400" data-testid="mc-day-ok">Dải cả phiên dùng MS-GARCH, đạt kiểm định đặt trước: phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Khoảng 1 phiên trong 5 giá vẫn ra ngoài dải.</p> : <p className="mt-1 text-[11px] text-amber-300/90" data-testid="mc-day-warning">* Dải cả phiên chưa đạt kiểm định: thực tế chỉ phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Giá có thể ra ngoài dải.</p>}
+      {ev.dayBand
+        ? <p className="mt-1 text-[11px] text-slate-400" data-testid="mc-day-ok">Dải cả phiên dùng MS-GARCH, đạt kiểm định {ev.rule} khi chạy lại trên dữ liệu cũ: phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Khoảng 1 phiên trong 5 giá vẫn ra ngoài dải. {d.ledger.scored
+          ? <span data-testid="mc-day-forward">Đang xác nhận trên sổ tiến: {d.ledger.scored} phiên, phủ {nf(d.ledger.dayCoverage, 1)}%.</span>
+          : <span data-testid="mc-day-forward">Sổ tiến chưa có phiên nào được chấm.</span>}</p>
+        : <p className="mt-1 text-[11px] text-amber-300/90" data-testid="mc-day-warning">* Dải cả phiên chưa đạt kiểm định: thực tế chỉ phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Giá có thể ra ngoài dải.</p>}
+      {!d.scenarios.some((s) => postureAllowed(s.id, ev)) && <p className="text-[11px] text-slate-500" data-testid="mc-no-action">Tư thế và câu hành động được ẩn vì các cổng xác suất, không bán đuổi, không mua đuổi của {ev.rule} chưa đạt. Số bị ẩn vẫn được ghi vào sổ tiến để đánh giá lại.</p>}
       <BriefLine />
 
       <div className="mt-2 grid grid-cols-1 gap-2 2xl:grid-cols-2">
@@ -171,13 +206,20 @@ export default function MarketCenterPanel() {
         <div className="min-w-0 rounded-lg border border-white/10 p-2" data-testid="mc-evidence">
           <h3 className="text-[12px] font-semibold text-slate-200">Rủi ro và độ tin cậy</h3>
           <div className="mt-1 grid grid-cols-2 gap-1.5 text-[11px] md:grid-cols-4">
-            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">MS-GARCH</span><b className="text-slate-100" data-testid="mc-regime">{d.risk ? REGIME[d.risk.label] : "—"}</b><span className="block font-mono text-slate-400">{d.risk ? `${nf(Math.max(d.risk.probCalm, d.risk.probVolatile) * 100, 0)}% · cấp ${d.risk.grade}` : ""}</span></div>
-            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">Biến động</span><b className="font-mono text-slate-100">{d.risk ? `${nf(d.risk.volAnnualPct, 1)}%/năm` : "—"}</b><span className="block text-slate-400">không cho chiều giá</span></div>
-            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">Kiểm định {ev.rule}</span><b className={ev.dayBand ? "text-emerald-300" : "text-amber-300"}>{ev.dayBand ? "Dải đạt" : "Chưa đạt"}</b><span className="block font-mono text-slate-400">%, vùng mở: chưa đạt</span></div>
-            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">Sổ tiến</span><b className="font-mono text-slate-100" data-testid="mc-ledger">{d.ledger.scored} ngày</b><span className="block text-slate-400">{d.ledger.scored ? `dẫn đầu đúng ${nf(d.ledger.leadHit, 0)}%` : "bắt đầu ghi từ phiên tới"}</span></div>
+            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">MS-GARCH</span><b className="text-slate-100" data-testid="mc-regime">{d.risk ? REGIME[d.risk.label] : "—"}</b><span className="block font-mono text-slate-400">{d.risk ? `${nf(Math.max(d.risk.probCalm, d.risk.probVolatile) * 100, 0)}% · cấp ${d.risk.grade}` : ""}</span>{d.risk && <span className="block text-slate-500" data-testid="mc-risk-asof">đến phiên {ddmm(d.risk.asOf)}</span>}</div>
+            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">Biến động MS-GARCH</span><b className="font-mono text-slate-100">{d.risk ? `${nf(d.risk.volAnnualPct, 1)}%/năm` : "—"}</b><span className="block text-slate-400">không cho chiều giá</span></div>
+            <div className="rounded border border-white/10 p-1.5" data-testid="mc-gates"><span className="block text-slate-500">Kiểm định {ev.rule}</span>
+              <Gate ok={ev.dayBand} label="Dải cả phiên" /><Gate ok={ev.openBand} label="Vùng mở cửa" /><Gate ok={ev.probabilities} label="Xác suất" />
+            </div>
+            <div className="rounded border border-white/10 p-1.5"><span className="block text-slate-500">Sổ tiến</span><b className="font-mono text-slate-100" data-testid="mc-ledger">{d.ledger.scored} ngày</b><span className="block text-slate-400">{d.ledger.scored ? `khớp ES đúng ${nf(d.ledger.leadHit, 1)}%` : "bắt đầu ghi từ phiên tới"}</span></div>
           </div>
-          <p className="mt-1 text-[11px] text-slate-500" data-testid="mc-legend">Mỗi nhãn đo một việc: kịch bản theo ES sáng nay; MS-GARCH theo biến động VN-Index đến phiên trước; nhãn THẾ GIỚI trên thanh trên cùng theo rủi ro toàn cầu. Vì vậy chúng có thể khác nhau.</p>
-          <p className="text-[11px] text-slate-500">Vùng mở cửa và xác suất được ghi vào sổ mỗi sáng, chỉ hiện khi đạt kiểm định. Tư thế là tham khảo, không phải khuyến nghị đầu tư.</p>
+          {d.ledger.scored > 0 && <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2" data-testid="mc-calibration">
+            <CiBar value={d.ledger.dayCoverage} n={d.ledger.scored} target={80} label="Dải cả phiên phủ (sổ tiến)" testId="mc-ci-day" />
+            <CiBar value={d.ledger.leadHit} n={d.ledger.scored} compare={{ v: 100 / 3, label: "đoán ngẫu nhiên 3 nhóm" }} label="Kịch bản khớp ES đúng (sổ tiến)" testId="mc-ci-lead" />
+            <p className="text-[11px] text-slate-500 md:col-span-2">Ngoặc vuông là khoảng tin cậy Wilson 95% với {d.ledger.scored} phiên đã chấm. Vạch vàng: đích 80%; vạch đứt: 33% nếu đoán ngẫu nhiên. Khoảng còn rộng nghĩa là chưa đủ phiên để kết luận.</p>
+          </div>}
+          <p className="mt-1 text-[11px] text-slate-500" data-testid="mc-legend">Mỗi nhãn đo một việc: kịch bản theo ES sáng nay; MS-GARCH theo biến động VN-Index đến phiên trước; nhãn THẾ GIỚI trên thanh trên cùng theo rủi ro toàn cầu; Trạng thái thị trường bên dưới theo xu hướng, độ rộng và biến động Yang–Zhang 20 phiên. Vì vậy chúng có thể khác nhau, kể cả hai con số biến động %/năm.</p>
+          <p className="text-[11px] text-slate-500">Vùng mở cửa, xác suất và tư thế được ghi vào sổ mỗi sáng, chỉ hiện khi đạt kiểm định. Không phải khuyến nghị đầu tư.</p>
         </div>
       </div>
       </>}

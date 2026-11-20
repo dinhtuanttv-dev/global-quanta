@@ -13,6 +13,14 @@ import type { SectorLadderRow } from "../../../../lib/locnganh/types";
 import NotableMovers from "./NotableMovers";
 import { HEALTH_VI, TONE, bn, vn, when } from "./MatrixCards";
 import { IndexWaterfall, ScenarioStrip, SignedBars, Spark, StateMap, ZONE_VI } from "./StateCharts";
+import { StaleNotice } from "../marketQuality";
+
+/** Chữ trạng thái nguồn: dữ liệu ngày đủ phiên gần nhất là "Đã chốt phiên", không gọi là "Trực tiếp". Mã trạng thái API giữ nguyên. */
+export function sourceStatusText(s: { kind?: string; status: keyof typeof HEALTH_VI }, sessionLive: boolean): string {
+  if (s.kind === "intraday" && !sessionLive) return "Ngoài giờ";
+  if (s.kind === "daily" && s.status === "LIVE") return "Đã chốt phiên";
+  return HEALTH_VI[s.status].text;
+}
 
 const SCOPES: { id: MatrixScope; label: string }[] = [{ id: "VNINDEX", label: "Toàn HOSE" }, { id: "VN30", label: "VN30" }, { id: "UNIVERSE", label: "Universe" }];
 const KEY_OPEN = "gq.matrixOpen", KEY_SCOPE = "gq.matrixScope", KEY_TAB = "gq.matrixTab";
@@ -184,7 +192,7 @@ function EvidenceTab({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div className="space-y-1">
           <h3 className="text-[12px] font-bold text-slate-200">Nguồn dữ liệu</h3>
-          <ul className="space-y-1" data-testid="mx-sources">{d.dataHealth.sources.map((s) => { const h = HEALTH_VI[s.status], t = TONE[h.tone]; return <li key={s.id} className="flex items-start gap-2 text-[11px]"><span className={`shrink-0 ${t.fg}`} aria-hidden>{h.glyph}</span><span className="flex-1 min-w-0 text-slate-200">{s.label}<span className="block text-slate-400">{s.detail ?? ""}</span></span><span className={`shrink-0 text-right ${t.fg}`}>{s.kind === "intraday" && !d.session.live ? "Ngoài giờ" : h.text}<span className="block text-slate-400">{when(s.asOf)}</span></span></li>; })}</ul>
+          <ul className="space-y-1" data-testid="mx-sources">{d.dataHealth.sources.map((s) => { const h = HEALTH_VI[s.status], t = TONE[h.tone]; return <li key={s.id} className="flex items-start gap-2 text-[11px]"><span className={`shrink-0 ${t.fg}`} aria-hidden>{h.glyph}</span><span className="flex-1 min-w-0 text-slate-200">{s.label}<span className="block text-slate-400">{s.detail ?? ""}</span></span><span className={`shrink-0 text-right ${t.fg}`}>{sourceStatusText(s, d.session.live)}<span className="block text-slate-400">{when(s.asOf)}</span></span></li>; })}</ul>
         </div>
         <div className="space-y-1 text-[11px] text-slate-400">
           <h3 className="text-[12px] font-bold text-slate-200">Phương pháp</h3>
@@ -226,6 +234,8 @@ export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker =
   const replaying = replay != null && idx !== path.length - 1;
   const bad = data && (data.dataHealth.status === "PARTIAL" || data.dataHealth.status === "UNAVAILABLE");
   const compared = compare ? [o1, o2].flatMap((o, i) => (o.data?.state ? [{ scope: others[i], x: o.data.state.x, y: o.data.state.y }] : [])) : [];
+  // Đổi phạm vi mà payload mới chưa về (SWR giữ bản trước): báo rõ đang hiện phạm vi nào.
+  const pending = !!data?.scope?.id && data.scope.id !== scope;
 
   return (
     <section className="rounded-xl px-3 py-2" style={box} aria-label="Trạng thái thị trường" data-testid="trading-matrix">
@@ -234,7 +244,8 @@ export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker =
         <div role="group" aria-label="Phạm vi" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
           {SCOPES.map((s) => <button key={s.id} type="button" aria-pressed={scope === s.id} onClick={() => setScope(s.id)} data-mx-scope={s.id} className={`px-2 py-0.5 text-[11px] font-semibold ${scope === s.id ? "bg-amber-400/15 text-amber-200" : "text-slate-400 hover:text-slate-200"}`}>{s.label}</button>)}
         </div>
-        {point && <span className="text-[11px] text-slate-400" data-testid="mx-asof">Phiên {when(point.date)}{replaying ? " · đang xem lại" : ""}</span>}
+        {point && <span className="text-[11px] text-slate-400" data-testid="mx-asof">{data?.scope?.label ? `${data.scope.label}${data.scope.eligible != null ? ` · ${data.scope.eligible} mã` : ""} · ` : ""}Phiên {when(point.date)}{replaying ? " · đang xem lại" : ""}</span>}
+        {pending && <span role="status" className="inline-flex items-center gap-1 text-[11px] text-sky-300" data-testid="mx-scope-pending"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-300" />Đang tải {SCOPES.find((s) => s.id === scope)?.label}… (đang hiện {data?.scope?.label ?? "phạm vi trước"})</span>}
         {bad && <button type="button" onClick={() => openTab("evidence")} className="text-[11px] text-amber-300 hover:underline" data-testid="mx-health-warn">{HEALTH_VI[data.dataHealth.status].glyph} {HEALTH_VI[data.dataHealth.status].text}</button>}
         <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="mx-detail" className="ml-auto text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-amber-200 hover:border-amber-400/40">{open ? "Thu gọn ▴" : "Chi tiết ▾"}</button>
       </div>
@@ -243,7 +254,8 @@ export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker =
       ) : !data ? (
         <div className={`h-[92px] rounded-lg bg-slate-800/20 ${isLoading ? "animate-pulse" : ""}`} aria-hidden />
       ) : (
-        <>
+        <div className={`transition-opacity duration-200 ${pending ? "opacity-55" : ""}`} aria-busy={pending || undefined} data-testid="mx-body">
+          <StaleNotice error={error} asOf={data.asOf} testId="mx-stale" />
           <div className="mb-1 flex flex-wrap items-center gap-x-1.5 rounded-lg border border-amber-400/25 bg-amber-400/[0.05] px-2.5 py-1 text-[13px] font-semibold text-slate-100" data-testid="mx-headline">
             {(data.state?.headline ?? []).map((h, i) => <span key={h.key} className={`${i >= 3 ? "hidden sm:inline-flex" : "inline-flex"} items-center gap-1.5`}>{i > 0 && <span className="text-slate-500" aria-hidden>·</span>}<button type="button" className="hover:text-amber-200" onClick={() => openTab(isTab(h.tab) ? h.tab : "change")} data-testid={`mx-hl-${h.key}`}>{h.text}</button></span>)}
             {!data.state && <span className="text-slate-400">Chưa đủ dữ liệu</span>}
@@ -278,7 +290,7 @@ export default function TradingMatrixPanel({ onIndustry = NOOP, onSelectTicker =
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </section>
   );

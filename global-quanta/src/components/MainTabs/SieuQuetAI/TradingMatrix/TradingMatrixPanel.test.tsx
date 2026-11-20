@@ -91,6 +91,37 @@ describe("Trạng thái thị trường", () => {
     expect(el.querySelector("[data-testid=mx-tab-evidence]")?.textContent).toContain("Tự doanh: chưa có nguồn");
   });
 
+  it("PR-A: đổi phạm vi khi payload mới chưa về thì báo đang hiện phạm vi cũ; về rồi thì hết báo", async () => {
+    state.data = withState();
+    await render();
+    expect(el.querySelector("[data-testid=mx-asof]")?.textContent).toContain("Toàn sàn HOSE · 372 mã · Phiên");
+    expect(el.querySelector("[data-testid=mx-scope-pending]")).toBeNull();
+    await click("[data-mx-scope=VN30]");
+    expect(el.querySelector("[data-testid=mx-scope-pending]")?.textContent).toBe("Đang tải VN30… (đang hiện Toàn sàn HOSE)");
+    expect(el.querySelector("[data-testid=mx-body]")?.getAttribute("aria-busy")).toBe("true");
+    state.data = withState({ scope: { id: "VN30", label: "VN30", eligible: 30, observed: 30 } });
+    await openDetail(); // render lại để hook mock trả payload mới
+    expect(el.querySelector("[data-testid=mx-scope-pending]")).toBeNull();
+    expect(el.querySelector("[data-testid=mx-asof]")?.textContent).toContain("VN30 · 30 mã");
+  });
+
+  it("PR-A: làm mới lỗi khi còn bản cũ thì báo, vẫn giữ số", async () => {
+    state.data = withState(); state.error = new Error("HTTP 502");
+    await render();
+    expect(el.querySelector("[data-testid=mx-stale]")?.textContent).toContain("HTTP 502");
+    expect(el.querySelector("[data-testid=mx-tiles]")).toBeTruthy();
+    expect(el.querySelector("[role=alert]")).toBeNull();
+  });
+
+  it("PR-A: nguồn ngày đã chốt ghi 'Đã chốt phiên', không ghi 'Trực tiếp'", async () => {
+    state.data = withState();
+    await render();
+    await click("[data-testid=mx-health-warn]");
+    const src = el.querySelector("[data-testid=mx-sources]")?.textContent ?? "";
+    expect(src).toContain("Đã chốt phiên");
+    expect(src).not.toContain("Trực tiếp");
+  });
+
   it("mở Chi tiết: bản đồ 2D, xem lại theo phiên đổi được số, đúng 7 tab", async () => {
     state.data = withState();
     await render();
