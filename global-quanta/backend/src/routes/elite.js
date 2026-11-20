@@ -210,6 +210,14 @@ export function createEliteRouter({ getImpact = null, getDilution = null, getPro
     res.json({ date: doc.date, version: doc.version, icComb: doc.icComb, weights: doc.weights, inPortfolio: doc.portfolio.some((x) => x.ticker === ticker), universe: doc.universe, ...score });
   }));
 
+  // HL-RADAR P4 (20/11/2026): GET /api/elite/hl-history?days=10 — lịch sử gọn danh mục Elite HL theo phiên (xu hướng + tua lại).
+  router.get("/hl-history", wrap(async (req, res) => {
+    const h = getDecision?.().hlHistory ? await getDecision().hlHistory(req.query.days) : null;
+    if (!h) return missing(res, "Chưa có lịch sử danh mục Elite HL.");
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(h);
+  }));
+
   router.get("/rank-history", wrap(async (req, res) => {
     const h = getDecision?.().rankHistory ? await getDecision().rankHistory(req.query.days) : null;
     if (!h?.dates.length) return missing(res, "Chưa có lịch sử quyết định Elite 10.");
