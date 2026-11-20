@@ -53,7 +53,7 @@ const Moved = ({ d }: { d: EliteDecision }) => <><HlRulesPanel d={d} /><HlLedger
 const text = (id: string) => screen.getByTestId(id).textContent ?? "";
 
 describe("Bảng quyết định Elite HL", () => {
-  beforeEach(() => { localStorage.clear(); current = decision; });
+  beforeEach(() => { localStorage.clear(); current = decision; localStorage.setItem("gq.hl.layers.v1", JSON.stringify({ pulse: false })); /* NHỊP QUYẾT ĐỊNH: các test này kiểm HAI KHỐI CŨ -> lớp pulse tắt (KP8) */ });
   afterEach(() => cleanup());
 
   it("dải chỉ số, phễu, thay đổi hôm nay và danh mục ba tầng kèm ngưỡng ra", () => {
@@ -218,7 +218,7 @@ describe("Bảng quyết định Elite HL — sổ tính cả tiền mặt", () 
 
 // PZ-v2 (14/11/2026) — lớp Vị trí giá: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã nóng ở bảng Theo dõi chờ nền.
 describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
-  beforeEach(() => { localStorage.clear(); current = decision; });
+  beforeEach(() => { localStorage.clear(); current = decision; localStorage.setItem("gq.hl.layers.v1", JSON.stringify({ pulse: false })); /* NHỊP QUYẾT ĐỊNH: các test này kiểm HAI KHỐI CŨ -> lớp pulse tắt (KP8) */ });
   afterEach(() => cleanup());
   const zone = { state: "BUY_ZONE" as const, lane: "CORE" as const, sessions: 3, baseSource: "SEPA" as const, pivot: 98000, stopRef: 94000, zoneLow: 95060, zoneHigh: 102900, x1: 0.0204, risk: 0.06, x2: 1.1, x3: 0.05, x4: false, hotReasons: [], missingVi: [] };
   const hot = { state: "EXTENDED" as const, lane: "RUNNER" as const, sessions: 2, baseSource: "BOX" as const, pivot: 80000, stopRef: 74000, zoneLow: 77600, zoneHigh: 84000, x1: 0.25, risk: 0.26, x2: 4.8, x3: 0.31, x4: true, hotReasons: ["x1", "risk", "x2", "x3", "x4"], missingVi: ["Chờ lùi ≥ 5,0% từ đỉnh, hoặc đi ngang 3 phiên"], climax: true, hStar: 100000, depth: 0 };

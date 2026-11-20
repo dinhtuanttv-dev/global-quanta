@@ -29,7 +29,9 @@ afterEach(() => { cleanup(); deck = { risk: fixture.risk, panel: fixture.panel, 
 
 describe("Command Deck · dữ liệu thật 18/11", () => {
   it("thanh lệnh, 4 đồng hồ, dải Hôm nay: số đúng nguồn, nhãn đúng định nghĩa", () => {
+    window.localStorage.setItem("gq.hl.layers.v1", JSON.stringify({ pulse: false })); // NHỊP QUYẾT ĐỊNH: kiểm dải "Hôm nay" cũ -> lớp pulse tắt (KP8)
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    window.localStorage.removeItem("gq.hl.layers.v1");
     expect(text("elite-label")).toBe("THĂM DÒ"); expect(text("deck-live")).toBe("Phiên mới nhất");
     expect(text("hl-kpi-market")).toMatch(/Thị trường yếu.*Độ rộng 22% mã trên MA20/);
     expect(text("hl-context-global")).toMatch(/VIX 24,62.*Căng thẳng/);
