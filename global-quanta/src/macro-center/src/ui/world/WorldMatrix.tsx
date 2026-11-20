@@ -1,5 +1,9 @@
 import type { EvidenceTier } from '../../world-types';
-import { DEFAULT_WORLD_FILTER, cellAria, worldCellKey, type WorldFilter, type WorldMatrixView } from '../../world-view';
+import { DEFAULT_WORLD_FILTER, cellAria, fmtSigned, worldCellKey, type WorldFilter, type WorldMatrixView } from '../../world-view';
+import { fmtNum, fmtQ } from '../../macro-filter';
+
+/** G4: chú thích khi rê chuột — đúng các số của khung chi tiết (hướng, hệ số, t, q, độ trễ). */
+const cellTip = (c: { beta: number; t: number; q: number; lag: number }, base: string) => `${base} · hệ số ${fmtSigned(c.beta, 2)} · t ${fmtNum(c.t, 1)} · q ${fmtQ(c.q)} · trễ ${c.lag} tháng`;
 
 export function WorldMatrix(props: { view: WorldMatrixView; selected: string | null; onSelect: (factor: string, sector: string) => void }) {
   const { view } = props;
@@ -26,7 +30,7 @@ export function WorldMatrix(props: { view: WorldMatrixView; selected: string | n
                   const dir = c.direction === '+' ? 'up' : 'down';
                   return (
                     <td key={f.id}>
-                      <button type="button" className={`cell ${c.level === 0 ? 'l0' : `${dir} l${c.level}`}${c.unstable ? ' unstable' : ''}`} aria-pressed={props.selected === key} aria-label={cellAria(c, f.nameVi, s.nameVi)} onClick={() => props.onSelect(f.id, s.id)}>
+                      <button type="button" className={`cell ${c.level === 0 ? 'l0' : `${dir} l${c.level}`}${c.unstable ? ' unstable' : ''}`} aria-pressed={props.selected === key} aria-label={cellAria(c, f.nameVi, s.nameVi)} title={cellTip(c, cellAria(c, f.nameVi, s.nameVi))} onClick={() => props.onSelect(f.id, s.id)}>
                         {c.level > 0 && <span className="arrow" aria-hidden="true">{c.direction === '+' ? '↑' : '↓'}</span>}
                         {c.level > 0 && <span className="tier" aria-hidden="true">{c.tier}</span>}
                       </button>

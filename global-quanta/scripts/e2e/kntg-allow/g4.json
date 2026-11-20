@@ -1,0 +1,71 @@
+{
+ "_note": "G1+G2+G3 như trước; G4 chỉ THÊM (không mất đoạn nào): bảng thay thế lặp lại số đã có, nhãn trục (T0…, ±trục Y), dòng ngữ cảnh thẻ chỉ số (lấy từ số đã có), huy hiệu đếm sự kiện, nhãn trục lịch sử lan truyền.",
+ "evidence": {
+  "remove": [
+   "10/2026",
+   "11/2026",
+   "11/2026",
+   "11/2026",
+   "11/2026",
+   "nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước — xếp hạng ngành thuận/ngược gió (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với tab , chỉ liên kết mới được ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và nên không dùng trong quyết định Lọc ngành.",
+   "svg:10/2026",
+   "svg:11/2026",
+   "svg:11/2026",
+   "svg:11/2026",
+   "svg:11/2026"
+  ],
+  "add": [
+   "01/11",
+   "07/11",
+   "13/11",
+   "19/11",
+   "26/10",
+   "nhãn BẰNG CHỨNG chỉ gắn cho phần đã qua kiểm định đặt trước — xếp hạng ngành thuận/ngược gió (WS-v1: IC ≈ 0,02, nhỏ) và riêng ngành Dầu khí; xếp hạng trung hạn và các phần HEURISTIC (Risk-On, ánh xạ hàng hoá → mã) là tham khảo. Khi khác với ma trận ở tab , chỉ liên kết mới được ưu tiên. Risk-On đã kiểm định đặt trước (10 năm) và nên không dùng trong quyết định Lọc ngành.",
+   "svg:01/11",
+   "svg:07/11",
+   "svg:13/11",
+   "svg:19/11",
+   "svg:26/10"
+  ]
+ },
+ "overview": {
+  "remove": [],
+  "add": [
+   "Ngành Việt Nam: ngắn hạn × 3 tháng"
+  ],
+  "addPattern": [
+   "^[+−-]?\\d[\\d.,]*( ?%)?$",
+   "^[+−-]?\\d[\\d.,]* đến [+−-]?\\d[\\d.,]*$",
+   "^\\d{4}-\\d{2}-\\d{2}$",
+   "^trên \\d+ (liên kết|sự kiện)$",
+   "^toàn mẫu \\d+ ?%$"
+  ]
+ },
+ "transmission": {
+  "remove": [],
+  "add": [
+   "100 liên kết, 0 đạt bậc A/B. Bấm để xem các giả thuyết bậc C (thăm dò, không dùng để quyết định)."
+  ],
+  "addPattern": [
+   "^[+−-]?\\d[\\d.,]*( ?%)?$",
+   "^[+−-]?\\d[\\d.,]* đến [+−-]?\\d[\\d.,]*$",
+   "^\\d{4}-\\d{2}-\\d{2}$",
+   "^T\\d+$",
+   "^Khoảng 90%$",
+   "^Đường đáp ứng ngành .+ theo tháng \\(%\\), kèm khoảng tin cậy 90%$",
+   "^\\d+ sự kiện · \\d+ chờ đo$",
+   "^Lợi suất bất thường",
+   "^[+−]\\d+$"
+  ]
+ },
+ "markets": {
+  "remove": [],
+  "add": [],
+  "addPattern": [
+   "^[+−-]?\\d[\\d.,]*( ?%)?$",
+   "^[+−-]?\\d[\\d.,]* đến [+−-]?\\d[\\d.,]*$",
+   "^\\d{4}-\\d{2}-\\d{2}$",
+   "^thấp \\d+ ?% · cao \\d+ ?%$"
+  ]
+ }
+}

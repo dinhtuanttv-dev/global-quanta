@@ -1,3 +1,4 @@
+
 // G0 (19/11/2026) — VÂN TAY SỐ LIỆU của tab KẾT NỐI THẾ GIỚI (Giao-dien-KNTG/05).
 // Chứng minh nâng cấp giao diện không đổi bất kỳ con số / nhãn kết luận nào:
 //   record  <BASE>  mở 5 tab con trên bản dựng GỐC, ghi MỌI phản hồi Gateway vào kho phát lại + vân tay nền.
@@ -129,7 +130,12 @@ for (const T of TABS) {
   for (const [k, n] of a) for (let i = (b.get(k) ?? 0); i < n; i++) removed.push(k);
   for (const [k, n] of b) for (let i = (a.get(k) ?? 0); i < n; i++) added.push(k);
   const ok = (list, allowed = []) => list.filter((x) => !allowed.includes(x));
-  const r = ok(removed, allow[T]?.remove), d = ok(added, allow[T]?.add);
+  // G4: "addPattern" — đoạn THÊM khớp mẫu (VD nhãn trục "T0…T12", bảng thay thế lặp lại số đã có) được phép nhưng vẫn liệt kê
+  // để duyệt. Một con số bị ĐỔI luôn hiện thành "mất đi" ở nền, nên phần "mất đi" vẫn chặn tuyệt đối.
+  const pats = (allow[T]?.addPattern ?? []).map((p) => new RegExp(p));
+  const r = ok(removed, allow[T]?.remove), d = ok(added, allow[T]?.add).filter((x) => !pats.some((re) => re.test(x)));
+  const patAdded = added.length - ok(added, allow[T]?.add).length + ok(added, allow[T]?.add).filter((x) => pats.some((re) => re.test(x))).length;
+  if (patAdded && process.argv.includes("--list-additions")) for (const x of added.filter((x) => pats.some((re) => re.test(x))).slice(0, 40)) console.log(`    (thêm theo mẫu) ${x}`);
   const pass = !r.length && !d.length;
   if (!pass) bad++;
   console.log(`${pass ? "✔" : "✖"} ${T}: nền ${base.prints[T]?.length ?? 0} · sau ${prints[T].length}${removed.length + added.length ? ` · được phép ${removed.length - r.length + added.length - d.length}` : ""}`);

@@ -31,3 +31,12 @@ describe("KntgSection", () => {
     expect(again.querySelector("details")!.open).toBe(true);
   });
 });
+
+describe("KntgSection G4", () => {
+  it("thanh khi mở chỉ ghi 'Thu gọn' (CSS ẩn tên lặp); tên đầy đủ vẫn ở aria-label", async () => {
+    setMobile(true);
+    const el = await mount(<KntgSection id="z" title="Bản tin AI có kiểm chứng" summary="m" openOnMobile><p>1</p></KntgSection>);
+    expect(el.querySelector(".kntg-section-close")!.textContent).toBe("Thu gọn ▲");
+    expect(el.querySelector("summary")!.getAttribute("aria-label")).toBe("Bản tin AI có kiểm chứng: thu gọn");
+  });
+});
