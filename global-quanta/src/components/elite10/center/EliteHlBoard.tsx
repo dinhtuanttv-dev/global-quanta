@@ -34,6 +34,9 @@ import { CockpitStatusBar, FunnelNotes, HlBreadcrumb, pickedTickers, QueueMatrix
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 // NHỊP QUYẾT ĐỊNH (20/11/2026, docs/elite-hl-pulse): lớp "pulse" bật -> một panel thay TodayRibbon + "Thay đổi hôm nay"; tắt -> như cũ.
 import DecisionPulse from "./DecisionPulse";
+// RÀ SOÁT NGƯỢC (20/11/2026): radar đủ 4 điều kiện bán + thành phần nhóm lõi theo vị trí giá (lớp Buồng lái, chỉ thêm).
+import ExitTriggers from "./ExitTriggers";
+import { PZ_VI } from "./HlPricePosition";
 import type { PulseHistSession } from "../../../lib/elite10/decisionPulse";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
@@ -211,6 +214,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-3">
         <ExitRadar picks={picks} rule={r} missSessions={r.missSessions ?? 2} onOpenTicker={onOpenTicker} />
+        {layers.cockpit && <ExitTriggers d={d} picks={picks} onOpenTicker={onOpenTicker} />}
         <FunnelBars steps={steps} total={f.panel} />
       {!layers.pulse && (
       <Panel title={`Thay đổi hôm nay${hl.prevDate ? ` · so với phiên ${fmtDate(hl.prevDate)}` : " · phiên dựng đầu tiên"}`} testId="hl-changes">
@@ -231,6 +235,9 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       {layers.cockpit && cockpitFunnel && <FunnelNotes m={cockpitFunnel} picked={cockpitPick} onPick={setCockpitPick} />}
       <HlCalendarStrip d={d} onOpenTicker={onOpenTicker} />
 
+      {pz && layers.cockpit && corePicks.some((p) => p.hl.pz && p.hl.pz.state !== "BUY_ZONE" && p.hl.pz.state !== "IN_BASE") && (
+        <p className="-mb-1 px-1 text-[10.5px] text-slate-400" data-hl-layer="cockpit" data-testid="hl-core-mix">Nhóm lõi theo vị trí giá: {Object.entries(corePicks.reduce<Record<string, string[]>>((a, p) => { const k = p.hl.pz?.state ?? "UNKNOWN"; (a[k] ??= []).push(p.ticker); return a; }, {})).map(([k, ts]) => `${PZ_VI[k as keyof typeof PZ_VI] ?? k} ${ts.length}${k !== "BUY_ZONE" && k !== "IN_BASE" ? ` (${ts.join(", ")})` : ""}`).join(" · ")} — tiêu đề "trong nền và vùng mua" là nhóm lõi chưa chuyển sang Chạy lãi, gồm cả mã chưa có nền.</p>
+      )}
       <Panel title={pz ? `Danh mục Elite HL · trong nền và vùng mua (${corePicks.length} mã)` : `Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
         {pz && <p className="mb-1.5 text-[10.5px] text-slate-400" data-testid="hl-pz-mode"><span className={`mr-1 rounded border px-1 py-px text-[10px] font-bold ${pz.gate ? "border-emerald-400/60 text-emerald-200" : "border-slate-400/50 text-slate-300"}`}>{pz.gate ? "CỔNG BẬT" : "CHỈ HIỂN THỊ"}</span>{pz.modeVi}</p>}
         <HlLayerToggles layers={layers} onToggle={toggleLayer} note={layers.news && rowSig.newsError ? "Tin tức tạm không tải được." : null} />

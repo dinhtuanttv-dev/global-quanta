@@ -63,7 +63,6 @@ vi.mock("swr", async (orig) => {
   return { ...real, default: (key: unknown, ...rest: unknown[]) => (key === "research-overview" ? { data: { currentRegime: { date: "2026-10-16", regime: "SIDEWAY", impulseScore: 39.3, breadthPct: 41.1 } } } : (real.default as never as (...a: unknown[]) => unknown)(key, ...rest)) };
 });
 
-vi.mock("../../../hooks/elite10/useEliteBuyZones", () => ({ useEliteBuyZones: () => ({ zones: null, error: null, isLoading: false }) }));
 import DecisionBoard from "./DecisionBoard";
 import CashGateCard from "./CashGateCard";
 import SignalProfileCard, { percentile } from "./SignalProfileCard";

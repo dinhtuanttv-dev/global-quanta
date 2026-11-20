@@ -1,12 +1,11 @@
 // Elite × TO (07/11/2026) — nguồn định thời điểm DUY NHẤT cho Elite 10 (Bảng quyết định, Ứng viên, Bộ lọc Elite, Radar, Radar lệnh):
 // Timeline Gateway (/api/elite/buy-timing) với vùng cổ tức W1–W5 cũ được THAY bằng vùng "Săn cổ tức" TO-v1 (/api/corp-events/to);
-// vùng mùa vụ KQKD giữ nguyên. Kèm đợt cổ tức đang diễn ra theo mã + số lịch sử "giữ qua GDKHQ" cho cảnh báo GDKHQ.
+// vùng mùa vụ KQKD giữ nguyên. (Dọn rác 20/11/2026: bỏ toEvents / postEx / toLabel — chip cảnh báo GDKHQ dùng chúng đã gỡ.)
 import { useMemo } from "react";
 import { useGatewayBuyTimeline } from "../useGatewayBuyTimeline";
 import { useToOverview } from "../useCorpEvents";
 import { toLaneRows, withToRows } from "../../lib/elite10/toTiming";
 import type { TimelineRow } from "../../lib/cotuc/buy-timeline";
-import type { ToRadarRow } from "../../lib/cotuc/to";
 import type { LaneRow } from "../../lib/elite10/buyZoneLane";
 
 export function useEliteTiming() {
@@ -19,9 +18,5 @@ export function useEliteTiming() {
     ...buy, data, toRows,
     /** BỘ NÃO THỜI ĐIỂM (20/11/2026): dòng Timeline GỐC (còn cửa sổ cổ tức W1–W5) cho lớp hiển thị hai làn — chỉ thêm, `data` không đổi. */
     rawRows: buy.data?.rows ?? null,
-    /** Mọi đợt cổ tức tiền đang chờ GDKHQ (mọi nhóm lợi suất) — cho cảnh báo GDKHQ / hồ sơ mã. */
-    toEvents: (to?.radar.rows ?? []) as ToRadarRow[],
-    postEx: to?.reference?.postEx ?? null,
-    toLabel: to?.label ?? null,
   };
 }
