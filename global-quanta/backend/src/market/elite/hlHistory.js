@@ -21,11 +21,15 @@ export function hlSession(doc) {
     held,
     added: Array.isArray(ch.added) ? ch.added : [],
     exits: Array.isArray(ch.exits) ? ch.exits.map((x) => ({ t: x.ticker, code: x.code ?? null, reasonVi: x.reasonVi ?? null, w: r4(x.weight) })) : [],
+    // HL-H2 (20/11/2026, buồng lái C6 — docs/elite-hl-cockpit 04 mục 5): thành viên Hàng chờ và Chưa giao dịch được của phiên, trích
+    // nguyên văn từ tài liệu đã lưu — để breadcrumb có bước "Hàng chờ → Danh mục". Trường MỚI, không đổi trường cũ (tương thích ngược).
+    queue: Array.isArray(doc.hl.queue) ? doc.hl.queue.map((q) => ({ t: q.ticker, code: q.code ?? null })) : [],
+    ill: Array.isArray(doc.hl.queueIlliquid) ? doc.hl.queueIlliquid.map((q) => q.ticker) : [],
   };
 }
 
 /** Nhiều phiên (cũ -> mới) -> { dates, sessions }. */
 export function hlHistoryFromDocs(docs) {
   const sessions = docs.map(hlSession).filter(Boolean).sort((a, b) => a.date.localeCompare(b.date));
-  return { version: "HL-H1", dates: sessions.map((s) => s.date), sessions };
+  return { version: "HL-H2", dates: sessions.map((s) => s.date), sessions };
 }

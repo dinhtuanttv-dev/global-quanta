@@ -25,7 +25,7 @@ test("hlSession: trích đúng trường đã lưu, làm tròn, bỏ mã không 
 
 test("hlHistoryFromDocs: sắp cũ -> mới, bỏ phiên không có HL", () => {
   const h = hlHistoryFromDocs([doc("2026-11-19", [pick("A", 90)]), { date: "2026-11-11", portfolio: [] }, doc("2026-11-12", [pick("A", 80)])]);
-  assert.deepEqual(h.dates, ["2026-11-12", "2026-11-19"]); assert.equal(h.version, "HL-H1");
+  assert.deepEqual(h.dates, ["2026-11-12", "2026-11-19"]); assert.equal(h.version, "HL-H2"); // C6 (20/11/2026): HL-H1 -> HL-H2, thêm queue / ill (tương thích ngược)
 });
 
 function fakeStore(docs) {
@@ -68,4 +68,14 @@ test("GET /api/elite/hl-history: 200 + Cache-Control; chưa có dịch vụ -> 5
     const r = await fetch(`http://127.0.0.1:${srv2.address().port}/api/elite/hl-history`);
     assert.ok(r.status >= 400); assert.match((await r.json()).error, /Chưa có lịch sử danh mục Elite HL/);
   } finally { srv2.close(); }
+});
+
+test("HL-H2 (buồng lái C6): mỗi phiên có queue [{ t, code }] và ill [mã]; tài liệu thiếu hàng chờ -> mảng rỗng; trường cũ không đổi", () => {
+  const withQ = doc("2026-11-20", [pick("VPL", 98)], { queue: [{ ticker: "VPI", code: "wait", reasonVi: "Chờ phiên cân bằng", hlRank: 2 }, { ticker: "CDC", code: "full" }], queueIlliquid: [{ ticker: "HDA", code: "illiquid" }] });
+  const s = hlSession(withQ);
+  assert.deepEqual(s.queue, [{ t: "VPI", code: "wait" }, { t: "CDC", code: "full" }]);
+  assert.deepEqual(s.ill, ["HDA"]);
+  assert.deepEqual(Object.keys(s), ["date", "rebalance", "frozen", "cash", "invested", "exitLsPct", "held", "added", "exits", "queue", "ill"]);
+  const bare = hlSession(doc("2026-11-19", [pick("VPL", 97)]));
+  assert.deepEqual([bare.queue, bare.ill], [[], []]);
 });
