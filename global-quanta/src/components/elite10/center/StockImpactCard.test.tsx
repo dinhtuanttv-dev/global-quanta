@@ -96,3 +96,15 @@ describe("StockImpactCard (D4)", () => {
     expect(el.querySelector('[data-testid="elite-impact"]')).toBeNull();
   });
 });
+
+describe("StockImpactCard N1", () => {
+  afterEach(() => { document.body.innerHTML = ""; fetchMarketJson.mockReset(); });
+  it("ghi chú liên kết toàn cầu (GL-1, MÔ TẢ) hiện dưới lớp ngành thế giới 3 tháng khi có", async () => {
+    const layers = HPG.layers.map((l) => (l.id === "world_medium" ? { ...l, extra: { evidenceId: "GL-1", seal: "MÔ TẢ", textVi: "Liên kết toàn cầu: nhóm dệt may … không cộng điểm." } } : l));
+    fetchMarketJson.mockResolvedValue({ ...HPG, ticker: "TNG", layers });
+    const el = await render("TNG");
+    const x = el.querySelector('[data-testid="impact-extra-world_medium"]')!;
+    expect(x.textContent).toContain("GL-1"); expect(x.querySelector("[data-seal]")!.getAttribute("data-seal")).toBe("MÔ TẢ");
+    expect(el.querySelectorAll('[data-testid^="impact-extra-"]')).toHaveLength(1);
+  });
+});

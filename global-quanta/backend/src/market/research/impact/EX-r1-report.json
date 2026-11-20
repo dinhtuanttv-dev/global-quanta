@@ -1,0 +1,78 @@
+{
+ "prereg": "backend/src/market/research/impact/EX-r1-prereg.md",
+ "ranAt": "2026-11-20T01:04:41.404Z",
+ "data": {
+  "panels": 3171,
+  "firstPanel": "2014-03-03",
+  "lastPanel": "2026-11-12"
+ },
+ "outOfSample": {
+  "from": "2020-01-02",
+  "to": "2026-11-12",
+  "buys": 527,
+  "skippedCeil": 3,
+  "skippedNoOpen": 0,
+  "afterDown": {
+   "sessions": 123,
+   "buys": 245,
+   "meanXPct": 0.106935510122953,
+   "t": 0.46442147716962534,
+   "half1Pct": 0.4087287621696207,
+   "half2Pct": -0.1899901088261878
+  },
+  "afterUp": {
+   "sessions": 143,
+   "buys": 279,
+   "meanXPct": -0.6794200347929817,
+   "t": -3.3965961246937555,
+   "half1Pct": -0.4624386922347907,
+   "half2Pct": -0.8933877475934202
+  },
+  "all": {
+   "sessions": 266,
+   "buys": 524,
+   "meanXPct": -0.3158045008656887,
+   "t": -2.0648016329172347,
+   "half1Pct": -0.02863442668859171,
+   "half2Pct": -0.6029745750427856
+  }
+ },
+ "inSampleReference": {
+  "from": "2014-03-03",
+  "to": "2019-12-31",
+  "buys": 415,
+  "skippedCeil": 0,
+  "skippedNoOpen": 0,
+  "afterDown": {
+   "sessions": 103,
+   "buys": 189,
+   "meanXPct": 0.5135616360580193,
+   "t": 1.954714613765245,
+   "half1Pct": 0.3280712739434399,
+   "half2Pct": 0.6954848758242415
+  },
+  "afterUp": {
+   "sessions": 108,
+   "buys": 226,
+   "meanXPct": -0.26987454172920156,
+   "t": -1.3666119175710207,
+   "half1Pct": -0.10595829125915374,
+   "half2Pct": -0.43379079219924954
+  },
+  "all": {
+   "sessions": 211,
+   "buys": 415,
+   "meanXPct": 0.11256112799631378,
+   "t": 0.6816613949475799,
+   "half1Pct": 0.02007447824218693,
+   "half2Pct": 0.20417526218672247
+  }
+ },
+ "h1Checks": {
+  "meanGe015": false,
+  "tGe2": false,
+  "bothHalvesPositive": false,
+  "enough": true
+ },
+ "verdict": "KHÔNG ĐẠT"
+}

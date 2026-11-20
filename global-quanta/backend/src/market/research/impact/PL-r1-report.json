@@ -1,0 +1,45 @@
+{
+ "prereg": "backend/src/market/research/impact/PL-r1-prereg.md",
+ "ranAt": "2026-11-20T01:04:52.273Z",
+ "sample": {
+  "firstWeek": "2020-01-03",
+  "lastWeek": "2026-11-06",
+  "lastVnData": "2026-11-12"
+ },
+ "PL-r1a": {
+  "n": 88,
+  "r": 0.14676031014075547,
+  "t": 1.3758972263944906,
+  "pShift": 0.12887112887112886,
+  "halfR": [
+   0.1287873632903423,
+   0.17220963351955676
+  ],
+  "bigSignalMeanPct": -0.23240466812259022,
+  "bigSignalN": 13,
+  "enough": true,
+  "holm": {
+   "threshold": 0.025,
+   "pass": false
+  },
+  "verdict": "KHÔNG ĐẠT"
+ },
+ "PL-r1b": {
+  "n": 357,
+  "r": 0.014663821558763224,
+  "t": 0.27631727758014263,
+  "pShift": 0.33166833166833165,
+  "halfR": [
+   0.03391366102420586,
+   -0.012657466815541628
+  ],
+  "bigSignalMeanPct": -0.2100957755545174,
+  "bigSignalN": 43,
+  "enough": true,
+  "holm": {
+   "threshold": 0.05,
+   "pass": false
+  },
+  "verdict": "KHÔNG ĐẠT"
+ }
+}
