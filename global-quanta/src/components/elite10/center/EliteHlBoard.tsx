@@ -28,6 +28,9 @@ import { HlNewsHeader, HlNewsStrip, HlRowFilters, matchFilters, NEWS_COL_WIDTH, 
 import { HlImpactBlock, HlImpactRow, HlImpactToggle } from "./HlImpactLayer";
 // HL-RADAR P4: xu hướng LS-v1 theo phiên + tua lại các phiên trước (Gateway /api/elite/hl-history, bản gọn của tài liệu đã lưu).
 import { HlLsTrend, HlReplay, useHlHistory } from "./HlHistoryLayers";
+// BUỒNG LÁI C1–C5 (20/11/2026, docs/elite-hl-cockpit): thanh trạng thái, đọc phễu, bản đồ trạng thái (D1), breadcrumb, ma trận hàng chờ.
+import { funnelModel, resolveBoardState, sessionSeal, type HistSessionLite } from "../../../lib/elite10/cockpit";
+import { CockpitStatusBar, FunnelNotes, HlBreadcrumb, pickedTickers, QueueMatrix, StateMap, todayTransitions, useHlWatchLog } from "./CockpitLayers";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
@@ -137,7 +140,14 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const toggleFilter = (k: HlFilter) => setFilters((cur) => { const n = new Set(cur); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const notify = useHlNewsNotify(rowSig.map, rowSig.now);
   const [impactOpen, setImpactOpen] = useState<string | null>(null);
-  const { data: hist } = useHlHistory(layers.trend);
+  const { data: hist } = useHlHistory(layers.trend || layers.cockpit);
+  const { data: wlog } = useHlWatchLog(layers.cockpit);
+  const cockpitStates = useMemo(() => resolveBoardState(d), [d]);
+  const cockpitFunnel = useMemo(() => funnelModel(d), [d]);
+  const cockpitSeal = useMemo(() => sessionSeal(d, [{ key: "panel", label: "Bảng tín hiệu", date: panel?.date }, { key: "risk", label: "Rủi ro", date: risk?.date }, { key: "hist", label: "Lịch sử theo phiên", date: hist?.dates?.[hist.dates.length - 1] }]), [d, panel?.date, risk?.date, hist]);
+  const cockpitSessions = hist?.sessions as HistSessionLite[] | undefined, cockpitLog = wlog?.entries;
+  const cockpitToday = useMemo(() => (layers.cockpit ? todayTransitions(cockpitStates, d, cockpitSessions, cockpitLog) : []), [layers.cockpit, cockpitStates, d, cockpitSessions, cockpitLog]);
+  const [cockpitPick, setCockpitPick] = useState<string | null>(null);
   const impactBtn = (t: string, mobile = false) => (layers.impact ? <HlImpactToggle ticker={t} open={impactOpen === t} onToggle={() => setImpactOpen(impactOpen === t ? null : t)} mobile={mobile} /> : null);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
@@ -162,6 +172,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-hl-board">
       <CommandBar d={d} />
+      {layers.cockpit && <CockpitStatusBar seal={cockpitSeal} states={cockpitStates} today={cockpitToday} />}
       {switcher}
 
       {refreshError && (
@@ -211,6 +222,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       </Panel>
       </div>
 
+      {layers.cockpit && cockpitFunnel && <FunnelNotes m={cockpitFunnel} picked={cockpitPick} onPick={setCockpitPick} />}
       <HlCalendarStrip d={d} onOpenTicker={onOpenTicker} />
 
       <Panel title={pz ? `Danh mục Elite HL · trong nền và vùng mua (${corePicks.length} mã)` : `Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
@@ -266,7 +278,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                       <td className="pr-2">{openBtn(p.ticker)}<HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
                         <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}{impactBtn(p.ticker)}</span>
                         {pxOf(p.ticker) && <span className="mt-0.5 block"><DilutionBadge p={pxOf(p.ticker)} pxR1={d.dilution?.pxR1} testId={`hl-px-${p.ticker}`} /></span>}
-                        {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>{layers.news && <HlNewsStrip s={rowSig.map.get(p.ticker)} now={rowSig.now} />}
+                        {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}{layers.cockpit && <HlBreadcrumb ticker={p.ticker} sessions={cockpitSessions} log={cockpitLog} />}</td>{layers.news && <HlNewsStrip s={rowSig.map.get(p.ticker)} now={rowSig.now} />}
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
                         <span className="block text-[10px] text-slate-500" data-testid={`hl-risk-${p.ticker}`} title={euler.get(p.ticker) ? "Đóng góp Euler vào biến động danh mục (hiệp phương sai Ledoit–Wolf), cộng lại = 100%" : "Ước lượng thô w·σ20 / Σ (bỏ qua tương quan) — chưa có số Euler"}>{euler.get(p.ticker) ? <>rủi ro <b className={euler.get(p.ticker)!.riskContribution > p.weight * 2 ? "text-amber-300" : "text-slate-300"}>{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</> : <>rủi ro ~{pct(p.riskContribution, 0)} (thô)</>}</span></td>
@@ -302,12 +314,14 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         {layers.trend && <HlReplay h={hist} today={{ date: d.date, held: heldTickers }} onOpenTicker={onOpenTicker} />}
       </Panel>
 
+      {layers.cockpit && <StateMap states={cockpitStates} sessions={cockpitSessions} log={cockpitLog} highlight={pickedTickers(d, cockpitPick)} today={new Set(cockpitToday.map((x) => x.ticker))} onOpenTicker={onOpenTicker} />}
       <RuleSpace rows={panel?.rows} panelDate={panel?.date ? fmtDate(panel.date) : null} held={heldSet} queued={queuedSet} rule={r} tier1={t1} funnel={f} />
 
       {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName}
         liqBadge={(x, mobile) => <LiquidityBadge liq={liqOf(x.ticker)} rules={lq} sigma20={scoreBy.get(x.ticker)?.sigma20} weight={x.held ? x.weight ?? null : null} held={x.held} fallbackAdvBn={scoreBy.get(x.ticker)?.advBn ?? null} testId={`pz-liq-${mobile ? "m-" : ""}${x.ticker}`} />} pxBadge={(x, mobile) => pxBadge(x.ticker, `pz-px-${mobile ? "m-" : ""}${x.ticker}`)} />}
 
       <QueueDeck d={d} onOpenTicker={onOpenTicker} liqOf={liqOf} sigmaOf={(t) => scoreBy.get(t)?.sigma20} lq={lq} pxBadge={pxBadge} />
+      {layers.cockpit && <QueueMatrix d={d} states={cockpitStates} secName={secName} />}
 
       {/* QĐ-R2 (20/11/2026): "Bằng chứng của từng lớp" (EvidenceWall) chuyển sang tab 4 — đầu khối Elite HL. */}
 

@@ -8,11 +8,11 @@ import { useEliteTiming } from "./useEliteTiming";
 import { useAppStore } from "../../store/useAppStore";
 import { hlRowSignals, NEWS_STRIP_DAYS } from "../../lib/elite10/hlRowSignals";
 
-export type HlLayer = "news" | "signals" | "buy" | "live" | "impact" | "trend";
+export type HlLayer = "news" | "signals" | "buy" | "live" | "impact" | "trend" | "cockpit";
 export type HlLayers = Record<HlLayer, boolean>;
 export const HL_LAYERS_KEY = "gq.hl.layers.v1";
-export const HL_LAYER_DEFAULT: HlLayers = { news: true, signals: true, buy: true, live: true, impact: true, trend: true };
-export const HL_LAYER_VI: Record<HlLayer, string> = { news: "Tin & cảm xúc", signals: "Dòng tiền ◆", buy: "Điểm mua ⏱", live: "Giá trong phiên", impact: "Tác động", trend: "Xu hướng & tua lại" };
+export const HL_LAYER_DEFAULT: HlLayers = { news: true, signals: true, buy: true, live: true, impact: true, trend: true, cockpit: true };
+export const HL_LAYER_VI: Record<HlLayer, string> = { news: "Tin & cảm xúc", signals: "Dòng tiền ◆", buy: "Điểm mua ⏱", live: "Giá trong phiên", impact: "Tác động", trend: "Xu hướng & tua lại", cockpit: "Buồng lái" };
 
 const readLayers = (): HlLayers => {
   try { const raw = window.localStorage.getItem(HL_LAYERS_KEY); return raw ? { ...HL_LAYER_DEFAULT, ...(JSON.parse(raw) as Partial<HlLayers>) } : HL_LAYER_DEFAULT; } catch { return HL_LAYER_DEFAULT; }
