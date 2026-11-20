@@ -2,6 +2,7 @@
 // Danh mục được khoá lúc dựng (sau bảng E1 + bằng chứng E2 của phiên d) và không sửa; kết quả chấm khi đủ d+1+h phiên.
 // Một lần đọc giá mỗi ngày (khoảng 95 phiên × vũ trụ, chỉ cột symbol/ngày/close_adj/value) phục vụ cả dựng lẫn chấm sổ.
 import { PORTFOLIO, RRG_RULE, buildCandidates, buildDecision, COST_ROUND_TRIP, E3_V5, E3_VERSION, ELIGIBILITY, evaluateEntry, LEDGER_HORIZONS, summarizeLedger } from "./decisionCore.js";
+import { hlHistoryFromDocs } from "./hlHistory.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
 import { buildHlPortfolio, hlTradable, HL_K0, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
@@ -268,6 +269,22 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
   // Radar danh mục Elite 10 (30/10/2026): lịch sử hạng GỌN của N phiên gần nhất — danh mục + hạng / Z toàn vũ trụ của mọi mã từng vào
   // danh mục trong cửa sổ (để vẽ vệt hạng / Z, mũi tên lên-xuống hạng, sự kiện vào-ra, tua lại). ~2 KB/phiên thay vì ~170 KB tài liệu đủ.
   let rhMemo = null;
+  // HL-RADAR P4 (20/11/2026): lịch sử gọn của danh mục Elite HL — n phiên gần nhất có Elite HL (2–30, mặc định 10), dựng từ tài liệu
+  // đã lưu (không tính số mới); nhớ tới khi có phiên mới.
+  let hlhMemo = null;
+  async function hlHistory(days = 10) {
+    const n = Math.max(2, Math.min(30, Math.round(Number(days) || 10)));
+    const idx = (await kv(DECISION_KV.index))?.dates ?? [];
+    const key = `${idx[idx.length - 1] ?? ""}|${n}`;
+    if (hlhMemo?.key === key) return hlhMemo.value;
+    // Đọc lùi tới khi đủ n phiên có Elite HL (phiên trước 12/11/2026 không có hl), tối đa 3n tài liệu.
+    const want = idx.slice(-n * 3);
+    const docs = (await Promise.all(want.map((d) => kv(DECISION_KV.decision(d))))).filter((d) => d?.hl).slice(-n);
+    const value = hlHistoryFromDocs(docs);
+    hlhMemo = { key, value };
+    return value;
+  }
+
   async function rankHistory(days = 6) {
     const n = Math.max(2, Math.min(15, Math.round(Number(days) || 6)));
     const idx = (await kv(DECISION_KV.index))?.dates ?? [];
@@ -374,7 +391,7 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
     };
   }
 
-  return { build, decision, ledger, rankHistory, personalPortfolio, present, freshness, liquidity, withLiquidity };
+  return { build, decision, ledger, rankHistory, hlHistory, personalPortfolio, present, freshness, liquidity, withLiquidity };
 }
 
 /** N5: mã danh mục Elite 10 của phiên quyết định gần nhất (đọc thẳng KV, không dựng lại) — cho job nạp sẵn nến phút trước giờ mở cửa. */

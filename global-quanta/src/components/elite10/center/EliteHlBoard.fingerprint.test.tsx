@@ -46,7 +46,7 @@ describe("Vân tay bảng Danh mục Elite HL (dữ liệu thật 18/11)", () =>
     await expect(fingerprint()).toMatchFileSnapshot("./__fingerprints__/hl-portfolio-2026-11-18.json");
   });
   it("tắt mọi lớp nâng cấp: bảng gốc giống từng ký tự tệp nền, không còn phần tử lớp nào", async () => {
-    window.localStorage.setItem(LAYERS_KEY, JSON.stringify({ news: false, signals: false, buy: false, live: false, impact: false }));
+    window.localStorage.setItem(LAYERS_KEY, JSON.stringify({ news: false, signals: false, buy: false, live: false, impact: false, trend: false }));
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
     await expect(fingerprint()).toMatchFileSnapshot("./__fingerprints__/hl-portfolio-2026-11-18.json");
     expect(screen.getByTestId("elite-portfolio").querySelectorAll("[data-hl-layer]:not([data-hl-layer='toggles'])").length).toBe(0);

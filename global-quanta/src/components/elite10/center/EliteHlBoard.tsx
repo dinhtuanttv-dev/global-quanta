@@ -26,6 +26,8 @@ import { useHlLayers, useHlRowSignals } from "../../../hooks/elite10/useHlRowSig
 import { HlNewsHeader, HlNewsStrip, HlRowFilters, matchFilters, NEWS_COL_WIDTH, useHlNewsNotify, type HlFilter } from "./HlNewsLayers";
 // HL-RADAR P3: lớp tác động mở rộng dưới dòng (khối Tác động lên cổ phiếu của Hồ sơ 360°, tải khi mở).
 import { HlImpactBlock, HlImpactRow, HlImpactToggle } from "./HlImpactLayer";
+// HL-RADAR P4: xu hướng LS-v1 theo phiên + tua lại các phiên trước (Gateway /api/elite/hl-history, bản gọn của tài liệu đã lưu).
+import { HlLsTrend, HlReplay, useHlHistory } from "./HlHistoryLayers";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
@@ -135,6 +137,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const toggleFilter = (k: HlFilter) => setFilters((cur) => { const n = new Set(cur); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const notify = useHlNewsNotify(rowSig.map, rowSig.now);
   const [impactOpen, setImpactOpen] = useState<string | null>(null);
+  const { data: hist } = useHlHistory(layers.trend);
   const impactBtn = (t: string, mobile = false) => (layers.impact ? <HlImpactToggle ticker={t} open={impactOpen === t} onToggle={() => setImpactOpen(impactOpen === t ? null : t)} mobile={mobile} /> : null);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
@@ -230,7 +233,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                   {layers.news && <HlNewsStrip s={rowSig.map.get(p.ticker)} now={rowSig.now} mobile />}{pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
-                  <div className="flex flex-wrap items-center gap-3"><TaDots n={h.taCount} of={t1.taModels} />{(() => { const c = corridorPos(p, r); return <VolCorridor ret={c.ret} band={c.band} testId={`hl-corridor-m-${p.ticker}`} />; })()}
+                  <div className="flex flex-wrap items-center gap-3"><TaDots n={h.taCount} of={t1.taModels} />{layers.trend && <HlLsTrend h={hist} ticker={p.ticker} exit={r.exitLsPct} mobile />}{(() => { const c = corridorPos(p, r); return <VolCorridor ret={c.ret} band={c.band} testId={`hl-corridor-m-${p.ticker}`} />; })()}
                     {euler.get(p.ticker) && <span className="text-[10px] text-slate-500">rủi ro <b className="text-slate-300">{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</span>}</div>
                   {pz && <PzCardLine pz={h.pz} rules={pzRules} />}
                   {h.warnings.map((w) => <p key={w} className="text-[10px] text-amber-300">⚠ {w}</p>)}
@@ -269,7 +272,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                         <span className="block text-[10px] text-slate-500" data-testid={`hl-risk-${p.ticker}`} title={euler.get(p.ticker) ? "Đóng góp Euler vào biến động danh mục (hiệp phương sai Ledoit–Wolf), cộng lại = 100%" : "Ước lượng thô w·σ20 / Σ (bỏ qua tương quan) — chưa có số Euler"}>{euler.get(p.ticker) ? <>rủi ro <b className={euler.get(p.ticker)!.riskContribution > p.weight * 2 ? "text-amber-300" : "text-slate-300"}>{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</> : <>rủi ro ~{pct(p.riskContribution, 0)} (thô)</>}</span></td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{h.t1}</b><span className="text-slate-500">/{t1.maxScore}</span> <Bar value={h.t1} max={t1.maxScore} width={56} />
                         <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels}</span>
-                        <LsGauge ls={h.lsPct} exit={r.exitLsPct} warn={r.warnLsPct} /><TaDots n={h.taCount} of={t1.taModels} /></td>
+                        <LsGauge ls={h.lsPct} exit={r.exitLsPct} warn={r.warnLsPct} /><TaDots n={h.taCount} of={t1.taModels} />{layers.trend && <HlLsTrend h={hist} ticker={p.ticker} exit={r.exitLsPct} />}</td>
                       <td className="whitespace-nowrap pr-2"><span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "—" : RRG_VI[String(h.rrg)]}</span>
                         <span className="block text-[10px] text-slate-500">{h.t2 > 0 ? "ủng hộ" : h.t2 < 0 ? "phản đối" : "trung tính"}</span></td>
                       <td className="pr-2"><b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></td>
@@ -296,6 +299,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
           Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời. Hình dải biến động: vạch xám = giá lúc vào, vạch đỏ đứt = −2 dải tính từ giá lúc vào, chấm = giá hiện tại (xanh / đỏ = trên / dưới giá lúc vào).
         </p>
+        {layers.trend && <HlReplay h={hist} today={{ date: d.date, held: heldTickers }} onOpenTicker={onOpenTicker} />}
       </Panel>
 
       <RuleSpace rows={panel?.rows} panelDate={panel?.date ? fmtDate(panel.date) : null} held={heldSet} queued={queuedSet} rule={r} tier1={t1} funnel={f} />
