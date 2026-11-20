@@ -26,6 +26,10 @@ import HistoryToggles from "./HistoryToggles";
 import { presetEvents, readPreset, writePreset, type HistPreset } from "../../../lib/elite10/historyPreset";
 import EventStudyChart from "./EventStudyChart";
 import TimingSpace3D from "./TimingSpace3D";
+// MP-b / MP-c (20/11/2026, tài liệu 19): bộ chọn phí (tính lại mọi số ròng qua es.costPerRoundTrip), ô giờ vào lệnh (EX-r1),
+// và khối "vào hôm nay" cạnh "chờ vùng Timeline". Phí mặc định = phí engine -> mọi số giữ nguyên như trước.
+import { COST_REALISTIC, nowVsWait, withCost } from "../../../lib/elite10/nowVsWait";
+import { ExecRefCard, NowVsWaitCard } from "./NowVsWaitCard";
 
 const vnToday = () => new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
 const vnMinutes = () => { const d = new Date(Date.now() + 7 * 3_600_000); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
@@ -53,7 +57,10 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   }, [buy.data, ticker]);
   const [chosen, setChosen] = useState<"DIVIDEND" | "EARNINGS" | null>(null);
   const kind = chosen ?? defaultKind;
-  const { es, emptyReason, loading, error } = useEventStudy(ticker, kind);
+  const { es: esRaw, emptyReason, loading, error } = useEventStudy(ticker, kind);
+  // MP-b: null = phí của engine (mặc định). Mọi phép tính ròng phía dưới đọc `es` (đã gắn mức phí đang chọn).
+  const [cost, setCost] = useState<number | null>(null);
+  const es = useMemo(() => (esRaw ? withCost(esRaw, cost ?? esRaw.costPerRoundTrip) : null), [esRaw, cost]);
   const cal = useVnTradingCalendar();
   const today = vnToday();
   const [winId, setWinId] = useState<string | null>(null);
@@ -106,6 +113,13 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   };
   const candles = useMemo(() => (es && lastOff != null ? candlesInCar(es.offsets[0], bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
   const eventWord = kind === "DIVIDEND" ? "GDKHQ" : `Công bố KQKD${es?.quarter ? ` Q${es.quarter}` : ""}`;
+  const nvw = useMemo(() => nowVsWait(es, tl, fan, win, lastOff), [es, tl, fan, win, lastOff]);
+  const engineCost = esRaw?.costPerRoundTrip ?? 0.0045;
+  const costOpts: { id: string; v: number | null; label: string; title: string }[] = [
+    { id: "engine", v: null, label: `${(engineCost * 100).toFixed(2).replace(".", ",")}% (engine)`, title: "Phí khứ hồi của engine v3 — mức dùng để dán nhãn ĐẠT / chưa đạt" },
+    { id: String(COST_REALISTIC), v: COST_REALISTIC, label: "0,8% (thực tế)", title: "Cận trên của chi phí thực tế 0,6–0,8% mỗi lần đổi mã (phí, thuế, trượt giá)" },
+    { id: "0", v: 0, label: "0% (trước phí)", title: "Không trừ phí — để thấy phí ăn bao nhiêu" },
+  ];
 
   return (
     <section className="rounded-lg border border-emerald-400/25 bg-slate-950/70 p-3 text-slate-200" data-testid="timing-sim-panel">
@@ -172,6 +186,14 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
               </button>
             ))}
           </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10.5px]" role="group" aria-label="Phí khứ hồi" data-testid="timing-cost">
+            <span className="text-slate-400">Phí khứ hồi:</span>
+            {costOpts.map((o) => (
+              <button key={o.id} type="button" aria-pressed={cost === o.v} title={o.title} onClick={() => setCost(o.v)} data-testid={`timing-cost-${o.id}`}
+                className={`min-h-[26px] rounded border px-2 ${cost === o.v ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 font-bold text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{o.label}</button>
+            ))}
+            {cost != null && <span className="text-amber-200" data-testid="timing-cost-note">Biểu đồ, quạt và khối so sánh tính lại theo mức này; nhãn ĐẠT / chưa đạt, số trên các ô cửa sổ và dòng Timeline vẫn là của engine (phí {(engineCost * 100).toFixed(2).replace(".", ",")}%).</span>}
+          </div>
           <HistoryToggles dates={[...es.events].map((e) => e.eventDate).sort()} visible={visibleEvents} preset={preset} custom={custom != null}
             onPreset={choosePreset} onToggle={toggleEvent} total={es.events.length} />
           <div className="mt-2">
@@ -185,6 +207,8 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
           )}
           {esaOpen && since?.status === "research_only" && <EsaSincePopover since={since} item={sinceItem} onClose={() => setEsaOpen(false)} />}
           <AnalogFanCard fan={fan} window={win} eventWord={eventWord} loading={daily.isLoading || vni.isLoading} />
+          <NowVsWaitCard r={nvw} eventWord={eventWord} />
+          <ExecRefCard />
           <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
             Đường mảnh = từng đợt {eventWord.toLowerCase()} lịch sử, đường xanh đậm = trung vị, dải = tứ phân vị (lợi suất vượt VN-Index tích luỹ, giá tổng lợi suất).
             Vùng mua ĐẠT = cửa sổ qua cổng thống kê v3 (≥ 8 đợt, FDR, cận dưới lợi nhuận ròng {">"} 0, ngoài mẫu); "chưa đạt" chỉ để quan sát.
