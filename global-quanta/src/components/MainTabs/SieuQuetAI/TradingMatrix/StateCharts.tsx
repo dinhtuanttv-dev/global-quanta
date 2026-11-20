@@ -69,8 +69,23 @@ export function Spark({ values, color = "#cbd5e1", w = 76, h = 22, zero = false 
   const v = values.filter(ok);
   if (v.length < 2) return null;
   const lo = Math.min(...v, ...(zero ? [0] : [])), hi = Math.max(...v, ...(zero ? [0] : [])), span = hi - lo || 1;
-  const pts = values.map((x, i) => (ok(x) ? `${(i / (values.length - 1)) * w},${h - 2 - ((x - lo) / span) * (h - 4)}` : null)).filter(Boolean).join(" ");
-  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden className="shrink-0">{zero && <line x1={0} x2={w} y1={h - 2 - ((0 - lo) / span) * (h - 4)} y2={h - 2 - ((0 - lo) / span) * (h - 4)} stroke={AXIS} />}<polyline points={pts} fill="none" stroke={color} strokeWidth={1.4} /></svg>;
+  const segs = sparkSegments(values, w, h, lo, span);
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} aria-hidden className="shrink-0">{zero && <line x1={0} x2={w} y1={h - 2 - ((0 - lo) / span) * (h - 4)} y2={h - 2 - ((0 - lo) / span) * (h - 4)} stroke={AXIS} />}
+    {segs.map((s, i) => (s.length > 1
+      ? <polyline key={i} points={s.map(([x, y]) => `${x},${y}`).join(" ")} fill="none" stroke={color} strokeWidth={1.4} strokeLinejoin="round" data-spark-seg="" />
+      : <circle key={i} cx={s[0][0]} cy={s[0][1]} r={1.3} fill={color} data-spark-seg="" />))}</svg>;
+}
+
+/** Tách chuỗi thành các đoạn liền nhau; điểm thiếu (null) là chỗ ngắt, không nối thẳng qua và không vẽ thành 0. */
+export function sparkSegments(values: (number | null)[], w: number, h: number, lo: number, span: number): [number, number][][] {
+  const out: [number, number][][] = [];
+  let cur: [number, number][] = [];
+  values.forEach((x, i) => {
+    if (!ok(x)) { if (cur.length) out.push(cur); cur = []; return; }
+    cur.push([(i / Math.max(1, values.length - 1)) * w, h - 2 - ((x - lo) / span) * (h - 4)]);
+  });
+  if (cur.length) out.push(cur);
+  return out;
 }
 
 /** Thác nước điểm VN-Index: các trụ kéo, các trụ đè, phần còn lại, đến tổng điểm. */
