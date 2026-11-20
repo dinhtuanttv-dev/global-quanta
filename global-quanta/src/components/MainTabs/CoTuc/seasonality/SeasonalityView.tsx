@@ -161,6 +161,8 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
   const ready = !value ? false : anchor === "x" ? primed === `x:${value}` : error ? true : primed === `official:${value}`; // gói lỗi -> mở như cũ (gọi thẳng Project A)
   return (
     <div className="space-y-3" data-testid="season-view">
+      {/* BỘ NÃO THỜI ĐIỂM CT4 (20/11/2026): "KQKD" có ba nghĩa — mục này là phản ứng GIÁ quanh ngày công bố. */}
+      <p className="tw-scope text-[10.5px] text-slate-400" data-testid="season-meaning"><b className="text-slate-200">Phản ứng giá quanh ngày công bố KQKD</b> · khác mục Kết quả kinh doanh (doanh thu, lợi nhuận) và Lịch công bố (ngày dự kiến).</p>
       <div className="tw-scope flex flex-wrap gap-1" role="tablist" aria-label="Chế độ Mùa vụ KQKD">
         {([["ticker", "Theo mã"], ["map", "🗺 Bản đồ toàn thị trường"], ["ledger", "📒 Sổ theo dõi"]] as [Mode, string][]).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} data-testid={`season-mode-${k}`}

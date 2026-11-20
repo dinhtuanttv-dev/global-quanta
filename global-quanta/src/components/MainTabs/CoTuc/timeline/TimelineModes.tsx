@@ -19,6 +19,7 @@ export function TimelineModes({ onSelectTicker }: { onSelectTicker?: (t: string)
             className={`rounded-md border px-2.5 py-1 font-semibold ${mode === m ? "border-amber-400/60 bg-amber-400/15 text-amber-200" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{label}</button>
         ))}
       </div>
+      <p className="tw-scope text-[10px] text-slate-500" data-testid="timeline-elite-note">Elite dùng Săn cổ tức TO-v1 cho vùng cổ tức; cửa sổ W1–W5 ở đây hiện ở tab QUYẾT ĐỊNH dưới nhãn MÔ TẢ (lớp Thời điểm hợp nhất) để đối chiếu cả hai.</p>
       {mode === "legacy" ? <BuyTimelineTab onSelectTicker={onSelectTicker} /> : <AnnouncementTimeline onSelectTicker={onSelectTicker} />}
     </div>
   );

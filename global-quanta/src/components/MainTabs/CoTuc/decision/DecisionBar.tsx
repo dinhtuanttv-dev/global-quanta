@@ -105,7 +105,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
               {active && (
                 <div className="mt-1.5 flex items-baseline gap-1.5">
                   <span className="font-mono tabular-nums text-xl font-semibold text-slate-100">{pct0(p)}</span>
-                  <span className="hidden @2xl:inline text-[10px] text-slate-500">xác suất tổng hợp</span>
+                  <span className="hidden @2xl:inline text-[10px] text-slate-500" title="Điểm tổng hợp của bộ máy quyết định với hai ngưỡng 50% / 60% — chưa hiệu chuẩn thành xác suất thật (chưa có kiểm định đăng ký trước).">điểm tổng hợp (chưa hiệu chuẩn)</span>
                 </div>
               )}
             </div>
