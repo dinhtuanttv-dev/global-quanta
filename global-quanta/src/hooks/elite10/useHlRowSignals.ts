@@ -40,5 +40,5 @@ export function useHlRowSignals(tickers: readonly string[], layers: HlLayers) {
     news: layers.news ? news.data?.items : null, sig: layers.signals ? sig.data : null,
     timelineRows: layers.buy ? timing.data?.rows : null, live: layers.live ? live : null, now,
   }), [list, layers, news.data, sig.data, timing.data, live, now]);
-  return { map, newsError: news.error ? String((news.error as Error).message ?? news.error) : null, newsLoading: news.isLoading, sigError: sig.error, edgeVerdict: sig.data?.evidence?.STEALTH_20?.verdict ?? null };
+  return { map, now, newsError: news.error ? String((news.error as Error).message ?? news.error) : null, newsLoading: news.isLoading, sigError: sig.error, edgeVerdict: sig.data?.evidence?.STEALTH_20?.verdict ?? null };
 }
