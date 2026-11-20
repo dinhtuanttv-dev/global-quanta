@@ -32,6 +32,9 @@ import { HlLsTrend, HlReplay, useHlHistory } from "./HlHistoryLayers";
 import { funnelModel, resolveBoardState, sessionSeal, type HistSessionLite } from "../../../lib/elite10/cockpit";
 import { CockpitStatusBar, FunnelNotes, HlBreadcrumb, pickedTickers, QueueMatrix, StateMap, todayTransitions, useHlWatchLog } from "./CockpitLayers";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
+// NHỊP QUYẾT ĐỊNH (20/11/2026, docs/elite-hl-pulse): lớp "pulse" bật -> một panel thay TodayRibbon + "Thay đổi hôm nay"; tắt -> như cũ.
+import DecisionPulse from "./DecisionPulse";
+import type { PulseHistSession } from "../../../lib/elite10/decisionPulse";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
 import RuleSpace from "../deck/RuleSpace";
@@ -140,7 +143,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const toggleFilter = (k: HlFilter) => setFilters((cur) => { const n = new Set(cur); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const notify = useHlNewsNotify(rowSig.map, rowSig.now);
   const [impactOpen, setImpactOpen] = useState<string | null>(null);
-  const { data: hist } = useHlHistory(layers.trend || layers.cockpit);
+  const { data: hist } = useHlHistory(layers.trend || layers.cockpit || layers.pulse);
   const { data: wlog } = useHlWatchLog(layers.cockpit);
   const cockpitStates = useMemo(() => resolveBoardState(d), [d]);
   const cockpitFunnel = useMemo(() => funnelModel(d), [d]);
@@ -173,6 +176,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-hl-board">
       <CommandBar d={d} />
       {layers.cockpit && <CockpitStatusBar seal={cockpitSeal} states={cockpitStates} today={cockpitToday} />}
+      {layers.cockpit && layers.pulse && <p className="-mt-2 text-right text-[10px]" data-hl-layer="pulse"><a href="#decision-pulse" className="text-slate-400 underline hover:text-[#F5CE72]" data-testid="pulse-link">Lịch xét và thay đổi phiên này → Nhịp quyết định</a></p>}
       {switcher}
 
       {refreshError && (
@@ -202,12 +206,13 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       )}
 
       <MissionMeters d={d} ws={ws} risk={risk} />
-      <TodayRibbon d={d} />
+      {layers.pulse ? <DecisionPulse d={d} history={hist?.sessions as PulseHistSession[] | undefined} onOpenTicker={onOpenTicker} /> : <TodayRibbon d={d} />}
       {invariants.length > 0 && <p role="status" className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10.5px] text-amber-200" data-testid="deck-invariants">Kiểm tra nhất quán dữ liệu chưa đạt: {invariants.join(" · ")}.</p>}
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-3">
         <ExitRadar picks={picks} rule={r} missSessions={r.missSessions ?? 2} onOpenTicker={onOpenTicker} />
         <FunnelBars steps={steps} total={f.panel} />
+      {!layers.pulse && (
       <Panel title={`Thay đổi hôm nay${hl.prevDate ? ` · so với phiên ${fmtDate(hl.prevDate)}` : " · phiên dựng đầu tiên"}`} testId="hl-changes">
         {!ch.added.length && !ch.exits.length ? <p className="text-[11px] text-slate-400">Danh mục giữ nguyên {ch.kept} mã. Tỷ trọng mã đang giữ không bị cân lại.</p> : (
           <ul className="space-y-1 text-[11px]">
@@ -220,6 +225,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           <p className="mt-1 text-[11px]" data-testid="hl-pz-changes"><b className="text-violet-200">Chuyển sang theo dõi: {ch.toWatch?.length ?? 0} mã</b>{ch.toWatch?.length ? <span className="text-slate-400"> ({ch.toWatch.join(", ")})</span> : null} · <b className="text-emerald-300">Về vùng mua: {ch.backToZone?.length ?? 0} mã</b>{ch.backToZone?.length ? <span className="text-slate-400"> ({ch.backToZone.join(", ")})</span> : null}</p>
         )}
       </Panel>
+      )}
       </div>
 
       {layers.cockpit && cockpitFunnel && <FunnelNotes m={cockpitFunnel} picked={cockpitPick} onPick={setCockpitPick} />}
