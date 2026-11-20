@@ -23,10 +23,9 @@ import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
 import RuleSpace from "../deck/RuleSpace";
-import EvidenceWall from "../deck/EvidenceWall";
 import { LsGauge, TaDots, VolCorridor } from "../deck/parts";
 import { corridorPos, deckInvariants, eulerBy } from "../../../lib/elite10/deckModel";
-import { useDeckPanel, useDeckRisk, useEvidenceRegistry } from "../../../hooks/elite10/useDeckData";
+import { useDeckPanel, useDeckRisk } from "../../../hooks/elite10/useDeckData";
 
 const CLS_VI: Record<HlClassCode, string> = { STRONG: "Hợp lưu mạnh", CONFLUENCE: "Hợp lưu", T1_SECTOR_AGAINST: "Ngành phản đối", T1_SECTOR_NA: "Chưa có RRG", NOT_T1: "Đã rời tầng 1" };
 const CLS_TONE: Record<HlClassCode, string> = {
@@ -114,7 +113,6 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   // Command Deck: rủi ro danh mục (Euler), bảng tín hiệu (Không gian quy tắc), sổ bằng chứng — nguồn thiếu thì khối tự ẩn / hiện "—".
   const { data: risk } = useDeckRisk();
   const { data: panel } = useDeckPanel();
-  const { data: registry } = useEvidenceRegistry();
   const euler = useMemo(() => eulerBy(risk), [risk]);
   const invariants = useMemo(() => deckInvariants(d, risk), [d, risk]);
   const heldSet = useMemo(() => new Set(hlPicks(d).map((p) => p.ticker)), [d]);
@@ -288,7 +286,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
 
       <QueueDeck d={d} onOpenTicker={onOpenTicker} liqOf={liqOf} sigmaOf={(t) => scoreBy.get(t)?.sigma20} lq={lq} pxBadge={pxBadge} />
 
-      <EvidenceWall ledger={d.ledgerSummary} registry={registry} k0Note={hl.k0?.noteVi ?? null} />
+      {/* QĐ-R2 (20/11/2026): "Bằng chứng của từng lớp" (EvidenceWall) chuyển sang tab 4 — đầu khối Elite HL. */}
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
         <Panel title="Phân bổ ngành" testId="hl-sectors" right={<span className="text-[10px] text-slate-500">Trần {pct(r.sectorCap, 0)} mỗi ngành</span>}>
