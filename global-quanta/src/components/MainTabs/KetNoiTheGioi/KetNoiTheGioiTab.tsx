@@ -75,8 +75,8 @@ function readTab(): TabId {
 }
 
 /** Một phần của động cơ Truyền dẫn (gói macro-center), giao diện đồng nhất qua .gq-world. */
-function Engine({ only, hideStock }: { only: "overview" | "matrix" | "events" | "connect" | "scenario" | "stock"; hideStock?: boolean }) {
-  return <div className="gq-world"><WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" hideHeader initialStock="HPG" hideStock={hideStock} only={only} /></div>;
+function Engine({ only }: { only: "overview" | "matrix" | "events" | "connect" | "scenario" }) {
+  return <div className="gq-world"><WorldTab baseUrl={getMarketGateway().baseUrl} theme="dark" only={only} /></div>;
 }
 
 /**
@@ -100,10 +100,6 @@ export default function KetNoiTheGioiTab() {
     refs.current[TABS[n].id]?.focus();
   };
 
-  // Hồ sơ cổ phiếu (W7): chỉ hiện khi Gateway có dữ liệu phơi nhiễm thật (chưa có -> 422)
-  const { data: stockProbe } = useSWR(tab === "transmission" ? "world-stock-probe" : null,
-    () => fetchMarketJson("/api/world/stock/HPG").then(() => true, () => false), { revalidateOnFocus: false, dedupingInterval: 30 * 60_000 });
-  const stockProfileReady = stockProbe === true;
   const macro = data?.macro ?? null;
   // giờ của dữ liệu giá thế giới (giờ Việt Nam), lấy từ chính payload — không phải đồng hồ máy
   const feedIso = (data as { timestamp?: string } | null)?.timestamp ?? (macro as { fetched_at?: string } | null)?.fetched_at ?? null;
@@ -187,7 +183,7 @@ export default function KetNoiTheGioiTab() {
           <KntgSection id="tr-matrix" title="Ma trận yếu tố → ngành" summary="Thăm dò: liên kết lịch sử kèm bậc bằng chứng"><Engine only="matrix" /></KntgSection>
           <KntgSection id="tr-events" title="Sự kiện và phản ứng" summary="Phản ứng của ngành Việt Nam với sự kiện thế giới"><Engine only="events" /></KntgSection>
           {/* W3: khi chưa có dữ liệu phơi nhiễm BCTC thật -> tra cứu mã bằng khối Tác động lên cổ phiếu (D4) + cảnh báo thanh khoản LQ-v1 */}
-          <KntgSection id="tr-stock" title="Cổ phiếu: tác động và thanh khoản" summary="Tra một mã: các lớp tác động kèm dấu bằng chứng">{stockProfileReady ? <Engine only="stock" /> : <WorldStockLookup />}</KntgSection>
+          <KntgSection id="tr-stock" title="Cổ phiếu: tác động và thanh khoản" summary="Tra một mã: các lớp tác động kèm dấu bằng chứng"><WorldStockLookup /></KntgSection>
         </div>
       )}
 

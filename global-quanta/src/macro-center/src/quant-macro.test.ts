@@ -311,7 +311,7 @@ describe('spurious-regression guard (the paper\'s main weakness)', () => {
     expect(out.diagnostics.find((d) => d.id === 'VNINDEX')?.transform).toBe('logdiff');
     expect(out.diagnostics.find((d) => d.id === 'CPI')?.transform).toBe('diff');
     expect(out.cells.filter((c) => c.significant)).toHaveLength(0);
-    expect(out.warnings.some((w) => w.includes('Multiple testing'))).toBe(true);
+    expect(out.warnings.some((w) => w.includes('Kiểm định bội'))).toBe(true);
   });
   it('end-to-end: recovers a real lagged macro effect and respects the publication lag', () => {
     const rng = mulberry32(52);
@@ -364,7 +364,7 @@ describe('trend-stationary guard', () => {
       options: { maxLag: 2 },
     });
     expect(out.diagnostics.find((d) => d.id === 'FDI')?.transform).toBe('logdiff');
-    expect(out.warnings.some((w) => w.includes('deterministic trend'))).toBe(true);
+    expect(out.warnings.some((w) => w.includes('xu hướng tất định'))).toBe(true);
   });
 });
 
