@@ -113,10 +113,19 @@ export function dilutionLayer(dil) {
   });
 }
 
+/** N1 (20/11/2026): nhóm dệt may có liên kết toàn cầu đã đo (GL-1, MÔ TẢ) — chỉ đúng các mã đã có trong phép đo. */
+export const GLOBAL_LINK_TEXTILE = new Set(["TNG", "TCM", "GIL", "STK", "MSH"]);
+export function globalLinkExtra(ticker) {
+  if (!GLOBAL_LINK_TEXTILE.has(ticker)) return null;
+  const ev = SEAL.get("GL-1");
+  return { evidenceId: "GL-1", seal: ev?.seal ?? "MÔ TẢ", textVi: "Liên kết toàn cầu: nhóm dệt may (TNG, TCM, GIL, STK, MSH) đồng biến riêng với nhóm may Đài Loan, Shenzhou và Nike (tương quan tuần 0,16 sau khi trừ thị trường, đo trong mẫu 2013–2019). Cùng tuần, không dự báo — không cộng điểm." };
+}
+
 export function buildImpactProfile({ ticker, nowMs, fa = null, commodities = null, ws = null, catalyst = null, x6 = null, radar = null, dilution = null }) {
   const layers = [earningsLayer(fa), commodityLayer(ticker, commodities), ...worldLayers(ws), catalystLayer(catalyst, x6), radarLayer(radar, nowMs), dilutionLayer(dilution)];
   // Bất biến: chỉ lớp có số mới có hướng; lớp chưa kiểm định / không đạt không bao giờ được cộng.
   for (const l of layers) if (!l.available) l.direction = null;
+  const gl = globalLinkExtra(ticker); if (gl) { const wm = layers.find((l) => l.id === "world_medium"); if (wm) wm.extra = gl; }
   return {
     version: IMPACT_VERSION, ticker, asOf: new Date(nowMs).toISOString(), layers,
     aggregate: null, aggregateVi: "Tổng hợp có trọng số: không hiển thị cho tới khi ≥ 1 lớp ĐẠT cổng gia tăng INC-r1 và được duyệt riêng (D5).",

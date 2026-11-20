@@ -64,7 +64,7 @@ test("thiếu nguồn: lớp vẫn có dấu, có lý do, không có hướng; X
 test("sổ bằng chứng: lớp Elite HL không đổi, thêm impact[] (chỉ thêm trường)", () => {
   const r = evidenceRegistry();
   assert.equal(r.entries.length, EVIDENCE_REGISTRY.length);
-  assert.deepEqual(r.entries.map((e) => e.id), ["HL", "PZ", "PX", "LQ", "CG", "FA"]);
+  assert.deepEqual(r.entries.map((e) => e.id), ["HL", "PZ", "PX", "LQ", "CG", "FA", "EX"]);
   assert.ok(r.impact.every((e) => IMPACT_SEALS.includes(e.seal) && e.detail && e.src));
   assert.ok(!r.impact.some((e) => e.seal === "ĐẠT"), "chưa lớp tác động nào ĐẠT ở 19/11/2026");
 });
@@ -106,4 +106,15 @@ test("route GET /api/elite/impact/:ticker: hợp đồng JSON + kiểm mã", asy
     const reg = await (await fetch(`${base}/api/elite/evidence-registry`)).json();
     assert.ok(Array.isArray(reg.entries) && Array.isArray(reg.impact));
   } finally { srv.close(); }
+});
+
+test("N1: dệt may (TNG, TCM, GIL, STK, MSH) có ghi chú liên kết toàn cầu GL-1 ở lớp ngành thế giới 3 tháng; mã khác không có", () => {
+  const tng = buildImpactProfile({ ticker: "TNG", nowMs: NOW, ws });
+  const wm = tng.layers.find((l) => l.id === "world_medium");
+  assert.equal(wm.extra.evidenceId, "GL-1"); assert.equal(wm.extra.seal, "MÔ TẢ"); assert.match(wm.extra.textVi, /không cộng điểm/);
+  assert.equal(buildImpactProfile({ ticker: "HPG", nowMs: NOW, ws }).layers.find((l) => l.id === "world_medium").extra, undefined);
+  assert.equal(tng.aggregate, null);
+  const ids = new Set(evidenceRegistry().impact.map((e) => e.id));
+  assert.ok(ids.has("GL-1") && ids.has("PL-r1"));
+  assert.equal(evidenceRegistry().impact.find((e) => e.id === "PL-r1").seal, "KHÔNG ĐẠT");
 });
