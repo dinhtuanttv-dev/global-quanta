@@ -33,11 +33,11 @@ export function DecisionRanking({ onSelectTicker }: { onSelectTicker?: (t: strin
   const [onlyActionable, setOnlyActionable] = useState(true);
   const ranked = useMemo(() => rankDecisions(states).filter((s) => !onlyActionable || s.recommendation.window !== null), [states, onlyActionable]);
   return (
-    <section className="tw-scope rounded-xl p-4 space-y-3" aria-label="Xếp hạng xác suất toàn danh mục"
+    <section className="tw-scope rounded-xl p-4 space-y-3" aria-label="Xếp hạng điểm tổng hợp toàn danh mục"
       style={{ background: 'rgba(13,17,26,0.75)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <header className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-cyan-400">🎯 Xếp hạng xác suất — toàn danh mục</h3>
+          <h3 className="text-sm font-semibold text-cyan-400">🎯 Xếp hạng điểm tổng hợp — toàn danh mục <span className="font-normal text-[10px] text-amber-300" title="Điểm tổng hợp có ngưỡng 50% / 60% — chưa hiệu chuẩn thành xác suất thật">chưa hiệu chuẩn</span></h3>
           <p className="text-[10.5px] text-slate-500">
             Từ bộ máy quyết định (chu kỳ cổ tức + mùa vụ KQKD + thị trường + thanh khoản) · {states.length} mã đã quét
             {asOf ? ` · cập nhật ${new Date(asOf).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}
@@ -60,7 +60,7 @@ export function DecisionRanking({ onSelectTicker }: { onSelectTicker?: (t: strin
           <table className="w-full min-w-[760px] border-separate border-spacing-0 text-[11px]">
             <thead>
               <tr>
-                {['#', 'Mã', 'Trạng thái', 'Xác suất', 'Hành động', 'Cửa sổ', 'GDKHQ', 'Kỳ vọng ròng', 'Thanh khoản 20p'].map((h, i) => (
+                {['#', 'Mã', 'Trạng thái', 'Điểm tổng hợp', 'Hành động', 'Cửa sổ', 'GDKHQ', 'Kỳ vọng ròng', 'Thanh khoản 20p'].map((h, i) => (
                   <th key={h} className={`${TH} ${i === 3 || i >= 7 ? 'text-right' : 'text-left'}`}>{h}</th>
                 ))}
               </tr>

@@ -13,6 +13,9 @@ import { candlesInCar, liveBarFromQuote, mergeLiveBar, mergeLiveIndex } from "..
 import LiveDailyStrip from "./LiveDailyStrip";
 import EsaSincePopover from "./EsaSincePopover";
 import { useEventStudy } from "../../../hooks/elite10/useEventStudy";
+// BỘ NÃO THỜI ĐIỂM CT2 (20/11/2026): đối soát ngày sự kiện nghiên cứu sự kiện ↔ Timeline (Q3) + nhãn làn W1–W5 MÔ TẢ (Q1). Không đổi số mô phỏng.
+import { useHlLayerOn } from "../../../hooks/elite10/useHlRowSignals";
+import { claim, dateWarning, reconcileDates, W_LANE_NOTE } from "../../../lib/timing-brain";
 import { useEsaSnapshot } from "../../../hooks/elite10/useEsaSnapshot";
 import { useOhlcvData } from "../../../hooks/useOhlcvData";
 import { useAdjustedDaily } from "../../../hooks/elite10/useAdjustedDaily";
@@ -114,6 +117,10 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
   const candles = useMemo(() => (es && lastOff != null ? candlesInCar(es.offsets[0], bars, vniBars, lastOff) : []), [es, bars, vniBars, lastOff]);
   const eventWord = kind === "DIVIDEND" ? "GDKHQ" : `Công bố KQKD${es?.quarter ? ` Q${es.quarter}` : ""}`;
   const nvw = useMemo(() => nowVsWait(es, tl, fan, win, lastOff), [es, tl, fan, win, lastOff]);
+  const timingOn = useHlLayerOn("timing");
+  const dateWarn = useMemo(() => (timingOn && es?.upcoming?.date && tl
+    ? dateWarning(reconcileDates([claim("EVENT_STUDY", es.upcoming.date, es.upcoming.status), claim("TIMELINE", tl.eventDate, tl.eventDateBasis)]))
+    : null), [timingOn, es, tl]);
   const engineCost = esRaw?.costPerRoundTrip ?? 0.0045;
   const costOpts: { id: string; v: number | null; label: string; title: string }[] = [
     { id: "engine", v: null, label: `${(engineCost * 100).toFixed(2).replace(".", ",")}% (engine)`, title: "Phí khứ hồi của engine v3 — mức dùng để dán nhãn ĐẠT / chưa đạt" },
@@ -155,6 +162,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
             {eventWord} {es.upcoming?.date && es.upcoming.date < today ? "kỳ gần nhất" : "sắp tới"}: <b className="text-slate-100">{dm(es.upcoming?.date ?? null)}</b>{" "}
             {es.upcoming && <span className={`ml-1 rounded border px-1.5 py-0.5 text-[10px] font-bold ${es.upcoming.status === "CONFIRMED" || es.upcoming.status === "ANNOUNCED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{STATUS_VI[es.upcoming.status] ?? es.upcoming.status}</span>}
             {todayOff != null && <> · hôm nay ở phiên <b className="text-amber-300">{todayOff > 0 ? `+${todayOff}` : todayOff}</b>{todayOff > 0 ? " (đã qua — chờ cập nhật kỳ kế tiếp)" : ""}</>}
+            {dateWarn && <span className="ml-1 rounded border border-amber-400/50 px-1.5 py-0.5 text-[10px] font-bold text-amber-300" title={`${dateWarn}. Mô phỏng neo theo ngày của nghiên cứu sự kiện (Project A); lịch vùng mua neo theo Timeline.`} aria-label={dateWarn} data-hl-layer="timing" data-testid="timing-date-warn">⚠ {dateWarn}</span>}
             {" "}· {es.events.length} đợt lịch sử
           </p>
           {tl ? (
@@ -162,6 +170,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
               <b className="text-emerald-300">⏱ Timeline điểm mua</b>
               <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${TL_STATUS[tl.status].cls}`}>{TL_STATUS[tl.status].text}</span>
               <span className="text-slate-200">{tl.windowLabel}</span>
+              {timingOn && tl.kind === "DIVIDEND" && <span className="rounded border border-dashed border-slate-500/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-300" title={W_LANE_NOTE} data-hl-layer="timing" data-testid="timing-wlane">MÔ TẢ · cửa sổ W1–W5</span>}
               <span className="text-slate-300">vào <b className="text-slate-100">{dm(tl.entryFromDate)} → {dm(tl.entryToDate)}</b> · thoát <b className="text-slate-100">{dm(tl.exitDate)}</b></span>
               {tl.status === "UPCOMING" && <span className="text-sky-300">còn {tl.sessionsToEntry} phiên tới vùng mua</span>}
               <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${tl.tier === "VALIDATED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{tl.tier === "VALIDATED" ? "ĐẠT KIỂM ĐỊNH" : "GẦN ĐẠT"}</span>

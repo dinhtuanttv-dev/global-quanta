@@ -17,6 +17,8 @@ export function useEliteTiming() {
   const data = useMemo(() => (buy.data ? { ...buy.data, rows: withToRows(buy.data.rows, toRows) as TimelineRow[] } : null), [buy.data, toRows]);
   return {
     ...buy, data, toRows,
+    /** BỘ NÃO THỜI ĐIỂM (20/11/2026): dòng Timeline GỐC (còn cửa sổ cổ tức W1–W5) cho lớp hiển thị hai làn — chỉ thêm, `data` không đổi. */
+    rawRows: buy.data?.rows ?? null,
     /** Mọi đợt cổ tức tiền đang chờ GDKHQ (mọi nhóm lợi suất) — cho cảnh báo GDKHQ / hồ sơ mã. */
     toEvents: (to?.radar.rows ?? []) as ToRadarRow[],
     postEx: to?.reference?.postEx ?? null,

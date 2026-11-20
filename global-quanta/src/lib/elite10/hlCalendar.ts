@@ -7,8 +7,8 @@ import type { DilutionPhase } from "./decisionTypes";
 import { isToRow } from "./toTiming";
 
 export const HL_CAL_HORIZON = 10;
-export type CalKind = "EX_CASH" | "EX_STOCK" | "RIGHTS" | "MEETING" | "LISTING" | "OTHER" | "KQKD" | "TO" | "SEASON" | "NEW_SHARES";
-export type CalBasis = "ANNOUNCED" | "EXPECTED" | "EXPLORATORY" | "VALIDATED_ESTIMATED" | "VALIDATED";
+export type CalKind = "EX_CASH" | "EX_STOCK" | "RIGHTS" | "MEETING" | "LISTING" | "OTHER" | "KQKD" | "TO" | "SEASON" | "NEW_SHARES" | "DIVW";
+export type CalBasis = "ANNOUNCED" | "EXPECTED" | "EXPLORATORY" | "VALIDATED_ESTIMATED" | "VALIDATED" | "DESCRIPTIVE";
 export interface CalItem {
   date: string; ticker: string; inPortfolio: boolean; kind: CalKind; label: string; detail: string;
   sessionsAway: number | null; basis: CalBasis;
@@ -84,6 +84,12 @@ export function buildHlCalendar({ asOf, sessions, portfolio, queue, profiles, ti
     const to = isToRow(r);
     if (!to && r.tier !== "VALIDATED") continue;
     const date = r.status === "IN_WINDOW" ? asOf : r.entryFromDate;
+    // BỘ NÃO THỜI ĐIỂM CT3 (20/11/2026): cửa sổ cổ tức W1–W5 (chỉ có khi lớp "Thời điểm hợp nhất" truyền dòng hai làn) -> mục MÔ TẢ riêng,
+    // không gắn nhãn "mùa vụ KQKD". Đầu vào cũ (withToRows) không có dòng này -> kết quả cũ không đổi.
+    if (!to && r.kind === "DIVIDEND") {
+      push({ date, ticker: t, kind: "DIVW", label: `Cửa sổ cổ tức W1–W5 ${dm(r.entryFromDate)}→${dm(r.entryToDate)}`, detail: `${r.status === "IN_WINDOW" ? "đang mở" : `mở sau ${r.sessionsToEntry} phiên`} · GDKHQ ${dm(r.eventDate)}${r.eventDateBasis === "ESTIMATED" ? " (ước tính)" : ""}`, basis: "DESCRIPTIVE", sessionsAway: r.status === "IN_WINDOW" ? 0 : r.sessionsToEntry });
+      continue;
+    }
     push({
       date, ticker: t, kind: to ? "TO" : "SEASON",
       label: to ? `Săn cổ tức: vào ${dm(r.entryFromDate)}→${dm(r.entryToDate)}, bán ${dm(r.exitDate)}` : `Vùng mùa vụ KQKD ${dm(r.entryFromDate)}→${dm(r.entryToDate)}`,

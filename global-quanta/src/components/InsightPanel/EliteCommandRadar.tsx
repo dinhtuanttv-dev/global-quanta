@@ -14,6 +14,9 @@ import { useRadarSignals } from '../../hooks/useRadarSignals';
 import type { RadarSignalItem, RadarSignals } from '../../services/marketDataClient';
 import { buyTimingFreshness } from '../../hooks/useGatewayBuyTimeline';
 import { useEliteTiming } from '../../hooks/elite10/useEliteTiming';
+// BỘ NÃO THỜI ĐIỂM CT3 (20/11/2026, quyết định Q2): tiêu chí 6 giữ nguyên; vòng phụ đứt nét cho cửa sổ cổ tức W1–W5 (MÔ TẢ) để khớp với tiêu chí 6.
+import { useTimingBrain } from '../../hooks/elite10/useTimingBrain';
+import { laneOf, W_LANE_NOTE } from '../../lib/timing-brain';
 import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
 import { newsInfoByTicker, rimTone } from '../../lib/newsSignals';
@@ -247,6 +250,8 @@ export default function EliteCommandRadar() {
   const svgRef = useRef<SVGSVGElement>(null);
   const animate = useOnScreen(svgRef);
   const buyMap = useMemo(() => pickRadarBuyRows(timeline.data?.rows ?? [], tickers), [timeline.data, tickers]);
+  const brain = useTimingBrain();
+  const wMap = useMemo(() => (brain.vm ? pickRadarBuyRows(brain.vm.rows.filter((r) => laneOf(r) === 'DIV_W') as unknown as Parameters<typeof pickRadarBuyRows>[0], tickers) : new Map<string, RadarBuyInfo>()), [brain.vm, tickers]);
   const buyChips = useMemo(() => upcomingBuyChips(buyMap), [buyMap]);
   const buyEvents = useMemo(() => buyWindowEvents(buyMap), [buyMap]);
   const [buyOnly, setBuyOnly] = useState<boolean>(() => { try { return window.localStorage.getItem(BUY_ONLY_KEY) === '1'; } catch { return false; } });
@@ -336,6 +341,11 @@ export default function EliteCommandRadar() {
             strokeDasharray={buy.ring === 'near' ? '2 2' : buy.ring === 'later' ? '1 3' : undefined}
             opacity={buy.ring === 'near' || buy.ring === 'later' ? 0.6 : 0.95}
             className={buy.ring === 'in' ? 'radar-buy-pulse' : undefined} />
+        )}
+        {!replay && wMap.get(n.ticker) && buy?.row.kind !== 'DIVIDEND' && (
+          <circle r={ringR + 3} fill="none" stroke="#94a3b8" strokeWidth={0.9} strokeDasharray="1 2" opacity={0.7} data-w-ring={wMap.get(n.ticker)!.row.status}>
+            <title>{`${n.ticker}: cửa sổ cổ tức W1–W5 ${wMap.get(n.ticker)!.row.status === 'IN_WINDOW' ? 'đang mở' : `mở ${fmtDate(wMap.get(n.ticker)!.row.entryFromDate)}`} — MÔ TẢ. ${W_LANE_NOTE}`}</title>
+          </circle>
         )}
         {v.sg ? (
           <rect x={-2.8} y={-2.8} width={5.6} height={5.6} transform={`translate(${-(n.dot + 2.5)} ${-(n.dot - 1)}) rotate(45)`}

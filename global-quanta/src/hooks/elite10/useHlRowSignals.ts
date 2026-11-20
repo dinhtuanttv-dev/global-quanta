@@ -1,22 +1,30 @@
 // HL-RADAR (20/11/2026, tài liệu 20) — gom nguồn cho các lớp hiển thị của bảng Danh mục Elite HL:
 // 1 lệnh tin thông minh + 1 lệnh tín hiệu dòng tiền cho CẢ danh mục; Timeline và giá trực tiếp đã có sẵn trong cache / luồng giá.
 // Lớp nào tắt thì không gọi nguồn của lớp đó.
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { useSmartNews } from "../useSmartNews";
 import { useRadarSignals } from "../useRadarSignals";
 import { useEliteTiming } from "./useEliteTiming";
 import { useAppStore } from "../../store/useAppStore";
 import { hlRowSignals, NEWS_STRIP_DAYS } from "../../lib/elite10/hlRowSignals";
 
-export type HlLayer = "news" | "signals" | "buy" | "live" | "impact" | "trend" | "cockpit";
+export type HlLayer = "news" | "signals" | "buy" | "live" | "impact" | "trend" | "cockpit" | "timing";
 export type HlLayers = Record<HlLayer, boolean>;
 export const HL_LAYERS_KEY = "gq.hl.layers.v1";
-export const HL_LAYER_DEFAULT: HlLayers = { news: true, signals: true, buy: true, live: true, impact: true, trend: true, cockpit: true };
-export const HL_LAYER_VI: Record<HlLayer, string> = { news: "Tin & cảm xúc", signals: "Dòng tiền ◆", buy: "Điểm mua ⏱", live: "Giá trong phiên", impact: "Tác động", trend: "Xu hướng & tua lại", cockpit: "Buồng lái" };
+export const HL_LAYER_DEFAULT: HlLayers = { news: true, signals: true, buy: true, live: true, impact: true, trend: true, cockpit: true, timing: true };
+export const HL_LAYER_VI: Record<HlLayer, string> = { news: "Tin & cảm xúc", signals: "Dòng tiền ◆", buy: "Điểm mua ⏱", live: "Giá trong phiên", impact: "Tác động", trend: "Xu hướng & tua lại", cockpit: "Buồng lái", timing: "Thời điểm hợp nhất" };
 
 const readLayers = (): HlLayers => {
   try { const raw = window.localStorage.getItem(HL_LAYERS_KEY); return raw ? { ...HL_LAYER_DEFAULT, ...(JSON.parse(raw) as Partial<HlLayers>) } : HL_LAYER_DEFAULT; } catch { return HL_LAYER_DEFAULT; }
 };
+
+// BỘ NÃO THỜI ĐIỂM (20/11/2026): khối ngoài bảng (khung Mã đang chọn, Hồ sơ 360°, Radar) đọc công tắc lớp qua sự kiện này để bật/tắt cùng lúc.
+export const HL_LAYERS_EVENT = "gq-hl-layers";
+const subscribeLayers = (cb: () => void) => { window.addEventListener(HL_LAYERS_EVENT, cb); window.addEventListener("storage", cb); return () => { window.removeEventListener(HL_LAYERS_EVENT, cb); window.removeEventListener("storage", cb); }; };
+/** Một lớp đang bật? (mặc định bật; nhớ theo trình duyệt; đổi ở bảng Elite HL -> mọi khối cập nhật). */
+export function useHlLayerOn(k: HlLayer): boolean {
+  return useSyncExternalStore(subscribeLayers, () => readLayers()[k], () => HL_LAYER_DEFAULT[k]);
+}
 
 /** Công tắc lớp (mặc định bật hết — mọi tính năng hiện mặc định), nhớ theo trình duyệt. */
 export function useHlLayers(): [HlLayers, (k: HlLayer) => void] {
@@ -24,6 +32,7 @@ export function useHlLayers(): [HlLayers, (k: HlLayer) => void] {
   const toggle = useCallback((k: HlLayer) => setLayers((cur) => {
     const next = { ...cur, [k]: !cur[k] };
     try { window.localStorage.setItem(HL_LAYERS_KEY, JSON.stringify(next)); } catch { /* chỉ nhớ trong phiên */ }
+    queueMicrotask(() => window.dispatchEvent(new Event(HL_LAYERS_EVENT)));
     return next;
   }), []);
   return [layers, toggle];
