@@ -2,7 +2,12 @@
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
 import EliteToShadowCard from "./EliteToShadowCard";
-import { useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
+import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
+// QĐ-R (20/11/2026): quy tắc, sổ theo dõi tiến và Cổng tiền mặt của Elite HL chuyển từ Bảng quyết định sang đây (cùng cache SWR
+// /api/elite/decision — không gọi API thêm); dựng lại thẻ trọng số tín hiệu và ghi chú ⏱ Điểm mua đã gỡ ở G1–G2.
+import CashGateCard from "./CashGateCard";
+import { HlLedgerPanel, HlRulesPanel } from "./HlRulesLedger";
+import { BuyTimingNote, EliteWeightsCard } from "./EvidenceRestored";
 import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
 import { heatInk } from "../../../lib/elite10/heatInk";
 import { divergingColor } from "../../../lib/worldSectors/types";
@@ -230,6 +235,7 @@ export default function EvidenceLedgerTab() {
   const { data: flowLedger, error: flowError } = useEliteLedger("flow", hl);
   const { data: retro } = useEliteRetro();
   const { data: retroV3 } = useEliteRetroV3();
+  const { data: decision } = useEliteDecision();
   const sorted = useMemo(() => {
     const order = { A: 0, B: 1, C: 2 } as const;
     return [...(ev?.signals ?? [])].sort((a, b) => order[a.tier] - order[b.tier] || (b.byH[String(b.mainH)]?.mean ?? -9) - (a.byH[String(a.mainH)]?.mean ?? -9));
@@ -243,6 +249,16 @@ export default function EvidenceLedgerTab() {
         <p className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-100" data-testid="elite-evidence-scope">
           <b>Phạm vi bằng chứng.</b> Danh mục chính thức hiện là <b>Elite HL</b> (quy tắc do chủ dự án đặt, nhãn THĂM DÒ). Bằng chứng từng tín hiệu (E2) và hai kiểm định hồi cứu E7 / E7-v3 bên dưới thuộc về <b>Điểm Elite và danh mục Elite dòng tiền (cũ)</b> — chúng KHÔNG phải kiểm định của Elite HL. Elite HL hiện chỉ có mô phỏng khám phá K0 (ngang thị trường, xem Bảng quyết định) và sổ theo dõi tiến mô tả ở cuối trang.
         </p>
+      )}
+      {decision?.hl && (
+        <div className="space-y-3" data-testid="elite-evidence-hl">
+          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+            <HlRulesPanel d={decision} />
+            <CashGateCard />
+          </div>
+          <HlLedgerPanel d={decision} />
+          <BuyTimingNote />
+        </div>
       )}
       {/* Elite × TO Giai đoạn II: sổ ảo (THĂM DÒ) — không đổi danh mục chính thức. */}
       <EliteToShadowCard />
@@ -290,6 +306,7 @@ export default function EvidenceLedgerTab() {
 
       <LedgerSection ledger={ledger} error={ledgerError} hl={hl} testId="elite-ledger-tab" title={hl ? "Sổ theo dõi tiến — Elite HL (danh mục chính thức)" : "Sổ theo dõi tiến Elite 10 (E3)"} />
       {hl && <FlowBenchmarkPanel />}
+      <EliteWeightsCard />
       {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (đối chứng, E3)" />}
       <p className="text-[10px] text-slate-400" data-testid="elite-evidence-disclaimer">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>

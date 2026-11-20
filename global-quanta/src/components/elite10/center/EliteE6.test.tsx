@@ -38,7 +38,12 @@ const retroV3 = {
   pbo: { pbo: 0.004, splits: 252, blockLength: 20 },
   grid: [{ id: "10-b-erc", size: 10, bufferRank: 20, weighting: "erc", primary: true, sharpeAnnual: 0.41, annualExcess: 0.047 }, { id: "10-n-erc", size: 10, bufferRank: 0, weighting: "erc", primary: false, sharpeAnnual: -1.17, annualExcess: -0.119 }],
 };
+vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) })); // QĐ-R: sổ HL (HlLedgerNote) không gọi mạng trong test
+const E6 = vi.hoisted(() => ({ decision: undefined as unknown }));
+vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: "Timeline tạm không có" }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
+  useEliteDecision: () => ({ data: E6.decision }), // QĐ-R: tab 4 đọc thêm bảng quyết định (cùng cache SWR); không có HL -> không hiện khối HL
+  useCashGate: () => ({ data: undefined, isLoading: false }),
   useEliteEvidence: () => ({ data: evidence }), useEliteLedger: () => ({ data: ledger }), useEliteRetro: () => ({ data: null }), useEliteRetroV3: () => ({ data: retroV3 }), useEliteRisk: () => ({ data: risk, isLoading: false }), useEliteToShadow: () => ({ data: null }),
 }));
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: { short: { rows: [{ icb: "8700", nameVi: "Dịch vụ tài chính" }] } } }) }));
@@ -94,5 +99,31 @@ describe("Elite 10 E6 — Bằng chứng & Rủi ro", () => {
     expect(screen.getByTestId("elite-risk-stress").textContent).toContain("−6,40%".replace("−", "-"));
     expect(screen.getByTestId("elite-risk-sectors").textContent).toContain("Dịch vụ tài chính");
     expect(screen.getByTestId("elite-risk-sectors").textContent).toContain("đuôi dày hơn");
+  });
+});
+
+// QĐ-R (20/11/2026): khối chuyển từ Bảng quyết định + phần dựng lại (trọng số, ghi chú điểm mua).
+describe("QĐ-R — tab Bằng chứng nhận khối từ Bảng quyết định", () => {
+  afterEach(() => { cleanup(); E6.decision = undefined; });
+  it("không có bảng quyết định HL -> không có khối HL, không có thẻ trọng số", () => {
+    render(<EvidenceLedgerTab />);
+    expect(screen.queryByTestId("elite-evidence-hl")).toBeNull(); expect(screen.queryByTestId("elite-weights")).toBeNull();
+  });
+  it("có HL -> quy tắc (kèm K0), sổ theo dõi, Cổng tiền mặt, ghi chú điểm mua; trọng số Z có câu phạm vi", () => {
+    const h = { n: 0, meanExcess: null, hitRate: null, excessCi95: null, meanPortfolioNet: 0, meanVnIndex: 0, ic: { n: 0, mean: null, t: null }, curve: [] };
+    E6.decision = {
+      date: "2026-11-13", icComb: 0.034, weights: [{ id: "stealth20", labelVi: "Stealth 20", tab: "Siêu quét", tier: "A", mainH: 10, n: 60, icMeas: 0.03, icPrior: 0.02, icPost: 0.025, w: 0.6, wNaive: 0.5 }],
+      ledgerSummary: { horizons: { 5: h, 10: h }, labelVi: "THĂM DÒ" }, flowLedgerSummary: null, display: { ledgerCostRoundTrip: 0.004 },
+      hl: { rule: { slots: 10, maxPerSector: 3, sectorCap: 0.3, minAdvBn: 5, exitLsPct: 60 }, k0: { noteVi: "Mô phỏng khám phá (K0): NGANG thị trường." } },
+    };
+    render(<EvidenceLedgerTab />);
+    expect(screen.getByTestId("elite-evidence-hl")).toBeTruthy();
+    expect(screen.getByTestId("hl-rules").textContent).toMatch(/Ra \(xét mỗi phiên\):.*phân vị 60/);
+    expect(screen.getByTestId("hl-k0").textContent).toMatch(/NGANG thị trường/);
+    expect(screen.getByTestId("hl-ledger-hl-5").textContent).toMatch(/chưa có phiên nào/);
+    expect(screen.getByTestId("elite-ledger").textContent).toMatch(/chi phí giả định 0,40%\/vòng/);
+    expect(screen.getByTestId("elite-buy-note").textContent).toMatch(/Timeline điểm mua tạm không có/);
+    const w = screen.getByTestId("elite-weights").textContent ?? "";
+    expect(w).toMatch(/Stealth 20.*60 ngày/); expect(screen.getByTestId("elite-weights-scope").textContent).toMatch(/không chọn mã theo Z/);
   });
 });

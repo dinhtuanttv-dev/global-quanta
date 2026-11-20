@@ -10,7 +10,8 @@ export function TierChip({ tier }: { tier: Tier }) {
   return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>Bậc {tier}</span>;
 }
 
-export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker: string) => void }) {
+/** onNavigateToEvidence (QĐ-R 20/11/2026): Hub truyền vào để thẻ tóm tắt nhảy sang tab "4. Bằng chứng & sổ theo dõi"; không truyền -> không có nút. */
+export default function DecisionBoard({ onOpenTicker, onNavigateToEvidence }: { onOpenTicker: (ticker: string) => void; onNavigateToEvidence?: () => void }) {
   const { data: d, error, isLoading } = useEliteDecision();
   if (!d) {
     if (error) return <p className="tw-scope text-xs text-rose-400" data-testid="elite-decision-error">Không tải được bảng quyết định: {String((error as Error).message ?? error)}</p>;
@@ -21,5 +22,5 @@ export default function DecisionBoard({ onOpenTicker }: { onOpenTicker: (ticker:
   }
   // Có dữ liệu cũ nhưng lần làm mới gần nhất lỗi: vẫn hiện bảng, kèm cảnh báo rõ là số chưa được cập nhật.
   const refreshError = error ? String((error as Error).message ?? error) : null;
-  return <EliteHlBoard d={d} onOpenTicker={onOpenTicker} refreshError={refreshError} />;
+  return <EliteHlBoard d={d} onOpenTicker={onOpenTicker} refreshError={refreshError} onNavigateToEvidence={onNavigateToEvidence} />;
 }

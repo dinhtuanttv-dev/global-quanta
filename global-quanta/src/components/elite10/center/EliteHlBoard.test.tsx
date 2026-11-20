@@ -33,6 +33,10 @@ vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => 
 vi.mock("../../../hooks/useGatewayBuyTimeline", () => ({ buyTimingFreshness: () => null }));
 vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
 vi.mock("./CashGateCard", () => ({ default: () => null }));
+// QĐ-R: khung "Mã đang chọn" dùng nguyên ba component của Hồ sơ 360° — thay bằng khối giả ghi lại mã được truyền vào (không gọi mạng).
+vi.mock("./ToTickerCard", () => ({ default: ({ ticker }: { ticker: string }) => <div data-testid={`stub-to-${ticker}`} /> }));
+vi.mock("../timing/TimingSimPanel", () => ({ default: ({ ticker }: { ticker: string }) => <div data-testid={`stub-sim-${ticker}`} /> }));
+vi.mock("../news/EliteNewsPanel", () => ({ default: ({ ticker }: { ticker: string }) => <div data-testid={`stub-news-${ticker}`} /> }));
 // PFA-v1 pha B: cảnh báo cơ bản & sự kiện theo mã (chỉ hiện khi đúng phiên của tài liệu quyết định).
 let pfaWarnings: { asOf: string; tickers: Record<string, { id: string; level: "warn" | "info"; text: string; source: string }[]> } | null = null;
 vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFaWarnings: () => ({ data: pfaWarnings }) }));
@@ -41,6 +45,10 @@ import DecisionBoard from "./DecisionBoard";
 // LQ1: dựng trong khối PZ-v2 (dùng withPz), dùng ở khối LQ1 cuối tệp.
 let withPzLq: () => EliteDecision;
 import EliteHlBoard from "./EliteHlBoard";
+import { HlLedgerPanel, HlRulesPanel } from "./HlRulesLedger";
+// QĐ-R (20/11/2026): hai khối "Quy tắc vào · giữ · ra" và "Sổ theo dõi tiến" chuyển từ Bảng quyết định sang tab 4 — các câu kiểm giữ nguyên,
+// chỉ render thêm đúng hai khối đó với cùng dữ liệu.
+const Moved = ({ d }: { d: EliteDecision }) => <><HlRulesPanel d={d} /><HlLedgerPanel d={d} /></>;
 
 const text = (id: string) => screen.getByTestId(id).textContent ?? "";
 
@@ -66,6 +74,7 @@ describe("Bảng quyết định Elite HL", () => {
 
   it("phân bổ ngành, hàng chờ có lý do, mã bị ngành phản đối, ghi chú K0 và sổ so sánh hai danh mục", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    render(<Moved d={decision} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(text("hl-sector-5700")).toMatch(/Du lịch & Giải trí.*15%.*1 mã/); expect(text("hl-sectors")).toMatch(/Tiền mặt.*76%/);
     // LQ1: mã chưa giao dịch được tách khỏi hàng chờ (Gateway cũ để chung, code "illiquid").
     expect(screen.queryByTestId("hl-queue-HDA")).toBeNull(); expect(text("hl-queue-ill-HDA")).toMatch(/GTGD TB20 < 5 tỷ/);
@@ -128,6 +137,7 @@ describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu
 
   it("ngưỡng tầng 1 và chi phí sổ lấy từ Gateway: đổi nguồn thì chữ đổi theo; Gateway cũ dùng mặc định", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    render(<Moved d={decision} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 20% và ≥ 2 mô hình TA");
     expect(text("hl-rules")).toContain("LS-v1 top 20% và ≥ 2/7 mô hình TA");
     expect(text("hl-funnel-tip-1")).toContain("giá ≥ 5.000đ");
@@ -135,6 +145,7 @@ describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu
     cleanup();
     const d2: EliteDecision = { ...decision, display: { ledgerCostRoundTrip: 0.0045, flowMinAdvBn: 10, flowMinPrice: 5000 }, hl: { ...decision.hl!, tier1: { lsLeaderPct: 75, taMin: 3, taModels: 8, maxScore: 10 }, rule: { ...decision.hl!.rule, minPrice: 6000 } } };
     render(<EliteHlBoard d={d2} onOpenTicker={() => {}} />);
+    render(<Moved d={d2} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(text("hl-funnel-tip-2")).toBe("LS-v1 top 25% và ≥ 3 mô hình TA");
     expect(text("hl-rules")).toContain("≥ 3/8 mô hình TA");
     expect(text("hl-row-VJC")).toContain("TA 5/8");
@@ -178,6 +189,7 @@ describe("Bảng quyết định Elite HL — nguồn số, độ mới, thiếu
 
   it("ghi chú: cơ sở chấm của sổ HL, dải tham chiếu không phải lệnh, tỷ trọng là số lúc vào", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    render(<Moved d={decision} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(text("hl-ledger-basis")).toContain("không tính phần tiền mặt");
     expect(text("hl-sizing-note")).toContain("không phải lệnh cắt lỗ");
     expect(text("hl-sizing-note")).toContain("số lúc vào");
@@ -189,11 +201,13 @@ describe("Bảng quyết định Elite HL — sổ tính cả tiền mặt", () 
   afterEach(() => cleanup());
   it("có cashIncl -> hiện lợi suất danh mục thật kèm tỷ lệ cổ phiếu trung bình; chưa có -> không hiện", () => {
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    render(<Moved d={decision} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(screen.queryByTestId("hl-ledger-cash-5")).toBeNull();
     cleanup();
     const s = summary(8, 0.012);
     const withCash = { ...s, horizons: { ...s.horizons, 5: { ...s.horizons[5], cashIncl: { n: 6, meanPortfolio: 0.0031, meanInvested: 0.24, meanVnIndex: 0.004 } } } };
     render(<EliteHlBoard d={{ ...decision, ledgerSummary: withCash }} onOpenTicker={() => {}} />);
+    render(<Moved d={{ ...decision, ledgerSummary: withCash }} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     const line = text("hl-ledger-cash-5");
     expect(line).toContain("6 phiên, cổ phiếu TB 24%");
     expect(line).toContain("+0,31%");
@@ -241,6 +255,7 @@ describe("Elite HL — vị trí giá và bảng Theo dõi chờ nền", () => {
 
   it("bảng Theo dõi chờ nền: nhóm Chạy lãi trước, Chờ nền sau; tiến độ dựng nền, còn thiếu, cao trào, mã vừa rời bảng", () => {
     render(<EliteHlBoard d={withPz()} onOpenTicker={() => {}} />);
+    render(<Moved d={withPz()} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(text("hl-watch-runners")).toMatch(/Chạy lãi \(1\)/); expect(text("hl-watch-waiting")).toMatch(/Chờ nền \(1\)/);
     expect(text("pz-row-CTD")).toMatch(/Tăng nóng/); expect(text("pz-row-CTD")).toMatch(/Cao trào/); expect(text("pz-row-CTD")).toMatch(/đang giữ 9,1%/);
     expect(text("pz-row-CTD")).toMatch(/5 độ đo vượt ngưỡng/);
@@ -267,11 +282,13 @@ describe("Elite HL — ghi chú K0 kèm kết quả HL-r2", () => {
   it("có hlR2 -> bảng trong mẫu / ngoài mẫu; không có -> chỉ ghi chú", () => {
     const k0 = { ...decision.hl!.k0, hlR2: { ranAt: "2026-11-14", decision: { period: "03/03/2014 → 31/12/2019", cagr: 0.161, maxDd: -0.303, excess20: 0.0113, t: 2.13, verdict: "CÓ LỢI THẾ" }, outOfSample: { period: "02/01/2020 → 18/05/2023", cagr: 0.008, maxDd: -0.527, excess20: -0.0107, t: -1.13 }, report: "r" } };
     render(<EliteHlBoard d={{ ...decision, hl: { ...decision.hl!, k0 } }} onOpenTicker={() => {}} />);
+    render(<Moved d={{ ...decision, hl: { ...decision.hl!, k0 } }} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     const t = text("hl-k0-r2");
     expect(t).toMatch(/Quyết định.*\+16,1%.*−30,3%.*\+1,13% \(\+2,13\)/);
     expect(t).toMatch(/Ngoài mẫu.*\+0,8%.*−52,7%.*−1,07% \(−1,13\)/);
     cleanup();
     render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    render(<Moved d={decision} />); // QĐ-R: quy tắc + sổ theo dõi đã chuyển sang tab 4
     expect(screen.queryByTestId("hl-k0-r2")).toBeNull();
   });
 
@@ -308,5 +325,41 @@ describe("PX0 — huy hiệu đợt pha loãng trên bảng Elite HL", () => {
     expect(text("hl-px-VJC")).toBe("HẬU GDKHQ · CP 20% · phiên 3/≈28");
     expect(text("pz-px-CTD")).toBe("SẮP GDKHQ · CP 20% · 4 phiên");
     expect(screen.queryByTestId("pz-px-CAR")).toBeNull();
+  });
+});
+
+// QĐ-R (20/11/2026): quy tắc + sổ theo dõi + Cổng tiền mặt chuyển sang tab 4; bảng còn thẻ tóm tắt có nút; ba khối của Hồ sơ 360° vào khung "Mã đang chọn".
+describe("QĐ-R — Bảng quyết định sau khi sắp xếp lại", () => {
+  beforeEach(() => cleanup()); afterEach(() => cleanup());
+  it("không còn khối Quy tắc / Sổ theo dõi; thẻ tóm tắt có số sổ; nút sang tab 4 chỉ khi Hub truyền callback", () => {
+    const go = vi.fn();
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} onNavigateToEvidence={go} />);
+    expect(screen.queryByTestId("hl-rules")).toBeNull(); expect(screen.queryByTestId("elite-ledger")).toBeNull();
+    expect(text("hl-evidence-link-ledger")).toMatch(/5 phiên: chưa có phiên nào đủ kỳ hạn/);
+    expect(text("hl-evidence-link")).toMatch(/tối đa 10 mã.*phân vị 60/);
+    fireEvent.click(screen.getByTestId("hl-goto-evidence"));
+    expect(go).toHaveBeenCalledTimes(1);
+    cleanup();
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-goto-evidence")).toBeNull();
+    expect(text("hl-evidence-link")).toMatch(/4\. Bằng chứng & sổ theo dõi/);
+  });
+  it("khung Mã đang chọn: mặc định mã giữ đầu tiên, đổi mã bằng chip; mô phỏng thời điểm chỉ dựng khi bấm", () => {
+    const open = vi.fn();
+    render(<EliteHlBoard d={decision} onOpenTicker={open} />);
+    expect(text("hl-focus")).toMatch(/Mã đang chọn · VJC/);
+    expect(screen.getByTestId("stub-to-VJC")).toBeTruthy(); expect(screen.getByTestId("stub-news-VJC")).toBeTruthy();
+    expect(screen.queryByTestId("stub-sim-VJC")).toBeNull(); expect(screen.getByTestId("hl-focus-sim-off")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("hl-focus-sim-on"));
+    expect(screen.getByTestId("stub-sim-VJC")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("hl-focus-pick-CTD"));
+    expect(screen.getByTestId("stub-to-CTD")).toBeTruthy(); expect(screen.getByTestId("stub-sim-CTD")).toBeTruthy(); expect(screen.queryByTestId("stub-to-VJC")).toBeNull();
+    fireEvent.click(screen.getByTestId("hl-focus-open"));
+    expect(open).toHaveBeenCalledWith("CTD");
+  });
+  it("danh mục trống -> khung dùng mã đầu hàng chờ, ghi rõ", () => {
+    render(<EliteHlBoard d={{ ...decision, portfolio: [] }} onOpenTicker={() => {}} />);
+    expect(text("hl-focus-picks")).toMatch(/Danh mục trống — mã đầu hàng chờ/);
+    expect(text("hl-focus")).toMatch(/Mã đang chọn · HDA/);
   });
 });
