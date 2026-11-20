@@ -8,6 +8,9 @@ import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRetro, useE
 import CashGateCard from "./CashGateCard";
 import { HlLedgerPanel, HlRulesPanel } from "./HlRulesLedger";
 import { BuyTimingNote, EliteWeightsCard } from "./EvidenceRestored";
+// QĐ-R2: "Bằng chứng của từng lớp" (Command Deck Z8) chuyển từ Bảng quyết định sang đây — cùng component, cùng khoá SWR.
+import EvidenceWall from "../deck/EvidenceWall";
+import { useEvidenceRegistry } from "../../../hooks/elite10/useDeckData";
 import type { EliteRetroV3, RealisticSummary } from "../../../lib/elite10/decisionTypes";
 import { heatInk } from "../../../lib/elite10/heatInk";
 import { divergingColor } from "../../../lib/worldSectors/types";
@@ -236,6 +239,7 @@ export default function EvidenceLedgerTab() {
   const { data: retro } = useEliteRetro();
   const { data: retroV3 } = useEliteRetroV3();
   const { data: decision } = useEliteDecision();
+  const { data: registry } = useEvidenceRegistry();
   const sorted = useMemo(() => {
     const order = { A: 0, B: 1, C: 2 } as const;
     return [...(ev?.signals ?? [])].sort((a, b) => order[a.tier] - order[b.tier] || (b.byH[String(b.mainH)]?.mean ?? -9) - (a.byH[String(a.mainH)]?.mean ?? -9));
@@ -252,6 +256,7 @@ export default function EvidenceLedgerTab() {
       )}
       {decision?.hl && (
         <div className="space-y-3" data-testid="elite-evidence-hl">
+          <EvidenceWall ledger={decision.ledgerSummary} registry={registry} k0Note={decision.hl.k0?.noteVi ?? null} />
           <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
             <HlRulesPanel d={decision} />
             <CashGateCard />

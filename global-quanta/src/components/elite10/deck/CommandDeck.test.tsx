@@ -19,6 +19,9 @@ vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
 vi.mock("../center/CashGateCard", () => ({ default: () => null }));
 vi.mock("../../../hooks/elite10/useProfileFa", () => ({ useProfileFaWarnings: () => ({ data: null }) }));
 import EliteHlBoard from "../center/EliteHlBoard";
+// QĐ-R2 (20/11/2026): "Bằng chứng của từng lớp" chuyển sang tab 4 — render thêm đúng khối đó với cùng dữ liệu.
+import EvidenceWall from "./EvidenceWall";
+const Wall = () => <EvidenceWall ledger={d.ledgerSummary} registry={deck.registry as never} k0Note={d.hl!.k0?.noteVi ?? null} />;
 
 const d = fixture.decision as unknown as EliteDecision;
 const text = (id: string) => screen.getByTestId(id).textContent ?? "";
@@ -60,16 +63,19 @@ describe("Command Deck · dữ liệu thật 18/11", () => {
 
   it("hàng chờ dạng thẻ: điều kiện ✓/✗ đúng ngưỡng; tường bằng chứng công bố cả KHÔNG ĐẠT; không chuỗi cấm", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    render(<Wall />);
+    expect(screen.queryByTestId("elite-hl-board")!.querySelector('[data-testid="deck-evidence"]')).toBeNull(); // không còn trên bảng
     expect(text("hl-queue-VPI")).toMatch(/✓ LS 94.*✓ TA 4\/7.*✓ Cải thiện.*✓ 106,9 tỷ|✓ LS 94/);
     expect(text("deck-evidence-ledger")).toMatch(/THĂM DÒ.*Sổ theo dõi tiến Elite HL/);
     expect(text("deck-evidence-PZ")).toMatch(/PZ-r2 · KHÔNG ĐẠT/); expect(text("deck-evidence-HL")).toMatch(/HL-r2 · MỘT PHẦN/);
     const all = text("elite-hl-board");
-    for (const bad of [/mua ngay/i, /bất khả chiến bại/i, /chắc thắng/i, /ĐẠT TIÊU CHÍ ĐĂNG KÝ TRƯỚC/]) expect(all).not.toMatch(bad);
+    for (const bad of [/mua ngay/i, /bất khả chiến bại/i, /chắc thắng/i, /ĐẠT TIÊU CHÍ ĐĂNG KÝ TRƯỚC/]) { expect(all).not.toMatch(bad); expect(text("deck-evidence")).not.toMatch(bad); }
   });
 
   it("nguồn phụ thiếu (rủi ro, bảng tín hiệu, sổ bằng chứng) -> khối tự ẩn / ghi rõ, bảng không vỡ", () => {
     deck = { risk: null, panel: null, registry: null };
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    render(<Wall />);
     expect(text("deck-risk")).toMatch(/Chưa tính được rủi ro danh mục/);
     expect(screen.queryByTestId("deck-space")).toBeNull();
     expect(text("deck-evidence-missing")).toMatch(/Chưa tải được sổ bằng chứng/);

@@ -95,6 +95,7 @@ export function HlEvidenceLink({ d, onNavigate }: { d: EliteDecision; onNavigate
     <Panel title="Bằng chứng · sổ theo dõi · quy tắc" testId="hl-evidence-link">
       <ul className="space-y-0.5 text-[11px] text-slate-300">
         <li data-testid="hl-evidence-link-ledger">Sổ theo dõi tiến Elite HL — 5 phiên: {ledgerLine(d.ledgerSummary, "5")} · 10 phiên: {ledgerLine(d.ledgerSummary, "10")}</li>
+        <li className="text-slate-400">Bằng chứng của từng lớp (kiểm định đăng ký trước, công bố cả khi không đạt), quy tắc, Cổng tiền mặt, trọng số: ở tab 4.</li>
         <li className="text-slate-400">Quy tắc: tối đa {hl.rule.slots} mã, vào phiên đầu tuần, ra khi LS-v1 dưới phân vị {hl.rule.exitLsPct}, hết mô hình TA hoặc ngành Tụt hậu.</li>
       </ul>
       {onNavigate ? (

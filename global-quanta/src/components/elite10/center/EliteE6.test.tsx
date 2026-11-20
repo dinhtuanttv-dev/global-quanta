@@ -39,6 +39,7 @@ const retroV3 = {
   grid: [{ id: "10-b-erc", size: 10, bufferRank: 20, weighting: "erc", primary: true, sharpeAnnual: 0.41, annualExcess: 0.047 }, { id: "10-n-erc", size: 10, bufferRank: 0, weighting: "erc", primary: false, sharpeAnnual: -1.17, annualExcess: -0.119 }],
 };
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) })); // QĐ-R: sổ HL (HlLedgerNote) không gọi mạng trong test
+vi.mock("../../../hooks/elite10/useDeckData", () => ({ useEvidenceRegistry: () => ({ data: { entries: [{ id: "PZ", test: "PZ-r2", verdict: "KHÔNG ĐẠT", layer: "Vị trí giá", detail: "d", src: "s", ranAt: "2026-11-18" }] } }) }));
 const E6 = vi.hoisted(() => ({ decision: undefined as unknown }));
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: "Timeline tạm không có" }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
@@ -118,6 +119,10 @@ describe("QĐ-R — tab Bằng chứng nhận khối từ Bảng quyết định
     };
     render(<EvidenceLedgerTab />);
     expect(screen.getByTestId("elite-evidence-hl")).toBeTruthy();
+    // QĐ-R2: tường "Bằng chứng của từng lớp" đứng đầu khối HL ở tab 4, công bố cả KHÔNG ĐẠT.
+    expect(screen.getByTestId("elite-evidence-hl").firstElementChild!.getAttribute("data-testid")).toBe("deck-evidence");
+    expect(screen.getByTestId("deck-evidence-PZ").textContent).toMatch(/PZ-r2 · KHÔNG ĐẠT/);
+    expect(screen.getByTestId("deck-evidence-k0").textContent).toMatch(/NGANG thị trường/);
     expect(screen.getByTestId("hl-rules").textContent).toMatch(/Ra \(xét mỗi phiên\):.*phân vị 60/);
     expect(screen.getByTestId("hl-k0").textContent).toMatch(/NGANG thị trường/);
     expect(screen.getByTestId("hl-ledger-hl-5").textContent).toMatch(/chưa có phiên nào/);

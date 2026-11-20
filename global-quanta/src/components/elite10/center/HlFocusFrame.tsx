@@ -9,6 +9,7 @@ import ToTickerCard from "./ToTickerCard";
 import TimingSimPanel from "../timing/TimingSimPanel";
 import EliteNewsPanel from "../news/EliteNewsPanel";
 import { Panel } from "./HlRulesLedger";
+import HlBuyCalendar from "./HlBuyCalendar";
 
 export function focusTickers(d: EliteDecision): { tickers: string[]; source: "held" | "queue" | "none" } {
   const held = hlPicks(d).map((p) => p.ticker);
@@ -31,6 +32,8 @@ export default function HlFocusFrame({ d, onOpenTicker }: { d: EliteDecision; on
       right={cur ? <button type="button" onClick={() => onOpenTicker(cur)} data-testid="hl-focus-open" className="min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">Mở Hồ sơ 360° của {cur} →</button> : undefined}>
       {!cur ? <p className="text-[11px] text-slate-500" data-testid="hl-focus-empty">Chưa có mã đang giữ hay trong hàng chờ.</p> : (
         <div className="space-y-3">
+          {/* MP-a (20/11/2026): lịch vùng mua của cả danh mục — bấm mã để chọn trong khung. */}
+          <HlBuyCalendar tickers={tickers} picked={cur} onPick={setPicked} />
           <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Chọn mã" data-testid="hl-focus-picks">
             <span className="mr-1 text-[10px] text-slate-500">{source === "held" ? "Mã đang giữ:" : "Danh mục trống — mã đầu hàng chờ:"}</span>
             {tickers.map(chip)}
