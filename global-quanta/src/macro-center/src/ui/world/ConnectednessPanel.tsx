@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { fmtNum } from '../../macro-filter';
 import { spillShade } from '../../world-view';
+import { SpilloverNetwork } from './SpilloverNetwork';
 
 export interface ConnectednessPayload {
   names: string[];
@@ -21,6 +22,8 @@ export function ConnectednessPanel({ data }: { data: ConnectednessPayload }) {
   const [hc, setHc] = useState<number | null>(null);
   return (
     <div className="conn">
+      {/* G5: mạng lan truyền dạng vòng — vẽ đúng bảng dưới, Việt Nam ở tâm */}
+      <SpilloverNetwork names={names} table={recent.table} net={recent.net} vnIndex={vn} />
       <div className="scroll">
         <table className="spill" onMouseLeave={() => setHc(null)}>
           <caption className="sr-only">Mỗi hàng là một thị trường nhận biến động từ các thị trường ở cột, tính bằng phần trăm phương sai dự báo.</caption>
