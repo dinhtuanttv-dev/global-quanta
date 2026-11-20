@@ -14,7 +14,7 @@ import { createScheduler } from "./scheduler.js";
 import { createScannerJobs, SCANNER_SCHEDULE } from "./scanner/scannerJobs.js";
 import { createTickRecorder } from "./scanner/tickFlowService.js";
 import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.js";
-import { expectsLiveTicks } from "./calendar.js";
+import { expectsLiveTicks, vnDate as vnDateOf } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
 import { createKqkdService, kqkdDirFromEnv } from "./fundamentals/kqkdService.js";
@@ -119,7 +119,22 @@ export function getMarketRuntime() {
   const corporateActions = createCorporateActions({ base: (process.env.LEGACY_MARKET_API_BASE || "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, ""), fallback: (symbols) => fetchVndEvents(symbols) });
   const taSeries = createTaSeries({ service, nominalHistory, corporateActions });
   const msGarch = createMsGarchService({ getBars: (symbol) => taSeries.get({ symbol, range: "5y", limit: 800 }).then((r) => r.bars ?? []) });
-  const preopen = createPreopenService({ store, getVnBars: () => service.getOhlcv({ symbol: "VNINDEX", limit: 800 }).then((r) => r.bars ?? []), getMsGarch: () => msGarch.get("VNINDEX") });
+  // preopen/3: giá trong phiên lấy CÙNG snapshot với TopBar (chung khoá cache 15 giây với route /topbar, không gọi thêm SSI);
+  // giá mở cửa = nến 1 phút đầu tiên hôm nay (cache 5 phút). Lỗi thì trả null -> preopen tự dùng nến ngày.
+  const preopen = createPreopenService({
+    store, getVnBars: () => service.getOhlcv({ symbol: "VNINDEX", limit: 800 }).then((r) => r.bars ?? []), getMsGarch: () => msGarch.get("VNINDEX"),
+    getVnLive: async () => {
+      const snap = await service.cache.wrap("topbar:snapshot", 15_000, () => topbar.snapshot());
+      const ix = snap?.index?.data, at = snap?.index?.meta?.asOf ?? null;
+      if (!(ix?.value > 0) || !at) return null;
+      const today = vnDateOf(new Date());
+      const open = await service.cache.wrap(`preopen:vnopen:${today}`, 5 * 60_000, async () => {
+        const bars = ((await service.getOhlcv({ symbol: "VNINDEX", resolution: "1m", to: today })).bars ?? []).filter((b) => b.open > 0 && String(b.date ?? b.time ?? "").startsWith(today));
+        return bars[0]?.open ?? null;
+      }).catch(() => null);
+      return { last: ix.value, open, at };
+    },
+  });
 
   // Cycle Fingerprint v2 (CF2): thư viện giai đoạn tương tự toàn universe, dựng trong bộ nhớ từ kho (16:05) hoặc khi được hỏi lần đầu.
   const cycles = createCycleService({ service, corporateActions, taSeries });

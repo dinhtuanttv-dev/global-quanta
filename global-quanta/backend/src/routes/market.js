@@ -466,8 +466,16 @@ router.get("/structure-ledger", handle(async (req, res) => {
 // MTF v3 (30/10/2026) — Ngày · Tuần · Tháng, không khung 1 giờ (MTF-v3-prereg.md).
 // Trung tâm thị trường: 3 kịch bản VN-Index, chỉ trả số đã đạt kiểm định (PO-prereg.md).
 router.get("/preopen", handle(async (req, res) => {
-  res.set("Cache-Control", "public, max-age=60");
-  res.json(await getMarketRuntime().preopen.get());
+  const doc = await getMarketRuntime().preopen.get();
+  // preopen/3: trong phiên phần theo dõi tính lại mỗi lượt đọc từ giá trực tiếp -> cache ngắn hơn.
+  res.set("Cache-Control", doc.phase === "session" ? "public, max-age=15" : "public, max-age=60");
+  res.json(doc);
+}));
+// Sổ tiến từng phiên đã chấm + PO-r2-F + đường cơ sở "luôn đoán Trung tính". Không trả vùng mở cửa / xác suất bị ẩn.
+router.get("/preopen/ledger", handle(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 60, 1), 250);
+  res.set("Cache-Control", "public, max-age=300");
+  res.json(await getMarketRuntime().preopen.ledger({ limit }));
 }));
 
 // MS-GARCH: dải rủi ro 20 phiên, chỉ tính khi có người bật lớp trên chart.

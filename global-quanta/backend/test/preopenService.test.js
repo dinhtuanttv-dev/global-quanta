@@ -114,3 +114,81 @@ test("ngày nghỉ không ghi ảnh chụp", async () => {
   assert.equal(await make({ v: Date.parse("2026-10-31T00:15:00Z") }, { store }).tick(), null);
   assert.equal(store.kv.size, 0);
 });
+
+// ---------------------------------------------------------------- preopen/3
+const sessionBars = [...BARS, { date: "2026-11-02", open: BARS.at(-1).close * 0.99, high: 0, low: 0, close: BARS.at(-1).close * 0.985 }];
+const refEs = () => [...ES].filter((b) => b.t + 3600 <= Date.parse("2026-10-30T08:00:00Z") / 1000).at(-1).close;
+
+async function sessionService({ live, store = memStore(), bars = sessionBars } = {}) {
+  const t = { v: Date.parse("2026-11-02T01:50:00Z") };
+  const w = async () => [{ group: "futures", symbol: "ES=F", name: "ES", price: refEs() * 0.9, at: new Date(t.v - 60_000).toISOString(), changePct: -1 }];
+  const s = createPreopenService({ getVnBars: async () => bars, esHours: async () => ES, world: w, now: () => t.v, tradingDay: () => true, store, getVnLive: async () => live?.(t), log: {} });
+  await s.tick(); // 08:50 -> kịch bản Tiêu cực
+  t.v = Date.parse("2026-11-02T03:30:00Z"); // 10:30
+  return { s, t, store };
+}
+
+test("preopen/3: tư thế/câu hành động null khi chưa đạt; có esFit mô tả; có nextRefreshAt", async () => {
+  const d = await make({ v: Date.parse("2026-11-02T01:30:00Z") }).get();
+  assert.equal(d.version, "preopen/3");
+  assert.ok(d.scenarios.every((s) => s.posture === null && s.action === null));
+  assert.equal(d.esFit.grade, "C");
+  assert.ok(Number.isFinite(d.esFit.slope) && d.esFit.residLo < d.esFit.residHi);
+  assert.ok(Date.parse(d.nextRefreshAt) > Date.parse(d.asOf));
+  assert.equal(d.evidence.confirm.rule, "PO-r2-F");
+  assert.equal(d.evidence.confirm.status, "confirming");
+});
+
+test("trong phiên ưu tiên VN-Index trực tiếp; thiếu nến ngày hôm nay vẫn theo dõi được", async () => {
+  const prev = BARS.at(-1).close;
+  const { s } = await sessionService({ bars: BARS, live: (t) => ({ last: prev * 0.995, open: prev * 0.99, at: new Date(t.v - 30_000).toISOString() }) });
+  const d = await s.get();
+  assert.equal(d.tracking.source, "live");
+  assert.ok(Math.abs(d.tracking.last - prev * 0.995) < 0.5, "giá lấy từ nguồn trực tiếp (trackSession làm tròn sẵn)");
+  assert.ok(Number.isFinite(d.tracking.pctInBand));
+  assert.ok(d.tracking.at);
+});
+
+test("giá trực tiếp của ngày khác bị bỏ, quay về nến ngày", async () => {
+  const { s } = await sessionService({ live: () => ({ last: 1, open: 1, at: "2026-10-30T07:00:00Z" }) });
+  const d = await s.get();
+  assert.equal(d.tracking.source, "daily");
+});
+
+test("giờ vô hiệu lần đầu được ghi và giữ nguyên khi giá quay lại", async () => {
+  const prev = BARS.at(-1).close;
+  let px = prev * 1.01; // Tiêu cực vô hiệu khi lấy lại giá đóng cửa phiên trước
+  const { s, t, store } = await sessionService({ bars: BARS, live: (tt) => ({ last: px, open: prev * 0.99, at: new Date(tt.v - 10_000).toISOString() }) });
+  const d1 = await s.get();
+  assert.equal(d1.tracking.invalidated, true);
+  assert.equal(d1.tracking.invalidatedAt, "2026-11-02T03:30:00.000Z");
+  t.v += 20 * 60_000; px = prev * 0.98;
+  const d2 = await s.get();
+  assert.equal(d2.tracking.invalidated, false);
+  assert.equal(d2.tracking.invalidatedAt, "2026-11-02T03:30:00.000Z");
+  assert.ok(store.kv.get("preopen:track:v1").days["2026-11-02"].invalidatedAt);
+});
+
+test("tick trong phiên tự đọc để ghi giờ vô hiệu dù không ai mở bảng", async () => {
+  const prev = BARS.at(-1).close;
+  const { s, store } = await sessionService({ bars: BARS, live: (tt) => ({ last: prev * 1.02, open: prev, at: new Date(tt.v).toISOString() }) });
+  assert.equal(await s.tick(), null);
+  assert.ok(store.kv.get("preopen:track:v1")?.days["2026-11-02"]?.invalidatedAt);
+});
+
+test("PO-r2-F không đạt thì evidence.dayBand tự về false; sổ từng phiên không lộ số ẩn", async () => {
+  const store = memStore(), days = {};
+  for (let i = 0; i < 60; i++) {
+    const date = new Date(Date.parse("2026-11-02T00:00:00Z") + i * 86_400_000).toISOString().slice(0, 10);
+    days[date] = { prevClose: 1500, slots: { "08:50": { es: -1, lead: "neg", shadow: [{ id: "neg", open: { lo: 1, mid: 2, hi: 3 }, day: { lo: 1490, hi: 1510 }, probability: 40 }] } }, score: { dayIn: i < 30, leadHit: false, outcome: "mid", slot: "08:50", open: 1500, close: 1500 } };
+  }
+  store.kv.set("preopen:ledger:v1", { days });
+  const s = make({ v: Date.parse("2026-11-02T01:30:00Z") }, { store });
+  const d = await s.get();
+  assert.equal(d.evidence.confirm.status, "failed");
+  assert.equal(d.evidence.dayBand, false);
+  const l = await s.ledger({ limit: 5 });
+  assert.equal(l.rows.length, 5);
+  assert.equal(l.alwaysMid.pct, 100);
+  assert.ok(!JSON.stringify(l.rows).includes("probability"));
+});

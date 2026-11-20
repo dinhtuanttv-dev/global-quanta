@@ -48,7 +48,8 @@ test("thiếu ES thì không có kịch bản dẫn đầu; không đạt thì �
   assert.equal(buildScenariosR2({ ...base, es: null, evidence: OFF }).lead, null);
   const off = buildScenariosR2({ ...base, es: -3, evidence: OFF });
   assert.equal(off.lead, "neg");
-  for (const s of off.scenarios) { assert.equal(s.open, null); assert.equal(s.probability, null); assert.ok(s.shadowOpen); assert.ok(Number.isFinite(s.shadowProbability)); assert.doesNotMatch(s.posture + s.action, /\bMUA\b|\bBÁN\b/); }
+  // preopen/3: cổng G3–G5 chưa đạt thì không trả tư thế / câu hành động.
+  for (const s of off.scenarios) { assert.equal(s.open, null); assert.equal(s.probability, null); assert.ok(s.shadowOpen); assert.ok(Number.isFinite(s.shadowProbability)); assert.equal(s.posture, null); assert.equal(s.action, null); }
   assert.deepEqual(off.scenarios[0].day, off.scenarios[2].day, "dải không điều kiện giống nhau ở 3 thẻ");
   assert.match(off.scenarios[0].confirm, /Dưới 997/);
   assert.match(off.scenarios[2].confirm, /Trên 1\.000/, "MA50 ngoài dải thì về giá đóng cửa");
@@ -56,5 +57,6 @@ test("thiếu ES thì không có kịch bản dẫn đầu; không đạt thì �
   const on = buildScenariosR2({ ...base, es: -3, evidence: { ...OFF, openBand: true, probabilities: true, dayBand: true, dayModel: "ms", noPanicSell: true } });
   assert.ok(on.scenarios[0].open && Number.isFinite(on.scenarios[0].probability));
   assert.match(on.scenarios[0].action, /không bán đuổi/);
+  for (const s of on.scenarios) assert.doesNotMatch(s.posture + s.action, /\bMUA\b|\bBÁN\b/);
   assert.notDeepEqual(on.scenarios[0].day, on.scenarios[2].day);
 });

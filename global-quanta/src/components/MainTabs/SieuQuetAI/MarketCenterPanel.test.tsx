@@ -13,14 +13,92 @@ const doc: PreopenDoc = {
   evidence: { rule: "PO-r1", openBand: false, dayBand: false, probabilities: false, noPanicSell: false, noChase: false, sample: { tested: 376, from: "2025-04-29", to: "2026-10-30" }, openCoverage: 82.2, dayCoverage: 66.8, brierSkill: 0, history: [{ id: "neg", label: "ES ≤ −0,8%", n: 36, gap: -0.27, oc: -0.15, cc: -0.42 }] },
   timeline: [{ slot: "07:15", lead: "neg", es: -1 }], ledger: { days: 1, scored: 0, openCoverage: null, dayCoverage: null, leadHit: null },
 };
-const state: { data: PreopenDoc | undefined; error: Error | undefined } = { data: doc, error: undefined };
+const state: { data: PreopenDoc | undefined; error: Error | undefined; ledger: PreopenLedgerDoc | undefined } = { data: doc, error: undefined, ledger: undefined };
 vi.mock("swr", () => ({ default: () => ({ data: undefined }) }));
-vi.mock("../../../hooks/usePreopen", () => ({ usePreopen: () => ({ data: state.data, error: state.error, isLoading: false }) }));
+vi.mock("../../../hooks/usePreopen", () => ({
+  usePreopen: () => ({ data: state.data, error: state.error, isLoading: false }),
+  usePreopenLedger: () => ({ data: state.ledger, error: undefined }),
+}));
+import type { PreopenLedgerDoc } from "../../../hooks/usePreopen";
 import MarketCenterPanel from "./MarketCenterPanel";
 import FoldSection from "./FoldSection";
 
 const q = (id: string) => document.querySelector(`[data-testid="${id}"]`);
-afterEach(() => { cleanup(); state.data = doc; state.error = undefined; try { localStorage.clear(); } catch { /* bỏ qua */ } });
+afterEach(() => { cleanup(); state.data = doc; state.error = undefined; state.ledger = undefined; try { localStorage.clear(); } catch { /* bỏ qua */ } });
+
+// preopen/3 (PR-B): posture/action null từ API, xác nhận PO-r2-F, đường cơ sở, theo dõi trực tiếp, độ nhạy ES.
+const rate = (k: number, n: number, lo: number, hi: number) => ({ n, k, pct: Math.round((k / n) * 1000) / 10, lo, hi });
+const v3 = (over: Partial<PreopenDoc> = {}): PreopenDoc => ({
+  ...doc, version: "preopen/3", scenarios: doc.scenarios.map((s) => ({ ...s, posture: null, action: null })),
+  evidence: { ...doc.evidence, rule: "PO-r2", dayBand: true, dayCoverage: 80.1, confirm: { rule: "PO-r2-F", need: 60, n: 14, coverage: 78.6, wilsonLo: 52.4, wilsonHi: 92.4, range: [72, 88], target: 80, status: "confirming", decidedOn: null, afterRegistration: rate(0, 1, 0, 0) } },
+  ledger: { days: 15, scored: 14, openCoverage: 85.7, dayCoverage: 78.6, leadHit: 42.9, lead: rate(6, 14, 21.4, 67.4), alwaysMid: rate(5, 14, 16.3, 61.2) },
+  esFit: { slope: 0.42, intercept: 0.05, residLo: -0.61, residHi: 0.58, vol: 1.1, n: 250, grade: "C" }, nextRefreshAt: "2026-11-02T01:35:00Z",
+  ...over,
+});
+describe("Trung tâm thị trường — preopen/3", () => {
+  it("API trả posture null: không hiện tư thế dù cổng giao diện mở (hai lớp)", () => {
+    state.data = v3({ evidence: { ...v3().evidence, probabilities: true } });
+    render(<MarketCenterPanel />);
+    expect(q("mc-verdict-posture")).toBeNull();
+    expect(document.querySelector('[data-testid^="mc-posture-"]:not([data-testid^="mc-posture-off"])')).toBeNull();
+  });
+  it("đang xác nhận PO-r2-F: ghi n/60 và luật đăng ký trước", () => {
+    state.data = v3();
+    render(<MarketCenterPanel />);
+    expect(q("mc-day-forward")?.textContent).toBe("Đang xác nhận theo PO-r2-F (đăng ký trước): 14/60 phiên, phủ 78,6%. Kết luận khi đủ 60 phiên.");
+  });
+  it("PO-r2-F không đạt: API hạ dayBand, giao diện nêu lý do cụ thể", () => {
+    const base = v3();
+    state.data = v3({ evidence: { ...base.evidence, dayBand: false, confirm: { ...base.evidence.confirm!, n: 60, coverage: 65, wilsonLo: 52.4, wilsonHi: 75.9, status: "failed", decidedOn: "2027-01-27" } } });
+    render(<MarketCenterPanel />);
+    expect(q("mc-day-warning")?.textContent).toContain("KHÔNG ĐẠT xác nhận tiến PO-r2-F");
+    expect(q("mc-day-warning")?.textContent).toContain("72–88%");
+    expect(q("mc-gates")?.textContent).toContain("Dải cả phiên: chưa đạt");
+  });
+  it("so với đường cơ sở luôn đoán Trung tính; khoảng chồng nhau thì không kết luận", () => {
+    state.data = v3();
+    render(<MarketCenterPanel />);
+    expect(q("mc-ci-lead")?.getAttribute("aria-label")).toContain("luôn đoán Trung tính 35,7%");
+    expect(q("mc-ci-note")?.textContent).toContain("chưa thấy khác biệt rõ");
+  });
+  it("độ nhạy ES mô tả cấp C", () => {
+    state.data = v3();
+    render(<MarketCenterPanel />);
+    expect(q("mc-esfit")?.textContent).toContain("ES đổi 1% thì mở cửa VN-Index dịch trung bình +0,42%");
+    expect(q("mc-esfit")?.textContent).toContain("−0,61% đến +0,58%");
+  });
+  it("theo dõi trực tiếp có giờ và nguồn; giờ vô hiệu lần đầu được giữ khi giá quay lại", () => {
+    state.data = v3({ phase: "session", tracking: { open: 1728, last: 1722.5, gapPct: -0.78, movePct: -1.1, inOpen: null, inDay: true, invalidated: false, current: "neg", at: "2026-11-02T03:42:10Z", source: "live", pctInBand: 50, invalidatedAt: "2026-11-02T02:15:00Z", invalidatedLast: 1742.3 } });
+    render(<MarketCenterPanel />);
+    expect(q("mc-track-src")?.textContent).toBe("Giá trực tiếp lúc 10:42, cùng nguồn với thanh trên cùng.");
+    expect(q("mc-invalidated-at")?.textContent).toContain("Vô hiệu lần đầu lúc 09:15 (VN-Index 1.742,3)");
+    expect(q("mc-tracking")?.textContent).toContain("từng vô hiệu, giá đã quay lại");
+  });
+  it("nến ngày dự phòng thì ghi rõ có thể trễ", () => {
+    state.data = v3({ phase: "session", tracking: { open: 1728, last: 1722.5, gapPct: -0.78, movePct: -1.1, inOpen: null, inDay: true, invalidated: false, current: "neg", at: null, source: "daily" } });
+    render(<MarketCenterPanel />);
+    expect(q("mc-track-src")?.textContent).toContain("nến ngày");
+  });
+  it("dải từng phiên của sổ tiến: cũ → mới, nhãn đọc được, đánh dấu ngoài dải", () => {
+    state.data = v3();
+    state.ledger = { rule: "PO-r2", asOf: "", confirm: v3().evidence.confirm!, lead: rate(1, 2, 9, 90), alwaysMid: rate(1, 2, 9, 90), rows: [
+      { date: "2026-11-20", slot: "08:50", es: -0.4, lead: "mid", day: { lo: 1670, hi: 1705 }, prevClose: 1689, open: 1671, close: 1688.8, gapPct: -1, ccPct: -0.01, outcome: "mid", dayIn: true, leadHit: true },
+      { date: "2026-11-19", slot: "08:50", es: -1.5, lead: "neg", day: { lo: 1690, hi: 1720 }, prevClose: 1700, open: 1700, close: 1689.6, gapPct: 0, ccPct: -0.6, outcome: "neg", dayIn: false, leadHit: true },
+    ] };
+    render(<MarketCenterPanel />);
+    const cells = document.querySelectorAll('[data-testid="mc-strip-cell"]');
+    expect(cells.length).toBe(2);
+    expect(cells[0].getAttribute("aria-label")).toContain("19/11: kết quả Giảm (−0,60%), ngoài dải cả phiên 1.690–1.720");
+    expect(cells[0].getAttribute("data-in")).toBe("0");
+    expect(cells[1].getAttribute("aria-label")).toContain("— đúng");
+  });
+  it("Gateway cũ (preopen/2) vẫn hiển thị bình thường", () => {
+    render(<MarketCenterPanel />);
+    expect(q("mc-esfit")).toBeNull();
+    expect(q("mc-strip")).toBeNull();
+    expect(q("mc-cards")).toBeTruthy();
+  });
+});
 
 describe("Trung tâm thị trường", () => {
   it("chưa đạt kiểm định: có kết luận và 3 thẻ, không có %, vùng mở cửa ghi rõ, dải có cảnh báo", () => {

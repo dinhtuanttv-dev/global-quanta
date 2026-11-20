@@ -4,8 +4,12 @@ import { isTradingDay } from "../calendar.js";
 import { alignRows, classOf, trackSession } from "./preopenModel.js";
 import { buildScenariosR2, enrich, ewmaVol, msVol, RULE_R2 } from "./preopenR2.js";
 import { PREOPEN_EVIDENCE } from "./preopenEvidence.js";
+import { evaluateConfirm, leadVsBaseline, ledgerRows } from "./preopenConfirm.js";
 
 export const LEDGER_KEY = "preopen:ledger:v1";
+/** preopen/3: giờ kịch bản bị vô hiệu lần đầu trong phiên (ghi phía máy chủ, không phụ thuộc người xem). Khoá riêng, không đổi định dạng sổ. */
+export const TRACK_KEY = "preopen:track:v1";
+const TRACK_KEEP = 120;
 export const SLOTS = [[7, 15], [8, 30], [8, 50]];
 export const SCORE_AT = 15 * 60 + 15;
 const KEEP_DAYS = 400;
@@ -60,8 +64,17 @@ export async function fetchEsHours(fetchImpl = globalThis.fetch) {
   return x.timestamp.map((t, i) => ({ t, close: q.close[i] })).filter((b) => b.close != null);
 }
 
-export function createPreopenService({ getVnBars, getMsGarch = async () => null, store = null, world = fetchWorld, esHours = fetchEsHours, now = Date.now, tradingDay = isTradingDay, evidence = PREOPEN_EVIDENCE, log = console } = {}) {
-  let cache = null, hist = null, ledger = null, inflight = null, volMemo = null;
+/**
+ * getVnLive: VN-Index trong phiên { last, open, at } từ cùng snapshot với TopBar. Nến ngày của chỉ số không có nến tạm trong phiên
+ * (marketDataService chỉ dựng nến tạm cho cổ phiếu), nên không được dựa vào nó để theo dõi trong phiên; nến ngày chỉ còn là dự phòng.
+ */
+export function createPreopenService({ getVnBars, getMsGarch = async () => null, getVnLive = async () => null, store = null, world = fetchWorld, esHours = fetchEsHours, now = Date.now, tradingDay = isTradingDay, evidence = PREOPEN_EVIDENCE, log = console } = {}) {
+  let cache = null, hist = null, ledger = null, inflight = null, volMemo = null, track = null;
+  async function loadTrack() {
+    if (track) return track;
+    try { track = (await store?.getKv?.(TRACK_KEY))?.value ?? null; } catch (e) { log.warn?.(`[preopen] đọc theo dõi: ${e.message}`); }
+    return (track ??= { days: {} });
+  }
   async function loadLedger() {
     if (ledger) return ledger;
     try { ledger = (await store?.getKv?.(LEDGER_KEY))?.value ?? null; } catch (e) { log.warn?.(`[preopen] đọc sổ: ${e.message}`); }
@@ -118,20 +131,67 @@ export function createPreopenService({ getVnBars, getMsGarch = async () => null,
     const levels = { close: round(prev.close, 1), ma20: round(sma(done, 20), 1), ma50: round(sma(done, 50), 1), ma200: round(sma(done, 200), 1) };
     const model = buildScenariosR2({ rows: p.rows, es: esUsed, prevClose: levels.close, levels, volNow: p.volNow, evidence });
     const scenarios = model.scenarios.map(({ shadowOpen, shadowProbability, ...s }) => s);
-    const tracking = phase === "session" && model.lead && today && today.open > 0 ? trackSession({ scenarios, lead: model.lead, open: today.open, last: today.close, prevClose: prev.close }) : null;
-    return {
-      version: "preopen/2", rule: RULE_R2, asOf: new Date(now()).toISOString(), phase, session, prevDate: dayKey(prev.date),
+    // PO-r2-F: không đạt xác nhận tiến thì dải cả phiên tự về "chưa đạt" (evidence gốc giữ nguyên trong preopenEvidence.js).
+    const confirm = evaluateConfirm(lb);
+    const doc = {
+      version: "preopen/3", rule: RULE_R2, asOf: new Date(now()).toISOString(), phase, session, prevDate: dayKey(prev.date),
       es: { movePct: round(esUsed), livePct: round(live.move), price: live.price, refPrice: live.refEs, at: live.at, fresh: live.fresh, frozenAt: frozen?.slot ?? null },
-      ...model, scenarios, tracking, levels, volNext: { ms: round(p.volNow.ms), ew: round(p.volNow.ew) },
+      ...model, scenarios, tracking: null, levels, volNext: { ms: round(p.volNow.ms), ew: round(p.volNow.ew) },
       risk: ms?.available ? { label: ms.regime.label, probCalm: round(ms.regime.probCalm, 3), probVolatile: round(ms.regime.probVolatile, 3), volAnnualPct: round(ms.volAnnualPct, 1), grade: ms.grade, asOf: ms.asOf } : null,
-      world: worldRows.map(({ symbol, ...w }) => ({ ...w, fresh: worldFresh(w, now()) })), evidence,
+      world: worldRows.map(({ symbol, ...w }) => ({ ...w, fresh: worldFresh(w, now()) })),
+      evidence: { ...evidence, dayBand: evidence.dayBand && confirm.status !== "failed", confirm },
       timeline: slotKeys.map((slot) => ({ slot, lead: day.slots[slot].lead, es: day.slots[slot].es, at: day.slots[slot].at })), ledger: ledgerStats(lb),
     };
+    return { doc, prevClose: prev.close, today };
   }
   function ledgerStats(lb) {
     const scored = Object.values(lb.days).filter((d) => d.score);
     const share = (f) => (scored.length ? round((scored.filter(f).length / scored.length) * 100, 1) : null);
-    return { days: Object.keys(lb.days).length, scored: scored.length, openCoverage: share((d) => d.score.openIn), dayCoverage: share((d) => d.score.dayIn), leadHit: share((d) => d.score.leadHit) };
+    const lvb = leadVsBaseline(lb);
+    return { days: Object.keys(lb.days).length, scored: scored.length, openCoverage: share((d) => d.score.openIn), dayCoverage: share((d) => d.score.dayIn), leadHit: share((d) => d.score.leadHit), lead: lvb.lead, alwaysMid: lvb.alwaysMid };
+  }
+
+  /**
+   * Theo dõi trong phiên, tính lại ở mỗi lượt đọc (tài liệu chính cache 5 phút). Ưu tiên VN-Index trực tiếp; thiếu thì dùng nến ngày.
+   * Lần đầu kịch bản bị vô hiệu được ghi giờ vào TRACK_KEY và giữ nguyên cả khi giá quay lại.
+   */
+  async function liveTracking(doc, prevClose, todayBar) {
+    if (doc.phase !== "session" || !doc.lead) return null;
+    let src = null;
+    try {
+      const v = await getVnLive();
+      if (v?.last > 0 && v.at && vnClock(Date.parse(v.at)).date === doc.session) {
+        // Giá mở chính thức (nến ngày, gồm ATO) ưu tiên; nến 1 phút đầu tiên bắt đầu sau ATO nên chỉ là dự phòng.
+        const open = todayBar?.open > 0 ? todayBar.open : v.open > 0 ? v.open : null;
+        if (open) src = { open, last: v.last, at: v.at, source: "live" };
+      }
+    } catch (e) { log.warn?.(`[preopen] giá trong phiên: ${e.message}`); }
+    if (!src && todayBar?.open > 0 && todayBar.close > 0) src = { open: todayBar.open, last: todayBar.close, at: null, source: "daily" };
+    if (!src) return null;
+    const t = trackSession({ scenarios: doc.scenarios, lead: doc.lead, open: src.open, last: src.last, prevClose });
+    const band = doc.scenarios.find((s) => s.id === doc.lead)?.day;
+    const pctInBand = band && band.hi > band.lo ? round(((src.last - band.lo) / (band.hi - band.lo)) * 100, 1) : null;
+    const tk = await loadTrack();
+    let rec = tk.days[doc.session] ?? null;
+    if (!rec?.invalidatedAt && t.invalidated) {
+      rec = { invalidatedAt: new Date(now()).toISOString(), last: round(src.last), lead: doc.lead, source: src.source };
+      tk.days[doc.session] = rec;
+      const keys = Object.keys(tk.days).sort();
+      for (const k of keys.slice(0, Math.max(0, keys.length - TRACK_KEEP))) delete tk.days[k];
+      try { await store?.setKv?.(TRACK_KEY, tk); } catch (e) { log.warn?.(`[preopen] ghi theo dõi: ${e.message}`); }
+    }
+    return { ...t, at: src.at, source: src.source, pctInBand, invalidatedAt: rec?.invalidatedAt ?? null, invalidatedLast: rec?.last ?? null };
+  }
+
+  async function get() {
+    if (!cache || now() - cache.at >= DOC_TTL) {
+      inflight ??= compute().then((r) => { cache = { at: now(), ...r }; return r; }).finally(() => { inflight = null; });
+      await inflight;
+    }
+    const c = cache;
+    let tracking = null;
+    try { tracking = await liveTracking(c.doc, c.prevClose, c.today); } catch (e) { log.warn?.(`[preopen] theo dõi: ${e.message}`); }
+    return { ...c.doc, tracking, nextRefreshAt: new Date(c.at + DOC_TTL).toISOString() };
   }
 
   /** Ghi ảnh chụp tại mốc giờ, gồm cả số chưa được hiện. Thiếu ES thì ghi rõ không có kịch bản dẫn đầu. */
@@ -177,15 +237,17 @@ export function createPreopenService({ getVnBars, getMsGarch = async () => null,
       const at = h * 60 + m, slot = `${pad(h)}:${pad(m)}`;
       if (clock.mins >= at && clock.mins < at + 14) { await snapshot(slot).catch((e) => log.warn?.(`[preopen] ${slot}: ${e.message}`)); return slot; }
     }
+    // Trong phiên: đọc mỗi phút để giờ vô hiệu được ghi kể cả khi không ai mở bảng (tài liệu chính vẫn cache 5 phút).
+    if (clock.mins >= 9 * 60 && clock.mins < 15 * 60) { await get().catch((e) => log.warn?.(`[preopen] theo dõi phiên: ${e.message}`)); return null; }
     if (clock.mins >= SCORE_AT) await score(clock.date).catch((e) => log.warn?.(`[preopen] chấm: ${e.message}`));
     return null;
   }
   return {
-    snapshot, score, tick,
-    async get() {
-      if (cache && now() - cache.at < DOC_TTL) return cache.doc;
-      inflight ??= compute().then((doc) => { cache = { at: now(), doc }; return doc; }).finally(() => { inflight = null; });
-      return inflight;
+    snapshot, score, tick, get,
+    /** Từng phiên đã chấm (mới nhất trước) + PO-r2-F + đường cơ sở; không có số bị ẩn. */
+    async ledger({ limit = 60 } = {}) {
+      const lb = await loadLedger();
+      return { rule: RULE_R2, asOf: new Date(now()).toISOString(), confirm: evaluateConfirm(lb), ...leadVsBaseline(lb), rows: ledgerRows(lb, limit) };
     },
     startTimer() { const h = setInterval(() => { void tick(); }, 60_000); h.unref?.(); return h; },
   };

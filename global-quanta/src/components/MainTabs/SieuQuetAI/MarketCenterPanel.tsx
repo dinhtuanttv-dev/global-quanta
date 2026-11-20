@@ -2,7 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { useTabNavigation } from "../../../lib/TabNavigationContext";
 import { fetchMarketJson } from "../../../services/marketDataClient";
-import { usePreopen, type PreopenDoc, type PreopenScenario, type PreopenWorld, type ScenarioId } from "../../../hooks/usePreopen";
+import { usePreopen, usePreopenLedger, type PreopenDoc, type PreopenLedgerRow, type PreopenScenario, type PreopenWorld, type ScenarioId } from "../../../hooks/usePreopen";
 import { CiBar, StaleNotice, postureAllowed, vnWhen } from "./marketQuality";
 
 // Trung tâm thị trường: kết luận → 3 kịch bản → bản đồ giá, thế giới, lịch sử → sổ tiến. Chỉ hiện phần đã đạt kiểm định; phần chưa đạt nói rõ.
@@ -17,7 +17,8 @@ const ddmm = (s: string | null | undefined) => (s ? `${s.slice(8, 10)}/${s.slice
 const vnTime = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" }) : "—");
 
 function ScenarioCard({ s, lead, selected, onSelect, ev }: { s: PreopenScenario; lead: boolean; selected: boolean; onSelect: () => void; ev: PreopenDoc["evidence"] }) {
-  const c = COLOR[s.id], allowed = postureAllowed(s.id, ev);
+  // Hai lớp: cổng ở giao diện + API preopen/3 trả null khi chưa đạt. Thiếu một trong hai thì không hiện.
+  const c = COLOR[s.id], allowed = postureAllowed(s.id, ev) && !!s.posture;
   return (
     <button type="button" aria-pressed={selected} onClick={onSelect} data-testid={`mc-card-${s.id}`} className="grid min-w-0 content-start gap-1.5 rounded-lg border bg-white/[0.02] p-2.5 text-left transition-colors hover:bg-white/[0.04] focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400"
       style={{ borderColor: selected ? c : "rgba(255,255,255,0.1)", borderTop: `3px solid ${c}`, boxShadow: selected ? `0 0 0 1px ${c}33, 0 6px 18px -10px ${c}` : undefined }}>
@@ -35,8 +36,43 @@ function ScenarioCard({ s, lead, selected, onSelect, ev }: { s: PreopenScenario;
         <dt className="text-slate-500">Xác nhận</dt><dd className="m-0 text-right font-mono text-slate-200">{s.confirm}</dd>
         <dt className="text-slate-500">Vô hiệu</dt><dd className="m-0 text-right font-mono text-slate-200">{s.invalid}</dd>
       </dl>
-      {allowed && <span className="text-[11px] text-slate-400">{s.action}</span>}
+      {allowed && s.action && <span className="text-[11px] text-slate-400">{s.action}</span>}
     </button>
+  );
+}
+
+const OUTCOME: Record<ScenarioId, string> = { neg: "Giảm", mid: "Đi ngang", pos: "Tăng" };
+/** "10:42" giờ Việt Nam. */
+const vnHm = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" }) : "—");
+
+/** So kịch bản khớp ES với đường cơ sở bằng hai khoảng Wilson: còn chồng nhau thì không kết luận hơn/kém (cách đọc thận trọng). */
+function verdictVsBaseline(a: { lo: number | null; hi: number | null } | undefined, b: { lo: number | null; hi: number | null } | undefined): string {
+  if (!a || !b || a.lo == null || a.hi == null || b.lo == null || b.hi == null) return "";
+  if (a.lo > b.hi) return "Kịch bản khớp ES đang tốt hơn đường cơ sở rõ rệt.";
+  if (a.hi < b.lo) return "Kịch bản khớp ES đang kém hơn đường cơ sở rõ rệt.";
+  return "Hai khoảng còn chồng nhau: chưa thấy khác biệt rõ so với đường cơ sở.";
+}
+
+/** 20 phiên gần nhất của sổ tiến, cũ → mới: màu là kết quả thực, ✓/✕ là giá đóng cửa trong/ngoài dải, viền sáng là kịch bản khớp đúng. */
+function SessionStrip() {
+  const { data } = usePreopenLedger(true);
+  const rows = (data?.rows ?? []).slice(0, 20).reverse();
+  if (!rows.length) return null;
+  const label = (r: PreopenLedgerRow) => `${ddmm(r.date)}: kết quả ${OUTCOME[r.outcome]} (${sg(r.ccPct)}%), ${r.dayIn ? "trong" : "ngoài"} dải cả phiên${r.day ? ` ${nf(r.day.lo)}–${nf(r.day.hi)}` : ""}, kịch bản khớp ES ${r.lead ? OUTCOME[r.lead] : "không có"}${r.lead ? (r.leadHit ? " — đúng" : " — sai") : ""}`;
+  return (
+    <div className="md:col-span-2" data-testid="mc-strip">
+      <div className="flex items-baseline justify-between gap-2 text-[11px]"><span className="text-slate-400">Từng phiên trong sổ tiến ({rows.length} gần nhất)</span><span className="text-slate-500">✓ trong dải · ✕ ngoài dải · viền sáng: khớp ES đúng</span></div>
+      <ol className="mt-1 flex flex-wrap gap-1" aria-label="Các phiên gần nhất trong sổ tiến">
+        {rows.map((r) => (
+          <li key={r.date} title={label(r)} aria-label={label(r)} data-testid="mc-strip-cell" data-in={r.dayIn ? "1" : "0"}
+            className="flex h-7 w-7 flex-col items-center justify-center rounded text-[10px] leading-none"
+            style={{ background: `${COLOR[r.outcome]}33`, border: `1.5px solid ${r.leadHit ? COLOR[r.outcome] : "rgba(255,255,255,0.08)"}` }}>
+            <b className={r.dayIn ? "text-slate-100" : "text-amber-300"} aria-hidden>{r.dayIn ? "✓" : "✕"}</b>
+            <span className="font-mono text-[9px] text-slate-400" aria-hidden>{r.date.slice(8, 10)}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -151,7 +187,7 @@ export default function MarketCenterPanel() {
         {lead ? <>
           <span className="text-[12px] text-slate-400">Điều kiện ES khớp</span>
           <b className="text-[15px] text-slate-50">{lead.name}</b>
-          {postureAllowed(lead.id, ev) && <span className="text-[12px] text-slate-200" data-testid="mc-verdict-posture">Tham khảo: {lead.posture}</span>}
+          {postureAllowed(lead.id, ev) && lead.posture && <span className="text-[12px] text-slate-200" data-testid="mc-verdict-posture">Tham khảo: {lead.posture}</span>}
           <span className="text-[12px] text-slate-300">ES {sg(d.es.movePct)}% từ lúc VN đóng cửa {ddmm(d.prevDate)}{d.es.frozenAt ? `, chốt lúc ${d.es.frozenAt}` : ""}</span>
           {d.es.at && <span className="text-[11px] text-slate-500" data-testid="mc-es-at">giá ES lúc {vnWhen(d.es.at)}{d.phase === "closed" ? " · thị trường đang nghỉ" : ""}</span>}
         </> : <b className="text-[14px] text-amber-200" data-testid="mc-no-es">Chưa kết luận: {d.es.at ? `giá ES chưa cập nhật từ ${vnTime(d.es.at)}` : "thiếu giá ES"}</b>}
@@ -162,9 +198,12 @@ export default function MarketCenterPanel() {
       {open && <>
 
       {open && t && <div className={`mt-2 rounded-lg border px-3 py-1.5 text-[12px] ${t.invalidated ? "border-amber-400/40 text-amber-200" : "border-white/10 text-slate-200"}`} data-testid="mc-tracking">
-        <p>Mở {nf(t.open, 1)} ({sg(t.gapPct)}%), hiện {nf(t.last, 1)} ({sg(t.movePct)}%). {t.invalidated ? `Kịch bản ${lead?.name} đã vô hiệu.` : `Kịch bản ${lead?.name} còn hiệu lực.`}</p>
+        <p>Mở {nf(t.open, 1)} ({sg(t.gapPct)}%), hiện {nf(t.last, 1)} ({sg(t.movePct)}%). {t.invalidated ? `Kịch bản ${lead?.name} đã vô hiệu.` : t.invalidatedAt ? `Kịch bản ${lead?.name} từng vô hiệu, giá đã quay lại.` : `Kịch bản ${lead?.name} còn hiệu lực.`}</p>
+        {t.invalidatedAt && <p className="text-[11px] text-amber-300" data-testid="mc-invalidated-at"><span aria-hidden>⚑ </span>Vô hiệu lần đầu lúc {vnHm(t.invalidatedAt)}{t.invalidatedLast != null ? ` (VN-Index ${nf(t.invalidatedLast, 1)})` : ""}</p>}
         {lead && <BandMeter last={t.last} lo={lead.day.lo} hi={lead.day.hi} color={COLOR[lead.id]} />}
-        <p className="text-[11px] text-slate-500">Giá trong phiên làm mới tối đa mỗi 5 phút.</p>
+        <p className="text-[11px] text-slate-500" data-testid="mc-track-src">{t.source === "live"
+          ? <>Giá trực tiếp lúc {vnHm(t.at)}, cùng nguồn với thanh trên cùng.</>
+          : t.source === "daily" ? <>Giá từ nến ngày (chưa có giá trực tiếp), có thể trễ.</> : <>Giá trong phiên làm mới tối đa mỗi 5 phút.</>}</p>
       </div>}
 
       <div className="mt-2 grid grid-cols-1 gap-2 lg:grid-cols-3" data-testid="mc-cards">
@@ -172,10 +211,16 @@ export default function MarketCenterPanel() {
       </div>
       {ev.dayBand
         ? <p className="mt-1 text-[11px] text-slate-400" data-testid="mc-day-ok">Dải cả phiên dùng MS-GARCH, đạt kiểm định {ev.rule} khi chạy lại trên dữ liệu cũ: phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Khoảng 1 phiên trong 5 giá vẫn ra ngoài dải. {d.ledger.scored
-          ? <span data-testid="mc-day-forward">Đang xác nhận trên sổ tiến: {d.ledger.scored} phiên, phủ {nf(d.ledger.dayCoverage, 1)}%.</span>
+          ? <span data-testid="mc-day-forward">{ev.confirm
+            ? ev.confirm.status === "passed"
+              ? <>Sổ tiến đã xác nhận ({ev.confirm.rule}, {ev.confirm.n} phiên): phủ {nf(ev.confirm.coverage, 1)}% [{nf(ev.confirm.wilsonLo, 0)}–{nf(ev.confirm.wilsonHi, 0)}].</>
+              : <>Đang xác nhận theo {ev.confirm.rule} (đăng ký trước): {ev.confirm.n}/{ev.confirm.need} phiên, phủ {nf(ev.confirm.coverage, 1)}%. Kết luận khi đủ {ev.confirm.need} phiên.</>
+            : <>Đang xác nhận trên sổ tiến: {d.ledger.scored} phiên, phủ {nf(d.ledger.dayCoverage, 1)}%.</>}</span>
           : <span data-testid="mc-day-forward">Sổ tiến chưa có phiên nào được chấm.</span>}</p>
-        : <p className="mt-1 text-[11px] text-amber-300/90" data-testid="mc-day-warning">* Dải cả phiên chưa đạt kiểm định: thực tế chỉ phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Giá có thể ra ngoài dải.</p>}
-      {!d.scenarios.some((s) => postureAllowed(s.id, ev)) && <p className="text-[11px] text-slate-500" data-testid="mc-no-action">Tư thế và câu hành động được ẩn vì các cổng xác suất, không bán đuổi, không mua đuổi của {ev.rule} chưa đạt. Số bị ẩn vẫn được ghi vào sổ tiến để đánh giá lại.</p>}
+        : ev.confirm?.status === "failed"
+          ? <p className="mt-1 text-[11px] text-amber-300/90" data-testid="mc-day-warning">* Dải cả phiên KHÔNG ĐẠT xác nhận tiến {ev.confirm.rule}: {ev.confirm.n} phiên phủ {nf(ev.confirm.coverage, 1)}% [{nf(ev.confirm.wilsonLo, 0)}–{nf(ev.confirm.wilsonHi, 0)}], cần {ev.confirm.range[0]}–{ev.confirm.range[1]}% và khoảng chứa 80%. Giá có thể ra ngoài dải.</p>
+          : <p className="mt-1 text-[11px] text-amber-300/90" data-testid="mc-day-warning">* Dải cả phiên chưa đạt kiểm định: thực tế chỉ phủ {nf(ev.dayCoverage, 1)}% số phiên, đích 80%. Giá có thể ra ngoài dải.</p>}
+      {!d.scenarios.some((s) => postureAllowed(s.id, ev) && s.posture) &&<p className="text-[11px] text-slate-500" data-testid="mc-no-action">Tư thế và câu hành động được ẩn vì các cổng xác suất, không bán đuổi, không mua đuổi của {ev.rule} chưa đạt. Số bị ẩn vẫn được ghi vào sổ tiến để đánh giá lại.</p>}
       <BriefLine />
 
       <div className="mt-2 grid grid-cols-1 gap-2 2xl:grid-cols-2">
@@ -202,6 +247,8 @@ export default function MarketCenterPanel() {
             </table>
           </div>
           <p className="mt-1 text-[11px] text-slate-500">{ev.sample.tested} phiên, {ddmm(ev.sample.from)}/{ev.sample.from.slice(0, 4)} → {ddmm(ev.sample.to)}/{ev.sample.to.slice(0, 4)}. Mô tả, không phải dự báo.</p>
+          {d.esFit && <p className="mt-1 text-[11px] text-slate-400" data-testid="mc-esfit"><span className="mr-1 rounded border border-amber-500/40 px-1 text-[10px] font-bold text-amber-300" title="Cấp C: mô tả, chưa kiểm định">C</span>
+            Độ nhạy mô tả trên {d.esFit.n} phiên: ES đổi 1% thì mở cửa VN-Index dịch trung bình {sg(d.esFit.slope, 2)}%; 8 trong 10 phiên nằm trong {sg(d.esFit.residLo, 2)}% đến {sg(d.esFit.residHi, 2)}% quanh mức đó.</p>}
         </div>
         <div className="min-w-0 rounded-lg border border-white/10 p-2" data-testid="mc-evidence">
           <h3 className="text-[12px] font-semibold text-slate-200">Rủi ro và độ tin cậy</h3>
@@ -215,8 +262,13 @@ export default function MarketCenterPanel() {
           </div>
           {d.ledger.scored > 0 && <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2" data-testid="mc-calibration">
             <CiBar value={d.ledger.dayCoverage} n={d.ledger.scored} target={80} label="Dải cả phiên phủ (sổ tiến)" testId="mc-ci-day" />
-            <CiBar value={d.ledger.leadHit} n={d.ledger.scored} compare={{ v: 100 / 3, label: "đoán ngẫu nhiên 3 nhóm" }} label="Kịch bản khớp ES đúng (sổ tiến)" testId="mc-ci-lead" />
-            <p className="text-[11px] text-slate-500 md:col-span-2">Ngoặc vuông là khoảng tin cậy Wilson 95% với {d.ledger.scored} phiên đã chấm. Vạch vàng: đích 80%; vạch đứt: 33% nếu đoán ngẫu nhiên. Khoảng còn rộng nghĩa là chưa đủ phiên để kết luận.</p>
+            {d.ledger.lead && d.ledger.alwaysMid?.pct != null
+              ? <CiBar value={d.ledger.lead.pct} n={d.ledger.lead.n} compare={{ v: d.ledger.alwaysMid.pct, label: "luôn đoán Trung tính" }} label="Kịch bản khớp ES đúng (sổ tiến)" testId="mc-ci-lead" />
+              : <CiBar value={d.ledger.leadHit} n={d.ledger.scored} compare={{ v: 100 / 3, label: "đoán ngẫu nhiên 3 nhóm" }} label="Kịch bản khớp ES đúng (sổ tiến)" testId="mc-ci-lead" />}
+            <p className="text-[11px] text-slate-500 md:col-span-2" data-testid="mc-ci-note">Ngoặc vuông là khoảng tin cậy Wilson 95% với {d.ledger.scored} phiên đã chấm. Vạch vàng: đích 80%; vạch đứt: {d.ledger.alwaysMid?.pct != null
+              ? <>luôn đoán Trung tính trên cùng các phiên ({nf(d.ledger.alwaysMid.pct, 1)}%). {verdictVsBaseline(d.ledger.lead, d.ledger.alwaysMid)}</>
+              : <>33% nếu đoán ngẫu nhiên.</>} Khoảng còn rộng nghĩa là chưa đủ phiên để kết luận.</p>
+            <SessionStrip />
           </div>}
           <p className="mt-1 text-[11px] text-slate-500" data-testid="mc-legend">Mỗi nhãn đo một việc: kịch bản theo ES sáng nay; MS-GARCH theo biến động VN-Index đến phiên trước; nhãn THẾ GIỚI trên thanh trên cùng theo rủi ro toàn cầu; Trạng thái thị trường bên dưới theo xu hướng, độ rộng và biến động Yang–Zhang 20 phiên. Vì vậy chúng có thể khác nhau, kể cả hai con số biến động %/năm.</p>
           <p className="text-[11px] text-slate-500">Vùng mở cửa, xác suất và tư thế được ghi vào sổ mỗi sáng, chỉ hiện khi đạt kiểm định. Không phải khuyến nghị đầu tư.</p>

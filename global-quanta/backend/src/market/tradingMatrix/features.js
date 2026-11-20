@@ -173,7 +173,8 @@ export function sourceHealth({ id, label, kind, asOf, error = null, expectedDate
 export function overallHealth(list, required = []) {
   const req = list.filter((s) => required.includes(s.id));
   if (req.length && req.every((s) => s.status === "UNAVAILABLE")) return "UNAVAILABLE";
-  if (list.some((s) => s.status === "UNAVAILABLE" || s.status === "STALE")) return "PARTIAL";
+  // Nguồn con tự báo PARTIAL cũng làm tổng thành PARTIAL (trước đây rơi xuống LIVE).
+  if (list.some((s) => s.status === "UNAVAILABLE" || s.status === "STALE" || s.status === "PARTIAL")) return "PARTIAL";
   if (list.some((s) => s.status === "DELAYED")) return "DELAYED";
   return "LIVE";
 }
