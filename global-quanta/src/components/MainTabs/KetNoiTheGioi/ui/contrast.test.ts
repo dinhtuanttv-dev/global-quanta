@@ -4,10 +4,11 @@ import { contrastRatio, inkOn, TONE_CHIP } from "./contrast";
 import { divergingColor } from "../../../../lib/worldSectors/types";
 
 describe("contrast", () => {
-  it("inkOn: mọi mức z từ −2,5 đến +2,5 (bước 0,1) đạt ≥ 4,5:1", () => {
-    for (let z = -2.5; z <= 2.5001; z += 0.1) {
+  // 20/11/2026: bước 0,1 bỏ sót z = −2,01 (4,48:1 với chữ #f8fafc, bắt được trên dữ liệu thật) -> quét bước 0,005, cả ngoài ±2,5.
+  it("inkOn: mọi mức z từ −3 đến +3 (bước 0,005) đạt ≥ 4,5:1", () => {
+    for (let z = -3; z <= 3.0001; z += 0.005) {
       const bg = divergingColor(z);
-      expect(contrastRatio(inkOn(bg), bg), `z=${z.toFixed(1)} ${bg}`).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(inkOn(bg), bg), `z=${z.toFixed(3)} ${bg}`).toBeGreaterThanOrEqual(4.5);
     }
   });
   it("nhãn ngữ nghĩa nền nhạt trên nền khối #0E131F đạt ≥ 4,5:1 (chữ tô trên nền đã trộn)", () => {
