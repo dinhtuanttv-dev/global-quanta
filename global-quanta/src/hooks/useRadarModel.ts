@@ -13,15 +13,25 @@ import { buildRadarModel, type RadarModel, type RadarSources } from "../lib/rada
 import { useGatewayBuyTimeline } from "./useGatewayBuyTimeline";
 import { useDecisionStates } from "./useCotucDecision";
 import { buyCriterion } from "../lib/radarTimeline";
+// RD-4 (20/11/2026): nguồn mã có thể là danh mục Elite HL chính thức (cùng khoá SWR "elite-decision" với tab QUYẾT ĐỊNH; chỉ gọi khi chọn).
+import useSWR from "swr";
+import { fetchMarketJson, isMarketGatewayEnabled } from "../services/marketDataClient";
+import { hlPicks, type EliteDecision } from "../lib/elite10/decisionTypes";
+import { ELITE_HL_LIST_ID, ELITE_HL_LIST_NAME, useRadarSource } from "../lib/radarSource";
 
 /**
  * ELITE COMMAND RADAR theo ★ Danh mục được chọn cho Radar (mặc định "Danh mục của tôi").
  * Gom dữ liệu thật của 6 tab (Siêu Quét qua Gateway; các tab còn lại cùng nguồn API với tab đó, SWR dùng chung
  * bộ đệm) và chấm hội tụ 6/6 cho từng mã. Gọi ở cả Radar và Action Center: SWR khử trùng nên không gọi API lặp.
  */
-export function useRadarModel(): RadarModel & { listName: string; listId: string; tickers: string[]; loading: boolean } {
+export function useRadarModel(): RadarModel & { listName: string; listId: string; tickers: string[]; loading: boolean; sourceError?: string | null } {
   const { radar } = useWatchlists();
-  const tickers = radar.tickers;
+  const source = useRadarSource();
+  const hl = useSWR<EliteDecision>(source === "elite-hl" && isMarketGatewayEnabled() ? "elite-decision" : null,
+    () => fetchMarketJson<EliteDecision>("/api/elite/decision"), { revalidateOnFocus: false, refreshInterval: 30 * 60_000, dedupingInterval: 5 * 60_000, errorRetryCount: 2 });
+  const hlTickers = useMemo(() => hlPicks(hl.data).map((p) => p.ticker), [hl.data]);
+  const isHl = source === "elite-hl";
+  const tickers = isHl ? hlTickers : radar.tickers;
   const { items, isLoading } = useSieuQuetScanner();
   const basket = useScannerBasket(items, "WATCHLIST", tickers);
   const live = useAppStore((s) => s.livePrices);
@@ -73,5 +83,5 @@ export function useRadarModel(): RadarModel & { listName: string; listId: string
   }, [basket.items, ws.data, catalyst, top20Data, ta.rows, ta.doc, buy]);
 
   const model = useMemo(() => buildRadarModel(tickers, sources, live), [tickers, sources, live]);
-  return { ...model, listName: radar.name, listId: radar.id, tickers, loading: isLoading || basket.loading };
+  return { ...model, listName: isHl ? ELITE_HL_LIST_NAME : radar.name, listId: isHl ? ELITE_HL_LIST_ID : radar.id, tickers, loading: isLoading || basket.loading || (isHl && !hl.data && !hl.error), sourceError: isHl && hl.error ? String((hl.error as Error).message ?? hl.error) : null };
 }

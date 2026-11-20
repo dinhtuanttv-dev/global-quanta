@@ -19,6 +19,9 @@ import { coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzCardLine, PzCells } from "./H
 // bảng này giữ thẻ tóm tắt + nút sang tab 4, và nhận khung "Mã đang chọn" (cổ tức · mô phỏng thời điểm · tin tức) từ Hồ sơ 360°.
 import { HlEvidenceLink, Panel } from "./HlRulesLedger";
 import HlFocusFrame from "./HlFocusFrame";
+// HL-RADAR P1 (20/11/2026, tài liệu 20): lớp hiển thị lấy từ ELITE COMMAND RADAR — chỉ THÊM phần tử (data-hl-layer), không đổi số / logic.
+import { HlLayerToggles, HlLivePrice, HlTickerBadge, rimStyle } from "./HlRadarLayers";
+import { useHlLayers, useHlRowSignals } from "../../../hooks/elite10/useHlRowSignals";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
@@ -121,6 +124,9 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const pxOf = (t: string) => d.dilution?.byTicker?.[t] ?? null;
   const pxBadge = (t: string, id: string) => (pxOf(t) ? <> <DilutionBadge p={pxOf(t)} pxR1={d.dilution?.pxR1} testId={id} /></> : null);
   const picks = hlPicks(d);
+  const [layers, toggleLayer] = useHlLayers();
+  const heldTickers = useMemo(() => picks.map((p) => p.ticker), [picks.map((p) => p.ticker).join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rowSig = useHlRowSignals(heldTickers, layers);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
   const corePicks = coreOf(picks, Boolean(pz)), runnerCount = picks.length - corePicks.length;
@@ -197,6 +203,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
 
       <Panel title={pz ? `Danh mục Elite HL · trong nền và vùng mua (${corePicks.length} mã)` : `Danh mục Elite HL (${f.held}/${r.slots})`} testId="elite-portfolio" right={<span className="text-[10px] text-slate-500">Bấm mã để mở Hồ sơ 360°</span>}>
         {pz && <p className="mb-1.5 text-[10.5px] text-slate-400" data-testid="hl-pz-mode"><span className={`mr-1 rounded border px-1 py-px text-[10px] font-bold ${pz.gate ? "border-emerald-400/60 text-emerald-200" : "border-slate-400/50 text-slate-300"}`}>{pz.gate ? "CỔNG BẬT" : "CHỈ HIỂN THỊ"}</span>{pz.modeVi}</p>}
+        <HlLayerToggles layers={layers} onToggle={toggleLayer} note={layers.news && rowSig.newsError ? "Tin tức tạm không tải được." : null} />
         <PortfolioLiquidityLine rows={picks.map((p) => ({ ticker: p.ticker, weight: p.weight, liq: liqOf(p.ticker), sigma20: p.hl.sigma20 }))} rules={lq} />
         {picks.length === 0 ? <p className="text-[11px] text-slate-400" data-testid="hl-empty">Không có mã nào đạt Hợp lưu và giao dịch được — danh mục đang 100% tiền mặt.</p> : (
           <>
@@ -204,12 +211,12 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             {corePicks.map((p) => {
               const h = p.hl;
               return (
-                <li key={p.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`hl-card-${p.ticker}`}>
+                <li key={p.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`hl-card-${p.ticker}`} style={rimStyle(rowSig.map.get(p.ticker), layers.news)}>
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{p.ticker}</button> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
+                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{p.ticker}</button><HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} mobile /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
-                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}{pxBadge(p.ticker, `hl-px-m-${p.ticker}`)}</p>
+                  <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}<HlLivePrice s={rowSig.map.get(p.ticker)} on={layers.live} mobile />{pxBadge(p.ticker, `hl-px-m-${p.ticker}`)}</p>
                   {pfaOf(p.ticker).length > 0 && <div className="mt-0.5"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-m-${p.ticker}`} /></div>}
                   <p className="mt-1 text-slate-300">Tầng 1 <b className="text-slate-100">{h.t1}/{t1.maxScore}</b> <span className="text-slate-500">(LS {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels})</span> · <span className={RRG_TONE[String(h.rrg)] ?? "text-slate-400"}>{h.rrg == null ? "chưa có RRG" : RRG_VI[String(h.rrg)]}</span> · Tầng 3 <b className={h.t3 > 0 ? "text-emerald-300" : h.t3 < 0 ? "text-rose-300" : "text-slate-400"}>{pts(h.t3)}</b></p>
                   <p className="text-slate-400">Cách ngưỡng ra {h.exitBufferLs == null ? "—" : <b className={h.exitBufferLs < r.warnLsPct - r.exitLsPct ? "text-amber-300" : "text-slate-100"}>{signed(h.exitBufferLs, 0)}</b>} <Bar value={h.lsPct ?? 0} max={100} mark={r.exitLsPct / 100} width={72} /></p>
@@ -227,7 +234,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: pz ? 1260 : 940 }}>
               <thead>
                 <tr className="text-left text-[10px] text-slate-500">
-                  <th className="py-1 font-normal">Hạng</th><th className="font-normal">Mã · ngành</th><th className="font-normal">Trạng thái</th><th className="font-normal">Tỷ trọng</th>
+                  <th className="py-1 pr-2 font-normal">Hạng</th><th className="font-normal">Mã · ngành</th><th className="font-normal">Trạng thái</th><th className="font-normal">Tỷ trọng</th>
                   <th className="font-normal" title="Tầng 1 = điểm LS-v1 (0–5) + số mô hình TA đạt (tối đa 5)">Tầng 1 · dẫn dắt + TA</th>
                   <th className="font-normal" title="Góc phần tư RRG của ngành">Tầng 2 · RRG</th><th className="font-normal" title="Tổng điểm +1 / −1 từ các tab khác">Tầng 3</th>
                   <th className="font-normal" title={`Ra khi LS-v1 xuống dưới phân vị ${r.exitLsPct}, không còn mô hình TA, hoặc ngành Tụt hậu`}>Cách ngưỡng ra</th>
@@ -240,9 +247,9 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                   const h = p.hl;
                   return (
                     <Fragment key={p.ticker}>
-                    <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`}>
+                    <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`} style={rimStyle(rowSig.map.get(p.ticker), layers.news)}>
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
-                      <td className="pr-2">{openBtn(p.ticker)} <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
+                      <td className="pr-2">{openBtn(p.ticker)}<HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
                         <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}</span>
                         {pxOf(p.ticker) && <span className="mt-0.5 block"><DilutionBadge p={pxOf(p.ticker)} pxR1={d.dilution?.pxR1} testId={`hl-px-${p.ticker}`} /></span>}
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}</td>
@@ -260,7 +267,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                         {h.warnings.map((w) => <span key={w} className="block text-[10px] text-amber-300" data-testid={`hl-warn-${p.ticker}`}>⚠ {w}</span>)}
                       </td>
                       {pz && <PzCells pz={h.pz} rules={pzRules} />}
-                      <td className="whitespace-nowrap text-right font-mono">{price(p.close)}<span className="block text-[10px] text-slate-500">{price(p.stop)} – {price(p.target)}</span>
+                      <td className="whitespace-nowrap text-right font-mono">{price(p.close)}<HlLivePrice s={rowSig.map.get(p.ticker)} on={layers.live} /><span className="block text-[10px] text-slate-500">{price(p.stop)} – {price(p.target)}</span>
                         {(() => { const c = corridorPos(p, r); return <span className="flex justify-end"><VolCorridor ret={c.ret} band={c.band} testId={`hl-corridor-${p.ticker}`} /></span>; })()}</td>
                     </tr>
                     {why === p.ticker && <tr><td colSpan={pz ? 12 : 9} className="pb-2"><HlWhy p={p} exitLsPct={r.exitLsPct} /></td></tr>}

@@ -16,11 +16,13 @@ import { buyTimingFreshness } from '../../hooks/useGatewayBuyTimeline';
 import { useEliteTiming } from '../../hooks/elite10/useEliteTiming';
 import { buyWindowEvents, pickRadarBuyRows, upcomingBuyChips, SOON_SESSIONS, CHIP_SESSIONS, RADAR_CRITERIA_VERSION, type RadarBuyInfo, type RadarBuyRing } from '../../lib/radarTimeline';
 import { fmtOffset, fmtRatioPct } from '../../lib/cotuc/format';
+import { newsInfoByTicker, rimTone } from '../../lib/newsSignals';
+import { ELITE_HL_LIST_ID, setRadarSource, useRadarSource } from '../../lib/radarSource';
 
 // ELITE COMMAND RADAR — ★ Danh mục được chọn, chấm hội tụ 6 tiêu chí bằng dữ liệu thật.
 //   Góc = nhóm ngành · Bán kính = điểm hội tụ (tâm = 6/6, vùng vàng = Core ≥ 4/6) · Kích thước = Smart Score
 //   Ký hiệu = trạng thái (🛡 ổn định / ⚡ bứt phá / ⚠ cảnh báo) · Viền = cảm xúc tin 3 ngày · Vòng nhấp nháy = tin quan trọng trong 24 giờ.
-// Lịch sử (Supabase qua Gateway): ảnh chụp mỗi ngày giao dịch -> vệt chuyển động 5 ngày, thanh tua lại, sự kiện radar (vào/ra Core…).
+// Lịch sử (kho Gateway trên Railway — RD-1 20/11/2026): ảnh chụp mỗi ngày giao dịch -> vệt chuyển động 5 ngày, thanh tua lại, sự kiện radar (vào/ra Core…).
 // Lớp tín hiệu dòng tiền (giai đoạn 3): ◆ Stealth 20 (tín hiệu duy nhất đã qua kiểm định có lợi thế, kèm bằng chứng),
 // ý đồ IFE (chỉ tham khảo — chưa có lợi thế), xác suất mô hình thích ứng (chỉ khi mô hình đạt kiểm định).
 // Lớp ⏱ Điểm mua (Timeline tab Cổ tức): CHỈ mã đang có trên Radar — vòng quanh chấm (xanh = trong vùng mua, vàng = ≤ 5 phiên,
@@ -223,6 +225,9 @@ export default function EliteCommandRadar() {
   const { selectedTicker, selectTicker } = useAppStore();
   const live = useAppStore((s) => s.livePrices);
   const { lists, setRadarList } = useWatchlists();
+  const source = useRadarSource();
+  const isHl = source === 'elite-hl';
+  const listMark = isHl ? '◆' : '★'; // ◆ = danh mục Elite HL chính thức, ★ = danh mục tự tạo
   const model = useRadarModel();
   const { scored, core, risk, digest, missingSources, listName, listId, tickers } = model;
   const news = useSmartNews(tickers);
@@ -294,21 +299,8 @@ export default function EliteCommandRadar() {
   }, [playing, pastDates]);
 
   // Tin: cảm xúc trung bình 3 ngày (viền) và tin quan trọng 24 giờ (vòng nhấp nháy).
-  const newsInfo = useMemo(() => {
-    const out = new Map<string, { sentiment: number; hot: boolean }>();
-    const now = Date.now();
-    for (const it of news.data?.items ?? []) {
-      const age = it.publishedAt ? (now - Date.parse(it.publishedAt)) / 3_600_000 : 999;
-      if (age > 72) continue;
-      for (const t of it.tickers) {
-        const cur = out.get(t) ?? { sentiment: 0, hot: false };
-        cur.sentiment += it.sentiment;
-        if (age <= 24 && it.importance >= 70) cur.hot = true;
-        out.set(t, cur);
-      }
-    }
-    return out;
-  }, [news.data]);
+  // Tài liệu 20: cùng hàm và ngưỡng với bảng Danh mục Elite HL (lib/newsSignals) — giá trị không đổi.
+  const newsInfo = useMemo(() => newsInfoByTicker(news.data?.items ?? [], Date.now()), [news.data]);
 
   const stealthEdge = sig?.evidence.STEALTH_20.verdict === 'edge';
   const stealthOn = sig ? Object.entries(sig.items).filter(([, v]) => v?.stealth20.on)
@@ -326,7 +318,8 @@ export default function EliteCommandRadar() {
     const st = v.st;
     const smart = v.sm;
     const ni = replay ? undefined : newsInfo.get(n.ticker);
-    const rim = ni ? (ni.sentiment >= 0.25 ? UP : ni.sentiment <= -0.25 ? DOWN : null) : null;
+    const tone = rimTone(ni);
+    const rim = tone === "up" ? UP : tone === "down" ? DOWN : null;
     const isSel = selectedTicker === n.ticker;
     const buy = replay ? undefined : buyMap.get(n.ticker);
     const label = `${n.ticker}: ${v.s}/6 tiêu chí${n.core ? ', Core' : ''}, Smart ${smart?.toFixed(1) ?? '—'}, nhóm ${n.group}${v.sg ? `, Stealth 20 ${stealthText(v.sg)}` : ''}${buy ? `, điểm mua: ${BUY_STATUS[buy.row.status].toLowerCase()}` : ''}`;
@@ -384,8 +377,9 @@ export default function EliteCommandRadar() {
   };
 
   const header = (
-    <select value={listId} onChange={(e) => setRadarList(e.target.value)} aria-label="Danh mục hiển thị trên Radar"
+    <select value={isHl ? ELITE_HL_LIST_ID : listId} onChange={(e) => { if (e.target.value === ELITE_HL_LIST_ID) setRadarSource('elite-hl'); else { setRadarSource('watchlist'); setRadarList(e.target.value); } }} aria-label="Danh mục hiển thị trên Radar" data-testid="radar-source"
       className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-slate-300 max-w-[150px]">
+      <option value={ELITE_HL_LIST_ID}>◆ Danh mục Elite HL (chính thức{isHl ? ` · ${tickers.length}` : ''})</option>
       {lists.map((l) => <option key={l.id} value={l.id}>★ {l.name} ({l.tickers.length})</option>)}
     </select>
   );
@@ -395,7 +389,7 @@ export default function EliteCommandRadar() {
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mb-1">
         {tickers.length ? (
           <>
-            <span>★ {listName}: <b className="text-slate-200">{tickers.length}</b> mã</span>
+            <span>{listMark} {listName}: <b className="text-slate-200">{tickers.length}</b> mã</span>
             <span>Core <b className="text-amber-400">{viewItems.filter((i) => i.core).length}</b></span>
             {replay && <span className="text-cyan-300">⏮ Đang xem {fmtDate(replay.date)}</span>}
             <span>{groups} nhóm ngành</span>
@@ -408,7 +402,7 @@ export default function EliteCommandRadar() {
               </button>
             )}
           </>
-        ) : <span>★ {listName} đang trống — bấm ☆ cạnh mã trong Bảng Siêu Quét hoặc tìm mã (phím /) để thêm.</span>}
+        ) : isHl ? <span data-testid="radar-hl-empty">{model.sourceError ? `Không tải được ${listName} (${model.sourceError}).` : model.loading ? `Đang tải ${listName}…` : `${listName} hiện không có mã đang giữ (100% tiền mặt).`}</span> : <span>{listMark} {listName} đang trống — bấm ☆ cạnh mã trong Bảng Siêu Quét hoặc tìm mã (phím /) để thêm.</span>}
       </div>
 
       <div className="relative">
@@ -485,7 +479,7 @@ export default function EliteCommandRadar() {
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-500 mt-1">
-        <span><span style={{ color: AMBER }}>●</span> Core ≥{CORE_MIN}/6 (vùng vàng)</span>
+        <span><span style={{ color: AMBER }}>●</span> Core ≥{CORE_MIN}/6 (vùng vàng) <span className="rounded border border-white/15 px-1 text-slate-400" data-testid="radar-core-desc" title="Điểm hội tụ 6 tiêu chí và ngưỡng Core chưa qua kiểm định đăng ký trước — chỉ mô tả, không phải tín hiệu có lợi thế đã chứng minh">MÔ TẢ</span></span>
         <span>Gần tâm = nhiều tiêu chí</span>
         <span>Góc = nhóm ngành</span>
         <span>To = Smart cao</span>
@@ -493,12 +487,13 @@ export default function EliteCommandRadar() {
         <span>Viền <span style={{ color: UP }}>xanh</span>/<span style={{ color: DOWN }}>đỏ</span> = tin 3 ngày</span>
         {sig && <span><span style={{ color: UP }}>◆</span>/<span style={{ color: DOWN }}>◆</span> Stealth 20 tích luỹ/phân phối{stealthEdge ? ' (đã kiểm định)' : ' (rỗng = chưa đạt kiểm định)'}</span>}
         <span>⏱ vòng <span style={{ color: UP }}>xanh</span> = trong vùng mua · <span style={{ color: AMBER }}>vàng</span> = ≤ {SOON_SESSIONS} phiên · nét đứt = gần đạt kiểm định</span>
+        <span data-testid="radar-timeline-note">Tiêu chí 6 dùng vùng "đạt kiểm định" của Timeline — rà soát 07/11: tỷ lệ đạt ngang dữ liệu giả, chỉ tham khảo lịch.</span>
       </div>
 
       {!replay && tickers.length > 0 && (
         <div className="mt-2 rounded-lg px-2 py-1.5" style={{ background: 'rgba(52,211,153,0.04)', border: '1px solid rgba(52,211,153,0.2)' }} aria-label="Điểm mua sắp tới" data-testid="radar-buy-strip">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[10px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · ★ {listName}</div>
+            <div className="text-[10px] tracking-wider font-semibold text-emerald-300">⏱ ĐIỂM MUA {CHIP_SESSIONS} PHIÊN TỚI · {listMark} {listName}</div>
             <span className="text-[10px] text-slate-500 shrink-0">Timeline tab Cổ tức · chỉ mã trên Radar</span>
           </div>
           {timeline.data && buyTimingFreshness(timeline.meta) && (
@@ -517,7 +512,7 @@ export default function EliteCommandRadar() {
                   </button>
                 ))}
               </div>
-            ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong ★ {listName} có vùng mua trong {CHIP_SESSIONS} phiên tới{buyMap.size ? ` (${buyMap.size} mã có vùng mua xa hơn)` : ''}.</div>}
+            ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong {listMark} {listName} có vùng mua trong {CHIP_SESSIONS} phiên tới{buyMap.size ? ` (${buyMap.size} mã có vùng mua xa hơn)` : ''}.</div>}
           {buyEvents.length > 0 && (
             <ul className="mt-1 space-y-0.5" aria-label="Sự kiện điểm mua">
               {buyEvents.map((e) => (
@@ -551,7 +546,7 @@ export default function EliteCommandRadar() {
                 </button>
               ))}
             </div>
-          ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong ★ {listName} đang bật Stealth 20 ({sig.freshFrom ? `từ ${fmtDate(sig.freshFrom)}` : '3 phiên gần nhất'}).</div>}
+          ) : <div className="text-[10px] text-slate-500 mt-1">Không mã nào trong {listMark} {listName} đang bật Stealth 20 ({sig.freshFrom ? `từ ${fmtDate(sig.freshFrom)}` : '3 phiên gần nhất'}).</div>}
           <div className="text-[10px] text-slate-500 mt-1 leading-snug">
             ◐ Ý đồ HMM: <span style={{ color: UP }}>Gom {intents.filter((v) => v!.intent!.direction > 0).length}</span> · <span style={{ color: DOWN }}>Xả {intents.filter((v) => v!.intent!.direction < 0).length}</span> mã — chỉ tham khảo (chưa có lợi thế thống kê).
             {' '}✦ Mô hình thích ứng: {sig.adaptiveModels.some((m) => m.active)
@@ -586,7 +581,7 @@ export default function EliteCommandRadar() {
               : history.saving ? 'Đang lưu ảnh chụp hôm nay…'
               : !ready ? 'Chờ đủ 6 nguồn dữ liệu rồi mới lưu ảnh chụp hôm nay.'
               : history.today && history.snapshots.some((s) => s.date === history.today)
-                ? `Đã lưu ảnh chụp ${fmtDate(history.today)} · ${history.snapshots.length} ngày · Supabase, xem được trên mọi máy đã đăng nhập.`
+                ? `Đã lưu ảnh chụp ${fmtDate(history.today)} · ${history.snapshots.length} ngày · kho Gateway, xem được trên mọi máy đã đăng nhập.`
                 : history.loading ? 'Đang tải lịch sử…' : 'Sẽ lưu ảnh chụp hôm nay sau ít giây.'}
             {trails.size > 0 && ' Vệt đứt = điểm 5 ngày trước (xanh: mạnh lên, đỏ: yếu đi).'}
           </div>
@@ -621,7 +616,7 @@ export default function EliteCommandRadar() {
       {selected && sig && <SignalLayer x={sig.items[selected.ticker] ?? null} sig={sig} />}
       {selected && buyMap.get(selected.ticker) && <BuyLayer info={buyMap.get(selected.ticker)!} />}
       {selectedTicker && !selected && !replay && tickers.length > 0 && (
-        <div className="mt-2 text-[10.5px] text-slate-400">☆ {selectedTicker} chưa có trong ★ {listName} — bấm <b className="text-cyan-300">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</div>
+        <div className="mt-2 text-[10.5px] text-slate-400">{isHl ? <>{selectedTicker} không thuộc {listName} (danh mục do quy tắc HL chọn).</> : <>☆ {selectedTicker} chưa có trong {listMark} {listName} — bấm <b className="text-cyan-300">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</>}</div>
       )}
       {risk && (
         <div className="mt-2 rounded-lg px-2.5 py-1.5 text-[10.5px]" style={{
