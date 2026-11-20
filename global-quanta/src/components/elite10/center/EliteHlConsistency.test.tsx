@@ -18,6 +18,9 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useEliteRetro: () => ({ data: null }), useEliteRetroV3: () => ({ data: null }), useEliteToShadow: () => ({ data: null }),
   useEliteRisk: () => ({ data: S.risk, isLoading: false }),
 }));
+vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) })); // QĐ-R: sổ HL (HlLedgerNote) không gọi mạng trong test
+vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: null }) }));
+vi.mock("../profile/ProfileHeader", () => ({ default: () => null })); // QĐ-R: test Hồ sơ 360° chỉ kiểm khối đã chuyển đi
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: null }) }));
 vi.mock("./ConfluenceCard", () => ({ default: () => null }));
 vi.mock("./LeadershipCard", () => ({ default: () => null }));
@@ -25,11 +28,11 @@ vi.mock("./StockImpactCard", () => ({ default: () => null }));
 vi.mock("./EliteToShadowCard", () => ({ default: () => null }));
 // Hub: chỉ kiểm cơ chế giữ Phòng họp AI trong cây -> các tab con thay bằng khối giả.
 const aiMounts = vi.hoisted(() => ({ n: 0, unmounts: 0 }));
-vi.mock("./DecisionBoard", () => ({ default: () => <div data-testid="stub-board" />, TierChip: () => null }));
+vi.mock("./DecisionBoard", () => ({ default: ({ onNavigateToEvidence }: { onNavigateToEvidence?: () => void }) => <div data-testid="stub-board"><button type="button" data-testid="stub-goto-evidence" onClick={onNavigateToEvidence} /></div>, TierChip: () => null }));
 vi.mock("./EliteScreener", () => ({ default: () => null }));
-vi.mock("./ToTickerCard", () => ({ default: () => null }));
-vi.mock("../timing/TimingSimPanel", () => ({ default: () => null }));
-vi.mock("../news/EliteNewsPanel", () => ({ default: () => null }));
+vi.mock("./ToTickerCard", () => ({ default: () => <div data-testid="stub-to" /> }));
+vi.mock("../timing/TimingSimPanel", () => ({ default: () => <div data-testid="stub-sim" /> }));
+vi.mock("../news/EliteNewsPanel", () => ({ default: () => <div data-testid="stub-news" /> }));
 vi.mock("./EliteAiRoom", async () => {
   const { useEffect } = await import("react");
   return { default: () => { useEffect(() => { aiMounts.n++; return () => { aiMounts.unmounts++; }; }, []); return <div data-testid="stub-ai">đang tranh luận</div>; } };
@@ -188,5 +191,23 @@ describe("Elite10Hub — Phòng họp AI không bị huỷ khi đổi tab con", 
     await act(async () => { fireEvent.click(document.getElementById("elite10-ai-tab")!); });
     expect(aiMounts.n).toBe(1);
     expect(screen.getByTestId("elite10-ai-keepalive").hasAttribute("hidden")).toBe(false);
+  });
+});
+
+// QĐ-R (20/11/2026)
+describe("Elite10Hub — sắp xếp lại tab QUYẾT ĐỊNH", () => {
+  afterEach(() => cleanup());
+  it("vẫn đúng 5 tab con; nút ở Bảng quyết định mở tab 4", async () => {
+    render(<Elite10Hub />);
+    expect(document.querySelectorAll('[role="tab"]').length).toBe(5);
+    await act(async () => { fireEvent.click(screen.getByTestId("stub-goto-evidence")); });
+    expect(document.getElementById("elite10-evidence-tab")!.getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryByTestId("stub-board")).toBeNull();
+  });
+  it("Hồ sơ 360° không còn Sự kiện cổ tức, Mô phỏng thời điểm, Tin tức Elite (đã chuyển sang Bảng quyết định)", async () => {
+    S.ticker = { decision: null, panel: null, isLoading: true, error: null };
+    render(<Elite10Hub />);
+    await act(async () => { fireEvent.click(document.getElementById("elite10-profile-tab")!); });
+    expect(screen.queryByTestId("stub-to")).toBeNull(); expect(screen.queryByTestId("stub-sim")).toBeNull(); expect(screen.queryByTestId("stub-news")).toBeNull();
   });
 });

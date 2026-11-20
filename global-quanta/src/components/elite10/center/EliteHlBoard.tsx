@@ -1,22 +1,24 @@
 // E4-HL (12/11/2026) — BẢNG QUYẾT ĐỊNH ELITE HL: danh mục chính thức dựng trên quy tắc Hợp lưu đa yếu tố HL-v1 (cấu trúc G2r).
 // Command Deck (18/11/2026, A1–A6): thanh lệnh + 4 đồng hồ + dải Hôm nay + radar ngưỡng bán + phễu + Không gian quy tắc 2D/3D +
 // hàng chờ dạng thẻ + tường bằng chứng; bảng danh mục nâng cấp tại chỗ (thanh LS, chấm TA, dải biến động, rủi ro Euler). Chỉ giao diện.
-// Bố cục: dải chỉ số -> phễu chọn lọc -> thay đổi hôm nay -> danh mục (ba tầng, ngưỡng ra) -> phân bổ ngành + hàng chờ -> quy tắc,
-// kết quả K0 và sổ theo dõi tiến so với danh mục dòng tiền (cũ). Mọi số đến từ Gateway /api/elite/decision; nhãn THĂM DÒ luôn hiện.
+// Bố cục: dải chỉ số -> phễu chọn lọc -> thay đổi hôm nay -> danh mục (ba tầng, ngưỡng ra) -> hàng chờ -> phân bổ ngành + thẻ tóm tắt
+// bằng chứng (nút sang tab 4) -> khung Mã đang chọn. Quy tắc, K0, sổ theo dõi tiến ở tab 4 (QĐ-R 20/11/2026). Số từ /api/elite/decision.
 import { Fragment, useMemo, useState } from "react";
 import { HL_TA_LABELS, HL_VOTE_LABELS } from "../../../lib/elite10/confluence";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
-import { hlPicks, type EliteDecision, type HlClassCode, type HlPick, type LedgerSummary } from "../../../lib/elite10/decisionTypes";
+import { hlPicks, type EliteDecision, type HlClassCode, type HlPick } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
-import HlLedgerNote from "./HlLedgerNote";
 import HlCalendarStrip from "./HlCalendarStrip";
 import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
 import DilutionBadge from "./DilutionBadge";
-import CashGateCard from "./CashGateCard";
 import { LQ_DEFAULT } from "../../../lib/elite10/liquidity";
 import { useProfileFaWarnings } from "../../../hooks/elite10/useProfileFa";
 import { WarningList } from "../profile/pfaParts";
-import { coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzCardLine, PzCells, PzRulesItems } from "./HlPricePosition";
+import { coreOf, DEFAULT_PZ_RULES, HlWatchPanel, PzCardLine, PzCells } from "./HlPricePosition";
+// QĐ-R (20/11/2026): "Quy tắc vào · giữ · ra", "Sổ theo dõi tiến" và thẻ Cổng tiền mặt chuyển sang tab 4 (HlRulesLedger);
+// bảng này giữ thẻ tóm tắt + nút sang tab 4, và nhận khung "Mã đang chọn" (cổ tức · mô phỏng thời điểm · tin tức) từ Hồ sơ 360°.
+import { HlEvidenceLink, Panel } from "./HlRulesLedger";
+import HlFocusFrame from "./HlFocusFrame";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 import { ExitRadar, FunnelBars } from "../deck/DeckSide";
 import QueueDeck from "../deck/QueueDeck";
@@ -43,17 +45,6 @@ function Tile({ label, children, sub, testId }: { label: string; children: React
       <p className="mt-0.5 text-[17px] font-bold leading-tight text-slate-100">{children}</p>
       {sub && <p className="mt-0.5 text-[10.5px] leading-snug text-slate-400">{sub}</p>}
     </div>
-  );
-}
-function Panel({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId: string }) {
-  return (
-    <section data-testid={testId} className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
-        {right}
-      </div>
-      {children}
-    </section>
   );
 }
 /** Thanh ngang: phần tô = value / max; `mark` = vạch ngưỡng (0–1). */
@@ -107,12 +98,7 @@ function HlWhy({ p, exitLsPct, mobile = false }: { p: HlPick; exitLsPct: number;
     </div>
   );
 }
-const ledgerLine = (s: LedgerSummary | null | undefined, h: "5" | "10") => {
-  const x = s?.horizons?.[h];
-  return x && x.n > 0 ? <>{x.n} phiên · vượt rổ đều <b className={x.meanExcess != null && x.meanExcess > 0 ? "text-emerald-300" : "text-rose-300"}>{signed((x.meanExcess ?? 0) * 100, 2)}%</b> · thắng {num((x.hitRate ?? 0) * 100, 0)}%</> : <span className="text-slate-500">chưa có phiên nào đủ kỳ hạn</span>;
-};
-
-export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError = null }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode; refreshError?: string | null }) {
+export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError = null, onNavigateToEvidence }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode; refreshError?: string | null; onNavigateToEvidence?: () => void }) {
   const hl = d.hl!;
   const { data: ws } = useWorldStrategy();
   // PFA-v1 pha B: cảnh báo cơ bản & sự kiện của từng vị thế — mô tả, KHÔNG đổi danh mục.
@@ -144,7 +130,6 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const t1 = hl.tier1 ?? { lsLeaderPct: 80, taMin: 2, taModels: 7, maxScore: 10 };
   const lsTop = 100 - t1.lsLeaderPct;
   const dong = (v: number | undefined) => (v == null ? "5.000" : v.toLocaleString("vi-VN"));
-  const ledgerCost = d.display?.ledgerCostRoundTrip ?? 0.004;
   const [why, setWhy] = useState<string | null>(null);
   const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
   const steps: [string, number, string][] = [
@@ -320,54 +305,10 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
             </ul>
           )}
         </Panel>
-        <CashGateCard />
+        <HlEvidenceLink d={d} onNavigate={onNavigateToEvidence} />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <Panel title="Quy tắc vào · giữ · ra" testId="hl-rules">
-          <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-slate-300">
-            <li><b>Chọn:</b> tầng 1 (LS-v1 top {lsTop}% và ≥ {t1.taMin}/{t1.taModels} mô hình TA) → RRG ngành Cải thiện / Dẫn dắt → tích điểm các tab.</li>
-            <li><b>Vào:</b> chỉ ở phiên đầu mỗi tuần, theo thứ tự xếp hạng; GTGD TB20 ≥ {r.minAdvBn} tỷ; tối đa {r.slots} mã, {r.maxPerSector} mã và {pct(r.sectorCap, 0)} tỷ trọng mỗi ngành.</li>
-            <li><b>Giữ:</b> không cân lại tỷ trọng; ngành chuyển sang Suy yếu chỉ là cảnh báo.</li>
-            <li><b>Ra (xét mỗi phiên):</b> LS-v1 dưới phân vị {r.exitLsPct}, hoặc không còn mô hình TA nào đạt, hoặc ngành rơi vào Tụt hậu.</li>
-            {pz && <PzRulesItems meta={pz} />}
-          </ul>
-          <p className="mt-1.5 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10.5px] leading-relaxed text-amber-200" data-testid="hl-k0">{hl.k0.noteVi}</p>
-          {hl.k0.hlR2 && (
-            <table className="mt-1 w-full text-[10.5px]" data-testid="hl-k0-r2" style={{ borderCollapse: "collapse" }}>
-              <caption className="pb-0.5 text-left text-[10px] text-slate-400">Kiểm định đăng ký trước HL-r2 ({fmtDate(hl.k0.hlR2.ranAt)}) — G2r so với bình quân đều sau phí</caption>
-              <thead><tr className="text-left text-[10px] text-slate-500"><th className="font-normal">Giai đoạn</th><th className="font-normal">Lợi suất/năm</th><th className="font-normal">Sụt giảm lớn nhất</th><th className="font-normal">Vượt / 20 phiên (t)</th></tr></thead>
-              <tbody>
-                {([["Quyết định", hl.k0.hlR2.decision], ["Ngoài mẫu", hl.k0.hlR2.outOfSample]] as const).map(([label, x]) => (
-                  <tr key={label} className="border-t border-white/5"><td className="py-0.5 text-slate-300">{label} <span className="text-slate-500">{x.period}</span></td><td>{signed(x.cagr * 100, 1)}%</td><td>{signed(x.maxDd * 100, 1)}%</td>
-                    <td className={x.t >= 2 ? "text-emerald-300" : x.t <= -1 ? "text-rose-300" : "text-slate-300"}>{signed(x.excess20 * 100, 2)}% ({signed(x.t, 2)})</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </Panel>
-        <Panel title="Sổ theo dõi tiến — Elite HL so với Elite dòng tiền (cũ)" testId="elite-ledger">
-          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
-            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 380 }}>
-              <thead><tr className="text-left text-[10px] text-slate-500"><th className="py-1 font-normal">Kỳ hạn</th><th className="font-normal">Elite HL (chính thức)</th><th className="font-normal">Elite dòng tiền (cũ)</th></tr></thead>
-              <tbody>
-                {(["5", "10"] as const).map((h) => {
-                  const ci = d.ledgerSummary?.horizons?.[h]?.cashIncl;
-                  return (
-                    <tr key={h} className="border-t border-white/5 align-top"><td className="py-1 text-slate-400">{h} phiên</td>
-                      <td data-testid={`hl-ledger-hl-${h}`}>{ledgerLine(d.ledgerSummary, h)}
-                        {ci && <span className="block text-[10px] text-slate-400" data-testid={`hl-ledger-cash-${h}`}>Tính cả tiền mặt ({ci.n} phiên, cổ phiếu TB {num(ci.meanInvested * 100, 0)}%): danh mục <b className="text-slate-200">{signed(ci.meanPortfolio * 100, 2)}%</b>{ci.meanVnIndex != null ? <> · VN-Index {signed(ci.meanVnIndex * 100, 2)}%</> : ""} — trước phí</span>}</td>
-                      <td data-testid={`hl-ledger-flow-${h}`}>{ledgerLine(d.flowLedgerSummary, h)}</td></tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-1 text-[10px] text-slate-500">Sổ Elite HL bắt đầu từ phiên chuyển đổi; sổ dòng tiền tiếp nối sổ cũ. Cả hai khoá danh mục lúc dựng, chấm ở giá đóng cửa phiên kế tiếp, chi phí giả định {pct(ledgerCost, 2)}/vòng.</p>
-          <p className="mt-1 rounded border border-amber-400/30 bg-amber-500/[0.06] p-1.5 text-[10px] leading-relaxed text-amber-200" data-testid="hl-ledger-basis">{d.ledgerSummary?.basisVi ?? "Cột Elite HL chấm rổ mã đang giữ quy về 100% cổ phiếu (không tính phần tiền mặt), kỳ hạn cố định 5 và 10 phiên — chưa phải lãi / lỗ của danh mục thật (có tiền mặt, giữ tới khi chạm ngưỡng ra)."}</p>
-          <HlLedgerNote />
-        </Panel>
-      </div>
+      <HlFocusFrame d={d} onOpenTicker={onOpenTicker} />
       <p className="text-[10px] text-slate-500">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
   );

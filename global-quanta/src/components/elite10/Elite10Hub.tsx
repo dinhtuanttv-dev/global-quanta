@@ -1,16 +1,13 @@
 // Elite 10 — trung tâm ra quyết định (E4–E6 2026-10-17). Tab con:
-//   1. Bảng quyết định hôm nay — danh mục Elite 10, trọng số tín hiệu theo bằng chứng, sổ theo dõi tiến (Gateway /api/elite/*).
+//   1. Bảng quyết định hôm nay — danh mục Elite HL + khung "Mã đang chọn" (cổ tức, mô phỏng thời điểm, tin tức) + thẻ tóm tắt -> tab 4 (QĐ-R 20/11/2026).
 //   2. Hồ sơ 360° — mọi tín hiệu của một mã từ 7 tab; chart kỹ thuật ở tab Phân tích kỹ thuật; chế độ 🔎 Bộ lọc Elite lọc cả vũ trụ (30/10).
 //   3. Phòng họp AI — tranh luận Claude ↔ Gemini có trọng tài, bản tin phiên, hỏi đáp (E5).
-//   4. Bằng chứng & sổ theo dõi — IC từng tín hiệu theo kỳ hạn, bậc, sổ theo dõi tiến (E6).
+//   4. Bằng chứng & sổ theo dõi — quy tắc vào·giữ·ra, Cổng tiền mặt, sổ theo dõi tiến, trọng số tín hiệu, IC từng tín hiệu (E6).
 //   5. Rủi ro danh mục — Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, căng thẳng (E6).
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
-import ToTickerCard from "./center/ToTickerCard";
 import EliteScreener from "./center/EliteScreener";
-import TimingSimPanel from "./timing/TimingSimPanel";
-import EliteNewsPanel from "./news/EliteNewsPanel";
 import EliteAiRoom from "./center/EliteAiRoom";
 import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
 import RiskTab from "./center/RiskTab";
@@ -45,6 +42,8 @@ export default function Elite10Hub() {
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
   const current = ticker ?? globalTicker ?? "VNINDEX";
   const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
+  // QĐ-R (20/11/2026): thẻ tóm tắt ở Bảng quyết định -> tab 4 (quy tắc, sổ theo dõi, trọng số đã chuyển sang đó).
+  const goToEvidence = () => { setSub("evidence"); refs.current.evidence?.focus(); };
   const goTab = useTabNavigation();
   const selectGlobal = useAppStore((s) => s.selectTicker);
   const [pick, setPick] = useState("");
@@ -81,7 +80,7 @@ export default function Elite10Hub() {
         ))}
       </div>
       <section id={`elite10-${sub}-panel`} role="tabpanel" aria-labelledby={`elite10-${sub}-tab`} className="flex flex-col gap-3">
-        {sub === "board" && <DecisionBoard onOpenTicker={open} />}
+        {sub === "board" && <DecisionBoard onOpenTicker={open} onNavigateToEvidence={goToEvidence} />}
         {(aiOpened || sub === "ai") && <div hidden={sub !== "ai"} data-testid="elite10-ai-keepalive"><EliteAiRoom defaultTicker={ticker} /></div>}
         {sub === "evidence" && <EvidenceLedgerTab />}
         {sub === "risk" && <RiskTab />}
@@ -110,11 +109,7 @@ export default function Elite10Hub() {
                 {pview === "summary" && (
                   <>
                     <SignalProfileCard ticker={current} />
-                    {/* Elite × TO (07/11/2026): sự kiện cổ tức của mã — Săn cổ tức trước GDKHQ (THĂM DÒ). */}
-                    <ToTickerCard ticker={current} />
-                    {/* CH2: mô phỏng thời điểm vào cổ tức / KQKD. */}
-                    <TimingSimPanel ticker={current} />
-                    <EliteNewsPanel ticker={current} onTicker={open} />
+                    {/* QĐ-R (20/11/2026): Sự kiện cổ tức, Mô phỏng thời điểm và Tin tức Elite 10 chuyển sang Bảng quyết định (khung "Mã đang chọn"). */}
                   </>
                 )}
                 {pview === "company" && <CompanyProfileCard ticker={current} />}
