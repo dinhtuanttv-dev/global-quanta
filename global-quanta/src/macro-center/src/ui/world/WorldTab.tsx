@@ -6,17 +6,15 @@ import { DEFAULT_WORLD_FILTER, buildWorldMatrixView, fmtSigned, worldCellKey, ty
 import { useAsync } from '../useMacro';
 import { ConnectednessPanel, type ConnectednessPayload } from './ConnectednessPanel';
 import { EventDetail, EventList, type EventDetailPayload, type EventRow } from './EventPanels';
-import { ScenarioStockImports } from './imports';
+import { WorldScenario } from './ScenarioStock';
 import { WorldFilterBar, WorldMatrix } from './WorldMatrix';
 import { WorldPulse, type PulseItem } from './WorldPulse';
 import { EvidenceChip, Notice, Skeleton } from './shared';
 import { Hourglass, Link2, Waves } from 'lucide-react';
 import { ScenarioCompare } from './ScenarioCompare';
 import { DEFAULT_EVENT_FILTER, EventFilterBar, EventTimeline, filterEvents, isEventFilter } from './EventTimeline';
-import { PERSIST_KEYS, useDebounced, usePersistedState } from './persist';
+import { PERSIST_KEYS, usePersistedState } from './persist';
 import type { EvidenceTier } from '../../world-types';
-
-const { WorldScenario, StockProfile } = ScenarioStockImports;
 
 /** W4: bộ lọc ma trận đọc lại từ localStorage phải đúng dạng, sai thì dùng mặc định. */
 export const isWorldFilter = (v: unknown): v is WorldFilter => !!v && typeof v === 'object'
@@ -24,11 +22,7 @@ export const isWorldFilter = (v: unknown): v is WorldFilter => !!v && typeof v =
   && typeof (v as WorldFilter).channel === 'string' && ['all', '+', '-'].includes((v as WorldFilter).direction);
 const isMode = (v: unknown): v is 'single' | 'compare' => v === 'single' || v === 'compare';
 
-export type TabId = 'overview' | 'matrix' | 'events' | 'connect' | 'scenario' | 'stock';
-const TABS: { id: TabId; label: string }[] = [
-  { id: 'overview', label: 'Tổng quan' }, { id: 'matrix', label: 'Ngành (thăm dò)' }, { id: 'events', label: 'Sự kiện' },
-  { id: 'connect', label: 'Kết nối thị trường' }, { id: 'scenario', label: 'Kịch bản' }, { id: 'stock', label: 'Hồ sơ cổ phiếu' },
-];
+export type TabId = 'overview' | 'matrix' | 'events' | 'connect' | 'scenario';
 
 interface SeriesPayload { notice?: string; scenarios: { id: string; nameVi: string; descriptionVi: string }[]; factors: { id: string; channel: string }[] }
 interface MatrixPayload extends WorldMatrixPayload { notice?: string; counts: Record<EvidenceTier, number>; warnings: string[]; firstPeriod: string; lastPeriod: string }
@@ -42,12 +36,15 @@ export function newestFirst<T extends { sessionDate: string | null }>(rows: T[])
   return [...rows].sort((a, b) => (b.sessionDate ?? '9999').localeCompare(a.sessionDate ?? '9999'));
 }
 
-/** Import './world.css' once in your app entry. theme: 'light' | 'dark' | 'auto' (follows the OS). */
-/** hideHeader: ẩn tiêu đề khi nhúng trong một tab đã có tiêu đề riêng (Global Quanta). hideStock: ẩn hồ sơ cổ phiếu khi chưa có dữ liệu phơi nhiễm thật. */
-/** only: chỉ hiện đúng một phần, bỏ thanh tab trong (Trung tâm kinh tế thế giới xếp từng phần vào tab con riêng). */
-export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?: 'light' | 'dark' | 'auto'; initialStock?: string; hideHeader?: boolean; hideStock?: boolean; only?: TabId }) {
+/**
+ * Một phần của động cơ Kết nối thế giới. Trung tâm kinh tế thế giới xếp từng phần vào khối riêng nên `only` là bắt buộc.
+ * Rà soát 20/11/2026: bỏ chế độ toàn trang (tiêu đề, thanh tab trong) và phần hồ sơ phơi nhiễm cổ phiếu —
+ * Gateway chưa có dữ liệu phơi nhiễm thật (luôn 422); tra mã dùng khối "Cổ phiếu: tác động và thanh khoản".
+ * theme: 'light' | 'dark' | 'auto' (theo hệ điều hành). Nhập './world.css' một lần ở điểm vào ứng dụng.
+ */
+export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?: 'light' | 'dark' | 'auto'; only: TabId }) {
   const client = useMemo(() => props.client ?? createWorldClient(props.baseUrl ?? ''), [props.client, props.baseUrl]);
-  const [tab, setTab] = useState<TabId>(props.only ?? 'overview');
+  const tab = props.only;
   const [filter, setFilter] = usePersistedState<WorldFilter>(PERSIST_KEYS.matrixFilter, DEFAULT_WORLD_FILTER, isWorldFilter);
   const [evFilter, setEvFilter] = usePersistedState(PERSIST_KEYS.eventFilter, DEFAULT_EVENT_FILTER, isEventFilter);
   const [scMode, setScMode] = usePersistedState<'single' | 'compare'>('gq.world.scenario.mode.v1', 'single', isMode);
@@ -57,17 +54,14 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
   const [scenarioId, setScenarioId] = useState('usd-strong'); // DXY có số liệu thật; TARIFF chưa có nguồn
   const [horizon, setHorizon] = useState(3);
   const [focus, setFocus] = useState<string | null>(null);
-  const [stockCode, setStockCode] = useState(props.initialStock ?? 'SEA1');
 
   const series = useAsync((s) => client.series<SeriesPayload>(s), [client]);
   const overview = useAsync((s) => client.overview<OverviewPayload>(undefined, s), [client], tab === 'overview');
-  const matrix = useAsync((s) => client.matrix<MatrixPayload>({}, s), [client], tab === 'overview' || tab === 'matrix' || tab === 'scenario' || tab === 'stock');
+  const matrix = useAsync((s) => client.matrix<MatrixPayload>({}, s), [client], tab === 'overview' || tab === 'matrix' || tab === 'scenario');
   const conn = useAsync((s) => client.connectedness<ConnectednessPayload>({}, s), [client], tab === 'connect');
   const events = useAsync((s) => client.events<{ events: EventRow[] }>(s), [client], tab === 'events');
   const detail = useAsync((s) => client.event<EventDetailPayload>(eventId as string, s), [client, eventId], tab === 'events' && !!eventId);
   const scenario = useAsync((s) => client.scenario<import('./ScenarioStock').ScenarioPayload>({ scenarioId, horizon }, s), [client, scenarioId, horizon], tab === 'scenario' && scMode === 'single');
-  const stockQ = useDebounced(stockCode, 400); // W3: không gọi Gateway theo từng phím gõ
-  const stock = useAsync((s) => client.stock<import('./ScenarioStock').StockProfilePayload>(stockQ, s), [client, stockQ], tab === 'stock' && /^[A-Z0-9]{3,10}$/.test(stockQ));
 
   const [eventLimit, setEventLimit] = useState(EVENT_PAGE);
   const allEvents = useMemo(() => newestFirst(events.data?.events ?? []), [events.data]);
@@ -91,17 +85,7 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
 
   return (
     <div className="wd" data-theme={props.theme ?? 'auto'}>
-      {!props.hideHeader && (
-      <header>
-          <p className="muted">Trung tâm vĩ mô</p>
-          <h1>Kết nối thế giới</h1>
-          <p className="muted">Yếu tố và sự kiện của thế giới đi vào ngành và cổ phiếu Việt Nam qua những kênh nào, và bằng chứng cho từng mắt xích mạnh đến đâu.</p>
-        </header>
-      )}
       <Notice text={notice} />
-      {!props.only && <nav className="tabs" aria-label="Các phần của Kết nối thế giới">
-        {TABS.filter((t) => !(props.hideStock && t.id === 'stock')).map((t) => (<button key={t.id} type="button" aria-current={tab === t.id ? 'page' : undefined} onClick={() => setTab(t.id)}>{t.label}</button>))}
-      </nav>}
 
       {tab === 'overview' && (
         <section className="panel" aria-labelledby="wd-ov">
@@ -213,17 +197,6 @@ export function WorldTab(props: { client?: WorldClient; baseUrl?: string; theme?
         </section>
       )}
 
-      {tab === 'stock' && (
-        <section className="panel" aria-labelledby="wd-st">
-          <h2 id="wd-st">Hồ sơ phơi nhiễm quốc tế</h2>
-          <div className="frow">
-            <label className="flabel" htmlFor="wd-code">Mã cổ phiếu</label>
-            <input id="wd-code" className="input" value={stockCode} onChange={(e: { target: { value: string } }) => setStockCode(e.target.value.trim().toUpperCase())} />
-          </div>
-          {stock.error && <p className="state alert" role="alert">{stock.error}</p>}
-          {stock.data ? <StockProfile d={stock.data} /> : !stock.error && <p className="state" role="status">Đang tải hồ sơ…</p>}
-        </section>
-      )}
     </div>
   );
 }

@@ -773,7 +773,7 @@ function prepareStationary(input) {
   const process = (s, role) => {
     const shifted = role === "factors" ? shiftForPublicationLag(s.values, s.pubLagMonths ?? 0) : s.values.slice();
     const clean = firstFiniteBlock(shifted);
-    if (clean.length < 40) warnings.push(`${s.id}: only ${clean.length} usable observations; diagnostics skipped (treated as I(1)).`);
+    if (clean.length < 40) warnings.push(`${s.id}: ch\u1EC9 c\xF3 ${clean.length} quan s\xE1t d\xF9ng \u0111\u01B0\u1EE3c; b\u1ECF qua ki\u1EC3m \u0111\u1ECBnh nghi\u1EC7m \u0111\u01A1n v\u1ECB (coi nh\u01B0 I(1)).`);
     let order = 1;
     let klass = "ambiguous";
     let adfP = NaN;
@@ -791,10 +791,10 @@ function prepareStationary(input) {
       breakIndex = h.za?.breakIndex;
       if (order === 0 && trending && kpssTest(series, { trend: "c" }).rejectStationarity5) {
         order = 1;
-        warnings.push(`${s.id}: stationary only around a deterministic trend; differenced to keep the trend out of the regression.`);
+        warnings.push(`${s.id}: ch\u1EC9 d\u1EEBng quanh xu h\u01B0\u1EDBng t\u1EA5t \u0111\u1ECBnh; \u0111\xE3 l\u1EA5y sai ph\xE2n \u0111\u1EC3 xu h\u01B0\u1EDBng kh\xF4ng \u0111i v\xE0o h\u1ED3i quy.`);
       }
-      if (klass === "ambiguous") warnings.push(`${s.id}: unit-root tests ambiguous; differenced conservatively.`);
-      if (klass === "break-stationary") warnings.push(`${s.id}: looks stationary only around a structural break (index ${breakIndex}); consider regime-specific estimation.`);
+      if (klass === "ambiguous") warnings.push(`${s.id}: ki\u1EC3m \u0111\u1ECBnh nghi\u1EC7m \u0111\u01A1n v\u1ECB kh\xF4ng r\xF5 r\xE0ng; \u0111\xE3 l\u1EA5y sai ph\xE2n cho th\u1EADn tr\u1ECDng.`);
+      if (klass === "break-stationary") warnings.push(`${s.id}: ch\u1EC9 d\u1EEBng quanh m\u1ED9t \u0111i\u1EC3m g\xE3y c\u1EA5u tr\xFAc (v\u1ECB tr\xED ${breakIndex}); n\xEAn \u01B0\u1EDBc l\u01B0\u1EE3ng ri\xEAng t\u1EEBng giai \u0111o\u1EA1n.`);
     }
     const tr = s.transform && s.transform !== "auto" ? s.transform : recommendTransform(s.kind, order, clean);
     out[role][s.id] = applyTransform(shifted, tr);
@@ -810,9 +810,9 @@ function analyzeMacro(input) {
   const prep = prepareStationary(input);
   const warnings = [...prep.warnings];
   const cells = estimateImpactMatrix({ targets: prep.targets, factors: prep.factors, options: o });
-  if (cells.length === 0) warnings.push("No estimable cells: sample too short for the requested lags.");
+  if (cells.length === 0) warnings.push("Kh\xF4ng \xF4 n\xE0o \u01B0\u1EDBc l\u01B0\u1EE3ng \u0111\u01B0\u1EE3c: m\u1EABu qu\xE1 ng\u1EAFn so v\u1EDBi \u0111\u1ED9 tr\u1EC5 y\xEAu c\u1EA7u.");
   const nobs = cells.length ? Math.min(...cells.map((c) => c.nobs)) : 0;
-  if (nobs > 0 && nobs < 60) warnings.push(`Only ${nobs} observations: estimates are fragile; read q-values, not point estimates.`);
+  if (nobs > 0 && nobs < 60) warnings.push(`Ch\u1EC9 c\xF3 ${nobs} quan s\xE1t: \u01B0\u1EDBc l\u01B0\u1EE3ng mong manh \u2014 \u0111\u1ECDc q (sau hi\u1EC7u ch\u1EC9nh), \u0111\u1EEBng \u0111\u1ECDc \u01B0\u1EDBc l\u01B0\u1EE3ng \u0111i\u1EC3m.`);
   const best = bestLagCells(cells);
   const stability = {};
   const window = o.rollingWindow ?? 48;
@@ -831,7 +831,7 @@ function analyzeMacro(input) {
       }
     }
   }
-  warnings.push(`Multiple testing: ${cells.length} cells corrected with ${o.adjust.toUpperCase()}; best-lag cells inherit that correction. Stability is computed for cells with raw p \u2264 ${maxP}.`);
+  warnings.push(`Ki\u1EC3m \u0111\u1ECBnh b\u1ED9i: ${cells.length} \xF4 \u0111\u01B0\u1EE3c hi\u1EC7u ch\u1EC9nh b\u1EB1ng ${o.adjust.toUpperCase()}; \xF4 \u1EDF \u0111\u1ED9 tr\u1EC5 t\u1ED1t nh\u1EA5t th\u1EEBa h\u01B0\u1EDFng hi\u1EC7u ch\u1EC9nh \u0111\xF3. \u0110\u1ED9 \u1ED5n \u0111\u1ECBnh ch\u1EC9 t\xEDnh cho \xF4 c\xF3 p th\xF4 \u2264 ${maxP}.`);
   return { dates: input.dates, diagnostics: prep.diagnostics, cells, best, stability, warnings };
 }
 

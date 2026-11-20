@@ -1179,7 +1179,8 @@ export function prepareStationary(input: { dates: string[]; factors: MacroSeries
   const process = (s: MacroSeries, role: 'factors' | 'targets') => {
     const shifted = role === 'factors' ? shiftForPublicationLag(s.values, s.pubLagMonths ?? 0) : s.values.slice();
     const clean = firstFiniteBlock(shifted);
-    if (clean.length < 40) warnings.push(`${s.id}: only ${clean.length} usable observations; diagnostics skipped (treated as I(1)).`);
+    // G6 (20/11/2026): câu cảnh báo hiển thị cho người dùng — tiếng Việt (chỉ đổi chữ, không đổi phép tính).
+    if (clean.length < 40) warnings.push(`${s.id}: chỉ có ${clean.length} quan sát dùng được; bỏ qua kiểm định nghiệm đơn vị (coi như I(1)).`);
     let order = 1;
     let klass: IntegrationClass = 'ambiguous';
     let adfP = NaN;
@@ -1199,10 +1200,10 @@ export function prepareStationary(input: { dates: string[]; factors: MacroSeries
       // a regression on returns. Differencing is the safe, look-ahead-free choice.
       if (order === 0 && trending && kpssTest(series, { trend: 'c' }).rejectStationarity5) {
         order = 1;
-        warnings.push(`${s.id}: stationary only around a deterministic trend; differenced to keep the trend out of the regression.`);
+        warnings.push(`${s.id}: chỉ dừng quanh xu hướng tất định; đã lấy sai phân để xu hướng không đi vào hồi quy.`);
       }
-      if (klass === 'ambiguous') warnings.push(`${s.id}: unit-root tests ambiguous; differenced conservatively.`);
-      if (klass === 'break-stationary') warnings.push(`${s.id}: looks stationary only around a structural break (index ${breakIndex}); consider regime-specific estimation.`);
+      if (klass === 'ambiguous') warnings.push(`${s.id}: kiểm định nghiệm đơn vị không rõ ràng; đã lấy sai phân cho thận trọng.`);
+      if (klass === 'break-stationary') warnings.push(`${s.id}: chỉ dừng quanh một điểm gãy cấu trúc (vị trí ${breakIndex}); nên ước lượng riêng từng giai đoạn.`);
     }
     const tr: Transform = s.transform && s.transform !== 'auto' ? s.transform : recommendTransform(s.kind, order, clean);
     out[role][s.id] = applyTransform(shifted, tr);
@@ -1224,9 +1225,9 @@ export function analyzeMacro(input: {
   const prep = prepareStationary(input);
   const warnings = [...prep.warnings];
   const cells = estimateImpactMatrix({ targets: prep.targets, factors: prep.factors, options: o });
-  if (cells.length === 0) warnings.push('No estimable cells: sample too short for the requested lags.');
+  if (cells.length === 0) warnings.push('Không ô nào ước lượng được: mẫu quá ngắn so với độ trễ yêu cầu.');
   const nobs = cells.length ? Math.min(...cells.map((c) => c.nobs)) : 0;
-  if (nobs > 0 && nobs < 60) warnings.push(`Only ${nobs} observations: estimates are fragile; read q-values, not point estimates.`);
+  if (nobs > 0 && nobs < 60) warnings.push(`Chỉ có ${nobs} quan sát: ước lượng mong manh — đọc q (sau hiệu chỉnh), đừng đọc ước lượng điểm.`);
   const best = bestLagCells(cells);
 
   const stability: Record<string, StabilityInfo> = {};
@@ -1247,6 +1248,6 @@ export function analyzeMacro(input: {
       }
     }
   }
-  warnings.push(`Multiple testing: ${cells.length} cells corrected with ${o.adjust.toUpperCase()}; best-lag cells inherit that correction. Stability is computed for cells with raw p ≤ ${maxP}.`);
+  warnings.push(`Kiểm định bội: ${cells.length} ô được hiệu chỉnh bằng ${o.adjust.toUpperCase()}; ô ở độ trễ tốt nhất thừa hưởng hiệu chỉnh đó. Độ ổn định chỉ tính cho ô có p thô ≤ ${maxP}.`);
   return { dates: input.dates, diagnostics: prep.diagnostics, cells, best, stability, warnings };
 }

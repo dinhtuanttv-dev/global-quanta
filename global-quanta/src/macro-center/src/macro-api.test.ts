@@ -52,7 +52,7 @@ describe('impact matrix against planted truth', () => {
     const falsePos = b.best.filter((c: Any) => !planted.has(c.factor) && c.significant);
     expect(falsePos.length).toBeLessThanOrEqual(2);
     expect(b.diagnostics.find((d: Any) => d.id === 'VNINDEX').transform).toBe('logdiff');
-    expect(b.warnings.some((w: string) => w.includes('Multiple testing'))).toBe(true);
+    expect(b.warnings.some((w: string) => w.includes('Kiểm định bội'))).toBe(true);
     expect(b.notice).toBe(SYNTHETIC_NOTICE);
   });
   it('is cached per data version and invalidated by a write', async () => {

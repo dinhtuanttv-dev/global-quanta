@@ -7,7 +7,7 @@ import { WorldPulse } from './WorldPulse';
 import { WorldFilterBar, WorldMatrix } from './WorldMatrix';
 import { ConnectednessPanel } from './ConnectednessPanel';
 import { EventDetail, EventList } from './EventPanels';
-import { StockProfile, WorldScenario } from './ScenarioStock';
+import { WorldScenario } from './ScenarioStock';
 import { WorldTab } from './WorldTab';
 import { createWorldApi } from '../../world-api';
 import { WORLD_SYNTHETIC_NOTICE, makeSyntheticWorld } from '../../world-seed';
@@ -116,19 +116,14 @@ describe('components render real API payloads accessibly', () => {
     expect(shtml).toContain('Thuế quan Mỹ tăng');
     expect(shtml).toContain('khoảng tin cậy 90% chứa 0');
     expect(shtml).toContain('Bậc của mã không bao giờ cao hơn');
-    const stk = await call('GET', '/api/world/stock/SEA1');
-    const khtml = renderToStaticMarkup(<StockProfile d={stk} />);
-    expect(khtml).toContain('Doanh thu theo vùng');
-    expect(khtml).toContain('dữ kiện báo cáo');
-    expect(khtml).toContain('dữ liệu riêng');
   });
-  it('container: first render shows loading states, the notice slot, theme attribute and navigation', () => {
-    const html = renderToStaticMarkup(<WorldTab client={{} as Any} theme="dark" />);
+  it('container: one section only (only=…), loading state, theme attribute, no inner nav / header / stock profile', () => {
+    const html = renderToStaticMarkup(<WorldTab client={{} as Any} theme="dark" only="overview" />);
     expect(html).toContain('data-theme="dark"');
-    expect(html).toContain('Kết nối thế giới');
     expect(html).toContain('Đang tải tổng quan');
-    expect(html).toContain('aria-current="page"');
-    expect(html).toContain('Hồ sơ cổ phiếu');
-    expect(renderToStaticMarkup(<WorldTab client={{} as Any} />)).toContain('data-theme="auto"');
+    expect(html).not.toContain('<nav');
+    expect(html).not.toContain('<h1');
+    expect(html).not.toContain('Hồ sơ cổ phiếu');
+    expect(renderToStaticMarkup(<WorldTab client={{} as Any} only="matrix" />)).toContain('data-theme="auto"');
   });
 });
