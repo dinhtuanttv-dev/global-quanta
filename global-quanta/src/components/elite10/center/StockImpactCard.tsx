@@ -11,6 +11,8 @@ export interface ImpactLayer {
   id: string; labelVi: string; evidenceId: string; seal: ImpactSeal; evidenceVi: string | null; evidenceSrc: string | null;
   available: boolean; reasonVi?: string; none?: boolean; value: Record<string, any> | null; direction: -1 | 0 | 1 | null;
   detailVi: string | null; source: string | null; at: string | null;
+  /** N1: ghi chú phụ có dấu bằng chứng riêng (VD liên kết toàn cầu của dệt may, GL-1 MÔ TẢ). */
+  extra?: { evidenceId: string; seal: ImpactSeal; textVi: string } | null;
   progress?: { n?: number; need?: number; signals?: number | null; clusters?: number | null; estimatedReadyOn?: string | null; earliestVerdict?: string };
 }
 export interface ImpactDoc { version: string; ticker: string; asOf: string; layers: ImpactLayer[]; aggregate: null; aggregateVi: string; elite: string }
@@ -119,6 +121,11 @@ export default function StockImpactCard({ ticker }: { ticker: string }) {
               <div className={`min-w-0 ${weak ? "text-slate-400 opacity-80" : "text-slate-200"}`}>
                 {l.available ? <>{layerText(l)}<Direction l={l} /></> : <span className="text-slate-500">{l.reasonVi ?? "Chưa có dữ liệu."}</span>}
                 {l.available && l.detailVi && <span className="block text-[10px] text-slate-500">{l.detailVi}</span>}
+                {l.extra && (
+                  <span className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-400" data-testid={`impact-extra-${l.id}`}>
+                    <SealChip seal={l.extra.seal} /><span className="font-mono">{l.extra.evidenceId}</span><span>{l.extra.textVi}</span>
+                  </span>
+                )}
               </div>
               <div className="order-first flex flex-wrap items-center gap-1 md:order-none" title={l.evidenceVi ?? undefined}>
                 <SealChip seal={l.seal} testId={`impact-seal-${l.id}`} />

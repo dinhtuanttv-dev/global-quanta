@@ -16,6 +16,8 @@ export const EVIDENCE_REGISTRY = Object.freeze([
     detail: "Danh mục giữ 100% theo quy tắc chính; trạng thái cổng chỉ mô tả." },
   { id: "FA", layer: "Cảnh báo cơ bản (Beneish, dồn tích, Piotroski…)", test: "FA-r1", verdict: "KHÔNG ĐẠT", ranAt: "2026-11-17", src: "research/fa-r1 · dee0427",
     detail: "Dùng để chặn mua làm Elite HL kém hơn (Beneish −0,52%/20 phiên, t −2,32); chỉ cảnh báo." },
+  { id: "EX", layer: "Thời điểm khớp lệnh mua (ATO / ATC theo chiều phiên trước)", test: "EX-r1", verdict: "KHÔNG ĐẠT", ranAt: "2026-11-20", src: "research/impact/EX-r1-report.json · 206f94d4",
+    detail: "527 lệnh mua 2020–2026: sau phiên VN-Index giảm, mua ATO không rẻ hơn (+0,11%, t 0,46). Sau phiên tăng, khớp ATC rẻ hơn ATO 0,68% (t −3,4). Giữ khớp ATC như hiện tại." },
 ]);
 
 // D4 (19/11/2026) — sổ bằng chứng của các lớp "Tác động lên cổ phiếu" (Hồ sơ 360° › Tổng hợp). Tách khỏi EVIDENCE_REGISTRY (lớp của Elite HL)
@@ -39,6 +41,10 @@ export const IMPACT_EVIDENCE = Object.freeze([
     detail: "Khám phá trong mẫu 2013–2019: bông tăng thì dệt may giảm dần trong 20 phiên, bằng chứng yếu (t −1,8 đến −1,9). Chưa chạy kiểm định ngoài mẫu." },
   { id: "CM-x", layer: "Hàng hoá — phản ánh ngay hoặc không đo được tác động", seal: "MÔ TẢ", ranAt: "2026-11-19", src: "Tac-dong-co-phieu/10 · khám phá 2013–2019",
     detail: "Giá đã phản ánh trong phiên đầu (dầu, đường, cao su) hoặc không thấy tác động (vàng, khí Mỹ, phân bón): không có lợi thế để giao dịch theo." },
+  { id: "GL-1", layer: "Liên kết toàn cầu — dệt may", seal: "MÔ TẢ", ranAt: "2026-11-20", src: "Ket-noi-the-gioi-loi-the/BAO_CAO_PHUONG_PHAP_MOI_B · lab-b.mjs",
+    detail: "Nhóm TNG, TCM, GIL, STK, MSH đồng biến riêng với nhóm may Đài Loan (Eclat, Makalot), Shenzhou và Nike: tương quan tuần 0,16 (t 3,0) sau khi trừ thị trường, cao hơn mọi ngành đối chứng (trong mẫu 2013–2019). Cùng tuần, không dự báo; không cộng điểm." },
+  { id: "PL-r1", layer: "Doanh nghiệp ngang hàng nước ngoài đi trước ngành VN", seal: "KHÔNG ĐẠT", ranAt: "2026-11-20", src: "research/impact/PL-r1-report.json · 206f94d4",
+    detail: "Ngoài mẫu 2020–2026: BĐS Hồng Kông -> BĐS VN 4 tuần r 0,15 (p 0,13); CNTT nước ngoài -> CNTT VN 1 tuần r 0,01 (p 0,33). Không dùng." },
   { id: "PX-r1", layer: "Pha loãng ≥ 10% — cổng hậu GDKHQ", seal: "KHÔNG ĐẠT", ranAt: "2026-11-18", src: "research/px-r1 · 94b3f06",
     detail: "520 đợt 2020–2026: mua ở ex+1 giữ 30 phiên −0,57% so với thị trường (t −0,65). Chỉ hiển thị pha." },
 ]);
