@@ -80,3 +80,50 @@ describe("HL-RADAR P1 — lớp hiển thị trên bảng Danh mục Elite HL", 
     expect(screen.getByTestId("hl-live-VPL").getAttribute("class")).toContain("bg-emerald-400/25");
   });
 });
+
+// HL-RADAR P2 (20/11/2026): cột "Tin & tác động 14 ngày", chip lọc hiển thị, thông báo tuỳ chọn.
+describe("HL-RADAR P2 — Tin & tác động 14 ngày, lọc hiển thị, thông báo", () => {
+  it("cột tin: tiêu đề có MÔ TẢ; VPL 1 chấm có vòng nổi bật + viền đôi (2 nguồn), ESA 'Định giá lại', ▲; HSG cảm xúc âm; mã không tin ghi rõ", () => {
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(screen.getByTestId("hl-news-th").textContent).toMatch(/Tin & tác động 14 ngày.*MÔ TẢ/);
+    const vpl = screen.getByTestId("hl-news-VPL");
+    expect(vpl.querySelectorAll("[data-news-dot]").length).toBe(1);
+    expect(vpl.querySelectorAll("circle").length).toBe(3); // vòng nổi bật + viền đôi + chấm
+    expect(vpl.querySelector("a")!.getAttribute("href")).toBe("https://example.com/n1");
+    expect(screen.getByTestId("hl-news-sum-VPL").textContent).toMatch(/1 tin · cảm xúc 3 ngày \+0,60 · tin nóng.*Định giá lại.*▲/);
+    expect(screen.getByTestId("hl-news-sum-HSG").textContent).toMatch(/1 tin · cảm xúc 3 ngày −0,50/);
+    expect(screen.getByTestId("hl-news-sum-AAS").textContent).toBe("Không có tin trong 14 ngày");
+  });
+  it("lọc 'có tin nóng 24h' -> chỉ còn VPL, ghi 'Đang hiện 1/6 mã'; bỏ lọc -> đủ 6 dòng; thứ tự không đổi", () => {
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    const order = () => [...screen.getByTestId("elite-portfolio").querySelectorAll('tr[data-testid^="hl-row-"]')].map((r) => r.getAttribute("data-testid"));
+    const before = order();
+    fireEvent.click(screen.getByTestId("hl-filter-hot"));
+    expect(order()).toEqual(["hl-row-VPL"]); expect(screen.getByTestId("hl-filter-count").textContent).toBe("Đang hiện 1/6 mã");
+    fireEvent.click(screen.getByTestId("hl-filter-hot"));
+    expect(order()).toEqual(before); expect(before.length).toBe(6);
+  });
+  it("thông báo tin nóng mặc định TẮT; tắt mọi lớp tin / điểm mua / dòng tiền -> không còn chip lọc", () => {
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(screen.getByTestId("hl-notify").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByTestId("hl-notify").textContent).toMatch(/Thông báo tin nóng: tắt/);
+    for (const k of ["news", "buy", "signals"]) fireEvent.click(screen.getByTestId(`hl-layer-${k}`));
+    expect(screen.queryByTestId("hl-filters")).toBeNull(); expect(screen.queryByTestId("hl-news-th")).toBeNull();
+  });
+});
+
+// HL-RADAR P3 (20/11/2026): lớp tác động mở rộng dưới dòng (khối Tác động lên cổ phiếu của Hồ sơ 360°, tải khi mở).
+describe("HL-RADAR P3 — lớp tác động", () => {
+  it("chưa mở -> không có dòng tác động; bấm 'Tác động' -> dòng mở rộng đúng mã, phủ đủ cột; bấm lại -> đóng; tắt lớp -> không có nút", () => {
+    render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-impact-row-VJC")).toBeNull();
+    fireEvent.click(screen.getByTestId("hl-impact-btn-VJC"));
+    const row = screen.getByTestId("hl-impact-row-VJC");
+    expect(row.querySelector("td")!.getAttribute("colspan")).toBe("13"); // 12 cột (PZ-v2) + cột Tin
+    expect(row.previousElementSibling!.getAttribute("data-testid")).toBe("hl-row-VJC");
+    fireEvent.click(screen.getByTestId("hl-impact-btn-VJC"));
+    expect(screen.queryByTestId("hl-impact-row-VJC")).toBeNull();
+    fireEvent.click(screen.getByTestId("hl-layer-impact"));
+    expect(screen.queryByTestId("hl-impact-btn-VJC")).toBeNull();
+  });
+});
