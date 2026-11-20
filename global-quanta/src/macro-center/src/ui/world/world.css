@@ -197,3 +197,26 @@
 .wd .stats li > .kpi-head { display: inline-flex; align-items: center; gap: 6px; }
 .wd .stats .kpi-sub { font-size: 10px; color: var(--ink2); }
 .wd .ev-count { margin-left: 8px; font-size: 11px; font-weight: 600; color: var(--ink2); text-transform: none; letter-spacing: 0; }
+
+/* G5 (20/11/2026): mạng lan truyền dạng vòng */
+.wd .spill-net { margin: 0 0 12px; }
+.wd .spill-net figcaption { margin-top: 6px; }
+.wd .sn-hint { display: none; margin: 0 0 4px; }
+@media (max-width: 767px) { .wd .sn-hint { display: block; } }
+.wd .sn-edge path { stroke: var(--ink3); opacity: 0.55; transition: opacity 120ms ease-out; }
+.wd .sn-edge.vn path { stroke: var(--accent); opacity: 0.9; }
+.wd .sn-edge.dim path { opacity: 0.08; }
+.wd .sn-edge.dim .sn-pct { display: none; }
+.wd .sn-head { fill: var(--ink3); }
+.wd .sn-head.vn { fill: var(--accent); }
+.wd .sn-pct { font-size: 11px; fill: var(--ink); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; font-variant-numeric: tabular-nums; }
+.wd .sn-node circle { fill: var(--panel); stroke: var(--ink2); stroke-width: 1.5; }
+.wd .sn-node.giver circle { stroke: var(--accent); stroke-width: 2; }
+.wd .sn-node.taker circle { stroke-dasharray: 4 3; }
+.wd .sn-node.vn circle { stroke-width: 2.5; }
+.wd .sn-node.dim { opacity: 0.35; }
+.wd .sn-node:focus-visible { outline: none; }
+.wd .sn-node:focus-visible circle { stroke: var(--accent); stroke-width: 3; }
+.wd .sn-name { font-size: 11px; font-weight: 700; fill: var(--ink); }
+.wd .sn-net { font-size: 10px; fill: var(--ink2); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .wd .sn-edge path { transition: none; } }
