@@ -69,6 +69,8 @@ test("sức khoẻ nguồn + pha phiên + hysteresis", () => {
   assert.equal(sourceHealth({ id: "d", kind: "daily", error: "lỗi" }).status, "UNAVAILABLE");
   assert.equal(overallHealth([{ id: "daily", status: "UNAVAILABLE" }, { id: "index", status: "UNAVAILABLE" }], ["daily", "index"]), "UNAVAILABLE");
   assert.equal(overallHealth([{ id: "daily", status: "LIVE" }, { id: "research", status: "UNAVAILABLE" }], ["daily"]), "PARTIAL");
+  assert.equal(overallHealth([{ id: "daily", status: "LIVE" }, { id: "research", status: "PARTIAL" }], ["daily"]), "PARTIAL", "nguồn con PARTIAL không bị nâng thành LIVE");
+  assert.equal(overallHealth([{ id: "daily", status: "LIVE" }, { id: "intraday", status: "DELAYED" }], ["daily"]), "DELAYED");
   assert.deepEqual(sessionPhase("LO", 10 * 60), { phase: "CONTINUOUS_AM", label: "Khớp liên tục sáng" });
   assert.equal(sessionPhase("LO", 13 * 60 + 30).phase, "CONTINUOUS_PM");
   const h = createHysteresis(2);

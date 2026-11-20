@@ -63,7 +63,7 @@ export function fitScaled(train, yKey, volKey) {
   for (const r of rows) { n += (r.es - mx) * (r[yKey] - my); d += (r.es - mx) ** 2; }
   const b = d > 0 ? n / d : 0, a = my - b * mx, z = rows.map((r) => (r[yKey] - a - b * r.es) / r[volKey]);
   const qLo = quantile(z, 0.1), qMid = quantile(z, 0.5), qHi = quantile(z, 0.9);
-  return { a, b, predict: (es, vol) => ({ lo: a + b * es + qLo * vol, mid: a + b * es + qMid * vol, hi: a + b * es + qHi * vol }) };
+  return { a, b, q: { lo: qLo, mid: qMid, hi: qHi }, predict: (es, vol) => ({ lo: a + b * es + qLo * vol, mid: a + b * es + qMid * vol, hi: a + b * es + qHi * vol }) };
 }
 export const unconditional = (train, key) => { const v = train.map((r) => r[key]); return { lo: quantile(v, 0.1), mid: quantile(v, 0.5), hi: quantile(v, 0.9) }; };
 
@@ -79,6 +79,15 @@ export function stateProbs(train, s) {
 const NAMES = { neg: "Tiêu cực", mid: "Trung tính", pos: "Tích cực" };
 const POSTURE = { neg: "Thận trọng, chờ xác nhận", mid: "Chọn lọc, giữ kế hoạch", pos: "Ưu tiên giải ngân theo kế hoạch" };
 const vi = (v, d = 1) => (v == null ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
+
+/**
+ * Tư thế và câu hành động chỉ được trả khi cổng kiểm định tương ứng đạt: G3 xác suất mở cả ba,
+ * G4 không bán đuổi mở Tiêu cực, G5 không mua đuổi mở Tích cực. Chưa đạt thì null (giao diện không tự điền).
+ */
+export function postureAllowed(id, evidence) {
+  if (evidence?.probabilities) return true;
+  return (id === "neg" && !!evidence?.noPanicSell) || (id === "pos" && !!evidence?.noChase);
+}
 
 /**
  * Dựng 3 kịch bản từ giá đóng cửa phiên trước. `es = null` nghĩa là thiếu dữ liệu: không có kịch bản dẫn đầu.
@@ -104,15 +113,18 @@ export function buildScenariosR2({ rows, es, prevClose, levels = {}, volNow, evi
     const edge = round(Z_T * s, 2);
     // Mốc kỹ thuật chỉ dùng khi nằm trong dải của kịch bản; ngoài dải thì về giá đóng cửa phiên trước.
     const lower = below != null && below >= day.lo ? below : null, upper = over != null && over <= day.hi ? over : null;
+    const allowed = postureAllowed(id, evidence);
     return {
-      id, name: NAMES[id], esAnchor: round(anchor, 2), open: openBand, day, n: train.filter((r) => zBucket(r.es, s) === id).length, posture: POSTURE[id], probability: evidence.probabilities ? round(pv * 100, 0) : null,
+      id, name: NAMES[id], esAnchor: round(anchor, 2), open: openBand, day, n: train.filter((r) => zBucket(r.es, s) === id).length, posture: allowed ? POSTURE[id] : null, probability: evidence.probabilities ? round(pv * 100, 0) : null,
       shadowOpen: o ? { lo: px(o.lo), mid: px(o.mid), hi: px(o.hi) } : null, shadowProbability: round(pv * 100, 0),
       trigger: id === "neg" ? `ES từ lúc VN đóng cửa ≤ −${vi(edge, 2)}% (−1σ)` : id === "pos" ? `ES từ lúc VN đóng cửa ≥ +${vi(edge, 2)}% (+1σ)` : `ES trong ±${vi(edge, 2)}% (±1σ)`,
       confirm: id === "neg" ? `Dưới ${vi(lower ?? prevClose)} sau 10:00` : id === "pos" ? `Trên ${vi(upper ?? prevClose)} sau 10:00` : `Trong ${vi(lower ?? day.lo)}–${vi(upper ?? day.hi)} đến 10:00`,
       invalid: id === "neg" ? `Lấy lại ${vi(prevClose)}` : id === "pos" ? `Về dưới ${vi(prevClose)}` : `Ra ngoài ${vi(day.lo)}–${vi(day.hi)}`,
-      action: id === "neg" ? (evidence.noPanicSell ? "Lịch sử: giảm từ đầu phiên rồi hồi, không bán đuổi lúc mở." : "Chờ phản ứng sau 10:00. Quy tắc hành động chưa có bằng chứng.")
+      action: !allowed ? null : id === "neg" ? (evidence.noPanicSell ? "Lịch sử: giảm từ đầu phiên rồi hồi, không bán đuổi lúc mở." : "Chờ phản ứng sau 10:00. Quy tắc hành động chưa có bằng chứng.")
         : id === "pos" ? (evidence.noChase ? "Lịch sử: mở cao rồi hụt lại, không mua đuổi lúc mở." : "Chờ giữ được đà sau mở cửa. Quy tắc hành động chưa có bằng chứng.") : "Giữ tỷ trọng theo kế hoạch.",
     };
   });
-  return { lead, scenarios, esSd: round(s, 2), above, trainDays: train.length, trainFrom: train[0]?.date ?? null, trainTo: train[train.length - 1]?.date ?? null };
+  // Độ nhạy mở cửa theo ES trên 250 phiên huấn luyện, chỉ để mô tả (cấp C): gap% ≈ a + b·ES%, phần dư 10–90% theo σ̂ hiện tại.
+  const esFit = openFit && volOpen ? { slope: round(openFit.b, 3), intercept: round(openFit.a, 3), residLo: round(openFit.q.lo * volOpen, 2), residHi: round(openFit.q.hi * volOpen, 2), vol: round(volOpen, 3), n: train.length, grade: "C" } : null;
+  return { lead, scenarios, esSd: round(s, 2), above, trainDays: train.length, trainFrom: train[0]?.date ?? null, trainTo: train[train.length - 1]?.date ?? null, esFit };
 }
