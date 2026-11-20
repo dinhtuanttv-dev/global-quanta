@@ -142,7 +142,9 @@ export function transitionsFrom(ticker: string, sessions: HistSessionLite[] | nu
     const ex = s.exits.find((x) => x.t === t);
     if (ex) out.push({ date: s.date, kind: "EXIT", label: "Ra khỏi danh mục", reason: ex.reasonVi });
     if (s.added.includes(t)) out.push({ date: s.date, kind: "ENTER", label: prevSlot === "QUEUE" ? "Hàng chờ → Danh mục" : "Vào danh mục", reason: null });
-    const inQueue = s.queue?.find((q) => q.t === t), inIll = s.ill?.includes(t), held = s.held.some((h) => h.t === t);
+    // Trước LQ1 (18/11/2026) Gateway để mã chưa giao dịch được NGAY TRONG hàng chờ với code "illiquid" -> đọc như "Chưa giao dịch được".
+    const q0 = s.queue?.find((q) => q.t === t), oldIll = q0?.code === "illiquid";
+    const inQueue = oldIll ? undefined : q0, inIll = oldIll || s.ill?.includes(t), held = s.held.some((h) => h.t === t);
     const slot = held ? "HELD" : inQueue ? "QUEUE" : inIll ? "BLOCKED" : null;
     if (slot === "QUEUE" && prevSlot !== "QUEUE") out.push({ date: s.date, kind: "QUEUE", label: "Vào hàng chờ", reason: inQueue?.code ? QUEUE_CODE_VI[inQueue.code] ?? inQueue.code : null });
     if (slot === "BLOCKED" && prevSlot !== "BLOCKED") out.push({ date: s.date, kind: "BLOCKED", label: "Chưa giao dịch được", reason: null });
