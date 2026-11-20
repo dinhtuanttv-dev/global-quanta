@@ -7,6 +7,7 @@ import { useAsync } from '../useMacro';
 import type { WorldClient } from '../../world-client';
 import type { ScenarioInfo, ScenarioPayload } from './ScenarioStock';
 import { PERSIST_KEYS, usePersistedState } from './persist';
+import { HorizonPills, Skeleton } from './shared';
 
 export const MAX_COMPARE = 4;
 /** Câu lỗi cho người xem: 429 = Gateway đang giới hạn số lần tính. */
@@ -51,17 +52,10 @@ export function ScenarioCompare(props: { client: WorldClient; scenarios: Scenari
           return <button key={s.id} type="button" className="chip" aria-pressed={on} disabled={!on && ids.length >= MAX_COMPARE} onClick={() => toggle(s.id)} data-testid={`compare-chip-${s.id}`}>{s.nameVi}</button>;
         })}
       </div>
-      {props.onHorizon && (
-        <div className="frow">
-          <label className="flabel" htmlFor="wd-cmp-h">Tầm nhìn</label>
-          <select id="wd-cmp-h" value={props.horizon} onChange={(e: { target: { value: string } }) => props.onHorizon?.(Number(e.target.value))}>
-            {[1, 3, 6, 12].map((h) => (<option key={h} value={h}>{h} tháng</option>))}
-          </select>
-        </div>
-      )}
+      {props.onHorizon && <HorizonPills value={props.horizon} onChange={props.onHorizon} idPrefix="wd-cmp-h" />}
       <p className="muted">Chọn tối đa {MAX_COMPARE} kịch bản. Ô là ước tính của engine sau {props.horizon} tháng (%). Ô sọc có dấu “?”: khoảng tin cậy 90% chứa 0, chưa kết luận được hướng. Ô “bất ổn”: ước tính vượt ±50% trong 3 tháng (mẫu tháng ngắn), không dùng. Bấm một ô để xem chi tiết kịch bản đó.</p>
       {picked.length === 0 && <p className="state">Chưa chọn kịch bản nào.</p>}
-      {runs.loading && !runs.data && <p className="state" role="status">Đang mô phỏng {picked.length} kịch bản…</p>}
+      {runs.loading && !runs.data && <Skeleton kind="table" rows={10} label={`Đang mô phỏng ${picked.length} kịch bản…`} />}
       {runs.error && <p className="state alert" role="alert">{runs.error}</p>}
       {runs.data && rows.length === 0 && cols.some((c) => c.error) && (
         <div className="state alert" role="alert" data-testid="scenario-compare-error">

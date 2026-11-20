@@ -27,7 +27,10 @@
 .gq-world .wd .pulse-card, .gq-world .wd .stats li { border-radius: 10px; padding: 10px; gap: 6px; background: var(--surface); border-color: transparent; }
 .gq-world .wd .pulse-name { font-size: 10.5px; color: var(--ink2); }
 .gq-world .wd .pulse-z strong, .gq-world .wd .stats strong { font-size: 16px; font-weight: 800; }
-.gq-world .wd .pulse-bar { background: var(--up3); }
+/* G4: thanh z hai phía — âm đỏ, dương xanh lá (trước: luôn xanh lá, kể cả z âm) */
+.gq-world .wd .pulse-bar.pos { background: var(--up3); }
+.gq-world .wd .pulse-bar.neg { background: var(--down3); }
+.gq-world .wd .pulse-card.unusual { box-shadow: inset 0 0 0 1px var(--warnborder); }
 .gq-world .wd .wm th, .gq-world .wd .wm tbody th { font-size: 10px; }
 .gq-world .wd .cell { min-height: 34px; border-radius: 6px; font-size: 10px; }
 .gq-world .wd .cell .arrow { font-size: 13px; }
@@ -89,3 +92,11 @@
 }
 @media (prefers-reduced-motion: reduce) { .kntg-section-chev { transition: none; } }
 .gq-world .wd .spill td { border-radius: 6px; }
+
+/* G4: thanh thu gọn khi đang mở chỉ ghi "Thu gọn …" (khối bên trong đã có tiêu đề) */
+.kntg-section-close { display: none; }
+@media (max-width: 767px) {
+  .kntg-section[open] .kntg-section-title, .kntg-section[open] .kntg-section-sub { display: none; }
+  .kntg-section[open] .kntg-section-close { display: block; font-size: 11px; color: var(--text-secondary, #94a3b8); }
+  .kntg-section[open] > .kntg-section-bar { min-height: 32px; padding: 4px 12px; }
+}

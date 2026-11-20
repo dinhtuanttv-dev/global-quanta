@@ -1,6 +1,6 @@
 import { fmtNum } from '../../macro-filter';
 import { fmtSigned } from '../../world-view';
-import { CiTrack, ColumnChart, EvidenceChip } from './shared';
+import { CiTrack, ColumnChart, EvidenceChip, HorizonPills, Skeleton } from './shared';
 import type { EvidenceTier } from '../../world-types';
 
 export interface ScenarioPayload {
@@ -38,13 +38,8 @@ export function WorldScenario(props: {
         {props.scenarios.map((s) => (<button key={s.id} type="button" className="chip" aria-pressed={props.selectedId === s.id} onClick={() => props.onSelect(s.id)}>{s.nameVi}</button>))}
       </div>
       {cur && <p className="muted">{cur.descriptionVi}</p>}
-      <div className="frow">
-        <label className="flabel" htmlFor="wd-h">Tầm nhìn</label>
-        <select id="wd-h" value={props.horizon} onChange={(e: { target: { value: string } }) => props.onHorizon(Number(e.target.value))}>
-          {[1, 3, 6, 12].map((h) => (<option key={h} value={h}>{h} tháng</option>))}
-        </select>
-      </div>
-      {props.loading && <p className="state" role="status">Đang mô phỏng…</p>}
+      <HorizonPills value={props.horizon} onChange={props.onHorizon} idPrefix="wd-h" />
+      {props.loading && <Skeleton kind="table" rows={10} label="Đang mô phỏng…" />}
       {props.error && <p className="state alert" role="alert">{props.error}</p>}
       {r && !props.loading && (
         <>
@@ -61,7 +56,8 @@ export function WorldScenario(props: {
           {focus && (
             <>
               <h3 className="h3">Đường đáp ứng theo tháng, ngành {focus.nameVi}</h3>
-              <ColumnChart values={focus.irf.map((p) => p.est)} scale={60 / range} half={80} ci={focus.irf.map((p) => ({ lo: p.lo, hi: p.hi }))} highlight={(i) => i === r.horizon} label={`Đường đáp ứng của ngành ${focus.nameVi} từ tháng 0 đến tháng ${focus.irf.length - 1}`} />
+              <ColumnChart values={focus.irf.map((p) => p.est)} scale={60 / range} half={80} ci={focus.irf.map((p) => ({ lo: p.lo, hi: p.hi }))} highlight={(i) => i === r.horizon} label={`Đường đáp ứng của ngành ${focus.nameVi} từ tháng 0 đến tháng ${focus.irf.length - 1}`}
+                xLabel={(i) => `T${focus.irf[i]?.h ?? i}`} tableCaption={`Đường đáp ứng ngành ${focus.nameVi} theo tháng (%), kèm khoảng tin cậy 90%`} />
               <p className="muted">Lợi suất cộng dồn sau mỗi tháng; thanh dọc là khoảng tin cậy; nền đậm là tầm nhìn đã chọn.</p>
             </>
           )}

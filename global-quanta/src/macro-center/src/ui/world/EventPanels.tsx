@@ -65,6 +65,7 @@ export function EventDetail({ d }: { d: EventDetailPayload }) {
   const ar = d.path.map((p) => p.ar);
   const car = d.path.map((p) => p.car ?? 0);
   const ci = d.path.map((p) => (p.car !== null && p.se !== null ? { lo: p.car - 1.645 * p.se, hi: p.car + 1.645 * p.se } : { lo: 0, hi: 0 }));
+  const d0 = (i: number) => d.path[i]?.day ?? i; // phiên tương đối so với phiên phản ứng (G4: nhãn trục X)
   const inWindow = (i: number) => d.path[i]?.car !== null && d.path[i]?.day <= 3;
   return (
     <div className="detail">
@@ -79,9 +80,11 @@ export function EventDetail({ d }: { d: EventDetailPayload }) {
       {d.path.length > 0 ? (
         <>
           <p className="cap">Lợi suất bất thường mỗi phiên, ngành {e.sectorName} (%)</p>
-          <ColumnChart values={ar} scale={14} highlight={inWindow} label={`Lợi suất bất thường từng phiên của ngành ${e.sectorName}`} />
+          <ColumnChart values={ar} scale={14} highlight={inWindow} label={`Lợi suất bất thường từng phiên của ngành ${e.sectorName}`}
+            xLabel={(i) => { const d = d0(i); return d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "0"; }} tableCaption={`Lợi suất bất thường từng phiên, ngành ${e.sectorName} (%)`} />
           <p className="cap">Tích luỹ (CAR) và khoảng tin cậy 90% (%)</p>
-          <ColumnChart values={car} scale={7} ci={ci} highlight={inWindow} label={`Lợi suất bất thường tích luỹ của ngành ${e.sectorName}`} />
+          <ColumnChart values={car} scale={7} ci={ci} highlight={inWindow} label={`Lợi suất bất thường tích luỹ của ngành ${e.sectorName}`}
+            xLabel={(i) => { const d = d0(i); return d > 0 ? `+${d}` : d < 0 ? `−${-d}` : "0"; }} tableCaption={`Lợi suất bất thường tích luỹ (CAR), ngành ${e.sectorName} (%), kèm khoảng tin cậy 90%`} />
           <p className="muted">Nền đậm là cửa sổ đo (−1, +3). Phiên 0 là phiên phản ứng đầu tiên.</p>
           <dl className="kv">
             <dt>CAR (−1, +3)</dt><dd>{fmtSigned(e.car ?? NaN, 2, '%')}</dd>

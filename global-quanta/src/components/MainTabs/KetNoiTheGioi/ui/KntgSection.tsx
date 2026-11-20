@@ -38,6 +38,8 @@ export default function KntgSection({ id, title, summary, openOnMobile = false, 
         <span className="min-w-0">
           <span className="kntg-section-title">{title}</span>
           <span className="kntg-section-sub">{summary}</span>
+          {/* G4: khi đang mở, khối tự có tiêu đề -> thanh chỉ còn "Thu gọn" (không lặp tên) */}
+          <span className="kntg-section-close">Thu gọn ▲</span>
         </span>
         <ChevronDown className="kntg-section-chev" aria-hidden />
       </summary>
