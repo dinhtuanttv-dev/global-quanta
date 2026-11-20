@@ -15,8 +15,8 @@ const STATUS_CLS: Record<PulseStatus, string> = {
 const GROUP_VI = { DECISION: "Quyết định danh mục", PRICE_POSITION: "Vị trí giá", CAPITAL_EVENTS: "Vốn & sự kiện" } as const;
 const TICKER_CAP = 6;
 
-function Chip({ s }: { s: PulseStatus }) {
-  return <span className={`inline-block whitespace-nowrap rounded border px-1.5 py-px text-[10px] font-bold ${STATUS_CLS[s]}`} data-testid="pulse-chip">{PULSE_STATUS_VI[s]}</span>;
+function Chip({ s, id }: { s: PulseStatus; id: string }) {
+  return <span className={`inline-block whitespace-nowrap rounded border px-1.5 py-px text-[10px] font-bold ${STATUS_CLS[s]}`} data-testid={`pulse-chip-${id}`}>{PULSE_STATUS_VI[s]}</span>;
 }
 
 function Tickers({ list, onOpen, id }: { list: string[]; onOpen: (t: string) => void; id: string }) {
@@ -119,7 +119,7 @@ export default function DecisionPulse({ d, history, onOpenTicker }: { d: EliteDe
       <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
         <h4 className="text-[11px] font-bold uppercase tracking-[.12em] text-[#F5CE72]" style={{ fontFamily: "var(--font-display)" }}>Nhịp quyết định hôm nay</h4>
         <span className="text-[10.5px] text-slate-400" data-testid="pulse-baseline">{vm.session.prevDate ? `so với phiên ${fmtDate(vm.session.prevDate)}` : "phiên dựng đầu tiên"}</span>
-        <Chip s={vm.overall} />
+        <Chip s={vm.overall} id="overall" />
         {vm.overallWhy.length > 0 && <span className="text-[10.5px] text-slate-400" data-testid="pulse-why">· {vm.overallWhy.join(" · ")}</span>}
       </div>
       <div role="table" aria-label="Nhịp quyết định hôm nay" className="w-full">
@@ -135,7 +135,7 @@ export default function DecisionPulse({ d, history, onOpenTicker }: { d: EliteDe
                 <Cell head="Chỉ số"><span role="rowheader" className="font-semibold text-slate-200">{r.label}</span></Cell>
                 <Cell head="Hiện tại" testId={`pulse-cur-${r.id}`}>{current(r, d)}</Cell>
                 <Cell head="So với phiên trước" testId={`pulse-delta-${r.id}`}>{delta(r, onOpenTicker, vi)}</Cell>
-                <Cell head="Trạng thái"><Chip s={r.status} />{r.reason && <span className="block text-[10px] text-slate-400">{r.reason}</span>}</Cell>
+                <Cell head="Trạng thái"><Chip s={r.status} id={r.id} />{r.reason && <span className="block text-[10px] text-slate-400">{r.reason}</span>}</Cell>
               </div>
             </div>
           );

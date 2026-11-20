@@ -2,12 +2,9 @@
 // • Vùng cổ tức W1–W5 (neo GDKHQ ƯỚC TÍNH: lúc vào thường chưa có ngày GDKHQ, không có lợi thế ngoài mẫu) bị BỎ khỏi mọi bảng Elite;
 //   thay bằng vùng TO neo NGÀY CÔNG BỐ: vào 2 phiên đầu sau công bố, bán phiên cuối còn quyền — bậc THĂM DÒ (chờ kiểm định tiến TO-r1).
 // • Vùng mùa vụ KQKD giữ nguyên. Không đổi cách chọn mã / tỷ trọng Elite (đang đóng băng tới mốc đánh giá).
-// • Cảnh báo GDKHQ: vị thế Elite sẽ qua GDKHQ trong kỳ nắm giữ 10 phiên -> nêu phiên cuối còn quyền + số lịch sử "giữ qua GDKHQ".
-// Hàm thuần (có test).
-import type { TimelineRow } from "../cotuc/buy-timeline";
-import type { ToRadarRow, ToStats } from "../cotuc/to";
+// Hàm thuần (có test). Dọn rác 20/11/2026: chú thích vùng TO (toZoneText) và cảnh báo GDKHQ (exGuards) đã gỡ cùng cột Điểm mua.
+import type { ToRadarRow } from "../cotuc/to";
 import type { LaneRow } from "./buyZoneLane";
-import { ELITE_HOLD_SESSIONS, nextSessionAfter } from "./buyTimingCell";
 
 export const TO_WINDOW_ID = "to";
 export const isToRow = (r: { windowId: string }) => r.windowId === TO_WINDOW_ID;
@@ -47,30 +44,4 @@ export function toLaneRows(rows: readonly ToRadarRow[], today: string, sessions:
 /** Bỏ vùng cổ tức W1–W5 cũ, thêm vùng TO; giữ vùng mùa vụ KQKD. */
 export function withToRows<T extends { kind: string }>(rows: readonly T[], to: readonly LaneRow[]): T[] {
   return [...rows.filter((r) => r.kind !== "DIVIDEND"), ...(to as unknown as T[])];
-}
-
-/** Tooltip của vùng TO (không có q-value: chưa kiểm định — dùng số tham chiếu lịch sử của nhóm lợi suất). */
-export function toZoneText(r: Pick<TimelineRow, "entryFromDate" | "entryToDate" | "exitDate" | "eventDate" | "nEvents" | "winRate" | "netExpectancy" | "netExpectancyLcb" | "missing">): string {
-  const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
-  const pc = (x: number) => `${x >= 0 ? "+" : "−"}${Math.abs(x * 100).toFixed(1).replace(".", ",")}%`;
-  return `Săn cổ tức TO-r1 (THĂM DÒ): vào ${dm(r.entryFromDate)}→${dm(r.entryToDate)} (2 phiên đầu sau công bố), bán phiên cuối còn quyền ${dm(r.exitDate)}, GDKHQ ${dm(r.eventDate)}`
-    + ` · nhóm lợi suất trong quá khứ: vượt VN-Index ${pc(r.netExpectancy)}/lệnh (cận dưới 95% ${pc(r.netExpectancyLcb)}), thắng ${Math.round(r.winRate * 100)}% / ${r.nEvents} lệnh`
-    + `${r.missing.length ? ` · ${r.missing.join("; ")}` : ""}`;
-}
-
-export interface ExGuard { ticker: string; ex: string; lastCum: string; cash: number; yieldNow: number | null; bucket: ToRadarRow["bucket"]; post: ToStats | null; strong: boolean }
-/**
- * Cảnh báo GDKHQ cho vị thế Elite (EX-r1, MÔ TẢ): GDKHQ cổ tức tiền đã công bố rơi vào kỳ nắm giữ (phiên vào theo quy tắc Elite … +10 phiên).
- * strong = nhóm lợi suất ≥ 5% (lịch sử giữ qua GDKHQ 5 phiên ≈ −2,9% vượt VN-Index, đã gồm cổ tức sau thuế).
- */
-export function exGuards(tickers: readonly string[], to: readonly ToRadarRow[], decisionDate: string, sessions: readonly string[], postEx: Record<string, ToStats> | null | undefined, hold = ELITE_HOLD_SESSIONS): Map<string, ExGuard> {
-  const entry = nextSessionAfter(decisionDate, sessions); const out = new Map<string, ExGuard>();
-  if (!entry) return out;
-  const i = sessions.indexOf(entry); const end = sessions[Math.min(sessions.length - 1, i + hold)] ?? entry;
-  const want = new Set(tickers.map((t) => t.toUpperCase()));
-  for (const r of [...to].sort((a, b) => a.ex.localeCompare(b.ex))) {
-    if (!want.has(r.t) || out.has(r.t) || !(r.ex > entry && r.ex <= end)) continue;
-    out.set(r.t, { ticker: r.t, ex: r.ex, lastCum: r.lastCumDate ?? addDaysIso(r.ex, -1), cash: r.cash, yieldNow: r.yieldNow ?? r.yieldPre, bucket: r.bucket, post: postEx?.[r.bucket] ?? null, strong: r.bucket === "≥5%" });
-  }
-  return out;
 }
