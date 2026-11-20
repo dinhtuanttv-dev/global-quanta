@@ -44,6 +44,10 @@ const NEWS_TODAY = { id: "n1", title: "FPT ký hợp đồng 200 triệu USD", s
   source: "CAFEF", sourceLabel: "CafeF", alsoIn: [], corroboration: 1, tickers: ["FPT"], eventType: "CONTRACT", eventLabel: "Hợp đồng", sentiment: 0.6, sentimentHits: [],
   reaction: null, insight: null, importance: 70 };
 
+// MP-b: ô giờ vào lệnh đọc EX-r1 từ sổ bằng chứng (không gọi mạng trong test).
+let registry: unknown = { entries: [{ id: "EX", test: "EX-r1", verdict: "KHÔNG ĐẠT", layer: "Thời điểm khớp lệnh mua", detail: "527 lệnh mua 2020–2026: sau phiên tăng, khớp ATC rẻ hơn ATO 0,68% (t −3,4). Giữ khớp ATC như hiện tại.", src: "research/impact/EX-r1-report.json", ranAt: "2026-11-20" }] };
+vi.mock("../../../hooks/elite10/useDeckData", () => ({ useEvidenceRegistry: () => ({ data: registry }) }));
+
 import TimingSimPanel from "./TimingSimPanel";
 
 const setWide = (on: boolean) => { window.matchMedia = ((q: string) => ({ matches: on, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia; };
@@ -220,5 +224,54 @@ describe("TimingSimPanel — N3 nến ngày thời gian thực + N2 vòng sáng 
     render(<TimingSimPanel ticker="FPT" />);
     expect(esaCalls.every((x) => x === null)).toBe(true);
     expect(screen.queryByTestId("esa-news-ring")).toBeNull();
+  });
+});
+
+// MP-b / MP-c (20/11/2026, tài liệu 19)
+describe("TimingSimPanel — MP-b phí khứ hồi và giờ vào lệnh", () => {
+  it("mặc định phí engine (0,45%), không có ghi chú; chọn 0,8% -> ghi chú nhãn engine, P(lãi) của quạt không tăng; chọn lại engine -> như cũ", () => {
+    buyRows = [{ ...FPT_TL, status: "UPCOMING" }];
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(screen.getByTestId("timing-cost-engine").getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByTestId("timing-cost-engine").textContent).toContain("0,45%");
+    expect(screen.queryByTestId("timing-cost-note")).toBeNull();
+    const pw = () => Number((screen.getByTestId("timing-now").textContent ?? "").match(/P\(lãi ròng > 0\): (\d+)%/)![1]);
+    const base = pw(), fanBase = screen.getByTestId("analog-fan-card").textContent;
+    fireEvent.click(screen.getByTestId("timing-cost-0.008"));
+    expect(screen.getByTestId("timing-cost-note").textContent).toMatch(/vẫn là của engine \(phí 0,45%\)/);
+    expect(pw()).toBeLessThanOrEqual(base);
+    expect(screen.getByTestId("timing-now-vs-wait").textContent).toContain("phí 0,8%/vòng");
+    fireEvent.click(screen.getByTestId("timing-cost-engine"));
+    expect(pw()).toBe(base); expect(screen.getByTestId("analog-fan-card").textContent).toBe(fanBase);
+  });
+  it("ô giờ vào lệnh: nói rõ không mô phỏng ATO theo mã; đọc EX-r1 từ sổ bằng chứng; thiếu sổ -> câu rõ ràng", () => {
+    render(<TimingSimPanel ticker="FPT" />);
+    const t = screen.getByTestId("timing-exec-ref").textContent ?? "";
+    expect(t).toMatch(/không mô phỏng ATO theo từng mã/); expect(screen.getByTestId("timing-exec-ref-ex").textContent).toMatch(/EX-r1 · KHÔNG ĐẠT.*Giữ khớp ATC/);
+    cleanup(); registry = null;
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(screen.getByTestId("timing-exec-ref").textContent).toMatch(/Chưa tải được kết quả EX-r1/);
+    registry = { entries: [] };
+  });
+});
+
+describe("TimingSimPanel — MP-c vào hôm nay so với chờ vùng Timeline", () => {
+  it("vùng sắp tới + cửa sổ Timeline + quạt: hai cột có nguồn và n, cảnh báo hai phương pháp, không câu khuyến nghị", () => {
+    buyRows = [{ ...FPT_TL, status: "UPCOMING" }];
+    render(<TimingSimPanel ticker="FPT" />);
+    const all = screen.getByTestId("timing-now-vs-wait").textContent ?? "";
+    expect(screen.getByTestId("timing-now-vs-wait-warn").textContent).toMatch(/hai phương pháp khác nhau.*9 đợt.*không phải bằng chứng/);
+    expect(screen.getByTestId("timing-now").textContent).toMatch(/Vào hôm nay \(phiên −?-?\d+\).*quạt kịch bản.*P\(lãi ròng > 0\)/);
+    expect(screen.getByTestId("timing-wait").textContent).toMatch(/Chờ vùng Timeline \(vào phiên -15\).*\d\/9.*trung vị.*sau phí.*9 đợt · mẫu rất nhỏ/);
+    for (const bad of [/nên chờ/i, /nên vào/i, /mua ngay/i, /tốt hơn(?! —)/]) expect(all).not.toMatch(bad);
+  });
+  it("vùng đang mở / đổi sang cửa sổ khác -> lý do thay cho khối", () => {
+    buyRows = [FPT_TL];
+    render(<TimingSimPanel ticker="FPT" />);
+    expect(screen.getByTestId("timing-now-vs-wait-off").textContent).toMatch(/đang mở — so sánh chỉ có nghĩa trước vùng/);
+    cleanup(); buyRows = [{ ...FPT_TL, status: "UPCOMING" }];
+    render(<TimingSimPanel ticker="FPT" />);
+    fireEvent.click(screen.getByTestId("timing-window-w2"));
+    expect(screen.getByTestId("timing-now-vs-wait-off").textContent).toMatch(/cửa sổ khác cửa sổ Timeline/);
   });
 });
