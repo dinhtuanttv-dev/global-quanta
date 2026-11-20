@@ -1,6 +1,8 @@
 // G1/L2 (19/11/2026) — màu chữ trên nền dữ liệu (ô bản đồ nhiệt, nhãn tư thế). Chỉ giao diện: không đổi màu nền (mã hoá dữ liệu),
 // chỉ chọn chữ sáng hoặc tối sao cho tương phản cao hơn (WCAG). Trước đây luôn chữ trắng: 2,32:1 trên xanh lá đậm vừa.
-const LIGHT = "#f8fafc", DARK = "#000000"; // đen tuyền: ô màu vùng giữa thang (VD −2,1) đạt 4,66:1 thay vì 4,31:1
+// đen tuyền: ô màu vùng giữa thang (VD −2,1) đạt 4,66:1 thay vì 4,31:1.
+// trắng tuyền (20/11/2026): với #f8fafc, z = −2,01 chỉ đạt 4,48:1 (bắt được trên production); #ffffff -> thấp nhất toàn thang 4,59:1.
+const LIGHT = "#ffffff", DARK = "#000000";
 
 function rgbOf(color: string): [number, number, number] | null {
   const m = color.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/);
