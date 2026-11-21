@@ -49,7 +49,7 @@ describe("HlReplay", () => {
     fireEvent.change(screen.getByTestId("hl-replay-range"), { target: { value: "0" } });
     expect(screen.getByTestId("hl-replay-date").textContent).toBe("Phiên 12/11");
     expect(screen.getByTestId("hl-replay-row-CTD").textContent).toMatch(/CTD\(đã ra\)/);
-    expect(screen.getByTestId("hl-replay-sum").textContent).toMatch(/2 mã · cổ phiếu 70% · tiền mặt 30% · phiên vào lệnh \(đầu tuần\).*vào VPL, CTD/);
+    expect(screen.getByTestId("hl-replay-sum").textContent).toMatch(/2 mã · cổ phiếu 70% · tiền mặt 30% · phiên vào lệnh \(thứ Năm\).*vào VPL, CTD/);
     expect(screen.getByTestId("hl-replay-diff").textContent).toMatch(/thêm VJC · bớt CTD.*khoá lúc dựng\), không tính lại/);
     fireEvent.click(screen.getByTestId("hl-replay-row-CTD").querySelector("button")!);
     expect(open).toHaveBeenCalledWith("CTD");

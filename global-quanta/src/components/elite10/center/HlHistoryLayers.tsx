@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetchMarketJson, isMarketGatewayEnabled } from "../../../services/marketDataClient";
+import { rebalanceDayVi } from "../../../lib/elite10/hlCadence";
 
 export interface HlHistSession {
   date: string; rebalance: boolean; frozen: boolean; cash: number | null; invested: number | null; exitLsPct: number | null;
@@ -88,7 +89,7 @@ export function HlReplay({ h, today, onOpenTicker }: { h: HlHistory | undefined;
             <span className="rounded border border-amber-400/40 px-1 text-[10px] font-bold text-amber-200">LỊCH SỬ · không phải bảng hôm nay</span>
           </div>
           <p className="text-[10.5px] text-slate-400" data-testid="hl-replay-sum">
-            {s.held.length} mã · cổ phiếu {pc(s.invested, 0)} · tiền mặt {pc(s.cash, 0)}{s.rebalance ? " · phiên vào lệnh (đầu tuần)" : ""}{s.frozen ? " · dữ liệu thiếu: giữ nguyên" : ""}
+            {s.held.length} mã · cổ phiếu {pc(s.invested, 0)} · tiền mặt {pc(s.cash, 0)}{s.rebalance ? ` · phiên vào lệnh (${rebalanceDayVi(s.date)})` : ""}{s.frozen ? " · dữ liệu thiếu: giữ nguyên" : ""}
             {s.added.length ? <> · <b className="text-emerald-300">vào {s.added.join(", ")}</b></> : null}
             {s.exits.length ? <> · <b className="text-rose-300">ra {s.exits.map((x) => x.t).join(", ")}</b></> : null}
           </p>

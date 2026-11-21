@@ -42,7 +42,7 @@ export interface FunnelModel {
   checks: string[]; // bất biến bị vi phạm (rỗng = nhất quán)
 }
 export const QUEUE_CODE_VI: Record<string, string> = {
-  wait: "Chờ phiên đầu tuần", full: "Danh mục đủ suất", sector_cap: "Ngành đủ số mã", no_room: "Hết tiền mặt / trần ngành",
+  wait: "Chờ phiên cân bằng", legal_block: "Sự kiện pháp lý", full: "Danh mục đủ suất", sector_cap: "Ngành đủ số mã", no_room: "Hết tiền mặt / trần ngành",
   extended: "Đã quá vùng mua", in_base: "Đang trong nền", no_setup: "Chưa có nền",
 };
 export const EXIT_CODE_VI: Record<string, string> = { ls: "LS-v1 dưới ngưỡng", ta: "Hết mô hình TA", rrg: "Ngành Tụt hậu", no_data: "Mất dữ liệu" };

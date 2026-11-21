@@ -7,6 +7,7 @@ import type { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { AllocationBar } from "../center/HlPricePosition";
 import { fmtDate, num, signed } from "../center/boardParts";
 import { DeckLabel, EvidenceSeal, Scale } from "./parts";
+import { hlCadenceVi } from "../../../lib/elite10/hlCadence";
 
 type WS = ReturnType<typeof useWorldStrategy>["data"];
 const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${num(v * 100, d)}%`);
@@ -84,7 +85,7 @@ export function TodayRibbon({ d }: { d: EliteDecision }) {
     <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-white/10 border-l-[3px] border-l-[#E8B84B] bg-[#0E131F] px-4 py-2.5" aria-label="Hôm nay" data-testid="deck-today">
       <span className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#F5CE72]" style={{ fontFamily: "var(--font-display)" }}>Hôm nay</span>
       <span className={item} data-testid="hl-kpi-rebalance"><b className={hl.dataGuard?.frozen ? "text-rose-300" : hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.dataGuard?.frozen ? "Giữ nguyên" : hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</b>
-        <span>— {hl.dataGuard?.frozen ? "Chốt dữ liệu đang bật: không vào, không ra" : hl.rebalance ? "phiên đầu tuần: được nhận mã mới vào ô trống" : "mã mới chỉ vào ở phiên đầu tuần kế tiếp"}</span></span>
+        <span>— {hl.dataGuard?.frozen ? "Chốt dữ liệu đang bật: không vào, không ra" : hl.rebalance ? `${hlCadenceVi(hl).v11 ? "phiên vào lệnh" : "phiên đầu tuần"}: được nhận mã mới vào ô trống` : `mã mới chỉ vào ở ${hlCadenceVi(hl).next}`}</span></span>
       <span className={item} data-testid="hl-kpi-names"><b className="num text-slate-100">{f.held} / {r.slots}</b> mã · {ch.added.length || ch.exits.length ? `vào ${ch.added.length} · ra ${ch.exits.length} · giữ ${ch.kept}` : `giữ nguyên ${ch.kept} mã`}
         {pz && <span className="text-slate-500">(<span data-testid="hl-kpi-lanes">{pz.coreNames} chính · {pz.runnerNames} chạy lãi</span>)</span>}</span>
       {cnt && <span className={item} title={`Trạng thái vị trí giá PZ-v2 của ${total} mã: các mã đạt tầng 1 cộng mã đang giữ — mô tả (PZ-r2 KHÔNG ĐẠT)`} data-testid="deck-pz-counts">Vị trí giá ({total} mã): Vùng mua <b className="num text-slate-100">{cnt.BUY_ZONE ?? 0}</b> · Trong nền <b className="num text-slate-100">{cnt.IN_BASE ?? 0}</b> · Tăng nóng <b className="num text-slate-100">{cnt.EXTENDED ?? 0}</b> · Hạ nhiệt <b className="num text-slate-100">{cnt.COOLING ?? 0}</b></span>}

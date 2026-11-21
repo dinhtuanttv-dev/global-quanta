@@ -5,6 +5,7 @@ import { type EliteDecision, type LedgerSummary } from "../../../lib/elite10/dec
 import { fmtDate, num, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
 import { DEFAULT_PZ_RULES, PzRulesItems } from "./HlPricePosition";
+import { hlCadenceVi } from "../../../lib/elite10/hlCadence";
 
 const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${num(v * 100, d)}%`);
 
@@ -36,7 +37,7 @@ export function HlRulesPanel({ d }: { d: EliteDecision }) {
     <Panel title="Quy tắc vào · giữ · ra" testId="hl-rules">
       <ul className="list-disc space-y-0.5 pl-4 text-[11px] text-slate-300">
         <li><b>Chọn:</b> tầng 1 (LS-v1 top {lsTop}% và ≥ {t1.taMin}/{t1.taModels} mô hình TA) → RRG ngành Cải thiện / Dẫn dắt → tích điểm các tab.</li>
-        <li><b>Vào:</b> chỉ ở phiên đầu mỗi tuần, theo thứ tự xếp hạng; GTGD TB20 ≥ {r.minAdvBn} tỷ; tối đa {r.slots} mã, {r.maxPerSector} mã và {pct(r.sectorCap, 0)} tỷ trọng mỗi ngành.</li>
+        <li><b>Vào:</b> {hlCadenceVi(hl).rule}, theo thứ tự xếp hạng; GTGD TB20 ≥ {r.minAdvBn} tỷ; tối đa {r.slots} mã, {r.maxPerSector} mã và {pct(r.sectorCap, 0)} tỷ trọng mỗi ngành.</li>
         <li><b>Giữ:</b> không cân lại tỷ trọng; ngành chuyển sang Suy yếu chỉ là cảnh báo.</li>
         <li><b>Ra (xét mỗi phiên):</b> LS-v1 dưới phân vị {r.exitLsPct}, hoặc không còn mô hình TA nào đạt, hoặc ngành rơi vào Tụt hậu.</li>
         {pz && <PzRulesItems meta={pz} />}
@@ -96,7 +97,7 @@ export function HlEvidenceLink({ d, onNavigate }: { d: EliteDecision; onNavigate
       <ul className="space-y-0.5 text-[11px] text-slate-300">
         <li data-testid="hl-evidence-link-ledger">Sổ theo dõi tiến Elite HL — 5 phiên: {ledgerLine(d.ledgerSummary, "5")} · 10 phiên: {ledgerLine(d.ledgerSummary, "10")}</li>
         <li className="text-slate-400">Bằng chứng của từng lớp (kiểm định đăng ký trước, công bố cả khi không đạt), quy tắc, Cổng tiền mặt, trọng số: ở tab 4.</li>
-        <li className="text-slate-400">Quy tắc: tối đa {hl.rule.slots} mã, vào phiên đầu tuần, ra khi LS-v1 dưới phân vị {hl.rule.exitLsPct}, hết mô hình TA hoặc ngành Tụt hậu.</li>
+        <li className="text-slate-400">Quy tắc: tối đa {hl.rule.slots} mã, {hlCadenceVi(hl).short}, ra khi LS-v1 dưới phân vị {hl.rule.exitLsPct}, hết mô hình TA hoặc ngành Tụt hậu.</li>
       </ul>
       {onNavigate ? (
         <button type="button" onClick={onNavigate} data-touch data-testid="hl-goto-evidence"
