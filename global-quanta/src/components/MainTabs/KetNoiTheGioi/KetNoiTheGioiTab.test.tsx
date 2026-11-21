@@ -19,7 +19,7 @@ vi.mock("../ChatXucTac/WorldTodayStrip", () => stub("f-today"));
 vi.mock("../../../macro-center/src/ui/world/WorldTab", () => ({ WorldTab: ({ only }: { only: string }) => <div data-testid={`f-engine-${only}`} /> }));
 vi.mock("../../../hooks/useGlobalStream", () => ({
   useGlobalStream: () => ({
-    connected: true, source: "gateway", monthlyFromProjectA: true,
+    connected: true, source: "gateway",
     data: {
       markets: [{ symbol: "^GSPC", name: "S&P 500", value: 6000, change_percent: 1 }],
       macro: { risk_status: "NEUTRAL", risk_on_score: 50, breakdown: { dxyScore: 50, vixScore: 50, treasuryScore: 50 }, dxy: 101, vix: 19, treasury_10y: 4.9, gold: 4000, oil_brent: 80, baltic_dry_index: null, quotes: {}, fetched_at: "2026-10-30T00:00:00Z" },
@@ -70,5 +70,14 @@ describe("Trung tâm kinh tế thế giới — đủ tính năng ở đúng tab
     const tab = document.querySelector('[role="tab"][aria-selected="true"]')!;
     act(() => { tab.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
     expect(has("f-strategy")).toBe(true);
+  });
+
+  it("ghi chú nguồn: giá tháng từ World Bank qua Gateway, không còn nói Project A / số dự phòng", () => {
+    render(<KetNoiTheGioiTab />);
+    open(/Bằng chứng/);
+    const t = document.querySelector('[data-testid="evidence-sources"]')?.textContent ?? "";
+    expect(t).toContain("World Bank Pink Sheet");
+    expect(t).toContain("Nhịp đập hàng hoá");
+    expect(t).not.toContain("Project A");
   });
 });
