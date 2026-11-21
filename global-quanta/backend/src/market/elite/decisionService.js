@@ -5,7 +5,8 @@ import { PORTFOLIO, RRG_RULE, buildCandidates, buildDecision, COST_ROUND_TRIP, E
 import { hlHistoryFromDocs } from "./hlHistory.js";
 import { realisticEntry, summarizeRealistic, VN_EXEC } from "./executionVN.js";
 import { noteStoreError } from "./storeHealth.js";
-import { buildHlPortfolio, hlTradable, HL_K0, HL_PF_VERSION, HL_TIER1, isoWeek } from "./eliteHl.js";
+import { hlTradable, HL_K0, HL_TIER1, isoWeek } from "./eliteHl.js";
+import { buildHlPortfolioV11, HL_V11_VERSION } from "./eliteHlUpgrade.js";
 import { REGIME_VI } from "./leadership.js";
 import { hlScores } from "./confluence.js";
 import { annotatePz, PZ_GATE } from "./hlWatch.js";
@@ -40,7 +41,7 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 /** "Ứng viên tiếp theo" (C1) phát lại thuật toán E3 — với tài liệu E4-HL phải dùng danh mục dòng tiền, không phải danh mục HL. */
 const flowView = (doc) => (doc?.flowPortfolio ? { ...doc, portfolio: doc.flowPortfolio } : doc);
 
-export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null, priceWatch = null, dilution = null }) {
+export function createDecisionService({ store, panel, evidence, vnIndex, sessionDates = null, now = Date.now, log = console, userFilters = null, buyZone = null, leadership = null, adjustedCloses = null, priceWatch = null, dilution = null, hlContext = null }) {
   let memo = null;
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
@@ -120,13 +121,15 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
       const ev0 = await evidence.evidence();
       const FLOW_VER = ev0?.signals?.some((x) => x.id === "ls_v1" && x.gateLive) ? E3_V5 : E3_VERSION;
       // E4-HL (12/11/2026): danh mục chính thức = Elite HL; danh mục E3 "dòng tiền" dựng song song (flowPortfolio) với sổ riêng tiếp nối sổ cũ.
-      const VER = HL_PF_VERSION;
+      // E4-HL v1.1 (21/11/2026): lớp nâng cấp U0–U4 bọc ngoài buildHlPortfolio (eliteHlUpgrade.js) — hàm gốc không đổi.
+      const VER = HL_V11_VERSION;
       let ledger = (await kv(DECISION_KV.ledger)) ?? { version: VER, entries: [] };
       let flow = await kv(DECISION_KV.flowLedger);
       if (!flow) flow = ledger.version !== VER ? JSON.parse(JSON.stringify(ledger)) : { version: FLOW_VER, entries: [] };
       // Đổi phiên bản E3 (sửa đổi đăng ký trước): lưu trữ sổ cũ nguyên vẹn, sổ mới bắt đầu lại; quyết định phiên hiện tại dựng lại.
-      let versionChanged = false;
+      let versionChanged = false, carry = null;
       if (ledger.version !== VER) {
+        carry = ledger; // E4-HL v1.1: mã đang giữ chuyển nguyên (ngày khoá, giá tham chiếu) từ sổ cũ sang sổ mới, không dựng lại từ đầu.
         await store.setKv(`elite:ledger:archive:${String(ledger.version).split(" ")[0]}`, { ...ledger, archivedAt: new Date(now()).toISOString() });
         ledger = { version: VER, entries: [], previous: ledger.version };
         versionChanged = true;
@@ -151,14 +154,17 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
       let doc = exists ? await ensurePz(await kv(DECISION_KV.decision(p.date)), p, ledger) : null;
       if (!doc) {
         // E3-v3: vùng đệm giữ mã — danh mục đã khoá của phiên liền trước trong sổ cùng phiên bản.
-        const flowPrev = lastBefore(flow, p.date), hlPrev = lastBefore(ledger, p.date);
+        const flowPrev = lastBefore(flow, p.date), hlPrev = lastBefore(ledger, p.date) ?? (carry ? lastBefore(carry, p.date) : null);
         // PZ-v2: vị trí giá tính TRƯỚC khi dựng danh mục (cổng cần nó); khi PZ_GATE = false danh mục giống hệt khi không có PZ.
         const pz = await pricePosition(p, hlPrev?.holdings ?? [], force);
         const zoneBy = PZ_GATE && pz?.snap ? new Map(Object.entries(pz.snap.records).map(([t, r]) => [t, r.state])) : null;
         const base = buildDecision({ panel: p, evidence: ev, prices, cal, prevHoldings: flowPrev?.holdings ?? [], version: FLOW_VER });
         // Phiên cân bằng = phiên đầu tiên của tuần ISO mà danh mục được phép nhận mã mới (phiên đầu tuần bị chốt dữ liệu -> dời sang phiên kế).
         const wk = isoWeek(p.date), rebalance = !ledger.entries.some((e) => e.date < p.date && e.rebalance && isoWeek(e.date) === wk);
-        const H = buildHlPortfolio({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance, date: p.date, missingSources: p.missingSources ?? [], zoneBy, gate: PZ_GATE && Boolean(zoneBy) });
+        let hlCtx = {};
+        try { hlCtx = (await hlContext?.()) ?? {}; } catch (e) { log.warn?.(`[elite] ngữ cảnh E4-HL v1.1: ${e.message}`); }
+        const H = buildHlPortfolioV11({ panelRows: p.rows, scores: base.scores, prev: hlPrev?.holdings ?? [], rebalance, date: p.date, missingSources: p.missingSources ?? [], zoneBy, gate: PZ_GATE && Boolean(zoneBy) },
+          { ...hlCtx, entries: [...(carry?.entries ?? []), ...ledger.entries] });
         if (H.hl.dataGuard.frozen) log.warn?.(`[elite] HL chốt dữ liệu phiên ${p.date}: ${H.hl.dataGuard.reasonsVi.join("; ")}`);
         let market = null;
         if (leadership) { try { const lv = await leadership.live(p.date); market = { regime: lv.regime, regimeVi: REGIME_VI[lv.regime] ?? null, bias: lv.bias, breadth: lv.breadth, guard: lv.guard }; } catch (e) { log.warn?.(`[elite] trạng thái thị trường LS: ${e.message}`); } }

@@ -293,7 +293,9 @@ const getEliteHlWatch = () => (eliteHlWatch ??= createHlWatch({
   vnIndex: vnIndexCloses,
 }));
 const getEliteDecision = () => (eliteDecision ??= createDecisionService({ sessionDates: vnIndexSessionDates, priceWatch: getEliteHlWatch(), store: getMarketRuntime().store, panel: getElitePanel(), evidence: getEliteEvidence(), leadership: getEliteLeadership(), adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses, userFilters: getUserFilters(), buyZone: validatedBuyZone,
-  dilution: (date, tickers) => getEliteDilution().phases(date, tickers) }));
+  dilution: (date, tickers) => getEliteDilution().phases(date, tickers),
+  // E4-HL v1.1: RRG tuần đã đóng (U1), phân ngành ICB, sự kiện chính thức VNDirect (U3) — đều đọc từ kho đã có, không gọi ra ngoài.
+  hlContext: async () => ({ rrg: await rrgDoc(), taxonomy: await taxonomy(), events: getMarketRuntime().corpEvents?.doc?.()?.events ?? [] }) }));
 // E5: công cụ chat elite_* (Claude / Gemini ở Project A).
 let eliteChatTools = null;
 const getEliteChatTools = () => (eliteChatTools ??= createEliteChatTools({
