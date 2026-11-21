@@ -111,6 +111,12 @@ export interface EliteHlMeta {
   against: { ticker: string; hlRank: number; t1: number; rrg: number | null; rrgVi: string | null }[];
   market: { regime: string; regimeVi: string | null; bias: string | null; breadth: number | null; guard: boolean } | null;
   labelVi: string;
+  /** E4-HL v1.1 (21/11/2026): lớp nâng cấp U0–U4 (Gateway cũ không gửi). */
+  upgrade?: {
+    version: string; cadence: { session: boolean; halfWeek: string; refill: { freed: number; bought: number; slots: number; reasonVi: string } | null };
+    rrgPending: string[]; legal: Record<string, { level: "red" | "yellow"; labelVi: string; date: string; title: string | null }>; legalBlocked: string[]; notes: string[];
+    v1Diff: { onlyV1: string[]; onlyV11: string[]; v1Exits: string[]; v1Added: string[]; v1Cash: number; noteVi: string } | null; labelVi: string;
+  };
 }
 
 export interface LedgerHorizon {

@@ -11,6 +11,7 @@ import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetchMarketJson, isMarketGatewayEnabled } from "../../../services/marketDataClient";
 import type { EliteDecision } from "../../../lib/elite10/decisionTypes";
+import { hlCadenceVi } from "../../../lib/elite10/hlCadence";
 import {
   EXIT_CODE_VI, PRIMARY_ORDER, PRIMARY_VI, QUEUE_CODE_VI, PZ_VI, transitionsFrom,
   type BoardStates, type FunnelModel, type HistSessionLite, type PrimaryState, type SessionSeal, type Transition, type WatchLogEntry,
@@ -69,7 +70,7 @@ export function CockpitStatusBar({ seal, states, today }: { seal: SessionSeal; s
         <span className="text-slate-400">· {seal.version}{seal.ruleVersion ? ` · ${seal.ruleVersion}` : ""}</span>
         {seal.pzMode && <span className="rounded border border-white/15 px-1 text-[10px] text-slate-300">{seal.pzMode === "GATE" ? "PZ-v2 CỔNG BẬT" : "PZ-v2 CHỈ HIỂN THỊ"}</span>}
         <span className="rounded border border-amber-400/40 px-1 text-[10px] font-bold text-amber-200">THĂM DÒ</span>
-        <span className="text-slate-400">· {seal.rebalance ? "phiên vào lệnh (đầu tuần)" : "không phải phiên vào lệnh — mua mới chờ phiên đầu tuần tới"}</span>
+        <span className="text-slate-400">· {seal.rebalance ? hlCadenceVi(seal.version).session : `không phải phiên vào lệnh — mua mới chờ ${hlCadenceVi(seal.version).next}`}</span>
       </p>
       <p className="mt-0.5 flex flex-wrap gap-x-2 text-slate-400" data-testid="cockpit-data">
         {seal.frozen ? <b className="text-rose-300">● Chốt dữ liệu: {seal.frozenWhy.join(" · ")}</b> : <span><span className="text-emerald-300">●</span> Dữ liệu phiên đủ nguồn</span>}

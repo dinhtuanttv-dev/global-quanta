@@ -3,6 +3,7 @@
 // lái). Không gọi API, không đọc đồng hồ, không tính lại danh mục; mọi số chép NGUYÊN VĂN từ trường nguồn có ghi tên (`sourceFields`).
 // Hai miền tách bạch: DANH MỤC (mốc hl.prevDate) và VỊ TRÍ GIÁ (toWatch/backToZone so với ảnh chụp PZ trước — payload không có ngày).
 import type { EliteDecision, PzState } from "./decisionTypes";
+import { hlCadenceVi } from "./hlCadence";
 
 export type PulseStatus = "FROZEN" | "STALE" | "NO_BASELINE" | "CHANGED" | "STABLE" | "PARTIAL";
 export type BaselineKind = "HL_PREV" | "PZ_PREV_SNAPSHOT" | "HISTORY" | "NONE";
@@ -50,7 +51,7 @@ export function pulseModel(d: EliteDecision, histSessions?: readonly PulseHistSe
     current: { rebalance: hl.rebalance ? 1 : 0, week: hl.week ?? null, frozen: frozen ? 1 : 0 },
     delta: null, baselineKind: "NONE", baselineDate: null,
     status: frozen ? "FROZEN" : "STABLE",
-    reason: frozen ? "Dữ liệu phiên không đủ — không vào, không ra" : hl.rebalance ? "Phiên vào lệnh của tuần: được nhận mã mới vào ô trống" : "Chỉ xét ra — mua mới ở phiên vào lệnh của tuần kế tiếp",
+    reason: frozen ? "Dữ liệu phiên không đủ — không vào, không ra" : hl.rebalance ? (hlCadenceVi(hl).v11 ? "Phiên vào lệnh: được nhận mã mới vào ô trống" : "Phiên vào lệnh của tuần: được nhận mã mới vào ô trống") : (hlCadenceVi(hl).v11 ? `Chỉ xét ra — mua mới ở ${hlCadenceVi(hl).next}` : "Chỉ xét ra — mua mới ở phiên vào lệnh của tuần kế tiếp"),
     sourceFields: ["hl.rebalance", "hl.week", "hl.dataGuard.frozen"],
   });
 

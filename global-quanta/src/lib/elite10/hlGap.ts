@@ -28,6 +28,6 @@ export function hlGap(
   const missing = conds.filter((c) => c.ok === false).length, unknown = conds.filter((c) => c.ok === null).length;
   const verdictVi = missing ? `Còn thiếu ${missing} điều kiện${unknown ? ` · ${unknown} chưa có số liệu` : ""}.`
     : unknown ? `Chưa đủ số liệu để xét ${unknown} điều kiện.`
-      : "Đạt mọi điều kiện của quy tắc — vào khi có phiên cân bằng đầu tuần và còn ô trống / trần ngành.";
+      : "Đạt mọi điều kiện của quy tắc — vào ở phiên cân bằng kế tiếp khi còn ô trống / trần ngành.";
   return { conds, missing, verdictVi };
 }

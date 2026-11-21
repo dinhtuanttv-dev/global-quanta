@@ -90,7 +90,7 @@ import h2 from "./__fixtures__/hl-history-h2-2026-11-19.json";
 describe("transitionsFrom — HL-H2 dữ liệu thật", () => {
   const sessions = h2.sessions as unknown as HistSessionLite[];
   it("VPI: vào hàng chờ 13/11 (chờ phiên đầu tuần), giữ trong hàng chờ các phiên sau -> chỉ một bước", () => {
-    expect(transitionsFrom("VPI", sessions, [], 10).map((x) => `${x.date} ${x.label} · ${x.reason}`)).toEqual(["2026-11-13 Vào hàng chờ · Chờ phiên đầu tuần"]);
+    expect(transitionsFrom("VPI", sessions, [], 10).map((x) => `${x.date} ${x.label} · ${x.reason}`)).toEqual(["2026-11-13 Vào hàng chờ · Chờ phiên cân bằng"]);
   });
   it("HDA: trước LQ1 nằm trong hàng chờ với code 'illiquid' -> đọc đúng là 'Chưa giao dịch được', không phải 'Vào hàng chờ'", () => {
     const tr = transitionsFrom("HDA", sessions, [], 10);
