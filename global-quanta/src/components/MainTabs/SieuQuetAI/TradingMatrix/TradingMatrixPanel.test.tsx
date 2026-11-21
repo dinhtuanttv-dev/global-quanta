@@ -122,6 +122,17 @@ describe("Trạng thái thị trường", () => {
     expect(src).not.toContain("Trực tiếp");
   });
 
+  it("PR-C: tab Bằng chứng có liên kết tới bảng 'Các nhãn đo gì' của Trung tâm thị trường", async () => {
+    state.data = withState();
+    await render();
+    await click("[data-testid=mx-health-warn]");
+    let fired = 0; const on = () => { fired++; };
+    window.addEventListener("gq:market-center-labels", on);
+    await click("[data-testid=mx-open-labels]");
+    window.removeEventListener("gq:market-center-labels", on);
+    expect(fired).toBe(1);
+  });
+
   it("mở Chi tiết: bản đồ 2D, xem lại theo phiên đổi được số, đúng 7 tab", async () => {
     state.data = withState();
     await render();

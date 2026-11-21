@@ -24,6 +24,9 @@ import MarketCenterPanel from "./MarketCenterPanel";
 import FoldSection from "./FoldSection";
 
 const q = (id: string) => document.querySelector(`[data-testid="${id}"]`);
+/** PR-C: tầng 2 mặc định đóng; mở sẵn một tab trước khi render. */
+const tab = (t: "map" | "world" | "morning" | "trust" | "labels") => localStorage.setItem("gq.marketCenterTab", t);
+const clickTab = async (t: string) => act(async () => (document.querySelector(`[data-mc-tab="${t}"]`) as HTMLElement).click());
 afterEach(() => { cleanup(); state.data = doc; state.error = undefined; state.ledger = undefined; try { localStorage.clear(); } catch { /* bỏ qua */ } });
 
 // preopen/3 (PR-B): posture/action null từ API, xác nhận PO-r2-F, đường cơ sở, theo dõi trực tiếp, độ nhạy ES.
@@ -50,19 +53,20 @@ describe("Trung tâm thị trường — preopen/3", () => {
   it("PO-r2-F không đạt: API hạ dayBand, giao diện nêu lý do cụ thể", () => {
     const base = v3();
     state.data = v3({ evidence: { ...base.evidence, dayBand: false, confirm: { ...base.evidence.confirm!, n: 60, coverage: 65, wilsonLo: 52.4, wilsonHi: 75.9, status: "failed", decidedOn: "2027-01-27" } } });
+    tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-day-warning")?.textContent).toContain("KHÔNG ĐẠT xác nhận tiến PO-r2-F");
     expect(q("mc-day-warning")?.textContent).toContain("72–88%");
     expect(q("mc-gates")?.textContent).toContain("Dải cả phiên: chưa đạt");
   });
   it("so với đường cơ sở luôn đoán Trung tính; khoảng chồng nhau thì không kết luận", () => {
-    state.data = v3();
+    state.data = v3(); tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-ci-lead")?.getAttribute("aria-label")).toContain("luôn đoán Trung tính 35,7%");
     expect(q("mc-ci-note")?.textContent).toContain("chưa thấy khác biệt rõ");
   });
   it("độ nhạy ES mô tả cấp C", () => {
-    state.data = v3();
+    state.data = v3(); tab("morning");
     render(<MarketCenterPanel />);
     expect(q("mc-esfit")?.textContent).toContain("ES đổi 1% thì mở cửa VN-Index dịch trung bình +0,42%");
     expect(q("mc-esfit")?.textContent).toContain("−0,61% đến +0,58%");
@@ -85,6 +89,7 @@ describe("Trung tâm thị trường — preopen/3", () => {
       { date: "2026-11-20", slot: "08:50", es: -0.4, lead: "mid", day: { lo: 1670, hi: 1705 }, prevClose: 1689, open: 1671, close: 1688.8, gapPct: -1, ccPct: -0.01, outcome: "mid", dayIn: true, leadHit: true },
       { date: "2026-11-19", slot: "08:50", es: -1.5, lead: "neg", day: { lo: 1690, hi: 1720 }, prevClose: 1700, open: 1700, close: 1689.6, gapPct: 0, ccPct: -0.6, outcome: "neg", dayIn: false, leadHit: true },
     ] };
+    tab("trust");
     render(<MarketCenterPanel />);
     const cells = document.querySelectorAll('[data-testid="mc-strip-cell"]');
     expect(cells.length).toBe(2);
@@ -130,21 +135,27 @@ describe("Trung tâm thị trường", () => {
     expect(q("mc-day-warning")).toBeNull();
   });
   it("bấm thẻ đổi bản đồ; số thế giới thiếu thì ghi gạch, không tự điền", async () => {
+    tab("map");
     render(<MarketCenterPanel />);
     expect(q("mc-map")?.querySelector("svg")?.getAttribute("aria-label")).toContain("Tiêu cực");
     await act(async () => (q("mc-card-pos") as HTMLElement).click());
     expect(q("mc-map")?.querySelector("svg")?.getAttribute("aria-label")).toContain("Tích cực");
+    await clickTab("world");
+    expect(q("mc-map")).toBeNull();
     expect(q("mc-world-Hang Seng")?.textContent).toContain("—");
+    await clickTab("trust");
     expect(q("mc-regime")?.textContent).toBe("Yên tĩnh");
   });
   it("trong phiên báo kịch bản còn hiệu lực hay đã vô hiệu, có chấm giá", () => {
     state.data = { ...doc, phase: "session", tracking: { open: 1728, last: 1750, gapPct: -0.78, movePct: 0.48, inOpen: null, inDay: false, invalidated: true, current: "mid" } };
+    tab("map");
     render(<MarketCenterPanel />);
     expect(q("mc-tracking")?.textContent).toContain("đã vô hiệu");
     expect(q("mc-live-dot")).toBeTruthy();
   });
   it("thiếu ES thì không kết luận; dải đạt kiểm định thì ghi rõ; số cũ màu xám; bấm mốc xem lại; thu gọn được", async () => {
     state.data = { ...doc, lead: null, es: { ...doc.es, movePct: null, fresh: false, at: "2026-10-30T21:00:00Z" }, evidence: { ...doc.evidence, dayBand: true, dayCoverage: 80.1 }, world: doc.world.map((w) => ({ ...w, fresh: w.name !== "Hang Seng" })) };
+    tab("world");
     render(<MarketCenterPanel />);
     expect(q("mc-no-es")?.textContent).toContain("Chưa kết luận");
     expect(q("mc-verdict")?.textContent).not.toContain("đang dẫn đầu");
@@ -171,6 +182,7 @@ describe("Trung tâm thị trường", () => {
     expect(document.querySelectorAll('[data-testid^="mc-posture-"]:not([data-testid^="mc-posture-off"])').length).toBe(3);
   });
   it("ô kiểm định đọc từ evidence, không viết cứng", () => {
+    tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-gates")?.querySelectorAll('[data-gate="fail"]').length).toBe(3);
     cleanup();
@@ -181,6 +193,7 @@ describe("Trung tâm thị trường", () => {
   });
   it("dải đạt: ghi rõ là chạy lại trên dữ liệu cũ và nêu độ phủ sổ tiến; sổ có phiên thì có thanh KTC Wilson", () => {
     state.data = { ...doc, evidence: { ...doc.evidence, dayBand: true, dayCoverage: 80.1 }, ledger: { days: 15, scored: 14, openCoverage: 85.7, dayCoverage: 78.6, leadHit: 42.9 } };
+    tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-day-ok")?.textContent).toContain("dữ liệu cũ");
     expect(q("mc-day-forward")?.textContent).toContain("14 phiên, phủ 78,6%");
@@ -189,11 +202,13 @@ describe("Trung tâm thị trường", () => {
     expect(q("mc-ledger")?.parentElement?.textContent).toContain("khớp ES đúng");
   });
   it("sổ chưa chấm phiên nào thì không vẽ thanh KTC", () => {
+    tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-calibration")).toBeNull();
   });
   it("giờ ES có thứ trong tuần; ngày nghỉ ghi rõ; MS-GARCH ghi phiên tính", () => {
     state.data = { ...doc, phase: "closed", es: { ...doc.es, at: "2026-11-20T21:59:58.000Z" } };
+    tab("trust");
     render(<MarketCenterPanel />);
     expect(q("mc-es-at")?.textContent).toBe("giá ES lúc T7 04:59 21/11 · thị trường đang nghỉ");
     expect(q("mc-risk-asof")?.textContent).toBe("đến phiên 30/10");
@@ -215,6 +230,7 @@ describe("Trung tâm thị trường", () => {
     expect(q("mc-cards")).toBeTruthy();
   });
   it("mốc giờ và hàng thế giới có nhãn cho trình đọc màn hình", () => {
+    tab("world");
     render(<MarketCenterPanel />);
     expect(q("mc-slot-07:15")?.getAttribute("aria-label")).toBe("Mốc 07:15: Tiêu cực, ES −1,00%");
     expect(q("mc-slot-08:30")?.getAttribute("aria-label")).toBe("Mốc 08:30: chưa có bản ghi");
@@ -225,6 +241,84 @@ describe("Trung tâm thị trường", () => {
     state.data = undefined; state.error = new Error("HTTP 502");
     render(<MarketCenterPanel />);
     expect(document.querySelector("[role=alert]")?.textContent).toContain("502");
+  });
+});
+
+describe("Trung tâm thị trường — 3 tầng (PR-C)", () => {
+  it("mặc định: tầng 0 + tầng 1 hiện, tầng 2 đóng; 5 tab đúng thứ tự", () => {
+    render(<MarketCenterPanel />);
+    expect(q("mc-tier0")).toBeTruthy();
+    expect(q("mc-verdict")).toBeTruthy();
+    expect(q("mc-cards")).toBeTruthy();
+    expect(q("mc-tabpanel")).toBeNull();
+    expect(Array.from(document.querySelectorAll("[data-mc-tab]")).map((b) => b.textContent)).toEqual(["Bản đồ giá", "Thế giới", "Sáng nay", "Độ tin cậy", "Các nhãn đo gì"]);
+    expect(Array.from(document.querySelectorAll("[data-mc-tab]")).every((b) => b.getAttribute("aria-selected") === "false")).toBe(true);
+  });
+  it("bấm tab mở, bấm lại đóng; nhớ tab theo trình duyệt", async () => {
+    render(<MarketCenterPanel />);
+    await clickTab("morning");
+    expect(q("mc-morning")).toBeTruthy();
+    expect(localStorage.getItem("gq.marketCenterTab")).toBe("morning");
+    expect(q("mc-tabpanel")?.getAttribute("aria-labelledby")).toBe("mc-tab-morning");
+    await clickTab("morning");
+    expect(q("mc-tabpanel")).toBeNull();
+    expect(localStorage.getItem("gq.marketCenterTab")).toBe("");
+  });
+  it("phím mũi tên chuyển tab (roving tabindex)", async () => {
+    tab("map");
+    render(<MarketCenterPanel />);
+    const first = document.querySelector('[data-mc-tab="map"]') as HTMLElement;
+    expect(first.getAttribute("tabindex")).toBe("0");
+    await act(async () => { first.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true })); });
+    expect(document.querySelector('[data-mc-tab="world"]')?.getAttribute("aria-selected")).toBe("true");
+    await act(async () => { (document.querySelector('[data-mc-tab="world"]') as HTMLElement).dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true })); });
+    expect(q("mc-labels")).toBeTruthy();
+  });
+  it("tab Sáng nay: các mốc, thay đổi giữa mốc, mốc chưa đến ghi rõ", () => {
+    state.data = { ...doc, timeline: [{ slot: "07:15", lead: "neg", es: -1, at: "2026-11-02T00:15:30Z" }, { slot: "08:30", lead: "neg", es: -1.4, at: "2026-11-02T01:30:20Z" }] };
+    tab("morning");
+    render(<MarketCenterPanel />);
+    expect(q("mc-morning-07:15")?.textContent).toContain("07:15");
+    expect(q("mc-morning-08:30")?.textContent).toContain("−0,40 điểm %");
+    expect(q("mc-morning-08:50")?.textContent).toContain("chưa đến mốc");
+    expect(q("mc-history")).toBeTruthy();
+  });
+  it("nguồn gốc từng ô: bấm ⓘ mở bảng nguồn, Esc đóng", async () => {
+    render(<MarketCenterPanel />);
+    const btn = q("mc-prov-es")?.querySelector("button") as HTMLElement;
+    expect(btn.getAttribute("aria-label")).toBe("Nguồn gốc: ES qua đêm");
+    await act(async () => btn.click());
+    const dlg = q("mc-prov-es")?.querySelector('[role="dialog"]');
+    expect(dlg?.textContent).toContain("Yahoo Finance");
+    expect(dlg?.textContent).toContain("15:00 phiên 30/10");
+    expect(btn.getAttribute("aria-expanded")).toBe("true");
+    await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); });
+    expect(q("mc-prov-es")?.querySelector('[role="dialog"]')).toBeNull();
+  });
+  it("nguồn gốc dải cả phiên: cấp theo kiểm định (chưa đạt → C)", async () => {
+    render(<MarketCenterPanel />);
+    await act(async () => (q("mc-prov-day")?.querySelector("button") as HTMLElement).click());
+    expect(q("mc-prov-day")?.querySelector('[data-grade]')?.getAttribute("data-grade")).toBe("C");
+  });
+  it("bảng Các nhãn đo gì: đủ 6 nhãn chế độ + 4 thước đo biến động; thiếu dữ liệu khối khác thì ghi gạch", () => {
+    tab("labels");
+    render(<MarketCenterPanel />);
+    expect(document.querySelectorAll('[data-testid="mc-label-row"]').length).toBe(10);
+    expect(document.querySelector('[data-label-value="MS-GARCH"]')?.textContent).toBe("Yên tĩnh 94%");
+    expect(document.querySelector('[data-label-value="σ MS-GARCH"]')?.textContent).toBe("14,6%/năm");
+    expect(document.querySelector('[data-label-value="Kịch bản mở cửa"]')?.textContent).toBe("Tiêu cực · ES −1,25%");
+    expect(document.querySelector('[data-label-value="THẾ GIỚI"]')?.textContent).toBe("—");
+    expect(q("mc-labels")?.textContent).toContain("không so trực tiếp");
+  });
+  it("Trading Matrix gửi sự kiện thì mở tab Các nhãn đo gì", async () => {
+    render(<MarketCenterPanel />);
+    await act(async () => { window.dispatchEvent(new Event("gq:market-center-labels")); });
+    expect(q("mc-labels")).toBeTruthy();
+  });
+  it("tầng 0 báo số thị trường dùng số phiên trước", () => {
+    state.data = { ...doc, world: doc.world.map((w) => ({ ...w, fresh: w.name !== "Hang Seng" })) };
+    render(<MarketCenterPanel />);
+    expect(q("mc-quality")?.textContent).toBe("◌ 1 thị trường dùng số phiên trước");
   });
 });
 
