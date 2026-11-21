@@ -13,7 +13,7 @@ import type { SectorLadderRow } from "../../../../lib/locnganh/types";
 import NotableMovers from "./NotableMovers";
 import { HEALTH_VI, TONE, bn, vn, when } from "./MatrixCards";
 import { IndexWaterfall, ScenarioStrip, SignedBars, Spark, StateMap, ZONE_VI } from "./StateCharts";
-import { StaleNotice } from "../marketQuality";
+import { OPEN_LABELS_EVENT, StaleNotice } from "../marketQuality";
 
 /** Chữ trạng thái nguồn: dữ liệu ngày đủ phiên gần nhất là "Đã chốt phiên", không gọi là "Trực tiếp". Mã trạng thái API giữ nguyên. */
 export function sourceStatusText(s: { kind?: string; status: keyof typeof HEALTH_VI }, sessionLive: boolean): string {
@@ -196,6 +196,8 @@ function EvidenceTab({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
         </div>
         <div className="space-y-1 text-[11px] text-slate-400">
           <h3 className="text-[12px] font-bold text-slate-200">Phương pháp</h3>
+          <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_LABELS_EVENT))} data-testid="mx-open-labels"
+            className="text-left text-sky-300 underline decoration-sky-300/30 hover:text-sky-200">Nhãn ở đây khác nhãn của Trung tâm thị trường và thanh trên cùng? Xem bảng "Các nhãn đo gì" →</button>
           {r.definition && <p>{r.definition}</p>}
           {r.probabilities && <p>HMM {when(r.hmmAsOf)}: giảm {vn(r.probabilities.bear * 100, 0)}%, ngang {vn(r.probabilities.neutral * 100, 0)}%, tăng {vn(r.probabilities.bull * 100, 0)}%. Đo trạng thái biến động giá, không phải nhãn xu hướng.</p>}
           {r.stageOdds && <p>Cấu trúc ngày {r.stageOdds.stage}, {r.stageOdds.age} phiên{r.stageOdds.up != null ? `: P(sang tăng trong 10 phiên) ${vn(r.stageOdds.up * 100, 0)}%, P(sang giảm) ${vn((r.stageOdds.down ?? 0) * 100, 0)}%` : ""}. {r.stageOdds.label}.</p>}

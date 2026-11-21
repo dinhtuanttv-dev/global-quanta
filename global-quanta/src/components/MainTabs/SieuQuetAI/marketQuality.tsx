@@ -1,6 +1,52 @@
 // Chất lượng số liệu cho các bảng thị trường (PR-A, MARKET_CENTER_UPGRADE_PLAN.md §3).
 // Chỉ định dạng và đánh giá độ tin cậy từ dữ liệu API đã có; không tính lại số nghiệp vụ.
+import { useEffect, useId, useRef, useState } from "react";
 import type { PreopenDoc, ScenarioId } from "../../../hooks/usePreopen";
+
+/** Sự kiện để khối khác (Trading Matrix) mở thẳng tab "Các nhãn đo gì" của Trung tâm thị trường. */
+export const OPEN_LABELS_EVENT = "gq:market-center-labels";
+
+export type Grade = "A" | "B" | "C";
+const GRADE_TXT: Record<Grade, string> = { A: "A · đã qua kiểm định đặt trước", B: "B · đo lường trực tiếp", C: "C · mô tả, chưa kiểm định hoặc không đạt" };
+const GRADE_CLS: Record<Grade, string> = { A: "text-emerald-300 border-emerald-500/40", B: "text-slate-300 border-slate-500/40", C: "text-amber-300 border-amber-500/40" };
+
+/** Huy hiệu cấp bằng chứng: chữ + viền, không chỉ dựa vào màu. */
+export function GradeBadge({ g }: { g: Grade }) {
+  return <span className={`inline-flex h-4 min-w-4 items-center justify-center rounded border px-1 text-[10px] font-bold ${GRADE_CLS[g]}`} title={GRADE_TXT[g]} data-grade={g}>{g}</span>;
+}
+
+/**
+ * Nguồn gốc của một ô số (PR-C, F-C7): bấm ⓘ để xem nguồn, thời điểm, mô hình/quy tắc, cấp bằng chứng.
+ * Dùng được bằng bàn phím (Enter/Space mở, Esc đóng) và cảm ứng; không chỉ là tooltip rê chuột.
+ */
+export function Prov({ label, rows, grade, testId }: { label: string; rows: [string, string | null | undefined][]; grade?: Grade; testId?: string }) {
+  const [open, setOpen] = useState(false);
+  const id = useId(), ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away); document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", esc); };
+  }, [open]);
+  const shown = rows.filter(([, v]) => v != null && v !== "");
+  return (
+    <span ref={ref} className="relative inline-flex align-middle" data-testid={testId}>
+      <button type="button" aria-expanded={open} aria-controls={id} aria-label={`Nguồn gốc: ${label}`} onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/15 text-[10px] leading-none text-slate-400 hover:border-cyan-400/50 hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">i</button>
+      {open && (
+        <span id={id} role="dialog" aria-label={`Nguồn gốc: ${label}`} onClick={(e) => e.stopPropagation()}
+          className="absolute left-0 top-5 z-30 block w-[min(18rem,80vw)] rounded-lg border border-white/15 bg-[#0d1424] p-2 text-left text-[11px] font-normal normal-case shadow-xl shadow-black/50 max-sm:fixed max-sm:inset-x-3 max-sm:bottom-3 max-sm:top-auto max-sm:left-3 max-sm:w-auto max-sm:p-3 max-sm:text-[12px]">
+          <b className="block text-slate-100">{label}</b>
+          <span className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
+            {shown.map(([k, v]) => <span key={k} className="contents"><span className="text-slate-500">{k}</span><span className="break-words text-slate-200">{v}</span></span>)}
+            {grade && <><span className="text-slate-500">Cấp</span><span className="flex items-center gap-1 text-slate-200"><GradeBadge g={grade} />{GRADE_TXT[grade].slice(4)}</span></>}
+          </span>
+        </span>
+      )}
+    </span>
+  );
+}
 
 /**
  * Khoảng tin cậy Wilson cho một tỷ lệ (mặc định 95%). Ổn định hơn khoảng Wald khi n nhỏ hoặc p gần 0/1,
