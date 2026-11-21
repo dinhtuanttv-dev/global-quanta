@@ -13,6 +13,9 @@ import { tracedStream, type LaneTraceMap } from "../../../lib/obsidian/trace";
 import ObsidianBar from "./obsidian/ObsidianBar";
 import { BriefExport, DebateExport, briefKey, debateKey } from "./obsidian/RoomExports";
 import { useObsidianDesk } from "./obsidian/useObsidianDesk";
+import { QaTapContext, type QaMeta } from "../../../lib/obsidian/qaTap";
+import type { QaTurn } from "../../../lib/obsidian/types";
+import { QaExport, qaKey } from "./obsidian/RoomExports";
 
 export const ELITE_SUGGESTIONS = [
   "Danh mục chính thức hôm nay gồm những mã nào, vì sao được chọn, tỷ lệ tiền mặt bao nhiêu và độ tin cậy đến đâu?",
@@ -53,6 +56,9 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const [debateSubject, setDebateSubject] = useState<string | null>(null);
   const traceStream = tracedStream(streamCatalystChat, (key, fn) => setTrace((s) => ({ ...s, [key]: fn(s[key]) })));
   const desk = useObsidianDesk();
+  // O3: lịch sử Hỏi đáp (nhận từ khung hỏi đáp qua context) để xuất ghi chú.
+  const [qa, setQa] = useState<{ turns: QaTurn[]; meta: QaMeta | null }>({ turns: [], meta: null });
+  const [qaTap] = useState(() => (turns: QaTurn[], meta: QaMeta | null) => setQa({ turns, meta }));
   useEffect(() => () => { ctrlRef.current?.abort(); briefCtrlRef.current?.abort(); }, []);
 
   async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal): Promise<Lane> {
@@ -102,6 +108,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const unsaved = [
     debateKey(trace) && phase === "done" && (bull?.text.trim() || bear?.text.trim()) && !desk.isSaved(debateKey(trace)) ? "tranh luận" : null,
     briefKey(trace) && !briefBusy && brief?.text.trim() && !desk.isSaved(briefKey(trace)) ? "bản tin" : null,
+    qaKey(qa.turns) && !qa.turns.some((t) => t.role === "assistant" && t.lanes.some((l) => !l.done)) && !desk.isSaved(qaKey(qa.turns)) ? "hỏi đáp" : null,
   ].filter((x): x is string => Boolean(x));
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
@@ -146,7 +153,10 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
+        {qa.turns.length > 0 && <div className="mb-2 flex justify-end"><QaExport desk={desk} turns={qa.turns} meta={qa.meta} /></div>}
+        <QaTapContext.Provider value={qaTap}>
         <CatalystChatPanel title="Hỏi đáp Elite 10" suggestions={ELITE_SUGGESTIONS} />
+        </QaTapContext.Provider>
       </section>
       <p className="text-[10px] text-slate-400" data-testid="elite-ai-disclaimer">AI chỉ giải thích và phản biện số liệu từ công cụ; lập luận "phe mua" / "phe bán" là bài tập tranh luận. Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>

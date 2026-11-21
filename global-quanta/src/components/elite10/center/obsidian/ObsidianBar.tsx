@@ -2,6 +2,8 @@
 import { useState, type ReactNode } from "react";
 import { BookMarked, Settings2 } from "lucide-react";
 import VaultSettings from "./VaultSettings";
+import ExportMenu from "./ExportMenu";
+import { buildVaultKit } from "../../../../lib/obsidian/vaultKit";
 import type { ObsidianDesk } from "./useObsidianDesk";
 
 export default function ObsidianBar({ desk, unsaved, extra }: { desk: ObsidianDesk; unsaved: string[]; extra?: ReactNode }) {
@@ -20,6 +22,11 @@ export default function ObsidianBar({ desk, unsaved, extra }: { desk: ObsidianDe
         className="inline-flex min-h-[32px] items-center gap-1 rounded-md border border-white/20 px-2.5 text-[11px] text-slate-200 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F5CE72]">
         <Settings2 className="h-3.5 w-3.5" aria-hidden />Cấu hình
       </button>
+      <ExportMenu label="Gói khởi tạo Vault" testId="obsidian-kit" items={[
+        { id: "obsidian", label: "Mở trong Obsidian", hint: "Ghi chú “Elite 10 · Bàn điều khiển”: bảng Dataview + 3 mẫu ghi chú", onSelect: () => void desk.run(buildVaultKit(desk.prefs.folder), "obsidian", "kit") },
+        { id: "download", label: "Tải .md", onSelect: () => void desk.run(buildVaultKit(desk.prefs.folder), "download", "kit") },
+        { id: "copy", label: "Sao chép Markdown", onSelect: () => void desk.run(buildVaultKit(desk.prefs.folder), "copy", "kit") },
+      ]} />
       {extra}
       {unsaved.length > 0 && (
         <span className="rounded border border-amber-300/40 px-1.5 py-0.5 text-amber-100" data-testid="obsidian-unsaved">

@@ -7,6 +7,9 @@ import { AlertTriangle, Loader2, Send, Square, Wrench } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatStreamEvent, type ChatToolResult } from "../../../services/catalystChat";
 import { ToolResultCard, toolLabel } from "./CatalystChatCards";
 import { MarkdownLite } from "../../shared/MarkdownLite";
+// Obsidian (O3, 21/11/2026) — CHỈ THÊM: báo lịch sử hỏi đáp cho Phòng họp AI qua context; không có Provider (tab Chat xúc tác) -> không làm gì.
+import { useContext } from "react";
+import { QaTapContext } from "../../../lib/obsidian/qaTap";
 
 interface ToolRun { id: string; name: string; result?: ChatToolResult }
 export interface Lane {
@@ -127,6 +130,8 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
   const [meta, setMeta] = useState<{ remaining: number; macroMode: string | null; worldMode: string | null } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+  const qaTap = useContext(QaTapContext);
+  useEffect(() => { qaTap?.(turns, meta); }, [qaTap, turns, meta]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: "end" });
