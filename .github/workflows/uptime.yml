@@ -1,0 +1,71 @@
+# Giám sát ngoài (21/11/2026, RESILIENCE_PLAN_HOBBY.md A2). Miễn phí cho repo công khai.
+# - Mỗi 15 phút: Gateway /health (nhẹ, không đụng DB).
+# - Mỗi giờ: thêm trang dinhtuan-ck (CDN) và 1 route QMS có cache CDN 6 giờ (gần như không chạy hàm).
+# Lỗi (sau 3 lần thử, cách nhau 60 giây) -> mở 1 issue nhãn "uptime" (GitHub gửi email cho chủ repo); hồi phục -> tự đóng.
+# Lưu ý: GitHub tắt lịch chạy của repo công khai sau 60 ngày không có commit; khi đó bật lại ở tab Actions.
+name: uptime
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "7 * * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GATEWAY: https://gateway-production-1da0.up.railway.app
+      SITE: https://dinhtuan-ck.vercel.app
+      QMS: https://tuan-quant-scanner-psi.vercel.app
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      FULL: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '7 * * * *' }}
+    steps:
+      - name: Kiểm tra
+        id: probe
+        shell: bash
+        run: |
+          probe() { # $1 tên, $2 URL — 3 lần thử cách nhau 60 giây, chỉ coi là lỗi khi cả 3 lần đều lỗi
+            for i in 1 2 3; do
+              code=$(curl -s -o /dev/null -m 25 -w "%{http_code}" -A "gq-uptime" "$2") || true
+              [ -n "$code" ] || code=000
+              if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then echo "OK   $1 ($code)"; return 0; fi
+              echo "thử $i: $1 trả $code"; [ "$i" -lt 3 ] && sleep 60
+            done
+            echo "- **$1** không phản hồi đúng (HTTP $code) — $2" >> failures.md; return 1
+          }
+          : > failures.md
+          probe "Gateway (Railway)" "$GATEWAY/health" || true
+          if [ "$FULL" = "true" ]; then
+            probe "Trang dinhtuan-ck (Vercel)" "$SITE/" || true
+            probe "QMS (Vercel)" "$QMS/api/global/housing" || true
+          fi
+          if [ -s failures.md ]; then echo "down=true" >> "$GITHUB_OUTPUT"; else echo "down=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Mở / đóng issue sự cố
+        shell: bash
+        run: |
+          gh label create uptime --color B60205 --description "Giám sát tự động" --force >/dev/null 2>&1 || true
+          open=$(gh issue list --label uptime --state open --json number --jq '.[0].number // empty')
+          now=$(TZ=Asia/Ho_Chi_Minh date '+%H:%M %d/%m/%Y')
+          if [ "${{ steps.probe.outputs.down }}" = "true" ]; then
+            if [ -z "$open" ]; then
+              { echo "Phát hiện lúc **$now** (giờ VN), sau 3 lần thử:"; echo; cat failures.md; echo; echo "Xử lý: xem \`global-quanta/docs/RUNBOOK_SU_CO.md\`. Issue sẽ tự đóng khi hồi phục."; } > body.md
+              gh issue create --label uptime --title "🔴 Sự cố: dịch vụ không phản hồi ($now)" --body-file body.md
+            else
+              echo "Đã có issue #$open đang mở — không tạo thêm."
+            fi
+          elif [ -n "$open" ]; then
+            gh issue comment "$open" --body "✅ Đã hồi phục lúc **$now** (giờ VN)."
+            gh issue close "$open"
+          fi
