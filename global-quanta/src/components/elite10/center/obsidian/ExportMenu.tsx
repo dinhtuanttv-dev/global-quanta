@@ -9,7 +9,7 @@ export default function ExportMenu({ label, items, disabledReason, testId, compa
 }) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const [alignLeft, setAlignLeft] = useState(false);
+  const [menuLeft, setMenuLeft] = useState<number | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -28,7 +28,13 @@ export default function ExportMenu({ label, items, disabledReason, testId, compa
   const openAt = (i: number) => {
     if (disabled) return;
     const r = btnRef.current?.getBoundingClientRect();
-    setAlignLeft(Boolean(r && r.right < 260)); // nút sát lề trái (màn hình hẹp) -> menu mở sang phải
+    // Menu rộng min(280px, màn hình − 24px): ưu tiên căn mép phải với nút, rồi KẸP trong [8px, màn hình − 8px] để không tràn hai bên.
+    const wrap = wrapRef.current?.getBoundingClientRect();
+    if (r && wrap) {
+      const w = Math.min(280, window.innerWidth - 24);
+      const left = Math.min(Math.max(r.right - w, 8), window.innerWidth - w - 8);
+      setMenuLeft(Math.round(left - wrap.left));
+    } else setMenuLeft(null);
     setActive(i); setOpen(true);
   };
   const onButtonKey = (e: KeyboardEvent) => {
@@ -58,8 +64,8 @@ export default function ExportMenu({ label, items, disabledReason, testId, compa
       </button>
       {disabled && <span className="sr-only">{disabledReason}</span>}
       {open && (
-        <div id={menuId} role="menu" aria-label={label} onKeyDown={onMenuKey} style={{ width: "min(280px, calc(100vw - 24px))" }}
-          className={`absolute ${alignLeft ? "left-0" : "right-0"} z-30 mt-1 rounded-md border border-white/15 bg-[#121826] p-1 shadow-xl`}>
+        <div id={menuId} role="menu" aria-label={label} onKeyDown={onMenuKey} style={{ width: "min(280px, calc(100vw - 24px))", ...(menuLeft == null ? {} : { left: menuLeft }) }}
+          className={`absolute ${menuLeft == null ? "right-0" : ""} z-30 mt-1 rounded-md border border-white/15 bg-[#121826] p-1 shadow-xl`}>
           {items.map((it, i) => (
             <div key={it.id}>
               {it.separatorBefore && <div role="separator" className="my-1 h-px bg-white/10" />}

@@ -33,12 +33,15 @@ export interface ObsidianDesk {
   /** Tệp không phải Markdown (Canvas): chỉ có đường tải tệp. */
   download: (fileName: string, text: string, type: string, savedKey?: string | null) => ExportResult;
   isSaved: (key: string | null | undefined) => boolean;
+  /** Tệp .md đã tạo (Mở trong Obsidian / Tải) cho một kết quả — để Nhật ký và Canvas liên kết đúng ghi chú. */
+  fileOf: (key: string | null | undefined) => { fileName: string; folder: string } | null;
 }
 
 export function useObsidianDesk(): ObsidianDesk {
   const [prefs, setPrefsState] = useState<ObsidianPrefs>(() => loadPrefs());
   const [status, setStatus] = useState<DeskStatus | null>(null);
   const [saved, setSaved] = useState<Set<string>>(() => new Set());
+  const [files, setFiles] = useState<Map<string, { fileName: string; folder: string }>>(() => new Map());
   const announce = useCallback((tone: DeskStatus["tone"], text: string) => setStatus((s) => ({ id: (s?.id ?? 0) + 1, tone, text })), []);
   const mark = useCallback((key?: string | null) => { if (key) setSaved((s) => (s.has(key) ? s : new Set(s).add(key))); }, []);
 
@@ -60,7 +63,10 @@ export function useObsidianDesk(): ObsidianDesk {
     else r = await openInObsidian(note.markdown, { vault: prefs.vault || null, folder: note.folder, fileName: note.fileName });
     const t = resultText(r, note.fileName);
     announce(t.tone, t.text);
-    if (OK.includes(r)) mark(savedKey);
+    if (OK.includes(r)) {
+      mark(savedKey);
+      if (savedKey && action !== "copy") setFiles((m) => new Map(m).set(savedKey, { fileName: note.fileName, folder: note.folder }));
+    }
     return r;
   }, [announce, mark, prefs.vault]);
   const download = useCallback((fileName: string, text: string, type: string, savedKey?: string | null) => {
@@ -72,6 +78,7 @@ export function useObsidianDesk(): ObsidianDesk {
 
   return useMemo(() => ({
     prefs, setPrefs, setOptions, status, announce, newSuffix: randomSuffix, run, download, isSaved: (k) => Boolean(k && saved.has(k)),
-  }), [prefs, setPrefs, setOptions, status, announce, run, download, saved]);
+    fileOf: (k) => (k ? files.get(k) ?? null : null),
+  }), [prefs, setPrefs, setOptions, status, announce, run, download, saved, files]);
 }
 export { DEFAULT_PREFS };

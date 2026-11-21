@@ -57,7 +57,7 @@ Chỉ khi 5 cổng đều đạt mới được ghi "mã nguồn cũ được b�
 |---|---|---|
 | **O1** | `src/lib/obsidian/*` (hàm thuần + adapter) + test + đặc tả v2. **Chưa có giao diện**: không tệp nào đang chạy import thư viện mới | 1–4 (cổng 5 không áp dụng) |
 | **O2** | Thanh Obsidian + menu Lưu của Tranh luận và Bản tin + bản vết trong `EliteAiRoom` | 1–5 + E2E 1440/390 |
-| **O3** | Hỏi đáp (2 prop tuỳ chọn) + Nhật ký quyết định + Canvas + Bộ khởi tạo | 1–5 + tab Chat xúc tác không đổi |
+| **O3** | Hỏi đáp (React context `QaTapContext`, chỉ chèn 5 dòng vào `CatalystChatPanel`) + Nhật ký quyết định + Canvas + Bộ khởi tạo | 1–5 + tab Chat xúc tác không đổi |
 
 **Quay lui:**
 - O1 không có tệp nào import nên không ảnh hưởng ứng dụng.

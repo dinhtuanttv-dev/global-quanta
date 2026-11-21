@@ -57,7 +57,7 @@ flowchart LR
 | `src/lib/obsidian/*.test.ts` | **Mới** (PR O1) |
 | `src/components/elite10/center/obsidian/*.tsx` + test | **Mới** (O2, O3) |
 | `src/components/elite10/center/EliteAiRoom.tsx` | **Chỉ thêm** (O2): state `trace`, thanh Obsidian, 2 menu Lưu. Dòng nhận sự kiện được **bọc**, không bị bỏ |
-| `src/components/MainTabs/ChatXucTac/CatalystChatPanel.tsx` | **Chỉ thêm** (O3): 2 prop tuỳ chọn `onTurnsChange?` và `onStreamEvent?`. Không truyền thì chạy y như cũ |
+| `src/components/MainTabs/ChatXucTac/CatalystChatPanel.tsx` | **Chỉ thêm** (O3): 5 dòng đọc **React context** `QaTapContext` (`src/lib/obsidian/qaTap.ts`) và báo `turns` + `meta` cho Phòng họp AI. Dùng context thay cho 2 prop tuỳ chọn trong v2 nháp, vì thêm prop buộc phải **sửa** dòng khai báo hàm. Không có Provider (tab Chat xúc tác) thì giá trị là `null` và không làm gì |
 | `docs/obsidian-elite-ai-room/*.md` | Tài liệu (v2) |
 
 **Ngoài phạm vi:** backend, Gateway, API, `services/*`, `laneReducer`, `LaneView`, câu lệnh gửi AI, `Elite10Hub.tsx`, các tab khác, cấu hình, các tệp Timeline đang khoá (F0).

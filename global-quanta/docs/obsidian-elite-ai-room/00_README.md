@@ -34,6 +34,16 @@ Phòng họp AI trở thành đầu vào của một **kho tri thức đầu tư
 - **Không sửa** `laneReducer`. Thay vào đó dùng **bản vết song song** trong `EliteAiRoom` (01 §3).
 - **Không sửa** lỗi `aria-live` và độ tương phản cũ của `CatalystChatPanel` (dùng chung với tab Chat xúc tác) trong đợt này. Hai lỗi này được ghi vào backlog; mọi giao diện **mới** tự đạt chuẩn.
 
+## Trạng thái triển khai (21/11/2026)
+
+| PR | Nội dung | Trạng thái |
+|---|---|---|
+| O1 #376 | Thư viện `src/lib/obsidian/` + đặc tả v2 | Đã merge (`71a1c47f`) |
+| O2 #377 | Thanh Obsidian + menu Lưu cho Tranh luận và Bản tin + bản vết song song | Đã merge (`97f4f344`); E2E production 1440/390 đạt |
+| O3 | Hỏi đáp (context `QaTapContext`), Nhật ký quyết định, Canvas, Gói khởi tạo Vault | Xem PR O3 |
+
+**Mã có từ trước Obsidian** (so với `3f640830`): `EliteAiRoom.tsx` và `CatalystChatPanel.tsx` **chỉ chèn dòng, 0 dòng sửa hoặc xoá**.
+
 ## Bộ tài liệu
 - [01 — Hiện trạng và kiến trúc](01_CURRENT_STATE_AND_ARCHITECTURE.md)
 - [02 — Giao diện và khả năng tiếp cận](02_UX_UI_SPEC.md)
