@@ -1,5 +1,6 @@
-// Trading Matrix (M1) — các ô của dải tóm tắt. Màu luôn đi kèm chữ + ký hiệu (không truyền nghĩa bằng màu đơn thuần);
-// mọi tỷ lệ ghi mẫu số; mỗi ô ghi nguồn + thời điểm; ngày và trong phiên hiển thị TÁCH riêng.
+// Trading Matrix — bảng chữ/màu dùng chung (REGIME_VI, FLOW_VI, HEALTH_VI, TONE), hàm định dạng (vn, bn, when) và FlowCard
+// (PHÂN TÍCH NGÀNH › SectorDeepPanel). Màu luôn đi kèm chữ + ký hiệu. Các thẻ M1 cũ (Regime/Breadth/Volatility/Session/
+// Health/Skeleton) đã bỏ ở PR-F vì giao diện Trạng thái thị trường hiện dùng dòng kết luận + 4 ô (TradingMatrixPanel).
 import type { ReactNode } from "react";
 import type { FlowLabel, HealthStatus, MatrixOverview, RegimeLabel } from "../../../../hooks/useTradingMatrix";
 
@@ -56,33 +57,6 @@ function Card({ title, tone, main, children, foot, testId }: { title: string; to
   );
 }
 
-export function RegimeCard({ r }: { r: MatrixOverview["regime"] }) {
-  const s = REGIME_VI[r.label] ?? REGIME_VI.UNKNOWN;
-  return (
-    <Card title="Trạng thái · Ngày" tone={s.tone} testId="mx-regime"
-      main={<><span aria-hidden>{s.glyph}</span> {s.text}</>}
-      foot={<>Quy tắc MA + HMM · {when(r.asOf)}</>}>
-      {r.probabilities
-        ? <span title="Xác suất trạng thái HMM (mô tả)">Giảm {vn(r.probabilities.bear * 100, 0)}% · Ngang {vn(r.probabilities.neutral * 100, 0)}% · Tăng {vn(r.probabilities.bull * 100, 0)}%</span>
-        : r.label === "UNKNOWN" ? <span>{r.reason ?? "Thiếu dữ liệu VN-Index"}</span> : <span className="text-slate-500">Chưa có xác suất HMM (job nghiên cứu)</span>}
-    </Card>
-  );
-}
-
-export function BreadthCard({ b, scopeLabel }: { b: MatrixOverview["breadth"]; scopeLabel: string }) {
-  const d = b.daily, i = b.intraday;
-  const pct = d?.aboveMa20Pct;
-  const tone: Tone = pct == null ? "missing" : pct >= 60 ? "bull" : pct <= 40 ? "bear" : "neutral";
-  return (
-    <Card title={`Độ rộng · ${scopeLabel}`} tone={tone} testId="mx-breadth"
-      main={pct == null ? "Chưa có dữ liệu" : <>{vn(pct)}% trên MA20</>}
-      foot={d ? <>Cuối phiên {when(d.asOf)} · n = {d.eligibleCount}/{d.scopeSize} mã{d.excludedCount ? ` · loại ${d.excludedCount}` : ""}</> : "Dữ liệu ngày chưa sẵn sàng"}>
-      {i ? <span title={`Trong phiên (SSI ${i.index}) · ${when(i.asOf)}`}>Trong phiên: <b className="text-emerald-300">↑{i.advancers}</b> <b className="text-rose-300">↓{i.decliners}</b> <span className="text-slate-400">={i.unchanged}</span></span>
-        : <span className="text-slate-500">Trong phiên: không khả dụng</span>}
-    </Card>
-  );
-}
-
 export function FlowCard({ f }: { f: MatrixOverview["flow"] }) {
   const s = FLOW_VI[f.state] ?? FLOW_VI.UNKNOWN;
   return (
@@ -95,41 +69,3 @@ export function FlowCard({ f }: { f: MatrixOverview["flow"] }) {
   );
 }
 
-export function VolatilityCard({ v }: { v: MatrixOverview["volatility"] }) {
-  const p = v?.atrPercentile;
-  const tone: Tone = p == null ? "missing" : p >= 80 ? "warn" : "neutral";
-  return (
-    <Card title="Biến động · VN-Index" tone={tone} testId="mx-vol"
-      main={p == null ? "Chưa có dữ liệu" : <>ATR phân vị {vn(p, 0)}</>}
-      foot={v ? <>Ngày · {when(v.asOf)} · phân vị 250 phiên</> : "—"}>
-      {v && <span>Biến động thực 20p {vn(v.realizedVol20)}%/năm{v.rangeZ != null ? ` · biên độ z ${vn(v.rangeZ, 2)}` : ""}</span>}
-    </Card>
-  );
-}
-
-export function SessionCard({ s }: { s: MatrixOverview["session"] }) {
-  return (
-    <Card title="Pha phiên" tone={s.live ? "bull" : "neutral"} testId="mx-session"
-      main={<><span aria-hidden>{s.live ? "●" : "○"}</span> {s.label}</>}
-      foot={<>Lịch giao dịch Gateway · phiên đã chốt {when(s.tradingDate)}</>}>
-      <span className="text-slate-400">{s.live ? "Đang khớp lệnh — giá cập nhật trực tiếp" : "Ngoài giờ khớp lệnh"}</span>
-    </Card>
-  );
-}
-
-export function HealthCard({ h }: { h: MatrixOverview["dataHealth"] }) {
-  const s = HEALTH_VI[h.status];
-  const ok = h.sources.filter((x) => x.status === "LIVE" || x.status === "DELAYED").length;
-  return (
-    <Card title="Sức khoẻ dữ liệu" tone={s.tone} testId="mx-health"
-      main={<><span aria-hidden>{s.glyph}</span> {s.text}</>}
-      foot={<>{ok}/{h.sources.length} nguồn tốt</>}>
-      <span className="text-slate-400 truncate block">{h.sources.filter((x) => x.status === "UNAVAILABLE" || x.status === "STALE").map((x) => x.label).join(", ") || "Mọi nguồn hoạt động"}</span>
-    </Card>
-  );
-}
-
-/** Thẻ khung trống khi đang tải — không chặn bảng cổ phiếu. */
-export function SkeletonCard() {
-  return <div className="rounded-lg border border-slate-700/40 px-2.5 py-2 h-[78px] animate-pulse bg-slate-800/20" aria-hidden />;
-}

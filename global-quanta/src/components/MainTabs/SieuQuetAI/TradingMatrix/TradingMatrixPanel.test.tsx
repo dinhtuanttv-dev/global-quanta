@@ -128,7 +128,7 @@ describe("Trạng thái thị trường", () => {
     await render();
     await click("[data-testid=mx-health-warn]");
     const t = el.querySelector("[data-testid=mx-stage]")?.textContent ?? "";
-    expect(t).toBe("Cấu trúc ngày Giai đoạn 4 · Giảm giá, 15 phiên (Giảm suy yếu). MÔ TẢ · MTF v3, không có xác suất chuyển giai đoạn.");
+    expect(t).toBe("Cấu trúc ngày Giai đoạn 4 · Giảm giá, 15 phiên · Dow: Giảm suy yếu. MÔ TẢ · MTF v3, không có xác suất chuyển giai đoạn.");
     expect(t).not.toContain("P(");
   });
 

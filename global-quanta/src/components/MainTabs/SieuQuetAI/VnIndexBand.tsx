@@ -1,14 +1,11 @@
 import { useState, type ReactNode } from "react";
 import type { SieuQuetIndexState } from "../../../hooks/useSieuQuetScanner";
-import { REGIME_LABEL, useResearchOverview } from "../../../hooks/useResearch";
+import { useResearchOverview } from "../../../hooks/useResearch";
 import { riskLevel } from "./MarketIntel";
 import MarketCenterPanel from "./MarketCenterPanel";
 
 const BIAS_COLOR: Record<string, string> = {
   uptrend: "#10b981", accumulation: "#f59e0b", defensive: "#60a5fa", distribution: "#f43f5e", downtrend: "#f43f5e",
-};
-const REGIME_STYLE: Record<string, { color: string; glyph: string }> = {
-  UPTREND: { color: "#059669", glyph: "▲" }, SIDEWAY: { color: "#d97706", glyph: "■" }, DOWNTREND: { color: "#e11d48", glyph: "▼" },
 };
 const KEY = "gq.vnBandOpen";
 
@@ -23,7 +20,7 @@ function Chip({ label, value, color, title }: { label: string; value: ReactNode;
 
 /**
  * Dải VN-Index phía trên Bảng Siêu Quét (thay cột trái 4/12 cũ để bảng rộng toàn bộ):
- * mặc định chỉ một dòng tóm tắt (trạng thái, xác suất chế độ HMM, rủi ro dòng tiền rút, dấu chân tay to — đọc vị trong một dòng);
+ * mặc định chỉ một dòng tóm tắt (cấu trúc MA, Impulse, RSI14, Nén–bứt phá, rủi ro dòng tiền rút) + Trung tâm thị trường;
  * "Chi tiết" mở Phân tích kỹ thuật đa tầng, Market Impulse & dòng tiền lớn và AI phân tích VN-Index (lưới 3/3/6).
  * Trạng thái mở/đóng nhớ theo trình duyệt.
  */
@@ -33,10 +30,8 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
   const [open, setOpenState] = useState(() => { try { return window.localStorage.getItem(KEY) === "1"; } catch { return false; } });
   const setOpen = (v: boolean) => { setOpenState(v); try { window.localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* bỏ qua */ } };
   const { data: research } = useResearchOverview();
-  const cur = research?.index?.current ?? null;
   const intel = research?.intel?.current ?? null;
   const risk = riskLevel(intel?.risk);
-  const st = cur ? REGIME_STYLE[cur.regime] : null;
   const s = indexState;
   const impulseColor = !s ? undefined : s.impulseScore < 35 ? "#f43f5e" : s.impulseScore <= 65 ? "#f59e0b" : "#10b981";
   const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
