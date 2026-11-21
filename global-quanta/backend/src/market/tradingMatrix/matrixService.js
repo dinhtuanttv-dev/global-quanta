@@ -79,6 +79,20 @@ export const LIVE_IMPACT_DEADLINE_MS = 4 * 60_000;
 export const LIVE_IMPACT_MIN_COVERAGE = 0.5;
 const LIVE_SESSIONS = new Set(["ATO", "LO", "BREAK", "ATC"]);
 
+/**
+ * Giai đoạn cấu trúc ngày từ tài liệu MTF v3 (`structure.analyze3`) theo đúng dạng `regime.stageOdds` giao diện đang đọc.
+ * Không có xác suất (up/down = null) vì kiểm định đặt trước MTF v3 không đạt; nhãn ghi rõ là mô tả.
+ */
+export function stageFromStructure3(doc) {
+  const D = doc?.structure?.context?.D;
+  if (!D?.stage || D.stage === "NA") return null;
+  return {
+    stage: D.stageLabel ?? D.stage, age: Number.isFinite(D.stageAge) ? D.stageAge : null, up: null, down: null,
+    label: `${doc.evidence?.label ?? "MÔ TẢ"} · MTF v3, không có xác suất chuyển giai đoạn`,
+    dayStage: D.stage, typical: null, dow: D.dowLabel ?? null, asOf: doc.asOf ?? null,
+  };
+}
+
 export function createMatrixService({ service, store, getStructure = () => null, corporateActions = null, fetchShares = fetchVndShares, fetchDay = fetchMarketDay, now = Date.now, log = console }) {
   const hyst = createHysteresis(2);
   const memo = new Map(); // `${scope}|${asOf}` -> { bySymbol, foreign, at }
@@ -358,12 +372,15 @@ export function createMatrixService({ service, store, getStructure = () => null,
       health.push(sourceHealth({ id: "research", label: "Nghiên cứu VN-Index (HMM, dấu chân lệnh)", kind: "daily", asOf: intel?.asOf, expectedDate: expected, error: intel ? null : "Job nghiên cứu chưa chạy (16:00–16:40)" }));
     } catch (e) { health.push(sourceHealth({ id: "research", label: "Nghiên cứu VN-Index", kind: "daily", error: e.message })); }
 
+    // Cấu trúc ngày VN-Index theo MTF v3. v2 `analyze` (có xác suất chuyển giai đoạn) đã bị gỡ ở #218 nên lời gọi cũ luôn lỗi
+    // và dòng này trống từ 30/10. v3 không có xác suất (H1–H6 KHÔNG ĐẠT) -> chỉ hiện giai đoạn + tuổi, nhãn MÔ TẢ.
+    // Chung khoá cache với route /structure3/:symbol nên không tính thêm. Chỉ để hiển thị: không vào nhãn chế độ / kịch bản.
     let stageOdds = null;
     try {
       const st = getStructure();
-      if (st) {
-        const doc = await service.cache.wrap("matrix:structure:VNINDEX", 10 * 60_000, () => st.analyze("VNINDEX", { h1: false }));
-        stageOdds = doc?.stageOdds ? { ...doc.stageOdds, dayStage: doc.context?.day ?? null, label: doc.stageOdds.label } : null;
+      if (st?.analyze3) {
+        const doc = await service.cache.wrap("structure3:VNINDEX", 10 * 60_000, () => st.analyze3("VNINDEX"));
+        stageOdds = stageFromStructure3(doc);
         out.sourceAsOf.structure = doc?.asOf ?? null;
       }
     } catch (e) { log.warn?.(`[matrix] cấu trúc: ${e.message}`); }

@@ -39,13 +39,15 @@ export default function MarketLabelLegend({ d }: { d: PreopenDoc }) {
       value: cur?.sigma != null ? `${nf(cur.sigma, 1)}%/năm · phân vị ${nf(cur.yzPct, 0)}` : "—", asOf: cur?.date ?? null },
     { group: "Biến động", where: "Trạng thái thị trường", name: "σ thực 20 phiên", measures: "Độ lệch chuẩn lợi suất đóng cửa, năm hoá", input: "Đóng cửa VN-Index", window: "20 phiên", grade: "B",
       value: m?.volatility?.realizedVol20 != null ? `${nf(m.volatility.realizedVol20, 1)}%/năm` : "—", asOf: m?.volatility?.asOf ?? null },
-    { group: "Biến động", where: "Dải VN-Index", name: "ATR percentile", measures: "Biên độ thật 14 phiên so với 1 năm", input: "OHLC VN-Index", window: "14 phiên", grade: "B",
-      // Cùng nguồn với chip "Nén–bứt phá" của dải VN-Index (bảng quét); Matrix chỉ là dự phòng.
-      value: ix ? `phân vị ${nf(ix.atrPercentile, 0)}` : m?.volatility?.atrPercentile != null ? `phân vị ${nf(m.volatility.atrPercentile, 0)}` : "—", asOf: ix?.asOf ?? m?.volatility?.asOf ?? null },
+    // Hai định nghĩa ATR khác nhau nên hai số khác nhau là bình thường; không đổi công thức vì số của bảng quét đi vào Impulse / Nén–bứt phá.
+    { group: "Biến động", where: "Dải VN-Index (Impulse, Nén–bứt phá)", name: "ATR percentile · trung bình đơn giản", measures: "ATR = trung bình cộng 14 phiên của biên độ thật; xếp hạng trong 250 phiên gần nhất", input: "OHLC VN-Index", window: "14 · 250 phiên", grade: "B",
+      value: ix ? `phân vị ${nf(ix.atrPercentile, 0)}` : "—", asOf: ix?.asOf ?? null },
+    { group: "Biến động", where: "Trạng thái thị trường", name: "ATR percentile · Wilder", measures: "ATR làm trơn Wilder 14 phiên; xếp hạng trong 250 phiên gần nhất", input: "OHLC VN-Index", window: "14 · 250 phiên", grade: "B",
+      value: m?.volatility?.atrPercentile != null ? `phân vị ${nf(m.volatility.atrPercentile, 0)}` : "—", asOf: m?.volatility?.asOf ?? null },
   ];
   return (
     <div data-testid="mc-labels">
-      <p className="text-[11px] text-slate-400">Các nhãn dưới đây đo những việc <b className="text-slate-200">khác nhau</b> nên có thể khác nhau mà không mâu thuẫn. Ví dụ: thế giới né rủi ro, VN-Index đang trong xu hướng giảm, nhưng biến động vẫn ở chế độ yên tĩnh. Ba con số "biến động %/năm" dùng ba công thức và ba cửa sổ khác nhau, nên không so trực tiếp với nhau.</p>
+      <p className="text-[11px] text-slate-400">Các nhãn dưới đây đo những việc <b className="text-slate-200">khác nhau</b> nên có thể khác nhau mà không mâu thuẫn. Ví dụ: thế giới né rủi ro, VN-Index đang trong xu hướng giảm, nhưng biến động vẫn ở chế độ yên tĩnh. Ba con số "biến động %/năm" dùng ba công thức và ba cửa sổ khác nhau, nên không so trực tiếp với nhau; hai "ATR percentile" cũng vậy (trung bình đơn giản và Wilder).</p>
       {/* Điện thoại: mỗi nhãn một thẻ, giá trị luôn nhìn thấy không cần cuộn ngang. */}
       <ul className="mt-1.5 space-y-1.5 sm:hidden" data-testid="mc-labels-cards">
         {rows.map((r) => (

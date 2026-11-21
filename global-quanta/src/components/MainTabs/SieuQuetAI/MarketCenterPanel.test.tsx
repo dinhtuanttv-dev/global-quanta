@@ -300,10 +300,12 @@ describe("Trung tâm thị trường — 3 tầng (PR-C)", () => {
     await act(async () => (q("mc-prov-day")?.querySelector("button") as HTMLElement).click());
     expect(q("mc-prov-day")?.querySelector('[data-grade]')?.getAttribute("data-grade")).toBe("C");
   });
-  it("bảng Các nhãn đo gì: đủ 6 nhãn chế độ + 4 thước đo biến động; thiếu dữ liệu khối khác thì ghi gạch", () => {
+  it("bảng Các nhãn đo gì: đủ 6 nhãn chế độ + 5 thước đo biến động (2 định nghĩa ATR); thiếu dữ liệu khối khác thì ghi gạch", () => {
     tab("labels");
     render(<MarketCenterPanel />);
-    expect(document.querySelectorAll('[data-testid="mc-label-row"]').length).toBe(10);
+    expect(document.querySelectorAll('[data-testid="mc-label-row"]').length).toBe(11);
+    expect(document.querySelector('[data-label-value="ATR percentile · trung bình đơn giản"]')?.textContent).toBe("—");
+    expect(document.querySelector('[data-label-value="ATR percentile · Wilder"]')?.textContent).toBe("—");
     expect(document.querySelector('[data-label-value="MS-GARCH"]')?.textContent).toBe("Yên tĩnh 94%");
     expect(document.querySelector('[data-label-value="σ MS-GARCH"]')?.textContent).toBe("14,6%/năm");
     expect(document.querySelector('[data-label-value="Kịch bản mở cửa"]')?.textContent).toBe("Tiêu cực · ES −1,25%");
