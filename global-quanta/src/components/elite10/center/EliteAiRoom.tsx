@@ -8,6 +8,11 @@ import { useEffect, useRef, useState } from "react";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
+// Bàn nghiên cứu Obsidian (O2, 21/11/2026) — CHỈ THÊM: bản vết song song + thanh Obsidian + menu Lưu; logic tranh luận / bản tin không đổi.
+import { tracedStream, type LaneTraceMap } from "../../../lib/obsidian/trace";
+import ObsidianBar from "./obsidian/ObsidianBar";
+import { BriefExport, DebateExport, briefKey, debateKey } from "./obsidian/RoomExports";
+import { useObsidianDesk } from "./obsidian/useObsidianDesk";
 
 export const ELITE_SUGGESTIONS = [
   "Danh mục chính thức hôm nay gồm những mã nào, vì sao được chọn, tỷ lệ tiền mặt bao nhiêu và độ tin cậy đến đâu?",
@@ -44,12 +49,18 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const [briefBusy, setBriefBusy] = useState(false);
   const ctrlRef = useRef<AbortController | null>(null);
   const briefCtrlRef = useRef<AbortController | null>(null);
+  const [trace, setTrace] = useState<LaneTraceMap>({});
+  const [debateSubject, setDebateSubject] = useState<string | null>(null);
+  const traceStream = tracedStream(streamCatalystChat, (key, fn) => setTrace((s) => ({ ...s, [key]: fn(s[key]) })));
+  const desk = useObsidianDesk();
   useEffect(() => () => { ctrlRef.current?.abort(); briefCtrlRef.current?.abort(); }, []);
 
   async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal): Promise<Lane> {
     let lane = newLane(provider);
     set(() => lane);
     const apply = (fn: (l: Lane) => Lane) => { lane = fn(lane); set(() => lane); };
+    // Obsidian: bọc luồng để ghi vết (thời gian, máy chủ, công cụ); mọi sự kiện vẫn đi nguyên vào laneReducer như cũ.
+    const streamCatalystChat = traceStream(role ?? "brief");
     try {
       await streamCatalystChat([{ role: "user", content: q }], (e) => apply((l) => laneReducer(l, e)), signal, provider, role);
     } catch (err) {
@@ -64,6 +75,8 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     if (phase === "arguing" || phase === "judging") return;
     const t = subject.trim().toUpperCase();
     const ticker = /^[A-Z0-9]{3,10}$/.test(t) ? t : null;
+    setDebateSubject(ticker);
+    setTrace((s) => ({ brief: s.brief }));
     const q = debateQuestions(ticker);
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
@@ -86,12 +99,18 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   }
 
   const busy = phase === "arguing" || phase === "judging";
+  const unsaved = [
+    debateKey(trace) && phase === "done" && (bull?.text.trim() || bear?.text.trim()) && !desk.isSaved(debateKey(trace)) ? "tranh luận" : null,
+    briefKey(trace) && !briefBusy && brief?.text.trim() && !desk.isSaved(briefKey(trace)) ? "bản tin" : null,
+  ].filter((x): x is string => Boolean(x));
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
+      <ObsidianBar desk={desk} unsaved={unsaved} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
           <span className="text-[10px] text-slate-500">Claude phe mua · Gemini phe bán · Claude trọng tài — tính 3 câu vào hạn mức hỏi đáp</span>
+          <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <input id="elite-debate-subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={busy} maxLength={10}
@@ -115,6 +134,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bản tin phiên</h4>
+          <BriefExport desk={desk} brief={brief} trace={trace} busy={briefBusy} />
           {briefBusy
             ? <button type="button" onClick={() => briefCtrlRef.current?.abort()} data-testid="elite-brief-stop" className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng viết</button>
             : <button type="button" onClick={() => void makeBrief()} data-testid="elite-brief-start"
