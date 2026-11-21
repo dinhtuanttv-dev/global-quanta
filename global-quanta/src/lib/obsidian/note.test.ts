@@ -115,6 +115,7 @@ describe("Bản tin, Hỏi đáp, Nhật ký", () => {
     const n = buildJournalNote({ subject: "HPG", bull, bear, judge, now: NOW, suffix: "j1", calendar: cal, debateFileName: "2026-11-21 143005 - HPG - Tranh luận - ab12.md" });
     const { data, body } = parseFrontmatter(n.markdown);
     expect(data).toMatchObject({ type: "elite10-decision-journal", review_base: "2026-11-20", review_5: "2026-11-27", review_10: "2026-12-04", review_20: "2026-12-18", outcome_5: null, outcome_10: null, outcome_20: null, judge_was_right: null });
+    for (const k of ["date", "data_as_of", "review_base", "review_5", "review_10", "review_20"]) expect(n.markdown).toMatch(new RegExp(`\\n${k}: \\d{4}-\\d{2}-\\d{2}\\n`)); // ngày để trần cho Dataview
     expect(body).toContain("Kết luận cân bằng.");
     expect(body).toMatch(/\| \[\[HPG\]\] \| 10 \| 9,9 \| 83 \| Dẫn dắt \| 27\.150 \| -8,1 \|/);
     expect(body).toContain("- [ ] Xem lại sau 20 phiên 📅 2026-12-18");

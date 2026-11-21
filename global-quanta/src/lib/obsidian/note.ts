@@ -114,7 +114,7 @@ function baseFields(b: BaseFm, rest: [string, YamlValue][] = []): string {
   return frontmatter([...head, ...rest.filter(([k]) => k === "started_at" || k === "finished_at"),
     ["data_as_of", b.dataAsOf], ["scope", b.scope], ["ticker", b.ticker], ["sector_icb", b.sectorIcb], ["timeframe", b.timeframe],
     ...rest.filter(([k]) => k !== "started_at" && k !== "finished_at"), ["evidence_status", b.status], ...tail],
-  new Set(["date", "data_as_of", "review_5", "review_10", "review_20"]));
+  new Set(["date", "data_as_of", "review_base", "review_5", "review_10", "review_20"]));
 }
 const span = (traces: (LaneTrace | undefined)[]) => {
   const s = traces.map((t) => t?.startedAt).filter((x): x is number => typeof x === "number");
