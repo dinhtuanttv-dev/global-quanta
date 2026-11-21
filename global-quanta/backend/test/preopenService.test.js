@@ -192,3 +192,17 @@ test("PO-r2-F không đạt thì evidence.dayBand tự về false; sổ từng p
   assert.equal(l.alwaysMid.pct, 100);
   assert.ok(!JSON.stringify(l.rows).includes("probability"));
 });
+
+test("PR-D: kịch bản đã chốt 08:50 mà ES đang chạy sang nhóm khác -> liveLead khác lead, lead không đổi", async () => {
+  const store = memStore(), t = { v: Date.parse("2026-11-02T01:50:00Z") }, ref = refEs();
+  let price = ref * 0.9;
+  const w = async () => [{ group: "futures", symbol: "ES=F", name: "ES", price, at: new Date(t.v - 60_000).toISOString(), changePct: -1 }];
+  const s = createPreopenService({ getVnBars: async () => sessionBars, esHours: async () => ES, world: w, now: () => t.v, tradingDay: () => true, store, log: {} });
+  await s.tick();
+  t.v = Date.parse("2026-11-02T03:30:00Z"); price = ref * 1.2;
+  const d = await s.get();
+  assert.equal(d.lead, "neg");
+  assert.equal(d.liveLead, "pos");
+  assert.ok(d.esEdge > 0);
+  assert.equal(d.es.frozenAt, "08:50");
+});

@@ -129,7 +129,7 @@ export function createPreopenService({ getVnBars, getMsGarch = async () => null,
     const frozen = phase === "session" && slotKeys.length ? { slot: slotKeys[slotKeys.length - 1], es: day.slots[slotKeys[slotKeys.length - 1]].es } : null;
     const esUsed = frozen ? frozen.es : live.move;
     const levels = { close: round(prev.close, 1), ma20: round(sma(done, 20), 1), ma50: round(sma(done, 50), 1), ma200: round(sma(done, 200), 1) };
-    const model = buildScenariosR2({ rows: p.rows, es: esUsed, prevClose: levels.close, levels, volNow: p.volNow, evidence });
+    const model = buildScenariosR2({ rows: p.rows, es: esUsed, prevClose: levels.close, levels, volNow: p.volNow, evidence, esLive: live.move });
     const scenarios = model.scenarios.map(({ shadowOpen, shadowProbability, ...s }) => s);
     // PO-r2-F: không đạt xác nhận tiến thì dải cả phiên tự về "chưa đạt" (evidence gốc giữ nguyên trong preopenEvidence.js).
     const confirm = evaluateConfirm(lb);

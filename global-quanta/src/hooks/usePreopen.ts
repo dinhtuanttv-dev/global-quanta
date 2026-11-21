@@ -30,6 +30,9 @@ export interface PreopenDoc {
   /** Độ nhạy mở cửa theo ES trên 250 phiên huấn luyện, chỉ mô tả (cấp C). */
   esFit?: { slope: number; intercept: number; residLo: number; residHi: number; vol: number; n: number; grade: string } | null;
   nextRefreshAt?: string;
+  /** PR-D: ngưỡng nhóm ES (±1σ, %) và nhóm của ES đang chạy — khác `lead` khi kịch bản đã chốt ở mốc cuối. */
+  esEdge?: number | null;
+  liveLead?: ScenarioId | null;
 }
 export interface PreopenLedgerRow { date: string; slot: string; es: number | null; lead: ScenarioId | null; day: { lo: number; hi: number } | null; prevClose: number | null; open: number; close: number; gapPct: number; ccPct: number; outcome: ScenarioId; dayIn: boolean; leadHit: boolean }
 export interface PreopenLedgerDoc { rule: string; asOf: string; confirm: PreopenConfirm; lead: RateCi; alwaysMid: RateCi; rows: PreopenLedgerRow[] }
