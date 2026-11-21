@@ -84,7 +84,7 @@ function Engine({ only }: { only: "overview" | "matrix" | "events" | "connect" |
  * Mọi tính năng cũ giữ nguyên, chỉ xếp lại một tầng tab. Risk-On (đã trượt kiểm định) chuyển sang tab Bằng chứng. Tab chỉ tải khi mở.
  */
 export default function KetNoiTheGioiTab() {
-  const { data, connected, source: pulseSource, monthlyFromProjectA } = useGlobalStream();
+  const { data, connected } = useGlobalStream();
   const [tab, setTabState] = useState<TabId>(readTab);
   const refs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const setTab = (next: TabId) => {
@@ -199,7 +199,7 @@ export default function KetNoiTheGioiTab() {
               <p><b>Bậc A</b>: vượt hiệu chỉnh kiểm định bội, ổn định và vượt kiểm định ngoài mẫu. <b>Bậc B</b>: có ý nghĩa sau hiệu chỉnh. <b>Bậc C</b>: giả thuyết hoặc chưa đủ bằng chứng, không có nghĩa là có tác động.</p>
               <p>Ma trận gồm tối đa 13 yếu tố × 10 rổ ngành theo tháng, chọn trễ tốt nhất 0–6, chỉ để thăm dò. Yếu tố chưa có nguồn số liệu (hiện là cước container, PMI Trung Quốc, dòng vốn thị trường mới nổi) không xuất hiện trong ma trận. Rổ ngành ánh xạ sang ICB: Ngân hàng 8300, Chứng khoán 8700, BĐS 8600, Thép 1750, Dầu khí 0500, Cảng 2770, Công nghệ 9500, Điện 7530. Quyết định Lọc ngành chỉ dùng cổng xác nhận đặt trước.</p>
               <p>Kịch bản dùng local projection theo tháng; ước tính vượt ±50% trong 3 tháng là bất ổn về số và không được dùng.</p>
-              <p>Giá ngày lấy từ {pulseSource === "project-a" ? <b style={{ color: T.gold }}>nguồn dự phòng Project A, có thể trễ</b> : "Gateway (Yahoo Finance), mỗi số kèm ngày phiên"}. Cao su, urê, BDI, cước container và quặng sắt là số liệu tháng hoặc proxy từ Project A{monthlyFromProjectA ? "" : ", hiện chưa lấy được"}. Baltic Dry Index {macro?.baltic_dry_index != null ? <b>{macro.baltic_dry_index}</b> : "chưa có vì cần OILPRICEAPI_KEY"}.</p>
+              <p data-testid="evidence-sources">Giá ngày lấy từ Gateway (Yahoo Finance), mỗi số kèm ngày phiên. Cao su, urê, DAP, cà phê là giá tháng của World Bank Pink Sheet (trung bình tháng, công bố đầu tháng sau), quặng sắt là giá ngày SGX; tất cả qua Gateway, xem mục Nhịp đập hàng hoá, mỗi số kèm kỳ và ngày công bố. Giá nhà các nước là chỉ số quý của BIS. Baltic Dry Index và cước container chưa có nguồn mở nên không hiển thị.</p>
             </div>
           </details>
 

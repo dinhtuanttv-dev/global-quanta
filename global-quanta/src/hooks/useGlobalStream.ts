@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchMarketJson } from "../services/marketDataClient";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
-
 export interface MacroTrendRow {
   id: string;
   dxy: number;
@@ -82,57 +80,32 @@ interface GatewayPulse {
   missing: string[];
 }
 
-/** Nguồn của giá ngày đang hiển thị. "gateway" = Yahoo qua Gateway (ưu tiên); "project-a" = luồng SSE cũ (dự phòng). */
-export type PulseSource = "gateway" | "project-a" | null;
+/** Nguồn của giá ngày đang hiển thị: chỉ còn Gateway (Yahoo, mỗi số kèm ngày phiên). */
+export type PulseSource = "gateway" | null;
 
+// Trường tháng/proxy cũ của Project A (cao su, urê, BDI, cước container, quặng sắt) không còn lấy qua luồng SSE:
+// giá tháng World Bank (cao su, urê, cà phê, phân bón) và quặng sắt có ở Gateway /api/commodities (mục Nhịp đập hàng hoá).
 const MONTHLY_DEFAULTS = {
   id: "gateway", baltic_dry_index: null, robusta_coffee: null, iron_ore_proxy_change_percent: null, rubber_price: null, rubber_change_percent: null,
   fertilizer_urea_price: null, fertilizer_urea_change_percent: null, container_freight_proxy_change_percent: null,
 } satisfies Partial<MacroTrendRow>;
-const GATEWAY_POLL_MS = 60_000;
+export const GATEWAY_POLL_MS = 60_000;
 
 /**
- * W6 (2026-10-16) — hợp nhất nguồn: DXY/VIX/US10Y/vàng/Brent/WTI, Risk-On và các chỉ số lấy từ Gateway (Yahoo, kèm ngày);
- * luồng Project A chỉ còn cấp các trường THÁNG / proxy (cao su, urê, BDI, cước container, quặng sắt). Gateway lỗi -> dùng
- * nguyên bản Project A (dự phòng). Không trộn hai nguồn cho cùng một con số.
+ * 21/11/2026 — chỉ một nguồn: Gateway /api/world/pulse. Bỏ luồng SSE Project A (/api/global/stream): nó giữ một hàm Vercel
+ * chạy liên tục (79% thời gian chạy hàm của Project A) chỉ để cấp vài số tháng đã cũ từ 10/09, và không dừng khi ẩn tab.
  */
-export function mergePulse(sse: StreamPayload | null, gw: GatewayPulse | null): { payload: StreamPayload | null; source: PulseSource } {
-  if (gw?.macro) {
-    const macro: MacroTrendRow = { ...MONTHLY_DEFAULTS, ...(sse?.macro ?? {}), ...gw.macro } as MacroTrendRow;
-    return { payload: { macro, markets: gw.markets.length ? gw.markets : sse?.markets ?? [], timestamp: gw.timestamp }, source: "gateway" };
-  }
-  if (sse) return { payload: sse, source: "project-a" };
-  return { payload: null, source: null };
+export function buildPulse(gw: GatewayPulse | null): { payload: StreamPayload | null; source: PulseSource } {
+  if (!gw?.macro) return { payload: null, source: null };
+  const macro: MacroTrendRow = { ...MONTHLY_DEFAULTS, ...gw.macro } as MacroTrendRow;
+  return { payload: { macro, markets: gw.markets ?? [], timestamp: gw.timestamp }, source: "gateway" };
 }
 
+const visible = () => typeof document === "undefined" || document.visibilityState !== "hidden";
+
 export function useGlobalStream() {
-  const [data, setData] = useState<StreamPayload | null>(null);
   const [gw, setGw] = useState<GatewayPulse | null>(null);
   const [gwOk, setGwOk] = useState(false);
-  const [connected, setConnected] = useState(false);
-
-  useEffect(() => {
-    // FIX (tich hop Project B, 2026-08-26): ban goc trong zip dung path
-    // tuong doi "/api/global/stream" - chi dung khi FE/API cung origin
-    // (Next.js full-stack goc). Project B (Vite) va Project A (Next.js) la
-    // 2 origin khac nhau -> BAT BUOC dung API_BASE, giong moi hook khac
-    // trong du an (useEarningsData...). EventSource ho tro
-    // URL tuyet doi khac origin binh thuong; CORS wildcard "*" da co san o
-    // Project A (next.config.ts) nen khong can cau hinh them.
-    const es = new EventSource(`${API_BASE}/api/global/stream`);
-    es.onopen = () => setConnected(true);
-    es.onmessage = (e) => {
-      try {
-        const parsed: StreamPayload = JSON.parse(e.data);
-        setData(parsed);
-      } catch {
-        // Frame loi (hiem, VD JSON bi cat giua chung) - bo qua, cho frame
-        // tiep theo sau 5s thay vi crash toan bo stream.
-      }
-    };
-    es.onerror = () => setConnected(false);
-    return () => es.close();
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -141,10 +114,13 @@ export function useGlobalStream() {
         .then((d) => { if (alive) { setGw(d); setGwOk(true); } })
         .catch(() => { if (alive) setGwOk(false); });
     load();
-    const id = setInterval(load, GATEWAY_POLL_MS);
-    return () => { alive = false; clearInterval(id); };
+    // Tab ẩn thì không hỏi Gateway; quay lại tab thì tải ngay.
+    const id = setInterval(() => { if (visible()) void load(); }, GATEWAY_POLL_MS);
+    const onVisible = () => { if (visible()) void load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { alive = false; clearInterval(id); document.removeEventListener("visibilitychange", onVisible); };
   }, []);
 
-  const merged = useMemo(() => mergePulse(data, gw), [data, gw]);
-  return { data: merged.payload, connected: connected || gwOk, source: merged.source, monthlyFromProjectA: !!data?.macro };
+  const pulse = useMemo(() => buildPulse(gw), [gw]);
+  return { data: pulse.payload, connected: gwOk, source: pulse.source };
 }
