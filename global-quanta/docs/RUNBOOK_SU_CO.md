@@ -7,13 +7,13 @@ Cập nhật 21/11/2026. Dùng khi nhận issue **"🔴 Sự cố"** (nhãn `upt
 | Dấu hiệu trên web | Nguyên nhân thường gặp | Mục |
 |---|---|---|
 | Băng thông báo dưới đáy "Máy chủ dữ liệu đang gián đoạn…" | Gateway (Railway) sập / quá tải | §1 |
-| Tab Cơ bản › Timeline ghi "Nguồn dự phòng: Gateway" | QMS hoặc Supabase gián đoạn; web đã tự chuyển nguồn | §2 |
+| Tab Cơ bản › Timeline trống, các tab khác bình thường | QMS hoặc Supabase gián đoạn (Timeline chưa có nguồn dự phòng) | §2 |
 | Trang trắng / lỗi JS sau một lần deploy | Bản frontend lỗi | §3 |
 | Issue báo "Trang dinhtuan-ck" | Vercel (hiếm) | §3 |
 
 Web tự chịu lỗi được tới mức nào:
 - Gateway lỗi: trình duyệt hiện **bản lưu ≤ 24 giờ**, kèm nhãn giờ lưu.
-- QMS lỗi: Timeline tự lấy từ Gateway.
+- QMS lỗi: chỉ Timeline điểm mua bị trống. Chưa có nguồn dự phòng vì Timeline đang khoá tuyệt đối (F0); Gateway đã có dữ liệu khớp 164/164 dòng, chỉ cần mở khoá để nối.
 - Không trang nào bị crash: đã thử chặn từng phụ thuộc ngày 21/11.
 
 ## 1. Gateway (Railway) không phản hồi
@@ -33,7 +33,7 @@ Web tự chịu lỗi được tới mức nào:
 ## 2. QMS (tuan-quant-scanner) lỗi
 1. `curl -s -o /dev/null -w "%{http_code}" https://tuan-quant-scanner-psi.vercel.app/api/global/housing`.
 2. Vercel dashboard › tuan-quant-scanner › Logs (Hobby **chỉ giữ 1 giờ**, nên xem sớm).
-3. Nếu lỗi do hạn mức Hobby (CPU 4 giờ, bộ nhớ 360 GB-giờ, 1 triệu lần gọi/tháng): Hobby **khoá tới khi đủ 30 ngày**. Tạm thời Timeline đã tự lấy từ Gateway. Muốn mở khoá ngay thì nâng Pro một tháng.
+3. Nếu lỗi do hạn mức Hobby (CPU 4 giờ, bộ nhớ 360 GB-giờ, 1 triệu lần gọi/tháng): Hobby **khoá tới khi đủ 30 ngày**. Trong thời gian đó Timeline sẽ trống. Muốn mở khoá ngay thì nâng Pro một tháng.
 4. Cron dữ liệu tháng/quý: `MSYS_NO_PATHCONV=1 vercel crons run /api/cron/refresh-lowfreq --project tuan-quant-scanner --scope dinhtuanttv-devs-projects` (cần cho phép; ghi DB). Kết quả nằm trong log, dòng `[refresh-lowfreq]`.
 
 ## 3. Frontend (dinhtuan-ck) lỗi sau deploy
