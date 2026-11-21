@@ -200,7 +200,7 @@ function EvidenceTab({ d, scope }: { d: MatrixOverview; scope: MatrixScope }) {
             className="text-left text-sky-300 underline decoration-sky-300/30 hover:text-sky-200">Nhãn ở đây khác nhãn của Trung tâm thị trường và thanh trên cùng? Xem bảng "Các nhãn đo gì" →</button>
           {r.definition && <p>{r.definition}</p>}
           {r.probabilities && <p>HMM {when(r.hmmAsOf)}: giảm {vn(r.probabilities.bear * 100, 0)}%, ngang {vn(r.probabilities.neutral * 100, 0)}%, tăng {vn(r.probabilities.bull * 100, 0)}%. Đo trạng thái biến động giá, không phải nhãn xu hướng.</p>}
-          {r.stageOdds && <p data-testid="mx-stage">Cấu trúc ngày {r.stageOdds.stage}{r.stageOdds.age != null ? `, ${r.stageOdds.age} phiên` : ""}{r.stageOdds.dow ? ` (${r.stageOdds.dow})` : ""}{r.stageOdds.up != null ? `: P(sang tăng trong 10 phiên) ${vn(r.stageOdds.up * 100, 0)}%, P(sang giảm) ${vn((r.stageOdds.down ?? 0) * 100, 0)}%` : ""}. {r.stageOdds.label}.</p>}
+          {r.stageOdds && <p data-testid="mx-stage">Cấu trúc ngày {r.stageOdds.stage}{r.stageOdds.age != null ? `, ${r.stageOdds.age} phiên` : ""}{r.stageOdds.dow ? ` · Dow: ${r.stageOdds.dow}` : ""}{r.stageOdds.up != null ? `: P(sang tăng trong 10 phiên) ${vn(r.stageOdds.up * 100, 0)}%, P(sang giảm) ${vn((r.stageOdds.down ?? 0) * 100, 0)}%` : ""}. {r.stageOdds.label}.</p>}
           <p>{d.flow.note} Tự doanh: chưa có nguồn.</p>
           <p>X = trung bình z của lợi suất 20 phiên, độ rộng MA20, McClellan, dòng tiền. Y = trung bình z của biến động, độ rộng giảm 5 phiên, độ tập trung trụ. Vùng đệm ±0,25.</p>
           <p>Số trụ hiệu dụng lấy trung vị 5 phiên vì mã có tỷ trọng lớn làm số từng phiên dao động mạnh.</p>
