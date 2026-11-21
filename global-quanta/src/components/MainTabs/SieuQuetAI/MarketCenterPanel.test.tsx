@@ -322,6 +322,47 @@ describe("Trung tâm thị trường — 3 tầng (PR-C)", () => {
   });
 });
 
+describe("Trung tâm thị trường — PR-D", () => {
+  it("trong phiên: ES đang chạy sang nhóm khác thì báo, kịch bản vẫn giữ bản đã chốt", () => {
+    state.data = { ...doc, phase: "session", lead: "neg", liveLead: "pos", esEdge: 0.89, es: { ...doc.es, livePct: 1.2, frozenAt: "08:50" } };
+    render(<MarketCenterPanel />);
+    expect(q("mc-es-shift")?.textContent).toBe("⇄ ES hiện +1,20% đã sang nhóm Tích cực (ngưỡng ±0,89%). Kịch bản phiên vẫn giữ theo bản 08:50; chỉ để tham khảo.");
+    expect(q("mc-verdict")?.textContent).toContain("Tiêu cực");
+  });
+  it("trong phiên: cùng nhóm thì không báo", () => {
+    state.data = { ...doc, phase: "session", lead: "neg", liveLead: "neg", es: { ...doc.es, livePct: -1.5, frozenAt: "08:50" } };
+    render(<MarketCenterPanel />);
+    expect(q("mc-es-shift")).toBeNull();
+  });
+  it("trước giờ mở cửa sau 08:50: nói rõ phiên sẽ giữ bản 08:50", () => {
+    state.data = { ...doc, phase: "pre", lead: "mid", es: { ...doc.es, movePct: -0.3 }, timeline: [{ slot: "07:15", lead: "neg", es: -1.1 }, { slot: "08:50", lead: "neg", es: -1 }] };
+    render(<MarketCenterPanel />);
+    expect(q("mc-es-shift")?.textContent).toContain("phiên sẽ giữ theo bản 08:50: Tiêu cực (ES −1,00%)");
+  });
+  it("trước giờ mở cửa giữa hai mốc: báo kịch bản đổi so với mốc trước", () => {
+    state.data = { ...doc, phase: "pre", lead: "mid", es: { ...doc.es, movePct: -0.3 }, timeline: [{ slot: "07:15", lead: "neg", es: -1.1 }] };
+    render(<MarketCenterPanel />);
+    expect(q("mc-es-shift")?.textContent).toContain("Kịch bản đổi so với bản 07:15: Tiêu cực → Trung tính");
+  });
+  it("Gateway chưa có liveLead (preopen/3 cũ) thì không báo gì", () => {
+    state.data = { ...doc, phase: "session", es: { ...doc.es, livePct: 3, frozenAt: "08:50" } };
+    render(<MarketCenterPanel />);
+    expect(q("mc-es-shift")).toBeNull();
+  });
+  it("tab Sáng nay ngày nghỉ: ghi chờ phiên kế tiếp thay vì chưa đến mốc", () => {
+    state.data = { ...doc, phase: "closed", session: "2026-11-23", timeline: [] };
+    tab("morning");
+    render(<MarketCenterPanel />);
+    expect(q("mc-morning-07:15")?.textContent).toContain("chờ phiên 23/11");
+  });
+  it("Bản đồ giá ngoài phiên: chưa có sổ thì không vẽ phần xem lại", () => {
+    tab("map");
+    render(<MarketCenterPanel />);
+    expect(q("mc-map")).toBeTruthy();
+    expect(q("mc-path")).toBeNull();
+  });
+});
+
 describe("Khối rút gọn", () => {
   it("mặc định thu gọn, hiện tóm tắt; mở ra thấy nội dung và nhớ lại", async () => {
     render(<FoldSection id="x" title="Tiêu đề" summary="Tóm tắt"><p>Nội dung</p></FoldSection>);

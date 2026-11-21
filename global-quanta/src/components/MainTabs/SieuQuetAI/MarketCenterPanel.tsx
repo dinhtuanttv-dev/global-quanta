@@ -5,6 +5,7 @@ import { fetchMarketJson } from "../../../services/marketDataClient";
 import { usePreopen, usePreopenLedger, type PreopenDoc, type PreopenLedgerRow, type PreopenScenario, type PreopenWorld, type ScenarioId } from "../../../hooks/usePreopen";
 import { CiBar, GradeBadge, OPEN_LABELS_EVENT, Prov, StaleNotice, postureAllowed, vnWhen, type Grade } from "./marketQuality";
 import MarketLabelLegend from "./MarketLabelLegend";
+import IntradayPath from "./IntradayPath";
 
 // Trung tâm thị trường, 3 tầng (PR-C): 0 trạng thái → 1 kết luận + 3 kịch bản → 2 phân tích (5 tab, mặc định đóng).
 // Chỉ hiện phần đã đạt kiểm định; phần chưa đạt nói rõ. Mỗi số chính có nút nguồn gốc (ⓘ).
@@ -166,6 +167,38 @@ const KEY_TAB = "gq.marketCenterTab";
 const isDetailTab = (v: unknown): v is DetailTab => TABS.some((t) => t.id === v);
 
 /** Tab "Sáng nay": các mốc ghi trước giờ mở cửa, ES thay đổi giữa các mốc và ES hiện tại. */
+/**
+ * PR-D (F-C8): ES đổi nhóm sau mốc ghi. Trong phiên: kịch bản đã chốt, chỉ báo tin. Trước giờ mở cửa: so với mốc ghi gần nhất;
+ * sau 08:50 nói rõ phiên sẽ giữ theo bản 08:50 (quy tắc đóng băng), không phải ES đang chạy.
+ */
+function EsShiftAlert({ d }: { d: PreopenDoc }) {
+  const name = (id: ScenarioId | null | undefined) => (id ? d.scenarios.find((s) => s.id === id)?.name ?? id : "—");
+  const cls = "w-full rounded border border-sky-400/30 bg-sky-400/[0.06] px-2 py-0.5 text-[11px] text-sky-200";
+  if (d.phase === "session" && d.lead && d.liveLead && d.liveLead !== d.lead && d.es.livePct != null) {
+    return <span role="status" className={cls} data-testid="mc-es-shift"><span aria-hidden>⇄ </span>ES hiện {sg(d.es.livePct)}% đã sang nhóm {name(d.liveLead)}{d.esEdge != null ? ` (ngưỡng ±${nf(d.esEdge, 2)}%)` : ""}. Kịch bản phiên vẫn giữ theo bản {d.es.frozenAt ?? "cuối trước 09:00"}; chỉ để tham khảo.</span>;
+  }
+  const last = d.timeline[d.timeline.length - 1];
+  if (d.phase === "pre" && d.lead && last?.lead && last.lead !== d.lead) {
+    return <span role="status" className={cls} data-testid="mc-es-shift"><span aria-hidden>⇄ </span>{last.slot === "08:50"
+      ? <>ES hiện {sg(d.es.movePct)}% khớp nhóm {name(d.lead)}, nhưng phiên sẽ giữ theo bản 08:50: {name(last.lead)} (ES {sg(last.es)}%).</>
+      : <>Kịch bản đổi so với bản {last.slot}: {name(last.lead)} → {name(d.lead)} (ES {sg(last.es)}% → {sg(d.es.movePct)}%).</>}</span>;
+  }
+  return null;
+}
+
+/** Bản đồ giá, phần dưới: trong phiên là đường đi hôm nay; ngoài phiên là xem lại phiên gần nhất đã chấm trong sổ tiến. */
+function PathSection({ d, lead }: { d: PreopenDoc; lead: PreopenScenario | null }) {
+  const inSession = d.phase === "session" && !!lead;
+  const { data: led } = usePreopenLedger(!inSession);
+  if (inSession && lead) return <IntradayPath date={d.session} live band={lead.day} prevClose={d.levels.close} color={COLOR[lead.id]} title={`Trong phiên ${ddmm(d.session)}: VN-Index so với dải ${lead.name}`} invalidatedAt={d.tracking?.invalidatedAt ?? null} />;
+  const r = led?.rows?.[0];
+  if (!r?.day) return null;
+  const scen = r.lead ? d.scenarios.find((s) => s.id === r.lead)?.name ?? r.lead : "không có";
+  return <IntradayPath date={r.date} live={false} band={r.day} prevClose={r.prevClose} color={r.lead ? COLOR[r.lead] : "#94a3b8"}
+    title={`Xem lại phiên ${ddmm(r.date)}: kịch bản ${scen}, kết quả ${OUTCOME[r.outcome]} (${sg(r.ccPct)}%), đóng cửa ${r.dayIn ? "trong" : "ngoài"} dải`}
+    note={`Dải và kịch bản lấy từ sổ tiến (bản ${r.slot}); nến 5 phút gộp từ nến 1 phút SSI. Mô tả, không phải tín hiệu.`} />;
+}
+
 function MorningTab({ d }: { d: PreopenDoc }) {
   const rows = SLOT_TIMES.map((slot) => ({ slot, x: d.timeline.find((y) => y.slot === slot) ?? null }));
   let prev: number | null = null;
@@ -182,7 +215,7 @@ function MorningTab({ d }: { d: PreopenDoc }) {
               return <tr key={slot} className="border-t border-white/5" data-testid={`mc-morning-${slot}`}>
                 <td className="py-1 font-mono text-slate-200">{slot}</td>
                 <td className="font-mono text-slate-400">{x?.at ? vnHm(x.at) : "—"}</td>
-                <td className="text-right font-mono text-slate-200">{x ? `${sg(x.es)}%` : "chưa đến mốc"}</td>
+                <td className="text-right font-mono text-slate-200">{x ? `${sg(x.es)}%` : d.phase === "closed" || d.phase === "post" ? `chờ phiên ${ddmm(d.session)}` : "chưa đến mốc"}</td>
                 <td className="text-right font-mono text-slate-400">{delta == null ? "—" : `${sg(delta)} điểm %`}</td>
                 <td className="pl-3">{x ? (x.lead ? <span style={{ color: COLOR[x.lead] }}>{d.scenarios.find((s) => s.id === x.lead)?.name}</span> : <span className="text-slate-500">chưa kết luận</span>) : <span className="text-slate-600">—</span>}</td>
               </tr>;
@@ -302,6 +335,7 @@ export default function MarketCenterPanel() {
           {d.es.at && <span className="text-[11px] text-slate-500" data-testid="mc-es-at">giá ES lúc {vnWhen(d.es.at)}{d.phase === "closed" ? " · thị trường đang nghỉ" : ""}</span>}
         </> : <b className="text-[14px] text-amber-200" data-testid="mc-no-es">Chưa kết luận: {d.es.at ? `giá ES chưa cập nhật từ ${vnTime(d.es.at)}` : "thiếu giá ES"}</b>}
         {!ev.probabilities && <span className="rounded border border-amber-400/40 px-1.5 text-[11px] text-amber-300" data-testid="mc-no-evidence">Chưa có bằng chứng dự báo chiều giá</span>}
+        <EsShiftAlert d={d} />
         {viewed && <span className="w-full text-[11px] text-slate-400" data-testid="mc-slot-view">Bản {viewed.slot}: {viewed.lead ? d.scenarios.find((s) => s.id === viewed.lead)?.name : "chưa kết luận"}, ES {sg(viewed.es)}%</span>}
       </div>
       <StaleNotice error={error && d ? error : null} asOf={d.asOf} testId="mc-stale" />
@@ -344,9 +378,12 @@ export default function MarketCenterPanel() {
           {tab && <button type="button" onClick={() => setTab(null)} className="ml-auto shrink-0 px-2 text-[11px] text-slate-500 hover:text-slate-300" data-testid="mc-tab-close">Ẩn phân tích ▴</button>}
         </div>
         {tab && <div role="tabpanel" id="mc-tabpanel" aria-labelledby={`mc-tab-${tab}`} className="pt-2" data-testid="mc-tabpanel">
-          {tab === "map" && <div className="min-w-0">
-            <h3 className="text-[12px] font-semibold text-slate-200">Bản đồ mức giá: {selected.name} <span className="font-normal text-slate-500">(bấm một thẻ kịch bản để đổi)</span></h3>
-            <PriceMap d={d} s={selected} />
+          {tab === "map" && <div className="min-w-0 space-y-3">
+            <div>
+              <h3 className="text-[12px] font-semibold text-slate-200">Bản đồ mức giá: {selected.name} <span className="font-normal text-slate-500">(bấm một thẻ kịch bản để đổi)</span></h3>
+              <PriceMap d={d} s={selected} />
+            </div>
+            <PathSection d={d} lead={lead} />
           </div>}
           {tab === "world" && <div className="min-w-0">
             {d.world.some((w) => w.fresh === false) && <p className="text-[11px] text-slate-500" data-testid="mc-stale-note">Số màu xám là của phiên trước, thị trường đó chưa mở phiên mới.</p>}

@@ -93,7 +93,7 @@ export function postureAllowed(id, evidence) {
  * Dựng 3 kịch bản từ giá đóng cửa phiên trước. `es = null` nghĩa là thiếu dữ liệu: không có kịch bản dẫn đầu.
  * levels dùng làm mốc xác nhận và vô hiệu; evidence quyết định phần nào được hiện.
  */
-export function buildScenariosR2({ rows, es, prevClose, levels = {}, volNow, evidence }) {
+export function buildScenariosR2({ rows, es, prevClose, levels = {}, volNow, evidence, esLive = undefined }) {
   const train = rows.slice(-250), s = sd(train.map((r) => r.es));
   const lead = es == null ? null : zBucket(es, s);
   const px = (pct) => round(prevClose * (1 + pct / 100));
@@ -126,5 +126,7 @@ export function buildScenariosR2({ rows, es, prevClose, levels = {}, volNow, evi
   });
   // Độ nhạy mở cửa theo ES trên 250 phiên huấn luyện, chỉ để mô tả (cấp C): gap% ≈ a + b·ES%, phần dư 10–90% theo σ̂ hiện tại.
   const esFit = openFit && volOpen ? { slope: round(openFit.b, 3), intercept: round(openFit.a, 3), residLo: round(openFit.q.lo * volOpen, 2), residHi: round(openFit.q.hi * volOpen, 2), vol: round(volOpen, 3), n: train.length, grade: "C" } : null;
-  return { lead, scenarios, esSd: round(s, 2), above, trainDays: train.length, trainFrom: train[0]?.date ?? null, trainTo: train[train.length - 1]?.date ?? null, esFit };
+  // PR-D: ngưỡng nhóm ±1σ và nhóm của ES đang chạy (khác `lead` khi kịch bản đã chốt ở mốc 08:50). Chỉ thêm trường, không đổi số cũ.
+  const esEdge = round(Z_T * s, 2), liveLead = esLive == null ? null : zBucket(esLive, s);
+  return { lead, scenarios, esSd: round(s, 2), above, trainDays: train.length, trainFrom: train[0]?.date ?? null, trainTo: train[train.length - 1]?.date ?? null, esFit, esEdge, liveLead };
 }
