@@ -122,6 +122,16 @@ describe("Trạng thái thị trường", () => {
     expect(src).not.toContain("Trực tiếp");
   });
 
+  it("cấu trúc ngày MTF v3: giai đoạn + tuổi + Dow, không có xác suất, nhãn MÔ TẢ", async () => {
+    const base = withState();
+    state.data = { ...base, regime: { ...base.regime, stageOdds: { stage: "Giai đoạn 4 · Giảm giá", age: 15, up: null, down: null, label: "MÔ TẢ · MTF v3, không có xác suất chuyển giai đoạn", dayStage: "S4", typical: null, dow: "Giảm suy yếu" } } };
+    await render();
+    await click("[data-testid=mx-health-warn]");
+    const t = el.querySelector("[data-testid=mx-stage]")?.textContent ?? "";
+    expect(t).toBe("Cấu trúc ngày Giai đoạn 4 · Giảm giá, 15 phiên (Giảm suy yếu). MÔ TẢ · MTF v3, không có xác suất chuyển giai đoạn.");
+    expect(t).not.toContain("P(");
+  });
+
   it("PR-C: tab Bằng chứng có liên kết tới bảng 'Các nhãn đo gì' của Trung tâm thị trường", async () => {
     state.data = withState();
     await render();

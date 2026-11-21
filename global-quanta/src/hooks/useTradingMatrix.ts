@@ -34,7 +34,8 @@ export interface MatrixOverview {
   regime: {
     label: RegimeLabel; rule?: string; horizon: string; asOf?: string; probabilities: { bear: number; neutral: number; bull: number } | null; probabilityGap: number | null;
     hmmAsOf: string | null; reason?: string; definition?: string;
-    stageOdds: { stage: string; age: number; up: number | null; down: number | null; label: string; dayStage: string | null; typical: { median: number; p75: number } | null } | null;
+    /** MTF v3 (từ 21/11/2026): up/down = null (không có xác suất), có thêm dow; v2 cũ có up/down. */
+    stageOdds: { stage: string; age: number | null; up: number | null; down: number | null; label: string; dayStage: string | null; typical: { median: number; p75: number } | null; dow?: string | null; asOf?: string | null } | null;
   };
   breadth: { daily: DailyBreadth | null; intraday: IntradayBreadth | null; trend: { date: string; aboveMa20Pct: number | null; n: number }[] | null };
   flow: {
