@@ -19,19 +19,37 @@ describe("Evidence Brain claim binding", () => {
   it("accepts only claims bound to this snapshot and verifies numeric values against the cited ref", () => {
     const accepted = parseAndValidateClaims(bundle(snapshot.snapshotId, 2), snapshot, "BULL");
     expect(accepted.ok).toBe(true);
-    expect(accepted.claims[0]?.validation).toBe("SUPPORTED");
+    expect(accepted.claims[0]?.validation).toBe("REFS_MATCHED");
 
     const mismatch = parseAndValidateClaims(bundle(snapshot.snapshotId, 3), snapshot, "BULL");
     expect(mismatch.claims[0]?.validation).toBe("UNSUPPORTED");
     expect(mismatch.claims[0]?.validationNotes.join(" ")).toContain("không khớp value");
     const toolAssisted = markClaimsWithExternalTools(accepted, ["elite_ticker"]);
     expect(toolAssisted.claims[0]?.validation).toBe("UNKNOWN");
-    expect(toolAssisted.summary.supported).toBe(0);
+    expect(toolAssisted.summary.refsMatched).toBe(0);
   });
 
   it("rejects another snapshot ID and unknown references", () => {
     expect(parseAndValidateClaims(bundle("vee1-another-snapshot", 2), snapshot, "BULL").ok).toBe(false);
     const badRef = bundle(snapshot.snapshotId, 2).replace("ref:decision:FPT:rank", "ref:unknown");
     expect(parseAndValidateClaims(badRef, snapshot, "BULL").claims[0]?.validation).toBe("UNSUPPORTED");
+  });
+
+  it("does not let an unrelated assertion validate an extra number in the prose", () => {
+    const fabricated = bundle(snapshot.snapshotId, 2).replace("FPT rank 2.", "FPT rank 2, return 99%.");
+    expect(parseAndValidateClaims(fabricated, snapshot, "BULL").claims[0]?.validation).toBe("UNSUPPORTED");
+  });
+
+  it("requires the claim's as-of and rejects duplicate claim IDs or unknown schema fields", () => {
+    const missingAsOf = bundle(snapshot.snapshotId, 2).replace('"asOf":"2026-11-21"', '"asOf":null');
+    expect(parseAndValidateClaims(missingAsOf, snapshot, "BULL").claims[0]?.validation).toBe("UNSUPPORTED");
+
+    const duplicate = JSON.parse(bundle(snapshot.snapshotId, 2)) as { claims: Record<string, unknown>[] };
+    duplicate.claims.push({ ...duplicate.claims[0] });
+    expect(parseAndValidateClaims(JSON.stringify(duplicate), snapshot, "BULL").ok).toBe(false);
+
+    const unknownField = JSON.parse(bundle(snapshot.snapshotId, 2)) as { claims: Record<string, unknown>[] };
+    unknownField.claims[0].modelConfidence = 0.99;
+    expect(parseAndValidateClaims(JSON.stringify(unknownField), snapshot, "BULL").ok).toBe(false);
   });
 });

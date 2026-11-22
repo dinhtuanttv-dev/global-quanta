@@ -17,6 +17,8 @@ type Props = {
   bullClaims: ClaimParseResult | null;
   bearClaims: ClaimParseResult | null;
   judgeClaims: ClaimParseResult | null;
+  reviewSnapshot: EvidenceSnapshot | null;
+  reviewMessage?: string | null;
   onSnapshotChange: (snapshot: EvidenceSnapshot | null) => void;
   onRunReview: (snapshot: EvidenceSnapshot) => void;
 };
@@ -88,7 +90,7 @@ function PriceVolumeTimeline({ volume, events, pa }: { volume: ReturnType<typeof
 }
 
 function ClaimCard({ claim, onOpenRef }: { claim: ValidatedClaim; onOpenRef: (id: string) => void }) {
-  const tone = claim.validation === "SUPPORTED" ? "text-emerald-300" : claim.validation === "UNSUPPORTED" || claim.validation === "MISREPRESENTED" ? "text-rose-300" : "text-amber-200";
+  const tone = claim.validation === "REFS_MATCHED" ? "text-emerald-300" : claim.validation === "UNSUPPORTED" || claim.validation === "MISREPRESENTED" ? "text-rose-300" : "text-amber-200";
   return <article className="rounded-md border border-white/10 bg-slate-950/50 p-2" data-claim-id={claim.id}>
     <div className="flex flex-wrap justify-between gap-1 text-[9px]"><b className={tone}>{claim.side} · {claim.validation}</b><span>{claim.classification} · {claim.asOf ?? "as-of ?"} · bất định {claim.uncertainty}</span></div>
     <p className="mt-1 text-[10px] text-slate-200">{claim.text}</p>
@@ -99,7 +101,7 @@ function ClaimCard({ claim, onOpenRef }: { claim: ValidatedClaim; onOpenRef: (id
 }
 
 function EvidenceGraph({ claims, refs }: { claims: ValidatedClaim[]; refs: EvidenceRef[] }) {
-  const displayedClaims = claims.filter((claim) => ["SUPPORTED", "PARTIALLY_SUPPORTED"].includes(claim.validation)).slice(0, 6);
+  const displayedClaims = claims.filter((claim) => ["REFS_MATCHED", "STRUCTURAL_ONLY"].includes(claim.validation)).slice(0, 6);
   const refIds = [...new Set(displayedClaims.flatMap((claim) => [...claim.supports, ...claim.invalidates, ...claim.refs]))].filter((id) => refs.some((ref) => ref.id === id)).slice(0, 6);
   const displayedRefs = refIds.map((id) => refs.find((ref) => ref.id === id)!).filter(Boolean);
   const height = Math.max(220, Math.max(displayedRefs.length, displayedClaims.length, 1) * 76 + 36);
@@ -110,12 +112,18 @@ function EvidenceGraph({ claims, refs }: { claims: ValidatedClaim[]; refs: Evide
         {displayedRefs.map((ref, index) => { const y = 18 + index * 76 + 30; return <path key={`root-${ref.id}`} d={`M 380 ${rootY + 27} C 300 ${rootY + 27}, 300 ${y}, 250 ${y}`} fill="none" stroke="#64748b" strokeDasharray="4 4"><title>Evidence thuộc snapshot</title></path>; })}
         {displayedClaims.flatMap((claim, claimIndex) => {
           const targetY = 18 + claimIndex * 76 + 30;
-          const relationRefs = [...claim.supports.map((id) => [id, "supports"] as const), ...claim.invalidates.map((id) => [id, "invalidates"] as const)];
+          const relationIds = new Set([...claim.supports, ...claim.invalidates]);
+          const relationRefs = [
+            ...claim.refs.filter((id) => !relationIds.has(id)).map((id) => [id, "cited"] as const),
+            ...claim.supports.map((id) => [id, "supports"] as const),
+            ...claim.invalidates.map((id) => [id, "invalidates"] as const),
+          ];
           return relationRefs.filter(([id]) => displayedRefs.some((ref) => ref.id === id)).map(([id, relation], refIndex) => {
             const sourceIndex = displayedRefs.findIndex((ref) => ref.id === id);
             const sourceY = 18 + sourceIndex * 76 + 30;
-            const color = relation === "supports" ? "#34d399" : "#fb7185";
-            return <path key={`${claim.id}-${id}-${refIndex}`} d={`M 620 ${sourceY} C 650 ${sourceY}, 620 ${targetY}, 650 ${targetY}`} fill="none" stroke={color} strokeDasharray={claim.validation === "SUPPORTED" ? undefined : "4 4"} strokeWidth="2"><title>{relation === "supports" ? "Evidence hỗ trợ claim" : "Evidence phản chứng claim"}</title></path>;
+            const color = relation === "supports" ? "#34d399" : relation === "invalidates" ? "#fb7185" : "#94a3b8";
+            const label = relation === "supports" ? "Ref được claim nêu là hỗ trợ (chưa chứng minh ngữ nghĩa)" : relation === "invalidates" ? "Ref được claim nêu là phản chứng" : "Ref được claim trích dẫn";
+            return <path key={`${claim.id}-${id}-${refIndex}`} d={`M 620 ${sourceY} C 650 ${sourceY}, 620 ${targetY}, 650 ${targetY}`} fill="none" stroke={color} strokeDasharray={claim.validation === "REFS_MATCHED" ? undefined : "4 4"} strokeWidth="2"><title>{label}</title></path>;
           });
         })}
       </svg>
@@ -125,7 +133,7 @@ function EvidenceGraph({ claims, refs }: { claims: ValidatedClaim[]; refs: Evide
       </div>)}
       <div className="absolute left-[380px] flex h-[54px] w-[210px] flex-col justify-center rounded-full border border-cyan-300/40 bg-[#0b1b28] px-3 text-center" style={{ top: rootY }}><b className="text-[10px] text-cyan-200">Snapshot node</b><span className="truncate text-[8px] text-slate-500">Evidence belongs to one snapshot</span></div>
       <div className="absolute right-3 top-2 text-[8px] font-bold uppercase text-slate-500">Validated claims</div>
-      {displayedClaims.map((claim, index) => <div key={claim.id} className={`absolute right-3 flex h-[60px] w-[240px] flex-col justify-center overflow-hidden rounded border px-2 ${claim.validation === "SUPPORTED" ? "border-emerald-400/30 bg-emerald-950/30" : "border-amber-400/30 bg-amber-950/20"}`} style={{ top: 18 + index * 76 }}>
+      {displayedClaims.map((claim, index) => <div key={claim.id} className={`absolute right-3 flex h-[60px] w-[240px] flex-col justify-center overflow-hidden rounded border px-2 ${claim.validation === "REFS_MATCHED" ? "border-emerald-400/30 bg-emerald-950/30" : "border-amber-400/30 bg-amber-950/20"}`} style={{ top: 18 + index * 76 }}>
         <b className="truncate text-[9px] text-slate-200">{claim.side} · {claim.validation}</b><span className="truncate text-[8px] text-slate-400">{claim.text}</span>
       </div>)}
       {!displayedClaims.length && <p className="absolute inset-0 grid place-items-center text-[10px] text-slate-600">Chưa có claim JSON hợp lệ để nối cạnh. Claims không cấu trúc không được vẽ như bằng chứng.</p>}
@@ -134,7 +142,7 @@ function EvidenceGraph({ claims, refs }: { claims: ValidatedClaim[]; refs: Evide
   </div>;
 }
 
-export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, bear, judge, bullClaims, bearClaims, judgeClaims, onSnapshotChange, onRunReview }: Props) {
+export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, bear, judge, bullClaims, bearClaims, judgeClaims, reviewSnapshot, reviewMessage, onSnapshotChange, onRunReview }: Props) {
   const normalized = ticker.trim().toUpperCase();
   const validTicker = /^[A-Z0-9]{3,10}$/.test(normalized) ? normalized : null;
   const [loadSources, setLoadSources] = useState(false);
@@ -149,7 +157,7 @@ export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, b
   const ledger = useEliteLedger(null, loadSources);
   const risk = useEliteRisk(loadSources);
   const timeline = useGatewayBuyTimeline(loadSources);
-  const news = useEventRadar({ ticker: validTicker ?? undefined, limit: 12, enabled: loadSources && Boolean(validTicker) });
+  const news = useEventRadar({ ticker: validTicker ?? undefined, limit: 12, enabled: loadSources && Boolean(validTicker), keepPreviousData: false });
   const volume = useVolumeAnalysis(validTicker, loadSources && Boolean(validTicker));
   const pick = decision.data?.portfolio.find((row) => row.ticker.toUpperCase() === normalized);
   const candidate = decision.data?.candidates?.find((row) => row.ticker.toUpperCase() === normalized);
@@ -182,10 +190,13 @@ export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, b
     void buildEvidenceSnapshot({
       ticker: normalized || null, tickerVerified: paTickerVerified,
       now: new Date().toISOString(), decision: decision.data ?? null, decisionError: decision.error ? String(decision.error) : null,
-      selectedDecision: selected.decision, panel: selected.panel, evidence: evidence.data ?? null, ledger: ledger.data ?? null, risk: risk.data ?? null,
-      timeline: timeline.data, timelineError: timeline.error, events: news.data?.events ?? null,
+      selectedDecision: selected.decision, panel: selected.panel, profileError: selected.error ? String(selected.error) : null,
+      evidence: evidence.data ?? null, evidenceError: evidence.error ? String(evidence.error) : null,
+      ledger: ledger.data ?? null, ledgerError: ledger.error ? String(ledger.error) : null,
+      risk: risk.data ?? null, riskError: risk.error ? String(risk.error) : null,
+      timeline: timeline.data, timelineError: timeline.error, events: news.data?.events ?? null, eventAsOf: news.data?.generatedAt ?? null,
       eventError: news.error ? String(news.error) : null, volume: volume.data ?? null, volumeError: volume.error ? String(volume.error) : null,
-      priceAction: paForTicker, sourceLoading, sourceUnavailable,
+      priceAction: paForTicker, priceActionError: paForTicker?.error, sourceLoading, sourceUnavailable,
     }).then((next) => {
       if (!active) return;
       setSnapshot(next);
@@ -200,7 +211,9 @@ export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, b
   const readiness = snapshot ? sourceReadiness(snapshot) : null;
   const onOpenRef = useCallback((id: string) => setSelectedRefId(id), []);
   const onPriceActionEvidence = useCallback((item: PriceActionEvidence) => setPriceAction((current) => current?.ticker === item.ticker && JSON.stringify(current) === JSON.stringify(item) ? current : item), []);
-  const selectedRef: EvidenceRef | null = snapshot?.refs.find((ref) => ref.id === selectedRefId) ?? null;
+  const hasClaims = Boolean(bullClaims?.claims.length || bearClaims?.claims.length || judgeClaims?.claims.length);
+  const claimsSnapshot = hasClaims && reviewSnapshot ? reviewSnapshot : snapshot;
+  const selectedRef: EvidenceRef | null = claimsSnapshot?.refs.find((ref) => ref.id === selectedRefId) ?? null;
 
   return <section className="rounded-xl border border-cyan-400/25 bg-[#07111d] p-3 text-slate-200 shadow-[0_16px_50px_rgba(0,0,0,.28)]" data-testid="evidence-brain-workspace">
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
@@ -242,15 +255,16 @@ export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, b
             <span className="mx-auto grid h-9 w-9 place-items-center rounded-full border border-cyan-300/50 bg-cyan-300/10 text-xs font-bold text-cyan-200">{validTicker ?? "E10"}</span>
             <h5 className="text-[11px] font-bold text-white">{validTicker ? `${validTicker} · phiên tham chiếu` : "Danh mục Elite 10 · phiên tham chiếu"}</h5>
             <p className="text-[9px] text-slate-500">{decision.data?.date ? `Phiên ${decision.data.date}` : "Đang chờ dữ liệu phiên"} · ID {snapshot?.snapshotId ?? "—"} · không tạo điểm mua</p>
-            <div className="grid grid-cols-3 gap-1 border-t border-white/10 pt-2 text-[9px]"><span className="text-emerald-300">MUA · {bull?.text ? `${bullClaims?.summary.supported ?? 0}/${bullClaims?.claims.length ?? 0} claims đạt` : "chờ tranh luận"}</span><span className="text-rose-300">BÁN · {bear?.text ? `${bearClaims?.summary.supported ?? 0}/${bearClaims?.claims.length ?? 0} claims đạt` : "chờ phản biện"}</span><span className="text-amber-200">TRỌNG TÀI · {judge?.text ? `${judgeClaims?.claims.length ?? 0} claims` : "chưa chạy"}</span></div>
+            <div className="grid grid-cols-3 gap-1 border-t border-white/10 pt-2 text-[9px]"><span className="text-emerald-300">MUA · {bull?.text ? `${bullClaims?.summary.refsMatched ?? 0}/${bullClaims?.claims.length ?? 0} claim ref/số khớp` : "chờ tranh luận"}</span><span className="text-rose-300">BÁN · {bear?.text ? `${bearClaims?.summary.refsMatched ?? 0}/${bearClaims?.claims.length ?? 0} claim ref/số khớp` : "chờ phản biện"}</span><span className="text-amber-200">TRỌNG TÀI · {judge?.text ? `${judgeClaims?.claims.length ?? 0} claims` : "chưa chạy"}</span></div>
           </div>
           <div className="space-y-2"><Node title="Chất xúc tác" status={timing ? `${timing.tier} · ${timing.status}` : news.isLoading ? "đang tải" : "chưa có nghiên cứu phù hợp"} tone="amber">{timing ? `${timing.kind} · ${timing.eventLabel} · ${timing.entryFromDate}→${timing.entryToDate} · n=${timing.nEvents} · q=${fmt(timing.fdrQValue, 3)}` : `${news.data?.events.filter((event) => event.tickers.some((symbol) => symbol.toUpperCase() === normalized)).length ?? 0} sự kiện Event Radar`}</Node><Node title="Volume" status={volume.data ? volume.data.partialToday ? "intraday · partial" : `daily · ${date(volume.data.asOf)}` : volume.isLoading ? "đang tải" : "chưa tải"}>RVOL {fmt(volume.data?.today.rvolMode === "intraday" ? volume.data.today.rvolTimeAdjusted : volume.data?.today.rvol20)}× · OBV {volume.data?.trend.obvDirection ?? "?"} · CMF {fmt(volume.data?.trend.cmf20, 3)}.</Node></div>
         </div>
         <div className="mt-2 grid gap-2 sm:grid-cols-2"><Node title="Phe mua · Claude" status={bull?.text ? "diễn giải AI" : "chưa có claim"} tone="green">{bull?.text ? `${bull.text.slice(0, 220)}${bull.text.length > 220 ? "…" : ""}` : "Chạy tranh luận bên dưới để thêm luận điểm."}</Node><Node title="Phe bán · Gemini" status={bear?.text ? "diễn giải AI" : "chưa có claim"} tone="red">{bear?.text ? `${bear.text.slice(0, 220)}${bear.text.length > 220 ? "…" : ""}` : "Luận điểm AI chưa được gắn ref nguồn có cấu trúc."}</Node></div>
         {judge?.text && <div className="mt-2"><Node title="Trọng tài · Claude" status="diễn giải AI · không thay người quyết định" tone="amber">{judge.text.slice(0, 360)}{judge.text.length > 360 ? "…" : ""}</Node></div>}
         {(bullClaims?.claims.length || bearClaims?.claims.length || judgeClaims?.claims.length) ? <div className="mt-3 space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-2"><h5 className="text-[10px] font-bold uppercase text-slate-300">Claim list · validator determinista</h5><span className="text-[9px] text-slate-500">Bull đạt {bullClaims?.summary.supported ?? 0} · Bear đạt {bearClaims?.summary.supported ?? 0} · thiếu/không hỗ trợ {(bullClaims?.summary.unsupported ?? 0) + (bearClaims?.summary.unsupported ?? 0)}</span></div>
-          <EvidenceGraph claims={[...(bullClaims?.claims ?? []), ...(bearClaims?.claims ?? []), ...(judgeClaims?.claims ?? [])]} refs={snapshot?.refs ?? []} />
+          <div className="flex flex-wrap items-center justify-between gap-2"><div><h5 className="text-[10px] font-bold uppercase text-slate-300">Claim list · validator cấu trúc</h5><p className="text-[8px] text-slate-500">{claimsSnapshot?.ticker ?? "Danh mục"} · claims khóa theo snapshot {claimsSnapshot?.snapshotId ?? "—"}</p></div><span className="text-[9px] text-slate-500">Bull ref/số khớp {bullClaims?.summary.refsMatched ?? 0} · Bear ref/số khớp {bearClaims?.summary.refsMatched ?? 0} · cấu trúc cần đọc {((bullClaims?.summary.structuralOnly ?? 0) + (bearClaims?.summary.structuralOnly ?? 0))} · thiếu/không khớp {(bullClaims?.summary.unsupported ?? 0) + (bearClaims?.summary.unsupported ?? 0)}</span></div>
+          <p className="text-[9px] text-amber-200">“REFS_MATCHED” chỉ nghĩa là mã ref và số khai báo khớp snapshot; không chứng minh ref hỗ trợ về mặt ngữ nghĩa cho câu claim.</p>
+          <EvidenceGraph claims={[...(bullClaims?.claims ?? []), ...(bearClaims?.claims ?? []), ...(judgeClaims?.claims ?? [])]} refs={claimsSnapshot?.refs ?? []} />
           <div className="grid gap-2 lg:grid-cols-2">{[...(bullClaims?.claims ?? []), ...(bearClaims?.claims ?? []), ...(judgeClaims?.claims ?? [])].slice(0, 20).map((claim) => <ClaimCard key={`${claim.side}-${claim.id}`} claim={claim} onOpenRef={onOpenRef} />)}</div>
         </div> : (bullClaims?.error || bearClaims?.error) && <p className="mt-2 rounded border border-amber-400/30 p-2 text-[9px] text-amber-200">Claim chưa được cấu trúc/kiểm ref: {bullClaims?.error ?? bearClaims?.error}. Nội dung gốc vẫn được giữ trong lane AI.</p>}
         <div className="mt-3"><PriceVolumeTimeline volume={volume.data ?? null} events={news.data?.events ?? []} pa={paForTicker} /></div>
@@ -263,11 +277,12 @@ export default function EvidenceBrainWorkspace({ ticker, onTickerChange, bull, b
         <Node title="Price Action" status={paForTicker ? `${paForTicker.state} · ${paForTicker.asOf ?? "—"}` : loadPriceAction ? "đang tải" : "UNKNOWN"} tone="amber">{paForTicker ? `${paForTicker.trend ?? "trend ?"} · ${paForTicker.priceBasis ?? "basis ?"} · ${paForTicker.blockers.join(" · ") || (paForTicker.confirmed ? "trigger được engine xác nhận" : "chưa có xác nhận kỹ thuật")}` : "Chưa tải OHLCV điều chỉnh; không đồng nghĩa setup không tồn tại."}</Node>
         <Node title="Volume · timeframe-aware" status={volume.data ? volume.data.partialToday ? "INTRADAY_INCOMPLETE" : "daily" : volume.isLoading ? "đang tải" : "UNKNOWN"}>{volume.data ? `RVOL ${volume.data.today.rvolMode === "intraday" ? "cùng thời điểm" : "20 phiên"}: ${fmt(volume.data.today.rvolMode === "intraday" ? volume.data.today.rvolTimeAdjusted : volume.data.today.rvol20)}× · up/down ${fmt(volume.data.trend.upDownVolumeRatio20)}× · OBV ${volume.data.trend.obvDirection} · CMF20 ${fmt(volume.data.trend.cmf20, 3)}${volume.data.trend.divergence ? ` · phân kỳ ${volume.data.trend.divergence.label}` : ""}${volume.data.foreign.pendingToday ? " · ngoại đang pending" : ""}` : "Volume chưa nạp; không quy missing thành 0."}</Node>
         <Node title="Ledger / bằng chứng" status={ledger.data ? `${ledger.data.summary.label} · ${ledger.data.version}` : loadSources ? ledger.error ? "lỗi nguồn" : "đang tải" : "chưa nạp"}>{ledger.data ? `Basis ${ledger.data.summary.basisVi ?? "chưa khai báo"} · cập nhật ${date(ledger.data.updatedAt)} · ${ledger.data.entries.length} bản ghi.` : evidence.data ? `${evidence.data.version} · ${evidence.data.tests} kiểm định tín hiệu` : "Chưa tải nguồn tab 4."}</Node>
-        <Node title="Rủi ro portfolio" status={risk.data ? risk.data.available ? `${risk.data.label} · ${risk.data.date}` : "unavailable" : loadSources ? risk.error ? "lỗi nguồn" : "đang tải" : "chưa nạp"}>{risk.data ? risk.data.available ? `Vol annual ${fmt(risk.data.volatility?.annual)} · beta ${fmt(risk.data.beta)} · max drawdown ${fmt((risk.data.maxDrawdown?.value ?? 0) * 100, 1)}%` : risk.data.reasonVi ?? "Risk engine không khả dụng." : "Risk portfolio không phải stop giá đơn mã."}</Node>
+        <Node title="Rủi ro portfolio" status={risk.data ? risk.data.available ? `${risk.data.label} · ${risk.data.date}` : "unavailable" : loadSources ? risk.error ? "lỗi nguồn" : "đang tải" : "chưa nạp"}>{risk.data ? risk.data.available ? `Vol annual ${fmt(risk.data.volatility?.annual)} · beta ${fmt(risk.data.beta)} · max drawdown ${risk.data.maxDrawdown?.value == null ? "—" : `${fmt(risk.data.maxDrawdown.value * 100, 1)}%`}` : risk.data.reasonVi ?? "Risk engine không khả dụng." : "Risk portfolio không phải stop giá đơn mã."}</Node>
         <Node title="Thanh khoản / khớp lệnh" status={pick ? "tham chiếu Elite" : "chưa đánh giá"}>{pick ? `Giá đóng cửa ${fmt(pick.close)} · stop mô hình ${fmt(pick.stop)} · mục tiêu ${fmt(pick.target)}.` : "Không suy thanh khoản hoặc khả năng khớp lệnh từ điểm số."}</Node>
         <div className="grid grid-cols-1 gap-1.5 pt-1"><button type="button" disabled={!validTicker} onClick={() => setLoadPriceAction((value) => !value)} className="rounded-md border border-cyan-400/30 px-2.5 py-2 text-left text-[10px] font-semibold text-cyan-200 disabled:opacity-40">{loadPriceAction ? "Ẩn" : "Tải"} xác nhận Price Action</button><button type="button" onClick={() => { const next = !loadSources; setLoadSources(next); setLoadPriceAction(next); }} className="rounded-md border border-white/15 px-2.5 py-2 text-left text-[10px] font-semibold text-slate-300">{loadSources ? "Ẩn" : "Tải dữ liệu đã kiểm chứng"} · quyết định, hồ sơ 360, Price Action, tab 2/4 · tin · volume · lịch</button>
           <button type="button" disabled={!snapshot || !readiness?.canDebate || sourceLoading.length > 0} onClick={() => snapshot && onRunReview(snapshot)} className="rounded-md bg-cyan-400/15 px-2.5 py-2 text-left text-[10px] font-bold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40">{sourceLoading.length ? "Đang đóng băng snapshot…" : "Kiểm chứng & tranh luận trên snapshot"}</button>
         </div>
+        {reviewMessage && <p className="rounded border border-white/10 bg-white/[0.02] px-2 py-1.5 text-[9px] text-slate-400" role="status">{reviewMessage}</p>}
         {readiness?.blockers.map((blocker) => <p key={blocker} className="text-[9px] text-rose-200">{blocker}</p>)}
         <p className="text-[9px] leading-relaxed text-slate-600">Các lớp là trạng thái riêng biệt. Thiếu dữ liệu = chưa rõ; không quy đổi thành tín hiệu mua.</p>
       </aside>

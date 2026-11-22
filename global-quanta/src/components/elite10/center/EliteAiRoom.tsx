@@ -19,6 +19,7 @@ import type { QaTurn } from "../../../lib/obsidian/types";
 import { QaExport, qaKey } from "./obsidian/RoomExports";
 import EvidenceBrainWorkspace from "./EvidenceBrainWorkspace";
 import { markClaimsWithExternalTools, parseAndValidateClaims, structuredClaimsInstruction, validationForJudge } from "../../../lib/evidenceBrain/claims";
+import { sourceReadiness } from "../../../lib/evidenceBrain/snapshot";
 import { buildEvidenceBrainCanvas, buildEvidenceBrainMarkdown, evidenceBrainFileStem } from "../../../lib/evidenceBrain/export";
 import type { ClaimParseResult, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
 
@@ -104,6 +105,13 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       return;
     }
     if (lockedSnapshot && frozen?.ticker !== ticker) return;
+    if (frozen) {
+      const readiness = sourceReadiness(frozen);
+      if (!readiness.canDebate) {
+        setReviewMessage(`Không chạy review: ${readiness.blockers.join(" ")}`);
+        return;
+      }
+    }
     setDebateSubject(ticker);
     setReviewSnapshot(frozen ?? null);
     setReviewMessage(lockedSnapshot ? `Đang tranh luận trên snapshot ${lockedSnapshot.snapshotId}.` : frozen ? `Đang dùng snapshot ${frozen.snapshotId}.` : "Tranh luận nhanh chưa khóa snapshot; các claim sẽ không được coi là đã kiểm chứng.");
@@ -117,8 +125,8 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     setJudge(null);
     setPhase("arguing");
     const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal), run("gemini", "bear", bearPrompt, setBear, ctrl.signal)]);
-    const parsedBull = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(b.text, frozen, "BULL"), b.tools.map((tool) => tool.name)) : null;
-    const parsedBear = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(s.text, frozen, "BEAR"), s.tools.map((tool) => tool.name)) : null;
+    const parsedBull = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(b.text, frozen, "BULL"), b.tools.map((tool) => tool.name), b.untraceable) : null;
+    const parsedBear = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(s.text, frozen, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
     if (parsedBull) setBullClaims(parsedBull);
     if (parsedBear) setBearClaims(parsedBear);
     if (ctrl.signal.aborted || (!b.text.trim() && !s.text.trim())) { setPhase("done"); return; }
@@ -127,7 +135,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
       ? `${q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)")}\n\n${structuredClaimsInstruction(frozen, "JUDGE")}\n\nValidator deterministic của hai phía (tham khảo để phản biện, không được nâng claim unsupported thành verified):\n${validationForJudge(parsedBull, parsedBear)}`
       : q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)");
     const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal);
-    if (frozen) setJudgeClaims(markClaimsWithExternalTools(parseAndValidateClaims(j.text, frozen, "JUDGE"), j.tools.map((tool) => tool.name)));
+    if (frozen) setJudgeClaims(markClaimsWithExternalTools(parseAndValidateClaims(j.text, frozen, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable));
     setPhase("done");
   }
 
@@ -150,9 +158,11 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
       <ObsidianBar desk={desk} unsaved={unsaved} />
       <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} bull={bull} bear={bear} judge={judge}
-        bullClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? bullClaims : null}
-        bearClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? bearClaims : null}
-        judgeClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? judgeClaims : null}
+        bullClaims={bullClaims}
+        bearClaims={bearClaims}
+        judgeClaims={judgeClaims}
+        reviewSnapshot={reviewSnapshot}
+        reviewMessage={reviewMessage}
         onSnapshotChange={handleSnapshotChange} onRunReview={(next) => void startDebate(next)} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">

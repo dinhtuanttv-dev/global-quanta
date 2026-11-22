@@ -61,7 +61,8 @@ export interface EvidenceSnapshot {
 
 export type ClaimSide = "BULL" | "BEAR" | "JUDGE";
 export type ClaimClass = "FACT" | "ENGINE_OUTPUT" | "STATISTICAL_RESULT" | "MODEL_INTERPRETATION" | "UNKNOWN";
-export type ClaimValidationState = "SUPPORTED" | "PARTIALLY_SUPPORTED" | "UNSUPPORTED" | "MISREPRESENTED" | "UNKNOWN";
+/** Structural/ref checks only; none of these states claims semantic proof of natural-language text. */
+export type ClaimValidationState = "REFS_MATCHED" | "STRUCTURAL_ONLY" | "UNSUPPORTED" | "MISREPRESENTED" | "UNKNOWN";
 
 export interface StructuredClaim {
   id: string;
@@ -97,5 +98,5 @@ export interface ClaimParseResult {
   bundle: ClaimBundle | null;
   claims: ValidatedClaim[];
   error: string | null;
-  summary: { supported: number; partial: number; unsupported: number; unknown: number };
+  summary: { refsMatched: number; structuralOnly: number; unsupported: number; unknown: number };
 }

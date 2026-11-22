@@ -18,6 +18,7 @@ export function buildEvidenceBrainMarkdown(snapshot: EvidenceSnapshot, claims: V
     `decision_session: ${snapshot.decisionSession ?? "null"}`,
     `portfolio_kind: ${snapshot.portfolioKind ?? "null"}`,
     `completeness: ${snapshot.completeness}`,
+    "validation_scope: reference and numeric consistency only; no semantic proof",
     `exported_at: ${exportedAt}`,
     "tags:",
     "  - global-quanta/evidence-brain",
@@ -26,6 +27,7 @@ export function buildEvidenceBrainMarkdown(snapshot: EvidenceSnapshot, claims: V
     `# Evidence Brain · ${snapshot.ticker ?? "Danh mục"}`,
     "",
     `> Snapshot ${snapshot.snapshotId} · phiên ${snapshot.decisionSession ?? "—"} · trạng thái ${snapshot.completeness}. Đây là hồ sơ nghiên cứu, không phải khuyến nghị hay lệnh giao dịch.`,
+    "> Validator chỉ kiểm tra schema, snapshot, ref, ngày và số; không chứng minh ngữ nghĩa của câu claim.",
     "",
     "## Tình trạng nguồn",
     "",
@@ -64,19 +66,27 @@ export function buildEvidenceBrainCanvas(snapshot: EvidenceSnapshot, claims: Val
   const edges: EvidenceCanvasEdge[] = [];
   const snapshotNode = `snapshot-${slug(snapshot.snapshotId)}`;
   nodes.push({ id: snapshotNode, type: "text", x: 0, y: 0, width: 440, height: 240, color: snapshot.completeness === "COMPLETE" ? "4" : "3", text: `# Snapshot ${snapshot.ticker ?? "Danh mục"}\n\nID: ${snapshot.snapshotId}\nPhiên: ${snapshot.decisionSession ?? "—"}\nTrạng thái: ${snapshot.completeness}\n\n${snapshot.limitations.join("\n")}` });
-  const refs = snapshot.refs.slice(0, 40);
+  const referencedIds = new Set(claims.flatMap((claim) => [...claim.refs, ...claim.supports, ...claim.invalidates]));
+  const prioritizedRefs = [...snapshot.refs.filter((ref) => referencedIds.has(ref.id)), ...snapshot.refs.filter((ref) => !referencedIds.has(ref.id))];
+  const refs = prioritizedRefs.slice(0, 80);
   refs.forEach((ref, index) => {
-    const id = `ref-${slug(ref.id)}`;
+    const id = `ref-${slug(ref.id)}-${index}`;
     nodes.push({ id, type: "text", x: -600, y: index * 160, width: 520, height: 140, color: ref.freshness === "STALE" ? "3" : ref.status === "DERIVED" ? "5" : "4", text: `## ${ref.domain} · ${ref.fieldPath}\n\n${clip(JSON.stringify(ref.value), 500)} ${ref.unit ?? ""}\n\n${ref.source} · as-of ${ref.asOf ?? "—"} · ${ref.status}/${ref.freshness}\n\n${ref.limitation ?? ""}` });
+    edges.push({ id: `snapshot-ref-${index}`, fromNode: snapshotNode, fromSide: "left", toNode: id, toSide: "right", toEnd: "arrow", label: "snapshot ref" });
   });
   claims.slice(0, 20).forEach((claim, index) => {
-    const id = `claim-${slug(claim.id || `${claim.side}-${index}`)}`;
-    nodes.push({ id, type: "text", x: 600, y: index * 180, width: 560, height: 160, color: claim.validation === "SUPPORTED" ? claim.side === "BULL" ? "4" : "1" : "3", text: `## ${claim.side} · ${claim.validation}\n\n${clip(claim.text, 700)}\n\n${claim.classification} · ${claim.asOf ?? "as-of chưa rõ"} · ${claim.validationNotes.join("; ")}` });
-    const linkRefs = [...claim.supports.map((refId) => [refId, "hỗ trợ"] as const), ...claim.invalidates.map((refId) => [refId, "phản chứng"] as const)];
+    const id = `claim-${slug(claim.id || `${claim.side}-${index}`)}-${index}`;
+    nodes.push({ id, type: "text", x: 600, y: index * 180, width: 560, height: 160, color: claim.validation === "REFS_MATCHED" ? claim.side === "BULL" ? "4" : "1" : "3", text: `## ${claim.side} · ${claim.validation}\n\n${clip(claim.text, 700)}\n\n${claim.classification} · ${claim.asOf ?? "as-of chưa rõ"} · ${claim.validationNotes.join("; ")}` });
+    const relationIds = new Set([...claim.supports, ...claim.invalidates]);
+    const linkRefs = [
+      ...claim.refs.filter((refId) => !relationIds.has(refId)).map((refId) => [refId, "được trích dẫn"] as const),
+      ...claim.supports.map((refId) => [refId, "được claim nêu là hỗ trợ"] as const),
+      ...claim.invalidates.map((refId) => [refId, "được claim nêu là phản chứng"] as const),
+    ];
     linkRefs.forEach(([refId, label], linkIndex) => {
-      const refNode = `ref-${slug(refId)}`;
+      const refNode = `ref-${slug(refId)}-${refs.findIndex((ref) => ref.id === refId)}`;
       if (!refs.some((ref) => ref.id === refId)) return;
-      edges.push({ id: `edge-${slug(claim.id)}-${linkIndex}`, fromNode: refNode, fromSide: "right", toNode: id, toSide: "left", toEnd: "arrow", label });
+      edges.push({ id: `edge-${slug(claim.id)}-${index}-${linkIndex}`, fromNode: refNode, fromSide: "right", toNode: id, toSide: "left", toEnd: "arrow", label });
     });
   });
   const noteId = `note-${slug(notePath)}`;

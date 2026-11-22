@@ -30,18 +30,24 @@ export interface SnapshotInput {
   now: string;
   decision: EliteDecision | null;
   decisionError?: string | null;
+  profileError?: string | null;
   selectedDecision: DecisionTicker | null;
   panel: PanelTicker | null;
   evidence: EliteEvidence | null;
+  evidenceError?: string | null;
   ledger: EliteLedger | null;
+  ledgerError?: string | null;
   risk: EliteRisk | null;
+  riskError?: string | null;
   timeline: BuyTimeline | null;
   timelineError?: string | null;
   events: EventRadarEvent[] | null;
+  eventAsOf?: string | null;
   eventError?: string | null;
   volume: VolumeAnalysis | null;
   volumeError?: string | null;
   priceAction: PriceActionEvidence | null;
+  priceActionError?: string | null;
   sourceLoading?: string[];
   sourceUnavailable?: string[];
 }
@@ -62,7 +68,7 @@ const jsonValue = (value: unknown): JsonValue => {
 export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => a.localeCompare(b));
+    const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0);
     return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(",")}}`;
   }
   return JSON.stringify(value) ?? "null";
@@ -100,23 +106,33 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   const ticker = input.ticker?.trim().toUpperCase() || null;
   const decision = input.decision;
   const selected = ticker ? decision?.scores.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null;
-  const selectedTicker = input.selectedDecision?.ticker === ticker ? input.selectedDecision : null;
+  const selectedTicker = input.selectedDecision?.ticker.toUpperCase() === ticker ? input.selectedDecision : null;
   const selectedPanel = input.panel?.ticker.toUpperCase() === ticker ? input.panel : null;
   const board = decision ? resolveBoardState(decision) : null;
-  const state = ticker ? board?.byTicker.get(ticker) : null;
+  const state = ticker ? board?.byTicker.get(ticker) ?? [...(board?.byTicker.entries() ?? [])].find(([symbol]) => symbol.toUpperCase() === ticker)?.[1] ?? null : null;
   const funnel = decision ? funnelModel(decision) : null;
   const seal = decision ? sessionSeal(decision, [
     { key: "panel", label: "Bảng tín hiệu", date: selectedPanel?.date },
     { key: "ledger", label: "Sổ theo dõi", date: input.ledger?.updatedAt },
     { key: "risk", label: "Rủi ro", date: input.risk?.date },
     { key: "timeline", label: "Timeline catalyst", date: input.timeline?.asOf?.decisions },
+    { key: "evidence", label: "Bằng chứng tín hiệu", date: input.evidence?.generatedAt },
+    { key: "priceAction", label: "Price Action", date: input.priceAction?.asOf },
+    { key: "volume", label: "Volume", date: input.volume?.asOf },
+    { key: "events", label: "Event Radar", date: input.eventAsOf },
   ]) : null;
   const timing = ticker ? input.timeline?.rows.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null;
   const events = (input.events ?? []).filter((event) => ticker && event.tickers.some((symbol) => symbol.toUpperCase() === ticker)).slice(0, 12);
+  const freshnessAtSession = (asOf: string | null | undefined) => {
+    const date = asOf?.slice(0, 10);
+    if (!date || !decision?.date) return "UNKNOWN" as const;
+    if (date === decision.date) return "CURRENT" as const;
+    return date < decision.date ? "STALE" as const : "UNKNOWN" as const;
+  };
   const refs: EvidenceRef[] = [];
   const add = (domain: EvidenceRef["domain"], subject: string, fieldPath: string, value: unknown, unit: string | null, source: string, asOf: string | null, version: string | null, options: Partial<EvidenceRef> = {}) => {
     if (value === undefined) return;
-    refs.push({ id: refId(domain, subject, fieldPath), domain, subject, fieldPath, value: jsonValue(value), unit, status: options.status ?? "VERIFIED", freshness: options.freshness ?? (value === null ? "UNKNOWN" : "CURRENT"), asOf, source, sourceVersion: version, methodVersion: options.methodVersion ?? null, limitation: options.limitation ?? null, url: safeUrl(options.url) });
+    refs.push({ id: refId(domain, subject, fieldPath), domain, subject, fieldPath, value: jsonValue(value), unit, status: options.status ?? "VERIFIED", freshness: options.freshness ?? (value === null ? "UNKNOWN" : freshnessAtSession(asOf)), asOf, source, sourceVersion: version, methodVersion: options.methodVersion ?? null, limitation: options.limitation ?? null, url: safeUrl(options.url) });
   };
 
   if (decision) {
@@ -124,7 +140,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     add("decision", ticker ?? "portfolio", "version", decision.version, null, "/api/elite/decision", decision.date, decision.version);
     add("decision", ticker ?? "portfolio", "portfolioKind", decision.hl ? "ELITE_HL" : "ELITE_FLOW", null, "/api/elite/decision", decision.date, decision.version);
     add("decision", ticker ?? "portfolio", "frozen", seal?.frozen ?? false, null, "/api/elite/decision", decision.date, decision.version);
-    add("decision", ticker ?? "portfolio", "freshness.sessionsBehind", decision.freshness?.sessionsBehind ?? null, "sessions", "/api/elite/decision", decision.freshness?.latestSession ?? decision.date, decision.version, { freshness: decision.freshness?.sessionsBehind ? "STALE" : "CURRENT" });
+    add("decision", ticker ?? "portfolio", "freshness.sessionsBehind", decision.freshness?.sessionsBehind ?? null, "sessions", "/api/elite/decision", decision.freshness?.latestSession ?? decision.date, decision.version, { freshness: decision.freshness?.sessionsBehind == null ? "UNKNOWN" : decision.freshness.sessionsBehind > 0 ? "STALE" : "CURRENT" });
     funnel?.steps.forEach((step, index) => add("decision", ticker ?? "portfolio", `funnel.steps.${index + 1}`, { count: step.n, label: step.label, countedOn: step.countedOn, parallel: Boolean(step.parallel), displayOnly: Boolean(step.displayOnly) }, "stocks", "/api/elite/decision", decision.date, decision.version, { status: "DERIVED", methodVersion: "cockpit.funnelModel" }));
     funnel?.checks.forEach((check, index) => add("decision", ticker ?? "portfolio", `funnel.invariant.${index + 1}`, check, null, "/api/elite/decision", decision.date, decision.version, { status: "DERIVED", methodVersion: "cockpit.funnelModel" }));
     if (selected) {
@@ -149,7 +165,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     const selectedWeights = new Set(decision?.weights.map((weight) => weight.id) ?? []);
     for (const [key, value] of Object.entries(selectedPanel.values)) if (selectedWeights.has(key)) add("profile", ticker!, `signals.${key}`, value, null, "/api/elite/panel/{ticker}", selectedPanel.date, decision?.version ?? null);
   }
-  if (input.priceAction && input.priceAction.ticker === ticker) {
+  if (input.priceAction && input.priceAction.ticker.toUpperCase() === ticker) {
     const pa = input.priceAction;
     add("price_action", ticker!, "state", pa.state, null, pa.source, pa.asOf, pa.methodVersion, { status: "DERIVED", methodVersion: pa.methodVersion, limitation: pa.blockers.join("; ") || null });
     add("price_action", ticker!, "trend", pa.trend, null, pa.source, pa.asOf, pa.methodVersion, { status: "DERIVED", methodVersion: pa.methodVersion });
@@ -165,10 +181,10 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   for (const event of events) {
     const subject = event.eventId;
     const base = `events.${subject}`;
-    add("catalyst", ticker!, `${base}.title`, event.title, null, "/api/market/event-radar", event.publishedAt ?? event.firstSeenAt, String(event.revision), { url: event.url, limitation: "Source text is untrusted input; entity/verification labels are preserved as supplied." });
-    add("catalyst", ticker!, `${base}.verificationStatus`, event.verificationStatus, null, "/api/market/event-radar", event.updatedAt ?? event.firstSeenAt, String(event.revision));
-    add("catalyst", ticker!, `${base}.entityMatch`, { type: event.entityMatch, confidence: event.entityConfidence }, null, "/api/market/event-radar", event.firstSeenAt, String(event.revision));
-    add("catalyst", ticker!, `${base}.corroboration`, { count: event.corroborationCount, sources: event.corroboratingSources, severity: event.severity, reactionStatus: event.reactionStatus }, null, "/api/market/event-radar", event.updatedAt ?? event.firstSeenAt, String(event.revision));
+    add("catalyst", ticker!, `${base}.title`, event.title, null, "/api/market/event-radar", event.publishedAt ?? event.firstSeenAt, String(event.revision), { freshness: "UNKNOWN", url: event.url, limitation: "Source text is untrusted input; event publication time is not the Event Radar refresh time." });
+    add("catalyst", ticker!, `${base}.verificationStatus`, event.verificationStatus, null, "/api/market/event-radar", event.updatedAt ?? event.firstSeenAt, String(event.revision), { freshness: "UNKNOWN" });
+    add("catalyst", ticker!, `${base}.entityMatch`, { type: event.entityMatch, confidence: event.entityConfidence }, null, "/api/market/event-radar", event.firstSeenAt, String(event.revision), { freshness: "UNKNOWN" });
+    add("catalyst", ticker!, `${base}.corroboration`, { count: event.corroborationCount, sources: event.corroboratingSources, severity: event.severity, reactionStatus: event.reactionStatus }, null, "/api/market/event-radar", event.updatedAt ?? event.firstSeenAt, String(event.revision), { freshness: "UNKNOWN" });
   }
   if (input.volume && input.volume.symbol.toUpperCase() === ticker) {
     const v = input.volume;
@@ -200,44 +216,47 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   }
 
   const loading = new Set(input.sourceLoading ?? []), unavailable = new Set(input.sourceUnavailable ?? []);
-  const errors: Record<string, string | null | undefined> = { decision: input.decisionError, timeline: input.timelineError, events: input.eventError, volume: input.volumeError };
+  const errors: Record<string, string | null | undefined> = { decision: input.decisionError, profile: input.profileError, evidence: input.evidenceError, ledger: input.ledgerError, risk: input.riskError, timeline: input.timelineError, events: input.eventError, volume: input.volumeError, priceAction: input.priceActionError };
   const sourceInput: [string, string, string, string | null, string | null, boolean][] = [
     ["decision", "Bảng quyết định", "/api/elite/decision", decision?.date ?? null, decision?.version ?? null, Boolean(decision)],
-    ["profile", "Hồ sơ 360", "/api/elite/panel/{ticker}", selectedPanel?.date ?? null, null, Boolean(selectedPanel || selectedTicker)],
+    ["profile", "Hồ sơ 360", "/api/elite/panel/{ticker}", selectedPanel?.date ?? selectedTicker?.date ?? null, selectedTicker?.version ?? null, Boolean(selectedPanel || selectedTicker)],
     ["evidence", "Bằng chứng tín hiệu", "/api/elite/evidence", input.evidence?.generatedAt ?? null, input.evidence?.version ?? null, Boolean(input.evidence)],
     ["ledger", "Sổ theo dõi", "/api/elite/ledger", input.ledger?.updatedAt ?? null, input.ledger?.version ?? null, Boolean(input.ledger)],
     ["risk", "Rủi ro danh mục", "/api/elite/risk", input.risk?.date ?? null, input.risk?.version ?? null, Boolean(input.risk)],
-    ["timeline", "Catalyst timing", "/api/elite/buy-timing", input.timeline?.asOf.seasonality ?? null, null, Boolean(input.timeline)],
-    ["events", "Event Radar", "/api/market/event-radar", input.events?.[0]?.updatedAt ?? input.events?.[0]?.firstSeenAt ?? null, null, input.events != null],
+    ["timeline", "Catalyst timing", "/api/elite/buy-timing", input.timeline?.asOf.seasonality ?? input.timeline?.asOf.decisions ?? null, null, Boolean(input.timeline)],
+    ["events", "Event Radar", "/api/market/event-radar", input.eventAsOf ?? null, null, input.events != null],
     ["volume", "Volume", `/api/market/scanner/${ticker ?? "{ticker}"}/volume`, input.volume?.asOf ?? null, "volume-analysis", Boolean(input.volume)],
     ["priceAction", "Price Action", "/api/market/ta-series", input.priceAction?.asOf ?? null, input.priceAction?.methodVersion ?? null, Boolean(input.priceAction)],
   ];
-  const sources: SnapshotSource[] = sourceInput.map(([key, label, endpoint, asOf, version, exists]) => ({
-    key, label, endpoint, asOf, version,
-    state: errors[key] ? "ERROR" : loading.has(key) ? "LOADING" : unavailable.has(key) ? "UNAVAILABLE" : exists ? "LOADED" : "NOT_REQUESTED",
-    error: errors[key] ?? null,
-    warnings: key === "events" && input.events?.some((event) => event.entityMatch !== "EXACT") ? ["Một số sự kiện có entity match chưa chính xác; không dùng làm xác nhận mã."] : [],
-  }));
+  const sources: SnapshotSource[] = sourceInput.map(([key, label, endpoint, asOf, version, exists]) => {
+    const state: SnapshotSource["state"] = errors[key] ? "ERROR" : loading.has(key) ? "LOADING" : unavailable.has(key) ? "UNAVAILABLE" : exists ? "LOADED" : "NOT_REQUESTED";
+    const warnings = key === "events" && input.events?.some((event) => event.entityMatch !== "EXACT") ? ["Một số sự kiện có entity match chưa chính xác; không dùng làm xác nhận mã."] : [];
+    if (state === "LOADED" && !asOf) warnings.push("Nguồn chưa cung cấp mốc as-of; không thể xác nhận độ mới của dữ liệu.");
+    return { key, label, endpoint, asOf, version, state, error: errors[key] ?? null, warnings };
+  });
   const missing = sources.filter((source) => ["ERROR", "UNAVAILABLE", "NOT_REQUESTED"].includes(source.state)).map((source) => `${source.label}: ${source.state === "NOT_REQUESTED" ? "chưa tải" : source.error ?? "không khả dụng"}`);
+  missing.push(...sources.filter((source) => source.state === "LOADED" && !source.asOf).map((source) => `${source.label}: thiếu mốc as-of`));
   const stale: string[] = [];
   if (decision?.freshness?.overdue || (decision?.freshness?.sessionsBehind ?? 0) > 0) stale.push(`Bảng quyết định trễ ${decision?.freshness?.sessionsBehind ?? "?"} phiên.`);
+  if (input.timeline?.stale) stale.push("Timeline catalyst được nguồn đánh dấu là dữ liệu cũ.");
+  if ((input.timeline?.ageSessions ?? 0) > 1) stale.push(`Timeline catalyst cũ ${input.timeline?.ageSessions} phiên.`);
   if (seal?.frozen) stale.push(...seal.frozenWhy.map((reason) => `Dữ liệu đóng băng: ${reason}`));
   for (const item of seal?.sources ?? []) if (item.lag) stale.push(`${item.label} lệch phiên (${item.date ?? "không rõ"}).`);
   const conflicts = funnel?.checks ?? [];
   const limitations = [
     "Snapshot front-end kết hợp các endpoint riêng lẻ; không phải giao dịch nguyên tử từ một endpoint Gateway.",
     "Lượt gọi AI có thể dùng thêm công cụ server; mọi dữ liệu mới ngoài snapshot phải được đánh dấu sau snapshot.",
-    "Không có claim nào được xem là hỗ trợ nếu ref thiếu hoặc validator không xác nhận được.",
+    "Validator chỉ xác nhận ref tồn tại và numeric assertion khớp dữ liệu; không xác nhận ngữ nghĩa của câu claim.",
   ];
   if (input.volume?.partialToday) limitations.push("Volume phiên hiện tại chưa chốt; RVOL intraday chỉ so sánh cùng thời điểm.");
   if (input.risk && !input.risk.available) limitations.push(input.risk.reasonVi ?? "Dữ liệu rủi ro danh mục không khả dụng.");
   if (input.panel?.missingSources.length) limitations.push(`Hồ sơ thiếu nguồn: ${input.panel.missingSources.join(", ")}.`);
   const completeness = conflicts.length ? "CONFLICT" : stale.length ? "STALE" : missing.length ? "PARTIAL" : "COMPLETE";
   const data = jsonValue({
-    decision: decision ? { date: decision.date, builtAt: decision.builtAt, version: decision.version, portfolioKind: decision.hl ? "ELITE_HL" : "ELITE_FLOW", freshness: decision.freshness ?? null, guard: decision.hl?.dataGuard ?? null, funnel: funnel ?? null, membership: state ?? null, selected: selected ? { ticker: selected.ticker, rank: selected.rank, Z: selected.Z, eligible: selected.eligible, reason: selected.reason, close: selected.close, advBn: selected.advBn, sectorKey: selected.sectorKey } : null, queue: ticker ? decision.hl?.queue.find((row) => row.ticker === ticker) ?? null : null, pz: ticker ? decision.hl?.watch?.find((row) => row.ticker === ticker)?.pz ?? decision.hl?.queue.find((row) => row.ticker === ticker)?.pz ?? decision.portfolio.find((row) => row.ticker === ticker)?.hl?.pz ?? null : null, weights: decision.weights.slice(0, 32) } : null,
+    decision: decision ? { date: decision.date, builtAt: decision.builtAt, version: decision.version, portfolioKind: decision.hl ? "ELITE_HL" : "ELITE_FLOW", freshness: decision.freshness ?? null, guard: decision.hl?.dataGuard ?? null, funnel: funnel ?? null, membership: state ?? null, selected: selected ? { ticker: selected.ticker, rank: selected.rank, Z: selected.Z, eligible: selected.eligible, reason: selected.reason, close: selected.close, advBn: selected.advBn, sectorKey: selected.sectorKey } : null, queue: ticker ? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null, pz: ticker ? decision.hl?.watch?.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.portfolio.find((row) => row.ticker.toUpperCase() === ticker)?.hl?.pz ?? null : null, weights: decision.weights.slice(0, 32) } : null,
     profile: selectedPanel ? { date: selectedPanel.date, sector: selectedPanel.sector, icb: selectedPanel.icb, values: selectedPanel.values, missingSources: selectedPanel.missingSources } : null,
     evidence: input.evidence ? { version: input.evidence.version, generatedAt: input.evidence.generatedAt, tests: input.evidence.tests, selected: input.evidence.signals.filter((row) => decision?.weights.some((weight) => weight.id === row.id)).slice(0, 24) } : null,
-    priceAction: input.priceAction?.ticker === ticker ? input.priceAction : null,
+    priceAction: input.priceAction?.ticker.toUpperCase() === ticker ? input.priceAction : null,
     catalystTiming: timing,
     events: events.map((event) => ({ eventId: event.eventId, clusterId: event.clusterId, source: event.source, sourceLabel: event.sourceLabel, sourceAuthority: event.sourceAuthority, verificationStatus: event.verificationStatus, title: event.title.slice(0, 240), summary: event.summary.slice(0, 600), url: safeUrl(event.url), publishedAt: event.publishedAt, firstSeenAt: event.firstSeenAt, updatedAt: event.updatedAt, eventType: event.eventType, entityMatch: event.entityMatch, entityConfidence: event.entityConfidence, severity: event.severity, corroboratingSources: event.corroboratingSources.slice(0, 8), corroborationCount: event.corroborationCount, reactionStatus: event.reactionStatus })),
     volume: input.volume ? { symbol: input.volume.symbol, asOf: input.volume.asOf, partialToday: input.volume.partialToday, today: input.volume.today, trend: { bars30: input.volume.trend.bars30.slice(-30), ma20Volume: input.volume.trend.ma20Volume, upDownVolumeRatio20: input.volume.trend.upDownVolumeRatio20, obvDirection: input.volume.trend.obvDirection, obvChangeVsAvgVolume: input.volume.trend.obvChangeVsAvgVolume, cmf20: input.volume.trend.cmf20, divergence: input.volume.trend.divergence }, foreign: { pendingToday: input.volume.foreign.pendingToday, lastSettledDate: input.volume.foreign.lastSettledDate, today: input.volume.foreign.today, net5Val: input.volume.foreign.net5Val, net20Val: input.volume.foreign.net20Val, streak: input.volume.foreign.streak }, profile: input.volume.profile ? { sessions: input.volume.profile.sessions, poc: input.volume.profile.poc, valueAreaLow: input.volume.profile.valueAreaLow, valueAreaHigh: input.volume.profile.valueAreaHigh, position: input.volume.profile.position } : null, intraday: input.volume.intraday ? { buckets15m: input.volume.intraday.buckets15m, totalVolume: input.volume.intraday.totalVolume, sameTime: input.volume.intraday.sameTime, peak: input.volume.intraday.peak } : null } : null,
@@ -250,9 +269,17 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
 }
 
 export function sourceReadiness(snapshot: EvidenceSnapshot): { canDebate: boolean; label: string; blockers: string[] } {
+  const sourceState = (key: string) => snapshot.sources.find((source) => source.key === key)?.state ?? "NOT_REQUESTED";
+  const requiredSources = snapshot.scope === "ticker"
+    ? [["decision", "Bảng quyết định"], ["priceAction", "Price Action"]] as const
+    : [["decision", "Bảng quyết định"]] as const;
+  const unavailableSources = requiredSources
+    .filter(([key]) => ["ERROR", "UNAVAILABLE", "NOT_REQUESTED", "LOADING"].includes(sourceState(key)))
+    .map(([, label]) => `${label} chưa có dữ liệu nguồn hợp lệ.`);
   const blockers = [
     snapshot.scope === "ticker" && snapshot.tickerVerified !== true ? "Chưa xác minh mã cổ phiếu trong registry thị trường." : null,
     !snapshot.decisionSession ? "Thiếu phiên quyết định." : null,
+    ...unavailableSources,
     snapshot.funnel.frozen ? "Engine đang đóng băng dữ liệu." : null,
     snapshot.stale.length ? "Có nguồn lệch phiên hoặc quá hạn." : null,
   ].filter((item): item is string => Boolean(item));

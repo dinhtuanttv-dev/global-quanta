@@ -43,14 +43,14 @@ export interface EventRadarResponse {
   };
 }
 
-export function useEventRadar(opts: { ticker?: string; category?: string; limit?: number; enabled?: boolean } = {}) {
+export function useEventRadar(opts: { ticker?: string; category?: string; limit?: number; enabled?: boolean; keepPreviousData?: boolean } = {}) {
   const enabled = opts.enabled !== false && isMarketGatewayEnabled();
   const { data, error, isLoading, mutate } = useSWR<EventRadarResponse>(
     enabled ? ["event-radar", opts.ticker ?? "", opts.category ?? "", opts.limit ?? 100] : null,
     () => fetchMarketJson<EventRadarResponse>("/api/market/event-radar", {
       ticker: opts.ticker, category: opts.category, limit: opts.limit ?? 100,
     }),
-    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: true },
+    { refreshInterval: 5 * 60_000, revalidateOnFocus: false, dedupingInterval: 60_000, keepPreviousData: opts.keepPreviousData ?? true },
   );
   return { data, error, isLoading, refresh: mutate, enabled };
 }
