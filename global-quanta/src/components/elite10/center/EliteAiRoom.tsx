@@ -16,6 +16,7 @@ import { useObsidianDesk } from "./obsidian/useObsidianDesk";
 import { QaTapContext, type QaMeta } from "../../../lib/obsidian/qaTap";
 import type { QaTurn } from "../../../lib/obsidian/types";
 import { QaExport, qaKey } from "./obsidian/RoomExports";
+import EvidenceBrainWorkspace from "./EvidenceBrainWorkspace";
 
 export const ELITE_SUGGESTIONS = [
   "Danh mục chính thức hôm nay gồm những mã nào, vì sao được chọn, tỷ lệ tiền mặt bao nhiêu và độ tin cậy đến đâu?",
@@ -113,6 +114,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
       <ObsidianBar desk={desk} unsaved={unsaved} />
+      <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} bull={bull} bear={bear} judge={judge} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
@@ -120,9 +122,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
           <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input id="elite-debate-subject" value={subject} onChange={(e) => setSubject(e.target.value)} disabled={busy} maxLength={10}
-            placeholder="Mã cổ phiếu (để trống = cả danh mục chính thức)" aria-label="Chủ đề tranh luận"
-            className="min-w-0 flex-1 rounded-md border border-white/15 bg-slate-900 px-2.5 py-1.5 text-[11.5px] uppercase text-slate-100 outline-none" />
+          <span className="min-w-0 flex-1 text-[10px] text-slate-500">Mã phân tích được chọn trong Evidence Brain.</span>
           {busy
             ? <button type="button" onClick={() => ctrlRef.current?.abort()} className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng</button>
             : <button type="button" onClick={() => void startDebate()} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30"><Play className="h-3 w-3" />Bắt đầu tranh luận</button>}
