@@ -5,21 +5,21 @@ import type { DecisionTicker, EliteDecision, EliteEvidence, PanelTicker } from "
 // Trung tâm quyết định Elite 10 (Gateway /api/elite/*). Dữ liệu dựng 1 lần/phiên sau 17:00 giờ VN -> làm mới 30 phút/lần.
 const OPTS = { revalidateOnFocus: false, refreshInterval: 30 * 60_000, dedupingInterval: 5 * 60_000, errorRetryCount: 2 };
 
-export function useEliteDecision() {
-  return useSWR<EliteDecision>("elite-decision", () => fetchMarketJson<EliteDecision>("/api/elite/decision"), OPTS);
+export function useEliteDecision(enabled = true) {
+  return useSWR<EliteDecision>(enabled ? "elite-decision" : null, () => fetchMarketJson<EliteDecision>("/api/elite/decision"), OPTS);
 }
 
-export function useEliteEvidence() {
-  return useSWR<EliteEvidence>("elite-evidence", () => fetchMarketJson<EliteEvidence>("/api/elite/evidence"), OPTS);
+export function useEliteEvidence(enabled = true) {
+  return useSWR<EliteEvidence>(enabled ? "elite-evidence" : null, () => fetchMarketJson<EliteEvidence>("/api/elite/evidence"), OPTS);
 }
 
 /** Điểm Elite + toàn bộ tín hiệu của một mã. 404 (mã ngoài vũ trụ) -> data null, không phải lỗi. */
-export function useEliteTicker(ticker: string | null) {
+export function useEliteTicker(ticker: string | null, enabled = true) {
   const get = async <T,>(path: string): Promise<T | null> => {
     try { return await fetchMarketJson<T>(path); } catch (e) { if (/không nằm trong|404/i.test(String((e as Error).message))) return null; throw e; }
   };
-  const decision = useSWR<DecisionTicker | null>(ticker ? ["elite-decision-ticker", ticker] : null, () => get<DecisionTicker>(`/api/elite/decision/${ticker}`), OPTS);
-  const panel = useSWR<PanelTicker | null>(ticker ? ["elite-panel-ticker", ticker] : null, () => get<PanelTicker>(`/api/elite/panel/${ticker}`), OPTS);
+  const decision = useSWR<DecisionTicker | null>(enabled && ticker ? ["elite-decision-ticker", ticker] : null, () => get<DecisionTicker>(`/api/elite/decision/${ticker}`), OPTS);
+  const panel = useSWR<PanelTicker | null>(enabled && ticker ? ["elite-panel-ticker", ticker] : null, () => get<PanelTicker>(`/api/elite/panel/${ticker}`), OPTS);
   return { decision: decision.data ?? null, panel: panel.data ?? null, isLoading: decision.isLoading || panel.isLoading, error: decision.error ?? panel.error ?? null };
 }
 
@@ -33,8 +33,8 @@ export function useElitePanel() {
   return useSWR<{ date: string; rows: { ticker: string; icb?: { l1?: string; l2?: string; l3?: string } | null; sector?: string | null; values: Record<string, number | null> }[] }>("elite-panel", () => fetchMarketJson("/api/elite/panel"), OPTS);
 }
 
-export function useEliteRisk() {
-  return useSWR<import("../../lib/elite10/decisionTypes").EliteRisk>("elite-risk", () => fetchMarketJson("/api/elite/risk"), OPTS);
+export function useEliteRisk(enabled = true) {
+  return useSWR<import("../../lib/elite10/decisionTypes").EliteRisk>(enabled ? "elite-risk" : null, () => fetchMarketJson("/api/elite/risk"), OPTS);
 }
 
 /** Sổ theo dõi tiến: mặc định = sổ chính thức; book "flow" = sổ danh mục Elite dòng tiền (cũ). `enabled = false` -> không gọi. */

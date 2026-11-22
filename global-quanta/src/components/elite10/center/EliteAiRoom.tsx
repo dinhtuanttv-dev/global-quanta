@@ -4,7 +4,7 @@
 //     để kiểm chứng từng luận điểm và kết luận cân bằng. Mọi câu trả lời đều qua bước đối chiếu con số với kết quả công cụ.
 //   - Bản tin phiên: tạo khi bấm (không chạy định kỳ — tránh chi phí API không cần thiết).
 //   - Hỏi đáp tự do: cùng khung Hỏi đáp xúc tác, gợi ý theo Elite 10.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
@@ -12,11 +12,15 @@ import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "..
 import { tracedStream, type LaneTraceMap } from "../../../lib/obsidian/trace";
 import ObsidianBar from "./obsidian/ObsidianBar";
 import { BriefExport, DebateExport, briefKey, debateKey } from "./obsidian/RoomExports";
+import type { MenuItem } from "./obsidian/ExportMenu";
 import { useObsidianDesk } from "./obsidian/useObsidianDesk";
 import { QaTapContext, type QaMeta } from "../../../lib/obsidian/qaTap";
 import type { QaTurn } from "../../../lib/obsidian/types";
 import { QaExport, qaKey } from "./obsidian/RoomExports";
 import EvidenceBrainWorkspace from "./EvidenceBrainWorkspace";
+import { markClaimsWithExternalTools, parseAndValidateClaims, structuredClaimsInstruction, validationForJudge } from "../../../lib/evidenceBrain/claims";
+import { buildEvidenceBrainCanvas, buildEvidenceBrainMarkdown, evidenceBrainFileStem } from "../../../lib/evidenceBrain/export";
+import type { ClaimParseResult, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
 
 export const ELITE_SUGGESTIONS = [
   "Danh mục chính thức hôm nay gồm những mã nào, vì sao được chọn, tỷ lệ tiền mặt bao nhiêu và độ tin cậy đến đâu?",
@@ -55,6 +59,13 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const briefCtrlRef = useRef<AbortController | null>(null);
   const [trace, setTrace] = useState<LaneTraceMap>({});
   const [debateSubject, setDebateSubject] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<EvidenceSnapshot | null>(null);
+  const snapshotRef = useRef<EvidenceSnapshot | null>(null);
+  const [reviewSnapshot, setReviewSnapshot] = useState<EvidenceSnapshot | null>(null);
+  const [bullClaims, setBullClaims] = useState<ClaimParseResult | null>(null);
+  const [bearClaims, setBearClaims] = useState<ClaimParseResult | null>(null);
+  const [judgeClaims, setJudgeClaims] = useState<ClaimParseResult | null>(null);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const traceStream = tracedStream(streamCatalystChat, (key, fn) => setTrace((s) => ({ ...s, [key]: fn(s[key]) })));
   const desk = useObsidianDesk();
   // O3: lịch sử Hỏi đáp (nhận từ khung hỏi đáp qua context) để xuất ghi chú.
@@ -78,21 +89,45 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     return lane;
   }
 
-  async function startDebate() {
+  const handleSnapshotChange = useCallback((next: EvidenceSnapshot | null) => {
+    snapshotRef.current = next;
+    setSnapshot(next);
+  }, []);
+
+  async function startDebate(lockedSnapshot?: EvidenceSnapshot) {
     if (phase === "arguing" || phase === "judging") return;
     const t = subject.trim().toUpperCase();
     const ticker = /^[A-Z0-9]{3,10}$/.test(t) ? t : null;
+    const frozen = lockedSnapshot ?? snapshotRef.current;
+    if (lockedSnapshot && (lockedSnapshot.ticker !== ticker || !lockedSnapshot.decisionSession)) {
+      setReviewMessage("Snapshot không khớp mã hoặc thiếu phiên quyết định; hãy tải lại dữ liệu trước khi tranh luận.");
+      return;
+    }
+    if (lockedSnapshot && frozen?.ticker !== ticker) return;
     setDebateSubject(ticker);
+    setReviewSnapshot(frozen ?? null);
+    setReviewMessage(lockedSnapshot ? `Đang tranh luận trên snapshot ${lockedSnapshot.snapshotId}.` : frozen ? `Đang dùng snapshot ${frozen.snapshotId}.` : "Tranh luận nhanh chưa khóa snapshot; các claim sẽ không được coi là đã kiểm chứng.");
+    setBullClaims(null); setBearClaims(null); setJudgeClaims(null);
     setTrace((s) => ({ brief: s.brief }));
     const q = debateQuestions(ticker);
+    const bullPrompt = frozen ? `${q.bull}\n\n${structuredClaimsInstruction(frozen, "BULL")}` : q.bull;
+    const bearPrompt = frozen ? `${q.bear}\n\n${structuredClaimsInstruction(frozen, "BEAR")}` : q.bear;
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
     setJudge(null);
     setPhase("arguing");
-    const [b, s] = await Promise.all([run("claude", "bull", q.bull, setBull, ctrl.signal), run("gemini", "bear", q.bear, setBear, ctrl.signal)]);
+    const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal), run("gemini", "bear", bearPrompt, setBear, ctrl.signal)]);
+    const parsedBull = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(b.text, frozen, "BULL"), b.tools.map((tool) => tool.name)) : null;
+    const parsedBear = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(s.text, frozen, "BEAR"), s.tools.map((tool) => tool.name)) : null;
+    if (parsedBull) setBullClaims(parsedBull);
+    if (parsedBear) setBearClaims(parsedBear);
     if (ctrl.signal.aborted || (!b.text.trim() && !s.text.trim())) { setPhase("done"); return; }
     setPhase("judging");
-    await run("claude", "judge", q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)"), setJudge, ctrl.signal);
+    const judgePrompt = frozen && parsedBull && parsedBear
+      ? `${q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)")}\n\n${structuredClaimsInstruction(frozen, "JUDGE")}\n\nValidator deterministic của hai phía (tham khảo để phản biện, không được nâng claim unsupported thành verified):\n${validationForJudge(parsedBull, parsedBear)}`
+      : q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)");
+    const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal);
+    if (frozen) setJudgeClaims(markClaimsWithExternalTools(parseAndValidateClaims(j.text, frozen, "JUDGE"), j.tools.map((tool) => tool.name)));
     setPhase("done");
   }
 
@@ -114,12 +149,24 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
       <ObsidianBar desk={desk} unsaved={unsaved} />
-      <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} bull={bull} bear={bear} judge={judge} />
+      <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} bull={bull} bear={bear} judge={judge}
+        bullClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? bullClaims : null}
+        bearClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? bearClaims : null}
+        judgeClaims={reviewSnapshot?.snapshotId === snapshot?.snapshotId ? judgeClaims : null}
+        onSnapshotChange={handleSnapshotChange} onRunReview={(next) => void startDebate(next)} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
           <span className="text-[10px] text-slate-500">Claude phe mua · Gemini phe bán · Claude trọng tài — tính 3 câu vào hạn mức hỏi đáp</span>
-          <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} />
+          <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} extra={(() => {
+            if (!reviewSnapshot) return [];
+            const exportedClaims = [...(bullClaims?.claims ?? []), ...(bearClaims?.claims ?? []), ...(judgeClaims?.claims ?? [])];
+            const stem = evidenceBrainFileStem(reviewSnapshot);
+            const notePath = `${desk.prefs.folder ? `${desk.prefs.folder}/` : ""}${stem}.md`;
+            const markdown: MenuItem = { id: "evidence-brain-md", label: "Tải hồ sơ Evidence Brain (.md)", hint: `Snapshot ${reviewSnapshot.snapshotId}`, separatorBefore: true, onSelect: () => desk.download(`${stem}.md`, buildEvidenceBrainMarkdown(reviewSnapshot, exportedClaims), "text/markdown;charset=utf-8", `evidence-brain:${reviewSnapshot.snapshotId}`) };
+            const canvas: MenuItem = { id: "evidence-brain-canvas", label: "Tải bản đồ Evidence Brain (.canvas)", hint: "JSON Canvas tương thích Obsidian; liên kết claim, ref và snapshot", onSelect: () => desk.download(`${stem}.canvas`, JSON.stringify(buildEvidenceBrainCanvas(reviewSnapshot, exportedClaims, notePath), null, 2), "application/json;charset=utf-8", `evidence-brain-canvas:${reviewSnapshot.snapshotId}`) };
+            return [markdown, canvas];
+          })()} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="min-w-0 flex-1 text-[10px] text-slate-500">Mã phân tích được chọn trong Evidence Brain.</span>

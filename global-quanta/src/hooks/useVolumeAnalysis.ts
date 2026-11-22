@@ -45,9 +45,9 @@ export interface VolumeAnalysis {
 }
 
 /** Dữ liệu dòng phụ "phân tích khối lượng" — chỉ tải khi dòng được mở. */
-export function useVolumeAnalysis(symbol: string | null) {
+export function useVolumeAnalysis(symbol: string | null, enabled = true) {
   const { data, error, isLoading } = useSWR<VolumeAnalysis>(
-    symbol ? ["volume-analysis", symbol] : null,
+    symbol && enabled ? ["volume-analysis", symbol] : null,
     () => fetchMarketJson<VolumeAnalysis>(`/api/market/scanner/${encodeURIComponent(symbol!)}/volume`),
     { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000 },
   );

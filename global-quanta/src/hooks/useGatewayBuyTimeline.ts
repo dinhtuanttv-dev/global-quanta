@@ -26,8 +26,8 @@ interface GatewayBuyTiming { available: boolean; today: string; sessions?: strin
  * Dùng cho ELITE COMMAND RADAR + Elite 10. (Tab Cổ tức giữ nguyên hook useBuyTimeline của nó.)
  * Mỗi dòng được kiểm hợp đồng bằng zod như hook gốc (dòng sai bị bỏ riêng).
  */
-export function useGatewayBuyTimeline() {
-  const key = isMarketGatewayEnabled() ? 'elite-buy-timing' : null;
+export function useGatewayBuyTimeline(enabled = true) {
+  const key = enabled && isMarketGatewayEnabled() ? 'elite-buy-timing' : null;
   const { data, error, isLoading } = useSWR(key, async () => {
     const raw = await fetchMarketJson<GatewayBuyTiming>('/api/elite/buy-timing');
     if (!raw.available) return { timeline: null as BuyTimeline | null, sessions: raw.sessions ?? [], meta: raw.meta };

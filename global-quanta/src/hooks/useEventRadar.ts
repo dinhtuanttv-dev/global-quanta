@@ -43,8 +43,8 @@ export interface EventRadarResponse {
   };
 }
 
-export function useEventRadar(opts: { ticker?: string; category?: string; limit?: number } = {}) {
-  const enabled = isMarketGatewayEnabled();
+export function useEventRadar(opts: { ticker?: string; category?: string; limit?: number; enabled?: boolean } = {}) {
+  const enabled = opts.enabled !== false && isMarketGatewayEnabled();
   const { data, error, isLoading, mutate } = useSWR<EventRadarResponse>(
     enabled ? ["event-radar", opts.ticker ?? "", opts.category ?? "", opts.limit ?? 100] : null,
     () => fetchMarketJson<EventRadarResponse>("/api/market/event-radar", {
