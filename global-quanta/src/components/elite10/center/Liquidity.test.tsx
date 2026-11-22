@@ -10,6 +10,8 @@ const day = (i: number) => new Date(Date.UTC(2026, 8, 1) + i * 864e5).toISOStrin
 const series = Array.from({ length: 60 }, (_, i) => ({ d: day(i), v: i === 59 ? 18.7 : i % 6 === 0 ? 0.3 : 3.6, r: i === 40 ? -0.066 : 0.004 }));
 let liqData: unknown = { date: "2026-11-17", ticker: "VCP", inPanel: true, sigma20: 0.042, liq: vcp, series, rules: LQ_DEFAULT };
 vi.mock("../../../hooks/elite10/useEliteLiquidity", () => ({ useEliteLiquidity: () => ({ data: liqData, error: null, isLoading: false }) }));
+vi.mock("../../../hooks/elite10/useAdjustedDaily", () => ({ useAdjustedDaily: () => ({ bars: [], priceBasis: null, isLoading: false, error: null }) }));
+vi.mock("../../../services/marketDataClient", () => ({ fetchMarketJson: async () => ({ tickers: [] }) }));
 import LiquidityBadge, { PortfolioLiquidityLine } from "./LiquidityBadge";
 import LiquidityProfileBlock from "../profile/LiquidityProfileBlock";
 
@@ -35,6 +37,8 @@ describe("LiquidityBadge", () => {
 describe("Hồ sơ · Thanh khoản & năng lực giao dịch", () => {
   it("bậc của hệ thống, biểu đồ 60 phiên, số đo, lý do có số, ô vốn tính lại và lưu riêng trình duyệt", () => {
     render(<LiquidityProfileBlock ticker="VCP" />);
+    expect(screen.getByTestId("pa-confirmation")).toBeTruthy();
+    expect(text("pa-status")).toMatch(/Chưa đủ dữ liệu tin cậy/);
     expect(text("lq-tier")).toMatch(/L4 · Chỉ nghiên cứu/);
     expect(screen.getByTestId("lq-chart").querySelectorAll("rect").length).toBe(61);
     expect(text("lq-med")).toMatch(/3,6 tỷ.*Trung bình 5,5 tỷ — cao hơn trung vị 53% do đột biến/);
