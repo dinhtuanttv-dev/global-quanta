@@ -9,7 +9,8 @@ import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import PriceActionConfirmation from "../profile/PriceActionConfirmation";
 import type { Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
 import { LaneView } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
-import { buildEvidenceSnapshot, matchingTimingRow, sourceReadiness, type PriceActionEvidence, type TimelinePriceEvidence } from "../../../lib/evidenceBrain/snapshot";
+import { buildEvidenceSnapshot, matchingTimingRow, sourceReadiness, type PriceActionEvidence } from "../../../lib/evidenceBrain/snapshot";
+import { closedResearchChart } from "../../../lib/evidenceBrain/priceObservation";
 import type { ClaimParseResult, EvidenceRef, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
 import { PRIMARY_VI, type PrimaryState } from "../../../lib/elite10/cockpit";
 import { evaluateConfirmation, eventKey, formatObservation, revisionKnownAt, visibleRevision, withoutCatalyst,
@@ -221,11 +222,6 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const tickerDecision = selected.decision?.ticker.toUpperCase() === ticker ? selected.decision : null;
   const decisionDay = decision.data?.date;
   const known = ticker ? Boolean(pa?.tickerVerified || panel || tickerDecision) : null;
-  const price = useMemo<TimelinePriceEvidence | null>(() => {
-    if (!ticker || !chart.priceBasis || !chart.bars.length) return null;
-    return { priceBasis: chart.priceBasis, warnings: chart.warnings, bars: chart.bars.slice(-30).flatMap((bar) =>
-      typeof bar.close === "number" && Number.isFinite(bar.close) && bar.close > 0 ? [{ date: bar.date, close: bar.close }] : []) };
-  }, [ticker, chart.priceBasis, chart.warnings, chart.bars]);
   const events = useMemo(() => news.data?.events.filter((event) => event.tickers.some((item) => item.toUpperCase() === ticker)) ?? null, [news.data, ticker]);
   const timingRow = useMemo(() => matchingTimingRow(timing.data, ticker), [ticker, timing.data]);
   const waiting = [
@@ -240,6 +236,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     setBuilding(true);
     setBuildError(false);
     const observedAt = new Date().toISOString();
+    const price = ticker ? closedResearchChart(chart.bars, chart.priceBasis, chart.warnings, observedAt) : null;
     const asObserved = events === null ? null : groupEvents(events.filter((event) => visibleRevision(event, observedAt)));
     void buildEvidenceSnapshot({
       ticker, tickerVerified: known, now: observedAt,
@@ -259,7 +256,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     return () => { current = false; };
   }, [enabled, ticker, known, decision.data, decision.error, tickerDecision, panel, selected.error, evidence.data, evidence.error,
     ledger.data, ledger.error, risk.data, risk.error, timing.data, timing.error, timingRow, events, news.enabled, news.data?.generatedAt,
-    news.error, pa, volume, volumes.error, price, lq, liquidity.error, waiting, version]);
+    news.error, pa, volume, volumes.error, chart.bars, chart.priceBasis, chart.warnings, lq, liquidity.error, waiting, version]);
 
   useEffect(() => { setDetail(null); setSeeLatest(false); }, [ticker, active]);
   useEffect(() => { setResearchView(null); setSaved(null); setScenario(null); setShowParent(false); }, [ticker, account]);

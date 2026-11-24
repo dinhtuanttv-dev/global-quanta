@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { buildEvidenceSnapshot, sourceReadiness, observeResearchPrice, eventKey, visibleRevision, prepareSealedReview,
+import { buildEvidenceSnapshot, sourceReadiness, closedResearchChart, observeResearchPrice, eventKey, visibleRevision, prepareSealedReview,
   sealedReviewPrompt, parseAndValidateClaims, expectedContentId, expectedArtifactId } from "../vendor/evidenceRoom.mjs";
 
 const MAX_AGE = 30 * 60_000;
@@ -69,8 +69,7 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
       ticker, rawBars: raw.bars, priceBasis: raw.priceBasis ?? null, instrument, observedAt, warnings: raw.warnings ?? [],
       repairDates: (raw.gapRepairs ?? []).map((entry) => entry.date),
     }).evidence : null;
-    const price = raw?.priceBasis && Array.isArray(raw.bars) ? { priceBasis: raw.priceBasis, warnings: raw.warnings ?? [],
-      bars: raw.bars.slice(-30).filter((bar) => Number.isFinite(bar.close) && bar.close > 0).map(({ date, close }) => ({ date, close })) } : null;
+    const price = Array.isArray(raw?.bars) ? closedResearchChart(raw.bars, raw.priceBasis ?? null, raw.warnings ?? [], observedAt) : null;
     const news = value("events");
     const events = news ? Array.from(new Map((news.events ?? []).filter((event) => event.tickers?.includes(ticker) && visibleRevision(event, observedAt))
       .slice(0, 12).map((event) => [eventKey(event), event])).values()) : [];

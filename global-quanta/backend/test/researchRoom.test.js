@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createResearchRoom } from "../src/market/elite/researchRoom.js";
 import { getVolumeAnalysis } from "../src/market/scanner/volumeService.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
-import { makeResearchRun } from "../src/market/vendor/evidenceRoom.mjs";
+import { closedResearchChart, makeResearchRun } from "../src/market/vendor/evidenceRoom.mjs";
 
 const json = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const pulse = json("../../src/lib/elite10/__fixtures__/pulse-2026-11-20.json").decision;
@@ -66,4 +66,12 @@ test("daily volume summary produces coverage and never requests minute history",
   assert.equal(result.partialToday, false);
   assert.equal(result.intraday, null);
   assert.deepEqual(result.coverage, { detail: "summary", lastClosedSession: day, expectedClosedSession: day });
+});
+
+test("timeline admits finalized closes only, even when the stream still has a partial bar after market close", () => {
+  const bars = [{ date: "2026-11-23", close: 100 }, { date: "2026-11-24", close: 102, partial: true }];
+  const chart = closedResearchChart(bars, "ADJUSTED_CUMULATIVE", [], "2026-11-24T09:00:00.000Z");
+  assert.deepEqual(chart.bars, [{ date: "2026-11-23", close: 100 }]);
+  const early = closedResearchChart([{ date: "2026-11-24", close: 102 }], "ADJUSTED_CUMULATIVE", [], "2026-11-24T07:00:00.000Z");
+  assert.deepEqual(early.bars, []);
 });

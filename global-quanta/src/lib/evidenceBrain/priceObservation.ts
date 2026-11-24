@@ -1,5 +1,5 @@
 import { analyzePriceAction, type Bar } from "../price-action/index";
-import type { PriceActionEvidence } from "./snapshot";
+import type { PriceActionEvidence, TimelinePriceEvidence } from "./snapshot";
 
 export type PriceBars = (Omit<Bar, "close"> & { close?: number | null; partial?: boolean })[];
 type Venue = "HOSE" | "HNX" | "UPCOM";
@@ -20,6 +20,12 @@ function isClosedBar(date: string, observedAt: string) {
   const parts = Object.fromEntries(marketClock.formatToParts(observation).map(({ type, value }) => [type, value]));
   const dateObserved = `${parts.year}-${parts.month}-${parts.day}`;
   return /^\d{4}-\d{2}-\d{2}$/.test(date) && (date < dateObserved || date === dateObserved && Number(parts.hour) * 60 + Number(parts.minute) >= 915);
+}
+
+export function closedResearchChart(bars: PriceBars, priceBasis: string | null, warnings: string[], observedAt: string): TimelinePriceEvidence | null {
+  if (!priceBasis || !bars.length) return null;
+  return { priceBasis, warnings, bars: bars.slice(-31).flatMap(({ date, close, partial }) =>
+    !partial && typeof close === "number" && Number.isFinite(close) && close > 0 && isClosedBar(date, observedAt) ? [{ date, close }] : []).slice(-30) };
 }
 
 export function observeResearchPrice({

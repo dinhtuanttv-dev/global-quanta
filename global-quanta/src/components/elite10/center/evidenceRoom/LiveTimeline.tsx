@@ -58,9 +58,10 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
   const invalidation = sameBasis && positive(pa?.setup?.invalidationLevel) ? pa.setup.invalidationLevel : null;
   const triggerDay = sameBasis && pa?.state === "TRIGGERED" && pa.barClosed && pa.confirmed ? sessionDay(pa.setup?.stateDate) : null;
   const offChart = [...groups].filter(([day]) => !sessions.includes(day)).flatMap(([, items]) => items);
+  const partialDay = volume?.partialToday ? sessionDay(volume.today.date) : null;
   const points = sessions.map((day) => {
     const bar = traded.get(day);
-    const value = hasAdjusted ? adjusted.get(day) : bar?.close;
+    const value = hasAdjusted ? adjusted.get(day) : day === partialDay ? null : bar?.close;
     return { day, close: positive(value) ? value : null, volume: isVolume(bar?.volume) ? bar.volume : null };
   });
   const prices = points.flatMap((p) => p.close === null ? [] : [p.close]);
@@ -94,7 +95,7 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
           if (p.volume === null) return null;
           const height = p.volume / maxVolume * 74;
           const width = Math.min(11, (X1 - X0) / points.length / 2);
-          const partial = volume?.partialToday && p.day === sessionDay(volume.today.date);
+          const partial = p.day === partialDay;
           return <rect key={p.day} className="volume-bar" x={x(i) - width / 2} y={Y1 - height} width={width} height={height}
             style={{ opacity: partial ? .38 : undefined, fill: p.day === triggerDay ? "#48c99d" : groups.has(p.day) ? "#c18443" : undefined }} />;
         })}
@@ -106,7 +107,7 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
         </g>}
         {points.map((point, i) => {
           const catalysts = groups.get(point.day) ?? [];
-          const eventOnly = !adjusted.has(point.day) && !traded.has(point.day);
+          const eventOnly = point.close === null && (point.day === partialDay || !traded.has(point.day));
           const trigger = point.day === triggerDay;
           const anchor = i > points.length * .78 ? "end" : "start";
           const labelX = x(i) + (anchor === "end" ? -5 : 5);
