@@ -174,6 +174,8 @@ body:has(.eb-reference-page) {
 .eb-live-room .ticker-head { flex-wrap: wrap; }
 .eb-live-room .snapshot-meta { justify-content: flex-start; min-width: 0; }
 .eb-live-room .layout { grid-template-columns: minmax(0, 1fr); }
+.eb-live-room .funnel-step { min-width: 0; grid-template-columns: 20px minmax(0, 1fr) auto; }
+.eb-live-room .funnel-name { overflow-wrap: anywhere; }
 .eb-live-room .right-panel { display: grid; gap: 10px; position: static; min-width: 0; }
 .eb-live-room .canvas-viewport { height: 370px; }
 .eb-live-room .canvas-top { flex-wrap: wrap; }
@@ -221,6 +223,10 @@ body:has(.eb-reference-page) {
 @container evidence-room (min-width: 940px) {
   .eb-live-room .layout { grid-template-columns: 182px minmax(0, 1fr) 215px; }
   .eb-live-room .right-panel { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+}
+@container evidence-room (min-width: 940px) and (max-width: 1179px) {
+  .eb-live-room .parallel .funnel-step { grid-template-columns: 18px minmax(0, 1fr); gap: 3px 5px; padding-inline: 5px; }
+  .eb-live-room .parallel .funnel-count { grid-column: 2; justify-self: end; }
 }
 @container evidence-room (min-width: 1180px) {
   .eb-live-room .layout { grid-template-columns: 236px minmax(0, 1fr) 282px; }

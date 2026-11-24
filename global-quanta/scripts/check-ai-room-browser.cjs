@@ -122,6 +122,10 @@ async function main() {
     await page.getByText("Luận điểm & bằng chứng", { exact: false }).first().waitFor();
     await page.getByText("Timeline đồng bộ", { exact: false }).first().waitFor();
     await page.getByText("Các lớp xác nhận", { exact: false }).first().waitFor();
+    assert.equal(await page.getByRole("complementary", { name: "Trạng thái phễu và dữ liệu" }).evaluate((rail) => {
+      const edge = rail.getBoundingClientRect().right;
+      return [...rail.querySelectorAll(".funnel-step")].every((step) => step.getBoundingClientRect().right <= edge);
+    }), true, "funnel cards must fit their column");
     if (process.env.AI_ROOM_SCREENSHOT_OUT) await page.screenshot({ path: process.env.AI_ROOM_SCREENSHOT_OUT });
     await title("✦ Kiểm chứng & tranh luận").click();
     await page.locator(".eb-status-line").filter({ hasText: "Đã đối chiếu cấu trúc luận điểm theo gói bằng chứng." }).waitFor().catch(async (error) => {
