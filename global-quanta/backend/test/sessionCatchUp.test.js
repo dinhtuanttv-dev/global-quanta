@@ -15,6 +15,23 @@ test("bù phiên: Siêu Quét chậm hơn dữ liệu ngày -> chạy lại chu�
   assert.deepEqual(r.done.map((x) => x.ok), [true, false, true]);
 });
 
+test("bù phiên: vá nguồn ngày còn thiếu trước khi quét và giữ mốc cũ nếu nguồn vẫn chưa công bố", async () => {
+  const day = "2026-11-24", earlier = "2026-11-23";
+  const dates = [earlier], calls = [];
+  let published = false;
+  const jobs = { syncMarketDaily: async () => { calls.push("sync"); if (published) dates.push(day); }, scanUniverse: async () => calls.push("scan") };
+  const run = createSessionCatchUp({ jobs, store: store(dates, earlier), now: () => Date.parse(`${day}T09:00:00Z`), log: {} });
+  const missing = await run();
+  assert.deepEqual(missing.dailyRepair, { expectedSession: day, available: false });
+  assert.equal(missing.session, earlier);
+  assert.deepEqual(calls, ["sync"]);
+  published = true;
+  const caughtUp = await run();
+  assert.deepEqual(caughtUp.dailyRepair, { expectedSession: day, available: true });
+  assert.equal(caughtUp.session, day);
+  assert.deepEqual(calls, ["sync", "sync", "scan"]);
+});
+
 test("bù phiên: đã cập nhật -> không chạy; phiên hôm nay trước 15:40 -> để lịch thường chạy", async () => {
   let n = 0; const jobs = { scanUniverse: async () => n++ };
   assert.match((await createSessionCatchUp({ jobs, store: store(["2026-11-13"], "2026-11-13"), log: {} })()).skipped, /đã cập nhật/);

@@ -2,7 +2,7 @@
 // 12/11 và bảng Elite không dựng được phiên 13/11. Lịch cũ chỉ chạy job "ngày giao dịch" ĐÚNG ngày đó, nên một phiên đã lỡ thì không bao
 // giờ được dựng lại. Job này chạy cả ngày nghỉ: khi dữ liệu ngày (market_daily) đã có phiên mới hơn kết quả Siêu Quét, nó chạy lại chuỗi
 // dựng của phiên đó theo đúng thứ tự lịch. Các job trong chuỗi đều lấy NGÀY từ dữ liệu (không từ đồng hồ) nên chạy bù không ghi sai phiên.
-import { vnDate, vnParts } from "./calendar.js";
+import { lastCompletedSessionDate, vnDate, vnParts } from "./calendar.js";
 
 export const CATCH_UP_CHAIN = ["scanUniverse", "scanStrategies", "scanStructure", "buildSectorRotation", "buildTop20Inputs"];
 const SCAN_AT_MIN = 15 * 60 + 40; // giờ chạy Siêu Quét theo lịch
@@ -13,10 +13,23 @@ const SCAN_AT_MIN = 15 * 60 + 40; // giờ chạy Siêu Quét theo lịch
  */
 export function createSessionCatchUp({ jobs, store, now = Date.now, log = console, chain = CATCH_UP_CHAIN, indexReady = null }) {
   return async function sessionCatchUp() {
-    const latestDaily = (await store.getMarketDailyDates()).at(-1) ?? null;
+    const d = new Date(now());
+    const expectedSession = lastCompletedSessionDate(d);
+    const afterScanTime = expectedSession !== vnDate(d) || vnParts(d).minutes >= SCAN_AT_MIN;
+    let latestDaily = (await store.getMarketDailyDates()).at(-1) ?? null;
+    let dailyRepair;
+    if (afterScanTime && (!latestDaily || latestDaily < expectedSession) && typeof jobs.syncMarketDaily === "function") {
+      try {
+        await jobs.syncMarketDaily();
+        latestDaily = (await store.getMarketDailyDates()).at(-1) ?? null;
+        dailyRepair = { expectedSession, available: latestDaily === expectedSession };
+      } catch (error) {
+        dailyRepair = { expectedSession, available: false, error: String(error?.message ?? error).slice(0, 160) };
+      }
+    }
     const scan = (await store.getKv("scanner:latest"))?.value ?? null;
     const scanAsOf = scan?.dataAsOf ?? null;
-    if (!latestDaily) return { skipped: "Chưa có dữ liệu ngày" };
+    if (!latestDaily) return { skipped: "Chưa có dữ liệu ngày", dailyRepair };
     // Kết quả Siêu Quét đúng phiên nhưng trạng thái VN-Index còn của phiên trước (nến chỉ số lỗi lúc quét, đã được vá sau đó — 13/11/2026):
     // quét lại riêng Siêu Quét khi nến chỉ số của phiên đó đã hợp lệ.
     if (scanAsOf && scanAsOf >= latestDaily) {
@@ -25,9 +38,8 @@ export function createSessionCatchUp({ jobs, store, now = Date.now, log = consol
         try { await jobs.scanUniverse(); log.info?.(`[market] Quét lại Siêu Quét ${scanAsOf}: trạng thái VN-Index ${idxAsOf} -> ${scanAsOf}`); return { session: scanAsOf, rescanned: "indexState", indexBefore: idxAsOf }; }
         catch (e) { return { session: scanAsOf, rescanned: false, error: String(e?.message ?? e).slice(0, 160) }; }
       }
-      return { skipped: "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf };
+      return { skipped: dailyRepair && !dailyRepair.available ? "Chưa có phiên đóng từ nguồn dữ liệu ngày" : "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf, dailyRepair };
     }
-    const d = new Date(now());
     // Phiên hôm nay chưa tới giờ quét theo lịch -> để lịch thường chạy, không chạy sớm.
     if (latestDaily === vnDate(d) && vnParts(d).minutes < SCAN_AT_MIN) return { skipped: "Chưa tới giờ quét của phiên hôm nay", session: latestDaily, scanAsOf };
     const done = [];
@@ -37,6 +49,6 @@ export function createSessionCatchUp({ jobs, store, now = Date.now, log = consol
       catch (e) { done.push({ name, ok: false, error: String(e?.message ?? e).slice(0, 160) }); }
     }
     log.info?.(`[market] Bù phiên ${latestDaily} (Siêu Quét đang ở ${scanAsOf ?? "—"}): ${done.map((x) => (x.ok ? x.name : `${x.name} LỖI`)).join(", ")}`);
-    return { session: latestDaily, scanAsOfBefore: scanAsOf, done };
+    return { session: latestDaily, scanAsOfBefore: scanAsOf, done, dailyRepair };
   };
 }
