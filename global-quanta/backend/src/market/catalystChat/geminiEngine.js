@@ -40,7 +40,7 @@ export async function runChatGemini(o) {
   const maxRounds = o.maxRounds ?? GEMINI_MAX_TOOL_ROUNDS;
   const prior = o.messages.slice(0, -1).map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] }));
   const question = o.messages[o.messages.length - 1].content;
-  const gTools = toGeminiTools(o.tools);
+  const gTools = o.snapshotOnly ? [] : toGeminiTools(o.tools);
   const results = [];
   const notices = new Set();
   let finalText = "", rounds = 0, callId = 0;
@@ -64,6 +64,7 @@ export async function runChatGemini(o) {
     }
     const response = await res.response;
     const calls = response.functionCalls() ?? [];
+    if (o.snapshotOnly && calls.length) throw new Error("Snapshot mode returned an unexpected tool call.");
     if (!calls.length) break;
     if (rounds >= maxRounds) {
       // hết lượt: yêu cầu trả lời bằng dữ liệu đã có (phiên mới, không công cụ)
@@ -87,7 +88,7 @@ export async function runChatGemini(o) {
     }));
   }
   const userText = o.messages.filter((m) => m.role === "user").map((m) => m.content).join("\n");
-  const untraceable = auditNumbers(finalText, results, userText);
+  const untraceable = o.snapshotOnly ? [] : auditNumbers(finalText, results, userText);
   if (untraceable.length) o.emit({ type: "audit", untraceable });
   const used = o.model.currentModel?.();
   const primary = o.model.primary ?? o.model.models?.[0];

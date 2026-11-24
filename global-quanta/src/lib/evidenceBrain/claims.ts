@@ -62,7 +62,7 @@ function closeNumber(a: number, b: number): boolean {
   return Math.abs(a - b) <= Math.max(1e-8, Math.abs(b) * 1e-8);
 }
 
-function numbersInClaimText(text: string): number[] {
+function numbersInClaimText(text: string): { value: number; kind: "percent" | "multiple" | null }[] {
   const withoutDates = text.replace(/\b(?:Q[1-4][/-]20\d{2}|\d{4}-\d{2}-\d{2}|\d{1,2}[/-]\d{1,2}[/-]\d{4})\b/gi, " ");
   return [...withoutDates.matchAll(/(?<![\p{L}\p{N}])[-+]?\d+(?:[.,]\d+)*(?:\s?(?:%|[x×]))?/gu)].flatMap(([raw]) => {
     const percent = /%\s*$/.test(raw), multiple = /[x×]\s*$/i.test(raw);
@@ -79,7 +79,7 @@ function numbersInClaimText(text: string): number[] {
     }
     const value = Number(numeric);
     if (!Number.isFinite(value)) return [];
-    return [percent ? value / 100 : value];
+    return [{ value: percent ? value / 100 : value, kind: percent ? "percent" : multiple ? "multiple" : null }];
   });
 }
 
@@ -98,14 +98,15 @@ function validateClaim(claim: StructuredClaim, snapshot: EvidenceSnapshot, byId:
   if (["FACT", "ENGINE_OUTPUT", "STATISTICAL_RESULT"].includes(claim.classification) && actualRefs.length === 0) { notes.push("claim dạng dữ kiện/engine/thống kê không có ref hợp lệ."); unsupported = true; }
   if (claim.classification === "STATISTICAL_RESULT" && actualRefs.length > 0 && !actualRefs.some((ref) => ref.status === "VERIFIED" && Boolean(ref.methodVersion || ref.sourceVersion))) { notes.push("kết quả thống kê thiếu method/version."); unsupported = true; }
   if (/\b(?:mua ngay|nên mua|buy now|guaranteed|chắc chắn thắng)\b/i.test(claim.text)) { notes.push("claim dùng ngôn ngữ khuyến nghị/chắc chắn; cần viết lại thành điều kiện và rủi ro."); unsupported = true; }
-  const assertedValues = claim.numericAssertions.map((assertion) => assertion.value);
-  const unassertedNumbers = numbersInClaimText(claim.text).filter((value) => !assertedValues.some((asserted) => closeNumber(value, asserted)));
-  if (unassertedNumbers.length) { notes.push(`có số trong câu chưa được khai báo/đối chiếu: ${unassertedNumbers.join(", ")}.`); unsupported = true; }
+  const unassertedNumbers = numbersInClaimText(claim.text).filter(({ value, kind }) => !claim.numericAssertions.some((asserted) =>
+    closeNumber(value, asserted.value) && (kind === null || (kind === "multiple" ? asserted.unit === "multiple" : ["fraction", "ratio"].includes(asserted.unit ?? "")))));
+  if (unassertedNumbers.length) { notes.push(`có số trong câu chưa được khai báo/đối chiếu: ${unassertedNumbers.map(({ value }) => value).join(", ")}.`); unsupported = true; }
   for (const assertion of claim.numericAssertions) {
     const ref = byId.get(assertion.refId);
     if (!ref || !claim.refs.includes(assertion.refId)) { notes.push(`numeric assertion ${assertion.refId} không nằm trong refs của claim.`); unsupported = true; continue; }
     if (assertion.unit !== ref.unit) { notes.push(`unit không khớp ở ${assertion.refId}: ${assertion.unit ?? "null"} / ${ref.unit ?? "null"}.`); misrepresented = true; }
-    if (!numericLeaves(ref.value).some((value) => closeNumber(value, assertion.value))) { notes.push(`giá trị ${assertion.value} không khớp value của ${assertion.refId}.`); unsupported = true; }
+    const leaves = numericLeaves(ref.value);
+    if (leaves.length !== 1 || !closeNumber(leaves[0], assertion.value)) { notes.push(`giá trị ${assertion.value} không khớp value duy nhất của ${assertion.refId}.`); unsupported = true; }
   }
   let validation: ValidatedClaim["validation"];
   if (misrepresented) validation = "MISREPRESENTED";

@@ -260,6 +260,28 @@ body:has(.eb-reference-page) {
   padding: 7px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--text); background: #080c13; min-width: 0;
 }
 .eb-room-page .eb-dialog form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+.eb-live-room .eb-research-graph { display: grid; gap: 6px; min-width: 0; }
+.eb-live-room .eb-research-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.eb-live-room .eb-research-graph > .eb-research-actions {
+  min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 8px;
+  color: var(--muted); background: var(--surface); font-size: 11px;
+}
+.eb-live-room .eb-research-graph > .eb-research-actions > span { margin-right: auto; }
+.eb-live-room .eb-research-obsidian { color: #e5d9ff; border-color: #66518d; background: #251d39; }
+.eb-live-room .eb-research-timeline-mode { padding: 6px 11px 0; }
+.eb-live-room .meta-chip[aria-pressed="true"] { color: var(--cyan); background: #112934; border-color: #477786; }
+.eb-live-room .eb-research-compare { margin-top: 12px; overflow-wrap: anywhere; }
+.eb-live-room .eb-research-compare h3 { margin: 0 0 6px; color: var(--cyan); }
+.eb-live-room .eb-research-compare label, .eb-live-room .eb-research-select { display: grid; gap: 4px; margin: 7px 0; }
+.eb-live-room .eb-research-compare select, .eb-live-room .eb-research-select select {
+  width: 100%; max-width: 100%; min-height: 34px;
+  background: #121b29; color: var(--text); border: 1px solid var(--line-strong);
+  border-radius: 6px; padding: 5px 8px; font: inherit;
+}
+.eb-live-room .eb-research-markdown { max-height: 42vh; overflow: auto; }
+.eb-live-room .eb-dialog .eb-research-actions { margin-top: 8px; }
+.eb-live-room .eb-dialog > .primary-btn { margin-top: 8px; }
 .eb-room-page .eb-status-line { margin-top: 6px; color: var(--amber); font-size: 10px; line-height: 1.45; }
 .eb-room-page .eb-ticker-select { background: none; border: 0; text-align: left; cursor: pointer; }
 .eb-room-page .eb-ticker-select .ticker-symbol { color: var(--text); }

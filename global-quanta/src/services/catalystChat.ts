@@ -20,7 +20,7 @@ export interface ChatToolResult {
 }
 
 export type ChatStreamEvent =
-  | { type: "meta"; remaining: number; macroMode: "real" | "insufficient" | "synthetic" | null; worldMode?: "real" | "insufficient" | "synthetic" | null; provider?: ChatProvider; model?: string; host?: "gateway" | "project-a" }
+  | { type: "meta"; remaining: number; macroMode: "real" | "insufficient" | "synthetic" | null; worldMode?: "real" | "insufficient" | "synthetic" | null; provider?: ChatProvider; model?: string; host?: "gateway" | "project-a"; evidenceMode?: "snapshot_only" }
   | { type: "text"; delta: string }
   | { type: "tool_call"; id: string; name: string; input: unknown }
   | { type: "tool_result"; id: string; name: string; result: ChatToolResult }
@@ -58,19 +58,20 @@ export async function streamCatalystChat(
   signal?: AbortSignal,
   provider: ChatProvider = "claude",
   role: ChatRole | null = null,
+  evidenceMode?: "snapshot_only",
 ): Promise<void> {
   const token = await getAccessToken();
   if (!token) throw new ChatHttpError(401, "Cần đăng nhập để dùng Hỏi đáp xúc tác.");
   const init: RequestInit = {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
-    body: JSON.stringify(role ? { messages, provider, role } : { messages, provider }),
+    body: JSON.stringify({ messages, provider, ...(role ? { role } : {}), ...(evidenceMode ? { evidenceMode } : {}) }),
     signal,
   };
   const urls = chatUrls();
   let res = await fetch(urls.gateway, init);
   let host: "gateway" | "project-a" = "gateway";
-  if (res.status === 503 && urls.projectA) {
+  if (res.status === 503 && urls.projectA && !evidenceMode) {
     const b = await res.clone().json().catch(() => ({}));
     if ((b as { code?: string }).code === "provider-not-configured") {
       res = await fetch(urls.projectA, init);

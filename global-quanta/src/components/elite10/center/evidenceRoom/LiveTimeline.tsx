@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { EventRadarEvent } from "../../../../hooks/useEventRadar";
 import type { VolumeAnalysis } from "../../../../hooks/useVolumeAnalysis";
 import type { PriceActionEvidence, TimelinePriceEvidence } from "../../../../lib/evidenceBrain/snapshot";
+import { revisionKnownAt } from "../../../../lib/evidenceBrain/research";
 import { dateVi, numberVi, sessionDay, TimelinePanel } from "./roomView";
 
 const X0 = 44, X1 = 890, Y0 = 22, Y1 = 137;
@@ -21,11 +22,19 @@ export function groupEvents(events: EventRadarEvent[]) {
   return [...clusters.values()].sort(latestFirst);
 }
 
-export function LiveTimeline({ price, volume, events, pa, onEvent, onPriceAction }: {
+export function LiveTimeline({ price, volume, events, pa, scenario = false, onEvent, onPriceAction }: {
   price: TimelinePriceEvidence | null; volume: VolumeAnalysis | null; events: EventRadarEvent[]; pa: PriceActionEvidence | null;
+  scenario?: boolean;
   onEvent: (event: EventRadarEvent) => void; onPriceAction: () => void;
 }) {
   const [focused, setFocused] = useState<string | null>(null);
+  const [byPublication, setByPublication] = useState(false);
+  const eventTime = (event: EventRadarEvent) => byPublication ? event.publishedAt : revisionKnownAt(event);
+  const switches = <div className="chart-notes eb-research-timeline-mode" role="group" aria-label="Trục thời gian xúc tác">
+    <button type="button" className="meta-chip" aria-pressed={!byPublication} onClick={() => setByPublication(false)}>Đã biết lúc đó</button>
+    <button type="button" className="meta-chip" aria-pressed={byPublication} onClick={() => setByPublication(true)}>Theo công bố</button>
+    {scenario && <span className="tiny-chip gold">Mô phỏng · đã loại một cụm xúc tác</span>}
+  </div>;
   const adjusted = new Map<string, number>();
   for (const bar of price?.bars ?? []) {
     const day = sessionDay(bar.date);
@@ -40,10 +49,10 @@ export function LiveTimeline({ price, volume, events, pa, onEvent, onPriceAction
   const hasAdjusted = sessions.some((day) => adjusted.has(day));
   const sameBasis = hasAdjusted && Boolean(price?.priceBasis && !/unknown/i.test(price.priceBasis) && pa?.priceBasis === price.priceBasis);
   const invalidation = sameBasis && positive(pa?.setup?.invalidationLevel) ? pa.setup.invalidationLevel : null;
-  const triggerDay = pa?.state === "TRIGGERED" && pa.barClosed ? sessionDay(pa.setup?.stateDate) : null;
+  const triggerDay = sameBasis && pa?.state === "TRIGGERED" && pa.barClosed && pa.confirmed ? sessionDay(pa.setup?.stateDate) : null;
   const groups = new Map<string, EventRadarEvent[]>();
   for (const event of groupEvents(events)) {
-    const day = sessionDay(event.publishedAt ?? event.firstSeenAt);
+    const day = sessionDay(eventTime(event));
     if (day) groups.set(day, [...(groups.get(day) ?? []), event]);
   }
   const offChart = [...groups].filter(([day]) => !sessions.includes(day)).flatMap(([, items]) => items);
@@ -68,13 +77,13 @@ export function LiveTimeline({ price, volume, events, pa, onEvent, onPriceAction
     return `${op}${x(i)} ${y(close)}`;
   }).join(" ");
   if (!points.length) return <TimelinePanel period="Chưa có chuỗi phiên"
-    chart={<div className="eb-empty">Đang chờ chuỗi giá hoặc khối lượng theo phiên của mã.</div>} />;
+    chart={<>{switches}<div className="eb-empty">Đang chờ chuỗi giá hoặc khối lượng theo phiên của mã.</div></>} />;
 
   const focusIndex = points.findIndex((p) => p.day === focused);
   const selected = points[focusIndex];
   const visibleGroups = [...groups].filter(([day]) => sessions.includes(day));
   return <TimelinePanel period={`${dateVi(sessions[0])} → ${dateVi(sessions[sessions.length - 1])} · daily`}
-    chart={<div className="chart-wrap">
+    chart={<>{switches}<div className="chart-wrap">
       <svg viewBox="0 0 920 190" role="group" aria-label="Giá, khối lượng và sự kiện cùng trục phiên giao dịch" onMouseLeave={() => setFocused(null)}>
         {[25, 65, 105].map((line) => <line key={line} className="gridline" x1={X0} y1={line} x2={X1} y2={line} />)}
         <line className="chart-axis" x1={X0} y1={18} x2={X0} y2={Y1} />
@@ -121,10 +130,10 @@ export function LiveTimeline({ price, volume, events, pa, onEvent, onPriceAction
           ? `${dateVi(selected.day)} · Giá ${numberVi(selected.close)} · KL ${numberVi(selected.volume, 0)}`
           : `Khối lượng ngày · cột  /  Giá đóng cửa · ${hasAdjusted ? price?.priceBasis ?? "chuỗi PA" : "nguồn volume"}`}</text>
       </svg>
-    </div>}
+    </div></>}
     notes={<div className="chart-notes">
-      {visibleGroups.slice(-3).flatMap(([, items]) => items.map((event) => <button key={event.eventId} type="button" className="tiny-chip gold" onClick={() => onEvent(event)}>◇ {event.eventLabel || "Sự kiện"} · {dateVi(event.firstSeenAt)}</button>))}
-      {pa?.setup && <button type="button" className="tiny-chip green" onClick={onPriceAction}>▲ Trigger {numberVi(pa.setup.entryReference)} · {pa.barClosed ? "bar đóng" : "chưa xác nhận bar đóng"}</button>}
+      {visibleGroups.slice(-3).flatMap(([, items]) => items.map((event) => <button key={event.eventId} type="button" className="tiny-chip gold" onClick={() => onEvent(event)}>◇ {event.eventLabel || "Sự kiện"} · r{event.revision} · {dateVi(eventTime(event))}</button>))}
+      {pa?.setup && <button type="button" className={`tiny-chip ${triggerDay ? "green" : ""}`} onClick={onPriceAction}>▲ Trigger {numberVi(pa.setup.entryReference)} · {triggerDay ? "nến đóng" : "cần đối chiếu nến và cơ sở giá"}</button>}
       {positive(pa?.setup?.invalidationLevel) && <button type="button" className="tiny-chip red" onClick={onPriceAction}>— Vô hiệu {numberVi(pa.setup.invalidationLevel)}{sameBasis ? "" : " · chưa đối chiếu cơ sở giá"}</button>}
       <span className="tiny-chip">{volume?.partialToday ? "RVOL intraday · cùng thời điểm" : "Khối lượng · snapshot ngày"}</span>
       {offChart.length > 0 && <span className="tiny-chip">{offChart.length} tin ngoài chuỗi · xem cột Xúc tác</span>}

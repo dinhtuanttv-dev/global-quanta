@@ -19,7 +19,9 @@ import type { QaTurn } from "../../../lib/obsidian/types";
 import { QaExport, qaKey } from "./obsidian/RoomExports";
 import EvidenceBrainWorkspace from "./EvidenceBrainWorkspace";
 import { RoomToolbarActions } from "./evidenceRoom/roomView";
-import { markClaimsWithExternalTools, parseAndValidateClaims, structuredClaimsInstruction, validationForJudge } from "../../../lib/evidenceBrain/claims";
+import { readResearchAccount, useResearchAccount } from "./evidenceRoom/researchAccount";
+import { markClaimsWithExternalTools, parseAndValidateClaims } from "../../../lib/evidenceBrain/claims";
+import { boundGatewayText, prepareSealedReview, sealedReviewPrompt } from "../../../lib/evidenceBrain/sealedReview";
 import { sourceReadiness } from "../../../lib/evidenceBrain/snapshot";
 import { buildEvidenceBrainCanvas, buildEvidenceBrainMarkdown, evidenceBrainFileStem } from "../../../lib/evidenceBrain/export";
 import type { ClaimParseResult, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
@@ -32,7 +34,7 @@ export const ELITE_SUGGESTIONS = [
   "Vì sao RVOL cao lại là tín hiệu ngược chiều theo engine bằng chứng?",
 ];
 
-const JUDGE_MAX = 6000;
+const JUDGE_MAX = 740;
 const clip = (s: string) => (s.length > JUDGE_MAX ? `${s.slice(0, JUDGE_MAX)}…[cắt bớt]` : s);
 
 /** Câu hỏi cho từng vai trong tranh luận. `subject` = mã cổ phiếu hoặc null (cả danh mục). */
@@ -72,6 +74,8 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
   const [bearClaims, setBearClaims] = useState<ClaimParseResult | null>(null);
   const [judgeClaims, setJudgeClaims] = useState<ClaimParseResult | null>(null);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const account = useResearchAccount();
+  const previousAccount = useRef(account);
   const traceStream = tracedStream(streamCatalystChat, (key, fn) => setTrace((s) => ({ ...s, [key]: fn(s[key]) })));
   const desk = useObsidianDesk();
   // O3: lịch sử Hỏi đáp (nhận từ khung hỏi đáp qua context) để xuất ghi chú.
@@ -79,15 +83,37 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
   const [qaTap] = useState(() => (turns: QaTurn[], meta: QaMeta | null) => setQa({ turns, meta }));
   useEffect(() => () => { ctrlRef.current?.abort(); briefCtrlRef.current?.abort(); }, []);
   useEffect(() => { setSubject(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : ""); }, [defaultTicker]);
+  useEffect(() => {
+    if (previousAccount.current === account) return;
+    previousAccount.current = account;
+    ctrlRef.current?.abort();
+    ctrlRef.current = null;
+    briefCtrlRef.current?.abort();
+    briefCtrlRef.current = null;
+    setPhase("idle"); setBriefBusy(false); setBull(null); setBear(null); setJudge(null); setBrief(null);
+    setBullClaims(null); setBearClaims(null); setJudgeClaims(null); setReviewSnapshot(null); setReviewMessage(null);
+    setDebateSubject(null); setTrace({}); setQa({ turns: [], meta: null });
+  }, [account]);
 
-  async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal): Promise<Lane> {
+  async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal, sealed = false): Promise<Lane> {
     let lane = newLane(provider);
+    let gatewaySealed = false;
+    const owner = readResearchAccount();
     set(() => lane);
-    const apply = (fn: (l: Lane) => Lane) => { lane = fn(lane); set(() => lane); };
+    const apply = (fn: (l: Lane) => Lane) => {
+      lane = fn(lane);
+      if (readResearchAccount() === owner) set(() => lane);
+    };
     // Obsidian: bọc luồng để ghi vết (thời gian, máy chủ, công cụ); mọi sự kiện vẫn đi nguyên vào laneReducer như cũ.
     const streamCatalystChat = traceStream(role ?? "brief");
     try {
-      await streamCatalystChat([{ role: "user", content: q }], (e) => apply((l) => laneReducer(l, e)), signal, provider, role);
+      await streamCatalystChat([{ role: "user", content: q }], (e) => {
+        if (e.type === "meta" && e.evidenceMode === "snapshot_only") gatewaySealed = true;
+        apply((l) => laneReducer(l, e));
+      }, signal, provider, role, sealed ? "snapshot_only" : undefined);
+      if (!lane.done && !lane.error) apply((l) => ({ ...l, error: "Kết nối kết thúc trước khi nhận kết quả hoàn chỉnh." }));
+      if (sealed && !gatewaySealed && !lane.error)
+        apply((l) => ({ ...l, untraceable: [...l.untraceable, "Gateway chưa xác nhận chế độ snapshot_only"] }));
     } catch (err) {
       apply((l) => ({ ...l, error: signal.aborted ? "Đã dừng." : err instanceof ChatHttpError ? err.message : "Không kết nối được dịch vụ AI." }));
     } finally {
@@ -111,32 +137,53 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
         return;
       }
     }
+    const packet = frozen ? prepareSealedReview(frozen) : null;
+    const q = debateQuestions(ticker);
+    let bullPrompt: string;
+    let bearPrompt: string;
+    try {
+      bullPrompt = packet ? sealedReviewPrompt(packet, "BULL") : boundGatewayText(q.bull);
+      bearPrompt = packet ? sealedReviewPrompt(packet, "BEAR") : boundGatewayText(q.bear);
+    } catch {
+      setReviewMessage("Không tạo được gói bằng chứng trong giới hạn của Gateway.");
+      return;
+    }
     setDebateSubject(ticker);
     setReviewSnapshot(frozen ?? null);
     setReviewMessage(frozen ? `Đang tranh luận trên snapshot ${frozen.snapshotId}.` : "Tranh luận nhanh chưa khóa snapshot; các claim sẽ không được coi là đã kiểm chứng.");
     setBullClaims(null); setBearClaims(null); setJudgeClaims(null);
     setTrace((s) => ({ brief: s.brief }));
-    const q = debateQuestions(ticker);
-    const bullPrompt = frozen ? `${q.bull}\n\n${structuredClaimsInstruction(frozen, "BULL")}` : q.bull;
-    const bearPrompt = frozen ? `${q.bear}\n\n${structuredClaimsInstruction(frozen, "BEAR")}` : q.bear;
     const ctrl = new AbortController();
     ctrlRef.current = ctrl;
     setJudge(null);
     setPhase("arguing");
-    const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal), run("gemini", "bear", bearPrompt, setBear, ctrl.signal)]);
-    const parsedBull = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(b.text, frozen, "BULL"), b.tools.map((tool) => tool.name), b.untraceable) : null;
-    const parsedBear = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(s.text, frozen, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
+    const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal, Boolean(packet)), run("gemini", "bear", bearPrompt, setBear, ctrl.signal, Boolean(packet))]);
+    if (ctrlRef.current !== ctrl || readResearchAccount() !== account) return;
+    const parsedBull = packet ? markClaimsWithExternalTools(parseAndValidateClaims(b.error ? "" : b.text, packet.snapshot, "BULL"), b.tools.map((tool) => tool.name), b.untraceable) : null;
+    const parsedBear = packet ? markClaimsWithExternalTools(parseAndValidateClaims(s.error ? "" : s.text, packet.snapshot, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
     if (parsedBull) setBullClaims(parsedBull);
     if (parsedBear) setBearClaims(parsedBear);
-    if (ctrl.signal.aborted || (!b.text.trim() && !s.text.trim())) { ctrlRef.current = null; setPhase("done"); return; }
+    if (ctrl.signal.aborted || ((b.error || !b.text.trim()) && (s.error || !s.text.trim())) ||
+      (packet && !parsedBull?.ok && !parsedBear?.ok)) {
+      if (packet) setReviewMessage("Phiên chưa có đủ phản hồi phù hợp với gói bằng chứng đã khóa.");
+      ctrlRef.current = null; setPhase("done"); return;
+    }
     setPhase("judging");
-    const judgePrompt = frozen && parsedBull && parsedBear
-      ? `${q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)")}\n\n${structuredClaimsInstruction(frozen, "JUDGE")}\n\nValidator deterministic của hai phía (tham khảo để phản biện, không được nâng claim unsupported thành verified):\n${validationForJudge(parsedBull, parsedBear)}`
-      : q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)");
-    const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal);
-    if (frozen) setJudgeClaims(markClaimsWithExternalTools(parseAndValidateClaims(j.text, frozen, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable));
-    ctrlRef.current = null;
-    setPhase("done");
+    try {
+      const judgePrompt = packet && parsedBull && parsedBear
+        ? sealedReviewPrompt(packet, "JUDGE", [parsedBull, parsedBear])
+        : boundGatewayText(q.judge(b.error ? "(phe thuận chưa hoàn tất)" : b.text, s.error ? "(phe phản biện chưa hoàn tất)" : s.text));
+      const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal, Boolean(packet));
+      if (packet && ctrlRef.current === ctrl && readResearchAccount() === account) {
+        const parsedJudge = markClaimsWithExternalTools(parseAndValidateClaims(j.error ? "" : j.text, packet.snapshot, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable);
+        setJudgeClaims(parsedJudge);
+        setReviewMessage(!parsedJudge.ok || !parsedBull?.ok || !parsedBear?.ok ? "Kiểm chứng một phần. Mở từng làn để xem dữ liệu đã kiểm và phần còn thiếu." : "Đã đối chiếu cấu trúc luận điểm theo gói bằng chứng.");
+      }
+    } catch {
+      if (ctrlRef.current === ctrl && readResearchAccount() === account) setReviewMessage("Chưa hoàn thành bước trọng tài trong giới hạn Gateway.");
+    } finally {
+      if (ctrlRef.current === ctrl) { ctrlRef.current = null; setPhase("done"); }
+    }
   }
 
   async function makeBrief() {
@@ -145,8 +192,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
     const ctrl = new AbortController();
     briefCtrlRef.current = ctrl;
     await run("claude", null, debateQuestions(null).brief, setBrief, ctrl.signal);
-    briefCtrlRef.current = null;
-    setBriefBusy(false);
+    if (briefCtrlRef.current === ctrl) { briefCtrlRef.current = null; setBriefBusy(false); }
   }
 
   const busy = phase === "arguing" || phase === "judging";
@@ -179,6 +225,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
         judgeClaims={judgeClaims}
         reviewSnapshot={reviewSnapshot}
         reviewMessage={reviewMessage}
+        desk={desk}
         onRunReview={(next) => void startDebate(next)} onStop={() => ctrlRef.current?.abort()}
         actions={active && <RoomToolbarActions toolsId={sessionToolsId} toolsButton={sessionShortcut} onOpenTools={openSessionTools} />} />
       <details className="panel eb-extra" id={sessionToolsId} ref={sessionDetails}>

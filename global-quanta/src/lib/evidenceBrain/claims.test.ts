@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { markClaimsWithExternalTools, parseAndValidateClaims } from "./claims";
 import type { EvidenceSnapshot } from "./types";
+import { prepareSealedReview, sealedReviewPrompt } from "./sealedReview";
 
 const snapshot: EvidenceSnapshot = {
   schemaVersion: "vee-1.0", snapshotId: "vee1-test-snapshot", createdAt: "2026-11-22T10:00:00.000Z",
@@ -38,6 +39,26 @@ describe("Evidence Brain claim binding", () => {
   it("does not let an unrelated assertion validate an extra number in the prose", () => {
     const fabricated = bundle(snapshot.snapshotId, 2).replace("FPT rank 2.", "FPT rank 2, return 99%.");
     expect(parseAndValidateClaims(fabricated, snapshot, "BULL").claims[0]?.validation).toBe("UNSUPPORTED");
+    expect(parseAndValidateClaims(bundle(snapshot.snapshotId, 2).replace("FPT rank 2.", "FPT rank 200%."), snapshot, "BULL").claims[0]?.validation).toBe("UNSUPPORTED");
+  });
+
+  it("packs the same evidence into all three roles within the gateway's 2,000 character limit", () => {
+    const source = snapshot.refs[0];
+    const huge: EvidenceSnapshot = {
+      ...snapshot, snapshotId: `vee1-${"a".repeat(64)}`, data: { payload: "PRIVATE-NOISE".repeat(4000) },
+      refs: [source, { ...source, id: "stale", freshness: "STALE" }, ...Array.from({ length: 300 }, (_, index) =>
+        ({ ...source, id: `ref:decision:FPT:${"row".repeat(18)}:${index}`, value: { foo: 1, bar: "observed" } }))],
+    };
+    const packet = prepareSealedReview(huge);
+    const validated = parseAndValidateClaims(bundle(huge.snapshotId, 2), packet.snapshot, "BULL");
+    expect(validated.summary.refsMatched).toBe(1);
+    expect(packet.snapshot.refs.map((ref) => ref.id)).not.toContain("stale");
+    for (const role of ["BULL", "BEAR", "JUDGE"] as const) {
+      const text = sealedReviewPrompt(packet, role, [validated, validated]);
+      expect(text.length).toBeLessThanOrEqual(2000);
+      expect(text).not.toContain("PRIVATE-NOISE");
+      expect(text.endsWith(packet.lines.join("\n"))).toBe(true);
+    }
   });
 
   it("requires the claim's as-of and rejects duplicate claim IDs or unknown schema fields", () => {

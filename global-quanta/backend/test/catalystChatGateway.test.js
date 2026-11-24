@@ -87,6 +87,32 @@ test("chat Claude trên Gateway: SSE đúng hợp đồng, vòng công cụ gọ
   } finally { app.close(); }
 });
 
+test("snapshot_only closes the tool surface on both providers and attests it in SSE", async () => {
+  const claudeCalls = [], geminiCalls = [];
+  const gemini = { startChat: (opts) => {
+    geminiCalls.push(opts);
+    return { sendMessageStream: async () => ({
+      stream: (async function* () { yield { text: () => "Nội dung" }; })(),
+      response: Promise.resolve({ functionCalls: () => [{ name: "catalyst_overview", args: {} }] }),
+    }) };
+  } };
+  const app = makeApp({ env: { ANTHROPIC_API_KEY: "x", GEMINI_API_KEY: "y" }, api: fakeClaude(claudeCalls), gemini });
+  try {
+    assert.deepEqual((await (await fetch(`${app.base}/chat/config`)).json()).evidenceModes, ["snapshot_only"]);
+    assert.equal((await post(app.base, { ...Q, evidenceMode: "snapshot_only" })).status, 400);
+    for (const provider of ["claude", "gemini"]) {
+      const response = await post(app.base, { ...Q, provider, role: "judge", evidenceMode: "snapshot_only" });
+      assert.equal(response.status, 200);
+      const result = events(await response.text());
+      assert.equal(result[0].evidenceMode, "snapshot_only");
+      assert.equal(result.at(-1).type, "error");
+      assert.equal(result.some((event) => event.type === "tool_call" || event.type === "tool_result" || event.type === "done"), false);
+    }
+    assert.equal("tools" in claudeCalls[0], false);
+    assert.deepEqual(geminiCalls[0].tools, []);
+  } finally { app.close(); }
+});
+
 test("chat: chưa có khoá -> 503 provider-not-configured (giao diện chuyển Project A); chưa đăng nhập -> 401; hết hạn mức -> 429", async () => {
   const app = makeApp({ env: { GEMINI_API_KEY: "y", CATALYST_CHAT_DAILY_LIMIT: "1" }, api: fakeClaude([]) });
   try {

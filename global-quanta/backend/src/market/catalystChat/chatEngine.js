@@ -32,8 +32,7 @@ export async function runChat(o) {
       model,
       max_tokens: 16000,
       system: lastRound ? `${o.system}\n\nĐã hết lượt gọi công cụ cho câu hỏi này: trả lời ngay bằng dữ liệu đã có, nói rõ phần nào chưa lấy được.` : o.system,
-      tools: o.tools,
-      tool_choice: lastRound ? { type: "none" } : { type: "auto" },
+      ...(o.snapshotOnly ? {} : { tools: o.tools, tool_choice: lastRound ? { type: "none" } : { type: "auto" } }),
       messages: history,
       thinking: { type: "adaptive" },
       output_config: { effort: "medium" },
@@ -60,6 +59,7 @@ export async function runChat(o) {
       continue;
     }
     const uses = msg.content.filter((b) => b.type === "tool_use");
+    if (o.snapshotOnly && uses.length) throw new Error("Snapshot mode returned an unexpected tool call.");
     if (msg.stop_reason !== "tool_use" || uses.length === 0) break;
 
     history.push({ role: "assistant", content: msg.content });
@@ -85,7 +85,7 @@ export async function runChat(o) {
   }
 
   const userText = o.messages.filter((m) => m.role === "user").map((m) => m.content).join("\n");
-  const untraceable = auditNumbers(finalText, results, userText);
+  const untraceable = o.snapshotOnly ? [] : auditNumbers(finalText, results, userText);
   if (untraceable.length) o.emit({ type: "audit", untraceable });
   o.emit({ type: "done", stopReason: last?.stop_reason ?? null, model: last?.model ?? model, rounds, fallback });
   return { text: finalText, toolResults: results };

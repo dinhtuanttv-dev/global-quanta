@@ -2,19 +2,23 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNo
 import { useSWRConfig } from "swr";
 import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRisk, useEliteTicker } from "../../../hooks/elite10/useEliteCenter";
 import { useAdjustedDaily } from "../../../hooks/elite10/useAdjustedDaily";
-import { useEliteLiquidity, type EliteLiquidity } from "../../../hooks/elite10/useEliteLiquidity";
+import { useEliteLiquidity } from "../../../hooks/elite10/useEliteLiquidity";
 import { useGatewayBuyTimeline } from "../../../hooks/useGatewayBuyTimeline";
 import { useEventRadar, type EventRadarEvent } from "../../../hooks/useEventRadar";
-import { useVolumeAnalysis, type VolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
+import { useVolumeAnalysis } from "../../../hooks/useVolumeAnalysis";
 import PriceActionConfirmation from "../profile/PriceActionConfirmation";
 import type { Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
 import { LaneView } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
 import { buildEvidenceSnapshot, matchingTimingRow, sourceReadiness, type PriceActionEvidence, type TimelinePriceEvidence } from "../../../lib/evidenceBrain/snapshot";
 import type { ClaimParseResult, EvidenceRef, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
 import { PRIMARY_VI, type PrimaryState } from "../../../lib/elite10/cockpit";
-import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
+import { evaluateConfirmation, eventKey, formatObservation, revisionKnownAt, visibleRevision, withoutCatalyst,
+  type ResearchData as Data, type ResearchProjection as Projection, type ResearchRun } from "../../../lib/evidenceBrain/research";
+import type { ObsidianDesk } from "./obsidian/useObsidianDesk";
 import LiveEvidenceGraph, { type NodeId, type RoomNode, type Tone } from "./evidenceRoom/LiveEvidenceGraph";
 import { groupEvents, LiveTimeline } from "./evidenceRoom/LiveTimeline";
+import { confirmationLabel, ResearchDialog, type ResearchView } from "./evidenceRoom/ResearchDesk";
+import { useResearchAccount } from "./evidenceRoom/researchAccount";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
 
 type Props = {
@@ -31,6 +35,7 @@ type Props = {
   judgeClaims: ClaimParseResult | null;
   reviewSnapshot: EvidenceSnapshot | null;
   reviewMessage?: string | null;
+  desk: ObsidianDesk;
   actions?: ReactNode;
   onRunReview: (snapshot: EvidenceSnapshot) => void;
   onStop: () => void;
@@ -38,16 +43,6 @@ type Props = {
 
 type Detail = NodeId | "seasonal" | "liquidity" | "ticker" | "sources" | { event: EventRadarEvent };
 type Layer = { id: Detail; label: string; status: string; detail: string; tone: Tone };
-type Data = {
-  pa: PriceActionEvidence | null;
-  price: TimelinePriceEvidence | null;
-  volume: VolumeAnalysis | null;
-  liquidity: EliteLiquidity | null;
-  events: EventRadarEvent[];
-  timing: TimelineRow | null;
-  sector: string | null;
-};
-type Projection = { snap: EvidenceSnapshot; data: Data };
 
 const stateLabel = { LOADED: "ĐÃ TẢI", LOADING: "ĐANG TẢI", ERROR: "LỖI NGUỒN", NOT_REQUESTED: "CHƯA CÓ DỮ LIỆU", UNAVAILABLE: "KHÔNG KHẢ DỤNG" } as const;
 const stepHints = ["Universe của phiên", "GTGD TB20 · giá", "LS-v1 · mô hình TA", "Tầng 1 + RRG ngành", "Thanh khoản theo phễu", "Chế độ PZ của phiên", "Giữ lại + mua mới"];
@@ -58,8 +53,9 @@ const via = (error: unknown) => error ? String(error) : null;
 const briefId = (snap?: EvidenceSnapshot | null) => snap?.snapshotId.length && snap.snapshotId.length > 22 ? `${snap.snapshotId.slice(0, 18)}…` : snap?.snapshotId ?? "—";
 const clock = (value?: string | null) => value && Number.isFinite(new Date(value).getTime())
   ? new Date(value).toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" }) : "—";
-const verifiedEvent = (event: EventRadarEvent) => event.entityMatch === "EXACT" && event.corroborationCount > 1
-  && ["verified", "crosschecked", "cross_checked", "corroborated"].includes(event.verificationStatus.toLowerCase());
+const officialPublication = (event: EventRadarEvent) => event.sourceAuthority === "configured_official_feed"
+  && ["provider_tagged", "exchange_tag", "EXACT"].includes(event.entityMatch)
+  && event.verificationStatus === "official_source_not_crosschecked";
 function externalLink(raw: string | null) {
   if (!raw) return null;
   try {
@@ -132,10 +128,10 @@ function RightRail({ layers, title, description, blocker, events, newsState, onD
       {headline ? <article className="catalyst-card">
         <div className="inline" style={{ justifyContent: "space-between", gap: 5 }}>
           <h4><button type="button" className="small-link" onClick={() => onDetail({ event: headline })}>{headline.title}</button></h4>
-          <span className={`mini-badge ${verifiedEvent(headline) ? "" : "warn"}`}>{verifiedEvent(headline) ? "ĐÃ ĐỐI CHIẾU" : "CẦN ĐỐI CHIẾU"}</span>
+          <span className={`mini-badge ${officialPublication(headline) ? "" : "warn"}`}>{officialPublication(headline) ? "CÔNG BỐ GỐC" : "CẦN ĐỐI CHIẾU"}</span>
         </div>
         <p>{headline.sourceLabel} · Độ tin cậy gắn mã {numberVi(headline.entityConfidence)}</p>
-        <div className="source-meta"><span>Phát hiện {clock(headline.firstSeenAt)}</span><span>{Math.max(0, headline.corroborationCount - 1)} nguồn đối chứng</span></div>
+        <div className="source-meta"><span>Biết r{headline.revision} {clock(revisionKnownAt(headline) ?? undefined)}</span><span>{headline.documentCount} tài liệu</span></div>
       </article> : <div className="catalyst-card"><p>{newsState}</p></div>}
       <p className="footer-note">Cửa sổ mùa vụ dùng số sự kiện, kỳ đo, kỳ vọng ròng và q. Trigger giá hiển thị theo engine Price Action.</p>
     </section>
@@ -155,7 +151,7 @@ function layerStates(snap: EvidenceSnapshot | undefined, data: Data, ticker: str
   };
   const rvol = volume?.today.rvolMode === "intraday" ? volume.today.rvolTimeAdjusted : volume?.today.rvol20;
   const paReady = pa?.state === "TRIGGERED" && pa.barClosed && !stale(pa.asOf);
-  const newsVerified = events.length > 0 && events.every(verifiedEvent);
+  const primaryPublished = events.length > 0 && events.every(officialPublication);
   const lqTier = liquidity?.liq?.tier;
   return [
     { id: "decision", label: "Tư cách phễu", status: snap?.funnel.frozen ? "DATA GUARD" : held ? "DANH MỤC" : step && step !== "UNKNOWN" ? "THEO DÕI" : status("decision"),
@@ -166,9 +162,9 @@ function layerStates(snap: EvidenceSnapshot | undefined, data: Data, ticker: str
     { id: "volume", label: "Khối lượng", status: status("volume", volume && stale(volume.today.date) ? "KHÁC PHIÊN" : volume?.partialToday ? "TRONG PHIÊN" : volume?.trend.divergence ? "PHÂN KỲ" : volume ? "ĐÃ NẠP" : "CHƯA CÓ DỮ LIỆU"),
       detail: volume ? `RVOL ${numberVi(rvol)}× · OBV ${volume.trend.obvDirection}` : "RVOL · OBV · CMF",
       tone: volume && (volume.partialToday || volume.trend.divergence || stale(volume.today.date)) ? "warn" : "neutral" },
-    { id: "events", label: "Xúc tác", status: status("events", newsVerified ? "ĐÃ ĐỐI CHIẾU" : events.length ? "RÀ SOÁT" : "KHÔNG CÓ TIN"),
-      detail: events.length ? `${events.length} cụm tin · ${newsVerified ? "có đối chứng" : "kiểm tra nguồn"}` : "Event Radar theo mã",
-      tone: newsVerified ? "good" : events.length ? "warn" : "neutral" },
+    { id: "events", label: "Xúc tác", status: status("events", primaryPublished ? "CÓ CÔNG BỐ GỐC" : events.length ? "RÀ SOÁT" : "KHÔNG CÓ TIN"),
+      detail: events.length ? `${events.length} cụm tin · ${primaryPublished ? "tác động cần kiểm tra" : "kiểm tra nguồn"}` : "Event Radar theo mã",
+      tone: events.length ? "warn" : "neutral" },
     { id: "seasonal", label: "Cửa sổ mùa vụ", status: status("timeline", timing?.status ?? "KHÔNG CÓ"),
       detail: timing ? `${timing.tier} · n=${timing.nEvents} · q ${numberVi(timing.fdrQValue, 3)}` : "Nghiên cứu theo mã và phiên", tone: "neutral" },
     { id: "liquidity", label: "Thanh khoản", status: status("liquidity", liquidity && stale(liquidity.date) ? "LỆCH PHIÊN" : lqTier ?? "CHƯA CÓ DỮ LIỆU"),
@@ -181,7 +177,12 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const { active, busy, onRunReview } = props;
   const { mutate } = useSWRConfig();
   const ticker = /^[A-Z0-9]{3,10}$/.test(props.ticker) ? props.ticker : null;
+  const account = useResearchAccount();
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [researchView, setResearchView] = useState<ResearchView | null>(null);
+  const [saved, setSaved] = useState<ResearchRun | null>(null);
+  const [scenario, setScenario] = useState<{ base: Projection; cluster: string; account: string } | null>(null);
+  const [showParent, setShowParent] = useState(false);
   const [draft, setDraft] = useState("");
   const [paEvidence, setPaEvidence] = useState<PriceActionEvidence | null>(null);
   const [latest, setLatest] = useState<Projection | null>(null);
@@ -230,17 +231,19 @@ export default function EvidenceBrainWorkspace(props: Props) {
     let current = true;
     setBuilding(true);
     setBuildError(false);
+    const observedAt = new Date().toISOString();
+    const asObserved = events === null ? null : groupEvents(events.filter((event) => visibleRevision(event, observedAt)));
     void buildEvidenceSnapshot({
-      ticker, tickerVerified: known, now: new Date().toISOString(),
+      ticker, tickerVerified: known, now: observedAt,
       decision: decision.data ?? null, decisionError: via(decision.error), selectedDecision: tickerDecision, panel, profileError: via(selected.error),
       evidence: evidence.data ?? null, evidenceError: via(evidence.error), ledger: ledger.data ?? null, ledgerError: via(ledger.error),
       risk: risk.data ?? null, riskError: via(risk.error), timeline: timing.data, timelineError: timing.error,
-      events, eventAsOf: news.data?.generatedAt, eventError: via(news.error), priceAction: pa, priceActionError: pa?.error,
+      events: asObserved, eventAsOf: news.data?.generatedAt, eventError: via(news.error), priceAction: pa, priceActionError: pa?.error,
       volume, volumeError: via(volumes.error), chart: price, liquidity: lq, liquidityError: via(liquidity.error),
       sourceLoading: waiting ? waiting.split("|") : [], sourceUnavailable: ticker && !news.enabled ? ["events"] : [],
     }).then((snap) => {
       if (!current) return;
-      setLatest({ snap, data: { pa, price, volume, liquidity: lq, events: groupEvents(events ?? []), timing: timingRow, sector: panel?.sector ?? null } });
+      setLatest({ snap, data: { pa, price, volume, liquidity: lq, events: asObserved ?? [], timing: timingRow, sector: panel?.sector ?? null } });
     }).catch(() => {
       if (current) setBuildError(true);
     }).finally(() => { if (current) setBuilding(false); });
@@ -250,27 +253,42 @@ export default function EvidenceBrainWorkspace(props: Props) {
     news.error, pa, volume, volumes.error, price, lq, liquidity.error, waiting, version]);
 
   useEffect(() => { setDetail(null); setSeeLatest(false); }, [ticker, active]);
+  useEffect(() => { setResearchView(null); setSaved(null); setScenario(null); setShowParent(false); }, [ticker, account]);
   const current = latest?.snap.ticker === ticker ? latest : null;
   const hasPinned = pinned?.snap.ticker === ticker && pinned.snap.snapshotId === props.reviewSnapshot?.snapshotId;
-  const visible = hasPinned && !seeLatest ? pinned : current;
+  const localSaved = saved?.account === account && saved.projection.snap.ticker === ticker ? saved : null;
+  const localScenario = scenario?.account === account && scenario.base.snap.ticker === ticker ? scenario : null;
+  const original = localScenario?.base ?? localSaved?.projection ?? (hasPinned && !seeLatest ? pinned : current);
+  const excluded = localScenario?.cluster ?? (showParent ? null : localSaved?.omittedCluster ?? null);
+  const visible = original && excluded ? withoutCatalyst(original, excluded) : original;
+  const replay = localScenario || showParent ? null : localSaved;
   const snap = visible?.snap;
   const data: Data = visible?.data ?? { pa: null, price: null, liquidity: null, volume: null, events: [], timing: null, sector: null };
-  const showAI = props.debateSubject === ticker && (props.reviewSnapshot ? snap?.snapshotId === props.reviewSnapshot.snapshotId : Boolean(props.bull || props.bear));
+  const showAI = !excluded && !localSaved && props.debateSubject === ticker && (props.reviewSnapshot ? snap?.snapshotId === props.reviewSnapshot.snapshotId : Boolean(props.bull || props.bear));
   const roles = showAI ? { bull: props.bull, bear: props.bear, judge: props.judge } : { bull: null, bear: null, judge: null };
   const bundles = showAI && props.reviewSnapshot ? { bull: props.bullClaims, bear: props.bearClaims, judge: props.judgeClaims } : { bull: null, bear: null, judge: null };
-  const claims = [...(bundles.bull?.claims ?? []), ...(bundles.bear?.claims ?? []), ...(bundles.judge?.claims ?? [])];
-  const readiness = current ? sourceReadiness(current.snap) : null;
+  const claims = replay?.claims ?? [...(bundles.bull?.claims ?? []), ...(bundles.bear?.claims ?? []), ...(bundles.judge?.claims ?? [])];
+  const readiness = current && !localSaved && !excluded ? sourceReadiness(current.snap) : null;
   const canRun = Boolean(current && readiness?.canDebate && !building && !buildError && !waiting);
   const sources = snap?.sources ?? [];
   const sessionsBound = ["decision", "profile", "priceAction", "volume", "liquidity"];
   const fresh = sources.filter((source) => source.state === "LOADED" && source.asOf && source.warnings.length === 0
     && (!sessionsBound.includes(source.key) || sessionDay(source.asOf) === sessionDay(snap?.decisionSession))
-    && (source.key !== "events" || data.events.every(verifiedEvent))).length;
+    && (source.key !== "events" || data.events.length > 0 && data.events.every(officialPublication))).length;
   const layers = layerStates(snap, data, ticker);
+  const confirmation = replay?.confirmation ?? (visible ? evaluateConfirmation(visible, Boolean(excluded)) : null);
+  const attention = { FAIL: "CHƯA ĐẠT", MISSING: "THIẾU CĂN CỨ", WAIT: "ĐANG CHỜ" } as const;
+  for (const check of confirmation?.checks ?? []) {
+    if (check.state !== "FAIL" && check.state !== "MISSING" && check.state !== "WAIT") continue;
+    const index = layers.findIndex((layer) => layer.id === check.id);
+    if (index >= 0) layers[index] = { ...layers[index], tone: check.state === "FAIL" ? "bad" : "warn", status: attention[check.state], detail: check.reason };
+  }
+  if (excluded) layers[3] = { ...layers[3], tone: "warn", status: "MÔ PHỎNG", detail: "Đã loại một cụm tin khỏi phân tích." };
   const concerns = layers.filter((layer) => layer.tone === "bad" || layer.tone === "warn");
-  const locked = Boolean(hasPinned && !seeLatest);
+  const locked = Boolean(replay || hasPinned && !seeLatest);
   const state = snap?.funnel.membership.state;
   const held = state === "PORTFOLIO_CORE" || state === "PORTFOLIO_RUNNER";
+  const funnelStep = held ? 7 : confirmation?.checks.some((check) => check.id === "decision" && check.state === "PASS") ? 5 : null;
   const graphNode = (id: NodeId, index: number, label: string, refPath: string): RoomNode => ({
     id, label, badge: layers[index].status, tone: layers[index].tone, title: layers[index].detail,
     meta: sources.find((source) => source.key === sourceFor[id])?.asOf ? `As-of ${dateVi(sources.find((source) => source.key === sourceFor[id])?.asOf, true)}` : undefined,
@@ -278,13 +296,16 @@ export default function EvidenceBrainWorkspace(props: Props) {
   });
   const aiNode = (id: keyof typeof roleTitle): RoomNode => {
     const lane = roles[id], bundle = bundles[id];
+    const archived = replay?.claims.filter((claim) => claim.side === id.toUpperCase()) ?? [];
+    if (archived.length) return { id, label: roleTitle[id], tone: "neutral", badge: "BẢN ĐÃ LƯU",
+      title: archived[0].text, meta: `${archived.length} luận điểm lưu cùng phiên` };
     return { id, label: roleTitle[id], tone: lane?.error || bundle?.error ? "warn" : lane?.done && bundle?.summary.refsMatched ? "good" : "neutral",
       badge: lane?.error ? "LỖI / DỪNG" : lane && !lane.done ? "ĐANG CHẠY" : bundle?.ok ? `${bundle.summary.refsMatched} REF KHỚP` : lane ? "CẦN RÀ SOÁT" : "CHƯA CHẠY",
       title: bundle?.claims[0]?.text ?? (lane?.text && !lane.done ? "Đang nhận nội dung" : lane?.text ? "Mở nội dung diễn giải" : "Chờ kiểm chứng"),
       meta: "Diễn giải AI" };
   };
   const nodes: RoomNode[] = [
-    { id: "snapshot", label: "Snapshot", badge: locked ? "LOCKED" : snap?.completeness ?? "ĐANG TẢI", tone: locked ? "good" : "neutral",
+    { id: "snapshot", label: "Snapshot", badge: excluded ? "MÔ PHỎNG" : replay ? "ĐÃ LƯU" : locked ? "LOCKED" : snap?.completeness ?? "ĐANG TẢI", tone: locked ? "good" : "neutral",
       title: `${ticker ?? "Danh mục"} · ${dateVi(snap?.decisionSession ?? decisionDay, true)}`, meta: `${briefId(snap)} · ${sources.length} nguồn` },
     aiNode("bull"), aiNode("bear"), graphNode("decision", 0, "Funnel · engine", "funnel"), graphNode("events", 3, "Event Radar", "event"),
     graphNode("priceAction", 1, "Price Action", "setup"), graphNode("volume", 2, "Volume", "rvol"), aiNode("judge"),
@@ -305,11 +326,17 @@ export default function EvidenceBrainWorkspace(props: Props) {
       </small></div>}
     </div>
     <div className="snapshot-meta">
-      <button className={`meta-chip ${locked ? "good" : ""}`} title={snap?.snapshotId} type="button" onClick={() => setDetail("snapshot")}>● Snapshot {briefId(snap)}</button>
+      <button className={`meta-chip ${locked ? "good" : ""}`} title={replay?.contentId ?? snap?.snapshotId} type="button" onClick={() => setDetail("snapshot")}>● Snapshot {replay ? replay.contentId.slice(-12) : briefId(snap)}</button>
       <span className="meta-chip">Decision {dateVi(snap?.decisionSession ?? decisionDay)}</span>
       <span className="meta-chip good">{fresh} nguồn hiện tại</span>
       <button type="button" className="meta-chip warn" onClick={() => setDetail("sources")}>{sources.length - fresh} nguồn cần lưu ý</button>
-      <button type="button" className="primary-btn" disabled={!busy && requested && !canRun} onClick={() => {
+      <button type="button" className="meta-chip" aria-haspopup="dialog" disabled={!account} onClick={() => setResearchView("sessions")}>Phiên đã lưu</button>
+      {(localSaved || excluded) && <button type="button" className="meta-chip" onClick={() => {
+        if (localScenario) setScenario(null);
+        else if (localSaved?.omittedCluster && !showParent) setShowParent(true);
+        else { setSaved(null); setShowParent(false); setSeeLatest(true); if (!current) setRequested(true); }
+      }}>{excluded ? "Về bản gốc" : "Về nguồn đang nạp"}</button>}
+      <button type="button" className="primary-btn" disabled={!busy && (Boolean(localSaved || excluded) || requested && !canRun)} onClick={() => {
         if (busy) props.onStop();
         else if (!requested) setRequested(true);
         else if (canRun && current) { setPinned(current); setSeeLatest(false); onRunReview(current.snap); }
@@ -344,14 +371,15 @@ export default function EvidenceBrainWorkspace(props: Props) {
       const event = id.event;
       return { title: event.title, content: <>
         <p>{event.sourceLabel} · {event.verificationStatus} · Mã {event.entityMatch} ({numberVi(event.entityConfidence)})</p>
-        <p>Công bố {dateVi(event.publishedAt, true)} {clock(event.publishedAt)} · Phát hiện {dateVi(event.firstSeenAt, true)} {clock(event.firstSeenAt)}</p>
-        <p>{event.summary}</p><p>{Math.max(0, event.corroborationCount - 1)} nguồn đối chứng · {event.corroboratingSources.join(", ") || "chưa có"}</p>
+        <p>Công bố {dateVi(event.publishedAt, true)} {clock(event.publishedAt)} · Biết revision r{event.revision} {dateVi(revisionKnownAt(event), true)} {clock(revisionKnownAt(event) ?? undefined)}</p>
+        <p>{event.summary}</p><p>{event.documentCount} tài liệu · {event.corroboratingSources.join(", ") || event.sourceLabel}. Số kênh đăng chưa chứng minh nguồn gốc độc lập.</p>
         {externalLink(event.url) && <a href={externalLink(event.url)!} target="_blank" rel="noreferrer">Mở tài liệu nguồn ↗</a>}
-        <RefRows refs={snap?.refs.filter((ref) => ref.domain === "catalyst" && ref.fieldPath.includes(event.eventId)) ?? []} />
+        <RefRows refs={snap?.refs.filter((ref) => ref.domain === "catalyst" && ref.fieldPath.startsWith(`events.${event.eventId}.`) && ref.sourceVersion === String(event.revision)) ?? []} />
       </> };
     }
     if (id === "snapshot" || id === "sources") return { title: id === "snapshot" ? "Snapshot bằng chứng" : "Nguồn của snapshot", content: <>
       <p>{snap?.snapshotId ?? "Đang lập snapshot"}</p><p>Phiên {dateVi(snap?.decisionSession, true)} · {snap?.completeness ?? "chưa có trạng thái"}</p>
+      {snap && <p>Mốc trình duyệt quan sát {formatObservation.format(new Date(snap.createdAt))}{replay ? ` · Bản lưu ${replay.id}` : ""}</p>}
       <button type="button" className="small-link" onClick={retry}>{requested ? "Thử tải lại nguồn" : "Nạp dữ liệu kiểm chứng"}</button>
       {hasPinned && <button type="button" className="small-link" onClick={() => setSeeLatest((v) => !v)}>{locked ? "Xem snapshot mới nhất" : "Xem snapshot đã kiểm chứng"}</button>}
       {sources.map((s) => <article key={s.key}><p><b>{s.label}</b> · {stateLabel[s.state]} · {dateVi(s.asOf, true)}</p><p>{s.endpoint} · {s.version ?? "—"}</p>
@@ -360,10 +388,11 @@ export default function EvidenceBrainWorkspace(props: Props) {
     </> };
     if (id === "bull" || id === "bear" || id === "judge") return { title: roleTitle[id], content: <>
       <p>Snapshot {briefId(snap)} · {ticker ?? "Danh mục"}</p>
-      {roles[id] ? <div className="tw-scope"><LaneView t={roles[id]!} showHeader headerLabel={roleTitle[id]} /></div> : <p>Chưa có luận điểm cho snapshot đang xem.</p>}
+      {roles[id] ? <div className="tw-scope"><LaneView t={roles[id]!} showHeader headerLabel={roleTitle[id]} /></div>
+        : replay?.claims.some((claim) => claim.side === id.toUpperCase()) ? <p>Luận điểm đã lưu cùng phiên.</p> : <p>Chưa có luận điểm cho snapshot đang xem.</p>}
       <p className="eb-claim-check">Ref và số khớp là kiểm tra cấu trúc dữ liệu. Cần đọc luận điểm để đánh giá cách diễn giải.</p>
       {bundles[id]?.error && <p>{bundles[id]!.error}</p>}
-      {bundles[id]?.claims.map((claim) => <article key={claim.id}><p><b>{claim.validation}</b> · {claim.classification}</p><p>{claim.text}</p>
+      {(replay ? replay.claims.filter((claim) => claim.side === id.toUpperCase()) : bundles[id]?.claims ?? []).map((claim) => <article key={claim.id}><p><b>{claim.validation}</b> · {claim.classification}</p><p>{claim.text}</p>
         {claim.validationNotes.map((note, index) => <p key={index}>{note}</p>)}
         <RefRows refs={snap?.refs.filter((ref) => [...claim.refs, ...claim.supports, ...claim.invalidates].includes(ref.id)) ?? []} /></article>)}
     </> };
@@ -375,6 +404,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     const layer = layers.find((item) => item.id === id);
     return { title: layer?.label ?? "Chi tiết nguồn", content: <>
       <p>{layer?.status} · {layer?.detail}</p>
+      {confirmation?.checks.filter((check) => check.id === id).map((check) => <p key={check.id}>{check.reason}</p>)}
       {id === "seasonal" && data.timing && <p>{data.timing.windowLabel} · {data.timing.entryFromDate} → {data.timing.entryToDate} · kỳ vọng ròng {numberVi(data.timing.netExpectancy * 100)}% · FDR q {numberVi(data.timing.fdrQValue, 3)}</p>}
       {id === "priceAction" && data.pa?.setup && <p>Phiên {dateVi(data.pa.setup.stateDate, true)} · Trigger {numberVi(data.pa.setup.entryReference)} · Vô hiệu {numberVi(data.pa.setup.invalidationLevel)} · {data.pa.priceBasis ?? "chưa rõ cơ sở giá"}</p>}
       <RefRows refs={refs} />
@@ -382,14 +412,20 @@ export default function EvidenceBrainWorkspace(props: Props) {
   }
   const dialog = detail === null ? null : renderDetail(detail);
   const message = showAI ? props.reviewMessage : null;
-  const next = readiness?.blockers[0] ?? (concerns.length ? concerns.map((item) => item.label).join(" · ") : snap?.missing[0] ?? "Mở từng lớp để xem phạm vi và điều kiện xác nhận.");
+  const next = confirmation?.reason ?? readiness?.blockers[0] ?? (concerns.length ? concerns.map((item) => item.label).join(" · ") : snap?.missing[0] ?? "Mở từng lớp để xem phạm vi và điều kiện xác nhận.");
   return <section data-testid="evidence-brain-workspace">
     {enabled && ticker && <PriceActionConfirmation key={ticker} ticker={ticker} onEvidence={onPriceAction} evidenceOnly />}
-    <WorkspaceFrame ticker={tickerBar} left={<FunnelRail snap={snap} current={held ? 7 : null} onOpen={() => setDetail("sources")} onStep={() => setDetail("decision")} />}
-      graph={<LiveEvidenceGraph key={`graph:${ticker ?? "portfolio"}`} nodes={nodes} refs={snap?.refs ?? []} claims={claims} onSelect={setDetail} />}
-      timeline={<LiveTimeline key={`timeline:${ticker ?? "portfolio"}`} price={data.price} volume={data.volume} events={data.events} pa={data.pa} onEvent={(event) => setDetail({ event })} onPriceAction={() => setDetail("priceAction")} />}
+    <WorkspaceFrame ticker={tickerBar} left={<FunnelRail snap={snap} current={funnelStep} onOpen={() => setDetail("sources")} onStep={() => setDetail("decision")} />}
+      graph={<div className="eb-research-graph">
+        <div className="eb-research-actions"><span>{excluded ? "Mô phỏng · Đã loại nguồn xúc tác" : showParent ? "Đang xem bản gốc của nhánh đã lưu" : replay ? "Đang xem bản đã lưu" : "Nguồn đang xem"}</span>
+          <button type="button" className="meta-chip" onClick={() => setResearchView("scenario")} disabled={!account || !original?.data.events.length || Boolean(replay?.omittedCluster)}>Phản chứng</button>
+          <button type="button" className="meta-chip eb-research-obsidian" onClick={() => setResearchView("obsidian")} disabled={!account || !original?.snap.decisionSession}>Obsidian</button>
+        </div>
+        <LiveEvidenceGraph key={`graph:${ticker ?? "portfolio"}`} nodes={nodes} refs={snap?.refs ?? []} claims={claims} onSelect={setDetail} />
+      </div>}
+      timeline={<LiveTimeline key={`timeline:${ticker ?? "portfolio"}`} price={data.price} volume={data.volume} events={data.events} pa={data.pa} scenario={Boolean(excluded)} onEvent={(event) => setDetail({ event })} onPriceAction={() => setDetail("priceAction")} />}
       right={<RightRail layers={layers}
-        title={snap?.funnel.frozen ? "DỮ LIỆU ĐANG ĐÓNG BĂNG" : snap?.completeness === "STALE" ? "NGUỒN LỆCH PHIÊN" : concerns.length ? "CHƯA ĐỦ ĐỒNG THUẬN" : "ĐỐI CHIẾU CÁC LỚP"}
+        title={confirmation ? confirmationLabel[confirmation.result].toUpperCase() : "ĐỐI CHIẾU CÁC LỚP"}
         description={concerns.length ? concerns.map((layer) => `${layer.label}: ${layer.status.toLowerCase()}`).join(" · ") : "Các trạng thái dưới đây lấy theo nguồn của snapshot đang xem."}
         blocker={next} events={data.events} newsState={layers[3].status} onDetail={setDetail} />}
       footer={<p className="footer-note">Dữ liệu theo phiên và nguồn ghi trong snapshot. Luận điểm AI hỗ trợ kiểm chứng trước giao dịch.</p>} />
@@ -398,5 +434,9 @@ export default function EvidenceBrainWorkspace(props: Props) {
       <button type="button" className="small-link" onClick={() => setDetail("sources")}>Xem tình trạng nguồn</button>
     </div> : null}
     {active && dialog && <DetailDialog title={dialog.title} onClose={() => setDetail(null)}>{dialog.content}</DetailDialog>}
+    {active && account && researchView && <ResearchDialog key={`${account}:${ticker}:${researchView}`} view={researchView} account={account} ticker={ticker} projection={original} replay={replay}
+      omitted={excluded} claims={claims} desk={props.desk} onClose={() => setResearchView(null)}
+      onReplay={(run) => { setScenario(null); setShowParent(false); setSaved(run); setResearchView(null); }}
+      onOmit={(key) => { setScenario(original && key && original.data.events.some((event) => eventKey(event) === key) ? { base: original, cluster: key, account } : null); setResearchView(null); }} />}
   </section>;
 }

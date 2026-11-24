@@ -1,5 +1,6 @@
 // LQ1 — huy hiệu thanh khoản, dòng năng lực danh mục, khối Hồ sơ "Thanh khoản & năng lực giao dịch" (ô vốn của người xem).
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { act } from "react";
 import { cleanup, render, screen } from "../../../test/rtl-lite";
 import type { LiqStats } from "../../../lib/elite10/decisionTypes";
 import { LQ_DEFAULT } from "../../../lib/elite10/liquidity";
@@ -35,8 +36,8 @@ describe("LiquidityBadge", () => {
 });
 
 describe("Hồ sơ · Thanh khoản & năng lực giao dịch", () => {
-  it("bậc của hệ thống, biểu đồ 60 phiên, số đo, lý do có số, ô vốn tính lại và lưu riêng trình duyệt", () => {
-    render(<LiquidityProfileBlock ticker="VCP" />);
+  it("bậc của hệ thống, biểu đồ 60 phiên, số đo, lý do có số, ô vốn tính lại và lưu riêng trình duyệt", async () => {
+    await act(async () => { render(<LiquidityProfileBlock ticker="VCP" />); });
     expect(screen.getByTestId("pa-confirmation")).toBeTruthy();
     expect(text("pa-status")).toMatch(/Chưa đủ dữ liệu tin cậy/);
     expect(text("lq-tier")).toMatch(/L4 · Chỉ nghiên cứu/);
