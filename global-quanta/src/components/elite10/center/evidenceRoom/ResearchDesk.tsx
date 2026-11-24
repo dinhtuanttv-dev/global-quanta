@@ -265,12 +265,14 @@ function Note({ projection, replay, omitted, account, claims, desk }: {
   </>;
 }
 
-export function ResearchDialog({ view, account, ticker, projection, replay, omitted, claims, desk, onClose, onReplay, onOmit }: {
+export function ResearchDialog({ view, account, ticker, projection, replay, omitted, claims, desk, onClose, onReplay, onOmit, onScenarios }: {
   view: ResearchView; account: string; ticker: string | null; projection: ResearchProjection | null; replay: ResearchRun | null; omitted: string | null;
   claims: ValidatedClaim[]; desk: ObsidianDesk; onClose: () => void; onReplay: (run: ResearchRun) => void; onOmit: (key: string | null) => void;
+  onScenarios?: () => void;
 }) {
   const titles = { sessions: "Phiên đã lưu", scenario: "Thử phản chứng", obsidian: "Bàn nghiên cứu Obsidian" };
   return <DetailDialog title={titles[view]} onClose={onClose}>
+    {view === "sessions" && onScenarios && <button className="meta-chip" type="button" onClick={onScenarios}>Mở kho kịch bản Canvas</button>}
     {view === "sessions" ? <Sessions account={account} ticker={ticker} projection={projection} replay={replay} omitted={omitted} claims={claims} onReplay={onReplay} />
       : !projection ? <p>Nạp dữ liệu trước khi mở công cụ này.</p>
         : view === "scenario" ? <Scenario projection={projection} omitted={omitted} claims={claims} onOmit={onOmit} />

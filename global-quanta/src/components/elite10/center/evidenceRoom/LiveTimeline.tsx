@@ -22,9 +22,10 @@ export function groupEvents(events: EventRadarEvent[]) {
   return [...clusters.values()].sort(latestFirst);
 }
 
-export function LiveTimeline({ price, volume, events, pa, scenario = false, onEvent, onPriceAction }: {
+export function LiveTimeline({ price, volume, events, pa, scenario = false, comparisonBase, onEvent, onPriceAction }: {
   price: TimelinePriceEvidence | null; volume: VolumeAnalysis | null; events: EventRadarEvent[]; pa: PriceActionEvidence | null;
-  scenario?: boolean;
+  scenario?: boolean | string;
+  comparisonBase?: import("../../../../lib/evidenceBrain/research").ResearchData;
   onEvent: (event: EventRadarEvent) => void; onPriceAction: () => void;
 }) {
   const [focused, setFocused] = useState<string | null>(null);
@@ -33,7 +34,7 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
   const switches = <div className="chart-notes eb-research-timeline-mode" role="group" aria-label="Trục thời gian xúc tác">
     <button type="button" className="meta-chip" aria-pressed={!byPublication} onClick={() => setByPublication(false)}>Đã biết lúc đó</button>
     <button type="button" className="meta-chip" aria-pressed={byPublication} onClick={() => setByPublication(true)}>Theo công bố</button>
-    {scenario && <span className="tiny-chip gold">Mô phỏng · đã loại một cụm xúc tác</span>}
+    {scenario && <span className="tiny-chip gold">{typeof scenario === "string" ? scenario : "Mô phỏng · đã loại một cụm xúc tác"}</span>}
   </div>;
   const adjusted = new Map<string, number>();
   for (const bar of price?.bars ?? []) {
@@ -50,9 +51,11 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
     const day = sessionDay(eventTime(event));
     if (day) groups.set(day, [...(groups.get(day) ?? []), event]);
   }
-  const marketDates = [...new Set([...adjusted.keys(), ...traded.keys()])].sort().slice(-30);
+  const anchorDays = comparisonBase?.volume?.trend.bars30.map((bar) => sessionDay(bar.date)).filter((day): day is string => Boolean(day)) ?? [];
+  const marketDates = [...new Set([...adjusted.keys(), ...traded.keys(), ...anchorDays])].sort().slice(-30);
   const eventDates = [...groups.keys()].filter((day) => !marketDates.length || day >= marketDates[0]);
-  const sessions = [...new Set([...marketDates, ...eventDates])].sort();
+  const anchorEvents = comparisonBase?.events.map((event) => sessionDay(eventTime(event))).filter((day): day is string => Boolean(day && (!marketDates.length || day >= marketDates[0]))) ?? [];
+  const sessions = [...new Set([...marketDates, ...eventDates, ...anchorEvents])].sort();
   const hasAdjusted = sessions.some((day) => adjusted.has(day));
   const sameBasis = hasAdjusted && Boolean(price?.priceBasis && !/unknown/i.test(price.priceBasis) && pa?.priceBasis === price.priceBasis);
   const invalidation = sameBasis && positive(pa?.setup?.invalidationLevel) ? pa.setup.invalidationLevel : null;
@@ -66,6 +69,9 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
   });
   const prices = points.flatMap((p) => p.close === null ? [] : [p.close]);
   if (invalidation !== null) prices.push(invalidation);
+  const anchorLevel = comparisonBase?.pa?.setup?.invalidationLevel;
+  if (hasAdjusted && comparisonBase?.price?.priceBasis === comparisonBase?.pa?.priceBasis && positive(anchorLevel))
+    prices.push(anchorLevel);
   const lo = prices.length ? Math.min(...prices) : 0;
   const hi = prices.length ? Math.max(...prices) : 1;
   const padding = Math.max((hi - lo) * .08, hi * .001, .01);
@@ -139,7 +145,7 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
       {visibleGroups.slice(-3).flatMap(([, items]) => items.map((event) => <button key={event.eventId} type="button" className="tiny-chip gold" onClick={() => onEvent(event)}>◇ {event.eventLabel || "Sự kiện"} · r{event.revision} · {dateVi(eventTime(event))}</button>))}
       {pa?.setup && <button type="button" className={`tiny-chip ${triggerDay ? "green" : ""}`} onClick={onPriceAction}>▲ Trigger {numberVi(pa.setup.entryReference)} · {triggerDay ? "nến đóng" : "cần đối chiếu nến và cơ sở giá"}</button>}
       {positive(pa?.setup?.invalidationLevel) && <button type="button" className="tiny-chip red" onClick={onPriceAction}>— Vô hiệu {numberVi(pa.setup.invalidationLevel)}{sameBasis ? "" : " · chưa đối chiếu cơ sở giá"}</button>}
-      <span className="tiny-chip">{volume?.partialToday ? "RVOL intraday · cùng thời điểm" : "Khối lượng · snapshot ngày"}</span>
+      <span className="tiny-chip">{!volume && scenario ? "Khối lượng · chưa có trong nhánh" : volume?.partialToday ? "RVOL intraday · cùng thời điểm" : "Khối lượng · snapshot ngày"}</span>
       {offChart.length > 0 && <span className="tiny-chip">{offChart.length} tin ngoài chuỗi · xem cột Xúc tác</span>}
       {eventDates.some((day) => !adjusted.has(day) && !traded.has(day)) && <span className="tiny-chip">Mốc chỉ có tin · chưa có giá/khối lượng</span>}
     </div>} />;

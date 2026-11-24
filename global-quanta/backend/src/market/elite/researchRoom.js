@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import { claimsFromLock, createScenarioRoom } from "./scenarioRoom.js";
 import { buildEvidenceSnapshot, sourceReadiness, closedResearchChart, observeResearchPrice, eventKey, visibleRevision, prepareSealedReview,
-  sealedReviewPrompt, parseAndValidateClaims, expectedContentId, expectedArtifactId } from "../vendor/evidenceRoom.mjs";
+  sealedReviewPrompt, parseAndValidateClaims, expectedContentId, expectedArtifactId, canonicalJson } from "../vendor/evidenceRoom.mjs";
 
 const MAX_AGE = 30 * 60_000;
 const ARCHIVE_LIMIT = 80;
@@ -55,6 +56,7 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
   const captures = new Map();
   const archives = (owner) => `local:ai-room:archive:v1:${safeOwner(owner)}`;
   const locks = (owner) => `local:ai-room:locks:v1:${safeOwner(owner)}`;
+  const scenarios = createScenarioRoom({ store, locks, archives, serial, now, error: researchError });
   async function capture(ticker) {
     const request = load(ticker);
     const keys = Object.keys(request);
@@ -88,6 +90,7 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
   }
 
   return {
+    scenarios,
     async lock(owner, ticker) {
       if (ticker !== null && (typeof ticker !== "string" || !tickerPattern.test(ticker))) throw researchError(400, "Mã không hợp lệ.");
       const key = locks(owner);
@@ -121,7 +124,7 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
         const current = (await store.getKv(key))?.value ?? [];
         const item = current.find((entry) => entry.projection.snap.snapshotId === review.id && entry.expiresAt > now());
         if (!item) return;
-        item.results[role] = { summary: result.summary, claims: result.claims.filter((claim) => claim.validation === "REFS_MATCHED").slice(0, 3)
+        item.results[role] = { summary: result.summary, scenarioClaims: result.claims.slice(0, 30), scenarioTruncated: result.claims.length > 30, claims: result.claims.filter((claim) => claim.validation === "REFS_MATCHED").slice(0, 3)
           .map((claim) => ({ text: claim.text.slice(0, 280), refs: claim.refs.slice(0, 8) })) };
         await store.setKv(key, current);
       });
@@ -163,6 +166,13 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
           throw researchError(409, "Mã phiên trùng với bản đã lưu.");
         if (index.length >= ARCHIVE_LIMIT && !index.some((entry) => entry.id === id)) throw researchError(409, "Kho máy chủ đã đủ 80 phiên. Bản cục bộ vẫn được giữ.");
         const record = { run: previous?.run ?? run, approvedAt: previous?.approvedAt ?? (approve ? new Date(now()).toISOString() : null) };
+        if (previous?.scenarioSeal) record.scenarioSeal = previous.scenarioSeal;
+        else if (!run.omittedCluster) {
+          const captured = (await store.getKv(locks(owner)).catch(() => null))?.value?.find((entry) => entry.expiresAt > now() && entry.projection.snap.snapshotId === run.projection.snap.snapshotId);
+          if (captured && canonicalJson(captured.projection) === canonicalJson(run.projection)) {
+            record.scenarioSeal = claimsFromLock(captured);
+          }
+        }
         await store.setKv(key, record);
         if (!index.some((entry) => entry.id === id)) await store.setKv(ownerKey, [{ id, ticker: run.projection.snap.ticker }, ...index]);
         return record;

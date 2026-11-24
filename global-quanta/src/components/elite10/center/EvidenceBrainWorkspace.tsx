@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useSWRConfig } from "swr";
 import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRisk, useEliteTicker } from "../../../hooks/elite10/useEliteCenter";
 import { useAdjustedDaily } from "../../../hooks/elite10/useAdjustedDaily";
@@ -19,9 +19,12 @@ import type { ObsidianDesk } from "./obsidian/useObsidianDesk";
 import LiveEvidenceGraph, { type NodeId, type RoomNode, type Tone } from "./evidenceRoom/LiveEvidenceGraph";
 import { groupEvents, LiveTimeline } from "./evidenceRoom/LiveTimeline";
 import { confirmationLabel, ResearchDialog, type ResearchView } from "./evidenceRoom/ResearchDesk";
+import type { ScenarioEntry } from "./evidenceRoom/ScenarioCanvas";
 import { useResearchAccount } from "./evidenceRoom/researchAccount";
 import { lockResearchSnapshot, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
+
+const ScenarioCanvas = lazy(() => import("./evidenceRoom/ScenarioCanvas"));
 
 type Props = {
   ticker: string;
@@ -184,6 +187,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const account = useResearchAccount();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [researchView, setResearchView] = useState<ResearchView | null>(null);
+  const [canvasEntry, setCanvasEntry] = useState<(ScenarioEntry & { account: string; ticker: string }) | null>(null);
   const [saved, setSaved] = useState<ResearchRun | null>(null);
   const [scenario, setScenario] = useState<{ base: Projection; cluster: string; account: string } | null>(null);
   const [showParent, setShowParent] = useState(false);
@@ -199,6 +203,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [wantVolumeDetail, setWantVolumeDetail] = useState(false);
+  useEffect(() => { setCanvasEntry(null); }, [ticker, account, active]);
   const lockRequest = useRef<AbortController | null>(null);
   const publication = useRef<string | null>(null);
   const enabled = active && requested;
@@ -483,6 +488,14 @@ export default function EvidenceBrainWorkspace(props: Props) {
     </> };
   }
   const dialog = detail === null ? null : renderDetail(detail);
+  function openCanvas(entry: ScenarioEntry = {}) {
+    if (!account || !ticker || props.busy || capturing) return;
+    setDetail(null); setResearchView(null);
+    setCanvasEntry({ ...entry, account, ticker,
+      source: localSaved && !localSaved.omittedCluster ? { kind: "run", id: localSaved.id }
+        : hasPinned && !seeLatest && pinned ? { kind: "lock", id: pinned.snap.snapshotId } : undefined });
+  }
+  const canvasDisabled = !account || !ticker || props.busy || capturing;
   const message = showAI ? props.reviewMessage : null;
   const next = confirmation?.reason ?? readiness?.blockers[0] ?? (concerns.length ? concerns.map((item) => item.label).join(" · ") : snap?.missing[0] ?? "Mở từng lớp để xem phạm vi và điều kiện xác nhận.");
   return <section data-testid="evidence-brain-workspace">
@@ -491,6 +504,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
       graph={<div className="eb-research-graph">
         <div className="eb-research-actions"><span>{excluded ? "Mô phỏng · Đã loại nguồn xúc tác" : showParent ? "Đang xem bản gốc của nhánh đã lưu" : replay ? "Đang xem bản đã lưu" : "Nguồn đang xem"}</span>
           <button type="button" className="meta-chip" onClick={() => setResearchView("scenario")} disabled={!account || !original?.data.events.length || Boolean(replay?.omittedCluster)}>Phản chứng</button>
+          <button type="button" className="meta-chip eb-canvas-entry" aria-haspopup="dialog" disabled={canvasDisabled} onClick={() => openCanvas()}>Canvas phản chứng</button>
           <button type="button" className="meta-chip eb-research-obsidian" onClick={() => setResearchView("obsidian")} disabled={!account || !original?.snap.decisionSession}>Obsidian</button>
         </div>
         <LiveEvidenceGraph key={`graph:${ticker ?? "portfolio"}`} nodes={nodes} refs={snap?.refs ?? []} claims={claims} onSelect={setDetail} />
@@ -505,9 +519,18 @@ export default function EvidenceBrainWorkspace(props: Props) {
       {captureError || (buildError ? "Không lập được snapshot. " : message || readiness?.blockers[0])}
       <button type="button" className="small-link" onClick={() => setDetail("sources")}>Xem tình trạng nguồn</button>
     </div> : null}
-    {active && dialog && <DetailDialog title={dialog.title} onClose={() => setDetail(null)}>{dialog.content}</DetailDialog>}
+    {active && dialog && <DetailDialog title={dialog.title} onClose={() => setDetail(null)}>{dialog.content}
+      {(detail === "events" || detail === "volume" || detail === "priceAction" || detail && typeof detail === "object") &&
+        <button type="button" className="meta-chip eb-canvas-entry" disabled={canvasDisabled} onClick={() =>
+          openCanvas(typeof detail === "object" ? { node: "events", key: eventKey(detail.event) } : { node: detail })}>Thử bằng chứng trên Canvas phản chứng</button>}
+    </DetailDialog>}
+    {active && canvasEntry && canvasEntry.account === account && canvasEntry.ticker === ticker &&
+      <Suspense fallback={<p role="status">Đang mở Canvas phản chứng…</p>}>
+        <ScenarioCanvas account={canvasEntry.account} ticker={canvasEntry.ticker} entry={canvasEntry} observation={original} desk={props.desk} onClose={() => setCanvasEntry(null)} />
+      </Suspense>}
     {active && account && researchView && <ResearchDialog key={`${account}:${ticker}:${researchView}`} view={researchView} account={account} ticker={ticker} projection={original} replay={replay}
       omitted={excluded} claims={claims} desk={props.desk} onClose={() => setResearchView(null)}
+      onScenarios={canvasDisabled ? undefined : () => openCanvas()}
       onReplay={(run) => { setScenario(null); setShowParent(false); setSaved(run); setResearchView(null); }}
       onOmit={(key) => { setScenario(original && key && original.data.events.some((event) => eventKey(event) === key) ? { base: original, cluster: key, account } : null); setResearchView(null); }} />}
   </section>;

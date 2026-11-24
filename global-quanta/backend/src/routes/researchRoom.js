@@ -17,6 +17,11 @@ export function createResearchRoomRouter({ getRoom, verifyUser, getSession }) {
     catch { return res.status(503).json({ error: "Chưa đọc được tiến độ công bố phiên." }); }
   });
   router.post("/snapshots", authed((room, owner, req) => room.lock(owner, req.body?.ticker ?? null)));
+  router.post("/scenarios/parent", authed((room, owner, req) => room.scenarios.parent(owner, req.body)));
+  router.post("/scenarios/preview", authed((room, owner, req) => room.scenarios.preview(owner, req.body)));
+  router.get("/scenarios", authed((room, owner, req) => room.scenarios.list(owner, req.query.ticker)));
+  router.get("/scenarios/:id", authed((room, owner, req) => room.scenarios.get(owner, req.params.id)));
+  router.put("/scenarios/:id", authed((room, owner, req) => room.scenarios.save(owner, req.params.id, req.body)));
   router.get("/runs", authed((room, owner, req) => room.list(owner, req.query.ticker ?? null, req.query.offset ?? "0")));
   router.get("/runs/:id", authed((room, owner, req) => room.get(owner, req.params.id)));
   router.put("/runs/:id", authed((room, owner, req) => room.save(owner, req.params.id, req.body?.run, req.body?.approve === true)));

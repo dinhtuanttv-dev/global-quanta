@@ -1,6 +1,7 @@
 import { getAccessToken } from "../../services/api";
 import { fetchMarketJson } from "../../services/marketDataClient";
 import type { ResearchProjection, ResearchRun } from "./research";
+import type { ParentRef, ScenarioParent, ScenarioRecord, ScenarioSummary, ScenarioTarget } from "./scenario";
 import useSWR from "swr";
 
 const BASE = "/api/elite/ai-room";
@@ -45,3 +46,11 @@ export function gatewayResearchRun(id: string) {
 export function persistGatewayResearch(run: ResearchRun, approve: boolean) {
   return researchRequest<GatewayResearchRecord>(`/runs/${encodeURIComponent(run.id)}`, {}, { method: "PUT", body: JSON.stringify({ run, approve }) });
 }
+
+export const scenarioGateway = {
+  parent: (source: ParentRef, signal: AbortSignal) => researchRequest<ScenarioParent>("/scenarios/parent", {}, { method: "POST", body: JSON.stringify(source), signal }),
+  preview: (source: ParentRef, { kind, key }: ScenarioTarget, signal: AbortSignal) => researchRequest<ScenarioRecord>("/scenarios/preview", {}, { method: "POST", body: JSON.stringify({ source, target: { kind, key } }), signal }),
+  save: (source: ParentRef, { id, target: { kind, key }, digest }: ScenarioRecord, signal: AbortSignal, approve = false) => researchRequest<ScenarioRecord>("/scenarios/" + id, {}, { method: "PUT", body: JSON.stringify({ source, target: { kind, key }, digest, approve }), signal }),
+  get: (id: string, signal: AbortSignal) => researchRequest<ScenarioRecord>("/scenarios/" + encodeURIComponent(id), {}, { signal }),
+  list: (ticker: string, signal: AbortSignal) => researchRequest<ScenarioSummary[]>("/scenarios", { ticker }, { signal }),
+};

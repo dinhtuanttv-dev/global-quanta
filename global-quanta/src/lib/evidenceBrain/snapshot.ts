@@ -16,7 +16,7 @@ export interface PriceActionEvidence {
   venue: string | null;
   barClosed: boolean | null;
   confirmed: boolean;
-  setup: { kind: string; stateDate: string; entryReference: number | null; invalidationLevel: number | null; target: number | null } | null;
+  setup: { id?: string; kind: string; stateDate: string; entryReference: number | null; invalidationLevel: number | null; target: number | null } | null;
   patterns: string[];
   blockers: string[];
   source: string;

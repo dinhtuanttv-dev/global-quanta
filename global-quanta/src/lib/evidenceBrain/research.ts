@@ -223,9 +223,13 @@ export function evaluateConfirmation({ snap, data }: ResearchProjection, omitted
       ? `Đã loại một cụm xúc tác. Còn ${data.events.length} cụm trong nhánh mô phỏng.`
       : `${data.events.length} cụm tin. Các nguồn dẫn lại cùng tài liệu không xác nhận tác động độc lập.`),
   ];
+  return summarizeConfirmation(checks);
+}
+
+export function summarizeConfirmation(checks: ResearchCheck[]): Confirmation {
   if (checks[0].state === "CONTEXT") return { result: "CONTEXT", reason: checks[0].reason, checks };
   for (const [state, result] of [["FAIL", "NO_CONFIRMATION"], ["MISSING", "INDETERMINATE"], ["WAIT", "PENDING"]] as const) {
-    const resultCheck = checks.find((entry) => entry.state === state);
+    const resultCheck = checks.find((entry) => entry.state === state || state === "MISSING" && entry.state === "EXCLUDED" && entry.id !== "events");
     if (resultCheck) return { result, reason: resultCheck.reason, checks };
   }
   return { result: "CRITERIA_MET", reason: "Các lớp Phễu, Price Action, khối lượng ngày và thanh khoản của chính sách cục bộ đều đạt.", checks };

@@ -127,7 +127,8 @@ test("research RVOL seals a verified same-minute sample and excludes the open mi
   assert.equal(volume.today.rvolTimeAdjusted, 2.4);
   assert.deepEqual(volume.intraday.sameTime, { asOfTime: "10:15", sessions: 10, ratio: 2.4, ticker: "FPT", session: currentDay,
     traded: 1200, median: 500, methodVersion: "rvol-same-minute-v1", source: "SSI_FC_V2" });
-  const room = createResearchRoom({ store: createMemoryStore(), now: () => observedAt, expectedClosedSession: () => prior,
+  const archiveStore = createMemoryStore();
+  const room = createResearchRoom({ store: archiveStore, now: () => observedAt, expectedClosedSession: () => prior,
     load: () => ({ decision: async () => ({ ...decision, date: prior }), instrument: async () => ({ ticker: "FPT", exchange: "HOSE" }),
       price: async () => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: [{ ...bar(prior, "15:00", 2000), date: prior }] }), volume: async () => volume }) });
   const projection = await room.lock("alice", "FPT");
@@ -137,4 +138,31 @@ test("research RVOL seals a verified same-minute sample and excludes the open mi
   const invalid = structuredClone(projection);
   invalid.data.volume.intraday.sameTime.asOfTime = "10:18";
   assert.equal(evaluateConfirmation(invalid).checks.find((item) => item.id === "volume")?.state, "MISSING");
+  const source = { kind: "lock", id: projection.snap.snapshotId };
+  const target = { kind: "VOLUME_LAYER", key: volume.asOf };
+  const untouched = structuredClone(projection);
+  const preview = await room.scenarios.preview("alice", { source, target });
+  assert.equal(preview.confirmation.checks.find((c) => c.id === "volume").state, "EXCLUDED");
+  assert.equal(preview.baseline.checks.find((c) => c.id === "volume").state, "WAIT");
+  await assert.rejects(room.scenarios.preview("bob", { source, target }), { statusCode: 404 });
+  await assert.rejects(room.scenarios.preview("alice", { source, target: { ...target, key: "wrong" } }), { statusCode: 422 });
+  await assert.rejects(room.scenarios.save("alice", preview.id, { source, target, digest: "0".repeat(64) }), { statusCode: 409 });
+  const request = { source, target, digest: preview.digest };
+  const [a, b] = await Promise.all([room.scenarios.save("alice", preview.id, request), room.scenarios.save("alice", preview.id, request)]);
+  assert.deepEqual(a, b);
+  assert.deepEqual((await room.scenarios.list("alice", "FPT")).map((item) => item.id), [preview.id]);
+  assert.deepEqual(await room.scenarios.list("bob", "FPT"), []);
+  await assert.rejects(room.scenarios.get("bob", preview.id), { statusCode: 404 });
+  assert.deepEqual((await room.scenarios.get("alice", preview.id)).parent.projection, untouched);
+  assert.deepEqual(projection, untouched);
+  const run = await makeResearchRun("alice", projection, [], null);
+  await room.save("alice", run.id, run, false);
+  const restarted = createResearchRoom({ store: archiveStore, now: () => observedAt + 60 * 60_000 });
+  await assert.rejects(restarted.scenarios.parent("alice", source), { statusCode: 404 });
+  assert.deepEqual(await restarted.scenarios.get("alice", preview.id), a);
+  const fromSaved = await restarted.scenarios.preview("alice", { source: { kind: "run", id: run.id }, target });
+  assert.equal(fromSaved.id, preview.id);
+  const approved = await restarted.scenarios.save("alice", preview.id, { ...request, approve: true });
+  assert.ok(approved.approvedAt);
+  assert.equal((await restarted.scenarios.save("alice", preview.id, { ...request, approve: true })).approvedAt, approved.approvedAt);
 });

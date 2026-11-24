@@ -63,7 +63,7 @@ export function observeResearchPrice({
           result.setups.some((item) => item.direction === "bullish" && item.state === "expired") ? "EXPIRED" : "UNKNOWN";
   const evidence: PriceActionEvidence = {
     ticker, state: status, trend: result?.trend.state ?? null, asOf: latestDate, priceBasis, venue, barClosed: lastBar ? closed : null, confirmed,
-    setup: setup ? { kind: setup.kind, stateDate: setup.stateDate, entryReference: setup.entryReference, invalidationLevel: setup.invalidationLevel, target: setup.targetReferences[0]?.price ?? null } : null,
+    setup: setup ? { id: setup.id, kind: setup.kind, stateDate: setup.stateDate, entryReference: setup.entryReference, invalidationLevel: setup.invalidationLevel, target: setup.targetReferences[0]?.price ?? null } : null,
     patterns: result?.patterns.filter((pattern) => pattern.confirmedDate === latestDate).map((pattern) => pattern.id.replace(/_/g, " ")).slice(0, 2) ?? [],
     blockers: [
       !venue ? "Chưa xác định sàn và bước giá." : null, !basisTrusted ? "Chưa có cơ sở giá đã điều chỉnh phù hợp." : null,

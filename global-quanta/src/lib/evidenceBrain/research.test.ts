@@ -5,6 +5,7 @@ import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import { buildResearchNote, compareResearchRuns, contentFingerprint, evaluateConfirmation, makeResearchRun, prepareProjection,
   revisionKnownAt, sourceManifest, visibleRevision, withoutCatalyst, type ResearchProjection } from "./research";
 import { validResearchRun } from "./researchStore";
+import { scenarioComparison, scenarioEvents, scenarioTargets, type ScenarioKind, type ScenarioParent } from "./scenario";
 
 const marketSession = "2026-11-24";
 const observedAt = "2026-11-24T03:17:00.000Z";
@@ -100,6 +101,75 @@ describe("lưu theo mốc quan sát và phản chứng", () => {
     const changed = structuredClone(run);
     changed.projection.data.events[0].revision = 7;
     expect(await validResearchRun(changed, "owner")).toBe(null);
+  });
+});
+
+describe("Canvas phản chứng độc lập", () => {
+  function parent(): ScenarioParent {
+    const p = projection();
+    p.data.pa!.setup!.id = "setup-1";
+    p.data.liquidity!.rules = { version: "LQ-v1" } as EliteLiquidity["rules"];
+    const ref = p.snap.refs[0];
+    p.snap.refs.push({ ...ref, id: "v", domain: "volume", fieldPath: "rvol20" },
+      { ...ref, id: "pa", domain: "price_action", fieldPath: "setup" },
+      { ...ref, id: "lq", domain: "profile", fieldPath: "liquidity", source: "/api/elite/liquidity/FPT", sourceVersion: "LQ-v1" });
+    return { projection: p, claimCoverage: "full", claims: [{ id: "c", side: "BULL", validation: "REFS_MATCHED", refs: ["pa"], supports: [], invalidates: [],
+      ticker: "FPT", asOf: marketSession, text: "Đối chiếu khối lượng với setup.", classification: "MODEL_INTERPRETATION",
+      horizon: null, uncertainty: "HIGH", invalidation: null, missingData: [], validationNotes: [],
+      numericAssertions: [{ refId: "v", unit: null, value: 1 }] }] };
+  }
+  const run = (p: ScenarioParent, kind: ScenarioKind) => scenarioComparison(p, scenarioTargets(p.projection).find((t) => t.kind === kind)!);
+  it("giữ toàn bộ nguồn gốc qua cả ba nhánh và giữ đúng lớp còn độc lập", () => {
+    const p = parent(), original = structuredClone(p);
+    const news = run(p, "EVENT_CLUSTER"), volume = run(p, "VOLUME_LAYER"), trigger = run(p, "PA_TRIGGER");
+    expect(news.confirmation.result).toBe("CRITERIA_MET");
+    expect(news.projection.data.events).toEqual([]);
+    expect(news.projection.data.pa).toEqual(original.projection.data.pa);
+    expect(volume.confirmation.result).toBe("INDETERMINATE");
+    expect(volume.confirmation.checks.filter((c) => c.state === "PASS")).toHaveLength(3);
+    expect(volume.projection.data.volume).toBeNull();
+    expect(volume.projection.data.price).toEqual(original.projection.data.price);
+    expect(volume.claims[0]).toMatchObject({ lost: ["v"], kept: ["pa"] });
+    expect(volume.supported).toEqual([]);
+    expect(trigger.confirmation.result).toBe("INDETERMINATE");
+    expect(trigger.projection.data.pa?.setup).toBeNull();
+    expect(trigger.projection.data.volume).toEqual(original.projection.data.volume);
+    expect(trigger.removedRefs.map((r) => r.id)).toEqual(["pa"]);
+    expect(p).toEqual(original);
+  });
+  it("giữ cổng dữ liệu, kỳ vọng phiên và phân biệt lớp thiếu với thất bại thực", () => {
+    const p = parent();
+    p.projection.data.volume!.today.rvol20 = .5; p.projection.data.volume!.today.volume = 50;
+    expect(run(p, "VOLUME_LAYER").baseline.result).toBe("NO_CONFIRMATION");
+    expect(run(p, "VOLUME_LAYER").confirmation.result).toBe("INDETERMINATE");
+    p.projection.data.volume!.coverage = { expectedClosedSession: "2026-11-25" } as VolumeAnalysis["coverage"];
+    p.projection.snap.refs = p.projection.snap.refs.filter((r) => r.id !== "lq");
+    const missing = run(p, "VOLUME_LAYER");
+    expect(missing.confirmation.checks.find((c) => c.id === "priceAction")?.state).toBe("WAIT");
+    expect(missing.confirmation.checks.find((c) => c.id === "liquidity")?.state).toBe("MISSING");
+    p.projection.snap.funnel.frozen = true;
+    expect(run(p, "VOLUME_LAYER").confirmation.result).toBe("BLOCKED");
+  });
+  it("chọn đúng revision, đúng setup và cho thử khối lượng khi không có tin", () => {
+    const p = parent();
+    const newer = event({ revision: 2, updatedAt: "2026-11-24T03:55:00Z" });
+    expect(scenarioEvents([newer, event()], observedAt)).toEqual([event()]);
+    p.projection.data.events = [];
+    delete p.projection.data.pa!.setup!.id;
+    expect(scenarioTargets(p.projection).map((t) => t.kind)).toEqual(["VOLUME_LAYER"]);
+    expect(() => scenarioComparison(p, { kind: "PA_TRIGGER", key: "wrong" })).toThrow();
+  });
+  it("bỏ tin chờ đối chiếu vẫn phân biệt có nền RVOL cùng mốc với thiếu mẫu", () => {
+    const p = parent(), volume = p.projection.data.volume!;
+    volume.partialToday = true;
+    volume.today.rvolMode = "intraday";
+    volume.today.rvolTimeAdjusted = 1.8;
+    volume.intraday = { sameTime: { ratio: 1.8, sessions: 20, asOfTime: "10:15" } } as VolumeAnalysis["intraday"];
+    const pending = run(p, "EVENT_CLUSTER");
+    expect(pending.baseline.result).toBe("PENDING");
+    expect(pending.confirmation.result).toBe("PENDING");
+    volume.intraday = null;
+    expect(run(p, "EVENT_CLUSTER").confirmation.result).toBe("INDETERMINATE");
   });
 });
 

@@ -292,6 +292,15 @@ body:has(.eb-reference-page) {
 .eb-live-room .eb-research-markdown { max-height: 42vh; overflow: auto; }
 .eb-live-room .eb-dialog .eb-research-actions { margin-top: 8px; }
 .eb-live-room .eb-dialog > .primary-btn { margin-top: 8px; }
+.eb-room-page .eb-dialog:has(.eb-scenario) { width: min(1080px, calc(100% - 24px)); max-height: 90vh; }
+.eb-room-page .eb-scenario { display: grid; gap: 12px; min-width: 0; }
+.eb-room-page .eb-scenario details { overflow-wrap: anywhere; }
+.eb-room-page .eb-scenario summary { cursor: pointer; color: var(--cyan); }
+.eb-room-page .eb-scenario-table { overflow-x: auto; }
+.eb-room-page .eb-scenario-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.eb-room-page .eb-scenario-table :is(th, td) { text-align: left; vertical-align: top; padding: 6px; border-bottom: 1px solid var(--line); }
+.eb-room-page .eb-scenario-table caption { text-align: left; color: var(--muted); padding-block: 6px; }
+.eb-room-page .eb-canvas-entry { color: var(--cyan); }
 .eb-room-page .eb-status-line { margin-top: 6px; color: var(--amber); font-size: 10px; line-height: 1.45; }
 .eb-live-room .eb-session-hint { flex-basis: 100%; display: flex; justify-content: inherit; flex-wrap: wrap; gap: 4px 12px; color: var(--amber); font-size: 10px; line-height: 1.45; }
 .eb-room-page .eb-ticker-select { background: none; border: 0; text-align: left; cursor: pointer; }
