@@ -13,14 +13,14 @@ import { buildEvidenceSnapshot, matchingTimingRow, sourceReadiness, type PriceAc
 import { closedResearchChart } from "../../../lib/evidenceBrain/priceObservation";
 import type { ClaimParseResult, EvidenceRef, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
 import { PRIMARY_VI, type PrimaryState } from "../../../lib/elite10/cockpit";
-import { evaluateConfirmation, eventKey, formatObservation, revisionKnownAt, visibleRevision, withoutCatalyst,
+import { evaluateConfirmation, eventKey, formatObservation, revisionKnownAt, sourceManifest, visibleRevision, withoutCatalyst,
   type ResearchData as Data, type ResearchProjection as Projection, type ResearchRun } from "../../../lib/evidenceBrain/research";
 import type { ObsidianDesk } from "./obsidian/useObsidianDesk";
 import LiveEvidenceGraph, { type NodeId, type RoomNode, type Tone } from "./evidenceRoom/LiveEvidenceGraph";
 import { groupEvents, LiveTimeline } from "./evidenceRoom/LiveTimeline";
 import { confirmationLabel, ResearchDialog, type ResearchView } from "./evidenceRoom/ResearchDesk";
 import { useResearchAccount } from "./evidenceRoom/researchAccount";
-import { lockResearchSnapshot } from "../../../lib/evidenceBrain/researchGateway";
+import { lockResearchSnapshot, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
 
 type Props = {
@@ -200,6 +200,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const [captureError, setCaptureError] = useState<string | null>(null);
   const [wantVolumeDetail, setWantVolumeDetail] = useState(false);
   const lockRequest = useRef<AbortController | null>(null);
+  const publication = useRef<string | null>(null);
   const enabled = active && requested;
   useEffect(() => { if (active) setRequested(true); }, [active]);
   const decision = useEliteDecision(enabled);
@@ -209,7 +210,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const risk = useEliteRisk(enabled);
   const timing = useGatewayBuyTimeline(enabled);
   const news = useEventRadar({ ticker: ticker ?? undefined, limit: 12, enabled: enabled && Boolean(ticker), keepPreviousData: false });
-  const volumes = useVolumeAnalysis(ticker, enabled, "summary");
+  const volumes = useVolumeAnalysis(ticker, enabled, "research");
+  const session = useResearchSession(enabled);
   const liquidity = useEliteLiquidity(enabled ? ticker : null);
   const chart = useAdjustedDaily(enabled ? ticker : null, enabled);
   const onPriceAction = useCallback((value: PriceActionEvidence) => {
@@ -217,6 +219,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   }, []);
   const pa = paEvidence?.ticker === ticker ? paEvidence : null;
   const volume = volumes.data?.symbol.toUpperCase() === ticker ? volumes.data : null;
+  const expectedClosedSession = session.data?.expectedClosedSession ?? volume?.coverage?.expectedClosedSession ?? null;
   const lq = liquidity.data?.ticker.toUpperCase() === ticker ? liquidity.data : null;
   const panel = selected.panel?.ticker.toUpperCase() === ticker ? selected.panel : null;
   const tickerDecision = selected.decision?.ticker.toUpperCase() === ticker ? selected.decision : null;
@@ -249,14 +252,28 @@ export default function EvidenceBrainWorkspace(props: Props) {
     }).then((snap) => {
       if (!current) return;
       setLatest({ snap, data: { pa, price, volume, liquidity: lq, events: asObserved ?? [], timing: timingRow, sector: panel?.sector ?? null,
-        risk: risk.data ?? null, expectedClosedSession: volume?.coverage?.expectedClosedSession ?? null } });
+        risk: risk.data ?? null, expectedClosedSession } });
     }).catch(() => {
       if (current) setBuildError(true);
     }).finally(() => { if (current) setBuilding(false); });
     return () => { current = false; };
   }, [enabled, ticker, known, decision.data, decision.error, tickerDecision, panel, selected.error, evidence.data, evidence.error,
     ledger.data, ledger.error, risk.data, risk.error, timing.data, timing.error, timingRow, events, news.enabled, news.data?.generatedAt,
-    news.error, pa, volume, volumes.error, chart.bars, chart.priceBasis, chart.warnings, lq, liquidity.error, waiting, version]);
+    news.error, pa, volume, volumes.error, chart.bars, chart.priceBasis, chart.warnings, lq, liquidity.error, waiting, version, expectedClosedSession]);
+
+  const reloadSources = useCallback(() => {
+    const resourceKeys = ["elite-decision", "elite-evidence", "elite-ledger", "elite-risk", "elite-buy-timing", "market-universe-price-action"];
+    const tickerKeys = ["volume-analysis", "event-radar", "elite-liquidity", "elite-decision-ticker", "elite-panel-ticker"];
+    void mutate((key) => typeof key === "string" && (resourceKeys.includes(key) || key.includes("/api/market/ta-series")) ||
+      Array.isArray(key) && tickerKeys.includes(String(key[0])) && key[1] === ticker, undefined, { revalidate: true, populateCache: false });
+  }, [mutate, ticker]);
+
+  useEffect(() => {
+    const next = session.data?.publication;
+    if (!enabled || !next) return;
+    if (publication.current && publication.current !== next) reloadSources();
+    publication.current = next;
+  }, [enabled, session.data?.publication, reloadSources]);
 
   useEffect(() => { setDetail(null); setSeeLatest(false); }, [ticker, active]);
   useEffect(() => { setResearchView(null); setSaved(null); setScenario(null); setShowParent(false); }, [ticker, account]);
@@ -281,6 +298,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const claims = replay?.claims ?? [...(bundles.bull?.claims ?? []), ...(bundles.bear?.claims ?? []), ...(bundles.judge?.claims ?? [])];
   const readiness = current && !localSaved && !excluded ? sourceReadiness(current.snap) : null;
   const canRun = Boolean(account && current && readiness?.canDebate && !buildError);
+  const blockedReason = !account ? "Đăng nhập để kiểm chứng và lưu phiên." : localSaved || excluded ? "Chuyển về quan sát hiện tại để kiểm chứng." :
+    buildError ? "Chưa lập được snapshot. Thử tải lại nguồn." : readiness?.blockers[0]?.trim() || (!current ? "Đang nạp nguồn thiết yếu." : "");
   const sources = snap?.sources ?? [];
   const sessionsBound = ["decision", "profile", "liquidity"];
   const fresh = sources.filter((source) => source.state === "LOADED" && source.asOf && source.warnings.length === 0
@@ -297,10 +316,14 @@ export default function EvidenceBrainWorkspace(props: Props) {
   if (excluded) layers[3] = { ...layers[3], tone: "warn", status: "MÔ PHỎNG", detail: "Đã loại một cụm tin khỏi phân tích." };
   const concerns = layers.filter((layer) => layer.tone === "bad" || layer.tone === "warn");
   const locked = Boolean(replay || hasPinned && !seeLatest);
-  const hasNewObservation = Boolean(locked && current && snap && current.snap.snapshotId !== snap.snapshotId &&
-    (current.snap.decisionSession !== snap.decisionSession || current.data.pa?.asOf !== data.pa?.asOf ||
-      current.data.volume?.asOf !== data.volume?.asOf || current.data.volume?.today.volume !== data.volume?.today.volume ||
-      current.data.events.map((event) => `${event.eventId}:${event.revision}`).join("|") !== data.events.map((event) => `${event.eventId}:${event.revision}`).join("|")));
+  const hasNewObservation = Boolean(locked && current && original && Date.parse(current.snap.createdAt) > Date.parse(original.snap.createdAt) &&
+    sourceManifest(current) !== sourceManifest(original));
+  const observedExpected = locked || excluded ? data.expectedClosedSession ?? data.volume?.coverage?.expectedClosedSession : expectedClosedSession;
+  const volumeDay = data.volume?.coverage?.lastClosedSession ?? (data.volume?.partialToday ? null : data.volume?.asOf);
+  const pendingSession = !locked && !excluded && observedExpected && snap && (observedExpected !== snap.decisionSession ||
+    Boolean(ticker && (volumeDay && volumeDay < observedExpected || data.pa?.asOf && data.pa.asOf < observedExpected)));
+  const stageHint = session.data?.stage === "MARKET_DAILY" ? "Chờ kho ngày" : session.data?.stage === "SCANNER" ? "Chờ Siêu Quét" :
+    snap?.decisionSession !== observedExpected ? "Chờ Bảng quyết định" : "Chờ nến hoặc khối lượng chốt theo mã";
   const state = snap?.funnel.membership.state;
   const held = state === "PORTFOLIO_CORE" || state === "PORTFOLIO_RUNNER";
   const funnelStep = held ? 7 : confirmation?.checks.some((check) => check.id === "decision" && check.state === "PASS") ? 5 : null;
@@ -362,8 +385,11 @@ export default function EvidenceBrainWorkspace(props: Props) {
       <span className="meta-chip">Decision {dateVi(snap?.decisionSession ?? decisionDay)}</span>
       {data.pa?.asOf && <span className="meta-chip">Nến {dateVi(data.pa.asOf)}</span>}
       {data.events[0] && <span className="meta-chip" title="Mốc Gateway biết revision tin đang hiển thị">Tin biết {dateVi(revisionKnownAt(data.events[0]))} {clock(revisionKnownAt(data.events[0]) ?? undefined)}</span>}
-      {hasNewObservation && <button className="meta-chip warn" type="button" onClick={() => { setSaved(null); setShowParent(false); setScenario(null); setSeeLatest(true); }}>Có snapshot mới</button>}
-      <span className="meta-chip good">{fresh} nguồn hiện tại</span>
+      {observedExpected && <span className={`meta-chip${pendingSession ? " warn" : ""}`} title="Phiên đã đóng theo lịch thị trường">Phiên kỳ vọng {dateVi(observedExpected)}</span>}
+      {volumeDay && <span className="meta-chip" title="Phiên khối lượng ngày mới nhất đang hiển thị">KL chốt {dateVi(volumeDay)}</span>}
+      {hasNewObservation && <button className="meta-chip warn" type="button" onClick={() => { setSaved(null); setShowParent(false); setScenario(null); setSeeLatest(true); }}>Có quan sát mới</button>}
+      {locked && !localSaved && !hasNewObservation && <button className="meta-chip" type="button" onClick={() => setSeeLatest(true)}>Xem nguồn hiện tại</button>}
+      <span className="meta-chip good">{fresh} nguồn hợp lệ cho bản này</span>
       <button type="button" className="meta-chip warn" onClick={() => setDetail("sources")}>{sources.length - fresh} nguồn cần lưu ý</button>
       <button type="button" className="meta-chip" aria-haspopup="dialog" disabled={!account} onClick={() => setResearchView("sessions")}>Phiên đã lưu</button>
       {(localSaved || excluded) && <button type="button" className="meta-chip" onClick={() => {
@@ -371,12 +397,16 @@ export default function EvidenceBrainWorkspace(props: Props) {
         else if (localSaved?.omittedCluster && !showParent) setShowParent(true);
         else { setSaved(null); setShowParent(false); setSeeLatest(true); if (!current) setRequested(true); }
       }}>{excluded ? "Về bản gốc" : "Về nguồn đang nạp"}</button>}
-      <button type="button" className="primary-btn" disabled={capturing || !busy && (Boolean(localSaved || excluded) || requested && !canRun)} onClick={() => {
+      <button type="button" className="primary-btn" aria-describedby={!busy && blockedReason ? "eb-review-reason" : undefined} disabled={capturing || !busy && (Boolean(localSaved || excluded) || requested && !canRun)} onClick={() => {
         if (busy) props.onStop();
         else if (!requested) setRequested(true);
         else void captureReview();
       }}>{capturing ? "Đang khóa trên Gateway…" : busy ? "■ Dừng" : !requested ? "✦ Nạp dữ liệu kiểm chứng" : !canRun && (waiting || building) ? "Đang kiểm tra nguồn thiết yếu…" : "✦ Kiểm chứng & tranh luận"}</button>
       {props.actions}
+      {(!busy && !canRun && blockedReason || pendingSession) && <div className="eb-session-hint">
+        {!busy && !canRun && blockedReason && <span id="eb-review-reason">{blockedReason}</span>}
+        {pendingSession && <span>{stageHint} phiên {dateVi(observedExpected)}{session.data?.retryAt ? ` · thử lại từ ${clock(session.data.retryAt)}` : ""}</span>}
+      </div>}
     </div>
   </section>;
   const submitTicker = (e: FormEvent) => {
@@ -390,11 +420,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
     if (!requested) { setRequested(true); return; }
     retryBuild((n) => n + 1);
     setCaptureError(null);
-    const resourceKeys = ["elite-decision", "elite-evidence", "elite-ledger", "elite-risk", "elite-buy-timing", "market-universe-price-action"];
-    const tickerKeys = ["volume-analysis", "event-radar", "elite-liquidity", "elite-decision-ticker", "elite-panel-ticker"];
-    void mutate((key) => typeof key === "string" && (resourceKeys.includes(key) || key.includes("/api/market/ta-series")) ||
-      Array.isArray(key) && tickerKeys.includes(String(key[0])) && key[1] === ticker,
-    undefined, { revalidate: true, populateCache: false });
+    reloadSources();
+    void session.mutate();
   };
   function renderDetail(id: Detail): { title: string; content: ReactNode } {
     if (id === "ticker") return { title: "Chọn mã phân tích", content: <form onSubmit={submitTicker}>
@@ -416,6 +443,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
     if (id === "snapshot" || id === "sources") return { title: id === "snapshot" ? "Snapshot bằng chứng" : "Nguồn của snapshot", content: <>
       <p>{snap?.snapshotId ?? "Đang lập snapshot"}</p><p>Phiên {dateVi(snap?.decisionSession, true)} · {snap?.completeness ?? "chưa có trạng thái"}</p>
       {snap && <p>Mốc trình duyệt quan sát {formatObservation.format(new Date(snap.createdAt))}{replay ? ` · Bản lưu ${replay.id}` : ""}</p>}
+      {!locked && !excluded && session.data && <p>Phiên kỳ vọng {dateVi(session.data.expectedClosedSession, true)} · Kho ngày {dateVi(session.data.marketDailySession, true)} · Siêu Quét {dateVi(session.data.scannerSession, true)} · Bảng quyết định {dateVi(session.data.decisionSession, true)}{session.data.eod ? ` · Nến đúng phiên ${session.data.eod.confirmed}/${session.data.eod.expected}` : ""}</p>}
+      {!locked && !excluded && session.error && <p>Chưa đọc được tiến độ công bố phiên từ Gateway.</p>}
       <button type="button" className="small-link" onClick={retry}>{requested ? "Thử tải lại nguồn" : "Nạp dữ liệu kiểm chứng"}</button>
       {hasPinned && <button type="button" className="small-link" onClick={() => setSeeLatest((v) => !v)}>{locked ? "Xem snapshot mới nhất" : "Xem snapshot đã kiểm chứng"}</button>}
       {sources.map((s) => <article key={s.key}><p><b>{s.label}</b> · {stateLabel[s.state]} · {dateVi(s.asOf, true)}</p><p>{s.endpoint} · {s.version ?? "—"}</p>
@@ -447,8 +476,9 @@ export default function EvidenceBrainWorkspace(props: Props) {
       {id === "volume" && !locked && !excluded && <button type="button" className="small-link" onClick={() => setWantVolumeDetail(true)} disabled={fullVolume.isLoading}>
         {fullVolume.isLoading ? "Đang tải nến phút…" : "Tải phân tích nến phút"}
       </button>}
-      {id === "volume" && !locked && !excluded && fullVolume.error && <p>Phân tích nến phút quá hạn hoặc chưa có dữ liệu. Phiếu hiện dùng số ngày.</p>}
-      {id === "volume" && !locked && !excluded && fullVolume.data?.symbol === ticker && <p>Nến phút · {dateVi(fullVolume.data.asOf, true)} · RVOL cùng mốc {numberVi(fullVolume.data.today.rvolTimeAdjusted)}× · {fullVolume.data.intraday?.sameTime?.sessions ?? "—"} phiên nền. Đây là dữ liệu chi tiết hiện tại.</p>}
+      {id === "volume" && data.volume?.intraday?.sameTime?.methodVersion && <p>Bằng chứng trong bản đang xem · {data.volume.intraday.sameTime.asOfTime} · RVOL {numberVi(data.volume.intraday.sameTime.ratio)}× · Trung vị {data.volume.intraday.sameTime.sessions} phiên nền.</p>}
+      {id === "volume" && !locked && !excluded && fullVolume.error && <p>Phân tích nến phút chi tiết chưa khả dụng.</p>}
+      {id === "volume" && !locked && !excluded && fullVolume.data?.symbol === ticker && <p>Phân tích chi tiết hiện tại · {dateVi(fullVolume.data.asOf, true)} · RVOL cùng mốc {numberVi(fullVolume.data.today.rvolTimeAdjusted)}× · {fullVolume.data.intraday?.sameTime?.sessions ?? "—"} phiên nền.</p>}
       <RefRows refs={refs} />
     </> };
   }

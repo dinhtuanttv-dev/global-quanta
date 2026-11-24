@@ -57,23 +57,27 @@ export function createJobs(service, { now = Date.now, pauseMs = 200 } = {}) {
       const date = lastCompletedSessionDate(new Date(now()));
       const symbols = await universe();
       const bySource = {};
+      const fallbacks = {};
       const failed = [];
       const missingTarget = [];
+      const hasTarget = (rows) => Array.isArray(rows) && rows.some((bar) => bar.date === date && !bar.partial && Number.isFinite(bar.close) && bar.close > 0);
       await mapLimit(symbols, 2, async (symbol) => {
         try {
-          const r = await fetchAndStore(symbol, addDays(date, -10), date);
+          const r = await fetchAndStore(symbol, addDays(date, -10), date, { accept: hasTarget });
           bySource[r.source] = (bySource[r.source] || 0) + 1;
-          if (!r.data.some((bar) => bar.date === date && !bar.partial)) missingTarget.push(symbol);
+          if (r.fallbackReason) fallbacks[r.fallbackReason] = (fallbacks[r.fallbackReason] ?? 0) + 1;
+          if (!hasTarget(r.data)) missingTarget.push(symbol);
         } catch (error) {
           failed.push({ symbol, error: error.message });
         }
         await sleep(pauseMs);
       });
       service.cache.clear();
-      if (failed.length > symbols.length / 2) {
-        void notifyOps("job:syncEod", `Đồng bộ EOD ${date} lỗi ${failed.length}/${symbols.length} mã.`);
+      const confirmedClosed = symbols.length - failed.length - missingTarget.length;
+      if (confirmedClosed < symbols.length / 2) {
+        void notifyOps("job:syncEod", `EOD ${date} có ${confirmedClosed}/${symbols.length} nến đóng đúng phiên.`);
       }
-      return { date, symbols: symbols.length, bySource, expectedClosed: symbols.length, confirmedClosed: symbols.length - failed.length - missingTarget.length,
+      return { date, symbols: symbols.length, bySource, fallbacks, expectedClosed: symbols.length, confirmedClosed, awaitingData: confirmedClosed < symbols.length,
         missingTargetCount: missingTarget.length, missingTargetSample: missingTarget.slice(0, 20), failed: failed.slice(0, 20), failedCount: failed.length };
     },
 

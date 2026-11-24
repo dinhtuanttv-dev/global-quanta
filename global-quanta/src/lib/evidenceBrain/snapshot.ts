@@ -5,6 +5,7 @@ import type { VolumeAnalysis } from "../../hooks/useVolumeAnalysis";
 import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import type { BuyTimeline, TimelineRow } from "../cotuc/buy-timeline";
 import type { EvidenceRef, EvidenceSnapshot, JsonValue, SnapshotSource } from "./types";
+import { researchSameTime } from "./intradayEvidence";
 
 export interface PriceActionEvidence {
   ticker: string;
@@ -203,9 +204,10 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   }
   if (input.volume && input.volume.symbol.toUpperCase() === ticker) {
     const v = input.volume;
+    const sameTime = researchSameTime(v, input.now);
     const fields: [string, unknown, string | null][] = [
       ["partialToday", v.partialToday, null], ["rvolMode", v.today.rvolMode, null],
-      ["rvol20", v.today.rvol20, "multiple"], ["rvolTimeAdjusted", v.today.rvolTimeAdjusted, "multiple"],
+      ["rvol20", v.today.rvol20, "multiple"],
       ["today.value", v.today.value, "VND"], ["upDownVolumeRatio20", v.trend.upDownVolumeRatio20, "ratio"],
       ["obvDirection", v.trend.obvDirection, null], ["cmf20", v.trend.cmf20, "ratio"],
       ["divergence", v.trend.divergence, null], ["foreign.pendingToday", v.foreign.pendingToday, null],
@@ -214,6 +216,13 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     ];
     const freshness = v.partialToday && freshnessAtSession(v.asOf) === "CURRENT" ? "UNKNOWN" : freshnessAtSession(v.asOf);
     fields.forEach(([field, value, unit]) => add("volume", ticker!, field, value, unit, `/api/market/scanner/${ticker}/volume`, v.asOf, "volume-analysis", { status: "DERIVED", methodVersion: "volume-analysis", freshness: value == null ? "UNKNOWN" : freshness, limitation: v.partialToday ? "Khối lượng chưa chốt. RVOL intraday cần mẫu nền cùng thời điểm." : null }));
+    if (sameTime) {
+      const metadata = { status: "DERIVED", freshness: "CURRENT", methodVersion: sameTime.methodVersion,
+        limitation: "So cùng phút với các phiên trước. Khối lượng ngày chưa chốt." } as const;
+      const endpoint = `/api/market/scanner/${ticker}/volume?detail=research`;
+      add("volume", ticker!, "rvolTimeAdjusted", sameTime.ratio, "multiple", endpoint, sameTime.asOf, sameTime.methodVersion ?? null, metadata);
+      add("volume", ticker!, "intradaySampleSessions", sameTime.sessions, "sessions", endpoint, sameTime.asOf, sameTime.methodVersion ?? null, metadata);
+    }
   }
   if (input.evidence) {
     const ev = input.evidence;
@@ -244,7 +253,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   const errors: Record<string, string | null | undefined> = { decision: input.decisionError, profile: input.profileError, evidence: input.evidenceError, ledger: input.ledgerError, risk: input.riskError, timeline: input.timelineError, events: input.eventError, volume: input.volumeError, priceAction: input.priceActionError, liquidity: input.liquidityError };
   const sourceInput: [string, string, string, string | null, string | null, boolean][] = [
     ["decision", "Bảng quyết định", "/api/elite/decision", decision?.date ?? null, decision?.version ?? null, Boolean(decision)],
-    ["profile", "Hồ sơ 360", "/api/elite/panel/{ticker}", selectedPanel?.date ?? selectedTicker?.date ?? null, selectedTicker?.version ?? null, Boolean(selectedPanel || selectedTicker)],
+    ["profile", "Hồ sơ 360", "/api/elite/panel/{ticker}", selectedPanel?.date ?? selectedTicker?.date ?? null, selectedPanel?.version ?? selectedTicker?.version ?? null, Boolean(selectedPanel || selectedTicker)],
     ["evidence", "Bằng chứng tín hiệu", "/api/elite/evidence", input.evidence?.generatedAt ?? null, input.evidence?.version ?? null, Boolean(input.evidence)],
     ["ledger", "Sổ theo dõi", "/api/elite/ledger", input.ledger?.updatedAt ?? null, input.ledger?.version ?? null, Boolean(input.ledger)],
     ["risk", "Rủi ro danh mục", "/api/elite/risk", input.risk?.date ?? null, input.risk?.version ?? null, Boolean(input.risk)],
@@ -288,7 +297,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     chart: input.chart ?? null,
     liquidity: liquidity?.liq ? { date: liquidity.date, rules: liquidity.rules, stats: liquidity.liq } : null,
     decision: decision ? { date: decision.date, builtAt: decision.builtAt, version: decision.version, portfolioKind: decision.hl ? "ELITE_HL" : "ELITE_FLOW", freshness: decision.freshness ?? null, guard: decision.hl?.dataGuard ?? null, funnel: funnel ?? null, membership: state ?? null, selected: selected ? { ticker: selected.ticker, rank: selected.rank, Z: selected.Z, eligible: selected.eligible, reason: selected.reason, close: selected.close, advBn: selected.advBn, sectorKey: selected.sectorKey } : null, queue: ticker ? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null, pz: ticker ? decision.hl?.watch?.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.portfolio.find((row) => row.ticker.toUpperCase() === ticker)?.hl?.pz ?? null : null, weights: decision.weights.slice(0, 32) } : null,
-    profile: selectedPanel ? { date: selectedPanel.date, sector: selectedPanel.sector, icb: selectedPanel.icb, values: selectedPanel.values, missingSources: selectedPanel.missingSources } : null,
+    profile: selectedPanel ? { date: selectedPanel.date, version: selectedPanel.version ?? null, sector: selectedPanel.sector, icb: selectedPanel.icb, values: selectedPanel.values, missingSources: selectedPanel.missingSources } : null,
     evidence: input.evidence ? { version: input.evidence.version, generatedAt: input.evidence.generatedAt, tests: input.evidence.tests, selected: input.evidence.signals.filter((row) => decision?.weights.some((weight) => weight.id === row.id)).slice(0, 24) } : null,
     priceAction: input.priceAction?.ticker.toUpperCase() === ticker ? input.priceAction : null,
     catalystTiming: timing,

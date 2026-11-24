@@ -1,6 +1,7 @@
 import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import type { EventRadarEvent } from "../../hooks/useEventRadar";
 import type { VolumeAnalysis } from "../../hooks/useVolumeAnalysis";
+import { researchSameTime } from "./intradayEvidence";
 import type { TimelineRow } from "../cotuc/buy-timeline";
 import type { EliteRisk } from "../elite10/decisionTypes";
 import { cleanLine, frontmatter } from "../obsidian/yaml";
@@ -170,6 +171,8 @@ function volumeCheck(volume: VolumeAnalysis | null, ticker: string, day: string 
       !Number.isSafeInteger(sameTime.sessions) || sameTime.sessions < 1
       || typeof rvol !== "number" || !Number.isFinite(rvol) || rvol < 0 || rvol !== sameTime.ratio)
       return check("volume", "MISSING", "Thiếu nền RVOL intraday có thể đối chiếu tại cùng mốc.");
+    if (volume.coverage?.detail === "research" && !researchSameTime(volume, observedAt))
+      return check("volume", "MISSING", "Mẫu RVOL cùng mốc sai mã, phiên, cửa sổ hoặc công thức.");
     return check("volume", "WAIT", `Đã đối chiếu RVOL intraday trên ${sameTime.sessions} phiên tại ${sameTime.asOfTime}. Chờ khối lượng ngày chốt.`);
   }
   const { avgVolume20, rvol20, volume: traded, rvolMode } = volume.today;
@@ -236,6 +239,15 @@ export async function contentFingerprint({ snap, data }: ResearchProjection) {
   const { createdAt: _createdAt, snapshotId: _snapshotId, ...payload } = snap;
   const refs = [...payload.refs].sort((a, b) => compareKey(a.id, b.id));
   return researchDigest({ snapshot: { ...payload, refs }, projection: data });
+}
+
+export function sourceManifest({ snap, data }: ResearchProjection) {
+  return canonicalJson({
+    session: snap.decisionSession, expectedSession: data.expectedClosedSession ?? data.volume?.coverage?.expectedClosedSession,
+    sources: snap.sources.map(({ key, asOf, version, state, warnings }) => ({ key, asOf, version, state, warnings })).sort((a, b) => compareKey(a.key, b.key)),
+    values: snap.data,
+    events: data.events.map(({ eventId, revision }) => [eventId, revision]).sort(([a], [b]) => compareKey(String(a), String(b))),
+  });
 }
 
 async function researchDigest(value: unknown) {

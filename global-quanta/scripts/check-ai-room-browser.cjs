@@ -24,6 +24,8 @@ const responses = {
   "/api/market/universe": { tickers: [instrument] },
   "/api/market/ta-series": price,
   "/api/market/event-radar": { events: [event], generatedAt: seen, sources: {}, meta: {} },
+  "/api/elite/ai-room/session": { expectedClosedSession: "2026-11-23", marketDailySession: decision.date, scannerSession: decision.date,
+    decisionSession: decision.date, stage: "MARKET_DAILY", observedAt: seen, publication: decision.date, retryAt: null, eod: { confirmed: 0, expected: 104 } },
 };
 const mime = { ".js": "application/javascript", ".css": "text/css", ".html": "text/html" };
 const server = createServer((request, response) => {
@@ -115,6 +117,12 @@ async function main() {
     }
     await page.goto(`${origin}/?tab=quyet-dinh`);
     await openRoom();
+    await page.getByText(/Phiên kỳ vọng 23\/11/).waitFor();
+    await page.getByText(/Chờ kho ngày phiên 23\/11/).waitFor();
+    await page.getByText("Luận điểm & bằng chứng", { exact: false }).first().waitFor();
+    await page.getByText("Timeline đồng bộ", { exact: false }).first().waitFor();
+    await page.getByText("Các lớp xác nhận", { exact: false }).first().waitFor();
+    if (process.env.AI_ROOM_SCREENSHOT_OUT) await page.screenshot({ path: process.env.AI_ROOM_SCREENSHOT_OUT });
     await title("✦ Kiểm chứng & tranh luận").click();
     await page.locator(".eb-status-line").filter({ hasText: "Đã đối chiếu cấu trúc luận điểm theo gói bằng chứng." }).waitFor().catch(async (error) => {
       console.error(await page.locator(".eb-status-line").allTextContents(), sealedCalls.map(({ role }) => role));

@@ -56,7 +56,7 @@ import { createSeasonOracle, SEASON_FIELDS, setSeasonReader } from "./market/fun
 import { createEliteRouter } from "./routes/elite.js";
 import { createResearchRoomRouter } from "./routes/researchRoom.js";
 import { createResearchRoom } from "./market/elite/researchRoom.js";
-import { getVolumeAnalysis } from "./market/scanner/volumeService.js";
+import { loadVolumeAnalysis } from "./market/scanner/volumeService.js";
 import { isTradingDay, lastCompletedSessionDate, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
@@ -329,6 +329,29 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
+function getResearchSession() {
+  const rt = getMarketRuntime();
+  return rt.service.cache.wrap("ai-room:published-session", 15_000, async () => {
+    const [dates, scan, panel, decision] = await Promise.all([
+      rt.store.getMarketDailyDates(), rt.store.getKv("scanner:latest"), getElitePanel().panel(), getEliteDecision().decision(),
+    ]);
+    const observedAt = new Date();
+    const expectedClosedSession = lastCompletedSessionDate(observedAt);
+    const marketDailySession = dates.at(-1) ?? null;
+    const scannerSession = scan?.value?.dataAsOf ?? null;
+    const decisionSession = decision?.date ?? null;
+    const stage = marketDailySession !== expectedClosedSession ? "MARKET_DAILY" : scannerSession !== expectedClosedSession ? "SCANNER" :
+      panel?.date !== expectedClosedSession || decisionSession !== expectedClosedSession ? "DECISION" : "PUBLISHED";
+    const relevantJobs = rt.scheduler.status().filter((job) => ["syncEod", "syncMarketDaily", "sessionCatchUp", "sessionCatchUpLate", "scanUniverse"].includes(job.name));
+    const eod = relevantJobs.find((job) => job.name === "syncEod")?.last?.result;
+    const retryAt = relevantJobs.map((job) => job.retry?.at).filter((time) => Number.isFinite(time) && time > observedAt.getTime()).sort((a, b) => a - b)[0];
+    return { expectedClosedSession, marketDailySession, scannerSession, decisionSession, stage,
+      observedAt: observedAt.toISOString(), retryAt: retryAt ? new Date(retryAt).toISOString() : null,
+      eod: eod?.date === expectedClosedSession ? { confirmed: eod.confirmedClosed, expected: eod.expectedClosed } : null,
+      publication: [marketDailySession, scannerSession, scan?.value?.generatedAt, panel?.date, panel?.builtAt, panel?.version, decisionSession, decision?.builtAt, decision?.version].join("|"),
+    };
+  });
+}
 const researchUser = async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null;
 let researchRoom = null;
 const getResearchRoom = () => (researchRoom ??= createResearchRoom({
@@ -347,11 +370,11 @@ const getResearchRoom = () => (researchRoom ??= createResearchRoom({
         price: () => rt.service.cache.wrap(`ta-series:${ticker}:5y:1300`, 60_000, () => rt.taSeries.get({ symbol: ticker, range: "5y", limit: 1300 })),
         panel: async () => {
           const doc = await getElitePanel().panel(), row = doc?.rows.find((item) => item.ticker === ticker);
-          return row ? { ...row, date: doc.date, missingSources: doc.missingSources ?? [], signals: doc.signals ?? [] } : null;
+          return row ? { ...row, date: doc.date, version: doc.version, missingSources: doc.missingSources ?? [], signals: doc.signals ?? [] } : null;
         },
         liquidity: () => getEliteDecision().liquidity(ticker),
         events: () => rt.eventRadar.list({ ticker, limit: 12 }),
-        volume: () => rt.service.cache.wrap(`volume-analysis:${ticker}:summary`, 60_000, () => getVolumeAnalysis(rt.service, ticker, { detail: "summary" })),
+        volume: () => loadVolumeAnalysis(rt.service, ticker, "research"),
         timeline: async () => {
           const doc = await getEliteBuyTiming().get({ tickers: [ticker] });
           return doc?.available && Array.isArray(doc.rows) && doc.asOf ? doc : null;
@@ -443,7 +466,7 @@ const getEliteImpact = () => (eliteImpact ??= createImpactProfile({ sources: {
   radar: (t) => getMarketRuntime().eventRadar.list({ ticker: t, limit: 250 }),
   dilution: (t) => getEliteDilution().ticker(t),
 } }));
-app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser }));
+app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser, getSession: getResearchSession }));
 app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {

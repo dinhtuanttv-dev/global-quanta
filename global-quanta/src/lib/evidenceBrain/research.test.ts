@@ -3,7 +3,7 @@ import type { EventRadarEvent } from "../../hooks/useEventRadar";
 import type { VolumeAnalysis } from "../../hooks/useVolumeAnalysis";
 import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import { buildResearchNote, compareResearchRuns, contentFingerprint, evaluateConfirmation, makeResearchRun, prepareProjection,
-  revisionKnownAt, visibleRevision, withoutCatalyst, type ResearchProjection } from "./research";
+  revisionKnownAt, sourceManifest, visibleRevision, withoutCatalyst, type ResearchProjection } from "./research";
 import { validResearchRun } from "./researchStore";
 
 const marketSession = "2026-11-24";
@@ -48,6 +48,14 @@ function projection(): ResearchProjection {
 }
 
 describe("lưu theo mốc quan sát và phản chứng", () => {
+  it("báo thay đổi khi chỉ nguồn rủi ro đổi và bỏ qua giờ dựng lại quan sát", () => {
+    const first = projection(), next = projection();
+    next.snap.createdAt = "2026-11-24T03:19:00.000Z";
+    next.snap.snapshotId = "new-id";
+    expect(sourceManifest(next)).toBe(sourceManifest(first));
+    next.snap.data.risk = { available: true, beta: 1.2 };
+    expect(sourceManifest(next)).not.toBe(sourceManifest(first));
+  });
   it("không mượn mốc biết của bản gốc cho revision được biết sau cutoff", () => {
     const corrected = event({ revision: 2, updatedAt: "2026-11-24T03:35:00.000Z" });
     expect(revisionKnownAt(corrected)).toBe(corrected.updatedAt);

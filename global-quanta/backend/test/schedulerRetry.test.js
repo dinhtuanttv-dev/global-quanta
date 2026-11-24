@@ -30,3 +30,21 @@ test("lỗi mãi: dừng sau retryMax lần thử lại trong ngày", async () =
   for (let i = 0; i < 10; i++) { sched.tick(); await new Promise((r) => setTimeout(r, 5)); t += 1500; }
   assert.equal(calls, 3); // 1 lần theo lịch + 2 lần thử lại
 });
+
+test("phiên đóng đi tiếp khi job nền đang chạy và bù dữ liệu trước khi báo công bố", async () => {
+  let now = Date.parse("2026-11-24T09:00:00Z"), release, attempts = 0;
+  const background = new Promise((resolve) => { release = resolve; });
+  const published = [];
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+  const sched = createScheduler({ ...noop, backfill: () => background,
+    close: async () => ({ awaitingData: ++attempts === 1 }), rebuild: async () => published.push(now),
+  }, { now: () => now, closeJobs: ["close", "rebuild"], retryMs: 1_000, log: {}, extraSchedule: [{ name: "close", at: "09:00", followUp: "rebuild" }] });
+  sched.tick(); await flush();
+  assert.equal(sched.status().find((j) => j.name === "backfill").last.running, true);
+  assert.equal(sched.status().find((j) => j.name === "close").last.awaitingData, true);
+  assert.deepEqual(published, []);
+  now += 1_001; sched.tick(); await flush();
+  assert.equal(attempts, 2);
+  assert.deepEqual(published, [now]);
+  release(); await flush();
+});

@@ -42,9 +42,11 @@ export function normalizeDailyRow(raw, exchange) {
 
 /** Lấy toàn bộ cổ phiếu của cả 3 sàn cho một ngày (YYYY-MM-DD). */
 export async function fetchMarketDay(date, { call = getMarketData, pauseMs = 150 } = {}) {
-  const rows = [];
+  const rows = new Map();
+  const coverage = {};
   let requests = 0;
   for (const market of MARKETS) {
+    const counts = coverage[market] = { received: 0, accepted: 0, invalid: 0, wrongSession: 0, duplicate: 0 };
     for (let pageIndex = 1; pageIndex <= 10; pageIndex++) {
       let body;
       try {
@@ -58,13 +60,17 @@ export async function fetchMarketDay(date, { call = getMarketData, pauseMs = 150
       }
       requests++;
       const data = Array.isArray(body?.data) ? body.data : [];
+      counts.received += data.length;
       for (const raw of data) {
         const row = normalizeDailyRow(raw, market);
-        if (row) rows.push(row);
+        if (!row) counts.invalid++;
+        else if (row.date !== date) counts.wrongSession++;
+        else if (rows.has(row.symbol)) counts.duplicate++;
+        else { rows.set(row.symbol, row); counts.accepted++; }
       }
       if (data.length < 1000) break;
       if (pauseMs) await sleep(pauseMs);
     }
   }
-  return { date, rows, requests };
+  return { date, rows: [...rows.values()], requests, coverage };
 }

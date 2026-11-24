@@ -10,6 +10,7 @@ import { canonicalSymbol, isValidSymbol, isIndexSymbol } from "../normalizer.js"
 import { ValidationError } from "../errors.js";
 import { expectsLiveTicks, isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
 import { tradingDatesBack } from "./scannerJobs.js";
+import { TtlCache } from "../util.js";
 
 export const HISTORY_SESSIONS = Number(process.env.INTRADAY_CYCLE_SESSIONS) || 120;
 const MAX_CONCURRENT_BUILDS = 2;
@@ -52,6 +53,73 @@ export function groupSessions(bars) {
 /** Phiên đang mở (ngày giao dịch, sau 9:00, phiên hôm nay chưa đóng) — cùng điều kiện getIntradaySessions dùng. */
 export function isSessionLive(nowDate = new Date()) {
   return isTradingDay(nowDate) && vnParts(nowDate).minutes >= 9 * 60 && lastCompletedSessionDate(nowDate) < vnDate(nowDate);
+}
+
+const RESEARCH_SESSIONS = 20;
+const RESEARCH_MIN_SAMPLE = 8;
+let researchBuilds = 0;
+const researchHistories = new WeakMap();
+
+function researchBars(bars, date, latestMinute = 15 * 60 + 5) {
+  const minutes = new Map();
+  for (const bar of bars) {
+    const match = String(bar.date).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/);
+    if (!match || match[1] !== date || bar.partial || !Number.isFinite(bar.volume) || bar.volume < 0) continue;
+    const minute = Number(match[2]) * 60 + Number(match[3]);
+    if (minute >= 9 * 60 && minute <= latestMinute) minutes.set(minute, bar);
+  }
+  return [...minutes.entries()].sort(([a], [b]) => a - b);
+}
+
+export function buildResearchSameTime(todayBars, history, ticker, day, observedAt) {
+  const latestMinute = Math.min(15 * 60 + 5, vnParts(observedAt).minutes - 1);
+  const current = researchBars(todayBars, day, latestMinute);
+  const cutoff = current.at(-1)?.[0];
+  if (cutoff == null) return { bars: [], sample: null };
+  const baseline = new Map();
+  for (const session of history) {
+    if (session.date >= day || baseline.has(session.date)) continue;
+    const series = researchBars(session.bars, session.date);
+    if (!series.length || series[0][0] > cutoff || series.at(-1)[0] < cutoff) continue;
+    baseline.set(session.date, series.reduce((total, [minute, bar]) => total + (minute <= cutoff ? bar.volume : 0), 0));
+  }
+  const values = [...baseline.values()].sort((a, b) => a - b);
+  const mid = Math.floor(values.length / 2);
+  const median = values.length % 2 ? values[mid] : (values[mid - 1] + values[mid]) / 2;
+  const bars = current.map(([, bar]) => bar);
+  const traded = bars.reduce((total, bar) => total + bar.volume, 0);
+  const asOfTime = `${String(Math.floor(cutoff / 60)).padStart(2, "0")}:${String(cutoff % 60).padStart(2, "0")}`;
+  const sample = values.length >= RESEARCH_MIN_SAMPLE && median > 0 ? {
+    asOfTime, sessions: values.length, ratio: Math.round(traded / median * 100) / 100,
+    ticker, session: day, traded, median, methodVersion: "rvol-same-minute-v1", source: "SSI_FC_V2",
+  } : null;
+  return { bars, sample };
+}
+
+export async function getResearchSameTimeVolume(service, symbol, observedAt) {
+  const provider = service.router?.providers?.ssiFcV2;
+  if (!provider?.isConfigured?.() || !isSessionLive(observedAt)) return null;
+  const day = vnDate(observedAt);
+  const last = lastCompletedSessionDate(observedAt);
+  const dates = tradingDatesBack(last, RESEARCH_SESSIONS);
+  const availableHistory = service.cache.get?.(`intraday-cycle-hist:${symbol}:${last}`);
+  if (!researchHistories.has(service)) researchHistories.set(service, new TtlCache({ maxEntries: 32 }));
+  const researchCache = researchHistories.get(service);
+  const historyKey = `research-volume-hist:${symbol}:${last}`;
+  let history = availableHistory ?? researchCache.get(historyKey);
+  if (!history) {
+    if (researchBuilds >= 2 && !researchCache.inflight.has(historyKey)) return null;
+    history = await researchCache.wrap(historyKey, 6 * 60 * 60_000, async () => {
+      researchBuilds++;
+      try {
+        const grouped = groupSessions(await provider.getIntradayRange(symbol, dates[0], last));
+        return grouped.filter((session) => dates.includes(session.date)).map(({ date, bars }) => ({ date, bars: bars.map(({ date, volume, partial }) => ({ date, volume, partial })) }));
+      } finally { researchBuilds--; }
+    });
+    if (history.length < RESEARCH_MIN_SAMPLE) researchCache.set(historyKey, history, 60_000);
+  }
+  const todayBars = await service.cache.wrap(`intraday-cycle-today:${symbol}:${day}`, 45_000, () => provider.getIntradayOhlcv(symbol, day));
+  return buildResearchSameTime(todayBars, history.filter((session) => dates.includes(session.date)), symbol, day, observedAt);
 }
 
 /**

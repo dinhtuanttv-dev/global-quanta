@@ -177,7 +177,7 @@ export function GraphViewport({ world, bounds, visibleCount, edgeCount, referenc
   const graph = cloneElement(world, { style: { ...world.props.style, transform: `translate(calc(-50% + ${camera.x}px),calc(-50% + ${camera.y}px)) scale(${camera.zoom})` } });
   return <div className="panel canvas-panel">
     <div className="canvas-top">
-      <div><div className="eyebrow">Evidence workspace</div><div style={{ fontSize: 10, fontWeight: 800, marginTop: 3 }}>Luận điểm &amp; bằng chứng <span className="soft-label">{`· ${visibleCount} nodes · ${edgeCount} links`}</span></div></div>
+      <div><div className="eyebrow">{reference ? "Evidence workspace" : "Phòng họp AI / Evidence Brain"}</div><div style={{ fontSize: 10, fontWeight: 800, marginTop: 3 }}>Luận điểm &amp; bằng chứng <span className="soft-label">{`· ${visibleCount} nodes · ${edgeCount} links`}</span></div></div>
       <div className="toolrow">
         <button type="button" className="eb-icon-btn" onClick={() => zoomBy(-.1)} aria-label="Thu nhỏ">−</button>
         <span className="zoom-label" aria-live="polite">{Math.round(camera.zoom * 100)}%</span>

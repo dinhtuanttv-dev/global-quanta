@@ -12,6 +12,7 @@ const SCAN_AT_MIN = 15 * 60 + 40; // giờ chạy Siêu Quét theo lịch
  * @param deps.store  getMarketDailyDates, getKv
  */
 export function createSessionCatchUp({ jobs, store, now = Date.now, log = console, chain = CATCH_UP_CHAIN, indexReady = null }) {
+  let unfinished = null;
   return async function sessionCatchUp() {
     const d = new Date(now());
     const expectedSession = lastCompletedSessionDate(d);
@@ -29,26 +30,30 @@ export function createSessionCatchUp({ jobs, store, now = Date.now, log = consol
     }
     const scan = (await store.getKv("scanner:latest"))?.value ?? null;
     const scanAsOf = scan?.dataAsOf ?? null;
-    if (!latestDaily) return { skipped: "Chưa có dữ liệu ngày", dailyRepair };
+    const awaitingData = Boolean(dailyRepair && !dailyRepair.available);
+    if (!latestDaily) return { skipped: "Chưa có dữ liệu ngày", dailyRepair, awaitingData };
     // Kết quả Siêu Quét đúng phiên nhưng trạng thái VN-Index còn của phiên trước (nến chỉ số lỗi lúc quét, đã được vá sau đó — 13/11/2026):
     // quét lại riêng Siêu Quét khi nến chỉ số của phiên đó đã hợp lệ.
-    if (scanAsOf && scanAsOf >= latestDaily) {
+    const remaining = unfinished?.session === latestDaily ? unfinished.steps : null;
+    if (!remaining?.length && scanAsOf && scanAsOf >= latestDaily) {
       const idxAsOf = scan?.indexState?.dataAsOf ?? null;
       if (idxAsOf && idxAsOf < scanAsOf && indexReady && (await indexReady(scanAsOf).catch(() => false)) && typeof jobs.scanUniverse === "function") {
         try { await jobs.scanUniverse(); log.info?.(`[market] Quét lại Siêu Quét ${scanAsOf}: trạng thái VN-Index ${idxAsOf} -> ${scanAsOf}`); return { session: scanAsOf, rescanned: "indexState", indexBefore: idxAsOf }; }
         catch (e) { return { session: scanAsOf, rescanned: false, error: String(e?.message ?? e).slice(0, 160) }; }
       }
-      return { skipped: dailyRepair && !dailyRepair.available ? "Chưa có phiên đóng từ nguồn dữ liệu ngày" : "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf, dailyRepair };
+      return { skipped: awaitingData ? "Chưa có phiên đóng từ nguồn dữ liệu ngày" : "Siêu Quét đã cập nhật", session: latestDaily, scanAsOf, dailyRepair, awaitingData };
     }
     // Phiên hôm nay chưa tới giờ quét theo lịch -> để lịch thường chạy, không chạy sớm.
     if (latestDaily === vnDate(d) && vnParts(d).minutes < SCAN_AT_MIN) return { skipped: "Chưa tới giờ quét của phiên hôm nay", session: latestDaily, scanAsOf };
     const done = [];
-    for (const name of chain) {
+    for (const name of remaining ?? chain) {
       if (typeof jobs[name] !== "function") continue;
       try { await jobs[name](); done.push({ name, ok: true }); }
       catch (e) { done.push({ name, ok: false, error: String(e?.message ?? e).slice(0, 160) }); }
     }
+    const failed = done.filter((job) => !job.ok).map((job) => job.name);
+    unfinished = failed.length ? { session: latestDaily, steps: failed } : null;
     log.info?.(`[market] Bù phiên ${latestDaily} (Siêu Quét đang ở ${scanAsOf ?? "—"}): ${done.map((x) => (x.ok ? x.name : `${x.name} LỖI`)).join(", ")}`);
-    return { session: latestDaily, scanAsOfBefore: scanAsOf, done, dailyRepair };
+    return { session: latestDaily, scanAsOfBefore: scanAsOf, done, dailyRepair, awaitingData: awaitingData || failed.length > 0 };
   };
 }

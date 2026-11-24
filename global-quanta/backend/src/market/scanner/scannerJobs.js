@@ -47,15 +47,23 @@ export function tradingDatesBack(end, count) {
 
 export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMarketDay, fetchImpl = globalThis.fetch, pauseMs = 300, corporateActions = null } = {}) {
   const store = service.store;
+  const dailyWrites = new Map();
 
   async function emptyDates() {
     return new Set((await store.getKv(KV.emptyDates))?.value ?? []);
   }
 
   /** Đồng bộ một phiên; nếu phiên trước đã có trong kho thì đối chiếu giá điều chỉnh để phát hiện sự kiện quyền. */
-  async function syncDay(date, { detectAdjustments = true } = {}) {
+  function syncDay(date, options) {
+    if (!dailyWrites.has(date)) dailyWrites.set(date, writeDay(date, options).finally(() => dailyWrites.delete(date)));
+    return dailyWrites.get(date);
+  }
+
+  async function writeDay(date, { detectAdjustments = true } = {}) {
     const today = await fetchDay(date);
-    if (!today.rows.length) return { date, rows: 0, requests: today.requests, empty: true };
+    const rows = today.rows.filter((row) => row.date === date);
+    const observation = { date, requests: today.requests, receivedValidRows: rows.length, coverage: today.coverage ?? null };
+    if (!rows.length) return { ...observation, rows: 0, empty: true, awaitingData: detectAdjustments };
 
     let adjusted = 0;
     let requests = today.requests;
@@ -63,11 +71,17 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
       const dates = (await store.getMarketDailyDates()).filter((d) => d < date);
       const prevDate = dates.at(-1);
       if (prevDate) {
+        const stored = new Map((await store.getMarketDailyByDate(prevDate)).map((r) => [r.symbol, r]));
+        const expectedByExchange = {};
+        const acceptedByExchange = {};
+        for (const row of stored.values()) expectedByExchange[row.exchange] = (expectedByExchange[row.exchange] ?? 0) + 1;
+        for (const row of rows) acceptedByExchange[row.exchange] = (acceptedByExchange[row.exchange] ?? 0) + 1;
+        const thinExchanges = Object.entries(expectedByExchange).filter(([exchange, n]) => n >= 100 && (acceptedByExchange[exchange] ?? 0) < n * .8).map(([exchange]) => exchange);
+        if (thinExchanges.length) return { ...observation, rows: 0, awaitingData: true, expectedByExchange, acceptedByExchange, thinExchanges };
         const prevFresh = await fetchDay(prevDate);
         requests += prevFresh.requests;
-        const stored = new Map((await store.getMarketDailyByDate(prevDate)).map((r) => [r.symbol, r]));
         for (const fresh of prevFresh.rows) {
-          const old = stored.get(fresh.symbol);
+          const old = fresh.date === prevDate ? stored.get(fresh.symbol) : null;
           if (!old?.closeAdj || !fresh.closeAdj) continue;
           const factor = fresh.closeAdj / old.closeAdj;
           if (Math.abs(factor - 1) > ADJ_EPSILON) {
@@ -77,9 +91,8 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         }
       }
     }
-    await store.upsertMarketDaily(today.rows);
-    if (detectAdjustments) await repairForeign({ except: date }).catch((e) => console.warn(`[scanner] khối ngoại: ${e.message}`));
-    return { date, rows: today.rows.length, requests, adjustedSymbols: adjusted };
+    await store.upsertMarketDaily(rows);
+    return { ...observation, rows: rows.length, requests, adjustedSymbols: adjusted };
   }
 
   /** SSI có lúc công bố khối ngoại sau giờ job chạy, kho lưu 0 cho cả phiên. Lấy lại, chỉ ghi các trường khối ngoại. */
@@ -329,7 +342,8 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
 
 /** Lịch chạy các job Siêu Quét (bổ sung vào scheduler). */
 export const SCANNER_SCHEDULE = [
-  { name: "syncMarketDaily", at: "15:20", tradingDayOnly: true },
+  { name: "syncMarketDaily", at: "15:20", tradingDayOnly: true, followUp: "sessionCatchUp" },
+  { name: "repairForeign", at: "18:05", tradingDayOnly: true },
   { name: "scanUniverse", at: "15:40", tradingDayOnly: true },
   { name: "ifeValidate", at: "15:50", tradingDayOnly: true },
   { name: "refreshFundamentals", at: "09:00", weekdays: [6] },

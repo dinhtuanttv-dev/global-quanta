@@ -4,13 +4,15 @@ import { fetchMarketJson } from "../services/marketDataClient";
 export interface VolumeBar { date: string; volume: number; value: number; close: number; up: boolean }
 export interface ProfileBin { priceLow: number; priceHigh: number; volume: number }
 
+type VolumeDetail = "summary" | "research" | "full";
+
 export interface VolumeAnalysis {
   symbol: string;
   asOf: string;
   partialToday: boolean;
-  coverage?: { detail: "summary" | "full"; lastClosedSession: string; expectedClosedSession: string | null };
+  coverage?: { detail: VolumeDetail; lastClosedSession: string; expectedClosedSession: string | null };
   today: {
-    date: string; price: number; changePct: number | null; volume: number; value: number;
+    date: string; price: number; changePct: number | null; volume: number; value: number | null;
     dealVolume: number; dealValue: number; avgVolume20: number | null; rvol20: number | null;
     /** "intraday": trong phiên, dùng rvolTimeAdjusted (so cùng thời điểm) thay cho rvol20. */
     rvolMode: "daily" | "intraday";
@@ -39,19 +41,19 @@ export interface VolumeAnalysis {
     buckets15m: { time: string; volume: number }[]; totalVolume: number;
     atoSharePct: number | null; atcSharePct: number | null;
     peak: { time: string; volume: number; multipleOfAvgBar: number | null } | null;
-    sameTime: { asOfTime: string; ratio: number; sessions: number } | null;
+    sameTime: { asOfTime: string; ratio: number; sessions: number; ticker?: string; session?: string; traded?: number; median?: number; methodVersion?: string; source?: string } | null;
   } | null;
   insights: string[];
   notes: string[];
 }
 
 /** Dữ liệu dòng phụ "phân tích khối lượng" — chỉ tải khi dòng được mở. */
-export function useVolumeAnalysis(symbol: string | null, enabled = true, detail: "full" | "summary" = "full") {
+export function useVolumeAnalysis(symbol: string | null, enabled = true, detail: VolumeDetail = "full") {
   const { data, error, isLoading } = useSWR<VolumeAnalysis>(
-    symbol && enabled ? detail === "summary" ? ["volume-analysis", symbol, detail] : ["volume-analysis", symbol] : null,
+    symbol && enabled ? detail === "full" ? ["volume-analysis", symbol] : ["volume-analysis", symbol, detail] : null,
     () => fetchMarketJson<VolumeAnalysis>(`/api/market/scanner/${encodeURIComponent(symbol!)}/volume`,
-      detail === "summary" ? { detail } : undefined, { signal: AbortSignal.timeout(detail === "summary" ? 5_000 : 24_000) }),
-    { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000, errorRetryCount: 1 },
+      detail === "full" ? undefined : { detail }, { signal: AbortSignal.timeout(detail === "full" ? 24_000 : 5_000) }),
+    { refreshInterval: detail === "research" ? 30_000 : 60_000, revalidateOnFocus: false, dedupingInterval: 20_000, errorRetryCount: 1 },
   );
   return { data, error, isLoading };
 }

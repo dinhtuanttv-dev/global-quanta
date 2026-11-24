@@ -49,9 +49,10 @@ export class SourceRouter {
   /**
    * @returns {Promise<{ data: any, provider: string, source: string, fallbackReason: string|null, attempts: Array }>}
    */
-  async run(dataset, method, args = [], { only } = {}) {
+  async run(dataset, method, args = [], { only, accept = null } = {}) {
     const attempts = [];
     let reason = null;
+    let historical = null;
     const chain = this.configuredChain(dataset, { only });
     if (!chain.length) {
       throw new MarketDataError(`Chưa cấu hình nguồn dữ liệu nào cho ${dataset}.`, { statusCode: 503 });
@@ -67,6 +68,12 @@ export class SourceRouter {
       try {
         const data = await provider[method](...args);
         breaker.recordSuccess();
+        if (accept && !accept(data)) {
+          historical ??= { data, provider: name, source: provider.source ?? name };
+          attempts.push({ provider: name, reason: "MISSING_TARGET_SESSION" });
+          reason ??= "MISSING_TARGET_SESSION";
+          continue;
+        }
         if (reason) this.onFallback?.({ dataset, provider: name, reason, attempts });
         return { data, provider: name, source: provider.source ?? name, fallbackReason: reason, attempts };
       } catch (error) {
@@ -78,6 +85,7 @@ export class SourceRouter {
         if (kind === "transient") reason ??= why;
       }
     }
+    if (historical) return { ...historical, fallbackReason: reason, attempts };
     const error = new MarketDataError(`Không nguồn nào trả được dữ liệu ${dataset}.`, { statusCode: 502 });
     error.attempts = attempts;
     throw error;

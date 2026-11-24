@@ -171,7 +171,7 @@ export interface EvidenceSignal {
 }
 export interface EliteEvidence { version: string; generatedAt: string; calendarLast: string | null; tests: number; counts: Record<Tier, number>; signals: EvidenceSignal[] }
 
-export interface PanelTicker { date: string; ticker: string; icb: { l1?: string; l2?: string; l3?: string } | null; sector: string | null; values: Record<string, number | null>; signals: SignalSpec[]; missingSources: string[] }
+export interface PanelTicker { date: string; version?: string; ticker: string; icb: { l1?: string; l2?: string; l3?: string } | null; sector: string | null; values: Record<string, number | null>; signals: SignalSpec[]; missingSources: string[] }
 export interface DecisionTicker extends EliteScore { date: string; version: string; icComb: number; weights: SignalWeight[]; inPortfolio: boolean; universe: { panel: number; eligible: number } }
 
 export const TIER_LABEL: Record<Tier, string> = { A: "Bậc A", B: "Bậc B", C: "Bậc C" };

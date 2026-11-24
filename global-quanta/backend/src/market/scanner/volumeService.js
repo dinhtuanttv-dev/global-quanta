@@ -2,8 +2,8 @@
 // nay + 5 phiên trước (SSI IntradayOhlc, lưu đệm), quote realtime (stream) nếu đang
 // trong phiên. Nến phút của phiên đã đóng không đổi nên được lưu đệm 12 giờ.
 
-import { buildVolumeAnalysis } from "./volumeAnalysis.js";
-import { getIntradaySessions } from "./intradayService.js";
+import { buildVolumeAnalysis, computeIntraday } from "./volumeAnalysis.js";
+import { getIntradaySessions, getResearchSameTimeVolume, isSessionLive } from "./intradayService.js";
 import { canonicalSymbol, isValidSymbol } from "../normalizer.js";
 import { ValidationError } from "../errors.js";
 import { expectsLiveTicks, isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
@@ -11,6 +11,21 @@ import { expectsLiveTicks, isTradingDay, lastCompletedSessionDate, vnDate, vnPar
 const DAILY_SESSIONS = 60;
 // 20 phiên (trước đây 5–6): cùng mốc với "Nhịp khối lượng" (trung vị 20 phiên), POC ít nhiễu hơn.
 const PROFILE_SESSIONS = 20;
+
+export function loadVolumeAnalysis(service, symbol, detail) {
+  const key = `volume-analysis:${canonicalSymbol(symbol)}${detail === "full" ? "" : `:${detail}`}`;
+  return service.cache.wrap(key, detail === "research" ? 20_000 : 60_000, () => getVolumeAnalysis(service, symbol, { detail }));
+}
+
+async function readSameTime(service, symbol, observedAt) {
+  let timer;
+  try {
+    return await Promise.race([
+      getResearchSameTimeVolume(service, symbol, observedAt).catch(() => null),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(null), 1_350); }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
 
 export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, detail = "full" } = {}) {
   const symbol = canonicalSymbol(rawSymbol);
@@ -56,6 +71,7 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, de
       ]);
     }
   }
+  const research = detail === "research" && isSessionLive(nowDate) ? await readSameTime(service, symbol, nowDate) : null;
 
   // Trong phiên: dữ liệu ngày của hôm nay chưa có (đồng bộ lúc 15:20) -> ghép từ quote realtime.
   const live = service.hub?.getQuote(symbol) ?? null;
@@ -69,12 +85,27 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, de
       foreignRoom: rows.at(-1).foreignRoom, partial: true,
     });
   }
+  if (research?.bars.length && rows.at(-1).date < today) {
+    const last = research.bars.at(-1);
+    if (Number.isFinite(last.close) && last.close > 0) rows.push({
+      symbol, date: today, exchange: rows.at(-1).exchange, partial: true,
+      open: research.bars[0].open, high: Math.max(...research.bars.map((bar) => bar.high)),
+      low: Math.min(...research.bars.map((bar) => bar.low)), close: last.close, closeAdj: last.close,
+      volume: research.bars.reduce((total, bar) => total + bar.volume, 0), value: null,
+      dealVolume: 0, dealValue: 0, foreignBuyVol: 0, foreignSellVol: 0, foreignBuyVal: 0, foreignSellVal: 0,
+      foreignRoom: rows.at(-1).foreignRoom,
+    });
+  }
 
   const analysis = buildVolumeAnalysis({ symbol, daily: rows, intradayToday, intradayPast });
+  if (detail === "research" && research?.bars.length && rows.at(-1).partial) {
+    analysis.intraday = { ...computeIntraday(research.bars, []), sameTime: research.sample };
+    analysis.today.rvolTimeAdjusted = research.sample?.ratio ?? null;
+  }
   return {
     ...analysis,
     partialToday: Boolean(rows.at(-1).partial),
     coverage: { detail, lastClosedSession: daily.at(-1).date, expectedClosedSession: lastCompletedSessionDate(nowDate) },
-    provenance: { daily: "SSI_FC_V2 (DailyStockPrice)", intraday: detail === "full" ? "SSI_FC_V2 (IntradayOhlc)" : null, live: live?.provenance?.source ?? null },
+    provenance: { daily: "SSI_FC_V2 (DailyStockPrice)", intraday: detail === "full" || research?.bars.length ? "SSI_FC_V2 (IntradayOhlc)" : null, live: live?.provenance?.source ?? null },
   };
 }

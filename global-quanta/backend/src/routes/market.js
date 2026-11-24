@@ -13,7 +13,7 @@ import { getMarketRuntime } from "../market/runtime.js";
 import { KV } from "../market/scanner/scannerJobs.js";
 import { expectsLiveTicks, lastCompletedSessionDate, vnDate } from "../market/calendar.js";
 import { buildSepaIntraday, sepaIntradayCandidates } from "../market/strategies/sepaIntraday.js";
-import { getVolumeAnalysis } from "../market/scanner/volumeService.js";
+import { loadVolumeAnalysis } from "../market/scanner/volumeService.js";
 import { getEsaSessions, getIntradayCycle, getIntradaySessions, isSessionLive } from "../market/scanner/intradayService.js";
 import { buildIntentFootprint } from "../market/scanner/ife.js";
 import { loadTickFlows } from "../market/scanner/tickFlowService.js";
@@ -580,11 +580,9 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
 // Dòng phụ Bảng Siêu Quét: phân tích chuyên sâu khối lượng của một mã.
 router.get("/scanner/:symbol/volume", handle(async (req, res) => {
   const rt = getMarketRuntime();
-  const detail = req.query.detail === "summary" ? "summary" : "full";
-  const key = `volume-analysis:${req.params.symbol.toUpperCase()}${detail === "summary" ? ":summary" : ""}`;
-  const data = await rt.service.cache.wrap(key, 60_000,
-    () => getVolumeAnalysis(rt.service, req.params.symbol, { detail }));
-  res.set("Cache-Control", "private, max-age=30");
+  const detail = req.query.detail === "summary" || req.query.detail === "research" ? req.query.detail : "full";
+  const data = await loadVolumeAnalysis(rt.service, req.params.symbol, detail);
+  res.set("Cache-Control", detail === "research" ? "no-store" : "private, max-age=30");
   res.json(data);
 }));
 

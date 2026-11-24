@@ -4,7 +4,11 @@ import { readFileSync } from "node:fs";
 import { createResearchRoom } from "../src/market/elite/researchRoom.js";
 import { getVolumeAnalysis } from "../src/market/scanner/volumeService.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
-import { closedResearchChart, makeResearchRun } from "../src/market/vendor/evidenceRoom.mjs";
+import { TtlCache } from "../src/market/util.js";
+import { tradingDatesBack } from "../src/market/scanner/scannerJobs.js";
+import { fetchMarketDay } from "../src/market/scanner/marketDaily.js";
+import { SourceRouter } from "../src/market/sourceRouter.js";
+import { closedResearchChart, evaluateConfirmation, makeResearchRun } from "../src/market/vendor/evidenceRoom.mjs";
 
 const json = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const pulse = json("../../src/lib/elite10/__fixtures__/pulse-2026-11-20.json").decision;
@@ -74,4 +78,63 @@ test("timeline admits finalized closes only, even when the stream still has a pa
   assert.deepEqual(chart.bars, [{ date: "2026-11-23", close: 100 }]);
   const early = closedResearchChart([{ date: "2026-11-24", close: 102 }], "ADJUSTED_CUMULATIVE", [], "2026-11-24T07:00:00.000Z");
   assert.deepEqual(early.bars, []);
+});
+
+test("day ingest diagnoses stale, malformed and duplicate rows per exchange", async () => {
+  const row = (symbol, date) => ({ Symbol: symbol, TradingDate: date, ClosePrice: 100, FloorPrice: 93, RefPrice: 100, CeilingPrice: 107 });
+  const result = await fetchMarketDay("2026-11-24", { pauseMs: 0, call: async (_, { market }) => ({ data: market === "HOSE" ? [
+    row("FPT", "2026-11-23"), row("FPT", "2026-11-24"), row("FPT", "2026-11-24"), row("ERR", "invalid"),
+  ] : [] }) });
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows[0].date, "2026-11-24");
+  assert.deepEqual(result.coverage.HOSE, { received: 4, accepted: 1, invalid: 1, wrongSession: 1, duplicate: 1 });
+});
+
+test("EOD accepts configured fallback with the target day and keeps provenance when all feeds are stale", async () => {
+  const older = [{ date: "2026-11-23", close: 100 }], fresh = [{ date: "2026-11-24", close: 101 }];
+  let rows = fresh;
+  const router = new SourceRouter({
+    ssiV3: { source: "SSI_V3", isConfigured: () => true, getDailyOhlcv: async () => older },
+    ssiFcV2: { source: "SSI_FC_V2", isConfigured: () => true, getDailyOhlcv: async () => rows },
+  });
+  const target = { accept: (bars) => bars.some((bar) => bar.date === "2026-11-24") };
+  const result = await router.run("ohlcvDaily", "getDailyOhlcv", [], target);
+  assert.equal(result.source, "SSI_FC_V2");
+  assert.equal(result.fallbackReason, "MISSING_TARGET_SESSION");
+  rows = older;
+  const exhausted = await router.run("ohlcvDaily", "getDailyOhlcv", [], target);
+  assert.equal(exhausted.source, "SSI_V3");
+  assert.deepEqual(exhausted.data, older);
+  assert.equal(exhausted.attempts.length, 2);
+});
+
+test("research RVOL seals a verified same-minute sample and excludes the open minute", async () => {
+  const currentDay = "2026-11-24", prior = "2026-11-23", observedAt = Date.parse(`${currentDay}T03:18:20Z`);
+  const bar = (date, time, volume) => ({ date: `${date}T${time}:00+07:00`, open: 100, high: 102, low: 98, close: 101, volume });
+  const baseline = tradingDatesBack(prior, 20);
+  const service = { cache: new TtlCache(),
+    store: { getMarketDailyDates: async () => [prior], getMarketDailyRange: async () => [{ ...bar(prior, "15:00", 2000), date: prior, closeAdj: 101, value: 202_000 }] },
+    router: { providers: { ssiFcV2: { isConfigured: () => true,
+      getIntradayRange: async (_symbol, from, to) => {
+        assert.equal(from, baseline[0]); assert.equal(to, prior);
+        return baseline.slice(-10).flatMap((date) => [bar(date, "09:10", 200), bar(date, "10:15", 300), bar(date, "15:00", 1000)]);
+      },
+      getIntradayOhlcv: async () => [bar(currentDay, "09:10", 400), bar(currentDay, "10:15", 800), bar(currentDay, "10:18", 9999)],
+    } } },
+  };
+  const volume = await getVolumeAnalysis(service, "FPT", { now: () => observedAt, detail: "research" });
+  assert.equal(volume.partialToday, true);
+  assert.equal(volume.today.rvolTimeAdjusted, 2.4);
+  assert.deepEqual(volume.intraday.sameTime, { asOfTime: "10:15", sessions: 10, ratio: 2.4, ticker: "FPT", session: currentDay,
+    traded: 1200, median: 500, methodVersion: "rvol-same-minute-v1", source: "SSI_FC_V2" });
+  const room = createResearchRoom({ store: createMemoryStore(), now: () => observedAt, expectedClosedSession: () => prior,
+    load: () => ({ decision: async () => ({ ...decision, date: prior }), instrument: async () => ({ ticker: "FPT", exchange: "HOSE" }),
+      price: async () => ({ priceBasis: "ADJUSTED_CUMULATIVE", bars: [{ ...bar(prior, "15:00", 2000), date: prior }] }), volume: async () => volume }) });
+  const projection = await room.lock("alice", "FPT");
+  const check = evaluateConfirmation(projection).checks.find((item) => item.id === "volume");
+  assert.equal(check?.state, "WAIT");
+  assert.ok(projection.snap.refs.some((ref) => ref.fieldPath === "rvolTimeAdjusted" && ref.value === 2.4 && ref.freshness === "CURRENT"));
+  const invalid = structuredClone(projection);
+  invalid.data.volume.intraday.sameTime.asOfTime = "10:18";
+  assert.equal(evaluateConfirmation(invalid).checks.find((item) => item.id === "volume")?.state, "MISSING");
 });
