@@ -4,7 +4,7 @@
 //     để kiểm chứng từng luận điểm và kết luận cân bằng. Mọi câu trả lời đều qua bước đối chiếu con số với kết quả công cụ.
 //   - Bản tin phiên: tạo khi bấm (không chạy định kỳ — tránh chi phí API không cần thiết).
 //   - Hỏi đáp tự do: cùng khung Hỏi đáp xúc tác, gợi ý theo Elite 10.
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
@@ -48,7 +48,9 @@ export function debateQuestions(subject: string | null) {
 
 type Phase = "idle" | "arguing" | "judging" | "done";
 
-export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string | null }) {
+export default function EliteAiRoom({ defaultTicker, active = true, onSession }: {
+  defaultTicker?: string | null; active?: boolean; onSession?: (session: string | null) => void;
+}) {
   const [subject, setSubject] = useState<string>(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : "");
   const [bull, setBull] = useState<Lane | null>(null);
   const [bear, setBear] = useState<Lane | null>(null);
@@ -60,8 +62,6 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const briefCtrlRef = useRef<AbortController | null>(null);
   const [trace, setTrace] = useState<LaneTraceMap>({});
   const [debateSubject, setDebateSubject] = useState<string | null>(null);
-  const [snapshot, setSnapshot] = useState<EvidenceSnapshot | null>(null);
-  const snapshotRef = useRef<EvidenceSnapshot | null>(null);
   const [reviewSnapshot, setReviewSnapshot] = useState<EvidenceSnapshot | null>(null);
   const [bullClaims, setBullClaims] = useState<ClaimParseResult | null>(null);
   const [bearClaims, setBearClaims] = useState<ClaimParseResult | null>(null);
@@ -73,6 +73,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
   const [qa, setQa] = useState<{ turns: QaTurn[]; meta: QaMeta | null }>({ turns: [], meta: null });
   const [qaTap] = useState(() => (turns: QaTurn[], meta: QaMeta | null) => setQa({ turns, meta }));
   useEffect(() => () => { ctrlRef.current?.abort(); briefCtrlRef.current?.abort(); }, []);
+  useEffect(() => { setSubject(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : ""); }, [defaultTicker]);
 
   async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal): Promise<Lane> {
     let lane = newLane(provider);
@@ -90,21 +91,14 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     return lane;
   }
 
-  const handleSnapshotChange = useCallback((next: EvidenceSnapshot | null) => {
-    snapshotRef.current = next;
-    setSnapshot(next);
-  }, []);
-
-  async function startDebate(lockedSnapshot?: EvidenceSnapshot) {
-    if (phase === "arguing" || phase === "judging") return;
+  async function startDebate(frozen: EvidenceSnapshot | null) {
+    if (ctrlRef.current) return;
     const t = subject.trim().toUpperCase();
     const ticker = /^[A-Z0-9]{3,10}$/.test(t) ? t : null;
-    const frozen = lockedSnapshot ?? snapshotRef.current;
-    if (lockedSnapshot && (lockedSnapshot.ticker !== ticker || !lockedSnapshot.decisionSession)) {
+    if (frozen && (frozen.ticker !== ticker || !frozen.decisionSession)) {
       setReviewMessage("Snapshot không khớp mã hoặc thiếu phiên quyết định; hãy tải lại dữ liệu trước khi tranh luận.");
       return;
     }
-    if (lockedSnapshot && frozen?.ticker !== ticker) return;
     if (frozen) {
       const readiness = sourceReadiness(frozen);
       if (!readiness.canDebate) {
@@ -114,7 +108,7 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     }
     setDebateSubject(ticker);
     setReviewSnapshot(frozen ?? null);
-    setReviewMessage(lockedSnapshot ? `Đang tranh luận trên snapshot ${lockedSnapshot.snapshotId}.` : frozen ? `Đang dùng snapshot ${frozen.snapshotId}.` : "Tranh luận nhanh chưa khóa snapshot; các claim sẽ không được coi là đã kiểm chứng.");
+    setReviewMessage(frozen ? `Đang tranh luận trên snapshot ${frozen.snapshotId}.` : "Tranh luận nhanh chưa khóa snapshot; các claim sẽ không được coi là đã kiểm chứng.");
     setBullClaims(null); setBearClaims(null); setJudgeClaims(null);
     setTrace((s) => ({ brief: s.brief }));
     const q = debateQuestions(ticker);
@@ -129,22 +123,24 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     const parsedBear = frozen ? markClaimsWithExternalTools(parseAndValidateClaims(s.text, frozen, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
     if (parsedBull) setBullClaims(parsedBull);
     if (parsedBear) setBearClaims(parsedBear);
-    if (ctrl.signal.aborted || (!b.text.trim() && !s.text.trim())) { setPhase("done"); return; }
+    if (ctrl.signal.aborted || (!b.text.trim() && !s.text.trim())) { ctrlRef.current = null; setPhase("done"); return; }
     setPhase("judging");
     const judgePrompt = frozen && parsedBull && parsedBear
       ? `${q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)")}\n\n${structuredClaimsInstruction(frozen, "JUDGE")}\n\nValidator deterministic của hai phía (tham khảo để phản biện, không được nâng claim unsupported thành verified):\n${validationForJudge(parsedBull, parsedBear)}`
       : q.judge(b.text || "(phe mua không trả lời được)", s.text || "(phe bán không trả lời được)");
     const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal);
     if (frozen) setJudgeClaims(markClaimsWithExternalTools(parseAndValidateClaims(j.text, frozen, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable));
+    ctrlRef.current = null;
     setPhase("done");
   }
 
   async function makeBrief() {
-    if (briefBusy) return;
+    if (briefCtrlRef.current) return;
     setBriefBusy(true);
     const ctrl = new AbortController();
     briefCtrlRef.current = ctrl;
     await run("claude", null, debateQuestions(null).brief, setBrief, ctrl.signal);
+    briefCtrlRef.current = null;
     setBriefBusy(false);
   }
 
@@ -155,15 +151,18 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
     qaKey(qa.turns) && !qa.turns.some((t) => t.role === "assistant" && t.lanes.some((l) => !l.done)) && !desk.isSaved(qaKey(qa.turns)) ? "hỏi đáp" : null,
   ].filter((x): x is string => Boolean(x));
   return (
-    <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-ai-room">
-      <ObsidianBar desk={desk} unsaved={unsaved} />
-      <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} bull={bull} bear={bear} judge={judge}
+    <div data-testid="elite-ai-room">
+      <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} active={active} busy={busy} debateSubject={debateSubject} bull={bull} bear={bear} judge={judge}
         bullClaims={bullClaims}
         bearClaims={bearClaims}
         judgeClaims={judgeClaims}
         reviewSnapshot={reviewSnapshot}
         reviewMessage={reviewMessage}
-        onSnapshotChange={handleSnapshotChange} onRunReview={(next) => void startDebate(next)} />
+        onSession={onSession} onRunReview={(next) => void startDebate(next)} onStop={() => ctrlRef.current?.abort()} />
+      <details className="panel eb-extra">
+      <summary>Công cụ phiên · tranh luận, bản tin, hỏi đáp và Obsidian</summary>
+      <div className="tw-scope space-y-3 text-slate-200">
+      <ObsidianBar desk={desk} unsaved={unsaved} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
@@ -179,10 +178,10 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
           })()} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="min-w-0 flex-1 text-[10px] text-slate-500">Mã phân tích được chọn trong Evidence Brain.</span>
+          <span className="min-w-0 flex-1 text-[10px] text-slate-500">{phase === "idle" ? "Mã phân tích được chọn trong Evidence Brain." : `Kết quả của ${debateSubject ?? "Danh mục"} · ${reviewSnapshot?.snapshotId ?? "tranh luận nhanh"}`}</span>
           {busy
             ? <button type="button" onClick={() => ctrlRef.current?.abort()} className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng</button>
-            : <button type="button" onClick={() => void startDebate()} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30"><Play className="h-3 w-3" />Bắt đầu tranh luận</button>}
+            : <button type="button" onClick={() => void startDebate(null)} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30"><Play className="h-3 w-3" />Tranh luận nhanh</button>}
         </div>
         {(bull || bear) && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -216,6 +215,8 @@ export default function EliteAiRoom({ defaultTicker }: { defaultTicker?: string 
         </QaTapContext.Provider>
       </section>
       <p className="text-[10px] text-slate-400" data-testid="elite-ai-disclaimer">AI chỉ giải thích và phản biện số liệu từ công cụ; lập luận "phe mua" / "phe bán" là bài tập tranh luận. Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
+      </div>
+      </details>
     </div>
   );
 }

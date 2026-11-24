@@ -10,6 +10,7 @@ import KetNoiTheGioiTab from "./KetNoiTheGioi/KetNoiTheGioiTab";
 import LocNganhTab from "./LocNganh/LocNganhTab";
 import ChatXucTacTab from "./ChatXucTac/ChatXucTacTab";
 import Elite10Tab from "../elite10/Elite10Hub";
+import type { RoomReference } from "../elite10/center/evidenceRoom/roomView";
 import { TabNavigationContext } from "../../lib/TabNavigationContext";
 import { canGoBack, canGoForward, initialNav, isMainTab, labelOf, MAIN_TABS, parseNav, pushTab, resolvePop, slugOf, tabOfSlug, type MainTabId, type NavState } from "../../lib/mainNav";
 import "./MainTabs.css";
@@ -32,8 +33,9 @@ const urlFor = (tab: MainTabId, search = "") => {
 };
 const fmtTime = (ms: number) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-export default function MainTabs() {
-  const [nav, setNav] = useState<NavState>(() => initialNav(readSaved(), window.history.state?.gqIdx, urlTab()));
+export default function MainTabs({ roomReference }: { roomReference?: RoomReference } = {}) {
+  const [nav, setNav] = useState<NavState>(() => roomReference
+    ? initialNav(null, null, "Elite 10") : initialNav(readSaved(), window.history.state?.gqIdx, urlTab()));
   const navRef = useRef(nav);
   const update = useCallback((next: NavState) => { navRef.current = next; setNav(next); save(next); }, []);
   const activeTab = nav.stack[nav.idx];
@@ -146,7 +148,7 @@ export default function MainTabs() {
             {activeTab === "Co tuc" && <CotucTab />}
             {activeTab === "Ket noi the gioi" && <KetNoiTheGioiTab />}
             {activeTab === "Loc nganh" && <LocNganhTab />}
-            {activeTab === "Elite 10" && <Elite10Tab />}
+            {activeTab === "Elite 10" && <Elite10Tab roomReference={roomReference} />}
           </SectionBoundary>
         </div>
       </div>

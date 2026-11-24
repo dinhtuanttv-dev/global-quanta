@@ -2,6 +2,7 @@ import type { EliteDecision, EliteEvidence, EliteLedger, EliteRisk, DecisionTick
 import { funnelModel, resolveBoardState, sessionSeal } from "../elite10/cockpit";
 import type { EventRadarEvent } from "../../hooks/useEventRadar";
 import type { VolumeAnalysis } from "../../hooks/useVolumeAnalysis";
+import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import type { BuyTimeline, TimelineRow } from "../cotuc/buy-timeline";
 import type { EvidenceRef, EvidenceSnapshot, JsonValue, SnapshotSource } from "./types";
 
@@ -22,6 +23,7 @@ export interface PriceActionEvidence {
   loading: boolean;
   error: string | null;
   tickerVerified: boolean;
+  instrumentName?: string | null;
 }
 
 export interface SnapshotInput {
@@ -46,10 +48,18 @@ export interface SnapshotInput {
   eventError?: string | null;
   volume: VolumeAnalysis | null;
   volumeError?: string | null;
+  chart?: TimelinePriceEvidence | null;
+  liquidity?: EliteLiquidity | null;
+  liquidityError?: string | null;
   priceAction: PriceActionEvidence | null;
   priceActionError?: string | null;
   sourceLoading?: string[];
   sourceUnavailable?: string[];
+}
+
+export interface TimelinePriceEvidence {
+  priceBasis: string;
+  bars: { date: string; close: number }[];
 }
 
 const safeUrl = (value: string | null | undefined) => {
@@ -108,6 +118,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   const selected = ticker ? decision?.scores.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null;
   const selectedTicker = input.selectedDecision?.ticker.toUpperCase() === ticker ? input.selectedDecision : null;
   const selectedPanel = input.panel?.ticker.toUpperCase() === ticker ? input.panel : null;
+  const liquidity = input.liquidity?.ticker.toUpperCase() === ticker ? input.liquidity : null;
   const board = decision ? resolveBoardState(decision) : null;
   const state = ticker ? board?.byTicker.get(ticker) ?? [...(board?.byTicker.entries() ?? [])].find(([symbol]) => symbol.toUpperCase() === ticker)?.[1] ?? null : null;
   const funnel = decision ? funnelModel(decision) : null;
@@ -216,7 +227,16 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   }
 
   const loading = new Set(input.sourceLoading ?? []), unavailable = new Set(input.sourceUnavailable ?? []);
-  const errors: Record<string, string | null | undefined> = { decision: input.decisionError, profile: input.profileError, evidence: input.evidenceError, ledger: input.ledgerError, risk: input.riskError, timeline: input.timelineError, events: input.eventError, volume: input.volumeError, priceAction: input.priceActionError };
+  if (liquidity?.liq) {
+    add("profile", ticker!, "liquidity", { tier: liquidity.liq.tier, reasons: liquidity.liq.reasons,
+      med20: liquidity.liq.med20 ?? null, p10: liquidity.liq.p10 ?? null, capacityBn: liquidity.liq.capacityBn ?? null,
+      medMin: liquidity.rules.medMin, p10Min: liquidity.rules.p10Min }, null,
+    `/api/elite/liquidity/${ticker}`, liquidity.date, liquidity.rules.version, {
+      freshness: decision?.date === liquidity.date ? "CURRENT" : "STALE",
+      limitation: "Theo vốn tham chiếu và quy tắc của phiên. Không xác nhận khả năng khớp lệnh thực tế.",
+    });
+  }
+  const errors: Record<string, string | null | undefined> = { decision: input.decisionError, profile: input.profileError, evidence: input.evidenceError, ledger: input.ledgerError, risk: input.riskError, timeline: input.timelineError, events: input.eventError, volume: input.volumeError, priceAction: input.priceActionError, liquidity: input.liquidityError };
   const sourceInput: [string, string, string, string | null, string | null, boolean][] = [
     ["decision", "Bảng quyết định", "/api/elite/decision", decision?.date ?? null, decision?.version ?? null, Boolean(decision)],
     ["profile", "Hồ sơ 360", "/api/elite/panel/{ticker}", selectedPanel?.date ?? selectedTicker?.date ?? null, selectedTicker?.version ?? null, Boolean(selectedPanel || selectedTicker)],
@@ -228,13 +248,16 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     ["volume", "Volume", `/api/market/scanner/${ticker ?? "{ticker}"}/volume`, input.volume?.asOf ?? null, "volume-analysis", Boolean(input.volume)],
     ["priceAction", "Price Action", "/api/market/ta-series", input.priceAction?.asOf ?? null, input.priceAction?.methodVersion ?? null, Boolean(input.priceAction)],
   ];
+  if (ticker && (input.liquidity !== undefined || input.liquidityError)) {
+    sourceInput.push(["liquidity", "Thanh khoản", `/api/elite/liquidity/${ticker}`, liquidity?.date ?? null, liquidity?.rules.version ?? null, Boolean(liquidity?.liq)]);
+  }
   const sources: SnapshotSource[] = sourceInput.map(([key, label, endpoint, asOf, version, exists]) => {
     const state: SnapshotSource["state"] = errors[key] ? "ERROR" : loading.has(key) ? "LOADING" : unavailable.has(key) ? "UNAVAILABLE" : exists ? "LOADED" : "NOT_REQUESTED";
     const warnings = key === "events" && input.events?.some((event) => event.entityMatch !== "EXACT") ? ["Một số sự kiện có entity match chưa chính xác; không dùng làm xác nhận mã."] : [];
     if (state === "LOADED" && !asOf) warnings.push("Nguồn chưa cung cấp mốc as-of; không thể xác nhận độ mới của dữ liệu.");
     return { key, label, endpoint, asOf, version, state, error: errors[key] ?? null, warnings };
   });
-  const missing = sources.filter((source) => ["ERROR", "UNAVAILABLE", "NOT_REQUESTED"].includes(source.state)).map((source) => `${source.label}: ${source.state === "NOT_REQUESTED" ? "chưa tải" : source.error ?? "không khả dụng"}`);
+  const missing = sources.filter((source) => source.state !== "LOADED").map((source) => `${source.label}: ${source.state === "NOT_REQUESTED" ? "chưa tải" : source.state === "LOADING" ? "đang tải" : source.error ?? "không khả dụng"}`);
   missing.push(...sources.filter((source) => source.state === "LOADED" && !source.asOf).map((source) => `${source.label}: thiếu mốc as-of`));
   const stale: string[] = [];
   if (decision?.freshness?.overdue || (decision?.freshness?.sessionsBehind ?? 0) > 0) stale.push(`Bảng quyết định trễ ${decision?.freshness?.sessionsBehind ?? "?"} phiên.`);
@@ -253,6 +276,8 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   if (input.panel?.missingSources.length) limitations.push(`Hồ sơ thiếu nguồn: ${input.panel.missingSources.join(", ")}.`);
   const completeness = conflicts.length ? "CONFLICT" : stale.length ? "STALE" : missing.length ? "PARTIAL" : "COMPLETE";
   const data = jsonValue({
+    chart: input.chart ?? null,
+    liquidity: liquidity?.liq ? { date: liquidity.date, rules: liquidity.rules, stats: liquidity.liq } : null,
     decision: decision ? { date: decision.date, builtAt: decision.builtAt, version: decision.version, portfolioKind: decision.hl ? "ELITE_HL" : "ELITE_FLOW", freshness: decision.freshness ?? null, guard: decision.hl?.dataGuard ?? null, funnel: funnel ?? null, membership: state ?? null, selected: selected ? { ticker: selected.ticker, rank: selected.rank, Z: selected.Z, eligible: selected.eligible, reason: selected.reason, close: selected.close, advBn: selected.advBn, sectorKey: selected.sectorKey } : null, queue: ticker ? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker) ?? null : null, pz: ticker ? decision.hl?.watch?.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.hl?.queue.find((row) => row.ticker.toUpperCase() === ticker)?.pz ?? decision.portfolio.find((row) => row.ticker.toUpperCase() === ticker)?.hl?.pz ?? null : null, weights: decision.weights.slice(0, 32) } : null,
     profile: selectedPanel ? { date: selectedPanel.date, sector: selectedPanel.sector, icb: selectedPanel.icb, values: selectedPanel.values, missingSources: selectedPanel.missingSources } : null,
     evidence: input.evidence ? { version: input.evidence.version, generatedAt: input.evidence.generatedAt, tests: input.evidence.tests, selected: input.evidence.signals.filter((row) => decision?.weights.some((weight) => weight.id === row.id)).slice(0, 24) } : null,
@@ -282,6 +307,7 @@ export function sourceReadiness(snapshot: EvidenceSnapshot): { canDebate: boolea
     ...unavailableSources,
     snapshot.funnel.frozen ? "Engine đang đóng băng dữ liệu." : null,
     snapshot.stale.length ? "Có nguồn lệch phiên hoặc quá hạn." : null,
+    snapshot.conflicts.length ? "Các điều kiện dữ liệu của phễu không nhất quán." : null,
   ].filter((item): item is string => Boolean(item));
   const canDebate = blockers.length === 0;
   return { canDebate, label: !canDebate ? "Bị chặn" : snapshot.completeness === "COMPLETE" ? "Đủ dữ liệu" : "Có thể chạy · kết quả partial", blockers };

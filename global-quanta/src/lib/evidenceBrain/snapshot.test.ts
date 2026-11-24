@@ -23,4 +23,8 @@ describe("Evidence Brain source readiness", () => {
     expect(sourceReadiness({ ...snapshot, stale: ["risk stale"] }).canDebate).toBe(false);
     expect(sourceReadiness({ ...snapshot, funnel: { ...snapshot.funnel, frozen: true } }).canDebate).toBe(false);
   });
+
+  it("does not review an inconsistent decision funnel", () => {
+    expect(sourceReadiness({ ...snapshot, completeness: "CONFLICT", conflicts: ["Hợp lưu vượt tầng 1"] }).canDebate).toBe(false);
+  });
 });

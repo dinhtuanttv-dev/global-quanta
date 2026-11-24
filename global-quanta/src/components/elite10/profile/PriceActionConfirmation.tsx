@@ -5,7 +5,7 @@ import { fetchMarketJson } from "../../../services/marketDataClient";
 import { analyzePriceAction, type Bar, type PASetup, type TrendState } from "../../../lib/price-action/index.ts";
 import type { PriceActionEvidence } from "../../../lib/evidenceBrain/snapshot";
 
-interface UniverseResponse { tickers: { ticker: string; exchange?: string | null }[] }
+interface UniverseResponse { tickers: { ticker: string; exchange?: string | null; name?: string | null }[] }
 type Venue = "HOSE" | "HNX" | "UPCOM";
 const INDICES = new Set(["VNINDEX", "VN30", "HNXINDEX", "HNX30", "UPCOMINDEX", "VN100"]);
 
@@ -42,12 +42,15 @@ const dateLabel = (date?: string | null) => date ? date.slice(0, 10).split("-").
 const priceLabel = (price: number | null) => price == null ? "—" : price.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
 const setupLabel = (setup: PASetup) => setup.state === "triggered" ? "Đã vượt ngưỡng kích hoạt" : "Chờ giá đóng cửa vượt ngưỡng";
 
-export default function PriceActionConfirmation({ ticker, onEvidence }: { ticker: string; onEvidence?: (evidence: PriceActionEvidence) => void }) {
+export default function PriceActionConfirmation({ ticker, onEvidence, evidenceOnly = false }: {
+  ticker: string; onEvidence?: (evidence: PriceActionEvidence) => void; evidenceOnly?: boolean;
+}) {
   const { bars: rawBars, priceBasis, isLoading, error } = useAdjustedDaily(ticker);
   const { data: universe, error: universeError, isLoading: universeLoading } = useSWR<UniverseResponse>("market-universe-price-action", () => fetchMarketJson<UniverseResponse>("/api/market/universe"), {
     revalidateOnFocus: false, dedupingInterval: 300_000,
   });
-  const venue = useMemo(() => normalizeVenue(universe?.tickers.find((row) => row.ticker.toUpperCase() === ticker.toUpperCase())?.exchange), [universe, ticker]);
+  const instrument = useMemo(() => universe?.tickers.find((row) => row.ticker.toUpperCase() === ticker.toUpperCase()), [universe, ticker]);
+  const venue = normalizeVenue(instrument?.exchange);
   const validBars = useMemo(() => rawBars.filter((bar): bar is typeof bar & { close: number } =>
     [bar.open, bar.high, bar.low, bar.close].every((value) => value != null && Number.isFinite(value) && value > 0)
       && bar.high >= Math.max(bar.open, bar.close ?? Infinity)
@@ -68,7 +71,7 @@ export default function PriceActionConfirmation({ ticker, onEvidence }: { ticker
     });
   }, [bars, closed, lastBar?.date, priceBasis, ticker, venue]);
 
-  if (INDICES.has(ticker.toUpperCase())) return <div className="mt-2 rounded border border-white/10 p-2 text-[10px] text-slate-500" data-testid="pa-confirmation">Price Action xác nhận mua cổ phiếu không áp dụng cho chỉ số {ticker}.</div>;
+  const isIndex = INDICES.has(ticker.toUpperCase());
 
   const latestDate = result?.trend.asOfDate;
   const triggered = result?.setups.find((setup) => setup.direction === "bullish" && setup.state === "triggered" && setup.stateDate === latestDate) ?? null;
@@ -84,7 +87,7 @@ export default function PriceActionConfirmation({ ticker, onEvidence }: { ticker
     universeError ? "Không xác minh được mã với danh sách thị trường" : null,
   ].filter((item): item is string => Boolean(item));
   const evidence = useMemo<PriceActionEvidence>(() => {
-    const state: PriceActionEvidence["state"] = INDICES.has(ticker.toUpperCase()) ? "NOT_APPLICABLE"
+    const state: PriceActionEvidence["state"] = isIndex ? "NOT_APPLICABLE"
       : isLoading || universeLoading || (!universe && !universeError) ? "LOADING"
         : !result || result.status !== "ready" || error || universeError ? "INSUFFICIENT"
           : confirmed ? "TRIGGERED" : triggered ? "INSUFFICIENT" : pending ? "FORMING" : result.setups.some((item) => item.direction === "bullish" && item.state === "invalidated") ? "INVALIDATED"
@@ -94,11 +97,13 @@ export default function PriceActionConfirmation({ ticker, onEvidence }: { ticker
       priceBasis, venue, barClosed: lastBar ? closed : null, confirmed,
       setup: setup ? { kind: setup.kind, stateDate: setup.stateDate, entryReference: setup.entryReference, invalidationLevel: setup.invalidationLevel, target: setup.targetReferences[0]?.price ?? null } : null,
       patterns, blockers, source: "Market Gateway /api/market/ta-series", methodVersion: "price-action-core-v1",
-      loading: isLoading || universeLoading, error: error ? String(error) : universeError ? String(universeError) : null,
-      tickerVerified: Boolean(universe?.tickers.some((row) => row.ticker.toUpperCase() === ticker.toUpperCase())),
+      loading: !isIndex && (isLoading || universeLoading), error: error ? String(error) : universeError ? String(universeError) : null,
+      tickerVerified: Boolean(instrument), instrumentName: instrument?.name ?? null,
     };
-  }, [ticker, isLoading, universeLoading, result, triggered, pending, latestDate, lastBar?.date, priceBasis, venue, closed, confirmed, setup, patterns.join("|"), blockers.join("|"), error, universeError, universe]);
+  }, [ticker, isIndex, isLoading, universeLoading, result, triggered, pending, latestDate, lastBar?.date, priceBasis, venue, closed, confirmed, setup, patterns.join("|"), blockers.join("|"), error, universeError, instrument]);
   useEffect(() => { onEvidence?.(evidence); }, [evidence, onEvidence]);
+  if (evidenceOnly) return null;
+  if (isIndex) return <div className="mt-2 rounded border border-white/10 p-2 text-[10px] text-slate-500" data-testid="pa-confirmation">Price Action xác nhận mua cổ phiếu không áp dụng cho chỉ số {ticker}.</div>;
   const label = isLoading || universeLoading ? "Đang tải dữ liệu" : error || universeError || !result || result.status !== "ready" ? "Chưa đủ dữ liệu tin cậy" : "Theo dõi xác nhận";
 
   return (
