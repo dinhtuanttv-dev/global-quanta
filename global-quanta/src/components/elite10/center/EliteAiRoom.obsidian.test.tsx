@@ -49,6 +49,7 @@ describe("Phòng họp AI × Obsidian (O2)", () => {
     await debateDone();
     expect(screen.getByTestId("obsidian-unsaved").textContent).toContain("tranh luận");
     const before = calls.length;
+    const beforeExport = fetchSpy.mock.calls.length;
     fireEvent.click(screen.getByTestId("obsidian-debate").querySelector("button")!);
     fireEvent.click(screen.getByTestId("obsidian-debate-download"));
     expect(downloads).toHaveLength(1);
@@ -65,7 +66,7 @@ describe("Phòng họp AI × Obsidian (O2)", () => {
     expect(screen.queryByTestId("obsidian-unsaved")).toBeNull();
     expect(screen.getByTestId("obsidian-debate-badge").textContent).toBe("Đã xuất");
     expect(calls.length).toBe(before);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(beforeExport);
   });
 
   it("đang chạy -> menu Lưu khoá (aria-disabled + lý do); xong -> mở", async () => {
@@ -131,6 +132,7 @@ describe("Phòng họp AI × Obsidian (O2)", () => {
     await act(async () => { fireEvent.click(screen.getByTestId("elite-brief-start")); });
     await flush();
     expect(screen.getByTestId("obsidian-unsaved").textContent).toContain("bản tin");
+    const beforeExport = fetchSpy.mock.calls.length;
     fireEvent.click(screen.getByTestId("obsidian-brief").querySelector("button")!);
     await act(async () => { fireEvent.click(screen.getByTestId("obsidian-brief-obsidian")); });
     await flush();
@@ -141,7 +143,7 @@ describe("Phòng họp AI × Obsidian (O2)", () => {
     expect(screen.getByTestId("obsidian-status").textContent).toMatch(/gửi yêu cầu mở Obsidian/);
     if (/clipboard=true/.test(clicks[0])) expect(await navigator.clipboard.readText()).toContain("Bản tin nguyên văn.");
     expect(screen.getByTestId("obsidian-status").textContent).not.toMatch(/đã lưu vào obsidian/i);
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(beforeExport);
     vi.restoreAllMocks();
   });
 });

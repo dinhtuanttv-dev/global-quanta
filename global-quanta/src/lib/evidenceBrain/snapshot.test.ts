@@ -19,9 +19,14 @@ describe("Evidence Brain source readiness", () => {
     expect(sourceReadiness(unavailableDecision).canDebate).toBe(false);
   });
 
-  it("does not turn a stale or frozen snapshot into an AI review", () => {
-    expect(sourceReadiness({ ...snapshot, stale: ["risk stale"] }).canDebate).toBe(false);
+  it("handles optional stale sources independently and blocks data guard freezes", () => {
+    expect(sourceReadiness({ ...snapshot, completeness: "STALE", stale: ["risk stale"], sources: [...snapshot.sources, source("volume", "ERROR")] }).canDebate).toBe(true);
     expect(sourceReadiness({ ...snapshot, funnel: { ...snapshot.funnel, frozen: true } }).canDebate).toBe(false);
+  });
+
+  it("requires a Price Action series through the decision session", () => {
+    const olderPa = { ...source("priceAction"), asOf: "2026-11-20" };
+    expect(sourceReadiness({ ...snapshot, sources: [source("decision"), olderPa] }).canDebate).toBe(false);
   });
 
   it("does not review an inconsistent decision funnel", () => {

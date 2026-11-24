@@ -58,10 +58,12 @@ export function createJobs(service, { now = Date.now, pauseMs = 200 } = {}) {
       const symbols = await universe();
       const bySource = {};
       const failed = [];
+      const missingTarget = [];
       await mapLimit(symbols, 2, async (symbol) => {
         try {
           const r = await fetchAndStore(symbol, addDays(date, -10), date);
           bySource[r.source] = (bySource[r.source] || 0) + 1;
+          if (!r.data.some((bar) => bar.date === date && !bar.partial)) missingTarget.push(symbol);
         } catch (error) {
           failed.push({ symbol, error: error.message });
         }
@@ -71,7 +73,8 @@ export function createJobs(service, { now = Date.now, pauseMs = 200 } = {}) {
       if (failed.length > symbols.length / 2) {
         void notifyOps("job:syncEod", `Đồng bộ EOD ${date} lỗi ${failed.length}/${symbols.length} mã.`);
       }
-      return { date, symbols: symbols.length, bySource, failed: failed.slice(0, 20), failedCount: failed.length };
+      return { date, symbols: symbols.length, bySource, expectedClosed: symbols.length, confirmedClosed: symbols.length - failed.length - missingTarget.length,
+        missingTargetCount: missingTarget.length, missingTargetSample: missingTarget.slice(0, 20), failed: failed.slice(0, 20), failedCount: failed.length };
     },
 
     /**

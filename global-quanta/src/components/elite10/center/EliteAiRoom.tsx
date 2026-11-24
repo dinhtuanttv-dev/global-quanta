@@ -95,7 +95,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
     setDebateSubject(null); setTrace({}); setQa({ turns: [], meta: null });
   }, [account]);
 
-  async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal, sealed = false): Promise<Lane> {
+  async function run(provider: ChatProvider, role: ChatRole | null, q: string, set: (fn: (l: Lane | null) => Lane | null) => void, signal: AbortSignal, snapshotId?: string): Promise<Lane> {
     let lane = newLane(provider);
     let gatewaySealed = false;
     const owner = readResearchAccount();
@@ -108,12 +108,12 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
     const streamCatalystChat = traceStream(role ?? "brief");
     try {
       await streamCatalystChat([{ role: "user", content: q }], (e) => {
-        if (e.type === "meta" && e.evidenceMode === "snapshot_only") gatewaySealed = true;
+        if (e.type === "meta" && e.evidenceMode === "snapshot_only" && e.snapshotId === snapshotId) gatewaySealed = true;
         apply((l) => laneReducer(l, e));
-      }, signal, provider, role, sealed ? "snapshot_only" : undefined);
+      }, signal, provider, role, snapshotId ? "snapshot_only" : undefined, snapshotId);
       if (!lane.done && !lane.error) apply((l) => ({ ...l, error: "Kết nối kết thúc trước khi nhận kết quả hoàn chỉnh." }));
-      if (sealed && !gatewaySealed && !lane.error)
-        apply((l) => ({ ...l, untraceable: [...l.untraceable, "Gateway chưa xác nhận chế độ snapshot_only"] }));
+      if (snapshotId && !gatewaySealed && !lane.error)
+        apply((l) => ({ ...l, untraceable: [...l.untraceable, "Gateway chưa xác nhận đúng snapshot đã khóa"] }));
     } catch (err) {
       apply((l) => ({ ...l, error: signal.aborted ? "Đã dừng." : err instanceof ChatHttpError ? err.message : "Không kết nối được dịch vụ AI." }));
     } finally {
@@ -157,7 +157,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
     ctrlRef.current = ctrl;
     setJudge(null);
     setPhase("arguing");
-    const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal, Boolean(packet)), run("gemini", "bear", bearPrompt, setBear, ctrl.signal, Boolean(packet))]);
+    const [b, s] = await Promise.all([run("claude", "bull", bullPrompt, setBull, ctrl.signal, frozen?.snapshotId), run("gemini", "bear", bearPrompt, setBear, ctrl.signal, frozen?.snapshotId)]);
     if (ctrlRef.current !== ctrl || readResearchAccount() !== account) return;
     const parsedBull = packet ? markClaimsWithExternalTools(parseAndValidateClaims(b.error ? "" : b.text, packet.snapshot, "BULL"), b.tools.map((tool) => tool.name), b.untraceable) : null;
     const parsedBear = packet ? markClaimsWithExternalTools(parseAndValidateClaims(s.error ? "" : s.text, packet.snapshot, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
@@ -173,7 +173,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       const judgePrompt = packet && parsedBull && parsedBear
         ? sealedReviewPrompt(packet, "JUDGE", [parsedBull, parsedBear])
         : boundGatewayText(q.judge(b.error ? "(phe thuận chưa hoàn tất)" : b.text, s.error ? "(phe phản biện chưa hoàn tất)" : s.text));
-      const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal, Boolean(packet));
+      const j = await run("claude", "judge", judgePrompt, setJudge, ctrl.signal, frozen?.snapshotId);
       if (packet && ctrlRef.current === ctrl && readResearchAccount() === account) {
         const parsedJudge = markClaimsWithExternalTools(parseAndValidateClaims(j.error ? "" : j.text, packet.snapshot, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable);
         setJudgeClaims(parsedJudge);

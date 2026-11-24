@@ -2,6 +2,7 @@ import type { EliteLiquidity } from "../../hooks/elite10/useEliteLiquidity";
 import type { EventRadarEvent } from "../../hooks/useEventRadar";
 import type { VolumeAnalysis } from "../../hooks/useVolumeAnalysis";
 import type { TimelineRow } from "../cotuc/buy-timeline";
+import type { EliteRisk } from "../elite10/decisionTypes";
 import { cleanLine, frontmatter } from "../obsidian/yaml";
 import { canonicalJson, type PriceActionEvidence, type TimelinePriceEvidence } from "./snapshot";
 import type { EvidenceSnapshot, EvidenceRef, ValidatedClaim } from "./types";
@@ -16,6 +17,8 @@ export interface ResearchData {
   events: EventRadarEvent[];
   timing: TimelineRow | null;
   sector: string | null;
+  risk?: EliteRisk | null;
+  expectedClosedSession?: string | null;
 }
 
 export interface ResearchProjection { snap: EvidenceSnapshot; data: ResearchData }
@@ -203,10 +206,15 @@ export function evaluateConfirmation({ snap, data }: ResearchProjection, omitted
   if (snap.tickerVerified !== true) return { result: "BLOCKED", reason: "Mã chưa được xác thực trong dữ liệu nguồn.", checks: [] };
   const day = marketDay(snap.decisionSession);
   const observedDay = marketDay(snap.createdAt);
+  const expected = marketDay(data.expectedClosedSession ?? data.volume?.coverage?.expectedClosedSession);
   const checks = [
     decisionCheck(snap, day, observedDay),
-    priceActionCheck(data, snap.ticker, day),
-    volumeCheck(data.volume, snap.ticker, day, observedDay, snap.createdAt),
+    expected && day && expected > day
+      ? check("priceAction", "WAIT", "Đã qua phiên đóng mới. Chờ liên kết nến ngày với Bảng quyết định của phiên mới.")
+      : priceActionCheck(data, snap.ticker, day),
+    expected && marketDay(data.volume?.coverage?.lastClosedSession ?? data.volume?.today.date) !== expected && !data.volume?.partialToday
+      ? check("volume", "MISSING", `Dữ liệu ngày chưa có đủ phiên đóng ${expected}.`)
+      : volumeCheck(data.volume, snap.ticker, day, observedDay, snap.createdAt),
     liquidityCheck(data.liquidity, snap.ticker, day),
     check("events", omitted ? "EXCLUDED" : "CONTEXT", omitted
       ? `Đã loại một cụm xúc tác. Còn ${data.events.length} cụm trong nhánh mô phỏng.`
@@ -294,7 +302,7 @@ export function compareResearchRuns(from: ResearchRun, to: ResearchRun) {
   return rows;
 }
 
-export function buildResearchNote(run: ResearchRun, approvedAt: string | null) {
+export function buildResearchNote(run: ResearchRun, approvedAt: string | null, approvalOrigin: "local" | "gateway" = "local") {
   const { snap } = run.projection;
   const scenario = run.omittedCluster !== null;
   const escape = (value: string) => cleanLine(value).replace(/[<>\[\]\\`*_!~{}]/g, "\\$&");
@@ -305,11 +313,11 @@ export function buildResearchNote(run: ResearchRun, approvedAt: string | null) {
       ["schema_version", "room-note-1"], ["note_kind", "session"], ["snapshot_id", snap.snapshotId], ["run_id", run.id],
       ["decision_session", snap.decisionSession], ["browser_observed_at", run.observedAt], ["research_content_id", run.contentId],
       ["parent_content_id", run.parentContentId], ["omitted_cluster", run.omittedCluster], ["policy_version", run.policy],
-      ["review_status", approvedAt ? "APPROVED_LOCAL" : "DRAFT"], ["reviewed_at", approvedAt],
+      ["review_status", !approvedAt ? "DRAFT" : approvalOrigin === "gateway" ? "APPROVED_GATEWAY" : "APPROVED_LOCAL"], ["reviewed_at", approvedAt],
       ["technical_status", run.confirmation.result], ["is_scenario", scenario], ["tags", ["global-quanta/evidence-brain"]],
     ], new Set(["decision_session"])),
     "", `# Phiên kiểm chứng · ${label}`, "",
-    scenario ? "> Nhánh mô phỏng. Xúc tác đã loại khỏi phép so sánh." : "> Ghi nhận nguồn dữ liệu đã quan sát trong trình duyệt theo từng lần lưu.",
+    scenario ? "> Nhánh mô phỏng. Xúc tác đã loại khỏi phép so sánh." : "> Ghi nhận nguồn dữ liệu theo mốc quan sát của phiên đã lưu.",
     "", "## Phiếu xác nhận", "", escape(run.confirmation.reason), "",
     ...run.confirmation.checks.map((entry) => `- ${entry.id} · ${entry.state} · ${escape(entry.reason)}`),
     "", "## Nguồn và revision", "",

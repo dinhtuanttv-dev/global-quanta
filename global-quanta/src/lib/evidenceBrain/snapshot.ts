@@ -24,6 +24,7 @@ export interface PriceActionEvidence {
   error: string | null;
   tickerVerified: boolean;
   instrumentName?: string | null;
+  qualityWarnings?: string[];
 }
 
 export interface SnapshotInput {
@@ -55,11 +56,13 @@ export interface SnapshotInput {
   priceActionError?: string | null;
   sourceLoading?: string[];
   sourceUnavailable?: string[];
+  gatewayCapture?: boolean;
 }
 
 export interface TimelinePriceEvidence {
   priceBasis: string;
   bars: { date: string; close: number }[];
+  warnings?: string[];
 }
 
 const safeUrl = (value: string | null | undefined) => {
@@ -152,6 +155,7 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
     add("decision", ticker ?? "portfolio", "portfolioKind", decision.hl ? "ELITE_HL" : "ELITE_FLOW", null, "/api/elite/decision", decision.date, decision.version);
     add("decision", ticker ?? "portfolio", "frozen", seal?.frozen ?? false, null, "/api/elite/decision", decision.date, decision.version);
     add("decision", ticker ?? "portfolio", "freshness.sessionsBehind", decision.freshness?.sessionsBehind ?? null, "sessions", "/api/elite/decision", decision.freshness?.latestSession ?? decision.date, decision.version, { freshness: decision.freshness?.sessionsBehind == null ? "UNKNOWN" : decision.freshness.sessionsBehind > 0 ? "STALE" : "CURRENT" });
+    add("decision", ticker ?? "portfolio", "freshness.overdue", decision.freshness?.overdue ?? null, null, "/api/elite/decision", decision.date, decision.version);
     funnel?.steps.forEach((step, index) => add("decision", ticker ?? "portfolio", `funnel.steps.${index + 1}`, { count: step.n, label: step.label, countedOn: step.countedOn, parallel: Boolean(step.parallel), displayOnly: Boolean(step.displayOnly) }, "stocks", "/api/elite/decision", decision.date, decision.version, { status: "DERIVED", methodVersion: "cockpit.funnelModel" }));
     funnel?.checks.forEach((check, index) => add("decision", ticker ?? "portfolio", `funnel.invariant.${index + 1}`, check, null, "/api/elite/decision", decision.date, decision.version, { status: "DERIVED", methodVersion: "cockpit.funnelModel" }));
     if (selected) {
@@ -208,7 +212,8 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
       ["foreign.net5Val", v.foreign.net5Val, "VND"], ["foreign.net20Val", v.foreign.net20Val, "VND"],
       ["profile", v.profile ? { sessions: v.profile.sessions, poc: v.profile.poc, valueAreaLow: v.profile.valueAreaLow, valueAreaHigh: v.profile.valueAreaHigh, position: v.profile.position } : null, "VND"],
     ];
-    fields.forEach(([field, value, unit]) => add("volume", ticker!, field, value, unit, `/api/market/scanner/${ticker}/volume`, v.asOf, "volume-analysis", { status: "DERIVED", methodVersion: "volume-analysis", freshness: v.partialToday ? "CURRENT" : "CURRENT", limitation: v.partialToday && field === "rvol20" ? "Intraday partial volume; use time-adjusted RVOL where available." : null }));
+    const freshness = v.partialToday && freshnessAtSession(v.asOf) === "CURRENT" ? "UNKNOWN" : freshnessAtSession(v.asOf);
+    fields.forEach(([field, value, unit]) => add("volume", ticker!, field, value, unit, `/api/market/scanner/${ticker}/volume`, v.asOf, "volume-analysis", { status: "DERIVED", methodVersion: "volume-analysis", freshness: value == null ? "UNKNOWN" : freshness, limitation: v.partialToday ? "Khối lượng chưa chốt. RVOL intraday cần mẫu nền cùng thời điểm." : null }));
   }
   if (input.evidence) {
     const ev = input.evidence;
@@ -253,7 +258,8 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   }
   const sources: SnapshotSource[] = sourceInput.map(([key, label, endpoint, asOf, version, exists]) => {
     const state: SnapshotSource["state"] = errors[key] ? "ERROR" : loading.has(key) ? "LOADING" : unavailable.has(key) ? "UNAVAILABLE" : exists ? "LOADED" : "NOT_REQUESTED";
-    const warnings = key === "events" && input.events?.some((event) => event.entityMatch !== "EXACT") ? ["Một số sự kiện có entity match chưa chính xác; không dùng làm xác nhận mã."] : [];
+    const warnings = key === "events" && input.events?.some((event) => !["EXACT", "provider_tagged", "exchange_tag"].includes(event.entityMatch)) ? ["Một số tin chỉ gắn mã theo suy luận, cần đối chiếu nguồn gốc."] :
+      key === "priceAction" ? [...(input.priceAction?.qualityWarnings ?? input.chart?.warnings ?? [])] : [];
     if (state === "LOADED" && !asOf) warnings.push("Nguồn chưa cung cấp mốc as-of; không thể xác nhận độ mới của dữ liệu.");
     return { key, label, endpoint, asOf, version, state, error: errors[key] ?? null, warnings };
   });
@@ -262,14 +268,17 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
   const stale: string[] = [];
   if (decision?.freshness?.overdue || (decision?.freshness?.sessionsBehind ?? 0) > 0) stale.push(`Bảng quyết định trễ ${decision?.freshness?.sessionsBehind ?? "?"} phiên.`);
   if (input.timeline?.stale) stale.push("Timeline catalyst được nguồn đánh dấu là dữ liệu cũ.");
+  if (input.volume && freshnessAtSession(input.volume.asOf) === "STALE") stale.push(`Khối lượng lệch phiên (${input.volume.asOf}).`);
   if ((input.timeline?.ageSessions ?? 0) > 1) stale.push(`Timeline catalyst cũ ${input.timeline?.ageSessions} phiên.`);
   if (seal?.frozen) stale.push(...seal.frozenWhy.map((reason) => `Dữ liệu đóng băng: ${reason}`));
   for (const item of seal?.sources ?? []) if (item.lag) stale.push(`${item.label} lệch phiên (${item.date ?? "không rõ"}).`);
   const conflicts = funnel?.checks ?? [];
   const limitations = [
-    "Snapshot front-end kết hợp các endpoint riêng lẻ; không phải giao dịch nguyên tử từ một endpoint Gateway.",
-    "Lượt gọi AI có thể dùng thêm công cụ server; mọi dữ liệu mới ngoài snapshot phải được đánh dấu sau snapshot.",
-    "Validator chỉ xác nhận ref tồn tại và numeric assertion khớp dữ liệu; không xác nhận ngữ nghĩa của câu claim.",
+    input.gatewayCapture
+      ? "Gateway khóa kết quả tổng hợp theo mốc quan sát. Các luồng nguồn có thời gian cập nhật riêng."
+      : "Bản đang xem tổng hợp các endpoint trên trình duyệt. Lượt tranh luận kiểm chứng sử dụng snapshot do Gateway khóa.",
+    "Lượt tranh luận kiểm chứng chỉ dùng gói bằng chứng đã khóa.",
+    "Bộ kiểm tra đối chiếu mã bằng chứng và số liệu khai báo. Ngữ nghĩa của luận điểm cần được đọc cùng nguồn gốc.",
   ];
   if (input.volume?.partialToday) limitations.push("Volume phiên hiện tại chưa chốt; RVOL intraday chỉ so sánh cùng thời điểm.");
   if (input.risk && !input.risk.available) limitations.push(input.risk.reasonVi ?? "Dữ liệu rủi ro danh mục không khả dụng.");
@@ -294,23 +303,25 @@ export async function buildEvidenceSnapshot(input: SnapshotInput): Promise<Evide
 }
 
 export function sourceReadiness(snapshot: EvidenceSnapshot): { canDebate: boolean; label: string; blockers: string[] } {
-  const sourceState = (key: string) => snapshot.sources.find((source) => source.key === key)?.state ?? "NOT_REQUESTED";
+  const datedSource = (key: string) => snapshot.sources.find((source) => source.key === key && source.state === "LOADED")?.asOf?.slice(0, 10);
+  const paDate = datedSource("priceAction");
   const requiredSources = snapshot.scope === "ticker"
     ? [["decision", "Bảng quyết định"], ["priceAction", "Price Action"]] as const
     : [["decision", "Bảng quyết định"]] as const;
   const unavailableSources = requiredSources
-    .filter(([key]) => ["ERROR", "UNAVAILABLE", "NOT_REQUESTED", "LOADING"].includes(sourceState(key)))
+    .filter(([key]) => !datedSource(key)?.match(/^\d{4}-\d{2}-\d{2}$/))
     .map(([, label]) => `${label} chưa có dữ liệu nguồn hợp lệ.`);
   const blockers = [
     snapshot.scope === "ticker" && snapshot.tickerVerified !== true ? "Chưa xác minh mã cổ phiếu trong registry thị trường." : null,
     !snapshot.decisionSession ? "Thiếu phiên quyết định." : null,
     ...unavailableSources,
+    snapshot.scope === "ticker" && paDate && snapshot.decisionSession && paDate < snapshot.decisionSession ? "Price Action chưa có nến tới phiên quyết định." : null,
     snapshot.funnel.frozen ? "Engine đang đóng băng dữ liệu." : null,
-    snapshot.stale.length ? "Có nguồn lệch phiên hoặc quá hạn." : null,
+    snapshot.refs.some((ref) => ref.domain === "decision" && ref.fieldPath === "freshness.overdue" && ref.value === true) ? "Bảng quyết định đã quá hạn." : null,
     snapshot.conflicts.length ? "Các điều kiện dữ liệu của phễu không nhất quán." : null,
   ].filter((item): item is string => Boolean(item));
   const canDebate = blockers.length === 0;
-  return { canDebate, label: !canDebate ? "Bị chặn" : snapshot.completeness === "COMPLETE" ? "Đủ dữ liệu" : "Có thể chạy · kết quả partial", blockers };
+  return { canDebate, label: !canDebate ? "Bị chặn" : snapshot.completeness === "COMPLETE" ? "Đủ dữ liệu" : "Có thể tranh luận · nguồn có giới hạn", blockers };
 }
 
 export function matchingTimingRow(timeline: BuyTimeline | null, ticker: string | null): TimelineRow | null {

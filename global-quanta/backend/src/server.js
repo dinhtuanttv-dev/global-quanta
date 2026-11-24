@@ -54,7 +54,10 @@ import { createKqkdRouter } from "./routes/kqkd.js";
 import { createCorpEventsRouter } from "./routes/corpEvents.js";
 import { createSeasonOracle, SEASON_FIELDS, setSeasonReader } from "./market/fundamentals/seasonStore.js";
 import { createEliteRouter } from "./routes/elite.js";
-import { isTradingDay, vnDate } from "./market/calendar.js";
+import { createResearchRoomRouter } from "./routes/researchRoom.js";
+import { createResearchRoom } from "./market/elite/researchRoom.js";
+import { getVolumeAnalysis } from "./market/scanner/volumeService.js";
+import { isTradingDay, lastCompletedSessionDate, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
 import { createAuthRouter } from "./routes/auth.js";
@@ -326,11 +329,44 @@ const getCashGate = () => (cashGate ??= createCashGateService({
 // E6: rủi ro danh mục Elite 10.
 let eliteRisk = null;
 const getEliteRisk = () => (eliteRisk ??= createRiskService({ store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), vnIndex: vnIndexCloses, adjustedCloses: eliteAdjustedCloses }));
+const researchUser = async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null;
+let researchRoom = null;
+const getResearchRoom = () => (researchRoom ??= createResearchRoom({
+  store: getMarketRuntime().store,
+  expectedClosedSession: lastCompletedSessionDate,
+  load: (ticker) => {
+    const rt = getMarketRuntime();
+    return {
+      decision: async () => {
+        const engine = getEliteDecision(), doc = await engine.decision();
+        return doc ? engine.present(doc, { withFreshness: true }) : null;
+      },
+      evidence: () => getEliteEvidence().evidence(), ledger: () => getEliteDecision().ledger(null), risk: () => getEliteRisk().risk(),
+      ...(ticker ? {
+        instrument: async () => (await rt.service.getUniverse()).tickers.find((row) => row.ticker === ticker),
+        price: () => rt.service.cache.wrap(`ta-series:${ticker}:5y:1300`, 60_000, () => rt.taSeries.get({ symbol: ticker, range: "5y", limit: 1300 })),
+        panel: async () => {
+          const doc = await getElitePanel().panel(), row = doc?.rows.find((item) => item.ticker === ticker);
+          return row ? { ...row, date: doc.date, missingSources: doc.missingSources ?? [], signals: doc.signals ?? [] } : null;
+        },
+        liquidity: () => getEliteDecision().liquidity(ticker),
+        events: () => rt.eventRadar.list({ ticker, limit: 12 }),
+        volume: () => rt.service.cache.wrap(`volume-analysis:${ticker}:summary`, 60_000, () => getVolumeAnalysis(rt.service, ticker, { detail: "summary" })),
+        timeline: async () => {
+          const doc = await getEliteBuyTiming().get({ tickers: [ticker] });
+          return doc?.available && Array.isArray(doc.rows) && doc.asOf ? doc : null;
+        },
+      } : {}),
+    };
+  },
+}));
 // V4 (19/11/2026): "Hỏi đáp xúc tác" + "Sự kiện trong nước" chuyển từ Project A về Gateway; công cụ gọi thẳng dịch vụ trong tiến trình.
 let catalystChat = null;
 const getCatalystChat = () => (catalystChat ??= createCatalystChat({
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null,
   store: getMarketRuntime().store,
+  resolveSnapshotReview: (owner, id, role) => getResearchRoom().reviewPrompt(owner, id, role),
+  finishSnapshotReview: (owner, review, role, text) => getResearchRoom().finishReview(owner, review, role, text),
   sources: {
     macro: () => getMacroService().toolSpecs(), world: () => getWorldService().toolSpecs(),
     ws: () => getWsChatTools().specs(), elite: () => getEliteChatTools().specs(),
@@ -407,6 +443,7 @@ const getEliteImpact = () => (eliteImpact ??= createImpactProfile({ sources: {
   radar: (t) => getMarketRuntime().eventRadar.list({ ticker: t, limit: 250 }),
   dilution: (t) => getEliteDilution().ticker(t),
 } }));
+app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser }));
 app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {

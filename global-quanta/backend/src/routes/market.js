@@ -580,8 +580,10 @@ router.get("/strategies/:strategy", handle(async (req, res) => {
 // Dòng phụ Bảng Siêu Quét: phân tích chuyên sâu khối lượng của một mã.
 router.get("/scanner/:symbol/volume", handle(async (req, res) => {
   const rt = getMarketRuntime();
-  const data = await rt.service.cache.wrap(`volume-analysis:${req.params.symbol.toUpperCase()}`, 60_000,
-    () => getVolumeAnalysis(rt.service, req.params.symbol));
+  const detail = req.query.detail === "summary" ? "summary" : "full";
+  const key = `volume-analysis:${req.params.symbol.toUpperCase()}${detail === "summary" ? ":summary" : ""}`;
+  const data = await rt.service.cache.wrap(key, 60_000,
+    () => getVolumeAnalysis(rt.service, req.params.symbol, { detail }));
   res.set("Cache-Control", "private, max-age=30");
   res.json(data);
 }));

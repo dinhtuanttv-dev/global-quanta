@@ -8,6 +8,7 @@ export interface VolumeAnalysis {
   symbol: string;
   asOf: string;
   partialToday: boolean;
+  coverage?: { detail: "summary" | "full"; lastClosedSession: string; expectedClosedSession: string | null };
   today: {
     date: string; price: number; changePct: number | null; volume: number; value: number;
     dealVolume: number; dealValue: number; avgVolume20: number | null; rvol20: number | null;
@@ -45,11 +46,12 @@ export interface VolumeAnalysis {
 }
 
 /** Dữ liệu dòng phụ "phân tích khối lượng" — chỉ tải khi dòng được mở. */
-export function useVolumeAnalysis(symbol: string | null, enabled = true) {
+export function useVolumeAnalysis(symbol: string | null, enabled = true, detail: "full" | "summary" = "full") {
   const { data, error, isLoading } = useSWR<VolumeAnalysis>(
-    symbol && enabled ? ["volume-analysis", symbol] : null,
-    () => fetchMarketJson<VolumeAnalysis>(`/api/market/scanner/${encodeURIComponent(symbol!)}/volume`),
-    { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000 },
+    symbol && enabled ? detail === "summary" ? ["volume-analysis", symbol, detail] : ["volume-analysis", symbol] : null,
+    () => fetchMarketJson<VolumeAnalysis>(`/api/market/scanner/${encodeURIComponent(symbol!)}/volume`,
+      detail === "summary" ? { detail } : undefined, { signal: AbortSignal.timeout(detail === "summary" ? 5_000 : 24_000) }),
+    { refreshInterval: 60_000, revalidateOnFocus: false, dedupingInterval: 30_000, errorRetryCount: 1 },
   );
   return { data, error, isLoading };
 }

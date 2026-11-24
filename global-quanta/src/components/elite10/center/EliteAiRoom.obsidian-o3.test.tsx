@@ -51,6 +51,7 @@ describe("Phòng họp AI × Obsidian (O3)", () => {
     expect(screen.getByTestId("obsidian-qa").querySelector("button")!.getAttribute("aria-label")).toBe("Lưu cuộc trao đổi (2 lượt)");
     expect(screen.getByTestId("obsidian-unsaved").textContent).toContain("hỏi đáp");
     const before = calls.length;
+    const beforeExport = fetchSpy.mock.calls.length;
     openMenu("obsidian-qa"); fireEvent.click(screen.getByTestId("obsidian-qa-download"));
     const all = downloads.pop()!;
     expect(all.name).toMatch(/Elite 10 - Hỏi đáp/);
@@ -62,9 +63,9 @@ describe("Phòng họp AI × Obsidian (O3)", () => {
     expect(last.text).not.toContain("Câu hỏi thứ nhất?"); expect(last.text).toContain("Câu hỏi thứ hai?"); expect(last.text).toContain('qa_scope: "last"');
     expect(screen.queryByTestId("obsidian-unsaved")).toBeNull();
     expect(calls.length).toBe(before);
+    expect(fetchSpy).toHaveBeenCalledTimes(beforeExport);
     await ask("Câu hỏi thứ ba?");
     expect(screen.getByTestId("obsidian-unsaved").textContent).toContain("hỏi đáp"); // lượt mới -> lại chưa lưu
-    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("khung Hỏi đáp dùng chung không có Provider (tab Chat xúc tác): chạy như cũ, không có giao diện Obsidian", async () => {
@@ -112,11 +113,12 @@ describe("Phòng họp AI × Obsidian (O3)", () => {
 
   it("Gói khởi tạo Vault: tải ghi chú Bàn điều khiển theo thư mục đang cấu hình; menu: Sao chép vẫn là mục cuối", async () => {
     render(<EliteAiRoom />);
+    const beforeExport = fetchSpy.mock.calls.length;
     openMenu("obsidian-kit"); fireEvent.click(screen.getByTestId("obsidian-kit-download"));
     const k = downloads.pop()!;
     expect(k.name).toBe("Elite 10 · Bàn điều khiển.md");
     expect(k.text).toContain('FROM "Global Quanta/Elite 10"');
     expect(k.text).toContain("```dataview");
-    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalledTimes(beforeExport);
   });
 });

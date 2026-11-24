@@ -45,16 +45,18 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
     const day = sessionDay(bar.date);
     if (day) traded.set(day, bar);
   }
-  const sessions = [...new Set([...adjusted.keys(), ...traded.keys()])].sort().slice(-30);
-  const hasAdjusted = sessions.some((day) => adjusted.has(day));
-  const sameBasis = hasAdjusted && Boolean(price?.priceBasis && !/unknown/i.test(price.priceBasis) && pa?.priceBasis === price.priceBasis);
-  const invalidation = sameBasis && positive(pa?.setup?.invalidationLevel) ? pa.setup.invalidationLevel : null;
-  const triggerDay = sameBasis && pa?.state === "TRIGGERED" && pa.barClosed && pa.confirmed ? sessionDay(pa.setup?.stateDate) : null;
   const groups = new Map<string, EventRadarEvent[]>();
   for (const event of groupEvents(events)) {
     const day = sessionDay(eventTime(event));
     if (day) groups.set(day, [...(groups.get(day) ?? []), event]);
   }
+  const marketDates = [...new Set([...adjusted.keys(), ...traded.keys()])].sort().slice(-30);
+  const eventDates = [...groups.keys()].filter((day) => !marketDates.length || day >= marketDates[0]);
+  const sessions = [...new Set([...marketDates, ...eventDates])].sort();
+  const hasAdjusted = sessions.some((day) => adjusted.has(day));
+  const sameBasis = hasAdjusted && Boolean(price?.priceBasis && !/unknown/i.test(price.priceBasis) && pa?.priceBasis === price.priceBasis);
+  const invalidation = sameBasis && positive(pa?.setup?.invalidationLevel) ? pa.setup.invalidationLevel : null;
+  const triggerDay = sameBasis && pa?.state === "TRIGGERED" && pa.barClosed && pa.confirmed ? sessionDay(pa.setup?.stateDate) : null;
   const offChart = [...groups].filter(([day]) => !sessions.includes(day)).flatMap(([, items]) => items);
   const points = sessions.map((day) => {
     const bar = traded.get(day);
@@ -104,13 +106,14 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
         </g>}
         {points.map((point, i) => {
           const catalysts = groups.get(point.day) ?? [];
+          const eventOnly = !adjusted.has(point.day) && !traded.has(point.day);
           const trigger = point.day === triggerDay;
           const anchor = i > points.length * .78 ? "end" : "start";
           const labelX = x(i) + (anchor === "end" ? -5 : 5);
           return <g key={point.day}>
             {catalysts.length > 0 && <g><line className="event-line" x1={x(i)} x2={x(i)} y1={20} y2={Y1} />
               <circle cx={x(i)} cy={point.close === null ? 28 : y(point.close)} r={4} fill="#f3a95f" />
-              <text className="chart-tag" x={labelX} y={37} textAnchor={anchor}>{catalysts.length > 1 ? `${catalysts.length} tin` : "Tin"}</text>
+              <text className="chart-tag" x={labelX} y={37} textAnchor={anchor}>{eventOnly ? "Tin · chưa có nến" : catalysts.length > 1 ? `${catalysts.length} tin` : "Tin"}</text>
             </g>}
             {trigger && <g><line className="trigger-line" x1={x(i)} x2={x(i)} y1={20} y2={Y1} />
               <circle cx={x(i)} cy={point.close === null ? 20 : y(point.close)} r={4} fill="#47d6a0" />
@@ -118,7 +121,7 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
             </g>}
             <rect className="eb-chart-point" tabIndex={catalysts.length || trigger ? 0 : -1}
               role={catalysts.length || trigger ? "button" : undefined}
-              aria-label={`Phiên ${dateVi(point.day, true)}, giá ${numberVi(point.close)}, khối lượng ${numberVi(point.volume, 0)}`}
+              aria-label={eventOnly ? `Tin ${dateVi(point.day, true)} · chưa có nến` : `Phiên ${dateVi(point.day, true)}, giá ${numberVi(point.close)}, khối lượng ${numberVi(point.volume, 0)}`}
               x={x(i) - 9} width={18} y={18} height={Y1 - 18} onMouseEnter={() => setFocused(point.day)} onFocus={() => setFocused(point.day)} onBlur={() => setFocused(null)}
               onClick={() => { if (catalysts[0]) onEvent(catalysts[0]); else if (trigger) onPriceAction(); }}
               onKeyDown={(e) => { if (e.key !== " " && e.key !== "Enter") return; e.preventDefault(); if (catalysts[0]) onEvent(catalysts[0]); else if (trigger) onPriceAction(); }} />
@@ -137,5 +140,6 @@ export function LiveTimeline({ price, volume, events, pa, scenario = false, onEv
       {positive(pa?.setup?.invalidationLevel) && <button type="button" className="tiny-chip red" onClick={onPriceAction}>— Vô hiệu {numberVi(pa.setup.invalidationLevel)}{sameBasis ? "" : " · chưa đối chiếu cơ sở giá"}</button>}
       <span className="tiny-chip">{volume?.partialToday ? "RVOL intraday · cùng thời điểm" : "Khối lượng · snapshot ngày"}</span>
       {offChart.length > 0 && <span className="tiny-chip">{offChart.length} tin ngoài chuỗi · xem cột Xúc tác</span>}
+      {eventDates.some((day) => !adjusted.has(day) && !traded.has(day)) && <span className="tiny-chip">Mốc chỉ có tin · chưa có giá/khối lượng</span>}
     </div>} />;
 }

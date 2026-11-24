@@ -4,6 +4,7 @@ import { useAdjustedDaily } from "../../../hooks/elite10/useAdjustedDaily";
 import { fetchMarketJson } from "../../../services/marketDataClient";
 import { analyzePriceAction, type Bar, type PASetup, type TrendState } from "../../../lib/price-action/index.ts";
 import type { PriceActionEvidence } from "../../../lib/evidenceBrain/snapshot";
+import { observeResearchPrice } from "../../../lib/evidenceBrain/priceObservation";
 
 interface UniverseResponse { tickers: { ticker: string; exchange?: string | null; name?: string | null }[] }
 type Venue = "HOSE" | "HNX" | "UPCOM";
@@ -45,7 +46,7 @@ const setupLabel = (setup: PASetup) => setup.state === "triggered" ? "Đã vư�
 export default function PriceActionConfirmation({ ticker, onEvidence, evidenceOnly = false }: {
   ticker: string; onEvidence?: (evidence: PriceActionEvidence) => void; evidenceOnly?: boolean;
 }) {
-  const { bars: rawBars, priceBasis, isLoading, error } = useAdjustedDaily(ticker);
+  const { bars: rawBars, priceBasis, isLoading, error, warnings, gapRepairs } = useAdjustedDaily(ticker, evidenceOnly);
   const { data: universe, error: universeError, isLoading: universeLoading } = useSWR<UniverseResponse>("market-universe-price-action", () => fetchMarketJson<UniverseResponse>("/api/market/universe"), {
     revalidateOnFocus: false, dedupingInterval: 300_000,
   });
@@ -62,14 +63,14 @@ export default function PriceActionConfirmation({ ticker, onEvidence, evidenceOn
     date: bar.date, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume,
   })), [validBars]);
   const result = useMemo(() => {
-    if (!bars.length || INDICES.has(ticker.toUpperCase())) return null;
+    if (evidenceOnly || !bars.length || INDICES.has(ticker.toUpperCase())) return null;
     return analyzePriceAction(bars, {
       symbol: ticker.toUpperCase(), timeframe: "D", priceBasis: priceBasis ?? "unknown",
       source: "Market Gateway /api/market/ta-series", asOf: lastBar?.date ?? "unknown",
       isIndex: false, limitPct: venue ? limitPct(venue) : null, isClosed: closed,
       ...(venue ? { tickSize: (price: number) => tickSize(venue, price) } : {}),
     });
-  }, [bars, closed, lastBar?.date, priceBasis, ticker, venue]);
+  }, [bars, closed, lastBar?.date, priceBasis, ticker, venue, evidenceOnly]);
 
   const isIndex = INDICES.has(ticker.toUpperCase());
 
@@ -101,7 +102,13 @@ export default function PriceActionConfirmation({ ticker, onEvidence, evidenceOn
       tickerVerified: Boolean(instrument), instrumentName: instrument?.name ?? null,
     };
   }, [ticker, isIndex, isLoading, universeLoading, result, triggered, pending, latestDate, lastBar?.date, priceBasis, venue, closed, confirmed, setup, patterns.join("|"), blockers.join("|"), error, universeError, instrument]);
-  useEffect(() => { onEvidence?.(evidence); }, [evidence, onEvidence]);
+  const roomEvidence = useMemo(() => evidenceOnly ? observeResearchPrice({
+    ticker: ticker.toUpperCase(), rawBars, priceBasis, instrument: instrument ?? null, observedAt: new Date().toISOString(),
+    loading: Boolean(isLoading || universeLoading || (!universe && !universeError)),
+    priceError: error ? String(error) : null, instrumentError: universeError ? String(universeError) : null,
+    warnings, repairDates: (gapRepairs ?? []).map((entry) => entry.date),
+  }).evidence : evidence, [evidenceOnly, ticker, rawBars, priceBasis, instrument, isLoading, universeLoading, universe, universeError, error, warnings, gapRepairs, evidence]);
+  useEffect(() => { onEvidence?.(roomEvidence); }, [roomEvidence, onEvidence]);
   if (evidenceOnly) return null;
   if (isIndex) return <div className="mt-2 rounded border border-white/10 p-2 text-[10px] text-slate-500" data-testid="pa-confirmation">Price Action xác nhận mua cổ phiếu không áp dụng cho chỉ số {ticker}.</div>;
   const label = isLoading || universeLoading ? "Đang tải dữ liệu" : error || universeError || !result || result.status !== "ready" ? "Chưa đủ dữ liệu tin cậy" : "Theo dõi xác nhận";

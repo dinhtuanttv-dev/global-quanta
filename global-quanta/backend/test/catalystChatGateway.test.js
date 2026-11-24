@@ -32,7 +32,7 @@ function fakeClaude(calls) {
   };
 }
 
-function makeApp({ env, verify = async (a) => (a === "Bearer good" ? "user-1" : null), api, gemini, store = createMemoryStore() }) {
+function makeApp({ env, verify = async (a) => (a === "Bearer good" ? "user-1" : null), api, gemini, store = createMemoryStore(), review }) {
   const chat = createCatalystChat({
     env, now: () => T, store, verifyUser: verify, log: { log() {}, error() {} },
     sources: { macro: async () => MACRO_SPECS, world: async () => { throw new Error("world hỏng"); } },
@@ -40,6 +40,7 @@ function makeApp({ env, verify = async (a) => (a === "Bearer good" ? "user-1" : 
     getSnapshot: async () => SNAP,
     calendar: async () => ({ asOf: "2026-11-19", mode: "real", events: [], caveat: "ước tính" }),
     anthropicApi: async () => api, geminiModel: async () => gemini,
+    ...review,
   });
   const app = express();
   app.use(express.json());
@@ -110,6 +111,37 @@ test("snapshot_only closes the tool surface on both providers and attests it in 
     }
     assert.equal("tools" in claudeCalls[0], false);
     assert.deepEqual(geminiCalls[0].tools, []);
+  } finally { app.close(); }
+});
+
+test("Gateway resolves the locked snapshot before charging quota and never sends client claims to the sealed model", async () => {
+  const calls = [];
+  const finished = [];
+  const id = `vee1-${"a".repeat(64)}`;
+  const api = { stream: (request) => {
+    calls.push(request);
+    return { on: () => {}, finalMessage: async () => ({ stop_reason: "end_turn", model: "fixture", content: [{ type: "text", text: "{}" }] }) };
+  } };
+  const app = makeApp({ env: { ANTHROPIC_API_KEY: "x", GEMINI_API_KEY: "y", CATALYST_CHAT_DAILY_LIMIT: "1" }, api, review: {
+    resolveSnapshotReview: async (owner, input, role) => {
+      if (owner !== "user-1" || input !== id || role !== "BULL") throw Object.assign(new Error("Snapshot missing"), { statusCode: 404 });
+      return { id, message: "Gateway evidence packet" };
+    },
+    finishSnapshotReview: async (owner, review, role) => { finished.push([owner, review.id, role]); },
+  } });
+  try {
+    assert.equal((await (await fetch(`${app.base}/chat/config`)).json()).snapshotAuthority, true);
+    const request = { ...Q, role: "bull", evidenceMode: "snapshot_only", snapshotId: id };
+    assert.equal((await post(app.base, { ...request, snapshotId: "wrong" })).status, 404);
+    assert.equal((await post(app.base, { ...request, provider: "gemini" })).status, 400);
+    const replies = await Promise.all([post(app.base, request), post(app.base, request)]);
+    assert.deepEqual(replies.map((reply) => reply.status).sort(), [200, 429]);
+    const ok = replies.find((reply) => reply.ok);
+    assert.equal(events(await ok.text())[0].snapshotId, id);
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].messages, [{ role: "user", content: "Gateway evidence packet" }]);
+    assert.equal("tools" in calls[0], false);
+    assert.deepEqual(finished, [["user-1", id, "BULL"]]);
   } finally { app.close(); }
 });
 

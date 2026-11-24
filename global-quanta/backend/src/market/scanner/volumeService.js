@@ -6,13 +6,13 @@ import { buildVolumeAnalysis } from "./volumeAnalysis.js";
 import { getIntradaySessions } from "./intradayService.js";
 import { canonicalSymbol, isValidSymbol } from "../normalizer.js";
 import { ValidationError } from "../errors.js";
-import { expectsLiveTicks, isTradingDay, vnDate, vnParts } from "../calendar.js";
+import { expectsLiveTicks, isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "../calendar.js";
 
 const DAILY_SESSIONS = 60;
 // 20 phiên (trước đây 5–6): cùng mốc với "Nhịp khối lượng" (trung vị 20 phiên), POC ít nhiễu hơn.
 const PROFILE_SESSIONS = 20;
 
-export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now } = {}) {
+export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, detail = "full" } = {}) {
   const symbol = canonicalSymbol(rawSymbol);
   if (!isValidSymbol(symbol)) throw new ValidationError("Mã chứng khoán không hợp lệ.");
   const store = service.store;
@@ -43,16 +43,18 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now } =
     }
   });
   // Ưu tiên bộ đệm nến phút dùng chung (120 phiên) để không gọi SSI lặp lại; lỗi thì lấy từng ngày như cũ.
-  let intradayToday, intradayPast;
-  try {
-    const shared = await getIntradaySessions(service, symbol, { now });
-    intradayToday = shared.todaySession?.bars ?? [];
-    intradayPast = shared.trainSessions.slice(-PROFILE_SESSIONS).map((s) => s.bars ?? []);
-  } catch {
-    [intradayToday, ...intradayPast] = await Promise.all([
-      intraday(intradayDay, expectsLiveTicks(nowDate) ? 60_000 : 30 * 60_000),
-      ...pastDays.map((d) => intraday(d, 12 * 60 * 60_000)),
-    ]);
+  let intradayToday = [], intradayPast = [];
+  if (detail === "full") {
+    try {
+      const shared = await getIntradaySessions(service, symbol, { now });
+      intradayToday = shared.todaySession?.bars ?? [];
+      intradayPast = shared.trainSessions.slice(-PROFILE_SESSIONS).map((s) => s.bars ?? []);
+    } catch {
+      [intradayToday, ...intradayPast] = await Promise.all([
+        intraday(intradayDay, expectsLiveTicks(nowDate) ? 60_000 : 30 * 60_000),
+        ...pastDays.map((d) => intraday(d, 12 * 60 * 60_000)),
+      ]);
+    }
   }
 
   // Trong phiên: dữ liệu ngày của hôm nay chưa có (đồng bộ lúc 15:20) -> ghép từ quote realtime.
@@ -72,6 +74,7 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now } =
   return {
     ...analysis,
     partialToday: Boolean(rows.at(-1).partial),
-    provenance: { daily: "SSI_FC_V2 (DailyStockPrice)", intraday: "SSI_FC_V2 (IntradayOhlc)", live: live?.provenance?.source ?? null },
+    coverage: { detail, lastClosedSession: daily.at(-1).date, expectedClosedSession: lastCompletedSessionDate(nowDate) },
+    provenance: { daily: "SSI_FC_V2 (DailyStockPrice)", intraday: detail === "full" ? "SSI_FC_V2 (IntradayOhlc)" : null, live: live?.provenance?.source ?? null },
   };
 }
