@@ -4,7 +4,7 @@
 //     để kiểm chứng từng luận điểm và kết luận cân bằng. Mọi câu trả lời đều qua bước đối chiếu con số với kết quả công cụ.
 //   - Bản tin phiên: tạo khi bấm (không chạy định kỳ — tránh chi phí API không cần thiết).
 //   - Hỏi đáp tự do: cùng khung Hỏi đáp xúc tác, gợi ý theo Elite 10.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
@@ -18,6 +18,7 @@ import { QaTapContext, type QaMeta } from "../../../lib/obsidian/qaTap";
 import type { QaTurn } from "../../../lib/obsidian/types";
 import { QaExport, qaKey } from "./obsidian/RoomExports";
 import EvidenceBrainWorkspace from "./EvidenceBrainWorkspace";
+import { RoomToolbarActions } from "./evidenceRoom/roomView";
 import { markClaimsWithExternalTools, parseAndValidateClaims, structuredClaimsInstruction, validationForJudge } from "../../../lib/evidenceBrain/claims";
 import { sourceReadiness } from "../../../lib/evidenceBrain/snapshot";
 import { buildEvidenceBrainCanvas, buildEvidenceBrainMarkdown, evidenceBrainFileStem } from "../../../lib/evidenceBrain/export";
@@ -48,9 +49,13 @@ export function debateQuestions(subject: string | null) {
 
 type Phase = "idle" | "arguing" | "judging" | "done";
 
-export default function EliteAiRoom({ defaultTicker, active = true, onSession }: {
-  defaultTicker?: string | null; active?: boolean; onSession?: (session: string | null) => void;
+export default function EliteAiRoom({ defaultTicker, active = true }: {
+  defaultTicker?: string | null;
+  active?: boolean;
 }) {
+  const sessionToolsId = useId();
+  const sessionDetails = useRef<HTMLDetailsElement>(null);
+  const sessionShortcut = useRef<HTMLButtonElement>(null);
   const [subject, setSubject] = useState<string>(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : "");
   const [bull, setBull] = useState<Lane | null>(null);
   const [bear, setBear] = useState<Lane | null>(null);
@@ -150,17 +155,35 @@ export default function EliteAiRoom({ defaultTicker, active = true, onSession }:
     briefKey(trace) && !briefBusy && brief?.text.trim() && !desk.isSaved(briefKey(trace)) ? "bản tin" : null,
     qaKey(qa.turns) && !qa.turns.some((t) => t.role === "assistant" && t.lanes.some((l) => !l.done)) && !desk.isSaved(qaKey(qa.turns)) ? "hỏi đáp" : null,
   ].filter((x): x is string => Boolean(x));
+
+  function openSessionTools() {
+    const details = sessionDetails.current;
+    if (!details) return;
+    details.open = true;
+    details.querySelector("summary")?.focus({ preventScroll: true });
+    details.scrollIntoView?.({ block: "start" });
+  }
+
+  function returnToWorkspace() {
+    const shortcut = sessionShortcut.current;
+    if (!shortcut) return;
+    shortcut.focus({ preventScroll: true });
+    shortcut.scrollIntoView?.({ block: "center" });
+  }
+
   return (
-    <div data-testid="elite-ai-room">
+    <div className="eb-room-page eb-live-room" data-testid="elite-ai-room">
       <EvidenceBrainWorkspace ticker={subject} onTickerChange={setSubject} active={active} busy={busy} debateSubject={debateSubject} bull={bull} bear={bear} judge={judge}
         bullClaims={bullClaims}
         bearClaims={bearClaims}
         judgeClaims={judgeClaims}
         reviewSnapshot={reviewSnapshot}
         reviewMessage={reviewMessage}
-        onSession={onSession} onRunReview={(next) => void startDebate(next)} onStop={() => ctrlRef.current?.abort()} />
-      <details className="panel eb-extra">
+        onRunReview={(next) => void startDebate(next)} onStop={() => ctrlRef.current?.abort()}
+        actions={active && <RoomToolbarActions toolsId={sessionToolsId} toolsButton={sessionShortcut} onOpenTools={openSessionTools} />} />
+      <details className="panel eb-extra" id={sessionToolsId} ref={sessionDetails}>
       <summary>Công cụ phiên · tranh luận, bản tin, hỏi đáp và Obsidian</summary>
+      <button type="button" className="small-link eb-tools-return" onClick={returnToWorkspace}>↑ Về đầu Phòng họp AI</button>
       <div className="tw-scope space-y-3 text-slate-200">
       <ObsidianBar desk={desk} unsaved={unsaved} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">

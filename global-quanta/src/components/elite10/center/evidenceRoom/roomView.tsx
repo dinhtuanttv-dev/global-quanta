@@ -1,5 +1,5 @@
-import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode } from "react";
-import { useTopbar } from "../../../../hooks/useTopbar";
+import { cloneElement, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type MouseEvent, type PointerEvent, type ReactElement, type ReactNode, type Ref } from "react";
+import { CircleHelp, Wrench } from "lucide-react";
 import "./evidenceRoom.css";
 
 export interface RoomReference {
@@ -57,43 +57,52 @@ export function DetailDialog({ title, children, onClose }: { title: string; chil
   </dialog>;
 }
 
-function MarketContext({ session }: { session?: string | null }) {
-  const { data } = useTopbar();
-  const state = data?.regime.data?.state ?? "UNKNOWN";
-  const label = { RISK_ON: "THẾ GIỚI RISK-ON", RISK_OFF: "THẾ GIỚI RISK-OFF", NEUTRAL: "THẾ GIỚI TRUNG LẬP", UNKNOWN: "CHƯA XÁC ĐỊNH" }[state];
-  return <div className="top-right">
-    <span className={`market-chip ${state === "RISK_OFF" ? "" : "eb-market-neutral"}`} title="Chế độ thế giới · mô tả"><i />{label}</span>
-    <span>VN-INDEX <b>{numberVi(data?.index.data?.value, 1)}</b></span><span>·</span>
-    <span>{session ? `Phiên ${dateVi(session, true)}` : "Chưa có phiên"}</span>
-  </div>;
-}
-
-export function RoomHeader({ reference, session, toolsOpen, onToggleTools }: {
-  reference: boolean; session?: string | null; toolsOpen: boolean; onToggleTools: () => void;
-}) {
-  const brand = <><div className="brand-icon">DT</div>{" ĐINH TUẤN "}<span>/ QUYẾT ĐỊNH</span></>;
+export function ReferenceRoomHeader() {
   return <>
-    {reference && <div className="demo-ribbon">Mẫu giao diện · dữ liệu minh họa · không phải tín hiệu thị trường</div>}
+    <div className="demo-ribbon">Mẫu giao diện · dữ liệu minh họa · không phải tín hiệu thị trường</div>
     <header className="eb-topbar">
-      {reference ? <div className="brand">{brand}</div> :
-        <button className="brand eb-brand-button" type="button" title="Điều hướng, Radar và tài khoản" aria-expanded={toolsOpen} onClick={onToggleTools}>{brand}</button>}
-      {reference ? <div className="top-right"><span className="market-chip"><i />THẾ GIỚI RISK-OFF</span><span>VN-INDEX <b>1.688,8</b></span><span>·</span><span>Phiên mô phỏng 20/11/2026</span></div> : <MarketContext session={session} />}
+      <div className="brand"><div className="brand-icon">DT</div>{" ĐINH TUẤN "}<span>/ QUYẾT ĐỊNH</span></div>
+      <div className="top-right"><span className="market-chip"><i />THẾ GIỚI RISK-OFF</span><span>VN-INDEX <b>1.688,8</b></span><span>·</span><span>Phiên mô phỏng 20/11/2026</span></div>
     </header>
   </>;
 }
 
-export function RoomIntro() {
-  const [help, setHelp] = useState(false);
+export function ReferenceRoomIntro() {
   return <>
     <div className="crumbs"><b>QUYẾT ĐỊNH</b><span>›</span><strong>3. PHÒNG HỌP AI</strong><span>·</span><span>Evidence Brain</span></div>
     <div className="title-row">
       <div><h1>Phòng họp AI <span style={{ color: "var(--cyan)" }}>/ Evidence Brain</span></h1><div className="subtitle">Đối chiếu funnel, doanh nghiệp, Price Action, xúc tác, khối lượng và rủi ro trên một snapshot.</div></div>
-      <div className="inline" style={{ gap: 7 }}><span className="status-chip" style={{ fontSize: 9, color: "#becade" }}>Claude + Gemini · read-only</span><button type="button" className="small-link" onClick={() => setHelp(true)}>Nguyên tắc kiểm chứng ↗</button></div>
+      <div className="inline" style={{ gap: 7 }}><span className="status-chip" style={{ fontSize: 9, color: "#becade" }}>Claude + Gemini · read-only</span><RoomHelp reference /></div>
     </div>
-    {help && <DetailDialog title="Nguyên tắc kiểm chứng" onClose={() => setHelp(false)}>
+  </>;
+}
+
+function RoomHelp({ reference = false }: { reference?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return <>
+    {reference
+      ? <button type="button" className="small-link" onClick={() => setOpen(true)}>Nguyên tắc kiểm chứng ↗</button>
+      : <button type="button" className="eb-toolbar-action" aria-label="Nguyên tắc kiểm chứng" aria-haspopup="dialog"
+          title="Nguyên tắc kiểm chứng" onClick={() => setOpen(true)}>
+        <CircleHelp aria-hidden="true" /><span>Nguyên tắc kiểm chứng</span>
+      </button>}
+    {open && <DetailDialog title="Nguyên tắc kiểm chứng" onClose={() => setOpen(false)}>
+      <p>Claude trình bày lập luận phe thuận và làm trọng tài. Gemini phản biện. Hai mô hình đọc và đối chiếu bằng chứng trong Phòng họp AI.</p>
       <p>Hai phe và trọng tài cùng tham chiếu snapshot đã khóa. Ref và số khớp xác nhận dữ liệu trích dẫn; ý nghĩa của luận điểm vẫn được đối chiếu riêng. Nguồn thiếu, quá hạn, nến chưa đóng và volume trong phiên giữ nguyên trạng thái.</p>
     </DetailDialog>}
   </>;
+}
+
+export function RoomToolbarActions({ toolsId, toolsButton, onOpenTools }: {
+  toolsId: string; toolsButton: Ref<HTMLButtonElement>; onOpenTools: () => void;
+}) {
+  return <div className="eb-toolbar-actions">
+    <button type="button" ref={toolsButton} className="eb-toolbar-action" aria-label="Công cụ phiên"
+      aria-controls={toolsId} title="Tranh luận, bản tin, hỏi đáp và Obsidian" onClick={onOpenTools}>
+      <Wrench aria-hidden="true" /><span>Công cụ phiên</span>
+    </button>
+    <RoomHelp />
+  </div>;
 }
 
 export type Box = { x: number; y: number; width: number; height: number };

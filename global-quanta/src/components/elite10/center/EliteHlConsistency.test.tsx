@@ -29,7 +29,14 @@ vi.mock("./StockImpactCard", () => ({ default: () => null }));
 vi.mock("./EliteToShadowCard", () => ({ default: () => null }));
 // Hub: chỉ kiểm cơ chế giữ Phòng họp AI trong cây -> các tab con thay bằng khối giả.
 const aiMounts = vi.hoisted(() => ({ n: 0, unmounts: 0 }));
-vi.mock("./DecisionBoard", () => ({ default: ({ onNavigateToEvidence }: { onNavigateToEvidence?: () => void }) => <div data-testid="stub-board"><button type="button" data-testid="stub-goto-evidence" onClick={onNavigateToEvidence} /></div>, TierChip: () => null }));
+vi.mock("./DecisionBoard", () => ({
+  default: ({ onOpenTicker, onNavigateToEvidence }: { onOpenTicker: (ticker: string) => void; onNavigateToEvidence?: () => void }) =>
+    <div data-testid="stub-board">
+      <button type="button" data-testid="stub-open-profile" onClick={() => onOpenTicker("FPT")} />
+      <button type="button" data-testid="stub-goto-evidence" onClick={onNavigateToEvidence} />
+    </div>,
+  TierChip: () => null,
+}));
 vi.mock("./EliteScreener", () => ({ default: () => null }));
 vi.mock("./ToTickerCard", () => ({ default: () => <div data-testid="stub-to" /> }));
 vi.mock("../timing/TimingSimPanel", () => ({ default: () => <div data-testid="stub-sim" /> }));
@@ -182,8 +189,15 @@ describe("Rủi ro danh mục với Elite HL", () => {
 describe("Elite10Hub — Phòng họp AI không bị huỷ khi đổi tab con", () => {
   it("mở Phòng họp AI rồi sang tab khác: thành phần vẫn trong cây (ẩn), quay lại không dựng lại", async () => {
     render(<Elite10Hub />);
+    const hub = screen.getByTestId("elite10-hub");
+    const tabs = hub.querySelector('[role="tablist"]');
+    const hubClass = hub.className;
     expect(screen.queryByTestId("stub-ai")).toBeNull(); // chưa mở thì chưa dựng (không tốn tài nguyên)
     await act(async () => { fireEvent.click(document.getElementById("elite10-ai-tab")!); });
+    expect(hub.firstElementChild).toBe(tabs);
+    expect(hub.className).toBe(hubClass);
+    expect(hub.querySelectorAll('[role="tablist"]')).toHaveLength(1);
+    expect(tabs?.querySelector('[aria-selected="true"]')?.id).toBe("elite10-ai-tab");
     expect(aiMounts.n).toBe(1);
     await act(async () => { fireEvent.click(document.getElementById("elite10-board-tab")!); });
     expect(aiMounts.unmounts).toBe(0);
@@ -204,6 +218,13 @@ describe("Elite10Hub — sắp xếp lại tab QUYẾT ĐỊNH", () => {
     await act(async () => { fireEvent.click(screen.getByTestId("stub-goto-evidence")); });
     expect(document.getElementById("elite10-evidence-tab")!.getAttribute("aria-selected")).toBe("true");
     expect(screen.queryByTestId("stub-board")).toBeNull();
+  });
+  it("mở mã từ Bảng quyết định vẫn chuyển tới Hồ sơ 360° của đúng mã", async () => {
+    S.ticker = { decision: null, panel: null, isLoading: true, error: null };
+    render(<Elite10Hub />);
+    await act(async () => { fireEvent.click(screen.getByTestId("stub-open-profile")); });
+    expect(document.getElementById("elite10-profile-tab")?.getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByTestId("elite-mode-profile").textContent).toBe("Hồ sơ FPT");
   });
   it("Hồ sơ 360° không còn Sự kiện cổ tức, Mô phỏng thời điểm, Tin tức Elite (đã chuyển sang Bảng quyết định)", async () => {
     S.ticker = { decision: null, panel: null, isLoading: true, error: null };

@@ -16,7 +16,6 @@ import CompanyProfileCard from "./profile/CompanyProfileCard";
 import EventsProfileCard from "./profile/EventsProfileCard";
 import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
-import { ReferenceWorkspace, RoomHeader, RoomIntro, type RoomReference } from "./center/evidenceRoom/roomView";
 import "./elite10.css";
 
 type Sub = "board" | "profile" | "ai" | "evidence" | "risk";
@@ -28,12 +27,10 @@ const SUBS: { id: Sub; label: string }[] = [
   { id: "risk", label: "5. Rủi ro danh mục" },
 ];
 
-export default function Elite10Hub({ roomReference }: { roomReference?: RoomReference } = {}) {
+export default function Elite10Hub() {
   const globalTicker = useAppStore((s) => s.selectedTicker);
   const fromLink = typeof window !== "undefined" && window.location.hash.includes("elite-filter=");
-  const [sub, setSub] = useState<Sub>(roomReference ? "ai" : fromLink ? "profile" : "board");
-  const [roomTools, setRoomTools] = useState(false);
-  const [roomSession, setRoomSession] = useState<string | null>(null);
+  const [sub, setSub] = useState<Sub>(fromLink ? "profile" : "board");
   const [mode, setMode] = useState<"profile" | "screener">(fromLink ? "screener" : "profile");
   const [ticker, setTicker] = useState<string | null>(null);
   // PFA-v1 (17/11/2026): góc nhìn của Hồ sơ — "Tổng hợp" là trang hiện có (giữ nguyên), hai góc nhìn mới chỉ bổ sung.
@@ -41,11 +38,9 @@ export default function Elite10Hub({ roomReference }: { roomReference?: RoomRefe
   // Phòng họp AI: dựng khi mở lần đầu rồi GIỮ trong cây (ẩn khi sang tab khác) — rời tab giữa chừng không huỷ tranh luận đang chạy
   // và không mất kết quả đã tính vào hạn mức hỏi đáp.
   const [aiOpened, setAiOpened] = useState(false);
-  useEffect(() => {
-    if (sub === "ai") setAiOpened(true);
-    else setRoomTools(false);
-  }, [sub]);
+  useEffect(() => { if (sub === "ai") setAiOpened(true); }, [sub]);
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
+
   const current = ticker ?? globalTicker ?? "VNINDEX";
   const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
   // QĐ-R (20/11/2026): thẻ tóm tắt ở Bảng quyết định -> tab 4 (quy tắc, sổ theo dõi, trọng số đã chuyển sang đó).
@@ -71,19 +66,13 @@ export default function Elite10Hub({ roomReference }: { roomReference?: RoomRefe
   };
 
   return (
-    <div className={sub === "ai" ? "elite10-hub eb-room-page" : "elite10-hub flex flex-col gap-3"} data-testid="elite10-hub"
-      data-evidence-room-active={sub === "ai" || undefined} data-eb-tools-open={sub === "ai" && roomTools || undefined}>
-      {sub === "ai" && <RoomHeader reference={Boolean(roomReference)} session={roomSession} toolsOpen={roomTools} onToggleTools={() => setRoomTools((open) => !open)} />}
-      <div className={sub === "ai" ? "eb-shell" : "flex flex-col gap-3"}>
-      {sub === "ai" && <RoomIntro />}
-      <div role="tablist" aria-label="Elite 10" className={sub === "ai" ? "subnav" : undefined}
-        style={sub === "ai" ? undefined : { display: "flex", gap: 8, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
+    <div className="elite10-hub flex flex-col gap-3" data-testid="elite10-hub">
+      <div role="tablist" aria-label="Elite 10" style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
         {SUBS.map((s) => (
           <button
             key={s.id} type="button" role="tab" id={`elite10-${s.id}-tab`} aria-selected={sub === s.id} aria-controls={`elite10-${s.id}-panel`}
             tabIndex={sub === s.id ? 0 : -1} ref={(el) => { refs.current[s.id] = el; }} onKeyDown={onKey} onClick={() => setSub(s.id)}
-            className={sub === "ai" && s.id === sub ? "active" : undefined}
-            style={sub === "ai" ? undefined : {
+            style={{
               padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--gold-bright)" : "2px solid transparent",
               background: "transparent", color: sub === s.id ? "var(--gold-bright)" : "var(--text-secondary)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
@@ -91,11 +80,10 @@ export default function Elite10Hub({ roomReference }: { roomReference?: RoomRefe
           >{s.label}</button>
         ))}
       </div>
-      <section id={`elite10-${sub}-panel`} role="tabpanel" aria-labelledby={`elite10-${sub}-tab`} className={sub === "ai" ? undefined : "flex flex-col gap-3"}>
+      <section id={`elite10-${sub}-panel`} role="tabpanel" aria-labelledby={`elite10-${sub}-tab`} className="flex flex-col gap-3">
         {sub === "board" && <DecisionBoard onOpenTicker={open} onNavigateToEvidence={goToEvidence} />}
         {(aiOpened || sub === "ai") && <div hidden={sub !== "ai"} data-testid="elite10-ai-keepalive">
-          {roomReference ? <ReferenceWorkspace fixture={roomReference} /> :
-            <EliteAiRoom defaultTicker={ticker ?? globalTicker} active={sub === "ai"} onSession={setRoomSession} />}
+          <EliteAiRoom defaultTicker={ticker ?? globalTicker} active={sub === "ai"} />
         </div>}
         {sub === "evidence" && <EvidenceLedgerTab />}
         {sub === "risk" && <RiskTab />}
@@ -134,7 +122,6 @@ export default function Elite10Hub({ roomReference }: { roomReference?: RoomRefe
           </>
         )}
       </section>
-      </div>
     </div>
   );
 }

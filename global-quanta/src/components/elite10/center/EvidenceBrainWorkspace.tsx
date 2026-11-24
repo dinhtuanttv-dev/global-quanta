@@ -31,7 +31,7 @@ type Props = {
   judgeClaims: ClaimParseResult | null;
   reviewSnapshot: EvidenceSnapshot | null;
   reviewMessage?: string | null;
-  onSession?: (session: string | null) => void;
+  actions?: ReactNode;
   onRunReview: (snapshot: EvidenceSnapshot) => void;
   onStop: () => void;
 };
@@ -178,7 +178,7 @@ function layerStates(snap: EvidenceSnapshot | undefined, data: Data, ticker: str
 }
 
 export default function EvidenceBrainWorkspace(props: Props) {
-  const { active, busy, onRunReview, onSession } = props;
+  const { active, busy, onRunReview } = props;
   const { mutate } = useSWRConfig();
   const ticker = /^[A-Z0-9]{3,10}$/.test(props.ticker) ? props.ticker : null;
   const [detail, setDetail] = useState<Detail | null>(null);
@@ -254,7 +254,6 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const hasPinned = pinned?.snap.ticker === ticker && pinned.snap.snapshotId === props.reviewSnapshot?.snapshotId;
   const visible = hasPinned && !seeLatest ? pinned : current;
   const snap = visible?.snap;
-  useEffect(() => { if (active) onSession?.(snap?.decisionSession ?? null); }, [active, onSession, snap?.decisionSession]);
   const data: Data = visible?.data ?? { pa: null, price: null, liquidity: null, volume: null, events: [], timing: null, sector: null };
   const showAI = props.debateSubject === ticker && (props.reviewSnapshot ? snap?.snapshotId === props.reviewSnapshot.snapshotId : Boolean(props.bull || props.bear));
   const roles = showAI ? { bull: props.bull, bear: props.bear, judge: props.judge } : { bull: null, bear: null, judge: null };
@@ -315,6 +314,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
         else if (!requested) setRequested(true);
         else if (canRun && current) { setPinned(current); setSeeLatest(false); onRunReview(current.snap); }
       }}>{busy ? "■ Dừng" : !requested ? "✦ Nạp dữ liệu kiểm chứng" : waiting || building ? "Đang kiểm tra nguồn…" : "✦ Kiểm chứng & tranh luận"}</button>
+      {props.actions}
     </div>
   </section>;
   const submitTicker = (e: FormEvent) => {
