@@ -113,7 +113,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       }, signal, provider, role, snapshotId ? "snapshot_only" : undefined, snapshotId);
       if (!lane.done && !lane.error) apply((l) => ({ ...l, error: "Kết nối kết thúc trước khi nhận kết quả hoàn chỉnh." }));
       if (snapshotId && !gatewaySealed && !lane.error)
-        apply((l) => ({ ...l, untraceable: [...l.untraceable, "Gateway chưa xác nhận đúng snapshot đã khóa"] }));
+        apply((l) => ({ ...l, error: "Gateway chưa xác nhận đúng snapshot đã khóa." }));
     } catch (err) {
       apply((l) => ({ ...l, error: signal.aborted ? "Đã dừng." : err instanceof ChatHttpError ? err.message : "Không kết nối được dịch vụ AI." }));
     } finally {
@@ -161,10 +161,12 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
     if (ctrlRef.current !== ctrl || readResearchAccount() !== account) return;
     const parsedBull = packet ? markClaimsWithExternalTools(parseAndValidateClaims(b.error ? "" : b.text, packet.snapshot, "BULL"), b.tools.map((tool) => tool.name), b.untraceable) : null;
     const parsedBear = packet ? markClaimsWithExternalTools(parseAndValidateClaims(s.error ? "" : s.text, packet.snapshot, "BEAR"), s.tools.map((tool) => tool.name), s.untraceable) : null;
+    const hasBull = Boolean(parsedBull?.ok && parsedBull.claims.length);
+    const hasBear = Boolean(parsedBear?.ok && parsedBear.claims.length);
     if (parsedBull) setBullClaims(parsedBull);
     if (parsedBear) setBearClaims(parsedBear);
     if (ctrl.signal.aborted || ((b.error || !b.text.trim()) && (s.error || !s.text.trim())) ||
-      (packet && !parsedBull?.ok && !parsedBear?.ok)) {
+      (packet && !hasBull && !hasBear)) {
       if (packet) setReviewMessage("Phiên chưa có đủ phản hồi phù hợp với gói bằng chứng đã khóa.");
       ctrlRef.current = null; setPhase("done"); return;
     }
@@ -177,7 +179,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       if (packet && ctrlRef.current === ctrl && readResearchAccount() === account) {
         const parsedJudge = markClaimsWithExternalTools(parseAndValidateClaims(j.error ? "" : j.text, packet.snapshot, "JUDGE"), j.tools.map((tool) => tool.name), j.untraceable);
         setJudgeClaims(parsedJudge);
-        setReviewMessage(!parsedJudge.ok || !parsedBull?.ok || !parsedBear?.ok ? "Kiểm chứng một phần. Mở từng làn để xem dữ liệu đã kiểm và phần còn thiếu." : "Đã đối chiếu cấu trúc luận điểm theo gói bằng chứng.");
+        setReviewMessage(!parsedJudge.ok || !parsedJudge.claims.length || !hasBull || !hasBear ? "Kiểm chứng một phần. Mở từng làn để xem dữ liệu đã kiểm và phần còn thiếu." : "Đã đối chiếu cấu trúc luận điểm theo gói bằng chứng.");
       }
     } catch {
       if (ctrlRef.current === ctrl && readResearchAccount() === account) setReviewMessage("Chưa hoàn thành bước trọng tài trong giới hạn Gateway.");
