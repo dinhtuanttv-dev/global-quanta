@@ -5,6 +5,7 @@
 //   - Bản tin phiên: tạo khi bấm (không chạy định kỳ — tránh chi phí API không cần thiết).
 //   - Hỏi đáp tự do: cùng khung Hỏi đáp xúc tác, gợi ý theo Elite 10.
 import { useEffect, useId, useRef, useState } from "react";
+import { useEliteDecision } from "../../../hooks/elite10/useEliteCenter";
 import { Gavel, Newspaper, Play, Square } from "lucide-react";
 import { ChatHttpError, streamCatalystChat, type ChatProvider, type ChatRole } from "../../../services/catalystChat";
 import CatalystChatPanel, { LaneView, laneReducer, newLane, type Lane } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
@@ -58,7 +59,14 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
   const sessionToolsId = useId();
   const sessionDetails = useRef<HTMLDetailsElement>(null);
   const sessionShortcut = useRef<HTMLButtonElement>(null);
-  const [subject, setSubject] = useState<string>(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : "");
+  const [choice, setSubject] = useState<string>(defaultTicker && defaultTicker !== "VNINDEX" ? defaultTicker : "");
+  const board = useEliteDecision(active && !choice);
+  const portfolio = board.data?.portfolio ?? [];
+  const classified = portfolio.some((row) => row.hl?.pz?.lane);
+  const top = portfolio.filter((row) => /^[A-Z][A-Z0-9]{2}$/.test(row.ticker) && (!classified || row.hl?.pz?.lane === "CORE"))
+    .sort((a, b) => (a.hl?.rank ?? a.rank ?? Infinity) - (b.hl?.rank ?? b.rank ?? Infinity))[0];
+  const subject = choice || top?.ticker || "";
+  useEffect(() => { if (!choice && top) setSubject(top.ticker); }, [choice, top]);
   const [bull, setBull] = useState<Lane | null>(null);
   const [bear, setBear] = useState<Lane | null>(null);
   const [judge, setJudge] = useState<Lane | null>(null);

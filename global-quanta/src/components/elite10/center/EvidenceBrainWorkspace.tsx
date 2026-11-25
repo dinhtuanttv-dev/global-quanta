@@ -21,7 +21,7 @@ import { groupEvents, LiveTimeline } from "./evidenceRoom/LiveTimeline";
 import { confirmationLabel, ResearchDialog, type ResearchView } from "./evidenceRoom/ResearchDesk";
 import type { ScenarioEntry } from "./evidenceRoom/ScenarioCanvas";
 import { useResearchAccount } from "./evidenceRoom/researchAccount";
-import { lockResearchSnapshot, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
+import { lockResearchSnapshot, usePublishedReview, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
 
 const ScenarioCanvas = lazy(() => import("./evidenceRoom/ScenarioCanvas"));
@@ -198,7 +198,6 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const [requested, setRequested] = useState(active);
   const [buildError, setBuildError] = useState(false);
   const [version, retryBuild] = useState(0);
-  const [building, setBuilding] = useState(false);
   const [seeLatest, setSeeLatest] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState<string | null>(null);
@@ -217,6 +216,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const news = useEventRadar({ ticker: ticker ?? undefined, limit: 12, enabled: enabled && Boolean(ticker), keepPreviousData: false });
   const volumes = useVolumeAnalysis(ticker, enabled, "research");
   const session = useResearchSession(enabled);
+  const published = usePublishedReview(enabled ? account : null, ticker, session.data);
   const liquidity = useEliteLiquidity(enabled ? ticker : null);
   const chart = useAdjustedDaily(enabled ? ticker : null, enabled);
   const onPriceAction = useCallback((value: PriceActionEvidence) => {
@@ -241,7 +241,6 @@ export default function EvidenceBrainWorkspace(props: Props) {
   useEffect(() => {
     if (!enabled) return;
     let current = true;
-    setBuilding(true);
     setBuildError(false);
     const observedAt = new Date().toISOString();
     const price = ticker ? closedResearchChart(chart.bars, chart.priceBasis, chart.warnings, observedAt) : null;
@@ -260,7 +259,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
         risk: risk.data ?? null, expectedClosedSession } });
     }).catch(() => {
       if (current) setBuildError(true);
-    }).finally(() => { if (current) setBuilding(false); });
+    });
     return () => { current = false; };
   }, [enabled, ticker, known, decision.data, decision.error, tickerDecision, panel, selected.error, evidence.data, evidence.error,
     ledger.data, ledger.error, risk.data, risk.error, timing.data, timing.error, timingRow, events, news.enabled, news.data?.generatedAt,
@@ -290,7 +289,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const hasPinned = pinned?.snap.ticker === ticker && pinned.snap.snapshotId === props.reviewSnapshot?.snapshotId;
   const localSaved = saved?.account === account && saved.projection.snap.ticker === ticker ? saved : null;
   const localScenario = scenario?.account === account && scenario.base.snap.ticker === ticker ? scenario : null;
-  const original = localScenario?.base ?? localSaved?.projection ?? (hasPinned && !seeLatest ? pinned : current);
+  const publishedProjection = published.record?.projection ?? published.fallback;
+  const original = localScenario?.base ?? localSaved?.projection ?? (hasPinned && !seeLatest ? pinned : !seeLatest && publishedProjection ? publishedProjection : current);
   const excluded = localScenario?.cluster ?? (showParent ? null : localSaved?.omittedCluster ?? null);
   const visible = original && excluded ? withoutCatalyst(original, excluded) : original;
   const replay = localScenario || showParent ? null : localSaved;
@@ -299,10 +299,12 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const fullVolume = useVolumeAnalysis(ticker, enabled && wantVolumeDetail && detail === "volume" && !(hasPinned && !seeLatest) && !localSaved && !localScenario);
   const showAI = !excluded && !localSaved && props.debateSubject === ticker && (props.reviewSnapshot ? snap?.snapshotId === props.reviewSnapshot.snapshotId : Boolean(props.bull || props.bear));
   const roles = showAI ? { bull: props.bull, bear: props.bear, judge: props.judge } : { bull: null, bear: null, judge: null };
-  const bundles = showAI && props.reviewSnapshot ? { bull: props.bullClaims, bear: props.bearClaims, judge: props.judgeClaims } : { bull: null, bear: null, judge: null };
+  const cached = !excluded && !localSaved && !localScenario && published.record?.projection.snap.snapshotId === snap?.snapshotId ? published.record : null;
+  const bundles = showAI && props.reviewSnapshot ? { bull: props.bullClaims, bear: props.bearClaims, judge: props.judgeClaims } :
+    { bull: cached?.roles.BULL, bear: cached?.roles.BEAR, judge: cached?.roles.JUDGE };
   const claims = replay?.claims ?? [...(bundles.bull?.claims ?? []), ...(bundles.bear?.claims ?? []), ...(bundles.judge?.claims ?? [])];
-  const readiness = current && !localSaved && !excluded ? sourceReadiness(current.snap) : null;
-  const canRun = Boolean(account && current && readiness?.canDebate && !buildError);
+  const readiness = original && !localSaved && !excluded ? sourceReadiness(original.snap) : null;
+  const canRun = Boolean(account && original && readiness?.canDebate);
   const blockedReason = !account ? "Đăng nhập để kiểm chứng và lưu phiên." : localSaved || excluded ? "Chuyển về quan sát hiện tại để kiểm chứng." :
     buildError ? "Chưa lập được snapshot. Thử tải lại nguồn." : readiness?.blockers[0]?.trim() || (!current ? "Đang nạp nguồn thiết yếu." : "");
   const sources = snap?.sources ?? [];
@@ -320,14 +322,15 @@ export default function EvidenceBrainWorkspace(props: Props) {
   }
   if (excluded) layers[3] = { ...layers[3], tone: "warn", status: "MÔ PHỎNG", detail: "Đã loại một cụm tin khỏi phân tích." };
   const concerns = layers.filter((layer) => layer.tone === "bad" || layer.tone === "warn");
-  const locked = Boolean(replay || hasPinned && !seeLatest);
+  const locked = Boolean(replay || hasPinned && !seeLatest || original && original === publishedProjection);
+  const fallbackSession = original?.fallback?.expectedSession ?? (locked && expectedClosedSession && snap?.decisionSession && snap.decisionSession < expectedClosedSession ? expectedClosedSession : null);
   const hasNewObservation = Boolean(locked && current && original && Date.parse(current.snap.createdAt) > Date.parse(original.snap.createdAt) &&
     sourceManifest(current) !== sourceManifest(original));
   const observedExpected = locked || excluded ? data.expectedClosedSession ?? data.volume?.coverage?.expectedClosedSession : expectedClosedSession;
   const volumeDay = data.volume?.coverage?.lastClosedSession ?? (data.volume?.partialToday ? null : data.volume?.asOf);
   const pendingSession = !locked && !excluded && observedExpected && snap && (observedExpected !== snap.decisionSession ||
     Boolean(ticker && (volumeDay && volumeDay < observedExpected || data.pa?.asOf && data.pa.asOf < observedExpected)));
-  const stageHint = session.data?.stage === "MARKET_DAILY" ? "Chờ kho ngày" : session.data?.stage === "SCANNER" ? "Chờ Siêu Quét" :
+  const stageHint = session.data?.stage === "EOD" ? "Chờ đủ nến đóng phiên" : session.data?.stage === "MARKET_DAILY" ? "Chờ kho ngày" : session.data?.stage === "SCANNER" ? "Chờ Siêu Quét" :
     snap?.decisionSession !== observedExpected ? "Chờ Bảng quyết định" : "Chờ nến hoặc khối lượng chốt theo mã";
   const state = snap?.funnel.membership.state;
   const held = state === "PORTFOLIO_CORE" || state === "PORTFOLIO_RUNNER";
@@ -339,6 +342,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
   });
   const aiNode = (id: keyof typeof roleTitle): RoomNode => {
     const lane = roles[id], bundle = bundles[id];
+    if (cached && bundle && !showAI) return { id, label: roleTitle[id], tone: bundle.summary.refsMatched ? "good" : "neutral",
+      badge: "BẢN CHẠY NỀN", title: bundle.claims[0]?.text ?? "Đã xử lý", meta: `Phiên ${dateVi(cached.session)} · ${bundle.summary.refsMatched} ref khớp` };
     const archived = replay?.claims.filter((claim) => claim.side === id.toUpperCase()) ?? [];
     if (archived.length) return { id, label: roleTitle[id], tone: "neutral", badge: "BẢN ĐÃ LƯU",
       title: archived[0].text, meta: `${archived.length} luận điểm lưu cùng phiên` };
@@ -359,7 +364,11 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const priceValue = quote?.price ?? lastBar?.close;
   const change = quote?.changePct;
   async function captureReview() {
-    if (!canRun || lockRequest.current) return;
+    if (lockRequest.current) return;
+    if (!account || !ticker || localSaved || excluded) {
+      setCaptureError(!account ? "Đăng nhập để kiểm chứng bằng snapshot Gateway." : !ticker ? "Chọn một mã cổ phiếu để kiểm chứng." : "Mở bản gốc trước khi chạy tranh luận.");
+      return;
+    }
     const controller = new AbortController();
     lockRequest.current = controller;
     setCapturing(true); setCaptureError(null);
@@ -386,6 +395,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
       </small></div>}
     </div>
     <div className="snapshot-meta">
+      {fallbackSession && <span className="meta-chip warn" role="status">Snapshot dự phòng · phiên {dateVi(snap?.decisionSession)} · chờ phiên {dateVi(fallbackSession)}</span>}
+      {cached && <span className="meta-chip" role="status">{cached.state === "READY" ? "Tam tài AI · đã phân tích" : cached.state === "FAILED" ? "Tam tài AI · cần kiểm tra" : cached.state === "RETRY" ? "Tam tài AI · chờ thử lại" : "Tam tài AI · đã khóa nguồn"}</span>}
       <button className={`meta-chip ${locked ? "good" : ""}`} title={replay?.contentId ?? snap?.snapshotId} type="button" onClick={() => setDetail("snapshot")}>● Snapshot {replay ? replay.contentId.slice(-12) : briefId(snap)}</button>
       <span className="meta-chip">Decision {dateVi(snap?.decisionSession ?? decisionDay)}</span>
       {data.pa?.asOf && <span className="meta-chip">Nến {dateVi(data.pa.asOf)}</span>}
@@ -402,11 +413,11 @@ export default function EvidenceBrainWorkspace(props: Props) {
         else if (localSaved?.omittedCluster && !showParent) setShowParent(true);
         else { setSaved(null); setShowParent(false); setSeeLatest(true); if (!current) setRequested(true); }
       }}>{excluded ? "Về bản gốc" : "Về nguồn đang nạp"}</button>}
-      <button type="button" className="primary-btn" aria-describedby={!busy && blockedReason ? "eb-review-reason" : undefined} disabled={capturing || !busy && (Boolean(localSaved || excluded) || requested && !canRun)} onClick={() => {
+      <button type="button" className="primary-btn" aria-busy={capturing} aria-describedby={!busy && blockedReason ? "eb-review-reason" : undefined} onClick={() => {
         if (busy) props.onStop();
         else if (!requested) setRequested(true);
         else void captureReview();
-      }}>{capturing ? "Đang khóa trên Gateway…" : busy ? "■ Dừng" : !requested ? "✦ Nạp dữ liệu kiểm chứng" : !canRun && (waiting || building) ? "Đang kiểm tra nguồn thiết yếu…" : "✦ Kiểm chứng & tranh luận"}</button>
+      }}>{capturing ? "Đang khóa trên Gateway…" : busy ? "■ Dừng" : !requested ? "✦ Nạp dữ liệu kiểm chứng" : "✦ Kiểm chứng & tranh luận"}</button>
       {props.actions}
       {(!busy && !canRun && blockedReason || pendingSession) && <div className="eb-session-hint">
         {!busy && !canRun && blockedReason && <span id="eb-review-reason">{blockedReason}</span>}
@@ -459,7 +470,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     if (id === "bull" || id === "bear" || id === "judge") return { title: roleTitle[id], content: <>
       <p>Snapshot {briefId(snap)} · {ticker ?? "Danh mục"}</p>
       {roles[id] ? <div className="tw-scope"><LaneView t={roles[id]!} showHeader headerLabel={roleTitle[id]} /></div>
-        : replay?.claims.some((claim) => claim.side === id.toUpperCase()) ? <p>Luận điểm đã lưu cùng phiên.</p> : <p>Chưa có luận điểm cho snapshot đang xem.</p>}
+        : bundles[id]?.claims.length ? <p>Luận điểm từ bản phân tích Gateway của phiên này.</p> : replay?.claims.some((claim) => claim.side === id.toUpperCase()) ? <p>Luận điểm đã lưu cùng phiên.</p> : <p>Chưa có luận điểm cho snapshot đang xem.</p>}
       <p className="eb-claim-check">Ref và số khớp là kiểm tra cấu trúc dữ liệu. Cần đọc luận điểm để đánh giá cách diễn giải.</p>
       {bundles[id]?.error && <p>{bundles[id]!.error}</p>}
       {(replay ? replay.claims.filter((claim) => claim.side === id.toUpperCase()) : bundles[id]?.claims ?? []).map((claim) => <article key={claim.id}><p><b>{claim.validation}</b> · {claim.classification}</p><p>{claim.text}</p>

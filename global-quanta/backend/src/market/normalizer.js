@@ -124,6 +124,9 @@ export function normalizeBar(raw, { intraday = false } = {}) {
     value: toNum(pick(m, "value", "totalMatchVal", "totalValue")),
   };
   if (!bar.date || bar.close === null) return null;
+  // Chart consumers keep the legacy flat-bar convention. An inferred field cannot satisfy EOD publication.
+  if (!intraday && ([bar.open, bar.high, bar.low, toNum(pick(m, "volume", "totalMatchVol", "totalVolume", "v"))].some((n) => n === null) ||
+      m.get("partial") === true)) bar.unconfirmedEod = true;
   // Một số nguồn bỏ trống open/high/low ở nến không có giao dịch.
   bar.open ??= bar.close;
   bar.high ??= Math.max(bar.open, bar.close);

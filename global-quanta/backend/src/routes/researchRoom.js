@@ -1,6 +1,6 @@
 import express from "express";
 
-export function createResearchRoomRouter({ getRoom, verifyUser, getSession }) {
+export function createResearchRoomRouter({ getRoom, verifyUser, getSession, precomputed, observation }) {
   const router = express.Router();
   const authed = (work) => async (req, res) => {
     res.set("Cache-Control", "private, no-store");
@@ -16,6 +16,8 @@ export function createResearchRoomRouter({ getRoom, verifyUser, getSession }) {
     try { return res.json(await getSession()); }
     catch { return res.status(503).json({ error: "Chưa đọc được tiến độ công bố phiên." }); }
   });
+  if (precomputed) router.get("/precomputed", authed((_room, _owner, req) => precomputed(req.query.ticker)));
+  if (observation) router.get("/observation", authed((_room, _owner, req) => observation(req.query.ticker)));
   router.post("/snapshots", authed((room, owner, req) => room.lock(owner, req.body?.ticker ?? null)));
   router.post("/scenarios/parent", authed((room, owner, req) => room.scenarios.parent(owner, req.body)));
   router.post("/scenarios/preview", authed((room, owner, req) => room.scenarios.preview(owner, req.body)));

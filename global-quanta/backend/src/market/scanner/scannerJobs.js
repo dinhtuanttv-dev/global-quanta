@@ -6,6 +6,7 @@
 //   backfillMarketDaily (admin / 02:00) — nạp lịch sử, chạy tiếp được nếu bị ngắt
 
 import { fetchMarketDay } from "./marketDaily.js";
+import { fetchVndirectMarketDay } from "../providers/vndirectClose.js";
 import {
   universeConfig, rankByLiquidity, buildUniverse, fetchTradingViewSectors, fetchProjectASectors,
   mergeSectors, DIVIDEND_STOCKS,
@@ -45,7 +46,7 @@ export function tradingDatesBack(end, count) {
   return out.reverse();
 }
 
-export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMarketDay, fetchImpl = globalThis.fetch, pauseMs = 300, corporateActions = null } = {}) {
+export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMarketDay, fallbackDay = fetchDay === fetchMarketDay ? fetchVndirectMarketDay : null, fetchImpl = globalThis.fetch, pauseMs = 300, corporateActions = null } = {}) {
   const store = service.store;
   const dailyWrites = new Map();
 
@@ -60,10 +61,15 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
   }
 
   async function writeDay(date, { detectAdjustments = true } = {}) {
-    const today = await fetchDay(date);
+    let today;
+    try { today = await fetchDay(date); }
+    catch (error) {
+      if (!fallbackDay || !detectAdjustments) throw error;
+      today = { rows: [], requests: 0, error: error.message };
+    }
     const rows = today.rows.filter((row) => row.date === date);
     const observation = { date, requests: today.requests, receivedValidRows: rows.length, coverage: today.coverage ?? null };
-    if (!rows.length) return { ...observation, rows: 0, empty: true, awaitingData: detectAdjustments };
+    if (!rows.length && (!detectAdjustments || !fallbackDay)) return { ...observation, rows: 0, empty: true, awaitingData: detectAdjustments };
 
     let adjusted = 0;
     let requests = today.requests;
@@ -76,9 +82,34 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         const acceptedByExchange = {};
         for (const row of stored.values()) expectedByExchange[row.exchange] = (expectedByExchange[row.exchange] ?? 0) + 1;
         for (const row of rows) acceptedByExchange[row.exchange] = (acceptedByExchange[row.exchange] ?? 0) + 1;
-        const thinExchanges = Object.entries(expectedByExchange).filter(([exchange, n]) => n >= 100 && (acceptedByExchange[exchange] ?? 0) < n * .8).map(([exchange]) => exchange);
+        const thin = () => Object.entries(expectedByExchange).filter(([exchange, n]) => n >= 100 && (acceptedByExchange[exchange] ?? 0) < n * .8).map(([exchange]) => exchange);
+        if (fallbackDay && (!rows.length || thin().length)) {
+          const symbols = new Set(rows.map((r) => r.symbol));
+          for (const extra of await fallbackDay(date)) {
+            if (extra.date !== date || symbols.has(extra.symbol)) continue;
+            rows.push(extra);
+            symbols.add(extra.symbol);
+            acceptedByExchange[extra.exchange] = (acceptedByExchange[extra.exchange] ?? 0) + 1;
+            observation.vndirectRows = (observation.vndirectRows ?? 0) + 1;
+          }
+        }
+        const thinExchanges = thin();
         if (thinExchanges.length) return { ...observation, rows: 0, awaitingData: true, expectedByExchange, acceptedByExchange, thinExchanges };
-        const prevFresh = await fetchDay(prevDate);
+        let prevFresh;
+        try { prevFresh = await fetchDay(prevDate); }
+        catch (error) { if (!observation.vndirectRows) throw error; }
+        if (observation.vndirectRows && !prevFresh?.rows.some((r) => r.date === prevDate)) {
+          const prior = await fallbackDay(prevDate);
+          const current = new Map(rows.map((r) => [r.symbol, r]));
+          // Confirm cross-provider adjustments against both nominal closes and exchange reference prices.
+          const comparable = prior.filter((r) => stored.has(r.symbol) && current.has(r.symbol));
+          if (!comparable.length || comparable.length < stored.size * .8 || comparable.some((r) => {
+            const old = stored.get(r.symbol), factor = r.closeAdj / old.closeAdj;
+            return old.close !== r.close || !Number.isFinite(factor) || factor <= 0 ||
+              (Math.abs(factor - 1) > ADJ_EPSILON && Math.abs(current.get(r.symbol).refPrice / old.close - factor) > .005);
+          })) return { ...observation, rows: 0, awaitingData: true, reason: "previous_adjustment_basis_pending" };
+          prevFresh = { rows: comparable, requests: 0 };
+        }
         requests += prevFresh.requests;
         for (const fresh of prevFresh.rows) {
           const old = fresh.date === prevDate ? stored.get(fresh.symbol) : null;
@@ -91,7 +122,9 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
         }
       }
     }
+    if (!rows.length) return { ...observation, rows: 0, empty: true, awaitingData: detectAdjustments };
     await store.upsertMarketDaily(rows);
+    if (observation.vndirectRows) await store.setKv("local:market-source:" + date, "SSI / VNDirect");
     return { ...observation, rows: rows.length, requests, adjustedSymbols: adjusted };
   }
 
@@ -342,9 +375,9 @@ export function createScannerJobs(service, { now = Date.now, fetchDay = fetchMar
 
 /** Lịch chạy các job Siêu Quét (bổ sung vào scheduler). */
 export const SCANNER_SCHEDULE = [
-  { name: "syncMarketDaily", at: "15:20", tradingDayOnly: true, followUp: "sessionCatchUp" },
+  { name: "syncMarketDaily", at: "15:05", tradingDayOnly: true, followUp: "sessionCatchUp" },
   { name: "repairForeign", at: "18:05", tradingDayOnly: true },
-  { name: "scanUniverse", at: "15:40", tradingDayOnly: true },
+  { name: "scanUniverse", at: "15:40", tradingDayOnly: true, followUp: "publishEliteDecision" },
   { name: "ifeValidate", at: "15:50", tradingDayOnly: true },
   { name: "refreshFundamentals", at: "09:00", weekdays: [6] },
   { name: "buildUniverse", at: "20:00", weekdays: [0] },

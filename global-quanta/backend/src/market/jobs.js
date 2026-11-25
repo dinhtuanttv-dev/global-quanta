@@ -7,6 +7,7 @@ import { isTradingDay, lastCompletedSessionDate, vnDate } from "./calendar.js";
 import { canonicalSymbol, isIndexSymbol } from "./normalizer.js";
 import { addDays, mapLimit, sleep } from "./util.js";
 import { notifyOps } from "./alerts.js";
+import { validClosedBar, fetchVndirectClose } from "./providers/vndirectClose.js";
 
 const SSI_ONLY = ["ssiV3", "ssiFcV2"];
 
@@ -16,7 +17,7 @@ function datasetFor(symbol) {
     : { dataset: "ohlcvDaily", method: "getDailyOhlcv" };
 }
 
-export function createJobs(service, { now = Date.now, pauseMs = 200 } = {}) {
+export function createJobs(service, { now = Date.now, pauseMs = 200, fallbackDay = fetchVndirectClose } = {}) {
   const today = () => vnDate(new Date(now()));
 
   async function universe() {
@@ -55,30 +56,60 @@ export function createJobs(service, { now = Date.now, pauseMs = 200 } = {}) {
     /** Nến ngày của phiên vừa đóng cửa cho toàn bộ universe. */
     async syncEod() {
       const date = lastCompletedSessionDate(new Date(now()));
-      const symbols = await universe();
+      const checkpoint = (await service.store.getKv("local:eod:coverage:" + date))?.value;
+      const universe = checkpoint?.core?.length ? checkpoint.core : service.getUniverse ?
+        (await service.getUniverse()).tickers.map((row) => row.ticker) : await service.getEodUniverse();
+      const core = new Set(universe.map(canonicalSymbol).filter((s) => /^[A-Z][A-Z0-9]{2}$/.test(s) && !isIndexSymbol(s)));
+      const symbols = [...new Set([...core, ...(service.hub?.trackedSymbols() ?? []), ...marketConfig().streamIndices.map(canonicalSymbol)])];
       const bySource = {};
       const fallbacks = {};
       const failed = [];
-      const missingTarget = [];
-      const hasTarget = (rows) => Array.isArray(rows) && rows.some((bar) => bar.date === date && !bar.partial && Number.isFinite(bar.close) && bar.close > 0);
+      const previouslyClosed = new Set(checkpoint?.symbols ?? []);
+      const confirmed = new Set();
+      const hasTarget = (rows) => Array.isArray(rows) && rows.some((bar) => validClosedBar(bar, date));
       await mapLimit(symbols, 2, async (symbol) => {
         try {
-          const r = await fetchAndStore(symbol, addDays(date, -10), date, { accept: hasTarget });
+          if (previouslyClosed.has(symbol) && hasTarget(await service.store.getBars(symbol, date, date))) { confirmed.add(symbol); return; }
+          const { dataset, method } = datasetFor(symbol);
+          const r = await service.router.run(dataset, method, [symbol, addDays(date, -10), date], { accept: hasTarget });
+          const target = r.data.find((bar) => validClosedBar(bar, date));
+          if (!target) return;
+          await service.store.upsertBars(symbol, r.data.filter((b) => b.date <= date && validClosedBar(b, b.date)), r.source);
+          if (!hasTarget(await service.store.getBars(symbol, date, date))) return;
+          confirmed.add(symbol);
           bySource[r.source] = (bySource[r.source] || 0) + 1;
           if (r.fallbackReason) fallbacks[r.fallbackReason] = (fallbacks[r.fallbackReason] ?? 0) + 1;
-          if (!hasTarget(r.data)) missingTarget.push(symbol);
         } catch (error) {
           failed.push({ symbol, error: error.message });
         }
         await sleep(pauseMs);
       });
+      const missing = [...core].filter((symbol) => !confirmed.has(symbol));
+      let fallbackError = null;
+      if (missing.length) {
+        try {
+          const rows = await fallbackDay(date);
+          for (const symbol of missing) {
+            const bar = rows.get(symbol);
+            if (!validClosedBar(bar, date)) continue;
+            await service.store.upsertBars(symbol, [bar], "vndirect");
+            if (!hasTarget(await service.store.getBars(symbol, date, date))) continue;
+            confirmed.add(symbol);
+            bySource.vndirect = (bySource.vndirect || 0) + 1;
+          }
+        } catch (error) { fallbackError = error.message; }
+      }
+      const absent = [...core].filter((symbol) => !confirmed.has(symbol));
+      const confirmedCore = core.size - absent.length;
+      const awaitingData = !core.size || confirmedCore * 100 < core.size * 95;
+      await service.store.setKv("local:eod:coverage:" + date, { date, expected: core.size, confirmed: confirmedCore, core: [...core], symbols: [...confirmed], awaitingData, updatedAt: new Date(now()).toISOString() });
       service.cache.clear();
-      const confirmedClosed = symbols.length - failed.length - missingTarget.length;
+      const confirmedClosed = confirmed.size;
       if (confirmedClosed < symbols.length / 2) {
         void notifyOps("job:syncEod", `EOD ${date} có ${confirmedClosed}/${symbols.length} nến đóng đúng phiên.`);
       }
-      return { date, symbols: symbols.length, bySource, fallbacks, expectedClosed: symbols.length, confirmedClosed, awaitingData: confirmedClosed < symbols.length,
-        missingTargetCount: missingTarget.length, missingTargetSample: missingTarget.slice(0, 20), failed: failed.slice(0, 20), failedCount: failed.length };
+      return { date, symbols: symbols.length, bySource, fallbacks, fallbackError, expectedClosed: symbols.length, confirmedClosed, expectedCore: core.size, confirmedCore, awaitingData,
+        missingTargetCount: absent.length, missingTargetSample: absent.slice(0, 20), failed: failed.filter((item) => !confirmed.has(item.symbol)).slice(0, 20), failedCount: failed.filter((item) => !confirmed.has(item.symbol)).length };
     },
 
     /**

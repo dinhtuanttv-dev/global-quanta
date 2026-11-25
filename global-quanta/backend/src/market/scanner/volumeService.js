@@ -27,11 +27,11 @@ async function readSameTime(service, symbol, observedAt) {
   } finally { clearTimeout(timer); }
 }
 
-export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, detail = "full" } = {}) {
+export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, detail = "full", closedDate = null } = {}) {
   const symbol = canonicalSymbol(rawSymbol);
   if (!isValidSymbol(symbol)) throw new ValidationError("Mã chứng khoán không hợp lệ.");
   const store = service.store;
-  const dates = (await store.getMarketDailyDates()).slice(-DAILY_SESSIONS);
+  const dates = (await store.getMarketDailyDates()).filter((d) => !closedDate || d <= closedDate).slice(-DAILY_SESSIONS);
   if (!dates.length) {
     const error = new Error("Chưa có dữ liệu ngày toàn thị trường (chưa chạy backfillMarketDaily).");
     error.statusCode = 503;
@@ -74,7 +74,7 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, de
   const research = detail === "research" && isSessionLive(nowDate) ? await readSameTime(service, symbol, nowDate) : null;
 
   // Trong phiên: dữ liệu ngày của hôm nay chưa có (đồng bộ lúc 15:20) -> ghép từ quote realtime.
-  const live = service.hub?.getQuote(symbol) ?? null;
+  const live = closedDate ? null : service.hub?.getQuote(symbol) ?? null;
   const rows = [...daily];
   if (sessionStarted && rows.at(-1).date < today && live?.price && String(live.time ?? "").startsWith(today)) {
     rows.push({
@@ -106,6 +106,6 @@ export async function getVolumeAnalysis(service, rawSymbol, { now = Date.now, de
     ...analysis,
     partialToday: Boolean(rows.at(-1).partial),
     coverage: { detail, lastClosedSession: daily.at(-1).date, expectedClosedSession: lastCompletedSessionDate(nowDate) },
-    provenance: { daily: "SSI_FC_V2 (DailyStockPrice)", intraday: detail === "full" || research?.bars.length ? "SSI_FC_V2 (IntradayOhlc)" : null, live: live?.provenance?.source ?? null },
+    provenance: { daily: (await store.getKv?.("local:market-source:" + daily.at(-1).date))?.value ?? "SSI_FC_V2 (DailyStockPrice)", intraday: detail === "full" || research?.bars.length ? "SSI_FC_V2 (IntradayOhlc)" : null, live: live?.provenance?.source ?? null },
   };
 }

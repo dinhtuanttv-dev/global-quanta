@@ -51,14 +51,14 @@ async function readWithin(key, read, ms) {
   finally { clearTimeout(timer); }
 }
 
-export function createResearchRoom({ store, load, now = Date.now, expectedClosedSession = () => null }) {
+export function createResearchRoom({ store, load, now = Date.now, expectedClosedSession = () => null, selectProjection }) {
   const serial = createKeyedSerial();
   const captures = new Map();
   const archives = (owner) => `local:ai-room:archive:v1:${safeOwner(owner)}`;
   const locks = (owner) => `local:ai-room:locks:v1:${safeOwner(owner)}`;
   const scenarios = createScenarioRoom({ store, locks, archives, serial, now, error: researchError });
-  async function capture(ticker) {
-    const request = load(ticker);
+  async function capture(ticker, closedDate = null) {
+    const request = load(ticker, closedDate);
     const keys = Object.keys(request);
     const inputs = Object.fromEntries(await Promise.all(keys.map(async (key) => [key,
       await readWithin(key, request[key], ["decision", "price", "instrument"].includes(key) ? 5_000 : 2_400)])));
@@ -86,11 +86,20 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
       chart: price, priceAction: pa, priceActionError: error("price"), liquidity: value("liquidity"), liquidityError: error("liquidity"),
     });
     return { snap, data: { price, pa, events, volume: value("volume"), liquidity: value("liquidity"), risk,
-      timing: timing?.rows?.find((entry) => entry.ticker === ticker) ?? null, sector: panel?.sector ?? null, expectedClosedSession: expectedClosedSession(new Date(observedAt)) } };
+      timing: timing?.rows?.find((entry) => entry.ticker === ticker) ?? null, sector: panel?.sector ?? null, expectedClosedSession: closedDate ?? expectedClosedSession(new Date(observedAt)) } };
   }
 
+  const observations = new Map();
+  function observe(ticker, date = null) {
+    const key = (ticker ?? "") + "|" + (date ?? "");
+    if (observations.has(key)) return observations.get(key);
+    if (observations.size >= 4) throw researchError(429, "Gateway đang đối chiếu các mã khác. Thử lại sau.");
+    const work = capture(ticker, date).finally(() => observations.delete(key));
+    observations.set(key, work);
+    return work;
+  }
   return {
-    scenarios,
+    scenarios, capture: observe,
     async lock(owner, ticker) {
       if (ticker !== null && (typeof ticker !== "string" || !tickerPattern.test(ticker))) throw researchError(400, "Mã không hợp lệ.");
       const key = locks(owner);
@@ -99,7 +108,10 @@ export function createResearchRoom({ store, load, now = Date.now, expectedClosed
         const last = current.find((item) => item.projection.snap.ticker === ticker && now() - Date.parse(item.projection.snap.createdAt) < 10_000);
         if (last) return last.projection;
         if (captures.size >= 4 && !captures.has(ticker)) throw researchError(429, "Gateway đang dựng các snapshot khác. Thử lại sau.");
-        if (!captures.has(ticker)) captures.set(ticker, capture(ticker).finally(() => captures.delete(ticker)));
+        if (!captures.has(ticker)) {
+          const work = ticker && selectProjection ? selectProjection(ticker, observe) : observe(ticker);
+          captures.set(ticker, work.finally(() => captures.delete(ticker)));
+        }
         const projection = await captures.get(ticker);
         const readiness = sourceReadiness(projection.snap);
         if (!readiness.canDebate) throw researchError(409, readiness.blockers.join(" "));

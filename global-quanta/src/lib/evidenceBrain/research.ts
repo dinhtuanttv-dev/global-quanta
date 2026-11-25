@@ -22,7 +22,7 @@ export interface ResearchData {
   expectedClosedSession?: string | null;
 }
 
-export interface ResearchProjection { snap: EvidenceSnapshot; data: ResearchData }
+export interface ResearchProjection { snap: EvidenceSnapshot; data: ResearchData; fallback?: { session: string; expectedSession: string } }
 type LayerId = "decision" | "priceAction" | "volume" | "liquidity" | "events";
 type LayerState = "PASS" | "FAIL" | "MISSING" | "WAIT" | "CONTEXT" | "EXCLUDED";
 type Result = "BLOCKED" | "NO_CONFIRMATION" | "INDETERMINATE" | "PENDING" | "CRITERIA_MET" | "CONTEXT";
@@ -91,9 +91,10 @@ export function prepareProjection(projection: ResearchProjection): ResearchProje
   return withEvents(projection, data.events.filter((event) => eligible.has(event.eventId)));
 }
 
-function withEvents({ snap, data }: ResearchProjection, events: EventRadarEvent[]): ResearchProjection {
+function withEvents({ snap, data, fallback }: ResearchProjection, events: EventRadarEvent[]): ResearchProjection {
   const ids = new Set(events.map((event) => event.eventId));
   return {
+    ...(fallback ? { fallback } : {}),
     snap: {
       ...snap,
       data: { ...snap.data, events: (Array.isArray(snap.data.events) ? snap.data.events : []).filter((event) =>

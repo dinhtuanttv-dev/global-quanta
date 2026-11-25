@@ -14,7 +14,7 @@ import { withDbTag } from "./store/egressMeter.js";
 const DEFAULT_SCHEDULE = [
   { name: "syncSecurities", at: "08:15", tradingDayOnly: true },
   { name: "syncPriceLimits", at: "08:45", tradingDayOnly: true },
-  { name: "syncEod", at: "15:20", tradingDayOnly: true },
+  { name: "syncEod", at: "15:05", tradingDayOnly: true },
   { name: "reconcile", at: "15:50", tradingDayOnly: true },
   { name: "backfill", at: "02:00", tradingDayOnly: false },
 ];
@@ -30,8 +30,9 @@ const SLOW_LOG_MS = 120_000;
 const RETRY_MAX = 3;
 
 export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSchedule = [], closeJobs = [], retryMs = RETRY_MS, retryMax = RETRY_MAX, timeoutMs = DEFAULT_TIMEOUT_MS, log = console } = {}) {
-  const closing = new Set(closeJobs);
-  const schedule = [...DEFAULT_SCHEDULE, ...extraSchedule].map((job) => ({
+  const closing = new Set(["syncEod", "syncMarketDaily", "publishEliteDecision", ...closeJobs]);
+  const schedule = [...DEFAULT_SCHEDULE, ...extraSchedule, ...(closeJobs.includes("publishEliteDecision") ?
+    [{ name: "publishEliteDecision", at: "15:05", tradingDayOnly: true }] : [])].map((job) => ({
     ...job,
     at: process.env[`MARKET_JOB_${job.name.replace(/[A-Z]/g, (c) => `_${c}`).toUpperCase()}_AT`] || job.at,
   }));
@@ -47,7 +48,9 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSc
     const date = vnDate(new Date(now()));
     const previous = retries.get(name);
     const attempts = previous?.date === date ? previous.attempts : 0;
-    if (attempts < retryMax) retries.set(name, { date, attempts: attempts + 1, at: now() + delay });
+    // Publication can arrive hours late. Continue at most once per five minutes until the VN date changes.
+    if (closing.has(name)) delay = Math.min(delay, [30_000, 60_000, 120_000, 180_000, 300_000][Math.min(attempts, 4)]);
+    if (closing.has(name) || attempts < retryMax) retries.set(name, { date, attempts: attempts + 1, at: now() + delay });
   }
 
   function run(name, trigger = "schedule") {
@@ -76,7 +79,7 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSc
         const expire = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`quá thời hạn ${Math.round(limit / 60_000)} phút — bỏ qua để hàng đợi chạy tiếp`)), limit); timer.unref?.(); });
         const result = await Promise.race([inProgress.get(name), expire]);
         const awaitingData = result?.awaitingData === true;
-        history.set(name, { running: false, queued: false, queuedAt, startedAt: started, finishedAt: new Date(now()).toISOString(), trigger, ok: true, awaitingData, waitMs: t0 - Date.parse(queuedAt), elapsedMs: now() - t0, result });
+        history.set(name, { running: false, queued: false, queuedAt, startedAt: started, finishedAt: new Date(now()).toISOString(), trigger, ok: !awaitingData, awaitingData, waitMs: t0 - Date.parse(queuedAt), elapsedMs: now() - t0, result });
         if (awaitingData && trigger !== "manual") scheduleRetry(name, Math.min(retryMs, 5 * 60_000));
         else if (!awaitingData) retries.delete(name);
         if (!awaitingData && config?.followUp && jobs[config.followUp]) void run(config.followUp, "publication").catch(() => {});
@@ -100,6 +103,7 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSc
     const today = vnDate(date);
     const { minutes, weekday } = vnParts(date);
     for (const job of schedule) {
+      if (typeof jobs[job.name] !== "function") continue;
       const r = retries.get(job.name);
       if (r && r.date === today && r.at && now() >= r.at && !history.get(job.name)?.running && !history.get(job.name)?.queued) {
         r.at = null; // một lần thử lại cho mỗi lần lỗi
@@ -126,9 +130,10 @@ export function createScheduler(jobs, { now = Date.now, tickMs = 30_000, extraSc
       clearInterval(timer);
     },
     run: (name) => run(name, "manual"),
+    recover: (name) => run(name, "recovery"),
     tick,
     status() {
-      return schedule.map((job) => ({ ...job, lane: closing.has(job.name) ? "closing" : "background", lastRunDate: lastRunDate.get(job.name) ?? null, last: history.get(job.name) ?? null, retry: retries.get(job.name) ?? null }));
+      return schedule.map((job) => ({ ...job, lane: closing.has(job.name) ? "closing" : "background", queue: closing.has(job.name) ? "EOD_PRIORITY_QUEUE" : "BATCH_QUEUE", lastRunDate: lastRunDate.get(job.name) ?? null, last: history.get(job.name) ?? null, retry: retries.get(job.name) ?? null }));
     },
   };
 }

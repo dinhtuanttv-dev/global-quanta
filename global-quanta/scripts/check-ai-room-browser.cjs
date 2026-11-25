@@ -42,7 +42,10 @@ const server = createServer((request, response) => {
 async function main() {
   const { createResearchRoom } = await import("../backend/src/market/elite/researchRoom.js");
   const { createMemoryStore } = await import("../backend/src/market/store/memoryStore.js");
-  const room = createResearchRoom({ store: createMemoryStore(), load: () => ({
+  const autonomyTest = process.env.AI_ROOM_AUTONOMY_TEST === "1";
+  const { selectSessionProjection, coreTickers } = await import("../backend/src/market/elite/researchAutonomy.js");
+  const select = (ticker, capture) => selectSessionProjection(ticker, capture, responses["/api/elite/ai-room/session"], async () => null);
+  const room = createResearchRoom({ store: createMemoryStore(), selectProjection: autonomyTest ? select : undefined, load: () => ({
     decision: async () => decision, instrument: async () => instrument, price: async () => price,
     events: async () => responses["/api/market/event-radar"], volume: async () => { throw new Error("Fixture volume delayed"); },
   }) });
@@ -62,6 +65,9 @@ async function main() {
         const headers = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization,content-type", "access-control-allow-methods": "GET,POST,PUT,OPTIONS" };
         if (request.method() === "OPTIONS") return route.fulfill({ status: 200, headers });
         const data = responses[url.pathname];
+        if (autonomyTest && url.pathname === "/api/elite/ai-room/precomputed") return route.fulfill({ headers, contentType: "application/json", body: "null" });
+        if (autonomyTest && url.pathname === "/api/elite/ai-room/observation" && url.searchParams.get("ticker") === "FPT")
+          return route.fulfill({ headers, json: await select("FPT", room.capture) });
         const base = "/api/elite/ai-room/runs";
         const isCapture = url.pathname === "/api/elite/ai-room/snapshots";
         const isChat = url.pathname === "/api/catalysts/chat";
@@ -111,14 +117,27 @@ async function main() {
     async function openRoom() {
       await page.locator("#elite10-ai-tab").click();
       assert.equal(await page.locator("[role=tablist] [id^=elite10-]").count(), 5);
+      if (autonomyTest) {
+        await title("Chọn mã cổ phiếu").click();
+        await dialog.getByRole("button", { name: "Xem danh mục" }).click();
+        await page.locator(".ticker-symbol").filter({ hasText: coreTickers(decision)[0] }).waitFor().catch(async (error) => {
+          console.error("Portfolio selection", await page.locator(".ticker-bar").innerText());
+          throw error;
+        });
+      }
       await title("Chọn mã cổ phiếu").click();
       await dialog.locator("#elite-debate-subject").fill("FPT");
       await dialog.locator("button[type=submit]").click();
     }
     await page.goto(`${origin}/?tab=quyet-dinh`);
     await openRoom();
-    await page.getByText(/Phiên kỳ vọng 23\/11/).waitFor();
-    await page.getByText(/Chờ kho ngày phiên 23\/11/).waitFor();
+    if (autonomyTest) {
+      await page.getByText(/Snapshot dự phòng.*20\/11.*23\/11/).waitFor();
+      assert.equal(await title("✦ Kiểm chứng & tranh luận").isEnabled(), true);
+    } else {
+      await page.getByText(/Phiên kỳ vọng 23\/11/).waitFor();
+      await page.getByText(/Chờ kho ngày phiên 23\/11/).waitFor();
+    }
     await page.getByText("Luận điểm & bằng chứng", { exact: false }).first().waitFor();
     await page.getByText("Timeline đồng bộ", { exact: false }).first().waitFor();
     await page.getByText("Các lớp xác nhận", { exact: false }).first().waitFor();

@@ -56,7 +56,8 @@ import { createSeasonOracle, SEASON_FIELDS, setSeasonReader } from "./market/fun
 import { createEliteRouter } from "./routes/elite.js";
 import { createResearchRoomRouter } from "./routes/researchRoom.js";
 import { createResearchRoom } from "./market/elite/researchRoom.js";
-import { loadVolumeAnalysis } from "./market/scanner/volumeService.js";
+import { loadVolumeAnalysis, getVolumeAnalysis } from "./market/scanner/volumeService.js";
+import { createResearchAutonomy, historicalPrices, selectSessionProjection } from "./market/elite/researchAutonomy.js";
 import { isTradingDay, lastCompletedSessionDate, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
@@ -340,25 +341,55 @@ function getResearchSession() {
     const marketDailySession = dates.at(-1) ?? null;
     const scannerSession = scan?.value?.dataAsOf ?? null;
     const decisionSession = decision?.date ?? null;
-    const stage = marketDailySession !== expectedClosedSession ? "MARKET_DAILY" : scannerSession !== expectedClosedSession ? "SCANNER" :
+    const coverage = (await rt.store.getKv("local:eod:coverage:" + expectedClosedSession))?.value;
+    const stage = !coverage || coverage.awaitingData ? "EOD" : marketDailySession !== expectedClosedSession ? "MARKET_DAILY" : scannerSession !== expectedClosedSession ? "SCANNER" :
       panel?.date !== expectedClosedSession || decisionSession !== expectedClosedSession ? "DECISION" : "PUBLISHED";
     const relevantJobs = rt.scheduler.status().filter((job) => ["syncEod", "syncMarketDaily", "sessionCatchUp", "sessionCatchUpLate", "scanUniverse"].includes(job.name));
     const eod = relevantJobs.find((job) => job.name === "syncEod")?.last?.result;
     const retryAt = relevantJobs.map((job) => job.retry?.at).filter((time) => Number.isFinite(time) && time > observedAt.getTime()).sort((a, b) => a - b)[0];
     return { expectedClosedSession, marketDailySession, scannerSession, decisionSession, stage,
       observedAt: observedAt.toISOString(), retryAt: retryAt ? new Date(retryAt).toISOString() : null,
-      eod: eod?.date === expectedClosedSession ? { confirmed: eod.confirmedClosed, expected: eod.expectedClosed } : null,
-      publication: [marketDailySession, scannerSession, scan?.value?.generatedAt, panel?.date, panel?.builtAt, panel?.version, decisionSession, decision?.builtAt, decision?.version].join("|"),
+      eod: coverage ? { confirmed: coverage.confirmed, expected: coverage.expected } : eod?.date === expectedClosedSession ? { confirmed: eod.confirmedCore, expected: eod.expectedCore } : null,
+      publication: [expectedClosedSession, stage, marketDailySession, scannerSession, scan?.value?.generatedAt, panel?.date, panel?.builtAt, panel?.version, decisionSession, decision?.builtAt, decision?.version].join("|"),
     };
   });
 }
 const researchUser = async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null;
 let researchRoom = null;
+let researchAutonomy;
+const getResearchAutonomy = () => (researchAutonomy ??= createResearchAutonomy({
+  store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), session: getResearchSession,
+  capture: (ticker, date) => getResearchRoom().capture(ticker, date),
+  configured: () => Object.values(getCatalystChat().config().providers).every(Boolean),
+  infer: (side, message) => getCatalystChat().analyzeSealed(side, message),
+}));
+
+async function selectResearchProjection(ticker, capture) {
+  return selectSessionProjection(ticker, capture, await getResearchSession(), getResearchAutonomy().read);
+}
 const getResearchRoom = () => (researchRoom ??= createResearchRoom({
   store: getMarketRuntime().store,
   expectedClosedSession: lastCompletedSessionDate,
-  load: (ticker) => {
+  selectProjection: selectResearchProjection,
+  load: (ticker, date) => {
     const rt = getMarketRuntime();
+    if (date) {
+      // Cold start: reconstruct only dated records and anchor adjusted prices to the selected close.
+      // Current news revisions, ledger and intraday quotes must not leak into a historical decision.
+      const end = Date.parse(date + "T23:59:00+07:00");
+      const rows = rt.store.getMarketDailyRange({ from: new Date(end - 540 * 86400_000).toISOString().slice(0, 10), to: date, symbols: [ticker] });
+      return {
+        decision: () => getEliteDecision().decision(date),
+        panel: async () => { const doc = await getElitePanel().panel(date), row = doc?.rows.find((r) => r.ticker === ticker);
+          return row ? { ...row, date: doc.date, version: doc.version, signals: doc.signals ?? [], missingSources: doc.missingSources ?? [] } : null; },
+        instrument: async () => { const row = (await rows).at(-1); return row && { ticker, exchange: row.exchange }; },
+        price: async () => historicalPrices(await rows, date),
+        volume: () => getVolumeAnalysis(rt.service, ticker, { detail: "summary", closedDate: date, now: () => end }),
+        events: async () => { const news = await rt.eventRadar.list({ ticker, limit: 12 });
+          return { generatedAt: new Date(end).toISOString(), events: (news?.events ?? []).filter((e) =>
+            Date.parse(e.firstSeenAt) <= end && Date.parse(e.updatedAt ?? e.firstSeenAt) <= end) }; },
+      };
+    }
     return {
       decision: async () => {
         const engine = getEliteDecision(), doc = await engine.decision();
@@ -466,7 +497,14 @@ const getEliteImpact = () => (eliteImpact ??= createImpactProfile({ sources: {
   radar: (t) => getMarketRuntime().eventRadar.list({ ticker: t, limit: 250 }),
   dilution: (t) => getEliteDilution().ticker(t),
 } }));
-app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser, getSession: getResearchSession }));
+app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser, getSession: getResearchSession,
+  precomputed: (ticker) => getResearchAutonomy().read(ticker),
+  observation: async (ticker) => {
+    if (typeof ticker !== "string" || !/^[A-Z][A-Z0-9]{2}$/.test(ticker)) throw Object.assign(new Error("Mã không hợp lệ."), { statusCode: 400 });
+    const status = await getResearchSession();
+    return getMarketRuntime().service.cache.wrap("ai-room:observation:" + ticker + ":" + status.publication, 30_000,
+      () => selectResearchProjection(ticker, getResearchRoom().capture));
+  } }));
 app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
@@ -550,7 +588,12 @@ if (process.env.NODE_ENV !== "test") {
       console.warn(`[elite] ${e.message}`);
     }
   };
-  const eliteTagged = () => withDbTag("job:elite", eliteTick);
+  const rt = getMarketRuntime();
+  const refreshRoom = () => rt.started && getResearchAutonomy().tick().catch((e) => console.warn("[ai-room] " + e.message));
+  rt.jobs.publishEliteDecision = async () => { await eliteTick(); void refreshRoom(); };
+  const eliteTagged = () => rt.scheduler.run("publishEliteDecision").catch((e) => console.warn("[elite] " + e.message));
+  setTimeout(refreshRoom, 5_000).unref?.();
+  setInterval(refreshRoom, 30_000).unref?.();
   setTimeout(eliteTagged, 120_000).unref?.();
   setInterval(eliteTagged, 10 * 60_000).unref?.();
 }

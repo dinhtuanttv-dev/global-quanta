@@ -14,7 +14,7 @@ import { createScheduler } from "./scheduler.js";
 import { createScannerJobs, SCANNER_SCHEDULE } from "./scanner/scannerJobs.js";
 import { createTickRecorder } from "./scanner/tickFlowService.js";
 import { createResearchJobs, RESEARCH_SCHEDULE } from "./research/researchJobs.js";
-import { expectsLiveTicks, vnDate as vnDateOf } from "./calendar.js";
+import { expectsLiveTicks, lastCompletedSessionDate, vnDate as vnDateOf } from "./calendar.js";
 import { notifyOps } from "./alerts.js";
 import { createCotucScanner } from "./cotuc/cotucScanner.js";
 import { createKqkdService, kqkdDirFromEnv } from "./fundamentals/kqkdService.js";
@@ -268,7 +268,7 @@ export function getMarketRuntime() {
     // Nến VN-Index của phiên đã hợp lệ (giá > 0) — điều kiện để quét lại trạng thái chỉ số.
     indexReady: async (date) => ((await service.getOhlcv({ symbol: "VNINDEX", limit: 10 })).bars ?? []).some((b) => b.date === date && b.close > 0) });
   jobs.sessionCatchUpLate = jobs.sessionCatchUp;
-  const closeJobs = ["syncSecurities", "syncEod", "syncMarketDaily", "sessionCatchUp", "sessionCatchUpLate", "scanUniverse", "scanStrategies", "scanStructure", "buildSectorRotation", "buildTop20Inputs"];
+  const closeJobs = ["syncEod", "syncMarketDaily", "publishEliteDecision"];
   const scheduler = createScheduler(jobs, { closeJobs, extraSchedule: [{ name: "sessionCatchUp", at: "06:30", tradingDayOnly: false }, { name: "sessionCatchUpLate", at: "18:30", tradingDayOnly: false }, ...LEDGER_BACKUP_SCHEDULE, { name: "qmsSectorTiming", at: "16:20", tradingDayOnly: true }, ...CATALYST_SCANS, ...KQKD_SCHEDULE, { name: "pruneLocal", at: "03:45", tradingDayOnly: false }, ...SCANNER_SCHEDULE, ...RESEARCH_SCHEDULE, ...STRATEGY_SCHEDULE, ...SECTOR_SCHEDULE, ...CYCLE_SCHEDULE, ...TOP20_SCHEDULE, ...ALPHA_SCHEDULE, ...STRUCTURE_SCHEDULE, ...MATRIX_SCHEDULE, ...TOPBAR_SCHEDULE, { name: "authBackup", at: "03:50", tradingDayOnly: false }, { name: "archiveEventRadar", at: "03:55", tradingDayOnly: false }, { name: "elliottLedger", at: "16:10", tradingDayOnly: true }, { name: "warmEliteIntraday", at: "08:40", tradingDayOnly: true }] }); // bật lại với lịch sử ESA gọn (trước: nến phút đầy đủ đẩy heap ~400/489 MB)
 
   // Ghi dòng lệnh Lee–Ready theo phút vào store mỗi phút (bền vững qua khởi động lại khi MARKET_STORE=supabase).
@@ -300,6 +300,11 @@ export function startMarketIngestor() {
   rt.started = true;
   const runOnStart = String(process.env.MARKET_RUN_JOBS_ON_START ?? "true").toLowerCase() === "true" ? ["syncSecurities", "sessionCatchUp"] : [];
   rt.scheduler.start({ runOnStart });
+  // Initial deployment before 15:05 or over a weekend still needs coverage for the most recent close.
+  const expected = lastCompletedSessionDate(new Date());
+  void rt.store.getKv("local:eod:coverage:" + expected).then((row) => {
+    if (!row?.value || row.value.awaitingData) void rt.scheduler.recover("syncEod").catch(() => {});
+  }).catch((e) => console.warn("[market] EOD recovery: " + e.message));
   rt.tickRecorder.start();
   rt.cotucScanner.start();
   // Chất xúc tác: khởi động lại mà chưa có snapshot hoặc snapshot đã cũ (lỡ lượt quét) -> quét bù một lần sau 2 phút, không chờ tới giờ.
