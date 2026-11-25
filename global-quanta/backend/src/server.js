@@ -362,7 +362,7 @@ const getResearchAutonomy = () => (researchAutonomy ??= createResearchAutonomy({
   store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), session: getResearchSession,
   capture: (ticker, date) => getResearchRoom().capture(ticker, date),
   configured: () => getCatalystChat().config().providers,
-  infer: (side, message) => getCatalystChat().analyzeSealed(side, message),
+  infer: (side, message, snapshot) => getCatalystChat().analyzeSealed(side, message, snapshot),
 }));
 
 async function selectResearchProjection(ticker, capture) {

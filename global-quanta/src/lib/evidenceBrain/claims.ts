@@ -31,6 +31,11 @@ const bundleSchema = z.object({
   });
 });
 
+/** The background providers and the verifier share the same claim contract. */
+export function sealedClaimsJsonSchema() {
+  return z.toJSONSchema(bundleSchema, { target: "openapi-3.0" });
+}
+
 function extractJson(text: string): string | null {
   const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   const start = trimmed.indexOf("{");

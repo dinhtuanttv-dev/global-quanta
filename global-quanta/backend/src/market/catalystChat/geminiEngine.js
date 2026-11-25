@@ -11,6 +11,7 @@ export function toGeminiSchema(s) {
   if (!s || typeof s !== "object") return undefined;
   const out = {};
   if (typeof s.type === "string") out.type = s.type;
+  if (s.nullable === true) out.nullable = true;
   if (typeof s.description === "string") out.description = s.description;
   if (Array.isArray(s.enum)) out.enum = s.enum.map(String);
   if (s.items) out.items = toGeminiSchema(s.items);

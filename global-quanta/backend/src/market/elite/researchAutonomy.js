@@ -131,20 +131,30 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       return writes;
     };
     async function runSide(side) {
-      if (record.roles[side] || record.failures?.[side]?.retryAt > now()) return;
+      const lastFailure = record.failures?.[side];
+      // Old unconstrained-generation failures can retry once with the new contract.
+      // Explicit provider circuits and successful roles survive this migration.
+      if (record.roles[side] || (lastFailure?.retryAt > now() && lastFailure.reason !== "REVIEW_ERROR")) return;
       const provider = side === "BEAR" ? "gemini" : "claude";
       if (!enabled(provider) || await circuit(provider)) return;
       try {
         const pair = side === "JUDGE" ? [record.roles.BULL, record.roles.BEAR] : undefined;
         const message = sealedReviewPrompt(packet, side, pair) + (pair ? "\nLuận điểm đối chiếu: " + JSON.stringify(pair.map((r) =>
           r.claims.filter((c) => c.validation === "REFS_MATCHED").slice(0, 3).map((c) => ({ text: c.text.slice(0, 280), refs: c.refs.slice(0, 8) })))) : "");
-        const result = parseAndValidateClaims(await infer(side, message), packet.snapshot, side);
-        if (!result.ok || !result.claims.length || result.claims.some((c) => c.side !== side || c.validation === "MISREPRESENTED" || c.validation === "UNSUPPORTED"))
-          throw new Error("Phản hồi chưa đạt kiểm tra schema, vai hoặc tham chiếu.");
+        const guidance = "\nViết 1–3 luận điểm theo đúng bằng chứng. Mỗi luận điểm chọn một ref chính, sao chép asOf của ref. supports và invalidates chỉ nhận ID bằng chứng có trong gói hoặc mảng rỗng. Mọi số trong câu phải có numericAssertions khớp chính xác giá trị và đơn vị của ref vô hướng. Tách phần suy luận và dữ liệu thiếu.";
+        const previous = record.failures?.[side]?.validation;
+        const prompt = message + guidance + (previous ? "\nLần trước bộ kiểm tra báo: " + previous : "");
+        const result = parseAndValidateClaims(await infer(side, prompt, packet.snapshot), packet.snapshot, side);
+        const rejected = result.claims.filter((c) => c.side !== side || ["MISREPRESENTED", "UNSUPPORTED"].includes(c.validation));
+        const cited = result.claims.some((c) => c.refs.length && ["REFS_MATCHED", "STRUCTURAL_ONLY"].includes(c.validation));
+        if (!result.ok || !cited || rejected.length) {
+          const validation = (result.error || rejected.flatMap((c) => c.validationNotes).slice(0, 3).join(" ") || "Cần ít nhất một luận điểm có ref trong gói.").slice(0, 440);
+          throw Object.assign(new Error("Claim validation"), { validation });
+        }
         await commit(side, result);
       } catch (error) {
         const reason = providerFailure(error);
-        const attempts = (record.failures?.[side]?.attempts ?? 0) + 1;
+        const attempts = (lastFailure?.reason === "REVIEW_ERROR" ? 0 : lastFailure?.attempts ?? 0) + 1;
         const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 : reason === "RATE_LIMIT" ? 60_000 :
           attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1);
         const retryAt = now() + delay;
@@ -153,8 +163,9 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
           await store.setKv(circuitKey(provider), blocked);
           circuits.set(provider, blocked);
         }
-        await commit(side, null, { attempts, retryAt, reason: reason ?? "REVIEW_ERROR" });
-        log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + (reason ?? "review unavailable"));
+        const failure = reason ?? (error.validation ? "VALIDATION" : "PROVIDER_ERROR");
+        await commit(side, null, { attempts, retryAt, reason: failure, ...(error.validation ? { validation: error.validation } : {}) });
+        log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + failure + (error.status ? " HTTP " + error.status : ""));
       }
     }
     await Promise.all([runSide("BULL"), runSide("BEAR")]);

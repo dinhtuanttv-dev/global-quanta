@@ -10,6 +10,7 @@ import { createResearchRoom } from "../src/market/elite/researchRoom.js";
 import { createResearchAutonomy, selectSessionProjection } from "../src/market/elite/researchAutonomy.js";
 import { fetchVndirectClose } from "../src/market/providers/vndirectClose.js";
 import { createResearchRoomRouter } from "../src/routes/researchRoom.js";
+import { createCatalystChat } from "../src/market/catalystChat/chatService.js";
 
 const json = (path) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"));
 const decision = { ...json("./fixtures/elite-decision-20261023.json"), ...json("../../src/lib/elite10/__fixtures__/pulse-2026-11-20.json").decision };
@@ -83,6 +84,24 @@ function sourcedClaim(projection, side) {
     id: "c1", side, ticker: projection.snap.ticker, asOf: ref.asOf, text: "Có nguồn quyết định để đối chiếu.", classification: "FACT", refs: [ref.id],
     supports: [], invalidates: [], numericAssertions: [], horizon: null, uncertainty: "HIGH", invalidation: null, missingData: [] }] });
 }
+
+test("Gemini receives the verifier schema restricted to this snapshot and its evidence IDs", async () => {
+  const snapshot = { snapshotId: "fixture-sealed", ticker: "FPT", refs: [{ id: "verified-ref" }] };
+  let responseSchema;
+  const chat = createCatalystChat({ env: { GEMINI_API_KEY: "fixture" }, geminiModel: async (_key, schema) => {
+    responseSchema = schema;
+    return { startChat: () => ({ sendMessageStream: async () => ({
+      stream: (async function* () { yield { text: () => "fixture-response" }; })(),
+      response: Promise.resolve({ functionCalls: () => [] }),
+    }) }) };
+  } });
+  assert.equal(await chat.analyzeSealed("BEAR", "review", snapshot), "fixture-response");
+  const claim = responseSchema.properties.claims.items.properties;
+  assert.deepEqual(responseSchema.properties.snapshotId.enum, [snapshot.snapshotId]);
+  assert.deepEqual(claim.side.enum, ["BEAR"]); assert.deepEqual(claim.ticker.enum, ["FPT"]);
+  assert.deepEqual(claim.refs.items.enum, ["verified-ref"]);
+  assert.equal(claim.numericAssertions.items.properties.unit.nullable, true);
+});
 
 test("Claude billing failure is shared across Core, Gemini completes, and only the missing roles resume", async () => {
   const room = fixtureRoom(), store = createMemoryStore(), snapshots = new Map(), calls = [];
