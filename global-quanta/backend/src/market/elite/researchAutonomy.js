@@ -3,6 +3,15 @@ import { lastCompletedSessionDate } from "../calendar.js";
 
 const tickerPattern = /^[A-Z][A-Z0-9]{2}$/;
 const key = (ticker) => "local:ai-room:publication:v1:" + ticker;
+const circuitKey = (provider) => "local:ai-room:provider:v1:" + provider;
+const providers = ["claude", "gemini"];
+
+function providerFailure(error) {
+  const status = error?.status ?? error?.statusCode;
+  if (status === 402 || /credit balance is too low|insufficient[_ ](?:credits|quota)|billing hard limit/i.test(error?.message ?? "")) return "BILLING";
+  if (status === 401 || status === 403) return "AUTH";
+  return status === 429 ? "RATE_LIMIT" : null;
+}
 
 // Anchor vendor-adjusted history to the observed raw close on the cutoff day.
 // Common adjustments applied after that cutoff cancel in (adj/raw)_i / (adj/raw)_cutoff.
@@ -58,7 +67,26 @@ export async function selectSessionProjection(ticker, capture, status, read) {
 // GET uses only the persisted artifact or the bounded hot cache and never invokes a provider.
 export function createResearchAutonomy({ store, session, decision, capture, infer, configured, now = Date.now, log = console }) {
   const hot = new Map();
+  const circuits = new Map();
   let running;
+  async function circuit(provider) {
+    if (!circuits.has(provider)) circuits.set(provider, (await store.getKv(circuitKey(provider)))?.value ?? null);
+    const blocked = circuits.get(provider);
+    return blocked?.retryAt > now() ? blocked : null;
+  }
+  function enabled(provider) {
+    const config = configured();
+    return typeof config === "boolean" ? config : Boolean(config[provider]);
+  }
+  async function health(doc) {
+    const core = coreTickers(doc);
+    const records = (await Promise.all(core.map(read))).filter((r) => r && r.session === doc?.date);
+    const blocked = await Promise.all(providers.map(async (provider) => !enabled(provider) ?
+      { provider, reason: "NOT_CONFIGURED", retryAt: null } : await circuit(provider)));
+    return { session: doc?.date ?? null, core: core.length, snapshots: records.length, ready: records.filter((r) => r.state === "READY").length,
+      bull: records.filter((r) => r.roles.BULL).length, bear: records.filter((r) => r.roles.BEAR).length, judge: records.filter((r) => r.roles.JUDGE).length,
+      blocked: blocked.filter(Boolean) };
+  }
   async function read(ticker) {
     if (typeof ticker !== "string" || !tickerPattern.test(ticker)) throw Object.assign(new Error("Mã cổ phiếu không hợp lệ."), { statusCode: 400 });
     const record = hot.get(ticker) ?? (await store.getKv(key(ticker)))?.value ?? null;
@@ -84,27 +112,53 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       record = { session: date, publication, sourcePublication, projection, roles: {}, state: "SNAPSHOT", attempts: 0, retryAt: null };
       await write(ticker, record);
     }
-    if (record.state === "READY" || !configured() || record.retryAt > now()) return;
+    if (record.state === "READY") return;
     const packet = prepareSealedReview(record.projection.snap);
-    try {
-      for (const side of ["BULL", "BEAR", "JUDGE"]) {
-        if (record.roles[side]) continue;
+    let writes = Promise.resolve();
+    // Debaters run independently. Serialize only the local checkpoint so a slow provider
+    // cannot overwrite the role already committed by the other provider.
+    const commit = (side, result, failure) => {
+      writes = writes.then(async () => {
+        const roles = { ...record.roles }, failures = { ...record.failures };
+        if (result) { roles[side] = result; delete failures[side]; }
+        else failures[side] = failure;
+        const pending = Object.values(failures);
+        const state = roles.JUDGE ? "READY" : pending.length ? "RETRY" : "PARTIAL";
+        const next = { ...record, roles, failures, state, retryAt: pending.length ? Math.min(...pending.map((f) => f.retryAt)) : null };
+        await write(ticker, next);
+        record = next;
+      });
+      return writes;
+    };
+    async function runSide(side) {
+      if (record.roles[side] || record.failures?.[side]?.retryAt > now()) return;
+      const provider = side === "BEAR" ? "gemini" : "claude";
+      if (!enabled(provider) || await circuit(provider)) return;
+      try {
         const pair = side === "JUDGE" ? [record.roles.BULL, record.roles.BEAR] : undefined;
         const message = sealedReviewPrompt(packet, side, pair) + (pair ? "\nLuận điểm đối chiếu: " + JSON.stringify(pair.map((r) =>
           r.claims.filter((c) => c.validation === "REFS_MATCHED").slice(0, 3).map((c) => ({ text: c.text.slice(0, 280), refs: c.refs.slice(0, 8) })))) : "");
         const result = parseAndValidateClaims(await infer(side, message), packet.snapshot, side);
         if (!result.ok || !result.claims.length || result.claims.some((c) => c.side !== side || c.validation === "MISREPRESENTED" || c.validation === "UNSUPPORTED"))
           throw new Error("Phản hồi chưa đạt kiểm tra schema, vai hoặc tham chiếu.");
-        record = { ...record, roles: { ...record.roles, [side]: result }, attempts: 0, retryAt: null,
-          state: side === "JUDGE" ? "READY" : "PARTIAL" };
-        await write(ticker, record);
+        await commit(side, result);
+      } catch (error) {
+        const reason = providerFailure(error);
+        const attempts = (record.failures?.[side]?.attempts ?? 0) + 1;
+        const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 : reason === "RATE_LIMIT" ? 60_000 :
+          attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1);
+        const retryAt = now() + delay;
+        if (reason) {
+          const blocked = { provider, reason, retryAt };
+          await store.setKv(circuitKey(provider), blocked);
+          circuits.set(provider, blocked);
+        }
+        await commit(side, null, { attempts, retryAt, reason: reason ?? "REVIEW_ERROR" });
+        log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + (reason ?? "review unavailable"));
       }
-    } catch (error) {
-      const attempts = record.attempts + 1;
-      // Extend the circuit after repeated provider failures; a recovered provider can resume the same role.
-      await write(ticker, { ...record, attempts, retryAt: now() + (attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1)), state: attempts >= 5 ? "FAILED" : "RETRY" });
-      log.warn?.("[ai-room] " + ticker + " " + date + " · " + error.message);
     }
+    await Promise.all([runSide("BULL"), runSide("BEAR")]);
+    if (record.roles.BULL && record.roles.BEAR) await runSide("JUDGE");
   }
   async function work() {
     const status = await session();
@@ -122,7 +176,7 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       } catch (error) { log.warn?.("[ai-room] " + ticker + " · " + error.message); }
     }
   }
-  return { read, tick() {
+  return { read, health, tick() {
     running ??= work().finally(() => { running = null; });
     return running;
   } };

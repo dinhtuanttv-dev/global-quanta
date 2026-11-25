@@ -60,9 +60,9 @@ test("stale SSI bars cannot satisfy coverage; 30s/60s retries reach exactly 95% 
 });
 
 function fixtureRoom() {
-  return createResearchRoom({ store: createMemoryStore(), now: () => clock + 3_600_000, load: () => ({
+  return createResearchRoom({ store: createMemoryStore(), now: () => clock + 3_600_000, load: (ticker) => ({
     decision: async () => decision, price: async () => ({ bars: [bar], priceBasis: "ADJUSTED_CUMULATIVE" }),
-    instrument: async () => ({ ticker: "FPT", exchange: "HOSE" }),
+    instrument: async () => ({ ticker, exchange: "HOSE" }),
   }) });
 }
 
@@ -77,6 +77,43 @@ test("pending T0 selects the prior sealed projection without mutating its eviden
   await assert.rejects(selectSessionProjection("FPT", async () => mixed, status, async () => null), { statusCode: 409 });
 });
 
+function sourcedClaim(projection, side) {
+  const ref = projection.snap.refs.find((r) => r.domain === "decision");
+  return JSON.stringify({ schemaVersion: "claims-1.0", snapshotId: projection.snap.snapshotId, limitations: [], claims: [{
+    id: "c1", side, ticker: projection.snap.ticker, asOf: ref.asOf, text: "Có nguồn quyết định để đối chiếu.", classification: "FACT", refs: [ref.id],
+    supports: [], invalidates: [], numericAssertions: [], horizon: null, uncertainty: "HIGH", invalidation: null, missingData: [] }] });
+}
+
+test("Claude billing failure is shared across Core, Gemini completes, and only the missing roles resume", async () => {
+  const room = fixtureRoom(), store = createMemoryStore(), snapshots = new Map(), calls = [];
+  let now = clock;
+  const doc = { date, portfolio: [{ ticker: "FPT" }, { ticker: "MSH" }] };
+  const deps = { store, configured: () => ({ claude: true, gemini: true }), now: () => now, log: {},
+    session: async () => ({ decisionSession: date, expectedClosedSession: date, stage: "PUBLISHED", publication: "v1" }),
+    decision: async () => doc, capture: async (ticker) => {
+      const projection = await room.capture(ticker, date);
+      snapshots.set(projection.snap.snapshotId, projection); return projection;
+    },
+    infer: async (side, message) => {
+      calls.push(side);
+      if (side === "BULL" && now === clock) throw Object.assign(new Error("Your credit balance is too low"), { status: 400 });
+      const id = [...snapshots.keys()].find((id) => message.includes(id));
+      return sourcedClaim(snapshots.get(id), side);
+    } };
+  const first = createResearchAutonomy(deps);
+  await first.tick();
+  const health = await first.health(doc);
+  assert.equal(health.ready, 0); assert.equal(health.bear, 2);
+  assert.deepEqual(health.blocked, [{ provider: "claude", reason: "BILLING", retryAt: clock + 900_000 }]);
+  const restarted = createResearchAutonomy(deps);
+  await restarted.tick();
+  assert.deepEqual(calls.slice().sort(), ["BEAR", "BEAR", "BULL"]);
+  now += 900_001;
+  await restarted.tick();
+  assert.equal((await restarted.health(doc)).ready, 2);
+  assert.deepEqual(calls.slice(3), ["BULL", "JUDGE", "BULL", "JUDGE"]);
+});
+
 test("the three-role worker resumes checkpoints and serves an authenticated hot HTTP read in under 200ms", async (t) => {
   const room = fixtureRoom(), projection = await room.capture("FPT", date), store = createMemoryStore();
   const calls = [];
@@ -89,10 +126,7 @@ test("the three-role worker resumes checkpoints and serves an authenticated hot 
       calls.push(side);
       if (side === "BEAR" && failOnce) { failOnce = false; throw new Error("offline"); }
       if (side === "JUDGE") assert.match(message, /Luận điểm đối chiếu/);
-      const ref = projection.snap.refs.find((r) => r.domain === "decision");
-      return JSON.stringify({ schemaVersion: "claims-1.0", snapshotId: projection.snap.snapshotId, limitations: [], claims: [{
-        id: "c1", side, ticker: "FPT", asOf: ref.asOf, text: "Có nguồn quyết định để đối chiếu.", classification: "FACT", refs: [ref.id],
-        supports: [], invalidates: [], numericAssertions: [], horizon: null, uncertainty: "HIGH", invalidation: null, missingData: [] }] });
+      return sourcedClaim(projection, side);
     } };
   const first = createResearchAutonomy(deps);
   await Promise.all([first.tick(), first.tick()]);

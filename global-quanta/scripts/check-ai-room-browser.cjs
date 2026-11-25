@@ -43,6 +43,9 @@ async function main() {
   const { createResearchRoom } = await import("../backend/src/market/elite/researchRoom.js");
   const { createMemoryStore } = await import("../backend/src/market/store/memoryStore.js");
   const autonomyTest = process.env.AI_ROOM_AUTONOMY_TEST === "1";
+  if (autonomyTest) responses["/api/elite/ai-room/session"].worker = {
+    blocked: [{ provider: "claude", reason: "BILLING", retryAt: Date.now() + 900_000 }],
+  };
   const { selectSessionProjection, coreTickers } = await import("../backend/src/market/elite/researchAutonomy.js");
   const select = (ticker, capture) => selectSessionProjection(ticker, capture, responses["/api/elite/ai-room/session"], async () => null);
   const room = createResearchRoom({ store: createMemoryStore(), selectProjection: autonomyTest ? select : undefined, load: () => ({
@@ -133,6 +136,7 @@ async function main() {
     await openRoom();
     if (autonomyTest) {
       await page.getByText(/Snapshot dự phòng.*20\/11.*23\/11/).waitFor();
+      await page.getByRole("status").filter({ hasText: /Claude.*cần bổ sung credit/ }).waitFor();
       assert.equal(await title("✦ Kiểm chứng & tranh luận").isEnabled(), true);
     } else {
       await page.getByText(/Phiên kỳ vọng 23\/11/).waitFor();

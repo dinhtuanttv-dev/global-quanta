@@ -396,6 +396,10 @@ export default function EvidenceBrainWorkspace(props: Props) {
     </div>
     <div className="snapshot-meta">
       {fallbackSession && <span className="meta-chip warn" role="status">Snapshot dự phòng · phiên {dateVi(snap?.decisionSession)} · chờ phiên {dateVi(fallbackSession)}</span>}
+      {session.data?.worker?.blocked.map(({ provider, reason, retryAt }) => <span key={provider} className="meta-chip warn" role="status">
+        {provider === "claude" ? "Claude" : "Gemini"} · {{ BILLING: "cần bổ sung credit", AUTH: "cần kiểm tra xác thực", RATE_LIMIT: "đang giới hạn lượt gọi", NOT_CONFIGURED: "chưa cấu hình" }[reason]}
+        {retryAt ? " · thử lại " + clock(new Date(retryAt).toISOString()) : ""}
+      </span>)}
       {cached && <span className="meta-chip" role="status">{cached.state === "READY" ? "Tam tài AI · đã phân tích" : cached.state === "FAILED" ? "Tam tài AI · cần kiểm tra" : cached.state === "RETRY" ? "Tam tài AI · chờ thử lại" : "Tam tài AI · đã khóa nguồn"}</span>}
       <button className={`meta-chip ${locked ? "good" : ""}`} title={replay?.contentId ?? snap?.snapshotId} type="button" onClick={() => setDetail("snapshot")}>● Snapshot {replay ? replay.contentId.slice(-12) : briefId(snap)}</button>
       <span className="meta-chip">Decision {dateVi(snap?.decisionSession ?? decisionDay)}</span>

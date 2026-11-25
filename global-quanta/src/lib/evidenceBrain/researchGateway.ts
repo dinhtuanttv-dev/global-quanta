@@ -16,6 +16,8 @@ export interface ResearchSession {
   retryAt: string | null;
   eod: { confirmed: number; expected: number } | null;
   publication: string;
+  worker?: { session: string | null; core: number; snapshots: number; ready: number; bull: number; bear: number; judge: number;
+    blocked: { provider: "claude" | "gemini"; reason: "BILLING" | "AUTH" | "RATE_LIMIT" | "NOT_CONFIGURED"; retryAt: number | null }[] };
 }
 
 export function useResearchSession(enabled: boolean) {

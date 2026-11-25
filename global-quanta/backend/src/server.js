@@ -348,6 +348,7 @@ function getResearchSession() {
     const eod = relevantJobs.find((job) => job.name === "syncEod")?.last?.result;
     const retryAt = relevantJobs.map((job) => job.retry?.at).filter((time) => Number.isFinite(time) && time > observedAt.getTime()).sort((a, b) => a - b)[0];
     return { expectedClosedSession, marketDailySession, scannerSession, decisionSession, stage,
+      worker: await getResearchAutonomy().health(decision).catch(() => undefined),
       observedAt: observedAt.toISOString(), retryAt: retryAt ? new Date(retryAt).toISOString() : null,
       eod: coverage ? { confirmed: coverage.confirmed, expected: coverage.expected } : eod?.date === expectedClosedSession ? { confirmed: eod.confirmedCore, expected: eod.expectedCore } : null,
       publication: [expectedClosedSession, stage, marketDailySession, scannerSession, scan?.value?.generatedAt, panel?.date, panel?.builtAt, panel?.version, decisionSession, decision?.builtAt, decision?.version].join("|"),
@@ -360,7 +361,7 @@ let researchAutonomy;
 const getResearchAutonomy = () => (researchAutonomy ??= createResearchAutonomy({
   store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), session: getResearchSession,
   capture: (ticker, date) => getResearchRoom().capture(ticker, date),
-  configured: () => Object.values(getCatalystChat().config().providers).every(Boolean),
+  configured: () => getCatalystChat().config().providers,
   infer: (side, message) => getCatalystChat().analyzeSealed(side, message),
 }));
 
