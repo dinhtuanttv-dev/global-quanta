@@ -1,6 +1,7 @@
 // Elite 10 E6 — "Bằng chứng & sổ theo dõi": kết quả engine bằng chứng E2 (IC hạng theo kỳ hạn, t Newey–West, q Benjamini–Hochberg,
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
 import { useMemo } from "react";
+import AiBrainCard from "./AiBrainCard";
 import EliteToShadowCard from "./EliteToShadowCard";
 import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
 // QĐ-R (20/11/2026): quy tắc, sổ theo dõi tiến và Cổng tiền mặt của Elite HL chuyển từ Bảng quyết định sang đây (cùng cache SWR
@@ -249,6 +250,8 @@ export default function EvidenceLedgerTab() {
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-evidence-tab">
+      {/* ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — nguồn đo độ tin cậy của bộ não, cạnh các sổ theo dõi khác. */}
+      <div className="rounded-lg border border-white/10 bg-[#0E131F] p-3"><AiBrainCard testId="ai-brain-evidence" /></div>
       {hl && (
         <p className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-100" data-testid="elite-evidence-scope">
           <b>Phạm vi bằng chứng.</b> Danh mục chính thức hiện là <b>Elite HL</b> (quy tắc do chủ dự án đặt, nhãn THĂM DÒ). Bằng chứng từng tín hiệu (E2) và hai kiểm định hồi cứu E7 / E7-v3 bên dưới thuộc về <b>Điểm Elite và danh mục Elite dòng tiền (cũ)</b> — chúng KHÔNG phải kiểm định của Elite HL. Elite HL hiện chỉ có mô phỏng khám phá K0 (ngang thị trường, xem Bảng quyết định) và sổ theo dõi tiến mô tả ở cuối trang.

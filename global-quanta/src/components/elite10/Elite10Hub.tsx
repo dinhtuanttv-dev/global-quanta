@@ -10,6 +10,7 @@ import SignalProfileCard from "./center/SignalProfileCard";
 import EliteScreener from "./center/EliteScreener";
 import EliteAiRoom from "./center/EliteAiRoom";
 import EvidenceLedgerTab from "./center/EvidenceLedgerTab";
+import AiBrainCard from "./center/AiBrainCard";
 import RiskTab from "./center/RiskTab";
 import ProfileHeader, { type ProfileView } from "./profile/ProfileHeader";
 import CompanyProfileCard from "./profile/CompanyProfileCard";
@@ -112,6 +113,8 @@ export default function Elite10Hub() {
                 {pview === "summary" && (
                   <>
                     <SignalProfileCard ticker={current} />
+                    {/* ARL-v1 (26/11/2026): lịch sử Phòng họp AI của mã — sổ phán quyết chấm theo thị trường thật. */}
+                    <div className="rounded-lg border border-white/10 bg-[#0E131F] p-3"><AiBrainCard ticker={current} compact testId="ai-brain-profile" /></div>
                     {/* QĐ-R (20/11/2026): Sự kiện cổ tức, Mô phỏng thời điểm và Tin tức Elite 10 chuyển sang Bảng quyết định (khung "Mã đang chọn"). */}
                   </>
                 )}

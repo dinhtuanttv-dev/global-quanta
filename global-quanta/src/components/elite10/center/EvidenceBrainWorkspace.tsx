@@ -23,6 +23,7 @@ import type { ScenarioEntry } from "./evidenceRoom/ScenarioCanvas";
 import { useResearchAccount } from "./evidenceRoom/researchAccount";
 import { lockResearchSnapshot, usePublishedReview, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
+import AiBrainCard from "./AiBrainCard";
 
 const ScenarioCanvas = lazy(() => import("./evidenceRoom/ScenarioCanvas"));
 
@@ -112,9 +113,9 @@ function SnapshotHealth({ snap }: { snap?: EvidenceSnapshot }) {
 }
 const healthBadge = (snap?: EvidenceSnapshot) => snap?.completeness === "COMPLETE" ? "ĐỦ NGUỒN" : snap?.completeness ?? "CHỜ SNAPSHOT";
 
-function RightRail({ layers, title, description, blocker, events, newsState, onDetail, snap }: {
+function RightRail({ layers, title, description, blocker, events, newsState, onDetail, snap, ticker = null }: {
   layers: Layer[]; title: string; description: string; blocker: string;
-  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void; snap?: EvidenceSnapshot;
+  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void; snap?: EvidenceSnapshot; ticker?: string | null;
 }) {
   const headline = events[0];
   const badge = (tone: Tone) => tone === "good" ? "" : tone === "neutral" ? "neutral" : "wait";
@@ -143,6 +144,7 @@ function RightRail({ layers, title, description, blocker, events, newsState, onD
       </article> : <div className="catalyst-card"><p>{newsState}</p></div>}
       <p className="footer-note">Cửa sổ mùa vụ dùng số sự kiện, kỳ đo, kỳ vọng ròng và q. Trigger giá hiển thị theo engine Price Action.</p>
     </section>
+    <section className="panel panel-pad" data-testid="ai-brain-room"><AiBrainCard ticker={ticker} compact testId="ai-brain-room-card" /></section>
   </aside>;
 }
 
@@ -520,7 +522,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const next = confirmation?.reason ?? readiness?.blockers[0] ?? (concerns.length ? concerns.map((item) => item.label).join(" · ") : snap?.missing[0] ?? "Mở từng lớp để xem phạm vi và điều kiện xác nhận.");
   return <section data-testid="evidence-brain-workspace">
     {enabled && ticker && <PriceActionConfirmation key={ticker} ticker={ticker} onEvidence={onPriceAction} evidenceOnly />}
-    <WorkspaceFrame ticker={tickerBar} left={<RightRail layers={layers} snap={snap}
+    <WorkspaceFrame ticker={tickerBar} left={<RightRail layers={layers} snap={snap} ticker={ticker}
         title={confirmation ? confirmationLabel[confirmation.result].toUpperCase() : "ĐỐI CHIẾU CÁC LỚP"}
         description={concerns.length ? concerns.map((layer) => `${layer.label}: ${layer.status.toLowerCase()}`).join(" · ") : "Các trạng thái dưới đây lấy theo nguồn của snapshot đang xem."}
         blocker={next} events={data.events} newsState={layers[3].status} onDetail={setDetail} />}

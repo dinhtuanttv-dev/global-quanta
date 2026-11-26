@@ -82,7 +82,7 @@ describe("Trạng thái trung thực", () => {
     expect(parseFrontmatter(n.markdown).data.evidence_status).toBe("partial");
     const long = buildDebateNote({ subject: "HPG", bull: { ...bull, text: "a".repeat(7000) }, bear, judge, now: NOW, suffix: "x" });
     expect(parseFrontmatter(long.markdown).data.judge_input_clipped).toBe(true);
-    expect(long.markdown).toContain("Trọng tài chỉ đọc tối đa 6.000 ký tự");
+    expect(long.markdown).toContain("Trọng tài chỉ đọc tối đa 740 ký tự");
   });
   it("mã chưa được công cụ xác nhận -> ticker null, phạm vi ghi rõ", () => {
     const n = buildDebateNote({ subject: "ZZZ", bull: lane({ provider: "claude", text: "x" }), bear: lane({ provider: "gemini", text: "y" }), judge: null, now: NOW, suffix: "x" });
