@@ -4438,7 +4438,7 @@ var EP2_PREREG = {
 };
 
 // src/lib/quant-core/mtf3/version.ts
-var MTF3_VERSION = "3.0.0-s6";
+var MTF3_VERSION = "3.1.0-s6";
 
 // src/lib/quant-core/mtf3/series.ts
 function ema(values, period) {
@@ -4738,8 +4738,14 @@ function dowSeries3(bars, sw) {
     const newHigh = lh && c > lh.price && crossedH !== lh.index, newLow = ll && c < ll.price && crossedL !== ll.index;
     if (isUp(st)) {
       if (Number.isFinite(pLow) && c < pLow) {
-        st = "BROKEN_UP";
-        event[i] = "BREAK_PROTECTED_LOW";
+        if (lowerHigh) {
+          event[i] = "CHOCH_DOWN";
+          st = "DOWN";
+          pHigh = lh.price;
+        } else {
+          st = "BROKEN_UP";
+          event[i] = "BREAK_PROTECTED_LOW";
+        }
       } else if (newHigh) event[i] = "BOS_UP";
     } else if (isDown(st)) {
       if (Number.isFinite(pHigh) && c > pHigh) {
