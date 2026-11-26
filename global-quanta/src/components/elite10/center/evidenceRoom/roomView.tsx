@@ -72,7 +72,7 @@ export function ReferenceRoomIntro() {
     <div className="crumbs"><b>QUYẾT ĐỊNH</b><span>›</span><strong>3. PHÒNG HỌP AI</strong><span>·</span><span>Evidence Brain</span></div>
     <div className="title-row">
       <div><h1>Phòng họp AI <span style={{ color: "var(--cyan)" }}>/ Evidence Brain</span></h1><div className="subtitle">Đối chiếu funnel, doanh nghiệp, Price Action, xúc tác, khối lượng và rủi ro trên một snapshot.</div></div>
-      <div className="inline" style={{ gap: 7 }}><span className="status-chip" style={{ fontSize: 9, color: "#becade" }}>Claude + Gemini · read-only</span><RoomHelp reference /></div>
+      <div className="inline" style={{ gap: 7 }}><span className="status-chip" style={{ fontSize: 9, color: "#becade" }}>GPT + Gemini · read-only</span><RoomHelp reference /></div>
     </div>
   </>;
 }
@@ -87,7 +87,7 @@ function RoomHelp({ reference = false }: { reference?: boolean }) {
         <CircleHelp aria-hidden="true" /><span>Nguyên tắc kiểm chứng</span>
       </button>}
     {open && <DetailDialog title="Nguyên tắc kiểm chứng" onClose={() => setOpen(false)}>
-      <p>Claude trình bày lập luận phe thuận và làm trọng tài. Gemini phản biện. Hai mô hình đọc và đối chiếu bằng chứng trong Phòng họp AI.</p>
+      <p>GPT trình bày lập luận phe thuận và làm trọng tài (Claude dự phòng). Gemini phản biện. Hai mô hình đọc và đối chiếu bằng chứng trong Phòng họp AI.</p>
       <p>Hai phe và trọng tài cùng tham chiếu snapshot đã khóa. Ref và số khớp xác nhận dữ liệu trích dẫn; ý nghĩa của luận điểm vẫn được đối chiếu riêng. Nguồn thiếu, quá hạn, nến chưa đóng và volume trong phiên giữ nguyên trạng thái.</p>
     </DetailDialog>}
   </>;

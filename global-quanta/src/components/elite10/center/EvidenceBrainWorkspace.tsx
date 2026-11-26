@@ -54,7 +54,7 @@ const stateLabel = { LOADED: "ĐÃ TẢI", LOADING: "ĐANG TẢI", ERROR: "LỖI
 const stepHints = ["Universe của phiên", "GTGD TB20 · giá", "LS-v1 · mô hình TA", "Tầng 1 + RRG ngành", "Thanh khoản theo phễu", "Chế độ PZ của phiên", "Giữ lại + mua mới"];
 const sourceFor: Partial<Record<NodeId, string>> = { decision: "decision", events: "events", priceAction: "priceAction", volume: "volume" };
 const refDomain: Partial<Record<NodeId, EvidenceRef["domain"]>> = { decision: "decision", events: "catalyst", priceAction: "price_action", volume: "volume" };
-const roleTitle = { bull: "Claude · phe thuận", bear: "Gemini · phản biện", judge: "Claude · trọng tài" } as const;
+const roleTitle = { bull: "GPT · phe thuận", bear: "Gemini · phản biện", judge: "GPT · trọng tài" } as const;
 const via = (error: unknown) => error ? String(error) : null;
 const briefId = (snap?: EvidenceSnapshot | null) => snap?.snapshotId.length && snap.snapshotId.length > 22 ? `${snap.snapshotId.slice(0, 18)}…` : snap?.snapshotId ?? "—";
 const clock = (value?: string | null) => value && Number.isFinite(new Date(value).getTime())
@@ -402,7 +402,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     <div className="snapshot-meta">
       {fallbackSession && <span className="meta-chip warn" role="status">Snapshot dự phòng · phiên {dateVi(snap?.decisionSession)} · chờ phiên {dateVi(fallbackSession)}</span>}
       {session.data?.worker?.blocked.map(({ provider, reason, retryAt }) => <span key={provider} className="meta-chip warn" role="status">
-        {provider === "claude" ? "Claude" : "Gemini"} · {{ BILLING: "cần bổ sung credit", AUTH: "cần kiểm tra xác thực", RATE_LIMIT: "đang giới hạn lượt gọi", NOT_CONFIGURED: "chưa cấu hình" }[reason]}
+        {provider === "claude" ? "GPT / Claude" : "Gemini"} · {{ BILLING: "cần bổ sung credit", AUTH: "cần kiểm tra xác thực", RATE_LIMIT: "đang giới hạn lượt gọi", NOT_CONFIGURED: "chưa cấu hình" }[reason]}
         {retryAt ? " · thử lại " + clock(new Date(retryAt).toISOString()) : ""}
       </span>)}
       {cached && <span className="meta-chip" role="status">{cached.state === "READY" ? "Tam tài AI · đã phân tích" : cached.state === "FAILED" ? "Tam tài AI · cần kiểm tra" : cached.state === "RETRY" ? "Tam tài AI · chờ thử lại" : "Tam tài AI · đã khóa nguồn"}</span>}
