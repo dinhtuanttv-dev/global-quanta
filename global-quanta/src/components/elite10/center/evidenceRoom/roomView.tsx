@@ -198,7 +198,7 @@ export function GraphViewport({ world, bounds, visibleCount, edgeCount, referenc
       onPointerDown={startDrag} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
       <div className="canvas-hint">{reference ? "Kéo nền để di chuyển · chọn thẻ để xem nguồn · dữ liệu mẫu" : "Kéo nền để di chuyển · chọn thẻ để xem nguồn"}</div>
       {graph}
-      <div className="canvas-legend"><span className="eb-legend-item"><i />Hỗ trợ</span><span className="eb-legend-item"><i className="lg-red" />Phản biện</span><span className="eb-legend-item"><i className="lg-cyan" />Bằng chứng trong snapshot</span><span className="eb-legend-item"><i className="lg-violet" />Trọng tài dẫn nguồn</span><span className="eb-legend-item"><i className="lg-gold" />Luồng phiên</span><span className="eb-legend-item"><i className="lg-amber" />Cần rà soát</span></div>
+      <div className="canvas-legend"><span className="eb-legend-item"><i />Hỗ trợ</span><span className="eb-legend-item"><i className="lg-red" />Phản biện</span><span className="eb-legend-item"><i className="lg-cyan" />Bằng chứng trong snapshot</span><span className="eb-legend-item"><i className="lg-violet" />Tới trọng tài (sáng = đã trích dẫn, dịu = đưa vào)</span><span className="eb-legend-item"><i className="lg-gold" />Luồng phiên</span><span className="eb-legend-item"><i className="lg-amber" />Cần rà soát</span></div>
     </div>
     {details}
   </div>;

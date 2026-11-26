@@ -487,3 +487,11 @@ body:has(.eb-reference-page) {
   .eb-edges-v2 .eb-edge-pulse { animation: none; opacity: 0; }
   .eb-room-page .eb-graph-v2 .node.eb-node-running { animation: none; }
 }
+/* 27/11/2026 — nguồn → Phán quyết: "đưa vào trọng tài" (luồng phiên, sáng dịu, xung chậm); nguồn không có dữ liệu -> mờ, không xung */
+.eb-edges-v2 .eb-edge.feed { color: #8f86e6; }
+.eb-edges-v2 .eb-edge.feed .eb-edge-line { opacity: .42; stroke-width: 1.3; }
+.eb-edges-v2 .eb-edge.feed .eb-edge-halo { opacity: .05; }
+.eb-edges-v2 .eb-edge.feed .eb-edge-pulse { animation-duration: 4.6s; opacity: .7; stroke-width: 2; }
+.eb-edges-v2 .eb-edge.feed.muted .eb-edge-line { opacity: .16; stroke-dasharray: 2 6; filter: none; }
+.eb-edges-v2 .eb-edge.feed.muted .eb-port { opacity: .25; }
+.eb-edges-v2 .eb-edge.feed.lit .eb-edge-line { opacity: .95; stroke-width: 2; }
