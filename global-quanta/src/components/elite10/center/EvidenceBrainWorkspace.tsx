@@ -24,6 +24,7 @@ import { useResearchAccount } from "./evidenceRoom/researchAccount";
 import { lockResearchSnapshot, usePublishedReview, useResearchSession } from "../../../lib/evidenceBrain/researchGateway";
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
 import AiBrainCard from "./AiBrainCard";
+import PortfolioRail from "./evidenceRoom/PortfolioRail";
 
 const ScenarioCanvas = lazy(() => import("./evidenceRoom/ScenarioCanvas"));
 
@@ -113,13 +114,14 @@ function SnapshotHealth({ snap }: { snap?: EvidenceSnapshot }) {
 }
 const healthBadge = (snap?: EvidenceSnapshot) => snap?.completeness === "COMPLETE" ? "ĐỦ NGUỒN" : snap?.completeness ?? "CHỜ SNAPSHOT";
 
-function RightRail({ layers, title, description, blocker, events, newsState, onDetail, snap, ticker = null }: {
+function RightRail({ layers, title, description, blocker, events, newsState, onDetail, snap, ticker = null, top = null }: {
   layers: Layer[]; title: string; description: string; blocker: string;
-  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void; snap?: EvidenceSnapshot; ticker?: string | null;
+  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void; snap?: EvidenceSnapshot; ticker?: string | null; top?: ReactNode;
 }) {
-  const headline = events[0];
+  const headlines = events.slice(0, 3);
   const badge = (tone: Tone) => tone === "good" ? "" : tone === "neutral" ? "neutral" : "wait";
-  return <aside className="right-panel eb-context-rail" aria-label="Các lớp xác nhận và tin liên quan">
+  return <aside className="right-panel eb-context-rail" aria-label="Danh mục, các lớp xác nhận và tin liên quan">
+    {top}
     <section className="panel panel-pad">
       <div className="section-head"><div><div className="eyebrow">Decision timing</div><h2 style={{ marginTop: 4 }}>Các lớp xác nhận</h2></div>
         <button type="button" className={`mini-badge eb-health-badge ${snap?.completeness === "COMPLETE" ? "" : "warn"}`} onClick={() => onDetail("sources")}
@@ -134,15 +136,16 @@ function RightRail({ layers, title, description, blocker, events, newsState, onD
     </section>
     <section className="panel panel-pad">
       <div className="section-head"><h3>Tin &amp; xúc tác liên quan</h3><button type="button" className="small-link" onClick={() => onDetail("events")}>Chi tiết nguồn</button></div>
-      {headline ? <article className="catalyst-card">
+      {headlines.length ? headlines.map((headline) => <article className="catalyst-card" key={eventKey(headline)}>
         <div className="inline" style={{ justifyContent: "space-between", gap: 5 }}>
           <h4><button type="button" className="small-link" onClick={() => onDetail({ event: headline })}>{headline.title}</button></h4>
           <span className={`mini-badge ${officialPublication(headline) ? "" : "warn"}`}>{officialPublication(headline) ? "CÔNG BỐ GỐC" : "CẦN ĐỐI CHIẾU"}</span>
         </div>
         <p>{headline.sourceLabel} · Độ tin cậy gắn mã {numberVi(headline.entityConfidence)}</p>
         <div className="source-meta"><span>Biết r{headline.revision} {clock(revisionKnownAt(headline) ?? undefined)}</span><span>{headline.documentCount} tài liệu</span></div>
-      </article> : <div className="catalyst-card"><p>{newsState}</p></div>}
-      <p className="footer-note">Cửa sổ mùa vụ dùng số sự kiện, kỳ đo, kỳ vọng ròng và q. Trigger giá hiển thị theo engine Price Action.</p>
+      </article>) : <div className="catalyst-card"><p>{newsState}</p></div>}
+      {events.length > headlines.length && <button type="button" className="small-link" onClick={() => onDetail("events")}>Xem thêm {events.length - headlines.length} cụm tin ›</button>}
+      <p className="footer-note">Tin từ Event Radar theo mã, gộp theo cụm. "Công bố gốc" = nguồn chính thức đã gắn đúng mã; "Cần đối chiếu" = chưa đối chiếu với tài liệu công bố gốc.</p>
     </section>
     <section className="panel panel-pad" data-testid="ai-brain-room"><AiBrainCard ticker={ticker} compact testId="ai-brain-room-card" /></section>
   </aside>;
@@ -523,6 +526,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
   return <section data-testid="evidence-brain-workspace">
     {enabled && ticker && <PriceActionConfirmation key={ticker} ticker={ticker} onEvidence={onPriceAction} evidenceOnly />}
     <WorkspaceFrame ticker={tickerBar} left={<RightRail layers={layers} snap={snap} ticker={ticker}
+        top={<PortfolioRail decision={decision.data} current={ticker} onPick={props.onTickerChange} busy={busy} loading={decision.isLoading} />}
         title={confirmation ? confirmationLabel[confirmation.result].toUpperCase() : "ĐỐI CHIẾU CÁC LỚP"}
         description={concerns.length ? concerns.map((layer) => `${layer.label}: ${layer.status.toLowerCase()}`).join(" · ") : "Các trạng thái dưới đây lấy theo nguồn của snapshot đang xem."}
         blocker={next} events={data.events} newsState={layers[3].status} onDetail={setDetail} />}

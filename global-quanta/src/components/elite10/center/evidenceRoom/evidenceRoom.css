@@ -352,3 +352,29 @@ body:has(.eb-reference-page) {
 .eb-room-page .eb-funnel-dialog { margin: 10px 0 4px; }
 .eb-room-page .eb-funnel-dialog .funnel-step { cursor: default; }
 .eb-room-page .eb-health { margin: 8px 0 10px; }
+
+/* 26/11/2026 — Danh mục Elite HL trong khối trái: chọn mã để phân tích (cùng nhịp chữ / màu với Các lớp xác nhận). */
+.eb-room-page .eb-pf-meta { margin: 6px 0 8px; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.eb-room-page .eb-pf-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.eb-room-page .eb-pf-row {
+  width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 34px;
+  padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255,255,255,.018); color: var(--text); text-align: left; cursor: pointer;
+}
+.eb-room-page .eb-pf-row:hover { border-color: var(--line-strong); background: var(--surface-2); }
+.eb-room-page .eb-pf-row[aria-disabled="true"] { cursor: not-allowed; opacity: .7; }
+.eb-room-page .eb-pf-row.active { border-color: #458b8d; background: linear-gradient(90deg,#12303466,#111d2a); box-shadow: inset 2px 0 0 var(--cyan); }
+.eb-room-page .eb-pf-row .num { width: 20px; height: 20px; border: 1px solid var(--line-strong); border-radius: 6px; display: grid; place-items: center; font-size: 9px; color: var(--muted); font-weight: 800; }
+.eb-room-page .eb-pf-row.active .num { color: #101c21; border-color: var(--cyan); background: var(--cyan); }
+.eb-room-page .eb-pf-main { min-width: 0; display: grid; gap: 1px; }
+.eb-room-page .eb-pf-ticker { font-size: 10px; font-weight: 800; letter-spacing: .02em; display: inline-flex; align-items: center; gap: 5px; }
+.eb-room-page .eb-pf-sub { color: var(--faint); font-size: 8.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.eb-room-page .eb-pf-warn { display: inline-grid; place-items: center; width: 13px; height: 13px; border-radius: 4px; background: #282011; color: #f5c27d; font-size: 8px; font-weight: 900; }
+.eb-room-page .eb-pf-nums { display: grid; justify-items: end; gap: 1px; font: 700 9.5px ui-monospace, monospace; }
+.eb-room-page .eb-pf-weight { color: #dce6f4; }
+.eb-room-page .eb-pf-ret { color: var(--muted); }
+.eb-room-page .eb-pf-ret.up { color: var(--green); }
+.eb-room-page .eb-pf-ret.down { color: var(--red); }
+.eb-room-page .eb-pf-row.queue { grid-template-columns: 22px minmax(0, 1fr); }
+.eb-room-page .eb-pf-queue { margin-top: 8px; display: grid; gap: 4px; }
+.eb-room-page .eb-pf-queue > .small-link { justify-self: start; font-size: 9px; }
+@media (pointer: coarse) { .eb-room-page .eb-pf-row { min-height: 44px; } }
