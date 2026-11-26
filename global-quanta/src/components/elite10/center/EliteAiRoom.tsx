@@ -270,6 +270,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
           </div>
         )}
         {phase === "judging" && !judge?.text && <p className="text-[11px] italic text-slate-400"><Gavel className="mr-1 inline h-3 w-3" />Trọng tài đang kiểm chứng hai lập luận…</p>}
+        <p className="text-[10.5px] text-amber-100" data-testid="elite-quick-judge-note">Chế độ nhanh: trọng tài chỉ đọc tối đa {JUDGE_MAX} ký tự đầu của mỗi phe (giới hạn Gateway). Dùng “Kiểm chứng &amp; tranh luận” với snapshot khoá để kiểm chứng đầy đủ.</p>
         {judge && <div className="rounded-md border border-amber-400/30 bg-amber-500/[0.04] p-2" data-testid="elite-judge"><LaneView t={judge} showHeader headerLabel="Trọng tài · Claude" /></div>}
         <p className="text-[10px] text-slate-500">Mỗi bên chỉ được dùng số liệu từ công cụ; con số không truy được tới công cụ sẽ bị đánh dấu. Trọng tài gọi lại công cụ để kiểm chứng thay vì tin lời hai bên.</p>
       </section>

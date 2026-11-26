@@ -1,6 +1,6 @@
 import express from "express";
 
-export function createResearchRoomRouter({ getRoom, verifyUser, getSession, precomputed, observation }) {
+export function createResearchRoomRouter({ getRoom, verifyUser, getSession, precomputed, observation, ledger = null }) {
   const router = express.Router();
   const authed = (work) => async (req, res) => {
     res.set("Cache-Control", "private, no-store");
@@ -15,6 +15,13 @@ export function createResearchRoomRouter({ getRoom, verifyUser, getSession, prec
     res.set("Cache-Control", "no-store");
     try { return res.json(await getSession()); }
     catch { return res.status(503).json({ error: "Chưa đọc được tiến độ công bố phiên." }); }
+  });
+  // ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — tổng hợp công khai (không có dữ liệu cá nhân), giống /api/elite/ledger.
+  if (ledger) router.get("/ledger", async (req, res) => {
+    const t = typeof req.query.ticker === "string" ? req.query.ticker.toUpperCase() : null;
+    if (t && !/^[A-Z][A-Z0-9]{2}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    try { res.set("Cache-Control", "public, max-age=300"); return res.json(await ledger().read({ ticker: t, limit: req.query.limit })); }
+    catch { return res.status(503).json({ error: "Chưa đọc được sổ phán quyết." }); }
   });
   if (precomputed) router.get("/precomputed", authed((_room, _owner, req) => precomputed(req.query.ticker)));
   if (observation) router.get("/observation", authed((_room, _owner, req) => observation(req.query.ticker)));

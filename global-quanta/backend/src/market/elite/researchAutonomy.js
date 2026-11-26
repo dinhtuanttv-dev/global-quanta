@@ -6,6 +6,16 @@ const key = (ticker) => "local:ai-room:publication:v1:" + ticker;
 const circuitKey = (provider) => "local:ai-room:provider:v1:" + provider;
 const providers = ["claude", "gemini"];
 
+// 26/11/2026 (Ho-so-360-v2/25 A2–A3): 429 chờ tăng dần (1 → 2 → 4… phút, trần 1 giờ, tôn trọng Retry-After); lỗi không phải của nhà
+// cung cấp có trần số lần thử mỗi phiên — đạt trần thì vai đó dừng tới phiên sau (trước đây: 429 chờ cố định 60 s, thử mãi).
+const MAX_ATTEMPTS = { VALIDATION: 4, PROVIDER_ERROR: 8 };
+function retryAfterMs(error) {
+  const h = error?.headers;
+  const v = typeof h?.get === "function" ? h.get("retry-after") : h?.["retry-after"] ?? error?.retryAfter;
+  const sec = Number(v);
+  return Number.isFinite(sec) && sec > 0 ? Math.min(sec * 1000, 3_600_000) : 0;
+}
+
 function providerFailure(error) {
   const status = error?.status ?? error?.statusCode;
   if (status === 402 || /credit balance is too low|insufficient[_ ](?:credits|quota)|billing hard limit/i.test(error?.message ?? "")) return "BILLING";
@@ -65,7 +75,7 @@ export async function selectSessionProjection(ticker, capture, status, read) {
 
 // The Gateway owns one scheduler. A checkpoint is committed after each provider response, before the next role.
 // GET uses only the persisted artifact or the bounded hot cache and never invokes a provider.
-export function createResearchAutonomy({ store, session, decision, capture, infer, configured, now = Date.now, log = console }) {
+export function createResearchAutonomy({ store, session, decision, capture, infer, configured, now = Date.now, log = console, ledger = null }) {
   const hot = new Map();
   const circuits = new Map();
   let running;
@@ -122,11 +132,12 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
         const roles = { ...record.roles }, failures = { ...record.failures };
         if (result) { roles[side] = result; delete failures[side]; }
         else failures[side] = failure;
-        const pending = Object.values(failures);
+        const pending = Object.values(failures).filter((f) => !f.exhausted);
         const state = roles.JUDGE ? "READY" : pending.length ? "RETRY" : "PARTIAL";
         const next = { ...record, roles, failures, state, retryAt: pending.length ? Math.min(...pending.map((f) => f.retryAt)) : null };
         await write(ticker, next);
         record = next;
+        void ledger?.record(ticker, next); // ARL-v1: sổ phán quyết (lỗi ghi sổ không chặn vòng nền)
       });
       return writes;
     };
@@ -134,7 +145,7 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       const lastFailure = record.failures?.[side];
       // Old unconstrained-generation failures can retry once with the new contract.
       // Explicit provider circuits and successful roles survive this migration.
-      if (record.roles[side] || (lastFailure?.retryAt > now() && lastFailure.reason !== "REVIEW_ERROR")) return;
+      if (record.roles[side] || lastFailure?.exhausted || (lastFailure?.retryAt > now() && lastFailure.reason !== "REVIEW_ERROR")) return;
       const provider = side === "BEAR" ? "gemini" : "claude";
       if (!enabled(provider) || await circuit(provider)) return;
       try {
@@ -152,19 +163,25 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
           throw Object.assign(new Error("Claim validation"), { validation });
         }
         await commit(side, result);
+        const prior = circuits.get(provider);
+        if (prior?.strikes) { circuits.set(provider, null); await store.setKv(circuitKey(provider), null); }
       } catch (error) {
         const reason = providerFailure(error);
         const attempts = (lastFailure?.reason === "REVIEW_ERROR" ? 0 : lastFailure?.attempts ?? 0) + 1;
-        const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 : reason === "RATE_LIMIT" ? 60_000 :
+        const prior = circuits.get(provider);
+        const strikes = reason === "RATE_LIMIT" ? (prior?.reason === "RATE_LIMIT" ? prior.strikes ?? 1 : 0) + 1 : 1;
+        const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 :
+          reason === "RATE_LIMIT" ? Math.max(retryAfterMs(error), Math.min(60_000 * 2 ** (strikes - 1), 3_600_000)) :
           attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1);
         const retryAt = now() + delay;
         if (reason) {
-          const blocked = { provider, reason, retryAt };
+          const blocked = { provider, reason, retryAt, ...(reason === "RATE_LIMIT" ? { strikes } : {}) };
           await store.setKv(circuitKey(provider), blocked);
           circuits.set(provider, blocked);
         }
         const failure = reason ?? (error.validation ? "VALIDATION" : "PROVIDER_ERROR");
-        await commit(side, null, { attempts, retryAt, reason: failure, ...(error.validation ? { validation: error.validation } : {}) });
+        const exhausted = !reason && attempts >= (MAX_ATTEMPTS[failure] ?? MAX_ATTEMPTS.PROVIDER_ERROR);
+        await commit(side, null, { attempts, retryAt: exhausted ? null : retryAt, reason: failure, ...(exhausted ? { exhausted: true } : {}), ...(error.validation ? { validation: error.validation } : {}) });
         log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + failure + (error.status ? " HTTP " + error.status : ""));
       }
     }

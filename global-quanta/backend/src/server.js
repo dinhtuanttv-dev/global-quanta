@@ -58,6 +58,7 @@ import { createResearchRoomRouter } from "./routes/researchRoom.js";
 import { createResearchRoom } from "./market/elite/researchRoom.js";
 import { loadVolumeAnalysis, getVolumeAnalysis } from "./market/scanner/volumeService.js";
 import { createResearchAutonomy, historicalPrices, selectSessionProjection } from "./market/elite/researchAutonomy.js";
+import { createAiRoomLedger } from "./market/elite/aiRoomLedger.js";
 import { isTradingDay, lastCompletedSessionDate, vnDate } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
@@ -358,7 +359,11 @@ function getResearchSession() {
 const researchUser = async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization))?.userId ?? null;
 let researchRoom = null;
 let researchAutonomy;
+// ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — ghi từ vòng nền, chấm theo giá điều chỉnh so với VN-Index (kho đã có, không gọi ra ngoài).
+let aiRoomLedger;
+const getAiRoomLedger = () => (aiRoomLedger ??= createAiRoomLedger({ store: getMarketRuntime().store, adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses }));
 const getResearchAutonomy = () => (researchAutonomy ??= createResearchAutonomy({
+  ledger: getAiRoomLedger(),
   store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), session: getResearchSession,
   capture: (ticker, date) => getResearchRoom().capture(ticker, date),
   configured: () => getCatalystChat().config().providers,
@@ -500,6 +505,7 @@ const getEliteImpact = () => (eliteImpact ??= createImpactProfile({ sources: {
 } }));
 app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoom, verifyUser: researchUser, getSession: getResearchSession,
   precomputed: (ticker) => getResearchAutonomy().read(ticker),
+  ledger: getAiRoomLedger,
   observation: async (ticker) => {
     if (typeof ticker !== "string" || !/^[A-Z][A-Z0-9]{2}$/.test(ticker)) throw Object.assign(new Error("Mã không hợp lệ."), { statusCode: 400 });
     const status = await getResearchSession();
@@ -591,7 +597,7 @@ if (process.env.NODE_ENV !== "test") {
   };
   const rt = getMarketRuntime();
   const refreshRoom = () => rt.started && getResearchAutonomy().tick().catch((e) => console.warn("[ai-room] " + e.message));
-  rt.jobs.publishEliteDecision = async () => { await eliteTick(); void refreshRoom(); };
+  rt.jobs.publishEliteDecision = async () => { await eliteTick(); void refreshRoom(); void getAiRoomLedger().score(); };
   const eliteTagged = () => rt.scheduler.run("publishEliteDecision").catch((e) => console.warn("[elite] " + e.message));
   setTimeout(refreshRoom, 5_000).unref?.();
   setInterval(refreshRoom, 30_000).unref?.();

@@ -11,7 +11,7 @@ import {
 } from "./types";
 import { cleanLine, frontmatter, type YamlValue } from "./yaml";
 
-export const JUDGE_INPUT_MAX = 6000; // = JUDGE_MAX trong EliteAiRoom.tsx (trọng tài nhận tối đa 6.000 ký tự mỗi phe)
+export const JUDGE_INPUT_MAX = 740; // = JUDGE_MAX trong EliteAiRoom.tsx (26/11/2026: giới hạn Gateway 2.000 ký tự -> trọng tài chế độ nhanh đọc tối đa 740 ký tự mỗi phe)
 const DISCLAIMER = "> Tham khảo định lượng — không phải khuyến nghị đầu tư. AI chỉ giải thích và phản biện số liệu từ công cụ.";
 const PROVIDER_VI = { claude: "Claude", gemini: "Gemini" } as const;
 

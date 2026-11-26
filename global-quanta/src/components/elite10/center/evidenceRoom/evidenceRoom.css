@@ -210,9 +210,10 @@ body:has(.eb-reference-page) {
 }
 
 /* The surrounding Radar can resize the workspace without resizing the browser. */
+/* 26/11/2026: 2 cột — khối "Các lớp xác nhận" (trước ở bên phải) đứng ở vị trí khối trái đã gỡ; cột giữa giữ nguyên. */
 @container evidence-room (min-width: 640px) {
-  .eb-live-room .layout { grid-template-columns: clamp(172px, 25%, 220px) minmax(0, 1fr); }
-  .eb-live-room .right-panel { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .eb-live-room .layout { grid-template-columns: clamp(236px, 36%, 272px) minmax(0, 1fr); }
+  .eb-live-room .right-panel { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
   .eb-live-room .canvas-viewport { height: 405px; }
 }
 @container evidence-room (min-width: 860px) {
@@ -221,15 +222,16 @@ body:has(.eb-reference-page) {
   .eb-live-room .snapshot-meta { justify-content: flex-end; }
 }
 @container evidence-room (min-width: 940px) {
-  .eb-live-room .layout { grid-template-columns: 182px minmax(0, 1fr) 215px; }
+  .eb-live-room .layout { grid-template-columns: 272px minmax(0, 1fr); }
   .eb-live-room .right-panel { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
+  .eb-live-room .eb-context-rail { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: thin; }
 }
 @container evidence-room (min-width: 940px) and (max-width: 1179px) {
   .eb-live-room .parallel .funnel-step { grid-template-columns: 18px minmax(0, 1fr); gap: 3px 5px; padding-inline: 5px; }
   .eb-live-room .parallel .funnel-count { grid-column: 2; justify-self: end; }
 }
 @container evidence-room (min-width: 1180px) {
-  .eb-live-room .layout { grid-template-columns: 236px minmax(0, 1fr) 282px; }
+  .eb-live-room .layout { grid-template-columns: 300px minmax(0, 1fr); }
   .eb-live-room .canvas-viewport { height: 427px; }
 }
 .eb-room-page .center-column { min-width: 0; }
@@ -342,3 +344,11 @@ body:has(.eb-reference-page) {
     grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;
   }
 }
+
+/* Khối Các lớp xác nhận ở bên trái: huy hiệu tình trạng nguồn bấm được; phễu và tình trạng snapshot trong hộp thoại. */
+.eb-live-room .eb-context-rail .section-head { align-items: flex-start; gap: 8px; }
+.eb-live-room .eb-health-badge { cursor: pointer; flex-shrink: 0; min-height: 24px; }
+.eb-live-room .eb-health-badge:hover { filter: brightness(1.15); }
+.eb-room-page .eb-funnel-dialog { margin: 10px 0 4px; }
+.eb-room-page .eb-funnel-dialog .funnel-step { cursor: default; }
+.eb-room-page .eb-health { margin: 8px 0 10px; }
