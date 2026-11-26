@@ -12,6 +12,7 @@ import { hlScores } from "./confluence.js";
 import { annotatePz, PZ_GATE } from "./hlWatch.js";
 import { liquiditySeries, liquidityStats, lqPublicRules } from "./liquidity.js";
 import { PX_R1, PX_RULES, PX_VERSION } from "./dilution.js";
+import { isPhantomSessionRow } from "../calendar.js";
 
 export const DECISION_KV = { index: "elite:decision:index", decision: (d) => `elite:decision:${d}`, ledger: "elite:ledger", flowLedger: "elite:ledger:flow" };
 // E4-HL: sổ chính thức chấm cả danh mục chưa đủ 10 mã (phần còn lại là tiền mặt) — chỉ cần ≥ 1 vị thế có giá.
@@ -46,7 +47,13 @@ export function createDecisionService({ store, panel, evidence, vnIndex, session
   let building = null;
   const kv = async (key) => { try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; } };
 
+  // 26/11/2026: bỏ "nến ma" ngày nghỉ (khối lượng/giá trị 0 ở ngày lịch không có phiên) trước mọi số đo σ20, GTGD, lợi suất.
   async function loadPrices(symbols, to) {
+    const m = await loadPricesRaw(symbols, to);
+    for (const [t, rows] of m) m.set(t, rows.filter((r) => !isPhantomSessionRow(r)));
+    return m;
+  }
+  async function loadPricesRaw(symbols, to) {
     // 13/11/2026: σ20, GTGD và lợi suất chấm sổ phải tính trên giá ĐIỀU CHỈNH CỘNG DỒN — close_adj của market_daily còn nguyên bước
     // nhảy ở ngày giao dịch không hưởng quyền (một vị thế chia cổ phiếu 20% sẽ bị chấm −17%). Nguồn lỗi -> lùi về close_adj.
     if (adjustedCloses) {
