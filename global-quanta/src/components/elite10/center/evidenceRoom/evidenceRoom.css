@@ -495,3 +495,27 @@ body:has(.eb-reference-page) {
 .eb-edges-v2 .eb-edge.feed.muted .eb-edge-line { opacity: .16; stroke-dasharray: 2 6; filter: none; }
 .eb-edges-v2 .eb-edge.feed.muted .eb-port { opacity: .25; }
 .eb-edges-v2 .eb-edge.feed.lit .eb-edge-line { opacity: .95; stroke-width: 2; }
+/* 27/11/2026 — Timeline đồng bộ v2: khung giá / khối lượng tách riêng, ba mức setup, thẻ chi tiết */
+.eb-timeline-v2 .eb-axis-price { font-size: 8.5px; fill: #7f93ad; }
+.eb-timeline-v2 .eb-pane-sep { stroke: #52657d; stroke-opacity: .35; }
+.eb-timeline-v2 .price-line { stroke-width: 2; filter: drop-shadow(0 0 3px #61d8e966); }
+.eb-timeline-v2 .eb-last-dot { fill: #61d8e9; stroke: #0a111b; stroke-width: 1.5; filter: drop-shadow(0 0 4px #61d8e9); }
+.eb-timeline-v2 .eb-focus-dot { fill: #eef4ff; stroke: #61d8e9; stroke-width: 1.5; pointer-events: none; }
+.eb-timeline-v2 .volume-bar { opacity: .82; }
+.eb-timeline-v2 .eb-vol-up { fill: #2fa882; }
+.eb-timeline-v2 .eb-vol-down { fill: #c75a6c; }
+.eb-timeline-v2 .eb-vol-flat { fill: #3686a0; }
+.eb-timeline-v2 .eb-vol-trigger { fill: #47d6a0; opacity: 1; }
+.eb-timeline-v2 .eb-vol-trigger-pending { fill: #f3a95f; opacity: 1; }
+.eb-timeline-v2 .eb-vol-event { stroke: #f3a95f; stroke-width: 1.2; }
+.eb-timeline-v2 .eb-vol-avg { stroke: #c9a45c; stroke-dasharray: 4 4; stroke-opacity: .8; }
+.eb-timeline-v2 .eb-level-entry { stroke: #47d6a0; stroke-dasharray: 6 4; stroke-opacity: .9; }
+.eb-timeline-v2 .eb-level-target { stroke: #52d7e8; stroke-dasharray: 2 4; stroke-opacity: .9; }
+.eb-timeline-v2 .eb-level-entry-label { fill: #66ddb0; }
+.eb-timeline-v2 .eb-level-target-label { fill: #7fe3ef; }
+.eb-timeline-v2 .invalidation-line-label { fill: #ff9aaa; }
+.eb-timeline-v2 .eb-trigger-pending { stroke: #f3a95f; }
+.eb-timeline-v2 .eb-chart-tip rect { fill: #0b1320f2; stroke: #52d7e866; filter: drop-shadow(0 6px 14px #000c); }
+.eb-timeline-v2 .eb-tip-head { fill: #eef4ff; font: 700 9px ui-sans-serif, system-ui; }
+.eb-timeline-v2 .eb-tip-row { fill: #a9bad0; font: 9px ui-sans-serif, system-ui; }
+.eb-timeline-v2 :is(.eb-level-entry-label, .eb-level-target-label, .invalidation-line-label, .chart-tag) { paint-order: stroke; stroke: #0a111b; stroke-width: 3px; stroke-linejoin: round; }
