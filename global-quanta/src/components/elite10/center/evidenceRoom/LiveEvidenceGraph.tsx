@@ -20,8 +20,8 @@ export interface RoomNode {
   muted?: boolean;
 }
 
-type Relation = "support" | "risk" | "context" | "ai" | "flow";
-type Edge = { from: NodeId; to: NodeId; relation: Relation; preliminary?: boolean };
+type Relation = "support" | "risk" | "context" | "ai" | "flow" | "feed";
+type Edge = { from: NodeId; to: NodeId; relation: Relation; preliminary?: boolean; muted?: boolean };
 const nodeStyle: Record<NodeId, string> = {
   snapshot: "root", bull: "bull", bear: "bear", decision: "evidence", events: "catalyst", priceAction: "evidence", volume: "evidence", seasonal: "evidence", judge: "judge",
 };
@@ -35,6 +35,7 @@ const domainNode: Partial<Record<EvidenceRef["domain"], NodeId>> = {
 const relationLabel: Record<Relation, string> = {
   support: "AI dẫn nguồn để hỗ trợ", risk: "AI dẫn nguồn để phản biện", context: "Snapshot chứa bằng chứng của nguồn", ai: "Trọng tài dẫn nguồn",
   flow: "Luồng phiên: snapshot được giao cho hai phe AI (không phải trích dẫn)",
+  feed: "Luồng phiên: nguồn được đưa vào trọng tài (chưa được trích dẫn)",
 };
 
 export function graphEdges(refs: EvidenceRef[], claims: ValidatedClaim[]): Edge[] {
@@ -132,7 +133,13 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
   const bounds = { x, y: titleY, width: Math.max(...visible.map((b) => b.x + b.width)) - x, height: Math.max(...visible.map((b) => b.y + b.height)) - titleY };
   const evidence = graphEdges(refs, claims).filter((edge) => boxes.has(edge.from) && boxes.has(edge.to));
   const flow: Edge[] = (["bull", "bear"] as NodeId[]).filter((id) => boxes.has(id) && boxes.has("snapshot")).map((to) => ({ from: "snapshot", to, relation: "flow" }));
-  const edges = [...flow, ...evidence];
+  // 27/11/2026 — 5 nguồn → Phán quyết: nguồn đã được trọng tài trích dẫn giữ cạnh bằng chứng (tím, sáng); nguồn chưa được trích dẫn có
+  // đường "đưa vào trọng tài" (luồng phiên, sáng dịu, xung chậm); nguồn không có dữ liệu cho mã -> đường mờ, không xung.
+  const cited = new Set(evidence.filter((e) => e.to === "judge").map((e) => e.from));
+  const mutedIds = new Set(nodes.filter((n) => n.muted).map((n) => n.id));
+  const feed: Edge[] = boxes.has("judge") ? SOURCE_IDS.filter((id) => boxes.has(id) && !cited.has(id))
+    .map((from) => ({ from, to: "judge" as NodeId, relation: "feed" as Relation, muted: mutedIds.has(from) })) : [];
+  const edges = [...flow, ...feed, ...evidence];
   const lit = hover ?? focus;
   const select = (id: NodeId) => { setFocus(id); onSelect(id); };
   const colX: Record<string, number> = { snapshot: COL.snapshot[0], bull: COL.ai[0], source: COL.source[0], judge: COL.judge[0] };
@@ -152,11 +159,11 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
           const dim = Boolean(lit && !active);
           const lane = edge.relation === "support" ? -4 : edge.relation === "risk" ? 4 : 0;
           const p = pathBetween(boxes.get(edge.from)!, boxes.get(edge.to)!, lane);
-          const cls = `eb-edge ${edge.relation}${active ? " lit" : ""}${dim ? " dim" : ""}${edge.preliminary ? " prelim" : ""}`;
+          const cls = `eb-edge ${edge.relation}${active ? " lit" : ""}${dim ? " dim" : ""}${edge.preliminary ? " prelim" : ""}${edge.muted ? " muted" : ""}`;
           return <g key={`${edge.from}:${edge.to}:${edge.relation}`} className={cls} data-edge={`${edge.from}>${edge.to}`}>
             <path className="eb-edge-halo" d={p.d} />
             <path className="eb-edge-line" d={p.d} filter="url(#eb-glow)"><title>{relationLabel[edge.relation]}{edge.preliminary ? " · chỉ kiểm tra cấu trúc" : ""}</title></path>
-            {edge.relation !== "flow" && <path className="eb-edge-pulse" d={p.d} pathLength={100} />}
+            {edge.relation !== "flow" && !edge.muted && <path className="eb-edge-pulse" d={p.d} pathLength={100} />}
             <circle className="eb-port" cx={p.x0} cy={p.y0} r={2.4} />
             <circle className="eb-port" cx={p.x1} cy={p.y1} r={2.4} />
           </g>;
