@@ -28,11 +28,11 @@ type Turn = { role: "user"; text: string } | AssistantTurn;
 type Mode = ChatProvider | "compare";
 
 const MODES: { id: Mode; label: string; title: string }[] = [
-  { id: "claude", label: "Claude", title: "Claude Opus 5.5 — gọi công cụ, suy luận sâu" },
+  { id: "claude", label: "GPT", title: "GPT (mô hình chính, Claude dự phòng) — gọi công cụ, suy luận sâu" },
   { id: "gemini", label: "Gemini", title: "Gemini — gọi công cụ (function calling), cùng bộ công cụ & kiểm tra con số" },
-  { id: "compare", label: "So sánh 2 mô hình", title: "Hỏi cả Claude và Gemini cùng lúc, hiện cạnh nhau (tính 2 câu vào hạn mức)" },
+  { id: "compare", label: "So sánh 2 mô hình", title: "Hỏi cả GPT và Gemini cùng lúc, hiện cạnh nhau (tính 2 câu vào hạn mức)" },
 ];
-const PROVIDER_VI: Record<ChatProvider, string> = { claude: "Claude", gemini: "Gemini" };
+const PROVIDER_VI: Record<ChatProvider, string> = { claude: "GPT", gemini: "Gemini" };
 
 export const SUGGESTIONS = [
   "Ngành nào thuận gió / ngược gió phiên tới? Lợi thế lớn cỡ nào?",

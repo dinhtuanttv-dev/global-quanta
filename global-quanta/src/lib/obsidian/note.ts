@@ -13,7 +13,7 @@ import { cleanLine, frontmatter, type YamlValue } from "./yaml";
 
 export const JUDGE_INPUT_MAX = 740; // = JUDGE_MAX trong EliteAiRoom.tsx (26/11/2026: giới hạn Gateway 2.000 ký tự -> trọng tài chế độ nhanh đọc tối đa 740 ký tự mỗi phe)
 const DISCLAIMER = "> Tham khảo định lượng — không phải khuyến nghị đầu tư. AI chỉ giải thích và phản biện số liệu từ công cụ.";
-const PROVIDER_VI = { claude: "Claude", gemini: "Gemini" } as const;
+const PROVIDER_VI = { claude: "GPT", gemini: "Gemini" } as const;
 
 // ---------------------------------------------------------------- thời gian (giờ Việt Nam, +07:00)
 const pad = (n: number) => String(n).padStart(2, "0");

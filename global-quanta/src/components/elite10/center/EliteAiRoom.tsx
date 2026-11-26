@@ -246,7 +246,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
-          <span className="text-[10px] text-slate-500">Claude phe mua · Gemini phe bán · Claude trọng tài — tính 3 câu vào hạn mức hỏi đáp</span>
+          <span className="text-[10px] text-slate-500">GPT phe mua · Gemini phe bán · GPT trọng tài (Claude dự phòng) — tính 3 câu vào hạn mức hỏi đáp</span>
           <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} extra={(() => {
             if (!reviewSnapshot) return [];
             const exportedClaims = [...(bullClaims?.claims ?? []), ...(bearClaims?.claims ?? []), ...(judgeClaims?.claims ?? [])];
@@ -265,13 +265,13 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
         </div>
         {(bull || bear) && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <div className="min-w-0 rounded-md border border-emerald-400/20 bg-emerald-500/[0.03] p-2">{bull && <LaneView t={bull} showHeader headerLabel="Phe mua · Claude" />}</div>
+            <div className="min-w-0 rounded-md border border-emerald-400/20 bg-emerald-500/[0.03] p-2">{bull && <LaneView t={bull} showHeader headerLabel="Phe mua · GPT" />}</div>
             <div className="min-w-0 rounded-md border border-rose-400/20 bg-rose-500/[0.03] p-2">{bear && <LaneView t={bear} showHeader headerLabel="Phe bán · Gemini" />}</div>
           </div>
         )}
         {phase === "judging" && !judge?.text && <p className="text-[11px] italic text-slate-400"><Gavel className="mr-1 inline h-3 w-3" />Trọng tài đang kiểm chứng hai lập luận…</p>}
         <p className="text-[10.5px] text-amber-100" data-testid="elite-quick-judge-note">Chế độ nhanh: trọng tài chỉ đọc tối đa {JUDGE_MAX} ký tự đầu của mỗi phe (giới hạn Gateway). Dùng “Kiểm chứng &amp; tranh luận” với snapshot khoá để kiểm chứng đầy đủ.</p>
-        {judge && <div className="rounded-md border border-amber-400/30 bg-amber-500/[0.04] p-2" data-testid="elite-judge"><LaneView t={judge} showHeader headerLabel="Trọng tài · Claude" /></div>}
+        {judge && <div className="rounded-md border border-amber-400/30 bg-amber-500/[0.04] p-2" data-testid="elite-judge"><LaneView t={judge} showHeader headerLabel="Trọng tài · GPT" /></div>}
         <p className="text-[10px] text-slate-500">Mỗi bên chỉ được dùng số liệu từ công cụ; con số không truy được tới công cụ sẽ bị đánh dấu. Trọng tài gọi lại công cụ để kiểm chứng thay vì tin lời hai bên.</p>
       </section>
 
@@ -286,7 +286,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
                 <Newspaper className="h-3 w-3" />{brief ? "Viết lại bản tin" : "Tạo bản tin phiên"}
               </button>}
         </div>
-        {brief ? <LaneView t={brief} showHeader headerLabel="Bản tin · Claude" /> : <p className="text-[11px] text-slate-500">Claude tổng hợp bối cảnh, danh mục, tín hiệu có trọng số, rủi ro và nhãn bằng chứng của phiên mới nhất — chỉ chạy khi bấm.</p>}
+        {brief ? <LaneView t={brief} showHeader headerLabel="Bản tin · GPT" /> : <p className="text-[11px] text-slate-500">GPT tổng hợp bối cảnh, danh mục, tín hiệu có trọng số, rủi ro và nhãn bằng chứng của phiên mới nhất — chỉ chạy khi bấm.</p>}
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3">

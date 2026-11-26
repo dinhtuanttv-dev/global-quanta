@@ -18,7 +18,7 @@ function retryAfterMs(error) {
 
 function providerFailure(error) {
   const status = error?.status ?? error?.statusCode;
-  if (status === 402 || /credit balance is too low|insufficient[_ ](?:credits|quota)|billing hard limit/i.test(error?.message ?? "")) return "BILLING";
+  if (status === 402 || error?.billing || /credit balance is too low|insufficient[_ ](?:credits|quota)|billing hard limit|no credits remaining/i.test(error?.message ?? "")) return "BILLING";
   if (status === 401 || status === 403) return "AUTH";
   return status === 429 ? "RATE_LIMIT" : null;
 }
