@@ -16,7 +16,10 @@ export interface PriceActionEvidence {
   venue: string | null;
   barClosed: boolean | null;
   confirmed: boolean;
-  setup: { id?: string; kind: string; stateDate: string; entryReference: number | null; invalidationLevel: number | null; target: number | null } | null;
+  setup: { id?: string; kind: string; stateDate: string; entryReference: number | null; invalidationLevel: number | null; target: number | null;
+    /** pa-book-2: mẫu hình, trạng thái, tỷ lệ lời/lỗ (cổng ≥ 1,5 của sách) và khối lượng ở phiên kích hoạt. */
+    patternId?: string; state?: string; rewardRisk?: number | null; rewardRiskOk?: boolean | null;
+    volume?: { patternRvol: number | null; triggerRvol: number | null; upDownRatio: number | null; confirmed: boolean | null } } | null;
   patterns: string[];
   blockers: string[];
   source: string;
