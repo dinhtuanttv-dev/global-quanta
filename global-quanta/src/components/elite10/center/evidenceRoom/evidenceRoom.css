@@ -447,3 +447,6 @@ body:has(.eb-reference-page) {
   .eb-room-page .eb-dos-grid { grid-template-columns: 1fr; }
   .eb-room-page .eb-dos-table td:nth-child(3), .eb-room-page .eb-dos-table th:nth-child(3) { display: none; }
 }
+/* 27/11/2026 — nút không có dữ liệu cho mã đang xem (VD không có cửa sổ mùa vụ) */
+.eb-room-page .eb-live-node.eb-node-muted { opacity: .62; border-style: dashed; }
+.eb-room-page .eb-live-node.eb-node-muted:hover, .eb-room-page .eb-live-node.eb-node-muted[aria-current="true"] { opacity: 1; }

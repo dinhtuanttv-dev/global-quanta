@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { EvidenceRef, ValidatedClaim } from "../../../../lib/evidenceBrain/types";
 import { GraphViewport, type Box } from "./roomView";
 
-export type NodeId = "snapshot" | "bull" | "bear" | "decision" | "events" | "priceAction" | "volume" | "judge";
+export type NodeId = "snapshot" | "bull" | "bear" | "decision" | "events" | "priceAction" | "volume" | "seasonal" | "judge";
 export type Tone = "good" | "warn" | "neutral" | "bad";
 export interface RoomNode {
   id: NodeId;
@@ -12,16 +12,18 @@ export interface RoomNode {
   title: string;
   meta?: string;
   ref?: string;
+  /** Nút không có dữ liệu cho mã đang xem (VD không có cửa sổ mùa vụ) — hiển thị mờ, vẫn bấm được. */
+  muted?: boolean;
 }
 
 type Relation = "support" | "risk" | "context" | "ai";
 type Edge = { from: NodeId; to: NodeId; relation: Relation; preliminary?: boolean };
 const nodeStyle: Record<NodeId, string> = {
-  snapshot: "root", bull: "bull", bear: "bear", decision: "evidence", events: "catalyst", priceAction: "evidence", volume: "evidence", judge: "judge",
+  snapshot: "root", bull: "bull", bear: "bear", decision: "evidence", events: "catalyst", priceAction: "evidence", volume: "evidence", seasonal: "evidence", judge: "judge",
 };
 const position: Record<NodeId, [number, number, number]> = {
   snapshot: [137, 184, 138], bull: [348, 66, 150], bear: [348, 270, 150],
-  decision: [568, 42, 150], events: [568, 133, 150], priceAction: [568, 224, 150], volume: [568, 315, 150], judge: [730, 183, 188],
+  decision: [568, 42, 150], events: [568, 133, 150], priceAction: [568, 224, 150], volume: [568, 315, 150], seasonal: [568, 406, 150], judge: [730, 183, 188],
 };
 const domainNode: Partial<Record<EvidenceRef["domain"], NodeId>> = {
   decision: "decision", catalyst: "events", price_action: "priceAction", volume: "volume",
@@ -31,7 +33,8 @@ const relationLabel: Record<Relation, string> = {
 };
 
 export function graphEdges(refs: EvidenceRef[], claims: ValidatedClaim[]): Edge[] {
-  const refGroups = new Map(refs.map((ref) => [ref.id, domainNode[ref.domain]]));
+  // 27/11/2026: bằng chứng mùa vụ (catalyst · timing.*) có nút riêng "Mùa vụ · Timeline", không gộp vào Event Radar.
+  const refGroups = new Map(refs.map((ref) => [ref.id, ref.domain === "catalyst" && ref.fieldPath.startsWith("timing.") ? "seasonal" as NodeId : domainNode[ref.domain]]));
   const edges = new Map<string, Edge>();
   const add = (edge: Edge) => {
     const key = `${edge.from}|${edge.to}|${edge.relation}`;
@@ -118,7 +121,7 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
       </svg>
       {nodes.map((node) => {
         const box = boxes.get(node.id)!;
-        return <button key={node.id} type="button" data-eb-node={node.id} className={`node eb-live-node ${nodeStyle[node.id]}`}
+        return <button key={node.id} type="button" data-eb-node={node.id} className={`node eb-live-node ${nodeStyle[node.id]}${node.muted ? " eb-node-muted" : ""}`}
           aria-current={focus === node.id || undefined} style={{ left: box.x, top: box.y, width: box.width }}
           onClick={() => select(node.id)}>
           <span className="node-label"><span>{node.label}</span><span className={`mini-badge ${node.tone === "bad" ? "red" : node.tone === "warn" ? "warn" : node.tone === "neutral" ? "eb-badge-neutral" : ""}`}>{node.badge}</span></span>

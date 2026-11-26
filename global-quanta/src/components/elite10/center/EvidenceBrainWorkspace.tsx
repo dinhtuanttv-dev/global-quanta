@@ -12,7 +12,7 @@ import { LaneView } from "../../MainTabs/ChatXucTac/CatalystChatPanel";
 import { buildEvidenceSnapshot, matchingTimingRow, sourceReadiness, type PriceActionEvidence } from "../../../lib/evidenceBrain/snapshot";
 import { closedResearchChart } from "../../../lib/evidenceBrain/priceObservation";
 import type { ClaimParseResult, EvidenceRef, EvidenceSnapshot } from "../../../lib/evidenceBrain/types";
-import { PRIMARY_VI, type PrimaryState } from "../../../lib/elite10/cockpit";
+import { PRIMARY_VI, PZ_VI, type PrimaryState } from "../../../lib/elite10/cockpit";
 import { evaluateConfirmation, eventKey, formatObservation, revisionKnownAt, sourceManifest, visibleRevision, withoutCatalyst,
   type ResearchData as Data, type ResearchProjection as Projection, type ResearchRun } from "../../../lib/evidenceBrain/research";
 import type { ObsidianDesk } from "./obsidian/useObsidianDesk";
@@ -349,7 +349,8 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const graphNode = (id: NodeId, index: number, label: string, refPath: string): RoomNode => ({
     id, label, badge: layers[index].status, tone: layers[index].tone, title: layers[index].detail,
     meta: sources.find((source) => source.key === sourceFor[id])?.asOf ? `As-of ${dateVi(sources.find((source) => source.key === sourceFor[id])?.asOf, true)}` : undefined,
-    ref: snap?.refs.find((ref) => ref.domain === refDomain[id] && ref.fieldPath.includes(refPath))?.fieldPath,
+    // timing.* (mùa vụ) có nút riêng — không để "event" khớp nhầm timing.eventDate cho nút Event Radar.
+    ref: snap?.refs.find((ref) => ref.domain === refDomain[id] && ref.fieldPath.includes(refPath) && !ref.fieldPath.startsWith("timing."))?.fieldPath,
   });
   const aiNode = (id: keyof typeof roleTitle): RoomNode => {
     const lane = roles[id], bundle = bundles[id];
@@ -363,11 +364,43 @@ export default function EvidenceBrainWorkspace(props: Props) {
       title: bundle?.claims[0]?.text ?? (lane?.text && !lane.done ? "Đang nhận nội dung" : lane?.text ? "Mở nội dung diễn giải" : "Chờ kiểm chứng"),
       meta: "Diễn giải AI" };
   };
+  // 27/11/2026 (phương án A) — nút cổng gốc "Tư cách Elite HL": vị thế CÙNG PHIÊN (hạng, ngăn, tỷ trọng, lãi/lỗ từ phiên khoá, vị trí giá,
+  // khoảng cách tới ngưỡng bán) thay cho "Danh mục · lõi" lặp lại danh sách bên trái. Vai trò không đổi: lớp xác nhận đầu tiên của Phòng họp.
+  const signedPct = (x: number | null | undefined) => (x == null || !Number.isFinite(x) ? "—" : `${x > 0 ? "+" : x < 0 ? "−" : ""}${numberVi(Math.abs(x * 100), 1)}%`);
+  const laneVi = { CORE: "Lõi", RUNNER: "Chạy lãi", WAIT: "Chờ nền" } as const;
+  const decisionNode = (): RoomNode => {
+    const base = graphNode("decision", 0, "Tư cách Elite HL", "funnel");
+    if (snap?.funnel.frozen) return { ...base, badge: "DATA GUARD", tone: "bad", title: snap.funnel.frozenReasons[0] ?? "Bảng quyết định đang bị chốt dữ liệu" };
+    if (hlPick) {
+      const h = hlPick.hl;
+      return { ...base, badge: "ĐANG GIỮ", tone: h.warnings?.length ? "warn" : "good",
+        title: `#${h.rank} · ${h.pz?.lane ? laneVi[h.pz.lane] : "Giữ"} · tỷ trọng ${numberVi(hlPick.weight * 100, 1)}% · ${signedPct(h.sinceRet)} từ phiên khoá`,
+        meta: [h.pz ? PZ_VI[h.pz.state] : null, h.exitBufferLs != null ? `cách ngưỡng bán ${numberVi(h.exitBufferLs, 0)} điểm LS` : null,
+          h.warnings?.length ? `${h.warnings.length} cảnh báo` : null].filter(Boolean).join(" · ") || base.meta };
+    }
+    if (hlQueue) return { ...base, badge: "HÀNG CHỜ", tone: "neutral", title: `#${hlQueue.hlRank} trong hàng chờ Elite HL`, meta: hlQueue.reasonVi };
+    if (!ticker) return { ...base, badge: "DANH MỤC", title: `Danh mục Elite HL · ${decision.data?.portfolio?.length ?? "—"} mã` };
+    return { ...base, badge: layers[0].tone === "bad" ? "CHẶN" : base.badge };
+  };
+  // Nút "Mùa vụ · Timeline": cửa sổ mùa vụ của mã (đọc /api/elite/buy-timing, KHÔNG đụng tệp Timeline bị khoá F0). Luôn là BỐI CẢNH —
+  // không phải lớp xác nhận (MV2 / prereg-v2 KHÔNG ĐẠT; chỉ vài mã "đã kiểm định").
+  const timingCount = ticker ? (timing.data?.rows ?? []).filter((row) => row.ticker.toUpperCase() === ticker).length : 0;
+  const tm = data.timing;
+  const seasonalNode: RoomNode = !ticker
+    ? { id: "seasonal", label: "Mùa vụ · Timeline", badge: "CHỌN MÃ", tone: "neutral", title: "Chọn một mã để xem cửa sổ mùa vụ", muted: true }
+    : !tm
+      ? { id: "seasonal", label: "Mùa vụ · Timeline", badge: "KHÔNG CÓ", tone: "neutral", title: "Không có cửa sổ mùa vụ cho mã này", meta: "Bối cảnh · không phải điều kiện xác nhận", muted: true }
+      : { id: "seasonal", label: "Mùa vụ · Timeline",
+        badge: tm.status === "IN_WINDOW" ? "TRONG CỬA SỔ" : tm.status === "UPCOMING" ? "SẮP TỚI" : "ĐÃ QUA",
+        tone: tm.tier === "VALIDATED" && tm.status === "IN_WINDOW" ? "good" : "neutral",
+        title: `${tm.windowLabel} · ${dateVi(tm.entryFromDate)} → ${dateVi(tm.entryToDate, true)}`,
+        meta: `${tm.tier === "VALIDATED" ? "Đã kiểm định" : "Gần đạt"} · kỳ vọng ròng ${numberVi(tm.netExpectancy * 100, 2)}% (cận dưới ${numberVi(tm.netExpectancyLcb * 100, 2)}%) · n ${tm.nEvents} · q ${numberVi(tm.fdrQValue, 2)}${timingCount > 1 ? ` · +${timingCount - 1} cửa sổ khác` : ""}`,
+        ref: snap?.refs.find((ref) => ref.fieldPath.startsWith("timing."))?.fieldPath };
   const nodes: RoomNode[] = [
     { id: "snapshot", label: "Snapshot", badge: excluded ? "MÔ PHỎNG" : replay ? "ĐÃ LƯU" : locked ? "LOCKED" : snap?.completeness ?? "ĐANG TẢI", tone: locked ? "good" : "neutral",
       title: `${ticker ?? "Danh mục"} · ${dateVi(snap?.decisionSession ?? decisionDay, true)}`, meta: `${briefId(snap)} · ${sources.length} nguồn` },
-    aiNode("bull"), aiNode("bear"), graphNode("decision", 0, "Funnel · engine", "funnel"), graphNode("events", 3, "Event Radar", "event"),
-    graphNode("priceAction", 1, "Price Action", "setup"), graphNode("volume", 2, "Volume", "rvol"), aiNode("judge"),
+    aiNode("bull"), aiNode("bear"), decisionNode(), graphNode("events", 3, "Event Radar", "event"),
+    graphNode("priceAction", 1, "Price Action", "setup"), graphNode("volume", 2, "Volume", "rvol"), seasonalNode, aiNode("judge"),
   ];
   const quote = data.volume?.today;
   const bars = data.price?.bars ?? [];
