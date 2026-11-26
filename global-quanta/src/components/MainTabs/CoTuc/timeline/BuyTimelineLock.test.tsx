@@ -17,7 +17,9 @@ import { BuyTimelineTab } from "./BuyTimelineTab";
 
 const LOCKED: Record<string, string> = {
   "src/components/MainTabs/CoTuc/timeline/BuyTimelineTab.tsx": "a170a75f632579b59ee1928873b6c36ef4788b6a115bdaf2005280786108e613",
-  "src/hooks/useBuyTimeline.ts": "1811a9e59eedcc290d49ccdd2b4db6a3ac0d1b4d0a429304712469a6326fdcfa",
+  // 27/11/2026 — mở khoá hẹp theo quyết định của chủ dự án: chỉ thêm nguồn dự phòng Gateway (/api/cotuc-store/buy-timeline) khi Project A lỗi.
+  // Giao diện, logic, bộ kiểm dữ liệu (parseBuyTimeline) và bản chụp hiển thị KHÔNG đổi. Mã băm cũ: 1811a9e5…6326fdcfa.
+  "src/hooks/useBuyTimeline.ts": "65394137f3dd91568f54d1d64eedcfce8e8129ada98987d877733538eede0aaa",
   "src/lib/cotuc/buy-timeline.ts": "dcbbd44037b0dacd5e83feb547c059cd69f84b98ead151633b6fb3354c814a7d",
   "src/lib/cotuc/format.ts": "a22b96e994684fc11250d87f061c9e8ed961554139020ec55888159718f551ea",
   "src/hooks/useCotucDecision.ts": "f021f24033ad1338b75147b5d445d141c5d9467b4734ba6cf1d94269db680bbc",
