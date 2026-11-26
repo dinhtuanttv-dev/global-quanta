@@ -1,3 +1,7 @@
+// 27/11/2026 — Evidence Brain v2: bố cục cân theo dòng chảy (Snapshot → Tranh luận AI → Nguồn & engine → Phán quyết), mọi khối căn
+// giữa theo cột nguồn đo thật; đường nối phát sáng theo loại quan hệ, có "xung sáng" chạy dọc đường theo hướng dữ liệu (tắt khi người dùng
+// chọn giảm chuyển động); chọn / rê một khối làm sáng các đường của khối đó, mờ phần còn lại. Logic bằng chứng (graphEdges) không đổi;
+// đường "luồng phiên" (Snapshot → hai phe AI) chỉ là cấu trúc phiên, KHÔNG phải trích dẫn, vẽ khác hẳn và ghi rõ trong chú thích.
 import { useLayoutEffect, useRef, useState } from "react";
 import type { EvidenceRef, ValidatedClaim } from "../../../../lib/evidenceBrain/types";
 import { GraphViewport, type Box } from "./roomView";
@@ -16,20 +20,21 @@ export interface RoomNode {
   muted?: boolean;
 }
 
-type Relation = "support" | "risk" | "context" | "ai";
+type Relation = "support" | "risk" | "context" | "ai" | "flow";
 type Edge = { from: NodeId; to: NodeId; relation: Relation; preliminary?: boolean };
 const nodeStyle: Record<NodeId, string> = {
   snapshot: "root", bull: "bull", bear: "bear", decision: "evidence", events: "catalyst", priceAction: "evidence", volume: "evidence", seasonal: "evidence", judge: "judge",
 };
-const position: Record<NodeId, [number, number, number]> = {
-  snapshot: [137, 184, 138], bull: [348, 66, 150], bear: [348, 270, 150],
-  decision: [568, 42, 150], events: [568, 133, 150], priceAction: [568, 224, 150], volume: [568, 315, 150], seasonal: [568, 406, 150], judge: [730, 183, 188],
-};
+const SOURCE_IDS: NodeId[] = ["decision", "events", "priceAction", "volume", "seasonal"];
+/** Cột: x trái, độ rộng. Cột nguồn xếp chồng; các cột còn lại căn giữa theo chiều cao THẬT của cột nguồn. */
+const COL = { snapshot: [24, 140], ai: [232, 158], source: [454, 176], judge: [708, 188] } as const;
+const GAP = 10;
 const domainNode: Partial<Record<EvidenceRef["domain"], NodeId>> = {
   decision: "decision", catalyst: "events", price_action: "priceAction", volume: "volume",
 };
 const relationLabel: Record<Relation, string> = {
-  support: "AI dẫn nguồn để hỗ trợ", risk: "AI dẫn nguồn để phản biện", context: "Cùng snapshot hoặc có dẫn chiếu", ai: "Trọng tài dẫn nguồn",
+  support: "AI dẫn nguồn để hỗ trợ", risk: "AI dẫn nguồn để phản biện", context: "Snapshot chứa bằng chứng của nguồn", ai: "Trọng tài dẫn nguồn",
+  flow: "Luồng phiên: snapshot được giao cho hai phe AI (không phải trích dẫn)",
 };
 
 export function graphEdges(refs: EvidenceRef[], claims: ValidatedClaim[]): Edge[] {
@@ -61,14 +66,42 @@ export function graphEdges(refs: EvidenceRef[], claims: ValidatedClaim[]): Edge[
   return [...edges.values()];
 }
 
+/** Bố cục theo cột; cột nguồn xếp chồng theo chiều cao đo được, các khối khác căn theo tâm cột nguồn. */
+export function layoutBoxes(nodes: Pick<RoomNode, "id">[], heights: Partial<Record<NodeId, number>>): Map<NodeId, Box> {
+  const h = (id: NodeId) => heights[id] || 78;
+  const boxes = new Map<NodeId, Box>();
+  const ids = new Set(nodes.map((n) => n.id));
+  let y = 0;
+  for (const id of SOURCE_IDS) {
+    if (!ids.has(id)) continue;
+    boxes.set(id, { x: COL.source[0], y, width: COL.source[1], height: h(id) });
+    y += h(id) + GAP;
+  }
+  const total = y > 0 ? y - GAP : 300;
+  const mid = total / 2;
+  const spread = Math.max(64, total * 0.2);
+  const place = (id: NodeId, [x, width]: readonly [number, number], center: number) => {
+    if (ids.has(id)) boxes.set(id, { x, y: center - h(id) / 2, width, height: h(id) });
+  };
+  place("snapshot", COL.snapshot, mid);
+  place("bull", COL.ai, mid - spread);
+  place("bear", COL.ai, mid + spread);
+  place("judge", COL.judge, mid);
+  return boxes;
+}
+
 function pathBetween(a: Box, b: Box, lane: number) {
   const x0 = a.x + a.width;
   const x1 = b.x;
   const y0 = a.y + a.height / 2 + lane;
   const y1 = b.y + b.height / 2 + lane;
-  const bend = Math.min(64, (x1 - x0) * .6);
-  return `M${x0} ${y0} C${x0 + bend} ${y0} ${x1 - bend} ${y1} ${x1} ${y1}`;
+  const bend = Math.max(28, Math.min(92, (x1 - x0) * .55));
+  return { d: `M${x0} ${y0} C${x0 + bend} ${y0} ${x1 - bend} ${y1} ${x1} ${y1}`, x0, y0, x1, y1 };
 }
+
+const COLUMN_TITLES: { id: NodeId | "source"; text: string }[] = [
+  { id: "snapshot", text: "Snapshot" }, { id: "bull", text: "Tranh luận AI" }, { id: "source", text: "Nguồn & engine" }, { id: "judge", text: "Phán quyết" },
+];
 
 export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
   nodes: RoomNode[]; refs: EvidenceRef[]; claims: ValidatedClaim[]; onSelect: (id: NodeId) => void;
@@ -76,6 +109,7 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
   const ref = useRef<HTMLDivElement>(null);
   const [heights, setHeights] = useState<Partial<Record<NodeId, number>>>({});
   const [focus, setFocus] = useState<NodeId | null>(null);
+  const [hover, setHover] = useState<NodeId | null>(null);
   useLayoutEffect(() => {
     const cards = ref.current?.querySelectorAll<HTMLElement>("[data-eb-node]");
     if (!cards) return;
@@ -90,40 +124,52 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
     return () => observer.disconnect();
   }, [nodes.map(({ id }) => id).join("|")]);
 
-  const boxes = new Map<NodeId, Box>();
-  let sourceBottom = 0;
-  for (const node of nodes) {
-    const [x, anchorY, width] = position[node.id];
-    const stacked = x === 568;
-    const height = heights[node.id] || 78;
-    const y = stacked ? Math.max(anchorY, sourceBottom + 9) : anchorY;
-    boxes.set(node.id, { x, y, width, height });
-    if (stacked) sourceBottom = y + height;
-  }
+  const boxes = layoutBoxes(nodes, heights);
   const visible = [...boxes.values()];
+  const top = Math.min(...visible.map((b) => b.y));
+  const titleY = top - 26;
   const x = Math.min(...visible.map((b) => b.x));
-  const y = Math.min(...visible.map((b) => b.y));
-  const bounds = { x, y, width: Math.max(...visible.map((b) => b.x + b.width)) - x, height: Math.max(...visible.map((b) => b.y + b.height)) - y };
-  const edges = graphEdges(refs, claims).filter((edge) => boxes.has(edge.from) && boxes.has(edge.to));
+  const bounds = { x, y: titleY, width: Math.max(...visible.map((b) => b.x + b.width)) - x, height: Math.max(...visible.map((b) => b.y + b.height)) - titleY };
+  const evidence = graphEdges(refs, claims).filter((edge) => boxes.has(edge.from) && boxes.has(edge.to));
+  const flow: Edge[] = (["bull", "bear"] as NodeId[]).filter((id) => boxes.has(id) && boxes.has("snapshot")).map((to) => ({ from: "snapshot", to, relation: "flow" }));
+  const edges = [...flow, ...evidence];
+  const lit = hover ?? focus;
   const select = (id: NodeId) => { setFocus(id); onSelect(id); };
-  return <GraphViewport bounds={bounds} visibleCount={nodes.length} edgeCount={edges.length}
-    world={<div className="canvas-world" ref={ref}>
-      <svg className="edges" viewBox="0 0 920 430" aria-hidden="true">
+  const colX: Record<string, number> = { snapshot: COL.snapshot[0], bull: COL.ai[0], source: COL.source[0], judge: COL.judge[0] };
+  return <GraphViewport bounds={bounds} visibleCount={nodes.length} edgeCount={evidence.length}
+    world={<div className="canvas-world eb-graph-v2" ref={ref}>
+      {COLUMN_TITLES.filter((c) => c.id === "source" ? SOURCE_IDS.some((id) => boxes.has(id)) : boxes.has(c.id as NodeId)).map((c) =>
+        <span key={c.id} className="eb-col-title" style={{ left: colX[c.id], top: titleY }} aria-hidden="true">{c.text}</span>)}
+      <svg className="edges eb-edges-v2" viewBox="0 0 920 430" aria-hidden="true">
+        <defs>
+          <filter id="eb-glow" x="-20%" y="-50%" width="140%" height="200%">
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
         {edges.map((edge) => {
-          const inactive = focus && edge.from !== focus && edge.to !== focus;
+          const active = Boolean(lit && (edge.from === lit || edge.to === lit));
+          const dim = Boolean(lit && !active);
           const lane = edge.relation === "support" ? -4 : edge.relation === "risk" ? 4 : 0;
-          return <path key={`${edge.from}:${edge.to}:${edge.relation}`} className={`edge ${edge.relation}`}
-            style={{ opacity: inactive ? .18 : undefined, strokeDasharray: edge.preliminary ? "3 5" : undefined }}
-            d={pathBetween(boxes.get(edge.from)!, boxes.get(edge.to)!, lane)}>
-            <title>{relationLabel[edge.relation]}{edge.preliminary ? " · chỉ kiểm tra cấu trúc" : ""}</title>
-          </path>;
+          const p = pathBetween(boxes.get(edge.from)!, boxes.get(edge.to)!, lane);
+          const cls = `eb-edge ${edge.relation}${active ? " lit" : ""}${dim ? " dim" : ""}${edge.preliminary ? " prelim" : ""}`;
+          return <g key={`${edge.from}:${edge.to}:${edge.relation}`} className={cls} data-edge={`${edge.from}>${edge.to}`}>
+            <path className="eb-edge-halo" d={p.d} />
+            <path className="eb-edge-line" d={p.d} filter="url(#eb-glow)"><title>{relationLabel[edge.relation]}{edge.preliminary ? " · chỉ kiểm tra cấu trúc" : ""}</title></path>
+            {edge.relation !== "flow" && <path className="eb-edge-pulse" d={p.d} pathLength={100} />}
+            <circle className="eb-port" cx={p.x0} cy={p.y0} r={2.4} />
+            <circle className="eb-port" cx={p.x1} cy={p.y1} r={2.4} />
+          </g>;
         })}
       </svg>
       {nodes.map((node) => {
         const box = boxes.get(node.id)!;
-        return <button key={node.id} type="button" data-eb-node={node.id} className={`node eb-live-node ${nodeStyle[node.id]}${node.muted ? " eb-node-muted" : ""}`}
+        const running = /ĐANG CHẠY/.test(node.badge);
+        return <button key={node.id} type="button" data-eb-node={node.id}
+          className={`node eb-live-node ${nodeStyle[node.id]} tone-${node.tone}${node.muted ? " eb-node-muted" : ""}${running ? " eb-node-running" : ""}${lit === node.id ? " eb-node-lit" : ""}`}
           aria-current={focus === node.id || undefined} style={{ left: box.x, top: box.y, width: box.width }}
-          onClick={() => select(node.id)}>
+          onClick={() => select(node.id)} onMouseEnter={() => setHover(node.id)} onMouseLeave={() => setHover(null)}
+          onFocus={() => setHover(node.id)} onBlur={() => setHover(null)}>
           <span className="node-label"><span>{node.label}</span><span className={`mini-badge ${node.tone === "bad" ? "red" : node.tone === "warn" ? "warn" : node.tone === "neutral" ? "eb-badge-neutral" : ""}`}>{node.badge}</span></span>
           <span className="node-title">{node.title}</span>
           {node.meta && <span className="node-meta">{node.meta}</span>}
@@ -134,6 +180,6 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
     details={<details className="eb-graph-list">
       <summary>Danh sách nút và liên kết</summary>
       <ul>{nodes.map((node) => <li key={node.id}><button type="button" className="small-link" onClick={() => select(node.id)}>{node.label} · {node.badge}</button> {node.title}</li>)}</ul>
-      <ul>{edges.map((edge) => <li key={`${edge.from}:${edge.to}:${edge.relation}`}>{nodes.find((node) => node.id === edge.from)?.label} → {nodes.find((node) => node.id === edge.to)?.label} · {relationLabel[edge.relation]}</li>)}</ul>
+      <ul>{evidence.map((edge) => <li key={`${edge.from}:${edge.to}:${edge.relation}`}>{nodes.find((node) => node.id === edge.from)?.label} → {nodes.find((node) => node.id === edge.to)?.label} · {relationLabel[edge.relation]}</li>)}</ul>
     </details>} />;
 }

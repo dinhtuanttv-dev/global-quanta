@@ -25,3 +25,25 @@ describe("Evidence Brain · nút Mùa vụ", () => {
     expect(matchingTimingRow(tl([row("UPCOMING", "2027-01-22")]), "AAS")).toBeNull();
   });
 });
+
+import { layoutBoxes } from "./LiveEvidenceGraph";
+describe("Evidence Brain v2 · bố cục cân theo cột nguồn", () => {
+  it("Snapshot và Trọng tài nằm đúng tâm cột nguồn; hai phe AI đối xứng qua tâm; cột nguồn xếp chồng không chồng lấn", () => {
+    const ids = ["snapshot", "bull", "bear", "decision", "events", "priceAction", "volume", "seasonal", "judge"] as const;
+    const heights = { decision: 92, events: 80, priceAction: 86, volume: 78, seasonal: 96, snapshot: 64, bull: 70, bear: 70, judge: 72 };
+    const b = layoutBoxes(ids.map((id) => ({ id })), heights);
+    const src = ["decision", "events", "priceAction", "volume", "seasonal"].map((id) => b.get(id as never)!);
+    for (let i = 1; i < src.length; i++) expect(src[i].y).toBeGreaterThanOrEqual(src[i - 1].y + src[i - 1].height);
+    const mid = (src[src.length - 1].y + src[src.length - 1].height) / 2;
+    const center = (id: string) => b.get(id as never)!.y + b.get(id as never)!.height / 2;
+    expect(center("snapshot")).toBeCloseTo(mid, 5);
+    expect(center("judge")).toBeCloseTo(mid, 5);
+    expect(mid - center("bull")).toBeCloseTo(center("bear") - mid, 5);
+    expect(b.get("snapshot")!.x + b.get("snapshot")!.width).toBeLessThan(b.get("bull")!.x);
+    expect(b.get("decision")!.x + b.get("decision")!.width).toBeLessThan(b.get("judge")!.x);
+  });
+  it("thiếu nút mùa vụ (Canvas phản chứng) vẫn bố cục được", () => {
+    const b = layoutBoxes([{ id: "snapshot" }, { id: "decision" }, { id: "judge" }], {});
+    expect(b.size).toBe(3);
+  });
+});
