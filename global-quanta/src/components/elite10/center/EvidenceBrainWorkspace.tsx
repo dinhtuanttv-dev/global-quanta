@@ -25,6 +25,9 @@ import { lockResearchSnapshot, usePublishedReview, useResearchSession } from "..
 import { dateVi, DetailDialog, numberVi, sessionDay, WorkspaceFrame } from "./evidenceRoom/roomView";
 import AiBrainCard from "./AiBrainCard";
 import PortfolioRail from "./evidenceRoom/PortfolioRail";
+import SnapshotDossier, { DomainBlock, QualityBlock, ReadableRefs } from "./evidenceRoom/SnapshotDossier";
+import { buildDossier, type DomainId } from "./evidenceRoom/dossierModel";
+import { hlPicks } from "../../../lib/elite10/decisionTypes";
 
 const ScenarioCanvas = lazy(() => import("./evidenceRoom/ScenarioCanvas"));
 
@@ -72,13 +75,7 @@ function externalLink(raw: string | null) {
 }
 
 function RefRows({ refs }: { refs: EvidenceRef[] }) {
-  return <>{refs.map((ref) => <article key={ref.id}>
-    <p><b>{ref.fieldPath}</b> · {ref.status} / {ref.freshness}</p>
-    <p className="eb-source-label">{ref.source} · đến {dateVi(ref.asOf, true)}{ref.unit ? ` · ${ref.unit}` : ""} · {ref.sourceVersion ?? ref.methodVersion ?? "chưa có phiên bản"}</p>
-    <pre>{JSON.stringify(ref.value, null, 2)}</pre>
-    {ref.limitation && <p className="eb-claim-check">{ref.limitation}</p>}
-    {externalLink(ref.url) && <a href={externalLink(ref.url)!} target="_blank" rel="noreferrer">Mở nguồn ↗</a>}
-  </article>)}</>;
+  return <ReadableRefs refs={refs} link={externalLink} />;
 }
 
 // 26/11/2026: khối trái "Context rail" đã gỡ khỏi bố cục theo yêu cầu chủ dự án. Phễu 7 bước chuyển vào hộp thoại "Tư cách phễu";
@@ -343,6 +340,12 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const state = snap?.funnel.membership.state;
   const held = state === "PORTFOLIO_CORE" || state === "PORTFOLIO_RUNNER";
   const funnelStep = held ? 7 : confirmation?.checks.some((check) => check.id === "decision" && check.state === "PASS") ? 5 : null;
+  // Hồ sơ phân tích: vị thế / hàng chờ chỉ lấy từ Bảng quyết định CÙNG PHIÊN với snapshot (bản đã khoá của phiên cũ không mượn số phiên mới).
+  const sameSession = Boolean(decision.data && snap && sessionDay(decision.data.date) === sessionDay(snap.decisionSession));
+  const hlPick = sameSession && ticker ? hlPicks(decision.data).find((p) => p.ticker.toUpperCase() === ticker) ?? null : null;
+  const hlQueue = sameSession && ticker && !hlPick ? decision.data?.hl?.queue.find((q) => q.ticker.toUpperCase() === ticker) ?? null : null;
+  const dossier = snap ? buildDossier({ snap, data, confirmation, pick: hlPick, queue: hlQueue, official: officialPublication }) : null;
+  const openDomain = (id: DomainId) => setDetail(id);
   const graphNode = (id: NodeId, index: number, label: string, refPath: string): RoomNode => ({
     id, label, badge: layers[index].status, tone: layers[index].tone, title: layers[index].detail,
     meta: sources.find((source) => source.key === sourceFor[id])?.asOf ? `As-of ${dateVi(sources.find((source) => source.key === sourceFor[id])?.asOf, true)}` : undefined,
@@ -451,6 +454,11 @@ export default function EvidenceBrainWorkspace(props: Props) {
     reloadSources();
     void session.mutate();
   };
+  const sourceKeys: Partial<Record<DomainId, string[]>> = { decision: ["decision"], priceAction: ["priceAction"], volume: ["volume"], liquidity: ["liquidity"], events: ["events"], seasonal: ["timeline"], risk: ["risk"] };
+  const card = (id: DomainId) => {
+    const found = dossier?.domains.find((d) => d.id === id);
+    return found ? <><DomainBlock card={found} />{dossier && sourceKeys[id] && <QualityBlock quality={dossier.quality} keys={sourceKeys[id]} />}</> : null;
+  };
   function renderDetail(id: Detail): { title: string; content: ReactNode } {
     if (id === "ticker") return { title: "Chọn mã phân tích", content: <form onSubmit={submitTicker}>
       <label htmlFor="elite-debate-subject">Mã cổ phiếu</label>
@@ -468,18 +476,24 @@ export default function EvidenceBrainWorkspace(props: Props) {
         <RefRows refs={snap?.refs.filter((ref) => ref.domain === "catalyst" && ref.fieldPath.startsWith(`events.${event.eventId}.`) && ref.sourceVersion === String(event.revision)) ?? []} />
       </> };
     }
-    if (id === "snapshot" || id === "sources") return { title: id === "snapshot" ? "Snapshot bằng chứng" : "Nguồn của snapshot", content: <>
+    if (id === "snapshot" || id === "sources") {
+      const technical = <>
       <p>{snap?.snapshotId ?? "Đang lập snapshot"}</p><p>Phiên {dateVi(snap?.decisionSession, true)} · {snap?.completeness ?? "chưa có trạng thái"}</p>
       <SnapshotHealth snap={snap} />
       {snap && <p>Mốc trình duyệt quan sát {formatObservation.format(new Date(snap.createdAt))}{replay ? ` · Bản lưu ${replay.id}` : ""}</p>}
       {!locked && !excluded && session.data && <p>Phiên kỳ vọng {dateVi(session.data.expectedClosedSession, true)} · Kho ngày {dateVi(session.data.marketDailySession, true)} · Siêu Quét {dateVi(session.data.scannerSession, true)} · Bảng quyết định {dateVi(session.data.decisionSession, true)}{session.data.eod ? ` · Nến đúng phiên ${session.data.eod.confirmed}/${session.data.eod.expected}` : ""}</p>}
       {!locked && !excluded && session.error && <p>Chưa đọc được tiến độ công bố phiên từ Gateway.</p>}
-      <button type="button" className="small-link" onClick={retry}>{requested ? "Thử tải lại nguồn" : "Nạp dữ liệu kiểm chứng"}</button>
-      {hasPinned && <button type="button" className="small-link" onClick={() => setSeeLatest((v) => !v)}>{locked ? "Xem snapshot mới nhất" : "Xem snapshot đã kiểm chứng"}</button>}
       {sources.map((s) => <article key={s.key}><p><b>{s.label}</b> · {stateLabel[s.state]} · {dateVi(s.asOf, true)}</p><p>{s.endpoint} · {s.version ?? "—"}</p>
         {(s.error || s.warnings.length > 0) && <p className="eb-claim-check">{[s.error, ...s.warnings].filter(Boolean).join(" · ")}</p>}</article>)}
       <RefRows refs={snap?.refs.filter((ref) => ref.domain === "ledger" || ref.domain === "risk" || ref.domain === "profile") ?? []} />
-    </> };
+    </>;
+      const actions = <div className="eb-dos-actions"><button type="button" className="small-link" onClick={retry}>{requested ? "Thử tải lại nguồn" : "Nạp dữ liệu kiểm chứng"}</button>{hasPinned && <button type="button" className="small-link" onClick={() => setSeeLatest((v) => !v)}>{locked ? "Xem snapshot mới nhất" : "Xem snapshot đã kiểm chứng"}</button>}</div>;
+      return { title: id === "snapshot" ? "Snapshot bằng chứng" : "Nguồn của snapshot", content: <>
+        {actions}
+        {!dossier ? <>{technical}</> : id === "snapshot" ? <SnapshotDossier dossier={dossier} onOpen={openDomain} technical={technical} />
+          : <><QualityBlock quality={dossier.quality} /><details className="eb-dos-tech" open><summary>Chi tiết kỹ thuật</summary>{technical}</details></>}
+      </> };
+    }
     if (id === "bull" || id === "bear" || id === "judge") return { title: roleTitle[id], content: <>
       <p>Snapshot {briefId(snap)} · {ticker ?? "Danh mục"}</p>
       {roles[id] ? <div className="tw-scope"><LaneView t={roles[id]!} showHeader headerLabel={roleTitle[id]} /></div>
@@ -491,17 +505,17 @@ export default function EvidenceBrainWorkspace(props: Props) {
         <RefRows refs={snap?.refs.filter((ref) => [...claim.refs, ...claim.supports, ...claim.invalidates].includes(ref.id)) ?? []} /></article>)}
     </> };
     if (id === "events") return { title: "Tin & xúc tác liên quan", content: <>
-      <p>{layers[3].status} · {ticker ?? "Chọn mã để tải tin"}</p>
+      {card("events") ?? <p>{layers[3].status} · {ticker ?? "Chọn mã để tải tin"}</p>}
       {data.events.map((event) => <article key={event.eventId}><button type="button" className="small-link" onClick={() => setDetail({ event })}>{event.title}</button><p>{event.sourceLabel} · {event.verificationStatus} · {dateVi(event.firstSeenAt, true)} {clock(event.firstSeenAt)}</p></article>)}
     </> };
     const refs = snap?.refs.filter((ref) => id === "liquidity" ? ref.fieldPath === "liquidity" : id === "seasonal" ? ref.fieldPath.startsWith("timing.") : id === "risk" ? ref.domain === "risk" : ref.domain === refDomain[id]) ?? [];
     const layer = layers.find((item) => item.id === id);
     return { title: layer?.label ?? "Chi tiết nguồn", content: <>
-      <p>{layer?.status} · {layer?.detail}</p>
+      {(typeof id === "string" && card(id as DomainId)) || <><p>{layer?.status} · {layer?.detail}</p>
+        {confirmation?.checks.filter((check) => check.id === id).map((check) => <p key={check.id}>{check.reason}</p>)}</>}
       {id === "decision" && <FunnelSteps snap={snap} current={funnelStep} />}
-      {confirmation?.checks.filter((check) => check.id === id).map((check) => <p key={check.id}>{check.reason}</p>)}
-      {id === "seasonal" && data.timing && <p>{data.timing.windowLabel} · {data.timing.entryFromDate} → {data.timing.entryToDate} · kỳ vọng ròng {numberVi(data.timing.netExpectancy * 100)}% · FDR q {numberVi(data.timing.fdrQValue, 3)}</p>}
-      {id === "priceAction" && data.pa?.setup && <p>Phiên {dateVi(data.pa.setup.stateDate, true)} · Trigger {numberVi(data.pa.setup.entryReference)} · Vô hiệu {numberVi(data.pa.setup.invalidationLevel)} · {data.pa.priceBasis ?? "chưa rõ cơ sở giá"}</p>}
+      {id === "seasonal" && !dossier?.domains.some((d) => d.id === "seasonal") && data.timing && <p>{data.timing.windowLabel} · {data.timing.entryFromDate} → {data.timing.entryToDate} · kỳ vọng ròng {numberVi(data.timing.netExpectancy * 100)}% · FDR q {numberVi(data.timing.fdrQValue, 3)}</p>}
+      {id === "priceAction" && !dossier?.domains.some((d) => d.id === "priceAction") && data.pa?.setup && <p>Phiên {dateVi(data.pa.setup.stateDate, true)} · Trigger {numberVi(data.pa.setup.entryReference)} · Vô hiệu {numberVi(data.pa.setup.invalidationLevel)} · {data.pa.priceBasis ?? "chưa rõ cơ sở giá"}</p>}
       {id === "priceAction" && data.price?.warnings?.map((warning) => <p className="eb-claim-check" key={warning}>{warning}</p>)}
       {id === "volume" && !locked && !excluded && <button type="button" className="small-link" onClick={() => setWantVolumeDetail(true)} disabled={fullVolume.isLoading}>
         {fullVolume.isLoading ? "Đang tải nến phút…" : "Tải phân tích nến phút"}

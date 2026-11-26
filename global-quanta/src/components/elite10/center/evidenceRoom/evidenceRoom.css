@@ -390,3 +390,60 @@ body:has(.eb-reference-page) {
   .eb-live-room .eb-research-graph > .canvas-panel > .canvas-viewport { flex: 1 1 auto; height: auto; min-height: 427px; }
   .eb-live-room .center-column > .timeline { flex: 0 0 auto; }
 }
+
+/* 26/11/2026 — Hồ sơ phân tích của Snapshot bằng chứng / các lớp xác nhận */
+.eb-room-page .eb-dialog:has(.eb-dos) { width: min(920px, calc(100% - 24px)); max-height: 90vh; }
+.eb-room-page .eb-dos { display: grid; gap: 12px; }
+.eb-room-page .eb-dos h3 { font-size: 12px; color: var(--text); margin: 0 0 6px; }
+.eb-room-page .eb-dos h3 small { color: var(--muted); font-weight: 400; font-size: 11px; margin-left: 6px; }
+.eb-room-page .eb-dos-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+.eb-room-page .eb-dos-verdict { padding: 12px 14px; border: 1px solid var(--line-strong); border-left: 4px solid var(--muted); border-radius: 8px; background: var(--surface); }
+.eb-room-page .eb-dos-verdict > strong { display: block; font-size: 17px; letter-spacing: .02em; margin: 4px 0; }
+.eb-room-page .eb-dos-verdict.tone-good { border-left-color: var(--green); } .eb-room-page .eb-dos-verdict.tone-good > strong { color: var(--green); }
+.eb-room-page .eb-dos-verdict.tone-warn { border-left-color: var(--amber); } .eb-room-page .eb-dos-verdict.tone-warn > strong { color: var(--amber); }
+.eb-room-page .eb-dos-verdict.tone-bad { border-left-color: var(--red); } .eb-room-page .eb-dos-verdict.tone-bad > strong { color: var(--red); }
+.eb-room-page .eb-dos-verdict.tone-neutral > strong { color: var(--cyan); }
+.eb-room-page .eb-dos-score { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 11px; }
+.eb-room-page .eb-dos-score > span { padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); }
+.eb-room-page .eb-dos-score .eb-dos-of { border: 0; color: var(--muted); }
+.eb-room-page .eb-dos .tone-good { --tone: var(--green); } .eb-room-page .eb-dos .tone-warn { --tone: var(--amber); }
+.eb-room-page .eb-dos .tone-bad { --tone: var(--red); } .eb-room-page .eb-dos .tone-neutral { --tone: var(--muted); }
+.eb-room-page .eb-dialog .tone-good { --tone: var(--green); } .eb-room-page .eb-dialog .tone-warn { --tone: var(--amber); }
+.eb-room-page .eb-dialog .tone-bad { --tone: var(--red); } .eb-room-page .eb-dialog .tone-neutral { --tone: var(--muted); }
+.eb-room-page .eb-dos-score > span:not(.eb-dos-of) { color: var(--tone); }
+.eb-room-page .eb-dos-triggers { padding: 10px 12px; border: 1px dashed var(--line-strong); border-radius: 8px; }
+.eb-room-page .eb-dos-triggers ol, .eb-room-page .eb-dos-change ul { margin: 0; padding-left: 18px; }
+.eb-room-page .eb-dos-triggers li, .eb-room-page .eb-dos-change li { font-size: 12px; line-height: 1.5; }
+.eb-room-page .eb-dos-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.eb-room-page .eb-dialog .eb-dos-card { padding: 10px 12px; border: 1px solid var(--line); border-top: 3px solid var(--tone); border-radius: 8px; background: var(--surface); margin-top: 0; }
+.eb-room-page .eb-dialog > .eb-dos-card, .eb-room-page .eb-dialog > .eb-dos-quality { margin-top: 10px; }
+.eb-room-page .eb-dos-card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.eb-room-page .eb-dos-card header h3 { margin: 0; }
+.eb-room-page .eb-dos-state { font-size: 10px; font-weight: 700; letter-spacing: .04em; color: var(--tone); border: 1px solid var(--tone); border-radius: 4px; padding: 1px 6px; white-space: nowrap; }
+.eb-room-page .eb-dialog p.eb-dos-read { color: var(--text); margin: 4px 0 8px; }
+.eb-room-page .eb-dos-facts { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; }
+.eb-room-page .eb-dos-facts > div { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.eb-room-page .eb-dos-facts dt { color: var(--muted); }
+.eb-room-page .eb-dos-facts dd { margin: 0; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.eb-room-page .eb-dos-facts > div.tone-good dd, .eb-room-page .eb-dos-facts > div.tone-bad dd, .eb-room-page .eb-dos-facts > div.tone-warn dd { color: var(--tone); }
+.eb-room-page .eb-dos-facts dd small { color: var(--muted); font-size: 11px; }
+.eb-room-page .eb-dos-facts.compact > div { font-size: 11px; padding: 3px 0; }
+.eb-room-page .eb-dos-change { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.eb-room-page .eb-dos-change b { display: block; font-size: 11px; color: var(--gold); margin-bottom: 2px; }
+.eb-room-page .eb-dos-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.eb-room-page .eb-dos-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line-strong); }
+.eb-room-page .eb-dos-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.eb-room-page .eb-dos-table td:nth-child(2) { color: var(--tone); white-space: nowrap; }
+.eb-room-page .eb-dos-table td:nth-child(3) { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.eb-room-page .eb-dos-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--tone); margin-right: 6px; }
+.eb-room-page .eb-dos-note { display: block; color: var(--amber); font-size: 11px; margin-top: 2px; }
+.eb-room-page .eb-dos-issues { margin: 8px 0 0; padding-left: 18px; }
+.eb-room-page .eb-dos-issues li { font-size: 11px; color: var(--amber); }
+.eb-room-page .eb-dos-tech summary, .eb-room-page .eb-dos-ref summary { cursor: pointer; color: var(--cyan); font-size: 12px; }
+.eb-room-page .eb-dos-tech[open] > summary { margin-bottom: 6px; }
+.eb-room-page .eb-dos-refs { margin-top: 10px; }
+.eb-room-page .eb-dos-val { color: var(--gold); font-variant-numeric: tabular-nums; }
+@media (max-width: 520px) {
+  .eb-room-page .eb-dos-grid { grid-template-columns: 1fr; }
+  .eb-room-page .eb-dos-table td:nth-child(3), .eb-room-page .eb-dos-table th:nth-child(3) { display: none; }
+}
