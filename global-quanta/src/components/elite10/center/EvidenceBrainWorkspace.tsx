@@ -79,47 +79,50 @@ function RefRows({ refs }: { refs: EvidenceRef[] }) {
   </article>)}</>;
 }
 
-function FunnelRail({ snap, current, onOpen, onStep }: {
-  snap?: EvidenceSnapshot; current: number | null; onOpen: () => void; onStep: () => void;
-}) {
+// 26/11/2026: khối trái "Context rail" đã gỡ khỏi bố cục theo yêu cầu chủ dự án. Phễu 7 bước chuyển vào hộp thoại "Tư cách phễu";
+// "Snapshot health" chuyển vào hộp thoại "Nguồn của snapshot" và huy hiệu ở đầu khối Các lớp xác nhận — không mất thông tin.
+function FunnelSteps({ snap, current }: { snap?: EvidenceSnapshot; current: number | null }) {
+  const step = (i: number) => {
+    const item = snap?.funnel.steps.find((s) => s.index === i);
+    const fallback = ["Bảng tín hiệu", "Giao dịch được", "Đạt tầng 1", "Hợp lưu", "Hợp lưu giao dịch được", "Vùng mua PZ", "Danh mục"];
+    return <div className={`funnel-step ${i === current ? "active" : ""}`} aria-current={i === current ? "step" : undefined}>
+      <span className="num">{i}</span><span><span className="funnel-name">{item?.label ?? fallback[i - 1]}</span><span className="funnel-rule">{stepHints[i - 1]}</span></span>
+      <span className="funnel-count">{item?.displayOnly ? "DISPLAY" : item?.count ?? "—"}</span>
+    </div>;
+  };
+  return <div className="funnel eb-funnel-dialog" aria-label={`Phễu ${snap?.portfolioKind === "ELITE_FLOW" ? "Elite" : "Elite HL"} của phiên`}>
+    {step(1)}<div className="parallel">{step(2)}{step(3)}<div className="parallel-note">Bước 2 và 3 được tính song song</div></div>
+    {step(4)}{step(5)}{step(6)}{step(7)}
+  </div>;
+}
+
+function SnapshotHealth({ snap }: { snap?: EvidenceSnapshot }) {
   const decision = snap?.sources.find((s) => s.key === "decision");
   const pa = snap?.sources.find((s) => s.key === "priceAction");
   const news = snap?.sources.find((s) => s.key === "events");
   const ledger = snap?.sources.find((s) => s.key === "ledger");
-  const step = (i: number) => {
-    const item = snap?.funnel.steps.find((s) => s.index === i);
-    const fallback = ["Bảng tín hiệu", "Giao dịch được", "Đạt tầng 1", "Hợp lưu", "Hợp lưu giao dịch được", "Vùng mua PZ", "Danh mục"];
-    return <button type="button" className={`funnel-step ${i === current ? "active" : ""}`} onClick={onStep}>
-      <span className="num">{i}</span><span><span className="funnel-name">{item?.label ?? fallback[i - 1]}</span><span className="funnel-rule">{stepHints[i - 1]}</span></span>
-      <span className="funnel-count">{item?.displayOnly ? "DISPLAY" : item?.count ?? "—"}</span>
-    </button>;
-  };
   const row = (label: string, value: string) => <div className="status-row"><span>{label}</span><strong>{value}</strong></div>;
-  return <aside className="panel panel-pad" aria-label="Trạng thái phễu và dữ liệu">
-    <div className="section-head"><div><div className="eyebrow">Context rail</div><h2 style={{ marginTop: 4 }}>Phễu {snap?.portfolioKind === "ELITE_FLOW" ? "Elite" : "Elite HL"}</h2></div><button type="button" className="small-link" onClick={onOpen}>Mở nguồn</button></div>
-    <div className="funnel">
-      {step(1)}<div className="parallel">{step(2)}{step(3)}<div className="parallel-note">Bước 2 và 3 được tính song song</div></div>
-      {step(4)}{step(5)}{step(6)}{step(7)}
-    </div>
-    <div style={{ height: 12 }} />
-    <div className="section-head"><h3>Snapshot health</h3><span className={`mini-badge ${snap?.completeness === "COMPLETE" ? "" : "warn"}`}>{snap?.completeness === "COMPLETE" ? "ĐỦ NGUỒN" : snap?.completeness ?? "CHỜ SNAPSHOT"}</span></div>
+  return <div className="eb-health" aria-label="Tình trạng snapshot">
     {row("Decision / rule version", decision?.asOf ? `${dateVi(decision.asOf)} · ${decision.version ?? "—"}` : "—")}
     {row("Hồ sơ / PA", pa?.asOf ? `${dateVi(pa.asOf)} · ${stateLabel[pa.state]}` : pa ? stateLabel[pa.state] : "—")}
     {row("Tin / catalyst", news ? stateLabel[news.state] : "—")}
     {row("Ledger", ledger?.version ?? (ledger ? stateLabel[ledger.state] : "—"))}
     {row("Snapshot", snap?.funnel.frozen ? "Data Guard · đóng băng" : snap ? "Đã lập" : "Đang tải")}
-  </aside>;
+  </div>;
 }
+const healthBadge = (snap?: EvidenceSnapshot) => snap?.completeness === "COMPLETE" ? "ĐỦ NGUỒN" : snap?.completeness ?? "CHỜ SNAPSHOT";
 
-function RightRail({ layers, title, description, blocker, events, newsState, onDetail }: {
+function RightRail({ layers, title, description, blocker, events, newsState, onDetail, snap }: {
   layers: Layer[]; title: string; description: string; blocker: string;
-  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void;
+  events: EventRadarEvent[]; newsState: string; onDetail: (id: Detail) => void; snap?: EvidenceSnapshot;
 }) {
   const headline = events[0];
   const badge = (tone: Tone) => tone === "good" ? "" : tone === "neutral" ? "neutral" : "wait";
-  return <aside className="right-panel">
+  return <aside className="right-panel eb-context-rail" aria-label="Các lớp xác nhận và tin liên quan">
     <section className="panel panel-pad">
-      <div className="section-head"><div><div className="eyebrow">Decision timing</div><h2 style={{ marginTop: 4 }}>Các lớp xác nhận</h2></div><span className="soft-label">theo snapshot</span></div>
+      <div className="section-head"><div><div className="eyebrow">Decision timing</div><h2 style={{ marginTop: 4 }}>Các lớp xác nhận</h2></div>
+        <button type="button" className={`mini-badge eb-health-badge ${snap?.completeness === "COMPLETE" ? "" : "warn"}`} onClick={() => onDetail("sources")}
+          aria-label={`Tình trạng nguồn: ${healthBadge(snap)} — mở chi tiết nguồn của snapshot`}>{healthBadge(snap)}</button></div>
       <div className="decision-card"><strong>{title}</strong><p>{description}</p></div>
       <div className="signal-list">{layers.map((layer) => <button type="button" key={layer.label} className="signal-line eb-signal-button" onClick={() => onDetail(layer.id)}>
         <span className={`signal-icon ${badge(layer.tone)}`} aria-hidden>{layer.tone === "good" ? "✓" : layer.tone === "neutral" ? "•" : "!"}</span>
@@ -462,6 +465,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     }
     if (id === "snapshot" || id === "sources") return { title: id === "snapshot" ? "Snapshot bằng chứng" : "Nguồn của snapshot", content: <>
       <p>{snap?.snapshotId ?? "Đang lập snapshot"}</p><p>Phiên {dateVi(snap?.decisionSession, true)} · {snap?.completeness ?? "chưa có trạng thái"}</p>
+      <SnapshotHealth snap={snap} />
       {snap && <p>Mốc trình duyệt quan sát {formatObservation.format(new Date(snap.createdAt))}{replay ? ` · Bản lưu ${replay.id}` : ""}</p>}
       {!locked && !excluded && session.data && <p>Phiên kỳ vọng {dateVi(session.data.expectedClosedSession, true)} · Kho ngày {dateVi(session.data.marketDailySession, true)} · Siêu Quét {dateVi(session.data.scannerSession, true)} · Bảng quyết định {dateVi(session.data.decisionSession, true)}{session.data.eod ? ` · Nến đúng phiên ${session.data.eod.confirmed}/${session.data.eod.expected}` : ""}</p>}
       {!locked && !excluded && session.error && <p>Chưa đọc được tiến độ công bố phiên từ Gateway.</p>}
@@ -489,6 +493,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
     const layer = layers.find((item) => item.id === id);
     return { title: layer?.label ?? "Chi tiết nguồn", content: <>
       <p>{layer?.status} · {layer?.detail}</p>
+      {id === "decision" && <FunnelSteps snap={snap} current={funnelStep} />}
       {confirmation?.checks.filter((check) => check.id === id).map((check) => <p key={check.id}>{check.reason}</p>)}
       {id === "seasonal" && data.timing && <p>{data.timing.windowLabel} · {data.timing.entryFromDate} → {data.timing.entryToDate} · kỳ vọng ròng {numberVi(data.timing.netExpectancy * 100)}% · FDR q {numberVi(data.timing.fdrQValue, 3)}</p>}
       {id === "priceAction" && data.pa?.setup && <p>Phiên {dateVi(data.pa.setup.stateDate, true)} · Trigger {numberVi(data.pa.setup.entryReference)} · Vô hiệu {numberVi(data.pa.setup.invalidationLevel)} · {data.pa.priceBasis ?? "chưa rõ cơ sở giá"}</p>}
@@ -515,7 +520,10 @@ export default function EvidenceBrainWorkspace(props: Props) {
   const next = confirmation?.reason ?? readiness?.blockers[0] ?? (concerns.length ? concerns.map((item) => item.label).join(" · ") : snap?.missing[0] ?? "Mở từng lớp để xem phạm vi và điều kiện xác nhận.");
   return <section data-testid="evidence-brain-workspace">
     {enabled && ticker && <PriceActionConfirmation key={ticker} ticker={ticker} onEvidence={onPriceAction} evidenceOnly />}
-    <WorkspaceFrame ticker={tickerBar} left={<FunnelRail snap={snap} current={funnelStep} onOpen={() => setDetail("sources")} onStep={() => setDetail("decision")} />}
+    <WorkspaceFrame ticker={tickerBar} left={<RightRail layers={layers} snap={snap}
+        title={confirmation ? confirmationLabel[confirmation.result].toUpperCase() : "ĐỐI CHIẾU CÁC LỚP"}
+        description={concerns.length ? concerns.map((layer) => `${layer.label}: ${layer.status.toLowerCase()}`).join(" · ") : "Các trạng thái dưới đây lấy theo nguồn của snapshot đang xem."}
+        blocker={next} events={data.events} newsState={layers[3].status} onDetail={setDetail} />}
       graph={<div className="eb-research-graph">
         <div className="eb-research-actions"><span>{excluded ? "Mô phỏng · Đã loại nguồn xúc tác" : showParent ? "Đang xem bản gốc của nhánh đã lưu" : replay ? "Đang xem bản đã lưu" : "Nguồn đang xem"}</span>
           <button type="button" className="meta-chip" onClick={() => setResearchView("scenario")} disabled={!account || !original?.data.events.length || Boolean(replay?.omittedCluster)}>Phản chứng</button>
@@ -525,10 +533,7 @@ export default function EvidenceBrainWorkspace(props: Props) {
         <LiveEvidenceGraph key={`graph:${ticker ?? "portfolio"}`} nodes={nodes} refs={snap?.refs ?? []} claims={claims} onSelect={setDetail} />
       </div>}
       timeline={<LiveTimeline key={`timeline:${ticker ?? "portfolio"}`} price={data.price} volume={data.volume} events={data.events} pa={data.pa} scenario={Boolean(excluded)} onEvent={(event) => setDetail({ event })} onPriceAction={() => setDetail("priceAction")} />}
-      right={<RightRail layers={layers}
-        title={confirmation ? confirmationLabel[confirmation.result].toUpperCase() : "ĐỐI CHIẾU CÁC LỚP"}
-        description={concerns.length ? concerns.map((layer) => `${layer.label}: ${layer.status.toLowerCase()}`).join(" · ") : "Các trạng thái dưới đây lấy theo nguồn của snapshot đang xem."}
-        blocker={next} events={data.events} newsState={layers[3].status} onDetail={setDetail} />}
+      right={null}
       footer={<p className="footer-note">Dữ liệu theo phiên và nguồn ghi trong snapshot. Luận điểm AI hỗ trợ kiểm chứng trước giao dịch.</p>} />
     {(captureError || message || buildError || readiness?.blockers.length) ? <div className="eb-status-line" role="status">
       {captureError || (buildError ? "Không lập được snapshot. " : message || readiness?.blockers[0])}
