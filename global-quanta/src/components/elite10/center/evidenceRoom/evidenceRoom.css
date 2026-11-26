@@ -224,7 +224,6 @@ body:has(.eb-reference-page) {
 @container evidence-room (min-width: 940px) {
   .eb-live-room .layout { grid-template-columns: 272px minmax(0, 1fr); }
   .eb-live-room .right-panel { grid-column: auto; grid-template-columns: minmax(0, 1fr); }
-  .eb-live-room .eb-context-rail { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: thin; }
 }
 @container evidence-room (min-width: 940px) and (max-width: 1179px) {
   .eb-live-room .parallel .funnel-step { grid-template-columns: 18px minmax(0, 1fr); gap: 3px 5px; padding-inline: 5px; }
@@ -378,3 +377,16 @@ body:has(.eb-reference-page) {
 .eb-room-page .eb-pf-queue { margin-top: 8px; display: grid; gap: 4px; }
 .eb-room-page .eb-pf-queue > .small-link { justify-self: start; font-size: 9px; }
 @media (pointer: coarse) { .eb-room-page .eb-pf-row { min-height: 44px; } }
+
+/* 26/11/2026 — Khung Evidence Brain dài xuống cho khớp chiều cao khối trái (khối trái dính, cao bằng màn hình): trên màn hình rộng, hàng
+   lưới kéo giãn, cột giữa là cột flex và khung vẽ lấp phần còn trống (không thấp hơn 427px như cũ). Khung vẽ tự đo lại kích thước
+   (ResizeObserver) nên đồ thị luôn được căn giữa. Dưới 640px giữ nguyên bố cục một cột. */
+@container evidence-room (min-width: 640px) {
+  .eb-live-room .eb-context-rail { position: sticky; top: 12px; align-self: start; max-height: calc(100vh - 24px); overflow-y: auto; scrollbar-width: thin; }
+  .eb-live-room .layout { align-items: stretch; }
+  .eb-live-room .center-column { display: flex; flex-direction: column; }
+  .eb-live-room .center-column > .eb-research-graph { flex: 1 1 auto; grid-template-rows: auto minmax(0, 1fr); }
+  .eb-live-room .eb-research-graph > .canvas-panel { display: flex; flex-direction: column; min-height: 0; }
+  .eb-live-room .eb-research-graph > .canvas-panel > .canvas-viewport { flex: 1 1 auto; height: auto; min-height: 427px; }
+  .eb-live-room .center-column > .timeline { flex: 0 0 auto; }
+}
