@@ -131,7 +131,7 @@ export function GraphViewport({ world, bounds, visibleCount, edgeCount, referenc
   }, []);
   const fit = (): Camera => {
     if (!size.width || !size.height) return home;
-    const zoom = clamp(Math.min((size.width - 24) / bounds.width, (size.height - 64) / bounds.height), .45, 1);
+    const zoom = clamp(Math.min((size.width - 24) / bounds.width, (size.height - 64) / bounds.height), .36, 1);
     return { x: zoom * (460 - bounds.x - bounds.width / 2), y: zoom * (215 - bounds.y - bounds.height / 2) - 6, zoom };
   };
   const initial = size.width && (size.width < 920 || (!reference && bounds.height > size.height - 35)) ? fit() : home;
@@ -139,7 +139,7 @@ export function GraphViewport({ world, bounds, visibleCount, edgeCount, referenc
   function zoomBy(delta: number, x = 0, y = 0) {
     setCamera((last) => {
       const current = last ?? initial;
-      const zoom = clamp(Math.round((current.zoom + delta) * 100) / 100, .45, 1.35);
+      const zoom = clamp(Math.round((current.zoom + delta) * 100) / 100, .36, 1.35);
       const ratio = zoom / current.zoom;
       return { x: x + (current.x - x) * ratio, y: y + (current.y - y) * ratio, zoom };
     });
@@ -198,7 +198,7 @@ export function GraphViewport({ world, bounds, visibleCount, edgeCount, referenc
       onPointerDown={startDrag} onPointerMove={move} onPointerUp={stop} onPointerCancel={stop} onLostPointerCapture={stop}>
       <div className="canvas-hint">{reference ? "Kéo nền để di chuyển · chọn thẻ để xem nguồn · dữ liệu mẫu" : "Kéo nền để di chuyển · chọn thẻ để xem nguồn"}</div>
       {graph}
-      <div className="canvas-legend"><span className="eb-legend-item"><i />Hỗ trợ</span><span className="eb-legend-item"><i className="lg-red" />Phản biện</span><span className="eb-legend-item"><i className="lg-cyan" />Nguồn/engine</span><span className="eb-legend-item"><i className="lg-amber" />Cần rà soát</span></div>
+      <div className="canvas-legend"><span className="eb-legend-item"><i />Hỗ trợ</span><span className="eb-legend-item"><i className="lg-red" />Phản biện</span><span className="eb-legend-item"><i className="lg-cyan" />Bằng chứng trong snapshot</span><span className="eb-legend-item"><i className="lg-violet" />Trọng tài dẫn nguồn</span><span className="eb-legend-item"><i className="lg-gold" />Luồng phiên</span><span className="eb-legend-item"><i className="lg-amber" />Cần rà soát</span></div>
     </div>
     {details}
   </div>;
