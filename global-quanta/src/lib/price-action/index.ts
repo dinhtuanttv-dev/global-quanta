@@ -1,8 +1,9 @@
 import { computeCandleFeatures } from "./candleFeatures.ts";
 import { detectCandlePatterns } from "./candlePatterns.ts";
 import { mergeParams, stableParamsHash, validateParams } from "./params.ts";
-import { classifyTrend, detectConfirmedSwings } from "./structure.ts";
-import { buildPinRejectionSetups } from "./setups.ts";
+import { classifyTrend, detectConfirmedSwings, trendSeries } from "./structure.ts";
+import { buildSetups } from "./setups.ts";
+import { computeVolumeFeatures } from "./volume.ts";
 import { buildPriceActionZones } from "./zones.ts";
 import type { Bar, PriceActionContext, PriceActionResult } from "./types.ts";
 import type { PAParamsOverrides } from "./params.ts";
@@ -17,18 +18,21 @@ export * from "./zones.ts";
 export * from "./setups.ts";
 export * from "./mtf.ts";
 export * from "./backtest.ts";
+export * from "./volume.ts";
+export * from "./summary.ts";
 
-export const PRICE_ACTION_ENGINE_VERSION = "pa-standalone-1.0.0";
+/** pa-book-2.0.0 (26/11/2026): định nghĩa mẫu hình theo sách, vùng/xu hướng không nhìn trước, lớp khối lượng, cổng lời/lỗ. */
+export const PRICE_ACTION_ENGINE_VERSION = "pa-book-2.0.0";
 
 function validateBars(bars: readonly Bar[]): { index: number; field: string; message: string }[] {
   const errors: { index: number; field: string; message: string }[] = [];
   let priorDate: string | null = null;
   for (let i = 0; i < bars.length; i++) {
     const bar = bars[i];
-    for (const field of ["open", "high", "low", "close", "volume"] as const) {
+    for (const field of ["open", "high", "low", "close"] as const) {
       if (!Number.isFinite(bar[field])) errors.push({ index: i, field, message: "Giá trị phải hữu hạn" });
     }
-    if (bar.volume < 0) errors.push({ index: i, field: "volume", message: "Volume không được âm" });
+    if (bar.volume !== null && bar.volume < 0) errors.push({ index: i, field: "volume", message: "Volume không được âm" });
     if (bar.high < Math.max(bar.open, bar.close)) errors.push({ index: i, field: "high", message: "High phải >= open và close" });
     if (bar.low > Math.min(bar.open, bar.close)) errors.push({ index: i, field: "low", message: "Low phải <= open và close" });
     if (bar.high < bar.low) errors.push({ index: i, field: "high/low", message: "High phải >= low" });
@@ -77,8 +81,8 @@ export function analyzePriceAction(
       engineVersion: PRICE_ACTION_ENGINE_VERSION,
       paramsHash,
       context: safeContext,
-      candleFeatures: [], patterns: [], swings: [],
-      trend: { state: "undetermined", latestHighLabel: null, latestLowLabel: null, asOfIndex: -1, asOfDate: null },
+      candleFeatures: [], volumeFeatures: [], patterns: [], swings: [],
+      trend: { state: "undetermined", broken: false, latestHighLabel: null, latestLowLabel: null, asOfIndex: -1, asOfDate: null },
       zones: [], setups: [], latestSummary: null, warnings: [], errors,
     };
   }
@@ -93,6 +97,8 @@ export function analyzePriceAction(
     customTickSize,
   );
   const trend = classifyTrend(swings, analysisBars);
+  const trends = trendSeries(swings, analysisBars);
+  const volumeFeatures = computeVolumeFeatures(bars, params.volume.lookback);
   const zones = buildPriceActionZones(analysisBars, analysisFeatures, swings, {
     atrTolerance: params.zone.atrTolerance,
     minTouches: params.zone.minTouches,
@@ -101,10 +107,13 @@ export function analyzePriceAction(
     limitPct: context.limitPct,
     customTickSize,
   });
-  const setups = buildPinRejectionSetups(analysisBars, analysisFeatures, patterns, zones, swings, {
+  const setups = buildSetups(analysisBars, analysisFeatures, volumeFeatures.slice(0, analysisBars.length), patterns, zones, swings, trends, {
     limitPct: context.limitPct,
     maxAgeBars: params.setup.maxAgeBars,
     breakoutBufferTicks: params.setup.breakoutBufferTicks,
+    minRewardRisk: params.setup.minRewardRisk,
+    breakoutRvol: params.volume.breakoutRvol,
+    trendRatioMin: params.volume.trendRatioMin,
     customTickSize,
   });
 
@@ -128,6 +137,7 @@ export function analyzePriceAction(
     paramsHash,
     context: safeContext,
     candleFeatures: features,
+    volumeFeatures,
     patterns: visiblePatterns,
     swings: swings.filter((swing) => swing.confirmedIndex <= visibleIndex),
     trend,

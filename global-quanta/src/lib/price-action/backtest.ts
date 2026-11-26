@@ -4,6 +4,8 @@ export interface EventStudyOptions {
   horizons: readonly number[];
   feeBpsPerSide: number;
   slippageBpsPerSide: number;
+  /** Biên độ trần/sàn (HOSE 0,07 …): phiên vào mở cửa ở giá trần thì không mua được -> loại (censored). null = không xét. */
+  limitPct?: number | null;
 }
 
 export interface EventObservation {
@@ -78,6 +80,15 @@ export function eventStudy(
         observations.push({
           setupId: setup.id, direction: setup.direction, triggerIndex, entryIndex: entry ? entryIndex : null,
           exitIndex: exit ? exitIndex : null, horizon, status: "censored", reason: "Thiếu bar entry/exit hoặc giá không dương",
+          entryPrice: null, exitPrice: null, netReturn: null, mfe: null, mae: null,
+        });
+        continue;
+      }
+      const prevClose = bars[triggerIndex].close;
+      if (options.limitPct && setup.direction === "bullish" && entry.open >= prevClose * (1 + options.limitPct) - 1e-9 * prevClose - 0.003 * prevClose) {
+        observations.push({
+          setupId: setup.id, direction: setup.direction, triggerIndex, entryIndex, exitIndex, horizon,
+          status: "censored", reason: "Phiên vào mở cửa sát giá trần — không mua được",
           entryPrice: null, exitPrice: null, netReturn: null, mfe: null, mae: null,
         });
         continue;
