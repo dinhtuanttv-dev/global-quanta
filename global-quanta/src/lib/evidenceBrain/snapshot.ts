@@ -338,5 +338,9 @@ export function sourceReadiness(snapshot: EvidenceSnapshot): { canDebate: boolea
 
 export function matchingTimingRow(timeline: BuyTimeline | null, ticker: string | null): TimelineRow | null {
   if (!timeline || !ticker) return null;
-  return timeline.rows.find((row) => row.ticker.toUpperCase() === ticker.toUpperCase()) ?? null;
+  // 27/11/2026: một mã có thể có nhiều cửa sổ (VD IDC: E2 tháng 1 và W5 tháng 3). Chọn cửa sổ ĐANG MỞ, rồi cửa sổ SẮP TỚI gần nhất,
+  // rồi cửa sổ ĐÃ QUA gần nhất — trước đây lấy dòng đầu tiên theo thứ tự nguồn.
+  const rank = (row: TimelineRow) => (row.status === "IN_WINDOW" ? 0 : row.status === "UPCOMING" ? 1 : 2);
+  return timeline.rows.filter((row) => row.ticker.toUpperCase() === ticker.toUpperCase())
+    .sort((a, b) => rank(a) - rank(b) || (rank(a) === 2 ? b.entryFromDate.localeCompare(a.entryFromDate) : a.entryFromDate.localeCompare(b.entryFromDate)))[0] ?? null;
 }

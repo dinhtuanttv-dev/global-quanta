@@ -12,7 +12,7 @@ import { confirmationLabel } from "./ResearchDesk";
 import { assertResearchAccount } from "./researchAccount";
 import { DetailDialog } from "./roomView";
 
-const labels = { snapshot: "Snapshot", decision: "Tư cách Phễu", events: "Tin & xúc tác", priceAction: "Price Action", volume: "Khối lượng", liquidity: "Thanh khoản", bull: "Claude · phe thuận", bear: "Gemini · phản biện", judge: "Claude · trọng tài" };
+const labels = { snapshot: "Snapshot", decision: "Tư cách Phễu", events: "Tin & xúc tác", priceAction: "Price Action", volume: "Khối lượng", liquidity: "Thanh khoản", seasonal: "Mùa vụ", bull: "GPT · phe thuận", bear: "Gemini · phản biện", judge: "GPT · trọng tài" };
 const states = { PASS: "Đạt", FAIL: "Chưa đạt", WAIT: "Đang chờ", MISSING: "Thiếu căn cứ", EXCLUDED: "Tạm loại", CONTEXT: "Bối cảnh" };
 const kindOf = { events: "EVENT_CLUSTER", priceAction: "PA_TRIGGER", volume: "VOLUME_LAYER" } as const;
 type FocusKind = keyof typeof kindOf;
