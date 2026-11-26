@@ -440,8 +440,12 @@ export default function EvidenceBrainWorkspace(props: Props) {
     </div>
     <div className="snapshot-meta">
       {fallbackSession && <span className="meta-chip warn" role="status">Snapshot dự phòng · phiên {dateVi(snap?.decisionSession)} · chờ phiên {dateVi(fallbackSession)}</span>}
+      {session.data?.worker && session.data.worker.core > 0 && <span className={`meta-chip ${session.data.worker.ready >= session.data.worker.core ? "good" : "warn"}`} role="status"
+        data-testid="ai-room-worker-health" title={`Phiên ${session.data.worker.session ?? "—"} · Thuận ${session.data.worker.bull} · Phản biện ${session.data.worker.bear} · Trọng tài ${session.data.worker.judge}${session.data.worker.lanes ? ` · Gemini ${session.data.worker.lanes.gemini ?? 0} vai · dự phòng ${session.data.worker.lanes.claude ?? 0} vai` : ""}`}>
+        Bộ não phiên này · {session.data.worker.ready}/{session.data.worker.core} mã đủ ba vai
+      </span>}
       {session.data?.worker?.blocked.map(({ provider, reason, retryAt }) => <span key={provider} className="meta-chip warn" role="status">
-        {provider === "claude" ? "GPT / Claude" : "Gemini"} · {{ BILLING: "cần bổ sung credit", AUTH: "cần kiểm tra xác thực", RATE_LIMIT: "đang giới hạn lượt gọi", NOT_CONFIGURED: "chưa cấu hình" }[reason]}
+        {provider === "claude" ? "Dự phòng GPT / Claude" : "Gemini (làn chính)"} · {{ BILLING: "cần bổ sung credit", AUTH: "cần kiểm tra xác thực", RATE_LIMIT: "đang giới hạn lượt gọi", NOT_CONFIGURED: "chưa cấu hình" }[reason]}
         {retryAt ? " · thử lại " + clock(new Date(retryAt).toISOString()) : ""}
       </span>)}
       {cached && <span className="meta-chip" role="status">{cached.state === "READY" ? "Tam tài AI · đã phân tích" : cached.state === "FAILED" ? "Tam tài AI · cần kiểm tra" : cached.state === "RETRY" ? "Tam tài AI · chờ thử lại" : "Tam tài AI · đã khóa nguồn"}</span>}

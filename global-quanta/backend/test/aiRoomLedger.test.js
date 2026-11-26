@@ -32,17 +32,18 @@ function harness(inferImpl, extra = {}) {
     session: async () => ({ decisionSession: date, expectedClosedSession: date, stage: "PUBLISHED", publication: "v1" }),
     decision: async () => doc,
     capture: async (ticker) => { const p = await room.capture(ticker, date); snapshots.set(p.snap.snapshotId, p); return p; },
-    infer: async (side, message) => { calls.push(side); return inferImpl(side, message, snapshots, clockRef.now); }, ...extra };
+    infer: async (side, message, _snapshot, lane) => { calls.push(side); return inferImpl(side, message, snapshots, clockRef.now, lane); }, ...extra };
   return { worker: createResearchAutonomy(deps), store, calls, clockRef, doc };
 }
 const circuit = async (store, provider) => (await store.getKv("local:ai-room:provider:v1:" + provider))?.value ?? null;
 
 test("A2: Gemini 429 chờ tăng dần 1 → 2 → 4 phút (trước đây cố định 60 s); thành công thì xoá bộ đếm", async () => {
   let ok = false;
-  const h = harness((side, message, snaps) => {
-    if (side === "BEAR" && !ok) throw Object.assign(new Error("Too Many Requests"), { status: 429 });
+  // M1: Gemini là làn chính của cả ba vai; tắt làn dự phòng để đo đúng nhịp chờ của Gemini.
+  const h = harness((side, message, snaps, _now, lane) => {
+    if (lane === "gemini" && !ok) throw Object.assign(new Error("Too Many Requests"), { status: 429 });
     const id = [...snaps.keys()].find((k) => message.includes(k)); return sourcedClaim(snaps.get(id), side);
-  });
+  }, { configured: () => ({ claude: false, gemini: true }) });
   await h.worker.tick();
   let c = await circuit(h.store, "gemini");
   assert.equal(c.strikes, 1); assert.equal(c.retryAt, h.clockRef.now + 60_000);
@@ -59,10 +60,10 @@ test("A2: Gemini 429 chờ tăng dần 1 → 2 → 4 phút (trước đây cố 
 });
 
 test("A2: tôn trọng Retry-After của nhà cung cấp (trần 1 giờ)", async () => {
-  const h = harness((side, message, snaps) => {
-    if (side === "BEAR") throw Object.assign(new Error("Too Many Requests"), { status: 429, headers: { "retry-after": "600" } });
+  const h = harness((side, message, snaps, _now, lane) => {
+    if (lane === "gemini") throw Object.assign(new Error("Too Many Requests"), { status: 429, headers: { "retry-after": "600" } });
     const id = [...snaps.keys()].find((k) => message.includes(k)); return sourcedClaim(snaps.get(id), side);
-  });
+  }, { configured: () => ({ claude: false, gemini: true }) });
   await h.worker.tick();
   assert.equal((await circuit(h.store, "gemini")).retryAt, h.clockRef.now + 600_000);
 });
