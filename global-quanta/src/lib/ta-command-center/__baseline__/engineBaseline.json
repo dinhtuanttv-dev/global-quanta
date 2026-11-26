@@ -40,13 +40,13 @@
    "scenarios": "4f53cda18c2baa0c",
    "elliottProSummary": "cfeebd3730d782cc",
    "scene": "c1bc1c834cce0379",
-   "structureDoc": "d7f4e6b62f913f60",
+   "structureDoc": "b95d811d40c63170",
    "structureScene": {
     "overview": "2dde3ff2dfe06c4f",
     "trade": "0e1b485af2fbc842",
     "deep": "1a9e7c9573484a88"
    },
-   "structureMarkers": "c53137efe22613c4",
+   "structureMarkers": "becb698195fd448d",
    "structureLevels": "367b83fa949a4da5"
   }
  },
@@ -90,7 +90,7 @@
    "scenarios": "6929e398bc84611b",
    "elliottProSummary": "a195392fe77c21ae",
    "scene": "79ab2c1bb0231cda",
-   "structureDoc": "d7f4e6b62f913f60",
+   "structureDoc": "b95d811d40c63170",
    "structureScene": {
     "overview": "e10b06eb45f849b2",
     "trade": "740a20075e8e43f0",
@@ -140,13 +140,13 @@
    "scenarios": "92a0abc6cde9cc10",
    "elliottProSummary": "d36b5bba35fbc75c",
    "scene": "78f71780efe99b4b",
-   "structureDoc": "65c561ce1ddb96a5",
+   "structureDoc": "5bcfbd40bfacc492",
    "structureScene": {
     "overview": "3389d0ee8341bb16",
-    "trade": "f1aad223f6cb3db4",
-    "deep": "3987ecea44406940"
+    "trade": "4f4674b540960af8",
+    "deep": "b7e6dd89dc5fa0c6"
    },
-   "structureMarkers": "61430f365bf70c8f",
+   "structureMarkers": "286aaea49e1c919f",
    "structureLevels": "8e06efe7305808e3"
   }
  },
@@ -191,13 +191,13 @@
    "scenarios": "6d32012f42c86381",
    "elliottProSummary": "4aeb5cf4c7956d5b",
    "scene": "241d8b6bc3d30fb2",
-   "structureDoc": "65c561ce1ddb96a5",
+   "structureDoc": "5bcfbd40bfacc492",
    "structureScene": {
     "overview": "c5e343d6f893b42d",
     "trade": "3364a18df5cb3ae7",
     "deep": "374f535afeb9b033"
    },
-   "structureMarkers": "2efebe86d874a0de",
+   "structureMarkers": "d5a5416e70c9496c",
    "structureLevels": "8e06efe7305808e3"
   }
  }

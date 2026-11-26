@@ -1,1 +1,1 @@
-export const MTF3_VERSION = "3.0.0-s6";
+export const MTF3_VERSION = "3.1.0-s6";

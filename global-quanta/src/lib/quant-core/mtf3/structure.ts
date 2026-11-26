@@ -58,7 +58,9 @@ const isDown = (s: DowState) => s === "DOWN" || s === "DOWN_WEAK";
  *  • UP: đỉnh sau cao hơn VÀ đáy sau cao hơn. Đáy bảo vệ = đáy đã tạo ra đỉnh cao hơn gần nhất.
  *  • Tiêu chí ① đỉnh thấp hơn → UP_WEAK (chưa gãy). ② đóng cửa thủng đáy bảo vệ → BROKEN_UP (sự kiện BREAK_PROTECTED_LOW).
  *    ③ cả đỉnh thấp hơn và đáy thấp hơn → DOWN (đảo chiều xác nhận). Đối xứng cho xu hướng giảm với đỉnh hồi.
- *  • CHoCH↑: đang không ở UP, đáy gần nhất CAO HƠN đáy trước, rồi đóng cửa vượt đỉnh sóng gần nhất — "chân dưới đổi hướng".
+ *  • CHoCH↑: đang không ở UP, đáy gần nhất CAO HƠN đáy trước, rồi đóng cửa vượt đỉnh sóng gần nhất / đỉnh hồi — "chân dưới đổi hướng".
+ *    CHoCH↓ đối xứng: đang không ở DOWN (kể cả UP_WEAK), đỉnh gần nhất THẤP HƠN, rồi đóng cửa thủng đáy sóng / đáy bảo vệ (3.1.0).
+ *    Thủng đáy bảo vệ khi CHƯA có đỉnh thấp hơn vẫn là tiêu chí ② (BROKEN_UP); đối xứng với vượt đỉnh hồi khi chưa có đáy cao hơn.
  *  • BOS↑: đang UP, đóng cửa vượt đỉnh sóng gần nhất (phá cấu trúc thuận chiều). Đối xứng.
  */
 export function dowSeries3(bars: Bar[], sw: Swing3[]): DowSeries {
@@ -112,8 +114,13 @@ export function dowSeries3(bars: Bar[], sw: Swing3[]): DowSeries {
     const lowerHigh = H.length >= 2 && H[H.length - 1].price < H[H.length - 2].price;
     const newHigh = lh && c > lh.price && crossedH !== lh.index, newLow = ll && c < ll.price && crossedL !== ll.index;
     if (isUp(st)) {
-      // ② đóng cửa thủng đáy bảo vệ -> xu hướng tăng gãy; thủng đáy sóng gần nhất (cao hơn đáy bảo vệ) CHƯA đủ
-      if (Number.isFinite(pLow) && c < pLow) { st = "BROKEN_UP"; event[i] = "BREAK_PROTECTED_LOW"; }
+      // thủng đáy bảo vệ: đã có đỉnh thấp hơn = chân dưới đổi hướng (CHoCH↓ — đối xứng CHoCH↑ ở nhánh giảm), chưa có = ② xu hướng tăng
+      // gãy; thủng đáy sóng gần nhất (cao hơn đáy bảo vệ) CHƯA đủ. 3.1.0 (26/11/2026, phương án A): trước đây nhánh tăng luôn ghi "gãy"
+      // nên CHoCH↓ gần như không bao giờ phát (HPG / MSH / NAF 7–13 năm = 0 lần) trong khi CHoCH↑ vẫn phát — bất đối xứng.
+      if (Number.isFinite(pLow) && c < pLow) {
+        if (lowerHigh) { event[i] = "CHOCH_DOWN"; st = "DOWN"; pHigh = lh!.price; }
+        else { st = "BROKEN_UP"; event[i] = "BREAK_PROTECTED_LOW"; }
+      }
       else if (newHigh) event[i] = "BOS_UP";
     } else if (isDown(st)) {
       // vượt đỉnh hồi: đã có đáy cao hơn = chân dưới đổi hướng (CHoCH↑), chưa có = xu hướng giảm gãy

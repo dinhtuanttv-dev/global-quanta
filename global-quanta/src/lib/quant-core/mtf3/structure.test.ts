@@ -39,16 +39,17 @@ describe("MTF v3 · S2 cấu trúc", () => {
     }
   });
 
-  it("Dow: UP với đáy bảo vệ → ① UP_WEAK (đỉnh thấp hơn) → ② thủng đáy bảo vệ → ③ DOWN", () => {
+  it("Dow (3.1.0, CHoCH đối xứng): UP → ① UP_WEAK (đỉnh thấp hơn) → thủng đáy bảo vệ = CHoCH↓ → DOWN", () => {
     const d = dowSeries3(up, sw);
     expect(d.state[125]).toBe("UP");
     expect(d.protectedLow[125]).toBeCloseTo(135 * 0.996, 0);
     const weak = d.state.findIndex((s, i) => i > 140 && s === "UP_WEAK");
     expect(weak).toBeGreaterThan(160);
-    const broken = d.event.findIndex((e) => e === "BREAK_PROTECTED_LOW");
+    const broken = d.event.findIndex((e) => e === "CHOCH_DOWN");
     expect(broken).toBeGreaterThan(weak);
     expect(up[broken].close).toBeLessThan(d.protectedLow[broken - 1]);
-    expect(d.state[broken]).toBe("BROKEN_UP");
+    expect(d.state[broken]).toBe("DOWN");
+    expect(d.event.includes("BREAK_PROTECTED_LOW")).toBe(false);
     expect(d.state[up.length - 1]).toMatch(/DOWN/);
     // không nhìn trước
     for (const t of [130, 190, 235]) {
@@ -67,6 +68,24 @@ describe("MTF v3 · S2 cấu trúc", () => {
     expect(d.event.some((e) => e === "CHOCH_UP")).toBe(true);
     expect(d.state[dn.length - 1]).toBe("UP");
     expect(d.event.slice(ch + 1).some((e) => e === "BOS_UP")).toBe(true);
+  });
+
+  it("② không có đỉnh thấp hơn: thủng đáy bảo vệ chỉ là gãy xu hướng (BROKEN_UP), không phải CHoCH↓", () => {
+    // HH/HL rồi lao thẳng xuống dưới đáy bảo vệ mà không tạo đỉnh thấp hơn trước đó
+    const b = path([[0, 100], [30, 130], [45, 115], [75, 150], [90, 135], [120, 170], [160, 120], [170, 122]]);
+    const d = dowSeries3(b, swings3(b, atr(b, 14), 2.0));
+    const k = d.event.findIndex((e) => e === "BREAK_PROTECTED_LOW" || e === "CHOCH_DOWN");
+    expect(d.event[k]).toBe("BREAK_PROTECTED_LOW");
+    expect(d.state[k]).toBe("BROKEN_UP");
+  });
+
+  it("CHoCH↓ đối xứng CHoCH↑: ảnh gương của chuỗi CHoCH↑ phát CHoCH↓ cùng phiên", () => {
+    const pts: [number, number][] = [[0, 200], [30, 170], [45, 185], [75, 150], [90, 165], [120, 130], [140, 150], [165, 138], [195, 175], [215, 160], [240, 190]];
+    const dn = path(pts), mirror = path(pts.map(([i, p]) => [i, 400 - p] as [number, number]));
+    const a1 = dowSeries3(dn, swings3(dn, atr(dn, 14), 2.0)), a2 = dowSeries3(mirror, swings3(mirror, atr(mirror, 14), 2.0));
+    const up = a1.event.indexOf("CHOCH_UP"), down = a2.event.indexOf("CHOCH_DOWN");
+    expect(up).toBeGreaterThan(0);
+    expect(Math.abs(down - up)).toBeLessThanOrEqual(2);
   });
 
   it("giai đoạn: nền đi ngang → S2 khi đủ Trend Template; giảm sâu → S4; trễ chống nhiễu 3 nến", () => {
