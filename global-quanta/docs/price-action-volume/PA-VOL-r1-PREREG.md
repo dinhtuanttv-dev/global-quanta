@@ -68,3 +68,12 @@ Ba biến thể (lồng nhau):
 - Không đổi tham số mẫu hình / ngưỡng khối lượng sau khi xem kết quả. Nếu muốn thử ngưỡng khác → đăng ký r2 mới.
 - Không tính phần tín hiệu ở 20 phiên cuối của dữ liệu (cửa sổ chưa đủ).
 - Không dùng VNDirect `adClose` (làm tròn 3 chữ số nghìn đồng); hình dạng nến tính trên giá điều chỉnh tự dựng.
+
+## Phụ lục A — làm rõ trước khi chạy (26/11/2026, chưa xem bất kỳ lợi suất nào)
+
+1. **Nến đảo chiều chủ chốt**: theo câu chữ "mở < mở trước, đóng > đóng trước" thì 37% phiên của HPG 2013–2026 đạt (chỉ đếm tần suất,
+   không xem lợi suất). Sách tự giải thích "nến sau nhận chìm cây nến trước" → định nghĩa thêm: thân nến nhận chìm thân nến trước. Tần suất còn ~13%.
+2. **Khối lượng thiếu** (RVOL hoặc tỷ lệ tăng/giảm không tính được) được coi là **không đạt** điều kiện khối lượng (thuộc S1¬V, không thuộc S2).
+3. **Một sự kiện cho mỗi (mã, phiên kích hoạt)** trong mỗi biến thể — nhiều setup kích hoạt cùng phiên không đếm lặp.
+4. Rổ so sánh cần ≥ 20 mã đủ điều kiện trong cùng cửa sổ; thiếu → sự kiện bị loại (censored).
+5. Kịch bản chạy: `gq-research/pa-ohlcv/scripts/run.mjs` (bản ghi trong báo cáo kết quả).
