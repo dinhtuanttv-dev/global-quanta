@@ -62,24 +62,46 @@ export function detectConfirmedSwings(
   return swings;
 }
 
-function latestKindLabel(swings: readonly PASwing[], kind: "high" | "low"): PASwing["label"] | null {
+/**
+ * Trạng thái cấu trúc tại từng phiên (một lượt, không nhìn trước):
+ * - tăng khi swing high đã xác nhận gần nhất là HH và swing low gần nhất là HL; giảm khi LH + LL; đủ hai loại nhưng khác -> hỗn hợp;
+ *   swing đầu tiên của mỗi loại chưa có nhãn -> chưa xác định.
+ * - Sách: "Xu hướng tăng bị phá vỡ khi giá phá xuống swing low cấu trúc gần nhất" -> khi một giá ĐÓNG CỬA sau phiên xác nhận swing low
+ *   nằm dưới đáy đó, trạng thái tăng hạ thành hỗn hợp (broken = true) cho tới khi có swing mới. Giảm: đối xứng với swing high.
+ */
+export function trendSeries(swings: readonly PASwing[], bars: readonly Bar[]): { state: TrendState; broken: boolean }[] {
+  const byConfirm = new Map<number, PASwing[]>();
+  for (const sw of swings) { const l = byConfirm.get(sw.confirmedIndex) ?? []; l.push(sw); byConfirm.set(sw.confirmedIndex, l); }
+  let hi: PASwing | null = null, lo: PASwing | null = null, brokeLow = false, brokeHigh = false;
+  return bars.map((bar, i) => {
+    for (const sw of byConfirm.get(i) ?? []) {
+      if (sw.kind === "high") { hi = sw; brokeHigh = false; } else { lo = sw; brokeLow = false; }
+    }
+    if (lo && i > lo.confirmedIndex && bar.close < lo.price) brokeLow = true;
+    if (hi && i > hi.confirmedIndex && bar.close > hi.price) brokeHigh = true;
+    const h = hi?.label, l = lo?.label;
+    let state: TrendState = "undetermined", broken = false;
+    if (!h || !l || h === "unclassified" || l === "unclassified") state = "undetermined";
+    else if (h === "HH" && l === "HL") { state = brokeLow ? "mixed" : "bullish"; broken = brokeLow; }
+    else if (h === "LH" && l === "LL") { state = brokeHigh ? "mixed" : "bearish"; broken = brokeHigh; }
+    else state = "mixed";
+    return { state, broken };
+  });
+}
+
+function latestLabel(swings: readonly PASwing[], kind: "high" | "low") {
   const recent = swings.filter((swing) => swing.kind === kind).slice(-1)[0];
-  if (!recent) return null;
-  if (kind === "high" && (recent.label === "HH" || recent.label === "LH" || recent.label === "equal")) return recent.label;
-  if (kind === "low" && (recent.label === "HL" || recent.label === "LL" || recent.label === "equal")) return recent.label;
-  return "unclassified";
+  return recent && recent.label !== "unclassified" ? recent.label : null;
 }
 
 export function classifyTrend(swings: readonly PASwing[], bars: readonly Bar[]): TrendContext {
-  const high = latestKindLabel(swings, "high");
-  const low = latestKindLabel(swings, "low");
-  let state: TrendState = "undetermined";
-  if ((high === "HH" && low === "HL")) state = "bullish";
-  else if (high === "LH" && low === "LL") state = "bearish";
-  else if (high !== null && low !== null) state = "mixed";
   const asOfIndex = bars.length - 1;
+  const last = asOfIndex >= 0 ? trendSeries(swings, bars)[asOfIndex] : { state: "undetermined" as TrendState, broken: false };
+  const known = swings.filter((sw) => sw.confirmedIndex <= asOfIndex);
+  const high = latestLabel(known, "high"), low = latestLabel(known, "low");
   return {
-    state,
+    state: last.state,
+    broken: last.broken,
     latestHighLabel: high === "HH" || high === "LH" || high === "equal" ? high : null,
     latestLowLabel: low === "HL" || low === "LL" || low === "equal" ? low : null,
     asOfIndex,
@@ -87,12 +109,12 @@ export function classifyTrend(swings: readonly PASwing[], bars: readonly Bar[]):
   };
 }
 
+/** Trạng thái tại phiên `index` chỉ từ swing đã xác nhận (không có giá đóng cửa -> không xét phá cấu trúc). Dùng cho khung lớn (mtf.ts). */
 export function trendStateAt(swings: readonly PASwing[], index: number): TrendState {
   const known = swings.filter((swing) => swing.confirmedIndex <= index);
-  const high = latestKindLabel(known, "high");
-  const low = latestKindLabel(known, "low");
+  const high = latestLabel(known, "high"), low = latestLabel(known, "low");
+  if (!high || !low) return "undetermined";
   if (high === "HH" && low === "HL") return "bullish";
   if (high === "LH" && low === "LL") return "bearish";
-  if (high !== null && low !== null) return "mixed";
-  return "undetermined";
+  return "mixed";
 }

@@ -58,9 +58,16 @@ export interface CandleFeature {
   complete: boolean;
 }
 
+/** Vai trò theo sách: đảo chiều (dùng tại hỗ trợ/kháng cự), tiếp diễn (dùng theo xu hướng), bối cảnh (chỉ mô tả). */
+export type PatternRole = "reversal" | "continuation" | "context";
+
 export interface PAPattern extends EventTime {
   id: PatternId;
   direction: PatternDirection;
+  role: PatternRole;
+  /** Mức kích hoạt theo sách (phá đỉnh/đáy của mẫu hình) và mức cắt lỗ tự nhiên (đáy/đỉnh mẫu hình); null nếu không áp dụng. */
+  triggerLevel: number | null;
+  stopLevel: number | null;
   state: "candidate" | "confirmed" | "invalidated";
   priceLow: number;
   priceHigh: number;
@@ -79,6 +86,8 @@ export type TrendState = "bullish" | "bearish" | "mixed" | "undetermined";
 
 export interface TrendContext {
   state: TrendState;
+  /** Sách: "xu hướng tăng bị phá vỡ khi giá phá xuống swing low cấu trúc gần nhất" — true khi nhãn HH/HL (LH/LL) đã bị giá đóng cửa phá. */
+  broken: boolean;
   latestHighLabel: "HH" | "LH" | "equal" | null;
   latestLowLabel: "HL" | "LL" | "equal" | null;
   asOfIndex: number;
@@ -114,13 +123,29 @@ export interface PAZone extends EventTime {
     confluence: number;
   };
   stateEvents: ZoneStateEvent[];
+  /** Biên vùng theo thời gian: vùng chỉ mở rộng từ phiên pivot mới được xác nhận — truy vấn theo phiên bằng zoneBoundsAt (không nhìn trước). */
+  boundsEvents: { index: number; low: number; high: number }[];
+  lastTouchIndex: number;
 }
 
 export type SetupState = "forming" | "triggered" | "invalidated" | "expired";
 
+export type SetupKind = "REVERSAL_AT_SUPPORT" | "REVERSAL_AT_RESISTANCE" | "CONTINUATION_IN_TREND";
+
+export interface SetupVolume {
+  /** RVOL của phiên mẫu hình và phiên kích hoạt (khối lượng / trung bình N phiên trước, không gồm phiên đó). */
+  patternRvol: number | null;
+  triggerRvol: number | null;
+  /** Khối lượng phiên tăng / phiên giảm trong N phiên tới phiên kích hoạt ("khối lượng đồng thuận xu hướng"). */
+  upDownRatio: number | null;
+  /** Đạt cả hai: phiên kích hoạt có khối lượng tăng vọt và khối lượng đồng thuận xu hướng. null = chưa kích hoạt / thiếu dữ liệu. */
+  confirmed: boolean | null;
+}
+
 export interface PASetup extends EventTime {
   id: string;
-  kind: "PIN_REJECTION_AT_ZONE";
+  kind: SetupKind;
+  patternId: PatternId;
   direction: Direction;
   state: SetupState;
   stateIndex: number;
@@ -130,6 +155,13 @@ export interface PASetup extends EventTime {
   invalidationLevel: number | null;
   targetReferences: { price: number; basis: string }[];
   riskDistance: number | null;
+  /** (mục tiêu − kích hoạt) / (kích hoạt − cắt lỗ); null khi thiếu mục tiêu hoặc rủi ro. */
+  rewardRisk: number | null;
+  /** Cổng lời/lỗ của sách (≥ minRewardRisk); null khi chưa tính được. */
+  rewardRiskOk: boolean | null;
+  trendAtTrigger: TrendState | null;
+  volume: SetupVolume;
+  zoneId: string | null;
   evidence: string[];
   missingConditions: string[];
   provenance: EvidenceSource;
@@ -143,12 +175,21 @@ export interface PASummary {
   triggeredSetups: number;
 }
 
+export interface VolumeFeature {
+  index: number;
+  /** null khi thiếu dữ liệu khối lượng của phiên (không thay bằng 0). */
+  volume: number | null;
+  rvol: number | null;
+  upDownRatio: number | null;
+}
+
 export interface PriceActionResult {
   status: PAStatus;
   engineVersion: string;
   paramsHash: string;
   context: PriceActionContext;
   candleFeatures: CandleFeature[];
+  volumeFeatures: VolumeFeature[];
   patterns: PAPattern[];
   swings: PASwing[];
   trend: TrendContext;

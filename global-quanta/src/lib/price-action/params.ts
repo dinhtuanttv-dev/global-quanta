@@ -1,3 +1,5 @@
+// pa-book-2 (26/11/2026): tham số theo sách "Price Action – Hành động giá chuyên sâu" Tập 2–3. Định nghĩa mẫu hình ghi ở
+// candlePatterns.ts; các ngưỡng số là định nghĩa vận hành (sách mô tả bằng lời), có version và hash, không tối ưu trên dữ liệu.
 export interface PAParams {
   atrPeriod: number;
   trendBar: {
@@ -6,121 +8,81 @@ export interface PAParams {
     bullCloseLoc: number;
     bearCloseLoc: number;
   };
+  /** Sách: đuôi dài chiếm "phần lớn chiều dài nến", đuôi còn lại "gần thân". Thân bằng 0 vẫn là pin bar. */
   pinBar: {
-    minDominantWickBody: number;
-    maxOppositeWickBody: number;
-    maxBodyRange: number;
-    bullCloseLoc: number;
-    bearCloseLoc: number;
+    minDominantWickRange: number;
+    maxOppositeWickRange: number;
+    minRangeAtr: number;
   };
-  reversal: { requirePriorExtreme: boolean };
+  /** Đảo chiều 2 thanh: "2 cây nến mạnh, đuôi ngắn" -> thân ≥ tỷ lệ này của biên độ. 3 nến hồi: "nến nhỏ" -> biên độ < x ATR. */
+  bars: { strongBodyRange: number; smallRangeAtr: number };
   zone: {
     atrTolerance: number;
     minTouches: number;
+    /** Vùng hết hiệu lực khi không được chạm lại trong ngần này phiên (tính từ lần chạm / xác nhận gần nhất). */
     maxAgeBars: number;
     rejectionCloseLoc: number;
   };
   swing: { left: number; right: number };
-  setup: { maxAgeBars: number; breakoutBufferTicks: number };
+  setup: {
+    maxAgeBars: number;
+    breakoutBufferTicks: number;
+    /** Sách: "nếu khoảng cách tới kháng cự chia cho khoảng cách tới stop không đạt 2:1 hoặc 1.5:1 thì bỏ qua". */
+    minRewardRisk: number;
+  };
+  /** Sách: "volume phải đồng thuận với xu hướng"; "breakout thật thường đi kèm volume tăng vọt". */
+  volume: { lookback: number; breakoutRvol: number; trendRatioMin: number };
 }
 
 export const DEFAULT_PA_PARAMS: Readonly<PAParams> = Object.freeze({
   atrPeriod: 14,
-  trendBar: Object.freeze({
-    minBodyRange: 0.6,
-    minRangeAtr: 1,
-    bullCloseLoc: 0.75,
-    bearCloseLoc: 0.25,
-  }),
-  pinBar: Object.freeze({
-    minDominantWickBody: 2,
-    maxOppositeWickBody: 1,
-    maxBodyRange: 0.35,
-    bullCloseLoc: 0.65,
-    bearCloseLoc: 0.35,
-  }),
-  reversal: Object.freeze({ requirePriorExtreme: false }),
-  zone: Object.freeze({
-    atrTolerance: 0.25,
-    minTouches: 2,
-    maxAgeBars: 120,
-    rejectionCloseLoc: 0.65,
-  }),
+  trendBar: Object.freeze({ minBodyRange: 0.6, minRangeAtr: 1, bullCloseLoc: 0.75, bearCloseLoc: 0.25 }),
+  pinBar: Object.freeze({ minDominantWickRange: 0.6, maxOppositeWickRange: 0.15, minRangeAtr: 0.5 }),
+  bars: Object.freeze({ strongBodyRange: 0.5, smallRangeAtr: 1 }),
+  zone: Object.freeze({ atrTolerance: 0.25, minTouches: 2, maxAgeBars: 120, rejectionCloseLoc: 0.65 }),
   swing: Object.freeze({ left: 5, right: 5 }),
-  setup: Object.freeze({ maxAgeBars: 5, breakoutBufferTicks: 1 }),
+  setup: Object.freeze({ maxAgeBars: 5, breakoutBufferTicks: 1, minRewardRisk: 1.5 }),
+  volume: Object.freeze({ lookback: 20, breakoutRvol: 1.5, trendRatioMin: 1 }),
 });
 
-export type PAParamsOverrides = {
-  atrPeriod?: number;
-  trendBar?: Partial<PAParams["trendBar"]>;
-  pinBar?: Partial<PAParams["pinBar"]>;
-  reversal?: Partial<PAParams["reversal"]>;
-  zone?: Partial<PAParams["zone"]>;
-  swing?: Partial<PAParams["swing"]>;
-  setup?: Partial<PAParams["setup"]>;
-};
+export type PAParamsOverrides = { [K in keyof PAParams]?: PAParams[K] extends object ? Partial<PAParams[K]> : PAParams[K] };
 
 export function mergeParams(overrides: PAParamsOverrides = {}): PAParams {
   return {
     atrPeriod: overrides.atrPeriod ?? DEFAULT_PA_PARAMS.atrPeriod,
     trendBar: { ...DEFAULT_PA_PARAMS.trendBar, ...overrides.trendBar },
     pinBar: { ...DEFAULT_PA_PARAMS.pinBar, ...overrides.pinBar },
-    reversal: { ...DEFAULT_PA_PARAMS.reversal, ...overrides.reversal },
+    bars: { ...DEFAULT_PA_PARAMS.bars, ...overrides.bars },
     zone: { ...DEFAULT_PA_PARAMS.zone, ...overrides.zone },
     swing: { ...DEFAULT_PA_PARAMS.swing, ...overrides.swing },
     setup: { ...DEFAULT_PA_PARAMS.setup, ...overrides.setup },
+    volume: { ...DEFAULT_PA_PARAMS.volume, ...overrides.volume },
   };
 }
 
 export function validateParams(p: PAParams): string[] {
   const errors: string[] = [];
-  const numericParams: [string, number][] = [
-    ["atrPeriod", p.atrPeriod],
-    ["trendBar.minBodyRange", p.trendBar.minBodyRange],
-    ["trendBar.minRangeAtr", p.trendBar.minRangeAtr],
-    ["trendBar.bullCloseLoc", p.trendBar.bullCloseLoc],
-    ["trendBar.bearCloseLoc", p.trendBar.bearCloseLoc],
-    ["pinBar.minDominantWickBody", p.pinBar.minDominantWickBody],
-    ["pinBar.maxOppositeWickBody", p.pinBar.maxOppositeWickBody],
-    ["pinBar.maxBodyRange", p.pinBar.maxBodyRange],
-    ["pinBar.bullCloseLoc", p.pinBar.bullCloseLoc],
-    ["pinBar.bearCloseLoc", p.pinBar.bearCloseLoc],
-    ["zone.atrTolerance", p.zone.atrTolerance],
-    ["zone.minTouches", p.zone.minTouches],
-    ["zone.maxAgeBars", p.zone.maxAgeBars],
-    ["zone.rejectionCloseLoc", p.zone.rejectionCloseLoc],
-    ["swing.left", p.swing.left],
-    ["swing.right", p.swing.right],
-    ["setup.maxAgeBars", p.setup.maxAgeBars],
-    ["setup.breakoutBufferTicks", p.setup.breakoutBufferTicks],
-  ];
-  for (const [name, value] of numericParams) {
-    if (!Number.isFinite(value)) errors.push(`${name} must be finite`);
-  }
-  if (!Number.isInteger(p.atrPeriod) || p.atrPeriod < 1) errors.push("atrPeriod must be a positive integer");
-  if (!Number.isInteger(p.swing.left) || p.swing.left < 1) errors.push("swing.left must be a positive integer");
-  if (!Number.isInteger(p.swing.right) || p.swing.right < 1) errors.push("swing.right must be a positive integer");
+  const group = (name: string, o: object) => Object.entries(o).map(([k, v]) => [`${name}.${k}`, v as number] as [string, number]);
+  const all: [string, number][] = [["atrPeriod", p.atrPeriod], ...group("trendBar", p.trendBar), ...group("pinBar", p.pinBar), ...group("bars", p.bars),
+    ...group("zone", p.zone), ...group("swing", p.swing), ...group("setup", p.setup), ...group("volume", p.volume)];
+  for (const [name, value] of all) if (!Number.isFinite(value)) errors.push(`${name} must be finite`);
+  const posInt: [string, number][] = [["atrPeriod", p.atrPeriod], ["swing.left", p.swing.left], ["swing.right", p.swing.right],
+    ["zone.maxAgeBars", p.zone.maxAgeBars], ["setup.maxAgeBars", p.setup.maxAgeBars], ["volume.lookback", p.volume.lookback]];
+  for (const [name, value] of posInt) if (!Number.isInteger(value) || value < 1) errors.push(`${name} must be a positive integer`);
   if (!Number.isInteger(p.zone.minTouches) || p.zone.minTouches < 2) errors.push("zone.minTouches must be an integer >= 2");
-  if (!Number.isInteger(p.zone.maxAgeBars) || p.zone.maxAgeBars < 1) errors.push("zone.maxAgeBars must be a positive integer");
-  if (!Number.isInteger(p.setup.maxAgeBars) || p.setup.maxAgeBars < 1) errors.push("setup.maxAgeBars must be a positive integer");
   if (!Number.isInteger(p.setup.breakoutBufferTicks) || p.setup.breakoutBufferTicks < 0) errors.push("setup.breakoutBufferTicks must be a non-negative integer");
-  if (!(p.zone.atrTolerance > 0)) errors.push("zone.atrTolerance must be > 0");
-  const unitInterval = [
-    ["trendBar.minBodyRange", p.trendBar.minBodyRange],
-    ["trendBar.bullCloseLoc", p.trendBar.bullCloseLoc],
-    ["trendBar.bearCloseLoc", p.trendBar.bearCloseLoc],
-    ["pinBar.maxBodyRange", p.pinBar.maxBodyRange],
-    ["pinBar.bullCloseLoc", p.pinBar.bullCloseLoc],
-    ["pinBar.bearCloseLoc", p.pinBar.bearCloseLoc],
-    ["zone.rejectionCloseLoc", p.zone.rejectionCloseLoc],
-  ] as const;
-  for (const [name, value] of unitInterval) {
-    if (!Number.isFinite(value) || value < 0 || value > 1) errors.push(`${name} must be in [0, 1]`);
+  const unit: [string, number][] = [["trendBar.minBodyRange", p.trendBar.minBodyRange], ["trendBar.bullCloseLoc", p.trendBar.bullCloseLoc],
+    ["trendBar.bearCloseLoc", p.trendBar.bearCloseLoc], ["pinBar.minDominantWickRange", p.pinBar.minDominantWickRange],
+    ["pinBar.maxOppositeWickRange", p.pinBar.maxOppositeWickRange], ["bars.strongBodyRange", p.bars.strongBodyRange], ["zone.rejectionCloseLoc", p.zone.rejectionCloseLoc]];
+  for (const [name, value] of unit) if (value < 0 || value > 1) errors.push(`${name} must be in [0, 1]`);
+  if (p.pinBar.minDominantWickRange + p.pinBar.maxOppositeWickRange > 1) errors.push("pinBar wick ratios must sum to <= 1");
+  for (const [name, value] of [["zone.atrTolerance", p.zone.atrTolerance], ["trendBar.minRangeAtr", p.trendBar.minRangeAtr],
+    ["bars.smallRangeAtr", p.bars.smallRangeAtr], ["volume.breakoutRvol", p.volume.breakoutRvol]] as [string, number][]) {
+    if (!(value > 0)) errors.push(`${name} must be > 0`);
   }
-  if (!(p.trendBar.minRangeAtr > 0)) errors.push("trendBar.minRangeAtr must be > 0");
-  if (!(p.pinBar.minDominantWickBody > 0)) errors.push("pinBar.minDominantWickBody must be > 0");
-  if (p.pinBar.maxOppositeWickBody < 0) errors.push("pinBar.maxOppositeWickBody must be >= 0");
-  if (typeof p.reversal.requirePriorExtreme !== "boolean") errors.push("reversal.requirePriorExtreme must be boolean");
+  if (p.pinBar.minRangeAtr < 0) errors.push("pinBar.minRangeAtr must be >= 0");
+  if (p.setup.minRewardRisk < 0) errors.push("setup.minRewardRisk must be >= 0");
+  if (p.volume.trendRatioMin < 0) errors.push("volume.trendRatioMin must be >= 0");
   return errors;
 }
 

@@ -3,7 +3,7 @@
 // ghi lại vào kho, và luôn trả kèm provenance để UI biết nguồn/độ mới.
 
 import { marketConfig } from "./config.js";
-import { expectsLiveTicks, lastCompletedSessionDate, vnDate, currentSession } from "./calendar.js";
+import { expectsLiveTicks, lastCompletedSessionDate, vnDate, currentSession, isPhantomSessionRow } from "./calendar.js";
 import { ValidationError } from "./errors.js";
 import { canonicalSymbol, isIndexSymbol, isValidSymbol, provenance } from "./normalizer.js";
 import { SourceRouter } from "./sourceRouter.js";
@@ -84,7 +84,8 @@ export function createMarketDataService({ providers, store, router, now = Date.n
     const coversStart = cached.length && cached[0].date <= addDays(from, 7);
     const coversEnd = cached.length && cached.at(-1).date >= wantedLast;
     if (coversStart && coversEnd) {
-      const repaired = index ? await repairFlatIndexBars(symbol, cached) : cached;
+      const real = cached.filter((b) => !isPhantomSessionRow(b));
+      const repaired = index ? await repairFlatIndexBars(symbol, real) : real;
       return { bars: repaired, ...dominantSource(repaired, "STORE"), fallbackReason: null, attempts: [], fromStore: true };
     }
 
@@ -99,7 +100,7 @@ export function createMarketDataService({ providers, store, router, now = Date.n
     }
     const merged = new Map(cached.map((b) => [b.date, b]));
     for (const bar of result.data) merged.set(bar.date, { ...bar, source: result.source });
-    const bars = [...merged.values()].filter((b) => b.date >= from && b.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+    const bars = [...merged.values()].filter((b) => b.date >= from && b.date <= to && !isPhantomSessionRow(b)).sort((a, b) => a.date.localeCompare(b.date));
     return { bars, ...dominantSource(bars, result.source), fallbackReason: result.fallbackReason, attempts: result.attempts };
   }
 

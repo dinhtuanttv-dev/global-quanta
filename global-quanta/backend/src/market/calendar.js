@@ -42,6 +42,25 @@ export function setHolidayProvider(fn) {
   holidayProvider = typeof fn === "function" ? fn : defaultIsHoliday;
 }
 
+/** Ngày "YYYY-MM-DD" có phiên giao dịch theo lịch (không phải T7/CN, không phải ngày nghỉ của lớp lịch đang dùng). */
+export function isSessionDate(date) {
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return true;
+  const wd = new Date(`${date}T00:00:00Z`).getUTCDay();
+  if (wd === 0 || wd === 6) return false;
+  return !holidayProvider(date);
+}
+
+/**
+ * 26/11/2026 — "nến ma" ngày nghỉ: nguồn ngày (SSI) ghi cho nhiều mã một dòng 24/11/2026 (ngày KHÔNG có phiên theo lịch quan sát)
+ * với OHLC = giá tham chiếu, khối lượng 0, giá trị rỗng. Dòng đó làm sai GTGD thấp nhất / mật độ (LQ-v1), σ20, ATR, NR7, RVOL.
+ * Bỏ dòng ở ngày không có phiên mà không có khớp lệnh; giữ nguyên mọi dòng có khớp lệnh (dữ liệu thật thắng lịch).
+ */
+export function isPhantomSessionRow(row) {
+  if (!row || isSessionDate(row.date)) return false;
+  const vol = Number(row.volume), val = Number(row.value);
+  return !(vol > 0) && !(val > 0);
+}
+
 export function isTradingDay(now = new Date()) {
   const p = vnParts(now);
   if (p.weekday === 0 || p.weekday === 6) return false;

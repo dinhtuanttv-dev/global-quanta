@@ -12,6 +12,10 @@
 //   - Mọi lần GHI: ghi cục bộ trước (luôn thành công), rồi sao sang Supabase theo hàng đợi nền — lỗi thì mở cầu dao
 //     15 phút (không gọi Supabase), không làm hỏng job.
 import { noteStoreError } from "../elite/storeHealth.js";
+import { isPhantomSessionRow, isSessionDate } from "../calendar.js";
+
+/** 26/11/2026: lọc "nến ma" ngày nghỉ (xem calendar.isPhantomSessionRow) ở MỌI lượt đọc dữ liệu ngày — một điểm chặn cho hơn 20 nơi đọc. */
+const real = (rows) => (Array.isArray(rows) ? rows.filter((r) => !isPhantomSessionRow(r)) : rows);
 
 export const USER_TABLES = new Set(["market_user_watchlists", "market_user_chart_state", "market_radar_snapshots"]);
 /**
@@ -77,9 +81,18 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
 
     // ---------- dữ liệu ngày toàn thị trường: CHỈ cục bộ (backfill từ SSI khi thiếu) ----------
     async upsertMarketDaily(rows) { const n = await local.upsertMarketDaily(rows); replicate(() => inner.upsertMarketDaily(rows)); return n; },
-    getMarketDailyDates: () => local.getMarketDailyDates(),
-    getMarketDailyByDate: (d) => local.getMarketDailyByDate(d),
-    getMarketDailyRange: (q) => local.getMarketDailyRange(q),
+    async getMarketDailyDates() {
+      const dates = await local.getMarketDailyDates();
+      const out = [];
+      for (const d of dates) {
+        if (isSessionDate(d)) { out.push(d); continue; }
+        // Ngày lịch không có phiên: chỉ giữ khi thật sự có khớp lệnh (dữ liệu thật thắng lịch).
+        if (real(await local.getMarketDailyByDate(d)).length) out.push(d);
+      }
+      return out;
+    },
+    getMarketDailyByDate: async (d) => real(await local.getMarketDailyByDate(d)),
+    getMarketDailyRange: async (q) => real(await local.getMarketDailyRange(q)),
     async applyAdjustment(symbol, upTo, factor) { const n = await local.applyAdjustment(symbol, upTo, factor); replicate(() => inner.applyAdjustment(symbol, upTo, factor)); return n; },
 
     // ---------- KV ----------
@@ -135,7 +148,7 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
     // ---------- nến ngày ----------
     async upsertBars(symbol, list, source) { const n = await local.upsertBars(symbol, list, source); replicate(() => inner.upsertBars(symbol, list, source)); return n; },
     async getBars(symbol, from, to) {
-      if (await local.coverage(symbol)) return local.getBars(symbol, from, to);
+      if (await local.coverage(symbol)) return real(await local.getBars(symbol, from, to));
       const got = await tryInner(() => inner.getBars(symbol, "1900-01-01", "2999-12-31"));
       if (got?.length) {
         const bySrc = new Map();
@@ -143,7 +156,7 @@ export function createLocalFirstStore({ local, inner, log = console, now = Date.
         for (const [s, list] of bySrc) await local.upsertBars(symbol, list, s);
         st.hydratedReads++;
       }
-      return local.getBars(symbol, from, to);
+      return real(await local.getBars(symbol, from, to));
     },
     listNonSsiBars: (since) => local.listNonSsiBars(since),
     async coverage(symbol) {

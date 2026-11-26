@@ -1,4 +1,4 @@
-import { analyzePriceAction, type Bar } from "../price-action/index";
+import { analyzePriceAction, PATTERN_VI, PRICE_ACTION_ENGINE_VERSION, summarizeBuy, type Bar } from "../price-action/index";
 import type { PriceActionEvidence, TimelinePriceEvidence } from "./snapshot";
 
 export type PriceBars = (Omit<Bar, "close"> & { close?: number | null; partial?: boolean })[];
@@ -49,13 +49,12 @@ export function observeResearchPrice({
     ...(venue ? { tickSize: (price: number) => venue === "HOSE" ? price < 10_000 ? 10 : price < 50_000 ? 50 : 100 : 100 } : {}),
   }) : null;
   const latestDate = result?.trend.asOfDate ?? lastBar?.date ?? null;
-  const triggered = result?.setups.find((setup) => setup.direction === "bullish" && setup.state === "triggered" && setup.stateDate === latestDate) ?? null;
-  const pending = result?.setups.filter((item) => item.direction === "bullish" && item.state === "forming").sort((a, b) => b.confirmedIndex - a.confirmedIndex)[0] ?? null;
-  const setup = triggered ?? pending;
+  const buy = summarizeBuy(result);
+  const triggered = buy.triggeredToday, pending = buy.pending, setup = buy.setup;
   const firstInWindow = bars[Math.max(0, bars.length - 60)]?.date;
   const repairInWindow = Boolean(firstInWindow && lastBar && repairDates.some((date) => date >= firstInWindow && date <= lastBar.date));
   const basisTrusted = Boolean(priceBasis && !/unknown|unadjusted/i.test(priceBasis));
-  const confirmed = Boolean(result?.status === "ready" && triggered && result.trend.state === "bullish" && venue && closed && basisTrusted && !priceError && !instrumentError && !repairInWindow);
+  const confirmed = Boolean(buy.confirmed && venue && closed && basisTrusted && !priceError && !instrumentError && !repairInWindow);
   const status: PriceActionEvidence["state"] = isIndex ? "NOT_APPLICABLE" : loading ? "LOADING" :
     !result || result.status !== "ready" || priceError || instrumentError || !basisTrusted ? "INSUFFICIENT" :
       confirmed ? "TRIGGERED" : triggered ? "INSUFFICIENT" : pending ? "FORMING" :
@@ -63,14 +62,15 @@ export function observeResearchPrice({
           result.setups.some((item) => item.direction === "bullish" && item.state === "expired") ? "EXPIRED" : "UNKNOWN";
   const evidence: PriceActionEvidence = {
     ticker, state: status, trend: result?.trend.state ?? null, asOf: latestDate, priceBasis, venue, barClosed: lastBar ? closed : null, confirmed,
-    setup: setup ? { id: setup.id, kind: setup.kind, stateDate: setup.stateDate, entryReference: setup.entryReference, invalidationLevel: setup.invalidationLevel, target: setup.targetReferences[0]?.price ?? null } : null,
-    patterns: result?.patterns.filter((pattern) => pattern.confirmedDate === latestDate).map((pattern) => pattern.id.replace(/_/g, " ")).slice(0, 2) ?? [],
+    setup: setup ? { id: setup.id, kind: setup.kind, stateDate: setup.stateDate, entryReference: setup.entryReference, invalidationLevel: setup.invalidationLevel, target: setup.targetReferences[0]?.price ?? null,
+      patternId: setup.patternId, state: setup.state, rewardRisk: setup.rewardRisk, rewardRiskOk: setup.rewardRiskOk, volume: setup.volume } : null,
+    patterns: result?.patterns.filter((pattern) => pattern.confirmedDate === latestDate && pattern.role !== "context").map((pattern) => PATTERN_VI[pattern.id]).slice(0, 3) ?? [],
     blockers: [
       !venue ? "Chưa xác định sàn và bước giá." : null, !basisTrusted ? "Chưa có cơ sở giá đã điều chỉnh phù hợp." : null,
       lastBar && !closed ? "Nến ngày cuối chưa đóng." : null, repairInWindow ? "Có nến hiệu chỉnh trong cửa sổ 60 phiên gần nhất." : null,
       priceError ? "Không tải được chuỗi giá." : null, instrumentError ? "Không xác minh được mã qua danh sách thị trường." : null,
     ].filter((value): value is string => Boolean(value)),
-    source: "Market Gateway /api/market/ta-series", methodVersion: "price-action-core-v1",
+    source: "Market Gateway /api/market/ta-series", methodVersion: PRICE_ACTION_ENGINE_VERSION,
     loading, error: priceError ?? instrumentError, tickerVerified: Boolean(instrument), instrumentName: instrument?.name ?? null,
     qualityWarnings: warnings.slice(0, 8),
   };
