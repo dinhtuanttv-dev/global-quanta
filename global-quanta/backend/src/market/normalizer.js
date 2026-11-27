@@ -144,12 +144,19 @@ export function normalizeBars(rows, opts) {
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/**
+ * Bước giá mua/bán. Bước "0 / 0" không mang thông tin -> bỏ (27/11/2026): bản tin SSI kênh X của mã HNX / UPCoM gửi đủ 10 bước
+ * toàn số 0 ở các tick khớp lệnh; trước đây mảng 10 bước 0 đó được coi là "có sổ lệnh" và ĐÈ sổ lệnh thật đã nhận (bảng giá trống
+ * 3 bước giá, phân loại mua/bán chủ động Lee–Ready mất bước giá). Sổ toàn 0 -> mảng rỗng -> mergeQuote giữ sổ lệnh trước đó.
+ * Bước có KL nhưng giá 0 (lệnh ATO/ATC) vẫn giữ.
+ */
 function levels(m, side) {
   const out = [];
   for (let i = 1; i <= 10; i++) {
     const price = toNum(pick(m, `${side}Price${i}`));
     const volume = toNum(pick(m, `${side}Vol${i}`, `${side}Volume${i}`));
     if (price === null && volume === null) continue;
+    if (!price && !volume) continue;
     out.push({ price: price ?? 0, volume: volume ?? 0 });
   }
   return out;
