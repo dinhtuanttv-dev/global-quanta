@@ -42,7 +42,9 @@ export function icSeriesAt(icDoc, id, h) {
   const all = Object.keys(m).sort();
   const dates = [], values = [];
   for (const d of all) { const v = m[d]?.[0]; if (fin(v)) { dates.push(d); values.push(v); } }
-  return { dates, values, attempted: all.length };
+  // Kỳ vọng tính TỪ ngày đầu tín hiệu có dữ liệu (n > 0): ngày trước khi tín hiệu tồn tại ([null, 0]) không phải ngày "mất".
+  const first = all.findIndex((d) => (m[d]?.[1] ?? 0) > 0);
+  return { dates, values, attempted: first < 0 ? 0 : all.length - first };
 }
 
 /** Thành phần SQS ∈ [0, 100] (Blueprint §2.1). byH: kết quả E2 của tín hiệu; rolling20: IC TB 20 ngày gần nhất (null nếu < 20). */

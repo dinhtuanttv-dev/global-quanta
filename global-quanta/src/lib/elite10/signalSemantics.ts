@@ -31,6 +31,9 @@ export const SIG_META: Record<string, SigMeta> = {
   cotuc_decision: { kind: "ordinal", higherBetter: true, labels: L({ 1: "Thuận lợi", 0: "Theo dõi", [-1]: "Tránh" }) },
   structure_stage: { kind: "ordinal", higherBetter: true, labels: L({ 2: "GĐ 2 · Tăng", 0: "GĐ 1 · Tích luỹ", [-1]: "GĐ 3 · Phân phối", [-2]: "GĐ 4 · Giảm" }) },
   structure_score: { kind: "numeric", higherBetter: true },
+  // E2-v1 sửa đổi 27/11/2026: CAN SLIM Cốc tay cầm (thay Giai đoạn Minervini trong bảng E2) + KQKD ước tính LNST cả năm (thay RVOL log).
+  camslim_cup: { kind: "ordinal", higherBetter: true, labels: L({ 2: "Phá vỡ pivot", 1: "Sẵn sàng (tay cầm)", 0: "—" }) },
+  kq_nowcast: { kind: "numeric", higherBetter: true },
   structure_verdict: { kind: "ordinal", higherBetter: true, labels: L({ 2: "Dow tăng", 1: "Tăng suy yếu / giảm đã gãy", 0: "Đi ngang", [-1]: "Giảm suy yếu / tăng đã gãy", [-2]: "Dow giảm" }) },
 };
 export const metaOf = (id: string): SigMeta => SIG_META[id] ?? { kind: "numeric", higherBetter: true };

@@ -104,6 +104,7 @@ export function createEvidenceEngine({ store, panel, leadership = null, adjusted
     // LS-r1: LS-v1 có chuỗi hồi cứu riêng từ giá (leadershipService) — không đo lại từ bảng E1.
     const panelSigs = SIGNAL_SPECS.map((s) => s.id).filter((id) => !(id in FLOW_SIGNALS) && id !== LS_ID);
     const pDates = panelDates.filter((d) => HORIZONS.some((h) => matured(d, h) && panelSigs.some((s) => !done(s, h, d))));
+    const pDateSet = new Set(pDates);
 
     // Giá trị tín hiệu: ưu tiên đệm `pending`, thiếu thì đọc (dòng tiền theo lô ngày, bảng E1 theo ngày).
     const values = new Map(Object.entries(doc.pending ?? {}));
@@ -151,6 +152,9 @@ export function createEvidenceEngine({ store, panel, leadership = null, adjusted
             const r = dailyIc(pairs);
             ((doc.series[sig] ??= {})[h] ??= {})[d] = r ? [Math.round(r.ic * 1e5) / 1e5, r.n] : [null, pairs.length];
           }
+          // 27/11/2026: tín hiệu của sổ E1 KHÔNG có trong bảng của ngày d (VD tín hiệu thêm sau ngày đó, nguồn thiếu cả ngày) -> ghi "không đo
+          // được" một lần. Trước đây ngày đó bị đọc lại mỗi đêm mãi mãi (bảng cũ không bao giờ có thêm cột). Không đổi IC của ngày nào đã đo.
+          if (pDateSet.has(d)) for (const sig of panelSigs) if (!(sig in day)) ((doc.series[sig] ??= {})[h] ??= {})[d] ??= [null, 0];
         }
       }
     }

@@ -61,7 +61,7 @@ export function EvolutionScorecard({ ev, error }: { ev: EvidenceEvolution | unde
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <Kpi testId="tab4-kpi-alpha" label="Sổ tiến Elite HL" value={la.settled10 ? pct(la.hlExcess10) : `${la.sessionsRecorded} phiên`}
           sub={la.settled10 ? `Vượt rổ đều 10 phiên, ${la.settled10} phiên đã chấm · dòng tiền ${pct(la.flowExcess10)}` : `đã ghi · chưa phiên nào đủ 10 phiên để chấm (${la.championVersion ?? "E4-HL"})`} />
-        <Kpi testId="tab4-kpi-signals" label="Sức khoẻ 25 tín hiệu" value={<>SQS TB {sh.meanSqs}</>}
+        <Kpi testId="tab4-kpi-signals" label={`Sức khoẻ ${sh.totalSignals} tín hiệu`} value={<>SQS TB {sh.meanSqs}</>}
           sub={`${sh.provenCount} đã chứng minh · ${sh.emergingCount} ứng viên · ${sh.decayingCount} suy giảm · ${sh.invertedCount} ngược chiều · ${sh.lowCoverageCount} thiếu dữ liệu`} />
         <Kpi testId="tab4-kpi-ai" label="Sổ phán quyết AI" value={`${ai.scored5} / ${ai.totalEntries}`}
           sub={`bản đã chấm 5 phiên / đã ghi · ${ai.label ?? "—"} · BSS chưa đo (sổ không lưu xác suất)`} />

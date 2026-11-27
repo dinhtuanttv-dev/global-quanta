@@ -64,7 +64,9 @@ test("E1 buildSignalRows: chuẩn hoá đúng chiều, null khi không có dữ 
   assert.equal(coverage.smart_score, 2);
   assert.ok(missingSources.includes("strategies:base-breakout"));
   assert.ok(missingSources.includes("cotuc"));
-  assert.equal(Object.keys(hpg).length, SIGNAL_SPECS.length, "mỗi dòng có đủ mọi tín hiệu trong sổ");
+  // E2-v1 sửa đổi 27/11/2026: structure_stage (mô hình TA của Elite HL) và log_rvol rời bảng E2 nhưng VẪN có giá trị trong bảng E1.
+  assert.ok(SIGNAL_SPECS.every((s) => s.id in hpg), "mỗi dòng có đủ mọi tín hiệu trong sổ");
+  assert.deepEqual(Object.keys(hpg).filter((k) => !SIGNAL_SPECS.some((s) => s.id === k)).sort(), ["log_rvol", "structure_stage"]);
   assert.ok(SIGNAL_SPECS.every((s) => ["A", "B", "C"].includes(s.tier) && s.evidenceVi));
 });
 
@@ -173,8 +175,30 @@ test("T7 Cấu trúc MTF: giai đoạn / bảng kiểm / kết luận vào sổ 
   assert.equal(by.VIC.structure_stage, null);
   assert.deepEqual([by.VIC.structure_stage, by.VIC.structure_score, by.VIC.structure_verdict], [null, null, null]);
   assert.ok(!missingSources.includes("structure"));
-  for (const id of ["structure_stage", "structure_score", "structure_verdict"]) assert.equal(SIGNAL_SPECS.find((s) => s.id === id)?.tier, "C");
+  for (const id of ["structure_score", "structure_verdict"]) assert.equal(SIGNAL_SPECS.find((s) => s.id === id)?.tier, "C");
+  assert.equal(SIGNAL_SPECS.find((s) => s.id === "structure_stage"), undefined, "27/11: rời bảng E2 (thay bằng CAN SLIM), giá trị vẫn giữ cho Elite HL");
   const none = buildSignalRows(sources());
   assert.ok(none.missingSources.includes("structure"));
   assert.equal(none.rows[0].values.structure_stage, null);
+});
+
+// E2-v1 sửa đổi 27/11/2026 (chủ dự án): CAN SLIM Cốc tay cầm + KQKD vào bảng E2 (bậc B); Top 20 hạ C; RRG giữ C.
+test("E2-v1 sửa đổi 27/11: camslim_cup (2 phá vỡ / 1 sẵn sàng / 0 mã quét không đạt), kq_nowcast không nhìn trước; bậc mới", () => {
+  const src = sources({
+    strategies: { ...sources().strategies, camslim: { results: [{ ticker: "HPG", status: "BREAKOUT" }, { ticker: "FPT", status: "SETUP" }] } },
+    kqkd: { rows: [{ t: "HPG", created: "2026-10-28", nowcast: { growth: 0.728 } }, { t: "FPT", created: "2026-12-01", nowcast: { growth: 0.2 } }, { t: "VIC", created: "2026-10-20", nowcast: null }] },
+    kqkdDate: "2026-11-27",
+  });
+  const by = Object.fromEntries(buildSignalRows(src).rows.map((r) => [r.ticker, r.values]));
+  assert.deepEqual([by.HPG.camslim_cup, by.FPT.camslim_cup, by.VIC.camslim_cup], [2, 1, 0]);
+  assert.equal(by.HPG.kq_nowcast, 0.728);
+  assert.equal(by.FPT.kq_nowcast, null, "quý công bố SAU phiên của bảng -> không dùng (không nhìn trước)");
+  assert.equal(by.VIC.kq_nowcast, null, "không có ước tính -> null, không điền 0");
+  const none = buildSignalRows(sources());
+  assert.ok(none.missingSources.includes("strategies:camslim") && none.missingSources.includes("kqkd"));
+  assert.equal(none.rows[0].values.camslim_cup, null); assert.equal(none.rows[0].values.kq_nowcast, null);
+  const tier = (id) => SIGNAL_SPECS.find((s) => s.id === id)?.tier;
+  assert.deepEqual([tier("camslim_cup"), tier("kq_nowcast"), tier("top20_alpha"), tier("rrg_quadrant")], ["B", "B", "C", "C"]);
+  assert.equal(SIGNAL_SPECS.length, 25);
+  assert.equal(tier("log_rvol"), undefined);
 });

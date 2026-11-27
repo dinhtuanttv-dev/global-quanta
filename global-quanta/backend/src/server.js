@@ -238,6 +238,8 @@ const getElitePanel = () => (elitePanel ??= createElitePanelService({
   catalystSnapshot: () => readCatalystSnapshot(getCotucStore()),
   store: getMarketRuntime().store, wsStrategy: () => getWorldStrategy().strategy(), rrgDoc, taxonomy,
   structureSummary: () => getMarketRuntime().structure.summary(),
+  // E2-v1 sửa đổi 27/11/2026: KQKD (ước tính LNST cả năm) cho tín hiệu kq_nowcast; kho chưa nạp -> null (cột trống, ghi thiếu nguồn).
+  kqkdSummary: async () => (await getMarketRuntime().kqkd?.summary?.()) ?? null,
   leadership: (date) => getEliteLeadership().live(date),
 }));
 // LS-r1: dòng Siêu quét của một mã cho khối "Sức mạnh dẫn dắt" (nhãn Đồng thuận hiển thị tách "Đang tăng, chưa dẫn dắt").

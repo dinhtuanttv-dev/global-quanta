@@ -17,7 +17,7 @@ export const ELITE_KV = {
   panel: (date) => `elite:panel:${date}`,
 };
 const KEEP_DAYS = 400;
-const PANEL_STRATEGIES = ["sepa", "patterns", "convergence", "base-breakout"];
+const PANEL_STRATEGIES = ["sepa", "patterns", "convergence", "base-breakout", "camslim"];
 
 async function getJson(fetchImpl, url, timeoutMs) {
   try {
@@ -32,7 +32,7 @@ async function getJson(fetchImpl, url, timeoutMs) {
  * @param {{ store: any, wsStrategy: () => Promise<any>, rrgDoc: () => Promise<any>, taxonomy: () => Promise<any>,
  *   fetchImpl?: typeof fetch, projectABase?: string, now?: () => number, log?: { warn: Function } }} deps
  */
-export function createElitePanelService({ catalystSnapshot = null, store, wsStrategy, rrgDoc, taxonomy, structureSummary = async () => null, leadership = null, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
+export function createElitePanelService({ catalystSnapshot = null, store, wsStrategy, rrgDoc, taxonomy, structureSummary = async () => null, kqkdSummary = async () => null, leadership = null, fetchImpl = globalThis.fetch, projectABase, now = Date.now, log = console }) {
   const base = (projectABase ?? process.env.LEGACY_MARKET_API_BASE ?? "https://tuan-quant-scanner-psi.vercel.app").replace(/\/+$/, "");
   let memo = null; // { date, doc }
   let building = null;
@@ -56,7 +56,7 @@ export function createElitePanelService({ catalystSnapshot = null, store, wsStra
   async function gather(scannerDoc) {
     const scanner = scannerDoc === undefined ? await kv(SCANNER_KV.latest) : scannerDoc;
     const date = scanner?.dataAsOf ?? null;
-    const [features, top20, rrg, tax, ws, catalyst, cotuc, structure, ls, ...strats] = await Promise.all([
+    const [features, top20, rrg, tax, ws, catalyst, cotuc, structure, ls, kqkd, ...strats] = await Promise.all([
       latestFeatures(date),
       kv(ALPHA_KV.top20),
       rrgDoc().catch(() => null),
@@ -67,13 +67,15 @@ export function createElitePanelService({ catalystSnapshot = null, store, wsStra
       structureSummary().catch(() => null),
       // LS-r1: điểm dẫn dắt LS-v1 của cùng phiên (tính từ giá ngày Gateway).
       leadership && date ? leadership(date).catch((e) => { log.warn?.(`[elite] leadership: ${e.message}`); return null; }) : null,
+      // E2-v1 sửa đổi 27/11/2026: KQKD theo quý (ước tính LNST cả năm) cho tín hiệu kq_nowcast.
+      kqkdSummary().catch((e) => { log.warn?.(`[elite] kqkd: ${e.message}`); return null; }),
       ...PANEL_STRATEGIES.map((id) => kv(strategyKvKey(id))),
     ]);
     const strategies = Object.fromEntries(PANEL_STRATEGIES.map((id, i) => [id, strats[i]]));
     return {
       date,
       // Cấu trúc chỉ nhận khi cùng phiên với Siêu quét (point-in-time).
-      src: { scanner, features, top20, strategies, wsStrategy: ws, rrg, taxonomy: tax, catalyst, cotuc, structure: structure && structure.asOf === date ? structure : null, leadership: ls && ls.date === date ? ls : null },
+      src: { scanner, features, top20, strategies, wsStrategy: ws, rrg, taxonomy: tax, catalyst, cotuc, structure: structure && structure.asOf === date ? structure : null, leadership: ls && ls.date === date ? ls : null, kqkd, kqkdDate: date },
       asOf: {
         scanner: date, top20: top20?.dataAsOf ?? null, wsStrategy: ws?.vnLast ?? null, rrg: rrg?.dataAsOf ?? null,
         catalyst: catalyst?.scannedAt ?? null, catalystStale: catalyst?.isStale ?? null, cotuc: cotuc?.asOf ?? null, structure: structure?.asOf ?? null,
