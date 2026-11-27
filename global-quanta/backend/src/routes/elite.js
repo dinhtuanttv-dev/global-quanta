@@ -23,7 +23,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getImpact = null, getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, getEvolution = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getImpact = null, getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, getEvolution = null, getProfile = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -208,6 +208,18 @@ export function createEliteRouter({ getImpact = null, getDilution = null, getPro
     const d = getDecision?.().liquidity ? await getDecision().liquidity(ticker) : null;
     if (!d) return missing(res, "Chưa có quyết định Elite.");
     res.set("Cache-Control", "public, max-age=300, s-maxage=900"); res.json(d);
+  }));
+
+  // HS360-v3 H3 (27/11/2026): ảnh chụp Hồ sơ 360° của một mã — một lần gọi, khoá theo phiên, chỉ đọc (docs/ho-so-360-v3/04).
+  router.get("/profile/:ticker", wrap(async (req, res) => {
+    if (!getProfile) return res.status(503).json({ error: "Chưa bật ảnh chụp hồ sơ." });
+    const t = String(req.params.ticker ?? "").toUpperCase();
+    if (!/^[A-Z0-9]{3,10}$/.test(t)) return res.status(400).json({ error: "Mã không hợp lệ." });
+    const doc = await getProfile().get(t);
+    if (!doc) return missing(res, "Chưa có bảng tín hiệu nào.");
+    if (doc.notFound) return res.status(404).json({ error: `${t} không nằm trong vũ trụ bảng tín hiệu phiên ${doc.session}.` });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(doc);
   }));
 
   router.get("/decision/:ticker", wrap(async (req, res) => {

@@ -41,6 +41,7 @@ import { createImpactProfile } from "./market/elite/impactProfile.js";
 import { runCatalystTool } from "./market/catalystChat/catalystTools.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
 import { createEvidenceEvolution } from "./market/elite/evidenceEvolution.js";
+import { createProfileSnapshot } from "./market/elite/profileSnapshot.js";
 import { evidenceRegistry } from "./market/elite/evidenceRegistry.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
@@ -370,6 +371,12 @@ let aiRoomLedger;
 const getAiRoomLedger = () => (aiRoomLedger ??= createAiRoomLedger({ store: getMarketRuntime().store, adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses }));
 // EV-4 (27/11/2026): tiến hoá bằng chứng tab 4 — dựng theo yêu cầu (nhớ 10 phút), chỉ đọc các sổ / engine sẵn có.
 let eliteEvolution = null;
+// HS360-v3 H3: ảnh chụp Hồ sơ 360° (ghép dịch vụ sẵn có, bộ đệm 5 phút theo mã × phiên).
+let eliteProfileSnapshot = null;
+const getEliteProfileSnapshot = () => (eliteProfileSnapshot ??= createProfileSnapshot({
+  getPanel: getElitePanel, getDecision: getEliteDecision, getEvidence: getEliteEvidence, getEvolution: () => getEliteEvolution(), registry: evidenceRegistry,
+  getProfileFa: () => getEliteProfileFa(), getAiLedger: getAiRoomLedger, adjustedCloses: eliteAdjustedCloses,
+}));
 const getEliteEvolution = () => (eliteEvolution ??= createEvidenceEvolution({
   store: getMarketRuntime().store, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getToShadow: () => getMarketRuntime().eliteToShadow ?? null,
   getAiLedger: getAiRoomLedger, registry: evidenceRegistry,
@@ -525,7 +532,7 @@ app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoo
     return getMarketRuntime().service.cache.wrap("ai-room:observation:" + ticker + ":" + status.publication, 30_000,
       () => selectResearchProjection(ticker, getResearchRoom().capture));
   } }));
-app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getEvolution: () => getEliteEvolution(), getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getEvolution: () => getEliteEvolution(), getProfile: () => getEliteProfileSnapshot(), getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
