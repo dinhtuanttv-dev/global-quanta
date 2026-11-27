@@ -6,6 +6,8 @@ import { fmtDate, num, signed } from "./boardParts";
 import HlLedgerNote from "./HlLedgerNote";
 import { DEFAULT_PZ_RULES, PzRulesItems } from "./HlPricePosition";
 import { hlCadenceVi } from "../../../lib/elite10/hlCadence";
+import { useEvidenceEvolution } from "../../../hooks/elite10/useEvidenceEvolution";
+import { REGIME_VI } from "./EvidenceEvolution";
 
 const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFinite(v) ? "—" : `${num(v * 100, d)}%`);
 
@@ -92,10 +94,17 @@ export function HlLedgerPanel({ d }: { d: EliteDecision }) {
  */
 export function HlEvidenceLink({ d, onNavigate }: { d: EliteDecision; onNavigate?: () => void }) {
   const hl = d.hl!;
+  // EV-4: tóm tắt tiến hoá bằng chứng (chỉ mô tả; không có dữ liệu -> không hiện dòng này).
+  const { data: evo } = useEvidenceEvolution();
   return (
     <Panel title="Bằng chứng · sổ theo dõi · quy tắc" testId="hl-evidence-link">
       <ul className="space-y-0.5 text-[11px] text-slate-300">
         <li data-testid="hl-evidence-link-ledger">Sổ theo dõi tiến Elite HL — 5 phiên: {ledgerLine(d.ledgerSummary, "5")} · 10 phiên: {ledgerLine(d.ledgerSummary, "10")}</li>
+        {evo && (
+          <li data-hl-layer="evidence" data-testid="hl-evidence-evo" className="text-slate-300">
+            Tab 4: thị trường {REGIME_VI[evo.currentRegime].toLowerCase()} · SQS TB {evo.scorecard.signalHealth.meanSqs}/100 · {evo.scorecard.signalHealth.provenCount} tín hiệu đã chứng minh, {evo.scorecard.signalHealth.invertedCount} ngược chiều · <b className={evo.proposals.some((p) => p.priority === "HIGH") ? "text-amber-200" : "text-slate-200"}>{evo.proposals.length} đề xuất cần duyệt</b>
+          </li>
+        )}
         <li className="text-slate-400">Bằng chứng của từng lớp (kiểm định đăng ký trước, công bố cả khi không đạt), quy tắc, Cổng tiền mặt, trọng số: ở tab 4.</li>
         <li className="text-slate-400">Quy tắc: tối đa {hl.rule.slots} mã, {hlCadenceVi(hl).short}, ra khi LS-v1 dưới phân vị {hl.rule.exitLsPct}, hết mô hình TA hoặc ngành Tụt hậu.</li>
       </ul>

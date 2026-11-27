@@ -23,7 +23,7 @@ import { isAdmin } from "./macro.js";
 import { SIGNAL_SPECS } from "../market/elite/signalRegistry.js";
 import { recentStoreError, storeErrorVi } from "../market/elite/storeHealth.js";
 
-export function createEliteRouter({ getImpact = null, getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
+export function createEliteRouter({ getImpact = null, getDilution = null, getProfileFa = null, getHlWatch = null, getPanel, getCashGate = null, getEvidence = null, getDecision = null, getChatTools = null, getRisk = null, getRetro = null, getBuyTiming = null, getEliteZones = null, getUserFilters = null, getToShadow = null, getHlLedger = null, getLeadership = null, getScannerItem = null, getEvolution = null, verifyUser = null, knownSignals = new Set(), adminToken = () => process.env.MARKET_ADMIN_TOKEN || "" }) {
   const router = express.Router();
   // Không có dữ liệu: nếu kho dữ liệu vừa lỗi -> 503 kèm nguyên nhân thật; ngược lại 404 "chưa tính".
   const missing = (res, msg) => {
@@ -135,6 +135,18 @@ export function createEliteRouter({ getImpact = null, getDilution = null, getPro
   router.post("/admin/confluence-ledger", admin, wrap(async (req, res) => {
     if (!getHlLedger?.()) return res.status(404).json({ error: "Chưa bật sổ theo dõi HL-v1." });
     res.json(await getHlLedger().tick());
+  }));
+  // EV-4 (27/11/2026): tiến hoá bằng chứng tab 4 — SQS, nhãn xu hướng, IC theo chế độ thị trường, đề xuất cần duyệt. Chỉ mô tả.
+  router.get("/evidence-evolution", wrap(async (req, res) => {
+    const doc = getEvolution ? await getEvolution().get() : null;
+    if (!doc) return missing(res, "Chưa có kết quả tiến hoá bằng chứng (cần kết quả engine E2).");
+    res.set("Cache-Control", "public, max-age=600");
+    res.json(doc);
+  }));
+  router.post("/admin/evidence-evolution", admin, wrap(async (req, res) => {
+    if (!getEvolution) return res.status(503).json({ error: "Chưa cấu hình tiến hoá bằng chứng." });
+    const doc = await getEvolution().get({ refresh: true });
+    res.json(doc ? { version: doc.version, generatedAt: doc.generatedAt, signals: doc.signals.length, proposals: doc.proposals.length, currentRegime: doc.currentRegime } : { error: "Chưa có kết quả E2." });
   }));
   router.post("/admin/evidence", admin, wrap(async (req, res) => {
     if (!getEvidence) return res.status(503).json({ error: "Engine bằng chứng chưa cấu hình." });

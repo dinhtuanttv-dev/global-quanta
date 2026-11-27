@@ -40,6 +40,8 @@ import { createDilution } from "./market/elite/dilutionService.js";
 import { createImpactProfile } from "./market/elite/impactProfile.js";
 import { runCatalystTool } from "./market/catalystChat/catalystTools.js";
 import { createEvidenceEngine } from "./market/elite/evidenceEngine.js";
+import { createEvidenceEvolution } from "./market/elite/evidenceEvolution.js";
+import { evidenceRegistry } from "./market/elite/evidenceRegistry.js";
 import { createLeadershipService } from "./market/elite/leadershipService.js";
 import { createScreenerSeries } from "./market/strategies/screenerSeries.js";
 import { createEliteAdjustedBars, createEliteAdjustedCloses } from "./market/elite/adjustedCloses.js";
@@ -364,6 +366,13 @@ let researchAutonomy;
 // ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — ghi từ vòng nền, chấm theo giá điều chỉnh so với VN-Index (kho đã có, không gọi ra ngoài).
 let aiRoomLedger;
 const getAiRoomLedger = () => (aiRoomLedger ??= createAiRoomLedger({ store: getMarketRuntime().store, adjustedCloses: eliteAdjustedCloses, vnIndex: vnIndexCloses }));
+// EV-4 (27/11/2026): tiến hoá bằng chứng tab 4 — dựng theo yêu cầu (nhớ 10 phút), chỉ đọc các sổ / engine sẵn có.
+let eliteEvolution = null;
+const getEliteEvolution = () => (eliteEvolution ??= createEvidenceEvolution({
+  store: getMarketRuntime().store, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getToShadow: () => getMarketRuntime().eliteToShadow ?? null,
+  getAiLedger: getAiRoomLedger, registry: evidenceRegistry,
+  vnBars: async () => ((await getMarketRuntime().service.getOhlcv({ symbol: "VNINDEX", limit: 1500 })).bars ?? []).filter((b) => !b.partial && b.close > 0),
+}));
 const getResearchAutonomy = () => (researchAutonomy ??= createResearchAutonomy({
   ledger: getAiRoomLedger(),
   store: getMarketRuntime().store, decision: () => getEliteDecision().decision(), session: getResearchSession,
@@ -514,7 +523,7 @@ app.use("/api/elite/ai-room", createResearchRoomRouter({ getRoom: getResearchRoo
     return getMarketRuntime().service.cache.wrap("ai-room:observation:" + ticker + ":" + status.publication, 30_000,
       () => selectResearchProjection(ticker, getResearchRoom().capture));
   } }));
-app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
+app.use("/api/elite", createEliteRouter({ getImpact: getEliteImpact, getProfileFa: getEliteProfileFa, getDilution: getEliteDilution, getHlWatch: getEliteHlWatch, getPanel: getElitePanel, getLeadership: getEliteLeadership, getScannerItem: eliteScannerItem, getEvolution: () => getEliteEvolution(), getCashGate, getEvidence: getEliteEvidence, getDecision: getEliteDecision, getChatTools: getEliteChatTools, getRisk: getEliteRisk, getRetro: getEliteRetro, getBuyTiming: getEliteBuyTiming, getEliteZones, getToShadow: () => getMarketRuntime().eliteToShadow ?? null, getHlLedger: () => getMarketRuntime().hlLedger ?? null, getUserFilters,
   verifyUser: async (authorization) => (await getMarketRuntime().auth.verifyAccess(authorization)).userId, knownSignals: new Set(SPEC_BY_ID.keys()) }));
 if (process.env.NODE_ENV !== "test") {
   // Từ 17:00 giờ VN ngày giao dịch: dựng một lần cho phiên hôm nay (khởi động lại giữa chừng vẫn dựng bù); ngoài khung không đọc KV.
