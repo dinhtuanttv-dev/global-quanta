@@ -363,3 +363,22 @@ describe("QĐ-R — Bảng quyết định sau khi sắp xếp lại", () => {
     expect(text("hl-focus")).toMatch(/Mã đang chọn · HDA/);
   });
 });
+
+// EC-1 (27/11/2026): nút "Chu kỳ →" mở mã ở Cycle Fingerprint (tab Ngành); không có điều hướng tab -> không hiện nút.
+import { TabNavigationContext } from "../../../lib/TabNavigationContext";
+import { useAppStore } from "../../../store/useAppStore";
+describe("EliteHlBoard — Chu kỳ →", () => {
+  it("bấm nút chọn mã ở Cycle Fingerprint và chuyển sang tab Ngành", () => {
+    const go = vi.fn();
+    render(<TabNavigationContext.Provider value={go}><EliteHlBoard d={decision} onOpenTicker={() => {}} /></TabNavigationContext.Provider>);
+    fireEvent.click(screen.getByTestId("hl-cycle-btn-CTD"));
+    expect(go).toHaveBeenCalledWith("Loc nganh");
+    expect(useAppStore.getState().cycleFocus?.ticker).toBe("CTD");
+    expect(useAppStore.getState().selectedTicker).toBe("CTD");
+  });
+  it("không có điều hướng tab -> không có nút", () => {
+    cleanup();
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.queryByTestId("hl-cycle-btn-CTD")).toBeNull();
+  });
+});

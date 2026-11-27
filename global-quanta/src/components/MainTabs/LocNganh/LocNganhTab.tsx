@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import { CycleFingerprintTab } from "./CfTab";
 import SectorRotationPanel from "./timing/SectorRotationPanel";
@@ -11,9 +11,15 @@ import Top20V2Panel from "./Top20V2Panel";
 import { useAlphaTop20 } from "../../../hooks/useAlphaTop20";
 
 type SubTab = "rrg" | "fingerprint";
+/** EC-1: nonce "Chu kỳ →" đã xử lý — để ở mức mô-đun để mở lại tab không tự nhảy sang Cycle Fingerprint lần nữa. */
+let handledCycleNonce = 0;
 
 export default function LocNganhTab() {
-  const [subTab, setSubTab] = useState<SubTab>("rrg");
+  const cycleFocus = useAppStore((s) => s.cycleFocus);
+  const [subTab, setSubTab] = useState<SubTab>(() => (cycleFocus && cycleFocus.nonce > handledCycleNonce ? "fingerprint" : "rrg"));
+  useEffect(() => {
+    if (cycleFocus && cycleFocus.nonce > handledCycleNonce) { handledCycleNonce = cycleFocus.nonce; setSubTab("fingerprint"); }
+  }, [cycleFocus]);
 
   const selectedSectorKey = useAppStore((s) => s.selectedSectorKey);
   const setSelectedSectorKey = useAppStore((s) => s.setSelectedSectorKey);

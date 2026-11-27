@@ -1,10 +1,12 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { CfI18nProvider, useCfI18n } from '../../../i18n/CfI18nProvider';
 import { useAppStore } from '../../../store/useAppStore';
 import './cycle-fingerprint.css';
 import { CfV2Panel } from './CfV2Panel';
 import { useCycleFingerprintV2 } from '../../../hooks/useCycleFingerprintV2';
 import { useSectorRrg } from '../../../hooks/useSectorRotation';
+import EliteCycleStrip, { cycleStripItems } from './EliteCycleStrip';
+import { useEliteDecision } from '../../../hooks/elite10/useEliteCenter';
 
 function CfTabInner() {
   const { t } = useCfI18n();
@@ -12,12 +14,18 @@ function CfTabInner() {
   const v2 = useCycleFingerprintV2(selectedTicker, true);
   const rrg = useSectorRrg();
   const sectorNames = useMemo(() => new Map((rrg.data?.sectors ?? []).map((s) => [s.code, s.name])), [rrg.data]);
+  // EC-1: chưa chọn mã -> tự chọn mã hạng 1 của Danh mục Elite HL (chỉ khi chưa có mã nào).
+  const decision = useEliteDecision().data;
+  const selectTicker = useAppStore((s) => s.selectTicker);
+  const first = cycleStripItems(decision, false)[0]?.ticker ?? null;
+  useEffect(() => { if (!selectedTicker && first) selectTicker(first); }, [selectedTicker, first, selectTicker]);
 
   if (!selectedTicker) {
-    return <div className="cf-state cf-state--empty"><p>{t('state.noTicker')}</p></div>;
+    return <div className="cf-tab"><EliteCycleStrip /><div className="cf-state cf-state--empty"><p>{t('state.noTicker')}</p></div></div>;
   }
   return (
     <div className="cf-tab">
+      <EliteCycleStrip />
       {v2.isLoading && <div className="cf-state cf-state--loading"><div className="cf-spinner" /><p>Đang tìm giai đoạn tương tự trong toàn thị trường… lần đầu sau khi máy chủ khởi động có thể mất tới ~1 phút để dựng thư viện.</p></div>}
       {v2.error && (
         <div className="cf-state cf-state--error" role="alert" data-testid="cf2-error">

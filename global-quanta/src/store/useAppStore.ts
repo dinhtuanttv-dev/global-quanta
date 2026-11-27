@@ -47,6 +47,9 @@ interface AppState {
   /** Lọc bảng Siêu Quét theo một ngành ICB (từ Phân tích ngành). */
   scanSectorFocus: { code: string; nonce: number } | null;
   focusScanSector: (code: string) => void;
+  /** EC-1: mở một mã ở tab con Cycle Fingerprint (tab Phân tích ngành) — từ bảng Danh mục Elite HL. */
+  cycleFocus: { ticker: string; nonce: number } | null;
+  focusCycle: (ticker: string) => void;
   focusTickerInScanner: (ticker: string, opts?: { addToWatchlist?: boolean }) => void;
 
   // ===== TRẠNG THÁI NGUỒN GIÁ (MarketFeed -> đèn trên thanh trên) =====
@@ -164,6 +167,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   focusSector: (code) => set((s) => ({ sectorFocus: { code, nonce: (s.sectorFocus?.nonce ?? 0) + 1 } })),
   scanSectorFocus: null,
   focusScanSector: (code) => set((s) => ({ scanSectorFocus: { code, nonce: (s.scanSectorFocus?.nonce ?? 0) + 1 } })),
+  cycleFocus: null,
+  focusCycle: (ticker) => {
+    get().selectTicker(ticker);
+    set((s) => ({ cycleFocus: { ticker, nonce: (s.cycleFocus?.nonce ?? 0) + 1 } }));
+  },
   focusTickerInScanner: (ticker, opts) => {
     const t = ticker.trim().toUpperCase();
     if (!t) return;
