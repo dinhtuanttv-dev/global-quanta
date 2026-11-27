@@ -42,6 +42,7 @@ const cashGate = {
 };
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/elite10/useEvidenceEvolution", () => ({ useEvidenceEvolution: () => ({ data: undefined }) })); // HS360-v3 H2: không gọi mạng
+vi.mock("../../../hooks/elite10/useEliteProfile", () => ({ useEliteProfile: () => ({ data: undefined, error: new Error("chưa có") }) })); // HS360-v3 H4
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useCashGate: () => ({ data: cashGate, isLoading: false }),
   useEliteRetro: () => ({ data: { horizons: { 5: { ic: { n: 204, mean: 0.031, t: 2.65 } } } } }),

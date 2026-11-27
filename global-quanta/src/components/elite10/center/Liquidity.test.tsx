@@ -38,8 +38,8 @@ describe("LiquidityBadge", () => {
 describe("Hồ sơ · Thanh khoản & năng lực giao dịch", () => {
   it("bậc của hệ thống, biểu đồ 60 phiên, số đo, lý do có số, ô vốn tính lại và lưu riêng trình duyệt", async () => {
     await act(async () => { render(<LiquidityProfileBlock ticker="VCP" />); });
-    expect(screen.getByTestId("pa-confirmation")).toBeTruthy();
-    expect(text("pa-status")).toMatch(/Chưa đủ dữ liệu tin cậy/);
+    // HS360-v3 H4: "Price Action × Khối lượng" rời khối thanh khoản, sang lớp Kỹ thuật của ma trận (góc Tổng quan).
+    expect(screen.queryByTestId("pa-confirmation")).toBeNull();
     expect(text("lq-tier")).toMatch(/L4 · Chỉ nghiên cứu/);
     expect(screen.getByTestId("lq-chart").querySelectorAll("rect").length).toBe(61);
     expect(text("lq-med")).toMatch(/3,6 tỷ.*Trung bình 5,5 tỷ — cao hơn trung vị 53% do đột biến/);

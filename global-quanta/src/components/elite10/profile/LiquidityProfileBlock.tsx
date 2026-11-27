@@ -5,7 +5,6 @@ import { useEliteLiquidity } from "../../../hooks/elite10/useEliteLiquidity";
 import { BINDING_VI, bnText, LQ_TIER, lqCapacity, lqThresholds, reasonText, statsFromSeries, type LqPoint } from "../../../lib/elite10/liquidity";
 import type { LqRules } from "../../../lib/elite10/decisionTypes";
 import { Block, Evidence, fmtDate, num, Stat } from "./pfaParts";
-import PriceActionConfirmation from "./PriceActionConfirmation";
 
 const CAP_KEY = "gq:lq:capitalBn";
 const readCap = (d: number) => { try { const v = Number(localStorage.getItem(CAP_KEY)); return v > 0 ? v : d; } catch { return d; } };
@@ -59,9 +58,9 @@ export default function LiquidityProfileBlock({ ticker }: { ticker: string }) {
   const setCap = (v: number) => { if (!(v > 0)) return; setCapital(v); try { localStorage.setItem(CAP_KEY, String(v)); } catch { /* bộ nhớ trình duyệt bị chặn */ } };
 
   const head = <Evidence label="MÔ TẢ" title="LQ-v1: số đo thanh khoản trên GTGD KHỚP LỆNH (không gồm thoả thuận). Không đổi danh mục; đổi cổng chọn mã cần kiểm định đăng ký trước LQ-r1." />;
-  if (isLoading) return <Block title="Thanh khoản & năng lực giao dịch" testId="lq-profile" right={head}><p className="text-[11px] italic text-slate-500">Đang tải số đo thanh khoản…</p><PriceActionConfirmation ticker={ticker} /></Block>;
+  if (isLoading) return <Block title="Thanh khoản & năng lực giao dịch" testId="lq-profile" right={head}><p className="text-[11px] italic text-slate-500">Đang tải số đo thanh khoản…</p></Block>;
   if (error || !data || data.missing || !data.liq || !data.series || !rules || !mine) {
-    return <Block title="Thanh khoản & năng lực giao dịch" testId="lq-profile" right={head}><p className="text-[11px] text-slate-400" data-testid="lq-missing">{error ? `Không tải được số đo thanh khoản: ${String((error as Error).message ?? error)}` : `Chưa có chuỗi GTGD của ${ticker} ở phiên quyết định mới nhất.`}</p><PriceActionConfirmation ticker={ticker} /></Block>;
+    return <Block title="Thanh khoản & năng lực giao dịch" testId="lq-profile" right={head}><p className="text-[11px] text-slate-400" data-testid="lq-missing">{error ? `Không tải được số đo thanh khoản: ${String((error as Error).message ?? error)}` : `Chưa có chuỗi GTGD của ${ticker} ở phiên quyết định mới nhất.`}</p></Block>;
   }
   const gw = data.liq, t = LQ_TIER[gw.tier], tm = LQ_TIER[mine.tier], th = lqThresholds(rules, cap);
   const q = rules.wMax * cap, c = lqCapacity(mine, data.sigma20, q, rules);
@@ -103,7 +102,7 @@ export default function LiquidityProfileBlock({ ticker }: { ticker: string }) {
           Ô vốn lưu riêng trên trình duyệt của anh, không đổi số của hệ thống.
         </p>
       </div>
-      <PriceActionConfirmation ticker={ticker} />
+      {/* HS360-v3 H4: "Price Action × Khối lượng" (kỹ thuật) chuyển sang lớp Kỹ thuật của ma trận ở góc Tổng quan. */}
     </Block>
   );
 }

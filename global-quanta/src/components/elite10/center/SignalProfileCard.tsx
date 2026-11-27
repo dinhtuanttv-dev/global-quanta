@@ -17,6 +17,10 @@ import { hlGap } from "../../../lib/elite10/hlGap";
 import { splitQueue } from "../../../lib/elite10/liquidity";
 import StockImpactCard from "./StockImpactCard";
 import SignalTableView from "./SignalTableView";
+import ThesisCard from "../profile/ThesisCard";
+import LayerMatrix from "../profile/LayerMatrix";
+import PriceActionConfirmation from "../profile/PriceActionConfirmation";
+import { useEliteProfile } from "../../../hooks/elite10/useEliteProfile";
 import { useEvidenceEvolution } from "../../../hooks/elite10/useEvidenceEvolution";
 
 const num = (v: number | null | undefined, d = 2) => (v == null || !Number.isFinite(v) ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: d }));
@@ -30,13 +34,16 @@ export function percentile(values: number[], v: number): number | null {
 }
 
 /** HS360-v3 H2: view = "summary" (góc Tổng quan) | "signals" (góc Tín hiệu: bảng 25 tín hiệu + Điểm Elite đối chứng). */
-export default function SignalProfileCard({ ticker, view = "summary" }: { ticker: string; view?: "summary" | "signals" }) {
+/** HS360-v3 H4: onView — chuyển góc nhìn từ ma trận lớp (Tín hiệu / Doanh nghiệp / Sự kiện). */
+export default function SignalProfileCard({ ticker, view = "summary", onView }: { ticker: string; view?: "summary" | "signals"; onView?: (v: "signals" | "company" | "events") => void }) {
   const { decision, panel, isLoading, error } = useEliteTicker(ticker);
   const { data: full } = useElitePanel();
   const { data: ev } = useEliteEvidence();
   const { data: dec } = useEliteDecision();
   const evOf = useMemo(() => new Map((ev?.signals ?? []).map((s) => [s.id, s])), [ev]);
   const { data: evo } = useEvidenceEvolution(view === "signals");
+  // HS360-v3 H4: ảnh chụp hồ sơ (Luận điểm + ma trận lớp) — chỉ góc Tổng quan dùng.
+  const { data: snap, error: snapError } = useEliteProfile(view === "summary" ? ticker : null);
   const evoOf = useMemo(() => new Map((evo?.signals ?? []).map((s) => [s.id, s])), [evo]);
   const groups = useMemo(() => {
     if (!panel) return [];
@@ -103,9 +110,31 @@ export default function SignalProfileCard({ ticker, view = "summary" }: { ticker
             </div>
           )}
         </div>
-        <ConfluenceCard ticker={ticker} />
-        <LeadershipCard ticker={ticker} />
-        <StockImpactCard ticker={ticker} />
+        {snap ? (
+          <>
+            <ThesisCard snap={snap} />
+            <LayerMatrix layers={snap.layers} actions={{
+              LEADERSHIP: { detail: <LeadershipCard ticker={ticker} /> },
+              TECHNICAL: { detail: <div className="space-y-2"><ConfluenceCard ticker={ticker} /><PriceActionConfirmation ticker={ticker} /></div> },
+              SECTOR: { detail: <ConfluenceCard ticker={ticker} /> },
+              WORLD_CATALYST: { detail: <StockImpactCard ticker={ticker} /> },
+              ...(onView ? {
+                FLOW: { goto: { label: "Góc Tín hiệu", onClick: () => onView("signals") } },
+                FUNDAMENTAL: { goto: { label: "Góc Doanh nghiệp", onClick: () => onView("company") } },
+                LIQUIDITY: { goto: { label: "Góc Doanh nghiệp", onClick: () => onView("company") } },
+                TIMING: { goto: { label: "Góc Sự kiện", onClick: () => onView("events") } },
+              } : {}),
+            }} />
+          </>
+        ) : snapError ? (
+          // Ảnh chụp lỗi / chưa có (VD Gateway bản cũ) -> giữ nguyên các khối cũ, không mất thông tin.
+          <>
+            <p className="text-[10.5px] text-slate-500" data-testid="profile-snapshot-fallback">Chưa tải được luận điểm và ma trận lớp — hiện các khối chi tiết.</p>
+            <ConfluenceCard ticker={ticker} />
+            <LeadershipCard ticker={ticker} />
+            <StockImpactCard ticker={ticker} />
+          </>
+        ) : <p className="py-2 text-[11px] italic text-slate-500" data-testid="profile-snapshot-loading">Đang dựng luận điểm và ma trận lớp của {ticker}…</p>}
         <p className="text-[10px] text-slate-400">Tham khảo định lượng — không phải khuyến nghị đầu tư. {panel.signals.length} tín hiệu của mã xem ở góc "Tín hiệu".</p>
       </section>
     );
