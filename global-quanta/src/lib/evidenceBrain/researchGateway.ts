@@ -17,6 +17,8 @@ export interface ResearchSession {
   eod: { confirmed: number; expected: number } | null;
   publication: string;
   worker?: { session: string | null; core: number; snapshots: number; ready: number; bull: number; bear: number; judge: number;
+    /** M1 (27/11/2026): số vai đã trả lời theo làn — gemini = làn chính miễn phí, claude = dự phòng GPT / Claude. */
+    lanes?: Partial<Record<"claude" | "gemini", number>>;
     blocked: { provider: "claude" | "gemini"; reason: "BILLING" | "AUTH" | "RATE_LIMIT" | "NOT_CONFIGURED"; retryAt: number | null }[] };
 }
 

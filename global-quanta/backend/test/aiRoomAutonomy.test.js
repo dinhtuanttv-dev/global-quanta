@@ -103,9 +103,52 @@ test("Gemini receives the verifier schema restricted to this snapshot and its ev
   assert.equal(claim.numericAssertions.items.properties.unit.nullable, true);
 });
 
-test("Claude billing failure is shared across Core, Gemini completes, and only the missing roles resume", async () => {
+test("M1: the Gemini lane serves the bull and judge roles with the schema restricted to that role", async () => {
+  const snapshot = { snapshotId: "fixture-sealed", ticker: "FPT", refs: [{ id: "verified-ref" }] };
+  const sides = [];
+  const chat = createCatalystChat({ env: { GEMINI_API_KEY: "fixture" }, geminiModel: async (_key, schema) => {
+    sides.push(schema.properties.claims.items.properties.side.enum[0]);
+    return { startChat: () => ({ sendMessageStream: async () => ({
+      stream: (async function* () { yield { text: () => "ok" }; })(),
+      response: Promise.resolve({ functionCalls: () => [] }),
+    }) }) };
+  } });
+  assert.equal(await chat.analyzeSealed("BULL", "review", snapshot, "gemini"), "ok");
+  assert.equal(await chat.analyzeSealed("JUDGE", "review", snapshot, "gemini"), "ok");
+  assert.deepEqual(sides, ["BULL", "JUDGE"]);
+});
+
+test("M1: Gemini runs all three roles; a Gemini 429 falls through to the GPT/Claude lane in the same pass, and a later Gemini success reopens it", async () => {
   const room = fixtureRoom(), store = createMemoryStore(), snapshots = new Map(), calls = [];
-  let now = clock;
+  let now = clock, limited = true;
+  const doc = { date, portfolio: [{ ticker: "FPT" }] };
+  const deps = { store, configured: () => ({ claude: true, gemini: true }), now: () => now, log: {},
+    session: async () => ({ decisionSession: date, expectedClosedSession: date, stage: "PUBLISHED", publication: "v1" }),
+    decision: async () => doc, capture: async (ticker) => {
+      const projection = await room.capture(ticker, date);
+      snapshots.set(projection.snap.snapshotId, projection); return projection;
+    },
+    infer: async (side, message, _snapshot, lane) => {
+      calls.push(side + ":" + lane);
+      if (lane === "gemini" && side === "BULL" && limited) { limited = false; throw Object.assign(new Error("429 Too Many Requests"), { status: 429 }); }
+      const id = [...snapshots.keys()].find((id) => message.includes(id));
+      return sourcedClaim(snapshots.get(id), side);
+    } };
+  const worker = createResearchAutonomy(deps);
+  await worker.tick();
+  assert.deepEqual(calls.slice().sort(), ["BEAR:gemini", "BULL:claude", "BULL:gemini", "JUDGE:gemini"]);
+  const record = await worker.read("FPT");
+  assert.equal(record.state, "READY");
+  assert.deepEqual(record.lanes, { BULL: "claude", BEAR: "gemini", JUDGE: "gemini" });
+  const health = await worker.health(doc);
+  assert.equal(health.ready, 1); assert.deepEqual(health.lanes, { gemini: 2, claude: 1 });
+  // Vai Phản biện trả lời được trên Gemini ngay sau đó -> mạch Gemini đóng lại, Trọng tài quay về làn chính.
+  assert.deepEqual(health.blocked, []);
+});
+
+test("M1: every lane blocked (Gemini 429, GPT/Claude out of credit) waits for the earliest reopening without burning attempts", async () => {
+  const room = fixtureRoom(), store = createMemoryStore(), snapshots = new Map(), calls = [];
+  let now = clock, down = true;
   const doc = { date, portfolio: [{ ticker: "FPT" }, { ticker: "MSH" }] };
   const deps = { store, configured: () => ({ claude: true, gemini: true }), now: () => now, log: {},
     session: async () => ({ decisionSession: date, expectedClosedSession: date, stage: "PUBLISHED", publication: "v1" }),
@@ -113,24 +156,27 @@ test("Claude billing failure is shared across Core, Gemini completes, and only t
       const projection = await room.capture(ticker, date);
       snapshots.set(projection.snap.snapshotId, projection); return projection;
     },
-    infer: async (side, message) => {
-      calls.push(side);
-      if (side === "BULL" && now === clock) throw Object.assign(new Error("Your credit balance is too low"), { status: 400 });
+    infer: async (side, message, _snapshot, lane) => {
+      calls.push(side + ":" + lane);
+      if (down) throw lane === "gemini" ? Object.assign(new Error("quota"), { status: 429 }) : Object.assign(new Error("Your credit balance is too low"), { status: 400 });
       const id = [...snapshots.keys()].find((id) => message.includes(id));
       return sourcedClaim(snapshots.get(id), side);
     } };
   const first = createResearchAutonomy(deps);
   await first.tick();
+  const stalled = await first.read("FPT");
+  assert.equal(stalled.state, "RETRY");
+  assert.equal(stalled.failures.BULL.reason, "RATE_LIMIT"); assert.equal(stalled.failures.BULL.attempts, 0);
+  assert.equal(stalled.failures.BULL.retryAt, clock + 60_000);
   const health = await first.health(doc);
-  assert.equal(health.ready, 0); assert.equal(health.bear, 2);
-  assert.deepEqual(health.blocked, [{ provider: "claude", reason: "BILLING", retryAt: clock + 900_000 }]);
+  assert.deepEqual(health.blocked.map((b) => b.provider + ":" + b.reason).sort(), ["claude:BILLING", "gemini:RATE_LIMIT"]);
+  // Both circuits are open: the second ticker must not call any provider.
+  assert.equal(calls.filter((c) => c.endsWith(":gemini")).length <= 2, true);
+  down = false; now += 60_001;
   const restarted = createResearchAutonomy(deps);
   await restarted.tick();
-  assert.deepEqual(calls.slice().sort(), ["BEAR", "BEAR", "BULL"]);
-  now += 900_001;
-  await restarted.tick();
-  assert.equal((await restarted.health(doc)).ready, 2);
-  assert.deepEqual(calls.slice(3), ["BULL", "JUDGE", "BULL", "JUDGE"]);
+  const after = await restarted.health(doc);
+  assert.equal(after.ready, 2); assert.deepEqual(after.lanes, { gemini: 6, claude: 0 });
 });
 
 test("the three-role worker resumes checkpoints and serves an authenticated hot HTTP read in under 200ms", async (t) => {

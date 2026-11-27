@@ -4,7 +4,10 @@ import { lastCompletedSessionDate } from "../calendar.js";
 const tickerPattern = /^[A-Z][A-Z0-9]{2}$/;
 const key = (ticker) => "local:ai-room:publication:v1:" + ticker;
 const circuitKey = (provider) => "local:ai-room:provider:v1:" + provider;
-const providers = ["claude", "gemini"];
+// M1 (27/11/2026, QĐ1 của chủ dự án): Gemini (hạn mức miễn phí) chạy CẢ BA vai; làn "claude" (GPT chính, Claude dự phòng — xem
+// chatService.runPrimary) chỉ là dự phòng khi Gemini bị giới hạn / lỗi xác thực. Thứ tự trong mảng = thứ tự ưu tiên.
+export const LANES = Object.freeze(["gemini", "claude"]);
+const providers = LANES;
 
 // 26/11/2026 (Ho-so-360-v2/25 A2–A3): 429 chờ tăng dần (1 → 2 → 4… phút, trần 1 giờ, tôn trọng Retry-After); lỗi không phải của nhà
 // cung cấp có trần số lần thử mỗi phiên — đạt trần thì vai đó dừng tới phiên sau (trước đây: 429 chờ cố định 60 s, thử mãi).
@@ -95,6 +98,8 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       { provider, reason: "NOT_CONFIGURED", retryAt: null } : await circuit(provider)));
     return { session: doc?.date ?? null, core: core.length, snapshots: records.length, ready: records.filter((r) => r.state === "READY").length,
       bull: records.filter((r) => r.roles.BULL).length, bear: records.filter((r) => r.roles.BEAR).length, judge: records.filter((r) => r.roles.JUDGE).length,
+      // Làn đã trả lời từng vai (M1): biết bao nhiêu vai chạy trên Gemini miễn phí, bao nhiêu phải dùng dự phòng.
+      lanes: Object.fromEntries(providers.map((p) => [p, records.reduce((n, r) => n + Object.values(r.lanes ?? {}).filter((l) => l === p).length, 0)])),
       blocked: blocked.filter(Boolean) };
   }
   async function read(ticker) {
@@ -127,14 +132,15 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
     let writes = Promise.resolve();
     // Debaters run independently. Serialize only the local checkpoint so a slow provider
     // cannot overwrite the role already committed by the other provider.
-    const commit = (side, result, failure) => {
+    const commit = (side, result, failure, lane = null) => {
       writes = writes.then(async () => {
         const roles = { ...record.roles }, failures = { ...record.failures };
-        if (result) { roles[side] = result; delete failures[side]; }
+        const lanes = { ...record.lanes };
+        if (result) { roles[side] = result; delete failures[side]; if (lane) lanes[side] = lane; }
         else failures[side] = failure;
         const pending = Object.values(failures).filter((f) => !f.exhausted);
         const state = roles.JUDGE ? "READY" : pending.length ? "RETRY" : "PARTIAL";
-        const next = { ...record, roles, failures, state, retryAt: pending.length ? Math.min(...pending.map((f) => f.retryAt)) : null };
+        const next = { ...record, roles, failures, lanes, state, retryAt: pending.length ? Math.min(...pending.map((f) => f.retryAt)) : null };
         await write(ticker, next);
         record = next;
         void ledger?.record(ticker, next); // ARL-v1: sổ phán quyết (lỗi ghi sổ không chặn vòng nền)
@@ -146,44 +152,52 @@ export function createResearchAutonomy({ store, session, decision, capture, infe
       // Old unconstrained-generation failures can retry once with the new contract.
       // Explicit provider circuits and successful roles survive this migration.
       if (record.roles[side] || lastFailure?.exhausted || (lastFailure?.retryAt > now() && lastFailure.reason !== "REVIEW_ERROR")) return;
-      const provider = side === "BEAR" ? "gemini" : "claude";
-      if (!enabled(provider) || await circuit(provider)) return;
-      try {
-        const pair = side === "JUDGE" ? [record.roles.BULL, record.roles.BEAR] : undefined;
-        const message = sealedReviewPrompt(packet, side, pair) + (pair ? "\nLuận điểm đối chiếu: " + JSON.stringify(pair.map((r) =>
-          r.claims.filter((c) => c.validation === "REFS_MATCHED").slice(0, 3).map((c) => ({ text: c.text.slice(0, 280), refs: c.refs.slice(0, 8) })))) : "");
-        const guidance = "\nViết 1–3 luận điểm theo đúng bằng chứng. Mỗi luận điểm chọn một ref chính, sao chép asOf của ref. supports và invalidates chỉ nhận ID bằng chứng có trong gói hoặc mảng rỗng. Mọi số trong câu phải có numericAssertions khớp chính xác giá trị và đơn vị của ref vô hướng. Tách phần suy luận và dữ liệu thiếu.";
-        const previous = record.failures?.[side]?.validation;
-        const prompt = message + guidance + (previous ? "\nLần trước bộ kiểm tra báo: " + previous : "");
-        const result = parseAndValidateClaims(await infer(side, prompt, packet.snapshot), packet.snapshot, side);
-        const rejected = result.claims.filter((c) => c.side !== side || ["MISREPRESENTED", "UNSUPPORTED"].includes(c.validation));
-        const cited = result.claims.some((c) => c.refs.length && ["REFS_MATCHED", "STRUCTURAL_ONLY"].includes(c.validation));
-        if (!result.ok || !cited || rejected.length) {
-          const validation = (result.error || rejected.flatMap((c) => c.validationNotes).slice(0, 3).join(" ") || "Cần ít nhất một luận điểm có ref trong gói.").slice(0, 440);
-          throw Object.assign(new Error("Claim validation"), { validation });
+      const message = sealedReviewPrompt(packet, side, side === "JUDGE" ? [record.roles.BULL, record.roles.BEAR] : undefined) + (side === "JUDGE" ? "\nLuận điểm đối chiếu: " + JSON.stringify([record.roles.BULL, record.roles.BEAR].map((r) =>
+        r.claims.filter((c) => c.validation === "REFS_MATCHED").slice(0, 3).map((c) => ({ text: c.text.slice(0, 280), refs: c.refs.slice(0, 8) })))) : "");
+      const guidance = "\nViết 1–3 luận điểm theo đúng bằng chứng. Mỗi luận điểm chọn một ref chính, sao chép asOf của ref. supports và invalidates chỉ nhận ID bằng chứng có trong gói hoặc mảng rỗng. Mọi số trong câu phải có numericAssertions khớp chính xác giá trị và đơn vị của ref vô hướng. Tách phần suy luận và dữ liệu thiếu.";
+      const previous = record.failures?.[side]?.validation;
+      const prompt = message + guidance + (previous ? "\nLần trước bộ kiểm tra báo: " + previous : "");
+      // Làn đầu tiên còn dùng được trả lời; làn bị giới hạn / hết tín dụng / sai khoá -> ngắt mạch làn đó và thử ngay làn kế tiếp.
+      let providerBlock = null;
+      for (const provider of providers) {
+        if (!enabled(provider) || await circuit(provider)) continue;
+        try {
+          const result = parseAndValidateClaims(await infer(side, prompt, packet.snapshot, provider), packet.snapshot, side);
+          const rejected = result.claims.filter((c) => c.side !== side || ["MISREPRESENTED", "UNSUPPORTED"].includes(c.validation));
+          const cited = result.claims.some((c) => c.refs.length && ["REFS_MATCHED", "STRUCTURAL_ONLY"].includes(c.validation));
+          if (!result.ok || !cited || rejected.length) {
+            const validation = (result.error || rejected.flatMap((c) => c.validationNotes).slice(0, 3).join(" ") || "Cần ít nhất một luận điểm có ref trong gói.").slice(0, 440);
+            throw Object.assign(new Error("Claim validation"), { validation });
+          }
+          await commit(side, result, null, provider);
+          const prior = circuits.get(provider);
+          if (prior?.strikes) { circuits.set(provider, null); await store.setKv(circuitKey(provider), null); }
+          return;
+        } catch (error) {
+          const reason = providerFailure(error);
+          if (reason) {
+            const prior = circuits.get(provider);
+            const strikes = reason === "RATE_LIMIT" ? (prior?.reason === "RATE_LIMIT" ? prior.strikes ?? 1 : 0) + 1 : 1;
+            const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 :
+              Math.max(retryAfterMs(error), Math.min(60_000 * 2 ** (strikes - 1), 3_600_000));
+            const blocked = { provider, reason, retryAt: now() + delay, ...(reason === "RATE_LIMIT" ? { strikes } : {}) };
+            await store.setKv(circuitKey(provider), blocked);
+            circuits.set(provider, blocked);
+            providerBlock = providerBlock && providerBlock.retryAt <= blocked.retryAt ? providerBlock : blocked;
+            log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + provider + " " + reason + " -> làn kế tiếp");
+            continue;
+          }
+          const attempts = (lastFailure?.reason === "REVIEW_ERROR" ? 0 : lastFailure?.attempts ?? 0) + 1;
+          const failure = error.validation ? "VALIDATION" : "PROVIDER_ERROR";
+          const exhausted = attempts >= (MAX_ATTEMPTS[failure] ?? MAX_ATTEMPTS.PROVIDER_ERROR);
+          const retryAt = now() + (attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1));
+          await commit(side, null, { attempts, retryAt: exhausted ? null : retryAt, reason: failure, provider, ...(exhausted ? { exhausted: true } : {}), ...(error.validation ? { validation: error.validation } : {}) });
+          log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + provider + " " + failure + (error.status ? " HTTP " + error.status : ""));
+          return;
         }
-        await commit(side, result);
-        const prior = circuits.get(provider);
-        if (prior?.strikes) { circuits.set(provider, null); await store.setKv(circuitKey(provider), null); }
-      } catch (error) {
-        const reason = providerFailure(error);
-        const attempts = (lastFailure?.reason === "REVIEW_ERROR" ? 0 : lastFailure?.attempts ?? 0) + 1;
-        const prior = circuits.get(provider);
-        const strikes = reason === "RATE_LIMIT" ? (prior?.reason === "RATE_LIMIT" ? prior.strikes ?? 1 : 0) + 1 : 1;
-        const delay = reason === "BILLING" || reason === "AUTH" ? 15 * 60_000 :
-          reason === "RATE_LIMIT" ? Math.max(retryAfterMs(error), Math.min(60_000 * 2 ** (strikes - 1), 3_600_000)) :
-          attempts >= 5 ? 3_600_000 : 30_000 * 2 ** (attempts - 1);
-        const retryAt = now() + delay;
-        if (reason) {
-          const blocked = { provider, reason, retryAt, ...(reason === "RATE_LIMIT" ? { strikes } : {}) };
-          await store.setKv(circuitKey(provider), blocked);
-          circuits.set(provider, blocked);
-        }
-        const failure = reason ?? (error.validation ? "VALIDATION" : "PROVIDER_ERROR");
-        const exhausted = !reason && attempts >= (MAX_ATTEMPTS[failure] ?? MAX_ATTEMPTS.PROVIDER_ERROR);
-        await commit(side, null, { attempts, retryAt: exhausted ? null : retryAt, reason: failure, ...(exhausted ? { exhausted: true } : {}), ...(error.validation ? { validation: error.validation } : {}) });
-        log.warn?.("[ai-room] " + ticker + " " + date + " " + side + " · " + failure + (error.status ? " HTTP " + error.status : ""));
       }
+      // Mọi làn đều đang ngắt mạch: ghi lý do của làn mở lại sớm nhất (không tính vào số lần thử của vai).
+      if (providerBlock) await commit(side, null, { attempts: lastFailure?.attempts ?? 0, retryAt: providerBlock.retryAt, reason: providerBlock.reason, provider: providerBlock.provider });
     }
     await Promise.all([runSide("BULL"), runSide("BEAR")]);
     if (record.roles.BULL && record.roles.BEAR) await runSide("JUDGE");
