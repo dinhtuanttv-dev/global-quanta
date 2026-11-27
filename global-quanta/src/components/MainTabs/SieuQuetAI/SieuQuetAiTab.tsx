@@ -1,7 +1,5 @@
 import { useSectorLadder } from "../../../hooks/useSectorRotation";
-import { useTabNavigation } from "../../../lib/TabNavigationContext";
-import type { SectorLadderRow } from "../../../lib/locnganh/types";
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import { useSieuQuetScanner } from "../../../hooks/useSieuQuetScanner";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
@@ -9,10 +7,6 @@ import { ScannerEvidence } from "./ScannerEvidence";
 import { useMarketQuotesStream } from "../../../hooks/useMarketQuotesStream";
 import VolumeAnalysisPanel from "./VolumeAnalysisPanel";
 import { isMarketGatewayEnabled } from "../../../services/marketDataClient";
-import VnIndexAiPanel from "./VnIndexAiPanel";
-import ResearchUiToggle from "./ResearchUiToggle";
-import { useResearchUi } from "../../../hooks/useResearchUi";
-import { useResearchOverview } from "../../../hooks/useResearch";
 import { useWatchlists } from "../../../hooks/useWatchlists";
 import { useScannerBasket, type Basket } from "../../../hooks/useScannerBasket";
 import ScannerToolbar, { type GroupBy } from "./ScannerToolbar";
@@ -22,22 +16,11 @@ import PricingBoard from "./PricingBoard";
 import { useBoardQuotes } from "../../../hooks/useBoardQuotes";
 import { useAppStore } from "../../../store/useAppStore";
 import VnIndexBand from "./VnIndexBand";
-import { ImpulseFlowPanel, TechnicalTiles } from "./MarketIntel";
-import TradingMatrixPanel from "./TradingMatrix/TradingMatrixPanel";
+import type { OverviewFilters } from "./overviewNav";
 import ScannerTable, { SCANNER_COLUMNS } from "./ScannerTable";
 import { boardSession, nextSort, sortItems, useIsNarrow, useTableFit, useViewPrefs, type SortKey, type SortState } from "./scannerView";
 import "./ScannerTables.css";
 
-
-/** Khối kỹ thuật + khối Impulse/dòng tiền lấy thêm giá đóng cửa và Market Intelligence từ tổng quan nghiên cứu (SWR dùng chung). */
-function TechnicalConnected({ state }: { state: ReturnType<typeof useSieuQuetScanner>["indexState"] }) {
-  const { data } = useResearchOverview();
-  return <TechnicalTiles state={state} close={data?.index?.current.close ?? null} />;
-}
-function ImpulseConnected({ score }: { score: number | null }) {
-  const { data } = useResearchOverview();
-  return <ImpulseFlowPanel score={score} intel={data?.intel} />;
-}
 
 /** Dòng phụ: chỉ cuộn vào tầm nhìn MỘT lần khi vừa mở (không cuộn lại mỗi lần giá realtime cập nhật). */
 function DetailRow({ ticker, colSpan = SCANNER_COLUMNS }: { ticker: string; colSpan?: number }) {
@@ -57,7 +40,16 @@ function DetailRow({ ticker, colSpan = SCANNER_COLUMNS }: { ticker: string; colS
   );
 }
 
-export default function SieuQuetAiTab() {
+/**
+ * OV-1 (27/11/2026): tab con 1 "Bảng giao dịch" của TỔNG QUAN. Bộ lọc ngành (bản đồ ICB + thanh công cụ) nằm ở tầng chứa
+ * OverviewTab để tab con "Thị trường" (bản đồ nhiệt, Index Impact, Kịch bản) lọc được bảng này; logic bảng giữ nguyên.
+ * Dải VN-Index rút gọn 1 dòng; Trung tâm thị trường, Trạng thái thị trường và phần Chi tiết VN-Index ở tab con 2.
+ */
+export default function SieuQuetAiTab({ filters, onOpenMarket, handledFocus, handledSector }: {
+  filters: OverviewFilters; onOpenMarket: () => void;
+  /** Nonce đã xử lý của lệnh tìm mã / chọn ngành — giữ ở tầng chứa để đổi qua lại tab con không xử lý lại lệnh cũ. */
+  handledFocus: MutableRefObject<number | null>; handledSector: MutableRefObject<number | null>;
+}) {
   const { indexState, items, isLoading, error, dataAsOf, generatedAt, usedSource, universeSize, validation } = useSieuQuetScanner();
   const [expandedTicker, setExpandedTicker] = useState<string | null>(null);
   const toggleRow = useCallback((ticker: string) => setExpandedTicker((cur) => (cur === ticker ? null : ticker)), []);
@@ -113,7 +105,6 @@ export default function SieuQuetAiTab() {
   // Mỗi chế độ chỉ mở một luồng giá cho các dòng đang hiển thị (không đăng ký trùng với SSI).
   const { quotes: liveQuotes, enabled: gatewayEnabled } = useMarketQuotesStream(mode === "scanner" ? streamTickers : []);
   const board = useBoardQuotes(mode === "board" ? streamTickers : [], { enabled: mode === "board" });
-  const [researchUiOn] = useResearchUi();
   const [view, setView] = useViewPrefs();
   const narrow = useIsNarrow();
   const [showSources, setShowSources] = useState(false);
@@ -131,23 +122,17 @@ export default function SieuQuetAiTab() {
     setBasketState(b);
     try { window.localStorage.setItem("gq.scannerBasket", b); } catch { /* bỏ qua */ }
   }, []);
-  const [industries, setIndustriesState] = useState<Set<string>>(() => new Set());
-  // Lọc theo ngành ICB (bản đồ Ngành): đúng danh sách mã của ngành, loại trừ với bộ lọc ngành của thanh công cụ.
-  const [sectorScope, setSectorScope] = useState<{ code: string; name: string; tickers: Set<string> } | null>(null);
-  const setIndustries = useCallback((next: Set<string>) => { setIndustriesState(next); if (next.size) setSectorScope(null); }, []);
-  const pickSector = useCallback((s: SectorLadderRow | null) => { setSectorScope(s ? { code: s.code, name: s.name, tickers: new Set(s.tickers) } : null); if (s) setIndustriesState(new Set()); }, []);
+  // Lọc theo ngành ICB (bản đồ Ngành): đúng danh sách mã của ngành, loại trừ với bộ lọc ngành của thanh công cụ (state ở OverviewTab).
+  const { industries, setIndustries, sectorScope, setSectorScope, pickSector } = filters;
   const ladder = useSectorLadder();
   const scanSectorFocus = useAppStore((s) => s.scanSectorFocus);
-  const handledScanSector = useRef<number | null>(null);
+  const handledScanSector = handledSector;
   useEffect(() => {
     if (!scanSectorFocus || !ladder.data || handledScanSector.current === scanSectorFocus.nonce) return;
     handledScanSector.current = scanSectorFocus.nonce;
     pickSector(ladder.data.sectors.find((x) => x.code === scanSectorFocus.code) ?? null);
     setBasket("ALL");
   }, [scanSectorFocus, ladder.data, pickSector, setBasket]);
-  const navigateTab = useTabNavigation();
-  const focusSector = useAppStore((s) => s.focusSector);
-  const openSector = useCallback((code: string) => { focusSector(code); navigateTab?.("Loc nganh"); }, [focusSector, navigateTab]);
   const [groupBy, setGroupBy] = useState<GroupBy>("none");
   const watchlists = useWatchlists();
   const toggleStar = watchlists.toggle;
@@ -171,7 +156,6 @@ export default function SieuQuetAiTab() {
   // Tìm mã trên thanh trên -> đưa mã vào tầm nhìn: nếu đang bị lọc thì về "Tất cả"; mã ngoài danh sách quét CHỈ được
   // thêm vào danh mục khi người dùng chọn rõ "＋ Thêm vào ★ Danh mục" (TOPBAR T3); rồi mở phân tích khối lượng của mã.
   const scannerFocus = useAppStore((s) => s.scannerFocus);
-  const handledFocus = useRef<number | null>(null);
   useEffect(() => {
     if (!scannerFocus || handledFocus.current === scannerFocus.nonce || isLoading) return;
     handledFocus.current = scannerFocus.nonce;
@@ -204,28 +188,19 @@ export default function SieuQuetAiTab() {
   const basketTitle = effectiveBasket === "VN30" ? "Rổ VN30" : effectiveBasket === "WATCHLIST" ? `★ ${watchlists.active.name}` : "Bộ lọc ngành";
 
   if (isLoading) return <div className="p-6 text-center text-slate-500 text-sm">Đang tải dữ liệu Siêu Quét AI...</div>;
-  // Bảng quét lỗi không được làm mất Trading Matrix (nguồn độc lập, spec §2.4).
+  // Bảng quét lỗi: Trading Matrix / Trung tâm thị trường (nguồn độc lập, spec §2.4) vẫn xem được ở tab con Thị trường.
   if (error) return (
     <div className="tw-scope flex flex-col gap-4 py-1">
-      <TradingMatrixPanel />
-      <div className="p-6 text-center text-rose-400 text-sm" role="alert">Không tải được bảng Siêu Quét: {String(error)}</div>
+      <div className="p-6 text-center text-rose-400 text-sm" role="alert">Không tải được bảng Siêu Quét: {String(error)}
+        <div className="mt-2"><button type="button" onClick={onOpenMarket} data-testid="scan-error-open-market" className="text-[12px] text-cyan-300 underline">Xem tab Thị trường (nguồn riêng, vẫn hoạt động) →</button></div>
+      </div>
     </div>
   );
 
   return (
     <div className="tw-scope flex flex-col gap-4 py-1">
-      {/* DẢI VN-INDEX (thu gọn được) — nhường toàn bộ bề ngang cho bảng */}
-      {!view.focus && <VnIndexBand
-        indexState={indexState}
-        technical={<TechnicalConnected state={indexState} />}
-        impulse={<ImpulseConnected score={indexState?.impulseScore ?? null} />}
-        aiPanel={researchUiOn ? <VnIndexAiPanel /> : null}
-        toggle={<ResearchUiToggle />}
-      />}
-
-      {/* TRADING MATRIX (M1–M2) — trạng thái thị trường đa nguồn; heatmap ngành lọc CÙNG state ngành của bảng, bấm mã chọn toàn trang */}
-      {!view.focus && <TradingMatrixPanel onSelectTicker={onSelect} activeSector={sectorScope?.code ?? null} onSector={pickSector} onOpenSector={openSector}
-        onIndustry={(name) => setIndustries(name ? new Set([name]) : new Set())} />}
+      {/* DẢI VN-INDEX RÚT GỌN 1 DÒNG — phân tích đầy đủ ở tab con Thị trường; "Tập trung" ẩn dải */}
+      {!view.focus && <VnIndexBand variant="compact" indexState={indexState} onOpenMarket={onOpenMarket} />}
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
       <section className="flex flex-col gap-4 min-w-0">
@@ -249,7 +224,7 @@ export default function SieuQuetAiTab() {
                 <button type="button" aria-pressed={view.levels === 1} onClick={() => setView({ levels: 1 })} title="Chỉ hiện bước giá tốt nhất">1 bước</button>
               </div>}
               <button type="button" className="scan-tool" aria-pressed={view.focus} onClick={() => setView({ focus: !view.focus })} data-testid="scan-focus"
-                title={view.focus ? "Hiện lại dải VN-Index và Trading Matrix" : "Thu dải VN-Index và Trading Matrix để bảng chiếm gần hết màn hình"}>
+                title={view.focus ? "Hiện lại dải VN-Index" : "Thu dải VN-Index để bảng chiếm gần hết màn hình"}>
                 {view.focus ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}{view.focus ? "Thoát tập trung" : "Tập trung"}
               </button>
             </div>

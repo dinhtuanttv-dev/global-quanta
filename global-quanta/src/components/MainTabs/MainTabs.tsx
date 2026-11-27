@@ -3,7 +3,7 @@ import { mutate } from "swr";
 import { ChartCandlestick, ChevronLeft, ChevronRight, FileChartColumn, Globe2, Landmark, Layers3, LayoutDashboard, RotateCw, Target, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 import SectionBoundary from "../shared/SectionBoundary";
-import SieuQuetAiTab from "./SieuQuetAI/SieuQuetAiTab";
+import OverviewTab from "./SieuQuetAI/OverviewTab";
 import TaVnIndexTab from "./TaVnIndex/TaVnIndexTab";
 import CotucTab from "./CoTuc/CotucTab";
 import KetNoiTheGioiTab from "./KetNoiTheGioi/KetNoiTheGioiTab";
@@ -140,7 +140,7 @@ export default function MainTabs() {
         {/* Lỗi vẽ trong một tab chỉ hiện thẻ lỗi tại chỗ; đổi tab là tự thử lại. */}
         <div id="main-tab-panel" role="tabpanel" aria-labelledby={`main-tab-${slugOf(activeTab)}`} key={reloadKey}>
           <SectionBoundary label={`trang ${labelOf(activeTab)}`} resetKey={activeTab}>
-            {activeTab === "Sieu quet AI" && <SieuQuetAiTab />}
+            {activeTab === "Sieu quet AI" && <OverviewTab />}
             {activeTab === "TA VN-Index" && <TaVnIndexTab />}
             {activeTab === "Chat xuc tac" && <ChatXucTacTab />}
             {activeTab === "Co tuc" && <CotucTab />}

@@ -24,11 +24,20 @@ function Chip({ label, value, color, title }: { label: string; value: ReactNode;
  * "Chi tiết" mở Phân tích kỹ thuật đa tầng, Market Impulse & dòng tiền lớn và AI phân tích VN-Index (lưới 3/3/6).
  * Trạng thái mở/đóng nhớ theo trình duyệt.
  */
-export default function VnIndexBand({ indexState, technical, impulse, aiPanel, toggle }: {
-  indexState: SieuQuetIndexState | null; technical: ReactNode; impulse: ReactNode; aiPanel: ReactNode; toggle: ReactNode;
+/**
+ * OV-1 (27/11/2026) — tab TỔNG QUAN tách 2 tab con:
+ *   variant "compact" (tab Bảng giao dịch): chỉ dòng tóm tắt + nút sang tab Thị trường (không Trung tâm thị trường, không Chi tiết);
+ *   variant "full" (mặc định): như trước. `showMarketCenter` = false khi Trung tâm thị trường đã đứng riêng ở đầu tab Thị trường.
+ *   `openKey` / `defaultOpen`: tab Thị trường nhớ trạng thái Chi tiết riêng và mặc định mở.
+ */
+export default function VnIndexBand({ indexState, technical = null, impulse = null, aiPanel = null, toggle = null, variant = "full", showMarketCenter = true,
+  openKey = KEY, defaultOpen = false, onOpenMarket, error = null }: {
+  indexState: SieuQuetIndexState | null; technical?: ReactNode; impulse?: ReactNode; aiPanel?: ReactNode; toggle?: ReactNode;
+  variant?: "full" | "compact"; showMarketCenter?: boolean; openKey?: string; defaultOpen?: boolean; onOpenMarket?: () => void; error?: string | null;
 }) {
-  const [open, setOpenState] = useState(() => { try { return window.localStorage.getItem(KEY) === "1"; } catch { return false; } });
-  const setOpen = (v: boolean) => { setOpenState(v); try { window.localStorage.setItem(KEY, v ? "1" : "0"); } catch { /* bỏ qua */ } };
+  const [open, setOpenState] = useState(() => { try { const v = window.localStorage.getItem(openKey); return v === null ? defaultOpen : v === "1"; } catch { return defaultOpen; } });
+  const setOpen = (v: boolean) => { setOpenState(v); try { window.localStorage.setItem(openKey, v ? "1" : "0"); } catch { /* bỏ qua */ } };
+  const compact = variant === "compact";
   const { data: research } = useResearchOverview();
   const intel = research?.intel?.current ?? null;
   const risk = riskLevel(intel?.risk);
@@ -37,7 +46,7 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
   const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
 
   return (
-    <section className="rounded-xl" style={box} aria-label="VN-Index">
+    <section className="rounded-xl" style={box} aria-label="VN-Index" data-testid={compact ? "vn-band-compact" : "vn-band"}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[11px]">
         <span className="text-sm font-semibold text-cyan-400">VN-Index</span>
         {s ? (
@@ -47,21 +56,25 @@ export default function VnIndexBand({ indexState, technical, impulse, aiPanel, t
             <Chip label="RSI14" value={s.rsi14.toFixed(1)} />
             <Chip label="Nén–bứt phá" value={`${s.breakoutProbability.toFixed(0)}/100`} title="Công thức: 100 − ATR percentile − |50 − độ rộng|. Không phải xác suất, chưa kiểm định." />
           </>
-        ) : <span className="text-slate-500">Đang tải dữ liệu VN-Index…</span>}
+        ) : <span className={error ? "text-rose-300" : "text-slate-500"}>{error ? `Chưa tải được số liệu VN-Index của bảng quét: ${error}` : "Đang tải dữ liệu VN-Index…"}</span>}
         {intel?.risk !== null && intel?.risk !== undefined && (
           <Chip label="Rủi ro dòng tiền rút" value={`${intel.risk} · ${risk.label}`} color={risk.color}
             title="Phân vị ngày phân phối, dấu chân tay to âm, độ rộng thấp, P(HMM Giảm) — chỉ số mô tả" />
         )}
         <div className="ml-auto flex items-center gap-3">
+          {compact ? (onOpenMarket && <button type="button" onClick={onOpenMarket} data-testid="vn-band-open-market"
+            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40"
+            title="Trung tâm thị trường, Trạng thái thị trường và phân tích VN-Index đầy đủ">Xem phân tích thị trường →</button>) : <>
           {toggle}
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="vn-band-detail"
             className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40">
             {open ? "Thu gọn ▴" : "Chi tiết ▾"}
           </button>
+          </>}
         </div>
       </div>
-      <MarketCenterPanel />
-      {open && (
+      {!compact && showMarketCenter && <MarketCenterPanel />}
+      {!compact && open && (
         <div id="vn-band-detail" className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-12 gap-4 px-4 pb-4">
           <div className="rounded-xl p-4 2xl:col-span-3" style={box}>
             <h2 className="text-sm font-semibold text-cyan-400 mb-3">Phân Tích Kỹ Thuật VN-Index Đa Tầng</h2>

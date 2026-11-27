@@ -148,3 +148,19 @@
 .board-ladder li { display: grid; grid-template-columns: 56px 1fr 1fr; align-items: center; padding: 3px 6px; }
 .board-ladder li span:last-child { text-align: right; }
 .board-ladder li b { text-align: right; }
+
+/* OV-1 (27/11/2026) — tab con của TỔNG QUAN */
+.ov-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 2px 0; }
+.ov-tab { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 14px; border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(0, 0, 0, 0.3); color: #a3b1c6; font-size: 12.5px; font-weight: 700; white-space: nowrap; transition: background-color 0.15s, color 0.15s, border-color 0.15s; }
+.ov-tab:hover { color: #e2e8f0; }
+.ov-tab.is-active { background: rgba(232, 184, 75, 0.16); border-color: rgba(232, 184, 75, 0.45); color: #fbbf24; }
+.ov-tab:focus-visible, .ov-anchors button:focus-visible { outline: 2px solid #fbbf24; outline-offset: 1px; }
+.ov-badge { font-size: 10.5px; font-weight: 600; color: #cbd5e1; padding: 1px 6px; border-radius: 999px; background: rgba(148, 163, 184, 0.14); }
+.ov-tab.is-active .ov-badge { color: #fde68a; background: rgba(232, 184, 75, 0.14); }
+.ov-note { font-size: 11px; color: #fcd34d; margin-left: 4px; }
+.ov-anchors { display: flex; flex-wrap: wrap; gap: 6px; position: sticky; top: 0; z-index: 5; padding: 4px 0; background: linear-gradient(#0b0f17 70%, transparent); }
+.ov-anchors button { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.2); background: rgba(0, 0, 0, 0.35); color: #cbd5e1; font-size: 11px; }
+.ov-anchors button:hover { color: #fbbf24; }
+.ov-anchors button span { font-family: ui-monospace, monospace; color: #94a3b8; }
+.ov-block { scroll-margin-top: 44px; }
+@media (max-width: 640px) { .ov-tab { flex: 1 1 0; justify-content: center; padding: 0 8px; } }
