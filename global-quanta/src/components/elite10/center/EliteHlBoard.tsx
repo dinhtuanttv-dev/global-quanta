@@ -5,6 +5,8 @@
 // bằng chứng (nút sang tab 4) -> khung Mã đang chọn. Quy tắc, K0, sổ theo dõi tiến ở tab 4 (QĐ-R 20/11/2026). Số từ /api/elite/decision.
 import { Fragment, useMemo, useState } from "react";
 import { HL_TA_LABELS, HL_VOTE_LABELS } from "../../../lib/elite10/confluence";
+import { useAppStore } from "../../../store/useAppStore";
+import { useTabNavigation } from "../../../lib/TabNavigationContext";
 import { useWorldStrategy } from "../../../hooks/useWorldStrategy";
 import { hlPicks, type EliteDecision, type HlClassCode, type HlPick } from "../../../lib/elite10/decisionTypes";
 import { fmtDate, num, price, signed } from "./boardParts";
@@ -164,6 +166,10 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const dong = (v: number | undefined) => (v == null ? "5.000" : v.toLocaleString("vi-VN"));
   const [why, setWhy] = useState<string | null>(null);
   const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
+  // EC-1: "Chu kỳ →" mở mã ở tab con Cycle Fingerprint (tab Ngành). Chỉ điều hướng — không đổi dữ liệu bảng.
+  const focusCycle = useAppStore((s) => s.focusCycle);
+  const goTab = useTabNavigation();
+  const cycleBtn = (t: string, mobile = false) => (goTab && focusCycle ? <button type="button" data-hl-layer="cycle" onClick={() => { focusCycle(t); goTab("Loc nganh"); }} data-touch data-testid={`hl-cycle-btn${mobile ? "-m" : ""}-${t}`} title={`Xem ${t} ở Cycle Fingerprint (tab Ngành): diễn biến giá sau các giai đoạn tương tự`} className="ml-1 min-h-[22px] rounded border border-[#4f8ef7]/40 px-1.5 text-[10px] text-[#79a8ff] hover:border-[#4f8ef7]/70 hover:bg-[#4f8ef7]/10">Chu kỳ →</button> : null);
   const steps: [string, number, string][] = [
     ["Bảng tín hiệu", f.panel, "mã có tín hiệu trong phiên"],
     ["Giao dịch được", f.tradable, `GTGD TB20 ≥ ${r.minAdvBn} tỷ, giá ≥ ${dong(r.minPrice)}đ, giá không bị neo`],
@@ -263,7 +269,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                   {pz && <PzCardLine pz={h.pz} rules={pzRules} />}
                   {h.warnings.map((w) => <p key={w} className="text-[10px] text-amber-300">⚠ {w}</p>)}
                   {layers.impact && impactOpen === p.ticker && <HlImpactBlock ticker={p.ticker} />}
-                  <div className="mt-1">{whyBtn(p.ticker, true)}{impactBtn(p.ticker, true)}</div>
+                  <div className="mt-1">{whyBtn(p.ticker, true)}{impactBtn(p.ticker, true)}{cycleBtn(p.ticker, true)}</div>
                   {why === p.ticker && <div className="mt-1"><HlWhy p={p} exitLsPct={r.exitLsPct} mobile /></div>}
                 </li>
               );
@@ -289,7 +295,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                     <tr className="border-t border-white/5 align-top" data-testid={`hl-row-${p.ticker}`} style={rimStyle(rowSig.map.get(p.ticker), layers.news)}>
                       <td className="py-1.5 pr-2 font-mono text-slate-400">{h.rank}</td>
                       <td className="pr-2">{openBtn(p.ticker)}<HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span>
-                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}{impactBtn(p.ticker)}</span>
+                        <span className="block text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-${p.ticker}`} />{whyBtn(p.ticker)}{impactBtn(p.ticker)}{cycleBtn(p.ticker)}</span>
                         {pxOf(p.ticker) && <span className="mt-0.5 block"><DilutionBadge p={pxOf(p.ticker)} pxR1={d.dilution?.pxR1} testId={`hl-px-${p.ticker}`} /></span>}
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}{layers.cockpit && <HlBreadcrumb ticker={p.ticker} sessions={cockpitSessions} log={cockpitLog} />}</td>{layers.news && <HlNewsStrip s={rowSig.map.get(p.ticker)} now={rowSig.now} />}
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
