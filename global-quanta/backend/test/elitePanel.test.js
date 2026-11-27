@@ -4,7 +4,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import { buildSignalRows, icbFor, SIGNAL_SPECS } from "../src/market/elite/signalRegistry.js";
-import { createElitePanelService, ELITE_KV, panelDue } from "../src/market/elite/elitePanel.js";
+import { catchUpDue, createElitePanelService, ELITE_KV, FLOW_WAIT_UNTIL_MIN, panelDue, waitForFlow } from "../src/market/elite/elitePanel.js";
 import { createEliteRouter } from "../src/routes/elite.js";
 import { createMemoryStore } from "../src/market/store/memoryStore.js";
 import { KV as SCANNER_KV } from "../src/market/scanner/scannerJobs.js";
@@ -201,4 +201,33 @@ test("E2-v1 sửa đổi 27/11: camslim_cup (2 phá vỡ / 1 sẵn sàng / 0 mã
   assert.deepEqual([tier("camslim_cup"), tier("kq_nowcast"), tier("top20_alpha"), tier("rrg_quadrant")], ["B", "B", "C", "C"]);
   assert.equal(SIGNAL_SPECS.length, 25);
   assert.equal(tier("log_rvol"), undefined);
+});
+
+// P0 (27/11/2026): bảng E1 thiếu dòng tiền 9/10 phiên từ 13/11 vì "bù phiên" chạy cả cho phiên HÔM NAY lúc ~15:45 (trước job 16:00).
+test("P0 catchUpDue: chỉ bù phiên ĐÃ QUA; phiên hôm nay chờ khung 17:00", () => {
+  const today = "2026-11-27";
+  assert.equal(catchUpDue({ inWindow: false, scanAsOf: today, latestDate: "2026-11-26", today }), false, "15:47 phiên hôm nay -> KHÔNG bù (chờ 17:00)");
+  assert.equal(catchUpDue({ inWindow: false, scanAsOf: "2026-11-26", latestDate: "2026-11-25", today }), true, "phiên hôm qua bị lỡ -> bù ngay");
+  assert.equal(catchUpDue({ inWindow: false, scanAsOf: "2026-11-27", latestDate: "2026-11-26", today: "2026-11-28" }), true, "thứ Bảy bù phiên thứ Sáu");
+  assert.equal(catchUpDue({ inWindow: true, scanAsOf: "2026-11-26", latestDate: "2026-11-25", today }), false, "trong khung 17:00 -> đường dựng thường");
+  assert.equal(catchUpDue({ inWindow: false, scanAsOf: "2026-11-26", latestDate: "2026-11-26", today }), false);
+  assert.equal(catchUpDue({ inWindow: false, scanAsOf: null, latestDate: "2026-11-26", today }), false);
+});
+
+test("P0 waitForFlow: chưa có dòng tiền -> chờ tới 18:30 giờ VN; quá giờ dựng dù thiếu; đã có -> dựng ngay", () => {
+  const at = (hhmm) => Date.parse(`2026-11-27T${hhmm}:00+07:00`);
+  assert.equal(waitForFlow({ flowReady: false, nowMs: at("17:00") }), true);
+  assert.equal(waitForFlow({ flowReady: false, nowMs: at("18:29") }), true);
+  assert.equal(waitForFlow({ flowReady: false, nowMs: at("18:30") }), false);
+  assert.equal(waitForFlow({ flowReady: true, nowMs: at("17:00") }), false);
+  assert.equal(FLOW_WAIT_UNTIL_MIN, 18 * 60 + 30);
+});
+
+test("P0 flowReady: có dòng market_flow_daily của phiên -> true; không có / lỗi đọc -> false", async () => {
+  const mk = (rows) => createElitePanelService({ store: { selectRows: async (t, q) => (q?.eq?.trading_date === "2026-11-27" ? rows : []), getKv: async () => null }, wsStrategy: async () => null, rrgDoc: async () => null, taxonomy: async () => null, log: { warn() {} } });
+  assert.equal(await mk([{ symbol: "HPG", trading_date: "2026-11-27", features: { stealth20: 1 } }]).flowReady("2026-11-27"), true);
+  assert.equal(await mk([]).flowReady("2026-11-27"), false);
+  assert.equal(await mk([{ symbol: "HPG", trading_date: "2026-11-27", features: { stealth20: 1 } }]).flowReady("2026-11-26"), false);
+  const broken = createElitePanelService({ store: { selectRows: async () => { throw new Error("hỏng"); }, getKv: async () => null }, wsStrategy: async () => null, rrgDoc: async () => null, taxonomy: async () => null, log: { warn() {} } });
+  assert.equal(await broken.flowReady("2026-11-27"), false);
 });
