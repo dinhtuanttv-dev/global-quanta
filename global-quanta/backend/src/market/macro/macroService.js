@@ -9,6 +9,7 @@ import { createMacroCore, latestPerPeriod, mergeObservations, parseSeriesCsv, vi
 import { buildMacroCatalystEvents } from "./catalystEvents.js";
 import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
 import { fetchLivePoints, withVsClose } from "./macroLive.js";
+import { PROBE_EVERY_MS, PROBE_KV_KEY } from "./sourceProbe.js";
 
 export const MACRO_KV_KEY = "macro:observations";
 /** V3: báo cáo lần nạp nguồn tự động gần nhất (bền qua khởi động lại; sao lưu cùng tiền tố macro:). */
@@ -117,7 +118,7 @@ export function monthlyCloses(bars, todayIso) {
   });
 }
 
-export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, liveFeeds = fetchLivePoints, inline = false, now = Date.now, log = console } = {}) {
+export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, liveFeeds = fetchLivePoints, sourceProbe = null, inline = false, now = Date.now, log = console } = {}) {
   const engine = createEngine({ inline, today: () => vnToday(now()) });
   let observations = [];
   let ready = null;
@@ -186,6 +187,7 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
   async function refreshAutoFeeds({ force = false } = {}) {
     // V3: đọc kho (gồm mốc lần nạp gần nhất) TRƯỚC khi xét "còn mới" — nếu không, mỗi lần khởi động lại đều gọi lại nguồn ngoài
     await init().catch(() => {});
+    void probeIfDue().catch(() => {});
     if (!force && now() - feedsAt < FEED_REFRESH_MS) return { skipped: "fresh" };
     if (feedsPending) return feedsPending;
     feedsPending = (async () => {
@@ -214,6 +216,23 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
     return feedsPending;
   }
   const refreshInBackground = () => refreshAutoFeeds().catch((e) => log.warn?.(`[macro] nạp nguồn tự động lỗi: ${e.message}`));
+
+  // MV-C0 (27/11/2026): kiểm truy cập trang TCTK / NHNN từ Gateway, tối đa 1 lần / 24 giờ, lưu bản tóm tắt vào kho (không lưu nội dung trang).
+  let probeDoc = null, probeLoaded = false, probePending = null;
+  async function probeIfDue({ force = false } = {}) {
+    if (!sourceProbe) return null;
+    if (!probeLoaded) { probeLoaded = true; probeDoc = store?.getKv ? (await store.getKv(PROBE_KV_KEY).catch(() => null))?.value ?? null : null; }
+    if (!force && probeDoc?.at && now() - Date.parse(probeDoc.at) < PROBE_EVERY_MS) return probeDoc;
+    if (probePending) return probePending;
+    probePending = (async () => {
+      const doc = await sourceProbe({ now });
+      probeDoc = doc;
+      if (store?.setKv) await store.setKv(PROBE_KV_KEY, doc).catch((e) => log.warn?.(`[macro] không lưu được kết quả kiểm nguồn: ${e.message}`));
+      log.info?.(`[macro] kiểm nguồn TCTK/NHNN: ${JSON.stringify(doc.byOrg)}`);
+      return doc;
+    })().catch((e) => { log.warn?.(`[macro] kiểm nguồn lỗi: ${e.message}`); return probeDoc; }).finally(() => { probePending = null; });
+    return probePending;
+  }
 
   // MV-L1 (27/11/2026): trạng thái công bố + điểm ngày "hiện tại" cho thẻ Nhịp vĩ mô. Bộ đệm 30 phút, gộp lời gọi đồng thời.
   const LIVE_TTL_MS = 30 * 60_000;
@@ -256,6 +275,7 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
     init,
     refreshAutoFeeds,
     live,
+    probeIfDue,
     async handle(req) {
       await init();
       refreshInBackground();
@@ -284,6 +304,7 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
         vintages: vintageCounts(observations),
         lastRefresh,
         conflicts: sourceConflicts(observations),
+        externalProbe: probeDoc,
         series: s.series.map((x) => ({ ...x, sources: [...(seriesSources[x.id] ?? [])], release: meta[x.id] ? releaseStatus(meta[x.id], x.last, today) : null })),
       };
     },
