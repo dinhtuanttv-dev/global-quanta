@@ -44,8 +44,10 @@ describe("Command Deck · dữ liệu thật 18/11", () => {
 
   it("radar ngưỡng bán + phễu + bảng danh mục nâng cấp (rủi ro Euler, dải biến động)", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
-    const first = screen.getByTestId("deck-exit-radar").querySelector("li")!;
-    expect(first.getAttribute("data-testid")).toBe("deck-exit-HSG"); expect(first.getAttribute("data-warn")).toBe("true");
+    // 27/11: lớp cockpit (mặc định bật) gộp radar vào bảng "Ngưỡng bán · 4 điều kiện"; HSG vẫn đứng đầu, sát ngưỡng LS.
+    expect(screen.queryByTestId("deck-exit-radar")).toBeNull();
+    const first = screen.getByTestId("exit-triggers").querySelector("tbody tr")!;
+    expect(first.getAttribute("data-testid")).toBe("exit-trig-HSG"); expect(screen.getByTestId("exit-trig-ls-HSG").getAttribute("data-level")).toBe("NEAR");
     expect(Number(screen.getByTestId("hl-funnel-0").getAttribute("data-n"))).toBe(279);
     expect(text("hl-risk-VPL")).toMatch(/rủi ro 29% Euler/); expect(text("hl-risk-VIC")).toMatch(/rủi ro 16% Euler/);
     expect(screen.queryByTestId("hl-risk-VCP")).toBeNull(); // VCP ở làn chạy lãi -> bảng Theo dõi chờ nền

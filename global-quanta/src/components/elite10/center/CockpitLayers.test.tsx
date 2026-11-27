@@ -36,15 +36,12 @@ describe("Buồng lái — Bảng quyết định Elite HL (dữ liệu thật 1
     expect(screen.getByTestId("cockpit-status").getAttribute("data-hl-layer")).toBe("cockpit");
     for (const bad of [/mua ngay/i, /chắc thắng/i, /tối ưu/i]) expect(s).not.toMatch(bad);
   });
-  it("C2 đọc phễu: bước 2 và 3 song song; bước 6 chỉ hiển thị; bước 7 = giữ lại + mua mới; bấm lý do -> đánh dấu mã trên bản đồ", () => {
+  it("C2 khối Đọc phễu đúng cách đã gỡ (27/11, chủ dự án); phễu nhất quán -> không có cảnh báo phễu; Phễu chọn lọc vẫn còn", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
-    const f = text("cockpit-funnel");
-    expect(f).toMatch(/Bước 2 \(165\) và bước 3 \(35\) đếm song song/);
-    expect(f).toMatch(/Bước 6 Trong vùng mua \(7\) chỉ hiển thị/);
-    expect(text("cockpit-branch")).toMatch(/Bước 7 Danh mục 7 = giữ lại 7 \+ mua mới 0/);
-    const btn = document.querySelector('[data-testid^="cockpit-reason-q:"]') as HTMLElement;
-    fireEvent.click(btn);
-    expect(screen.getByTestId("cockpit-map").querySelectorAll("[data-testid^='cockpit-cell-'].ring-1").length).toBeGreaterThan(0);
+    expect(screen.queryByTestId("cockpit-funnel")).toBeNull();
+    expect(screen.queryByTestId("cockpit-funnel-checks")).toBeNull();
+    expect(screen.getByTestId("elite-hl-board").textContent).not.toMatch(/Đọc phễu đúng cách/);
+    expect(screen.getByTestId("hl-funnel")).toBeTruthy();
   });
   it("C3 bản đồ trạng thái: mỗi mã một ô; tổng ô = tổng đếm; bấm ô -> chi tiết + chuỗi chuyển trạng thái + mở Hồ sơ", () => {
     const open = vi.fn();
@@ -78,7 +75,7 @@ describe("Buồng lái — Bảng quyết định Elite HL (dữ liệu thật 1
   it("tắt lớp Buồng lái -> không còn khối nào của buồng lái, không gọi nhật ký PZ", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
     fireEvent.click(screen.getByTestId("hl-layer-cockpit"));
-    for (const id of ["cockpit-status", "cockpit-funnel", "cockpit-map", "cockpit-queue-matrix"]) expect(screen.queryByTestId(id)).toBeNull();
+    for (const id of ["cockpit-status", "exit-triggers", "cockpit-map", "cockpit-queue-matrix"]) expect(screen.queryByTestId(id)).toBeNull();
     expect(screen.queryByTestId("cockpit-crumb-VPL")).toBeNull();
   });
 });

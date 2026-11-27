@@ -3,7 +3,7 @@
 // đã có (tài liệu quyết định, hl-history, nhật ký PZ /api/elite/hl/watch/log); không đổi danh mục, thứ tự hay ngưỡng. MÔ TẢ.
 //  - CockpitStatusBar (C1): phiên, khoá, phiên bản, chế độ PZ, chốt dữ liệu, nguồn phụ lệch phiên, đếm theo trạng thái chính,
 //    số chuyển trạng thái trong phiên (cảnh báo một lần cho mỗi bản dựng).
-//  - FunnelNotes (C2): bước 2 và 3 song song, bước 6 chỉ hiển thị, bước 7 = giữ lại + mua mới, hàng chờ / ra theo mã lý do.
+//  - FunnelNotes (C2) đã gỡ 27/11/2026 theo chủ dự án (ít tác dụng, chật giao diện); cảnh báo phễu không nhất quán chuyển vào bảng chính.
 //  - StateMap (C3–C4): mỗi mã đúng một trạng thái chính (D1) + nhãn phụ; bấm ô -> chuỗi chuyển trạng thái + mở Hồ sơ.
 //  - HlBreadcrumb (C4): hai bước chuyển gần nhất ngay dưới mã ở bảng danh mục.
 //  - QueueMatrix (C5): hàng chờ dạng ma trận (mở khi cần); dạng thẻ hiện có giữ nguyên.
@@ -13,8 +13,8 @@ import { fetchMarketJson, isMarketGatewayEnabled } from "../../../services/marke
 import type { EliteDecision } from "../../../lib/elite10/decisionTypes";
 import { hlCadenceVi } from "../../../lib/elite10/hlCadence";
 import {
-  EXIT_CODE_VI, PRIMARY_ORDER, PRIMARY_VI, QUEUE_CODE_VI, PZ_VI, transitionsFrom,
-  type BoardStates, type FunnelModel, type HistSessionLite, type PrimaryState, type SessionSeal, type Transition, type WatchLogEntry,
+  PRIMARY_ORDER, PRIMARY_VI, QUEUE_CODE_VI, PZ_VI, transitionsFrom,
+  type BoardStates, type HistSessionLite, type PrimaryState, type SessionSeal, type Transition, type WatchLogEntry,
 } from "../../../lib/elite10/cockpit";
 
 const dm = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "—");
@@ -87,32 +87,6 @@ export function CockpitStatusBar({ seal, states, today }: { seal: SessionSeal; s
           Chuyển trạng thái phiên này ({today.length}): {today.slice(0, 6).map((x) => `${x.ticker} ${x.t.label}`).join(" · ")}{today.length > 6 ? " · …" : ""}
         </p>
       )}
-    </section>
-  );
-}
-
-export function FunnelNotes({ m, onPick, picked }: { m: FunnelModel; onPick: (code: string | null) => void; picked: string | null }) {
-  const chip = (key: string, label: string, n: number, tone: string) => (
-    <button key={key} type="button" aria-pressed={picked === key} onClick={() => onPick(picked === key ? null : key)} data-testid={`cockpit-reason-${key}`}
-      className={`min-h-[24px] rounded border px-1.5 text-[10px] ${picked === key ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : `border-white/10 ${tone} hover:border-white/25`}`}>{label} · {n}</button>
-  );
-  return (
-    <section className="rounded-lg border border-white/10 bg-[#0E131F] px-3 py-2 text-[11px] text-slate-300" data-hl-layer="cockpit" data-testid="cockpit-funnel">
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[#F5CE72]">Đọc phễu đúng cách</p>
-      <ul className="mt-0.5 list-disc space-y-0.5 pl-4 text-[10.5px] text-slate-400">
-        <li>Bước 2 ({m.steps[1].n}) và bước 3 ({m.steps[2].n}) <b className="text-slate-200">đếm song song</b> trên toàn bảng; bước 5 = bước 4 ∩ bước 2.</li>
-        {m.steps[5].displayOnly && <li>Bước 6 Trong vùng mua ({m.steps[5].n ?? "—"}) <b className="text-slate-200">chỉ hiển thị</b> — cổng vị trí giá đang tắt, không chặn mua.</li>}
-        <li data-testid="cockpit-branch">Bước 7 Danh mục <b className="text-slate-100">{m.branch.held}</b> = giữ lại <b className="text-slate-100">{m.branch.kept}</b> + mua mới <b className="text-emerald-300">{m.branch.added}</b> (danh mục phiên trước {m.branch.prevHeld}, ra <b className="text-rose-300">{m.branch.exited}</b>). Mã đang giữ đi qua quy tắc bán, không qua lại phễu vào.</li>
-      </ul>
-      {(m.queueByCode.length > 0 || m.exitsByCode.length > 0 || m.illiquid > 0) && (
-        <div className="mt-1 flex flex-wrap items-center gap-1" role="group" aria-label="Đánh dấu mã theo lý do">
-          <span className="text-[10px] text-slate-500">Bấm để đánh dấu trên bản đồ trạng thái:</span>
-          {m.queueByCode.map(([k, n]) => chip(`q:${k}`, `Hàng chờ — ${QUEUE_CODE_VI[k] ?? k}`, n, "text-[#F5CE72]"))}
-          {m.illiquid > 0 && chip("blocked", "Chưa giao dịch được", m.illiquid, "text-slate-300")}
-          {m.exitsByCode.map(([k, n]) => chip(`x:${k}`, `Ra — ${EXIT_CODE_VI[k] ?? k}`, n, "text-rose-300"))}
-        </div>
-      )}
-      {m.checks.length > 0 && <p role="status" className="mt-1 rounded border border-amber-400/40 bg-amber-500/10 px-1.5 text-[10.5px] text-amber-200" data-testid="cockpit-funnel-checks">Phễu chưa nhất quán: {m.checks.join(" · ")}.</p>}
     </section>
   );
 }

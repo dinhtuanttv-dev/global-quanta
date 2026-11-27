@@ -42,6 +42,10 @@ describe("Rà soát ngược — Bảng quyết định Elite HL (dữ liệu th
     expect(screen.getByTestId("exit-trig-ls-HSG").getAttribute("data-level")).toBe("NEAR");
     expect(screen.getByTestId("exit-trig-ta-HSG").getAttribute("data-level")).toBe("WATCH");
     expect(box.getAttribute("data-hl-layer")).toBe("cockpit");
+    // Gộp 27/11: bảng mới thay khối "Khoảng cách tới ngưỡng bán" — đủ thanh LS cho mọi mã, khối cũ không còn song song.
+    expect(box.querySelectorAll("[data-testid^='exit-trig-bar-']").length).toBe(7);
+    expect(screen.queryByTestId("deck-exit-radar")).toBeNull();
+    expect(box.textContent).toMatch(/Ngưỡng bán · 4 điều kiện/);
   });
   it("nhóm lõi theo vị trí giá ghi rõ mã chưa có nền (AAS, HSG) dù tiêu đề là “trong nền và vùng mua”", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
@@ -51,6 +55,7 @@ describe("Rà soát ngược — Bảng quyết định Elite HL (dữ liệu th
     window.localStorage.setItem("gq.hl.layers.v1", JSON.stringify({ cockpit: false }));
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
     expect(screen.queryByTestId("exit-triggers")).toBeNull();
+    expect(screen.getByTestId("deck-exit-radar")).toBeTruthy(); // tắt lớp -> khối cũ y nguyên
     expect(screen.queryByTestId("hl-core-mix")).toBeNull();
   });
 });
