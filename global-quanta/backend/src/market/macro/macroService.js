@@ -8,6 +8,7 @@ import { createInlineProxy, createWorkerProxy } from "./workerProxy.js";
 import { createMacroCore, latestPerPeriod, mergeObservations, parseSeriesCsv, vintageCounts, vnToday, VN_CATALOG } from "./macroCore.js";
 import { buildMacroCatalystEvents } from "./catalystEvents.js";
 import { fetchGlobalFeeds } from "./macroGlobalFeeds.js";
+import { fetchLivePoints, withVsClose } from "./macroLive.js";
 
 export const MACRO_KV_KEY = "macro:observations";
 /** V3: báo cáo lần nạp nguồn tự động gần nhất (bền qua khởi động lại; sao lưu cùng tiền tố macro:). */
@@ -116,7 +117,7 @@ export function monthlyCloses(bars, todayIso) {
   });
 }
 
-export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, inline = false, now = Date.now, log = console } = {}) {
+export function createMacroService({ store, history, globalFeeds = fetchGlobalFeeds, liveFeeds = fetchLivePoints, inline = false, now = Date.now, log = console } = {}) {
   const engine = createEngine({ inline, today: () => vnToday(now()) });
   let observations = [];
   let ready = null;
@@ -214,9 +215,47 @@ export function createMacroService({ store, history, globalFeeds = fetchGlobalFe
   }
   const refreshInBackground = () => refreshAutoFeeds().catch((e) => log.warn?.(`[macro] nạp nguồn tự động lỗi: ${e.message}`));
 
+  // MV-L1 (27/11/2026): trạng thái công bố + điểm ngày "hiện tại" cho thẻ Nhịp vĩ mô. Bộ đệm 30 phút, gộp lời gọi đồng thời.
+  const LIVE_TTL_MS = 30 * 60_000;
+  let liveCache = null, livePending = null, overdueLoggedOn = null;
+  async function live() {
+    await init();
+    refreshInBackground();
+    if (liveCache && now() - liveCache.at < LIVE_TTL_MS) return liveCache.body;
+    if (livePending) return livePending;
+    livePending = (async () => {
+      const today = todayIso();
+      const points = await (liveFeeds ? liveFeeds({ history, todayIso: today }).catch((e) => ({ error: e.message })) : {});
+      const latest = new Map();
+      for (const o of latestPerPeriod(observations)) { const cur = latest.get(o.seriesId); if (!cur || o.period > cur.period) latest.set(o.seriesId, o); }
+      const series = {};
+      for (const m of VN_CATALOG) {
+        const last = latest.get(m.id) ?? null;
+        const release = last ? releaseStatus(m, last.period, today) : null;
+        series[m.id] = {
+          last: last ? { period: last.period, value: last.value, source: last.source ?? null } : null,
+          release, overdue: Boolean(release && release.overdueDays > 0),
+          live: withVsClose(points?.[m.id] ?? null, last),
+          ...(points?.[m.id]?.error ? { liveError: points[m.id].error } : {}),
+        };
+      }
+      const overdue = Object.entries(series).filter(([, v]) => v.overdue).map(([id, v]) => ({ id, nameVi: VN_CATALOG.find((m) => m.id === id)?.nameVi ?? id, nextPeriod: v.release.nextPeriod, expected: v.release.expected, overdueDays: v.release.overdueDays }));
+      // Cảnh báo một lần mỗi ngày cho nguồn quá hạn > 7 ngày (đọc log Railway là thấy, không cần mở giao diện).
+      if (overdueLoggedOn !== today) {
+        overdueLoggedOn = today;
+        for (const o of overdue.filter((x) => x.overdueDays > 7)) log.warn?.(`[macro] ${o.id} quá hạn ${o.overdueDays} ngày (kỳ ${o.nextPeriod}, dự kiến ${o.expected})`);
+      }
+      const body = { asOf: new Date(now()).toISOString(), today, series, overdue };
+      liveCache = { at: now(), body };
+      return body;
+    })().finally(() => { livePending = null; });
+    return livePending;
+  }
+
   return {
     init,
     refreshAutoFeeds,
+    live,
     async handle(req) {
       await init();
       refreshInBackground();
