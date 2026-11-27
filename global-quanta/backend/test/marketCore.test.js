@@ -229,3 +229,11 @@ test("store: bản ghi SSI không bị nguồn dự phòng ghi đè, bản ghi d
   assert.deepEqual(bars.map((b) => b.source), ["SSI_FC_V2", "SSI_V3"]);
   assert.deepEqual(await store.listNonSsiBars("2026-01-01"), []);
 });
+
+test("normalizeQuote: bỏ bước giá 0/0 (sổ toàn 0 -> rỗng), giữ bước ATO/ATC có KL mà giá 0", async () => {
+  const { normalizeQuote } = await import("../src/market/normalizer.js");
+  const allZero = normalizeQuote({ Symbol: "NVB", LastPrice: 14500, BidPrice1: 0, BidVol1: 0, BidPrice2: 0, BidVol2: 0, AskPrice1: 0, AskVol1: 0 });
+  assert.deepEqual(allZero.bid, []); assert.deepEqual(allZero.ask, []);
+  const ato = normalizeQuote({ Symbol: "VIC", LastPrice: 0, BidPrice1: 0, BidVol1: 2500, BidPrice2: 236000, BidVol2: 100, BidPrice3: 0, BidVol3: 0 });
+  assert.deepEqual(ato.bid, [{ price: 0, volume: 2500 }, { price: 236000, volume: 100 }]);
+});

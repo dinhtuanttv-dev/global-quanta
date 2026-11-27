@@ -223,3 +223,20 @@ test("stream: drainTickFlow trả các phút đã đổi (bản đầy đủ c�
   assert.deepEqual(s.hub.drainTickFlow(), [], "phiên cũ không đánh dấu lại");
   s.hub.shutdown();
 });
+
+test("stream: sổ lệnh HNX/UPCoM — tick khớp lệnh gửi 10 bước giá toàn 0 KHÔNG đè sổ lệnh thật đã nhận (27/11/2026)", async () => {
+  const s = setup();
+  s.subscribe(["IDC"]);
+  const shard = s.xShards()[0];
+  shard.opts.onStatus("connected");
+  const zeros = Object.fromEntries([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].flatMap((i) => [["BidPrice" + i, 0], ["BidVol" + i, 0], ["AskPrice" + i, 0], ["AskVol" + i, 0]]));
+  shard.opts.onMessage({ DataType: "X", Content: { Symbol: "IDC", Exchange: "HNX", LastPrice: 33900, RefPrice: 34000, TotalVol: 1000, BidPrice1: 33900, BidVol1: 500, BidPrice2: 33800, BidVol2: 1200, AskPrice1: 34000, AskVol1: 700, TradingDate: "27/11/2026", Time: "10:00:00" } });
+  shard.opts.onMessage({ DataType: "X", Content: { Symbol: "IDC", Exchange: "HNX", LastPrice: 34000, RefPrice: 34000, TotalVol: 1500, ...zeros, TradingDate: "27/11/2026", Time: "10:00:05" } });
+  const q = s.hub.getQuote ? s.hub.getQuote("IDC") : null;
+  const quote = q?.quote ?? q ?? s.hub.quotes.get("IDC")?.quote;
+  assert.equal(quote.price, 34000, "giá khớp mới vẫn cập nhật");
+  assert.equal(quote.totalVolume, 1500);
+  assert.deepEqual(quote.bid.slice(0, 2), [{ price: 33900, volume: 500 }, { price: 33800, volume: 1200 }], "sổ lệnh mua giữ nguyên");
+  assert.deepEqual(quote.ask[0], { price: 34000, volume: 700 }, "sổ lệnh bán giữ nguyên");
+  s.hub.shutdown();
+});
