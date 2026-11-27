@@ -1,18 +1,23 @@
 // Điều hướng tab chính (31/10/2026): tên hiển thị, đường dẫn và lịch sử phiên. Mã nội bộ (id) giữ nguyên để các liên kết trong app không đổi.
+// A+ (27/11/2026): `label` = tên ngắn trên thanh tab (chữ thường); `full` = tên đầy đủ cho tiêu đề cửa sổ / tooltip; `group` "analysis"
+// = bốn tab phân tích đứng dưới nhãn "Phân tích". slug (đường dẫn ?tab=) giữ nguyên -> link cũ vẫn mở đúng.
 export const MAIN_TABS = [
-  { id: "Sieu quet AI", label: "TỔNG QUAN", slug: "tong-quan" },
-  { id: "Ket noi the gioi", label: "KẾT NỐI THẾ GIỚI", slug: "ket-noi-the-gioi" },
-  { id: "Loc nganh", label: "PHÂN TÍCH NGÀNH", slug: "phan-tich-nganh" },
-  { id: "TA VN-Index", label: "PHÂN TÍCH KỸ THUẬT", slug: "phan-tich-ky-thuat" },
-  { id: "Chat xuc tac", label: "PHÂN TÍCH VĨ MÔ", slug: "phan-tich-vi-mo" },
-  { id: "Co tuc", label: "PHÂN TÍCH CƠ BẢN", slug: "phan-tich-co-ban" },
-  { id: "Elite 10", label: "QUYẾT ĐỊNH", slug: "quyet-dinh" },
+  { id: "Sieu quet AI", label: "Tổng quan", full: "Tổng quan", slug: "tong-quan", group: null },
+  { id: "Ket noi the gioi", label: "Thế giới", full: "Kết nối thế giới", slug: "ket-noi-the-gioi", group: null },
+  { id: "Loc nganh", label: "Ngành", full: "Phân tích ngành", slug: "phan-tich-nganh", group: "analysis" },
+  { id: "TA VN-Index", label: "Kỹ thuật", full: "Phân tích kỹ thuật", slug: "phan-tich-ky-thuat", group: "analysis" },
+  { id: "Chat xuc tac", label: "Vĩ mô", full: "Phân tích vĩ mô", slug: "phan-tich-vi-mo", group: "analysis" },
+  { id: "Co tuc", label: "Cơ bản", full: "Phân tích cơ bản", slug: "phan-tich-co-ban", group: "analysis" },
+  { id: "Elite 10", label: "Quyết định", full: "Quyết định", slug: "quyet-dinh", group: null },
 ] as const;
+export const GROUP_LABEL = { analysis: "Phân tích" } as const;
 
 export type MainTabId = (typeof MAIN_TABS)[number]["id"];
 export const DEFAULT_TAB: MainTabId = MAIN_TABS[0].id;
 export const isMainTab = (v: unknown): v is MainTabId => MAIN_TABS.some((t) => t.id === v);
 export const labelOf = (id: string): string => MAIN_TABS.find((t) => t.id === id)?.label ?? id;
+/** Tên đầy đủ (tiêu đề cửa sổ, tooltip, nút Quay lại/Đi tới). */
+export const fullOf = (id: string): string => MAIN_TABS.find((t) => t.id === id)?.full ?? id;
 export const slugOf = (id: MainTabId): string => MAIN_TABS.find((t) => t.id === id)!.slug;
 export const tabOfSlug = (slug: string | null | undefined): MainTabId | null => MAIN_TABS.find((t) => t.slug === slug)?.id ?? null;
 
