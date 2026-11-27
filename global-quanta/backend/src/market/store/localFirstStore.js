@@ -34,13 +34,15 @@ export const isLocalOnlyKv = (key) => String(key).startsWith("local:");
 export const HYDRATE_TABLES = new Set(["market_signal_ledger", "market_signal_outcomes", "market_model_weights", "market_adjusted_series"]);
 const HYDRATED_KV = (table) => `__local:hydrated:${table}`;
 
-export function createLocalFirstStore({ local, inner, log = console, now = Date.now, breakerMs = 15 * 60_000, maxQueue = 500, replicateTicks = false }) {
-  const st = { openUntil: 0, lastError: null, replicated: 0, replicateFailed: 0, dropped: 0, hydratedReads: 0, skippedWhileOpen: 0 };
+export function createLocalFirstStore({ local, inner, log = console, now = Date.now, breakerMs = 15 * 60_000, maxQueue = 500, replicateTicks = false, replica = true }) {
+  const st = { openUntil: 0, lastError: null, replicated: 0, replicateFailed: 0, dropped: 0, hydratedReads: 0, skippedWhileOpen: 0, disabled: !replica };
   let queue = Promise.resolve();
   let pending = 0;
   const kvMiss = new Map(); // khoá KV không có ở cả hai nơi -> không hỏi lại Supabase trong 10 phút
 
-  const usable = () => now() >= st.openUntil;
+  // 27/11/2026 (b5): replica=false (MARKET_REPLICA=off) -> không ghi bản sao / không đọc dự phòng sang kho ngoài (Supabase đã ngừng
+  // phân giải tên miền từ 01/11). Kho cục bộ trên Volume vẫn là nguồn chính như trước.
+  const usable = () => replica && now() >= st.openUntil;
   const trip = (e) => {
     st.openUntil = now() + breakerMs; st.lastError = String(e?.message ?? e).slice(0, 200);
     try { noteStoreError?.(e); } catch { /* bỏ qua */ }

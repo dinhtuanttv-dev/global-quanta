@@ -13,8 +13,26 @@ export function cyclesDirFromEnv(env = process.env) {
   return env.CYCLES_DIR || (env.RAILWAY_VOLUME_MOUNT_PATH ? `${env.RAILWAY_VOLUME_MOUNT_PATH.replace(/\/+$/, "")}/cycles` : null);
 }
 
-export function createCycleHost({ dir = cyclesDirFromEnv(), useWorker = true, log = console, maxFileMb = 300 } = {}) {
+export const CYCLE_IDLE_MS = Number(process.env.MARKET_CYCLE_IDLE_MS) || 20 * 60_000;
+export function createCycleHost({ dir = cyclesDirFromEnv(), useWorker = true, log = console, maxFileMb = 300, idleMs = CYCLE_IDLE_MS } = {}) {
   let worker = null, workerFailed = !useWorker, seq = 0, local = null, loadedInfo = null;
+  // 27/11/2026 (b3): thư viện Chu kỳ nằm trong worker suốt ngày dù chỉ dùng khi mở Cycle Fingerprint / job 16:05. Rảnh idleMs và
+  // có file trên Volume -> tắt worker, bỏ "đã nạp"; lần dùng sau cycleService.ensure() đọc lại đúng file đó (cùng sha256).
+  // Không có file (chạy local, chưa lưu được) -> giữ trong bộ nhớ như trước, tránh phải dựng lại từ kho.
+  let idleTimer = null;
+  const armIdle = () => {
+    if (!idleMs) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (pending.size) return armIdle();
+      const onDisk = dir && status.file && fs.existsSync(path.join(dir, status.file));
+      if (!onDisk || status.mode !== "worker" || !worker) return;
+      const w = worker; worker = null; loadedInfo = null; status.mode = null; status.idleUnloads = (status.idleUnloads ?? 0) + 1;
+      w.removeAllListeners("exit"); w.removeAllListeners("error");
+      void w.terminate();
+    }, idleMs);
+    idleTimer.unref?.();
+  };
   const pending = new Map();
   const status = { mode: null, source: null, loadMs: null, fileMb: null, file: null, lastError: null, restarts: 0 };
 
@@ -38,6 +56,7 @@ export function createCycleHost({ dir = cyclesDirFromEnv(), useWorker = true, lo
     return worker;
   }
   const call = (op, args, transfer) => new Promise((resolve, reject) => {
+    armIdle();
     const id = ++seq;
     pending.set(id, { resolve, reject });
     worker.postMessage({ id, op, args }, transfer);
@@ -101,6 +120,6 @@ export function createCycleHost({ dir = cyclesDirFromEnv(), useWorker = true, lo
       return cycleOps[op](local, args);
     },
     async workerInfo() { return status.mode === "worker" && worker ? call("info", {}) : null; },
-    close() { worker?.terminate(); worker = null; },
+    close() { clearTimeout(idleTimer); worker?.terminate(); worker = null; },
   };
 }

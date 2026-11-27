@@ -6,8 +6,24 @@ import { Worker, parentPort } from "node:worker_threads";
  * Proxy phía Gateway. `replayOp`: op nạp dữ liệu — lần gọi cuối được phát lại khi worker khởi động lại sau sự cố.
  * @returns {{ call: (op: string, ...args: unknown[]) => Promise<unknown>, close: () => Promise<void> }}
  */
-export function createWorkerProxy({ url, label, replayOp = null, timeoutMs = 90_000 }) {
+export const WORKER_IDLE_MS = Number(process.env.MARKET_WORKER_IDLE_MS) || 15 * 60_000;
+export function createWorkerProxy({ url, label, replayOp = null, timeoutMs = 90_000, idleMs = WORKER_IDLE_MS }) {
   let worker = null;
+  // 27/11/2026 (b3): rảnh idleMs không có lời gọi nào -> tắt worker để trả RAM (mỗi worker là một vùng nhớ JS riêng). Lần gọi sau tự
+  // khởi lại và PHÁT LẠI lần nạp dữ liệu cuối (replayOp) trước lời gọi đó — kết quả không đổi, chỉ chậm hơn lần đầu.
+  // Chỉ bật khi có replayOp (không có op nạp dữ liệu thì worker khởi lại sẽ trống -> giữ chạy như trước).
+  let idleTimer = null;
+  const armIdle = () => {
+    if (!replayOp || !idleMs) return;
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (!worker || pending.size) return armIdle();
+      const w = worker; worker = null;
+      w.removeAllListeners("exit"); w.removeAllListeners("error");
+      void w.terminate();
+    }, idleMs);
+    idleTimer.unref?.();
+  };
   let seq = 0;
   const pending = new Map();
   let lastReplay = null;
@@ -38,6 +54,7 @@ export function createWorkerProxy({ url, label, replayOp = null, timeoutMs = 90_
   };
   const send = (op, args) => {
     if (!worker) spawn();
+    armIdle();
     const id = ++seq;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -54,6 +71,7 @@ export function createWorkerProxy({ url, label, replayOp = null, timeoutMs = 90_
       return send(op, args);
     },
     close: async () => {
+      clearTimeout(idleTimer);
       const w = worker;
       worker = null;
       if (w) await w.terminate();
