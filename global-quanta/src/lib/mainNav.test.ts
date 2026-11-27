@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { canGoBack, canGoForward, DEFAULT_TAB, initialNav, labelOf, MAIN_TABS, parseNav, pushTab, resolvePop, tabOfSlug, type NavState } from "./mainNav";
+import { canGoBack, canGoForward, DEFAULT_TAB, fullOf, initialNav, labelOf, MAIN_TABS, parseNav, pushTab, resolvePop, tabOfSlug, type NavState } from "./mainNav";
 
 const A = "Sieu quet AI", B = "Loc nganh", C = "Co tuc", D = "Elite 10";
 
 describe("Tên tab", () => {
   it("đúng 7 tên mới theo thứ tự", () => {
-    expect(MAIN_TABS.map((t) => t.label)).toEqual(["TỔNG QUAN", "KẾT NỐI THẾ GIỚI", "PHÂN TÍCH NGÀNH", "PHÂN TÍCH KỸ THUẬT", "PHÂN TÍCH VĨ MÔ", "PHÂN TÍCH CƠ BẢN", "QUYẾT ĐỊNH"]);
-    expect(labelOf("TA VN-Index")).toBe("PHÂN TÍCH KỸ THUẬT");
+    // A+ (27/11/2026): tên ngắn trên thanh tab, tên đầy đủ cho tiêu đề cửa sổ; slug không đổi
+    expect(MAIN_TABS.map((t) => t.label)).toEqual(["Tổng quan", "Thế giới", "Ngành", "Kỹ thuật", "Vĩ mô", "Cơ bản", "Quyết định"]);
+    expect(MAIN_TABS.map((t) => t.full)).toEqual(["Tổng quan", "Kết nối thế giới", "Phân tích ngành", "Phân tích kỹ thuật", "Phân tích vĩ mô", "Phân tích cơ bản", "Quyết định"]);
+    expect(MAIN_TABS.filter((t) => t.group === "analysis").map((t) => t.slug)).toEqual(["phan-tich-nganh", "phan-tich-ky-thuat", "phan-tich-vi-mo", "phan-tich-co-ban"]);
+    expect(labelOf("TA VN-Index")).toBe("Kỹ thuật");
+    expect(fullOf("TA VN-Index")).toBe("Phân tích kỹ thuật");
     expect(tabOfSlug("quyet-dinh")).toBe("Elite 10");
     expect(tabOfSlug("khong-co")).toBeNull();
   });

@@ -27,7 +27,10 @@ afterEach(cleanup);
 describe("Thanh điều hướng chính", () => {
   it("hiện đúng 7 tên mới, mở trang đầu tiên", () => {
     render(<MainTabs />);
-    expect(Array.from(document.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["TỔNG QUAN", "KẾT NỐI THẾ GIỚI", "PHÂN TÍCH NGÀNH", "PHÂN TÍCH KỸ THUẬT", "PHÂN TÍCH VĨ MÔ", "PHÂN TÍCH CƠ BẢN", "QUYẾT ĐỊNH"]);
+    expect(Array.from(document.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["Tổng quan", "Thế giới", "Ngành", "Kỹ thuật", "Vĩ mô", "Cơ bản", "Quyết định"]);
+    // A+: nhãn nhóm "Phân tích" (không phải tab) đứng trước tab Ngành; tên đầy đủ ở tooltip
+    expect(screen.getByTestId("main-group-analysis").textContent).toBe("Phân tích");
+    expect((document.querySelector('[data-tab="Chat xuc tac"]') as HTMLElement).title).toBe("Phân tích vĩ mô");
     expect(screen.queryByTestId("p-tongquan")).not.toBeNull();
     expect(btn("nav-back").disabled).toBe(true);
     expect(btn("nav-forward").disabled).toBe(true);
@@ -78,7 +81,7 @@ describe("Thanh điều hướng chính", () => {
     window.history.replaceState(null, "", "/?tab=quyet-dinh");
     render(<MainTabs />);
     expect(screen.queryByTestId("p-quyetdinh")).not.toBeNull();
-    expect(document.title).toContain("QUYẾT ĐỊNH");
+    expect(document.title).toContain("Quyết định");
   });
 
   it("làm mới nạp lại dữ liệu và báo giờ", async () => {

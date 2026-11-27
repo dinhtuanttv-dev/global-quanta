@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
+﻿import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent } from "react";
 import { mutate } from "swr";
 import { ChartCandlestick, ChevronLeft, ChevronRight, FileChartColumn, Globe2, Landmark, Layers3, LayoutDashboard, RotateCw, Target, type LucideIcon } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
@@ -11,7 +11,7 @@ import LocNganhTab from "./LocNganh/LocNganhTab";
 import ChatXucTacTab from "./ChatXucTac/ChatXucTacTab";
 import Elite10Tab from "../elite10/Elite10Hub";
 import { TabNavigationContext } from "../../lib/TabNavigationContext";
-import { canGoBack, canGoForward, initialNav, isMainTab, labelOf, MAIN_TABS, parseNav, pushTab, resolvePop, slugOf, tabOfSlug, type MainTabId, type NavState } from "../../lib/mainNav";
+import { canGoBack, canGoForward, fullOf, GROUP_LABEL, initialNav, isMainTab, MAIN_TABS, parseNav, pushTab, resolvePop, slugOf, tabOfSlug, type MainTabId, type NavState } from "../../lib/mainNav";
 import "./MainTabs.css";
 
 const NAV_KEY = "gq.main.nav.v1";
@@ -73,7 +73,7 @@ export default function MainTabs() {
     return () => window.removeEventListener("popstate", onPop);
   }, [update]);
 
-  useEffect(() => { document.title = `${labelOf(activeTab)} · ${APP_TITLE}`; }, [activeTab]);
+  useEffect(() => { document.title = `${fullOf(activeTab)} · ${APP_TITLE}`; }, [activeTab]);
 
   // Tìm mã trên thanh trên -> mở tab Tổng quan (bảng tự cuộn tới mã và mở chi tiết).
   const scannerFocus = useAppStore((s) => s.scannerFocus);
@@ -109,8 +109,8 @@ export default function MainTabs() {
     go(MAIN_TABS[n].id);
     tabRefs.current[MAIN_TABS[n].id]?.focus();
   };
-  const prev = canGoBack(nav) ? labelOf(nav.stack[nav.idx - 1]) : null;
-  const next = canGoForward(nav) ? labelOf(nav.stack[nav.idx + 1]) : null;
+  const prev = canGoBack(nav) ? fullOf(nav.stack[nav.idx - 1]) : null;
+  const next = canGoForward(nav) ? fullOf(nav.stack[nav.idx + 1]) : null;
 
   return (
     <TabNavigationContext.Provider value={go}>
@@ -120,18 +120,27 @@ export default function MainTabs() {
             <button type="button" className="nav-btn" onClick={() => window.history.back()} disabled={!prev} aria-label={prev ? `Quay lại ${prev}` : "Quay lại"} title={prev ? `Quay lại: ${prev} (Alt + ←)` : "Chưa có trang trước"} data-testid="nav-back"><ChevronLeft aria-hidden /></button>
             <button type="button" className="nav-btn" onClick={() => window.history.forward()} disabled={!next} aria-label={next ? `Đi tới ${next}` : "Đi tới"} title={next ? `Đi tới: ${next} (Alt + →)` : "Chưa có trang kế tiếp"} data-testid="nav-forward"><ChevronRight aria-hidden /></button>
             <span className="nav-sep" aria-hidden />
-            <button type="button" className={`nav-btn${reloading ? " spinning" : ""}`} onClick={reload} aria-busy={reloading} aria-label={`Làm mới dữ liệu ${labelOf(activeTab)}`} title="Làm mới dữ liệu trang này. Giữ Shift khi bấm để tải lại toàn trang." data-testid="nav-reload"><RotateCw aria-hidden /></button>
+            <button type="button" className={`nav-btn${reloading ? " spinning" : ""}`} onClick={reload} aria-busy={reloading} aria-label={`Làm mới dữ liệu ${fullOf(activeTab)}`} title="Làm mới dữ liệu trang này. Giữ Shift khi bấm để tải lại toàn trang." data-testid="nav-reload"><RotateCw aria-hidden /></button>
           </div>
           <div className="main-tabs" role="tablist" aria-label="Các trang phân tích">
-            {MAIN_TABS.map((t) => {
+            {MAIN_TABS.map((t, i) => {
               const Icon = ICONS[t.id];
               const on = t.id === activeTab;
+              const prevGroup = i > 0 ? MAIN_TABS[i - 1].group : null;
+              // A+: nhãn "Phân tích" trước tab đầu của nhóm; vạch ngăn sau tab cuối của nhóm (trang trí, không phải tab)
+              const groupStart = t.group && t.group !== prevGroup;
+              const groupEnd = !t.group && prevGroup;
               return (
-                <button key={t.id} ref={(el) => { tabRefs.current[t.id] = el; }} type="button" role="tab" id={`main-tab-${t.slug}`} aria-selected={on} aria-controls="main-tab-panel" tabIndex={on ? 0 : -1}
-                  className={`m-tab${on ? " active" : ""}`} data-tab={t.id} onClick={() => go(t.id)} onKeyDown={onTabKey}>
-                  <Icon className="m-tab-icon" aria-hidden />
-                  <span>{t.label}</span>
-                </button>
+                <Fragment key={t.id}>
+                  {groupStart && <span className="m-group" role="presentation" data-testid={`main-group-${t.group}`}>{GROUP_LABEL[t.group as keyof typeof GROUP_LABEL]}</span>}
+                  {groupEnd && <span className="m-sep" role="presentation" aria-hidden />}
+                  <button ref={(el) => { tabRefs.current[t.id] = el; }} type="button" role="tab" id={`main-tab-${t.slug}`} aria-selected={on} aria-controls="main-tab-panel" tabIndex={on ? 0 : -1}
+                    className={`m-tab${on ? " active" : ""}`} data-tab={t.id} onClick={() => go(t.id)} onKeyDown={onTabKey} title={t.full !== t.label ? t.full : undefined}
+                    aria-label={t.full !== t.label ? t.full : undefined}>
+                    <Icon className="m-tab-icon" aria-hidden />
+                    <span>{t.label}</span>
+                  </button>
+                </Fragment>
               );
             })}
           </div>
@@ -139,7 +148,7 @@ export default function MainTabs() {
         </div>
         {/* Lỗi vẽ trong một tab chỉ hiện thẻ lỗi tại chỗ; đổi tab là tự thử lại. */}
         <div id="main-tab-panel" className="q-ui" role="tabpanel" aria-labelledby={`main-tab-${slugOf(activeTab)}`} key={reloadKey}>
-          <SectionBoundary label={`trang ${labelOf(activeTab)}`} resetKey={activeTab}>
+          <SectionBoundary label={`trang ${fullOf(activeTab)}`} resetKey={activeTab}>
             {activeTab === "Sieu quet AI" && <OverviewTab />}
             {activeTab === "TA VN-Index" && <TaVnIndexTab />}
             {activeTab === "Chat xuc tac" && <ChatXucTacTab />}

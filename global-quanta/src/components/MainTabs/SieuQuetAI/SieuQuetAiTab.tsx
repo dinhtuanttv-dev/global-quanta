@@ -242,7 +242,7 @@ export default function SieuQuetAiTab({ filters, onOpenMarket, handledFocus, han
             <p>{gatewayEnabled
               ? <>Giá: SSI realtime qua Market Gateway (● = giá SSI). Điểm số TA/FA, VN-Index đa tầng: quét định kỳ (Yahoo + VCI + VNDirect) cho {items.length} mã.</>
               : <>Dữ liệu: VN-Index thật (VNDirect), TA/FA thật (Yahoo + VCI) cho {items.length} mã theo dõi.</>}
-              {" "}Sự kiện đã xác nhận (AI Discovery trên Project A) vẫn vào Smart Score. Nghiên cứu sự kiện, ESA và tin vĩ mô: trang PHÂN TÍCH VĨ MÔ › Event Radar.</p>
+              {" "}Sự kiện đã xác nhận (AI Discovery trên Project A) vẫn vào Smart Score. Nghiên cứu sự kiện, ESA và tin vĩ mô: tab Vĩ mô › Event Radar.</p>
             <p>Giá hiển thị theo nghìn đồng (148.70 = 148.700đ), khối lượng theo cổ phiếu. Bấm một dòng để chọn mã; bấm › hoặc nhấn đúp để xem phân tích khối lượng; ↑↓ chuyển dòng. Bấm tiêu đề cột để sắp xếp, bấm lần ba để về thứ tự mặc định.{mode === "board" ? " Bảng giá sắp xếp theo mã hoặc Smart vì giá realtime chỉ tải cho các dòng đang hiển thị." : " Điểm số không đổi khi giá realtime nhảy, nên thứ tự theo giá dùng giá lúc quét."}</p>
             <p>Khối lượng có thể rút gọn trên màn hình hẹp (1.13M); rê chuột vào ô để xem số đầy đủ. Thanh nền trong ô KL so sánh các bước giá trong cùng một dòng.</p>
           </div>}
