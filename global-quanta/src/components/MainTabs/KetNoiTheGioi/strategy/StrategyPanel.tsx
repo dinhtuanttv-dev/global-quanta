@@ -64,7 +64,7 @@ function ShortTable({ rows, onOpen }: { rows: ShortRow[]; onOpen: (icb: string) 
               <td className="text-center">{r.pOutperform == null ? "—" : `${num(r.pOutperform * 100, 1)}%`}</td>
               <td className="text-center" style={muted}>{fmtZ(r.zx, 2)}</td>
               <td style={muted}>{REGION_ORDER.filter((x) => r.byRegion[x]).map((x) => `${REGION_SHORT[x]} ${fmtZ(r.byRegion[x]!.z)}`).join(" · ")}{r.commodity != null ? ` · HH ${fmtZ(r.commodity)}` : ""}</td>
-              <td>{r.constituents.slice(0, 3).map((c) => <button key={c.ticker} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(c.ticker); }} className="text-[10px] font-black mr-1" style={{ color: "var(--gold, #f59e0b)" }}>{c.ticker}</button>)}</td>
+              <td>{r.constituents.slice(0, 3).map((c) => <button key={c.ticker} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(c.ticker); }} className="text-[10px] font-semibold mr-1" style={{ color: "var(--q-accent-strong)" }}>{c.ticker}</button>)}</td>
             </tr>
           ))}
         </tbody>

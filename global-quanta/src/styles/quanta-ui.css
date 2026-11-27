@@ -1,0 +1,56 @@
+/* QUANTA UI — chuẩn giao diện toàn dự án (27/11/2026), lấy từ tab TỔNG QUAN (#394, #395).
+   Cách dùng: thêm class "q-ui" vào gốc một tab; dùng biến --q-* (CSS thuần / inline style) hoặc tiện ích Tailwind q-* (tailwind.css).
+
+   Quy ước:
+   - Một màu nhấn: XANH DƯƠNG. Dùng cho trạng thái đang chọn, liên kết, mã cổ phiếu bấm được, viền focus, vạch tab.
+   - Màu có nghĩa giữ nguyên, không dùng làm điểm nhấn trang trí:
+     tăng xanh lá · giảm đỏ · cảnh báo vàng (--warning) · quy ước bảng điện VN (trần tím, sàn xanh lơ, tham chiếu vàng).
+   - Biểu đồ 2D/3D giữ màu chuỗi riêng.
+   - Chữ: Inter cho nhãn và tiêu đề; IBM Plex Mono (số đều cột) cho số liệu. Cỡ nhỏ nhất 11px. Không dùng nhãn in hoa giãn chữ.
+   - Bề mặt: nền phẳng, không gradient; viền rgba(255,255,255,0.06–0.16). */
+:root {
+  --q-accent: #4f8ef7;
+  --q-accent-strong: #79a8ff;
+  --q-accent-soft: rgba(79, 142, 247, 0.14);
+  --q-accent-line: rgba(79, 142, 247, 0.5);
+  --q-bg: #080b11;
+  --q-surface: #0e131f;
+  --q-surface-2: #131a29;
+  --q-surface-3: #182033;
+  --q-line: rgba(255, 255, 255, 0.06);
+  --q-line-2: rgba(255, 255, 255, 0.1);
+  --q-line-3: rgba(255, 255, 255, 0.16);
+  --q-text: #f8fafc;
+  --q-text-2: #cbd5e1;
+  --q-text-3: #94a3b8;
+  --q-text-4: #8391a7;
+  --q-font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --q-font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* Lớp chữ và tương tác chung (trước đây là .ov-root trong ScannerTables.css). */
+.q-ui { --font-sans: var(--q-font-sans); --font-mono: var(--q-font-mono);
+  font-family: var(--font-sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+.q-ui .font-sans { font-family: var(--font-sans); }
+.q-ui .font-mono, .q-ui :not(th).num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.q-ui h1, .q-ui h2, .q-ui h3, .q-ui h4 { font-family: var(--font-sans); letter-spacing: -0.005em; }
+.q-ui .text-\[9px\] { font-size: 10.5px; }
+.q-ui .text-\[10px\] { font-size: 11px; }
+.q-ui .text-\[10\.5px\] { font-size: 11.5px; }
+.q-ui .text-\[11px\] { font-size: 11.5px; }
+.q-ui .uppercase { text-transform: none; letter-spacing: 0; }
+.q-ui .tracking-wide, .q-ui .tracking-wider, .q-ui .tracking-widest { letter-spacing: 0; }
+.q-ui .font-black { font-weight: 700; }
+.q-ui button:focus-visible, .q-ui [tabindex]:focus-visible, .q-ui a:focus-visible, .q-ui select:focus-visible, .q-ui input:focus-visible, .q-ui summary:focus-visible { outline: 2px solid var(--q-accent); outline-offset: 1px; }
+.q-ui .rounded-xl { border-radius: 10px; }
+.q-ui ::selection { background: rgba(79, 142, 247, 0.35); }
+.q-ui .animate-pulse { animation-duration: 1.6s; }
+.q-ui input[type="checkbox"], .q-ui input[type="radio"], .q-ui input[type="range"] { accent-color: var(--q-accent); }
+@media (prefers-reduced-motion: reduce) { .q-ui * { transition: none !important; } }
+
+/* Khối dùng chung */
+.q-card { background: var(--q-surface); border: 1px solid var(--q-line-2); border-radius: 10px; }
+.q-card-2 { background: var(--q-surface-2); border: 1px solid var(--q-line-2); border-radius: 10px; }
+.q-tab { color: var(--q-text-3); border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
+.q-tab:hover { color: var(--q-text); }
+.q-tab[aria-selected="true"] { color: var(--q-text); border-bottom-color: var(--q-accent); }

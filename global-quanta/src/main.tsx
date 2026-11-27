@@ -5,6 +5,7 @@ import { getMarketGateway } from './config/marketGateway';
 import { installGatewayResilience } from './services/gatewayResilience';
 import './styles/tailwind.css';
 import './styles/tokens.css';
+import './styles/quanta-ui.css';
 import './styles/App.css';
 
 // Chịu lỗi Gateway: bản lưu cuối khi máy chủ dữ liệu gián đoạn (không thêm request lúc bình thường).

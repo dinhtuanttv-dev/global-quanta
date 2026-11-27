@@ -81,7 +81,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
           <div className="flex gap-1.5" role="group" aria-label="Khung thời gian">
             {(["1y", "3y", "5y"] as const).map((r) => (
               <button key={r} type="button" aria-pressed={range === r} onClick={() => setRange(r)} className="text-[10px] font-bold px-2.5 py-1 rounded-md"
-                style={{ background: range === r ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: range === r ? "var(--gold, #f59e0b)" : "var(--text-secondary)" }}>{r.replace("y", " năm")}</button>
+                style={{ background: range === r ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: range === r ? "var(--q-accent-strong)" : "var(--text-secondary)" }}>{r.replace("y", " năm")}</button>
             ))}
             {isLoading && <span className="text-[10px] self-center" style={muted}>Đang tải…</span>}
           </div>
@@ -167,7 +167,7 @@ export default function WorldSectorDrawer({ icb, row, onClose }: { icb: string; 
                     <tbody>
                       {data.stocks.map((st) => (
                         <tr key={st.symbol} style={{ borderTop: "1px solid rgba(148,163,184,0.08)" }}>
-                          <td className="py-1"><button type="button" onClick={() => selectTicker(st.symbol)} className="font-black" style={{ color: "var(--gold, #f59e0b)" }}>{st.symbol}</button></td>
+                          <td className="py-1"><button type="button" onClick={() => selectTicker(st.symbol)} className="font-semibold" style={{ color: "var(--q-accent-strong)" }}>{st.symbol}</button></td>
                           <td className="text-center">{num(st.weight * 100, 1)}%</td>
                           <td className="text-center">{st.beta == null ? "—" : `${num(st.beta)}%`}</td>
                           <td className="text-center" style={muted}>{num(st.corr)}</td>

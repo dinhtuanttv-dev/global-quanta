@@ -115,15 +115,15 @@ export default function KetNoiTheGioiTab() {
 
   return (
     <WorldNavContext.Provider value={nav}>
-    <div style={{ background: `linear-gradient(165deg, ${T.bgSurface} 0%, ${T.bgSurface2} 100%)`, border: "1px solid rgba(148,163,184,0.1)", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}
-      className="kntg-root rounded-2xl shadow-xl" data-testid="world-center">
+    <div style={{ background: "var(--q-surface)", border: "1px solid var(--q-line-2)", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}
+      className="kntg-root q-ui rounded-xl" data-testid="world-center">
 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h3 className="text-sm font-bold flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
-            <Globe2 className="w-4 h-4" style={{ color: T.gold }} /> Trung tâm kinh tế thế giới
+          <h3 className="text-[15px] font-semibold flex items-center gap-2" style={{ color: "var(--q-text)" }}>
+            <Globe2 className="w-4 h-4" style={{ color: "var(--q-accent-strong)" }} /> Trung tâm kinh tế thế giới
           </h3>
-          <p className="text-[10px]" style={{ color: T.textTertiary, marginTop: 3 }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
+          <p className="text-[12px]" style={{ color: "var(--q-text-3)", marginTop: 3 }}>Kinh tế thế giới tác động thế nào tới nhóm ngành và cổ phiếu Việt Nam, kèm mức bằng chứng cho từng mắt xích.</p>
         </div>
         {/* G2/L5: ghi rõ LUỒNG nào (giá thế giới của tab này) + giờ dữ liệu, để không mâu thuẫn với đèn kết nối của thanh trên cùng (luồng giá VN). */}
         {connected ? (
@@ -137,13 +137,13 @@ export default function KetNoiTheGioiTab() {
         )}
       </div>
 
-      <div role="tablist" aria-label="Trung tâm kinh tế thế giới" className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: "rgba(148,163,184,0.15)" }}>
+      <div role="tablist" aria-label="Trung tâm kinh tế thế giới" className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: "var(--q-line-2)" }}>
         {TABS.map((t) => {
           const on = tab === t.id;
           return <button key={t.id} ref={(el) => { refs.current[t.id] = el; }} id={`world-${t.id}-tab`} type="button" role="tab" aria-selected={on} aria-controls={`world-${t.id}-panel`} tabIndex={on ? 0 : -1}
             onClick={() => setTab(t.id)} onKeyDown={onKey}
             onMouseEnter={() => prefetchPart(t.id)} onFocus={() => prefetchPart(t.id)} className="text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap shrink-0"
-            style={{ padding: "9px 12px", color: on ? T.goldBright : T.textSecondary, borderBottom: on ? `2px solid ${T.gold}` : "2px solid transparent" }}>
+            style={{ padding: "10px 14px", marginBottom: -1, fontSize: 13, fontWeight: on ? 600 : 500, color: on ? "var(--q-text)" : "var(--q-text-3)", borderBottom: on ? "2px solid var(--q-accent)" : "2px solid transparent" }}>
             <t.icon className="w-3.5 h-3.5" aria-hidden /> {t.label}
           </button>;
         })}
@@ -193,7 +193,7 @@ export default function KetNoiTheGioiTab() {
           <EvidenceLedgerPanel />
           <WorldConfirmatoryPanel />
           <WorldSourcePanel />
-          <details className="rounded-xl px-3 py-2 text-[10px]" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)", color: T.textSecondary }} data-testid="evidence-method">
+          <details className="rounded-xl px-3 py-2 text-[10px]" style={{ background: "var(--q-surface-2)", border: "1px solid var(--q-line-2)", color: T.textSecondary }} data-testid="evidence-method">
             <summary style={{ cursor: "pointer", fontWeight: 700 }}>Phương pháp và cách đọc bậc bằng chứng</summary>
             <div className="space-y-1.5 pt-2" style={{ color: T.textTertiary }}>
               <p><b>Bậc A</b>: vượt hiệu chỉnh kiểm định bội, ổn định và vượt kiểm định ngoài mẫu. <b>Bậc B</b>: có ý nghĩa sau hiệu chỉnh. <b>Bậc C</b>: giả thuyết hoặc chưa đủ bằng chứng, không có nghĩa là có tác động.</p>
@@ -204,7 +204,7 @@ export default function KetNoiTheGioiTab() {
           </details>
 
           {macro && (
-          <div style={{ background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.08)" }} className="rounded-xl p-4" data-testid="vol-term-card">
+          <div style={{ background: "var(--q-surface-2)", border: "1px solid var(--q-line-2)" }} className="rounded-xl p-4" data-testid="vol-term-card">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-bold uppercase" style={{ color: T.textSecondary }}>Cấu trúc kỳ hạn biến động (VIX / VIX3M)</p>
@@ -214,7 +214,7 @@ export default function KetNoiTheGioiTab() {
             </div>
             {macro.vol_term ? (
               <>
-                <p className="text-3xl font-black mb-1" style={{ color: "var(--text-primary)" }}>{(macro.vol_term.slope * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1, signDisplay: "exceptZero" })}%<span className="text-sm ml-2" style={{ color: T.textTertiary }}>VolSlope · {macro.vol_term.stateVi}</span></p>
+                <p className="text-3xl font-semibold mb-1 font-mono" style={{ color: "var(--text-primary)" }}>{(macro.vol_term.slope * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1, signDisplay: "exceptZero" })}%<span className="text-sm ml-2" style={{ color: T.textTertiary }}>VolSlope · {macro.vol_term.stateVi}</span></p>
                 <p className="text-[10px] mb-2" style={{ color: T.textTertiary }}>VIX {macro.vol_term.vix.toFixed(2)} / VIX3M {macro.vol_term.vix3m.toFixed(2)} − 1. Dưới −5% là contango (bình yên), trên +5% là backwardation (căng thẳng ngắn hạn), ở giữa là phẳng.</p>
                 {macro.vol_term_evidence && <p className="text-[10px]" style={{ color: T.textTertiary }}>{macro.vol_term_evidence.history} {macro.vol_term_evidence.note}</p>}
               </>

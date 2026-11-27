@@ -19,10 +19,10 @@ export default function WorldTodayStrip({ onOpenImpact }: { onOpenImpact: () => 
   const top = rows.filter((r) => r.stance === "overweight").slice(0, 3);
   const bottom = rows.filter((r) => r.stance === "underweight").slice(-3).reverse();
   return (
-    <div className="tw-scope rounded-xl p-3 mb-3 space-y-1.5" data-testid="world-today-strip" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }}>
+    <div className="tw-scope rounded-xl p-3 mb-3 space-y-1.5" data-testid="world-today-strip" style={{ background: "var(--q-surface-2)", border: "1px solid var(--q-line-2)" }}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Bối cảnh thế giới hôm nay <span className="font-normal normal-case" style={muted}>· phiên VN {fmtDate(st.vnLast)}</span></p>
-        <button type="button" onClick={onOpenImpact} className="text-[10px] font-bold px-2 py-0.5 rounded whitespace-nowrap" style={{ border: "1px solid rgba(232,184,75,0.4)", color: "var(--gold-bright, #e8b84b)" }}>
+        <button type="button" onClick={onOpenImpact} className="text-[11.5px] font-semibold px-2.5 py-1 rounded whitespace-nowrap" style={{ border: "1px solid var(--q-accent-line)", background: "var(--q-accent-soft)", color: "var(--q-accent-strong)" }}>
           Xem tác động ngành & cổ phiếu →
         </button>
       </div>

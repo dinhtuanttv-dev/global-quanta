@@ -202,20 +202,4 @@
 .scan-select option { background: #131a29; color: #f8fafc; }
 .scan-pop { background: var(--ov-surface-2, #131a29); border: 1px solid var(--ov-line-3, rgba(255,255,255,0.16)); border-radius: 10px; box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55); }
 
-/* U2–U5 (27/11/2026) — thống nhất phông chữ và nhịp chữ toàn tab TỔNG QUAN (chỉ trình bày).
-   Chữ: Inter cho nhãn/tiêu đề, IBM Plex Mono (số đều cột) cho số liệu. Cỡ nhỏ nhất 11px; nhãn in hoa giãn chữ -> viết thường. */
-.ov-root { --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
-  font-family: var(--font-sans); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
-.ov-root .font-sans { font-family: var(--font-sans); }
-.ov-root .font-mono, .ov-root :not(th).num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.ov-root h1, .ov-root h2, .ov-root h3 { font-family: var(--font-sans); letter-spacing: -0.005em; }
-.ov-root .text-\[9px\] { font-size: 10.5px; }
-.ov-root .text-\[10px\] { font-size: 11px; }
-.ov-root .text-\[10\.5px\] { font-size: 11.5px; }
-.ov-root .text-\[11px\] { font-size: 11.5px; }
-.ov-root .uppercase { text-transform: none; letter-spacing: 0; }
-.ov-root .tracking-wide, .ov-root .tracking-wider, .ov-root .tracking-widest { letter-spacing: 0; }
-.ov-root button:focus-visible, .ov-root [tabindex]:focus-visible, .ov-root a:focus-visible, .ov-root select:focus-visible, .ov-root input:focus-visible { outline: 2px solid var(--ov-accent); outline-offset: 1px; }
-.ov-root .rounded-xl { border-radius: 10px; }
-.ov-root ::selection { background: rgba(79, 142, 247, 0.35); }
-.ov-root .animate-pulse { animation-duration: 1.6s; }
+/* U2–U5: lớp chữ và tương tác chung đã chuyển thành chuẩn dự án .q-ui (src/styles/quanta-ui.css, 27/11/2026). */

@@ -39,7 +39,7 @@ export default function WorldSectorPanel() {
         {(["short", "medium"] as Horizon[]).map((h) => (
           <button key={h} type="button" aria-pressed={horizon === h} onClick={() => { setHorizon(h); setHeatKey(h === "short" ? "new" : "m3"); }}
             className="text-[10px] font-bold px-2.5 py-1 rounded-md"
-            style={{ background: horizon === h ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: horizon === h ? "var(--gold, #f59e0b)" : "var(--text-secondary)" }}>
+            style={{ background: horizon === h ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: horizon === h ? "var(--q-accent-strong)" : "var(--text-secondary)" }}>
             {h === "short" ? "Ngắn hạn · thông tin mới sau phiên VN" : "Trung hạn · 3 tháng"}
           </button>
         ))}
@@ -54,7 +54,7 @@ export default function WorldSectorPanel() {
           <div className="flex gap-1" role="group" aria-label="Chỉ số bản đồ nhiệt">
             {(Object.keys(HEAT_LABEL) as HeatKey[]).map((k) => (
               <button key={k} type="button" aria-pressed={heatKey === k} onClick={() => setHeatKey(k)} className="text-[10px] px-2 py-0.5 rounded"
-                style={{ background: heatKey === k ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: heatKey === k ? "var(--gold, #f59e0b)" : "var(--text-tertiary)" }}>{HEAT_LABEL[k]}</button>
+                style={{ background: heatKey === k ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: heatKey === k ? "var(--q-accent-strong)" : "var(--text-tertiary)" }}>{HEAT_LABEL[k]}</button>
             ))}
           </div>
         </div>
