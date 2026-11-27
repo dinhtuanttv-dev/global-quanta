@@ -65,7 +65,7 @@ export default function MarketLabelLegend({ d }: { d: PreopenDoc }) {
           <thead><tr className="text-left text-slate-500"><th className="py-1 font-normal">Nhãn</th><th className="font-normal">Ở đâu</th><th className="font-normal">Đo cái gì</th><th className="font-normal">Đầu vào · khung</th><th className="px-1 text-center font-normal">Cấp</th><th className="text-right font-normal">Hiện tại</th><th className="pl-2 text-right font-normal">Lúc</th></tr></thead>
           {(["Chế độ", "Biến động"] as const).map((g) => (
             <tbody key={g}>
-              <tr><th colSpan={7} scope="colgroup" className="pt-2 text-left text-[10px] font-semibold uppercase tracking-wide text-cyan-300/80">{g}</th></tr>
+              <tr><th colSpan={7} scope="colgroup" className="pt-3 text-left text-[11.5px] font-semibold text-slate-300">{g}</th></tr>
               {rows.filter((r) => r.group === g).map((r) => (
                 <tr key={r.name} className="border-t border-white/5 align-top" data-testid="mc-label-row">
                   <th scope="row" className="py-1 pr-2 text-left font-semibold text-slate-100">{r.name}</th>

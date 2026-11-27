@@ -161,7 +161,7 @@ export default function VolumeAnalysisPanel({ symbol }: { symbol: string }) {
   return (
     <div className="p-3 font-sans" style={{ background: "rgba(2,132,199,0.04)" }}>
       <div className="flex items-baseline justify-between mb-2">
-        <div className="text-[11px] font-semibold text-cyan-300">Phân tích khối lượng · {symbol}</div>
+        <div className="text-[13px] font-semibold text-slate-100">Phân tích khối lượng · {symbol}</div>
         <div className="text-[10px] text-slate-500">
           Dữ liệu SSI tới phiên {data.asOf}{data.partialToday ? " (hôm nay đang giao dịch)" : ""} · nhấn đúp hoặc Esc để đóng
           <span className="ml-2"><ResearchUiToggle compact /></span>

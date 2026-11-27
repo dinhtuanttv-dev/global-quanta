@@ -16,7 +16,7 @@ function Bars({ title, rows, max, onSelect }: { title: string; rows: ImpactItem[
             const w = max > 0 ? Math.max(2, (Math.abs(x.points) / max) * 100) : 0, pos = x.points >= 0;
             return (
               <li key={x.symbol} className="grid grid-cols-[3.2rem_1fr_3.6rem] items-center gap-1.5 text-[10px]" title={`${x.symbol} · ${x.industry} · tỷ trọng ${vn(x.weightPct, 2)}% · giá ${vn(x.changePct, 2)}%${x.adjusted ? ` · tham chiếu điều chỉnh ${x.adjusted.label}` : ""}`}>
-                <button type="button" onClick={() => onSelect(x.symbol)} className="text-left font-bold text-amber-300 hover:text-amber-200 truncate" aria-label={`Chọn ${x.symbol}`}>{x.symbol}</button>
+                <button type="button" onClick={() => onSelect(x.symbol)} className="text-left font-semibold text-slate-50 hover:text-q-accent-strong truncate" aria-label={`Chọn ${x.symbol}`}>{x.symbol}</button>
                 <span className="h-2.5 rounded-sm bg-white/5 relative overflow-hidden" aria-hidden>
                   <span className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${w}%`, background: pos ? UP : DOWN, opacity: 0.85 }} />
                 </span>

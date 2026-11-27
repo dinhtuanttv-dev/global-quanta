@@ -276,7 +276,7 @@ export function IntelAiSections({ intel, performance, signalLabels }: { intel: M
           <span className="inline-flex shrink-0 rounded border border-white/10 overflow-hidden" role="tablist" aria-label="Kỳ hạn">
             {["3", "5", "10"].map((k) => (
               <button key={k} type="button" role="tab" aria-selected={h === k} onClick={() => setH(k)}
-                className={`text-[11px] px-1.5 py-px ${h === k ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>T+{k}</button>
+                className={`text-[11px] px-1.5 py-px ${h === k ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400 hover:text-slate-200"}`}>T+{k}</button>
             ))}
           </span>
         </div>

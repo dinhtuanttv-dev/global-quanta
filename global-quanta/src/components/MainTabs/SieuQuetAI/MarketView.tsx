@@ -44,14 +44,13 @@ export default function MarketView({ activeSector, onSector, onIndustry }: {
   const focusSector = useAppStore((s) => s.focusSector);
   const openSector = useCallback((code: string) => { focusSector(code); navigateTab?.("Loc nganh"); }, [focusSector, navigateTab]);
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-  const box = { background: "var(--ov-surface, #0e131f)", border: "1px solid var(--ov-line-2, rgba(255,255,255,0.1))" };
 
   return (
     <div className="flex flex-col gap-4" data-testid="overview-market">
       <nav className="ov-anchors" aria-label="Các khối của tab Thị trường" data-testid="ov-anchors">
         {SECTIONS.map((s, i) => <button key={s.id} type="button" onClick={() => jump(s.id)}><span aria-hidden>{i + 1}</span>{s.label}</button>)}
       </nav>
-      <div id={SECTIONS[0].id} className="ov-block rounded-xl pt-3" style={box}><MarketCenterPanel /></div>
+      <div id={SECTIONS[0].id} className="ov-block"><MarketCenterPanel /></div>
       <div id={SECTIONS[1].id} className="ov-block">
         <TradingMatrixPanel onSelectTicker={onSelect} activeSector={activeSector} onSector={onSector} onOpenSector={openSector} onIndustry={onIndustry} />
       </div>

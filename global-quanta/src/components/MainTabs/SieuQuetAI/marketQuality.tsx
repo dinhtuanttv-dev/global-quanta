@@ -33,7 +33,7 @@ export function Prov({ label, rows, grade, testId }: { label: string; rows: [str
   return (
     <span ref={ref} className="relative inline-flex align-middle" data-testid={testId}>
       <button type="button" aria-expanded={open} aria-controls={id} aria-label={`Nguồn gốc: ${label}`} onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/15 text-[10px] leading-none text-slate-400 hover:border-cyan-400/50 hover:text-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">i</button>
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-white/15 text-[10px] leading-none text-slate-400 hover:border-q-accent/60 hover:text-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-q-accent">i</button>
       {open && (
         <span id={id} role="dialog" aria-label={`Nguồn gốc: ${label}`} onClick={(e) => e.stopPropagation()}
           className="absolute left-0 top-5 z-30 block w-[min(18rem,80vw)] rounded-lg border border-white/15 bg-[#0d1424] p-2 text-left text-[11px] font-normal normal-case shadow-xl shadow-black/50 max-sm:fixed max-sm:inset-x-3 max-sm:bottom-3 max-sm:top-auto max-sm:left-3 max-sm:w-auto max-sm:p-3 max-sm:text-[12px]">
