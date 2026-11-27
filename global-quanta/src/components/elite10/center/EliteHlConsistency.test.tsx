@@ -26,7 +26,11 @@ vi.mock("../profile/ProfileHeader", () => ({ default: () => null })); // QĐ-R: 
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: null }) }));
 vi.mock("./ConfluenceCard", () => ({ default: () => null }));
 vi.mock("./LeadershipCard", () => ({ default: () => null }));
-vi.mock("./StockImpactCard", () => ({ default: () => null }));
+vi.mock("./StockImpactCard", () => ({ default: () => <div data-testid="stub-impact" /> }));
+// HS360-v3 H4: ảnh chụp hồ sơ (Luận điểm + ma trận lớp) — thay được theo từng bài; Price Action thay bằng khối giả.
+const P4 = vi.hoisted(() => ({ snap: undefined as unknown, error: new Error("chưa có") as unknown }));
+vi.mock("../../../hooks/elite10/useEliteProfile", () => ({ useEliteProfile: () => ({ data: P4.snap, error: P4.snap ? undefined : P4.error }) }));
+vi.mock("../profile/PriceActionConfirmation", () => ({ default: () => <div data-testid="stub-pa" /> }));
 vi.mock("./EliteToShadowCard", () => ({ default: () => null }));
 // Hub: chỉ kiểm cơ chế giữ Phòng họp AI trong cây -> các tab con thay bằng khối giả.
 const aiMounts = vi.hoisted(() => ({ n: 0, unmounts: 0 }));
@@ -233,5 +237,53 @@ describe("Elite10Hub — sắp xếp lại tab QUYẾT ĐỊNH", () => {
     render(<Elite10Hub />);
     await act(async () => { fireEvent.click(document.getElementById("elite10-profile-tab")!); });
     expect(screen.queryByTestId("stub-to")).toBeNull(); expect(screen.queryByTestId("stub-sim")).toBeNull(); expect(screen.queryByTestId("stub-news")).toBeNull();
+  });
+});
+
+// HS360-v3 H4 (27/11/2026): góc Tổng quan = thẻ Luận điểm + ma trận 9 lớp (bấm mở khối chi tiết cũ / chuyển góc nhìn); ảnh chụp lỗi -> khối cũ.
+describe("Hồ sơ 360° · H4 góc Tổng quan", () => {
+  const layer = (id: string, direction: number | null, seal: string) => ({ id, labelVi: id, stateVi: `${id} hôm nay`, direction, seal, sealSource: "sổ", asOf: "2026-11-27" });
+  const snap = {
+    version: "HS360-v3", ticker: "FPT", session: "2026-11-27", builtAt: "x", missing: [], freshness: {}, header: { icb: null, sector: null, close: 1, inUniverse: true, hl: null, warnings: [] },
+    thesis: { strengths: [{ layer: "TECHNICAL", textVi: "Kỹ thuật: 5/7 mô hình TA đạt", seal: "MỘT PHẦN" }], risks: [{ kind: "FA_WARN", textVi: "Beneish cần soát (KQKD)." }], nextEvent: { date: "2027-02-01", kindVi: "Dự kiến công bố KQKD", source: "PFA" } },
+    layers: [layer("LEADERSHIP", 1, "THĂM DÒ"), layer("TECHNICAL", 1, "MỘT PHẦN"), layer("SECTOR", 1, "THĂM DÒ"), layer("FLOW", null, "ĐẠT"), layer("FUNDAMENTAL", -1, "MỘT PHẦN"),
+      layer("WORLD_CATALYST", -1, "MỘT PHẦN"), layer("TIMING", 1, "KHÔNG ĐẠT"), layer("LIQUIDITY", 1, "CHƯA KIỂM ĐỊNH"), layer("AI", null, "ĐANG TÍCH LUỸ")],
+    signals: [], outsideE2: { structure_stage: null, log_rvol: null }, eliteScore: null,
+    price: { bars: Array.from({ length: 90 }, (_, i) => [`2026-08-${String(1 + (i % 28)).padStart(2, "0")}`, 48000 + i * 30]), pivot: 48700, zone: [47239, 51135], stop: 46529, stopRef: 48034 }, noteVi: "",
+  };
+  afterEach(() => { P4.snap = undefined; });
+
+  it("có ảnh chụp: Luận điểm (điểm mạnh, rủi ro, sự kiện, giá + vùng mua / pivot / cắt lỗ) + 9 lớp; màu chiều chỉ khi dấu ĐẠT / MỘT PHẦN", () => {
+    S.decision = hlDecision; P4.snap = snap;
+    S.ticker = { decision: score("FPT", true), panel: panelOf("FPT"), isLoading: false, error: null };
+    const onView = vi.fn();
+    render(<SignalProfileCard ticker="FPT" onView={onView} />);
+    expect(text("profile-thesis-strengths")).toMatch(/5\/7 mô hình TA đạt.*MỘT PHẦN/);
+    expect(text("profile-thesis-risks")).toMatch(/Cơ bản: Beneish/);
+    expect(text("profile-thesis-next")).toMatch(/Dự kiến công bố KQKD — 01\/02\/2027/);
+    for (const id of ["profile-price", "profile-price-zone", "profile-price-pivot", "profile-price-stop"]) expect(screen.getByTestId(id)).toBeTruthy();
+    expect(screen.getByTestId("profile-layers").querySelectorAll("[data-testid^='profile-layer-'][data-seal]").length).toBe(9);
+    // Lớp Thế giới: bất lợi + MỘT PHẦN -> tô đỏ; lớp Vị trí giá: ủng hộ nhưng KHÔNG ĐẠT -> trung tính.
+    expect(screen.getByTestId("profile-layer-WORLD_CATALYST").querySelector(".text-rose-300")).toBeTruthy();
+    expect(screen.getByTestId("profile-layer-TIMING").querySelector(".text-emerald-300")).toBeNull();
+    // Bấm Kỹ thuật -> mở Hợp lưu + Price Action (khối cũ) ngay dưới dòng; một khối mỗi lúc.
+    expect(screen.queryByTestId("stub-pa")).toBeNull();
+    fireEvent.click(screen.getByTestId("profile-layer-toggle-TECHNICAL"));
+    expect(screen.getByTestId("profile-layer-detail-TECHNICAL").querySelector("[data-testid='stub-pa']")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("profile-layer-toggle-WORLD_CATALYST"));
+    expect(screen.queryByTestId("profile-layer-detail-TECHNICAL")).toBeNull();
+    expect(screen.getByTestId("stub-impact")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("profile-layer-goto-FLOW")); expect(onView).toHaveBeenLastCalledWith("signals");
+    fireEvent.click(screen.getByTestId("profile-layer-goto-TIMING")); expect(onView).toHaveBeenLastCalledWith("events");
+    expect(screen.getByTestId("elite-profile").textContent).not.toMatch(/Trong danh mục Elite HL/); // vị thế chỉ ở thanh đầu
+  });
+
+  it("ảnh chụp lỗi -> hiện khối cũ (không mất thông tin)", () => {
+    S.decision = hlDecision; P4.snap = undefined;
+    S.ticker = { decision: score("FPT", true), panel: panelOf("FPT"), isLoading: false, error: null };
+    render(<SignalProfileCard ticker="FPT" />);
+    expect(screen.getByTestId("profile-snapshot-fallback")).toBeTruthy();
+    expect(screen.getByTestId("stub-impact")).toBeTruthy();
+    expect(screen.queryByTestId("profile-layers")).toBeNull();
   });
 });
