@@ -131,10 +131,34 @@ export function createElitePanelService({ catalystSnapshot = null, store, wsStra
     return doc;
   }
 
-  return { build, panel, dates: readIndex, gather };
+  /** P0 (27/11/2026): đặc trưng dòng tiền (market_flow_daily) của phiên đã có chưa — để vòng dựng chờ job researchFlow. */
+  async function flowReady(date) {
+    const f = await latestFeatures(date);
+    return Boolean(f && f.size > 0);
+  }
+
+  return { build, panel, dates: readIndex, gather, flowReady };
+}
+
+/**
+ * P0 (27/11/2026): "bù phiên" chỉ dành cho phiên ĐÃ QUA mà bảng E1 bị lỡ. Phiên HÔM NAY luôn chờ khung 17:00 (panelDue).
+ * Trước đây Siêu Quét có phiên hôm nay lúc ~15:45 là bù ngay -> bảng E1 dựng trước job dòng tiền 16:00 (researchFlow) -> thiếu toàn bộ
+ * đặc trưng dòng tiền (Stealth 20/5, IFE, động lượng, RVOL) ở 9/10 phiên từ 13/11/2026.
+ */
+export function catchUpDue({ inWindow, scanAsOf, latestDate, today }) {
+  if (inWindow || !scanAsOf || !latestDate) return false;
+  return scanAsOf > latestDate && scanAsOf < today;
 }
 
 /** Giờ VN ≥ 17:00 của một ngày giao dịch thì bảng phiên đó đến hạn dựng. */
+/** P0: trong khung 17:00, chờ dòng tiền tối đa tới 18:30 giờ VN; quá giờ thì dựng dù thiếu (nhật ký cảnh báo). */
+export const FLOW_WAIT_UNTIL_MIN = 18 * 60 + 30;
+export function waitForFlow({ flowReady, nowMs }) {
+  if (flowReady) return false;
+  const vn = new Date(nowMs + 7 * 3_600_000);
+  return vn.getUTCHours() * 60 + vn.getUTCMinutes() < FLOW_WAIT_UNTIL_MIN;
+}
+
 export function panelDue(nowMs, isTradingDay) {
   const vn = new Date(nowMs + 7 * 3_600_000);
   const minutes = vn.getUTCHours() * 60 + vn.getUTCMinutes();

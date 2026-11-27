@@ -34,7 +34,7 @@ import { createWorldSectorsRouter } from "./routes/worldSectors.js";
 import { SECTOR_RRG_HISTORY_KV, SECTOR_RRG_KV } from "./market/sectors/sectorRotation.js";
 import { startMarketIngestor, getMarketRuntime } from "./market/runtime.js";
 import { isOriginAllowed, parseAllowedOrigins } from "./utils/corsOrigins.js";
-import { createElitePanelService, panelDue } from "./market/elite/elitePanel.js";
+import { catchUpDue, createElitePanelService, panelDue, waitForFlow } from "./market/elite/elitePanel.js";
 import { createProfileFa } from "./market/elite/profileFa.js";
 import { createDilution } from "./market/elite/dilutionService.js";
 import { createImpactProfile } from "./market/elite/impactProfile.js";
@@ -564,7 +564,8 @@ if (process.env.NODE_ENV !== "test") {
       // Bù phiên (sự cố 13/11/2026): Siêu Quét đã có phiên mới hơn bảng tín hiệu (job bù phiên vừa quét lại phiên lỡ) -> dựng bảng và
       // quyết định cho phiên đó ngay, kể cả ngoài giờ / ngày nghỉ. Mọi nguồn của bảng lấy ngày từ dữ liệu nên không ghi sai phiên.
       const scanAsOf = (await getMarketRuntime().store.getKv("scanner:latest").catch(() => null))?.value?.dataAsOf ?? null;
-      const catchUp = !inWindow && Boolean(scanAsOf && latest?.date && scanAsOf > latest.date);
+      // P0 (27/11/2026): chỉ bù phiên ĐÃ QUA; phiên hôm nay chờ khung 17:00 (sau job dòng tiền 16:00) — xem catchUpDue.
+      const catchUp = catchUpDue({ inWindow, scanAsOf, latestDate: latest?.date ?? null, today: vnDate(new Date()) });
       // Phiên bị CHỐT DỮ LIỆU (thiếu nguồn lúc dựng) -> thử dựng lại tối đa 1 lần / 60 phút khi nguồn có thể đã đủ (VD nến VN-Index lỗi
       // vừa được vá). Dịch vụ quyết định chỉ thay bản ghi sổ CHƯA chấm; bản ghi đã chấm giữ nguyên.
       const cur = await getEliteDecision().decision().catch(() => null);
@@ -583,8 +584,16 @@ if (process.env.NODE_ENV !== "test") {
       }
       if (catchUp) console.log(`[elite] bù phiên: bảng tín hiệu ${latest.date} -> Siêu Quét ${scanAsOf}`);
       if (catchUp || latest?.date !== vnDate(new Date())) {
+        // P0: phiên hôm nay -> chờ đặc trưng dòng tiền (job 16:00) tối đa tới 18:30; vòng chạy lại mỗi 10 phút.
+        if (!catchUp) {
+          const flowDate = scanAsOf ?? vnDate(new Date());
+          const ready = await getElitePanel().flowReady(flowDate).catch(() => false);
+          if (waitForFlow({ flowReady: ready, nowMs: Date.now() })) { console.log(`[elite] chờ đặc trưng dòng tiền phiên ${flowDate} trước khi dựng bảng tín hiệu`); return; }
+        }
         const doc = await getElitePanel().build();
         console.log(`[elite] bảng tín hiệu ${doc.date}: ${doc.universe} mã, thiếu nguồn: ${doc.missingSources.join(", ") || "không"}`);
+        // P0: bảng thiếu đặc trưng dòng tiền -> Điểm Elite mất Stealth 20/5 và tầng 3 Elite HL mất 3 phiếu. Báo rõ trong nhật ký.
+        if (doc.missingSources.includes("researchFeatures")) console.warn(`[elite] CẢNH BÁO bảng tín hiệu ${doc.date} thiếu đặc trưng dòng tiền (market_flow_daily) — kiểm job researchFlow 16:00.`);
       }
       const panelDate = (await getElitePanel().panel())?.date;
       const ev = await getEliteEvidence().evidence();
