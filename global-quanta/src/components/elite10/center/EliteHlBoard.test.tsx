@@ -382,3 +382,13 @@ describe("EliteHlBoard — Chu kỳ →", () => {
     expect(screen.queryByTestId("hl-cycle-btn-CTD")).toBeNull();
   });
 });
+
+// HS360-v3 H5 (27/11/2026): Hồ sơ 360° · Sự kiện -> khung "Mã đang chọn" của tab 1 chọn sẵn đúng mã (store hlFocus, nonce).
+describe("EliteHlBoard — khung Mã đang chọn nhận mã từ Hồ sơ", () => {
+  it("focusHl(CTD) trước khi mở bảng -> khung chọn CTD thay vì mã đầu", () => {
+    cleanup();
+    useAppStore.getState().focusHl("CTD");
+    render(<EliteHlBoard d={decision} onOpenTicker={() => {}} />);
+    expect(screen.getByTestId("hl-focus").textContent).toContain("Mã đang chọn · CTD");
+  });
+});

@@ -19,6 +19,7 @@ import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
 import { useEliteDecision, useElitePanel } from "../../hooks/elite10/useEliteCenter";
 import { sortedPicks } from "./center/evidenceRoom/PortfolioRail";
+import { focusTickers } from "./center/HlFocusFrame";
 import { defaultProfileTicker } from "../../lib/elite10/profileDefault";
 import "./elite10.css";
 
@@ -69,6 +70,10 @@ export default function Elite10Hub() {
   const focusCycle = useAppStore((s) => s.focusCycle);
   const openAi = () => { setTicker(current); setSub("ai"); refs.current.ai?.focus(); };
   const openCycle = () => { focusCycle(current); goTab?.("Loc nganh"); };
+  // HS360-v3 H5: góc Sự kiện -> khung "Mã đang chọn" của tab 1 (khung chỉ có mã đang giữ, hoặc hàng chờ khi danh mục trống).
+  const focusHl = useAppStore((s) => s.focusHl);
+  const inFocusList = useMemo(() => Boolean(decisionDoc && focusTickers(decisionDoc).tickers.includes(current)), [decisionDoc, current]);
+  const openFocus = () => { focusHl(current); setSub("board"); refs.current.board?.focus(); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     const i = SUBS.findIndex((s) => s.id === sub);
     const n = e.key === "ArrowRight" ? (i + 1) % SUBS.length : e.key === "ArrowLeft" ? (i - 1 + SUBS.length) % SUBS.length : -1;
@@ -132,7 +137,7 @@ export default function Elite10Hub() {
                 {/* HS360-v3 H2: góc Tín hiệu — bảng 25 tín hiệu E2 (SQS, xu hướng, IC theo chế độ) + Điểm Elite đối chứng. */}
                 {pview === "signals" && <SignalProfileCard ticker={current} view="signals" />}
                 {pview === "company" && <CompanyProfileCard ticker={current} />}
-                {pview === "events" && <EventsProfileCard ticker={current} />}
+                {pview === "events" && <EventsProfileCard ticker={current} onOpenFocus={inFocusList ? openFocus : undefined} />}
               </>
             )}
           </>

@@ -50,6 +50,9 @@ interface AppState {
   /** EC-1: mở một mã ở tab con Cycle Fingerprint (tab Phân tích ngành) — từ bảng Danh mục Elite HL. */
   cycleFocus: { ticker: string; nonce: number } | null;
   focusCycle: (ticker: string) => void;
+  /** HS360-v3 H5: chọn mã trong khung "Mã đang chọn" của Bảng quyết định (từ Hồ sơ 360° · Sự kiện). */
+  hlFocus: { ticker: string; nonce: number } | null;
+  focusHl: (ticker: string) => void;
   focusTickerInScanner: (ticker: string, opts?: { addToWatchlist?: boolean }) => void;
 
   // ===== TRẠNG THÁI NGUỒN GIÁ (MarketFeed -> đèn trên thanh trên) =====
@@ -167,6 +170,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   focusSector: (code) => set((s) => ({ sectorFocus: { code, nonce: (s.sectorFocus?.nonce ?? 0) + 1 } })),
   scanSectorFocus: null,
   focusScanSector: (code) => set((s) => ({ scanSectorFocus: { code, nonce: (s.scanSectorFocus?.nonce ?? 0) + 1 } })),
+  hlFocus: null,
+  focusHl: (ticker) => set((s) => ({ hlFocus: { ticker, nonce: (s.hlFocus?.nonce ?? 0) + 1 } })),
   cycleFocus: null,
   focusCycle: (ticker) => {
     get().selectTicker(ticker);
