@@ -18,8 +18,9 @@ export const SIGNAL_SPECS = [
     evidenceVi: "Sổ cái nghiên cứu: tỷ lệ đúng 51,9% vs nền 47,7% (T+3, n≈2.200, z cụm 2,05)." },
   { id: "stealth5", tab: "Siêu quét AI", labelVi: "Stealth 5 (dòng tiền ẩn 5 phiên, z)", unit: "z", level: "stock", tier: "A",
     evidenceVi: "Sổ cái nghiên cứu: 51,8% vs 47,8% (T+3), 54,9% vs 48,4% (T+10), z cụm 2,0–2,2." },
-  { id: "top20_alpha", tab: "Lọc ngành", labelVi: "Điểm alpha M1 (Top 20)", unit: "điểm", level: "stock", tier: "B",
-    evidenceVi: "T3 ngoài mẫu: IC hạng 0,037 [0,0015; 0,076]; lợi nhuận Top 20 sau phí âm (FAIL tổng thể)." },
+  // E2-v1 sửa đổi 27/11/2026 (chủ dự án): hạ B -> C — T3 FAIL tổng thể (lợi nhuận Top 20 sau phí âm), E2 đo IC kỳ hạn chính âm. Không còn trọng số Điểm Elite.
+  { id: "top20_alpha", tab: "Lọc ngành", labelVi: "Điểm alpha M1 (Top 20)", unit: "điểm", level: "stock", tier: "C",
+    evidenceVi: "T3 ngoài mẫu: IC hạng 0,037 [0,0015; 0,076]; lợi nhuận Top 20 sau phí âm (FAIL tổng thể). Hạ B → C ngày 27/11/2026 (sửa đổi E2-v1)." },
   { id: "sepa_s2", tab: "TA VN-Index", labelVi: "SEPA phá vỡ đạt chuẩn (S2)", unit: "cờ", level: "stock", tier: "B",
     evidenceVi: "SP3: OOS n 37, +3,66%/20 phiên nhưng trong mẫu âm." },
   { id: "net_intent", tab: "Siêu quét AI", labelVi: "Ý đồ dòng tiền IFE (tích luỹ − phân phối)", unit: "xác suất", level: "stock", tier: "C",
@@ -33,7 +34,10 @@ export const SIGNAL_SPECS = [
   { id: "risk_adj_mom", tab: "Siêu quét AI", labelVi: "Động lượng điều chỉnh rủi ro", unit: "tỷ lệ", level: "stock", tier: "C", evidenceVi: "Chưa có kiểm định đặt trước." },
   { id: "foreign_net_buy", tab: "Siêu quét AI", labelVi: "Khối ngoại mua ròng", unit: "cờ", level: "stock", tier: "C", evidenceVi: "Chưa có kiểm định đặt trước." },
   { id: "mom5_atr", tab: "Siêu quét AI", labelVi: "Động lượng 5 phiên / ATR", unit: "z", level: "stock", tier: "C", evidenceVi: "Đặc trưng mô hình, chưa kiểm định riêng." },
-  { id: "log_rvol", tab: "Siêu quét AI", labelVi: "Khối lượng tương đối (log)", unit: "log", level: "stock", tier: "C", evidenceVi: "Đặc trưng mô hình, chưa kiểm định riêng." },
+  // E2-v1 sửa đổi 27/11/2026 (chủ dự án): KQKD thay "Khối lượng tương đối (log)" trong bảng bằng chứng. log_rvol vẫn có giá trị trong bảng E1
+  // (Bộ lọc, Hồ sơ) và chuỗi IC hồi cứu vẫn được đo, lưu trong elite:ic — chỉ không còn trong bảng E2.
+  { id: "kq_nowcast", tab: "Cơ bản", labelVi: "KQKD — tăng trưởng LNST cả năm ước tính (nowcast)", unit: "tỷ lệ", level: "stock", tier: "B",
+    evidenceVi: "KQ-r1 (06/11/2026): IC ngoài mẫu 0,047, p 0,0005, 19 lứa — ĐẠT nhưng mẫu chọn theo mã hiện tại (thiên lệch sống sót, chờ KQ-r2). Bậc B theo quyết định chủ dự án 27/11/2026; E2 giáng khi IC âm có ý nghĩa." },
   { id: "sepa_state", tab: "TA VN-Index", labelVi: "Trạng thái SEPA", unit: "bậc", level: "stock", tier: "C", evidenceVi: "SP3: thứ bậc danh sách không đạt." },
   { id: "pattern_state", tab: "TA VN-Index", labelVi: "Mô hình giá Pring", unit: "bậc", level: "stock", tier: "C", evidenceVi: "P3: không nhóm nào đạt (PF OOS 0,41)." },
   { id: "convergence", tab: "TA VN-Index", labelVi: "Hợp lưu v2", unit: "bậc", level: "stock", tier: "C", evidenceVi: "H1–H4: EXPERIMENTAL." },
@@ -47,7 +51,10 @@ export const SIGNAL_SPECS = [
 
 // T7 (2026-10-21): Cấu trúc thị trường đa khung — bậc C (chỉ đo IC, không vào điểm Elite cho tới khi engine bằng chứng thăng bậc).
 SIGNAL_SPECS.push(
-  { id: "structure_stage", tab: "TA VN-Index", labelVi: "Giai đoạn Minervini khung Ngày (MTF v3)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026 đổi sang MTF v3 (S1–S4 trên EMA21/50/100 + MA200; trước đó thang v2). Kiểm định MTF-v3 H1 (vào GĐ2) không đạt: +1,03%/40 phiên OOS, KTC chứa 0; chỉ đo IC." },
+  // E2-v1 sửa đổi 27/11/2026 (chủ dự án): CAN SLIM Cốc tay cầm thay "Giai đoạn Minervini khung Ngày" trong bảng bằng chứng. structure_stage
+  // VẪN có giá trị trong bảng E1 vì là 1 trong 7 mô hình TA của quy tắc Elite HL (confluence.js) — không đổi Elite HL.
+  { id: "camslim_cup", tab: "TA VN-Index", labelVi: "CAN SLIM Cốc tay cầm (2 = phá vỡ, 1 = sẵn sàng)", unit: "bậc", level: "stock", tier: "B",
+    evidenceVi: "Bộ lọc CAN SLIM v2 (O'Neil): kiểm định của bộ lọc EXPERIMENTAL — ngoài mẫu từ 25/04/2026 chỉ 10 lệnh, KTC lợi suất −7,6% … −1,5%. Bậc B theo quyết định chủ dự án 27/11/2026; E2 giáng khi IC âm có ý nghĩa." },
   { id: "structure_score", tab: "TA VN-Index", labelVi: "Trend Template (7 điều kiện, MTF v3)", unit: "0–7", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026: số điều kiện Trend Template đạt (EMA21/50/100 + MA200, 52 tuần); trước đó bảng kiểm v2 0–8. Chưa có lợi thế kiểm định." },
   { id: "structure_verdict", tab: "TA VN-Index", labelVi: "Cấu trúc Dow khung Ngày (MTF v3)", unit: "bậc", level: "stock", tier: "C", evidenceVi: "Từ 30/10/2026: trạng thái Dow (đáy bảo vệ / đỉnh hồi, 3 tiêu chí gãy xu hướng) thay kết luận đa khung v2. MTF-v3 H2 không đạt; chỉ mô tả." },
 );
@@ -113,6 +120,9 @@ export function buildSignalRows(src) {
   const patterns = stratMap("patterns", (r) => (PATTERN_STATUS[r.status] ?? 0) * (r.dir === "bear" ? -1 : 1));
   const convergence = stratMap("convergence", (r) => (GRADE[r.grade] ?? 1) * (r.side === "sell" ? -1 : 1));
   const breakout = stratMap("base-breakout", (r) => GRADE[r.grade] ?? 1);
+  // E2-v1 sửa đổi 27/11/2026: CAN SLIM Cốc tay cầm — 2 = phá vỡ pivot (còn trong vùng mua), 1 = sẵn sàng (tay cầm hợp lệ, cách pivot ≤ 5%),
+  // mã được quét mà không đạt mẫu hình -> 0.
+  const camslim = stratMap("camslim", (r) => (r.status === "BREAKOUT" ? 2 : r.status === "SETUP" ? 1 : 0));
 
   const symbols = src.taxonomy?.symbols ?? null;
   if (!symbols) missingSources.push("taxonomy");
@@ -132,6 +142,10 @@ export function buildSignalRows(src) {
     missingSources.push("cotuc");
   }
   if (!src.features) missingSources.push("researchFeatures");
+  // KQKD (Gateway, VNDirect): chỉ nhận quý có ngày công bố ≤ phiên của bảng (không nhìn trước khi dựng bù phiên cũ).
+  const kqRows = src.kqkd?.rows ?? null;
+  if (!kqRows) missingSources.push("kqkd");
+  const kq = new Map((kqRows ?? []).filter((r) => r?.t && (!src.kqkdDate || !r.created || r.created <= src.kqkdDate)).map((r) => [String(r.t).toUpperCase(), num(r.nowcast?.growth)]));
   // LS-r1: điểm dẫn dắt của CÙNG phiên (giá ngày Gateway) — khác phiên thì để trống.
   const lsRows = src.leadership?.rows ?? null;
   if (!lsRows) missingSources.push("leadership");
@@ -170,6 +184,8 @@ export function buildSignalRows(src) {
       structure_stage: structure ? STRUCT_STAGE[structure.get(ticker)?.s3?.st] ?? null : null,
       structure_score: structure ? num(structure.get(ticker)?.s3?.tpl) : null,
       structure_verdict: structure ? STRUCT_DOW[structure.get(ticker)?.s3?.dow] ?? null : null,
+      camslim_cup: camslim ? camslim.get(ticker) ?? 0 : null,
+      kq_nowcast: kqRows ? kq.get(ticker) ?? null : null,
     };
     for (const k of Object.keys(values)) values[k] = r4(values[k]);
     return { ticker, icb: symbols?.[ticker] ?? null, sector: it.industry ?? it.sector ?? null, values };

@@ -84,8 +84,10 @@ test("E2 engine: đo hồi cứu dòng tiền + tiến từ bảng E1, tăng d�
   assert.ok(s5.byH[5].mean > 0.5, `IC=${s5.byH[5].mean}`);
   assert.ok(s5.byH[5].q != null && s5.byH[5].q < 0.01);
   assert.equal(s5.tier, "A", "đã là A và không bị giáng");
-  const rv = ev.signals.find((s) => s.id === "log_rvol");
-  assert.ok(Math.abs(rv.byH[5].mean) < 0.2, `nhiễu IC=${rv.byH[5].mean}`);
+  // 27/11/2026: log_rvol rời bảng E2 nhưng chuỗi IC hồi cứu vẫn được đo và lưu trong elite:ic.
+  assert.equal(ev.signals.find((s) => s.id === "log_rvol"), undefined);
+  const rvSeries = Object.values((await store.getKv(EVIDENCE_KV.ic)).value.series.log_rvol[5]).filter((v) => v[0] != null).map((v) => v[0]);
+  assert.ok(rvSeries.length >= 80 && Math.abs(rvSeries.reduce((a, b) => a + b, 0) / rvSeries.length) < 0.2);
   const ss = ev.signals.find((s) => s.id === "smart_score");
   assert.equal(ss.source, "tiến từ bảng E1");
   assert.ok(ss.byH[1].n >= 1 && ss.byH[1].n <= 8);
@@ -138,4 +140,23 @@ test("E2 R0: tự thử lại sau 7 ngày không cần admin", async () => {
   await store.upsertRows("market_flow_daily", flow, "symbol,trading_date");
   t += 8 * 86_400_000;
   assert.ok((await eng.update()).signals.find((s) => s.id === "stealth5").byH[5].n >= 80);
+});
+
+test("27/11: tín hiệu không có cột trong bảng E1 của ngày cũ -> ghi 'không đo được' một lần, lần chạy sau không đọc lại bảng cũ", async () => {
+  const { store, cal, daily, flow } = fixture();
+  await store.upsertMarketDaily(daily);
+  await store.upsertRows("market_flow_daily", flow, "symbol,trading_date");
+  const lastDates = cal.slice(-30, -20);
+  const panels = new Map(lastDates.map((d) => [d, { date: d, rows: Array.from({ length: 40 }, (_, s) => ({ ticker: `S${String(s).padStart(2, "0")}`, values: { smart_score: 50 + s } })) }]));
+  let panelReads = 0;
+  const panel = { dates: async () => [...panels.keys()], panel: async (d) => { panelReads++; return panels.get(d ?? lastDates[lastDates.length - 1]) ?? null; } };
+  const eng = createEvidenceEngine({ store, panel, now: () => Date.parse("2026-08-10T12:00:00Z"), log: { warn() {} } });
+  await eng.update();
+  const ic = (await store.getKv(EVIDENCE_KV.ic)).value;
+  const d0 = lastDates[0];
+  assert.deepEqual(ic.series.kq_nowcast[1][d0], [null, 0], "tín hiệu mới chưa có cột ngày đó -> không đo được");
+  assert.ok(Array.isArray(ic.series.smart_score[1][d0]) && ic.series.smart_score[1][d0][1] > 0, "tín hiệu có cột vẫn đo bình thường");
+  const reads = panelReads;
+  await eng.update();
+  assert.equal(panelReads, reads, "lần chạy lại không đọc lại các bảng đã xử lý");
 });
