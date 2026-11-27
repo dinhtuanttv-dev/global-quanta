@@ -136,7 +136,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
         <div className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Kiểu biểu đồ">
           {(["2D", "3D"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} data-testid={`timing-view-${v}`} onClick={() => setView(v)}
-              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "bg-[#E8B84B]/20 font-bold text-[#F5CE72]" : "text-slate-400 hover:text-slate-200"}`}>
+              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "bg-q-accent/15 font-bold text-q-accent-strong" : "text-slate-400 hover:text-slate-200"}`}>
               {v === "2D" ? "2D phân phối" : "3D · 4D không gian"}
             </button>
           ))}

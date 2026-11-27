@@ -72,7 +72,7 @@ export default function ChatXucTacTab() {
             onClick={() => setActiveSubTab(t.id)}
             style={{
               padding: "9px 14px", border: 0, borderBottom: activeSubTab === t.id ? "2px solid var(--gold-bright)" : "2px solid transparent",
-              background: "transparent", color: activeSubTab === t.id ? "var(--gold-bright)" : "var(--text-secondary)",
+              background: "transparent", color: activeSubTab === t.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
             }}
           >

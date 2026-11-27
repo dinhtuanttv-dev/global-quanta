@@ -103,7 +103,7 @@ export function SeasonMapBoard({ onOpen }: { onOpen: (t: string) => void }) {
       <div className="flex flex-wrap items-center gap-1.5">
         {F.map(([k, l]) => (
           <button key={k} type="button" onClick={() => { setFilter(k); setPage(0); }} aria-pressed={filter === k} data-testid={`season-map-f-${k}`}
-            className={`rounded-full border px-2.5 py-1 text-[11px] ${filter === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+            className={`rounded-full border px-2.5 py-1 text-[11px] ${filter === k ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
         ))}
         <span className="mx-1 h-4 w-px bg-white/10" />
         {[null, 1, 2, 3, 4].map((q) => (

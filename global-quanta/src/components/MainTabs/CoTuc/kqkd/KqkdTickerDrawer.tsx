@@ -39,7 +39,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
       <div className="tw-scope h-full w-full max-w-[1120px] overflow-y-auto border-l border-white/10 bg-[#0B0F19] p-4 shadow-2xl">
         <header className="mb-3 flex flex-wrap items-start gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-[16px] font-bold text-[#F5CE72]">{ticker} <span className="text-[12px] font-normal text-slate-400">· KQKD theo quý{d?.available ? ` · ${TPL_LABEL[d.tpl]} · ${d.latest.quarter} (công bố ${dmy(d.latest.published ?? d.latest.created)}${d.latest.publishedSource === "DISCLOSURE" ? " · tin BCTC" : ""})` : ""}</span></h3>
+            <h3 className="text-[16px] font-bold text-slate-100">{ticker} <span className="text-[12px] font-normal text-slate-400">· KQKD theo quý{d?.available ? ` · ${TPL_LABEL[d.tpl]} · ${d.latest.quarter} (công bố ${dmy(d.latest.published ?? d.latest.created)}${d.latest.publishedSource === "DISCLOSURE" ? " · tin BCTC" : ""})` : ""}</span></h3>
             {d?.available && (sectorOf?.(ticker) || d.flags.length > 0) && (
               <div className="mt-1 flex flex-wrap gap-1">
                 {sectorOf?.(ticker) && <span className="rounded border border-white/15 px-1.5 text-[10.5px] text-slate-300">{sectorOf(ticker)}</span>}
@@ -60,7 +60,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
             <nav className="mb-3 flex flex-wrap gap-1 border-b border-white/10 pb-2" role="tablist" aria-label="Phân tích">
               {TABS.map((t) => (
                 <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-testid={`kq-tab-${t.id}`}
-                  className={`rounded-md border px-2.5 py-1 text-[11.5px] font-semibold ${tab === t.id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
+                  className={`rounded-md border px-2.5 py-1 text-[11.5px] font-semibold ${tab === t.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
               ))}
             </nav>
             {tab === "matrix" && <QuarterMatrix d={d} nextDeadline={nextDeadline} />}

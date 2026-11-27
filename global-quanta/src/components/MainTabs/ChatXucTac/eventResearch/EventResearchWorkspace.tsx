@@ -30,7 +30,7 @@ export default function EventResearchWorkspace({ seed }: { seed: EventSeed | nul
     <section className="space-y-4" aria-labelledby="event-research-title">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="event-research-title" className="text-sm font-semibold text-cyan-200">Phân tích chuyên sâu · Quant Edge H1/H2 · ESA · vĩ mô</h2>
+          <h2 id="event-research-title" className="text-sm font-semibold text-slate-100">Phân tích chuyên sâu · Quant Edge H1/H2 · ESA · vĩ mô</h2>
           <p className="text-[11px] text-slate-400">Phân tích lịch sử mô tả; chưa phải dự báo đã hiệu chuẩn hay khuyến nghị giao dịch.</p>
         </div>
         <span className="rounded border border-amber-700/60 px-2 py-1 text-[10px] text-amber-300">RESEARCH ONLY</span>

@@ -13,7 +13,7 @@ export default function TimingCenter({ onSelectTicker }: { onSelectTicker?: (t: 
     <div className="space-y-3" data-testid="timing-center">
       <div className="tw-scope rounded-xl border border-white/[0.06] bg-[#0b0f17] p-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h4 className="text-[13px] font-bold text-[#F5CE72]">🎯 Săn cổ tức trước GDKHQ</h4>
+          <h4 className="text-[13px] font-bold text-slate-100">🎯 Săn cổ tức trước GDKHQ</h4>
           <span className="rounded border border-sky-400/40 px-1.5 text-[10px] font-semibold text-sky-300" title="Theo kiểm định đặt trước TO-r1">{data.label}</span>
           <span className="text-[10px] text-slate-500">{data.version}</span>
         </div>

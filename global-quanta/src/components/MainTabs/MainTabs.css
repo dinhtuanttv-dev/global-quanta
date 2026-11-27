@@ -1,3 +1,4 @@
+/* QUANTA UI (27/11/2026): thanh menu chính theo chuẩn — tab đang mở nền trung tính + vạch màu nhấn xanh, không phát sáng. */
 /* Thanh điều hướng chính (31/10/2026). Ngoài .tw-scope, nên đặt khoảng cách bằng CSS thuần. */
 .main-nav {
   position: sticky; top: -24px; z-index: 30; container-type: inline-size;
@@ -21,12 +22,12 @@
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
 }
 .nav-btn svg { width: 16px; height: 16px; stroke-width: 2.2; }
-.nav-btn:hover:not(:disabled) { background: rgba(232, 184, 75, 0.14); color: var(--gold-bright, #fbbf24); }
+.nav-btn:hover:not(:disabled) { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); }
 .nav-btn:active:not(:disabled) { transform: scale(0.93); }
 .nav-btn:disabled { color: var(--text-tertiary, #64748b); opacity: 0.45; cursor: not-allowed; }
-.nav-btn:focus-visible, .m-tab:focus-visible { outline: 2px solid var(--gold-bright, #fbbf24); outline-offset: -2px; }
+.nav-btn:focus-visible, .m-tab:focus-visible { outline: 2px solid var(--q-accent, #4f8ef7); outline-offset: -2px; }
 .nav-sep { width: 1px; height: 16px; margin: 0 2px; background: rgba(148, 163, 184, 0.22); }
-.nav-btn.spinning { color: var(--gold-bright, #fbbf24); }
+.nav-btn.spinning { color: var(--q-accent-strong, #79a8ff); }
 .nav-btn.spinning svg { animation: nav-spin 0.8s linear infinite; }
 @keyframes nav-spin { to { transform: rotate(360deg); } }
 
@@ -39,17 +40,17 @@
 .main-nav .main-tabs::-webkit-scrollbar { display: none; }
 .main-nav .m-tab {
   position: relative; display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px; padding: 8px 14px;
-  font: inherit; font-size: 11.5px; font-weight: 700; letter-spacing: 0.035em; white-space: nowrap;
+  font: inherit; font-family: var(--q-font-sans); font-size: 12px; font-weight: 600; letter-spacing: 0.02em; white-space: nowrap;
   color: var(--text-secondary, #94a3b8); background: transparent; border: 0; border-radius: var(--radius-md, 8px); cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .main-nav .m-tab-icon { width: 15px; height: 15px; flex-shrink: 0; stroke-width: 2; opacity: 0.8; }
 .main-nav .m-tab:hover { color: var(--text-primary, #e2e8f0); background: var(--bg-surface-2, rgba(148, 163, 184, 0.06)); }
-.main-nav .m-tab.active { color: var(--gold-bright, #fbbf24); background: rgba(232, 184, 75, 0.12); box-shadow: inset 0 0 0 1px rgba(232, 184, 75, 0.22); }
+.main-nav .m-tab.active { color: var(--q-text, #f8fafc); background: var(--q-surface-3, #182033); box-shadow: inset 0 0 0 1px var(--q-line-2, rgba(255, 255, 255, 0.1)); }
 .main-nav .m-tab.active .m-tab-icon { opacity: 1; }
 .main-nav .m-tab::after {
   content: ""; position: absolute; left: 14px; right: 14px; bottom: 3px; height: 2px; border-radius: 2px;
-  background: var(--gold, #e8b84b); box-shadow: 0 0 8px var(--gold-glow, rgba(232, 184, 75, 0.22));
+  background: var(--q-accent, #4f8ef7);
   transform: scaleX(0); transition: transform 0.18s ease;
 }
 .main-nav .m-tab.active::after { transform: scaleX(1); }

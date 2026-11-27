@@ -24,7 +24,7 @@ export default function TimeframeSelector({ current, onChange, loadingIntraday =
     <button key={tf} type="button" onClick={() => onChange(tf)} aria-pressed={current === tf} data-tf={tf} disabled={locked(tf)}
       title={locked(tf) ? `Nến phút của mã này chỉ có độ phân giải ~${minIntraday} — khung ${tf} sẽ là nến giả, đã khoá` : undefined}
       style={current === tf
-        ? { background: "rgba(232,184,75,0.14)", border: "1px solid rgba(232,184,75,0.4)", color: "#F5CE72" }
+        ? { background: "var(--q-accent-soft)", border: "1px solid var(--q-accent-line)", color: "var(--q-accent-strong)" }
         : { background: "rgba(2,6,15,0.5)", border: "1px solid rgba(148,163,184,0.15)", color: "#94a3b8" }}
       className={`${compact ? "px-2 py-1" : "px-2.5 py-1.5"} rounded-lg text-[11px] font-semibold font-mono transition disabled:opacity-35 disabled:cursor-not-allowed disabled:line-through`}>
       {tf}

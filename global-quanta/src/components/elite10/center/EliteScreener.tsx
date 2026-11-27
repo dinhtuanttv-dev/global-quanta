@@ -184,8 +184,8 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           className={`min-h-[24px] rounded border px-2 ${hlOnly ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200" : "border-emerald-400/30 text-emerald-300 hover:border-emerald-400/60"}`}>🎯 Hợp lưu HL-v1</button>
         <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
           <span className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Cách kết hợp">
-            <button type="button" aria-pressed={ui.mode === "all"} onClick={() => setUi({ ...ui, mode: "all" })} className={`rounded px-2 ${ui.mode === "all" ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400"}`} data-testid="mode-all">Tất cả điều kiện</button>
-            <button type="button" aria-pressed={ui.mode === "k"} onClick={() => setUi({ ...ui, mode: "k", k: Math.max(1, Math.min(nConds || 1, ui.k)) })} className={`rounded px-2 ${ui.mode === "k" ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400"}`} data-testid="mode-k">≥ k / n</button>
+            <button type="button" aria-pressed={ui.mode === "all"} onClick={() => setUi({ ...ui, mode: "all" })} className={`rounded px-2 ${ui.mode === "all" ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400"}`} data-testid="mode-all">Tất cả điều kiện</button>
+            <button type="button" aria-pressed={ui.mode === "k"} onClick={() => setUi({ ...ui, mode: "k", k: Math.max(1, Math.min(nConds || 1, ui.k)) })} className={`rounded px-2 ${ui.mode === "k" ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400"}`} data-testid="mode-k">≥ k / n</button>
           </span>
           {ui.mode === "k" && (
             <span className="inline-flex items-center gap-1" data-testid="k-control">
@@ -232,7 +232,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-400">Xếp theo:</span>
         {([["z", "Điểm Elite"], ["hl", "Hợp lưu HL-v1"], ["hits", "Số điều kiện đạt"], ["similar", refTicker ? `Giống ${refTicker}` : "Giống mã (chọn mã ở Hồ sơ)"]] as const).map(([k, l]) => (
           <button key={k} type="button" disabled={k === "similar" && !refTicker} aria-pressed={sort === k} onClick={() => setSort(k)} data-testid={`sort-${k}`}
-            className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
+            className={`min-h-[24px] rounded border px-2 ${sort === k ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400"} disabled:opacity-40`}>{l}</button>
         ))}
       </div>
       <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">

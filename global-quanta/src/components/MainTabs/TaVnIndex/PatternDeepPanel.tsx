@@ -79,7 +79,7 @@ export default function PatternDeepPanel({ row, doc, onClose, onOpenChart, onOpe
         <div className="flex flex-wrap gap-1" data-testid="pattern-picker">
           {all.map((x) => (
             <button key={keyOf(x)} type="button" onClick={() => setPick(keyOf(x))} aria-pressed={p && keyOf(p) === keyOf(x)}
-              className={`text-[10px] px-2 py-0.5 rounded-full border ${p && keyOf(p) === keyOf(x) ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+              className={`text-[10px] px-2 py-0.5 rounded-full border ${p && keyOf(p) === keyOf(x) ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
               {x.timeframe === "W" ? "Tuần" : "Ngày"} · {x.label} · {x.stateLabel}
             </button>
           ))}

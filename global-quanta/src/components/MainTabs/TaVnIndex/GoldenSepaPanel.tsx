@@ -21,7 +21,7 @@ function Chip<T extends string | number>({ value, current, onChange, children, t
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-amber-500/50 bg-amber-500/10 text-amber-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -115,7 +115,7 @@ export default function GoldenSepaPanel({ onSelectTicker, onOpenVision }: { onSe
             <tbody className="divide-y divide-slate-800/30">
               {shown.map(({ sepa: r, confirms }: GoldenSepaRow) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-amber-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`} onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="golden-sepa-row">
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-q-accent/15" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`} onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="golden-sepa-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-0.5 font-black text-amber-400 hover:text-amber-300" aria-label={`Phân tích chuyên sâu ${r.ticker}`}>
                         <ChevronRight className={`w-3 h-3 transition-transform ${open === r.ticker ? "rotate-90" : ""}`} />{r.ticker}

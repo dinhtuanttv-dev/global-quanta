@@ -90,7 +90,7 @@ export function ElliottCountEditor({ points, onChange, placing, onPlace, violati
       <table className="w-full text-[10px]">
         <tbody>
           {points.map((p, k) => (
-            <tr key={k} className={placing === k ? "bg-amber-500/10" : ""} data-testid={`elliott-edit-row-${k}`}>
+            <tr key={k} className={placing === k ? "bg-q-accent/15" : ""} data-testid={`elliott-edit-row-${k}`}>
               <td className="font-bold text-cyan-300 w-6">{p.label}</td>
               <td className="font-mono text-slate-400">{p.date}</td>
               <td className="font-mono text-slate-200 text-right">{fmtP(p.price)}</td>
@@ -150,7 +150,7 @@ export function ElliottCountHistory({ doc, rejected = null, statusOf, onRestore,
         {[...doc.versions].reverse().map((v) => {
           const st = statusOf(v);
           return (
-            <li key={v.id} className={`text-[10px] flex items-center gap-1 ${v.id === doc.activeId ? "text-cyan-200" : "text-slate-400"}`} data-testid={`elliott-version-${v.id}`}>
+            <li key={v.id} className={`text-[10px] flex items-center gap-1 ${v.id === doc.activeId ? "text-q-accent-strong" : "text-slate-400"}`} data-testid={`elliott-version-${v.id}`}>
               <span className="font-mono">{v.createdAt.slice(0, 16).replace("T", " ")}</span>
               <span>{v.points.map((p) => p.label).join("")}</span>
               {v.pattern && <span className="text-amber-300">{v.pattern}</span>}

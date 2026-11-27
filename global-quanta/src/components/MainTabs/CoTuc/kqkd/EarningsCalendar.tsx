@@ -92,7 +92,7 @@ function CalendarGrid({ s, rows, selected, onSelect, today }: { s: CalSeason; ro
                   <td key={d} className="align-top">
                     <button type="button" disabled={out} onClick={() => onSelect(sel ? null : d)} data-testid={`lc-day-${d}`} aria-pressed={sel}
                       title={list.length ? `${dmy(d)}: ${rep.length} đã công bố, ${exp.length} dự kiến` : dmy(d)}
-                      className={`h-[74px] w-full rounded-md border p-1 text-left transition ${sel ? "border-[#E8B84B] ring-1 ring-[#E8B84B]/60" : isToday ? "border-[#F5CE72]/70" : "border-white/[0.07]"} ${out ? "opacity-30" : "hover:border-white/25"}`}
+                      className={`h-[74px] w-full rounded-md border p-1 text-left transition ${sel ? "border-q-accent/60 ring-1 ring-q-accent/60" : isToday ? "border-[#F5CE72]/70" : "border-white/[0.07]"} ${out ? "opacity-30" : "hover:border-white/25"}`}
                       style={{ background: list.length ? `rgba(232,184,75,${(0.05 + 0.25 * a).toFixed(3)})` : "rgba(255,255,255,0.015)" }}>
                       <span className="flex items-center justify-between">
                         <span className={`font-mono text-[11px] ${isToday ? "font-bold text-[#F5CE72]" : "text-slate-400"}`}>{d.slice(8)}/{d.slice(5, 7)}</span>
@@ -188,7 +188,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
     <section className="tw-scope cf-panel space-y-3 rounded-xl p-4" aria-label="Lịch công bố KQKD" data-testid="lc-panel">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-[14px] font-bold text-[#F5CE72]">📋 Lịch công bố KQKD — {s.quarter.label}</h3>
+          <h3 className="text-[14px] font-bold text-slate-100">📋 Lịch công bố KQKD — {s.quarter.label}</h3>
           <p className="text-[11px] text-slate-400">{st.tickers} mã · ngày thật từ tin BCTC chính thức VNDirect và kho BCTC · ngày dự kiến theo độ trễ lịch sử từng mã · cập nhật {dmy(today)}{data.disclosuresFetchedAt ? ` (tin BCTC ${data.disclosuresFetchedAt.slice(11, 16)} UTC)` : ""}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Lọc trạng thái">
           {FILTERS.map((f) => (
             <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} title={f.title} onClick={() => { setFilter(f.id); setLimit(PAGE); }} data-testid={`lc-filter-${f.id}`}
-              className={`rounded-md border px-2 py-1 font-semibold ${filter === f.id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
+              className={`rounded-md border px-2 py-1 font-semibold ${filter === f.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
               {f.label} <span className="font-mono text-slate-500">{base.filter(tests[f.id]).length}</span>
             </button>
           ))}

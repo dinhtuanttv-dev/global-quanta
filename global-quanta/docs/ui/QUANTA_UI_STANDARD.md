@@ -43,5 +43,16 @@ Màu có nghĩa được giữ nguyên và không dùng làm điểm nhấn tran
 |---|---|
 | TỔNG QUAN | Đã áp dụng (#394, #395) |
 | KẾT NỐI THẾ GIỚI | Đã áp dụng (PR chuẩn hoá KNTG) |
-| PHÂN TÍCH NGÀNH, PHÂN TÍCH KỸ THUẬT, PHÂN TÍCH VĨ MÔ, PHÂN TÍCH CƠ BẢN, QUYẾT ĐỊNH | Chưa áp dụng |
-| Thanh điều hướng chính (pill vàng) | Chưa đổi; cần quyết định riêng |
+| PHÂN TÍCH NGÀNH, PHÂN TÍCH KỸ THUẬT, PHÂN TÍCH VĨ MÔ, PHÂN TÍCH CƠ BẢN, QUYẾT ĐỊNH | Đã áp dụng (PR áp chuẩn 5 tab): `.q-ui` trên khung chứa tab; trạng thái chọn và tiêu đề theo chuẩn |
+| Thanh điều hướng chính | Đã áp dụng: tab đang mở nền trung tính, vạch màu nhấn xanh, không phát sáng |
+| Timeline điểm mua (`CoTuc/timeline/`) | Giữ nguyên tuyệt đối (khoá F0), không áp chuẩn |
+
+Các điểm còn mở:
+- Còn rải rác màu vàng trang trí viết trực tiếp trong mã, ngoài nhánh "đang chọn" và ngoài tiêu đề h1–h4. Sẽ dọn dần khi sửa từng khối.
+- Logo thương hiệu vàng "ĐT" giữ nguyên.
+
+## Cách áp cho mã mới
+
+- Trạng thái đang chọn: `bg-q-accent/15 text-q-accent-strong border-q-accent/60` (Tailwind), hoặc `var(--q-accent-soft)` / `var(--q-accent-strong)` (inline).
+- Tiêu đề: `text-slate-100` / `var(--q-text)`, độ đậm 600.
+- Không dùng `var(--gold)` cho trạng thái chọn; vàng chỉ dùng cho cảnh báo.

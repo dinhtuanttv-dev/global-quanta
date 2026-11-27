@@ -55,7 +55,7 @@ export default function LocNganhTab() {
           onClick={() => setSubTab("rrg")}
           style={{
             fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 8, cursor: "pointer",
-            background: subTab === "rrg" ? "var(--gold)" : "var(--bg-surface-2)",
+            background: subTab === "rrg" ? "var(--q-accent-strong)" : "var(--bg-surface-2)",
             color: subTab === "rrg" ? "#0a0a0a" : "var(--text-secondary)",
             border: "none",
           }}
@@ -66,7 +66,7 @@ export default function LocNganhTab() {
           onClick={() => setSubTab("fingerprint")}
           style={{
             fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 8, cursor: "pointer",
-            background: subTab === "fingerprint" ? "var(--gold)" : "var(--bg-surface-2)",
+            background: subTab === "fingerprint" ? "var(--q-accent-strong)" : "var(--bg-surface-2)",
             color: subTab === "fingerprint" ? "#0a0a0a" : "var(--text-secondary)",
             border: "none",
           }}

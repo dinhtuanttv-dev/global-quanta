@@ -138,7 +138,7 @@ export default function MainTabs() {
           <span className="nav-status" role="status" data-testid="nav-status">{reloading ? "Đang làm mới…" : reloadedAt ? `Làm mới ${fmtTime(reloadedAt)}` : ""}</span>
         </div>
         {/* Lỗi vẽ trong một tab chỉ hiện thẻ lỗi tại chỗ; đổi tab là tự thử lại. */}
-        <div id="main-tab-panel" role="tabpanel" aria-labelledby={`main-tab-${slugOf(activeTab)}`} key={reloadKey}>
+        <div id="main-tab-panel" className="q-ui" role="tabpanel" aria-labelledby={`main-tab-${slugOf(activeTab)}`} key={reloadKey}>
           <SectionBoundary label={`trang ${labelOf(activeTab)}`} resetKey={activeTab}>
             {activeTab === "Sieu quet AI" && <OverviewTab />}
             {activeTab === "TA VN-Index" && <TaVnIndexTab />}

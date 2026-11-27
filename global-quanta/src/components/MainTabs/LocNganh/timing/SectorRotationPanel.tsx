@@ -116,7 +116,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
   return (
     <div className="panel-block" style={{ marginBottom: 16 }} data-testid="sector-rotation-panel">
       <div className="sb-row" style={{ marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
-        <b style={{ color: "var(--gold)" }}>Xoay vòng ngành ICB · dòng tiền · RRG tuần (JdK)</b>
+        <b style={{ color: "var(--q-text)", fontSize: 14, fontWeight: 600 }}>Xoay vòng ngành ICB · dòng tiền · RRG tuần (JdK)</b>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "var(--gold)" }} title={evidence?.reason}>{evidence?.label ?? "EXPERIMENTAL"}</span>
         <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
           <button type="button" onClick={() => { void rrg.refresh(); }} disabled={rrg.isValidating} aria-label="Tải lại snapshot xoay vòng ngành" data-testid="sector-rrg-refresh"
@@ -125,7 +125,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
           </button>
           {([2, 3] as const).map((l) => (
             <button key={l} type="button" onClick={() => { setLevel(l); setOpen(null); }} aria-pressed={level === l} data-testid={`sector-level-${l}`}
-              style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "none", background: level === l ? "var(--gold)" : "var(--bg-surface-2)", color: level === l ? "#0a0a0a" : "var(--text-secondary)" }}>
+              style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "none", background: level === l ? "var(--q-accent-soft)" : "var(--bg-surface-2)", color: level === l ? "var(--q-accent-strong)" : "var(--text-secondary)", boxShadow: level === l ? "inset 0 0 0 1px var(--q-accent-line)" : undefined }}>
               ICB cấp {l}
             </button>
           ))}
@@ -176,7 +176,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
                     const sig = bySector.get(s.code), f = s.flow;
                     return (
                       <tr key={s.code} onClick={() => toggle(s.code)} data-testid="sector-row" aria-expanded={open === s.code}
-                        style={{ cursor: "pointer", borderTop: "1px solid var(--bg-surface-2)", background: open === s.code ? "var(--bg-surface-2)" : selectedSector === s.code ? "rgba(245,158,11,0.06)" : undefined }}>
+                        style={{ cursor: "pointer", borderTop: "1px solid var(--bg-surface-2)", background: open === s.code ? "var(--bg-surface-2)" : selectedSector === s.code ? "var(--q-accent-soft)" : undefined }}>
                         <td style={{ padding: "6px 0" }}>
                           <b style={{ color: "var(--gold)" }}>{s.name}</b>
                           <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)" }}>{s.code} · {s.indexMembers} mã{s.thin ? " · rổ mỏng" : ""}</span>

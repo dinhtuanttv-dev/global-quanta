@@ -165,7 +165,7 @@ export function EarningsSeasonalityTab({ ticker, today, className, showTimeline 
   return (
     <section className={`tw-scope @container rounded-xl p-4 space-y-3 ${className ?? ''}`} style={{ ...CARD, ...SEASONALITY_THEME }} aria-label={`Mùa vụ KQKD — ${ticker}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-cyan-400">📊 Mùa vụ KQKD · <span className="font-mono">{ticker}</span></h3>
+        <h3 className="text-sm font-semibold text-slate-100">📊 Mùa vụ KQKD · <span className="font-mono">{ticker}</span></h3>
         {signal && (
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[10.5px]">
             <span className="text-slate-500">Kỳ tới <b className="text-slate-100 font-mono">{signal.quarterLabel}</b></span>

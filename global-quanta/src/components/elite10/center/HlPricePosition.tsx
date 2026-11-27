@@ -112,7 +112,7 @@ function HotChips({ pz, rules }: { pz: PzPosition; rules: PzRules }) {
       {HOT_LABEL.map((h) => {
         const on = h.on(pz, rules);
         return (
-          <span key={h.key} title={h.vi(rules)} className={`whitespace-nowrap rounded border px-1 py-px text-[10px] ${on ? "border-amber-400/60 text-amber-200" : on === false ? "border-white/10 text-slate-400" : "border-dotted border-white/15 text-slate-500"}`} data-testid={`pz-hot-${h.key}`} data-on={on ? "1" : "0"}>
+          <span key={h.key} title={h.vi(rules)} className={`whitespace-nowrap rounded border px-1 py-px text-[10px] ${on ? "border-q-accent/60 text-q-accent-strong" : on === false ? "border-white/10 text-slate-400" : "border-dotted border-white/15 text-slate-500"}`} data-testid={`pz-hot-${h.key}`} data-on={on ? "1" : "0"}>
             <span aria-hidden="true">{on ? "●" : "○"}</span> {h.vi(rules).split(" (")[0]} {h.val(pz)}
           </span>
         );
@@ -205,7 +205,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
   return (
     <section data-testid="hl-watch" id="hl-watch" className="rounded-lg border border-violet-400/25 bg-[#0E131F] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Theo dõi chờ nền — mã đạt chuẩn đã rời vùng mua</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Theo dõi chờ nền — mã đạt chuẩn đã rời vùng mua</h4>
         <span className="text-[10px] text-slate-400">Không mua mới · quay lại danh mục chính khi dựng xong nền mới và về vùng mua</span>
       </div>
       {group(`Đang giữ · Chạy lãi (${runners.length})`, "Giữ nguyên tỷ trọng, không mua thêm, vẫn chiếm ô và trần ngành; quy tắc bán G2r không đổi.", runners, "hl-watch-runners")}

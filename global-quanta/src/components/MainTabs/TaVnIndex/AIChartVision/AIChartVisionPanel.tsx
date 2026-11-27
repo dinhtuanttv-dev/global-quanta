@@ -202,7 +202,7 @@ export default function AIChartVisionPanel({ ticker, onRequestTickerChange, onOp
             <div className="flex flex-wrap items-center gap-1">
               {TF_TABS.map((t) => (
                 <button key={t.key} type="button" onClick={() => setTf(t.key)} aria-pressed={tf === t.key} data-testid={`cv-tf-${t.key}`}
-                  className={`text-[10px] px-2 py-0.5 rounded-full border ${tf === t.key ? "border-sky-500/50 bg-sky-500/10 text-sky-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
+                  className={`text-[10px] px-2 py-0.5 rounded-full border ${tf === t.key ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
               ))}
             </div>
           }>

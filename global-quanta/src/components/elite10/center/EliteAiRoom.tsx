@@ -245,7 +245,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       <ObsidianBar desk={desk} unsaved={unsaved} />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Tranh luận có trọng tài</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Tranh luận có trọng tài</h4>
           <span className="text-[10px] text-slate-500">GPT phe mua · Gemini phe bán · GPT trọng tài (Claude dự phòng) — tính 3 câu vào hạn mức hỏi đáp</span>
           <DebateExport desk={desk} subject={debateSubject} bull={bull} bear={bear} judge={judge} trace={trace} busy={busy} extra={(() => {
             if (!reviewSnapshot) return [];
@@ -277,7 +277,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bản tin phiên</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bản tin phiên</h4>
           <BriefExport desk={desk} brief={brief} trace={trace} busy={briefBusy} />
           {briefBusy
             ? <button type="button" onClick={() => briefCtrlRef.current?.abort()} data-testid="elite-brief-stop" className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng viết</button>

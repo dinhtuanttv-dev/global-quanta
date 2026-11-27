@@ -89,7 +89,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf, onOpenSeasonality
     <section className="tw-scope cf-panel space-y-3 rounded-xl p-4" aria-label="KQKD theo quý" data-testid="kq-center">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-[14px] font-bold text-[#F5CE72]">📈 KQKD theo quý — {data.latestQuarter ?? "—"}</h3>
+          <h3 className="text-[14px] font-bold text-slate-100">📈 KQKD theo quý — {data.latestQuarter ?? "—"}</h3>
           <p className="text-[11px] text-slate-400">BCTC đầy đủ {c.tickers} mã (doanh nghiệp {c.byTemplate.corp} · ngân hàng {c.byTemplate.bank} · chứng khoán {c.byTemplate.sec} · bảo hiểm {c.byTemplate.ins}), tới 20 năm · lũy kế theo quý · chỉ quý đã công bố tới {dmy(data.asOf)}{data.fetchedAt ? ` · nạp ${dmy(data.fetchedAt)} ${data.fetchedAt.slice(11, 16)} UTC` : ""}</p>
         </div>
         <span className="rounded border border-slate-500/40 px-2 py-0.5 text-[10px] font-bold text-slate-300" title={data.method.label}>{data.version} · {data.label}</span>
@@ -118,7 +118,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf, onOpenSeasonality
         <div className="flex flex-wrap gap-1" role="tablist" aria-label="Lọc">
           {FILTERS.map((f) => (
             <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} title={f.title} data-testid={`kq-filter-${f.id}`} onClick={() => { setFilter(f.id); setLimit(PAGE); }}
-              className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${filter === f.id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
+              className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${filter === f.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
               {f.label} <span className="font-mono text-slate-500">{base.filter(f.test).length}</span>
             </button>
           ))}

@@ -7,7 +7,7 @@ export function HlImpactToggle({ ticker, open, onToggle, mobile = false }: { tic
   return (
     <button type="button" aria-expanded={open} onClick={onToggle} data-hl-layer="impact" data-testid={`hl-impact-btn-${mobile ? "m-" : ""}${ticker}`}
       title="Mở các lớp tác động lên cổ phiếu (thế giới, ngành, xúc tác) — như Hồ sơ 360°"
-      className={`ml-1 min-h-[22px] rounded border px-1.5 text-[10px] ${open ? "border-sky-400/50 bg-sky-400/10 text-sky-200" : "border-white/15 text-slate-300 hover:border-sky-400/40 hover:text-sky-200"}`}>
+      className={`ml-1 min-h-[22px] rounded border px-1.5 text-[10px] ${open ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/15 text-slate-300 hover:border-sky-400/40 hover:text-sky-200"}`}>
       {open ? "▾ Tác động" : "▸ Tác động"}
     </button>
   );

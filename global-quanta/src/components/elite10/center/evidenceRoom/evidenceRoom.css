@@ -44,7 +44,7 @@
     .subtitle { color: var(--muted); margin-top: 5px; font-size: 11px; }
     .subnav { gap: 5px; margin: 14px 0; overflow: auto; border-bottom: 1px solid var(--line); }
     .subnav button { white-space: nowrap; padding: 9px 12px 10px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); font-size: 10px; font-weight: 700; cursor: pointer; }
-    .subnav button.active { color: var(--gold); border-color: var(--gold); }
+    .subnav button.active { color: var(--q-text, #f8fafc); border-color: var(--q-accent, #4f8ef7); }
     .ticker-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(100deg,#101a29,#0c131e); box-shadow: var(--shadow); }
     .ticker-head { gap: 12px; min-width: 0; }
     .ticker-symbol { font-size: 20px; font-weight: 850; letter-spacing: .04em; }
