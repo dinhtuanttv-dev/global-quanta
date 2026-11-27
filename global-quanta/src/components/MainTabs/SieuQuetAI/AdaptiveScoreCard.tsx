@@ -69,7 +69,7 @@ export default function AdaptiveScoreCard({ symbol }: { symbol: string }) {
   const shell = (children: React.ReactNode, right?: string) => (
     <div className="rounded-lg p-2.5 mb-2" style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.2)" }}>
       <div className="flex items-center justify-between mb-1">
-        <div className="text-[10px] text-violet-200 font-semibold">AI · Điểm dòng tiền thích ứng & hiệu suất tín hiệu</div>
+        <div className="text-[12px] text-slate-100 font-semibold">AI · Điểm dòng tiền thích ứng & hiệu suất tín hiệu</div>
         {right && <div className="text-[10px] text-slate-400">{right}</div>}
       </div>
       {children}

@@ -15,11 +15,11 @@ Chốt ngày 27/11/2026. Mục tiêu là giao diện kiểu "terminal tài chín
 
 | PR | Nội dung | Trạng thái |
 |---|---|---|
-| U0+U1 | Token `@theme` (q-*) và biến CSS `--ov-*`. Token hoá toàn bộ tab con Bảng giao dịch: bảng Siêu Quét, Bảng giá, thanh lệnh, popover ngành, tab con, dải VN-Index | PR này |
-| U2 | Radix Tabs/ToggleGroup/Popover/Tooltip cho thanh lệnh và tab con; tooltip thay `title=` | Chưa làm |
-| U3 | Bảng: khung phân tích khối lượng khi mở dòng (VolumeAnalysisPanel, IntentFootprint, IntradayCycle) theo token | Chưa làm |
-| U4 | Tab Thị trường: Trung tâm thị trường và Trạng thái thị trường theo token, Card chung, khung chờ tải | Chưa làm |
-| U5 | Trạng thái trống/lỗi/đang tải, giảm chuyển động, kiểm điện thoại, axe | Chưa làm |
+| U0+U1 | Token `@theme` (q-*) và biến CSS `--ov-*`. Token hoá toàn bộ tab con Bảng giao dịch: bảng Siêu Quét, Bảng giá, thanh lệnh, popover ngành, tab con, dải VN-Index | #394 LIVE |
+| U2 | Trạng thái "đang chọn" thống nhất màu xanh ở mọi nút chuyển, tab, thanh trượt và ô chọn của tab Tổng quan. Chưa thêm Radix: các nút hiện có đã đủ vai trò truy cập; Radix và tooltip sẽ thêm khi có thay đổi về hành vi | PR U2–U5 |
+| U3 | Khung phân tích khối lượng khi mở dòng (VolumeAnalysisPanel, AdaptiveScoreCard, AdaptiveModelStrip, StrategyPerformanceTable, IntentFootprint) theo token | PR U2–U5 |
+| U4 | Tab Thị trường: Trung tâm thị trường (bỏ khung lồng 2 lớp), Trạng thái thị trường (tab, phạm vi, bản đồ ngành, Index Impact, Kịch bản, Mã nổi bật), VN-Index chi tiết + AI theo token | PR U2–U5 |
+| U5 | Phông chữ thống nhất (Inter + IBM Plex Mono tabular), cỡ nhỏ nhất 11px, bỏ chữ in hoa giãn, viền focus xanh, màu bôi đen, tôn trọng giảm chuyển động; ảnh đối chiếu 1440/390 | PR U2–U5 |
 
 ## Bảo toàn
 

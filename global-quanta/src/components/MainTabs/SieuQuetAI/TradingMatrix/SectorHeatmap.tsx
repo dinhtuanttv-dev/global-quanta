@@ -60,24 +60,24 @@ export default function SectorHeatmap({ doc, active, onSector, onOpenSector }: P
     <div className="space-y-2" data-testid="mx-heatmap">
       <div className="flex flex-wrap items-center gap-2">
         <div role="group" aria-label="Kỳ so sánh" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
-          {COLS.map((c) => <button key={c.h} type="button" aria-pressed={h === c.h} onClick={() => setH(c.h)} data-mx-h={c.h} className={`px-2 py-0.5 text-[11px] font-semibold ${h === c.h ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400"}`}>{c.label}</button>)}
+          {COLS.map((c) => <button key={c.h} type="button" aria-pressed={h === c.h} onClick={() => setH(c.h)} data-mx-h={c.h} className={`px-2 py-0.5 text-[11px] font-semibold ${h === c.h ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400 hover:text-slate-200"}`}>{c.label}</button>)}
         </div>
         <div role="group" aria-label="Cấp ngành" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
-          {([2, 3] as const).map((l) => <button key={l} type="button" aria-pressed={level === l} onClick={() => setLevel(l)} data-mx-level={l} className={`px-2 py-0.5 text-[11px] font-semibold ${level === l ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400"}`}>ICB cấp {l}</button>)}
+          {([2, 3] as const).map((l) => <button key={l} type="button" aria-pressed={level === l} onClick={() => setLevel(l)} data-mx-level={l} className={`px-2 py-0.5 text-[11px] font-semibold ${level === l ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400 hover:text-slate-200"}`}>ICB cấp {l}</button>)}
         </div>
         <span className="text-[11px] text-slate-400">Phiên {doc.asOf?.slice(8, 10)}/{doc.asOf?.slice(5, 7)} · {rows.length} ngành · toàn bộ mã theo dõi, không đổi theo phạm vi</span>
       </div>
       {activeRow && (
         <div className="flex flex-wrap items-center gap-2 text-[11px]" data-testid="mx-sector-active">
-          <button type="button" onClick={() => onSector(null)} data-testid="mx-clear-industry" className="px-2 py-0.5 rounded border border-amber-400/40 text-amber-200 bg-amber-500/10">✕ Xoá lọc ngành ({activeRow.name})</button>
-          {onOpenSector && <button type="button" onClick={() => onOpenSector(activeRow.code)} data-testid="mx-open-sector" className="px-2 py-0.5 rounded border border-cyan-400/40 text-cyan-200 bg-cyan-500/10">Xem ở Phân tích ngành →</button>}
+          <button type="button" onClick={() => onSector(null)} data-testid="mx-clear-industry" className="px-2 py-0.5 rounded-md border border-q-accent/50 text-q-accent-strong bg-q-accent/10 hover:text-slate-50">✕ Xoá lọc ngành ({activeRow.name})</button>
+          {onOpenSector && <button type="button" onClick={() => onOpenSector(activeRow.code)} data-testid="mx-open-sector" className="px-2 py-0.5 rounded-md border border-white/15 text-slate-200 hover:text-slate-50 hover:border-white/30">Xem ở Phân tích ngành →</button>}
         </div>
       )}
 
       {pulse ? (
         <ul className="space-y-1" data-testid="mx-pulse">
           {ranked.map((s) => { const r = rungOf(s, 1)!, v = r.rs ?? 0, w = (Math.abs(v) / maxPulse) * 50; return (
-            <li key={s.code}><button type="button" onClick={() => click(s)} aria-pressed={active === s.code} title={tooltip(s, r, label)} className={`w-full grid grid-cols-[minmax(110px,190px)_1fr_auto] items-center gap-2 rounded px-2 py-0.5 text-[11px] text-left border ${active === s.code ? "border-cyan-400/50 bg-cyan-500/10" : "border-transparent"}`}>
+            <li key={s.code}><button type="button" onClick={() => click(s)} aria-pressed={active === s.code} title={tooltip(s, r, label)} className={`w-full grid grid-cols-[minmax(110px,190px)_1fr_auto] items-center gap-2 rounded px-2 py-0.5 text-[11px] text-left border ${active === s.code ? "border-q-accent/55 bg-q-accent/10" : "border-transparent hover:bg-white/[0.03]"}`}>
               <span className="truncate text-slate-200">{s.name}</span>
               <span aria-hidden className="relative h-2 rounded bg-white/5"><i className="absolute inset-y-0 rounded" style={{ left: v >= 0 ? "50%" : `${50 - w}%`, width: `${w}%`, background: v >= 0 ? "#34d399" : "#fb7185" }} /></span>
               <span className="font-mono text-slate-300">{sgn(r.rs)} · {r.beat == null ? "—" : `${vn(r.beat, 0)}% mã`}</span>
@@ -120,7 +120,7 @@ export default function SectorHeatmap({ doc, active, onSector, onOpenSector }: P
           </svg>
           <ul className="sm:hidden space-y-1" data-testid="mx-heatmap-list">
             {ranked.map((s) => { const r = rungOf(s, h)!, q = quadrantOf(r.z, r.beat); return (
-              <li key={s.code}><button type="button" onClick={() => click(s)} aria-pressed={active === s.code} className={`w-full text-left rounded px-2 py-1 border ${active === s.code ? "border-cyan-400/50 bg-cyan-500/10" : "border-white/5"}`}>
+              <li key={s.code}><button type="button" onClick={() => click(s)} aria-pressed={active === s.code} className={`w-full text-left rounded px-2 py-1 border ${active === s.code ? "border-q-accent/55 bg-q-accent/10" : "border-white/5 hover:bg-white/[0.03]"}`}>
                 <span className="flex justify-between text-[12px]"><span className="text-slate-200">{s.flags?.length ? "⚠ " : ""}{s.name}</span>{q && <span className={QUADRANT[q].text}>{QUADRANT[q].label}</span>}</span>
                 <span className="flex justify-between text-[11px] text-slate-400"><span>RS {sgn(r.rs, 1)} · Z {sgn(r.z, 1)} · {r.beat == null ? "—" : `${vn(r.beat, 0)}% mã`}</span><span>{fmtBn(s.value20 ?? 0)}</span></span>
               </button></li>

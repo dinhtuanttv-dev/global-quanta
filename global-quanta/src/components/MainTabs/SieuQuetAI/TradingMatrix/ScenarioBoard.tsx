@@ -15,8 +15,8 @@ export function RelatedChips({ tickers = [], sectors = [], onSelectTicker, onInd
   if (!tickers.length && !sectors.length) return null;
   return (
     <span className="flex flex-wrap gap-1 pt-0.5" data-testid="mx-related">
-      {tickers.map((t) => <button key={t} type="button" onClick={() => onSelectTicker?.(t)} className="text-[10px] px-1 rounded border border-amber-500/30 text-amber-200 hover:bg-amber-500/10" aria-label={`Chọn ${t}`}>{t}</button>)}
-      {sectors.map((n) => <button key={n} type="button" onClick={() => onIndustry?.(n)} className="text-[10px] px-1 rounded border border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10" title={`Lọc bảng theo ${n}`}>{n}</button>)}
+      {tickers.map((t) => <button key={t} type="button" onClick={() => onSelectTicker?.(t)} className="text-[10px] px-1 rounded border border-white/15 text-slate-100 hover:border-q-accent/50 hover:bg-q-accent/10" aria-label={`Chọn ${t}`}>{t}</button>)}
+      {sectors.map((n) => <button key={n} type="button" onClick={() => onIndustry?.(n)} className="text-[10px] px-1 rounded border border-white/15 text-slate-300 hover:border-q-accent/50 hover:bg-q-accent/10" title={`Lọc bảng theo ${n}`}>{n}</button>)}
     </span>
   );
 }

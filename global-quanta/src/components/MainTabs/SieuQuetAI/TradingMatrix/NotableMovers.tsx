@@ -13,7 +13,7 @@ function List({ title, rows, onSelect, kind }: { title: string; rows: Mover[]; o
             {rows.map((m) => (
               <tr key={m.symbol} className="border-b border-white/5">
                 <td className="py-0.5">
-                  <button type="button" onClick={() => onSelect(m.symbol)} className="font-sans font-bold text-amber-300 hover:text-amber-200" aria-label={`Chọn ${m.symbol}`}>{m.symbol}</button>
+                  <button type="button" onClick={() => onSelect(m.symbol)} className="font-sans font-semibold text-slate-50 hover:text-q-accent-strong" aria-label={`Chọn ${m.symbol}`}>{m.symbol}</button>
                   {m.atCeiling && <span className="ml-1 text-[10px] text-violet-300 font-sans">trần</span>}
                   {m.atFloor && <span className="ml-1 text-[10px] text-cyan-300 font-sans">sàn</span>}
                   <span className="block text-[10px] text-slate-500 font-sans truncate">{m.industry ?? "—"}</span>

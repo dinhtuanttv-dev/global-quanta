@@ -20,14 +20,14 @@ export default function AdaptiveModelStrip() {
   return (
     <div className="rounded-lg p-2" style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
       <div className="flex items-center justify-between text-[10px] mb-1">
-        <span className="text-violet-200 font-semibold">Trọng số học được</span>
+        <span className="text-slate-100 font-semibold">Trọng số học được</span>
         <div className="flex items-center gap-1" role="tablist" aria-label="Kỳ hạn mô hình">
           {[3, 5, 10].map((h) => {
             const on = data.models.find((m) => m.horizon === h)?.active;
             return (
               <button key={h} role="tab" aria-selected={horizon === h} onClick={() => setHorizon(h)}
                 title={on ? `Mô hình T+${h} đang chạy` : `T+${h}: chưa có mô hình đạt kiểm định`}
-                className={`text-[10px] px-1.5 py-px rounded ${horizon === h ? "bg-violet-500/30 text-violet-100" : "bg-white/5 text-slate-400"}`}>
+                className={`text-[10px] px-1.5 py-px rounded ${horizon === h ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "bg-white/5 text-slate-400 hover:text-slate-200"}`}>
                 T+{h}{on ? " ●" : ""}
               </button>
             );

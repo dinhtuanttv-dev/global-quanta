@@ -74,7 +74,7 @@ export default function StrategyPerformanceTable({ activeSignals = [] }: { activ
             return (
               <tr key={s.id} className="border-t border-white/5">
                 <td className="py-0.5 px-1 text-slate-300 font-sans whitespace-nowrap">
-                  {active && <span className="text-violet-300" title="Đang bật cho mã này">● </span>}{s.label}
+                  {active && <span className="text-q-accent-strong" title="Đang bật cho mã này">● </span>}{s.label}
                 </td>
                 <Cell r={find(s.id, 3)} />
                 <Cell r={t5} />

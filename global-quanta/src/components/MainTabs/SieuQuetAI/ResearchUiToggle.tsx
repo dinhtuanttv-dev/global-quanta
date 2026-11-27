@@ -12,10 +12,10 @@ export default function ResearchUiToggle({ compact = false }: { compact?: boolea
       onClick={() => setOn(!on)}
       title={on ? "Đang hiện khối AI học & thích ứng (bấm để ẩn)" : "Hiện khối AI học & thích ứng"}
       aria-label={compact ? "Hiện chỉ số AI trong bảng phân tích khối lượng" : undefined}
-      className={`inline-flex items-center gap-1.5 ${compact ? "text-[10px] align-middle" : "text-[10px]"} text-slate-400 hover:text-slate-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-violet-400 rounded`}
+      className={`inline-flex items-center gap-1.5 ${compact ? "text-[10px] align-middle" : "text-[10px]"} text-slate-400 hover:text-slate-200 focus:outline-none focus-visible:ring-1 focus-visible:ring-q-accent rounded`}
     >
       <span>{compact ? "AI" : "AI nghiên cứu"}</span>
-      <span className={`relative inline-block w-6 h-3.5 rounded-full transition-colors ${on ? "bg-violet-500" : "bg-white/15"}`}>
+      <span className={`relative inline-block w-6 h-3.5 rounded-full transition-colors ${on ? "bg-q-accent" : "bg-white/15"}`}>
         <span className={`absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white transition-all ${on ? "left-3" : "left-0.5"}`} />
       </span>
     </button>

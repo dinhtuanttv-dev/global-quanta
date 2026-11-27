@@ -138,7 +138,7 @@ function StealthGauge({ label, w }: { label: string; w: StealthWindow | null }) 
     <div className="text-[10px]">
       <div className="flex justify-between"><span className="text-slate-400">{label}</span><span className="text-slate-100 font-semibold">{w.reading} · z {num(w.z, 1)} · P{w.percentile}</span></div>
       <div className="relative h-2 rounded-full mt-0.5" style={{ background: `linear-gradient(90deg, rgba(225,29,72,0.35), rgba(100,116,139,0.25) 35%, rgba(100,116,139,0.25) 65%, rgba(5,150,105,0.35))` }}>
-        <div className="absolute top-[-2px] w-1 h-3 rounded-sm" style={{ left: `calc(${pos}% - 2px)`, background: color, outline: "1px solid #0f1420" }} />
+        <div className="absolute top-[-2px] w-1 h-3 rounded-sm" style={{ left: `calc(${pos}% - 2px)`, background: color, outline: "1px solid var(--ov-surface, #0e131f)" }} />
         <div className="absolute inset-y-0 w-px bg-slate-400/60" style={{ left: "50%" }} />
       </div>
       <div className="text-[10px] text-slate-500 mt-0.5">cường độ tay to {num(w.intensity * 100, 1)}% ADV · độ êm {num(w.quietness, 2)} · bền bỉ {pct(w.persistence)} · giá {num(w.ret, 2)}%</div>

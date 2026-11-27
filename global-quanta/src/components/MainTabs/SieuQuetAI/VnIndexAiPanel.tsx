@@ -32,7 +32,7 @@ function StatCell({ s }: { s: ForwardStats | undefined }) {
 export default function VnIndexAiPanel() {
   const { data, error, isLoading, enabled } = useResearchOverview();
   if (!enabled) return null;
-  const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
+  const box = { background: "var(--ov-surface, #0e131f)", border: "1px solid var(--ov-line-2, rgba(255,255,255,0.1))" };
   if (isLoading) return <div style={box} className="rounded-xl p-4 text-[11px] text-slate-500">Đang tải phân tích AI VN-Index…</div>;
   const a = data?.index;
   if (error || !a) return <div style={box} className="rounded-xl p-4 text-[11px] text-slate-500">Chưa có phân tích AI VN-Index (Gateway chưa chạy job nghiên cứu).</div>;
@@ -47,7 +47,7 @@ export default function VnIndexAiPanel() {
       <div className="grid grid-cols-1 gap-3">
       <div className="min-w-0">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-violet-300">AI phân tích VN-Index</h2>
+        <h2 className="text-[13px] font-semibold text-slate-100">AI phân tích VN-Index</h2>
         <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold" style={{ color: st.color, border: `1px solid ${st.color}` }}
           title="Uptrend: giá > MA50, MA20 > MA50, MA50 dốc lên 10 phiên · Downtrend: ngược lại · còn lại: Sideway">
           {st.glyph} {REGIME_LABEL[cur.regime]} · {cur.streak} phiên

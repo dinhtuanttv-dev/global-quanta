@@ -92,7 +92,7 @@ function BandMeter({ last, lo, hi, color }: { last: number; lo: number; hi: numb
     <div className="mt-1 flex items-center gap-2 text-[11px]" data-testid="mc-band-meter" role="img" aria-label={out ? `Giá đang ${out} cả phiên ${nf(lo)}–${nf(hi)}` : `Giá ở ${nf(raw, 0)}% của dải cả phiên ${nf(lo)}–${nf(hi)}`}>
       <span className="font-mono text-slate-500">{nf(lo)}</span>
       <span aria-hidden className="relative h-2 flex-1 rounded-full" style={{ background: `linear-gradient(90deg, ${color}22, ${color}55, ${color}22)` }}>
-        <i className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[#0b1120]" style={{ left: `${pos}%`, background: out ? "#f5b942" : "#e2e8f0" }} />
+        <i className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-q-surface" style={{ left: `${pos}%`, background: out ? "#f5b942" : "#e2e8f0" }} />
       </span>
       <span className="font-mono text-slate-500">{nf(hi)}</span>
       <b className={`font-mono ${out ? "text-amber-300" : "text-slate-200"}`} data-testid="mc-band-pos">{out ?? `${nf(raw, 0)}%`}</b>
@@ -154,7 +154,7 @@ function BriefLine() {
     <div className="mt-2 rounded-lg border border-white/10 p-2 text-[11px] text-slate-300" data-testid="mc-brief">
       <b className="font-semibold text-slate-200">Bản tin AI có kiểm chứng</b> <span className="text-slate-500">· {vnTime(run.generatedAt)}</span>
       {run.summary.slice(0, 2).map((s, i) => <p key={i} className="mt-0.5">{s.text}</p>)}
-      <button type="button" onClick={() => goTab?.("Chat xuc tac")} className="mt-0.5 text-sky-300 underline decoration-sky-300/30">Xem đầy đủ trong Phân tích vĩ mô →</button>
+      <button type="button" onClick={() => goTab?.("Chat xuc tac")} className="mt-0.5 text-q-accent-strong underline decoration-q-accent-strong/30 hover:text-slate-50">Xem đầy đủ trong Phân tích vĩ mô →</button>
     </div>
   );
 }
@@ -173,7 +173,7 @@ const isDetailTab = (v: unknown): v is DetailTab => TABS.some((t) => t.id === v)
  */
 function EsShiftAlert({ d }: { d: PreopenDoc }) {
   const name = (id: ScenarioId | null | undefined) => (id ? d.scenarios.find((s) => s.id === id)?.name ?? id : "—");
-  const cls = "w-full rounded border border-sky-400/30 bg-sky-400/[0.06] px-2 py-0.5 text-[11px] text-sky-200";
+  const cls = "w-full rounded-md border border-q-accent/35 bg-q-accent/[0.08] px-2 py-0.5 text-[11.5px] text-slate-100";
   if (d.phase === "session" && d.lead && d.liveLead && d.liveLead !== d.lead && d.es.livePct != null) {
     return <span role="status" className={cls} data-testid="mc-es-shift"><span aria-hidden>⇄ </span>ES hiện {sg(d.es.livePct)}% đã sang nhóm {name(d.liveLead)}{d.esEdge != null ? ` (ngưỡng ±${nf(d.esEdge, 2)}%)` : ""}. Kịch bản phiên vẫn giữ theo bản {d.es.frozenAt ?? "cuối trước 09:00"}; chỉ để tham khảo.</span>;
   }
@@ -292,7 +292,7 @@ export default function MarketCenterPanel() {
     window.addEventListener(OPEN_LABELS_EVENT, go);
     return () => window.removeEventListener(OPEN_LABELS_EVENT, go);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const shell = "mx-4 mb-3 rounded-xl border border-white/10 bg-[#0b1120] p-3";
+  const shell = "rounded-xl border border-q-line bg-q-surface p-4";
   if (error && !d) return <section className={shell} data-testid="market-center"><p className="text-[12px] text-rose-300" role="alert">Chưa tải được Trung tâm thị trường: {error.message}</p></section>;
   if (!d?.scenarios) return <section className={shell} data-testid="market-center"><div className={`h-24 rounded-lg bg-slate-800/20 ${isLoading ? "animate-pulse" : ""}`} aria-hidden /></section>;
   const lead = d.scenarios.find((s) => s.id === d.lead) ?? null, selected = d.scenarios.find((s) => s.id === pick) ?? lead ?? d.scenarios[1];
@@ -310,7 +310,7 @@ export default function MarketCenterPanel() {
     <section ref={rootRef} className={shell} aria-label="Trung tâm thị trường" data-testid="market-center">
       {/* TẦNG 0 — trạng thái: pha, phiên, giờ, mốc ghi, chất lượng dữ liệu */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1" data-testid="mc-tier0">
-        <h2 className="text-sm font-bold text-cyan-300">Trung tâm thị trường</h2>
+        <h2 className="text-[14px] font-semibold text-slate-50">Trung tâm thị trường</h2>
         <span className="rounded border border-white/10 px-1.5 text-[11px] text-slate-300" data-testid="mc-phase">{PHASE[d.phase]}</span>
         <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">Cho phiên {ddmm(d.session)} · cập nhật {vnTime(d.asOf)}
           <Prov label="Tài liệu Trung tâm thị trường" rows={[["Nguồn", `Gateway ${d.version}, quy tắc ${d.rule}`], ["Tính lúc", vnWhen(d.asOf)], ["Tính lại sau", d.nextRefreshAt ? vnWhen(d.nextRefreshAt) : "≤ 5 phút"], ["Giá VN-Index", `đóng cửa phiên ${ddmm(d.prevDate)}`], ["Ghi chú", "Mỗi khối bên dưới có thời điểm riêng"]]} testId="mc-prov-doc" />
@@ -319,7 +319,7 @@ export default function MarketCenterPanel() {
         <div className="ml-auto flex flex-wrap gap-1" aria-label="Các mốc ghi hôm nay" data-testid="mc-timeline">
           {SLOT_TIMES.map((slot) => { const x = d.timeline.find((y) => y.slot === slot), col = x?.lead ? COLOR[x.lead] : "#64748b"; return <button key={slot} type="button" disabled={!x} aria-pressed={slotView === slot}
             aria-label={x ? `Mốc ${slot}: ${x.lead ? d.scenarios.find((s) => s.id === x.lead)?.name ?? x.lead : "chưa kết luận"}, ES ${sg(x.es)}%` : `Mốc ${slot}: chưa có bản ghi`} onClick={() => setSlotView(slotView === slot ? null : slot)} data-testid={`mc-slot-${slot}`} className="rounded border border-white/10 px-1.5 font-mono text-[11px] disabled:cursor-default" style={{ color: col, borderColor: x ? col : undefined, background: slotView === slot ? `${col}22` : undefined }} title={x ? `ES ${sg(x.es)}%` : "Chưa đến mốc"}>{slot}</button>; })}
-          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="mc-toggle" className="rounded border border-white/10 px-2 text-[11px] text-cyan-300">{open ? "Thu gọn ▴" : "Mở ▾"}</button>
+          <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} data-testid="mc-toggle" className="rounded-md border border-white/10 px-2 text-[11.5px] text-slate-300 hover:text-slate-50 hover:border-white/25">{open ? "Thu gọn ▴" : "Mở ▾"}</button>
         </div>
       </div>
 
@@ -374,7 +374,7 @@ export default function MarketCenterPanel() {
         <div role="tablist" aria-label="Phân tích Trung tâm thị trường" className="flex gap-1 overflow-x-auto border-b border-white/10">
           {TABS.map((x, i) => <button key={x.id} ref={(el) => { tabRefs.current[x.id] = el; }} type="button" role="tab" id={`mc-tab-${x.id}`} aria-selected={tab === x.id} aria-controls="mc-tabpanel" tabIndex={tab === x.id || (!tab && i === 0) ? 0 : -1}
             onClick={() => setTab(tab === x.id ? null : x.id)} onKeyDown={(e) => onTabKey(e, i)} data-mc-tab={x.id}
-            className={`shrink-0 whitespace-nowrap border-b-2 px-2.5 py-1 text-[12px] font-semibold transition-colors ${tab === x.id ? "border-cyan-400 text-cyan-200" : "border-transparent text-slate-400 hover:text-slate-200"}`}>{x.label}</button>)}
+            className={`shrink-0 whitespace-nowrap border-b-2 px-2.5 py-1 text-[12px] font-semibold transition-colors ${tab === x.id ? "border-q-accent text-slate-50" : "border-transparent text-slate-400 hover:text-slate-200"}`}>{x.label}</button>)}
           {tab && <button type="button" onClick={() => setTab(null)} className="ml-auto shrink-0 px-2 text-[11px] text-slate-500 hover:text-slate-300" data-testid="mc-tab-close">Ẩn phân tích ▴</button>}
         </div>
         {tab && <div role="tabpanel" id="mc-tabpanel" aria-labelledby={`mc-tab-${tab}`} className="pt-2" data-testid="mc-tabpanel">

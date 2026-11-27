@@ -25,7 +25,7 @@ export function OpsPanel() {
   const { data, error } = useMatrixOps(open);
   return (
     <div className="pt-3 border-t border-white/5 mt-3" data-testid="mx-ops">
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="text-[10px] font-bold text-slate-300 hover:text-cyan-200">
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="text-[11px] font-semibold text-slate-300 hover:text-slate-50">
         {open ? "▾" : "▸"} Vận hành (dữ liệu thiếu · sức khoẻ nguồn · độ trôi mô hình · kho · diễn tập sự cố)
       </button>
       {open && error && <p className="text-[10px] text-rose-300" role="alert">Không tải được báo cáo vận hành: {error.message}</p>}
