@@ -34,7 +34,9 @@ let tlRows: unknown[] = [tlRow({}), tlRow({ kind: "DIVIDEND", tier: "EXPLORATORY
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: { rows: tlRows, counts: { validated: 2, near: 163, inWindow: 0, upcoming: 2 }, coverage: { universe: 281, decisions: 281, seasonality: 281 } }, sessions: [], loading: false }) }));
 vi.mock("../../../hooks/elite10/useEliteDilution", () => ({ useEliteDilution: () => ({ data: null, error: null, isLoading: false }), usePxLedger: () => ({ data: null }) }));
 vi.mock("../../../hooks/elite10/useEliteLiquidity", () => ({ useEliteLiquidity: () => ({ data: null, error: null, isLoading: false }) }));
-vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: decision }) }));
+// HS360-v3 H1: thanh đầu đọc thêm hồ sơ tín hiệu của mã (ngành, giá đóng cửa, nguồn thiếu); bảng quyết định thay được theo từng bài.
+const H1 = vi.hoisted(() => ({ decision: null as unknown, panel: null as unknown, score: null as unknown }));
+vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: H1.decision ?? decision }), useEliteTicker: () => ({ panel: H1.panel, decision: H1.score, isLoading: false, error: null }) }));
 
 import ProfileHeader from "./ProfileHeader";
 import CompanyProfileCard from "./CompanyProfileCard";
@@ -43,7 +45,7 @@ import EventsProfileCard from "./EventsProfileCard";
 const text = (id: string) => screen.getByTestId(id).textContent ?? "";
 
 describe("Hồ sơ 360° · PFA-v1", () => {
-  beforeEach(() => { fa = base; });
+  beforeEach(() => { fa = base; H1.decision = null; H1.panel = null; H1.score = null; });
   afterEach(() => cleanup());
 
   it("thanh tiêu đề: vị thế Elite HL, số cảnh báo, công tắc 3 góc nhìn (bàn phím ← →)", () => {
@@ -113,5 +115,53 @@ describe("Hồ sơ 360° · PFA-v1", () => {
     fa = { version: "PFA-v1", asOf: "2026-11-17", ticker: "VNINDEX", missing: true };
     render(<CompanyProfileCard ticker="VNINDEX" />); expect(text("pfa-missing")).toMatch(/không nằm trong bảng tín hiệu.*17\/11\/2026/);
     cleanup(); render(<EventsProfileCard ticker="VNINDEX" />); expect(screen.getByTestId("pfa-events-missing")).toBeTruthy();
+  });
+});
+
+// HS360-v3 H1 (27/11/2026): thanh đầu hợp nhất — nguồn duy nhất của vị thế Elite HL, ngành, giá, nguồn thiếu, nút điều hướng.
+describe("Hồ sơ 360° · H1 thanh đầu hợp nhất", () => {
+  beforeEach(() => { fa = base; H1.decision = null; H1.panel = null; H1.score = null; });
+  afterEach(() => cleanup());
+  const hlDoc = {
+    date: "2026-11-27", hl: { version: "E4-HL v1.1",
+      queue: [{ ticker: "MWG", hlRank: 3, code: "wait", reasonVi: "Chờ phiên cân bằng đầu tuần kế tiếp" }],
+      queueIlliquid: [{ ticker: "HDA", hlRank: 13, code: "illiquid", reasonVi: "Chưa giao dịch được: GTGD TB20 < 5 tỷ" }],
+      against: [{ ticker: "VCB", hlRank: 2, rrgVi: "Suy yếu" }] },
+    portfolio: [{ ticker: "VJC", weight: 0.15, hl: { rank: 1, cls: "STRONG", exitBufferLs: 25, pz: { state: "IN_BASE", lane: "CORE" } } }],
+  };
+
+  it("đang giữ: lớp, làn, tỷ trọng, cách ngưỡng ra; ngành + giá đóng cửa; nguồn thiếu ghi bằng chữ dễ đọc", () => {
+    H1.decision = hlDoc;
+    H1.panel = { date: "2026-11-27", ticker: "VJC", sector: "Hàng không", icb: null, values: {}, missingSources: ["researchFeatures", "strategies:camslim"] };
+    H1.score = { ticker: "VJC", close: 101500 };
+    render(<ProfileHeader ticker="VJC" view="summary" onView={() => {}} />);
+    expect(text("profile-header-position")).toMatch(/Trong danh mục Elite HL.*hạng hợp lưu 1.*Hợp lưu mạnh.*Lõi.*15,0%.*cách ngưỡng ra 25/);
+    expect(text("profile-header-sector")).toBe("Hàng không");
+    expect(text("profile-header-price")).toContain("101.500");
+    expect(text("profile-header-missing")).toMatch(/27\/11.*dòng tiền \(Stealth, IFE\).*bộ lọc camslim/);
+  });
+
+  it("ngoài danh mục: hàng chờ (kể cả chưa giao dịch được) nêu hạng + lý do Gateway; ngành phản đối; ngoài cả hàng chờ", () => {
+    H1.decision = hlDoc;
+    render(<ProfileHeader ticker="MWG" view="summary" onView={() => {}} />);
+    expect(text("profile-header-position")).toMatch(/hàng chờ, hạng hợp lưu 3.*Chờ phiên cân bằng đầu tuần kế tiếp/);
+    cleanup(); render(<ProfileHeader ticker="HDA" view="summary" onView={() => {}} />);
+    expect(text("profile-header-position")).toMatch(/hạng hợp lưu 13.*GTGD TB20 < 5 tỷ/);
+    cleanup(); render(<ProfileHeader ticker="VCB" view="summary" onView={() => {}} />);
+    expect(text("profile-header-position")).toMatch(/ngành ở góc Suy yếu.*quy tắc không nhận/);
+    cleanup(); render(<ProfileHeader ticker="HPG" view="summary" onView={() => {}} />);
+    expect(text("profile-header-position")).toContain("Ngoài danh mục và hàng chờ Elite HL phiên này");
+  });
+
+  it("nút điều hướng: chart, Phòng họp AI, Chu kỳ; VNINDEX không có Phòng họp AI / Chu kỳ", () => {
+    H1.decision = hlDoc;
+    const chart = vi.fn(), ai = vi.fn(), cycle = vi.fn();
+    render(<ProfileHeader ticker="VJC" view="summary" onView={() => {}} actions={{ onOpenChart: chart, onOpenAi: ai, onOpenCycle: cycle }} />);
+    fireEvent.click(screen.getByTestId("elite-open-chart")); fireEvent.click(screen.getByTestId("profile-open-ai")); fireEvent.click(screen.getByTestId("profile-open-cycle"));
+    expect([chart.mock.calls.length, ai.mock.calls.length, cycle.mock.calls.length]).toEqual([1, 1, 1]);
+    cleanup();
+    render(<ProfileHeader ticker="VNINDEX" view="summary" onView={() => {}} actions={{ onOpenChart: chart, onOpenAi: ai, onOpenCycle: cycle }} />);
+    expect(screen.getByTestId("elite-open-chart")).toBeTruthy();
+    expect(screen.queryByTestId("profile-open-ai")).toBeNull(); expect(screen.queryByTestId("profile-open-cycle")).toBeNull();
   });
 });

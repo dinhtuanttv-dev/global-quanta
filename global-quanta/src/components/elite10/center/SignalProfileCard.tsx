@@ -95,18 +95,19 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
             <span className="rounded border border-white/15 px-2 py-0.5">α 5 phiên <b>{num(decision.alpha5Pct)}%</b></span>
             <span className="rounded border border-white/15 px-2 py-0.5">P vượt <b>{num(decision.pOutperform * 100, 1)}%</b></span>
             {decision.liq && <span className="rounded border border-white/15 px-2 py-0.5"><LiquidityBadge liq={decision.liq} rules={dec?.liquidity ?? LQ_DEFAULT} sigma20={decision.sigma20} testId="elite-profile-liq" /></span>}
-            {decision.inPortfolio
-              ? <span className="rounded border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-300">{hl ? "Trong Elite HL" : "Trong Elite 10"}</span>
-              : !decision.eligible && <span className="rounded border border-amber-400/40 px-2 py-0.5 text-amber-300">Không đủ điều kiện: {decision.reason}</span>}
+            {/* HS360-v3 H1: khi có Elite HL, vị thế chỉ hiện ở thanh đầu hồ sơ (một nguồn) — không lặp chip ở đây. */}
+            {decision.inPortfolio && !hl
+              ? <span className="rounded border border-emerald-400/50 bg-emerald-500/10 px-2 py-0.5 font-bold text-emerald-300">Trong Elite 10</span>
+              : !decision.inPortfolio && !decision.eligible && <span className="rounded border border-amber-400/40 px-2 py-0.5 text-amber-300">Không đủ điều kiện: {decision.reason}</span>}
           </div>
         )}
       </div>
-      {panel.missingSources.length > 0 && <p className="text-[10px] text-amber-300/80">Thiếu nguồn ở phiên này: {panel.missingSources.join(", ")} — cột tương ứng để trống.</p>}
+      {/* HS360-v3 H1: dòng "Thiếu nguồn ở phiên này" chuyển lên thanh đầu hồ sơ (profile-header-missing, tên nguồn dễ đọc). */}
 
       {decision && (
         <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
           <div className="rounded-md border border-white/10 bg-white/[0.02] p-2" data-testid="elite-profile-waterfall">
-            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Đóng góp vào Điểm Elite (Z = {num(decision.Z)})</p>
+            <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Đóng góp vào Điểm Elite (Z = {num(decision.Z)}){hl ? " — danh mục dòng tiền (đối chứng); Elite HL không chọn theo Z" : ""}</p>
             {contribs.length === 0 ? <p className="text-[10.5px] text-slate-500">Không tín hiệu bậc A/B nào có giá trị khác 0 ở mã này.</p> : contribs.map((c) => (
               <div key={c.id} className="flex items-center gap-1.5 text-[10.5px]" data-testid={`elite-contrib-${c.id}`}>
                 <span className="w-28 shrink-0 truncate text-slate-300" title={labelFor(c.id)}>{labelFor(c.id)}</span>
@@ -118,17 +119,8 @@ export default function SignalProfileCard({ ticker }: { ticker: string }) {
               </div>
             ))}
           </div>
-          <div className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[10.5px]" data-testid="elite-profile-gap">
-            {hlPos && (
-              <div className="mb-1.5" data-testid="elite-profile-hl-pos">
-                <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Vị trí so với danh mục Elite HL (chính thức)</p>
-                {hlPos.held ? <p className="text-emerald-300">Đang trong danh mục Elite HL.</p>
-                  : hlPos.queue ? <p className="text-slate-300">Đạt Hợp lưu, hạng hợp lưu <b className="font-mono">{hlPos.queue.hlRank}</b> — chưa vào danh mục: <span className={hlPos.queue.code === "illiquid" ? "text-amber-300" : "text-slate-100"}>{hlPos.queue.reasonVi}</span>.</p>
-                  : hlPos.against ? <p className="text-amber-300">Đạt tầng 1 nhưng ngành ở góc {hlPos.against.rrgVi ?? "phản đối"} trên RRG — quy tắc Elite HL không nhận.</p>
-                  : <p className="text-slate-400">Không nằm trong danh mục và hàng chờ của Elite HL phiên này. Lớp hợp lưu của mã xem ở khối "Hợp lưu đa yếu tố" bên dưới.</p>}
-                <p className="mt-0.5 text-[10px] text-slate-400">Elite HL chọn mã theo quy tắc Hợp lưu, không theo Điểm Elite Z.</p>
-              </div>
-            )}
+          <div className={`rounded-md border border-white/10 bg-white/[0.02] p-2 text-[10.5px] ${gap && !hlPos?.held ? "" : "hidden"}`} data-testid="elite-profile-gap">
+            {/* HS360-v3 H1 (27/11/2026): khối "Vị trí so với danh mục Elite HL" đã gộp vào thanh đầu hồ sơ (profile-header-position). */}
             {gap && !hlPos?.held && (
               <div data-testid="elite-profile-hl-gap">
                 <p className="mb-1 text-[10px] font-bold uppercase text-slate-500">Khoảng cách tới danh mục Elite HL</p>

@@ -75,11 +75,9 @@ describe("Hồ sơ 360° với danh mục Elite HL", () => {
     S.decision = hlDecision;
     S.ticker = { decision: score("MWG", false), panel: panelOf("MWG"), isLoading: false, error: null };
     render(<SignalProfileCard ticker="MWG" />);
-    const pos = text("elite-profile-hl-pos");
-    expect(pos).toContain("Vị trí so với danh mục Elite HL");
-    expect(pos).toContain("hạng hợp lưu 3");
-    expect(pos).toContain("Chờ phiên cân bằng đầu tuần kế tiếp");
-    expect(pos).toContain("không theo Điểm Elite Z");
+    // HS360-v3 H1: vị trí Elite HL chỉ còn ở thanh đầu hồ sơ (ProfileFa.test kiểm hàng chờ / ngành phản đối / ngoài danh mục).
+    expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
+    expect(text("elite-profile-waterfall")).toContain("Elite HL không chọn theo Z");
     // G3: không còn so Z với danh mục dòng tiền (cũ); khoảng cách đo bằng điều kiện quy tắc Elite HL.
     const gap = text("elite-profile-gap");
     expect(gap).not.toContain("dòng tiền"); expect(gap).not.toMatch(/ΔZ/); expect(gap).not.toContain("NAB");
@@ -89,16 +87,17 @@ describe("Hồ sơ 360° với danh mục Elite HL", () => {
     S.decision = hlDecision;
     S.ticker = { decision: score("FPT", true), panel: panelOf("FPT"), isLoading: false, error: null };
     render(<SignalProfileCard ticker="FPT" />);
-    expect(text("elite-profile-hl-pos")).toContain("Đang trong danh mục Elite HL");
-    expect(text("elite-profile-score")).toContain("Trong Elite HL");
+    expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
+    expect(text("elite-profile-score")).not.toContain("Trong Elite HL"); // một nguồn: thanh đầu
+    expect(screen.getByTestId("elite-profile-gap").className).toContain("hidden"); // mã đang giữ: không có khoảng cách
     cleanup();
     S.ticker = { decision: score("VCB", false), panel: panelOf("VCB"), isLoading: false, error: null };
     render(<SignalProfileCard ticker="VCB" />);
-    expect(text("elite-profile-hl-pos")).toContain("ngành ở góc Suy yếu");
+    expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
     cleanup();
     S.ticker = { decision: score("HPG", false), panel: panelOf("HPG"), isLoading: false, error: null };
     render(<SignalProfileCard ticker="HPG" />);
-    expect(text("elite-profile-hl-pos")).toContain("Không nằm trong danh mục và hàng chờ");
+    expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
   });
 
   it("lỗi tải (500 / mạng) hiện là lỗi, không báo nhầm 'không nằm trong vũ trụ'", () => {

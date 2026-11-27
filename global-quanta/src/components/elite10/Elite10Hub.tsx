@@ -4,7 +4,7 @@
 //   3. Phòng họp AI — tranh luận Claude ↔ Gemini có trọng tài, bản tin phiên, hỏi đáp (E5).
 //   4. Bằng chứng & sổ theo dõi — quy tắc vào·giữ·ra, Cổng tiền mặt, sổ theo dõi tiến, trọng số tín hiệu, IC từng tín hiệu (E6).
 //   5. Rủi ro danh mục — Ledoit–Wolf, đóng góp rủi ro, VaR/CVaR, căng thẳng (E6).
-import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import DecisionBoard from "./center/DecisionBoard";
 import SignalProfileCard from "./center/SignalProfileCard";
 import EliteScreener from "./center/EliteScreener";
@@ -17,6 +17,9 @@ import CompanyProfileCard from "./profile/CompanyProfileCard";
 import EventsProfileCard from "./profile/EventsProfileCard";
 import { useTabNavigation } from "../../lib/TabNavigationContext";
 import { useAppStore } from "../../store/useAppStore";
+import { useEliteDecision, useElitePanel } from "../../hooks/elite10/useEliteCenter";
+import { sortedPicks } from "./center/evidenceRoom/PortfolioRail";
+import { defaultProfileTicker } from "../../lib/elite10/profileDefault";
 import "./elite10.css";
 
 type Sub = "board" | "profile" | "ai" | "evidence" | "risk";
@@ -42,7 +45,12 @@ export default function Elite10Hub() {
   useEffect(() => { if (sub === "ai") setAiOpened(true); }, [sub]);
   const refs = useRef<Record<Sub, HTMLButtonElement | null>>({ board: null, profile: null, ai: null, evidence: null, risk: null });
 
-  const current = ticker ?? globalTicker ?? "VNINDEX";
+  // HS360-v3 H1 (Q6): mã mặc định — mã đang chọn toàn trang nếu thuộc vũ trụ bảng E1, không thì mã hạng 1 Elite HL (trước đây luôn VNINDEX).
+  const { data: panelDoc } = useElitePanel();
+  const { data: decisionDoc } = useEliteDecision();
+  const universe = useMemo(() => (panelDoc?.rows ? new Set(panelDoc.rows.map((r) => r.ticker)) : null), [panelDoc]);
+  const hlFirst = useMemo(() => sortedPicks(decisionDoc)[0]?.ticker ?? null, [decisionDoc]);
+  const current = defaultProfileTicker({ local: ticker, global: globalTicker, universe, hlFirst });
   const open = (t: string) => { setTicker(t); setSub("profile"); setMode("profile"); };
   // QĐ-R (20/11/2026): thẻ tóm tắt ở Bảng quyết định -> tab 4 (quy tắc, sổ theo dõi, trọng số đã chuyển sang đó).
   const goToEvidence = () => { setSub("evidence"); refs.current.evidence?.focus(); };
@@ -57,6 +65,10 @@ export default function Elite10Hub() {
     setPick("");
   };
   const openChart = () => { selectGlobal(current); goTab?.("TA VN-Index"); };
+  // HS360-v3 H1: nút ở thanh đầu hồ sơ — Phòng họp AI đúng mã (tab 3), Chu kỳ (tab Ngành › Cycle Fingerprint, focusCycle #403).
+  const focusCycle = useAppStore((s) => s.focusCycle);
+  const openAi = () => { setTicker(current); setSub("ai"); refs.current.ai?.focus(); };
+  const openCycle = () => { focusCycle(current); goTab?.("Loc nganh"); };
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     const i = SUBS.findIndex((s) => s.id === sub);
     const n = e.key === "ArrowRight" ? (i + 1) % SUBS.length : e.key === "ArrowLeft" ? (i - 1 + SUBS.length) % SUBS.length : -1;
@@ -100,7 +112,6 @@ export default function Elite10Hub() {
                   <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={10} data-testid="elite-pick"
                     className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-[#E8B84B]/60 focus:outline-none" />
                 </form>
-                <button type="button" onClick={openChart} data-touch data-testid="elite-open-chart" className="min-h-[28px] rounded border border-amber-400/40 px-3 font-bold text-amber-200 hover:bg-amber-400/10">Mở chart {current} trong Phân tích kỹ thuật →</button>
               </>}
             </div>
             {mode === "screener" ? (
@@ -109,7 +120,7 @@ export default function Elite10Hub() {
               </section>
             ) : (
               <>
-                <ProfileHeader ticker={current} view={pview} onView={setPview} />
+                <ProfileHeader ticker={current} view={pview} onView={setPview} actions={{ onOpenChart: openChart, onOpenAi: openAi, onOpenCycle: openCycle }} />
                 {pview === "summary" && (
                   <>
                     <SignalProfileCard ticker={current} />

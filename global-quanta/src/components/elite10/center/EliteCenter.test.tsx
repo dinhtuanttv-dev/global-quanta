@@ -103,7 +103,8 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-profile-score").textContent).toContain("Trong Elite 10");
     expect(screen.getByTestId("elite-sig-top20_alpha").textContent).toContain("—");
     expect(screen.getByTestId("elite-sig-smart_score").textContent).toContain("Bậc C");
-    expect(screen.getByTestId("elite-profile").textContent).toContain("cotuc");
+    // HS360-v3 H1: nguồn thiếu của bảng tín hiệu hiện ở thanh đầu hồ sơ (profile-header-missing, ProfileFa.test), không lặp trong thẻ.
+    expect(screen.getByTestId("elite-profile").textContent).not.toContain("Thiếu nguồn ở phiên này");
     expect(screen.getByTestId("elite-profile").textContent).toContain("3 tín hiệu từ 2 tab");
     expect(screen.getByTestId("elite-contrib-stealth20").textContent).toContain("+1,2");
     // G3: khối khoảng cách theo Z (danh mục dòng tiền) đã bỏ; tài liệu cũ không có Elite HL thì không hiện khoảng cách.
