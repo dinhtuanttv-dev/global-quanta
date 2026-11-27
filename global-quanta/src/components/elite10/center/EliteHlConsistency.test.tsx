@@ -21,6 +21,7 @@ vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) })); // QĐ-R: sổ HL (HlLedgerNote) không gọi mạng trong test
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: null }) }));
 vi.mock("../../../hooks/elite10/useDeckData", () => ({ useEvidenceRegistry: () => ({ data: null }) })); // QĐ-R2: tab 4 đọc sổ bằng chứng
+vi.mock("../../../hooks/elite10/useEvidenceEvolution", () => ({ useEvidenceEvolution: () => ({ data: undefined }) })); // EV-4: không gọi mạng
 vi.mock("../profile/ProfileHeader", () => ({ default: () => null })); // QĐ-R: test Hồ sơ 360° chỉ kiểm khối đã chuyển đi
 vi.mock("../../../hooks/useWorldStrategy", () => ({ useWorldStrategy: () => ({ data: null }) }));
 vi.mock("./ConfluenceCard", () => ({ default: () => null }));

@@ -1,6 +1,6 @@
 // Elite 10 E6 — "Bằng chứng & sổ theo dõi": kết quả engine bằng chứng E2 (IC hạng theo kỳ hạn, t Newey–West, q Benjamini–Hochberg,
 // ổn định hai nửa, bậc + lý do) và sổ theo dõi tiến của danh mục Elite 10 (E3). Công khai cả kết quả xấu.
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import AiBrainCard from "./AiBrainCard";
 import EliteToShadowCard from "./EliteToShadowCard";
 import { useEliteDecision, useEliteEvidence, useEliteLedger, useEliteRetro, useEliteRetroV3 } from "../../../hooks/elite10/useEliteCenter";
@@ -18,6 +18,9 @@ import { divergingColor } from "../../../lib/worldSectors/types";
 import type { EliteLedger, EliteRetro, EvidenceSignal, LedgerSummary } from "../../../lib/elite10/decisionTypes";
 import { TierChip } from "./DecisionBoard";
 import FlowBenchmarkPanel from "./FlowBenchmarkPanel";
+// EV-4 (27/11/2026): tái cấu trúc 4 tầng + SQS / xu hướng / IC theo chế độ / đề xuất cần duyệt (chỉ mô tả).
+import { useEvidenceEvolution } from "../../../hooks/elite10/useEvidenceEvolution";
+import { AiSkillPanel, EvolutionScorecard, RegimeMatrix, SqsCell } from "./EvidenceEvolution";
 
 const H = ["1", "5", "10", "20"] as const;
 const sgn = (v: number | null | undefined, d = 3) => (v == null || !Number.isFinite(v) ? "—" : `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("vi-VN", { minimumFractionDigits: d, maximumFractionDigits: d })}`);
@@ -231,6 +234,20 @@ function LedgerSection({ ledger, error, title, hl, testId }: { ledger: EliteLedg
   );
 }
 
+/** EV-4 (27/11/2026): khung một tầng của tab 4 (tiêu đề + mô tả ngắn). */
+function Tier({ n, title, sub, testId, children }: { n: number; title: string; sub: string; testId: string; children: React.ReactNode }) {
+  return (
+    <section className="space-y-3" data-testid={testId} aria-label={title}>
+      <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-white/10 pb-1">
+        <span className="font-mono text-[10.5px] text-q-accent-strong">TẦNG {n}</span>
+        <h3 className="text-[12.5px] font-semibold text-slate-100">{title}</h3>
+        <span className="text-[10.5px] text-slate-500">{sub}</span>
+      </header>
+      {children}
+    </section>
+  );
+}
+
 export default function EvidenceLedgerTab() {
   const { data: ev, error } = useEliteEvidence();
   const { data: ledger, error: ledgerError } = useEliteLedger();
@@ -241,81 +258,121 @@ export default function EvidenceLedgerTab() {
   const { data: retroV3 } = useEliteRetroV3();
   const { data: decision } = useEliteDecision();
   const { data: registry } = useEvidenceRegistry();
+  // EV-4: SQS, nhãn xu hướng, IC theo chế độ, đề xuất cần duyệt (chỉ mô tả). Lỗi / chưa có -> các phần cũ vẫn hiện đủ.
+  const { data: evo, error: evoError } = useEvidenceEvolution();
+  const evoById = useMemo(() => new Map((evo?.signals ?? []).map((s) => [s.id, s])), [evo]);
+  const [tabFilter, setTabFilter] = useState<string | null>(null);
   const sorted = useMemo(() => {
     const order = { A: 0, B: 1, C: 2 } as const;
     return [...(ev?.signals ?? [])].sort((a, b) => order[a.tier] - order[b.tier] || (b.byH[String(b.mainH)]?.mean ?? -9) - (a.byH[String(a.mainH)]?.mean ?? -9));
   }, [ev]);
+  const tabs = useMemo(() => [...new Set(sorted.map((s) => s.tab))], [sorted]);
+  const shown = tabFilter ? sorted.filter((s) => s.tab === tabFilter) : sorted;
   if (error) return <p className="text-xs text-rose-400">Không tải được bằng chứng: {String(error.message ?? error)}</p>;
   if (!ev) return <p className="py-6 text-center text-xs italic text-slate-500">Đang tải bằng chứng…</p>;
 
   return (
-    <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-evidence-tab">
-      {/* ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — nguồn đo độ tin cậy của bộ não, cạnh các sổ theo dõi khác. */}
-      <div className="rounded-lg border border-white/10 bg-[#0E131F] p-3"><AiBrainCard testId="ai-brain-evidence" /></div>
-      {hl && (
-        <p className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-100" data-testid="elite-evidence-scope">
-          <b>Phạm vi bằng chứng.</b> Danh mục chính thức hiện là <b>Elite HL</b> (quy tắc do chủ dự án đặt, nhãn THĂM DÒ). Bằng chứng từng tín hiệu (E2) và hai kiểm định hồi cứu E7 / E7-v3 bên dưới thuộc về <b>Điểm Elite và danh mục Elite dòng tiền (cũ)</b> — chúng KHÔNG phải kiểm định của Elite HL. Elite HL hiện chỉ có mô phỏng khám phá K0 (ngang thị trường, xem Bảng quyết định) và sổ theo dõi tiến mô tả ở cuối trang.
-        </p>
-      )}
-      {decision?.hl && (
-        <div className="space-y-3" data-testid="elite-evidence-hl">
-          <EvidenceWall ledger={decision.ledgerSummary} registry={registry} k0Note={decision.hl.k0?.noteVi ?? null} />
-          <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
-            <HlRulesPanel d={decision} />
-            <CashGateCard />
+    <div className="tw-scope space-y-6 text-slate-200" data-testid="elite-evidence-tab">
+      <Tier n={1} title="Bảng điểm & đề xuất" sub="sổ tiến · sức khoẻ tín hiệu · AI · chế độ thị trường — đề xuất không tự áp dụng" testId="tab4-scorecard">
+        <EvolutionScorecard ev={evo} error={evoError} />
+        {hl && (
+          <p className="rounded-lg border border-amber-400/40 bg-amber-500/[0.07] p-2.5 text-[11px] leading-relaxed text-amber-100" data-testid="elite-evidence-scope">
+            <b>Phạm vi bằng chứng.</b> Danh mục chính thức hiện là <b>Elite HL</b> (quy tắc do chủ dự án đặt, nhãn THĂM DÒ). Bằng chứng từng tín hiệu (E2) và hai kiểm định hồi cứu E7 / E7-v3 bên dưới thuộc về <b>Điểm Elite và danh mục Elite dòng tiền (cũ)</b> — chúng KHÔNG phải kiểm định của Elite HL. Elite HL hiện chỉ có mô phỏng khám phá K0 (ngang thị trường, xem Bảng quyết định) và sổ theo dõi tiến mô tả ở tầng 3.
+          </p>
+        )}
+      </Tier>
+
+      <Tier n={2} title="Bằng chứng & tín hiệu" sub="tường bằng chứng từng lớp · IC 25 tín hiệu (E2) · SQS · IC theo chế độ thị trường" testId="tab4-signals">
+        {/* Khối HL (giữ data-testid cũ): tường bằng chứng từng lớp đứng đầu; quy tắc, cổng và sổ ở tầng 3. */}
+        {decision?.hl && <div className="space-y-3" data-testid="elite-evidence-hl"><EvidenceWall ledger={decision.ledgerSummary} registry={registry} k0Note={decision.hl.k0?.noteVi ?? null} /></div>}
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bằng chứng từng tín hiệu (E2)</h4>
+            <span className="text-[10px] text-slate-500">{ev.version} · đo tới phiên {fmtDate(ev.calendarLast)} · {ev.tests} phép thử BH · A {ev.counts.A} · B {ev.counts.B} · C {ev.counts.C}</span>
           </div>
-          <HlLedgerPanel d={decision} />
-          <BuyTimingNote />
-        </div>
-      )}
-      {/* Elite × TO Giai đoạn II: sổ ảo (THĂM DÒ) — không đổi danh mục chính thức. */}
-      <EliteToShadowCard />
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bằng chứng từng tín hiệu (E2)</h4>
-          <span className="text-[10px] text-slate-500">{ev.version} · đo tới phiên {fmtDate(ev.calendarLast)} · {ev.tests} phép thử BH · A {ev.counts.A} · B {ev.counts.B} · C {ev.counts.C}</span>
-        </div>
-        <p className="text-[10.5px] text-slate-400">
-          Ô = IC hạng Spearman trung bình theo ngày giữa tín hiệu và lợi suất từ đóng cửa d+1 tới d+1+h; màu xanh = dự báo đúng chiều, đỏ = ngược chiều.
-          Khung vàng = kỳ hạn chính dùng để giáng bậc; ✓ = dương ở cả hai nửa thời gian. Luật thăng/giáng và định nghĩa ghi trong bản đăng ký trước E2 (không sửa sau khi đo).
-        </p>
-        <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
-          <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 760 }} data-testid="elite-ic-table">
-            <thead>
-              <tr className="text-slate-500">
-                <th className="text-left font-normal py-1">Tín hiệu</th><th className="font-normal">Bậc</th>
-                {H.map((h) => <th key={h} className="font-normal">{h} phiên</th>)}
-                <th className="text-left font-normal pl-2">Đánh giá</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((s) => (
-                <tr key={s.id} className="border-t border-white/5" data-testid={`elite-ev-${s.id}`}>
-                  <td className="py-1 pr-2"><span className="text-slate-100">{s.labelVi}</span><span className="block text-[10px] text-slate-500">{s.tab} · {s.source}</span></td>
-                  <td className="text-center whitespace-nowrap"><TierChip tier={s.tier} />{s.change !== "none" && <span className={`ml-1 text-[10px] font-bold ${s.change === "up" ? "text-emerald-300" : "text-rose-300"}`}>{s.change === "up" ? "↑" : "↓"} từ {s.priorTier}</span>}</td>
-                  {H.map((h) => <IcCell key={h} s={s} h={h} />)}
-                  <td className="pl-2 text-[10px] text-slate-400" style={{ maxWidth: 260 }}>{s.reasonVi}<span className="block text-slate-500">{s.priorEvidenceVi}</span></td>
+          <p className="text-[10.5px] text-slate-400">
+            Ô = IC hạng Spearman trung bình theo ngày giữa tín hiệu và lợi suất từ đóng cửa d+1 tới d+1+h; màu xanh = dự báo đúng chiều, đỏ = ngược chiều.
+            Khung vàng = kỳ hạn chính dùng để giáng bậc; ✓ = dương ở cả hai nửa thời gian. Luật thăng/giáng và định nghĩa ghi trong bản đăng ký trước E2 (không sửa sau khi đo).
+            Cột SQS (0–100) và nhãn xu hướng chỉ mô tả, không đổi bậc.
+          </p>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Lọc theo tab nguồn" data-testid="tab4-tab-filter">
+            {[null, ...tabs].map((t) => (
+              <button key={t ?? "all"} type="button" aria-pressed={tabFilter === t} onClick={() => setTabFilter(t)}
+                className={`min-h-[24px] rounded border px-2 text-[10.5px] ${tabFilter === t ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:border-white/25"}`}>
+                {t ?? `Tất cả (${sorted.length})`}{t ? ` (${sorted.filter((s) => s.tab === t).length})` : ""}
+              </button>
+            ))}
+          </div>
+          <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
+            <table className="w-full text-[11px]" style={{ borderCollapse: "collapse", minWidth: 840 }} data-testid="elite-ic-table">
+              <thead>
+                <tr className="text-slate-500">
+                  <th className="text-left font-normal py-1">Tín hiệu</th><th className="font-normal">Bậc</th>
+                  <th className="font-normal" title="Chỉ số sức khoẻ tín hiệu 0–100 + nhãn xu hướng (EV-4, mô tả)">SQS · xu hướng</th>
+                  {H.map((h) => <th key={h} className="font-normal">{h} phiên</th>)}
+                  <th className="text-left font-normal pl-2">Đánh giá</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {shown.map((s) => (
+                  <tr key={s.id} className="border-t border-white/5" data-testid={`elite-ev-${s.id}`}>
+                    <td className="py-1 pr-2"><span className="text-slate-100">{s.labelVi}</span><span className="block text-[10px] text-slate-500">{s.tab} · {s.source}</span></td>
+                    <td className="text-center whitespace-nowrap"><TierChip tier={s.tier} />{s.change !== "none" && <span className={`ml-1 text-[10px] font-bold ${s.change === "up" ? "text-emerald-300" : "text-rose-300"}`}>{s.change === "up" ? "↑" : "↓"} từ {s.priorTier}</span>}</td>
+                    <SqsCell s={evoById.get(s.id)} />
+                    {H.map((h) => <IcCell key={h} s={s} h={h} />)}
+                    <td className="pl-2 text-[10px] text-slate-400" style={{ maxWidth: 260 }}>{s.reasonVi}<span className="block text-slate-500">{s.priorEvidenceVi}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {evo && <RegimeMatrix ev={evo} />}
+      </Tier>
+
+      <Tier n={3} title="Sổ theo dõi tiến" sub="quy tắc & cổng · so sánh Elite HL với Elite dòng tiền · sổ chi tiết thu gọn" testId="tab4-ledgers">
+        {decision?.hl && (
+          <div className="space-y-3" data-testid="tab4-hl-rules">
+            <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2">
+              <HlRulesPanel d={decision} />
+              <CashGateCard />
+            </div>
+            <HlLedgerPanel d={decision} />
+            <BuyTimingNote />
+          </div>
+        )}
+        {/* EV-4: trước đây sổ Elite HL hiện 3 lần (tường bằng chứng, bảng so sánh, sổ chi tiết) và sổ dòng tiền 2 lần. Bảng so sánh ở trên
+            là bản tóm tắt duy nhất; sổ chi tiết (đường cong, 15 phiên khoá, chấm thực tế) gom vào đây, thu gọn mặc định — vẫn đủ dữ liệu. */}
+        <details className="group rounded-lg border border-white/10 bg-white/[0.015] p-2.5" data-testid="tab4-ledger-details">
+          <summary className="cursor-pointer text-[11px] font-semibold text-slate-100">
+            Sổ chi tiết <span className="font-normal text-slate-500">— {hl ? "Elite HL · đối chứng dòng tiền · Elite × Săn cổ tức · trọng số tín hiệu" : "Elite 10 (E3) · Elite × Săn cổ tức · trọng số tín hiệu"}</span>
+          </summary>
+          <div className="mt-3 space-y-3">
+            <LedgerSection ledger={ledger} error={ledgerError} hl={hl} testId="elite-ledger-tab" title={hl ? "Sổ theo dõi tiến — Elite HL (danh mục chính thức)" : "Sổ theo dõi tiến Elite 10 (E3)"} />
+            {hl && <FlowBenchmarkPanel />}
+            {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (đối chứng, E3)" />}
+            {/* Elite × TO Giai đoạn II: sổ ảo (THĂM DÒ) — không đổi danh mục chính thức. */}
+            <EliteToShadowCard />
+            <EliteWeightsCard />
+          </div>
+        </details>
+      </Tier>
+
+      <Tier n={4} title="Thẩm định & hiệu chuẩn" sub="walk-forward E7 · quá khớp E7-v3 · chi phí thực thi R3 · sổ phán quyết AI" testId="tab4-audit">
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
+          <RetroSection r={retro} />
+        </section>
+        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
+          <RetroV3Section r={retroV3} />
+        </section>
+        {/* ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — nguồn đo độ tin cậy của bộ não. */}
+        <div className="space-y-3 rounded-lg border border-white/10 bg-[#0E131F] p-3">
+          <AiBrainCard testId="ai-brain-evidence" />
+          {evo && <AiSkillPanel ev={evo} />}
         </div>
-      </section>
-
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
-        <RetroSection r={retro} />
-      </section>
-
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
-        <RetroV3Section r={retroV3} />
-      </section>
-
-      <LedgerSection ledger={ledger} error={ledgerError} hl={hl} testId="elite-ledger-tab" title={hl ? "Sổ theo dõi tiến — Elite HL (danh mục chính thức)" : "Sổ theo dõi tiến Elite 10 (E3)"} />
-      {hl && <FlowBenchmarkPanel />}
-      <EliteWeightsCard />
-      {hl && <LedgerSection ledger={flowLedger} error={flowError} hl={false} testId="elite-ledger-flow" title="Sổ theo dõi tiến — Elite dòng tiền (đối chứng, E3)" />}
+      </Tier>
       <p className="text-[10px] text-slate-400" data-testid="elite-evidence-disclaimer">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
   );

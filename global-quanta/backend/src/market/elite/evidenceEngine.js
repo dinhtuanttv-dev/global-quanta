@@ -31,6 +31,8 @@ const isoMinusDays = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) - 
 export function createEvidenceEngine({ store, panel, leadership = null, adjustedCloses = null, now = Date.now, log = console }) {
   let running = null;
   let memo = null;
+  // EV-4: chuỗi IC hồi cứu LS-v1 của lần dựng gần nhất (chỉ trong bộ nhớ, như trước) — để tab 4 tính SQS / IC theo chế độ.
+  let lastLsSeries = null;
 
   const kv = async (key) => {
     try { return (await store.getKv(key))?.value ?? null; } catch (e) { noteStoreError(e); return null; }
@@ -214,7 +216,7 @@ export function createEvidenceEngine({ store, panel, leadership = null, adjusted
       // LS-r1: chuỗi IC hồi cứu của LS-v1 (chỉ trong bộ nhớ, không ghi vào elite:ic) + trọng số E3-v5 + cổng H4.
       let ls = null;
       if (leadership) { try { await leadership.ensureBuilt(); ls = await leadership.evidenceExtras(icDoc.calendarLast); } catch (e) { log.warn?.(`[elite] LS-v1: ${e.message}`); } }
-      if (ls?.series) icDoc.series = { ...icDoc.series, [LS_ID]: ls.series };
+      if (ls?.series) { icDoc.series = { ...icDoc.series, [LS_ID]: ls.series }; lastLsSeries = ls.series; }
       const ev = evaluate(icDoc, ls);
       await store.setKv(EVIDENCE_KV.evidence, ev);
       memo = ev;
@@ -239,7 +241,9 @@ export function createEvidenceEngine({ store, panel, leadership = null, adjusted
     const counts = dates.map((d) => perDate.get(d)).sort((a, b) => a - b);
     const signals = SIGNAL_SPECS.map((s) => {
       const h = s.id === "ws_sector_alpha" ? 1 : 5;
-      const m = icDoc.series?.[s.id]?.[h] ?? {};
+      // EV-4: LS-v1 không nằm trong elite:ic (chuỗi hồi cứu giữ trong bộ nhớ) -> trước đây báo 0 ngày đo dù E2 có ~1.366 ngày.
+      const src = s.id === LS_ID && lastLsSeries ? lastLsSeries : icDoc.series?.[s.id];
+      const m = src?.[h] ?? {};
       const vals = Object.values(m);
       return { id: s.id, mainH: h, measured: vals.filter((v) => v?.[0] != null).length, empty: vals.filter(isEmptyMark).length };
     });
@@ -251,6 +255,12 @@ export function createEvidenceEngine({ store, panel, leadership = null, adjusted
     };
   }
 
-  return { update, evidence, evaluate, updateIc, coverage };
+  /** EV-4: chuỗi IC ngày (elite:ic) kèm chuỗi LS-v1 của lần dựng gần nhất nếu còn trong bộ nhớ. Chỉ đọc. */
+  async function icDocument() {
+    const doc = (await kv(EVIDENCE_KV.ic)) ?? { series: {} };
+    return lastLsSeries ? { ...doc, series: { ...doc.series, [LS_ID]: lastLsSeries } } : doc;
+  }
+
+  return { update, evidence, evaluate, updateIc, coverage, icDocument };
 }
 

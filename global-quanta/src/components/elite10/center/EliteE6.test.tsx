@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "../../../test/rtl-lite";
+import { cleanup, fireEvent, render, screen } from "../../../test/rtl-lite";
 
 const evidence = {
   version: "E2-v1", generatedAt: "x", calendarLast: "2026-10-16", tests: 20, counts: { A: 3, B: 2, C: 16 },
@@ -40,7 +40,9 @@ const retroV3 = {
 };
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) })); // QĐ-R: sổ HL (HlLedgerNote) không gọi mạng trong test
 vi.mock("../../../hooks/elite10/useDeckData", () => ({ useEvidenceRegistry: () => ({ data: { entries: [{ id: "PZ", test: "PZ-r2", verdict: "KHÔNG ĐẠT", layer: "Vị trí giá", detail: "d", src: "s", ranAt: "2026-11-18" }] } }) }));
-const E6 = vi.hoisted(() => ({ decision: undefined as unknown }));
+const E6 = vi.hoisted(() => ({ decision: undefined as unknown, evo: undefined as unknown }));
+// EV-4: tiến hoá bằng chứng (mặc định chưa có -> các phần cũ phải hiện đủ).
+vi.mock("../../../hooks/elite10/useEvidenceEvolution", () => ({ useEvidenceEvolution: () => ({ data: E6.evo, error: E6.evo ? undefined : new Error("chưa có") }) }));
 vi.mock("../../../hooks/elite10/useEliteTiming", () => ({ useEliteTiming: () => ({ data: null, sessions: [], meta: null, loading: false, error: "Timeline tạm không có" }) }));
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useEliteDecision: () => ({ data: E6.decision }), // QĐ-R: tab 4 đọc thêm bảng quyết định (cùng cache SWR); không có HL -> không hiện khối HL
@@ -130,5 +132,62 @@ describe("QĐ-R — tab Bằng chứng nhận khối từ Bảng quyết định
     expect(screen.getByTestId("elite-buy-note").textContent).toMatch(/Timeline điểm mua tạm không có/);
     const w = screen.getByTestId("elite-weights").textContent ?? "";
     expect(w).toMatch(/Stealth 20.*60 ngày/); expect(screen.getByTestId("elite-weights-scope").textContent).toMatch(/không chọn mã theo Z/);
+  });
+});
+
+// EV-4 (27/11/2026): tab 4 bốn tầng — giữ mọi data-testid cũ; SQS + nhãn xu hướng; lọc theo tab nguồn; đề xuất cần duyệt; IC theo chế độ.
+const evoSig = (id: string, tag: string, sqs: number) => ({
+  id, tab: "Siêu quét AI", labelVi: id, level: "stock", tier: "C", priorTier: "C", mainH: 5, n: 200, sqs, sqsBreakdown: { stat: 10, stability: 12, horizon: 5, coverage: 15 },
+  trendTag: tag, rollingIc20: null, icAll: -0.02, coverageRatio: 1, measured: 200, expected: 200,
+  regimeIc: { UPTREND: { n: 80, mean: 0.01, t: 1 }, SIDEWAY: { n: 60, mean: -0.03, t: -2 }, DOWNTREND: { n: 5, mean: 0.2, t: 1 } }, regimeSpread: 0.04,
+});
+const evo = {
+  version: "EV-4.0 (2026-11-27)", generatedAt: "x", calendarLast: "2026-11-27", evidenceVersion: "E2-v1", currentRegime: "UPTREND", regimeAsOf: "2026-11-27",
+  rules: { noteVi: "Chỉ mô tả.", tierDecisionN: 60 },
+  scorecard: {
+    liveAlpha: { championId: "ELITE_HL", championVersion: "E4-HL v1.1", sessionsRecorded: 4, settled5: 0, settled10: 0, hlExcess10: null, flowExcess10: null, flowSettled10: 0, toCompExcess: null, toDays: 13 },
+    signalHealth: { totalSignals: 2, provenCount: 1, emergingCount: 0, decayingCount: 0, invertedCount: 1, lowCoverageCount: 0, meanSqs: 50, emergingByChance: 0.2, emergingEligible: 15 },
+    aiSkill: { version: "ARL-v1", label: "CHƯA ĐỦ MẪU", totalEntries: 18, scored5: 0, bss: null, bssNoteVi: "Chưa tính BSS: sổ không lưu xác suất.",
+      incrementalAlpha: { 5: { agree: { n: 0, meanExcess: null }, caution: { n: 0, meanExcess: null }, flat: { n: 0, meanExcess: null }, baseline: null, valueAdd: null }, 10: { agree: { n: 0, meanExcess: null }, caution: { n: 0, meanExcess: null }, flat: { n: 0, meanExcess: null }, baseline: null, valueAdd: null } } },
+    readinessQueue: [{ id: "HL-LEDGER", title: "Sổ tiến Elite HL", currentSamples: 0, targetSamples: 30, progressPct: 0, readyToEvaluate: false }],
+  },
+  signals: [evoSig("stealth20", "PROVEN_LEADER", 92), evoSig("log_rvol", "INVERTED", 20)],
+  registryProgress: [], challengers: [], challengersNoteVi: "Chưa dựng sổ bóng Challenger.",
+  proposals: [{ id: "inv-log_rvol", priority: "HIGH", kind: "SIGNAL_INVERTED", titleVi: "log_rvol: dự báo NGƯỢC chiều", evidenceVi: "t ≤ −2", suggestedActionVi: "Đăng ký trước", targetArea: "E2_EVIDENCE" }],
+};
+
+describe("EV-4 — tab 4 bốn tầng", () => {
+  it("chưa có tài liệu tiến hoá: 4 tầng hiện, mọi khối cũ còn nguyên, bảng E2 không đổi thứ tự", () => {
+    E6.evo = undefined;
+    render(<EvidenceLedgerTab />);
+    for (const id of ["tab4-scorecard", "tab4-signals", "tab4-ledgers", "tab4-audit", "tab4-scorecard-empty", "elite-ic-table", "elite-ledger-tab", "elite-retro-v3", "ai-brain-evidence", "elite-evidence-disclaimer"]) expect(screen.getByTestId(id)).toBeTruthy();
+    expect(screen.getByTestId("elite-ic-table").querySelectorAll("tbody tr")[0].getAttribute("data-testid")).toBe("elite-ev-stealth20");
+    expect(screen.queryByTestId("tab4-regime")).toBeNull();
+    // Sổ chi tiết thu gọn nhưng vẫn trong DOM (không mất dữ liệu).
+    expect(screen.getByTestId("tab4-ledger-details").contains(screen.getByTestId("elite-ledger-tab"))).toBe(true);
+  });
+
+  it("có tài liệu: bảng điểm 4 KPI, đề xuất cần duyệt, SQS + nhãn trong bảng E2, ma trận chế độ, kỹ năng AI không có BSS", () => {
+    E6.evo = evo;
+    render(<EvidenceLedgerTab />);
+    expect(screen.getByTestId("tab4-kpi-signals").textContent).toContain("SQS TB 50");
+    expect(screen.getByTestId("tab4-kpi-regime").textContent).toContain("Xu hướng tăng");
+    expect(screen.getByTestId("tab4-proposal-inv-log_rvol").textContent).toContain("NGƯỢC chiều");
+    expect(screen.getByTestId("tab4-sqs-log_rvol").textContent).toContain("20");
+    expect(screen.getByTestId("tab4-sqs-log_rvol").textContent).toContain("Ngược chiều");
+    expect(screen.getByTestId("tab4-regime-stealth20").textContent).toContain("−0,030");
+    expect(screen.getByTestId("tab4-ai-skill").textContent).toContain("Chưa tính BSS");
+    expect(screen.getByTestId("elite-ev-log_rvol").textContent).toContain("−0,036"); // ô IC cũ giữ nguyên
+  });
+
+  it("lọc theo tab nguồn: chỉ hiện tín hiệu của tab chọn; bỏ lọc hiện lại tất cả", () => {
+    E6.evo = evo;
+    render(<EvidenceLedgerTab />);
+    const buttons = [...screen.getByTestId("tab4-tab-filter").querySelectorAll("button")];
+    expect(buttons[0].textContent).toBe("Tất cả (2)");
+    fireEvent.click(buttons[1]);
+    expect(screen.getByTestId("elite-ic-table").querySelectorAll("tbody tr").length).toBe(2); // cả 2 tín hiệu mẫu cùng "Siêu quét AI"
+    fireEvent.click(buttons[0]);
+    expect(buttons[0].getAttribute("aria-pressed")).toBe("true");
   });
 });
