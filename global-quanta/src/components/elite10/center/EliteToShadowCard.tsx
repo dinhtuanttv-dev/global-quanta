@@ -12,7 +12,7 @@ export default function EliteToShadowCard() {
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-to-shadow">
       <div className="flex flex-wrap items-center gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Sổ ảo Elite 10 × Săn cổ tức</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Sổ ảo Elite 10 × Săn cổ tức</h4>
         <span className="rounded border border-sky-400/40 px-1.5 text-[10px] font-semibold text-sky-300">{s?.label ?? "THĂM DÒ"}</span>
         <span className="ml-auto text-[10px] text-slate-500">{s ? `${s.version} · ghi từ ${dm(s.start)} · ${s.days} phiên` : "đang tải…"}</span>
       </div>

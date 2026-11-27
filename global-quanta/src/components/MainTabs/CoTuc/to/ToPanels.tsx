@@ -94,7 +94,7 @@ export function ToSimPanel() {
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <p className="text-[11px] font-bold text-slate-200">📈 Mô phỏng danh mục · tối đa 5 vị thế × 20% vốn · có phí</p>
         <div className="ml-auto flex gap-1">{(["history", "forward"] as const).map((m) => <button key={m} type="button" onClick={() => setMode(m)} data-testid={`to-sim-${m}`}
-          className={`rounded-md border px-2 py-0.5 text-[10.5px] ${mode === m ? "border-amber-400/60 bg-amber-400/15 text-amber-200" : "border-white/10 text-slate-400"}`}>{m === "history" ? "Lịch sử (mô phỏng)" : "Sổ tiến TO-L1"}</button>)}</div>
+          className={`rounded-md border px-2 py-0.5 text-[10.5px] ${mode === m ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400"}`}>{m === "history" ? "Lịch sử (mô phỏng)" : "Sổ tiến TO-L1"}</button>)}</div>
       </div>
       {!sim ? <p className="text-[11px] text-slate-500">Đang tải…</p> : !s || !s.curve.length ? <p className="text-[11px] text-slate-500">{mode === "forward" ? "Sổ tiến chưa có lệnh nào (ghi từ 09/11/2026)." : "Chưa có dữ liệu."}</p> : <>
         <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] md:grid-cols-6" data-testid="to-sim-stats">

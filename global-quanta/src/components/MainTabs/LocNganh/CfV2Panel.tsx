@@ -183,7 +183,7 @@ export function CfV2Panel({ data, sectorNames }: { data: CycleV2Response; sector
               <tr key={k} data-testid="cf2-neighbor-row" className={hl === k || open === k ? 'cf-topk-row--highlighted' : ''}
                 onMouseEnter={() => setHl(k)} onMouseLeave={() => setHl(null)} onClick={() => setOpen(open === k ? null : k)}>
                 <td>{i + 1}</td>
-                <td><b style={{ color: 'var(--gold)' }}>{n.ticker}</b>{n.sameSector ? <span title="Cùng ngành ICB cấp 2"> ●</span> : null}</td>
+                <td><b style={{ color: 'var(--q-accent-strong)' }}>{n.ticker}</b>{n.sameSector ? <span title="Cùng ngành ICB cấp 2"> ●</span> : null}</td>
                 <td>{sectorName(n.sector)}</td>
                 <td data-testid="cf2-neighbor-period">{fmtCfDate(n.start ?? '')} → {fmtCfDate(n.end ?? '')}</td>
                 <td>{simPct(n.similarity)}</td>

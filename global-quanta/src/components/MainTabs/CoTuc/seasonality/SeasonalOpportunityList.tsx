@@ -74,7 +74,7 @@ export function SeasonalOpportunitiesCard({ onSelectTicker }: { onSelectTicker?:
   return (
     <section className="tw-scope rounded-xl p-4" style={CARD} aria-label="Cơ hội mùa vụ KQKD toàn danh mục">
       <div className="flex items-baseline justify-between gap-2 mb-2">
-        <h3 className="text-sm font-semibold text-cyan-400">🗓️ Cơ hội mùa vụ KQKD · toàn danh mục</h3>
+        <h3 className="text-sm font-semibold text-slate-100">🗓️ Cơ hội mùa vụ KQKD · toàn danh mục</h3>
         {data && <span className="text-[10px] text-slate-500">{data.tickers} mã · cập nhật {data.asOf ? new Date(data.asOf).toLocaleDateString('vi-VN') : '—'}</span>}
       </div>
       {loading && <p role="status" className="text-[10.5px] text-slate-500">Đang tải…</p>}

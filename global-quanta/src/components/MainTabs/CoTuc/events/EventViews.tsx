@@ -90,7 +90,7 @@ export function TickerEventsDrawer({ ticker, price, onClose, onOpenProfile }: { 
     <div className="fixed inset-0 z-[60] flex justify-end bg-black/60" role="dialog" aria-modal="true" aria-label={`Sự kiện ${ticker}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} data-testid="ce-drawer">
       <div className="tw-scope h-full w-full max-w-[880px] overflow-y-auto border-l border-white/10 bg-[#0B0F19] p-4 shadow-2xl">
         <header className="mb-3 flex items-start gap-3">
-          <h3 className="flex-1 text-[16px] font-bold text-[#F5CE72]">{ticker} <span className="text-[12px] font-normal text-slate-400">· sự kiện doanh nghiệp & cổ tức</span></h3>
+          <h3 className="flex-1 text-[16px] font-bold text-slate-100">{ticker} <span className="text-[12px] font-normal text-slate-400">· sự kiện doanh nghiệp & cổ tức</span></h3>
           <button type="button" onClick={() => onOpenProfile(ticker)} className="rounded-md border border-white/10 px-2 py-1 text-[11px] text-slate-300">Mở hồ sơ mã</button>
           <button type="button" onClick={onClose} aria-label="Đóng" className="rounded-md border border-white/10 px-2 py-1 text-[12px] text-slate-300">✕</button>
         </header>

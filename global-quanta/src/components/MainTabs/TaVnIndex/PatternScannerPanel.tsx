@@ -25,7 +25,7 @@ function Chip<T extends string>({ value, current, onChange, children, testId }: 
   const on = value === current;
   return (
     <button type="button" onClick={() => onChange(value)} aria-pressed={on} data-testid={testId}
-      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-violet-500/50 bg-violet-500/10 text-violet-200" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+      className={`text-[10px] px-2 py-0.5 rounded-full border transition ${on ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
       {children}
     </button>
   );
@@ -171,7 +171,7 @@ export default function PatternScannerPanel({ onSelectTicker, onOpenVision }: { 
             <tbody className="divide-y divide-slate-800/30">
               {rows.map(({ r, p }) => (
                 <Fragment key={r.ticker}>
-                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-violet-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`}
+                  <tr className={`transition cursor-pointer select-none ${open === r.ticker ? "bg-q-accent/15" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structureRows.byTicker.get(r.ticker))}`}
                     onDoubleClick={() => toggle(r.ticker)} aria-expanded={open === r.ticker} data-testid="pattern-row">
                     <td className="py-1.5">
                       <button type="button" onClick={() => toggle(r.ticker)} onDoubleClick={(e) => e.stopPropagation()}

@@ -88,7 +88,7 @@ export default function MacroEventsPanel() {
   return (
     <div className="rounded-xl border border-white/10 bg-gradient-to-b from-slate-950/80 to-slate-950/60 p-4" data-testid="macro-events">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <div><h3 className="text-xs font-semibold text-amber-300">Sự kiện vĩ mô</h3>
+        <div><h3 className="text-xs font-semibold text-slate-100">Sự kiện vĩ mô</h3>
           <p className="text-[11px] text-slate-400">Tin chính sách tiền tệ, tài khóa, dữ liệu vĩ mô và hạ tầng thị trường — nguồn Event Radar (Gateway).</p></div>
         {data && <span className="text-[10px] tabular-nums text-slate-500">{all.length} tin · cập nhật {data.generatedAt ? new Date(data.generatedAt).toLocaleTimeString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" }) : "—"}</span>}
       </div>

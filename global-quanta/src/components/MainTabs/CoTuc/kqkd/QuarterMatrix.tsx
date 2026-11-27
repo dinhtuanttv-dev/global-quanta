@@ -87,7 +87,7 @@ export default function QuarterMatrix({ d, nextDeadline }: { d: KqkdDetail; next
           <div className="flex gap-1" role="tablist" aria-label="Cách xem">
             {([["quarter", "Theo quý + lũy kế"], ["cumulative", "Lũy kế lũy tiến"]] as [Mode, string][]).map(([m, t]) => (
               <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => setMode(m)} data-testid={`kq-matrix-mode-${m}`}
-                className={`rounded-md border px-2 py-1 font-semibold ${mode === m ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t}</button>
+                className={`rounded-md border px-2 py-1 font-semibold ${mode === m ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t}</button>
             ))}
           </div>
         )}

@@ -94,7 +94,7 @@ export function CockpitStatusBar({ seal, states, today }: { seal: SessionSeal; s
 export function FunnelNotes({ m, onPick, picked }: { m: FunnelModel; onPick: (code: string | null) => void; picked: string | null }) {
   const chip = (key: string, label: string, n: number, tone: string) => (
     <button key={key} type="button" aria-pressed={picked === key} onClick={() => onPick(picked === key ? null : key)} data-testid={`cockpit-reason-${key}`}
-      className={`min-h-[24px] rounded border px-1.5 text-[10px] ${picked === key ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : `border-white/10 ${tone} hover:border-white/25`}`}>{label} · {n}</button>
+      className={`min-h-[24px] rounded border px-1.5 text-[10px] ${picked === key ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : `border-white/10 ${tone} hover:border-white/25`}`}>{label} · {n}</button>
   );
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] px-3 py-2 text-[11px] text-slate-300" data-hl-layer="cockpit" data-testid="cockpit-funnel">
@@ -145,7 +145,7 @@ export function StateMap({ states, sessions, log, highlight, today, onOpenTicker
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3" data-hl-layer="cockpit" data-testid="cockpit-map">
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bản đồ trạng thái</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bản đồ trạng thái</h4>
         <span className="text-[10px] text-slate-500">mỗi mã một trạng thái chính · Danh mục &gt; Vừa ra &gt; Hàng chờ &gt; Chưa giao dịch được &gt; Chờ nền &gt; Ngành phản đối · MÔ TẢ</span>
       </div>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">

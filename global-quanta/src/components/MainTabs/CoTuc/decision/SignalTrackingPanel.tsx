@@ -28,7 +28,7 @@ export function SignalTrackingPanel({ data, className }: { data: SignalTracking;
   return (
     <section className={`tw-scope @container rounded-xl p-4 space-y-3 ${className ?? ''}`} style={CARD} aria-label="Theo dõi hiệu quả tín hiệu thực tế">
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-cyan-400">◆ Theo dõi tín hiệu thực tế</h3>
+        <h3 className="text-sm font-semibold text-slate-100">◆ Theo dõi tín hiệu thực tế</h3>
         <span className="text-[10px] text-slate-500">Ghi khi vào vùng mua · chấm khi tới ngày thoát · CAR so với VN-Index</span>
       </header>
 
@@ -98,7 +98,7 @@ export function SignalTrackingCard({ className }: { className?: string }) {
   if (data) return <SignalTrackingPanel data={data} className={className} />;
   return (
     <section className={`tw-scope rounded-xl p-4 ${className ?? ''}`} style={CARD} aria-label="Theo dõi hiệu quả tín hiệu thực tế">
-      <h3 className="text-sm font-semibold text-cyan-400">◆ Theo dõi tín hiệu thực tế</h3>
+      <h3 className="text-sm font-semibold text-slate-100">◆ Theo dõi tín hiệu thực tế</h3>
       <p role={error ? 'alert' : 'status'} className={`mt-1 text-[10.5px] ${error ? 'text-rose-300' : 'text-slate-500'}`}>
         {loading ? 'Đang tải…' : error ? `Không tải được: ${error}` : 'Chưa có dữ liệu theo dõi.'}
       </p>

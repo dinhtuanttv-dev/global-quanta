@@ -54,7 +54,7 @@ export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision;
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3" data-testid="hl-calendar">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Lịch {HL_CAL_HORIZON} phiên tới · danh mục và hàng chờ</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Lịch {HL_CAL_HORIZON} phiên tới · danh mục và hàng chờ</h4>
         <span className="text-[10px] text-slate-500">{cal ? `${dm(d.date)} → ${dm(cal.endDate)} · ${cal.withProfile}/${cal.tickers} mã có hồ sơ` : "Đang tải…"} · chỉ hiển thị, không đổi danh mục</span>
       </div>
       {!cal ? <p className="text-[11px] italic text-slate-500">Đang tải lịch sự kiện…</p> : byDate.length === 0 ? (

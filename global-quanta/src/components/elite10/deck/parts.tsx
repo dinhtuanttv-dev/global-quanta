@@ -20,7 +20,7 @@ export function DeckPanel({ title, meta, children, testId, className = "" }: { t
   return (
     <section className={`deck-panel rounded-xl p-3 ${className}`} data-testid={testId}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-[11.5px] font-semibold uppercase tracking-[.1em] text-[#F5CE72]" style={{ fontFamily: "var(--font-display)" }}>{title}</h4>
+        <h4 className="text-[11.5px] font-semibold uppercase tracking-[.1em] text-slate-100" style={{ fontFamily: "var(--font-display)" }}>{title}</h4>
         {meta && <span className="text-[10.5px] text-slate-500">{meta}</span>}
       </div>
       {children}

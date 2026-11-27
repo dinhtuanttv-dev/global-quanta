@@ -160,7 +160,7 @@ function CountPicker({ options, pick, onPick }: { options: ElliottState[]; pick:
       <div className="flex flex-wrap gap-1" role="radiogroup" aria-label="Cách đếm vẽ trên biểu đồ">
         {options.map((o, k) => (
           <button key={k} type="button" role="radio" aria-checked={pick === k} onClick={() => onPick(k)} title={o.label} data-testid={`elliott-pick-${k}`}
-            className={`text-[10px] px-1.5 py-0.5 rounded-md border ${pick === k ? "border-amber-500/50 text-amber-300 bg-amber-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
+            className={`text-[10px] px-1.5 py-0.5 rounded-md border ${pick === k ? "border-q-accent/60 text-q-accent-strong bg-q-accent/15" : "border-slate-700 text-slate-400 hover:text-slate-200"}`}>
             {k === 0 ? "Chính" : `Phương án ${k + 1}`}{o.weight != null ? ` · ${Math.round(o.weight * 100)}%` : ""}
           </button>
         ))}
@@ -189,7 +189,7 @@ export default function ElliottWavePanel({ mtf, timeframe, autoOn, oscOn, onTogg
   const cur = isIntra ? intraday : !mtf ? null : timeframe === "W" ? mtf.week : timeframe === "D" ? mtf.day : null;
   const options = cur && cur.wave !== "none" ? [cur, ...(cur.alternates ?? [])] : [];
   const drawn = options[pick] ?? cur;
-  const btn = (on: boolean) => `inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${on ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
+  const btn = (on: boolean) => `inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md border ${on ? "border-q-accent/60 text-q-accent-strong bg-q-accent/15" : "border-slate-700 text-slate-400 hover:text-slate-200"}`;
   return (
     <div style={CARD} className="rounded-xl p-3 space-y-1.5" data-testid="elliott-panel">
       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide flex items-center gap-1 flex-wrap">
@@ -295,7 +295,7 @@ export function ElliottDeepPanel({ mtf, daily, weekly, ticker, onClose }: Detail
         <div className="flex gap-1 ml-auto" role="tablist">
           {(["W", "D"] as const).map((f) => (
             <button key={f} type="button" role="tab" aria-selected={frame === f} onClick={() => setFrame(f)} data-testid={`elliott-frame-${f}`}
-              className={`text-[10px] px-2 py-0.5 rounded-md border ${frame === f ? "border-cyan-500/50 text-cyan-300 bg-cyan-500/10" : "border-slate-700 text-slate-400"}`}>
+              className={`text-[10px] px-2 py-0.5 rounded-md border ${frame === f ? "border-q-accent/60 text-q-accent-strong bg-q-accent/15" : "border-slate-700 text-slate-400"}`}>
               {f === "W" ? "Tuần" : "Ngày"}
             </button>
           ))}

@@ -83,5 +83,5 @@ export default function HlBuyCalendar({ tickers, picked, onPick }: { tickers: re
 
 function TickerBtn({ t, picked, onPick }: { t: string; picked: string | null; onPick: (t: string) => void }) {
   return <button type="button" onClick={() => onPick(t)} aria-pressed={picked === t} data-testid={`hl-buy-cal-pick-${t}`}
-    className={`min-h-[24px] font-bold hover:underline ${picked === t ? "text-[#F5CE72]" : "text-slate-100"}`}>{t}</button>;
+    className={`min-h-[24px] font-bold hover:underline ${picked === t ? "text-q-accent-strong" : "text-slate-100"}`}>{t}</button>;
 }

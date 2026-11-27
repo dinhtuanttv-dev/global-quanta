@@ -37,7 +37,7 @@ export default function ObjectList(p: Props) {
             const sel = x.id === p.selectedId;
             return (
               <li key={x.id} role="option" aria-selected={sel} data-testid="object-row"
-                className={`flex items-center gap-1 rounded px-1.5 py-1 text-[10px] ${sel ? "bg-cyan-500/10 ring-1 ring-cyan-400/40" : "hover:bg-slate-800/50"} ${x.hidden ? "opacity-50" : ""}`}>
+                className={`flex items-center gap-1 rounded px-1.5 py-1 text-[10px] ${sel ? "bg-q-accent/15 ring-1 ring-q-accent/60" : "hover:bg-slate-800/50"} ${x.hidden ? "opacity-50" : ""}`}>
                 {editing === x.id ? (
                   <input autoFocus value={draft} maxLength={40} onChange={(e) => setDraft(e.target.value)} onBlur={() => commit(x.id)}
                     onKeyDown={(e) => { if (e.key === "Enter") commit(x.id); if (e.key === "Escape") setEditing(null); }}

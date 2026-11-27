@@ -41,7 +41,7 @@ export default function EventRadarWorkspace() {
         {SECTIONS.map(([id, label]) => (
           <button key={id} id={`event-workspace-${id}-tab`} type="button" role="tab" aria-selected={section === id}
             aria-controls={`event-workspace-${id}-panel`} tabIndex={section === id ? 0 : -1} onKeyDown={onKeyDown} onClick={() => setSection(id)}
-            className={`rounded px-3 py-2 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${section === id ? "border border-cyan-700/60 bg-cyan-950/40 text-cyan-200" : "border border-white/10 text-slate-400 hover:text-slate-200"}`}>
+            className={`rounded px-3 py-2 text-[11px] font-semibold transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${section === id ? "border border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border border-white/10 text-slate-400 hover:text-slate-200"}`}>
             {label}
           </button>
         ))}

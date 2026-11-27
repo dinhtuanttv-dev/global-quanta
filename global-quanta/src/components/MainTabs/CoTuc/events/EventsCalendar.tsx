@@ -77,7 +77,7 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
       <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Chế độ xem">
         {([["list", "☰ Danh sách"], ["month", "▦ Lịch tháng"], ["gantt", "▬ Gantt mốc"]] as [View, string][]).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={view === k} onClick={() => setView(k)} data-testid={`ce-view-${k}`}
-            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${view === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${view === k ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
         ))}
         {day && <button type="button" onClick={() => setDay(null)} className="ml-2 rounded-full border border-sky-400/50 px-2 py-0.5 text-[11px] text-sky-200" data-testid="ce-day-chip">Ngày {dmy(day)} ✕</button>}
       </div>

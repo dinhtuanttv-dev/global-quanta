@@ -33,9 +33,9 @@ export function ReplayBar({ r }: { r: ReplayControl }) {
   const on = r.index != null;
   const step = (k: number) => r.onChange(Math.min(r.max, Math.max(r.min, (r.index ?? r.max) + k)));
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 ${on ? "bg-amber-500/10 border border-amber-400/30" : ""}`} data-testid="structure-replay">
+    <div className={`flex flex-wrap items-center gap-1.5 rounded-lg px-2 py-1 ${on ? "bg-q-accent/15 border border-q-accent/60" : ""}`} data-testid="structure-replay">
       <button type="button" onClick={() => r.onChange(on ? null : Math.max(r.min, r.max - 60))} aria-pressed={on}
-        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${on ? "text-amber-200 border-amber-400/50" : "text-slate-400 border-slate-700/60"}`}
+        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${on ? "text-q-accent-strong border-q-accent/60" : "text-slate-400 border-slate-700/60"}`}
         title="Xem cấu trúc như tại một phiên trong quá khứ rồi đối chiếu với diễn biến thực tế phía sau">
         <History className="w-3 h-3" /> {on ? "Thoát phát lại" : "Phát lại"}
       </button>
@@ -132,7 +132,7 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
           <span className="px-1 text-[10px] text-slate-500">Lớp vẽ:</span>
           {STRUCTURE_MODES.map((m) => (
             <button key={m.key} type="button" onClick={() => onModeChange(m.key)} title={`Lớp vẽ trên biểu đồ: ${m.hint}`} aria-pressed={mode === m.key} data-structure-mode={m.key}
-              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${mode === m.key ? "bg-cyan-500/20 text-cyan-100" : "text-slate-400 hover:text-slate-200"}`}>{m.label}</button>
+              className={`px-2 py-0.5 rounded text-[10px] font-bold transition ${mode === m.key ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400 hover:text-slate-200"}`}>{m.label}</button>
           ))}
         </span>
         <span className="ml-auto text-[10px] text-slate-500">{replaying ? `phát lại ${doc.asOf}` : doc.asOf} · engine {doc.version}</span>
@@ -142,7 +142,7 @@ export default function Mtf3Panel({ doc, isLoading, error, mode, onModeChange, r
       <div role="tablist" aria-label="Phần của bảng cấu trúc" className="flex flex-wrap gap-1 border-b border-white/5 pb-1">
         {TABS.map((t) => (
           <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)} data-testid={`mtf3-tab-${t.key}`}
-            className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition ${tab === t.key ? "bg-cyan-500/15 text-cyan-100" : "text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
+            className={`px-2.5 py-1 rounded-md text-[10.5px] font-bold transition ${tab === t.key ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
         ))}
       </div>
       <div role="tabpanel">

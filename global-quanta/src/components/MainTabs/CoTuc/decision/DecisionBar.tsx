@@ -77,7 +77,7 @@ export function DecisionBar({ state, className }: { state: DecisionSnapshot; cla
       aria-label={`Trạng thái quyết định — ${state.ticker}`}
     >
       <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-cyan-400">
+        <h3 className="text-sm font-semibold text-slate-100">
           ◆ Trạng thái quyết định <span className="font-mono text-slate-100">{state.ticker}</span>
         </h3>
         <span className="text-[10px] text-slate-500">
@@ -205,7 +205,7 @@ export function DecisionBarCard({ ticker, className }: { ticker: string; classNa
       : `Chưa có trạng thái quyết định cho ${ticker} — bộ máy chỉ tính cho danh mục cổ tức theo dõi (cập nhật mỗi sáng).`;
   return (
     <section className={`tw-scope rounded-xl p-4 ${className ?? ''}`} style={CARD} aria-label="Trạng thái quyết định">
-      <h3 className="text-sm font-semibold text-cyan-400">◆ Trạng thái quyết định <span className="font-mono text-slate-100">{ticker}</span></h3>
+      <h3 className="text-sm font-semibold text-slate-100">◆ Trạng thái quyết định <span className="font-mono text-slate-100">{ticker}</span></h3>
       <p role={error ? 'alert' : 'status'} data-testid="decision-empty" className={`mt-1 text-[10.5px] ${error ? 'text-rose-300' : 'text-slate-500'}`}>{msg}</p>
     </section>
   );

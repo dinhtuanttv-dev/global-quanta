@@ -117,7 +117,7 @@ export default function DecisionPulse({ d, history, onOpenTicker }: { d: EliteDe
   return (
     <section id="decision-pulse" className="rounded-lg border border-white/10 border-l-[3px] border-l-[#E8B84B] bg-[#0E131F] px-3 py-2.5 text-[11.5px]" aria-label="Nhịp quyết định hôm nay" data-hl-layer="pulse" data-testid="decision-pulse">
       <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h4 className="text-[11px] font-bold uppercase tracking-[.12em] text-[#F5CE72]" style={{ fontFamily: "var(--font-display)" }}>Nhịp quyết định hôm nay</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-[.12em] text-slate-100" style={{ fontFamily: "var(--font-display)" }}>Nhịp quyết định hôm nay</h4>
         <span className="text-[10.5px] text-slate-400" data-testid="pulse-baseline">{vm.session.prevDate ? `so với phiên ${fmtDate(vm.session.prevDate)}` : "phiên dựng đầu tiên"}</span>
         <Chip s={vm.overall} id="overall" />
         {vm.overallWhy.length > 0 && <span className="text-[10.5px] text-slate-400" data-testid="pulse-why">· {vm.overallWhy.join(" · ")}</span>}

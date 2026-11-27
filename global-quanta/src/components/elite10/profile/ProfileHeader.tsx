@@ -48,7 +48,7 @@ export default function ProfileHeader({ ticker, view, onView }: { ticker: string
         {PROFILE_VIEWS.map((x) => (
           <button key={x.id} type="button" role="tab" aria-selected={view === x.id} tabIndex={view === x.id ? 0 : -1} ref={(el) => { refs.current[x.id] = el; }}
             onKeyDown={onKey} onClick={() => onView(x.id)} data-testid={`profile-view-${x.id}`}
-            className={`min-h-[28px] rounded border px-3 text-[11px] font-bold ${view === x.id ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:border-white/25 hover:text-slate-200"}`}>{x.label}</button>
+            className={`min-h-[28px] rounded border px-3 text-[11px] font-bold ${view === x.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:border-white/25 hover:text-slate-200"}`}>{x.label}</button>
         ))}
       </div>
     </div>

@@ -203,7 +203,7 @@ export default function TechnicalFilterPanel({ strategy, onSelectTicker, onOpenV
               {data.results.map((result) => (
                 <Fragment key={result.ticker}>
                 <tr
-                  className={`transition cursor-pointer select-none ${open === result.ticker ? "bg-cyan-500/10" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structure.byTicker.get(result.ticker))}`}
+                  className={`transition cursor-pointer select-none ${open === result.ticker ? "bg-q-accent/15" : "hover:bg-slate-800/30"} ${alignRowClass(alignOn, structure.byTicker.get(result.ticker))}`}
                   onDoubleClick={() => toggle(result.ticker)}
                   aria-expanded={open === result.ticker}
                   data-testid="filter-row"

@@ -32,7 +32,7 @@ export function Block({ title, right, children, testId }: { title: string; right
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3" data-testid={testId}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">{title}</h4>
         {right}
       </div>
       {children}

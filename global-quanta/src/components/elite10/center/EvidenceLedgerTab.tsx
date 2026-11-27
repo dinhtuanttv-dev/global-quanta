@@ -191,7 +191,7 @@ function LedgerSection({ ledger, error, title, hl, testId }: { ledger: EliteLedg
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">{title}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">{title}</h4>
         {ledger && <span className="text-[10px] text-slate-400">{ledger.version} · cập nhật {ledger.updatedAt ? new Date(ledger.updatedAt).toLocaleString("vi-VN", { hour12: false }) : "—"}</span>}
       </div>
       {!ledger ? (error
@@ -272,7 +272,7 @@ export default function EvidenceLedgerTab() {
       <EliteToShadowCard />
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bằng chứng từng tín hiệu (E2)</h4>
+          <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bằng chứng từng tín hiệu (E2)</h4>
           <span className="text-[10px] text-slate-500">{ev.version} · đo tới phiên {fmtDate(ev.calendarLast)} · {ev.tests} phép thử BH · A {ev.counts.A} · B {ev.counts.B} · C {ev.counts.C}</span>
         </div>
         <p className="text-[10.5px] text-slate-400">
@@ -303,12 +303,12 @@ export default function EvidenceLedgerTab() {
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
         <RetroSection r={retro} />
       </section>
 
       <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
         <RetroV3Section r={retroV3} />
       </section>
 

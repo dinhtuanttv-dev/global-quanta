@@ -72,7 +72,7 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
     <section className="tw-scope cf-panel space-y-3 rounded-xl p-4" aria-label="Chất lượng KQKD" data-testid="eq-panel">
       <header className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-[14px] font-bold text-[#F5CE72]">🏆 Chất lượng KQKD — {data.latestQuarter ?? "—"}</h3>
+          <h3 className="text-[14px] font-bold text-slate-100">🏆 Chất lượng KQKD — {data.latestQuarter ?? "—"}</h3>
           <p className="text-[11px] text-slate-400">Bất ngờ chuẩn hoá (SUE / SUR), tăng trưởng có kiểm soát nền thấp, biên lợi nhuận và độ bền tăng trưởng · BCTC quý VNDirect, chỉ quý đã công bố tới {data.asOf.split("-").reverse().join("/")}</p>
         </div>
         <span className="rounded border border-slate-500/40 px-2 py-0.5 text-[10px] font-bold text-slate-300" title={data.method.noteVi}>{data.version} · {data.label}</span>
@@ -95,7 +95,7 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
             const n = data.rows.filter(f.test).length;
             return (
               <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} title={f.title} data-testid={`eq-filter-${f.id}`} onClick={() => { setFilter(f.id); setLimit(PAGE); }}
-                className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${filter === f.id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
+                className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${filter === f.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>
                 {f.label} <span className="font-mono text-slate-500">{n}</span>
               </button>
             );

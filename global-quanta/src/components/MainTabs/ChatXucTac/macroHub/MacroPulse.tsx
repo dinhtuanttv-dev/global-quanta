@@ -32,7 +32,7 @@ export default function MacroPulse() {
   return (
     <section aria-labelledby="mh-pulse" className="scroll-mt-4">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id="mh-pulse" className="text-xs font-semibold text-amber-300">Nhịp vĩ mô</h3>
+        <h3 id="mh-pulse" className="text-xs font-semibold text-slate-100">Nhịp vĩ mô</h3>
         {data && <span className="text-[10px] text-slate-500" data-testid="pulse-coverage">Có số liệu tự động {cover.have}/{cover.total} biến · tháng đã đóng</span>}
       </div>
       {error && <p role="alert" className="text-[11px] text-rose-300">Không tải được số liệu vĩ mô: {error.message}</p>}

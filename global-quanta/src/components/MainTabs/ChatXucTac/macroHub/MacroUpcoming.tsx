@@ -29,7 +29,7 @@ export default function MacroUpcoming() {
   const rows = upcomingEvents(data);
   return (
     <section aria-labelledby="mh-calendar" className="scroll-mt-4 rounded-xl border border-white/10 bg-slate-950/70 p-4" data-testid="macro-upcoming">
-      <h3 id="mh-calendar" className="text-xs font-semibold text-amber-300">Lịch vĩ mô sắp tới</h3>
+      <h3 id="mh-calendar" className="text-xs font-semibold text-slate-100">Lịch vĩ mô sắp tới</h3>
       <p className="mb-2 text-[11px] text-slate-400">Công bố số liệu và họp chính sách trong 60 ngày tới.</p>
       {error && <p role="alert" className="text-[11px] text-rose-300">Không tải được lịch vĩ mô: {error.message}</p>}
       {isLoading && !data && <p className="text-[11px] text-slate-400">Đang tải…</p>}

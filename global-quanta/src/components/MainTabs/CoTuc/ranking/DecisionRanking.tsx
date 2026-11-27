@@ -37,7 +37,7 @@ export function DecisionRanking({ onSelectTicker }: { onSelectTicker?: (t: strin
       style={{ background: 'rgba(13,17,26,0.75)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <header className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h3 className="text-sm font-semibold text-cyan-400">🎯 Xếp hạng điểm tổng hợp — toàn danh mục <span className="font-normal text-[10px] text-amber-300" title="Điểm tổng hợp có ngưỡng 50% / 60% — chưa hiệu chuẩn thành xác suất thật">chưa hiệu chuẩn</span></h3>
+          <h3 className="text-sm font-semibold text-slate-100">🎯 Xếp hạng điểm tổng hợp — toàn danh mục <span className="font-normal text-[10px] text-amber-300" title="Điểm tổng hợp có ngưỡng 50% / 60% — chưa hiệu chuẩn thành xác suất thật">chưa hiệu chuẩn</span></h3>
           <p className="text-[10.5px] text-slate-500">
             Từ bộ máy quyết định (chu kỳ cổ tức + mùa vụ KQKD + thị trường + thanh khoản) · {states.length} mã đã quét
             {asOf ? ` · cập nhật ${new Date(asOf).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : ''}

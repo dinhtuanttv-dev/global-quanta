@@ -75,7 +75,7 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
     <section className={panel} aria-labelledby="esa-panel-title">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id="esa-panel-title" className="text-xs font-semibold tracking-wide text-cyan-200">ESA · Cảnh báo bất thường intraday</h3>
+          <h3 id="esa-panel-title" className="text-xs font-semibold tracking-wide text-slate-100">ESA · Cảnh báo bất thường intraday</h3>
           <p className={`${muted} mt-1`}>Đối chiếu volume lũy kế với cùng thời điểm ở các phiên trước; đây chưa phải dự báo giá.</p>
         </div>
         <div className="flex items-center gap-2">

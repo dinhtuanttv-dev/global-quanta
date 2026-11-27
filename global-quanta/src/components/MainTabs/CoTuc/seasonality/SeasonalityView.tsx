@@ -166,7 +166,7 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
       <div className="tw-scope flex flex-wrap gap-1" role="tablist" aria-label="Chế độ Mùa vụ KQKD">
         {([["ticker", "Theo mã"], ["map", "🗺 Bản đồ toàn thị trường"], ["ledger", "📒 Sổ theo dõi"]] as [Mode, string][]).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} data-testid={`season-mode-${k}`}
-            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${mode === k ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${mode === k ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
         ))}
       </div>
       {mode === "map" && <SeasonMapBoard onOpen={openTicker} />}

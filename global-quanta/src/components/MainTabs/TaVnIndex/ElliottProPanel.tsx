@@ -158,14 +158,14 @@ export default function ElliottProPanel({ ticker, timeframe, tree, scenarios, da
         <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
           {ELLIOTT_PRO_MODES.map((m) => (
             <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} onClick={() => onMode(m.id)} data-testid={`elliott-pro-panel-mode-${m.id}`}
-              className={`text-[10px] px-1.5 py-0.5 rounded border ${mode === m.id ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
+              className={`text-[10px] px-1.5 py-0.5 rounded border ${mode === m.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
           ))}
         </span>
       </div>
       <div className="flex flex-wrap gap-1 border-b border-slate-800 pb-1" role="tablist">
         {TABS.map((t) => (
           <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} data-testid={`elliott-pro-tab-${t.id}`}
-            className={`text-[10px] px-2 py-0.5 rounded-md ${tab === t.id ? "bg-slate-800 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
+            className={`text-[10px] px-2 py-0.5 rounded-md ${tab === t.id ? "bg-slate-800 text-q-accent-strong" : "text-slate-400 hover:text-slate-200"}`}>{t.label}</button>
         ))}
       </div>
 

@@ -43,7 +43,7 @@ export default function AiBrainCard({ ticker = null, compact = false, testId = "
   const { data, error, isLoading } = useAiRoomLedger(ticker, !notStock);
   if (notStock) return (
     <section className="tw-scope space-y-1 text-[11.5px] text-slate-200" data-testid={testId} aria-label="Bộ não Phòng họp AI — sổ phán quyết">
-      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bộ não Phòng họp AI · sổ phán quyết</h3>
+      <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bộ não Phòng họp AI · sổ phán quyết</h3>
       <p className="text-slate-300">{ticker} là chỉ số / mã ngoài vũ trụ cổ phiếu — Phòng họp AI chỉ phân tích cổ phiếu, nên không có bản ghi.</p>
     </section>
   );
@@ -53,7 +53,7 @@ export default function AiBrainCard({ ticker = null, compact = false, testId = "
   return (
     <section className="tw-scope space-y-2 text-[11.5px] text-slate-200" data-testid={testId} aria-label="Bộ não Phòng họp AI — sổ phán quyết">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Bộ não Phòng họp AI · sổ phán quyết</h3>
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bộ não Phòng họp AI · sổ phán quyết</h3>
         {s && <span className={`rounded border px-1.5 py-0.5 text-[10.5px] ${enough ? "border-amber-300/50 text-amber-100" : "border-white/20 text-slate-300"}`}>{s.label}</span>}
       </div>
       {error && <p className="text-amber-200">Chưa đọc được sổ phán quyết từ Gateway.</p>}

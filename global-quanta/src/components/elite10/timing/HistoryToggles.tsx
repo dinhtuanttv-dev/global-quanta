@@ -7,7 +7,7 @@ export default function HistoryToggles({ dates, visible, preset, custom, onPrese
   dates: string[]; visible: Set<string>; preset: HistPreset; custom: boolean;
   onPreset: (p: HistPreset) => void; onToggle: (date: string) => void; total: number;
 }) {
-  const chip = (on: boolean) => `min-h-[24px] rounded border px-1.5 text-[10px] ${on ? "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-500 hover:text-slate-300"}`;
+  const chip = (on: boolean) => `min-h-[24px] rounded border px-1.5 text-[10px] ${on ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-500 hover:text-slate-300"}`;
   return (
     <div className="mt-2 flex flex-col gap-1" data-testid="history-toggles">
       <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Chọn nhanh đợt lịch sử hiển thị">

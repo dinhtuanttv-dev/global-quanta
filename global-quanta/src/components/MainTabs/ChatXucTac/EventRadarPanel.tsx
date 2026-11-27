@@ -110,7 +110,7 @@ function RadarPlot({ events, selectedId, onSelect }: {
   const colorFor = (event: EventRadarEvent) => event.severityScore >= 4 ? "#fb7185" : event.severityScore >= 3 ? "#fbbf24" : event.severityScore >= 2 ? "#22d3ee" : "#94a3b8";
   return <div className="overflow-hidden rounded-xl border border-cyan-900/50 bg-[#07111f] p-3 shadow-[inset_0_0_42px_rgba(8,145,178,0.08)]">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><h3 className="text-xs font-semibold tracking-wide text-cyan-100">RADAR 2D · mức chú ý × đối chiếu nguồn</h3>
+      <div><h3 className="text-xs font-semibold tracking-wide text-slate-100">RADAR 2D · mức chú ý × đối chiếu nguồn</h3>
         <p className="mt-1 text-[10px] leading-relaxed text-slate-400">Định vị heuristic để ưu tiên rà soát; không phải xác suất tác động hay dự báo giá. Chọn điểm để mở sự kiện.</p></div>
       <span className="rounded border border-cyan-800/60 bg-cyan-950/50 px-2 py-1 text-[10px] text-cyan-200">{plotted.length}/{events.length} sự kiện</span>
     </div>
@@ -190,7 +190,7 @@ export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (
 
   return <section className="space-y-3" aria-labelledby="event-radar-heading">
     <div className="flex flex-wrap items-start justify-between gap-2">
-      <div><h2 id="event-radar-heading" className="text-sm font-semibold text-amber-300">Event Radar · Sự kiện → phản ứng → drift</h2>
+      <div><h2 id="event-radar-heading" className="text-sm font-semibold text-slate-100">Event Radar · Sự kiện → phản ứng → drift</h2>
         <p className="mt-1 max-w-3xl text-[10px] leading-relaxed text-slate-400">Tổng hợp tin và công bố có gắn nguồn; mức độ chú ý là bộ lọc heuristic, không phải xác suất tác động hay khuyến nghị giao dịch.</p></div>
       <button type="button" onClick={() => void refreshSources()} disabled={refreshingSources} className="rounded border border-white/10 px-2.5 py-1.5 text-[10px] text-slate-300 disabled:opacity-50">{refreshingSources ? "Đang quét nguồn…" : "Cập nhật nguồn"}</button>
     </div>
@@ -218,7 +218,7 @@ export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (
     {events.length > 0 && <div className="grid gap-3 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
       <RadarPlot events={events} selectedId={selectedId} onSelect={setSelectedId} />
       <div className="max-h-[620px] space-y-2 overflow-y-auto pr-1" aria-label="Danh sách sự kiện Radar">
-        {events.map((event) => <div key={event.eventId} id={`event-${event.eventId}`} className={event.eventId === selectedId ? "rounded-xl ring-1 ring-cyan-400/70" : "rounded-xl"}>
+        {events.map((event) => <div key={event.eventId} id={`event-${event.eventId}`} className={event.eventId === selectedId ? "rounded-xl ring-1 ring-q-accent/60" : "rounded-xl"}>
           <EventCard event={event} onAnalyzeEvent={onAnalyzeEvent} />
         </div>)}
       </div>

@@ -121,7 +121,7 @@ function StockModal({ s, onClose, realRs, livePrice }: {
 
         <div className="flex items-center justify-between p-5 border-b border-cf-border/60">
           <div className="flex items-center gap-3">
-            <span id="stock-modal-title" className="text-2xl font-black text-cf-gold">{s.ticker}</span>
+            <span id="stock-modal-title" className="text-2xl font-semibold text-q-accent-strong">{s.ticker}</span>
             <div>
               <p className="text-xs font-bold text-cf-primary">{s.name}</p>
               <p className="text-[10px] text-cf-tertiary">{s.sector}</p>
@@ -154,7 +154,7 @@ function StockModal({ s, onClose, realRs, livePrice }: {
           {(["overview", "flags", "events", "seasonality"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)} data-testid={`modal-tab-${t}`}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
-                ${modalTab === t ? "border-amber-500 text-cf-gold" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
+                ${modalTab === t ? "border-q-accent/60 text-q-accent-strong" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
               {t === "overview" ? "📊 Tổng Quan" : t === "flags" ? "⚠️ Rủi Ro" : t === "events" ? "📅 Sự kiện & cổ tức" : "📊 Mùa vụ KQKD"}
             </button>
           ))}
@@ -416,7 +416,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
 
       <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-cf-border/60">
         <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5 font-display">
-          <Coins className="w-4 h-4 text-cf-gold" /> Phân Tích Cơ Bản <span className="ml-1 text-[11px] font-semibold normal-case text-cf-tertiary">Kết quả kinh doanh · Cổ tức · Timeline điểm mua</span>
+          <Coins className="w-4 h-4 text-q-accent-strong" /> Phân Tích Cơ Bản <span className="ml-1 text-[11px] font-semibold normal-case text-cf-tertiary">Kết quả kinh doanh · Cổ tức · Timeline điểm mua</span>
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
           {dsDoc
@@ -471,7 +471,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
             </p>
             <div className="flex flex-wrap gap-1.5">
               {requested.map((t) => (
-                <span key={t} className="text-[10px] font-bold text-cf-gold/80 bg-amber-950/20 px-2 py-1 rounded-lg border border-amber-800/30 flex items-center gap-1.5">
+                <span key={t} className="text-[10px] font-semibold text-q-accent-strong bg-q-accent/10 px-2 py-1 rounded-lg border border-q-accent/30 flex items-center gap-1.5">
                   {t}
                   <button onClick={() => removeRequested(t)} aria-label={`Bỏ yêu cầu ${t}`} className="text-cf-tertiary hover:text-cf-negative">✕</button>
                 </span>
@@ -482,11 +482,11 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
       </div>
       {pinnedStocks.length > 0 && (
         <div className="cf-banner-gold-soft rounded-xl p-3">
-          <p className="text-[10px] font-bold text-cf-gold uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
+          <p className="text-[10px] font-semibold text-slate-200 uppercase mb-2 flex items-center gap-1"><Star className="w-3 h-3" fill="currentColor" /> Đã ghim ({pinnedStocks.length})</p>
           <div className="flex flex-wrap gap-2">
             {pinnedStocks.map((s) => (
               <button key={s.ticker} onClick={() => handleSelect(s)}
-                className="text-[10px] font-black text-cf-gold bg-cf-base/60 px-2.5 py-1 rounded-lg border border-amber-800/40">
+                className="text-[10px] font-semibold text-q-accent-strong bg-cf-base/60 px-2.5 py-1 rounded-lg border border-q-accent/40">
                 {s.ticker}
               </button>
             ))}

@@ -19,7 +19,7 @@ export default function FlowBenchmarkPanel() {
   return (
     <section className="space-y-2 rounded-lg border border-white/10 bg-[#0E131F] p-3" data-testid="flow-benchmark">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[#F5CE72]">Danh mục đối chứng — Elite dòng tiền (E3, xếp theo Điểm Elite Z)</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Danh mục đối chứng — Elite dòng tiền (E3, xếp theo Điểm Elite Z)</h4>
         <span className="text-[10px] text-slate-500">{d.flowVersion ?? "E3"} · phiên {fmtDate(d.date)}</span>
       </div>
       <p className="text-[10.5px] text-slate-400" data-testid="flow-benchmark-note">

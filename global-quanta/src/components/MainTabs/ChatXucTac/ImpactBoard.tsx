@@ -36,7 +36,7 @@ function Card({ title, tag, children, testId }: { title: string; tag?: React.Rea
 function AskButton({ onClick, label = "Hỏi AI" }: { onClick: () => void; label?: string }) {
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
-      style={{ border: "1px solid rgba(232,184,75,0.4)", color: "var(--gold-bright, #e8b84b)", background: "transparent" }}>
+      style={{ border: "1px solid var(--q-accent-line)", color: "var(--q-accent-strong)", background: "var(--q-accent-soft)" }}>
       <MessageSquare className="w-3 h-3" />{label}
     </button>
   );

@@ -75,7 +75,7 @@ export default function Elite10Hub() {
             tabIndex={sub === s.id ? 0 : -1} ref={(el) => { refs.current[s.id] = el; }} onKeyDown={onKey} onClick={() => setSub(s.id)}
             style={{
               padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--gold-bright)" : "2px solid transparent",
-              background: "transparent", color: sub === s.id ? "var(--gold-bright)" : "var(--text-secondary)",
+              background: "transparent", color: sub === s.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
             }}
           >{s.label}</button>
@@ -93,7 +93,7 @@ export default function Elite10Hub() {
             <div className="tw-scope flex flex-wrap items-center gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
               {([["profile", `Hồ sơ ${current}`], ["screener", "🔎 Bộ lọc Elite"]] as const).map(([m, l]) => (
                 <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} data-testid={`elite-mode-${m}`}
-                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
+                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
               ))}
               {mode === "profile" && <>
                 <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
