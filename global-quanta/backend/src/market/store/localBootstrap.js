@@ -65,6 +65,15 @@ export function createLocalBootstrap({ jobs, store, now = Date.now, log = consol
     },
     /** Gọi lúc khởi động: tự chạy nếu kho cục bộ thiếu dữ liệu. */
     async autoStart() {
+      // 27/11/2026 (a3): lần chạy trước bị ngắt giữa chừng (Railway khởi động lại) để lại trạng thái "running" mãi mãi trên trang
+      // sức khoẻ. Không có lần chạy nào trong tiến trình này -> chốt lại thành "interrupted" (chỉ sửa nhãn, không chạy lại gì).
+      try {
+        const prev = running ? null : (await store.getKv(BOOTSTRAP_KV))?.value;
+        if (prev?.status === "running") {
+          await store.setKv(BOOTSTRAP_KV, { ...prev, status: "interrupted", interruptedAt: new Date(now()).toISOString(),
+            steps: (prev.steps ?? []).map((s) => (s.status === "running" ? { ...s, status: "interrupted" } : s)) });
+        }
+      } catch { /* bỏ qua: chỉ là nhãn trạng thái */ }
       const dates = (await store.getMarketDailyDates()).length;
       const hasScan = Boolean((await store.getKv("scanner:latest"))?.value?.items?.length);
       if (!needsBootstrap({ marketDates: dates, hasScan })) return { skipped: true, dates, hasScan };

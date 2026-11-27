@@ -5,10 +5,16 @@ import { createEventRadarRepository } from "./eventRadarRepository.js";
 import { resolveEntities } from "./entityResolver.js";
 import { stockNameIndexFor } from "./stockNames.js";
 import { KV as SCANNER_KV } from "../scanner/scannerJobs.js";
+import { isTradingDay, vnParts } from "../calendar.js";
 
 const HEALTH_KEY = "event-radar:source-health:v1";
 const EVENT_RETENTION = 2500;
 const POLL_MS = Math.max(60_000, Number(process.env.EVENT_RADAR_POLL_MS) || 5 * 60_000);
+/** 27/11/2026 (b7): nhịp poll theo giờ VN — POLL_MS trong ngày giao dịch 06:00–22:00, gấp đôi ngoài khung. */
+export function eventRadarDelay(now = new Date()) {
+  const { minutes } = vnParts(now);
+  return isTradingDay(now) && minutes >= 6 * 60 && minutes < 22 * 60 ? POLL_MS : POLL_MS * 2;
+}
 const DISCLOSURE_SYMBOL_LIMIT = Math.max(30, Math.min(300, Number(process.env.EVENT_RADAR_DISCLOSURE_SYMBOL_LIMIT) || 120));
 
 const hash = (value) => createHash("sha256").update(String(value ?? "")).digest("hex");
@@ -456,10 +462,16 @@ export function createEventRadar({ service, repository = createEventRadarReposit
     await poll().catch((error) => console.warn(`[event-radar] Poll lỗi: ${error.message}`));
     starting = false;
     if (timer) return;
-    timer = setInterval(() => { void poll().catch((error) => console.warn(`[event-radar] Poll lỗi: ${error.message}`)); }, POLL_MS);
-    timer.unref?.();
+    // 27/11/2026 (b7): lịch tự hẹn — POLL_MS trong ngày giao dịch 06:00–22:00 (giờ VN), gấp đôi ngoài khung (ít tin, không có phiên).
+    const schedule = () => {
+      timer = setTimeout(() => {
+        void poll().catch((error) => console.warn(`[event-radar] Poll lỗi: ${error.message}`)).finally(() => { if (timer) schedule(); });
+      }, eventRadarDelay());
+      timer.unref?.();
+    };
+    schedule();
   }
 
-  return { poll, refreshNow, list, getEvent, start, stop: () => { clearInterval(timer); timer = undefined; }, status: () => ({ enabled, lastPollAt: lastPollAt ? new Date(lastPollAt).toISOString() : null, intervalMs: POLL_MS, running: Boolean(inFlight) }) };
+  return { poll, refreshNow, list, getEvent, start, stop: () => { clearTimeout(timer); timer = undefined; }, status: () => ({ enabled, lastPollAt: lastPollAt ? new Date(lastPollAt).toISOString() : null, intervalMs: POLL_MS, running: Boolean(inFlight) }) };
 }
 

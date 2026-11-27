@@ -10,6 +10,8 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 COPY src ./src
 EXPOSE 4000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD node -e "fetch('http://localhost:'+(process.env.PORT||4000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "src/server.js"]
+# 27/11/2026 (a1): bỏ HEALTHCHECK của Docker — mỗi 30 s khởi một tiến trình Node mới chỉ để gọi /health. Railway kiểm sức khoẻ
+# bằng cấu hình riêng của dịch vụ (Healthcheck Path), không cần chỉ thị này.
+# 27/11/2026 (b1): trần heap 640 MB (mặc định của Node trên máy chủ này ~1,58 GB) để V8 thu gom sớm hơn, giữ RSS thấp hơn. Đỉnh đo
+# được dưới tải: 200–340 MB (sau sửa OOM 23/10) -> còn dư gần gấp đôi. Worker (vĩ mô, thế giới, chu kỳ, job QMS) có heap riêng.
+CMD ["node", "--max-old-space-size=640", "src/server.js"]

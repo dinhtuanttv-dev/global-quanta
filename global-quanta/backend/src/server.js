@@ -59,7 +59,7 @@ import { createResearchRoom } from "./market/elite/researchRoom.js";
 import { loadVolumeAnalysis, getVolumeAnalysis } from "./market/scanner/volumeService.js";
 import { createResearchAutonomy, historicalPrices, selectSessionProjection } from "./market/elite/researchAutonomy.js";
 import { createAiRoomLedger } from "./market/elite/aiRoomLedger.js";
-import { isTradingDay, lastCompletedSessionDate, vnDate } from "./market/calendar.js";
+import { isTradingDay, lastCompletedSessionDate, vnDate, vnParts } from "./market/calendar.js";
 import { sharedEgressMeter, withDbTag } from "./market/store/egressMeter.js";
 import { createDbBudgetRouter, startDbBudgetPersistence } from "./routes/dbBudget.js";
 import { createAuthRouter } from "./routes/auth.js";
@@ -597,10 +597,19 @@ if (process.env.NODE_ENV !== "test") {
   };
   const rt = getMarketRuntime();
   const refreshRoom = () => rt.started && getResearchAutonomy().tick().catch((e) => console.warn("[ai-room] " + e.message));
+  // 27/11/2026 (b7): vòng nền mỗi 30 s trong ngày giao dịch 08:30–17:30; ngoài khung chỉ chạy mỗi 2 phút (vai AI vốn chờ lùi theo phút).
+  let roomLastAt = 0;
+  const refreshRoomPaced = () => {
+    const t = new Date(), { minutes } = vnParts(t);
+    const busy = isTradingDay(t) && minutes >= 8 * 60 + 30 && minutes < 17 * 60 + 30;
+    if (!busy && Date.now() - roomLastAt < 120_000) return;
+    roomLastAt = Date.now();
+    return refreshRoom();
+  };
   rt.jobs.publishEliteDecision = async () => { await eliteTick(); void refreshRoom(); void getAiRoomLedger().score(); };
   const eliteTagged = () => rt.scheduler.run("publishEliteDecision").catch((e) => console.warn("[elite] " + e.message));
   setTimeout(refreshRoom, 5_000).unref?.();
-  setInterval(refreshRoom, 30_000).unref?.();
+  setInterval(refreshRoomPaced, 30_000).unref?.();
   setTimeout(eliteTagged, 120_000).unref?.();
   setInterval(eliteTagged, 10 * 60_000).unref?.();
 }

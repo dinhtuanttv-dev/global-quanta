@@ -30,7 +30,8 @@ export function createStore() {
     const inner = createSupabaseStore({ warehouse: warehouseFromEnv() });
     const dir = localDirFromEnv();
     if (!dir) return inner; // tắt bằng MARKET_LOCAL_STORE=off, hoặc không gắn volume (chạy local) -> như trước
-    return createLocalFirstStore({ local: createLocalStore({ dir, ramMb: Number(process.env.MARKET_LOCAL_RAM_MB) || 96 }), inner });
+    return createLocalFirstStore({ local: createLocalStore({ dir, ramMb: Number(process.env.MARKET_LOCAL_RAM_MB) || 96 }), inner,
+      replica: String(process.env.MARKET_REPLICA ?? "on").toLowerCase() !== "off" });
   }
   return createMemoryStore();
 }

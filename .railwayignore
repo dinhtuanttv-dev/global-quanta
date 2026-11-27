@@ -1,0 +1,8 @@
+# 27/11/2026 (a4): `railway up` chạy từ gốc repo — chỉ tải phần Gateway cần để build (Dockerfile chép package*.json + src).
+# Không ảnh hưởng Vercel (Vercel build từ Git, không đọc tệp này).
+.github/
+global-quanta/*
+!global-quanta/backend/
+global-quanta/backend/test/
+global-quanta/backend/scripts/
+global-quanta/backend/node_modules/
