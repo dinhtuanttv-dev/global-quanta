@@ -44,7 +44,7 @@ export default function MarketView({ activeSector, onSector, onIndustry }: {
   const focusSector = useAppStore((s) => s.focusSector);
   const openSector = useCallback((code: string) => { focusSector(code); navigateTab?.("Loc nganh"); }, [focusSector, navigateTab]);
   const jump = (id: string) => document.getElementById(id)?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-  const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
+  const box = { background: "var(--ov-surface, #0e131f)", border: "1px solid var(--ov-line-2, rgba(255,255,255,0.1))" };
 
   return (
     <div className="flex flex-col gap-4" data-testid="overview-market">

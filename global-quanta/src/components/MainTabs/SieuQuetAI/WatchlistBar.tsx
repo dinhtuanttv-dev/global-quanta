@@ -12,9 +12,9 @@ export function BasketSummary({ items, title }: { items: SieuQuetStockItem[]; ti
   if (!s.n) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mb-2 px-2 py-1 rounded" style={{ background: "rgba(34,211,238,0.05)", border: "1px solid rgba(34,211,238,0.12)" }}>
-      <span className="text-cyan-200 font-semibold">{title}</span>
+      <span className="text-slate-100 font-semibold">{title}</span>
       <span>{s.n} mã{s.outside ? ` (${s.outside} ngoài universe)` : ""}</span>
-      <span>Smart TB <b className="text-amber-400">{fmt1(s.avgSmart)}</b></span>
+      <span>Smart TB <b className="text-slate-100">{fmt1(s.avgSmart)}</b></span>
       <span title="Điểm cơ bản / kỹ thuật trung bình">FA {fmt1(s.avgFa)} · TA {fmt1(s.avgTa)}</span>
       <span>RS TB {fmt1(s.avgRs)}</span>
       <span title="Số mã Up-Trend (giá > MA20 > MA50)">▲ Up-Trend {s.upTrend}/{s.n}</span>
@@ -53,7 +53,7 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
           <input autoFocus defaultValue={wl.active.name} aria-label="Tên danh mục"
             onBlur={(e) => { wl.rename(e.target.value); setRenaming(false); }}
             onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") setRenaming(false); }}
-            className="text-[10px] bg-black/40 border border-cyan-500/50 rounded px-2 py-1 text-slate-200 w-36 outline-none" />
+            className="text-[10px] bg-black/40 border border-q-accent/50 rounded px-2 py-1 text-slate-200 w-36 outline-none" />
         ) : (
           <select value={wl.active.id} onChange={(e) => wl.setActive(e.target.value)} aria-label="Chọn danh mục"
             className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-200 max-w-[160px]">
@@ -66,8 +66,8 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
           onClick={() => { if (window.confirm(`Xoá danh mục "${wl.active.name}"?`)) wl.remove(); }} title="Xoá danh mục">Xoá</button>
         <form className="flex items-center gap-1 ml-auto" onSubmit={(e) => { e.preventDefault(); submit(); }}>
           <input value={text} onChange={(e) => setText(e.target.value)} placeholder="Thêm mã: FPT, HPG, VNM…" aria-label="Thêm mã vào danh mục"
-            className="text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-200 w-44 outline-none focus:border-cyan-500/50" />
-          <button type="submit" className="text-[10px] px-2 py-1 rounded bg-cyan-500/20 text-cyan-200 hover:bg-cyan-500/30">Thêm</button>
+            className="text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-200 w-44 outline-none focus:border-q-accent/60" />
+          <button type="submit" className="text-[11px] px-2 py-1 rounded bg-q-accent/20 text-q-accent-strong hover:bg-q-accent/30">Thêm</button>
         </form>
       </div>
       {wl.active.tickers.length > 0 ? (
@@ -85,7 +85,7 @@ export default function WatchlistBar({ notFound, insufficient, loading, gatewayR
                 {note && <span className="text-slate-500 max-w-[90px] truncate">· {note}</span>}
                 <button type="button" aria-label={`Ghi chú cho ${t}`} title="Ghi chú / lý do theo dõi"
                   onClick={() => { const v = window.prompt(`Ghi chú / lý do theo dõi mã ${t}:`, note ?? ""); if (v !== null) wl.setNote(t, v); }}
-                  className="text-slate-500 hover:text-cyan-300">✎</button>
+                  className="text-slate-500 hover:text-q-accent-strong">✎</button>
                 <button type="button" aria-label={`Bỏ ${t} khỏi danh mục`} onClick={() => wl.removeTicker(t)} className="text-slate-500 hover:text-rose-300">×</button>
               </span>
             );

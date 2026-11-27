@@ -1,5 +1,5 @@
 import { Fragment, memo, type ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Star } from "lucide-react";
 import type { MarketQuote } from "../../../services/marketDataClient";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import type { FlashDir } from "../../../hooks/useBoardQuotes";
@@ -66,7 +66,7 @@ const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onT
   };
   const star = <button type="button" aria-pressed={starred} aria-label={starred ? `Bỏ ${item.ticker} khỏi danh mục` : `Thêm ${item.ticker} vào danh mục`}
     onClick={(e) => { e.stopPropagation(); onStar(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()}
-    className={`scan-star ${starred ? "text-amber-400" : "text-slate-500 hover:text-amber-300"}`}>{starred ? "★" : "☆"}</button>;
+    className="scan-star"><Star aria-hidden fill={starred ? "currentColor" : "none"} /></button>;
   const open = <button type="button" aria-expanded={expanded} aria-label={`${expanded ? "Đóng" : "Mở"} phân tích ${item.ticker}`} data-testid={`board-open-${item.ticker}`}
     title={expanded ? "Đóng phân tích khối lượng" : "Mở phân tích khối lượng"} onClick={(e) => { e.stopPropagation(); onToggle(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()} className="scan-open">
     {expanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}</button>;
@@ -99,7 +99,7 @@ const BoardRow = memo(function BoardRow({ item, q, flash, expanded, starred, onT
       <td className="num text-slate-200 group-start" title={q?.totalVolume ? `${fmtVol(q.totalVolume)} cổ phiếu` : undefined}>{showVol(q?.totalVolume)}</td>
       <td className="num board-hl" style={{ color: priceColor(q?.high, q) }}>{fmtPrice(q?.high)}{pos !== null && <span className="hl-track" title={`Giá nằm ở ${pos.toFixed(0)}% biên cao - thấp của phiên`} aria-hidden><i style={{ left: `${pos}%` }} /></span>}</td>
       <td className="num" style={{ color: priceColor(q?.low, q) }}>{fmtPrice(q?.low)}</td>
-      <td className="num text-amber-400 group-start" title="Smart Score (Siêu Quét AI)">{item.smartScore !== null ? item.smartScore.toFixed(1) : "—"}</td>
+      <td className="num text-slate-100 font-semibold group-start" title="Smart Score (Siêu Quét AI)">{item.smartScore !== null ? item.smartScore.toFixed(1) : "—"}</td>
     </tr>
   );
 });
@@ -126,7 +126,7 @@ function NarrowLadder({ item, q }: { item: SieuQuetStockItem; q: MarketQuote | u
       <div><dt>Thấp</dt><dd style={{ color: priceColor(q?.low, q) }}>{fmtPrice(q?.low) || "—"}</dd></div>
       <div><dt>+/−</dt><dd>{q?.change ? `${q.change > 0 ? "+" : ""}${(q.change / 1000).toFixed(2)}` : "—"}</dd></div>
       <div><dt>Tổng KL</dt><dd>{fmtVol(q?.totalVolume) || "—"}</dd></div>
-      <div><dt>Smart</dt><dd className="text-amber-400">{item.smartScore !== null ? item.smartScore.toFixed(1) : "—"}</dd></div>
+      <div><dt>Smart</dt><dd className="text-slate-100">{item.smartScore !== null ? item.smartScore.toFixed(1) : "—"}</dd></div>
     </dl>
   </td></tr>;
 }
@@ -207,7 +207,7 @@ export default function PricingBoard({ sections, grouped, quotes, flash, now, ex
             {grouped && (
               <tr className="scan-section">
                 <td colSpan={span}>
-                  <span className="text-cyan-200 font-semibold">{name}</span>
+                  <span className="text-slate-100 font-semibold">{name}</span>
                   <span className="text-slate-400"> · {list.length} mã</span>
                 </td>
               </tr>

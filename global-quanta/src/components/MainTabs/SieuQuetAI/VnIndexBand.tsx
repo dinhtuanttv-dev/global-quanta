@@ -43,12 +43,12 @@ export default function VnIndexBand({ indexState, technical = null, impulse = nu
   const risk = riskLevel(intel?.risk);
   const s = indexState;
   const impulseColor = !s ? undefined : s.impulseScore < 35 ? "#f43f5e" : s.impulseScore <= 65 ? "#f59e0b" : "#10b981";
-  const box = { background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" };
+  const box = { background: "var(--ov-surface, #0e131f)", border: "1px solid var(--ov-line-2, rgba(255,255,255,0.1))" };
 
   return (
     <section className="rounded-xl" style={box} aria-label="VN-Index" data-testid={compact ? "vn-band-compact" : "vn-band"}>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-[11px]">
-        <span className="text-sm font-semibold text-cyan-400">VN-Index</span>
+        <span className="text-[13px] font-semibold text-slate-200">VN-Index</span>
         {s ? (
           <>
             <Chip label="Cấu trúc MA" value={s.trendLabel} color={BIAS_COLOR[s.trendBias]} />
@@ -63,11 +63,11 @@ export default function VnIndexBand({ indexState, technical = null, impulse = nu
         )}
         <div className="ml-auto flex items-center gap-3">
           {compact ? (onOpenMarket && <button type="button" onClick={onOpenMarket} data-testid="vn-band-open-market"
-            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40"
+            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-slate-50 hover:border-white/25"
             title="Trung tâm thị trường, Trạng thái thị trường và phân tích VN-Index đầy đủ">Xem phân tích thị trường →</button>) : <>
           {toggle}
           <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-controls="vn-band-detail"
-            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-cyan-200 hover:border-cyan-500/40">
+            className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-slate-300 hover:text-slate-50 hover:border-white/25">
             {open ? "Thu gọn ▴" : "Chi tiết ▾"}
           </button>
           </>}
@@ -77,11 +77,11 @@ export default function VnIndexBand({ indexState, technical = null, impulse = nu
       {!compact && open && (
         <div id="vn-band-detail" className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-12 gap-4 px-4 pb-4">
           <div className="rounded-xl p-4 2xl:col-span-3" style={box}>
-            <h2 className="text-sm font-semibold text-cyan-400 mb-3">Phân Tích Kỹ Thuật VN-Index Đa Tầng</h2>
+            <h2 className="text-[13px] font-semibold text-slate-100 mb-3">Phân Tích Kỹ Thuật VN-Index Đa Tầng</h2>
             {technical}
           </div>
           <div className="rounded-xl p-4 2xl:col-span-3" style={box}>
-            <h2 className="text-sm font-semibold text-blue-400 mb-3">Market Impulse Gauge & Dòng tiền lớn</h2>
+            <h2 className="text-[13px] font-semibold text-slate-100 mb-3">Market Impulse Gauge & Dòng tiền lớn</h2>
             {impulse}
           </div>
           <div className="min-w-0 lg:col-span-2 2xl:col-span-6">{aiPanel ?? <div className="rounded-xl p-4 text-[11px] text-slate-500" style={box}>AI phân tích VN-Index đang ẩn (bật công tắc "AI nghiên cứu").</div>}</div>
