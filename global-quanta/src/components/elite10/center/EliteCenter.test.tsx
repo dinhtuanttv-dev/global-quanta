@@ -41,6 +41,7 @@ const cashGate = {
   ledger: { entries: 1, first: "2026-11-05", last: "2026-11-05" },
 };
 vi.mock("../../../hooks/elite10/useHlLedger", () => ({ useHlLedger: () => ({ data: null }) }));
+vi.mock("../../../hooks/elite10/useEvidenceEvolution", () => ({ useEvidenceEvolution: () => ({ data: undefined }) })); // HS360-v3 H2: không gọi mạng
 vi.mock("../../../hooks/elite10/useEliteCenter", () => ({
   useCashGate: () => ({ data: cashGate, isLoading: false }),
   useEliteRetro: () => ({ data: { horizons: { 5: { ic: { n: 204, mean: 0.031, t: 2.65 } } } } }),
@@ -99,7 +100,8 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
   });
 
   it("hồ sơ: đủ tín hiệu theo tab, bậc hiện hành, giá trị trống không điền số; mã ngoài vũ trụ báo rõ", () => {
-    render(<SignalProfileCard ticker="ORS" />);
+    // HS360-v3 H2: bảng tín hiệu + Điểm Elite ở góc "Tín hiệu"; khoảng cách Elite HL ở góc Tổng quan.
+    render(<SignalProfileCard ticker="ORS" view="signals" />);
     expect(screen.getByTestId("elite-profile-score").textContent).toContain("Trong Elite 10");
     expect(screen.getByTestId("elite-sig-top20_alpha").textContent).toContain("—");
     expect(screen.getByTestId("elite-sig-smart_score").textContent).toContain("Bậc C");
@@ -107,8 +109,11 @@ describe("Elite 10 E4 — Bảng quyết định & Hồ sơ 360°", () => {
     expect(screen.getByTestId("elite-profile").textContent).not.toContain("Thiếu nguồn ở phiên này");
     expect(screen.getByTestId("elite-profile").textContent).toContain("3 tín hiệu từ 2 tab");
     expect(screen.getByTestId("elite-contrib-stealth20").textContent).toContain("+1,2");
+    cleanup();
+    render(<SignalProfileCard ticker="ORS" view="summary" />);
     // G3: khối khoảng cách theo Z (danh mục dòng tiền) đã bỏ; tài liệu cũ không có Elite HL thì không hiện khoảng cách.
     expect(screen.getByTestId("elite-profile-gap").textContent).not.toMatch(/ΔZ|Elite 10/);
+    expect(screen.queryByTestId("elite-signal-table")).toBeNull();
     cleanup();
     render(<SignalProfileCard ticker="VNINDEX" />);
     expect(screen.getByTestId("elite-profile-missing").textContent).toContain("VNINDEX");

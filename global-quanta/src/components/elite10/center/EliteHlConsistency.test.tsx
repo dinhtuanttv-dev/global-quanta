@@ -74,10 +74,11 @@ describe("Hồ sơ 360° với danh mục Elite HL", () => {
   it("mã trong hàng chờ: nêu hạng hợp lưu và lý do của Gateway; không còn nói 'cần thêm ΔZ' cho danh mục chính thức", () => {
     S.decision = hlDecision;
     S.ticker = { decision: score("MWG", false), panel: panelOf("MWG"), isLoading: false, error: null };
-    render(<SignalProfileCard ticker="MWG" />);
+    render(<SignalProfileCard ticker="MWG" view="signals" />);
     // HS360-v3 H1: vị trí Elite HL chỉ còn ở thanh đầu hồ sơ (ProfileFa.test kiểm hàng chờ / ngành phản đối / ngoài danh mục).
     expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
     expect(text("elite-profile-waterfall")).toContain("Elite HL không chọn theo Z");
+    cleanup(); render(<SignalProfileCard ticker="MWG" />);
     // G3: không còn so Z với danh mục dòng tiền (cũ); khoảng cách đo bằng điều kiện quy tắc Elite HL.
     const gap = text("elite-profile-gap");
     expect(gap).not.toContain("dòng tiền"); expect(gap).not.toMatch(/ΔZ/); expect(gap).not.toContain("NAB");
@@ -86,9 +87,10 @@ describe("Hồ sơ 360° với danh mục Elite HL", () => {
   it("mã đang giữ / ngành phản đối / ngoài hàng chờ", () => {
     S.decision = hlDecision;
     S.ticker = { decision: score("FPT", true), panel: panelOf("FPT"), isLoading: false, error: null };
-    render(<SignalProfileCard ticker="FPT" />);
+    render(<SignalProfileCard ticker="FPT" view="signals" />);
     expect(screen.queryByTestId("elite-profile-hl-pos")).toBeNull();
     expect(text("elite-profile-score")).not.toContain("Trong Elite HL"); // một nguồn: thanh đầu
+    cleanup(); render(<SignalProfileCard ticker="FPT" />);
     expect(screen.getByTestId("elite-profile-gap").className).toContain("hidden"); // mã đang giữ: không có khoảng cách
     cleanup();
     S.ticker = { decision: score("VCB", false), panel: panelOf("VCB"), isLoading: false, error: null };

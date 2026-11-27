@@ -123,12 +123,14 @@ export default function Elite10Hub() {
                 <ProfileHeader ticker={current} view={pview} onView={setPview} actions={{ onOpenChart: openChart, onOpenAi: openAi, onOpenCycle: openCycle }} />
                 {pview === "summary" && (
                   <>
-                    <SignalProfileCard ticker={current} />
+                    <SignalProfileCard ticker={current} view="summary" />
                     {/* ARL-v1 (26/11/2026): lịch sử Phòng họp AI của mã — sổ phán quyết chấm theo thị trường thật. */}
                     <div className="rounded-lg border border-white/10 bg-[#0E131F] p-3"><AiBrainCard ticker={current} compact testId="ai-brain-profile" /></div>
                     {/* QĐ-R (20/11/2026): Sự kiện cổ tức, Mô phỏng thời điểm và Tin tức Elite 10 chuyển sang Bảng quyết định (khung "Mã đang chọn"). */}
                   </>
                 )}
+                {/* HS360-v3 H2: góc Tín hiệu — bảng 25 tín hiệu E2 (SQS, xu hướng, IC theo chế độ) + Điểm Elite đối chứng. */}
+                {pview === "signals" && <SignalProfileCard ticker={current} view="signals" />}
                 {pview === "company" && <CompanyProfileCard ticker={current} />}
                 {pview === "events" && <EventsProfileCard ticker={current} />}
               </>

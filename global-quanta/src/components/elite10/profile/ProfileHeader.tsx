@@ -11,9 +11,10 @@ import { hlPicks } from "../../../lib/elite10/decisionTypes";
 import { splitQueue } from "../../../lib/elite10/liquidity";
 import { fmtDate, pct, WarningList } from "./pfaParts";
 
-export type ProfileView = "summary" | "company" | "events";
+// HS360-v3 H2 (Q2): bốn góc nhìn — "Tổng hợp" đổi tên "Tổng quan" (id giữ "summary"), thêm "Tín hiệu".
+export type ProfileView = "summary" | "signals" | "company" | "events";
 export const PROFILE_VIEWS: { id: ProfileView; label: string }[] = [
-  { id: "summary", label: "Tổng hợp" }, { id: "company", label: "Doanh nghiệp" }, { id: "events", label: "Sự kiện & thời điểm" },
+  { id: "summary", label: "Tổng quan" }, { id: "signals", label: "Tín hiệu" }, { id: "company", label: "Doanh nghiệp" }, { id: "events", label: "Sự kiện & thời điểm" },
 ];
 const CLS_VI: Record<string, string> = { STRONG: "Hợp lưu mạnh", CONFLUENCE: "Hợp lưu", T1_SECTOR_AGAINST: "Ngành phản đối", T1_SECTOR_NA: "Chưa có RRG", NOT_T1: "Ngoài tầng 1" };
 const LANE_VI: Record<string, string> = { CORE: "Lõi", RUNNER: "Chạy lãi", WAIT: "Chờ nền" };
@@ -40,7 +41,7 @@ export default function ProfileHeader({ ticker, view, onView, actions = {} }: { 
     const qs = splitQueue(d.hl.queue, d.hl.queueIlliquid);
     return { queue: [...qs.tradable, ...qs.illiquid].find((x) => x.ticker === ticker) ?? null, against: d.hl.against.find((x) => x.ticker === ticker) ?? null };
   }, [d, pos, ticker]);
-  const refs = useRef<Record<ProfileView, HTMLButtonElement | null>>({ summary: null, company: null, events: null });
+  const refs = useRef<Record<ProfileView, HTMLButtonElement | null>>({ summary: null, signals: null, company: null, events: null });
   const onKey = (e: KeyboardEvent<HTMLButtonElement>) => {
     const i = PROFILE_VIEWS.findIndex((x) => x.id === view);
     const n = e.key === "ArrowRight" ? (i + 1) % PROFILE_VIEWS.length : e.key === "ArrowLeft" ? (i - 1 + PROFILE_VIEWS.length) % PROFILE_VIEWS.length : -1;
