@@ -100,7 +100,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
             {RANGES.map((r) => (
               <button key={r.id} type="button" aria-pressed={range === r.id} onClick={() => setRange(r.id)}
                 className="text-[10px] font-bold px-2.5 py-1 rounded-md"
-                style={{ background: range === r.id ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: range === r.id ? "var(--gold, #f59e0b)" : "var(--text-secondary)" }}>
+                style={{ background: range === r.id ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: range === r.id ? "var(--q-accent-strong)" : "var(--text-secondary)" }}>
                 {r.label}
               </button>
             ))}
@@ -211,7 +211,7 @@ export default function CommodityDrawer({ item, onClose }: { item: CommodityItem
                 {item.vnTickers.length > 0 ? (
                   <div className="flex flex-wrap items-center gap-1">
                     <span className="text-[10px]" style={muted}>Mã liên quan (ánh xạ đặt tay, không phải khuyến nghị):</span>
-                    {item.vnTickers.map((t) => <button key={t} type="button" onClick={() => selectTicker(t)} className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--gold, #f59e0b)" }}>{t}</button>)}
+                    {item.vnTickers.map((t) => <button key={t} type="button" onClick={() => selectTicker(t)} className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--q-accent-strong)" }}>{t}</button>)}
                   </div>
                 ) : <p className="text-[10px] italic" style={muted}>Chưa có danh sách mã đại diện đã xác nhận — không bịa mã.</p>}
               </Section>

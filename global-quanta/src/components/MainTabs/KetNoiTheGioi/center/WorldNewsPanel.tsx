@@ -22,7 +22,7 @@ export default function WorldNewsPanel() {
   const items = useMemo(() => (data?.items ?? []).filter((x) => (!topic || x.topics.includes(topic)) && (!level || x.verification === level)), [data, topic, level]);
   const health = data ? sourceHealth(data.sources) : null;
   const now = Date.now();
-  const chipBtn = (on: boolean) => ({ background: on ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: on ? "var(--gold, #f59e0b)" : "var(--text-secondary, #94a3b8)", border: `1px solid ${on ? "rgba(245,158,11,0.35)" : "transparent"}` });
+  const chipBtn = (on: boolean) => ({ background: on ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: on ? "var(--q-accent-strong)" : "var(--text-secondary, #94a3b8)", border: `1px solid ${on ? "var(--q-accent-line)" : "transparent"}` });
 
   return (
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="world-news">
@@ -63,7 +63,7 @@ export default function WorldNewsPanel() {
             </div>
           </li>)}
         </ul>
-        {items.length > limit && <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="mt-1 text-[10px] hover:underline" style={{ color: "var(--gold, #f59e0b)" }}>Xem thêm {Math.min(PAGE, items.length - limit)} tin</button>}
+        {items.length > limit && <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="mt-1 text-[10px] hover:underline" style={{ color: "var(--q-accent-strong)" }}>Xem thêm {Math.min(PAGE, items.length - limit)} tin</button>}
       </>}
     </section>
   );

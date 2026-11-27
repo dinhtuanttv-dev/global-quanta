@@ -68,14 +68,14 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
     <section className="rounded-xl p-3.5" style={{ background: "rgba(2,6,15,0.55)", border: "1px solid rgba(148,163,184,0.1)" }} data-testid="ai-brief">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h4 className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text-primary)" }}><Sparkles className="h-3.5 w-3.5" style={{ color: "var(--gold, #f59e0b)" }} aria-hidden />Bản tin AI có kiểm chứng</h4>
+          <h4 className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "var(--text-primary)" }}><Sparkles className="h-3.5 w-3.5" style={{ color: "var(--q-accent-strong)" }} aria-hidden />Bản tin AI có kiểm chứng</h4>
           <p className="text-[11px]" style={muted}>AI chỉ diễn giải số liệu và tin đã có. Code kiểm tra từng câu: trích dẫn có thật, con số khớp bằng chứng, chiều ngành không trái điểm định lượng. {data?.schedule ? `Tự chạy ${data.schedule.join(" và ")} ngày làm việc.` : ""}</p>
         </div>
         <div className="flex items-center gap-1.5">
-          {(data?.runs.length ?? 0) > 1 && <select aria-label="Xem lần chạy" value={runId ?? ""} onChange={(e) => setRunId(e.target.value || null)} className="rounded px-1.5 py-1 text-[11px]" style={{ background: "#0b1220", color: "var(--text-primary)", border: "1px solid rgba(148,163,184,0.2)" }}>
+          {(data?.runs.length ?? 0) > 1 && <select aria-label="Xem lần chạy" value={runId ?? ""} onChange={(e) => setRunId(e.target.value || null)} className="rounded px-1.5 py-1 text-[11px]" style={{ background: "var(--q-surface-2)", color: "var(--text-primary)", border: "1px solid var(--q-line-2)" }}>
             {data!.runs.map((r, i) => <option key={r.id} value={i === 0 ? "" : r.id}>{fmtVnTime(r.generatedAt)}{i === 0 ? " (mới nhất)" : ""}</option>)}
           </select>}
-          <button type="button" onClick={start} disabled={blocked} title={data?.nextManualAt ? `Lượt tiếp theo sau ${fmtVnTime(data.nextManualAt)}` : "Gọi Gemini, tốn phí mỗi lần; có giãn cách và trần lượt theo ngày"} className="rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "rgba(245,158,11,0.15)", color: "var(--gold-bright, #fbbf24)", border: "1px solid rgba(245,158,11,0.35)" }} data-testid="brief-run">{data?.running ? "Đang phân tích…" : "Cập nhật ngay"}</button>
+          <button type="button" onClick={start} disabled={blocked} title={data?.nextManualAt ? `Lượt tiếp theo sau ${fmtVnTime(data.nextManualAt)}` : "Gọi Gemini, tốn phí mỗi lần; có giãn cách và trần lượt theo ngày"} className="rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "var(--q-accent-soft)", color: "var(--q-accent-strong)", border: "1px solid var(--q-accent-line)" }} data-testid="brief-run">{data?.running ? "Đang phân tích…" : "Cập nhật ngay"}</button>
         </div>
       </div>
       {notice && <p className="mt-2 text-[11px]" role="status" style={{ color: "var(--gold, #f59e0b)" }}>{notice}</p>}
@@ -97,7 +97,7 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
           <div className="mt-3 flex flex-wrap gap-1" role="group" aria-label="Lọc theo chiều">
             {(["all", "bullish", "bearish", "neutral"] as Filter[]).map((k) => {
               const n = k === "all" ? run.sectors.length : run.sectors.filter((s) => s.direction === k).length;
-              return <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)} className="rounded px-2 py-0.5 text-[11px]" style={{ background: filter === k ? "rgba(245,158,11,0.15)" : "rgba(148,163,184,0.06)", color: filter === k ? "var(--gold, #f59e0b)" : "var(--text-secondary, #94a3b8)" }}>{k === "all" ? "Tất cả" : DIR[k].vi} ({n})</button>;
+              return <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)} className="rounded px-2 py-0.5 text-[11px]" style={{ background: filter === k ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: filter === k ? "var(--q-accent-strong)" : "var(--text-secondary, #94a3b8)" }}>{k === "all" ? "Tất cả" : DIR[k].vi} ({n})</button>;
             })}
           </div>
           <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2" data-testid="brief-sectors">
@@ -109,7 +109,7 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
                   <span className="shrink-0 text-[11px] font-bold" style={{ color: DIR[s.direction].color }}>{DIR[s.direction].vi}<span className="font-normal" style={muted}> · z {fmtSigned(s.quantZ, 2)}</span></span>
                 </div>
                 <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--text-secondary, #94a3b8)" }}>{s.text}<Citations items={s.citations} /></p>
-                {tickers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tickers.map((t) => <button key={t.ticker} type="button" onClick={() => selectTicker(t.ticker)} className="rounded px-1.5 py-0.5 text-[11px] font-black" style={{ background: "rgba(2,6,15,0.6)", color: "var(--gold-bright, #fbbf24)" }}>{t.ticker}</button>)}</div>}
+                {tickers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tickers.map((t) => <button key={t.ticker} type="button" onClick={() => selectTicker(t.ticker)} className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--q-surface-3)", color: "var(--q-accent-strong)" }}>{t.ticker}</button>)}</div>}
               </div>;
             })}
           </div>

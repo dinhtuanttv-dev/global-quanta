@@ -4,40 +4,40 @@
 .gq-world .wd[data-theme] {
   --ground: var(--bg-base); --panel: var(--bg-surface); --surface: rgba(148, 163, 184, 0.05); --track: rgba(148, 163, 184, 0.12);
   --ink: var(--text-primary, #f8fafc); --ink2: var(--text-secondary, #94a3b8); --ink3: var(--text-tertiary, #748299); --rule: var(--border);
-  --accent: var(--gold); --accentHover: var(--gold-bright); --onAccent: var(--bg-base); --accentSoft: rgba(232, 184, 75, 0.35);
+  --accent: var(--q-accent, #4f8ef7); --accentHover: var(--q-accent-strong, #79a8ff); --onAccent: #f8fafc; --accentSoft: rgba(79, 142, 247, 0.35);
   --up3: #10B981; --up3fg: #f1f5f9; --up2: #059669; --up2fg: #f1f5f9; --up1: #064E3B; --up1fg: #f1f5f9;
   --down3: #F43F5E; --down3fg: #f1f5f9; --down2: #E11D48; --down2fg: #f1f5f9; --down1: #881337; --down1fg: #f1f5f9;
   --upci: #059669; --downci: #E11D48; --uptext: #6EE7B7; --downtext: #FDA4AF;
   --warnbg: rgba(245, 158, 11, 0.08); --warnborder: rgba(245, 158, 11, 0.35); --warntext: #fbbf24; --warnmark: #f59e0b;
   font-size: 11px; gap: 12px;
 }
-.gq-world .wd h2 { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink2); margin: 0 0 8px; }
-.gq-world .wd .h3 { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--ink2); margin: 12px 0 6px; }
+.gq-world .wd h2 { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); margin: 0 0 8px; }
+.gq-world .wd .h3 { font-size: 12px; font-weight: 600; text-transform: none; color: var(--ink2); margin: 12px 0 6px; }
 .gq-world .wd p, .gq-world .wd .muted { font-size: 11px; }
 .gq-world .wd .panel { border: 1px solid var(--rule); border-top: 1px solid var(--rule); border-radius: 12px; padding: 12px; background: var(--panel); }
 .gq-world .wd .tabs { gap: 4px 8px; border-bottom: 1px solid var(--rule); }
-.gq-world .wd .tabs button { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 8px 10px; min-height: 32px; border-bottom-width: 2px; color: var(--ink3); }
-.gq-world .wd .tabs button[aria-current='page'] { color: var(--accent); border-bottom-color: var(--accent); }
-.gq-world .wd .chip { min-height: 28px; padding: 0 10px; border-radius: 6px; font-size: 10px; font-weight: 700; background: var(--surface); border-color: transparent; color: var(--ink2); }
-.gq-world .wd .chip[aria-pressed='true'] { background: rgba(232, 184, 75, 0.14); border-color: transparent; color: var(--accent); }
-.gq-world .wd .input, .gq-world .wd select { min-height: 28px; font-size: 10.5px; border-radius: 6px; background: var(--surface); }
-.gq-world .wd .flabel { font-size: 10px; min-width: 4.5rem; }
+.gq-world .wd .tabs button { font-size: 12.5px; font-weight: 500; text-transform: none; padding: 8px 12px; min-height: 34px; border-bottom-width: 2px; color: var(--ink3); }
+.gq-world .wd .tabs button[aria-current='page'] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.gq-world .wd .chip { min-height: 28px; padding: 0 10px; border-radius: 6px; font-size: 11.5px; font-weight: 500; background: var(--surface); border-color: transparent; color: var(--ink2); }
+.gq-world .wd .chip[aria-pressed='true'] { background: rgba(79, 142, 247, 0.14); border-color: rgba(79, 142, 247, 0.5); color: var(--accentHover); font-weight: 600; }
+.gq-world .wd .input, .gq-world .wd select { min-height: 28px; font-size: 12px; border-radius: 6px; background: var(--surface); }
+.gq-world .wd .flabel { font-size: 11.5px; min-width: 4.5rem; }
 .gq-world .wd .pulse { gap: 8px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .gq-world .wd .pulse-card, .gq-world .wd .stats li { border-radius: 10px; padding: 10px; gap: 6px; background: var(--surface); border-color: transparent; }
-.gq-world .wd .pulse-name { font-size: 10.5px; color: var(--ink2); }
-.gq-world .wd .pulse-z strong, .gq-world .wd .stats strong { font-size: 16px; font-weight: 800; }
+.gq-world .wd .pulse-name { font-size: 11.5px; color: var(--ink2); }
+.gq-world .wd .pulse-z strong, .gq-world .wd .stats strong { font-size: 16px; font-weight: 600; font-family: var(--q-font-mono); font-variant-numeric: tabular-nums; }
 /* G4: thanh z hai phía — âm đỏ, dương xanh lá (trước: luôn xanh lá, kể cả z âm) */
 .gq-world .wd .pulse-bar.pos { background: var(--up3); }
 .gq-world .wd .pulse-bar.neg { background: var(--down3); }
 .gq-world .wd .pulse-card.unusual { box-shadow: inset 0 0 0 1px var(--warnborder); }
-.gq-world .wd .wm th, .gq-world .wd .wm tbody th { font-size: 10px; }
-.gq-world .wd .cell { min-height: 34px; border-radius: 6px; font-size: 10px; }
+.gq-world .wd .wm th, .gq-world .wd .wm tbody th { font-size: 11px; }
+.gq-world .wd .cell { min-height: 34px; border-radius: 6px; font-size: 11px; }
 .gq-world .wd .cell .arrow { font-size: 13px; }
-.gq-world .wd .legend { font-size: 10px; }
-.gq-world .wd .ev { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; }
+.gq-world .wd .legend { font-size: 11px; }
+.gq-world .wd .ev { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 6px; }
 .gq-world .wd .ev-A { background: rgba(52, 211, 153, 0.15); color: #34d399; border-color: transparent; }
 .gq-world .wd .ev-B { color: var(--accent); border: 1px solid var(--accentSoft); }
-.gq-world .wd .notice { font-size: 10.5px; border-radius: 8px; }
+.gq-world .wd .notice { font-size: 11.5px; border-radius: 8px; }
 .gq-world .wd table { font-size: 11px; }
 
 /* Bố cục hai cột (.two) theo bề rộng CHÍNH khung .wd (05/11/2026): gói gốc chuyển theo màn hình ≥ 1000px nên trong khung chính
@@ -52,7 +52,7 @@
 .kntg-root a:is([class*="rounded"], [class*="border"]) { min-height: 24px; }
 .kntg-root a:is([class*="rounded"], [class*="border"]):not([class*="flex"]):not([class*="block"]):not([class*="grid"]) { display: inline-flex; align-items: center; }
 .kntg-root label:has(> input[type="checkbox"]) { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; cursor: pointer; }
-.kntg-root input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--gold); }
+.kntg-root input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--q-accent, #4f8ef7); }
 @media (pointer: coarse) {
   .kntg-root :is(button, select, summary, [role="button"]):not(.cell):not([role="tab"]),
   .kntg-root a:is([class*="rounded"], [class*="border"]), .kntg-root label:has(> input[type="checkbox"]) { min-height: 32px; }
@@ -99,3 +99,9 @@
   .kntg-section[open] .kntg-section-close { display: block; font-size: 11px; color: var(--text-secondary, #94a3b8); }
   .kntg-section[open] > .kntg-section-bar { min-height: 32px; padding: 4px 12px; }
 }
+
+/* QUANTA UI (27/11/2026): biểu đồ 2D của động cơ giữ nguyên màu vàng như thiết kế (mạng lan truyền, dòng thời gian sự kiện, cột tỉ lệ,
+   thanh đuôi, bảng lan truyền, nhãn chú giải); chỉ khung giao diện dùng màu nhấn xanh. */
+.gq-world .wd :is(svg, .spill, .sb, .tail-val, .rev, .sw) { --accent: var(--gold, #e8b84b); --accentSoft: rgba(232, 184, 75, 0.35); }
+.gq-world .wd .panel { border-top-color: var(--rule); }
+.kntg-section-title { font-size: 13px; font-weight: 600; }

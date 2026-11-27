@@ -66,14 +66,14 @@ function CommodityCard({ c, onOpen, stats }: { c: CommodityItem; onOpen: (c: Com
         <div className="flex flex-wrap items-center gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
           <span title="Ánh xạ đặt tay mặt hàng → cổ phiếu VN, chưa kiểm định ngoài mẫu" className="text-[10px]" style={{ color: T.textTertiary }}>Mã liên quan (heuristic):</span>
           {c.vnTickers.map((t) => (
-            <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: T.gold }}>{t}</button>
+            <button key={t} type="button" onClick={(e) => { e.stopPropagation(); selectTicker(t); }} onKeyDown={(e) => e.stopPropagation()} className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.06)", color: "var(--q-accent-strong)" }}>{t}</button>
           ))}
           <TransmissionBadge item={c} />
         </div>
       )}
       {c.vnTickers.length === 0 && c.transmission && <div className="pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}><TransmissionBadge item={c} withNote /></div>}
       {c.available && (
-        <p className="text-[10px] flex items-center gap-0.5" style={{ color: T.gold }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
+        <p className="text-[10px] flex items-center gap-0.5" style={{ color: "var(--q-accent-strong)" }}>Phân tích chuyên sâu: xu hướng VN ↔ thế giới, biến động, tương quan <ChevronRight className="w-3 h-3" /></p>
       )}
       {c.twoWayVi && (
         <div className="flex items-start gap-1 pt-1.5 border-t" style={{ borderColor: "rgba(148,163,184,0.08)" }}>
@@ -96,7 +96,7 @@ export default function CommodityPulseSubTab() {
     <div className="tw-scope space-y-4">
       {!snap && !snapError && (
         <div className="flex items-center gap-2 text-xs py-6 justify-center" style={{ color: T.textSecondary }}>
-          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: T.gold, borderTopColor: "transparent" }} />
+          <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: "var(--q-accent)", borderTopColor: "transparent" }} />
           Đang tải dữ liệu hàng hoá…
         </div>
       )}
