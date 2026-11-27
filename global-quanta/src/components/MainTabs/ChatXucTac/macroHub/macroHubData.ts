@@ -77,3 +77,29 @@ const VI = new Intl.NumberFormat("vi-VN");
 export const fmtValue = (v: number, digits: number) => VI.format(Number(v.toFixed(digits)));
 export const fmtPeriod = (p: string) => `${p.slice(5, 7)}/${p.slice(0, 4)}`;
 export const fmtDelta = (d: number | null, unit: string) => d === null ? "—" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${VI.format(Number(Math.abs(d).toFixed(2)))}${unit === "pp" ? " đ%" : "%"}`;
+
+// MV-L1 (27/11/2026): /api/macro/live — trạng thái công bố + điểm ngày "hiện tại" (chỉ hiển thị; mô hình vẫn dùng tháng đã đóng).
+export interface MacroLiveSeries {
+  last: { period: string; value: number; source: string | null } | null;
+  release: { nextPeriod: string; expected: string; overdueDays: number } | null;
+  overdue: boolean;
+  live: { date: string; value: number; source: string; vsClosePct: number | null; closedPeriod: string } | null;
+  liveError?: string;
+}
+export interface MacroLiveResponse {
+  asOf: string; today: string; series: Record<string, MacroLiveSeries>;
+  overdue: { id: string; nameVi: string; nextPeriod: string; expected: string; overdueDays: number }[];
+}
+/** Ngày ISO -> dd/mm. */
+export const fmtDay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+/** Phần trăm có dấu (− là dấu trừ thật). */
+export const fmtPct = (d: number | null | undefined) => d == null || !Number.isFinite(d) ? "—" : `${d > 0 ? "+" : d < 0 ? "−" : ""}${VI.format(Number(Math.abs(d).toFixed(1)))}%`;
+/** Dòng trạng thái công bố của một thẻ (null khi chuỗi không có lịch). */
+export function releaseNote(s: MacroLiveSeries | undefined): { text: string; late: boolean; title: string } | null {
+  if (!s?.release) return null;
+  const { nextPeriod, expected, overdueDays } = s.release;
+  const period = fmtPeriod(nextPeriod);
+  return s.overdue
+    ? { text: `Chậm ${overdueDays} ngày`, late: true, title: `Kỳ ${period} dự kiến công bố ${fmtDay(expected)} — nguồn chưa có số. Đang hiển thị kỳ gần nhất đã có.` }
+    : { text: `Kỳ tới ${fmtDay(expected)}`, late: false, title: `Kỳ ${period} dự kiến công bố ${fmtDay(expected)}` };
+}

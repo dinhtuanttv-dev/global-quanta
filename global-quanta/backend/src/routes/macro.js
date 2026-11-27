@@ -67,6 +67,12 @@ export function createMacroRouter({ getService, adminToken = () => process.env.M
     res.json(await getService().source());
   }));
 
+  // MV-L1: trạng thái công bố (quá hạn) + điểm ngày "hiện tại" của các biến có giá ngày — chỉ hiển thị.
+  router.get("/live", readRl, wrap(async (req, res) => {
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(await getService().live());
+  }));
+
   router.get("/catalyst-events", readRl, wrap(async (req, res) => {
     const h = Number(req.query.horizonDays);
     res.set("Cache-Control", "public, max-age=300");

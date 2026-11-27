@@ -147,7 +147,7 @@ export function fillFromDaily(months, dailyMonths, need) {
 
 const withReleaseDay =(months, day) => (day ? months.map((m) => ({ ...m, asOf: `${m.asOf.slice(0, 8)}${String(day).padStart(2, "0")}` })) : months);
 
-async function getText(url, fetchImpl, headers = UA) {
+export async function getText(url, fetchImpl, headers = UA) {
   const r = await fetchImpl(url, { headers, signal: AbortSignal.timeout(45_000) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.text();
