@@ -15,6 +15,7 @@ import ssiRouter from "./routes/ssi.js";
 import marketRouter from "./routes/market.js";
 import { clientIp, createMacroRouter, isAdmin } from "./routes/macro.js";
 import { createMacroService } from "./market/macro/macroService.js";
+import { probeSources } from "./market/macro/sourceProbe.js";
 import { createWorldRouter, defaultPulse } from "./routes/world.js";
 import { createBrokerViews } from "./market/brokerViews/brokerViewsService.js";
 import { createBrokerViewsRouter } from "./routes/brokerViews.js";
@@ -134,7 +135,8 @@ app.use("/api/market", marketRouter);
 app.use("/api/auth", createAuthRouter({ getAuth: () => getMarketRuntime().auth }));
 // Trung tâm vĩ mô (tab Chất xúc tác): engine MacroCenter chạy trong worker thread, số liệu thật chỉ-thêm trong KV.
 let macroService = null;
-const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory }));
+// MV-C0 (27/11/2026): kiểm truy cập TCTK / NHNN từ Gateway (1 lần / 24 giờ, danh sách URL cố định) — kết quả ở /api/macro/source.externalProbe
+const getMacroService = () => (macroService ??= createMacroService({ store: getMarketRuntime().store, history: getMarketRuntime().nominalHistory, sourceProbe: probeSources }));
 app.use("/api/macro", createMacroRouter({ getService: getMacroService }));
 // V3 (19/11/2026): nạp nguồn vĩ mô CHỦ ĐỘNG — 3 phút sau khởi động rồi mỗi 30 phút kiểm; chỉ gọi nguồn ngoài khi lần nạp gần nhất
 // đã cũ quá 12 giờ (refreshAutoFeeds tự bỏ qua khi còn mới). Trước đây chỉ nạp khi có người mở tab.
