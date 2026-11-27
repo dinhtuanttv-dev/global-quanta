@@ -1,1 +1,12 @@
 ﻿@import "tailwindcss";
+
+/* U0 (27/11/2026) — token giao diện tab TỔNG QUAN cho tiện ích Tailwind: text-q-accent, bg-q-surface-2, border-q-line…
+   Tên riêng "q-" để không đè màu mặc định của Tailwind ở các tab khác. Màu nhấn: xanh dương (chốt 27/11). */
+@theme {
+  --color-q-accent: #4f8ef7;
+  --color-q-accent-strong: #79a8ff;
+  --color-q-surface: #0e131f;
+  --color-q-surface-2: #131a29;
+  --color-q-surface-3: #182033;
+  --color-q-line: rgba(255, 255, 255, 0.1);
+}

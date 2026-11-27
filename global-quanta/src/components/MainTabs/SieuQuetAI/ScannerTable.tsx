@@ -1,5 +1,5 @@
 import { Fragment, memo, type ReactNode } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Globe2, Star, Zap } from "lucide-react";
 import type { SieuQuetStockItem } from "../../../hooks/useSieuQuetScanner";
 import type { LiveQuote } from "../../../hooks/useMarketQuotesStream";
 import { industryOf } from "./scannerTaxonomy";
@@ -8,18 +8,22 @@ import { ariaSort, COLUMN_HELP, fmtKPrice, fmtPct, rowKeyDown, TREND_META, type 
 export const SCANNER_COLUMNS = 11;
 export const NARROW_COLUMNS = 3;
 
-// Bảng màu Đồng Thuận theo statusCode, giữ nguyên từ bản trước.
-const CONF_COLOR: Record<string, string> = {
-  THUAN_XU_HUONG_MANH: "bg-emerald-950 text-emerald-400 border-emerald-700",
-  THUAN_XU_HUONG: "bg-emerald-950/60 text-emerald-400 border-emerald-800",
-  DONG_THUAN_TICH_LUY: "bg-cyan-950 text-cyan-400 border-cyan-700",
-  PHONG_THU_CHUAN: "bg-blue-950 text-blue-400 border-blue-700",
-  THUAN_PHONG_THU: "bg-blue-950/60 text-blue-400 border-blue-800",
-  DAN_DAT_NGUOC_DONG: "bg-purple-950 text-purple-400 border-purple-700",
-  TRUNG_LAP: "bg-slate-800 text-slate-400 border-slate-600",
-  NGHICH_XU_HUONG: "bg-rose-950 text-rose-400 border-rose-700",
-  DANG_TANG_CHUA_DAN_DAT: "bg-amber-950/60 text-amber-300 border-amber-700",
+// U1 (27/11/2026): Đồng Thuận = badge viền trung tính + chấm màu theo statusCode (cùng 9 trạng thái, cùng nhãn; chỉ đổi trình bày).
+const CONF_DOT: Record<string, string> = {
+  THUAN_XU_HUONG_MANH: "#34d399",
+  THUAN_XU_HUONG: "#6ee7b7",
+  DONG_THUAN_TICH_LUY: "#5eead4",
+  PHONG_THU_CHUAN: "#79a8ff",
+  THUAN_PHONG_THU: "#a5c4ff",
+  DAN_DAT_NGUOC_DONG: "#c4b5fd",
+  TRUNG_LAP: "#64748b",
+  NGHICH_XU_HUONG: "#fb7185",
+  DANG_TANG_CHUA_DAN_DAT: "#fbbf24",
 };
+const confStyle = (code: string | null | undefined) => ({ "--dot": (code && CONF_DOT[code]) || "#64748b" }) as React.CSSProperties;
+function Conf({ item }: { item: SieuQuetStockItem }) {
+  return <span className="scan-conf" style={confStyle(item.confluenceStatusCode)} title={item.confluenceStatusLabel ?? undefined}><span>{item.confluenceStatusLabel ?? "—"}</span></span>;
+}
 
 function fmt(n: number | null | undefined, d = 1): string {
   if (n === null || n === undefined || Number.isNaN(n)) return "—";
@@ -51,8 +55,8 @@ function Trend({ tag }: { tag: string | null }) {
 }
 function Signals({ item }: { item: SieuQuetStockItem }) {
   return <span className="scan-signals">
-    {item.breakoutBoostBadge && <span className="scan-sig amber" title="Breakout">⚡<span className="sig-txt">Breakout</span></span>}
-    {item.foreignNetBuyFlag && <span className="scan-sig cyan" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)">🌍<span className="sig-txt">NN mua ròng</span></span>}
+    {item.breakoutBoostBadge && <span className="scan-sig amber" title="Breakout"><Zap aria-hidden /><span className="sig-txt">Breakout</span></span>}
+    {item.foreignNetBuyFlag && <span className="scan-sig cyan" title="Top 5 mã khối ngoại mua ròng mạnh nhất hôm nay (bản tin HOSE)"><Globe2 aria-hidden /><span className="sig-txt">NN mua ròng</span></span>}
   </span>;
 }
 const rrTitle = (item: SieuQuetStockItem) => (item.riskRewardBasis ? `Hỗ trợ ${fmtKPrice(item.riskRewardBasis.support)} · kháng cự ${fmtKPrice(item.riskRewardBasis.resistance)} (engine cấu trúc, khung ngày, ${item.riskRewardBasis.asOf})` : "Chưa có vùng hỗ trợ / kháng cự bao quanh giá");
@@ -69,13 +73,12 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
   const price = live?.price ?? item.price;
   const changePct = live ? live.changePct : item.changePct;
   const priceTitle = live ? `Giá ${sourceLabel(live.source)}${live.asOf ? ` · ${live.asOf}` : ""}` : `Giá chốt lúc quét (${item.computedAt})`;
-  const confClass = (item.confluenceStatusCode && CONF_COLOR[item.confluenceStatusCode]) ?? "bg-slate-800 text-slate-400 border-slate-600";
   const excluded = isExcluded(item);
   const up = (changePct ?? 0) > 0, down = (changePct ?? 0) < 0;
   const chgColor = up ? "text-emerald-400" : down ? "text-rose-400" : "text-amber-300";
   const star = <button type="button" aria-pressed={starred} aria-label={starred ? `Bỏ ${item.ticker} khỏi danh mục` : `Thêm ${item.ticker} vào danh mục`}
     title={starred ? "Bỏ khỏi danh mục đang chọn" : "Thêm vào danh mục đang chọn"} onClick={(e) => { e.stopPropagation(); onStar(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()}
-    className={`scan-star ${starred ? "text-amber-400" : "text-slate-500 hover:text-amber-300"}`}>{starred ? "★" : "☆"}</button>;
+    className="scan-star"><Star aria-hidden fill={starred ? "currentColor" : "none"} /></button>;
   const open = <button type="button" aria-expanded={expanded} aria-label={`${expanded ? "Đóng" : "Mở"} phân tích ${item.ticker}`} title={expanded ? "Đóng phân tích khối lượng" : "Mở phân tích khối lượng"} data-testid={`scan-open-${item.ticker}`}
     onClick={(e) => { e.stopPropagation(); onToggle(item.ticker); }} onDoubleClick={(e) => e.stopPropagation()} className="scan-open">{expanded ? <ChevronDown aria-hidden /> : <ChevronRight aria-hidden />}</button>;
   const rowClass = `scan-row ${excluded ? "is-excluded" : ""} ${expanded ? "is-open" : ""} ${selected ? "is-selected" : ""}`;
@@ -99,9 +102,9 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
       </td>
       <td className="num group-start" title={priceTitle}>{fmtKPrice(price)}{live && live.source.startsWith("SSI") && <span className="scan-live" aria-label="Giá SSI">●</span>}</td>
       <td className={`num ${chgColor}`}>{fmtPct(changePct)}</td>
-      <td className="num group-start scan-smart"><ScoreBar value={item.smartScore} max={100} color="#f59e0b" />{fmt(item.smartScore, 1)}</td>
+      <td className="num group-start scan-smart"><ScoreBar value={item.smartScore} max={100} color="var(--ov-accent)" />{fmt(item.smartScore, 1)}</td>
       <td className="num scan-rs"><ScoreBar value={item.rsRating} max={99} color="#64748b" />{fmt(item.rsRating, 1)}</td>
-      <td className="group-start"><span className={`scan-conf ${confClass}`} title={item.confluenceStatusLabel ?? undefined}>{item.confluenceStatusLabel ?? "—"}</span></td>
+      <td className="group-start"><Conf item={item} /></td>
       <td><Signals item={item} /></td>
       <td className="scan-trend"><Trend tag={item.trendTag} /></td>
       <td className="group-start"><FPips item={item} />{excluded && <span className="scan-excl" title="F-Score từ 1/3 thang trở xuống: xếp cuối bảng">Loại</span>}</td>
@@ -113,7 +116,6 @@ const StockRow = memo(function StockRow({ item, live, expanded, onToggle, observ
 
 /** Các cột còn lại, hiện khi mở một mã trên điện thoại. */
 function NarrowDetails({ item }: { item: SieuQuetStockItem }) {
-  const confClass = (item.confluenceStatusCode && CONF_COLOR[item.confluenceStatusCode]) ?? "bg-slate-800 text-slate-400 border-slate-600";
   return <tr className="scan-narrow-detail"><td colSpan={NARROW_COLUMNS}>
     <dl data-testid={`scan-details-${item.ticker}`}>
       <div><dt>RS</dt><dd>{fmt(item.rsRating, 1)}</dd></div>
@@ -121,7 +123,7 @@ function NarrowDetails({ item }: { item: SieuQuetStockItem }) {
       <div><dt>F-Score</dt><dd><FPips item={item} /></dd></div>
       <div title={rrTitle(item)}><dt>R/R</dt><dd>{fmtRr(item)}</dd></div>
       <div><dt>Risk-Adj Mom.</dt><dd>{fmt(item.riskAdjustedMomentum, 2)}</dd></div>
-      <div className="wide"><dt>Đồng Thuận</dt><dd><span className={`scan-conf ${confClass}`}>{item.confluenceStatusLabel ?? "—"}</span> <Signals item={item} /></dd></div>
+      <div className="wide"><dt>Đồng Thuận</dt><dd><Conf item={item} /> <Signals item={item} /></dd></div>
     </dl>
   </td></tr>;
 }
@@ -176,7 +178,7 @@ export default function ScannerTable({ sections, grouped, liveQuotes, expandedTi
           <Fragment key={name || "all"}>
             {grouped && (
               <tr className="scan-section"><td colSpan={span}>
-                <span className="text-cyan-200 font-semibold">{name}</span>
+                <span className="text-slate-100 font-semibold">{name}</span>
                 <span className="text-slate-400"> · {list.length} mã · Smart TB {(list.reduce((a, i) => a + (i.smartScore ?? 0), 0) / list.length).toFixed(1)} · ▲ {list.filter((i) => i.trendTag === "Up-Trend").length} Up-Trend</span>
               </td></tr>
             )}

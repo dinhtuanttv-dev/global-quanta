@@ -73,7 +73,7 @@ export default function OverviewTab() {
   };
 
   return (
-    <div className="tw-scope flex flex-col gap-3 py-1" data-testid="overview-tab">
+    <div className="ov-root tw-scope flex flex-col gap-3 py-1" data-testid="overview-tab">
       <div className="ov-tabs" role="tablist" aria-label="Tab con của Tổng quan" data-testid="overview-tabs">
         {OVERVIEW_VIEWS.map((v) => {
           const on = v.id === view;

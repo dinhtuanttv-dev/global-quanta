@@ -30,7 +30,7 @@ function DetailRow({ ticker, colSpan = SCANNER_COLUMNS }: { ticker: string; colS
     return () => cancelAnimationFrame(id);
   }, []);
   return (
-    <tr ref={rowRef} className="border-b border-cyan-900/40" style={{ scrollMarginTop: 110 }}>
+    <tr ref={rowRef} className="border-b border-white/5" style={{ scrollMarginTop: 110 }}>
       <td colSpan={colSpan} className="p-0">
         {isMarketGatewayEnabled()
           ? <VolumeAnalysisPanel symbol={ticker} />
@@ -192,7 +192,7 @@ export default function SieuQuetAiTab({ filters, onOpenMarket, handledFocus, han
   if (error) return (
     <div className="tw-scope flex flex-col gap-4 py-1">
       <div className="p-6 text-center text-rose-400 text-sm" role="alert">Không tải được bảng Siêu Quét: {String(error)}
-        <div className="mt-2"><button type="button" onClick={onOpenMarket} data-testid="scan-error-open-market" className="text-[12px] text-cyan-300 underline">Xem tab Thị trường (nguồn riêng, vẫn hoạt động) →</button></div>
+        <div className="mt-2"><button type="button" onClick={onOpenMarket} data-testid="scan-error-open-market" className="ov-link text-[12px]">Xem tab Thị trường (nguồn riêng, vẫn hoạt động) →</button></div>
       </div>
     </div>
   );
@@ -204,7 +204,7 @@ export default function SieuQuetAiTab({ filters, onOpenMarket, handledFocus, han
 
       {/* BẢNG SIÊU QUÉT / BẢNG GIÁ — RỘNG TOÀN BỘ */}
       <section className="flex flex-col gap-4 min-w-0">
-        <div style={{ background: "rgba(13,17,26,0.75)", border: "1px solid rgba(255,255,255,0.06)" }} className={`scan-panel rounded-xl p-4 flex-1 ${narrow ? "scan-narrow" : ""}`} data-density={view.density} data-testid="scan-panel">
+        <div className={`scan-panel p-4 flex-1 ${narrow ? "scan-narrow" : ""}`} data-density={view.density} data-testid="scan-panel">
           <div className="scan-cmd" data-testid="scan-cmd">
             <div role="tablist" aria-label="Chế độ hiển thị" className="scan-seg">
               {([["scanner", "Siêu Quét AI"], ["board", "Bảng giá"]] as const).map(([m, label]) => (
@@ -249,7 +249,7 @@ export default function SieuQuetAiTab({ filters, onOpenMarket, handledFocus, han
           {effectiveBasket === "WATCHLIST" && (
             <WatchlistBar notFound={basketData.notFound} insufficient={basketData.insufficient} loading={basketData.loading} gatewayReady={gatewayReady} />
           )}
-          {sectorScope && <button type="button" onClick={() => setSectorScope(null)} data-testid="scan-sector-chip" className="text-[11px] px-2 py-0.5 rounded border border-amber-400/40 text-amber-200 bg-amber-500/10 mb-2">✕ Đang lọc ngành ICB: {sectorScope.name}</button>}
+          {sectorScope && <button type="button" onClick={() => setSectorScope(null)} data-testid="scan-sector-chip" className="ov-chip mb-2">✕ Đang lọc ngành ICB: {sectorScope.name}</button>}
           {(effectiveBasket !== "ALL" || industries.size > 0 || sectorScope) && <BasketSummary items={filteredItems} title={basketTitle} />}
           {effectiveBasket === "VN30" && basketData.loading && <div className="text-[10px] text-slate-500 mb-2">Đang tải rổ VN30…</div>}
           {basketData.customError ? <div className="text-[10px] text-rose-400 mb-2">Không chấm điểm được mã ngoài universe: {basketData.customError instanceof Error ? basketData.customError.message : String(basketData.customError)}</div> : null}

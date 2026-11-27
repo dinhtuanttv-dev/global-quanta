@@ -5,8 +5,8 @@ import { groupStats } from "./scannerTaxonomy";
 
 export type GroupBy = "none" | "group" | "industry";
 
-const seg = (on: boolean) =>
-  `px-2 py-1 text-[11px] whitespace-nowrap transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 ${on ? "bg-cyan-500/20 text-cyan-200" : "text-slate-400 hover:text-slate-200"}`;
+// U1 (27/11/2026): kiểu nút do .scan-seg (ScannerTables.css) đảm nhận theo aria-selected; ở đây chỉ còn trạng thái tắt.
+const seg = (_on: boolean) => "disabled:opacity-40 disabled:cursor-not-allowed";
 const fmt1 = (v: number | null) => (v === null ? "—" : v.toFixed(1));
 
 /** Bộ lọc ngành 2 cấp (Nhóm ngành -> Ngành): đếm số mã + Smart Score TB trong rổ đang xem. */
@@ -38,42 +38,41 @@ function SectorFilter({ items, selected, onChange }: { items: SieuQuetStockItem[
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="dialog" aria-expanded={open}
-        className={`text-[11px] bg-black/40 border rounded px-2 py-1 max-w-[160px] truncate ${selected.size ? "border-cyan-500/50 text-cyan-200" : "border-white/10 text-slate-300"}`}
+        className={`scan-tool max-w-[220px] ${selected.size ? "is-on" : ""}`}
         title="Lọc theo nhóm ngành / ngành">
-        {label} ▾
+        <span className="truncate">{label} ▾</span>
       </button>
       {open && (
-        <div role="dialog" aria-label="Lọc theo ngành" className="absolute right-0 top-full mt-1 z-30 w-72 rounded-lg p-2 shadow-xl"
-          style={{ background: "#0f1420", border: "1px solid rgba(255,255,255,0.12)" }}>
+        <div role="dialog" aria-label="Lọc theo ngành" className="scan-pop absolute right-0 top-full mt-1.5 z-30 w-80 p-2">
           <div className="flex gap-1 mb-1.5">
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tìm ngành…" aria-label="Tìm ngành"
-              className="flex-1 text-[10px] bg-black/40 border border-white/10 rounded px-2 py-1 text-slate-200 outline-none focus:border-cyan-500/50" />
-            <button type="button" onClick={() => onChange(new Set())} className="text-[10px] px-2 rounded bg-white/5 text-slate-300 hover:bg-white/10">Tất cả</button>
+              className="flex-1 h-8 text-[12.5px] bg-q-surface border border-q-line rounded-md px-2.5 text-slate-100 outline-none focus:border-q-accent/60" />
+            <button type="button" onClick={() => onChange(new Set())} className="text-[12px] px-2.5 rounded-md text-slate-300 hover:text-slate-50 hover:bg-white/5">Tất cả</button>
           </div>
-          <div className="text-[10px] text-slate-500 mb-1 flex justify-between px-1"><span>Ngành</span><span>số mã · Smart TB</span></div>
+          <div className="text-[11.5px] text-slate-400 mb-1 flex justify-between px-1.5"><span>Ngành</span><span>số mã · Smart TB</span></div>
           <div className="max-h-80 overflow-y-auto pr-1">
             {visible.map((g) => {
               const names = g.industries.map((i) => i.name);
               const nSel = names.filter((n) => selected.has(n)).length;
               return (
                 <div key={g.name} className="mb-1">
-                  <label className="flex items-center gap-1.5 text-[10px] font-semibold text-slate-200 px-1 py-0.5 rounded hover:bg-white/5 cursor-pointer">
+                  <label className="flex items-center gap-2 text-[12px] font-semibold text-slate-100 px-1.5 py-1 rounded-md hover:bg-white/5 cursor-pointer">
                     <input type="checkbox" checked={nSel === names.length} ref={(el) => { if (el) el.indeterminate = nSel > 0 && nSel < names.length; }}
-                      onChange={(e) => toggle(names, e.target.checked)} className="accent-cyan-500" />
+                      onChange={(e) => toggle(names, e.target.checked)} className="accent-q-accent" />
                     <span className="flex-1">{g.name}</span>
-                    <span className="text-slate-400 font-normal">{g.count} · {fmt1(g.avgScore)}</span>
+                    <span className="text-slate-400 font-normal font-mono text-[11.5px]">{g.count} · {fmt1(g.avgScore)}</span>
                   </label>
                   {g.industries.map((i) => (
-                    <label key={i.name} className="flex items-center gap-1.5 text-[10px] text-slate-300 pl-5 pr-1 py-0.5 rounded hover:bg-white/5 cursor-pointer">
-                      <input type="checkbox" checked={selected.has(i.name)} onChange={(e) => toggle([i.name], e.target.checked)} className="accent-cyan-500" />
+                    <label key={i.name} className="flex items-center gap-2 text-[12px] text-slate-300 pl-6 pr-1.5 py-1 rounded-md hover:bg-white/5 cursor-pointer">
+                      <input type="checkbox" checked={selected.has(i.name)} onChange={(e) => toggle([i.name], e.target.checked)} className="accent-q-accent" />
                       <span className="flex-1 truncate">{i.name}</span>
-                      <span className="text-slate-500">{i.count} · {fmt1(i.avgScore)}</span>
+                      <span className="text-slate-400 font-mono text-[11.5px]">{i.count} · {fmt1(i.avgScore)}</span>
                     </label>
                   ))}
                 </div>
               );
             })}
-            {!visible.length && <div className="text-[10px] text-slate-500 px-1 py-2">Không có ngành phù hợp.</div>}
+            {!visible.length && <div className="text-[12px] text-slate-400 px-1.5 py-2">Không có ngành phù hợp.</div>}
           </div>
         </div>
       )}
@@ -90,8 +89,8 @@ export interface ScannerToolbarProps {
 /** Góc phải Bảng Siêu Quét: rổ (Tất cả / VN30 / Danh mục), lọc ngành 2 cấp, gom nhóm. */
 export default function ScannerToolbar({ basket, onBasket, watchlistCount, gatewayReady, items, industries, onIndustries, groupBy, onGroupBy }: ScannerToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <div role="tablist" aria-label="Rổ cổ phiếu" className="inline-flex rounded border border-white/10 overflow-hidden bg-black/40">
+    <div className="flex flex-wrap items-center gap-2">
+      <div role="tablist" aria-label="Rổ cổ phiếu" className="scan-seg">
         <button role="tab" aria-selected={basket === "ALL"} className={seg(basket === "ALL")} onClick={() => onBasket("ALL")}>Tất cả</button>
         <button role="tab" aria-selected={basket === "VN30"} className={seg(basket === "VN30")} onClick={() => onBasket("VN30")}
           disabled={!gatewayReady} title={gatewayReady ? "Rổ VN30 (thành phần từ SSI)" : "Cần Market Gateway"}>VN30</button>
@@ -100,7 +99,7 @@ export default function ScannerToolbar({ basket, onBasket, watchlistCount, gatew
       </div>
       <SectorFilter items={items} selected={industries} onChange={onIndustries} />
       <select value={groupBy} onChange={(e) => onGroupBy(e.target.value as GroupBy)} aria-label="Gom nhóm"
-        className="text-[11px] bg-black/40 border border-white/10 rounded px-1.5 py-1 text-slate-300">
+        className="scan-tool scan-select">
         <option value="none">Không gom nhóm</option>
         <option value="group">Gom theo nhóm ngành</option>
         <option value="industry">Gom theo ngành</option>
