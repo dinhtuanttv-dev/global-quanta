@@ -36,7 +36,12 @@ vi.mock("../../../hooks/elite10/useEliteDilution", () => ({ useEliteDilution: ()
 vi.mock("../../../hooks/elite10/useEliteLiquidity", () => ({ useEliteLiquidity: () => ({ data: null, error: null, isLoading: false }) }));
 // HS360-v3 H1: thanh đầu đọc thêm hồ sơ tín hiệu của mã (ngành, giá đóng cửa, nguồn thiếu); bảng quyết định thay được theo từng bài.
 const H1 = vi.hoisted(() => ({ decision: null as unknown, panel: null as unknown, score: null as unknown }));
-vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: H1.decision ?? decision }), useEliteTicker: () => ({ panel: H1.panel, decision: H1.score, isLoading: false, error: null }) }));
+vi.mock("../../../hooks/elite10/useEliteCenter", () => ({ useEliteDecision: () => ({ data: H1.decision ?? decision }), useEliteTicker: () => ({ panel: H1.panel, decision: H1.score, isLoading: false, error: null }),
+  useEliteEvidence: () => ({ data: { signals: [{ id: "kq_nowcast", tier: "B" }] } }), useElitePanel: () => ({ data: H5.panel }) }));
+// HS360-v3 H5: so sánh trong ngành (bảng KQKD toàn thị trường) + tín hiệu E2 kq_nowcast (EV-4).
+const H5 = vi.hoisted(() => ({ panel: null as unknown, kq: null as unknown, evo: null as unknown }));
+vi.mock("../../../hooks/useKqkd", () => ({ useKqkdSummary: () => ({ data: H5.kq, error: null, isLoading: false }) }));
+vi.mock("../../../hooks/elite10/useEvidenceEvolution", () => ({ useEvidenceEvolution: () => ({ data: H5.evo }) }));
 
 import ProfileHeader from "./ProfileHeader";
 import CompanyProfileCard from "./CompanyProfileCard";
@@ -163,5 +168,44 @@ describe("Hồ sơ 360° · H1 thanh đầu hợp nhất", () => {
     render(<ProfileHeader ticker="VNINDEX" view="summary" onView={() => {}} actions={{ onOpenChart: chart, onOpenAi: ai, onOpenCycle: cycle }} />);
     expect(screen.getByTestId("elite-open-chart")).toBeTruthy();
     expect(screen.queryByTestId("profile-open-ai")).toBeNull(); expect(screen.queryByTestId("profile-open-cycle")).toBeNull();
+  });
+});
+
+// HS360-v3 H5 (27/11/2026): nhãn ước tính LNST cả năm + tín hiệu E2; so sánh trong ngành (cùng ICB cấp 2 + cùng mẫu BCTC); liên kết tab 1.
+import { sectorPeers } from "./SectorPeersBlock";
+describe("Hồ sơ 360° · H5 Doanh nghiệp & Sự kiện", () => {
+  const kr = (t: string, tpl: string, roe: number, nowcast: number | null) => ({ t, tpl, quarter: "Q3/2026", roe, netMarginTtm: roe / 2, ttmGrowth: { value: roe, status: "NORMAL" }, npatYoY: { value: roe, status: "NORMAL" }, nowcast: nowcast == null ? null : { growth: nowcast } });
+  const kqRows = [kr("VJC", "corp", 0.12, 0.03), ...Array.from({ length: 6 }, (_, i) => kr(`A${i}`, "corp", 0.05 + i * 0.02, i / 10)), kr("BNK", "bank", 0.3, 0.2), kr("Z1", "corp", 0.5, 0.9)];
+  const l2 = new Map<string, string | undefined>([["VJC", "5700"], ...Array.from({ length: 6 }, (_, i) => [`A${i}`, "5700"] as [string, string]), ["BNK", "5700"], ["Z1", "8300"]]);
+  beforeEach(() => { fa = base; H5.panel = null; H5.kq = null; H5.evo = null; });
+  afterEach(() => cleanup());
+
+  it("sectorPeers: chỉ so cùng ngành + cùng mẫu BCTC (bỏ ngân hàng); < 5 mã -> không tính", () => {
+    const r = sectorPeers("VJC", kqRows as never, l2)!;
+    expect(r.group.map((x) => x.t)).not.toContain("BNK");
+    expect(r.group.length).toBe(7);
+    const roe = r.out.find((x) => x.id === "roe")!;
+    expect(roe.value).toBe(0.12); expect(roe.median).toBeCloseTo(0.11, 5); expect(roe.pctSector).toBeGreaterThan(50);
+    expect(sectorPeers("Z1", kqRows as never, l2)!.out[0].pctSector).toBeNull();
+    expect(sectorPeers("NONE", kqRows as never, l2)).toBeNull();
+  });
+
+  it("góc Doanh nghiệp: nhãn 'Ước tính LNST cả năm' + tín hiệu E2 kq_nowcast; khối so sánh trong ngành", () => {
+    H5.kq = { rows: kqRows }; H5.panel = { rows: [...l2].map(([ticker, x]) => ({ ticker, icb: { l2: x }, values: {} })) };
+    H5.evo = { signals: [{ id: "kq_nowcast", sqs: 61, trendTag: "NEUTRAL" }] };
+    render(<CompanyProfileCard ticker="VJC" />);
+    expect(text("pfa-nowcast")).toContain("Ước tính LNST cả năm");
+    expect(text("pfa-nowcast")).not.toContain("quý tới");
+    expect(text("pfa-nowcast-e2")).toMatch(/kq_nowcast.*bậc B.*SQS 61/);
+    expect(text("pfa-peers")).toMatch(/7 mã cùng ngành ICB cấp 2, mẫu BCTC doanh nghiệp/);
+    expect(text("pfa-peer-roe")).toMatch(/\+12%/);
+  });
+
+  it("góc Sự kiện: liên kết khung 'Mã đang chọn' (tab 1) chỉ khi có hàm mở", () => {
+    const go = vi.fn();
+    render(<EventsProfileCard ticker="VJC" onOpenFocus={go} />);
+    fireEvent.click(screen.getByTestId("pfa-to-open-focus")); expect(go).toHaveBeenCalledTimes(1);
+    cleanup(); render(<EventsProfileCard ticker="VJC" />);
+    expect(screen.queryByTestId("pfa-to-open-focus")).toBeNull();
   });
 });

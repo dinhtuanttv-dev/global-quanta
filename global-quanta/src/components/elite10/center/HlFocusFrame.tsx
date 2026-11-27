@@ -3,7 +3,8 @@
 //   (EliteNewsPanel). Dùng NGUYÊN component cũ — không đổi hook, công thức hay data-testid bên trong.
 // Mã: các mã đang giữ của Elite HL (mặc định mã đầu tiên); danh mục trống -> mã đầu hàng chờ. Mô phỏng thời điểm nặng (lịch sử 5 năm,
 // nghiên cứu sự kiện) nên chỉ dựng khi người dùng bấm — mở Bảng quyết định không gọi thêm các API đó.
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useAppStore } from "../../../store/useAppStore";
 import { hlPicks, type EliteDecision } from "../../../lib/elite10/decisionTypes";
 import ToTickerCard from "./ToTickerCard";
 import TimingSimPanel from "../timing/TimingSimPanel";
@@ -18,9 +19,15 @@ export function focusTickers(d: EliteDecision): { tickers: string[]; source: "he
   return queue.length ? { tickers: queue.slice(0, 10), source: "queue" } : { tickers: [], source: "none" };
 }
 
+/** HS360-v3 H5: nonce "Mã đang chọn" đã xử lý — mức mô-đun để mở lại tab không chọn lại. */
+let handledHlFocus = 0;
+
 export default function HlFocusFrame({ d, onOpenTicker }: { d: EliteDecision; onOpenTicker: (ticker: string) => void }) {
   const { tickers, source } = useMemo(() => focusTickers(d), [d]);
   const [picked, setPicked] = useState<string | null>(null);
+  // HS360-v3 H5: Hồ sơ 360° · Sự kiện yêu cầu mở mã trong khung này (store hlFocus, nonce).
+  const hlFocus = useAppStore((s) => s.hlFocus);
+  useEffect(() => { if (hlFocus && hlFocus.nonce > handledHlFocus) { handledHlFocus = hlFocus.nonce; setPicked(hlFocus.ticker); } }, [hlFocus]);
   const [simOn, setSimOn] = useState(false);
   const cur = picked && tickers.includes(picked) ? picked : tickers[0] ?? null;
   const chip = (t: string) => (

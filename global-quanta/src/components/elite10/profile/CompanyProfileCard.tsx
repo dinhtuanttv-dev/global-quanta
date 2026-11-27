@@ -2,12 +2,28 @@
 // khoá theo phiên; số nào chưa có / không áp dụng thì ghi rõ, không điền 0. Nhãn bằng chứng đặt cạnh từng chỉ số.
 import { useProfileFa } from "../../../hooks/elite10/useProfileFa";
 import LiquidityProfileBlock from "./LiquidityProfileBlock";
+import SectorPeersBlock from "./SectorPeersBlock";
+import { useEliteEvidence } from "../../../hooks/elite10/useEliteCenter";
+import { useEvidenceEvolution } from "../../../hooks/elite10/useEvidenceEvolution";
+import { TAG_VI } from "../center/EvidenceEvolution";
 import type { PfaDividend, PfaEarnings } from "../../../lib/elite10/profileFaTypes";
 import { FA_R1 } from "../../../lib/elite10/faR1";
 import { Block, bn, Checklist, cover, Evidence, fmtDate, num, pct, spct, Stat, tone, vnd, WarningList, YoY } from "./pfaParts";
 
 const SRC_VI: Record<string, string> = { DISCLOSURE: "tin công bố chính thức", CAFEF: "CafeF", VND_CREATED: "ngày dữ liệu VNDirect" };
 const ZONE_VI: Record<string, string> = { SAFE: "an toàn", GREY: "vùng xám", DISTRESS: "rủi ro" };
+
+/** HS360-v3 H5: chỉ số "Ước tính LNST cả năm" cũng là tín hiệu E2 `kq_nowcast` (bậc B từ 27/11) — hiện bậc hiện hành + SQS / xu hướng (tab 4). */
+function KqSignalChip() {
+  const { data: ev } = useEliteEvidence();
+  const { data: evo } = useEvidenceEvolution();
+  const e = ev?.signals.find((s) => s.id === "kq_nowcast"), o = evo?.signals.find((s) => s.id === "kq_nowcast");
+  return (
+    <span className="mt-0.5 block text-[10px] text-slate-400" data-testid="pfa-nowcast-e2">
+      Tín hiệu E2 <b className="text-slate-300">kq_nowcast</b> · bậc {e?.tier ?? "B"}{o ? <> · SQS {o.sqs} · {TAG_VI[o.trendTag].label}</> : " · mới — đo tiến từ phiên 30/11/2026"}
+    </span>
+  );
+}
 
 function Earnings({ e }: { e: PfaEarnings }) {
   if (!e.available) return <Block title="Kết quả kinh doanh" testId="pfa-earnings"><p className="text-[11px] text-slate-400" data-testid="pfa-earnings-na">{e.reasonVi}</p></Block>;
@@ -21,8 +37,9 @@ function Earnings({ e }: { e: PfaEarnings }) {
         <Stat label="ROE · biên ròng 4 quý" sub={e.nonCoreShare != null && Math.abs(e.nonCoreShare) > 0.5 ? <span className="text-amber-300">Lợi nhuận ngoài cốt lõi {pct(e.nonCoreShare, 0)}</span> : undefined}>{pct(e.roe)} · {pct(e.netMarginTtm)}</Stat>
       </div>
       <div className="mt-2 grid grid-cols-1 gap-1.5 md:grid-cols-2">
-        <Stat label="Dự báo LNST quý tới (nowcast)" testId="pfa-nowcast"
-          sub={<>Khoảng {bn(e.nowcast?.lo)} – {bn(e.nowcast?.hi)} · đã có {pct(e.nowcast?.cumShare, 0)} luỹ kế năm{e.evidence?.nowcast && <> · KQ-r1 IC {num(e.evidence.nowcast.ic, 3)}</>}</>}>
+        {/* HS360-v3 H5 (F7): nhãn cũ "Dự báo LNST quý tới" sai — số là ước tính LNST CẢ NĂM (est so với luỹ kế năm, cumShare). */}
+        <Stat label="Ước tính LNST cả năm (nowcast)" testId="pfa-nowcast"
+          sub={<>Khoảng {bn(e.nowcast?.lo)} – {bn(e.nowcast?.hi)} · đã có {pct(e.nowcast?.cumShare, 0)} luỹ kế năm{e.evidence?.nowcast && <> · KQ-r1 IC {num(e.evidence.nowcast.ic, 3)}</>}<KqSignalChip /></>}>
           {e.nowcast ? <>{bn(e.nowcast.est)} <span className={`text-[11px] ${tone(e.nowcast.growth)}`}>({spct(e.nowcast.growth)})</span></> : "—"}
           {e.evidence?.nowcast && <Evidence label={e.evidence.nowcast.pass ? "THĂM DÒ" : "KHÔNG ĐẠT"} title={`Kiểm định đăng ký trước ${e.evidence.prereg ?? ""}: IC ${e.evidence.nowcast.ic}, p ${e.evidence.nowcast.p}`} />}
         </Stat>
@@ -116,6 +133,8 @@ export default function CompanyProfileCard({ ticker }: { ticker: string }) {
       </Block>
       <LiquidityProfileBlock ticker={ticker} />
       {data.earnings && <Earnings e={data.earnings} />}
+      {/* HS360-v3 H5: so sánh trong ngành ICB cấp 2 cùng mẫu BCTC (bảng KQKD toàn thị trường). */}
+      <SectorPeersBlock ticker={ticker} />
       {data.earnings && <Quality e={data.earnings} />}
       {data.dividend && <Dividend v={data.dividend} />}
       <p className="text-[10px] text-slate-500" data-testid="pfa-provenance">Hồ sơ khoá theo phiên {fmtDate(data.asOf)}{data.builtAt ? ` (dựng ${new Date(data.builtAt).toLocaleString("vi-VN", { hour12: false })})` : ""} · {data.version} · BCTC theo ngày công bố thật: quý công bố sau phiên không được dùng. Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
