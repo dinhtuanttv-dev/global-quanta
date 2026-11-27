@@ -4,7 +4,7 @@ import { cleanup, fireEvent, render, screen } from "../../test/rtl-lite";
 
 const { stub, mutateSpy } = vi.hoisted(() => ({ stub: (id: string) => ({ default: () => <div data-testid={id} /> }), mutateSpy: vi.fn(async () => undefined) }));
 vi.mock("swr", () => ({ mutate: mutateSpy, default: () => ({ data: undefined }) }));
-vi.mock("./SieuQuetAI/SieuQuetAiTab", () => stub("p-tongquan"));
+vi.mock("./SieuQuetAI/OverviewTab", () => stub("p-tongquan"));
 vi.mock("./TaVnIndex/TaVnIndexTab", () => stub("p-kythuat"));
 vi.mock("./CoTuc/CotucTab", () => stub("p-coban"));
 vi.mock("./KetNoiTheGioi/KetNoiTheGioiTab", () => stub("p-world"));
