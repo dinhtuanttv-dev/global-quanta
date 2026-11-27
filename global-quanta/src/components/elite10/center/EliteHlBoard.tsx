@@ -32,7 +32,7 @@ import { HlImpactBlock, HlImpactRow, HlImpactToggle } from "./HlImpactLayer";
 import { HlLsTrend, HlReplay, useHlHistory } from "./HlHistoryLayers";
 // BUỒNG LÁI C1–C5 (20/11/2026, docs/elite-hl-cockpit): thanh trạng thái, đọc phễu, bản đồ trạng thái (D1), breadcrumb, ma trận hàng chờ.
 import { funnelModel, resolveBoardState, sessionSeal, type HistSessionLite } from "../../../lib/elite10/cockpit";
-import { CockpitStatusBar, FunnelNotes, HlBreadcrumb, pickedTickers, QueueMatrix, StateMap, todayTransitions, useHlWatchLog } from "./CockpitLayers";
+import { CockpitStatusBar, HlBreadcrumb, QueueMatrix, StateMap, todayTransitions, useHlWatchLog } from "./CockpitLayers";
 import { CommandBar, MissionMeters, TodayRibbon } from "../deck/DeckTop";
 // NHỊP QUYẾT ĐỊNH (20/11/2026, docs/elite-hl-pulse): lớp "pulse" bật -> một panel thay TodayRibbon + "Thay đổi hôm nay"; tắt -> như cũ.
 import DecisionPulse from "./DecisionPulse";
@@ -117,6 +117,8 @@ function HlWhy({ p, exitLsPct, mobile = false }: { p: HlPick; exitLsPct: number;
     </div>
   );
 }
+const NO_HIGHLIGHT = new Set<string>();
+
 export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError = null, onNavigateToEvidence }: { d: EliteDecision; onOpenTicker: (ticker: string) => void; switcher?: React.ReactNode; refreshError?: string | null; onNavigateToEvidence?: () => void }) {
   const hl = d.hl!;
   const { data: ws } = useWorldStrategy();
@@ -155,7 +157,6 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const cockpitSeal = useMemo(() => sessionSeal(d, [{ key: "panel", label: "Bảng tín hiệu", date: panel?.date }, { key: "risk", label: "Rủi ro", date: risk?.date }, { key: "hist", label: "Lịch sử theo phiên", date: hist?.dates?.[hist.dates.length - 1] }]), [d, panel?.date, risk?.date, hist]);
   const cockpitSessions = hist?.sessions as HistSessionLite[] | undefined, cockpitLog = wlog?.entries;
   const cockpitToday = useMemo(() => (layers.cockpit ? todayTransitions(cockpitStates, d, cockpitSessions, cockpitLog) : []), [layers.cockpit, cockpitStates, d, cockpitSessions, cockpitLog]);
-  const [cockpitPick, setCockpitPick] = useState<string | null>(null);
   const impactBtn = (t: string, mobile = false) => (layers.impact ? <HlImpactToggle ticker={t} open={impactOpen === t} onToggle={() => setImpactOpen(impactOpen === t ? null : t)} mobile={mobile} /> : null);
   // PZ-v2: bảng chính chỉ còn mã trong nền / vùng mua; mã đang giữ đã tăng nóng chuyển sang bảng Theo dõi chờ nền (vẫn trong vốn).
   const pz = hl.pz ?? null, pzRules = { ...DEFAULT_PZ_RULES, ...(pz?.rules ?? {}) };
@@ -219,8 +220,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       {invariants.length > 0 && <p role="status" className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10.5px] text-amber-200" data-testid="deck-invariants">Kiểm tra nhất quán dữ liệu chưa đạt: {invariants.join(" · ")}.</p>}
 
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-2 xl:grid-cols-3">
-        <ExitRadar picks={picks} rule={r} missSessions={r.missSessions ?? 2} onOpenTicker={onOpenTicker} />
-        {layers.cockpit && <ExitTriggers d={d} picks={picks} onOpenTicker={onOpenTicker} />}
+        {/* Gộp 27/11: lớp Buồng lái bật -> một bảng "Ngưỡng bán · 4 điều kiện" (thanh LS-v1 + TA + Ngành + Dữ liệu); tắt lớp -> khối cũ y nguyên. */}
+        {layers.cockpit ? <ExitTriggers d={d} picks={picks} onOpenTicker={onOpenTicker} /> : <ExitRadar picks={picks} rule={r} missSessions={r.missSessions ?? 2} onOpenTicker={onOpenTicker} />}
         <FunnelBars steps={steps} total={f.panel} />
       {!layers.pulse && (
       <Panel title={`Thay đổi hôm nay${hl.prevDate ? ` · so với phiên ${fmtDate(hl.prevDate)}` : " · phiên dựng đầu tiên"}`} testId="hl-changes">
@@ -238,7 +239,8 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
       )}
       </div>
 
-      {layers.cockpit && cockpitFunnel && <FunnelNotes m={cockpitFunnel} picked={cockpitPick} onPick={setCockpitPick} />}
+      {/* Gỡ 27/11 (chủ dự án): khối "Đọc phễu đúng cách" — ít tác dụng, chật giao diện. Giữ lại đúng cảnh báo khi phễu không nhất quán. */}
+      {layers.cockpit && cockpitFunnel && cockpitFunnel.checks.length > 0 && <p role="status" data-hl-layer="cockpit" className="rounded border border-amber-400/40 bg-amber-500/10 px-2 py-1 text-[10.5px] text-amber-200" data-testid="cockpit-funnel-checks">Phễu chưa nhất quán: {cockpitFunnel.checks.join(" · ")}.</p>}
       <HlCalendarStrip d={d} onOpenTicker={onOpenTicker} />
 
       {pz && layers.cockpit && corePicks.some((p) => p.hl.pz && p.hl.pz.state !== "BUY_ZONE" && p.hl.pz.state !== "IN_BASE") && (
@@ -333,7 +335,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
         {layers.trend && <HlReplay h={hist} today={{ date: d.date, held: heldTickers }} onOpenTicker={onOpenTicker} />}
       </Panel>
 
-      {layers.cockpit && <StateMap states={cockpitStates} sessions={cockpitSessions} log={cockpitLog} highlight={pickedTickers(d, cockpitPick)} today={new Set(cockpitToday.map((x) => x.ticker))} onOpenTicker={onOpenTicker} />}
+      {layers.cockpit && <StateMap states={cockpitStates} sessions={cockpitSessions} log={cockpitLog} highlight={NO_HIGHLIGHT} today={new Set(cockpitToday.map((x) => x.ticker))} onOpenTicker={onOpenTicker} />}
       <RuleSpace rows={panel?.rows} panelDate={panel?.date ? fmtDate(panel.date) : null} held={heldSet} queued={queuedSet} rule={r} tier1={t1} funnel={f} />
 
       {pz && <HlWatchPanel rows={hl.watch ?? []} exits={hl.watchExits ?? []} meta={pz} onOpenTicker={onOpenTicker} secName={secName}

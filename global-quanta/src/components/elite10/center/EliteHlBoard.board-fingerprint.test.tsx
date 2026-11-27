@@ -36,9 +36,11 @@ const ALL_OFF = { news: false, signals: false, buy: false, live: false, impact: 
 // (deck-today) và "Thay đổi hôm nay" (hl-changes). Khi đó bảng gốc phải bằng TỆP NỀN KHÔNG ĐỔI trừ đúng hai khối đó. Mọi giá trị của hai
 // khối được chứng minh có mặt trong panel mới ở DecisionPulse.test.tsx (KP1); lớp tắt -> giống hệt tệp nền (test thứ hai).
 import base from "./__fingerprints__/hl-board-2026-11-18.json";
-const REPLACED = /^(deck-today|hl-kpi-rebalance|hl-kpi-names|hl-kpi-lanes|deck-pz-counts|hl-kpi-turnover|hl-changes|hl-added|hl-exit-|hl-pz-changes) :: /;
+// GỘP NGƯỠNG BÁN (27/11/2026, quyết định chủ dự án): lớp cockpit bật -> khối "Khoảng cách tới ngưỡng bán" (deck-exit-radar) được THAY bằng
+// bảng "Ngưỡng bán · 4 điều kiện" (exit-triggers, mang data-hl-layer). Mọi giá trị LS-v1 của khối cũ có trong bảng mới (BoardAudit.test).
+const REPLACED = /^(deck-exit-radar|deck-exit-[A-Z0-9]+|deck-today|hl-kpi-rebalance|hl-kpi-names|hl-kpi-lanes|deck-pz-counts|hl-kpi-turnover|hl-changes|hl-added|hl-exit-|hl-pz-changes) :: /;
 function baseWithoutReplaced(): { testIds: string[]; text: string } {
-  const gone = base.testIds.filter((x) => /^(deck-today|hl-changes) :: /.test(x)).map((x) => x.replace(/^[^:]+ :: /, ""));
+  const gone = base.testIds.filter((x) => /^(deck-exit-radar|deck-today|hl-changes) :: /.test(x)).map((x) => x.replace(/^[^:]+ :: /, ""));
   let text = base.text.replace(/s+/g, "");
   for (const g of gone) { const k = g.replace(/s+/g, ""); if (!text.includes(k)) throw new Error("tệp nền thiếu khối: " + g.slice(0, 40)); text = text.replace(k, ""); }
   return { testIds: base.testIds.filter((x) => !REPLACED.test(x)), text };
@@ -46,7 +48,7 @@ function baseWithoutReplaced(): { testIds: string[]; text: string } {
 afterEach(() => { cleanup(); try { window.localStorage.removeItem(LAYERS_KEY); } catch { /* */ } });
 
 describe("Vân tay toàn Bảng quyết định Elite HL (dữ liệu thật 18/11)", () => {
-  it("lớp mặc định (pulse bật): bảng gốc = tệp nền trừ đúng hai khối được thay; không thiếu, không thừa phần tử nào khác", () => {
+  it("lớp mặc định (pulse + cockpit bật): bảng gốc = tệp nền trừ đúng ba khối được thay; không thiếu, không thừa phần tử nào khác", () => {
     render(<EliteHlBoard d={d} onOpenTicker={() => {}} />);
     const got = JSON.parse(boardFingerprint()) as { testIds: string[]; text: string };
     const want = baseWithoutReplaced();
