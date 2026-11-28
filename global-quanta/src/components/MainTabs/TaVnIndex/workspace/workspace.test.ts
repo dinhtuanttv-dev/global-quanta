@@ -51,7 +51,11 @@ describe("mô hình bố cục", () => {
   });
 
   it("khoảng nhìn theo khung: D = phiên, W = tuần, intraday = số nến mỗi phiên", () => {
-    expect(rangesFor("D").map((r) => r.id)).toEqual(["1T", "3T", "6T", "1N", "3N", "all"]);
+    // TA-T3 (Q4): thêm 5 ngày · Đầu năm · 5 năm; các mã cũ giữ nguyên thứ tự tương đối.
+    expect(rangesFor("D").map((r) => r.id)).toEqual(["5D", "1T", "3T", "6T", "YTD", "1N", "3N", "5Y", "all"]);
+    expect(rangesFor("D").find((r) => r.id === "1N")?.label).toBe("1Năm");
+    expect(rangeBars("D", "5D")).toBe(5);
+    expect(rangeBars("D", "YTD", [{ date: "2025-12-30" }, { date: "2025-12-31" }, { date: "2026-01-02" }, { date: "2026-01-05" }])).toBe(2);
     expect(rangeBars("D", "1N")).toBe(250);
     expect(rangeBars("W", "1N")).toBe(50);
     expect(rangeBars("1H", "5P")).toBe(25);

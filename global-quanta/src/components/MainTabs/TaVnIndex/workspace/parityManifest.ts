@@ -18,7 +18,7 @@ export type ParityCheck =
   | { kind: "tabs"; sel: string; min: number }
   | { kind: "custom"; name: "ticker" | "pin" | "structureEvent" | "drawSaved" | "clearAll" | "countSave" | "preset" | "palette" | "range" | "undoRedo" | "selectDelete" | "dragMove" | "objectHide" | "png" | "classic" | "inspector" | "paneClose" | "patternHighlight" };
 
-export interface ParityItem { id: string; group: ParityGroup; feature: string; now: string; target: ParityTarget; check: ParityCheck; since?: "SC0" | "SC1" | "SC2" | "SC3" | "SC4" }
+export interface ParityItem { id: string; group: ParityGroup; feature: string; now: string; target: ParityTarget; check: ParityCheck; since?: "SC0" | "SC1" | "SC2" | "SC3" | "SC4" | "T3" }
 
 /** Bố cục khi kiểm: "docked" (bảng chi tiết cố định), "drawer" / "off" (ngăn kéo), "mobile" (thanh hành động + bảng trượt). */
 export type LayoutMode = "docked" | "drawer" | "off" | "mobile";
@@ -26,6 +26,9 @@ const DOCK = (tab: string) => ({ any: [[`[data-dock-tab="${tab}"]`]] });
 const INSPECTOR = (tab: string) => ({ docked: [[`[data-inspector-tab="${tab}"]`], ["[data-testid=inspector-btn]", `[data-inspector-tab="${tab}"]`]], drawer: [[`[data-inspector-tab="${tab}"]`], ["[data-testid=inspector-btn]", `[data-inspector-tab="${tab}"]`]], off: [["[data-testid=inspector-btn]", `[data-inspector-tab="${tab}"]`]] });
 /** Đường mở theo bố cục (mỗi phương án là chuỗi nút cần bấm, thử lần lượt). Khớp theo selector. */
 export const REVEAL: { match: RegExp; by: Partial<Record<LayoutMode | "any", string[][]>> }[] = [
+  // TA-T3 (Q4): khung thời gian gộp một nút xổ xuống — mở nút rồi chọn khung (mục luôn nằm trong trang, ẩn khi đóng).
+  { match: /^\[data-tf=/, by: { any: [["[data-testid=tf-menu-btn]"]] } },
+  { match: /^\[data-charttype=|^\[data-volmode=/, by: { any: [["[data-testid=charttype-btn]"]] } },
   { match: /^\[data-layer=/, by: { docked: [["[data-testid=layers-menu-btn]"]], drawer: [["[data-testid=layers-menu-btn]"]], off: [["[data-testid=layers-menu-btn]"]], mobile: [["[data-testid=mobile-layers]"]] } },
   // Yêu cầu 25/10: công cụ Fibonacci nằm trong nhóm "Fibonacci" của thanh công cụ (di động: bảng trượt Vẽ).
   { match: /data-tool="?fibonacci|data-tool="?fibTimeZone|fib-ext/, by: { docked: [["[data-testid=fib-group-btn]"]], drawer: [["[data-testid=fib-group-btn]"]], off: [["[data-testid=fib-group-btn]"]], mobile: [["[data-testid=mobile-draw]"]] } },
@@ -112,7 +115,9 @@ export const PARITY_MANIFEST = [
   // ---- Workspace mới (SC1–SC5)
   { id: "ws-legend", group: "workspace", feature: "Chú giải OHLC · % · KL theo crosshair", now: "(mới)", target: "Chart", check: { kind: "visible", sel: "[data-testid=ohlc-legend]" }, since: "SC2" },
   { id: "ws-pane-close", group: "workspace", feature: "Tiêu đề pane + nút ✕ tắt pane", now: "(mới)", target: "Chart", check: { kind: "custom", name: "paneClose" }, since: "SC2" },
-  { id: "ws-range", group: "workspace", feature: "Mốc khoảng nhìn 1T/3T/6T/1N/3N/Tất cả", now: "(mới)", target: "Header", check: { kind: "custom", name: "range" }, since: "SC2" },
+  { id: "ws-range", group: "workspace", feature: "Mốc khoảng nhìn 5N/1T/3T/6T/Đầu năm/1Năm/3Năm/5Năm/Tất cả (T3: dưới trục thời gian)", now: "(mới)", target: "Chart", check: { kind: "custom", name: "range" }, since: "SC2" },
+  { id: "ws-charttype", group: "workspace", feature: "Kiểu biểu đồ: Nến · Nến rỗng · Heikin Ashi · Thanh · Đường · Vùng · Đường nền; KL pane riêng / chồng giá", now: "(mới)", target: "Header", check: { kind: "click", sel: "[data-charttype=heikin]", expect: "[data-chart-type=heikin]" }, since: "T3" },
+  { id: "ws-scale", group: "workspace", feature: "Thang giá % · log · 100 · Đảo", now: "(mới)", target: "Chart", check: { kind: "click", sel: "[data-testid=scale-log]", expect: "[data-testid=scale-log][aria-pressed=true]" }, since: "T3" },
   { id: "ws-preset", group: "workspace", feature: "6 preset bố cục (chỉ đổi lớp hiển thị)", now: "(mới)", target: "Header", check: { kind: "custom", name: "preset" }, since: "SC1" },
   { id: "ws-palette", group: "workspace", feature: "Bảng lệnh Ctrl/⌘+K (tìm không dấu)", now: "(mới)", target: "Header", check: { kind: "custom", name: "palette" }, since: "SC4" },
   { id: "ws-png", group: "workspace", feature: "Xuất ảnh PNG của biểu đồ", now: "(mới)", target: "Toolbar", check: { kind: "custom", name: "png" }, since: "SC2" },

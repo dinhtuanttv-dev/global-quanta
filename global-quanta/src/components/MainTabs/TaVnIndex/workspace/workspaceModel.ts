@@ -106,18 +106,29 @@ export function fullLayers(saved: Partial<LayerState>, current: LayerState): Par
 export const layersToSave = (s: LayerState): Partial<LayerState> =>
   Object.fromEntries((Object.keys(s) as (keyof LayerState)[]).filter((k) => s[k]).map((k) => [k, true])) as Partial<LayerState>;
 
-/** Mốc khoảng nhìn (khung nhìn, không đổi độ phân giải nến): số nến theo khung. */
-export type RangeId = "1P" | "5P" | "1T" | "3T" | "6T" | "1N" | "3N" | "all";
+/** Mốc khoảng nhìn (khung nhìn, không đổi độ phân giải nến): số nến theo khung.
+ *  TA-T3 (Q4, 28/11): thêm 5 ngày · Đầu năm · 5 năm như TradingView; nhãn rõ nghĩa (1Năm / 3Năm). Mã data-range cũ giữ nguyên (hợp đồng E2E). */
+export type RangeId = "1P" | "5P" | "5D" | "1T" | "3T" | "6T" | "YTD" | "1N" | "3N" | "5Y" | "all";
 const BARS_PER_SESSION: Record<string, number> = { "1m": 255, "5m": 51, "15m": 17, "1H": 5 };
+const LABEL: Record<RangeId, string> = { "1P": "1 phiên", "5P": "5 phiên", "5D": "5N", "1T": "1T", "3T": "3T", "6T": "6T", YTD: "Đầu năm", "1N": "1Năm", "3N": "3Năm", "5Y": "5Năm", all: "Tất cả" };
+export const RANGE_TITLE: Record<RangeId, string> = { "1P": "1 phiên", "5P": "5 phiên", "5D": "5 ngày", "1T": "1 tháng", "3T": "3 tháng", "6T": "6 tháng", YTD: "Từ đầu năm", "1N": "1 năm", "3N": "3 năm", "5Y": "5 năm", all: "Toàn bộ dữ liệu" };
+const pick = (ids: RangeId[]) => ids.map((id) => ({ id, label: LABEL[id] }));
 export function rangesFor(tf: string): { id: RangeId; label: string }[] {
-  if (tf in BARS_PER_SESSION) return [{ id: "1P", label: "1 phiên" }, { id: "5P", label: "5 phiên" }, { id: "all", label: "Tất cả" }];
-  if (tf === "W") return [{ id: "6T", label: "6T" }, { id: "1N", label: "1N" }, { id: "3N", label: "3N" }, { id: "all", label: "Tất cả" }];
-  if (tf === "M") return [{ id: "1N", label: "1N" }, { id: "3N", label: "3N" }, { id: "all", label: "Tất cả" }];
-  return [{ id: "1T", label: "1T" }, { id: "3T", label: "3T" }, { id: "6T", label: "6T" }, { id: "1N", label: "1N" }, { id: "3N", label: "3N" }, { id: "all", label: "Tất cả" }];
+  if (tf in BARS_PER_SESSION) return pick(["1P", "5P", "all"]);
+  if (tf === "W") return pick(["6T", "YTD", "1N", "3N", "5Y", "all"]);
+  if (tf === "M") return pick(["1N", "3N", "5Y", "all"]);
+  return pick(["5D", "1T", "3T", "6T", "YTD", "1N", "3N", "5Y", "all"]);
 }
-export function rangeBars(tf: string, id: RangeId): number {
+/** Số nến cho mốc khoảng nhìn. "Đầu năm" cần danh sách nến (đếm nến từ 01/01 năm của nến cuối). */
+export function rangeBars(tf: string, id: RangeId, bars?: readonly { date: string }[]): number {
   if (id === "all") return Infinity;
-  const sessions = { "1P": 1, "5P": 5, "1T": 21, "3T": 63, "6T": 126, "1N": 250, "3N": 750 }[id];
+  if (id === "YTD") {
+    if (!bars?.length) return tf === "W" ? 26 : 126;
+    const y = bars[bars.length - 1].date.slice(0, 4);
+    let n = 0; for (let i = bars.length - 1; i >= 0 && bars[i].date.slice(0, 4) === y; i--) n++;
+    return Math.max(1, n);
+  }
+  const sessions = { "1P": 1, "5P": 5, "5D": 5, "1T": 21, "3T": 63, "6T": 126, "1N": 250, "3N": 750, "5Y": 1250 }[id];
   if (tf in BARS_PER_SESSION) return sessions * BARS_PER_SESSION[tf];
   if (tf === "W") return Math.round(sessions / 5);
   if (tf === "M") return Math.round(sessions / 21);
