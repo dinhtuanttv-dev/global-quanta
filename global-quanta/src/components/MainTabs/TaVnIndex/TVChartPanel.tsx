@@ -67,6 +67,7 @@ import type { Timeframe } from "../../../lib/ta-command-center/TimeframeControll
 import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspace/indicatorSettings";
 import ChartSignalsValidation from "./ChartSignalsValidation";
 import { lastBarForming, seriesFreshness } from "../../../lib/ta-command-center/dataStatus";
+import { priceDigitsFor, viPrice } from "../../../lib/ta-command-center/chart/viFormat";
 import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
 import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
@@ -580,7 +581,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       { id: "lower", color: BB_COLORS.lower, values: bbValues.lower },
     ] : null);
   }, [tvApi, bbValues]);
-  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues), [maValues, ichiValues, bbValues, stValues]);
+  const priceDigits = useMemo(() => priceDigitsFor(currentBars), [currentBars]);
+  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues, priceDigits), [maValues, ichiValues, bbValues, stValues, priceDigits]);
   // MS-GARCH là dải từ hiện tại nên chỉ có ở khung ngày, không vẽ khi đang xem lại lịch sử.
   const msgarchOn = Boolean(layerState?.msgarch);
   const msgarchApplies = timeframe === "D" && replayIdxDeferred == null;
@@ -1373,6 +1375,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         </div>
         {inspectorMode === "docked" && inspector("docked")}
       </div>
+      {/* TA-T1: ghi công TradingView (giấy phép Lightweight Charts) đặt dưới chart thay logo vẽ đè lên pane chỉ báo. */}
+      <p className="ws-attribution" data-testid="tv-attribution">
+        Biểu đồ: <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>
+      </p>
 
       {/* 4. Di động: thanh hành động dưới chart -> bảng trượt */}
       {isMobile && (
@@ -1476,18 +1482,19 @@ function closeOpenPopovers() {
 export const ICHI_COLORS = { tenkan: "#2dd4bf", kijun: "#f97316", chikou: "rgba(148,163,184,0.75)" } as const;
 
 /** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
-export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null) {
-  const f = (v: number | null | undefined) => (v == null ? "—" : v.toLocaleString("vi-VN", { maximumFractionDigits: v >= 1000 ? 0 : 2 }));
-  return (i: number): { label: string; color: string; value: string }[] => {
-    const out: { label: string; color: string; value: string }[] = [];
-    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: m.color, value: f(ma[m.id][i]) });
+export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2) {
+  // TA-T1: cùng kiểu số với trục giá (2 chữ số thập phân, kiểu Việt); `group` = lớp của dòng chú giải (mỗi chỉ báo một dòng, có nút ✕).
+  const f = (v: number | null | undefined) => (v == null ? "—" : viPrice(v, digits));
+  return (i: number): { label: string; color: string; value: string; group: LayerKey }[] => {
+    const out: { label: string; color: string; value: string; group: LayerKey }[] = [];
+    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: m.color, value: f(ma[m.id][i]), group: "maSet" });
     if (ichi) {
       const j = i - ICHIMOKU_DEFAULT.shift;
-      out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]) }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]) },
-        { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—" });
+      out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]), group: "ichimoku" }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]), group: "ichimoku" },
+        { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—", group: "ichimoku" });
     }
-    if (bb) out.push({ label: "BB", color: BB_COLORS.upper, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}` });
-    if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? ST_COLORS.down : ST_COLORS.up, value: f(st.line[i]) });
+    if (bb) out.push({ label: "BB", color: BB_COLORS.upper, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}`, group: "bollinger" });
+    if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? ST_COLORS.down : ST_COLORS.up, value: f(st.line[i]), group: "supertrend" });
     return out;
   };
 }

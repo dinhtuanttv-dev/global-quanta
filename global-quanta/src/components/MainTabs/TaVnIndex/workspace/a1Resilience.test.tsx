@@ -62,7 +62,9 @@ describe("25/10 — EMA 21/50/100 · MA 200 + mây Ichimoku", () => {
     const row = read(100);
     expect(row.map((x) => x.label)).toEqual(["EMA 21", "EMA 50", "EMA 100", "MA 200", "Tenkan", "Kijun", "Mây A/B"]);
     expect(row[3].value).toBe("—"); // MA 200 chưa đủ 200 nến
-    expect(row[6].value).toBe(`${ichi.spanA[74]!.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} / ${ichi.spanB[74]!.toLocaleString("vi-VN", { maximumFractionDigits: 2 })}`);
+    // TA-T1 (28/11): chú giải cùng độ chính xác với trục giá (2 chữ số cố định) — giá trị kiểm vẫn là Senkou tính tại i − 26.
+    const two = { minimumFractionDigits: 2, maximumFractionDigits: 2 };
+    expect(row[6].value).toBe(`${ichi.spanA[74]!.toLocaleString("vi-VN", two)} / ${ichi.spanB[74]!.toLocaleString("vi-VN", two)}`);
     expect(priceExtrasReader(null, null)(5)).toEqual([]);
   });
   it("mây chỉ vẽ khi bật lớp; điểm cuối nằm ở vùng tương lai (+26 nến)", () => {
