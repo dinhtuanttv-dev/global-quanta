@@ -2,11 +2,13 @@
 // (điểm neo p1 / p2 / anchor để sửa, hoặc thân hình để dời). Toạ độ màn hình lấy qua `project` (ngày, giá) -> px của thư viện,
 // nên luôn đúng khi kéo / zoom. Dung sai lớn hơn cho cảm ứng. Hình bị ẩn không chọn được; hình bị khoá chọn được nhưng không sửa.
 import type { DomainPoint, DrawnPrimitive } from "../DrawingManager";
+import { SHAPE_SPEC, shapeHit } from "../drawing/shapes";
 
 export interface Px { x: number; y: number }
 export type Project = (p: DomainPoint) => Px | null;
-export type HitPart = "p1" | "p2" | "anchor" | "body";
-export interface Hit { id: string; part: HitPart; dist: number }
+/** "pt" (TA-T6a): điểm neo thứ `index` của hình chung / sóng. */
+export type HitPart = "p1" | "p2" | "anchor" | "body" | "pt";
+export interface Hit { id: string; part: HitPart; dist: number; index?: number }
 
 const dist = (a: Px, b: Px) => Math.hypot(a.x - b.x, a.y - b.y);
 /** Khoảng cách từ điểm tới đoạn thẳng ab. */
@@ -24,6 +26,10 @@ function hitOne(p: DrawnPrimitive, at: Px, project: Project, tol: number, height
     if (!a) return null;
     const d = Math.abs(at.x - a.x);
     return d <= tol && at.y >= 0 && at.y <= height ? { id: p.id, part: dist(at, a) <= tol * 1.5 ? "anchor" : "body", dist: d } : null;
+  }
+  if (p.toolType === "shape") {
+    const h = shapeHit(p.kind, p.points, p.text, at, project, tol);
+    return h ? { id: p.id, ...h } : null;
   }
   if (p.toolType === "elliott") {
     const pts = p.points.map(project).filter((x): x is Px => !!x);
@@ -58,11 +64,12 @@ export function hitTest(primitives: DrawnPrimitive[], at: Px, project: Project, 
 }
 
 export const TOOL_NAME: Record<DrawnPrimitive["toolType"], string> = {
-  trendline: "Trendline", rectangle: "Zone", fibonacci: "Fibonacci", fibTimeZone: "Fibonacci Time Zones", elliott: "Elliott (vẽ tay cũ)",
+  trendline: "Trendline", rectangle: "Zone", fibonacci: "Fibonacci", fibTimeZone: "Fibonacci Time Zones", elliott: "Elliott (vẽ tay cũ)", shape: "Hình vẽ",
 };
 /** Tên hiển thị của hình: tên người dùng đặt, ngược lại "Loại · ngày bắt đầu". */
 export function primitiveLabel(p: DrawnPrimitive): string {
   if (p.name) return p.name;
-  const d = p.toolType === "fibTimeZone" ? p.anchor.date : p.toolType === "elliott" ? p.points[0]?.date : p.p1.date;
-  return `${TOOL_NAME[p.toolType]} · ${String(d ?? "").slice(0, 16).replace("T", " ")}`;
+  const d = p.toolType === "fibTimeZone" ? p.anchor.date : p.toolType === "elliott" || p.toolType === "shape" ? p.points[0]?.date : p.p1.date;
+  const kind = p.toolType === "shape" ? (p.kind === "text" && p.text ? `Chữ "${p.text.slice(0, 20)}"` : SHAPE_SPEC[p.kind].name) : TOOL_NAME[p.toolType];
+  return `${kind} · ${String(d ?? "").slice(0, 16).replace("T", " ")}`;
 }

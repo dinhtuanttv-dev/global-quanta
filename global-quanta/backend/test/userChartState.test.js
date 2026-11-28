@@ -35,3 +35,17 @@ test("lưu/đọc theo tài khoản + mã; người dùng khác / mã khác khô
   await saveUserChartState(store, "u1", "FPT", { primitives: [] });
   assert.equal((await getUserChartState(store, "u1", "FPT")).primitives.length, 0, "xoá hết hình vẽ được lưu");
 });
+
+test("TA-T6a hình chung: kiểu hợp lệ + điểm + chữ được lưu; kiểu lạ / điểm hỏng bị bỏ", () => {
+  const ok = { id: "s1", toolType: "shape", kind: "long", points: [{ date: "2026-10-01", price: 100 }, { date: "2026-10-10", price: 110 }, { date: "2026-10-10", price: 95 }], createdAt: 1 };
+  const txt = { id: "s2", toolType: "shape", kind: "text", points: [{ date: "2026-10-02", price: 101 }], text: "  Vùng mua  ", createdAt: 1 };
+  const bad = [
+    { id: "x1", toolType: "shape", kind: "renko", points: [{ date: "2026-10-01", price: 1 }] },
+    { id: "x2", toolType: "shape", kind: "hline", points: [] },
+    { id: "x3", toolType: "shape", kind: "ray", points: [{ date: "<x>", price: 1 }, { date: "2026-10-01", price: 2 }] },
+  ];
+  const out = sanitizeChartPrimitives([ok, txt, ...bad]);
+  assert.deepEqual(out.map((p) => p.id), ["s1", "s2"]);
+  assert.equal(out[0].points.length, 3);
+  assert.equal(out[1].text, "Vùng mua");
+});

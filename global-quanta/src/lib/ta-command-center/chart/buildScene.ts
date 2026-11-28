@@ -9,6 +9,7 @@ import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 import { TV_STYLE } from "./indicatorStyle";
+import { completeShapePoints, shapeScene, SHAPE_SPEC, type ShapeKind } from "../drawing/shapes";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 import { ELLIOTT_PRO_LABEL_BUDGET, elliottProItems, type ElliottProInput } from "./elliottProScene";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
@@ -42,6 +43,10 @@ export interface SceneInput {
   elliott?: Omit<ElliottSceneInput, "bars"> | null;
   /** P5: mô hình giá Pring của khung đang xem (Pattern Scanner v2) — vẽ khi bật lớp pring. */
   pring?: PringScenePattern[] | null;
+  /** TA-T6a: bản nháp hình chung (điểm đã bấm + điểm theo con trỏ), độ chính xác giá cho nhãn đo, vạch phân cách phiên (khung trong ngày). */
+  shapeDraft?: { kind: ShapeKind; points: DomainPoint[]; hover: DomainPoint | null } | null;
+  digits?: 0 | 2;
+  sessionBreaks?: boolean;
 }
 
 /** Số phiên vẽ histogram trên khung intraday (POC còn "naked" của các phiên cũ hơn vẫn vẽ thành đường). */
@@ -187,6 +192,9 @@ export function buildScene(inp: SceneInput): Scene {
       const bad = p.violations.length > 0;
       items.push({ kind: "poly", points: p.points.map((pt) => ({ t: pt.date, price: pt.price })), color: bad ? GQ_COLORS.bear : GQ_COLORS.amber, dash: bad ? [4, 3] : undefined, nodeLabels: p.labels,
         label: bad ? { text: `Vi phạm ${p.violations.length} quy tắc`, color: GQ_COLORS.bear, priority: LABEL_PRIORITY.user } : undefined });
+    } else if (p.toolType === "shape") {
+      // TA-T6a: hình chung luôn hiện (trừ khi người dùng ẩn) — như TradingView.
+      if (!p.hidden) items.push(...shapeScene(p.kind, p.points, p.text, { bars, digits: inp.digits }));
     } else if (p.toolType === "fibTimeZone") {
       const anchor = bars.findIndex((b) => b.date === p.anchor.date);
       if (anchor < 0) continue;
@@ -210,6 +218,18 @@ export function buildScene(inp: SceneInput): Scene {
           label: { text: `${(lvl.ratio * 100).toFixed(1)}%`, color: GQ_COLORS.uv, priority: LABEL_PRIORITY.user } });
       }
     }
+  }
+  // TA-T6a: bản nháp hình chung — đủ điểm (kể cả điểm theo con trỏ) thì vẽ cả hình nét đứt, chưa đủ thì nối các điểm.
+  const sd = inp.shapeDraft;
+  if (sd) {
+    const pts = sd.hover ? [...sd.points, sd.hover] : sd.points;
+    if (pts.length >= SHAPE_SPEC[sd.kind].clicks) items.push(...shapeScene(sd.kind, completeShapePoints(sd.kind, pts), undefined, { bars, digits: inp.digits }, true));
+    else if (pts.length >= 2) items.push({ kind: "poly", points: pts.map((q) => ({ t: q.date, price: q.price })), color: "#2962FF", dash: [4, 3] });
+    else if (pts.length === 1) items.push({ kind: "ring", t: pts[0].date, price: pts[0].price, color: "#2962FF", r: 4, width: 2 });
+  }
+  // TA-T6a: vạch dọc mờ giữa các phiên (khung trong ngày) như TradingView.
+  if (inp.sessionBreaks) {
+    for (let i = 1; i < bars.length; i++) if (bars[i].date.slice(0, 10) !== bars[i - 1].date.slice(0, 10)) items.push({ kind: "vline", t: bars[i].date, color: "rgba(148,163,184,0.18)", dash: [2, 4] });
   }
   if (inp.elliottDraft.length) {
     items.push({ kind: "poly", points: inp.elliottDraft.map((pt) => ({ t: pt.date, price: pt.price })), color: GQ_COLORS.amber, dash: [3, 2], nodeLabels: inp.elliottDraft.map((_, i) => String(i)) });

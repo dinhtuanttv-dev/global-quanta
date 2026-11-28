@@ -7,7 +7,10 @@ export const MAX_PRIMITIVES = 100;
 const MAX_BYTES = 64 * 1024;
 const SYMBOL_RE = /^[A-Z][A-Z0-9]{2,9}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
-const TOOLS = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone", "avwap"]);
+const TOOLS = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone", "avwap", "shape"]);
+// TA-T6a (28/11): kiểu hình chung — giống hệt SHAPE_SPEC phía giao diện (src/lib/ta-command-center/drawing/shapes.ts; có test đối chiếu).
+export const SHAPE_KINDS = new Set(["hline", "hray", "ray", "extended", "channel", "priceRange", "dateRange", "measure", "long", "short", "text", "arrow"]);
+const MAX_SHAPE_POINTS = 400;
 // Ngày (D) hoặc thời điểm ISO (khung intraday, VD 2026-10-02T10:15:00+07:00) — giữ nguyên giờ phút.
 const ISO_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
 
@@ -46,6 +49,12 @@ export function sanitizeChartPrimitives(raw) {
       const labels = Array.isArray(p.labels) ? p.labels.slice(0, 6).map((l) => String(l).slice(0, 4)) : ["0", "1", "2", "3", "4", "5"];
       const violations = Array.isArray(p.violations) ? p.violations.slice(0, 5).map((v) => String(v).slice(0, 160)) : [];
       out.push({ id, toolType: "elliott", points: pts, labels, violations, createdAt, ...meta });
+    } else if (p.toolType === "shape") {
+      if (!SHAPE_KINDS.has(p.kind)) continue;
+      const pts = Array.isArray(p.points) ? p.points.slice(0, MAX_SHAPE_POINTS).map(point) : [];
+      if (!pts.length || pts.some((x) => !x)) continue;
+      const text = typeof p.text === "string" && p.text.trim() ? { text: p.text.trim().slice(0, 200) } : {};
+      out.push({ id, toolType: "shape", kind: p.kind, points: pts, ...text, createdAt, ...meta });
     } else if (p.toolType === "fibTimeZone" || p.toolType === "avwap") {
       const anchor = point(p.anchor);
       if (anchor) out.push({ id, toolType: p.toolType, anchor, createdAt, ...meta });

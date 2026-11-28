@@ -10,8 +10,9 @@ import { X } from "lucide-react";
 const supportsPopover = () => typeof HTMLElement !== "undefined" && Object.prototype.hasOwnProperty.call(HTMLElement.prototype, "popover");
 
 /** Nút + bảng nổi neo dưới nút. `testid` của nút mở là hợp đồng E2E. */
-export function Popover({ label, icon, children, testid, panelTestid, align = "start", width = 300, title, active, optionalLabel = false }: {
+export function Popover({ label, icon, children, testid, panelTestid, align = "start", width = 300, title, active, optionalLabel = false, side = "bottom" }: {
   label: ReactNode; icon?: ReactNode; children: ReactNode; testid: string; panelTestid?: string; align?: "start" | "end"; width?: number; title?: string; active?: boolean;
+  /** TA-T6a: "right" = mở sang phải nút (thanh vẽ dọc như TradingView); mặc định mở xuống dưới như cũ. */ side?: "bottom" | "right";
   /** Nhãn chữ ẩn khi workspace hẹp (còn icon + tooltip + aria-label). */ optionalLabel?: boolean;
 }) {
   const id = useId().replace(/:/g, "");
@@ -23,11 +24,11 @@ export function Popover({ label, icon, children, testid, panelTestid, align = "s
     const b = btn.current?.getBoundingClientRect(), p = panel.current;
     if (!b || !p) return;
     const w = Math.min(width, window.innerWidth - 16);
-    const left = align === "end" ? Math.max(8, b.right - w) : Math.min(Math.max(8, b.left), window.innerWidth - w - 8);
-    const top = Math.min(b.bottom + 6, window.innerHeight - 80);
+    const left = side === "right" ? Math.min(b.right + 6, window.innerWidth - w - 8) : align === "end" ? Math.max(8, b.right - w) : Math.min(Math.max(8, b.left), window.innerWidth - w - 8);
+    const top = side === "right" ? Math.min(b.top, window.innerHeight - 200) : Math.min(b.bottom + 6, window.innerHeight - 80);
     Object.assign(p.style, { position: "fixed", left: `${left}px`, top: `${top}px`, width: `${w}px`, maxHeight: `${Math.max(200, window.innerHeight - top - 12)}px`, margin: "0", inset: "auto" });
     p.style.left = `${left}px`; p.style.top = `${top}px`;
-  }, [align, width]);
+  }, [align, width, side]);
   useLayoutEffect(() => {
     const p = panel.current;
     if (!p || !native) return;
