@@ -18,7 +18,7 @@ export type ParityCheck =
   | { kind: "tabs"; sel: string; min: number }
   | { kind: "custom"; name: "ticker" | "pin" | "structureEvent" | "drawSaved" | "clearAll" | "countSave" | "preset" | "palette" | "range" | "undoRedo" | "selectDelete" | "dragMove" | "objectHide" | "png" | "classic" | "inspector" | "paneClose" | "patternHighlight" };
 
-export interface ParityItem { id: string; group: ParityGroup; feature: string; now: string; target: ParityTarget; check: ParityCheck; since?: "SC0" | "SC1" | "SC2" | "SC3" | "SC4" | "T3" | "T4" | "T5" }
+export interface ParityItem { id: string; group: ParityGroup; feature: string; now: string; target: ParityTarget; check: ParityCheck; since?: "SC0" | "SC1" | "SC2" | "SC3" | "SC4" | "T3" | "T4" | "T5" | "T6a" }
 
 /** Bố cục khi kiểm: "docked" (bảng chi tiết cố định), "drawer" / "off" (ngăn kéo), "mobile" (thanh hành động + bảng trượt). */
 export type LayoutMode = "docked" | "drawer" | "off" | "mobile";
@@ -29,6 +29,11 @@ export const REVEAL: { match: RegExp; by: Partial<Record<LayoutMode | "any", str
   // TA-T3 (Q4): khung thời gian gộp một nút xổ xuống — mở nút rồi chọn khung (mục luôn nằm trong trang, ẩn khi đóng).
   { match: /^\[data-tf=/, by: { any: [["[data-testid=tf-menu-btn]"]] } },
   { match: /^\[data-charttype=|^\[data-volmode=/, by: { any: [["[data-testid=charttype-btn]"]] } },
+  // TA-T6a: công cụ hình chung nằm trong nhóm của thanh vẽ dọc (máy tính) / bảng "Vẽ" (điện thoại).
+  ...(([["lines", "hline|hray|ray|extended|channel"], ["measure", "priceRange|dateRange|measure"], ["position", "long|short"], ["annotate", "text|arrow"]] as const).map(([g, kinds]) => ({
+    match: new RegExp(`^\\[data-shape="?(${kinds})"?\\]`),
+    by: { docked: [[`[data-testid=shape-group-${g}]`]], drawer: [[`[data-testid=shape-group-${g}]`]], off: [[`[data-testid=shape-group-${g}]`]], mobile: [["[data-testid=mobile-draw]"]] },
+  }))),
   // TA-T5: điện thoại không có thanh công cụ — nút hộp Chỉ báo nằm trong bảng trượt "Lớp".
   { match: /indicators-btn/, by: { mobile: [["[data-testid=mobile-layers]"]] } },
   { match: /^\[data-layer=/, by: { docked: [["[data-testid=layers-menu-btn]"]], drawer: [["[data-testid=layers-menu-btn]"]], off: [["[data-testid=layers-menu-btn]"]], mobile: [["[data-testid=mobile-layers]"]] } },
@@ -120,6 +125,7 @@ export const PARITY_MANIFEST = [
   { id: "ws-range", group: "workspace", feature: "Mốc khoảng nhìn 5N/1T/3T/6T/Đầu năm/1Năm/3Năm/5Năm/Tất cả (T3: dưới trục thời gian)", now: "(mới)", target: "Chart", check: { kind: "custom", name: "range" }, since: "SC2" },
   ...(["stoch", "stochRsi", "atr", "obv", "mfi"] as const).map((key): ParityItem => ({ id: `layer-${key}`, group: "pane", feature: `Pane ${key} (T4, công thức TradingView)`, now: "(mới)", target: "Lớp & pane", check: { kind: "layer", key, pane: true }, since: "T4" })),
   { id: "layer-psar", group: "overlay", feature: "Parabolic SAR (T4)", now: "(mới)", target: "Lớp & pane", check: { kind: "layer", key: "psar" }, since: "T4" } as ParityItem,
+  ...(["hline", "ray", "channel", "measure", "long", "text"] as const).map((k) => ({ id: `draw-shape-${k}`, group: "drawing", feature: `Công cụ vẽ ${k} (T6a, thanh vẽ dọc)`, now: "(mới)", target: "Toolbar", check: { kind: "click", sel: `[data-shape=${k}]`, expect: `[data-shape=${k}][aria-pressed=true]` }, since: "T6a" }) as ParityItem),
   { id: "ws-indicators", group: "workspace", feature: "Hộp Chỉ báo (tìm, nhóm, yêu thích, tham số) — T5", now: "(mới)", target: "Toolbar", check: { kind: "click", sel: "[data-testid=indicators-btn]", expect: "[data-testid=indicator-search]" }, since: "T5" } as ParityItem,
   { id: "ws-charttype", group: "workspace", feature: "Kiểu biểu đồ: Nến · Nến rỗng · Heikin Ashi · Thanh · Đường · Vùng · Đường nền; KL pane riêng / chồng giá", now: "(mới)", target: "Header", check: { kind: "click", sel: "[data-charttype=heikin]", expect: "[data-chart-type=heikin]" }, since: "T3" },
   { id: "ws-scale", group: "workspace", feature: "Thang giá % · log · 100 · Đảo", now: "(mới)", target: "Chart", check: { kind: "click", sel: "[data-testid=scale-log]", expect: "[data-testid=scale-log][aria-pressed=true]" }, since: "T3" },

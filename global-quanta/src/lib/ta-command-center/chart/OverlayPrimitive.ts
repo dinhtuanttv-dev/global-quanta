@@ -92,6 +92,27 @@ class Renderer implements IPrimitivePaneRenderer {
       if (!a || !b) return;
       dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
       ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      if (it.arrow) {
+        // TA-T6a: đầu mũi tên tại b.
+        const ang = Math.atan2(b[1] - a[1], b[0] - a[0]), L = 10;
+        dash([]); ctx.fillStyle = it.color; ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+        ctx.lineTo(b[0] - L * Math.cos(ang - 0.45), b[1] - L * Math.sin(ang - 0.45));
+        ctx.lineTo(b[0] - L * Math.cos(ang + 0.45), b[1] - L * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill();
+      }
+    } else if (it.kind === "ray") {
+      // TA-T6a: tia / đường mở rộng — kéo dài theo hướng a -> b tới ngoài khung (canvas tự cắt).
+      const a = o.pt(it.a), b = o.pt(it.b);
+      if (!a || !b) return;
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, ux = (b[0] - a[0]) / L, uy = (b[1] - a[1]) / L, K = 1e5;
+      const s0 = it.both ? [a[0] - ux * K, a[1] - uy * K] : a;
+      dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+      ctx.beginPath(); ctx.moveTo(s0[0], s0[1]); ctx.lineTo(a[0] + ux * K, a[1] + uy * K); ctx.stroke();
+    } else if (it.kind === "polygon") {
+      const P = it.points.map((q) => o.pt(q));
+      if (P.length < 2 || P.some((q) => !q)) return;
+      ctx.beginPath(); (P as [number, number][]).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
+      ctx.fillStyle = it.fill; ctx.fill();
+      if (it.stroke) { dash(it.dash); ctx.strokeStyle = it.stroke; ctx.lineWidth = it.width ?? 1; ctx.stroke(); }
     } else if (it.kind === "profile") {
       const x1 = o.x(it.t1);
       const x2 = o.x(it.t2);

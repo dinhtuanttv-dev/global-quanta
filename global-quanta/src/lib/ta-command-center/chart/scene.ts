@@ -24,7 +24,7 @@ export type SceneItem =
   | { kind: "band"; t1: string; t2: string; fill: string; stroke?: string; dash?: number[]; label?: SceneLabel } // dải dọc toàn chiều cao
   | { kind: "hline"; t1: string; t2: string | null; price: number; color: string; dash?: number[]; width?: number; label?: SceneLabel }
   | { kind: "vline"; t: string; color: string; dash?: number[]; label?: SceneLabel; labelPrice?: number } // nhãn neo vào giá (VD sự kiện Wyckoff)
-  | { kind: "segment"; a: ScenePoint; b: ScenePoint; color: string; width?: number; dash?: number[] }
+  | { kind: "segment"; a: ScenePoint; b: ScenePoint; color: string; width?: number; dash?: number[]; arrow?: boolean }
   // nodeStyle "plain" (DW6): nhãn chữ nhỏ không khung tròn, đặt trên đỉnh / dưới đáy; width 0 = không vẽ đường nối.
   | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; nodeStyle?: "circle" | "plain"; label?: SceneLabel }
   // Volume Profile: histogram ngang neo từ nến t1 tới nến t2 (độ dài thanh = KL/KL max × widthFrac × bề rộng [t1,t2]).
@@ -39,7 +39,10 @@ export type SceneItem =
   | { kind: "cloud"; from: string; points: { k: number; a: number; b: number }[]; up: string; down: string; lineA: string; lineB: string }
   | { kind: "ring"; t: string; price: number; color: string; r?: number; width?: number; label?: SceneLabel }
   // DW5: chữ neo tại điểm (giá đỉnh/đáy, thẻ mô hình "ZZ" / "Sharp"…); dy = lệch dọc theo pixel (âm = lên trên).
-  | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number };
+  | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number }
+  // TA-T6a: tia (từ a qua b tới mép khung; both = kéo dài cả hai phía) và đa giác tô màu (kênh song song, hình học).
+  | { kind: "ray"; a: ScenePoint; b: ScenePoint; both?: boolean; color: string; width?: number; dash?: number[] }
+  | { kind: "polygon"; points: ScenePoint[]; fill: string; stroke?: string; width?: number; dash?: number[] };
 
 /** labelBudget (EP3): ngân sách nhãn của scene (mặc định LABEL_BUDGET) — Elliott Pro nâng theo chế độ. */
 export interface Scene { items: SceneItem[]; labelBudget?: number }

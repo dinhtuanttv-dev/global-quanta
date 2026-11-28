@@ -1,4 +1,5 @@
 import { EventEmitter } from "./EventEmitter";
+import { SHAPE_SPEC, completeShapePoints, type ShapeKind } from "./drawing/shapes";
 
 export interface DomainPoint { date: string; price: number; }
 export type DrawingToolType = "rectangle" | "trendline" | "fibonacci" | "elliott" | "fibTimeZone";
@@ -18,7 +19,9 @@ export interface ElliottWaveMarking extends PrimitiveMeta {
 export interface FibTimeZoneMarking extends PrimitiveMeta {
   id: string; toolType: "fibTimeZone"; anchor: DomainPoint; createdAt: number;
 }
-export type DrawnPrimitive = RectangleZone | Trendline | FibonacciRetracement | ElliottWaveMarking | FibTimeZoneMarking;
+/** TA-T6a: hình chung theo kiểu (đường ngang, tia, kênh, đo, vị thế, chữ, mũi tên… — xem drawing/shapes.ts). */
+export interface ShapeMarking extends PrimitiveMeta { id: string; toolType: "shape"; kind: ShapeKind; points: DomainPoint[]; text?: string; createdAt: number }
+export type DrawnPrimitive = RectangleZone | Trendline | FibonacciRetracement | ElliottWaveMarking | FibTimeZoneMarking | ShapeMarking;
 
 // ĐÃ SỬA: export 2 hằng số này để TVChartPanel.tsx dùng lại đúng công
 // thức khi vẽ preview lưới Fibonacci lúc đang kéo chuột — tránh viết
@@ -70,13 +73,15 @@ interface DrawingEvents extends Record<string, unknown> {
   "fibExtension:changed": boolean;
   "primitives:replaced": DrawnPrimitive[];
   "history:changed": { canUndo: boolean; canRedo: boolean };
+  /** TA-T6a: bản nháp hình chung — các điểm đã bấm + điểm theo con trỏ. */
+  "shape:draft-updated": { kind: ShapeKind; points: DomainPoint[]; hover: DomainPoint | null } | null;
 }
 
 /** Số bước hoàn tác tối đa (anh duyệt, lựa chọn 7). */
 export const HISTORY_LIMIT = 50;
-export type PrimitivePatch = Partial<Pick<RectangleZone, "p1" | "p2" | "name" | "hidden" | "locked">> & { anchor?: DomainPoint; points?: DomainPoint[] };
+export type PrimitivePatch = Partial<Pick<RectangleZone, "p1" | "p2" | "name" | "hidden" | "locked">> & { anchor?: DomainPoint; points?: DomainPoint[]; text?: string };
 
-const TOOL_TYPES = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone"]);
+const TOOL_TYPES = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone", "shape"]);
 const isPoint = (p: unknown): p is DomainPoint =>
   !!p && typeof (p as DomainPoint).date === "string" && /^\d{4}-\d{2}-\d{2}/.test((p as DomainPoint).date) && Number.isFinite((p as DomainPoint).price);
 
@@ -92,6 +97,8 @@ export function sanitizePrimitives(raw: unknown): DrawnPrimitive[] {
     const x = p as DrawnPrimitive;
     if (x.toolType === "elliott") return Array.isArray(x.points) && x.points.length === 6 && x.points.every(isPoint);
     if (x.toolType === "fibTimeZone") return isPoint(x.anchor);
+    if (x.toolType === "shape") return x.kind in SHAPE_SPEC && Array.isArray(x.points) && x.points.length >= 1 && x.points.length <= 400 && x.points.every(isPoint)
+      && (x.text === undefined || typeof x.text === "string");
     if (x.toolType === "fibonacci" && !Array.isArray(x.levels)) return false;
     return isPoint(x.p1) && isPoint(x.p2);
   }).slice(0, 100).map(clean);
@@ -107,7 +114,7 @@ export function shiftPoint(p: DomainPoint, dBars: number, dPrice: number, dates:
 /** Dời toàn bộ hình (mọi điểm neo). */
 export function shiftPrimitive(p: DrawnPrimitive, dBars: number, dPrice: number, dates: string[]): PrimitivePatch {
   if (p.toolType === "fibTimeZone") return { anchor: shiftPoint(p.anchor, dBars, dPrice, dates) };
-  if (p.toolType === "elliott") return { points: p.points.map((x) => shiftPoint(x, dBars, dPrice, dates)) };
+  if (p.toolType === "elliott" || p.toolType === "shape") return { points: p.points.map((x) => shiftPoint(x, dBars, dPrice, dates)) };
   return { p1: shiftPoint(p.p1, dBars, dPrice, dates), p2: shiftPoint(p.p2, dBars, dPrice, dates) };
 }
 
@@ -232,7 +239,44 @@ export class DrawingManager {
     return primitive;
   }
 
-  cancelDraw(): void { this.draftStart = null; this.draftTool = null; this.emitter.emit("primitive:draft-updated", null); }
+  cancelDraw(): void { this.draftStart = null; this.draftTool = null; this.emitter.emit("primitive:draft-updated", null); this.cancelShapeDraft(); }
+
+  // ---- TA-T6a: hình chung — vẽ theo cú bấm như TradingView (bấm điểm 1, di chuột xem trước, bấm điểm tiếp) ----
+  private shapeDraft: { kind: ShapeKind; points: DomainPoint[] } | null = null;
+  private shapeHover: DomainPoint | null = null;
+  private emitShapeDraft(): void { this.emitter.emit("shape:draft-updated", this.shapeDraft ? { ...this.shapeDraft, hover: this.shapeHover } : null); }
+  /** Thêm một điểm cho hình `kind`; đủ số cú bấm -> tạo hình (trả về hình), chưa đủ -> null. */
+  addShapePoint(kind: ShapeKind, point: DomainPoint, text?: string): ShapeMarking | null {
+    if (!this.shapeDraft || this.shapeDraft.kind !== kind) this.shapeDraft = { kind, points: [] };
+    this.shapeDraft = { kind, points: [...this.shapeDraft.points, point] };
+    if (this.shapeDraft.points.length < SHAPE_SPEC[kind].clicks) { this.emitShapeDraft(); return null; }
+    const shape = this.createShape(kind, completeShapePoints(kind, this.shapeDraft.points), text);
+    this.cancelShapeDraft();
+    return shape;
+  }
+  setShapeHover(point: DomainPoint | null): void { if (!this.shapeDraft) return; this.shapeHover = point; this.emitShapeDraft(); }
+  isDrawingShape(): boolean { return !!this.shapeDraft && this.shapeDraft.points.length > 0; }
+  cancelShapeDraft(): void { const had = !!this.shapeDraft; this.shapeDraft = null; this.shapeHover = null; if (had) this.emitShapeDraft(); }
+  /** Tạo ngay một hình chung từ các điểm cho sẵn (VD menu chuột phải "Đường ngang tại giá này"). */
+  createShape(kind: ShapeKind, points: DomainPoint[], text?: string): ShapeMarking {
+    const id = `prim-${++this.idCounter}-${Date.now()}`;
+    const shape: ShapeMarking = { id, toolType: "shape", kind, points, ...(text?.trim() ? { text: text.trim().slice(0, 200) } : {}), createdAt: Date.now() };
+    this.record();
+    this.primitives = [...this.primitives, shape];
+    this.emitter.emit("primitive:created", shape);
+    return shape;
+  }
+  /** TA-T6a: khoá / ẩn TẤT CẢ hình vẽ (một bước hoàn tác). */
+  setAll(patch: { hidden?: boolean; locked?: boolean }): void {
+    if (!this.primitives.length) return;
+    this.record();
+    this.primitives = this.primitives.map((p) => {
+      const next = { ...p } as DrawnPrimitive & PrimitiveMeta;
+      for (const k of ["hidden", "locked"] as const) if (patch[k] !== undefined) { if (patch[k]) next[k] = true; else delete next[k]; }
+      return next;
+    });
+    this.emitter.emit("primitives:replaced", this.primitives);
+  }
 
   addElliottPoint(point: DomainPoint): void {
     this.elliottDraft = [...this.elliottDraft, point];
