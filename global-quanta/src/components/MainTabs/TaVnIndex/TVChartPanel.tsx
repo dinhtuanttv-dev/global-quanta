@@ -31,7 +31,10 @@ import ProvenanceBadge from "./ProvenanceBadge";
 import { hitTest, type HitPart } from "../../../lib/ta-command-center/chart/drawingHit";
 import { shiftPrimitive, type PrimitivePatch } from "../../../lib/ta-command-center/DrawingManager";
 import type { SceneItem } from "../../../lib/ta-command-center/chart/scene";
-import { TVChartManager, type ChartMarkerInput } from "../../../lib/ta-command-center/TVChartManager";
+import { TVChartManager, type ChartMarkerInput, type PaneKind } from "../../../lib/ta-command-center/TVChartManager";
+/** TA-T7 (D5): tên ngắn của pane chỉ báo trên thanh chip điện thoại. */
+const PANE_LABEL: Partial<Record<PaneKind, string>> = { volume: "KL", rsi: "RSI", macd: "MACD", adx: "ADX", flow: "Dòng tiền", foreign: "Khối ngoại", eosc: "Dao động Elliott",
+  stoch: "Stoch", stochRsi: "Stoch RSI", atr: "ATR", obv: "OBV", mfi: "MFI" };
 import { AnalysisController, EMPTY_SMC, type ChochBacktest, type SmcState } from "../../../lib/ta-command-center/AnalysisController";
 import { buildScene } from "../../../lib/ta-command-center/chart/buildScene";
 import { GQ_COLORS } from "../../../lib/ta-command-center/chart/scene";
@@ -222,6 +225,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [sheet, setSheet] = useState<null | "draw" | "layers" | "objects" | "more">(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mobilePaneOpen, setMobilePaneOpen] = useState<PaneKind[]>([]);
+  const [mobilePanes, setMobilePanes] = useState<{ kind: PaneKind; open: boolean }[] | null>(null);
+  // TA-T7 (Q5): bề rộng cửa sổ — dưới 1700px bảng chi tiết thu gọn thành ngăn kéo (mặc định đóng, nút ☰ mở) để chart rộng như TradingView.
+  const [viewportW, setViewportW] = useState(() => (typeof window === "undefined" ? 0 : window.innerWidth));
+  useEffect(() => {
+    const on = () => setViewportW(window.innerWidth);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
   const [fullscreen, setFullscreen] = useState(false);
   const [rangeId, setRangeId] = useState<RangeId | null>(null);
   // Di động: dock mặc định thu gọn (chỉ hàng tab) để các bộ lọc ở ngay dưới; chạm tab mới mở.
@@ -1039,7 +1051,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const startCountEditFromToolbar = () => { openDock("elliott"); setElliottTabReq({ tab: "mine", n: Date.now() }); if (!countEditing) startCountEdit(); setSheet(null); };
   const savePaneStretch = () => {
     const tv = tvManagerRef.current;
-    if (!tv || tv.paneCount() < 2) return;
+    // TA-T7 (D5): tỷ lệ của chế độ gọn trên điện thoại không ghi đè tỷ lệ pane đã lưu của máy tính.
+    if (!tv || tv.paneCount() < 2 || tv.compactPanes()) return;
     setTimeout(() => { const st = tv.paneStretch(); if (JSON.stringify(st) !== JSON.stringify(ws.paneStretch)) setWs({ paneStretch: { ...ws.paneStretch, ...st } }); }, 60);
   };
 
@@ -1100,12 +1113,25 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     return list;
   }, [layerState, ws.mine, ws.magnet, ws.layout, fibExtensionMode, timeframe, fullscreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // TA-T7 (D5): điện thoại (< 760px) — tối đa 2 pane chỉ báo mở, pane khác gập thành dải mỏng; thanh chip chọn pane mở.
+  const compactMode = wsWidth > 0 && wsWidth < 760;
+  const paneSig = `${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${layerState?.stoch}${layerState?.stochRsi}${layerState?.atr}${layerState?.obv}${layerState?.mfi}${chartPrefs.volOverlay}`;
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    tv.setCompactPanes(compactMode ? { max: 2, open: mobilePaneOpen } : null);
+    // Pane mới được thêm sau hiệu ứng lớp -> đọc lại sau một nhịp.
+    const t = setTimeout(() => { tv.setCompactPanes(compactMode ? { max: 2, open: mobilePaneOpen } : null); setMobilePanes(tv.compactPanes()); }, 0);
+    return () => clearTimeout(t);
+  }, [compactMode, mobilePaneOpen, paneSig, ticker, timeframe]);
+
   if (bars.length === 0) return <div className="text-xs text-slate-500 italic py-8 text-center">Chưa có dữ liệu nến cho {ticker}.</div>;
 
   const classic = ws.layout === "classic";
   const measured = wsWidth > 0;
   const isMobile = measured && wsWidth < 760;
-  const isWide = !measured || wsWidth >= 1100;
+  // Chỉ áp dụng khi đã đo được bố cục thật (môi trường kiểm thử không đo -> giữ như cũ).
+  const isWide = !measured || (wsWidth >= 1100 && viewportW >= 1700);
   const inspectorMode = classic || isMobile ? "off" : isWide ? (ws.inspectorOpen ? "docked" : "off") : drawerOpen ? "drawer" : "off";
   const last = currentBars[currentBars.length - 1], prev = currentBars[currentBars.length - 2];
   const chgPct = last && prev ? ((last.close - prev.close) / prev.close) * 100 : null;
@@ -1170,25 +1196,25 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     </button>
   );
   const layerPopover = layerState && (
-    <Popover testid="layers-menu-btn" panelTestid="layers-menu" label="Lớp & pane" icon={<Layers3 className="w-3.5 h-3.5" />} width={420} align="end"
+    <Popover testid="layers-menu-btn" panelTestid="layers-menu" label="Lớp & pane" title="Lớp & pane" icon={<Layers3 className="w-3.5 h-3.5" />} width={420} align="end"
       active={Object.entries(layerState).some(([k, v]) => v && k !== "aiDetectionMaster")}>
       <LayerMenu state={layerState} onToggle={toggleLayer} settings={settingsProps} />
     </Popover>
   );
   const objectsButton = (
-    <button type="button" className={`ws-btn ${inspectorMode !== "off" && ws.inspectorTab === "objects" ? "ws-btn-on" : ""}`} data-testid="objects-btn" data-count={primitives.length}
+    <button type="button" className={`ws-btn ${inspectorMode !== "off" && ws.inspectorTab === "objects" ? "ws-btn-on" : ""}`} data-testid="objects-btn" data-count={primitives.length} aria-label={`Đối tượng (${primitives.length})`}
       onClick={() => { if (isMobile) { setSheet("objects"); return; } setWs({ inspectorTab: "objects", inspectorOpen: true }); setDrawerOpen(true); }} title="Danh sách đối tượng (hình vẽ)">
       <Shapes className="w-3.5 h-3.5" /><span className="ws-btn-text-opt">Đối tượng</span><span className="font-mono">({primitives.length})</span>
     </button>
   );
   const confluenceBtn = (
-    <button type="button" onClick={() => ctlNow()?.layers.setMaster(!layerState?.aiDetectionMaster)} aria-pressed={!!layerState?.aiDetectionMaster} data-testid="confluence-engine" className="ws-btn"
+    <button type="button" onClick={() => ctlNow()?.layers.setMaster(!layerState?.aiDetectionMaster)} aria-pressed={!!layerState?.aiDetectionMaster} data-testid="confluence-engine" className="ws-btn" aria-label="Confluence"
       title="Đối chiếu hình vẽ tay / mẫu hình với SMC · VSA · Wyckoff (điểm theo luật, không phải mô hình AI)">
       <Waves className="w-3.5 h-3.5" /><span className="ws-btn-text-opt">Confluence</span>
     </button>
   );
   const structureBtn = (
-    <button type="button" onClick={openStructure} data-testid="structure-open" className="ws-btn" aria-pressed={!!layerState?.structure} title="Phân tích cấu trúc đa khung (bật lớp + mở bảng)">
+    <button type="button" onClick={openStructure} data-testid="structure-open" className="ws-btn" aria-label="Cấu trúc MTF" aria-pressed={!!layerState?.structure} title="Phân tích cấu trúc đa khung (bật lớp + mở bảng)">
       <LayoutGrid className="w-3.5 h-3.5" /><span className="ws-btn-text-opt">Cấu trúc MTF</span>
     </button>
   );
@@ -1235,7 +1261,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
               </div>
             </div>
           </Popover>
-          <span className={`inline-flex w-4 justify-center ${cloudState === "saving" ? "text-cyan-300 animate-pulse" : cloudState === "saved" ? "text-emerald-300/80" : "text-slate-600"}`} data-testid="ws-cloud" data-state={cloudState}
+          <span className={`inline-flex w-4 justify-center ${cloudState === "saving" ? "text-slate-300 animate-pulse" : cloudState === "saved" ? "text-emerald-300/80" : "text-slate-600"}`} data-testid="ws-cloud" data-state={cloudState}
             role="status" aria-label={cloudState === "saving" ? "Đang lưu bố cục" : cloudState === "saved" ? "Bố cục đã lưu theo tài khoản" : cloudState === "local" ? "Bố cục lưu trên máy này" : "Bố cục"}
             title={cloudState === "saving" ? "Đang lưu bố cục…" : cloudState === "saved" ? "Bố cục đã lưu theo tài khoản (tách khỏi hình vẽ)" : cloudState === "local" ? "Bố cục lưu trên máy này (chưa đăng nhập)" : "Bố cục lưu theo tài khoản"}>
             {cloudState === "local" ? <HardDrive className="w-3 h-3" /> : <Cloud className="w-3 h-3" />}
@@ -1375,29 +1401,19 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           loadingIntraday={intraday.isLoading} intradayError={intraday.error} intradaySessions={intraday.sessions.length} />
         {/* TA-T3: kiểu biểu đồ cạnh khung thời gian (như TradingView); khoảng nhìn chuyển xuống dưới trục thời gian. */}
         <ChartTypeMenu type={chartPrefs.type} volOverlay={chartPrefs.volOverlay} onType={(type) => setChartPrefs({ type })} onVolOverlay={(volOverlay) => setChartPrefs({ volOverlay })} />
+        {/* TA-T7 (D3): một thanh trên như TradingView — thanh công cụ cũ gộp vào đây (nút, testid, thứ tự trong nhóm giữ nguyên). */}
+        {!isMobile && <div className="ws-group" role="group" aria-label="Phân tích">{indicatorsButton}{layerPopover}{confluenceBtn}{structureBtn}</div>}
+        {!isMobile && <div className="ws-group" role="group" aria-label="Sửa hình vẽ">{editButtons}{objectsButton}</div>}
         {dataChip}
         {!isMobile && rightTools}
-        <span className="sr-only" data-testid="price-basis">{dataContext?.label} · {bars.length} phiên</span>
-      </header>
-
-      {/* 2. Thanh công cụ (desktop / tablet) */}
-      {!isMobile && (
-        <div className="ws-bar ws-tools" role="toolbar" aria-label="Công cụ biểu đồ" data-testid="ws-toolbar">
-          <div className="ws-group" role="group" aria-label="Điều hướng">
-            <button type="button" className="ws-btn" aria-pressed={ws.magnet} onClick={() => setWs({ magnet: !ws.magnet })} data-testid="magnet-btn" title="Crosshair bám giá nến (Magnet)" aria-label="Crosshair bám nến"><Magnet className="w-3.5 h-3.5" /></button>
-            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.zoom(1.25)} aria-label="Thu nhỏ (−)" title="Thu nhỏ (−)"><ZoomOut className="w-3.5 h-3.5" /></button>
-            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.zoom(0.8)} aria-label="Phóng to (+)" title="Phóng to (+)"><ZoomIn className="w-3.5 h-3.5" /></button>
-            <button type="button" className="ws-btn" onClick={() => { setRangeId("all"); tvManagerRef.current?.fit(); }} data-testid="fit-btn" aria-label="Vừa khung" title="Vừa khung toàn bộ dữ liệu"><Expand className="w-3.5 h-3.5" /></button>
-            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.goToEnd()} aria-label="Về nến mới nhất (End)" title="Về nến mới nhất (End)" data-testid="latest-btn"><ChevronsRight className="w-3.5 h-3.5" /></button>
-          </div>
-          <div className="ws-group" role="group" aria-label="Sửa hình vẽ">{editButtons}{objectsButton}</div>
-          <div className="ws-group" role="group" aria-label="Phân tích">{indicatorsButton}{layerPopover}{confluenceBtn}{structureBtn}</div>
-          <div className="ws-group" role="group" aria-label="Khác">
+        {!isMobile && (
+          <div className="ws-group" role="group" aria-label="Khác" data-testid="ws-toolbar">
             <button type="button" className="ws-btn" onClick={exportPng} data-testid="png-btn" aria-label="Xuất ảnh PNG" title="Xuất ảnh PNG"><Camera className="w-3.5 h-3.5" /></button>
             {!classic && <button type="button" className="ws-btn" aria-pressed={inspectorMode !== "off"} onClick={toggleInspector} data-testid="inspector-btn" aria-label="Bảng chi tiết" title="Bảng chi tiết"><PanelRight className="w-3.5 h-3.5" /></button>}
           </div>
-        </div>
-      )}
+        )}
+        <span className="sr-only" data-testid="price-basis">{dataContext?.label} · {bars.length} phiên</span>
+      </header>
 
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
@@ -1417,6 +1433,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
               );
             })}
             <span className="ws-draw-sep" aria-hidden />
+            <button type="button" className="ws-btn ws-draw-item" aria-pressed={ws.magnet} onClick={() => setWs({ magnet: !ws.magnet })} data-testid="magnet-btn" title="Crosshair bám giá nến (Magnet)" aria-label="Crosshair bám nến"><Magnet className="w-3.5 h-3.5" /></button>
             <button type="button" className="ws-btn ws-draw-item" aria-pressed={allLocked} disabled={!primitives.length} onClick={() => ctlNow()?.drawing.setAll({ locked: !allLocked })} data-testid="draw-lock-all"
               title={allLocked ? "Mở khoá tất cả hình vẽ" : "Khoá tất cả hình vẽ"} aria-label={allLocked ? "Mở khoá tất cả hình vẽ" : "Khoá tất cả hình vẽ"}>{allLocked ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}</button>
             <button type="button" className="ws-btn ws-draw-item" aria-pressed={allHidden} disabled={!primitives.length} onClick={() => ctlNow()?.drawing.setAll({ hidden: !allHidden })} data-testid="draw-hide-all"
@@ -1439,8 +1456,18 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${layerState?.stoch}${layerState?.stochRsi}${layerState?.atr}${layerState?.obv}${layerState?.mfi}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
             onClosePane={toggleLayer} onSettings={openSettings} hasSettings={(k) => CATALOG.some((c) => c.key === k && c.settings)} />
           <div className="ws-chips">
+            {/* TA-T7 (D5): điện thoại tối đa 2 pane chỉ báo mở — chạm chip để mở pane đang gập (pane mở lâu nhất gập lại). */}
+            {mobilePanes && (
+              <span className="ws-pane-pick" role="group" aria-label="Pane chỉ báo đang mở" data-testid="mobile-pane-pick">
+                {mobilePanes.map((p) => (
+                  <button key={p.kind} type="button" aria-pressed={p.open} data-pane={p.kind}
+                    onClick={() => setMobilePaneOpen((cur) => [...cur.filter((k) => k !== p.kind), p.kind].slice(-2))}
+                    title={p.open ? "Pane đang mở" : "Chạm để mở pane này"}>{PANE_LABEL[p.kind] ?? p.kind}</button>
+                ))}
+              </span>
+            )}
             {forming && (
-              <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] text-cyan-200" data-testid="forming-chip"
+              <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-slate-600/50 text-[10px] text-slate-200" data-testid="forming-chip"
                 title="Nến cuối chưa đóng: giá, khối lượng và mọi chỉ báo trên nến này sẽ còn thay đổi cho tới khi kết thúc phiên / tuần / tháng.">
                 Nến cuối đang hình thành (vẽ rỗng) — chỉ báo trên nến này là tạm tính
               </span>
@@ -1455,7 +1482,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
               <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-slate-600/50 text-[10px] text-slate-300" data-testid="foreign-note">Khối ngoại: {foreignNote}</span>
             )}
             {layerState?.elliottPro && elliottProText && (
-              <div className="px-2 py-1 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] leading-snug text-cyan-100 flex flex-wrap items-center gap-1 max-w-full"
+              <div className="px-2 py-1 rounded-lg bg-slate-950/85 border border-slate-600/50 text-[10px] leading-snug text-slate-100 flex flex-wrap items-center gap-1 max-w-full"
                 data-testid="elliott-pro-chip" title="Elliott Pro (engine v3) — diễn giải EXPERIMENTAL, không phải khuyến nghị">
                 <span className="truncate max-w-full">{elliottProText}</span>
                 <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
@@ -1530,6 +1557,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           {rangesFor(timeframe).map((r) => (
             <button key={r.id} type="button" className="ws-btn ws-btn-sm" aria-pressed={rangeId === r.id} data-range={r.id} onClick={() => setRange(r.id)} title={`Xem ${RANGE_TITLE[r.id]}`}>{r.label}</button>
           ))}
+        </div>}
+        {!isMobile && <div className="ws-group" role="group" aria-label="Điều hướng">
+            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.zoom(1.25)} aria-label="Thu nhỏ (−)" title="Thu nhỏ (−)"><ZoomOut className="w-3.5 h-3.5" /></button>
+            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.zoom(0.8)} aria-label="Phóng to (+)" title="Phóng to (+)"><ZoomIn className="w-3.5 h-3.5" /></button>
+            <button type="button" className="ws-btn" onClick={() => { setRangeId("all"); tvManagerRef.current?.fit(); }} data-testid="fit-btn" aria-label="Vừa khung" title="Vừa khung toàn bộ dữ liệu"><Expand className="w-3.5 h-3.5" /></button>
+            <button type="button" className="ws-btn" onClick={() => tvManagerRef.current?.goToEnd()} aria-label="Về nến mới nhất (End)" title="Về nến mới nhất (End)" data-testid="latest-btn"><ChevronsRight className="w-3.5 h-3.5" /></button>
         </div>}
         <span className="ml-auto" />
         <div className="ws-group" role="group" aria-label="Thang giá">
