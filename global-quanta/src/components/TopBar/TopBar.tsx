@@ -54,7 +54,7 @@ export default function TopBar() {
   const b = blocks(data, ph);
 
   return (
-    <header className="topbar topbar-pro" data-testid="topbar">
+    <header className="topbar topbar-pro q-ui" data-testid="topbar">
       <div className="tb-zone tb-zone-left">
         <div className="logo" aria-label={BRAND.name}>
           <div className="mark" aria-hidden>{BRAND.mark}</div>

@@ -65,7 +65,7 @@ Menu chính đang đọc vài biến hệ cũ có giá trị **khác** token m�
 |---|---|---|
 | U9a · Kiểm kê | Script liệt kê mọi tham chiếu còn lại tới biến hệ cũ (`--bg-*`, `--text-primary/secondary/tertiary`, `--gold*`, `--font-display`, `--font-body`), lớp CSS toàn cục trong `App.css` (có / không còn được dùng trong JSX), font Space Grotesk | chỉ đọc |
 | U9b · Đổi tên biến | Thay `var(--bg-surface)` → `var(--q-surface)`… bằng codemod (giá trị đã trùng nhau sau U1, nên không đổi điểm ảnh); luật nào còn dùng thì chuyển sang `quanta-ui.css` | vân tay + ảnh chụp 7 tab × 2 khổ trước / sau giống nhau |
-| U9c · Ngừng dùng | `tokens.css` chỉ còn khối alias, có chú thích "ngừng dùng"; `ui-lint` cấm tên biến cũ (ngân sách 0); để chạy **một tuần** trên trang thật | nếu sót chỗ nào, giá trị vẫn đúng nhờ alias |
+| U9c · Ngừng dùng | **Bỏ thời gian chờ một tuần** (chủ dự án 28/11: "gỡ bỏ hệ cũ ngay để giảm tải và CSS gọn hơn"): mỗi bước U1–U8 gỡ NGAY phần hệ cũ nó vừa thay (U1: `--gold*`, `--font-display`; U2: 141 luật chết `App.css` / `topbar-pro.css`); `ui-lint` cấm tên biến cũ (ngân sách 0) | nếu sót chỗ nào, giá trị vẫn đúng nhờ alias |
 | U9d · Xoá | Xoá `tokens.css` (chuyển nền `body`, thanh cuộn sang `quanta-ui.css`), xoá luật chết trong `App.css` (selector không còn khớp JSX), bỏ Space Grotesk khỏi `index.html` | một PR riêng; lùi = revert một commit |
 
 Lợi ích đo được: bớt một họ phông tải về (Space Grotesk 3 trọng số), CSS toàn cục nhỏ hơn, một nguồn token duy nhất, `ui-lint` chặn tái phát vĩnh viễn.

@@ -13,7 +13,7 @@
 | U6 | Ngành: vàng, số Plex Mono, chip đang chọn | N1–N5 | U1 |
 | U7 | Kỹ thuật + Thế giới: nhãn trạng thái mẫu hình, nền slate, vàng ở thanh công cụ chart | T1–T5, W1–W2 | U1 |
 | U8 | Dọn nợ: `uppercase` / `tracking` / `text-[10px]` còn lại, hạ ngân sách `ui-lint` về đích, khai báo `q-dense` cho lưới số Tổng quan | toàn dự án | U2–U7 |
-| **U9** | **Gỡ hệ cũ** (`04` §6): kiểm kê → đổi tên biến → ngừng dùng 1 tuần → xoá `tokens.css`, luật chết `App.css`, font Space Grotesk | toàn dự án | U8 |
+| **U9** | **Gỡ hệ cũ** (`04` §6): kiểm kê → đổi tên biến → xoá NGAY (không chờ — chủ dự án 28/11; phần lớn đã gỡ dần trong U1–U8) `tokens.css`, luật chết `App.css`, font Space Grotesk | toàn dự án | U8 |
 
 Thứ tự ưu tiên theo mức lệch đo được: Quyết định và Vĩ mô › Chất xúc tác (lệch nặng nhất) → Cơ bản → Ngành → Kỹ thuật / Thế giới.
 
