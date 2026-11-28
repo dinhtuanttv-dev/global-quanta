@@ -21,9 +21,9 @@ Mức độ: **A** = sai / gây hiểu nhầm số liệu · **B** = thiếu chu
 
 | Mã | Chỉ báo | Đang có | Chuẩn TradingView | Mức |
 |---|---|---|---|---|
-| B1 | **Ichimoku** | Mây Senkou A/B được vẽ dịch đủ +26 phiên (đúng công thức), nhưng khung nhìn chỉ chừa 6 nến trống (`rightOffset: 6`): khi mở chỉ thấy 6/26 phiên mây tương lai, phải kéo sang phải mới thấy hết | Phần mây tương lai là phần quan trọng nhất của Ichimoku: khi bật lớp nên tự nới khoảng trống bên phải ≥ 26 nến | B |
+| B1 | **Ichimoku** | **ĐÍNH CHÍNH 28/11 (T2):** đã đạt chuẩn — mã tự nới khoảng trống bên phải theo mây (`futureK` + 4 nến, TVChartPanel), mây vươn đủ 26 phiên tương lai. Đánh giá ban đầu ("chỉ thấy 6/26") là sai do đọc nhầm `rightOffset` mặc định | Mây vươn đủ 26 phiên vào tương lai | — |
 | B2 | **SuperTrend** | Đã đúng: hai đoạn tăng / giảm tách riêng, ngắt tại điểm đổi chiều. Chỉ thiếu tô nền giữa giá và đường | Có tuỳ chọn tô nền nhạt giữa giá và đường SuperTrend | C |
-| B3 | **RSI** | Vạch 70 đỏ / 30 xanh đứt; không có vạch 50; không tô dải; trục hiện 75 / 50 / 25 | Vạch 70 / 30 xám đứt + 50 chấm; tô dải 30–70 nhạt; trục hiện 70 / 50 / 30 | B |
+| B3 | **RSI** | Vạch 70 đỏ / 30 xanh đứt; không có vạch 50; không tô dải; trục hiện 75 / 50 / 25 | Vạch 70 / 30 xám đứt + 50 chấm; tô dải 30–70 nhạt; trục hiện 70 / 50 / 30 | B — **T2 đã sửa:** dải 30–70, vạch 50, màu TradingView. Nhãn trục do thư viện tự chia (không ép 70/50/30) |
 | B4 | **MACD** | MACD xanh lơ, Signal hổ phách; histogram neon 2 sắc độ | MACD xanh dương, Signal cam; histogram 4 màu (tăng mạnh / tăng yếu / giảm yếu / giảm mạnh) | B |
 | B5 | **Khối lượng** | Chỉ có pane riêng; cột neon 45%; không có đường trung bình KL | Chuẩn: KL vẽ chồng ở đáy pane giá (khoảng 20% chiều cao), cột theo màu nến; có tuỳ chọn MA 20 của KL | B |
 | B6 | **EMA 21/50/100 · MA 200** | Bộ chu kỳ cố định, màu cố định (xanh dương, vàng, tím, đỏ nhạt), không chỉnh được chu kỳ, kiểu, màu | Mỗi đường là một chỉ báo: chu kỳ, nguồn (close / hl2…), kiểu (SMA / EMA / WMA), màu, độ dày đều chỉnh được | C |

@@ -4,7 +4,7 @@
 // GHIM VÀO NẾN: mọi chỉ báo là series / marker / primitive của thư viện -> kéo chuột, cuộn, zoom, bàn phím đều di chuyển
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
-  createChart, createSeriesMarkers, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, type TickMarkType,
+  createChart, createSeriesMarkers, BaselineSeries, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, type TickMarkType,
   type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type MouseEventParams, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
@@ -12,6 +12,7 @@ import { OverlayPrimitive } from "./chart/OverlayPrimitive";
 import { chartTime } from "./chart/time";
 import { GQ_COLORS, rgba, type Scene } from "./chart/scene";
 import { PRICE_FMT, VOLUME_FMT, priceDigitsFor, viCrosshairTime, viPrice, viTickMark } from "./chart/viFormat";
+import { CANDLE_DOWN, CANDLE_UP, TV_STYLE, macdHistColor, volumeColor } from "./chart/indicatorStyle";
 
 /** Ngày hoặc ISO (intraday) -> thời gian trục — dùng chung với lớp phủ (chart/time.ts). */
 export const toTime = chartTime;
@@ -46,6 +47,8 @@ export class TVChartManager {
   /** R5: ngưỡng RSI / ADX do người dùng chỉnh (vạch đứt trong pane). */
   private rsiLevels: [number, number] = [70, 30];
   private rsiLines: IPriceLine[] = [];
+  /** TA-T2: dải tô giữa ngưỡng dưới và ngưỡng trên của RSI (như TradingView). */
+  private rsiBand: ISeriesApi<"Baseline"> | null = null;
   private adxLevel = 25;
   private adxLine: IPriceLine | null = null;
   private currentDates = new Set<string>();
@@ -94,9 +97,10 @@ export class TVChartManager {
     });
 
     this.candleSeries = this.chart.addSeries(CandlestickSeries, {
-      priceFormat: this.pricePf, upColor: GQ_COLORS.bull, downColor: GQ_COLORS.bear,
-      borderUpColor: GQ_COLORS.bull, borderDownColor: GQ_COLORS.bear,
-      wickUpColor: GQ_COLORS.bull, wickDownColor: GQ_COLORS.bear,
+      // TA-T2 (Q1): màu tăng / giảm của dự án (--q-up / --q-down), đồng bộ bảng giá — thay neon #00F5A0 / #FF0055.
+      priceFormat: this.pricePf, upColor: CANDLE_UP, downColor: CANDLE_DOWN,
+      borderUpColor: CANDLE_UP, borderDownColor: CANDLE_DOWN,
+      wickUpColor: CANDLE_UP, wickDownColor: CANDLE_DOWN,
     }, 0);
     this.candleSeries.attachPrimitive(this.overlay);
     // Dữ liệu giám sát mỗi lần vẽ: số nhãn/phần tử, khung nhìn logic, toạ độ x của nến mẫu & phần tử mẫu
@@ -240,7 +244,7 @@ export class TVChartManager {
   private paintLast(): void {
     const b = this.currentBars[this.currentBars.length - 1];
     if (!b) return;
-    const c = b.close >= b.open ? GQ_COLORS.bull : GQ_COLORS.bear;
+    const c = b.close >= b.open ? CANDLE_UP : CANDLE_DOWN;
     this.candleSeries.update(this.formingLast
       ? { time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close, color: "rgba(0,0,0,0)", borderColor: c, wickColor: c }
       : { time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close });
@@ -261,12 +265,20 @@ export class TVChartManager {
   /** Pane RSI14 — chỉ tồn tại khi người dùng bật lớp "RSI 14". */
   setRsiVisible(on: boolean): void {
     if (on && !this.rsiSeries) {
-      this.rsiSeries = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, color: GQ_COLORS.uv, lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, this.chart.panes().length);
+      const pane = this.chart.panes().length;
+      // TA-T2: dải 30–70 vẽ trước (nằm dưới đường RSI): Baseline giá trị = ngưỡng trên, đáy = ngưỡng dưới, chỉ tô phần giữa.
+      const clear = "rgba(0,0,0,0)";
+      this.rsiBand = this.chart.addSeries(BaselineSeries, { priceFormat: PRICE_FMT, baseValue: { type: "price", price: this.rsiLevels[1] },
+        topLineColor: clear, bottomLineColor: clear, topFillColor1: TV_STYLE.rsi.band, topFillColor2: TV_STYLE.rsi.band, bottomFillColor1: clear, bottomFillColor2: clear,
+        lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, pane);
+      this.rsiSeries = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, color: TV_STYLE.rsi.line, lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, pane);
       this.drawRsiLevels();
       this.fillRsi();
     } else if (!on && this.rsiSeries) {
       this.chart.removeSeries(this.rsiSeries);
+      if (this.rsiBand) this.chart.removeSeries(this.rsiBand);
       this.rsiSeries = null;
+      this.rsiBand = null;
       this.rsiLines = [];
     }
     this.layoutPanes();
@@ -276,19 +288,22 @@ export class TVChartManager {
     if (this.rsiLevels[0] === upper && this.rsiLevels[1] === lower) return;
     this.rsiLevels = [upper, lower];
     this.drawRsiLevels();
+    this.fillRsi();
   }
   private drawRsiLevels(): void {
     if (!this.rsiSeries) return;
     for (const l of this.rsiLines) this.rsiSeries.removePriceLine(l);
     const [up, lo] = this.rsiLevels;
-    this.rsiLines = ([[up, GQ_COLORS.bear], [lo, GQ_COLORS.bull]] as const).map(([price, color]) =>
-      this.rsiSeries!.createPriceLine({ price, color: rgba(color, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" }));
+    // TA-T2: như TradingView — ngưỡng trên / dưới xám nét đứt, vạch 50 chấm mờ; dải giữa hai ngưỡng tô tím nhạt (rsiBand).
+    this.rsiLines = ([[up, LineStyle.Dashed, 0.9], [lo, LineStyle.Dashed, 0.9], [50, LineStyle.Dotted, 0.5]] as const).map(([price, style, alpha]) =>
+      this.rsiSeries!.createPriceLine({ price, color: rgba(TV_STYLE.rsi.level, alpha), lineStyle: style, lineWidth: 1, axisLabelVisible: false, title: "" }));
+    this.rsiBand?.applyOptions({ baseValue: { type: "price", price: lo } });
   }
   setAdxLevel(level: number): void {
     this.adxLevel = level;
     if (!this.adxSeries) return;
     if (this.adxLine) this.adxSeries.adx.removePriceLine(this.adxLine);
-    this.adxLine = this.adxSeries.adx.createPriceLine({ price: level, color: rgba(GQ_COLORS.amber, 0.5), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
+    this.adxLine = this.adxSeries.adx.createPriceLine({ price: level, color: rgba(TV_STYLE.dmi.level, 0.9), lineStyle: LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
   }
 
   setRsi(rsi: (number | null)[]): void {
@@ -395,8 +410,9 @@ export class TVChartManager {
       const pane = this.chart.panes().length;
       const hist = this.chart.addSeries(HistogramSeries, { priceFormat: PRICE_FMT, priceLineVisible: false, lastValueVisible: false }, pane);
       const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
-      const macd = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: GQ_COLORS.cyan }, pane);
-      const signal = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: GQ_COLORS.amber }, pane);
+      // TA-T2 (Q2): màu MACD / Signal mặc định TradingView.
+      const macd = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: TV_STYLE.macd.macd }, pane);
+      const signal = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: TV_STYLE.macd.signal }, pane);
       this.macdSeries = { hist, macd, signal };
       this.layoutPanes();
     }
@@ -404,9 +420,10 @@ export class TVChartManager {
     let prev: number | null = null;
     this.macdSeries.hist.setData(data.map((d) => {
       if (d.hist == null) return { time: toTime(d.date) };
-      const rising = prev != null && Math.abs(d.hist) >= Math.abs(prev);
+      // TA-T2: histogram 4 sắc độ như TradingView (dương tăng / dương giảm / âm giảm / âm tăng), màu dự án (Q1).
+      const color = macdHistColor(d.hist, prev);
       prev = d.hist;
-      return { time: toTime(d.date), value: d.hist, color: signColor(d.hist, rising ? 0.7 : 0.35) };
+      return { time: toTime(d.date), value: d.hist, color };
     }));
     this.macdSeries.macd.setData(data.map((d) => (d.macd == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.macd })));
     this.macdSeries.signal.setData(data.map((d) => (d.signal == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.signal })));
@@ -421,9 +438,10 @@ export class TVChartManager {
     if (!this.adxSeries) {
       const pane = this.chart.panes().length;
       const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
-      const adx = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: "#e2e8f0", lineWidth: 2 }, pane);
-      const plus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: rgba(GQ_COLORS.bull, 0.8) }, pane);
-      const minus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: rgba(GQ_COLORS.bear, 0.8) }, pane);
+      // TA-T2 (Q2): màu DMI mặc định TradingView — ADX hồng đậm, +DI xanh dương, −DI cam.
+      const adx = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: TV_STYLE.dmi.adx, lineWidth: 2 }, pane);
+      const plus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: TV_STYLE.dmi.plus }, pane);
+      const minus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: TV_STYLE.dmi.minus }, pane);
       this.adxSeries = { adx, plus, minus };
       this.setAdxLevel(this.adxLevel);
       this.layoutPanes();
@@ -436,7 +454,7 @@ export class TVChartManager {
   }
 
   private volumePoint(b: OhlcvBar) {
-    return { time: toTime(b.date), value: b.volume, color: b.close >= b.open ? rgba(GQ_COLORS.bull, 0.45) : rgba(GQ_COLORS.bear, 0.45) };
+    return { time: toTime(b.date), value: b.volume, color: volumeColor(b.close >= b.open) };
   }
   private fillVolume(): void {
     this.volumeSeries?.setData(this.currentBars.map((b) => this.volumePoint(b)));
@@ -445,6 +463,7 @@ export class TVChartManager {
   private fillRsi(): void {
     const rsi = this.rsiValues;
     this.rsiSeries?.setData(this.currentBars.map((b, i) => (rsi[i] == null ? { time: toTime(b.date) } : { time: toTime(b.date), value: rsi[i] as number })));
+    this.rsiBand?.setData(this.currentBars.map((b) => ({ time: toTime(b.date), value: this.rsiLevels[0] })));
   }
 
   private layoutPanes(): void {
