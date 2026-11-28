@@ -42,7 +42,20 @@ Chi tiết từng lỗi kèm bằng chứng: [01_RA_SOAT.md](01_RA_SOAT.md). L�
 4. **Quyết định cũ của chủ dự án giữ nguyên:** mọi lớp **TẮT mặc định** (chỉ có nến); lớp phủ luôn ghim vào nến; bố cục và hình vẽ lưu theo tài khoản (bản đã lưu vẫn mở được sau nâng cấp).
 5. **Menu chính không đổi** (chuẩn QUANTA UI v2).
 
-## 4. Việc cần chủ dự án quyết
+## 4. Quyết định của chủ dự án (28/11/2026) — ĐÃ CHỐT
+
+| # | Quyết định |
+|---|---|
+| Q1 | Màu nến = màu tăng / giảm của dự án (`--q-up` / `--q-down`), thay màu neon; đồng bộ bảng giá. Áp chung cho nến, KL, histogram, SuperTrend |
+| Q2 | Màu đường chỉ báo = màu mặc định TradingView |
+| Q3 | Thêm lựa chọn vẽ KL chồng ở đáy khung giá; mặc định vẫn TẮT |
+| Q4 | Tên khung `1p 5p 15p 1g · Ngày Tuần Tháng`, **gộp thành MỘT nút xổ xuống** (như nút "4h" của TradingView: bấm mở danh sách khung để chọn). Khoảng nhìn đặt dưới trục thời gian như TradingView (`1N 5N 1T 3T 6T Đầu năm 1Năm 5Năm Tất cả`) |
+| Q5 | Bảng chi tiết bên phải tự thu gọn khi màn hình hẹp hơn 1700px |
+| Q6 | Chỉ báo mới: Stochastic, Stoch RSI, ATR, OBV, MFI, Parabolic SAR. **Công cụ vẽ mở rộng theo TradingView** (ảnh chủ dự án gửi 28/11): thanh dọc bên trái chia nhóm — **Mẫu hình giá** (XABCD, Cypher, Vai-đầu-vai, ABCD, Tam giác, Three drives) · **Sóng Elliott** (đẩy 1-2-3-4-5, điều chỉnh A-B-C, tam giác A-B-C-D-E, kết hợp đôi W-X-Y, kết hợp ba W-X-Y-X-Z) · **Chu kỳ** (đường chu kỳ, chu kỳ thời gian, đường sin) · **Cọ vẽ** (cọ, bút dạ quang) · **Mũi tên** (đánh dấu mũi tên, mũi tên, mũi tên lên / xuống) · **Hình học** (chữ nhật, chữ nhật xoay, đường dẫn, tròn, elip, đa giác, tam giác, cung, đường cong, đường cong kép). Mục tiêu: chart hoạt động chuyên nghiệp như TradingView |
+
+Phần dưới là bảng câu hỏi gốc (giữ để đối chiếu).
+
+## 4b. Câu hỏi gốc
 
 | # | Câu hỏi | Đề xuất |
 |---|---|---|
