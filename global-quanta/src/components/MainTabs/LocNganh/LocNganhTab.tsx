@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useAppStore } from "../../../store/useAppStore";
 import { CycleFingerprintTab } from "./CfTab";
 import SectorRotationPanel from "./timing/SectorRotationPanel";
@@ -11,6 +11,7 @@ import Top20V2Panel from "./Top20V2Panel";
 import { useAlphaTop20 } from "../../../hooks/useAlphaTop20";
 
 type SubTab = "rrg" | "fingerprint";
+const SUBTABS: { id: SubTab; label: string }[] = [{ id: "rrg", label: "Xoay vòng ngành & Top 20" }, { id: "fingerprint", label: "Cycle Fingerprint" }];
 /** EC-1: nonce "Chu kỳ →" đã xử lý — để ở mức mô-đun để mở lại tab không tự nhảy sang Cycle Fingerprint lần nữa. */
 let handledCycleNonce = 0;
 
@@ -52,34 +53,30 @@ export default function LocNganhTab() {
   }), [sectorRrg.data, ladder.data, timing.bySector, cycles.data, cycles.isLoading]);
   const focusSector = useAppStore((s) => s.focusSector);
   const openCycle = (ticker: string) => { selectTicker(ticker); setSubTab("fingerprint"); };
+  // Phím ← → / Home / End giữa các tab con (như tab con Tổng quan).
+  const tabRefs = useRef<Record<SubTab, HTMLButtonElement | null>>({ rrg: null, fingerprint: null });
+  const onTabKey = (e: ReactKeyboardEvent<HTMLButtonElement>) => {
+    const i = SUBTABS.findIndex((t) => t.id === subTab), n = SUBTABS.length;
+    const j = e.key === "ArrowRight" ? (i + 1) % n : e.key === "ArrowLeft" ? (i - 1 + n) % n : e.key === "Home" ? 0 : e.key === "End" ? n - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); setSubTab(SUBTABS[j].id); tabRefs.current[SUBTABS[j].id]?.focus();
+  };
 
   return (
     <div className="loc-nganh-tab">
-      {/* Sub-tab: chỉ điều hướng hiển thị, không ảnh hưởng logic xoay vòng ngành / Top 20 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
-        <button
-          onClick={() => setSubTab("rrg")}
-          style={{
-            fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 8, cursor: "pointer",
-            background: subTab === "rrg" ? "var(--q-accent-strong)" : "var(--bg-surface-2)",
-            color: subTab === "rrg" ? "#0a0a0a" : "var(--text-secondary)",
-            border: "none",
-          }}
-        >
-          Xoay vòng ngành & Top 20
-        </button>
-        <button
-          onClick={() => setSubTab("fingerprint")}
-          style={{
-            fontSize: 11, fontWeight: 700, padding: "6px 14px", borderRadius: 8, cursor: "pointer",
-            background: subTab === "fingerprint" ? "var(--q-accent-strong)" : "var(--bg-surface-2)",
-            color: subTab === "fingerprint" ? "#0a0a0a" : "var(--text-secondary)",
-            border: "none",
-          }}
-        >
-          Cycle Fingerprint
-        </button>
+      {/* Sub-tab: chỉ điều hướng hiển thị, không ảnh hưởng logic xoay vòng ngành / Top 20.
+          QUANTA UI v2 (28/11): thanh tab con chuẩn dự án .q-subtabs (= tab con Tổng quan) thay viên thuốc nền xanh đặc chữ đen;
+          thêm vai trò tab + phím ← → như Tổng quan. */}
+      <div className="q-subtabs" role="tablist" aria-label="Tab con của Ngành" data-testid="nganh-subtabs" style={{ marginBottom: 14 }}>
+        {SUBTABS.map((t) => (
+          <button key={t.id} type="button" role="tab" id={`nganh-tab-${t.id}`} aria-selected={subTab === t.id} aria-controls="nganh-panel"
+            tabIndex={subTab === t.id ? 0 : -1} ref={(el) => { tabRefs.current[t.id] = el; }} data-testid={`nganh-view-${t.id}`}
+            className="q-subtab" onClick={() => setSubTab(t.id)} onKeyDown={onTabKey}>
+            {t.label}
+          </button>
+        ))}
       </div>
+      <div id="nganh-panel" role="tabpanel" aria-labelledby={`nganh-tab-${subTab}`}>
 
       {subTab === "rrg" && (
         <>
@@ -93,6 +90,7 @@ export default function LocNganhTab() {
       )}
 
       {subTab === "fingerprint" && <CycleFingerprintTab />}
+      </div>
     </div>
   );
 }

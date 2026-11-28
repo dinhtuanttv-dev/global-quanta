@@ -125,7 +125,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
           </button>
           {([2, 3] as const).map((l) => (
             <button key={l} type="button" onClick={() => { setLevel(l); setOpen(null); }} aria-pressed={level === l} data-testid={`sector-level-${l}`}
-              style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "none", background: level === l ? "var(--q-accent-soft)" : "var(--bg-surface-2)", color: level === l ? "var(--q-accent-strong)" : "var(--text-secondary)", boxShadow: level === l ? "inset 0 0 0 1px var(--q-accent-line)" : undefined }}>
+              style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "none", background: level === l ? "var(--q-accent-soft)" : "var(--bg-surface-2)", color: level === l ? "var(--q-text)" : "var(--text-secondary)", boxShadow: level === l ? "inset 0 -2px 0 var(--q-accent)" : undefined }}>
               ICB cấp {l}
             </button>
           ))}
@@ -178,7 +178,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
                       <tr key={s.code} onClick={() => toggle(s.code)} data-testid="sector-row" aria-expanded={open === s.code}
                         style={{ cursor: "pointer", borderTop: "1px solid var(--bg-surface-2)", background: open === s.code ? "var(--bg-surface-2)" : selectedSector === s.code ? "var(--q-accent-soft)" : undefined }}>
                         <td style={{ padding: "6px 0" }}>
-                          <b style={{ color: "var(--q-accent)" }}>{s.name}</b>
+                          <b style={{ color: "var(--q-text)" }}>{s.name}</b>
                           <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)" }}>{s.code} · {s.indexMembers} mã{s.thin ? " · rổ mỏng" : ""}</span>
                         </td>
                         <td>{s.state ? <Chip color={STATE_COLOR[s.state.key]} title={s.state.why.join(" · ")} testId="sector-state">{s.state.label}</Chip> : "—"}</td>
