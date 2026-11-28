@@ -4,13 +4,14 @@
 // GHIM VÀO NẾN: mọi chỉ báo là series / marker / primitive của thư viện -> kéo chuột, cuộn, zoom, bàn phím đều di chuyển
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
-  createChart, createSeriesMarkers, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle,
+  createChart, createSeriesMarkers, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, type TickMarkType,
   type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type MouseEventParams, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
 import { OverlayPrimitive } from "./chart/OverlayPrimitive";
 import { chartTime } from "./chart/time";
 import { GQ_COLORS, rgba, type Scene } from "./chart/scene";
+import { PRICE_FMT, VOLUME_FMT, priceDigitsFor, viCrosshairTime, viPrice, viTickMark } from "./chart/viFormat";
 
 /** Ngày hoặc ISO (intraday) -> thời gian trục — dùng chung với lớp phủ (chart/time.ts). */
 export const toTime = chartTime;
@@ -62,25 +63,38 @@ export class TVChartManager {
   readonly overlay = new OverlayPrimitive();
   private currentBars: OhlcvBar[] = [];
   private container: HTMLElement;
+  /** TA-T1: khung trong ngày -> nhãn crosshair có giờ. */
+  private intraday = false;
+  /** TA-T1: số chữ số thập phân của giá theo mã (cổ phiếu 0, chỉ số 2) — dùng cho nến + đường phủ giá. */
+  private priceDigits: 0 | 2 = 2;
+  private readonly pricePf = { type: "custom" as const, formatter: (p: number) => viPrice(p, this.priceDigits), minMove: 0.01 };
 
   constructor(container: HTMLElement, bars: OhlcvBar[], options?: TVChartManagerOptions) {
     this.container = container;
     const initialHeight = container.clientHeight > 0 ? container.clientHeight : 360;
+    this.intraday = options?.timeVisible ?? false;
     this.chart = createChart(container, {
       width: container.clientWidth,
       height: initialHeight,
+      // TA-T1: chữ trục 11px (chuẩn dự án ≥ 11px); ghi công TradingView đặt ở chân chart thay logo đè lên pane chỉ báo.
       layout: {
-        background: { color: "transparent" }, textColor: GQ_COLORS.text2, fontSize: 10, fontFamily: "'IBM Plex Mono', monospace",
-        panes: { separatorColor: "rgba(148,163,184,0.12)", separatorHoverColor: "rgba(34,211,238,0.25)", enableResize: true },
+        background: { color: "transparent" }, textColor: GQ_COLORS.text2, fontSize: 11, fontFamily: "'IBM Plex Mono', monospace", attributionLogo: false,
+        panes: { separatorColor: "rgba(148,163,184,0.12)", separatorHoverColor: "rgba(79,142,247,0.35)", enableResize: true },
       },
+      // TA-T1: trục thời gian + nhãn crosshair tiếng Việt (trước: "Mar", "24 Jul '26").
+      localization: { locale: "vi-VN", timeFormatter: (t: Time) => viCrosshairTime(t, this.intraday) },
       grid: { vertLines: { color: "rgba(148,163,184,0.05)" }, horzLines: { color: "rgba(148,163,184,0.05)" } },
       rightPriceScale: { borderColor: "rgba(148,163,184,0.15)" },
-      timeScale: { borderColor: "rgba(148,163,184,0.15)", timeVisible: options?.timeVisible ?? false, rightOffset: 6 },
-      crosshair: { vertLine: { color: rgba(GQ_COLORS.cyan, 0.4) }, horzLine: { color: rgba(GQ_COLORS.cyan, 0.4) } },
+      timeScale: { borderColor: "rgba(148,163,184,0.15)", timeVisible: options?.timeVisible ?? false, rightOffset: 6, tickMarkFormatter: (t: Time, type: TickMarkType) => viTickMark(t, type) },
+      // TA-T1: crosshair xám nét đứt, nhãn trục nền tối (như TradingView); bỏ xanh lơ trang trí.
+      crosshair: {
+        vertLine: { color: "rgba(148,163,184,0.55)", style: LineStyle.LargeDashed, labelBackgroundColor: "#1e293b" },
+        horzLine: { color: "rgba(148,163,184,0.55)", style: LineStyle.LargeDashed, labelBackgroundColor: "#1e293b" },
+      },
     });
 
     this.candleSeries = this.chart.addSeries(CandlestickSeries, {
-      upColor: GQ_COLORS.bull, downColor: GQ_COLORS.bear,
+      priceFormat: this.pricePf, upColor: GQ_COLORS.bull, downColor: GQ_COLORS.bear,
       borderUpColor: GQ_COLORS.bull, borderDownColor: GQ_COLORS.bear,
       wickUpColor: GQ_COLORS.bull, wickDownColor: GQ_COLORS.bear,
     }, 0);
@@ -165,6 +179,7 @@ export class TVChartManager {
    * đang xem quá khứ thì đứng yên tại đó, đang ở mép phải thì giữ độ rộng và bám nến cuối. Đổi mã / khung: về 250 nến gần nhất như cũ.
    */
   setData(bars: OhlcvBar[], rsi?: (number | null)[], opts: { keepView?: boolean } = {}): void {
+    this.priceDigits = priceDigitsFor(bars);
     const prev = this.currentBars;
     const n = bars.length, m = prev.length;
     const incremental = opts.keepView && m > 1 && n >= m && n - m <= 5 && prev[0].date === bars[0].date && prev[m - 2].date === bars[m - 2].date;
@@ -234,7 +249,7 @@ export class TVChartManager {
   /** Pane khối lượng — chỉ tồn tại khi người dùng bật lớp "Khối lượng". */
   setVolumeVisible(on: boolean): void {
     if (on && !this.volumeSeries) {
-      this.volumeSeries = this.chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, this.chart.panes().length);
+      this.volumeSeries = this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceLineVisible: false, lastValueVisible: false }, this.chart.panes().length);
       this.fillVolume();
     } else if (!on && this.volumeSeries) {
       this.chart.removeSeries(this.volumeSeries); // pane rỗng tự bị xoá (v5)
@@ -246,7 +261,7 @@ export class TVChartManager {
   /** Pane RSI14 — chỉ tồn tại khi người dùng bật lớp "RSI 14". */
   setRsiVisible(on: boolean): void {
     if (on && !this.rsiSeries) {
-      this.rsiSeries = this.chart.addSeries(LineSeries, { color: GQ_COLORS.uv, lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, this.chart.panes().length);
+      this.rsiSeries = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, color: GQ_COLORS.uv, lineWidth: 1, priceLineVisible: false, lastValueVisible: true }, this.chart.panes().length);
       this.drawRsiLevels();
       this.fillRsi();
     } else if (!on && this.rsiSeries) {
@@ -292,8 +307,8 @@ export class TVChartManager {
     }
     if (!this.flowSeries) {
       const pane = this.chart.panes().length;
-      const delta = this.chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, pane);
-      const cvd = this.chart.addSeries(LineSeries, { color: GQ_COLORS.amber, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: { type: "volume" } }, pane);
+      const delta = this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceLineVisible: false, lastValueVisible: false }, pane);
+      const cvd = this.chart.addSeries(LineSeries, { color: GQ_COLORS.amber, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: VOLUME_FMT }, pane);
       this.flowSeries = { delta, cvd };
       this.layoutPanes();
     }
@@ -310,8 +325,8 @@ export class TVChartManager {
     }
     if (!this.foreignSeries) {
       const pane = this.chart.panes().length;
-      const net = this.chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceLineVisible: false, lastValueVisible: false }, pane);
-      const cum = this.chart.addSeries(LineSeries, { color: GQ_COLORS.cyan, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: { type: "volume" } }, pane);
+      const net = this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceLineVisible: false, lastValueVisible: false }, pane);
+      const cum = this.chart.addSeries(LineSeries, { color: GQ_COLORS.cyan, lineWidth: 1, priceScaleId: "left", priceLineVisible: false, lastValueVisible: true, priceFormat: VOLUME_FMT }, pane);
       this.foreignSeries = { net, cum };
       this.layoutPanes();
     }
@@ -334,10 +349,10 @@ export class TVChartManager {
     }
     if (!this.elliottOscSeries) {
       const pane = this.chart.panes().length;
-      const osc = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: true, title: "EO 5/35" }, pane);
+      const osc = this.chart.addSeries(HistogramSeries, { priceFormat: PRICE_FMT, priceLineVisible: false, lastValueVisible: true, title: "EO 5/35" }, pane);
       const band = { lineWidth: 1 as const, lineStyle: LineStyle.Dashed, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false };
-      const up = this.chart.addSeries(LineSeries, { ...band, color: rgba(GQ_COLORS.bull, 0.55) }, pane);
-      const lo = this.chart.addSeries(LineSeries, { ...band, color: rgba(GQ_COLORS.bear, 0.55) }, pane);
+      const up = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...band, color: rgba(GQ_COLORS.bull, 0.55) }, pane);
+      const lo = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...band, color: rgba(GQ_COLORS.bear, 0.55) }, pane);
       this.elliottOscSeries = { osc, up, lo };
       this.layoutPanes();
     }
@@ -362,7 +377,7 @@ export class TVChartManager {
       const k = prefix + l.id;
       let s = this.overlayLines.get(k);
       if (!s) {
-        s = this.chart.addSeries(LineSeries, { color: l.color, lineWidth: l.width ?? 1, lineStyle: l.dashed ? LineStyle.Dotted : LineStyle.Solid,
+        s = this.chart.addSeries(LineSeries, { priceFormat: this.pricePf, color: l.color, lineWidth: l.width ?? 1, lineStyle: l.dashed ? LineStyle.Dotted : LineStyle.Solid,
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 0);
         this.overlayLines.set(k, s);
       }
@@ -378,10 +393,10 @@ export class TVChartManager {
     }
     if (!this.macdSeries) {
       const pane = this.chart.panes().length;
-      const hist = this.chart.addSeries(HistogramSeries, { priceLineVisible: false, lastValueVisible: false }, pane);
+      const hist = this.chart.addSeries(HistogramSeries, { priceFormat: PRICE_FMT, priceLineVisible: false, lastValueVisible: false }, pane);
       const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
-      const macd = this.chart.addSeries(LineSeries, { ...line, color: GQ_COLORS.cyan }, pane);
-      const signal = this.chart.addSeries(LineSeries, { ...line, color: GQ_COLORS.amber }, pane);
+      const macd = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: GQ_COLORS.cyan }, pane);
+      const signal = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: GQ_COLORS.amber }, pane);
       this.macdSeries = { hist, macd, signal };
       this.layoutPanes();
     }
@@ -406,9 +421,9 @@ export class TVChartManager {
     if (!this.adxSeries) {
       const pane = this.chart.panes().length;
       const line = { lineWidth: 1 as const, priceLineVisible: false, lastValueVisible: true };
-      const adx = this.chart.addSeries(LineSeries, { ...line, color: "#e2e8f0", lineWidth: 2 }, pane);
-      const plus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bull, 0.8) }, pane);
-      const minus = this.chart.addSeries(LineSeries, { ...line, color: rgba(GQ_COLORS.bear, 0.8) }, pane);
+      const adx = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: "#e2e8f0", lineWidth: 2 }, pane);
+      const plus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: rgba(GQ_COLORS.bull, 0.8) }, pane);
+      const minus = this.chart.addSeries(LineSeries, { priceFormat: PRICE_FMT, ...line, color: rgba(GQ_COLORS.bear, 0.8) }, pane);
       this.adxSeries = { adx, plus, minus };
       this.setAdxLevel(this.adxLevel);
       this.layoutPanes();
@@ -512,7 +527,7 @@ export class TVChartManager {
   }
 
   /** Khung intraday: hiện giờ:phút trên trục thời gian. */
-  setTimeVisible(on: boolean): void { this.chart.applyOptions({ timeScale: { timeVisible: on, secondsVisible: false } }); }
+  setTimeVisible(on: boolean): void { this.intraday = on; this.chart.applyOptions({ timeScale: { timeVisible: on, secondsVisible: false } }); }
 
   resize(width: number, height: number): void { this.chart.resize(width, height); }
 
