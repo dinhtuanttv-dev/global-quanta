@@ -24,7 +24,7 @@ describe("R5 — làm sạch tham số", () => {
   it("mặc định = công thức chuẩn; workspace cũ (không có indicators) -> mặc định", () => {
     expect(sanitizeIndicators(undefined)).toEqual(DEFAULT_INDICATORS);
     expect(sanitizeWorkspace({ preset: "clean" }).indicators).toEqual(DEFAULT_INDICATORS);
-    expect(paneTitles(DEFAULT_INDICATORS)).toEqual({ rsi: "RSI 14 · 70 / 30", macd: "MACD 12/26/9", adx: "ADX 14 · +DI / −DI · ngưỡng 25" });
+    expect(paneTitles(DEFAULT_INDICATORS)).toEqual({ rsi: "RSI 14 · 70 / 30", macd: "MACD 12/26/9", adx: "ADX 14 · +DI / −DI · ngưỡng 25", stoch: "Stoch 14 1 3 · 80 / 20", stochRsi: "Stoch RSI 3 3 14 14 · 80 / 20", atr: "ATR 14", mfi: "MFI 14 · 80 / 20" }); // TA-T5: thêm pane T4
   });
 });
 

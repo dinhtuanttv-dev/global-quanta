@@ -4,7 +4,7 @@
 //   • Tiêu đề từng pane chỉ báo + nút ✕ tắt pane (tắt lớp tương ứng) — pane tự gỡ khỏi biểu đồ.
 //   • "+n nhãn ẩn": lớp phủ lược nhãn theo ngân sách để khỏi chồng chữ — báo rõ thay vì im lặng.
 import { useEffect, useRef, useState } from "react";
-import { Info, X } from "lucide-react";
+import { Info, Settings2, X } from "lucide-react";
 import type { CrosshairBar, PaneInfo, PaneKind, TVChartManager } from "../../../../lib/ta-command-center/TVChartManager";
 import type { LayerKey } from "../../../../lib/ta-command-center/LayerManager";
 import type { OhlcvBar } from "../../../../lib/ta-command-center/types";
@@ -22,8 +22,9 @@ const fmtD = (d: string) => { const [y, m, dd] = d.slice(0, 10).split("-"); cons
 /** Tên dòng chú giải của từng lớp phủ giá (mỗi chỉ báo một dòng như TradingView). */
 const EXTRA_TITLE: Partial<Record<LayerKey, string>> = { ichimoku: "Ichimoku 9/26/52" }; // các lớp khác: nhãn giá trị đã là tên (EMA 21, BB, SuperTrend)
 
-export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, onClosePane, paneNotes = {}, paneValue, paneTitle = {}, priceExtras }: {
+export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, onClosePane, paneNotes = {}, paneValue, paneTitle = {}, priceExtras, onSettings, hasSettings = () => true }: {
   tv: TVChartManager | null; bars: OhlcvBar[]; ticker: string; timeframe: string; layoutKey: string; onClosePane: (k: LayerKey) => void;
+  /** TA-T5: nút ⚙ mở tham số của chỉ báo (như TradingView) — chỉ hiện khi hasSettings(k). */ onSettings?: (k: LayerKey) => void; hasSettings?: (k: LayerKey) => boolean;
   /** R3: nguồn + giới hạn của từng pane (VD Order Flow: ước lượng, tỷ lệ tick / BVC). */ paneNotes?: Partial<Record<PaneKind, string>>;
   /** 25/10: giá trị EMA / MA / Ichimoku tại nến dưới crosshair (dòng thứ hai của chú giải). */
   priceExtras?: (index: number) => { label: string; color: string; value: string; group?: LayerKey }[];
@@ -73,6 +74,7 @@ export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, on
                 <span key={g} className="ws-legend-row" data-testid={`legend-row-${g}`}>
                   {EXTRA_TITLE[g as LayerKey] && <span className="text-slate-400">{EXTRA_TITLE[g as LayerKey]}</span>}
                   {xs.map((x) => <span key={x.label} style={{ color: x.color }}>{x.label} <b>{x.value}</b></span>)}
+                  {g !== "_" && onSettings && hasSettings(g as LayerKey) && <button type="button" aria-label={`Cài đặt ${LAYER_LABEL[g as LayerKey] ?? g}`} title="Tham số" onClick={() => onSettings(g as LayerKey)} data-testid={`legend-settings-${g}`}><Settings2 className="w-3 h-3" /></button>}
                   {g !== "_" && <button type="button" aria-label={`Tắt ${LAYER_LABEL[g as LayerKey] ?? g}`} title="Tắt lớp" onClick={() => onClosePane(g as LayerKey)}><X className="w-3 h-3" /></button>}
                 </span>
               ))}
@@ -87,6 +89,7 @@ export default function ChartLegend({ tv, bars, ticker, timeframe, layoutKey, on
           {b && paneValue?.(p.kind, b.index) && <b className="text-slate-100" title={paneValue(p.kind, b.index) ?? undefined} data-testid={`pane-value-${p.kind}`}>{paneValue(p.kind, b.index)}</b>}
           {/* TA-T1: ghi chú dữ liệu (nguồn / giới hạn) thu vào ⓘ — chú giải chỉ còn tên, tham số, giá trị */}
           {paneNotes[p.kind] && <span className="ws-pane-note" title={paneNotes[p.kind]} aria-label={paneNotes[p.kind]} data-testid={`pane-note-${p.kind}`}><Info className="w-3 h-3" /></span>}
+          {onSettings && hasSettings(PANE_LAYER[p.kind as Exclude<PaneKind, "price">]) && <button type="button" aria-label={`Cài đặt ${PANE_TITLE[p.kind as Exclude<PaneKind, "price">]}`} title="Tham số" onClick={() => onSettings(PANE_LAYER[p.kind as Exclude<PaneKind, "price">])} data-testid={`pane-settings-${p.kind}`}><Settings2 className="w-3 h-3" /></button>}
           <button type="button" aria-label={`Đóng pane ${PANE_TITLE[p.kind as Exclude<PaneKind, "price">]}`} onClick={() => onClosePane(PANE_LAYER[p.kind as Exclude<PaneKind, "price">])}><X className="w-3 h-3" /></button>
         </div>
       ))}

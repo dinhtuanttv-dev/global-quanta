@@ -40,7 +40,12 @@ test("R5 sanitizeIndicators: kẹp miền, MACD nhanh < chậm, enum lạ -> m�
   assert.deepEqual(s, {
     rsi: { period: 100, upper: 80, lower: 5, method: "wilder" }, macd: { fast: 12, slow: 26, signal: 9 }, adx: { period: 14, threshold: 60 },
     vprofile: { bars: 20, method: "uniform" }, bollinger: { period: 20, mult: 2 }, supertrend: { period: 10, mult: 3 }, avwap: { anchors: { FPT: "2026-03-02" } },
+    // TA-T5: mục mới vắng mặt -> mặc định (chỉ báo dựng sẵn TradingView; MA như trước: EMA 21/50/100 · SMA 200).
+    ma: { p1: 21, p2: 50, p3: 100, p4: 200, t1: "ema", t2: "ema", t3: "ema", t4: "sma" },
+    stoch: { length: 14, smoothK: 1, smoothD: 3 }, stochRsi: { rsiLength: 14, stochLength: 14, smoothK: 3, smoothD: 3 }, atr: { period: 14 }, mfi: { period: 14 },
   });
+  // TA-T5: kẹp miền + kiểu MA lạ -> mặc định của từng đường.
+  assert.deepEqual(sanitizeIndicators({ ma: { p1: 1, p2: 999, t1: "sma", t4: "wma" } }).ma, { p1: 2, p2: 400, p3: 100, p4: 200, t1: "sma", t2: "ema", t3: "ema", t4: "sma" });
   assert.equal(sanitizeIndicators(null), undefined);
   assert.deepEqual(sanitizeWorkspace({ indicators: { rsi: { period: 21 } } }).indicators.rsi, { period: 21, upper: 70, lower: 30, method: "wilder" });
 });

@@ -4,6 +4,7 @@
 
 export type RsiMethod = "wilder" | "cutler";
 export type ProfileMethodSetting = "triangular" | "uniform";
+export type MaKind = "ema" | "sma";
 export interface IndicatorSettings {
   rsi: { period: number; upper: number; lower: number; method: RsiMethod };
   macd: { fast: number; slow: number; signal: number };
@@ -13,6 +14,13 @@ export interface IndicatorSettings {
   supertrend: { period: number; mult: number };
   /** Ngày neo AVWAP theo mã; mã không có -> tự động (đầu dải giao dịch). */
   avwap: { anchors: Record<string, string> };
+  /** TA-T5: 4 đường trung bình (chu kỳ + kiểu) — mặc định EMA 21 · EMA 50 · EMA 100 · MA 200 (như trước). */
+  ma: { p1: number; p2: number; p3: number; p4: number; t1: MaKind; t2: MaKind; t3: MaKind; t4: MaKind };
+  /** TA-T5: tham số các chỉ báo T4 (mặc định = chỉ báo dựng sẵn TradingView). */
+  stoch: { length: number; smoothK: number; smoothD: number };
+  stochRsi: { rsiLength: number; stochLength: number; smoothK: number; smoothD: number };
+  atr: { period: number };
+  mfi: { period: number };
 }
 
 export const DEFAULT_INDICATORS: IndicatorSettings = {
@@ -23,6 +31,11 @@ export const DEFAULT_INDICATORS: IndicatorSettings = {
   bollinger: { period: 20, mult: 2 },
   supertrend: { period: 10, mult: 3 },
   avwap: { anchors: {} },
+  ma: { p1: 21, p2: 50, p3: 100, p4: 200, t1: "ema", t2: "ema", t3: "ema", t4: "sma" },
+  stoch: { length: 14, smoothK: 1, smoothD: 3 },
+  stochRsi: { rsiLength: 14, stochLength: 14, smoothK: 3, smoothD: 3 },
+  atr: { period: 14 },
+  mfi: { period: 14 },
 };
 
 /** Miền hợp lệ [min, max] — giống hệt phía Gateway (backend/src/market/watchlists/userWorkspace.js). */
@@ -33,6 +46,11 @@ export const INDICATOR_LIMITS = {
   vprofile: { bars: [20, 500] },
   bollinger: { period: [5, 100], mult: [0.5, 5] },
   supertrend: { period: [2, 100], mult: [0.5, 10] },
+  ma: { p1: [2, 400], p2: [2, 400], p3: [2, 400], p4: [2, 400] },
+  stoch: { length: [2, 100], smoothK: [1, 20], smoothD: [1, 20] },
+  stochRsi: { rsiLength: [2, 100], stochLength: [2, 100], smoothK: [1, 20], smoothD: [1, 20] },
+  atr: { period: [1, 100] },
+  mfi: { period: [2, 100] },
 } as const;
 const MAX_ANCHORS = 30;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}(T[0-9:.+Z-]{4,20})?$/;
@@ -46,6 +64,8 @@ export function sanitizeIndicators(raw: unknown): IndicatorSettings {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, Record<string, unknown> | undefined>;
   const D = DEFAULT_INDICATORS, L = INDICATOR_LIMITS;
   const rsi = r.rsi ?? {}, macd = r.macd ?? {}, adx = r.adx ?? {}, vp = r.vprofile ?? {}, av = r.avwap ?? {}, bb = r.bollinger ?? {}, st = r.supertrend ?? {};
+  const ma = r.ma ?? {}, sto = r.stoch ?? {}, sr = r.stochRsi ?? {}, at = r.atr ?? {}, mf = r.mfi ?? {};
+  const kind = (v: unknown, d: MaKind): MaKind => (v === "ema" || v === "sma" ? v : d);
   const out: IndicatorSettings = {
     rsi: {
       period: int(rsi.period, L.rsi.period, D.rsi.period), upper: int(rsi.upper, L.rsi.upper, D.rsi.upper), lower: int(rsi.lower, L.rsi.lower, D.rsi.lower),
@@ -57,6 +77,17 @@ export function sanitizeIndicators(raw: unknown): IndicatorSettings {
     bollinger: { period: int(bb.period, L.bollinger.period, D.bollinger.period), mult: dec1(bb.mult, L.bollinger.mult, D.bollinger.mult) },
     supertrend: { period: int(st.period, L.supertrend.period, D.supertrend.period), mult: dec1(st.mult, L.supertrend.mult, D.supertrend.mult) },
     avwap: { anchors: {} },
+    ma: {
+      p1: int(ma.p1, L.ma.p1, D.ma.p1), p2: int(ma.p2, L.ma.p2, D.ma.p2), p3: int(ma.p3, L.ma.p3, D.ma.p3), p4: int(ma.p4, L.ma.p4, D.ma.p4),
+      t1: kind(ma.t1, D.ma.t1), t2: kind(ma.t2, D.ma.t2), t3: kind(ma.t3, D.ma.t3), t4: kind(ma.t4, D.ma.t4),
+    },
+    stoch: { length: int(sto.length, L.stoch.length, D.stoch.length), smoothK: int(sto.smoothK, L.stoch.smoothK, D.stoch.smoothK), smoothD: int(sto.smoothD, L.stoch.smoothD, D.stoch.smoothD) },
+    stochRsi: {
+      rsiLength: int(sr.rsiLength, L.stochRsi.rsiLength, D.stochRsi.rsiLength), stochLength: int(sr.stochLength, L.stochRsi.stochLength, D.stochRsi.stochLength),
+      smoothK: int(sr.smoothK, L.stochRsi.smoothK, D.stochRsi.smoothK), smoothD: int(sr.smoothD, L.stochRsi.smoothD, D.stochRsi.smoothD),
+    },
+    atr: { period: int(at.period, L.atr.period, D.atr.period) },
+    mfi: { period: int(mf.period, L.mfi.period, D.mfi.period) },
   };
   // MACD: đường nhanh phải ngắn hơn đường chậm — sai thì về mặc định cả cặp.
   if (out.macd.fast >= out.macd.slow) { out.macd.fast = D.macd.fast; out.macd.slow = D.macd.slow; }
@@ -68,8 +99,12 @@ export function sanitizeIndicators(raw: unknown): IndicatorSettings {
 export const isDefaultSection = <K extends keyof IndicatorSettings>(s: IndicatorSettings, k: K) => JSON.stringify(s[k]) === JSON.stringify(DEFAULT_INDICATORS[k]);
 
 /** Tiêu đề pane theo tham số đang dùng. */
-export function paneTitles(s: IndicatorSettings): { rsi: string; macd: string; adx: string } {
+export function paneTitles(s: IndicatorSettings): { rsi: string; macd: string; adx: string; stoch: string; stochRsi: string; atr: string; mfi: string } {
   return {
+    stoch: `Stoch ${s.stoch.length} ${s.stoch.smoothK} ${s.stoch.smoothD} · 80 / 20`,
+    stochRsi: `Stoch RSI ${s.stochRsi.smoothK} ${s.stochRsi.smoothD} ${s.stochRsi.rsiLength} ${s.stochRsi.stochLength} · 80 / 20`,
+    atr: `ATR ${s.atr.period}`,
+    mfi: `MFI ${s.mfi.period} · 80 / 20`,
     rsi: `RSI ${s.rsi.period}${s.rsi.method === "cutler" ? " (Cutler)" : ""} · ${s.rsi.upper} / ${s.rsi.lower}`,
     macd: `MACD ${s.macd.fast}/${s.macd.slow}/${s.macd.signal}`,
     adx: `ADX ${s.adx.period} · +DI / −DI · ngưỡng ${s.adx.threshold}`,
