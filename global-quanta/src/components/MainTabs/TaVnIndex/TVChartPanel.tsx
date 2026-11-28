@@ -7,7 +7,7 @@
 //   - quant-core chạy trong Web Worker (AnalysisController); hình vẽ lưu theo mã + tài khoản (chartDrawingsStore).
 //   - MẶC ĐỊNH TẮT mọi chỉ báo/công cụ (chỉ có nến); bật lớp nào mới vẽ lớp đó. Mọi thứ là series/marker/primitive
 //     của thư viện -> kéo chuột, cuộn, zoom và BÀN PHÍM (← → + − Home End) đều di chuyển cùng nến.
-import { useRef, useEffect, useState, useMemo, useDeferredValue, type ReactNode } from "react";
+import { useRef, useEffect, useState, useMemo, useCallback, useDeferredValue, type ReactNode } from "react";
 import {
   Activity, Camera, ChevronDown, ChevronsRight, Clock3, Command as CommandIcon, Expand, Keyboard, Layers3, LayoutGrid, Magnet, Maximize2, Minimize2,
   Cloud, HardDrive, MoreHorizontal, PanelRight, PencilLine, Redo2, Shapes, Square, Trash2, TrendingUp, Undo2, Waves, XCircle, ZoomIn, ZoomOut,
@@ -27,6 +27,8 @@ import { ArrowRight, ArrowUpRight, Eye, EyeOff, Lock, LockOpen, Minus, MoveDiago
   Waypoints, Brush, Highlighter, Circle, Triangle, Spline, ArrowBigUp, ArrowBigDown, Repeat, Hexagon, RectangleHorizontal, Route, ChartNetwork, GitCommitHorizontal, CircleDashed, MoveUpRight } from "lucide-react";
 import InspectorOverview from "./workspace/InspectorOverview";
 import { Modal, Popover, useToasts, useWidth } from "./workspace/ui";
+import AlertsCenter, { ADD_MESSAGE, useAlertCenter } from "./workspace/AlertsCenter";
+import { drawingAlert, priceAlert, type CenterAlertDraft } from "../../../lib/ta-command-center/alerts/alertCenter";
 import ProvenanceBadge from "./ProvenanceBadge";
 import { hitTest, type HitPart } from "../../../lib/ta-command-center/chart/drawingHit";
 import { shiftPrimitive, type PrimitivePatch } from "../../../lib/ta-command-center/DrawingManager";
@@ -221,6 +223,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   useEffect(() => { if (workspaceStore.notice) { toasts.push(workspaceStore.notice); workspaceStore.notice = null; } }, [cloudState]); // eslint-disable-line react-hooks/exhaustive-deps
   const [wsRef, wsWidth] = useWidth<HTMLElement>();
   const toasts = useToasts();
+  // C11: trung tâm cảnh báo (giá · hình vẽ · chỉ báo · Elliott) — lần báo mới hiện thành thông báo trong ứng dụng.
+  const onAlertEvent = useCallback((e: { message: string }) => toasts.push(e.message), [toasts]); // eslint-disable-line react-hooks/exhaustive-deps
+  const alertApi = useAlertCenter(onAlertEvent);
+  const addAlert = (d: CenterAlertDraft | null) => {
+    setCtxMenu(null);
+    if (!d) { toasts.push("Hình này chưa hỗ trợ cảnh báo (dùng đường ngang, đường xu hướng / tia ở khung ngày / tuần, hoặc vùng)."); return; }
+    void alertApi.add(ticker, d).then((r) => toasts.push(ADD_MESSAGE[r]));
+  };
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [history, setHistory] = useState({ canUndo: false, canRedo: false });
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -1221,7 +1231,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   );
   // TA-T5: hộp "Chỉ báo" như TradingView (tìm, nhóm, yêu thích, tham số) — cùng LayerManager với menu "Lớp & pane".
   const indicatorsButton = (
-    <button type="button" className="ws-btn" onClick={() => { setPickerFocus(null); setPickerOpen(true); }} data-testid="indicators-btn" title="Chỉ báo (tìm, bật / tắt, tham số)">
+    <button type="button" className="ws-btn" onClick={() => { setPickerFocus(null); setPickerOpen(true); }} data-testid="indicators-btn" title="Chỉ báo (tìm, bật / tắt, tham số)" aria-label="Chỉ báo">
       <Activity className="w-3.5 h-3.5" /><span className="ws-btn-text-opt">Chỉ báo</span>
     </button>
   );
@@ -1436,6 +1446,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         {!isMobile && <div className="ws-group" role="group" aria-label="Sửa hình vẽ">{editButtons}{objectsButton}</div>}
         {dataChip}
         {!isMobile && rightTools}
+        {/* C11: một nơi quản lý mọi cảnh báo (giá chạm, giá cắt hình vẽ, giá cắt EMA / SMA, mốc Elliott). */}
+        <AlertsCenter ticker={ticker} last={currentBars[currentBars.length - 1]?.close ?? null} api={alertApi} onAdded={(m) => toasts.push(m)} />
         {!isMobile && (
           <div className="ws-group" role="group" aria-label="Khác" data-testid="ws-toolbar">
             <button type="button" className="ws-btn" onClick={exportPng} data-testid="png-btn" aria-label="Xuất ảnh PNG" title="Xuất ảnh PNG"><Camera className="w-3.5 h-3.5" /></button>
@@ -1476,6 +1488,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             {ctxMenu.point && <button type="button" role="menuitem" onClick={() => { ctlNow()?.drawing.createShape("hline", [ctxMenu.point!]); setCtxMenu(null); }}>Đường ngang tại {viPrice(ctxMenu.point.price, priceDigits)}</button>}
             <button type="button" role="menuitem" onClick={() => { setRangeId("all"); tvManagerRef.current?.fit(); setCtxMenu(null); }}>Vừa khung toàn bộ dữ liệu</button>
             <button type="button" role="menuitem" onClick={() => { tvManagerRef.current?.goToEnd(); setCtxMenu(null); }}>Về nến mới nhất</button>
+            {/* C11: thêm cảnh báo ngay trên chart như TradingView. */}
+            {ctxMenu.point && <button type="button" role="menuitem" data-testid="ctx-alert-price" onClick={() => addAlert(priceAlert(ctxMenu.point!.price, currentBars[currentBars.length - 1]?.close ?? null))}>Cảnh báo khi giá chạm {viPrice(ctxMenu.point.price, priceDigits)}</button>}
+            {selected && <button type="button" role="menuitem" data-testid="ctx-alert-drawing" onClick={() => addAlert(drawingAlert(selected, currentBars[currentBars.length - 1]?.close ?? null, timeframe, barDates))}>Cảnh báo khi giá cắt hình này</button>}
             {selected && selected.toolType === "shape" && TEXT_KINDS.has(selected.kind) && !selected.locked && (
               <button type="button" role="menuitem" data-testid="ctx-edit-text" onClick={() => editShapeText(selected.id)}>Sửa chữ…</button>
             )}

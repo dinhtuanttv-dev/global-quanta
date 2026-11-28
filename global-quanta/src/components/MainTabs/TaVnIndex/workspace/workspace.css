@@ -216,6 +216,7 @@ dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template
   .ws-head [data-testid=confluence-engine] .ws-btn-text-opt, .ws-head [data-testid=structure-open] .ws-btn-text-opt,
   .ws-head [data-testid=objects-btn] .ws-btn-text-opt, .ws-head [data-testid=data-context-btn] .ws-btn-text-opt,
   .ws-head [data-testid=preset-menu-btn] .ws-btn-text-opt, .ws-head [data-testid=palette-btn] .ws-btn-text-opt,
+  .ws-head [data-testid=alerts-btn] .ws-btn-text-opt, .ws-head [data-testid=indicators-btn] .ws-btn-text-opt,
   .ws-head [data-testid=layers-menu-btn] .ws-btn-text { display: none; }
   .ws-head .ta-ticker-input { width: 92px; }
   .ws-head > .ws-group { padding-right: 2px; margin-right: 0; }
@@ -224,3 +225,6 @@ dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template
 .ws-text-edit { position: fixed; z-index: 85; min-width: 180px; height: 24px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--q-accent);
   background: var(--q-surface-2); color: var(--q-text); font-size: 12px; font-weight: 500; outline: none; box-shadow: 0 6px 20px rgba(0,0,0,.45); }
 .ws-text-edit::placeholder { color: var(--q-text-3); }
+/* C11: ô nhập trong bảng (trung tâm cảnh báo). */
+.ws-input { height: 28px; padding: 0 8px; border-radius: 5px; border: 1px solid var(--q-line-2); background: var(--q-surface); color: var(--q-text); font-size: 12px; }
+.ws-input:focus { outline: none; border-color: var(--q-accent); }
