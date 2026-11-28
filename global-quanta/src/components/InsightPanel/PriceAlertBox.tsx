@@ -35,7 +35,7 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] tracking-wider text-slate-500 font-semibold">⏰ CẢNH BÁO GIÁ</div>
         {perm === 'default' && (
-          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[10px] text-cyan-300 hover:text-cyan-200">
+          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[10px] text-q-accent-strong hover:text-q-text">
             Bật thông báo trình duyệt
           </button>
         )}
@@ -46,14 +46,14 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
           aria-label="Mức giá cảnh báo" onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addTyped(); }}
           className="flex-1 min-w-0 bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-[10.5px] text-slate-200 font-mono" />
         <button type="button" onClick={addTyped} disabled={!(value > 0)}
-          className="text-[10.5px] px-2 rounded border border-cyan-500/50 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25 disabled:opacity-40 disabled:cursor-not-allowed">
+          className="text-[10.5px] px-2 rounded border border-q-accent/50 bg-q-accent/15 text-q-accent-strong hover:bg-q-accent/25 disabled:opacity-40 disabled:cursor-not-allowed">
           Đặt
         </button>
       </div>
       <div className="flex flex-wrap gap-1 mt-1.5">
         {quick.filter((q) => q.level && q.level > 0).map((q) => (
           <button key={q.label} type="button" onClick={() => add(q.kind, q.level!, q.label)} title={`Báo khi giá ${q.kind === 'above' ? '≥' : '≤'} ${fmt(roundTick(q.level!))}`}
-            className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-300 hover:border-cyan-500/40 hover:text-cyan-200">
+            className="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-300 hover:border-q-accent/40 hover:text-q-text">
             {q.kind === 'above' ? '↑' : '↓'} {q.label} <span className="font-mono text-slate-500">{fmt(roundTick(q.level!))}</span>
           </button>
         ))}

@@ -95,12 +95,12 @@ export function TickerSearch() {
             return (
               <div key={o.id} id={o.id} role="option" aria-selected={i === cursor} onMouseDown={(e) => { e.preventDefault(); run(o); }}
                 onMouseEnter={() => setCursor(i)}
-                className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer text-[11px] ${i === cursor ? 'bg-white/10' : ''} ${o.kind !== 'in' ? 'text-violet-200' : ''}`}>
+                className={`flex items-center gap-2 px-2.5 py-1 cursor-pointer text-[11px] ${i === cursor ? 'bg-white/10' : ''} ${o.kind !== 'in' ? 'text-q-accent-strong' : ''}`}>
                 {m ? (
                   <>
                     <b className="text-slate-100 w-12">{m.ticker}</b>
                     <span className="text-slate-400 truncate flex-1">{m.companyName ?? m.industry ?? m.sector ?? ''}</span>
-                    <span className="text-amber-400 tabular-nums">{m.smartScore !== null ? m.smartScore.toFixed(1) : ''}</span>
+                    <span className="text-q-accent-strong tabular-nums">{m.smartScore !== null ? m.smartScore.toFixed(1) : ''}</span>
                   </>
                 ) : o.kind === 'select' ? <span>Chọn {o.ticker} <span className="text-slate-400">(ngoài danh sách quét — không đổi danh mục)</span></span>
                   : <span>＋ Thêm {o.ticker} vào ★ Danh mục để Siêu Quét chấm điểm</span>}

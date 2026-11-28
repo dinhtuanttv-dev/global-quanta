@@ -25,7 +25,7 @@ export default function NewsFeed() {
   const rank = useCallback((t: string) => (coreSet.has(t) ? 2 : ringSet.has(t) ? 1 : 0), [coreSet, ringSet]);
 
   return (
-    <Card id="news" title={<>TIN TỨC THÔNG MINH <AiChip /></>} className="news-block">
+    <Card id="news" title={<>Tin tức thông minh <AiChip /></>} className="news-block">
       {!enabled && <div className="ac-hold text-[10.5px] text-slate-400">Cần Market Gateway để tải tin thật.</div>}
       {enabled && !tickers.length && <div className="ac-hold text-[10.5px] text-slate-400">Thêm mã vào ★ {radar.listName} để nhận tin liên quan.</div>}
       {enabled && tickers.length > 0 && <SmartNewsBody tickers={tickers} selectedTicker={selectedTicker} onTicker={selectTicker} relevance={relevance} rank={rank} />}

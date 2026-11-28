@@ -31,7 +31,7 @@ import { ELITE_HL_LIST_ID, setRadarSource, useRadarSource } from '../../lib/rada
 // Lớp ⏱ Điểm mua (Timeline tab Cổ tức): CHỈ mã đang có trên Radar — vòng quanh chấm (xanh = trong vùng mua, vàng = ≤ 5 phiên,
 // nét đứt = gần đạt kiểm định), dòng tooltip, khối giải trình, dải "điểm mua 10 phiên tới", sự kiện + thông báo (chỉ bậc đạt
 // kiểm định), bộ lọc "chỉ mã có điểm mua". Mã trong Timeline mà không có trên Radar KHÔNG được đưa vào.
-// Màu theo tab Siêu Quét: cyan (khung, mã), hổ phách (Core / điểm), xanh/đỏ (tăng/giảm, tin tốt/xấu), tím (AI).
+// Màu (QUANTA UI v2 U2): xanh nhấn (điểm, Core, điều khiển), xanh lá / đỏ (tăng/giảm, tin tốt/xấu), vàng CHỈ cho cảnh báo. Hình radar SVG giữ màu cũ.
 
 const UP = '#34d399', DOWN = '#fb7185', AMBER = '#f59e0b', CYAN = '#38bdf8';
 const STATE_GLYPH: Record<string, string> = { stable: '🛡', breakout: '⚡', caution: '⚠' };
@@ -50,7 +50,7 @@ function Evidence({ x }: { x: ScoredTicker }) {
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
         <div className="text-[10px] tracking-wider text-slate-500 font-semibold">GIẢI TRÌNH HỘI TỤ — VÌ SAO TIN MÃ NÀY</div>
-        <div className="font-mono text-[11px] font-semibold text-amber-400">{x.score}/6</div>
+        <div className="font-mono text-[11px] font-semibold text-q-accent-strong">{x.score}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1.5">
         {x.ticker}
@@ -70,7 +70,7 @@ function Evidence({ x }: { x: ScoredTicker }) {
         ))}
       </ul>
       <div className="mt-1.5 text-[10px] text-slate-400">
-        {x.score >= CORE_MIN ? <>Đang ở <b className="text-amber-400">Core</b>.</> : <>Còn thiếu <b className="text-amber-300">{lack}</b> tiêu chí để vào Core.</>}
+        {x.score >= CORE_MIN ? <>Đang ở <b className="text-q-accent-strong">Core</b>.</> : <>Còn thiếu <b className="text-q-text">{lack}</b> tiêu chí để vào Core.</>}
       </div>
     </div>
   );
@@ -171,7 +171,7 @@ function BuyLayer({ info }: { info: RadarBuyInfo }) {
       </div>
       <div className="text-[10px] text-slate-400">{r.eventLabel} {fmtDate(r.eventDate)} ({BUY_BASIS[r.eventDateBasis] ?? r.eventDateBasis})</div>
       <div className="text-[10.5px] font-mono mt-0.5">
-        <span className="text-amber-300">thắng {Math.round(r.winRate * 100)}%</span> <span className="text-slate-500">/ {r.nEvents} đợt</span>
+        <span className="text-q-accent-strong">thắng {Math.round(r.winRate * 100)}%</span> <span className="text-slate-500">/ {r.nEvents} đợt</span>
         {r.probability !== null && <span className="text-slate-400"> · xác suất {Math.round(r.probability * 100)}%</span>}
         <span style={{ color: r.netExpectancy >= 0 ? UP : DOWN }}> · kỳ vọng {fmtRatioPct(r.netExpectancy, { signed: true })}</span>
         <span className="text-slate-500"> (cận dưới {fmtRatioPct(r.netExpectancyLcb, { signed: true })})</span>
@@ -188,7 +188,7 @@ function SnapEvidence({ v, date }: { v: SnapItem; date: string }) {
     <div className="mt-2 rounded-lg p-2.5" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
       <div className="flex items-baseline justify-between mb-1.5">
         <div className="text-[10px] tracking-wider text-slate-500 font-semibold">HỘI TỤ NGÀY {fmtDate(date)}</div>
-        <div className="font-mono text-[11px] font-semibold text-amber-400">{v.s}/6</div>
+        <div className="font-mono text-[11px] font-semibold text-q-accent-strong">{v.s}/6</div>
       </div>
       <div className="text-[13px] font-semibold text-slate-100 mb-1">{v.t}</div>
       <ul className="space-y-0.5">
@@ -388,22 +388,22 @@ export default function EliteCommandRadar() {
 
   const header = (
     <select value={isHl ? ELITE_HL_LIST_ID : listId} onChange={(e) => { if (e.target.value === ELITE_HL_LIST_ID) setRadarSource('elite-hl'); else { setRadarSource('watchlist'); setRadarList(e.target.value); } }} aria-label="Danh mục hiển thị trên Radar" data-testid="radar-source"
-      className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-slate-300 max-w-[150px]">
+      className="text-[10px] bg-black/40 border border-white/10 rounded px-1.5 py-0.5 text-slate-300 max-w-[164px]">
       <option value={ELITE_HL_LIST_ID}>◆ Danh mục Elite HL (chính thức{isHl ? ` · ${tickers.length}` : ''})</option>
       {lists.map((l) => <option key={l.id} value={l.id}>★ {l.name} ({l.tickers.length})</option>)}
     </select>
   );
 
   return (
-    <Card id="radar" title={<>ELITE COMMAND RADAR <AiChip /></>} right={header} className="radar-block">
+    <Card id="radar" title={<>Elite Command Radar <AiChip /></>} right={header} className="radar-block">
       <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400 mb-1">
         {tickers.length ? (
           <>
             <span>{listMark} {listName}: <b className="text-slate-200">{tickers.length}</b> mã</span>
-            <span>Core <b className="text-amber-400">{viewItems.filter((i) => i.core).length}</b></span>
-            {replay && <span className="text-cyan-300">⏮ Đang xem {fmtDate(replay.date)}</span>}
+            <span>Core <b className="text-q-accent-strong">{viewItems.filter((i) => i.core).length}</b></span>
+            {replay && <span className="text-q-accent-strong">⏮ Đang xem {fmtDate(replay.date)}</span>}
             <span>{groups} nhóm ngành</span>
-            {!replay && newsInfo.size > 0 && <span>Tin nóng 24h <b className="text-amber-300">{[...newsInfo.values()].filter((v) => v.hot).length}</b></span>}
+            {!replay && newsInfo.size > 0 && <span>Tin nóng 24h <b className="text-q-accent-strong">{[...newsInfo.values()].filter((v) => v.hot).length}</b></span>}
             {!replay && (
               <button type="button" onClick={toggleBuyOnly} aria-pressed={buyOnly} data-testid="radar-buy-only"
                 title="Chỉ hiện các mã của danh mục này đang có vùng mua trong Timeline (tab Cổ tức)"
@@ -464,13 +464,13 @@ export default function EliteCommandRadar() {
           return (
             <div role="tooltip" className="absolute z-20 pointer-events-none rounded-lg px-2 py-1.5 text-[10px] shadow-xl w-44"
               style={{ left: `clamp(0px, calc(${left}% - 88px), calc(100% - 176px))`, top: `calc(${top}% + ${tip.dot + 6}px)`, background: '#0f1420', border: '1px solid rgba(56,189,248,0.35)' }}>
-              <div className="flex justify-between"><b className="text-slate-100 font-mono">{tip.ticker}</b><span className="text-amber-400 font-mono">{v.s}/6</span></div>
+              <div className="flex justify-between"><b className="text-slate-100 font-mono">{tip.ticker}</b><span className="text-q-accent-strong font-mono">{v.s}/6</span></div>
               <div className="text-slate-400 truncate">{x?.item?.industry ?? tip.group}{replay ? ` · ${fmtDate(replay.date)}` : ''}</div>
               <div className="flex justify-between font-mono">
                 <span className="text-slate-200">{price ? price.toLocaleString('vi-VN') : '—'}</span>
                 <span style={{ color: (chg ?? 0) >= 0 ? UP : DOWN }}>{pct(chg)}</span>
               </div>
-              <div className="text-slate-400">Smart <span className="text-amber-400">{v.sm?.toFixed(1) ?? '—'}</span>{x ? ` · RS ${x.item?.rsRating?.toFixed(0) ?? '—'}` : ''}</div>
+              <div className="text-slate-400">Smart <span className="text-q-accent-strong">{v.sm?.toFixed(1) ?? '—'}</span>{x ? ` · RS ${x.item?.rsRating?.toFixed(0) ?? '—'}` : ''}</div>
               {v.sg ? <div style={{ color: v.sg > 0 ? UP : DOWN }}>◆ Stealth 20: {stealthText(v.sg)}</div> : null}
               {!replay && buyMap.get(tip.ticker) && (() => {
                 const b = buyMap.get(tip.ticker)!;
@@ -575,12 +575,12 @@ export default function EliteCommandRadar() {
             {pastDates.length > 0 ? (
               <>
                 <button type="button" onClick={() => { if (playing) setPlaying(false); else { setViewDate(null); setPlaying(true); } }}
-                  aria-label={playing ? 'Dừng tua' : 'Tua lại các ngày đã lưu'} className="text-cyan-300 hover:text-cyan-200 w-4 shrink-0">{playing ? '⏸' : '▶'}</button>
+                  aria-label={playing ? 'Dừng tua' : 'Tua lại các ngày đã lưu'} className="text-q-accent-strong hover:text-q-text w-4 shrink-0">{playing ? '⏸' : '▶'}</button>
                 <input type="range" min={0} max={pastDates.length} step={1} aria-label="Tua lại lịch sử Radar"
                   value={replay ? pastDates.indexOf(replay.date) : pastDates.length}
                   aria-valuetext={replay ? `Ngày ${fmtDate(replay.date)}` : 'Hiện tại'}
                   onChange={(e) => { setPlaying(false); const i = Number(e.target.value); setViewDate(i >= pastDates.length ? null : pastDates[i]); }}
-                  className="flex-1 min-w-0 accent-cyan-400" />
+                  className="flex-1 min-w-0 accent-q-accent" />
                 <span className="font-mono text-slate-300 shrink-0 w-14 text-right">{replay ? fmtDate(replay.date) : 'Hiện tại'}</span>
               </>
             ) : <span className="flex-1 text-slate-500">Lịch sử bắt đầu từ hôm nay — mỗi ngày giao dịch lưu 1 ảnh chụp.</span>}
@@ -626,7 +626,7 @@ export default function EliteCommandRadar() {
       {selected && sig && <SignalLayer x={sig.items[selected.ticker] ?? null} sig={sig} />}
       {selected && buyMap.get(selected.ticker) && <BuyLayer info={buyMap.get(selected.ticker)!} />}
       {selectedTicker && !selected && !replay && tickers.length > 0 && (
-        <div className="mt-2 text-[10.5px] text-slate-400">{isHl ? <>{selectedTicker} không thuộc {listName} (danh mục do quy tắc HL chọn).</> : <>☆ {selectedTicker} chưa có trong {listMark} {listName} — bấm <b className="text-cyan-300">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</>}</div>
+        <div className="mt-2 text-[10.5px] text-slate-400">{isHl ? <>{selectedTicker} không thuộc {listName} (danh mục do quy tắc HL chọn).</> : <>☆ {selectedTicker} chưa có trong {listMark} {listName} — bấm <b className="text-q-accent-strong">Quan tâm</b> ở Action Center để Radar chấm hội tụ.</>}</div>
       )}
       {risk && (
         <div className="mt-2 rounded-lg px-2.5 py-1.5 text-[10.5px]" style={{

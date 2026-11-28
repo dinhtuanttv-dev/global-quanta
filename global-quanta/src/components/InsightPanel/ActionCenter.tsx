@@ -87,7 +87,7 @@ export default function ActionCenter() {
 
   if (!ticker) {
     return (
-      <Card id="action" title={<>ACTION CENTER <AiChip /></>}>
+      <Card id="action" title={<>Action Center <AiChip /></>}>
         <div className="text-[10.5px] text-slate-400">Chọn 1 mã trên Radar hoặc bấm một dòng trong Bảng Siêu Quét để xem chi tiết hành động.</div>
       </Card>
     );
@@ -110,9 +110,9 @@ export default function ActionCenter() {
   const vsMa = (ma: number | null) => (ma && price ? ((price / ma - 1) * 100) : null);
 
   return (
-    <Card id="action" title={<>ACTION CENTER <AiChip /></>}>
+    <Card id="action" title={<>Action Center <AiChip /></>}>
       <div className="flex items-center gap-2.5">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold text-cyan-200 shrink-0"
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold text-q-accent-strong shrink-0"
           style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.3)' }}>{ticker}</div>
         <div className="min-w-0">
           <div className="text-[12.5px] font-semibold text-slate-100 truncate">{item?.companyName ?? core?.name ?? ticker}</div>
@@ -126,7 +126,7 @@ export default function ActionCenter() {
 
       <div className="grid grid-cols-2 gap-1.5 mt-2.5">
         <button type="button" onClick={onInterest} disabled={inList || hlSource} aria-pressed={inList}
-          className={`py-2 rounded-lg text-[11.5px] font-semibold border transition-colors ${inList ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-200/70 cursor-default' : 'border-cyan-500/50 bg-cyan-500/15 text-cyan-100 hover:bg-cyan-500/25'}`}>
+          className={`py-2 rounded-lg text-[11.5px] font-semibold border transition-colors ${inList ? 'border-q-accent/30 bg-q-accent/10 text-q-accent-strong/70 cursor-default' : 'border-q-accent/50 bg-q-accent/15 text-q-accent-strong hover:bg-q-accent/25'}`}>
           {inList ? '★ Đang quan tâm' : '☆ Quan tâm'}
         </button>
         <button type="button" onClick={onRemove} disabled={!inList || hlSource}
@@ -140,7 +140,7 @@ export default function ActionCenter() {
         <>
           <div className="mt-2.5 text-[10px] text-slate-500 flex justify-between">
             <span>60 phiên · <span className="text-sky-400">- - MA20</span> · <span className="text-rose-400">- - dừng lỗ gợi ý</span></span>
-            <button type="button" onClick={() => focusTickerInScanner(ticker)} className="text-cyan-300 hover:text-cyan-200">Mở phân tích ↗</button>
+            <button type="button" onClick={() => focusTickerInScanner(ticker)} className="text-q-accent-strong hover:text-q-text">Mở phân tích ↗</button>
           </div>
           <Sparkline closes={levels.closes} ma20={levels.ma20} stop={levels.stop} />
           <div className="grid grid-cols-3 gap-1 mt-1">
@@ -179,7 +179,7 @@ export default function ActionCenter() {
         <div className="text-[10.5px] mt-1.5" aria-live="polite">
           {size ? (
             <>
-              <b className="text-amber-400 font-mono">{size.shares.toLocaleString('vi-VN')} CP</b>
+              <b className="text-q-accent-strong font-mono">{size.shares.toLocaleString('vi-VN')} CP</b>
               <span className="text-slate-400"> ≈ {fmt(size.value)}đ ({size.pctOfCapital.toFixed(0)}% vốn) · lỗ tối đa ≈ {fmt(size.riskVnd)}đ nếu chạm dừng lỗ</span>
             </>
           ) : <span className="text-slate-500">Nhập vốn, % rủi ro và giá dừng lỗ thấp hơn giá hiện tại.</span>}
@@ -191,7 +191,7 @@ export default function ActionCenter() {
       <div className="text-[10px] text-slate-400 mt-2">Gợi ý khung nắm giữ (theo quy tắc): <b className="text-slate-200 font-medium">{core ? core.holdSuggestion : 'Theo dõi — chưa đủ điều kiện Core'}</b></div>
       {research.data?.asOf && (
         <div className="mt-2 text-[10px] text-slate-400">
-          <div className="mb-1 text-violet-200">Điểm dòng tiền thích ứng (AI tự học) — xác suất mạnh hơn trung vị thị trường:</div>
+          <div className="mb-1 text-q-text-2">Điểm dòng tiền thích ứng (AI tự học) — xác suất mạnh hơn trung vị thị trường:</div>
           <AdaptiveScoreBody data={research.data} compact />
         </div>
       )}
