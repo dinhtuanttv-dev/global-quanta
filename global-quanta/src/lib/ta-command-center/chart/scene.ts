@@ -25,8 +25,9 @@ export type SceneItem =
   | { kind: "hline"; t1: string; t2: string | null; price: number; color: string; dash?: number[]; width?: number; label?: SceneLabel }
   | { kind: "vline"; t: string; color: string; dash?: number[]; label?: SceneLabel; labelPrice?: number } // nhãn neo vào giá (VD sự kiện Wyckoff)
   | { kind: "segment"; a: ScenePoint; b: ScenePoint; color: string; width?: number; dash?: number[]; arrow?: boolean }
+  // nodeStyle "halo" (TA-T6b): như "plain" nhưng chữ 10px có viền tối — đọc được trên nền nến (mẫu hình / Elliott của thanh vẽ).
   // nodeStyle "plain" (DW6): nhãn chữ nhỏ không khung tròn, đặt trên đỉnh / dưới đáy; width 0 = không vẽ đường nối.
-  | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; nodeStyle?: "circle" | "plain"; label?: SceneLabel }
+  | { kind: "poly"; points: ScenePoint[]; color: string; width?: number; dash?: number[]; nodeLabels?: string[]; nodeStyle?: "circle" | "plain" | "halo"; label?: SceneLabel }
   // Volume Profile: histogram ngang neo từ nến t1 tới nến t2 (độ dài thanh = KL/KL max × widthFrac × bề rộng [t1,t2]).
   | { kind: "profile"; t1: string; t2: string; bins: { low: number; high: number; volume: number }[]; maxVolume: number;
       vaLow: number; vaHigh: number; widthFrac: number; color: string; vaColor: string }
@@ -42,7 +43,15 @@ export type SceneItem =
   | { kind: "text"; t: string; price: number; label: SceneLabel; dy?: number }
   // TA-T6a: tia (từ a qua b tới mép khung; both = kéo dài cả hai phía) và đa giác tô màu (kênh song song, hình học).
   | { kind: "ray"; a: ScenePoint; b: ScenePoint; both?: boolean; color: string; width?: number; dash?: number[] }
-  | { kind: "polygon"; points: ScenePoint[]; fill: string; stroke?: string; width?: number; dash?: number[] };
+  | { kind: "polygon"; points: ScenePoint[]; fill: string; stroke?: string; width?: number; dash?: number[] }
+  // TA-T6b: đường / hình học tự do theo điểm (đổi sang pixel mỗi khung hình): open/closed = gấp khúc, quad = cong bậc 2 (điểm 2 = điều khiển),
+  // arc = cong đi qua điểm 2, cubic = cong bậc 3, circle = tâm + điểm trên đường tròn, ellipse = 2 góc khung, rotRect = cạnh + bề rộng.
+  | { kind: "pathx"; points: ScenePoint[]; mode: "open" | "closed" | "quad" | "arc" | "cubic" | "circle" | "ellipse" | "rotRect"; color: string;
+      width?: number; dash?: number[]; fill?: string; round?: boolean; arrow?: boolean }
+  // TA-T6b: chu kỳ — a, b = một chu kỳ; lines = vạch dọc cách đều, arcs = các nửa vòng tròn nối tiếp, sine = đường sin qua 2 cực trị.
+  | { kind: "cycle"; a: ScenePoint; b: ScenePoint; mode: "lines" | "arcs" | "sine"; color: string; dash?: number[] }
+  // TA-T6b: dấu mũi tên lên / xuống neo tại (ngày, giá) — mũi chạm đúng giá.
+  | { kind: "glyph"; t: string; price: number; dir: "up" | "down"; color: string; label?: SceneLabel };
 
 /** labelBudget (EP3): ngân sách nhãn của scene (mặc định LABEL_BUDGET) — Elliott Pro nâng theo chế độ. */
 export interface Scene { items: SceneItem[]; labelBudget?: number }

@@ -23,7 +23,8 @@ import CommandPalette, { ShortcutsDialog, type Command } from "./workspace/Comma
 import ChartLegend from "./workspace/ChartLegend";
 import IndicatorPicker, { CATALOG } from "./workspace/IndicatorPicker";
 import { SHAPE_GROUPS, SHAPE_KINDS, SHAPE_SPEC, type ShapeKind } from "../../../lib/ta-command-center/drawing/shapes";
-import { ArrowRight, ArrowUpRight, Eye, EyeOff, Lock, LockOpen, Minus, MoveDiagonal, Rows3, Ruler, Type as TypeIcon, CandlestickChart, Calendar, MoveHorizontal } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Eye, EyeOff, Lock, LockOpen, Minus, MoveDiagonal, Rows3, Ruler, Type as TypeIcon, CandlestickChart, Calendar, MoveHorizontal,
+  Waypoints, Brush, Highlighter, Circle, Triangle, Spline, ArrowBigUp, ArrowBigDown, Repeat, Hexagon, RectangleHorizontal, Route, ChartNetwork, GitCommitHorizontal, CircleDashed, MoveUpRight } from "lucide-react";
 import InspectorOverview from "./workspace/InspectorOverview";
 import { Modal, Popover, useToasts, useWidth } from "./workspace/ui";
 import ProvenanceBadge from "./ProvenanceBadge";
@@ -179,6 +180,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [activeTool, setActiveTool] = useState<DrawingToolType | null>(null);
   // TA-T6a: công cụ hình chung đang chọn + bản nháp (các điểm đã bấm + điểm theo con trỏ) + menu chuột phải.
   const [activeShape, setActiveShape] = useState<ShapeKind | null>(null);
+  const shapeDragRef = useRef<number | null>(null);
   const [shapeDraft, setShapeDraft] = useState<{ kind: ShapeKind; points: DomainPoint[]; hover: DomainPoint | null } | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; point: DomainPoint | null } | null>(null);
   useEffect(() => {
@@ -794,7 +796,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   }, [highlightPattern]);
 
   // Khoá kéo/zoom biểu đồ khi đang chọn công cụ vẽ (để thao tác chạm/kéo vẽ hình thay vì cuộn biểu đồ).
-  useEffect(() => { tvManagerRef.current?.setInteractionLocked(activeTool !== null); }, [activeTool]);
+  const dragShape = activeShape != null && SHAPE_SPEC[activeShape].mode === "drag";
+  useEffect(() => { tvManagerRef.current?.setInteractionLocked(activeTool !== null || dragShape); }, [activeTool, dragShape]);
 
   const handleTimeframeChange = (tf: Timeframe) => {
     const controller = controllerRef.current;
@@ -872,7 +875,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return false;
     dragRef.current = null;
-    tvManagerRef.current?.setInteractionLocked(activeTool !== null);
+    tvManagerRef.current?.setInteractionLocked(activeTool !== null || dragShape);
     return true;
   };
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -908,6 +911,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       e.preventDefault();
       let text: string | undefined;
       if (activeShape === "text") { text = window.prompt("Nội dung chữ trên biểu đồ:", "") ?? undefined; if (!text?.trim()) { setActiveShape(null); return; } }
+      // TA-T6b: cọ vẽ / bút dạ quang — giữ con trỏ, thêm điểm theo đường kéo, nhả chuột là xong.
+      if (SHAPE_SPEC[activeShape].mode === "drag") {
+        shapeDragRef.current = e.pointerId;
+        try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* không bắt được con trỏ */ }
+      }
       const made = controller.drawing.addShapePoint(activeShape, pt, text);
       if (made) { setActiveShape(null); setSelectedId(made.id); }
       return;
@@ -932,13 +940,21 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragMove(e)) return;
-    if (activeShape && controllerRef.current?.drawing.isDrawingShape()) { const pt = toDomain(e); if (pt) controllerRef.current.drawing.setShapeHover(pt); return; }
+    if (shapeDragRef.current === e.pointerId && activeShape) { const pt = toDomain(e); if (pt) controllerRef.current?.drawing.addShapePoint(activeShape, pt); return; }
+    if (activeShape && !dragShape && controllerRef.current?.drawing.isDrawingShape()) { const pt = toDomain(e); if (pt) controllerRef.current.drawing.setShapeHover(pt); return; }
     if (drawingPointerRef.current !== e.pointerId) return;
     const point = toDomain(e);
     if (point) controllerRef.current?.drawing.updateDraw(point);
   };
+  // TA-T6b: kết thúc hình kéo tay / bấm nhiều điểm -> chọn hình vừa vẽ, trả về con trỏ thường (như TradingView).
+  const finishShape = () => {
+    const made = controllerRef.current?.drawing.finishShape();
+    setActiveShape(null);
+    if (made) setSelectedId(made.id);
+  };
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragEnd(e)) return;
+    if (shapeDragRef.current === e.pointerId) { shapeDragRef.current = null; finishShape(); return; }
     if (drawingPointerRef.current !== e.pointerId) return;
     drawingPointerRef.current = null;
     const point = toDomain(e);
@@ -948,6 +964,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   };
   const onPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragEnd(e)) return;
+    if (shapeDragRef.current === e.pointerId) { shapeDragRef.current = null; controllerRef.current?.drawing.cancelShapeDraft(); return; }
     if (drawingPointerRef.current !== e.pointerId) return;
     drawingPointerRef.current = null;
     controllerRef.current?.drawing.cancelDraw();
@@ -985,7 +1002,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const allHidden = primitives.length > 0 && primitives.every((p) => p.hidden);
   const allLocked = primitives.length > 0 && primitives.every((p) => p.locked);
   const SHAPE_ICON: Record<ShapeKind, typeof Minus> = { hline: Minus, hray: ArrowRight, ray: ArrowUpRight, extended: MoveDiagonal, channel: Rows3,
-    priceRange: Ruler, dateRange: Calendar, measure: MoveHorizontal, long: CandlestickChart, short: CandlestickChart, text: TypeIcon, arrow: ArrowUpRight };
+    priceRange: Ruler, dateRange: Calendar, measure: MoveHorizontal, long: CandlestickChart, short: CandlestickChart, text: TypeIcon, arrow: ArrowUpRight,
+    xabcd: Waypoints, cypher: Waypoints, headShoulders: ChartNetwork, abcd: Activity, trianglePattern: Triangle, threeDrives: Activity,
+    impulse: Activity, correction: Activity, triangleE: Triangle, wxy: Activity, wxyxz: Activity,
+    cyclicLines: GitCommitHorizontal, timeCycles: Repeat, sineLine: Waves, brush: Brush, highlighter: Highlighter,
+    arrowMarker: MoveUpRight, arrowUp: ArrowBigUp, arrowDown: ArrowBigDown,
+    rotatedRect: RectangleHorizontal, path: Route, circle: Circle, ellipse: CircleDashed, polyline: Hexagon, triangleShape: Triangle, arc: Spline, curve: Spline, doubleCurve: Spline };
   const shapeButton = (k: ShapeKind, inSheet = false, after?: () => void) => {
     const Icon = SHAPE_ICON[k];
     return <button key={k} type="button" className={`ws-btn ${inSheet ? "" : "ws-draw-item"}`} aria-pressed={activeShape === k} data-shape={k} onClick={() => { pickShape(k); after?.(); }}
@@ -1032,6 +1054,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen(true); return; }
       if (typing || document.querySelector("dialog[open]")) return;
       const c = controllerRef.current;
+      if (e.key === "Enter" && activeShape && SHAPE_SPEC[activeShape].mode === "multi" && c?.drawing.isDrawingShape()) { e.preventDefault(); finishShape(); return; }
       if (mod && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) c?.drawing.redo(); else c?.drawing.undo(); return; }
       if (mod && e.key.toLowerCase() === "y") { e.preventDefault(); c?.drawing.redo(); return; }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedId) { e.preventDefault(); deleteSelected(); return; }
@@ -1467,7 +1490,9 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           )}
           {!anchorPick && (activeShape || activeTool || (countEditing && countPlacing != null) || selected) && (
             <div className="ws-hint" data-testid="drawing-hint" role="status">
-              {activeShape ? <>Đang vẽ {SHAPE_SPEC[activeShape].name} — {SHAPE_SPEC[activeShape].hint} <button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelShapeDraft(); setActiveShape(null); }}>Huỷ (Esc)</button></>
+              {activeShape ? <>Đang vẽ {SHAPE_SPEC[activeShape].name} — {SHAPE_SPEC[activeShape].hint}{" "}
+                {SHAPE_SPEC[activeShape].mode === "multi" && shapeDraft && shapeDraft.points.length >= SHAPE_SPEC[activeShape].clicks
+                  && <button type="button" className="underline" data-testid="shape-finish" onClick={finishShape}>Xong (Enter)</button>}{" "}<button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelShapeDraft(); setActiveShape(null); }}>Huỷ (Esc)</button></>
                 : activeTool ? <>Đang vẽ {TOOLS.find((t) => t.id === activeTool)?.label} — {activeTool === "fibTimeZone" ? "bấm một điểm" : "kéo trên biểu đồ (chạm giữ rồi kéo trên điện thoại)"}</>
                 : countEditing && countPlacing != null ? <>Bấm lên biểu đồ để đặt điểm sóng</>
                 : selected ? <>{selected.locked ? "Đã khoá — mở khoá ở Đối tượng để sửa" : "Kéo điểm neo để sửa · kéo thân để dời · Delete để xoá"}</> : null}
@@ -1487,10 +1512,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
+            onDoubleClick={() => { if (activeShape && SHAPE_SPEC[activeShape].mode === "multi") finishShape(); }}
             onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, point: toDomain(e as unknown as React.PointerEvent) }); }}
             style={{
               background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%",
-              cursor: activeTool || activeShape ? "crosshair" : "default", touchAction: activeTool || dragRef.current ? "none" : "auto",
+              cursor: activeTool || activeShape ? "crosshair" : "default", touchAction: activeTool || dragShape || dragRef.current ? "none" : "auto",
             }}
             className="rounded-xl overflow-hidden relative w-full focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400/60"
           />

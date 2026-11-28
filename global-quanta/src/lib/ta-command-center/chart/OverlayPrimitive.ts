@@ -6,7 +6,8 @@ import type {
 } from "lightweight-charts-v5";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import { chartTime } from "./time";
-import { EMPTY_SCENE, placeLabels, type LabelBox, type Scene, type SceneItem, type SceneLabel, type ScenePoint } from "./scene";
+import { EMPTY_SCENE, placeLabels, rgba as rgbaOf, type LabelBox, type Scene, type SceneItem, type SceneLabel, type ScenePoint } from "./scene";
+import { controlThrough, cycleXs, distPt, rotRectCorners, sampleCubic, sampleQuad, sineY, type XY } from "../drawing/geometry";
 
 export const toTime = chartTime;
 
@@ -113,6 +114,63 @@ class Renderer implements IPrimitivePaneRenderer {
       ctx.beginPath(); (P as [number, number][]).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.closePath();
       ctx.fillStyle = it.fill; ctx.fill();
       if (it.stroke) { dash(it.dash); ctx.strokeStyle = it.stroke; ctx.lineWidth = it.width ?? 1; ctx.stroke(); }
+    } else if (it.kind === "pathx") {
+      // TA-T6b: hình học / cọ vẽ — cùng công thức với shapeHit (drawing/geometry.ts).
+      const P = it.points.map((q) => o.pt(q));
+      if (P.length < 1 || P.some((q) => !q)) return;
+      const Q = P as XY[];
+      let path: XY[] | null = null, closed = false;
+      ctx.beginPath();
+      if (it.mode === "circle" && Q[1]) { ctx.arc(Q[0][0], Q[0][1], Math.max(1, distPt(Q[0], Q[1])), 0, Math.PI * 2); closed = true; }
+      else if (it.mode === "ellipse" && Q[1]) {
+        ctx.ellipse((Q[0][0] + Q[1][0]) / 2, (Q[0][1] + Q[1][1]) / 2, Math.max(1, Math.abs(Q[1][0] - Q[0][0]) / 2), Math.max(1, Math.abs(Q[1][1] - Q[0][1]) / 2), 0, 0, Math.PI * 2);
+        closed = true;
+      } else if (it.mode === "rotRect" && Q[2]) { path = rotRectCorners(Q[0], Q[1], Q[2]); closed = true; }
+      else if (it.mode === "quad" && Q[2]) path = sampleQuad(Q[0], Q[1], Q[2]);
+      else if (it.mode === "arc" && Q[2]) { path = sampleQuad(Q[0], controlThrough(Q[0], Q[1], Q[2]), Q[2]); closed = true; }
+      else if (it.mode === "cubic" && Q[3]) path = sampleCubic(Q[0], Q[1], Q[2], Q[3]);
+      else { path = Q; closed = it.mode === "closed"; }
+      if (path) { path.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); if (closed) ctx.closePath(); }
+      if (it.fill && closed) { ctx.fillStyle = it.fill; ctx.fill(); }
+      dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = it.width ?? 1.5;
+      if (it.round) { ctx.lineCap = "round"; ctx.lineJoin = "round"; }
+      ctx.stroke();
+      ctx.lineCap = "butt"; ctx.lineJoin = "miter";
+      if (it.arrow && path && path.length >= 2) {
+        const b = path[path.length - 1], p = path[path.length - 2], ang = Math.atan2(b[1] - p[1], b[0] - p[0]), L = 10;
+        dash([]); ctx.fillStyle = it.color; ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+        ctx.lineTo(b[0] - L * Math.cos(ang - 0.45), b[1] - L * Math.sin(ang - 0.45));
+        ctx.lineTo(b[0] - L * Math.cos(ang + 0.45), b[1] - L * Math.sin(ang + 0.45)); ctx.closePath(); ctx.fill();
+      }
+    } else if (it.kind === "cycle") {
+      const A = o.pt(it.a), B = o.pt(it.b);
+      if (!A || !B) return;
+      dash(it.dash); ctx.strokeStyle = it.color; ctx.lineWidth = 1;
+      const s = Math.abs(B[0] - A[0]);
+      if (it.mode === "lines") {
+        ctx.beginPath(); for (const x of cycleXs(A, B, W)) { ctx.moveTo(x, 0); ctx.lineTo(x, H); } ctx.stroke();
+      } else if (it.mode === "arcs") {
+        if (s < 2) return;
+        const x0 = Math.min(A[0], B[0]);
+        ctx.beginPath();
+        for (let n = 0, x = x0; x <= W && n < 400; n++, x += s) { ctx.moveTo(x + s, A[1]); ctx.arc(x + s / 2, A[1], s / 2, 0, Math.PI, true); }
+        ctx.stroke();
+        dash([2, 3]); ctx.strokeStyle = rgbaOf(it.color, 0.5); ctx.beginPath(); ctx.moveTo(x0, A[1]); ctx.lineTo(W, A[1]); ctx.stroke();
+      } else {
+        if (s < 2) return;
+        ctx.beginPath();
+        for (let x = 0; x <= W; x += 2) { const y = sineY(A, B, x); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
+        ctx.stroke();
+      }
+    } else if (it.kind === "glyph") {
+      const x = o.x(it.t), y = o.y(it.price);
+      if (x === null || y === null) return;
+      // Mũi chạm đúng giá: mũi lên nằm DƯỚI giá (chỉ lên), mũi xuống nằm TRÊN giá.
+      const s = it.dir === "up" ? 1 : -1;
+      dash([]); ctx.fillStyle = it.color; ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x + 8, y + s * 9); ctx.lineTo(x + 3.5, y + s * 9); ctx.lineTo(x + 3.5, y + s * 20);
+      ctx.lineTo(x - 3.5, y + s * 20); ctx.lineTo(x - 3.5, y + s * 9); ctx.lineTo(x - 8, y + s * 9); ctx.closePath(); ctx.fill();
+      addLabel(it.label, x - 4, it.dir === "up" ? y + 32 : y - 24);
     } else if (it.kind === "profile") {
       const x1 = o.x(it.t1);
       const x2 = o.x(it.t2);
@@ -199,7 +257,17 @@ class Renderer implements IPrimitivePaneRenderer {
         pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
         ctx.stroke();
       }
-      if (it.nodeLabels && it.nodeStyle === "plain") {
+      if (it.nodeLabels && it.nodeStyle === "halo") {
+        ctx.setLineDash([]); ctx.textAlign = "center"; ctx.font = "600 10px 'IBM Plex Mono', monospace";
+        ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.strokeStyle = "rgba(6,9,15,0.9)"; ctx.fillStyle = it.color;
+        pts.forEach(([x, y], i) => {
+          const t = it.nodeLabels![i] ?? "";
+          if (!t) return;
+          const prev = pts[i - 1]?.[1], next = pts[i + 1]?.[1], ref = prev ?? next ?? y, yy = y < ref ? y - 7 : y + 14;
+          ctx.strokeText(t, x, yy); ctx.fillText(t, x, yy);
+        });
+        ctx.textAlign = "start"; ctx.font = FONT; ctx.lineJoin = "miter";
+      } else if (it.nodeLabels && it.nodeStyle === "plain") {
         ctx.setLineDash([]); ctx.fillStyle = it.color; ctx.textAlign = "center";
         pts.forEach(([x, y], i) => {
           const prev = pts[i - 1]?.[1], next = pts[i + 1]?.[1], ref = prev ?? next ?? y;

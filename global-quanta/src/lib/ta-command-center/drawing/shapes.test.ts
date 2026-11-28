@@ -68,6 +68,6 @@ describe("TA-T6a — hình vẽ chung", () => {
     expect(m.getPrimitives().every((p) => p.hidden)).toBe(true);
     m.undo();
     expect(m.getPrimitives().some((p) => p.hidden)).toBe(false);
-    expect(Object.keys(SHAPE_SPEC)).toHaveLength(12);
+    expect(Object.keys(SHAPE_SPEC)).toHaveLength(40); // T6a 12 + T6b 28
   });
 });
