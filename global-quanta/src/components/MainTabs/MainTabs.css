@@ -4,8 +4,8 @@
   position: sticky; top: -24px; z-index: 30; container-type: inline-size;
   display: flex; align-items: stretch; gap: 12px;
   margin: -24px -24px 18px; padding: 10px 24px 0;
-  background: linear-gradient(180deg, var(--bg-surface, #0e1626) 0%, var(--bg-base, #0a0e17) 100%);
-  border-bottom: 1px solid var(--border, rgba(148, 163, 184, 0.16));
+  background: linear-gradient(180deg, var(--q-nav-bar-top, #0e131f) 0%, var(--q-nav-bar-bottom, #080b11) 100%);
+  border-bottom: 1px solid var(--q-nav-border, rgba(255, 255, 255, 0.08));
   box-shadow: 0 8px 18px -14px rgba(0, 0, 0, 0.8);
 }
 
@@ -18,13 +18,13 @@
 }
 .nav-btn {
   display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 26px;
-  color: var(--text-primary, #e2e8f0); background: transparent; border: 0; border-radius: 6px; cursor: pointer;
+  color: var(--q-nav-text-hover, #f8fafc); background: transparent; border: 0; border-radius: 6px; cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.08s ease;
 }
 .nav-btn svg { width: 16px; height: 16px; stroke-width: 2.2; }
 .nav-btn:hover:not(:disabled) { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); }
 .nav-btn:active:not(:disabled) { transform: scale(0.93); }
-.nav-btn:disabled { color: var(--text-tertiary, #64748b); opacity: 0.45; cursor: not-allowed; }
+.nav-btn:disabled { color: var(--q-nav-muted, #748299); opacity: 0.45; cursor: not-allowed; }
 .nav-btn:focus-visible, .m-tab:focus-visible { outline: 2px solid var(--q-accent, #4f8ef7); outline-offset: -2px; }
 .nav-sep { width: 1px; height: 16px; margin: 0 2px; background: rgba(148, 163, 184, 0.22); }
 .nav-btn.spinning { color: var(--q-accent-strong, #79a8ff); }
@@ -33,6 +33,7 @@
 
 /* Dãy tab kiểu Fluent Pill (QUANTA FLUENT-DARK, 05/11/2026): thẻ bo 8px, đang chọn = nền vàng mờ + chữ vàng sáng + gạch chân ánh kim.
    Ghi đè kiểu cũ trong App.css. */
+/* QUANTA UI v2 U0 (28/11/2026): menu chính GIỮ NGUYÊN — đọc token chốt --q-nav-* (cùng giá trị biến hệ cũ hiện tại, xem quanta-ui.css). */
 .main-nav .main-tabs {
   flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px; margin: 0 0 6px; border-bottom: 0;
   overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none;
@@ -41,11 +42,11 @@
 .main-nav .m-tab {
   position: relative; display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; height: 34px; padding: 8px 14px;
   font: inherit; font-family: var(--q-font-sans); font-size: 13px; font-weight: 600; letter-spacing: 0; white-space: nowrap; overflow: hidden;
-  color: var(--text-secondary, #94a3b8); background: transparent; border: 0; border-radius: var(--radius-md, 8px); cursor: pointer;
+  color: var(--q-nav-text, #94a3b8); background: transparent; border: 0; border-radius: var(--q-nav-radius, 8px); cursor: pointer;
   transition: color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
 }
 .main-nav .m-tab-icon { width: 15px; height: 15px; flex-shrink: 0; stroke-width: 2; opacity: 0.8; }
-.main-nav .m-tab:hover { color: var(--text-primary, #e2e8f0); background: var(--bg-surface-2, rgba(148, 163, 184, 0.06)); }
+.main-nav .m-tab:hover { color: var(--q-nav-text-hover, #f8fafc); background: var(--q-nav-hover-bg, #161d2e); }
 /* A+ (27/11/2026) — Liquid Metal: viền kim loại xước (gradient trên border-box) + vệt sáng chậm 7 s; vạch xanh giữ màu nhấn chuẩn.
    Chỉ tab đang mở có hiệu ứng; các tab khác trung tính. Giảm chuyển động -> tắt vệt sáng. */
 .main-nav .m-tab { border: 1px solid transparent; }
@@ -71,7 +72,7 @@
 }
 .main-nav .m-tab.active::after { transform: scaleX(1); }
 
-.nav-status { flex-shrink: 0; align-self: center; margin-bottom: 8px; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-tertiary, #64748b); white-space: nowrap; }
+.nav-status { flex-shrink: 0; align-self: center; margin-bottom: 8px; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--q-nav-muted, #748299); white-space: nowrap; }
 .nav-status:empty { display: none; }
 
 @container (max-width: 1160px) { .main-nav .m-tab { padding: 8px 10px; gap: 5px; font-size: 12.5px; } .nav-status { display: none; } }

@@ -144,7 +144,7 @@ export default function LiveEvidenceGraph({ nodes, refs, claims, onSelect }: {
   const select = (id: NodeId) => { setFocus(id); onSelect(id); };
   const colX: Record<string, number> = { snapshot: COL.snapshot[0], bull: COL.ai[0], source: COL.source[0], judge: COL.judge[0] };
   return <GraphViewport bounds={bounds} visibleCount={nodes.length} edgeCount={evidence.length}
-    world={<div className="canvas-world eb-graph-v2" ref={ref}>
+    world={<div className="canvas-world eb-graph-v2" ref={ref} data-ui-exempt="chart">
       {COLUMN_TITLES.filter((c) => c.id === "source" ? SOURCE_IDS.some((id) => boxes.has(id)) : boxes.has(c.id as NodeId)).map((c) =>
         <span key={c.id} className="eb-col-title" style={{ left: colX[c.id], top: titleY }} aria-hidden="true">{c.text}</span>)}
       <svg className="edges eb-edges-v2" viewBox="0 0 920 430" aria-hidden="true">

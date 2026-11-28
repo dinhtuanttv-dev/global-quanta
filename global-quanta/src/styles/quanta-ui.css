@@ -54,3 +54,60 @@
 .q-tab { color: var(--q-text-3); border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
 .q-tab:hover { color: var(--q-text); }
 .q-tab[aria-selected="true"] { color: var(--q-text); border-bottom-color: var(--q-accent); }
+
+/* ───────────────────────── QUANTA UI v2 — U0 (28/11/2026, docs/quanta-ui-v2) ─────────────────────────
+   CHỈ THÊM token / lớp; chưa áp vào thành phần nào -> không đổi hiển thị. Các bước U1–U9 sẽ dùng chúng. */
+:root {
+  /* Màu có nghĩa (01 §1.3). Vàng chỉ cho cảnh báo. */
+  --q-up: #34d399;
+  --q-down: #fb7185;
+  --q-warn: #fbbf24;
+  --q-critical: #fb7185;
+  /* Quy ước bảng điện VN — đúng giá trị đang khoá trong PricingBoard.COLOR (kiểm thử priceColor). */
+  --vn-ceil: #e879f9;
+  --vn-floor: #22d3ee;
+  --vn-ref: #facc15;
+  --vn-up: #22c55e;
+  --vn-down: #f43f5e;
+  /* Thang cỡ chữ (01 §2.1). 10px chỉ cho lưới số dày khai báo q-dense. */
+  --q-fs-dense: 10px;
+  --q-fs-xs: 11px;
+  --q-fs-sm: 12px;
+  --q-fs-md: 13px;
+  --q-fs-lg: 15px;
+  --q-fs-xl: 20px;
+  /* Bo góc (01 §4). */
+  --q-r-sm: 6px;
+  --q-r-md: 8px;
+  --q-r-lg: 10px;
+  /* Chuẩn tiêu đề = nút tab menu chính (01 §2.2; MainTabs.css .main-nav .m-tab). */
+  --q-title-size: 13px;
+  --q-title-weight: 600;
+  --q-brand-size: 15px;
+  --q-brand-weight: 700;
+  /* Chốt menu chính (04 §5a): giá trị HIỆN TẠI của các biến hệ cũ mà MainTabs.css đang đọc. Menu chính giữ nguyên tuyệt đối —
+     khi U1 / U9 trỏ biến cũ về token mới, menu vẫn đọc các giá trị này. */
+  --q-nav-text: #94a3b8;
+  --q-nav-text-hover: #f8fafc;
+  --q-nav-hover-bg: #161d2e; /* ui-exempt: chốt menu chính */
+  --q-nav-muted: #748299;
+  --q-nav-bar-top: #0e131f; /* ui-exempt: chốt menu chính */
+  --q-nav-bar-bottom: #080b11; /* ui-exempt: chốt menu chính */
+  --q-nav-border: rgba(255, 255, 255, 0.08);
+  --q-nav-radius: 8px;
+}
+
+/* Tiêu đề khối / thẻ theo chuẩn nút tab menu chính (chưa áp — U2 trở đi). */
+.q-title { font-family: var(--q-font-sans); font-size: var(--q-title-size); font-weight: var(--q-title-weight); letter-spacing: 0; text-transform: none; color: var(--q-text); line-height: 1.3; }
+.q-title-sub { font-family: var(--q-font-sans); font-size: var(--q-fs-xs); font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--q-text-3); }
+/* Logo theo chuẩn nút tab: Inter, không in hoa / giãn chữ; dấu dùng khung Liquid Metal của tab đang chọn (chưa áp — U2). */
+.q-brand { font-family: var(--q-font-sans); font-size: var(--q-brand-size); font-weight: var(--q-brand-weight); letter-spacing: 0; text-transform: none; color: var(--q-text); }
+.q-brand-mark {
+  display: inline-grid; place-items: center; border: 1px solid transparent; border-radius: var(--q-r-md); color: #fff; font-family: var(--q-font-sans); font-weight: 700;
+  /* ui-exempt-next-line: khung Liquid Metal lấy nguyên từ tab đang chọn của menu chính */
+  background: linear-gradient(180deg, #1d2333, #111622) padding-box,
+    linear-gradient(115deg, #f8fafc 0%, #7c8596 22%, #e5e7eb 42%, #5b6474 62%, #cbd5e1 82%, #8b95a7 100%) border-box; /* ui-exempt */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+/* Lưới số dày được phép 10px (bảng giá, ma trận) — đánh dấu ngoại lệ, không đổi hiển thị. */
+.q-dense { --q-fs-min: var(--q-fs-dense); }

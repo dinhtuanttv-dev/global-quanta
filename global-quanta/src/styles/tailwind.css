@@ -4,6 +4,14 @@
    Tên riêng "q-" để không đè màu mặc định của Tailwind ở các tab khác. Màu nhấn: xanh dương (chốt 27/11). */
 @theme {
   --color-q-accent: #4f8ef7;
+  /* QUANTA UI v2 U0: màu có nghĩa + chữ / viền theo token (chưa dùng ở thành phần nào). */
+  --color-q-up: #34d399;
+  --color-q-down: #fb7185;
+  --color-q-warn: #fbbf24;
+  --color-q-text: #f8fafc;
+  --color-q-text-2: #cbd5e1;
+  --color-q-text-3: #94a3b8;
+  --color-q-text-4: #8391a7;
   --color-q-accent-strong: #79a8ff;
   --color-q-surface: #0e131f;
   --color-q-surface-2: #131a29;
