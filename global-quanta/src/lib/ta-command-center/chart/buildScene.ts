@@ -8,7 +8,7 @@ import type { DomainPoint, DrawingToolType, DrawnPrimitive } from "../DrawingMan
 import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
-import { ST_COLORS } from "../detectors/bandsTrend";
+import { TV_STYLE } from "./indicatorStyle";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 import { ELLIOTT_PRO_LABEL_BUDGET, elliottProItems, type ElliottProInput } from "./elliottProScene";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
@@ -218,18 +218,25 @@ export function buildScene(inp: SceneInput): Scene {
   if (layers?.ichimoku && inp.ichimoku) {
     const { spanA, spanB, shift } = inp.ichimoku;
     const points = spanA.flatMap((a, i) => (a != null && spanB[i] != null ? [{ k: i + shift, a, b: spanB[i] as number }] : []));
-    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.bull, 0.12), down: rgba(GQ_COLORS.bear, 0.12), lineA: rgba(GQ_COLORS.bull, 0.65), lineB: rgba(GQ_COLORS.bear, 0.65) });
+    // TA-T2 (Q2): mây Ichimoku màu mặc định TradingView (Lead 1 / Lead 2 + mây xanh / đỏ 10%).
+    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: TV_STYLE.ichimoku.cloudUp, down: TV_STYLE.ichimoku.cloudDown, lineA: TV_STYLE.ichimoku.spanA, lineB: TV_STYLE.ichimoku.spanB });
   }
   if (layers?.bollinger && inp.bollinger) {
     const { upper, lower } = inp.bollinger;
     const points = upper.flatMap((a, k) => (a != null && lower[k] != null ? [{ k, a, b: lower[k] as number }] : []));
-    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: rgba(GQ_COLORS.cyan, 0.05), down: rgba(GQ_COLORS.cyan, 0.05), lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
+    if (points.length > 1) items.push({ kind: "cloud", from: bars[0].date, points, up: TV_STYLE.bb.fill, down: TV_STYLE.bb.fill, lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
   }
   if (layers?.supertrend && inp.superTrend) {
-    for (const [values, color] of [[inp.superTrend.up, ST_COLORS.up], [inp.superTrend.down, ST_COLORS.down]] as const) {
+    // TA-T2: như TradingView — đoạn tăng / giảm tách riêng (màu dự án, Q1) + tô nền nhạt giữa giá đóng cửa và đường SuperTrend.
+    for (const [values, color, fill] of [[inp.superTrend.up, TV_STYLE.st.up, TV_STYLE.st.fillUp], [inp.superTrend.down, TV_STYLE.st.down, TV_STYLE.st.fillDown]] as const) {
       let run: { t: string; price: number }[] = [];
-      const flush = () => { if (run.length > 1) items.push({ kind: "poly", points: run, color, width: 2 }); run = []; };
-      for (let i = 0; i < bars.length; i++) { const v = values[i]; if (v == null) flush(); else run.push({ t: bars[i].date, price: v }); }
+      let area: { k: number; a: number; b: number }[] = [];
+      const flush = () => {
+        if (area.length > 1) items.push({ kind: "cloud", from: bars[0].date, points: area, up: fill, down: fill, lineA: "rgba(0,0,0,0)", lineB: "rgba(0,0,0,0)" });
+        if (run.length > 1) items.push({ kind: "poly", points: run, color, width: 2 });
+        run = []; area = [];
+      };
+      for (let i = 0; i < bars.length; i++) { const v = values[i]; if (v == null) flush(); else { run.push({ t: bars[i].date, price: v }); area.push({ k: i, a: bars[i].close, b: v }); } }
       flush();
     }
   }

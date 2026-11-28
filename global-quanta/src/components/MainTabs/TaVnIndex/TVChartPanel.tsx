@@ -68,6 +68,7 @@ import { isDefaultSection, paneTitles, type IndicatorSettings } from "./workspac
 import ChartSignalsValidation from "./ChartSignalsValidation";
 import { lastBarForming, seriesFreshness } from "../../../lib/ta-command-center/dataStatus";
 import { priceDigitsFor, viPrice } from "../../../lib/ta-command-center/chart/viFormat";
+import { TV_STYLE } from "../../../lib/ta-command-center/chart/indicatorStyle";
 import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
 import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
@@ -563,22 +564,23 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const maValues = useMemo(() => (layerState?.maSet ? movingAverageSet(currentBars) : null), [layerState?.maSet, currentBars]);
   const ichiValues = useMemo(() => (layerState?.ichimoku ? ichimoku(currentBars) : null), [layerState?.ichimoku, currentBars]);
   useEffect(() => {
-    tvApi?.setOverlayLines("ma", maValues ? MA_SET.map((m) => ({ id: m.id, color: m.color, width: m.id === "ma200" ? 2 as const : 1 as const, values: maValues[m.id] })) : null);
+    tvApi?.setOverlayLines("ma", maValues ? MA_SET.map((m) => ({ id: m.id, color: TV_STYLE.ma[m.id] ?? m.color, width: m.id === "ma200" ? 2 as const : 1 as const, values: maValues[m.id] })) : null);
   }, [tvApi, maValues]);
   useEffect(() => {
     tvApi?.setOverlayLines("ichi", ichiValues ? [
       { id: "tenkan", color: ICHI_COLORS.tenkan, values: ichiValues.tenkan },
       { id: "kijun", color: ICHI_COLORS.kijun, values: ichiValues.kijun },
-      { id: "chikou", color: ICHI_COLORS.chikou, dashed: true, values: ichiValues.chikou },
+      { id: "chikou", color: ICHI_COLORS.chikou, values: ichiValues.chikou },
     ] : null);
   }, [tvApi, ichiValues]);
   const bbValues = useMemo(() => (layerState?.bollinger ? bollingerBands(currentBars, ind.bollinger) : null), [layerState?.bollinger, currentBars, ind.bollinger]);
   const stValues = useMemo(() => (layerState?.supertrend ? superTrend(currentBars, ind.supertrend) : null), [layerState?.supertrend, currentBars, ind.supertrend]);
   useEffect(() => {
     tvApi?.setOverlayLines("bb", bbValues ? [
-      { id: "upper", color: BB_COLORS.upper, values: bbValues.upper },
-      { id: "mid", color: BB_COLORS.mid, dashed: true, values: bbValues.mid },
-      { id: "lower", color: BB_COLORS.lower, values: bbValues.lower },
+      // TA-T2 (Q2): Bollinger màu mặc định TradingView (Basis xanh dương, Upper đỏ, Lower xanh lá).
+      { id: "upper", color: TV_STYLE.bb.upper, values: bbValues.upper },
+      { id: "mid", color: TV_STYLE.bb.mid, values: bbValues.mid },
+      { id: "lower", color: TV_STYLE.bb.lower, values: bbValues.lower },
     ] : null);
   }, [tvApi, bbValues]);
   const priceDigits = useMemo(() => priceDigitsFor(currentBars), [currentBars]);
@@ -1479,7 +1481,8 @@ function closeOpenPopovers() {
   try { document.querySelectorAll<HTMLElement>("[popover]").forEach((el) => { if (el.matches(":popover-open")) el.hidePopover(); }); } catch { /* không hỗ trợ :popover-open */ }
 }
 
-export const ICHI_COLORS = { tenkan: "#2dd4bf", kijun: "#f97316", chikou: "rgba(148,163,184,0.75)" } as const;
+/** TA-T2 (Q2): màu Ichimoku mặc định TradingView (Conversion / Base / Lagging). */
+export const ICHI_COLORS = { tenkan: TV_STYLE.ichimoku.tenkan, kijun: TV_STYLE.ichimoku.kijun, chikou: TV_STYLE.ichimoku.chikou } as const;
 
 /** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
 export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2) {
@@ -1487,14 +1490,14 @@ export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null
   const f = (v: number | null | undefined) => (v == null ? "—" : viPrice(v, digits));
   return (i: number): { label: string; color: string; value: string; group: LayerKey }[] => {
     const out: { label: string; color: string; value: string; group: LayerKey }[] = [];
-    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: m.color, value: f(ma[m.id][i]), group: "maSet" });
+    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: TV_STYLE.ma[m.id] ?? m.color, value: f(ma[m.id][i]), group: "maSet" });
     if (ichi) {
       const j = i - ICHIMOKU_DEFAULT.shift;
       out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]), group: "ichimoku" }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]), group: "ichimoku" },
         { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—", group: "ichimoku" });
     }
-    if (bb) out.push({ label: "BB", color: BB_COLORS.upper, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}`, group: "bollinger" });
-    if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? ST_COLORS.down : ST_COLORS.up, value: f(st.line[i]), group: "supertrend" });
+    if (bb) out.push({ label: "BB", color: TV_STYLE.bb.mid, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}`, group: "bollinger" });
+    if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? TV_STYLE.st.down : TV_STYLE.st.up, value: f(st.line[i]), group: "supertrend" });
     return out;
   };
 }
