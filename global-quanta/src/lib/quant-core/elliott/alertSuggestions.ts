@@ -6,7 +6,9 @@ import { userInvalidation, type UserCountPoint } from "./userCount";
 export type AlertCondition =
   | { type: "level"; price: number; side: "above" | "below" }
   | { type: "zone"; low: number; high: number }
-  | { type: "line"; a: { date: string; price: number }; b: { date: string; price: number }; side: "above" | "below" };
+  | { type: "line"; a: { date: string; price: number }; b: { date: string; price: number }; side: "above" | "below" }
+  // C11: giá cắt đường trung bình (khung ngày) — Gateway tính EMA / SMA trên giá đóng cửa điều chỉnh, cùng công thức chart.
+  | { type: "ma"; ma: "ema" | "sma"; period: number; side: "above" | "below" };
 export interface AlertSuggestion { key: string; kind: "invalidation" | "target" | "channel"; label: string; condition: AlertCondition }
 
 const fmt = (v: number) => Math.round(v).toLocaleString("vi-VN");

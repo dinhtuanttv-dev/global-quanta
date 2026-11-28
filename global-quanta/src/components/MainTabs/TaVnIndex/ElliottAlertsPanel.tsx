@@ -14,7 +14,8 @@ export interface ElliottAlert {
   channels: { telegram: boolean }; enabled: boolean; oneShot: boolean; cooldownMin: number; createdAt: string; lastFiredAt: string | null; firedCount: number;
 }
 export interface ElliottAlertEvent { id: string; alertId: string; symbol: string; kind: string; price: number; message: string; firedAt: string; read: boolean }
-interface AlertsResponse { alerts: ElliottAlert[]; events: ElliottAlertEvent[]; unread: number; disclaimer: string }
+/** C11: userDisclaimer / maxAlerts — kho cảnh báo chung (giá · hình vẽ · chỉ báo · Elliott); bản Gateway cũ không có thì dùng mặc định. */
+export interface AlertsResponse { alerts: ElliottAlert[]; events: ElliottAlertEvent[]; unread: number; disclaimer: string; userDisclaimer?: string; maxAlerts?: number }
 
 const CARD = { background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)" } as const;
 
