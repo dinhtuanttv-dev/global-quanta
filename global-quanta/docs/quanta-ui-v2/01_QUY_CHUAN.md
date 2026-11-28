@@ -48,9 +48,25 @@ Không dùng `bg-slate-800/900/950`, `#161D2E`, `#1E273D`, `#0B0F19` (hệ cũ) 
 |---|---|---|
 | Nhãn, tiêu đề, nội dung | **Inter** (`--q-font-sans`) | |
 | Số liệu, mã, giá, phần trăm | **IBM Plex Mono** (`--q-font-mono`), `tabular-nums` | lớp `font-mono` hoặc `.num` |
-| Logo "ĐINH TUẤN" | Space Grotesk | **ngoại lệ duy nhất** (Q3) |
+| Logo "ĐINH TUẤN" | Inter (chuẩn nút tab §2.2) | không còn ngoại lệ phông (Q3, chỉnh 28/11) |
 
 Không dùng `ui-monospace` / `monospace` hệ thống thay cho IBM Plex Mono.
+
+### 2.2 Chuẩn tiêu đề = nút tab menu chính (28/11/2026)
+
+Nguồn: `src/components/MainTabs/MainTabs.css` (`.main-nav .m-tab`). **Menu chính không đổi**; các tiêu đề khác lấy đúng kiểu này.
+
+| Thuộc tính | Nút tab menu chính | Áp cho |
+|---|---|---|
+| Phông | `var(--q-font-sans)` (Inter) | tiêu đề khối / thẻ, logo |
+| Cỡ | 13px (12,5px khi khung hẹp ≤ 1160px) | tiêu đề khối / thẻ; logo 15px (một bậc trên, cùng kiểu) |
+| Độ đậm | 600 | tiêu đề; logo 700 |
+| Giãn chữ / in hoa | 0 / không | mọi tiêu đề — "ELITE COMMAND RADAR" → "Elite Command Radar" |
+| Màu | thường `#94a3b8`, đang chọn `#fff` | tiêu đề khối `--q-text`; tiêu đề phụ `--q-text-3` |
+| Biểu tượng | lucide 15px, nét 2, mờ 0,8 | biểu tượng đứng trước tiêu đề |
+| Khung nhấn | Liquid Metal (tab đang chọn) + vạch `--q-accent` 2px | **dấu logo "ĐT"**; không dùng cho tiêu đề thường |
+
+Token mới: `--q-title-size: 13px`, `--q-title-weight: 600`, lớp `.q-title` (tiêu đề khối) và `.q-brand` (logo).
 
 ### 2.1 Thang cỡ chữ
 
@@ -100,4 +116,4 @@ Nhãn **không in hoa, không giãn chữ** (`uppercase`, `tracking-*` bị trun
 | Biểu đồ 2D / 3D | SVG / canvas / WebGL, sơ đồ Evidence Brain, RRG 4D, radar, Kqkd3D, biểu đồ cột / đường | `data-ui-exempt="chart"` trên gốc biểu đồ |
 | Lưới số dày | bảng giá, ma trận giao dịch, bảng tín hiệu 7+ cột | lớp `q-dense` (cho phép 10px) |
 | Màu bảng điện VN | ô giá trong bảng giá / sổ lệnh | biến `--vn-*` |
-| Logo | thanh trên | lớp `brand-logo` |
+| Menu chính | thanh menu | giữ nguyên tuyệt đối; giá trị màu hiện tại chốt bằng token `--q-nav-*` |

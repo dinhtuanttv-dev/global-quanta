@@ -31,10 +31,11 @@ Mọi cách sửa chỉ đổi lớp trình bày; chữ, dữ liệu, `data-test
 | # | Lỗi | Mức | Vị trí | Sửa |
 |---|---|---|---|---|
 | K1 | Khung chung nằm ngoài `.q-ui` → chữ 10px, in hoa vẫn hiện | A | `App.tsx` (`.app`), `InsightPanel.tsx` (`.insight`) | thêm `q-ui` vào gốc thanh trên và cột phải |
-| K2 | Cột phải: tiêu đề "ELITE COMMAND RADAR / ACTION CENTER / TIN TỨC THÔNG MINH" in hoa, màu **xanh lơ**; huy hiệu "AI" tím; 30/33 phần tử chữ 10px | A | `InsightPanel/*.tsx`, `styles/App.css` | tiêu đề `--q-text` 12,5px thường; huy hiệu trung tính chuẩn; chữ ≥ 11px |
+| K2 | Cột phải: tiêu đề "ELITE COMMAND RADAR / ACTION CENTER / TIN TỨC THÔNG MINH" in hoa, màu **xanh lơ**; huy hiệu "AI" tím; 30/33 phần tử chữ 10px | A | `InsightPanel/*.tsx` (`Card` title), `styles/App.css` | tiêu đề theo **chuẩn nút tab** (`.q-title`: Inter 13px / 600, `--q-text`, chữ thường "Elite Command Radar", "Action Center", "Tin tức thông minh"); huy hiệu "AI" trung tính; chữ ≥ 11px. Thông báo trình duyệt (`browserNotify`) giữ nguyên chuỗi |
 | K3 | 34 chỗ vàng + 6 chỗ Space Grotesk trong `App.css`: dải VN-Index (`.vn-hero-name` vàng, in hoa, 10px; `.vhd-note b`; focus `.vn-hero-main` viền vàng), màn đăng nhập (`.login-logo`, nút gradient vàng, `accent-color` vàng), dấu logo gradient | A/C | `styles/App.css` | đổi sang token q-*; giữ tên lớp (không đổi JSX); logo giữ Space Grotesk |
 | K4 | Thanh trên: 3 nền gradient, 3 phần tử giãn chữ, 22 phần tử < 11px, 2 chữ vàng (ngoài logo) | B | `TopBar/topbar-pro.css` | nền phẳng; chữ ≥ 11px (số liệu dải vĩ mô dùng `q-dense` nếu cần) |
-| K5 | Menu chính: tab đang chọn có viền vàng (Liquid Metal) | B | `MainTabs.css` | viền / vạch `--q-accent` |
+| K5 | **Menu chính: KHÔNG SỬA** (chỉnh 28/11). Khung Liquid Metal là kim loại bạc, không phải vàng; menu là chuẩn | — | `MainTabs.css` | chỉ chốt giá trị màu hiện tại vào `--q-nav-*` để U1 / U9 không làm đổi menu |
+| K6 | Logo "ĐINH TUẤN": Space Grotesk, dấu "ĐT" gradient vàng → nâu | A | `TopBar/topbar-pro.css`, `styles/App.css` (`.logo`) | `.q-brand`: Inter 15px / 700, `--q-text`; dấu "ĐT" khung Liquid Metal như tab đang chọn (lấy từ `MainTabs.css`); chữ giữ nguyên |
 
 ## 2. Thế giới (KNTG)
 

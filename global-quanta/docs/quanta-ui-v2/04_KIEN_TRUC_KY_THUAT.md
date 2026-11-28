@@ -18,7 +18,7 @@ Mục tiêu: chuyển cả dự án sang QUANTA UI v2 **mà không đổi logic,
    ```
    Đây là bước có tác động rộng nhất: 91 chỗ `var(--gold*)` và 10 chỗ `--font-display` đổi đồng loạt. Mỗi chỗ `--gold` đang mang nghĩa **cảnh báo** phải được đổi tay sang `--q-warn` **trước** bước này (danh sách ở U1).
 3. `tailwind.css @theme` bổ sung `q-up`, `q-down`, `q-warn`, `q-text-2..4`, `q-line-2/3` để dùng lớp tiện ích thay hex.
-4. `index.html`: font Space Grotesk chỉ nạp trọng số dùng cho logo (`wght@700`).
+4. `index.html`: bỏ hẳn Space Grotesk ở U9 (sau khi logo sang Inter) — bớt một họ phông tải về.
 
 ## 2. Ánh xạ lớp (codemod có kiểm soát)
 
@@ -43,6 +43,10 @@ Mục tiêu: chuyển cả dự án sang QUANTA UI v2 **mà không đổi logic,
 | Ngân sách nợ | Mỗi quy tắc có **trần = số hiện tại**, chỉ được giảm (ratchet) — PR không được làm tăng | `ui-lint-budget.json` |
 | `scripts/ui-audit.mjs` (Playwright) | Đo trang thật như `02` §2: phông, < 11px, chữ vàng, in hoa, gradient, trạng thái chọn, bỏ qua `data-ui-exempt` | chạy tay trước mỗi merge giao diện; lưu kết quả vào `docs/quanta-ui-v2/audit/` |
 
+## 5a. Chốt menu chính (U0)
+
+Menu chính đang đọc vài biến hệ cũ có giá trị **khác** token mới (`--bg-surface-2` `#161D2E` ≠ `--q-surface-2` `#131a29`; `--text-tertiary` `#748299` ≠ `--q-text-4` `#8391a7`). Nếu U1 trỏ biến cũ về token mới thì menu sẽ đổi màu. Vì vậy U0 chốt giá trị hiện tại vào token riêng `--q-nav-hover-bg`, `--q-nav-muted`, `--q-nav-text`, `--q-nav-text-active` và cho `MainTabs.css` đọc các token này — điểm ảnh của menu không đổi.
+
 ## 5. Bảo toàn mã nguồn 100%
 
 | Cam kết | Cách chứng minh |
@@ -52,3 +56,16 @@ Mục tiêu: chuyển cả dự án sang QUANTA UI v2 **mà không đổi logic,
 | Không đổi chữ | vân tay `textContent` của từng tab trước / sau — phải giống từng ký tự (trừ emoji được thay ở Q7, khai báo riêng) |
 | Biểu đồ không đổi | số phần tử SVG / canvas và ảnh chụp vùng `data-ui-exempt` trước / sau |
 | Kiểm thử | toàn bộ vitest + `node --test` đạt, `tsc --noEmit` sạch, build OK |
+
+## 6. Gỡ hệ cũ (U9) — phương án tối ưu, không ảnh hưởng dự án
+
+Điều kiện bắt đầu: U1–U8 xong, `ui-lint` báo **0** cho mọi quy tắc hệ cũ, `ui-audit` 7 tab đạt A1–A10.
+
+| Pha | Việc | Vì sao an toàn |
+|---|---|---|
+| U9a · Kiểm kê | Script liệt kê mọi tham chiếu còn lại tới biến hệ cũ (`--bg-*`, `--text-primary/secondary/tertiary`, `--gold*`, `--font-display`, `--font-body`), lớp CSS toàn cục trong `App.css` (có / không còn được dùng trong JSX), font Space Grotesk | chỉ đọc |
+| U9b · Đổi tên biến | Thay `var(--bg-surface)` → `var(--q-surface)`… bằng codemod (giá trị đã trùng nhau sau U1, nên không đổi điểm ảnh); luật nào còn dùng thì chuyển sang `quanta-ui.css` | vân tay + ảnh chụp 7 tab × 2 khổ trước / sau giống nhau |
+| U9c · Ngừng dùng | `tokens.css` chỉ còn khối alias, có chú thích "ngừng dùng"; `ui-lint` cấm tên biến cũ (ngân sách 0); để chạy **một tuần** trên trang thật | nếu sót chỗ nào, giá trị vẫn đúng nhờ alias |
+| U9d · Xoá | Xoá `tokens.css` (chuyển nền `body`, thanh cuộn sang `quanta-ui.css`), xoá luật chết trong `App.css` (selector không còn khớp JSX), bỏ Space Grotesk khỏi `index.html` | một PR riêng; lùi = revert một commit |
+
+Lợi ích đo được: bớt một họ phông tải về (Space Grotesk 3 trọng số), CSS toàn cục nhỏ hơn, một nguồn token duy nhất, `ui-lint` chặn tái phát vĩnh viễn.
