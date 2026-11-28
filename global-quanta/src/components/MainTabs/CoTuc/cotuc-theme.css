@@ -10,10 +10,8 @@
 .text-cf-gold-bright { color: var(--q-accent-strong); }
 .text-cf-positive { color: var(--positive); }
 .text-cf-negative { color: var(--negative); }
-.text-cf-warning { color: var(--warning); }
 
 .bg-cf-base { background-color: var(--bg-base); }
-.bg-cf-surface { background-color: var(--bg-surface); }
 .bg-cf-surface-2 { background-color: var(--bg-surface-2); }
 
 .border-cf-border { border-color: var(--border); }
@@ -55,7 +53,6 @@
    tailwind.config @theme dinh nghia) - tu dinh nghia lai tro ve dung
    bien phong hien thi cu (da go o QUANTA UI v2 U1), chi dung cho tieu
    de panel chinh (khong doi noi dung/kich thuoc chu). */
-.font-display { font-family: var(--q-font-sans); }
 
 /* F2: banner gom 3 cấp — trung tính / tích cực / cảnh báo — cộng cấp "khẩn" (đỏ, ngày GDKHQ rất gần) giữ nguyên nghĩa. */
 .cf-banner-neutral, .cf-banner-sky { background-color: var(--bg-surface-2); border: 1px solid var(--border); }
@@ -69,23 +66,5 @@
 .cf-table-sticky-head th { position: sticky; top: 0; background-color: var(--bg-surface); z-index: 1; }
 .cf-table-zebra tbody tr:nth-child(even) { background-color: rgba(255,255,255,0.015); }
 
-/* F1/F2 (06/11/2026): thanh 3 tab con (Kết quả kinh doanh · Cổ tức · Timeline điểm mua) kiểu Fluent + mục bên trong. */
-.cotuc-nav { display: grid; gap: 8px; margin-top: 8px; }
-.cotuc-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.cotuc-group { display: grid; gap: 2px; text-align: left; padding: 10px 14px; border-radius: var(--radius-md, 8px); cursor: pointer;
-  background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-secondary); position: relative;
-  transition: background-color .15s ease, border-color .15s ease, color .15s ease; }
-.cotuc-group:hover { background: var(--bg-surface-2); color: var(--text-primary); }
-.cotuc-group.is-active { background: rgba(79,142,247,0.1); border-color: rgba(79,142,247,0.45); color: var(--q-text, #f8fafc); box-shadow: inset 0 -2px 0 var(--q-accent, #4f8ef7); }
-.cotuc-group:focus-visible, .cotuc-view:focus-visible { outline: 2px solid var(--q-accent, #4f8ef7); outline-offset: 2px; }
-.cotuc-group-title { font-size: 13px; font-weight: 800; display: flex; align-items: center; gap: 6px; }
-.cotuc-group-sub { font-size: 10.5px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cotuc-count { font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 999px; background: var(--q-surface-3, #182033); color: var(--q-text-2, #cbd5e1); font-family: var(--q-font-mono); }
-.cotuc-views { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: var(--radius-md, 8px); background: var(--bg-surface); border: 1px solid var(--border); }
-.cotuc-view { padding: 6px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary); cursor: pointer; background: transparent; border: 0; }
-.cotuc-view:hover { background: var(--bg-surface-2); color: var(--text-primary); }
-.cotuc-view.is-active { background: rgba(79,142,247,0.14); color: var(--q-accent-strong, #79a8ff); box-shadow: inset 0 0 0 1px rgba(79,142,247,0.45); }
-@media (max-width: 720px) {
-  .cotuc-groups { grid-template-columns: 1fr; }
-  .cotuc-group-sub { white-space: normal; }
-}
+/* Thanh tab con (U4 28/11): dùng lớp chuẩn dự án .q-subtabs / .q-subtab + .q-seg (quanta-ui.css); ở đây chỉ còn khoảng cách. */
+.cotuc-nav { display: grid; gap: 8px; }

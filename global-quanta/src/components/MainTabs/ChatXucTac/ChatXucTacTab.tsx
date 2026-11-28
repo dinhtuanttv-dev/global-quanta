@@ -55,9 +55,8 @@ export default function ChatXucTacTab() {
 
   return (
     <div>
-      <div role="tablist" aria-label="Chất xúc tác" style={{
-        display: "flex", gap: 8, marginBottom: 12, borderBottom: "1px solid var(--border)", overflowX: "auto",
-      }}>
+      {/* QUANTA UI v2 U4 (28/11): thanh tab con chuẩn dự án .q-subtabs (= tab con Tổng quan), cuộn ngang khi hẹp (5 tab). */}
+      <div role="tablist" aria-label="Chất xúc tác" className="q-subtabs" style={{ flexWrap: "nowrap", overflowX: "auto", marginBottom: 12 }}>
         {SUB_TABS.map((t) => (
           <button
             key={t.id}
@@ -70,11 +69,7 @@ export default function ChatXucTacTab() {
             tabIndex={activeSubTab === t.id ? 0 : -1}
             onKeyDown={handleTabKeyDown}
             onClick={() => setActiveSubTab(t.id)}
-            style={{
-              padding: "9px 14px", border: 0, borderBottom: activeSubTab === t.id ? "2px solid var(--q-accent-strong)" : "2px solid transparent",
-              background: "transparent", color: activeSubTab === t.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
-              fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-            }}
+            className="q-subtab" style={{ flexShrink: 0 }}
           >
             {t.label}
           </button>
@@ -179,7 +174,7 @@ function CatalystContent() {
 
             {filteredEmerging.length > 0 && (
               <>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--q-accent-strong)", margin: "16px 0 8px" }}>NGÀNH MỚI NỔI</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--q-text)", margin: "16px 0 8px" }}>NGÀNH MỚI NỔI</p>
                 {filteredEmerging.map((s) => <EmergingSourceRow key={s.sourceId} source={s} />)}
               </>
             )}

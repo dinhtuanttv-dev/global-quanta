@@ -78,10 +78,10 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
           <button type="button" onClick={start} disabled={blocked} title={data?.nextManualAt ? `Lượt tiếp theo sau ${fmtVnTime(data.nextManualAt)}` : "Gọi Gemini, tốn phí mỗi lần; có giãn cách và trần lượt theo ngày"} className="rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "var(--q-accent-soft)", color: "var(--q-accent-strong)", border: "1px solid var(--q-accent-line)" }} data-testid="brief-run">{data?.running ? "Đang phân tích…" : "Cập nhật ngay"}</button>
         </div>
       </div>
-      {notice && <p className="mt-2 text-[11px]" role="status" style={{ color: "var(--q-accent, #f59e0b)" }}>{notice}</p>}
+      {notice && <p className="mt-2 text-[11px]" role="status" style={{ color: "var(--q-warn)" }}>{notice}</p>}
       {error && !data && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative, #f87171)" }}>Không tải được bản tin: {error.message}</p>}
-      {data?.lastError && <p className="mt-2 text-[11px]" role="note" style={{ color: "var(--q-accent, #f59e0b)" }}>Lần chạy lúc {fmtVnTime(data.lastError.at)} không thành công: {data.lastError.message}</p>}
-      {data && data.configured === false && <p className="mt-2 text-[11px]" role="note" data-testid="brief-no-key" style={{ color: "var(--q-accent, #f59e0b)" }}>Gateway chưa có khoá Gemini nên bản tin AI chưa chạy. Không hiển thị nội dung thay thế.</p>}
+      {data?.lastError && <p className="mt-2 text-[11px]" role="note" style={{ color: "var(--q-warn)" }}>Lần chạy lúc {fmtVnTime(data.lastError.at)} không thành công: {data.lastError.message}</p>}
+      {data && data.configured === false && <p className="mt-2 text-[11px]" role="note" data-testid="brief-no-key" style={{ color: "var(--q-warn)" }}>Gateway chưa có khoá Gemini nên bản tin AI chưa chạy. Không hiển thị nội dung thay thế.</p>}
       {data && !run && !data.running && data.configured !== false && <p className="mt-3 text-[11px]" style={muted}>Chưa có bản tin nào.</p>}
       {run && <>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px]" style={muted} data-testid="brief-meta">
@@ -109,7 +109,7 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
                   <span className="shrink-0 text-[11px] font-bold" style={{ color: DIR[s.direction].color }}>{DIR[s.direction].vi}<span className="font-normal" style={muted}> · z {fmtSigned(s.quantZ, 2)}</span></span>
                 </div>
                 <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--text-secondary, #94a3b8)" }}>{s.text}<Citations items={s.citations} /></p>
-                {tickers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tickers.map((t) => <button key={t.ticker} type="button" onClick={() => selectTicker(t.ticker)} className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--q-surface-3)", color: "var(--q-accent-strong)" }}>{t.ticker}</button>)}</div>}
+                {tickers.length > 0 && <div className="mt-1.5 flex flex-wrap gap-1">{tickers.map((t) => <button key={t.ticker} type="button" onClick={() => selectTicker(t.ticker)} className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ background: "var(--q-surface-3)", color: "var(--q-text)" }}>{t.ticker}</button>)}</div>}
               </div>;
             })}
           </div>

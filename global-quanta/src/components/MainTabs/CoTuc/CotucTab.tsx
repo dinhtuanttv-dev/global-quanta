@@ -4,8 +4,8 @@ import "./cotuc-theme.css";
 import EarningsQualityPanel from "./EarningsQualityPanel";
 import { GROUP_OF, GROUPS, readView, VIEW_KEY, VIEWS, type CotucGroup, type SubView } from "./cotucNav";
 import {
-  Coins, Search, RefreshCw,
-  CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Info, Star, Sparkles,
+  Search, RefreshCw,
+  CheckCircle2, AlertCircle, ChevronDown, ChevronUp, Star, Sparkles,
 } from "lucide-react";
 import {
   DIVIDEND_STOCKS, getTradePhase,
@@ -46,6 +46,9 @@ import { isSpecialDividend, yieldAnomaly } from "../../../lib/cotuc/universe-sto
 import { dsToStock } from "../../../lib/cotuc/dsStocks";
 import { DividendScreenerTable, type SortField } from "./screener/DividendScreenerTable";
 import { useAppStore } from "../../../store/useAppStore";
+
+/** BL6 — nguồn dữ liệu Bộ lọc (trước là đoạn chú thích "Về dữ liệu"; từ U4 28/11 là chú thích rê chuột của nhãn nguồn). */
+const DATA_NOTE = "Về dữ liệu: ngày GDKHQ/ĐHCĐ, KQKD theo quý, giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, tỷ lệ chi trả, tăng trưởng LNST, xu hướng giá (MA50 / MA200) và hạng mô hình nhân tố FM-v1 đều là dữ liệu thật (VNDirect, SSI qua Gateway). Hạng FM-v1 là MÔ TẢ: kiểm định đặt trước chưa đạt đủ tiêu chí. F-Score tính được 6/9 tiêu chí Piotroski. Bộ lọc không còn số liệu mẫu: trường chưa có dữ liệu thật được ghi rõ và tách riêng khi lọc.";
 
 // ============================================================
 // BADGE COMPONENTS
@@ -121,7 +124,7 @@ function StockModal({ s, onClose, realRs, livePrice }: {
 
         <div className="flex items-center justify-between p-5 border-b border-cf-border/60">
           <div className="flex items-center gap-3">
-            <span id="stock-modal-title" className="text-2xl font-semibold text-q-accent-strong">{s.ticker}</span>
+            <span id="stock-modal-title" className="text-2xl font-semibold text-q-text">{s.ticker}</span>
             <div>
               <p className="text-xs font-bold text-cf-primary">{s.name}</p>
               <p className="text-[10px] text-cf-tertiary">{s.sector}</p>
@@ -154,7 +157,7 @@ function StockModal({ s, onClose, realRs, livePrice }: {
           {(["overview", "flags", "events", "seasonality"] as const).map((t) => (
             <button key={t} role="tab" aria-selected={modalTab === t} onClick={() => setModalTab(t)} data-testid={`modal-tab-${t}`}
               className={`px-4 py-2.5 text-[10px] font-bold border-b-2 transition-all focus:outline-none
-                ${modalTab === t ? "border-q-accent/60 text-q-accent-strong" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
+                ${modalTab === t ? "border-q-accent/60 text-q-text" : "border-transparent text-cf-secondary hover:text-cf-primary"}`}>
               {t === "overview" ? "📊 Tổng Quan" : t === "flags" ? "⚠️ Rủi Ro" : t === "events" ? "📅 Sự kiện & cổ tức" : "📊 Mùa vụ KQKD"}
             </button>
           ))}
@@ -414,30 +417,40 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
   return (
     <div className="cf-surface-gradient rounded-2xl p-5 shadow-xl space-y-4">
 
-      <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-cf-border/60">
-        <h3 className="text-sm font-bold uppercase text-cf-primary flex items-center gap-1.5 font-display">
-          <Coins className="w-4 h-4 text-q-accent-strong" /> Phân Tích Cơ Bản <span className="ml-1 text-[11px] font-semibold normal-case text-cf-tertiary">Kết quả kinh doanh · Cổ tức · Timeline điểm mua</span>
-        </h3>
-        <div className="flex items-center gap-2 flex-wrap">
-          {dsDoc
-            ? <span className="flex items-center gap-1 text-[10px] text-cf-positive" title={`Bản quét ${dsDoc.asOf.scannerData ?? "—"} · KQKD ${dsDoc.asOf.kqkd ?? "—"} · sự kiện ${(dsDoc.asOf.events ?? "").slice(0, 16)}`}><CheckCircle2 className="w-3 h-3" />Dữ liệu thật · Gateway ({dsDoc.count} mã)</span>
-            : dsLoading || eventsLoading
-            ? <span className="text-[10px] text-cf-tertiary animate-pulse">Đang tải dữ liệu…</span>
-            : <span className="text-[10px] text-amber-300">Nguồn dữ liệu Bộ lọc tạm lỗi{dsError ? ` (${dsError.slice(0, 60)})` : ""}</span>}
+      {/* QUANTA UI v2 U4 (28/11): thanh tab con lên TRÊN CÙNG theo chuẩn dự án (.q-subtabs = tab con Tổng quan; mục con = .q-seg).
+          Bỏ tiêu đề "Phân Tích Cơ Bản" (trùng tên menu "Cơ bản"), đoạn chú thích "Về dữ liệu" và dòng mô tả dưới mỗi nhóm —
+          nội dung chuyển vào chú thích rê chuột (nhãn nguồn dữ liệu / nút nhóm). Nhãn MÔ TẢ của FM-v1 vẫn hiện trong Bộ lọc. */}
+      <nav className="cotuc-nav" aria-label="Phân tích cơ bản">
+        <div className="flex flex-wrap items-end gap-x-3" style={{ borderBottom: "1px solid var(--q-line-2)" }}>
+          <div className="q-subtabs" role="tablist" aria-label="Chọn tab con" style={{ borderBottom: 0, flex: "1 1 auto" }}>
+            {GROUPS.map((g) => {
+              const on = group === g.id;
+              const count = g.id === "timeline" ? (buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null) : g.id === "cotuc" ? filtered.length : null;
+              return (
+                <button key={g.id} type="button" role="tab" id={`cotuc-group-${g.id}`} aria-selected={on} data-testid={`cotuc-group-${g.id}`}
+                  onClick={() => setSubTab(on ? subTab : lastOf.current[g.id])} title={g.sub} className="q-subtab">
+                  {g.label}{count !== null && <span className="num q-subtab-badge">{count}</span>}
+                </button>
+              );
+            })}
+          </div>
+          <span className="pb-2.5 text-[11px]" title={DATA_NOTE}>
+            {dsDoc
+              ? <span className="flex items-center gap-1 text-cf-positive" title={`${DATA_NOTE}\nBản quét ${dsDoc.asOf.scannerData ?? "—"} · KQKD ${dsDoc.asOf.kqkd ?? "—"} · sự kiện ${(dsDoc.asOf.events ?? "").slice(0, 16)}`}><CheckCircle2 className="w-3 h-3" />Dữ liệu thật · Gateway ({dsDoc.count} mã)</span>
+              : dsLoading || eventsLoading
+              ? <span className="text-cf-tertiary animate-pulse">Đang tải dữ liệu…</span>
+              : <span className="text-amber-300">Nguồn dữ liệu Bộ lọc tạm lỗi{dsError ? ` (${dsError.slice(0, 60)})` : ""}</span>}
+          </span>
         </div>
-      </div>
-
-      {/* BL6: nguồn dữ liệu Bộ lọc — mọi số từ Gateway (VNDirect, SSI); hạng = mô hình nhân tố FM-v1 (MÔ TẢ). */}
-      <div className="cf-banner-neutral rounded-xl p-2.5 flex items-start gap-2">
-        <Info className="w-3.5 h-3.5 text-cf-secondary shrink-0 mt-0.5" />
-        <p className="text-[10px] text-cf-secondary leading-relaxed">
-          <b className="text-cf-primary">Về dữ liệu:</b> <b>Ngày GDKHQ/ĐHCĐ</b>, <b>KQKD theo quý</b>,
-          <b> giá, P/E, ROE, Nợ/Vốn chủ sở hữu, RSI, Tỷ lệ chi trả, Tăng trưởng LNST</b>, <b>xu hướng giá (MA50 / MA200)</b> và
-          <b> hạng mô hình nhân tố FM-v1</b> đều là dữ liệu thật (VNDirect, SSI qua Gateway). Hạng FM-v1 là <b>MÔ TẢ</b>: kiểm định đặt trước chưa đạt đủ tiêu chí.
-          <b> F-Score</b> tính được <b>6/9 tiêu chí Piotroski</b>.
-          Bộ lọc không còn số liệu mẫu: trường chưa có dữ liệu thật được ghi rõ và tách riêng khi lọc.
-        </p>
-      </div>
+        {group !== "timeline" && (
+          <div className="q-seg" role="tablist" aria-label={`Mục trong ${GROUPS.find((g) => g.id === group)?.label ?? ""}`}>
+            {VIEWS.filter((v) => GROUP_OF[v.id] === group).map((v) => (
+              <button key={v.id} type="button" role="tab" aria-selected={subTab === v.id} data-testid={`cotuc-view-${v.id}`}
+                onClick={() => setSubTab(v.id)}>{v.label}</button>
+            ))}
+          </div>
+        )}
+      </nav>
 
 
       {/* PHUONG AN D: tim/them ma ngoai 17 ma co san. Ket qua duoc luu vao
@@ -486,7 +499,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
           <div className="flex flex-wrap gap-2">
             {pinnedStocks.map((s) => (
               <button key={s.ticker} onClick={() => handleSelect(s)}
-                className="text-[10px] font-semibold text-q-accent-strong bg-cf-base/60 px-2.5 py-1 rounded-lg border border-q-accent/40">
+                className="text-[10px] font-semibold text-q-text bg-cf-base/60 px-2.5 py-1 rounded-lg border border-q-accent/40">
                 {s.ticker}
               </button>
             ))}
@@ -500,7 +513,7 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
         {[
           { label:"Yield TB Universe", value:fmtPct(stats.yieldAvg), color:"text-cf-positive", sub:`${allStocksWithUniverse.length} mã theo dõi` },
           { label:"Yield > 5%", value:String(stats.highYield), color:"text-cf-gold", sub:"mã trong universe" },
-          { label:`Sắp GDKHQ (${UPCOMING_WINDOW_DAYS}n)`, value:String(stats.upcoming), color:"text-sky-400", sub:"mã trong 30 ngày tới" },
+          { label:`Sắp GDKHQ (${UPCOMING_WINDOW_DAYS}n)`, value:String(stats.upcoming), color:"text-q-text-2", sub:"mã trong 30 ngày tới" },
           { label:`Sắp ĐHCĐ (${UPCOMING_WINDOW_DAYS}n)`, value:String(stats.upcomingAGM.length), color:stats.upcomingAGM.length > 0 ? "text-purple-400" : "text-cf-secondary", sub:stats.upcomingAGM.map((s) => s.ticker).join(", ") || "Không có" },
         ].map((item) => (
           <div key={item.label} className="cf-panel rounded-xl p-3">
@@ -510,31 +523,6 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
           </div>
         ))}
       </div>
-
-      <nav className="cotuc-nav" aria-label="Phân tích cơ bản">
-        <div className="cotuc-groups" role="tablist" aria-label="Chọn tab con">
-          {GROUPS.map((g) => {
-            const on = group === g.id;
-            const count = g.id === "timeline" ? (buyTimeline.data ? buyTimeline.data.counts.inWindow + buyTimeline.data.counts.upcoming : null) : g.id === "cotuc" ? filtered.length : null;
-            return (
-              <button key={g.id} type="button" role="tab" id={`cotuc-group-${g.id}`} aria-selected={on} data-testid={`cotuc-group-${g.id}`}
-                onClick={() => setSubTab(on ? subTab : lastOf.current[g.id])}
-                className={`cotuc-group${on ? " is-active" : ""}`}>
-                <span className="cotuc-group-title">{g.label}{count !== null && <span className="num cotuc-count">{count}</span>}</span>
-                <span className="cotuc-group-sub">{g.sub}</span>
-              </button>
-            );
-          })}
-        </div>
-        {group !== "timeline" && (
-          <div className="cotuc-views" role="tablist" aria-label={`Mục trong ${GROUPS.find((g) => g.id === group)?.label ?? ""}`}>
-            {VIEWS.filter((v) => GROUP_OF[v.id] === group).map((v) => (
-              <button key={v.id} type="button" role="tab" aria-selected={subTab === v.id} data-testid={`cotuc-view-${v.id}`}
-                onClick={() => setSubTab(v.id)} className={`cotuc-view${subTab === v.id ? " is-active" : ""}`}>{v.label}</button>
-            ))}
-          </div>
-        )}
-      </nav>
 
       {subTab === "timeline" && (
         <ErrorBoundary fallbackLabel="Không hiển thị được Timeline điểm mua">
@@ -622,14 +610,14 @@ function CotucTabInner({ realRsMap = {}, isRealRsLoading = false, onNeedRs }: Co
           <div data-testid="filter-explain" className="tw-scope flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-[10.5px] text-slate-500">
             <span>Hiển thị <span className="font-mono tabular-nums text-slate-200">{filtered.length}</span>/<span className="font-mono tabular-nums">{allStocksWithUniverse.length}</span> mã</span>
             {filterStats.stale > 0 && (
-              <button type="button" onClick={() => setFilter({ ...filter, hideStaleEvents: false })} className="text-slate-400 hover:text-cyan-300 underline decoration-dotted">
+              <button type="button" onClick={() => setFilter({ ...filter, hideStaleEvents: false })} className="text-slate-400 hover:text-q-text underline decoration-dotted">
                 ẩn {filterStats.stale} mã chưa có lịch cổ tức mới — hiện
               </button>
             )}
             {filterStats.missingData > 0 && (
               <button type="button" data-testid="filter-unknown" onClick={() => setFilter({ ...filter, showUnknown: !filter.showUnknown })}
                 title={`Logic ba giá trị: tiêu chí đang bật mà mã chưa có số (hoặc không áp dụng) là "chưa biết" — không tính là đạt, cũng không trộn với "không đạt".\n${missingSummary(filterStats)}`}
-                className="text-slate-400 hover:text-cyan-300 underline decoration-dotted">
+                className="text-slate-400 hover:text-q-text underline decoration-dotted">
                 {filter.showUnknown ? "đang hiện" : "ẩn"} {filterStats.missingData} mã thiếu số liệu ({missingSummary(filterStats)}) — {filter.showUnknown ? "ẩn" : "hiện (đánh dấu ?)"}
               </button>
             )}

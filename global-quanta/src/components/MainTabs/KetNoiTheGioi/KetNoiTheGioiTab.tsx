@@ -39,8 +39,8 @@ import { WorldNavContext } from "./worldNav";
 const T = {
   bgSurface: "var(--bg-surface, #0e1626)",
   bgSurface2: "var(--bg-surface-2, #0a1020)",
-  gold: "var(--q-accent, #f59e0b)",
-  goldBright: "var(--q-accent-strong, #fbbf24)",
+  gold: "var(--q-warn)", // U4: U1 đã đổi nhầm vàng (cảnh báo) thành xanh
+  goldBright: "var(--q-warn)",
   positive: "var(--positive, #34d399)",
   negative: "var(--negative, #f87171)",
   textSecondary: "var(--text-secondary, #94a3b8)",
@@ -50,7 +50,7 @@ const T = {
 function RiskStatusBadge({ status }: { status: "RISK_ON" | "NEUTRAL" | "RISK_OFF" }) {
   const map = {
     RISK_ON: { label: "RISK-ON", color: T.positive, bg: "rgba(52,211,153,0.1)" },
-    NEUTRAL: { label: "TRUNG LẬP", color: T.gold, bg: "rgba(245,158,11,0.1)" },
+    NEUTRAL: { label: "TRUNG LẬP", color: "var(--q-text-2)", bg: "rgba(148,163,184,0.1)" },
     RISK_OFF: { label: "RISK-OFF", color: T.negative, bg: "rgba(248,113,113,0.1)" },
   }[status];
   return (

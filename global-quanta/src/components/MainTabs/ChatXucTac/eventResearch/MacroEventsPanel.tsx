@@ -120,7 +120,7 @@ export default function MacroEventsPanel() {
                     <span className="text-slate-400">{MACRO_LABEL[e.eventType as MacroType] ?? e.eventLabel}</span>
                     {e.severityScore >= 3 && <span className="rounded bg-rose-950/60 px-1 text-rose-200">chú ý cao</span>}
                     {e.corroborationCount > 1 && <span className="text-emerald-300">{e.corroborationCount} nguồn</span>}
-                    {isTrustedUrl(e.url) && <a href={e.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-sky-300/90 underline decoration-sky-300/30 hover:decoration-sky-300">{e.sourceLabel}</a>}
+                    {isTrustedUrl(e.url) && <a href={e.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-q-text-2 underline decoration-sky-300/30 hover:decoration-sky-300">{e.sourceLabel}</a>}
                   </div>
                   <p className="mt-0.5 text-[11px] leading-snug text-slate-100">{e.title}</p>
                 </li>)}

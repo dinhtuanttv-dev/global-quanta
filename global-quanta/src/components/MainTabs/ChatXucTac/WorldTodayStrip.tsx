@@ -22,14 +22,14 @@ export default function WorldTodayStrip({ onOpenImpact }: { onOpenImpact: () => 
     <div className="tw-scope rounded-xl p-3 mb-3 space-y-1.5" data-testid="world-today-strip" style={{ background: "var(--q-surface-2)", border: "1px solid var(--q-line-2)" }}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[10px] font-bold uppercase" style={{ color: "var(--text-secondary)" }}>Bối cảnh thế giới hôm nay <span className="font-normal normal-case" style={muted}>· phiên VN {fmtDate(st.vnLast)}</span></p>
-        <button type="button" onClick={onOpenImpact} className="text-[11.5px] font-semibold px-2.5 py-1 rounded whitespace-nowrap" style={{ border: "1px solid var(--q-accent-line)", background: "var(--q-accent-soft)", color: "var(--q-accent-strong)" }}>
+        <button type="button" onClick={onOpenImpact} className="text-[11.5px] font-semibold px-2.5 py-1 rounded whitespace-nowrap" style={{ border: "1px solid var(--q-accent-line)", background: "var(--q-accent-soft)", color: "var(--q-text)" }}>
           Xem tác động ngành & cổ phiếu →
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10.5px]" style={{ color: "var(--text-secondary)", overflowWrap: "anywhere" }}>
         <p style={{ minWidth: 0 }}>
           <span style={muted}>Rủi ro toàn cầu: </span>
-          {st.regime.stressed ? <b style={{ color: "var(--q-accent, #fbbf24)" }}>căng thẳng</b> : <b style={{ color: "var(--text-primary)" }}>bình thường</b>}
+          {st.regime.stressed ? <b style={{ color: "var(--q-warn)" }}>căng thẳng</b> : <b style={{ color: "var(--text-primary)" }}>bình thường</b>}
           {" "}· VIX {st.regime.vix == null ? "—" : st.regime.vix.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} ({fmtZ(st.regime.vixChg, 1)}%)
         </p>
         <p style={{ minWidth: 0 }}>

@@ -45,7 +45,7 @@ function ReactionDetail({ event }: { event: EventRadarEvent }) {
 
   return <div className="min-w-0 flex-1">
     <button type="button" onClick={run} disabled={!symbol || !date || loading}
-      className="rounded border border-cyan-700/60 bg-cyan-950/40 px-2.5 py-1.5 text-[10px] font-semibold text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40">
+      className="rounded border border-white/15 bg-white/5 px-2.5 py-1.5 text-[10px] font-semibold text-q-text disabled:cursor-not-allowed disabled:opacity-40">
       {loading ? "Đang phân tích…" : `Nghiên cứu H1${symbol ? ` · ${symbol}` : ""}`}
     </button>
     {!symbol && <span className="ml-2 text-[10px] text-slate-500">Sự kiện chưa ghép được mã cổ phiếu.</span>}
@@ -74,7 +74,7 @@ function EventCard({ event, onAnalyzeEvent }: { event: EventRadarEvent; onAnalyz
   const accent = event.severityScore >= 4 ? "border-rose-500/50" : event.severityScore >= 3 ? "border-amber-500/40" : "border-white/10";
   return <article className={`rounded-lg border ${accent} bg-slate-950/65 p-3`}>
     <div className="flex flex-wrap items-center gap-1.5">
-      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-cyan-200">{EVENT_LABEL[event.eventType] ?? event.eventLabel}</span>
+      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-q-text">{EVENT_LABEL[event.eventType] ?? event.eventLabel}</span>
       <span className="rounded bg-amber-950/60 px-1.5 py-0.5 text-[10px] text-amber-200">{SEVERITY_LABEL[event.severity] ?? event.severity}</span>
       <span className="text-[10px] text-slate-500">{STATUS_LABEL[event.verificationStatus] ?? event.verificationStatus}</span>
       <span className="ml-auto text-[10px] text-slate-500">Đăng {asOf(event.publishedAt)} · phát hiện {asOf(event.firstSeenAt)}</span>
@@ -86,15 +86,15 @@ function EventCard({ event, onAnalyzeEvent }: { event: EventRadarEvent; onAnalyz
       <span className="text-[10px] text-slate-500">Ghép mã: {Math.round(event.entityConfidence * 100)}% · phiên bản {event.revision}</span>
       {event.usageTermsStatus !== "approved" && <span className="text-[10px] text-amber-300">Điều khoản lưu/trích dẫn: cần rà soát</span>}
       {event.corroborationCount > 1 && <span className="text-[10px] text-emerald-300">{event.corroborationCount} nguồn: {event.corroboratingSources.join(", ")}</span>}
-      {isTrustedUrl(event.url) && <a href={event.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-sky-300 underline">Mở nguồn: {event.sourceLabel}</a>}
+      {isTrustedUrl(event.url) && <a href={event.url!} target="_blank" rel="noopener noreferrer" className="ml-auto text-[10px] text-q-text-2 underline">Mở nguồn: {event.sourceLabel}</a>}
     </div>
     {event.sourceDocuments.length > 1 && <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-white/5 pt-2">
-      {event.sourceDocuments.slice(0, 6).map((source) => isTrustedUrl(source.url) ? <a key={source.eventId} href={source.url!} target="_blank" rel="noopener noreferrer" className="text-[10px] text-sky-300/80 underline">{source.sourceLabel}</a> : null)}
+      {event.sourceDocuments.slice(0, 6).map((source) => isTrustedUrl(source.url) ? <a key={source.eventId} href={source.url!} target="_blank" rel="noopener noreferrer" className="text-[10px] text-q-text-2 underline">{source.sourceLabel}</a> : null)}
     </div>}
     <div className="mt-3 flex flex-wrap items-start gap-2 border-t border-white/10 pt-3">
       <ReactionDetail event={event} />
       {onAnalyzeEvent && event.tickers.length > 0 && <button type="button" onClick={() => onAnalyzeEvent(event)}
-        className="rounded border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200 hover:border-cyan-700/60 hover:text-cyan-200">Phân tích chuyên sâu →</button>}
+        className="rounded border border-white/15 px-2.5 py-1.5 text-[10px] font-semibold text-slate-200 hover:border-white/30 hover:text-q-text">Phân tích chuyên sâu →</button>}
     </div>
   </article>;
 }
@@ -108,11 +108,11 @@ function RadarPlot({ events, selectedId, onSelect }: {
   const xFor = (count: number) => 70 + (Math.min(5, Math.max(1, count)) - 1) * 92;
   const yFor = (level: number) => 206 - (Math.min(4, Math.max(1, level)) - 1) * 48;
   const colorFor = (event: EventRadarEvent) => event.severityScore >= 4 ? "#fb7185" : event.severityScore >= 3 ? "#fbbf24" : event.severityScore >= 2 ? "#22d3ee" : "#94a3b8";
-  return <div className="overflow-hidden rounded-xl border border-cyan-900/50 bg-[#07111f] p-3 shadow-[inset_0_0_42px_rgba(8,145,178,0.08)]">
+  return <div className="overflow-hidden rounded-xl border border-white/15 bg-[#07111f] p-3 shadow-[inset_0_0_42px_rgba(8,145,178,0.08)]">
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div><h3 className="text-xs font-semibold tracking-wide text-slate-100">RADAR 2D · mức chú ý × đối chiếu nguồn</h3>
         <p className="mt-1 text-[10px] leading-relaxed text-slate-400">Định vị heuristic để ưu tiên rà soát; không phải xác suất tác động hay dự báo giá. Chọn điểm để mở sự kiện.</p></div>
-      <span className="rounded border border-cyan-800/60 bg-cyan-950/50 px-2 py-1 text-[10px] text-cyan-200">{plotted.length}/{events.length} sự kiện</span>
+      <span className="rounded border border-white/15 bg-white/5 px-2 py-1 text-[10px] text-q-text">{plotted.length}/{events.length} sự kiện</span>
     </div>
     <div className="mt-3 w-full" role="group" aria-label="Biểu đồ radar sự kiện hai chiều">
       <svg viewBox="0 0 540 250" className="h-auto max-h-[290px] w-full" role="group" aria-labelledby="event-radar-plot-title event-radar-plot-desc">
@@ -146,7 +146,7 @@ function RadarPlot({ events, selectedId, onSelect }: {
     </div>
     <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-slate-400" aria-label="Chú giải mức chú ý">
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-slate-400"/>Theo dõi</span>
-      <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-cyan-400"/>Trọng yếu</span>
+      <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-white/5"/>Trọng yếu</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-amber-400"/>Chú ý cao</span>
       <span><i className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-400"/>Cần xác minh</span>
       <span className="ml-auto">Kích thước = độ mới tương đối</span>
@@ -203,7 +203,7 @@ export default function EventRadarPanel({ onAnalyzeEvent }: { onAnalyzeEvent?: (
       <select aria-label="Lọc loại sự kiện" value={category} onChange={(e) => setCategory(e.target.value)} className="rounded border border-white/10 bg-slate-950 px-2 py-1.5 text-[10px] text-slate-200">
         <option value="">Tất cả nhóm sự kiện</option>{categories.map((key) => <option key={key} value={key}>{EVENT_LABEL[key] ?? key}</option>)}
       </select>
-      {tickerFilter && <button type="button" onClick={() => { setTickerFilter(""); setTickerInput(""); }} className="text-left text-[10px] text-sky-300">Xóa lọc {tickerFilter}</button>}
+      {tickerFilter && <button type="button" onClick={() => { setTickerFilter(""); setTickerInput(""); }} className="text-left text-[10px] text-q-text-2">Xóa lọc {tickerFilter}</button>}
     </div>
 
     {data && <div className="rounded-lg border border-white/5 bg-white/[0.02] p-2.5 text-[10px] text-slate-400">

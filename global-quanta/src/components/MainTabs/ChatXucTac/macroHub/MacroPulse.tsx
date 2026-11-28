@@ -23,7 +23,7 @@ function Tile({ t, l }: { t: PulseTile; l?: MacroLiveSeries }) {
         <span className={t.stale ? "rounded bg-amber-950/60 px-1 text-amber-200" : "text-slate-500"} title={`${t.sub} · tháng đã đóng`}>{t.stale ? `cũ · ${fmtPeriod(t.period)}` : fmtPeriod(t.period)}</span>
       </div>
       {live && <p className="mt-1 flex items-baseline justify-between gap-2 text-[11px] tabular-nums" data-testid={`pulse-live-${t.id}`} title={`${live.source} · so với cuối tháng ${fmtPeriod(live.closedPeriod)}`}>
-        <span className="text-slate-400">Hiện tại <b className="font-mono font-semibold text-q-accent-strong">{fmtValue(live.value, t.digits)}</b> <span className="text-slate-500">· {fmtDay(live.date)}</span></span>
+        <span className="text-slate-400">Hiện tại <b className="font-mono font-semibold text-q-text">{fmtValue(live.value, t.digits)}</b> <span className="text-slate-500">· {fmtDay(live.date)}</span></span>
         <span className="font-mono text-slate-300">{fmtPct(live.vsClosePct)}</span>
       </p>}
       {path && <svg viewBox="0 0 120 32" preserveAspectRatio="none" className="mt-2 h-8 w-full" role="img" aria-label={`${t.label}: ${t.points.length} tháng gần nhất`}>

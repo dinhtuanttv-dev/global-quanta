@@ -50,7 +50,7 @@ function EventRow({ ev }: { ev: UnifiedCalendarEvent }) {
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: accent, letterSpacing: 0.3 }}>{label}</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "var(--q-text-3)" }}>{label}</span>{/* U4: màu loại sự kiện chỉ ở biểu tượng (chuẩn .scan-sig) */}
           {isUrgent && ev.daysRemaining > 0 && (
             <span style={{ fontSize: 10, fontWeight: 700, color: "var(--warning, #f59e0b)", background: "color-mix(in srgb, var(--warning, #f59e0b) 15%, transparent)", padding: "1px 5px", borderRadius: 4 }}>
               SẮP TỚI

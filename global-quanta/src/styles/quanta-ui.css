@@ -67,6 +67,15 @@
 .q-subtab[aria-selected="true"] { color: var(--q-text); font-weight: 600; border-bottom-color: var(--q-accent); }
 .q-subtab:focus-visible { outline: 2px solid var(--q-accent); outline-offset: -2px; border-radius: 4px; }
 @media (max-width: 640px) { .q-subtab { flex: 1 1 0; justify-content: center; padding: 0 8px; } }
+/* Số đếm trong tab con (= .ov-badge Tổng quan). */
+.q-subtab-badge { font-family: var(--q-font-mono); font-size: 11px; font-weight: 500; color: var(--q-text-3); padding: 1px 6px; border-radius: 4px; background: var(--q-surface-2); }
+.q-subtab[aria-selected="true"] .q-subtab-badge { color: var(--q-text-2); background: var(--q-surface-3); }
+/* Nút phân đoạn (mục con trong một tab con) — sao đúng .scan-seg của Tổng quan: chữ xám; đang chọn nền surface-3 + chữ trắng + vạch xanh 2px. */
+.q-seg { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 2px; border: 1px solid var(--q-line-2); border-radius: 7px; background: var(--q-bg); align-self: flex-start; }
+.q-seg > button { height: 28px; padding: 0 11px; border: 0; border-radius: 5px; background: transparent; font-family: var(--q-font-sans); font-size: 13px; font-weight: 500; color: var(--q-text-3); white-space: nowrap; cursor: pointer; transition: background-color 0.15s, color 0.15s, box-shadow 0.15s; }
+.q-seg > button:hover { color: var(--q-text); }
+.q-seg > button[aria-selected="true"], .q-seg > button[aria-pressed="true"] { background: var(--q-surface-3); color: var(--q-text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--q-accent); }
+.q-seg > button:focus-visible { outline: 2px solid var(--q-accent); outline-offset: -2px; }
 
 /* ───────────────────────── QUANTA UI v2 — U0 (28/11/2026, docs/quanta-ui-v2) ─────────────────────────
    CHỈ THÊM token / lớp; chưa áp vào thành phần nào -> không đổi hiển thị. Các bước U1–U9 sẽ dùng chúng. */
