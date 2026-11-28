@@ -6,7 +6,7 @@ import type {
 } from "lightweight-charts-v5";
 import type { CanvasRenderingTarget2D } from "fancy-canvas";
 import { chartTime } from "./time";
-import { EMPTY_SCENE, placeLabels, rgba as rgbaOf, type LabelBox, type Scene, type SceneItem, type SceneLabel, type ScenePoint } from "./scene";
+import { EMPTY_SCENE, NOTE_FONT_PX, placeLabels, rgba as rgbaOf, type LabelBox, type Scene, type SceneItem, type SceneLabel, type ScenePoint } from "./scene";
 import { controlThrough, cycleXs, distPt, rotRectCorners, sampleCubic, sampleQuad, sineY, type XY } from "../drawing/geometry";
 
 export const toTime = chartTime;
@@ -162,6 +162,17 @@ class Renderer implements IPrimitivePaneRenderer {
         for (let x = 0; x <= W; x += 2) { const y = sineY(A, B, x); if (x) ctx.lineTo(x, y); else ctx.moveTo(x, y); }
         ctx.stroke();
       }
+    } else if (it.kind === "note") {
+      // TA-T8: ghi chú chữ của người dùng — 12px, nền tối, luôn vẽ (không bị lược như nhãn 9px).
+      const x = o.x(it.t), y0 = o.y(it.price);
+      if (x === null || y0 === null) return;
+      const y = y0 + (it.dy ?? 0);
+      ctx.font = `500 ${NOTE_FONT_PX}px 'IBM Plex Sans', system-ui, sans-serif`;
+      const w = ctx.measureText(it.text).width;
+      dash([]); ctx.fillStyle = "rgba(10,14,23,0.78)";
+      ctx.fillRect(x - 4, y - NOTE_FONT_PX - 1, w + 8, NOTE_FONT_PX + 6);
+      ctx.fillStyle = it.color; ctx.fillText(it.text, x, y);
+      ctx.font = FONT;
     } else if (it.kind === "glyph") {
       const x = o.x(it.t), y = o.y(it.price);
       if (x === null || y === null) return;

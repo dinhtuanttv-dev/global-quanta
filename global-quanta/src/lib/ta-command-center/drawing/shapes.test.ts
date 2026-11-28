@@ -37,7 +37,7 @@ describe("TA-T6a — hình vẽ chung", () => {
     expect(kinds("measure", [P(1, 100), P(11, 110)])).toEqual(["zone", "text"]);
     expect(kinds("long", [P(1, 100), P(5, 110), P(5, 95)])).toEqual(["zone", "zone", "hline", "text", "text"]);
     expect(kinds("arrow", [P(1, 100), P(3, 105)])).toEqual(["segment"]);
-    expect(kinds("text", [P(2, 100)], "Vùng mua")).toEqual(["text"]);
+    expect(kinds("text", [P(2, 100)], "Vùng mua")).toEqual(["note"]); // TA-T8: ghi chú 12px luôn hiện
     // nhãn đo: chênh giá + % + số nến
     const t = shapeScene("measure", [P(1, 100), P(11, 110)], undefined, { bars }).find((x) => x.kind === "text");
     expect(t && t.kind === "text" ? t.label.text : "").toBe("+10,00 (+10,00%) · 10 nến");

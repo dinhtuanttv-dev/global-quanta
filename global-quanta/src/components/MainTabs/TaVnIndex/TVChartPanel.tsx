@@ -22,7 +22,7 @@ import ObjectList from "./workspace/ObjectList";
 import CommandPalette, { ShortcutsDialog, type Command } from "./workspace/CommandPalette";
 import ChartLegend from "./workspace/ChartLegend";
 import IndicatorPicker, { CATALOG } from "./workspace/IndicatorPicker";
-import { SHAPE_GROUPS, SHAPE_KINDS, SHAPE_SPEC, type ShapeKind } from "../../../lib/ta-command-center/drawing/shapes";
+import { NOTE_DY, SHAPE_GROUPS, SHAPE_KINDS, SHAPE_SPEC, TEXT_KINDS, type ShapeKind } from "../../../lib/ta-command-center/drawing/shapes";
 import { ArrowRight, ArrowUpRight, Eye, EyeOff, Lock, LockOpen, Minus, MoveDiagonal, Rows3, Ruler, Type as TypeIcon, CandlestickChart, Calendar, MoveHorizontal,
   Waypoints, Brush, Highlighter, Circle, Triangle, Spline, ArrowBigUp, ArrowBigDown, Repeat, Hexagon, RectangleHorizontal, Route, ChartNetwork, GitCommitHorizontal, CircleDashed, MoveUpRight } from "lucide-react";
 import InspectorOverview from "./workspace/InspectorOverview";
@@ -184,6 +184,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   // TA-T6a: công cụ hình chung đang chọn + bản nháp (các điểm đã bấm + điểm theo con trỏ) + menu chuột phải.
   const [activeShape, setActiveShape] = useState<ShapeKind | null>(null);
   const shapeDragRef = useRef<number | null>(null);
+  // TA-T8: ô gõ chữ đang mở (id null = chữ mới) — toạ độ màn hình của điểm neo.
+  const [textEdit, setTextEdit] = useState<{ id: string | null; kind: ShapeKind; point: DomainPoint; value: string; left: number; top: number } | null>(null);
   const [shapeDraft, setShapeDraft] = useState<{ kind: ShapeKind; points: DomainPoint[]; hover: DomainPoint | null } | null>(null);
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; point: DomainPoint | null } | null>(null);
   useEffect(() => {
@@ -921,14 +923,14 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       const pt = toDomain(e);
       if (!pt) return;
       e.preventDefault();
-      let text: string | undefined;
-      if (activeShape === "text") { text = window.prompt("Nội dung chữ trên biểu đồ:", "") ?? undefined; if (!text?.trim()) { setActiveShape(null); return; } }
+      // TA-T8: công cụ Chữ — mở ô gõ ngay tại chỗ bấm (thay hộp thoại window.prompt); Enter / bấm ra ngoài = xong, Esc = huỷ.
+      if (activeShape === "text") { setActiveShape(null); openTextEditor(null, "text", pt, "", e.clientX, e.clientY); return; }
       // TA-T6b: cọ vẽ / bút dạ quang — giữ con trỏ, thêm điểm theo đường kéo, nhả chuột là xong.
       if (SHAPE_SPEC[activeShape].mode === "drag") {
         shapeDragRef.current = e.pointerId;
         try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* không bắt được con trỏ */ }
       }
-      const made = controller.drawing.addShapePoint(activeShape, pt, text);
+      const made = controller.drawing.addShapePoint(activeShape, pt);
       if (made) { setActiveShape(null); setSelectedId(made.id); }
       return;
     }
@@ -957,6 +959,34 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (drawingPointerRef.current !== e.pointerId) return;
     const point = toDomain(e);
     if (point) controllerRef.current?.drawing.updateDraw(point);
+  };
+  // ---- TA-T8: ô gõ chữ ngay trên chart (tạo chữ mới / sửa chữ của Chữ, Dấu mũi tên, Mũi tên lên / xuống) ----
+  const openTextEditor = (id: string | null, kind: ShapeKind, point: DomainPoint, value: string, clientX: number, clientY: number) => {
+    setCtxMenu(null);
+    // Mở sau chuỗi sự kiện chuột hiện tại: nếu không, mousedown mặc định đưa focus về khung chart làm ô gõ mất focus và đóng ngay.
+    setTimeout(() => setTextEdit({ id, kind, point, value, left: clientX, top: clientY }), 0);
+  };
+  /** Mở ô sửa đặt đúng chỗ chữ đang vẽ (điểm neo + lệch dọc của ghi chú). */
+  const editShapeText = (id: string) => {
+    const p = primitives.find((x) => x.id === id), tv = tvManagerRef.current, el = chartContainerRef.current;
+    if (!p || p.toolType !== "shape" || !TEXT_KINDS.has(p.kind) || p.locked || !tv || !el) return false;
+    const px = tv.domainToPixel(p.points[0].date, p.points[0].price);
+    if (!px) return false;
+    const r = el.getBoundingClientRect();
+    openTextEditor(id, p.kind, p.points[0], p.text ?? "", r.left + px.x, r.top + px.y + (NOTE_DY[p.kind] ?? 0));
+    return true;
+  };
+  const commitText = (cancel = false) => {
+    const t = textEdit;
+    if (!t) return;
+    setTextEdit(null);
+    const ctl = controllerRef.current, v = t.value.trim().slice(0, 200);
+    if (cancel || !ctl) return;
+    if (t.id == null) { if (v) { const made = ctl.drawing.createShape("text", [t.point], v); setSelectedId(made.id); } return; }
+    const cur = primitives.find((x) => x.id === t.id);
+    // Sửa: xoá hết chữ của công cụ Chữ = giữ chữ cũ (xoá hình bằng Delete); mũi tên được phép bỏ chữ.
+    if (!cur || cur.toolType !== "shape" || (cur.text ?? "") === v || (!v && t.kind === "text")) return;
+    ctl.drawing.updatePrimitive(t.id, { text: v || undefined });
   };
   // TA-T6b: kết thúc hình kéo tay / bấm nhiều điểm -> chọn hình vừa vẽ, trả về con trỏ thường (như TradingView).
   const finishShape = () => {
@@ -1446,11 +1476,27 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             {ctxMenu.point && <button type="button" role="menuitem" onClick={() => { ctlNow()?.drawing.createShape("hline", [ctxMenu.point!]); setCtxMenu(null); }}>Đường ngang tại {viPrice(ctxMenu.point.price, priceDigits)}</button>}
             <button type="button" role="menuitem" onClick={() => { setRangeId("all"); tvManagerRef.current?.fit(); setCtxMenu(null); }}>Vừa khung toàn bộ dữ liệu</button>
             <button type="button" role="menuitem" onClick={() => { tvManagerRef.current?.goToEnd(); setCtxMenu(null); }}>Về nến mới nhất</button>
+            {selected && selected.toolType === "shape" && TEXT_KINDS.has(selected.kind) && !selected.locked && (
+              <button type="button" role="menuitem" data-testid="ctx-edit-text" onClick={() => editShapeText(selected.id)}>Sửa chữ…</button>
+            )}
             {selectedId && <button type="button" role="menuitem" onClick={() => { deleteSelected(); setCtxMenu(null); }}>Xoá hình đang chọn</button>}
             {primitives.length > 0 && <button type="button" role="menuitem" onClick={() => { ctlNow()?.drawing.setAll({ hidden: !allHidden }); setCtxMenu(null); }}>{allHidden ? "Hiện" : "Ẩn"} tất cả hình vẽ</button>}
             {primitives.length > 0 && <button type="button" role="menuitem" onClick={() => { ctlNow()?.drawing.setAll({ locked: !allLocked }); setCtxMenu(null); }}>{allLocked ? "Mở khoá" : "Khoá"} tất cả hình vẽ</button>}
             <button type="button" role="menuitem" onClick={() => { setCtxMenu(null); setPickerFocus(null); setPickerOpen(true); }}>Mở hộp Chỉ báo…</button>
           </div>
+        )}
+        {/* TA-T8: ô gõ chữ ngay trên chart, đặt tại điểm neo (cố định theo màn hình; cuộn / đổi khung thì tự lưu). */}
+        {textEdit && (
+          <input
+            type="text" autoFocus maxLength={200} className="ws-text-edit" data-testid="chart-text-input"
+            aria-label={textEdit.id ? "Sửa chữ trên biểu đồ" : "Chữ trên biểu đồ"} placeholder="Gõ chữ — Enter để xong, Esc để huỷ"
+            style={{ left: textEdit.left - 4, top: textEdit.top - 19, width: Math.min(560, Math.max(180, textEdit.value.length * 7.6 + 28)) }}
+            value={textEdit.value}
+            onChange={(e) => setTextEdit({ ...textEdit, value: e.target.value })}
+            onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); commitText(); } if (e.key === "Escape") { e.preventDefault(); commitText(true); } }}
+            onBlur={() => commitText()}
+            onPointerDown={(e) => e.stopPropagation()}
+          />
         )}
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
           <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${layerState?.stoch}${layerState?.stochRsi}${layerState?.atr}${layerState?.obv}${layerState?.mfi}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
@@ -1522,7 +1568,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
                   && <button type="button" className="underline" data-testid="shape-finish" onClick={finishShape}>Xong (Enter)</button>}{" "}<button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelShapeDraft(); setActiveShape(null); }}>Huỷ (Esc)</button></>
                 : activeTool ? <>Đang vẽ {TOOLS.find((t) => t.id === activeTool)?.label} — {activeTool === "fibTimeZone" ? "bấm một điểm" : "kéo trên biểu đồ (chạm giữ rồi kéo trên điện thoại)"}</>
                 : countEditing && countPlacing != null ? <>Bấm lên biểu đồ để đặt điểm sóng</>
-                : selected ? <>{selected.locked ? "Đã khoá — mở khoá ở Đối tượng để sửa" : "Kéo điểm neo để sửa · kéo thân để dời · Delete để xoá"}</> : null}
+                : selected ? <>{selected.locked ? "Đã khoá — mở khoá ở Đối tượng để sửa" : `Kéo điểm neo để sửa · kéo thân để dời · Delete để xoá${selected.toolType === "shape" && TEXT_KINDS.has(selected.kind) ? " · bấm đúp để sửa chữ" : ""}`}</> : null}
               {activeTool && <button type="button" className="underline" onClick={() => { controllerRef.current?.drawing.cancelDraw(); setActiveTool(null); }}>Huỷ (Esc)</button>}
               {selected && !activeTool && !activeShape && <button type="button" className="underline" onClick={() => setSelectedId(null)}>Bỏ chọn</button>}
             </div>
@@ -1539,7 +1585,16 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerCancel}
-            onDoubleClick={() => { if (activeShape && SHAPE_SPEC[activeShape].mode === "multi") finishShape(); }}
+            onDoubleClick={(e) => {
+              if (activeShape && SHAPE_SPEC[activeShape].mode === "multi") { finishShape(); return; }
+              // TA-T8: bấm đúp vào chữ / dấu mũi tên -> sửa chữ ngay tại chỗ.
+              if (activeShape || activeTool) return;
+              const tv = tvManagerRef.current, el = chartContainerRef.current;
+              if (!tv || !el) return;
+              const r = el.getBoundingClientRect();
+              const hit = hitTest(primitives, { x: e.clientX - r.left, y: e.clientY - r.top }, (q) => tv.domainToPixel(q.date, q.price), { tol: 7, height: tv.pricePaneSize().height });
+              if (hit && editShapeText(hit.id)) e.preventDefault();
+            }}
             onContextMenu={(e) => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, point: toDomain(e as unknown as React.PointerEvent) }); }}
             style={{
               background: "rgba(2,6,15,0.6)", border: "1px solid rgba(148,163,184,0.1)", height: "100%",
