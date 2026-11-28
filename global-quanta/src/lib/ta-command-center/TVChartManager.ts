@@ -4,7 +4,7 @@
 // GHIM VÀO NẾN: mọi chỉ báo là series / marker / primitive của thư viện -> kéo chuột, cuộn, zoom, bàn phím đều di chuyển
 // cùng nến (không có lớp DOM/SVG nào tự tính pixel ngoài thư viện).
 import {
-  createChart, createSeriesMarkers, BaselineSeries, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, type TickMarkType,
+  createChart, createSeriesMarkers, AreaSeries, BarSeries, BaselineSeries, CandlestickSeries, CrosshairMode, HistogramSeries, LineSeries, LineStyle, PriceScaleMode, type TickMarkType,
   type IChartApi, type IPriceLine, type ISeriesApi, type ISeriesMarkersPluginApi, type MouseEventParams, type SeriesMarker, type Time,
 } from "lightweight-charts-v5";
 import type { OhlcvBar } from "./types";
@@ -13,6 +13,14 @@ import { chartTime } from "./chart/time";
 import { GQ_COLORS, rgba, type Scene } from "./chart/scene";
 import { PRICE_FMT, VOLUME_FMT, priceDigitsFor, viCrosshairTime, viPrice, viTickMark } from "./chart/viFormat";
 import { CANDLE_DOWN, CANDLE_UP, TV_STYLE, macdHistColor, volumeColor } from "./chart/indicatorStyle";
+import { heikinAshi } from "./chart/heikinAshi";
+
+/** TA-T3: kiểu biểu đồ như TradingView. "candle" = mặc định (giữ nguyên hành vi cũ). */
+export type ChartType = "candle" | "hollow" | "heikin" | "bar" | "line" | "area" | "baseline";
+/** TA-T3: chế độ thang giá của pane giá. */
+export type ScaleMode = "normal" | "log" | "percent" | "indexed";
+const CLEAR = "rgba(0,0,0,0)";
+const LINE_BLUE = "#2962FF"; // màu đường / vùng mặc định TradingView
 
 /** Ngày hoặc ISO (intraday) -> thời gian trục — dùng chung với lớp phủ (chart/time.ts). */
 export const toTime = chartTime;
@@ -68,6 +76,12 @@ export class TVChartManager {
   private container: HTMLElement;
   /** TA-T1: khung trong ngày -> nhãn crosshair có giờ. */
   private intraday = false;
+  /** TA-T3: kiểu biểu đồ, series vẽ thay nến (null khi kiểu nến / nến rỗng), thang giá, KL chồng lên giá. */
+  private chartType: ChartType = "candle";
+  private display: ISeriesApi<"Candlestick"> | ISeriesApi<"Bar"> | ISeriesApi<"Line"> | ISeriesApi<"Area"> | ISeriesApi<"Baseline"> | null = null;
+  private scaleMode: ScaleMode = "normal";
+  private inverted = false;
+  private volumeOverlay = false;
   /** TA-T1: số chữ số thập phân của giá theo mã (cổ phiếu 0, chỉ số 2) — dùng cho nến + đường phủ giá. */
   private priceDigits: 0 | 2 = 2;
   private readonly pricePf = { type: "custom" as const, formatter: (p: number) => viPrice(p, this.priceDigits), minMove: 0.01 };
@@ -150,7 +164,7 @@ export class TVChartManager {
   /** Danh sách pane hiện có: loại, vị trí đỉnh và chiều cao (px trong khung biểu đồ). */
   paneLayout(): PaneInfo[] {
     const owners: [PaneKind, ISeriesApi<never> | null | undefined][] = [
-      ["volume", this.volumeSeries as never], ["rsi", this.rsiSeries as never], ["flow", this.flowSeries?.delta as never],
+      ["volume", (this.volumeOverlay ? null : this.volumeSeries) as never], ["rsi", this.rsiSeries as never], ["flow", this.flowSeries?.delta as never],
       ["foreign", this.foreignSeries?.net as never], ["eosc", this.elliottOscSeries?.osc as never],
       ["macd", this.macdSeries?.hist as never], ["adx", this.adxSeries?.adx as never],
     ];
@@ -196,6 +210,7 @@ export class TVChartManager {
         this.volumeSeries?.update(this.volumePoint(b));
       }
       if (n > m) this.overlay.setDates(bars.map((b) => b.date));
+      this.fillDisplay(true, m - 1);
       if (rsi) this.setRsi(rsi);
       this.paintLast();
       return;
@@ -216,6 +231,7 @@ export class TVChartManager {
     this.barIndexByTime = new Map(bars.map((b, i) => [String(toTime(b.date)), i]));
     this.overlay.setDates(bars.map((b) => b.date));
     this.candleSeries.setData(bars.map((b) => ({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close })));
+    this.fillDisplay(false);
     this.fillVolume();
     if (rsi) this.setRsi(rsi);
     this.paintLast();
@@ -244,6 +260,7 @@ export class TVChartManager {
   private paintLast(): void {
     const b = this.currentBars[this.currentBars.length - 1];
     if (!b) return;
+    if (this.display) { this.candleSeries.update({ time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close, color: CLEAR, borderColor: CLEAR, wickColor: CLEAR }); return; }
     const c = b.close >= b.open ? CANDLE_UP : CANDLE_DOWN;
     this.candleSeries.update(this.formingLast
       ? { time: toTime(b.date), open: b.open, high: b.high, low: b.low, close: b.close, color: "rgba(0,0,0,0)", borderColor: c, wickColor: c }
@@ -253,7 +270,11 @@ export class TVChartManager {
   /** Pane khối lượng — chỉ tồn tại khi người dùng bật lớp "Khối lượng". */
   setVolumeVisible(on: boolean): void {
     if (on && !this.volumeSeries) {
-      this.volumeSeries = this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceLineVisible: false, lastValueVisible: false }, this.chart.panes().length);
+      this.volumeSeries = this.volumeOverlay
+        // TA-T3 (Q3): KL chồng ở đáy pane giá (20% chiều cao) như TradingView — thang riêng, ẩn.
+        ? this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceScaleId: "vol", priceLineVisible: false, lastValueVisible: false }, 0)
+        : this.chart.addSeries(HistogramSeries, { priceFormat: VOLUME_FMT, priceLineVisible: false, lastValueVisible: false }, this.chart.panes().length);
+      if (this.volumeOverlay) this.volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.8, bottom: 0 }, visible: false });
       this.fillVolume();
     } else if (!on && this.volumeSeries) {
       this.chart.removeSeries(this.volumeSeries); // pane rỗng tự bị xoá (v5)
@@ -543,6 +564,64 @@ export class TVChartManager {
     this.rightOffset = bars;
     this.chart.applyOptions({ timeScale: { rightOffset: bars } });
     if (!atRight && r) ts.setVisibleLogicalRange(r);
+  }
+
+  // ---- TA-T3: kiểu biểu đồ · thang giá · KL chồng lên giá ----
+  /** Đổi kiểu biểu đồ. Nến gốc luôn giữ dữ liệu thật (chủ của lớp phủ, marker, crosshair); kiểu khác nến vẽ bằng series riêng. */
+  setChartType(t: ChartType): void {
+    if (t === this.chartType) return;
+    this.chartType = t;
+    if (this.display) { this.chart.removeSeries(this.display); this.display = null; }
+    const hidden = t !== "candle" && t !== "hollow";
+    this.candleSeries.applyOptions(hidden
+      ? { upColor: CLEAR, downColor: CLEAR, borderUpColor: CLEAR, borderDownColor: CLEAR, wickUpColor: CLEAR, wickDownColor: CLEAR }
+      : { upColor: t === "hollow" ? CLEAR : CANDLE_UP, downColor: CANDLE_DOWN, borderUpColor: CANDLE_UP, borderDownColor: CANDLE_DOWN, wickUpColor: CANDLE_UP, wickDownColor: CANDLE_DOWN });
+    const base = { priceFormat: this.pricePf, priceLineVisible: false, lastValueVisible: false };
+    if (t === "heikin") this.display = this.chart.addSeries(CandlestickSeries, { ...base, upColor: CANDLE_UP, downColor: CANDLE_DOWN, borderUpColor: CANDLE_UP, borderDownColor: CANDLE_DOWN, wickUpColor: CANDLE_UP, wickDownColor: CANDLE_DOWN }, 0);
+    else if (t === "bar") this.display = this.chart.addSeries(BarSeries, { ...base, upColor: CANDLE_UP, downColor: CANDLE_DOWN, thinBars: false }, 0);
+    else if (t === "line") this.display = this.chart.addSeries(LineSeries, { ...base, color: LINE_BLUE, lineWidth: 2 }, 0);
+    else if (t === "area") this.display = this.chart.addSeries(AreaSeries, { ...base, lineColor: LINE_BLUE, topColor: "rgba(41,98,255,0.28)", bottomColor: "rgba(41,98,255,0.04)", lineWidth: 2 }, 0);
+    else if (t === "baseline") this.display = this.chart.addSeries(BaselineSeries, { ...base, topLineColor: CANDLE_UP, bottomLineColor: CANDLE_DOWN,
+      topFillColor1: "rgba(52,211,153,0.28)", topFillColor2: "rgba(52,211,153,0.04)", bottomFillColor1: "rgba(251,113,133,0.04)", bottomFillColor2: "rgba(251,113,133,0.28)", lineWidth: 2 }, 0);
+    this.fillDisplay(false);
+    this.paintLast();
+    this.container.dataset.chartType = t;
+  }
+  getChartType(): ChartType { return this.chartType; }
+  /** Nạp dữ liệu cho series hiển thị (đủ, hoặc chỉ từ nến `from` khi nến đang chạy). */
+  private fillDisplay(tail: boolean, from = 0): void {
+    const d = this.display, bars = this.currentBars;
+    if (!d || !bars.length) return;
+    const t = this.chartType;
+    const ha = t === "heikin" ? heikinAshi(bars) : null;
+    const point = (i: number) => {
+      const b = bars[i], time = toTime(b.date);
+      if (t === "heikin") return { time, ...ha![i] };
+      if (t === "bar") return { time, open: b.open, high: b.high, low: b.low, close: b.close };
+      return { time, value: b.close };
+    };
+    if (t === "baseline") {
+      // Đường nền 50% như TradingView: giữa đáy thấp nhất và đỉnh cao nhất của dữ liệu.
+      let hi = -Infinity, lo = Infinity;
+      for (const b of bars) { if (b.high > hi) hi = b.high; if (b.low < lo) lo = b.low; }
+      (d as ISeriesApi<"Baseline">).applyOptions({ baseValue: { type: "price", price: (hi + lo) / 2 } });
+    }
+    if (tail) { for (let i = Math.max(0, from); i < bars.length; i++) (d as ISeriesApi<"Line">).update(point(i) as never); return; }
+    (d as ISeriesApi<"Line">).setData(bars.map((_, i) => point(i)) as never);
+  }
+  /** Thang giá của pane giá: thường · log · % · chỉ số 100; tuỳ chọn đảo ngược. */
+  setScaleMode(mode: ScaleMode, inverted = this.inverted): void {
+    this.scaleMode = mode; this.inverted = inverted;
+    const m = mode === "log" ? PriceScaleMode.Logarithmic : mode === "percent" ? PriceScaleMode.Percentage : mode === "indexed" ? PriceScaleMode.IndexedTo100 : PriceScaleMode.Normal;
+    this.candleSeries.priceScale().applyOptions({ mode: m, invertScale: inverted });
+    this.container.dataset.scaleMode = mode;
+  }
+  getScaleMode(): { mode: ScaleMode; inverted: boolean } { return { mode: this.scaleMode, inverted: this.inverted }; }
+  /** Q3: KL chồng ở đáy pane giá (true) hay pane riêng (false). Có hiệu lực ngay nếu lớp KL đang bật. */
+  setVolumeOverlay(on: boolean): void {
+    if (on === this.volumeOverlay) return;
+    this.volumeOverlay = on;
+    if (this.volumeSeries) { this.setVolumeVisible(false); this.setVolumeVisible(true); }
   }
 
   /** Khung intraday: hiện giờ:phút trên trục thời gian. */

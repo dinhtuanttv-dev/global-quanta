@@ -14,7 +14,9 @@ import {
 } from "lucide-react";
 import "./workspace/workspace.css";
 import { useCloudState, useWorkspace, workspaceStore } from "./workspace/workspaceStore";
-import { PRESETS, fullLayers, layersToSave, matchPreset, presetLayers, rangeBars, rangesFor, type DockTab, type RangeId } from "./workspace/workspaceModel";
+import { PRESETS, RANGE_TITLE, fullLayers, layersToSave, matchPreset, presetLayers, rangeBars, rangesFor, type DockTab, type RangeId } from "./workspace/workspaceModel";
+import ChartTypeMenu from "./workspace/ChartTypeMenu";
+import { useChartPrefs } from "./workspace/chartPrefs";
 import LayerMenu, { LAYER_GROUPS, LAYER_LABEL } from "./workspace/LayerMenu";
 import ObjectList from "./workspace/ObjectList";
 import CommandPalette, { ShortcutsDialog, type Command } from "./workspace/CommandPalette";
@@ -209,6 +211,15 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   const [mobileDockOpen, setMobileDockOpen] = useState(false);
   const [elliottTabReq, setElliottTabReq] = useState<{ tab: string; n: number } | null>(null);
   const [tvApi, setTvApi] = useState<TVChartManager | null>(null);
+  // TA-T3: kiểu biểu đồ · thang giá · KL chồng lên giá (Q3) — áp lại mỗi khi chart được dựng lại (đổi mã / khung).
+  const [chartPrefs, setChartPrefs] = useChartPrefs();
+  useEffect(() => {
+    if (!tvApi) return;
+    tvApi.setVolumeOverlay(chartPrefs.volOverlay);
+    tvApi.setChartType(chartPrefs.type);
+    tvApi.setScaleMode(chartPrefs.scale, chartPrefs.inverted);
+  }, [tvApi, chartPrefs]);
+  const toggleScale = (m: "log" | "percent" | "indexed") => setChartPrefs({ scale: chartPrefs.scale === m ? "normal" : m });
   const dragRef = useRef<{ id: string; part: HitPart; start: DomainPoint; orig: DrawnPrimitive; pointerId: number; moved: boolean } | null>(null);
   const layersRestoredRef = useRef(false);
   const dockRef = useRef<HTMLElement>(null);
@@ -931,7 +942,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (document.fullscreenElement) void document.exitFullscreen?.();
     else void el.requestFullscreen?.().catch(() => toasts.push("Trình duyệt không cho bật toàn màn hình."));
   };
-  const setRange = (id: RangeId) => { setRangeId(id); tvManagerRef.current?.showLast(rangeBars(timeframe, id)); };
+  const setRange = (id: RangeId) => { setRangeId(id); tvManagerRef.current?.showLast(rangeBars(timeframe, id, currentBars)); };
   const startCountEditFromToolbar = () => { openDock("elliott"); setElliottTabReq({ tab: "mine", n: Date.now() }); if (!countEditing) startCountEdit(); setSheet(null); };
   const savePaneStretch = () => {
     const tv = tvManagerRef.current;
@@ -1261,11 +1272,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         )}
         <TimeframeSelector compact current={pendingTf ?? timeframe} onChange={handleTimeframeChange} minIntraday={minIntraday}
           loadingIntraday={intraday.isLoading} intradayError={intraday.error} intradaySessions={intraday.sessions.length} />
-        {!isMobile && <div className="ws-group" role="group" aria-label="Khoảng nhìn">
-          {rangesFor(timeframe).map((r) => (
-            <button key={r.id} type="button" className="ws-btn ws-btn-sm" aria-pressed={rangeId === r.id} data-range={r.id} onClick={() => setRange(r.id)} title={`Xem ${r.label} gần nhất`}>{r.label}</button>
-          ))}
-        </div>}
+        {/* TA-T3: kiểu biểu đồ cạnh khung thời gian (như TradingView); khoảng nhìn chuyển xuống dưới trục thời gian. */}
+        <ChartTypeMenu type={chartPrefs.type} volOverlay={chartPrefs.volOverlay} onType={(type) => setChartPrefs({ type })} onVolOverlay={(volOverlay) => setChartPrefs({ volOverlay })} />
         {dataChip}
         {!isMobile && rightTools}
         <span className="sr-only" data-testid="price-basis">{dataContext?.label} · {bars.length} phiên</span>
@@ -1294,7 +1302,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {forming && (
@@ -1377,10 +1385,24 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         </div>
         {inspectorMode === "docked" && inspector("docked")}
       </div>
-      {/* TA-T1: ghi công TradingView (giấy phép Lightweight Charts) đặt dưới chart thay logo vẽ đè lên pane chỉ báo. */}
-      <p className="ws-attribution" data-testid="tv-attribution">
-        Biểu đồ: <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>
-      </p>
+      {/* TA-T3: thanh dưới chart như TradingView — khoảng nhìn (trái) · thang giá % / log / 100 / Đảo (phải) · ghi công TradingView (TA-T1). */}
+      <div className="ws-footbar" data-testid="ws-footbar">
+        {!isMobile && <div className="ws-group" role="group" aria-label="Khoảng nhìn">
+          {rangesFor(timeframe).map((r) => (
+            <button key={r.id} type="button" className="ws-btn ws-btn-sm" aria-pressed={rangeId === r.id} data-range={r.id} onClick={() => setRange(r.id)} title={`Xem ${RANGE_TITLE[r.id]}`}>{r.label}</button>
+          ))}
+        </div>}
+        <span className="ml-auto" />
+        <div className="ws-group" role="group" aria-label="Thang giá">
+          <button type="button" className="ws-btn ws-btn-sm" aria-pressed={chartPrefs.scale === "percent"} data-testid="scale-percent" onClick={() => toggleScale("percent")} title="Thang phần trăm (so với nến đầu khung nhìn)">%</button>
+          <button type="button" className="ws-btn ws-btn-sm" aria-pressed={chartPrefs.scale === "log"} data-testid="scale-log" onClick={() => toggleScale("log")} title="Thang logarit — nên dùng khi xem nhiều năm">log</button>
+          <button type="button" className="ws-btn ws-btn-sm" aria-pressed={chartPrefs.scale === "indexed"} data-testid="scale-indexed" onClick={() => toggleScale("indexed")} title="Chỉ số hoá về 100 tại nến đầu khung nhìn">100</button>
+          <button type="button" className="ws-btn ws-btn-sm" aria-pressed={chartPrefs.inverted} data-testid="scale-invert" onClick={() => setChartPrefs({ inverted: !chartPrefs.inverted })} title="Đảo ngược thang giá">Đảo</button>
+        </div>
+        <p className="ws-attribution" data-testid="tv-attribution">
+          Biểu đồ: <a href="https://www.tradingview.com/" target="_blank" rel="noopener noreferrer">TradingView Lightweight Charts™</a>
+        </p>
+      </div>
 
       {/* 4. Di động: thanh hành động dưới chart -> bảng trượt */}
       {isMobile && (
@@ -1453,7 +1475,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
             <button type="button" className="ws-btn" onClick={exportPng} data-testid="png-btn"><Camera className="w-3.5 h-3.5" />Ảnh PNG</button>
             <button type="button" className="ws-btn" onClick={() => { setSheet(null); setPaletteOpen(true); }}><CommandIcon className="w-3.5 h-3.5" />Bảng lệnh</button>
           </div>
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Khoảng nhìn">{rangesFor(timeframe).map((r) => <button key={r.id} type="button" className="ws-btn" aria-pressed={rangeId === r.id} data-range={r.id} onClick={() => { setRange(r.id); setSheet(null); }}>{r.label}</button>)}</div>
+          <div className="flex flex-wrap gap-1" role="group" aria-label="Khoảng nhìn">{rangesFor(timeframe).map((r) => <button key={r.id} type="button" className="ws-btn" aria-pressed={rangeId === r.id} data-range={r.id} title={`Xem ${RANGE_TITLE[r.id]}`} onClick={() => { setRange(r.id); setSheet(null); }}>{r.label}</button>)}</div>
           <div className="flex flex-wrap gap-1">{PRESETS.map((p) => <button key={p.id} type="button" className="ws-btn" aria-pressed={ws.preset === p.id} data-preset={p.id} onClick={() => { applyPreset(p.id); setSheet(null); }}>{p.label}</button>)}</div>
           <div className="flex flex-wrap gap-1">
             <button type="button" className="ws-btn" onClick={() => { saveMine(); }}>Lưu làm bố cục của tôi</button>

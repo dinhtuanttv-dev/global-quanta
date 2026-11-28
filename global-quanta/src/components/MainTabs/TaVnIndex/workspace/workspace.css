@@ -139,3 +139,21 @@
 .ws-head .ta-ticker-input { width: 124px; padding: 5px 8px; }
 .ws-btn-sm { padding: 0 6px; height: 26px; }
 @container ws (max-width: 759px) { .ws-head .ta-ticker-input { width: 110px; } }
+
+/* TA-T3 (28/11/2026): nút xổ xuống "Khung thời gian" + "Kiểu biểu đồ" như TradingView (danh sách luôn trong trang, ẩn khi đóng —
+   giữ hợp đồng data-tf cho E2E) và thanh dưới chart: khoảng nhìn · thang giá · ghi công. Màu theo chuẩn dự án (xanh là vạch). */
+.ws-tf { position: relative; display: inline-flex; align-items: center; gap: 4px; }
+.ws-tf-btn { gap: 4px; min-width: 52px; justify-content: space-between; }
+.ws-tf-btn b { font-weight: 600; color: var(--q-text, #f8fafc); }
+.ws-tf-menu { position: absolute; top: calc(100% + 4px); left: 0; z-index: 60; min-width: 190px; padding: 4px; border-radius: 8px;
+  background: var(--q-surface-2, #131a29); border: 1px solid var(--q-line-3, rgba(255,255,255,.16)); box-shadow: 0 12px 32px rgba(0,0,0,.5); }
+.ws-tf-menu:not([hidden]) { display: flex; flex-direction: column; }
+.ws-tf-group { margin: 6px 8px 2px; font-size: 11px; color: var(--q-text-4, #8391a7); }
+.ws-tf-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 30px; padding: 0 10px; border: 0; border-radius: 5px;
+  background: transparent; color: var(--q-text-2, #cbd5e1); font-size: 13px; text-align: left; cursor: pointer; }
+.ws-tf-item:hover:not(:disabled) { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); }
+.ws-tf-item[aria-pressed="true"] { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); font-weight: 600; box-shadow: inset 2px 0 0 var(--q-accent, #4f8ef7); }
+.ws-tf-item:focus-visible { outline: 2px solid var(--q-accent, #4f8ef7); outline-offset: -2px; }
+.ws-tf-code { font: 11px var(--q-font-mono, monospace); color: var(--q-text-4, #8391a7); }
+.ws-footbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 2px 0; }
+.ws-footbar .ws-attribution { margin: 0; }

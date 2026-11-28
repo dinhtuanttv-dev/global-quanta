@@ -87,11 +87,11 @@ const out: { base: string; at: string; slo: typeof SLO; ttiMs?: number; deskD?: 
   await pickTicker(p, "FPT"); await p.waitForTimeout(1500);
   await layers(p, ["volume", "rsi", "macd", "smc"]);
   out.deskD = await panZoom(p);
-  await p.locator("[data-tf='1m']").click();
+  await p.locator("[data-testid=tf-menu-btn]").click(); await p.locator("[data-tf='1m']").click(); // TA-T3: khung trong nút xổ xuống
   await p.waitForFunction(() => /\d\d:\d\d/.test(document.querySelector("[data-testid=ohlc-legend]")?.textContent ?? ""), null, { timeout: 120_000 });
   await p.waitForTimeout(1500);
   out.desk1m = await panZoom(p);
-  await p.locator("[data-tf=D]").click(); await p.waitForTimeout(1500);
+  await p.locator("[data-testid=tf-menu-btn]").click(); await p.locator("[data-tf=D]").click(); await p.waitForTimeout(1500);
   const heap = () => p.evaluate(() => { (window as unknown as { gc?: () => void }).gc?.(); return Math.round(((performance as unknown as { memory?: { usedJSHeapSize: number } }).memory?.usedJSHeapSize ?? 0) / 1e6); });
   const h0 = await heap(), sw: number[] = [];
   const list = ["HPG", "VNM", "MWG", "SSI", "VCB", "FPT"];
