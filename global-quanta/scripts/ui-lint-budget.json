@@ -1,0 +1,14 @@
+{
+  "note": "QUANTA UI v2 — trần nợ giao diện; chỉ được giảm (node scripts/ui-lint.mjs --update). Đích: 0 sau U8/U9. Ghi lần đầu U0 28/11/2026 = hiện trạng.",
+  "budget": {
+    "legacy-gold": 216,
+    "legacy-gold-var": 89,
+    "legacy-display-font": 19,
+    "legacy-surface-hex": 64,
+    "slate-surface": 77,
+    "tiny-text": 42,
+    "text-10px": 1760,
+    "uppercase": 345,
+    "gradient": 76
+  }
+}

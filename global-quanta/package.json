@@ -9,7 +9,9 @@
     "preview": "vite preview",
     "test": "vitest run",
     "bundle:gateway": "node scripts/bundle-gateway.mjs",
-    "bundle:macro": "node scripts/bundle-macro.mjs"
+    "bundle:macro": "node scripts/bundle-macro.mjs",
+    "lint:ui": "node scripts/ui-lint.mjs",
+    "audit:ui": "node scripts/ui-audit.cjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

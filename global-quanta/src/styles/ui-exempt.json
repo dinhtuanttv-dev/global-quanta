@@ -1,0 +1,16 @@
+{
+  "note": "QUANTA UI v2 (docs/quanta-ui-v2/04 §3): biểu đồ 2D / 3D giữ nguyên thiết kế. SVG / canvas luôn được miễn trừ khi đo; danh sách dưới đây là tệp biểu đồ (miễn trừ toàn tệp khi quét mã) và selector biểu đồ dựng bằng HTML (đánh dấu data-ui-exempt=\"chart\" trên trang). Tệp vừa có biểu đồ vừa có giao diện thường (VD TVChartPanel, EliteCommandRadar, Kqkd3D) KHÔNG miễn trừ cả tệp: đánh dấu từng dòng bằng chú thích ui-exempt (cùng dòng) hoặc ui-exempt-next-line (dòng trên). MainTabs.css: menu chính giữ nguyên tuyệt đối (chủ dự án 28/11) — là chuẩn, không phải nợ.",
+  "files": [
+    "components/elite10/center/evidenceRoom/LiveEvidenceGraph.tsx",
+    "components/elite10/deck/RuleSpace.tsx",
+    "components/MainTabs/LocNganh/MainChart.tsx",
+    "components/MainTabs/MainTabs.css"
+  ],
+  "lockedDirs": [
+    "components/MainTabs/CoTuc/timeline"
+  ],
+  "htmlCharts": [
+    "[data-ui-exempt=\"chart\"]",
+    ".eb-graph-v2"
+  ]
+}

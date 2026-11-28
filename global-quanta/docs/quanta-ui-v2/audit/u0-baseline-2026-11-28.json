@@ -1,0 +1,1083 @@
+{
+ "before": "https://dinhtuan-ck.vercel.app",
+ "after": "http://localhost:4799",
+ "at": "2026-11-28T00:35:46.944Z",
+ "errs": {
+  "before": [],
+  "after": []
+ },
+ "tabs": {
+  "tong-quan": {
+   "before": {
+    "panel": {
+     "textEls": 3331,
+     "families": {
+      "Inter": 1441,
+      "IBM Plex Mono": 1890
+     },
+     "tiny": 0,
+     "below11NonDense": 538,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 4,
+     "selectedAccent": 4,
+     "distinctColors": 16,
+     "fp": {
+      "testids": 289,
+      "textLen": 23847,
+      "textHash": -351976142
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 3331,
+     "families": {
+      "Inter": 1441,
+      "IBM Plex Mono": 1890
+     },
+     "tiny": 0,
+     "below11NonDense": 538,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 4,
+     "selectedAccent": 4,
+     "distinctColors": 16,
+     "fp": {
+      "testids": 289,
+      "textLen": 23847,
+      "textHash": -351976142
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "ket-noi-the-gioi": {
+   "before": {
+    "panel": {
+     "textEls": 184,
+     "families": {
+      "Inter": 170,
+      "IBM Plex Mono": 14
+     },
+     "tiny": 0,
+     "below11NonDense": 4,
+     "gold": 3,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 1,
+     "selectedAccent": 1,
+     "distinctColors": 9,
+     "fp": {
+      "testids": 60,
+      "textLen": 5831,
+      "textHash": 1358477990
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 184,
+     "families": {
+      "Inter": 170,
+      "IBM Plex Mono": 14
+     },
+     "tiny": 0,
+     "below11NonDense": 4,
+     "gold": 3,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 1,
+     "selectedAccent": 1,
+     "distinctColors": 9,
+     "fp": {
+      "testids": 60,
+      "textLen": 5831,
+      "textHash": 1358477990
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "phan-tich-nganh": {
+   "before": {
+    "panel": {
+     "textEls": 1007,
+     "families": {
+      "Inter": 1007
+     },
+     "tiny": 0,
+     "below11NonDense": 105,
+     "gold": 57,
+     "upper": 20,
+     "spaced": 1,
+     "gradientBg": 1,
+     "selected": 5,
+     "selectedAccent": 1,
+     "distinctColors": 31,
+     "fp": {
+      "testids": 473,
+      "textLen": 11840,
+      "textHash": 136203782
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 1007,
+     "families": {
+      "Inter": 1007
+     },
+     "tiny": 0,
+     "below11NonDense": 105,
+     "gold": 57,
+     "upper": 20,
+     "spaced": 1,
+     "gradientBg": 1,
+     "selected": 5,
+     "selectedAccent": 1,
+     "distinctColors": 31,
+     "fp": {
+      "testids": 473,
+      "textLen": 11840,
+      "textHash": 136203782
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "phan-tich-ky-thuat": {
+   "before": {
+    "panel": {
+     "textEls": 1205,
+     "families": {
+      "IBM Plex Mono": 266,
+      "Inter": 939
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 1,
+     "selected": 8,
+     "selectedAccent": 8,
+     "distinctColors": 27,
+     "fp": {
+      "testids": 337,
+      "textLen": 14630,
+      "textHash": -1626540550
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 1205,
+     "families": {
+      "IBM Plex Mono": 266,
+      "Inter": 939
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 1,
+     "selected": 8,
+     "selectedAccent": 8,
+     "distinctColors": 27,
+     "fp": {
+      "testids": 337,
+      "textLen": 14630,
+      "textHash": -1626540550
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "phan-tich-vi-mo": {
+   "before": {
+    "panel": {
+     "textEls": 873,
+     "families": {
+      "Inter": 857,
+      "IBM Plex Mono": 16
+     },
+     "tiny": 0,
+     "below11NonDense": 53,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 33,
+     "selected": 8,
+     "selectedAccent": 7,
+     "distinctColors": 28,
+     "fp": {
+      "testids": 175,
+      "textLen": 20069,
+      "textHash": -1244993218
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 873,
+     "families": {
+      "Inter": 857,
+      "IBM Plex Mono": 16
+     },
+     "tiny": 0,
+     "below11NonDense": 53,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 33,
+     "selected": 8,
+     "selectedAccent": 7,
+     "distinctColors": 28,
+     "fp": {
+      "testids": 175,
+      "textLen": 20069,
+      "textHash": -1244993218
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "phan-tich-co-ban": {
+   "before": {
+    "panel": {
+     "textEls": 2873,
+     "families": {
+      "Inter": 1240,
+      "IBM Plex Mono": 1633
+     },
+     "tiny": 7,
+     "below11NonDense": 10,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 3,
+     "selectedAccent": 1,
+     "distinctColors": 23,
+     "fp": {
+      "testids": 167,
+      "textLen": 46677,
+      "textHash": -1541431275
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 2873,
+     "families": {
+      "Inter": 1240,
+      "IBM Plex Mono": 1633
+     },
+     "tiny": 7,
+     "below11NonDense": 10,
+     "gold": 1,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 0,
+     "selected": 3,
+     "selectedAccent": 1,
+     "distinctColors": 23,
+     "fp": {
+      "testids": 167,
+      "textLen": 46677,
+      "textHash": -1541431275
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  },
+  "quyet-dinh": {
+   "before": {
+    "panel": {
+     "textEls": 1153,
+     "families": {
+      "Inter": 1028,
+      "Space Grotesk": 14,
+      "IBM Plex Mono": 111
+     },
+     "tiny": 0,
+     "below11NonDense": 1,
+     "gold": 51,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 19,
+     "selected": 13,
+     "selectedAccent": 2,
+     "distinctColors": 29,
+     "fp": {
+      "testids": 541,
+      "textLen": 19485,
+      "textHash": -1713331532
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "after": {
+    "panel": {
+     "textEls": 1153,
+     "families": {
+      "Inter": 1028,
+      "Space Grotesk": 14,
+      "IBM Plex Mono": 111
+     },
+     "tiny": 0,
+     "below11NonDense": 1,
+     "gold": 51,
+     "upper": 0,
+     "spaced": 0,
+     "gradientBg": 19,
+     "selected": 13,
+     "selectedAccent": 2,
+     "distinctColors": 29,
+     "fp": {
+      "testids": 541,
+      "textLen": 19485,
+      "textHash": -1713331532
+     }
+    },
+    "topbar": {
+     "textEls": 36,
+     "families": {
+      "Space Grotesk": 2,
+      "Inter": 22,
+      "IBM Plex Mono": 12
+     },
+     "tiny": 0,
+     "below11NonDense": 22,
+     "gold": 2,
+     "upper": 0,
+     "spaced": 3,
+     "gradientBg": 3,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 8,
+     "fp": {
+      "testids": 8,
+      "textLen": 252,
+      "textHash": -53700904
+     }
+    },
+    "right": {
+     "textEls": 33,
+     "families": {
+      "Inter": 33
+     },
+     "tiny": 0,
+     "below11NonDense": 30,
+     "gold": 0,
+     "upper": 0,
+     "spaced": 1,
+     "gradientBg": 0,
+     "selected": 0,
+     "selectedAccent": 0,
+     "distinctColors": 10,
+     "fp": {
+      "testids": 3,
+      "textLen": 984,
+      "textHash": -1925459160
+     }
+    }
+   },
+   "compare": {
+    "nav": true,
+    "panel": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "topbar": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    },
+    "right": {
+     "testids": true,
+     "removed": [],
+     "added": [],
+     "text": true
+    }
+   }
+  }
+ },
+ "same": true
+}
