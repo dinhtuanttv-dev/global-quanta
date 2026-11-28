@@ -69,7 +69,7 @@ function LeadersTable({ sector }: { sector: GatewaySectorRrg }) {
             <tbody>
               {L.map((l) => (
                 <tr key={l.ticker} style={{ borderTop: "1px solid var(--bg-surface-2)" }} data-testid="sector-leader-row">
-                  <td style={{ padding: "4px 0", whiteSpace: "nowrap" }}><b style={{ color: l.leader ? "var(--q-accent)" : "var(--text-secondary)" }}>{l.ticker}</b>{l.leader && <span style={{ fontSize: 10, color: "var(--positive)" }} title="Cổ phiếu dẫn dắt ngành"> ★</span>}</td>
+                  <td style={{ padding: "4px 0", whiteSpace: "nowrap" }}><b style={{ color: l.leader ? "var(--q-text)" : "var(--text-secondary)" }}>{l.ticker}</b>{l.leader && <span style={{ fontSize: 10, color: "var(--positive)" }} title="Cổ phiếu dẫn dắt ngành"> ★</span>}</td>
                   <td style={{ textAlign: "right", paddingLeft: 8 }}>{l.rs ?? "—"}</td>
                   <td style={{ textAlign: "right", paddingLeft: 8, color: (l.ret63 ?? 0) >= 0 ? "var(--positive)" : "var(--negative)" }}>{num(l.ret63)}%</td>
                   <td style={{ textAlign: "right", paddingLeft: 8, whiteSpace: "nowrap" }}>{num(l.fromHigh)}%</td>
@@ -93,13 +93,13 @@ export function SectorDeepPanel({ code, sector, onClose, onFilterSector, filtere
   return (
     <div className="panel-block" style={{ marginTop: 10, borderColor: "var(--q-accent)" }} data-testid="sector-deep-panel">
       <div className="sb-row" style={{ marginBottom: 8, flexWrap: "wrap", gap: 8 }}>
-        <b style={{ color: "var(--q-accent)", fontSize: 14, marginRight: 6 }}>{sector?.name ?? data?.name ?? code}</b>
+        <b style={{ color: "var(--q-text)", fontSize: 14, marginRight: 6 }}>{sector?.name ?? data?.name ?? code}</b>
         <span style={{ fontSize: 11, color: "var(--text-tertiary)" }}>
           ICB {code} · {sector ? `${QUADRANT_VI[sector.quadrant]} (tuần đã đóng) · rổ ${sector.indexMembers} mã${sector.thin ? " · rổ mỏng" : ""} · ${sector.historyWeeks} tuần lịch sử` : ""}
         </span>
         <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "var(--q-warn)" }} title={data?.evidence.reason}>{data?.evidence.label ?? "EXPERIMENTAL"}</span>
         {onFilterSector && (
-          <button type="button" onClick={() => onFilterSector(code)} data-testid="sector-filter-top20" style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid var(--q-accent)", background: filtered ? "var(--q-accent)" : "transparent", color: filtered ? "#0a0a0a" : "var(--q-accent)" }}>
+          <button type="button" onClick={() => onFilterSector(code)} data-testid="sector-filter-top20" style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 8, cursor: "pointer", border: "1px solid var(--q-line-3)", background: filtered ? "var(--q-accent)" : "transparent", color: filtered ? "#0a0a0a" : "var(--q-accent)" }}>
             {filtered ? "Đang lọc Top 20 theo ngành này" : "Lọc Top 20 theo ngành này"}
           </button>
         )}
@@ -133,7 +133,7 @@ export function SectorDeepPanel({ code, sector, onClose, onFilterSector, filtere
               <div style={{ marginTop: 10 }}>
                 <div style={{ fontSize: 10, color: "var(--text-tertiary)", textTransform: "uppercase", marginBottom: 4 }}>Rổ chỉ số ngành (trọng số GTGD, trần 25%)</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }} data-testid="sector-constituents">
-                  {sector.constituents.map((c) => <span key={c.ticker} style={{ fontSize: 11, padding: "1px 6px", borderRadius: 4, background: "var(--bg-surface-2)" }}><b style={{ color: "var(--q-accent)" }}>{c.ticker}</b> {Math.round(c.weight * 100)}%</span>)}
+                  {sector.constituents.map((c) => <span key={c.ticker} style={{ fontSize: 11, padding: "1px 6px", borderRadius: 4, background: "var(--bg-surface-2)" }}><b style={{ color: "var(--q-text)" }}>{c.ticker}</b> {Math.round(c.weight * 100)}%</span>)}
                 </div>
               </div>
             )}

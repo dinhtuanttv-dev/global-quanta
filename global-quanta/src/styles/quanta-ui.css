@@ -59,6 +59,15 @@
 .q-tab:hover { color: var(--q-text); }
 .q-tab[aria-selected="true"] { color: var(--q-text); border-bottom-color: var(--q-accent); }
 
+/* Thanh TAB CON chuẩn dự án (28/11) — sao đúng .ov-tabs / .ov-tab của TỔNG QUAN (#393) bằng token --q-* để dùng được ở mọi tab:
+   cao 40px, Inter 14px; chưa chọn: chữ xám --q-text-3, không nền; đang chọn: chữ trắng 600 + vạch xanh 2px dưới. Không nền đặc, không viên thuốc. */
+.q-subtabs { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px; border-bottom: 1px solid var(--q-line-2); }
+.q-subtab { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--q-text-3); font-family: var(--q-font-sans); font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: color 0.15s, border-color 0.15s; }
+.q-subtab:hover { color: var(--q-text); }
+.q-subtab[aria-selected="true"] { color: var(--q-text); font-weight: 600; border-bottom-color: var(--q-accent); }
+.q-subtab:focus-visible { outline: 2px solid var(--q-accent); outline-offset: -2px; border-radius: 4px; }
+@media (max-width: 640px) { .q-subtab { flex: 1 1 0; justify-content: center; padding: 0 8px; } }
+
 /* ───────────────────────── QUANTA UI v2 — U0 (28/11/2026, docs/quanta-ui-v2) ─────────────────────────
    CHỈ THÊM token / lớp; chưa áp vào thành phần nào -> không đổi hiển thị. Các bước U1–U9 sẽ dùng chúng. */
 :root {

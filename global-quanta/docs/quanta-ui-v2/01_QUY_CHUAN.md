@@ -36,6 +36,7 @@ Không dùng `bg-slate-800/900/950`, `#161D2E`, `#1E273D`, `#0B0F19` (hệ cũ) 
 | Mã cổ phiếu (bấm được hay không) | chữ trắng Inter 600 (`.scan-ticker b`) — 269/269 mã trắng | `--q-text`; bấm được thể hiện bằng gạch chân khi rê chuột, **không** bằng màu |
 | Tiêu đề, nhãn, số nhấn | trắng / xám | `--q-text` / `--q-text-2` / `--q-text-3`; không bao giờ xanh |
 | Tab / nút phân đoạn đang chọn | chữ trắng + vạch xanh 2px (`.ov-tab.is-active`, `.scan-seg`) | chữ trắng, vạch `--q-accent` |
+| **Thanh tab con của mọi tab** (28/11) | `.ov-tabs` / `.ov-tab`: cao 40px, Inter 14px, chưa chọn xám, đang chọn trắng 600 + vạch 2px, có `role="tab"` + phím ← → | dùng lớp chung **`.q-subtabs` / `.q-subtab`** (quanta-ui.css, cùng số đo); cấm viên thuốc nền xanh đặc / chữ đen. Đã áp: Ngành, Quyết định |
 | Nút / chip đang bật (`aria-pressed`) | viền + nền xanh nhạt + chữ xanh (`.scan-tool[aria-pressed]`) | giữ — chỗ DUY NHẤT chữ xanh ngoài liên kết |
 | Tag trạng thái | viền trung tính, chữ xám, màu ý nghĩa ở biểu tượng nhỏ (`.scan-sig`) | không viền / chữ xanh trời, xanh lơ |
 | Nút hành động lặp mỗi dòng ("Chu kỳ →") | nút trung tính (`.ov-btn`) | viền trắng 15%, chữ xám, rê chuột -> trắng |

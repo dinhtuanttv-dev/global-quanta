@@ -59,7 +59,10 @@ for (const dir of dirs) for (const f of walk(path.join(SRC, dir))) {
   let changed = false;
   lines.forEach((line, i) => {
     if (CHART_LINE.test(line) || SKIP_NEEDLES.some((n) => line.includes(n))) return;
-    const next = line.replace(/"[^"\n]*"|'[^'\n]*'|`[^`\n]*`/g, (lit) => roleLiteral(lit));
+    const next = line.replace(/"[^"\n]*"|'[^'\n]*'|`[^`\n]*`/g, (lit) => roleLiteral(lit))
+      // style inline: color: "var(--q-accent…)" (kể cả nhánh đúng của toán tử ?:) -> trắng; viền thẻ xanh 1px -> trung tính.
+      .replace(/(\bcolor:\s*(?:[^,{}]*?\?\s*)?)(["'])var\(--q-accent(?:-strong)?\)\2/g, "$1$2var(--q-text)$2")
+      .replace(/(\bborder:\s*)(["'])1px solid var\(--q-accent\)\2/g, "$1$21px solid var(--q-line-3)$2");
     if (next !== line) { lines[i] = next; changed = true; stats.lines++; }
   });
   if (changed) { stats.files++; if (WRITE) fs.writeFileSync(f, crlf ? lines.join("\r\n") : lines.join("\n")); }

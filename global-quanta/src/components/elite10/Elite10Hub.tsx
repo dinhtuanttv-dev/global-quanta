@@ -85,16 +85,13 @@ export default function Elite10Hub() {
 
   return (
     <div className="elite10-hub flex flex-col gap-3" data-testid="elite10-hub">
-      <div role="tablist" aria-label="Elite 10" style={{ display: "flex", gap: 8, borderBottom: "1px solid var(--border)", overflowX: "auto" }}>
+      {/* QUANTA UI v2 (28/11): thanh tab con chuẩn dự án .q-subtabs (= tab con Tổng quan); cuộn ngang thay vì xuống dòng (5 tab). */}
+      <div role="tablist" aria-label="Elite 10" className="q-subtabs" style={{ flexWrap: "nowrap", overflowX: "auto" }}>
         {SUBS.map((s) => (
           <button
             key={s.id} type="button" role="tab" id={`elite10-${s.id}-tab`} aria-selected={sub === s.id} aria-controls={`elite10-${s.id}-panel`}
             tabIndex={sub === s.id ? 0 : -1} ref={(el) => { refs.current[s.id] = el; }} onKeyDown={onKey} onClick={() => setSub(s.id)}
-            style={{
-              padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--q-accent)" : "2px solid transparent", // QUANTA UI v2 U3: như .ov-tab (Tổng quan) — vạch xanh, chữ trắng
-              background: "transparent", color: sub === s.id ? "var(--q-text)" : "var(--q-text-3)",
-              fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-            }}
+            className="q-subtab" style={{ flexShrink: 0 }}
           >{s.label}</button>
         ))}
       </div>
