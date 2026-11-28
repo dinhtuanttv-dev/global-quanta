@@ -71,6 +71,7 @@ import ChartSignalsValidation from "./ChartSignalsValidation";
 import { lastBarForming, seriesFreshness } from "../../../lib/ta-command-center/dataStatus";
 import { priceDigitsFor, viPrice } from "../../../lib/ta-command-center/chart/viFormat";
 import { TV_STYLE } from "../../../lib/ta-command-center/chart/indicatorStyle";
+import { atr as atrOf, mfi as mfiOf, obv as obvOf, parabolicSar, stochRsi as stochRsiOf, stochastic as stochOf } from "../../../lib/ta-command-center/detectors/extraIndicators";
 import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
 import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
@@ -595,7 +596,8 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     ] : null);
   }, [tvApi, bbValues]);
   const priceDigits = useMemo(() => priceDigitsFor(currentBars), [currentBars]);
-  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues, priceDigits), [maValues, ichiValues, bbValues, stValues, priceDigits]);
+  const psarV = useMemo(() => (layerState?.psar ? parabolicSar(currentBars) : null), [layerState?.psar, currentBars]);
+  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues, priceDigits, psarV), [maValues, ichiValues, bbValues, stValues, priceDigits, psarV]);
   // MS-GARCH là dải từ hiện tại nên chỉ có ở khung ngày, không vẽ khi đang xem lại lịch sử.
   const msgarchOn = Boolean(layerState?.msgarch);
   const msgarchApplies = timeframe === "D" && replayIdxDeferred == null;
@@ -613,10 +615,28 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     if (!tv) return;
     tv.setAdxPane(layerState?.adx ? currentBars.map((b, i) => ({ date: b.date, adx: adxResult.series[i], plus: adxResult.plusDI[i], minus: adxResult.minusDI[i] })) : null);
   }, [layerState?.adx, currentBars, adxResult]);
+  // ---- TA-T4 (Q6): Stochastic · Stoch RSI · ATR · OBV · MFI (pane) + Parabolic SAR (phủ giá) — chỉ tính khi bật lớp ----
+  const stochV = useMemo(() => (layerState?.stoch ? stochOf(currentBars) : null), [layerState?.stoch, currentBars]);
+  const stochRsiV = useMemo(() => (layerState?.stochRsi ? stochRsiOf(currentBars) : null), [layerState?.stochRsi, currentBars]);
+  const atrV = useMemo(() => (layerState?.atr ? atrOf(currentBars) : null), [layerState?.atr, currentBars]);
+  const obvV = useMemo(() => (layerState?.obv ? obvOf(currentBars) : null), [layerState?.obv, currentBars]);
+  const mfiV = useMemo(() => (layerState?.mfi ? mfiOf(currentBars) : null), [layerState?.mfi, currentBars]);
+  useEffect(() => {
+    const tv = tvManagerRef.current;
+    if (!tv) return;
+    const dates = currentBars.map((b) => b.date);
+    const lv8020 = [{ price: 80 }, { price: 50, dotted: true }, { price: 20 }];
+    tv.setOscPane("stoch", stochV ? { dates, lines: [{ values: stochV.k, color: TV_STYLE.stoch.k }, { values: stochV.d, color: TV_STYLE.stoch.d }], levels: lv8020, band: { lo: 20, hi: 80, color: TV_STYLE.stoch.band } } : null);
+    tv.setOscPane("stochRsi", stochRsiV ? { dates, lines: [{ values: stochRsiV.k, color: TV_STYLE.stoch.k }, { values: stochRsiV.d, color: TV_STYLE.stoch.d }], levels: lv8020, band: { lo: 20, hi: 80, color: TV_STYLE.stoch.band } } : null);
+    tv.setOscPane("atr", atrV ? { dates, lines: [{ values: atrV, color: TV_STYLE.atr }], format: "price" } : null);
+    tv.setOscPane("obv", obvV ? { dates, lines: [{ values: obvV, color: TV_STYLE.obv }], format: "volume" } : null);
+    tv.setOscPane("mfi", mfiV ? { dates, lines: [{ values: mfiV, color: TV_STYLE.mfi.line }], levels: lv8020, band: { lo: 20, hi: 80, color: TV_STYLE.mfi.band } } : null);
+    tv.setPsar(psarV ? currentBars.map((b, i) => ({ date: b.date, value: psarV.sar[i] })) : null);
+  }, [currentBars, stochV, stochRsiV, atrV, obvV, mfiV, psarV]); // eslint-disable-line react-hooks/exhaustive-deps
   // R4: giá trị từng pane tại nến dưới crosshair.
-  const paneValue = useMemo(() => paneValueReader({ bars: currentBars, rsi: rsiResult, macd: macdResult, adx: adxResult, flow: orderFlow?.bars ?? null,
+  const paneValue = useMemo(() => paneValueReader({ bars: currentBars, rsi: rsiResult, macd: macdResult, adx: adxResult, flow: orderFlow?.bars ?? null, extra: { stoch: stochV, stochRsi: stochRsiV, atr: atrV, obv: obvV, mfi: mfiV },
     foreign: layerState?.foreign && !isIntradayTf(timeframe) && flow.data?.foreign.length ? foreignByBar(currentBars, flow.data.foreign) : null }),
-  [currentBars, rsiResult, macdResult, adxResult, orderFlow, layerState?.foreign, timeframe, flow.data]);
+  [currentBars, rsiResult, macdResult, adxResult, orderFlow, layerState?.foreign, timeframe, flow.data, stochV, stochRsiV, atrV, obvV, mfiV]);
 
   // ---- Elliott Oscillator (khung phụ, bật/tắt bằng lớp elliottOsc) ----
   useEffect(() => {
@@ -1302,7 +1322,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       {/* 3. Thân: chart (+ bảng chi tiết) */}
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
-          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
+          <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${layerState?.stoch}${layerState?.stochRsi}${layerState?.atr}${layerState?.obv}${layerState?.mfi}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
             onClosePane={toggleLayer} />
           <div className="ws-chips">
             {forming && (
@@ -1507,7 +1527,7 @@ function closeOpenPopovers() {
 export const ICHI_COLORS = { tenkan: TV_STYLE.ichimoku.tenkan, kijun: TV_STYLE.ichimoku.kijun, chikou: TV_STYLE.ichimoku.chikou } as const;
 
 /** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
-export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2) {
+export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2, psar: { sar: (number | null)[]; up: boolean[] } | null = null) {
   // TA-T1: cùng kiểu số với trục giá (2 chữ số thập phân, kiểu Việt); `group` = lớp của dòng chú giải (mỗi chỉ báo một dòng, có nút ✕).
   const f = (v: number | null | undefined) => (v == null ? "—" : viPrice(v, digits));
   return (i: number): { label: string; color: string; value: string; group: LayerKey }[] => {
@@ -1519,6 +1539,7 @@ export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null
         { label: "Mây A/B", color: "#94a3b8", value: j >= 0 ? `${f(ichi.spanA[j])} / ${f(ichi.spanB[j])}` : "—", group: "ichimoku" });
     }
     if (bb) out.push({ label: "BB", color: TV_STYLE.bb.mid, value: `${f(bb.upper[i])} / ${f(bb.mid[i])} / ${f(bb.lower[i])}`, group: "bollinger" });
+    if (psar) out.push({ label: psar.up[i] ? "SAR ▲" : "SAR ▼", color: TV_STYLE.psar, value: f(psar.sar[i]), group: "psar" });
     if (st) out.push({ label: st.dir[i] === -1 ? "SuperTrend ▼" : "SuperTrend ▲", color: st.dir[i] === -1 ? TV_STYLE.st.down : TV_STYLE.st.up, value: f(st.line[i]), group: "supertrend" });
     return out;
   };
@@ -1536,6 +1557,8 @@ export function paneValueReader(src: {
   bars: OhlcvBar[]; rsi: { series: (number | null)[] }; macd: { macdLine: (number | null)[]; signalLine: (number | null)[]; histogram: (number | null)[] };
   adx: { series: (number | null)[]; plusDI: (number | null)[]; minusDI: (number | null)[] };
   flow: { date: string; delta: number; cvd: number; source: string }[] | null; foreign: { date: string; net: number; cum: number }[] | null;
+  /** TA-T4: giá trị các pane chỉ báo mới (null = lớp tắt). */
+  extra?: { stoch: { k: (number | null)[]; d: (number | null)[] } | null; stochRsi: { k: (number | null)[]; d: (number | null)[] } | null; atr: (number | null)[] | null; obv: number[] | null; mfi: (number | null)[] | null };
 }): (kind: string, i: number) => string | null {
   const flowAt = new Map((src.flow ?? []).map((f) => [f.date, f]));
   const forAt = new Map((src.foreign ?? []).map((f) => [f.date, f]));
@@ -1550,6 +1573,10 @@ export function paneValueReader(src: {
       case "adx": return src.adx.series[i] == null ? "chưa đủ dữ liệu" : `ADX ${n(src.adx.series[i], 1)} · +DI ${n(src.adx.plusDI[i], 1)} · −DI ${n(src.adx.minusDI[i], 1)}`;
       case "flow": { const f = flowAt.get(b.date); return f ? `Δ ${fmtBig(f.delta)} · CVD ${fmtBig(f.cvd)} · ${f.source === "TICK" ? "tick" : "BVC"}` : null; }
       case "foreign": { const f = forAt.get(b.date); return f ? `ròng ${fmtBig(f.net)} · luỹ kế ${fmtBig(f.cum)}` : "không có dữ liệu ngày này"; }
+      case "stoch": case "stochRsi": { const x = src.extra?.[kind]; return !x || x.k[i] == null ? "chưa đủ dữ liệu" : `%K ${n(x.k[i], 1)} · %D ${n(x.d[i], 1)}`; }
+      case "atr": { const v = src.extra?.atr?.[i]; return v == null ? "chưa đủ dữ liệu" : n(v); }
+      case "obv": { const v = src.extra?.obv?.[i]; return v == null ? null : fmtBig(v); }
+      case "mfi": { const v = src.extra?.mfi?.[i]; return v == null ? "chưa đủ dữ liệu" : n(v, 1); }
       default: return null;
     }
   };

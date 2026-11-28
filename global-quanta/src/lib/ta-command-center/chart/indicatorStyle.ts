@@ -22,6 +22,9 @@ export const TV_STYLE = {
   /** RSI: đường tím, vạch 70 / 30 xám nét đứt + 50 chấm, tô dải giữa hai ngưỡng. */
   rsi: { line: "#7E57C2", level: "#787B86", band: "rgba(126,87,194,0.10)" },
   macd: { macd: "#2962FF", signal: "#FF6D00" },
+  /** TA-T4: Stochastic / Stoch RSI (%K xanh dương, %D cam, dải 20–80 xanh nhạt), ATR đỏ sẫm, OBV xanh dương, MFI tím (dải 20–80), Parabolic SAR xanh dương. */
+  stoch: { k: "#2962FF", d: "#FF6D00", band: "rgba(33,150,243,0.10)" },
+  atr: "#B71C1C", obv: "#2962FF", mfi: { line: "#7E57C2", band: "rgba(126,87,194,0.10)" }, psar: "#2962FF",
   /** DMI / ADX: +DI xanh dương, −DI cam, ADX hồng đậm; vạch ngưỡng xám. */
   dmi: { adx: "#F50057", plus: "#2962FF", minus: "#FF6D00", level: "#787B86" },
   /** SuperTrend theo Q1 (màu tăng / giảm dự án) + tô nền nhạt giữa giá và đường như TradingView. */

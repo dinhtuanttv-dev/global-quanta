@@ -1,6 +1,6 @@
 ﻿import { EventEmitter } from "./EventEmitter";
 
-export type LayerKey = "volume" | "rsi" | "macd" | "adx" | "maSet" | "ichimoku" | "bollinger" | "supertrend" | "msgarch" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "elliottPro" | "pring" | "structure";
+export type LayerKey = "volume" | "rsi" | "macd" | "adx" | "stoch" | "stochRsi" | "atr" | "obv" | "mfi" | "psar" | "maSet" | "ichimoku" | "bollinger" | "supertrend" | "msgarch" | "vprofile" | "avwap" | "orderflow" | "foreign" | "smc" | "vsa" | "wyckoff" | "corporate" | "trendline" | "demandzone" | "elliott" | "elliottAuto" | "elliottOsc" | "elliottFib" | "elliottProj" | "elliottGuide" | "elliottSub" | "elliottMine" | "elliottPro" | "pring" | "structure";
 
 export interface LayerState {
   volume: boolean; rsi: boolean;
@@ -30,6 +30,8 @@ export interface LayerState {
   pring: boolean;
   /** T5: Cấu trúc thị trường đa khung (Gateway /api/market/structure, SSI) — giai đoạn, vùng giá, kịch bản, nón dự báo. */
   structure: boolean;
+  /** TA-T4 (Q6): Stochastic · Stoch RSI · ATR · OBV · MFI (pane) và Parabolic SAR (phủ giá) — công thức dựng sẵn TradingView. */
+  stoch: boolean; stochRsi: boolean; atr: boolean; obv: boolean; mfi: boolean; psar: boolean;
   aiDetectionMaster: boolean;
 }
 
@@ -41,6 +43,7 @@ export const DEFAULT_LAYER_STATE: LayerState = {
   volume: false, rsi: false, macd: false, adx: false, maSet: false, ichimoku: false, bollinger: false, supertrend: false, msgarch: false, vprofile: false, avwap: false, orderflow: false, foreign: false, smc: false, vsa: false, wyckoff: false, corporate: false,
   trendline: false, demandzone: false, elliott: false,
   elliottAuto: false, elliottOsc: false, elliottFib: false, elliottProj: false, elliottGuide: false, elliottSub: false, elliottMine: false, elliottPro: false, pring: false, structure: false,
+  stoch: false, stochRsi: false, atr: false, obv: false, mfi: false, psar: false,
   aiDetectionMaster: false,
 };
 

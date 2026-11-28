@@ -11,8 +11,9 @@ import type { OhlcvBar } from "../../../../lib/ta-command-center/types";
 import { priceDigitsFor, viPrice, viVolume } from "../../../../lib/ta-command-center/chart/viFormat";
 import { LAYER_LABEL } from "./LayerMenu";
 
-const PANE_TITLE: Record<Exclude<PaneKind, "price">, string> = { volume: "Khối lượng", rsi: "RSI 14 · 70 / 30", macd: "MACD 12/26/9", adx: "ADX 14 · +DI / −DI", flow: "Order Flow · Delta (cột) · CVD (đường, trục trái)", foreign: "Khối ngoại · ròng (cột) · luỹ kế (đường)", eosc: "Elliott Oscillator 5/35" };
-export const PANE_LAYER: Record<Exclude<PaneKind, "price">, LayerKey> = { volume: "volume", rsi: "rsi", macd: "macd", adx: "adx", flow: "orderflow", foreign: "foreign", eosc: "elliottOsc" };
+const PANE_TITLE: Record<Exclude<PaneKind, "price">, string> = { volume: "Khối lượng", rsi: "RSI 14 · 70 / 30", macd: "MACD 12/26/9", adx: "ADX 14 · +DI / −DI", flow: "Order Flow · Delta (cột) · CVD (đường, trục trái)", foreign: "Khối ngoại · ròng (cột) · luỹ kế (đường)", eosc: "Elliott Oscillator 5/35",
+  stoch: "Stoch 14 1 3 · 80 / 20", stochRsi: "Stoch RSI 3 3 14 14 · 80 / 20", atr: "ATR 14", obv: "OBV", mfi: "MFI 14 · 80 / 20" };
+export const PANE_LAYER: Record<Exclude<PaneKind, "price">, LayerKey> = { volume: "volume", rsi: "rsi", macd: "macd", adx: "adx", flow: "orderflow", foreign: "foreign", eosc: "elliottOsc", stoch: "stoch", stochRsi: "stochRsi", atr: "atr", obv: "obv", mfi: "mfi" };
 
 // TA-T1: cùng kiểu số với trục giá (2 chữ số thập phân, kiểu Việt) và trục KL (tỷ / tr / N).
 const fmtV = (v: number) => viVolume(v);

@@ -38,7 +38,18 @@ export interface ChartMarkerInput {
 export interface TVChartManagerOptions { timeVisible?: boolean }
 
 /** Pane đang có trên biểu đồ (SC2: tiêu đề + nút đóng + nhớ tỷ lệ chiều cao). */
-export type PaneKind = "price" | "volume" | "rsi" | "macd" | "adx" | "flow" | "foreign" | "eosc";
+export type PaneKind = "price" | "volume" | "rsi" | "macd" | "adx" | "flow" | "foreign" | "eosc" | OscKind;
+/** TA-T4: pane chỉ báo dạng đường dùng chung (Stochastic, Stoch RSI, ATR, OBV, MFI). */
+export type OscKind = "stoch" | "stochRsi" | "atr" | "obv" | "mfi";
+export interface OscSpec {
+  dates: string[];
+  lines: { values: (number | null)[]; color: string; width?: 1 | 2 }[];
+  /** Vạch ngưỡng (xám nét đứt; `dotted` = vạch giữa mờ) và dải tô giữa hai ngưỡng như TradingView. */
+  levels?: { price: number; dotted?: boolean }[];
+  band?: { lo: number; hi: number; color: string };
+  /** price = theo đơn vị giá của mã (ATR) · volume = tỷ / tr (OBV) · mặc định 2 chữ số. */
+  format?: "price" | "volume";
+}
 export interface PaneInfo { index: number; kind: PaneKind; top: number; height: number }
 /** Nến dưới crosshair (SC2: chú giải OHLC). */
 export interface CrosshairBar { date: string; open: number; high: number; low: number; close: number; volume: number; prevClose: number | null; index: number }
@@ -61,6 +72,9 @@ export class TVChartManager {
   private adxLine: IPriceLine | null = null;
   private currentDates = new Set<string>();
   /** Chỉ giữ điểm trùng thời gian một nến của chuỗi hiện tại (pane chỉ báo không được thêm mốc lạ vào trục). */
+  /** TA-T4: các pane chỉ báo dạng đường (mỗi loại một pane, chỉ tồn tại khi bật lớp) + Parabolic SAR trên pane giá. */
+  private osc = new Map<OscKind, { series: ISeriesApi<"Line">[]; band: ISeriesApi<"Baseline"> | null }>();
+  private psarSeries: ISeriesApi<"Line"> | null = null;
   private onCandles<T extends { date: string }>(data: T[]): T[] { return data.filter((d) => this.currentDates.has(d.date)); }
   // P5: pane Order Flow (Delta + CVD) và pane Khối ngoại (ròng + luỹ kế) — chỉ tồn tại khi bật lớp.
   private flowSeries: { delta: ISeriesApi<"Histogram">; cvd: ISeriesApi<"Line"> } | null = null;
@@ -167,6 +181,7 @@ export class TVChartManager {
       ["volume", (this.volumeOverlay ? null : this.volumeSeries) as never], ["rsi", this.rsiSeries as never], ["flow", this.flowSeries?.delta as never],
       ["foreign", this.foreignSeries?.net as never], ["eosc", this.elliottOscSeries?.osc as never],
       ["macd", this.macdSeries?.hist as never], ["adx", this.adxSeries?.adx as never],
+      ...[...this.osc.entries()].map(([k, o]) => [k, o.series[0]] as [PaneKind, ISeriesApi<never>]),
     ];
     const kindOf = new Map<number, PaneKind>([[0, "price"]]);
     for (const [k, s] of owners) if (s) { try { kindOf.set(s.getPane().paneIndex(), k); } catch { /* series vừa gỡ */ } }
@@ -226,6 +241,8 @@ export class TVChartManager {
     this.foreignSeries?.net.setData([]);
     this.foreignSeries?.cum.setData([]);
     for (const s of [...Object.values(this.macdSeries ?? {}), ...Object.values(this.adxSeries ?? {}), ...this.overlayLines.values()]) s.setData([]);
+    for (const o of this.osc.values()) { for (const s of o.series) s.setData([]); o.band?.setData([]); }
+    this.psarSeries?.setData([]);
     this.currentBars = bars;
     this.currentDates = new Set(bars.map((b) => b.date));
     this.barIndexByTime = new Map(bars.map((b, i) => [String(toTime(b.date)), i]));
@@ -448,6 +465,38 @@ export class TVChartManager {
     }));
     this.macdSeries.macd.setData(data.map((d) => (d.macd == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.macd })));
     this.macdSeries.signal.setData(data.map((d) => (d.signal == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.signal })));
+  }
+
+  /** TA-T4 — pane chỉ báo dạng đường (Stochastic, Stoch RSI, ATR, OBV, MFI). null = gỡ pane. Chỉ vẽ giá trị đã tính sẵn. */
+  setOscPane(kind: OscKind, spec: OscSpec | null): void {
+    let cur = this.osc.get(kind);
+    if (!spec) {
+      if (cur) { for (const s of cur.series) this.chart.removeSeries(s); if (cur.band) this.chart.removeSeries(cur.band); this.osc.delete(kind); this.layoutPanes(); }
+      return;
+    }
+    if (!cur) {
+      const pane = this.chart.panes().length;
+      const fmt = spec.format === "volume" ? VOLUME_FMT : spec.format === "price" ? this.pricePf : PRICE_FMT;
+      const clear = "rgba(0,0,0,0)";
+      const band = spec.band ? this.chart.addSeries(BaselineSeries, { priceFormat: fmt, baseValue: { type: "price", price: spec.band.lo },
+        topLineColor: clear, bottomLineColor: clear, topFillColor1: spec.band.color, topFillColor2: spec.band.color, bottomFillColor1: clear, bottomFillColor2: clear,
+        lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, pane) : null;
+      const series = spec.lines.map((l) => this.chart.addSeries(LineSeries, { priceFormat: fmt, color: l.color, lineWidth: l.width ?? 1, priceLineVisible: false, lastValueVisible: true }, pane));
+      for (const lv of spec.levels ?? []) series[0].createPriceLine({ price: lv.price, color: rgba(TV_STYLE.rsi.level, lv.dotted ? 0.5 : 0.9), lineStyle: lv.dotted ? LineStyle.Dotted : LineStyle.Dashed, lineWidth: 1, axisLabelVisible: false, title: "" });
+      cur = { series, band };
+      this.osc.set(kind, cur);
+      this.layoutPanes();
+    }
+    const idx = spec.dates.map((d, i) => [d, i] as const).filter(([d]) => this.currentDates.has(d));
+    cur.series.forEach((s, j) => s.setData(idx.map(([d, i]) => { const v = spec.lines[j]?.values[i]; return v == null ? { time: toTime(d) } : { time: toTime(d), value: v }; })));
+    if (cur.band && spec.band) cur.band.setData(idx.map(([d]) => ({ time: toTime(d), value: spec.band!.hi })));
+  }
+  /** TA-T4 — Parabolic SAR: chấm trên pane giá (dưới nến khi tăng, trên nến khi giảm). null = gỡ. */
+  setPsar(data: { date: string; value: number | null }[] | null): void {
+    if (!data) { if (this.psarSeries) { this.chart.removeSeries(this.psarSeries); this.psarSeries = null; } return; }
+    if (!this.psarSeries) this.psarSeries = this.chart.addSeries(LineSeries, { priceFormat: this.pricePf, color: TV_STYLE.psar, lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 1.5,
+      priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, 0);
+    this.psarSeries.setData(this.onCandles(data).map((d) => (d.value == null ? { time: toTime(d.date) } : { time: toTime(d.date), value: d.value })));
   }
 
   /** R4 — pane ADX (trắng) + +DI (xanh) / −DI (đỏ), vạch 25 = ngưỡng xu hướng (quy ước Wilder). null = gỡ pane. */
