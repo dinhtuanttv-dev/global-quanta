@@ -4,8 +4,9 @@
 import { useEffect, useState } from "react";
 import { DEFAULT_INDICATORS, INDICATOR_LIMITS, isDefaultSection, sanitizeIndicators, type IndicatorSettings } from "./indicatorSettings";
 
-type Section = "rsi" | "macd" | "adx" | "bollinger" | "supertrend" | "vprofile" | "avwap";
+export type Section = "rsi" | "macd" | "adx" | "bollinger" | "supertrend" | "vprofile" | "avwap" | "ma" | "stoch" | "stochRsi" | "atr" | "mfi";
 const SECTIONS: { id: Section; label: string }[] = [
+  { id: "ma", label: "Đường TB" }, { id: "stoch", label: "Stoch" }, { id: "stochRsi", label: "Stoch RSI" }, { id: "atr", label: "ATR" }, { id: "mfi", label: "MFI" },
   { id: "rsi", label: "RSI" }, { id: "macd", label: "MACD" }, { id: "adx", label: "ADX" }, { id: "bollinger", label: "Bollinger" }, { id: "supertrend", label: "SuperTrend" }, { id: "vprofile", label: "Profile" }, { id: "avwap", label: "AVWAP" },
 ];
 
@@ -37,11 +38,14 @@ function Choice<T extends string>({ label, value, options, onChange, testid }: {
   );
 }
 
-export default function IndicatorSettingsForm({ value, onChange, ticker, anchor, onPickAnchor, onClearAnchor }: {
+export default function IndicatorSettingsForm({ value, onChange, ticker, anchor, onPickAnchor, onClearAnchor, initial = null, only = false }: {
   value: IndicatorSettings; onChange: (next: IndicatorSettings) => void;
   ticker: string; anchor: string | null; onPickAnchor: () => void; onClearAnchor: () => void;
+  /** TA-T5: mở sẵn mục này (nút ⚙ trên chú giải / hộp Chỉ báo); `only` = chỉ hiện mục đó, không hiện hàng nút mục. */
+  initial?: Section | null; only?: boolean;
 }) {
-  const [open, setOpen] = useState<Section | null>(null);
+  const [open, setOpen] = useState<Section | null>(initial);
+  useEffect(() => { if (initial) setOpen(initial); }, [initial]);
   const set = <K extends Exclude<Section, "avwap">>(k: K, patch: Partial<IndicatorSettings[K]>) => onChange(sanitizeIndicators({ ...value, [k]: { ...value[k], ...patch } }));
   const reset = (k: Exclude<Section, "avwap">) => onChange({ ...value, [k]: DEFAULT_INDICATORS[k] });
   const L = INDICATOR_LIMITS;
@@ -52,14 +56,37 @@ export default function IndicatorSettingsForm({ value, onChange, ticker, anchor,
         <h3 className="text-[10px] font-bold uppercase tracking-wide text-slate-300">Tham số</h3>
         <span className="text-[10px] text-slate-500 truncate">Lưu theo tài khoản · ngày neo AVWAP theo mã</span>
       </div>
-      <div className="flex flex-wrap gap-1">
+      {!only && <div className="flex flex-wrap gap-1">
         {SECTIONS.map((s) => (
           <button key={s.id} type="button" aria-expanded={open === s.id} data-testid={`settings-btn-${s.id}`} onClick={() => setOpen((o) => (o === s.id ? null : s.id))}
             className={`ws-btn ws-btn-sm ${open === s.id ? "ws-btn-on" : ""}`}>⚙ {s.label}{edited(s.id) && <span className="text-amber-300" title="Đã chỉnh khác mặc định"> •</span>}</button>
         ))}
-      </div>
+      </div>}
       {open && (
         <div className="mt-2 space-y-1.5 rounded-lg border border-slate-700/60 bg-slate-950/60 p-2" data-testid={`settings-form-${open}`}>
+          {open === "ma" && <>
+            {([1, 2, 3, 4] as const).map((k) => (
+              <div key={k} className="grid grid-cols-[1fr_auto] items-center gap-2">
+                <NumField label={`Đường ${k} · chu kỳ`} value={value.ma[`p${k}`]} range={L.ma[`p${k}`]} onCommit={(v) => set("ma", { [`p${k}`]: v } as Partial<IndicatorSettings["ma"]>)} testid={`set-ma-p${k}`} />
+                <Choice label="" value={value.ma[`t${k}`]} onChange={(v) => set("ma", { [`t${k}`]: v } as Partial<IndicatorSettings["ma"]>)} testid={`set-ma-t${k}`}
+                  options={[{ id: "ema", label: "EMA" }, { id: "sma", label: "SMA" }]} />
+              </div>
+            ))}
+            <p className="text-[11px] text-slate-500">Mặc định EMA 21 · EMA 50 · EMA 100 · SMA 200 (như trước).</p>
+          </>}
+          {open === "stoch" && <>
+            <NumField label="%K độ dài" value={value.stoch.length} range={L.stoch.length} onCommit={(v) => set("stoch", { length: v })} testid="set-stoch-length" />
+            <NumField label="%K làm mượt" value={value.stoch.smoothK} range={L.stoch.smoothK} onCommit={(v) => set("stoch", { smoothK: v })} testid="set-stoch-smoothk" />
+            <NumField label="%D làm mượt" value={value.stoch.smoothD} range={L.stoch.smoothD} onCommit={(v) => set("stoch", { smoothD: v })} testid="set-stoch-smoothd" />
+          </>}
+          {open === "stochRsi" && <>
+            <NumField label="RSI độ dài" value={value.stochRsi.rsiLength} range={L.stochRsi.rsiLength} onCommit={(v) => set("stochRsi", { rsiLength: v })} testid="set-srsi-rsi" />
+            <NumField label="Stoch độ dài" value={value.stochRsi.stochLength} range={L.stochRsi.stochLength} onCommit={(v) => set("stochRsi", { stochLength: v })} testid="set-srsi-stoch" />
+            <NumField label="%K làm mượt" value={value.stochRsi.smoothK} range={L.stochRsi.smoothK} onCommit={(v) => set("stochRsi", { smoothK: v })} testid="set-srsi-k" />
+            <NumField label="%D làm mượt" value={value.stochRsi.smoothD} range={L.stochRsi.smoothD} onCommit={(v) => set("stochRsi", { smoothD: v })} testid="set-srsi-d" />
+          </>}
+          {open === "atr" && <NumField label="Chu kỳ (RMA)" value={value.atr.period} range={L.atr.period} onCommit={(v) => set("atr", { period: v })} testid="set-atr-period" />}
+          {open === "mfi" && <NumField label="Chu kỳ" value={value.mfi.period} range={L.mfi.period} onCommit={(v) => set("mfi", { period: v })} testid="set-mfi-period" />}
           {open === "rsi" && <>
             <NumField label="Chu kỳ" value={value.rsi.period} range={L.rsi.period} onCommit={(v) => set("rsi", { period: v })} testid="set-rsi-period" />
             <NumField label="Ngưỡng trên" value={value.rsi.upper} range={L.rsi.upper} onCommit={(v) => set("rsi", { upper: v })} testid="set-rsi-upper" />

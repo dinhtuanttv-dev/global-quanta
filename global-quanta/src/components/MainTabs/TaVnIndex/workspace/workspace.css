@@ -157,3 +157,35 @@
 .ws-tf-code { font: 11px var(--q-font-mono, monospace); color: var(--q-text-4, #8391a7); }
 .ws-footbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 4px 2px 0; }
 .ws-footbar .ws-attribution { margin: 0; }
+
+/* TA-T5 (28/11/2026): hộp "Chỉ báo" như TradingView — ô tìm · nhóm · danh sách (★, tên, mô tả, ⚙, công tắc) · chi tiết + tham số. */
+.ws-picker { display: flex; flex-direction: column; gap: 10px; min-height: min(560px, 70dvh); }
+.ws-picker-search { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--q-line-3, rgba(255,255,255,.16)); background: var(--q-bg); color: var(--q-text-3, #94a3b8); }
+.ws-picker-search:focus-within { border-color: var(--q-accent, #4f8ef7); }
+.ws-picker-search input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; color: var(--q-text, #f8fafc); font-size: 14px; }
+.ws-picker-body { display: grid; grid-template-columns: 170px minmax(0, 1fr) minmax(240px, 300px); gap: 10px; min-height: 0; flex: 1; }
+.ws-picker-groups { display: flex; flex-direction: column; gap: 2px; }
+.ws-picker-groups button { text-align: left; height: 32px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; color: var(--q-text-3, #94a3b8); font-size: 13px; cursor: pointer; }
+.ws-picker-groups button:hover { color: var(--q-text, #f8fafc); background: var(--q-surface-3, #182033); }
+.ws-picker-groups button[aria-pressed="true"] { color: var(--q-text, #f8fafc); font-weight: 600; background: var(--q-surface-3, #182033); box-shadow: inset 2px 0 0 var(--q-accent, #4f8ef7); }
+.ws-picker-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; max-height: min(520px, 62dvh); border: 1px solid var(--q-line-2, rgba(255,255,255,.1)); border-radius: 8px; }
+.ws-picker-list li { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid var(--q-line, rgba(255,255,255,.06)); }
+.ws-picker-list li.is-selected { background: var(--q-surface-3, #182033); box-shadow: inset 2px 0 0 var(--q-accent, #4f8ef7); }
+.ws-picker-name { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 4px 2px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.ws-picker-name b { font-size: 13px; font-weight: 600; color: var(--q-text, #f8fafc); }
+.ws-picker-name span { font-size: 11px; color: var(--q-text-3, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.ws-picker-star, .ws-picker-gear { display: inline-flex; padding: 4px; border: 0; border-radius: 5px; background: transparent; color: var(--q-text-4, #8391a7); cursor: pointer; }
+.ws-picker-star[aria-pressed="true"] { color: var(--q-warn, #fbbf24); }
+.ws-picker-star:hover, .ws-picker-gear:hover { color: var(--q-text, #f8fafc); }
+.ws-picker-empty { padding: 16px; font-size: 12px; color: var(--q-text-3, #94a3b8); }
+.ws-picker-detail { padding: 10px; border: 1px solid var(--q-line-2, rgba(255,255,255,.1)); border-radius: 8px; overflow-y: auto; max-height: min(520px, 62dvh); }
+.ws-picker-title { font-size: 14px; font-weight: 600; color: var(--q-text, #f8fafc); margin: 0 0 2px; }
+.ws-picker-desc { font-size: 12px; color: var(--q-text-3, #94a3b8); margin: 0 0 8px; }
+@media (max-width: 860px) {
+  .ws-picker-body { grid-template-columns: 1fr; }
+  .ws-picker-groups { flex-direction: row; flex-wrap: wrap; }
+}
+/* TA-T5: hộp Chỉ báo rộng hơn hộp thoại thường (3 cột như TradingView). */
+dialog.ws-dialog[data-testid="indicator-picker"] { width: min(1000px, 96vw); max-width: none; }
+dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template-columns: 160px minmax(300px, 1fr) minmax(260px, 320px); }
+@media (max-width: 860px) { dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template-columns: 1fr; } }

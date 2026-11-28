@@ -21,6 +21,7 @@ import LayerMenu, { LAYER_GROUPS, LAYER_LABEL } from "./workspace/LayerMenu";
 import ObjectList from "./workspace/ObjectList";
 import CommandPalette, { ShortcutsDialog, type Command } from "./workspace/CommandPalette";
 import ChartLegend from "./workspace/ChartLegend";
+import IndicatorPicker, { CATALOG } from "./workspace/IndicatorPicker";
 import InspectorOverview from "./workspace/InspectorOverview";
 import { Modal, Popover, useToasts, useWidth } from "./workspace/ui";
 import ProvenanceBadge from "./ProvenanceBadge";
@@ -74,7 +75,7 @@ import { TV_STYLE } from "../../../lib/ta-command-center/chart/indicatorStyle";
 import { atr as atrOf, mfi as mfiOf, obv as obvOf, parabolicSar, stochRsi as stochRsiOf, stochastic as stochOf } from "../../../lib/ta-command-center/detectors/extraIndicators";
 import type { SeriesProvenance, SeriesQuality } from "../../../hooks/useTaSeries";
 import PanelBoundary from "./workspace/PanelBoundary";
-import { ICHIMOKU_DEFAULT, MA_SET, ichimoku, movingAverageSet } from "../../../lib/ta-command-center/detectors/movingAverages";
+import { ICHIMOKU_DEFAULT, MA_SET, ema, ichimoku, sma } from "../../../lib/ta-command-center/detectors/movingAverages";
 import { BB_COLORS, ST_COLORS, bollingerBands, superTrend, type BollingerResult, type SuperTrendResult } from "../../../lib/ta-command-center/detectors/bandsTrend";
 import { anchoredVwap, anchorIndexOf, buildVolumeProfile } from "../../../lib/quant-core";
 import type { CorporateActionMark, PriceBasis } from "../../../hooks/useTaSeries";
@@ -261,6 +262,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
 
   // R5: tham số chỉ báo theo tài khoản (mặc định = công thức chuẩn).
   const ind = ws.indicators;
+  // TA-T5: hộp "Chỉ báo" (focus = mở thẳng tới chỉ báo, từ nút ⚙ trên chú giải).
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerFocus, setPickerFocus] = useState<LayerKey | null>(null);
+  const openSettings = (k: LayerKey) => { setPickerFocus(k); setPickerOpen(true); };
   const rsiResult = useMemo(() => calculateRSI(currentBars, ind.rsi.period, ind.rsi.method), [currentBars, ind.rsi.period, ind.rsi.method]);
   const macdResult = useMemo(() => calculateMACD(currentBars, ind.macd.fast, ind.macd.slow, ind.macd.signal), [currentBars, ind.macd.fast, ind.macd.slow, ind.macd.signal]);
   const adxResult = useMemo(() => calculateADX(currentBars, ind.adx.period), [currentBars, ind.adx.period]);
@@ -573,7 +578,13 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   };
 
   // ---- 25/10: bộ EMA 21/50/100 · MA 200 và Ichimoku (lớp phủ giá, mặc định tắt) ----
-  const maValues = useMemo(() => (layerState?.maSet ? movingAverageSet(currentBars) : null), [layerState?.maSet, currentBars]);
+  // TA-T5: 4 đường TB theo chu kỳ / kiểu người dùng chọn (mặc định EMA 21 · 50 · 100 · SMA 200 = đúng như trước). Mã đường (ema21…) giữ làm khoá nội bộ.
+  const maLabel = useMemo(() => Object.fromEntries(MA_SET.map((m, j) => { const k = (j + 1) as 1 | 2 | 3 | 4; return [m.id, `${ind.ma[`t${k}`] === "ema" ? "EMA" : "MA"} ${ind.ma[`p${k}`]}`]; })) as Record<string, string>, [ind.ma]);
+  const maValues = useMemo(() => {
+    if (!layerState?.maSet) return null;
+    const c = currentBars.map((b) => b.close);
+    return Object.fromEntries(MA_SET.map((m, j) => { const k = (j + 1) as 1 | 2 | 3 | 4; return [m.id, (ind.ma[`t${k}`] === "ema" ? ema : sma)(c, ind.ma[`p${k}`])]; })) as Record<(typeof MA_SET)[number]["id"], (number | null)[]>;
+  }, [layerState?.maSet, currentBars, ind.ma]);
   const ichiValues = useMemo(() => (layerState?.ichimoku ? ichimoku(currentBars) : null), [layerState?.ichimoku, currentBars]);
   useEffect(() => {
     tvApi?.setOverlayLines("ma", maValues ? MA_SET.map((m) => ({ id: m.id, color: TV_STYLE.ma[m.id] ?? m.color, width: m.id === "ma200" ? 2 as const : 1 as const, values: maValues[m.id] })) : null);
@@ -597,7 +608,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
   }, [tvApi, bbValues]);
   const priceDigits = useMemo(() => priceDigitsFor(currentBars), [currentBars]);
   const psarV = useMemo(() => (layerState?.psar ? parabolicSar(currentBars) : null), [layerState?.psar, currentBars]);
-  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues, priceDigits, psarV), [maValues, ichiValues, bbValues, stValues, priceDigits, psarV]);
+  const priceExtras = useMemo(() => priceExtrasReader(maValues, ichiValues, bbValues, stValues, priceDigits, psarV, maLabel), [maValues, ichiValues, bbValues, stValues, priceDigits, psarV, maLabel]);
   // MS-GARCH là dải từ hiện tại nên chỉ có ở khung ngày, không vẽ khi đang xem lại lịch sử.
   const msgarchOn = Boolean(layerState?.msgarch);
   const msgarchApplies = timeframe === "D" && replayIdxDeferred == null;
@@ -616,11 +627,11 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     tv.setAdxPane(layerState?.adx ? currentBars.map((b, i) => ({ date: b.date, adx: adxResult.series[i], plus: adxResult.plusDI[i], minus: adxResult.minusDI[i] })) : null);
   }, [layerState?.adx, currentBars, adxResult]);
   // ---- TA-T4 (Q6): Stochastic · Stoch RSI · ATR · OBV · MFI (pane) + Parabolic SAR (phủ giá) — chỉ tính khi bật lớp ----
-  const stochV = useMemo(() => (layerState?.stoch ? stochOf(currentBars) : null), [layerState?.stoch, currentBars]);
-  const stochRsiV = useMemo(() => (layerState?.stochRsi ? stochRsiOf(currentBars) : null), [layerState?.stochRsi, currentBars]);
-  const atrV = useMemo(() => (layerState?.atr ? atrOf(currentBars) : null), [layerState?.atr, currentBars]);
+  const stochV = useMemo(() => (layerState?.stoch ? stochOf(currentBars, ind.stoch) : null), [layerState?.stoch, currentBars, ind.stoch]);
+  const stochRsiV = useMemo(() => (layerState?.stochRsi ? stochRsiOf(currentBars, ind.stochRsi) : null), [layerState?.stochRsi, currentBars, ind.stochRsi]);
+  const atrV = useMemo(() => (layerState?.atr ? atrOf(currentBars, ind.atr.period) : null), [layerState?.atr, currentBars, ind.atr.period]);
   const obvV = useMemo(() => (layerState?.obv ? obvOf(currentBars) : null), [layerState?.obv, currentBars]);
-  const mfiV = useMemo(() => (layerState?.mfi ? mfiOf(currentBars) : null), [layerState?.mfi, currentBars]);
+  const mfiV = useMemo(() => (layerState?.mfi ? mfiOf(currentBars, ind.mfi.period) : null), [layerState?.mfi, currentBars, ind.mfi.period]);
   useEffect(() => {
     const tv = tvManagerRef.current;
     if (!tv) return;
@@ -1001,6 +1012,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
     for (const g of LAYER_GROUPS) for (const k of g.keys) list.push({ id: `layer-${k}`, group: g.label, label: `${layerState?.[k] ? "Tắt" : "Bật"} ${LAYER_LABEL[k]}`, active: !!layerState?.[k], run: () => toggleLayer(k) });
     for (const p of PRESETS) list.push({ id: `preset-${p.id}`, group: "Preset", label: p.label, hint: p.hint, run: () => applyPreset(p.id) });
     if (ws.mine) list.push({ id: "preset-mine", group: "Preset", label: "Bố cục của tôi", run: () => applyPreset("mine") });
+    list.push({ id: "open-indicators", group: "Chỉ báo", label: "Mở hộp Chỉ báo (tìm, bật / tắt, tham số)", run: () => { setPickerFocus(null); setPickerOpen(true); } });
     for (const t of TOOLS) list.push({ id: `tool-${t.id}`, group: "Vẽ", label: t.label, keys: t.key, run: () => pickTool(t.id) });
     list.push({ id: "fib-ext", group: "Vẽ", label: `Fibonacci mở rộng: ${fibExtensionMode ? "tắt" : "bật"}`, run: handleToggleFibExtension });
     list.push({ id: "count-edit", group: "Vẽ", label: "Chỉnh tay cách đếm Elliott", run: startCountEditFromToolbar });
@@ -1087,6 +1099,12 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <button type="button" className="ws-btn" onClick={() => ctlNow()?.drawing.redo()} disabled={!history.canRedo} aria-label="Làm lại (Ctrl+Shift+Z)" title="Làm lại (Ctrl+Shift+Z)" data-testid="toolbar-redo"><Redo2 className="w-3.5 h-3.5" /></button>
       <button type="button" className="ws-btn" onClick={deleteSelected} disabled={!selectedId} aria-label="Xoá hình đang chọn (Delete)" title="Xoá hình đang chọn (Delete)" data-testid="toolbar-delete"><Trash2 className="w-3.5 h-3.5" /></button>
     </>
+  );
+  // TA-T5: hộp "Chỉ báo" như TradingView (tìm, nhóm, yêu thích, tham số) — cùng LayerManager với menu "Lớp & pane".
+  const indicatorsButton = (
+    <button type="button" className="ws-btn" onClick={() => { setPickerFocus(null); setPickerOpen(true); }} data-testid="indicators-btn" title="Chỉ báo (tìm, bật / tắt, tham số)">
+      <Activity className="w-3.5 h-3.5" /><span className="ws-btn-text-opt">Chỉ báo</span>
+    </button>
   );
   const layerPopover = layerState && (
     <Popover testid="layers-menu-btn" panelTestid="layers-menu" label="Lớp & pane" icon={<Layers3 className="w-3.5 h-3.5" />} width={420} align="end"
@@ -1311,7 +1329,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
           </div>
           <div className="ws-group" role="group" aria-label="Vẽ">{toolButtons()}</div>
           <div className="ws-group" role="group" aria-label="Sửa hình vẽ">{editButtons}{objectsButton}</div>
-          <div className="ws-group" role="group" aria-label="Phân tích">{layerPopover}{confluenceBtn}{structureBtn}</div>
+          <div className="ws-group" role="group" aria-label="Phân tích">{indicatorsButton}{layerPopover}{confluenceBtn}{structureBtn}</div>
           <div className="ws-group" role="group" aria-label="Khác">
             <button type="button" className="ws-btn" onClick={exportPng} data-testid="png-btn" aria-label="Xuất ảnh PNG" title="Xuất ảnh PNG"><Camera className="w-3.5 h-3.5" /></button>
             {!classic && <button type="button" className="ws-btn" aria-pressed={inspectorMode !== "off"} onClick={toggleInspector} data-testid="inspector-btn" aria-label="Bảng chi tiết" title="Bảng chi tiết"><PanelRight className="w-3.5 h-3.5" /></button>}
@@ -1323,7 +1341,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
       <div className="ws-body" data-inspector={inspectorMode}>
         <div className="ws-stage" data-testid="ta-chart" onPointerUpCapture={savePaneStretch}>
           <ChartLegend tv={tvApi} bars={currentBars} ticker={ticker} timeframe={timeframe} paneNotes={paneNotes} paneValue={paneValue} priceExtras={priceExtras} paneTitle={paneTitles(ind)} layoutKey={`${layerState?.volume}${layerState?.rsi}${layerState?.macd}${layerState?.adx}${layerState?.orderflow}${layerState?.foreign}${layerState?.elliottOsc}${layerState?.stoch}${layerState?.stochRsi}${layerState?.atr}${layerState?.obv}${layerState?.mfi}${wsWidth}${fullscreen}${chartPrefs.volOverlay}`}
-            onClosePane={toggleLayer} />
+            onClosePane={toggleLayer} onSettings={openSettings} hasSettings={(k) => CATALOG.some((c) => c.key === k && c.settings)} />
           <div className="ws-chips">
             {forming && (
               <span className="px-2 py-0.5 rounded-lg bg-slate-950/85 border border-cyan-500/30 text-[10px] text-cyan-200" data-testid="forming-chip"
@@ -1481,7 +1499,10 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
         <div className="grid grid-cols-2 gap-1">{toolButtons(true)}</div>
         <div className="flex gap-1 mt-2">{editButtons}</div>
       </Modal>
+      {layerState && <IndicatorPicker open={pickerOpen} onClose={() => setPickerOpen(false)} state={layerState} onToggle={toggleLayer} settings={settingsProps} focus={pickerFocus} />}
       <Modal open={sheet === "layers"} onClose={() => setSheet(null)} title="Lớp & pane" sheet testid="sheet-layers">
+        {/* TA-T5: lối vào hộp Chỉ báo trên điện thoại */}
+        <button type="button" className="ws-btn mb-2" onClick={() => { setSheet(null); setPickerFocus(null); setPickerOpen(true); }} data-testid="indicators-btn"><Activity className="w-3.5 h-3.5" />Hộp Chỉ báo (tìm, tham số)</button>
         {layerState && <LayerMenu state={layerState} onToggle={toggleLayer} dense settings={settingsProps} />}
         <div className="flex flex-wrap gap-1 mt-2">{confluenceBtn}{structureBtn}</div>
       </Modal>
@@ -1527,12 +1548,12 @@ function closeOpenPopovers() {
 export const ICHI_COLORS = { tenkan: TV_STYLE.ichimoku.tenkan, kijun: TV_STYLE.ichimoku.kijun, chikou: TV_STYLE.ichimoku.chikou } as const;
 
 /** Giá trị EMA / MA / Ichimoku tại nến thứ i (chú giải theo crosshair). Mây tại nến i = Senkou tính tại i − 26. */
-export function priceExtrasReader(ma: ReturnType<typeof movingAverageSet> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2, psar: { sar: (number | null)[]; up: boolean[] } | null = null) {
+export function priceExtrasReader(ma: Record<(typeof MA_SET)[number]["id"], (number | null)[]> | null, ichi: ReturnType<typeof ichimoku> | null, bb: BollingerResult | null = null, st: SuperTrendResult | null = null, digits: 0 | 2 = 2, psar: { sar: (number | null)[]; up: boolean[] } | null = null, maLabel: Record<string, string> = {}) {
   // TA-T1: cùng kiểu số với trục giá (2 chữ số thập phân, kiểu Việt); `group` = lớp của dòng chú giải (mỗi chỉ báo một dòng, có nút ✕).
   const f = (v: number | null | undefined) => (v == null ? "—" : viPrice(v, digits));
   return (i: number): { label: string; color: string; value: string; group: LayerKey }[] => {
     const out: { label: string; color: string; value: string; group: LayerKey }[] = [];
-    if (ma) for (const m of MA_SET) out.push({ label: m.label, color: TV_STYLE.ma[m.id] ?? m.color, value: f(ma[m.id][i]), group: "maSet" });
+    if (ma) for (const m of MA_SET) out.push({ label: maLabel[m.id] ?? m.label, color: TV_STYLE.ma[m.id] ?? m.color, value: f(ma[m.id][i]), group: "maSet" });
     if (ichi) {
       const j = i - ICHIMOKU_DEFAULT.shift;
       out.push({ label: "Tenkan", color: ICHI_COLORS.tenkan, value: f(ichi.tenkan[i]), group: "ichimoku" }, { label: "Kijun", color: ICHI_COLORS.kijun, value: f(ichi.kijun[i]), group: "ichimoku" },

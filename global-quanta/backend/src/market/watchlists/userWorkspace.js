@@ -24,10 +24,18 @@ const IND_LIMITS = {
   vprofile: { bars: [20, 500, 60] },
   bollinger: { period: [5, 100, 20], mult: [0.5, 5, 2] },
   supertrend: { period: [2, 100, 10], mult: [0.5, 10, 3] },
+  // TA-T5 (28/11): 4 đường MA (chu kỳ + kiểu), Stochastic, Stoch RSI, ATR, MFI — mặc định = chỉ báo dựng sẵn TradingView.
+  ma: { p1: [2, 400, 21], p2: [2, 400, 50], p3: [2, 400, 100], p4: [2, 400, 200] },
+  stoch: { length: [2, 100, 14], smoothK: [1, 20, 1], smoothD: [1, 20, 3] },
+  stochRsi: { rsiLength: [2, 100, 14], stochLength: [2, 100, 14], smoothK: [1, 20, 3], smoothD: [1, 20, 3] },
+  atr: { period: [1, 100, 14] },
+  mfi: { period: [2, 100, 14] },
 };
 /** Hệ số cho phép một chữ số thập phân. */
 const IND_DECIMAL = new Set(["mult"]);
-const IND_ENUMS = { rsi: { method: ["wilder", "cutler"] }, vprofile: { method: ["triangular", "uniform"] } };
+const IND_ENUMS = { rsi: { method: ["wilder", "cutler"] }, vprofile: { method: ["triangular", "uniform"] },
+  // phần tử đầu = mặc định khi giá trị lạ (đường 4 mặc định SMA = MA 200).
+  ma: { t1: ["ema", "sma"], t2: ["ema", "sma"], t3: ["ema", "sma"], t4: ["sma", "ema"] } };
 const DATE_RE = /^\d{4}-\d{2}-\d{2}(T[0-9:.+Z-]{4,20})?$/;
 const TICKER_RE = /^[A-Z0-9]{2,12}$/;
 
