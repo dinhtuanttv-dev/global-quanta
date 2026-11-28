@@ -110,7 +110,7 @@ export function HlEvidenceLink({ d, onNavigate }: { d: EliteDecision; onNavigate
       </ul>
       {onNavigate ? (
         <button type="button" onClick={onNavigate} data-touch data-testid="hl-goto-evidence"
-          className="mt-2 min-h-[28px] rounded border border-[#E8B84B]/50 bg-[#E8B84B]/10 px-3 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/20">
+          className="mt-2 min-h-[28px] rounded border border-q-accent/50 bg-q-accent/10 px-3 text-[11px] font-bold text-q-accent-strong hover:bg-q-accent/20">
           Xem Bằng chứng · Trọng số · Quy tắc chi tiết →
         </button>
       ) : <p className="mt-1 text-[10px] text-slate-500">Chi tiết ở tab con "4. Bằng chứng & sổ theo dõi".</p>}

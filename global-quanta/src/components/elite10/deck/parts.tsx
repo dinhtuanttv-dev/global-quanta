@@ -9,18 +9,18 @@ const SEAL_CLS: Record<SealTone, string> = {
   fail: "border-rose-400/70 text-rose-300", desc: "border-slate-400/60 text-slate-300",
 };
 export function EvidenceSeal({ seal, testId }: { seal: Seal; testId?: string }) {
-  return <span title={seal.title} className={`inline-flex items-center rounded border px-2 py-0.5 text-[10.5px] font-bold tracking-wider ${SEAL_CLS[seal.tone]}`} style={{ fontFamily: "var(--font-display)" }} data-testid={testId}>{seal.text}</span>;
+  return <span title={seal.title} className={`inline-flex items-center rounded border px-2 py-0.5 text-[10.5px] font-bold tracking-wider ${SEAL_CLS[seal.tone]}`} style={{ fontFamily: "var(--q-font-sans)" }} data-testid={testId}>{seal.text}</span>;
 }
 
 export const DeckLabel = ({ children }: { children: ReactNode }) => (
-  <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500" style={{ fontFamily: "var(--font-display)" }}>{children}</p>
+  <p className="text-[10px] font-semibold uppercase tracking-[.12em] text-slate-500" style={{ fontFamily: "var(--q-font-sans)" }}>{children}</p>
 );
 
 export function DeckPanel({ title, meta, children, testId, className = "" }: { title: string; meta?: ReactNode; children: ReactNode; testId?: string; className?: string }) {
   return (
     <section className={`deck-panel rounded-xl p-3 ${className}`} data-testid={testId}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h4 className="text-[11.5px] font-semibold uppercase tracking-[.1em] text-slate-100" style={{ fontFamily: "var(--font-display)" }}>{title}</h4>
+        <h4 className="text-[11.5px] font-semibold uppercase tracking-[.1em] text-slate-100" style={{ fontFamily: "var(--q-font-sans)" }}>{title}</h4>
         {meta && <span className="text-[10.5px] text-slate-500">{meta}</span>}
       </div>
       {children}

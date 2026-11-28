@@ -4,7 +4,7 @@ import Modal from "./Modal";
 import type { ExportAction } from "./useObsidianDesk";
 
 const MONO = { fontFamily: "ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace" } as const;
-const BTN = "inline-flex min-h-[32px] items-center rounded-md px-3 py-1.5 text-[11.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5CE72]";
+const BTN = "inline-flex min-h-[32px] items-center rounded-md px-3 py-1.5 text-[11.5px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-q-accent-strong";
 
 export default function ExportPreview({ title, note, options, onOptions, onAction, onClose, showQuestions = false }: {
   title: string; note: NoteOut; options: ExportOptions; onOptions: (o: Partial<ExportOptions>) => void;
@@ -20,7 +20,7 @@ export default function ExportPreview({ title, note, options, onOptions, onActio
       footer={<>
         <button type="button" className={`${BTN} border border-white/20 text-slate-200 hover:bg-white/10`} onClick={() => onAction("copy")}>Sao chép Markdown</button>
         <button type="button" className={`${BTN} border border-white/20 text-slate-200 hover:bg-white/10`} onClick={() => onAction("download")}>Tải .md</button>
-        <button type="button" className={`${BTN} bg-[#E8B84B]/25 text-[#F5CE72] hover:bg-[#E8B84B]/35`} onClick={() => onAction("obsidian")} data-testid="obsidian-preview-open">Mở trong Obsidian</button>
+        <button type="button" className={`${BTN} bg-q-accent/25 text-q-accent-strong hover:bg-q-accent/35`} onClick={() => onAction("obsidian")} data-testid="obsidian-preview-open">Mở trong Obsidian</button>
       </>}>
       <dl className="mb-2 gap-x-3 gap-y-0.5 text-[11.5px]" style={{ display: "grid", gridTemplateColumns: "auto minmax(0, 1fr)" }}>
         <dt className="text-slate-300">Tệp</dt><dd className="break-all text-slate-100" style={MONO} data-testid="obsidian-preview-file">{note.fileName}</dd>
@@ -33,7 +33,7 @@ export default function ExportPreview({ title, note, options, onOptions, onActio
         <legend className="sr-only">Nội dung ghi chú</legend>
         {toggles.map(([k, label]) => (
           <label key={k} className="inline-flex min-h-[32px] cursor-pointer items-center gap-2 text-slate-200">
-            <input type="checkbox" checked={options[k]} onChange={(e) => onOptions({ [k]: e.target.checked })} className="h-4 w-4 accent-[#E8B84B]" />{label}
+            <input type="checkbox" checked={options[k]} onChange={(e) => onOptions({ [k]: e.target.checked })} className="h-4 w-4 accent-q-accent" />{label}
           </label>
         ))}
       </fieldset>

@@ -29,9 +29,9 @@ export function useHlWatchLog(enabled: boolean) {
 
 const TONE: Record<PrimaryState, string> = {
   PORTFOLIO_CORE: "border-emerald-400/50 text-emerald-200", PORTFOLIO_RUNNER: "border-violet-400/50 text-violet-200", EXITED_TODAY: "border-rose-400/50 text-rose-200",
-  QUEUE: "border-[#E8B84B]/50 text-[#F5CE72]", BLOCKED: "border-slate-400/50 text-slate-300", WATCH_BASE: "border-cyan-400/40 text-cyan-200", SECTOR_AGAINST: "border-amber-500/40 text-amber-300",
+  QUEUE: "border-q-accent/50 text-q-accent-strong", BLOCKED: "border-slate-400/50 text-slate-300", WATCH_BASE: "border-cyan-400/40 text-cyan-200", SECTOR_AGAINST: "border-amber-500/40 text-amber-300",
 };
-const KIND_TONE: Record<Transition["kind"], string> = { ENTER: "text-emerald-300", EXIT: "text-rose-300", QUEUE: "text-[#F5CE72]", BLOCKED: "text-slate-300", PZ: "text-cyan-200" };
+const KIND_TONE: Record<Transition["kind"], string> = { ENTER: "text-emerald-300", EXIT: "text-rose-300", QUEUE: "text-q-accent-strong", BLOCKED: "text-slate-300", PZ: "text-cyan-200" };
 
 /** Mọi chuyển trạng thái xảy ra ĐÚNG phiên đang xem (để cảnh báo). */
 export function todayTransitions(states: BoardStates, d: EliteDecision, sessions: HistSessionLite[] | undefined, log: WatchLogEntry[] | undefined) {
@@ -63,9 +63,9 @@ export function CockpitStatusBar({ seal, states, today }: { seal: SessionSeal; s
   const lag = seal.sources.filter((s) => s.lag);
   const c = states.counts;
   return (
-    <section className={`rounded-lg border bg-[#0E131F] px-3 py-2 text-[11px] transition-shadow ${fresh ? "border-[#E8B84B]/70 shadow-[0_0_0_2px_rgba(232,184,75,0.35)]" : "border-white/10"}`} data-hl-layer="cockpit" data-testid="cockpit-status">
+    <section className={`rounded-lg border bg-[#0E131F] px-3 py-2 text-[11px] transition-shadow ${fresh ? "border-q-accent/70 shadow-[0_0_0_2px_rgba(79, 142, 247,0.35)]" : "border-white/10"}`} data-hl-layer="cockpit" data-testid="cockpit-status">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <b className="text-[#F5CE72]">PHIÊN {dm(seal.date)}</b>
+        <b className="text-q-accent-strong">PHIÊN {dm(seal.date)}</b>
         <span className="text-slate-300">khoá {hm(seal.builtAt)}</span>
         <span className="text-slate-400">· {seal.version}{seal.ruleVersion ? ` · ${seal.ruleVersion}` : ""}</span>
         {seal.pzMode && <span className="rounded border border-white/15 px-1 text-[10px] text-slate-300">{seal.pzMode === "GATE" ? "PZ-v2 CỔNG BẬT" : "PZ-v2 CHỈ HIỂN THỊ"}</span>}
@@ -83,7 +83,7 @@ export function CockpitStatusBar({ seal, states, today }: { seal: SessionSeal; s
         {states.multi.length > 0 && <span className="text-slate-500" title="Mã có mặt ở nhiều danh sách: hiển thị một trạng thái chính (thứ tự D1) và nhãn phụ">· {states.multi.length} mã ở nhiều danh sách</span>}
       </p>
       {today.length > 0 && (
-        <p className="mt-0.5 text-[#F5CE72]" data-testid="cockpit-today">
+        <p className="mt-0.5 text-q-accent-strong" data-testid="cockpit-today">
           Chuyển trạng thái phiên này ({today.length}): {today.slice(0, 6).map((x) => `${x.ticker} ${x.t.label}`).join(" · ")}{today.length > 6 ? " · …" : ""}
         </p>
       )}
@@ -131,10 +131,10 @@ export function StateMap({ states, sessions, log, highlight, today, onOpenTicker
                 <li key={x.ticker}>
                   <button type="button" aria-expanded={open === x.ticker} onClick={() => setOpen(open === x.ticker ? null : x.ticker)} data-testid={`cockpit-cell-${x.ticker}`}
                     title={[x.detail, ...x.secondary.map((y) => `cũng ở: ${y}`)].filter(Boolean).join(" · ")}
-                    className={`min-h-[26px] rounded border px-1.5 text-left text-[10.5px] ${TONE[s]} ${highlight.has(x.ticker) ? "bg-[#E8B84B]/20 ring-1 ring-[#E8B84B]/70" : ""} ${today.has(x.ticker) ? "border-dashed" : ""}`}>
+                    className={`min-h-[26px] rounded border px-1.5 text-left text-[10.5px] ${TONE[s]} ${highlight.has(x.ticker) ? "bg-q-accent/20 ring-1 ring-q-accent/70" : ""} ${today.has(x.ticker) ? "border-dashed" : ""}`}>
                     <b className="font-mono">{x.ticker}</b>{x.rank != null && <span className="ml-1 text-[10px] text-slate-500">#{x.rank}</span>}
                     {x.secondary.length > 0 && <span className="ml-1 text-[10px] text-slate-400">+{x.secondary.join(", ")}</span>}
-                    {today.has(x.ticker) && <span className="ml-1 text-[10px] text-[#F5CE72]" title="Có chuyển trạng thái (danh mục / hàng chờ / vị trí giá) trong phiên đang xem">đổi phiên này</span>}
+                    {today.has(x.ticker) && <span className="ml-1 text-[10px] text-q-accent-strong" title="Có chuyển trạng thái (danh mục / hàng chờ / vị trí giá) trong phiên đang xem">đổi phiên này</span>}
                   </button>
                 </li>
               ))}
@@ -148,7 +148,7 @@ export function StateMap({ states, sessions, log, highlight, today, onOpenTicker
             <span className={`rounded border px-1 text-[10px] ${TONE[sel.primary]}`}>{PRIMARY_VI[sel.primary]}</span>
             {sel.detail && <span className="text-slate-400">{sel.detail}</span>}
             {sel.secondary.length > 0 && <span className="text-slate-500">· cũng ở: {sel.secondary.join(", ")}</span>}
-            <button type="button" onClick={() => onOpenTicker(sel.ticker)} className="ml-auto min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:text-[#F5CE72]">Mở Hồ sơ 360° →</button>
+            <button type="button" onClick={() => onOpenTicker(sel.ticker)} className="ml-auto min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:text-q-accent-strong">Mở Hồ sơ 360° →</button>
           </p>
           <div className="mt-1"><TransitionList tr={transitionsFrom(sel.ticker, sessions, log, 6)} testId="cockpit-detail-tr" /></div>
         </div>
@@ -177,7 +177,7 @@ export function QueueMatrix({ d, states, secName }: { d: EliteDecision; states: 
     return (
       <tr key={q.ticker} className="border-t border-white/5" data-testid={`cockpit-qm-${q.ticker}`}>
         <td className="py-1 pr-2 font-mono text-slate-500">{i ?? "—"}</td>
-        <td className="sticky left-0 bg-[#0E131F] pr-2 font-mono font-bold text-[#F5CE72]">{q.ticker}</td>
+        <td className="sticky left-0 bg-[#0E131F] pr-2 font-mono font-bold text-q-accent-strong">{q.ticker}</td>
         <td className="pr-2">{QUEUE_CODE_VI[String(q.code)] ?? q.reasonVi}</td>
         <td className="pr-2 text-slate-400">{secName(q.sectorKey)} · giữ {heldBySec.get(q.sectorKey ?? "") ?? 0}/{hl.rule.maxPerSector}</td>
         <td className="pr-2 font-mono">{q.lsPct == null ? "—" : Math.round(q.lsPct)}</td>
@@ -190,7 +190,7 @@ export function QueueMatrix({ d, states, secName }: { d: EliteDecision; states: 
   };
   return (
     <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 text-[11px]" data-hl-layer="cockpit" data-testid="cockpit-queue-matrix">
-      <button type="button" aria-expanded={open} onClick={toggle} data-testid="cockpit-qm-toggle" className="min-h-[24px] font-bold text-[#F5CE72] hover:underline">
+      <button type="button" aria-expanded={open} onClick={toggle} data-testid="cockpit-qm-toggle" className="min-h-[24px] font-bold text-q-accent-strong hover:underline">
         {open ? "▾" : "▸"} Hàng chờ dạng ma trận ({hl.queue.length} mã{(hl.queueIlliquid ?? []).length ? ` + ${(hl.queueIlliquid ?? []).length} chưa giao dịch được` : ""}) — dạng thẻ ở trên giữ nguyên
       </button>
       {open && (

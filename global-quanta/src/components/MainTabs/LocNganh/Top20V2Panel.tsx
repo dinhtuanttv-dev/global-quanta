@@ -76,7 +76,7 @@ function ContextCards({ s, ctx, liquid, onOpenSector, onOpenCycle }: { s: AlphaS
   const rrg = s.sector ? ctx.rrgOf?.get(s.sector) : undefined, lad = s.sector ? ctx.ladderOf?.get(s.sector) : undefined;
   const tim = s.sector ? ctx.timingOf?.get(s.sector) : undefined, cyc = ctx.cycleOf?.get(s.ticker);
   const rung = (h: number) => lad?.rungs.find((r) => r.h === h);
-  const btn = { background: 'none', border: '1px solid var(--bg-surface-2)', borderRadius: 6, color: 'var(--gold)', cursor: 'pointer', fontSize: 11, padding: '2px 8px', justifySelf: 'start' } as const;
+  const btn = { background: 'none', border: '1px solid var(--bg-surface-2)', borderRadius: 6, color: 'var(--q-accent)', cursor: 'pointer', fontSize: 11, padding: '2px 8px', justifySelf: 'start' } as const;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 8, margin: '8px 0' }}>
       <ContextBlock title="Ngành" testId="alpha-ctx-sector">
@@ -124,9 +124,9 @@ function Detail({ s, ctx, liquid, onClose, onOpenSector, onOpenCycle }: { s: Alp
   const maxAbs = Math.max(0.01, ...s.factors.map((f) => Math.abs(f.contribution ?? 0)));
   return (
     <tr data-testid="alpha-detail"><td colSpan={10} style={{ padding: 0 }}>
-      <div style={{ border: '1px solid var(--gold)', borderRadius: 8, padding: '10px 12px', margin: '6px 0', position: 'sticky', left: 0, maxWidth: 'min(100%, calc(100vw - 40px))', boxSizing: 'border-box' }}>
+      <div style={{ border: '1px solid var(--q-accent)', borderRadius: 8, padding: '10px 12px', margin: '6px 0', position: 'sticky', left: 0, maxWidth: 'min(100%, calc(100vw - 40px))', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'baseline', flexWrap: 'wrap' }}>
-          <b style={{ color: 'var(--gold)', fontSize: 14 }}>{s.ticker}</b>
+          <b style={{ color: 'var(--q-accent)', fontSize: 14 }}>{s.ticker}</b>
           <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{s.sectorName ?? s.sector ?? '—'} · điểm {sgn(s.score, 3)} = Σ z × trọng số · hạng {s.rank} toàn thị trường · GTGD TB60 {nf(s.avgValue60 / 1e9, 1)} tỷ</span>
           <button type="button" onClick={onClose} aria-label="Đóng" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer' }}>✕</button>
         </div>
@@ -177,10 +177,10 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
   return (
     <div className="panel-block" data-testid="alpha-panel">
       <div className="sb-row" style={{ marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-        <b style={{ color: 'var(--gold)' }}>Radar Top 20 · đa yếu tố</b>
+        <b style={{ color: 'var(--q-accent)' }}>Radar Top 20 · đa yếu tố</b>
         <span style={{ color: 'var(--text-tertiary)', fontSize: 11 }}>
           {data.liquid} mã đủ thanh khoản · dữ liệu tới {fmtDate(data.dataAsOf)}
-          {selectedSector && <> · Lọc theo ngành: <b style={{ color: 'var(--gold)' }}>{selectedSector.name}</b>{' '}
+          {selectedSector && <> · Lọc theo ngành: <b style={{ color: 'var(--q-accent)' }}>{selectedSector.name}</b>{' '}
             <button type="button" onClick={onClearSector} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 11 }}>✕ bỏ lọc</button></>}
         </span>
         {onRefresh && <button type="button" onClick={onRefresh} disabled={refreshing} aria-label="Tải lại snapshot Top 20" data-testid="alpha-refresh"
@@ -202,7 +202,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
 
       <p data-testid="alpha-source" style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '6px 0 8px' }}>
         Mô hình {data.model} · trọng số từ IC {data.icHistoryDays} ngày (36 tháng, co 50% về đều) · giá điều chỉnh cộng dồn (Gateway) · BCTC, khối ngoại, vốn hoá: VNDirect ({data.vnd.tickers} mã, cập nhật {fmtDate(data.vnd.fetchedAt)}) · tối đa 4 mã / ngành.{' '}
-        <button type="button" onClick={() => setShowWeights((v) => !v)} data-testid="alpha-weights-toggle" style={{ background: 'none', border: 'none', color: 'var(--gold)', cursor: 'pointer', fontSize: 11, padding: 0 }}>{showWeights ? 'Ẩn trọng số' : 'Xem trọng số 18 yếu tố'}</button>
+        <button type="button" onClick={() => setShowWeights((v) => !v)} data-testid="alpha-weights-toggle" style={{ background: 'none', border: 'none', color: 'var(--q-accent)', cursor: 'pointer', fontSize: 11, padding: 0 }}>{showWeights ? 'Ẩn trọng số' : 'Xem trọng số 18 yếu tố'}</button>
       </p>
       <p data-testid="alpha-asof" style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: '-4px 0 8px' }}>
         Snapshot {fmtDate(data.dataAsOf)} · dựng lúc {fmtDate(data.builtAt)} · kết quả ledger là theo dõi đã chấm, không phải hiệu suất đảm bảo.
@@ -212,7 +212,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
           {data.weights.map((w) => (
             <div key={w.key} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <span style={{ flex: 1, color: 'var(--text-secondary)' }}>{FACTOR_VI[w.key] ?? w.key}</span>
-              <span style={{ display: 'inline-block', width: `${(w.weight ?? 0) * 400}px`, maxWidth: 60, height: 6, background: 'var(--gold)', borderRadius: 3 }} />
+              <span style={{ display: 'inline-block', width: `${(w.weight ?? 0) * 400}px`, maxWidth: 60, height: 6, background: 'var(--q-accent)', borderRadius: 3 }} />
               <span style={{ width: 40, textAlign: 'right' }}>{nf((w.weight ?? 0) * 100, 1)}%</span>
               <span style={{ width: 52, textAlign: 'right', color: tone(w.ic36m) }} title="IC trung bình 36 tháng">IC {sgn(w.ic36m, 3)}</span>
             </div>
@@ -239,7 +239,7 @@ export default function Top20V2Panel({ data, selectedSector, onClearSector, onSe
                   <tr data-testid="alpha-row" aria-expanded={open === s.ticker} onClick={() => { onSelectTicker(s.ticker); setOpen(open === s.ticker ? null : s.ticker); }}
                     style={{ cursor: 'pointer', borderTop: '1px solid var(--bg-surface-2)', background: open === s.ticker ? 'var(--bg-surface-2)' : undefined }}>
                     <td style={{ padding: '6px 0', color: 'var(--text-tertiary)' }}>{i + 1}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--gold)' }}>{s.ticker}</td>
+                    <td style={{ fontWeight: 700, color: 'var(--q-accent)' }}>{s.ticker}</td>
                     <td style={{ color: 'var(--text-secondary)', fontSize: 11 }} data-testid="alpha-sector-cell">
                       <span style={{ display: 'block' }}>{s.sectorName ?? s.sector ?? '—'}</span>
                       <span style={{ display: 'block' }}>{rrg ? <b style={{ color: QUADRANT_COLORS[rrg.quadrant] }}>{QUADRANT_VI[rrg.quadrant]}</b> : '—'}{lad ? ` · ${lad.structure.label}` : ''}</span>

@@ -29,7 +29,7 @@ export default function WorldTodayStrip({ onOpenImpact }: { onOpenImpact: () => 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[10.5px]" style={{ color: "var(--text-secondary)", overflowWrap: "anywhere" }}>
         <p style={{ minWidth: 0 }}>
           <span style={muted}>Rủi ro toàn cầu: </span>
-          {st.regime.stressed ? <b style={{ color: "var(--gold, #fbbf24)" }}>căng thẳng</b> : <b style={{ color: "var(--text-primary)" }}>bình thường</b>}
+          {st.regime.stressed ? <b style={{ color: "var(--q-accent, #fbbf24)" }}>căng thẳng</b> : <b style={{ color: "var(--text-primary)" }}>bình thường</b>}
           {" "}· VIX {st.regime.vix == null ? "—" : st.regime.vix.toLocaleString("vi-VN", { maximumFractionDigits: 2 })} ({fmtZ(st.regime.vixChg, 1)}%)
         </p>
         <p style={{ minWidth: 0 }}>

@@ -17,7 +17,7 @@ const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
 const STATUS: Record<CalStatus, { t: string; cls: string; dot: string }> = {
   REPORTED: { t: "Đã công bố", cls: "border-emerald-400/40 text-emerald-300", dot: "#10B981" },
   DISCLOSED: { t: "Có BCTC, chờ số", cls: "border-sky-400/40 text-sky-300", dot: "#38BDF8" },
-  UPCOMING: { t: "Sắp công bố", cls: "border-[#E8B84B]/50 text-[#F5CE72]", dot: "#E8B84B" },
+  UPCOMING: { t: "Sắp công bố", cls: "border-q-accent/50 text-q-accent-strong", dot: "#4f8ef7" },
   OVERDUE: { t: "Quá hạn", cls: "border-rose-400/50 text-rose-300", dot: "#F43F5E" },
 };
 type Filter = "all" | CalStatus | "late" | "mine";
@@ -92,17 +92,17 @@ function CalendarGrid({ s, rows, selected, onSelect, today }: { s: CalSeason; ro
                   <td key={d} className="align-top">
                     <button type="button" disabled={out} onClick={() => onSelect(sel ? null : d)} data-testid={`lc-day-${d}`} aria-pressed={sel}
                       title={list.length ? `${dmy(d)}: ${rep.length} đã công bố, ${exp.length} dự kiến` : dmy(d)}
-                      className={`h-[74px] w-full rounded-md border p-1 text-left transition ${sel ? "border-q-accent/60 ring-1 ring-q-accent/60" : isToday ? "border-[#F5CE72]/70" : "border-white/[0.07]"} ${out ? "opacity-30" : "hover:border-white/25"}`}
-                      style={{ background: list.length ? `rgba(232,184,75,${(0.05 + 0.25 * a).toFixed(3)})` : "rgba(255,255,255,0.015)" }}>
+                      className={`h-[74px] w-full rounded-md border p-1 text-left transition ${sel ? "border-q-accent/60 ring-1 ring-q-accent/60" : isToday ? "border-q-accent-strong/70" : "border-white/[0.07]"} ${out ? "opacity-30" : "hover:border-white/25"}`}
+                      style={{ background: list.length ? `rgba(79, 142, 247,${(0.05 + 0.25 * a).toFixed(3)})` : "rgba(255,255,255,0.015)" }}>
                       <span className="flex items-center justify-between">
-                        <span className={`font-mono text-[11px] ${isToday ? "font-bold text-[#F5CE72]" : "text-slate-400"}`}>{d.slice(8)}/{d.slice(5, 7)}</span>
-                        {list.length > 0 && <span className="font-mono text-[10px] text-slate-200">{rep.length > 0 && <span className="text-emerald-300">✓{rep.length}</span>}{exp.length > 0 && <span className="ml-1 text-[#F5CE72]">~{exp.length}</span>}</span>}
+                        <span className={`font-mono text-[11px] ${isToday ? "font-bold text-q-accent-strong" : "text-slate-400"}`}>{d.slice(8)}/{d.slice(5, 7)}</span>
+                        {list.length > 0 && <span className="font-mono text-[10px] text-slate-200">{rep.length > 0 && <span className="text-emerald-300">✓{rep.length}</span>}{exp.length > 0 && <span className="ml-1 text-q-accent-strong">~{exp.length}</span>}</span>}
                       </span>
                       {dl && <span className="block text-[10px] font-bold text-rose-300">{dl}</span>}
                       <span className="mt-0.5 flex flex-wrap gap-[2px]">
                         {list.slice(0, dl ? 3 : 4).map((r) => {
                           const g = r.result?.npatYoY;
-                          const c = r.status === "UPCOMING" ? "border-[#E8B84B]/60 text-[#F5CE72]" : g?.status === "NORMAL" ? ((g.value ?? 0) >= 0 ? "border-emerald-400/50 text-emerald-200" : "border-rose-400/50 text-rose-200") : "border-white/20 text-slate-300";
+                          const c = r.status === "UPCOMING" ? "border-q-accent/60 text-q-accent-strong" : g?.status === "NORMAL" ? ((g.value ?? 0) >= 0 ? "border-emerald-400/50 text-emerald-200" : "border-rose-400/50 text-rose-200") : "border-white/20 text-slate-300";
                           return <span key={r.t} className={`rounded border px-[3px] font-mono text-[10px] leading-[13px] ${c}`}>{r.t}</span>;
                         })}
                         {list.length > (dl ? 3 : 4) && <span className="text-[10px] text-slate-400">+{list.length - (dl ? 3 : 4)}</span>}
@@ -116,7 +116,7 @@ function CalendarGrid({ s, rows, selected, onSelect, today }: { s: CalSeason; ro
         </tbody>
       </table>
       <p className="mt-1 flex flex-wrap gap-3 text-[10px] text-slate-500">
-        <span><span className="text-emerald-300">✓n</span> đã công bố (chip xanh = LNST tăng, hồng = giảm so cùng kỳ)</span><span><span className="text-[#F5CE72]">~n</span> dự kiến (trung vị độ trễ lịch sử)</span><span>Màu nền đậm = nhiều mã · bấm ngày để lọc bảng</span>
+        <span><span className="text-emerald-300">✓n</span> đã công bố (chip xanh = LNST tăng, hồng = giảm so cùng kỳ)</span><span><span className="text-q-accent-strong">~n</span> dự kiến (trung vị độ trễ lịch sử)</span><span>Màu nền đậm = nhiều mã · bấm ngày để lọc bảng</span>
       </p>
     </div>
   );
@@ -175,7 +175,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
     { label: "Đã công bố", value: `${st.reported}/${st.tickers}`, sub: `${pctPlain(st.shareNow, 0)} · ngày ${Math.max(0, s.quarter.dayOfSeason)} của mùa`, cls: "text-emerald-300" },
     { label: "So cùng ngày năm trước", value: diffPrev == null ? "—" : `${diffPrev >= 0 ? "+" : "−"}${Math.abs(diffPrev * 100).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} điểm %`, sub: `năm trước ${pctPlain(st.sharePrevSameDay, 0)} tới cùng ngày`, cls: diffPrev == null ? undefined : diffPrev >= 0 ? "text-emerald-300" : "text-amber-300" },
     { label: "Có BCTC, chờ số", value: String(st.disclosed), sub: "đã có tin BCTC chính thức", cls: "text-sky-300" },
-    { label: `Dự kiến ${st.horizonDays} phiên tới`, value: fin(st.expectedNext) ? `≈ ${num(st.expectedNext, 0)}` : "—", sub: "tổng xác suất công bố", cls: "text-[#F5CE72]" },
+    { label: `Dự kiến ${st.horizonDays} phiên tới`, value: fin(st.expectedNext) ? `≈ ${num(st.expectedNext, 0)}` : "—", sub: "tổng xác suất công bố", cls: "text-q-accent-strong" },
     { label: "Quá hạn hợp nhất", value: String(st.overdue), sub: `sau ${dmy(s.quarter.deadlineConsolidated)}`, cls: st.overdue ? "text-rose-300" : undefined },
     { label: "Tin tốt công bố sớm?", value: st.earlyVsLate ? `${pct(st.earlyVsLate.early, 0)} / ${pct(st.earlyVsLate.late, 0)}` : "—", sub: st.earlyVsLate ? `LNST YoY trung vị: 1/3 sớm nhất / 1/3 muộn nhất (${st.earlyVsLate.n} mã mỗi nhóm)` : "cần ≥ 30 mã đã công bố" },
   ];
@@ -195,7 +195,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
           <div className="flex gap-1" role="tablist" aria-label="Mùa báo cáo">
             {(["current", "next"] as const).map((k) => (
               <button key={k} type="button" role="tab" aria-selected={season === k} onClick={() => { setSeason(k); setDay(null); setFilter("all"); setLimit(PAGE); }} data-testid={`lc-season-${k}`}
-                className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${season === k ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{k === "current" ? "Mùa hiện tại" : "Mùa kế tiếp"} · {data[k].quarter.label}</button>
+                className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${season === k ? "border-q-accent/50 bg-q-accent/10 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{k === "current" ? "Mùa hiện tại" : "Mùa kế tiếp"} · {data[k].quarter.label}</button>
             ))}
           </div>
           <span className="rounded border border-slate-500/40 px-2 py-0.5 text-[10px] font-bold text-slate-300" title={s.method}>{s.version} · {s.label}</span>
@@ -232,7 +232,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
             </button>
           ))}
         </div>
-        {day && <button type="button" onClick={() => setDay(null)} className="rounded-md border border-[#E8B84B]/40 px-2 py-1 text-[#F5CE72]" data-testid="lc-day-clear">Ngày {dmy(day)} ✕</button>}
+        {day && <button type="button" onClick={() => setDay(null)} className="rounded-md border border-q-accent/40 px-2 py-1 text-q-accent-strong" data-testid="lc-day-clear">Ngày {dmy(day)} ✕</button>}
         <select value={tpl} onChange={(e) => { setTpl(e.target.value as Tpl | "all"); setLimit(PAGE); }} aria-label="Mẫu BCTC" className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-slate-200">
           <option value="all">Mọi mẫu BCTC</option>{(Object.keys(TPL_LABEL) as Tpl[]).map((t) => <option key={t} value={t}>{TPL_LABEL[t]}</option>)}
         </select>
@@ -262,7 +262,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
               return (
                 <tr key={r.t} className="align-middle hover:bg-white/[0.03]" data-testid="lc-row">
                   <td className="border-b border-white/[0.05] px-1 py-1.5">
-                    <button type="button" onClick={() => setOpen(r.t)} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline" data-testid={`lc-open-${r.t}`}>{r.t}</button>
+                    <button type="button" onClick={() => setOpen(r.t)} className="font-mono text-[12px] font-bold text-q-accent-strong hover:underline" data-testid={`lc-open-${r.t}`}>{r.t}</button>
                     <span className="ml-1 rounded px-1 text-[10px] font-bold" style={{ color: TPL_COLOR[r.tpl], border: `1px solid ${TPL_COLOR[r.tpl]}55` }}>{TPL_SHORT[r.tpl]}</span>
                     <span className="block truncate text-[10px] text-slate-500" style={{ maxWidth: 130 }}>{sectorOf?.(r.t) ?? ""}</span>
                   </td>
@@ -272,12 +272,12 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
                     {(r.lateShare ?? 0) >= 1 / 3 && <span className="block text-[10px] text-rose-300">hay nộp muộn ({pctPlain(r.lateShare, 0)} mùa)</span>}
                   </td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums">
-                    <span className={r.date ? "text-slate-100" : r.expected && r.expected < today ? "text-amber-300" : "text-[#F5CE72]"}>{dmy(dayOf(r))}</span>
+                    <span className={r.date ? "text-slate-100" : r.expected && r.expected < today ? "text-amber-300" : "text-q-accent-strong"}>{dmy(dayOf(r))}</span>
                     <span className="block text-[10px] text-slate-500">{r.date ? `${r.lagDays} ngày · ${r.source === "DISCLOSURE" ? "tin BCTC" : "dữ liệu"}` : r.status === "OVERDUE" ? "quá hạn hợp nhất" : r.expected && r.expected < today ? `trễ hơn dự kiến ${Math.round((ms(today) - ms(r.expected)) / DAY)} ngày` : `dự kiến · ${r.medianLag} ngày`}</span>
                   </td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono text-[10.5px] tabular-nums text-slate-400">{r.band && !r.date ? `${dmy(r.band[0]).slice(0, 5)}–${dmy(r.band[1]).slice(0, 5)}` : "—"}<span className="block text-[10px] text-slate-500">{r.ownN} mùa{r.ownN < 4 ? " · theo nhóm" : ""}</span></td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right">
-                    {fin(r.pNext) ? <span className="inline-flex items-center gap-1"><span className="h-1.5 w-12 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-[#E8B84B]" style={{ width: `${r.pNext * 100}%` }} /></span><b className="font-mono tabular-nums text-slate-100">{pctPlain(r.pNext, 0)}</b></span> : <span className="text-slate-500">—</span>}
+                    {fin(r.pNext) ? <span className="inline-flex items-center gap-1"><span className="h-1.5 w-12 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-q-accent" style={{ width: `${r.pNext * 100}%` }} /></span><b className="font-mono tabular-nums text-slate-100">{pctPlain(r.pNext, 0)}</b></span> : <span className="text-slate-500">—</span>}
                   </td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5"><LagStrip r={r} /></td>
                   <td className="border-b border-white/[0.05] px-1 py-1.5 text-right font-mono tabular-nums">{r.result ? <><span className={`block ${g.cls}`} title={g.title}>{g.text}</span><span className={`block text-[10px] ${y.cls}`} title={y.title}>{y.text}</span></> : <span className="text-slate-500">—</span>}</td>
@@ -286,9 +286,9 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
                     const x = r.reaction;
                     if (!x) return <span className="text-slate-500">—</span>;
                     if (x.kind === "THIN") return <span className="text-[10px] text-slate-500" title={`Chỉ ${x.nEst} phiên có giao dịch trong cửa sổ ước lượng (cần 60): không ước lượng được mô hình thị trường`}>ít giao dịch</span>;
-                    if (x.kind === "EVENT") return <><span className={`block ${fin(x.scarAnn) && Math.abs(x.scarAnn) >= 2 ? ((x.carAnn ?? 0) > 0 ? "text-emerald-300" : "text-rose-300") : "text-slate-200"}`} title="Lợi suất vượt 3 phiên từ ngày công bố">{x.sessionsAfter >= 2 ? pct(x.carAnn, 1) : "chờ phiên"}</span><span className={`block text-[10px] ${fin(x.avAnn) && x.avAnn >= 2 ? "text-[#F5CE72]" : "text-slate-500"}`} title="z khối lượng 3 phiên">KL z {num(x.avAnn, 1)}</span></>;
+                    if (x.kind === "EVENT") return <><span className={`block ${fin(x.scarAnn) && Math.abs(x.scarAnn) >= 2 ? ((x.carAnn ?? 0) > 0 ? "text-emerald-300" : "text-rose-300") : "text-slate-200"}`} title="Lợi suất vượt 3 phiên từ ngày công bố">{x.sessionsAfter >= 2 ? pct(x.carAnn, 1) : "chờ phiên"}</span><span className={`block text-[10px] ${fin(x.avAnn) && x.avAnn >= 2 ? "text-q-accent-strong" : "text-slate-500"}`} title="z khối lượng 3 phiên">KL z {num(x.avAnn, 1)}</span></>;
                     const alert = (fin(x.av10) && x.av10 >= 2) || (fin(x.scar10) && Math.abs(x.scar10) >= 2);
-                    return <><span className={`block ${alert ? "text-[#F5CE72]" : "text-slate-300"}`} title={`10 phiên tới ${dmy(x.asOf)}: lợi suất vượt`}>{alert ? "⚡ " : ""}{pct(x.car10, 1)}</span><span className={`block text-[10px] ${fin(x.av10) && x.av10 >= 2 ? "text-[#F5CE72]" : "text-slate-500"}`} title="z khối lượng 10 phiên gần nhất">KL10 z {num(x.av10, 1)}</span></>;
+                    return <><span className={`block ${alert ? "text-q-accent-strong" : "text-slate-300"}`} title={`10 phiên tới ${dmy(x.asOf)}: lợi suất vượt`}>{alert ? "⚡ " : ""}{pct(x.car10, 1)}</span><span className={`block text-[10px] ${fin(x.av10) && x.av10 >= 2 ? "text-q-accent-strong" : "text-slate-500"}`} title="z khối lượng 10 phiên gần nhất">KL10 z {num(x.av10, 1)}</span></>;
                   })()}</td>
                 </tr>
               );
@@ -299,7 +299,7 @@ export default function EarningsCalendar({ onSelectTicker, sectorOf, onOpenSeaso
         {rows.length > limit && (
           <div className="flex items-center justify-center gap-3 py-2 text-[11px] text-slate-400">
             <span>Đang hiện {limit}/{rows.length} mã</span>
-            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="lc-more" className="rounded-md border border-[#E8B84B]/40 px-3 py-1 font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
+            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="lc-more" className="rounded-md border border-q-accent/40 px-3 py-1 font-semibold text-q-accent-strong hover:bg-q-accent/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
             <button type="button" onClick={() => setLimit(rows.length)} className="rounded-md border border-white/10 px-3 py-1 hover:text-slate-200">Hiện tất cả</button>
           </div>
         )}

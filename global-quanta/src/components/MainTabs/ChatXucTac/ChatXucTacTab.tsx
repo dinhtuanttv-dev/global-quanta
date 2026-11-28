@@ -71,7 +71,7 @@ export default function ChatXucTacTab() {
             onKeyDown={handleTabKeyDown}
             onClick={() => setActiveSubTab(t.id)}
             style={{
-              padding: "9px 14px", border: 0, borderBottom: activeSubTab === t.id ? "2px solid var(--gold-bright)" : "2px solid transparent",
+              padding: "9px 14px", border: 0, borderBottom: activeSubTab === t.id ? "2px solid var(--q-accent-strong)" : "2px solid transparent",
               background: "transparent", color: activeSubTab === t.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
             }}
@@ -179,7 +179,7 @@ function CatalystContent() {
 
             {filteredEmerging.length > 0 && (
               <>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--gold-bright)", margin: "16px 0 8px" }}>NGÀNH MỚI NỔI</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "var(--q-accent-strong)", margin: "16px 0 8px" }}>NGÀNH MỚI NỔI</p>
                 {filteredEmerging.map((s) => <EmergingSourceRow key={s.sourceId} source={s} />)}
               </>
             )}

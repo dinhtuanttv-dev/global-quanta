@@ -261,7 +261,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
           <span className="min-w-0 flex-1 text-[10px] text-slate-500">{phase === "idle" ? "Mã phân tích được chọn trong Evidence Brain." : `Kết quả của ${debateSubject ?? "Danh mục"} · ${reviewSnapshot?.snapshotId ?? "tranh luận nhanh"}`}</span>
           {busy
             ? <button type="button" onClick={() => ctrlRef.current?.abort()} className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng</button>
-            : <button type="button" onClick={() => void startDebate(null)} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30"><Play className="h-3 w-3" />Tranh luận nhanh</button>}
+            : <button type="button" onClick={() => void startDebate(null)} data-testid="elite-debate-start" className="inline-flex items-center gap-1 rounded-md bg-q-accent/20 px-3 py-1.5 text-[11px] font-bold text-q-accent-strong hover:bg-q-accent/30"><Play className="h-3 w-3" />Tranh luận nhanh</button>}
         </div>
         {(bull || bear) && (
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -282,7 +282,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
           {briefBusy
             ? <button type="button" onClick={() => briefCtrlRef.current?.abort()} data-testid="elite-brief-stop" className="inline-flex items-center gap-1 rounded-md border border-rose-400/50 px-3 py-1.5 text-[11px] font-bold text-rose-300"><Square className="h-3 w-3" />Dừng viết</button>
             : <button type="button" onClick={() => void makeBrief()} data-testid="elite-brief-start"
-                className="inline-flex items-center gap-1 rounded-md bg-[#E8B84B]/20 px-3 py-1.5 text-[11px] font-bold text-[#F5CE72] hover:bg-[#E8B84B]/30">
+                className="inline-flex items-center gap-1 rounded-md bg-q-accent/20 px-3 py-1.5 text-[11px] font-bold text-q-accent-strong hover:bg-q-accent/30">
                 <Newspaper className="h-3 w-3" />{brief ? "Viết lại bản tin" : "Tạo bản tin phiên"}
               </button>}
         </div>

@@ -18,9 +18,6 @@
   --text-secondary:#94A3B8;
   --text-tertiary:#748299;
   /* Màu nhấn Quanta Gold */
-  --gold:#E8B84B;
-  --gold-bright:#F5CE72;
-  --gold-glow:rgba(232,184,75,0.22);
   --core-glow:rgba(232,184,75,0.30);
   /* Ngữ nghĩa thị trường: tăng · giảm · tham chiếu/cảnh báo · trần · sàn */
   --positive:#10B981;
@@ -29,7 +26,6 @@
   --similar-purple:#A855F7;
   --floor-cyan:#06B6D4;
   /* Chữ — IBM Plex Mono cho mọi số liệu tài chính (.num) */
-  --font-display:'Space Grotesk',sans-serif;
   --font-body:'Inter',sans-serif;
   --font-mono:'IBM Plex Mono',monospace;
   /* Bo góc */

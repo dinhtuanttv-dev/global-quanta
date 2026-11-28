@@ -27,7 +27,7 @@ export default function Modal({ title, onClose, children, footer, testId, wide }
         className={`flex max-h-[90vh] w-full ${wide ? "max-w-3xl" : "max-w-md"} flex-col rounded-lg border border-white/15 bg-[#0E131F] text-slate-200 shadow-2xl`}>
         <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-2.5">
           <h3 id={titleId} className="text-[12px] font-bold uppercase tracking-wide text-slate-100">{title}</h3>
-          <button type="button" onClick={onClose} aria-label="Đóng" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F5CE72]"><X className="h-4 w-4" aria-hidden /></button>
+          <button type="button" onClick={onClose} aria-label="Đóng" className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-300 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-q-accent-strong"><X className="h-4 w-4" aria-hidden /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">{children}</div>
         {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-white/10 px-4 py-2.5">{footer}</div>}

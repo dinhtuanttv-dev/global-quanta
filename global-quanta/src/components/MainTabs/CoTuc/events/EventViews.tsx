@@ -29,7 +29,7 @@ export function MonthGrid({ events, prices, today, onPickDay, onTicker }: { even
           const top = ys.length ? Math.max(...ys) : 0;
           const alpha = top ? Math.min(0.45, 0.08 + top * 6) : 0;
           return (
-            <div key={date} className={`min-h-[78px] bg-[#0B0F19] p-1 ${inMonth ? "" : "opacity-40"} ${date === today ? "ring-1 ring-inset ring-[#E8B84B]/70" : ""}`} style={alpha ? { backgroundImage: `linear-gradient(rgba(232,184,75,${alpha}),rgba(232,184,75,${alpha}))` } : undefined} data-testid="ce-cell">
+            <div key={date} className={`min-h-[78px] bg-[#0B0F19] p-1 ${inMonth ? "" : "opacity-40"} ${date === today ? "ring-1 ring-inset ring-q-accent/70" : ""}`} style={alpha ? { backgroundImage: `linear-gradient(rgba(79, 142, 247,${alpha}),rgba(79, 142, 247,${alpha}))` } : undefined} data-testid="ce-cell">
               <button type="button" onClick={() => onPickDay(date)} disabled={!es.length} className="w-full text-left text-[10.5px] font-bold text-slate-400 disabled:cursor-default">{Number(date.slice(8))}{es.length > 0 && <span className="ml-1 font-normal text-slate-500">· {es.length}</span>}</button>
               <div className="mt-0.5 flex flex-col gap-0.5">
                 {es.slice(0, 3).map((e) => (
@@ -59,25 +59,25 @@ export function GanttView({ events, from, to, today, onTicker }: { events: CorpE
       <div className="min-w-[760px]">
         <div className="relative ml-16 h-5 border-b border-white/10 text-[10px] text-slate-500">
           {ticks.map((d) => <span key={d} className="absolute -translate-x-1/2" style={{ left: `${x(d)}%` }}>{Number(d.slice(5, 7))}/{d.slice(2, 4)}</span>)}
-          {x(today) != null && <span className="absolute top-0 h-full w-px bg-[#E8B84B]" style={{ left: `${x(today)}%` }} />}
+          {x(today) != null && <span className="absolute top-0 h-full w-px bg-q-accent" style={{ left: `${x(today)}%` }} />}
         </div>
         {rows.map((r) => (
           <div key={r.t} className="flex items-center border-b border-white/[0.04]" data-testid="ce-gantt-row">
             <button type="button" onClick={() => onTicker(r.t)} className="w-16 shrink-0 px-1 py-1 text-left font-mono text-[11px] font-bold text-cf-primary">{r.t}</button>
             <div className="relative h-6 flex-1">
-              {x(today) != null && <span className="absolute top-0 h-full w-px bg-[#E8B84B]/40" style={{ left: `${x(today)}%` }} />}
+              {x(today) != null && <span className="absolute top-0 h-full w-px bg-q-accent/40" style={{ left: `${x(today)}%` }} />}
               {r.items.map((i) => (
                 <span key={i.id}>
                   {i.cat === "AGM_RECORD" || i.cat === "AGM"
                     ? <>{bar(i.record, i.meeting, "bg-violet-400/50", `${i.label}: ĐKCC ${dmy(i.record)} → họp ${dmy(i.meeting)}`)}{i.meeting ? dot(i.meeting, "bg-violet-300", `Họp ĐHCĐ ${dmy(i.meeting)}`) : dot(i.record ?? i.date, "bg-violet-400", `${i.label} ${dmy(i.record ?? i.date)} (chưa có ngày họp)`)}</>
                     : !i.ex ? dot(i.date, "bg-slate-400", `${i.label} ${dmy(i.date)}`)
-                    : <>{bar(i.disclosed, i.ex, "bg-white/15", `Công bố ${dmy(i.disclosed)} → GDKHQ ${dmy(i.ex)}`)}{bar(i.ex, i.pay ?? i.record, "bg-[#E8B84B]/70", `${i.label}${i.cash ? ` ${i.cash.toLocaleString("vi-VN")} đ` : i.ratio ? ` ${i.ratio}%` : ""}: GDKHQ ${dmy(i.ex)}${i.pay ? ` → trả ${dmy(i.pay)}` : ""}`)}{dot(i.ex, "bg-[#F5CE72]", `GDKHQ ${dmy(i.ex)}`)}</>}
+                    : <>{bar(i.disclosed, i.ex, "bg-white/15", `Công bố ${dmy(i.disclosed)} → GDKHQ ${dmy(i.ex)}`)}{bar(i.ex, i.pay ?? i.record, "bg-q-accent/70", `${i.label}${i.cash ? ` ${i.cash.toLocaleString("vi-VN")} đ` : i.ratio ? ` ${i.ratio}%` : ""}: GDKHQ ${dmy(i.ex)}${i.pay ? ` → trả ${dmy(i.pay)}` : ""}`)}{dot(i.ex, "bg-q-accent-strong", `GDKHQ ${dmy(i.ex)}`)}</>}
                 </span>
               ))}
             </div>
           </div>
         ))}
-        <p className="mt-1 text-[10px] text-slate-500"><span className="mr-1 inline-block h-2 w-4 rounded-sm bg-white/15 align-middle" />công bố → GDKHQ <span className="mx-1 inline-block h-2 w-4 rounded-sm bg-[#E8B84B]/70 align-middle" />GDKHQ → thanh toán / ĐKCC <span className="mx-1 inline-block h-2 w-4 rounded-sm bg-violet-400/50 align-middle" />chốt quyền → họp ĐHCĐ · vạch vàng = hôm nay · tối đa 80 mã</p>
+        <p className="mt-1 text-[10px] text-slate-500"><span className="mr-1 inline-block h-2 w-4 rounded-sm bg-white/15 align-middle" />công bố → GDKHQ <span className="mx-1 inline-block h-2 w-4 rounded-sm bg-q-accent/70 align-middle" />GDKHQ → thanh toán / ĐKCC <span className="mx-1 inline-block h-2 w-4 rounded-sm bg-violet-400/50 align-middle" />chốt quyền → họp ĐHCĐ · vạch vàng = hôm nay · tối đa 80 mã</p>
       </div>
     </div>
   );

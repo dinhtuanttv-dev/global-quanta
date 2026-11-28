@@ -132,12 +132,12 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
                 <tr key={r.ticker} className="align-middle hover:bg-white/[0.03]" data-testid="eq-row">
                   <td className="border-b border-white/[0.05] px-1.5 py-1.5 font-mono text-slate-400">{r.rank ?? "—"}</td>
                   <td className="border-b border-white/[0.05] px-1.5 py-1.5">
-                    <button type="button" onClick={() => onSelectTicker?.(r.ticker)} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline">{r.ticker}</button>
+                    <button type="button" onClick={() => onSelectTicker?.(r.ticker)} className="font-mono text-[12px] font-bold text-q-accent-strong hover:underline">{r.ticker}</button>
                     <span className="block truncate text-[10px] text-slate-500" style={{ maxWidth: 130 }}>{sectorOf?.(r.ticker) ?? ""}{!r.current ? ` · ${r.quarter}` : ""}</span>
                   </td>
                   <td className="border-b border-white/[0.05] px-1.5 py-1.5">
                     {r.score == null ? <span className="text-slate-500">—</span> : (
-                      <span className="flex items-center gap-1.5"><span className="h-1.5 w-14 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-[#E8B84B]" style={{ width: `${r.score}%` }} /></span><b className="font-mono tabular-nums text-slate-100">{num(r.score, 0)}</b></span>
+                      <span className="flex items-center gap-1.5"><span className="h-1.5 w-14 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-q-accent" style={{ width: `${r.score}%` }} /></span><b className="font-mono tabular-nums text-slate-100">{num(r.score, 0)}</b></span>
                     )}
                   </td>
                   <td className="border-b border-white/[0.05] px-1.5 py-1.5 text-right font-mono tabular-nums">
@@ -163,7 +163,7 @@ export default function EarningsQualityPanel({ onSelectTicker, sectorOf }: { onS
         {rows.length > limit && (
           <div className="flex items-center justify-center gap-3 py-2 text-[11px] text-slate-400">
             <span>Đang hiện {limit}/{rows.length} mã</span>
-            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="eq-more" className="rounded-md border border-[#E8B84B]/40 px-3 py-1 font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
+            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="eq-more" className="rounded-md border border-q-accent/40 px-3 py-1 font-semibold text-q-accent-strong hover:bg-q-accent/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
             <button type="button" onClick={() => setLimit(rows.length)} className="rounded-md border border-white/10 px-3 py-1 hover:text-slate-200">Hiện tất cả</button>
           </div>
         )}

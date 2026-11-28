@@ -10,7 +10,7 @@ import { fmtDate, num } from "./boardParts";
 const pct = (v: number | string | null | undefined, d = 1) => (typeof v !== "number" || !Number.isFinite(v) ? "—" : `${num(v * 100, d)}%`);
 const STATUS_CLS: Record<PulseStatus, string> = {
   FROZEN: "border-rose-400/60 text-rose-200", STALE: "border-rose-400/50 text-rose-200", NO_BASELINE: "border-slate-400/50 text-slate-300",
-  CHANGED: "border-[#E8B84B]/60 text-[#F5CE72]", STABLE: "border-emerald-400/40 text-emerald-200", PARTIAL: "border-amber-400/50 text-amber-200",
+  CHANGED: "border-q-accent/60 text-q-accent-strong", STABLE: "border-emerald-400/40 text-emerald-200", PARTIAL: "border-amber-400/50 text-amber-200",
 };
 const GROUP_VI = { DECISION: "Quyết định danh mục", PRICE_POSITION: "Vị trí giá", CAPITAL_EVENTS: "Vốn & sự kiện" } as const;
 const TICKER_CAP = 6;
@@ -24,7 +24,7 @@ function Tickers({ list, onOpen, id }: { list: string[]; onOpen: (t: string) => 
   const shown = all ? list : list.slice(0, TICKER_CAP);
   return (
     <>
-      {shown.map((t, i) => <span key={t}>{i ? " · " : ""}<button type="button" onClick={() => onOpen(t)} className="font-bold text-[#F5CE72] hover:underline">{t}</button></span>)}
+      {shown.map((t, i) => <span key={t}>{i ? " · " : ""}<button type="button" onClick={() => onOpen(t)} className="font-bold text-q-accent-strong hover:underline">{t}</button></span>)}
       {list.length > TICKER_CAP && <button type="button" onClick={() => setAll(!all)} aria-expanded={all} data-testid={`pulse-more-${id}`} className="ml-1 text-[10px] text-slate-400 underline">{all ? "Thu gọn" : `Xem tất cả (${list.length})`}</button>}
     </>
   );
@@ -94,7 +94,7 @@ function delta(r: PulseRow, onOpen: (t: string) => void, vi: Record<string, stri
     return (<>
       <span className="text-[10px] text-slate-400">phiên {fmtDate(r.baselineDate ?? "")}: {String(c.prevQueue)} mã</span>
       {none ? <span className="block text-slate-300">Không mã nào vào hay rời hàng chờ</span> : (<>
-        {dl.added?.length ? <span className="block" data-testid="pulse-queue-in"><b className="text-[#F5CE72]">Mới vào ({dl.added.length}):</b> <Tickers list={dl.added} onOpen={onOpen} id="queue-in" /></span> : null}
+        {dl.added?.length ? <span className="block" data-testid="pulse-queue-in"><b className="text-q-accent-strong">Mới vào ({dl.added.length}):</b> <Tickers list={dl.added} onOpen={onOpen} id="queue-in" /></span> : null}
         {dl.removed?.length ? <span className="block" data-testid="pulse-queue-out"><b className="text-slate-300">Rời ({dl.removed.length}):</b> <Tickers list={dl.removed} onOpen={onOpen} id="queue-out" /></span> : null}
       </>)}
     </>);
@@ -115,9 +115,9 @@ export default function DecisionPulse({ d, history, onOpenTicker }: { d: EliteDe
   const vi = (d.hl?.pz?.stateVi ?? PZ_VI) as Record<string, string>;
   let lastGroup = "";
   return (
-    <section id="decision-pulse" className="rounded-lg border border-white/10 border-l-[3px] border-l-[#E8B84B] bg-[#0E131F] px-3 py-2.5 text-[11.5px]" aria-label="Nhịp quyết định hôm nay" data-hl-layer="pulse" data-testid="decision-pulse">
+    <section id="decision-pulse" className="rounded-lg border border-white/10 border-l-[3px] border-l-[#4f8ef7] bg-[#0E131F] px-3 py-2.5 text-[11.5px]" aria-label="Nhịp quyết định hôm nay" data-hl-layer="pulse" data-testid="decision-pulse">
       <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <h4 className="text-[11px] font-bold uppercase tracking-[.12em] text-slate-100" style={{ fontFamily: "var(--font-display)" }}>Nhịp quyết định hôm nay</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-[.12em] text-slate-100" style={{ fontFamily: "var(--q-font-sans)" }}>Nhịp quyết định hôm nay</h4>
         <span className="text-[10.5px] text-slate-400" data-testid="pulse-baseline">{vm.session.prevDate ? `so với phiên ${fmtDate(vm.session.prevDate)}` : "phiên dựng đầu tiên"}</span>
         <Chip s={vm.overall} id="overall" />
         {vm.overallWhy.length > 0 && <span className="text-[10.5px] text-slate-400" data-testid="pulse-why">· {vm.overallWhy.join(" · ")}</span>}

@@ -15,7 +15,7 @@ const fmtFor = (metric: string, isRatio: boolean): Fmt => (isRatio ? (v) => pctP
 function Cell({ v, g, fmt, latest, created, testId }: { v: number | null; g?: Growth | null; fmt: Fmt; latest?: boolean; created?: string | null; testId?: string }) {
   const gt = growthText(g ?? null);
   return (
-    <td className={`border-b border-white/[0.05] px-1.5 py-1 text-right align-top ${latest ? "bg-[#E8B84B]/[0.07]" : ""}`} data-testid={testId} title={created ? `Công bố ${dmy(created)}` : undefined}>
+    <td className={`border-b border-white/[0.05] px-1.5 py-1 text-right align-top ${latest ? "bg-q-accent/[0.07]" : ""}`} data-testid={testId} title={created ? `Công bố ${dmy(created)}` : undefined}>
       <span className="block font-mono tabular-nums text-slate-100">{fmt(v)}</span>
       {g !== undefined && <span className={`block font-mono text-[10px] tabular-nums ${gt.cls}`} title={gt.title}>{g ? gt.text : ""}</span>}
     </td>
@@ -39,7 +39,7 @@ function YtdBars({ rows, to, fmt }: { rows: MatrixRow[]; to: number; fmt: Fmt })
             <div key={d.year} className="grid grid-cols-[44px_1fr_92px] items-center gap-2 text-[11px]">
               <span className="font-mono text-slate-400">{d.year}</span>
               <span className="relative h-3 rounded-sm bg-white/[0.04]">
-                <span className={`absolute top-0 h-full rounded-sm ${neg ? "bg-rose-400/80" : i === 0 ? "bg-[#E8B84B]" : "bg-[#E8B84B]/45"}`}
+                <span className={`absolute top-0 h-full rounded-sm ${neg ? "bg-rose-400/80" : i === 0 ? "bg-q-accent" : "bg-q-accent/45"}`}
                   style={hasNeg ? (neg ? { right: "50%", width: `${w}%` } : { left: "50%", width: `${w}%` }) : { left: 0, width: `${w}%` }} />
               </span>
               <span className="text-right font-mono tabular-nums text-slate-200">{fmt(d.v)}{fin(prev) && prev > 0 && fin(d.v) && <span className={`ml-1 text-[10px] ${(d.v as number) >= prev ? "text-emerald-300" : "text-rose-300"}`}>{(d.v as number) >= prev ? "▲" : "▼"}</span>}</span>
@@ -98,8 +98,8 @@ export default function QuarterMatrix({ d, nextDeadline }: { d: KqkdDetail; next
       </div>
 
       {!isRatio && head?.ytdTo && (
-        <p className="rounded-lg border border-[#E8B84B]/25 bg-[#E8B84B]/[0.05] px-3 py-2 text-[12px] text-slate-200" data-testid="kq-ytd-line">
-          <b className="text-[#F5CE72]">{metricLabel} lũy kế {cumWord(head.ytdTo)} {head.year}:</b> <span className="font-mono">{metric === "eps" ? `${fmt(head.ytdNow)} đ` : bn(head.ytdNow)}</span>
+        <p className="rounded-lg border border-q-accent/25 bg-q-accent/[0.05] px-3 py-2 text-[12px] text-slate-200" data-testid="kq-ytd-line">
+          <b className="text-q-accent-strong">{metricLabel} lũy kế {cumWord(head.ytdTo)} {head.year}:</b> <span className="font-mono">{metric === "eps" ? `${fmt(head.ytdNow)} đ` : bn(head.ytdNow)}</span>
           {head.ytdGrowth && <> · so cùng kỳ {cumWord(head.ytdTo)} {head.year - 1} (<span className="font-mono">{metric === "eps" ? `${fmt(head.ytdPrev)} đ` : bn(head.ytdPrev)}</span>): <b className={growthText(head.ytdGrowth, 1).cls} title={growthText(head.ytdGrowth).title}>{growthText(head.ytdGrowth, 1).text}</b></>}
           {head.ytdTo < 4 && nextDeadline && <span className="text-slate-400"> · Q{head.ytdTo + 1}/{head.year} chưa công bố (hạn hợp nhất ước tính {dmy(nextDeadline)})</span>}
         </p>

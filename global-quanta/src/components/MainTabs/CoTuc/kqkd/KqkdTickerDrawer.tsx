@@ -74,7 +74,7 @@ export default function KqkdTickerDrawer({ ticker, rows, onClose, onOpenProfile,
                 <div className="flex gap-1" role="tablist" aria-label="Kiểu 3D">
                   {([["surface", "Cột 3D năm × quý (màu = biên ròng)"], ["trajectory", "Quỹ đạo 4D theo thời gian"]] as const).map(([id, t]) => (
                     <button key={id} type="button" role="tab" aria-selected={space === id} onClick={() => setSpace(id)} data-testid={`kq-space-${id}`}
-                      className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${space === id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t}</button>
+                      className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${space === id ? "border-q-accent/50 bg-q-accent/10 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t}</button>
                   ))}
                 </div>
                 {space === "surface" ? <ProfitSurface3D d={d} /> : <Trajectory4D d={d} />}

@@ -79,7 +79,7 @@ export default function CatalystCardRow({ card, onOpenAnalysis }: Props) {
             onClick={() => onOpenAnalysis(card)}
             style={{
               marginLeft: "auto", display: "flex", alignItems: "center", gap: 4,
-              fontSize: 10, fontWeight: 700, color: "var(--gold-bright)",
+              fontSize: 10, fontWeight: 700, color: "var(--q-accent-strong)",
               background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.25)",
               borderRadius: 8, padding: "2px 8px", cursor: "pointer",
             }}

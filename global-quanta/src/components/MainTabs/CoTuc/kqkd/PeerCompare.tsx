@@ -28,7 +28,7 @@ export default function PeerCompare({ ticker, rows, sectorOf }: { ticker: string
   const usedSector = sector && peers.length && sectorOf?.(peers[0].t) === sector;
   return (
     <div className="space-y-2" data-testid="kq-peers">
-      <p className="text-[11px] text-slate-300">So với <b className="text-[#F5CE72]">{usedSector ? `ngành ${sector}` : "cùng mẫu BCTC"}</b> · {peers.length} mã đã công bố quý mới nhất. Thanh = hạng phần trăm trong nhóm (100% = tốt nhất).</p>
+      <p className="text-[11px] text-slate-300">So với <b className="text-q-accent-strong">{usedSector ? `ngành ${sector}` : "cùng mẫu BCTC"}</b> · {peers.length} mã đã công bố quý mới nhất. Thanh = hạng phần trăm trong nhóm (100% = tốt nhất).</p>
       <div className="space-y-1.5">
         {METRICS.map((m) => {
           const v = m.get(me);
@@ -39,7 +39,7 @@ export default function PeerCompare({ ticker, rows, sectorOf }: { ticker: string
             <div key={m.id} className="grid grid-cols-[150px_1fr_86px_96px] items-center gap-2 text-[11px]" title={m.hint} data-testid={`kq-peer-${m.id}`}>
               <span className="text-slate-300">{m.label}</span>
               <span className="relative h-2.5 rounded-sm bg-white/[0.05]">
-                {fin(rank) && <span className="absolute left-0 top-0 h-full rounded-sm bg-[#E8B84B]" style={{ width: `${Math.max(2, rank * 100)}%` }} />}
+                {fin(rank) && <span className="absolute left-0 top-0 h-full rounded-sm bg-q-accent" style={{ width: `${Math.max(2, rank * 100)}%` }} />}
                 <span className="absolute top-[-2px] h-[14px] w-px bg-slate-400/70" style={{ left: "50%" }} />
               </span>
               <span className="text-right font-mono tabular-nums text-slate-100">{m.fmt(v)}</span>

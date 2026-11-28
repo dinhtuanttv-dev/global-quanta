@@ -12,7 +12,7 @@ export default function SectorCard({ sector }: { sector: CatalystSector }) {
     <div style={{ background: "var(--bg-surface-2)", border: "1px solid var(--border)", borderRadius: 10, padding: 12, marginBottom: 10 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontWeight: 700, fontSize: 13 }}>{sectorLabelVi(sector.sector)}</span>
-        {sector.isNew && <span style={{ fontSize: 10, color: "var(--gold-bright)", fontWeight: 700 }}>MỚI</span>}
+        {sector.isNew && <span style={{ fontSize: 10, color: "var(--q-accent-strong)", fontWeight: 700 }}>MỚI</span>}
         <span style={{ marginLeft: "auto", fontSize: 11, color: netPositive ? "var(--positive)" : "var(--negative)", fontWeight: 700 }}>
           {/* V3 (19/11/2026): netScore là điểm ròng (tổng tác động có dấu), KHÔNG phải tỷ lệ — trước đây nhân 100 và gắn % (36,16 -> "+3616%") */}
           Điểm ròng {netPositive ? "+" : "−"}{Math.abs(sector.netScore).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

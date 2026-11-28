@@ -38,7 +38,7 @@
     .eb-shell { max-width: 1680px; margin: 0 auto; padding: 18px 22px 30px; }
     .crumbs { gap: 7px; color: var(--faint); font-size: 10px; margin: 0 0 12px; }
     .crumbs b { color: var(--muted); font-weight: 600; }
-    .crumbs strong { color: var(--gold); font-weight: 700; }
+    .crumbs strong { color: var(--q-accent); font-weight: 700; }
     .title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 23px; letter-spacing: -.035em; }
     .subtitle { color: var(--muted); margin-top: 5px; font-size: 11px; }
@@ -429,7 +429,7 @@ body:has(.eb-reference-page) {
 .eb-room-page .eb-dos-facts dd small { color: var(--muted); font-size: 11px; }
 .eb-room-page .eb-dos-facts.compact > div { font-size: 11px; padding: 3px 0; }
 .eb-room-page .eb-dos-change { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); }
-.eb-room-page .eb-dos-change b { display: block; font-size: 11px; color: var(--gold); margin-bottom: 2px; }
+.eb-room-page .eb-dos-change b { display: block; font-size: 11px; color: var(--q-accent); margin-bottom: 2px; }
 .eb-room-page .eb-dos-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .eb-room-page .eb-dos-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 4px 6px; border-bottom: 1px solid var(--line-strong); }
 .eb-room-page .eb-dos-table td { padding: 5px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -442,7 +442,7 @@ body:has(.eb-reference-page) {
 .eb-room-page .eb-dos-tech summary, .eb-room-page .eb-dos-ref summary { cursor: pointer; color: var(--cyan); font-size: 12px; }
 .eb-room-page .eb-dos-tech[open] > summary { margin-bottom: 6px; }
 .eb-room-page .eb-dos-refs { margin-top: 10px; }
-.eb-room-page .eb-dos-val { color: var(--gold); font-variant-numeric: tabular-nums; }
+.eb-room-page .eb-dos-val { color: var(--q-accent); font-variant-numeric: tabular-nums; }
 @media (max-width: 520px) {
   .eb-room-page .eb-dos-grid { grid-template-columns: 1fr; }
   .eb-room-page .eb-dos-table td:nth-child(3), .eb-room-page .eb-dos-table th:nth-child(3) { display: none; }

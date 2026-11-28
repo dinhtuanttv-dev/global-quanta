@@ -1315,7 +1315,7 @@ export default function TVChartPanel({ bars, ticker, onRequestTickerChange, high
                 <span className="flex gap-0.5" role="radiogroup" aria-label="Chế độ Elliott Pro">
                   {ELLIOTT_PRO_MODES.map((m) => (
                     <button key={m.id} type="button" role="radio" aria-checked={proMode === m.id} onClick={() => setProMode(m.id)} data-testid={`elliott-pro-mode-${m.id}`}
-                      className={`px-1 rounded border text-[10px] ${proMode === m.id ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
+                      className={`px-1 rounded border text-[10px] ${proMode === m.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-slate-700 text-slate-400"}`}>{m.label}</button>
                   ))}
                 </span>
               </div>

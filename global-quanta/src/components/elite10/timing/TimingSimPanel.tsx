@@ -199,7 +199,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
             <span className="text-slate-400">Phí khứ hồi:</span>
             {costOpts.map((o) => (
               <button key={o.id} type="button" aria-pressed={cost === o.v} title={o.title} onClick={() => setCost(o.v)} data-testid={`timing-cost-${o.id}`}
-                className={`min-h-[26px] rounded border px-2 ${cost === o.v ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 font-bold text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{o.label}</button>
+                className={`min-h-[26px] rounded border px-2 ${cost === o.v ? "border-q-accent/60 bg-q-accent/15 font-bold text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{o.label}</button>
             ))}
             {cost != null && <span className="text-amber-200" data-testid="timing-cost-note">Biểu đồ, quạt và khối so sánh tính lại theo mức này; nhãn ĐẠT / chưa đạt, số trên các ô cửa sổ và dòng Timeline vẫn là của engine (phí {(engineCost * 100).toFixed(2).replace(".", ",")}%).</span>}
           </div>

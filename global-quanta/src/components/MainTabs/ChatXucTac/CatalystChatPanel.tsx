@@ -77,7 +77,7 @@ export function LaneView({ t, showHeader, headerLabel }: { t: Lane; showHeader: 
   return (
     <div style={{ minWidth: 0 }} data-testid={`lane-${t.provider}`}>
       {showHeader && (
-        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--gold, #e8b84b)", marginBottom: 4 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--q-accent, #4f8ef7)", marginBottom: 4 }}>
           {headerLabel ?? PROVIDER_VI[t.provider]}{t.model ? <span style={{ color: "var(--text-tertiary)", fontWeight: 400, textTransform: "none" }}> · {t.model}</span> : null}
         </div>
       )}
@@ -220,7 +220,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
 
       <div aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
         {turns.map((t, i) => t.role === "user" ? (
-          <div key={i} style={{ alignSelf: "flex-end", maxWidth: "85%", fontSize: 12.5, background: "color-mix(in srgb, var(--gold, #e8b84b) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--gold, #e8b84b) 30%, transparent)", borderRadius: "10px 10px 2px 10px", padding: "7px 10px", color: "var(--text-primary)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
+          <div key={i} style={{ alignSelf: "flex-end", maxWidth: "85%", fontSize: 12.5, background: "color-mix(in srgb, var(--q-accent, #4f8ef7) 14%, transparent)", border: "1px solid color-mix(in srgb, var(--q-accent, #4f8ef7) 30%, transparent)", borderRadius: "10px 10px 2px 10px", padding: "7px 10px", color: "var(--text-primary)", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
             {t.text}
           </div>
         ) : (
@@ -246,7 +246,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
             <Square size={14} />
           </button>
         ) : (
-          <button type="button" onClick={() => void ask(input)} disabled={!input.trim()} aria-label="Gửi" style={{ height: 38, width: 38, borderRadius: 8, border: 0, background: "var(--gold, #e8b84b)", color: "var(--bg-base, #0a0d12)", cursor: input.trim() ? "pointer" : "default", opacity: input.trim() ? 1 : 0.5, display: "grid", placeItems: "center" }}>
+          <button type="button" onClick={() => void ask(input)} disabled={!input.trim()} aria-label="Gửi" style={{ height: 38, width: 38, borderRadius: 8, border: 0, background: "var(--q-accent, #4f8ef7)", color: "var(--bg-base, #0a0d12)", cursor: input.trim() ? "pointer" : "default", opacity: input.trim() ? 1 : 0.5, display: "grid", placeItems: "center" }}>
             <Send size={14} />
           </button>
         )}

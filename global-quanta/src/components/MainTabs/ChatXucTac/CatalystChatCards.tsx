@@ -42,7 +42,7 @@ const sgn = (x: unknown, d = 1) => (typeof x === "number" && Number.isFinite(x) 
 /** Bậc bằng chứng của gói macro-center: A/B có màu, C và pending trung tính (không phải "có tác động"). */
 const TIER_STYLE: Record<string, { label: string; color: string }> = {
   A: { label: "Bậc A", color: "var(--positive, #34d399)" },
-  B: { label: "Bậc B", color: "var(--gold, #e8b84b)" },
+  B: { label: "Bậc B", color: "var(--q-accent, #4f8ef7)" },
   C: { label: "Bậc C", color: "var(--text-tertiary)" },
   pending: { label: "Chờ đo", color: "var(--text-tertiary)" },
 };

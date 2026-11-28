@@ -11,7 +11,7 @@ function Bar({ done, typical, label }: { done: number; typical: number | null; l
   return (
     <div className="space-y-1" data-testid="agm-bar">
       <div className="relative h-4 rounded-sm bg-white/[0.05]" role="img" aria-label={`${label}: đã đạt ${pctPlain(done, 0)} kế hoạch${fin(typical) ? `, mọi năm thường đạt ${pctPlain(typical, 0)} vào thời điểm này` : ""}`}>
-        <span className={`absolute left-0 top-0 h-full rounded-sm ${fin(typical) && done >= typical ? "bg-emerald-400/80" : "bg-[#E8B84B]/80"}`} style={{ width: w(done) }} />
+        <span className={`absolute left-0 top-0 h-full rounded-sm ${fin(typical) && done >= typical ? "bg-emerald-400/80" : "bg-q-accent/80"}`} style={{ width: w(done) }} />
         {fin(typical) && <span className="absolute -top-1 h-6 w-[2px] bg-slate-200" style={{ left: w(typical) }} title="Tỷ trọng lũy kế mùa vụ thường lệ" />}
         <span className="absolute left-0 top-0 h-full w-full border-r-2 border-dashed border-white/30" />
       </div>
@@ -29,14 +29,14 @@ export default function AgmPlanPanel({ d }: { d: KqkdDetail }) {
     <div className="space-y-3" data-testid="agm-panel">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[12px] font-bold text-[#F5CE72]">Kế hoạch kinh doanh {p.year} {p.draft ? "(tờ trình, chưa có nghị quyết)" : p.approved ? "— ĐHĐCĐ đã thông qua" : "— chưa xác nhận đã thông qua"}</p>
+          <p className="text-[12px] font-bold text-q-accent-strong">Kế hoạch kinh doanh {p.year} {p.draft ? "(tờ trình, chưa có nghị quyết)" : p.approved ? "— ĐHĐCĐ đã thông qua" : "— chưa xác nhận đã thông qua"}</p>
           <p className="text-[10.5px] text-slate-400">Nguồn: <a href={p.doc.url} target="_blank" rel="noreferrer noopener" className="text-sky-300 hover:underline">{p.doc.title}</a> ({dmy(p.doc.date)}) · đọc ngày {dmy(p.at)}</p>
         </div>
         <span className="rounded border border-slate-500/40 px-2 py-0.5 text-[10px] font-bold text-slate-300" title="Bản scan: 2 mô hình AI chép độc lập, code kiểm con số có trong cả hai bản chép, đúng năm, hợp lý so BCTC">MÔ TẢ · 2 AI + code</span>
       </div>
 
       {a && (
-        <div className="rounded-lg border border-[#E8B84B]/25 bg-[#E8B84B]/[0.05] p-3" data-testid="agm-attain">
+        <div className="rounded-lg border border-q-accent/25 bg-q-accent/[0.05] p-3" data-testid="agm-attain">
           <p className="text-[11px] font-bold text-slate-200">Tiến độ {LABEL[a.metric]} ({BASIS[a.basis] ?? a.basis}) — lũy kế {a.through === 4 ? "cả năm" : `${a.through * 3} tháng`}</p>
           <div className="my-2 flex flex-wrap items-end gap-6">
             <div><p className="text-[10px] uppercase text-slate-500">Đã đạt</p><p className="font-mono text-[20px] font-bold tabular-nums text-slate-100">{pctPlain(a.done, 1)}</p><p className="text-[10px] text-slate-500">{bn(a.ytd)} / {bn(a.plan)}</p></div>

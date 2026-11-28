@@ -148,11 +148,11 @@ export function MainChart({ priceSeries, topMatches, atrSeries, useAtrAxis, high
         <line x1={view.x0} x2={view.x0} y1={PAD_T} y2={HEIGHT - PAD_B} stroke="var(--text-tertiary)" strokeWidth={1} strokeDasharray="2 3" data-testid="cf-today-line" />
         {view.matches.map((m) => (
           <g key={m.key} data-testid="cf-match-path">
-            <path d={m.patternD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key) * k} strokeDasharray={mode === 'overlay' ? '2 3' : '4 3'} opacity={mode === 'overlay' ? dim(m.key) * 0.7 : dim(m.key)}>
+            <path d={m.patternD} fill="none" stroke="#E8B84B" strokeWidth={wide(m.key) * k} strokeDasharray={mode === 'overlay' ? '2 3' : '4 3'} opacity={mode === 'overlay' ? dim(m.key) * 0.7 : dim(m.key)}>
               <title>{`Giai đoạn ${m.label}${mode === 'overlay' ? ' — mẫu đặt chồng lên hiện tại' : ' — hình dạng mẫu (không phải dự báo)'}`}</title>
             </path>
             {m.forwardD && (
-              <path d={m.forwardD} fill="none" stroke="var(--gold)" strokeWidth={wide(m.key) * k} strokeDasharray="5 3" opacity={dim(m.key)} data-testid="cf-forward-path">
+              <path d={m.forwardD} fill="none" stroke="#E8B84B" strokeWidth={wide(m.key) * k} strokeDasharray="5 3" opacity={dim(m.key)} data-testid="cf-forward-path">
                 <title>{`Giai đoạn ${m.label} — diễn biến thật sau đó`}</title>
               </path>
             )}

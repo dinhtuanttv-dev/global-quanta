@@ -62,7 +62,7 @@
 .ws-pane-title > span ~ span { flex-shrink: 2; min-width: 64px; } /* ghi chú nguồn ("ƯỚC LƯỢNG…") không bao giờ bị ẩn hẳn */
 .ws-pane-title button { pointer-events: auto; color: #64748b; } .ws-pane-title button:hover { color: #f1f5f9; }
 .ws-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
-  padding: 5px 10px; border-radius: 10px; font-size: 10.5px; color: var(--gold-bright); background: var(--bg-surface-3); border: 1px solid rgba(232, 184, 75, .35); }
+  padding: 5px 10px; border-radius: 10px; font-size: 10.5px; color: var(--q-accent-strong); background: var(--bg-surface-3); border: 1px solid rgba(79, 142, 247, .35); }
 .ws-chips { position: absolute; top: 26px; left: 8px; right: 8px; z-index: 11; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .ws-chips > * { pointer-events: auto; }
 

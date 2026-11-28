@@ -122,7 +122,7 @@ export function SeasonMapBoard({ onOpen }: { onOpen: (t: string) => void }) {
           <tbody>
             {rows.slice(p * PAGE, (p + 1) * PAGE).map((x) => (
               <tr key={x.t} className="border-b border-white/[0.04] text-right hover:bg-white/[0.03]" data-testid="season-map-row">
-                <td className="px-2 py-1 text-left"><button type="button" onClick={() => onOpen(x.t)} className="font-mono font-bold text-cf-primary hover:text-[#F5CE72]" data-testid="season-map-open">{x.t}</button>{x.r.stale && <span className="ml-1 text-[10px] text-slate-500" title="Lần dựng gần nhất không đọc được mã này — giữ bản trước">bản cũ</span>}</td>
+                <td className="px-2 py-1 text-left"><button type="button" onClick={() => onOpen(x.t)} className="font-mono font-bold text-cf-primary hover:text-q-accent-strong" data-testid="season-map-open">{x.t}</button>{x.r.stale && <span className="ml-1 text-[10px] text-slate-500" title="Lần dựng gần nhất không đọc được mã này — giữ bản trước">bản cũ</span>}</td>
                 {[1, 2, 3, 4].map((q) => <td key={q} className={`px-2 py-1 ${quarter && quarter !== q ? "opacity-40" : ""} ${x.nq === q ? "bg-white/[0.035]" : ""}`} title={x.nq === q ? "Quý sắp công bố" : undefined}><Cell c={x.r.q[String(q)]} need={m.rules.minEvents} /></td>)}
                 <td className="px-2 py-1 font-mono text-slate-300">{x.soon ? dmy(x.soon) : "—"}</td>
               </tr>
@@ -220,7 +220,7 @@ export function SeasonLedgerView({ onOpen }: { onOpen: (t: string) => void }) {
           <tbody>
             {L.entries.map((e) => (
               <tr key={`${e.t}|${e.fiscal}|${e.window}`} className="border-b border-white/[0.04] text-right font-mono tabular-nums" data-testid="season-ledger-row">
-                <td className="px-2 py-1 text-left"><button type="button" onClick={() => onOpen(e.t)} className="font-bold text-cf-primary hover:text-[#F5CE72]">{e.t}</button></td>
+                <td className="px-2 py-1 text-left"><button type="button" onClick={() => onOpen(e.t)} className="font-bold text-cf-primary hover:text-q-accent-strong">{e.t}</button></td>
                 <td className="px-2 py-1 text-left text-slate-300">{e.quarter}</td>
                 <td className="px-2 py-1 text-left font-sans text-slate-300">{e.label}</td>
                 <td className="px-2 py-1"><span className={`rounded border px-1 font-sans text-[10px] font-bold ${STATUS_UI[e.status].cls}`}>{STATUS_UI[e.status].t}</span><span className="ml-1 text-[10px] text-slate-500">{dmy(e.recordedAt).slice(0, 5)}</span></td>

@@ -13,19 +13,19 @@
   background: transparent; color: var(--text-secondary); border-radius: 6px;
   padding: 4px 10px; margin-right: 6px; cursor: pointer; font-size: 12px;
 }
-.cf-chip--active { border-color: var(--gold); color: var(--gold); }
+.cf-chip--active { border-color: var(--q-accent); color: var(--q-accent); }
 
 .cf-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 48px 16px; text-align: center; gap: 8px; color: var(--text-secondary); }
 .cf-spinner {
   width: 24px; height: 24px; border-radius: 50%;
-  border: 3px solid var(--text-tertiary, currentColor); border-top-color: var(--gold);
+  border: 3px solid var(--text-tertiary, currentColor); border-top-color: var(--q-accent);
   animation: cf-spin 0.8s linear infinite;
 }
 @keyframes cf-spin { to { transform: rotate(360deg); } }
 .cf-retry-btn { border: 1px solid var(--negative); color: var(--negative); background: transparent; border-radius: 6px; padding: 6px 14px; cursor: pointer; }
 
 .cf-source-badge { font-size: 10px; margin-left: 4px; padding: 1px 5px; border-radius: 4px; opacity: 0.85; }
-.cf-source-badge[data-source='ESTIMATED'] { color: var(--gold); border: 1px solid var(--gold); }
+.cf-source-badge[data-source='ESTIMATED'] { color: var(--q-accent); border: 1px solid var(--q-accent); }
 .cf-source-badge[data-source='HARD_DATA'] { color: var(--positive); border: 1px solid var(--positive); }
 
 .cf-warning-banner {
@@ -38,12 +38,12 @@
 .cf-chart-legend { font-size: 11px; opacity: 0.75; display: flex; gap: 12px; align-items: center; color: var(--text-secondary); }
 .cf-legend-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
 .cf-legend-dot--price { background: var(--positive); }
-.cf-legend-dot--match { background: var(--gold); }
-.cf-legend-dot--fan { background: var(--gold); opacity: 0.3; }
+.cf-legend-dot--match { background: var(--q-accent); }
+.cf-legend-dot--fan { background: var(--q-accent); opacity: 0.3; }
 
 .cf-quality-badge { border: 1px solid var(--text-tertiary, currentColor); border-radius: 8px; padding: 12px 16px; min-width: 200px; color: var(--text-primary); }
 .cf-quality-badge--high { border-color: var(--positive); }
-.cf-quality-badge--medium { border-color: var(--gold); }
+.cf-quality-badge--medium { border-color: var(--q-accent); }
 .cf-quality-badge--low { border-color: var(--negative); }
 .cf-quality-badge__overall { display: flex; align-items: baseline; gap: 6px; margin-bottom: 8px; }
 .cf-quality-badge__value { font-size: 24px; font-weight: 700; }
@@ -60,7 +60,7 @@
 
 .cf-topk-table { width: 100%; border-collapse: collapse; font-size: 12px; color: var(--text-primary); }
 .cf-topk-table th, .cf-topk-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border); }
-.cf-topk-row--highlighted { background: rgba(232,184,75,0.1); }
+.cf-topk-row--highlighted { background: rgba(79, 142, 247,0.1); }
 
 /* ---- Fan Chart (rieng biet hoan toan, khong chung truc voi MainChart) ---- */
 .cf-fanchart-panel { display: flex; flex-direction: column; gap: 6px; }
@@ -71,7 +71,7 @@
 .cf-explainability-panel ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .cf-explain-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-primary); }
 .cf-explain-bar-track { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; margin: 4px 0; }
-.cf-explain-bar-fill { height: 100%; background: var(--gold); }
+.cf-explain-bar-fill { height: 100%; background: var(--q-accent); }
 .cf-explain-desc { font-size: 11px; opacity: 0.7; margin: 0; color: var(--text-secondary); }
 
 /* ---- Timing forecast ---- */
@@ -86,7 +86,7 @@
 .cf-cluster-status { font-size: 12px; color: var(--text-secondary); margin: 0; }
 .cf-mini-histogram { display: flex; align-items: flex-end; gap: 4px; height: 50px; }
 .cf-histogram-bar-wrap { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; height: 100%; }
-.cf-histogram-bar { width: 100%; background: var(--gold); border-radius: 2px 2px 0 0; min-height: 2px; }
+.cf-histogram-bar { width: 100%; background: var(--q-accent); border-radius: 2px 2px 0 0; min-height: 2px; }
 .cf-histogram-label { font-size: 10px; opacity: 0.6; margin-top: 2px; color: var(--text-secondary); }
 
 /* CF0 — nhãn bằng chứng, nút chuyển chế độ biểu đồ, ghi chú nhỏ */
@@ -116,9 +116,9 @@
 .cf2-tiles b { font-size: 16px; color: var(--text-primary); }
 .cf2-tiles em { font-style: normal; font-size: 11px; color: var(--text-tertiary); }
 .cf2-horizons { margin-bottom: 12px; }
-.cf2-detail { border: 1px solid var(--gold); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
+.cf2-detail { border: 1px solid var(--q-accent); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
 .cf2-detail__head { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; font-size: 12px; color: var(--text-secondary); }
-.cf2-detail__head b { color: var(--gold); font-size: 14px; }
+.cf2-detail__head b { color: var(--q-accent); font-size: 14px; }
 .cf2-detail__head button { margin-left: auto; background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 14px; }
 .cf2-detail svg { width: 100%; max-width: 520px; height: auto; display: block; margin: 6px 0; }
 .cf2-detail__stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 6px; margin: 6px 0 0; font-size: 12px; }

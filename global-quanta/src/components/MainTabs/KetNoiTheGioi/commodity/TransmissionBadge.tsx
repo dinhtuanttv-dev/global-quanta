@@ -9,7 +9,7 @@ export const SPEED_VI: Record<TransmissionSpeed, string> = {
 };
 const TONE: Record<TransmissionSpeed, { bg: string; fg: string }> = {
   immediate: { bg: "rgba(148,163,184,0.12)", fg: "var(--text-secondary, #cbd5e1)" },
-  slow: { bg: "rgba(232,184,75,0.14)", fg: "var(--gold, #E8B84B)" },
+  slow: { bg: "rgba(79, 142, 247,0.14)", fg: "var(--q-accent, #4f8ef7)" },
   none: { bg: "rgba(148,163,184,0.08)", fg: "var(--text-tertiary, #94a3b8)" },
   unmeasured: { bg: "rgba(148,163,184,0.08)", fg: "var(--text-tertiary, #94a3b8)" },
 };

@@ -57,7 +57,7 @@ export default function ExportMenu({ label, items, disabledReason, testId, compa
       <button ref={btnRef} type="button" aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
         aria-disabled={disabled || undefined} title={disabledReason ?? undefined} aria-label={compactLabel ? label : undefined}
         onClick={() => (open ? close(false) : openAt(0))} onKeyDown={onButtonKey}
-        className={`inline-flex min-h-[32px] items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-semibold ${disabled ? "cursor-not-allowed border-white/10 text-slate-400" : "border-white/20 text-slate-200 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]"} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5CE72]`}>
+        className={`inline-flex min-h-[32px] items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-semibold ${disabled ? "cursor-not-allowed border-white/10 text-slate-400" : "border-white/20 text-slate-200 hover:border-q-accent/50 hover:text-q-accent-strong"} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-q-accent-strong`}>
         <Save className="h-3.5 w-3.5" aria-hidden />
         <span className={compactLabel ? "hidden sm:inline" : undefined}>{compactLabel ?? label}</span>
         <ChevronDown className="h-3 w-3" aria-hidden />

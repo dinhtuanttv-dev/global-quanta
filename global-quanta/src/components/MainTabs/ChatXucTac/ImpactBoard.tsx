@@ -76,7 +76,7 @@ function StockLookup({ onAsk, commodityPct, catalyst }: { onAsk: (q: string) => 
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Mã cổ phiếu, VD HPG" aria-label="Mã cổ phiếu" maxLength={5}
           className="flex-1 min-w-0 rounded-lg px-2.5 py-1.5 text-[11.5px] uppercase"
           style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", color: "var(--text-primary)", outline: "none" }} />
-        <button type="submit" disabled={state.loading} className="rounded-lg px-3 text-[11px] font-bold" style={{ background: "var(--gold-bright, #e8b84b)", color: "#0b1220", opacity: state.loading ? 0.6 : 1 }}>
+        <button type="submit" disabled={state.loading} className="rounded-lg px-3 text-[11px] font-bold" style={{ background: "var(--q-accent-strong, #4f8ef7)", color: "#0b1220", opacity: state.loading ? 0.6 : 1 }}>
           {state.loading ? "Đang tra…" : "Tra cứu"}
         </button>
       </form>
@@ -165,18 +165,18 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
       <div className="flex flex-wrap gap-1.5 text-[10px]" data-testid="impact-freshness">
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Chiến lược thế giới: phiên VN {fmtDate(strategy?.vnLast)}</span>
         <span className="px-2 py-0.5 rounded" style={{ background: "rgba(148,163,184,0.08)", color: "var(--text-secondary)" }}>Hàng hoá: phiên {fmtDate(lastDaily)}</span>
-        <span className="px-2 py-0.5 rounded" style={{ background: catalystStale ? "rgba(245,158,11,0.12)" : "rgba(148,163,184,0.08)", color: catalystStale ? "var(--gold, #fbbf24)" : "var(--text-secondary)" }}>
+        <span className="px-2 py-0.5 rounded" style={{ background: catalystStale ? "rgba(245,158,11,0.12)" : "rgba(148,163,184,0.08)", color: catalystStale ? "var(--q-warn)" : "var(--text-secondary)" }}>
           Chất xúc tác: quét {fmtDate(snapshot?.scannedAt)}{catAge != null ? ` (${catAge === 0 ? "hôm nay" : `${catAge} ngày trước`})` : ""}
         </span>
       </div>
       {catalystStale && (
-        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" data-testid="impact-catalyst-stale" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold, #fbbf24)" }}>
+        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" data-testid="impact-catalyst-stale" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--q-warn)" }}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
           Engine chất xúc tác chưa quét lại từ {fmtDate(snapshot?.scannedAt)} — cột “Xúc tác” là kết quả lần quét cuối. Chiến lược thế giới, hàng hoá và vĩ mô vẫn cập nhật bình thường (Market Gateway).
         </p>
       )}
       {strategy?.regime.stressed && (
-        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold, #fbbf24)" }}>
+        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--q-accent, #fbbf24)" }}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> VIX {num(strategy.regime.vix, 2)} ({fmtZ(strategy.regime.vixChg, 1)}% phiên {fmtDate(strategy.regime.date)}). {strategy.regime.noteVi}
         </p>
       )}
@@ -231,7 +231,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
                           </>
                         ) : <span style={muted}>—</span>}
                       </td>
-                      <td style={{ color: "var(--gold, #f59e0b)" }} className="font-bold text-[10px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
+                      <td style={{ color: "var(--q-accent, #f59e0b)" }} className="font-bold text-[10px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
                       <td className="text-right"><AskButton onClick={() => onAsk(askSector(r.nameVi, r.icb))} /></td>
                     </tr>
                   );

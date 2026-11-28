@@ -39,8 +39,8 @@ import { WorldNavContext } from "./worldNav";
 const T = {
   bgSurface: "var(--bg-surface, #0e1626)",
   bgSurface2: "var(--bg-surface-2, #0a1020)",
-  gold: "var(--gold, #f59e0b)",
-  goldBright: "var(--gold-bright, #fbbf24)",
+  gold: "var(--q-accent, #f59e0b)",
+  goldBright: "var(--q-accent-strong, #fbbf24)",
   positive: "var(--positive, #34d399)",
   negative: "var(--negative, #f87171)",
   textSecondary: "var(--text-secondary, #94a3b8)",

@@ -14,8 +14,8 @@ function Shares({ s, title }: { s: Season; title: string }) {
           return (
             <div key={i} className="text-center">
               <div className="relative mx-auto h-24 w-8 rounded-sm bg-white/[0.04]" title={`Q${i + 1}: trung vị ${pctPlain(v)} (P10–P90 ${pctPlain(lo)}–${pctPlain(hi)})`}>
-                {fin(lo) && fin(hi) && <span className="absolute left-0 w-full rounded-sm bg-[#E8B84B]/20" style={{ bottom: `${Math.min(100, (lo / 0.5) * 100)}%`, height: `${Math.max(0, Math.min(100, (hi / 0.5) * 100) - Math.min(100, (lo / 0.5) * 100))}%` }} />}
-                {fin(v) && <span className="absolute left-1 right-1 rounded-sm bg-[#E8B84B]" style={{ bottom: 0, height: `${Math.min(100, (v / 0.5) * 100)}%` }} />}
+                {fin(lo) && fin(hi) && <span className="absolute left-0 w-full rounded-sm bg-q-accent/20" style={{ bottom: `${Math.min(100, (lo / 0.5) * 100)}%`, height: `${Math.max(0, Math.min(100, (hi / 0.5) * 100) - Math.min(100, (lo / 0.5) * 100))}%` }} />}
+                {fin(v) && <span className="absolute left-1 right-1 rounded-sm bg-q-accent" style={{ bottom: 0, height: `${Math.min(100, (v / 0.5) * 100)}%` }} />}
               </div>
               <p className="mt-1 text-[11px] font-bold text-slate-300">Q{i + 1}</p>
               <p className="font-mono text-[11px] tabular-nums text-slate-100">{pctPlain(v)}</p>
@@ -62,8 +62,8 @@ export default function SeasonNowcast({ d }: { d: KqkdDetail }) {
         </div>
       </div>
       {nc ? (
-        <div className="rounded-lg border border-[#E8B84B]/25 bg-[#E8B84B]/[0.05] p-3" data-testid="kq-nowcast">
-          <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-[#F5CE72]">Ước tính LNST mẹ cả năm {d.latest.quarter.slice(3)} từ lũy kế {nc.through * 3} tháng
+        <div className="rounded-lg border border-q-accent/25 bg-q-accent/[0.05] p-3" data-testid="kq-nowcast">
+          <p className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-q-accent-strong">Ước tính LNST mẹ cả năm {d.latest.quarter.slice(3)} từ lũy kế {nc.through * 3} tháng
             {ev && <span className={`rounded border px-1.5 text-[10px] ${ev.nowcast.pass ? "border-emerald-400/40 text-emerald-300" : "border-slate-500/40 text-slate-300"}`} data-testid="kq-ev-nowcast" title={ev.note}>{ev.nowcast.label} · {ev.prereg} {ev.nowcast.pass ? "ĐẠT" : "KHÔNG ĐẠT"}</span>}
           </p>
           <div className="mt-2 flex flex-wrap items-end gap-6">
@@ -76,8 +76,8 @@ export default function SeasonNowcast({ d }: { d: KqkdDetail }) {
             const max = Math.max(nc.hi, nc.lastFy as number) * 1.05, w = (v: number) => `${(v / max) * 100}%`;
             return (
               <div className="relative mt-3 h-5 rounded-sm bg-white/[0.04]" role="img" aria-label={`Dải ước tính ${bn(nc.lo)} đến ${bn(nc.hi)}, năm trước ${bn(nc.lastFy)}`}>
-                <span className="absolute top-0 h-full rounded-sm bg-[#E8B84B]/30" style={{ left: w(nc.lo), width: `calc(${w(nc.hi)} - ${w(nc.lo)})` }} />
-                <span className="absolute top-0 h-full w-[3px] bg-[#F5CE72]" style={{ left: w(nc.est) }} />
+                <span className="absolute top-0 h-full rounded-sm bg-q-accent/30" style={{ left: w(nc.lo), width: `calc(${w(nc.hi)} - ${w(nc.lo)})` }} />
+                <span className="absolute top-0 h-full w-[3px] bg-q-accent-strong" style={{ left: w(nc.est) }} />
                 <span className="absolute -top-1 h-7 w-[2px] bg-slate-300" style={{ left: w(nc.lastFy as number) }} title="năm trước" />
               </div>
             );

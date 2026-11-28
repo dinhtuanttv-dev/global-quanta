@@ -49,9 +49,9 @@ export default function SectorLadderGrid({ doc, level, openSector = null, onSele
           </thead>
           <tbody>
             {rows.map((s) => (
-              <tr key={s.code} data-testid={`ladder-row-${s.code}`} style={{ borderTop: "1px solid var(--bg-surface-2)", outline: openSector === s.code ? "1px solid var(--gold)" : undefined }}>
+              <tr key={s.code} data-testid={`ladder-row-${s.code}`} style={{ borderTop: "1px solid var(--bg-surface-2)", outline: openSector === s.code ? "1px solid var(--q-accent)" : undefined }}>
                 <th scope="row" style={{ textAlign: "left", padding: "4px 6px 4px 0", fontWeight: 600, position: "sticky", left: 0, background: "var(--bg-surface-1, #0b1220)", zIndex: 1, width: "clamp(124px, 26vw, 250px)", minWidth: 124 }}>
-                  <button type="button" onClick={() => onSelectSector?.(s.code)} data-testid={`ladder-sector-${s.code}`} style={{ all: "unset", cursor: onSelectSector ? "pointer" : "default", color: "var(--gold)", display: "block" }}>{s.name}</button>
+                  <button type="button" onClick={() => onSelectSector?.(s.code)} data-testid={`ladder-sector-${s.code}`} style={{ all: "unset", cursor: onSelectSector ? "pointer" : "default", color: "var(--q-accent)", display: "block" }}>{s.name}</button>
                   <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: STRUCTURE_COLOR[s.structure.key] }} data-testid="ladder-structure">{s.structure.label}</span>
                 </th>
                 {COLS.map((c) => <Cell key={c.h} r={s.rungs.find((r) => r.h === c.h)} muted={c.h === 1} />)}

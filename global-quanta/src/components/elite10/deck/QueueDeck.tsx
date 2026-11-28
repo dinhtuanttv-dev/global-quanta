@@ -19,7 +19,7 @@ export default function QueueDeck({ d, onOpenTicker, liqOf, sigmaOf, lq, pxBadge
     return (
       <li key={x.ticker} data-testid={ill ? `hl-queue-ill-${x.ticker}` : `hl-queue-${x.ticker}`} className={`rounded-lg border bg-[#161D2E] p-2.5 text-[11px] ${ill ? "border-rose-400/35" : "border-white/10"}`}>
         <div className="flex items-baseline justify-between gap-2">
-          <button type="button" onClick={() => onOpenTicker(x.ticker)} data-testid={ill ? undefined : `hl-open-${x.ticker}`} className="text-[14px] font-bold text-[#F5CE72] hover:underline" style={{ fontFamily: "var(--font-display)" }}>{x.ticker}</button>
+          <button type="button" onClick={() => onOpenTicker(x.ticker)} data-testid={ill ? undefined : `hl-open-${x.ticker}`} className="text-[14px] font-bold text-q-accent-strong hover:underline" style={{ fontFamily: "var(--q-font-sans)" }}>{x.ticker}</button>
           <span className="text-[10.5px] text-slate-400">hạng hợp lưu {x.hlRank}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">

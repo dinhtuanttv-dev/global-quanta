@@ -74,7 +74,7 @@ export default function WorldSourcePanel() {
                       : <>rổ chọn tay: {r.sectors[s.id]?.members.join(", ") || "—"}</>}
                     {r.sectors[s.id]?.missing.length ? <span style={muted}> (thiếu: {r.sectors[s.id].missing.join(", ")})</span> : null}
                     {r.sectors[s.id]?.source?.survivorshipBias
-                      ? <span title="Rổ chọn tay gồm các mã còn niêm yết & thanh khoản hôm nay — lợi suất quá khứ có xu hướng thiên cao (thiên lệch sống sót)" style={{ color: "var(--gold, #e8b84b)" }}> · thiên lệch sống sót</span>
+                      ? <span title="Rổ chọn tay gồm các mã còn niêm yết & thanh khoản hôm nay — lợi suất quá khứ có xu hướng thiên cao (thiên lệch sống sót)" style={{ color: "var(--q-accent, #4f8ef7)" }}> · thiên lệch sống sót</span>
                       : null}
                     {" · "}{s.n} tháng{s.stale ? " · ngừng cập nhật — đã loại" : ""}
                   </li>
