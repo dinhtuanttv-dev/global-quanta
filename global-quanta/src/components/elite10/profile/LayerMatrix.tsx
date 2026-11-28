@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import type { LayerId, ProfileLayer, ProfileSeal } from "../../../lib/elite10/profileTypes";
 
 const SEAL_TONE: Record<ProfileSeal, string> = {
-  "ĐẠT": "border-emerald-400/50 text-emerald-300", "MỘT PHẦN": "border-q-accent/50 text-q-accent-strong", "THĂM DÒ": "border-white/15 text-slate-300",
+  "ĐẠT": "border-emerald-400/50 text-emerald-300", "MỘT PHẦN": "border-white/20 text-q-text", "THĂM DÒ": "border-white/15 text-slate-300",
   "ĐANG TÍCH LUỸ": "border-white/15 text-slate-300", "MÔ TẢ": "border-white/15 text-slate-400", "CHƯA KIỂM ĐỊNH": "border-white/10 text-slate-400", "KHÔNG ĐẠT": "border-rose-400/40 text-rose-300",
 };
 export function SealChip({ seal }: { seal: ProfileSeal }) {
@@ -46,10 +46,10 @@ export default function LayerMatrix({ layers, actions }: { layers: ProfileLayer[
                 <span className="text-right">
                   {a?.detail ? (
                     <button type="button" aria-expanded={expanded} aria-controls={`profile-layer-detail-${l.id}`} onClick={() => setOpen(expanded ? null : l.id)} data-testid={`profile-layer-toggle-${l.id}`}
-                      className="min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">{expanded ? "Thu gọn" : "Chi tiết ▸"}</button>
+                      className="min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-text">{expanded ? "Thu gọn" : "Chi tiết ▸"}</button>
                   ) : a?.goto ? (
                     <button type="button" onClick={a.goto.onClick} data-testid={`profile-layer-goto-${l.id}`}
-                      className="min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">{a.goto.label} →</button>
+                      className="min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-text">{a.goto.label} →</button>
                   ) : null}
                 </span>
               </div>

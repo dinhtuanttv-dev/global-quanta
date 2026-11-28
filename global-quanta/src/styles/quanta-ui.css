@@ -2,7 +2,10 @@
    Cách dùng: thêm class "q-ui" vào gốc một tab; dùng biến --q-* (CSS thuần / inline style) hoặc tiện ích Tailwind q-* (tailwind.css).
 
    Quy ước:
-   - Một màu nhấn: XANH DƯƠNG. Dùng cho trạng thái đang chọn, liên kết, mã cổ phiếu bấm được, viền focus, vạch tab.
+   - Một màu nhấn: XANH DƯƠNG — XANH LÀ VẠCH, KHÔNG PHẢI MÀU CHỮ (sửa 28/11, đo trên tab Tổng quan: 0 chữ xanh, 269/269 mã trắng):
+     vạch tab / nút phân đoạn đang chọn, viền focus, viền + nền nhạt của nút đang bật, hàng đang mở.
+     Chữ xanh CHỈ ở nút / chip đang bật (có nền xanh nhạt) và liên kết thật. Mã cổ phiếu, tiêu đề, số nhấn: TRẮNG (--q-text).
+     Tag trạng thái: viền trung tính + chữ xám; màu ý nghĩa chỉ ở biểu tượng nhỏ (.scan-sig).
    - Màu có nghĩa giữ nguyên, không dùng làm điểm nhấn trang trí:
      tăng xanh lá · giảm đỏ · cảnh báo vàng (--warning) · quy ước bảng điện VN (trần tím, sàn xanh lơ, tham chiếu vàng).
    - Biểu đồ 2D/3D giữ màu chuỗi riêng.
@@ -35,6 +38,7 @@
 .q-ui .font-mono, .q-ui :not(th).num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 .q-ui h1, .q-ui h2, .q-ui h3, .q-ui h4 { font-family: var(--font-sans); letter-spacing: -0.005em; }
 .q-ui .text-\[9px\] { font-size: 10.5px; }
+.q-ui .text-\[9\.5px\] { font-size: 10.5px; } /* U3: lớp còn sót (tab Bằng chứng: 72 phần tử < 10px) */
 .q-ui .text-\[10px\] { font-size: 11px; }
 .q-ui .text-\[10\.5px\] { font-size: 11.5px; }
 .q-ui .text-\[11px\] { font-size: 11.5px; }

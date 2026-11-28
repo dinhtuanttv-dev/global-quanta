@@ -17,8 +17,8 @@ const BASIS: Record<CalBasis, { text: string; cls: string; title: string }> = {
   ANNOUNCED: { text: "đã công bố", cls: "text-slate-400", title: "Doanh nghiệp đã công bố (CE-v1, VNDirect, đối chiếu CafeF)" },
   EXPECTED: { text: "dự kiến", cls: "text-slate-500", title: "Khoảng dự kiến theo độ trễ công bố lịch sử của chính mã — chưa có ngày chính thức" },
   EXPLORATORY: { text: "THĂM DÒ", cls: "text-amber-300", title: "Săn cổ tức TO-v1: neo ngày công bố, chờ kiểm định tiến TO-r1" },
-  VALIDATED_ESTIMATED: { text: "đạt kiểm định · ngày ước tính", cls: "text-sky-300", title: "Vùng Timeline đạt kiểm định nhưng neo ngày sự kiện ƯỚC TÍNH" },
-  VALIDATED: { text: "đạt kiểm định", cls: "text-sky-300", title: "Vùng Timeline đạt kiểm định" },
+  VALIDATED_ESTIMATED: { text: "đạt kiểm định · ngày ước tính", cls: "text-q-text-2", title: "Vùng Timeline đạt kiểm định nhưng neo ngày sự kiện ƯỚC TÍNH" },
+  VALIDATED: { text: "đạt kiểm định", cls: "text-q-text-2", title: "Vùng Timeline đạt kiểm định" },
   DESCRIPTIVE: { text: "MÔ TẢ", cls: "text-slate-400", title: W_LANE_NOTE },
 };
 const ICON: Record<CalItem["kind"], string> = { EX_CASH: "₫", EX_STOCK: "◫", RIGHTS: "◫", MEETING: "◷", LISTING: "◫", OTHER: "·", KQKD: "▤", TO: "◎", SEASON: "◎", NEW_SHARES: "⊕", DIVW: "○" };
@@ -52,7 +52,7 @@ export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision;
   const counts = timing.data?.counts, cov = timing.data?.coverage;
 
   return (
-    <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3" data-testid="hl-calendar">
+    <section className="rounded-lg border border-white/10 bg-q-surface p-3" data-testid="hl-calendar">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Lịch {HL_CAL_HORIZON} phiên tới · danh mục và hàng chờ</h4>
         <span className="text-[10px] text-slate-500">{cal ? `${dm(d.date)} → ${dm(cal.endDate)} · ${cal.withProfile}/${cal.tickers} mã có hồ sơ` : "Đang tải…"} · chỉ hiển thị, không đổi danh mục</span>
@@ -69,7 +69,7 @@ export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision;
                   <span key={`${it.ticker}-${it.kind}-${i}`} title={`${it.label}${it.detail ? ` · ${it.detail}` : ""} — ${BASIS[it.basis].title}`}
                     className={`inline-flex flex-wrap items-baseline gap-1 rounded border px-1.5 py-0.5 ${it.inPortfolio ? "border-q-accent/40" : "border-white/10"}`} data-testid={`hl-cal-item-${it.ticker}-${it.kind}`}>
                     <span aria-hidden="true" className="text-slate-500">{ICON[it.kind]}</span>
-                    <button type="button" onClick={() => onOpenTicker(it.ticker)} className={`font-bold hover:underline ${it.inPortfolio ? "text-q-accent-strong" : "text-slate-300"}`}>{it.ticker}</button>
+                    <button type="button" onClick={() => onOpenTicker(it.ticker)} className={`font-bold hover:underline ${it.inPortfolio ? "text-q-text" : "text-slate-300"}`}>{it.ticker}</button>
                     {!it.inPortfolio && <span className="text-[10px] text-slate-500">(hàng chờ)</span>}
                     <span className="text-slate-200">{it.label}</span>
                     {it.detail && <span className="text-[10px] text-slate-500">{it.detail}</span>}

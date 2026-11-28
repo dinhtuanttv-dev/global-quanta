@@ -35,7 +35,7 @@ export default function PriceAlertBox({ ticker, price, levels }: { ticker: strin
       <div className="flex items-center justify-between mb-1">
         <div className="text-[10px] tracking-wider text-slate-500 font-semibold">⏰ CẢNH BÁO GIÁ</div>
         {perm === 'default' && (
-          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[10px] text-q-accent-strong hover:text-q-text">
+          <button type="button" onClick={async () => setPerm(await requestNotifyPermission())} className="text-[10px] text-q-text hover:text-q-text">
             Bật thông báo trình duyệt
           </button>
         )}

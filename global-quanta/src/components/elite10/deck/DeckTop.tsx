@@ -17,7 +17,7 @@ export function CommandBar({ d }: { d: EliteDecision }) {
   return (
     <header className="deck-cmd flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3" data-testid="deck-command">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 place-items-center rounded-lg border border-q-accent/30 bg-[#1E273D]" aria-hidden="true">
+        <span className="grid h-9 w-9 place-items-center rounded-lg border border-white/10 bg-q-surface-3" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 1 L19 10 L10 19 L1 10 Z" fill="none" stroke="#4f8ef7" strokeWidth="1.5" /><circle cx="10" cy="10" r="2.6" fill="#4f8ef7" /></svg>
         </span>
         <div>
@@ -59,7 +59,7 @@ export function MissionMeters({ d, ws, risk }: { d: EliteDecision; ws: WS; risk:
         <Scale value={vixPos(ws?.regime.vix)} fill="linear-gradient(90deg,#10B981,#F59E0B 40%,#F43F5E)" ticks={[{ at: (VIX_SCALE.stress - VIX_SCALE.min) / (VIX_SCALE.max - VIX_SCALE.min), label: String(VIX_SCALE.stress) }, { at: (VIX_SCALE.high - VIX_SCALE.min) / (VIX_SCALE.max - VIX_SCALE.min), label: String(VIX_SCALE.high) }]} title="Căng thẳng khi VIX ≥ 20 hoặc tăng ≥ 15% trong phiên" />
       </Meter>
       <Meter label="Triển khai vốn" testId="hl-kpi-invested" big={<span className="num">{pct(hl.invested)}<span className="ml-1 text-[12px] font-normal text-slate-400" style={{ fontFamily: "var(--font-body)" }}>cổ phiếu</span></span>}>
-        {pz ? <p className="mt-1 text-[11px] text-slate-400" data-testid="hl-kpi-split">Chính <b className="text-q-accent-strong">{pct(pz.coreWeight)}</b> · Chạy lãi <b className="text-violet-200">{pct(pz.runnerWeight)}</b> · Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b><AllocationBar core={pz.coreWeight ?? 0} runner={pz.runnerWeight ?? 0} cash={hl.cash} testId="hl-alloc" /></p>
+        {pz ? <p className="mt-1 text-[11px] text-slate-400" data-testid="hl-kpi-split">Chính <b className="text-q-text">{pct(pz.coreWeight)}</b> · Chạy lãi <b className="text-violet-200">{pct(pz.runnerWeight)}</b> · Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b><AllocationBar core={pz.coreWeight ?? 0} runner={pz.runnerWeight ?? 0} cash={hl.cash} testId="hl-alloc" /></p>
           : <p className="mt-1 text-[11px] text-slate-400">Tiền mặt <b className="text-slate-200">{pct(hl.cash)}</b> — ô trống không lấy mã yếu cho đủ số</p>}
       </Meter>
       <Meter label={`Rủi ro danh mục${risk?.available && risk.sessions ? ` · ${risk.sessions} phiên` : ""}`} testId="deck-risk" big={risk?.available && risk.volatility ? <span className="num">{pct(risk.volatility.annual)}<span className="ml-1 text-[12px] font-normal text-slate-400" style={{ fontFamily: "var(--font-body)" }}>biến động năm</span></span> : "—"}>
@@ -82,8 +82,8 @@ export function TodayRibbon({ d }: { d: EliteDecision }) {
   const total = cnt ? Object.values(cnt).reduce((a, b) => a + (b ?? 0), 0) : 0;
   const item = "flex flex-wrap items-baseline gap-x-1.5 text-[12px] text-slate-400";
   return (
-    <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-white/10 border-l-[3px] border-l-[#4f8ef7] bg-[#0E131F] px-4 py-2.5" aria-label="Hôm nay" data-testid="deck-today">
-      <span className="text-[10px] font-semibold uppercase tracking-[.12em] text-q-accent-strong" style={{ fontFamily: "var(--q-font-sans)" }}>Hôm nay</span>
+    <section className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-white/10 border-l-[3px] border-l-white/20 bg-q-surface px-4 py-2.5" aria-label="Hôm nay" data-testid="deck-today">
+      <span className="text-[10px] font-semibold uppercase tracking-[.12em] text-q-text" style={{ fontFamily: "var(--q-font-sans)" }}>Hôm nay</span>
       <span className={item} data-testid="hl-kpi-rebalance"><b className={hl.dataGuard?.frozen ? "text-rose-300" : hl.rebalance ? "text-emerald-300" : "text-slate-100"}>{hl.dataGuard?.frozen ? "Giữ nguyên" : hl.rebalance ? "Phiên cân bằng" : "Chỉ xét ra"}</b>
         <span>— {hl.dataGuard?.frozen ? "Chốt dữ liệu đang bật: không vào, không ra" : hl.rebalance ? `${hlCadenceVi(hl).v11 ? "phiên vào lệnh" : "phiên đầu tuần"}: được nhận mã mới vào ô trống` : `mã mới chỉ vào ở ${hlCadenceVi(hl).next}`}</span></span>
       <span className={item} data-testid="hl-kpi-names"><b className="num text-slate-100">{f.held} / {r.slots}</b> mã · {ch.added.length || ch.exits.length ? `vào ${ch.added.length} · ra ${ch.exits.length} · giữ ${ch.kept}` : `giữ nguyên ${ch.kept} mã`}

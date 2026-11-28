@@ -74,17 +74,17 @@ export function HlReplay({ h, today, onOpenTicker }: { h: HlHistory | undefined;
   const thenSet = new Set(s?.held.map((x) => x.t) ?? []);
   const gone = [...thenSet].filter((t) => !nowSet.has(t)), fresh = [...nowSet].filter((t) => !thenSet.has(t));
   return (
-    <div className="mt-2 rounded-md border border-cyan-400/20 bg-cyan-400/[0.03] p-2 text-[11px]" data-hl-layer="replay" data-testid="hl-replay">
-      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-testid="hl-replay-toggle" className="min-h-[24px] font-bold text-cyan-200 hover:underline">
+    <div className="mt-2 rounded-md border border-white/15 bg-white/5 p-2 text-[11px]" data-hl-layer="replay" data-testid="hl-replay">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} data-testid="hl-replay-toggle" className="min-h-[24px] font-bold text-q-text hover:underline">
         {open ? "▾" : "▸"} Tua lại các phiên trước ({past.length} phiên đã lưu, từ {dm(past[0].date)})
       </button>
       {open && s && (
         <div className="mt-1.5 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => { if (playing) setPlaying(false); else { setI(0); setPlaying(true); } }} aria-label={playing ? "Dừng tua" : "Tua lần lượt các phiên"} data-testid="hl-replay-play"
-              className="min-h-[24px] min-w-[24px] rounded border border-white/15 text-cyan-200">{playing ? "⏸" : "▶"}</button>
+              className="min-h-[24px] min-w-[24px] rounded border border-white/15 text-q-text">{playing ? "⏸" : "▶"}</button>
             <input type="range" min={0} max={past.length - 1} step={1} value={idx} onChange={(e) => { setPlaying(false); setI(Number(e.target.value)); }}
-              aria-label="Chọn phiên để xem lại" aria-valuetext={`Phiên ${dm(s.date)}`} data-testid="hl-replay-range" className="w-40 flex-1 accent-cyan-400" />
+              aria-label="Chọn phiên để xem lại" aria-valuetext={`Phiên ${dm(s.date)}`} data-testid="hl-replay-range" className="w-40 flex-1 accent-q-accent" />
             <b className="font-mono text-slate-100" data-testid="hl-replay-date">Phiên {dm(s.date)}</b>
             <span className="rounded border border-amber-400/40 px-1 text-[10px] font-bold text-amber-200">LỊCH SỬ · không phải bảng hôm nay</span>
           </div>
@@ -101,7 +101,7 @@ export function HlReplay({ h, today, onOpenTicker }: { h: HlHistory | undefined;
                 {s.held.map((x) => (
                   <tr key={x.t} className="border-t border-white/5" data-testid={`hl-replay-row-${x.t}`}>
                     <td className="py-1 pr-2 font-mono text-slate-400">{x.rank ?? "—"}</td>
-                    <td><button type="button" onClick={() => onOpenTicker(x.t)} className="font-bold text-q-accent-strong hover:underline">{x.t}</button>{!nowSet.has(x.t) && <span className="ml-1 text-[10px] text-rose-300">(đã ra)</span>}</td>
+                    <td><button type="button" onClick={() => onOpenTicker(x.t)} className="font-bold text-q-text hover:underline">{x.t}</button>{!nowSet.has(x.t) && <span className="ml-1 text-[10px] text-rose-300">(đã ra)</span>}</td>
                     <td className="font-mono">{pc(x.w)}</td><td className="font-mono">{x.ls == null ? "—" : Math.round(x.ls)}</td><td className="font-mono">{x.t1 ?? "—"}</td>
                     <td>{x.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : `Giữ${x.since ? ` từ ${dm(x.since)}` : ""}`}</td>
                     <td className="text-slate-400">{x.pz ?? "—"}</td>

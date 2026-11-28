@@ -10,10 +10,10 @@ export default function ToTickerCard({ ticker }: { ticker: string }) {
   const live = ov?.radar.rows.find((r) => r.t === ticker.toUpperCase()) ?? null;
   const done = (hist?.events ?? []).filter((e) => e.outcome || e.postEx5);
   return (
-    <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 text-slate-200" data-testid="elite-to-card">
+    <section className="tw-scope rounded-lg border border-white/10 bg-q-surface p-3 text-slate-200" data-testid="elite-to-card">
       <div className="mb-1.5 flex flex-wrap items-center gap-2">
         <h4 className="text-[12px] font-bold text-slate-100">💰 Sự kiện cổ tức · Săn cổ tức trước GDKHQ</h4>
-        <span className="rounded border border-sky-400/40 px-1.5 text-[10px] font-semibold text-sky-300">{ov?.label ?? "THĂM DÒ"}</span>
+        <span className="rounded border border-white/15 px-1.5 text-[10px] font-semibold text-q-text-2">{ov?.label ?? "THĂM DÒ"}</span>
       </div>
       {live ? (
         <div className={`mb-2 rounded-md border p-2 text-[11px] ${live.qualifies ? "border-emerald-400/40 bg-emerald-400/[0.06]" : "border-white/10"}`} data-testid="elite-to-live">

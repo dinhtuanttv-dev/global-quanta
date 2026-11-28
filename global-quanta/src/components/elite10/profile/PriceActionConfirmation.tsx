@@ -160,10 +160,10 @@ export default function PriceActionConfirmation({ ticker, onEvidence, evidenceOn
     : buy.triggeredToday ? "Kích hoạt nhưng chưa đủ điều kiện" : buy.pending ? "Chờ kích hoạt" : buy.recent ? "Vừa kích hoạt" : "Chưa có setup mua";
 
   return (
-    <div className="mt-3 rounded-md border border-cyan-500/20 bg-slate-950/50 p-2.5 text-slate-200" data-testid="pa-confirmation">
+    <div className="mt-3 rounded-md border border-white/15 bg-slate-950/50 p-2.5 text-slate-200" data-testid="pa-confirmation">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300">Price Action × Khối lượng · xác nhận kỹ thuật</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-q-text-2">Price Action × Khối lượng · xác nhận kỹ thuật</p>
           <p className="text-[10px] text-slate-500">OHLCV ngày điều chỉnh · {priceBasis ?? "chưa rõ cơ sở giá"} · đến {dateLabel(latestDate ?? lastBar?.date)} · {PRICE_ACTION_ENGINE_VERSION}</p>
         </div>
         <span className={`rounded border px-2 py-0.5 text-[10px] font-bold ${confirmed ? "border-emerald-400/50 bg-emerald-500/10 text-emerald-300" : "border-white/15 text-slate-300"}`} data-testid="pa-status">

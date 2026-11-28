@@ -30,11 +30,11 @@ function Lifecycle({ p, asOf }: { p: DilutionPhase; asOf: string }) {
             <span className="block text-center text-[9px] font-bold leading-none text-orange-200" style={{ marginLeft: i % 2 ? 6 : -6 }}>{i + 1}</span>
           </div>
         ))}
-        <div className="absolute -top-4 -translate-x-1/2 text-[10px] font-bold text-q-accent-strong" style={{ left: `${x(asOf)}%` }} title={`Hôm nay ${fmtDate(asOf)}`}>▼</div>
+        <div className="absolute -top-4 -translate-x-1/2 text-[10px] font-bold text-q-text" style={{ left: `${x(asOf)}%` }} title={`Hôm nay ${fmtDate(asOf)}`}>▼</div>
       </div>
       <ul className="mt-4 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400" data-testid="px-lifecycle-legend">
         {pts.map((q, i) => <li key={q.k}><b className="text-orange-200">{i + 1}</b> {q.label} <span className="font-mono text-slate-200">{fmtDate(q.d).slice(0, 5)}</span></li>)}
-        <li><b className="text-q-accent-strong">▼</b> Hôm nay <span className="font-mono text-slate-200">{fmtDate(asOf).slice(0, 5)}</span></li>
+        <li><b className="text-q-text">▼</b> Hôm nay <span className="font-mono text-slate-200">{fmtDate(asOf).slice(0, 5)}</span></li>
       </ul>
     </div>
   );

@@ -8,6 +8,7 @@
 | U1 | Phân loại vàng: mọi chỗ `--gold` / `#E8B84B` / `#F5CE72` / `amber-*` mang nghĩa **cảnh báo** đổi sang `--q-warn`. Sau đó `tokens.css` trỏ `--gold*` → xanh nhấn, `--font-display` → Inter (giữ logo) | toàn dự án | U0 |
 | U2 | Khung chung: `.q-ui` cho thanh trên + cột phải; tiêu đề cột phải và **logo theo chuẩn nút tab** (`.q-title`, `.q-brand`, dấu "ĐT" Liquid Metal); bỏ cyan / tím; chữ ≥ 11px; `App.css` / `topbar-pro.css` sang token. **Menu chính không đổi** | K1–K4, K6 | U1 |
 | U3 | Quyết định: vạch tab, Bảng QĐ (nút lớp, mã bấm được, tiêu đề Deck), Phòng họp AI (khối trái + thanh đầu; sơ đồ miễn trừ), Bằng chứng, Rủi ro | Q-1…Q-7 | U1 |
+| U3 (28/11) | **Tách:** U3a = Bảng QĐ, Hồ sơ 360°, Bằng chứng, Rủi ro + sửa chuẩn "xanh là vạch" (A13) + sửa lại cột phải của U2. U3b = Phòng họp AI (hệ màu riêng `.eb-room-page`: `--gold` / `--cyan` dùng chung cho khối và sơ đồ — cần rà riêng để sơ đồ giữ nguyên) | Q-4 | U3a |
 | U4 | Vĩ mô: Chất xúc tác hiện tại, Tác động ngành, thẻ Nhịp vĩ mô bỏ gradient | V1–V4 | U1 |
 | U5 | Cơ bản: KQKD, Cổ tức, sự kiện, bỏ Space Grotesk trong `cotuc-theme.css`, biểu tượng thay emoji (trừ `CoTuc/timeline` khoá F0) | C1–C5 | U1 |
 | U6 | Ngành: vàng, số Plex Mono, chip đang chọn | N1–N5 | U1 |
@@ -24,6 +25,7 @@ Thứ tự ưu tiên theo mức lệch đo được: Quyết định và Vĩ mô
 | A1 | Phần tử chữ màu vàng cũ (không phải cảnh báo) | 107 (Vĩ mô › Chất xúc tác), 57 (Ngành), 51 (Bảng QĐ) | **0** ở mọi tab |
 | A2 | Phông khác Inter / IBM Plex Mono | Space Grotesk 14 (Bảng QĐ), `ui-monospace` 26 (Phòng họp AI) | **0** (kể cả logo) |
 | A11 | Menu chính giống từng điểm ảnh trước / sau mọi bước | — | **giống 100%** |
+| A13 | **Chữ xanh** và **mã cổ phiếu xanh** mỗi tab (thêm 28/11 sau lỗi U1) | Ngành 75 / 20 mã, Quyết định 63 / 38 mã, Kỹ thuật 71, Vĩ mô 40 / 16 mã; Tổng quan 0 / 0 | **mã xanh 0**; chữ xanh chỉ ở nút đang bật + liên kết |
 | A12 | Tham chiếu hệ cũ sau U9 (`tokens.css`, `--gold*`, `--font-display`, Space Grotesk) | 91 + 10 + 1 tệp | **0**, tệp đã xoá |
 | A3 | Phần tử < 11px ngoài `q-dense` | 951 (Chất xúc tác), 208 (Phòng họp AI), 30/33 (cột phải) | **0** |
 | A4 | Phần tử < 10px | 163 (Phòng họp AI), 72 (Bằng chứng) | **0** |

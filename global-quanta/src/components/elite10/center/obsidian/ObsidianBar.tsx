@@ -11,8 +11,8 @@ export default function ObsidianBar({ desk, unsaved, extra }: { desk: ObsidianDe
   const tone = desk.status?.tone === "error" ? "text-rose-300" : desk.status?.tone === "warn" ? "text-amber-200" : "text-emerald-300";
   return (
     <section aria-label="Bàn nghiên cứu Obsidian" data-testid="obsidian-bar"
-      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-white/10 bg-[#0E131F] px-3 py-2 text-[11.5px]">
-      <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wide text-q-accent-strong"><BookMarked className="h-3.5 w-3.5" aria-hidden />Obsidian</span>
+      className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-white/10 bg-q-surface px-3 py-2 text-[11.5px]">
+      <span className="inline-flex items-center gap-1.5 font-bold uppercase tracking-wide text-q-text"><BookMarked className="h-3.5 w-3.5" aria-hidden />Obsidian</span>
       <span className="text-slate-200" data-testid="obsidian-target">
         Vault: <b className="font-semibold text-slate-100">{desk.prefs.vault || "Vault đang mở"}</b>
         <span className="text-slate-300"> · </span>

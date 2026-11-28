@@ -73,7 +73,7 @@ export default function EventsProfileCard({ ticker, onOpenFocus }: { ticker: str
       <Block title="Sự kiện gần đây (120 ngày)" testId="pfa-recent"><EventTable rows={ev?.recent ?? []} testId="pfa-recent-table" /></Block>
 
       <Block title="Săn cổ tức TO-v1 — các lần gần đây của mã" testId="pfa-to" right={<Evidence label="THĂM DÒ" title="TO-v1: mua sau ngày công bố, bán phiên cuối còn quyền; sổ theo dõi tiến TO-L1 từ 09/11/2026" />}>
-        {onOpenFocus && <button type="button" onClick={onOpenFocus} data-touch data-testid="pfa-to-open-focus" className="mb-1.5 min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">Xem lần chi trả sắp tới trong khung "Mã đang chọn" (tab 1) →</button>}
+        {onOpenFocus && <button type="button" onClick={onOpenFocus} data-touch data-testid="pfa-to-open-focus" className="mb-1.5 min-h-[24px] rounded border border-white/10 px-2 text-[10.5px] text-slate-300 hover:border-q-accent/50 hover:text-q-text">Xem lần chi trả sắp tới trong khung "Mã đang chọn" (tab 1) →</button>}
         {!to?.available ? <p className="text-[11px] text-slate-500" data-testid="pfa-to-none">Mã chưa có lần chi trả nào trong phạm vi Săn cổ tức.</p> : (
           <>
             <p className="mb-1 text-[11px] text-slate-400" data-testid="pfa-to-summary">{to.done ?? 0} lần đã đóng · vượt VN-Index ở {pct(to.hitRate, 0)} số lần</p>

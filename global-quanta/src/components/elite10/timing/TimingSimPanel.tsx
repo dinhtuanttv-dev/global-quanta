@@ -47,7 +47,7 @@ const dm = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)
 const wide = () => typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia("(min-width: 768px)").matches;
 const TL_STATUS: Record<string, { text: string; cls: string }> = {
   IN_WINDOW: { text: "ĐANG TRONG VÙNG MUA", cls: "border-emerald-400/60 bg-emerald-500/15 text-emerald-200" },
-  UPCOMING: { text: "SẮP TỚI", cls: "border-sky-400/50 bg-sky-500/10 text-sky-200" },
+  UPCOMING: { text: "SẮP TỚI", cls: "border-white/15 bg-white/5 text-q-text" },
   PASSED: { text: "ĐÃ QUA", cls: "border-white/15 text-slate-400" },
 };
 const STATUS_VI: Record<string, string> = { CONFIRMED: "XÁC NHẬN", ANNOUNCED: "ĐÃ CÔNG BỐ", ESTIMATED: "ƯỚC TÍNH", HISTORICAL_LAG: "ƯỚC TÍNH (độ trễ lịch sử)", DEADLINE_ONLY: "THEO HẠN PHÁP LÝ" };
@@ -136,7 +136,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
         <div className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Kiểu biểu đồ">
           {(["2D", "3D"] as const).map((v) => (
             <button key={v} type="button" aria-pressed={view === v} data-testid={`timing-view-${v}`} onClick={() => setView(v)}
-              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "bg-q-accent/15 font-bold text-q-accent-strong" : "text-slate-400 hover:text-slate-200"}`}>
+              className={`min-h-[26px] rounded px-2.5 text-[10.5px] ${view === v ? "font-bold bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400 hover:text-slate-200"}`}>
               {v === "2D" ? "2D phân phối" : "3D · 4D không gian"}
             </button>
           ))}
@@ -172,7 +172,7 @@ export default function TimingSimPanel({ ticker }: { ticker: string }) {
               <span className="text-slate-200">{tl.windowLabel}</span>
               {timingOn && tl.kind === "DIVIDEND" && <span className="rounded border border-dashed border-slate-500/60 px-1.5 py-0.5 text-[10px] font-bold text-slate-300" title={W_LANE_NOTE} data-hl-layer="timing" data-testid="timing-wlane">MÔ TẢ · cửa sổ W1–W5</span>}
               <span className="text-slate-300">vào <b className="text-slate-100">{dm(tl.entryFromDate)} → {dm(tl.entryToDate)}</b> · thoát <b className="text-slate-100">{dm(tl.exitDate)}</b></span>
-              {tl.status === "UPCOMING" && <span className="text-sky-300">còn {tl.sessionsToEntry} phiên tới vùng mua</span>}
+              {tl.status === "UPCOMING" && <span className="text-q-text-2">còn {tl.sessionsToEntry} phiên tới vùng mua</span>}
               <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold ${tl.tier === "VALIDATED" ? "border-emerald-400/50 text-emerald-300" : "border-amber-400/50 text-amber-300"}`}>{tl.tier === "VALIDATED" ? "ĐẠT KIỂM ĐỊNH" : "GẦN ĐẠT"}</span>
               <span className="text-slate-400">{tl.nEvents} đợt · thắng {Math.round(tl.winRate * 100)}% · ròng {pct(tl.netExpectancy)} (cận dưới {pct(tl.netExpectancyLcb)})</span>
               {tl.missing.length > 0 && <span className="text-amber-300/90">thiếu: {tl.missing.join("; ")}</span>}

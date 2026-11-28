@@ -12,9 +12,9 @@ import { num, signed } from "./boardParts";
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const pc = (x: number) => `${signed(x * 100, 1)}%`;
 const TIER: Record<CalRow["tier"], { text: string; cls: string; title: string }> = {
-  VALIDATED: { text: "Đạt (xem ghi chú)", cls: "border-sky-400/50 text-sky-200", title: "Cửa sổ đạt tiêu chí của engine Timeline — nhưng tỷ lệ đạt của Timeline tương đương dữ liệu giả (rà soát 07/11)" },
+  VALIDATED: { text: "Đạt (xem ghi chú)", cls: "border-white/15 text-q-text", title: "Cửa sổ đạt tiêu chí của engine Timeline — nhưng tỷ lệ đạt của Timeline tương đương dữ liệu giả (rà soát 07/11)" },
   NEAR: { text: "Gần đạt — chưa qua kiểm định", cls: "border-slate-500/50 text-slate-300", title: "Engine Timeline: chưa đạt tiêu chí kiểm định" },
-  EXPLORATORY: { text: "Săn cổ tức TO — THĂM DÒ", cls: "border-cyan-400/40 text-cyan-200", title: "Vùng Săn cổ tức TO-v1: chờ kiểm định tiến TO-r1" },
+  EXPLORATORY: { text: "Săn cổ tức TO — THĂM DÒ", cls: "border-white/15 text-q-text", title: "Vùng Săn cổ tức TO-v1: chờ kiểm định tiến TO-r1" },
 };
 const isW = (r: CalRow) => r.kind === "DIVIDEND" && r.source === "TIMELINE";
 const W_CHIP = { text: "Cổ tức W1–W5 — MÔ TẢ", cls: "border-dashed border-slate-500/60 text-slate-300" };
@@ -83,5 +83,5 @@ export default function HlBuyCalendar({ tickers, picked, onPick }: { tickers: re
 
 function TickerBtn({ t, picked, onPick }: { t: string; picked: string | null; onPick: (t: string) => void }) {
   return <button type="button" onClick={() => onPick(t)} aria-pressed={picked === t} data-testid={`hl-buy-cal-pick-${t}`}
-    className={`min-h-[24px] font-bold hover:underline ${picked === t ? "text-q-accent-strong" : "text-slate-100"}`}>{t}</button>;
+    className={`min-h-[24px] font-bold hover:underline ${picked === t ? "text-q-text" : "text-slate-100"}`}>{t}</button>;
 }

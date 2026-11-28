@@ -170,7 +170,7 @@ function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
           <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Cấu hình</th><th className="pr-2 text-right">Sharpe năm</th><th className="text-right">Vượt rổ đều / năm</th></tr></thead>
           <tbody className="font-mono">
             {r.grid.map((g) => (
-              <tr key={g.id} className={g.primary ? "text-q-accent-strong" : "text-slate-300"}>
+              <tr key={g.id} className={g.primary ? "text-q-text" : "text-slate-300"}>
                 <td className="py-0.5 pr-2 font-sans">{g.size} mã · {g.bufferRank ? `đệm ${g.bufferRank}` : "không đệm"} · {WEIGHTING_VI[g.weighting] ?? g.weighting}{g.primary ? " (chính)" : ""}</td>
                 <td className="pr-2 text-right">{num(g.sharpeAnnual, 2)}</td>
                 <td className="text-right">{sgn(g.annualExcess * 100, 1)}%</td>
@@ -192,7 +192,7 @@ const HL_BASIS_VI = "Sổ chấm rổ mã đang giữ quy về 100% cổ phiếu
 function LedgerSection({ ledger, error, title, hl, testId }: { ledger: EliteLedger | undefined; error?: unknown; title: string; hl: boolean; testId: string }) {
   const recent = [...(ledger?.entries ?? [])].reverse().slice(0, 15);
   return (
-    <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid={testId}>
+    <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid={testId}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">{title}</h4>
         {ledger && <span className="text-[10px] text-slate-400">{ledger.version} · cập nhật {ledger.updatedAt ? new Date(ledger.updatedAt).toLocaleString("vi-VN", { hour12: false }) : "—"}</span>}
@@ -239,7 +239,7 @@ function Tier({ n, title, sub, testId, children }: { n: number; title: string; s
   return (
     <section className="space-y-3" data-testid={testId} aria-label={title}>
       <header className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-b border-white/10 pb-1">
-        <span className="font-mono text-[10.5px] text-q-accent-strong">TẦNG {n}</span>
+        <span className="font-mono text-[10.5px] text-q-text">TẦNG {n}</span>
         <h3 className="text-[12.5px] font-semibold text-slate-100">{title}</h3>
         <span className="text-[10.5px] text-slate-500">{sub}</span>
       </header>
@@ -285,7 +285,7 @@ export default function EvidenceLedgerTab() {
       <Tier n={2} title="Bằng chứng & tín hiệu" sub="tường bằng chứng từng lớp · IC 25 tín hiệu (E2) · SQS · IC theo chế độ thị trường" testId="tab4-signals">
         {/* Khối HL (giữ data-testid cũ): tường bằng chứng từng lớp đứng đầu; quy tắc, cổng và sổ ở tầng 3. */}
         {decision?.hl && <div className="space-y-3" data-testid="elite-evidence-hl"><EvidenceWall ledger={decision.ledgerSummary} registry={registry} k0Note={decision.hl.k0?.noteVi ?? null} /></div>}
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bằng chứng từng tín hiệu (E2)</h4>
             <span className="text-[10px] text-slate-500">{ev.version} · đo tới phiên {fmtDate(ev.calendarLast)} · {ev.tests} phép thử BH · A {ev.counts.A} · B {ev.counts.B} · C {ev.counts.C}</span>
@@ -359,16 +359,16 @@ export default function EvidenceLedgerTab() {
       </Tier>
 
       <Tier n={4} title="Thẩm định & hiệu chuẩn" sub="walk-forward E7 · quá khớp E7-v3 · chi phí thực thi R3 · sổ phán quyết AI" testId="tab4-audit">
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Kiểm định hồi cứu walk-forward (E7){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
           <RetroSection r={retro} />
         </section>
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Hiệu chỉnh quá khớp (E7-v3){hl ? " — danh mục Elite dòng tiền (cũ)" : ""}</h4>
           <RetroV3Section r={retroV3} />
         </section>
         {/* ARL-v1 (26/11/2026): sổ phán quyết Phòng họp AI — nguồn đo độ tin cậy của bộ não. */}
-        <div className="space-y-3 rounded-lg border border-white/10 bg-[#0E131F] p-3">
+        <div className="space-y-3 rounded-lg border border-white/10 bg-q-surface p-3">
           <AiBrainCard testId="ai-brain-evidence" />
           {evo && <AiSkillPanel ev={evo} />}
         </div>

@@ -14,7 +14,7 @@ export default function EliteNewsPanel({ ticker, onTicker }: { ticker: string; o
   const relevance = useCallback((t: string) => (t === ticker ? "Đang xem" : eliteSet.has(t) ? "Elite 10" : null), [ticker, eliteSet]);
   const rank = useCallback((t: string) => (t === ticker ? 2 : eliteSet.has(t) ? 1 : 0), [ticker, eliteSet]);
   return (
-    <section className="rounded-lg border border-cyan-400/20 bg-slate-950/70 p-3 text-slate-200" data-testid="elite-news-panel">
+    <section className="rounded-lg border border-white/15 bg-slate-950/70 p-3 text-slate-200" data-testid="elite-news-panel">
       <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-[12px] font-bold tracking-wide text-slate-100">📰 TIN TỨC THÔNG MINH · ELITE 10</h3>
         <span className="text-[10px] text-slate-500">{ticker}{elite.length ? ` + ${elite.filter((t) => t !== ticker).length} mã danh mục Elite` : ""} · ◉ ESA KL = khối lượng bất thường sau tin (đã trừ yếu tố thị trường)</span>

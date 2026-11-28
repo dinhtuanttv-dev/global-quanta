@@ -24,6 +24,8 @@ export const UI_RULES = [
   { id: "text-10px", vi: "text-[10px] (chỉ cho lưới dày q-dense)", re: /text-\[10px\]/g },
   { id: "uppercase", vi: "Nhãn in hoa / giãn chữ", re: /\buppercase\b|\btracking-(?:wide|wider|widest)\b|text-transform:\s*uppercase/g },
   { id: "gradient", vi: "Nền gradient (ngoài biểu đồ)", re: /linear-gradient|radial-gradient|\bbg-gradient-to-/g },
+  // U3 (28/11): xanh là VẠCH, không phải màu chữ (Tổng quan: 0 chữ xanh). Đếm mọi chữ xanh nhấn / xanh trời / xanh lơ trong className.
+  { id: "accent-text", vi: "Chữ xanh nhấn / sky / cyan (chỉ cho nút đang bật, liên kết)", re: /(?<![\w:-])text-(?:q-accent(?:-strong)?|\[#(?:79a8ff|4f8ef7)\]|sky-\d{2,3}|cyan-\d{2,3})\b/g },
 ];
 
 function loadExempt() {

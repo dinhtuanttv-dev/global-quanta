@@ -12,12 +12,12 @@ export const PZ_VI: Record<PzState, string> = {
 const PZ_GLYPH: Record<PzState, string> = { BUY_ZONE: "◎", IN_BASE: "▭", NO_SETUP: "·", UNKNOWN: "?", EXTENDED: "↗", COOLING: "↘", REBASING: "◇", FAILED: "✕" };
 const PZ_TONE: Record<PzState, string> = {
   BUY_ZONE: "border-emerald-400/70 bg-emerald-500/10 text-emerald-200",
-  IN_BASE: "border-sky-400/60 text-sky-200",
+  IN_BASE: "border-white/15 text-q-text",
   NO_SETUP: "border-dashed border-slate-400/60 text-slate-300",
   UNKNOWN: "border-dotted border-slate-400/60 text-slate-300",
   EXTENDED: "border-amber-400/70 bg-amber-500/10 text-amber-200",
   COOLING: "border-violet-400/60 text-violet-200",
-  REBASING: "border-cyan-400/60 bg-cyan-500/[0.07] text-cyan-200",
+  REBASING: "border-white/15 bg-white/5 text-q-text",
   FAILED: "border-dashed border-rose-400/70 text-rose-200",
 };
 const BASE_VI: Record<string, string> = { SEPA: "SEPA", BASE_BREAKOUT: "Base Breakout", BOX: "Hộp giá" };
@@ -112,7 +112,7 @@ function HotChips({ pz, rules }: { pz: PzPosition; rules: PzRules }) {
       {HOT_LABEL.map((h) => {
         const on = h.on(pz, rules);
         return (
-          <span key={h.key} title={h.vi(rules)} className={`whitespace-nowrap rounded border px-1 py-px text-[10px] ${on ? "border-q-accent/60 text-q-accent-strong" : on === false ? "border-white/10 text-slate-400" : "border-dotted border-white/15 text-slate-500"}`} data-testid={`pz-hot-${h.key}`} data-on={on ? "1" : "0"}>
+          <span key={h.key} title={h.vi(rules)} className={`whitespace-nowrap rounded border px-1 py-px text-[10px] ${on ? "border-white/25 text-q-text" : on === false ? "border-white/10 text-slate-400" : "border-dotted border-white/15 text-slate-500"}`} data-testid={`pz-hot-${h.key}`} data-on={on ? "1" : "0"}>
             <span aria-hidden="true">{on ? "●" : "○"}</span> {h.vi(rules).split(" (")[0]} {h.val(pz)}
           </span>
         );
@@ -130,7 +130,7 @@ function RebaseChecks({ pz }: { pz: PzPosition }) {
         <span className="ml-1 text-[10px] text-slate-400">{ok}/4</span>
       </span>
       <span className="mt-0.5 flex flex-wrap gap-x-2 text-[10px]">
-        {pz.rebase.map((x) => <span key={x.key} className={x.ok ? "text-cyan-200" : "text-slate-500"}>{x.ok ? "✓" : "✗"} {REBASE_VI[x.key]}</span>)}
+        {pz.rebase.map((x) => <span key={x.key} className={x.ok ? "text-q-text" : "text-slate-500"}>{x.ok ? "✓" : "✗"} {REBASE_VI[x.key]}</span>)}
       </span>
     </span>
   );
@@ -154,7 +154,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
             {list.map((x) => (
               <li key={x.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`pz-card-${x.ticker}`}>
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <span><button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-[13px] font-bold text-q-accent-strong">{x.ticker}</button> {x.held && <span className="ml-1 rounded border border-violet-400/50 px-1 text-[10px] text-violet-200">đang giữ {pctf(x.weight)}</span>}</span>
+                  <span><button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-[13px] font-bold text-q-text">{x.ticker}</button> {x.held && <span className="ml-1 rounded border border-violet-400/50 px-1 text-[10px] text-violet-200">đang giữ {pctf(x.weight)}</span>}</span>
                   <PzBadge pz={x.pz} />
                 </div>
                 {liqBadge && <p className="mt-0.5 text-[10px] text-slate-500">{liqBadge(x, true)}{pxBadge?.(x, true)}</p>}
@@ -175,7 +175,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
                 {list.map((x) => (
                   <tr key={x.ticker} className="border-t border-white/5 align-top" data-testid={`pz-row-${x.ticker}`}>
                     <td className="py-1.5 pr-2">
-                      <button type="button" onClick={() => onOpenTicker(x.ticker)} className="font-bold text-q-accent-strong hover:underline">{x.ticker}</button>
+                      <button type="button" onClick={() => onOpenTicker(x.ticker)} className="font-bold text-q-text hover:underline">{x.ticker}</button>
                       <span className="block text-[10px] text-slate-500">{x.sectorKey ? secName(x.sectorKey) : "—"}{liqBadge && <> · {liqBadge(x, false)}</>}{pxBadge?.(x, false)}</span>
                       {x.held && <span className="block text-[10px] text-violet-200">đang giữ {pctf(x.weight)}{x.sinceRet ? <> · từ phiên khoá <b className={x.sinceRet >= 0 ? "text-emerald-300" : "text-rose-300"}>{spct(x.sinceRet)}</b></> : null}</span>}
                     </td>
@@ -184,7 +184,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
                       {x.pz.hStar ? <span className="block text-[10px] text-slate-500">đỉnh {price(x.pz.hStar)}{x.pz.depth ? ` · lùi ${pctf(x.pz.depth)}` : " · đang ở đỉnh"}</span> : null}</td>
                     <td className="max-w-[260px] pr-2">
                       {(x.pz.hotReasons as string[]).length === 0 ? <span className="text-[10px] text-slate-500">Không còn độ đo nào vượt ngưỡng</span> : <>
-                      <button type="button" aria-expanded={open === x.ticker} onClick={() => setOpen(open === x.ticker ? null : x.ticker)} data-touch className="text-left text-[10px] text-slate-300 hover:text-q-accent-strong" data-testid={`pz-why-btn-${x.ticker}`}>
+                      <button type="button" aria-expanded={open === x.ticker} onClick={() => setOpen(open === x.ticker ? null : x.ticker)} data-touch className="text-left text-[10px] text-slate-300 hover:text-q-text" data-testid={`pz-why-btn-${x.ticker}`}>
                         {(x.pz.hotReasons as string[]).length} độ đo vượt ngưỡng {open === x.ticker ? "▾" : "▸"}
                       </button>
                       {open === x.ticker && <div className="mt-1"><HotChips pz={x.pz} rules={rules} /></div>}
@@ -203,7 +203,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
     </div>
   );
   return (
-    <section data-testid="hl-watch" id="hl-watch" className="rounded-lg border border-violet-400/25 bg-[#0E131F] p-3">
+    <section data-testid="hl-watch" id="hl-watch" className="rounded-lg border border-violet-400/25 bg-q-surface p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Theo dõi chờ nền — mã đạt chuẩn đã rời vùng mua</h4>
         <span className="text-[10px] text-slate-400">Không mua mới · quay lại danh mục chính khi dựng xong nền mới và về vùng mua</span>

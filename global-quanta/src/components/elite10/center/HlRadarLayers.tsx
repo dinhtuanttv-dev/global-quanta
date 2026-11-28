@@ -39,7 +39,7 @@ export function HlLayerToggles({ layers, onToggle, note }: { layers: HlLayers; o
       <span className="text-slate-500">Lớp hiển thị (MÔ TẢ, không đổi danh mục):</span>
       {(Object.keys(HL_LAYER_VI) as HlLayer[]).map((k) => (
         <button key={k} type="button" aria-pressed={layers[k]} onClick={() => onToggle(k)} data-testid={`hl-layer-${k}`}
-          className={`min-h-[24px] rounded border px-1.5 ${layers[k] ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-slate-500 hover:text-slate-300"}`}>{HL_LAYER_VI[k]}</button>
+          className={`min-h-[24px] rounded border px-1.5 ${layers[k] ? "border-white/15 bg-white/5 text-q-text" : "border-white/10 text-slate-500 hover:text-slate-300"}`}>{HL_LAYER_VI[k]}</button>
       ))}
       {note && <span className="text-amber-300/90" data-testid="hl-layers-note">{note}</span>}
     </div>
@@ -70,7 +70,7 @@ export function HlTickerBadge({ s, layers, mobile = false }: { s: HlRowSignal | 
     <span ref={ref} className="relative ml-1 inline-flex align-middle" data-hl-layer="badge" data-testid={`hl-badge-${mobile ? "m-" : ""}${s.ticker}`}
       onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <button type="button" aria-label={`Tín hiệu mô tả của ${label}`} aria-expanded={open} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
-        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }} onClick={() => setOpen(true)} className="inline-flex min-h-[24px] min-w-[24px] items-center justify-center rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-300">
+        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }} onClick={() => setOpen(true)} className="inline-flex min-h-[24px] min-w-[24px] items-center justify-center rounded focus:outline-none focus-visible:ring-1 focus-visible:ring-q-accent">
         <svg width={22} height={22} viewBox="-11 -11 22 22" aria-hidden="true" className={animate ? "" : "radar-paused"}>
           {hot && <circle r={6} fill="none" stroke={rim ?? AMBER} strokeWidth={1.4} className="radar-pulse" data-testid={`hl-hot-${mobile ? "m-" : ""}${s.ticker}`} />}
           {buy && <circle r={8.6} fill="none" stroke={RING[buy.ring]} strokeWidth={buy.ring === "in" ? 1.6 : 1.2} data-buy-ring={buy.ring}
@@ -81,7 +81,7 @@ export function HlTickerBadge({ s, layers, mobile = false }: { s: HlRowSignal | 
         </svg>
       </button>
       {open && (
-        <span role="tooltip" className="absolute left-0 top-full z-30 mt-1 block w-72 rounded-lg border border-cyan-400/35 bg-[#0f1420] p-2 text-left text-[10.5px] font-normal leading-snug text-slate-300 shadow-xl" data-testid={`hl-tip-${mobile ? "m-" : ""}${s.ticker}`}>
+        <span role="tooltip" className="absolute left-0 top-full z-30 mt-1 block w-72 rounded-lg border border-white/15 bg-[#0f1420] p-2 text-left text-[10.5px] font-normal leading-snug text-slate-300 shadow-xl" data-testid={`hl-tip-${mobile ? "m-" : ""}${s.ticker}`}>
           <span className="flex items-baseline justify-between"><b className="font-mono text-slate-100">{s.ticker}</b><span className="rounded border border-white/15 px-1 text-[10px] text-slate-400">MÔ TẢ</span></span>
           {live && <span className="block font-mono">Trong phiên <b className="text-slate-100">{live.price.toLocaleString("vi-VN")}</b> <span style={{ color: (live.changePct ?? 0) >= 0 ? UP : DOWN }}>{pc(live.changePct)}</span></span>}
           {layers.news && (top ? (

@@ -39,7 +39,7 @@ export default function CashGateCard() {
               return (
                 <li key={id} className="flex items-baseline justify-between gap-2">
                   <span className="text-slate-400"><b className="text-slate-300">{id}</b> {RULE_VI[id]}</span>
-                  <span className={`whitespace-nowrap font-mono ${r.active ? "text-q-accent-strong" : "text-slate-500"}`}>{r.active ? `kích hoạt · ${pct(r.target)}` : "không kích hoạt"}</span>
+                  <span className={`whitespace-nowrap font-mono ${r.active ? "text-q-text" : "text-slate-500"}`}>{r.active ? `kích hoạt · ${pct(r.target)}` : "không kích hoạt"}</span>
                 </li>
               );
             })}

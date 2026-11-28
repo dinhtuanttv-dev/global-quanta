@@ -91,8 +91,8 @@ export default function Elite10Hub() {
             key={s.id} type="button" role="tab" id={`elite10-${s.id}-tab`} aria-selected={sub === s.id} aria-controls={`elite10-${s.id}-panel`}
             tabIndex={sub === s.id ? 0 : -1} ref={(el) => { refs.current[s.id] = el; }} onKeyDown={onKey} onClick={() => setSub(s.id)}
             style={{
-              padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--q-accent-strong)" : "2px solid transparent",
-              background: "transparent", color: sub === s.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
+              padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--q-accent)" : "2px solid transparent", // QUANTA UI v2 U3: như .ov-tab (Tổng quan) — vạch xanh, chữ trắng
+              background: "transparent", color: sub === s.id ? "var(--q-text)" : "var(--q-text-3)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
             }}
           >{s.label}</button>
@@ -110,7 +110,7 @@ export default function Elite10Hub() {
             <div className="tw-scope flex flex-wrap items-center gap-1 text-[11px]" role="group" aria-label="Chế độ hồ sơ">
               {([["profile", `Hồ sơ ${current}`], ["screener", "🔎 Bộ lọc Elite"]] as const).map(([m, l]) => (
                 <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} data-testid={`elite-mode-${m}`}
-                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
+                  className={`min-h-[28px] rounded border px-3 font-bold ${mode === m ? "border-white/15 bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "border-white/10 text-slate-400 hover:border-white/25"}`}>{l}</button>
               ))}
               {mode === "profile" && <>
                 <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
@@ -120,7 +120,7 @@ export default function Elite10Hub() {
               </>}
             </div>
             {mode === "screener" ? (
-              <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 text-slate-200">
+              <section className="tw-scope rounded-lg border border-white/10 bg-q-surface p-3 text-slate-200">
                 <EliteScreener onOpenTicker={open} refTicker={ticker} />
               </section>
             ) : (
@@ -130,7 +130,7 @@ export default function Elite10Hub() {
                   <>
                     <SignalProfileCard ticker={current} view="summary" onView={setPview} />
                     {/* ARL-v1 (26/11/2026): lịch sử Phòng họp AI của mã — sổ phán quyết chấm theo thị trường thật. */}
-                    <div className="rounded-lg border border-white/10 bg-[#0E131F] p-3"><AiBrainCard ticker={current} compact testId="ai-brain-profile" /></div>
+                    <div className="rounded-lg border border-white/10 bg-q-surface p-3"><AiBrainCard ticker={current} compact testId="ai-brain-profile" /></div>
                     {/* QĐ-R (20/11/2026): Sự kiện cổ tức, Mô phỏng thời điểm và Tin tức Elite 10 chuyển sang Bảng quyết định (khung "Mã đang chọn"). */}
                   </>
                 )}

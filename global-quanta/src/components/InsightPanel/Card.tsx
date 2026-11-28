@@ -18,7 +18,7 @@ export default function Card({ id, title, right, children, className = '' }: { i
     <section className={`rounded-xl ${className}`} style={CARD_STYLE} aria-label={typeof title === 'string' ? title : id}>
       <div className="flex flex-wrap items-center gap-2 px-3 pt-2.5 pb-2">
         <button type="button" onClick={toggle} aria-expanded={!collapsed}
-          className="q-title flex items-center gap-2 whitespace-nowrap hover:text-q-accent-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-q-accent rounded">
+          className="q-title flex items-center gap-2 whitespace-nowrap hover:text-q-text focus:outline-none focus-visible:ring-2 focus-visible:ring-q-accent rounded">
           <span className="text-[11px] text-q-text-3 w-2">{collapsed ? '▸' : '▾'}</span>
           {title}
         </button>

@@ -20,14 +20,28 @@ Lấy từ tab **Tổng quan** (bảng giao dịch, thị trường) và mở r�
 
 Không dùng `bg-slate-800/900/950`, `#161D2E`, `#1E273D`, `#0B0F19` (hệ cũ) trong thành phần mới.
 
-### 1.2 Một màu nhấn — xanh dương
+### 1.2 Một màu nhấn — xanh dương (XANH LÀ VẠCH, KHÔNG PHẢI MÀU CHỮ — sửa 28/11, xem §1.2b)
 
 | Token | Giá trị | Vai trò |
 |---|---|---|
-| `--q-accent` | `#4f8ef7` | vạch tab, viền focus, nút chính, thanh tiến độ |
-| `--q-accent-strong` | `#79a8ff` | chữ đang chọn, **mã cổ phiếu bấm được**, liên kết |
+| `--q-accent` | `#4f8ef7` | vạch tab / nút phân đoạn đang chọn, viền focus, vạch hàng đang chọn, thanh tiến độ |
+| `--q-accent-strong` | `#79a8ff` | chữ của nút / chip **đang bật có nền xanh nhạt**, liên kết thật. ~~Mã cổ phiếu bấm được~~ — **SAI, đã bỏ 28/11**: mã cổ phiếu màu TRẮNG |
 | `--q-accent-soft` | xanh 14% | nền nút / chip đang chọn |
 | `--q-accent-line` | xanh 50% | viền nút / chip đang chọn |
+
+### 1.2b Quy tắc xanh nhấn theo vai trò (đo trên tab Tổng quan, 28/11)
+
+| Vai trò | Tổng quan làm | Chuẩn |
+|---|---|---|
+| Mã cổ phiếu (bấm được hay không) | chữ trắng Inter 600 (`.scan-ticker b`) — 269/269 mã trắng | `--q-text`; bấm được thể hiện bằng gạch chân khi rê chuột, **không** bằng màu |
+| Tiêu đề, nhãn, số nhấn | trắng / xám | `--q-text` / `--q-text-2` / `--q-text-3`; không bao giờ xanh |
+| Tab / nút phân đoạn đang chọn | chữ trắng + vạch xanh 2px (`.ov-tab.is-active`, `.scan-seg`) | chữ trắng, vạch `--q-accent` |
+| Nút / chip đang bật (`aria-pressed`) | viền + nền xanh nhạt + chữ xanh (`.scan-tool[aria-pressed]`) | giữ — chỗ DUY NHẤT chữ xanh ngoài liên kết |
+| Tag trạng thái | viền trung tính, chữ xám, màu ý nghĩa ở biểu tượng nhỏ (`.scan-sig`) | không viền / chữ xanh trời, xanh lơ |
+| Nút hành động lặp mỗi dòng ("Chu kỳ →") | nút trung tính (`.ov-btn`) | viền trắng 15%, chữ xám, rê chuột -> trắng |
+| Thẻ | viền `--q-line-2`, nền phẳng | không vạch xanh trang trí bên trái, không viền xanh |
+
+Đo bằng `ui-audit`: chỉ số **chữ xanh** và **mã (xanh / trắng)** mỗi tab; `ui-lint` luật `accent-text` (ngân sách chỉ giảm).
 
 ### 1.3 Màu có nghĩa (không trang trí)
 

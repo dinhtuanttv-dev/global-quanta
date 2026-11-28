@@ -30,7 +30,7 @@ export default function RiskTab() {
   const hasCash = r.cash != null && r.cash > 0.0005;
   if (!r.available) return (
     <div className="tw-scope space-y-2 rounded-lg border border-white/10 p-3 text-[11px] text-slate-400" data-testid="elite-risk-na">
-      <p className="text-[13px] font-bold text-q-accent-strong">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+      <p className="text-[13px] font-bold text-q-text">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
       <p>{r.reasonVi}</p>
       <p className="text-[10px] text-slate-400">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
@@ -46,7 +46,7 @@ export default function RiskTab() {
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-risk-tab">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-q-accent-strong">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+          <p className="text-[13px] font-bold text-q-text">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
           {hasCash && <p className="text-[10.5px] text-slate-300" data-testid="elite-risk-cash">Cổ phiếu <b className="text-slate-100">{pct(r.invested, 1)}</b> · tiền mặt <b className="text-slate-100">{pct(r.cash, 1)}</b>. Biến động, VaR, beta và sụt giảm tính cho CẢ danh mục (tiền mặt coi như không biến động); số mã hiệu dụng tính trong phần cổ phiếu.</p>}
           <p className="text-[10.5px] text-slate-400">{r.sessions} phiên ({fmtDate(r.from)} → {fmtDate(r.to)}), tỷ trọng cố định như danh mục đã khoá · mô tả rủi ro, không tối ưu lại danh mục.</p>
         </div>
@@ -63,13 +63,13 @@ export default function RiskTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-rc">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid="elite-risk-rc">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Đóng góp rủi ro so với tỷ trọng</h4>
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
             <tbody>
               {r.holdings!.map((h) => (
                 <tr key={h.ticker} className="border-t border-white/5">
-                  <td className="py-1 w-14 font-bold text-q-accent-strong">{h.ticker}</td>
+                  <td className="py-1 w-14 font-bold text-q-text">{h.ticker}</td>
                   <td>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded bg-slate-400/60" style={{ width: `${(h.weight / maxRc) * 140}px` }} /><span className="text-[10px] text-slate-400">tỷ trọng {pct(h.weight, 1)}</span></div>
@@ -84,7 +84,7 @@ export default function RiskTab() {
           <p className="text-[10px] text-slate-500">Đóng góp rủi ro Euler: wᵢ·(Σw)ᵢ / σp, cộng lại đúng 100%. Thanh cam = đóng góp rủi ro vượt 1,25× tỷ trọng của mã trong phần cổ phiếu.</p>
         </section>
 
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-corr">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid="elite-risk-corr">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Tương quan (sau co rút)</h4>
           <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="overflow-x-auto">
             <table className="text-[10px]" style={{ borderCollapse: "separate", borderSpacing: 2 }}>
@@ -113,7 +113,7 @@ export default function RiskTab() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-stress">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid="elite-risk-stress">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Kiểm tra căng thẳng (lịch sử)</h4>
           <table className="w-full text-[11px]" style={{ borderCollapse: "collapse" }}>
             <thead><tr className="text-slate-500"><th className="text-left font-normal">Kịch bản</th><th className="text-right font-normal">VN-Index</th><th className="text-right font-normal">Danh mục</th></tr></thead>
@@ -128,7 +128,7 @@ export default function RiskTab() {
           </table>
         </section>
 
-        <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-risk-sectors">
+        <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid="elite-risk-sectors">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Phơi nhiễm ngành & phân phối lợi suất</h4>
           {r.sectors!.map((s) => (
             <div key={s.key} className="flex items-center gap-2 text-[11px]">

@@ -53,11 +53,11 @@ export default function ProfileHeader({ ticker, view, onView, actions = {} }: { 
   const price = live?.price ?? score?.close ?? null;
   const change = live ? chg(live.changePct) : null;
   const missing = panel?.missingSources ?? [];
-  const btn = "min-h-[28px] rounded border border-white/10 px-2.5 text-[11px] font-semibold text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong";
+  const btn = "min-h-[28px] rounded border border-white/10 px-2.5 text-[11px] font-semibold text-slate-300 hover:border-q-accent/50 hover:text-q-text";
   return (
-    <div className="tw-scope rounded-lg border border-white/10 bg-[#0B0F19] px-3 py-2 text-slate-200" data-testid="profile-header">
+    <div className="tw-scope rounded-lg border border-white/10 bg-q-surface px-3 py-2 text-slate-200" data-testid="profile-header">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="text-[15px] font-bold text-q-accent-strong" data-testid="profile-header-ticker">{ticker}</p>
+        <p className="text-[15px] font-bold text-q-text" data-testid="profile-header-ticker">{ticker}</p>
         {panel?.sector && <p className="text-[11px] text-slate-400" data-testid="profile-header-sector">{panel.sector}</p>}
         {price != null && (
           <p className="font-mono text-[12px] text-slate-100" data-testid="profile-header-price" title={live ? "Giá khớp gần nhất" : "Giá đóng cửa của phiên bảng tín hiệu"}>
@@ -96,7 +96,7 @@ export default function ProfileHeader({ ticker, view, onView, actions = {} }: { 
           {PROFILE_VIEWS.map((x) => (
             <button key={x.id} type="button" role="tab" aria-selected={view === x.id} tabIndex={view === x.id ? 0 : -1} ref={(el) => { refs.current[x.id] = el; }}
               onKeyDown={onKey} onClick={() => onView(x.id)} data-testid={`profile-view-${x.id}`}
-              className={`min-h-[28px] rounded border px-3 text-[11px] font-bold ${view === x.id ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-400 hover:border-white/25 hover:text-slate-200"}`}>{x.label}</button>
+              className={`min-h-[28px] rounded border px-3 text-[11px] font-bold ${view === x.id ? "border-white/15 bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "border-white/10 text-slate-400 hover:border-white/25 hover:text-slate-200"}`}>{x.label}</button>
           ))}
         </div>
         <span className="ml-auto" />
