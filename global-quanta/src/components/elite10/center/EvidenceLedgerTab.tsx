@@ -170,7 +170,7 @@ function RetroV3Section({ r }: { r: EliteRetroV3 | null | undefined }) {
           <thead><tr className="text-left text-[10px] uppercase text-slate-500"><th className="py-0.5 pr-2">Cấu hình</th><th className="pr-2 text-right">Sharpe năm</th><th className="text-right">Vượt rổ đều / năm</th></tr></thead>
           <tbody className="font-mono">
             {r.grid.map((g) => (
-              <tr key={g.id} className={g.primary ? "text-[#F5CE72]" : "text-slate-300"}>
+              <tr key={g.id} className={g.primary ? "text-q-accent-strong" : "text-slate-300"}>
                 <td className="py-0.5 pr-2 font-sans">{g.size} mã · {g.bufferRank ? `đệm ${g.bufferRank}` : "không đệm"} · {WEIGHTING_VI[g.weighting] ?? g.weighting}{g.primary ? " (chính)" : ""}</td>
                 <td className="pr-2 text-right">{num(g.sharpeAnnual, 2)}</td>
                 <td className="text-right">{sgn(g.annualExcess * 100, 1)}%</td>

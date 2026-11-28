@@ -50,7 +50,7 @@ function NextContext({ b }: { b: SeasonalityBundle }) {
         <div className="rounded-md border border-white/[0.07] px-2 py-1.5" data-testid="season-ctx-date">
           <p className="text-[10px] font-bold uppercase text-slate-500">Kỳ tới {n?.quarter ?? "—"}</p>
           {n?.status === "REPORTED" || n?.status === "DISCLOSED" ? <p className="font-mono text-[14px] font-bold text-emerald-300">{dmy(n.date)}</p>
-            : <p className={`font-mono text-[14px] font-bold ${n?.status === "OVERDUE" ? "text-rose-300" : "text-[#F5CE72]"}`}>{n?.expected ? dmy(n.expected) : "—"}</p>}
+            : <p className={`font-mono text-[14px] font-bold ${n?.status === "OVERDUE" ? "text-rose-300" : "text-q-accent-strong"}`}>{n?.expected ? dmy(n.expected) : "—"}</p>}
           <p className="text-[10px] text-slate-500">{n ? (n.status === "OVERDUE" ? "quá hạn hợp nhất" : n.band ? `dải ${dmy(n.band[0]).slice(0, 5)}–${dmy(n.band[1]).slice(0, 5)} · ${n.ownN} mùa` : "") : ""}{n?.lateShare && n.lateShare >= 1 / 3 ? " · hay nộp muộn" : ""}</p>
         </div>
         <div className="rounded-md border border-white/[0.07] px-2 py-1.5">
@@ -70,7 +70,7 @@ function NextContext({ b }: { b: SeasonalityBundle }) {
         </div>
         <div className="rounded-md border border-white/[0.07] px-2 py-1.5" data-testid="season-ctx-live">
           <p className="text-[10px] font-bold uppercase text-slate-500">10 phiên gần nhất</p>
-          <p className={`font-mono text-[14px] font-bold ${liveAlert ? "text-[#F5CE72]" : "text-slate-100"}`}>{liveAlert ? "⚡ " : ""}{live ? pct(live.car10, 1) : "—"}</p>
+          <p className={`font-mono text-[14px] font-bold ${liveAlert ? "text-q-accent-strong" : "text-slate-100"}`}>{liveAlert ? "⚡ " : ""}{live ? pct(live.car10, 1) : "—"}</p>
           <p className="text-[10px] text-slate-500">{live ? `KL z ${num(live.av10, 1)} · tới ${dmy(live.asOf).slice(0, 5)}` : "chưa có dữ liệu giá"}</p>
         </div>
       </div>
@@ -185,7 +185,7 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
           <input value={q} onChange={(e) => setQ(e.target.value)} list="season-tickers" placeholder="Tìm mã…" aria-label="Tìm mã" className="w-24 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-slate-200" data-testid="season-search" />
           <datalist id="season-tickers">{tickers.map((t) => <option key={t} value={t} />)}</datalist>
         </form>
-        {upcoming.length > 0 && <span className="text-[10.5px] text-slate-500">Sắp công bố: {upcoming.slice(0, 5).map((t) => <button key={t} type="button" onClick={() => onChange(t)} className="ml-1 rounded border border-[#E8B84B]/40 px-1 font-mono text-[10.5px] text-[#F5CE72]">{t}</button>)}</span>}
+        {upcoming.length > 0 && <span className="text-[10.5px] text-slate-500">Sắp công bố: {upcoming.slice(0, 5).map((t) => <button key={t} type="button" onClick={() => onChange(t)} className="ml-1 rounded border border-q-accent/40 px-1 font-mono text-[10.5px] text-q-accent-strong">{t}</button>)}</span>}
         {b && <span className="ml-auto text-[10px] text-slate-500" data-testid="season-fresh" title={`Nguồn ${b.source} qua Gateway (1 lần gọi thay 9)`}>dữ liệu {dmy(b.fetchedAt)} {b.fetchedAt.slice(11, 16)} UTC{b.cached ? " · đệm" : ""}{b.stale ? " · bản gần nhất (nguồn tạm lỗi)" : ""}</span>}
       </div>
       {!value && <p className="text-[11px] text-cf-tertiary">Mùa vụ giá quanh ngày công bố KQKD theo từng quý: chu kỳ năm, đường đi trung bình quanh ngày công bố và 4 cửa sổ giao dịch của quý đang xem.</p>}
@@ -196,7 +196,7 @@ export default function SeasonalityView({ tickers, value, onChange }: { tickers:
           <span className="text-[10px] font-bold uppercase text-cf-tertiary">Ngày làm mốc</span>
           {([["official", "Ngày dữ liệu VNDirect · bản chính"], ["x", "Ngày công bố thật · THĂM DÒ"]] as [Anchor, string][]).map(([k, l]) => (
             <button key={k} type="button" aria-pressed={anchor === k} onClick={() => setAnchor(k)} data-testid={`season-anchor-${k}`}
-              className={`rounded-full border px-2.5 py-1 text-[11px] ${anchor === k ? (k === "x" ? "border-sky-400/60 bg-sky-400/10 text-sky-200" : "border-[#E8B84B]/60 bg-[#E8B84B]/10 text-[#F5CE72]") : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
+              className={`rounded-full border px-2.5 py-1 text-[11px] ${anchor === k ? (k === "x" ? "border-sky-400/60 bg-sky-400/10 text-sky-200" : "border-q-accent/60 bg-q-accent/10 text-q-accent-strong") : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{l}</button>
           ))}
         </div>
       )}

@@ -101,7 +101,7 @@ export function HlReplay({ h, today, onOpenTicker }: { h: HlHistory | undefined;
                 {s.held.map((x) => (
                   <tr key={x.t} className="border-t border-white/5" data-testid={`hl-replay-row-${x.t}`}>
                     <td className="py-1 pr-2 font-mono text-slate-400">{x.rank ?? "—"}</td>
-                    <td><button type="button" onClick={() => onOpenTicker(x.t)} className="font-bold text-[#F5CE72] hover:underline">{x.t}</button>{!nowSet.has(x.t) && <span className="ml-1 text-[10px] text-rose-300">(đã ra)</span>}</td>
+                    <td><button type="button" onClick={() => onOpenTicker(x.t)} className="font-bold text-q-accent-strong hover:underline">{x.t}</button>{!nowSet.has(x.t) && <span className="ml-1 text-[10px] text-rose-300">(đã ra)</span>}</td>
                     <td className="font-mono">{pc(x.w)}</td><td className="font-mono">{x.ls == null ? "—" : Math.round(x.ls)}</td><td className="font-mono">{x.t1 ?? "—"}</td>
                     <td>{x.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : `Giữ${x.since ? ` từ ${dm(x.since)}` : ""}`}</td>
                     <td className="text-slate-400">{x.pz ?? "—"}</td>

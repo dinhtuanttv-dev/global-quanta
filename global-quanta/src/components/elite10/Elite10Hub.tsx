@@ -91,7 +91,7 @@ export default function Elite10Hub() {
             key={s.id} type="button" role="tab" id={`elite10-${s.id}-tab`} aria-selected={sub === s.id} aria-controls={`elite10-${s.id}-panel`}
             tabIndex={sub === s.id ? 0 : -1} ref={(el) => { refs.current[s.id] = el; }} onKeyDown={onKey} onClick={() => setSub(s.id)}
             style={{
-              padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--gold-bright)" : "2px solid transparent",
+              padding: "9px 14px", border: 0, borderBottom: sub === s.id ? "2px solid var(--q-accent-strong)" : "2px solid transparent",
               background: "transparent", color: sub === s.id ? "var(--q-accent-strong)" : "var(--text-secondary)",
               fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
             }}
@@ -115,7 +115,7 @@ export default function Elite10Hub() {
               {mode === "profile" && <>
                 <form onSubmit={pickTicker} className="flex items-center gap-1" data-testid="elite-pick-form">
                   <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Đổi mã, ví dụ FPT" aria-label="Đổi mã trong hồ sơ" maxLength={10} data-testid="elite-pick"
-                    className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-[#E8B84B]/60 focus:outline-none" />
+                    className="min-h-[28px] w-32 rounded border border-white/10 bg-black/30 px-2 uppercase text-slate-200 placeholder:normal-case placeholder:text-slate-500 focus:border-q-accent/60 focus:outline-none" />
                 </form>
               </>}
             </div>

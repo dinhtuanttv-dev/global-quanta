@@ -5,7 +5,7 @@ export default function EmergingSourceRow({ source }: { source: EmergingSourceSu
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
       padding: "8px 10px", background: "var(--bg-surface)", borderRadius: 8, marginBottom: 6,
-      borderLeft: "2px solid var(--gold-bright)",
+      borderLeft: "2px solid var(--q-accent-strong)",
     }}>
       <div>
         <span style={{ fontSize: 12, fontWeight: 600 }}>{source.title}</span>

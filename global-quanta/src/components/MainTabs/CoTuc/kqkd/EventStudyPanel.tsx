@@ -66,7 +66,7 @@ export default function EventStudyPanel({ a }: { a: EsAggregate }) {
                 <td className="px-1 py-1 text-slate-300">{pctPlain(g.leakVolume, 0)}</td>
               </tr>
             ))}
-            <tr className="border-t border-white/10 text-right font-mono font-bold tabular-nums"><td className="px-1 py-1 text-left font-sans text-[#F5CE72]">Chênh nhóm 5 − nhóm 1</td><td /><td className="px-1 py-1 text-slate-100">{pct(a.spread.pre, 2)}</td><td className="px-1 py-1 text-[#F5CE72]">{pct(a.spread.ann, 2)}</td><td className="px-1 py-1 text-slate-100">{pct(a.spread.post, 2)}</td><td /></tr>
+            <tr className="border-t border-white/10 text-right font-mono font-bold tabular-nums"><td className="px-1 py-1 text-left font-sans text-q-accent-strong">Chênh nhóm 5 − nhóm 1</td><td /><td className="px-1 py-1 text-slate-100">{pct(a.spread.pre, 2)}</td><td className="px-1 py-1 text-q-accent-strong">{pct(a.spread.ann, 2)}</td><td className="px-1 py-1 text-slate-100">{pct(a.spread.post, 2)}</td><td /></tr>
           </tbody>
         </table>
       </div>
@@ -98,7 +98,7 @@ export function TickerReactions({ events }: { events: EsEvent[] | null | undefin
               <td className="px-1 py-1 text-slate-300">{pct(e.carPre, 1)}</td>
               <td className={`px-1 py-1 ${fin(e.scarAnn) && Math.abs(e.scarAnn) >= 2 ? ((e.carAnn ?? 0) > 0 ? "text-emerald-300" : "text-rose-300") : "text-slate-200"}`}>{pct(e.carAnn, 1)}</td>
               <td className="px-1 py-1 text-slate-300">{e.sessionsAfter >= 63 ? pct(e.carPost, 1) : <span className="text-slate-500">chờ {63 - e.sessionsAfter} phiên</span>}</td>
-              <td className={`px-1 py-1 ${fin(e.avAnn) && e.avAnn >= 2 ? "text-[#F5CE72]" : "text-slate-300"}`}>{num(e.avAnn, 1)}</td>
+              <td className={`px-1 py-1 ${fin(e.avAnn) && e.avAnn >= 2 ? "text-q-accent-strong" : "text-slate-300"}`}>{num(e.avAnn, 1)}</td>
             </tr>
           ))}
         </tbody>

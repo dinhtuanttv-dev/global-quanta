@@ -177,7 +177,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-400">Bộ chọn sẵn:</span>
         {PRESETS.map((p) => (
           <button key={p.id} type="button" title={p.title} data-testid={`preset-${p.id}`} onClick={() => { setUi(p.ui); setHlOnly(false); if (sort === "hl") setSort("z"); }}
-            className={`min-h-[24px] rounded border px-2 ${ui.name === p.ui.name ? "border-[#E8B84B]/60 bg-[#E8B84B]/15 text-[#F5CE72]" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{p.label}</button>
+            className={`min-h-[24px] rounded border px-2 ${ui.name === p.ui.name ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{p.label}</button>
         ))}
         <button type="button" data-testid="preset-hl" aria-pressed={hlOnly} title={`Chỉ mã đạt tầng 1 (LS-v1 top 20% + ≥ 2 mô hình TA) và RRG ngành ủng hộ (Cải thiện / Dẫn dắt); xếp theo thứ tự ưu tiên tầng 1 → tầng 2 → tầng 3. ${HL_EVIDENCE_VI}`}
           onClick={() => { const on = !hlOnly; setHlOnly(on); setSort(on ? "hl" : "z"); if (on) { prevUi.current = ui; setUi({ ...ui, name: "Hợp lưu HL-v1", on: [], not: [], mode: "all", eligibleOnly: false }); } else if (prevUi.current) setUi(prevUi.current); }}
@@ -194,8 +194,8 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               <button type="button" aria-label="Tăng k" onClick={() => setUi({ ...ui, k: Math.min(Math.max(1, nConds), ui.k + 1) })} className="h-6 w-6 rounded border border-white/10">+</button>
             </span>
           )}
-          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.neutral} onChange={(e) => setUi({ ...ui, neutral: e.target.checked })} className="accent-[#E8B84B]" data-testid="toggle-neutral" /> Phân vị trung lập ngành</label>
-          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.eligibleOnly} onChange={(e) => setUi({ ...ui, eligibleOnly: e.target.checked })} className="accent-[#E8B84B]" data-testid="toggle-eligible" /> Chỉ mã đủ điều kiện danh mục</label>
+          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.neutral} onChange={(e) => setUi({ ...ui, neutral: e.target.checked })} className="accent-q-accent" data-testid="toggle-neutral" /> Phân vị trung lập ngành</label>
+          <label className="inline-flex items-center gap-1 text-slate-300"><input type="checkbox" checked={ui.eligibleOnly} onChange={(e) => setUi({ ...ui, eligibleOnly: e.target.checked })} className="accent-q-accent" data-testid="toggle-eligible" /> Chỉ mã đủ điều kiện danh mục</label>
         </span>
       </div>
 
@@ -247,7 +247,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               <tr key={x.t} className="border-t border-white/5" data-testid={`scr-row-${x.t}`}>
                 <td className="py-1 pr-1 font-mono text-slate-500">{i + 1}</td>
                 <td className="whitespace-nowrap pr-2">
-                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-[#F5CE72] hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
+                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-q-accent-strong hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
                   {pareto.has(x.t) && <span className="ml-1 text-amber-300" title={`Biên Pareto: không mã nào trong kết quả mạnh hơn ở MỌI tiêu chí (${paretoSigs.join(", ")})`} data-testid={`scr-pareto-${x.t}`}>★</span>}
                   {inElite.has(x.t) && <span className="ml-1 rounded border border-emerald-400/50 px-1 text-[10px] text-emerald-300">Elite 10</span>}
                 </td>
@@ -268,7 +268,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           </tbody>
         </table>
       </div>
-      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-[#F5CE72]">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
+      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-q-accent-strong">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
 
       <div className="rounded-md border border-emerald-400/20 bg-emerald-500/[0.03] p-2" data-testid="my-elite">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -97,8 +97,10 @@ function NeighborDetail({ n, current, sectorName, onClose }: { n: CycleV2Neighbo
       <svg viewBox={`0 0 ${W} ${Hh}`} role="img" aria-label={`Giai đoạn ${n.ticker} đặt chồng lên 30 phiên hiện tại và diễn biến 60 phiên sau`}>
         <line x1={x(0)} x2={x(0)} y1={P} y2={Hh - P} stroke="var(--text-tertiary)" strokeDasharray="2 3" />
         <path d={path(cur)} fill="none" stroke="var(--positive)" strokeWidth={2} />
-        <path d={path(pat)} fill="none" stroke="var(--gold)" strokeWidth={1.5} strokeDasharray="2 3" />
-        <path d={path(fwd)} fill="none" stroke="var(--gold)" strokeWidth={1.8} strokeDasharray="5 3" />
+        {/* ui-exempt-next-line: biểu đồ giữ màu cũ (QUANTA UI v2 U1) */}
+        <path d={path(pat)} fill="none" stroke="#E8B84B" strokeWidth={1.5} strokeDasharray="2 3" />
+        {/* ui-exempt-next-line: biểu đồ giữ màu cũ (QUANTA UI v2 U1) */}
+        <path d={path(fwd)} fill="none" stroke="#E8B84B" strokeWidth={1.8} strokeDasharray="5 3" />
       </svg>
       <p className="cf-note">Xanh = 30 phiên hiện tại · vàng chấm = giai đoạn {n.ticker} (neo cùng điểm cuối) · vàng gạch = diễn biến THẬT sau đó.</p>
       <dl className="cf2-detail__stats">

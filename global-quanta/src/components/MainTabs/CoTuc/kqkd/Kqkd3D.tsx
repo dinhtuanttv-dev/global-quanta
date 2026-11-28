@@ -107,7 +107,7 @@ export function ProfitSurface3D({ d }: { d: KqkdDetail }) {
         <div className="flex gap-1" role="tablist" aria-label="Kiểu số">
           {[[false, "Quý riêng"], [true, "Lũy kế trong năm"]].map(([v, t]) => (
             <button key={String(v)} type="button" role="tab" aria-selected={cum === v} onClick={() => setCum(v as boolean)} data-testid={`kq-3d-cum-${v ? "on" : "off"}`}
-              className={`rounded-md border px-2 py-1 font-semibold ${cum === v ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t as string}</button>
+              className={`rounded-md border px-2 py-1 font-semibold ${cum === v ? "border-q-accent/50 bg-q-accent/10 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{t as string}</button>
           ))}
         </div>
         <label className="flex items-center gap-1 text-slate-400">Số năm
@@ -148,7 +148,7 @@ export function Trajectory4D({ d }: { d: KqkdDetail }) {
     const shown = pts.slice(0, Math.max(1, upto));
     const P = (p: (typeof pts)[number]) => ({ x: sx(p.x), y: sy(p.y), z: sz(p.z) });
     const items: Drawable[] = [];
-    for (let i = 1; i < shown.length; i++) { const a = i / shown.length; items.push({ kind: "line", pts: [P(shown[i - 1]), P(shown[i])], color: `rgba(232,184,75,${(0.18 + 0.7 * a).toFixed(2)})`, width: 2 }); }
+    for (let i = 1; i < shown.length; i++) { const a = i / shown.length; items.push({ kind: "line", pts: [P(shown[i - 1]), P(shown[i])], color: `rgba(79, 142, 247,${(0.18 + 0.7 * a).toFixed(2)})`, width: 2 }); }
     // Bóng trên sàn để đọc vị trí X/Z.
     items.push({ kind: "line", pts: shown.map((p) => ({ ...P(p), y: -1 })), color: "rgba(148,163,184,0.22)", width: 1, dash: [3, 3] });
     shown.forEach((p, i) => {
@@ -168,9 +168,9 @@ export function Trajectory4D({ d }: { d: KqkdDetail }) {
     <div className="space-y-2" data-testid="kq-3d-trajectory">
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         <button type="button" onClick={() => { if (upto >= pts.length) setUpto(1); setPlaying((p) => !p); }} data-testid="kq-3d-play"
-          className="rounded-md border border-[#E8B84B]/40 px-3 py-1 font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/10">{playing ? "⏸ Dừng" : "▶ Phát theo thời gian"}</button>
-        <input type="range" min={1} max={pts.length} value={upto} onChange={(e) => { setPlaying(false); setUpto(Number(e.target.value)); }} aria-label="Quý hiển thị tới" className="w-48 accent-[#E8B84B]" />
-        <span className="font-mono text-slate-300">{pts[0].quarter} → <b className="text-[#F5CE72]">{cur.quarter}</b></span>
+          className="rounded-md border border-q-accent/40 px-3 py-1 font-semibold text-q-accent-strong hover:bg-q-accent/10">{playing ? "⏸ Dừng" : "▶ Phát theo thời gian"}</button>
+        <input type="range" min={1} max={pts.length} value={upto} onChange={(e) => { setPlaying(false); setUpto(Number(e.target.value)); }} aria-label="Quý hiển thị tới" className="w-48 accent-q-accent" />
+        <span className="font-mono text-slate-300">{pts[0].quarter} → <b className="text-q-accent-strong">{cur.quarter}</b></span>
         <span className="text-slate-500">DT {pct(cur.x, 1)} · biên {pctPlain(cur.y)} · ROE {pctPlain(cur.z)}</span>
         <label className="ml-auto flex items-center gap-1 text-slate-400">Số quý
           <select value={win} onChange={(e) => { setPlaying(false); setWin(Number(e.target.value)); }} className="rounded-md border border-white/10 bg-black/40 px-2 py-1 text-slate-200" data-testid="kq-3d-window">{[12, 20, 40].map((n) => <option key={n} value={n}>{n}</option>)}</select>
@@ -207,7 +207,7 @@ export function Market3D({ rows, onPick }: { rows: KqkdRow[]; onPick?: (t: strin
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         {(Object.keys(TPL_COLOR) as Tpl[]).map((t) => (
           <label key={t} className="flex cursor-pointer items-center gap-1 text-slate-300">
-            <input type="checkbox" checked={tpls.has(t)} onChange={() => setTpls((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; })} className="accent-[#E8B84B]" />
+            <input type="checkbox" checked={tpls.has(t)} onChange={() => setTpls((s) => { const n = new Set(s); if (n.has(t)) n.delete(t); else n.add(t); return n; })} className="accent-q-accent" />
             <i className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: TPL_COLOR[t] }} />{TPL_LABEL[t]} <span className="font-mono text-slate-500">{usable.filter((r) => r.tpl === t).length}</span>
           </label>
         ))}

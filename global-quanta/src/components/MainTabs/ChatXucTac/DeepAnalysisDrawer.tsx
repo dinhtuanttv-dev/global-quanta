@@ -155,7 +155,7 @@ function SubTabButton({ active, onClick, children }: { active: boolean; onClick:
       style={{
         fontSize: 10.5, fontWeight: 700, padding: "5px 10px", borderRadius: 6, cursor: "pointer",
         border: "1px solid " + (active ? "var(--q-accent-strong)" : "var(--border)"),
-        background: active ? "color-mix(in srgb, var(--gold-bright) 10%, transparent)" : "transparent",
+        background: active ? "color-mix(in srgb, var(--q-accent-strong) 10%, transparent)" : "transparent",
         color: active ? "var(--q-accent-strong)" : "var(--text-tertiary)",
       }}
     >

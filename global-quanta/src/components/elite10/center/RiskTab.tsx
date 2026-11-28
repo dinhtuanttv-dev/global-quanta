@@ -30,7 +30,7 @@ export default function RiskTab() {
   const hasCash = r.cash != null && r.cash > 0.0005;
   if (!r.available) return (
     <div className="tw-scope space-y-2 rounded-lg border border-white/10 p-3 text-[11px] text-slate-400" data-testid="elite-risk-na">
-      <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+      <p className="text-[13px] font-bold text-q-accent-strong">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
       <p>{r.reasonVi}</p>
       <p className="text-[10px] text-slate-400">Tham khảo định lượng — không phải khuyến nghị đầu tư.</p>
     </div>
@@ -46,7 +46,7 @@ export default function RiskTab() {
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-risk-tab">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-[13px] font-bold text-[#F5CE72]">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
+          <p className="text-[13px] font-bold text-q-accent-strong">Rủi ro danh mục {name} — phiên {fmtDate(r.date)}</p>
           {hasCash && <p className="text-[10.5px] text-slate-300" data-testid="elite-risk-cash">Cổ phiếu <b className="text-slate-100">{pct(r.invested, 1)}</b> · tiền mặt <b className="text-slate-100">{pct(r.cash, 1)}</b>. Biến động, VaR, beta và sụt giảm tính cho CẢ danh mục (tiền mặt coi như không biến động); số mã hiệu dụng tính trong phần cổ phiếu.</p>}
           <p className="text-[10.5px] text-slate-400">{r.sessions} phiên ({fmtDate(r.from)} → {fmtDate(r.to)}), tỷ trọng cố định như danh mục đã khoá · mô tả rủi ro, không tối ưu lại danh mục.</p>
         </div>
@@ -69,7 +69,7 @@ export default function RiskTab() {
             <tbody>
               {r.holdings!.map((h) => (
                 <tr key={h.ticker} className="border-t border-white/5">
-                  <td className="py-1 w-14 font-bold text-[#F5CE72]">{h.ticker}</td>
+                  <td className="py-1 w-14 font-bold text-q-accent-strong">{h.ticker}</td>
                   <td>
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-1.5"><span className="inline-block h-1.5 rounded bg-slate-400/60" style={{ width: `${(h.weight / maxRc) * 140}px` }} /><span className="text-[10px] text-slate-400">tỷ trọng {pct(h.weight, 1)}</span></div>

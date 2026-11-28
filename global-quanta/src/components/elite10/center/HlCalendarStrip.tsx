@@ -67,9 +67,9 @@ export default function HlCalendarStrip({ d, onOpenTicker }: { d: EliteDecision;
               <span className="flex min-w-0 flex-1 flex-wrap gap-1">
                 {list.map((it, i) => (
                   <span key={`${it.ticker}-${it.kind}-${i}`} title={`${it.label}${it.detail ? ` · ${it.detail}` : ""} — ${BASIS[it.basis].title}`}
-                    className={`inline-flex flex-wrap items-baseline gap-1 rounded border px-1.5 py-0.5 ${it.inPortfolio ? "border-[#E8B84B]/40" : "border-white/10"}`} data-testid={`hl-cal-item-${it.ticker}-${it.kind}`}>
+                    className={`inline-flex flex-wrap items-baseline gap-1 rounded border px-1.5 py-0.5 ${it.inPortfolio ? "border-q-accent/40" : "border-white/10"}`} data-testid={`hl-cal-item-${it.ticker}-${it.kind}`}>
                     <span aria-hidden="true" className="text-slate-500">{ICON[it.kind]}</span>
-                    <button type="button" onClick={() => onOpenTicker(it.ticker)} className={`font-bold hover:underline ${it.inPortfolio ? "text-[#F5CE72]" : "text-slate-300"}`}>{it.ticker}</button>
+                    <button type="button" onClick={() => onOpenTicker(it.ticker)} className={`font-bold hover:underline ${it.inPortfolio ? "text-q-accent-strong" : "text-slate-300"}`}>{it.ticker}</button>
                     {!it.inPortfolio && <span className="text-[10px] text-slate-500">(hàng chờ)</span>}
                     <span className="text-slate-200">{it.label}</span>
                     {it.detail && <span className="text-[10px] text-slate-500">{it.detail}</span>}

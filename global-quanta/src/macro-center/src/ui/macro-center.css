@@ -8,7 +8,7 @@
   --rule: var(--border, #232a33);
   --mist: transparent;
   --panel: var(--bg-surface, #10151c);
-  --accent-gold: var(--gold, #e8b84b);
+  --accent-gold: var(--q-accent, var(--q-accent));
   --up: var(--positive, #34d399);
   --down: var(--negative, #f87171);
   --warn: var(--warning, #f59e0b);

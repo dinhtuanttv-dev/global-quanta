@@ -108,7 +108,7 @@ export default function EventsCalendar({ livePrices, onSelectTicker, pinned = []
                 <tr className="bg-white/[0.03]"><td colSpan={5} className="px-2 py-1 text-[10.5px] font-bold text-slate-300">{weekday(date)} {dmy(date)} <span className="font-normal text-slate-500">{date < today ? "· đã qua" : td === 0 ? "· hôm nay" : td != null ? `· còn ${td} phiên` : ""}</span></td></tr>
                 {events.map((e) => (
                   <tr key={e.id} className={`border-b border-white/[0.04] ${date < today ? "opacity-60" : ""}`} data-testid="ce-row">
-                    <td className="px-2 py-1"><button type="button" onClick={() => setDrawer(e.t)} className="font-mono font-bold text-cf-primary hover:text-[#F5CE72]">{e.t}</button></td>
+                    <td className="px-2 py-1"><button type="button" onClick={() => setDrawer(e.t)} className="font-mono font-bold text-cf-primary hover:text-q-accent-strong">{e.t}</button></td>
                     <td className="px-2 py-1"><span className={`mr-1.5 rounded border px-1 text-[10px] ${GROUP_UI[e.group].cls}`}>{e.label}</span><span className="text-slate-300">{e.title}</span>
                       {e.changed && <span className="ml-1 rounded border border-amber-400/50 px-1 text-[10px] text-amber-300" title="VNDirect ghi nhận đổi ngày">đổi từ {dmy(e.changed)}</span>}</td>
                     <td className="px-2 py-1 text-right"><Amount e={e} price={livePrices[e.t]} /></td>

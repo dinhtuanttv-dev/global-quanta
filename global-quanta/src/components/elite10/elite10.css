@@ -3,7 +3,7 @@
 
 /* 1. Bàn phím: vòng focus nhìn thấy được trên mọi điều khiển (trước đây chỉ 2 chỗ trong cả thư mục có kiểu focus). */
 .elite10-hub :is(button, input, select, textarea, summary, [role="tab"], a):focus-visible {
-  outline: 2px solid var(--gold-bright, #f5ce72);
+  outline: 2px solid var(--q-accent-strong, var(--q-accent-strong));
   outline-offset: 2px;
   border-radius: 4px;
 }

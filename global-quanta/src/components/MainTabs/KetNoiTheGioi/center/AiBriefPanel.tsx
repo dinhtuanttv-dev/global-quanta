@@ -78,17 +78,17 @@ export default function AiBriefPanel({ compact = false, onOpenFull }: { compact?
           <button type="button" onClick={start} disabled={blocked} title={data?.nextManualAt ? `Lượt tiếp theo sau ${fmtVnTime(data.nextManualAt)}` : "Gọi Gemini, tốn phí mỗi lần; có giãn cách và trần lượt theo ngày"} className="rounded-lg px-2.5 py-1 text-[11px] font-bold disabled:cursor-not-allowed disabled:opacity-50" style={{ background: "var(--q-accent-soft)", color: "var(--q-accent-strong)", border: "1px solid var(--q-accent-line)" }} data-testid="brief-run">{data?.running ? "Đang phân tích…" : "Cập nhật ngay"}</button>
         </div>
       </div>
-      {notice && <p className="mt-2 text-[11px]" role="status" style={{ color: "var(--gold, #f59e0b)" }}>{notice}</p>}
+      {notice && <p className="mt-2 text-[11px]" role="status" style={{ color: "var(--q-accent, #f59e0b)" }}>{notice}</p>}
       {error && !data && <p role="alert" className="mt-2 text-[11px]" style={{ color: "var(--negative, #f87171)" }}>Không tải được bản tin: {error.message}</p>}
-      {data?.lastError && <p className="mt-2 text-[11px]" role="note" style={{ color: "var(--gold, #f59e0b)" }}>Lần chạy lúc {fmtVnTime(data.lastError.at)} không thành công: {data.lastError.message}</p>}
-      {data && data.configured === false && <p className="mt-2 text-[11px]" role="note" data-testid="brief-no-key" style={{ color: "var(--gold, #f59e0b)" }}>Gateway chưa có khoá Gemini nên bản tin AI chưa chạy. Không hiển thị nội dung thay thế.</p>}
+      {data?.lastError && <p className="mt-2 text-[11px]" role="note" style={{ color: "var(--q-accent, #f59e0b)" }}>Lần chạy lúc {fmtVnTime(data.lastError.at)} không thành công: {data.lastError.message}</p>}
+      {data && data.configured === false && <p className="mt-2 text-[11px]" role="note" data-testid="brief-no-key" style={{ color: "var(--q-accent, #f59e0b)" }}>Gateway chưa có khoá Gemini nên bản tin AI chưa chạy. Không hiển thị nội dung thay thế.</p>}
       {data && !run && !data.running && data.configured !== false && <p className="mt-3 text-[11px]" style={muted}>Chưa có bản tin nào.</p>}
       {run && <>
         <p className="mt-2 flex flex-wrap items-center gap-x-2 text-[11px]" style={muted} data-testid="brief-meta">
           <CheckCircle2 className="h-3 w-3" style={{ color: "var(--positive, #34d399)" }} aria-hidden />
           Tạo lúc {fmtVnTime(run.generatedAt)} ({fmtAgo(run.generatedAt, now)}) · {run.summary.length + run.sectors.length} câu đạt kiểm chứng{run.rejected.length ? `, loại ${run.rejected.length} câu` : ""} · dùng {run.inputCounts.market} dòng giá, {run.inputCounts.news} tin, {run.inputCounts.sector} ngành{run.inputCounts.macro ? `, ${run.inputCounts.macro} số liệu Việt Nam` : ""}{run.inputCounts.broker ? `, ${run.inputCounts.broker} nhận định CTCK` : ""}{run.model ? ` · ${run.model}` : ""}
         </p>
-        {ageH != null && ageH > STALE_HOURS && !runId && <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]" role="note" style={{ background: "rgba(245,158,11,0.08)", color: "var(--gold, #f59e0b)" }}>Bản tin đã {Math.floor(ageH / 24) || 1} ngày, không phản ánh thị trường hiện tại.</p>}
+        {ageH != null && ageH > STALE_HOURS && !runId && <p className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[11px]" role="note" style={{ background: "rgba(245,158,11,0.08)", color: "var(--q-warn)" }}>Bản tin đã {Math.floor(ageH / 24) || 1} ngày, không phản ánh thị trường hiện tại.</p>}
         <ul className="mt-2 space-y-1.5" data-testid="brief-summary">
           {(compact ? run.summary.slice(0, 3) : run.summary).map((s, i) => <li key={i} className="text-[11.5px] leading-relaxed" style={{ color: "var(--text-primary)" }}>{s.text}<Citations items={s.citations} /></li>)}
         </ul>

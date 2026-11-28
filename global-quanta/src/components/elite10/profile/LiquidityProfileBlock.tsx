@@ -37,7 +37,7 @@ function ValueChart({ series, med20, medMin, p10Min, rules }: { series: LqPoint[
         <line x1={0} x2={W} y1={y(p10Min)} y2={y(p10Min)} stroke="#f59e0b" strokeWidth={1} strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
       </svg>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
-        <span><span className="mr-1 inline-block h-0.5 w-3 align-middle" style={{ background: "#F5CE72" }} />Trung vị 20 phiên {bnText(med20)}</span>
+        <span><span className="mr-1 inline-block h-0.5 w-3 align-middle" style={{ background: "#79a8ff" }} />Trung vị 20 phiên {bnText(med20)}</span>
         <span><span className="mr-1 inline-block w-3 border-t border-dashed border-slate-400 align-middle" />Ngưỡng vào {bnText(medMin)}</span>
         <span><span className="mr-1 inline-block w-3 border-t border-dotted border-amber-400 align-middle" />Sàn phiên xấu {bnText(p10Min)}</span>
         <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-rose-400 align-middle" />Giảm sâu mà cạn cầu</span>

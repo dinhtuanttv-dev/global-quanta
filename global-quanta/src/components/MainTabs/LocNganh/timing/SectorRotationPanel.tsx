@@ -14,7 +14,7 @@ import { QUADRANT_COLORS, QUADRANT_VI } from "./quadrant";
 import RRG4DProjection from "./RRG4DProjection";
 import SectorLadderGrid from "./SectorLadderGrid";
 
-export const STATE_COLOR: Record<SectorStateKey, string> = { GROWTH: "var(--positive)", ACCUMULATION: "var(--gold)", BOTTOMING: "#38bdf8", DISTRIBUTION: "var(--warning)", DECLINE: "var(--negative)", NEUTRAL: "var(--text-tertiary)" };
+export const STATE_COLOR: Record<SectorStateKey, string> = { GROWTH: "var(--positive)", ACCUMULATION: "#E8B84B", BOTTOMING: "#38bdf8", DISTRIBUTION: "var(--warning)", DECLINE: "var(--negative)", NEUTRAL: "var(--text-tertiary)" }; // ui-exempt: bảng màu phân loại trạng thái ngành (biểu đồ)
 const STATE_RANK: Record<SectorStateKey, number> = { GROWTH: 0, ACCUMULATION: 1, BOTTOMING: 2, NEUTRAL: 3, DISTRIBUTION: 4, DECLINE: 5 };
 const FLOW_VI = { INFLOW: "Tiền vào mạnh", RISING: "Tiền vào", FALLING: "Tiền ra", OUTFLOW: "Tiền ra mạnh" } as const;
 const LEVEL_VI = { FAVORABLE: "Thuận lợi", WATCH: "Quan sát", AVOID: "Chưa nên" } as const;
@@ -117,7 +117,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
     <div className="panel-block" style={{ marginBottom: 16 }} data-testid="sector-rotation-panel">
       <div className="sb-row" style={{ marginBottom: 6, flexWrap: "wrap", gap: 8 }}>
         <b style={{ color: "var(--q-text)", fontSize: 14, fontWeight: 600 }}>Xoay vòng ngành ICB · dòng tiền · RRG tuần (JdK)</b>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "var(--gold)" }} title={evidence?.reason}>{evidence?.label ?? "EXPERIMENTAL"}</span>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: "rgba(245,158,11,0.12)", color: "var(--q-warn)" }} title={evidence?.reason}>{evidence?.label ?? "EXPERIMENTAL"}</span>
         <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
           <button type="button" onClick={() => { void rrg.refresh(); }} disabled={rrg.isValidating} aria-label="Tải lại snapshot xoay vòng ngành" data-testid="sector-rrg-refresh"
             style={{ fontSize: 10, padding: "3px 8px", borderRadius: 8, cursor: rrg.isValidating ? "wait" : "pointer", border: "1px solid var(--bg-surface-2)", background: "transparent", color: "var(--text-secondary)" }}>
@@ -178,7 +178,7 @@ export default function SectorRotationPanel({ selectedSector = null, onFilterSec
                       <tr key={s.code} onClick={() => toggle(s.code)} data-testid="sector-row" aria-expanded={open === s.code}
                         style={{ cursor: "pointer", borderTop: "1px solid var(--bg-surface-2)", background: open === s.code ? "var(--bg-surface-2)" : selectedSector === s.code ? "var(--q-accent-soft)" : undefined }}>
                         <td style={{ padding: "6px 0" }}>
-                          <b style={{ color: "var(--gold)" }}>{s.name}</b>
+                          <b style={{ color: "var(--q-accent)" }}>{s.name}</b>
                           <span style={{ display: "block", fontSize: 10, color: "var(--text-tertiary)" }}>{s.code} · {s.indexMembers} mã{s.thin ? " · rổ mỏng" : ""}</span>
                         </td>
                         <td>{s.state ? <Chip color={STATE_COLOR[s.state.key]} title={s.state.why.join(" · ")} testId="sector-state">{s.state.label}</Chip> : "—"}</td>

@@ -102,6 +102,6 @@
 
 /* QUANTA UI (27/11/2026): biểu đồ 2D của động cơ giữ nguyên màu vàng như thiết kế (mạng lan truyền, dòng thời gian sự kiện, cột tỉ lệ,
    thanh đuôi, bảng lan truyền, nhãn chú giải); chỉ khung giao diện dùng màu nhấn xanh. */
-.gq-world .wd :is(svg, .spill, .sb, .tail-val, .rev, .sw) { --accent: var(--gold, #e8b84b); --accentSoft: rgba(232, 184, 75, 0.35); }
+.gq-world .wd :is(svg, .spill, .sb, .tail-val, .rev, .sw) { --accent: var(--q-accent, var(--q-accent)); --accentSoft: rgba(79, 142, 247, 0.35); }
 .gq-world .wd .panel { border-top-color: var(--rule); }
 .kntg-section-title { font-size: 13px; font-weight: 600; }

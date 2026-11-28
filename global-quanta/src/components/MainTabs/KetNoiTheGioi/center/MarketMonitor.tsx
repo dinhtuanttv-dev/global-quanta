@@ -41,7 +41,7 @@ function ZBar({ z }: { z: number | null | undefined }) {
       <span style={{ position: "absolute", top: 0, height: 6, borderRadius: 3, background: z >= 0 ? "#10B981" : "#F43F5E", left: z >= 0 ? "50%" : `${50 - w}%`, width: `${w}%` }} />
       <span style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "rgba(148,163,184,0.5)" }} />
     </span>
-    <span style={{ color: Math.abs(z) >= 2 ? "var(--gold-bright, #fbbf24)" : "var(--text-secondary, #94a3b8)", minWidth: 32, textAlign: "right" }}>{fmtSigned(z, 1)}</span>
+    <span style={{ color: Math.abs(z) >= 2 ? "var(--q-accent-strong, #fbbf24)" : "var(--text-secondary, #94a3b8)", minWidth: 32, textAlign: "right" }}>{fmtSigned(z, 1)}</span>
   </span>;
 }
 
@@ -58,7 +58,7 @@ function RangeBar({ pct }: { pct: number | null | undefined }) {
 function Stat({ label, value, note, tone }: { label: string; value: string; note?: string; tone?: "warn" }) {
   return <div className="rounded-lg px-3 py-2" style={{ background: "rgba(148,163,184,0.04)" }}>
     <p className="text-[10px]" style={muted}>{label}</p>
-    <p className="text-sm font-bold" style={{ color: tone === "warn" ? "var(--gold-bright, #fbbf24)" : "var(--text-primary)" }}>{value}</p>
+    <p className="text-sm font-bold" style={{ color: tone === "warn" ? "var(--q-warn)" : "var(--text-primary)" }}>{value}</p>
     {note && <p className="text-[10px]" style={muted}>{note}</p>}
   </div>;
 }
@@ -135,11 +135,11 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
               <td className="px-2 py-1 text-center"><ZBar z={i.z} /></td>
               <td className="px-2 py-1 text-center"><RangeBar pct={i.rangePct} /></td>
               <td className="px-2 py-1 text-center"><Spark pts={i.spark ?? []} /></td>
-              <td className="px-2 py-1 text-center" style={{ color: i.stale ? "var(--gold-bright, #fbbf24)" : "var(--text-tertiary, #64748b)" }} title={i.stale ? `Dữ liệu cũ ${i.ageDays} ngày` : undefined}>{i.date ? i.date.split("-").reverse().slice(0, 2).join("/") : "—"}{i.stale ? " (cũ)" : ""}</td>
+              <td className="px-2 py-1 text-center" style={{ color: i.stale ? "var(--q-warn)" : "var(--text-tertiary, #64748b)" }} title={i.stale ? `Dữ liệu cũ ${i.ageDays} ngày` : undefined}>{i.date ? i.date.split("-").reverse().slice(0, 2).join("/") : "—"}{i.stale ? " (cũ)" : ""}</td>
             </tr>)}</tbody>
           </table>
         </div>
-        {missing.length > 0 && <p className="mt-2 text-[10px]" role="note" style={{ color: "var(--gold, #f59e0b)" }}>Chưa lấy được: {missing.map((m) => m.nameVi).join(", ")}. Không ước lượng thay thế.</p>}
+        {missing.length > 0 && <p className="mt-2 text-[10px]" role="note" style={{ color: "var(--q-accent, #f59e0b)" }}>Chưa lấy được: {missing.map((m) => m.nameVi).join(", ")}. Không ước lượng thay thế.</p>}
       </>}
     </section>
   );

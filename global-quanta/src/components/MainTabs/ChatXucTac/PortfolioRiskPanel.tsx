@@ -79,7 +79,7 @@ export default function PortfolioRiskPanel({
         </div>
         <div style={{ marginTop: 4, fontSize: 11 }}>
           <div>Kelly đầy đủ: <b>{(sizing.fullKellyPct * 100).toFixed(1)}%</b></div>
-          <div style={{ color: "var(--gold-bright)", fontWeight: 700, marginTop: 2 }}>
+          <div style={{ color: "var(--q-accent-strong)", fontWeight: 700, marginTop: 2 }}>
             Gợi ý: {(sizing.recommendedPct * 100).toFixed(1)}% NAV ({sizing.recommendedAmount.toLocaleString("vi-VN")}₫)
           </div>
           {sizing.capped && <div style={{ fontSize: 10, color: "var(--text-tertiary)", marginTop: 2 }}>Đã áp trần tối đa 10%/mã</div>}

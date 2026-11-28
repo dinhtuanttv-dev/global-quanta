@@ -5,7 +5,7 @@ import { OBSIDIAN_DEFAULT_FOLDER } from "../../../../lib/obsidian/types";
 import Modal from "./Modal";
 import type { ObsidianDesk } from "./useObsidianDesk";
 
-const INPUT = "w-full rounded-md border border-white/20 bg-slate-900 px-2.5 py-1.5 text-[12px] text-slate-100 outline-none focus:border-[#E8B84B]";
+const INPUT = "w-full rounded-md border border-white/20 bg-slate-900 px-2.5 py-1.5 text-[12px] text-slate-100 outline-none focus:border-q-accent";
 
 export default function VaultSettings({ desk, onClose }: { desk: ObsidianDesk; onClose: () => void }) {
   const [vault, setVault] = useState(desk.prefs.vault);
@@ -21,7 +21,7 @@ export default function VaultSettings({ desk, onClose }: { desk: ObsidianDesk; o
       footer={<>
         <button type="button" onClick={onClose} className="min-h-[32px] rounded-md border border-white/20 px-3 text-[11.5px] text-slate-200 hover:bg-white/10">Huỷ</button>
         <button type="button" onClick={save} disabled={!vOk || !fOk} data-testid="obsidian-settings-save"
-          className="min-h-[32px] rounded-md bg-[#E8B84B]/25 px-3 text-[11.5px] font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/35 disabled:cursor-not-allowed disabled:opacity-60">Lưu cấu hình</button>
+          className="min-h-[32px] rounded-md bg-q-accent/25 px-3 text-[11.5px] font-semibold text-q-accent-strong hover:bg-q-accent/35 disabled:cursor-not-allowed disabled:opacity-60">Lưu cấu hình</button>
       </>}>
       <div className="space-y-3 text-[11.5px]">
         <label className="block space-y-1">

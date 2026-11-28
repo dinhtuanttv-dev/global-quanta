@@ -165,7 +165,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf, onOpenSeasonality
               return (
                 <tr key={r.t} className="align-middle hover:bg-white/[0.03]" data-testid="kq-row">
                   <td className="border-b border-white/[0.05] px-1 py-1.5">
-                    <button type="button" onClick={() => setOpen(r.t)} className="font-mono text-[12px] font-bold text-[#F5CE72] hover:underline" data-testid={`kq-open-${r.t}`}>{r.t}</button>
+                    <button type="button" onClick={() => setOpen(r.t)} className="font-mono text-[12px] font-bold text-q-accent-strong hover:underline" data-testid={`kq-open-${r.t}`}>{r.t}</button>
                     <span className="ml-1 rounded px-1 text-[10px] font-bold" style={{ color: TPL_COLOR[r.tpl], border: `1px solid ${TPL_COLOR[r.tpl]}55` }} title={TPL_LABEL[r.tpl]}>{TPL_SHORT[r.tpl]}</span>
                     <span className="block truncate text-[10px] text-slate-500" style={{ maxWidth: 130 }}>{sectorOf?.(r.t) ?? ""}{!r.current ? ` · ${r.quarter}` : ""}</span>
                   </td>
@@ -188,7 +188,7 @@ export default function KqkdCenter({ onSelectTicker, sectorOf, onOpenSeasonality
         {rows.length > limit && (
           <div className="flex items-center justify-center gap-3 py-2 text-[11px] text-slate-400">
             <span>Đang hiện {limit}/{rows.length} mã</span>
-            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="kq-more" className="rounded-md border border-[#E8B84B]/40 px-3 py-1 font-semibold text-[#F5CE72] hover:bg-[#E8B84B]/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
+            <button type="button" onClick={() => setLimit((l) => l + PAGE)} data-testid="kq-more" className="rounded-md border border-q-accent/40 px-3 py-1 font-semibold text-q-accent-strong hover:bg-q-accent/10">Xem thêm {Math.min(PAGE, rows.length - limit)}</button>
             <button type="button" onClick={() => setLimit(rows.length)} className="rounded-md border border-white/10 px-3 py-1 hover:text-slate-200">Hiện tất cả</button>
           </div>
         )}

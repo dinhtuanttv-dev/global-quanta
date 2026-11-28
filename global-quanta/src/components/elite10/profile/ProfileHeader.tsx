@@ -57,7 +57,7 @@ export default function ProfileHeader({ ticker, view, onView, actions = {} }: { 
   return (
     <div className="tw-scope rounded-lg border border-white/10 bg-[#0B0F19] px-3 py-2 text-slate-200" data-testid="profile-header">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="text-[15px] font-bold text-[#F5CE72]" data-testid="profile-header-ticker">{ticker}</p>
+        <p className="text-[15px] font-bold text-q-accent-strong" data-testid="profile-header-ticker">{ticker}</p>
         {panel?.sector && <p className="text-[11px] text-slate-400" data-testid="profile-header-sector">{panel.sector}</p>}
         {price != null && (
           <p className="font-mono text-[12px] text-slate-100" data-testid="profile-header-price" title={live ? "Giá khớp gần nhất" : "Giá đóng cửa của phiên bảng tín hiệu"}>

@@ -19,10 +19,10 @@ function EventCard({ event }: { event: DomesticEvent }) {
       border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 10,
       position: "relative", overflow: "hidden",
     }}>
-      <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "var(--gold-bright)" }} />
+      <div style={{ position: "absolute", top: 0, left: 0, width: 3, height: "100%", background: "var(--q-accent-strong)" }} />
 
       <span style={{
-        fontSize: 10, fontWeight: 700, color: "var(--gold-bright)", background: "rgba(251,191,36,0.1)",
+        fontSize: 10, fontWeight: 700, color: "var(--q-accent-strong)", background: "rgba(251,191,36,0.1)",
         padding: "3px 8px", borderRadius: 5, display: "inline-block", marginBottom: 6,
       }}>{TAG_LABEL[event.tag] ?? event.tag}</span>
 
@@ -31,7 +31,7 @@ function EventCard({ event }: { event: DomesticEvent }) {
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-tertiary)", marginBottom: 6 }}>
         {event.stages.map((s, i) => (
           <span key={i} style={{
-            color: i === event.activeStageIndex ? "var(--gold-bright)" : "var(--text-tertiary)",
+            color: i === event.activeStageIndex ? "var(--q-accent-strong)" : "var(--text-tertiary)",
             fontWeight: i === event.activeStageIndex ? 700 : 400,
             maxWidth: 90, textAlign: i === 0 ? "left" : i === event.stages.length - 1 ? "right" : "center",
           }}>{s.label}</span>
@@ -50,7 +50,7 @@ function EventCard({ event }: { event: DomesticEvent }) {
       }}>
         <span style={{ fontSize: 10.5, color: "var(--text-secondary)" }}>{event.note}</span>
         <span style={{
-          marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--gold-bright)",
+          marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "var(--q-accent-strong)",
           background: "rgba(251,191,36,0.08)", padding: "4px 10px", borderRadius: 6, whiteSpace: "nowrap",
         }}>
           {event.isPast ? "Đã có hiệu lực" : `Con ${event.daysUntil} ngay`}

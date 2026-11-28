@@ -81,7 +81,7 @@ function HlWhy({ p, exitLsPct, mobile = false }: { p: HlPick; exitLsPct: number;
   const ta = Object.entries(h.ta ?? {}), votes = Object.entries(h.votes ?? {});
   const voteTone = (v: number | null) => (v == null ? "border-white/10 text-slate-500" : v > 0 ? "border-emerald-400/40 text-emerald-300" : v < 0 ? "border-rose-400/40 text-rose-300" : "border-white/15 text-slate-400");
   return (
-    <div className="grid grid-cols-1 gap-2 rounded-md border border-[#E8B84B]/25 bg-[#E8B84B]/[0.04] p-2 text-[11px] md:grid-cols-4" data-testid={`hl-why${mobile ? "-m" : ""}-${p.ticker}`}>
+    <div className="grid grid-cols-1 gap-2 rounded-md border border-q-accent/25 bg-q-accent/[0.04] p-2 text-[11px] md:grid-cols-4" data-testid={`hl-why${mobile ? "-m" : ""}-${p.ticker}`}>
       <div>
         <p className="text-[10px] font-bold uppercase text-slate-500">Tầng 1 · dẫn dắt + mô hình TA</p>
         <p className="text-slate-300">LS-v1 phân vị <b className="text-slate-100">{num(h.lsPct, 0)}</b> <span className="text-slate-500">· {h.lsPts} điểm</span></p>
@@ -166,7 +166,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const lsTop = 100 - t1.lsLeaderPct;
   const dong = (v: number | undefined) => (v == null ? "5.000" : v.toLocaleString("vi-VN"));
   const [why, setWhy] = useState<string | null>(null);
-  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-[#E8B84B]/50 hover:text-[#F5CE72]">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
+  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
   // EC-1: "Chu kỳ →" mở mã ở tab con Cycle Fingerprint (tab Ngành). Chỉ điều hướng — không đổi dữ liệu bảng.
   const focusCycle = useAppStore((s) => s.focusCycle);
   const goTab = useTabNavigation();
@@ -180,13 +180,13 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
     ...(f.inZone != null ? [["Trong vùng mua", f.inZone, `giá trong [${num(pzRules.zoneLow * 100, 0)}% ; +${num(pzRules.zoneHigh * 100, 0)}%] quanh pivot, rủi ro ≤ ${num(pzRules.maxRisk * 100, 0)}%`] as [string, number, string]] : []),
     ["Danh mục", f.held, `tối đa ${r.slots} mã, ${r.maxPerSector} mã / ngành`],
   ];
-  const openBtn = (t: string) => <button type="button" onClick={() => onOpenTicker(t)} data-testid={`hl-open-${t}`} className="font-bold text-[#F5CE72] hover:underline">{t}</button>;
+  const openBtn = (t: string) => <button type="button" onClick={() => onOpenTicker(t)} data-testid={`hl-open-${t}`} className="font-bold text-q-accent-strong hover:underline">{t}</button>;
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-hl-board">
       <CommandBar d={d} />
       {layers.cockpit && <CockpitStatusBar seal={cockpitSeal} states={cockpitStates} today={cockpitToday} />}
-      {layers.cockpit && layers.pulse && <p className="-mt-2 text-right text-[10px]" data-hl-layer="pulse"><a href="#decision-pulse" className="text-slate-400 underline hover:text-[#F5CE72]" data-testid="pulse-link">Lịch xét và thay đổi phiên này → Nhịp quyết định</a></p>}
+      {layers.cockpit && layers.pulse && <p className="-mt-2 text-right text-[10px]" data-hl-layer="pulse"><a href="#decision-pulse" className="text-slate-400 underline hover:text-q-accent-strong" data-testid="pulse-link">Lịch xét và thay đổi phiên này → Nhịp quyết định</a></p>}
       {switcher}
 
       {refreshError && (
@@ -259,7 +259,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
               return (
                 <li key={p.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`hl-card-${p.ticker}`} style={rimStyle(rowSig.map.get(p.ticker), layers.news)}>
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{p.ticker}</button><HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} mobile /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
+                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-q-accent-strong">{p.ticker}</button><HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} mobile /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
                   <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}<HlLivePrice s={rowSig.map.get(p.ticker)} on={layers.live} mobile />{pxBadge(p.ticker, `hl-px-m-${p.ticker}`)}</p>
@@ -301,7 +301,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
                         {pxOf(p.ticker) && <span className="mt-0.5 block"><DilutionBadge p={pxOf(p.ticker)} pxR1={d.dilution?.pxR1} testId={`hl-px-${p.ticker}`} /></span>}
                         {pfaOf(p.ticker).length > 0 && <span className="mt-0.5 block"><WarningList items={pfaOf(p.ticker)} compact testId={`hl-pfa-${p.ticker}`} /></span>}{layers.cockpit && <HlBreadcrumb ticker={p.ticker} sessions={cockpitSessions} log={cockpitLog} />}</td>{layers.news && <HlNewsStrip s={rowSig.map.get(p.ticker)} now={rowSig.now} />}
                       <td className="pr-2">{h.status === "NEW" ? <b className="text-emerald-300">Vào mới</b> : <span className="text-slate-300">Giữ{h.since ? <span className="text-slate-500"> từ {fmtDate(h.since).slice(0, 5)}</span> : ""}</span>}</td>
-                      <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-[#E8B84B]/80" width={48} />
+                      <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{pct(p.weight)}</b> <Bar value={p.weight} max={r.wMax} tone="bg-q-accent/80" width={48} />
                         <span className="block text-[10px] text-slate-500" data-testid={`hl-risk-${p.ticker}`} title={euler.get(p.ticker) ? "Đóng góp Euler vào biến động danh mục (hiệp phương sai Ledoit–Wolf), cộng lại = 100%" : "Ước lượng thô w·σ20 / Σ (bỏ qua tương quan) — chưa có số Euler"}>{euler.get(p.ticker) ? <>rủi ro <b className={euler.get(p.ticker)!.riskContribution > p.weight * 2 ? "text-amber-300" : "text-slate-300"}>{pct(euler.get(p.ticker)!.riskContribution, 0)}</b> Euler</> : <>rủi ro ~{pct(p.riskContribution, 0)} (thô)</>}</span></td>
                       <td className="whitespace-nowrap pr-2"><b className="text-slate-100">{h.t1}</b><span className="text-slate-500">/{t1.maxScore}</span> <Bar value={h.t1} max={t1.maxScore} width={56} />
                         <span className="block text-[10px] text-slate-500">LS phân vị {num(h.lsPct, 0)} · TA {h.taCount}/{t1.taModels}</span>
@@ -327,7 +327,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           </div>
           </>
         )}
-        {pz && runnerCount > 0 && <p className="mt-1.5 text-[10.5px] text-violet-200" data-testid="hl-runner-note">{runnerCount} mã đang giữ đã tăng nóng nằm ở bảng <a href="#hl-watch" className="underline decoration-dotted hover:text-[#F5CE72]">Theo dõi chờ nền</a> — vẫn là vị thế, vẫn tính vào {pct(pz.runnerWeight)} vốn.</p>}
+        {pz && runnerCount > 0 && <p className="mt-1.5 text-[10.5px] text-violet-200" data-testid="hl-runner-note">{runnerCount} mã đang giữ đã tăng nóng nằm ở bảng <a href="#hl-watch" className="underline decoration-dotted hover:text-q-accent-strong">Theo dõi chờ nền</a> — vẫn là vị thế, vẫn tính vào {pct(pz.runnerWeight)} vốn.</p>}
         {pz && picks.length > 0 && corePicks.length === 0 && <p className="text-[11px] text-slate-400" data-testid="hl-core-empty">Không có mã đang giữ nào ở trong nền hoặc vùng mua.</p>}
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
           Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời. Hình dải biến động: vạch xám = giá lúc vào, vạch đỏ đứt = −2 dải tính từ giá lúc vào, chấm = giá hiện tại (xanh / đỏ = trên / dưới giá lúc vào).

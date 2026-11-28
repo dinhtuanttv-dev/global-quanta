@@ -66,7 +66,7 @@ export function AllocationBar({ core, runner, cash, testId }: { core: number; ru
   const seg = (v: number, cls: string, label: string) => (v > 0.0005 ? <span className={`h-full ${cls}`} style={{ width: `${Math.min(1, v) * 100}%` }} title={`${label} ${pctf(v)}`} /> : null);
   return (
     <span className="mt-1 flex h-2 w-full overflow-hidden rounded bg-white/10" aria-hidden="true" data-testid={testId}>
-      {seg(core, "bg-[#E8B84B]/85", "Danh mục chính")}{seg(runner, "bg-violet-400/75", "Chạy lãi")}{seg(cash, "bg-slate-400/40", "Tiền mặt")}
+      {seg(core, "bg-q-accent/85", "Danh mục chính")}{seg(runner, "bg-violet-400/75", "Chạy lãi")}{seg(cash, "bg-slate-400/40", "Tiền mặt")}
     </span>
   );
 }
@@ -154,7 +154,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
             {list.map((x) => (
               <li key={x.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`pz-card-${x.ticker}`}>
                 <div className="flex flex-wrap items-center justify-between gap-1">
-                  <span><button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-[13px] font-bold text-[#F5CE72]">{x.ticker}</button> {x.held && <span className="ml-1 rounded border border-violet-400/50 px-1 text-[10px] text-violet-200">đang giữ {pctf(x.weight)}</span>}</span>
+                  <span><button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-[13px] font-bold text-q-accent-strong">{x.ticker}</button> {x.held && <span className="ml-1 rounded border border-violet-400/50 px-1 text-[10px] text-violet-200">đang giữ {pctf(x.weight)}</span>}</span>
                   <PzBadge pz={x.pz} />
                 </div>
                 {liqBadge && <p className="mt-0.5 text-[10px] text-slate-500">{liqBadge(x, true)}{pxBadge?.(x, true)}</p>}
@@ -175,7 +175,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
                 {list.map((x) => (
                   <tr key={x.ticker} className="border-t border-white/5 align-top" data-testid={`pz-row-${x.ticker}`}>
                     <td className="py-1.5 pr-2">
-                      <button type="button" onClick={() => onOpenTicker(x.ticker)} className="font-bold text-[#F5CE72] hover:underline">{x.ticker}</button>
+                      <button type="button" onClick={() => onOpenTicker(x.ticker)} className="font-bold text-q-accent-strong hover:underline">{x.ticker}</button>
                       <span className="block text-[10px] text-slate-500">{x.sectorKey ? secName(x.sectorKey) : "—"}{liqBadge && <> · {liqBadge(x, false)}</>}{pxBadge?.(x, false)}</span>
                       {x.held && <span className="block text-[10px] text-violet-200">đang giữ {pctf(x.weight)}{x.sinceRet ? <> · từ phiên khoá <b className={x.sinceRet >= 0 ? "text-emerald-300" : "text-rose-300"}>{spct(x.sinceRet)}</b></> : null}</span>}
                     </td>
@@ -184,7 +184,7 @@ export function HlWatchPanel({ rows, exits, meta, onOpenTicker, secName, liqBadg
                       {x.pz.hStar ? <span className="block text-[10px] text-slate-500">đỉnh {price(x.pz.hStar)}{x.pz.depth ? ` · lùi ${pctf(x.pz.depth)}` : " · đang ở đỉnh"}</span> : null}</td>
                     <td className="max-w-[260px] pr-2">
                       {(x.pz.hotReasons as string[]).length === 0 ? <span className="text-[10px] text-slate-500">Không còn độ đo nào vượt ngưỡng</span> : <>
-                      <button type="button" aria-expanded={open === x.ticker} onClick={() => setOpen(open === x.ticker ? null : x.ticker)} data-touch className="text-left text-[10px] text-slate-300 hover:text-[#F5CE72]" data-testid={`pz-why-btn-${x.ticker}`}>
+                      <button type="button" aria-expanded={open === x.ticker} onClick={() => setOpen(open === x.ticker ? null : x.ticker)} data-touch className="text-left text-[10px] text-slate-300 hover:text-q-accent-strong" data-testid={`pz-why-btn-${x.ticker}`}>
                         {(x.pz.hotReasons as string[]).length} độ đo vượt ngưỡng {open === x.ticker ? "▾" : "▸"}
                       </button>
                       {open === x.ticker && <div className="mt-1"><HotChips pz={x.pz} rules={rules} /></div>}

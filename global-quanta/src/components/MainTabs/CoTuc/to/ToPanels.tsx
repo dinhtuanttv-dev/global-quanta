@@ -80,7 +80,7 @@ export function EquityChart({ sim, height = 180, labels = ["Săn cổ tức (TO-
         <path d={geo.line(1)} fill="none" stroke="#F5CE72" strokeWidth="2" />
         {hover != null && <line x1={geo.x(hover)} x2={geo.x(hover)} y1={4} y2={H - 2} stroke="rgba(255,255,255,0.25)" />}
       </svg>
-      <div className="mt-1 flex flex-wrap gap-3 text-[10px] text-slate-400"><span><span className="mr-1 inline-block h-0.5 w-4 bg-[#F5CE72] align-middle" />{labels[0]}</span><span><span className="mr-1 inline-block h-0.5 w-4 bg-slate-400 align-middle" />{labels[1]}</span><span><span className="mr-1 inline-block h-2 w-3 bg-rose-500/30 align-middle" />Sụt giảm danh mục</span>
+      <div className="mt-1 flex flex-wrap gap-3 text-[10px] text-slate-400"><span><span className="mr-1 inline-block h-0.5 w-4 bg-q-accent-strong align-middle" />{labels[0]}</span><span><span className="mr-1 inline-block h-0.5 w-4 bg-slate-400 align-middle" />{labels[1]}</span><span><span className="mr-1 inline-block h-2 w-3 bg-rose-500/30 align-middle" />Sụt giảm danh mục</span>
         {h && <span className="ml-auto font-mono text-slate-200">{dm(h[0])}/{h[0].slice(0, 4)} · {labels[0]} {pctS(h[1] - 1)} · {labels[1]} {pctS(h[2] - 1)}</span>}</div>
     </div>
   );

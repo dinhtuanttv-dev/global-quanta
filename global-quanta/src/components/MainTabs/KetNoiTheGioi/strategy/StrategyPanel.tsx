@@ -113,7 +113,7 @@ export default function StrategyPanel() {
         </div>
       </div>
       {data.regime.stressed && (
-        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--gold, #fbbf24)" }}>
+        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--q-accent, #fbbf24)" }}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> VIX {num(data.regime.vix, 2)} ({fmtZ(data.regime.vixChg, 1)}% phiên {fmtDate(data.regime.date)}). {data.regime.noteVi}
         </p>
       )}

@@ -145,7 +145,7 @@ export default function SignalProfileCard({ ticker, view = "summary", onView }: 
   return (
     <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-3 text-slate-200" data-testid="elite-profile" data-view="signals">
       <div>
-        <p className="text-[12px] font-bold text-[#F5CE72]">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
+        <p className="text-[12px] font-bold text-q-accent-strong">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
         <p className="text-[10.5px] text-slate-400">{panel.signals.length} tín hiệu từ {tabs} tab, chuẩn hoá theo sổ đăng ký E1; bậc theo bằng chứng E2, SQS / xu hướng / IC theo chế độ từ tab 4 (mô tả). Phân vị trong ~{full?.rows.length ?? "—"} mã cùng phiên và trong ngành, xoay theo chiều tốt.</p>
       </div>
       <SignalTableView panel={panel} rows={full?.rows ?? []} evOf={evOf} evoOf={evoOf} contributions={decision?.contributions ?? []} regime={evo?.currentRegime ?? null} />

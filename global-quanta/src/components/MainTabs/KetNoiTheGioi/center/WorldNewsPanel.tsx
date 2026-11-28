@@ -31,7 +31,7 @@ export default function WorldNewsPanel() {
           <h4 className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>Tin kinh tế thế giới</h4>
           <p className="text-[10px]" style={muted}>{data?.noteVi ?? "Tin từ nguồn có danh tính, kèm giờ đăng và mức xác nhận."}</p>
         </div>
-        {data && health && <button type="button" onClick={() => setShowSources((v) => !v)} aria-expanded={showSources} className="flex items-center gap-1 text-[10px]" style={{ color: health.failed.length ? "var(--gold, #f59e0b)" : "var(--text-secondary, #94a3b8)" }} data-testid="news-health">
+        {data && health && <button type="button" onClick={() => setShowSources((v) => !v)} aria-expanded={showSources} className="flex items-center gap-1 text-[10px]" style={{ color: health.failed.length ? "var(--q-accent, #f59e0b)" : "var(--text-secondary, #94a3b8)" }} data-testid="news-health">
           <ShieldCheck className="h-3 w-3" aria-hidden /> Cập nhật {fmtVnTime(data.refreshedAt)} · {health.ok}/{health.total} nguồn hoạt động
         </button>}
       </div>

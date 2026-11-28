@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { bn, fin, num, pctPlain } from "../../../../lib/kqkd/format";
 import type { Bridge, KqkdDetail } from "../../../../lib/kqkd/types";
 
-const GOLD = "#E8B84B", POS = "#10B981", NEG = "#F43F5E", NONCORE = "#38BDF8";
+const GOLD = "#4f8ef7", POS = "#10B981", NEG = "#F43F5E", NONCORE = "#38BDF8";
 
 function Waterfall({ b }: { b: Bridge }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -33,7 +33,7 @@ function Waterfall({ b }: { b: Bridge }) {
               {i < bars.length - 1 && <line x1={cx + colW * 0.84} x2={cx + colW * 1.16} y1={y(x.to)} y2={y(x.to)} stroke="rgba(148,163,184,0.45)" strokeDasharray="2 2" />}
               <text x={cx + colW / 2} y={y0 - 4} textAnchor="middle" fontSize={11} fill="rgba(226,232,240,0.95)" fontFamily="ui-monospace, monospace">{bn(x.value, false)}</text>
               <foreignObject x={cx} y={Hd - bottom + 6} width={colW} height={bottom - 6}>
-                <div style={{ fontSize: 10.5, lineHeight: "12px", color: isTotal ? "#F5CE72" : "rgba(148,163,184,0.95)", textAlign: "center", fontWeight: isTotal ? 700 : 500, padding: "0 2px" }}>{x.label}</div>
+                <div style={{ fontSize: 10.5, lineHeight: "12px", color: isTotal ? "#79a8ff" : "rgba(148,163,184,0.95)", textAlign: "center", fontWeight: isTotal ? 700 : 500, padding: "0 2px" }}>{x.label}</div>
               </foreignObject>
             </g>
           );
@@ -105,7 +105,7 @@ export default function ProfitBridge({ d }: { d: KqkdDetail }) {
         <div className="flex gap-1" role="tablist" aria-label="Kỳ">
           {opts.map(([id, x]) => (
             <button key={id} type="button" role="tab" aria-selected={k === id} onClick={() => setK(id)} data-testid={`kq-bridge-${id}`}
-              className={`rounded-md border px-2 py-1 font-semibold ${k === id ? "border-[#E8B84B]/50 bg-[#E8B84B]/10 text-[#F5CE72]" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{x.label}</button>
+              className={`rounded-md border px-2 py-1 font-semibold ${k === id ? "border-q-accent/50 bg-q-accent/10 text-q-accent-strong" : "border-white/10 text-slate-400 hover:text-slate-200"}`}>{x.label}</button>
           ))}
         </div>
         {d.dol != null && <span className="ml-auto text-slate-400" title="Đòn bẩy hoạt động = % thay đổi LN cốt lõi 4 quý ÷ % thay đổi doanh thu 4 quý">DOL <b className="font-mono text-slate-100">{num(d.dol)}</b> lần</span>}
