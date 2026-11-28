@@ -67,9 +67,9 @@ export default function EventReactionStudyPanel({ symbol, onSymbolChange, seed }
         <label className={muted}>Loại/tên sự kiện
           <input aria-label="Loại hoặc tên sự kiện" value={eventLabel} onChange={(e) => setEventLabel(e.target.value)} maxLength={100} placeholder="KQKD, ĐHĐCĐ, công bố…" required className={input} />
         </label>
-        <div className="flex items-end"><button disabled={loading} className="w-full rounded bg-cyan-800 px-3 py-2 text-xs font-semibold text-cyan-50 disabled:opacity-50">{loading ? "Đang tính…" : "Phân tích sự kiện"}</button></div>
+        <div className="flex items-end"><button disabled={loading} className="w-full rounded bg-white/5 px-3 py-2 text-xs font-semibold text-q-text disabled:opacity-50">{loading ? "Đang tính…" : "Phân tích sự kiện"}</button></div>
       </form>
-      {eventTimestamp && <p className="mt-2 text-[10px] text-cyan-300/80" data-testid="h1-seed-note">
+      {eventTimestamp && <p className="mt-2 text-[10px] text-q-text-2" data-testid="h1-seed-note">
         Từ Event Radar · thời điểm {vnDateTime(eventTimestamp)} ({eventTimeSource === "publisher_timestamp" ? "giờ đăng của nguồn" : "giờ Gateway phát hiện lần đầu"}). Nhấn "Phân tích sự kiện" để chạy H1.
       </p>}
       {error && <p role="alert" className="mt-3 text-xs text-rose-300">{error}</p>}

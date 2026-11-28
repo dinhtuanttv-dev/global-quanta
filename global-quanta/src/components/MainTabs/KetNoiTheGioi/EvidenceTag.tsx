@@ -10,7 +10,7 @@ export type EvidenceKind = "data" | "heuristic" | "failed" | "evidence";
 
 const STYLE: Record<EvidenceKind, { label: string; color: string; bg: string; title: string }> = {
   data: { label: "SỐ LIỆU THẬT", color: "var(--text-secondary, #94a3b8)", bg: "rgba(148,163,184,0.1)", title: "Số liệu thị trường quan sát được — không phải tín hiệu dự báo" },
-  heuristic: { label: "HEURISTIC · CHƯA KIỂM ĐỊNH", color: "var(--q-accent, #f59e0b)", bg: "rgba(245,158,11,0.1)", title: "Luật / ánh xạ đặt tay, chưa qua kiểm định ngoài mẫu — chỉ tham khảo" },
+  heuristic: { label: "HEURISTIC · CHƯA KIỂM ĐỊNH", color: "var(--q-warn)", bg: "rgba(245,158,11,0.1)", title: "Luật / ánh xạ đặt tay, chưa qua kiểm định ngoài mẫu — chỉ tham khảo" },
   failed: { label: "HEURISTIC · KHÔNG ĐẠT KIỂM ĐỊNH", color: "var(--negative, #f87171)", bg: "rgba(248,113,113,0.1)", title: "Đã kiểm định đặt trước và KHÔNG đạt — chỉ tham khảo, không dùng trong quyết định" },
   evidence: { label: "BẰNG CHỨNG NGOÀI MẪU", color: "var(--positive, #34d399)", bg: "rgba(52,211,153,0.1)", title: "Chỉ liên kết bậc A/B qua kiểm định ngoài mẫu mới được coi là bằng chứng" },
 };

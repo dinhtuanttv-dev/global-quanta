@@ -13,7 +13,7 @@ import TrendSparkline from "./TrendSparkline";
 import CommodityDrawer from "./commodity/CommodityDrawer";
 
 const T = {
-  gold: "var(--q-accent, #f59e0b)",
+  gold: "var(--q-warn)",
   positive: "var(--positive, #34d399)",
   negative: "var(--negative, #f87171)",
   textSecondary: "var(--text-secondary, #94a3b8)",

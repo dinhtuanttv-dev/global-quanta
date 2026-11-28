@@ -8,7 +8,7 @@ const muted = { color: "var(--text-tertiary)" };
 type Verdict = "pass" | "fail" | "partial";
 const VERDICT: Record<Verdict, { vi: string; bg: string; fg: string }> = {
   pass: { vi: "ĐẠT", bg: "rgba(52,211,153,0.12)", fg: "var(--positive, #34d399)" },
-  partial: { vi: "ĐẠT MỘT PHẦN", bg: "rgba(245,158,11,0.12)", fg: "var(--q-accent, #f59e0b)" },
+  partial: { vi: "ĐẠT MỘT PHẦN", bg: "rgba(245,158,11,0.12)", fg: "var(--q-warn)" },
   fail: { vi: "KHÔNG ĐẠT", bg: "rgba(248,113,113,0.12)", fg: "var(--negative, #f87171)" },
 };
 

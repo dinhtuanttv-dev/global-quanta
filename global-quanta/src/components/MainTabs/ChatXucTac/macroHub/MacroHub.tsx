@@ -41,7 +41,7 @@ export default function MacroHub({ onOpenImpact, onOpenRadar }: { onOpenImpact: 
         <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
           <div id="mh-news" className="min-w-0 scroll-mt-4">
             <MacroEventsPanel />
-            <button type="button" onClick={onOpenRadar} className="mt-2 text-[10px] text-sky-300 underline decoration-sky-300/30 hover:decoration-sky-300">Xem toàn bộ tin và phản ứng giá trong Event Radar →</button>
+            <button type="button" onClick={onOpenRadar} className="mt-2 text-[10px] text-q-text-2 underline decoration-sky-300/30 hover:decoration-sky-300">Xem toàn bộ tin và phản ứng giá trong Event Radar →</button>
           </div>
           <MacroUpcoming />
         </div>

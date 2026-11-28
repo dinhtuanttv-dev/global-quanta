@@ -20,7 +20,7 @@ export default function TopBeneficiariesPanel({ rows }: { rows: TopBeneficiaryRo
         }}>
           <span style={{
             width: 18, fontSize: 11, fontWeight: 700, textAlign: "center",
-            color: r.rank <= 3 ? "var(--q-accent-strong)" : "var(--text-tertiary)",
+            color: r.rank <= 3 ? "var(--q-text)" : "var(--text-tertiary)",
           }}>{r.rank}</span>
           <span style={{ width: 48, fontSize: 12.5, fontWeight: 700 }}>{r.ticker}</span>
           <div style={{ flex: 1, minWidth: 0 }}>

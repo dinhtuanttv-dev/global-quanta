@@ -196,7 +196,7 @@ export default function CatalystChatPanel({ seedQuestion, onSeedConsumed, sugges
           {MODES.map((m) => (
             <button key={m.id} type="button" title={m.title} aria-pressed={mode === m.id} disabled={busy} onClick={() => setMode(m.id)}
               style={{ fontSize: 10.5, fontWeight: 700, padding: "3px 9px", borderRadius: 6, border: 0, cursor: busy ? "default" : "pointer",
-                background: mode === m.id ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: mode === m.id ? "var(--q-accent-strong)" : "var(--text-secondary)" }}>
+                background: mode === m.id ? "var(--q-accent-soft)" : "rgba(148,163,184,0.06)", color: mode === m.id ? "var(--q-text)" : "var(--text-secondary)" }}>
               {m.label}
             </button>
           ))}

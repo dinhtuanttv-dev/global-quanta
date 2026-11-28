@@ -67,7 +67,7 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
     return () => { alive = false; window.clearInterval(timer); };
   }, [refresh]);
 
-  const panel = "rounded-xl border border-cyan-900/60 bg-slate-950/80 p-4";
+  const panel = "rounded-xl border border-white/15 bg-slate-950/80 p-4";
   const muted = "text-[10px] text-slate-400";
   const obs = snapshot?.observation;
 
@@ -115,7 +115,7 @@ export default function EliteSignalAmplifierPanel({ symbol }: { symbol: string |
           {snapshot.eventContext.length > 0 && <div>
             <p className={`${muted} mb-1`}>Sự kiện liên quan trong Event Radar · tham khảo ngữ cảnh, không được dùng để nâng mức cảnh báo</p>
             <ul className="space-y-1">{snapshot.eventContext.map((event) => <li key={event.eventId} className="text-[10px] text-slate-300">
-              {safeExternalHref(event.url) ? <a className="text-cyan-300 hover:underline" href={safeExternalHref(event.url) ?? undefined} target="_blank" rel="noreferrer">{event.title}</a> : event.title}
+              {safeExternalHref(event.url) ? <a className="text-q-text-2 hover:underline" href={safeExternalHref(event.url) ?? undefined} target="_blank" rel="noreferrer">{event.title}</a> : event.title}
               <span className="text-slate-500"> · {event.source} · {event.verificationStatus}</span>
             </li>)}</ul>
           </div>}

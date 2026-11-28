@@ -48,7 +48,7 @@ function QuoteBox({ q, onClose }: { q: Cited & { stance?: Stance }; onClose: () 
       </div>
       <p className="mt-1 text-slate-200">“{q.quote}”</p>
       <p className="mt-1 text-[11px] text-slate-400">{q.title} · {day(q.date)} · {q.publicSummary ? "tóm tắt công khai" : `trang ${q.page}`}
-        {q.url && <a href={q.url} target="_blank" rel="noopener noreferrer" className="ml-1.5 text-sky-300 hover:underline">{q.publicSummary ? "Mở trang nguồn" : "Mở báo cáo gốc"} <ExternalLink className="inline h-3 w-3" aria-hidden /></a>}
+        {q.url && <a href={q.url} target="_blank" rel="noopener noreferrer" className="ml-1.5 text-q-text-2 hover:underline">{q.publicSummary ? "Mở trang nguồn" : "Mở báo cáo gốc"} <ExternalLink className="inline h-3 w-3" aria-hidden /></a>}
       </p>
     </div>
   );

@@ -41,7 +41,7 @@ function ZBar({ z }: { z: number | null | undefined }) {
       <span style={{ position: "absolute", top: 0, height: 6, borderRadius: 3, background: z >= 0 ? "#10B981" : "#F43F5E", left: z >= 0 ? "50%" : `${50 - w}%`, width: `${w}%` }} />
       <span style={{ position: "absolute", left: "50%", top: -2, width: 1, height: 10, background: "rgba(148,163,184,0.5)" }} />
     </span>
-    <span style={{ color: Math.abs(z) >= 2 ? "var(--q-accent-strong, #fbbf24)" : "var(--text-secondary, #94a3b8)", minWidth: 32, textAlign: "right" }}>{fmtSigned(z, 1)}</span>
+    <span style={{ color: Math.abs(z) >= 2 ? "var(--q-warn)" : "var(--text-secondary, #94a3b8)", minWidth: 32, textAlign: "right" }}>{fmtSigned(z, 1)}</span>
   </span>;
 }
 
@@ -139,7 +139,7 @@ export default function MarketMonitor({ spillover }: { spillover?: number | null
             </tr>)}</tbody>
           </table>
         </div>
-        {missing.length > 0 && <p className="mt-2 text-[10px]" role="note" style={{ color: "var(--q-accent, #f59e0b)" }}>Chưa lấy được: {missing.map((m) => m.nameVi).join(", ")}. Không ước lượng thay thế.</p>}
+        {missing.length > 0 && <p className="mt-2 text-[10px]" role="note" style={{ color: "var(--q-warn)" }}>Chưa lấy được: {missing.map((m) => m.nameVi).join(", ")}. Không ước lượng thay thế.</p>}
       </>}
     </section>
   );

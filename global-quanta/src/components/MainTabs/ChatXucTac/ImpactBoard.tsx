@@ -36,7 +36,7 @@ function Card({ title, tag, children, testId }: { title: string; tag?: React.Rea
 function AskButton({ onClick, label = "Hỏi AI" }: { onClick: () => void; label?: string }) {
   return (
     <button type="button" onClick={(e) => { e.stopPropagation(); onClick(); }} className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
-      style={{ border: "1px solid var(--q-accent-line)", color: "var(--q-accent-strong)", background: "var(--q-accent-soft)" }}>
+      style={{ border: "1px solid var(--q-accent-line)", color: "var(--q-text)", background: "var(--q-accent-soft)" }}>
       <MessageSquare className="w-3 h-3" />{label}
     </button>
   );
@@ -176,7 +176,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
         </p>
       )}
       {strategy?.regime.stressed && (
-        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--q-accent, #fbbf24)" }}>
+        <p className="text-[10px] rounded-lg px-3 py-2 flex items-start gap-1.5" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)", color: "var(--q-warn)" }}>
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> VIX {num(strategy.regime.vix, 2)} ({fmtZ(strategy.regime.vixChg, 1)}% phiên {fmtDate(strategy.regime.date)}). {strategy.regime.noteVi}
         </p>
       )}
@@ -231,7 +231,7 @@ export default function ImpactBoard({ onAsk }: { onAsk: (question: string) => vo
                           </>
                         ) : <span style={muted}>—</span>}
                       </td>
-                      <td style={{ color: "var(--q-accent, #f59e0b)" }} className="font-bold text-[10px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
+                      <td style={{ color: "var(--q-text)" }} className="font-bold text-[10px]">{r.constituents.slice(0, 3).map((x) => x.ticker).join(" ")}</td>
                       <td className="text-right"><AskButton onClick={() => onAsk(askSector(r.nameVi, r.icb))} /></td>
                     </tr>
                   );
