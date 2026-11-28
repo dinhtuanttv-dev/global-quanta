@@ -194,10 +194,12 @@ dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template
 .ws-body:has(> .ws-drawbar) { grid-template-columns: 40px minmax(0, 1fr); }
 .ws-body[data-inspector="docked"]:has(> .ws-drawbar) { grid-template-columns: 40px minmax(0, 1fr) 292px; }
 .ws-drawbar { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 0; border-radius: 10px;
-  background: var(--q-surface); border: 1px solid var(--q-line-2, rgba(255,255,255,.1)); align-self: start; position: sticky; top: 0; }
+  background: var(--q-surface); border: 1px solid var(--q-line-2, rgba(255,255,255,.1)); align-self: start; position: sticky; top: 0;
+  align-self: stretch; height: 0; min-height: 100%; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; } /* TA-T6b: 10 nhóm — cao đúng bằng hàng chart (height 0 + min-height 100%: không kéo giãn hàng), màn thấp thì cuộn trong thanh */
 .ws-drawbar > .ws-btn, .ws-drawbar > * > .ws-btn, .ws-drawbar .ws-btn { width: 32px; height: 32px; padding: 0; justify-content: center; }
 .ws-drawbar .ws-btn-text-opt, .ws-drawbar .ws-btn-text, .ws-drawbar .ws-draw-item > span:not([aria-hidden]) { display: none; }
 .ws-drawbar .ws-btn[aria-pressed="true"], .ws-drawbar .ws-btn.ws-btn-on { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); box-shadow: inset 2px 0 0 var(--q-accent, #4f8ef7); }
+.ws-drawbar > * { flex-shrink: 0; }
 .ws-draw-sep { width: 22px; height: 1px; margin: 4px 0; background: var(--q-line-2, rgba(255,255,255,.1)); }
 .ws-pop .ws-btn[data-shape] { justify-content: flex-start; width: 100%; }
 .ws-ctx { position: fixed; z-index: 80; min-width: 220px; padding: 4px; border-radius: 8px; display: flex; flex-direction: column;

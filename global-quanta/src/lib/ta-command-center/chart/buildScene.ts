@@ -9,7 +9,7 @@ import { buildFibLevels, FIB_TIME_SEQUENCE } from "../DrawingManager";
 import type { OhlcvBar } from "../types";
 import { GQ_COLORS, LABEL_PRIORITY, rgba, type Scene, type SceneItem } from "./scene";
 import { TV_STYLE } from "./indicatorStyle";
-import { completeShapePoints, shapeScene, SHAPE_SPEC, type ShapeKind } from "../drawing/shapes";
+import { completeShapePoints, isProgressive, shapeScene, SHAPE_SPEC, type ShapeKind } from "../drawing/shapes";
 import type { SessionProfile, VolumeProfile, VwapPoint } from "../../quant-core";
 import { ELLIOTT_PRO_LABEL_BUDGET, elliottProItems, type ElliottProInput } from "./elliottProScene";
 import { elliottSceneItems, type ElliottSceneInput } from "./elliottScene";
@@ -223,7 +223,10 @@ export function buildScene(inp: SceneInput): Scene {
   const sd = inp.shapeDraft;
   if (sd) {
     const pts = sd.hover ? [...sd.points, sd.hover] : sd.points;
-    if (pts.length >= SHAPE_SPEC[sd.kind].clicks) items.push(...shapeScene(sd.kind, completeShapePoints(sd.kind, pts), undefined, { bars, digits: inp.digits }, true));
+    // TA-T6b: mẫu hình / Elliott / bấm nhiều / kéo tay vẽ dần (nhãn từng điểm), không chờ đủ điểm.
+    const dragging = SHAPE_SPEC[sd.kind].mode === "drag", P = dragging ? sd.points : pts;
+    if (isProgressive(sd.kind) && P.length >= 1) items.push(...shapeScene(sd.kind, P, undefined, { bars, digits: inp.digits }, !dragging));
+    else if (pts.length >= SHAPE_SPEC[sd.kind].clicks) items.push(...shapeScene(sd.kind, completeShapePoints(sd.kind, pts), undefined, { bars, digits: inp.digits }, true));
     else if (pts.length >= 2) items.push({ kind: "poly", points: pts.map((q) => ({ t: q.date, price: q.price })), color: "#2962FF", dash: [4, 3] });
     else if (pts.length === 1) items.push({ kind: "ring", t: pts[0].date, price: pts[0].price, color: "#2962FF", r: 4, width: 2 });
   }

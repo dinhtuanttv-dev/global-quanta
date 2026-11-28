@@ -1,5 +1,5 @@
 import { EventEmitter } from "./EventEmitter";
-import { SHAPE_SPEC, completeShapePoints, type ShapeKind } from "./drawing/shapes";
+import { MAX_SHAPE_POINTS, SHAPE_SPEC, completeShapePoints, thinPoints, type ShapeKind } from "./drawing/shapes";
 
 export interface DomainPoint { date: string; price: number; }
 export type DrawingToolType = "rectangle" | "trendline" | "fibonacci" | "elliott" | "fibTimeZone";
@@ -248,12 +248,25 @@ export class DrawingManager {
   /** Thêm một điểm cho hình `kind`; đủ số cú bấm -> tạo hình (trả về hình), chưa đủ -> null. */
   addShapePoint(kind: ShapeKind, point: DomainPoint, text?: string): ShapeMarking | null {
     if (!this.shapeDraft || this.shapeDraft.kind !== kind) this.shapeDraft = { kind, points: [] };
-    this.shapeDraft = { kind, points: [...this.shapeDraft.points, point] };
-    if (this.shapeDraft.points.length < SHAPE_SPEC[kind].clicks) { this.emitShapeDraft(); return null; }
+    // TA-T6b: kéo tay (cọ vẽ) giữ tối đa 4.000 điểm thô — finishShape lấy mẫu còn ≤ 400; bấm nhiều (đường dẫn) dừng ở 400.
+    const mode = SHAPE_SPEC[kind].mode, cap = mode === "drag" ? 4000 : MAX_SHAPE_POINTS;
+    if (this.shapeDraft.points.length < cap) this.shapeDraft = { kind, points: [...this.shapeDraft.points, point] };
+    if (mode || this.shapeDraft.points.length < SHAPE_SPEC[kind].clicks) { this.emitShapeDraft(); return null; }
     const shape = this.createShape(kind, completeShapePoints(kind, this.shapeDraft.points), text);
     this.cancelShapeDraft();
     return shape;
   }
+  /** TA-T6b: kết thúc hình bấm nhiều điểm (bấm đúp / Enter) hoặc kéo tay (nhả chuột). Đủ điểm tối thiểu -> tạo hình, thiếu -> bỏ nháp. */
+  finishShape(): ShapeMarking | null {
+    const sd = this.shapeDraft;
+    if (!sd) return null;
+    const pts = thinPoints(sd.points);
+    const shape = pts.length >= SHAPE_SPEC[sd.kind].clicks ? this.createShape(sd.kind, pts) : null;
+    this.cancelShapeDraft();
+    return shape;
+  }
+  /** Hình đang nháp thuộc kiểu bấm nhiều / kéo tay chưa (để giao diện biết khi nào cần bấm đúp / nhả chuột). */
+  shapeDraftKind(): ShapeKind | null { return this.shapeDraft?.kind ?? null; }
   setShapeHover(point: DomainPoint | null): void { if (!this.shapeDraft) return; this.shapeHover = point; this.emitShapeDraft(); }
   isDrawingShape(): boolean { return !!this.shapeDraft && this.shapeDraft.points.length > 0; }
   cancelShapeDraft(): void { const had = !!this.shapeDraft; this.shapeDraft = null; this.shapeHover = null; if (had) this.emitShapeDraft(); }

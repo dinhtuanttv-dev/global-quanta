@@ -9,7 +9,11 @@ const SYMBOL_RE = /^[A-Z][A-Z0-9]{2,9}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}/;
 const TOOLS = new Set(["rectangle", "trendline", "fibonacci", "elliott", "fibTimeZone", "avwap", "shape"]);
 // TA-T6a (28/11): kiểu hình chung — giống hệt SHAPE_SPEC phía giao diện (src/lib/ta-command-center/drawing/shapes.ts; có test đối chiếu).
-export const SHAPE_KINDS = new Set(["hline", "hray", "ray", "extended", "channel", "priceRange", "dateRange", "measure", "long", "short", "text", "arrow"]);
+// TA-T6b (28/11): + mẫu hình giá, sóng Elliott, chu kỳ, cọ vẽ, mũi tên, hình học.
+export const SHAPE_KINDS = new Set(["hline", "hray", "ray", "extended", "channel", "priceRange", "dateRange", "measure", "long", "short", "text", "arrow",
+  "xabcd", "cypher", "headShoulders", "abcd", "trianglePattern", "threeDrives", "impulse", "correction", "triangleE", "wxy", "wxyxz",
+  "cyclicLines", "timeCycles", "sineLine", "brush", "highlighter", "arrowMarker", "arrowUp", "arrowDown",
+  "rotatedRect", "path", "circle", "ellipse", "polyline", "triangleShape", "arc", "curve", "doubleCurve"]);
 const MAX_SHAPE_POINTS = 400;
 // Ngày (D) hoặc thời điểm ISO (khung intraday, VD 2026-10-02T10:15:00+07:00) — giữ nguyên giờ phút.
 const ISO_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/;
