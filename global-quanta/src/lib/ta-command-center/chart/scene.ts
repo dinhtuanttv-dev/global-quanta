@@ -51,7 +51,13 @@ export type SceneItem =
   // TA-T6b: chu kỳ — a, b = một chu kỳ; lines = vạch dọc cách đều, arcs = các nửa vòng tròn nối tiếp, sine = đường sin qua 2 cực trị.
   | { kind: "cycle"; a: ScenePoint; b: ScenePoint; mode: "lines" | "arcs" | "sine"; color: string; dash?: number[] }
   // TA-T6b: dấu mũi tên lên / xuống neo tại (ngày, giá) — mũi chạm đúng giá.
-  | { kind: "glyph"; t: string; price: number; dir: "up" | "down"; color: string; label?: SceneLabel };
+  | { kind: "glyph"; t: string; price: number; dir: "up" | "down"; color: string; label?: SceneLabel }
+  // TA-T8 (chữ trên chart): ghi chú người dùng — chữ 12px có nền, LUÔN hiện (không qua ngân sách nhãn 9px); neo góc trái-dưới tại (ngày, giá).
+  | { kind: "note"; t: string; price: number; text: string; color: string; dy?: number };
+/** Kích thước chữ ghi chú (note) — dùng chung cho vẽ và bấm chọn. */
+export const NOTE_FONT_PX = 12;
+/** Bề rộng ước lượng (px) của ghi chú khi không có canvas (bấm chọn): ~0,6 em mỗi ký tự + đệm. */
+export const noteWidth = (text: string) => Math.max(24, Math.ceil(text.length * NOTE_FONT_PX * 0.6) + 8);
 
 /** labelBudget (EP3): ngân sách nhãn của scene (mặc định LABEL_BUDGET) — Elliott Pro nâng theo chế độ. */
 export interface Scene { items: SceneItem[]; labelBudget?: number }

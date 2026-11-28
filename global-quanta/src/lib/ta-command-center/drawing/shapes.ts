@@ -6,7 +6,7 @@
 // Hàm thuần (không DOM): dựng scene + kiểm thử độc lập.
 import type { DomainPoint } from "../DrawingManager";
 import type { SceneItem } from "../chart/scene";
-import { LABEL_PRIORITY } from "../chart/scene";
+import { LABEL_PRIORITY, NOTE_FONT_PX, noteWidth } from "../chart/scene";
 import { viPrice } from "../chart/viFormat";
 import {
   controlThrough, cycleXs, distPolyline, distPt, insidePolygon, rotRectCorners, sampleCubic, sampleQuad, sineY, type XY,
@@ -61,7 +61,7 @@ export const SHAPE_SPEC: Record<ShapeKind, ShapeSpec> = {
   measure: P("Đo giá + thời gian", "measure", 2, "bấm 2 điểm"),
   brush: { ...P("Cọ vẽ", "brushes", 2, "giữ chuột và kéo để vẽ, nhả chuột là xong", { mode: "drag" }), stored: MAX_SHAPE_POINTS },
   highlighter: { ...P("Bút dạ quang", "brushes", 2, "giữ chuột và kéo để tô, nhả chuột là xong", { mode: "drag" }), stored: MAX_SHAPE_POINTS },
-  text: P("Chữ", "annotate", 1, "bấm nơi đặt chữ"),
+  text: P("Chữ", "annotate", 1, "bấm nơi đặt chữ rồi gõ — Enter để xong, Esc để huỷ"),
   arrowMarker: P("Dấu mũi tên", "arrows", 2, "bấm điểm đầu rồi điểm mũi tên"),
   arrow: P("Mũi tên", "arrows", 2, "bấm điểm đầu rồi điểm mũi tên"),
   arrowUp: P("Mũi tên lên", "arrows", 1, "bấm nơi đặt dấu"),
@@ -83,6 +83,11 @@ export const SHAPE_GROUPS: { id: ShapeGroup; label: string }[] = [
   { id: "position", label: "Dự báo vị thế" }, { id: "measure", label: "Đo" }, { id: "brushes", label: "Cọ vẽ" }, { id: "annotate", label: "Chữ" },
   { id: "arrows", label: "Mũi tên" }, { id: "geometry", label: "Hình học" },
 ];
+/** TA-T8: kiểu hình có ô chữ sửa tại chỗ (bấm đúp / menu chuột phải "Sửa chữ"). */
+export const TEXT_KINDS: ReadonlySet<ShapeKind> = new Set<ShapeKind>(["text", "arrowMarker", "arrowUp", "arrowDown"]);
+/** Chữ của ghi chú: màu + lệch dọc (px) so với điểm neo — dùng chung cho vẽ và đặt ô sửa đúng chỗ. */
+export const NOTE_COLOR = "#f8fafc";
+export const NOTE_DY: Partial<Record<ShapeKind, number>> = { text: 0, arrowMarker: 18, arrowUp: 38, arrowDown: -26 };
 /** Bản nháp vẽ dần (hiện từng nhãn / đoạn khi bấm) thay vì chỉ nối các điểm. */
 export const isProgressive = (k: ShapeKind) => !!SHAPE_SPEC[k].labels || !!SHAPE_SPEC[k].mode;
 
@@ -183,11 +188,12 @@ export function shapeScene(kind: ShapeKind, pts: DomainPoint[], text: string | u
       break;
     case "arrowMarker":
       if (p1) out.push({ kind: "segment", a: sp(p0), b: sp(p1), color: UP, width: 4, dash, arrow: true });
-      if (p1 && text?.trim()) out.push({ kind: "text", t: p0.date, price: p0.price, label: { text: text.trim(), color: "#f8fafc", priority: user }, dy: 14 });
+      if (p1 && text?.trim()) out.push({ kind: "note", t: p0.date, price: p0.price, text: text.trim(), color: NOTE_COLOR, dy: NOTE_DY.arrowMarker });
       break;
     case "arrowUp": case "arrowDown":
-      out.push({ kind: "glyph", t: p0.date, price: p0.price, dir: kind === "arrowUp" ? "up" : "down", color: kind === "arrowUp" ? UP : DOWN,
-        ...(text?.trim() ? { label: { text: text.trim(), color: "#f8fafc", priority: user } } : {}) });
+      out.push({ kind: "glyph", t: p0.date, price: p0.price, dir: kind === "arrowUp" ? "up" : "down", color: kind === "arrowUp" ? UP : DOWN });
+      // TA-T8: chữ kèm dấu mũi tên (sửa bằng bấm đúp) — dưới mũi tên lên, trên mũi tên xuống.
+      if (text?.trim()) out.push({ kind: "note", t: p0.date, price: p0.price, text: text.trim(), color: NOTE_COLOR, dy: NOTE_DY[kind] });
       break;
     case "channel": {
       if (!p1) break;
@@ -256,7 +262,8 @@ export function shapeScene(kind: ShapeKind, pts: DomainPoint[], text: string | u
       break;
     }
     case "text":
-      out.push({ kind: "text", t: p0.date, price: p0.price, label: { text: (text ?? "").trim() || "Chữ", color: "#f8fafc", priority: user } });
+      // TA-T8: chữ 12px có nền, luôn hiện (trước đây là nhãn 9px có thể bị lược khi nhiều nhãn).
+      out.push({ kind: "note", t: p0.date, price: p0.price, text: (text ?? "").trim() || "Chữ", color: NOTE_COLOR });
       break;
   }
   return out;
@@ -356,8 +363,9 @@ export function shapeHit(kind: ShapeKind, pts: DomainPoint[], text: string | und
     }
     case "doubleCurve": d = XYs.length >= 4 ? distPolyline(A, sampleCubic(XYs[0], XYs[1], XYs[2], XYs[3])) : Infinity; break;
     case "text": {
-      const w = Math.max(24, ((text ?? "").trim() || "Chữ").length * 7);
-      d = at.x >= a0.x - 4 && at.x <= a0.x + w && at.y >= a0.y - 14 && at.y <= a0.y + 4 ? tol : Infinity;
+      // Khớp ô nền của ghi chú (OverlayPrimitive "note"): từ x − 4, cao NOTE_FONT_PX + 6 phía trên đường chân chữ.
+      const w = noteWidth((text ?? "").trim() || "Chữ");
+      d = at.x >= a0.x - 4 && at.x <= a0.x + w && at.y >= a0.y - NOTE_FONT_PX - 1 && at.y <= a0.y + 5 ? tol : Infinity;
       break;
     }
     default: {
