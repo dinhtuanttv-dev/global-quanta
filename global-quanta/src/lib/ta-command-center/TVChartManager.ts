@@ -536,9 +536,37 @@ export class TVChartManager {
     this.rsiBand?.setData(this.currentBars.map((b) => ({ time: toTime(b.date), value: this.rsiLevels[0] })));
   }
 
+  // ---- TA-T7 (D5): điện thoại — tối đa `max` pane chỉ báo mở; pane khác gập còn dải mỏng, chọn pane mở bằng thanh chip ----
+  private compact: { max: number; open: PaneKind[] } | null = null;
+  setCompactPanes(c: { max: number; open: PaneKind[] } | null): void { this.compact = c; this.layoutPanes(); }
+  /** Pane chỉ báo hiện có + đang mở hay gập (null = không ở chế độ gọn hoặc không quá `max` pane). */
+  compactPanes(): { kind: PaneKind; open: boolean }[] | null {
+    const c = this.compact;
+    if (!c) return null;
+    const subs = this.paneLayout().filter((x) => x.kind !== "price");
+    if (subs.length <= c.max) return null;
+    const open = this.compactOpen(subs.map((x) => x.kind), c);
+    return subs.map((x) => ({ kind: x.kind, open: open.has(x.kind) }));
+  }
+  private compactOpen(kinds: PaneKind[], c: { max: number; open: PaneKind[] }): Set<PaneKind> {
+    const open = new Set(c.open.filter((k) => kinds.includes(k)).slice(-c.max));
+    for (const k of kinds) { if (open.size >= c.max) break; open.add(k); }
+    return open;
+  }
+
   private layoutPanes(): void {
     const panes = this.chart.panes();
     this.container.dataset.panes = String(panes.length);
+    if (this.compact && panes.length - 1 > this.compact.max) {
+      const subs = this.paneLayout().filter((x) => x.kind !== "price");
+      const open = this.compactOpen(subs.map((x) => x.kind), this.compact);
+      const strip = 0.035, nGap = subs.length - open.size, mainC = 0.6, rest = Math.max(0.1, 1 - mainC - strip * nGap);
+      panes[0]?.setStretchFactor(mainC);
+      subs.forEach((x) => panes[x.index]?.setStretchFactor(open.has(x.kind) ? rest / open.size : strip));
+      this.container.dataset.collapsedPanes = subs.filter((x) => !open.has(x.kind)).map((x) => x.kind).join(",");
+      return;
+    }
+    delete this.container.dataset.collapsedPanes;
     // Pane giá luôn chiếm phần lớn; các pane chỉ báo chia đều phần còn lại.
     const main = panes.length === 1 ? 1 : panes.length === 2 ? 0.78 : panes.length === 3 ? 0.66 : 0.58;
     // SC2: tỷ lệ người dùng đã lưu (theo loại pane) thắng tỷ lệ mặc định; pane giá giữ tối thiểu 40%.

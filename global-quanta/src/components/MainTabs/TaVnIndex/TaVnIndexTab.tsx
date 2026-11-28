@@ -66,46 +66,52 @@ export default function TaVnIndexTab() {
         </>
       )}
 
+      {/* TA-T7 (D2): băng gợi ý trung tính theo chuẩn dự án (vàng chỉ dành cho cảnh báo); nội dung + 2 nút giữ nguyên. */}
       {showSuggestionBanner && (
         <div
+          role="status"
+          data-testid="ta-suggest-banner"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            background: "rgba(245,158,11,0.1)",
-            border: "1px solid rgba(245,158,11,0.3)",
+            gap: 8,
+            background: "var(--q-surface-2)",
+            border: "1px solid var(--q-line-2)",
             borderRadius: 8,
             padding: "8px 12px",
             marginTop: 8,
           }}
         >
-          <span style={{ fontSize: 12, color: "#fbbf24" }}>
-            Vừa chọn {suggestedTicker} — xem AI Chart Vision cho mã này?
+          <span style={{ fontSize: 13, color: "var(--q-text-2)" }}>
+            Vừa chọn <b style={{ color: "var(--q-text)", fontWeight: 600 }}>{suggestedTicker}</b> — xem AI Chart Vision cho mã này?
           </span>
           <div style={{ display: "flex", gap: 6 }}>
             <button
+              type="button"
               onClick={() => handleTabChange("aichart")}
               style={{
-                fontSize: 11,
-                padding: "5px 10px",
-                background: "rgba(245,158,11,0.2)",
-                color: "#fbbf24",
-                border: "1px solid rgba(245,158,11,0.4)",
+                fontSize: 12,
+                padding: "5px 12px",
+                background: "var(--q-surface-3)",
+                color: "var(--q-text)",
+                border: "1px solid var(--q-line-3)",
                 borderRadius: 6,
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
               Xem ngay →
             </button>
             <button
+              type="button"
               onClick={() => setSuggestedTicker(null)}
               style={{
-                fontSize: 11,
-                padding: "5px 8px",
+                fontSize: 12,
+                padding: "5px 10px",
                 background: "transparent",
-                color: "#64748b",
-                border: "1px solid rgba(148,163,184,0.2)",
+                color: "var(--q-text-3)",
+                border: "1px solid var(--q-line-2)",
                 borderRadius: 6,
                 cursor: "pointer",
               }}

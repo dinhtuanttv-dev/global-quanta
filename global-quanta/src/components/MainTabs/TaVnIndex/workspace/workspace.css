@@ -206,3 +206,17 @@ dialog.ws-dialog[data-testid="indicator-picker"] .ws-picker-body { grid-template
   background: var(--q-surface-2, #131a29); border: 1px solid var(--q-line-3, rgba(255,255,255,.16)); box-shadow: 0 12px 32px rgba(0,0,0,.5); }
 .ws-ctx button { height: 30px; padding: 0 10px; border: 0; border-radius: 5px; background: transparent; color: var(--q-text-2, #cbd5e1); font-size: 13px; text-align: left; cursor: pointer; }
 .ws-ctx button:hover, .ws-ctx button:focus-visible { background: var(--q-surface-3, #182033); color: var(--q-text, #f8fafc); outline: none; }
+/* TA-T7 (D5): thanh chip chọn pane chỉ báo mở trên điện thoại (tối đa 2). */
+.ws-pane-pick { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 2px; border-radius: 6px; background: var(--q-surface); border: 1px solid var(--q-line-2); }
+.ws-pane-pick button { height: 24px; padding: 0 8px; border: 0; border-radius: 4px; background: transparent; color: var(--q-text-3); font-size: 12px; cursor: pointer; }
+.ws-pane-pick button[aria-pressed="true"] { background: var(--q-surface-3); color: var(--q-text); }
+/* TA-T7 (D3): thanh trên gộp — thanh hẹp (< 1500px) chỉ giữ biểu tượng cho Confluence / Cấu trúc MTF / Đối tượng và chữ nguồn dữ liệu
+   (tên đầy đủ vẫn ở title / aria-label); "Chỉ báo", "Lớp & pane", khung, kiểu nến giữ chữ như TradingView. */
+@container ws (max-width: 1499px) {
+  .ws-head [data-testid=confluence-engine] .ws-btn-text-opt, .ws-head [data-testid=structure-open] .ws-btn-text-opt,
+  .ws-head [data-testid=objects-btn] .ws-btn-text-opt, .ws-head [data-testid=data-context-btn] .ws-btn-text-opt,
+  .ws-head [data-testid=preset-menu-btn] .ws-btn-text-opt, .ws-head [data-testid=palette-btn] .ws-btn-text-opt,
+  .ws-head [data-testid=layers-menu-btn] .ws-btn-text { display: none; }
+  .ws-head .ta-ticker-input { width: 92px; }
+  .ws-head > .ws-group { padding-right: 2px; margin-right: 0; }
+}
