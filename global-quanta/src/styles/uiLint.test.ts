@@ -13,8 +13,10 @@ describe("ui-lint (QUANTA UI v2)", () => {
       '<i className="text-[#E8B84B]" /> {/* ui-exempt */}',
       "/* ui-exempt-next-line */",
       ".y { background: linear-gradient(1deg,#000,#fff); }",
+      // U3: chữ xanh được đếm; hover:text-… và viền / nền xanh không đếm (xanh là vạch, không phải màu chữ).
+      '<b className="text-q-accent-strong hover:text-q-accent-strong border-q-accent/50">VCB</b><i className="text-sky-300 hover:text-cyan-200" />',
     ].join("\n"));
-    expect(c).toEqual({ "legacy-gold": 1, "legacy-gold-var": 1, "legacy-display-font": 1, "legacy-surface-hex": 1, "slate-surface": 1, "tiny-text": 1, "text-10px": 1, uppercase: 2, gradient: 1 });
+    expect(c).toEqual({ "legacy-gold": 1, "legacy-gold-var": 1, "legacy-display-font": 1, "legacy-surface-hex": 1, "slate-surface": 1, "tiny-text": 1, "text-10px": 1, uppercase: 2, gradient: 1, "accent-text": 2 });
   });
 
   it("toàn dự án không vượt ngân sách nợ giao diện (chỉ được giảm)", () => {

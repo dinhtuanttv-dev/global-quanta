@@ -6,7 +6,7 @@ import { useEliteDecision } from "../../../hooks/elite10/useEliteCenter";
 import { TIER_TITLE, type Tier } from "../../../lib/elite10/decisionTypes";
 
 export function TierChip({ tier }: { tier: Tier }) {
-  const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-sky-500/15 text-sky-300 border-sky-400/40" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
+  const cls = tier === "A" ? "bg-emerald-500/15 text-emerald-300 border-emerald-400/40" : tier === "B" ? "bg-white/5 text-q-text-2 border-white/15" : "bg-slate-500/15 text-slate-400 border-slate-500/40";
   return <span title={TIER_TITLE[tier]} className={`inline-block whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-bold ${cls}`}>Bậc {tier}</span>;
 }
 

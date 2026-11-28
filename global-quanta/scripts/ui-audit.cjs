@@ -24,6 +24,10 @@ function measure(selector) {
   const GOLD = ["rgb(245, 206, 114)", "rgb(232, 184, 75)"];
   const fam = {}, colors = new Set();
   let n = 0, tiny = 0, below11 = 0, gold = 0, upper = 0, spaced = 0, grad = 0, selTotal = 0, selAccent = 0;
+  // U3 (28/11): đo XANH LÀM MÀU CHỮ — Tổng quan chỉ dùng xanh cho vạch / viền, chữ trắng; mã cổ phiếu trắng.
+  const isBlue = (c) => { const m = c.match(/rgba?\((\d+), (\d+), (\d+)/); if (!m) return false; const [r, g, b] = m.slice(1).map(Number); return b > 200 && b - r > 70 && b - g > 25; };
+  const TICKER = /^[A-Z][A-Z0-9]{2}$/;
+  let blueText = 0, tickers = 0, tickerBlue = 0, tickerWhite = 0; const blueSamples = [];
   const skip = (el) => el.closest("svg, canvas, [data-ui-exempt]");
   for (const el of root.querySelectorAll("*")) {
     if (skip(el)) continue;
@@ -41,13 +45,16 @@ function measure(selector) {
     const f = cs.fontFamily.split(",")[0].replace(/["']/g, "").trim(); fam[f] = (fam[f] || 0) + 1;
     const px = parseFloat(cs.fontSize); if (px < 10) tiny++; if (px < 11 && !el.closest(".q-dense")) below11++;
     colors.add(cs.color); if (GOLD.includes(cs.color)) gold++;
+    if (isBlue(cs.color)) { blueText++; if (blueSamples.length < 150) blueSamples.push([el.tagName.toLowerCase(), String(el.className?.baseVal ?? el.className ?? "").slice(0, 120), el.textContent.trim().slice(0, 40), el.closest("[data-testid]")?.getAttribute("data-testid") ?? ""]); }
+    const t = el.textContent.trim();
+    if (TICKER.test(t)) { tickers++; if (isBlue(cs.color)) tickerBlue++; else if (/rgb\((2[0-5]\d), (2[0-5]\d), (2[0-5]\d)\)/.test(cs.color)) tickerWhite++; }
     if (cs.textTransform === "uppercase") upper++;
     if (parseFloat(cs.letterSpacing) > 0.4) spaced++;
   }
   const ids = [...root.querySelectorAll("[data-testid]")].map((e) => e.getAttribute("data-testid")).sort();
   const text = (root.innerText || "").replace(/\d/g, "#").replace(/\s+/g, " ").trim();
   let h = 5381; for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
-  return { textEls: n, families: fam, tiny, below11NonDense: below11, gold, upper, spaced, gradientBg: grad, selected: selTotal, selectedAccent: selAccent, distinctColors: colors.size,
+  return { textEls: n, families: fam, tiny, below11NonDense: below11, gold, upper, spaced, gradientBg: grad, selected: selTotal, selectedAccent: selAccent, distinctColors: colors.size, blueText, blueSamples, tickers, tickerBlue, tickerWhite,
     fp: { testids: ids.length, testidHash: ids.join("|").length + ":" + ids.slice(0, 3).join(","), ids, textLen: text.length, textHash: h } };
 }
 
@@ -94,6 +101,9 @@ function measure(selector) {
     for (const t of TABS) {
       await page.goto(`${base}/?tab=${t}`, { waitUntil: "domcontentloaded" });
       await page.waitForSelector("#main-tab-panel", { timeout: 90000 }); await page.waitForTimeout(WAIT); await settle(page, net);
+      // --click "<selector>": bấm thêm (vd. tab con "#elite10-profile-tab") rồi đo — tab không có phần tử đó thì bỏ qua.
+      const click = arg("click", null);
+      if (click && await page.locator(click).count()) { await page.locator(click).first().click(); await page.waitForTimeout(1500); await settle(page, net); }
       const nav = await page.locator(".main-nav").first().screenshot().catch(() => null);
       if (nav) fs.writeFileSync(path.join(OUT, `${label}-${t}-nav.png`), nav);
       await page.screenshot({ path: path.join(OUT, `${label}-${t}.png`) });
@@ -148,7 +158,7 @@ function measure(selector) {
   fs.writeFileSync(path.join(OUT, "ui-audit.json"), JSON.stringify(report, null, 1));
   for (const [t, r] of Object.entries(report.tabs)) {
     const p = r.before.panel;
-    const line = `${t.padEnd(20)} chữ ${p.textEls} · <10px ${p.tiny} · <11px(ngoài q-dense) ${p.below11NonDense} · vàng ${p.gold} · in hoa ${p.upper} · gradient ${p.gradientBg} · chọn ${p.selectedAccent}/${p.selected} · màu ${p.distinctColors}`;
+    const line = `${t.padEnd(20)} chữ ${p.textEls} · <10px ${p.tiny} · <11px(ngoài q-dense) ${p.below11NonDense} · vàng ${p.gold} · in hoa ${p.upper} · gradient ${p.gradientBg} · chọn ${p.selectedAccent}/${p.selected} · màu ${p.distinctColors} · chữ xanh ${p.blueText} · mã ${p.tickers} (xanh ${p.tickerBlue}, trắng ${p.tickerWhite})`;
     console.log(r.compare ? `${line} | menu ${r.compare.nav ? "giống" : "KHÁC"} · testid ${r.compare.panel.testids ? "giống" : "KHÁC"} · chữ ${r.compare.panel.text ? "giống" : "KHÁC"}` : line);
   }
   console.log(`Kết quả: ${path.join(OUT, "ui-audit.json")}${AFTER ? ` · hai bản ${same ? "GIỐNG" : "KHÁC"}` : ""}`);

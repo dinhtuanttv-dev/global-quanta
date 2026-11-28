@@ -53,7 +53,7 @@ export function BuyTimingNote() {
   return (
     <Panel title="⏱ Điểm mua — nguồn Timeline và chú giải" testId="elite-buy-timing-card">
       <p className="text-[10px] leading-relaxed text-slate-500" data-testid="elite-buy-note">
-        ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-sky-300">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
+        ⏱ Điểm mua: <span className="text-emerald-300">● trong vùng mua</span> / <span className="text-amber-300">⏱ ≤ 5 phiên</span> / <span className="text-q-text-2">⏱ trong {ELITE_HOLD_SESSIONS} phiên</span> = vùng mùa vụ cổ tức · KQKD ĐẠT KIỂM ĐỊNH
         (Timeline điểm mua, tab Cổ tức); <span className="text-slate-300">→ Mở cửa dd/mm</span> = quy tắc danh mục khi không có vùng phù hợp; ◌ = vùng gần đạt (chưa qua kiểm định).
         Timeline này là nguồn của dải "Lịch 10 phiên tới" và khối "Mô phỏng thời điểm" ở Bảng quyết định.{" "}
         {buy.data ? <>Timeline: {buyTimingFreshness(buy.meta)?.text ?? "—"}, lấy lúc {buyAge}{buy.meta?.stale ? <b className="text-amber-300"> · đang dùng bản gần nhất (số phiên đã tính lại theo hôm nay)</b> : ""}.</>

@@ -19,7 +19,7 @@ export interface ImpactDoc { version: string; ticker: string; asOf: string; laye
 
 const SEAL_TONE: Record<ImpactSeal, string> = {
   "ĐẠT": "border-emerald-400/60 bg-emerald-500/15 text-emerald-200",
-  "MỘT PHẦN": "border-sky-400/50 bg-sky-500/10 text-sky-200",
+  "MỘT PHẦN": "border-white/15 bg-white/5 text-q-text",
   "THĂM DÒ": "border-amber-400/50 bg-amber-500/10 text-amber-200",
   "ĐANG TÍCH LUỸ": "border-violet-400/50 bg-violet-500/10 text-violet-200",
   "KHÔNG ĐẠT": "border-rose-400/40 bg-rose-500/[0.06] text-rose-200/90",
@@ -102,9 +102,9 @@ export default function StockImpactCard({ ticker }: { ticker: string }) {
   if (isLoading) return <p className="text-[10.5px] italic text-slate-500">Đang tải tác động lên cổ phiếu {ticker}…</p>;
   if (error || !data?.layers) return error ? <p className="text-[10.5px] text-slate-500" data-testid="elite-impact-error">Chưa tải được khối Tác động lên cổ phiếu: {String((error as Error).message ?? error)}</p> : null;
   return (
-    <div className="rounded-md border border-sky-400/20 bg-sky-400/[0.03] p-2 text-[10.5px]" data-testid="elite-impact">
+    <div className="rounded-md border border-white/15 bg-white/5 p-2 text-[10.5px]" data-testid="elite-impact">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase text-sky-300">Tác động lên cổ phiếu · {data.ticker}</p>
+        <p className="text-[10px] font-bold uppercase text-q-text-2">Tác động lên cổ phiếu · {data.ticker}</p>
         <span className="text-[10px] text-slate-500">cập nhật {hhmm(data.asOf)} · nguồn Gateway</span>
       </div>
       <div className="mt-1.5 hidden grid-cols-[minmax(130px,1fr)_2.4fr_minmax(170px,1.2fr)] gap-2 border-b border-white/10 pb-1 text-[10px] font-bold uppercase text-slate-500 md:grid">

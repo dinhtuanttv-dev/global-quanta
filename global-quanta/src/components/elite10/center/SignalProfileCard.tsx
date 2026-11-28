@@ -93,7 +93,7 @@ export default function SignalProfileCard({ ticker, view = "summary", onView }: 
   // ── Góc TỔNG QUAN: khoảng cách tới Elite HL (khi ngoài danh mục) + Hợp lưu + Dẫn dắt + Tác động. Bảng tín hiệu và Điểm Elite ở góc "Tín hiệu".
   if (view === "summary") {
     return (
-      <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-3 text-slate-200" data-testid="elite-profile" data-view="summary">
+      <section className="tw-scope rounded-lg border border-white/10 bg-q-surface p-3 space-y-3 text-slate-200" data-testid="elite-profile" data-view="summary">
         <div className={`rounded-md border border-white/10 bg-white/[0.02] p-2 text-[10.5px] ${showGap ? "" : "hidden"}`} data-testid="elite-profile-gap">
           {/* HS360-v3 H1 (27/11/2026): khối "Vị trí so với danh mục Elite HL" đã gộp vào thanh đầu hồ sơ (profile-header-position). */}
           {showGap && gap && (
@@ -143,9 +143,9 @@ export default function SignalProfileCard({ ticker, view = "summary", onView }: 
   // ── Góc TÍN HIỆU (HS360-v3 H2): bảng 25 tín hiệu E2 + bối cảnh ngoài E2 + Điểm Elite (đối chứng, thu gọn).
   const outsideStage = panel.values.structure_stage ?? null, outsideRvol = panel.values.log_rvol ?? null;
   return (
-    <section className="tw-scope rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-3 text-slate-200" data-testid="elite-profile" data-view="signals">
+    <section className="tw-scope rounded-lg border border-white/10 bg-q-surface p-3 space-y-3 text-slate-200" data-testid="elite-profile" data-view="signals">
       <div>
-        <p className="text-[12px] font-bold text-q-accent-strong">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
+        <p className="text-[12px] font-bold text-q-text">Hồ sơ tín hiệu {ticker} — phiên {panel.date.split("-").reverse().join("/")}</p>
         <p className="text-[10.5px] text-slate-400">{panel.signals.length} tín hiệu từ {tabs} tab, chuẩn hoá theo sổ đăng ký E1; bậc theo bằng chứng E2, SQS / xu hướng / IC theo chế độ từ tab 4 (mô tả). Phân vị trong ~{full?.rows.length ?? "—"} mã cùng phiên và trong ngành, xoay theo chiều tốt.</p>
       </div>
       <SignalTableView panel={panel} rows={full?.rows ?? []} evOf={evOf} evoOf={evoOf} contributions={decision?.contributions ?? []} regime={evo?.currentRegime ?? null} />

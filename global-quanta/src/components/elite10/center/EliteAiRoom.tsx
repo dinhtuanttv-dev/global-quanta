@@ -243,7 +243,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
       <button type="button" className="small-link eb-tools-return" onClick={returnToWorkspace}>↑ Về đầu Phòng họp AI</button>
       <div className="tw-scope space-y-3 text-slate-200">
       <ObsidianBar desk={desk} unsaved={unsaved} />
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+      <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Tranh luận có trọng tài</h4>
           <span className="text-[10px] text-slate-500">GPT phe mua · Gemini phe bán · GPT trọng tài (Claude dự phòng) — tính 3 câu vào hạn mức hỏi đáp</span>
@@ -275,7 +275,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
         <p className="text-[10px] text-slate-500">Mỗi bên chỉ được dùng số liệu từ công cụ; con số không truy được tới công cụ sẽ bị đánh dấu. Trọng tài gọi lại công cụ để kiểm chứng thay vì tin lời hai bên.</p>
       </section>
 
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2">
+      <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Bản tin phiên</h4>
           <BriefExport desk={desk} brief={brief} trace={trace} busy={briefBusy} />
@@ -289,7 +289,7 @@ export default function EliteAiRoom({ defaultTicker, active = true }: {
         {brief ? <LaneView t={brief} showHeader headerLabel="Bản tin · GPT" /> : <p className="text-[11px] text-slate-500">GPT tổng hợp bối cảnh, danh mục, tín hiệu có trọng số, rủi ro và nhãn bằng chứng của phiên mới nhất — chỉ chạy khi bấm.</p>}
       </section>
 
-      <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
+      <section className="rounded-lg border border-white/10 bg-q-surface p-3">
         {qa.turns.length > 0 && <div className="mb-2 flex justify-end"><QaExport desk={desk} turns={qa.turns} meta={qa.meta} /></div>}
         <QaTapContext.Provider value={qaTap}>
         <CatalystChatPanel title="Hỏi đáp Elite 10" suggestions={ELITE_SUGGESTIONS} />

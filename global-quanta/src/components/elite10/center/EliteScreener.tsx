@@ -159,7 +159,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
       <button key={c.id} type="button" onClick={() => cycle(c.id)} data-testid={`chip-${c.id}`} aria-pressed={on || no} data-state={on ? "on" : no ? "not" : "off"}
         title={`${c.title ?? c.label} · ${tier === "V" ? "vùng mua v3 đạt kiểm định" : tier === "—" ? "điều kiện thanh khoản" : `bậc ${tier}`} · ${n?.alone ?? 0} mã đạt riêng điều kiện này · bấm: yêu cầu → loại trừ → tắt`}
         className={`inline-flex min-h-[26px] items-center gap-1 rounded border px-1.5 text-[10px] ${on ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-100" : no ? "border-rose-400/60 bg-rose-500/10 text-rose-200 line-through decoration-rose-300/70" : "border-white/10 text-slate-300 hover:border-white/25"}`}>
-        <span className={`rounded px-1 text-[10px] font-bold ${tier === "A" ? "bg-emerald-500/25 text-emerald-200" : tier === "B" ? "bg-sky-500/25 text-sky-200" : tier === "V" ? "bg-amber-500/25 text-amber-200" : "bg-white/10 text-slate-400"}`}>{tier}</span>
+        <span className={`rounded px-1 text-[10px] font-bold ${tier === "A" ? "bg-emerald-500/25 text-emerald-200" : tier === "B" ? "bg-white/5 text-q-text" : tier === "V" ? "bg-amber-500/25 text-amber-200" : "bg-white/10 text-slate-400"}`}>{tier}</span>
         {c.label}
         <span className="font-mono text-[10px] text-slate-400" data-testid={`chip-count-${c.id}`}>{on || no ? n?.alone ?? 0 : ui.mode === "all" ? `→${n?.withCurrent ?? 0}` : n?.alone ?? 0}</span>
       </button>
@@ -184,8 +184,8 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           className={`min-h-[24px] rounded border px-2 ${hlOnly ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-200" : "border-emerald-400/30 text-emerald-300 hover:border-emerald-400/60"}`}>🎯 Hợp lưu HL-v1</button>
         <span className="ml-auto inline-flex flex-wrap items-center gap-1.5">
           <span className="inline-flex rounded border border-white/10 p-0.5" role="group" aria-label="Cách kết hợp">
-            <button type="button" aria-pressed={ui.mode === "all"} onClick={() => setUi({ ...ui, mode: "all" })} className={`rounded px-2 ${ui.mode === "all" ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400"}`} data-testid="mode-all">Tất cả điều kiện</button>
-            <button type="button" aria-pressed={ui.mode === "k"} onClick={() => setUi({ ...ui, mode: "k", k: Math.max(1, Math.min(nConds || 1, ui.k)) })} className={`rounded px-2 ${ui.mode === "k" ? "bg-q-accent/15 text-q-accent-strong" : "text-slate-400"}`} data-testid="mode-k">≥ k / n</button>
+            <button type="button" aria-pressed={ui.mode === "all"} onClick={() => setUi({ ...ui, mode: "all" })} className={`rounded px-2 ${ui.mode === "all" ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400"}`} data-testid="mode-all">Tất cả điều kiện</button>
+            <button type="button" aria-pressed={ui.mode === "k"} onClick={() => setUi({ ...ui, mode: "k", k: Math.max(1, Math.min(nConds || 1, ui.k)) })} className={`rounded px-2 ${ui.mode === "k" ? "bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "text-slate-400"}`} data-testid="mode-k">≥ k / n</button>
           </span>
           {ui.mode === "k" && (
             <span className="inline-flex items-center gap-1" data-testid="k-control">
@@ -217,7 +217,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
         <span className="text-slate-300">{ui.eligibleOnly ? `${eligibleCount} đủ điều kiện` : "không lọc điều kiện"}</span><span className="text-slate-600">→</span>
         <span className="text-slate-300">{nConds ? `${afterRequire} đạt ${ui.mode === "k" ? `≥ ${Math.min(ui.k, nConds)}/${nConds}` : `cả ${nConds}`} điều kiện` : "chưa chọn điều kiện"}</span>
         {ui.not.length > 0 && <><span className="text-slate-600">→</span><span className="text-rose-300">loại {afterRequire - result.pass.length}</span></>}
-        <span className="text-slate-600">=</span><b className="text-[12px] text-cyan-200" data-testid="screener-count">{result.pass.length} mã</b>
+        <span className="text-slate-600">=</span><b className="text-[12px] text-q-text" data-testid="screener-count">{result.pass.length} mã</b>
         {hlOnly && <span className="text-emerald-300" data-testid="screener-hl-count">→ {rows.length} mã đạt Hợp lưu HL-v1</span>}
         <span className="text-slate-500">· {result.pass.filter((t) => inElite.has(t)).length} đang trong Elite 10 · ★ {pareto.size} trên biên Pareto ({paretoSigs.length} tiêu chí)</span>
         <span className="ml-auto inline-flex gap-1.5">
@@ -225,7 +225,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           <button type="button" onClick={share} data-testid="screener-share" className="min-h-[24px] rounded border border-white/15 px-2 text-slate-300 hover:bg-white/5">🔗 Chia sẻ</button>
         </span>
       </div>
-      {msg && <p role="status" className="text-[10px] text-cyan-200" data-testid="screener-msg">{msg}</p>}
+      {msg && <p role="status" className="text-[10px] text-q-text" data-testid="screener-msg">{msg}</p>}
       {hlOnly && <HlLedgerNote />}
 
       <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
@@ -247,7 +247,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
               <tr key={x.t} className="border-t border-white/5" data-testid={`scr-row-${x.t}`}>
                 <td className="py-1 pr-1 font-mono text-slate-500">{i + 1}</td>
                 <td className="whitespace-nowrap pr-2">
-                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-q-accent-strong hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
+                  <button type="button" onClick={() => onOpenTicker(x.t)} className="font-mono font-bold text-q-text hover:underline" data-testid={`scr-open-${x.t}`}>{x.t}</button>
                   {pareto.has(x.t) && <span className="ml-1 text-amber-300" title={`Biên Pareto: không mã nào trong kết quả mạnh hơn ở MỌI tiêu chí (${paretoSigs.join(", ")})`} data-testid={`scr-pareto-${x.t}`}>★</span>}
                   {inElite.has(x.t) && <span className="ml-1 rounded border border-emerald-400/50 px-1 text-[10px] text-emerald-300">Elite 10</span>}
                 </td>
@@ -268,7 +268,7 @@ export default function EliteScreener({ onOpenTicker, refTicker }: { onOpenTicke
           </tbody>
         </table>
       </div>
-      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-q-accent-strong">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
+      {rows.length > limit && <button type="button" onClick={() => setLimit((l) => l + 30)} className="text-[10.5px] text-q-text">Xem thêm {Math.min(30, rows.length - limit)} mã ▾</button>}
 
       <div className="rounded-md border border-emerald-400/20 bg-emerald-500/[0.03] p-2" data-testid="my-elite">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

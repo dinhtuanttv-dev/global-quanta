@@ -32,11 +32,11 @@ export default function HlFocusFrame({ d, onOpenTicker }: { d: EliteDecision; on
   const cur = picked && tickers.includes(picked) ? picked : tickers[0] ?? null;
   const chip = (t: string) => (
     <button key={t} type="button" aria-pressed={t === cur} onClick={() => setPicked(t)} data-touch data-testid={`hl-focus-pick-${t}`}
-      className={`min-h-[28px] rounded border px-2 text-[11px] font-bold ${t === cur ? "border-q-accent/60 bg-q-accent/15 text-q-accent-strong" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{t}</button>
+      className={`min-h-[28px] rounded border px-2 text-[11px] font-bold ${t === cur ? "border-white/15 bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]" : "border-white/10 text-slate-300 hover:border-white/25"}`}>{t}</button>
   );
   return (
     <Panel title={cur ? `Mã đang chọn · ${cur}` : "Mã đang chọn"} testId="hl-focus"
-      right={cur ? <button type="button" onClick={() => onOpenTicker(cur)} data-testid="hl-focus-open" className="min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">Mở Hồ sơ 360° của {cur} →</button> : undefined}>
+      right={cur ? <button type="button" onClick={() => onOpenTicker(cur)} data-testid="hl-focus-open" className="min-h-[24px] rounded border border-white/15 px-2 text-[10px] text-slate-300 hover:border-q-accent/50 hover:text-q-text">Mở Hồ sơ 360° của {cur} →</button> : undefined}>
       {!cur ? <p className="text-[11px] text-slate-500" data-testid="hl-focus-empty">Chưa có mã đang giữ hay trong hàng chờ.</p> : (
         <div className="space-y-3">
           {/* MP-a (20/11/2026): lịch vùng mua của cả danh mục — bấm mã để chọn trong khung. */}
@@ -53,7 +53,7 @@ export default function HlFocusFrame({ d, onOpenTicker }: { d: EliteDecision; on
               <p className="text-[10px] font-bold uppercase text-slate-500">⏱ Mô phỏng thời điểm vào</p>
               <p className="mt-0.5 text-slate-400">Mô phỏng cổ tức / KQKD theo Timeline điểm mua, tải lịch sử giá 5 năm của mã.</p>
               <button type="button" onClick={() => setSimOn(true)} data-touch data-testid="hl-focus-sim-on"
-                className="mt-1.5 min-h-[28px] rounded border border-q-accent/50 px-3 font-bold text-q-accent-strong hover:bg-q-accent/10">Chạy mô phỏng cho {cur}</button>
+                className="mt-1.5 min-h-[28px] rounded border border-q-accent/50 px-3 font-bold text-q-text hover:bg-q-accent/10">Chạy mô phỏng cho {cur}</button>
             </div>
           )}
           <EliteNewsPanel ticker={cur} onTicker={(t) => (tickers.includes(t) ? setPicked(t) : onOpenTicker(t))} />

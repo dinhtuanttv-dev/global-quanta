@@ -98,7 +98,7 @@ Gần chuẩn (đã nâng ở #396). Còn:
 |---|---|---|---|---|
 | Q-1 | Vạch tab con dùng `--gold-bright` | A | `Elite10Hub.tsx` (style inline) | `.q-tab` |
 | Q-2 | **Bảng QĐ: 51 chữ vàng, 14 Space Grotesk, 19 gradient**; 10 nút lớp đang bật không có màu nhấn | A | `center/EliteHlBoard.tsx` (9), `center/CockpitLayers.tsx` (12), `center/HlFocusFrame.tsx` (8), `center/DecisionPulse.tsx` (5), `deck/DeckTop.tsx`, `deck/RuleSpace.tsx`, `center/HlRadarLayers.tsx` (nút lớp) | §0; nút lớp theo `aria-pressed` chuẩn; tiêu đề `deck/parts.tsx` bỏ `--font-display` |
-| Q-3 | Mã cổ phiếu bấm được màu vàng (`text-[#F5CE72]` ở nút mở hồ sơ) | A | `EliteHlBoard.tsx`, `ExitTriggers.tsx`, `DeckSide.tsx` | `text-q-accent-strong` |
+| Q-3 | Mã cổ phiếu bấm được màu vàng (`text-[#F5CE72]` ở nút mở hồ sơ) | A | `EliteHlBoard.tsx`, `ExitTriggers.tsx`, `DeckSide.tsx` | ~~`text-q-accent-strong`~~ **SỬA 28/11: `text-q-text` (trắng) như Tổng quan** — đổi sang xanh là lỗi của bản đặc tả này (U1 làm 38 mã thành xanh) |
 | Q-4 | **Phòng họp AI (ngoài sơ đồ):** khối trái "Danh mục chính thức", "Decision timing" in hoa, xanh lơ, chữ 7–9px; nút "Kiểm chứng & tranh luận" gradient vàng; 26 phần tử `ui-monospace` | A | `evidenceRoom/evidenceRoom.css` (34 luật cỡ < 10px, 6 luật in hoa), `PortfolioRail.tsx`, `EliteAiRoom.tsx` | tách selector: vùng sơ đồ giữ nguyên (miễn trừ), vùng rail / thanh đầu theo chuẩn; mono → Plex |
 | Q-5 | Bằng chứng: 72 phần tử < 10px, 10 Space Grotesk, 20 gradient | A | `deck/EvidenceWall.tsx`, `deck/parts.tsx`, `EvidenceLedgerTab.tsx` (đường cong là biểu đồ → miễn trừ) | §0 |
 | Q-6 | Rủi ro danh mục: 11 chữ vàng, 20 gradient | B | `center/RiskTab.tsx` | §0 |

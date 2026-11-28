@@ -13,7 +13,7 @@ export function ExitRadar({ picks, rule, missSessions, onOpenTicker }: { picks: 
         <ul className="space-y-1.5">
           {xr.map((x) => (
             <li key={x.ticker} className="grid grid-cols-[44px_1fr_32px] items-center gap-2 text-[11.5px]" data-testid={`deck-exit-${x.ticker}`} data-warn={x.warn}>
-              <button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-left font-bold text-q-accent-strong hover:underline" style={{ fontFamily: "var(--q-font-sans)" }}>{x.ticker}</button>
+              <button type="button" onClick={() => onOpenTicker(x.ticker)} className="text-left font-bold text-q-text hover:underline" style={{ fontFamily: "var(--q-font-sans)" }}>{x.ticker}</button>
               <span className="relative block h-2.5 overflow-hidden rounded-full bg-white/10" title={`LS-v1 phân vị ${num(x.lsPct, 1)} — ngưỡng bán ${rule.exitLsPct}`}>
                 <span className="absolute inset-y-0 left-0" style={{ width: `${warnGap / MAX_BUF * 100}%`, background: "repeating-linear-gradient(135deg,rgba(244,63,94,.2) 0 4px,transparent 4px 8px)" }} />
                 <span className="deck-grow absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(100, Math.max(2, x.buffer / MAX_BUF * 100))}%`, background: x.warn ? "#F43F5E" : "#4f8ef7" }} />

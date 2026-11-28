@@ -54,7 +54,7 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
     <div className="news-item flex gap-2 py-2 border-t border-white/5 cursor-pointer hover:bg-white/[0.03] rounded" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-start' }}>
         {item.tickers.slice(0, 2).map((t) => (
-          <button key={t} type="button" className="news-tag font-mono text-[10px] font-bold px-1.5 py-0.5 rounded text-cyan-200 border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20" onClick={(e) => { e.stopPropagation(); onTicker(t); }} title={`Chọn ${t}`}>{t}</button>
+          <button key={t} type="button" className="news-tag font-mono text-[10px] font-bold px-1.5 py-0.5 rounded text-q-text border border-white/15 bg-white/5 hover:bg-white/10" onClick={(e) => { e.stopPropagation(); onTicker(t); }} title={`Chọn ${t}`}>{t}</button>
         ))}
       </div>
       <div className="news-body flex-1 min-w-0">
@@ -63,7 +63,7 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
           {item.title}
         </div>
         <div className="news-meta flex flex-wrap gap-x-1.5 gap-y-0.5 items-center text-[10px] text-slate-500 mt-1">
-          {rel && <span className={`font-semibold ${rel === 'Core' ? 'text-amber-400' : 'text-sky-400'}`}>● {rel}</span>}
+          {rel && <span className={`font-semibold ${rel === 'Core' ? 'text-amber-400' : 'text-q-text-2'}`}>● {rel}</span>}
           <span className="text-slate-300">{item.eventLabel}</span>
           <span title={item.alsoIn.length ? `Cũng đưa tin: ${item.alsoIn.join(', ')}` : undefined}>
             {item.sourceLabel}{item.corroboration > 1 ? ` +${item.corroboration - 1} nguồn` : ''}
@@ -94,8 +94,8 @@ function NewsRow({ item, relevance, onTicker }: { item: SmartNewsItem; relevance
             )}
             {item.sentimentHits.length > 0 && <div>Từ khoá cảm xúc: {item.sentimentHits.join(', ')}</div>}
             <div style={{ display: 'flex', gap: 10, marginTop: 3 }}>
-              {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 hover:text-cyan-200">Mở bài gốc ↗</a>}
-              {item.attachment && item.attachment !== item.url && <a href={item.attachment} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-300 hover:text-cyan-200">Tài liệu đính kèm ↗</a>}
+              {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-q-text-2 hover:text-q-text">Mở bài gốc ↗</a>}
+              {item.attachment && item.attachment !== item.url && <a href={item.attachment} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-q-text-2 hover:text-q-text">Tài liệu đính kèm ↗</a>}
             </div>
           </div>
         )}
@@ -151,7 +151,7 @@ export default function SmartNewsBody({ tickers, selectedTicker, onTicker, relev
       <div role="tablist" aria-label="Lọc tin" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
         {FILTERS.map((f) => (
           <button key={f.id} role="tab" aria-selected={filter === f.id} type="button" onClick={() => { setFilter(f.id); setLimit(PAGE); }}
-            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${filter === f.id ? 'border-cyan-500/50 bg-cyan-500/15 text-cyan-200' : 'border-white/10 text-slate-400 hover:text-slate-200'}`}>
+            className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${filter === f.id ? 'border-white/15 bg-q-accent/15 text-slate-50 shadow-[inset_0_-2px_0_var(--color-q-accent)]' : 'border-white/10 text-slate-400 hover:text-slate-200'}`}>
             {f.label}
           </button>
         ))}
@@ -161,7 +161,7 @@ export default function SmartNewsBody({ tickers, selectedTicker, onTicker, relev
       {data && items.length === 0 && <div className="ac-hold text-[10.5px] text-slate-400">Không có tin phù hợp trong {data.days} ngày qua.</div>}
       {items.slice(0, limit).map((item) => <NewsRow key={item.id} item={item} relevance={relevance} onTicker={onTicker} />)}
       {items.length > limit && (
-        <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="text-[10.5px] text-cyan-300 hover:text-cyan-200 py-1">
+        <button type="button" onClick={() => setLimit((l) => l + PAGE)} className="text-[10.5px] text-q-text-2 hover:text-q-text py-1">
           Xem thêm {Math.min(PAGE, items.length - limit)} tin ▾
         </button>
       )}

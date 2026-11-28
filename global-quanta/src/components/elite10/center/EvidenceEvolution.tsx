@@ -10,7 +10,7 @@ const pct = (v: number | null | undefined) => (v == null ? "—" : `${sgn(v * 10
 export const REGIME_VI: Record<MarketRegime | "UNKNOWN", string> = { UPTREND: "Xu hướng tăng", SIDEWAY: "Đi ngang", DOWNTREND: "Xu hướng giảm", UNKNOWN: "Chưa rõ" };
 export const TAG_VI: Record<TrendTag, { label: string; tone: string; title: string }> = {
   PROVEN_LEADER: { label: "Đã chứng minh", tone: "border-emerald-400/50 text-emerald-300", title: "Bậc A/B, SQS ≥ 70, q (Benjamini–Hochberg) ≤ 0,05." },
-  EMERGING: { label: "Ứng viên mới nổi", tone: "border-q-accent/50 text-q-accent-strong", title: "10–59 ngày đo, IC dương, t ≥ 2, dương ở cả hai nửa. Chưa qua kiểm soát nhiều phép thử — chỉ theo dõi." },
+  EMERGING: { label: "Ứng viên mới nổi", tone: "border-white/20 text-q-text", title: "10–59 ngày đo, IC dương, t ≥ 2, dương ở cả hai nửa. Chưa qua kiểm soát nhiều phép thử — chỉ theo dõi." },
   DECAYING: { label: "Suy giảm", tone: "border-amber-400/50 text-amber-200", title: "Bậc khởi điểm A/B nhưng đo lại: q > 0,15 hoặc IC 20 ngày gần nhất < ½ IC toàn kỳ." },
   INVERTED: { label: "Ngược chiều", tone: "border-rose-400/50 text-rose-300", title: "IC âm có ý nghĩa (t ≤ −2, ≥ 30 ngày) ở kỳ hạn 1 hoặc 5 phiên." },
   LOW_COVERAGE: { label: "Thiếu dữ liệu", tone: "border-slate-400/50 text-slate-300", title: "Đo được dưới 50% số ngày kỳ vọng — các nhãn khác chưa đáng tin." },
@@ -85,7 +85,7 @@ export function EvolutionScorecard({ ev, error }: { ev: EvidenceEvolution | unde
               ))}
             </ul>
           )}
-          {ev.proposals.length > 4 && <button type="button" className="mt-1.5 text-[10.5px] text-q-accent-strong hover:underline" onClick={() => setAllProps((v) => !v)} aria-expanded={allProps}>{allProps ? "Thu gọn" : `Xem cả ${ev.proposals.length} đề xuất`}</button>}
+          {ev.proposals.length > 4 && <button type="button" className="mt-1.5 text-[10.5px] text-q-text hover:underline" onClick={() => setAllProps((v) => !v)} aria-expanded={allProps}>{allProps ? "Thu gọn" : `Xem cả ${ev.proposals.length} đề xuất`}</button>}
         </div>
         <div className="rounded-md border border-white/10 bg-white/[0.02] p-2.5" data-testid="tab4-readiness">
           <p className="text-[11px] font-semibold text-slate-100">Đang tích luỹ mẫu</p>
@@ -116,7 +116,7 @@ export function RegimeMatrix({ ev }: { ev: EvidenceEvolution }) {
       {rows.length === 0 ? <p className="mt-1.5 text-[11px] text-slate-500">Chưa ghép được chuỗi IC với chế độ thị trường.</p> : (
         <div tabIndex={0} role="group" aria-label="Bảng cuộn ngang" className="mt-1.5 overflow-x-auto">
           <table className="w-full min-w-[520px] whitespace-nowrap text-[11px]" style={{ borderCollapse: "collapse" }}>
-            <thead><tr className="text-[10px] text-slate-500"><th className="py-1 text-left font-normal">Tín hiệu</th>{REG.map((r) => <th key={r} className={`px-2 text-right font-normal ${r === ev.currentRegime ? "text-q-accent-strong" : ""}`}>{REGIME_VI[r]}</th>)}<th className="px-2 text-right font-normal" title="Chênh lệch IC lớn nhất giữa các chế độ có ≥ 10 ngày">Chênh</th></tr></thead>
+            <thead><tr className="text-[10px] text-slate-500"><th className="py-1 text-left font-normal">Tín hiệu</th>{REG.map((r) => <th key={r} className={`px-2 text-right font-normal ${r === ev.currentRegime ? "text-q-text" : ""}`}>{REGIME_VI[r]}</th>)}<th className="px-2 text-right font-normal" title="Chênh lệch IC lớn nhất giữa các chế độ có ≥ 10 ngày">Chênh</th></tr></thead>
             <tbody className="font-mono">
               {rows.map((s) => (
                 <tr key={s.id} className="border-t border-white/5" data-testid={`tab4-regime-${s.id}`}>

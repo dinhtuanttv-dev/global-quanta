@@ -258,7 +258,7 @@ body{
 
 /* --- ACTION CENTER --- */
 .ac-selected{display:flex;align-items:center;gap:8px;padding:0 14px 10px;}
-.ac-avatar{width:34px;height:34px;border-radius:8px;background:var(--q-surface-3);border:1px solid var(--q-line-3);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:11px;color:var(--q-accent-strong);}
+.ac-avatar{width:34px;height:34px;border-radius:8px;background:var(--q-surface-3);border:1px solid var(--q-line-3);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:700;font-size:11px;color:var(--q-text);}
 .ac-info b{font-size:13px;display:block;}
 .ac-info span{font-size:11px;color:var(--q-text-3);}
 .ac-price{margin-left:auto;text-align:right;}
@@ -279,7 +279,7 @@ body{
 .news-item:hover{background:var(--q-surface-2);}
 .news-tag{
   flex-shrink:0;width:32px;height:20px;border-radius:5px;background:var(--q-surface-2);
-  display:flex;align-items:center;justify-content:center;font-family:var(--q-font-mono);font-size:11px;font-weight:700;color:var(--q-accent-strong);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;font-family:var(--q-font-mono);font-size:11px;font-weight:700;color:var(--q-text);border:1px solid var(--q-line-2);
 }
 .news-body{flex:1;}
 .news-title{font-size:11px;line-height:1.4;color:var(--text-primary);}
@@ -296,7 +296,7 @@ body{
 
 .ta-vnindex-tab{padding:4px;}
 .ta-ticker-selector{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:14px;}
-.ta-ticker-current{font-family:var(--q-font-mono);font-size:18px;font-weight:700;color:var(--q-accent-strong);background:var(--q-surface-2);padding:6px 14px;border-radius:8px;border:1px solid var(--q-line-2);}
+.ta-ticker-current{font-family:var(--q-font-mono);font-size:18px;font-weight:700;color:var(--q-text);background:var(--q-surface-2);padding:6px 14px;border-radius:8px;border:1px solid var(--q-line-2);}
 .ta-ticker-input{background:var(--q-surface-2);border:1px solid var(--q-line-2);border-radius:7px;padding:7px 10px;font-size:12px;color:var(--text-primary);width:200px;}
 .ta-ticker-selector{position:relative;}
 .ta-ticker-suggest{position:absolute;top:100%;left:130px;margin-top:4px;background:var(--q-surface-2);border:1px solid var(--q-line-3);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.4);z-index:50;min-width:200px;}

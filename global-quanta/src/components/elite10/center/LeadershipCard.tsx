@@ -42,7 +42,7 @@ export default function LeadershipCard({ ticker }: { ticker: string }) {
   return (
     <div className="rounded-md border border-q-accent/25 bg-q-accent/[0.03] p-2 text-[10.5px]" data-testid="elite-leadership">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-[10px] font-bold uppercase text-q-accent-strong">Sức mạnh dẫn dắt (LS-v1) {d.date ? `— phiên ${d.date.split("-").reverse().join("/")}` : ""}</p>
+        <p className="text-[10px] font-bold uppercase text-q-text">Sức mạnh dẫn dắt (LS-v1) {d.date ? `— phiên ${d.date.split("-").reverse().join("/")}` : ""}</p>
         <span className={`rounded border px-1.5 py-0.5 text-[10px] ${st.tone === "on" ? "border-emerald-400/50 text-emerald-300" : "border-slate-500/50 text-slate-400"}`} data-testid="elite-leadership-state">{st.text}</span>
       </div>
       <div className="mt-1.5 grid grid-cols-1 gap-2 md:grid-cols-[1.1fr_1fr]">

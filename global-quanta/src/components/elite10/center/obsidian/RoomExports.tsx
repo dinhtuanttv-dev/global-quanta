@@ -21,7 +21,7 @@ function stateBadge(lanes: (LaneLike | null | undefined)[], saved: boolean): { t
   if (saved) return { text: "Đã xuất", cls: "border-emerald-400/40 text-emerald-200" };
   const st = lanes.filter(Boolean).map(laneState);
   if (st.includes("partial")) return { text: "Dở dang", cls: "border-amber-300/40 text-amber-100" };
-  if (st.includes("fallback")) return { text: "Mô hình dự phòng", cls: "border-sky-300/40 text-sky-100" };
+  if (st.includes("fallback")) return { text: "Mô hình dự phòng", cls: "border-white/15 text-q-text" };
   return null;
 }
 

@@ -8,7 +8,7 @@ import type { TimelineRow } from "../../../lib/cotuc/buy-timeline";
 import { Block, Evidence, fmtDate, num, pct, spct, tone } from "./pfaParts";
 
 const TIER: Record<string, { text: string; cls: string; title: string }> = {
-  VALIDATED: { text: "ĐẠT KIỂM ĐỊNH", cls: "border-sky-400/50 text-sky-200", title: "Qua kiểm định của Timeline (số lần, tỷ lệ thắng, kỳ vọng sau phí, FDR)" },
+  VALIDATED: { text: "ĐẠT KIỂM ĐỊNH", cls: "border-white/15 text-q-text", title: "Qua kiểm định của Timeline (số lần, tỷ lệ thắng, kỳ vọng sau phí, FDR)" },
   NEAR: { text: "GẦN ĐẠT", cls: "border-slate-400/40 text-slate-300", title: "Chưa đủ điều kiện kiểm định — chỉ để tham khảo lịch" },
   DESCRIPTIVE: { text: "MÔ TẢ · W1–W5", cls: "border-dashed border-slate-500/60 text-slate-300", title: W_LANE_NOTE },
   EXPLORATORY: { text: "THĂM DÒ", cls: "border-amber-400/50 text-amber-200", title: "Săn cổ tức TO-v1: neo ngày công bố, chờ kiểm định tiến TO-r1" },

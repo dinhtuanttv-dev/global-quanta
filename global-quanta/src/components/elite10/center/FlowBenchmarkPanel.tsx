@@ -17,7 +17,7 @@ export default function FlowBenchmarkPanel() {
   const overlap = flow.filter((p) => hlSet.has(p.ticker)).length;
   const c = d.flowConstruction;
   return (
-    <section className="space-y-2 rounded-lg border border-white/10 bg-[#0E131F] p-3" data-testid="flow-benchmark">
+    <section className="space-y-2 rounded-lg border border-white/10 bg-q-surface p-3" data-testid="flow-benchmark">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Danh mục đối chứng — Elite dòng tiền (E3, xếp theo Điểm Elite Z)</h4>
         <span className="text-[10px] text-slate-500">{d.flowVersion ?? "E3"} · phiên {fmtDate(d.date)}</span>

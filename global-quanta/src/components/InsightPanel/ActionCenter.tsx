@@ -112,7 +112,7 @@ export default function ActionCenter() {
   return (
     <Card id="action" title={<>Action Center <AiChip /></>}>
       <div className="flex items-center gap-2.5">
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold text-q-accent-strong shrink-0"
+        <div className="w-10 h-10 rounded-lg flex items-center justify-center font-mono text-[11px] font-bold text-q-text shrink-0"
           style={{ background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.3)' }}>{ticker}</div>
         <div className="min-w-0">
           <div className="text-[12.5px] font-semibold text-slate-100 truncate">{item?.companyName ?? core?.name ?? ticker}</div>
@@ -139,8 +139,8 @@ export default function ActionCenter() {
       {levels && (
         <>
           <div className="mt-2.5 text-[10px] text-slate-500 flex justify-between">
-            <span>60 phiên · <span className="text-sky-400">- - MA20</span> · <span className="text-rose-400">- - dừng lỗ gợi ý</span></span>
-            <button type="button" onClick={() => focusTickerInScanner(ticker)} className="text-q-accent-strong hover:text-q-text">Mở phân tích ↗</button>
+            <span>60 phiên · <span className="text-q-text-2">- - MA20</span> · <span className="text-rose-400">- - dừng lỗ gợi ý</span></span>
+            <button type="button" onClick={() => focusTickerInScanner(ticker)} className="text-q-text hover:text-q-text">Mở phân tích ↗</button>
           </div>
           <Sparkline closes={levels.closes} ma20={levels.ma20} stop={levels.stop} />
           <div className="grid grid-cols-3 gap-1 mt-1">
@@ -179,7 +179,7 @@ export default function ActionCenter() {
         <div className="text-[10.5px] mt-1.5" aria-live="polite">
           {size ? (
             <>
-              <b className="text-q-accent-strong font-mono">{size.shares.toLocaleString('vi-VN')} CP</b>
+              <b className="text-q-text font-mono">{size.shares.toLocaleString('vi-VN')} CP</b>
               <span className="text-slate-400"> ≈ {fmt(size.value)}đ ({size.pctOfCapital.toFixed(0)}% vốn) · lỗ tối đa ≈ {fmt(size.riskVnd)}đ nếu chạm dừng lỗ</span>
             </>
           ) : <span className="text-slate-500">Nhập vốn, % rủi ro và giá dừng lỗ thấp hơn giá hiện tại.</span>}

@@ -10,10 +10,10 @@ const dm = (iso: string | null | undefined) => (iso ? `${iso.slice(8, 10)}/${iso
 export default function EliteToShadowCard() {
   const { data: s } = useEliteToShadow();
   return (
-    <section className="rounded-lg border border-white/10 bg-[#0E131F] p-3 space-y-2" data-testid="elite-to-shadow">
+    <section className="rounded-lg border border-white/10 bg-q-surface p-3 space-y-2" data-testid="elite-to-shadow">
       <div className="flex flex-wrap items-center gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">Sổ ảo Elite 10 × Săn cổ tức</h4>
-        <span className="rounded border border-sky-400/40 px-1.5 text-[10px] font-semibold text-sky-300">{s?.label ?? "THĂM DÒ"}</span>
+        <span className="rounded border border-white/15 px-1.5 text-[10px] font-semibold text-q-text-2">{s?.label ?? "THĂM DÒ"}</span>
         <span className="ml-auto text-[10px] text-slate-500">{s ? `${s.version} · ghi từ ${dm(s.start)} · ${s.days} phiên` : "đang tải…"}</span>
       </div>
       <p className="text-[10.5px] text-slate-400">Đăng ký trước (ELITE-TO-prereg.md): danh mục Elite chính thức KHÔNG đổi. Sổ ảo đo riêng từng lớp so với Elite 10 dòng tiền (CORE):

@@ -4,11 +4,12 @@
     "legacy-gold": 10,
     "legacy-gold-var": 0,
     "legacy-display-font": 0,
-    "legacy-surface-hex": 64,
+    "legacy-surface-hex": 29,
     "slate-surface": 77,
     "tiny-text": 42,
     "text-10px": 1757,
     "uppercase": 344,
-    "gradient": 57
+    "gradient": 56,
+    "accent-text": 203
   }
 }

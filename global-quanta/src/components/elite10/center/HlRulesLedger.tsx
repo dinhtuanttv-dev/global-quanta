@@ -13,7 +13,7 @@ const pct = (v: number | null | undefined, d = 1) => (v == null || !Number.isFin
 
 export function Panel({ title, right, children, testId }: { title: string; right?: React.ReactNode; children: React.ReactNode; testId: string }) {
   return (
-    <section data-testid={testId} className="rounded-lg border border-white/10 bg-[#0E131F] p-3">
+    <section data-testid={testId} className="rounded-lg border border-white/10 bg-q-surface p-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h4 className="text-[11px] font-bold uppercase tracking-wide text-slate-100">{title}</h4>
         {right}

@@ -59,7 +59,7 @@ const pts = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : "0")
 
 function Tile({ label, children, sub, testId }: { label: string; children: React.ReactNode; sub?: React.ReactNode; testId: string }) {
   return (
-    <div className="rounded-lg border border-white/10 bg-[#0E131F] px-3 py-2" data-testid={testId}>
+    <div className="rounded-lg border border-white/10 bg-q-surface px-3 py-2" data-testid={testId}>
       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{label}</p>
       <p className="mt-0.5 text-[17px] font-bold leading-tight text-slate-100">{children}</p>
       {sub && <p className="mt-0.5 text-[10.5px] leading-snug text-slate-400">{sub}</p>}
@@ -166,11 +166,11 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
   const lsTop = 100 - t1.lsLeaderPct;
   const dong = (v: number | undefined) => (v == null ? "5.000" : v.toLocaleString("vi-VN"));
   const [why, setWhy] = useState<string | null>(null);
-  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-q-accent/50 hover:text-q-accent-strong">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
+  const whyBtn = (t: string, mobile = false) => <button type="button" aria-expanded={why === t} onClick={() => setWhy(why === t ? null : t)} data-touch data-testid={`hl-why-btn${mobile ? "-m" : ""}-${t}`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-q-accent/50 hover:text-q-text">{why === t ? "▾ Vì sao" : "▸ Vì sao"}</button>;
   // EC-1: "Chu kỳ →" mở mã ở tab con Cycle Fingerprint (tab Ngành). Chỉ điều hướng — không đổi dữ liệu bảng.
   const focusCycle = useAppStore((s) => s.focusCycle);
   const goTab = useTabNavigation();
-  const cycleBtn = (t: string, mobile = false) => (goTab && focusCycle ? <button type="button" data-hl-layer="cycle" onClick={() => { focusCycle(t); goTab("Loc nganh"); }} data-touch data-testid={`hl-cycle-btn${mobile ? "-m" : ""}-${t}`} title={`Xem ${t} ở Cycle Fingerprint (tab Ngành): diễn biến giá sau các giai đoạn tương tự`} className="ml-1 min-h-[22px] rounded border border-[#4f8ef7]/40 px-1.5 text-[10px] text-[#79a8ff] hover:border-[#4f8ef7]/70 hover:bg-[#4f8ef7]/10">Chu kỳ →</button> : null);
+  const cycleBtn = (t: string, mobile = false) => (goTab && focusCycle ? <button type="button" data-hl-layer="cycle" onClick={() => { focusCycle(t); goTab("Loc nganh"); }} data-touch data-testid={`hl-cycle-btn${mobile ? "-m" : ""}-${t}`} title={`Xem ${t} ở Cycle Fingerprint (tab Ngành): diễn biến giá sau các giai đoạn tương tự`} className="ml-1 min-h-[22px] rounded border border-white/15 px-1.5 text-[10px] text-slate-300 hover:border-white/30 hover:bg-white/5 hover:text-q-text">Chu kỳ →</button> : null);
   const steps: [string, number, string][] = [
     ["Bảng tín hiệu", f.panel, "mã có tín hiệu trong phiên"],
     ["Giao dịch được", f.tradable, `GTGD TB20 ≥ ${r.minAdvBn} tỷ, giá ≥ ${dong(r.minPrice)}đ, giá không bị neo`],
@@ -180,13 +180,13 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
     ...(f.inZone != null ? [["Trong vùng mua", f.inZone, `giá trong [${num(pzRules.zoneLow * 100, 0)}% ; +${num(pzRules.zoneHigh * 100, 0)}%] quanh pivot, rủi ro ≤ ${num(pzRules.maxRisk * 100, 0)}%`] as [string, number, string]] : []),
     ["Danh mục", f.held, `tối đa ${r.slots} mã, ${r.maxPerSector} mã / ngành`],
   ];
-  const openBtn = (t: string) => <button type="button" onClick={() => onOpenTicker(t)} data-testid={`hl-open-${t}`} className="font-bold text-q-accent-strong hover:underline">{t}</button>;
+  const openBtn = (t: string) => <button type="button" onClick={() => onOpenTicker(t)} data-testid={`hl-open-${t}`} className="font-bold text-q-text hover:underline">{t}</button>;
 
   return (
     <div className="tw-scope space-y-3 text-slate-200" data-testid="elite-hl-board">
       <CommandBar d={d} />
       {layers.cockpit && <CockpitStatusBar seal={cockpitSeal} states={cockpitStates} today={cockpitToday} />}
-      {layers.cockpit && layers.pulse && <p className="-mt-2 text-right text-[10px]" data-hl-layer="pulse"><a href="#decision-pulse" className="text-slate-400 underline hover:text-q-accent-strong" data-testid="pulse-link">Lịch xét và thay đổi phiên này → Nhịp quyết định</a></p>}
+      {layers.cockpit && layers.pulse && <p className="-mt-2 text-right text-[10px]" data-hl-layer="pulse"><a href="#decision-pulse" className="text-slate-400 underline hover:text-q-text" data-testid="pulse-link">Lịch xét và thay đổi phiên này → Nhịp quyết định</a></p>}
       {switcher}
 
       {refreshError && (
@@ -259,7 +259,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
               return (
                 <li key={p.ticker} className="rounded-md border border-white/10 bg-white/[0.02] p-2 text-[11px]" data-testid={`hl-card-${p.ticker}`} style={rimStyle(rowSig.map.get(p.ticker), layers.news)}>
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-q-accent-strong">{p.ticker}</button><HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} mobile /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
+                    <span><span className="mr-1 font-mono text-slate-500">{h.rank}</span><button type="button" onClick={() => onOpenTicker(p.ticker)} className="text-[13px] font-bold text-q-text">{p.ticker}</button><HlTickerBadge s={rowSig.map.get(p.ticker)} layers={layers} mobile /> <span className={`ml-1 rounded border px-1 py-px text-[10px] font-bold ${CLS_TONE[h.cls]}`}>{CLS_VI[h.cls]}</span></span>
                     <span><b className="text-[13px] text-slate-100">{pct(p.weight)}</b> <span className={h.status === "NEW" ? "font-bold text-emerald-300" : "text-slate-400"}>{h.status === "NEW" ? "Vào mới" : `Giữ${h.since ? ` từ ${fmtDate(h.since).slice(0, 5)}` : ""}`}</span></span>
                   </div>
                   <p className="text-[10px] text-slate-500">{secName(p.sectorKey)} · <LiquidityBadge liq={liqOf(p.ticker)} rules={lq} sigma20={h.sigma20} weight={p.weight} held fallbackAdvBn={h.advBn} testId={`hl-liq-m-${p.ticker}`} /> · giá {price(p.close)}<HlLivePrice s={rowSig.map.get(p.ticker)} on={layers.live} mobile />{pxBadge(p.ticker, `hl-px-m-${p.ticker}`)}</p>
@@ -327,7 +327,7 @@ export default function EliteHlBoard({ d, onOpenTicker, switcher, refreshError =
           </div>
           </>
         )}
-        {pz && runnerCount > 0 && <p className="mt-1.5 text-[10.5px] text-violet-200" data-testid="hl-runner-note">{runnerCount} mã đang giữ đã tăng nóng nằm ở bảng <a href="#hl-watch" className="underline decoration-dotted hover:text-q-accent-strong">Theo dõi chờ nền</a> — vẫn là vị thế, vẫn tính vào {pct(pz.runnerWeight)} vốn.</p>}
+        {pz && runnerCount > 0 && <p className="mt-1.5 text-[10.5px] text-violet-200" data-testid="hl-runner-note">{runnerCount} mã đang giữ đã tăng nóng nằm ở bảng <a href="#hl-watch" className="underline decoration-dotted hover:text-q-text">Theo dõi chờ nền</a> — vẫn là vị thế, vẫn tính vào {pct(pz.runnerWeight)} vốn.</p>}
         {pz && picks.length > 0 && corePicks.length === 0 && <p className="text-[11px] text-slate-400" data-testid="hl-core-empty">Không có mã đang giữ nào ở trong nền hoặc vùng mua.</p>}
         <p className="mt-1.5 text-[10px] leading-relaxed text-slate-500" data-testid="hl-sizing-note">
           Tỷ trọng đặt lúc vào = {pct(r.slotW, 0)} × biến động trung vị / biến động của mã, kẹp {pct(r.wMin, 0)}–{pct(r.wMax, 0)} (có thể nhỏ hơn khi tiền mặt hoặc trần ngành không còn đủ chỗ), và không cân lại khi đang giữ — tỷ trọng và tỷ lệ cổ phiếu trên bảng là số lúc vào, không trôi theo giá. "Cách ngưỡng ra" = phân vị LS-v1 trừ {r.exitLsPct}; vạch đỏ trên thanh là ngưỡng. Dải giá tham chiếu {r.bandSessions} phiên tính theo biến động — không phải lệnh cắt lỗ / chốt lời. Hình dải biến động: vạch xám = giá lúc vào, vạch đỏ đứt = −2 dải tính từ giá lúc vào, chấm = giá hiện tại (xanh / đỏ = trên / dưới giá lúc vào).

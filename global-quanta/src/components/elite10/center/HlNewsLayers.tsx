@@ -93,7 +93,7 @@ export function HlRowFilters({ filters, onToggle, shown, total, notifyOn, onNoti
       ))}
       {filters.size > 0 && <span className="text-amber-200" data-testid="hl-filter-count">Đang hiện {shown}/{total} mã</span>}
       <button type="button" aria-pressed={notifyOn} onClick={onNotify} data-testid="hl-notify" title={`Thông báo trình duyệt khi mã đang giữ có tin quan trọng ≥ ${NEWS_HOT_IMPORTANCE} trong ${NEWS_HOT_WINDOW_H} giờ — mặc định tắt`}
-        className={`ml-auto min-h-[24px] rounded border px-1.5 ${notifyOn ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-200" : "border-white/10 text-slate-500 hover:text-slate-300"}`}>
+        className={`ml-auto min-h-[24px] rounded border px-1.5 ${notifyOn ? "border-white/15 bg-white/5 text-q-text" : "border-white/10 text-slate-500 hover:text-slate-300"}`}>
         {notifyOn ? "🔔 Thông báo tin nóng: bật" : "🔕 Thông báo tin nóng: tắt"}{notifyOn && notifyState ? ` · ${notifyState}` : ""}
       </button>
     </div>

@@ -50,7 +50,7 @@ export default function ExitTriggers({ d, picks, onOpenTicker }: { d: EliteDecis
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.ticker} className="border-t border-white/5" data-testid={`exit-trig-${r.ticker}`} data-near={r.near}>
-                    <th scope="row" className="px-2 py-1 text-left"><button type="button" onClick={() => onOpenTicker(r.ticker)} className="font-bold text-q-accent-strong hover:underline">{r.ticker}</button></th>
+                    <th scope="row" className="px-2 py-1 text-left"><button type="button" onClick={() => onOpenTicker(r.ticker)} className="font-bold text-q-text hover:underline">{r.ticker}</button></th>
                     <td className="px-2 py-1" title={r.ls.title} data-testid={`exit-trig-bar-${r.ticker}`}><LsBar buffer={bufOf.get(r.ticker) ?? null} level={r.ls.level} warnGap={warnGap} /></td>
                     <Cell c={r.ls} testId={`exit-trig-ls-${r.ticker}`} /><Cell c={r.ta} testId={`exit-trig-ta-${r.ticker}`} />
                     <Cell c={r.rrg} testId={`exit-trig-rrg-${r.ticker}`} /><Cell c={r.data} testId={`exit-trig-data-${r.ticker}`} />
