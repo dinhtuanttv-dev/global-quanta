@@ -6,15 +6,16 @@ import type { LayerKey, LayerState } from "../../../../lib/ta-command-center/Lay
 import IndicatorSettingsForm from "./IndicatorSettingsForm";
 
 export const LAYER_LABEL: Record<LayerKey, string> = {
-  volume: "Khối lượng", rsi: "RSI 14", macd: "MACD 12/26/9", adx: "ADX · DI± 14", maSet: "EMA 21/50/100 · MA 200", ichimoku: "Mây Ichimoku", bollinger: "Bollinger Bands", supertrend: "SuperTrend", msgarch: "MS-GARCH 20 phiên", vprofile: "Volume Profile", avwap: "Anchored VWAP", orderflow: "Order Flow", foreign: "Khối ngoại", smc: "SMC", vsa: "VSA",
+  volume: "Khối lượng", rsi: "RSI 14", macd: "MACD 12/26/9", adx: "ADX · DI± 14",
+  stoch: "Stochastic 14 · 1 · 3", stochRsi: "Stoch RSI 3 · 3 · 14 · 14", atr: "ATR 14", obv: "OBV", mfi: "MFI 14", psar: "Parabolic SAR", maSet: "EMA 21/50/100 · MA 200", ichimoku: "Mây Ichimoku", bollinger: "Bollinger Bands", supertrend: "SuperTrend", msgarch: "MS-GARCH 20 phiên", vprofile: "Volume Profile", avwap: "Anchored VWAP", orderflow: "Order Flow", foreign: "Khối ngoại", smc: "SMC", vsa: "VSA",
   wyckoff: "Wyckoff", corporate: "Sự kiện quyền", trendline: "Trendline", demandzone: "Demand Zone", elliott: "Elliott (vẽ tay)",
   elliottAuto: "Elliott tự động", elliottOsc: "Elliott Oscillator", elliottFib: "Elliott Fibonacci", elliottProj: "Elliott kịch bản", elliottGuide: "Elliott kênh & mốc",
   elliottSub: "Elliott bậc nhỏ", elliottMine: "Elliott của tôi", elliottPro: "Elliott Pro", pring: "Mô hình giá (Pring)", structure: "Cấu trúc MTF",
 };
 
 export const LAYER_GROUPS: { id: string; label: string; hint: string; keys: LayerKey[] }[] = [
-  { id: "panes", label: "Pane chỉ báo", hint: "Khung phụ dưới biểu đồ giá (kéo vạch ngăn để đổi chiều cao)", keys: ["volume", "rsi", "macd", "adx", "orderflow", "foreign"] },
-  { id: "overlays", label: "Lớp phủ giá", hint: "Vẽ trên nến", keys: ["maSet", "ichimoku", "bollinger", "supertrend", "msgarch", "vprofile", "avwap", "corporate"] },
+  { id: "panes", label: "Pane chỉ báo", hint: "Khung phụ dưới biểu đồ giá (kéo vạch ngăn để đổi chiều cao)", keys: ["volume", "rsi", "macd", "adx", "stoch", "stochRsi", "atr", "obv", "mfi", "orderflow", "foreign"] },
+  { id: "overlays", label: "Lớp phủ giá", hint: "Vẽ trên nến", keys: ["maSet", "ichimoku", "bollinger", "supertrend", "psar", "msgarch", "vprofile", "avwap", "corporate"] },
   { id: "methods", label: "Phương pháp phân tích", hint: "Kết quả engine, ghim vào nến", keys: ["smc", "vsa", "wyckoff", "pring", "structure", "elliottPro", "elliottMine"] },
   { id: "drawings", label: "Hình vẽ tay", hint: "Hiện / ẩn nhóm hình bạn đã vẽ", keys: ["trendline", "demandzone", "elliott"] },
 ];
